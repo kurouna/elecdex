@@ -12,6 +12,12 @@ export const CH = {
     toggleDevTools: 'system:toggle-devtools',
     setFullscreen: 'system:set-fullscreen',
   },
+  layout: {
+    load: 'layout:load',
+    save: 'layout:save',
+    reset: 'layout:reset',
+    revealFile: 'layout:reveal-file',
+  },
   pty: {
     create: 'pty:create',
     /** Renderer asks for the MessagePort of a session; main replies on `port`. */

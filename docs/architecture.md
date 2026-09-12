@@ -553,3 +553,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | アプリ名/バージョンの解決 | `app.setName()` + ビルド時 `define` で `__APP_VERSION__` を注入 | `out/` に package.json が無いため、未パッケージ実行では `app.getName()` が "Electron"、`app.getVersion()` が Electron のバージョンを返し、`userData` も Electron の設定ディレクトリを指してしまう（E2E で回帰を固定） |
 | アイコン | `scripts/gen-icon.mjs` が SDF から build/icon.png を生成。ico/icns/Linux セットは electron-builder が派生 | バイナリ資産をリポジトリに持たず、デザイントークンと色が同期する |
 | Biome の Svelte 対応 | `*.svelte` では `noUnusedImports` / `noUnusedVariables` を無効化 | Biome はマークアップ内での参照を追跡しないため、テンプレートでのみ使う import/変数を誤検知する。この検査は `svelte-check` が正しく担う |
+| Svelte 5 $state と IPC | 保存時は `$state.snapshot` でプレーン化する | `$state` はツリーを Proxy で包み、structuredClone も Electron IPC も Proxy を複製できない。素の `this.tree` を渡すと例外になり、レイアウト保存が毎回失われていた（実測で発見） |
+| アプリのショートカット | window の **capture** 段階で取得し伝播を止める | xterm は Backspace 等を自前の keydown で処理して伝播を止めるため、バブリング段階のリスナーには届かない（実測で発見） |
+| セッションの回収 | ペインのアンマウントではシェルを殺さず、Workspace がレイアウト確定後に「現存ペインが所有しない」セッションだけを回収する | リロードやペイン移動でシェルを失わないため。所有判定をストア全体から行うと、閉じたペインの残骸が所有扱いになりシェルが永久にリークする（実測で発見） |
+| レイアウトの破損ファイル | 読めない layout.json は `.bak` に退避し既定レイアウトで起動。読み込みで書き戻さない | 原版は起動毎に内蔵設定で userData を上書きし、ユーザー編集を消していた |

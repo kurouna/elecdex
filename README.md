@@ -3,8 +3,9 @@
 A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
 [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current stack.
 
-> **Status: Phase 1 — terminal.** A working multi-tab terminal emulator with shell
-> integration on Windows, macOS and Linux. Layout tree and system monitoring are next.
+> **Status: Phase 2 — layout engine.** A persisted layout tree of splits, tab groups and
+> widgets, with a multi-tab terminal that has shell integration on Windows, macOS and Linux.
+> Monitoring widgets are placeholders until Phase 3.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
 ## Why a rewrite
@@ -43,6 +44,22 @@ npm run package      # installers into release/
 
 `npm run dev -- --windowed` (or passing `--windowed` to the packaged binary) starts in a normal
 window instead of fullscreen.
+
+## Keyboard
+
+| Shortcut | Action |
+| --- | --- |
+| Ctrl+Shift+E | split the focused pane to the right |
+| Ctrl+Shift+O | split the focused pane downward |
+| Ctrl+Shift+T | new tab beside the focused pane |
+| Ctrl+Shift+W | close the focused pane |
+| Ctrl+Shift+[ / ] | move focus between panes |
+| Ctrl+Shift+Backspace | reset to the default layout |
+| Arrow keys on a divider | resize (Shift for larger steps) |
+
+The layout is saved to `layout.json` in the app's userData directory. Editing it by hand is
+supported: it is validated and normalised on load, and a file that cannot be read is moved
+aside to `layout.json.bak` rather than discarded.
 
 ## Layout
 

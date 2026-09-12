@@ -1,11 +1,9 @@
 import { createServer } from 'node:net'
-import { fileURLToPath } from 'node:url'
-import type { ElectronApplication, Page } from '@playwright/test'
-import { _electron as electron, expect, test } from '@playwright/test'
+import type { Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { type Launched, launch, terminalPane, typeInto } from './support.js'
 
-const MAIN = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
-
-let app: ElectronApplication
+let launched: Launched
 let page: Page
 let platform: NodeJS.Platform
 
@@ -17,19 +15,17 @@ let platform: NodeJS.Platform
  * (attach to a session and read the bytes that come back, which exercises the
  * whole pty -> MessagePort -> preload -> renderer path), and the render layer is
  * asserted structurally. Everything the UI derives from shell integration (cwd,
- * exit codes) is ordinary Svelte DOM and is asserted directly.
+ * exit codes) is ordinary Svelte DOM in the pane header and is asserted directly.
  */
 
 test.beforeAll(async () => {
-  app = await electron.launch({ args: [MAIN, '--windowed'] })
-  page = await app.firstWindow()
-  await page.waitForLoadState('domcontentloaded')
-  platform = await app.evaluate(() => process.platform)
-  await expect(page.getByTestId('terminal-host').first()).toBeVisible()
+  launched = await launch()
+  ;({ page, platform } = launched)
+  await expect(terminalPane(page).getByTestId('terminal-host')).toBeVisible()
 })
 
 test.afterAll(async () => {
-  await app?.close()
+  await launched?.close()
 })
 
 /**
@@ -94,7 +90,7 @@ test('the shell runs on a real pty, not a pipe', async () => {
 })
 
 test('the terminal renders into a sized canvas', async () => {
-  const screen = page.locator('.pane.active .xterm-screen').first()
+  const screen = terminalPane(page).locator('.xterm-screen').first()
   await expect(screen).toBeVisible()
 
   const box = await screen.boundingBox()
@@ -102,7 +98,7 @@ test('the terminal renders into a sized canvas', async () => {
   expect(box?.height ?? 0).toBeGreaterThan(100)
 
   // WebGL renderer: content is drawn to a canvas inside the screen element.
-  await expect(page.locator('.pane.active .xterm-screen canvas').first()).toBeVisible()
+  await expect(terminalPane(page).locator('.xterm-screen canvas').first()).toBeVisible()
 })
 
 test('nothing listens on a TCP port', async () => {
@@ -124,55 +120,61 @@ test('nothing listens on a TCP port', async () => {
 
 test('shell integration reports the working directory on this platform', async () => {
   // The capability the original project could not provide on Windows at all.
-  const tab = page.getByTestId('tab').first()
+  const cwd = terminalPane(page).first().getByTestId('pane-subtitle')
 
   await expect
-    .poll(async () => (await tab.innerText()).toLowerCase(), { timeout: 40_000, intervals: [300] })
-    .not.toContain('no tracking')
+    .poll(async () => (await cwd.innerText()).trim(), { timeout: 40_000, intervals: [300] })
+    .toMatch(/[A-Za-z0-9._-]{2,}/)
 
-  const text = await tab.innerText()
-  expect(text).not.toMatch(/…\s*$/) // no longer the pending placeholder
-  expect(text).toMatch(/[A-Za-z0-9._-]/)
+  const text = (await cwd.innerText()).trim()
+  expect(text).not.toBe('…')
+  expect(text).not.toBe('no tracking')
 })
 
 test('the working directory follows a cd', async () => {
-  const tab = page.getByTestId('tab').first()
   const command = platform === 'win32' ? 'cd $env:TEMP' : 'cd /tmp'
   const expected = platform === 'win32' ? /temp/i : /tmp/
 
-  await page.locator('.pane.active .xterm-helper-textarea').first().focus()
-  await page.keyboard.type(command)
-  await page.keyboard.press('Enter')
+  await typeInto(page, terminalPane(page).first(), command)
 
-  await expect.poll(() => tab.innerText(), { timeout: 40_000, intervals: [300] }).toMatch(expected)
+  await expect
+    .poll(() => terminalPane(page).first().getByTestId('pane-subtitle').innerText(), {
+      timeout: 40_000,
+      intervals: [300],
+    })
+    .toMatch(expected)
 })
 
-test('a non-zero exit code is surfaced on the tab', async () => {
-  const tab = page.getByTestId('tab').first()
+test('a non-zero exit code is surfaced on the pane', async () => {
   const command = platform === 'win32' ? 'cmd /c exit 42' : '(exit 42)'
+  await typeInto(page, terminalPane(page).first(), command)
 
-  await page.locator('.pane.active .xterm-helper-textarea').first().focus()
-  await page.keyboard.type(command)
-  await page.keyboard.press('Enter')
-
-  await expect.poll(() => tab.innerText(), { timeout: 40_000, intervals: [300] }).toContain('42')
+  await expect(terminalPane(page).first().getByTestId('pane-badge')).toHaveText('42', {
+    timeout: 40_000,
+  })
 })
 
-test('tabs are not capped at five', async () => {
+test('terminal tabs are not capped at five', async () => {
   // The original pre-allocated exactly four extra ports and stopped there.
-  const before = await page.getByTestId('tab').count()
-  for (let i = 0; i < 7; i++) await page.getByTestId('tab-new').click()
+  await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+  for (let i = 0; i < 7; i++) await page.keyboard.press('Control+Shift+KeyT')
 
-  await expect.poll(() => page.getByTestId('tab').count(), { timeout: 40_000 }).toBe(before + 7)
+  const strip = page.getByTestId('tabs-host').getByTestId('tab')
+  await expect.poll(() => strip.count(), { timeout: 40_000 }).toBe(8)
 
-  const sessions = await page.evaluate(() => window.elecdex.pty.list())
-  expect(sessions.length).toBeGreaterThanOrEqual(before + 7)
+  await expect
+    .poll(async () => (await page.evaluate(() => window.elecdex.pty.list())).length, {
+      timeout: 40_000,
+    })
+    .toBeGreaterThanOrEqual(8)
 })
 
-test('closing a tab ends its session', async () => {
+test('closing a tab ends its session once the layout settles', async () => {
   const before = (await page.evaluate(() => window.elecdex.pty.list())).length
-  await page.getByTestId('tab-close').last().click()
+  await page.getByTestId('tabs-host').getByTestId('tab-close').last().click()
 
+  // Unmounting a pane deliberately keeps its shell alive (a reload must not
+  // lose work); the workspace reaps unclaimed sessions a few seconds later.
   await expect
     .poll(async () => (await page.evaluate(() => window.elecdex.pty.list())).length, {
       timeout: 20_000,

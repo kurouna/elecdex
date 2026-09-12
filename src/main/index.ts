@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog } from 'electron'
+import { registerLayoutIpc } from './ipc/layout.js'
 import { registerPtyIpc } from './ipc/pty.js'
 import { registerSystemIpc } from './ipc/system.js'
 import { createMainWindow } from './window.js'
@@ -37,10 +38,12 @@ app.on('second-instance', () => {
 })
 
 let ptyIpc: { dispose: () => void } | null = null
+let layoutIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
   ptyIpc = registerPtyIpc()
+  layoutIpc = registerLayoutIpc()
   createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
@@ -57,6 +60,8 @@ app.on('before-quit', () => {
   // Kill every shell before the app tears down, so no orphaned pty survives.
   ptyIpc?.dispose()
   ptyIpc = null
+  layoutIpc?.dispose()
+  layoutIpc = null
 })
 
 app.on('window-all-closed', () => {

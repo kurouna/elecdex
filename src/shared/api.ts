@@ -1,3 +1,5 @@
+import type { LayoutTree } from './schemas/layout.js'
+
 /**
  * The single source of truth for the renderer <-> main boundary.
  *
@@ -80,9 +82,19 @@ export interface PtyApi {
   list(): Promise<PtySessionSummary[]>
 }
 
+export interface LayoutApi {
+  load(): Promise<LayoutTree>
+  /** Persists the tree. Returns the normalised value that was actually written. */
+  save(tree: LayoutTree): Promise<LayoutTree>
+  reset(): Promise<LayoutTree>
+  /** Absolute path of layout.json, for a "reveal in folder" action. */
+  filePath(): Promise<string>
+}
+
 export interface ElecdexApi {
   system: SystemApi
   pty: PtyApi
+  layout: LayoutApi
 }
 
 declare global {

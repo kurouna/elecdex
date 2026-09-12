@@ -6,6 +6,7 @@ import type {
   PtySessionSummary,
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
+import type { LayoutTree } from '@shared/schemas/layout'
 import { contextBridge, ipcRenderer } from 'electron'
 
 /**
@@ -118,6 +119,12 @@ const api: ElecdexApi = {
     resize: (id, cols, rows) => post(id, { t: 'resize', cols, rows }),
     dispose: (id) => ipcRenderer.invoke(CH.pty.dispose, id) as Promise<void>,
     list: () => ipcRenderer.invoke(CH.pty.list) as Promise<PtySessionSummary[]>,
+  },
+  layout: {
+    load: () => ipcRenderer.invoke(CH.layout.load) as Promise<LayoutTree>,
+    save: (tree) => ipcRenderer.invoke(CH.layout.save, tree) as Promise<LayoutTree>,
+    reset: () => ipcRenderer.invoke(CH.layout.reset) as Promise<LayoutTree>,
+    filePath: () => ipcRenderer.invoke(CH.layout.revealFile) as Promise<string>,
   },
 }
 

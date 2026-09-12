@@ -20,9 +20,14 @@ test.afterAll(async () => {
   await app?.close()
 })
 
-test('the window opens and the UI renders', async () => {
-  await expect(page.getByTestId('terminal-widget')).toBeVisible()
-  await expect(page.getByTestId('tab-strip')).toBeVisible()
+// This spec deliberately runs against the default userData directory rather
+// than an isolated one: the userData-name check below is only meaningful when
+// Electron is left to resolve the path itself. Everything that depends on
+// persisted layout lives in layout.spec.ts, which isolates.
+
+test('the window opens and the workspace renders', async () => {
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+  await expect(page.getByTestId('pane').first()).toBeVisible()
 })
 
 test('the preload bridge answers system.info', async () => {
