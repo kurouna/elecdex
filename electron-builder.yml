@@ -1,0 +1,57 @@
+appId: dev.kurouna.elecdex
+productName: elecdex
+copyright: Copyright © 2026 kurouna
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - resources/**
+  - package.json
+
+# win/mac/linux icons are all generated from build/icon.png (see scripts/gen-icon.mjs)
+asar: true
+compression: normal
+npmRebuild: true
+forceCodeSigning: false
+
+publish:
+  provider: github
+  owner: kurouna
+  repo: elecdex
+
+artifactName: elecdex-${os}-${arch}-${version}.${ext}
+
+win:
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+  # Required so a sandboxed-renderer Electron app can spawn a pty.
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64, arm64]
+    - target: deb
+      arch: [x64, arm64]
+  category: System;TerminalEmulator
+  desktop:
+    entry:
+      Terminal: 'false'
+      Categories: System;TerminalEmulator;Utility

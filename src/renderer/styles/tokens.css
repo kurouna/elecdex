@@ -1,0 +1,96 @@
+/*
+ * Design tokens.
+ *
+ * Two layers, strictly separated:
+ *   primitive - raw values a theme supplies. Only `theme-apply.ts` writes these.
+ *   semantic  - what components are allowed to read.
+ *
+ * A component that reaches for a primitive is a bug: it means the theme cannot
+ * restyle it. See docs/architecture.md section 7.
+ */
+
+:root {
+  /* ---------- primitive: supplied by the active theme ---------- */
+  --accent-h: 183;
+  --accent-s: 22%;
+  --accent-l: 74%;
+
+  --surface-0: #000000;
+  --surface-1: #05080d;
+  --surface-2: #0b1118;
+  --line: #262828;
+
+  --hue-danger: 0;
+  --hue-warn: 45;
+  --hue-ok: 130;
+
+  --font-display: "Chakra Petch", system-ui, sans-serif;
+  --font-ui: "Saira Condensed", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  /* ---------- semantic: colour ---------- */
+  --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
+  --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
+  --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
+
+  --text: var(--accent);
+  --text-muted: hsl(var(--accent-h) var(--accent-s) 55%);
+  --text-inverse: var(--surface-0);
+
+  --app-bg: var(--surface-0);
+  --panel-bg: var(--surface-1);
+  --panel-bg-raised: var(--surface-2);
+  --panel-border: var(--accent-dim);
+  --panel-rule: var(--line);
+
+  --danger: hsl(var(--hue-danger) 80% 60%);
+  --warn: hsl(var(--hue-warn) 85% 58%);
+  --ok: hsl(var(--hue-ok) 60% 52%);
+
+  /* ---------- semantic: type scale ---------- */
+  --step--2: 0.625rem;
+  --step--1: 0.75rem;
+  --step-0: 0.875rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --step-3: 2.25rem;
+  --step-4: 3.5rem;
+
+  --tracking-wide: 0.12em;
+  --tracking-wider: 0.28em;
+
+  /* ---------- semantic: space ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* ---------- semantic: motion ---------- */
+  --dur-fast: 120ms;
+  --dur-base: 240ms;
+  --dur-panel: 420ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.6, 0, 0.4, 1);
+
+  /* ---------- semantic: frame geometry ---------- */
+  --frame-notch: 12px;
+  --frame-border: 1px;
+}
+
+/* Respect the OS setting; the in-app toggle sets `data-motion="reduced"`. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 1ms;
+    --dur-base: 1ms;
+    --dur-panel: 1ms;
+  }
+}
+
+:root[data-motion="reduced"] {
+  --dur-fast: 1ms;
+  --dur-base: 1ms;
+  --dur-panel: 1ms;
+}

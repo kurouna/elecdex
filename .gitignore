@@ -1,0 +1,30 @@
+node_modules/
+out/
+dist/
+release/
+.vite/
+*.tsbuildinfo
+
+# test output
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# local env
+.env
+.env.*
+!.env.example
+
+# generated assets (produced by scripts/)
+resources/geo/*.json
+!resources/geo/.gitkeep

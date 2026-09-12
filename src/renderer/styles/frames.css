@@ -1,0 +1,85 @@
+/*
+ * Notched panel frames - our replacement for the original project's
+ * `augmented-ui` dependency, built from `clip-path` and a pseudo-element border.
+ *
+ * Usage:  <div class="frame" data-notch="tl br"> ... </div>
+ * Notch corners: tl tr bl br. Default is "tr bl".
+ */
+
+.frame {
+  position: relative;
+  background: var(--panel-bg);
+  --notch-tl: 0px;
+  --notch-tr: var(--frame-notch);
+  --notch-bl: var(--frame-notch);
+  --notch-br: 0px;
+  clip-path: polygon(
+    var(--notch-tl) 0,
+    calc(100% - var(--notch-tr)) 0,
+    100% var(--notch-tr),
+    100% calc(100% - var(--notch-br)),
+    calc(100% - var(--notch-br)) 100%,
+    var(--notch-bl) 100%,
+    0 calc(100% - var(--notch-bl)),
+    0 var(--notch-tl)
+  );
+}
+
+.frame[data-notch~="tl"] {
+  --notch-tl: var(--frame-notch);
+}
+.frame[data-notch~="tr"] {
+  --notch-tr: var(--frame-notch);
+}
+.frame[data-notch~="bl"] {
+  --notch-bl: var(--frame-notch);
+}
+.frame[data-notch~="br"] {
+  --notch-br: var(--frame-notch);
+}
+.frame[data-notch="none"] {
+  --notch-tl: 0px;
+  --notch-tr: 0px;
+  --notch-bl: 0px;
+  --notch-br: 0px;
+}
+
+/* The visible edge. Drawn as an inset gradient so it follows the clip-path. */
+.frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--panel-border);
+  clip-path: inherit;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: var(--frame-border);
+}
+
+/* Section heading used across every panel. */
+.frame-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text);
+  border-bottom: 1px solid var(--panel-rule);
+}
+
+.frame-title > :last-child {
+  color: var(--text-muted);
+  font-weight: 400;
+}
