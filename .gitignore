@@ -4,6 +4,7 @@ dist/
 release/
 .vite/
 *.tsbuildinfo
+.svelte-check/
 
 # test output
 coverage/

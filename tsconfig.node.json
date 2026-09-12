@@ -21,13 +21,13 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
-    "baseUrl": ".",
+    // TypeScript 7 removed `baseUrl`; path patterns resolve relative to this file.
     "paths": {
-      "@shared/*": ["src/shared/*"],
-      "@main/*": ["src/main/*"]
-    }
+      "@shared/*": ["./src/shared/*"],
+      "@main/*": ["./src/main/*"]
+    },
+    "incremental": true
   },
   "include": [
     "src/main/**/*.ts",

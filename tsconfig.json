@@ -1,14 +1,11 @@
 {
+  // This project has three independent TypeScript programs, each with its own
+  // lib/types: tsconfig.node.json (main, preload, services, unit tests),
+  // tsconfig.web.json (renderer + Svelte) and tsconfig.e2e.json (Playwright,
+  // which needs both libs). `npm run typecheck` checks all three.
+  //
+  // They are not solution-style project references: TypeScript 7 rejects
+  // `composite` together with `noEmit`, and we never emit from tsc.
   "files": [],
-  "references": [
-    {
-      "path": "./tsconfig.node.json"
-    },
-    {
-      "path": "./tsconfig.web.json"
-    },
-    {
-      "path": "./tsconfig.e2e.json"
-    }
-  ]
+  "include": []
 }

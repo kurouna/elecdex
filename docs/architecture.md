@@ -34,8 +34,8 @@
 | 領域 | 採用 | バージョン | 備考 |
 |---|---|---|---|
 | シェル | Electron | 44.x | Chromium 最新系。`sandbox: true` + `contextIsolation: true` |
-| 言語 | TypeScript | 5.9.x | `strict` 全部オン。enum/namespace 非使用（`erasableSyntaxOnly`）<br>**7.x を採用しない理由**: 7.0 は Go ネイティブ移植版で `lib/typescript.js` の JS Compiler API を同梱せず、`svelte-check` / `@sveltejs/vite-plugin-svelte` が動かない。ツール側が対応次第移行する |
-| ビルド | electron-vite | 5.x (Vite 7.3) | main / preload / renderer の3ターゲット + HMR<br>Vite 8 は electron-vite 5 の peer 範囲外。あわせて `@sveltejs/vite-plugin-svelte` は 6.x（7.x は Vite 8 必須） |
+| 言語 | TypeScript | **7.0.2**（native）+ 6.0.3（JS API） | `typescript@6.0.3` を JS Compiler API 用に、`@typescript/native@npm:typescript@7.0.2` をネイティブコンパイラとして併置。`svelte-check --tsgo` で Svelte も TS7 で型検査する（elecxzy と同じ TS7 運用）|
+| ビルド | electron-vite | 5.x (Vite 7.3.6) | main / preload / renderer の3ターゲット + HMR<br>**Vite 8 は採用不可**: Rolldown が Svelte 5.57 の内部 ESM をパースできずビルドが失敗する（実測済み）|
 | UI | Svelte | 5.x (runes) | VDOM なし。常駐60fps UI に最適 |
 | スタイル | 素のCSS + CSS変数デザイントークン + Svelte scoped CSS | — | Tailwind 不採用（clip-path/SVG装飾主体のため） |
 | 端末 | `@xterm/xterm` | 6.x | addon: fit 0.11 / webgl 0.19 / unicode11 0.9 / search 0.16 / web-links 0.12 / serialize 0.14 / clipboard 0.2 |
@@ -548,8 +548,8 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | ライセンス | MIT | 原版コード・アセットを一切継承しないクリーンリライトのため GPL 継承は発生しない |
 | GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb`（CC0-1.0, 15.7MB）を同梱 + 国重心テーブル | ユーザー操作ゼロが要件。GeoLite2 はアカウント必須、DB-IP City は 134MB。RIR whois 由来の CC0 データなら帰属表示すら不要で、ルックアップも端末外に出ない |
 | フォント | Chakra Petch (display) / Saira Condensed (ui) / JetBrains Mono Variable (mono)、すべて OFL 1.1 | 原版の United Sans は商用。Saira Condensed が最も素性が近く9ウェイト。Chakra Petch が SF の角切り感を担う |
-| TypeScript | 5.9.3 | 7.0 は JS Compiler API 非同梱のため Svelte ツールチェーンが動かない |
-| Vite | 7.3.6 + `@sveltejs/vite-plugin-svelte` 6.x | electron-vite 5 の peer 範囲。Vite 8 に上げるには electron-vite 6 待ち |
+| TypeScript | 7.0.2 (native) + 6.0.3 (JS API) を併置、`svelte-check --tsgo` | 7.0 単体では JS Compiler API が無く svelte-check が動かないが、6 と併置して `--tsgo` を渡せば Svelte も TS7 で検査できる。TS7 移行で `baseUrl` 廃止と `composite`+`noEmit` 非対応の対応が必要だった |
+| Vite | 7.3.6 + `@sveltejs/vite-plugin-svelte` 6.x | electron-vite 6.0.0-beta.1 は Vite 8 を受け付けるが、**Vite 8 の Rolldown が Svelte 5.57 をパースできずビルドが失敗する**（実測）。Rolldown 側の対応待ち |
 | アプリ名/バージョンの解決 | `app.setName()` + ビルド時 `define` で `__APP_VERSION__` を注入 | `out/` に package.json が無いため、未パッケージ実行では `app.getName()` が "Electron"、`app.getVersion()` が Electron のバージョンを返し、`userData` も Electron の設定ディレクトリを指してしまう（E2E で回帰を固定） |
 | アイコン | `scripts/gen-icon.mjs` が SDF から build/icon.png を生成。ico/icns/Linux セットは electron-builder が派生 | バイナリ資産をリポジトリに持たず、デザイントークンと色が同期する |
 | Biome の Svelte 対応 | `*.svelte` では `noUnusedImports` / `noUnusedVariables` を無効化 | Biome はマークアップ内での参照を追跡しないため、テンプレートでのみ使う import/変数を誤検知する。この検査は `svelte-check` が正しく担う |

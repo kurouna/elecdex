@@ -32,7 +32,7 @@
     "build": "electron-vite build",
     "typecheck": "npm run typecheck:node && npm run typecheck:e2e && npm run typecheck:web",
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
-    "typecheck:web": "svelte-check --tsconfig tsconfig.web.json --threshold warning",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit && svelte-check --tsconfig tsconfig.web.json --threshold warning --tsgo",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
@@ -55,6 +55,7 @@
     "@sveltejs/vite-plugin-svelte": "6.2.4",
     "@testing-library/svelte": "5.4.2",
     "@types/node": "24.13.4",
+    "@typescript/native": "npm:typescript@7.0.2",
     "electron": "44.3.0",
     "electron-builder": "26.15.3",
     "electron-playwright-helpers": "3.1.2",
@@ -62,11 +63,10 @@
     "jsdom": "30.0.1",
     "svelte": "5.57.0",
     "svelte-check": "4.7.6",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "vite": "7.3.6",
     "vitest": "5.0.0"
   },
-  "dependencies": {},
   "author": {
     "name": "kurouna",
     "url": "https://github.com/kurouna"

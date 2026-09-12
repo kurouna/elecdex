@@ -5,7 +5,7 @@ import { defineConfig } from 'vitest/config'
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
 export default defineConfig({
-  plugins: [svelte({ hot: false })],
+  plugins: [svelte()],
   resolve: {
     alias: {
       '@shared': r('src/shared'),

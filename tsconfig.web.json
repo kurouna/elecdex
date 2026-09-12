@@ -6,7 +6,6 @@
     "moduleResolution": "bundler",
     "moduleDetection": "force",
     "types": ["vite/client", "svelte"],
-
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -22,16 +21,14 @@
     "allowJs": true,
     "checkJs": true,
     "forceConsistentCasingInFileNames": true,
-
     "noEmit": true,
-    "composite": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.web.tsbuildinfo",
-
-    "baseUrl": ".",
+    // TypeScript 7 removed `baseUrl`; path patterns resolve relative to this file.
     "paths": {
-      "@shared/*": ["src/shared/*"],
-      "@renderer/*": ["src/renderer/*"]
-    }
+      "@shared/*": ["./src/shared/*"],
+      "@renderer/*": ["./src/renderer/*"]
+    },
+    "incremental": true
   },
   "include": [
     "src/renderer/**/*.ts",
