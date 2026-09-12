@@ -64,6 +64,12 @@ export default defineConfig({
     },
     build: {
       target: 'chrome140',
+      // Never inline fonts. Vite base64-inlines small assets by default, and a
+      // `data:` @font-face URL is blocked by our `font-src 'self'` CSP - so the
+      // choice is between loosening the CSP and emitting real files. We emit
+      // files. Other small assets may still inline.
+      assetsInlineLimit: (filePath) =>
+        /\.(woff2?|ttf|otf|eot)$/i.test(filePath) ? false : undefined,
       rollupOptions: {
         input: {
           index: r('src/renderer/index.html'),

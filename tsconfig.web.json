@@ -18,6 +18,9 @@
     "isolatedModules": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    // Svelte files import rune modules by their full ".svelte.ts" name, which
+    // Vite resolves. We never emit from tsc, so allowing the extension is safe.
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "checkJs": true,
     "forceConsistentCasingInFileNames": true,

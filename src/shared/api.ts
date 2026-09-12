@@ -5,9 +5,8 @@
  * other than itself. Everything it can do off-thread goes through this surface,
  * which `preload` exposes on `window.elecdex` via `contextBridge`.
  *
- * Phase 0 only carries `system`. Later phases extend this interface with
- * `pty`, `metrics`, `settings`, `theme`, `layout` and `fs` - see
- * docs/architecture.md section 4.2.
+ * Later phases extend this with `metrics`, `settings`, `theme`, `layout` and
+ * `fs` - see docs/architecture.md section 4.2.
  */
 
 export interface AppInfo {
@@ -34,8 +33,56 @@ export interface SystemApi {
   setFullscreen(on: boolean): void
 }
 
+export interface PtyCreateOptions {
+  /** Shell executable. Defaults to the platform shell. */
+  shell?: string
+  /** Extra arguments, appended after the shell-integration arguments. */
+  args?: string[]
+  cwd?: string
+  cols?: number
+  rows?: number
+}
+
+export interface PtySessionSummary {
+  id: string
+  shell: string
+  /** Last reported working directory, or null before the first OSC 7. */
+  cwd: string | null
+  /** Whether an integration script was injected for this shell. */
+  shellIntegration: boolean
+  createdAt: number
+}
+
+export interface PtyHandlers {
+  onData(chunk: Uint8Array): void
+  onExit(code: number, signal: number | undefined): void
+  onCwd(cwd: string): void
+  onCommandEnd(exitCode: number | null, durationMs: number): void
+  /**
+   * Shell integration produced nothing - either the shell is not instrumented
+   * or the script did not load. The UI should stop showing cwd as pending.
+   */
+  onIntegrationUnavailable(): void
+}
+
+export interface PtyApi {
+  create(opts?: PtyCreateOptions): Promise<PtySessionSummary>
+  /**
+   * Subscribes to a session's output and events. Returns a detach function.
+   *
+   * Detaching does not kill the session - that is what makes a pane movable and
+   * survivable across a window reload. Use `dispose` to actually end it.
+   */
+  attach(id: string, handlers: PtyHandlers): Promise<() => void>
+  write(id: string, data: string): void
+  resize(id: string, cols: number, rows: number): void
+  dispose(id: string): Promise<void>
+  list(): Promise<PtySessionSummary[]>
+}
+
 export interface ElecdexApi {
   system: SystemApi
+  pty: PtyApi
 }
 
 declare global {

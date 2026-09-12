@@ -31,7 +31,6 @@
   },
   "include": [
     "src/main/**/*.ts",
-    "src/preload/**/*.ts",
     "src/services/**/*.ts",
     "src/shared/**/*.ts",
     "scripts/**/*.ts",

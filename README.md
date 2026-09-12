@@ -3,8 +3,9 @@
 A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
 [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current stack.
 
-> **Status: Phase 0 — scaffold.** The app builds, launches and proves the renderer boundary.
-> The terminal lands in Phase 1. See [docs/architecture.md](docs/architecture.md).
+> **Status: Phase 1 — terminal.** A working multi-tab terminal emulator with shell
+> integration on Windows, macOS and Linux. Layout tree and system monitoring are next.
+> See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
 ## Why a rewrite
 
@@ -13,18 +14,18 @@ refactoring". elecdex keeps the idea and drops the implementation:
 
 | eDEX-UI | elecdex |
 | --- | --- |
-| PTY tunnelled over a localhost WebSocket (ports 3000+) | `MessageChannelMain`, one channel per session |
+| PTY tunnelled over a localhost WebSocket (ports 3000+) | `MessageChannelMain`, one channel per session; no listening socket |
 | `nodeIntegration: true`, `contextIsolation: false`, `@electron/remote` | `sandbox: true`, `contextIsolation: true`, a single typed preload bridge |
 | `cluster` fork per core; every widget polls `systeminformation` on its own timer | one `utilityProcess` and a subscription-driven scheduler that stops when nobody is watching |
 | CWD tracked by polling `/proc`, `lsof` and `ps` — unsupported on Windows | shell integration (`OSC 7` / `OSC 133`), so Windows works too |
 | Five hardcoded screen regions, five terminal tabs | a persisted layout tree: unlimited panes, splits and tabs |
-| No bundler; minify-as-postprocess | electron-vite (Vite 8 + Rollup) |
+| No bundler; minify-as-postprocess | electron-vite (Vite + Rollup) |
 
 ## Stack
 
-Electron 44 · TypeScript 5.9 · electron-vite 5 / Vite 8 · Svelte 5 (runes) · `@xterm/xterm` 6 ·
-node-pty 1.1 · systeminformation · three + threlte · zod · Biome 2 · Vitest 5 · Playwright ·
-electron-builder 26
+Electron 44 · TypeScript 7 (native) · electron-vite 5 / Vite 7 · Svelte 5 (runes) ·
+`@xterm/xterm` 6 · node-pty 1.1 · systeminformation · three + threlte · zod · Biome 2 ·
+Vitest 5 · Playwright · electron-builder 26
 
 ## Develop
 

@@ -20,15 +20,12 @@ test.afterAll(async () => {
   await app?.close()
 })
 
-test('the window opens and the boot panel renders', async () => {
-  await expect(page.getByTestId('boot-panel')).toBeVisible()
-  await expect(page.locator('h1')).toHaveText('elecdex')
+test('the window opens and the UI renders', async () => {
+  await expect(page.getByTestId('terminal-widget')).toBeVisible()
+  await expect(page.getByTestId('tab-strip')).toBeVisible()
 })
 
 test('the preload bridge answers system.info', async () => {
-  await expect(page.getByTestId('boot-info')).toBeVisible()
-  await expect(page.getByTestId('boot-error')).toHaveCount(0)
-
   const info = await page.evaluate(() => window.elecdex.system.info())
   expect(info.name).toBe('elecdex')
   expect(info.versions.electron).toMatch(/^\d+\./)

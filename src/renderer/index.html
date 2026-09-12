@@ -2,9 +2,30 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <!--
+      Content Security Policy.
+
+      `style-src 'unsafe-inline'` is the single relaxation, and it is forced:
+      xterm.js injects <style> elements whose CSS depends on the measured cell
+      and viewport size, so the content changes with every resize and cannot be
+      covered by hashes; a static nonce in a file:// page would be worth no more
+      than 'unsafe-inline' anyway. Our theme system likewise applies tokens with
+      `style.setProperty`.
+
+      What that does and does not cost:
+        - it does NOT relax scripts. script-src stays 'self' with no eval, so
+          injecting a stylesheet still requires script execution the CSP forbids.
+        - CSS-based exfiltration needs an outbound channel, and every one is
+          closed: connect-src 'self', img-src 'self' data:, font-src 'self',
+          default-src 'none'. There is nowhere for a style to send anything.
+
+      This is also the boundary the plugin sandbox depends on - see docs/plugins.md
+      section 3. If this policy is ever loosened further, that sandbox must be
+      re-audited.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src blob:"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>elecdex</title>

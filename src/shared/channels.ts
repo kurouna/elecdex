@@ -12,13 +12,32 @@ export const CH = {
     toggleDevTools: 'system:toggle-devtools',
     setFullscreen: 'system:set-fullscreen',
   },
+  pty: {
+    create: 'pty:create',
+    /** Renderer asks for the MessagePort of a session; main replies on `port`. */
+    attach: 'pty:attach',
+    /** main -> preload, carrying the transferred MessagePort. */
+    port: 'pty:port',
+    dispose: 'pty:dispose',
+    list: 'pty:list',
+  },
 } as const
 
-/** Channels the renderer is allowed to `invoke`. */
-export type InvokeChannel =
-  | typeof CH.system.info
-  | typeof CH.system.openExternal
-  | typeof CH.system.revealInFolder
+/**
+ * Messages sent over a session's MessagePort.
+ *
+ * Output travels as `Uint8Array` in a `data` message rather than a string, so
+ * nothing re-encodes the stream on the way through. Everything else is small
+ * and infrequent.
+ */
+export type PtyPortMessage =
+  | { t: 'data'; chunk: Uint8Array }
+  | { t: 'exit'; code: number; signal: number | undefined }
+  | { t: 'cwd'; cwd: string }
+  | { t: 'commandEnd'; exitCode: number | null; durationMs: number }
+  | { t: 'integrationUnavailable' }
 
-/** Channels the renderer is allowed to `send` (fire and forget). */
-export type SendChannel = typeof CH.system.toggleDevTools | typeof CH.system.setFullscreen
+/** Messages the renderer sends back up the same port. */
+export type PtyPortRequest =
+  | { t: 'write'; data: string }
+  | { t: 'resize'; cols: number; rows: number }
