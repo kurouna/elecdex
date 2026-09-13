@@ -27,7 +27,13 @@ async function closeWidget(page: Page, widget: string) {
 test('every monitoring widget shows live data', async () => {
   const { page, close } = await launch()
   try {
-    await expect(page.getByTestId('clock')).toHaveText(/^\d{2}:\d{2}:\d{2}$/)
+    // The time, then the zone's short name (JST, EDT, UTC+5:45).
+    await expect(page.getByTestId('clock')).toHaveText(
+      /^\d{2}:\d{2}:\d{2}( ?[A-Z][A-Za-z0-9+:-]*)?$/,
+    )
+    await expect(page.getByTestId('sysinfo-date')).toHaveText(
+      /^[A-Z]{3} \d{1,2} (SUN|MON|TUE|WED|THU|FRI|SAT)$/,
+    )
     await expect(page.getByTestId('uptime')).toHaveText(/^\d+:\d{2}:\d{2}$/, { timeout: 20_000 })
     await expect(page.getByTestId('cpu-tasks')).toHaveText(/^\d+$/, { timeout: 30_000 })
     await expect(page.getByTestId('cpu-avg-1')).toHaveText(/Avg\. \d/, { timeout: 20_000 })

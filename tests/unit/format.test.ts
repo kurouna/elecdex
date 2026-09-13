@@ -9,10 +9,12 @@ import {
   formatRate,
   formatTotal,
   formatUptime,
+  formatWeekday,
   osLabel,
   powerLabel,
   toMegabytesPerSecond,
   trimHardware,
+  zoneAbbreviation,
 } from '../../src/renderer/lib/format.js'
 
 describe('formatBytes', () => {
@@ -162,5 +164,23 @@ describe('disk readouts', () => {
     expect(fillLevel(0.5)).toBe('ok')
     expect(fillLevel(0.9)).toBe('warn')
     expect(fillLevel(0.975)).toBe('full')
+  })
+})
+
+describe('clock and date labels', () => {
+  it('names the weekday', () => {
+    expect(formatWeekday(new Date(2026, 8, 13))).toBe('SUN')
+    expect(formatWeekday(new Date(2026, 8, 18))).toBe('FRI')
+  })
+
+  it('abbreviates time zones, falling back to the offset', () => {
+    const summer = new Date(Date.UTC(2026, 6, 1, 12))
+    const winter = new Date(Date.UTC(2026, 0, 15, 12))
+    expect(zoneAbbreviation('UTC', summer)).toBe('UTC')
+    expect(zoneAbbreviation('America/New_York', summer)).toBe('EDT')
+    expect(zoneAbbreviation('America/New_York', winter)).toBe('EST')
+    expect(zoneAbbreviation('Asia/Seoul', summer)).toBe('KST')
+    expect(zoneAbbreviation('Asia/Kathmandu', summer)).toBe('UTC+5:45')
+    expect(zoneAbbreviation('Not/AZone', summer)).toBe('')
   })
 })

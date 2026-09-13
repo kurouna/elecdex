@@ -312,12 +312,13 @@ const whenLabel = (inDays: number): string =>
   color: var(--text);
 }
 
+/* Muted a little, so weekends mark the grid without shouting over the dates. */
 .sat {
-  color: var(--info);
+  color: color-mix(in srgb, var(--info) 72%, var(--app-bg));
 }
 
 .sun {
-  color: var(--danger);
+  color: color-mix(in srgb, var(--danger) 72%, var(--app-bg));
 }
 
 .outside {
@@ -339,7 +340,7 @@ const whenLabel = (inDays: number): string =>
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: var(--danger);
+  background: color-mix(in srgb, var(--danger) 72%, var(--app-bg));
   transform: translateX(-50%);
 }
 

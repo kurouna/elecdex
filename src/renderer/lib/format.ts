@@ -76,9 +76,16 @@ export function formatClock(
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
+const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
 /** "APR 29" */
 export function formatMonthDay(date: Date): string {
   return `${MONTHS[date.getMonth()] ?? ''} ${date.getDate()}`
+}
+
+/** "SUN" */
+export function formatWeekday(date: Date): string {
+  return WEEKDAYS[date.getDay()] ?? ''
 }
 
 /** The short OS label of eDEX-UI's TYPE cell. */
@@ -149,4 +156,45 @@ export function fillLevel(fraction: number): 'ok' | 'warn' | 'full' {
   if (fraction >= 0.97) return 'full'
   if (fraction >= 0.9) return 'warn'
   return 'ok'
+}
+
+/** Locales whose ICU data names zones the others only give as an offset (JST, BST, AEST, IST). */
+const ZONE_NAME_LOCALES = ['en-US', 'en-GB', 'en-AU', 'en-IN', 'ja-JP', 'en-NZ', 'en-CA', 'en-ZA']
+
+/** Common zones no locale above abbreviates. */
+const ZONE_ABBREVIATIONS: Record<string, string> = {
+  'Asia/Seoul': 'KST',
+  'Asia/Shanghai': 'CST',
+  'Asia/Hong_Kong': 'HKT',
+  'Asia/Taipei': 'CST',
+  'Asia/Singapore': 'SGT',
+  'Asia/Manila': 'PHT',
+  'Asia/Jakarta': 'WIB',
+  'Asia/Bangkok': 'ICT',
+  'Asia/Ho_Chi_Minh': 'ICT',
+  'Asia/Dubai': 'GST',
+}
+
+const OFFSET_ONLY = /^(GMT|UTC)([+-]\d|$)/
+
+/**
+ * The short name of a time zone at a moment: "JST", "EDT", "BST". Where no
+ * locale has one, the offset, as "UTC+5:45".
+ */
+export function zoneAbbreviation(timeZone: string, date: Date): string {
+  let offset = ''
+  for (const locale of ZONE_NAME_LOCALES) {
+    let name: string | undefined
+    try {
+      name = new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: 'short' })
+        .formatToParts(date)
+        .find((p) => p.type === 'timeZoneName')?.value
+    } catch {
+      return ''
+    }
+    if (!name) continue
+    if (name === 'UTC' || !OFFSET_ONLY.test(name)) return name
+    offset ||= name
+  }
+  return ZONE_ABBREVIATIONS[timeZone] ?? offset.replace(/^GMT/, 'UTC')
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { formatClock } from '../../lib/format.ts'
+import { formatClock, zoneAbbreviation } from '../../lib/format.ts'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -28,6 +28,14 @@ $effect(() => {
   return () => clearTimeout(timer)
 })
 
+const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+// The abbreviation changes only with daylight saving; once a minute is plenty.
+const minute = $derived(Math.floor(now.getTime() / 60_000))
+const zone = $derived.by(() => {
+  void minute
+  return zoneAbbreviation(timeZone, now)
+})
+
 const parts = $derived(formatClock(now))
 const digits = $derived([...parts.hh, ':', ...parts.mm, ':', ...parts.ss])
 </script>
@@ -37,6 +45,7 @@ const digits = $derived([...parts.hh, ':', ...parts.mm, ':', ...parts.ss])
     {#each digits as char, i (i)}
       {#if char === ':'}<em>:</em>{:else}<span>{char}</span>{/if}
     {/each}
+    {#if zone}<small class="zone" title={timeZone} data-testid="clock-zone">{zone}</small>{/if}
   </time>
 </div>
 
@@ -55,7 +64,7 @@ time {
   font-family: var(--font-ui);
   font-weight: 300;
   /* Fill the pane: bounded by both its height and its width. */
-  font-size: min(92cqh, 19cqw);
+  font-size: min(92cqh, 16.5cqw);
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -65,6 +74,16 @@ span {
   display: inline-block;
   width: 0.62em;
   text-align: center;
+}
+
+/* The zone sits on the digits' baseline, small enough not to compete with them. */
+.zone {
+  align-self: flex-end;
+  margin: 0 0 0.12em 0.3em;
+  font-size: 0.3em;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
 }
 
 em {

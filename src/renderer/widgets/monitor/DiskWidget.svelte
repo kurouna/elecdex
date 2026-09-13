@@ -21,8 +21,6 @@ const io = $derived(metrics.get('disk.io'))
 
 const fraction = (v: DiskVolume): number => (v.total > 0 ? Math.min(1, v.used / v.total) : 0)
 
-const name = (v: DiskVolume): string => (v.label ? `${v.mount} ${v.label}` : v.mount)
-
 $effect(() => {
   const total = volumes.reduce((sum, v) => sum + v.total, 0)
   const free = volumes.reduce((sum, v) => sum + (v.total - v.used), 0)
@@ -57,8 +55,9 @@ $effect(() => {
         data-mount={v.mount}
         data-fraction={used.toFixed(3)}
       >
-        <span class="name" title={v.mount}>{name(v)}</span>
-        <span class="meta">{[v.fs, v.kind === 'fixed' ? '' : v.kind].filter(Boolean).join(' · ')}</span>
+        <span class="name" title={v.label ? `${v.mount} (${v.label})` : v.mount}>{v.mount}</span>
+        <!-- The volume label ("Windows") is a name, not part of the path. -->
+        <span class="meta">{[v.label, v.fs, v.kind === 'fixed' ? '' : v.kind].filter(Boolean).join(' · ')}</span>
         <span class="pct">{formatPercent(used * 100)}</span>
         <span class="bar"><span class="fill" style:transform={`scaleX(${used})`}></span></span>
         <span class="amount">{formatBytes(v.used)} / {formatBytes(v.total)}</span>

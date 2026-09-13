@@ -3,6 +3,7 @@ import {
   batteryGauge,
   formatMonthDay,
   formatUptime,
+  formatWeekday,
   osLabel,
   powerLabel,
   trimHardware,
@@ -35,10 +36,10 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
 </script>
 
 <div class="sysinfo" data-testid="sysinfo" data-pane-id={paneId}>
-  <div class="hud-cells">
+  <div class="hud-cells first">
     <div class="hud-cell">
       <span class="label">{today.getFullYear()}</span>
-      <span class="value">{formatMonthDay(today)}</span>
+      <span class="value" data-testid="sysinfo-date">{formatMonthDay(today)} <span class="weekday">{formatWeekday(today)}</span></span>
     </div>
     <div class="hud-cell">
       <span class="label">uptime</span>
@@ -83,7 +84,8 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
 .sysinfo {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
+  /* Rows at the edges: no strip of empty space at the bottom that other panes lack. */
+  justify-content: space-between;
   height: 100%;
   gap: var(--space-1);
 }
@@ -92,6 +94,16 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
+}
+
+/* The date carries the weekday now; TYPE is only "win" or "linux", so it gives way. */
+.first {
+  grid-auto-flow: row;
+  grid-template-columns: 1.45fr 1fr 0.7fr 1.05fr;
+}
+
+.weekday {
+  color: var(--text-muted);
 }
 
 .hardware {
