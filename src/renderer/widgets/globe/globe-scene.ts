@@ -42,6 +42,17 @@ export interface GlobeColors {
 const DAY_MS = 90_000
 const TILT = 0.35
 
+/**
+ * Draw order, fixed. Every layer is transparent, and three.js otherwise sorts
+ * transparent objects back to front by the centre of each one's bounding
+ * sphere. The land's centre is not the globe's - most land is in the north - so
+ * for part of every turn the continents sorted behind the sphere, which was then
+ * painted over them: the dots vanished for stretches, from the first frame on.
+ * The sphere goes first (writing depth, so far-side dots stay hidden), then the
+ * land, then everything drawn over the land.
+ */
+const ORDER = { sphere: 0, land: 1, markers: 2 } as const
+
 const POINT_VERTEX = /* glsl */ `
   uniform float uSize;
   varying float vFacing;
@@ -139,7 +150,9 @@ export class GlobeScene {
       uniforms: { uColor: this.accent, uSurface: this.surface },
       transparent: true,
     })
-    this.world.add(new Mesh(new SphereGeometry(0.995, 48, 32), this.rimMaterial))
+    const sphere = new Mesh(new SphereGeometry(0.995, 48, 32), this.rimMaterial)
+    sphere.renderOrder = ORDER.sphere
+    this.world.add(sphere)
 
     this.pointMaterial = new ShaderMaterial({
       vertexShader: POINT_VERTEX,
@@ -148,7 +161,9 @@ export class GlobeScene {
       transparent: true,
       depthWrite: false,
     })
-    this.world.add(new Points(landGeometry(), this.pointMaterial))
+    const land = new Points(landGeometry(), this.pointMaterial)
+    land.renderOrder = ORDER.land
+    this.world.add(land)
 
     this.arcMaterial = new ShaderMaterial({
       vertexShader: ARC_VERTEX,
@@ -158,6 +173,7 @@ export class GlobeScene {
       depthWrite: false,
       blending: AdditiveBlending,
     })
+    this.markers.renderOrder = ORDER.markers
     this.world.add(this.markers)
     this.addSatellites()
     this.setColors(colors)
@@ -286,6 +302,7 @@ export class GlobeScene {
       const dotGeometry = new BufferGeometry()
       dotGeometry.setAttribute('position', new Float32BufferAttribute([o.radius, 0, 0], 3))
       const dot = new Points(dotGeometry, this.pointMaterial)
+      dot.renderOrder = ORDER.markers
       orbit.add(dot)
       this.scene.add(orbit)
       this.satellites.push({ dot, orbit, speed: o.speed })
