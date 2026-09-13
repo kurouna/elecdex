@@ -85,15 +85,34 @@ $effect(() => {
   return () => observer.disconnect()
 })
 
+/**
+ * How long a started tile blinks. The list is re-ordered by use only after it
+ * ends: re-ordering at once slid another app under the blink, so the effect
+ * looked as if it belonged to the wrong tile.
+ */
+const BLINK_MS = 600
+let blinking = $state<string | null>(null)
+let blinkTimer: ReturnType<typeof setTimeout> | undefined
+
+$effect(() => () => clearTimeout(blinkTimer))
+
 async function launch(entry: LauncherEntry | undefined): Promise<void> {
   if (!entry) return
+  clearTimeout(blinkTimer)
+  blinking = entry.id
+  const blinkDone = new Promise<void>((resolve) => {
+    blinkTimer = setTimeout(() => {
+      blinking = null
+      resolve()
+    }, BLINK_MS)
+  })
   sfx.play('granted')
   status = { text: `starting ${entry.name}…`, error: false }
   const result = await window.elecdex.launcher.launch(entry.id)
   status = result.ok
     ? { text: `started ${entry.name}`, error: false }
     : { text: `${entry.name}: ${result.error}`, error: true }
-  if (result.ok) launched += 1
+  if (result.ok) void blinkDone.then(() => (launched += 1))
   else sfx.play('alarm')
   setTimeout(() => {
     status = null
@@ -159,6 +178,7 @@ const initial = (name: string) =>
             class="tile"
             class:pinned={entry.source === 'user'}
             class:first={i === 0 && filter !== ''}
+            class:blinking={blinking === entry.id}
             title={tooltip(entry)}
             onclick={() => void launch(entry)}
             data-id={entry.id}
@@ -273,9 +293,30 @@ const initial = (name: string) =>
   outline: none;
 }
 
-.tile:active {
-  background: var(--accent);
-  color: var(--text-inverse);
+/* The filesystem pane's click feedback: a quick blink of the accent, held
+   for the length of the launch so the eye can follow it. */
+.tile:active,
+.tile.blinking {
+  animation: tile-blink 100ms linear infinite;
+}
+
+@keyframes tile-blink {
+  50% {
+    background: var(--accent);
+    color: var(--text-inverse);
+  }
+}
+
+/* The tinted icon would vanish into the accent; it blinks to the inverse colour with the tile. */
+.tile:active .glyph,
+.tile.blinking .glyph {
+  animation: glyph-blink 100ms linear infinite;
+}
+
+@keyframes glyph-blink {
+  50% {
+    background: var(--text-inverse);
+  }
 }
 
 .tile.pinned .monogram {

@@ -91,6 +91,9 @@ test('the launcher counts launches and lists the most used first', async () => {
 
     const bravo = entries.filter({ hasText: 'Bravo' })
     await bravo.click()
+    // It blinks where it was clicked, and only then moves up.
+    await expect(bravo).toHaveClass(/blinking/)
+    await expect(entries.first()).toContainText('Alpha')
     await expect(launched.page.getByTestId('launcher-status')).toContainText(/started bravo/i)
     // Reordered at once, and counted.
     await expect(entries.first()).toContainText('Bravo')
