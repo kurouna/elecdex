@@ -11,7 +11,8 @@ files:
   - resources/**
   - package.json
 
-# win/mac/linux icons are all generated from build/icon.png (see scripts/gen-icon.mjs)
+# win/mac/linux icons are all derived from build/icon.png, which scripts/gen-icon.mjs
+# renders from build/icon.svg (the elec series icon with the "E" badge).
 asar: true
 # node-pty spawns helper executables (winpty-agent.exe, conpty/OpenConsole.exe)
 # and loads DLLs next to its .node files. Nothing inside an asar archive can be

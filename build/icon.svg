@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  elecdex app icon - the master for every icon size (see scripts/gen-icon.mjs).
+
+  Follows the elec series layout shared with elecxzy, elecxterm and elecxmail:
+  the app's own motif on a card, with the series "E" badge overlapping the
+  bottom-left corner (a #0ea5e9 disc with a white rim and three rounded bars).
+
+  elecdex's motif is the eDEX-UI HUD: a dark screen inside a frame with its
+  top-right and bottom-left corners cut, a shell prompt, a wireframe globe with
+  connection pins, and a live CPU trace.
+-->
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>elecdex</title>
+  <!-- Card, with the series' offset shadow for depth -->
+  <rect x="44" y="24" width="184" height="216" rx="16" fill="#cbd5e1"/>
+  <rect x="40" y="20" width="184" height="216" rx="16" fill="#0b1118" stroke="#1e293b" stroke-width="2"/>
+
+  <!-- HUD frame: top-right and bottom-left corners cut, as eDEX-UI's main shell -->
+  <path d="M56 36 H192 L208 52 V220 H72 L56 204 Z" stroke="#aacfd1" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Column labels on the top rule -->
+  <rect x="66" y="44" width="26" height="4" rx="2" fill="#aacfd1"/>
+  <rect x="164" y="44" width="20" height="4" rx="2" fill="#aacfd1" fill-opacity="0.5"/>
+
+  <!-- Shell prompt and a couple of lines of output -->
+  <path d="M68 64 L80 73 L68 82" stroke="#e0f2f1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="86" y="78" width="14" height="5" rx="1" fill="#22d3ee"/>
+  <rect x="68" y="96" width="44" height="5" rx="2.5" fill="#aacfd1" fill-opacity="0.55"/>
+  <rect x="68" y="108" width="30" height="5" rx="2.5" fill="#aacfd1" fill-opacity="0.35"/>
+
+  <!-- Wireframe globe with connection pins -->
+  <g stroke="#aacfd1" stroke-width="2">
+    <circle cx="164" cy="94" r="30"/>
+    <ellipse cx="164" cy="94" rx="12" ry="30" stroke-opacity="0.7"/>
+    <path d="M134 94 H194" stroke-opacity="0.7"/>
+    <path d="M138 80 H190 M138 108 H190" stroke-opacity="0.4"/>
+  </g>
+  <path d="M150 78 Q168 60 182 100" stroke="#22d3ee" stroke-width="2" stroke-dasharray="3 3"/>
+  <circle cx="150" cy="78" r="3.5" fill="#22d3ee"/>
+  <circle cx="182" cy="100" r="3.5" fill="#22d3ee"/>
+
+  <!-- CPU trace over a faint grid -->
+  <path d="M132 150 H200 M132 172 H200 M132 194 H200" stroke="#aacfd1" stroke-opacity="0.18" stroke-width="1.5"/>
+  <path d="M132 184 L144 176 L154 188 L166 146 L178 170 L188 160 L200 174" stroke="#22d3ee" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- elec series badge: the "E" mark, bottom-left -->
+  <circle cx="68" cy="180" r="52" fill="#0ea5e9" stroke="#ffffff" stroke-width="8"/>
+  <path d="M44 156 H92 M44 180 H76 M44 204 H92" stroke="#ffffff" stroke-width="12" stroke-linecap="round"/>
+</svg>
