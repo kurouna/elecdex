@@ -54,7 +54,7 @@ test('closing the globe stops collecting connections', async () => {
   }
 })
 
-test('an unknown time zone shows that the location is unavailable, once, without asking the OS', async () => {
+test('a time zone with no country still places home, approximately, without asking the OS', async () => {
   const { app, page, close } = await launch(undefined, {
     layout: { version: 1, root: { kind: 'pane', id: 'g', widget: 'globe' } },
     env: { TZ: 'Etc/Unknown' },
@@ -65,7 +65,9 @@ test('an unknown time zone shows that the location is unavailable, once, without
       zone !== 'Etc/Unknown' && zone !== 'UTC' && zone !== 'Etc/UTC',
       `TZ not honoured (${zone})`,
     )
-    await expect(page.getByTestId('globe-no-location')).toContainText(/location unavailable/i)
+    // No country in the zone: placed from the locale (or the offset), marked approximate.
+    await expect(page.getByTestId('globe-home')).toContainText('(approx.)')
+    await expect(page.getByTestId('globe-no-location')).toHaveCount(0)
 
     // Whatever asks, location is refused without a prompt.
     const state = await page.evaluate(

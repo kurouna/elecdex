@@ -6,7 +6,7 @@ import { appearance } from '../../stores/appearance.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
-import { homeFromTimeZone } from './geo.ts'
+import { guessHome } from './geo.ts'
 import { type GlobeColors, GlobeScene } from './globe-scene.ts'
 
 /**
@@ -16,7 +16,9 @@ import { type GlobeColors, GlobeScene } from './globe-scene.ts'
  *  - Connections come from the net.connections source: established TCP peers,
  *    placed by country with a GeoIP database bundled in the app. No address is
  *    sent anywhere to be looked up.
- *  - "Here" is the country of the system time zone, rather than eDEX-UI's
+ *  - "Here" is the country of the system time zone - or, when the zone names
+ *    none, of the locale, or failing that the largest city on the same UTC
+ *    offset (guessHome) - rather than eDEX-UI's
  *    request to an online IP-lookup service - and never the OS location service,
  *    which would prompt the user. If the zone names no country, the pane says so
  *    once in the middle of the globe; nothing is retried.
@@ -30,7 +32,7 @@ import { type GlobeColors, GlobeScene } from './globe-scene.ts'
 const { paneId }: WidgetProps = $props()
 
 const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
-const home = homeFromTimeZone(zone)
+const home = guessHome(zone, navigator.language, new Date())
 
 const connections = $derived(metrics.get('net.connections'))
 const ping = $derived(metrics.get('net.ping'))
@@ -144,7 +146,9 @@ const topCountries = $derived(countries.slice(0, 6))
     <div class="counts" data-testid="globe-counts">
       <span><strong>{connections?.total ?? 0}</strong> connections</span>
       <span><strong>{countries.length}</strong> countries</span>
-      <span class="zone">{home ? `${zone} · ${home.country}` : zone}</span>
+      <span class="zone" data-testid="globe-home" data-basis={home?.basis}
+        >{home ? `${zone} · ${home.country}${home.basis === 'zone' ? '' : ' (approx.)'}` : zone}</span
+      >
     </div>
     <ul class="countries" data-testid="globe-countries">
       {#each topCountries as c (c.code)}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   angularDistance,
   arcPoints,
+  guessHome,
   homeFromTimeZone,
   latLonToVec3,
 } from '../../src/renderer/widgets/globe/geo.js'
@@ -61,6 +62,26 @@ describe('homeFromTimeZone', () => {
   it('gives up on a zone with no country', () => {
     expect(homeFromTimeZone('UTC')).toBeNull()
     expect(homeFromTimeZone('Not/AZone')).toBeNull()
+  })
+})
+
+describe('guessHome', () => {
+  const at = new Date(Date.UTC(2026, 8, 13, 12))
+
+  it('prefers the time zone', () => {
+    expect(guessHome('Asia/Tokyo', 'en-US', at)).toMatchObject({ country: 'JP', basis: 'zone' })
+  })
+
+  it('falls back to the locale region when the zone names no country', () => {
+    expect(guessHome('UTC', 'ja-JP', at)).toMatchObject({ country: 'JP', basis: 'locale' })
+    // A language alone implies its likeliest region.
+    expect(guessHome('Etc/GMT-9', 'ja', at)).toMatchObject({ country: 'JP', basis: 'locale' })
+  })
+
+  it('then to the largest city on the same offset', () => {
+    const home = guessHome('Etc/GMT-9', '', at)
+    expect(home?.basis).toBe('offset')
+    expect(['JP', 'KR']).toContain(home?.country)
   })
 })
 

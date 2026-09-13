@@ -1,3 +1,4 @@
+import cities from '@shared/geo/cities.json'
 import centroids from '@shared/geo/country-centroids.json'
 import zones from '@shared/geo/timezone-countries.json'
 
@@ -68,6 +69,8 @@ export interface Home {
   country: string
   lat: number
   lon: number
+  /** What placed it: the time zone's country, the locale's region, or only the UTC offset. */
+  basis: 'zone' | 'locale' | 'offset'
 }
 
 const ZONES = zones as Record<string, string>
@@ -84,5 +87,55 @@ export function homeFromTimeZone(zone: string): Home | null {
   const country = ZONES[zone]
   const at = country === undefined ? undefined : CENTROIDS[country]
   if (country === undefined || at === undefined) return null
-  return { zone, country, lat: at[0], lon: at[1] }
+  return { zone, country, lat: at[0], lon: at[1], basis: 'zone' }
+}
+
+/** Minutes east of UTC for a zone at a moment. */
+function offsetMinutes(zone: string, at: Date): number | null {
+  try {
+    const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+      .formatToParts(at)
+      .find((part) => part.type === 'timeZoneName')?.value
+    if (!name) return null
+    if (name === 'GMT') return 0
+    const m = /GMT([+-])(\d{2}):(\d{2})/.exec(name)
+    return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : null
+  } catch {
+    return null
+  }
+}
+
+type CityRow = [string, string, string, number, number, string]
+
+/**
+ * Where this machine probably is, however little the system says.
+ *
+ *  1. The country of its time zone - the usual case.
+ *  2. The region of its locale ("ja-JP" is Japan), when the zone names no
+ *     country: UTC, "Etc/GMT-9", or a zone the table does not know.
+ *  3. The largest city keeping the same UTC offset right now, when the locale
+ *     has no region either. The right side of the world, at least.
+ *
+ * Never the OS location service, which would ask the user for permission.
+ */
+export function guessHome(zone: string, locale: string, at: Date): Home | null {
+  const fromZone = homeFromTimeZone(zone)
+  if (fromZone) return fromZone
+
+  let region: string | undefined
+  try {
+    region = new Intl.Locale(locale).maximize().region
+  } catch {
+    region = undefined
+  }
+  const centroid = region === undefined ? undefined : CENTROIDS[region]
+  if (region !== undefined && centroid !== undefined) {
+    return { zone, country: region, lat: centroid[0], lon: centroid[1], basis: 'locale' }
+  }
+
+  const offset = offsetMinutes(zone, at)
+  if (offset === null) return null
+  // cities.json is sorted by population, so the first match is the largest.
+  const city = (cities as CityRow[]).find((c) => offsetMinutes(c[5], at) === offset)
+  return city ? { zone, country: city[2], lat: city[3], lon: city[4], basis: 'offset' } : null
 }
