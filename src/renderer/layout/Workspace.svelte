@@ -1,6 +1,7 @@
 <script lang="ts">
 import { layout } from '../stores/layout.svelte.ts'
 import { sessions } from '../stores/sessions.svelte.ts'
+import { ui } from '../stores/ui.svelte.ts'
 import '../widgets/builtins.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
 
@@ -81,6 +82,11 @@ function onKeydown(event: KeyboardEvent): void {
   if (!mod || !event.shiftKey) return
 
   switch (event.code) {
+    case 'KeyA':
+      // Add a pane: brings back any widget that was closed.
+      claim(event)
+      ui.openPanePicker()
+      return
     case 'KeyQ':
       // Fullscreen has no window frame and no close button; this is the way out.
       claim(event)

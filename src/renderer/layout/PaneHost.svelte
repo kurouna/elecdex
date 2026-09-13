@@ -80,6 +80,20 @@ $effect(() => () => paneMeta.clear(node.id))
   onfocusin={() => layout.focus(node.id)}
   onpointerdown={() => layout.focus(node.id)}
 >
+  {#if chrome !== 'bare'}
+    <!-- Tabs close from their own tab; every other pane closes from here. -->
+    <button
+      type="button"
+      class="pane-close"
+      aria-label={`close ${title}`}
+      title="Close pane (Ctrl+Shift+W)"
+      onclick={(e) => {
+        e.stopPropagation()
+        layout.close(node.id)
+      }}
+      data-testid="pane-close"
+    >×</button>
+  {/if}
   {#if chrome === 'shell'}
     <header class="hud-label">{@render headline()}</header>
     <div class="shell-frame body">{@render widget()}</div>
@@ -103,6 +117,38 @@ $effect(() => () => paneMeta.clear(node.id))
   min-width: 0;
   min-height: 0;
   height: 100%;
+}
+
+.pane-close {
+  position: absolute;
+  top: calc(var(--tick-size) * 0.2);
+  right: 0;
+  z-index: 5;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  background: var(--app-bg);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--step--1);
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+/* Out of the way until wanted: on hover, or when the pane has keyboard focus. */
+.pane:hover > .pane-close,
+.pane:focus-within > .pane-close,
+.pane-close:focus-visible {
+  opacity: 1;
+}
+
+.pane-close:hover {
+  color: var(--text-inverse);
+  background: var(--danger);
+  border-color: var(--danger);
 }
 
 /* A hidden tab keeps its DOM (and its shell) but takes no space. */

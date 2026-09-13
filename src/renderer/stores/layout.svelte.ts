@@ -24,6 +24,9 @@ import { sfx } from './sound.svelte.ts'
 
 const SAVE_DEBOUNCE_MS = 400
 
+/** Where a pane added from the picker goes, relative to the focused pane. */
+export type PanePlacement = 'right' | 'down' | 'tab'
+
 class LayoutStore {
   tree = $state<LayoutTree>({ version: LAYOUT_VERSION, root: defaultLayoutNode() })
   /** Pane that has focus. Drives which terminal receives keystrokes. */
@@ -141,6 +144,22 @@ class LayoutStore {
     const current = findNode(this.tree.root, target)
     const sameWidget = current?.kind === 'pane' ? current.widget : 'terminal'
     this.addTab(target, widget ?? sameWidget)
+  }
+
+  /**
+   * Adds a pane of `widget` beside the focused pane (or the first visible one),
+   * to its right, below it, or as a tab in its group.
+   */
+  addPane(widget: string, placement: PanePlacement): void {
+    const target = this.focusedPaneId ?? this.visible[0]?.id ?? null
+    if (target === null) return
+    if (placement === 'tab') this.addTab(target, widget)
+    else this.split(target, placement === 'right' ? 'right' : 'down', widget)
+  }
+
+  /** The first pane showing `widget`, if any. */
+  paneWith(widget: string): string | null {
+    return this.panes.find((p) => p.widget === widget)?.id ?? null
   }
 
   close(nodeId: string): void {

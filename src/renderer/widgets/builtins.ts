@@ -26,6 +26,7 @@ const sources = (...ids: MetricSourceId[]): readonly MetricSourceId[] => ids
 registerBuiltin({
   id: 'terminal',
   title: 'terminal',
+  description: 'An interactive shell. Any number can be open.',
   chrome: 'shell',
   component: TerminalWidget,
   minSize: { w: 240, h: 120 },
@@ -35,6 +36,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'clock',
   title: 'clock',
+  description: 'The time, large.',
   headless: true,
   component: ClockWidget,
   minSize: { w: 120, h: 40 },
@@ -43,6 +45,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'sysinfo',
   title: 'system',
+  description: 'Date, uptime, OS, power and hardware.',
   headless: true,
   component: SysinfoWidget,
   metrics: sources('os.uptime', 'os.info', 'power.battery', 'hardware.system'),
@@ -52,6 +55,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'cpu',
   title: 'cpu usage',
+  description: 'Per-core load charts, speed and task count.',
   component: CpuWidget,
   metrics: sources('cpu.info', 'cpu.load', 'cpu.speed', 'cpu.temperature', 'proc.list'),
   minSize: { w: 160, h: 100 },
@@ -60,6 +64,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'memory',
   title: 'memory',
+  description: 'Memory in use as a field of dots, and swap.',
   component: MemoryWidget,
   metrics: sources('mem.usage', 'mem.swap'),
   minSize: { w: 160, h: 80 },
@@ -68,6 +73,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'toplist',
   title: 'top processes',
+  description: 'The busiest processes.',
   component: ToplistWidget,
   metrics: sources('proc.list'),
   minSize: { w: 160, h: 80 },
@@ -76,6 +82,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'netstat',
   title: 'network status',
+  description: 'Connection state, address and ping.',
   component: NetstatWidget,
   metrics: sources('net.interface', 'net.ping'),
   minSize: { w: 160, h: 50 },
@@ -84,6 +91,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'throughput',
   title: 'network traffic',
+  description: 'Upload and download traffic over time.',
   component: ThroughputWidget,
   metrics: sources('net.throughput', 'net.ping'),
   minSize: { w: 160, h: 100 },
@@ -92,6 +100,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'filesystem',
   title: 'filesystem',
+  description: "The followed terminal's directory; click to cd or insert a path.",
   component: FilesystemWidget,
   minSize: { w: 200, h: 100 },
 })
@@ -99,10 +108,16 @@ registerBuiltin({
 registerBuiltin({
   id: 'weather',
   title: 'weather',
+  description: 'JMA forecast for a chosen area (出典：気象庁ホームページ).',
   component: WeatherWidget,
   minSize: { w: 200, h: 120 },
   multiple: true,
 })
 
 // The globe arrives with GeoIP in phase 6.
-registerBuiltin({ id: 'globe', title: 'world view', component: PlaceholderWidget })
+registerBuiltin({
+  id: 'globe',
+  title: 'world view',
+  description: 'Where network connections go, on a globe.',
+  component: PlaceholderWidget,
+})

@@ -1,10 +1,12 @@
 <script lang="ts">
 import type { AppInfo } from '@shared/api'
 import BootScreen from './BootScreen.svelte'
+import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
+import { ui } from './stores/ui.svelte.ts'
 
 let info = $state<AppInfo | null>(null)
 
@@ -62,9 +64,18 @@ function toggleSound(): void {
   <footer>
     <span>elecdex{info === null ? '' : ` ${info.version}`}</span>
     <span class="hint">
-      ctrl+shift+ e split · o split down · t tab · w close · [ ] focus · backspace reset · q quit
+      ctrl+shift+ a add pane · e split · o split down · t tab · w close · [ ] focus · backspace reset · q quit
       · f11 fullscreen
     </span>
+    <button
+      type="button"
+      class="control toggle"
+      onclick={() => ui.openPanePicker()}
+      title="Add a pane (Ctrl+Shift+A)"
+      data-testid="add-pane"
+    >
+      + pane
+    </button>
     <label class="control">
       <span>theme</span>
       <select
@@ -100,6 +111,7 @@ function toggleSound(): void {
 </main>
 
 <BootScreen />
+<PanePicker />
 
 <style>
 main[data-boot="concealed"] {

@@ -66,9 +66,10 @@ skipped when the OS asks for reduced motion.
 | Ctrl+Shift+E | split the focused pane to the right |
 | Ctrl+Shift+O | split the focused pane downward |
 | Ctrl+Shift+T | new tab beside the focused pane |
-| Ctrl+Shift+W | close the focused pane |
+| Ctrl+Shift+W | close the focused pane (or its × button, shown on hover) |
 | Ctrl+Shift+[ / ] | move focus between panes |
 | Ctrl+Shift+Backspace | reset to the default layout |
+| Ctrl+Shift+A | add a pane: pick any widget, placed right of, below or as a tab beside the focused pane (also the + PANE button) |
 | Ctrl+Shift+Q | quit (or the EXIT button in the footer, clicked twice) |
 | F11 | toggle fullscreen |
 | Arrow keys on a divider | resize (Shift for larger steps) |

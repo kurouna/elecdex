@@ -14,6 +14,8 @@ export interface WidgetDefinition {
   id: string
   /** Shown in the pane header and on a tab. */
   title: string
+  /** One line for the add-pane picker. */
+  description?: string
   component: Component<WidgetProps>
   /** Metric source ids this widget reads. Phase 3 subscribes to these. */
   metrics?: readonly string[]
