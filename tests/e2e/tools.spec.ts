@@ -127,39 +127,52 @@ test('the launcher lists the platform applications, with icons in the theme colo
   }
 })
 
-test('the calendar shows this month with today marked, and pages through months', async () => {
-  const { page, close } = await launch(undefined, { layout: single('calendar') })
+test('the calendar is in English, and Japanese holidays are an opt-in kept per pane', async () => {
+  // Japanese app language: the calendar's text stays English regardless.
+  let launched = await launch(undefined, { layout: single('calendar'), args: ['--lang=ja'] })
   try {
+    const { page } = launched
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-    const days = page.getByTestId('calendar-day')
-    await expect(days).toHaveCount(42)
+    await expect(page.getByTestId('calendar-day')).toHaveCount(42)
     await expect(page.locator('[data-testid=calendar-day][data-today]')).toHaveAttribute(
       'data-date',
       iso(now),
     )
     await expect(page.getByTestId('pane-subtitle')).toContainText(/week \d+/)
+    const title = page.getByTestId('calendar-title')
+    await expect(title).toHaveText(
+      new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(now),
+    )
+    await expect(page.getByTestId('calendar')).not.toContainText(/[぀-ヿ一-鿿]/)
 
-    const title = await page.getByTestId('calendar-title').textContent()
+    const shown = await title.textContent()
     await page.getByTestId('calendar-next').click()
-    await expect(page.getByTestId('calendar-title')).not.toHaveText(title ?? '')
+    await expect(title).not.toHaveText(shown ?? '')
     await page.getByTestId('calendar-today').click()
-    await expect(page.getByTestId('calendar-title')).toHaveText(title ?? '')
+    await expect(title).toHaveText(shown ?? '')
 
-    // In Japan's time zone or in Japanese, holidays are marked: 1 January always is one.
-    if ((await page.getByTestId('calendar').getAttribute('data-holidays')) === 'jp') {
-      for (let i = 0; i < 12 && (await page.locator('[data-date$="-01-01"]').count()) === 0; i++) {
-        await page.getByTestId('calendar-next').click()
-      }
-      await expect(page.locator('[data-date$="-01-01"]').first()).toHaveAttribute(
-        'data-holiday',
-        /.+/,
-      )
-      await expect(page.getByTestId('calendar-next-holiday')).not.toBeEmpty()
+    // Off by default: no holiday is marked, even on 1 January.
+    await expect(page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'none')
+    await expect(page.locator('[data-testid=calendar-day][data-holiday]')).toHaveCount(0)
+
+    await page.getByTestId('calendar-holidays').click()
+    await expect(page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'jp')
+    for (let i = 0; i < 12 && (await page.locator('[data-date$="-01-01"]').count()) === 0; i++) {
+      await page.getByTestId('calendar-next').click()
     }
+    await expect(page.locator('[data-date$="-01-01"]').first()).toHaveAttribute(
+      'data-holiday',
+      "New Year's Day",
+    )
+    await expect(page.getByTestId('calendar-next-holiday')).toContainText('next holiday')
+
+    await page.waitForTimeout(1500) // let the layout save
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'jp')
   } finally {
-    await close()
+    await launched.close()
   }
 })
 

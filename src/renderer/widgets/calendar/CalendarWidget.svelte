@@ -1,7 +1,7 @@
 <script lang="ts">
 import { holidayOn } from '@shared/jp-holidays'
-import { labelLanguage } from '@shared/markets'
 import { firstDayOfWeek, isoWeek, monthGrid, msUntilMidnight, sameDay } from '../../lib/calendar.ts'
+import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 
@@ -9,18 +9,21 @@ import type { WidgetProps } from '../registry.ts'
  * A month calendar: six fixed weeks, today marked, weekends and holidays set
  * apart, and the next holiday spelled out underneath.
  *
- * Japanese national holidays are computed locally (shared/jp-holidays.ts) and
- * shown when the machine is in Japan's time zone or the app runs in Japanese;
- * their names follow the app language like the market names do. Nothing is
- * fetched. The pane wakes once at midnight to move "today", and not otherwise.
+ * All text is English whatever the app language, in keeping with the rest of
+ * the HUD. Japanese national holidays are computed locally
+ * (shared/jp-holidays.ts) and shown when the pane's JP HOLIDAYS switch is on -
+ * off by default, kept in the pane state. Nothing is fetched. The pane wakes
+ * once at midnight to move "today", and not otherwise.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, state: paneState }: WidgetProps = $props()
 
-const locale = navigator.language
-const language = labelLanguage(locale)
+const locale = 'en-US'
 const weekStart = firstDayOfWeek(locale)
-const withHolidays =
-  language === 'ja' || Intl.DateTimeFormat().resolvedOptions().timeZone === 'Asia/Tokyo'
+const withHolidays = $derived(paneState?.holidays === 'jp')
+
+function toggleHolidays(): void {
+  layout.setPaneState(paneId, { ...paneState, holidays: withHolidays ? 'none' : 'jp' })
+}
 
 let today = $state(new Date())
 /** The month on screen, as its first day. */
@@ -58,7 +61,7 @@ const title = $derived(
 
 const holidayName = (date: Date): string | undefined => {
   if (!withHolidays) return undefined
-  return holidayOn(date)?.[language]
+  return holidayOn(date)?.en
 }
 
 /** The next holiday from today, within a year. */
@@ -100,16 +103,24 @@ const iso = (d: Date): string =>
 const shortDate = (d: Date): string =>
   new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', weekday: 'short' }).format(d)
 
-const whenLabel = (inDays: number): string => {
-  if (language === 'ja') return inDays === 0 ? '今日' : inDays === 1 ? '明日' : `${inDays}日後`
-  return inDays === 0 ? 'today' : inDays === 1 ? 'tomorrow' : `in ${inDays} days`
-}
+const whenLabel = (inDays: number): string =>
+  inDays === 0 ? 'today' : inDays === 1 ? 'tomorrow' : `in ${inDays} days`
 </script>
 
 <div class="calendar" data-testid="calendar" data-holidays={withHolidays ? 'jp' : 'none'}>
   <div class="head">
     <span class="title" data-testid="calendar-title">{title}</span>
     <div class="nav">
+      <button
+        type="button"
+        class="holidays"
+        aria-pressed={withHolidays}
+        title="Show Japanese national holidays"
+        onclick={toggleHolidays}
+        data-testid="calendar-holidays"
+      >
+        jp holidays
+      </button>
       <button type="button" title="Previous month" onclick={() => move(-1)} data-testid="calendar-prev">‹</button>
       <button
         type="button"
@@ -119,7 +130,7 @@ const whenLabel = (inDays: number): string => {
         onclick={goToday}
         data-testid="calendar-today"
       >
-        {language === 'ja' ? '今月' : 'today'}
+        today
       </button>
       <button type="button" title="Next month" onclick={() => move(1)} data-testid="calendar-next">›</button>
     </div>
@@ -152,7 +163,7 @@ const whenLabel = (inDays: number): string => {
 
   <p class="foot" data-testid="calendar-next-holiday">
     {#if nextHoliday}
-      <span class="label">{language === 'ja' ? '次の祝日' : 'next holiday'}</span>
+      <span class="label">next holiday</span>
       <span class="holiday">{shortDate(nextHoliday.date)} {nextHoliday.name}</span>
       <span class="when">{whenLabel(nextHoliday.inDays)}</span>
     {:else}
@@ -208,6 +219,12 @@ const whenLabel = (inDays: number): string => {
 .nav button:hover {
   color: var(--accent);
   border-color: var(--accent);
+}
+
+.nav .holidays[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-faint);
+  color: var(--accent-strong);
 }
 
 .nav .now.away {

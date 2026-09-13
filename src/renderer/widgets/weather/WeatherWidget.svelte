@@ -394,7 +394,9 @@ select {
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: var(--step--2);
+  /* Below the type scale: the credit must stay legible, not compete with the forecast. */
+  font-size: 0.5rem;
+  letter-spacing: 0.02em;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;

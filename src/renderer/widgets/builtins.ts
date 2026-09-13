@@ -150,7 +150,7 @@ registerBuiltin({
   id: 'calendar',
   title: 'calendar',
   description:
-    'The month, with today, weekends and Japanese holidays marked. Scroll to change month.',
+    'The month with today and weekends marked, and optionally Japanese holidays. Scroll to change month.',
   component: CalendarWidget,
   minSize: { w: 180, h: 140 },
 })

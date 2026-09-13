@@ -167,9 +167,9 @@ Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shi
   otherwise ("日経平均" / "Nikkei 225"); run with `--lang=en-US` to force one. Yahoo publishes no live TOPIX index,
   so the default board shows the CME yen TOPIX future (`TPY=F`).
 
-- **Calendar** — the month with today marked; ‹ › or the mouse wheel change month. Japanese
-  national holidays, substitute holidays included, are computed locally and marked when the
-  machine is in Japan's time zone or the app runs in Japanese, with the next one named below.
+- **Calendar** — the month with today marked, in English; ‹ › or the mouse wheel change month.
+  The JP HOLIDAYS switch (off by default, remembered per pane) marks Japanese national holidays,
+  substitute holidays included, computed locally, and names the next one below.
 
 - **CPU usage** has the same toggle, switching to a bar per logical core.
 
