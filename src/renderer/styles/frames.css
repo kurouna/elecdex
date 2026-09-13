@@ -93,7 +93,7 @@
   right: calc(-1 * var(--rule-width));
 }
 
-/* "CPU USAGE ........... Intel Core i5" */
+/* "CPU ........... Intel Core i5" */
 .module-title {
   display: flex;
   justify-content: space-between;

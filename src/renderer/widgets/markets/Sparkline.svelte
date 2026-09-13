@@ -35,6 +35,8 @@ $effect(() => {
 
 $effect(() => {
   void appearance.revision
+  // Redraw when the direction flips: the colour comes from the class it sets.
+  void up
   const el = canvas
   const { width, height, ratio } = size
   if (el === null || width === 0 || height === 0) return
@@ -45,7 +47,8 @@ $effect(() => {
   if (points.length < 2) return
 
   const style = getComputedStyle(el)
-  const color = style.getPropertyValue(up ? '--ok' : '--danger').trim() || '#6c6'
+  // The canvas's own CSS colour, resolved to rgb(): the board's --up / --down.
+  const color = style.color || '#6c6'
   const muted = style.getPropertyValue('--text-muted').trim() || '#888'
 
   const values = points.map((p) => p.v)
@@ -117,12 +120,21 @@ $effect(() => {
 })
 </script>
 
-<canvas bind:this={canvas} class="spark" data-testid="market-spark" data-points={points.length}></canvas>
+<canvas bind:this={canvas} class="spark" class:up class:down={!up} data-testid="market-spark" data-points={points.length}></canvas>
 
 <style>
 .spark {
   display: block;
+  color: var(--ok);
   width: 100%;
   height: 100%;
+}
+
+.spark.up {
+  color: var(--up, var(--ok));
+}
+
+.spark.down {
+  color: var(--down, var(--danger));
 }
 </style>

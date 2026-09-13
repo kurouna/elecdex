@@ -58,7 +58,8 @@ registerBuiltin({
 
 registerBuiltin({
   id: 'cpu',
-  title: 'cpu usage',
+  // Like memory and disk: the pane shows usage, the title need not say so.
+  title: 'cpu',
   description: 'Per-core load charts, speed and task count.',
   component: CpuWidget,
   metrics: sources('cpu.info', 'cpu.load', 'cpu.speed', 'cpu.temperature', 'proc.list'),

@@ -225,8 +225,10 @@ const tone = (row: Row) => {
   min-height: 0;
   padding: var(--space-1) var(--space-1) 0;
   font-family: var(--font-ui);
-  --up: var(--ok);
-  --down: var(--danger);
+  /* Mixed towards the background like the calendar's weekend colours: the board reads
+     up and down at a glance without the full-strength status colours shouting. */
+  --up: color-mix(in srgb, var(--ok) 72%, var(--app-bg));
+  --down: color-mix(in srgb, var(--danger) 72%, var(--app-bg));
 }
 
 .tools {
