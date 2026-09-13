@@ -17,7 +17,9 @@ import { type GlobeColors, GlobeScene } from './globe-scene.ts'
  *    placed by country with a GeoIP database bundled in the app. No address is
  *    sent anywhere to be looked up.
  *  - "Here" is the country of the system time zone, rather than eDEX-UI's
- *    request to an online IP-lookup service.
+ *    request to an online IP-lookup service - and never the OS location service,
+ *    which would prompt the user. If the zone names no country, the pane says so
+ *    once in the middle of the globe; nothing is retried.
  *  - The globe draws on the charts' shared frame loop - ten frames a second, on
  *    the same wake-ups as every chart - none while the pane or window is hidden,
  *    and holds still when motion is reduced. Measured on the default layout, each
@@ -125,7 +127,16 @@ const topCountries = $derived(countries.slice(0, 6))
     <canvas bind:this={canvas} class="canvas" data-testid="globe-canvas"></canvas>
   {/if}
 
-  {#if offline}
+  {#if home === null}
+    <!-- Decided once from the time zone: there is nothing to retry. -->
+    <div class="overlay notice" data-testid="globe-no-location">
+      <p class="headline">location unavailable</p>
+      <p class="detail">
+        This machine's location could not be determined from its time zone ({zone}).
+        Connections are still shown; there is no "you are here" marker.
+      </p>
+    </div>
+  {:else if offline}
     <p class="overlay">offline</p>
   {/if}
 
@@ -177,6 +188,34 @@ const topCountries = $derived(countries.slice(0, 6))
   text-transform: uppercase;
   color: var(--danger);
   pointer-events: none;
+}
+
+.notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--warn);
+}
+
+.notice p {
+  margin: 0;
+}
+
+.notice .headline {
+  font-size: var(--step-1);
+}
+
+.notice .detail {
+  max-width: 22rem;
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-muted);
 }
 
 .failed {

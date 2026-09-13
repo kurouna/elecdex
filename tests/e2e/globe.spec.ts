@@ -53,3 +53,33 @@ test('closing the globe stops collecting connections', async () => {
     await close()
   }
 })
+
+test('an unknown time zone shows that the location is unavailable, once, without asking the OS', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 'g', widget: 'globe' } },
+    env: { TZ: 'Etc/Unknown' },
+  })
+  try {
+    const zone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
+    test.skip(
+      zone !== 'Etc/Unknown' && zone !== 'UTC' && zone !== 'Etc/UTC',
+      `TZ not honoured (${zone})`,
+    )
+    await expect(page.getByTestId('globe-no-location')).toContainText(/location unavailable/i)
+
+    // Whatever asks, location is refused without a prompt.
+    const state = await page.evaluate(
+      async () => (await navigator.permissions.query({ name: 'geolocation' })).state,
+    )
+    expect(state).toBe('denied')
+    const granted = await app.evaluate(async ({ BrowserWindow }) => {
+      const [win] = BrowserWindow.getAllWindows()
+      return win?.webContents.executeJavaScript(
+        'new Promise((resolve) => navigator.geolocation.getCurrentPosition(() => resolve(true), () => resolve(false)))',
+      )
+    })
+    expect(granted).toBe(false)
+  } finally {
+    await close()
+  }
+})

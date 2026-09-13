@@ -69,6 +69,16 @@ export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
 
   win.once('ready-to-show', () => win.show())
 
+  // Electron grants every permission request by default. elecdex needs none but
+  // the clipboard, so everything else - location above all, which on Windows
+  // raises a system prompt - is refused without asking the user.
+  const allowed = new Set(['clipboard-read', 'clipboard-sanitized-write'])
+  const session = win.webContents.session
+  session.setPermissionRequestHandler((_contents, permission, callback) => {
+    callback(allowed.has(permission))
+  })
+  session.setPermissionCheckHandler((_contents, permission) => allowed.has(permission))
+
   // Nothing in this app should ever open a second window or navigate away.
   win.webContents.setWindowOpenHandler(({ url }) => {
     void openExternalIfSafe(url)
