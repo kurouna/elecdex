@@ -61,9 +61,10 @@ Download the installer for your platform from
 
 | Platform | File |
 | --- | --- |
-| Windows (x64, arm64) | `elecdex-win-<arch>-<version>.exe` |
-| macOS (Apple silicon, Intel) | `elecdex-mac-<arch>-<version>.dmg` |
-| Linux (x64, arm64) | `.AppImage` or `.deb` |
+| Windows x64 / arm64 | `elecdex-win-x64-<version>.exe` / `elecdex-win-arm64-<version>.exe` |
+| macOS Apple silicon / Intel | `elecdex-mac-arm64-<version>.dmg` / `elecdex-mac-x64-<version>.dmg` |
+| Linux x64 | `elecdex-linux-x86_64-<version>.AppImage` or `elecdex-linux-amd64-<version>.deb` |
+| Linux arm64 | `elecdex-linux-arm64-<version>.AppImage` or `elecdex-linux-arm64-<version>.deb` |
 
 The builds are not code-signed yet. Windows SmartScreen shows "Windows protected your PC" — choose
 *More info → Run anyway*. On macOS, open the app once with right-click → *Open* (or allow it in

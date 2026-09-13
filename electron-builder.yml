@@ -41,35 +41,44 @@ publish:
   # Assets go to the pre-release the release workflow creates for the tag; a person
   # promotes it to a full release.
   releaseType: prerelease
+  # No latest*.yml: the app checks for updates itself (src/main/updates) and has no
+  # auto-updater to read them, and parallel jobs would overwrite each other's copy.
+  publishAutoUpdate: false
 
 artifactName: elecdex-${os}-${arch}-${version}.${ext}
 
+# Targets name no arch: an arch listed here overrides the command line, so every
+# release job built both architectures (and a combined Windows installer). The
+# arch comes from --x64 / --arm64, or the host's when none is given.
+
 win:
   target:
-    - target: nsis
-      arch: [x64, arm64]
+    - nsis
 
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
+  # Blockmaps only serve electron-updater's differential downloads, which are unused.
+  differentialPackage: false
+
+dmg:
+  # No blockmap, for the same reason as nsis.differentialPackage.
+  writeUpdateInfo: false
 
 mac:
   category: public.app-category.developer-tools
   target:
-    - target: dmg
-      arch: [x64, arm64]
+    - dmg
   # Required so a sandboxed-renderer Electron app can spawn a pty.
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
 
 linux:
   target:
-    - target: AppImage
-      arch: [x64, arm64]
-    - target: deb
-      arch: [x64, arm64]
+    - AppImage
+    - deb
   category: System;TerminalEmulator
   # The .deb control file needs a maintainer; without one electron-builder asks for
   # an author email in package.json, and none is published for this project.
