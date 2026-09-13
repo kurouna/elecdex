@@ -77,8 +77,8 @@ starts in a window and `--no-intro` skips the boot sequence.
 
 | Shortcut | Action |
 | --- | --- |
-| Ctrl+Shift+E | split the focused pane to the right |
-| Ctrl+Shift+O | split the focused pane downward |
+| Ctrl+Shift+E | split the focused pane (a tab: its whole group) to the right |
+| Ctrl+Shift+O | split the focused pane (a tab: its whole group) downward |
 | Ctrl+Shift+T | new tab beside the focused pane |
 | Ctrl+Shift+W | close the focused pane (or its × button, shown on hover) |
 | Ctrl+Shift+[ / ] | move focus between panes |

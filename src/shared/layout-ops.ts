@@ -157,17 +157,20 @@ function replace(node: LayoutNode, id: string, replacement: LayoutNode | null): 
     const children = [...node.children]
     if (replacement === null) {
       children.splice(index, 1)
-    } else if (replacement.kind === 'pane') {
-      children[index] = replacement
-    } else {
-      // A tab group can only hold panes. Splitting a tab replaces the whole
-      // group with the split, keeping the other tabs intact beside it.
-      const others = children.filter((_, i) => i !== index)
-      const rebuilt: LayoutNode =
-        others.length === 0 ? replacement : split('row', [replacement, tabs(others)])
-      return rebuilt
+      // Keep showing the same tab: removing one before it moves it down by one.
+      // Removing the shown tab itself shows the one that took its place.
+      const activeIndex =
+        index < node.activeIndex
+          ? node.activeIndex - 1
+          : Math.min(node.activeIndex, children.length - 1)
+      return { ...node, children, activeIndex }
     }
-    return { ...node, children, activeIndex: Math.min(node.activeIndex, children.length - 1) }
+    // A group holds only panes. Everything that puts a split or a group beside a
+    // tab anchors on the group instead (splitPane, addTab, moveNode), so this
+    // refuses rather than build a tree the schema does not allow.
+    if (replacement.kind !== 'pane') return node
+    children[index] = replacement
+    return { ...node, children }
   }
 
   const children: LayoutNode[] = []
@@ -222,7 +225,9 @@ function placeBeside(
 }
 
 /**
- * Splits the pane with `paneId`, putting `incoming` on the given side.
+ * Splits the pane with `paneId`, putting `incoming` on the given side. A tabbed
+ * pane is split through its group, so the new pane sits beside the whole group
+ * and every tab stays where it was.
  *
  * A no-op if the pane is not found, so a stale id from the UI cannot corrupt
  * the tree.
@@ -235,7 +240,8 @@ export function splitPane(
 ): LayoutTree {
   const target = findNode(tree.root, paneId)
   if (target === null || target.kind !== 'pane') return tree
-  const replaced = placeBeside(tree.root, paneId, incoming, direction)
+  const anchor = findTabsContaining(tree.root, paneId) ?? target
+  const replaced = placeBeside(tree.root, anchor.id, incoming, direction)
   return normalizeTree({ ...tree, root: replaced ?? incoming }, incoming)
 }
 
