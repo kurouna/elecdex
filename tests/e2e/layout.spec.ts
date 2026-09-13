@@ -390,7 +390,26 @@ test('dragging a pane by its title onto the edge of another moves it there, and 
       target.y + target.height / 2,
       false,
     )
-    await expect(page.getByTestId('pane-drop-preview')).toHaveAttribute('data-placement', 'right')
+    const preview = page.getByTestId('pane-drop-preview')
+    await expect(preview).toHaveAttribute('data-placement', 'right')
+    // The preview covers the right half of the shell group, not somewhere else on screen.
+    const rightHalf = {
+      x: target.x + target.width / 2,
+      y: target.y,
+      width: target.width / 2,
+      height: target.height,
+    }
+    await expect
+      .poll(async () => {
+        const box = await boxOf(preview)
+        return [
+          box.x - rightHalf.x,
+          box.y - rightHalf.y,
+          box.width - rightHalf.width,
+          box.height - rightHalf.height,
+        ].every((d) => Math.abs(d) < 2)
+      })
+      .toBe(true)
     await page.mouse.up()
     await expect(page.getByTestId('pane-drag')).toHaveCount(0)
 
@@ -437,6 +456,40 @@ test('a shell tab dragged out of its group keeps its session and its header', as
   }
 })
 
+test('holding Ctrl while dragging adds the pane to another as a tab', async () => {
+  const { page, close } = await launch()
+  try {
+    const memory = page.locator('[data-testid=pane][data-widget=memory]')
+    const globeBox = await boxOf(page.locator('[data-testid=pane][data-widget=globe]'))
+    const preview = page.getByTestId('pane-drop-preview')
+
+    // Without Ctrl, even the middle of a pane inserts beside it.
+    await drag(
+      page,
+      memory.locator('.module-title'),
+      globeBox.x + globeBox.width / 2,
+      globeBox.y + globeBox.height / 2,
+      false,
+    )
+    await expect(preview).not.toHaveAttribute('data-placement', 'tab')
+    // Ctrl pressed and released without moving switches the preview both ways.
+    await page.keyboard.down('Control')
+    await expect(preview).toHaveAttribute('data-placement', 'tab')
+    await page.keyboard.up('Control')
+    await expect(preview).not.toHaveAttribute('data-placement', 'tab')
+    await page.keyboard.down('Control')
+    await expect(preview).toHaveAttribute('data-placement', 'tab')
+    await page.mouse.up()
+    await page.keyboard.up('Control')
+
+    const group = page.getByTestId('tabs-host').filter({ has: page.locator('[data-widget=globe]') })
+    await expect(group.getByTestId('tab')).toHaveCount(2)
+    await expect(group.locator('[data-testid=pane][data-widget=memory]')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
 test('Escape cancels a pane drag, and a drop onto itself changes nothing', async () => {
   const { page, close } = await launch()
   try {
@@ -453,7 +506,7 @@ test('Escape cancels a pane drag, and a drop onto itself changes nothing', async
       globe.y + globe.height / 2,
       false,
     )
-    await expect(page.getByTestId('pane-drop-preview')).toHaveAttribute('data-placement', 'tab')
+    await expect(page.getByTestId('pane-drop-preview')).toHaveCount(1)
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('pane-drag')).toHaveCount(0)
     await page.mouse.up()

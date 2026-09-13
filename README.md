@@ -103,9 +103,10 @@ pointer to the bottom edge) has buttons for adding a pane, resetting the layout,
 sound and exit.
 
 To move a pane, drag it by its title (a pane without one, such as the clock, by the rule along its
-top) and drop it near another pane's edge to place it on that side, or on its middle to add it as a
-tab. A shell tab drags out on its own, and a tab group's header moves the whole group. Escape
-cancels. A moved shell keeps its session.
+top) and drop it on another pane: it goes in beside that pane, on the side nearest the pointer. Hold
+Ctrl (Cmd on macOS) while dropping to add it to that pane as a tab instead. A shell tab drags out on
+its own, and a tab group's header moves the whole group. Escape cancels. A moved shell keeps its
+session.
 
 ## Panes
 

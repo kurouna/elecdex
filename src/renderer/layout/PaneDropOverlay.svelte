@@ -32,6 +32,7 @@ $effect(() => {
     {/if}
     <div class="label" style:left="{paneDrag.pointer.x}px" style:top="{paneDrag.pointer.y}px">
       {paneDrag.label}
+      <span class="hint">{paneDrag.asTab ? 'as tab' : 'Ctrl: as tab'}</span>
     </div>
   </div>
 {/if}
@@ -80,5 +81,12 @@ $effect(() => {
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.hint {
+  margin-left: var(--space-2);
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
 }
 </style>

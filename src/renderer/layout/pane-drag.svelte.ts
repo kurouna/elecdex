@@ -12,6 +12,10 @@ import { layout } from '../stores/layout.svelte.ts'
  * themed HUD cannot style. Pointer capture keeps the drag ours while it crosses
  * terminals and canvases that handle pointer events themselves.
  *
+ * A plain drop inserts the pane beside another; holding Ctrl (or Cmd) makes it a
+ * tab of that pane instead. The two are separate gestures rather than zones of
+ * one pane, so neither is reached by accident near the other.
+ *
  * Drop targets are marked in the DOM with `data-drop-node` (a pane outside a tab
  * group, or a whole group); the layout decides what a drop means (moveNode), so
  * this file only turns pointer positions into a target and shows it.
@@ -33,6 +37,8 @@ class PaneDragStore {
   /** What the drag is labelled with beside the pointer. */
   label = $state('')
   pointer = $state({ x: 0, y: 0 })
+  /** True while Ctrl or Cmd is held: a drop adds the pane as a tab. */
+  asTab = $state(false)
   target = $state.raw<DropTarget | null>(null)
 
   begin(nodeId: string, label: string): void {
@@ -40,9 +46,10 @@ class PaneDragStore {
     this.label = label
   }
 
-  /** Follows the pointer: finds the pane under it and what a drop there would do. */
-  track(x: number, y: number): void {
+  /** Follows the pointer and the modifier: the pane under the pointer, and what a drop there would do. */
+  track(x: number, y: number, asTab: boolean): void {
     this.pointer = { x, y }
+    this.asTab = asTab
     const source = this.source
     if (source === null) return
     const host = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-node]')
@@ -52,7 +59,7 @@ class PaneDragStore {
       return
     }
     const box = host.getBoundingClientRect()
-    const placement = dropPlacement(box, x, y)
+    const placement = dropPlacement(box, x, y, asTab)
     this.target = layout.canMove(source, nodeId, placement)
       ? { nodeId, placement, preview: dropPreview(box, placement) }
       : null
@@ -63,6 +70,7 @@ class PaneDragStore {
     const { source, target } = this
     this.source = null
     this.target = null
+    this.asTab = false
     if (drop && source !== null && target !== null) {
       layout.move(source, target.nodeId, target.placement)
     }
@@ -94,9 +102,15 @@ function startGesture(
   label: () => string,
 ): void {
   let dragging = false
+  let last = { x: down.clientX, y: down.clientY }
 
   const onMove = (event: PointerEvent): void => {
     if (event.pointerId !== down.pointerId) return
+    // Released where this window never heard it (outside it, before capture began).
+    if (event.buttons === 0) {
+      finish(false)
+      return
+    }
     if (!dragging) {
       const distance = Math.hypot(event.clientX - down.clientX, event.clientY - down.clientY)
       if (distance < DRAG_THRESHOLD_PX) return
@@ -104,14 +118,16 @@ function startGesture(
       handle.setPointerCapture(down.pointerId)
       paneDrag.begin(nodeId, label())
     }
-    paneDrag.track(event.clientX, event.clientY)
+    last = { x: event.clientX, y: event.clientY }
+    paneDrag.track(last.x, last.y, withTabModifier(event))
   }
 
   const finish = (drop: boolean): void => {
     window.removeEventListener('pointermove', onMove)
     window.removeEventListener('pointerup', onUp)
     window.removeEventListener('pointercancel', onCancel)
-    window.removeEventListener('keydown', onKeydown, true)
+    window.removeEventListener('keydown', onKey, true)
+    window.removeEventListener('keyup', onKey, true)
     handle.removeEventListener('lostpointercapture', onCancel)
     if (!dragging) return
     paneDrag.end(drop)
@@ -123,19 +139,32 @@ function startGesture(
   }
   // Capture lost without a release: the handle was removed, or the system took the pointer.
   const onCancel = (): void => finish(false)
-  const onKeydown = (event: KeyboardEvent): void => {
-    if (event.key !== 'Escape' || !dragging) return
-    event.preventDefault()
-    event.stopPropagation()
-    finish(false)
+  const onKey = (event: KeyboardEvent): void => {
+    if (!dragging) return
+    if (event.type === 'keydown' && event.key === 'Escape') {
+      event.preventDefault()
+      event.stopPropagation()
+      finish(false)
+      return
+    }
+    // Pressing or releasing Ctrl without moving still switches between insert and tab.
+    if (event.key === 'Control' || event.key === 'Meta') {
+      paneDrag.track(last.x, last.y, withTabModifier(event))
+    }
   }
 
   window.addEventListener('pointermove', onMove)
   window.addEventListener('pointerup', onUp)
   window.addEventListener('pointercancel', onCancel)
   // Capture phase, ahead of a focused terminal that would otherwise take the Escape.
-  window.addEventListener('keydown', onKeydown, true)
+  window.addEventListener('keydown', onKey, true)
+  window.addEventListener('keyup', onKey, true)
   handle.addEventListener('lostpointercapture', onCancel)
+}
+
+/** Ctrl, or Cmd on macOS, as the app's shortcuts treat them. */
+function withTabModifier(event: MouseEvent | KeyboardEvent): boolean {
+  return event.ctrlKey || event.metaKey
 }
 
 /**
