@@ -408,3 +408,36 @@ test('selecting text copies it, and a right-click pastes', async () => {
   await host.click({ button: 'right', position: { x: box.width / 2, y: box.height / 2 } })
   expect(await echoed).toContain(marker)
 })
+
+test('Ctrl+Shift+Arrow switches the shell tabs, and Ctrl+Shift+S takes focus back', async () => {
+  const strip = page.getByTestId('tabs-host').getByTestId('tab')
+  if ((await strip.count()) < 2) {
+    await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyT')
+    await expect.poll(() => strip.count(), { timeout: 20_000 }).toBeGreaterThanOrEqual(2)
+  }
+  const activeTab = () =>
+    page.locator('[data-testid=tabs-host] li.active [data-testid=tab]').getAttribute('data-pane-id')
+  const focusedPane = () =>
+    page.evaluate(
+      () =>
+        document.activeElement?.closest('[data-testid=pane]')?.getAttribute('data-pane-id') ?? null,
+    )
+
+  await strip.first().click()
+  const first = await activeTab()
+  await expect.poll(focusedPane).toBe(first)
+
+  await page.keyboard.press('Control+Shift+ArrowRight')
+  await expect.poll(activeTab).not.toBe(first)
+  const second = await activeTab()
+  await expect.poll(focusedPane).toBe(second)
+  await page.keyboard.press('Control+Shift+ArrowLeft')
+  await expect.poll(activeTab).toBe(first)
+
+  // Focus leaves the shell; the shortcut brings it back to the selected tab.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+  await expect.poll(focusedPane).toBeNull()
+  await page.keyboard.press('Control+Shift+KeyS')
+  await expect.poll(focusedPane).toBe(first)
+})

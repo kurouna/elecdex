@@ -9,6 +9,7 @@ import { boot } from '../../stores/boot.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sessions, shellName } from '../../stores/sessions.svelte.ts'
+import { ui } from '../../stores/ui.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import './xterm-css.ts'
 import { buildXtermTheme, monoFontFamily, paletteFromCss } from './xterm-theme.ts'
@@ -227,6 +228,8 @@ $effect(() => {
 
 // A hidden tab has zero size, so fitting it would compute nonsense dimensions.
 $effect(() => {
+  // Asked again from the keyboard (Ctrl+Shift+S) while already the focused pane.
+  void ui.shellFocus
   // A concealed workspace cannot take focus, so try again once it is shown.
   if (!active || boot.concealed) return
   safeFit()

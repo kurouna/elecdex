@@ -75,7 +75,9 @@ function claim(event: KeyboardEvent): void {
 
 const bindings = $derived(keymap(appearance.settings.keybindings))
 
-const ACTIONS: Record<KeybindingAction, () => void> = {
+/** An action returns false when it does not apply, leaving the key to the focused pane. */
+// biome-ignore lint/suspicious/noConfusingVoidType: most actions return nothing
+const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   // Add a pane: brings back any widget that was closed.
   'pane.add': () => ui.openPanePicker(),
   // Split vertically: the new pane sits to the right.
@@ -88,6 +90,10 @@ const ACTIONS: Record<KeybindingAction, () => void> = {
   'focus.previous': () => layout.cycleFocus(-1),
   'layout.reset': () => void layout.reset(),
   'launcher.focus': () => focusLauncher(),
+  'shell.focus': () => focusShell(),
+  // Only in a tab group: elsewhere a shell keeps the keys (PSReadLine selects by word).
+  'tab.next': () => layout.cycleTab(1),
+  'tab.previous': () => layout.cycleTab(-1),
   'settings.open': () => ui.openSettings(),
   'window.fullscreen': () => window.elecdex.system.toggleFullscreen(),
   // Fullscreen has no window frame and no close button; this is the way out.
@@ -102,6 +108,14 @@ function focusLauncher(): void {
   ui.focusLauncher()
 }
 
+/** Focuses the shell in its selected tab, or adds a shell pane first when there is none. */
+function focusShell(): void {
+  const pane = layout.shellToFocus()
+  if (pane === null) layout.addPane('terminal', 'right')
+  else layout.focus(pane)
+  ui.focusShell()
+}
+
 /** Shortcuts that still work with a dialog open. */
 const THROUGH_DIALOGS = new Set<KeybindingAction>(['app.quit', 'window.fullscreen'])
 
@@ -114,8 +128,8 @@ function onKeydown(event: KeyboardEvent): void {
   if (action === undefined) return
   // A dialog over the workspace: nothing behind it should change unseen.
   if (ui.dialogOpen && !THROUGH_DIALOGS.has(action)) return
+  if (ACTIONS[action]() === false) return
   claim(event)
-  ACTIONS[action]()
 }
 
 // A pending debounced save would be lost if the window went away first.

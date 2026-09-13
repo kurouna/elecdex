@@ -82,16 +82,19 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+T | new tab beside the focused pane |
 | Ctrl+Shift+W | close the focused pane (or its × button, shown on hover) |
 | Ctrl+Shift+[ / ] | move focus between panes |
+| Ctrl+Shift+← / → | previous / next tab in the focused tab group, such as the shell's tabs |
 | Ctrl+Shift+A | add a pane: any widget, right of, below or as a tab beside the focused pane |
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
+| Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+, | settings |
 | F11 | toggle fullscreen |
 | Ctrl+Shift+Q | quit |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
 The shell has focus when elecdex starts. In a shell, selecting text copies it and a right-click
-pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt.
+pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt. Outside a tab group
+Ctrl+Shift+← / → still reach the shell, where PSReadLine selects by word.
 
 Every shortcut except the divider keys can be rebound in *Settings → Keyboard*: click one and
 press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key, so every other

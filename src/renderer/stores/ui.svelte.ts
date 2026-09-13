@@ -36,6 +36,13 @@ class UiStore {
     this.launcherFocus += 1
   }
 
+  /** Bumped to ask the focused shell to take keyboard focus again, like launcherFocus. */
+  shellFocus = $state(0)
+
+  focusShell(): void {
+    this.shellFocus += 1
+  }
+
   settingsOpen = $state(false)
   /** True while the settings dialog is capturing a new shortcut: app shortcuts stand down. */
   recordingShortcut = $state(false)

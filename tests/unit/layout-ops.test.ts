@@ -6,6 +6,7 @@ import {
   findNode,
   findTabsContaining,
   focusTab,
+  neighbourTab,
   normalize,
   normalizeSizes,
   pane,
@@ -260,6 +261,23 @@ describe('tabs', () => {
     const focused = focusTab(t, b.id)
     expect(focused.root.kind === 'tabs' && focused.root.activeIndex).toBe(1)
     expect(focusTab(focused, b.id)).toBe(focused)
+  })
+
+  it('neighbourTab steps through a group, wrapping at both ends', () => {
+    const a = pane('a')
+    const b = pane('b')
+    const c = pane('c')
+    const root = split('row', [tabs([a, b, c], 0), pane('d')])
+    expect(neighbourTab(root, a.id, 1)).toBe(b.id)
+    expect(neighbourTab(root, c.id, 1)).toBe(a.id)
+    expect(neighbourTab(root, a.id, -1)).toBe(c.id)
+  })
+
+  it('neighbourTab is null for a pane outside a group of two or more', () => {
+    const lone = pane('a')
+    expect(neighbourTab(split('row', [lone, pane('b')]), lone.id, 1)).toBeNull()
+    const only = pane('a')
+    expect(neighbourTab(tabs([only]), only.id, 1)).toBeNull()
   })
 
   it('visiblePanes returns only the active tab of each group', () => {

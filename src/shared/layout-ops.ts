@@ -248,6 +248,18 @@ export function findTabsContaining(node: LayoutNode, paneId: string): TabsNode |
   return found
 }
 
+/**
+ * The tab `delta` places from `paneId` in its group, wrapping round, or null
+ * when the pane is not in a group of two or more.
+ */
+export function neighbourTab(node: LayoutNode, paneId: string, delta: number): string | null {
+  const group = findTabsContaining(node, paneId)
+  if (group === null || group.children.length < 2) return null
+  const index = group.children.findIndex((c) => c.id === paneId)
+  const count = group.children.length
+  return group.children[(((index + delta) % count) + count) % count]?.id ?? null
+}
+
 /** Focuses a tab within its group. A no-op for a pane that is not tabbed. */
 export function focusTab(tree: LayoutTree, paneId: string): LayoutTree {
   const group = findTabsContaining(tree.root, paneId)

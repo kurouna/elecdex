@@ -5,6 +5,7 @@ import {
   collectPanes,
   findNode,
   focusTab,
+  neighbourTab,
   pane,
   resizeSplit,
   setPaneState,
@@ -185,6 +186,30 @@ class LayoutStore {
     }
     this.tree = await window.elecdex.layout.reset()
     this.focusedPaneId = initialFocus(this.tree)
+  }
+
+  /**
+   * Switches the focused pane's tab group to its next or previous tab. Returns
+   * false when the focused pane is not tabbed, so the key can go to the pane.
+   */
+  cycleTab(delta: number): boolean {
+    if (this.focusedPaneId === null) return false
+    const next = neighbourTab(this.tree.root, this.focusedPaneId, delta)
+    if (next === null) return false
+    this.focus(next)
+    return true
+  }
+
+  /**
+   * The shell to focus from the keyboard: the one last used if it is showing,
+   * else the first showing, else the last used even though it is in a hidden tab
+   * (focusing brings that tab forward). Null when the layout has no shell.
+   */
+  shellToFocus(): string | null {
+    const shown = this.visible.filter((p) => p.widget === 'terminal')
+    return (
+      shown.find((p) => p.id === this.lastTerminalId)?.id ?? shown[0]?.id ?? this.followedTerminalId
+    )
   }
 
   /** Moves focus to the next or previous visible pane, in tree order. */
