@@ -1,5 +1,6 @@
 <script lang="ts">
 import {
+  batteryGauge,
   formatMonthDay,
   formatUptime,
   osLabel,
@@ -8,6 +9,7 @@ import {
 } from '../../lib/format.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
+import BatteryGauge from './BatteryGauge.svelte'
 
 /**
  * eDEX-UI's system strip and hardware inspector, combined: the date, uptime,
@@ -29,6 +31,7 @@ const uptime = $derived(metrics.get('os.uptime'))
 const os = $derived(metrics.get('os.info'))
 const battery = $derived(metrics.get('power.battery'))
 const hardware = $derived(metrics.get('hardware.system'))
+const gauge = $derived(battery ? batteryGauge(battery) : null)
 </script>
 
 <div class="sysinfo" data-testid="sysinfo" data-pane-id={paneId}>
@@ -47,7 +50,14 @@ const hardware = $derived(metrics.get('hardware.system'))
     </div>
     <div class="hud-cell">
       <span class="label">power</span>
-      <span class="value">{battery ? powerLabel(battery) : '--'}</span>
+      {#if gauge}
+        <span class="value power" class:low={gauge.low} data-testid="power">
+          {gauge.percent}%
+          <BatteryGauge percent={gauge.percent} low={gauge.low} charging={gauge.charging} />
+        </span>
+      {:else}
+        <span class="value" data-testid="power">{battery ? powerLabel(battery) : '--'}</span>
+      {/if}
     </div>
   </div>
 
@@ -76,6 +86,17 @@ const hardware = $derived(metrics.get('hardware.system'))
   justify-content: space-around;
   height: 100%;
   gap: var(--space-1);
+}
+
+.power {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  color: var(--ok);
+}
+
+.power.low {
+  color: var(--danger);
 }
 
 .hardware {

@@ -240,9 +240,10 @@ leniently and keeps showing the last forecast if the format or the network fails
 1. Set `version` in `package.json`, commit, and push.
 2. Tag that commit `v<version>` and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
 3. The Release workflow checks the tag against `package.json`, runs lint, typecheck and unit
-   tests, creates a draft GitHub Release with generated notes, and attaches installers for
+   tests, creates a GitHub pre-release with generated notes, and attaches installers for
    Windows (x64, arm64), macOS (arm64, x64) and Linux (AppImage and deb, x64 and arm64).
-4. Review the draft and publish it. Only published releases are seen by the update check.
+4. Review the pre-release and, when it is ready, untick "Set as a pre-release". The update check
+   ignores pre-releases, so only then do running copies announce it.
 
 Builds are unsigned: Windows SmartScreen and macOS Gatekeeper will ask before the first launch.
 

@@ -77,7 +77,7 @@ scripts/         asset generators (icon, repo card, geo data)
   and handle it in Workspace.svelte; never hard-code a key check elsewhere. A chord must include
   Ctrl/Alt or be a function key, so the shell keeps every other key.
 - **Releases**: bump `package.json` version, push tag `v<version>`; .github/workflows/release.yml
-  builds every platform into a draft GitHub Release that a person publishes.
+  builds every platform into a GitHub pre-release that a person promotes to a full release.
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested).
   Widgets keep per-pane choices in pane state (`layout.setPaneState`).
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on

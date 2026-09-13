@@ -103,6 +103,25 @@ export function powerLabel(battery: {
   return battery.percent === null ? '--' : `${Math.round(battery.percent)}%`
 }
 
+/** Below this charge the battery is drawn in the danger colour. */
+export const LOW_BATTERY_PERCENT = 20
+
+/**
+ * The battery gauge beside the POWER value: its charge, rounded, and whether it
+ * is low or charging. Null on a machine without a battery or without a reading.
+ */
+export function batteryGauge(battery: {
+  hasBattery: boolean
+  percent: number | null
+  isCharging: boolean
+}): { percent: number; low: boolean; charging: boolean } | null {
+  if (!battery.hasBattery || battery.percent === null || !Number.isFinite(battery.percent)) {
+    return null
+  }
+  const percent = Math.max(0, Math.min(100, Math.round(battery.percent)))
+  return { percent, low: percent < LOW_BATTERY_PERCENT, charging: battery.isCharging }
+}
+
 /**
  * Keeps at most the first `words` words of a hardware string, dropping words
  * that repeat a context already shown (eDEX-UI trimmed "HP HP EliteBook..."

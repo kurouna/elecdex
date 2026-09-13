@@ -527,7 +527,7 @@ elecdex/
 | **4** | ファイルシステムウィジェット: CWD追従、ディスク使用量、クリックでパス入力。気象庁の天気予報ペイン | Windows でも CWD 追従する。天気予報は出典を明記し、発表時刻以外に取得しない |
 | **5** | デザイントークン / テーマ / SFX / ブート演出 / アプリアイコン | リロードなしでテーマ切替。テーマ3種を自作 |
 | **6** | Globe + GeoIP: Natural Earth から陸地の点群を生成、three で実装、接続先を国ごとにプロット | ペインを閉じれば収集も描画も止まる。アイドル時の追加コストが 1コアの約1.5% |
-| **7** | 設定UI / キーバインドUI / 更新チェック / リリースパイプライン | タグ push で3OS分の配布物が出る（下書きリリースに添付） |
+| **7** | 設定UI / キーバインドUI / 更新チェック / リリースパイプライン | タグ push で3OS分の配布物が出る（プレリリースに添付） |
 
 Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、ワークスペースプリセット。
 
@@ -591,7 +591,8 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | 設定 UI（Phase 7） | ステータスバーの SETTINGS か Ctrl+Shift+, で開くモーダル。general（テーマ・テーマフォルダ・モーション・効果音と音量・ランチャーのインストール済みアプリ表示）、keyboard、updates の3区分。変更はすべて settings.patch 経由で即時に settings.json へ保存し、手編集もそのまま反映される。ランチャーの独自項目やテーマ定義はファイルで編集し、ダイアログからファイルを開く | 既存の「main が検証して保存し全ウィンドウへ配信する」経路をそのまま使い、UI 専用の状態を持たない。patch はランチャーの showSystem だけを受け付け、items は受け付けない（renderer から起動対象を増やせないようにする） |
 | キーバインド（Phase 7） | 操作と既定のキーを shared/keybindings.ts に1か所で定義し、Workspace はキーマップを引くだけにした。キーは修飾キー + KeyboardEvent.code（"Ctrl+Shift+KeyA"）で保存し、Ctrl は Ctrl/Cmd の両方に一致。Ctrl・Alt・ファンクションキーのいずれかを含まないキーは受け付けない。設定の keybindings は操作 id → キー（null で解除）の上書きだけを持ち、既定と同じ値は保存しない。未知の id や不正なキーはファイル全体を無効にせず無視する。重複は先に定義された操作が使い、設定画面に「in use by …」と表示。記録中はアプリのショートカットを止める。ステータスバーのヒントは有効なキーから生成 | code で持つのでキーボード配列に依存しない。シェルで打つキーを奪わないことを検証で保証する。新しい版で増えた操作が古い版で settings.json ごと隔離される事態を避ける |
 | 更新チェック（Phase 7） | electron-updater は使わず、GitHub API の releases/latest を起動 15 秒後と以後 24 時間ごとに1回だけ取得し（設定でオフにできる、既定オン）、下書き・プレリリースを除いて semver で比較する。新しい版があれば右下に通知を出し、リリースページを開く（URL はこのリポジトリのリリースページに限る）。404（未公開）は最新扱い。手動の「check now」は設定に関わらず実行。E2E は ELECDEX_UPDATES_URL を閉じたポートかローカルスタブに向け、GitHub に接続しない | 署名なしのビルドを自動で置き換えると Windows SmartScreen / macOS Gatekeeper の警告が毎回出て体験が悪い。確認だけなら通信は1日1回の小さな GET で済み、ダウンロード物の検証も要らない |
-| リリースパイプライン（Phase 7） | .github/workflows/release.yml: `v*.*.*` タグの push（または既存タグを指定した手動実行）で、タグと package.json の version の一致を確認し、verify（lint・型検査・単体テスト）を通してから `gh release create --draft --generate-notes` で下書きを1つ作り、6 ジョブ（Linux x64/arm64、Windows x64/arm64、macOS arm64/x64）が `electron-builder --publish always`（releaseType: draft）で成果物を添付する。公開は人が下書きを確認して行う | 下書きを先に1つ作るのは、並列ジョブが同時に作成して重複するのを防ぐため。Windows arm64 と macOS x64 は node-pty のプリビルドがあり再ビルドしない（npmRebuild: false）ので同じランナーでクロスパッケージできる。署名は未設定 |
+| リリースパイプライン（Phase 7） | .github/workflows/release.yml: `v*.*.*` タグの push（または既存タグを指定した手動実行）で、タグと package.json の version の一致を確認し、verify（lint・型検査・単体テスト）を通してから `gh release create --prerelease --generate-notes` でプレリリースを1つ作り、6 ジョブ（Linux x64/arm64、Windows x64/arm64、macOS arm64/x64）が `electron-builder --publish always`（releaseType: prerelease、公開から2時間を過ぎたリリースにも添付できるよう EP_GH_IGNORE_TIME=true）で成果物を添付する。人が確認して正式リリースに切り替える（更新チェックはプレリリースを無視するので、それまで既存のアプリには通知されない） | リリースを先に1つ作るのは、並列ジョブが同時に作成して重複するのを防ぐため。Windows arm64 と macOS x64 は node-pty のプリビルドがあり再ビルドしない（npmRebuild: false）ので同じランナーでクロスパッケージできる。署名は未設定 |
+| 時計・メモリ・電源の表示 | 時計の文字をペインの高さの 92% / 幅の 19% まで大きくし、ペインの高さを列の 6% から 5% に縮めた（余白をメモリへ）。メモリはドットの下にスワップと同じ意匠の使用量の横棒（USED）を加え、2行を1つのグリッドでそろえる。POWER は数値の横に残量に応じて塗る電池アイコンを置き、20% 未満は danger（赤系）、20% 以上は ok（緑）で数値とアイコンを塗る。充電中は稲妻を重ね、数値は充電中も表示する（従来は CHARGE） | ドットは分布の雰囲気、横棒は量を一目で読むためのもの。色の閾値は純関数 batteryGauge で単体テストする |
 
 ## 17. 既知の問題
 

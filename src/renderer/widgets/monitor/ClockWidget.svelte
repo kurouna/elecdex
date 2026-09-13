@@ -55,7 +55,7 @@ time {
   font-family: var(--font-ui);
   font-weight: 300;
   /* Fill the pane: bounded by both its height and its width. */
-  font-size: min(70cqh, 15cqw);
+  font-size: min(92cqh, 19cqw);
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;

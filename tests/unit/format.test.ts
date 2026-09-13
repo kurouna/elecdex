@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  batteryGauge,
   formatBytes,
   formatClock,
   formatMonthDay,
@@ -108,6 +109,25 @@ describe('osLabel', () => {
     ['', '--'],
   ])('%s -> %s', (input, expected) => {
     expect(osLabel(input)).toBe(expected)
+  })
+})
+
+describe('batteryGauge', () => {
+  const base = { hasBattery: true, percent: 84.6, isCharging: false }
+  it('is green from 20% up and red below', () => {
+    expect(batteryGauge(base)).toEqual({ percent: 85, low: false, charging: false })
+    expect(batteryGauge({ ...base, percent: 20 })?.low).toBe(false)
+    expect(batteryGauge({ ...base, percent: 19.4 })?.low).toBe(true)
+  })
+  it('shows the charge while charging too', () =>
+    expect(batteryGauge({ ...base, isCharging: true })).toEqual({
+      percent: 85,
+      low: false,
+      charging: true,
+    }))
+  it('has nothing to show without a battery or a reading', () => {
+    expect(batteryGauge({ ...base, hasBattery: false })).toBeNull()
+    expect(batteryGauge({ ...base, percent: null })).toBeNull()
   })
 })
 

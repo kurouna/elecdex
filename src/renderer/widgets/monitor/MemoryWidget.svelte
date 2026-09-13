@@ -101,11 +101,17 @@ $effect(() => {
 })
 
 const swapFraction = $derived(swap && swap.total > 0 ? swap.used / swap.total : 0)
+const usedFraction = $derived(usage && usage.total > 0 ? Math.min(1, usage.used / usage.total) : 0)
 </script>
 
 <div class="memory" data-testid="memory">
   <canvas bind:this={canvas} class="dots" data-testid="memory-dots" data-used={levels.used}></canvas>
-  <div class="swap">
+  <div class="bars">
+    <span class="label">used</span>
+    <span class="bar" data-testid="memory-used-bar" data-fraction={usedFraction.toFixed(3)}
+      ><span class="fill" style="width: {usedFraction * 100}%"></span></span
+    >
+    <span class="amount">{usage ? formatBytes(usage.used) : '--'}</span>
     <span class="label">swap</span>
     <span class="bar"><span class="fill" style="width: {swapFraction * 100}%"></span></span>
     <span class="amount">{swap ? formatBytes(swap.used) : '--'}</span>
@@ -128,11 +134,12 @@ const swapFraction = $derived(swap && swap.total > 0 ? swap.used / swap.total : 
   width: 100%;
 }
 
-.swap {
+/* One grid for both rows, so the labels, bars and amounts line up. */
+.bars {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: var(--space-2);
+  gap: 0.1rem var(--space-2);
   font-family: var(--font-ui);
   font-size: var(--step--1);
 }
