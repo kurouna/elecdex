@@ -16,14 +16,15 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.1 — first pre-release.** Everything below works today; builds are unsigned.
+> **v0.0.2 — pre-release.** Everything below works today; builds are unsigned.
 > Design notes and every decision with its reason: [docs/architecture.md](docs/architecture.md).
 
 ## Features
 
 - **Terminal** — real shells (PowerShell, bash, zsh, fish) in unlimited tabs and splits. Shell
   integration reports the working directory and exit codes, on Windows too, and a session keeps
-  its scrollback when its pane is moved or reloaded.
+  its scrollback when its pane is moved or reloaded. The shell has focus at start; selecting text
+  copies it and a right-click pastes.
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
   network status and traffic. The default layout idles at about 13–15% of one core.
@@ -242,7 +243,7 @@ src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
-scripts/        asset generators (icon, banner, globe data, city list)
+scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 ```
 
 ### Releasing

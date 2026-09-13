@@ -2,7 +2,7 @@
 
 Guidance for AI agents (and humans) working in this repository.
 
-elecdex (first pre-release: v0.0.1) is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
+elecdex (latest pre-release: v0.0.2) is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
 sci-fi terminal emulator and system monitor — on Electron 44, Svelte 5, TypeScript 7 and
 xterm.js 6. GPL-3.0, like the original. The full design and every decision with its reason
 live in [docs/architecture.md](docs/architecture.md) (§16 is the decision log); plugins in
@@ -83,11 +83,19 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   and handle it in Workspace.svelte; never hard-code a key check elsewhere. A chord must include
   Ctrl/Alt or be a function key, so the shell keeps every other key.
 - **README screenshots** must not show personal data: regenerate them with
-  , which uses a demo home and curated launcher entries.
+  `npm run gen:screenshots`, which uses a demo home and curated launcher entries.
 - **Releases**: bump `package.json` version, push tag `v<version>`; .github/workflows/release.yml
   builds every platform into a GitHub pre-release that a person promotes to a full release.
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested).
-  Widgets keep per-pane choices in pane state (`layout.setPaneState`).
+  Widgets keep per-pane choices in pane state (`layout.setPaneState`). Every tree change goes
+  through a pure op there; a tabbed pane is split, moved beside or dropped on through its group,
+  and a group only ever holds panes. Pane moves (drag a title; Ctrl for a tab) are covered at three
+  levels - unit (layout-ops, including seeded random moves), component (pane-drag gesture) and
+  e2e (pane-move) - so extend those when touching it.
+- **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state
+  or in main (a shell reattaches to its session). A widget that creates a WebGL context must give
+  it back when it unmounts (`forceContextLoss`, or `releaseWebglContexts` in lib/webgl.ts):
+  Chromium keeps only about 16 and drops the oldest, which may be a visible pane's.
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
   `appearance.revision`. Components read semantic tokens, not primitives.
 - **Attribution.** JMA forecasts show「出典：気象庁ホームページ（URL）を加工して作成」; the GeoIP
