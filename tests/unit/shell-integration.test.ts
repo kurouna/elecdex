@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildInjection,
   detectShellKind,
+  outsideAsar,
   terminalEnv,
 } from '../../src/main/pty/shell-integration.js'
 
@@ -115,5 +116,34 @@ describe('terminalEnv', () => {
     // just part of the user's environment.
     const env = terminalEnv({ http_proxy: 'http://proxy:8080' }, '1.0.0')
     expect(env.http_proxy).toBe('http://proxy:8080')
+  })
+})
+
+describe('outsideAsar', () => {
+  it('maps a path inside app.asar to its unpacked twin (windows)', () => {
+    expect(
+      outsideAsar('C:\\Apps\\elecdex\\resources\\app.asar\\resources\\shell-integration'),
+    ).toBe('C:\\Apps\\elecdex\\resources\\app.asar.unpacked\\resources\\shell-integration')
+  })
+
+  it('maps a path inside app.asar to its unpacked twin (posix)', () => {
+    expect(outsideAsar('/Applications/elecdex.app/Contents/Resources/app.asar/resources/x')).toBe(
+      '/Applications/elecdex.app/Contents/Resources/app.asar.unpacked/resources/x',
+    )
+  })
+
+  it('leaves a dev path alone', () => {
+    expect(outsideAsar('/home/me/elecdex/resources/shell-integration')).toBe(
+      '/home/me/elecdex/resources/shell-integration',
+    )
+  })
+
+  it('does not touch a directory that merely starts with app.asar', () => {
+    expect(outsideAsar('/srv/app.asar-backups/x')).toBe('/srv/app.asar-backups/x')
+  })
+
+  it('is idempotent', () => {
+    const once = outsideAsar('/r/app.asar/resources')
+    expect(outsideAsar(once)).toBe(once)
   })
 })

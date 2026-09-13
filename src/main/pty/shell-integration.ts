@@ -31,6 +31,20 @@ export interface Injection {
  * number of `..` segments is wrong in at least two of them. Walking up until the
  * directory is found is correct in all three, and fails loudly if it is absent.
  */
+/**
+ * Maps a path inside `app.asar` to its twin in `app.asar.unpacked`.
+ *
+ * Electron patches Node's fs so the main process can read inside the archive,
+ * which is why the walk-up below finds the scripts either way. But the paths are
+ * handed to a *shell* - bash reads `--init-file`, fish scans `XDG_DATA_DIRS` -
+ * and a separate process sees only the real filesystem, where an asar path does
+ * not exist. The scripts are listed in electron-builder's `asarUnpack`, so the
+ * real copies live under `app.asar.unpacked`.
+ */
+export function outsideAsar(p: string): string {
+  return p.replace(/([\\/])app\.asar([\\/])/, '$1app.asar.unpacked$2')
+}
+
 let cachedScriptsDir: string | null = null
 function scriptsDir(): string {
   if (cachedScriptsDir !== null) return cachedScriptsDir
@@ -40,8 +54,8 @@ function scriptsDir(): string {
   for (let i = 0; i < 6; i++) {
     const candidate = path.join(dir, 'resources', 'shell-integration')
     if (existsSync(path.join(candidate, 'elecdex.ps1'))) {
-      cachedScriptsDir = candidate
-      return candidate
+      cachedScriptsDir = outsideAsar(candidate)
+      return cachedScriptsDir
     }
     const parent = path.dirname(dir)
     if (parent === dir) break

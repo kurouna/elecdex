@@ -13,8 +13,21 @@ files:
 
 # win/mac/linux icons are all generated from build/icon.png (see scripts/gen-icon.mjs)
 asar: true
+# node-pty spawns helper executables (winpty-agent.exe, conpty/OpenConsole.exe)
+# and loads DLLs next to its .node files. Nothing inside an asar archive can be
+# executed, so the whole package has to live outside it.
+asarUnpack:
+  - node_modules/node-pty/**
+  # Handed to shells as real file paths (bash --init-file, fish XDG_DATA_DIRS),
+  # which a separate process cannot read from inside an asar archive.
+  - resources/shell-integration/**
 compression: normal
-npmRebuild: true
+# node-pty 1.x is an N-API addon and ships ABI-stable prebuilt binaries for
+# Windows and macOS, which Electron loads as-is. Rebuilding it here would call
+# node-gyp and fail on any machine without Visual Studio / Xcode, for no gain.
+# (On Linux, where node-pty ships no prebuild, npm install already compiles it
+# once against N-API, and that binary is equally valid under Electron.)
+npmRebuild: false
 forceCodeSigning: false
 
 publish:

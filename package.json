@@ -42,7 +42,6 @@
     "verify": "npm run lint && npm run typecheck && npm run test",
     "package": "electron-vite build && electron-builder",
     "package:dir": "electron-vite build && electron-builder --dir",
-    "postinstall": "electron-builder install-app-deps",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit",
     "gen:icon": "node scripts/gen-icon.mjs"
   },

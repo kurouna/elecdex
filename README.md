@@ -30,6 +30,13 @@ Vitest 5 · Playwright · electron-builder 26
 
 ## Develop
 
+No native toolchain is needed on **Windows or macOS**. node-pty is an N-API addon that ships
+prebuilt, ABI-stable binaries which Electron loads as-is, so `npm ci` never invokes node-gyp and
+you do not need Visual Studio or Xcode. On **Linux** node-pty has no prebuild and compiles once
+during install, which needs `python3`, `make` and a C++ compiler (e.g. `build-essential`).
+
+The Electron binary itself is downloaded on first launch rather than during install.
+
 ```bash
 npm install
 npm run dev          # electron-vite dev, with HMR in the renderer
