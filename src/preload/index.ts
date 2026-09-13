@@ -5,6 +5,7 @@ import type {
   PtyHandlers,
   PtySessionSummary,
   ThemeCatalog,
+  WindowState,
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { DirResult, DiskUsage, DriveInfo } from '@shared/fs'
@@ -243,6 +244,9 @@ const api: ElecdexApi = {
     setFullscreen: (on) => ipcRenderer.send(CH.system.setFullscreen, on),
     toggleFullscreen: () => ipcRenderer.send(CH.system.toggleFullscreen),
     quit: () => ipcRenderer.send(CH.system.quit),
+    windowState: () => ipcRenderer.invoke(CH.system.windowState) as Promise<WindowState>,
+    onWindowState: (handler) => listen<WindowState>(CH.system.windowStateChanged, handler),
+    setTitleBarColors: (colors) => ipcRenderer.send(CH.system.setTitleBarColors, colors),
   },
   pty: {
     create: (opts?: PtyCreateOptions) =>

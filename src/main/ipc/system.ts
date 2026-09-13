@@ -2,9 +2,10 @@ import os from 'node:os'
 import path from 'node:path'
 import type { AppInfo, HostFacts } from '@shared/api'
 import { CH } from '@shared/channels'
+import { titleBarColors } from '@shared/title-bar'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { APP_VERSION } from '../build-info.js'
-import { openExternalIfSafe } from '../window.js'
+import { openExternalIfSafe, setTitleBarColors } from '../window.js'
 
 /** `--no-intro` skips the boot sequence; the end-to-end tests launch with it. */
 const wantsIntro = !process.argv.includes('--no-intro')
@@ -75,6 +76,17 @@ export function registerSystemIpc(): void {
   // The window is frameless in fullscreen, so the app must offer its own way out.
   ipcMain.on(CH.system.quit, () => {
     app.quit()
+  })
+
+  ipcMain.handle(CH.system.windowState, (event) => ({
+    fullscreen: BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false,
+  }))
+
+  ipcMain.on(CH.system.setTitleBarColors, (event, raw: unknown) => {
+    const colors = titleBarColors(raw)
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (colors === null || !win) return
+    setTitleBarColors(win, colors)
   })
 
   ipcMain.on(CH.system.setFullscreen, (event, on: unknown) => {

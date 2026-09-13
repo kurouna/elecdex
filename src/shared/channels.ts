@@ -13,6 +13,9 @@ export const CH = {
     setFullscreen: 'system:set-fullscreen',
     toggleFullscreen: 'system:toggle-fullscreen',
     quit: 'system:quit',
+    windowState: 'system:window-state',
+    windowStateChanged: 'system:window-state-changed',
+    setTitleBarColors: 'system:set-title-bar-colors',
   },
   layout: {
     load: 'layout:load',

@@ -1,6 +1,6 @@
 import type { ElectronApplication } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import { launch, showStatusBar } from './support.js'
 
 /**
  * Leaving the app. In fullscreen the window has no frame and no close button,
@@ -17,6 +17,7 @@ function exited(app: ElectronApplication): Promise<void> {
 test('the exit button asks for a second click, then quits', async () => {
   const { app, page, close } = await launch()
   try {
+    await showStatusBar(page)
     const button = page.getByTestId('exit')
     await button.click()
     await expect(button).toHaveText(/click again/i)

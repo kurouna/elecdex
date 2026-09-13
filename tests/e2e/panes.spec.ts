@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { launch, terminalPane } from './support.js'
+import { launch, showStatusBar, terminalPane } from './support.js'
 
 /**
  * Closing any pane and bringing it back. eDEX-UI's modules were fixed; here a
@@ -41,6 +41,7 @@ test('placement puts the new pane right, below or in a tab', async () => {
     const cpu = pane(page, 'cpu')
     await cpu.dispatchEvent('pointerdown') // focus it
 
+    await showStatusBar(page)
     await page.getByTestId('add-pane').click()
     const picker = page.getByTestId('pane-picker')
     await picker.locator('[data-testid=pane-picker-placement][data-placement=tab]').click()
@@ -99,6 +100,7 @@ test('the layout can be reset from the status bar and from the picker, with conf
     await expect(panes).toHaveCount(initial - 1)
 
     // Status bar: one click only arms it.
+    await showStatusBar(page)
     const reset = page.getByTestId('reset-layout')
     await reset.click()
     await expect(reset).toHaveText(/click again/i)
@@ -111,6 +113,7 @@ test('the layout can be reset from the status bar and from the picker, with conf
     await pane(page, 'memory').hover()
     await pane(page, 'memory').getByTestId('pane-close').click()
     await expect(pane(page, 'memory')).toHaveCount(0)
+    await showStatusBar(page)
     await page.getByTestId('add-pane').click()
     const pickerReset = page.getByTestId('pane-picker-reset')
     await pickerReset.click()

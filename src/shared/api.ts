@@ -48,6 +48,16 @@ export interface HostFacts {
   totalMemory: number
 }
 
+export interface WindowState {
+  fullscreen: boolean
+}
+
+/** Colours for the window's own title bar controls, as #rrggbb. */
+export interface TitleBarColors {
+  background: string
+  symbols: string
+}
+
 export interface SystemApi {
   info(): Promise<AppInfo>
   /** Opens a http(s) URL in the user's default browser. Rejects anything else. */
@@ -59,6 +69,14 @@ export interface SystemApi {
   toggleFullscreen(): void
   /** Quits the app. Every shell is ended, as on any other exit. */
   quit(): void
+  windowState(): Promise<WindowState>
+  /** Called when the window enters or leaves fullscreen. Returns an unsubscribe. */
+  onWindowState(handler: (state: WindowState) => void): () => void
+  /**
+   * Paints the minimise/maximise/close controls (Windows, Linux) to match the
+   * theme; the rest of the title bar is drawn by the page.
+   */
+  setTitleBarColors(colors: TitleBarColors): void
 }
 
 export interface PtyCreateOptions {

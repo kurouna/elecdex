@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL } from './support.js'
+import { launch, SINGLE_TERMINAL, showStatusBar } from './support.js'
 
 /**
  * Themes and settings: switching without a reload, following hand edits to the
@@ -28,6 +28,7 @@ test('switching theme restyles everything without reloading, and is saved', asyn
     const viewport = page.locator('.xterm-scrollable-element').first()
     const before = await viewport.evaluate((el) => getComputedStyle(el).backgroundColor)
 
+    await showStatusBar(page)
     await page.getByTestId('theme-select').selectOption('amber')
 
     await expect.poll(() => rootVar(page, '--accent-h')).toBe('36')
@@ -92,6 +93,7 @@ test('a theme dropped into the themes folder appears and can be chosen', async (
     const catalog = await page.evaluate(() => window.elecdex.themes.list())
     expect(catalog.problems.map((p) => p.file)).toEqual(['broken.json'])
 
+    await showStatusBar(page)
     await select.selectOption('ice')
     await expect.poll(() => rootVar(page, '--accent-h')).toBe('200')
   } finally {
@@ -102,6 +104,7 @@ test('a theme dropped into the themes folder appears and can be chosen', async (
 test('the theme and sound setting survive a restart', async () => {
   let launched = await launch()
   try {
+    await showStatusBar(launched.page)
     await launched.page.getByTestId('theme-select').selectOption('phosphor')
     const sound = launched.page.getByTestId('sound-toggle')
     await expect(sound).toHaveAttribute('aria-pressed', 'false')

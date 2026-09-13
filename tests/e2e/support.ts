@@ -146,3 +146,13 @@ export async function typeInto(page: Page, pane: ReturnType<Page['locator']>, te
   await page.keyboard.type(text)
   await page.keyboard.press('Enter')
 }
+
+/**
+ * Brings up the status bar, which stays hidden until the pointer reaches the
+ * bottom edge of the window.
+ */
+export async function showStatusBar(page: Page): Promise<void> {
+  const size = await page.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }))
+  await page.mouse.move(size.w / 2, size.h - 2)
+  await expect(page.getByTestId('status-bar')).toHaveAttribute('data-shown', 'true')
+}
