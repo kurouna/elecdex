@@ -70,6 +70,25 @@ test('the default layout recreates the original arrangement', async () => {
   }
 })
 
+test('the app starts with the shell focused, ready to type into', async () => {
+  const { page, close } = await launch()
+  try {
+    // The shell is not the first pane in tree order; focus must still land on it.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => document.activeElement?.classList.contains('xterm-helper-textarea')),
+        {
+          timeout: 20_000,
+        },
+      )
+      .toBe(true)
+    await expect(terminalPane(page).locator('.xterm-helper-textarea:focus')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
 test('keyboard split creates a second live terminal beside the first', async () => {
   const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {

@@ -66,8 +66,7 @@ class LayoutStore {
     const tree = await window.elecdex.layout.load()
     this.tree = tree
     this.loaded = true
-    const first = visiblePanes(tree.root)[0]
-    this.focusedPaneId = first?.id ?? null
+    this.focusedPaneId = initialFocus(tree)
   }
 
   /** Replaces the tree and schedules a save. */
@@ -185,7 +184,7 @@ class LayoutStore {
       this.saveTimer = null
     }
     this.tree = await window.elecdex.layout.reset()
-    this.focusedPaneId = visiblePanes(this.tree.root)[0]?.id ?? null
+    this.focusedPaneId = initialFocus(this.tree)
   }
 
   /** Moves focus to the next or previous visible pane, in tree order. */
@@ -200,3 +199,12 @@ class LayoutStore {
 }
 
 export const layout = new LayoutStore()
+
+/**
+ * The pane focused when a layout is loaded: the first visible shell, so the app
+ * starts ready to type into, or the first visible pane when there is no shell.
+ */
+function initialFocus(tree: LayoutTree): string | null {
+  const panes = visiblePanes(tree.root)
+  return (panes.find((p) => p.widget === 'terminal') ?? panes[0])?.id ?? null
+}

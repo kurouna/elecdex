@@ -362,3 +362,49 @@ test('the renderer still has no node access', async () => {
   }))
   expect(exposure).toEqual({ require: 'undefined', process: 'undefined', ipcRenderer: 'undefined' })
 })
+
+test('selecting text copies it, and a right-click pastes', async () => {
+  const pane = terminalPane(page).first()
+  const host = pane.getByTestId('terminal-host')
+  await typeInto(page, pane, 'echo SELECT-ME')
+  const box = await host.boundingBox()
+  if (box === null) throw new Error('terminal host has no box')
+
+  // Copy: drag across the top rows, which hold the command just typed or the banner.
+  const readClipboard = () => launched.app.evaluate(({ clipboard }) => clipboard.readText())
+  await launched.app.evaluate(({ clipboard }) => clipboard.writeText(''))
+  await page.mouse.move(box.x + 10, box.y + 8)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width - 10, box.y + 60, { steps: 8 })
+  await page.mouse.up()
+  await expect.poll(readClipboard, { timeout: 5000 }).not.toBe('')
+
+  // Paste: the clipboard's text reaches the shell, which echoes it back.
+  const marker = `PASTED-${Date.now()}`
+  await launched.app.evaluate(({ clipboard }, text) => clipboard.writeText(text), marker)
+  // Earlier tests leave several sessions; listen to all of them for the echo.
+  const echoed = page.evaluate(async () => {
+    const decoder = new TextDecoder()
+    let text = ''
+    const ids = (await window.elecdex.pty.list()).map((session) => session.id)
+    const detachers = await Promise.all(
+      ids.map((id) =>
+        window.elecdex.pty.attach(id, {
+          onData: (chunk) => {
+            text += decoder.decode(chunk, { stream: true })
+          },
+          onExit: () => {},
+          onCwd: () => {},
+          onCommandEnd: () => {},
+          onIntegrationUnavailable: () => {},
+        }),
+      ),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 4000))
+    for (const detach of detachers) detach()
+    return text
+  })
+  await page.waitForTimeout(800)
+  await host.click({ button: 'right', position: { x: box.width / 2, y: box.height / 2 } })
+  expect(await echoed).toContain(marker)
+})

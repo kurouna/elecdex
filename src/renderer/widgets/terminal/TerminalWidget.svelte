@@ -35,7 +35,9 @@ const { paneId, state: paneState, active }: WidgetProps = $props()
 const PTY_RESIZE_SETTLE_MS = 120
 
 let host = $state<HTMLDivElement | null>(null)
-let term: Terminal | null = null
+// State, so the focus effect below runs again once the terminal exists: at startup
+// the pane is already active before its session has been created.
+let term = $state.raw<Terminal | null>(null)
 let fit: FitAddon | null = null
 
 const info = $derived(sessions.get(paneId))
@@ -101,6 +103,7 @@ $effect(() => {
 
   let disposed = false
   let detach: (() => void) | null = null
+  let detachClipboard: (() => void) | null = null
   let terminal: Terminal | null = null
   let observer: ResizeObserver | null = null
   let resizeTimer: ReturnType<typeof setTimeout> | null = null
@@ -114,6 +117,8 @@ $effect(() => {
       cursorBlink: true,
       cursorStyle: 'block',
       scrollback: 10_000,
+      // Right-click pastes (below), so it must not also select a word first.
+      rightClickSelectsWord: false,
       fontFamily: monoFontFamily(el),
       fontSize: 13,
       lineHeight: 1.15,
@@ -149,6 +154,7 @@ $effect(() => {
     safeFit()
 
     terminal.onData((data) => window.elecdex.pty.write(id, data))
+    detachClipboard = bindClipboard(terminal, el)
     const t = terminal
     const sendSize = (): void => {
       if (resizeTimer !== null) clearTimeout(resizeTimer)
@@ -195,6 +201,7 @@ $effect(() => {
     if (resizeTimer !== null) clearTimeout(resizeTimer)
     observer?.disconnect()
     detach?.()
+    detachClipboard?.()
     terminal?.dispose()
     term = null
     fit = null
@@ -225,6 +232,33 @@ $effect(() => {
   safeFit()
   term?.focus()
 })
+
+/**
+ * PuTTY / Windows Terminal style clipboard: selecting text copies it, and a
+ * right-click pastes. Ctrl+C stays the shell's interrupt, so there is no key to
+ * copy with. Both go through navigator.clipboard, which main permits (window.ts).
+ */
+function bindClipboard(t: Terminal, el: HTMLElement): () => void {
+  const selection = t.onSelectionChange(() => {
+    const text = t.getSelection()
+    if (text !== '') void navigator.clipboard.writeText(text).catch(() => {})
+  })
+  const paste = (event: MouseEvent): void => {
+    event.preventDefault()
+    t.focus()
+    navigator.clipboard
+      .readText()
+      .then((text) => {
+        if (text !== '') t.paste(text)
+      })
+      .catch(() => {})
+  }
+  el.addEventListener('contextmenu', paste)
+  return () => {
+    selection.dispose()
+    el.removeEventListener('contextmenu', paste)
+  }
+}
 
 /** A pane that is not displayed measures as zero; fitting it yields a nonsense size. */
 function hasSize(el: HTMLElement): boolean {

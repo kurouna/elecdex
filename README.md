@@ -90,6 +90,9 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+Q | quit |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
+The shell has focus when elecdex starts. In a shell, selecting text copies it and a right-click
+pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt.
+
 Every shortcut except the divider keys can be rebound in *Settings → Keyboard*: click one and
 press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key, so every other
 key still reaches the shell, and a chord already in use is flagged. The status bar (move the
