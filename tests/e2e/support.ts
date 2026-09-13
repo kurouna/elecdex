@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -57,6 +58,36 @@ const UNREACHABLE_JMA = 'http://127.0.0.1:9/bosai'
 /** Markets likewise read from a closed port unless a test serves them: no test contacts Yahoo. */
 const UNREACHABLE_MARKETS = 'http://127.0.0.1:9/markets'
 
+/** How long a clean quit may take before the app is killed. */
+const CLOSE_TIMEOUT_MS = 20_000
+
+/**
+ * Quits the app, and kills it (with its shells) if quitting hangs.
+ *
+ * On a loaded Windows CI runner, closing ConPTY sessions has occasionally kept
+ * the app from exiting until Playwright's 60s teardown limit failed the run -
+ * after every test had passed. A test that needs a clean quit asserts it itself
+ * (exit.spec.ts); everywhere else a hung quit must not cost the suite.
+ */
+async function closeApp(app: ElectronApplication): Promise<void> {
+  const child = app.process()
+  let timer: NodeJS.Timeout | undefined
+  const closed = await Promise.race([
+    app.close().then(() => true),
+    new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), CLOSE_TIMEOUT_MS)
+    }),
+  ])
+  clearTimeout(timer)
+  if (closed || child.pid === undefined) return
+  console.warn(`[e2e] app did not quit within ${CLOSE_TIMEOUT_MS}ms; killing it`)
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+  } else {
+    child.kill('SIGKILL')
+  }
+}
+
 export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
   // Only on a fresh directory: a relaunch keeps whatever the app saved.
@@ -89,13 +120,13 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
     userData: dir,
     platform,
     relaunch: async () => {
-      await app.close()
+      await closeApp(app)
       // The seeded layout was only for the first start; keep what the app saved.
       const { layout: _seeded, ...rest } = options
       return launch(dir, rest)
     },
     close: async () => {
-      await app.close()
+      await closeApp(app)
       if (userData === undefined) rmSync(dir, { recursive: true, force: true })
     },
   }
