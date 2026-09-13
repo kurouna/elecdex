@@ -6,6 +6,7 @@ import { layout } from '../stores/layout.svelte.ts'
 import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
+import { dragHandle } from './pane-drag.svelte.ts'
 
 interface Props {
   node: PaneNode
@@ -77,6 +78,7 @@ $effect(() => () => paneMeta.clear(node.id))
   data-pane-id={node.id}
   data-widget={node.widget}
   data-chrome={chrome}
+  data-drop-node={tabbed ? undefined : node.id}
   onfocusin={() => layout.focus(node.id)}
   onpointerdown={() => layout.focus(node.id)}
 >
@@ -95,12 +97,23 @@ $effect(() => () => paneMeta.clear(node.id))
     >×</button>
   {/if}
   {#if chrome === 'shell'}
-    <header class="hud-label">{@render headline()}</header>
+    <header class="hud-label drag-handle" {@attach dragHandle(node.id, () => title)}>
+      {@render headline()}
+    </header>
     <div class="shell-frame body">{@render widget()}</div>
   {:else if chrome === 'module'}
     <div class="hud-module module">
-      {#if !definition?.headless}
-        <header class="module-title">{@render headline()}</header>
+      {#if definition?.headless}
+        <!-- No title to hold, so the strip along the top rule is the handle. -->
+        <div
+          class="drag-strip drag-handle"
+          {@attach dragHandle(node.id, () => title)}
+          data-testid="pane-drag-strip"
+        ></div>
+      {:else}
+        <header class="module-title drag-handle" {@attach dragHandle(node.id, () => title)}>
+          {@render headline()}
+        </header>
       {/if}
       <div class="body">{@render widget()}</div>
     </div>
@@ -158,6 +171,13 @@ $effect(() => () => paneMeta.clear(node.id))
 
 .chrome-shell {
   gap: var(--space-2);
+}
+
+.drag-strip {
+  position: absolute;
+  inset: calc(-1 * var(--tick-size)) 0 auto;
+  height: calc(var(--tick-size) + var(--space-2));
+  z-index: 1;
 }
 
 .module {

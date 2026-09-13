@@ -5,7 +5,9 @@ import {
   collectPanes,
   findNode,
   focusTab,
+  moveNode,
   neighbourTab,
+  type Placement,
   pane,
   resizeSplit,
   setPaneState,
@@ -160,6 +162,25 @@ class LayoutStore {
   /** The first pane showing `widget`, if any. */
   paneWith(widget: string): string | null {
     return this.panes.find((p) => p.widget === widget)?.id ?? null
+  }
+
+  /**
+   * Moves a pane or a tab group beside another node, or into it as tabs, and
+   * focuses what moved. Does nothing when the move would not change the layout.
+   */
+  move(nodeId: string, targetId: string, placement: Placement): void {
+    const next = moveNode(this.tree, nodeId, targetId, placement)
+    if (next === this.tree) return
+    this.commit(next)
+    const moved = findNode(next.root, nodeId)
+    const shown = moved === null ? null : visiblePanes(moved)[0]
+    if (shown) this.focus(shown.id)
+    sfx.play('expand')
+  }
+
+  /** Whether moving `nodeId` to `targetId` with `placement` would change the layout. */
+  canMove(nodeId: string, targetId: string, placement: Placement): boolean {
+    return moveNode(this.tree, nodeId, targetId, placement) !== this.tree
   }
 
   close(nodeId: string): void {

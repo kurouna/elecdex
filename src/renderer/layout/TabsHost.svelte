@@ -4,6 +4,7 @@ import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
 import PaneHost from './PaneHost.svelte'
+import { dragHandle } from './pane-drag.svelte.ts'
 
 interface Props {
   node: TabsNode
@@ -26,8 +27,18 @@ function shorten(text: string | undefined): string {
 }
 </script>
 
-<section class="tabs-host" class:focused data-testid="tabs-host" data-node-id={node.id}>
-  <header class="hud-label">
+<section
+  class="tabs-host"
+  class:focused
+  data-testid="tabs-host"
+  data-node-id={node.id}
+  data-drop-node={node.id}
+>
+  <!-- The group's header moves the whole group; a tab moves just that tab. -->
+  <header
+    class="hud-label drag-handle"
+    {@attach dragHandle(node.id, () => (activeChild ? titleOf(activeChild.widget) : ''))}
+  >
     <span>{activeChild ? titleOf(activeChild.widget) : ''}</span>
     <span class="keep-case">{activeMeta.subtitle ?? ''}</span>
   </header>
@@ -47,6 +58,7 @@ function shorten(text: string | undefined): string {
             type="button"
             class="select"
             onclick={() => layout.focus(child.id)}
+            {@attach dragHandle(child.id, () => meta.title ?? titleOf(child.widget))}
             data-testid="tab"
             data-pane-id={child.id}
           >

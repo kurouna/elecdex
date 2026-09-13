@@ -6,6 +6,7 @@ import {
   findNode,
   findTabsContaining,
   focusTab,
+  moveNode,
   neighbourTab,
   normalize,
   normalizeSizes,
@@ -172,6 +173,100 @@ describe('splitPane', () => {
     expect(ids).toEqual(expect.arrayContaining([a.id, b.id, c.id, incoming.id]))
     expect(ids).toHaveLength(4)
     assertInvariants(result.root)
+  })
+})
+
+describe('moveNode', () => {
+  /** The panes' widgets in tree order, with each split and group spelled out. */
+  const shape = (node: LayoutNode): string => {
+    if (node.kind === 'pane') return node.widget
+    const inner = node.children.map(shape).join(' ')
+    return node.kind === 'tabs' ? `tabs(${inner})` : `${node.direction}(${inner})`
+  }
+
+  it.each([
+    ['left', 'row(c a b)'],
+    ['right', 'row(a c b)'],
+    ['up', 'row(column(c a) b)'],
+    ['down', 'row(column(a c) b)'],
+    ['tab', 'row(tabs(a c) b)'],
+  ] as const)('puts a pane %s of another', (placement, expected) => {
+    const a = pane('a')
+    const c = pane('c')
+    const t = tree(split('column', [split('row', [a, pane('b')]), c], [0.7, 0.3]))
+    const result = moveNode(t, c.id, a.id, placement)
+    expect(shape(result.root)).toBe(expected)
+    assertInvariants(result.root)
+  })
+
+  it('keeps the moved pane itself, with its id and state', () => {
+    const shell = pane('terminal', { state: { sessionId: 's1' } })
+    const other = pane('cpu')
+    const result = moveNode(tree(split('row', [shell, other])), shell.id, other.id, 'down')
+    expect(findNode(result.root, shell.id)).toEqual(shell)
+  })
+
+  it('shows the moved pane when it joins a group', () => {
+    const a = pane('a')
+    const b = pane('b')
+    const c = pane('c')
+    const group = tabs([a, b], 0)
+    const result = moveNode(tree(split('row', [group, c])), c.id, group.id, 'tab')
+    expect(result.root).toMatchObject({ kind: 'tabs', id: group.id, activeIndex: 2 })
+  })
+
+  it('drops beside a tab as beside its group', () => {
+    const a = pane('a')
+    const b = pane('b')
+    const c = pane('c')
+    const t = tree(split('row', [tabs([a, b], 1), c]))
+    expect(shape(moveNode(t, c.id, b.id, 'up').root)).toBe('column(c tabs(a b))')
+    expect(shape(moveNode(t, c.id, b.id, 'tab').root)).toBe('tabs(a b c)')
+  })
+
+  it('takes a tab out of its group to a side of that group', () => {
+    const a = pane('a')
+    const b = pane('b')
+    const c = pane('c')
+    const group = tabs([a, b, c], 2)
+    const result = moveNode(tree(group), c.id, group.id, 'right')
+    expect(shape(result.root)).toBe('row(tabs(a b) c)')
+    assertInvariants(result.root)
+  })
+
+  it('collapses a group of two when one tab leaves it', () => {
+    const a = pane('a')
+    const b = pane('b')
+    const group = tabs([a, b], 0)
+    const result = moveNode(tree(group), b.id, group.id, 'left')
+    expect(shape(result.root)).toBe('row(b a)')
+    assertInvariants(result.root)
+  })
+
+  it('moves a whole group, and merges it into another as tabs', () => {
+    const group = tabs([pane('a'), pane('b')])
+    const c = pane('c')
+    const d = pane('d')
+    const t = tree(split('row', [group, split('column', [c, d])]))
+    expect(shape(moveNode(t, group.id, d.id, 'down').root)).toBe('column(c d tabs(a b))')
+    const merged = moveNode(t, group.id, c.id, 'tab')
+    expect(shape(merged.root)).toBe('column(tabs(c a b) d)')
+    assertInvariants(merged.root)
+  })
+
+  it('returns the same tree for a move that changes nothing or cannot be made', () => {
+    const a = pane('a')
+    const b = pane('b')
+    const c = pane('c')
+    const group = tabs([a, b])
+    const t = tree(split('row', [group, c]))
+    expect(moveNode(t, c.id, c.id, 'left')).toBe(t)
+    expect(moveNode(t, a.id, b.id, 'tab')).toBe(t)
+    expect(moveNode(t, group.id, a.id, 'right')).toBe(t)
+    expect(moveNode(t, t.root.id, c.id, 'left')).toBe(t)
+    expect(moveNode(t, c.id, t.root.id, 'tab')).toBe(t)
+    expect(moveNode(t, 'nope', c.id, 'left')).toBe(t)
+    expect(moveNode(t, c.id, 'nope', 'left')).toBe(t)
   })
 })
 

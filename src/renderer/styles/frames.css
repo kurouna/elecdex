@@ -47,6 +47,13 @@
   text-align: right;
 }
 
+/* A title that moves its pane when dragged (layout/pane-drag.svelte.ts). */
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
 /* Ticks hang down from both ends of the rule. */
 .hud-label::before,
 .hud-label::after {

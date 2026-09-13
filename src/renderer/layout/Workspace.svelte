@@ -6,6 +6,7 @@ import { sessions } from '../stores/sessions.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import '../widgets/builtins.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
+import PaneDropOverlay from './PaneDropOverlay.svelte'
 
 /**
  * Renders the workspace and owns the layout-level keyboard shortcuts.
@@ -150,6 +151,7 @@ function onBeforeUnload(): void {
     <LayoutNodeView node={layout.tree.root} />
   {/if}
 </div>
+<PaneDropOverlay />
 
 <style>
 .workspace {

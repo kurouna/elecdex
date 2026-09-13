@@ -35,8 +35,8 @@ for Windows, macOS and Linux.
 - **Weather, markets and calendar** — forecasts for anywhere (JMA in Japan, the National Weather
   Service in the United States, MET Norway elsewhere), a market board from Yahoo Finance, and a
   month calendar with optional Japanese holidays.
-- **Layout** — every pane can be closed, split, tabbed, resized and brought back; the layout is
-  saved and can be reset.
+- **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
+  brought back; the layout is saved and can be reset.
 - **Look and feel** — four themes (Tron, Amber, Phosphor, White) that switch live, CRT power-on
   boot sequence, scanlines and glow, synthesised interface sounds, a themed title bar and a status
   bar that slides in from the bottom edge.
@@ -101,6 +101,11 @@ press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key,
 key still reaches the shell, and a chord already in use is flagged. The status bar (move the
 pointer to the bottom edge) has buttons for adding a pane, resetting the layout, settings, theme,
 sound and exit.
+
+To move a pane, drag it by its title (a pane without one, such as the clock, by the rule along its
+top) and drop it near another pane's edge to place it on that side, or on its middle to add it as a
+tab. A shell tab drags out on its own, and a tab group's header moves the whole group. Escape
+cancels. A moved shell keeps its session.
 
 ## Panes
 

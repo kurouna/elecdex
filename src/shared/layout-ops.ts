@@ -184,6 +184,43 @@ function replace(node: LayoutNode, id: string, replacement: LayoutNode | null): 
   return { ...node, children, sizes: normalizeSizes(sizes, children.length) }
 }
 
+/** Where a node goes relative to another: on one side of it, or as a tab with it. */
+export type Placement = SplitDirection | 'tab'
+
+/**
+ * Puts `incoming` beside the node `targetId`, without normalising.
+ *
+ * On a side, the target is replaced by a split of the two. As a tab, the target
+ * (a pane or a group) becomes a group ending with `incoming` - every tab of it,
+ * when `incoming` is a group - showing the first tab added. Returns null when
+ * the target is missing, or is a split and so cannot take tabs.
+ */
+function placeBeside(
+  root: LayoutNode,
+  targetId: string,
+  incoming: PaneNode | TabsNode,
+  placement: Placement,
+): LayoutNode | null {
+  const target = findNode(root, targetId)
+  if (target === null) return null
+
+  if (placement === 'tab') {
+    if (target.kind === 'split') return null
+    const existing = target.kind === 'tabs' ? target.children : [target]
+    const added = incoming.kind === 'tabs' ? incoming.children : [incoming]
+    const children = [...existing, ...added]
+    const group: TabsNode =
+      target.kind === 'tabs'
+        ? { ...target, children, activeIndex: existing.length }
+        : tabs(children, existing.length)
+    return replace(root, targetId, group)
+  }
+
+  const axis = placement === 'left' || placement === 'right' ? 'row' : 'column'
+  const before = placement === 'left' || placement === 'up'
+  return replace(root, targetId, split(axis, before ? [incoming, target] : [target, incoming]))
+}
+
 /**
  * Splits the pane with `paneId`, putting `incoming` on the given side.
  *
@@ -198,12 +235,7 @@ export function splitPane(
 ): LayoutTree {
   const target = findNode(tree.root, paneId)
   if (target === null || target.kind !== 'pane') return tree
-
-  const axis = direction === 'left' || direction === 'right' ? 'row' : 'column'
-  const before = direction === 'left' || direction === 'up'
-  const children = before ? [incoming, target] : [target, incoming]
-
-  const replaced = replace(tree.root, paneId, split(axis, children))
+  const replaced = placeBeside(tree.root, paneId, incoming, direction)
   return normalizeTree({ ...tree, root: replaced ?? incoming }, incoming)
 }
 
@@ -216,25 +248,44 @@ export function closeNode(tree: LayoutTree, id: string, fallback: LayoutNode): L
 
 /** Adds a pane as a new tab beside `siblingPaneId`, creating a group if needed. */
 export function addTab(tree: LayoutTree, siblingPaneId: string, incoming: PaneNode): LayoutTree {
-  const container = findTabsContaining(tree.root, siblingPaneId)
-
-  if (container !== null) {
-    const children = [...container.children, incoming]
-    const replaced = replace(tree.root, container.id, {
-      ...container,
-      children,
-      activeIndex: children.length - 1,
-    })
-    return normalizeTree({ ...tree, root: replaced ?? incoming }, incoming)
-  }
-
   const target = findNode(tree.root, siblingPaneId)
   if (target === null || target.kind !== 'pane') return tree
-
-  // `normalize` collapses a one-child group, so build it with both panes.
-  const group = tabs([target, incoming], 1)
-  const replaced = replace(tree.root, siblingPaneId, group)
+  const anchor = findTabsContaining(tree.root, siblingPaneId) ?? target
+  const replaced = placeBeside(tree.root, anchor.id, incoming, 'tab')
   return normalizeTree({ ...tree, root: replaced ?? incoming }, incoming)
+}
+
+/**
+ * Moves a pane, or a whole tab group, to a side of another node or into it as
+ * tabs: what dragging a pane by its title does.
+ *
+ * A tabbed pane is a target only through its group - dropping beside a tab means
+ * beside the group it is drawn in. Returns the same tree when the move would
+ * change nothing or cannot be made (onto itself, into the group it is already
+ * in, into something it contains), so a caller can tell whether a drop would do
+ * anything. The node keeps its id and state, so a moved shell keeps its session.
+ */
+export function moveNode(
+  tree: LayoutTree,
+  nodeId: string,
+  targetId: string,
+  placement: Placement,
+): LayoutTree {
+  const source = findNode(tree.root, nodeId)
+  const target = findNode(tree.root, targetId)
+  if (source === null || source.kind === 'split' || target === null) return tree
+
+  const anchor =
+    target.kind === 'pane' ? (findTabsContaining(tree.root, targetId) ?? target) : target
+  if (findNode(source, anchor.id) !== null) return tree
+  if (placement === 'tab' && findNode(anchor, nodeId) !== null) return tree
+
+  // Detach without normalising, so the anchor keeps its id even when this empties
+  // the group or split around it; normalising the result tidies up.
+  const detached = replace(tree.root, nodeId, null)
+  if (detached === null) return tree
+  const placed = placeBeside(detached, anchor.id, source, placement)
+  return placed === null ? tree : normalizeTree({ ...tree, root: placed }, placed)
 }
 
 /** The tab group directly holding `paneId`, if any. */
