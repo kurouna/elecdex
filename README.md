@@ -131,18 +131,20 @@ The glow effect costs a couple of percent of a core at idle.
 
 Arranged by what the panes are for:
 
-- **Left — this machine:** a compact clock, the system strip, CPU, memory and top processes.
-- **Centre — work:** three shell tabs, and beneath them the file browser (it follows the shell)
-  beside the launcher.
-- **Right — the world outside:** network status, the globe of connections, traffic, the market
-  board and the weather forecast.
+- **Left — this machine:** a compact clock, the system strip, CPU, memory, top processes, and
+  its network: connection status and traffic.
+- **Centre — work:** three shell tabs, and beneath them the launcher beside the file browser
+  (which follows the shell).
+- **Right — the world outside:** the globe of connections, the market board, the weather
+  forecast and a calendar.
 
 Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shift+A).
 
-## Launcher, markets and CPU views
+## Launcher, markets, calendar and CPU views
 
 - **Launcher** — the Start Menu on Windows (`/Applications` on macOS, `.desktop` files on
-  Linux), with your own entries pinned first. Icons are drawn in the theme's accent colour and
+  Linux), your own entries first. Once you start things from it, the most used come first
+  (counts are kept in `launcher-usage.json`). Icons are drawn in the theme's accent colour and
   show their own colours on hover. Type to filter, Enter to launch. Add entries
   under `launcher.items` in `settings.json` (the pane's EDIT LIST button opens it):
 
@@ -164,6 +166,10 @@ Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shi
   own are named in the app's language — Japanese when Electron's locale is Japanese, English
   otherwise ("日経平均" / "Nikkei 225"); run with `--lang=en-US` to force one. Yahoo publishes no live TOPIX index,
   so the default board shows the CME yen TOPIX future (`TPY=F`).
+
+- **Calendar** — the month with today marked; ‹ › or the mouse wheel change month. Japanese
+  national holidays, substitute holidays included, are computed locally and marked when the
+  machine is in Japan's time zone or the app runs in Japanese, with the next one named below.
 
 - **CPU usage** has the same toggle, switching to a bar per logical core.
 

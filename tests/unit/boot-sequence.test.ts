@@ -97,10 +97,11 @@ describe('revealDelays', () => {
     expect(byWidget.get('terminal')).toBe(shellAt)
     // Row 0 of each column together, then row 1 together, and so on.
     expect(byWidget.get('clock')).toBe(modulesAt)
-    expect(byWidget.get('netstat')).toBe(modulesAt)
+    expect(byWidget.get('globe')).toBe(modulesAt)
     expect(byWidget.get('sysinfo')).toBe(modulesAt + step)
-    expect(byWidget.get('globe')).toBe(modulesAt + step)
+    expect(byWidget.get('markets')).toBe(modulesAt + step)
     expect(byWidget.get('toplist')).toBe(modulesAt + 4 * step)
+    expect(byWidget.get('throughput')).toBe(modulesAt + 6 * step)
   })
 
   it('gives every pane a delay, including background tabs', () => {

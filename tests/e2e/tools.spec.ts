@@ -69,6 +69,44 @@ test('the launcher lists user entries first and reports a launch that fails', as
   }
 })
 
+test('the launcher counts launches and lists the most used first', async () => {
+  // Node itself, exiting at once: a program that really starts, on every platform.
+  // The comment in the script keeps the two entries' ids apart.
+  const quick = (name: string) => ({
+    name,
+    target: process.execPath,
+    args: ['-e', `// ${name}`],
+  })
+  let launched = await launch(undefined, {
+    layout: single('launcher'),
+    settings: {
+      sound: { enabled: false },
+      launcher: { showSystem: false, items: [quick('Alpha'), quick('Bravo')] },
+    },
+  })
+  try {
+    const entries = launched.page.getByTestId('launcher-entry')
+    await expect(entries).toHaveCount(2)
+    await expect(entries.first()).toContainText('Alpha')
+
+    const bravo = entries.filter({ hasText: 'Bravo' })
+    await bravo.click()
+    await expect(launched.page.getByTestId('launcher-status')).toContainText(/started bravo/i)
+    // Reordered at once, and counted.
+    await expect(entries.first()).toContainText('Bravo')
+    await expect(entries.first()).toHaveAttribute('data-launches', '1')
+    await expect(entries.nth(1)).toHaveAttribute('data-launches', '0')
+
+    // The count survives a restart.
+    launched = await launched.relaunch()
+    const again = launched.page.getByTestId('launcher-entry')
+    await expect(again.first()).toContainText('Bravo')
+    await expect(again.first()).toHaveAttribute('data-launches', '1')
+  } finally {
+    await launched.close()
+  }
+})
+
 test('the launcher lists the platform applications, with icons in the theme colour', async () => {
   const { page, close } = await launch(undefined, { layout: single('launcher') })
   try {
@@ -84,6 +122,42 @@ test('the launcher lists the platform applications, with icons in the theme colo
     })
     expect(style.mask).toMatch(/^url\(/)
     expect(style.background).not.toBe('rgba(0, 0, 0, 0)')
+  } finally {
+    await close()
+  }
+})
+
+test('the calendar shows this month with today marked, and pages through months', async () => {
+  const { page, close } = await launch(undefined, { layout: single('calendar') })
+  try {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+    const days = page.getByTestId('calendar-day')
+    await expect(days).toHaveCount(42)
+    await expect(page.locator('[data-testid=calendar-day][data-today]')).toHaveAttribute(
+      'data-date',
+      iso(now),
+    )
+    await expect(page.getByTestId('pane-subtitle')).toContainText(/week \d+/)
+
+    const title = await page.getByTestId('calendar-title').textContent()
+    await page.getByTestId('calendar-next').click()
+    await expect(page.getByTestId('calendar-title')).not.toHaveText(title ?? '')
+    await page.getByTestId('calendar-today').click()
+    await expect(page.getByTestId('calendar-title')).toHaveText(title ?? '')
+
+    // In Japan's time zone or in Japanese, holidays are marked: 1 January always is one.
+    if ((await page.getByTestId('calendar').getAttribute('data-holidays')) === 'jp') {
+      for (let i = 0; i < 12 && (await page.locator('[data-date$="-01-01"]').count()) === 0; i++) {
+        await page.getByTestId('calendar-next').click()
+      }
+      await expect(page.locator('[data-date$="-01-01"]').first()).toHaveAttribute(
+        'data-holiday',
+        /.+/,
+      )
+      await expect(page.getByTestId('calendar-next-holiday')).not.toBeEmpty()
+    }
   } finally {
     await close()
   }

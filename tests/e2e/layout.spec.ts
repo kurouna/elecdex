@@ -41,16 +41,17 @@ test('the default layout recreates the original arrangement', async () => {
       'cpu',
       'memory',
       'toplist',
-      'terminal',
-      'terminal',
-      'terminal',
-      'filesystem',
-      'launcher',
       'netstat',
-      'globe',
       'throughput',
+      'terminal',
+      'terminal',
+      'terminal',
+      'launcher',
+      'filesystem',
+      'globe',
       'markets',
       'weather',
+      'calendar',
     ])
     // The column headers of the original: PANEL / SYSTEM and PANEL / NETWORK.
     await expect(page.getByTestId('split-label')).toHaveCount(2)
@@ -199,7 +200,7 @@ test('a corrupt layout.json is quarantined, not lost, and the default is used', 
 
   const second = await launch(userData)
   try {
-    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(15)
+    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(16)
     const backup = `${layoutFile(userData)}.bak`
     expect(existsSync(backup)).toBe(true)
     expect(readFileSync(backup, 'utf8')).toContain('this is not json')
@@ -291,7 +292,7 @@ test('reset restores the default layout', async () => {
     await expect(terminalPane(page)).toHaveCount(2)
 
     await page.keyboard.press('Control+Shift+Backspace')
-    await expect(page.locator('[data-testid=pane]')).toHaveCount(15)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(16)
     await expect(terminalPane(page)).toHaveCount(1)
   } finally {
     await close()
