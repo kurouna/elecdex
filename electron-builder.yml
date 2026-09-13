@@ -38,8 +38,9 @@ publish:
   provider: github
   owner: kurouna
   repo: elecdex
-  # Assets go to the draft the release workflow creates for the tag; a person publishes it.
-  releaseType: draft
+  # Assets go to the pre-release the release workflow creates for the tag; a person
+  # promotes it to a full release.
+  releaseType: prerelease
 
 artifactName: elecdex-${os}-${arch}-${version}.${ext}
 

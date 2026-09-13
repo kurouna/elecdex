@@ -1,9 +1,9 @@
 name: Release
 
 # Push a tag that matches package.json's version (e.g. v0.1.0) and every
-# platform's installers are built and attached to a draft GitHub Release.
-# Review the notes and publish the draft by hand; the in-app update check only
-# sees published releases.
+# platform's installers are built and attached to a GitHub pre-release.
+# Review it and, when it is ready, edit it into a full release by hand: the
+# in-app update check ignores pre-releases.
 
 on:
   push:
@@ -27,7 +27,7 @@ env:
 
 jobs:
   prepare:
-    name: check version & create draft
+    name: check version & create pre-release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -46,13 +46,13 @@ jobs:
           fi
       - run: npm ci
       - run: npm run verify
-      # One draft up front: parallel package jobs would otherwise race to create it.
-      - name: Create draft release
+      # One release up front: parallel package jobs would otherwise race to create it.
+      - name: Create pre-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --draft --verify-tag --title "elecdex ${TAG#v}" --generate-notes
+            gh release create "$TAG" --prerelease --verify-tag --title "elecdex ${TAG#v}" --generate-notes
           fi
 
   package:
@@ -86,7 +86,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - name: Build and publish to the draft release
+      - name: Build and publish to the pre-release
         run: npm run package -- --${{ matrix.arch }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # electron-builder skips a published release older than two hours; a slow
+          # job or a manual rebuild of an older tag must still be able to upload.
+          EP_GH_IGNORE_TIME: 'true'
