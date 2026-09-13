@@ -158,9 +158,9 @@ export interface DiskVolumes {
 
 /** Reads and writes across every physical disk, since the previous sample. */
 export interface DiskIo {
-  /** Bytes per second. */
-  readSec: number
-  writeSec: number
+  /** Bytes per second; null where the platform has no reading (macOS). */
+  readSec: number | null
+  writeSec: number | null
   /** Share of time the disks were busy, 0-100; null where the platform does not say. */
   busy: number | null
 }

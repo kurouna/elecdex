@@ -1,7 +1,7 @@
 import { type FSWatcher, watch } from 'node:fs'
 import { CH } from '@shared/channels'
 import { ipcMain, type WebContents } from 'electron'
-import { diskUsage, listDrives, readDirectory, validatePath } from '../fs/listing.js'
+import { listDrives, readDirectory, validatePath } from '../fs/listing.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 
 /**
@@ -77,11 +77,6 @@ export function registerFsIpc(): { dispose: () => void } {
     return readDirectory(dir)
   })
 
-  ipcMain.handle(CH.fs.diskUsage, async (_event, raw: unknown) => {
-    const target = validatePath(raw)
-    return target === null ? null : diskUsage(target)
-  })
-
   ipcMain.handle(CH.fs.drives, () => listDrives())
 
   ipcMain.on(CH.fs.watch, (event, raw: unknown) => {
@@ -101,7 +96,6 @@ export function registerFsIpc(): { dispose: () => void } {
     dispose: () => {
       for (const dir of [...watchers.keys()]) close(dir)
       ipcMain.removeHandler(CH.fs.readDir)
-      ipcMain.removeHandler(CH.fs.diskUsage)
       ipcMain.removeHandler(CH.fs.drives)
       ipcMain.removeAllListeners(CH.fs.watch)
       ipcMain.removeAllListeners(CH.fs.unwatch)

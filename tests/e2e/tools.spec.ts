@@ -110,6 +110,30 @@ test('the launcher counts launches and lists the most used first', async () => {
   }
 })
 
+test('a shortcut puts the cursor in the launcher search, adding the pane when there is none', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
+    settings: { sound: { enabled: false }, launcher: { showSystem: false, items: [] } },
+  })
+  try {
+    await expect(page.getByTestId('launcher-filter')).toHaveCount(0)
+    await page.keyboard.press('Control+Shift+KeyL')
+    const filter = page.getByTestId('launcher-filter')
+    await expect(filter).toBeFocused()
+
+    await page.keyboard.type('abc')
+    await page.locator('[data-testid=pane][data-widget=terminal]').dispatchEvent('pointerdown')
+    await page.locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(filter).toBeFocused()
+    // The old query is selected, so typing replaces it.
+    await page.keyboard.type('x')
+    await expect(filter).toHaveValue('x')
+  } finally {
+    await close()
+  }
+})
+
 test('the launcher lists the platform applications, with icons in the theme colour', async () => {
   const { page, close } = await launch(undefined, { layout: single('launcher') })
   try {

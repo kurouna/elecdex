@@ -87,11 +87,23 @@ const ACTIONS: Record<KeybindingAction, () => void> = {
   'focus.next': () => layout.cycleFocus(1),
   'focus.previous': () => layout.cycleFocus(-1),
   'layout.reset': () => void layout.reset(),
+  'launcher.focus': () => focusLauncher(),
   'settings.open': () => ui.openSettings(),
   'window.fullscreen': () => window.elecdex.system.toggleFullscreen(),
   // Fullscreen has no window frame and no close button; this is the way out.
   'app.quit': () => window.elecdex.system.quit(),
 }
+
+/** Focuses the launcher's search box, or adds a launcher pane first when there is none. */
+function focusLauncher(): void {
+  const pane = layout.paneWith('launcher')
+  if (pane === null) layout.addPane('launcher', 'right')
+  else layout.focus(pane)
+  ui.focusLauncher()
+}
+
+/** Shortcuts that still work with a dialog open. */
+const THROUGH_DIALOGS = new Set<KeybindingAction>(['app.quit', 'window.fullscreen'])
 
 function onKeydown(event: KeyboardEvent): void {
   // While a shortcut is being recorded in the settings, every key goes there.
@@ -100,6 +112,8 @@ function onKeydown(event: KeyboardEvent): void {
   if (chord === null) return
   const action = bindings.get(chord)
   if (action === undefined) return
+  // A dialog over the workspace: nothing behind it should change unseen.
+  if (ui.dialogOpen && !THROUGH_DIALOGS.has(action)) return
   claim(event)
   ACTIONS[action]()
 }

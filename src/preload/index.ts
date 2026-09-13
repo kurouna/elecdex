@@ -8,7 +8,7 @@ import type {
   WindowState,
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
-import type { DirResult, DiskUsage, DriveInfo } from '@shared/fs'
+import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
@@ -290,7 +290,6 @@ const api: ElecdexApi = {
   },
   fs: {
     readDir: (path) => ipcRenderer.invoke(CH.fs.readDir, path) as Promise<DirResult>,
-    diskUsage: (path) => ipcRenderer.invoke(CH.fs.diskUsage, path) as Promise<DiskUsage | null>,
     drives: () => ipcRenderer.invoke(CH.fs.drives) as Promise<DriveInfo[]>,
     // Main reports the directory normalised; a "changed" event for it is only
     // matched if the watch was keyed the same way, so callers pass listing paths.

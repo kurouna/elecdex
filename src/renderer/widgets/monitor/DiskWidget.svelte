@@ -34,11 +34,11 @@ $effect(() => {
   <div class="hud-cells io">
     <div class="hud-cell">
       <span class="label">read</span>
-      <span class="value" data-testid="disk-read">{io ? formatRate(io.readSec) : '--'}</span>
+      <span class="value" data-testid="disk-read">{io?.readSec != null ? formatRate(io.readSec) : '--'}</span>
     </div>
     <div class="hud-cell">
       <span class="label">write</span>
-      <span class="value" data-testid="disk-write">{io ? formatRate(io.writeSec) : '--'}</span>
+      <span class="value" data-testid="disk-write">{io?.writeSec != null ? formatRate(io.writeSec) : '--'}</span>
     </div>
     <div class="hud-cell">
       <span class="label">busy</span>

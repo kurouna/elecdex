@@ -2,7 +2,6 @@
 import { sourceName } from '@shared/weather-places'
 import {
   formatTemperature,
-  localDate,
   locationKey,
   readLocation,
   type TemperatureUnit,
@@ -125,19 +124,6 @@ function wet(value: { pop: number | null; precipMm: number | null } | null): str
   return '--'
 }
 
-/** The part of today still ahead, for the six-hour blocks: past blocks are dimmed. */
-const currentBlock = $derived.by(() => {
-  if (!report || !today || localDate(new Date(), report.timeZone) !== today.date) return -1
-  const hour = Number(
-    new Intl.DateTimeFormat('en-GB', {
-      timeZone: report.timeZone,
-      hour: '2-digit',
-      hourCycle: 'h23',
-    }).format(new Date()),
-  )
-  return Math.floor(hour / 6)
-})
-
 const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? ''
 </script>
 
@@ -226,7 +212,7 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
         {#if today.blocks}
           <ol class="pops" aria-label="precipitation by six hours">
             {#each today.blocks as block, i (i)}
-              <li class:past={i < currentBlock || block === null}>
+              <li class:past={block === null}>
                 <span class="label">{String(i * 6).padStart(2, '0')}</span>
                 <span class="value">{wet(block)}</span>
               </li>

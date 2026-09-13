@@ -1,4 +1,4 @@
-import type { DirResult, DiskUsage, DriveInfo } from './fs.js'
+import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
@@ -189,8 +189,6 @@ export interface ThemesApi {
 export interface FsApi {
   /** Lists a directory. Paths must be absolute. */
   readDir(path: string): Promise<DirResult>
-  /** Usage of the volume holding a path, or null if it cannot be read. */
-  diskUsage(path: string): Promise<DiskUsage | null>
   drives(): Promise<DriveInfo[]>
   /**
    * Calls `handler` (debounced) when the directory's entries change. Returns a

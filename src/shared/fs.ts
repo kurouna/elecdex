@@ -36,14 +36,6 @@ export interface DirListing {
 
 export type DirResult = { ok: true; listing: DirListing } | { ok: false; error: string }
 
-export interface DiskUsage {
-  /** The mount point or drive root holding the path. */
-  mount: string
-  total: number
-  free: number
-  used: number
-}
-
 export interface DriveInfo {
   /** Where to cd to: `C:\` on Windows, a mount point elsewhere. */
   path: string

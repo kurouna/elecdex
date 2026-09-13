@@ -4,18 +4,16 @@ import path from 'node:path'
 import {
   type DirEntry,
   type DirResult,
-  type DiskUsage,
   type DriveInfo,
   type EntryKind,
   MAX_DIR_ENTRIES,
 } from '@shared/fs'
 
 /**
- * Directory listings, volume usage and drives, for the filesystem widget.
+ * Directory listings and drives, for the filesystem widget.
  *
- * eDEX-UI asked systeminformation's fsSize() for disk usage on every directory
- * change, which on Windows starts a PowerShell each time. `fs.statfs` answers
- * the same question from a single syscall.
+ * Drive sizes come from `fs.statfs`, a single syscall, where eDEX-UI started a
+ * PowerShell through systeminformation's fsSize() on every directory change.
  */
 
 /** Rejects anything that is not a plain absolute path. Returns it normalised. */
@@ -137,46 +135,6 @@ export function parseProcMounts(text: string): MountEntry[] {
     .filter((f) => f.length >= 3)
     .map(([, mount, fstype]) => ({ mount: decode(mount ?? ''), fstype: fstype ?? '' }))
     .filter((m) => m.mount.startsWith('/'))
-}
-
-/** The longest mount point containing `target`; `/` when nothing more specific matches. */
-export function mountFor(target: string, mounts: readonly string[]): string {
-  let best = '/'
-  for (const mount of mounts) {
-    const contains =
-      target === mount || target.startsWith(mount.endsWith('/') ? mount : `${mount}/`)
-    if (contains && mount.length > best.length) best = mount
-  }
-  return best
-}
-
-async function mountPoint(target: string): Promise<string> {
-  if (process.platform === 'win32') return path.parse(target).root
-  if (process.platform === 'linux') {
-    try {
-      const mounts = parseProcMounts(await fsp.readFile('/proc/self/mounts', 'utf8'))
-      return mountFor(
-        target,
-        mounts.map((m) => m.mount),
-      )
-    } catch {
-      return '/'
-    }
-  }
-  // macOS: external volumes live under /Volumes; everything else is the root volume.
-  const match = /^\/Volumes\/[^/]+/.exec(target)
-  return match ? match[0] : '/'
-}
-
-export async function diskUsage(target: string): Promise<DiskUsage | null> {
-  try {
-    const st = await fsp.statfs(target)
-    const total = st.blocks * st.bsize
-    const free = st.bavail * st.bsize
-    return { mount: await mountPoint(target), total, free, used: Math.max(0, total - free) }
-  } catch {
-    return null
-  }
 }
 
 /** Resolves null if `fn` has not settled in time: a disconnected network drive can hang. */

@@ -58,8 +58,3 @@ export function onFrame(callback: FrameCallback): () => void {
     if (callbacks.size === 0) cancel()
   }
 }
-
-/** Number of active subscribers, for tests and diagnostics. */
-export function frameSubscriberCount(): number {
-  return callbacks.size
-}

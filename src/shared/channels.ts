@@ -65,7 +65,6 @@ export const CH = {
   },
   fs: {
     readDir: 'fs:read-dir',
-    diskUsage: 'fs:disk-usage',
     drives: 'fs:drives',
     /** renderer -> main, fire and forget: report changes to a directory. */
     watch: 'fs:watch',

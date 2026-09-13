@@ -79,8 +79,8 @@ span {
 /* The zone sits on the digits' baseline, small enough not to compete with them. */
 .zone {
   align-self: flex-end;
-  margin: 0 0 0.12em 0.3em;
-  font-size: 0.3em;
+  margin: 0 0 0.1em 0.3em;
+  font-size: 0.38em;
   font-weight: 400;
   letter-spacing: 0.08em;
   color: var(--text-muted);

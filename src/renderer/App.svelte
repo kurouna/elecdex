@@ -39,6 +39,7 @@ const HINTS: Array<[KeybindingAction, string]> = [
   ['pane.splitDown', 'split down'],
   ['pane.newTab', 'tab'],
   ['pane.close', 'close'],
+  ['launcher.focus', 'launcher'],
   ['settings.open', 'settings'],
   ['app.quit', 'quit'],
   ['window.fullscreen', 'fullscreen'],

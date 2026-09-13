@@ -14,11 +14,26 @@ class UiStore {
   panePickerOpen = $state(false)
 
   openPanePicker(): void {
+    this.settingsOpen = false
+    this.locationRequest = null
     this.panePickerOpen = true
   }
 
   closePanePicker(): void {
     this.panePickerOpen = false
+  }
+
+  /**
+   * Bumped to ask the launcher pane to take keyboard focus in its search box.
+   * A counter rather than a flag, so the same request twice still arrives.
+   */
+  launcherFocus = $state(0)
+  /** When it was last asked, so a pane mounting in answer can tell a fresh request from an old one. */
+  launcherFocusAt = 0
+
+  focusLauncher(): void {
+    this.launcherFocusAt = Date.now()
+    this.launcherFocus += 1
   }
 
   settingsOpen = $state(false)
@@ -27,7 +42,13 @@ class UiStore {
 
   openSettings(): void {
     this.panePickerOpen = false
+    this.locationRequest = null
     this.settingsOpen = true
+  }
+
+  /** Whether any dialog covers the workspace. */
+  get dialogOpen(): boolean {
+    return this.panePickerOpen || this.settingsOpen || this.locationRequest !== null
   }
 
   /** The weather location picker, opened by a weather pane for itself. */
@@ -35,6 +56,7 @@ class UiStore {
 
   pickLocation(request: LocationRequest): void {
     this.panePickerOpen = false
+    this.settingsOpen = false
     this.locationRequest = request
   }
 

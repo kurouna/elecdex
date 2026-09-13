@@ -98,6 +98,7 @@ bottom edge; its lower-case `elecdex` opens the GitHub repository.
 | Ctrl+Shift+A | add a pane: pick any widget, placed right of, below or as a tab beside the focused pane (also the + PANE button) |
 | Ctrl+Shift+Q | quit (or the EXIT button in the status bar, clicked twice) |
 | Ctrl+Shift+, | settings (also the SETTINGS button in the status bar) |
+| Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
 | F11 | toggle fullscreen |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 

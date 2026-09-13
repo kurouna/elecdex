@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { DirEntry, DirListing, DiskUsage, DriveInfo } from '@shared/fs'
+import type { DirEntry, DirListing, DriveInfo } from '@shared/fs'
 import { formatBytes } from '../../lib/format.ts'
 import { cdCommand, quotePath, shellKindOf } from '../../lib/shell-quote.ts'
 import { layout } from '../../stores/layout.svelte.ts'
@@ -11,7 +11,7 @@ import FsIcon from './FsIcon.svelte'
 
 /**
  * eDEX-UI's filesystem display: the followed terminal's working directory as a
- * grid of entries, with the usage of the volume underneath.
+ * grid of entries. Volume usage is the disk pane's job.
  *
  *  - It follows the terminal focused most recently, through shell integration
  *    (OSC 7), so it tracks `cd` on Windows too - which the original could not.
@@ -37,7 +37,6 @@ let detachedPath = $state<string | null>(null)
 let showDrives = $state(false)
 
 let listing = $state.raw<DirListing | null>(null)
-let usage = $state.raw<DiskUsage | null>(null)
 let drives = $state.raw<DriveInfo[] | null>(null)
 let error = $state<string | null>(null)
 /** Bumped by the directory watcher, to re-read without the path changing. */
@@ -74,9 +73,6 @@ $effect(() => {
     } else {
       error = result.error
     }
-  })
-  void window.elecdex.fs.diskUsage(dir).then((result) => {
-    if (!stale) usage = result
   })
   return () => {
     stale = true
@@ -152,7 +148,6 @@ function up(): void {
   else detachedPath = listing.parent
 }
 
-const usedPercent = $derived(usage && usage.total > 0 ? (usage.used / usage.total) * 100 : null)
 /** Tiles fade in one after another, as in the original, but the tail is not made to wait. */
 const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
 </script>
@@ -226,17 +221,6 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
     {/if}
   {/if}
 
-  <!-- Text only: the disk pane draws the volumes as bars, so a bar here would say it twice. -->
-  <footer class="usage" data-testid="fs-usage">
-    <span class="label">
-      {#if usage && usedPercent !== null}
-        mount <strong>{usage.mount}</strong> used <strong>{Math.round(usedPercent)}%</strong>
-      {:else}
-        calculating available space…
-      {/if}
-    </span>
-    <span class="amount">{usage ? `${formatBytes(usage.free)} free` : ''}</span>
-  </footer>
 </div>
 
 <style>
@@ -335,26 +319,5 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
 .error {
   flex: 1;
   color: var(--warn);
-}
-
-.usage {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-ui);
-  font-size: var(--step--1);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.usage strong {
-  font-weight: 700;
-  text-transform: none;
-}
-
-.amount {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 </style>

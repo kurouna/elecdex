@@ -92,6 +92,14 @@ export function homeFromTimeZone(zone: string): Home | null {
 
 /** Minutes east of UTC for a zone at a moment. */
 function offsetMinutes(zone: string, at: Date): number | null {
+  const key = `${zone}@${Math.floor(at.getTime() / 3_600_000)}`
+  if (!offsets.has(key)) offsets.set(key, readOffset(zone, at))
+  return offsets.get(key) ?? null
+}
+
+const offsets = new Map<string, number | null>()
+
+function readOffset(zone: string, at: Date): number | null {
   try {
     const name = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
       .formatToParts(at)

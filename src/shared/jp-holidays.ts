@@ -117,8 +117,3 @@ export function japaneseHolidays(year: number): Map<string, Holiday> {
   }
   return days
 }
-
-/** The holiday on a local date, if any. */
-export function holidayOn(date: Date): Holiday | undefined {
-  return japaneseHolidays(date.getFullYear()).get(key(date.getMonth() + 1, date.getDate()))
-}

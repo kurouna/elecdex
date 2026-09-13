@@ -3,6 +3,7 @@ import type { LauncherEntry } from '@shared/launcher'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import { ui } from '../../stores/ui.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -11,7 +12,8 @@ import type { WidgetProps } from '../registry.ts'
  * from settings.json pinned first - until something has been started from here:
  * main counts successful launches and orders the list by them, most used first.
  *
- * Type to filter; Enter starts the first match. Icons are fetched lazily, only
+ * Type to filter; Enter starts the first match. The "Search the launcher"
+ * shortcut (Ctrl+Shift+L by default) puts the cursor in the filter from anywhere. Icons are fetched lazily, only
  * for tiles that scroll into view, and drawn in the theme's accent colour: the
  * icon's own shape is the mask, and its grayscale shading is multiplied over the
  * accent, so each icon stays recognisable while the grid reads as one HUD. The
@@ -26,6 +28,22 @@ let filter = $state('')
 let status = $state<{ text: string; error: boolean } | null>(null)
 let icons = $state.raw<Record<string, string | null>>({})
 let grid = $state<HTMLUListElement | null>(null)
+let filterInput = $state<HTMLInputElement | null>(null)
+
+// The shortcut: take focus, with the old query selected so typing replaces it.
+// A request made just before this pane mounted (the shortcut added the pane) is
+// honoured too; an old one is not, or a layout reset would steal the focus.
+let focusSeen = Date.now() - ui.launcherFocusAt < 2000 ? -1 : ui.launcherFocus
+$effect(() => {
+  const request = ui.launcherFocus
+  const input = filterInput
+  if (request === focusSeen || input === null) return
+  focusSeen = request
+  queueMicrotask(() => {
+    input.focus()
+    input.select()
+  })
+})
 
 // Reload when settings change (the user may have added entries by hand) and
 // after each launch, which changes the order.
@@ -93,19 +111,29 @@ $effect(() => {
 const BLINK_MS = 600
 let blinking = $state<string | null>(null)
 let blinkTimer: ReturnType<typeof setTimeout> | undefined
+/** Ends the blink in progress; waiters for it (a re-order) run at once. */
+let endBlink: (() => void) | null = null
 
-$effect(() => () => clearTimeout(blinkTimer))
+$effect(() => () => endBlink?.())
+
+function blink(id: string): Promise<void> {
+  endBlink?.()
+  blinking = id
+  return new Promise<void>((resolve) => {
+    const end = () => {
+      clearTimeout(blinkTimer)
+      if (endBlink === end) endBlink = null
+      blinking = null
+      resolve()
+    }
+    endBlink = end
+    blinkTimer = setTimeout(end, BLINK_MS)
+  })
+}
 
 async function launch(entry: LauncherEntry | undefined): Promise<void> {
   if (!entry) return
-  clearTimeout(blinkTimer)
-  blinking = entry.id
-  const blinkDone = new Promise<void>((resolve) => {
-    blinkTimer = setTimeout(() => {
-      blinking = null
-      resolve()
-    }, BLINK_MS)
-  })
+  const blinkDone = blink(entry.id)
   sfx.play('granted')
   status = { text: `starting ${entry.name}…`, error: false }
   const result = await window.elecdex.launcher.launch(entry.id)
@@ -146,6 +174,7 @@ const initial = (name: string) =>
   <div class="bar">
     <input
       class="filter"
+      bind:this={filterInput}
       bind:value={filter}
       onkeydown={onFilterKey}
       placeholder="type to find · enter to launch"

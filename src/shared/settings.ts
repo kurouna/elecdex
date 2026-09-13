@@ -49,7 +49,10 @@ export const SettingsSchema = z.object({
    * action this build does not know (written by a newer one), is ignored rather
    * than failing the whole file.
    */
-  keybindings: z.record(z.string().max(60), z.string().max(40).nullable()).default({}),
+  keybindings: z
+    .record(z.string().max(60), z.string().max(40).nullable())
+    .refine((map) => Object.keys(map).length <= 64, 'too many shortcut overrides')
+    .default({}),
   updates: z
     .object({
       /** Ask GitHub once a day whether a newer release exists. Nothing is downloaded. */

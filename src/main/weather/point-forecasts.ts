@@ -62,6 +62,8 @@ export type PointCache = z.infer<typeof PointCacheSchema>
 export const MET_MIN_INTERVAL_MS = 30 * 60_000
 export const NWS_INTERVAL_MS = 60 * 60_000
 export const NWS_POINT_TTL_MS = 24 * 60 * 60_000
+/** A place no pane has fetched for this long is dropped from the cache. */
+export const CACHE_TTL_MS = 7 * 24 * 60 * 60_000
 /** At most this much is added to a location's schedule, the same amount every time. */
 const SPREAD_MS = 90_000
 
@@ -135,8 +137,8 @@ export class PointForecasts {
   }
 
   watch(key: string): void {
-    if (this.watched.has(key) || parseLocationKey(key)?.source === 'jma') return
-    if (parseLocationKey(key) === null) return
+    const parsed = parseLocationKey(key)
+    if (this.watched.has(key) || parsed === null || parsed.source === 'jma') return
     this.watched.add(key)
     const state = this.state(key)
     const wait = state.raw === null ? 0 : state.expiresAt - this.deps.now()
@@ -311,8 +313,13 @@ export class PointForecasts {
 
   private persist(): void {
     const cache: PointCache = {}
+    const now = this.deps.now()
     for (const [key, s] of this.states) {
       if (s.raw === null || s.fetchedAt === null) continue
+      if (!this.watched.has(key) && now - s.fetchedAt > CACHE_TTL_MS) {
+        this.states.delete(key)
+        continue
+      }
       cache[key] = {
         raw: s.raw,
         ...(s.hourly !== null ? { hourly: s.hourly } : {}),

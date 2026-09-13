@@ -271,7 +271,7 @@ async function diskIo(): Promise<DiskIo> {
   }
   // macOS reports disk I/O only through ioreg, a process per reading; not worth
   // it every two seconds for a readout.
-  return { readSec: 0, writeSec: 0, busy: null }
+  return { readSec: null, writeSec: null, busy: null }
 }
 
 export const SOURCES: Record<MetricSourceId, SourceDefinition> = {

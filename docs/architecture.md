@@ -156,7 +156,6 @@ interface ElecdexApi {
   fs: {
     readDir(path: string): Promise<DirEntry[]>
     watch(path: string, handler: () => void): () => void
-    diskUsage(path: string): Promise<DiskUsage>
   }
   system: {
     info(): Promise<AppInfo>                 // version, platform, electron/node/chrome
@@ -601,6 +600,9 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | 天気の複数ソース化 | 設計と比較は docs/weather-providers.md。1 つのペインが地点キー（`jma:office[:area]`・`met:lat,lon:tz`・`nws:lat,lon:tz`）で購読し、main が気象庁（既存の WeatherService）か MET Norway・NWS（PointForecasts）から取得して共通の WeatherReport を送る。日本は気象庁、米国は NWS、それ以外は MET Norway。地点は同梱の GeoNames 都市一覧（人口 50 万以上 + 首都、1,323 件）と気象庁の予報区一覧をポップアップで検索し、緯度経度も入力できる。°C/°F はペインごと。旧形式のペイン状態 `{ office, area }` はそのまま気象庁の地点として読む | データソースの違いは「ある項目・ない項目」で、共通モデルの省略可能な項目として吸収できた（MET Norway は北欧以外で降水確率を返さないことを実データで確認し、量 mm を表示）。地名は外部に送らない。MET Norway の利用規約（識別できる User-Agent、座標は小数 4 桁、Expires 前の再取得禁止、If-Modified-Since）と NWS の要件（User-Agent）に従い、取得時刻は地点ごとに最大 90 秒ずらして集中を避ける |
 | World View の現在地の推定 | タイムゾーンの国 → ロケールの地域（ja-JP・ja → JP）→ 現在の UTC オフセットが同じ最大都市、の順に推定し、タイムゾーン以外から推定したときは凡例に (approx.) と付ける | UTC や Etc/GMT-9 など国を持たないタイムゾーンでは "location unavailable" になっていた。OS の位置情報は引き続き使わない |
 | ファイルシステムの使用量バー | 下部の USED の横棒を削除し、マウントポイント・使用率・空き容量の文字だけを残す | DISK ペインがボリュームごとに同じ棒を表示するため重複していた |
+| ファイルシステムペインの使用量表示の削除 | 下部のマウントポイント・使用率・空き容量の文字も削除し、それだけのために残っていた fs.diskUsage の IPC（main の diskUsage / mountPoint / mountFor、preload、型、チャネル）も削除 | ボリュームの容量は DISK ペインが表示する。使われない IPC を残さない |
+| ランチャー検索のショートカット | 操作 launcher.focus（既定 Ctrl+Shift+L、設定で変更可）。ランチャーペインにフォーカスして検索欄を選択状態にし、ペインが無ければ右に追加してから入力欄へ。要求は ui ストアのカウンターで伝え、ペインが直前 2 秒以内の要求で開いた場合だけ受け取る | 古い要求に反応すると、レイアウトのリセットでランチャーが再表示されたときに入力中のシェルからフォーカスを奪う |
+| コードレビューでの修正（2026-09-13） | (1) ランチャーで点滅中に別のアプリを起動すると、先の起動の並べ替えが失われていた → 点滅の終了を待つ Promise を必ず解決する。(2) ダイアログ（ペイン追加・設定・地点選択）を開いている間もレイアウトを変えるショートカットが背後のペインに効いていた → 終了と全画面以外は無視し、ダイアログは同時に1つだけにした。(3) macOS のディスク読み書きが「0 B/s」と表示されていた → 値を null にして「--」。(4) launch.spec.ts が MET・NWS・更新チェックの URL を閉じたポートに向けておらず、既定レイアウトの天気ペインが実サービスに接続し得た。(5) 地点の予報キャッシュが見た地点の数だけ増え続けた → 7 日取得していない地点は削除。(6) settings.json の keybindings の件数に上限が無かった → 64 件。(7) 未使用の ACTION_IDS・frameSubscriberCount・holidayOn、天気ペインで二重だった「過去の時間帯」の判定を削除。(8) 地球儀の現在地推定のオフセット比較で都市ごとに Intl を呼んでいた → タイムゾーンごとに記憶 | 未使用の export は機械的に走査し、プラグイン用に予約した registerDynamic / unregisterDynamic とテスト用の recipeLength は残した |
 
 ## 17. 既知の問題
 

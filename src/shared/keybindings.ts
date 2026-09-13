@@ -21,17 +21,13 @@ export const KEYBINDING_ACTIONS = [
   { id: 'focus.next', label: 'Focus next pane', chord: 'Ctrl+Shift+BracketRight' },
   { id: 'focus.previous', label: 'Focus previous pane', chord: 'Ctrl+Shift+BracketLeft' },
   { id: 'layout.reset', label: 'Reset layout', chord: 'Ctrl+Shift+Backspace' },
+  { id: 'launcher.focus', label: 'Search the launcher', chord: 'Ctrl+Shift+KeyL' },
   { id: 'settings.open', label: 'Open settings', chord: 'Ctrl+Shift+Comma' },
   { id: 'window.fullscreen', label: 'Toggle fullscreen', chord: 'F11' },
   { id: 'app.quit', label: 'Quit', chord: 'Ctrl+Shift+KeyQ' },
 ] as const
 
 export type KeybindingAction = (typeof KEYBINDING_ACTIONS)[number]['id']
-
-export const ACTION_IDS = KEYBINDING_ACTIONS.map((a) => a.id) as [
-  KeybindingAction,
-  ...KeybindingAction[],
-]
 
 /** Per action: a chord, or null to leave the action without a shortcut. */
 export type KeybindingOverrides = Partial<Record<KeybindingAction, string | null>>

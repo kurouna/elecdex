@@ -10,12 +10,16 @@ let page: Page
 test.beforeAll(async () => {
   app = await electron.launch({
     args: [MAIN, '--windowed', '--no-intro'],
-    // A closed port: this spec must not send requests to the real JMA site.
+    // Closed ports: this spec must not reach any real service (the default layout
+    // has a weather pane and a market board, and the update check runs too).
     env: {
       ...process.env,
       NODE_ENV: 'test',
       ELECDEX_JMA_BASE_URL: 'http://127.0.0.1:9/bosai',
+      ELECDEX_MET_BASE_URL: 'http://127.0.0.1:9/weatherapi',
+      ELECDEX_NWS_BASE_URL: 'http://127.0.0.1:9/nws',
       ELECDEX_MARKETS_STUB_URL: 'http://127.0.0.1:9/markets',
+      ELECDEX_UPDATES_URL: 'http://127.0.0.1:9/releases/latest',
     },
   })
   page = await app.firstWindow()

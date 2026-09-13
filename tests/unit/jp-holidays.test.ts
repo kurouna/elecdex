@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { holidayOn, japaneseHolidays } from '../../src/shared/jp-holidays.js'
+import { japaneseHolidays } from '../../src/shared/jp-holidays.js'
+
+const holidayOn = (date: Date) =>
+  japaneseHolidays(date.getFullYear()).get(
+    `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+  )
 
 /** Checked against the Cabinet Office's published lists (内閣府「国民の祝日について」). */
 const PUBLISHED: Record<number, string> = {
