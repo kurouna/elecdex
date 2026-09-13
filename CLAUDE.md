@@ -60,7 +60,7 @@ scripts/         asset generators (icon, repo card, geo data)
   (`did-start-navigation`) and destroy. Polling must stop when the last subscriber leaves —
   there are e2e tests asserting exactly that.
 - **Tests never contact external services.** `tests/e2e/support.ts` points
-  `ELECDEX_JMA_BASE_URL` and `ELECDEX_MARKETS_STUB_URL` at closed ports by default and starts
+  `ELECDEX_JMA_BASE_URL`, `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default and starts
   with sound off; specs that need data run a local stub server. Keep it that way.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
@@ -73,6 +73,11 @@ scripts/         asset generators (icon, repo card, geo data)
   `si.wifi*` or similar on Windows.
 - **Terminal sizing.** Never fit a hidden pane or send transient sizes to the PTY: ConPTY
   rewraps its buffer to every size and garbles history (see the remount regression test).
+- **Shortcuts** are data (src/shared/keybindings.ts): add an action there with its default chord
+  and handle it in Workspace.svelte; never hard-code a key check elsewhere. A chord must include
+  Ctrl/Alt or be a function key, so the shell keeps every other key.
+- **Releases**: bump `package.json` version, push tag `v<version>`; .github/workflows/release.yml
+  builds every platform into a draft GitHub Release that a person publishes.
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested).
   Widgets keep per-pane choices in pane state (`layout.setPaneState`).
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on

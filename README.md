@@ -97,8 +97,14 @@ bottom edge; its lower-case `elecdex` opens the GitHub repository.
 | Ctrl+Shift+Backspace | reset to the default layout (also RESET LAYOUT in the status bar and in the add-pane picker, clicked twice) |
 | Ctrl+Shift+A | add a pane: pick any widget, placed right of, below or as a tab beside the focused pane (also the + PANE button) |
 | Ctrl+Shift+Q | quit (or the EXIT button in the status bar, clicked twice) |
+| Ctrl+Shift+, | settings (also the SETTINGS button in the status bar) |
 | F11 | toggle fullscreen |
 | Arrow keys on a divider | resize (Shift for larger steps) |
+
+Every shortcut above except the divider keys can be rebound in Settings → Keyboard: click one and
+press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key, so every other
+key still reaches the shell; a chord already in use is flagged. They are stored as
+`"keybindings": { "pane.add": "Alt+KeyP" }` in `settings.json` (`null` removes one).
 
 The layout is saved to `layout.json` in the app's userData directory. Editing it by hand is
 supported: it is validated and normalised on load, and a file that cannot be read is moved
@@ -106,12 +112,20 @@ aside to `layout.json.bak` rather than discarded.
 
 ## Themes and settings
 
-Pick a theme from the status bar; it applies at once, terminal included, with no reload. The
-status bar also toggles interface sounds. Settings live in `settings.json` in the userData
-directory and can be edited by hand while the app runs:
+Pick a theme from the status bar or the settings dialog (Ctrl+Shift+,); it applies at once,
+terminal included, with no reload. The dialog also sets motion, sound and volume, whether the
+launcher lists installed applications, the shortcuts and the update check. Everything is saved
+to `settings.json` in the userData directory, which can also be edited by hand while the app
+runs:
 
 ```json
-{ "theme": "amber", "sound": { "enabled": true, "volume": 0.5 }, "motion": "system" }
+{
+  "theme": "amber",
+  "sound": { "enabled": true, "volume": 0.5 },
+  "motion": "system",
+  "keybindings": { "app.quit": null },
+  "updates": { "check": true }
+}
 ```
 
 To add a theme, drop a JSON file into the `themes` folder next to it. It appears in the menu
@@ -128,7 +142,7 @@ straight away; one with a built-in's `id` replaces that theme.
 }
 ```
 
-Colours are `#rrggbb`; `status` (hues for danger / warn / ok) and `fonts` are optional.
+Colours are `#rrggbb`; `status` (hues for danger / warn / ok / info) and `fonts` are optional.
 The glow effect costs a couple of percent of a core at idle.
 
 ## Default layout
@@ -214,8 +228,23 @@ asked for the machine's public address either.
 | Market quotes | [Yahoo Finance](https://finance.yahoo.com/), through yahoo-finance2 | Unofficial API, not endorsed by Yahoo; quotes may be delayed and are not investment advice (the pane says so). Fetched only while a markets pane is open: one batched quote request a minute (every five minutes when every listed market is closed) and each intraday chart every five minutes. |
 | Weather forecast | 出典：気象庁ホームページ（[https://www.jma.go.jp/bosai/forecast/](https://www.jma.go.jp/bosai/forecast/)）を加工して作成 | Fetched only while a weather pane is open, and only around JMA's publication times (0, 5, 11 and 17 o'clock JST), with conditional requests. The weather pane shows the same attribution. Used under JMA's [terms of use](https://www.jma.go.jp/jma/kishou/info/coment.html). |
 
+| Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while "check for updates daily" is on (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
+
 The forecast JSON is what JMA's own pages load, not a documented API; elecdex parses it
 leniently and keeps showing the last forecast if the format or the network fails.
+
+---
+
+## Releasing
+
+1. Set `version` in `package.json`, commit, and push.
+2. Tag that commit `v<version>` and push the tag: `git tag v0.1.0 && git push origin v0.1.0`.
+3. The Release workflow checks the tag against `package.json`, runs lint, typecheck and unit
+   tests, creates a draft GitHub Release with generated notes, and attaches installers for
+   Windows (x64, arm64), macOS (arm64, x64) and Linux (AppImage and deb, x64 and arm64).
+4. Review the draft and publish it. Only published releases are seen by the update check.
+
+Builds are unsigned: Windows SmartScreen and macOS Gatekeeper will ask before the first launch.
 
 ---
 
