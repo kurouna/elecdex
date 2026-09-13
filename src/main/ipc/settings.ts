@@ -1,4 +1,4 @@
-import { type FSWatcher, mkdirSync, readdirSync, readFileSync, watch } from 'node:fs'
+import { existsSync, type FSWatcher, mkdirSync, readdirSync, readFileSync, watch } from 'node:fs'
 import path from 'node:path'
 import type { ThemeCatalog } from '@shared/api'
 import { CH } from '@shared/channels'
@@ -15,7 +15,7 @@ import {
   type ThemeProblem,
   ThemeSchema,
 } from '@shared/theme'
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { JsonStore } from '../store/json-store.js'
 
 /**
@@ -32,7 +32,17 @@ import { JsonStore } from '../store/json-store.js'
 /** Editors write in bursts: a truncate, a write, a rename. Settle before reading. */
 const RELOAD_DEBOUNCE_MS = 150
 
-export function registerSettingsIpc(): { dispose: () => void } {
+export interface SettingsHandle {
+  dispose: () => void
+  /** The settings in effect now. */
+  current: () => Settings
+  /** Called after every change, from the UI or a hand edit. */
+  onChange: (handler: (settings: Settings) => void) => void
+  /** Absolute path of settings.json. */
+  file: string
+}
+
+export function registerSettingsIpc(): SettingsHandle {
   const userData = app.getPath('userData')
   const settingsFile = path.join(userData, 'settings.json')
   const themesDir = path.join(userData, 'themes')
@@ -44,6 +54,11 @@ export function registerSettingsIpc(): { dispose: () => void } {
   })
   let settings = store.read()
   let catalog = loadThemes(themesDir)
+
+  const listeners = new Set<(settings: Settings) => void>()
+  const notify = (): void => {
+    for (const listener of listeners) listener(settings)
+  }
 
   const broadcast = (channel: string, payload: unknown): void => {
     for (const win of BrowserWindow.getAllWindows()) {
@@ -57,6 +72,7 @@ export function registerSettingsIpc(): { dispose: () => void } {
     settings = next
     store.invalidate()
     broadcast(CH.settings.changed, settings)
+    notify()
   }
 
   const reloadThemes = (): void => {
@@ -102,13 +118,25 @@ export function registerSettingsIpc(): { dispose: () => void } {
     settings = next
     store.write(next)
     broadcast(CH.settings.changed, settings)
+    notify()
     return settings
   })
 
   ipcMain.handle(CH.themes.list, (): ThemeCatalog => catalog)
   ipcMain.handle(CH.themes.folder, () => themesDir)
+  // Opens settings.json in the user's editor, for things the UI does not edit yet.
+  ipcMain.handle(CH.settings.openFile, async () => {
+    if (!existsSync(settingsFile)) store.write(settings)
+    const error = await shell.openPath(settingsFile)
+    return error === '' ? null : error
+  })
 
   return {
+    current: () => settings,
+    onChange: (handler) => {
+      listeners.add(handler)
+    },
+    file: settingsFile,
     dispose: () => {
       for (const watcher of watchers) watcher.close()
       for (const timer of timers.values()) clearTimeout(timer)
@@ -116,6 +144,7 @@ export function registerSettingsIpc(): { dispose: () => void } {
       ipcMain.removeHandler(CH.settings.patch)
       ipcMain.removeHandler(CH.themes.list)
       ipcMain.removeHandler(CH.themes.folder)
+      ipcMain.removeHandler(CH.settings.openFile)
     },
   }
 }

@@ -11,6 +11,18 @@ import { DEFAULT_THEME_ID } from './theme.js'
 
 export const SETTINGS_VERSION = 1
 
+/** A launcher entry the user adds by hand. */
+export const LauncherItemSchema = z.object({
+  name: z.string().min(1).max(80),
+  /**
+   * What to start: an http(s) URL, or a path to a program, document, folder or
+   * shortcut. With `args`, the path is run as a program with those arguments.
+   */
+  target: z.string().min(1).max(2048),
+  args: z.array(z.string().max(2048)).max(64).optional(),
+})
+export type LauncherItem = z.infer<typeof LauncherItemSchema>
+
 export const SettingsSchema = z.object({
   version: z.literal(SETTINGS_VERSION).default(SETTINGS_VERSION),
   /** Theme id; an id no theme has falls back to the default theme. */
@@ -24,6 +36,13 @@ export const SettingsSchema = z.object({
     .default({ enabled: true, volume: 0.5 }),
   /** 'system' follows the OS reduced-motion setting. */
   motion: z.enum(['system', 'full', 'reduced']).default('system'),
+  launcher: z
+    .object({
+      /** List the platform's own applications (Start Menu, /Applications, .desktop files). */
+      showSystem: z.boolean().default(true),
+      items: z.array(LauncherItemSchema).max(200).default([]),
+    })
+    .default({ showSystem: true, items: [] }),
 })
 export type Settings = z.infer<typeof SettingsSchema>
 

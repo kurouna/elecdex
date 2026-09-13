@@ -85,6 +85,7 @@ describe('settings', () => {
       theme: 'tron',
       sound: { enabled: true, volume: 0.5 },
       motion: 'system',
+      launcher: { showSystem: true, items: [] },
     })
   })
 

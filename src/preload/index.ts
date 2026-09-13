@@ -8,6 +8,8 @@ import type {
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { DirResult, DiskUsage, DriveInfo } from '@shared/fs'
+import type { LauncherEntry, LaunchResult } from '@shared/launcher'
+import type { MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
@@ -225,6 +227,13 @@ function listen<T>(channel: string, handler: (payload: T) => void): () => void {
   }
 }
 
+const subscribeMarket = keyedSubscriptions<MarketUpdate>({
+  subscribe: CH.markets.subscribe,
+  unsubscribe: CH.markets.unsubscribe,
+  event: CH.markets.update,
+  keyOf: (update) => update.symbol,
+})
+
 const api: ElecdexApi = {
   system: {
     info: () => ipcRenderer.invoke(CH.system.info) as Promise<AppInfo>,
@@ -252,6 +261,16 @@ const api: ElecdexApi = {
     get: () => ipcRenderer.invoke(CH.settings.get) as Promise<Settings>,
     patch: (patch) => ipcRenderer.invoke(CH.settings.patch, patch) as Promise<Settings>,
     onChange: (handler) => listen<Settings>(CH.settings.changed, handler),
+    openFile: () => ipcRenderer.invoke(CH.settings.openFile) as Promise<string | null>,
+  },
+  markets: {
+    subscribe: (symbol, handler) => subscribeMarket(symbol, handler),
+    watching: () => ipcRenderer.invoke(CH.markets.watching) as Promise<string[]>,
+  },
+  launcher: {
+    list: () => ipcRenderer.invoke(CH.launcher.list) as Promise<LauncherEntry[]>,
+    icon: (id) => ipcRenderer.invoke(CH.launcher.icon, id) as Promise<string | null>,
+    launch: (id) => ipcRenderer.invoke(CH.launcher.launch, id) as Promise<LaunchResult>,
   },
   themes: {
     list: () => ipcRenderer.invoke(CH.themes.list) as Promise<ThemeCatalog>,

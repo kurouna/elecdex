@@ -1,4 +1,6 @@
 import type { DirResult, DiskUsage, DriveInfo } from './fs.js'
+import type { LauncherEntry, LaunchResult } from './launcher.js'
+import type { MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
@@ -121,6 +123,26 @@ export interface SettingsApi {
   patch(patch: SettingsPatch): Promise<Settings>
   /** Called with the full settings after any change, including hand edits to the file. */
   onChange(handler: (settings: Settings) => void): () => void
+  /** Opens settings.json in the user's editor. Resolves with an error message, or null. */
+  openFile(): Promise<string | null>
+}
+
+export interface MarketsApi {
+  /**
+   * Keeps a symbol's quote and intraday series current (about once a minute).
+   * The handler gets the cached state at once and every update after.
+   */
+  subscribe(symbol: string, handler: (update: MarketUpdate) => void): () => void
+  /** Diagnostics: symbols main is currently polling. */
+  watching(): Promise<string[]>
+}
+
+export interface LauncherApi {
+  /** User entries from settings.json first, then the platform's applications. */
+  list(): Promise<LauncherEntry[]>
+  /** The entry's icon as a data: URL, or null. */
+  icon(id: string): Promise<string | null>
+  launch(id: string): Promise<LaunchResult>
 }
 
 export interface ThemeCatalog {
@@ -184,6 +206,8 @@ export interface ElecdexApi {
   weather: WeatherApi
   settings: SettingsApi
   themes: ThemesApi
+  launcher: LauncherApi
+  markets: MarketsApi
 }
 
 declare global {

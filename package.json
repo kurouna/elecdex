@@ -76,7 +76,8 @@
     "typescript": "6.0.3",
     "vite": "7.3.6",
     "vitest": "5.0.0",
-    "world-atlas": "^2.0.2"
+    "world-atlas": "^2.0.2",
+    "yahoo-finance2": "^4.0.2"
   },
   "author": {
     "name": "kurouna",

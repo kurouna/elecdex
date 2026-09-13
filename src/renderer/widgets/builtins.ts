@@ -1,6 +1,8 @@
 import type { MetricSourceId } from '@shared/metrics'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
+import LauncherWidget from './launcher/LauncherWidget.svelte'
+import MarketsWidget from './markets/MarketsWidget.svelte'
 import ClockWidget from './monitor/ClockWidget.svelte'
 import CpuWidget from './monitor/CpuWidget.svelte'
 import MemoryWidget from './monitor/MemoryWidget.svelte'
@@ -122,4 +124,23 @@ registerBuiltin({
   component: GlobeWidget,
   metrics: sources('net.connections', 'net.ping'),
   minSize: { w: 160, h: 160 },
+})
+
+registerBuiltin({
+  id: 'launcher',
+  title: 'launcher',
+  description:
+    'Start applications: the Start Menu (or /Applications, .desktop files) plus your own entries.',
+  component: LauncherWidget,
+  minSize: { w: 200, h: 120 },
+})
+
+registerBuiltin({
+  id: 'markets',
+  title: 'markets',
+  description:
+    'Indices, currencies and more from Yahoo Finance, every minute, as sparklines or bars.',
+  component: MarketsWidget,
+  minSize: { w: 240, h: 160 },
+  multiple: true,
 })

@@ -34,6 +34,8 @@ export interface LaunchOptions {
   jmaBaseUrl?: string
   /** A layout.json to start from, instead of the default layout. */
   layout?: unknown
+  /** Extra environment variables for the app. */
+  env?: Record<string, string>
   /**
    * A settings.json to start from. By default sound is off, so running the suite
    * does not beep at whoever is sitting at the machine.
@@ -50,6 +52,8 @@ export const SINGLE_TERMINAL = {
 } as const
 
 const UNREACHABLE_JMA = 'http://127.0.0.1:9/bosai'
+/** Markets likewise read from a closed port unless a test serves them: no test contacts Yahoo. */
+const UNREACHABLE_MARKETS = 'http://127.0.0.1:9/markets'
 
 export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
@@ -64,7 +68,12 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   if (!options.intro) args.push('--no-intro')
   const app = await electron.launch({
     args,
-    env: { ...process.env, ELECDEX_JMA_BASE_URL: options.jmaBaseUrl ?? UNREACHABLE_JMA },
+    env: {
+      ...process.env,
+      ELECDEX_JMA_BASE_URL: options.jmaBaseUrl ?? UNREACHABLE_JMA,
+      ELECDEX_MARKETS_STUB_URL: UNREACHABLE_MARKETS,
+      ...options.env,
+    },
   })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')

@@ -31,6 +31,7 @@ export const CH = {
   settings: {
     get: 'settings:get',
     patch: 'settings:patch',
+    openFile: 'settings:open-file',
     /** main -> renderer: the whole Settings object after any change. */
     changed: 'settings:changed',
   },
@@ -39,6 +40,19 @@ export const CH = {
     folder: 'themes:folder',
     /** main -> renderer: the theme catalog after a theme file changed. */
     changed: 'themes:changed',
+  },
+  markets: {
+    /** renderer -> main, fire and forget: keep a symbol's quote current. */
+    subscribe: 'markets:subscribe',
+    unsubscribe: 'markets:unsubscribe',
+    /** main -> renderer: a MarketUpdate. */
+    update: 'markets:update',
+    watching: 'markets:watching',
+  },
+  launcher: {
+    list: 'launcher:list',
+    icon: 'launcher:icon',
+    launch: 'launcher:launch',
   },
   fs: {
     readDir: 'fs:read-dir',
