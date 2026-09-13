@@ -1,9 +1,11 @@
 <script lang="ts">
 import { formatPercent } from '../../lib/format.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
+import { layout } from '../../stores/layout.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import StreamChart from '../common/StreamChart.svelte'
+import ViewToggle, { type ChartView } from '../common/ViewToggle.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -11,8 +13,20 @@ import type { WidgetProps } from '../registry.ts'
  * load and a scrolling graph, then a dashed row of temperature (or core count
  * where temperature is unavailable), minimum and maximum frequency and task
  * count.
+ *
+ * A toggle switches to a bar per logical core, as Task Manager shows them; the
+ * choice is kept in the pane state.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, state: paneState }: WidgetProps = $props()
+
+const view = $derived<ChartView>(paneState?.view === 'bars' ? 'bars' : 'line')
+
+function setView(next: ChartView): void {
+  layout.setPaneState(paneId, { ...paneState, view: next })
+}
+
+/** Above this, a core's bar is drawn in the warning colour. */
+const HOT_CORE = 85
 
 const WINDOW_MS = 60_000
 
@@ -55,7 +69,30 @@ $effect(() => {
 const temperatureAvailable = $derived(temperature !== null && temperature.main !== null)
 </script>
 
-<div class="cpu" data-testid="cpu">
+<div class="cpu" data-testid="cpu" data-view={view}>
+  <ViewToggle {view} onchange={setView} testid="cpu-view" />
+
+  {#if view === 'bars'}
+    <div class="bars-head">
+      <span class="range">all <em>{cores.length}</em> cores</span>
+      <span class="avg">Avg. {formatPercent(average(cores))}</span>
+    </div>
+    <ol
+      class="bars"
+      style:--columns={Math.min(cores.length, cores.length > 16 ? Math.ceil(cores.length / 2) : 16)}
+      data-testid="cpu-bars"
+    >
+      {#each cores as value, i (i)}
+        <li class:hot={value >= HOT_CORE} data-testid="cpu-core" data-load={Math.round(value)}>
+          <span class="track">
+            <span class="fill" style:transform={`scaleY(${Math.max(0, Math.min(100, value)) / 100})`}></span>
+          </span>
+          <span class="pct">{Math.round(value)}</span>
+          <span class="index">{i + 1}</span>
+        </li>
+      {/each}
+    </ol>
+  {:else}
   <div class="row">
     <div class="legend">
       <span class="range"># <em>1</em> - <em>{half}</em></span>
@@ -76,6 +113,7 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
         <StreamChart series={[{ points: secondHalf.points }]} min={0} max={100} windowMs={WINDOW_MS} />
       </div>
     </div>
+  {/if}
   {/if}
 
   <div class="hud-cells hud-dashed stats">
@@ -105,6 +143,7 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
 
 <style>
 .cpu {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -149,6 +188,75 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
   height: 100%;
   min-height: 0;
   padding: var(--space-1) 0;
+}
+
+.bars-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding-right: 3rem;
+  font-family: var(--font-ui);
+  white-space: nowrap;
+}
+
+.bars {
+  flex: 1;
+  min-height: 3rem;
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: var(--space-1) 0.2rem;
+  margin: 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+}
+
+.bars li {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  justify-items: center;
+  min-height: 0;
+}
+
+.track {
+  position: relative;
+  width: 100%;
+  max-width: 1.4rem;
+  height: 100%;
+  min-height: 1rem;
+  border: 1px solid var(--panel-rule);
+  background: repeating-linear-gradient(
+    to top,
+    transparent 0 calc(10% - 1px),
+    var(--accent-faint) calc(10% - 1px) 10%
+  );
+}
+
+/* Scaled rather than resized, so an update is a compositor-only change. */
+.fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: bottom;
+  background: linear-gradient(to top, var(--accent), var(--accent-strong));
+  transition: transform 600ms var(--ease-out);
+}
+
+.hot .fill {
+  background: linear-gradient(to top, var(--warn), var(--danger));
+}
+
+.pct {
+  font-family: var(--font-display);
+  font-size: var(--step--2);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.index {
+  font-family: var(--font-ui);
+  font-size: calc(var(--step--2) * 0.85);
+  color: var(--text-muted);
+  line-height: 1;
 }
 
 .stats {
