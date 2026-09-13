@@ -149,8 +149,8 @@ The glow effect costs a couple of percent of a core at idle.
 
 Arranged by what the panes are for:
 
-- **Left — this machine:** a compact clock, the system strip, CPU, memory, top processes, and
-  its network: connection status and traffic.
+- **Left — this machine:** a compact clock, the system strip, CPU, memory, disks, top processes,
+  and its network: connection status and traffic.
 - **Centre — work:** three shell tabs, and beneath them the launcher beside the file browser
   (which follows the shell).
 - **Right — the world outside:** the globe of connections, the market board, the weather
@@ -158,7 +158,7 @@ Arranged by what the panes are for:
 
 Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shift+A).
 
-## Launcher, markets, calendar and CPU views
+## Launcher, markets, calendar, CPU, memory and disk views
 
 - **Launcher** — the Start Menu on Windows (`/Applications` on macOS, `.desktop` files on
   Linux), your own entries first. Once you start things from it, the most used come first
@@ -191,6 +191,13 @@ Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shi
   default and remembered per pane - and the next holiday is named below the month.
 
 - **CPU usage** has the same toggle, switching to a bar per logical core.
+
+- **Memory** graphs the share in use and swap over the last three minutes, with bars for the
+  amounts now.
+
+- **Disk** shows each volume as a bar of used space against its size (amber from 90%, red from
+  97%) with the space left, its filesystem and whether it is removable or on the network, and
+  above them the read and write rates and how busy the disks are (not on macOS).
 
 ## Layout
 

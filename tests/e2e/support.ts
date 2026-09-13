@@ -60,6 +60,19 @@ const UNREACHABLE_MARKETS = 'http://127.0.0.1:9/markets'
 /** And the update check never asks GitHub. */
 const UNREACHABLE_UPDATES = 'http://127.0.0.1:9/releases/latest'
 
+/**
+ * Deletes a throwaway userData folder. Windows can keep a file in it locked for a
+ * moment after the app exits (EPERM); retry, and leave a stubborn temp folder
+ * behind rather than fail a test that passed.
+ */
+function removeDir(dir: string): void {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+  } catch (error) {
+    console.warn(`[e2e] could not remove ${dir}: ${(error as Error).message}`)
+  }
+}
+
 /** How long a clean quit may take before the app is killed. */
 const CLOSE_TIMEOUT_MS = 20_000
 
@@ -130,7 +143,7 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
     },
     close: async () => {
       await closeApp(app)
-      if (userData === undefined) rmSync(dir, { recursive: true, force: true })
+      if (userData === undefined) removeDir(dir)
     },
   }
   return launched

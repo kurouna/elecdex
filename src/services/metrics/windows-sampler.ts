@@ -1,6 +1,8 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import type {
   Battery,
+  DiskIo,
+  DiskVolumes,
   MemSwap,
   NetInterface,
   NetPing,
@@ -8,6 +10,7 @@ import type {
   ProcessEntry,
   ProcessList,
 } from '@shared/metrics'
+import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
 
 /**
  * Frequent metrics on Windows, without spawning a process per reading.
@@ -87,6 +90,8 @@ export type SamplerLine =
   | { kind: 'tcp'; remotes: string[] }
   | { kind: 'power'; data: RawPower }
   | { kind: 'swap'; data: RawSwap }
+  | { kind: 'drives'; data: RawDrive[] }
+  | { kind: 'dio'; data: { r: number; w: number; idle: number | null } }
 
 // ---------------------------------------------------------------------------
 // Pure computations
@@ -297,6 +302,25 @@ export function parseSamplerLine(line: string): SamplerLine | null {
       return isRecord(data)
         ? { kind: 'swap', data: { totalMb: finite(data.totalMb), usedMb: finite(data.usedMb) } }
         : null
+    case 'drives':
+      return {
+        kind: 'drives',
+        data: rows.map((r) => ({
+          n: str(r.n),
+          label: str(r.label),
+          fs: str(r.fs),
+          type: str(r.type),
+          total: finite(r.total),
+          free: finite(r.free),
+        })),
+      }
+    case 'dio':
+      return isRecord(data)
+        ? {
+            kind: 'dio',
+            data: { r: finite(data.r), w: finite(data.w), idle: finiteOrNull(data.idle) },
+          }
+        : null
     default:
       return null
   }
@@ -316,7 +340,8 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' 
  * The loop PowerShell runs, one tick per second:
  *   every tick       interface byte counters
  *   every 5 ticks    process table, interface addresses, TCP connections, ping
- *   every 30 ticks   power status, page file (the only WMI read)
+ *   every 2 ticks    disk read/write rates and busy time (performance counters)
+ *   every 30 ticks   power status, page file (the only WMI read), drives
  *
  * It must never outlive us. Windows does not take child processes down with
  * their parent, and the collector is ended with a hard kill, so an unguarded
@@ -380,6 +405,32 @@ while ($true) {
 
     $pf = Get-CimInstance Win32_PageFileUsage
     Emit 'swap' @{ totalMb = [int](($pf | Measure-Object AllocatedBaseSize -Sum).Sum); usedMb = [int](($pf | Measure-Object CurrentUsage -Sum).Sum) }
+
+    # Network drives are left out: an unreachable share can block IsReady for seconds.
+    $drives = foreach ($d in [System.IO.DriveInfo]::GetDrives()) {
+      if (($d.DriveType -ne 'Fixed' -and $d.DriveType -ne 'Removable') -or -not $d.IsReady) { continue }
+      @{ n = $d.Name; label = $d.VolumeLabel; fs = $d.DriveFormat; type = $d.DriveType.ToString(); total = $d.TotalSize; free = $d.AvailableFreeSpace }
+    }
+    Emit 'drives' @($drives)
+  }
+
+  # Performance counters by their English names, which Windows accepts in every
+  # display language. Creating them takes about a second, so it happens once,
+  # after the first round of readings is out; each read then takes ~2ms.
+  if ($tick -eq 1) {
+    try {
+      $diskRead = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Read Bytes/sec', '_Total')
+      $diskWrite = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Write Bytes/sec', '_Total')
+      $diskIdle = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', '% Idle Time', '_Total')
+      $null = $diskRead.NextValue(); $null = $diskWrite.NextValue(); $null = $diskIdle.NextValue()
+    } catch { $diskRead = $null }
+  }
+  if ($tick -gt 1 -and $tick % 2 -eq 0) {
+    if ($diskRead) {
+      Emit 'dio' @{ r = $diskRead.NextValue(); w = $diskWrite.NextValue(); idle = $diskIdle.NextValue() }
+    } else {
+      Emit 'dio' @{ r = 0; w = 0; idle = $null }
+    }
   }
 
   try { [Console]::Out.Flush() } catch { exit 0 }
@@ -415,6 +466,8 @@ export class WindowsSampler {
   private tcp: string[] | null = null
   private power: RawPower | null = null
   private swap: RawSwap | null = null
+  private drives: RawDrive[] | null = null
+  private dio: { r: number; w: number; idle: number | null } | null = null
 
   constructor(pingHost: string) {
     // The host is interpolated into the script, so accept only an address or
@@ -462,6 +515,16 @@ export class WindowsSampler {
   async memSwap(freeMemory: number): Promise<MemSwap> {
     await this.until(() => this.swap !== null)
     return toSwap(this.swap as RawSwap, freeMemory)
+  }
+
+  async diskVolumes(): Promise<DiskVolumes> {
+    await this.until(() => this.drives !== null)
+    return { volumes: windowsVolumes(this.drives ?? []) }
+  }
+
+  async diskIo(): Promise<DiskIo> {
+    await this.until(() => this.dio !== null)
+    return windowsDiskIo(this.dio ?? { r: 0, w: 0, idle: null })
   }
 
   stop(): void {
@@ -573,6 +636,12 @@ export class WindowsSampler {
         break
       case 'swap':
         this.swap = parsed.data
+        break
+      case 'drives':
+        this.drives = parsed.data
+        break
+      case 'dio':
+        this.dio = parsed.data
         break
     }
     for (const waiter of [...this.waiters]) waiter()

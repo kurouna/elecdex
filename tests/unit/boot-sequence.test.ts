@@ -100,8 +100,9 @@ describe('revealDelays', () => {
     expect(byWidget.get('globe')).toBe(modulesAt)
     expect(byWidget.get('sysinfo')).toBe(modulesAt + step)
     expect(byWidget.get('markets')).toBe(modulesAt + step)
-    expect(byWidget.get('toplist')).toBe(modulesAt + 4 * step)
-    expect(byWidget.get('throughput')).toBe(modulesAt + 6 * step)
+    expect(byWidget.get('disk')).toBe(modulesAt + 4 * step)
+    expect(byWidget.get('toplist')).toBe(modulesAt + 5 * step)
+    expect(byWidget.get('throughput')).toBe(modulesAt + 7 * step)
   })
 
   it('gives every pane a delay, including background tabs', () => {

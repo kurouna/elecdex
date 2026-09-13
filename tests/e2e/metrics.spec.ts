@@ -32,14 +32,24 @@ test('every monitoring widget shows live data', async () => {
     await expect(page.getByTestId('cpu-tasks')).toHaveText(/^\d+$/, { timeout: 30_000 })
     await expect(page.getByTestId('cpu-avg-1')).toHaveText(/Avg\. \d/, { timeout: 20_000 })
     await expect
-      .poll(async () => Number(await page.getByTestId('memory-dots').getAttribute('data-used')), {
-        timeout: 20_000,
-      })
+      .poll(
+        async () => Number(await page.getByTestId('memory-used-bar').getAttribute('data-fraction')),
+        {
+          timeout: 20_000,
+        },
+      )
       .toBeGreaterThan(0)
     await expect(page.getByTestId('toplist-row').first()).toBeVisible({ timeout: 30_000 })
     await expect(page.getByTestId('net-state')).toHaveText(/ONLINE|OFFLINE/, { timeout: 30_000 })
     await expect(page.getByTestId('net-totals')).toHaveText(/OUT, .* IN/, { timeout: 30_000 })
     await expect(page.getByTestId('stream-chart').first()).toBeVisible()
+    // At least the system volume, with a sensible fill, and disk activity.
+    const volume = page.getByTestId('disk-volume').first()
+    await expect(volume).toBeVisible({ timeout: 40_000 })
+    const fraction = Number(await volume.getAttribute('data-fraction'))
+    expect(fraction).toBeGreaterThan(0)
+    expect(fraction).toBeLessThanOrEqual(1)
+    await expect(page.getByTestId('disk-read')).toHaveText(/\/s$/, { timeout: 30_000 })
   } finally {
     await close()
   }

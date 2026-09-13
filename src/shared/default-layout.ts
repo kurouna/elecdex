@@ -8,7 +8,7 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
  *
  *  - Left, "this machine": the clock and system strip (kept short - a clock
  *    needs a line, not a quarter of the column), CPU, memory, the busiest
- *    processes, then its network: connection status and traffic.
+ *    disks, processes, then its network: connection status and traffic.
  *  - Centre, "work": the shell, three tabs of it, and beneath it the launcher
  *    beside the file browser. The file grid needs half the width, not all of it.
  *  - Right, "the world outside": the globe of where connections go, the market
@@ -28,11 +28,12 @@ export function defaultLayoutNode(): LayoutNode {
           pane('sysinfo'),
           pane('cpu'),
           pane('memory'),
+          pane('disk'),
           pane('toplist'),
           pane('netstat'),
           pane('throughput'),
         ],
-        [0.04, 0.08, 0.21, 0.15, 0.24, 0.08, 0.2],
+        [0.04, 0.08, 0.19, 0.13, 0.11, 0.23, 0.07, 0.15],
         { left: 'panel', right: 'system' },
       ),
       split(

@@ -8,6 +8,8 @@ import type {
   CpuLoad,
   CpuSpeed,
   CpuTemperature,
+  DiskIo,
+  DiskVolumes,
   HardwareSystem,
   MemSwap,
   MemUsage,
@@ -22,6 +24,7 @@ import type {
   ProcessList,
 } from '@shared/metrics'
 import si from 'systeminformation'
+import { type DiskCounters, diskIoBetween, parseDiskstats, posixVolumes } from './disks.js'
 import { summarizeConnections } from './geoip.js'
 import { parseBsdNetstat, parseProcNetTcp, publicRemotes } from './net-connections.js'
 import type { SourceDefinition } from './scheduler.js'
@@ -239,6 +242,38 @@ async function netConnections(): Promise<NetConnections> {
   return summarizeConnections(publicRemotes(remotes))
 }
 
+async function diskVolumes(): Promise<DiskVolumes> {
+  if (windowsSampler) return windowsSampler.diskVolumes()
+  const rows = await si.fsSize()
+  return {
+    volumes: posixVolumes(
+      rows.map((r) => ({
+        fs: str(r.fs),
+        type: str(r.type),
+        size: num(r.size),
+        used: num(r.used),
+        mount: str(r.mount),
+      })),
+      process.platform,
+    ),
+  }
+}
+
+let diskCounters: DiskCounters | null = null
+
+async function diskIo(): Promise<DiskIo> {
+  if (windowsSampler) return windowsSampler.diskIo()
+  if (process.platform === 'linux') {
+    const current = parseDiskstats(await readFile('/proc/diskstats', 'utf8'), Date.now())
+    const io = diskIoBetween(diskCounters, current)
+    diskCounters = current
+    return io
+  }
+  // macOS reports disk I/O only through ioreg, a process per reading; not worth
+  // it every two seconds for a readout.
+  return { readSec: 0, writeSec: 0, busy: null }
+}
+
 export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'cpu.info': { intervalMs: TEN_MINUTES, collect: cpuInfo },
   'cpu.load': { intervalMs: 1000, collect: cpuLoad },
@@ -255,4 +290,6 @@ export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'net.throughput': { intervalMs: 1000, collect: netThroughput },
   'net.ping': { intervalMs: 5000, collect: netPing },
   'net.connections': { intervalMs: 5000, collect: netConnections },
+  'disk.volumes': { intervalMs: 30_000, collect: diskVolumes },
+  'disk.io': { intervalMs: 2000, collect: diskIo },
 }

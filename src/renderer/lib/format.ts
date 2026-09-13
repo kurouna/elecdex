@@ -2,12 +2,14 @@
  * Formatting for the HUD readouts. Pure, so every edge case is unit-tested.
  */
 
+const TIB = 1024 ** 4
 const GIB = 1024 ** 3
 const MIB = 1024 ** 2
 
 /** "7.7 GiB" / "512 MiB" - binary units, as eDEX-UI's memory panel used. */
 export function formatBytes(bytes: number, digits = 1): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  if (bytes >= TIB) return `${(bytes / TIB).toFixed(digits)} TiB`
   if (bytes >= GIB) return `${(bytes / GIB).toFixed(digits)} GiB`
   if (bytes >= MIB) return `${(bytes / MIB).toFixed(digits)} MiB`
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(digits)} KiB`
@@ -137,24 +139,14 @@ export function trimHardware(value: string, words = 2, ...exclude: string[]): st
   return kept.length === 0 ? '--' : kept.join(' ')
 }
 
-/**
- * Deterministically shuffles 0..n-1. The memory dot map lights points in this
- * order, so used memory looks scattered like the original rather than filling
- * row by row - but stays stable between frames so the pattern does not flicker.
- */
-export function stableShuffle(n: number, seed = 0x5eed): number[] {
-  const order = Array.from({ length: n }, (_, i) => i)
-  let s = seed >>> 0
-  for (let i = n - 1; i > 0; i--) {
-    // xorshift32
-    s ^= s << 13
-    s ^= s >>> 17
-    s ^= s << 5
-    s >>>= 0
-    const j = s % (i + 1)
-    const tmp = order[i] as number
-    order[i] = order[j] as number
-    order[j] = tmp
-  }
-  return order
+/** A transfer rate: "12.4 MiB/s", "0 B/s". */
+export function formatRate(bytesPerSecond: number): string {
+  return `${formatBytes(bytesPerSecond)}/s`
+}
+
+/** How full a volume is, for its bar: warn from 90%, full from 97%. */
+export function fillLevel(fraction: number): 'ok' | 'warn' | 'full' {
+  if (fraction >= 0.97) return 'full'
+  if (fraction >= 0.9) return 'warn'
+  return 'ok'
 }

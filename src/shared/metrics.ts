@@ -137,6 +137,34 @@ export interface NetConnections {
   countries: ConnectionCountry[]
 }
 
+export type VolumeKind = 'fixed' | 'removable' | 'network' | 'other'
+
+export interface DiskVolume {
+  /** Where it is mounted: "C:\" on Windows, "/" or "/Volumes/Backup" elsewhere. */
+  mount: string
+  /** Volume label, or '' when it has none. */
+  label: string
+  /** Filesystem, e.g. "NTFS", "apfs", "ext4". */
+  fs: string
+  kind: VolumeKind
+  /** Bytes. */
+  total: number
+  used: number
+}
+
+export interface DiskVolumes {
+  volumes: DiskVolume[]
+}
+
+/** Reads and writes across every physical disk, since the previous sample. */
+export interface DiskIo {
+  /** Bytes per second. */
+  readSec: number
+  writeSec: number
+  /** Share of time the disks were busy, 0-100; null where the platform does not say. */
+  busy: number | null
+}
+
 /** Every source and the shape of the sample it produces. */
 export interface MetricSamples {
   'cpu.info': CpuInfo
@@ -154,6 +182,8 @@ export interface MetricSamples {
   'net.throughput': NetThroughput
   'net.ping': NetPing
   'net.connections': NetConnections
+  'disk.volumes': DiskVolumes
+  'disk.io': DiskIo
 }
 
 export type MetricSourceId = keyof MetricSamples
@@ -174,6 +204,8 @@ export const METRIC_SOURCE_IDS = [
   'net.throughput',
   'net.ping',
   'net.connections',
+  'disk.volumes',
+  'disk.io',
 ] as const satisfies readonly MetricSourceId[]
 
 const KNOWN = new Set<string>(METRIC_SOURCE_IDS)

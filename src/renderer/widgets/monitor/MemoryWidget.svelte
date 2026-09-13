@@ -1,119 +1,90 @@
 <script lang="ts">
-import { formatBytes, stableShuffle } from '../../lib/format.ts'
-import { appearance } from '../../stores/appearance.svelte.ts'
+import { untrack } from 'svelte'
+import { formatBytes, formatPercent } from '../../lib/format.ts'
+import { TimeSeries } from '../../lib/time-series.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import StreamChart from '../common/StreamChart.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
- * eDEX-UI's memory module: a 40x11 field of dots lit in a scattered order -
- * bright for memory in use, dim for reclaimable cache, faint for free - above a
- * swap bar.
+ * Memory over the last three minutes, drawn like the CPU graph: the share in use as a
+ * scrolling line, swap as a dimmer one, and below them bars for the amounts now.
  *
- * The original built the field from 440 <div>s and restyled them every 1.5s.
- * Here it is one canvas, redrawn only when the number of lit dots changes.
+ * eDEX-UI showed a field of 440 dots lit in a scattered order. They said no more
+ * than the percentage did, and nothing about how it changed; the graph shows a
+ * leak or a spike at a glance.
  */
 const { paneId }: WidgetProps = $props()
 
-const COLUMNS = 40
-const ROWS = 11
-const POINTS = COLUMNS * ROWS
-const order = stableShuffle(POINTS)
+/**
+ * Three minutes: memory moves slowly, a longer window shows a trend better, and
+ * the chart redraws a third as often as a one-minute one (about 2% of a core less).
+ */
+const WINDOW_MS = 180_000
 
-const usage = $derived(metrics.get('mem.usage'))
+const usage = $derived(metrics.sample('mem.usage'))
 const swap = $derived(metrics.get('mem.swap'))
 
-const levels = $derived.by(() => {
-  if (usage === null || usage.total <= 0) return { used: 0, cached: 0 }
-  const used = Math.round((POINTS * usage.used) / usage.total)
-  // Reclaimable cache, where the OS distinguishes it from free memory.
-  const cachedBytes = swap ? Math.max(0, swap.available - usage.free) : 0
-  const cached = Math.min(POINTS - used, Math.round((POINTS * cachedBytes) / usage.total))
-  return { used, cached }
+const usedSeries = new TimeSeries(WINDOW_MS + 5000)
+const swapSeries = new TimeSeries(WINDOW_MS + 5000)
+
+const usedFraction = $derived(
+  usage && usage.data.total > 0 ? Math.min(1, usage.data.used / usage.data.total) : 0,
+)
+const swapFraction = $derived(swap && swap.total > 0 ? Math.min(1, swap.used / swap.total) : 0)
+
+$effect(() => {
+  if (usage === null) return
+  const at = usage.at
+  const used = usedFraction * 100
+  // Swap is sampled less often; its line carries the last reading forward, on
+  // the memory samples' clock rather than adding points of its own.
+  untrack(() => {
+    usedSeries.push(at, used)
+    if (swap !== null) swapSeries.push(at, swapFraction * 100)
+  })
 })
 
 const GIB = 1024 ** 3
 
 // "USING 3.4 OUT OF 7.7 GIB", as in the original's title row.
 $effect(() => {
+  const data = usage?.data
   paneMeta.set(paneId, {
-    subtitle: usage
-      ? `USING ${(usage.used / GIB).toFixed(1)} OUT OF ${(usage.total / GIB).toFixed(1)} GIB`
+    subtitle: data
+      ? `USING ${(data.used / GIB).toFixed(1)} OUT OF ${(data.total / GIB).toFixed(1)} GIB`
       : '',
   })
 })
-
-// Primitive deriveds: they only notify when the number itself changes, which is
-// what lets the draw effect below skip samples that light no new dot.
-const usedDots = $derived(levels.used)
-const cachedDots = $derived(levels.cached)
-
-let canvas = $state<HTMLCanvasElement | null>(null)
-/** Canvas size in CSS pixels, updated only when the element actually resizes. */
-let size = $state({ width: 0, height: 0, ratio: 1 })
-
-// Sizing. Assigning canvas.width reallocates its backing store, so it happens
-// on resize only - never per sample.
-$effect(() => {
-  const el = canvas
-  if (el === null) return
-  const observer = new ResizeObserver(() => {
-    const ratio = window.devicePixelRatio || 1
-    const width = el.clientWidth
-    const height = el.clientHeight
-    el.width = Math.max(1, Math.round(width * ratio))
-    el.height = Math.max(1, Math.round(height * ratio))
-    size = { width, height, ratio }
-  })
-  observer.observe(el)
-  return () => observer.disconnect()
-})
-
-// Drawing. Re-runs when the lit counts or the size change, not on every sample:
-// memory usage moving by less than one dot's worth redraws nothing.
-$effect(() => {
-  void appearance.revision // the dot colour comes from the theme
-  const el = canvas
-  const used = usedDots
-  const cached = cachedDots
-  const { width, height, ratio } = size
-  if (el === null || width === 0 || height === 0) return
-  const ctx = el.getContext('2d')
-  if (ctx === null) return
-
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
-  ctx.clearRect(0, 0, width, height)
-
-  const cellW = width / COLUMNS
-  const cellH = height / ROWS
-  const dot = Math.max(1.2, Math.min(cellW, cellH) * 0.34)
-
-  ctx.fillStyle = getComputedStyle(el).getPropertyValue('--accent').trim() || '#aacfd1'
-  for (let rank = 0; rank < POINTS; rank++) {
-    const index = order[rank] ?? rank
-    ctx.globalAlpha = rank < used ? 1 : rank < used + cached ? 0.3 : 0.1
-    // Column-major, like the original grid-auto-flow: column.
-    const col = Math.floor(index / ROWS)
-    const row = index % ROWS
-    ctx.fillRect(col * cellW + (cellW - dot) / 2, row * cellH + (cellH - dot) / 2, dot, dot)
-  }
-  ctx.globalAlpha = 1
-})
-
-const swapFraction = $derived(swap && swap.total > 0 ? swap.used / swap.total : 0)
-const usedFraction = $derived(usage && usage.total > 0 ? Math.min(1, usage.used / usage.total) : 0)
 </script>
 
 <div class="memory" data-testid="memory">
-  <canvas bind:this={canvas} class="dots" data-testid="memory-dots" data-used={levels.used}></canvas>
+  <div class="row">
+    <div class="legend">
+      <span class="range">used</span>
+      <span class="pct" data-testid="memory-used-pct">{usage ? formatPercent(usedFraction * 100) : '--'}</span>
+      <span class="swap-key">swap {swap ? formatPercent(swapFraction * 100) : '--'}</span>
+    </div>
+    <div class="graph" data-testid="memory-chart">
+      <StreamChart
+        series={[{ points: usedSeries.points }, { points: swapSeries.points, tone: 'dim' }]}
+        min={0}
+        max={100}
+        windowMs={WINDOW_MS}
+        delayMs={1500}
+      />
+    </div>
+  </div>
+
   <div class="bars">
     <span class="label">used</span>
     <span class="bar" data-testid="memory-used-bar" data-fraction={usedFraction.toFixed(3)}
-      ><span class="fill" style="width: {usedFraction * 100}%"></span></span
+      ><span class="fill" style:transform={`scaleX(${usedFraction})`}></span></span
     >
-    <span class="amount">{usage ? formatBytes(usage.used) : '--'}</span>
+    <span class="amount">{usage ? formatBytes(usage.data.used) : '--'}</span>
     <span class="label">swap</span>
-    <span class="bar"><span class="fill" style="width: {swapFraction * 100}%"></span></span>
+    <span class="bar"><span class="fill" style:transform={`scaleX(${swapFraction})`}></span></span>
     <span class="amount">{swap ? formatBytes(swap.used) : '--'}</span>
   </div>
 </div>
@@ -125,13 +96,48 @@ const usedFraction = $derived(usage && usage.total > 0 ? Math.min(1, usage.used 
   gap: var(--space-1);
   height: 100%;
   min-height: 0;
-  padding: var(--space-1) var(--space-1) 0;
+  padding: 0 var(--space-1);
 }
 
-.dots {
+.row {
+  display: grid;
+  grid-template-columns: minmax(3.6rem, 24%) 1fr;
+  align-items: center;
+  gap: var(--space-2);
   flex: 1;
+  min-height: 1.6rem;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-ui);
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.range {
+  font-size: var(--step--1);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pct {
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  font-variant-numeric: tabular-nums;
+}
+
+.swap-key {
+  font-size: var(--step--2);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.graph {
+  height: 100%;
   min-height: 0;
-  width: 100%;
+  padding: var(--space-1) 0;
 }
 
 /* One grid for both rows, so the labels, bars and amounts line up. */
@@ -140,6 +146,7 @@ const usedFraction = $derived(usage && usage.total > 0 ? Math.min(1, usage.used 
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.1rem var(--space-2);
+  padding-bottom: var(--space-1);
   font-family: var(--font-ui);
   font-size: var(--step--1);
 }
@@ -177,6 +184,10 @@ const usedFraction = $derived(usage && usage.total > 0 ? Math.min(1, usage.used 
   top: 25%;
   height: 50%;
   background: var(--accent);
-  transition: width var(--dur-panel) var(--ease-out);
+  /* Scaled rather than resized, and not animated: memory is sampled every 1.5s,
+     and a 420ms glide after each sample kept the compositor busy for a third of
+     the time - about 4% of a core at idle, measured. */
+  width: 100%;
+  transform-origin: left;
 }
 </style>

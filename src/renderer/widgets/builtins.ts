@@ -6,6 +6,7 @@ import LauncherWidget from './launcher/LauncherWidget.svelte'
 import MarketsWidget from './markets/MarketsWidget.svelte'
 import ClockWidget from './monitor/ClockWidget.svelte'
 import CpuWidget from './monitor/CpuWidget.svelte'
+import DiskWidget from './monitor/DiskWidget.svelte'
 import MemoryWidget from './monitor/MemoryWidget.svelte'
 import NetstatWidget from './monitor/NetstatWidget.svelte'
 import SysinfoWidget from './monitor/SysinfoWidget.svelte'
@@ -67,9 +68,18 @@ registerBuiltin({
 registerBuiltin({
   id: 'memory',
   title: 'memory',
-  description: 'Memory in use as a field of dots, and swap.',
+  description: 'Memory and swap in use over the last three minutes, and now.',
   component: MemoryWidget,
   metrics: sources('mem.usage', 'mem.swap'),
+  minSize: { w: 160, h: 80 },
+})
+
+registerBuiltin({
+  id: 'disk',
+  title: 'disk',
+  description: 'How full each volume is, and disk read, write and busy time.',
+  component: DiskWidget,
+  metrics: sources('disk.volumes', 'disk.io'),
   minSize: { w: 160, h: 80 },
 })
 

@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   batteryGauge,
+  fillLevel,
   formatBytes,
   formatClock,
   formatMonthDay,
   formatPercent,
+  formatRate,
   formatTotal,
   formatUptime,
   osLabel,
   powerLabel,
-  stableShuffle,
   toMegabytesPerSecond,
   trimHardware,
 } from '../../src/renderer/lib/format.js'
@@ -151,20 +152,15 @@ describe('trimHardware', () => {
   })
 })
 
-describe('stableShuffle', () => {
-  it('is a permutation of 0..n-1', () => {
-    const order = stableShuffle(440)
-    expect([...order].sort((a, b) => a - b)).toEqual(Array.from({ length: 440 }, (_, i) => i))
+describe('disk readouts', () => {
+  it('formats rates and terabytes', () => {
+    expect(formatRate(0)).toBe('0 B/s')
+    expect(formatRate(5 * 1024 * 1024)).toBe('5.0 MiB/s')
+    expect(formatBytes(2 * 1024 ** 4)).toBe('2.0 TiB')
   })
-
-  it('is stable for the same seed and differs for another', () => {
-    expect(stableShuffle(440)).toEqual(stableShuffle(440))
-    expect(stableShuffle(440, 1)).not.toEqual(stableShuffle(440, 2))
-  })
-
-  it('actually scatters (not the identity)', () => {
-    const order = stableShuffle(440)
-    const inPlace = order.filter((v, i) => v === i).length
-    expect(inPlace).toBeLessThan(20)
+  it('warns as a volume fills', () => {
+    expect(fillLevel(0.5)).toBe('ok')
+    expect(fillLevel(0.9)).toBe('warn')
+    expect(fillLevel(0.975)).toBe('full')
   })
 })
