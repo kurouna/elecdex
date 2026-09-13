@@ -27,13 +27,23 @@ export interface Launched {
 export interface LaunchOptions {
   /** Play the boot sequence. Off by default so tests see the workspace at once. */
   intro?: boolean
+  /**
+   * Where the weather widget fetches JMA data from. Defaults to a closed local
+   * port, so no test ever sends a request to the real JMA site.
+   */
+  jmaBaseUrl?: string
 }
+
+const UNREACHABLE_JMA = 'http://127.0.0.1:9/bosai'
 
 export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
   const args = [MAIN, '--windowed', `--user-data-dir=${dir}`]
   if (!options.intro) args.push('--no-intro')
-  const app = await electron.launch({ args })
+  const app = await electron.launch({
+    args,
+    env: { ...process.env, ELECDEX_JMA_BASE_URL: options.jmaBaseUrl ?? UNREACHABLE_JMA },
+  })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')

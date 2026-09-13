@@ -10,7 +10,8 @@ let page: Page
 test.beforeAll(async () => {
   app = await electron.launch({
     args: [MAIN, '--windowed', '--no-intro'],
-    env: { ...process.env, NODE_ENV: 'test' },
+    // A closed port: this spec must not send requests to the real JMA site.
+    env: { ...process.env, NODE_ENV: 'test', ELECDEX_JMA_BASE_URL: 'http://127.0.0.1:9/bosai' },
   })
   page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')

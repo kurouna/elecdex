@@ -26,6 +26,25 @@ export const CH = {
     sample: 'metrics:sample',
     stats: 'metrics:stats',
   },
+  fs: {
+    readDir: 'fs:read-dir',
+    diskUsage: 'fs:disk-usage',
+    drives: 'fs:drives',
+    /** renderer -> main, fire and forget: report changes to a directory. */
+    watch: 'fs:watch',
+    unwatch: 'fs:unwatch',
+    /** main -> renderer: a watched directory changed. */
+    changed: 'fs:changed',
+  },
+  weather: {
+    /** renderer -> main, fire and forget: keep an office's forecast up to date. */
+    subscribe: 'weather:subscribe',
+    unsubscribe: 'weather:unsubscribe',
+    /** main -> renderer: a WeatherUpdate. */
+    update: 'weather:update',
+    offices: 'weather:offices',
+    watching: 'weather:watching',
+  },
   pty: {
     create: 'pty:create',
     /** Renderer asks for the MessagePort of a session; main replies on `port`. */

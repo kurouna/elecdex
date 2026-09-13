@@ -1,7 +1,9 @@
 import { app, BrowserWindow, dialog } from 'electron'
+import { registerFsIpc } from './ipc/fs.js'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerPtyIpc } from './ipc/pty.js'
 import { registerSystemIpc } from './ipc/system.js'
+import { registerWeatherIpc } from './ipc/weather.js'
 import { registerMetricsIpc } from './metrics/broker.js'
 import { createMainWindow } from './window.js'
 
@@ -41,12 +43,16 @@ app.on('second-instance', () => {
 let ptyIpc: { dispose: () => void } | null = null
 let layoutIpc: { dispose: () => void } | null = null
 let metricsIpc: { dispose: () => void } | null = null
+let fsIpc: { dispose: () => void } | null = null
+let weatherIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
   ptyIpc = registerPtyIpc()
   layoutIpc = registerLayoutIpc()
   metricsIpc = registerMetricsIpc()
+  fsIpc = registerFsIpc()
+  weatherIpc = registerWeatherIpc()
   createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
@@ -73,6 +79,10 @@ app.on('will-quit', () => {
   layoutIpc = null
   metricsIpc?.dispose()
   metricsIpc = null
+  fsIpc?.dispose()
+  fsIpc = null
+  weatherIpc?.dispose()
+  weatherIpc = null
 })
 
 app.on('window-all-closed', () => {

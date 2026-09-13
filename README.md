@@ -3,11 +3,11 @@
 A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
 [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current stack.
 
-> **Status: Phase 3 — system monitoring.** The eDEX-UI HUD, rebuilt: live CPU, memory,
-> process, network and system widgets around a multi-tab terminal, in a persisted layout tree,
-> behind eDEX-UI's boot sequence with each pane switching on like a CRT.
-> The default layout idles at about 10% of one core. The globe (Phase 6) and filesystem
-> browser (Phase 4) are still placeholders.
+> **Status: Phase 4 — filesystem and weather.** The eDEX-UI HUD, rebuilt: live CPU, memory,
+> process, network and system widgets around a multi-tab terminal, a file browser that follows
+> the terminal's directory (Windows included) and a JMA weather forecast, in a persisted layout
+> tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT.
+> The default layout idles at about 10% of one core. The globe (Phase 6) is still a placeholder.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
 ## Why a rewrite
@@ -95,6 +95,15 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 
 The geolocation database is bundled, so there is no account to create, no API key and no
 first-run download — and IP lookups never leave the machine.
+
+## Data sources
+
+| Data | Source | Notes |
+| --- | --- | --- |
+| Weather forecast | 出典：気象庁ホームページ（[https://www.jma.go.jp/bosai/forecast/](https://www.jma.go.jp/bosai/forecast/)）を加工して作成 | Fetched only while a weather pane is open, and only around JMA's publication times (0, 5, 11 and 17 o'clock JST), with conditional requests. The weather pane shows the same attribution. Used under JMA's [terms of use](https://www.jma.go.jp/jma/kishou/info/coment.html). |
+
+The forecast JSON is what JMA's own pages load, not a documented API; elecdex parses it
+leniently and keeps showing the last forecast if the format or the network fails.
 
 ---
 

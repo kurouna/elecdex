@@ -32,6 +32,19 @@ class LayoutStore {
   readonly panes = $derived(collectPanes(this.tree.root))
   readonly visible = $derived(visiblePanes(this.tree.root))
 
+  /** The terminal pane focused most recently, as remembered by focus(). */
+  private lastTerminalId = $state<string | null>(null)
+
+  /**
+   * The terminal that follow-the-shell widgets track: the last one focused if it
+   * still exists, else the first in the layout - so the file browser follows the
+   * shell the user is working in, and keeps doing so while they click around it.
+   */
+  readonly followedTerminalId = $derived.by(() => {
+    const terminals = this.panes.filter((p) => p.widget === 'terminal')
+    return terminals.find((p) => p.id === this.lastTerminalId)?.id ?? terminals[0]?.id ?? null
+  })
+
   private saveTimer: ReturnType<typeof setTimeout> | null = null
 
   /**
@@ -77,7 +90,6 @@ class LayoutStore {
     }, SAVE_DEBOUNCE_MS)
   }
 
-  /** Writes immediately, for teardown where a debounce would be lost. */
   /**
    * Writes a pending save immediately, for teardown where the debounce would be
    * lost. Does nothing when no change is pending: writing the in-memory tree
@@ -92,8 +104,10 @@ class LayoutStore {
   }
 
   focus(paneId: string): void {
-    if (findNode(this.tree.root, paneId) === null) return
+    const node = findNode(this.tree.root, paneId)
+    if (node === null) return
     this.focusedPaneId = paneId
+    if (node.kind === 'pane' && node.widget === 'terminal') this.lastTerminalId = paneId
     this.commit(focusTab(this.tree, paneId))
   }
 

@@ -42,6 +42,8 @@ test('the default layout recreates the original arrangement', async () => {
       'memory',
       'toplist',
       'terminal',
+      'filesystem',
+      'weather',
       'netstat',
       'globe',
       'throughput',
@@ -186,7 +188,7 @@ test('a corrupt layout.json is quarantined, not lost, and the default is used', 
 
   const second = await launch(userData)
   try {
-    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(9)
+    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(11)
     const backup = `${layoutFile(userData)}.bak`
     expect(existsSync(backup)).toBe(true)
     expect(readFileSync(backup, 'utf8')).toContain('this is not json')
@@ -278,7 +280,7 @@ test('reset restores the default layout', async () => {
     await expect(terminalPane(page)).toHaveCount(2)
 
     await page.keyboard.press('Control+Shift+Backspace')
-    await expect(page.locator('[data-testid=pane]')).toHaveCount(9)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(11)
     await expect(terminalPane(page)).toHaveCount(1)
   } finally {
     await close()

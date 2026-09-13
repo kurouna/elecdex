@@ -1,5 +1,7 @@
+import type { DirResult, DiskUsage, DriveInfo } from './fs.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { LayoutTree } from './schemas/layout.js'
+import type { OfficeInfo, WeatherUpdate } from './weather.js'
 
 /**
  * The single source of truth for the renderer <-> main boundary.
@@ -33,6 +35,8 @@ export interface AppInfo {
 export interface HostFacts {
   /** Login name, or null where the OS will not say. */
   user: string | null
+  /** The user's home directory, where a detached file browser starts. */
+  home: string
   hostname: string
   osRelease: string
   cpuModel: string
@@ -106,6 +110,31 @@ export interface LayoutApi {
   filePath(): Promise<string>
 }
 
+export interface FsApi {
+  /** Lists a directory. Paths must be absolute. */
+  readDir(path: string): Promise<DirResult>
+  /** Usage of the volume holding a path, or null if it cannot be read. */
+  diskUsage(path: string): Promise<DiskUsage | null>
+  drives(): Promise<DriveInfo[]>
+  /**
+   * Calls `handler` (debounced) when the directory's entries change. Returns a
+   * function that stops watching. Watches are reference-counted per directory.
+   */
+  watch(path: string, handler: () => void): () => void
+}
+
+export interface WeatherApi {
+  /**
+   * Keeps an office's JMA forecast current. The handler gets the cached state at
+   * once and every update after. Returns an unsubscribe.
+   */
+  subscribe(office: string, handler: (update: WeatherUpdate) => void): () => void
+  /** Forecast offices, for choosing one. Fetched from JMA on first use. */
+  offices(): Promise<OfficeInfo[]>
+  /** Diagnostics: offices main is currently keeping up to date. */
+  watching(): Promise<string[]>
+}
+
 export interface MetricsApi {
   /**
    * Starts receiving a source. The handler gets the last known sample at once,
@@ -124,6 +153,8 @@ export interface ElecdexApi {
   pty: PtyApi
   layout: LayoutApi
   metrics: MetricsApi
+  fs: FsApi
+  weather: WeatherApi
 }
 
 declare global {

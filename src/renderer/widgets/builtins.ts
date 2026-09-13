@@ -1,4 +1,5 @@
 import type { MetricSourceId } from '@shared/metrics'
+import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import ClockWidget from './monitor/ClockWidget.svelte'
 import CpuWidget from './monitor/CpuWidget.svelte'
 import MemoryWidget from './monitor/MemoryWidget.svelte'
@@ -9,6 +10,7 @@ import ToplistWidget from './monitor/ToplistWidget.svelte'
 import PlaceholderWidget from './PlaceholderWidget.svelte'
 import { registerBuiltin } from './registry.ts'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
+import WeatherWidget from './weather/WeatherWidget.svelte'
 
 /**
  * Registers the built-in widgets.
@@ -87,7 +89,20 @@ registerBuiltin({
   minSize: { w: 160, h: 100 },
 })
 
-// Placeholders for widgets whose phases have not landed yet: the globe arrives
-// with GeoIP in phase 6, the filesystem browser in phase 4.
+registerBuiltin({
+  id: 'filesystem',
+  title: 'filesystem',
+  component: FilesystemWidget,
+  minSize: { w: 200, h: 100 },
+})
+
+registerBuiltin({
+  id: 'weather',
+  title: 'weather',
+  component: WeatherWidget,
+  minSize: { w: 200, h: 120 },
+  multiple: true,
+})
+
+// The globe arrives with GeoIP in phase 6.
 registerBuiltin({ id: 'globe', title: 'world view', component: PlaceholderWidget })
-registerBuiltin({ id: 'filesystem', title: 'filesystem', component: PlaceholderWidget })

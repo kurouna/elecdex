@@ -19,6 +19,7 @@ function hostFacts(): HostFacts {
   const cpus = os.cpus()
   return {
     user,
+    home: os.homedir(),
     hostname: os.hostname(),
     osRelease: `${os.type()} ${os.release()}`,
     cpuModel: cpus[0]?.model.trim() ?? 'unknown',

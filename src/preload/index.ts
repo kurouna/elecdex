@@ -6,8 +6,10 @@ import type {
   PtySessionSummary,
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
+import type { DirResult, DiskUsage, DriveInfo } from '@shared/fs'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { LayoutTree } from '@shared/schemas/layout'
+import type { OfficeInfo, WeatherUpdate } from '@shared/weather'
 import { contextBridge, ipcRenderer } from 'electron'
 
 /**
@@ -149,6 +151,69 @@ function subscribeMetric(id: MetricSourceId, handler: SampleHandler): () => void
   }
 }
 
+/**
+ * A reference-counted fan-out for a keyed main-process subscription: the first
+ * handler for a key sends `subscribe`, the last one to leave sends
+ * `unsubscribe`, and every event for the key reaches every handler. Used for
+ * directory watches and weather offices, which follow the metrics rules.
+ */
+function keyedSubscriptions<T>(channels: {
+  subscribe: string
+  unsubscribe: string
+  event: string
+  keyOf: (payload: T) => string
+}) {
+  const handlers = new Map<string, Set<(payload: T) => void>>()
+  const last = new Map<string, T>()
+
+  ipcRenderer.on(channels.event, (_event, payload: T) => {
+    const key = channels.keyOf(payload)
+    last.set(key, payload)
+    for (const handler of handlers.get(key) ?? []) handler(payload)
+  })
+
+  return (key: string, handler: (payload: T) => void): (() => void) => {
+    let set = handlers.get(key)
+    if (!set) {
+      set = new Set()
+      handlers.set(key, set)
+      ipcRenderer.send(channels.subscribe, key)
+    } else {
+      const cached = last.get(key)
+      if (cached !== undefined) queueMicrotask(() => handler(cached))
+    }
+    set.add(handler)
+
+    let active = true
+    return () => {
+      if (!active) return
+      active = false
+      const current = handlers.get(key)
+      if (!current) return
+      current.delete(handler)
+      if (current.size === 0) {
+        handlers.delete(key)
+        last.delete(key)
+        ipcRenderer.send(channels.unsubscribe, key)
+      }
+    }
+  }
+}
+
+const watchDir = keyedSubscriptions<string>({
+  subscribe: CH.fs.watch,
+  unsubscribe: CH.fs.unwatch,
+  event: CH.fs.changed,
+  keyOf: (dir) => dir,
+})
+
+const subscribeWeather = keyedSubscriptions<WeatherUpdate>({
+  subscribe: CH.weather.subscribe,
+  unsubscribe: CH.weather.unsubscribe,
+  event: CH.weather.update,
+  keyOf: (update) => update.office,
+})
+
 const api: ElecdexApi = {
   system: {
     info: () => ipcRenderer.invoke(CH.system.info) as Promise<AppInfo>,
@@ -169,6 +234,19 @@ const api: ElecdexApi = {
   metrics: {
     subscribe: (id, handler) => subscribeMetric(id, handler as SampleHandler),
     stats: () => ipcRenderer.invoke(CH.metrics.stats) as Promise<MetricsStats>,
+  },
+  fs: {
+    readDir: (path) => ipcRenderer.invoke(CH.fs.readDir, path) as Promise<DirResult>,
+    diskUsage: (path) => ipcRenderer.invoke(CH.fs.diskUsage, path) as Promise<DiskUsage | null>,
+    drives: () => ipcRenderer.invoke(CH.fs.drives) as Promise<DriveInfo[]>,
+    // Main reports the directory normalised; a "changed" event for it is only
+    // matched if the watch was keyed the same way, so callers pass listing paths.
+    watch: (path, handler) => watchDir(path, () => handler()),
+  },
+  weather: {
+    subscribe: (office, handler) => subscribeWeather(office, handler),
+    offices: () => ipcRenderer.invoke(CH.weather.offices) as Promise<OfficeInfo[]>,
+    watching: () => ipcRenderer.invoke(CH.weather.watching) as Promise<string[]>,
   },
   layout: {
     load: () => ipcRenderer.invoke(CH.layout.load) as Promise<LayoutTree>,

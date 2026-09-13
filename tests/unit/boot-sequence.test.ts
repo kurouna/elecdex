@@ -19,6 +19,7 @@ const info: AppInfo = {
   intro: true,
   host: {
     user: 'someone',
+    home: '/home/someone',
     hostname: 'HOST-1',
     osRelease: 'Windows_NT 10.0.26200',
     cpuModel: 'Test CPU',

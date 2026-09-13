@@ -487,7 +487,7 @@ elecdex/
 | CSP | `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'` — Svelte scoped CSS はビルド時に静的CSSになるので `unsafe-inline` 不要 |
 | 入力検証 | renderer 由来の全入力を main 側で zod 検証。パスは `path.resolve` 正規化 + allowlist |
 | ナビゲーション | `will-navigate` / `setWindowOpenHandler` で外部遷移を拒否し、`shell.openExternal` に委譲 |
-| 外部通信 | 更新チェック（GitHub API）と GeoIP DB 更新のみ。いずれも**設定で無効化可能**、GeoIP は初回同意制 |
+| 外部通信 | 更新チェック（GitHub API）、GeoIP DB 更新、気象庁の天気予報のみ。更新チェックと GeoIP は**設定で無効化可能**、GeoIP は初回同意制。天気予報は天気ペインがある間だけ、発表時刻の前後に条件付きリクエストで取得（ペインを置かなければ通信しない）。通信は main が行い、renderer の CSP は `connect-src 'self'` のまま |
 | XSS | `innerHTML` 使用禁止（Biome ルールで機械的に禁止）。原版の `_escapeHtml` / `_purifyCSS` 自作ヘルパは不要になる |
 
 ---
@@ -524,7 +524,7 @@ elecdex/
 | **1** | ターミナル: PtyManager + MessagePort + xterm + Shell Integration (OSC 7/133) + タブ無制限 | 3OSで対話シェルが動き、CWDとプロセス名が取れる（Windows含む） |
 | **2** | レイアウトエンジン: LayoutTree / Splitter / TabsNode / WidgetRegistry / PaneHost + 永続化 | 既定レイアウト再現 + `layout.json` 編集で任意配置ができる |
 | **3** | メトリクス基盤 + 監視ウィジェット: clock / sysinfo / cpu / memory / toplist / netstat / throughput | 購読0でポーリングが止まる。アイドルCPU閾値を満たす |
-| **4** | ファイルシステムウィジェット: CWD追従、ディスク使用量、クリックでパス入力 | Windows でも CWD 追従する |
+| **4** | ファイルシステムウィジェット: CWD追従、ディスク使用量、クリックでパス入力。気象庁の天気予報ペイン | Windows でも CWD 追従する。天気予報は出典を明記し、発表時刻以外に取得しない |
 | **5** | デザイントークン / テーマ / SFX / ブート演出 | リロードなしでテーマ切替。テーマ3種を自作 |
 | **6** | Globe + GeoIP: Natural Earth タイル生成、three/threlte 実装、接続先プロット | 無効化可能。GPU負荷が許容範囲 |
 | **7** | 設定UI / キーバインドUI / 更新チェック / リリースパイプライン | タグ push で3OS分の配布物が出る |
@@ -565,6 +565,8 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | layout.json の読み込み | `layout.load` のたびにディスクを読み直す。renderer の unload 時の保存は、保存待ちがある場合だけ行う | キャッシュと無条件の保存が、起動中に手で編集した layout.json を上書きしていた（E2E で発見・固定） |
 | ターミナルの再接続時の画面 | main で各セッションの出力を `@xterm/headless` にも流し、attach 時は `@xterm/addon-serialize` のスナップショット（画面＋スクロールバック＋代替画面）を送る。スナップショット取得中に届いた出力はポートごとに保留し、スナップショットの後に送る。renderer は非表示のペインを fit せず、PTY へのリサイズは 120ms 安定してから送る | 生バイト列の再生は、Windows ConPTY がカーソル位置指定で画面を描き直すため別サイズの画面では崩れる。さらに**原因の本体**は、タブ化で再マウントされた背景タブ（display:none）を fit して 12x5 が PTY に送られ、ConPTY がバッファをその幅で折り返して再描画していたこと（実測で特定、E2E で修正前に失敗することを確認）。VS Code の再接続と同じ方式 |
 | 起動シーケンス | 原版と同じ3段構成（ブートログ → タイトル → ペインの順次表示）。ブートログは原版の架空の macOS カーネルログではなく、実行環境・マシン・renderer のセキュリティ設定・復元するレイアウトなど起動時に実際に分かる事実を、原版と同じく加速しながら流す。表示順はシェルが先、以降はモジュールを「列方向の分割だけを数えた上からの行」ごとに左右同時に（原版の左右列の同期を任意のレイアウトへ一般化）。各ペインは steel-ignition の CRT シェーダーの電源投入（中央の横線から easeOutBack で上下に開く・開く縁の発光ビーム・半分開くまでの走査線フリッカー）を CSS の transform と疑似要素で再現する。ワークスペースは最初から visibility:hidden でマウントし、シェルとメトリクスは演出中に起動する。任意のキー/クリックでスキップ、ウィンドウごとに1回（sessionStorage）、`--no-intro` と prefers-reduced-motion で無効 | 演出が起動時間を増やさないこと、毎回見せられないことが条件。display:none ではなく visibility で隠すのは、表示時点で各ペインが実寸を持ちターミナルの fit が正しく行われるため（前項の ConPTY の問題を再発させない）。アニメーションは合成のみで、終了後はクラスを外し transform/filter を残さない（E2E で確認） |
+| ファイルシステムウィジェット（Phase 4） | 追従するのは「最後にフォーカスしたターミナル」（無ければレイアウト内の最初のもの）。シェル統合の OSC 7 で cwd を得るので Windows でも追従する。ディレクトリのクリックは `cd <名前>` を入力して実行、ファイルのクリックは引用したパスをプロンプトに入力するだけ（実行しない）。引用はシェルごとに単一引用符（PowerShell は `''`、POSIX は `'''`、fish は `'`、cmd は二重引用符と `cd /d`）。追従先が無い・cwd を報告しないときは原版と同じく単独で閲覧（"detached"）。一覧・使用量・ドライブは main の `fs` IPC（絶対パスのみ受け付け正規化、読み取りはメタデータだけでファイル内容は返さない、1ディレクトリ最大1000件）。変更検知は `fs.watch` をディレクトリ単位で参照カウントし、ページのリロード/破棄で解除 | 原版はディレクトリ変更ごとに systeminformation の `fsSize()`（Windows では PowerShell 起動）を呼んでいた。`fs.statfs` は1回のシステムコールで済む。原版は全シェルで二重引用符を使い、`$` やバッククォートを含む名前で壊れていた |
+| 天気予報ペイン（Phase 4） | 気象庁の予報 JSON（`/bosai/forecast/data/forecast/{office}.json`）を main の `WeatherService` が取得。購読のあるオフィスだけを、発表時刻（0・5・11・17時 JST）の12分前・3分後・20分後に確認し、2回目以降は `If-None-Match` の条件付きリクエスト（1日最大十数回、変化なしは 304）。失敗時は 5/15/30 分のバックオフで再試行し、最後の予報を表示し続ける。最後の予報を userData に保存し、再起動時は発表時刻をまたいでいなければ取得しない。E2E はローカルのスタブサーバーに `ELECDEX_JMA_BASE_URL` を向け、既定でも到達不能なポートを指すので、テストが実サイトに通信することはない。天気コードの表は気象庁のテロップに沿ってリポジトリに持ち、未知のコードは先頭桁（1晴・2曇・3雨・4雪）で描く。アイコンは気象庁の画像を使わず自前の線画 | 利用規約（https://www.jma.go.jp/jma/kishou/info/coment.html）に従い、ペイン内と README に「出典：気象庁ホームページ（URL）を加工して作成」を表示する（整形・アイコン化しているため「加工」と明記）。この JSON は公開 API ではない（仕様変更があり得る）ため、zod で緩く検証し欠けた項目は「データなし」として扱う。Qiita の解説（e_toyoda）が注意する通り、推測での無駄なリクエストを避ける |
 
 ## 17. 既知の問題
 
