@@ -1,4 +1,10 @@
-<p align="center"><img src="build/icon.svg" width="128" height="128" alt="elecdex icon"></p>
+<p align="center">
+  <img src="./public/elecdex_repo_card.svg" width="800" alt="elecdex - Sci-fi terminal and system monitor, rebuilt">
+</p>
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Zenn](https://img.shields.io/badge/Zenn-kurouna-blue)](https://zenn.dev/kurouna)
+[![X](https://img.shields.io/badge/X-elecxzy-black)](https://x.com/elecxzy)
 
 # elecdex
 
