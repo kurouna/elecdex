@@ -36,6 +36,8 @@ export interface LaunchOptions {
   layout?: unknown
   /** Extra environment variables for the app. */
   env?: Record<string, string>
+  /** Extra command-line switches for Electron, e.g. --lang=en-US. */
+  args?: string[]
   /**
    * A settings.json to start from. By default sound is off, so running the suite
    * does not beep at whoever is sitting at the machine.
@@ -66,6 +68,7 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   }
   const args = [MAIN, '--windowed', `--user-data-dir=${dir}`]
   if (!options.intro) args.push('--no-intro')
+  if (options.args) args.push(...options.args)
   const app = await electron.launch({
     args,
     env: {

@@ -4,16 +4,19 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
 /**
  * The out-of-the-box layout.
  *
- * Recreates eDEX-UI's arrangement - a system column, the main shell with the
- * filesystem display beneath it, a network column - with the same module order
- * and column headers, but as ordinary tree nodes rather than hardcoded regions,
- * so the user can rearrange or discard any of it. Where the original put its
- * on-screen keyboard sit the application launcher and the weather forecast, and
- * the market board joins the network column.
+ * Laid out by what the panes are for, not by eDEX-UI's original grid:
  *
- * The shell starts as a group of three tabs. eDEX-UI offered five fixed tab
- * slots but opened only one shell; here every tab is a live shell from the
- * start, and more can be added without limit.
+ *  - Left, "this machine": the clock and system strip (kept short - a clock
+ *    needs a line, not a quarter of the column), CPU, memory and the busiest
+ *    processes.
+ *  - Centre, "work": the shell, three tabs of it, and beneath it the file
+ *    browser, which follows the shell's directory and types into it, beside the
+ *    launcher. The file grid needs half the width, not all of it.
+ *  - Right, "the world outside": network status, the globe of connections and
+ *    traffic, then the market board and the weather forecast.
+ *
+ * Every pane is an ordinary tree node, so any of it can be rearranged, closed or
+ * brought back from the add-pane picker.
  */
 export function defaultLayoutNode(): LayoutNode {
   return split(
@@ -22,28 +25,25 @@ export function defaultLayoutNode(): LayoutNode {
       split(
         'column',
         [pane('clock'), pane('sysinfo'), pane('cpu'), pane('memory'), pane('toplist')],
-        [0.12, 0.13, 0.28, 0.22, 0.25],
+        [0.07, 0.1, 0.28, 0.22, 0.33],
         { left: 'panel', right: 'system' },
       ),
       split(
         'column',
         [
           tabs([pane('terminal'), pane('terminal'), pane('terminal')]),
-          split('row', [pane('filesystem'), pane('launcher'), pane('weather')], [0.4, 0.3, 0.3]),
+          split('row', [pane('filesystem'), pane('launcher')], [0.5, 0.5]),
         ],
-        [0.66, 0.34],
+        [0.7, 0.3],
       ),
       split(
         'column',
-        [pane('netstat'), pane('globe'), pane('markets'), pane('throughput')],
-        [0.13, 0.33, 0.34, 0.2],
-        {
-          left: 'panel',
-          right: 'network',
-        },
+        [pane('netstat'), pane('globe'), pane('throughput'), pane('markets'), pane('weather')],
+        [0.08, 0.2, 0.12, 0.37, 0.23],
+        { left: 'panel', right: 'world' },
       ),
     ],
-    [0.18, 0.64, 0.18],
+    [0.2, 0.58, 0.22],
   )
 }
 

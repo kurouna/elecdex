@@ -16,8 +16,8 @@ A science-fiction desktop terminal emulator and system monitor — a ground-up r
 > the terminal's directory (Windows included) and a JMA weather forecast, in a persisted layout
 > tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT. Three themes
 > (Tron, Amber, Phosphor) switch live, interface sounds are synthesised, and a globe shows
-> where the machine's connections go, placed with a bundled GeoIP database. Beyond the default
-> layout, the add-pane picker offers an application launcher and a market board.
+> where the machine's connections go, placed with a bundled GeoIP database, beside an
+> application launcher and a market board.
 > The default layout idles at about 13% of one core.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
@@ -127,12 +127,23 @@ straight away; one with a built-in's `id` replaces that theme.
 Colours are `#rrggbb`; `status` (hues for danger / warn / ok) and `fonts` are optional.
 The glow effect costs a couple of percent of a core at idle.
 
-## Extra panes
+## Default layout
 
-Add these from the picker (Ctrl+Shift+A):
+Arranged by what the panes are for:
+
+- **Left — this machine:** a compact clock, the system strip, CPU, memory and top processes.
+- **Centre — work:** three shell tabs, and beneath them the file browser (it follows the shell)
+  beside the launcher.
+- **Right — the world outside:** network status, the globe of connections, traffic, the market
+  board and the weather forecast.
+
+Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shift+A).
+
+## Launcher, markets and CPU views
 
 - **Launcher** — the Start Menu on Windows (`/Applications` on macOS, `.desktop` files on
-  Linux), with your own entries pinned first. Type to filter, Enter to launch. Add entries
+  Linux), with your own entries pinned first. Icons are drawn in the theme's accent colour and
+  show their own colours on hover. Type to filter, Enter to launch. Add entries
   under `launcher.items` in `settings.json` (the pane's EDIT LIST button opens it):
 
   ```json
@@ -149,7 +160,9 @@ Add these from the picker (Ctrl+Shift+A):
 - **Markets** — indices, currencies and anything else Yahoo Finance quotes, refreshed about
   once a minute, as sparklines against the previous close or as diverging bars of the day's
   change (toggle in the pane). SYMBOLS edits the list, each symbol optionally followed by a
-  label: `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`. Yahoo publishes no live TOPIX index,
+  label: `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`. Well-known symbols without a label of your
+  own are named in the app's language — Japanese when Electron's locale is Japanese, English
+  otherwise ("日経平均" / "Nikkei 225"); run with `--lang=en-US` to force one. Yahoo publishes no live TOPIX index,
   so the default board shows the CME yen TOPIX future (`TPY=F`).
 
 - **CPU usage** has the same toggle, switching to a bar per logical core.

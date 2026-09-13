@@ -69,12 +69,21 @@ test('the launcher lists user entries first and reports a launch that fails', as
   }
 })
 
-test('the launcher lists the platform applications', async () => {
+test('the launcher lists the platform applications, with icons in the theme colour', async () => {
   const { page, close } = await launch(undefined, { layout: single('launcher') })
   try {
     await expect
       .poll(() => page.getByTestId('launcher-entry').count(), { timeout: 20_000 })
       .toBeGreaterThan(0)
+    // An icon is tinted: masked by its own shape over the accent colour.
+    const icon = page.getByTestId('launcher-icon').first()
+    await expect(icon).toBeVisible({ timeout: 20_000 })
+    const style = await icon.evaluate((el) => {
+      const s = getComputedStyle(el)
+      return { mask: s.maskImage || s.webkitMaskImage, background: s.backgroundColor }
+    })
+    expect(style.mask).toMatch(/^url\(/)
+    expect(style.background).not.toBe('rgba(0, 0, 0, 0)')
   } finally {
     await close()
   }
@@ -168,6 +177,26 @@ test.describe('markets', () => {
       await expect(page.getByTestId('market-bar').first()).toContainText('S&P 500')
     } finally {
       await close()
+    }
+  })
+
+  test('built-in names follow the app language; labels the user typed do not', async () => {
+    const symbols = [{ symbol: '^N225' }, { symbol: 'JPY=X', label: 'my yen' }]
+    for (const [lang, nikkei] of [
+      ['en-US', 'Nikkei 225'],
+      ['ja', '日経平均'],
+    ] as const) {
+      const { page, close } = await launch(undefined, {
+        layout: single('markets', { symbols }),
+        args: [`--lang=${lang}`],
+      })
+      try {
+        const rows = page.getByTestId('market-row')
+        await expect(rows.first()).toContainText(nikkei)
+        await expect(rows.nth(1)).toContainText('my yen')
+      } finally {
+        await close()
+      }
     }
   })
 
