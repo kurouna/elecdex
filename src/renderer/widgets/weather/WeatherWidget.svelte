@@ -8,6 +8,7 @@ import {
 } from '@shared/weather'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import SkyIcon from './SkyIcon.svelte'
 
@@ -101,20 +102,12 @@ const pop = (value: number | null) => (value === null ? '--' : `${value}%`)
 </script>
 
 <div class="weather" data-testid="weather">
-  <button
-    type="button"
-    class="settings-toggle"
-    aria-label="choose forecast area"
-    aria-expanded={settingsOpen}
-    onclick={() => (settingsOpen = !settingsOpen)}
-    data-testid="weather-settings-toggle"
-  >
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-      <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
-      <circle cx="16" cy="7" r="2" />
-      <circle cx="8" cy="17" r="2" />
-    </svg>
-  </button>
+  <SettingsButton
+    open={settingsOpen}
+    label="choose forecast area"
+    testid="weather-settings-toggle"
+    ontoggle={() => (settingsOpen = !settingsOpen)}
+  />
 
   {#if settingsOpen}
     <div class="settings" data-testid="weather-settings">
@@ -214,25 +207,6 @@ const pop = (value: number | null) => (value === null ? '--' : `${value}%`)
   min-height: 0;
   padding: var(--space-1) var(--space-1) 0;
   font-family: var(--font-ui);
-}
-
-.settings-toggle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 2;
-  width: 1.4rem;
-  height: 1.4rem;
-  padding: 0.15rem;
-  border: 0;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.settings-toggle:hover,
-.settings-toggle[aria-expanded='true'] {
-  color: var(--accent);
 }
 
 .settings {
@@ -347,8 +321,11 @@ select {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr));
+  /* One row: days that do not fit the width are dropped, not wrapped half into view. */
+  grid-template-rows: auto;
+  grid-auto-rows: 0;
   align-content: start;
-  gap: var(--space-1);
+  gap: 0 var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -356,13 +333,23 @@ select {
 }
 
 .week li {
+  overflow: hidden;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.1rem;
-  padding: var(--space-1) 0;
-  border-top: 1px solid var(--panel-rule);
+  /* Spacing and rule drawn inside the box, so a dropped day collapses to nothing. */
+  box-shadow: inset 0 1px var(--panel-rule);
   font-size: var(--step--1);
+}
+
+.week li > :first-child {
+  margin-top: var(--space-1);
+}
+
+.week li > :last-child {
+  margin-bottom: var(--space-1);
 }
 
 .date small {

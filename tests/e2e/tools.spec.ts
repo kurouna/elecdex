@@ -127,7 +127,7 @@ test('the launcher lists the platform applications, with icons in the theme colo
   }
 })
 
-test('the calendar is in English, and Japanese holidays are an opt-in kept per pane', async () => {
+test('the calendar is in English, and holidays are ticked per country in its settings', async () => {
   // Japanese app language: the calendar's text stays English regardless.
   let launched = await launch(undefined, { layout: single('calendar'), args: ['--lang=ja'] })
   try {
@@ -157,7 +157,12 @@ test('the calendar is in English, and Japanese holidays are an opt-in kept per p
     await expect(page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'none')
     await expect(page.locator('[data-testid=calendar-day][data-holiday]')).toHaveCount(0)
 
-    await page.getByTestId('calendar-holidays').click()
+    // Ticked in the settings panel, where other countries will join Japan.
+    await expect(page.getByTestId('calendar-settings')).toHaveCount(0)
+    await page.getByTestId('calendar-settings-toggle').click()
+    const japan = page.getByTestId('calendar-holidays-jp')
+    await expect(japan).not.toBeChecked()
+    await japan.check()
     await expect(page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'jp')
     for (let i = 0; i < 12 && (await page.locator('[data-date$="-01-01"]').count()) === 0; i++) {
       await page.getByTestId('calendar-next').click()
@@ -171,6 +176,8 @@ test('the calendar is in English, and Japanese holidays are an opt-in kept per p
     await page.waitForTimeout(1500) // let the layout save
     launched = await launched.relaunch()
     await expect(launched.page.getByTestId('calendar')).toHaveAttribute('data-holidays', 'jp')
+    await launched.page.getByTestId('calendar-settings-toggle').click()
+    await expect(launched.page.getByTestId('calendar-holidays-jp')).toBeChecked()
   } finally {
     await launched.close()
   }

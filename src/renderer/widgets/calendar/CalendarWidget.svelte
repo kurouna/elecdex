@@ -1,8 +1,9 @@
 <script lang="ts">
-import { holidayOn } from '@shared/jp-holidays'
+import { describeMarks, HOLIDAY_CALENDARS, holidayChoice, holidayLookup } from '@shared/holidays'
 import { firstDayOfWeek, isoWeek, monthGrid, msUntilMidnight, sameDay } from '../../lib/calendar.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -10,19 +11,22 @@ import type { WidgetProps } from '../registry.ts'
  * apart, and the next holiday spelled out underneath.
  *
  * All text is English whatever the app language, in keeping with the rest of
- * the HUD. Japanese national holidays are computed locally
- * (shared/jp-holidays.ts) and shown when the pane's JP HOLIDAYS switch is on -
- * off by default, kept in the pane state. Nothing is fetched. The pane wakes
- * once at midnight to move "today", and not otherwise.
+ * the HUD. National holidays are computed locally (shared/holidays.ts) for the
+ * countries ticked in the pane's settings - none by default, kept in the pane
+ * state. Nothing is fetched. The pane wakes once at midnight to move "today",
+ * and not otherwise.
  */
 const { paneId, state: paneState }: WidgetProps = $props()
 
 const locale = 'en-US'
 const weekStart = firstDayOfWeek(locale)
-const withHolidays = $derived(paneState?.holidays === 'jp')
+const countries = $derived(holidayChoice(paneState))
+const lookup = $derived(holidayLookup(countries))
+let settingsOpen = $state(false)
 
-function toggleHolidays(): void {
-  layout.setPaneState(paneId, { ...paneState, holidays: withHolidays ? 'none' : 'jp' })
+function setCountry(id: string, on: boolean): void {
+  const next = on ? [...countries, id] : countries.filter((c) => c !== id)
+  layout.setPaneState(paneId, { ...paneState, holidays: next })
 }
 
 let today = $state(new Date())
@@ -60,13 +64,13 @@ const title = $derived(
 )
 
 const holidayName = (date: Date): string | undefined => {
-  if (!withHolidays) return undefined
-  return holidayOn(date)?.en
+  const marks = lookup(date)
+  return marks.length === 0 ? undefined : describeMarks(marks, countries.length > 1)
 }
 
 /** The next holiday from today, within a year. */
 const nextHoliday = $derived.by(() => {
-  if (!withHolidays) return null
+  if (countries.length === 0) return null
   for (let i = 0; i < 366; i += 1) {
     const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i)
     const name = holidayName(date)
@@ -107,20 +111,34 @@ const whenLabel = (inDays: number): string =>
   inDays === 0 ? 'today' : inDays === 1 ? 'tomorrow' : `in ${inDays} days`
 </script>
 
-<div class="calendar" data-testid="calendar" data-holidays={withHolidays ? 'jp' : 'none'}>
+<div class="calendar" data-testid="calendar" data-holidays={countries.join(' ') || 'none'}>
+  <SettingsButton
+    open={settingsOpen}
+    label="calendar settings"
+    testid="calendar-settings-toggle"
+    ontoggle={() => (settingsOpen = !settingsOpen)}
+  />
+
+  {#if settingsOpen}
+    <fieldset class="settings" data-testid="calendar-settings">
+      <legend>holidays</legend>
+      {#each HOLIDAY_CALENDARS as calendar (calendar.id)}
+        <label>
+          <input
+            type="checkbox"
+            checked={countries.includes(calendar.id)}
+            onchange={(e) => setCountry(calendar.id, e.currentTarget.checked)}
+            data-testid={`calendar-holidays-${calendar.id}`}
+          />
+          <span>{calendar.name}</span>
+        </label>
+      {/each}
+    </fieldset>
+  {/if}
+
   <div class="head">
     <span class="title" data-testid="calendar-title">{title}</span>
     <div class="nav">
-      <button
-        type="button"
-        class="holidays"
-        aria-pressed={withHolidays}
-        title="Show Japanese national holidays"
-        onclick={toggleHolidays}
-        data-testid="calendar-holidays"
-      >
-        jp holidays
-      </button>
       <button type="button" title="Previous month" onclick={() => move(-1)} data-testid="calendar-prev">‹</button>
       <button
         type="button"
@@ -174,6 +192,7 @@ const whenLabel = (inDays: number): string =>
 
 <style>
 .calendar {
+  position: relative;
   container-type: size;
   display: flex;
   flex-direction: column;
@@ -201,6 +220,41 @@ const whenLabel = (inDays: number): string =>
 .nav {
   display: flex;
   gap: 2px;
+  /* Clear of the settings button in the corner. */
+  margin-right: 1.5rem;
+}
+
+.settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  margin: 0 1.6rem 0 0;
+  padding: 0 0 var(--space-1);
+  border: 0;
+  border-bottom: 1px solid var(--panel-rule);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+}
+
+.settings legend {
+  float: left;
+  padding: 0;
+  color: var(--text-muted);
+}
+
+.settings label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.settings input {
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .nav button {
@@ -219,12 +273,6 @@ const whenLabel = (inDays: number): string =>
 .nav button:hover {
   color: var(--accent);
   border-color: var(--accent);
-}
-
-.nav .holidays[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--accent-faint);
-  color: var(--accent-strong);
 }
 
 .nav .now.away {
@@ -265,7 +313,7 @@ const whenLabel = (inDays: number): string =>
 }
 
 .sat {
-  color: var(--accent);
+  color: var(--info);
 }
 
 .sun {

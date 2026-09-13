@@ -27,6 +27,7 @@
   --hue-danger: 0;
   --hue-warn: 45;
   --hue-ok: 130;
+  --hue-info: 212;
 
   --font-display: "Chakra Petch", system-ui, sans-serif;
   --font-ui: "Saira Condensed", system-ui, sans-serif;
@@ -58,6 +59,7 @@
   --danger: hsl(var(--hue-danger) 80% 60%);
   --warn: hsl(var(--hue-warn) 85% 58%);
   --ok: hsl(var(--hue-ok) 60% 52%);
+  --info: hsl(var(--hue-info) 85% 66%);
 
   /* ---------- semantic: type scale ---------- */
   /* rem-based, and the root size tracks the viewport height (see reset.css),

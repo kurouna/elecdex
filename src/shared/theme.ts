@@ -49,7 +49,8 @@ export const ThemeSchema = z.object({
   accent: z.object({ h: Hue, s: Percent, l: Percent }),
   surfaces: z.object({ s0: Hex, s1: Hex, s2: Hex, line: Hex }),
   /** Hues of the status colours; defaults suit most accents. */
-  status: z.object({ danger: Hue, warn: Hue, ok: Hue }).partial().optional(),
+  /** `info` is the cool contrast colour: Saturdays in the calendar. */
+  status: z.object({ danger: Hue, warn: Hue, ok: Hue, info: Hue }).partial().optional(),
   fonts: z.object({ display: FontStack, ui: FontStack, mono: FontStack }).partial().optional(),
   terminal: z
     .object({
@@ -139,7 +140,7 @@ export function mergeThemes(builtin: readonly Theme[], user: readonly Theme[]): 
 }
 
 /** Fixed fallbacks, so a theme that omits an optional part cannot leave a variable stale. */
-const DEFAULT_STATUS = { danger: 0, warn: 45, ok: 130 }
+const DEFAULT_STATUS = { danger: 0, warn: 45, ok: 130, info: 212 }
 const DEFAULT_FONTS = {
   display: '"Chakra Petch", system-ui, sans-serif',
   ui: '"Saira Condensed", system-ui, sans-serif',
@@ -156,6 +157,7 @@ export function themeVariables(theme: Theme): Record<string, string> {
     danger: theme.status?.danger ?? DEFAULT_STATUS.danger,
     warn: theme.status?.warn ?? DEFAULT_STATUS.warn,
     ok: theme.status?.ok ?? DEFAULT_STATUS.ok,
+    info: theme.status?.info ?? DEFAULT_STATUS.info,
   }
   const fonts = {
     display: theme.fonts?.display ?? DEFAULT_FONTS.display,
@@ -173,6 +175,7 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--hue-danger': String(status.danger),
     '--hue-warn': String(status.warn),
     '--hue-ok': String(status.ok),
+    '--hue-info': String(status.info),
     '--font-display': fonts.display,
     '--font-ui': fonts.ui,
     '--font-mono': fonts.mono,
