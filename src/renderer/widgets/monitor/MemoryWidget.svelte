@@ -1,6 +1,7 @@
 <script lang="ts">
 import { untrack } from 'svelte'
 import { formatBytes, formatPercent } from '../../lib/format.ts'
+import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -8,7 +9,7 @@ import StreamChart from '../common/StreamChart.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
- * Memory over the last three minutes, drawn like the CPU graph: the share in use as a
+ * Memory over the last minute, drawn like the CPU graph and scrolling with it: the share in use as a
  * scrolling line, swap as a dimmer one, and below them bars for the amounts now.
  *
  * eDEX-UI showed a field of 440 dots lit in a scattered order. They said no more
@@ -17,17 +18,11 @@ import type { WidgetProps } from '../registry.ts'
  */
 const { paneId }: WidgetProps = $props()
 
-/**
- * Three minutes: memory moves slowly, a longer window shows a trend better, and
- * the chart redraws a third as often as a one-minute one (about 2% of a core less).
- */
-const WINDOW_MS = 180_000
-
 const usage = $derived(metrics.sample('mem.usage'))
 const swap = $derived(metrics.get('mem.swap'))
 
-const usedSeries = new TimeSeries(WINDOW_MS + 5000)
-const swapSeries = new TimeSeries(WINDOW_MS + 5000)
+const usedSeries = new TimeSeries(CHART_WINDOW_MS + 5000)
+const swapSeries = new TimeSeries(CHART_WINDOW_MS + 5000)
 
 const usedFraction = $derived(
   usage && usage.data.total > 0 ? Math.min(1, usage.data.used / usage.data.total) : 0,
@@ -71,8 +66,6 @@ $effect(() => {
         series={[{ points: usedSeries.points }, { points: swapSeries.points, tone: 'dim' }]}
         min={0}
         max={100}
-        windowMs={WINDOW_MS}
-        delayMs={1500}
       />
     </div>
   </div>

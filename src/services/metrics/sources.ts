@@ -279,7 +279,8 @@ export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'cpu.load': { intervalMs: 1000, collect: cpuLoad },
   'cpu.speed': { intervalMs: 2000, collect: cpuSpeed },
   'cpu.temperature': { intervalMs: 5000, collect: cpuTemperature },
-  'mem.usage': { intervalMs: 1500, collect: memUsage },
+  // Every second, like cpu.load: the two graphs sit together and should move in step.
+  'mem.usage': { intervalMs: 1000, collect: memUsage },
   'mem.swap': { intervalMs: 10_000, collect: memSwap },
   'proc.list': { intervalMs: byPlatform(5000, 3000), collect: processList },
   'os.info': { intervalMs: TEN_MINUTES, collect: osInfo },

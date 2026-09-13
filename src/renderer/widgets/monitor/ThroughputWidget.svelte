@@ -1,5 +1,6 @@
 <script lang="ts">
 import { formatTotal, toMegabytesPerSecond } from '../../lib/format.ts'
+import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -12,13 +13,11 @@ import type { WidgetProps } from '../registry.ts'
  */
 const { paneId }: WidgetProps = $props()
 
-const WINDOW_MS = 60_000
-
 const sample = $derived(metrics.sample('net.throughput'))
 const ping = $derived(metrics.get('net.ping'))
 
-const up = new TimeSeries(WINDOW_MS + 5000)
-const down = new TimeSeries(WINDOW_MS + 5000)
+const up = new TimeSeries(CHART_WINDOW_MS + 5000)
+const down = new TimeSeries(CHART_WINDOW_MS + 5000)
 
 $effect(() => {
   if (sample === null) return
@@ -54,8 +53,6 @@ const peak = $derived(
       series={[{ points: up.points }, { points: down.points, inverted: true }]}
       min={-peak}
       max={peak}
-      windowMs={WINDOW_MS}
-      delayMs={2000}
       divisions={4}
       zeroLine
       labels

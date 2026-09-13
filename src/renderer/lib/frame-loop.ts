@@ -20,6 +20,25 @@ export const CHART_FPS = 10
 
 const FRAME_INTERVAL = 1000 / CHART_FPS
 
+/**
+ * The time axis every scrolling chart shares, so side by side they move at the
+ * same speed: the same span of time across the chart, the same lag behind now,
+ * and redraws on the same wall-clock ticks.
+ *
+ *  - Window: a minute, as eDEX-UI's charts showed.
+ *  - Delay: behind "now" by more than the slowest of their sources' intervals, so
+ *    the newest point is already in before the line reaches the right edge.
+ *  - Tick: a chart redraws only when the tick changes. Every chart changes tick
+ *    in the same frame, so the compositor is woken once for all of them rather
+ *    than once per chart whenever each happens to cross a pixel.
+ */
+export const CHART_WINDOW_MS = 60_000
+export const CHART_DELAY_MS = 2000
+export const CHART_TICK_MS = 200
+
+/** The shared tick a moment falls in. */
+export const chartTick = (now: number): number => Math.floor(now / CHART_TICK_MS)
+
 const callbacks = new Set<FrameCallback>()
 let timer: ReturnType<typeof setTimeout> | null = null
 let raf = 0

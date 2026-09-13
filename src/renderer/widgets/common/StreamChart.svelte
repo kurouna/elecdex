@@ -1,5 +1,11 @@
 <script lang="ts">
-import { onFrame } from '../../lib/frame-loop.ts'
+import {
+  CHART_DELAY_MS,
+  CHART_TICK_MS,
+  CHART_WINDOW_MS,
+  chartTick,
+  onFrame,
+} from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import type { ChartSeries } from './chart-types.ts'
 
@@ -8,8 +14,9 @@ import type { ChartSeries } from './chart-types.ts'
  * canvas from the shared frame loop.
  *
  * The x axis is wall-clock time, so the line glides left between samples rather
- * than jumping once a second. Drawing is skipped when the canvas has no size (a
- * hidden tab) and when less than a pixel of time has passed since the last frame.
+ * than jumping once a second. Every chart uses the same window, delay and redraw
+ * tick (frame-loop.ts), so charts side by side scroll together. Drawing is skipped
+ * when the canvas has no size (a hidden tab) and within a tick already drawn.
  */
 interface Props {
   series: readonly ChartSeries[]
@@ -35,8 +42,8 @@ interface Props {
 
 const {
   series,
-  windowMs = 60_000,
-  delayMs = 1000,
+  windowMs = CHART_WINDOW_MS,
+  delayMs = CHART_DELAY_MS,
   min,
   max,
   divisions = 3,
@@ -79,7 +86,7 @@ $effect(() => {
   let height = 0
   let ratio = 1
   let colors = readColors(el)
-  let lastPixelClock = Number.NaN
+  let lastTick = Number.NaN
 
   const resize = (): void => {
     ratio = window.devicePixelRatio || 1
@@ -88,7 +95,7 @@ $effect(() => {
     el.width = Math.max(1, Math.round(width * ratio))
     el.height = Math.max(1, Math.round(height * ratio))
     colors = readColors(el)
-    lastPixelClock = Number.NaN
+    lastTick = Number.NaN
   }
 
   const observer = new ResizeObserver(resize)
@@ -98,11 +105,12 @@ $effect(() => {
   const draw = (): void => {
     if (width <= 0 || height <= 0) return
 
-    const now = Date.now() - delayMs
+    const tick = chartTick(Date.now())
+    if (tick === lastTick) return
+    lastTick = tick
+    // The tick's own time, not the frame's: charts drawn in the same tick agree.
+    const now = tick * CHART_TICK_MS - delayMs
     const msPerPixel = windowMs / width
-    const pixelClock = Math.floor(now / msPerPixel)
-    if (pixelClock === lastPixelClock) return
-    lastPixelClock = pixelClock
 
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     ctx.clearRect(0, 0, width, height)

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { formatPercent } from '../../lib/format.ts'
+import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
@@ -28,16 +29,14 @@ function setView(next: ChartView): void {
 /** Above this, a core's bar is drawn in the warning colour. */
 const HOT_CORE = 85
 
-const WINDOW_MS = 60_000
-
 const info = $derived(metrics.get('cpu.info'))
 const load = $derived(metrics.sample('cpu.load'))
 const speed = $derived(metrics.get('cpu.speed'))
 const temperature = $derived(metrics.get('cpu.temperature'))
 const processes = $derived(metrics.get('proc.list'))
 
-const firstHalf = new TimeSeries(WINDOW_MS + 5000)
-const secondHalf = new TimeSeries(WINDOW_MS + 5000)
+const firstHalf = new TimeSeries(CHART_WINDOW_MS + 5000)
+const secondHalf = new TimeSeries(CHART_WINDOW_MS + 5000)
 
 const cores = $derived(load?.data.cores ?? [])
 const half = $derived(Math.max(1, Math.ceil(cores.length / 2)))
@@ -97,7 +96,7 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
       <span class="avg" data-testid="cpu-avg-1">Avg. {formatPercent(firstAvg)}</span>
     </div>
     <div class="graph">
-      <StreamChart series={[{ points: firstHalf.points }]} min={0} max={100} windowMs={WINDOW_MS} />
+      <StreamChart series={[{ points: firstHalf.points }]} min={0} max={100} />
     </div>
   </div>
 
@@ -108,7 +107,7 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
         <span class="avg">Avg. {formatPercent(secondAvg)}</span>
       </div>
       <div class="graph">
-        <StreamChart series={[{ points: secondHalf.points }]} min={0} max={100} windowMs={WINDOW_MS} />
+        <StreamChart series={[{ points: secondHalf.points }]} min={0} max={100} />
       </div>
     </div>
   {/if}

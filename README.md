@@ -106,8 +106,8 @@ weather and calendar.
   pane.
 - **System** — date and weekday, uptime, OS, and power with a battery gauge (green, red below 20%).
 - **CPU** — two graphs of the cores' average load, or a bar per logical core (toggle in the pane).
-- **Memory** — the share in use and swap over the last three minutes, with bars for the amounts
-  now.
+- **Memory** — the share in use and swap over the last minute, scrolling in step with the CPU
+  graphs, with bars for the amounts now.
 - **Disk** — each volume as a bar of used space against its size (amber from 90%, red from 97%),
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).

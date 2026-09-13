@@ -69,7 +69,7 @@ registerBuiltin({
 registerBuiltin({
   id: 'memory',
   title: 'memory',
-  description: 'Memory and swap in use over the last three minutes, and now.',
+  description: 'Memory and swap in use over the last minute, and now.',
   component: MemoryWidget,
   metrics: sources('mem.usage', 'mem.swap'),
   minSize: { w: 160, h: 80 },
