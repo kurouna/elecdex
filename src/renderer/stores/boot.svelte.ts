@@ -3,7 +3,9 @@ import { collectPanes } from '@shared/layout-ops'
 import { METRIC_SOURCE_IDS } from '@shared/metrics'
 import { type BootLine, bootLog, lineDelay, revealDelays } from '../lib/boot-sequence.ts'
 import { listWidgets, resolveWidget } from '../widgets/registry.ts'
+import { appearance } from './appearance.svelte.ts'
 import { layout } from './layout.svelte.ts'
+import { sfx } from './sound.svelte.ts'
 
 /**
  * The boot sequence, modelled on eDEX-UI's: a scrolling boot log, the title
@@ -100,6 +102,7 @@ class BootStore {
     for (const [index, line] of log.entries()) {
       if (this.cancelled) return
       this.lines = [...this.lines, line]
+      sfx.play(line.text === 'Boot Complete' ? 'granted' : 'stdout')
       await wait(lineDelay(line, index, log.length))
     }
   }
@@ -109,9 +112,12 @@ class BootStore {
     await Promise.race([document.fonts.ready, wait(800)])
     this.lines = []
     this.phase = 'title'
+    sfx.play('title')
     const t = TITLE_TIMING
     await wait(t.glitchAt)
+    if (this.cancelled) return
     this.title = { ...this.title, glitch: true }
+    sfx.play('glitch')
     await wait(t.glitchFor)
     this.title = { ...this.title, glitch: false }
     await wait(t.greetAt - t.glitchAt - t.glitchFor)
@@ -125,6 +131,7 @@ class BootStore {
     const isShell = (widget: string) => resolveWidget(widget)?.chrome === 'shell'
     this.delays = revealDelays(layout.tree.root, isShell)
     this.phase = 'reveal'
+    this.playRevealSounds()
 
     let end = 0
     for (const node of collectPanes(layout.tree.root)) {
@@ -135,6 +142,19 @@ class BootStore {
     if (!this.cancelled) this.finish()
   }
 
+  /** One sound per moment something powers on: the shell opening, then each row. */
+  private playRevealSounds(): void {
+    const shells = new Set<number>()
+    const rows = new Set<number>()
+    for (const node of collectPanes(layout.tree.root)) {
+      const delay = this.delays.get(node.id) ?? 0
+      if (resolveWidget(node.widget)?.chrome === 'shell') shells.add(delay)
+      else rows.add(delay)
+    }
+    for (const delay of shells) setTimeout(() => !this.cancelled && sfx.play('expand'), delay)
+    for (const delay of rows) setTimeout(() => !this.cancelled && sfx.play('panel'), delay)
+  }
+
   private finish(): void {
     this.phase = 'done'
     this.lines = []
@@ -143,7 +163,7 @@ class BootStore {
 
 function shouldPlay(info: AppInfo): boolean {
   if (!info.intro) return false
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return false
+  if (appearance.reducedMotion) return false
   try {
     return window.sessionStorage.getItem(PLAYED_KEY) === null
   } catch {

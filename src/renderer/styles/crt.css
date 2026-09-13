@@ -156,10 +156,17 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .crt-on,
-  .crt-off,
-  .crt-on::before,
-  .crt-on::after {
+  :root:not([data-motion="full"]) .crt-on,
+  :root:not([data-motion="full"]) .crt-off,
+  :root:not([data-motion="full"]) .crt-on::before,
+  :root:not([data-motion="full"]) .crt-on::after {
     animation: none;
   }
+}
+
+:root[data-motion="reduced"] .crt-on,
+:root[data-motion="reduced"] .crt-off,
+:root[data-motion="reduced"] .crt-on::before,
+:root[data-motion="reduced"] .crt-on::after {
+  animation: none;
 }

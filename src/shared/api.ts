@@ -1,6 +1,8 @@
 import type { DirResult, DiskUsage, DriveInfo } from './fs.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { LayoutTree } from './schemas/layout.js'
+import type { Settings, SettingsPatch } from './settings.js'
+import type { Theme, ThemeProblem } from './theme.js'
 import type { OfficeInfo, WeatherUpdate } from './weather.js'
 
 /**
@@ -113,6 +115,28 @@ export interface LayoutApi {
   filePath(): Promise<string>
 }
 
+export interface SettingsApi {
+  get(): Promise<Settings>
+  /** Applies a partial change. Resolves with the settings actually in effect. */
+  patch(patch: SettingsPatch): Promise<Settings>
+  /** Called with the full settings after any change, including hand edits to the file. */
+  onChange(handler: (settings: Settings) => void): () => void
+}
+
+export interface ThemeCatalog {
+  themes: Theme[]
+  /** Theme files that could not be used, and why. */
+  problems: ThemeProblem[]
+}
+
+export interface ThemesApi {
+  /** Built-in themes overlaid with those in the user's themes folder. */
+  list(): Promise<ThemeCatalog>
+  /** Absolute path of the user's themes folder. */
+  folder(): Promise<string>
+  onChange(handler: (catalog: ThemeCatalog) => void): () => void
+}
+
 export interface FsApi {
   /** Lists a directory. Paths must be absolute. */
   readDir(path: string): Promise<DirResult>
@@ -158,6 +182,8 @@ export interface ElecdexApi {
   metrics: MetricsApi
   fs: FsApi
   weather: WeatherApi
+  settings: SettingsApi
+  themes: ThemesApi
 }
 
 declare global {

@@ -4,11 +4,13 @@ import type {
   PtyCreateOptions,
   PtyHandlers,
   PtySessionSummary,
+  ThemeCatalog,
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { DirResult, DiskUsage, DriveInfo } from '@shared/fs'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { LayoutTree } from '@shared/schemas/layout'
+import type { Settings } from '@shared/settings'
 import type { OfficeInfo, WeatherUpdate } from '@shared/weather'
 import { contextBridge, ipcRenderer } from 'electron'
 
@@ -214,6 +216,15 @@ const subscribeWeather = keyedSubscriptions<WeatherUpdate>({
   keyOf: (update) => update.office,
 })
 
+/** Registers a listener for a main -> renderer broadcast; returns its removal. */
+function listen<T>(channel: string, handler: (payload: T) => void): () => void {
+  const wrapped = (_event: unknown, payload: T) => handler(payload)
+  ipcRenderer.on(channel, wrapped)
+  return () => {
+    ipcRenderer.removeListener(channel, wrapped)
+  }
+}
+
 const api: ElecdexApi = {
   system: {
     info: () => ipcRenderer.invoke(CH.system.info) as Promise<AppInfo>,
@@ -236,6 +247,16 @@ const api: ElecdexApi = {
   metrics: {
     subscribe: (id, handler) => subscribeMetric(id, handler as SampleHandler),
     stats: () => ipcRenderer.invoke(CH.metrics.stats) as Promise<MetricsStats>,
+  },
+  settings: {
+    get: () => ipcRenderer.invoke(CH.settings.get) as Promise<Settings>,
+    patch: (patch) => ipcRenderer.invoke(CH.settings.patch, patch) as Promise<Settings>,
+    onChange: (handler) => listen<Settings>(CH.settings.changed, handler),
+  },
+  themes: {
+    list: () => ipcRenderer.invoke(CH.themes.list) as Promise<ThemeCatalog>,
+    folder: () => ipcRenderer.invoke(CH.themes.folder) as Promise<string>,
+    onChange: (handler) => listen<ThemeCatalog>(CH.themes.changed, handler),
   },
   fs: {
     readDir: (path) => ipcRenderer.invoke(CH.fs.readDir, path) as Promise<DirResult>,

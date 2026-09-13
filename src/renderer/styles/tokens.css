@@ -32,6 +32,11 @@
   --font-ui: "Saira Condensed", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
 
+  /* Effects, see effects.css. */
+  --glow: 0;
+  --scanlines: 0;
+  --terminal-ansi-pull: 0.45;
+
   /* ---------- semantic: colour ---------- */
   --accent: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
   --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) + 12%));
@@ -98,7 +103,7 @@
 
 /* Respect the OS setting; the in-app toggle sets `data-motion="reduced"`. */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root:not([data-motion="full"]) {
     --dur-fast: 1ms;
     --dur-base: 1ms;
     --dur-panel: 1ms;

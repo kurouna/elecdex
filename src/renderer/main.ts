@@ -8,6 +8,7 @@ import './styles/tokens.css'
 import './styles/reset.css'
 import './styles/frames.css'
 import './styles/crt.css'
+import './styles/effects.css'
 
 import { mount } from 'svelte'
 import App from './App.svelte'

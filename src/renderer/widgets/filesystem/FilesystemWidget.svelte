@@ -5,6 +5,7 @@ import { cdCommand, quotePath, shellKindOf } from '../../lib/shell-quote.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sessions } from '../../stores/sessions.svelte.ts'
+import { sfx } from '../../stores/sound.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import FsIcon from './FsIcon.svelte'
 
@@ -117,6 +118,7 @@ function join(dir: string, name: string): string {
 
 /** Types into the followed terminal and hands it the keyboard. */
 function typeIntoTerminal(text: string): void {
+  sfx.play('folder')
   const sessionId = terminal?.sessionId
   if (followedId === null || sessionId == null) return
   window.elecdex.pty.write(sessionId, text)
@@ -129,6 +131,7 @@ function enter(dir: string, relative?: string): void {
     const kind = shellKindOf(terminal.shell)
     typeIntoTerminal(`${cdCommand(relative ?? dir, kind)}\r`)
   } else {
+    sfx.play('folder')
     detachedPath = dir
   }
 }

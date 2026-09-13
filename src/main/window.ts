@@ -1,8 +1,26 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BrowserWindow, screen, shell } from 'electron'
 
 const PRELOAD = fileURLToPath(new URL('../preload/index.cjs', import.meta.url))
 const RENDERER_HTML = fileURLToPath(new URL('../renderer/index.html', import.meta.url))
+
+/**
+ * The window and taskbar icon, generated from build/icon.svg. Found by walking up
+ * from the bundle, since out/main sits two levels below resources/ in development
+ * and inside app.asar when packaged. Packaged builds also carry the icon in the
+ * executable; this matters for development runs and Linux.
+ */
+function windowIcon(): string | undefined {
+  let dir = path.dirname(fileURLToPath(import.meta.url))
+  for (let i = 0; i < 5; i++) {
+    const candidate = path.join(dir, 'resources', 'icons', 'icon.png')
+    if (existsSync(candidate)) return candidate
+    dir = path.dirname(dir)
+  }
+  return undefined
+}
 
 export interface CreateWindowOptions {
   /** Index into `screen.getAllDisplays()`. Falls back to the primary display. */
@@ -17,6 +35,7 @@ export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
     (opts.monitor !== undefined ? displays[opts.monitor] : undefined) ?? screen.getPrimaryDisplay()
 
   const { x, y, width, height } = display.bounds
+  const icon = windowIcon()
 
   const win = new BrowserWindow({
     title: 'elecdex',
@@ -26,6 +45,7 @@ export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
     height,
     show: false,
     backgroundColor: '#000000',
+    ...(icon ? { icon } : {}),
     autoHideMenuBar: true,
     frame: !opts.fullscreen,
     fullscreen: opts.fullscreen,
@@ -41,6 +61,9 @@ export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
       backgroundThrottling: false,
       devTools: opts.devtools,
       spellcheck: false,
+      // Interface sounds play from the first frame - the boot log - before any
+      // user gesture could have unlocked audio.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   })
 

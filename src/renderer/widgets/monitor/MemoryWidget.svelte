@@ -1,5 +1,6 @@
 <script lang="ts">
 import { formatBytes, stableShuffle } from '../../lib/format.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
@@ -71,6 +72,7 @@ $effect(() => {
 // Drawing. Re-runs when the lit counts or the size change, not on every sample:
 // memory usage moving by less than one dot's worth redraws nothing.
 $effect(() => {
+  void appearance.revision // the dot colour comes from the theme
   const el = canvas
   const used = usedDots
   const cached = cachedDots

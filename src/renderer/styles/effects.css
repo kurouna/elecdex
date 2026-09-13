@@ -1,0 +1,30 @@
+/*
+ * Theme effects: CRT scanlines and phosphor glow.
+ *
+ * Both are switched by attributes the appearance store sets from the theme, so
+ * a theme without them pays nothing - no overlay layer, no text shadows.
+ */
+
+/* Scanlines: a fixed, non-interactive overlay above everything, composited once. */
+:root[data-scanlines="on"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgb(0 0 0 / 0.22) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 60%, rgb(0 0 0 / 0.35) 100%);
+}
+
+/* Glow: a soft halo in the accent colour, strength from the theme. */
+:root[data-glow="on"] #app {
+  text-shadow: 0 0 calc(var(--glow) * 0.55rem)
+    hsl(var(--accent-h) var(--accent-s) var(--accent-l) / calc(var(--glow) * 1.2));
+}
+
+/* The terminal draws its own text on a canvas; a shadow on its DOM does nothing
+   but slow down the accessibility layer. */
+:root[data-glow="on"] .xterm {
+  text-shadow: none;
+}

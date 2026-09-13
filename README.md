@@ -1,12 +1,15 @@
+<p align="center"><img src="build/icon.svg" width="128" height="128" alt="elecdex icon"></p>
+
 # elecdex
 
 A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
 [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current stack.
 
-> **Status: Phase 4 — filesystem and weather.** The eDEX-UI HUD, rebuilt: live CPU, memory,
+> **Status: Phase 5 — themes and sound.** The eDEX-UI HUD, rebuilt: live CPU, memory,
 > process, network and system widgets around a multi-tab terminal, a file browser that follows
 > the terminal's directory (Windows included) and a JMA weather forecast, in a persisted layout
-> tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT.
+> tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT. Three themes
+> (Tron, Amber, Phosphor) switch live, and interface sounds are synthesised.
 > The default layout idles at about 10% of one core. The globe (Phase 6) is still a placeholder.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
@@ -73,6 +76,33 @@ skipped when the OS asks for reduced motion.
 The layout is saved to `layout.json` in the app's userData directory. Editing it by hand is
 supported: it is validated and normalised on load, and a file that cannot be read is moved
 aside to `layout.json.bak` rather than discarded.
+
+## Themes and settings
+
+Pick a theme from the footer; it applies at once, terminal included, with no reload. The
+footer also toggles interface sounds. Settings live in `settings.json` in the userData
+directory and can be edited by hand while the app runs:
+
+```json
+{ "theme": "amber", "sound": { "enabled": true, "volume": 0.5 }, "motion": "system" }
+```
+
+To add a theme, drop a JSON file into the `themes` folder next to it. It appears in the menu
+straight away; one with a built-in's `id` replaces that theme.
+
+```json
+{
+  "id": "ice",
+  "name": "Ice",
+  "accent": { "h": 200, "s": 60, "l": 70 },
+  "surfaces": { "s0": "#000000", "s1": "#010203", "s2": "#040506", "line": "#101820" },
+  "terminal": { "ansiPull": 0.5, "ansi": { "red": "#ff5f56" } },
+  "effects": { "scanlines": false, "glow": 0.2 }
+}
+```
+
+Colours are `#rrggbb`; `status` (hues for danger / warn / ok) and `fonts` are optional.
+The glow effect costs a couple of percent of a core at idle.
 
 ## Layout
 

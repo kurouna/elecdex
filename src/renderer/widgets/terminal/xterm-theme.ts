@@ -1,3 +1,4 @@
+import type { AnsiOverrides } from '@shared/theme'
 import type { ITheme } from '@xterm/xterm'
 
 /**
@@ -18,6 +19,8 @@ export interface PaletteInput {
   lightness: number
   foreground: string
   background: string
+  /** How far ANSI saturation leans toward the accent's; the theme's `ansiPull`. */
+  pull?: number
 }
 
 /**
@@ -34,21 +37,34 @@ const ANSI_HUES = {
   cyan: 186,
 } as const
 
-/** How far ANSI saturation is pulled toward the accent's. 0 = keep, 1 = adopt. */
+/** How far ANSI saturation is pulled toward the accent's by default. 0 = keep, 1 = adopt. */
 const SATURATION_PULL = 0.45
 
-export function buildXtermTheme(input: PaletteInput): ITheme {
+/**
+ * With a high pull the ANSI hues lean toward the accent as well, so a monochrome
+ * theme stays monochrome while red and green remain distinguishable.
+ */
+const HUE_PULL_FROM = 0.6
+
+export function buildXtermTheme(input: PaletteInput, overrides?: AnsiOverrides): ITheme {
   const { hue, saturation, lightness } = input
+  const pull = input.pull ?? SATURATION_PULL
 
   // Blend each ANSI colour's saturation toward the accent's.
-  const sat = (own: number): number => own + (saturation - own) * SATURATION_PULL
+  const sat = (own: number): number => own + (saturation - own) * pull
+  const hueToward = (own: number): number => {
+    if (pull <= HUE_PULL_FROM) return own
+    const t = ((pull - HUE_PULL_FROM) / (1 - HUE_PULL_FROM)) * 0.6
+    const delta = ((((hue - own) % 360) + 540) % 360) - 180
+    return own + delta * t
+  }
 
-  const normal = (h: number): string => hsl(h, sat(58), 46)
-  const bright = (h: number): string => hsl(h, sat(70), 64)
+  const normal = (h: number): string => hsl(hueToward(h), sat(58), 46)
+  const bright = (h: number): string => hsl(hueToward(h), sat(70), 64)
 
   const accent = hsl(hue, saturation, lightness)
 
-  return {
+  const derived: ITheme = {
     foreground: input.foreground,
     background: input.background,
     cursor: accent,
@@ -75,6 +91,12 @@ export function buildXtermTheme(input: PaletteInput): ITheme {
     brightCyan: bright(ANSI_HUES.cyan),
     brightWhite: hsl(hue, Math.min(saturation, 8), 95),
   }
+
+  // A theme's explicit colours win, one at a time.
+  for (const [name, value] of Object.entries(overrides ?? {})) {
+    if (value !== undefined) (derived as Record<string, string>)[name] = value
+  }
+  return derived
 }
 
 /** Formats an hsl(a) colour, clamping each component to its valid range. */
@@ -107,6 +129,7 @@ export function paletteFromCss(el: Element): PaletteInput {
     // renderer cannot draw a transparent background (it comes out black), so the
     // terminal takes the solid ground colour instead.
     background: read('--app-bg') || '#05080d',
+    pull: Number.parseFloat(read('--terminal-ansi-pull')) || SATURATION_PULL,
   }
 }
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 import { onFrame } from '../../lib/frame-loop.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import type { ChartSeries } from './chart-types.ts'
 
 /**
@@ -67,6 +68,8 @@ interface Frame {
 }
 
 $effect(() => {
+  // Colours are read into the closure below; a theme switch rebuilds it.
+  void appearance.revision
   const el = canvas
   if (el === null) return
   const ctx = el.getContext('2d')

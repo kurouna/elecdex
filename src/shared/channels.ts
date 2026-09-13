@@ -28,6 +28,18 @@ export const CH = {
     sample: 'metrics:sample',
     stats: 'metrics:stats',
   },
+  settings: {
+    get: 'settings:get',
+    patch: 'settings:patch',
+    /** main -> renderer: the whole Settings object after any change. */
+    changed: 'settings:changed',
+  },
+  themes: {
+    list: 'themes:list',
+    folder: 'themes:folder',
+    /** main -> renderer: the theme catalog after a theme file changed. */
+    changed: 'themes:changed',
+  },
   fs: {
     readDir: 'fs:read-dir',
     diskUsage: 'fs:disk-usage',

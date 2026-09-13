@@ -34,7 +34,14 @@ export interface LaunchOptions {
   jmaBaseUrl?: string
   /** A layout.json to start from, instead of the default layout. */
   layout?: unknown
+  /**
+   * A settings.json to start from. By default sound is off, so running the suite
+   * does not beep at whoever is sitting at the machine.
+   */
+  settings?: unknown
 }
+
+const QUIET = { sound: { enabled: false } }
 
 /** One terminal filling the window: for tests about terminals and splitting, not the default layout. */
 export const SINGLE_TERMINAL = {
@@ -46,6 +53,10 @@ const UNREACHABLE_JMA = 'http://127.0.0.1:9/bosai'
 
 export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
+  // Only on a fresh directory: a relaunch keeps whatever the app saved.
+  if (userData === undefined) {
+    writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(options.settings ?? QUIET))
+  }
   if (options.layout !== undefined) {
     writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(options.layout))
   }

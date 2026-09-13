@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import { boot } from '../../stores/boot.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -116,7 +117,7 @@ $effect(() => {
       fontFamily: monoFontFamily(el),
       fontSize: 13,
       lineHeight: 1.15,
-      theme: buildXtermTheme(paletteFromCss(el)),
+      theme: buildXtermTheme(paletteFromCss(el), appearance.theme.terminal?.ansi),
     })
 
     const fitAddon = new FitAddon()
@@ -200,6 +201,20 @@ $effect(() => {
     // The session is deliberately NOT disposed here: unmounting a pane must not
     // kill the shell, or a reload would lose the user's work. Orphaned sessions
     // are reaped by the workspace once the layout has settled.
+  }
+})
+
+// A theme switch restyles the terminal in place: palette, and font if it changed.
+$effect(() => {
+  void appearance.revision
+  const t = term
+  const el = host
+  if (t === null || el === null) return
+  t.options.theme = buildXtermTheme(paletteFromCss(el), appearance.theme.terminal?.ansi)
+  const family = monoFontFamily(el)
+  if (t.options.fontFamily !== family) {
+    t.options.fontFamily = family
+    safeFit()
   }
 })
 

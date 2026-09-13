@@ -12,6 +12,7 @@ import {
   visiblePanes,
 } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type LayoutTree, type SplitDirection } from '@shared/schemas/layout'
+import { sfx } from './sound.svelte.ts'
 
 /**
  * The live layout.
@@ -115,6 +116,7 @@ class LayoutStore {
     const incoming = pane(widget)
     this.commit(splitPane(this.tree, paneId, direction, incoming))
     this.focusedPaneId = incoming.id
+    sfx.play('expand')
   }
 
   /** Splits the focused pane, or does nothing when nothing is focused. */
@@ -130,6 +132,7 @@ class LayoutStore {
     const incoming = pane(widget)
     this.commit(addTab(this.tree, siblingPaneId, incoming))
     this.focusedPaneId = incoming.id
+    sfx.play('folder')
   }
 
   addTabToFocused(widget?: string): void {
@@ -142,6 +145,7 @@ class LayoutStore {
 
   close(nodeId: string): void {
     this.commit(closeNode(this.tree, nodeId, fallbackNode()))
+    sfx.play('collapse')
   }
 
   closeFocused(): void {
