@@ -226,6 +226,7 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
     {/if}
   {/if}
 
+  <!-- Text only: the disk pane draws the volumes as bars, so a bar here would say it twice. -->
   <footer class="usage" data-testid="fs-usage">
     <span class="label">
       {#if usage && usedPercent !== null}
@@ -234,7 +235,6 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
         calculating available space…
       {/if}
     </span>
-    <span class="bar"><span class="fill" style:width={`${usedPercent ?? 0}%`}></span></span>
     <span class="amount">{usage ? `${formatBytes(usage.free)} free` : ''}</span>
   </footer>
 </div>
@@ -338,8 +338,8 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
 }
 
 .usage {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: var(--space-2);
   font-family: var(--font-ui);
@@ -356,30 +356,5 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
 .amount {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-}
-
-.bar {
-  position: relative;
-  height: 0.4rem;
-  border-right: 1px solid var(--panel-border);
-}
-
-.bar::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: var(--accent-dim);
-}
-
-.fill {
-  position: absolute;
-  left: 0;
-  top: 25%;
-  height: 50%;
-  background: var(--accent);
-  transition: width var(--dur-panel) var(--ease-out);
 }
 </style>
