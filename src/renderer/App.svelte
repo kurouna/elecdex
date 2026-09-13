@@ -1,15 +1,18 @@
 <script lang="ts">
 import type { AppInfo } from '@shared/api'
+import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/keybindings'
 import BootScreen from './BootScreen.svelte'
 import ConfirmButton from './ConfirmButton.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
+import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
 import { layout } from './stores/layout.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import TitleBar from './TitleBar.svelte'
+import UpdateNotice from './UpdateNotice.svelte'
 
 let info = $state<AppInfo | null>(null)
 
@@ -27,6 +30,25 @@ function chooseTheme(id: string): void {
 }
 
 const REPO_URL = 'https://github.com/kurouna/elecdex'
+
+/** The shortcut hint in the status bar, from the bindings in effect. */
+const HINTS: Array<[KeybindingAction, string]> = [
+  ['pane.add', 'add pane'],
+  ['pane.splitRight', 'split'],
+  ['pane.splitDown', 'split down'],
+  ['pane.newTab', 'tab'],
+  ['pane.close', 'close'],
+  ['settings.open', 'settings'],
+  ['app.quit', 'quit'],
+  ['window.fullscreen', 'fullscreen'],
+]
+const hint = $derived.by(() => {
+  const bindings = effectiveBindings(appearance.settings.keybindings)
+  return HINTS.flatMap(([action, label]) => {
+    const chord = bindings[action]
+    return chord === null ? [] : [`${formatChord(chord).toLowerCase()} ${label}`]
+  }).join(' · ')
+})
 
 /**
  * The status bar stays out of the way: it slides in when the pointer reaches the
@@ -108,10 +130,7 @@ function toggleSound(): void {
     >
       elecdex{info === null ? '' : ` ${info.version}`}
     </button>
-    <span class="hint">
-      ctrl+shift+ a add pane · e split · o split down · t tab · w close · [ ] focus · backspace reset · q quit
-      · f11 fullscreen
-    </span>
+    <span class="hint" data-testid="shortcut-hint">{hint}</span>
     <button
       type="button"
       class="control toggle"
@@ -128,6 +147,15 @@ function toggleSound(): void {
       testid="reset-layout"
       onconfirm={() => void layout.reset()}
     />
+    <button
+      type="button"
+      class="control toggle"
+      onclick={() => ui.openSettings()}
+      title="Settings"
+      data-testid="open-settings"
+    >
+      settings
+    </button>
     <label class="control">
       <span>theme</span>
       <select
@@ -162,6 +190,8 @@ function toggleSound(): void {
 
 <BootScreen />
 <PanePicker />
+<SettingsDialog />
+<UpdateNotice />
 
 <style>
 main[data-boot="concealed"] {

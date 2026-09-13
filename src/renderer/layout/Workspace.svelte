@@ -1,4 +1,6 @@
 <script lang="ts">
+import { chordFromEvent, type KeybindingAction, keymap } from '@shared/keybindings'
+import { appearance } from '../stores/appearance.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { sessions } from '../stores/sessions.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
@@ -71,60 +73,35 @@ function claim(event: KeyboardEvent): void {
   event.stopPropagation()
 }
 
+const bindings = $derived(keymap(appearance.settings.keybindings))
+
+const ACTIONS: Record<KeybindingAction, () => void> = {
+  // Add a pane: brings back any widget that was closed.
+  'pane.add': () => ui.openPanePicker(),
+  // Split vertically: the new pane sits to the right.
+  'pane.splitRight': () => layout.splitFocused('right'),
+  // Split horizontally: the new pane sits below.
+  'pane.splitDown': () => layout.splitFocused('down'),
+  'pane.newTab': () => layout.addTabToFocused(),
+  'pane.close': () => layout.closeFocused(),
+  'focus.next': () => layout.cycleFocus(1),
+  'focus.previous': () => layout.cycleFocus(-1),
+  'layout.reset': () => void layout.reset(),
+  'settings.open': () => ui.openSettings(),
+  'window.fullscreen': () => window.elecdex.system.toggleFullscreen(),
+  // Fullscreen has no window frame and no close button; this is the way out.
+  'app.quit': () => window.elecdex.system.quit(),
+}
+
 function onKeydown(event: KeyboardEvent): void {
-  if (event.code === 'F11' && !event.ctrlKey && !event.altKey && !event.metaKey) {
-    claim(event)
-    window.elecdex.system.toggleFullscreen()
-    return
-  }
-
-  const mod = event.ctrlKey || event.metaKey
-  if (!mod || !event.shiftKey) return
-
-  switch (event.code) {
-    case 'KeyA':
-      // Add a pane: brings back any widget that was closed.
-      claim(event)
-      ui.openPanePicker()
-      return
-    case 'KeyQ':
-      // Fullscreen has no window frame and no close button; this is the way out.
-      claim(event)
-      window.elecdex.system.quit()
-      return
-    case 'KeyT':
-      claim(event)
-      layout.addTabToFocused()
-      return
-    case 'KeyW':
-      claim(event)
-      layout.closeFocused()
-      return
-    case 'KeyE':
-      // Split vertically: the new pane sits to the right.
-      claim(event)
-      layout.splitFocused('right')
-      return
-    case 'KeyO':
-      // Split horizontally: the new pane sits below.
-      claim(event)
-      layout.splitFocused('down')
-      return
-    case 'BracketRight':
-      claim(event)
-      layout.cycleFocus(1)
-      return
-    case 'BracketLeft':
-      claim(event)
-      layout.cycleFocus(-1)
-      return
-    case 'Backspace':
-      claim(event)
-      void layout.reset()
-      return
-    default:
-      return
-  }
+  // While a shortcut is being recorded in the settings, every key goes there.
+  if (ui.recordingShortcut) return
+  const chord = chordFromEvent(event)
+  if (chord === null) return
+  const action = bindings.get(chord)
+  if (action === undefined) return
+  claim(event)
+  ACTIONS[action]()
 }
 
 // A pending debounced save would be lost if the window went away first.

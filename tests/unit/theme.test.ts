@@ -86,6 +86,8 @@ describe('settings', () => {
       sound: { enabled: true, volume: 0.5 },
       motion: 'system',
       launcher: { showSystem: true, items: [] },
+      keybindings: {},
+      updates: { check: true },
     })
   })
 
@@ -132,5 +134,28 @@ describe('sound recipes', () => {
     expect(allowPlay(undefined, 0, 28)).toBe(true)
     expect(allowPlay(100, 110, 28)).toBe(false)
     expect(allowPlay(100, 128, 28)).toBe(true)
+  })
+})
+
+describe('settings patches for the settings dialog', () => {
+  it('replaces keybindings, merges updates, and changes only showSystem of the launcher', () => {
+    const base = {
+      ...defaultSettings(),
+      launcher: { showSystem: true, items: [{ name: 'Mine', target: '/bin/x' }] },
+    }
+    const next = applySettingsPatch(base, {
+      keybindings: { 'pane.add': 'Alt+KeyP' },
+      updates: { check: false },
+      launcher: { showSystem: false, items: [] },
+    })
+    expect(next?.keybindings).toEqual({ 'pane.add': 'Alt+KeyP' })
+    expect(next?.updates.check).toBe(false)
+    expect(next?.launcher).toEqual({
+      showSystem: false,
+      items: [{ name: 'Mine', target: '/bin/x' }],
+    })
+    // An action this build does not know (from a newer one) is kept, not an error.
+    expect(applySettingsPatch(base, { keybindings: { 'no.such': 'Alt+KeyP' } })).not.toBeNull()
+    expect(applySettingsPatch(base, { keybindings: { 'pane.add': 42 } })).toBeNull()
   })
 })

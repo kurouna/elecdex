@@ -43,6 +43,19 @@ export const SettingsSchema = z.object({
       items: z.array(LauncherItemSchema).max(200).default([]),
     })
     .default({ showSystem: true, items: [] }),
+  /**
+   * Shortcut overrides by action id: a chord such as "Ctrl+Shift+KeyA", or null
+   * for none. Actions not listed keep their default. An unusable chord, or an
+   * action this build does not know (written by a newer one), is ignored rather
+   * than failing the whole file.
+   */
+  keybindings: z.record(z.string().max(60), z.string().max(40).nullable()).default({}),
+  updates: z
+    .object({
+      /** Ask GitHub once a day whether a newer release exists. Nothing is downloaded. */
+      check: z.boolean().default(true),
+    })
+    .default({ check: true }),
 })
 export type Settings = z.infer<typeof SettingsSchema>
 
@@ -53,7 +66,14 @@ export interface SettingsPatch {
   theme?: string
   sound?: Partial<Settings['sound']>
   motion?: Settings['motion']
+  launcher?: { showSystem?: boolean }
+  /** Replaces the whole override map. */
+  keybindings?: Settings['keybindings']
+  updates?: Partial<Settings['updates']>
 }
+
+const merge = <T extends object>(current: T, value: unknown): T =>
+  typeof value === 'object' && value !== null ? { ...current, ...value } : current
 
 /** Applies a patch and validates the result; null if the result is invalid. */
 export function applySettingsPatch(current: Settings, patch: unknown): Settings | null {
@@ -63,10 +83,14 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     ...current,
     ...(p.theme !== undefined ? { theme: p.theme } : {}),
     ...(p.motion !== undefined ? { motion: p.motion } : {}),
-    sound:
-      typeof p.sound === 'object' && p.sound !== null
-        ? { ...current.sound, ...(p.sound as object) }
-        : current.sound,
+    ...(p.keybindings !== undefined ? { keybindings: p.keybindings } : {}),
+    sound: merge(current.sound, p.sound),
+    updates: merge(current.updates, p.updates),
+    // Only showSystem: the launcher's own entries are edited in settings.json.
+    launcher:
+      typeof p.launcher === 'object' && p.launcher !== null && 'showSystem' in p.launcher
+        ? { ...current.launcher, showSystem: (p.launcher as { showSystem: unknown }).showSystem }
+        : current.launcher,
   }
   const parsed = SettingsSchema.safeParse(merged)
   return parsed.success ? parsed.data : null

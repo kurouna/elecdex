@@ -14,6 +14,7 @@ import type { MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
+import type { UpdateStatus } from '@shared/updates'
 import type { OfficeInfo, WeatherUpdate } from '@shared/weather'
 import { contextBridge, ipcRenderer } from 'electron'
 
@@ -270,6 +271,11 @@ const api: ElecdexApi = {
   markets: {
     subscribe: (symbol, handler) => subscribeMarket(symbol, handler),
     watching: () => ipcRenderer.invoke(CH.markets.watching) as Promise<string[]>,
+  },
+  updates: {
+    status: () => ipcRenderer.invoke(CH.updates.status) as Promise<UpdateStatus>,
+    check: () => ipcRenderer.invoke(CH.updates.check) as Promise<UpdateStatus>,
+    onChange: (handler) => listen<UpdateStatus>(CH.updates.changed, handler),
   },
   launcher: {
     list: () => ipcRenderer.invoke(CH.launcher.list) as Promise<LauncherEntry[]>,

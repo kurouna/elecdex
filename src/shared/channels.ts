@@ -44,6 +44,12 @@ export const CH = {
     /** main -> renderer: the theme catalog after a theme file changed. */
     changed: 'themes:changed',
   },
+  updates: {
+    status: 'updates:status',
+    check: 'updates:check',
+    /** main -> renderer: an UpdateStatus. */
+    changed: 'updates:changed',
+  },
   markets: {
     /** renderer -> main, fire and forget: keep a symbol's quote current. */
     subscribe: 'markets:subscribe',

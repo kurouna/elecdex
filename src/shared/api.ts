@@ -5,6 +5,7 @@ import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
 import type { Theme, ThemeProblem } from './theme.js'
+import type { UpdateStatus } from './updates.js'
 import type { OfficeInfo, WeatherUpdate } from './weather.js'
 
 /**
@@ -145,6 +146,13 @@ export interface SettingsApi {
   openFile(): Promise<string | null>
 }
 
+export interface UpdatesApi {
+  status(): Promise<UpdateStatus>
+  /** Checks GitHub now, whether or not the daily check is on. */
+  check(): Promise<UpdateStatus>
+  onChange(handler: (status: UpdateStatus) => void): () => void
+}
+
 export interface MarketsApi {
   /**
    * Keeps a symbol's quote and intraday series current (about once a minute).
@@ -226,6 +234,7 @@ export interface ElecdexApi {
   themes: ThemesApi
   launcher: LauncherApi
   markets: MarketsApi
+  updates: UpdatesApi
 }
 
 declare global {

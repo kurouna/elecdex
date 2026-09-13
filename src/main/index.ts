@@ -6,6 +6,7 @@ import { registerMarketsIpc } from './ipc/markets.js'
 import { registerPtyIpc } from './ipc/pty.js'
 import { registerSettingsIpc } from './ipc/settings.js'
 import { registerSystemIpc } from './ipc/system.js'
+import { registerUpdatesIpc } from './ipc/updates.js'
 import { registerWeatherIpc } from './ipc/weather.js'
 import { registerMetricsIpc } from './metrics/broker.js'
 import { createMainWindow } from './window.js'
@@ -51,6 +52,7 @@ let weatherIpc: { dispose: () => void } | null = null
 let settingsIpc: { dispose: () => void } | null = null
 let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
+let updatesIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
@@ -63,6 +65,7 @@ app.whenReady().then(() => {
   settingsIpc = settings
   launcherIpc = registerLauncherIpc(settings)
   marketsIpc = registerMarketsIpc()
+  updatesIpc = registerUpdatesIpc(settings)
   createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
@@ -98,6 +101,8 @@ app.on('will-quit', () => {
   launcherIpc?.dispose()
   launcherIpc = null
   marketsIpc?.dispose()
+  updatesIpc?.dispose()
+  updatesIpc = null
   marketsIpc = null
 })
 

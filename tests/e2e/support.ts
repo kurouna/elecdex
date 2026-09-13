@@ -57,6 +57,8 @@ export const SINGLE_TERMINAL = {
 const UNREACHABLE_JMA = 'http://127.0.0.1:9/bosai'
 /** Markets likewise read from a closed port unless a test serves them: no test contacts Yahoo. */
 const UNREACHABLE_MARKETS = 'http://127.0.0.1:9/markets'
+/** And the update check never asks GitHub. */
+const UNREACHABLE_UPDATES = 'http://127.0.0.1:9/releases/latest'
 
 /** How long a clean quit may take before the app is killed. */
 const CLOSE_TIMEOUT_MS = 20_000
@@ -106,6 +108,7 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ...process.env,
       ELECDEX_JMA_BASE_URL: options.jmaBaseUrl ?? UNREACHABLE_JMA,
       ELECDEX_MARKETS_STUB_URL: UNREACHABLE_MARKETS,
+      ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
       ...options.env,
     },
   })
