@@ -10,6 +10,9 @@ files:
   - out/**
   - resources/**
   - package.json
+  # The GeoIP package ships the database three ways; only the combined file is read.
+  - '!node_modules/@ip-location-db/geo-whois-asn-country-mmdb/geo-whois-asn-country-ipv4.mmdb'
+  - '!node_modules/@ip-location-db/geo-whois-asn-country-mmdb/geo-whois-asn-country-ipv6.mmdb'
 
 # win/mac/linux icons are all derived from build/icon.png, which scripts/gen-icon.mjs
 # renders from build/icon.svg (the elec series icon with the "E" badge).

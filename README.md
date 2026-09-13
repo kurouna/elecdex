@@ -11,12 +11,13 @@
 A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
 [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current stack.
 
-> **Status: Phase 5 — themes and sound.** The eDEX-UI HUD, rebuilt: live CPU, memory,
+> **Status: Phase 6 — world view.** The eDEX-UI HUD, rebuilt: live CPU, memory,
 > process, network and system widgets around a multi-tab terminal, a file browser that follows
 > the terminal's directory (Windows included) and a JMA weather forecast, in a persisted layout
 > tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT. Three themes
-> (Tron, Amber, Phosphor) switch live, and interface sounds are synthesised.
-> The default layout idles at about 10% of one core. The globe (Phase 6) is still a placeholder.
+> (Tron, Amber, Phosphor) switch live, interface sounds are synthesised, and a globe shows
+> where the machine's connections go, placed with a bundled GeoIP database.
+> The default layout idles at about 13% of one core.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
 ## Why a rewrite
@@ -74,7 +75,7 @@ skipped when the OS asks for reduced motion.
 | Ctrl+Shift+T | new tab beside the focused pane |
 | Ctrl+Shift+W | close the focused pane (or its × button, shown on hover) |
 | Ctrl+Shift+[ / ] | move focus between panes |
-| Ctrl+Shift+Backspace | reset to the default layout |
+| Ctrl+Shift+Backspace | reset to the default layout (also RESET LAYOUT in the footer and in the add-pane picker, clicked twice) |
 | Ctrl+Shift+A | add a pane: pick any widget, placed right of, below or as a tab beside the focused pane (also the + PANE button) |
 | Ctrl+Shift+Q | quit (or the EXIT button in the footer, clicked twice) |
 | F11 | toggle fullscreen |
@@ -129,11 +130,15 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 | Display font | [Chakra Petch](https://fonts.google.com/specimen/Chakra+Petch) | SIL OFL 1.1 |
 | UI font | [Saira Condensed](https://fonts.google.com/specimen/Saira+Condensed) | SIL OFL 1.1 |
 | Monospace font | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) | SIL OFL 1.1 |
-| IP geolocation | [`@ip-location-db/geo-whois-asn-country-mmdb`](https://github.com/sapics/ip-location-db) | CC0-1.0 |
-| Globe geometry | [Natural Earth](https://www.naturalearthdata.com/) | Public domain |
+| IP geolocation | [`@ip-location-db/geo-whois-asn-country-mmdb`](https://github.com/sapics/ip-location-db), data by the [NRO](https://www.nro.net/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (the npm package is labelled CC0-1.0; its bundled NRO_LICENSE requires attribution to nro.net) |
+| Globe land and country shapes | [Natural Earth](https://www.naturalearthdata.com/) via [world-atlas](https://github.com/topojson/world-atlas) | Public domain / ISC (build time only) |
+| Country codes and time zones | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries), [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT (build time only) |
+| README banner font | [Source Sans 3](https://fonts.google.com/specimen/Source+Sans+3) | SIL OFL 1.1 (outlined into the SVG at build time) |
 
 The geolocation database is bundled, so there is no account to create, no API key and no
-first-run download — and IP lookups never leave the machine.
+first-run download — and IP lookups never leave the machine. The globe pane credits the NRO.
+"You are here" on the globe is the country of the system time zone, so no online service is
+asked for the machine's public address either.
 
 ## Data sources
 

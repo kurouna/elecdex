@@ -115,6 +115,28 @@ export interface NetPing {
   ms: number | null
 }
 
+export interface ConnectionCountry {
+  /** ISO 3166 alpha-2. */
+  code: string
+  /** Established connections to addresses in this country. */
+  count: number
+  /** Where the country is pinned: the centroid of its largest landmass. */
+  lat: number
+  lon: number
+}
+
+/**
+ * Established TCP connections to public addresses, grouped by country. Addresses
+ * themselves stay in the collector; only counts per country leave it.
+ */
+export interface NetConnections {
+  /** Distinct public remote addresses. */
+  total: number
+  /** Addresses the GeoIP database could not place. */
+  unresolved: number
+  countries: ConnectionCountry[]
+}
+
 /** Every source and the shape of the sample it produces. */
 export interface MetricSamples {
   'cpu.info': CpuInfo
@@ -131,6 +153,7 @@ export interface MetricSamples {
   'net.interface': NetInterface
   'net.throughput': NetThroughput
   'net.ping': NetPing
+  'net.connections': NetConnections
 }
 
 export type MetricSourceId = keyof MetricSamples
@@ -150,6 +173,7 @@ export const METRIC_SOURCE_IDS = [
   'net.interface',
   'net.throughput',
   'net.ping',
+  'net.connections',
 ] as const satisfies readonly MetricSourceId[]
 
 const KNOWN = new Set<string>(METRIC_SOURCE_IDS)

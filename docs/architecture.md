@@ -25,7 +25,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 - 地球儀のタイルデータ → [Natural Earth](https://www.naturalearthdata.com/)（public domain）から自前の生成スクリプトで作る
 - SFX → 新規制作または CC0 素材
 - フォント → SIL OFL 1.1 のものを同梱（Chakra Petch / Saira Condensed / JetBrains Mono）
-- IP 位置情報 → RIR whois 由来の CC0-1.0 データ（帰属表示も不要）
+- IP 位置情報 → NRO が CC BY 4.0 で公開する RIR whois / GeoFeed / ASN 由来のデータ（npm パッケージは CC0-1.0 と表記されているが、同梱の NRO_LICENSE により nro.net への帰属表示が必要。地球儀ペインと README に表示）
 
 ---
 
@@ -41,9 +41,9 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 | 端末 | `@xterm/xterm` | 6.x | addon: fit 0.11 / webgl 0.19 / unicode11 0.9 / search 0.16 / web-links 0.12 / serialize 0.14 / clipboard 0.2 |
 | PTY | `node-pty` | 1.1.x | main プロセスで spawn。プリビルド配布あり |
 | システム情報 | `systeminformation` | 5.33.x | `utilityProcess` 内でのみ使用 |
-| 3D | `three` + `@threlte/core` | 0.186 / 8.x | Globe を自前実装 |
+| 3D | `three` | 0.186 | Globe を自前実装。threlte は採用せず、シーン1つを素の three で書く（依存を増やす利点がない規模だった） |
 | フォント | Chakra Petch / Saira Condensed / JetBrains Mono | fontsource 5.3 | すべて SIL OFL 1.1。woff2 をローカル同梱（`font-src 'self'`） |
-| GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb` + `mmdb-lib` | 2.x / 3.x | **CC0-1.0**、15.7MB を同梱。アカウント・APIキー・初回DL・同意が全て不要で完全オフライン |
+| GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb` + `mmdb-lib` | 2.3 / 3.0 | データは **CC BY 4.0（NRO）**、統合版 7.8MB のみ同梱。アカウント・APIキー・初回DL・同意が全て不要で完全オフライン |
 | 設定検証 | `zod` | 4.x | 設定・テーマ・IPC入力の全検証 |
 | ファイル監視 | `chokidar` | 5.x | 設定/テーマのホットリロード |
 | Lint/Format | Biome | 2.x | ESLint + Prettier を置換 |
@@ -67,7 +67,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 │                                                             │
 │  MetricsBroker    購読管理 + ファンアウト                    │
 │    ├── utilityProcess: metrics   (systeminformation)        │
-│    └── utilityProcess: geoip     (mmdb-lib + 同梱CC0 DB)   │
+│      └ geoip: 同じ collector 内で mmdb-lib + 同梱DB を遅延読込 │
 │                                                             │
 │  SettingsStore    zod 検証 + chokidar 監視                   │
 │  ThemeResolver    内蔵(asar) ← ユーザー(userData) オーバーレイ│
@@ -526,7 +526,7 @@ elecdex/
 | **3** | メトリクス基盤 + 監視ウィジェット: clock / sysinfo / cpu / memory / toplist / netstat / throughput | 購読0でポーリングが止まる。アイドルCPU閾値を満たす |
 | **4** | ファイルシステムウィジェット: CWD追従、ディスク使用量、クリックでパス入力。気象庁の天気予報ペイン | Windows でも CWD 追従する。天気予報は出典を明記し、発表時刻以外に取得しない |
 | **5** | デザイントークン / テーマ / SFX / ブート演出 / アプリアイコン | リロードなしでテーマ切替。テーマ3種を自作 |
-| **6** | Globe + GeoIP: Natural Earth タイル生成、three/threlte 実装、接続先プロット | 無効化可能。GPU負荷が許容範囲 |
+| **6** | Globe + GeoIP: Natural Earth から陸地の点群を生成、three で実装、接続先を国ごとにプロット | ペインを閉じれば収集も描画も止まる。アイドル時の追加コストが 1コアの約1.5% |
 | **7** | 設定UI / キーバインドUI / 更新チェック / リリースパイプライン | タグ push で3OS分の配布物が出る |
 
 Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、ワークスペースプリセット。
@@ -546,7 +546,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | 論点 | 決定 | 理由 |
 |---|---|---|
 | ライセンス | **GPL-3.0**（原版 eDEX-UI と同一の LICENSE 本文） | オーナー判断により原版と同じライセンスで公開する。README に eDEX-UI への謝辞を記載。同梱アセット（OFL フォント、CC0 の IP データ、Public Domain の地理データ）はいずれも GPL と両立する |
-| GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb`（CC0-1.0, 15.7MB）を同梱 + 国重心テーブル | ユーザー操作ゼロが要件。GeoLite2 はアカウント必須、DB-IP City は 134MB。RIR whois 由来の CC0 データなら帰属表示すら不要で、ルックアップも端末外に出ない |
+| GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb`（統合版 7.8MB のみ同梱、IPv4/IPv6 別ファイルは electron-builder で除外）+ 国重心テーブル | ユーザー操作ゼロが要件。GeoLite2 はアカウント必須、DB-IP City は 134MB。ルックアップは端末外に出ない。**訂正（Phase 6）**: 当初「CC0 で帰属表示不要」と記録したが、npm の license 欄が CC0-1.0 なだけで、同梱の NRO_LICENSE ではデータは CC BY 4.0（NRO）であり帰属表示が必要。地球儀ペインに「GeoIP: NRO, CC BY 4.0」、README に出典を表示する |
 | フォント | Chakra Petch (display) / Saira Condensed (ui) / JetBrains Mono Variable (mono)、すべて OFL 1.1 | 原版の United Sans は商用。Saira Condensed が最も素性が近く9ウェイト。Chakra Petch が SF の角切り感を担う |
 | TypeScript | 7.0.2 (native) + 6.0.3 (JS API) を併置、`svelte-check --tsgo` | 7.0 単体では JS Compiler API が無く svelte-check が動かないが、6 と併置して `--tsgo` を渡せば Svelte も TS7 で検査できる。TS7 移行で `baseUrl` 廃止と `composite`+`noEmit` 非対応の対応が必要だった |
 | Vite | 7.3.6 + `@sveltejs/vite-plugin-svelte` 6.x | electron-vite 6.0.0-beta.1 は Vite 8 を受け付けるが、**Vite 8 の Rolldown が Svelte 5.57 をパースできずビルドが失敗する**（実測）。Rolldown 側の対応待ち |
@@ -572,6 +572,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | 設定（Phase 5） | settings.json（theme / sound / motion）。全項目に既定値があり、空や部分的なファイルも有効。main が userData フォルダを監視し、手編集をリロードなしで全ウィンドウへ反映。編集途中で一時的に壊れた内容は隔離せず無視する（起動時に壊れていれば従来通り .bak に退避）。テーマ選択と音の切替はフッターに置き、本格的な設定 UI は Phase 7 | エディタで保存中のファイルは壊れたファイルではない。フォルダを監視するのは、一時ファイルを rename で上書きするエディタでもファイル監視が外れないため |
 | 効果音（Phase 5） | WebAudio で合成する（音声ファイルを同梱しない）。起動ログの行・起動完了・タイトル・グリッチ・ペインの点灯・分割/タブ/閉じる・ファイルブラウザのクリック・テーマ切替・終了確認。音ごとに最短間隔を設けて連打を抑える。既定は有効・音量 0.5、フッターで切替。E2E は既定で音を無効にした settings.json を置いて起動する | 原版は howler.js で録音素材を再生していた。合成なら素材のライセンスも読み込みも不要で、各音は短いレシピとしてコードで読める |
 | ペインの追加と削除 | 原版のモジュールは固定で、消すことも足すこともできなかった。elecdex ではどのペインも閉じられる（タブはタブの ×、それ以外はホバーで出るペインの ×、Ctrl+Shift+W）ので、閉じたウィジェットを戻す手段として「ペイン追加」ピッカーを置く（Ctrl+Shift+A / フッターの + PANE）。原版のファジーファインダーと同じ、枠付きモーダルに絞り込み欄と一覧の形で、↑↓選択・Tab で配置（右 / 下 / 新しいタブ、前回の選択を記憶）・Enter で追加。複数配置を想定しないウィジェットが既に画面にあれば、複製せずそのペインにフォーカスする。一覧はウィジェットレジストリから作るので、プラグインのウィジェットもそのまま並ぶ | 既定レイアウトへの全リセットしか戻す手段がなかった。レイアウトの操作は既存の純関数（splitPane / addTab）を使い、新しい木構造の不変条件を増やさない |
+| 地球儀（Phase 6） | 陸地は Natural Earth（world-atlas の land-110m）内に入るフィボナッチ球面上の点 3,458 個を `npm run gen:geo` で生成し、Points 1 回の描画で描く。国重心は countries-50m の各国最大の陸塊の重心（日付変更線をまたぐ輪は経度を連続化してから計算）。接続は新しいメトリクス `net.connections`（5 秒間隔）: Windows は常駐サンプラーが IP Helper の `GetActiveTcpConnections`、Linux は /proc/net/tcp*、macOS は netstat。確立済みで公開アドレスのものだけを残し、collector 内で国に解決して「国ごとの件数と重心」だけを renderer に送る（アドレス自体は renderer に渡さない）。自分の位置は原版のようにオンラインの IP 検索を使わず、システムのタイムゾーン → 国 → 重心。描画はチャートと共有の 10fps フレームループに乗せ（自転は 90 秒で1周）、非表示のタブ・ウィンドウでは描かず、動きを減らす設定では静止 | 実測（既定レイアウト、1コア比）: 地球儀なし約12%、専用タイマーで 15fps だと +10%、10fps で +7%、チャートと同じループに乗せると +1.5%。描画の回数よりコンポジタを別々に起こす回数が効いていた。原版の ENCOM Globe（three.js 43,000 行を同梱）は使わない |
 
 ## 17. 既知の問題
 

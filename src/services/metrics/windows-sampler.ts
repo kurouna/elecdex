@@ -84,6 +84,7 @@ export type SamplerLine =
   | { kind: 'proc'; data: RawProcess[] }
   | { kind: 'iface'; data: RawIface[] }
   | { kind: 'ping'; ms: number | null }
+  | { kind: 'tcp'; remotes: string[] }
   | { kind: 'power'; data: RawPower }
   | { kind: 'swap'; data: RawSwap }
 
@@ -271,6 +272,8 @@ export function parseSamplerLine(line: string): SamplerLine | null {
           m: finite(r.m),
         })),
       }
+    case 'tcp':
+      return { kind: 'tcp', remotes: rows.map((r) => str(r.r)).filter((r) => r !== '') }
     case 'iface':
       return {
         kind: 'iface',
@@ -312,7 +315,7 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' 
 /**
  * The loop PowerShell runs, one tick per second:
  *   every tick       interface byte counters
- *   every 5 ticks    process table, interface addresses, ping
+ *   every 5 ticks    process table, interface addresses, TCP connections, ping
  *   every 30 ticks   power status, page file (the only WMI read)
  *
  * It must never outlive us. Windows does not take child processes down with
@@ -361,6 +364,11 @@ while ($true) {
     }
     Emit 'iface' @($ifaces)
 
+    $tcp = foreach ($c in [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpConnections()) {
+      if ($c.State -eq 'Established') { @{ r = $c.RemoteEndPoint.Address.ToString() } }
+    }
+    Emit 'tcp' @($tcp)
+
     $ms = $null
     try { $r = $pinger.Send('${pingHost}', 1000); if ($r.Status -eq 'Success') { $ms = $r.RoundtripTime } } catch {}
     Emit 'ping' @{ ms = $ms }
@@ -404,6 +412,7 @@ export class WindowsSampler {
   private procCurrent: Reading<RawProcess> | null = null
   private ifaces: RawIface[] | null = null
   private ping: { ms: number | null } | null = null
+  private tcp: string[] | null = null
   private power: RawPower | null = null
   private swap: RawSwap | null = null
 
@@ -437,6 +446,12 @@ export class WindowsSampler {
   async netPing(): Promise<NetPing> {
     await this.until(() => this.ping !== null)
     return { host: this.pingHost, ms: this.ping?.ms ?? null }
+  }
+
+  /** Remote addresses of established TCP connections. */
+  async tcpRemotes(): Promise<string[]> {
+    await this.until(() => this.tcp !== null)
+    return this.tcp ?? []
   }
 
   async battery(): Promise<Battery> {
@@ -549,6 +564,9 @@ export class WindowsSampler {
         break
       case 'ping':
         this.ping = { ms: parsed.ms }
+        break
+      case 'tcp':
+        this.tcp = parsed.remotes
         break
       case 'power':
         this.power = parsed.data

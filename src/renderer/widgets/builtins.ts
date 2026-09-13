@@ -1,5 +1,6 @@
 import type { MetricSourceId } from '@shared/metrics'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
+import GlobeWidget from './globe/GlobeWidget.svelte'
 import ClockWidget from './monitor/ClockWidget.svelte'
 import CpuWidget from './monitor/CpuWidget.svelte'
 import MemoryWidget from './monitor/MemoryWidget.svelte'
@@ -7,7 +8,6 @@ import NetstatWidget from './monitor/NetstatWidget.svelte'
 import SysinfoWidget from './monitor/SysinfoWidget.svelte'
 import ThroughputWidget from './monitor/ThroughputWidget.svelte'
 import ToplistWidget from './monitor/ToplistWidget.svelte'
-import PlaceholderWidget from './PlaceholderWidget.svelte'
 import { registerBuiltin } from './registry.ts'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
 import WeatherWidget from './weather/WeatherWidget.svelte'
@@ -114,10 +114,12 @@ registerBuiltin({
   multiple: true,
 })
 
-// The globe arrives with GeoIP in phase 6.
 registerBuiltin({
   id: 'globe',
   title: 'world view',
-  description: 'Where network connections go, on a globe.',
-  component: PlaceholderWidget,
+  description:
+    'Where network connections go, on a globe. GeoIP is bundled; nothing is looked up online.',
+  component: GlobeWidget,
+  metrics: sources('net.connections', 'net.ping'),
+  minSize: { w: 160, h: 160 },
 })

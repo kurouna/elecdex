@@ -1,4 +1,7 @@
+import { execFile } from 'node:child_process'
+import { readFile } from 'node:fs/promises'
 import os from 'node:os'
+import { promisify } from 'node:util'
 import type {
   Battery,
   CpuInfo,
@@ -9,6 +12,7 @@ import type {
   MemSwap,
   MemUsage,
   MetricSourceId,
+  NetConnections,
   NetInterface,
   NetPing,
   NetThroughput,
@@ -18,6 +22,8 @@ import type {
   ProcessList,
 } from '@shared/metrics'
 import si from 'systeminformation'
+import { summarizeConnections } from './geoip.js'
+import { parseBsdNetstat, parseProcNetTcp, publicRemotes } from './net-connections.js'
 import type { SourceDefinition } from './scheduler.js'
 import { WindowsSampler } from './windows-sampler.js'
 
@@ -215,6 +221,24 @@ async function netPing(): Promise<NetPing> {
   return { host: PING_HOST, ms: typeof ms === 'number' && ms >= 0 ? ms : null }
 }
 
+const run = promisify(execFile)
+
+async function netConnections(): Promise<NetConnections> {
+  let remotes: string[]
+  if (windowsSampler) {
+    remotes = await windowsSampler.tcpRemotes()
+  } else if (process.platform === 'linux') {
+    const tables = await Promise.all(
+      ['/proc/net/tcp', '/proc/net/tcp6'].map((f) => readFile(f, 'utf8').catch(() => '')),
+    )
+    remotes = tables.flatMap(parseProcNetTcp)
+  } else {
+    const { stdout } = await run('netstat', ['-anp', 'tcp'], { timeout: 4000 })
+    remotes = parseBsdNetstat(stdout)
+  }
+  return summarizeConnections(publicRemotes(remotes))
+}
+
 export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'cpu.info': { intervalMs: TEN_MINUTES, collect: cpuInfo },
   'cpu.load': { intervalMs: 1000, collect: cpuLoad },
@@ -230,4 +254,5 @@ export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'net.interface': { intervalMs: byPlatform(5000, 30_000), collect: netInterface },
   'net.throughput': { intervalMs: 1000, collect: netThroughput },
   'net.ping': { intervalMs: 5000, collect: netPing },
+  'net.connections': { intervalMs: 5000, collect: netConnections },
 }
