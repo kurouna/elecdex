@@ -11,7 +11,11 @@ import type { WidgetProps } from '../registry.ts'
  * from settings.json pinned first.
  *
  * Type to filter; Enter starts the first match. Icons are fetched lazily, only
- * for tiles that scroll into view.
+ * for tiles that scroll into view, and drawn in the theme's accent colour: the
+ * icon's own shape is the mask, and its grayscale shading is multiplied over the
+ * accent, so each icon stays recognisable while the grid reads as one HUD. The
+ * original colours come back on hover. All of it is static CSS - nothing is
+ * recomputed per frame, and a theme switch is a plain repaint.
  */
 const { paneId }: WidgetProps = $props()
 
@@ -151,7 +155,9 @@ const initial = (name: string) =>
           >
             <span class="icon">
               {#if icons[entry.id]}
-                <img src={icons[entry.id]} alt="" />
+                <span class="glyph" style:--icon={`url("${icons[entry.id]}")`} data-testid="launcher-icon">
+                  <img src={icons[entry.id]} alt="" />
+                </span>
               {:else}
                 <span class="monogram">{initial(entry.name)}</span>
               {/if}
@@ -271,10 +277,35 @@ const initial = (name: string) =>
   height: 2rem;
 }
 
-.icon img {
+/* Tinted: the icon's silhouette cut from the accent, shaded by the icon itself. */
+.glyph {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  mask: var(--icon) center / contain no-repeat;
+  isolation: isolate;
+}
+
+.glyph img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  /* Lifted so dark outlines become a dim accent rather than vanishing into black. */
+  filter: grayscale(1) brightness(1.45) contrast(1.15);
+  mix-blend-mode: multiply;
+}
+
+.tile:hover .glyph,
+.tile:focus-visible .glyph {
+  background: transparent;
+}
+
+.tile:hover .glyph img,
+.tile:focus-visible .glyph img {
+  filter: none;
+  mix-blend-mode: normal;
 }
 
 .monogram {
