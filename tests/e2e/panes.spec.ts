@@ -125,3 +125,66 @@ test('the layout can be reset from the status bar and from the picker, with conf
     await close()
   }
 })
+
+test('closing a pane gives its WebGL contexts back at once', async () => {
+  const { page, close } = await launch()
+  try {
+    const warnings: string[] = []
+    page.on('console', (message) => {
+      if (/webgl/i.test(message.text())) warnings.push(message.text())
+    })
+    const shellTabs = page.getByTestId('tabs-host').getByTestId('tab')
+    await expect(shellTabs).toHaveCount(3)
+    // Wait until the globe and every shell have drawn with WebGL.
+    const liveContexts = () =>
+      page.evaluate(
+        () =>
+          [...document.querySelectorAll('canvas')].filter((canvas) => {
+            const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
+            return gl !== null && !gl.isContextLost()
+          }).length,
+      )
+    await expect.poll(liveContexts, { timeout: 20_000 }).toBeGreaterThanOrEqual(4)
+
+    // Keep hold of the contexts of the panes about to close, which leave the DOM.
+    await page.evaluate(() => {
+      const contextsIn = (selector: string) =>
+        [...document.querySelectorAll(`${selector} canvas`)]
+          .map((canvas) => (canvas as HTMLCanvasElement).getContext('webgl2'))
+          .filter((gl) => gl !== null)
+      const held = window as unknown as Record<string, WebGL2RenderingContext[]>
+      held.__globe = contextsIn('[data-testid=pane][data-widget=globe]')
+      const lastTab = document.querySelectorAll('[data-testid=tabs-host] [data-testid=tab]')[2]
+      held.__shell = contextsIn(`[data-pane-id="${lastTab?.getAttribute('data-pane-id')}"]`)
+    })
+    const lostCounts = () =>
+      page.evaluate(() => {
+        const held = window as unknown as Record<string, WebGL2RenderingContext[]>
+        const count = (list: WebGL2RenderingContext[] = []) => ({
+          total: list.length,
+          lost: list.filter((gl) => gl.isContextLost()).length,
+        })
+        return { globe: count(held.__globe), shell: count(held.__shell) }
+      })
+    const before = await lostCounts()
+    expect(before.globe.total).toBeGreaterThan(0)
+    expect(before.shell.total).toBeGreaterThan(0)
+    expect(before.globe.lost + before.shell.lost).toBe(0)
+
+    await pane(page, 'globe').hover()
+    await pane(page, 'globe').getByTestId('pane-close').click()
+    await page.getByTestId('tabs-host').getByTestId('tab-close').last().click()
+    await expect(shellTabs).toHaveCount(2)
+
+    // Lost straight away, not whenever the canvases are garbage collected.
+    await expect.poll(lostCounts).toEqual({
+      globe: { total: before.globe.total, lost: before.globe.total },
+      shell: { total: before.shell.total, lost: before.shell.total },
+    })
+    // The panes still open keep theirs.
+    expect(await liveContexts()).toBeGreaterThanOrEqual(2)
+    expect(warnings).toEqual([])
+  } finally {
+    await close()
+  }
+})

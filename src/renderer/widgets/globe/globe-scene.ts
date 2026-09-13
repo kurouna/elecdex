@@ -241,6 +241,9 @@ export class GlobeScene {
       material.dispose()
     }
     this.renderer.dispose()
+    // dispose() frees buffers but keeps the context until the canvas is collected;
+    // losing it now returns it to Chromium's small pool at once (lib/webgl.ts).
+    this.renderer.forceContextLoss()
   }
 
   private rebuildMarkers(): void {

@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
+import { releaseWebglContexts } from '../../lib/webgl.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { boot } from '../../stores/boot.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
@@ -203,6 +204,8 @@ $effect(() => {
     observer?.disconnect()
     detach?.()
     detachClipboard?.()
+    // Before dispose, which removes the canvases this has to find.
+    releaseWebglContexts(el)
     terminal?.dispose()
     term = null
     fit = null
