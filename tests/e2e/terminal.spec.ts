@@ -154,19 +154,69 @@ test('a non-zero exit code is surfaced on the pane', async () => {
   })
 })
 
+test('history survives the terminal being remounted into a tab group', async () => {
+  // Regression: Ctrl+Shift+T on a lone terminal remounts it as a background tab.
+  // Fitting that hidden pane sent the shell a 12x5 size, ConPTY rewrapped its
+  // buffer to it, and the repaint that followed garbled every line on screen.
+  const marker = `REMOUNT-MARKER-${Date.now()}`
+  const pane = terminalPane(page).first()
+  await typeInto(page, pane, `echo ${marker}`)
+
+  const sessionsBefore = (await page.evaluate(() => window.elecdex.pty.list())).map((s) => s.id)
+  await pane.locator('.xterm-helper-textarea').first().focus()
+  await page.keyboard.press('Control+Shift+KeyT')
+  const strip = page.getByTestId('tabs-host').getByTestId('tab')
+  await expect.poll(() => strip.count(), { timeout: 20_000 }).toBe(2)
+  await page.waitForTimeout(1500) // the new tab's shell starts; any repaint lands
+  await strip.first().click()
+  await page.waitForTimeout(1500)
+
+  // Read the original session's screen as a reattaching pane would receive it.
+  const screens = await page.evaluate(async (ids) => {
+    const decoder = new TextDecoder()
+    const out: string[] = []
+    for (const id of ids) {
+      let text = ''
+      const detach = await window.elecdex.pty.attach(id, {
+        onData: (chunk) => {
+          text += decoder.decode(chunk, { stream: true })
+        },
+        onExit: () => {},
+        onCwd: () => {},
+        onCommandEnd: () => {},
+        onIntegrationUnavailable: () => {},
+      })
+      await new Promise((r) => setTimeout(r, 800))
+      detach()
+      out.push(text)
+    }
+    return out
+  }, sessionsBefore)
+
+  const ESC = String.fromCharCode(27)
+  const lines = screens
+    .join('\n')
+    // Drop escape sequences, keeping the text each line was drawn with.
+    .replaceAll(new RegExp(`${ESC}\\[[0-9;?]*[A-Za-z]`, 'g'), '')
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+  expect(lines.some((line) => line.endsWith(`echo ${marker}`))).toBe(true)
+  expect(lines).toContain(marker)
+})
+
 test('terminal tabs are not capped at five', async () => {
   // The original pre-allocated exactly four extra ports and stopped there.
   await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
   for (let i = 0; i < 7; i++) await page.keyboard.press('Control+Shift+KeyT')
 
   const strip = page.getByTestId('tabs-host').getByTestId('tab')
-  await expect.poll(() => strip.count(), { timeout: 40_000 }).toBe(8)
+  await expect.poll(() => strip.count(), { timeout: 40_000 }).toBe(9)
 
   await expect
     .poll(async () => (await page.evaluate(() => window.elecdex.pty.list())).length, {
       timeout: 40_000,
     })
-    .toBeGreaterThanOrEqual(8)
+    .toBeGreaterThanOrEqual(9)
 })
 
 test('closing a tab ends its session once the layout settles', async () => {
@@ -222,10 +272,11 @@ test('detaching leaves the session alive, and it can be reattached', async () =>
   await page.evaluate((sessionId) => window.elecdex.pty.dispose(sessionId), id)
 })
 
-test('a reattaching pane receives replayed scrollback', async () => {
+test('a reattaching pane receives the screen, then live output', async () => {
   const marker = `replay-${Date.now()}`
+  const after = `live-${Date.now()}`
   const replayed = await page.evaluate(
-    async ({ token }) => {
+    async ({ token, next }) => {
       const noop = {
         onExit: () => {},
         onCwd: () => {},
@@ -251,7 +302,8 @@ test('a reattaching pane receives replayed scrollback', async () => {
       }
       detach1()
 
-      // Second attach: the backlog should arrive without running anything.
+      // Second attach: the screen should arrive without running anything, and
+      // output produced afterwards should follow it on the same port.
       let second = ''
       const detach2 = await window.elecdex.pty.attach(session.id, {
         ...noop,
@@ -260,16 +312,27 @@ test('a reattaching pane receives replayed scrollback', async () => {
         },
       })
       await new Promise((r) => setTimeout(r, 1500))
+      const snapshot = second
+      window.elecdex.pty.write(
+        session.id,
+        `echo ${next}
+`,
+      )
+      const liveDeadline = Date.now() + 20_000
+      while (!second.slice(snapshot.length).includes(next) && Date.now() < liveDeadline) {
+        await new Promise((r) => setTimeout(r, 200))
+      }
       detach2()
 
       await window.elecdex.pty.dispose(session.id)
-      return { first, second }
+      return { first, snapshot, live: second.slice(snapshot.length) }
     },
-    { token: marker },
+    { token: marker, next: after },
   )
 
   expect(replayed.first).toContain(marker)
-  expect(replayed.second).toContain(marker)
+  expect(replayed.snapshot).toContain(marker)
+  expect(replayed.live).toContain(after)
 })
 
 test('attaching to an unknown session is refused', async () => {

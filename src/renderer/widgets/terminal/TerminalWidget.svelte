@@ -20,6 +20,18 @@ import { buildXtermTheme, monoFontFamily, paletteFromCss } from './xterm-theme.t
  */
 const { paneId, state: paneState, active }: WidgetProps = $props()
 
+/**
+ * How long a size must hold before the shell is told about it.
+ *
+ * xterm reflows its own buffer losslessly, but Windows ConPTY rewraps its buffer
+ * to every size it is given and repaints the screen from the result, so a single
+ * wrong size garbles the shell's history for good. Two sources of wrong sizes:
+ * fitting a pane that is not displayed (a background tab measured as 12x5), which
+ * the fit guard below refuses, and the transient sizes a container passes through
+ * while panes are rearranged, which this delay absorbs.
+ */
+const PTY_RESIZE_SETTLE_MS = 120
+
 let host = $state<HTMLDivElement | null>(null)
 let term: Terminal | null = null
 let fit: FitAddon | null = null
@@ -89,6 +101,7 @@ $effect(() => {
   let detach: (() => void) | null = null
   let terminal: Terminal | null = null
   let observer: ResizeObserver | null = null
+  let resizeTimer: ReturnType<typeof setTimeout> | null = null
 
   void (async () => {
     const id = await adoptSession()
@@ -128,8 +141,22 @@ $effect(() => {
     term = terminal
     fit = fitAddon
 
+    // Size the terminal before attaching: the session's current screen arrives as
+    // a snapshot on attach, and it should reflow into the pane's real width
+    // rather than xterm's default 80x24.
+    safeFit()
+
     terminal.onData((data) => window.elecdex.pty.write(id, data))
-    terminal.onResize(({ cols, rows }) => window.elecdex.pty.resize(id, cols, rows))
+    const t = terminal
+    const sendSize = (): void => {
+      if (resizeTimer !== null) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(() => {
+        resizeTimer = null
+        // A pane hidden since the size was taken will send its real one when shown.
+        if (!disposed && hasSize(el)) window.elecdex.pty.resize(id, t.cols, t.rows)
+      }, PTY_RESIZE_SETTLE_MS)
+    }
+    terminal.onResize(sendSize)
 
     const decoder = new TextDecoder()
     const off = await window.elecdex.pty.attach(id, {
@@ -153,15 +180,17 @@ $effect(() => {
     // Fit on container size changes rather than on a timer. The original
     // project re-fitted every 10 seconds from inside its data handler and
     // carried per-aspect-ratio fudge factors; an observer is exact and cheaper.
-    observer = new ResizeObserver(() => {
-      if (el.clientWidth > 0 && el.clientHeight > 0) safeFit()
-    })
+    observer = new ResizeObserver(() => safeFit())
     observer.observe(el)
     safeFit()
+    // The fit above happened before the port existed, so the shell has not been
+    // told this pane's size yet.
+    sendSize()
   })()
 
   return () => {
     disposed = true
+    if (resizeTimer !== null) clearTimeout(resizeTimer)
     observer?.disconnect()
     detach?.()
     terminal?.dispose()
@@ -180,7 +209,13 @@ $effect(() => {
   term?.focus()
 })
 
+/** A pane that is not displayed measures as zero; fitting it yields a nonsense size. */
+function hasSize(el: HTMLElement): boolean {
+  return el.clientWidth > 0 && el.clientHeight > 0
+}
+
 function safeFit(): void {
+  if (host === null || !hasSize(host)) return
   try {
     fit?.fit()
   } catch {

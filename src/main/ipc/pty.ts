@@ -12,8 +12,17 @@ import { PtyManager } from '../pty/pty-manager.js'
  * leaves the process pair. See docs/architecture.md section 4.3.
  */
 
+/**
+ * A port attached to a session. While its snapshot is being taken, live events
+ * are held in `backlog` so they reach the pane after the snapshot, not before.
+ */
+interface Attached {
+  port: MessagePortMain
+  backlog: PtyPortMessage[] | null
+}
+
 /** Ports currently attached to a session, keyed by session id. */
-type PortsBySession = Map<string, Set<MessagePortMain>>
+type PortsBySession = Map<string, Set<Attached>>
 
 /** Upper bound on a single write, to keep a runaway renderer from wedging the PTY. */
 const MAX_WRITE_BYTES = 1024 * 1024
@@ -24,12 +33,9 @@ export function registerPtyIpc(): { dispose: () => void } {
   const broadcast = (id: string, message: PtyPortMessage): void => {
     const set = ports.get(id)
     if (!set) return
-    for (const port of set) {
-      try {
-        port.postMessage(message)
-      } catch {
-        // The renderer went away; cleanup happens on its 'close' event.
-      }
+    for (const attached of set) {
+      if (attached.backlog !== null) attached.backlog.push(message)
+      else post(attached.port, message)
     }
   }
 
@@ -41,7 +47,11 @@ export function registerPtyIpc(): { dispose: () => void } {
     onIntegrationUnavailable: (id) => broadcast(id, { t: 'integrationUnavailable' }),
     onExit: (id, code, signal) => {
       broadcast(id, { t: 'exit', code, signal })
-      for (const port of ports.get(id) ?? []) port.close()
+      // A port still catching up closes itself once its backlog, which now
+      // ends with this exit, has been delivered.
+      for (const attached of ports.get(id) ?? []) {
+        if (attached.backlog === null) attached.port.close()
+      }
       ports.delete(id)
     },
   })
@@ -69,8 +79,9 @@ export function registerPtyIpc(): { dispose: () => void } {
       if (request.t === 'write') manager.write(id, request.data)
       else manager.resize(id, request.cols, request.rows)
     })
+    const attached: Attached = { port: port1, backlog: [] }
     port1.on('close', () => {
-      ports.get(id)?.delete(port1)
+      ports.get(id)?.delete(attached)
     })
     port1.start()
 
@@ -79,17 +90,17 @@ export function registerPtyIpc(): { dispose: () => void } {
       set = new Set()
       ports.set(id, set)
     }
-    set.add(port1)
+    set.add(attached)
 
-    catchUp(manager, id, port1)
     sendPort(event.sender, id, port2)
+    void catchUp(manager, id, attached)
     return true
   })
 
   return {
     dispose: () => {
       manager.disposeAll()
-      for (const set of ports.values()) for (const port of set) port.close()
+      for (const set of ports.values()) for (const { port } of set) port.close()
       ports.clear()
       ipcMain.removeHandler(CH.pty.create)
       ipcMain.removeHandler(CH.pty.list)
@@ -103,21 +114,37 @@ export function registerPtyIpc(): { dispose: () => void } {
  * Brings a freshly-attached port up to date before it sees any live event.
  *
  * First the state it could not have witnessed - the shell's first OSC 7 fires
- * before any pane exists - then the scrollback, so the pane is not blank.
+ * before any pane exists - then the screen as it stands, then whatever arrived
+ * while that snapshot was being taken. See ScreenMirror for why the screen is a
+ * snapshot rather than a replay of recent output.
  */
-function catchUp(manager: PtyManager, id: string, port: MessagePortMain): void {
+async function catchUp(manager: PtyManager, id: string, attached: Attached): Promise<void> {
+  const { port } = attached
   const state = manager.stateFor(id)
+  const snapshot = await (manager.snapshotFor(id) ?? Promise.resolve(''))
+
   if (state !== null) {
     if (state.cwd !== null) {
-      port.postMessage({ t: 'cwd', cwd: state.cwd } satisfies PtyPortMessage)
+      post(port, { t: 'cwd', cwd: state.cwd })
     } else if (state.integrationResolved) {
-      port.postMessage({ t: 'integrationUnavailable' } satisfies PtyPortMessage)
+      post(port, { t: 'integrationUnavailable' })
     }
   }
+  if (snapshot !== '') {
+    post(port, { t: 'data', chunk: new TextEncoder().encode(snapshot) })
+  }
 
-  const replay = manager.replayFor(id)
-  if (replay !== null) {
-    port.postMessage({ t: 'data', chunk: replay } satisfies PtyPortMessage)
+  const backlog = attached.backlog ?? []
+  attached.backlog = null
+  for (const message of backlog) post(port, message)
+  if (backlog.some((m) => m.t === 'exit')) port.close()
+}
+
+function post(port: MessagePortMain, message: PtyPortMessage): void {
+  try {
+    port.postMessage(message)
+  } catch {
+    // The renderer went away; cleanup happens on the port's 'close' event.
   }
 }
 

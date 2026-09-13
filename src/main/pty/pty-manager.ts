@@ -4,6 +4,7 @@ import type { IPty } from 'node-pty'
 import { spawn } from 'node-pty'
 import { APP_VERSION } from '../build-info.js'
 import { OscParser } from './osc-parser.js'
+import { ScreenMirror } from './screen-mirror.js'
 import { buildInjection, defaultShell, terminalEnv } from './shell-integration.js'
 
 /**
@@ -17,9 +18,6 @@ import { buildInjection, defaultShell, terminalEnv } from './shell-integration.j
  * the localhost WebSocket the original project used - so there are no ports to
  * allocate, no 5-session cap, and nothing on the machine can read the stream.
  */
-
-/** Scrollback replayed to a pane that attaches to a session already running. */
-const REPLAY_LIMIT_BYTES = 256 * 1024
 
 /** How long after the last OSC before we decide shell integration is not working. */
 const INTEGRATION_GRACE_MS = 10_000
@@ -45,9 +43,8 @@ interface Session {
   integrationTimer: NodeJS.Timeout | undefined
   commandStartedAt: number | null
   exited: boolean
-  /** Ring of recent output, replayed on attach. */
-  replay: Uint8Array[]
-  replayBytes: number
+  /** The screen as the shell has drawn it, snapshotted for an attaching pane. */
+  mirror: ScreenMirror
   createdAt: number
 }
 
@@ -66,10 +63,12 @@ export class PtyManager {
     const env = { ...baseEnv, ...injection.env }
 
     const id = randomUUID()
+    const cols = opts.cols ?? 80
+    const rows = opts.rows ?? 24
     const pty = spawn(shell, [...injection.args, ...(opts.args ?? [])], {
       name: 'xterm-256color',
-      cols: opts.cols ?? 80,
-      rows: opts.rows ?? 24,
+      cols,
+      rows,
       cwd: opts.cwd ?? env.HOME ?? process.cwd(),
       env,
     })
@@ -85,8 +84,7 @@ export class PtyManager {
       integrationTimer: undefined,
       commandStartedAt: null,
       exited: false,
-      replay: [],
-      replayBytes: 0,
+      mirror: new ScreenMirror(cols, rows),
       createdAt: Date.now(),
     }
     this.sessions.set(id, session)
@@ -98,6 +96,7 @@ export class PtyManager {
       if (session.integrationTimer) clearTimeout(session.integrationTimer)
       this.events.onExit(id, exitCode, signal)
       this.sessions.delete(id)
+      session.mirror.dispose()
     })
 
     if (injection.supported) {
@@ -129,6 +128,7 @@ export class PtyManager {
     const r = Math.max(1, Math.min(Math.floor(rows), 1000))
     try {
       session.pty.resize(c, r)
+      session.mirror.resize(c, r)
     } catch {
       // A PTY that exited between the guard above and here; nothing to do.
     }
@@ -144,6 +144,7 @@ export class PtyManager {
       // Already gone.
     }
     this.sessions.delete(id)
+    session.mirror.dispose()
   }
 
   disposeAll(): void {
@@ -177,18 +178,14 @@ export class PtyManager {
     }
   }
 
-  /** Recent output, for a pane attaching to an already-running session. */
-  replayFor(id: string): Uint8Array | null {
+  /**
+   * The session's screen and scrollback, serialised, for a pane attaching to a
+   * session already running. Covers every chunk delivered through onData before
+   * this call; later chunks are the caller's to forward.
+   */
+  snapshotFor(id: string): Promise<string> | null {
     const session = this.sessions.get(id)
-    if (!session || session.replay.length === 0) return null
-    const total = session.replay.reduce((n, c) => n + c.length, 0)
-    const merged = new Uint8Array(total)
-    let offset = 0
-    for (const chunk of session.replay) {
-      merged.set(chunk, offset)
-      offset += chunk.length
-    }
-    return merged
+    return session ? session.mirror.snapshot() : null
   }
 
   private summarize(session: Session): PtySessionSummary {
@@ -225,18 +222,8 @@ export class PtyManager {
     }
 
     if (clean.length > 0) {
-      this.pushReplay(session, clean)
+      session.mirror.write(clean)
       this.events.onData(session.id, clean)
-    }
-  }
-
-  /** Keeps at most REPLAY_LIMIT_BYTES of recent output, dropping oldest first. */
-  private pushReplay(session: Session, chunk: Uint8Array): void {
-    session.replay.push(chunk)
-    session.replayBytes += chunk.length
-    while (session.replayBytes > REPLAY_LIMIT_BYTES && session.replay.length > 1) {
-      const dropped = session.replay.shift()
-      if (dropped) session.replayBytes -= dropped.length
     }
   }
 }
