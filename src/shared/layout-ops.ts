@@ -3,6 +3,7 @@ import type {
   LayoutTree,
   PaneNode,
   SplitDirection,
+  SplitLabel,
   SplitNode,
   TabsNode,
 } from './schemas/layout.js'
@@ -50,12 +51,14 @@ export const split = (
   direction: 'row' | 'column',
   children: LayoutNode[],
   sizes?: number[],
+  label?: SplitLabel,
 ): SplitNode => ({
   kind: 'split',
   id: newId('s'),
   direction,
   children,
   sizes: sizes ?? evenSizes(children.length),
+  ...(label ? { label } : {}),
 })
 
 const evenSizes = (n: number): number[] => Array.from({ length: n }, () => 1 / Math.max(n, 1))

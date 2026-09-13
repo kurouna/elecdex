@@ -103,7 +103,10 @@ export function paletteFromCss(el: Element): PaletteInput {
     saturation: Number.parseFloat(read('--accent-s')) || 22,
     lightness: Number.parseFloat(read('--accent-l')) || 74,
     foreground: read('--text') || '#aacfd1',
-    background: read('--panel-bg') || '#05080d',
+    // Panels are transparent so the grid shows through, but xterm's WebGL
+    // renderer cannot draw a transparent background (it comes out black), so the
+    // terminal takes the solid ground colour instead.
+    background: read('--app-bg') || '#05080d',
   }
 }
 

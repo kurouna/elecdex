@@ -25,6 +25,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: r('src/main/index.ts'),
+          // Forked as an Electron utilityProcess by the metrics broker.
+          'metrics.worker': r('src/services/metrics.worker.ts'),
         },
       },
     },

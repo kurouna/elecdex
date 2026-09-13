@@ -78,11 +78,16 @@ class LayoutStore {
   }
 
   /** Writes immediately, for teardown where a debounce would be lost. */
+  /**
+   * Writes a pending save immediately, for teardown where the debounce would be
+   * lost. Does nothing when no change is pending: writing the in-memory tree
+   * unconditionally on every reload or close would overwrite a layout.json the
+   * user had edited by hand while the app was running.
+   */
   async flush(): Promise<void> {
-    if (this.saveTimer !== null) {
-      clearTimeout(this.saveTimer)
-      this.saveTimer = null
-    }
+    if (this.saveTimer === null) return
+    clearTimeout(this.saveTimer)
+    this.saveTimer = null
     await window.elecdex.layout.save(this.snapshot())
   }
 

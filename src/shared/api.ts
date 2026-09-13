@@ -1,3 +1,4 @@
+import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { LayoutTree } from './schemas/layout.js'
 
 /**
@@ -91,10 +92,24 @@ export interface LayoutApi {
   filePath(): Promise<string>
 }
 
+export interface MetricsApi {
+  /**
+   * Starts receiving a source. The handler gets the last known sample at once,
+   * when there is one, and every new sample after. Returns an unsubscribe.
+   *
+   * Subscriptions are reference-counted: many widgets reading one source cost
+   * one poll, and the source stops being polled when the last one unsubscribes.
+   */
+  subscribe<K extends MetricSourceId>(id: K, handler: (sample: MetricSample<K>) => void): () => void
+  /** Diagnostics: what the collector is polling and how often it has run. */
+  stats(): Promise<MetricsStats>
+}
+
 export interface ElecdexApi {
   system: SystemApi
   pty: PtyApi
   layout: LayoutApi
+  metrics: MetricsApi
 }
 
 declare global {

@@ -80,6 +80,13 @@ function onHandleKeydown(event: KeyboardEvent, index: number): void {
 }
 </script>
 
+<div class="split-wrap" class:labelled={node.label !== undefined}>
+{#if node.label}
+  <header class="hud-label column-label" data-testid="split-label">
+    <span>{node.label.left}</span>
+    <span>{node.label.right}</span>
+  </header>
+{/if}
 <div
   class="split"
   class:row={isRow}
@@ -113,8 +120,24 @@ function onHandleKeydown(event: KeyboardEvent, index: number): void {
     {/if}
   {/each}
 </div>
+</div>
 
 <style>
+.split-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.split-wrap > .split {
+  flex: 1;
+  height: auto;
+}
+
 .split {
   display: flex;
   flex-direction: column;
@@ -160,14 +183,22 @@ function onHandleKeydown(event: KeyboardEvent, index: number): void {
 
 .handle:hover,
 .handle:focus-visible {
-  background: var(--accent-faint);
+  background: transparent;
 }
 
-/* A thin rule so the divider reads as a seam rather than a gap. */
+/* The seam only appears when the divider is being used: eDEX-UI has no lines
+   between modules, and a permanent one doubles up with each module's own rule. */
 .handle::after {
   content: '';
   position: absolute;
-  background: var(--panel-rule);
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.handle:hover::after,
+.handle:focus-visible::after {
+  opacity: 0.6;
 }
 
 .split.row > .handle::after {

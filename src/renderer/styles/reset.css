@@ -15,8 +15,26 @@ body,
   height: 100%;
 }
 
+/*
+ * The root size follows the viewport height, so every rem-based token scales
+ * with the screen - a 1080p display gets 16px, a 4K one proportionally more.
+ * eDEX-UI sized everything in vh for the same reason: a fullscreen HUD should
+ * fill the screen, not float in the middle of a large one. Clamped so a tiny
+ * window stays readable and a huge one does not turn cartoonish.
+ */
+html {
+  font-size: clamp(11px, 1.48vh, 26px);
+}
+
 body {
-  background: var(--app-bg);
+  /* The HUD grid: dark cells with a hairline of --line between them, drawn with
+     two hard-stop gradients exactly like eDEX-UI's body background. */
+  background:
+    linear-gradient(90deg, var(--app-bg) calc(var(--grid-cell) - var(--grid-line)), transparent 0)
+    center / var(--grid-cell) var(--grid-cell),
+    linear-gradient(var(--app-bg) calc(var(--grid-cell) - var(--grid-line)), transparent 0) center /
+    var(--grid-cell) var(--grid-cell),
+    var(--line);
   color: var(--text);
   font-family: var(--font-ui);
   font-size: var(--step-0);

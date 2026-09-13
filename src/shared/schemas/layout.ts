@@ -38,6 +38,12 @@ export const TabsNodeSchema = z.object({
 })
 export type TabsNode = z.infer<typeof TabsNodeSchema>
 
+/** A header pair drawn above a split, like eDEX-UI's "PANEL ... SYSTEM". */
+export interface SplitLabel {
+  left: string
+  right: string
+}
+
 export type SplitNode = {
   kind: 'split'
   id: string
@@ -45,6 +51,8 @@ export type SplitNode = {
   children: LayoutNode[]
   /** Fractions, one per child, summing to 1. */
   sizes: number[]
+  /** Optional header. Absent in older layout files, which therefore still load. */
+  label?: SplitLabel
 }
 
 export type LayoutNode = SplitNode | TabsNode | PaneNode
@@ -58,8 +66,9 @@ export const SplitNodeSchema: z.ZodType<SplitNode> = z.lazy(() =>
     direction: z.enum(['row', 'column']),
     children: z.array(LayoutNodeSchema),
     sizes: z.array(z.number().positive()),
+    label: z.object({ left: z.string().max(64), right: z.string().max(64) }).optional(),
   }),
-)
+) as z.ZodType<SplitNode>
 
 export const LayoutNodeSchema: z.ZodType<LayoutNode> = z.lazy(() =>
   z.union([SplitNodeSchema, TabsNodeSchema, PaneNodeSchema]),

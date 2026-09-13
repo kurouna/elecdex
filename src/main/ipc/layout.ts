@@ -21,6 +21,10 @@ export function registerLayoutIpc(): { dispose: () => void } {
   })
 
   ipcMain.handle(CH.layout.load, (): LayoutTree => {
+    // Read from disk on every load. A page loads its layout once, so this is
+    // cheap, and it is what makes a layout.json edited by hand while the app is
+    // running take effect on the next reload instead of being masked by a cache.
+    store.invalidate()
     const tree = store.read(migrateLayout)
     return normalizeTree(tree, fallbackNode())
   })

@@ -3,9 +3,10 @@
 A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
 [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current stack.
 
-> **Status: Phase 2 — layout engine.** A persisted layout tree of splits, tab groups and
-> widgets, with a multi-tab terminal that has shell integration on Windows, macOS and Linux.
-> Monitoring widgets are placeholders until Phase 3.
+> **Status: Phase 3 — system monitoring.** The eDEX-UI HUD, rebuilt: live CPU, memory,
+> process, network and system widgets around a multi-tab terminal, in a persisted layout tree.
+> The default layout idles at about 10% of one core. The globe (Phase 6) and filesystem
+> browser (Phase 4) are still placeholders.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
 ## Why a rewrite
@@ -17,7 +18,7 @@ refactoring". elecdex keeps the idea and drops the implementation:
 | --- | --- |
 | PTY tunnelled over a localhost WebSocket (ports 3000+) | `MessageChannelMain`, one channel per session; no listening socket |
 | `nodeIntegration: true`, `contextIsolation: false`, `@electron/remote` | `sandbox: true`, `contextIsolation: true`, a single typed preload bridge |
-| `cluster` fork per core; every widget polls `systeminformation` on its own timer | one `utilityProcess` and a subscription-driven scheduler that stops when nobody is watching |
+| `cluster` fork per core; every widget polls `systeminformation` on its own timer | one `utilityProcess` and a subscription-driven scheduler that stops when nobody is watching; on Windows, one long-lived sampler instead of a PowerShell per reading (monitoring cost measured 144% → 14% of one core) |
 | CWD tracked by polling `/proc`, `lsof` and `ps` — unsupported on Windows | shell integration (`OSC 7` / `OSC 133`), so Windows works too |
 | Five hardcoded screen regions, five terminal tabs | a persisted layout tree: unlimited panes, splits and tabs |
 | No bundler; minify-as-postprocess | electron-vite (Vite + Rollup) |

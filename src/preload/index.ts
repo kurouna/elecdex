@@ -6,6 +6,7 @@ import type {
   PtySessionSummary,
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
+import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { LayoutTree } from '@shared/schemas/layout'
 import { contextBridge, ipcRenderer } from 'electron'
 
@@ -103,6 +104,51 @@ function post(id: string, request: PtyPortRequest): void {
   live.get(id)?.postMessage(request)
 }
 
+/*
+ * Metrics.
+ *
+ * Reference-counted here so that ten widgets reading `cpu.load` are one
+ * subscription as far as main is concerned, and the source stops being polled
+ * only when the last of them lets go. The last sample per source is cached so a
+ * widget mounted after the first one renders immediately rather than waiting for
+ * the next tick - main only replays on the *first* subscription.
+ */
+type SampleHandler = (sample: MetricSample) => void
+const metricHandlers = new Map<MetricSourceId, Set<SampleHandler>>()
+const lastSample = new Map<MetricSourceId, MetricSample>()
+
+ipcRenderer.on(CH.metrics.sample, (_event, sample: MetricSample) => {
+  lastSample.set(sample.id, sample)
+  for (const handler of metricHandlers.get(sample.id) ?? []) handler(sample)
+})
+
+function subscribeMetric(id: MetricSourceId, handler: SampleHandler): () => void {
+  let handlers = metricHandlers.get(id)
+  if (!handlers) {
+    handlers = new Set()
+    metricHandlers.set(id, handlers)
+    ipcRenderer.send(CH.metrics.subscribe, id)
+  } else {
+    const cached = lastSample.get(id)
+    if (cached) queueMicrotask(() => handler(cached))
+  }
+  handlers.add(handler)
+
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    const set = metricHandlers.get(id)
+    if (!set) return
+    set.delete(handler)
+    if (set.size === 0) {
+      metricHandlers.delete(id)
+      lastSample.delete(id)
+      ipcRenderer.send(CH.metrics.unsubscribe, id)
+    }
+  }
+}
+
 const api: ElecdexApi = {
   system: {
     info: () => ipcRenderer.invoke(CH.system.info) as Promise<AppInfo>,
@@ -119,6 +165,10 @@ const api: ElecdexApi = {
     resize: (id, cols, rows) => post(id, { t: 'resize', cols, rows }),
     dispose: (id) => ipcRenderer.invoke(CH.pty.dispose, id) as Promise<void>,
     list: () => ipcRenderer.invoke(CH.pty.list) as Promise<PtySessionSummary[]>,
+  },
+  metrics: {
+    subscribe: (id, handler) => subscribeMetric(id, handler as SampleHandler),
+    stats: () => ipcRenderer.invoke(CH.metrics.stats) as Promise<MetricsStats>,
   },
   layout: {
     load: () => ipcRenderer.invoke(CH.layout.load) as Promise<LayoutTree>,

@@ -1,6 +1,8 @@
 <script lang="ts">
+import { isMetricSourceId } from '@shared/metrics'
 import type { PaneNode } from '@shared/schemas/layout'
 import { layout } from '../stores/layout.svelte.ts'
+import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
 
@@ -8,7 +10,7 @@ interface Props {
   node: PaneNode
   /** False for a tab that is stacked behind another; it stays mounted. */
   visible: boolean
-  /** True when this pane is inside a tab group, which draws its own header. */
+  /** True inside a tab group, which draws the chrome itself. */
   tabbed: boolean
 }
 
@@ -18,52 +20,72 @@ const definition = $derived(resolveWidget(node.widget))
 const meta = $derived(paneMeta.get(node.id))
 const focused = $derived(layout.focusedPaneId === node.id)
 const active = $derived(visible && focused)
+const chrome = $derived(tabbed ? 'bare' : (definition?.chrome ?? 'module'))
+const title = $derived(meta.title ?? definition?.title ?? node.widget)
+
+// Subscribe to the sources the widget declares, for exactly as long as this
+// pane exists. Unknown ids (a plugin naming a source this build lacks) are
+// ignored rather than sent to main, which would reject them anyway.
+$effect(() => {
+  const releases = (definition?.metrics ?? [])
+    .filter(isMetricSourceId)
+    .map((id) => metrics.retain(id))
+  return () => {
+    for (const release of releases) release()
+  }
+})
 
 // Clean up the pane's published metadata when it goes away, so a recycled id
 // cannot inherit a previous pane's cwd.
 $effect(() => () => paneMeta.clear(node.id))
 </script>
 
+{#snippet widget()}
+  {#if definition === null}
+    <p class="missing" data-testid="pane-missing">
+      unknown widget <code>{node.widget}</code>
+    </p>
+  {:else}
+    {@const Widget = definition.component}
+    <Widget paneId={node.id} title={definition.title} props={node.props} state={node.state} {active} />
+  {/if}
+{/snippet}
+
+{#snippet headline()}
+  <span>{title}</span>
+  <span class="sub">
+    {#if meta.badge}
+      <em class={meta.badgeKind ?? 'danger'} data-testid="pane-badge">{meta.badge}</em>
+    {/if}
+    <span data-testid="pane-subtitle">{meta.subtitle ?? ''}</span>
+  </span>
+{/snippet}
+
 <section
-  aria-label={meta.title ?? definition?.title ?? node.widget}
-  class="frame pane"
+  aria-label={title}
+  class="pane chrome-{chrome}"
   class:focused
   class:hidden={!visible}
-  data-notch={tabbed ? 'none' : 'tr bl'}
   data-testid="pane"
   data-pane-id={node.id}
   data-widget={node.widget}
+  data-chrome={chrome}
   onfocusin={() => layout.focus(node.id)}
   onpointerdown={() => layout.focus(node.id)}
 >
-  {#if !tabbed}
-    <header class="frame-title">
-      <span>{meta.title ?? definition?.title ?? node.widget}</span>
-      <span class="right">
-        {#if meta.badge}
-          <em class={meta.badgeKind ?? 'danger'} data-testid="pane-badge">{meta.badge}</em>
-        {/if}
-        <span data-testid="pane-subtitle">{meta.subtitle ?? ''}</span>
-      </span>
-    </header>
+  {#if chrome === 'shell'}
+    <header class="hud-label">{@render headline()}</header>
+    <div class="shell-frame body">{@render widget()}</div>
+  {:else if chrome === 'module'}
+    <div class="hud-module module">
+      {#if !definition?.headless}
+        <header class="module-title">{@render headline()}</header>
+      {/if}
+      <div class="body">{@render widget()}</div>
+    </div>
+  {:else}
+    <div class="body">{@render widget()}</div>
   {/if}
-
-  <div class="body">
-    {#if definition === null}
-      <p class="missing" data-testid="pane-missing">
-        unknown widget <code>{node.widget}</code>
-      </p>
-    {:else}
-      {@const Widget = definition.component}
-      <Widget
-        paneId={node.id}
-        title={definition.title}
-        props={node.props}
-        state={node.state}
-        {active}
-      />
-    {/if}
-  </div>
 </section>
 
 <style>
@@ -74,7 +96,6 @@ $effect(() => () => paneMeta.clear(node.id))
   min-width: 0;
   min-height: 0;
   height: 100%;
-  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
 /* A hidden tab keeps its DOM (and its shell) but takes no space. */
@@ -82,8 +103,16 @@ $effect(() => () => paneMeta.clear(node.id))
   display: none;
 }
 
-.pane.focused {
-  --panel-border: var(--accent);
+.chrome-shell {
+  gap: var(--space-2);
+}
+
+.module {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-top: var(--tick-size);
 }
 
 .body {
@@ -93,35 +122,48 @@ $effect(() => () => paneMeta.clear(node.id))
   min-width: 0;
 }
 
-.right {
+.chrome-shell > .body {
+  padding: var(--space-1);
+}
+
+/* Focus: the shell frame brightens; a module's rule does. */
+.chrome-shell.focused > .body {
+  --frame-color: var(--accent);
+}
+
+.chrome-module.focused > .module {
+  --panel-rule: var(--panel-border);
+}
+
+.sub {
   display: inline-flex;
   align-items: baseline;
+  justify-content: flex-end;
   gap: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  text-transform: none;
-  letter-spacing: 0;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  text-transform: none;
 }
 
-.right em {
+.sub em {
   font-style: normal;
+  font-weight: 600;
 }
 
-.right em.danger {
+.sub em.danger {
   color: var(--danger);
 }
-.right em.warn {
+.sub em.warn {
   color: var(--warn);
 }
-.right em.ok {
+.sub em.ok {
   color: var(--ok);
 }
 
 .missing {
-  padding: var(--space-4);
+  padding: var(--space-3);
   color: var(--warn);
   font-family: var(--font-mono);
   font-size: var(--step--1);

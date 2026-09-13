@@ -18,6 +18,14 @@ export const CH = {
     reset: 'layout:reset',
     revealFile: 'layout:reveal-file',
   },
+  metrics: {
+    /** renderer -> main, fire and forget: start receiving a source. */
+    subscribe: 'metrics:subscribe',
+    unsubscribe: 'metrics:unsubscribe',
+    /** main -> renderer: a MetricSample. */
+    sample: 'metrics:sample',
+    stats: 'metrics:stats',
+  },
   pty: {
     create: 'pty:create',
     /** Renderer asks for the MessagePort of a session; main replies on `port`. */

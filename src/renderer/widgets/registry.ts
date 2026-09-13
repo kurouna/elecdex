@@ -17,6 +17,18 @@ export interface WidgetDefinition {
   component: Component<WidgetProps>
   /** Metric source ids this widget reads. Phase 3 subscribes to these. */
   metrics?: readonly string[]
+  /**
+   * How the pane is dressed. 'module' is eDEX-UI's unboxed monitoring panel - a
+   * top rule with end ticks and a title row. 'shell' is the notched frame the
+   * original reserved for its main terminal, with a small label above it.
+   * Defaults to 'module'.
+   */
+  chrome?: 'module' | 'shell'
+  /**
+   * Omit the module title row. eDEX-UI's clock and system strip had none - the
+   * rule and the readout alone - while CPU, memory and the rest were titled.
+   */
+  headless?: boolean
   /** Minimum useful size in CSS pixels; the splitter will not go below it. */
   minSize?: { w: number; h: number }
   /** True when several instances in one layout make sense. */

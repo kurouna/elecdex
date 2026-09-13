@@ -40,11 +40,15 @@ test('the default layout recreates the original arrangement', async () => {
       'sysinfo',
       'cpu',
       'memory',
+      'toplist',
       'terminal',
       'netstat',
-      'throughput',
       'globe',
+      'throughput',
     ])
+    // The column headers of the original: PANEL / SYSTEM and PANEL / NETWORK.
+    await expect(page.getByTestId('split-label')).toHaveCount(2)
+    await expect(page.getByTestId('split-label').first()).toContainText(/panel/i)
     await expect(terminalPane(page).getByTestId('terminal-host')).toBeVisible()
   } finally {
     await close()
@@ -108,7 +112,8 @@ test('a divider resizes its neighbours from the keyboard and the size persists',
       const sizes = (JSON.parse(json) as { root: { sizes?: number[] } }).root.sizes
       return sizes !== undefined && (sizes[0] ?? 0) > 0.4
     })
-    expect(JSON.parse(saved).root.sizes[0]).toBeCloseTo(0.45, 2)
+    // Default 0.18, plus five Shift+ArrowRight steps of 0.05.
+    expect(JSON.parse(saved).root.sizes[0]).toBeCloseTo(0.43, 2)
   } finally {
     await close()
   }
@@ -181,7 +186,7 @@ test('a corrupt layout.json is quarantined, not lost, and the default is used', 
 
   const second = await launch(userData)
   try {
-    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(8)
+    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(9)
     const backup = `${layoutFile(userData)}.bak`
     expect(existsSync(backup)).toBe(true)
     expect(readFileSync(backup, 'utf8')).toContain('this is not json')
@@ -273,7 +278,7 @@ test('reset restores the default layout', async () => {
     await expect(terminalPane(page)).toHaveCount(2)
 
     await page.keyboard.press('Control+Shift+Backspace')
-    await expect(page.locator('[data-testid=pane]')).toHaveCount(8)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(9)
     await expect(terminalPane(page)).toHaveCount(1)
   } finally {
     await close()
@@ -294,6 +299,27 @@ test('a malformed save from the renderer is rejected and the good layout kept', 
     if (existsSync(layoutFile(userData))) {
       expect(readFileSync(layoutFile(userData), 'utf8')).not.toContain('"window"')
     }
+  } finally {
+    await close()
+  }
+})
+
+test('a hand edit made while the app is running survives a reload', async () => {
+  const { page, userData, close } = await launch()
+  try {
+    // Let startup settle, including the terminal recording its session id.
+    await page.waitForTimeout(3000)
+
+    writeFileSync(
+      layoutFile(userData),
+      JSON.stringify({ version: 1, root: { kind: 'pane', id: 'edited', widget: 'terminal' } }),
+      'utf8',
+    )
+    await page.reload()
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+
+    // Before the fix, the page's unload handler rewrote its old tree over the edit.
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(1)
   } finally {
     await close()
   }

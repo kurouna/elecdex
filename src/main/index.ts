@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog } from 'electron'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerPtyIpc } from './ipc/pty.js'
 import { registerSystemIpc } from './ipc/system.js'
+import { registerMetricsIpc } from './metrics/broker.js'
 import { createMainWindow } from './window.js'
 
 // Must run before anything reads `app.getName()` or `app.getPath('userData')`.
@@ -39,11 +40,13 @@ app.on('second-instance', () => {
 
 let ptyIpc: { dispose: () => void } | null = null
 let layoutIpc: { dispose: () => void } | null = null
+let metricsIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
   ptyIpc = registerPtyIpc()
   layoutIpc = registerLayoutIpc()
+  metricsIpc = registerMetricsIpc()
   createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
@@ -60,8 +63,16 @@ app.on('before-quit', () => {
   // Kill every shell before the app tears down, so no orphaned pty survives.
   ptyIpc?.dispose()
   ptyIpc = null
+})
+
+// Layout and metrics handlers must outlive the windows: a closing renderer
+// flushes its pending layout save from beforeunload, and removing the handler
+// in before-quit made that final save fail with "no handler registered".
+app.on('will-quit', () => {
   layoutIpc?.dispose()
   layoutIpc = null
+  metricsIpc?.dispose()
+  metricsIpc = null
 })
 
 app.on('window-all-closed', () => {

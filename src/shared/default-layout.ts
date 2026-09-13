@@ -4,12 +4,10 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
 /**
  * The out-of-the-box layout.
  *
- * Recreates the original project's arrangement - system column, terminal,
- * network column - but as ordinary tree nodes rather than five hardcoded
- * regions, so the user can rearrange or discard any of it.
- *
- * The monitoring widgets are placeholders until phase 3 provides the metrics
- * they read; the layout engine does not care either way.
+ * Recreates eDEX-UI's arrangement - a system column, the main shell, a network
+ * column - with the same module order and column headers, but as ordinary tree
+ * nodes rather than hardcoded regions, so the user can rearrange or discard any
+ * of it.
  */
 export function defaultLayoutNode(): LayoutNode {
   return split(
@@ -17,13 +15,17 @@ export function defaultLayoutNode(): LayoutNode {
     [
       split(
         'column',
-        [pane('clock'), pane('sysinfo'), pane('cpu'), pane('memory')],
-        [0.16, 0.2, 0.32, 0.32],
+        [pane('clock'), pane('sysinfo'), pane('cpu'), pane('memory'), pane('toplist')],
+        [0.12, 0.13, 0.28, 0.22, 0.25],
+        { left: 'panel', right: 'system' },
       ),
       pane('terminal'),
-      split('column', [pane('netstat'), pane('throughput'), pane('globe')], [0.24, 0.3, 0.46]),
+      split('column', [pane('netstat'), pane('globe'), pane('throughput')], [0.17, 0.48, 0.35], {
+        left: 'panel',
+        right: 'network',
+      }),
     ],
-    [0.2, 0.6, 0.2],
+    [0.18, 0.64, 0.18],
   )
 }
 

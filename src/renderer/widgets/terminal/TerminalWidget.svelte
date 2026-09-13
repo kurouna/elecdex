@@ -199,7 +199,7 @@ function safeFit(): void {
 .host {
   width: 100%;
   height: 100%;
-  padding: var(--space-2);
+  padding: var(--space-1) var(--space-2);
 }
 
 .error {

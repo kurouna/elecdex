@@ -7,6 +7,10 @@
  *
  * A component that reaches for a primitive is a bug: it means the theme cannot
  * restyle it. See docs/architecture.md section 7.
+ *
+ * The values reproduce eDEX-UI's "tron" look: a teal accent on a near-black
+ * ground crossed by a faint grey grid, panels with no fill of their own, rules
+ * at 30% of the accent and the shell frame at 50%.
  */
 
 :root {
@@ -35,20 +39,24 @@
   --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
 
   --text: var(--accent);
-  --text-muted: hsl(var(--accent-h) var(--accent-s) 55%);
-  --text-inverse: var(--surface-0);
+  /* eDEX dims labels by opacity (0.5) rather than by a different colour. */
+  --text-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --text-inverse: var(--surface-1);
 
-  --app-bg: var(--surface-0);
-  --panel-bg: var(--surface-1);
+  --app-bg: var(--surface-1);
+  /* Panels have no fill: the grid shows through, as in the original. */
+  --panel-bg: transparent;
   --panel-bg-raised: var(--surface-2);
-  --panel-border: var(--accent-dim);
-  --panel-rule: var(--line);
+  --panel-border: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --panel-rule: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.3);
 
   --danger: hsl(var(--hue-danger) 80% 60%);
   --warn: hsl(var(--hue-warn) 85% 58%);
   --ok: hsl(var(--hue-ok) 60% 52%);
 
   /* ---------- semantic: type scale ---------- */
+  /* rem-based, and the root size tracks the viewport height (see reset.css),
+     so the whole HUD scales with the screen the way eDEX's vh units did. */
   --step--2: 0.625rem;
   --step--1: 0.75rem;
   --step-0: 0.875rem;
@@ -61,12 +69,12 @@
   --tracking-wider: 0.28em;
 
   /* ---------- semantic: space ---------- */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 24px;
-  --space-6: 32px;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
 
   /* ---------- semantic: motion ---------- */
   --dur-fast: 120ms;
@@ -75,9 +83,17 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in-out: cubic-bezier(0.6, 0, 0.4, 1);
 
-  /* ---------- semantic: frame geometry ---------- */
-  --frame-notch: 12px;
+  /* ---------- semantic: HUD geometry ---------- */
+  --frame-notch: 0.75rem;
   --frame-border: 1px;
+  --rule-width: 1px;
+  /* The little vertical marks at each end of a rule. */
+  --tick-size: 0.5rem;
+  /* Background grid: a dark cell with a hairline of --line around it. */
+  --grid-cell: 1.35rem;
+  --grid-line: 1px;
+  /* Tabs lean like the original's skewX(35deg). */
+  --tab-skew: -35deg;
 }
 
 /* Respect the OS setting; the in-app toggle sets `data-motion="reduced"`. */

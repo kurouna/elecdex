@@ -2,19 +2,16 @@
 import type { WidgetProps } from './registry.ts'
 
 /**
- * Stands in for the monitoring widgets until phase 3 provides the metrics they
- * read.
- *
- * It exists so the default layout is real and the layout engine can be
- * exercised end to end now, rather than waiting on the metrics broker. Each
- * instance names the widget it is holding a place for.
+ * Stands in for a widget whose implementation has not landed yet (the globe
+ * arrives with GeoIP in phase 6, the filesystem browser in phase 4), so the
+ * default layout keeps its shape in the meantime.
  */
 const { title }: WidgetProps = $props()
 </script>
 
 <div class="placeholder" data-testid="placeholder">
   <span class="name">{title}</span>
-  <span class="note">phase 3</span>
+  <span class="note">not yet available</span>
 </div>
 
 <style>

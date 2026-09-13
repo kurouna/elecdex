@@ -1,85 +1,230 @@
 /*
- * Notched panel frames - our replacement for the original project's
- * `augmented-ui` dependency, built from `clip-path` and a pseudo-element border.
+ * HUD chrome - the visual vocabulary of eDEX-UI, rebuilt without its
+ * `augmented-ui` dependency.
  *
- * Usage:  <div class="frame" data-notch="tl br"> ... </div>
- * Notch corners: tl tr bl br. Default is "tr bl".
+ * Read from the original's CSS (edex-ui/src/assets/css, v2.2.8):
+ *
+ *  - Monitoring modules are NOT boxed. Each one is a rule across the top at 30%
+ *    of the accent, with a short vertical tick at either end, a title on the
+ *    left and a dimmed subtitle on the right. The background grid shows
+ *    through, because the module has no fill.
+ *  - Only the main shell gets a frame: a 50% border with its top-right and
+ *    bottom-left corners cut off (augmented-ui "tr-clip bl-clip").
+ *  - Above each column and above the shell sits a tiny label pair -
+ *    "PANEL ... SYSTEM" - on a hairline rule whose ticks hang downward.
+ *
+ * All sizes are rem, so they follow the viewport-height root size.
  */
 
-.frame {
+/* ------------------------------------------------------------------------
+ * Tiny label pair: "PANEL ............ SYSTEM"
+ * ---------------------------------------------------------------------- */
+.hud-label {
   position: relative;
-  background: var(--panel-bg);
-  --notch-tl: 0px;
-  --notch-tr: var(--frame-notch);
-  --notch-bl: var(--frame-notch);
-  --notch-br: 0px;
-  clip-path: polygon(
-    var(--notch-tl) 0,
-    calc(100% - var(--notch-tr)) 0,
-    100% var(--notch-tr),
-    100% calc(100% - var(--notch-br)),
-    calc(100% - var(--notch-br)) 100%,
-    var(--notch-bl) 100%,
-    0 calc(100% - var(--notch-bl)),
-    0 var(--notch-tl)
-  );
-}
-
-.frame[data-notch~="tl"] {
-  --notch-tl: var(--frame-notch);
-}
-.frame[data-notch~="tr"] {
-  --notch-tr: var(--frame-notch);
-}
-.frame[data-notch~="bl"] {
-  --notch-bl: var(--frame-notch);
-}
-.frame[data-notch~="br"] {
-  --notch-br: var(--frame-notch);
-}
-.frame[data-notch="none"] {
-  --notch-tl: 0px;
-  --notch-tr: 0px;
-  --notch-bl: 0px;
-  --notch-br: 0px;
-}
-
-/* The visible edge. Drawn as an inset gradient so it follows the clip-path. */
-.frame::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: var(--panel-border);
-  clip-path: inherit;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  padding: var(--frame-border);
-}
-
-/* Section heading used across every panel. */
-.frame-title {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  font-family: var(--font-display);
-  font-size: var(--step--1);
-  font-weight: 600;
+  padding: 0 var(--space-2) 1px;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  font-weight: 500;
+  line-height: 1.5;
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--text);
-  border-bottom: 1px solid var(--panel-rule);
+  border-bottom: var(--rule-width) solid var(--panel-rule);
+  white-space: nowrap;
+  min-width: 0;
 }
 
-.frame-title > :last-child {
+.hud-label > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-label > :last-child {
+  text-align: right;
+}
+
+/* Ticks hang down from both ends of the rule. */
+.hud-label::before,
+.hud-label::after {
+  content: "";
+  position: absolute;
+  bottom: calc(-1 * var(--tick-size) * 0.6);
+  height: calc(var(--tick-size) * 0.6);
+  border-left: var(--rule-width) solid var(--panel-rule);
+}
+
+.hud-label::before {
+  left: 0;
+}
+
+.hud-label::after {
+  right: 0;
+}
+
+/* ------------------------------------------------------------------------
+ * Module: a top rule with ticks, and no box.
+ * ---------------------------------------------------------------------- */
+.hud-module {
+  position: relative;
+  border-top: var(--rule-width) solid var(--panel-rule);
+  padding-top: var(--space-1);
+}
+
+/* Ticks cross the rule at both ends, standing mostly above it. */
+.hud-module::before,
+.hud-module::after {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--tick-size) * 0.65);
+  height: var(--tick-size);
+  border-left: var(--rule-width) solid var(--panel-rule);
+  pointer-events: none;
+}
+
+.hud-module::before {
+  left: calc(-1 * var(--rule-width));
+}
+
+.hud-module::after {
+  right: calc(-1 * var(--rule-width));
+}
+
+/* "CPU USAGE ........... Intel Core i5" */
+.module-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 0 var(--space-1);
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: var(--step-1);
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.module-title > :last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+  font-size: var(--step--1);
   color: var(--text-muted);
-  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------------------
+ * Shell frame: 50% border, top-right and bottom-left corners cut.
+ * ---------------------------------------------------------------------- */
+.shell-frame {
+  position: relative;
+  background: var(--panel-bg);
+  --notch: var(--frame-notch);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--notch)) 0,
+    100% var(--notch),
+    100% 100%,
+    var(--notch) 100%,
+    0 calc(100% - var(--notch))
+  );
+}
+
+/* The visible edge: a full-size layer masked down to a border, so it follows
+   the clip-path exactly - diagonal cuts included. */
+.shell-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--frame-color, var(--panel-border));
+  clip-path: inherit;
+  padding: var(--frame-border);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+/* The clipped corners are drawn as diagonal strokes; a masked rectangle alone
+   would leave them as gaps. */
+.shell-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to top right,
+      transparent calc(50% - var(--frame-border)),
+      var(--frame-color, var(--panel-border)) calc(50% - var(--frame-border)) 50%,
+      transparent 50%
+    )
+    top right / var(--notch) var(--notch) no-repeat,
+    linear-gradient(
+      to top right,
+      transparent 50%,
+      var(--frame-color, var(--panel-border)) 50% calc(50% + var(--frame-border)),
+      transparent calc(50% + var(--frame-border))
+    )
+    bottom left / var(--notch) var(--notch) no-repeat;
+}
+
+/* ------------------------------------------------------------------------
+ * Label / value cells, the building block of most modules:
+ *     UPTIME        TYPE
+ *     1:09:51       linux
+ * ---------------------------------------------------------------------- */
+.hud-cells {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) 0;
+}
+
+.hud-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.hud-cell > .label {
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.hud-cell > .value {
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-dashed {
+  border-top: var(--rule-width) dashed var(--panel-rule);
 }
