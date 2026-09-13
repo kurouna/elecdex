@@ -20,7 +20,7 @@
   "bugs": {
     "url": "https://github.com/kurouna/elecdex/issues"
   },
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "type": "module",
   "main": "out/main/index.js",
   "engines": {

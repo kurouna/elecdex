@@ -20,7 +20,7 @@
 - 外部プラグインの動的ロード（※レジストリ設計は将来のプラグイン化を見据える）
 
 ### ライセンス方針
-原版は GPL-3.0。**原版のソース・アセット（テーマ、SFX wav、grid.json、vendored encom-globe.js）を一切持ち込まない**ことでライセンス継承を回避する。
+elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソース・アセット（テーマ、SFX wav、grid.json、vendored encom-globe.js）は、ライセンス上は利用可能になったが、設計を刷新するため持ち込まない方針は維持する。
 
 - 地球儀のタイルデータ → [Natural Earth](https://www.naturalearthdata.com/)（public domain）から自前の生成スクリプトで作る
 - SFX → 新規制作または CC0 素材
@@ -545,7 +545,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 
 | 論点 | 決定 | 理由 |
 |---|---|---|
-| ライセンス | MIT | 原版コード・アセットを一切継承しないクリーンリライトのため GPL 継承は発生しない |
+| ライセンス | **GPL-3.0**（原版 eDEX-UI と同一の LICENSE 本文） | オーナー判断により原版と同じライセンスで公開する。README に eDEX-UI への謝辞を記載。同梱アセット（OFL フォント、CC0 の IP データ、Public Domain の地理データ）はいずれも GPL と両立する |
 | GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb`（CC0-1.0, 15.7MB）を同梱 + 国重心テーブル | ユーザー操作ゼロが要件。GeoLite2 はアカウント必須、DB-IP City は 134MB。RIR whois 由来の CC0 データなら帰属表示すら不要で、ルックアップも端末外に出ない |
 | フォント | Chakra Petch (display) / Saira Condensed (ui) / JetBrains Mono Variable (mono)、すべて OFL 1.1 | 原版の United Sans は商用。Saira Condensed が最も素性が近く9ウェイト。Chakra Petch が SF の角切り感を担う |
 | TypeScript | 7.0.2 (native) + 6.0.3 (JS API) を併置、`svelte-check --tsgo` | 7.0 単体では JS Compiler API が無く svelte-check が動かないが、6 と併置して `--tsgo` を渡せば Svelte も TS7 で検査できる。TS7 移行で `baseUrl` 廃止と `composite`+`noEmit` 非対応の対応が必要だった |

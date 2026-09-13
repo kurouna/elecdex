@@ -79,9 +79,7 @@ src/services/   utilityProcess entrypoints (metrics, geoip)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 ```
 
-## Licensing and assets
-
-elecdex is MIT licensed and shares **no code or assets** with eDEX-UI (which is GPL-3.0).
+## Third-party assets
 
 | Asset | Source | License |
 | --- | --- | --- |
@@ -93,3 +91,24 @@ elecdex is MIT licensed and shares **no code or assets** with eDEX-UI (which is 
 
 The geolocation database is bundled, so there is no account to create, no API key and no
 first-run download — and IP lookups never leave the machine.
+
+---
+
+## License / ライセンス
+
+This software is released under the [GNU General Public License v3.0](./LICENSE), the same license
+as eDEX-UI.  
+本ソフトウェアは、eDEX-UI と同じ [GNU General Public License v3.0](./LICENSE) のもとで公開されています。
+
+## Acknowledgements / 謝辞
+
+This application is deeply inspired by the design and philosophy of the following pioneering
+project. We express our utmost respect and gratitude to its creator and contributors:
+
+本アプリケーションは、以下の先駆的なプロジェクトの設計と哲学に深くインスパイアされています。
+この優れたソフトウェアを生み出した開発者およびコミュニティの皆様に、最大限の敬意と謝意を表します。
+
+- **[eDEX-UI](https://github.com/GitSquared/edex-ui)**
+  - Copyright (c) 2017-2021 Gabriel "Squared" Saillard
+  - Created by Gabriel "Squared" Saillard ([gaby.dev](https://gaby.dev))
+  - Licensed under the GNU General Public License v3.0
