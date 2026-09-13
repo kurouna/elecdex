@@ -88,3 +88,37 @@ test('every pane has a way to close it', async () => {
     await close()
   }
 })
+
+test('the layout can be reset from the status bar and from the picker, with confirmation', async () => {
+  const { page, close } = await launch()
+  try {
+    const panes = page.locator('[data-testid=pane]')
+    const initial = await panes.count()
+    await pane(page, 'clock').hover()
+    await pane(page, 'clock').getByTestId('pane-close').click()
+    await expect(panes).toHaveCount(initial - 1)
+
+    // Status bar: one click only arms it.
+    const reset = page.getByTestId('reset-layout')
+    await reset.click()
+    await expect(reset).toHaveText(/click again/i)
+    await expect(panes).toHaveCount(initial - 1)
+    await reset.click()
+    await expect(panes).toHaveCount(initial)
+    await expect(pane(page, 'clock')).toHaveCount(1)
+
+    // The picker offers the same.
+    await pane(page, 'memory').hover()
+    await pane(page, 'memory').getByTestId('pane-close').click()
+    await expect(pane(page, 'memory')).toHaveCount(0)
+    await page.getByTestId('add-pane').click()
+    const pickerReset = page.getByTestId('pane-picker-reset')
+    await pickerReset.click()
+    await expect(page.getByTestId('pane-picker')).toBeVisible()
+    await pickerReset.click()
+    await expect(page.getByTestId('pane-picker')).toHaveCount(0)
+    await expect(pane(page, 'memory')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})

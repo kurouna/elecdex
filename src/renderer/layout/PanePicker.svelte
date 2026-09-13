@@ -1,4 +1,5 @@
 <script lang="ts">
+import ConfirmButton from '../ConfirmButton.svelte'
 import { layout, type PanePlacement } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
@@ -169,6 +170,21 @@ function onKeydown(event: KeyboardEvent): void {
             <li class="empty">no widget matches “{filter}”</li>
           {/each}
         </ul>
+
+        <footer class="picker-footer">
+          <span>or start over from the default layout</span>
+          <ConfirmButton
+            label="reset layout"
+            action="reset"
+            title="Restore the default layout (Ctrl+Shift+Backspace)"
+            testid="pane-picker-reset"
+            onconfirm={() => {
+              returnFocus = null
+              ui.closePanePicker()
+              void layout.reset()
+            }}
+          />
+        </footer>
       </div>
     </div>
   </div>
@@ -292,6 +308,20 @@ function onKeydown(event: KeyboardEvent): void {
   font-size: var(--step--2);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
+}
+
+.picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--panel-rule);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
 }
 
 .empty {

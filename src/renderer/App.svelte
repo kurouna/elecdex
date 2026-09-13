@@ -1,36 +1,16 @@
 <script lang="ts">
 import type { AppInfo } from '@shared/api'
 import BootScreen from './BootScreen.svelte'
+import ConfirmButton from './ConfirmButton.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
+import { layout } from './stores/layout.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 
 let info = $state<AppInfo | null>(null)
-
-/**
- * The exit button asks for a second click, so a stray click cannot end every
- * running shell. The confirmation lapses after a few seconds.
- */
-const EXIT_CONFIRM_MS = 3000
-let exitArmed = $state(false)
-let exitTimer: ReturnType<typeof setTimeout> | null = null
-
-function onExit(): void {
-  if (exitArmed) {
-    window.elecdex.system.quit()
-    return
-  }
-  exitArmed = true
-  sfx.play('alarm')
-  if (exitTimer !== null) clearTimeout(exitTimer)
-  exitTimer = setTimeout(() => {
-    exitArmed = false
-    exitTimer = null
-  }, EXIT_CONFIRM_MS)
-}
 
 $effect(() => {
   // The theme is applied before the boot sequence starts, so the intro plays in
@@ -76,6 +56,13 @@ function toggleSound(): void {
     >
       + pane
     </button>
+    <ConfirmButton
+      label="reset layout"
+      action="reset"
+      title="Restore the default layout (Ctrl+Shift+Backspace)"
+      testid="reset-layout"
+      onconfirm={() => void layout.reset()}
+    />
     <label class="control">
       <span>theme</span>
       <select
@@ -97,16 +84,13 @@ function toggleSound(): void {
     >
       sound {appearance.settings.sound.enabled ? 'on' : 'off'}
     </button>
-    <button
-      type="button"
-      class="exit"
-      class:armed={exitArmed}
-      onclick={onExit}
-      data-testid="exit"
+    <ConfirmButton
+      label="exit"
+      action="exit"
       title="Quit elecdex (Ctrl+Shift+Q)"
-    >
-      {exitArmed ? 'click again to exit' : 'exit'}
-    </button>
+      testid="exit"
+      onconfirm={() => window.elecdex.system.quit()}
+    />
   </footer>
 </main>
 
@@ -172,30 +156,6 @@ footer {
   color: var(--accent);
 }
 
-.exit {
-  flex: 0 0 auto;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--panel-border);
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: uppercase;
-  cursor: pointer;
-}
-
-.exit:hover,
-.exit:focus-visible {
-  color: var(--accent);
-  border-color: var(--accent);
-  outline: none;
-}
-
-.exit.armed {
-  color: var(--text-inverse);
-  background: var(--danger);
-  border-color: var(--danger);
-}
 
 .hint {
   flex: 1;
