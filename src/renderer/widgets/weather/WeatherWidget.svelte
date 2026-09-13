@@ -392,16 +392,23 @@ select {
   opacity: 0.45;
 }
 
+/*
+ * The week takes whatever height the pane has left, and its icons grow into it.
+ * How much is left depends on the source (JMA and MET Norway add a row of
+ * six-hour blocks, the NWS does not), so a fixed size left an empty strip at the
+ * bottom for some countries. Resizing the pane itself would push its neighbours
+ * around and fight a size the user set, so the content fills the pane instead.
+ */
 .week {
-  --sky-size: 1.7rem;
+  container-type: size;
   flex: 1;
-  min-height: 0;
+  min-height: 5.2rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr));
   /* One row: days that do not fit the width are dropped, not wrapped half into view. */
-  grid-template-rows: auto;
+  grid-template-rows: 100%;
   grid-auto-rows: 0;
-  align-content: start;
+  align-content: stretch;
   gap: 0 var(--space-1);
   margin: 0;
   padding: 0;
@@ -410,11 +417,13 @@ select {
 }
 
 .week li {
+  --sky-size: clamp(1.7rem, 30cqh, 3rem);
   overflow: hidden;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: space-evenly;
   gap: 0.1rem;
   /* Spacing and rule drawn inside the box, so a dropped day collapses to nothing. */
   box-shadow: inset 0 1px var(--panel-rule);

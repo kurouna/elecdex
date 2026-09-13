@@ -84,6 +84,8 @@ export const DEFAULT_THEME_ID = 'tron'
  *  - tron: eDEX-UI's default look, a desaturated teal on near-black.
  *  - amber: a monochrome amber terminal, scanlines and a warm glow.
  *  - phosphor: green P1 phosphor, the classic monitor.
+ *  - white: a cool white monitor, scanlines and a soft glow. Not pure white on
+ *    black: text #D7E0EA on #0A0B0D, the colours of the elec series (elecxzy).
  */
 export const BUILTIN_THEMES: readonly Theme[] = [
   {
@@ -114,6 +116,17 @@ export const BUILTIN_THEMES: readonly Theme[] = [
     status: { danger: 8, warn: 58, ok: 150 },
     terminal: { ansiPull: 0.85 },
     effects: { scanlines: true, glow: 0.4 },
+  },
+  {
+    id: 'white',
+    name: 'White',
+    author: 'elecdex',
+    // #D7E0EA as hue, saturation and lightness.
+    accent: { h: 212, s: 31, l: 88 },
+    surfaces: { s0: '#0a0b0d', s1: '#0a0b0d', s2: '#15181c', line: '#262a30' },
+    // A pale accent would wash ANSI colours out if pulled hard towards it.
+    terminal: { ansiPull: 0.3 },
+    effects: { scanlines: true, glow: 0.3 },
   },
 ]
 

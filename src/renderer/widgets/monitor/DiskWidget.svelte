@@ -19,6 +19,11 @@ const { paneId }: WidgetProps = $props()
 const volumes = $derived(metrics.get('disk.volumes')?.volumes ?? [])
 const io = $derived(metrics.get('disk.io'))
 
+/** A sample that says nothing: the platform cannot read disk activity. */
+const ioUnavailable = $derived(
+  io !== null && io.readSec === null && io.writeSec === null && io.busy === null,
+)
+
 const fraction = (v: DiskVolume): number => (v.total > 0 ? Math.min(1, v.used / v.total) : 0)
 
 $effect(() => {
@@ -31,7 +36,9 @@ $effect(() => {
 </script>
 
 <div class="disk" data-testid="disk">
-  <div class="hud-cells io">
+  <!-- Hidden where the platform has no activity reading (macOS), rather than a row of dashes. -->
+  {#if !ioUnavailable}
+  <div class="hud-cells io" data-testid="disk-io">
     <div class="hud-cell">
       <span class="label">read</span>
       <span class="value" data-testid="disk-read">{io?.readSec != null ? formatRate(io.readSec) : '--'}</span>
@@ -45,6 +52,7 @@ $effect(() => {
       <span class="value">{io?.busy != null ? formatPercent(io.busy) : '--'}</span>
     </div>
   </div>
+  {/if}
 
   <ul class="volumes">
     {#each volumes as v (v.mount)}
@@ -107,9 +115,11 @@ $effect(() => {
     'amount amount free';
   align-items: baseline;
   column-gap: var(--space-2);
-  padding: 0.15rem 0;
+  /* Tight enough that one volume fits the default pane without a scrollbar. */
+  padding: 0.05rem 0;
   font-family: var(--font-ui);
   font-size: var(--step--1);
+  line-height: 1.2;
 }
 
 .volumes li + li {
@@ -160,7 +170,7 @@ $effect(() => {
   grid-area: bar;
   position: relative;
   height: 0.45rem;
-  margin: 0.1rem 0;
+  margin: 0.05rem 0;
   border-right: 1px solid var(--panel-border);
 }
 

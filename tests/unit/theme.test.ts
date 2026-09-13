@@ -19,8 +19,8 @@ const custom: Theme = {
 }
 
 describe('built-in themes', () => {
-  it('ships three valid themes, the default among them', () => {
-    expect(BUILTIN_THEMES.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor'])
+  it('ships four valid themes, the default among them', () => {
+    expect(BUILTIN_THEMES.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor', 'white'])
     for (const theme of BUILTIN_THEMES) expect(ThemeSchema.safeParse(theme).success).toBe(true)
     expect(BUILTIN_THEMES.some((t) => t.id === DEFAULT_THEME_ID)).toBe(true)
   })
@@ -48,6 +48,7 @@ describe('mergeThemes', () => {
       'tron',
       'amber',
       'phosphor',
+      'white',
       'ice',
     ])
   })
@@ -55,7 +56,7 @@ describe('mergeThemes', () => {
   it('lets a user theme replace a built-in of the same id, in place', () => {
     const mine = { ...custom, id: 'amber', name: 'My Amber' }
     const merged = mergeThemes(BUILTIN_THEMES, [mine])
-    expect(merged.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor'])
+    expect(merged.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor', 'white'])
     expect(merged[1]?.name).toBe('My Amber')
   })
 })

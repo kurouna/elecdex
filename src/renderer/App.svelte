@@ -115,6 +115,8 @@ function toggleSound(): void {
 <main data-boot={boot.concealed ? 'concealed' : boot.phase} data-testid="app">
   <Workspace />
 
+  <!-- A short tick at the bottom edge while the status bar is away, so it can be found. -->
+  <span class="status-handle" class:away={!statusShown} aria-hidden="true"></span>
   <footer
     bind:this={statusBar}
     class:shown={statusShown}
@@ -266,6 +268,24 @@ footer {
   color: var(--accent);
 }
 
+
+.status-handle {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  z-index: 19;
+  width: 3rem;
+  height: 2px;
+  background: var(--panel-border);
+  opacity: 0;
+  transform: translateX(-50%);
+  transition: opacity var(--dur-base) var(--ease-out);
+  pointer-events: none;
+}
+
+.status-handle.away {
+  opacity: 0.6;
+}
 
 footer.shown {
   transform: none;

@@ -55,7 +55,12 @@ test('every monitoring widget shows live data', async () => {
     const fraction = Number(await volume.getAttribute('data-fraction'))
     expect(fraction).toBeGreaterThan(0)
     expect(fraction).toBeLessThanOrEqual(1)
-    await expect(page.getByTestId('disk-read')).toHaveText(/\/s$/, { timeout: 30_000 })
+    if (process.platform === 'darwin') {
+      // No activity reading on macOS: the row is left out, not shown as dashes.
+      await expect(page.getByTestId('disk-io')).toHaveCount(0, { timeout: 30_000 })
+    } else {
+      await expect(page.getByTestId('disk-read')).toHaveText(/\/s$/, { timeout: 30_000 })
+    }
   } finally {
     await close()
   }

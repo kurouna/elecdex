@@ -15,7 +15,7 @@ A science-fiction desktop terminal emulator and system monitor — a ground-up r
 > process, network and system widgets around a multi-tab terminal, a file browser that follows
 > the terminal's directory (Windows included) and a weather forecast for anywhere, in a persisted layout
 > tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT. Three themes
-> (Tron, Amber, Phosphor) switch live, interface sounds are synthesised, and a globe shows
+> (Tron, Amber, Phosphor, White) switch live, interface sounds are synthesised, and a globe shows
 > where the machine's connections go, placed with a bundled GeoIP database, beside an
 > application launcher and a market board.
 > The default layout idles at about 13% of one core.
