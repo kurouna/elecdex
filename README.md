@@ -16,7 +16,8 @@ A science-fiction desktop terminal emulator and system monitor — a ground-up r
 > the terminal's directory (Windows included) and a JMA weather forecast, in a persisted layout
 > tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT. Three themes
 > (Tron, Amber, Phosphor) switch live, interface sounds are synthesised, and a globe shows
-> where the machine's connections go, placed with a bundled GeoIP database.
+> where the machine's connections go, placed with a bundled GeoIP database. Beyond the default
+> layout, the add-pane picker offers an application launcher and a market board.
 > The default layout idles at about 13% of one core.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
 
@@ -112,6 +113,33 @@ straight away; one with a built-in's `id` replaces that theme.
 Colours are `#rrggbb`; `status` (hues for danger / warn / ok) and `fonts` are optional.
 The glow effect costs a couple of percent of a core at idle.
 
+## Extra panes
+
+Add these from the picker (Ctrl+Shift+A):
+
+- **Launcher** — the Start Menu on Windows (`/Applications` on macOS, `.desktop` files on
+  Linux), with your own entries pinned first. Type to filter, Enter to launch. Add entries
+  under `launcher.items` in `settings.json` (the pane's EDIT LIST button opens it):
+
+  ```json
+  "launcher": {
+    "showSystem": true,
+    "items": [
+      { "name": "Project notes", "target": "C:\\Users\\me\\notes.md" },
+      { "name": "Docs", "target": "https://github.com/kurouna/elecdex" },
+      { "name": "Node REPL", "target": "C:\\Program Files\\nodejs\\node.exe", "args": ["-i"] }
+    ]
+  }
+  ```
+
+- **Markets** — indices, currencies and anything else Yahoo Finance quotes, refreshed about
+  once a minute, as sparklines against the previous close or as diverging bars of the day's
+  change (toggle in the pane). SYMBOLS edits the list, each symbol optionally followed by a
+  label: `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`. Yahoo publishes no live TOPIX index,
+  so the default board shows the CME yen TOPIX future (`TPY=F`).
+
+- **CPU usage** has the same toggle, switching to a bar per logical core.
+
 ## Layout
 
 ```
@@ -134,6 +162,7 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 | Globe land and country shapes | [Natural Earth](https://www.naturalearthdata.com/) via [world-atlas](https://github.com/topojson/world-atlas) | Public domain / ISC (build time only) |
 | Country codes and time zones | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries), [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT (build time only) |
 | README banner font | [Source Sans 3](https://fonts.google.com/specimen/Source+Sans+3) | SIL OFL 1.1 (outlined into the SVG at build time) |
+| Market data client | [yahoo-finance2](https://github.com/gadicc/yahoo-finance2) | MIT (bundled into the main process) |
 
 The geolocation database is bundled, so there is no account to create, no API key and no
 first-run download — and IP lookups never leave the machine. The globe pane credits the NRO.
@@ -144,6 +173,7 @@ asked for the machine's public address either.
 
 | Data | Source | Notes |
 | --- | --- | --- |
+| Market quotes | [Yahoo Finance](https://finance.yahoo.com/), through yahoo-finance2 | Unofficial API, not endorsed by Yahoo; quotes may be delayed and are not investment advice (the pane says so). Fetched only while a markets pane is open: one batched quote request a minute (every five minutes when every listed market is closed) and each intraday chart every five minutes. |
 | Weather forecast | 出典：気象庁ホームページ（[https://www.jma.go.jp/bosai/forecast/](https://www.jma.go.jp/bosai/forecast/)）を加工して作成 | Fetched only while a weather pane is open, and only around JMA's publication times (0, 5, 11 and 17 o'clock JST), with conditional requests. The weather pane shows the same attribution. Used under JMA's [terms of use](https://www.jma.go.jp/jma/kishou/info/coment.html). |
 
 The forecast JSON is what JMA's own pages load, not a documented API; elecdex parses it
