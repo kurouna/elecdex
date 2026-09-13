@@ -51,7 +51,7 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
     <div class="hud-cell">
       <span class="label">power</span>
       {#if gauge}
-        <span class="value power" class:low={gauge.low} data-testid="power">
+        <span class="value power" data-testid="power">
           {gauge.percent}%
           <BatteryGauge percent={gauge.percent} low={gauge.low} charging={gauge.charging} />
         </span>
@@ -92,11 +92,6 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
   display: inline-flex;
   align-items: center;
   gap: 0.35em;
-  color: var(--ok);
-}
-
-.power.low {
-  color: var(--danger);
 }
 
 .hardware {

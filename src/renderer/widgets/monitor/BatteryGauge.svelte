@@ -1,7 +1,8 @@
 <script lang="ts">
 /**
- * A battery drawn to its charge: the body fills from the left, green from 20%
- * up and red below it, with a bolt over it while charging.
+ * A battery drawn to its charge: the outline in the text colour like everything
+ * around it, and only the charge inside coloured - green from 20% up, red below -
+ * with a bolt over it while charging.
  */
 interface Props {
   percent: number
@@ -53,12 +54,12 @@ svg {
 
 .body {
   fill: none;
-  stroke: var(--text-muted);
+  stroke: var(--text);
   stroke-width: 1;
 }
 
 .cap {
-  fill: var(--text-muted);
+  fill: var(--text);
 }
 
 .fill {

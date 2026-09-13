@@ -32,7 +32,7 @@ export function defaultLayoutNode(): LayoutNode {
           pane('netstat'),
           pane('throughput'),
         ],
-        [0.05, 0.08, 0.2, 0.15, 0.24, 0.08, 0.2],
+        [0.04, 0.08, 0.21, 0.15, 0.24, 0.08, 0.2],
         { left: 'panel', right: 'system' },
       ),
       split(
