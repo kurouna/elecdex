@@ -41,7 +41,7 @@ export function defaultLayoutNode(): LayoutNode {
           tabs([pane('terminal'), pane('terminal'), pane('terminal')]),
           split('row', [pane('launcher'), pane('filesystem')], [0.5, 0.5]),
         ],
-        [0.7, 0.3],
+        [0.74, 0.26],
       ),
       split(
         'column',
@@ -50,7 +50,7 @@ export function defaultLayoutNode(): LayoutNode {
         { left: 'panel', right: 'world' },
       ),
     ],
-    [0.2, 0.58, 0.22],
+    [0.18, 0.64, 0.18],
   )
 }
 

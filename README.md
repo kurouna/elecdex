@@ -81,6 +81,10 @@ window instead of fullscreen, and `--no-intro` skips the boot sequence. The boot
 plays only once per window (a reload skips it), any key or click cuts it short, and it is
 skipped when the OS asks for reduced motion.
 
+In a window, the title bar is drawn in the theme's colours, with the system's window controls
+recoloured to match. The status bar along the bottom stays hidden until the pointer reaches the
+bottom edge; its lower-case `elecdex` opens the GitHub repository.
+
 ## Keyboard
 
 | Shortcut | Action |
@@ -90,9 +94,9 @@ skipped when the OS asks for reduced motion.
 | Ctrl+Shift+T | new tab beside the focused pane |
 | Ctrl+Shift+W | close the focused pane (or its × button, shown on hover) |
 | Ctrl+Shift+[ / ] | move focus between panes |
-| Ctrl+Shift+Backspace | reset to the default layout (also RESET LAYOUT in the footer and in the add-pane picker, clicked twice) |
+| Ctrl+Shift+Backspace | reset to the default layout (also RESET LAYOUT in the status bar and in the add-pane picker, clicked twice) |
 | Ctrl+Shift+A | add a pane: pick any widget, placed right of, below or as a tab beside the focused pane (also the + PANE button) |
-| Ctrl+Shift+Q | quit (or the EXIT button in the footer, clicked twice) |
+| Ctrl+Shift+Q | quit (or the EXIT button in the status bar, clicked twice) |
 | F11 | toggle fullscreen |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
@@ -102,8 +106,8 @@ aside to `layout.json.bak` rather than discarded.
 
 ## Themes and settings
 
-Pick a theme from the footer; it applies at once, terminal included, with no reload. The
-footer also toggles interface sounds. Settings live in `settings.json` in the userData
+Pick a theme from the status bar; it applies at once, terminal included, with no reload. The
+status bar also toggles interface sounds. Settings live in `settings.json` in the userData
 directory and can be edited by hand while the app runs:
 
 ```json
@@ -168,8 +172,9 @@ Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shi
   so the default board shows the CME yen TOPIX future (`TPY=F`).
 
 - **Calendar** — the month with today marked, in English; ‹ › or the mouse wheel change month.
-  The JP HOLIDAYS switch (off by default, remembered per pane) marks Japanese national holidays,
-  substitute holidays included, computed locally, and names the next one below.
+  Saturdays are blue, Sundays and holidays red. The settings button in the corner lists holiday
+  calendars to tick - Japan for now, substitute holidays included, computed locally; none by
+  default and remembered per pane - and the next holiday is named below the month.
 
 - **CPU usage** has the same toggle, switching to a bar per logical core.
 

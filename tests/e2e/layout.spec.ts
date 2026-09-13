@@ -126,8 +126,8 @@ test('a divider resizes its neighbours from the keyboard and the size persists',
       const sizes = (JSON.parse(json) as { root: { sizes?: number[] } }).root.sizes
       return sizes !== undefined && (sizes[0] ?? 0) > 0.4
     })
-    // Default 0.2, plus five Shift+ArrowRight steps of 0.05.
-    expect(JSON.parse(saved).root.sizes[0]).toBeCloseTo(0.45, 2)
+    // Default 0.18, plus five Shift+ArrowRight steps of 0.05.
+    expect(JSON.parse(saved).root.sizes[0]).toBeCloseTo(0.43, 2)
   } finally {
     await close()
   }
