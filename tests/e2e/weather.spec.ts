@@ -1,21 +1,23 @@
 import { readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { launch } from './support.js'
 
 /**
- * The weather widget, against a local stand-in for JMA.
+ * The weather pane, against local stand-ins for JMA, MET Norway and the NWS.
  *
- * The server serves a real forecast captured from JMA and a trimmed area list,
- * and counts requests - the point being that the app asks rarely, conditionally,
- * and only while a weather pane exists. No test here reaches the real site.
+ * Each server serves a real response captured from the service and counts
+ * requests - the point being that the app asks rarely, conditionally, and only
+ * while a weather pane shows a place. No test here reaches a real weather service.
  */
 
-const forecast = readFileSync(
-  new URL('../unit/fixtures/jma-forecast-130000.json', import.meta.url),
-  'utf8',
-)
+const fixture = (name: string) =>
+  readFileSync(new URL(`../unit/fixtures/${name}`, import.meta.url), 'utf8')
+
+const jmaForecast = fixture('jma-forecast-130000.json')
+const metForecast = fixture('met-london.json')
 const areaList = JSON.stringify({
   centers: {},
   offices: {
@@ -25,24 +27,54 @@ const areaList = JSON.stringify({
 })
 
 let server: Server
-let baseUrl: string
-const requests: Array<{ url: string; ifNoneMatch: string | undefined }> = []
+let origin: string
+const requests: Array<{ url: string; headers: Record<string, string | string[] | undefined> }> = []
+
+type Reply = { status: number; body?: string; headers?: Record<string, string> }
+
+const ok = (body: string, headers: Record<string, string> = {}): Reply => ({
+  status: 200,
+  body,
+  headers,
+})
+
+function nwsPoint(): string {
+  // The NWS point names its forecast URLs, which must stay on the same server.
+  const point = JSON.parse(fixture('nws-point-nyc.json'))
+  point.properties.forecast = `${origin}/nws/gridpoints/OKX/33,42/forecast`
+  point.properties.forecastHourly = `${origin}/nws/gridpoints/OKX/33,42/forecast/hourly`
+  return JSON.stringify(point)
+}
+
+function route(url: string, ifNoneMatch: string | undefined): Reply {
+  if (url === '/bosai/common/const/area.json') return ok(areaList)
+  if (/^\/bosai\/forecast\/data\/forecast\/\d{6}\.json$/.test(url)) {
+    return ifNoneMatch === '"fixture"' ? { status: 304 } : ok(jmaForecast, { etag: '"fixture"' })
+  }
+  if (url.startsWith('/weatherapi/locationforecast/2.0/complete?')) {
+    return ok(metForecast, {
+      expires: new Date(Date.now() + 3_600_000).toUTCString(),
+      'last-modified': new Date().toUTCString(),
+    })
+  }
+  if (url.startsWith('/nws/points/')) return ok(nwsPoint())
+  if (url.endsWith('/forecast/hourly')) return ok(fixture('nws-hourly-nyc.json'))
+  if (url.endsWith('/forecast')) return ok(fixture('nws-forecast-nyc.json'))
+  return { status: 404 }
+}
 
 test.beforeAll(async () => {
   server = createServer((req, res) => {
-    requests.push({ url: req.url ?? '', ifNoneMatch: req.headers['if-none-match'] })
-    if (req.url === '/bosai/common/const/area.json') {
-      res.writeHead(200, { 'content-type': 'application/json' }).end(areaList)
-    } else if (/^\/bosai\/forecast\/data\/forecast\/\d{6}\.json$/.test(req.url ?? '')) {
-      if (req.headers['if-none-match'] === '"fixture"') res.writeHead(304).end()
-      else
-        res.writeHead(200, { 'content-type': 'application/json', etag: '"fixture"' }).end(forecast)
-    } else {
-      res.writeHead(404).end()
-    }
+    const url = req.url ?? ''
+    requests.push({ url, headers: req.headers })
+    const header = req.headers['if-none-match']
+    const reply = route(url, typeof header === 'string' ? header : undefined)
+    res
+      .writeHead(reply.status, { 'content-type': 'application/json', ...reply.headers })
+      .end(reply.body)
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/bosai`
+  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
 })
 
 test.afterAll(async () => {
@@ -53,115 +85,178 @@ test.beforeEach(() => {
   requests.length = 0
 })
 
-const WEATHER_ONLY = { version: 1, root: { kind: 'pane', id: 'w', widget: 'weather' } } as const
+const weatherOnly = (state?: Record<string, unknown>) => ({
+  version: 1,
+  root: { kind: 'pane', id: 'w', widget: 'weather', ...(state ? { state } : {}) },
+})
+const TOKYO = { location: { source: 'jma', office: '130000', name: '東京都' } }
 
-test('shows the forecast with JMA attribution, from a single request', async () => {
-  const { page, close } = await launch(undefined, { jmaBaseUrl: baseUrl })
+const services = () => ({
+  jmaBaseUrl: `${origin}/bosai`,
+  env: { ELECDEX_MET_BASE_URL: `${origin}/weatherapi`, ELECDEX_NWS_BASE_URL: `${origin}/nws` },
+})
+
+const watching = (page: Page) => page.evaluate(() => window.elecdex.weather.watching())
+const pane = (page: Page) => page.locator('[data-testid=pane][data-widget=weather]')
+
+test('the default is New York from the National Weather Service, in °F', async () => {
+  const { page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
   try {
-    const pane = page.locator('[data-testid=pane][data-widget=weather]')
-    await expect(pane.getByTestId('weather-telop')).toHaveText(
-      'くもり夕方から晴れ所により昼過ぎまで雨',
-      { timeout: 20_000 },
+    const p = pane(page)
+    await expect(p.getByTestId('weather-now')).toHaveText(/^\d+°$/, { timeout: 20_000 })
+    await expect(p.getByTestId('weather')).toHaveAttribute('data-source', 'nws')
+    await expect(p.getByTestId('pane-subtitle')).toContainText('New York City')
+    await expect(p.getByTestId('weather-telop')).toHaveText('Showers And Thunderstorms')
+    await expect(p.getByTestId('weather-attribution')).toHaveText(/National Weather Service/)
+    // 79°F in the fixture.
+    await expect(p.getByTestId('weather-today')).toContainText('79°')
+
+    const nws = requests.filter((r) => r.url.startsWith('/nws/'))
+    expect(nws.map((r) => r.url.replace(/\?.*/, ''))).toEqual([
+      '/nws/points/40.7143,-74.006',
+      '/nws/gridpoints/OKX/33,42/forecast',
+      '/nws/gridpoints/OKX/33,42/forecast/hourly',
+    ])
+    expect(String(nws[0]?.headers['user-agent'])).toMatch(
+      /^elecdex\/.*github\.com\/kurouna\/elecdex/,
     )
-    await expect(pane.getByTestId('pane-subtitle')).toHaveText('東京地方 · 11:00 発表')
-    await expect(pane.getByTestId('weather-day')).toHaveCount(6)
-    await expect(pane.getByTestId('weather-attribution')).toHaveText(
+
+    // The unit switch converts, and is remembered.
+    await p.getByTestId('weather-settings-toggle').click()
+    await p.locator('[data-testid=weather-unit][data-unit=c]').click()
+    await expect(p.getByTestId('weather-today')).toContainText('26°')
+  } finally {
+    await close()
+  }
+})
+
+test('a place chosen in the picker is forecast by MET Norway, within its terms', async () => {
+  const { page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
+  try {
+    const p = pane(page)
+    await p.getByTestId('weather-settings-toggle').click()
+    await p.getByTestId('weather-location').click()
+    const picker = page.getByTestId('location-picker')
+    await expect(picker).toBeVisible()
+    await page.getByTestId('location-filter').fill('london')
+    await expect(picker.getByTestId('location-choice').first()).toContainText('London')
+    await expect(picker.getByTestId('location-choice').first()).toHaveAttribute(
+      'data-source',
+      'met',
+    )
+    await page.keyboard.press('Enter')
+    await expect(picker).toHaveCount(0)
+
+    await expect(p.getByTestId('weather')).toHaveAttribute('data-source', 'met')
+    await expect(p.getByTestId('weather-day').first()).toBeVisible({ timeout: 20_000 })
+    await expect(p.getByTestId('weather-attribution')).toHaveText(/MET Norway.*CC BY 4\.0/)
+    await expect.poll(() => watching(page)).toEqual(['met:51.5085,-0.1257:Europe/London'])
+
+    const met = requests.filter((r) => r.url.startsWith('/weatherapi/'))
+    expect(met).toHaveLength(1)
+    // Four decimals at most, as MET Norway requires.
+    expect(met[0]?.url).toMatch(/lat=51\.5085&lon=-0\.1257$/)
+    expect(String(met[0]?.headers['user-agent'])).toMatch(/github\.com\/kurouna\/elecdex/)
+    // And New York is no longer fetched.
+    expect(await watching(page)).not.toContain('nws:40.7143,-74.006:America/New_York')
+  } finally {
+    await close()
+  }
+})
+
+test('a Japanese city is forecast by JMA, and the area can be chosen', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    layout: weatherOnly(),
+    ...services(),
+  })
+  try {
+    const p = pane(page)
+    await p.getByTestId('weather-settings-toggle').click()
+    await p.getByTestId('weather-location').click()
+    await page.getByTestId('location-filter').fill('yokohama')
+    await expect(page.getByTestId('location-choice').first()).toHaveAttribute('data-source', 'jma')
+    await page.getByTestId('location-choice').first().click()
+
+    await expect.poll(() => watching(page), { timeout: 10_000 }).toEqual(['jma:140000'])
+    await expect(p.getByTestId('weather-telop')).toBeVisible({ timeout: 20_000 })
+    await expect(p.getByTestId('weather-attribution')).toHaveText(
       '出典：気象庁ホームページ（https://www.jma.go.jp/bosai/forecast/）を加工して作成',
     )
 
-    expect(await page.evaluate(() => window.elecdex.weather.watching())).toEqual(['130000'])
-    await page.waitForTimeout(2000)
-    expect(requests.filter((r) => r.url.includes('/forecast/'))).toHaveLength(1)
+    // The fixture is Tokyo's; its areas are offered all the same.
+    await p.getByTestId('weather-area').selectOption('130040')
+    await expect(p.getByTestId('pane-subtitle')).toContainText('小笠原諸島')
+    await expect
+      .poll(() => readFileSync(`${userData}/layout.json`, 'utf8'), { timeout: 10_000 })
+      .toMatch(/"area":\s*"130040"/)
   } finally {
     await close()
   }
 })
 
-test('stops fetching when the weather pane is removed', async () => {
-  const { page, close } = await launch(undefined, { jmaBaseUrl: baseUrl })
-  try {
-    await expect
-      .poll(() => page.evaluate(() => window.elecdex.weather.watching()), { timeout: 20_000 })
-      .toEqual(['130000'])
-
-    // Let the page's own debounced save (the terminal recording its session)
-    // land first, or it would overwrite the layout this test writes.
-    await page.waitForTimeout(2000)
-    await page.evaluate((tree) => window.elecdex.layout.save(tree), {
-      version: 1,
-      root: { kind: 'pane', id: 't', widget: 'terminal' },
-    } as const)
-    await page.reload()
-    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
-    await expect
-      .poll(() => page.evaluate(() => window.elecdex.weather.watching()), { timeout: 10_000 })
-      .toEqual([])
-  } finally {
-    await close()
-  }
-})
-
-test('a restart reuses the saved forecast instead of downloading it again', async () => {
-  const first = await launch(undefined, { jmaBaseUrl: baseUrl })
-  await first.page.evaluate((tree) => window.elecdex.layout.save(tree), WEATHER_ONLY)
-  await first.page.reload()
-  await expect(first.page.getByTestId('weather-telop')).toBeVisible({ timeout: 20_000 })
+test('JMA: one request, and a restart reuses the saved forecast', async () => {
+  const first = await launch(undefined, { layout: weatherOnly(TOKYO), ...services() })
+  await expect(pane(first.page).getByTestId('weather-telop')).toHaveText(
+    'くもり夕方から晴れ所により昼過ぎまで雨',
+    { timeout: 20_000 },
+  )
+  await expect(pane(first.page).getByTestId('pane-subtitle')).toHaveText('東京地方 · 11:00 発表')
+  await first.page.waitForTimeout(1500)
+  expect(requests.filter((r) => r.url.includes('/forecast/data/'))).toHaveLength(1)
   await first.app.close()
 
   requests.length = 0
-  const second = await launch(first.userData, { jmaBaseUrl: baseUrl })
+  const second = await launch(first.userData, services())
   try {
-    // Shown at once, from disk.
-    await expect(second.page.getByTestId('weather-telop')).toBeVisible({ timeout: 10_000 })
+    await expect(pane(second.page).getByTestId('weather-telop')).toBeVisible({ timeout: 10_000 })
     await second.page.waitForTimeout(1500)
     // Either no request, or a conditional one answered 304 - never a fresh download.
-    for (const r of requests.filter((r) => r.url.includes('/forecast/'))) {
-      expect(r.ifNoneMatch).toBe('"fixture"')
+    for (const r of requests.filter((r) => r.url.includes('/forecast/data/'))) {
+      expect(r.headers['if-none-match']).toBe('"fixture"')
     }
   } finally {
     await second.close()
   }
 })
 
-test('the office and area can be changed and are saved with the layout', async () => {
-  const { page, userData, close } = await launch(undefined, { jmaBaseUrl: baseUrl })
+test('an old pane that saved a JMA office still shows it', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: weatherOnly({ office: '270000' }),
+    ...services(),
+  })
   try {
-    await page.evaluate((tree) => window.elecdex.layout.save(tree), WEATHER_ONLY)
-    await page.reload()
-    const pane = page.locator('[data-testid=pane][data-widget=weather]')
-    await expect(pane.getByTestId('weather-telop')).toBeVisible({ timeout: 20_000 })
-
-    await pane.getByTestId('weather-settings-toggle').click()
-    await expect(pane.getByTestId('weather-office').locator('option')).toHaveCount(2, {
-      timeout: 10_000,
-    })
-    await pane.getByTestId('weather-area').selectOption('130040')
-    await expect(pane.getByTestId('pane-subtitle')).toContainText('小笠原諸島')
-
-    await pane.getByTestId('weather-office').selectOption('270000')
-    await expect
-      .poll(() => page.evaluate(() => window.elecdex.weather.watching()), { timeout: 10_000 })
-      .toEqual(['270000'])
-
-    await expect
-      .poll(() => readFileSync(`${userData}/layout.json`, 'utf8'), { timeout: 10_000 })
-      .toMatch(/"office":\s*"270000"/)
+    await expect.poll(() => watching(page), { timeout: 10_000 }).toEqual(['jma:270000'])
   } finally {
     await close()
   }
 })
 
-test('an unreachable server shows the error, not a blank pane', async () => {
-  const { page, close } = await launch()
+test('stops fetching when the weather pane is removed', async () => {
+  const { page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
   try {
-    await page.evaluate((tree) => window.elecdex.layout.save(tree), WEATHER_ONLY)
+    await expect.poll(() => watching(page), { timeout: 20_000 }).toHaveLength(1)
+    await page.waitForTimeout(1500)
+    await page.evaluate((tree) => window.elecdex.layout.save(tree), {
+      version: 1,
+      root: { kind: 'pane', id: 't', widget: 'terminal' },
+    } as const)
     await page.reload()
-    const pane = page.locator('[data-testid=pane][data-widget=weather]')
-    await expect(pane.getByTestId('weather-status')).toContainText('forecast unavailable', {
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+    await expect.poll(() => watching(page), { timeout: 10_000 }).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test('an unreachable service shows the error, not a blank pane', async () => {
+  const { page, close } = await launch(undefined, { layout: weatherOnly() })
+  try {
+    const p = pane(page)
+    await expect(p.getByTestId('weather-status')).toContainText('forecast unavailable', {
       timeout: 30_000,
     })
-    await expect(pane.getByTestId('pane-badge')).toHaveText('offline')
-    await expect(pane.getByTestId('weather-attribution')).toBeVisible()
+    await expect(p.getByTestId('pane-badge')).toHaveText('offline')
+    await expect(p.getByTestId('weather-attribution')).toBeVisible()
   } finally {
     await close()
   }

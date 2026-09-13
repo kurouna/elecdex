@@ -13,7 +13,7 @@ A science-fiction desktop terminal emulator and system monitor — a ground-up r
 
 > **Status: Phase 6 — world view.** The eDEX-UI HUD, rebuilt: live CPU, memory,
 > process, network and system widgets around a multi-tab terminal, a file browser that follows
-> the terminal's directory (Windows included) and a JMA weather forecast, in a persisted layout
+> the terminal's directory (Windows included) and a weather forecast for anywhere, in a persisted layout
 > tree, behind eDEX-UI's boot sequence with each pane switching on like a CRT. Three themes
 > (Tron, Amber, Phosphor) switch live, interface sounds are synthesised, and a globe shows
 > where the machine's connections go, placed with a bundled GeoIP database, beside an
@@ -158,7 +158,7 @@ Arranged by what the panes are for:
 
 Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shift+A).
 
-## Launcher, markets, calendar, CPU, memory and disk views
+## Launcher, markets, weather, calendar, CPU, memory and disk views
 
 - **Launcher** — the Start Menu on Windows (`/Applications` on macOS, `.desktop` files on
   Linux), your own entries first. Once you start things from it, the most used come first
@@ -189,6 +189,12 @@ Anything can be closed, moved or brought back with the add-pane picker (Ctrl+Shi
   Saturdays are blue, Sundays and holidays red. The settings button in the corner lists holiday
   calendars to tick - Japan for now, substitute holidays included, computed locally; none by
   default and remembered per pane - and the next holiday is named below the month.
+
+- **Weather** — any place: search the bundled list of large cities and capitals, pick a Japanese
+  forecast office, or type `lat, lon` (settings button → PLACE). Places in Japan are forecast by
+  JMA, places in the United States by the National Weather Service (or MET Norway, by choice),
+  everywhere else by MET Norway. The default is New York City. °C or °F per pane (°F by default for
+  a US place).
 
 - **CPU usage** has the same toggle, switching to a bar per logical core.
 
@@ -233,8 +239,10 @@ asked for the machine's public address either.
 | Data | Source | Notes |
 | --- | --- | --- |
 | Market quotes | [Yahoo Finance](https://finance.yahoo.com/), through yahoo-finance2 | Unofficial API, not endorsed by Yahoo; quotes may be delayed and are not investment advice (the pane says so). Fetched only while a markets pane is open: one batched quote request a minute (every five minutes when every listed market is closed) and each intraday chart every five minutes. |
-| Weather forecast | 出典：気象庁ホームページ（[https://www.jma.go.jp/bosai/forecast/](https://www.jma.go.jp/bosai/forecast/)）を加工して作成 | Fetched only while a weather pane is open, and only around JMA's publication times (0, 5, 11 and 17 o'clock JST), with conditional requests. The weather pane shows the same attribution. Used under JMA's [terms of use](https://www.jma.go.jp/jma/kishou/info/coment.html). |
-
+| Weather, Japan | 出典：気象庁ホームページ（[https://www.jma.go.jp/bosai/forecast/](https://www.jma.go.jp/bosai/forecast/)）を加工して作成 | Fetched only while a weather pane shows a place in Japan, and only around JMA's publication times (0, 5, 11 and 17 o'clock JST), with conditional requests. The weather pane shows the same attribution. Used under JMA's [terms of use](https://www.jma.go.jp/jma/kishou/info/coment.html). |
+| Weather, United States | [National Weather Service](https://www.weather.gov/) (api.weather.gov) | Open data. The point lookup is kept for a day; the forecast is asked for about hourly, only while a pane shows the place. |
+| Weather, everywhere else | [MET Norway](https://api.met.no/) Locationforecast 2.0 | [CC BY 4.0](https://api.met.no/doc/License); credited in the pane. Requests follow MET Norway's [terms of service](https://api.met.no/doc/TermsOfService): an identifying User-Agent, coordinates to four decimals, nothing before the `Expires` of the last response (and at least 30 minutes apart), If-Modified-Since. |
+| City list for the weather picker | [GeoNames](https://www.geonames.org/) cities15000 (cities of 500,000 people or more, and capitals) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); bundled, generated with `npm run gen:cities`. Nothing typed in the picker is sent anywhere. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while "check for updates daily" is on (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 The forecast JSON is what JMA's own pages load, not a documented API; elecdex parses it

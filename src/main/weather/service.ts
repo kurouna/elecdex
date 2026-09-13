@@ -2,10 +2,10 @@ import {
   isOfficeCode,
   type JmaForecast,
   JmaForecastSchema,
+  type JmaUpdate,
   lastCheckAt,
   nextCheckAt,
   type OfficeInfo,
-  type WeatherUpdate,
 } from '@shared/weather'
 import { z } from 'zod'
 
@@ -43,7 +43,7 @@ export interface WeatherDeps {
   loadCache(): CachedForecasts
   saveCache(cache: CachedForecasts): void
   /** Delivers an update to everyone watching the office. */
-  publish(update: WeatherUpdate): void
+  publish(update: JmaUpdate): void
 }
 
 const CachedEntry = z.object({
@@ -97,7 +97,7 @@ export class WeatherService {
   }
 
   /** The current state of an office, as sent to a newly watching page. */
-  snapshot(office: string): WeatherUpdate {
+  snapshot(office: string): JmaUpdate {
     const s = this.offices.get(office)
     return {
       office,

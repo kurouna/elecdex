@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import type { WeatherUpdate } from '@shared/weather'
+import type { JmaUpdate } from '@shared/weather'
 import { describe, expect, it } from 'vitest'
 import {
   type CachedForecasts,
@@ -20,7 +20,7 @@ function harness(opts: { now: number; cache?: CachedForecasts }) {
   const timers: Array<{ at: number; fn: () => void; id: number }> = []
   let nextId = 1
   const requests: Array<{ url: string; headers: Record<string, string>; at: number }> = []
-  const published: WeatherUpdate[] = []
+  const published: JmaUpdate[] = []
   let saved: CachedForecasts | null = null
   const responses: Array<
     Partial<FetchResponse> & { status: number; body?: unknown; etag?: string }

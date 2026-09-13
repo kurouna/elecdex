@@ -3,6 +3,7 @@ import type { AppInfo } from '@shared/api'
 import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/keybindings'
 import BootScreen from './BootScreen.svelte'
 import ConfirmButton from './ConfirmButton.svelte'
+import LocationPicker from './LocationPicker.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
 import SettingsDialog from './SettingsDialog.svelte'
@@ -190,6 +191,7 @@ function toggleSound(): void {
 
 <BootScreen />
 <PanePicker />
+<LocationPicker />
 <SettingsDialog />
 <UpdateNotice />
 

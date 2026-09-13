@@ -1,19 +1,18 @@
 <script lang="ts">
-import { glyphFor } from '@shared/jma-weather-codes'
+import type { SkyGlyph } from '@shared/weather-report'
 
 /**
- * A weather code as a HUD glyph: the main condition large, and a second one
+ * A sky as a HUD glyph, whichever source described it: the main condition large, and a second one
  * small in the corner with "/" for 時々・一時 or an arrow for 後・から.
  *
  * Drawn here rather than using JMA's icon images: the renderer loads nothing
  * from the network, and line art in the accent colour belongs on this screen.
  */
 interface Props {
-  code: string | null
+  glyph: SkyGlyph | null
 }
 
-const { code }: Props = $props()
-const glyph = $derived(code === null ? null : glyphFor(code))
+const { glyph }: Props = $props()
 </script>
 
 {#snippet sky(kind: string)}
@@ -36,7 +35,7 @@ const glyph = $derived(code === null ? null : glyphFor(code))
   {/if}
 {/snippet}
 
-<span class="sky" title={glyph?.label ?? ''} data-testid="sky-icon" data-code={code}>
+<span class="sky" title={glyph?.label ?? ''} data-testid="sky-icon" data-sky={glyph?.primary}>
   {#if glyph !== null}
     <svg class="primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
       {@render sky(glyph.primary)}

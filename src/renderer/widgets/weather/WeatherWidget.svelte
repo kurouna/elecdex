@@ -1,110 +1,150 @@
 <script lang="ts">
+import { sourceName } from '@shared/weather-places'
 import {
-  isOfficeCode,
-  JMA_FORECAST_URL,
-  type OfficeInfo,
-  summarizeForecast,
+  formatTemperature,
+  localDate,
+  locationKey,
+  readLocation,
+  type TemperatureUnit,
+  type WeatherDay,
+  type WeatherLocation,
   type WeatherUpdate,
-} from '@shared/weather'
+} from '@shared/weather-report'
+import { SOURCES } from '@shared/weather-sources'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { ui } from '../../stores/ui.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import SkyIcon from './SkyIcon.svelte'
 
 /**
- * The JMA forecast for one area: today in detail, then the week.
+ * The forecast for one place: today in detail, then the week.
  *
- * Main fetches the forecast only while this pane shows it, and only around JMA's
- * publication times (0, 5, 11 and 17 o'clock), so an open pane costs about a
- * dozen conditional requests a day. The office and area are pane state, chosen
- * from the settings toggle and saved with the layout.
+ * The pane does not know where forecasts come from. It subscribes with a
+ * location key and draws the WeatherReport main sends back - from JMA for Japan,
+ * the National Weather Service for the United States or MET Norway elsewhere -
+ * showing only what the source provides. Main fetches only while a pane shows a
+ * place, and no more often than each source's terms allow.
  *
- * Attribution follows JMA's terms of use: the source is named with a link, and
- * marked as processed because the forecast is reformatted and drawn here.
+ * The place, the source for a US place, the area of a JMA office and the
+ * temperature unit are pane state, chosen from the settings toggle. The credit
+ * line is the one the source's terms ask for.
  */
-const { paneId, props, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState }: WidgetProps = $props()
 
-const DEFAULT_OFFICE = '130000' // Tokyo
-
-const office = $derived.by(() => {
-  const chosen = paneState?.office ?? props?.office
-  return isOfficeCode(chosen) ? chosen : DEFAULT_OFFICE
-})
-const areaCode = $derived(typeof paneState?.area === 'string' ? paneState.area : undefined)
+const location = $derived(readLocation(paneState))
+const key = $derived(locationKey(location))
+/** °F by default for a place in the United States, °C elsewhere, until the user picks. */
+const unit = $derived<TemperatureUnit>(
+  paneState?.units === 'f' || paneState?.units === 'c'
+    ? paneState.units
+    : location.source !== 'jma' && location.country === 'US'
+      ? 'f'
+      : 'c',
+)
 
 let update = $state.raw<WeatherUpdate | null>(null)
 let settingsOpen = $state(false)
-let offices = $state.raw<OfficeInfo[] | null>(null)
-let officesError = $state<string | null>(null)
 
 $effect(() => {
-  const code = office
+  const k = key
   update = null
-  return window.elecdex.weather.subscribe(code, (next) => {
+  return window.elecdex.weather.subscribe(k, (next) => {
     update = next
   })
 })
 
-const summary = $derived(update?.forecast ? summarizeForecast(update.forecast, areaCode) : null)
-const today = $derived(summary?.days[0] ?? null)
-const week = $derived(summary?.days.slice(1, 7) ?? [])
+const report = $derived(update?.report ?? null)
+const today = $derived(report?.days[0] ?? null)
+const week = $derived(report?.days.slice(1, 7) ?? [])
+const source = $derived(report?.source ?? SOURCES[location.source])
 
 $effect(() => {
-  const issued = summary ? summary.reportDatetime.slice(11, 16) : null
+  const place = location.source === 'jma' ? (report?.place ?? location.name) : location.name
+  let when = ''
+  if (report?.issuedAt) {
+    const issued = new Date(report.issuedAt)
+    const time = new Intl.DateTimeFormat('en-GB', {
+      timeZone: report.timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(issued)
+    when = location.source === 'jma' ? ` · ${time} 発表` : ` · updated ${time}`
+  }
   paneMeta.set(paneId, {
-    subtitle: summary ? `${summary.area.name} · ${issued} 発表` : '',
+    subtitle: `${place}${when}`,
     ...(update?.error ? { badge: 'offline', badgeKind: 'warn' as const } : {}),
   })
 })
 
-$effect(() => {
-  if (!settingsOpen || offices !== null) return
-  window.elecdex.weather
-    .offices()
-    .then((list) => {
-      offices = list
-      officesError = null
-    })
-    .catch((cause: unknown) => {
-      officesError = cause instanceof Error ? cause.message : String(cause)
-    })
-})
-
-function choose(next: { office?: string; area?: string }): void {
-  const officeChanged = next.office !== undefined && next.office !== office
-  layout.setPaneState(paneId, {
-    ...paneState,
-    office: next.office ?? office,
-    // A new office has different areas; start from its first.
-    ...(officeChanged ? { area: undefined } : { area: next.area ?? areaCode }),
-  })
+function save(change: Record<string, unknown>): void {
+  layout.setPaneState(paneId, { ...paneState, office: undefined, area: undefined, ...change })
 }
 
-const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
+function chooseLocation(next: WeatherLocation): void {
+  save({ location: next })
+}
 
-function dayLabel(
-  date: string,
-  index: number,
-): { main: string; weekday: string; weekend: string | null } {
+function pickLocation(): void {
+  ui.pickLocation({ current: location, choose: chooseLocation })
+}
+
+/** A US place can be forecast by either service; the NWS is the default. */
+const usPlace = $derived(location.source !== 'jma' && location.country === 'US')
+
+function chooseSource(next: 'nws' | 'met'): void {
+  if (location.source === 'jma' || location.source === next) return
+  save({ location: { ...location, source: next } })
+}
+
+function chooseArea(area: string): void {
+  if (location.source !== 'jma') return
+  save({ location: { ...location, area } })
+}
+
+const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
+
+function dayLabel(date: string): { day: string; weekday: string; weekend: string | null } {
   const [y, m, d] = date.split('-').map(Number)
   const weekday = new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).getUTCDay()
-  const main = index === 0 ? '今日' : index === 1 ? '明日' : `${m}/${d}`
   return {
-    main,
+    day: `${m}/${d}`,
     weekday: WEEKDAYS[weekday] ?? '',
     weekend: weekday === 0 ? 'sun' : weekday === 6 ? 'sat' : null,
   }
 }
 
-const temp = (value: number | null) => (value === null ? '--' : `${value}°`)
-const pop = (value: number | null) => (value === null ? '--' : `${value}%`)
+const temp = (celsius: number | null): string => formatTemperature(celsius, unit)
+
+/** A chance when the source gives one, otherwise the amount. */
+function wet(value: { pop: number | null; precipMm: number | null } | null): string {
+  if (value === null) return '--'
+  if (value.pop !== null) return `${value.pop}%`
+  if (value.precipMm !== null) return `${value.precipMm}mm`
+  return '--'
+}
+
+/** The part of today still ahead, for the six-hour blocks: past blocks are dimmed. */
+const currentBlock = $derived.by(() => {
+  if (!report || !today || localDate(new Date(), report.timeZone) !== today.date) return -1
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: report.timeZone,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date()),
+  )
+  return Math.floor(hour / 6)
+})
+
+const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? ''
 </script>
 
-<div class="weather" data-testid="weather">
+<div class="weather" data-testid="weather" data-source={location.source}>
   <SettingsButton
     open={settingsOpen}
-    label="choose forecast area"
+    label="weather settings"
     testid="weather-settings-toggle"
     ontoggle={() => (settingsOpen = !settingsOpen)}
   />
@@ -112,60 +152,83 @@ const pop = (value: number | null) => (value === null ? '--' : `${value}%`)
   {#if settingsOpen}
     <div class="settings" data-testid="weather-settings">
       <label>
-        <span>office</span>
-        <select
-          value={office}
-          onchange={(e) => choose({ office: e.currentTarget.value })}
-          data-testid="weather-office"
-        >
-          {#if offices === null}
-            <option value={office}>{officesError ? `unavailable (${officesError})` : 'loading…'}</option>
-          {:else}
-            {#each offices as o (o.code)}
-              <option value={o.code}>{o.name}</option>
-            {/each}
-          {/if}
-        </select>
+        <span>place</span>
+        <button type="button" class="place" onclick={pickLocation} data-testid="weather-location">
+          {location.source === 'jma' ? (report?.place ?? location.name) : location.name} · change…
+        </button>
       </label>
-      {#if summary}
+      {#if usPlace}
+        <label>
+          <span>source</span>
+          <select
+            value={location.source}
+            onchange={(e) => chooseSource(e.currentTarget.value as 'nws' | 'met')}
+            data-testid="weather-source"
+          >
+            <option value="nws">National Weather Service</option>
+            <option value="met">MET Norway</option>
+          </select>
+        </label>
+      {/if}
+      {#if location.source === 'jma' && report?.areas}
         <label>
           <span>area</span>
           <select
-            value={summary.area.code}
-            onchange={(e) => choose({ area: e.currentTarget.value })}
+            value={report.areaCode}
+            onchange={(e) => chooseArea(e.currentTarget.value)}
             data-testid="weather-area"
           >
-            {#each summary.areas as a (a.code)}
+            {#each report.areas as a (a.code)}
               <option value={a.code}>{a.name}</option>
             {/each}
           </select>
         </label>
       {/if}
+      <div class="units" role="radiogroup" aria-label="Temperature unit">
+        {#each [['c', '°C'], ['f', '°F']] as const as [id, label] (id)}
+          <button
+            type="button"
+            role="radio"
+            aria-checked={unit === id}
+            class:active={unit === id}
+            onclick={() => save({ units: id })}
+            data-testid="weather-unit"
+            data-unit={id}
+          >
+            {label}
+          </button>
+        {/each}
+      </div>
     </div>
   {/if}
 
-  {#if summary === null}
+  {#if report === null}
     <p class="status" data-testid="weather-status">
-      {update?.error ? `forecast unavailable: ${update.error}` : 'fetching forecast…'}
+      {update?.error ? `forecast unavailable: ${update.error}` : `fetching forecast from ${sourceName(location.source)}…`}
     </p>
   {:else}
     {#if today}
       <section class="today" data-testid="weather-today">
-        <SkyIcon code={today.code} />
+        <SkyIcon glyph={report.now?.sky ?? today.sky} />
         <div class="today-text">
-          <p class="telop" data-testid="weather-telop">{today.text ?? ''}</p>
+          <p class="telop" data-testid="weather-telop">{summaryText(today)}</p>
           <p class="wind">{today.wind ?? ''}</p>
         </div>
         <div class="today-temps">
-          <span class="max" data-testid="weather-max">{temp(today.tempMax)}</span>
-          <span class="min">{temp(today.tempMin)}</span>
+          {#if report.now?.temp != null}
+            <span class="max" data-testid="weather-now">{temp(report.now.temp)}</span>
+            <span class="min">{temp(today.tempMax)} / {temp(today.tempMin)}</span>
+          {:else}
+            <span class="max" data-testid="weather-max">{temp(today.tempMax)}</span>
+            <span class="min">{temp(today.tempMin)}</span>
+          {/if}
         </div>
-        {#if today.popBlocks}
-          <ol class="pops" aria-label="chance of precipitation by six hours">
-            {#each today.popBlocks as block, i (i)}
-              <li class:past={block === null}>
+        {#if today.blocks}
+          <ol class="pops" aria-label="precipitation by six hours">
+            {#each today.blocks as block, i (i)}
+              <li class:past={i < currentBlock || block === null}>
                 <span class="label">{String(i * 6).padStart(2, '0')}</span>
-                <span class="value">{pop(block)}</span>
+                <span class="value">{wet(block)}</span>
               </li>
             {/each}
           </ol>
@@ -174,13 +237,13 @@ const pop = (value: number | null) => (value === null ? '--' : `${value}%`)
     {/if}
 
     <ol class="week" data-testid="weather-week">
-      {#each week as day, i (day.date)}
-        {@const label = dayLabel(day.date, i + 1)}
-        <li data-testid="weather-day">
-          <span class="date {label.weekend ?? ''}">{label.main}<small>({label.weekday})</small></span>
-          <SkyIcon code={day.code} />
+      {#each week as day (day.date)}
+        {@const label = dayLabel(day.date)}
+        <li data-testid="weather-day" title={summaryText(day)}>
+          <span class="date {label.weekend ?? ''}">{label.day}<small>{label.weekday}</small></span>
+          <SkyIcon glyph={day.sky} />
           <span class="temps"><em>{temp(day.tempMax)}</em> / {temp(day.tempMin)}</span>
-          <span class="pop">{pop(day.pop)}</span>
+          <span class="pop">{wet(day)}</span>
         </li>
       {/each}
     </ol>
@@ -189,11 +252,11 @@ const pop = (value: number | null) => (value === null ? '--' : `${value}%`)
   <button
     type="button"
     class="attribution"
-    title={JMA_FORECAST_URL}
-    onclick={() => void window.elecdex.system.openExternal(JMA_FORECAST_URL)}
+    title={source.url}
+    onclick={() => void window.elecdex.system.openExternal(source.url)}
     data-testid="weather-attribution"
   >
-    出典：気象庁ホームページ（{JMA_FORECAST_URL}）を加工して作成
+    {source.credit}
   </button>
 </div>
 
@@ -224,8 +287,36 @@ const pop = (value: number | null) => (value === null ? '--' : `${value}%`)
   gap: var(--space-2);
 }
 
-.settings span {
+.settings label > span {
   color: var(--text-muted);
+}
+
+.place,
+.units button {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.place:hover,
+.units button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.units {
+  display: flex;
+  gap: 2px;
+}
+
+.units button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse);
 }
 
 select {
@@ -353,16 +444,16 @@ select {
 }
 
 .date small {
-  margin-left: 0.1em;
+  margin-left: 0.3em;
   font-size: 0.85em;
 }
 
 .date.sun small {
-  color: var(--danger);
+  color: color-mix(in srgb, var(--danger) 72%, var(--app-bg));
 }
 
 .date.sat small {
-  color: hsl(210 70% 65%);
+  color: color-mix(in srgb, var(--info) 72%, var(--app-bg));
 }
 
 .temps em {

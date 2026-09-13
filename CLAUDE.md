@@ -20,6 +20,7 @@ npm run package:dir    # unpacked app in release/win-unpacked (or mac/linux equi
 npm run gen:icon       # build/icon.svg -> build/icon.png + resources/icons/icon.png
 npm run gen:card       # README banner: public/elecdex_repo_card.svg
 npm run gen:geo        # globe land points, country centroids, time zone table
+npm run gen:cities     # weather picker city list (GeoNames)
 ```
 
 Single tests: `npx vitest run tests/unit/<file>.test.ts`, `npx playwright test tests/e2e/<file>.spec.ts -g "<name>"`.
@@ -52,7 +53,8 @@ scripts/         asset generators (icon, repo card, geo data)
   `window.elecdex` (src/shared/api.ts, src/preload/index.ts). Main validates every input
   (zod or explicit checks). Never expose a generic channel, a path-taking "run" or raw
   `ipcRenderer`. The launcher launches by opaque id from main's own catalog, never by path.
-- **Network lives in main**, never the renderer: weather (JMA), markets (yahoo-finance2 is
+- **Network lives in main**, never the renderer: weather (JMA, MET Norway, NWS - see
+  docs/weather-providers.md; follow each service's terms), markets (yahoo-finance2 is
   Node-only — CORS and cookies block it in a browser). Fetch only while a pane needs the data,
   batch, back off on failure, and keep the last good data on screen.
 - **Subscriptions** (metrics, fs watches, weather offices, market symbols) are
@@ -60,7 +62,8 @@ scripts/         asset generators (icon, repo card, geo data)
   (`did-start-navigation`) and destroy. Polling must stop when the last subscriber leaves —
   there are e2e tests asserting exactly that.
 - **Tests never contact external services.** `tests/e2e/support.ts` points
-  `ELECDEX_JMA_BASE_URL`, `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default and starts
+  `ELECDEX_JMA_BASE_URL`, `ELECDEX_MET_BASE_URL`, `ELECDEX_NWS_BASE_URL`,
+  `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default and starts
   with sound off; specs that need data run a local stub server. Keep it that way.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process

@@ -1,69 +1,150 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { CH } from '@shared/channels'
-import { isOfficeCode, type WeatherUpdate } from '@shared/weather'
+import type { JmaUpdate } from '@shared/weather'
+import { parseLocationKey, type WeatherUpdate } from '@shared/weather-report'
+import { jmaReport } from '@shared/weather-sources'
 import { app, ipcMain, net, type WebContents } from 'electron'
+import type { z } from 'zod'
 import { APP_VERSION } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
-import { type CachedForecasts, CachedForecastsSchema, WeatherService } from '../weather/service.js'
+import { PointCacheSchema, PointForecasts } from '../weather/point-forecasts.js'
+import { CachedForecastsSchema, type FetchResponse, WeatherService } from '../weather/service.js'
 
 /**
- * Weather IPC: pages subscribe to offices; main fetches only what is watched.
+ * Weather IPC: pages subscribe to a location key; main fetches only what is
+ * watched, from the source the key names - JMA by forecast office, MET Norway or
+ * the NWS by point - and sends every page the same WeatherReport shape.
  *
- * `ELECDEX_JMA_BASE_URL` points the service somewhere other than JMA. The
- * end-to-end tests set it to a local server, so running the suite never sends a
- * request to the real site.
+ * `ELECDEX_JMA_BASE_URL`, `ELECDEX_MET_BASE_URL` and `ELECDEX_NWS_BASE_URL`
+ * point the services elsewhere. The end-to-end tests set them to closed ports or
+ * local servers, so running the suite never reaches a real weather service.
  */
 const JMA_BASE_URL = 'https://www.jma.go.jp/bosai'
+const MET_BASE_URL = 'https://api.met.no/weatherapi'
+const NWS_BASE_URL = 'https://api.weather.gov'
 
 /** A request that has not answered in this long is treated as failed. */
 const FETCH_TIMEOUT_MS = 15_000
 
+/** MET Norway and the NWS ask for an application name and a way to reach its author. */
+const USER_AGENT = `elecdex/${APP_VERSION} (+https://github.com/kurouna/elecdex)`
+
+const base = (env: string | undefined, fallback: string) => (env ?? fallback).replace(/\/$/, '')
+
+function jsonFile<T>(file: string, schema: z.ZodType<T>, empty: T) {
+  return {
+    load: (): T => {
+      try {
+        const parsed = schema.safeParse(JSON.parse(readFileSync(file, 'utf8')))
+        return parsed.success ? parsed.data : empty
+      } catch {
+        return empty
+      }
+    },
+    save: (value: T): void => {
+      mkdirSync(path.dirname(file), { recursive: true })
+      const temp = `${file}.tmp`
+      writeFileSync(temp, JSON.stringify(value))
+      renameSync(temp, file)
+    },
+  }
+}
+
 export function registerWeatherIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
   const tracked = new WeakSet<WebContents>()
-  const cacheFile = path.join(app.getPath('userData'), 'weather-cache.json')
+  const userData = app.getPath('userData')
 
-  const service = new WeatherService({
-    fetch: async (url, init) => {
-      const response = await net.fetch(url, {
-        headers: init.headers,
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      })
-      return response
-    },
+  const fetch = async (
+    url: string,
+    init: { headers: Record<string, string> },
+  ): Promise<FetchResponse> =>
+    net.fetch(url, { headers: init.headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
+  const timers = {
     now: () => Date.now(),
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
-    baseUrl: (process.env.ELECDEX_JMA_BASE_URL ?? JMA_BASE_URL).replace(/\/$/, ''),
-    userAgent: `elecdex/${APP_VERSION} (+https://github.com/kurouna/elecdex)`,
-    loadCache: () => {
-      try {
-        const parsed = CachedForecastsSchema.safeParse(JSON.parse(readFileSync(cacheFile, 'utf8')))
-        return parsed.success ? parsed.data : {}
-      } catch {
-        return {}
-      }
-    },
-    saveCache: (cache: CachedForecasts) => {
-      mkdirSync(path.dirname(cacheFile), { recursive: true })
-      const temp = `${cacheFile}.tmp`
-      writeFileSync(temp, JSON.stringify(cache))
-      renameSync(temp, cacheFile)
-    },
-    publish: (update: WeatherUpdate) => {
-      for (const sender of registry.subscribers(update.office)) send(sender, update)
-    },
-  })
+    setTimer: (fn: () => void, ms: number) => setTimeout(fn, ms),
+    clearTimer: (handle: unknown) => clearTimeout(handle as NodeJS.Timeout),
+  }
 
   const send = (sender: WebContents, update: WeatherUpdate): void => {
     if (!sender.isDestroyed()) sender.send(CH.weather.update, update)
   }
 
+  /** A JMA office's forecast, as the report for one subscribed key (its area). */
+  const jmaUpdate = (key: string, office: JmaUpdate): WeatherUpdate => {
+    const parsed = parseLocationKey(key)
+    const area = parsed?.source === 'jma' ? (parsed.area ?? undefined) : undefined
+    return {
+      key,
+      report: office.forecast ? jmaReport(office.forecast, area) : null,
+      fetchedAt: office.fetchedAt,
+      error: office.error,
+    }
+  }
+
+  const jmaCache = jsonFile(path.join(userData, 'weather-cache.json'), CachedForecastsSchema, {})
+  const jma = new WeatherService({
+    fetch,
+    ...timers,
+    baseUrl: base(process.env.ELECDEX_JMA_BASE_URL, JMA_BASE_URL),
+    userAgent: USER_AGENT,
+    loadCache: jmaCache.load,
+    saveCache: jmaCache.save,
+    publish: (update) => {
+      for (const key of registry.activeSources()) {
+        const parsed = parseLocationKey(key)
+        if (parsed?.source !== 'jma' || parsed.office !== update.office) continue
+        const report = jmaUpdate(key, update)
+        for (const sender of registry.subscribers(key)) send(sender, report)
+      }
+    },
+  })
+
+  const pointCache = jsonFile(
+    path.join(userData, 'weather-cache-points.json'),
+    PointCacheSchema,
+    {},
+  )
+  const points = new PointForecasts({
+    fetch,
+    ...timers,
+    metBaseUrl: base(process.env.ELECDEX_MET_BASE_URL, MET_BASE_URL),
+    nwsBaseUrl: base(process.env.ELECDEX_NWS_BASE_URL, NWS_BASE_URL),
+    userAgent: USER_AGENT,
+    loadCache: pointCache.load,
+    saveCache: pointCache.save,
+    publish: (update) => {
+      for (const sender of registry.subscribers(update.key)) send(sender, update)
+    },
+  })
+
+  const snapshot = (key: string): WeatherUpdate => {
+    const parsed = parseLocationKey(key)
+    return parsed?.source === 'jma'
+      ? jmaUpdate(key, jma.snapshot(parsed.office))
+      : points.snapshot(key)
+  }
+
+  /** Brings a service's watched set in line with what pages want. */
+  const reconcile = (
+    service: { watching(): string[]; watch(id: string): void; unwatch(id: string): void },
+    wanted: Set<string>,
+  ): void => {
+    for (const id of service.watching()) if (!wanted.has(id)) service.unwatch(id)
+    for (const id of wanted) service.watch(id)
+  }
+
   const sync = (): void => {
-    const active = new Set(registry.activeSources())
-    for (const office of service.watching()) if (!active.has(office)) service.unwatch(office)
-    for (const office of active) service.watch(office)
+    const offices = new Set<string>()
+    const pointKeys = new Set<string>()
+    for (const key of registry.activeSources()) {
+      const parsed = parseLocationKey(key)
+      if (parsed?.source === 'jma') offices.add(parsed.office)
+      else if (parsed !== null) pointKeys.add(key)
+    }
+    reconcile(jma, offices)
+    reconcile(points, pointKeys)
   }
 
   const track = (sender: WebContents): void => {
@@ -79,23 +160,27 @@ export function registerWeatherIpc(): { dispose: () => void } {
   }
 
   ipcMain.on(CH.weather.subscribe, (event, raw: unknown) => {
-    if (!isOfficeCode(raw)) return
+    if (typeof raw !== 'string' || parseLocationKey(raw) === null) return
     track(event.sender)
-    send(event.sender, service.snapshot(raw))
+    send(event.sender, snapshot(raw))
     if (registry.subscribe(event.sender, raw)) sync()
   })
 
   ipcMain.on(CH.weather.unsubscribe, (event, raw: unknown) => {
-    if (!isOfficeCode(raw)) return
+    if (typeof raw !== 'string' || parseLocationKey(raw) === null) return
     if (registry.unsubscribe(event.sender, raw)) sync()
   })
 
-  ipcMain.handle(CH.weather.offices, () => service.listOffices())
-  ipcMain.handle(CH.weather.watching, () => service.watching())
+  ipcMain.handle(CH.weather.offices, () => jma.listOffices())
+  ipcMain.handle(CH.weather.watching, () => [
+    ...jma.watching().map((office) => `jma:${office}`),
+    ...points.watching(),
+  ])
 
   return {
     dispose: () => {
-      service.dispose()
+      jma.dispose()
+      points.dispose()
       ipcMain.removeAllListeners(CH.weather.subscribe)
       ipcMain.removeAllListeners(CH.weather.unsubscribe)
       ipcMain.removeHandler(CH.weather.offices)

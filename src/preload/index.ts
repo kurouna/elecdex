@@ -15,7 +15,8 @@ import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
-import type { OfficeInfo, WeatherUpdate } from '@shared/weather'
+import type { OfficeInfo } from '@shared/weather'
+import type { WeatherUpdate } from '@shared/weather-report'
 import { contextBridge, ipcRenderer } from 'electron'
 
 /**
@@ -217,7 +218,7 @@ const subscribeWeather = keyedSubscriptions<WeatherUpdate>({
   subscribe: CH.weather.subscribe,
   unsubscribe: CH.weather.unsubscribe,
   event: CH.weather.update,
-  keyOf: (update) => update.office,
+  keyOf: (update) => update.key,
 })
 
 /** Registers a listener for a main -> renderer broadcast; returns its removal. */

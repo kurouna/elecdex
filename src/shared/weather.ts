@@ -50,7 +50,7 @@ const Report = z
 export const JmaForecastSchema = z.array(Report).min(1)
 export type JmaForecast = z.infer<typeof JmaForecastSchema>
 
-export interface WeatherUpdate {
+export interface JmaUpdate {
   office: string
   /** Validated forecast JSON, or null if none has been fetched yet. */
   forecast: JmaForecast | null

@@ -6,7 +6,8 @@ import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
 import type { Theme, ThemeProblem } from './theme.js'
 import type { UpdateStatus } from './updates.js'
-import type { OfficeInfo, WeatherUpdate } from './weather.js'
+import type { OfficeInfo } from './weather.js'
+import type { WeatherUpdate } from './weather-report.js'
 
 /**
  * The single source of truth for the renderer <-> main boundary.
@@ -200,13 +201,14 @@ export interface FsApi {
 
 export interface WeatherApi {
   /**
-   * Keeps an office's JMA forecast current. The handler gets the cached state at
-   * once and every update after. Returns an unsubscribe.
+   * Keeps the forecast for a location key (see locationKey in weather-report.ts)
+   * current, from whichever source the key names. The handler gets the cached
+   * state at once and every update after. Returns an unsubscribe.
    */
-  subscribe(office: string, handler: (update: WeatherUpdate) => void): () => void
-  /** Forecast offices, for choosing one. Fetched from JMA on first use. */
+  subscribe(key: string, handler: (update: WeatherUpdate) => void): () => void
+  /** JMA forecast offices, for choosing one in Japan. Fetched from JMA on first use. */
   offices(): Promise<OfficeInfo[]>
-  /** Diagnostics: offices main is currently keeping up to date. */
+  /** Diagnostics: what main is currently keeping up to date (jma:office, met:..., nws:...). */
   watching(): Promise<string[]>
 }
 

@@ -55,6 +55,9 @@ export const SINGLE_TERMINAL = {
 } as const
 
 const UNREACHABLE_JMA = 'http://127.0.0.1:9/bosai'
+/** MET Norway and the NWS likewise: no test asks a real weather service. */
+const UNREACHABLE_MET = 'http://127.0.0.1:9/weatherapi'
+const UNREACHABLE_NWS = 'http://127.0.0.1:9/nws'
 /** Markets likewise read from a closed port unless a test serves them: no test contacts Yahoo. */
 const UNREACHABLE_MARKETS = 'http://127.0.0.1:9/markets'
 /** And the update check never asks GitHub. */
@@ -120,6 +123,8 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
     env: {
       ...process.env,
       ELECDEX_JMA_BASE_URL: options.jmaBaseUrl ?? UNREACHABLE_JMA,
+      ELECDEX_MET_BASE_URL: UNREACHABLE_MET,
+      ELECDEX_NWS_BASE_URL: UNREACHABLE_NWS,
       ELECDEX_MARKETS_STUB_URL: UNREACHABLE_MARKETS,
       ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
       ...options.env,
