@@ -75,10 +75,9 @@ function scriptsDir(): string {
  * C:\Program Files\Git\bin\bash.exe all resolve the same way.
  */
 export function detectShellKind(shellPath: string): ShellKind {
-  const base = path
-    .basename(shellPath)
-    .toLowerCase()
-    .replace(/\.exe$/, '')
+  // Split on both separators: path.basename on Linux and macOS leaves a Windows
+  // path whole, and the tests run everywhere.
+  const base = (shellPath.split(/[\\/]/).pop() ?? '').toLowerCase().replace(/\.exe$/, '')
   switch (base) {
     case 'bash':
     case 'sh': // usually bash in posix mode; the script is bash-only, so treat with care

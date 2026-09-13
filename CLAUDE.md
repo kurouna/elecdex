@@ -11,7 +11,7 @@ live in [docs/architecture.md](docs/architecture.md) (§16 is the decision log);
 ## Commands
 
 ```bash
-npm ci                 # install; the postinstall script downloads the Electron binary
+npm ci                 # install; postinstall downloads Electron and fixes node-pty on macOS
 npm run dev            # electron-vite dev server + app (add `-- -- --windowed --no-intro`)
 npm run verify         # biome lint + typecheck (node, e2e, web) + vitest — run before committing
 npm run build          # production bundle into out/ (the e2e tests run against this)

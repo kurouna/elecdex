@@ -1,4 +1,13 @@
-import { existsSync, type FSWatcher, mkdirSync, readdirSync, readFileSync, watch } from 'node:fs'
+import {
+  existsSync,
+  type FSWatcher,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  unwatchFile,
+  watch,
+  watchFile,
+} from 'node:fs'
 import path from 'node:path'
 import type { ThemeCatalog } from '@shared/api'
 import { CH } from '@shared/channels'
@@ -31,6 +40,17 @@ import { JsonStore } from '../store/json-store.js'
 
 /** Editors write in bursts: a truncate, a write, a rename. Settle before reading. */
 const RELOAD_DEBOUNCE_MS = 150
+
+/**
+ * settings.json is also checked by modification time this often. fs.watch misses
+ * events on some Windows setups (seen on CI runners); one stat a second is the
+ * cost of never missing a hand edit.
+ */
+const SETTINGS_POLL_MS = 1000
+
+/** A file caught mid-write is read again this many times before giving up until the next change. */
+const UNREADABLE_RETRIES = 3
+const UNREADABLE_RETRY_MS = 400
 
 export interface SettingsHandle {
   dispose: () => void
@@ -66,9 +86,18 @@ export function registerSettingsIpc(): SettingsHandle {
     }
   }
 
-  const reloadSettings = (): void => {
+  let retry: NodeJS.Timeout | undefined
+  const reloadSettings = (attempt = 0): void => {
+    clearTimeout(retry)
     const next = readSettingsQuietly(settingsFile)
-    if (next === null || JSON.stringify(next) === JSON.stringify(settings)) return
+    if (next === null) {
+      // Half-written, or locked for a moment by the editor or a virus scanner.
+      if (attempt < UNREADABLE_RETRIES) {
+        retry = setTimeout(() => reloadSettings(attempt + 1), UNREADABLE_RETRY_MS)
+      }
+      return
+    }
+    if (JSON.stringify(next) === JSON.stringify(settings)) return
     settings = next
     store.invalidate()
     broadcast(CH.settings.changed, settings)
@@ -102,10 +131,13 @@ export function registerSettingsIpc(): SettingsHandle {
     // over the original would leave a file watcher attached to a deleted inode.
     watchers.push(
       watch(userData, { persistent: false }, (_event, name) => {
-        if (name === 'settings.json') debounced('settings', reloadSettings)()
+        if (name === 'settings.json') debounced('settings', () => reloadSettings())()
       }),
       watch(themesDir, { persistent: false }, debounced('themes', reloadThemes)),
     )
+    watchFile(settingsFile, { persistent: false, interval: SETTINGS_POLL_MS }, (now, before) => {
+      if (now.mtimeMs !== before.mtimeMs) debounced('settings', () => reloadSettings())()
+    })
   } catch (error) {
     console.warn('[elecdex] settings will not reload live:', error)
   }
@@ -139,6 +171,8 @@ export function registerSettingsIpc(): SettingsHandle {
     file: settingsFile,
     dispose: () => {
       for (const watcher of watchers) watcher.close()
+      unwatchFile(settingsFile)
+      clearTimeout(retry)
       for (const timer of timers.values()) clearTimeout(timer)
       ipcMain.removeHandler(CH.settings.get)
       ipcMain.removeHandler(CH.settings.patch)
