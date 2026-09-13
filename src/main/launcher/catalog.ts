@@ -18,7 +18,7 @@ import type { LauncherItem } from '@shared/settings'
  * command, so a compromised page cannot run anything that is not in the list.
  */
 
-export interface CatalogEntry extends LauncherEntry {
+export interface CatalogEntry extends Omit<LauncherEntry, 'launches'> {
   /** What to open: a shortcut, bundle, .desktop file, executable or URL. */
   target: string
   args: string[]
@@ -191,14 +191,24 @@ export async function systemEntries(): Promise<CatalogEntry[]> {
 }
 
 export function userEntries(items: readonly LauncherItem[]): CatalogEntry[] {
-  return items.map((item) => ({
-    id: idOf('user', item.target, item.args ?? []),
-    name: item.name,
-    group: null,
-    source: 'user' as const,
-    target: item.target,
-    args: [...(item.args ?? [])],
-  }))
+  // The same target and arguments twice would share an id, which the list cannot
+  // key on and a launch count cannot tell apart; the first one wins.
+  const seen = new Set<string>()
+  return items.flatMap((item) => {
+    const id = idOf('user', item.target, item.args ?? [])
+    if (seen.has(id)) return []
+    seen.add(id)
+    return [
+      {
+        id,
+        name: item.name,
+        group: null,
+        source: 'user' as const,
+        target: item.target,
+        args: [...(item.args ?? [])],
+      },
+    ]
+  })
 }
 
 /** Strips .desktop field codes (%U, %f, …) from an Exec line and splits it into argv. */

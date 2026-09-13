@@ -1,14 +1,22 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { CH } from '@shared/channels'
-import type { LauncherEntry, LaunchResult } from '@shared/launcher'
+import {
+  type LauncherEntry,
+  type LaunchResult,
+  type LaunchUsage,
+  rankByUse,
+  recordLaunch,
+} from '@shared/launcher'
 import { app, ipcMain, shell } from 'electron'
+import { z } from 'zod'
 import {
   type CatalogEntry,
   desktopExecArgv,
   systemEntries,
   userEntries,
 } from '../launcher/catalog.js'
+import { JsonStore } from '../store/json-store.js'
 import { openExternalIfSafe } from '../window.js'
 import type { SettingsHandle } from './settings.js'
 
@@ -19,7 +27,15 @@ import type { SettingsHandle } from './settings.js'
  * an icon by id, and launches by id - so the only programs a page can start are
  * the ones in the Start Menu (or equivalent) and the ones the user put in
  * settings.json.
+ *
+ * Successful launches are counted in launcher-usage.json (by id, which is a hash
+ * of the target, so it survives restarts) and the list is ordered by them.
  */
+
+const UsageSchema = z.record(
+  z.string().max(64),
+  z.object({ count: z.number().int().nonnegative(), last: z.number().nonnegative() }),
+)
 
 /** Rescan the platform's application list at most this often. */
 const SYSTEM_CACHE_MS = 60_000
@@ -31,6 +47,11 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
   let system: { at: number; entries: CatalogEntry[] } | null = null
   const icons = new Map<string, string | null>()
   let byId = new Map<string, CatalogEntry>()
+  const usage = new JsonStore<Record<string, LaunchUsage>>({
+    file: path.join(app.getPath('userData'), 'launcher-usage.json'),
+    schema: UsageSchema,
+    makeDefault: () => ({}),
+  })
 
   const catalog = async (): Promise<CatalogEntry[]> => {
     const { showSystem, items } = settings.current().launcher
@@ -47,7 +68,14 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
   }
 
   ipcMain.handle(CH.launcher.list, async (): Promise<LauncherEntry[]> => {
-    return (await catalog()).map(({ id, name, group, source }) => ({ id, name, group, source }))
+    const counts = usage.read()
+    return rankByUse(await catalog(), counts).map(({ id, name, group, source }) => ({
+      id,
+      name,
+      group,
+      source,
+      launches: counts[id]?.count ?? 0,
+    }))
   })
 
   ipcMain.handle(CH.launcher.icon, async (_event, raw: unknown): Promise<string | null> => {
@@ -71,7 +99,16 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
     if (!byId.has(raw)) await catalog() // the page may hold an id from before a settings edit
     const entry = byId.get(raw)
     if (!entry) return { ok: false, error: 'not in the launcher' }
-    return launch(entry)
+    const result = await launch(entry)
+    if (result.ok) {
+      try {
+        usage.write(recordLaunch(usage.read(), entry.id, Date.now()))
+      } catch (error) {
+        // A count that cannot be saved is not worth failing a launch that worked.
+        console.error('[elecdex] cannot save launcher usage', error)
+      }
+    }
+    return result
   })
 
   return {

@@ -8,7 +8,8 @@ import type { WidgetProps } from '../registry.ts'
 /**
  * An application launcher: the platform's own list (Start Menu on Windows,
  * /Applications on macOS, .desktop files on Linux) with the user's own entries
- * from settings.json pinned first.
+ * from settings.json pinned first - until something has been started from here:
+ * main counts successful launches and orders the list by them, most used first.
  *
  * Type to filter; Enter starts the first match. Icons are fetched lazily, only
  * for tiles that scroll into view, and drawn in the theme's accent colour: the
@@ -26,9 +27,12 @@ let status = $state<{ text: string; error: boolean } | null>(null)
 let icons = $state.raw<Record<string, string | null>>({})
 let grid = $state<HTMLUListElement | null>(null)
 
-// Reload when settings change: the user may have added entries by hand.
+// Reload when settings change (the user may have added entries by hand) and
+// after each launch, which changes the order.
+let launched = $state(0)
 $effect(() => {
   void appearance.settings.launcher
+  void launched
   let stale = false
   void window.elecdex.launcher.list().then((list) => {
     if (stale) return
@@ -89,7 +93,8 @@ async function launch(entry: LauncherEntry | undefined): Promise<void> {
   status = result.ok
     ? { text: `started ${entry.name}`, error: false }
     : { text: `${entry.name}: ${result.error}`, error: true }
-  if (!result.ok) sfx.play('alarm')
+  if (result.ok) launched += 1
+  else sfx.play('alarm')
   setTimeout(() => {
     status = null
   }, 4000)
@@ -102,6 +107,13 @@ function onFilterKey(event: KeyboardEvent): void {
   } else if (event.key === 'Escape') {
     filter = ''
   }
+}
+
+function tooltip(entry: LauncherEntry): string {
+  const parts = [entry.name]
+  if (entry.group) parts.push(entry.group)
+  if (entry.launches > 0) parts.push(`started ${entry.launches}×`)
+  return parts.join(' — ')
 }
 
 const initial = (name: string) =>
@@ -147,11 +159,12 @@ const initial = (name: string) =>
             class="tile"
             class:pinned={entry.source === 'user'}
             class:first={i === 0 && filter !== ''}
-            title={entry.group ? `${entry.name} — ${entry.group}` : entry.name}
+            title={tooltip(entry)}
             onclick={() => void launch(entry)}
             data-id={entry.id}
             data-testid="launcher-entry"
             data-source={entry.source}
+            data-launches={entry.launches}
           >
             <span class="icon">
               {#if icons[entry.id]}

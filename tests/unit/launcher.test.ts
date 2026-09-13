@@ -24,6 +24,14 @@ describe('launcher catalog', () => {
     ])
   })
 
+  it('keeps one of two user entries with the same target and arguments', () => {
+    const list = userEntries([
+      { name: 'A', target: '/bin/x' },
+      { name: 'B', target: '/bin/x' },
+    ])
+    expect(list.map((e) => e.name)).toEqual(['A'])
+  })
+
   it('gives user entries stable ids that differ by arguments', () => {
     const [a] = userEntries([{ name: 'A', target: '/bin/x', args: ['1'] }])
     const [b] = userEntries([{ name: 'B', target: '/bin/x', args: ['1'] }])
