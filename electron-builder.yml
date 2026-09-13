@@ -68,6 +68,9 @@ linux:
     - target: deb
       arch: [x64, arm64]
   category: System;TerminalEmulator
+  # The .deb control file needs a maintainer; without one electron-builder asks for
+  # an author email in package.json, and none is published for this project.
+  maintainer: kurouna (https://github.com/kurouna)
   desktop:
     entry:
       Terminal: 'false'
