@@ -7,8 +7,9 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
  * Recreates eDEX-UI's arrangement - a system column, the main shell with the
  * filesystem display beneath it, a network column - with the same module order
  * and column headers, but as ordinary tree nodes rather than hardcoded regions,
- * so the user can rearrange or discard any of it. The weather forecast sits
- * where the original put its on-screen keyboard.
+ * so the user can rearrange or discard any of it. Where the original put its
+ * on-screen keyboard sit the application launcher and the weather forecast, and
+ * the market board joins the network column.
  *
  * The shell starts as a group of three tabs. eDEX-UI offered five fixed tab
  * slots but opened only one shell; here every tab is a live shell from the
@@ -28,14 +29,19 @@ export function defaultLayoutNode(): LayoutNode {
         'column',
         [
           tabs([pane('terminal'), pane('terminal'), pane('terminal')]),
-          split('row', [pane('filesystem'), pane('weather')], [0.6, 0.4]),
+          split('row', [pane('filesystem'), pane('launcher'), pane('weather')], [0.4, 0.3, 0.3]),
         ],
         [0.66, 0.34],
       ),
-      split('column', [pane('netstat'), pane('globe'), pane('throughput')], [0.17, 0.48, 0.35], {
-        left: 'panel',
-        right: 'network',
-      }),
+      split(
+        'column',
+        [pane('netstat'), pane('globe'), pane('markets'), pane('throughput')],
+        [0.13, 0.33, 0.34, 0.2],
+        {
+          left: 'panel',
+          right: 'network',
+        },
+      ),
     ],
     [0.18, 0.64, 0.18],
   )

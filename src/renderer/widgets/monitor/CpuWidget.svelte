@@ -70,8 +70,6 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
 </script>
 
 <div class="cpu" data-testid="cpu" data-view={view}>
-  <ViewToggle {view} onchange={setView} testid="cpu-view" />
-
   {#if view === 'bars'}
     <div class="bars-head">
       <span class="range">all <em>{cores.length}</em> cores</span>
@@ -138,6 +136,8 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
       <span class="label">tasks</span>
       <span class="value" data-testid="cpu-tasks">{processes?.all ?? '--'}</span>
     </div>
+    <!-- In the stats row, so it never covers a graph or a bar. -->
+    <ViewToggle {view} onchange={setView} testid="cpu-view" inline />
   </div>
 </div>
 
@@ -194,7 +194,6 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
-  padding-right: 3rem;
   font-family: var(--font-ui);
   white-space: nowrap;
 }

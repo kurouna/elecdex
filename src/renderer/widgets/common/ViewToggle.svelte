@@ -3,8 +3,9 @@
  * A two-way switch between a line-graph view and a bar view, for widgets that
  * can show the same numbers either way (CPU, markets).
  *
- * Sits in the top-right corner of the widget body; the widget keeps the choice
- * in its pane state, so it survives a restart.
+ * Sits in the top-right corner of the widget body, or inline where a widget has
+ * a row for it; the widget keeps the choice in its pane state, so it survives a
+ * restart.
  */
 export type ChartView = 'line' | 'bars'
 
@@ -12,12 +13,14 @@ interface Props {
   view: ChartView
   onchange: (view: ChartView) => void
   testid?: string
+  /** Flow with the surrounding content instead of floating in the corner. */
+  inline?: boolean
 }
 
-const { view, onchange, testid = 'view-toggle' }: Props = $props()
+const { view, onchange, testid = 'view-toggle', inline = false }: Props = $props()
 </script>
 
-<div class="toggle" role="radiogroup" aria-label="Chart style" data-testid={testid}>
+<div class="toggle" class:inline role="radiogroup" aria-label="Chart style" data-testid={testid}>
   <button
     type="button"
     role="radio"
@@ -47,6 +50,12 @@ const { view, onchange, testid = 'view-toggle' }: Props = $props()
 </div>
 
 <style>
+.toggle.inline {
+  position: static;
+  align-self: center;
+  justify-self: end;
+}
+
 .toggle {
   position: absolute;
   top: 0;
