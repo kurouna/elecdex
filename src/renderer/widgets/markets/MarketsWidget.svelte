@@ -5,6 +5,8 @@ import {
   formatPrice,
   formatWatchlist,
   isSymbol,
+  labelFor,
+  labelLanguage,
   type MarketUpdate,
   parseWatchlist,
   type WatchSymbol,
@@ -24,12 +26,16 @@ import Sparkline from './Sparkline.svelte'
  *  - Bar view: the day's change of every symbol as diverging bars on one scale,
  *    so the board's winners and losers read at a glance.
  *
- * Symbols and the view are pane state. Quotes are unofficial and may be delayed,
- * and the pane says so.
+ * Symbols and the view are pane state. Built-in names follow the app's locale
+ * (Japanese for ja, English otherwise); labels the user types are kept as typed.
+ * Quotes are unofficial and may be delayed, and the pane says so.
  */
 const { paneId, state: paneState }: WidgetProps = $props()
 
 const view = $derived<ChartView>(paneState?.view === 'bars' ? 'bars' : 'line')
+
+/** Electron sets navigator.language from the OS display language (or --lang). */
+const language = labelLanguage(navigator.language)
 
 const watchlist = $derived.by((): WatchSymbol[] => {
   const raw = paneState?.symbols
@@ -78,7 +84,7 @@ interface Row {
 const rows = $derived<Row[]>(
   watchlist.map((w) => {
     const update = updates[w.symbol]
-    return { symbol: w.symbol, label: w.label ?? update?.quote?.name ?? w.symbol, update }
+    return { symbol: w.symbol, label: labelFor(w, language, update?.quote?.name), update }
   }),
 )
 
@@ -358,10 +364,17 @@ const tone = (row: Row) => {
   opacity: 0.9;
 }
 
+/* The canvas is taken out of flow so its default 150px height cannot size the row. */
 .chart {
-  height: 100%;
+  position: relative;
+  align-self: stretch;
   min-height: 1.6rem;
-  padding: 0.2rem 0;
+  margin: 0.2rem 0;
+}
+
+.chart :global(canvas) {
+  position: absolute;
+  inset: 0;
 }
 
 .figures {

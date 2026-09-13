@@ -3,6 +3,8 @@ import {
   formatChange,
   formatPrice,
   formatWatchlist,
+  labelFor,
+  labelLanguage,
   lastSession,
   type MarketQuote,
   parseWatchlist,
@@ -38,6 +40,25 @@ describe('parseWatchlist', () => {
   it('round-trips through formatWatchlist', () => {
     const list = parseWatchlist('^GSPC S&P 500, EURJPY=X')
     expect(parseWatchlist(formatWatchlist(list))).toEqual(list)
+  })
+})
+
+describe('labels', () => {
+  it('follows the locale for built-in names', () => {
+    expect(labelLanguage('ja')).toBe('ja')
+    expect(labelLanguage('ja-JP')).toBe('ja')
+    expect(labelLanguage('en-US')).toBe('en')
+    expect(labelLanguage('fr')).toBe('en')
+    expect(labelLanguage(undefined)).toBe('en')
+    expect(labelFor({ symbol: '^N225' }, 'ja')).toBe('日経平均')
+    expect(labelFor({ symbol: '^N225' }, 'en')).toBe('Nikkei 225')
+    expect(labelFor({ symbol: 'JPY=X' }, 'en')).toBe('USD/JPY')
+  })
+
+  it('keeps a label the user typed, and falls back to Yahoo, then the symbol', () => {
+    expect(labelFor({ symbol: '^N225', label: '日経' }, 'en')).toBe('日経')
+    expect(labelFor({ symbol: '7203.T' }, 'ja', 'TOYOTA MOTOR CORP')).toBe('TOYOTA MOTOR CORP')
+    expect(labelFor({ symbol: '7203.T' }, 'ja', null)).toBe('7203.T')
   })
 })
 

@@ -49,19 +49,68 @@ export interface WatchSymbol {
   label?: string
 }
 
-/** The default board: the Japanese and US benchmarks, the yen and bitcoin. */
+/**
+ * The default board: the Japanese and US benchmarks, the yen and bitcoin.
+ *
+ * No labels here: built-in names come from BUILTIN_LABELS in the viewer's
+ * language, so the board follows the app's locale. Only labels the user types
+ * are stored with the watchlist.
+ */
 export const DEFAULT_WATCHLIST: readonly WatchSymbol[] = [
-  { symbol: '^N225', label: '日経平均' },
+  { symbol: '^N225' },
   // Yahoo publishes no live TOPIX index (^TPX has not updated since 2015); the
   // CME yen-denominated TOPIX future tracks it and trades almost around the clock.
-  { symbol: 'TPY=F', label: 'TOPIX 先物' },
-  { symbol: '^GSPC', label: 'S&P 500' },
-  { symbol: '^DJI', label: 'NY ダウ' },
-  { symbol: '^IXIC', label: 'NASDAQ' },
-  { symbol: 'JPY=X', label: 'ドル円' },
-  { symbol: 'EURJPY=X', label: 'ユーロ円' },
-  { symbol: 'BTC-USD', label: 'ビットコイン' },
+  { symbol: 'TPY=F' },
+  { symbol: '^GSPC' },
+  { symbol: '^DJI' },
+  { symbol: '^IXIC' },
+  { symbol: 'JPY=X' },
+  { symbol: 'EURJPY=X' },
+  { symbol: 'BTC-USD' },
 ]
+
+export type LabelLanguage = 'ja' | 'en'
+
+/** Names for well-known symbols, better than Yahoo's shortName ("Nikkei 225", "USD/JPY"). */
+export const BUILTIN_LABELS: Readonly<Record<string, Readonly<Record<LabelLanguage, string>>>> = {
+  '^N225': { ja: '日経平均', en: 'Nikkei 225' },
+  'TPY=F': { ja: 'TOPIX 先物', en: 'TOPIX Futures' },
+  '1306.T': { ja: 'TOPIX ETF', en: 'TOPIX ETF' },
+  '^GSPC': { ja: 'S&P 500', en: 'S&P 500' },
+  '^DJI': { ja: 'NY ダウ', en: 'Dow Jones' },
+  '^IXIC': { ja: 'NASDAQ', en: 'NASDAQ' },
+  '^VIX': { ja: 'VIX 指数', en: 'VIX' },
+  '^FTSE': { ja: 'FTSE 100', en: 'FTSE 100' },
+  '^GDAXI': { ja: 'DAX', en: 'DAX' },
+  '^HSI': { ja: 'ハンセン指数', en: 'Hang Seng' },
+  '000001.SS': { ja: '上海総合', en: 'Shanghai Composite' },
+  'JPY=X': { ja: 'ドル円', en: 'USD/JPY' },
+  'EURJPY=X': { ja: 'ユーロ円', en: 'EUR/JPY' },
+  'GBPJPY=X': { ja: 'ポンド円', en: 'GBP/JPY' },
+  'EURUSD=X': { ja: 'ユーロドル', en: 'EUR/USD' },
+  'BTC-USD': { ja: 'ビットコイン', en: 'Bitcoin' },
+  'ETH-USD': { ja: 'イーサリアム', en: 'Ethereum' },
+  'GC=F': { ja: '金先物', en: 'Gold Futures' },
+  'CL=F': { ja: '原油先物', en: 'Crude Oil Futures' },
+  '^TNX': { ja: '米10年債利回り', en: 'US 10Y Yield' },
+}
+
+/** Japanese for a Japanese locale ("ja", "ja-JP"), English for everything else. */
+export function labelLanguage(locale: string | undefined): LabelLanguage {
+  return locale?.toLowerCase().startsWith('ja') ? 'ja' : 'en'
+}
+
+/**
+ * What to call a symbol: the user's own label, else the built-in name in the
+ * viewer's language, else Yahoo's name for it, else the symbol itself.
+ */
+export function labelFor(
+  watch: WatchSymbol,
+  language: LabelLanguage,
+  yahooName?: string | null,
+): string {
+  return watch.label ?? BUILTIN_LABELS[watch.symbol]?.[language] ?? yahooName ?? watch.symbol
+}
 
 /** Maps Yahoo's marketState to the four states the UI distinguishes. */
 export function toMarketState(raw: unknown): MarketState {
