@@ -1,4 +1,5 @@
 import type { MetricSourceId } from '@shared/metrics'
+import CalendarWidget from './calendar/CalendarWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
 import LauncherWidget from './launcher/LauncherWidget.svelte'
@@ -143,4 +144,13 @@ registerBuiltin({
   component: MarketsWidget,
   minSize: { w: 240, h: 160 },
   multiple: true,
+})
+
+registerBuiltin({
+  id: 'calendar',
+  title: 'calendar',
+  description:
+    'The month, with today, weekends and Japanese holidays marked. Scroll to change month.',
+  component: CalendarWidget,
+  minSize: { w: 180, h: 140 },
 })
