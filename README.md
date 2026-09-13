@@ -48,7 +48,20 @@ prebuilt, ABI-stable binaries which Electron loads as-is, so `npm ci` never invo
 you do not need Visual Studio or Xcode. On **Linux** node-pty has no prebuild and compiles once
 during install, which needs `python3`, `make` and a C++ compiler (e.g. `build-essential`).
 
-The Electron binary itself is downloaded on first launch rather than during install.
+The Electron binary is downloaded by this project's own `postinstall` script. Electron 44 no
+longer downloads it from a lifecycle script of its own, and electron-vite looks for the binary
+without triggering Electron's download-on-first-use, so without this step `npm run dev` would
+stop with "Electron uninstall". If you installed with scripts disabled (`--ignore-scripts`), run
+it once by hand:
+
+```bash
+npx install-electron
+```
+
+npm 11 asks for approval before running *dependencies'* install scripts and lists the ones it
+skipped (esbuild, node-pty, electron-winstaller). None of them is needed on Windows or macOS:
+esbuild ships its binary as a platform package and node-pty ships prebuilds. On Linux, approve
+node-pty so it can compile: `npm install-scripts approve node-pty && npm rebuild node-pty`.
 
 ```bash
 npm install
@@ -62,7 +75,8 @@ npm run test:e2e     # Playwright against the built app (run build first)
 npm run package      # installers into release/
 ```
 
-`npm run dev -- --windowed` (or passing `--windowed` to the packaged binary) starts in a normal
+`npm run dev -- -- --windowed` (the second `--` hands the flag to Electron rather than to
+electron-vite; the packaged binary takes `--windowed` directly) starts in a normal
 window instead of fullscreen, and `--no-intro` skips the boot sequence. The boot sequence also
 plays only once per window (a reload skips it), any key or click cuts it short, and it is
 skipped when the OS asks for reduced motion.

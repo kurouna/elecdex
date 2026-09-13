@@ -11,8 +11,8 @@ live in [docs/architecture.md](docs/architecture.md) (§16 is the decision log);
 ## Commands
 
 ```bash
-npm ci                 # install (see "Install scripts" below if Electron is missing)
-npm run dev            # electron-vite dev server + app (add `-- --windowed --no-intro`)
+npm ci                 # install; the postinstall script downloads the Electron binary
+npm run dev            # electron-vite dev server + app (add `-- -- --windowed --no-intro`)
 npm run verify         # biome lint + typecheck (node, e2e, web) + vitest — run before committing
 npm run build          # production bundle into out/ (the e2e tests run against this)
 npx playwright test    # end-to-end tests against out/ — run `npm run build` first
@@ -26,9 +26,12 @@ Single tests: `npx vitest run tests/unit/<file>.test.ts`, `npx playwright test t
 
 App flags: `--windowed` (not fullscreen), `--no-intro` (skip the boot sequence).
 
-**Install scripts:** npm 11 blocks dependency install scripts until approved. Electron's
-postinstall downloads its binary; if `npm run dev` fails with "Electron uninstall", run
-`npm install-scripts approve electron` (or run `node node_modules/electron/install.js`).
+**Install scripts:** Electron 44 has no install script of its own and downloads its binary on
+first `require('electron')`, which electron-vite bypasses — so this project's `postinstall` runs
+`install-electron`. If `npm run dev` fails with "Electron uninstall" (e.g. after
+`--ignore-scripts`), run `npx install-electron`. npm 11 blocks dependency install scripts until
+approved; none are needed on Windows/macOS, but Linux must approve node-pty to compile it.
+Electron flags go after a second `--`: `npm run dev -- -- --windowed`.
 
 ## Layout of the code
 

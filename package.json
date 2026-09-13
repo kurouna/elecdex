@@ -29,6 +29,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "preview": "electron-vite preview",
+    "postinstall": "install-electron",
     "build": "electron-vite build",
     "typecheck": "npm run typecheck:node && npm run typecheck:e2e && npm run typecheck:web",
     "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
