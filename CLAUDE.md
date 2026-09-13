@@ -2,7 +2,7 @@
 
 Guidance for AI agents (and humans) working in this repository.
 
-elecdex is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
+elecdex (first pre-release: v0.0.1) is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
 sci-fi terminal emulator and system monitor — on Electron 44, Svelte 5, TypeScript 7 and
 xterm.js 6. GPL-3.0, like the original. The full design and every decision with its reason
 live in [docs/architecture.md](docs/architecture.md) (§16 is the decision log); plugins in
@@ -21,6 +21,7 @@ npm run gen:icon       # build/icon.svg -> build/icon.png + resources/icons/icon
 npm run gen:card       # README banner: public/elecdex_repo_card.svg
 npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
+npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 ```
 
 Single tests: `npx vitest run tests/unit/<file>.test.ts`, `npx playwright test tests/e2e/<file>.spec.ts -g "<name>"`.
@@ -43,7 +44,9 @@ src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas, channel names and pure logic used by both sides
 src/renderer/    Svelte UI: layout/ (panes, tabs, splits, picker), widgets/, stores/, styles/
 tests/unit/      vitest (node); tests/component/ (jsdom); tests/e2e/ (Playwright _electron)
-scripts/         asset generators (icon, repo card, geo data)
+scripts/         asset generators (icon, repo card, geo data, city list, README screenshots)
+docs/            architecture.md (design + §16 decision log), weather-providers.md, plugins.md
+                 (designed, not yet implemented), screenshots/ (README images)
 ```
 
 ## Rules that matter
@@ -79,6 +82,8 @@ scripts/         asset generators (icon, repo card, geo data)
 - **Shortcuts** are data (src/shared/keybindings.ts): add an action there with its default chord
   and handle it in Workspace.svelte; never hard-code a key check elsewhere. A chord must include
   Ctrl/Alt or be a function key, so the shell keeps every other key.
+- **README screenshots** must not show personal data: regenerate them with
+  , which uses a demo home and curated launcher entries.
 - **Releases**: bump `package.json` version, push tag `v<version>`; .github/workflows/release.yml
   builds every platform into a GitHub pre-release that a person promotes to a full release.
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested).

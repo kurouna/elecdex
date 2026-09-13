@@ -575,10 +575,11 @@ button:disabled {
   font-size: var(--step--1);
 }
 
+/* Sized by the longest action name, so none runs into its shortcut. */
 .keys th {
-  width: 12rem;
+  width: 1%;
   white-space: nowrap;
-  padding: var(--space-1) 0;
+  padding: var(--space-1) var(--space-3) var(--space-1) 0;
   font-weight: 400;
   text-align: left;
   text-transform: uppercase;
