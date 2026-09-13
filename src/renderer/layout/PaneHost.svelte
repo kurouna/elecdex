@@ -1,6 +1,7 @@
 <script lang="ts">
 import { isMetricSourceId } from '@shared/metrics'
 import type { PaneNode } from '@shared/schemas/layout'
+import { boot, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
@@ -22,6 +23,9 @@ const focused = $derived(layout.focusedPaneId === node.id)
 const active = $derived(visible && focused)
 const chrome = $derived(tabbed ? 'bare' : (definition?.chrome ?? 'module'))
 const title = $derived(meta.title ?? definition?.title ?? node.widget)
+/** Set only during the boot reveal: when this pane's CRT power-on starts. */
+const bootDelay = $derived(boot.delayFor(node.id))
+const bootDuration = $derived(definition?.chrome === 'shell' ? CRT_SHELL_MS : CRT_MODULE_MS)
 
 // Subscribe to the sources the widget declares, for exactly as long as this
 // pane exists. Unknown ids (a plugin naming a source this build lacks) are
@@ -66,6 +70,9 @@ $effect(() => () => paneMeta.clear(node.id))
   class="pane chrome-{chrome}"
   class:focused
   class:hidden={!visible}
+  class:crt-on={bootDelay !== null}
+  style:--crt-delay={bootDelay === null ? undefined : `${bootDelay}ms`}
+  style:--crt-duration={bootDelay === null ? undefined : `${bootDuration}ms`}
   data-testid="pane"
   data-pane-id={node.id}
   data-widget={node.widget}

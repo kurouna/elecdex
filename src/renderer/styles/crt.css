@@ -1,0 +1,165 @@
+/*
+ * CRT power-on and power-off.
+ *
+ * Ported from the main-monitor start-up in steel-ignition's CRT shader
+ * (render/shaders/CRTShader.ts): the picture opens outward from a single bright
+ * horizontal line through the centre, with an easeOutBack snap that overshoots
+ * slightly before settling, a glowing beam riding the opening edges, and
+ * flickering scanlines until the picture is half open. The shader drew it per
+ * pixel on one fullscreen quad; here each pane is its own tube, so the same
+ * envelope is expressed as a transform and two overlay layers - all of it
+ * compositor-only, and gone once the animation ends.
+ *
+ * Usage: add `crt-on` to an element, optionally with `--crt-delay` and
+ * `--crt-duration`. `crt-off` runs the reverse: the picture collapses to the
+ * line, the line to a dot, and the dot fades.
+ */
+
+.crt-on,
+.crt-off {
+  position: relative;
+  transform-origin: 50% 50%;
+  will-change: transform, filter, opacity;
+}
+
+.crt-on {
+  animation: crt-power-on var(--crt-duration, 650ms) linear var(--crt-delay, 0ms) both;
+}
+
+/* The beam: bright rules with a soft glow on the top and bottom edges only - the
+   opening edges - fading as the picture opens. */
+.crt-on::after,
+.crt-on::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.crt-on::after {
+  background:
+    linear-gradient(
+      to bottom,
+      var(--accent-strong) 0 2px,
+      var(--accent-dim) 2px,
+      transparent 0.9rem
+    ),
+    linear-gradient(to top, var(--accent-strong) 0 2px, var(--accent-dim) 2px, transparent 0.9rem);
+  animation: crt-beam var(--crt-duration, 650ms) linear var(--crt-delay, 0ms) both;
+}
+
+/* Scanlines that flicker while the tube warms up. */
+.crt-on::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.14) 0 1px,
+    transparent 1px 3px
+  );
+  animation: crt-scan var(--crt-duration, 650ms) steps(1, end) var(--crt-delay, 0ms) both;
+}
+
+@keyframes crt-power-on {
+  /* Nothing, then the line: full width, a hair tall, overexposed. */
+  0% {
+    opacity: 0;
+    transform: scale(0.3, 0.004);
+    filter: brightness(5) saturate(0.4);
+  }
+  6% {
+    opacity: 1;
+    transform: scale(1, 0.004);
+    filter: brightness(5) saturate(0.4);
+    /* easeOutBack: the snap that overshoots, as in the shader's band envelope. */
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  58% {
+    transform: scale(1, 1);
+    filter: brightness(1.9) saturate(0.8);
+    animation-timing-function: ease-out;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes crt-beam {
+  0%,
+  6% {
+    opacity: 1;
+  }
+  52% {
+    opacity: 0.55;
+  }
+  70%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The shader's early-phase flicker: scanlines strobe until the picture is half open. */
+@keyframes crt-scan {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  16% {
+    opacity: 0.35;
+  }
+  24% {
+    opacity: 1;
+  }
+  32% {
+    opacity: 0.5;
+  }
+  40% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  62%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.crt-off {
+  animation: crt-power-off var(--crt-duration, 350ms) ease-in var(--crt-delay, 0ms) both;
+}
+
+@keyframes crt-power-off {
+  0% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  45% {
+    opacity: 1;
+    transform: scale(1, 0.004);
+    filter: brightness(4);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(0.02, 0.004);
+    filter: brightness(6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0, 0);
+    filter: brightness(6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crt-on,
+  .crt-off,
+  .crt-on::before,
+  .crt-on::after {
+    animation: none;
+  }
+}

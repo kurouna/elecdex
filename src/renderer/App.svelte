@@ -1,17 +1,25 @@
 <script lang="ts">
 import type { AppInfo } from '@shared/api'
+import BootScreen from './BootScreen.svelte'
 import Workspace from './layout/Workspace.svelte'
+import { boot } from './stores/boot.svelte.ts'
 
 let info = $state<AppInfo | null>(null)
 
 $effect(() => {
   window.elecdex.system.info().then((result) => {
     info = result
+    void boot.run(result)
   })
 })
 </script>
 
-<main>
+<!--
+  The workspace mounts immediately, even under the boot screen, so shells start
+  and metrics flow while the intro plays. It is hidden with visibility rather
+  than display so every pane already has its real size when it powers on.
+-->
+<main data-boot={boot.concealed ? 'concealed' : boot.phase} data-testid="app">
   <Workspace />
 
   <footer>
@@ -22,7 +30,23 @@ $effect(() => {
   </footer>
 </main>
 
+<BootScreen />
+
 <style>
+main[data-boot="concealed"] {
+  visibility: hidden;
+}
+
+main[data-boot="reveal"] > footer {
+  animation: footer-in 400ms var(--ease-out) 1200ms both;
+}
+
+@keyframes footer-in {
+  from {
+    opacity: 0;
+  }
+}
+
 main {
   display: grid;
   grid-template-rows: 1fr auto;

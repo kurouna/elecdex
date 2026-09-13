@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
+import { boot } from '../../stores/boot.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sessions, shellName } from '../../stores/sessions.svelte.ts'
@@ -204,7 +205,8 @@ $effect(() => {
 
 // A hidden tab has zero size, so fitting it would compute nonsense dimensions.
 $effect(() => {
-  if (!active) return
+  // A concealed workspace cannot take focus, so try again once it is shown.
+  if (!active || boot.concealed) return
   safeFit()
   term?.focus()
 })

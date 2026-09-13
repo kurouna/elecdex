@@ -7,6 +7,7 @@ import '@fontsource-variable/jetbrains-mono/index.css'
 import './styles/tokens.css'
 import './styles/reset.css'
 import './styles/frames.css'
+import './styles/crt.css'
 
 import { mount } from 'svelte'
 import App from './App.svelte'

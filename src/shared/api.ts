@@ -24,6 +24,20 @@ export interface AppInfo {
     node: string
     v8: string
   }
+  /** False when started with `--no-intro`: the boot sequence is skipped. */
+  intro: boolean
+  /** Facts about this machine, for the boot log and the greeting. */
+  host: HostFacts
+}
+
+export interface HostFacts {
+  /** Login name, or null where the OS will not say. */
+  user: string | null
+  hostname: string
+  osRelease: string
+  cpuModel: string
+  cpuThreads: number
+  totalMemory: number
 }
 
 export interface SystemApi {

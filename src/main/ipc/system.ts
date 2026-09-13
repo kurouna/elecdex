@@ -1,9 +1,31 @@
+import os from 'node:os'
 import path from 'node:path'
-import type { AppInfo } from '@shared/api'
+import type { AppInfo, HostFacts } from '@shared/api'
 import { CH } from '@shared/channels'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { APP_VERSION } from '../build-info.js'
 import { openExternalIfSafe } from '../window.js'
+
+/** `--no-intro` skips the boot sequence; the end-to-end tests launch with it. */
+const wantsIntro = !process.argv.includes('--no-intro')
+
+function hostFacts(): HostFacts {
+  let user: string | null = null
+  try {
+    user = os.userInfo().username || null
+  } catch {
+    // No passwd entry for this uid, e.g. in some containers.
+  }
+  const cpus = os.cpus()
+  return {
+    user,
+    hostname: os.hostname(),
+    osRelease: `${os.type()} ${os.release()}`,
+    cpuModel: cpus[0]?.model.trim() ?? 'unknown',
+    cpuThreads: cpus.length,
+    totalMemory: os.totalmem(),
+  }
+}
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' ? value : null
@@ -23,6 +45,8 @@ export function registerSystemIpc(): void {
         node: process.versions.node,
         v8: process.versions.v8,
       },
+      intro: wantsIntro,
+      host: hostFacts(),
     }
   })
 

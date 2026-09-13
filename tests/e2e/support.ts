@@ -24,9 +24,16 @@ export interface Launched {
   close(): Promise<void>
 }
 
-export async function launch(userData?: string): Promise<Launched> {
+export interface LaunchOptions {
+  /** Play the boot sequence. Off by default so tests see the workspace at once. */
+  intro?: boolean
+}
+
+export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
-  const app = await electron.launch({ args: [MAIN, '--windowed', `--user-data-dir=${dir}`] })
+  const args = [MAIN, '--windowed', `--user-data-dir=${dir}`]
+  if (!options.intro) args.push('--no-intro')
+  const app = await electron.launch({ args })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
@@ -39,7 +46,7 @@ export async function launch(userData?: string): Promise<Launched> {
     platform,
     relaunch: async () => {
       await app.close()
-      return launch(dir)
+      return launch(dir, options)
     },
     close: async () => {
       await app.close()

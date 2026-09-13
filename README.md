@@ -4,7 +4,8 @@ A science-fiction desktop terminal emulator and system monitor — a ground-up r
 [eDEX-UI](https://github.com/GitSquared/edex-ui) (archived in 2021) on a current stack.
 
 > **Status: Phase 3 — system monitoring.** The eDEX-UI HUD, rebuilt: live CPU, memory,
-> process, network and system widgets around a multi-tab terminal, in a persisted layout tree.
+> process, network and system widgets around a multi-tab terminal, in a persisted layout tree,
+> behind eDEX-UI's boot sequence with each pane switching on like a CRT.
 > The default layout idles at about 10% of one core. The globe (Phase 6) and filesystem
 > browser (Phase 4) are still placeholders.
 > See [docs/architecture.md](docs/architecture.md) and [docs/plugins.md](docs/plugins.md).
@@ -51,7 +52,9 @@ npm run package      # installers into release/
 ```
 
 `npm run dev -- --windowed` (or passing `--windowed` to the packaged binary) starts in a normal
-window instead of fullscreen.
+window instead of fullscreen, and `--no-intro` skips the boot sequence. The boot sequence also
+plays only once per window (a reload skips it), any key or click cuts it short, and it is
+skipped when the OS asks for reduced motion.
 
 ## Keyboard
 

@@ -9,7 +9,7 @@ let page: Page
 
 test.beforeAll(async () => {
   app = await electron.launch({
-    args: [MAIN, '--windowed'],
+    args: [MAIN, '--windowed', '--no-intro'],
     env: { ...process.env, NODE_ENV: 'test' },
   })
   page = await app.firstWindow()
