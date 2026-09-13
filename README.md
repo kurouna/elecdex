@@ -66,6 +66,8 @@ skipped when the OS asks for reduced motion.
 | Ctrl+Shift+W | close the focused pane |
 | Ctrl+Shift+[ / ] | move focus between panes |
 | Ctrl+Shift+Backspace | reset to the default layout |
+| Ctrl+Shift+Q | quit (or the EXIT button in the footer, clicked twice) |
+| F11 | toggle fullscreen |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
 The layout is saved to `layout.json` in the app's userData directory. Editing it by hand is

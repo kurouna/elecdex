@@ -221,6 +221,8 @@ const api: ElecdexApi = {
     revealInFolder: (path) => ipcRenderer.invoke(CH.system.revealInFolder, path) as Promise<void>,
     toggleDevTools: () => ipcRenderer.send(CH.system.toggleDevTools),
     setFullscreen: (on) => ipcRenderer.send(CH.system.setFullscreen, on),
+    toggleFullscreen: () => ipcRenderer.send(CH.system.toggleFullscreen),
+    quit: () => ipcRenderer.send(CH.system.quit),
   },
   pty: {
     create: (opts?: PtyCreateOptions) =>

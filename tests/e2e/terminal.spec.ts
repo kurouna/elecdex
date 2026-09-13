@@ -1,7 +1,7 @@
 import { createServer } from 'node:net'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { type Launched, launch, terminalPane, typeInto } from './support.js'
+import { type Launched, launch, SINGLE_TERMINAL, terminalPane, typeInto } from './support.js'
 
 let launched: Launched
 let page: Page
@@ -19,7 +19,8 @@ let platform: NodeJS.Platform
  */
 
 test.beforeAll(async () => {
-  launched = await launch()
+  // A lone terminal: several tests here turn it into a tab group and count tabs.
+  launched = await launch(undefined, { layout: SINGLE_TERMINAL })
   ;({ page, platform } = launched)
   await expect(terminalPane(page).getByTestId('terminal-host')).toBeVisible()
 })

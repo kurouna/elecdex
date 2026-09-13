@@ -11,6 +11,8 @@ export const CH = {
     revealInFolder: 'system:reveal-in-folder',
     toggleDevTools: 'system:toggle-devtools',
     setFullscreen: 'system:set-fullscreen',
+    toggleFullscreen: 'system:toggle-fullscreen',
+    quit: 'system:quit',
   },
   layout: {
     load: 'layout:load',

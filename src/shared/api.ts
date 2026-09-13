@@ -52,6 +52,9 @@ export interface SystemApi {
   revealInFolder(path: string): Promise<void>
   toggleDevTools(): void
   setFullscreen(on: boolean): void
+  toggleFullscreen(): void
+  /** Quits the app. Every shell is ended, as on any other exit. */
+  quit(): void
 }
 
 export interface PtyCreateOptions {

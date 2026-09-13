@@ -12,7 +12,8 @@
       "!**/dist",
       "!**/release",
       "!**/node_modules",
-      "!**/.svelte-check"
+      "!**/.svelte-check",
+      "!**/*.code-workspace"
     ]
   },
   "formatter": {

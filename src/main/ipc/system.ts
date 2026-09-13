@@ -67,6 +67,16 @@ export function registerSystemIpc(): void {
     event.sender.toggleDevTools()
   })
 
+  ipcMain.on(CH.system.toggleFullscreen, (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    win?.setFullScreen(!win.isFullScreen())
+  })
+
+  // The window is frameless in fullscreen, so the app must offer its own way out.
+  ipcMain.on(CH.system.quit, () => {
+    app.quit()
+  })
+
   ipcMain.on(CH.system.setFullscreen, (event, on: unknown) => {
     if (typeof on !== 'boolean') return
     BrowserWindow.fromWebContents(event.sender)?.setFullScreen(on)

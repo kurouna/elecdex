@@ -48,7 +48,23 @@ test.beforeAll(async () => {
   writeFileSync(path.join(fixture, 'alpha.txt'), 'hello')
   writeFileSync(path.join(fixture, '.hidden'), '')
 
-  launched = await launch()
+  // A terminal above the file browser. In the default layout the terminals are
+  // tabs, whose directory shows on the tab strip rather than a pane header.
+  launched = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'column',
+        sizes: [0.6, 0.4],
+        children: [
+          { kind: 'pane', id: 'term', widget: 'terminal' },
+          { kind: 'pane', id: 'files', widget: 'filesystem' },
+        ],
+      },
+    },
+  })
   page = launched.page
   // Wait for shell integration, then move the terminal into the fixture.
   await expect
@@ -113,13 +129,10 @@ test('lists drives', async () => {
 })
 
 test('browses on its own when there is no terminal to follow', async () => {
-  const lone = await launch()
+  const lone = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 'f', widget: 'filesystem' } },
+  })
   try {
-    await lone.page.evaluate((tree) => window.elecdex.layout.save(tree), {
-      version: 1,
-      root: { kind: 'pane', id: 'f', widget: 'filesystem' },
-    } as const)
-    await lone.page.reload()
     const pane = lone.page.locator('[data-testid=pane][data-widget=filesystem]')
     await expect(pane.getByTestId('pane-badge')).toHaveText('detached')
     await expect(pane.getByTestId('fs-entry').first()).toBeVisible({ timeout: 20_000 })

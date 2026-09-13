@@ -71,10 +71,21 @@ function claim(event: KeyboardEvent): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (event.code === 'F11' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    claim(event)
+    window.elecdex.system.toggleFullscreen()
+    return
+  }
+
   const mod = event.ctrlKey || event.metaKey
   if (!mod || !event.shiftKey) return
 
   switch (event.code) {
+    case 'KeyQ':
+      // Fullscreen has no window frame and no close button; this is the way out.
+      claim(event)
+      window.elecdex.system.quit()
+      return
     case 'KeyT':
       claim(event)
       layout.addTabToFocused()

@@ -1,4 +1,4 @@
-import { pane, split } from './layout-ops.js'
+import { pane, split, tabs } from './layout-ops.js'
 import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layout.js'
 
 /**
@@ -9,6 +9,10 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
  * and column headers, but as ordinary tree nodes rather than hardcoded regions,
  * so the user can rearrange or discard any of it. The weather forecast sits
  * where the original put its on-screen keyboard.
+ *
+ * The shell starts as a group of three tabs. eDEX-UI offered five fixed tab
+ * slots but opened only one shell; here every tab is a live shell from the
+ * start, and more can be added without limit.
  */
 export function defaultLayoutNode(): LayoutNode {
   return split(
@@ -22,7 +26,10 @@ export function defaultLayoutNode(): LayoutNode {
       ),
       split(
         'column',
-        [pane('terminal'), split('row', [pane('filesystem'), pane('weather')], [0.6, 0.4])],
+        [
+          tabs([pane('terminal'), pane('terminal'), pane('terminal')]),
+          split('row', [pane('filesystem'), pane('weather')], [0.6, 0.4]),
+        ],
         [0.66, 0.34],
       ),
       split('column', [pane('netstat'), pane('globe'), pane('throughput')], [0.17, 0.48, 0.35], {

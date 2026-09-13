@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, terminalPane, typeInto } from './support.js'
+import { launch, SINGLE_TERMINAL, terminalPane, typeInto } from './support.js'
 
 /**
  * Layout engine, end to end. Each test gets its own userData directory because
@@ -42,6 +42,8 @@ test('the default layout recreates the original arrangement', async () => {
       'memory',
       'toplist',
       'terminal',
+      'terminal',
+      'terminal',
       'filesystem',
       'weather',
       'netstat',
@@ -52,13 +54,20 @@ test('the default layout recreates the original arrangement', async () => {
     await expect(page.getByTestId('split-label')).toHaveCount(2)
     await expect(page.getByTestId('split-label').first()).toContainText(/panel/i)
     await expect(terminalPane(page).getByTestId('terminal-host')).toBeVisible()
+    // The shell opens as three tabs, each a live shell.
+    await expect(page.getByTestId('tabs-host').getByTestId('tab')).toHaveCount(3)
+    await expect
+      .poll(async () => (await page.evaluate(() => window.elecdex.pty.list())).length, {
+        timeout: 20_000,
+      })
+      .toBe(3)
   } finally {
     await close()
   }
 })
 
 test('keyboard split creates a second live terminal beside the first', async () => {
-  const { page, close } = await launch()
+  const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
     await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
@@ -82,7 +91,7 @@ test('keyboard split creates a second live terminal beside the first', async () 
 })
 
 test('closing a pane collapses the split and focus moves to a survivor', async () => {
-  const { page, close } = await launch()
+  const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
     await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyO')
@@ -122,7 +131,7 @@ test('a divider resizes its neighbours from the keyboard and the size persists',
 })
 
 test('the layout and its shells survive a window reload', async () => {
-  const { page, close } = await launch()
+  const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
     await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
@@ -158,7 +167,7 @@ test('the layout and its shells survive a window reload', async () => {
 })
 
 test('the layout survives an app restart, with fresh shells', async () => {
-  let launched = await launch()
+  let launched = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
     const { page, userData } = launched
     await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
@@ -188,7 +197,7 @@ test('a corrupt layout.json is quarantined, not lost, and the default is used', 
 
   const second = await launch(userData)
   try {
-    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(11)
+    await expect(second.page.locator('[data-testid=pane]')).toHaveCount(13)
     const backup = `${layoutFile(userData)}.bak`
     expect(existsSync(backup)).toBe(true)
     expect(readFileSync(backup, 'utf8')).toContain('this is not json')
@@ -273,14 +282,14 @@ test('an unknown widget id renders a visible placeholder instead of breaking the
 })
 
 test('reset restores the default layout', async () => {
-  const { page, close } = await launch()
+  const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
     await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
     await expect(terminalPane(page)).toHaveCount(2)
 
     await page.keyboard.press('Control+Shift+Backspace')
-    await expect(page.locator('[data-testid=pane]')).toHaveCount(11)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(13)
     await expect(terminalPane(page)).toHaveCount(1)
   } finally {
     await close()

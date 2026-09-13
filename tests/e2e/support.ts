@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,12 +32,23 @@ export interface LaunchOptions {
    * port, so no test ever sends a request to the real JMA site.
    */
   jmaBaseUrl?: string
+  /** A layout.json to start from, instead of the default layout. */
+  layout?: unknown
 }
+
+/** One terminal filling the window: for tests about terminals and splitting, not the default layout. */
+export const SINGLE_TERMINAL = {
+  version: 1,
+  root: { kind: 'pane', id: 'term', widget: 'terminal' },
+} as const
 
 const UNREACHABLE_JMA = 'http://127.0.0.1:9/bosai'
 
 export async function launch(userData?: string, options: LaunchOptions = {}): Promise<Launched> {
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
+  if (options.layout !== undefined) {
+    writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(options.layout))
+  }
   const args = [MAIN, '--windowed', `--user-data-dir=${dir}`]
   if (!options.intro) args.push('--no-intro')
   const app = await electron.launch({
@@ -56,7 +67,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
     platform,
     relaunch: async () => {
       await app.close()
-      return launch(dir, options)
+      // The seeded layout was only for the first start; keep what the app saved.
+      const { layout: _seeded, ...rest } = options
+      return launch(dir, rest)
     },
     close: async () => {
       await app.close()
@@ -66,8 +79,12 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   return launched
 }
 
-/** The pane hosting the (first) terminal in the default layout. */
-export const terminalPane = (page: Page) => page.locator('[data-testid=pane][data-widget=terminal]')
+/**
+ * Terminal panes that are on screen. Background tabs stay mounted (their shells
+ * keep running) but are not displayed, so they are left out.
+ */
+export const terminalPane = (page: Page) =>
+  page.locator('[data-testid=pane][data-widget=terminal]:not(.hidden)')
 
 /** Types a command into a terminal pane and presses Enter. */
 export async function typeInto(page: Page, pane: ReturnType<Page['locator']>, text: string) {
