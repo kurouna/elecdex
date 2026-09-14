@@ -10,7 +10,9 @@ import {
   TSUNAMI_STALE_MS,
   type Tsunami,
   tsunamiAlertKey,
+  tsunamiCurrent,
   tsunamiLevelLabel,
+  tsunamiNeedsAlert,
   tsunamiSummary,
 } from '@shared/tsunami'
 import { describe, expect, it } from 'vitest'
@@ -120,7 +122,7 @@ describe('JMA tsunami', () => {
       eventId: 'e1',
       reportedAt: Date.parse('2026-09-14T11:50:00+09:00'),
     })
-    expect(latestJmaTsunamiReport(list, NOW + TSUNAMI_STALE_MS)).toBeNull()
+    expect(latestJmaTsunamiReport(list, NOW + TSUNAMI_STALE_MS.jma)).toBeNull()
     expect(latestJmaTsunamiReport([], NOW)).toBeNull()
     expect(latestJmaTsunamiReport('nonsense', NOW)).toBeNull()
   })
@@ -191,8 +193,9 @@ describe('NOAA tsunami', () => {
     expect(tsunami?.areas.map((a) => a.name)).toEqual(['110 miles SE of Amchitka, Alaska'])
     const next = parseNoaaTsunamiFeed(warning.replaceAll('03:00:00Z', '04:00:00Z'), now)
     expect(next?.eventId).toBe(tsunami?.eventId)
-    // Stale after a day without a new bulletin.
-    expect(parseNoaaTsunamiFeed(warning, now + TSUNAMI_STALE_MS)).toBeNull()
+    // Taken as over six hours after the last bulletin (NOAA sends no lifting in these feeds).
+    expect(parseNoaaTsunamiFeed(warning, Date.parse('2026-09-14T09:00:00Z'))).not.toBeNull()
+    expect(parseNoaaTsunamiFeed(warning, Date.parse('2026-09-14T09:00:01Z'))).toBeNull()
   })
 
   it('reads a watch, an advisory and a threat message; anything malformed reads as none', () => {
@@ -216,6 +219,19 @@ describe('NOAA tsunami', () => {
   })
 })
 
+describe('NOAA tsunami without a position', () => {
+  it('keys the event by its region instead, still the same across bulletins', () => {
+    const noGeo = warning
+      .replace(/<geo:lat>[^<]*<\/geo:lat>/, '')
+      .replace(/<geo:long>[^<]*<\/geo:long>/, '')
+    const now = Date.parse('2026-09-14T03:30:00Z')
+    const first = parseNoaaTsunamiFeed(noGeo, now)
+    expect(first?.eventId).toContain('110 miles SE of Amchitka, Alaska')
+    const later = parseNoaaTsunamiFeed(noGeo.replaceAll('03:00:00Z', '04:00:00Z'), now)
+    expect(later?.eventId).toBe(first?.eventId)
+  })
+})
+
 describe('tsunami helpers', () => {
   const make = (level: Tsunami['level'], issuedAt: number, eventId = 'e'): Tsunami => ({
     source: 'noaa',
@@ -228,15 +244,30 @@ describe('tsunami helpers', () => {
     url: NOAA_TSUNAMI_PAGE,
   })
 
+  it('keeps a tsunami in effect by its source’s limit', () => {
+    expect(tsunamiCurrent(make('warning', 0), TSUNAMI_STALE_MS.noaa)).toBe(true)
+    expect(tsunamiCurrent(make('warning', 0), TSUNAMI_STALE_MS.noaa + 1)).toBe(false)
+    const jma = { ...make('warning', 0), source: 'jma' as const }
+    expect(tsunamiCurrent(jma, TSUNAMI_STALE_MS.noaa + 1)).toBe(true)
+    expect(tsunamiCurrent(jma, TSUNAMI_STALE_MS.jma + 1)).toBe(false)
+  })
+
   it('shows the strongest, then the latest', () => {
     expect(strongestTsunami([null, make('advisory', 5), make('warning', 1)])?.level).toBe('warning')
     expect(strongestTsunami([make('watch', 1, 'a'), make('watch', 2, 'b')])?.eventId).toBe('b')
     expect(strongestTsunami([null, null])).toBeNull()
   })
 
-  it('keys an alert by event and level, so a raised level is announced again', () => {
+  it('keys an alert by event and level, and announces only a level stronger than before', () => {
     expect(tsunamiAlertKey(make('advisory', 1))).not.toBe(tsunamiAlertKey(make('warning', 2)))
     expect(tsunamiAlertKey(make('warning', 1))).toBe(tsunamiAlertKey(make('warning', 9)))
+    const announced = [tsunamiAlertKey(make('warning', 1)), 'quake-id', 'tsunami:noaa:e:bogus']
+    expect(tsunamiNeedsAlert(make('advisory', 2), [])).toBe(true)
+    expect(tsunamiNeedsAlert(make('warning', 2), announced)).toBe(false)
+    expect(tsunamiNeedsAlert(make('advisory', 2), announced)).toBe(false)
+    expect(tsunamiNeedsAlert(make('major', 2), announced)).toBe(true)
+    // Another event starts afresh.
+    expect(tsunamiNeedsAlert(make('advisory', 2, 'other'), announced)).toBe(true)
   })
 
   it('names levels in JMA’s terms in Japanese', () => {

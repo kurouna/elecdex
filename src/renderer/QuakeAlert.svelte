@@ -5,11 +5,13 @@ import {
   describeQuake,
   type Quake,
   type QuakeAlert,
+  type QuakeState,
   quakeLanguage,
   quakeSeverity,
   sourceCredit,
 } from '@shared/quakes'
 import { type Tsunami, tsunamiAlertKey, tsunamiLevelLabel, tsunamiSummary } from '@shared/tsunami'
+import { announcedCard, closeCard, followCard, type TsunamiCard } from './lib/tsunami-card.ts'
 import { appearance } from './stores/appearance.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { windowState } from './stores/window-state.svelte.ts'
@@ -41,8 +43,8 @@ windowState.follow()
 
 /** Announced earthquakes still shown, newest first, as last known. */
 let shown = $state.raw<Quake[]>([])
-/** The announced tsunami as last known, whether it is still in effect, and whether folded. */
-let tsunami = $state.raw<{ value: Tsunami; lifted: boolean; folded: boolean } | null>(null)
+/** The announced tsunami's card (lib/tsunami-card.ts). */
+let tsunami = $state.raw<TsunamiCard | null>(null)
 let expanded = $state(false)
 const timers = new Map<string, ReturnType<typeof setTimeout>>()
 
@@ -87,60 +89,54 @@ function dismissQuake(id: string, byHand = false): void {
 
 function foldTsunami(): void {
   if (tsunami === null) return
-  if (tsunami.lifted) {
-    cancel('tsunami')
-    tsunami = null
-    return
-  }
-  rememberDismissed(tsunamiAlertKey(tsunami.value))
-  tsunami = { ...tsunami, folded: true }
+  if (tsunami.lifted) cancel('tsunami')
+  else rememberDismissed(tsunamiAlertKey(tsunami.value))
+  tsunami = closeCard(tsunami)
   expanded = false
 }
 
-function announce(alert: QuakeAlert): void {
+/** Shows what main announced; `quietly` for alerts already heard (a page catching up after a reload). */
+function announce(alert: QuakeAlert, quietly = false): void {
   if (alert.tsunami !== null) {
     cancel('tsunami')
-    tsunami = { value: alert.tsunami, lifted: false, folded: false }
+    tsunami = announcedCard(alert.tsunami)
   }
-  if (alert.quakes.length > 0) {
-    const ids = new Set(alert.quakes.map((q) => q.id))
-    shown = [...alert.quakes, ...shown.filter((q) => !ids.has(q.id))].slice(0, MAX_SHOWN)
-    for (const id of timers.keys()) {
-      if (id !== 'tsunami' && !shown.some((q) => q.id === id)) cancel(id)
-    }
-    for (const quake of alert.quakes) {
-      if (quakeSeverity(quake) !== 'severe' && !timers.has(quake.id)) {
-        later(quake.id, () => dismissQuake(quake.id))
-      }
+  showQuakes(alert.quakes)
+  if (!quietly && appearance.settings.quakes.sound) sfx.play('quake')
+}
+
+/** Puts announced earthquakes on top; weaker ones go after a while, the oldest beyond the limit at once. */
+function showQuakes(quakes: readonly Quake[]): void {
+  if (quakes.length === 0) return
+  const ids = new Set(quakes.map((q) => q.id))
+  shown = [...quakes, ...shown.filter((q) => !ids.has(q.id))].slice(0, MAX_SHOWN)
+  for (const id of timers.keys()) {
+    if (id !== 'tsunami' && !shown.some((q) => q.id === id)) cancel(id)
+  }
+  for (const quake of quakes) {
+    if (quakeSeverity(quake) !== 'severe' && !timers.has(quake.id)) {
+      later(quake.id, () => dismissQuake(quake.id))
     }
   }
-  if (appearance.settings.quakes.sound) sfx.play('quake')
 }
 
 /** Brings shown alerts up to date with the latest state. */
-function follow(quakes: readonly Quake[], current: Tsunami | null): void {
+function follow(state: QuakeState): void {
   if (shown.length > 0) {
-    const latest = new Map(quakes.map((q) => [q.id, q]))
+    const latest = new Map(state.quakes.map((q) => [q.id, q]))
     shown = shown.map((q) => latest.get(q.id) ?? q)
     // A later report can raise the intensity: a banner that became severe stays.
     for (const quake of shown) if (quakeSeverity(quake) === 'severe') cancel(quake.id)
   }
-  if (tsunami === null) return
-  if (
-    current !== null &&
-    current.source === tsunami.value.source &&
-    current.eventId === tsunami.value.eventId
-  ) {
-    tsunami = { ...tsunami, value: current, lifted: false }
-    cancel('tsunami')
-  } else if (current === null && !tsunami.lifted) {
-    tsunami = { ...tsunami, lifted: true, folded: false }
-    later('tsunami', () => (tsunami = null))
-  }
+  const next = followCard(tsunami, state)
+  if (next.card === tsunami) return
+  tsunami = next.card
+  if (next.lifted) later('tsunami', () => (tsunami = null))
+  else if (next.card === null || !next.card.lifted) cancel('tsunami')
 }
 
 /** On a page that opens after alerts were sent (startup, reload): what is still recent. */
-function catchUp(state: { announced: string[]; quakes: Quake[]; tsunami: Tsunami | null }): void {
+function catchUp(state: QuakeState): void {
   const dismissed = new Set(readDismissed())
   const quakes = state.announced
     .filter((key) => !dismissed.has(key))
@@ -150,22 +146,22 @@ function catchUp(state: { announced: string[]; quakes: Quake[]; tsunami: Tsunami
   const key = current === null ? null : tsunamiAlertKey(current)
   const announcedTsunami = key !== null && state.announced.includes(key) ? current : null
   if (quakes.length > 0 || announcedTsunami !== null) {
-    announce({ quakes, tsunami: announcedTsunami })
+    announce({ quakes, tsunami: announcedTsunami }, true)
     if (announcedTsunami !== null && key !== null && dismissed.has(key)) {
-      tsunami = { value: announcedTsunami, lifted: false, folded: true }
+      tsunami = closeCard(announcedCard(announcedTsunami))
     }
   }
 }
 
 $effect(() => {
-  const offAlert = window.elecdex.quakes.onAlert(announce)
+  const offAlert = window.elecdex.quakes.onAlert((alert) => announce(alert))
   let first = true
   const offState = window.elecdex.quakes.observe((state) => {
     if (first) {
       first = false
       catchUp(state)
     } else {
-      follow(state.quakes, state.tsunami)
+      follow(state)
     }
   })
   return () => {

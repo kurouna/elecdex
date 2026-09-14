@@ -28,9 +28,8 @@ export const isIntensity = (value: unknown): value is Intensity =>
 /** Position on the scale, for comparing: 1 is 0, 7 is 8. */
 export const intensityRank = (intensity: Intensity): number => INTENSITIES.indexOf(intensity)
 
-/** The magnitudes a world alert can be set at; the USGS feed read starts at 4.5. */
+/** The magnitudes the settings offer for world alerts; the USGS feed read starts at 4.5. */
 export const MAGNITUDES = [4.5, 5, 5.5, 6, 6.5, 7, 7.5] as const
-export type AlertMagnitude = (typeof MAGNITUDES)[number]
 
 /** Where earthquakes are read from: JMA for Japan, the USGS for the world. */
 export type QuakeSource = 'jma' | 'usgs'

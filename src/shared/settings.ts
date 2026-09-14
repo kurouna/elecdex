@@ -72,8 +72,11 @@ export const SettingsSchema = z.object({
       notify: z.boolean().default(false),
       /** Japan: the weakest maximum intensity (shindo) that is announced. */
       minIntensity: z.enum(INTENSITIES).default('5-'),
-      /** The world: the smallest magnitude that is announced. */
-      minMagnitude: z.union(MAGNITUDES.map((m) => z.literal(m))).default(6),
+      /**
+       * The world: the smallest magnitude that is announced. The dialog offers MAGNITUDES;
+       * any value in range is kept, so a hand edit such as 6.2 does not invalidate the file.
+       */
+      minMagnitude: z.number().min(MAGNITUDES[0]).max(9).default(6),
       /** Tsunami warnings, watches and advisories, announced whatever the earthquake thresholds. */
       tsunami: z.boolean().default(true),
       /** Also a system notification, when the window is not in front. */

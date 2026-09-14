@@ -51,6 +51,9 @@ const platform = window.elecdex.system.platform
 const bindings = $derived(effectiveBindings(settings.keybindings, platform))
 const clashes = $derived(conflicts(settings.keybindings, platform))
 /** The earthquake source in effect, as main resolves `auto` from the same time zone and locale. */
+const magnitudeChoices = $derived(
+  [...new Set<number>([...MAGNITUDES, settings.quakes.minMagnitude])].sort((a, b) => a - b),
+)
 const quakeSource = $derived(
   resolveQuakeSource(
     settings.quakes.source,
@@ -416,10 +419,11 @@ function describeUpdate(status: UpdateStatus): string {
                     value={String(settings.quakes.minMagnitude)}
                     disabled={!settings.quakes.notify}
                     onchange={(e) =>
-                      patch({ quakes: { minMagnitude: Number(e.currentTarget.value) as Settings['quakes']['minMagnitude'] } })}
+                      patch({ quakes: { minMagnitude: Number(e.currentTarget.value) } })}
                     data-testid="settings-quakes-magnitude"
                   >
-                    {#each MAGNITUDES as magnitude (magnitude)}
+                    <!-- A value set by hand in settings.json, off the offered steps, is shown as it is. -->
+                    {#each magnitudeChoices as magnitude (magnitude)}
                       <option value={String(magnitude)}>M{magnitude.toFixed(1)} or greater</option>
                     {/each}
                   </select>

@@ -48,15 +48,43 @@ export interface Tsunami {
   url: string
 }
 
-/** A tsunami in effect is dropped this long after its last report, if no lifting ever came. */
-export const TSUNAMI_STALE_MS = 24 * 60 * 60_000
+/**
+ * How long a tsunami stays in effect after its last report. JMA always issues a
+ * lifting, so its limit only guards against a lifting never read. NOAA's centres
+ * send a new bulletin every hour or two while a threat lasts but have no separate
+ * lifting in these feeds, so a bulletin that long unrenewed is taken as over.
+ */
+export const TSUNAMI_STALE_MS: Readonly<Record<Tsunami['source'], number>> = {
+  jma: 24 * 60 * 60_000,
+  noaa: 6 * 60 * 60_000,
+}
+
+/** Whether a tsunami is still in effect at `now`, by its source's limit. */
+export const tsunamiCurrent = (tsunami: Tsunami, now: number): boolean =>
+  now - tsunami.issuedAt <= TSUNAMI_STALE_MS[tsunami.source]
 
 export const JMA_TSUNAMI_PAGE = 'https://www.jma.go.jp/bosai/map.html#contents=tsunami'
 export const NOAA_TSUNAMI_PAGE = 'https://www.tsunami.gov/'
 
-/** The key a tsunami alert is announced once for: a stronger level is announced again. */
+/** The key a tsunami alert is remembered by: its event and level. */
 export const tsunamiAlertKey = (tsunami: Tsunami): string =>
   `tsunami:${tsunami.source}:${tsunami.eventId}:${tsunami.level}`
+
+/**
+ * Whether a tsunami should be announced, given the keys already announced: only
+ * when its level is stronger than any announced for the same event. A lowered
+ * level (a warning turned advisory) updates what is shown but does not sound again.
+ */
+export function tsunamiNeedsAlert(tsunami: Tsunami, announced: Iterable<string>): boolean {
+  const event = `tsunami:${tsunami.source}:${tsunami.eventId}:`
+  let strongest = 0
+  for (const key of announced) {
+    if (!key.startsWith(event)) continue
+    const level = key.slice(event.length) as TsunamiLevel
+    if (TSUNAMI_LEVELS.includes(level)) strongest = Math.max(strongest, tsunamiRank(level))
+  }
+  return tsunamiRank(tsunami.level) > strongest
+}
 
 const text = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
 
@@ -100,7 +128,7 @@ export function latestJmaTsunamiReport(
     const json = text(e.json)
     const reportedAt = Date.parse(text(e.rdt))
     if (!/^[\w.-]+\.json$/.test(json) || !Number.isFinite(reportedAt)) continue
-    if (text(e.ift) === '取消' || now - reportedAt > TSUNAMI_STALE_MS) continue
+    if (text(e.ift) === '取消' || now - reportedAt > TSUNAMI_STALE_MS.jma) continue
     if (latest === null || reportedAt > latest.reportedAt) {
       latest = { json, eventId: text(e.eid) || json, reportedAt }
     }
@@ -181,7 +209,7 @@ export function parseNoaaTsunamiFeed(xml: string, now: number): Tsunami | null {
   const category = /Category:\s*(?:<\/strong>)?\s*([A-Za-z]+)/i.exec(entry)?.[1]?.toLowerCase()
   const level = category === undefined ? undefined : NOAA_CATEGORIES[category]
   const issuedAt = Date.parse(tag(entry, 'updated'))
-  if (level === undefined || !Number.isFinite(issuedAt) || now - issuedAt > TSUNAMI_STALE_MS) {
+  if (level === undefined || !Number.isFinite(issuedAt) || now - issuedAt > TSUNAMI_STALE_MS.noaa) {
     return null
   }
   const region = tag(entry, 'title') || null

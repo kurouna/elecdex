@@ -197,6 +197,11 @@ describe('quakesToAlert', () => {
     ).toEqual([])
   })
 
+  it('does not announce an earthquake dated in the future (a bad clock or report)', () => {
+    expect(quakesToAlert([quake({ at: NOW + 60_000 })], options)).toHaveLength(1)
+    expect(quakesToAlert([quake({ at: NOW + 60_001 })], options)).toEqual([])
+  })
+
   it('follows the chosen intensity down the scale', () => {
     expect(
       quakesToAlert([quake({ maxIntensity: '1' })], {

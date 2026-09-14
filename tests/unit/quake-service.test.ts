@@ -86,7 +86,8 @@ function harness(opts: { alerted?: string[] } = {}) {
   const published: QuakeState[] = []
   const alerts: QuakeAlert[] = []
   const saved: string[][] = []
-  const replies = new Map<string, Reply[]>()
+  /** Scripted answers per URL; a function answers by the request headers, as a server would. */
+  const replies = new Map<string, Array<Reply | ((headers: Record<string, string>) => Reply)>>()
   /** What a URL answers when nothing is scripted: an empty list, or a 304 when asked conditionally. */
   const fallback = (url: string, headers: Record<string, string>): Reply => {
     if (headers['If-None-Match'] || headers['If-Modified-Since']) return { status: 304 }
@@ -99,7 +100,9 @@ function harness(opts: { alerted?: string[] } = {}) {
   const service = new QuakeService({
     fetch: async (url, init) => {
       requests.push({ url, headers: init.headers })
-      const reply = replies.get(url)?.shift() ?? fallback(url, init.headers)
+      const next = replies.get(url)?.shift()
+      const reply =
+        typeof next === 'function' ? next(init.headers) : (next ?? fallback(url, init.headers))
       if (reply.status === -1) throw new Error('offline')
       return {
         status: reply.status,
@@ -146,8 +149,10 @@ function harness(opts: { alerted?: string[] } = {}) {
     now = target
   }
 
-  const reply = (url: string, ...list: Reply[]) =>
-    replies.set(url, [...(replies.get(url) ?? []), ...list])
+  const reply = (
+    url: string,
+    ...list: Array<Reply | ((headers: Record<string, string>) => Reply)>
+  ) => replies.set(url, [...(replies.get(url) ?? []), ...list])
   let tag = 0
   const json = (value: unknown, etag = `"t${++tag}"`): Reply => ({
     status: 200,
@@ -365,6 +370,86 @@ describe('QuakeService', () => {
     expect(lastJma?.headers['If-None-Match']).toBeUndefined()
   })
 
+  it('does not lose the list when the source is switched away and back while a check runs', async () => {
+    const h = harness()
+    h.reply(JMA_QUAKES, h.json([entry('japan', 5, '3')]))
+    h.configure({})
+    await h.settle()
+    // The next minute's check has asked, conditionally, and not yet heard back...
+    h.reply(JMA_QUAKES, { status: 304 }, h.json([entry('japan', 6, '3')]))
+    const tick = h.timers.shift()
+    tick?.fn()
+    // ...when the source goes to the world and straight back.
+    h.configure({ source: 'usgs' })
+    h.configure({ source: 'jma' })
+    await h.settle()
+    // The stale 304 is not taken as "no change" for the fresh start: JMA is asked again, afresh.
+    expect(h.published.at(-1)?.quakes.map((q) => q.id)).toEqual(['japan'])
+    expect(
+      h.requests.filter((r) => r.url === JMA_QUAKES).at(-1)?.headers['If-None-Match'],
+    ).toBeUndefined()
+  })
+
+  it('asks for a JMA tsunami report again after failing to read it', async () => {
+    const h = harness()
+    // An empty tsunami list, read and remembered, as on any quiet day.
+    h.configure(jmaAlerts)
+    await h.settle()
+    expect(h.published.at(-1)?.tsunami).toBeNull()
+
+    // A report appears; the list answers it to anyone not holding its new ETag, and a
+    // 304 to a request that does, as JMA would. Reading the report itself fails once.
+    const listed = h.json(
+      [{ eid: 'ev', json: 'r.json', rdt: new Date(NOW).toISOString() }],
+      '"list"',
+    )
+    const list = (headers: Record<string, string>) =>
+      headers['If-None-Match'] === '"list"' ? { status: 304 } : listed
+    h.reply(JMA_TSUNAMI, list, list)
+    h.reply(`${JMA}/tsunami/data/r.json`, { status: 503 }, h.json(tsunamiReport('51')))
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(h.published.at(-1)?.tsunami ?? null).toBeNull()
+
+    // Next minute: the list is asked afresh, so the report is asked for again and read.
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(h.count(`${JMA}/tsunami/data/r.json`)).toBe(2)
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+    expect(h.alerts.map((a) => a.tsunami?.level)).toEqual(['warning'])
+  })
+
+  it('does not announce a lowered tsunami level, and keeps a NOAA warning when the other centre fails', async () => {
+    const h = harness()
+    const listed = (json: string) => [{ eid: 'ev', json, rdt: new Date(NOW).toISOString() }]
+    h.reply(JMA_TSUNAMI, h.json(listed('a.json')), h.json(listed('b.json')))
+    h.reply(`${JMA}/tsunami/data/a.json`, h.json(tsunamiReport('51')))
+    h.reply(`${JMA}/tsunami/data/b.json`, h.json(tsunamiReport('62')))
+    h.configure(jmaAlerts)
+    await h.settle()
+    await h.advanceBy(QUAKE_INTERVAL_MS)
+    expect(h.published.at(-1)?.tsunami?.level).toBe('advisory')
+    expect(h.alerts.map((a) => a.tsunami?.level)).toEqual(['warning'])
+
+    const world = harness()
+    world.reply(PTWC, { status: 500 })
+    world.reply(NTWC, { status: 200, body: noaaWarning, etag: '"w"' })
+    world.configure({ source: 'usgs' })
+    await world.settle()
+    expect(world.published.at(-1)?.tsunami?.level).toBe('warning')
+  })
+
+  it('takes a NOAA warning as over six hours after its bulletin, though the feed has not changed', async () => {
+    const h = harness()
+    h.reply(NTWC, { status: 200, body: noaaWarning, etag: '"w"' })
+    h.configure({ source: 'usgs' })
+    await h.settle()
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+    // The bulletin was issued ten minutes before the clock; every later answer is a 304.
+    await h.advanceBy(6 * 60 * 60_000 - 10 * 60_000 - 60_000)
+    expect(h.published.at(-1)?.tsunami?.level).toBe('warning')
+    await h.advanceBy(2 * 60_000)
+    expect(h.published.at(-1)?.tsunami).toBeNull()
+  })
+
   it('remembers a bounded number of announced keys', async () => {
     const h = harness({ alerted: Array.from({ length: ALERTED_KEPT + 50 }, (_, i) => `old${i}`) })
     h.reply(JMA_QUAKES, h.json([entry('new', 1, '1')]))
@@ -390,5 +475,16 @@ describe('notificationsFor', () => {
     expect(quake?.title).toMatch(/^Earthquake \d\d:\d\d · M6\.4$/)
     expect(quake?.body).toBe('Somewhere far · M6.4 · depth 20 km\nSource: USGS')
     expect(notificationsFor(alert, 'ja')[0]?.title).toMatch(/^津波警報 · /)
+  })
+
+  it('names a Japanese earthquake by its intensity, in Japanese', async () => {
+    const h = harness()
+    h.reply(JMA_QUAKES, h.json([entry('q', 3, '6-')]))
+    h.configure(jmaAlerts)
+    await h.settle()
+    const [only, ...rest] = notificationsFor(h.alerts[0] as QuakeAlert, 'ja')
+    expect(rest).toEqual([])
+    expect(only?.title).toMatch(/^地震情報 \d\d:\d\d · 震度6弱$/)
+    expect(only?.body).toBe('岩手県沖 · 震度6弱 · M5.1 · 深さ10km\n出典：気象庁')
   })
 })

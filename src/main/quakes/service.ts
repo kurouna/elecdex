@@ -14,9 +14,10 @@ import {
   parseJmaTsunamiReport,
   parseNoaaTsunamiFeed,
   strongestTsunami,
-  TSUNAMI_STALE_MS,
   type Tsunami,
   tsunamiAlertKey,
+  tsunamiCurrent,
+  tsunamiNeedsAlert,
 } from '@shared/tsunami'
 
 /**
@@ -90,6 +91,12 @@ export class QuakeService {
   private failures = 0
   private timer: unknown = null
   private inFlight = false
+  /**
+   * Bumped whenever the source starts over. A check that began before cannot
+   * apply what it read: after a quick switch away and back it would even have
+   * asked conditionally, and its 304 would leave the fresh start empty.
+   */
+  private generation = 0
   /** Validators per URL, for conditional requests. */
   private readonly validators = new Map<
     string,
@@ -151,6 +158,7 @@ export class QuakeService {
   }
 
   private reset(): void {
+    this.generation += 1
     this.quakes = []
     this.tsunami = null
     this.fetchedAt = null
@@ -176,7 +184,8 @@ export class QuakeService {
     if (this.inFlight || !this.config.active) return
     this.inFlight = true
     const source = this.config.source
-    void this.poll(source)
+    const generation = this.generation
+    void this.poll(source, generation)
       .then(
         () => {
           this.failures = 0
@@ -187,7 +196,7 @@ export class QuakeService {
             RETRY_BACKOFF_MS[Math.min(this.failures, RETRY_BACKOFF_MS.length - 1)] ?? 60_000
           this.failures += 1
           const error = cause instanceof Error ? cause.message : String(cause)
-          if (this.current(source) && error !== this.error) {
+          if (this.current(source, generation) && error !== this.error) {
             this.error = error
             this.deps.publish(this.state())
           }
@@ -196,22 +205,22 @@ export class QuakeService {
       )
       .finally(() => {
         this.inFlight = false
-        // The source was switched while this ran: the new one should not wait a minute.
-        if (this.config.active && this.config.source !== source) this.check()
+        // The source started over while this ran: the new start should not wait a minute.
+        if (this.config.active && this.generation !== generation) this.check()
       })
   }
 
-  /** Whether a poll for `source` still matters: active, and the source not switched meanwhile. */
-  private current(source: QuakeSource): boolean {
-    return this.config.active && this.config.source === source
+  /** Whether a check still matters: active, and the source not started over since it began. */
+  private current(source: QuakeSource, generation: number): boolean {
+    return this.config.active && this.config.source === source && this.generation === generation
   }
 
-  private async poll(source: QuakeSource): Promise<void> {
+  private async poll(source: QuakeSource, generation: number): Promise<void> {
     const now = this.deps.now()
     // Conditional only once this source has data: after a switch it starts over.
     const list = await this.get(this.quakeUrl(source), this.fetchedAt !== null)
-    const tsunamiChanged = await this.pollTsunami(source, now)
-    if (!this.current(source)) return
+    const tsunamiChanged = await this.pollTsunami(source, generation, now)
+    if (!this.current(source, generation)) return
     let changed = tsunamiChanged
     if (list !== null) {
       const body: unknown = JSON.parse(list)
@@ -238,7 +247,11 @@ export class QuakeService {
    * Checks the source's tsunami information; returns whether the tsunami in effect
    * changed. A failure keeps what was known, and the earthquakes are still shown.
    */
-  private async pollTsunami(source: QuakeSource, now: number): Promise<boolean> {
+  private async pollTsunami(
+    source: QuakeSource,
+    generation: number,
+    now: number,
+  ): Promise<boolean> {
     const urls = this.tsunamiUrls(source)
     // One feed failing leaves the others, and what it said last, in place.
     await Promise.allSettled(
@@ -246,12 +259,12 @@ export class QuakeService {
         source === 'jma' ? this.pollJmaTsunami(url, now) : this.pollNoaaTsunami(url, now),
       ),
     )
-    if (!this.current(source)) return false
+    if (!this.current(source, generation)) return false
     // Only this source's feeds count: one switched away from may still have answered.
     const next = strongestTsunami(
       urls.map((url) => {
         const tsunami = this.tsunamiFeeds.get(url)?.tsunami ?? null
-        return tsunami !== null && now - tsunami.issuedAt <= TSUNAMI_STALE_MS ? tsunami : null
+        return tsunami !== null && tsunamiCurrent(tsunami, now) ? tsunami : null
       }),
     )
     const changed = JSON.stringify(next) !== JSON.stringify(this.tsunami)
@@ -275,13 +288,20 @@ export class QuakeService {
       return
     }
     if (known?.report === report.json) return
-    // A report's file is new and never changes: fetched once, unconditionally.
-    const detail = await this.deps.fetch(`${this.deps.urls.jma}/tsunami/data/${report.json}`, {
-      headers: { 'User-Agent': this.deps.userAgent },
-    })
-    if (detail.status !== 200) throw new Error(`tsunami report: HTTP ${detail.status}`)
-    const tsunami = parseJmaTsunamiReport(JSON.parse(await detail.text()), report)
-    this.tsunamiFeeds.set(url, { report: report.json, tsunami })
+    try {
+      // A report's file is new and never changes: fetched once, unconditionally.
+      const detail = await this.deps.fetch(`${this.deps.urls.jma}/tsunami/data/${report.json}`, {
+        headers: { 'User-Agent': this.deps.userAgent },
+      })
+      if (detail.status !== 200) throw new Error(`tsunami report: HTTP ${detail.status}`)
+      const tsunami = parseJmaTsunamiReport(JSON.parse(await detail.text()), report)
+      this.tsunamiFeeds.set(url, { report: report.json, tsunami })
+    } catch (error) {
+      // The list said there is a new report; until it is read, the list must not
+      // answer 304, or the report would never be asked for again.
+      this.validators.delete(url)
+      throw error
+    }
   }
 
   private async pollNoaaTsunami(url: string, now: number): Promise<void> {
@@ -313,13 +333,14 @@ export class QuakeService {
     const rule = this.config.rule
     if (rule === null) return
     const quakes = quakesToAlert(this.quakes, { rule, now, alerted: this.alerted })
-    const tsunamiKey =
-      this.config.tsunami && this.tsunami !== null ? tsunamiAlertKey(this.tsunami) : null
-    const tsunami = tsunamiKey !== null && !this.alerted.has(tsunamiKey) ? this.tsunami : null
+    const tsunami =
+      this.config.tsunami && this.tsunami !== null && tsunamiNeedsAlert(this.tsunami, this.alerted)
+        ? this.tsunami
+        : null
     if (quakes.length === 0 && tsunami === null) return
 
     const keys = [
-      ...(tsunami !== null && tsunamiKey !== null ? [tsunamiKey] : []),
+      ...(tsunami !== null ? [tsunamiAlertKey(tsunami)] : []),
       ...quakes.map((q) => q.id),
     ]
     const kept = [...this.alerted, ...keys].slice(-ALERTED_KEPT)

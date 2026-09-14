@@ -107,11 +107,14 @@ describe('settings', () => {
     })
     expect(next?.quakes).toMatchObject({ notify: true, minIntensity: '4', minMagnitude: 6 })
     expect(applySettingsPatch(defaultSettings(), { quakes: { minIntensity: '5' } })).toBeNull()
-    // The world: a magnitude from the offered steps, and a known source.
+    // The world: a magnitude in range (a hand edit off the offered steps is kept), and a known source.
     expect(
       applySettingsPatch(defaultSettings(), { quakes: { minMagnitude: 7.5 } })?.quakes.minMagnitude,
     ).toBe(7.5)
-    expect(applySettingsPatch(defaultSettings(), { quakes: { minMagnitude: 6.2 } })).toBeNull()
+    expect(
+      applySettingsPatch(defaultSettings(), { quakes: { minMagnitude: 6.2 } })?.quakes.minMagnitude,
+    ).toBe(6.2)
+    expect(applySettingsPatch(defaultSettings(), { quakes: { minMagnitude: 3 } })).toBeNull()
     expect(applySettingsPatch(defaultSettings(), { quakes: { source: 'mars' } })).toBeNull()
   })
 
