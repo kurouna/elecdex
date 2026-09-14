@@ -47,7 +47,7 @@ export function defaultLayoutNode(): LayoutNode {
       split(
         'column',
         [pane('globe'), pane('markets'), pane('weather'), pane('calendar')],
-        [0.3, 0.25, 0.25, 0.2],
+        [0.3, 0.25, 0.21, 0.24],
         { left: 'panel', right: 'world' },
       ),
     ],
