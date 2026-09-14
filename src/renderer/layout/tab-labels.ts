@@ -54,18 +54,15 @@ function tail(path: string, count: number): string {
 
 /**
  * One label per path, `null` where a tab has no path (its shell has not said
- * where it is). The home folder is `~`.
+ * where it is). The home folder is named like any other: a lone `~` said too
+ * little on a tab.
  */
-export function tabLabels(
-  paths: readonly (string | null | undefined)[],
-  home?: string | null,
-): (string | null)[] {
-  const isHome = (path: string) => home != null && home !== '' && samePath(path, home)
+export function tabLabels(paths: readonly (string | null | undefined)[]): (string | null)[] {
   const depth = paths.map(() => 1)
   const label = (index: number): string | null => {
     const path = paths[index]
     if (path == null || path === '') return null
-    return isHome(path) ? '~' : tail(path, depth[index] ?? 1)
+    return tail(path, depth[index] ?? 1)
   }
 
   // Lengthen clashing labels until they differ. Each pass adds a folder to
@@ -75,7 +72,7 @@ export function tabLabels(
     let grew = false
     labels.forEach((text, index) => {
       const path = paths[index]
-      if (text === null || text === '~' || path == null) return
+      if (text === null || path == null) return
       const clash = labels.some(
         (other, j) => j !== index && other === text && !samePath(paths[j] ?? '', path),
       )

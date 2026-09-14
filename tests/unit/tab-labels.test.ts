@@ -18,11 +18,9 @@ describe('tabLabels', () => {
     ])
   })
 
-  it('calls the home folder ~, however the platform spells it', () => {
-    expect(tabLabels(['C:/Users/Me', 'C:/Users/Me/work'], 'c:\\users\\me\\')).toEqual(['~', 'work'])
-    expect(tabLabels(['/home/me'], '/home/me')).toEqual(['~'])
-    // Case matters outside Windows.
-    expect(tabLabels(['/home/Me'], '/home/me')).toEqual(['Me'])
+  it('names the home folder by its name, not a bare ~', () => {
+    expect(tabLabels(['C:/Users/Me', 'C:/Users/Me/work'])).toEqual(['Me', 'work'])
+    expect(tabLabels(['/home/me'])).toEqual(['me'])
   })
 
   it('names roots by their root', () => {
@@ -55,7 +53,7 @@ describe('tabLabels', () => {
     expect(tabLabels(['C:/Work/src', 'c:\\work\\src'])).toEqual(['src', 'src'])
   })
 
-  it('does not lengthen a folder that only clashes with the home folder', () => {
-    expect(tabLabels(['/home/me', '/srv/me'], '/home/me')).toEqual(['~', 'me'])
+  it('tells the home folder apart from another folder of the same name', () => {
+    expect(tabLabels(['/home/me', '/srv/me'])).toEqual(['home/me', 'srv/me'])
   })
 })

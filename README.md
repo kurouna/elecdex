@@ -146,7 +146,7 @@ over the launcher and the file browser; **right, the world outside:** world view
 weather and calendar.
 
 - **Terminal** — the pane is headed TERMINAL with the selected shell's full path; each tab is
-  named after its folder (`~` for home), with parent folders added only when two tabs would read
+  named after its folder (home too, by its own name), with parent folders added only when two tabs would read
   the same, and shows the shell and full path on hover. A non-zero exit code is flagged on the
   tab. New shells start in the home folder, or in the folder set under *Settings → General →
   Terminal* ("~" for home; a folder that no longer exists falls back to home).

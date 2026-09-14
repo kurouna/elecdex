@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { PaneNode } from '@shared/schemas/layout'
-import { home } from '../stores/home.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
@@ -25,12 +24,7 @@ const { panes, activeIndex }: Props = $props()
 const titleOf = (widget: string): string => resolveWidget(widget)?.title ?? widget
 
 /** Shell tabs by folder, with parent folders only where two would read the same. */
-const places = $derived(
-  tabLabels(
-    panes.map((child) => paneMeta.get(child.id).tabPath),
-    home.path,
-  ),
-)
+const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).tabPath)))
 </script>
 
 <!--

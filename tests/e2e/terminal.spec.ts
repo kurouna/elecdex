@@ -535,8 +535,14 @@ test('a shell pane is headed TERMINAL, and its tabs are named by folder, with pa
     const header = p.locator('header.hud-label > span').first()
     // innerText, as shown: the header upper-cases the registry title.
     await expect.poll(() => header.innerText()).toBe('TERMINAL')
-    // A new shell starts at home.
-    await expect.poll(labels, { timeout: 40_000 }).toEqual(['~'])
+    // A new shell starts at home, named by its folder rather than a bare ~.
+    const { home } = (await p.evaluate(() => window.elecdex.system.info())).host
+    const homeName =
+      home
+        .split(/[\\/]/)
+        .filter((part) => part !== '')
+        .pop() ?? ''
+    await expect.poll(labels, { timeout: 40_000 }).toEqual([homeName])
 
     await typeInto(p, visibleShell(), `cd '${a}'`)
     await expect.poll(labels, { timeout: 40_000 }).toEqual(['src'])
@@ -546,7 +552,7 @@ test('a shell pane is headed TERMINAL, and its tabs are named by folder, with pa
     await expect(p.getByTestId('tab').first()).toHaveAttribute('title', /src$/)
 
     await p.getByTestId('tab-new').click()
-    await expect.poll(labels, { timeout: 40_000 }).toEqual(['src', '~'])
+    await expect.poll(labels, { timeout: 40_000 }).toEqual(['src', homeName])
     await expect
       .poll(() => p.getByTestId('tabs-host').locator('header.hud-label > span').first().innerText())
       .toBe('TERMINAL')
