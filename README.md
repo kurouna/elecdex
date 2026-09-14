@@ -264,7 +264,7 @@ Playwright · electron-builder 26
 
 ```bash
 npm ci
-npm run dev -- -- --windowed --no-intro   # the second -- hands flags to Electron
+npm run dev -- -- --windowed --no-intro   # the second -- hands flags to Electron; npm start is the same
 ```
 
 ```bash
