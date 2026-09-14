@@ -18,8 +18,18 @@ test('the intro plays through to a revealed workspace', async () => {
     await expect(app).toHaveAttribute('data-boot', 'concealed')
     const log = page.getByTestId('boot-log')
     // A Linux boot in form, with this machine's facts: the kernel ring buffer, then systemd.
-    await expect(log).toContainText(`${os.hostname()} login:`, { timeout: 20_000 })
-    const text = await log.innerText()
+    // Read in the same poll that sees the last line: the log gives way to the title half a
+    // second after it, and a second read under load found the log already gone.
+    let text = ''
+    await expect
+      .poll(
+        async () => {
+          text = await log.innerText({ timeout: 500 }).catch(() => text)
+          return text
+        },
+        { timeout: 20_000 },
+      )
+      .toContain(`${os.hostname()} login:`)
     const lines = text.split('\n')
     expect(lines[0]).toMatch(/^\[\s*\d+\.\d{6}\] Linux version /)
     expect(lines[0]).toContain(`Linux version ${os.release()}-elecdex-`)
