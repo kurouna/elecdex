@@ -24,6 +24,12 @@ let origin: string
 let served: Record<string, string> = {}
 let requests: string[] = []
 
+/**
+ * Marks every made-up place, area and headline, so a screenshot or a watched test run is
+ * never taken for a real earthquake or tsunami.
+ */
+const TEST = '[TEST] '
+
 const JMA_QUAKES = '/bosai/quake/data/list.json'
 const JMA_TSUNAMI = '/bosai/tsunami/data/list.json'
 const USGS_FEED = '/usgs/earthquakes/feed/v1.0/summary/4.5_day.geojson'
@@ -46,8 +52,8 @@ function entry(
     ift: '発表',
     ser: '1',
     at,
-    anm: place[0],
-    en_anm: place[1],
+    anm: `${TEST}${place[0]}`,
+    en_anm: `${TEST}${place[1]}`,
     cod: '+38.3+142.4-40000/',
     mag,
     maxi,
@@ -57,12 +63,12 @@ function entry(
 /** A JMA tsunami report with the given areas and category codes. */
 const tsunamiReport = (areas: Array<[string, string, string?]>) =>
   JSON.stringify({
-    Head: { Headline: { Text: '津波警報を発表しました。\nただちに避難してください。' } },
+    Head: { Headline: { Text: `${TEST}津波警報を発表しました。\nただちに避難してください。` } },
     Body: {
       Tsunami: {
         Forecast: {
           Item: areas.map(([name, code, height]) => ({
-            Area: { Name: name },
+            Area: { Name: `${TEST}${name}` },
             Category: { Kind: { Code: code } },
             FirstHeight: { Condition: 'ただちに津波来襲と予測' },
             ...(height ? { MaxHeight: { TsunamiHeight: height } } : {}),
@@ -159,7 +165,7 @@ test('the quakes pane lists Japan by intensity, asks only JMA, and closing it st
     await expect(rows).toHaveCount(3, { timeout: 20_000 })
     await expect(rows.nth(0)).toHaveAttribute('data-id', 'weak')
     await expect(rows.nth(0)).toHaveClass(/moderate/)
-    await expect(rows.nth(0)).toContainText('Southern Ibaraki Prefecture')
+    await expect(rows.nth(0)).toContainText('[TEST] Southern Ibaraki Prefecture')
     await expect(rows.nth(1)).toHaveClass(/severe/)
     await expect(rows.nth(1).locator('.badge')).toHaveText('5+')
     await expect(rows.nth(1)).toContainText('M5.1 · 40 km')
@@ -206,7 +212,7 @@ test('an alert announces a recent strong earthquake once, marks the globe, and n
     await expect(alerts.first()).toHaveAttribute('data-id', 'strong')
     await expect(alerts.first()).toHaveClass(/severe/)
     await expect(page.getByTestId('quake-alert-text')).toHaveText(
-      '宮城県沖 · 震度5強 · M5.1 · 深さ40km',
+      '[TEST] 宮城県沖 · 震度5強 · M5.1 · 深さ40km',
     )
     await expect(alerts.first()).toContainText('出典：気象庁 · 緊急地震速報ではありません')
 
@@ -314,7 +320,7 @@ test('an alert reaches the system notifications when no window is in front', asy
       (await app.evaluate(() => (globalThis as { __notified?: string[] }).__notified)) ?? []
     expect(notified).toContain('Earthquake')
     expect(notified).toContain(
-      'Off the Coast of Miyagi Prefecture · Shindo 5+ · M5.1 · depth 40 km',
+      '[TEST] Off the Coast of Miyagi Prefecture · Shindo 5+ · M5.1 · depth 40 km',
     )
     expect(notified).toContain('Source: JMA')
 
@@ -349,7 +355,7 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
     await expect(card).toHaveAttribute('data-level', 'warning')
     await expect(card).toHaveClass(/severe/)
     await expect(page.getByTestId('tsunami-level')).toHaveText('津波警報')
-    await expect(page.getByTestId('tsunami-summary')).toHaveText('岩手県 ほか 1 区域')
+    await expect(page.getByTestId('tsunami-summary')).toHaveText('[TEST] 岩手県 ほか 1 区域')
     await expect(card).toContainText('ただちに避難してください')
     // No earthquake reaches intensity 7: only the tsunami is announced.
     await expect(page.getByTestId('quake-alert')).toHaveCount(0)
@@ -357,7 +363,7 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
     await page.getByTestId('tsunami-toggle').click()
     const areas = page.getByTestId('tsunami-areas').locator('li')
     await expect(areas).toHaveCount(2)
-    await expect(areas.first()).toHaveText('津波警報 岩手県 ただちに津波来襲と予測 3 m')
+    await expect(areas.first()).toHaveText('津波警報 [TEST] 岩手県 ただちに津波来襲と予測 3 m')
 
     // Folded, it stays in sight as a tab; the tab opens it again.
     await page.getByTestId('tsunami-fold').click()
@@ -393,14 +399,19 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
           type: 'earthquake',
           time: now - 10 * 60_000,
           mag: 6.4,
-          place: '110 miles SE of Amchitka, Alaska',
+          place: `${TEST}110 miles SE of Amchitka, Alaska`,
           url: 'https://earthquake.usgs.gov/earthquakes/eventpage/us-big',
         },
         geometry: { coordinates: [-178.5, 51.2, 20] },
       },
       {
         id: 'us-small',
-        properties: { type: 'earthquake', time: now - 5 * 60_000, mag: 4.8, place: 'Fiji region' },
+        properties: {
+          type: 'earthquake',
+          time: now - 5 * 60_000,
+          mag: 4.8,
+          place: `${TEST}Fiji region`,
+        },
         geometry: { coordinates: [178, -17.8, 550] },
       },
     ],
@@ -412,6 +423,7 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
   )
     .replace('<strong>Category:</strong> Information', '<strong>Category:</strong> Warning')
     .replaceAll('2026-09-11T10:49:50Z', updated)
+    .replaceAll('110 miles SE of Amchitka', `${TEST}110 miles SE of Amchitka`)
 
   const { page, close } = await launch(undefined, {
     layout: single('quakes'),
@@ -433,7 +445,7 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
     const strip = page.getByTestId('quakes-tsunami')
     await expect(strip).toHaveAttribute('data-level', 'warning')
     await expect(strip).toContainText('Tsunami warning')
-    await expect(strip).toContainText('Amchitka')
+    await expect(strip).toContainText('[TEST] 110 miles SE of Amchitka')
 
     // Announced: the tsunami card and the M6.4, not the M4.8.
     await expect(page.getByTestId('tsunami-alert')).toContainText(
@@ -442,7 +454,7 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
     await expect(page.getByTestId('tsunami-alert')).toContainText('follow local authorities')
     await expect(page.getByTestId('quake-alert')).toHaveCount(1)
     await expect(page.getByTestId('quake-alert-text')).toHaveText(
-      '110 miles SE of Amchitka, Alaska · M6.4 · depth 20 km',
+      '[TEST] 110 miles SE of Amchitka, Alaska · M6.4 · depth 20 km',
     )
     expect(requests.some((r) => r.startsWith('/bosai'))).toBe(false)
     expect(requests).toContain('/noaa/events/xml/PHEBAtom.xml')

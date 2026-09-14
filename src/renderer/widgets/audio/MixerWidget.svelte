@@ -104,6 +104,13 @@ function sendVolume(id: string, volume: number, final = false): void {
   }
 }
 
+// A change still waiting when the pane goes would be sent for a pane no longer there.
+$effect(() => () => {
+  if (volumeTimer) clearTimeout(volumeTimer)
+  volumeTimer = null
+  pendingVolume = null
+})
+
 const shownVolume = (channel: MixerChannel) =>
   held?.id === channel.id ? held.volume : channel.volume
 

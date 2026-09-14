@@ -1,9 +1,10 @@
-import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
+import type { MixerUpdate } from '@shared/audio'
 import { CH } from '@shared/channels'
 import { ipcMain, type WebContents } from 'electron'
-import { type CaptureWindow, openCaptureWindow } from '../audio/capture-window.js'
+import { openCaptureWindow } from '../audio/capture-window.js'
 import { mixerBackend } from '../audio/mixer-backends.js'
 import { MixerService } from '../audio/mixer-service.js'
+import { SpectrumCapture } from '../audio/spectrum-capture.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 
 /**
@@ -34,25 +35,11 @@ export function registerAudioIpc(): { dispose: () => void } {
   }
 
   /* ---- spectrum ---- */
-  let capture: CaptureWindow | null = null
-  let status: SpectrumUpdate = { t: 'status', status: 'starting', message: null }
-
-  const syncSpectrum = (): void => {
-    const wanted = registry.subscribers(SPECTRUM).size > 0
-    if (wanted && capture === null) {
-      status = { t: 'status', status: 'starting', message: null }
-      capture = openCaptureWindow({
-        stub,
-        onUpdate: (update) => {
-          if (update.t === 'status') status = update
-          send(SPECTRUM, CH.audio.spectrum, update)
-        },
-      })
-    } else if (!wanted && capture !== null) {
-      capture.close()
-      capture = null
-    }
-  }
+  const capture = new SpectrumCapture({
+    open: (onUpdate) => openCaptureWindow({ stub, onUpdate }),
+    publish: (update) => send(SPECTRUM, CH.audio.spectrum, update),
+  })
+  const syncSpectrum = (): void => capture.subscribers(registry.subscribers(SPECTRUM).size)
 
   /* ---- mixer ---- */
   const mixer = new MixerService({
@@ -85,8 +72,8 @@ export function registerAudioIpc(): { dispose: () => void } {
   ipcMain.on(CH.audio.spectrumSubscribe, (event) => {
     track(event.sender)
     if (registry.subscribe(event.sender, SPECTRUM)) syncSpectrum()
-    // The newcomer hears where capture stands at once.
-    event.sender.send(CH.audio.spectrum, status)
+    // The newcomer hears where capture stands at once (and a failed capture is retried).
+    event.sender.send(CH.audio.spectrum, capture.joined())
   })
   ipcMain.on(CH.audio.spectrumUnsubscribe, (event) => {
     if (registry.unsubscribe(event.sender, SPECTRUM)) syncSpectrum()
@@ -108,8 +95,7 @@ export function registerAudioIpc(): { dispose: () => void } {
 
   return {
     dispose: () => {
-      capture?.close()
-      capture = null
+      capture.dispose()
       mixer.stop()
       for (const channel of [
         CH.audio.spectrumSubscribe,

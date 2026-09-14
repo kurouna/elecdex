@@ -104,7 +104,6 @@ public static class ElecdexMixer {
   static IAudioMeterInformation endpointMeter;
   static string device;
   static List<App> apps = new List<App>();
-  static readonly Dictionary<uint, string> names = new Dictionary<uint, string>();
 
   public static void Run() {
     output = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false));
@@ -138,77 +137,136 @@ public static class ElecdexMixer {
     }
   }
 
-  static void Refresh() {
-    var enumerator = (IMMDeviceEnumerator)(new MMDeviceEnumerator());
-    IMMDevice speakers;
-    Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(0, 1, out speakers));
-    device = FriendlyName(speakers);
-    object activated;
-    var iid = typeof(IAudioEndpointVolume).GUID;
-    speakers.Activate(ref iid, 23, IntPtr.Zero, out activated);
-    endpoint = (IAudioEndpointVolume)activated;
-    iid = typeof(IAudioMeterInformation).GUID;
-    speakers.Activate(ref iid, 23, IntPtr.Zero, out activated);
-    endpointMeter = (IAudioMeterInformation)activated;
+  /** The COM objects the current readings came from, released when replaced. */
+  static List<object> held = new List<object>();
 
-    iid = typeof(IAudioSessionManager2).GUID;
-    speakers.Activate(ref iid, 23, IntPtr.Zero, out activated);
-    IAudioSessionEnumerator sessions;
-    ((IAudioSessionManager2)activated).GetSessionEnumerator(out sessions);
+  static T Keep<T>(List<object> created, T value) {
+    if (value != null) created.Add(value);
+    return value;
+  }
+
+  static void Release(List<object> objects) {
+    foreach (var item in objects) {
+      try { if (item != null && Marshal.IsComObject(item)) Marshal.ReleaseComObject(item); } catch {}
+    }
+  }
+
+  // Runs every second for as long as a mixer pane shows: everything it creates is
+  // released when the next reading replaces it, or at once if the reading fails.
+  static void Refresh() {
+    var created = new List<object>();
+    try {
+      var enumerator = Keep(created, (IMMDeviceEnumerator)(new MMDeviceEnumerator()));
+      IMMDevice speakers;
+      Marshal.ThrowExceptionForHR(enumerator.GetDefaultAudioEndpoint(0, 1, out speakers));
+      Keep(created, speakers);
+      var nextDevice = FriendlyName(speakers);
+      object activated;
+      var iid = typeof(IAudioEndpointVolume).GUID;
+      Marshal.ThrowExceptionForHR(speakers.Activate(ref iid, 23, IntPtr.Zero, out activated));
+      var nextEndpoint = Keep(created, (IAudioEndpointVolume)activated);
+      iid = typeof(IAudioMeterInformation).GUID;
+      Marshal.ThrowExceptionForHR(speakers.Activate(ref iid, 23, IntPtr.Zero, out activated));
+      var nextMeter = Keep(created, (IAudioMeterInformation)activated);
+      iid = typeof(IAudioSessionManager2).GUID;
+      Marshal.ThrowExceptionForHR(speakers.Activate(ref iid, 23, IntPtr.Zero, out activated));
+      var manager = Keep(created, (IAudioSessionManager2)activated);
+      IAudioSessionEnumerator sessions;
+      Marshal.ThrowExceptionForHR(manager.GetSessionEnumerator(out sessions));
+      Keep(created, sessions);
+      var nextApps = ReadApps(sessions, created);
+      var previous = held;
+      device = nextDevice;
+      endpoint = nextEndpoint;
+      endpointMeter = nextMeter;
+      apps = nextApps;
+      held = created;
+      Release(previous);
+    } catch {
+      Release(created);
+      throw;
+    }
+  }
+
+  static List<App> ReadApps(IAudioSessionEnumerator sessions, List<object> created) {
     int count;
     sessions.GetCount(out count);
     var byId = new Dictionary<string, App>();
     var next = new List<App>();
+    var live = new HashSet<uint>();
     for (int i = 0; i < count; i++) {
       IAudioSessionControl2 session;
       sessions.GetSession(i, out session);
+      Keep(created, session);
       int state;
       session.GetState(out state);
       if (state == 2) continue; // expired
       uint pid;
       session.GetProcessId(out pid);
+      live.Add(pid);
       bool system = session.IsSystemSoundsSession() == 0;
-      string id = system ? "app:system" : "app:" + ProcessKey(pid);
+      var names = system ? null : ProcessNames(pid);
+      string id = system ? "app:system" : "app:" + names[0];
       App app;
       if (!byId.TryGetValue(id, out app)) {
-        app = new App { Id = id, Name = system ? "System sounds" : AppName(pid) };
+        app = new App { Id = id, Name = system ? "System sounds" : names[1] };
         byId[id] = app;
         next.Add(app);
       }
       app.Sessions.Add(session);
     }
+    // Forget processes that are gone, so a new process given a reused id is looked up again.
+    foreach (var pid in new List<uint>(processNames.Keys)) {
+      if (!live.Contains(pid)) processNames.Remove(pid);
+    }
     next.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
-    apps = next;
+    return next;
   }
 
+  [DllImport("ole32.dll")]
+  static extern int PropVariantClear(ref PropVariant value);
+
   static string FriendlyName(IMMDevice device) {
+    IPropertyStore store = null;
     try {
-      IPropertyStore store;
       device.OpenPropertyStore(0, out store);
       var key = new PropertyKey { FormatId = new Guid("a45c254e-df1c-4efd-8020-67d146a850e0"), PropertyId = 14 };
       PropVariant value;
       store.GetValue(ref key, out value);
-      return value.Type == 31 ? Marshal.PtrToStringUni(value.Pointer) : null;
-    } catch { return null; }
-  }
-
-  static string ProcessKey(uint pid) {
-    try { return Process.GetProcessById((int)pid).ProcessName.ToLowerInvariant(); } catch { return "pid" + pid; }
-  }
-
-  static string AppName(uint pid) {
-    string name;
-    if (names.TryGetValue(pid, out name)) return name;
-    try {
-      var process = Process.GetProcessById((int)pid);
-      name = process.ProcessName;
       try {
-        var description = process.MainModule.FileVersionInfo.FileDescription;
-        if (!string.IsNullOrWhiteSpace(description)) name = description.Trim();
-      } catch {}
-    } catch { name = "pid " + pid; }
-    names[pid] = name;
-    return name;
+        return value.Type == 31 ? Marshal.PtrToStringUni(value.Pointer) : null;
+      } finally {
+        // The string belongs to the caller: without this, a leak every second.
+        PropVariantClear(ref value);
+      }
+    } catch {
+      return null;
+    } finally {
+      if (store != null) Marshal.ReleaseComObject(store);
+    }
+  }
+
+  /** Per process id: the grouping key (process name) and the name to show (its description). */
+  static readonly Dictionary<uint, string[]> processNames = new Dictionary<uint, string[]>();
+
+  static string[] ProcessNames(uint pid) {
+    string[] names;
+    if (processNames.TryGetValue(pid, out names)) return names;
+    try {
+      using (var process = Process.GetProcessById((int)pid)) {
+        var key = process.ProcessName.ToLowerInvariant();
+        var shown = process.ProcessName;
+        try {
+          var description = process.MainModule.FileVersionInfo.FileDescription;
+          if (!string.IsNullOrWhiteSpace(description)) shown = description.Trim();
+        } catch {}
+        names = new[] { key, shown };
+      }
+    } catch {
+      names = new[] { "pid" + pid, "pid " + pid };
+    }
+    processNames[pid] = names;
+    return names;
   }
 
   static void Apply(string line) {
