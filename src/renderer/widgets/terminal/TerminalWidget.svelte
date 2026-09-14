@@ -4,6 +4,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
+import { displayPath } from '../../layout/tab-labels.ts'
 import { releaseWebglContexts } from '../../lib/webgl.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { boot } from '../../stores/boot.svelte.ts'
@@ -89,11 +90,17 @@ async function adoptSession(): Promise<string | null> {
 
 // Publish what the pane header and tab should show.
 $effect(() => {
+  // The header says TERMINAL (the registry title) and the tab says where the
+  // shell is; the shell's own name falls back to the tab until it reports that.
   paneMeta.set(paneId, {
-    title: info.shell,
+    tabName: info.shell,
     ...(info.cwd !== null
-      ? { subtitle: info.cwd }
-      : { subtitle: info.integrationPending ? '…' : 'no tracking' }),
+      ? {
+          subtitle: displayPath(info.cwd),
+          tabPath: info.cwd,
+          tooltip: `${info.shell} — ${displayPath(info.cwd)}`,
+        }
+      : { subtitle: info.integrationPending ? '…' : 'no tracking', tooltip: info.shell }),
     ...(info.exited !== null
       ? { badge: `exited ${info.exited.code}`, badgeKind: 'warn' as const }
       : info.lastCommand !== null &&

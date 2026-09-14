@@ -17,7 +17,7 @@ const activeChild = $derived(node.children[node.activeIndex] ?? node.children[0]
 const activeMeta = $derived(activeChild ? paneMeta.get(activeChild.id) : {})
 const focused = $derived(node.children.some((c) => c.id === layout.focusedPaneId))
 
-/** The selected tab's own title where it has one (the shell's name), as a lone pane shows it. */
+/** The selected tab's own title where it has one, else its widget's (TERMINAL for a shell). */
 const activeTitle = $derived(
   activeChild
     ? (activeMeta.title ?? resolveWidget(activeChild.widget)?.title ?? activeChild.widget)

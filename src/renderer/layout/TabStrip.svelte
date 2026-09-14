@@ -1,9 +1,11 @@
 <script lang="ts">
 import type { PaneNode } from '@shared/schemas/layout'
+import { home } from '../stores/home.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
+import { tabLabels } from './tab-labels.ts'
 
 /**
  * The strip of tabs along the top of a shell frame, with the + that opens another
@@ -22,13 +24,13 @@ const { panes, activeIndex }: Props = $props()
 
 const titleOf = (widget: string): string => resolveWidget(widget)?.title ?? widget
 
-/** Last two path segments are enough to orient without eating the tab. */
-function shorten(text: string | undefined): string {
-  if (text === undefined || text === '') return ''
-  const parts = text.split(/[\\/]/).filter((p) => p !== '')
-  if (parts.length <= 2) return text
-  return `…/${parts.slice(-2).join('/')}`
-}
+/** Shell tabs by folder, with parent folders only where two would read the same. */
+const places = $derived(
+  tabLabels(
+    panes.map((child) => paneMeta.get(child.id).tabPath),
+    home.path,
+  ),
+)
 </script>
 
 <!--
@@ -40,25 +42,27 @@ function shorten(text: string | undefined): string {
 <ul class="tabs" data-testid="tab-strip">
   {#each panes as child, index (child.id)}
     {@const meta = paneMeta.get(child.id)}
+    {@const place = places[index] ?? meta.tabName ?? null}
+    {@const name = place ?? meta.title ?? titleOf(child.widget)}
     <li class="tab" class:active={index === activeIndex}>
       <button
         type="button"
         class="select"
         onclick={() => layout.focus(child.id)}
-        {@attach dragHandle(child.id, () => meta.title ?? titleOf(child.widget))}
+        {@attach dragHandle(child.id, () => name)}
+        title={meta.tooltip}
         data-testid="tab"
         data-pane-id={child.id}
       >
         <span class="upright">
-          <span class="name">{meta.title ?? titleOf(child.widget)}</span>
-          {#if meta.subtitle}<span class="sub">{shorten(meta.subtitle)}</span>{/if}
+          <span class="name" class:place={place !== null} data-testid="tab-label">{name}</span>
           {#if meta.badge}<span class="badge {meta.badgeKind ?? 'danger'}">{meta.badge}</span>{/if}
         </span>
       </button>
       <button
         type="button"
         class="close"
-        aria-label={`Close ${meta.title ?? child.widget}`}
+        aria-label={`Close ${name}`}
         onclick={() => layout.close(child.id)}
         data-testid="tab-close"
         data-pane-id={child.id}><span class="upright">×</span></button
@@ -157,18 +161,15 @@ function shorten(text: string | undefined): string {
   background: transparent;
 }
 
-.name,
-.sub {
+.name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.sub {
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
+/* A folder name is data, not a label: its own case, as the file system has it. */
+.name.place {
   text-transform: none;
-  letter-spacing: 0;
-  opacity: 0.7;
+  letter-spacing: 0.02em;
 }
 
 .badge {

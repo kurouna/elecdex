@@ -1,4 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { type Launched, launch, SINGLE_TERMINAL, terminalPane, typeInto } from './support.js'
@@ -514,5 +517,47 @@ test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves bet
     expect(await focusedPane()).not.toBe(rightSelected)
   } finally {
     await own.close()
+  }
+})
+
+test('a shell pane is headed TERMINAL, and its tabs are named by folder, with parents only on a clash', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'elecdex-tabs-'))
+  const a = path.join(root, 'a', 'src')
+  const b = path.join(root, 'b', 'src')
+  mkdirSync(a, { recursive: true })
+  mkdirSync(b, { recursive: true })
+  const own = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const p = own.page
+  const separator = path.sep
+  const labels = () => p.getByTestId('tab-label').allInnerTexts()
+  const visibleShell = () => p.locator('[data-testid=pane][data-widget=terminal]:not(.hidden)')
+  try {
+    const header = p.locator('header.hud-label > span').first()
+    // innerText, as shown: the header upper-cases the registry title.
+    await expect.poll(() => header.innerText()).toBe('TERMINAL')
+    // A new shell starts at home.
+    await expect.poll(labels, { timeout: 40_000 }).toEqual(['~'])
+
+    await typeInto(p, visibleShell(), `cd '${a}'`)
+    await expect.poll(labels, { timeout: 40_000 }).toEqual(['src'])
+    // The header keeps the full path, written as the platform writes it; the tab has it on hover.
+    const subtitle = visibleShell().getByTestId('pane-subtitle')
+    await expect(subtitle).toContainText(`a${separator}src`)
+    await expect(p.getByTestId('tab').first()).toHaveAttribute('title', /src$/)
+
+    await p.getByTestId('tab-new').click()
+    await expect.poll(labels, { timeout: 40_000 }).toEqual(['src', '~'])
+    await expect
+      .poll(() => p.getByTestId('tabs-host').locator('header.hud-label > span').first().innerText())
+      .toBe('TERMINAL')
+    await typeInto(p, visibleShell(), `cd '${b}'`)
+    await expect.poll(labels, { timeout: 40_000 }).toEqual([`a${separator}src`, `b${separator}src`])
+
+    // Once they no longer clash, both go back to the folder alone.
+    await typeInto(p, visibleShell(), `cd '${root}'`)
+    await expect.poll(labels, { timeout: 40_000 }).toEqual(['src', path.basename(root)])
+  } finally {
+    await own.close()
+    rmSync(root, { recursive: true, force: true })
   }
 })

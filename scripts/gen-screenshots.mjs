@@ -80,6 +80,9 @@ async function shoot(theme, name, extra) {
   // Long enough for markets, weather and the globe to fill in.
   await page.waitForTimeout(25000)
   await page.mouse.move(W / 2, H / 3)
+  // The status bar hides half a second after the pointer leaves the bottom edge,
+  // where a real pointer over the window may have left it.
+  await page.waitForTimeout(1000)
   if (extra) await extra(page)
   await page.screenshot({ path: path.join(OUT, `${name}.jpg`), type: 'jpeg', quality: 88 })
   await app.close()

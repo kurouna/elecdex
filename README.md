@@ -145,8 +145,10 @@ CPU, memory, disk, top processes, network status and traffic; **centre, work:** 
 over the launcher and the file browser; **right, the world outside:** world view, markets,
 weather and calendar.
 
-- **Terminal** — tabs show the shell and its directory; a non-zero exit code is flagged on the
-  pane. New shells start in the home folder, or in the folder set under *Settings → General →
+- **Terminal** — the pane is headed TERMINAL with the selected shell's full path; each tab is
+  named after its folder (`~` for home), with parent folders added only when two tabs would read
+  the same, and shows the shell and full path on hover. A non-zero exit code is flagged on the
+  tab. New shells start in the home folder, or in the folder set under *Settings → General →
   Terminal* ("~" for home; a folder that no longer exists falls back to home).
 - **System** — date and weekday, uptime, OS, and power with a battery gauge (green, red below 20%).
 - **CPU** — two graphs of the cores' average load, or a bar per logical core (toggle in the pane).

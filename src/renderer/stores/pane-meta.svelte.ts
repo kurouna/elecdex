@@ -15,6 +15,15 @@ export interface PaneMeta {
   title?: string
   /** Secondary line, e.g. the working directory. */
   subtitle?: string
+  /**
+   * The path a tab is named after (its last folder, see layout/tab-labels.ts),
+   * so a shell's tab shows where it is rather than what it is.
+   */
+  tabPath?: string
+  /** The tab's name while it has no path, e.g. the shell before it reports one. */
+  tabName?: string
+  /** The tab's full description, shown on hover and read out. */
+  tooltip?: string
   /** Short status marker, e.g. a non-zero exit code. */
   badge?: string
   badgeKind?: 'danger' | 'warn' | 'ok'
