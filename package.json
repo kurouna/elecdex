@@ -1,7 +1,7 @@
 {
   "name": "elecdex",
   "productName": "elecdex",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "private": true,
   "description": "A science-fiction desktop terminal emulator and system monitor. A modern rewrite of eDEX-UI.",
   "keywords": [
