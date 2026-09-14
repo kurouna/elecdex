@@ -1,3 +1,4 @@
+import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { MarketUpdate } from './markets.js'
@@ -171,6 +172,17 @@ export interface MarketsApi {
   watching(): Promise<string[]>
 }
 
+export interface FeedsApi {
+  /**
+   * Keeps an RSS or Atom feed's items current (every 15 minutes, or as the feed
+   * asks, up to an hour). The URL must be in feedUrl's canonical form. The
+   * handler gets the cached state at once and every update after.
+   */
+  subscribe(url: string, handler: (update: FeedUpdate) => void): () => void
+  /** Diagnostics: feeds main is currently keeping up to date. */
+  watching(): Promise<string[]>
+}
+
 export interface LauncherApi {
   /** User entries from settings.json first, then the platform's applications. */
   list(): Promise<LauncherEntry[]>
@@ -241,6 +253,7 @@ export interface ElecdexApi {
   themes: ThemesApi
   launcher: LauncherApi
   markets: MarketsApi
+  feeds: FeedsApi
   updates: UpdatesApi
 }
 

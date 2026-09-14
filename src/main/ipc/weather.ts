@@ -1,13 +1,12 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { CH } from '@shared/channels'
 import type { JmaUpdate } from '@shared/weather'
 import { parseLocationKey, type WeatherUpdate } from '@shared/weather-report'
 import { jmaReport } from '@shared/weather-sources'
 import { app, ipcMain, net, type WebContents } from 'electron'
-import type { z } from 'zod'
-import { APP_VERSION } from '../build-info.js'
+import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { cacheFile } from '../store/cache-file.js'
 import { PointCacheSchema, PointForecasts } from '../weather/point-forecasts.js'
 import { CachedForecastsSchema, type FetchResponse, WeatherService } from '../weather/service.js'
 
@@ -27,29 +26,7 @@ const NWS_BASE_URL = 'https://api.weather.gov'
 /** A request that has not answered in this long is treated as failed. */
 const FETCH_TIMEOUT_MS = 15_000
 
-/** MET Norway and the NWS ask for an application name and a way to reach its author. */
-const USER_AGENT = `elecdex/${APP_VERSION} (+https://github.com/kurouna/elecdex)`
-
 const base = (env: string | undefined, fallback: string) => (env ?? fallback).replace(/\/$/, '')
-
-function jsonFile<T>(file: string, schema: z.ZodType<T>, empty: T) {
-  return {
-    load: (): T => {
-      try {
-        const parsed = schema.safeParse(JSON.parse(readFileSync(file, 'utf8')))
-        return parsed.success ? parsed.data : empty
-      } catch {
-        return empty
-      }
-    },
-    save: (value: T): void => {
-      mkdirSync(path.dirname(file), { recursive: true })
-      const temp = `${file}.tmp`
-      writeFileSync(temp, JSON.stringify(value))
-      renameSync(temp, file)
-    },
-  }
-}
 
 export function registerWeatherIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
@@ -83,7 +60,7 @@ export function registerWeatherIpc(): { dispose: () => void } {
     }
   }
 
-  const jmaCache = jsonFile(path.join(userData, 'weather-cache.json'), CachedForecastsSchema, {})
+  const jmaCache = cacheFile(path.join(userData, 'weather-cache.json'), CachedForecastsSchema, {})
   const jma = new WeatherService({
     fetch,
     ...timers,
@@ -101,7 +78,7 @@ export function registerWeatherIpc(): { dispose: () => void } {
     },
   })
 
-  const pointCache = jsonFile(
+  const pointCache = cacheFile(
     path.join(userData, 'weather-cache-points.json'),
     PointCacheSchema,
     {},

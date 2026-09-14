@@ -8,6 +8,7 @@ import type {
   WindowState,
 } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
+import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { MarketUpdate } from '@shared/markets'
@@ -162,7 +163,8 @@ function subscribeMetric(id: MetricSourceId, handler: SampleHandler): () => void
  * A reference-counted fan-out for a keyed main-process subscription: the first
  * handler for a key sends `subscribe`, the last one to leave sends
  * `unsubscribe`, and every event for the key reaches every handler. Used for
- * directory watches and weather offices, which follow the metrics rules.
+ * directory watches, weather locations, market symbols and feeds, which follow
+ * the metrics rules.
  */
 function keyedSubscriptions<T>(channels: {
   subscribe: string
@@ -237,6 +239,13 @@ const subscribeMarket = keyedSubscriptions<MarketUpdate>({
   keyOf: (update) => update.symbol,
 })
 
+const subscribeFeed = keyedSubscriptions<FeedUpdate>({
+  subscribe: CH.feeds.subscribe,
+  unsubscribe: CH.feeds.unsubscribe,
+  event: CH.feeds.update,
+  keyOf: (update) => update.url,
+})
+
 const api: ElecdexApi = {
   system: {
     platform: process.platform,
@@ -274,6 +283,10 @@ const api: ElecdexApi = {
   markets: {
     subscribe: (symbol, handler) => subscribeMarket(symbol, handler),
     watching: () => ipcRenderer.invoke(CH.markets.watching) as Promise<string[]>,
+  },
+  feeds: {
+    subscribe: (url, handler) => subscribeFeed(url, handler),
+    watching: () => ipcRenderer.invoke(CH.feeds.watching) as Promise<string[]>,
   },
   updates: {
     status: () => ipcRenderer.invoke(CH.updates.status) as Promise<UpdateStatus>,

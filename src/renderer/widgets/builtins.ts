@@ -13,6 +13,7 @@ import SysinfoWidget from './monitor/SysinfoWidget.svelte'
 import ThroughputWidget from './monitor/ThroughputWidget.svelte'
 import ToplistWidget from './monitor/ToplistWidget.svelte'
 import { registerBuiltin } from './registry.ts'
+import RssWidget from './rss/RssWidget.svelte'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
 import WeatherWidget from './weather/WeatherWidget.svelte'
 
@@ -154,6 +155,16 @@ registerBuiltin({
     'Indices, currencies and more from Yahoo Finance, every minute, as sparklines or bars.',
   component: MarketsWidget,
   minSize: { w: 240, h: 160 },
+  multiple: true,
+})
+
+registerBuiltin({
+  id: 'rss',
+  title: 'rss',
+  description:
+    'Headlines from RSS and Atom feeds you list, newest first, checked every 15 minutes.',
+  component: RssWidget,
+  minSize: { w: 220, h: 120 },
   multiple: true,
 })
 

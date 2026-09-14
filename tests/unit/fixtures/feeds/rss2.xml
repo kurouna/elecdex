@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Example &amp; News</title>
+    <link>https://news.example.test/</link>
+    <atom:link href="https://news.example.test/feed.xml" rel="self" type="application/rss+xml"/>
+    <ttl>30</ttl>
+    <item>
+      <title>Older story</title>
+      <link>https://news.example.test/older</link>
+      <pubDate>Sun, 13 Sep 2026 08:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Markets <em>rally</em> &amp; rates fall]]></title>
+      <link>/latest?id=1&amp;src=rss</link>
+      <pubDate>Mon, 14 Sep 2026 09:30:00 +0900</pubDate>
+    </item>
+    <item>
+      <title>R&#233;sum&#xE9; &lt;b&gt;escaped&lt;/b&gt; &hellip;</title>
+      <guid isPermaLink="true">https://news.example.test/guid-link</guid>
+      <dc:date>2026-09-13T12:00:00Z</dc:date>
+    </item>
+    <item>
+      <title>Not a link</title>
+      <guid isPermaLink="false">tag:example,2026:4</guid>
+    </item>
+    <item>
+      <title>Unsafe link</title>
+      <link>javascript:alert(1)</link>
+    </item>
+    <item>
+      <description>An item without a title is not shown</description>
+    </item>
+  </channel>
+</rss>

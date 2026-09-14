@@ -59,6 +59,14 @@ export const CH = {
     update: 'markets:update',
     watching: 'markets:watching',
   },
+  feeds: {
+    /** renderer -> main, fire and forget: keep a feed's items current. */
+    subscribe: 'feeds:subscribe',
+    unsubscribe: 'feeds:unsubscribe',
+    /** main -> renderer: a FeedUpdate. */
+    update: 'feeds:update',
+    watching: 'feeds:watching',
+  },
   launcher: {
     list: 'launcher:list',
     icon: 'launcher:icon',

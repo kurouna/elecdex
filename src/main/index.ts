@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog } from 'electron'
+import { registerFeedsIpc } from './ipc/feeds.js'
 import { registerFsIpc } from './ipc/fs.js'
 import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
@@ -52,6 +53,7 @@ let weatherIpc: { dispose: () => void } | null = null
 let settingsIpc: { dispose: () => void } | null = null
 let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
+let feedsIpc: { dispose: () => void } | null = null
 let updatesIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
@@ -65,6 +67,7 @@ app.whenReady().then(() => {
   settingsIpc = settings
   launcherIpc = registerLauncherIpc(settings)
   marketsIpc = registerMarketsIpc()
+  feedsIpc = registerFeedsIpc()
   updatesIpc = registerUpdatesIpc(settings)
   createMainWindow({
     fullscreen: !wantsWindowed,
@@ -101,9 +104,11 @@ app.on('will-quit', () => {
   launcherIpc?.dispose()
   launcherIpc = null
   marketsIpc?.dispose()
+  marketsIpc = null
+  feedsIpc?.dispose()
+  feedsIpc = null
   updatesIpc?.dispose()
   updatesIpc = null
-  marketsIpc = null
 })
 
 app.on('window-all-closed', () => {

@@ -36,6 +36,8 @@ for Windows, macOS and Linux.
 - **Weather, markets and calendar** — forecasts for anywhere (JMA in Japan, the National Weather
   Service in the United States, MET Norway elsewhere), a market board from Yahoo Finance, and a
   month calendar with optional Japanese holidays.
+- **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
+  you want it.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
 - **Look and feel** — four themes (Tron, Amber, Phosphor, White) that switch live, CRT power-on
@@ -156,6 +158,15 @@ weather and calendar.
   capitals and JMA's forecast offices, or takes `lat, lon`. Japan uses JMA, the United States the
   National Weather Service (or MET Norway, by choice), everywhere else MET Norway. °C or °F per
   pane; the default is New York City.
+- **RSS** — not in the default layout: add it from the picker (Ctrl+Shift+A). It starts empty and
+  fetches nothing until FEEDS lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
+  per pane). The newest 20 headlines across its feeds are shown, each with its feed and the time
+  (today) or date (earlier), and the list scrolls when the pane is shorter. A click opens the
+  article in the browser. Each feed is checked **every 15 minutes** while a pane lists it — less
+  often only when the feed itself asks (Cache-Control, Expires or `<ttl>`), and never less than
+  hourly — with conditional requests, so an unchanged feed is not downloaded again. A feed that
+  fails keeps its last headlines and marks the pane STALE. Several panes listing the same feed
+  share one request, and closing the last one stops it.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named
   below the month.
@@ -236,11 +247,11 @@ also makes node-pty's macOS `spawn-helper` executable. After `--ignore-scripts`,
 `npx install-electron` once.
 
 End-to-end tests never contact a real service: weather, markets and the update check are pointed
-at closed ports or local stubs.
+at closed ports or local stubs, and RSS feeds are served by a local server.
 
 ```
 src/shared/     contracts shared by all processes (API types, IPC channel names, schemas, pure logic)
-src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, launcher, updates
+src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feeds, launcher, updates
 src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
@@ -267,6 +278,7 @@ scripts/        asset generators (icon, banner, globe data, city list, README sc
 | Weather, everywhere else | [MET Norway](https://api.met.no/) Locationforecast 2.0 | [CC BY 4.0](https://api.met.no/doc/License), credited in the pane. Requests follow the [terms of service](https://api.met.no/doc/TermsOfService): an identifying User-Agent, coordinates to four decimals, nothing before the `Expires` of the last response (and at least 30 minutes apart), If-Modified-Since. |
 | City list for the weather picker | [GeoNames](https://www.geonames.org/) (cities of 500,000 people or more, and capitals) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); bundled. Nothing typed in the picker is sent anywhere. |
 | Market quotes | [Yahoo Finance](https://finance.yahoo.com/), through yahoo-finance2 | Unofficial API, not endorsed by Yahoo; quotes may be delayed and are not investment advice (the pane says so). Fetched only while a markets pane is open: one batched request a minute (every five minutes when every listed market is closed) and each intraday chart every five minutes. |
+| RSS feeds | The feed URLs you list in an RSS pane | Fetched by the app, never by the page, only while a pane lists them: every 15 minutes (or as the feed asks, at most hourly), conditionally (If-None-Match / If-Modified-Since), two at a time, up to 2 MB each, without cookies and with an `elecdex/<version>` User-Agent. Headlines are shown as plain text; the last ones per feed are kept in `feeds-cache.json` in the app's data folder. Nothing is sent to any other site. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 ## Third-party assets

@@ -38,7 +38,7 @@ Electron flags go after a second `--`: `npm run dev -- -- --windowed`.
 ## Layout of the code
 
 ```
-src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, launcher/
+src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, launcher/
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas, channel names and pure logic used by both sides
@@ -58,9 +58,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   `ipcRenderer`. The launcher launches by opaque id from main's own catalog, never by path.
 - **Network lives in main**, never the renderer: weather (JMA, MET Norway, NWS - see
   docs/weather-providers.md; follow each service's terms), markets (yahoo-finance2 is
-  Node-only — CORS and cookies block it in a browser). Fetch only while a pane needs the data,
+  Node-only — CORS and cookies block it in a browser), RSS feeds (src/main/feeds; the XML
+  parser is imported lazily so an app without an RSS pane never loads it). Fetch only while a pane needs the data,
   batch, back off on failure, and keep the last good data on screen.
-- **Subscriptions** (metrics, fs watches, weather offices, market symbols) are
+- **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs) are
   reference-counted in preload and in main, and a page's subscriptions are dropped on reload
   (`did-start-navigation`) and destroy. Polling must stop when the last subscriber leaves —
   there are e2e tests asserting exactly that.
