@@ -48,6 +48,32 @@ test('switching theme restyles everything without reloading, and is saved', asyn
   }
 })
 
+test('business sets neutral text and system fonts, and leaving it gives text back to the accent', async () => {
+  const { page, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const bodyStyle = () =>
+    page.evaluate(() => {
+      const style = getComputedStyle(document.body)
+      return { color: style.color, font: style.fontFamily }
+    })
+  try {
+    await expect.poll(() => rootVar(page, '--accent-h')).toBe('183')
+    const tron = await bodyStyle()
+
+    await showStatusBar(page)
+    await page.getByTestId('theme-select').selectOption('business')
+    await expect.poll(async () => (await bodyStyle()).color).toBe('rgb(255, 255, 255)')
+    expect((await bodyStyle()).font).toContain('Segoe UI')
+    await expect(page.locator('html')).toHaveAttribute('data-scanlines', 'off')
+    await expect(page.locator('html')).not.toHaveAttribute('data-glow', 'on')
+
+    // No variable of business may linger once another theme is chosen.
+    await page.getByTestId('theme-select').selectOption('tron')
+    await expect.poll(bodyStyle).toEqual(tron)
+  } finally {
+    await close()
+  }
+})
+
 test('a hand edit to settings.json applies while the app runs', async () => {
   const { page, userData, close } = await launch()
   try {

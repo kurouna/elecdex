@@ -24,6 +24,10 @@
   --surface-2: #0b1118;
   --line: #262828;
 
+  /* Text is the accent unless the theme names its own colours. */
+  --text-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --text-muted-base: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+
   --hue-danger: 0;
   --hue-warn: 45;
   --hue-ok: 130;
@@ -44,9 +48,9 @@
   --accent-dim: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.35);
   --accent-faint: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.12);
 
-  --text: var(--accent);
+  --text: var(--text-base);
   /* eDEX dims labels by opacity (0.5) rather than by a different colour. */
-  --text-muted: hsl(var(--accent-h) var(--accent-s) var(--accent-l) / 0.5);
+  --text-muted: var(--text-muted-base);
   --text-inverse: var(--surface-1);
 
   --app-bg: var(--surface-1);

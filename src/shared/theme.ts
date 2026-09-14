@@ -48,6 +48,12 @@ export const ThemeSchema = z.object({
   author: z.string().max(60).optional(),
   accent: z.object({ h: Hue, s: Percent, l: Percent }),
   surfaces: z.object({ s0: Hex, s1: Hex, s2: Hex, line: Hex }),
+  /**
+   * Text colours. By default text is the accent, as on a monochrome HUD; a theme
+   * for everyday work sets neutral text and keeps the accent for highlights.
+   * `muted` defaults to the primary text at half strength.
+   */
+  text: z.object({ primary: Hex, muted: Hex }).partial().optional(),
   /** Hues of the status colours; defaults suit most accents. */
   /** `info` is the cool contrast colour: Saturdays in the calendar. */
   status: z.object({ danger: Hue, warn: Hue, ok: Hue, info: Hue }).partial().optional(),
@@ -86,6 +92,9 @@ export const DEFAULT_THEME_ID = 'tron'
  *  - phosphor: green P1 phosphor, the classic monitor.
  *  - white: a cool white monitor, scanlines and a soft glow. Not pure white on
  *    black: text #D7E0EA on #0A0B0D, the colours of the elec series (elecxzy).
+ *  - business: an ordinary app for the working day, in Windows 11's dark mode
+ *    colours - #202020 ground, white text, the default blue accent - with its
+ *    system fonts and Windows Terminal's Campbell palette, no scanlines or glow.
  */
 export const BUILTIN_THEMES: readonly Theme[] = [
   {
@@ -101,21 +110,23 @@ export const BUILTIN_THEMES: readonly Theme[] = [
     id: 'amber',
     name: 'Amber',
     author: 'elecdex',
-    accent: { h: 36, s: 100, l: 58 },
+    // Toned down from s 100 / l 58, whose full-strength orange glared.
+    accent: { h: 36, s: 90, l: 50 },
     surfaces: { s0: '#000000', s1: '#0a0603', s2: '#160e06', line: '#2b1c0c' },
     status: { danger: 4, warn: 52, ok: 88 },
     terminal: { ansiPull: 0.85 },
-    effects: { scanlines: true, glow: 0.45 },
+    effects: { scanlines: true, glow: 0.35 },
   },
   {
     id: 'phosphor',
     name: 'Phosphor',
     author: 'elecdex',
-    accent: { h: 128, s: 72, l: 60 },
+    // Toned down from s 72 / l 60, like amber.
+    accent: { h: 128, s: 60, l: 48 },
     surfaces: { s0: '#000000', s1: '#020703', s2: '#061109', line: '#10281a' },
     status: { danger: 8, warn: 58, ok: 150 },
     terminal: { ansiPull: 0.85 },
-    effects: { scanlines: true, glow: 0.4 },
+    effects: { scanlines: true, glow: 0.3 },
   },
   {
     id: 'white',
@@ -127,6 +138,45 @@ export const BUILTIN_THEMES: readonly Theme[] = [
     // A pale accent would wash ANSI colours out if pulled hard towards it.
     terminal: { ansiPull: 0.3 },
     effects: { scanlines: true, glow: 0.3 },
+  },
+  {
+    id: 'business',
+    name: 'Business',
+    author: 'elecdex',
+    // #60CDFF, Windows 11's default blue accent as it is drawn on dark surfaces.
+    accent: { h: 199, s: 100, l: 69 },
+    // WinUI's dark backgrounds. The grid line matches the ground, so there is no
+    // HUD grid, as in an ordinary window.
+    surfaces: { s0: '#1c1c1c', s1: '#202020', s2: '#2c2c2c', line: '#202020' },
+    text: { primary: '#ffffff', muted: '#9e9e9e' },
+    status: { danger: 354, warn: 40, ok: 113, info: 206 },
+    fonts: {
+      display: '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif',
+      ui: '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif',
+      mono: '"Cascadia Mono", Consolas, "JetBrains Mono Variable", ui-monospace, monospace',
+    },
+    terminal: {
+      // Windows Terminal's default scheme, Campbell.
+      ansi: {
+        black: '#0c0c0c',
+        red: '#c50f1f',
+        green: '#13a10e',
+        yellow: '#c19c00',
+        blue: '#0037da',
+        magenta: '#881798',
+        cyan: '#3a96dd',
+        white: '#cccccc',
+        brightBlack: '#767676',
+        brightRed: '#e74856',
+        brightGreen: '#16c60c',
+        brightYellow: '#f9f1a5',
+        brightBlue: '#3b78ff',
+        brightMagenta: '#b4009e',
+        brightCyan: '#61d6d6',
+        brightWhite: '#f2f2f2',
+      },
+    },
+    effects: { scanlines: false, glow: 0 },
   },
 ]
 
@@ -160,6 +210,20 @@ const DEFAULT_FONTS = {
   mono: '"JetBrains Mono Variable", ui-monospace, monospace',
 }
 
+/** Text follows the accent unless the theme names its colours; muted is half strength. */
+function textVariables(theme: Theme): Record<string, string> {
+  const accent = 'var(--accent-h) var(--accent-s) var(--accent-l)'
+  const primary = theme.text?.primary
+  const halfPrimary =
+    primary === undefined
+      ? `hsl(${accent} / 0.5)`
+      : `color-mix(in srgb, ${primary} 50%, transparent)`
+  return {
+    '--text-base': primary ?? `hsl(${accent})`,
+    '--text-muted-base': theme.text?.muted ?? halfPrimary,
+  }
+}
+
 /**
  * The CSS custom properties a theme sets. Every theme sets every one of them,
  * so switching from a theme that sets fonts to one that does not resets them.
@@ -185,6 +249,7 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--surface-1': theme.surfaces.s1,
     '--surface-2': theme.surfaces.s2,
     '--line': theme.surfaces.line,
+    ...textVariables(theme),
     '--hue-danger': String(status.danger),
     '--hue-warn': String(status.warn),
     '--hue-ok': String(status.ok),

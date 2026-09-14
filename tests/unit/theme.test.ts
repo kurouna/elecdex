@@ -19,8 +19,14 @@ const custom: Theme = {
 }
 
 describe('built-in themes', () => {
-  it('ships four valid themes, the default among them', () => {
-    expect(BUILTIN_THEMES.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor', 'white'])
+  it('ships five valid themes, the default among them', () => {
+    expect(BUILTIN_THEMES.map((t) => t.id)).toEqual([
+      'tron',
+      'amber',
+      'phosphor',
+      'white',
+      'business',
+    ])
     for (const theme of BUILTIN_THEMES) expect(ThemeSchema.safeParse(theme).success).toBe(true)
     expect(BUILTIN_THEMES.some((t) => t.id === DEFAULT_THEME_ID)).toBe(true)
   })
@@ -37,6 +43,7 @@ describe('ThemeSchema', () => {
     ['a font stack with url()', { fonts: { mono: 'x"); background: url(http://evil' } }],
     ['an id with a path in it', { id: '../../etc' }],
     ['a hue out of range', { accent: { h: 400, s: 10, l: 10 } }],
+    ['CSS smuggled into a text colour', { text: { primary: 'red; color: blue' } }],
   ])('rejects %s', (_label, change) => {
     expect(ThemeSchema.safeParse({ ...custom, ...change }).success).toBe(false)
   })
@@ -49,6 +56,7 @@ describe('mergeThemes', () => {
       'amber',
       'phosphor',
       'white',
+      'business',
       'ice',
     ])
   })
@@ -56,7 +64,7 @@ describe('mergeThemes', () => {
   it('lets a user theme replace a built-in of the same id, in place', () => {
     const mine = { ...custom, id: 'amber', name: 'My Amber' }
     const merged = mergeThemes(BUILTIN_THEMES, [mine])
-    expect(merged.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor', 'white'])
+    expect(merged.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor', 'white', 'business'])
     expect(merged[1]?.name).toBe('My Amber')
   })
 })
@@ -76,6 +84,41 @@ describe('themeVariables', () => {
     expect(vars['--accent-s']).toBe('60%')
     expect(vars['--accent-l']).toBe('70%')
     expect(vars['--surface-1']).toBe('#010203')
+  })
+
+  it('makes text the accent unless the theme names its text colours', () => {
+    const accent = 'var(--accent-h) var(--accent-s) var(--accent-l)'
+    expect(themeVariables(custom)['--text-base']).toBe(`hsl(${accent})`)
+    expect(themeVariables(custom)['--text-muted-base']).toBe(`hsl(${accent} / 0.5)`)
+
+    const primaryOnly = themeVariables({ ...custom, text: { primary: '#ffffff' } })
+    expect(primaryOnly['--text-base']).toBe('#ffffff')
+    expect(primaryOnly['--text-muted-base']).toBe('color-mix(in srgb, #ffffff 50%, transparent)')
+
+    const both = themeVariables({ ...custom, text: { primary: '#ffffff', muted: '#9e9e9e' } })
+    expect(both['--text-muted-base']).toBe('#9e9e9e')
+  })
+
+  it('business is a plain Windows 11 dark app: neutral text, no grid, glow or scanlines', () => {
+    const business = BUILTIN_THEMES.find((t) => t.id === 'business') as Theme
+    const vars = themeVariables(business)
+    expect(vars['--surface-1']).toBe('#202020')
+    expect(vars['--line']).toBe(vars['--surface-1'])
+    expect(vars['--text-base']).toBe('#ffffff')
+    expect(vars['--glow']).toBe('0')
+    expect(vars['--scanlines']).toBe('0')
+    expect(vars['--font-ui']).toContain('Segoe UI')
+  })
+
+  it('keeps the monochrome CRT accents short of full brightness', () => {
+    // The brightest RGB channel of an HSL colour, 0 to 1.
+    const peak = ({ s, l }: Theme['accent']) =>
+      l / 100 + ((s / 100) * (1 - Math.abs((2 * l) / 100 - 1))) / 2
+    for (const id of ['amber', 'phosphor']) {
+      const theme = BUILTIN_THEMES.find((t) => t.id === id) as Theme
+      expect(peak(theme.accent), id).toBeLessThanOrEqual(0.95)
+      expect(theme.effects?.glow ?? 0, id).toBeLessThanOrEqual(0.35)
+    }
   })
 })
 
