@@ -111,6 +111,16 @@
   --tab-skew: -35deg;
 }
 
+/* A light theme: the colours above are tuned to glow on black, so status colours
+   and the strong accent go darker to keep their contrast on a white ground. */
+:root[data-mode="light"] {
+  --accent-strong: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) - 10%));
+  --danger: hsl(var(--hue-danger) 75% 44%);
+  --warn: hsl(var(--hue-warn) 95% 36%);
+  --ok: hsl(var(--hue-ok) 60% 32%);
+  --info: hsl(var(--hue-info) 80% 40%);
+}
+
 /* Respect the OS setting; the in-app toggle sets `data-motion="reduced"`. */
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) {

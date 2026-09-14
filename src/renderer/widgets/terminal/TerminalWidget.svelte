@@ -13,7 +13,12 @@ import { sessions, shellName } from '../../stores/sessions.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import './xterm-css.ts'
-import { buildXtermTheme, monoFontFamily, paletteFromCss } from './xterm-theme.ts'
+import {
+  buildXtermTheme,
+  minimumContrastRatio,
+  monoFontFamily,
+  paletteFromCss,
+} from './xterm-theme.ts'
 
 /**
  * One terminal, for one pane.
@@ -125,6 +130,7 @@ $effect(() => {
       fontSize: 13,
       lineHeight: 1.15,
       theme: buildXtermTheme(paletteFromCss(el), appearance.theme.terminal?.ansi),
+      minimumContrastRatio: minimumContrastRatio(appearance.theme.mode),
     })
 
     const fitAddon = new FitAddon()
@@ -222,6 +228,7 @@ $effect(() => {
   const el = host
   if (t === null || el === null) return
   t.options.theme = buildXtermTheme(paletteFromCss(el), appearance.theme.terminal?.ansi)
+  t.options.minimumContrastRatio = minimumContrastRatio(appearance.theme.mode)
   const family = monoFontFamily(el)
   if (t.options.fontFamily !== family) {
     t.options.fontFamily = family

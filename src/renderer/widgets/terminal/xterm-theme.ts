@@ -1,4 +1,4 @@
-import type { AnsiOverrides } from '@shared/theme'
+import type { AnsiOverrides, Theme } from '@shared/theme'
 import type { ITheme } from '@xterm/xterm'
 
 /**
@@ -97,6 +97,16 @@ export function buildXtermTheme(input: PaletteInput, overrides?: AnsiOverrides):
     if (value !== undefined) (derived as Record<string, string>)[name] = value
   }
   return derived
+}
+
+/**
+ * xterm's minimum contrast ratio for a theme. Shells and PSReadLine print in white
+ * and bright yellow, which vanish on a light ground, so a light theme has xterm
+ * darken any colour below WCAG AA (4.5:1) against the background. A dark theme
+ * keeps every colour exactly as given (1 = off).
+ */
+export function minimumContrastRatio(mode: Theme['mode']): number {
+  return mode === 'light' ? 4.5 : 1
 }
 
 /** Formats an hsl(a) colour, clamping each component to its valid range. */

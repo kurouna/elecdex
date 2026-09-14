@@ -46,6 +46,11 @@ export const ThemeSchema = z.object({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'lowercase letters, digits and hyphens'),
   name: z.string().min(1).max(60),
   author: z.string().max(60).optional(),
+  /**
+   * Whether the surfaces are dark (the default) or light. A light theme gets
+   * darker status colours and a darker strong accent, so they read on white.
+   */
+  mode: z.enum(['dark', 'light']).optional(),
   accent: z.object({ h: Hue, s: Percent, l: Percent }),
   surfaces: z.object({ s0: Hex, s1: Hex, s2: Hex, line: Hex }),
   /**
@@ -92,10 +97,17 @@ export const DEFAULT_THEME_ID = 'tron'
  *  - phosphor: green P1 phosphor, the classic monitor.
  *  - white: a cool white monitor, scanlines and a soft glow. Not pure white on
  *    black: text #D7E0EA on #0A0B0D, the colours of the elec series (elecxzy).
- *  - business: an ordinary app for the working day, in Windows 11's dark mode
- *    colours - #202020 ground, white text, the default blue accent - with its
- *    system fonts and Windows Terminal's Campbell palette, no scanlines or glow.
+ *  - business-dark / business-light: an ordinary app for the working day, in
+ *    Windows 11's dark and light mode colours and the default blue accent, with
+ *    its system fonts and a Windows Terminal colour scheme (Campbell, One Half
+ *    Light), no grid, scanlines or glow.
  */
+const WINDOWS_FONTS = {
+  display: '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif',
+  ui: '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif',
+  mono: '"Cascadia Mono", Consolas, "JetBrains Mono Variable", ui-monospace, monospace',
+}
+
 export const BUILTIN_THEMES: readonly Theme[] = [
   {
     id: 'tron',
@@ -140,8 +152,8 @@ export const BUILTIN_THEMES: readonly Theme[] = [
     effects: { scanlines: true, glow: 0.3 },
   },
   {
-    id: 'business',
-    name: 'Business',
+    id: 'business-dark',
+    name: 'Business (Dark)',
     author: 'elecdex',
     // #60CDFF, Windows 11's default blue accent as it is drawn on dark surfaces.
     accent: { h: 199, s: 100, l: 69 },
@@ -150,11 +162,7 @@ export const BUILTIN_THEMES: readonly Theme[] = [
     surfaces: { s0: '#1c1c1c', s1: '#202020', s2: '#2c2c2c', line: '#202020' },
     text: { primary: '#ffffff', muted: '#9e9e9e' },
     status: { danger: 354, warn: 40, ok: 113, info: 206 },
-    fonts: {
-      display: '"Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif',
-      ui: '"Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif',
-      mono: '"Cascadia Mono", Consolas, "JetBrains Mono Variable", ui-monospace, monospace',
-    },
+    fonts: WINDOWS_FONTS,
     terminal: {
       // Windows Terminal's default scheme, Campbell.
       ansi: {
@@ -174,6 +182,41 @@ export const BUILTIN_THEMES: readonly Theme[] = [
         brightMagenta: '#b4009e',
         brightCyan: '#61d6d6',
         brightWhite: '#f2f2f2',
+      },
+    },
+    effects: { scanlines: false, glow: 0 },
+  },
+  {
+    id: 'business-light',
+    name: 'Business (Light)',
+    author: 'elecdex',
+    mode: 'light',
+    // #005FB8, Windows 11's default blue accent as it is drawn on light surfaces.
+    accent: { h: 209, s: 100, l: 36 },
+    // WinUI's light backgrounds: #F3F3F3 ground, white cards, no grid.
+    surfaces: { s0: '#eeeeee', s1: '#f3f3f3', s2: '#ffffff', line: '#f3f3f3' },
+    text: { primary: '#1a1a1a', muted: '#5f5f5f' },
+    status: { danger: 354, warn: 32, ok: 120, info: 209 },
+    fonts: WINDOWS_FONTS,
+    terminal: {
+      // Windows Terminal's light scheme, One Half Light.
+      ansi: {
+        black: '#383a42',
+        red: '#e45649',
+        green: '#50a14f',
+        yellow: '#c18301',
+        blue: '#0184bc',
+        magenta: '#a626a4',
+        cyan: '#0997b3',
+        white: '#fafafa',
+        brightBlack: '#4f525d',
+        brightRed: '#df6c75',
+        brightGreen: '#98c379',
+        brightYellow: '#e4c07a',
+        brightBlue: '#61afef',
+        brightMagenta: '#c577dd',
+        brightCyan: '#56b5c2',
+        brightWhite: '#ffffff',
       },
     },
     effects: { scanlines: false, glow: 0 },

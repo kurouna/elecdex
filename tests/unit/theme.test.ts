@@ -9,7 +9,10 @@ import {
 } from '@shared/theme'
 import { describe, expect, it } from 'vitest'
 import { allowPlay, recipeLength, SOUNDS } from '../../src/renderer/lib/sfx.js'
-import { buildXtermTheme } from '../../src/renderer/widgets/terminal/xterm-theme.js'
+import {
+  buildXtermTheme,
+  minimumContrastRatio,
+} from '../../src/renderer/widgets/terminal/xterm-theme.js'
 
 const custom: Theme = {
   id: 'ice',
@@ -19,13 +22,14 @@ const custom: Theme = {
 }
 
 describe('built-in themes', () => {
-  it('ships five valid themes, the default among them', () => {
+  it('ships six valid themes, the default among them', () => {
     expect(BUILTIN_THEMES.map((t) => t.id)).toEqual([
       'tron',
       'amber',
       'phosphor',
       'white',
-      'business',
+      'business-dark',
+      'business-light',
     ])
     for (const theme of BUILTIN_THEMES) expect(ThemeSchema.safeParse(theme).success).toBe(true)
     expect(BUILTIN_THEMES.some((t) => t.id === DEFAULT_THEME_ID)).toBe(true)
@@ -56,7 +60,8 @@ describe('mergeThemes', () => {
       'amber',
       'phosphor',
       'white',
-      'business',
+      'business-dark',
+      'business-light',
       'ice',
     ])
   })
@@ -64,7 +69,14 @@ describe('mergeThemes', () => {
   it('lets a user theme replace a built-in of the same id, in place', () => {
     const mine = { ...custom, id: 'amber', name: 'My Amber' }
     const merged = mergeThemes(BUILTIN_THEMES, [mine])
-    expect(merged.map((t) => t.id)).toEqual(['tron', 'amber', 'phosphor', 'white', 'business'])
+    expect(merged.map((t) => t.id)).toEqual([
+      'tron',
+      'amber',
+      'phosphor',
+      'white',
+      'business-dark',
+      'business-light',
+    ])
     expect(merged[1]?.name).toBe('My Amber')
   })
 })
@@ -99,15 +111,27 @@ describe('themeVariables', () => {
     expect(both['--text-muted-base']).toBe('#9e9e9e')
   })
 
-  it('business is a plain Windows 11 dark app: neutral text, no grid, glow or scanlines', () => {
-    const business = BUILTIN_THEMES.find((t) => t.id === 'business') as Theme
-    const vars = themeVariables(business)
-    expect(vars['--surface-1']).toBe('#202020')
-    expect(vars['--line']).toBe(vars['--surface-1'])
-    expect(vars['--text-base']).toBe('#ffffff')
-    expect(vars['--glow']).toBe('0')
-    expect(vars['--scanlines']).toBe('0')
-    expect(vars['--font-ui']).toContain('Segoe UI')
+  it.each([
+    ['business-dark', undefined, '#202020', '#ffffff'],
+    ['business-light', 'light', '#f3f3f3', '#1a1a1a'],
+  ])(
+    '%s is a plain Windows 11 app: neutral text, no grid, glow or scanlines',
+    (id, mode, ground, text) => {
+      const business = BUILTIN_THEMES.find((t) => t.id === id) as Theme
+      expect(business.mode).toBe(mode)
+      const vars = themeVariables(business)
+      expect(vars['--surface-1']).toBe(ground)
+      expect(vars['--line']).toBe(vars['--surface-1'])
+      expect(vars['--text-base']).toBe(text)
+      expect(vars['--glow']).toBe('0')
+      expect(vars['--scanlines']).toBe('0')
+      expect(vars['--font-ui']).toContain('Segoe UI')
+    },
+  )
+
+  it('knows only dark and light modes', () => {
+    expect(ThemeSchema.safeParse({ ...custom, mode: 'light' }).success).toBe(true)
+    expect(ThemeSchema.safeParse({ ...custom, mode: 'sepia' }).success).toBe(false)
   })
 
   it('keeps the monochrome CRT accents short of full brightness', () => {
@@ -196,6 +220,13 @@ describe('terminal palette for a theme', () => {
     expect(tight.green).not.toBe(loose.green)
     // Still distinct from each other, or `git diff` would be unreadable.
     expect(tight.red).not.toBe(tight.green)
+  })
+
+  it('has xterm lift faint colours to 4.5:1 on a light theme only', () => {
+    // White and bright yellow from the shell would vanish on a white ground.
+    expect(minimumContrastRatio('light')).toBe(4.5)
+    expect(minimumContrastRatio('dark')).toBe(1)
+    expect(minimumContrastRatio(undefined)).toBe(1)
   })
 
   it('uses a theme’s explicit colours over the derived ones', () => {

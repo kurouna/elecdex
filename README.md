@@ -43,7 +43,7 @@ for Windows, macOS and Linux.
   effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
-- **Look and feel** — five themes (Tron, Amber, Phosphor, White, and Business - Windows 11 dark mode colours and system fonts for an ordinary working day) that switch live, CRT power-on
+- **Look and feel** — six themes (Tron, Amber, Phosphor, White, and Business (Dark) and Business (Light) - Windows 11 colours and system fonts for an ordinary working day) that switch live, CRT power-on
   boot sequence after a Linux-style boot log of this machine's real facts (a pane added later powers on the same way), scanlines and glow, synthesised
   interface sounds, a themed title bar and a status bar that slides in from the bottom edge. Short
   entrance effects - a wave of dates for each month, a forecast rising in, new headlines and
@@ -240,7 +240,8 @@ themes folder*). It appears straight away; one with a built-in's `id` replaces t
 ```
 
 Colours are `#rrggbb`; `status` (hues for danger / warn / ok / info), `fonts` and `text`
-(`primary` and `muted` text colours; text is the accent without it) are optional.
+(`primary` and `muted` text colours; text is the accent without it) and `mode` (`"light"` for a
+light ground: darker status colours, and the terminal raises faint colours to 4.5:1) are optional.
 The layout lives in `layout.json` beside them; a hand-edited file is validated on load, and one
 that cannot be read is moved aside to `layout.json.bak` rather than discarded.
 
