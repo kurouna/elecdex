@@ -2,8 +2,9 @@ import path from 'node:path'
 import { CH } from '@shared/channels'
 import { notificationsFor } from '@shared/quake-notifications'
 import { type QuakeAlert, type QuakeState, quakeLanguage, resolveQuakeSource } from '@shared/quakes'
-import { app, BrowserWindow, ipcMain, Notification, net, type WebContents } from 'electron'
+import { app, ipcMain, Notification, net, type WebContents } from 'electron'
 import { z } from 'zod'
+import { appWindows } from '../app-windows.js'
 import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { QuakeService } from '../quakes/service.js'
@@ -42,7 +43,7 @@ export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => vo
   )
 
   const broadcast = (channel: string, payload: unknown): void => {
-    for (const win of BrowserWindow.getAllWindows()) {
+    for (const win of appWindows()) {
       if (!win.webContents.isDestroyed()) win.webContents.send(channel, payload)
     }
   }
@@ -131,12 +132,12 @@ export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => vo
 /** System notifications, when no elecdex window is in front to show the banner. */
 function notifySystem(payload: QuakeAlert, settings: SettingsHandle): void {
   if (!settings.current().quakes.system || !Notification.isSupported()) return
-  const windows = BrowserWindow.getAllWindows()
+  const windows = appWindows()
   if (windows.some((win) => win.isFocused() && !win.isMinimized())) return
   for (const { title, body } of notificationsFor(payload, quakeLanguage(app.getLocale()))) {
     const notification = new Notification({ title, body })
     notification.on('click', () => {
-      const [win] = BrowserWindow.getAllWindows()
+      const [win] = appWindows()
       if (!win) return
       if (win.isMinimized()) win.restore()
       win.show()

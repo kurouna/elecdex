@@ -43,6 +43,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: r('src/preload/index.ts'),
+          // The hidden audio capture window's own, narrower bridge.
+          'audio-capture': r('src/preload/audio-capture.ts'),
         },
         // Preload runs in a sandboxed context: it must be a single CommonJS file.
         output: {
@@ -75,6 +77,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: r('src/renderer/index.html'),
+          // Loaded only in the hidden audio capture window (main/audio/capture-window.ts).
+          'audio-capture': r('src/renderer/audio-capture.html'),
         },
       },
     },

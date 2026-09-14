@@ -9,6 +9,7 @@ import type {
   ThemeCatalog,
   WindowState,
 } from '@shared/api'
+import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
@@ -287,6 +288,46 @@ function subscribeQuakes(handler: (state: QuakeState) => void): () => void {
   }
 }
 
+/**
+ * A reference-counted subscription to one main-process stream: the first handler
+ * subscribes, the last to leave unsubscribes, and every update reaches every handler.
+ */
+function sharedStream<T>(channels: { subscribe: string; unsubscribe: string; event: string }) {
+  const handlers = new Set<(update: T) => void>()
+  let off: (() => void) | null = null
+  return (handler: (update: T) => void): (() => void) => {
+    handlers.add(handler)
+    if (handlers.size === 1) {
+      off = listen<T>(channels.event, (update) => {
+        for (const h of handlers) h(update)
+      })
+      ipcRenderer.send(channels.subscribe)
+    }
+    let active = true
+    return () => {
+      if (!active) return
+      active = false
+      handlers.delete(handler)
+      if (handlers.size > 0) return
+      off?.()
+      off = null
+      ipcRenderer.send(channels.unsubscribe)
+    }
+  }
+}
+
+const subscribeSpectrum = sharedStream<SpectrumUpdate>({
+  subscribe: CH.audio.spectrumSubscribe,
+  unsubscribe: CH.audio.spectrumUnsubscribe,
+  event: CH.audio.spectrum,
+})
+
+const subscribeMixer = sharedStream<MixerUpdate>({
+  subscribe: CH.audio.mixerSubscribe,
+  unsubscribe: CH.audio.mixerUnsubscribe,
+  event: CH.audio.mixer,
+})
+
 const api: ElecdexApi = {
   system: {
     platform: process.platform,
@@ -332,6 +373,11 @@ const api: ElecdexApi = {
   feeds: {
     subscribe: (url, handler) => subscribeFeed(url, handler),
     watching: () => ipcRenderer.invoke(CH.feeds.watching) as Promise<string[]>,
+  },
+  audio: {
+    spectrum: subscribeSpectrum,
+    mixer: subscribeMixer,
+    mixerCommand: (command) => ipcRenderer.send(CH.audio.mixerCommand, command),
   },
   quakes: {
     subscribe: subscribeQuakes,

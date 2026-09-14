@@ -1,4 +1,6 @@
 import type { MetricSourceId } from '@shared/metrics'
+import MixerWidget from './audio/MixerWidget.svelte'
+import SpectrumWidget from './audio/SpectrumWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
@@ -185,4 +187,21 @@ registerBuiltin({
     'The month with today and weekends marked, and optionally Japanese holidays. Scroll to change month.',
   component: CalendarWidget,
   minSize: { w: 180, h: 140 },
+})
+
+registerBuiltin({
+  id: 'spectrum',
+  title: 'spectrum',
+  description:
+    "A spectrum analyser of the computer's sound, like a car stereo's display. Capture runs only while it shows.",
+  component: SpectrumWidget,
+  minSize: { w: 200, h: 120 },
+})
+
+registerBuiltin({
+  id: 'mixer',
+  title: 'mixer',
+  description: 'The system volume and each app playing sound, with faders, mute and meters.',
+  component: MixerWidget,
+  minSize: { w: 160, h: 160 },
 })

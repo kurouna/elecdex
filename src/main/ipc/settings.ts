@@ -24,7 +24,8 @@ import {
   type ThemeProblem,
   ThemeSchema,
 } from '@shared/theme'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, ipcMain, shell } from 'electron'
+import { appWindows } from '../app-windows.js'
 import { JsonStore } from '../store/json-store.js'
 
 /**
@@ -81,7 +82,7 @@ export function registerSettingsIpc(): SettingsHandle {
   }
 
   const broadcast = (channel: string, payload: unknown): void => {
-    for (const win of BrowserWindow.getAllWindows()) {
+    for (const win of appWindows()) {
       if (!win.webContents.isDestroyed()) win.webContents.send(channel, payload)
     }
   }

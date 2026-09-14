@@ -38,7 +38,7 @@ Electron flags go after a second `--`: `npm run dev -- -- --windowed`.
 ## Layout of the code
 
 ```
-src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/
+src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/, audio/
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas, channel names and pure logic used by both sides
@@ -71,8 +71,15 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   `ELECDEX_JMA_BASE_URL`, `ELECDEX_MET_BASE_URL`, `ELECDEX_NWS_BASE_URL`,
   `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default (the JMA base
   also covers the earthquake and tsunami lists), `ELECDEX_USGS_BASE_URL` and `ELECDEX_NOAA_BASE_URL`
-  at closed ports by default and starts with sound off; specs that need data run a local stub
-  server. Keep it that way.
+  at closed ports by default, sets `ELECDEX_AUDIO_STUB=1` (a steady tone for the spectrum, a
+  made-up mixer - never the machine's sound or volume) and starts with sound off; specs that need
+  data run a local stub server. Keep it that way.
+- **Audio capture stays out of the workspace.** The spectrum's system audio comes through screen
+  capture with loopback audio, granted only in the hidden capture window (main/audio/capture-window.ts:
+  its own session, its own two-function preload, a page with no network). The workspace session
+  still refuses every permission but the clipboard, and only spectrum levels leave that window.
+  Code that means "the elecdex window" asks `appWindows()` (main/app-windows.ts), never
+  `BrowserWindow.getAllWindows()`, so the helper window is never taken for it.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).

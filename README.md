@@ -41,6 +41,9 @@ for Windows, macOS and Linux.
 - **Earthquakes and tsunamis** — for Japan (JMA) or the world (USGS and NOAA): alerts at the
   intensity or magnitude you choose (off by default), tsunami warnings kept in sight while in
   effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
+- **Spectrum and mixer** — a spectrum analyser of what the computer is playing, drawn like a
+  1990s car stereo's display (fluorescent cyan or amber, LED, or the theme's colour), and a mixer
+  for the system volume and each app playing sound, in panes you add when you want them.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
@@ -227,6 +230,20 @@ weather and calendar.
   sweep in the way it moved. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named
   below the month.
+- **Spectrum** — not in the default layout: add it from the picker. The system's sound output in
+  7, 10 or 16 bands, in columns of segments with held peaks; the settings button picks the style
+  (VFD cyan, the default, VFD amber, LED or the theme), the band count, bars, a mirrored pattern
+  or peaks only, and peak hold. It listens only while the pane is on screen - not in a background
+  tab - and draws only while there is sound, 20 frames a second (about a third of a core while
+  sound plays, a tenth while it is silent, on an i5-1335U). Capture runs in a hidden window of its own, and only
+  the levels reach the pane; nothing is recorded. Tested on Windows; macOS should work through
+  the same screen-capture route (with screen recording permission) but is untested, and Linux is
+  not supported yet.
+- **Mixer** — not in the default layout: add it from the picker. The output device's volume and
+  mute, and on Windows and Linux each app playing sound, with faders, mute buttons and, on
+  Windows, peak meters. macOS has the master volume only. Read while the pane is on screen: on
+  Windows through one long-lived PowerShell, on macOS with AppleScript and on Linux with PipeWire's
+  wpctl and pactl.
 
 ## Themes and settings
 

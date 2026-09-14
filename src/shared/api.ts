@@ -1,3 +1,4 @@
+import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
@@ -297,6 +298,19 @@ export interface MetricsApi {
   stats(): Promise<MetricsStats>
 }
 
+export interface AudioApi {
+  /**
+   * The spectrum of the system's output while a handler is subscribed: capture
+   * starts with the first and stops with the last. The handler hears the capture's
+   * status at once, then frames while there is sound.
+   */
+  spectrum(handler: (update: SpectrumUpdate) => void): () => void
+  /** The mixer's state and peak levels while a handler is subscribed. */
+  mixer(handler: (update: MixerUpdate) => void): () => void
+  /** Sets a channel's volume or mute; main checks the command against the channels it has. */
+  mixerCommand(command: MixerCommand): void
+}
+
 export interface ElecdexApi {
   system: SystemApi
   pty: PtyApi
@@ -311,6 +325,7 @@ export interface ElecdexApi {
   feeds: FeedsApi
   quakes: QuakesApi
   updates: UpdatesApi
+  audio: AudioApi
 }
 
 declare global {

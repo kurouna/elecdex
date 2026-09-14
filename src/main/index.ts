@@ -1,4 +1,6 @@
-import { app, BrowserWindow, dialog } from 'electron'
+import { app, dialog } from 'electron'
+import { appWindows } from './app-windows.js'
+import { registerAudioIpc } from './ipc/audio.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
 import { registerFsIpc } from './ipc/fs.js'
 import { registerLauncherIpc } from './ipc/launcher.js'
@@ -40,7 +42,7 @@ process.on('uncaughtException', (error) => {
 })
 
 app.on('second-instance', () => {
-  const [win] = BrowserWindow.getAllWindows()
+  const [win] = appWindows()
   if (!win) return
   if (win.isMinimized()) win.restore()
   win.focus()
@@ -57,6 +59,7 @@ let marketsIpc: { dispose: () => void } | null = null
 let feedsIpc: { dispose: () => void } | null = null
 let quakesIpc: { dispose: () => void } | null = null
 let updatesIpc: { dispose: () => void } | null = null
+let audioIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
@@ -72,13 +75,14 @@ app.whenReady().then(() => {
   feedsIpc = registerFeedsIpc()
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
+  audioIpc = registerAudioIpc()
   createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
   })
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (appWindows().length === 0) {
       createMainWindow({ fullscreen: !wantsWindowed, devtools: !app.isPackaged })
     }
   })
@@ -114,6 +118,8 @@ app.on('will-quit', () => {
   quakesIpc = null
   updatesIpc?.dispose()
   updatesIpc = null
+  audioIpc?.dispose()
+  audioIpc = null
 })
 
 app.on('window-all-closed', () => {

@@ -1,6 +1,7 @@
 import { CH } from '@shared/channels'
 import { RELEASES_API, type UpdateStatus } from '@shared/updates'
-import { BrowserWindow, ipcMain } from 'electron'
+import { ipcMain } from 'electron'
+import { appWindows } from '../app-windows.js'
 import { APP_VERSION } from '../build-info.js'
 import { UpdateChecker } from '../updates/checker.js'
 import type { SettingsHandle } from './settings.js'
@@ -33,7 +34,7 @@ export function registerUpdatesIpc(settings: SettingsHandle): { dispose: () => v
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
     publish: (status: UpdateStatus) => {
-      for (const win of BrowserWindow.getAllWindows()) {
+      for (const win of appWindows()) {
         if (!win.webContents.isDestroyed()) win.webContents.send(CH.updates.changed, status)
       }
     },

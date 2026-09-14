@@ -84,6 +84,25 @@ export const CH = {
     /** main -> renderer: earthquakes and a tsunami to announce (QuakeAlert). */
     alert: 'quakes:alert',
   },
+  audio: {
+    /** renderer -> main, fire and forget: a spectrum pane is showing. */
+    spectrumSubscribe: 'audio:spectrum-subscribe',
+    spectrumUnsubscribe: 'audio:spectrum-unsubscribe',
+    /** main -> renderer: a SpectrumUpdate, to subscribers only. */
+    spectrum: 'audio:spectrum',
+    /** renderer -> main, fire and forget: a mixer pane is showing. */
+    mixerSubscribe: 'audio:mixer-subscribe',
+    mixerUnsubscribe: 'audio:mixer-unsubscribe',
+    /** main -> renderer: a MixerUpdate, to subscribers only. */
+    mixer: 'audio:mixer',
+    /** renderer -> main, fire and forget: a MixerCommand, validated in main. */
+    mixerCommand: 'audio:mixer-command',
+  },
+  /** The hidden audio capture window -> main; heard from that window's contents only. */
+  audioCapture: {
+    frame: 'audio-capture:frame',
+    status: 'audio-capture:status',
+  },
   launcher: {
     list: 'launcher:list',
     icon: 'launcher:icon',

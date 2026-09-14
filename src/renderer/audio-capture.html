@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      The audio capture page: a hidden window of its own (main/audio/capture-window.ts)
+      that listens to the system's output and sends only spectrum levels on. It draws
+      nothing and reaches nothing: no styles, images or connections at all.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'" />
+    <title>elecdex audio capture</title>
+  </head>
+  <body>
+    <script type="module" src="./audio-capture/capture.ts"></script>
+  </body>
+</html>

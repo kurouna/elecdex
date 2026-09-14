@@ -132,6 +132,8 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
       ELECDEX_USGS_BASE_URL: UNREACHABLE_USGS,
       ELECDEX_NOAA_BASE_URL: UNREACHABLE_NOAA,
+      // A steady tone and a made-up mixer: never the machine's sound or volume.
+      ELECDEX_AUDIO_STUB: '1',
       ...options.env,
     },
   })
