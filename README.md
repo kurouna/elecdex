@@ -27,7 +27,7 @@ for Windows, macOS and Linux.
   copies it and a right-click pastes.
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
-  network status and traffic. The default layout idles at about 13–15% of one core.
+  network status and traffic. The default layout idles at about 13% of one core.
 - **World view** — a globe of where the machine's connections go, placed with a bundled GeoIP
   database; nothing is looked up online.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
