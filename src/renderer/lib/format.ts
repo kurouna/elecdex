@@ -116,19 +116,27 @@ export function powerLabel(battery: {
 export const LOW_BATTERY_PERCENT = 20
 
 /**
- * The battery gauge beside the POWER value: its charge, rounded, and whether it
- * is low or charging. Null on a machine without a battery or without a reading.
+ * The battery gauge beside the POWER value: its charge, rounded, whether it is
+ * low, and whether power is connected - charging, or plugged in and holding a full
+ * charge, which Windows reports as not charging. Null on a machine without a
+ * battery or without a reading.
  */
 export function batteryGauge(battery: {
   hasBattery: boolean
   percent: number | null
   isCharging: boolean
-}): { percent: number; low: boolean; charging: boolean } | null {
+  acConnected: boolean
+}): { percent: number; low: boolean; charging: boolean; plugged: boolean } | null {
   if (!battery.hasBattery || battery.percent === null || !Number.isFinite(battery.percent)) {
     return null
   }
   const percent = Math.max(0, Math.min(100, Math.round(battery.percent)))
-  return { percent, low: percent < LOW_BATTERY_PERCENT, charging: battery.isCharging }
+  return {
+    percent,
+    low: percent < LOW_BATTERY_PERCENT,
+    charging: battery.isCharging,
+    plugged: battery.isCharging || battery.acConnected,
+  }
 }
 
 /**

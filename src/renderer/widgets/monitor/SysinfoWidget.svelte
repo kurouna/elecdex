@@ -54,7 +54,12 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
       {#if gauge}
         <span class="value power" data-testid="power">
           {gauge.percent}%
-          <BatteryGauge percent={gauge.percent} low={gauge.low} charging={gauge.charging} />
+          <BatteryGauge
+            percent={gauge.percent}
+            low={gauge.low}
+            charging={gauge.charging}
+            plugged={gauge.plugged}
+          />
         </span>
       {:else}
         <span class="value" data-testid="power">{battery ? powerLabel(battery) : '--'}</span>

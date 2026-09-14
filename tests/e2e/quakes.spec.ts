@@ -293,10 +293,12 @@ test('an alert reaches the system notifications when no window is in front', asy
     args: ['--lang=en-US'],
   })
   try {
-    // Recorded instead of shown; a hidden window is never the one in front.
+    // Recorded instead of shown; a hidden window is never the one in front. Supported is
+    // stubbed too: a Linux runner has no notification server, so Electron says it cannot.
     await app.evaluate(({ BrowserWindow, Notification }) => {
       const shown: string[] = []
       ;(globalThis as { __notified?: string[] }).__notified = shown
+      Notification.isSupported = () => true
       Notification.prototype.show = function show(this: Electron.Notification) {
         shown.push(`${this.title}|${this.body}`)
       }

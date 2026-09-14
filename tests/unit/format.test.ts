@@ -116,18 +116,27 @@ describe('osLabel', () => {
 })
 
 describe('batteryGauge', () => {
-  const base = { hasBattery: true, percent: 84.6, isCharging: false }
+  const base = { hasBattery: true, percent: 84.6, isCharging: false, acConnected: false }
   it('is green from 20% up and red below', () => {
-    expect(batteryGauge(base)).toEqual({ percent: 85, low: false, charging: false })
+    expect(batteryGauge(base)).toEqual({ percent: 85, low: false, charging: false, plugged: false })
     expect(batteryGauge({ ...base, percent: 20 })?.low).toBe(false)
     expect(batteryGauge({ ...base, percent: 19.4 })?.low).toBe(true)
   })
   it('shows the charge while charging too', () =>
-    expect(batteryGauge({ ...base, isCharging: true })).toEqual({
+    expect(batteryGauge({ ...base, isCharging: true, acConnected: true })).toEqual({
       percent: 85,
       low: false,
       charging: true,
+      plugged: true,
     }))
+  it('counts as plugged in on mains at full charge, which Windows reports as not charging', () => {
+    expect(batteryGauge({ ...base, percent: 99, acConnected: true })).toMatchObject({
+      charging: false,
+      plugged: true,
+    })
+    // Charging without a mains reading still means power is connected.
+    expect(batteryGauge({ ...base, isCharging: true })?.plugged).toBe(true)
+  })
   it('has nothing to show without a battery or a reading', () => {
     expect(batteryGauge({ ...base, hasBattery: false })).toBeNull()
     expect(batteryGauge({ ...base, percent: null })).toBeNull()
