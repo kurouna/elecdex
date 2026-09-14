@@ -86,6 +86,7 @@ describe('settings', () => {
       theme: 'tron',
       sound: { enabled: true, volume: 0.5 },
       motion: 'system',
+      terminal: { startDirectory: '' },
       launcher: { showSystem: true, items: [] },
       keybindings: {},
       updates: { check: true },
@@ -116,6 +117,19 @@ describe('settings', () => {
     ).toBe(6.2)
     expect(applySettingsPatch(defaultSettings(), { quakes: { minMagnitude: 3 } })).toBeNull()
     expect(applySettingsPatch(defaultSettings(), { quakes: { source: 'mars' } })).toBeNull()
+  })
+
+  it('the terminal starts at home by default, and takes a folder by patch or hand edit', () => {
+    expect(defaultSettings().terminal).toEqual({ startDirectory: '' })
+    expect(SettingsSchema.parse({ terminal: {} }).terminal.startDirectory).toBe('')
+    const next = applySettingsPatch(defaultSettings(), {
+      terminal: { startDirectory: 'D:\\work' },
+    })
+    expect(next?.terminal.startDirectory).toBe('D:\\work')
+    expect(
+      applySettingsPatch(defaultSettings(), { terminal: { startDirectory: 'x'.repeat(1025) } }),
+    ).toBeNull()
+    expect(applySettingsPatch(defaultSettings(), { terminal: { startDirectory: 42 } })).toBeNull()
   })
 
   it('patches one field of a group without losing the others', () => {

@@ -50,6 +50,9 @@ const unit = $derived<TemperatureUnit>(
  */
 const WEEK_STAGGER_MS = 45
 
+/** The week forecast under today, on unless turned off in the pane's settings (pane state `week`). */
+const showWeek = $derived(paneState?.week !== false)
+
 let update = $state.raw<WeatherUpdate | null>(null)
 let settingsOpen = $state(false)
 
@@ -177,6 +180,15 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
           </select>
         </label>
       {/if}
+      <label>
+        <span>week</span>
+        <input
+          type="checkbox"
+          checked={showWeek}
+          onchange={(e) => layout.setPaneState(paneId, { ...paneState, week: e.currentTarget.checked })}
+          data-testid="weather-week-toggle"
+        />
+      </label>
       <div class="units" role="radiogroup" aria-label="Temperature unit">
         {#each [['c', '°C'], ['f', '°F']] as const as [id, label] (id)}
           <button
@@ -229,22 +241,24 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
       </section>
     {/if}
 
-    <ol class="week" data-testid="weather-week">
-      {#each week as day, i (day.date)}
-        {@const label = dayLabel(day.date)}
-        <li
-          class="fx-rise"
-          style:--fx-delay={`${(i + 1) * WEEK_STAGGER_MS}ms`}
-          data-testid="weather-day"
-          title={summaryText(day)}
-        >
-          <span class="date {label.weekend ?? ''}">{label.day}<small>{label.weekday}</small></span>
-          <SkyIcon glyph={day.sky} />
-          <span class="temps"><em>{temp(day.tempMax)}</em> / {temp(day.tempMin)}</span>
-          <span class="pop">{wet(day)}</span>
-        </li>
-      {/each}
-    </ol>
+    {#if showWeek}
+      <ol class="week" data-testid="weather-week">
+        {#each week as day, i (day.date)}
+          {@const label = dayLabel(day.date)}
+          <li
+            class="fx-rise"
+            style:--fx-delay={`${(i + 1) * WEEK_STAGGER_MS}ms`}
+            data-testid="weather-day"
+            title={summaryText(day)}
+          >
+            <span class="date {label.weekend ?? ''}">{label.day}<small>{label.weekday}</small></span>
+            <SkyIcon glyph={day.sky} />
+            <span class="temps"><em>{temp(day.tempMax)}</em> / {temp(day.tempMin)}</span>
+            <span class="pop">{wet(day)}</span>
+          </li>
+        {/each}
+      </ol>
+    {/if}
   {/if}
 
   <button
@@ -283,6 +297,11 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.settings input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .settings label > span {
@@ -475,7 +494,8 @@ select {
 .attribution {
   /* The week gives way first: the credit must stay readable at any pane height. */
   flex-shrink: 0;
-  margin: 0;
+  /* At the bottom, also when the week is turned off and nothing fills the height. */
+  margin: auto 0 0;
   padding: 0 0 0.1rem;
   border: 0;
   background: transparent;

@@ -1,4 +1,5 @@
 <script lang="ts">
+import type { StartDirectory } from '@shared/api'
 import {
   availableOn,
   chordFromEvent,
@@ -19,8 +20,8 @@ import { ui } from './stores/ui.svelte.ts'
 import { updates } from './stores/updates.svelte.ts'
 
 /**
- * Settings, in the app: appearance and sound, the launcher, keyboard shortcuts
- * and the update check. Everything here writes through settings.patch, so it
+ * Settings, in the app: appearance and sound, the terminal's start folder, the
+ * launcher, keyboard shortcuts, alerts and the update check. Everything here writes through settings.patch, so it
  * lands in settings.json and a hand edit to that file shows up here at once.
  * Launcher entries, themes and window options stay in files; the dialog links
  * to them.
@@ -83,6 +84,27 @@ $effect(() => {
 
 function patch(change: SettingsPatch): void {
   void appearance.patch(change)
+}
+
+/** Where new shells start under the setting, as main resolves it: the folder, or home when it is not one. */
+let startDirectory = $state<StartDirectory | null>(null)
+
+$effect(() => {
+  const setting = settings.terminal.startDirectory
+  if (!ui.settingsOpen) return
+  let current = true
+  void window.elecdex.settings.startDirectory().then((resolved) => {
+    // A reply to an older setting must not overwrite the answer to the newer one.
+    if (current && setting === settings.terminal.startDirectory) startDirectory = resolved
+  })
+  return () => {
+    current = false
+  }
+})
+
+async function chooseStartDirectory(): Promise<void> {
+  const chosen = await window.elecdex.settings.chooseStartDirectory()
+  if (chosen !== null) patch({ terminal: { startDirectory: chosen } })
 }
 
 function close(): void {
@@ -284,6 +306,43 @@ function describeUpdate(status: UpdateStatus): string {
                 />
                 <output>{Math.round(settings.sound.volume * 100)}%</output>
               </label>
+            </section>
+
+            <section>
+              <h3>terminal</h3>
+              <label class="row">
+                <span>start folder</span>
+                <input
+                  type="text"
+                  class="path"
+                  spellcheck="false"
+                  value={settings.terminal.startDirectory}
+                  placeholder={startDirectory?.fellBack === false && settings.terminal.startDirectory === ''
+                    ? `home (${startDirectory.path})`
+                    : 'home'}
+                  onchange={(e) => patch({ terminal: { startDirectory: e.currentTarget.value.trim() } })}
+                  data-testid="settings-start-directory"
+                />
+                <button type="button" class="link" onclick={chooseStartDirectory} data-testid="settings-start-directory-browse">
+                  browse…
+                </button>
+                <button
+                  type="button"
+                  class="link"
+                  disabled={settings.terminal.startDirectory === ''}
+                  onclick={() => patch({ terminal: { startDirectory: '' } })}
+                  data-testid="settings-start-directory-home"
+                >
+                  home
+                </button>
+              </label>
+              <p class="note" class:problem={startDirectory?.fellBack} data-testid="settings-start-directory-note">
+                {#if startDirectory?.fellBack}
+                  Not a folder: new shells start at home ({startDirectory.path}) instead.
+                {:else}
+                  New shells start here; open shells stay where they are. "~" stands for your home folder.
+                {/if}
+              </p>
             </section>
 
             <section>
@@ -644,6 +703,28 @@ select {
 output {
   min-width: 3ch;
   color: var(--text-muted);
+}
+
+input.path {
+  flex: 1;
+  min-width: 12rem;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--panel-border);
+  background: var(--app-bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+input.path:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.note.problem {
+  color: var(--warn);
 }
 
 .note {

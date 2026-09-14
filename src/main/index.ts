@@ -60,13 +60,13 @@ let updatesIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
-  ptyIpc = registerPtyIpc()
+  const settings = registerSettingsIpc()
+  settingsIpc = settings
+  ptyIpc = registerPtyIpc(settings)
   layoutIpc = registerLayoutIpc()
   metricsIpc = registerMetricsIpc()
   fsIpc = registerFsIpc()
   weatherIpc = registerWeatherIpc()
-  const settings = registerSettingsIpc()
-  settingsIpc = settings
   launcherIpc = registerLauncherIpc(settings)
   marketsIpc = registerMarketsIpc()
   feedsIpc = registerFeedsIpc()

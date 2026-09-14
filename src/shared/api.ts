@@ -154,6 +154,18 @@ export interface SettingsApi {
   onChange(handler: (settings: Settings) => void): () => void
   /** Opens settings.json in the user's editor. Resolves with an error message, or null. */
   openFile(): Promise<string | null>
+  /**
+   * Where a new shell starts under the current setting, and whether that is home
+   * because the folder set is not one (missing, or not a folder).
+   */
+  startDirectory(): Promise<StartDirectory>
+  /** Asks for a folder with the system's picker; resolves with it, or null when cancelled. */
+  chooseStartDirectory(): Promise<string | null>
+}
+
+export interface StartDirectory {
+  path: string
+  fellBack: boolean
 }
 
 export interface UpdatesApi {

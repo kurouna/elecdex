@@ -37,6 +37,16 @@ export const SettingsSchema = z.object({
     .default({ enabled: true, volume: 0.5 }),
   /** 'system' follows the OS reduced-motion setting. */
   motion: z.enum(['system', 'full', 'reduced']).default('system'),
+  terminal: z
+    .object({
+      /**
+       * The folder a new shell starts in. Empty for the home folder; "~" stands for
+       * it at the start of a path. A folder that does not exist starts the shell at
+       * home instead (main/pty/start-directory.ts).
+       */
+      startDirectory: z.string().max(1024).default(''),
+    })
+    .default({ startDirectory: '' }),
   launcher: z
     .object({
       /** List the platform's own applications (Start Menu, /Applications, .desktop files). */
@@ -104,6 +114,7 @@ export interface SettingsPatch {
   sound?: Partial<Settings['sound']>
   motion?: Settings['motion']
   launcher?: { showSystem?: boolean }
+  terminal?: Partial<Settings['terminal']>
   /** Replaces the whole override map. */
   keybindings?: Settings['keybindings']
   updates?: Partial<Settings['updates']>
@@ -125,6 +136,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     sound: merge(current.sound, p.sound),
     updates: merge(current.updates, p.updates),
     quakes: merge(current.quakes, p.quakes),
+    terminal: merge(current.terminal, p.terminal),
     // Only showSystem: the launcher's own entries are edited in settings.json.
     launcher:
       typeof p.launcher === 'object' && p.launcher !== null && 'showSystem' in p.launcher

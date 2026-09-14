@@ -36,6 +36,10 @@ export const CH = {
     get: 'settings:get',
     patch: 'settings:patch',
     openFile: 'settings:open-file',
+    /** The folder a new shell starts in, as main resolves the setting now. */
+    startDirectory: 'settings:start-directory',
+    /** Opens the system's folder picker for the start directory. */
+    chooseStartDirectory: 'settings:choose-start-directory',
     /** main -> renderer: the whole Settings object after any change. */
     changed: 'settings:changed',
   },

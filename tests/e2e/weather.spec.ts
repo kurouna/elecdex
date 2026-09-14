@@ -297,3 +297,39 @@ test('an unreachable service shows the error, not a blank pane', async () => {
     await close()
   }
 })
+
+test('the week forecast can be turned off in the pane settings, keeping the credit at the bottom, and stays off', async () => {
+  let launched = await launch(undefined, { layout: weatherOnly(TOKYO), ...services() })
+  try {
+    let p = pane(launched.page)
+    await expect(p.getByTestId('weather-day').first()).toBeVisible({ timeout: 20_000 })
+    await p.getByTestId('weather-settings-toggle').click()
+    const toggle = p.getByTestId('weather-week-toggle')
+    // On by default.
+    await expect(toggle).toBeChecked()
+    await toggle.uncheck()
+    await expect(p.getByTestId('weather-week')).toHaveCount(0)
+    await expect(p.getByTestId('weather-today')).toBeVisible()
+
+    // Nothing fills the height now: the credit still sits at the bottom of the pane.
+    const gap = await p.evaluate((el) => {
+      const body = el.querySelector('[data-testid=weather]')?.getBoundingClientRect()
+      const credit = el.querySelector('[data-testid=weather-attribution]')?.getBoundingClientRect()
+      return body && credit ? body.bottom - credit.bottom : Number.NaN
+    })
+    expect(gap).toBeGreaterThanOrEqual(0)
+    expect(gap).toBeLessThan(4)
+
+    // Kept in the pane's state: still off after a restart.
+    await launched.page.waitForTimeout(1500) // let the layout save
+    launched = await launched.relaunch()
+    p = pane(launched.page)
+    await expect(p.getByTestId('weather-today')).toBeVisible({ timeout: 20_000 })
+    await expect(p.getByTestId('weather-week')).toHaveCount(0)
+    await p.getByTestId('weather-settings-toggle').click()
+    await p.getByTestId('weather-week-toggle').check()
+    await expect(p.getByTestId('weather-day').first()).toBeVisible()
+  } finally {
+    await launched.close()
+  }
+})

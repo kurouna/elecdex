@@ -4,6 +4,7 @@ import type {
   PtyCreateOptions,
   PtyHandlers,
   PtySessionSummary,
+  StartDirectory,
   ThemeCatalog,
   WindowState,
 } from '@shared/api'
@@ -318,6 +319,9 @@ const api: ElecdexApi = {
     patch: (patch) => ipcRenderer.invoke(CH.settings.patch, patch) as Promise<Settings>,
     onChange: (handler) => listen<Settings>(CH.settings.changed, handler),
     openFile: () => ipcRenderer.invoke(CH.settings.openFile) as Promise<string | null>,
+    startDirectory: () => ipcRenderer.invoke(CH.settings.startDirectory) as Promise<StartDirectory>,
+    chooseStartDirectory: () =>
+      ipcRenderer.invoke(CH.settings.chooseStartDirectory) as Promise<string | null>,
   },
   markets: {
     subscribe: (symbol, handler) => subscribeMarket(symbol, handler),

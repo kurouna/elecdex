@@ -16,6 +16,7 @@ import {
   systemEntries,
   userEntries,
 } from '../launcher/catalog.js'
+import { IconBatcher } from '../launcher/windows-icons.js'
 import { JsonStore } from '../store/json-store.js'
 import { openExternalIfSafe } from '../window.js'
 import type { SettingsHandle } from './settings.js'
@@ -46,6 +47,7 @@ const ICON_CACHE_LIMIT = 1000
 export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => void } {
   let system: { at: number; entries: CatalogEntry[] } | null = null
   const icons = new Map<string, string | null>()
+  const shellIcons = process.platform === 'win32' ? new IconBatcher() : null
   let byId = new Map<string, CatalogEntry>()
   const usage = new JsonStore<Record<string, LaunchUsage>>({
     file: path.join(app.getPath('userData'), 'launcher-usage.json'),
@@ -83,13 +85,7 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
     if (icons.has(raw)) return icons.get(raw) ?? null
     const entry = byId.get(raw)
     if (!entry || /^https?:/i.test(entry.target)) return null
-    let data: string | null = null
-    try {
-      const image = await app.getFileIcon(iconSource(entry.target), { size: 'normal' })
-      data = image.isEmpty() ? null : image.toDataURL()
-    } catch {
-      data = null
-    }
+    const data = (await shellIcons?.get(entry.target)) ?? (await electronIcon(entry.target))
     if (icons.size < ICON_CACHE_LIMIT) icons.set(raw, data)
     return data
   })
@@ -117,6 +113,19 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
       ipcMain.removeHandler(CH.launcher.icon)
       ipcMain.removeHandler(CH.launcher.launch)
     },
+  }
+}
+
+/**
+ * The icon Electron finds, where the Windows shell gives none (or elsewhere than
+ * Windows). See launcher/windows-icons.ts for why it is not the first choice there.
+ */
+async function electronIcon(target: string): Promise<string | null> {
+  try {
+    const image = await app.getFileIcon(iconSource(target), { size: 'normal' })
+    return image.isEmpty() ? null : image.toDataURL()
+  } catch {
+    return null
   }
 }
 

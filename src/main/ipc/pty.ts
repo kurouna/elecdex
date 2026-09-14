@@ -1,7 +1,17 @@
-import type { PtyCreateOptions, PtySessionSummary } from '@shared/api'
+import os from 'node:os'
+import type { PtyCreateOptions, PtySessionSummary, StartDirectory } from '@shared/api'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
-import { ipcMain, MessageChannelMain, type MessagePortMain, type WebContents } from 'electron'
+import {
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  MessageChannelMain,
+  type MessagePortMain,
+  type WebContents,
+} from 'electron'
 import { PtyManager } from '../pty/pty-manager.js'
+import { resolveStartDirectory } from '../pty/start-directory.js'
+import type { SettingsHandle } from './settings.js'
 
 /**
  * Wires PtyManager to the renderer.
@@ -27,8 +37,10 @@ type PortsBySession = Map<string, Set<Attached>>
 /** Upper bound on a single write, to keep a runaway renderer from wedging the PTY. */
 const MAX_WRITE_BYTES = 1024 * 1024
 
-export function registerPtyIpc(): { dispose: () => void } {
+export function registerPtyIpc(settings: SettingsHandle): { dispose: () => void } {
   const ports: PortsBySession = new Map()
+  const startDirectory = (): StartDirectory =>
+    resolveStartDirectory(settings.current().terminal.startDirectory, os.homedir())
 
   const broadcast = (id: string, message: PtyPortMessage): void => {
     const set = ports.get(id)
@@ -57,7 +69,25 @@ export function registerPtyIpc(): { dispose: () => void } {
   })
 
   ipcMain.handle(CH.pty.create, (_event, raw: unknown): PtySessionSummary => {
-    return manager.create(validateCreateOptions(raw))
+    const opts = validateCreateOptions(raw)
+    // A pane asks for no folder: it starts where the settings say.
+    opts.cwd ??= startDirectory().path
+    return manager.create(opts)
+  })
+
+  ipcMain.handle(CH.settings.startDirectory, (): StartDirectory => startDirectory())
+
+  ipcMain.handle(CH.settings.chooseStartDirectory, async (event): Promise<string | null> => {
+    const owner = BrowserWindow.fromWebContents(event.sender)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Start shells in',
+      defaultPath: startDirectory().path,
+      properties: ['openDirectory', 'createDirectory'],
+    }
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+    return result.canceled ? null : (result.filePaths[0] ?? null)
   })
 
   ipcMain.handle(CH.pty.list, (): PtySessionSummary[] => manager.list())
@@ -106,6 +136,8 @@ export function registerPtyIpc(): { dispose: () => void } {
       ipcMain.removeHandler(CH.pty.list)
       ipcMain.removeHandler(CH.pty.dispose)
       ipcMain.removeHandler(CH.pty.attach)
+      ipcMain.removeHandler(CH.settings.startDirectory)
+      ipcMain.removeHandler(CH.settings.chooseStartDirectory)
     },
   }
 }

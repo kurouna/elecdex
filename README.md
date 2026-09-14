@@ -49,7 +49,7 @@ for Windows, macOS and Linux.
   entrance effects - a wave of dates for each month, a forecast rising in, new headlines and
   earthquakes sliding in with a three-second highlight - follow the motion setting: with motion
   reduced (or the system's reduce-motion setting), nothing moves.
-- **Settings** — a settings dialog for theme, motion, sound, the launcher, rebindable keyboard
+- **Settings** — a settings dialog for theme, motion, sound, the terminal's start folder, the launcher, rebindable keyboard
   shortcuts and the update check, all saved to a hand-editable `settings.json`.
 
 <table>
@@ -127,7 +127,8 @@ over the launcher and the file browser; **right, the world outside:** world view
 weather and calendar.
 
 - **Terminal** — tabs show the shell and its directory; a non-zero exit code is flagged on the
-  pane.
+  pane. New shells start in the home folder, or in the folder set under *Settings → General →
+  Terminal* ("~" for home; a folder that no longer exists falls back to home).
 - **System** — date and weekday, uptime, OS, and power with a battery gauge (green, red below 20%).
 - **CPU** — two graphs of the cores' average load, or a bar per logical core (toggle in the pane).
 - **Memory** — the share in use and swap over the last minute, scrolling in step with the CPU
@@ -136,7 +137,8 @@ weather and calendar.
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to
-  filter, Enter to launch. Icons take the theme's accent and show their own colours on hover. Add
+  filter, Enter to launch. Icons take the theme's accent and show their own colours on hover; on
+  Windows they are drawn by the Windows shell, as the Start Menu shows them. Add
   entries under `launcher.items` in `settings.json` (the pane's EDIT LIST button opens it):
 
   ```json
@@ -162,8 +164,8 @@ weather and calendar.
   the default board shows the CME yen TOPIX future (`TPY=F`).
 - **Weather** — the settings button → PLACE opens a picker over a bundled list of large cities and
   capitals and JMA's forecast offices, or takes `lat, lon`. Japan uses JMA, the United States the
-  National Weather Service (or MET Norway, by choice), everywhere else MET Norway. °C or °F per
-  pane; the default is New York City.
+  National Weather Service (or MET Norway, by choice), everywhere else MET Norway. °C or °F, and
+  the week forecast on or off, per pane; the default is New York City.
 - **RSS** — not in the default layout: add it from the picker (Ctrl+Shift+A). It starts empty and
   fetches nothing until its settings button lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
   per pane). The newest 20 headlines across its feeds are shown, each with its feed and the time
@@ -215,6 +217,7 @@ folder, which can also be edited by hand while the app runs:
   "theme": "amber",
   "sound": { "enabled": true, "volume": 0.5 },
   "motion": "system",
+  "terminal": { "startDirectory": "~/work" },
   "keybindings": { "app.quit": null },
   "updates": { "check": true },
   "quakes": { "source": "auto", "notify": true, "minIntensity": "5-", "minMagnitude": 6, "tsunami": true, "system": true, "sound": true }

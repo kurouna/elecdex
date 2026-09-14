@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import os from 'node:os'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import { launch, SINGLE_TERMINAL, terminalPane } from './support.js'
 
 /** The settings dialog: appearance, shortcuts and the update check. */
 
@@ -145,4 +146,56 @@ test.describe('update check', () => {
       await close()
     }
   })
+})
+
+test('a shell starts in the home folder by default, and in the folder chosen in settings', async () => {
+  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  // Paths as the shells report them may differ in case, separators and a trailing one.
+  const same = (a: string) => a.trim().replaceAll('\\', '/').replace(/\/+$/, '').toLowerCase()
+  const cwdOf = (pane: ReturnType<typeof terminalPane>) =>
+    expect.poll(async () => same(await pane.getByTestId('pane-subtitle').innerText()), {
+      timeout: 40_000,
+      intervals: [300],
+    })
+  try {
+    // Not the folder the app was started from: home.
+    await cwdOf(terminalPane(page).first()).toBe(same(os.homedir()))
+
+    await page.keyboard.press('Control+Shift+Comma')
+    const input = page.getByTestId('settings-start-directory')
+    const note = page.getByTestId('settings-start-directory-note')
+    await expect(input).toHaveValue('')
+    await expect(input).toHaveAttribute('placeholder', `home (${os.homedir()})`)
+
+    // A folder that is not there: kept as typed, and the dialog says shells start at home.
+    await input.fill(path.join(userData, 'no-such-folder'))
+    await input.press('Enter')
+    await expect
+      .poll(() => savedSettings(userData).terminal?.startDirectory)
+      .toBe(path.join(userData, 'no-such-folder'))
+    await expect(note).toHaveClass(/problem/)
+    await expect(note).toContainText('Not a folder')
+
+    await input.fill(userData)
+    await input.press('Enter')
+    await expect.poll(() => savedSettings(userData).terminal?.startDirectory).toBe(userData)
+    await expect(note).not.toHaveClass(/problem/)
+    await page.keyboard.press('Escape')
+
+    // A new shell starts there; the one already open stays where it is.
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=terminal]').click()
+    const panes = page.locator('[data-testid=pane][data-widget=terminal]')
+    await expect(panes).toHaveCount(2)
+    await cwdOf(panes.nth(1)).toBe(same(userData))
+    await cwdOf(panes.nth(0)).toBe(same(os.homedir()))
+
+    // "home" clears the setting.
+    await page.keyboard.press('Control+Shift+Comma')
+    await page.getByTestId('settings-start-directory-home').click()
+    await expect.poll(() => savedSettings(userData).terminal?.startDirectory).toBe('')
+    await expect(input).toHaveValue('')
+  } finally {
+    await close()
+  }
 })
