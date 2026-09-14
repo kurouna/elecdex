@@ -38,15 +38,16 @@ Electron flags go after a second `--`: `npm run dev -- -- --windowed`.
 ## Layout of the code
 
 ```
-src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/, audio/
+src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/, audio/, plugins/
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas, channel names and pure logic used by both sides
-src/renderer/    Svelte UI: layout/ (panes, tabs, splits, picker), widgets/, stores/, styles/
+src/renderer/    Svelte UI: layout/ (panes, tabs, splits, picker), widgets/, plugins/ (host, plugin pane, blocks), stores/, styles/
+examples/        plugins/pomodoro: the sample plugin written into a new plugins folder
 tests/unit/      vitest (node); tests/component/ (jsdom); tests/e2e/ (Playwright _electron)
 scripts/         asset generators (icon, repo card, geo data, city list, README screenshots)
 docs/            architecture.md (design + §16 decision log), weather-providers.md, plugins.md
-                 (designed, not yet implemented), screenshots/ (README images)
+                 (the plugin API and its rules), screenshots/ (README images)
 ```
 
 ## Rules that matter
@@ -73,13 +74,24 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   also covers the earthquake and tsunami lists), `ELECDEX_USGS_BASE_URL` and `ELECDEX_NOAA_BASE_URL`
   at closed ports by default, sets `ELECDEX_AUDIO_STUB=1` (a steady tone for the spectrum, a
   made-up mixer - never the machine's sound or volume) and starts with sound off; specs that need
-  data run a local stub server. Keep it that way.
+  data run a local stub server. A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`
+  (`api.example.test=127.0.0.1:port`), which keeps the grant checks as they are. Keep it that way.
 - **Audio capture stays out of the workspace.** The spectrum's system audio comes through screen
   capture with loopback audio, granted only in the hidden capture window (main/audio/capture-window.ts:
   its own session, its own two-function preload, a page with no network). The workspace session
   still refuses every permission but the clipboard, and only spectrum levels leave that window.
   Code that means "the elecdex window" asks `appWindows()` (main/app-windows.ts), never
   `BrowserWindow.getAllWindows()`, so the helper window is never taken for it.
+- **Plugins** (docs/plugins.md) run in a blob Web Worker, one per plugin; main only transforms their
+  text (sucrase) and never runs it. Everything a worker posts is checked (shared/plugins.ts) and
+  every request, redirect, storage write and notification is checked in main against the grant in
+  settings.json, never against what the renderer says a plugin asked for. The worker script is built
+  from `stripGlobals` and `pluginRuntime` (shared/plugin-runtime.ts) as source text, so they must
+  not refer to anything outside themselves. The real containment is the page CSP (`connect-src
+  'self'`, no `unsafe-eval`, `worker-src blob:`): relaxing it means re-auditing plugins. Plugins
+  draw only through blocks; add a block to plugin-api.ts, the schema and Blocks.svelte together.
+  Plugins that use unofficial APIs or are personal stay in the user's plugins folder, never here;
+  the committed sample is the pomodoro timer.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).

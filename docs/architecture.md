@@ -442,6 +442,7 @@ elecdex/
 │  │  ├─ index.ts
 │  │  ├─ window.ts
 │  │  ├─ ipc/              # ハンドラ（全て zod 検証）
+│  │  ├─ plugins/          # 走査と変換・代行 fetch・保存・サインイン窓（docs/plugins.md）
 │  │  ├─ pty/              # PtyManager, OscParser, shell-resolve, env
 │  │  ├─ metrics/          # MetricsBroker, sources/
 │  │  ├─ settings/
@@ -457,6 +458,7 @@ elecdex/
 │     ├─ main.ts
 │     ├─ App.svelte
 │     ├─ layout/           # LayoutTree 描画, Splitter, TabStrip, PaneHost
+│     ├─ plugins/          # PluginHost（Worker）、PluginPane、ブロック描画、設定欄
 │     ├─ widgets/
 │     │  ├─ registry.ts
 │     │  ├─ terminal/ clock/ sysinfo/ cpu/ memory/ toplist/
@@ -484,7 +486,7 @@ elecdex/
 | `sandbox` | `true`。preload は `ipcRenderer` / `contextBridge` のみ使用 |
 | `nodeIntegration` | `false`（原版は true） |
 | `@electron/remote` | 不使用（原版は全面依存） |
-| CSP | `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'` — Svelte scoped CSS はビルド時に静的CSSになるので `unsafe-inline` 不要 |
+| CSP | `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src blob:` — Svelte scoped CSS はビルド時に静的CSSになるので `unsafe-inline` 不要。`worker-src blob:` はプラグインの Worker のためだけにあり、その Worker もこの CSP を継承する（docs/plugins.md §4） |
 | 入力検証 | renderer 由来の全入力を main 側で zod 検証。パスは `path.resolve` 正規化 + allowlist |
 | ナビゲーション | `will-navigate` / `setWindowOpenHandler` で外部遷移を拒否し、`shell.openExternal` に委譲 |
 | 外部通信 | 更新チェック（GitHub API）、GeoIP DB 更新、気象庁の天気予報、Yahoo Finance の相場のみ。相場は markets ペインがある間だけ（1分に1回の一括リクエスト、全市場クローズ中は5分に1回）。更新チェックと GeoIP は**設定で無効化可能**、GeoIP は初回同意制。天気予報は天気ペインがある間だけ、発表時刻の前後に条件付きリクエストで取得（ペインを置かなければ通信しない）。通信は main が行い、renderer の CSP は `connect-src 'self'` のまま |
@@ -640,6 +642,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | README のスペアナとミキサーのスクショ | `npm run gen:screenshots` に `elecdex-audio.jpg` を追加。既定レイアウトの中央列（シェル・ランチャーとファイル）の下に、スペアナとミキサーを 2:1 で並べる。音は `ELECDEX_AUDIO_STUB=demo`（`demoBins`：高域ほど下がる土台、拍ごとのキック、拍の間のスネア、ビンごとの揺らぎ）、ミキサーは架空のアプリ（デバイス名は「Speakers」）。撮るショットはコマンドライン引数で絞れる | 実機の音を鳴らして撮ると、再生中のアプリ名が写り、見た目も撮るたびに変わる。テスト用の 1 kHz の固定音では 1 本しか光らず、ペインの見た目が伝わらない。デモ用の音は時刻だけで決まる純関数なので、単体テストで検証できる。キャプチャ窓の外に何も出さない構造は変えていない |
 | e2e の地震・津波のダミーデータ | tests/e2e/quakes.spec.ts のスタブが返す震源地名・津波予報区・見出し・USGS の地名・NOAA の地域名に `[TEST] ` を付ける。アプリ側は変えない | テスト中の画面や録画・スクリーンショットが、本物の地震や津波の情報と見分けがつかなかった。表示はデータそのままなので、スタブのデータに付ければ全表示（一覧、バナー、津波カード、OS 通知）に出る |
 | プラグイン仕様（v0.0.5） | widget プラグイン。`<userData>/plugins/` の1ファイルかフォルダ（相対 import）を main が sucrase で変換（実行しない）し、renderer の blob Worker（1プラグイン1つ）で動かす。データを持つ service（プラグインに1つ）と描画する view（ペインごと）に分け、描画はブロック宣言型（chart・time・signin を含む）。通信は同意したホストへの GET だけを main が代行し、ログインが要るサイトはプラグイン専用セッション。保存は main のプラグイン単位ファイル、通知は同意制。同梱サンプルはポモドーロタイマー。詳細は docs/plugins.md | 保留中の Claude 使用量ウィジェット（非公式 API、ログイン Cookie、閉じている間の履歴収集、予測グラフ）を物差しにレビューし、当初案（ペインごとの Worker、Cookie なし、ペイン状態だけ、spark だけ）では実現できないと分かった。service/view 分割で2重取得と履歴の消失を、専用セッションで Cookie を、chart ブロックで予測線を解決する。非公式 API のプラグインはリポジトリに入れず userData に置く |
+| プラグインの実装（v0.0.5） | Worker のスクリプトは `stripGlobals` と `pluginRuntime`（shared/plugin-runtime.ts）の `Function.prototype.toString` にモジュール表を渡して組み立てる。main の走査・変換は `PluginFolder`、代行 fetch は `PluginNet` + `net.request`（`redirect: 'manual'`）、保存は `PluginStorage`（userData/plugin-data/<id>.json、1 秒デバウンス、終了時に書き出し）、サインインは `persist:plugin-<id>` パーティション。renderer は `PluginHost` が descriptor を使い捨て Worker で読み、有効・同意済み・必要（ペインか background）なときだけ常駐 Worker を回す。レイアウトに `plugin:<id>` があって読み込めないときは汎用の「unknown widget」ではなく PluginPane が理由（オフ・要同意・エラー・フォルダに無い）を出す。ペイン状態は `state.plugin` に置く | ランタイムを文字列で書くと型も lint も効かないが、関数の文字列化なら TypeScript のまま書けて、単体テストが同じ文字列から組んだスクリプトを実行して外部参照が無いことを確かめられる。Electron 44 の `net.fetch` は `redirect: 'manual'` を「Redirect was cancelled」で失敗させた（実測）ため、リダイレクトを1段ずつ許可判定できる `net.request` にした（Cookie は useSessionCookies でリダイレクト応答の分も保たれることを実測）。編集で壊れたプラグインのペインが「フォルダに無い」と出る不具合は e2e で見つけ、ファイルが最後に名乗った id を保つようにした。ペインの attach を追跡対象から外さないと、描画のたびにペインが外れて付き直す無限ループになる（component テストで固定） |
 
 ## 17. 既知の問題
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 import ConfirmButton from '../ConfirmButton.svelte'
+import { plugins } from '../plugins/plugins.svelte.ts'
 import { layout, type PanePlacement } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
@@ -34,10 +35,12 @@ const widgets = $derived.by(() => {
   const q = filter.trim().toLowerCase()
   return listWidgets().filter(
     (w) =>
-      q === '' ||
-      w.id.includes(q) ||
-      w.title.toLowerCase().includes(q) ||
-      (w.description ?? '').toLowerCase().includes(q),
+      // A plugin is offered once it is on and agreed to; the settings list the rest.
+      (!w.plugin || plugins.usable(w.id.slice('plugin:'.length))) &&
+      (q === '' ||
+        w.id.includes(q) ||
+        w.title.toLowerCase().includes(q) ||
+        (w.description ?? '').toLowerCase().includes(q)),
   )
 })
 
@@ -161,7 +164,7 @@ function onKeydown(event: KeyboardEvent): void {
                 data-testid="pane-picker-item"
                 data-widget={w.id}
               >
-                <span class="title">{w.title}</span>
+                <span class="title">{w.title}{#if w.plugin}<em class="plugin-tag">plugin</em>{/if}</span>
                 <span class="description">{w.description ?? ''}</span>
                 <span class="state">{present !== null ? 'on screen · focus' : w.multiple ? 'add another' : 'add'}</span>
               </button>
@@ -191,6 +194,17 @@ function onKeydown(event: KeyboardEvent): void {
 {/if}
 
 <style>
+.plugin-tag {
+  margin-left: 0.4em;
+  padding: 0 0.3em;
+  border: 1px solid var(--panel-border);
+  font-size: var(--step--2);
+  font-style: normal;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

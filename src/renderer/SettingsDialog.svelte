@@ -14,6 +14,7 @@ import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@sh
 import type { Settings, SettingsPatch } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
+import PluginSettings from './plugins/PluginSettings.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
@@ -21,7 +22,7 @@ import { updates } from './stores/updates.svelte.ts'
 
 /**
  * Settings, in the app: appearance and sound, the terminal's start folder, the
- * launcher, keyboard shortcuts, alerts and the update check. Everything here writes through settings.patch, so it
+ * launcher, keyboard shortcuts, alerts, plugins and the update check. Everything here writes through settings.patch, so it
  * lands in settings.json and a hand edit to that file shows up here at once.
  * Launcher entries, themes and window options stay in files; the dialog links
  * to them.
@@ -29,11 +30,12 @@ import { updates } from './stores/updates.svelte.ts'
  *   Esc   close (or cancel recording a shortcut)
  */
 
-type Section = 'general' | 'keyboard' | 'alerts' | 'updates'
+type Section = 'general' | 'keyboard' | 'alerts' | 'plugins' | 'updates'
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'general', label: 'general' },
   { id: 'keyboard', label: 'keyboard' },
   { id: 'alerts', label: 'alerts' },
+  { id: 'plugins', label: 'plugins' },
   { id: 'updates', label: 'updates' },
 ]
 
@@ -519,6 +521,8 @@ function describeUpdate(status: UpdateStatus): string {
                 />
               </label>
             </section>
+          {:else if section === 'plugins'}
+            <PluginSettings />
           {:else}
             <section>
               <h3>updates</h3>

@@ -4,6 +4,7 @@ import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
+import type { PluginCatalog } from './plugins.js'
 import type { QuakeAlert, QuakeState } from './quakes.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
@@ -311,6 +312,33 @@ export interface AudioApi {
   mixerCommand(command: MixerCommand): void
 }
 
+export interface PluginsApi {
+  catalog(): Promise<PluginCatalog>
+  onChange(handler: (catalog: PluginCatalog) => void): () => void
+  openFolder(): Promise<void>
+  /** A GET for a plugin; main checks the URL and every redirect against the plugin's grant. */
+  fetch(
+    id: string,
+    url: string,
+    headers: Record<string, string> | undefined,
+  ): Promise<
+    | { ok: true; status: number; headers: Record<string, string>; body: string }
+    | { ok: false; error: string }
+  >
+  storageLoad(id: string): Promise<Record<string, unknown>>
+  /** One change to a plugin's storage; resolves false when it would be over the limit. */
+  storageSet(id: string, key: string, value: unknown, remove: boolean): Promise<boolean>
+  /** Opens the sign-in window for a session host; resolves when it is closed. */
+  signIn(id: string, host: string): Promise<void>
+  signOut(id: string): Promise<void>
+  /** Called with a plugin id when its sign-in session may have changed. */
+  onSession(handler: (id: string) => void): () => void
+  /** A system notification, shown only while no elecdex window is in front. */
+  notify(id: string, message: { title: string; body?: string | undefined }): void
+  /** Deletes the plugin's stored data and signs it out. */
+  forget(id: string): Promise<void>
+}
+
 export interface ElecdexApi {
   system: SystemApi
   pty: PtyApi
@@ -326,6 +354,7 @@ export interface ElecdexApi {
   quakes: QuakesApi
   updates: UpdatesApi
   audio: AudioApi
+  plugins: PluginsApi
 }
 
 declare global {

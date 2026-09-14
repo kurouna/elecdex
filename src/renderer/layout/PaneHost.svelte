@@ -2,6 +2,7 @@
 import { isMetricSourceId } from '@shared/metrics'
 import type { PaneNode } from '@shared/schemas/layout'
 import { untrack } from 'svelte'
+import PluginPane from '../plugins/PluginPane.svelte'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot, CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -58,13 +59,17 @@ $effect(() => () => paneMeta.clear(node.id))
 </script>
 
 {#snippet widget()}
-  {#if definition === null}
+  {#if node.widget.startsWith('plugin:')}
+    <!-- Every plugin pane, loaded or not: it says why a plugin is not running, and is not
+         remounted when the plugin registers. -->
+    <PluginPane paneId={node.id} title={title} props={node.props} state={node.state} active={active} widget={node.widget} />
+  {:else if definition === null}
     <p class="missing" data-testid="pane-missing">
       unknown widget <code>{node.widget}</code>
     </p>
   {:else}
     {@const Widget = definition.component}
-    <Widget paneId={node.id} title={definition.title} props={node.props} state={node.state} {active} />
+    <Widget paneId={node.id} title={definition.title} props={node.props} state={node.state} {active} widget={node.widget} />
   {/if}
 {/snippet}
 

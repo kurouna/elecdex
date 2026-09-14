@@ -168,6 +168,7 @@ describe('settings', () => {
         system: true,
         sound: true,
       },
+      plugins: {},
     })
   })
 

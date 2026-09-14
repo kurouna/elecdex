@@ -285,10 +285,11 @@ test('an unknown widget id renders a visible placeholder instead of breaking the
         kind: 'split',
         id: 'root',
         direction: 'row',
-        sizes: [0.5, 0.5],
+        sizes: [0.4, 0.3, 0.3],
         children: [
           { kind: 'pane', id: 'a', widget: 'terminal' },
           { kind: 'pane', id: 'b', widget: 'plugin:not-installed' },
+          { kind: 'pane', id: 'c', widget: 'no-such-widget' },
         ],
       },
     }),
@@ -297,7 +298,11 @@ test('an unknown widget id renders a visible placeholder instead of breaking the
 
   const second = await launch(userData)
   try {
-    await expect(second.page.getByTestId('pane-missing')).toContainText('plugin:not-installed')
+    await expect(second.page.getByTestId('pane-missing')).toContainText('no-such-widget')
+    // A plugin pane says the plugin is not in the folder, and keeps its place for when it is.
+    const plugin = second.page.locator('[data-pane-id=b] [data-testid=plugin-pane]')
+    await expect(plugin).toHaveAttribute('data-status', 'missing')
+    await expect(plugin).toContainText('not-installed is not in the plugins folder')
     await expect(terminalPane(second.page).getByTestId('terminal-host')).toBeVisible()
   } finally {
     await second.close()

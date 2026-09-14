@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
 import { INTENSITIES, MAGNITUDES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
 
@@ -103,6 +104,14 @@ export const SettingsSchema = z.object({
       system: true,
       sound: true,
     }),
+  /**
+   * Plugins by id: whether each is on, what the user agreed it may do, and its setting
+   * values. A plugin never listed here is off (docs/plugins.md section 8).
+   */
+  plugins: z
+    .record(z.string().regex(PLUGIN_ID), PluginSettingsSchema)
+    .refine((map) => Object.keys(map).length <= 128, 'too many plugins')
+    .default({}),
 })
 export type Settings = z.infer<typeof SettingsSchema>
 
@@ -119,10 +128,22 @@ export interface SettingsPatch {
   keybindings?: Settings['keybindings']
   updates?: Partial<Settings['updates']>
   quakes?: Partial<Settings['quakes']>
+  /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
+  plugins?: Record<string, Partial<PluginSettings> | null>
 }
 
 const merge = <T extends object>(current: T, value: unknown): T =>
   typeof value === 'object' && value !== null ? { ...current, ...value } : current
+
+function mergePlugins(current: Settings['plugins'], value: unknown): Settings['plugins'] {
+  if (typeof value !== 'object' || value === null) return current
+  const next = { ...current }
+  for (const [id, change] of Object.entries(value)) {
+    if (change === null) delete next[id]
+    else next[id] = merge(next[id] ?? PluginSettingsSchema.parse({}), change)
+  }
+  return next
+}
 
 /** Applies a patch and validates the result; null if the result is invalid. */
 export function applySettingsPatch(current: Settings, patch: unknown): Settings | null {
@@ -137,6 +158,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     updates: merge(current.updates, p.updates),
     quakes: merge(current.quakes, p.quakes),
     terminal: merge(current.terminal, p.terminal),
+    plugins: mergePlugins(current.plugins, p.plugins),
     // Only showSystem: the launcher's own entries are edited in settings.json.
     launcher:
       typeof p.launcher === 'object' && p.launcher !== null && 'showSystem' in p.launcher

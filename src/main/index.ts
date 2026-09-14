@@ -6,6 +6,7 @@ import { registerFsIpc } from './ipc/fs.js'
 import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerMarketsIpc } from './ipc/markets.js'
+import { registerPluginsIpc } from './ipc/plugins.js'
 import { registerPtyIpc } from './ipc/pty.js'
 import { registerQuakesIpc } from './ipc/quakes.js'
 import { registerSettingsIpc } from './ipc/settings.js'
@@ -60,6 +61,7 @@ let feedsIpc: { dispose: () => void } | null = null
 let quakesIpc: { dispose: () => void } | null = null
 let updatesIpc: { dispose: () => void } | null = null
 let audioIpc: { dispose: () => void } | null = null
+let pluginsIpc: { dispose: () => void } | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
@@ -76,6 +78,7 @@ app.whenReady().then(() => {
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
   audioIpc = registerAudioIpc()
+  pluginsIpc = registerPluginsIpc(settings)
   createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
@@ -120,6 +123,8 @@ app.on('will-quit', () => {
   updatesIpc = null
   audioIpc?.dispose()
   audioIpc = null
+  pluginsIpc?.dispose()
+  pluginsIpc = null
 })
 
 app.on('window-all-closed', () => {

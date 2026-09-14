@@ -34,6 +34,7 @@
     "src/services/**/*.ts",
     "src/shared/**/*.ts",
     "scripts/**/*.ts",
+    "examples/**/*.ts",
     "tests/unit/**/*.ts",
     "electron.vite.config.ts",
     "vitest.config.ts"

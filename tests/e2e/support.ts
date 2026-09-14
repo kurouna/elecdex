@@ -71,7 +71,7 @@ const UNREACHABLE_NOAA = 'http://127.0.0.1:9/noaa'
  * moment after the app exits (EPERM); retry, and leave a stubborn temp folder
  * behind rather than fail a test that passed.
  */
-function removeDir(dir: string): void {
+export function removeDir(dir: string): void {
   try {
     rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
   } catch (error) {

@@ -1,6 +1,6 @@
 # elecdex プラグイン仕様（v0.0.5: widget プラグイン）
 
-> 範囲は **widget プラグイン**（ペインを足す）。端末に書き込む command プラグインは §11 のとおり後続版。
+> 状態: **v0.0.5 で実装済み**。範囲は **widget プラグイン**（ペインを足す）。端末に書き込む command プラグインは §11 のとおり後続版。
 > 同梱サンプルは `examples/plugins/pomodoro/`（ポモドーロタイマー）。
 
 ---
@@ -158,7 +158,7 @@ interface PluginResponse { status: number; headers: Record<string, string>; text
 - `service` がないプラグインでは `publish` 系は無く、view が `every` などで自分で描く
 - `fetch` / `storage` / `metrics` / `notify` は service だけが持つ。取得と保存をプラグインに1か所へ寄せるため
 - view の `on('action')` はペイン固有の反応（表示切替など）に使い、同じ action は service にも届く
-- `setup` の戻り値として解除関数を返してよい（terminate 前に呼ぶが保証はない）
+- `service` と `view` は解除関数を返してよい（terminate 前に呼ぶが保証はない）
 
 ---
 
@@ -194,7 +194,7 @@ type Block =
 - **色は指定できない**。`tone` を semantic トークンに写す（`accent` はテーマの差し色）。テーマ切替と Business (Light) の暗色補正に自動で追従
 - `time` はホストが毎秒描き直す（countdown は `mm:ss`、relative は「2h 13m」）。view が毎秒 render しなくてよい
 - `signin` はホストが描くボタンで、**利用者のクリックでだけ**ログイン窓が開く。プラグインから窓を開く API は無い
-- 上限: ブロック 200、文字列 2,000 字、`spark` 512 点、`chart` 系列 8・各 1,024 点、`table` 200 行、`list` 200 件。超過は切り捨てて notice
+- 上限: ブロック 200、文字列 2,000 字、`spark` 512 点、`chart` 系列 8・各 1,024 点、`table` 200 行、`list` 200 件。ブロック数の超過はペインに注記し、文字列と配列は黙って切り詰める
 - ホストが zod で検証する。不正なブロックはそれだけ落とし、理由をペインに出す。HTML は解釈しない
 
 ---
@@ -217,11 +217,13 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 
 - `session` に挙げたホストへの取得は、プラグイン専用の保存領域 `persist:plugin-<id>` の Cookie を付けて、Electron の `net`（Chromium の通信経路）で送る。User-Agent は Chromium 標準から Electron と elecdex の表記を除いたもの
 - それ以外のホストはメモリ上の共用領域で、Cookie を送らず残さない。User-Agent は `elecdex/<version> plugin/<id>`
-- ログイン窓: `signin` ブロックのクリックで開く BrowserWindow。その領域を使い、preload なし・sandbox・権限要求はすべて拒否。https の遷移は許し（Google などの外部ログインのため）、ポップアップは同じ窓で開き、今の origin をタイトルに出す。閉じたら service に `session` イベント
+- ログイン窓: `signin` ブロック（または設定の「sign in」）のクリックで開く BrowserWindow。プラグインごとに1枚で、2度目は前面に出すだけ。その領域を使い、preload なし・sandbox・権限要求はすべて拒否。https の遷移は許し（Google などの外部ログインのため）、ポップアップは同じ窓で開き、今の origin をタイトルに出す。閉じたら service に `session` イベント
 - 設定の「ログアウト」とプラグインの削除で、その領域を消す
 - プラグインから Cookie の値は見えない。見えるのは応答だけ
 
-テストでは `ELECDEX_PLUGIN_HTTP_HOSTS=127.0.0.1:<port>` のときだけ、そのホストに http を許す（本番では未設定）。
+テストでは `ELECDEX_PLUGIN_HOST_MAP=api.example.test=127.0.0.1:<port>` で、名前のホストへの https をローカルの http スタブに送る。許可判定は本番と同じまま（本番では未設定）。
+
+リダイレクトを1段ずつ判定するため、main は `net.fetch` ではなく `net.request`（`redirect: 'manual'`）を使う。Electron 44 の `net.fetch` は `redirect: 'manual'` を「Redirect was cancelled」で失敗させる（実測）。
 
 ---
 
@@ -233,7 +235,7 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 
 ### 8.2 `ctx.notify`
 
-`permissions.notify` に同意したプラグインだけ。アプリ内ではペインを光らせ、音が有効ならアラーム音を鳴らす（`sound: false` で鳴らさない）。ウィンドウが前面にないときはシステム通知も出す。1 分に 6 回まで。
+`permissions.notify` に同意したプラグインだけ。アプリ内ではペインを光らせ、インターフェース音が有効ならチャイムを鳴らす（`sound: false` で鳴らさない）。ウィンドウが前面にないときはシステム通知も出す。1 分に 6 回まで。
 
 ### 8.3 状態
 
@@ -248,7 +250,7 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 
 ### 8.4 設定ダイアログ「plugins」
 
-ファイル一覧、状態（有効・無効・要同意・エラー・新しい elecdex が必要）、権限、有効化トグル、プラグイン設定（`settings` 定義から生成。型は `string` / `number` / `boolean` / `select`）、ログアウト、「フォルダを開く」、「再読み込み」。`select` の選択肢は定義に書くか、service が `setOptions` で後から渡す。
+ファイル一覧、状態（有効・無効・要同意・エラー・新しい elecdex が必要）、権限、有効化トグル、プラグイン設定（`settings` 定義から生成。型は `string` / `number` / `boolean` / `select`）、サインインとログアウト、「忘れる」（保存データとセッションを消して設定から外す）、「フォルダを開く」。保存すれば自動で読み直すので再読み込みボタンは無い。`select` の選択肢は定義に書くか、service が `setOptions` で後から渡す。
 
 ### 8.5 ピッカーとレイアウト
 

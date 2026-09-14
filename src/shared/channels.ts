@@ -103,6 +103,26 @@ export const CH = {
     frame: 'audio-capture:frame',
     status: 'audio-capture:status',
   },
+  plugins: {
+    /** The plugins folder and every plugin found in it (PluginCatalog). */
+    catalog: 'plugins:catalog',
+    /** main -> renderer: the catalog after a change in the folder. */
+    changed: 'plugins:changed',
+    openFolder: 'plugins:open-folder',
+    /** A plugin's ctx.fetch, checked against its grant in main. */
+    fetch: 'plugins:fetch',
+    storageLoad: 'plugins:storage-load',
+    /** One ctx.storage change; answers false when it would pass the limit. */
+    storageSet: 'plugins:storage-set',
+    signIn: 'plugins:sign-in',
+    signOut: 'plugins:sign-out',
+    /** main -> renderer: a plugin's sign-in session changed (its id). */
+    session: 'plugins:session',
+    /** renderer -> main, fire and forget: a system notification for a plugin. */
+    notify: 'plugins:notify',
+    /** Deletes a plugin's stored data and session. */
+    forget: 'plugins:forget',
+  },
   launcher: {
     list: 'launcher:list',
     icon: 'launcher:icon',

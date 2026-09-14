@@ -19,6 +19,7 @@ export type SoundName =
   | 'theme'
   | 'alarm'
   | 'quake'
+  | 'chime'
 
 interface Tone {
   kind: 'sine' | 'square' | 'triangle' | 'sawtooth' | 'noise'
@@ -116,6 +117,14 @@ export const SOUNDS: Readonly<Record<SoundName, SoundRecipe>> = {
       { kind: 'square' as const, freq: 587, at: start + 0.26, duration: 0.16, gain: 0.12 },
     ]),
     minIntervalMs: 2000,
+  },
+  // A plugin's notification: a soft rising third, rung three times.
+  chime: {
+    tones: [0, 0.32, 0.64].flatMap((start) => [
+      { kind: 'sine' as const, freq: 880, at: start, duration: 0.14, gain: 0.16 },
+      { kind: 'sine' as const, freq: 1109, at: start + 0.12, duration: 0.2, gain: 0.14 },
+    ]),
+    minIntervalMs: 1500,
   },
 }
 

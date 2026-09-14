@@ -16,6 +16,7 @@ import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
+import type { PluginCatalog } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
@@ -378,6 +379,21 @@ const api: ElecdexApi = {
     spectrum: subscribeSpectrum,
     mixer: subscribeMixer,
     mixerCommand: (command) => ipcRenderer.send(CH.audio.mixerCommand, command),
+  },
+  plugins: {
+    catalog: () => ipcRenderer.invoke(CH.plugins.catalog) as Promise<PluginCatalog>,
+    onChange: (handler) => listen<PluginCatalog>(CH.plugins.changed, handler),
+    openFolder: () => ipcRenderer.invoke(CH.plugins.openFolder) as Promise<void>,
+    fetch: (id, url, headers) => ipcRenderer.invoke(CH.plugins.fetch, id, url, headers),
+    storageLoad: (id) =>
+      ipcRenderer.invoke(CH.plugins.storageLoad, id) as Promise<Record<string, unknown>>,
+    storageSet: (id, key, value, remove) =>
+      ipcRenderer.invoke(CH.plugins.storageSet, id, key, value, remove) as Promise<boolean>,
+    signIn: (id, host) => ipcRenderer.invoke(CH.plugins.signIn, id, host) as Promise<void>,
+    signOut: (id) => ipcRenderer.invoke(CH.plugins.signOut, id) as Promise<void>,
+    onSession: (handler) => listen<string>(CH.plugins.session, handler),
+    notify: (id, message) => ipcRenderer.send(CH.plugins.notify, id, message),
+    forget: (id) => ipcRenderer.invoke(CH.plugins.forget, id) as Promise<void>,
   },
   quakes: {
     subscribe: subscribeQuakes,

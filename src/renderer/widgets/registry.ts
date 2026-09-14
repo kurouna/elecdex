@@ -1,4 +1,5 @@
 import type { Component } from 'svelte'
+import { SvelteMap } from 'svelte/reactivity'
 
 /**
  * The widget registry.
@@ -35,6 +36,8 @@ export interface WidgetDefinition {
   minSize?: { w: number; h: number }
   /** True when several instances in one layout make sense. */
   multiple?: boolean
+  /** Provided by a plugin (docs/plugins.md): marked as such in the picker. */
+  plugin?: boolean
 }
 
 /** Every widget receives its pane's identity and configuration. */
@@ -46,10 +49,13 @@ export interface WidgetProps {
   state: Record<string, unknown> | undefined
   /** Whether this pane is the visible one (a hidden tab is still mounted). */
   active: boolean
+  /** The registry id the pane was resolved from, e.g. `plugin:pomodoro`. */
+  widget?: string
 }
 
 const builtins = new Map<string, WidgetDefinition>()
-const dynamic = new Map<string, WidgetDefinition>()
+/** Reactive, so a pane naming a plugin that loads after it resolves once the plugin is ready. */
+const dynamic = new SvelteMap<string, WidgetDefinition>()
 
 export function registerBuiltin(definition: WidgetDefinition): void {
   builtins.set(definition.id, definition)
@@ -57,7 +63,8 @@ export function registerBuiltin(definition: WidgetDefinition): void {
 
 /** Registers a plugin-provided widget. Ids are namespaced to avoid collisions. */
 export function registerDynamic(definition: WidgetDefinition): void {
-  dynamic.set(`plugin:${definition.id}`, definition)
+  const id = `plugin:${definition.id}`
+  dynamic.set(id, { ...definition, id })
 }
 
 export function unregisterDynamic(id: string): void {

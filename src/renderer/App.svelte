@@ -7,6 +7,7 @@ import LocationPicker from './LocationPicker.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
+import { plugins } from './plugins/plugins.svelte.ts'
 import QuakeAlert from './QuakeAlert.svelte'
 import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
@@ -25,6 +26,8 @@ $effect(() => {
   // the user's colours rather than flashing the default theme first.
   void Promise.all([window.elecdex.system.info(), appearance.init()]).then(([result]) => {
     info = result
+    // After the settings, which say which plugins are on and what they may do.
+    void plugins.init()
     void boot.run(result)
   })
 })

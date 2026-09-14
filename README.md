@@ -251,6 +251,24 @@ weather and calendar.
   Windows through one long-lived PowerShell, on macOS with AppleScript and on Linux with PipeWire's
   wpctl and pactl.
 
+## Plugins
+
+A plugin adds a pane. It is a TypeScript or JavaScript file, or a folder with an `index.ts`, in the
+`plugins` folder under the app's userData (*Settings → Plugins → open plugins folder*); edits load
+as you save, and `elecdex-plugin.d.ts` beside them gives an editor the API's types. A new plugins
+folder comes with a **pomodoro timer** (`examples/plugins/pomodoro` in this repository): focus
+sessions, short breaks and a long break every few rounds, with a VFD meter, a chime and a
+notification when a phase ends, carrying on across restarts.
+
+Plugins are off until turned on in *Settings → Plugins*, which lists what each may do - read
+metric sources, reach named hosts (each request made by the app and checked against that list),
+use its own sign-in session for a site, keep running with no pane open, notify - and asks before
+the first run and again if a plugin later asks for more. A plugin runs in a Web Worker of its own,
+with no access to the page, your files or the network, and draws only through blocks the app
+renders in the theme (text, numbers, meters, charts, tables, lists, buttons). A plugin that stops
+answering is stopped without holding up the app. The API and the rules are in
+[docs/plugins.md](docs/plugins.md).
+
 ## Themes and settings
 
 Everything in the settings dialog is saved at once to `settings.json` in the app's userData
