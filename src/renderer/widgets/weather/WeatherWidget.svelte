@@ -43,6 +43,13 @@ const unit = $derived<TemperatureUnit>(
       : 'c',
 )
 
+/**
+ * A forecast rises in when it appears - at mount, and for another place, whose
+ * cells are new - today first, then the week a day at a time. Later readings of
+ * the same place update the cells in place, so they do not replay it.
+ */
+const WEEK_STAGGER_MS = 45
+
 let update = $state.raw<WeatherUpdate | null>(null)
 let settingsOpen = $state(false)
 
@@ -194,7 +201,7 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
     </p>
   {:else}
     {#if today}
-      <section class="today" data-testid="weather-today">
+      <section class="today fx-rise" data-testid="weather-today">
         <SkyIcon glyph={report.now?.sky ?? today.sky} />
         <div class="today-text">
           <p class="telop" data-testid="weather-telop">{summaryText(today)}</p>
@@ -223,9 +230,14 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
     {/if}
 
     <ol class="week" data-testid="weather-week">
-      {#each week as day (day.date)}
+      {#each week as day, i (day.date)}
         {@const label = dayLabel(day.date)}
-        <li data-testid="weather-day" title={summaryText(day)}>
+        <li
+          class="fx-rise"
+          style:--fx-delay={`${(i + 1) * WEEK_STAGGER_MS}ms`}
+          data-testid="weather-day"
+          title={summaryText(day)}
+        >
           <span class="date {label.weekend ?? ''}">{label.day}<small>{label.weekday}</small></span>
           <SkyIcon glyph={day.sky} />
           <span class="temps"><em>{temp(day.tempMax)}</em> / {temp(day.tempMin)}</span>

@@ -1,6 +1,15 @@
 <script lang="ts">
 import { describeMarks, HOLIDAY_CALENDARS, holidayChoice, holidayLookup } from '@shared/holidays'
-import { firstDayOfWeek, isoWeek, monthGrid, msUntilMidnight, sameDay } from '../../lib/calendar.ts'
+import {
+  firstDayOfWeek,
+  isoWeek,
+  monthGrid,
+  msUntilMidnight,
+  sameDay,
+  type WaveDirection,
+  waveStep,
+  waveTowards,
+} from '../../lib/calendar.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
@@ -15,6 +24,10 @@ import type { WidgetProps } from '../registry.ts'
  * countries ticked in the pane's settings - none by default, kept in the pane
  * state. Nothing is fetched. The pane wakes once at midnight to move "today",
  * and not otherwise.
+ *
+ * A month comes in as a wave of dates, sweeping the way the calendar moved, and
+ * "today" pings once the wave reaches it - when the pane appears and on every
+ * change of month, as CSS animations of the cells created for it.
  */
 const { paneId, state: paneState }: WidgetProps = $props()
 
@@ -32,6 +45,15 @@ function setCountry(id: string, on: boolean): void {
 let today = $state(new Date())
 /** The month on screen, as its first day. */
 let shown = $state(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+/** The wave that brought the shown month in; a new id recreates the cells, replaying it. */
+let wave = $state<{ id: number; direction: WaveDirection }>({ id: 0, direction: 'next' })
+
+function show(month: Date): void {
+  const direction = waveTowards(shown, month)
+  if (direction === null) return
+  wave = { id: wave.id + 1, direction }
+  shown = month
+}
 
 $effect(() => {
   let timer: ReturnType<typeof setTimeout>
@@ -88,11 +110,11 @@ $effect(() => {
 })
 
 function move(months: number): void {
-  shown = new Date(shown.getFullYear(), shown.getMonth() + months, 1)
+  show(new Date(shown.getFullYear(), shown.getMonth() + months, 1))
 }
 
 function goToday(): void {
-  shown = new Date(today.getFullYear(), today.getMonth(), 1)
+  show(new Date(today.getFullYear(), today.getMonth(), 1))
 }
 
 function onWheel(event: WheelEvent): void {
@@ -111,7 +133,12 @@ const whenLabel = (inDays: number): string =>
   inDays === 0 ? 'today' : inDays === 1 ? 'tomorrow' : `in ${inDays} days`
 </script>
 
-<div class="calendar" data-testid="calendar" data-holidays={countries.join(' ') || 'none'}>
+<div
+  class="calendar"
+  data-testid="calendar"
+  data-holidays={countries.join(' ') || 'none'}
+  data-wave={wave.direction}
+>
   <SettingsButton
     open={settingsOpen}
     label="calendar settings"
@@ -137,7 +164,9 @@ const whenLabel = (inDays: number): string =>
   {/if}
 
   <div class="head">
-    <span class="title" data-testid="calendar-title">{title}</span>
+    {#key wave.id}
+      <span class="title" data-testid="calendar-title">{title}</span>
+    {/key}
     <div class="nav">
       <button type="button" title="Previous month" onclick={() => move(-1)} data-testid="calendar-prev">‹</button>
       <button
@@ -158,9 +187,11 @@ const whenLabel = (inDays: number): string =>
     {#each weekdays as w (w.day)}
       <span class="weekday" class:sun={w.day === 0} class:sat={w.day === 6} role="columnheader">{w.name}</span>
     {/each}
-    {#each days as date (date.getTime())}
+    {#key wave.id}
+    {#each days as date, i (date.getTime())}
       {@const holiday = holidayName(date)}
       <span
+        style:--wave={waveStep(i, wave.direction)}
         class="day"
         class:outside={date.getMonth() !== shown.getMonth()}
         class:sun={date.getDay() === 0 || holiday !== undefined}
@@ -177,6 +208,7 @@ const whenLabel = (inDays: number): string =>
         {#if holiday}<i class="mark" aria-hidden="true"></i>{/if}
       </span>
     {/each}
+    {/key}
   </div>
 
   <p class="foot" data-testid="calendar-next-holiday">
@@ -192,6 +224,10 @@ const whenLabel = (inDays: number): string =>
 
 <style>
 .calendar {
+  /* Which way the wave and the title move: down and left for a later month. */
+  --wave-rise: 0.35rem;
+  --wave-shift: 0.6rem;
+  --wave-step: 22ms;
   position: relative;
   container-type: size;
   display: flex;
@@ -209,7 +245,13 @@ const whenLabel = (inDays: number): string =>
   gap: var(--space-2);
 }
 
+.calendar[data-wave='prev'] {
+  --wave-rise: -0.35rem;
+  --wave-shift: -0.6rem;
+}
+
 .title {
+  animation: title-in calc(420ms * var(--motion-scale)) var(--ease-emphasized) backwards;
   font-family: var(--font-display);
   font-size: var(--step-0);
   letter-spacing: var(--tracking-wide);
@@ -310,6 +352,49 @@ const whenLabel = (inDays: number): string =>
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--text);
+  animation: day-in calc(420ms * var(--motion-scale)) var(--ease-emphasized)
+    calc(var(--wave, 0) * var(--wave-step) * var(--motion-scale)) backwards;
+}
+
+@keyframes title-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--wave-shift));
+  }
+}
+
+@keyframes day-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--wave-rise)) scale(0.9);
+  }
+}
+
+/* "Today" pings as the wave reaches it: a ring that brightens and spreads out. */
+.today::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--accent-strong);
+  box-shadow: 0 0 10px var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  animation: today-ping calc(900ms * var(--motion-scale)) ease-out
+    calc((var(--wave, 0) * var(--wave-step) + 280ms) * var(--motion-scale)) backwards;
+}
+
+@keyframes today-ping {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
 }
 
 /* Muted a little, so weekends mark the grid without shouting over the dates. */

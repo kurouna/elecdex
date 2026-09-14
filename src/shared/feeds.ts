@@ -80,6 +80,10 @@ export function parseFeedList(text: string): { urls: string[]; invalid: string[]
   return { urls, invalid }
 }
 
+/** An item's key in the merged list: its link, or its feed and title when it has none. */
+export const feedItemKey = (update: Pick<FeedUpdate, 'title'>, item: FeedItem): string =>
+  item.link ?? `${update.title}\n${item.title}`
+
 export interface ShownItem extends FeedItem {
   /** The title of the feed it came from. */
   source: string
@@ -99,7 +103,7 @@ export function mergeFeeds(updates: readonly FeedUpdate[], limit = FEED_MAX_SHOW
   const items: ShownItem[] = []
   for (const update of updates) {
     for (const item of update.items) {
-      const key = item.link ?? `${update.title}\n${item.title}`
+      const key = feedItemKey(update, item)
       if (seen.has(key)) continue
       seen.add(key)
       items.push({ ...item, source: update.title, key })

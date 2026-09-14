@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import type { Quake, QuakeState } from '@shared/quakes'
 import { launch } from './support.js'
 
 /**
@@ -173,8 +174,12 @@ test('the quakes pane lists Japan by intensity, asks only JMA, and closing it st
     expect(requests.some((r) => r.startsWith('/usgs') || r.startsWith('/noaa'))).toBe(false)
     expect(requests).toContain(JMA_TSUNAMI)
 
-    // The alerts button opens the settings at the earthquake section.
-    await page.getByTestId('quakes-alerts').click()
+    // The settings button, the same as every pane's, opens the settings at the earthquake section.
+    await expect(page.getByTestId('quakes-settings-toggle')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+    await page.getByTestId('quakes-settings-toggle').click()
     await expect(page.getByTestId('settings-quakes-notify')).toBeVisible()
     await page.keyboard.press('Escape')
 
@@ -439,6 +444,99 @@ test('the world source lists the USGS by magnitude, with a NOAA tsunami warning 
     )
     expect(requests.some((r) => r.startsWith('/bosai'))).toBe(false)
     expect(requests).toContain('/noaa/events/xml/PHEBAtom.xml')
+  } finally {
+    await close()
+  }
+})
+
+test('a new earthquake slides in with a highlight; while scrolled down it waits behind a pill; another source brings nothing new', async () => {
+  served[JMA_QUAKES] = JSON.stringify(
+    Array.from({ length: 30 }, (_, i) =>
+      entry(`q${i}`, 10 + i * 5, '3', ['茨城県南部', 'Southern Ibaraki Prefecture'], '4.0'),
+    ),
+  )
+  const { app, page, close } = await launch(undefined, {
+    layout: single('quakes'),
+    settings: japan(),
+    ...services(),
+  })
+  try {
+    const rows = page.getByTestId('quake-row')
+    await expect(rows).toHaveCount(30, { timeout: 20_000 })
+    // What is listed from the start is not new.
+    const fresh = page.locator('[data-testid=quakes-list] li[data-fresh]')
+    expect(await fresh.count()).toBe(0)
+
+    // Main's list, with earthquakes added to it the way a later check would.
+    const state = await page.evaluate(
+      () =>
+        new Promise<QuakeState>((resolve) => {
+          const off = window.elecdex.quakes.observe((s) => {
+            off()
+            resolve(s)
+          })
+        }),
+    )
+    const template = state.quakes[0] as Quake
+    const quake = (id: string): Quake => ({ ...template, id, at: Date.now() })
+    const publish = (next: QuakeState) =>
+      app.evaluate(({ BrowserWindow }, payload) => {
+        for (const win of BrowserWindow.getAllWindows())
+          win.webContents.send('quakes:update', payload)
+      }, next)
+
+    let quakes = [quake('new-1'), ...state.quakes]
+    await publish({ ...state, quakes })
+    await expect(rows.first()).toHaveAttribute('data-id', 'new-1')
+    await expect(fresh).toHaveCount(1)
+    await expect(fresh.getByTestId('quake-row')).toHaveAttribute('data-id', 'new-1')
+    await expect(fresh).toHaveClass(/fx-fresh/)
+    // At the top, the new row is in sight: nothing to count.
+    await expect(page.getByTestId('quakes-new')).toHaveCount(0)
+    // The highlight lasts three seconds; then it is an ordinary row.
+    await expect(fresh).toHaveCount(0, { timeout: 6000 })
+
+    // Scrolled down: the row being read stays where it is, and a pill counts what came.
+    const list = page.getByTestId('quakes-list')
+    await list.evaluate((el) => {
+      el.scrollTop = 240
+    })
+    const reading = page.locator('[data-testid=quake-row][data-id=q12]')
+    const before = await reading.boundingBox()
+    quakes = [quake('new-3'), quake('new-2'), ...quakes]
+    await publish({ ...state, quakes })
+    const pill = page.getByTestId('quakes-new')
+    await expect(pill).toHaveText('↑ 2 new')
+    await expect(fresh).toHaveCount(2)
+    const after = await reading.boundingBox()
+    expect(Math.abs((after?.y ?? 0) - (before?.y ?? 0))).toBeLessThanOrEqual(1)
+
+    await pill.click()
+    await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBe(0)
+    await expect(pill).toHaveCount(0)
+    await expect(rows.first()).toHaveAttribute('data-id', 'new-3')
+
+    // Scrolling back up by hand clears the pill too.
+    await list.evaluate((el) => {
+      el.scrollTop = 240
+    })
+    quakes = [quake('new-4'), ...quakes]
+    await publish({ ...state, quakes })
+    await expect(pill).toHaveText('↑ 1 new')
+    await list.evaluate((el) => {
+      el.scrollTop = 0
+    })
+    await expect(pill).toHaveCount(0)
+
+    // Another source is another list: none of it is new, and no pill carries over.
+    await expect(fresh).toHaveCount(0, { timeout: 6000 })
+    await list.evaluate((el) => {
+      el.scrollTop = 240
+    })
+    await publish({ ...state, source: 'usgs', quakes: [quake('world-1'), quake('world-2')] })
+    await expect(rows).toHaveCount(2)
+    expect(await fresh.count()).toBe(0)
+    await expect(page.getByTestId('quakes-new')).toHaveCount(0)
   } finally {
     await close()
   }

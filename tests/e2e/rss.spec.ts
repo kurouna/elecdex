@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import type { FeedItem, FeedUpdate } from '@shared/feeds'
 import { launch } from './support.js'
 
 /**
@@ -104,7 +105,9 @@ test('added from the picker it starts empty; its feeds merge newest first, open 
 
     // Empty: a note in the muted text colour, and no request.
     const empty = pane.getByTestId('rss-empty')
-    await expect(empty).toHaveText('No feeds yet. Press FEEDS to add RSS or Atom feed URLs.')
+    await expect(empty).toHaveText(
+      'No feeds yet. Open the settings at the top right to add RSS or Atom feed URLs.',
+    )
     const colours = await empty.evaluate((el) => {
       const probe = document.createElement('span')
       probe.style.color = 'var(--text-muted)'
@@ -117,7 +120,7 @@ test('added from the picker it starts empty; its feeds merge newest first, open 
     expect(await watching(page)).toEqual([])
 
     // A line that is not a feed URL is reported, not dropped.
-    await pane.getByTestId('rss-edit').click()
+    await pane.getByTestId('rss-settings-toggle').click()
     await pane.getByTestId('rss-feeds').fill(`${origin}/alpha.xml\nnot a url`)
     await pane.getByTestId('rss-save').click()
     await expect(pane.getByTestId('rss-problem')).toHaveText('not a feed URL: not a url')
@@ -204,7 +207,7 @@ test('a failing feed is marked and the rest still show; closing the pane stops t
     // Adding a feed fetches only that one: the feeds already listed are not
     // restarted, so the failing one is not asked again before its retry.
     requests.length = 0
-    await pane.getByTestId('rss-edit').click()
+    await pane.getByTestId('rss-settings-toggle').click()
     await pane
       .getByTestId('rss-feeds')
       .fill([`${origin}/alpha.xml`, `${origin}/gone.xml`, `${origin}/beta.atom`].join('\n'))
@@ -213,7 +216,7 @@ test('a failing feed is marked and the rest still show; closing the pane stops t
     await page.waitForTimeout(1000)
     expect(requests.map((r) => r.path)).toEqual(['/beta.atom'])
 
-    await pane.getByTestId('rss-edit').click()
+    await pane.getByTestId('rss-settings-toggle').click()
     await pane.getByTestId('rss-feeds').fill(`${origin}/gone.xml`)
     await pane.getByTestId('rss-save').click()
     await expect(pane.getByTestId('rss-status')).toHaveText('could not read the feeds: HTTP 404')
@@ -223,6 +226,66 @@ test('a failing feed is marked and the rest still show; closing the pane stops t
     await pane.getByTestId('pane-close').click()
     await expect(rssPane(page)).toHaveCount(0)
     await expect.poll(() => watching(page)).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test('a new headline slides in with a highlight; a feed added later, or an item too old for the list, is not new', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: single('rss', { feeds: [`${origin}/alpha.xml`] }),
+  })
+  try {
+    const pane = rssPane(page)
+    const items = pane.getByTestId('rss-item')
+    const fresh = pane.locator('[data-testid=rss-items] li[data-fresh]')
+    await expect(items).toHaveCount(15, { timeout: 20_000 })
+    expect(await fresh.count()).toBe(0)
+
+    // A second feed joins the list: its items interleave, but none is news.
+    await pane.getByTestId('rss-settings-toggle').click()
+    await pane.getByTestId('rss-feeds').fill(`${origin}/alpha.xml\n${origin}/beta.atom`)
+    await pane.getByTestId('rss-save').click()
+    await expect(items).toHaveCount(20, { timeout: 20_000 })
+    await expect(items.nth(1)).toContainText('beta post 1')
+    expect(await fresh.count()).toBe(0)
+
+    // Alpha's next download, as main would send it: one story newer than all, and
+    // one older than anything the list of 20 keeps.
+    const alpha = await page.evaluate(
+      (url) =>
+        new Promise<FeedUpdate>((resolve) => {
+          const off = window.elecdex.feeds.subscribe(url, (update) => {
+            off()
+            resolve(update)
+          })
+        }),
+      `${origin}/alpha.xml`,
+    )
+    const story = (title: string, at: number): FeedItem => ({
+      ...(alpha.items[0] as FeedItem),
+      title,
+      link: `${origin}/alpha/${title}`,
+      at,
+    })
+    const next: FeedUpdate = {
+      ...alpha,
+      fetchedAt: Date.now(),
+      items: [
+        story('breaking', Date.UTC(2026, 8, 14, 13)),
+        ...alpha.items,
+        story('ancient', Date.UTC(2020, 0, 1)),
+      ],
+    }
+    await app.evaluate(({ BrowserWindow }, payload) => {
+      for (const win of BrowserWindow.getAllWindows()) win.webContents.send('feeds:update', payload)
+    }, next)
+
+    await expect(items.first()).toContainText('breaking')
+    await expect(fresh).toHaveCount(1)
+    await expect(fresh).toContainText('breaking')
+    await expect(pane.getByTestId('rss-new')).toHaveCount(0)
+    await expect(fresh).toHaveCount(0, { timeout: 6000 })
   } finally {
     await close()
   }

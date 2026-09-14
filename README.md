@@ -44,8 +44,11 @@ for Windows, macOS and Linux.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
 - **Look and feel** — four themes (Tron, Amber, Phosphor, White) that switch live, CRT power-on
-  boot sequence, scanlines and glow, synthesised interface sounds, a themed title bar and a status
-  bar that slides in from the bottom edge.
+  boot sequence (a pane added later powers on the same way), scanlines and glow, synthesised
+  interface sounds, a themed title bar and a status bar that slides in from the bottom edge. Short
+  entrance effects - a wave of dates for each month, a forecast rising in, new headlines and
+  earthquakes sliding in with a three-second highlight - follow the motion setting: with motion
+  reduced (or the system's reduce-motion setting), nothing moves.
 - **Settings** — a settings dialog for theme, motion, sound, the launcher, rebindable keyboard
   shortcuts and the update check, all saved to a hand-editable `settings.json`.
 
@@ -162,21 +165,24 @@ weather and calendar.
   National Weather Service (or MET Norway, by choice), everywhere else MET Norway. °C or °F per
   pane; the default is New York City.
 - **RSS** — not in the default layout: add it from the picker (Ctrl+Shift+A). It starts empty and
-  fetches nothing until FEEDS lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
+  fetches nothing until its settings button lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
   per pane). The newest 20 headlines across its feeds are shown, each with its feed and the time
   (today) or date (earlier), and the list scrolls when the pane is shorter. A click opens the
   article in the browser. Each feed is checked **every 15 minutes** while a pane lists it — less
   often only when the feed itself asks (Cache-Control, Expires or `<ttl>`), and never less than
   hourly — with conditional requests, so an unchanged feed is not downloaded again. A feed that
   fails keeps its last headlines and marks the pane STALE. Several panes listing the same feed
-  share one request, and closing the last one stops it.
+  share one request, and closing the last one stops it. A headline that arrives while the pane is
+  open slides in at its place and is highlighted for three seconds; if the list is scrolled down,
+  what is being read stays put and a "↑ n new" pill leads back up.
 - **Quakes** — not in the default layout: add it from the picker. Recent earthquakes, newest
   first, from the source chosen in *Settings → Alerts*: **Japan** (the Japan Meteorological Agency:
   the maximum seismic intensity, shindo, amber from 3 and red from 5-, and distant earthquakes JMA
   reports) or **the world** (the USGS: magnitude 4.5 and up, amber from 5 and red from 6). Each row
   has the place, time, magnitude and depth, and opens the source's page. A tsunami warning, watch or
-  advisory in effect shows as a strip above the list. The button in the pane shows what alerts are
-  set to and opens their settings. While the pane is open, or alerts are on, the source is checked
+  advisory in effect shows as a strip above the list. The pane shows what alerts are set to, and its
+  settings button opens them. A new earthquake slides in highlighted in its colour, with the same
+  "↑ n new" pill as the RSS pane when the list is scrolled down. While the pane is open, or alerts are on, the source is checked
   **every minute** (conditionally, so an unchanged list costs no download); with neither, nothing is
   fetched. The world view then marks the day's earthquakes at their epicentres, sized by magnitude
   and coloured like the list, and an earthquake from the last hour pulses. **Not an earthquake early
@@ -194,7 +200,8 @@ weather and calendar.
   and a system notification appears when elecdex is not in front; both can be turned off. Each
   earthquake is announced once, and only while recent (30 minutes for Japan, an hour for the world),
   so starting the app later does not announce old news.
-- **Calendar** — the month with today marked; ‹ › or the mouse wheel change month. The settings
+- **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
+  sweep in the way it moved. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named
   below the month.
 

@@ -1,7 +1,9 @@
 <script lang="ts">
 import { isMetricSourceId } from '@shared/metrics'
 import type { PaneNode } from '@shared/schemas/layout'
-import { boot, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.svelte.ts'
+import { untrack } from 'svelte'
+import { appearance } from '../stores/appearance.svelte.ts'
+import { boot, CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
@@ -27,6 +29,15 @@ const title = $derived(meta.title ?? definition?.title ?? node.widget)
 /** Set only during the boot reveal: when this pane's CRT power-on starts. */
 const bootDelay = $derived(boot.delayFor(node.id))
 const bootDuration = $derived(definition?.chrome === 'shell' ? CRT_SHELL_MS : CRT_MODULE_MS)
+/**
+ * A pane just added powers on like the panes at boot, only quicker, and once: asked
+ * as the pane mounts, so a later remount (a move) is not an arrival. Not at all with
+ * motion reduced, where the class would leave its beam showing, unanimated.
+ */
+let poweringOn = $state(untrack(() => layout.arrived(node.id) && !appearance.reducedMotion))
+const crtDuration = $derived(
+  bootDelay !== null ? `${bootDuration}ms` : poweringOn ? `${CRT_ADDED_MS}ms` : undefined,
+)
 
 // Subscribe to the sources the widget declares, for exactly as long as this
 // pane exists. Unknown ids (a plugin naming a source this build lacks) are
@@ -71,9 +82,9 @@ $effect(() => () => paneMeta.clear(node.id))
   class="pane chrome-{chrome}"
   class:focused
   class:hidden={!visible}
-  class:crt-on={bootDelay !== null}
+  class:crt-on={bootDelay !== null || poweringOn}
   style:--crt-delay={bootDelay === null ? undefined : `${bootDelay}ms`}
-  style:--crt-duration={bootDelay === null ? undefined : `${bootDuration}ms`}
+  style:--crt-duration={crtDuration}
   data-testid="pane"
   data-pane-id={node.id}
   data-widget={node.widget}
@@ -81,6 +92,10 @@ $effect(() => () => paneMeta.clear(node.id))
   data-drop-node={tabbed ? undefined : node.id}
   onfocusin={() => layout.focus(node.id)}
   onpointerdown={() => layout.focus(node.id)}
+  onanimationend={(e) => {
+    // The pane's own power-on, not an animation inside it or its beam.
+    if (e.target === e.currentTarget && e.animationName === 'crt-power-on') poweringOn = false
+  }}
 >
   {#if chrome !== 'bare'}
     <!-- Tabs close from their own tab; every other pane closes from here. -->

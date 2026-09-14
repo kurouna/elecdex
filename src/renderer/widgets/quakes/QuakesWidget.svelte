@@ -13,9 +13,14 @@ import {
   USGS_QUAKE_PAGE,
 } from '@shared/quakes'
 import { type Tsunami, tsunamiLevelLabel, tsunamiSummary } from '@shared/tsunami'
+import { flip } from 'svelte/animate'
+import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
+import { NewAbove } from '../../lib/new-above.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
+import NewPill from '../common/NewPill.svelte'
+import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -33,7 +38,34 @@ const { paneId }: WidgetProps = $props()
 const language = quakeLanguage(navigator.language)
 let current = $state.raw<QuakeState | null>(null)
 
-$effect(() => window.elecdex.quakes.subscribe((next) => (current = next)))
+/** Earthquakes listed since the first reading of this source, marked until their highlight ends. */
+let fresh = $state.raw<ReadonlySet<string>>(new Set())
+const tracker = new FreshTracker()
+const above = new NewAbove()
+
+function receive(next: QuakeState): void {
+  if (next.source !== current?.source) {
+    // Another source is another list: nothing in it is new to this one.
+    tracker.reset()
+    fresh = new Set()
+    above.clear()
+  }
+  // Before the first check there is no list to compare with.
+  if (next.fetchedAt !== null) {
+    const ids = next.quakes.map((q) => q.id)
+    const added = tracker.next(ids)
+    fresh = carryFresh(fresh, added, ids)
+    above.arrived(added.length)
+  }
+  current = next
+}
+
+$effect(() => window.elecdex.quakes.subscribe(receive))
+
+function settled(id: string, event: AnimationEvent): void {
+  if (event.animationName !== 'fx-fresh' || !fresh.has(id)) return
+  fresh = new Set([...fresh].filter((key) => key !== id))
+}
 
 const source = $derived(current?.source ?? null)
 const quakes = $derived(current?.quakes ?? [])
@@ -101,20 +133,18 @@ const tsunamiTone = (value: Tsunami) =>
 </script>
 
 <div class="quakes" data-testid="quakes" data-source={source}>
+  <!-- The alerts are an app setting, not the pane's: the button opens them in the settings dialog. -->
+  <SettingsButton
+    open={ui.settingsOpen}
+    label="earthquake and tsunami settings"
+    testid="quakes-settings-toggle"
+    ontoggle={() => ui.openSettings('alerts')}
+  />
   <div class="tools">
     {#if source !== null}
       <span class="source-name" title="Settings → Alerts chooses the source">{SOURCES[source].region}</span>
     {/if}
-    <button
-      type="button"
-      class="alerts"
-      class:on={settings.notify}
-      onclick={() => ui.openSettings('alerts')}
-      title="Earthquake and tsunami settings"
-      data-testid="quakes-alerts"
-    >
-      {alertLabel}
-    </button>
+    <span class="alerts" class:on={settings.notify} data-testid="quakes-alerts">{alertLabel}</span>
   </div>
 
   {#if tsunami !== null}
@@ -139,27 +169,36 @@ const tsunamiTone = (value: Tsunami) =>
         : 'fetching the earthquake list…'}
     </p>
   {:else}
-    <ul class="list" data-testid="quakes-list">
-      {#each quakes as quake (quake.id)}
-        {@const b = badge(quake)}
-        <li>
-          <button
-            type="button"
-            class="row {quakeSeverity(quake)}"
-            title={quake.url}
-            onclick={() => void window.elecdex.system.openExternal(quake.url)}
-            data-testid="quake-row"
-            data-id={quake.id}
+    <div class="list-frame">
+      <NewPill count={above.count} onjump={() => above.jump(!appearance.reducedMotion)} testid="quakes-new" />
+      <ul class="list" bind:this={above.list} onscroll={() => above.scrolled()} data-testid="quakes-list">
+        {#each quakes as quake (quake.id)}
+          {@const b = badge(quake)}
+          {@const severity = quakeSeverity(quake)}
+          <li
+            class:fx-fresh={fresh.has(quake.id)}
+            animate:flip={{ duration: appearance.reducedMotion ? 0 : 360 }}
+            onanimationend={(e) => settled(quake.id, e)}
+            data-fresh={fresh.has(quake.id) || undefined}
           >
-            <span class="badge" title={b.title}>{b.text}</span>
-            <span class="place">
-              <span class="area">{areaLabel(quake, language)}</span>
-              <span class="meta">{meta(quake)}</span>
-            </span>
-          </button>
-        </li>
-      {/each}
-    </ul>
+            <button
+              type="button"
+              class="row {severity}"
+              title={quake.url}
+              onclick={() => void window.elecdex.system.openExternal(quake.url)}
+              data-testid="quake-row"
+              data-id={quake.id}
+            >
+              <span class="badge" title={b.title}>{b.text}</span>
+              <span class="place">
+                <span class="area">{areaLabel(quake, language)}</span>
+                <span class="meta">{meta(quake)}</span>
+              </span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </div>
   {/if}
 
   {#if source !== null}
@@ -180,6 +219,7 @@ const tsunamiTone = (value: Tsunami) =>
 
 <style>
 .quakes {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -195,6 +235,8 @@ const tsunamiTone = (value: Tsunami) =>
   align-items: center;
   gap: var(--space-2);
   min-height: 1.1rem;
+  /* Clear of the settings button in the corner. */
+  margin-right: 1.5rem;
 }
 
 .source-name {
@@ -243,24 +285,14 @@ const tsunamiTone = (value: Tsunami) =>
 }
 
 .alerts {
-  padding: 0 var(--space-2);
-  border: 1px solid var(--panel-border);
-  background: var(--app-bg);
-  color: var(--text-muted);
-  font: inherit;
   font-size: var(--step--2);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
-  cursor: pointer;
+  color: var(--text-muted);
 }
 
 .alerts.on {
   color: var(--accent);
-}
-
-.alerts:hover {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 .note {
@@ -270,9 +302,14 @@ const tsunamiTone = (value: Tsunami) =>
   font-size: var(--step--1);
 }
 
-.list {
+.list-frame {
+  position: relative;
   flex: 1;
   min-height: 0;
+}
+
+.list {
+  height: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -283,6 +320,15 @@ const tsunamiTone = (value: Tsunami) =>
 
 .list li + li {
   border-top: 1px solid var(--panel-rule);
+}
+
+/* A new row is highlighted in the colour of its severity, as its badge is. */
+.list li:has(> .moderate) {
+  --fx-tone: var(--warn);
+}
+
+.list li:has(> .severe) {
+  --fx-tone: var(--danger);
 }
 
 .row {

@@ -52,3 +52,22 @@ export function msUntilMidnight(now: Date): number {
   const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
   return next.getTime() - now.getTime()
 }
+
+export type WaveDirection = 'next' | 'prev'
+
+/**
+ * A day's place in the wave that brings a month in, 0 first and 11 last: along
+ * the diagonals from the top-left corner for a later month, from the bottom-right
+ * for an earlier one, so the dates sweep in the direction the calendar moved.
+ */
+export function waveStep(index: number, direction: WaveDirection): number {
+  const row = Math.floor(index / 7)
+  const column = index % 7
+  return direction === 'next' ? row + column : 5 - row + (6 - column)
+}
+
+/** The direction from the month shown to another, or null when it is the same month. */
+export function waveTowards(from: Date, to: Date): WaveDirection | null {
+  const months = (to.getFullYear() - from.getFullYear()) * 12 + to.getMonth() - from.getMonth()
+  return months === 0 ? null : months > 0 ? 'next' : 'prev'
+}

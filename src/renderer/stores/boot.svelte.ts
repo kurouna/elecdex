@@ -32,6 +32,8 @@ export const TITLE_TIMING = { glitchAt: 650, glitchFor: 500, greetAt: 1150, offA
 /** How long one pane's power-on runs; a shell's is longer, as the main screen. */
 export const CRT_MODULE_MS = 650
 export const CRT_SHELL_MS = 900
+/** A pane added later powers on quicker, so it does not hold up the work. */
+export const CRT_ADDED_MS = 520
 
 /** Remembers, per window, that the intro has played, so a reload does not replay it. */
 const PLAYED_KEY = 'elecdex.intro-played'

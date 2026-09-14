@@ -1,8 +1,9 @@
 <script lang="ts">
 /**
- * The sliders icon in a widget's top-right corner that opens its settings, as
- * the weather and calendar panes use it. The widget owns the open state and
- * draws the panel; this is only the switch, so every pane's looks the same.
+ * The sliders icon in a widget's top-right corner that opens its settings, in
+ * every pane that has any (weather, calendar, RSS, quakes). The widget owns the
+ * open state and draws the panel - or, for settings of the app's, opens the
+ * settings dialog; this is only the switch, so every pane's looks the same.
  */
 interface Props {
   open: boolean

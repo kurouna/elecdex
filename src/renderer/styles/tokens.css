@@ -89,6 +89,10 @@
   --dur-panel: 420ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in-out: cubic-bezier(0.6, 0, 0.4, 1);
+  /* Quick off the mark with a long settle, for things arriving (motion.css). */
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Scales the length and delay of entrance effects: 0 with motion reduced. */
+  --motion-scale: 1;
 
   /* ---------- semantic: HUD geometry ---------- */
   --frame-notch: 0.75rem;
@@ -109,6 +113,7 @@
     --dur-fast: 1ms;
     --dur-base: 1ms;
     --dur-panel: 1ms;
+    --motion-scale: 0;
   }
 }
 
@@ -116,4 +121,5 @@
   --dur-fast: 1ms;
   --dur-base: 1ms;
   --dur-panel: 1ms;
+  --motion-scale: 0;
 }

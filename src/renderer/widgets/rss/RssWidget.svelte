@@ -2,14 +2,21 @@
 import {
   FEED_MAX_URLS,
   type FeedUpdate,
+  feedItemKey,
   formatItemTime,
   mergeFeeds,
   paneFeeds,
   parseFeedList,
 } from '@shared/feeds'
 import { untrack } from 'svelte'
+import { flip } from 'svelte/animate'
+import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
+import { NewAbove } from '../../lib/new-above.svelte.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import NewPill from '../common/NewPill.svelte'
+import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -41,6 +48,37 @@ let problem = $state<string | null>(null)
  */
 const subscriptions = new Map<string, () => void>()
 
+/**
+ * Headlines that arrived after their feed's first download in this pane, marked
+ * until their highlight ends. Each feed keeps its own record, so a feed added to
+ * the list, or answering later than the others, does not bring all its items in
+ * as new.
+ */
+let fresh = $state.raw<ReadonlySet<string>>(new Set())
+const trackers = new Map<string, FreshTracker>()
+const above = new NewAbove()
+
+function receive(url: string, update: FeedUpdate): void {
+  const next = { ...updates, [url]: update }
+  // A feed never downloaded has no items to compare with yet.
+  if (update.fetchedAt !== null) {
+    const tracker = trackers.get(url) ?? new FreshTracker()
+    trackers.set(url, tracker)
+    const added = tracker.next(update.items.map((item) => feedItemKey(update, item)))
+    // Only what makes the merged list counts: an item too old for it is not news.
+    const listed = mergeFeeds(listedUpdates(next)).map((item) => item.key)
+    const shownAdded = added.filter((key) => listed.includes(key))
+    fresh = carryFresh(fresh, shownAdded, listed)
+    above.arrived(shownAdded.length)
+  }
+  updates = next
+}
+
+function settled(key: string, event: AnimationEvent): void {
+  if (event.animationName !== 'fx-fresh' || !fresh.has(key)) return
+  fresh = new Set([...fresh].filter((k) => k !== key))
+}
+
 $effect(() => {
   const urls = new Set(feedKey === '' ? [] : feedKey.split('\n'))
   for (const [url, off] of subscriptions) {
@@ -52,14 +90,13 @@ $effect(() => {
     if (subscriptions.has(url)) continue
     subscriptions.set(
       url,
-      window.elecdex.feeds.subscribe(url, (update) => {
-        updates = { ...updates, [url]: update }
-      }),
+      window.elecdex.feeds.subscribe(url, (update) => receive(url, update)),
     )
   }
   // Forget feeds no longer listed; their items must not linger in memory.
   untrack(() => {
     updates = Object.fromEntries(Object.entries(updates).filter(([url]) => urls.has(url)))
+    for (const url of trackers.keys()) if (!urls.has(url)) trackers.delete(url)
   })
 })
 
@@ -80,7 +117,11 @@ $effect(() => {
   return () => clearTimeout(timer)
 })
 
-const received = $derived(feeds.map((url) => updates[url]).filter((u) => u !== undefined))
+/** The updates of the listed feeds, in list order. */
+const listedUpdates = (from: Record<string, FeedUpdate>): FeedUpdate[] =>
+  feeds.map((url) => from[url]).filter((u) => u !== undefined)
+
+const received = $derived(listedUpdates(updates))
 const shown = $derived(mergeFeeds(received))
 /** When every listed feed has failed and none has items, say why instead of waiting. */
 const failure = $derived(
@@ -127,17 +168,12 @@ function saveDraft(): void {
 </script>
 
 <div class="rss" data-testid="rss">
-  <div class="tools">
-    <button
-      type="button"
-      class="edit"
-      aria-expanded={editing}
-      onclick={() => (editing ? (editing = false) : startEditing())}
-      data-testid="rss-edit"
-    >
-      feeds
-    </button>
-  </div>
+  <SettingsButton
+    open={editing}
+    label="rss settings"
+    testid="rss-settings-toggle"
+    ontoggle={() => (editing ? (editing = false) : startEditing())}
+  />
 
   {#if editing}
     <form
@@ -165,34 +201,42 @@ function saveDraft(): void {
 
   {#if feeds.length === 0}
     {#if !editing}
-      <p class="note" data-testid="rss-empty">No feeds yet. Press FEEDS to add RSS or Atom feed URLs.</p>
+      <p class="note" data-testid="rss-empty">No feeds yet. Open the settings at the top right to add RSS or Atom feed URLs.</p>
     {/if}
   {:else if shown.length === 0}
     <p class="note" data-testid="rss-status">
       {failure === null ? 'fetching feeds…' : `could not read the feeds: ${failure}`}
     </p>
   {:else}
-    <ul class="items" data-testid="rss-items">
-      {#each shown as item (item.key)}
-        <li>
-          <button
-            type="button"
-            class="item"
-            disabled={item.link === null}
-            title={item.title}
-            onclick={() => {
-              if (item.link !== null) void window.elecdex.system.openExternal(item.link)
-            }}
-            data-testid="rss-item"
+    <div class="list-frame">
+      <NewPill count={above.count} onjump={() => above.jump(!appearance.reducedMotion)} testid="rss-new" />
+      <ul class="items" bind:this={above.list} onscroll={() => above.scrolled()} data-testid="rss-items">
+        {#each shown as item (item.key)}
+          <li
+            class:fx-fresh={fresh.has(item.key)}
+            animate:flip={{ duration: appearance.reducedMotion ? 0 : 360 }}
+            onanimationend={(e) => settled(item.key, e)}
+            data-fresh={fresh.has(item.key) || undefined}
           >
-            <span class="title">{item.title}</span>
-            <span class="meta">
-              {item.source}{item.at === null ? '' : ` · ${formatItemTime(item.at, clock)}`}
-            </span>
-          </button>
-        </li>
-      {/each}
-    </ul>
+            <button
+              type="button"
+              class="item"
+              disabled={item.link === null}
+              title={item.title}
+              onclick={() => {
+                if (item.link !== null) void window.elecdex.system.openExternal(item.link)
+              }}
+              data-testid="rss-item"
+            >
+              <span class="title">{item.title}</span>
+              <span class="meta">
+                {item.source}{item.at === null ? '' : ` · ${formatItemTime(item.at, clock)}`}
+              </span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </div>
   {/if}
 </div>
 
@@ -203,17 +247,12 @@ function saveDraft(): void {
   gap: var(--space-1);
   height: 100%;
   min-height: 0;
-  padding: var(--space-1) var(--space-1) 0;
+  /* The top clears the settings button in the corner. */
+  position: relative;
+  padding: 1.5rem var(--space-1) 0;
   font-family: var(--font-ui);
 }
 
-.tools {
-  display: flex;
-  justify-content: flex-end;
-  min-height: 1.1rem;
-}
-
-.edit,
 .editor button {
   padding: 0 var(--space-2);
   border: 1px solid var(--panel-border);
@@ -226,8 +265,6 @@ function saveDraft(): void {
   cursor: pointer;
 }
 
-.edit[aria-expanded='true'],
-.edit:hover,
 .editor button:hover {
   color: var(--accent);
   border-color: var(--accent);
@@ -269,9 +306,14 @@ function saveDraft(): void {
 }
 
 /* The list takes the pane's height and scrolls past it. */
-.items {
+.list-frame {
+  position: relative;
   flex: 1;
   min-height: 0;
+}
+
+.items {
+  height: 100%;
   margin: 0;
   padding: 0;
   list-style: none;

@@ -1,0 +1,75 @@
+/*
+ * Entrance effects shared by widgets.
+ *
+ * All of them play once, when an element is created, and animate only opacity,
+ * transform and clip-path, so the compositor runs them and nothing is left
+ * running at idle. They fill `backwards` - hidden through their delay, then gone:
+ * a fill that outlasts the animation keeps it active, and Chromium keeps such an
+ * element on a GPU layer of its own for good (see the filesystem tiles).
+ *
+ * Their lengths and delays are multiplied by `--motion-scale`, 0 when motion is
+ * reduced, so they end before they begin. The highlight on new rows is the one
+ * exception: it is information, not motion, so it keeps its time and only fades.
+ */
+
+/* Rises into place: `--fx-delay` staggers a group. */
+.fx-rise {
+  animation: fx-rise calc(360ms * var(--motion-scale)) var(--ease-emphasized)
+    calc(var(--fx-delay, 0ms) * var(--motion-scale)) backwards;
+}
+
+@keyframes fx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+}
+
+/*
+ * A new row in a list: it wipes in from the left while the rows below make way
+ * (animate:flip), and a bar in `--fx-tone` marks it for three seconds. The widget
+ * forgets the row as new when `fx-fresh` ends.
+ */
+.fx-fresh {
+  position: relative;
+  animation: fx-wipe calc(420ms * var(--motion-scale)) var(--ease-emphasized) backwards;
+}
+
+.fx-fresh::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-left: 2px solid var(--fx-tone, var(--accent));
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--fx-tone, var(--accent)) 16%, transparent),
+    transparent 75%
+  );
+  opacity: 0;
+  pointer-events: none;
+  animation: fx-fresh 3s linear backwards;
+}
+
+@keyframes fx-wipe {
+  from {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+    clip-path: inset(0 100% 0 0);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes fx-fresh {
+  0%,
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

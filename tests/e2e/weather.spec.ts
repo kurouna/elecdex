@@ -110,6 +110,15 @@ test('the default is New York from the National Weather Service, in °F', async 
     await expect(p.getByTestId('weather-attribution')).toHaveText(/National Weather Service/)
     // 79°F in the fixture.
     await expect(p.getByTestId('weather-today')).toContainText('79°')
+    // The forecast rises in: today, then the week a day at a time.
+    const rise = (el: Element) => {
+      const s = getComputedStyle(el)
+      return `${s.animationName} ${s.animationDelay}`
+    }
+    await expect.poll(() => p.getByTestId('weather-today').evaluate(rise)).toBe('fx-rise 0s')
+    const days = p.getByTestId('weather-day')
+    expect(await days.first().evaluate(rise)).toBe('fx-rise 0.045s')
+    expect(await days.nth(5).evaluate(rise)).toBe('fx-rise 0.27s')
 
     const nws = requests.filter((r) => r.url.startsWith('/nws/'))
     expect(nws.map((r) => r.url.replace(/\?.*/, ''))).toEqual([

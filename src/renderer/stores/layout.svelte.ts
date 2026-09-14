@@ -54,6 +54,20 @@ class LayoutStore {
 
   private saveTimer: ReturnType<typeof setTimeout> | null = null
 
+  /** The pane added last, until its host has taken it to power on (see arrived). */
+  private arriving: string | null = null
+
+  /**
+   * Whether `paneId` has just been added, answered once: a pane's host asks as it
+   * mounts, so the power-on plays when the pane appears and not again when a move
+   * remounts it. Not reactive, as nothing re-renders for it.
+   */
+  arrived(paneId: string): boolean {
+    if (this.arriving !== paneId) return false
+    this.arriving = null
+    return true
+  }
+
   /**
    * A plain copy of the tree for crossing the IPC boundary.
    *
@@ -119,6 +133,7 @@ class LayoutStore {
 
   split(paneId: string, direction: SplitDirection, widget: string): void {
     const incoming = pane(widget)
+    this.arriving = incoming.id
     this.commit(splitPane(this.tree, paneId, direction, incoming))
     this.focusedPaneId = incoming.id
     sfx.play('expand')
@@ -135,6 +150,7 @@ class LayoutStore {
 
   addTab(siblingPaneId: string, widget: string): void {
     const incoming = pane(widget)
+    this.arriving = incoming.id
     this.commit(addTab(this.tree, siblingPaneId, incoming))
     this.focusedPaneId = incoming.id
     sfx.play('folder')
