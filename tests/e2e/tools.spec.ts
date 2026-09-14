@@ -301,6 +301,50 @@ test.describe('markets', () => {
     }
   })
 
+  test('a watchlist longer than the pane scrolls in both views instead of covering the credit', async () => {
+    // The default layout's markets pane is short and its watchlist has eight symbols.
+    const { page, close } = await launch()
+    try {
+      const pane = page.locator('[data-testid=pane][data-widget=markets]')
+      const credit = pane.locator('.credit')
+      for (const [view, list] of [
+        ['line', '.board'],
+        ['bars', '[data-testid=markets-bars]'],
+      ] as const) {
+        await pane.getByTestId('markets-view').locator(`[data-view=${view}]`).click()
+        const geometry = await pane.locator(list).evaluate(
+          (el, creditEl) => {
+            const box = el.getBoundingClientRect()
+            return {
+              overflows: el.scrollHeight > el.clientHeight,
+              scrolls: getComputedStyle(el).overflowY === 'auto',
+              bottom: box.bottom,
+              creditTop: (creditEl as Element).getBoundingClientRect().top,
+            }
+          },
+          await credit.elementHandle(),
+        )
+        expect(geometry.overflows, view).toBe(true)
+        expect(geometry.scrolls, view).toBe(true)
+        // The list ends above the credit, so nothing is drawn over it.
+        expect(geometry.bottom, view).toBeLessThanOrEqual(geometry.creditTop + 1)
+      }
+      // Scrolled to the end, the last symbol is reachable in the bar view.
+      const bars = pane.getByTestId('markets-bars')
+      await bars.evaluate((el) => {
+        el.scrollTop = el.scrollHeight
+      })
+      const last = pane.getByTestId('market-bar').last()
+      const lastBox = await last.boundingBox()
+      const barsBox = await bars.boundingBox()
+      expect((lastBox?.y ?? 0) + (lastBox?.height ?? 0)).toBeLessThanOrEqual(
+        (barsBox?.y ?? 0) + (barsBox?.height ?? 0) + 1,
+      )
+    } finally {
+      await close()
+    }
+  })
+
   test('built-in names follow the app language; labels the user typed do not', async () => {
     const symbols = [{ symbol: '^N225' }, { symbol: 'JPY=X', label: 'my yen' }]
     for (const [lang, nikkei] of [

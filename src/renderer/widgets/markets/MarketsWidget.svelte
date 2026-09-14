@@ -285,9 +285,10 @@ const tone = (row: Row) => {
   color: var(--text-muted);
 }
 
-/* ---- line view ---- */
-
-.board {
+/* Both views: the list takes the space left above the credit and scrolls when
+   the watchlist is longer than fits, rather than running over the credit. */
+.board,
+.bars {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -299,6 +300,8 @@ const tone = (row: Row) => {
   scrollbar-width: thin;
   scrollbar-color: var(--accent-dim) transparent;
 }
+
+/* ---- line view ---- */
 
 .row {
   flex: 1 0 2.4rem;
@@ -430,15 +433,10 @@ const tone = (row: Row) => {
   text-align: right;
 }
 
+/* Spread out when there is room. Overflowing, space-evenly falls back to a safe
+   start, so the first row stays at the top and the rest scroll. */
 .bars {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
   justify-content: space-evenly;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .bar-row {
