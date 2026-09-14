@@ -164,6 +164,28 @@ describe('nextFrame', () => {
     expect(frames).toBe(1)
   })
 
+  it('goes ahead without the frame when no animation frame comes, as on a window that draws none', () => {
+    // Visible to the page, but frames never arrive.
+    vi.stubGlobal('requestAnimationFrame', () => 1)
+    const apply = vi.fn()
+    loop.nextFrame(apply)
+    vi.advanceTimersByTime(loop.FRAME_STALL_MS - 1)
+    expect(apply).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(apply).toHaveBeenCalledTimes(1)
+
+    // The loop keeps turning too, only later than its boundary.
+    const draw = vi.fn()
+    subscribe(draw, 1000)
+    vi.advanceTimersByTime(3000)
+    expect(draw.mock.calls.length).toBeGreaterThanOrEqual(2)
+    // And samples arriving while it turns that way still get applied.
+    const later = vi.fn()
+    loop.nextFrame(later)
+    vi.advanceTimersByTime(loop.FRAME_STALL_MS)
+    expect(later).toHaveBeenCalledTimes(1)
+  })
+
   it('runs at once while hidden, and flushes what was waiting when the window hides', () => {
     const waiting = vi.fn()
     subscribe(vi.fn())

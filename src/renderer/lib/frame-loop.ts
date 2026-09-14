@@ -76,7 +76,23 @@ let raf = 0
 /** A frame requested for pending callbacks alone, while the loop is not running. */
 let loneRaf = 0
 
+/**
+ * How long a requested animation frame may take before the work goes ahead
+ * without it. A window can be visible to the page (document.hidden false) and yet
+ * produce no frames - not yet shown, occluded without being reported hidden, a
+ * virtual display on CI - and then the frame never comes: samples waited for it
+ * forever and panes showed nothing though their data was arriving.
+ */
+export const FRAME_STALL_MS = 500
+
+/** Runs what waits for a frame if the frame is late (see FRAME_STALL_MS). */
+let pendingStall: ReturnType<typeof setTimeout> | null = null
+/** Runs the loop's frame if its animation frame is late. */
+let loopStall: ReturnType<typeof setTimeout> | null = null
+
 function runPending(now: number): void {
+  if (pendingStall !== null) clearTimeout(pendingStall)
+  pendingStall = null
   if (pending.size === 0) return
   const due = [...pending]
   pending.clear()
@@ -95,6 +111,8 @@ const slotOf = (wall: number, period: number): number => Math.floor((wall - WAKE
 
 function frame(now: number): void {
   raf = 0
+  if (loopStall !== null) clearTimeout(loopStall)
+  loopStall = null
   if (document.hidden) return
   runPending(now)
   const wall = Date.now()
@@ -117,14 +135,22 @@ function schedule(): void {
   timer = setTimeout(() => {
     timer = null
     raf = requestAnimationFrame(frame)
+    loopStall = setTimeout(() => {
+      loopStall = null
+      if (raf === 0) return
+      cancelAnimationFrame(raf)
+      frame(performance.now())
+    }, FRAME_STALL_MS)
   }, delay)
 }
 
 function cancel(): void {
   if (timer !== null) clearTimeout(timer)
   if (raf !== 0) cancelAnimationFrame(raf)
+  if (loopStall !== null) clearTimeout(loopStall)
   timer = null
   raf = 0
+  loopStall = null
 }
 
 // Hidden: stop outright, and run anything waiting for a frame now - nothing is
@@ -152,6 +178,7 @@ export function nextFrame(callback: FrameCallback): void {
     return
   }
   pending.add(callback)
+  pendingStall ??= setTimeout(() => runPending(performance.now()), FRAME_STALL_MS)
   if (callbacks.size > 0) {
     schedule()
   } else if (loneRaf === 0) {
