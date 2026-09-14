@@ -7,19 +7,26 @@ import { expect, test } from '@playwright/test'
 import { launch } from './support.js'
 
 /**
- * Earthquakes: the quakes pane, the alert banner, the globe's marks and the
- * settings, against a local stand-in for JMA's list.json.
+ * Earthquakes and tsunamis: the quakes pane, the alert banners and tsunami card,
+ * the globe's marks and the settings, against local stand-ins for JMA, the USGS
+ * and NOAA.
  *
- * What matters beyond the display: nothing is fetched while alerts are off and
- * no quakes pane is open, an earthquake is announced once (not again after a
- * restart), and only recent ones at the chosen intensity are. No test here
- * reaches JMA.
+ * What matters beyond the display: nothing is fetched while alerts are off and no
+ * quakes pane is open, only the chosen source is asked, an earthquake is announced
+ * once (not again after a reload or restart), and a tsunami stays in sight while it
+ * is in effect. No test here reaches the real services.
  */
 
 let server: Server
 let origin: string
-let list: unknown[] = []
-let listRequests = 0
+/** What the stand-in serves, by path; reset before each test. */
+let served: Record<string, string> = {}
+let requests: string[] = []
+
+const JMA_QUAKES = '/bosai/quake/data/list.json'
+const JMA_TSUNAMI = '/bosai/tsunami/data/list.json'
+const USGS_FEED = '/usgs/earthquakes/feed/v1.0/summary/4.5_day.geojson'
+const NTWC_FEED = '/noaa/events/xml/PAAQAtom.xml'
 
 /** A list.json entry for an earthquake `minutesAgo` minutes before now. */
 function entry(
@@ -46,20 +53,42 @@ function entry(
   }
 }
 
+/** A JMA tsunami report with the given areas and category codes. */
+const tsunamiReport = (areas: Array<[string, string, string?]>) =>
+  JSON.stringify({
+    Head: { Headline: { Text: '津波警報を発表しました。\nただちに避難してください。' } },
+    Body: {
+      Tsunami: {
+        Forecast: {
+          Item: areas.map(([name, code, height]) => ({
+            Area: { Name: name },
+            Category: { Kind: { Code: code } },
+            FirstHeight: { Condition: 'ただちに津波来襲と予測' },
+            ...(height ? { MaxHeight: { TsunamiHeight: height } } : {}),
+          })),
+        },
+      },
+    },
+  })
+
+const tsunamiListing = (json: string) =>
+  JSON.stringify([{ eid: 'tsunami-event', json, rdt: new Date().toISOString(), ift: '発表' }])
+
 test.beforeAll(async () => {
   server = createServer((req, res) => {
-    if (req.url === '/bosai/quake/data/list.json') {
-      listRequests += 1
-      const body = JSON.stringify(list)
-      const etag = `"${body.length}"`
-      if (req.headers['if-none-match'] === etag) {
-        res.writeHead(304).end()
-        return
-      }
-      res.writeHead(200, { 'content-type': 'application/json', etag }).end(body)
+    const url = req.url ?? ''
+    requests.push(url)
+    const body = served[url]
+    if (body === undefined) {
+      res.writeHead(404).end()
       return
     }
-    res.writeHead(404).end()
+    const etag = `"${body.length}-${Buffer.from(body).toString('base64').slice(-12)}"`
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304).end()
+      return
+    }
+    res.writeHead(200, { etag }).end(body)
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -70,33 +99,45 @@ test.afterAll(async () => {
 })
 
 test.beforeEach(() => {
-  listRequests = 0
-  list = [
-    entry('strong', 3, '5+', ['宮城県沖', 'Off the Coast of Miyagi Prefecture']),
-    entry('weak', 2, '3', ['茨城県南部', 'Southern Ibaraki Prefecture'], '3.8'),
-    entry('old', 180, '6-', ['石川県能登地方', 'Noto Region, Ishikawa Prefecture'], '6.0'),
-  ]
+  requests = []
+  served = {
+    [JMA_QUAKES]: JSON.stringify([
+      entry('strong', 3, '5+', ['宮城県沖', 'Off the Coast of Miyagi Prefecture']),
+      entry('weak', 2, '3', ['茨城県南部', 'Southern Ibaraki Prefecture'], '3.8'),
+      entry('old', 180, '6-', ['石川県能登地方', 'Noto Region, Ishikawa Prefecture'], '6.0'),
+    ]),
+    [JMA_TSUNAMI]: '[]',
+  }
 })
 
-const alertsOn = { sound: { enabled: false }, quakes: { notify: true, minIntensity: '5-' } }
+const services = () => ({
+  jmaBaseUrl: `${origin}/bosai`,
+  env: { ELECDEX_USGS_BASE_URL: `${origin}/usgs`, ELECDEX_NOAA_BASE_URL: `${origin}/noaa` },
+})
+/** Settings with JMA chosen, so the tests do not depend on the machine's time zone. */
+const japan = (quakes: Record<string, unknown> = {}) => ({
+  sound: { enabled: false },
+  quakes: { source: 'jma', ...quakes },
+})
 const single = (widget: string) => ({ version: 1, root: { kind: 'pane', id: 'p', widget } })
-const quakeActive = (page: Page) =>
+const quakeState = (page: Page) =>
   page.evaluate(
     () =>
-      new Promise<boolean>((resolve) => {
+      new Promise<{ active: boolean; source: string }>((resolve) => {
         const off = window.elecdex.quakes.observe((state) => {
           off()
-          resolve(state.active)
+          resolve({ active: state.active, source: state.source })
         })
       }),
   )
+const quakeActive = async (page: Page) => (await quakeState(page)).active
 
-test('with alerts off and no quakes pane, JMA’s list is never fetched', async () => {
-  const { page, userData, close } = await launch(undefined, { jmaBaseUrl: `${origin}/bosai` })
+test('with alerts off and no quakes pane, nothing is fetched from any source', async () => {
+  const { page, userData, close } = await launch(undefined, { ...services() })
   try {
     await expect(page.locator('[data-testid=pane][data-widget=globe]')).toHaveCount(1)
     await page.waitForTimeout(1500)
-    expect(listRequests).toBe(0)
+    expect(requests).toEqual([])
     expect(await quakeActive(page)).toBe(false)
     await expect(page.getByTestId('globe-quakes')).toHaveCount(0)
     expect(existsSync(path.join(userData, 'quake-alerts.json'))).toBe(false)
@@ -105,10 +146,11 @@ test('with alerts off and no quakes pane, JMA’s list is never fetched', async 
   }
 })
 
-test('the quakes pane lists earthquakes by intensity, and closing it stops the fetching', async () => {
+test('the quakes pane lists Japan by intensity, asks only JMA, and closing it stops the fetching', async () => {
   const { page, close } = await launch(undefined, {
     layout: single('quakes'),
-    jmaBaseUrl: `${origin}/bosai`,
+    settings: japan(),
+    ...services(),
     args: ['--lang=en-US'],
   })
   try {
@@ -118,13 +160,18 @@ test('the quakes pane lists earthquakes by intensity, and closing it stops the f
     await expect(rows.nth(0)).toHaveClass(/moderate/)
     await expect(rows.nth(0)).toContainText('Southern Ibaraki Prefecture')
     await expect(rows.nth(1)).toHaveClass(/severe/)
+    await expect(rows.nth(1).locator('.badge')).toHaveText('5+')
     await expect(rows.nth(1)).toContainText('M5.1 · 40 km')
     await expect(page.getByTestId('quakes-credit')).toContainText('出典：気象庁ホームページ')
-    await expect(page.getByTestId('quakes-credit')).toContainText('not an Earthquake Early Warning')
+    await expect(page.getByTestId('quakes-credit')).toContainText('not an earthquake early warning')
     await expect(page.getByTestId('quakes-alerts')).toHaveText('alerts off')
-    // Alerts are off: listing is not announcing.
+    await expect(page.getByTestId('pane-subtitle')).toContainText('JMA · updated')
+    // Alerts are off: listing is not announcing; and no tsunami is in effect.
     await expect(page.getByTestId('quake-alert')).toHaveCount(0)
+    await expect(page.getByTestId('quakes-tsunami')).toHaveCount(0)
     expect(await quakeActive(page)).toBe(true)
+    expect(requests.some((r) => r.startsWith('/usgs') || r.startsWith('/noaa'))).toBe(false)
+    expect(requests).toContain(JMA_TSUNAMI)
 
     // The alerts button opens the settings at the earthquake section.
     await page.getByTestId('quakes-alerts').click()
@@ -140,10 +187,10 @@ test('the quakes pane lists earthquakes by intensity, and closing it stops the f
   }
 })
 
-test('an alert announces a recent strong earthquake once, marks the globe, and not again after a restart', async () => {
+test('an alert announces a recent strong earthquake once, marks the globe, and not again after a reload or restart', async () => {
   let launched = await launch(undefined, {
-    settings: alertsOn,
-    jmaBaseUrl: `${origin}/bosai`,
+    settings: japan({ notify: true }),
+    ...services(),
     args: ['--lang=ja'],
   })
   try {
@@ -156,7 +203,7 @@ test('an alert announces a recent strong earthquake once, marks the globe, and n
     await expect(page.getByTestId('quake-alert-text')).toHaveText(
       '宮城県沖 · 震度5強 · M5.1 · 深さ40km',
     )
-    await expect(alerts.first()).toContainText('緊急地震速報ではありません')
+    await expect(alerts.first()).toContainText('出典：気象庁 · 緊急地震速報ではありません')
 
     // The default layout's globe marks the day's earthquakes.
     await expect(page.getByTestId('globe-quakes')).toContainText('2')
@@ -169,7 +216,7 @@ test('an alert announces a recent strong earthquake once, marks the globe, and n
     await expect(alerts).toHaveCount(1, { timeout: 20_000 })
     await page.getByTestId('quake-alert-dismiss').click()
     await expect(alerts).toHaveCount(0)
-    // ...and a banner closed by hand does not come back with the next one.
+    // ...and a banner closed by hand does not come back.
     await page.reload()
     await expect(page.getByTestId('globe-quakes')).toContainText('2', { timeout: 20_000 })
     await page.waitForTimeout(1000)
@@ -187,23 +234,24 @@ test('an alert announces a recent strong earthquake once, marks the globe, and n
   }
 })
 
-test('turning alerts on in settings announces at the chosen intensity', async () => {
+test('turning alerts on in settings announces at the chosen intensity, or magnitude for the world', async () => {
   const { page, userData, close } = await launch(undefined, {
     layout: single('clock'),
-    jmaBaseUrl: `${origin}/bosai`,
+    settings: japan(),
+    ...services(),
     args: ['--lang=en-US'],
   })
+  const saved = () => JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).quakes
   try {
     await page.keyboard.press('Control+Shift+Comma')
     await page.getByTestId('settings-section').locator('text=alerts').click()
+    await expect(page.getByTestId('settings-quakes-source')).toHaveValue('jma')
     await expect(page.getByTestId('settings-quakes-intensity')).toBeDisabled()
     await expect(page.getByTestId('settings-quakes-intensity')).toHaveValue('5-')
+    await expect(page.getByTestId('settings-quakes-magnitude')).toHaveCount(0)
     await page.getByTestId('settings-quakes-notify').check()
     await page.getByTestId('settings-quakes-intensity').selectOption('3')
-    await expect
-      .poll(() => JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).quakes)
-      .toMatchObject({ notify: true, minIntensity: '3' })
-    await page.keyboard.press('Escape')
+    await expect.poll(saved).toMatchObject({ notify: true, minIntensity: '3' })
 
     // Shindo 3 and up: both recent earthquakes, never the old one.
     const alerts = page.getByTestId('quake-alert')
@@ -213,9 +261,18 @@ test('turning alerts on in settings announces at the chosen intensity', async ()
     )
     expect(ids).toEqual(['strong', 'weak'])
     await expect(alerts.filter({ hasText: 'Shindo 3' })).toHaveClass(/moderate/)
-    expect(listRequests).toBeGreaterThanOrEqual(1)
 
-    // Turned off again, with no quakes pane: the list is no longer kept.
+    // The world: the intensity gives way to a magnitude, saved as a number.
+    await page.getByTestId('settings-quakes-source').selectOption('usgs')
+    await expect(page.getByTestId('settings-quakes-intensity')).toHaveCount(0)
+    await expect(page.getByTestId('settings-quakes-magnitude')).toHaveValue('6')
+    await page.getByTestId('settings-quakes-magnitude').selectOption('7')
+    await expect.poll(saved).toMatchObject({ source: 'usgs', minMagnitude: 7 })
+    await expect(page.getByTestId('settings-quakes-about')).toContainText('USGS')
+    await expect.poll(async () => (await quakeState(page)).source).toBe('usgs')
+    await page.keyboard.press('Escape')
+
+    // Turned off again, with no quakes pane: nothing is kept current.
     await page.evaluate(() => window.elecdex.settings.patch({ quakes: { notify: false } }))
     await expect.poll(() => quakeActive(page)).toBe(false)
   } finally {
@@ -226,7 +283,8 @@ test('turning alerts on in settings announces at the chosen intensity', async ()
 test('an alert reaches the system notifications when no window is in front', async () => {
   const { app, page, close } = await launch(undefined, {
     layout: single('clock'),
-    jmaBaseUrl: `${origin}/bosai`,
+    settings: japan(),
+    ...services(),
     args: ['--lang=en-US'],
   })
   try {
@@ -260,6 +318,127 @@ test('an alert reaches the system notifications when no window is in front', asy
       win?.focus()
     })
     await expect(page.getByTestId('quake-alert')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a JMA tsunami warning shows a card with its areas, folds into a tab, and says when it is lifted', async () => {
+  served[JMA_TSUNAMI] = tsunamiListing('warning_VTSE41_0.json')
+  served['/bosai/tsunami/data/warning_VTSE41_0.json'] = tsunamiReport([
+    ['宮城県', '62', '1'],
+    ['岩手県', '51', '3'],
+    ['青森県太平洋沿岸', '71'],
+  ])
+  const { page, close } = await launch(undefined, {
+    layout: single('clock'),
+    settings: japan({ notify: true, minIntensity: '7' }),
+    ...services(),
+    args: ['--lang=ja'],
+  })
+  try {
+    const card = page.getByTestId('tsunami-alert')
+    await expect(card).toBeVisible({ timeout: 20_000 })
+    await expect(card).toHaveAttribute('data-level', 'warning')
+    await expect(card).toHaveClass(/severe/)
+    await expect(page.getByTestId('tsunami-level')).toHaveText('津波警報')
+    await expect(page.getByTestId('tsunami-summary')).toHaveText('岩手県 ほか 1 区域')
+    await expect(card).toContainText('ただちに避難してください')
+    // No earthquake reaches intensity 7: only the tsunami is announced.
+    await expect(page.getByTestId('quake-alert')).toHaveCount(0)
+
+    await page.getByTestId('tsunami-toggle').click()
+    const areas = page.getByTestId('tsunami-areas').locator('li')
+    await expect(areas).toHaveCount(2)
+    await expect(areas.first()).toHaveText('津波警報 岩手県 ただちに津波来襲と予測 3 m')
+
+    // Folded, it stays in sight as a tab; the tab opens it again.
+    await page.getByTestId('tsunami-fold').click()
+    await expect(card).toHaveCount(0)
+    await expect(page.getByTestId('tsunami-tab')).toHaveText('津波警報 · 発表中')
+    await page.getByTestId('tsunami-tab').click()
+    await expect(card).toBeVisible()
+
+    // Lifted: the card says so. (Alerts off and on make main check again at once.)
+    served[JMA_TSUNAMI] = tsunamiListing('lifted_VTSE41_1.json')
+    served['/bosai/tsunami/data/lifted_VTSE41_1.json'] = tsunamiReport([['岩手県', '50']])
+    await page.evaluate(async () => {
+      await window.elecdex.settings.patch({ quakes: { notify: false } })
+      await window.elecdex.settings.patch({ quakes: { notify: true } })
+    })
+    await expect(card).toHaveAttribute('data-lifted', 'true', { timeout: 20_000 })
+    await expect(card).toContainText('解除')
+    await page.getByTestId('tsunami-fold').click()
+    await expect(card).toHaveCount(0)
+    await expect(page.getByTestId('tsunami-tab')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('the world source lists the USGS by magnitude, with a NOAA tsunami warning in the pane and the alerts', async () => {
+  const now = Date.now()
+  served[USGS_FEED] = JSON.stringify({
+    features: [
+      {
+        id: 'us-big',
+        properties: {
+          type: 'earthquake',
+          time: now - 10 * 60_000,
+          mag: 6.4,
+          place: '110 miles SE of Amchitka, Alaska',
+          url: 'https://earthquake.usgs.gov/earthquakes/eventpage/us-big',
+        },
+        geometry: { coordinates: [-178.5, 51.2, 20] },
+      },
+      {
+        id: 'us-small',
+        properties: { type: 'earthquake', time: now - 5 * 60_000, mag: 4.8, place: 'Fiji region' },
+        geometry: { coordinates: [178, -17.8, 550] },
+      },
+    ],
+  })
+  const updated = new Date(now - 8 * 60_000).toISOString().replace(/\.\d+Z$/, 'Z')
+  served[NTWC_FEED] = readFileSync(
+    new URL('../unit/fixtures/quakes/noaa-paaq-information.xml', import.meta.url),
+    'utf8',
+  )
+    .replace('<strong>Category:</strong> Information', '<strong>Category:</strong> Warning')
+    .replaceAll('2026-09-11T10:49:50Z', updated)
+
+  const { page, close } = await launch(undefined, {
+    layout: single('quakes'),
+    settings: { sound: { enabled: false }, quakes: { source: 'usgs', notify: true } },
+    ...services(),
+    args: ['--lang=en-US'],
+  })
+  try {
+    const rows = page.getByTestId('quake-row')
+    await expect(rows).toHaveCount(2, { timeout: 20_000 })
+    await expect(page.getByTestId('quakes')).toHaveAttribute('data-source', 'usgs')
+    await expect(rows.nth(0).locator('.badge')).toHaveText('4.8')
+    await expect(rows.nth(0)).toContainText('550 km')
+    await expect(rows.nth(1)).toHaveClass(/severe/)
+    await expect(page.getByTestId('quakes-alerts')).toHaveText('alerts · M6.0 and up')
+    await expect(page.getByTestId('quakes-credit')).toContainText('U.S. Geological Survey')
+    await expect(page.getByTestId('pane-badge')).toHaveText('tsunami')
+
+    const strip = page.getByTestId('quakes-tsunami')
+    await expect(strip).toHaveAttribute('data-level', 'warning')
+    await expect(strip).toContainText('Tsunami warning')
+    await expect(strip).toContainText('Amchitka')
+
+    // Announced: the tsunami card and the M6.4, not the M4.8.
+    await expect(page.getByTestId('tsunami-alert')).toContainText(
+      'Source: NOAA Tsunami Warning Centers',
+    )
+    await expect(page.getByTestId('tsunami-alert')).toContainText('follow local authorities')
+    await expect(page.getByTestId('quake-alert')).toHaveCount(1)
+    await expect(page.getByTestId('quake-alert-text')).toHaveText(
+      '110 miles SE of Amchitka, Alaska · M6.4 · depth 20 km',
+    )
+    expect(requests.some((r) => r.startsWith('/bosai'))).toBe(false)
+    expect(requests).toContain('/noaa/events/xml/PHEBAtom.xml')
   } finally {
     await close()
   }

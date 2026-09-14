@@ -1,14 +1,20 @@
 import {
   ALERT_WINDOW_MS,
   areaLabel,
+  clockTime,
   describeQuake,
   intensityLabel,
+  intensityShort,
+  JMA_QUAKE_PAGE,
+  magnitudeLabel,
   parseCoordinates,
   parseQuakeList,
   type Quake,
   quakeLanguage,
   quakeSeverity,
   quakesToAlert,
+  resolveQuakeSource,
+  sourceCredit,
 } from '@shared/quakes'
 import { describe, expect, it } from 'vitest'
 import {
@@ -81,6 +87,8 @@ describe('parseQuakeList', () => {
     const [quake, ...rest] = parseQuakeList(sequence)
     expect(rest).toEqual([])
     expect(quake).toEqual({
+      source: 'jma',
+      url: JMA_QUAKE_PAGE,
       id: '20260913173132',
       at: Date.parse('2026-09-13T17:31:00+09:00'),
       reportedAt: Date.parse('2026-09-13T17:35:00+09:00'),
@@ -156,6 +164,8 @@ describe('parseQuakeList', () => {
 
 const NOW = Date.parse('2026-09-14T12:00:00+09:00')
 const quake = (fields: Partial<Quake>): Quake => ({
+  source: 'jma',
+  url: JMA_QUAKE_PAGE,
   id: 'q',
   at: NOW - 5 * 60_000,
   reportedAt: NOW - 3 * 60_000,
@@ -170,7 +180,8 @@ const quake = (fields: Partial<Quake>): Quake => ({
 })
 
 describe('quakesToAlert', () => {
-  const options = { minIntensity: '5-' as const, now: NOW, alerted: new Set<string>() }
+  const jma = { source: 'jma', minIntensity: '5-' } as const
+  const options = { rule: jma, now: NOW, alerted: new Set<string>() }
 
   it('announces a recent earthquake at or above the chosen intensity', () => {
     expect(quakesToAlert([quake({ id: 'a' })], options).map((q) => q.id)).toEqual(['a'])
@@ -180,7 +191,7 @@ describe('quakesToAlert', () => {
   it('stays quiet below it, without an intensity, when old, or when already announced', () => {
     expect(quakesToAlert([quake({ maxIntensity: '4' })], options)).toEqual([])
     expect(quakesToAlert([quake({ maxIntensity: null, distant: true })], options)).toEqual([])
-    expect(quakesToAlert([quake({ at: NOW - ALERT_WINDOW_MS - 1 })], options)).toEqual([])
+    expect(quakesToAlert([quake({ at: NOW - ALERT_WINDOW_MS.jma - 1 })], options)).toEqual([])
     expect(
       quakesToAlert([quake({ id: 'seen' })], { ...options, alerted: new Set(['seen']) }),
     ).toEqual([])
@@ -188,8 +199,36 @@ describe('quakesToAlert', () => {
 
   it('follows the chosen intensity down the scale', () => {
     expect(
-      quakesToAlert([quake({ maxIntensity: '1' })], { ...options, minIntensity: '1' }),
+      quakesToAlert([quake({ maxIntensity: '1' })], {
+        ...options,
+        rule: { source: 'jma', minIntensity: '1' },
+      }),
     ).toHaveLength(1)
+  })
+
+  it('announces the world by magnitude, within a longer window, and only its own source', () => {
+    const world = { ...options, rule: { source: 'usgs', minMagnitude: 6 } as const }
+    const usgs = (fields: Partial<Quake>) =>
+      quake({ source: 'usgs', maxIntensity: null, magnitude: 6.2, ...fields })
+    expect(quakesToAlert([usgs({ id: 'big' })], world).map((q) => q.id)).toEqual(['big'])
+    expect(quakesToAlert([usgs({ magnitude: 5.9 })], world)).toEqual([])
+    expect(quakesToAlert([usgs({ magnitude: null })], world)).toEqual([])
+    expect(quakesToAlert([usgs({ at: NOW - 45 * 60_000 })], world)).toHaveLength(1)
+    expect(quakesToAlert([usgs({ at: NOW - ALERT_WINDOW_MS.usgs - 1 })], world)).toEqual([])
+    // A JMA quake never passes a world rule, and the other way round.
+    expect(quakesToAlert([quake({ magnitude: 7 })], world)).toEqual([])
+    expect(quakesToAlert([usgs({ maxIntensity: '7' })], options)).toEqual([])
+  })
+})
+
+describe('resolveQuakeSource', () => {
+  it('keeps a chosen source, and picks Japan by the Tokyo zone or a ja-JP locale', () => {
+    expect(resolveQuakeSource('usgs', 'Asia/Tokyo', 'ja-JP')).toBe('usgs')
+    expect(resolveQuakeSource('jma', 'America/New_York', 'en-US')).toBe('jma')
+    expect(resolveQuakeSource('auto', 'Asia/Tokyo', 'en-US')).toBe('jma')
+    expect(resolveQuakeSource('auto', 'UTC', 'ja-JP')).toBe('jma')
+    expect(resolveQuakeSource('auto', 'Europe/London', 'ja')).toBe('usgs')
+    expect(resolveQuakeSource('auto', undefined, undefined)).toBe('usgs')
   })
 })
 
@@ -217,12 +256,29 @@ describe('labels', () => {
     expect(areaLabel(first, 'en')).toBe('Hypocentre pending')
   })
 
-  it('grades severity by intensity', () => {
+  it('shortens intensities for a badge, and labels magnitudes, times and sources', () => {
+    expect(intensityShort('5-', 'ja')).toBe('5弱')
+    expect(intensityShort('6+', 'en')).toBe('6+')
+    expect(magnitudeLabel(6.05)).toBe('M6.0')
+    expect(magnitudeLabel(null)).toBe('M?')
+    expect(clockTime(new Date(2026, 8, 14, 9, 5).getTime())).toBe('09:05')
+    expect(sourceCredit('jma', 'ja')).toBe('出典：気象庁')
+    expect(sourceCredit('usgs', 'en')).toBe('Source: USGS')
+    expect(sourceCredit('noaa', 'en')).toContain('NOAA')
+  })
+
+  it('grades severity by intensity, and by magnitude for the world', () => {
     expect(quakeSeverity(quake({ maxIntensity: '2' }))).toBe('minor')
     expect(quakeSeverity(quake({ maxIntensity: '3' }))).toBe('moderate')
     expect(quakeSeverity(quake({ maxIntensity: '4' }))).toBe('moderate')
     expect(quakeSeverity(quake({ maxIntensity: '5-' }))).toBe('severe')
     expect(quakeSeverity(quake({ maxIntensity: null }))).toBe('minor')
+    const usgs = (magnitude: number | null) =>
+      quake({ source: 'usgs', maxIntensity: null, magnitude })
+    expect(quakeSeverity(usgs(4.9))).toBe('minor')
+    expect(quakeSeverity(usgs(5))).toBe('moderate')
+    expect(quakeSeverity(usgs(6))).toBe('severe')
+    expect(quakeSeverity(usgs(null))).toBe('minor')
   })
 })
 

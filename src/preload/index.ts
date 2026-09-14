@@ -13,7 +13,7 @@ import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
-import type { Quake, QuakeState } from '@shared/quakes'
+import type { QuakeAlert, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
@@ -330,7 +330,7 @@ const api: ElecdexApi = {
   quakes: {
     subscribe: subscribeQuakes,
     observe: observeQuakes,
-    onAlert: (handler) => listen<Quake[]>(CH.quakes.alert, handler),
+    onAlert: (handler) => listen<QuakeAlert>(CH.quakes.alert, handler),
   },
   updates: {
     status: () => ipcRenderer.invoke(CH.updates.status) as Promise<UpdateStatus>,

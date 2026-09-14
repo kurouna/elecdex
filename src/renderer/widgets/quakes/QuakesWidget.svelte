@@ -1,24 +1,32 @@
 <script lang="ts">
 import {
   areaLabel,
+  clockTime,
   intensityLabel,
+  intensityShort,
   JMA_QUAKE_PAGE,
+  magnitudeLabel,
+  type Quake,
   type QuakeState,
   quakeLanguage,
   quakeSeverity,
+  USGS_QUAKE_PAGE,
 } from '@shared/quakes'
+import { type Tsunami, tsunamiLevelLabel, tsunamiSummary } from '@shared/tsunami'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 
 /**
- * Recent earthquakes in and around Japan, from JMA, newest first.
+ * Recent earthquakes, newest first, from the source chosen in settings: JMA for
+ * Japan (graded by maximum intensity) or the USGS for the world (by magnitude).
+ * A tsunami warning, watch or advisory in effect shows as a strip above the list.
  *
- * While this pane is open main checks JMA's list every minute (see
+ * While this pane is open main checks the source every minute (see
  * main/quakes/service.ts); closed, and with alerts off, nothing is fetched. The
- * alerts themselves are a setting, not this pane: the pane only lists, and says
- * whether alerts are on. Not in the default layout.
+ * alerts themselves are a setting, not this pane: the pane lists, and says what
+ * it is set to announce. Not in the default layout.
  */
 const { paneId }: WidgetProps = $props()
 
@@ -27,66 +35,126 @@ let current = $state.raw<QuakeState | null>(null)
 
 $effect(() => window.elecdex.quakes.subscribe((next) => (current = next)))
 
+const source = $derived(current?.source ?? null)
 const quakes = $derived(current?.quakes ?? [])
-const alerts = $derived(appearance.settings.quakes)
+const tsunami = $derived(current?.tsunami ?? null)
+const settings = $derived(appearance.settings.quakes)
+
+const SOURCES = {
+  jma: { name: 'JMA', region: 'Japan', page: JMA_QUAKE_PAGE },
+  usgs: { name: 'USGS', region: 'world', page: USGS_QUAKE_PAGE },
+} as const
 
 $effect(() => {
-  const time = current?.fetchedAt ? new Date(current.fetchedAt).toTimeString().slice(0, 5) : null
+  const name = source === null ? '' : `${SOURCES[source].name} · `
   paneMeta.set(paneId, {
-    subtitle: time ? `JMA · updated ${time}` : 'JMA · connecting…',
-    ...(current?.error ? { badge: 'stale', badgeKind: 'warn' as const } : {}),
+    subtitle: current?.fetchedAt
+      ? `${name}updated ${clockTime(current.fetchedAt)}`
+      : `${name}connecting…`,
+    ...(tsunami !== null
+      ? { badge: 'tsunami', badgeKind: 'danger' as const }
+      : current?.error
+        ? { badge: 'stale', badgeKind: 'warn' as const }
+        : {}),
   })
+})
+
+/** What the alerts are set to, in the pane's own words. */
+const alertLabel = $derived.by(() => {
+  if (!settings.notify) return 'alerts off'
+  return source === 'usgs'
+    ? `alerts · M${settings.minMagnitude.toFixed(1)} and up`
+    : `alerts · shindo ${settings.minIntensity} and up`
 })
 
 function when(at: number): string {
   const d = new Date(at)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getMonth() + 1}/${d.getDate()} ${clockTime(at)}`
 }
 
-/** "5-" as shown in a badge: 5弱 in Japanese, 5- otherwise. */
-const shortIntensity = (label: string) =>
-  language === 'ja' ? label.replace('-', '弱').replace('+', '強') : label
+/** The badge: the intensity where JMA gives one, the magnitude otherwise. */
+function badge(quake: Quake): { text: string; title: string } {
+  if (quake.maxIntensity !== null) {
+    return {
+      text: intensityShort(quake.maxIntensity, language),
+      title: intensityLabel(quake.maxIntensity, language),
+    }
+  }
+  return {
+    text: quake.magnitude === null ? '—' : quake.magnitude.toFixed(1),
+    title: magnitudeLabel(quake.magnitude),
+  }
+}
+
+function meta(quake: Quake): string {
+  const parts = [when(quake.at)]
+  // The badge already shows a USGS quake's magnitude; a JMA one's is worth adding.
+  if (quake.maxIntensity !== null && quake.magnitude !== null)
+    parts.push(magnitudeLabel(quake.magnitude))
+  if (quake.depthKm !== null) parts.push(`${quake.depthKm} km`)
+  if (quake.distant) parts.push('distant')
+  return parts.join(' · ')
+}
+
+const tsunamiTone = (value: Tsunami) =>
+  value.level === 'major' || value.level === 'warning' ? 'severe' : 'moderate'
 </script>
 
-<div class="quakes" data-testid="quakes">
+<div class="quakes" data-testid="quakes" data-source={source}>
   <div class="tools">
+    {#if source !== null}
+      <span class="source-name" title="Settings → Alerts chooses the source">{SOURCES[source].region}</span>
+    {/if}
     <button
       type="button"
       class="alerts"
-      class:on={alerts.notify}
+      class:on={settings.notify}
       onclick={() => ui.openSettings('alerts')}
-      title="Earthquake alert settings"
+      title="Earthquake and tsunami settings"
       data-testid="quakes-alerts"
     >
-      {alerts.notify ? `alerts · shindo ${alerts.minIntensity} and up` : 'alerts off'}
+      {alertLabel}
     </button>
   </div>
 
+  {#if tsunami !== null}
+    <button
+      type="button"
+      class="tsunami {tsunamiTone(tsunami)}"
+      title={tsunami.url}
+      onclick={() => void window.elecdex.system.openExternal(tsunami.url)}
+      data-testid="quakes-tsunami"
+      data-level={tsunami.level}
+    >
+      <strong>{tsunamiLevelLabel(tsunami.level, language)}</strong>
+      <span class="summary">{tsunamiSummary(tsunami, language)}</span>
+      <span class="issued">{clockTime(tsunami.issuedAt)}</span>
+    </button>
+  {/if}
+
   {#if quakes.length === 0}
     <p class="note" data-testid="quakes-status">
-      {current?.error ? `could not read JMA's list: ${current.error}` : 'fetching the earthquake list…'}
+      {current?.error
+        ? `could not read the earthquake list: ${current.error}`
+        : 'fetching the earthquake list…'}
     </p>
   {:else}
     <ul class="list" data-testid="quakes-list">
       {#each quakes as quake (quake.id)}
+        {@const b = badge(quake)}
         <li>
           <button
             type="button"
             class="row {quakeSeverity(quake)}"
-            title={JMA_QUAKE_PAGE}
-            onclick={() => void window.elecdex.system.openExternal(JMA_QUAKE_PAGE)}
+            title={quake.url}
+            onclick={() => void window.elecdex.system.openExternal(quake.url)}
             data-testid="quake-row"
             data-id={quake.id}
           >
-            <span class="intensity" title={quake.maxIntensity ? intensityLabel(quake.maxIntensity, language) : ''}>
-              {quake.maxIntensity ? shortIntensity(quake.maxIntensity) : '—'}
-            </span>
+            <span class="badge" title={b.title}>{b.text}</span>
             <span class="place">
               <span class="area">{areaLabel(quake, language)}</span>
-              <span class="meta">
-                {when(quake.at)}{quake.magnitude === null ? '' : ` · M${quake.magnitude.toFixed(1)}`}{quake.depthKm === null ? '' : ` · ${quake.depthKm} km`}{quake.distant ? ' · distant' : ''}
-              </span>
+              <span class="meta">{meta(quake)}</span>
             </span>
           </button>
         </li>
@@ -94,15 +162,20 @@ const shortIntensity = (label: string) =>
     </ul>
   {/if}
 
-  <button
-    type="button"
-    class="credit"
-    title={JMA_QUAKE_PAGE}
-    onclick={() => void window.elecdex.system.openExternal(JMA_QUAKE_PAGE)}
-    data-testid="quakes-credit"
-  >
-    出典：気象庁ホームページ（{JMA_QUAKE_PAGE}）を加工して作成 · not an Earthquake Early Warning
-  </button>
+  {#if source !== null}
+    <button
+      type="button"
+      class="credit"
+      title={SOURCES[source].page}
+      onclick={() => source && void window.elecdex.system.openExternal(SOURCES[source].page)}
+      data-testid="quakes-credit"
+    >
+      {source === 'jma'
+        ? `出典：気象庁ホームページ（${JMA_QUAKE_PAGE}）を加工して作成`
+        : 'Earthquakes: U.S. Geological Survey · tsunamis: NOAA Tsunami Warning Centers'} · not an
+      earthquake early warning
+    </button>
+  {/if}
 </div>
 
 <style>
@@ -119,7 +192,54 @@ const shortIntensity = (label: string) =>
 .tools {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2);
   min-height: 1.1rem;
+}
+
+.source-name {
+  margin-right: auto;
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* A tsunami in effect: above everything else in the pane, in the colour of its level. */
+.tsunami {
+  --tone: var(--warn);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0.2rem var(--space-2);
+  border: 1px solid var(--tone);
+  background: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--step--1);
+  text-align: left;
+  cursor: pointer;
+}
+
+.tsunami.severe {
+  --tone: var(--danger);
+}
+
+.tsunami strong {
+  color: var(--tone);
+  white-space: nowrap;
+}
+
+.tsunami .summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tsunami .issued {
+  color: var(--text-muted);
 }
 
 .alerts {
@@ -193,7 +313,7 @@ const shortIntensity = (label: string) =>
   color: var(--accent);
 }
 
-.intensity {
+.badge {
   padding: 0.05rem 0;
   border: 1px solid var(--tone);
   color: var(--tone);

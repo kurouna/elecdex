@@ -3,7 +3,7 @@ import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
-import type { Quake, QuakeState } from './quakes.js'
+import type { QuakeAlert, QuakeState } from './quakes.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
 import type { Theme, ThemeProblem } from './theme.js'
@@ -186,7 +186,7 @@ export interface FeedsApi {
 
 export interface QuakesApi {
   /**
-   * Keeps JMA's earthquake list current while subscribed (a quakes pane). The
+   * Keeps the earthquake list and tsunami state current while subscribed (a quakes pane). The
    * handler gets the current state at once and every change after. Returns an
    * unsubscribe.
    */
@@ -196,8 +196,8 @@ export interface QuakesApi {
    * which is empty and inactive unless alerts or a quakes pane keep it running.
    */
   observe(handler: (state: QuakeState) => void): () => void
-  /** Earthquakes being announced, as they are decided in main. */
-  onAlert(handler: (quakes: Quake[]) => void): () => void
+  /** Earthquakes and a tsunami being announced, as they are decided in main. */
+  onAlert(handler: (alert: QuakeAlert) => void): () => void
 }
 
 export interface LauncherApi {

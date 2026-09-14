@@ -1,14 +1,21 @@
+import type { Tsunami } from './tsunami.js'
+
 /**
- * Earthquake information from the Japan Meteorological Agency, shared by main
- * (which fetches and decides on alerts) and the renderer (the quakes pane, the
- * alert banner and the globe).
+ * Earthquake information, shared by main (which fetches it and decides on
+ * alerts) and the renderer (the quakes pane, the alert banners and the globe).
  *
- * The source is `bosai/quake/data/list.json`, the list JMA's own earthquake page
- * loads: about a month of reports, newest first. One earthquake gets several
- * reports - seismic intensities within about two minutes, then the hypocentre,
- * then both - which share an event id; they are merged here into one quake with
- * the latest known value of each field. This is not the Earthquake Early
- * Warning: every report comes after the shaking, and the app says so.
+ * Two sources, one chosen in settings:
+ *
+ *  - Japan: the Japan Meteorological Agency's `bosai/quake/data/list.json`, the
+ *    list JMA's own earthquake page loads - about a month of reports, newest
+ *    first. One earthquake gets several reports (seismic intensities within about
+ *    two minutes, then the hypocentre, then both) sharing an event id; they are
+ *    merged into one quake with the latest known value of each field.
+ *  - The world: the US Geological Survey's feed of magnitude 4.5 and up for the
+ *    past day (quakes-usgs.ts), which has magnitudes but no intensities.
+ *
+ * Neither is an earthquake early warning: every report comes after the shaking,
+ * and the app says so.
  */
 
 /** JMA's seismic intensity scale (shindo), weakest first. */
@@ -21,47 +28,93 @@ export const isIntensity = (value: unknown): value is Intensity =>
 /** Position on the scale, for comparing: 1 is 0, 7 is 8. */
 export const intensityRank = (intensity: Intensity): number => INTENSITIES.indexOf(intensity)
 
-/** How often the list is checked; JMA serves it with max-age=60. */
+/** The magnitudes a world alert can be set at; the USGS feed read starts at 4.5. */
+export const MAGNITUDES = [4.5, 5, 5.5, 6, 6.5, 7, 7.5] as const
+export type AlertMagnitude = (typeof MAGNITUDES)[number]
+
+/** Where earthquakes are read from: JMA for Japan, the USGS for the world. */
+export type QuakeSource = 'jma' | 'usgs'
+/** The setting: a source, or `auto` to pick by the system's time zone and locale. */
+export type QuakeSourceSetting = 'auto' | QuakeSource
+
+/** How often the list is checked; both services serve it with max-age=60. */
 export const QUAKE_INTERVAL_MS = 60_000
-/** A quake is only alerted while this recent: an app started later does not announce old news. */
-export const ALERT_WINDOW_MS = 30 * 60_000
+/**
+ * An earthquake is only announced while this recent, so an app started later
+ * does not announce old news. The USGS posts events abroad later than JMA posts
+ * Japan's, so it gets longer.
+ */
+export const ALERT_WINDOW_MS: Readonly<Record<QuakeSource, number>> = {
+  jma: 30 * 60_000,
+  usgs: 60 * 60_000,
+}
 /** Quakes kept and sent to the renderer, newest first. */
 export const QUAKES_KEPT = 100
-/** The page the pane and the banner open. */
+/** The page the pane and the banner open for JMA's earthquakes. */
 export const JMA_QUAKE_PAGE = 'https://www.jma.go.jp/bosai/map.html#contents=earthquake_map'
+/** And for the world's, when an event has no page of its own. */
+export const USGS_QUAKE_PAGE = 'https://earthquake.usgs.gov/earthquakes/map/'
 
 export interface Quake {
-  /** JMA's event id, shared by every report on the same earthquake. */
+  source: QuakeSource
+  /** The source's event id; for JMA shared by every report on the same earthquake. */
   id: string
   /** When the earthquake happened, ms since epoch. */
   at: number
-  /** When its latest report was issued. */
+  /** When its latest report was issued (or, for the USGS, last updated). */
   reportedAt: number
-  /** Where, in Japanese and English; null until the hypocentre is reported. */
+  /** Where, in Japanese and English (the USGS names places in English only); null until reported. */
   area: { ja: string; en: string } | null
   lat: number | null
   lon: number | null
   /** Depth in km; null when not given (a distant earthquake, or not yet reported). */
   depthKm: number | null
   magnitude: number | null
-  /** The strongest intensity observed in Japan; null for a distant earthquake. */
+  /** The strongest intensity observed in Japan; null for a distant earthquake and for the USGS. */
   maxIntensity: Intensity | null
-  /** An earthquake abroad, reported for its possible effect on Japan. */
+  /** For JMA, an earthquake abroad reported for its possible effect on Japan. */
   distant: boolean
+  /** The page about it: the USGS event page, or JMA's earthquake map. */
+  url: string
 }
 
 export interface QuakeState {
-  /** Whether main is keeping the list current: notifications on, or a quakes pane open. */
+  /** Whether main is keeping the list current: alerts on, or a quakes pane open. */
   active: boolean
+  /** The source in effect, with `auto` resolved. */
+  source: QuakeSource
   /** Newest first. */
   quakes: Quake[]
+  /** A tsunami warning, watch or advisory in effect, or null. */
+  tsunami: Tsunami | null
   fetchedAt: number | null
   error: string | null
   /**
-   * Earthquakes announced in this run, newest first. An alert decided before a
-   * page was ready to hear it (at startup, or during a reload) is shown from here.
+   * What was announced in this run, newest first: quake ids and tsunami alert
+   * keys. An alert decided before a page was ready to hear it (at startup, or
+   * during a reload) is shown from here.
    */
   announced: string[]
+}
+
+/** Earthquakes and a tsunami to announce, as main sends them. */
+export interface QuakeAlert {
+  quakes: Quake[]
+  tsunami: Tsunami | null
+}
+
+/**
+ * Japan when the system is set up for it - the Tokyo time zone, or a Japanese
+ * locale with a Japanese region - and the world otherwise.
+ */
+export function resolveQuakeSource(
+  setting: QuakeSourceSetting,
+  timeZone: string | undefined,
+  locale: string | undefined,
+): QuakeSource {
+  if (setting !== 'auto') return setting
+  if (timeZone === 'Asia/Tokyo') return 'jma'
+  return /^ja[-_]JP$/i.test(locale ?? '') ? 'jma' : 'usgs'
 }
 
 /** The reports that describe an earthquake. Others (Nankai Trough commentary) are not quakes. */
@@ -166,6 +219,7 @@ export function parseQuakeList(raw: unknown, limit = QUAKES_KEPT): Quake[] {
     let quake = quakes.get(r.eid)
     if (quake === undefined) {
       quake = {
+        source: 'jma',
         id: r.eid,
         at: r.at,
         reportedAt: r.reportedAt,
@@ -176,6 +230,7 @@ export function parseQuakeList(raw: unknown, limit = QUAKES_KEPT): Quake[] {
         magnitude: null,
         maxIntensity: null,
         distant: false,
+        url: JMA_QUAKE_PAGE,
       }
       quakes.set(r.eid, quake)
     }
@@ -184,22 +239,37 @@ export function parseQuakeList(raw: unknown, limit = QUAKES_KEPT): Quake[] {
   return [...quakes.values()].sort((a, b) => b.at - a.at).slice(0, limit)
 }
 
+/** What is announced: by intensity for Japan, by magnitude for the world. */
+export type QuakeAlertRule =
+  | { source: 'jma'; minIntensity: Intensity }
+  | { source: 'usgs'; minMagnitude: number }
+
+function reachesRule(quake: Quake, rule: QuakeAlertRule): boolean {
+  if (rule.source === 'jma') {
+    return (
+      quake.maxIntensity !== null &&
+      intensityRank(quake.maxIntensity) >= intensityRank(rule.minIntensity)
+    )
+  }
+  return quake.magnitude !== null && quake.magnitude >= rule.minMagnitude
+}
+
 /**
- * The quakes to announce now: recent, as strong as the chosen intensity or
- * stronger, and not announced before. A quake first reported below the threshold
- * is announced when a later report raises it.
+ * The quakes to announce now: from the rule's source, recent, reaching the rule,
+ * and not announced before. A quake first reported below the rule is announced
+ * when a later report raises it.
  */
 export function quakesToAlert(
   quakes: readonly Quake[],
-  options: { minIntensity: Intensity; now: number; alerted: ReadonlySet<string> },
+  options: { rule: QuakeAlertRule; now: number; alerted: ReadonlySet<string> },
 ): Quake[] {
-  const min = intensityRank(options.minIntensity)
+  const window = ALERT_WINDOW_MS[options.rule.source]
   return quakes.filter(
     (q) =>
+      q.source === options.rule.source &&
       !options.alerted.has(q.id) &&
-      q.maxIntensity !== null &&
-      intensityRank(q.maxIntensity) >= min &&
-      options.now - q.at <= ALERT_WINDOW_MS &&
+      reachesRule(q, options.rule) &&
+      options.now - q.at <= window &&
       q.at <= options.now + 60_000,
   )
 }
@@ -210,10 +280,25 @@ export type QuakeLanguage = 'ja' | 'en'
 export const quakeLanguage = (locale: string | undefined): QuakeLanguage =>
   locale?.toLowerCase().startsWith('ja') ? 'ja' : 'en'
 
+/** "5弱" in Japanese, "5-" in English: the intensity on its own, for a badge. */
+export function intensityShort(intensity: Intensity, language: QuakeLanguage): string {
+  return language === 'ja' ? intensity.replace('-', '弱').replace('+', '強') : intensity
+}
+
 /** "震度5弱" in Japanese, "Shindo 5-" in English. */
 export function intensityLabel(intensity: Intensity, language: QuakeLanguage): string {
-  if (language === 'en') return `Shindo ${intensity}`
-  return `震度${intensity.replace('-', '弱').replace('+', '強')}`
+  const short = intensityShort(intensity, language)
+  return language === 'ja' ? `震度${short}` : `Shindo ${short}`
+}
+
+/** "M6.1", or "M?" when not known. */
+export const magnitudeLabel = (magnitude: number | null): string =>
+  magnitude === null ? 'M?' : `M${magnitude.toFixed(1)}`
+
+/** The local time of day, "09:05". */
+export function clockTime(at: number): string {
+  const d = new Date(at)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 /** The place in the viewer's language, or a placeholder until it is reported. */
@@ -229,16 +314,38 @@ export function areaLabel(quake: Quake, language: QuakeLanguage): string {
 export function describeQuake(quake: Quake, language: QuakeLanguage): string {
   const parts = [areaLabel(quake, language)]
   if (quake.maxIntensity !== null) parts.push(intensityLabel(quake.maxIntensity, language))
-  if (quake.magnitude !== null) parts.push(`M${quake.magnitude.toFixed(1)}`)
+  if (quake.magnitude !== null) parts.push(magnitudeLabel(quake.magnitude))
   if (quake.depthKm !== null) {
     parts.push(language === 'ja' ? `深さ${quake.depthKm}km` : `depth ${quake.depthKm} km`)
   }
   return parts.join(' · ')
 }
 
-/** How loudly a quake is shown: by its intensity, 5- and up the strongest. */
-export function quakeSeverity(quake: Quake): 'minor' | 'moderate' | 'severe' {
-  if (quake.maxIntensity === null) return 'minor'
-  const rank = intensityRank(quake.maxIntensity)
-  return rank >= intensityRank('5-') ? 'severe' : rank >= intensityRank('3') ? 'moderate' : 'minor'
+/** Where the information comes from, as the banners and notifications credit it. */
+export function sourceCredit(source: QuakeSource | 'noaa', language: QuakeLanguage): string {
+  if (source === 'jma') return language === 'ja' ? '出典：気象庁' : 'Source: JMA'
+  if (source === 'usgs') return language === 'ja' ? '出典：USGS' : 'Source: USGS'
+  return language === 'ja' ? '出典：NOAA 津波警報センター' : 'Source: NOAA Tsunami Warning Centers'
+}
+
+export type Severity = 'minor' | 'moderate' | 'severe'
+
+/**
+ * How loudly a quake is shown: by intensity where there is one (3 and up
+ * moderate, 5- and up severe), otherwise by magnitude (5 and up moderate, 6 and
+ * up severe), in line with the default alert levels.
+ */
+export function quakeSeverity(quake: Quake): Severity {
+  if (quake.maxIntensity !== null) {
+    const rank = intensityRank(quake.maxIntensity)
+    return rank >= intensityRank('5-')
+      ? 'severe'
+      : rank >= intensityRank('3')
+        ? 'moderate'
+        : 'minor'
+  }
+  if (quake.source === 'usgs' && quake.magnitude !== null) {
+    return quake.magnitude >= 6 ? 'severe' : quake.magnitude >= 5 ? 'moderate' : 'minor'
+  }
+  return 'minor'
 }

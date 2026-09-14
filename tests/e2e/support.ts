@@ -62,6 +62,9 @@ const UNREACHABLE_NWS = 'http://127.0.0.1:9/nws'
 const UNREACHABLE_MARKETS = 'http://127.0.0.1:9/markets'
 /** And the update check never asks GitHub. */
 const UNREACHABLE_UPDATES = 'http://127.0.0.1:9/releases/latest'
+/** Earthquakes and tsunamis abroad likewise: no test asks the USGS or NOAA. */
+const UNREACHABLE_USGS = 'http://127.0.0.1:9/usgs'
+const UNREACHABLE_NOAA = 'http://127.0.0.1:9/noaa'
 
 /**
  * Deletes a throwaway userData folder. Windows can keep a file in it locked for a
@@ -127,6 +130,8 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ELECDEX_NWS_BASE_URL: UNREACHABLE_NWS,
       ELECDEX_MARKETS_STUB_URL: UNREACHABLE_MARKETS,
       ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
+      ELECDEX_USGS_BASE_URL: UNREACHABLE_USGS,
+      ELECDEX_NOAA_BASE_URL: UNREACHABLE_NOAA,
       ...options.env,
     },
   })

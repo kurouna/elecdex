@@ -45,6 +45,8 @@ export interface GlobeColors {
 
 /** One pulse: a ring growing out from the epicentre and fading. */
 const PULSE_PERIOD_MS = 2000
+/** The widest a pulse starts, in radians of arc; it grows to three times that. */
+const PULSE_MAX_SIZE = 0.03
 /** Which earthquakes are marked is re-read this often, so they expire without a new report. */
 const QUAKE_RECHECK_MS = 60_000
 
@@ -361,9 +363,11 @@ export class GlobeScene {
         new Vector3(0, 0, 1),
         new Vector3(...latLonToVec3(quake.lat, quake.lon)),
       )
-      circle.scale.setScalar(size)
+      // Pulses stay small: a flat ring grown too wide lifts visibly off the sphere.
+      const pulseSize = Math.min(size, PULSE_MAX_SIZE)
+      circle.scale.setScalar(pulseSize)
       this.quakeGroup.add(circle)
-      this.pulses.push({ ring: circle, size })
+      this.pulses.push({ ring: circle, size: pulseSize })
     }
   }
 

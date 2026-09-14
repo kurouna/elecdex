@@ -27,6 +27,8 @@ test.beforeAll(async () => {
       ELECDEX_NWS_BASE_URL: 'http://127.0.0.1:9/nws',
       ELECDEX_MARKETS_STUB_URL: 'http://127.0.0.1:9/markets',
       ELECDEX_UPDATES_URL: 'http://127.0.0.1:9/releases/latest',
+      ELECDEX_USGS_BASE_URL: 'http://127.0.0.1:9/usgs',
+      ELECDEX_NOAA_BASE_URL: 'http://127.0.0.1:9/noaa',
     },
   })
   page = await app.firstWindow()

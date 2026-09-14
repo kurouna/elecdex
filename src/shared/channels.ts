@@ -75,7 +75,7 @@ export const CH = {
     state: 'quakes:state',
     /** main -> renderer: a QuakeState, whenever it changes. */
     update: 'quakes:update',
-    /** main -> renderer: earthquakes to announce (Quake[]). */
+    /** main -> renderer: earthquakes and a tsunami to announce (QuakeAlert). */
     alert: 'quakes:alert',
   },
   launcher: {

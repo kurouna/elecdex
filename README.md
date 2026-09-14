@@ -38,8 +38,9 @@ for Windows, macOS and Linux.
   month calendar with optional Japanese holidays.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
   you want it.
-- **Earthquakes** — alerts for earthquakes in Japan from JMA at the intensity you choose (off by
-  default), a quakes pane listing recent ones, and their epicentres marked on the globe.
+- **Earthquakes and tsunamis** — for Japan (JMA) or the world (USGS and NOAA): alerts at the
+  intensity or magnitude you choose (off by default), tsunami warnings kept in sight while in
+  effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
 - **Look and feel** — four themes (Tron, Amber, Phosphor, White) that switch live, CRT power-on
@@ -169,22 +170,30 @@ weather and calendar.
   hourly — with conditional requests, so an unchanged feed is not downloaded again. A feed that
   fails keeps its last headlines and marks the pane STALE. Several panes listing the same feed
   share one request, and closing the last one stops it.
-- **Quakes** — not in the default layout: add it from the picker. Recent earthquakes in and around
-  Japan from the Japan Meteorological Agency, newest first: the maximum seismic intensity (shindo,
-  coloured amber from 3 and red from 5-), the epicentre, time, magnitude and depth, and distant
-  earthquakes JMA reports. The button in the pane shows whether alerts are on and opens their
-  settings. While the pane is open, or alerts are on, the list is checked **every minute**
-  (conditionally, so an unchanged list costs no download); with neither, nothing is fetched. The
-  world view then marks the day's earthquakes at their epicentres, sized by magnitude and coloured
-  by intensity, and an earthquake from the last hour pulses. **Not the Earthquake Early Warning:**
-  JMA's reports come a minute or more after the shaking, and the pane and alerts say so.
-- **Earthquake alerts** — *Settings → Alerts*, off by default. When on, an earthquake in Japan at
-  or above the chosen maximum intensity (default 5-, 5弱) shows a banner at the top of the screen
-  with the place, intensity, magnitude and depth, updated as JMA's later reports arrive; a 5- or
-  stronger one stays until closed, a weaker one goes after a minute. An alert sound plays (with
-  interface sounds on), and a system notification appears when elecdex is not in front; both can
-  be turned off. Each earthquake is announced once, and only within 30 minutes of it, so starting
-  the app later does not announce old news.
+- **Quakes** — not in the default layout: add it from the picker. Recent earthquakes, newest
+  first, from the source chosen in *Settings → Alerts*: **Japan** (the Japan Meteorological Agency:
+  the maximum seismic intensity, shindo, amber from 3 and red from 5-, and distant earthquakes JMA
+  reports) or **the world** (the USGS: magnitude 4.5 and up, amber from 5 and red from 6). Each row
+  has the place, time, magnitude and depth, and opens the source's page. A tsunami warning, watch or
+  advisory in effect shows as a strip above the list. The button in the pane shows what alerts are
+  set to and opens their settings. While the pane is open, or alerts are on, the source is checked
+  **every minute** (conditionally, so an unchanged list costs no download); with neither, nothing is
+  fetched. The world view then marks the day's earthquakes at their epicentres, sized by magnitude
+  and coloured like the list, and an earthquake from the last hour pulses. **Not an earthquake early
+  warning:** reports come a minute or more after the shaking, and the pane and alerts say so.
+- **Earthquake and tsunami alerts** — *Settings → Alerts*, off by default. The source is automatic
+  (Japan when the system time zone is Tokyo or the locale is ja-JP, the world otherwise) or chosen.
+  When on, an earthquake at or above the chosen maximum intensity (Japan, default 5-, 5弱) or
+  magnitude (world, default 6.0) shows a banner at the top of the screen with the place, intensity
+  or magnitude and depth, updated as later reports arrive; a severe one stays until closed, a weaker
+  one goes after a minute. A **tsunami** warning, watch or advisory (JMA's 大津波警報・津波警報・津波注意報
+  for Japan, NOAA's Pacific and National Tsunami Warning Centers for the world; can be turned off)
+  shows a card with its level, the areas with expected arrival and height, and the issuer's
+  headline. Closing it folds it into a small tab while it is in effect, and when it is lifted the
+  card says so. A raised level is announced again. An alert sound plays (with interface sounds on),
+  and a system notification appears when elecdex is not in front; both can be turned off. Each
+  earthquake is announced once, and only while recent (30 minutes for Japan, an hour for the world),
+  so starting the app later does not announce old news.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named
   below the month.
@@ -201,7 +210,7 @@ folder, which can also be edited by hand while the app runs:
   "motion": "system",
   "keybindings": { "app.quit": null },
   "updates": { "check": true },
-  "quakes": { "notify": true, "minIntensity": "5-", "system": true, "sound": true }
+  "quakes": { "source": "auto", "notify": true, "minIntensity": "5-", "minMagnitude": 6, "tsunami": true, "system": true, "sound": true }
 }
 ```
 
@@ -266,8 +275,8 @@ also makes node-pty's macOS `spawn-helper` executable. After `--ignore-scripts`,
 `npx install-electron` once.
 
 End-to-end tests never contact a real service: weather, markets and the update check are pointed
-at closed ports or local stubs (JMA's earthquake list with the forecasts), and RSS feeds are
-served by a local server.
+at closed ports or local stubs (JMA's earthquake and tsunami lists with the forecasts, and the USGS
+and NOAA feeds), and RSS feeds are served by a local server.
 
 ```
 src/shared/     contracts shared by all processes (API types, IPC channel names, schemas, pure logic)
@@ -299,6 +308,9 @@ scripts/        asset generators (icon, banner, globe data, city list, README sc
 | City list for the weather picker | [GeoNames](https://www.geonames.org/) (cities of 500,000 people or more, and capitals) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); bundled. Nothing typed in the picker is sent anywhere. |
 | Market quotes | [Yahoo Finance](https://finance.yahoo.com/), through yahoo-finance2 | Unofficial API, not endorsed by Yahoo; quotes may be delayed and are not investment advice (the pane says so). Fetched only while a markets pane is open: one batched request a minute (every five minutes when every listed market is closed) and each intraday chart every five minutes. |
 | Earthquakes | [Japan Meteorological Agency](https://www.jma.go.jp/) earthquake list JSON: `https://www.jma.go.jp/bosai/quake/data/list.json` | The data JMA's own [earthquake page](https://www.jma.go.jp/bosai/map.html#contents=earthquake_map) loads (about a month of reports), read as JSON. Fetched only while a quakes pane is open or earthquake alerts are on: once a minute, as its `max-age=60` asks, with If-None-Match, so an unchanged list is a 304. Used under JMA's [terms of use](https://www.jma.go.jp/jma/kishou/info/coment.html); the pane credits 「出典：気象庁ホームページ（URL）を加工して作成」 and the alerts name JMA. Not the Earthquake Early Warning. |
+| Tsunamis, Japan | JMA tsunami list JSON: `https://www.jma.go.jp/bosai/tsunami/data/list.json` and each report it names | Checked with the earthquake list (usually an empty list, a 304 after the first request); a new report's details are fetched once. Warnings, major warnings and advisories count; forecasts and liftings do not. Credited like the earthquakes. |
+| Earthquakes, world | [USGS](https://earthquake.usgs.gov/) real-time feed `summary/4.5_day.geojson` | Public domain. Fetched only while the world source is in use by a quakes pane or alerts: once a minute (its `max-age=60`), conditionally. |
+| Tsunamis, world | [NOAA Tsunami Warning Centers](https://www.tsunami.gov/): the Pacific (`PHEBAtom.xml`) and National (`PAAQAtom.xml`) Atom feeds | Public domain. Each holds the centre's latest bulletin; warnings, watches, advisories and threat messages count, information statements do not. Checked with the USGS feed, conditionally. Alerts say to follow local authorities. |
 | RSS feeds | The feed URLs you list in an RSS pane | Fetched by the app, never by the page, only while a pane lists them: every 15 minutes (or as the feed asks, at most hourly), conditionally (If-None-Match / If-Modified-Since), two at a time, up to 2 MB each, without cookies and with an `elecdex/<version>` User-Agent. Headlines are shown as plain text; the last ones per feed are kept in `feeds-cache.json` in the app's data folder. Nothing is sent to any other site. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 

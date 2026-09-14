@@ -89,7 +89,15 @@ describe('settings', () => {
       launcher: { showSystem: true, items: [] },
       keybindings: {},
       updates: { check: true },
-      quakes: { notify: false, minIntensity: '5-', system: true, sound: true },
+      quakes: {
+        source: 'auto',
+        notify: false,
+        minIntensity: '5-',
+        minMagnitude: 6,
+        tsunami: true,
+        system: true,
+        sound: true,
+      },
     })
   })
 
@@ -97,8 +105,14 @@ describe('settings', () => {
     const next = applySettingsPatch(defaultSettings(), {
       quakes: { notify: true, minIntensity: '4' },
     })
-    expect(next?.quakes).toEqual({ notify: true, minIntensity: '4', system: true, sound: true })
+    expect(next?.quakes).toMatchObject({ notify: true, minIntensity: '4', minMagnitude: 6 })
     expect(applySettingsPatch(defaultSettings(), { quakes: { minIntensity: '5' } })).toBeNull()
+    // The world: a magnitude from the offered steps, and a known source.
+    expect(
+      applySettingsPatch(defaultSettings(), { quakes: { minMagnitude: 7.5 } })?.quakes.minMagnitude,
+    ).toBe(7.5)
+    expect(applySettingsPatch(defaultSettings(), { quakes: { minMagnitude: 6.2 } })).toBeNull()
+    expect(applySettingsPatch(defaultSettings(), { quakes: { source: 'mars' } })).toBeNull()
   })
 
   it('patches one field of a group without losing the others', () => {

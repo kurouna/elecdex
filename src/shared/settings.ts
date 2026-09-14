@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { INTENSITIES } from './quakes.js'
+import { INTENSITIES, MAGNITUDES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
 
 /**
@@ -61,20 +61,35 @@ export const SettingsSchema = z.object({
     })
     .default({ check: true }),
   /**
-   * Earthquake alerts from JMA. Off by default: while on, main checks JMA's list
-   * every minute, whether or not a quakes pane is open.
+   * Earthquakes and tsunamis: where they are read from, and the alerts. Alerts are
+   * off by default: while on, main checks the source every minute, whether or not
+   * a quakes pane is open.
    */
   quakes: z
     .object({
+      /** JMA for Japan, the USGS for the world, or auto: Japan when the system is set up for it. */
+      source: z.enum(['auto', 'jma', 'usgs']).default('auto'),
       notify: z.boolean().default(false),
-      /** The weakest maximum intensity (shindo) that is announced. */
+      /** Japan: the weakest maximum intensity (shindo) that is announced. */
       minIntensity: z.enum(INTENSITIES).default('5-'),
+      /** The world: the smallest magnitude that is announced. */
+      minMagnitude: z.union(MAGNITUDES.map((m) => z.literal(m))).default(6),
+      /** Tsunami warnings, watches and advisories, announced whatever the earthquake thresholds. */
+      tsunami: z.boolean().default(true),
       /** Also a system notification, when the window is not in front. */
       system: z.boolean().default(true),
       /** An alert sound, when interface sounds are on. */
       sound: z.boolean().default(true),
     })
-    .default({ notify: false, minIntensity: '5-', system: true, sound: true }),
+    .default({
+      source: 'auto',
+      notify: false,
+      minIntensity: '5-',
+      minMagnitude: 6,
+      tsunami: true,
+      system: true,
+      sound: true,
+    }),
 })
 export type Settings = z.infer<typeof SettingsSchema>
 

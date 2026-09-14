@@ -187,7 +187,9 @@ const topCountries = $derived(countries.slice(0, 6))
       {/each}
     </ul>
     <p class="credit">
-      GeoIP: NRO, CC BY 4.0 · map: Natural Earth{quakeState?.active ? ' · earthquakes: JMA' : ''}
+      GeoIP: NRO, CC BY 4.0 · map: Natural Earth{quakeState?.active
+        ? ` · earthquakes: ${quakeState.source === 'jma' ? 'JMA' : 'USGS'}`
+        : ''}
     </p>
   </footer>
 </div>

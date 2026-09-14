@@ -9,7 +9,7 @@ import {
   type KeybindingAction,
   withBinding,
 } from '@shared/keybindings'
-import { INTENSITIES, intensityLabel } from '@shared/quakes'
+import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@shared/quakes'
 import type { Settings, SettingsPatch } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
@@ -50,6 +50,14 @@ const settings = $derived(appearance.settings)
 const platform = window.elecdex.system.platform
 const bindings = $derived(effectiveBindings(settings.keybindings, platform))
 const clashes = $derived(conflicts(settings.keybindings, platform))
+/** The earthquake source in effect, as main resolves `auto` from the same time zone and locale. */
+const quakeSource = $derived(
+  resolveQuakeSource(
+    settings.quakes.source,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    navigator.language,
+  ),
+)
 /** Only the actions this platform has: a shortcut that does nothing here would only confuse. */
 const actions = KEYBINDING_ACTIONS.filter((action) => availableOn(action.id, platform))
 
@@ -356,14 +364,29 @@ function describeUpdate(status: UpdateStatus): string {
             </section>
           {:else if section === 'alerts'}
             <section>
-              <h3>earthquakes</h3>
-              <p class="note">
-                Earthquake information from the Japan Meteorological Agency, checked every minute while
-                alerts are on (or a quakes pane is open). Reports come a minute or more after the
-                shaking: this is not the Earthquake Early Warning.
+              <h3>earthquakes and tsunamis</h3>
+              <label class="row">
+                <span>source</span>
+                <select
+                  value={settings.quakes.source}
+                  onchange={(e) =>
+                    patch({ quakes: { source: e.currentTarget.value as Settings['quakes']['source'] } })}
+                  data-testid="settings-quakes-source"
+                >
+                  <option value="auto">automatic ({quakeSource === 'jma' ? 'Japan' : 'world'}, from the time zone)</option>
+                  <option value="jma">Japan · Japan Meteorological Agency</option>
+                  <option value="usgs">world · USGS, tsunamis from NOAA</option>
+                </select>
+              </label>
+              <p class="note" data-testid="settings-quakes-about">
+                {quakeSource === 'jma'
+                  ? "Earthquakes in and around Japan by maximum intensity (shindo), and JMA's tsunami warnings and advisories."
+                  : "Earthquakes of magnitude 4.5 and up around the world from the USGS, and the tsunami warnings, watches and advisories of NOAA's Pacific and National Tsunami Warning Centers."}
+                Checked every minute while alerts are on or a quakes pane is open. Reports come a minute or
+                more after the shaking: this is not an earthquake early warning.
               </p>
               <label class="row">
-                <span>alert on earthquakes in Japan</span>
+                <span>alerts</span>
                 <input
                   type="checkbox"
                   checked={settings.quakes.notify}
@@ -371,19 +394,46 @@ function describeUpdate(status: UpdateStatus): string {
                   data-testid="settings-quakes-notify"
                 />
               </label>
+              {#if quakeSource === 'jma'}
+                <label class="row">
+                  <span>earthquakes at a maximum intensity of</span>
+                  <select
+                    value={settings.quakes.minIntensity}
+                    disabled={!settings.quakes.notify}
+                    onchange={(e) =>
+                      patch({ quakes: { minIntensity: e.currentTarget.value as Settings['quakes']['minIntensity'] } })}
+                    data-testid="settings-quakes-intensity"
+                  >
+                    {#each INTENSITIES as intensity (intensity)}
+                      <option value={intensity}>{intensityLabel(intensity, 'en')} ({intensityLabel(intensity, 'ja')}) or stronger</option>
+                    {/each}
+                  </select>
+                </label>
+              {:else}
+                <label class="row">
+                  <span>earthquakes of magnitude</span>
+                  <select
+                    value={String(settings.quakes.minMagnitude)}
+                    disabled={!settings.quakes.notify}
+                    onchange={(e) =>
+                      patch({ quakes: { minMagnitude: Number(e.currentTarget.value) as Settings['quakes']['minMagnitude'] } })}
+                    data-testid="settings-quakes-magnitude"
+                  >
+                    {#each MAGNITUDES as magnitude (magnitude)}
+                      <option value={String(magnitude)}>M{magnitude.toFixed(1)} or greater</option>
+                    {/each}
+                  </select>
+                </label>
+              {/if}
               <label class="row">
-                <span>at a maximum intensity of</span>
-                <select
-                  value={settings.quakes.minIntensity}
+                <span>tsunami warnings, watches and advisories</span>
+                <input
+                  type="checkbox"
+                  checked={settings.quakes.tsunami}
                   disabled={!settings.quakes.notify}
-                  onchange={(e) =>
-                    patch({ quakes: { minIntensity: e.currentTarget.value as Settings['quakes']['minIntensity'] } })}
-                  data-testid="settings-quakes-intensity"
-                >
-                  {#each INTENSITIES as intensity (intensity)}
-                    <option value={intensity}>{intensityLabel(intensity, 'en')} ({intensityLabel(intensity, 'ja')}) or stronger</option>
-                  {/each}
-                </select>
+                  onchange={(e) => patch({ quakes: { tsunami: e.currentTarget.checked } })}
+                  data-testid="settings-quakes-tsunami"
+                />
               </label>
               <label class="row">
                 <span>system notification when elecdex is not in front</span>
