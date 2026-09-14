@@ -38,7 +38,7 @@ Electron flags go after a second `--`: `npm run dev -- -- --windowed`.
 ## Layout of the code
 
 ```
-src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, launcher/
+src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas, channel names and pure logic used by both sides
@@ -59,16 +59,18 @@ docs/            architecture.md (design + §16 decision log), weather-providers
 - **Network lives in main**, never the renderer: weather (JMA, MET Norway, NWS - see
   docs/weather-providers.md; follow each service's terms), markets (yahoo-finance2 is
   Node-only — CORS and cookies block it in a browser), RSS feeds (src/main/feeds; the XML
-  parser is imported lazily so an app without an RSS pane never loads it). Fetch only while a pane needs the data,
-  batch, back off on failure, and keep the last good data on screen.
-- **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs) are
+  parser is imported lazily so an app without an RSS pane never loads it), JMA's earthquake
+  list (src/main/quakes; running only while alerts are on or a quakes pane is open). Fetch only
+  while a pane needs the data, batch, back off on failure, and keep the last good data on screen.
+- **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs, the quake list) are
   reference-counted in preload and in main, and a page's subscriptions are dropped on reload
   (`did-start-navigation`) and destroy. Polling must stop when the last subscriber leaves —
   there are e2e tests asserting exactly that.
 - **Tests never contact external services.** `tests/e2e/support.ts` points
   `ELECDEX_JMA_BASE_URL`, `ELECDEX_MET_BASE_URL`, `ELECDEX_NWS_BASE_URL`,
-  `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default and starts
-  with sound off; specs that need data run a local stub server. Keep it that way.
+  `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default (the JMA base
+  also covers the earthquake list) and starts with sound off; specs that need data run a local
+  stub server. Keep it that way.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).
@@ -99,7 +101,8 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   Chromium keeps only about 16 and drops the oldest, which may be a visible pane's.
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
   `appearance.revision`. Components read semantic tokens, not primitives.
-- **Attribution.** JMA forecasts show「出典：気象庁ホームページ（URL）を加工して作成」; the GeoIP
+- **Attribution.** JMA forecasts and the quakes pane show「出典：気象庁ホームページ（URL）を加工して作成」,
+  and earthquake alerts name JMA and say they are not the Earthquake Early Warning; the GeoIP
   data is CC BY 4.0 (NRO) and credited in the globe pane; Yahoo data is marked unofficial,
   possibly delayed, not investment advice. Keep these visible.
 - **Every bug found gets a test.** When a problem turns up (from a user, a review, a flaky run),

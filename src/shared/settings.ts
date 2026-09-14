@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { INTENSITIES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
 
 /**
@@ -59,6 +60,21 @@ export const SettingsSchema = z.object({
       check: z.boolean().default(true),
     })
     .default({ check: true }),
+  /**
+   * Earthquake alerts from JMA. Off by default: while on, main checks JMA's list
+   * every minute, whether or not a quakes pane is open.
+   */
+  quakes: z
+    .object({
+      notify: z.boolean().default(false),
+      /** The weakest maximum intensity (shindo) that is announced. */
+      minIntensity: z.enum(INTENSITIES).default('5-'),
+      /** Also a system notification, when the window is not in front. */
+      system: z.boolean().default(true),
+      /** An alert sound, when interface sounds are on. */
+      sound: z.boolean().default(true),
+    })
+    .default({ notify: false, minIntensity: '5-', system: true, sound: true }),
 })
 export type Settings = z.infer<typeof SettingsSchema>
 
@@ -73,6 +89,7 @@ export interface SettingsPatch {
   /** Replaces the whole override map. */
   keybindings?: Settings['keybindings']
   updates?: Partial<Settings['updates']>
+  quakes?: Partial<Settings['quakes']>
 }
 
 const merge = <T extends object>(current: T, value: unknown): T =>
@@ -89,6 +106,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     ...(p.keybindings !== undefined ? { keybindings: p.keybindings } : {}),
     sound: merge(current.sound, p.sound),
     updates: merge(current.updates, p.updates),
+    quakes: merge(current.quakes, p.quakes),
     // Only showSystem: the launcher's own entries are edited in settings.json.
     launcher:
       typeof p.launcher === 'object' && p.launcher !== null && 'showSystem' in p.launcher

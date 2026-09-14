@@ -12,6 +12,7 @@ import NetstatWidget from './monitor/NetstatWidget.svelte'
 import SysinfoWidget from './monitor/SysinfoWidget.svelte'
 import ThroughputWidget from './monitor/ThroughputWidget.svelte'
 import ToplistWidget from './monitor/ToplistWidget.svelte'
+import QuakesWidget from './quakes/QuakesWidget.svelte'
 import { registerBuiltin } from './registry.ts'
 import RssWidget from './rss/RssWidget.svelte'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
@@ -166,6 +167,15 @@ registerBuiltin({
   component: RssWidget,
   minSize: { w: 220, h: 120 },
   multiple: true,
+})
+
+registerBuiltin({
+  id: 'quakes',
+  title: 'quakes',
+  description:
+    'Recent earthquakes in and around Japan from JMA, checked every minute. Alerts are set in settings.',
+  component: QuakesWidget,
+  minSize: { w: 220, h: 120 },
 })
 
 registerBuiltin({

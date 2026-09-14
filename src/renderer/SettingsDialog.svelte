@@ -9,6 +9,7 @@ import {
   type KeybindingAction,
   withBinding,
 } from '@shared/keybindings'
+import { INTENSITIES, intensityLabel } from '@shared/quakes'
 import type { Settings, SettingsPatch } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
@@ -27,10 +28,11 @@ import { updates } from './stores/updates.svelte.ts'
  *   Esc   close (or cancel recording a shortcut)
  */
 
-type Section = 'general' | 'keyboard' | 'updates'
+type Section = 'general' | 'keyboard' | 'alerts' | 'updates'
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'general', label: 'general' },
   { id: 'keyboard', label: 'keyboard' },
+  { id: 'alerts', label: 'alerts' },
   { id: 'updates', label: 'updates' },
 ]
 
@@ -53,6 +55,8 @@ const actions = KEYBINDING_ACTIONS.filter((action) => availableOn(action.id, pla
 
 $effect(() => {
   if (!ui.settingsOpen) return
+  const asked = SECTIONS.find((s) => s.id === ui.settingsSection)
+  if (asked) section = asked.id
   returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
   updates.init()
   void window.elecdex.system.info().then((info) => {
@@ -349,6 +353,58 @@ function describeUpdate(status: UpdateStatus): string {
                   onconfirm={() => patch({ keybindings: {} })}
                 />
               </div>
+            </section>
+          {:else if section === 'alerts'}
+            <section>
+              <h3>earthquakes</h3>
+              <p class="note">
+                Earthquake information from the Japan Meteorological Agency, checked every minute while
+                alerts are on (or a quakes pane is open). Reports come a minute or more after the
+                shaking: this is not the Earthquake Early Warning.
+              </p>
+              <label class="row">
+                <span>alert on earthquakes in Japan</span>
+                <input
+                  type="checkbox"
+                  checked={settings.quakes.notify}
+                  onchange={(e) => patch({ quakes: { notify: e.currentTarget.checked } })}
+                  data-testid="settings-quakes-notify"
+                />
+              </label>
+              <label class="row">
+                <span>at a maximum intensity of</span>
+                <select
+                  value={settings.quakes.minIntensity}
+                  disabled={!settings.quakes.notify}
+                  onchange={(e) =>
+                    patch({ quakes: { minIntensity: e.currentTarget.value as Settings['quakes']['minIntensity'] } })}
+                  data-testid="settings-quakes-intensity"
+                >
+                  {#each INTENSITIES as intensity (intensity)}
+                    <option value={intensity}>{intensityLabel(intensity, 'en')} ({intensityLabel(intensity, 'ja')}) or stronger</option>
+                  {/each}
+                </select>
+              </label>
+              <label class="row">
+                <span>system notification when elecdex is not in front</span>
+                <input
+                  type="checkbox"
+                  checked={settings.quakes.system}
+                  disabled={!settings.quakes.notify}
+                  onchange={(e) => patch({ quakes: { system: e.currentTarget.checked } })}
+                  data-testid="settings-quakes-system"
+                />
+              </label>
+              <label class="row">
+                <span>alert sound (with interface sounds on)</span>
+                <input
+                  type="checkbox"
+                  checked={settings.quakes.sound}
+                  disabled={!settings.quakes.notify}
+                  onchange={(e) => patch({ quakes: { sound: e.currentTarget.checked } })}
+                  data-testid="settings-quakes-sound"
+                />
+              </label>
             </section>
           {:else}
             <section>

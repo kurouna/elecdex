@@ -67,6 +67,17 @@ export const CH = {
     update: 'feeds:update',
     watching: 'feeds:watching',
   },
+  quakes: {
+    /** renderer -> main, fire and forget: a quakes pane wants the list kept current. */
+    subscribe: 'quakes:subscribe',
+    unsubscribe: 'quakes:unsubscribe',
+    /** The current QuakeState, without keeping anything alive. */
+    state: 'quakes:state',
+    /** main -> renderer: a QuakeState, whenever it changes. */
+    update: 'quakes:update',
+    /** main -> renderer: earthquakes to announce (Quake[]). */
+    alert: 'quakes:alert',
+  },
   launcher: {
     list: 'launcher:list',
     icon: 'launcher:icon',

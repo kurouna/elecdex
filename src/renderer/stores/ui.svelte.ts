@@ -47,9 +47,13 @@ class UiStore {
   /** True while the settings dialog is capturing a new shortcut: app shortcuts stand down. */
   recordingShortcut = $state(false)
 
-  openSettings(): void {
+  /** The section the settings dialog opens at, when something asks for one. */
+  settingsSection = $state<string | null>(null)
+
+  openSettings(section: string | null = null): void {
     this.panePickerOpen = false
     this.locationRequest = null
+    this.settingsSection = section
     this.settingsOpen = true
   }
 

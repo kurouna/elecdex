@@ -18,6 +18,7 @@ export type SoundName =
   | 'folder'
   | 'theme'
   | 'alarm'
+  | 'quake'
 
 interface Tone {
   kind: 'sine' | 'square' | 'triangle' | 'sawtooth' | 'noise'
@@ -106,6 +107,15 @@ export const SOUNDS: Readonly<Record<SoundName, SoundRecipe>> = {
       { kind: 'square', freq: 330, at: 0.14, duration: 0.14, gain: 0.1 },
     ],
     minIntervalMs: 400,
+  },
+  // An earthquake alert: a falling three-note pattern, twice, unlike anything the UI does.
+  quake: {
+    tones: [0, 0.5].flatMap((start) => [
+      { kind: 'square' as const, freq: 988, at: start, duration: 0.1, gain: 0.12 },
+      { kind: 'square' as const, freq: 784, at: start + 0.13, duration: 0.1, gain: 0.12 },
+      { kind: 'square' as const, freq: 587, at: start + 0.26, duration: 0.16, gain: 0.12 },
+    ]),
+    minIntervalMs: 2000,
   },
 }
 

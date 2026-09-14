@@ -13,6 +13,7 @@ import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
+import type { Quake, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
@@ -246,6 +247,44 @@ const subscribeFeed = keyedSubscriptions<FeedUpdate>({
   keyOf: (update) => update.url,
 })
 
+/**
+ * The earthquake list: every change is broadcast, so observing is just listening
+ * (after one read of the current state); subscribing also tells main, reference
+ * counted, that a pane needs the list kept current.
+ */
+let quakeSubscribers = 0
+
+function observeQuakes(handler: (state: QuakeState) => void): () => void {
+  let live = true
+  // A change broadcast before the read answers is newer than what the read returns.
+  let updated = false
+  const off = listen<QuakeState>(CH.quakes.update, (state) => {
+    updated = true
+    handler(state)
+  })
+  void (ipcRenderer.invoke(CH.quakes.state) as Promise<QuakeState>).then((state) => {
+    if (live && !updated) handler(state)
+  })
+  return () => {
+    live = false
+    off()
+  }
+}
+
+function subscribeQuakes(handler: (state: QuakeState) => void): () => void {
+  const off = observeQuakes(handler)
+  quakeSubscribers += 1
+  if (quakeSubscribers === 1) ipcRenderer.send(CH.quakes.subscribe)
+  let active = true
+  return () => {
+    if (!active) return
+    active = false
+    off()
+    quakeSubscribers -= 1
+    if (quakeSubscribers === 0) ipcRenderer.send(CH.quakes.unsubscribe)
+  }
+}
+
 const api: ElecdexApi = {
   system: {
     platform: process.platform,
@@ -287,6 +326,11 @@ const api: ElecdexApi = {
   feeds: {
     subscribe: (url, handler) => subscribeFeed(url, handler),
     watching: () => ipcRenderer.invoke(CH.feeds.watching) as Promise<string[]>,
+  },
+  quakes: {
+    subscribe: subscribeQuakes,
+    observe: observeQuakes,
+    onAlert: (handler) => listen<Quake[]>(CH.quakes.alert, handler),
   },
   updates: {
     status: () => ipcRenderer.invoke(CH.updates.status) as Promise<UpdateStatus>,

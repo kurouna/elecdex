@@ -1,12 +1,14 @@
 <script lang="ts">
 import type { ConnectionCountry } from '@shared/metrics'
+import type { QuakeState } from '@shared/quakes'
+import { untrack } from 'svelte'
 import { Color } from 'three'
 import { onFrame } from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
-import { guessHome } from './geo.ts'
+import { guessHome, visibleQuakes } from './geo.ts'
 import { type GlobeColors, GlobeScene } from './globe-scene.ts'
 
 /**
@@ -28,6 +30,9 @@ import { type GlobeColors, GlobeScene } from './globe-scene.ts'
  *    extra wake-up rate was costly: a globe on its own 15 fps timer added ~10% of
  *    a core, at 10 fps ~7%; sharing the chart loop avoids waking the compositor
  *    separately for it.
+ *  - Earthquakes from JMA are marked when the list is being kept current anyway
+ *    (alerts on, or a quakes pane open); the globe only listens, and never makes
+ *    the app fetch it.
  */
 const { paneId }: WidgetProps = $props()
 
@@ -38,6 +43,13 @@ const connections = $derived(metrics.get('net.connections'))
 const ping = $derived(metrics.get('net.ping'))
 const offline = $derived(ping !== null && ping.ms === null && (connections?.total ?? 0) === 0)
 const countries = $derived<ConnectionCountry[]>(connections?.countries ?? [])
+
+/** The earthquake list, followed without keeping it alive. */
+let quakeState = $state.raw<QuakeState | null>(null)
+$effect(() => window.elecdex.quakes.observe((next) => (quakeState = next)))
+const quakes = $derived(quakeState?.active ? quakeState.quakes : [])
+/** Counted when the list changes; the globe itself re-picks its marks each minute. */
+const quakesShown = $derived(visibleQuakes(quakes, Date.now()).length)
 
 let canvas = $state<HTMLCanvasElement | null>(null)
 let failed = $state<string | null>(null)
@@ -59,7 +71,17 @@ function readColors(el: Element): GlobeColors {
     n('--accent-l', 74) / 100,
   )
   const surface = new Color(style.getPropertyValue('--app-bg').trim() || '#05080d')
-  return { accent, surface }
+  return { accent, surface, warn: resolved(el, '--warn'), danger: resolved(el, '--danger') }
+}
+
+/** A colour token as three.js can read it: resolved by the browser to rgb(). */
+function resolved(el: Element, token: string): Color {
+  const probe = document.createElement('span')
+  probe.style.color = `var(${token})`
+  el.append(probe)
+  const color = getComputedStyle(probe).color
+  probe.remove()
+  return new Color(color || '#ff6040')
 }
 
 // The scene: built once per canvas, driven by its own frame timer.
@@ -74,6 +96,8 @@ $effect(() => {
   }
   const s = scene
   s.setHome(home)
+  // The list changes rarely: a scene built after it arrived must start with it.
+  s.setQuakes(untrack(() => quakes))
 
   const resize = () => {
     if (el.clientWidth > 0 && el.clientHeight > 0) {
@@ -115,6 +139,10 @@ $effect(() => {
 })
 
 $effect(() => {
+  scene?.setQuakes(quakes)
+})
+
+$effect(() => {
   void appearance.revision
   if (scene !== null && canvas !== null) scene.setColors(readColors(canvas))
 })
@@ -146,6 +174,9 @@ const topCountries = $derived(countries.slice(0, 6))
     <div class="counts" data-testid="globe-counts">
       <span><strong>{connections?.total ?? 0}</strong> connections</span>
       <span><strong>{countries.length}</strong> countries</span>
+      {#if quakeState?.active}
+        <span data-testid="globe-quakes"><strong>{quakesShown}</strong> quakes · 24h</span>
+      {/if}
       <span class="zone" data-testid="globe-home" data-basis={home?.basis}
         >{home ? `${zone} · ${home.country}${home.basis === 'zone' ? '' : ' (approx.)'}` : zone}</span
       >
@@ -155,7 +186,9 @@ const topCountries = $derived(countries.slice(0, 6))
         <li data-code={c.code}><span>{c.code}</span> {c.count}</li>
       {/each}
     </ul>
-    <p class="credit">GeoIP: NRO, CC BY 4.0 · map: Natural Earth</p>
+    <p class="credit">
+      GeoIP: NRO, CC BY 4.0 · map: Natural Earth{quakeState?.active ? ' · earthquakes: JMA' : ''}
+    </p>
   </footer>
 </div>
 

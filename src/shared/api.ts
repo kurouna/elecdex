@@ -3,6 +3,7 @@ import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
+import type { Quake, QuakeState } from './quakes.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
 import type { Theme, ThemeProblem } from './theme.js'
@@ -183,6 +184,22 @@ export interface FeedsApi {
   watching(): Promise<string[]>
 }
 
+export interface QuakesApi {
+  /**
+   * Keeps JMA's earthquake list current while subscribed (a quakes pane). The
+   * handler gets the current state at once and every change after. Returns an
+   * unsubscribe.
+   */
+  subscribe(handler: (state: QuakeState) => void): () => void
+  /**
+   * Follows the list without keeping it current: the state now and every change,
+   * which is empty and inactive unless alerts or a quakes pane keep it running.
+   */
+  observe(handler: (state: QuakeState) => void): () => void
+  /** Earthquakes being announced, as they are decided in main. */
+  onAlert(handler: (quakes: Quake[]) => void): () => void
+}
+
 export interface LauncherApi {
   /** User entries from settings.json first, then the platform's applications. */
   list(): Promise<LauncherEntry[]>
@@ -254,6 +271,7 @@ export interface ElecdexApi {
   launcher: LauncherApi
   markets: MarketsApi
   feeds: FeedsApi
+  quakes: QuakesApi
   updates: UpdatesApi
 }
 

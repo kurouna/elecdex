@@ -89,7 +89,16 @@ describe('settings', () => {
       launcher: { showSystem: true, items: [] },
       keybindings: {},
       updates: { check: true },
+      quakes: { notify: false, minIntensity: '5-', system: true, sound: true },
     })
+  })
+
+  it('merges earthquake alert settings and refuses an intensity JMA does not use', () => {
+    const next = applySettingsPatch(defaultSettings(), {
+      quakes: { notify: true, minIntensity: '4' },
+    })
+    expect(next?.quakes).toEqual({ notify: true, minIntensity: '4', system: true, sound: true })
+    expect(applySettingsPatch(defaultSettings(), { quakes: { minIntensity: '5' } })).toBeNull()
   })
 
   it('patches one field of a group without losing the others', () => {

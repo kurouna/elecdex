@@ -1,4 +1,5 @@
 import type { ConnectionCountry } from '@shared/metrics'
+import { type Quake, quakeSeverity } from '@shared/quakes'
 import {
   AdditiveBlending,
   BufferGeometry,
@@ -15,9 +16,10 @@ import {
   Scene,
   ShaderMaterial,
   SphereGeometry,
+  Vector3,
   WebGLRenderer,
 } from 'three'
-import { arcPoints, type Home, latLonToVec3, type Vec3 } from './geo.ts'
+import { arcPoints, type Home, latLonToVec3, type Vec3, visibleQuakes } from './geo.ts'
 import landPoints from './land-points.json'
 
 /**
@@ -28,12 +30,23 @@ import landPoints from './land-points.json'
  * This is a small scene on current three.js: the continents are one Points draw
  * call, each connection an arc and a spike, all with two shaders. Everything is
  * rebuilt only when the connection set changes; a frame is a rotation and a draw.
+ *
+ * Earthquakes from JMA's list (when alerts or a quakes pane keep it current) are
+ * rings at their epicentres, sized by magnitude and coloured by intensity, for a
+ * day; one from the last hour also sends out a pulse.
  */
 
 export interface GlobeColors {
   accent: Color
   surface: Color
+  warn: Color
+  danger: Color
 }
+
+/** One pulse: a ring growing out from the epicentre and fading. */
+const PULSE_PERIOD_MS = 2000
+/** Which earthquakes are marked is re-read this often, so they expire without a new report. */
+const QUAKE_RECHECK_MS = 60_000
 
 /**
  * One full turn. Slower than eDEX-UI's 45 s, so that at ten frames a second each
@@ -127,6 +140,21 @@ export class GlobeScene {
   private readonly lineMaterial = new LineBasicMaterial({ transparent: true, opacity: 0.35 })
   private readonly spikeMaterial = new LineBasicMaterial({ transparent: true, opacity: 0.9 })
   private readonly orbitMaterial = new LineBasicMaterial({ transparent: true, opacity: 0.12 })
+  private readonly quakeMaterials = {
+    minor: new LineBasicMaterial({ transparent: true, opacity: 0.7 }),
+    moderate: new LineBasicMaterial({ transparent: true, opacity: 0.85 }),
+    severe: new LineBasicMaterial({ transparent: true, opacity: 0.95 }),
+  }
+  private readonly pulseMaterials = {
+    minor: new LineBasicMaterial({ transparent: true }),
+    moderate: new LineBasicMaterial({ transparent: true }),
+    severe: new LineBasicMaterial({ transparent: true }),
+  }
+  private readonly quakeGroup = new Group()
+  private readonly pulses: Array<{ ring: LineLoop; size: number }> = []
+  private quakes: readonly Quake[] = []
+  private quakeKey = ''
+  private quakesCheckedAt = 0
   private home: Home | null = null
   private connections: ConnectionCountry[] = []
   private readonly started = performance.now()
@@ -175,6 +203,8 @@ export class GlobeScene {
     })
     this.markers.renderOrder = ORDER.markers
     this.world.add(this.markers)
+    this.quakeGroup.renderOrder = ORDER.markers
+    this.world.add(this.quakeGroup)
     this.addSatellites()
     this.setColors(colors)
   }
@@ -185,6 +215,17 @@ export class GlobeScene {
     this.lineMaterial.color.copy(colors.accent)
     this.spikeMaterial.color.copy(colors.accent)
     this.orbitMaterial.color.copy(colors.accent)
+    for (const materials of [this.quakeMaterials, this.pulseMaterials]) {
+      materials.minor.color.copy(colors.accent)
+      materials.moderate.color.copy(colors.warn)
+      materials.severe.color.copy(colors.danger)
+    }
+  }
+
+  /** The earthquake list; the scene picks what to mark, and picks again each minute. */
+  setQuakes(quakes: readonly Quake[]): void {
+    this.quakes = quakes
+    this.rebuildQuakes(Date.now())
   }
 
   setHome(home: Home | null): void {
@@ -221,6 +262,16 @@ export class GlobeScene {
     this.world.rotation.y = facing + (spin ? (elapsed / DAY_MS) * Math.PI * 2 : 0)
     this.time.value = spin ? elapsed / 1000 : 0
     for (const s of this.satellites) s.orbit.rotation.y = s.speed * (spin ? elapsed / 1000 : 0)
+    if (this.quakes.length > 0 && now - this.quakesCheckedAt >= QUAKE_RECHECK_MS) {
+      this.rebuildQuakes(Date.now())
+    }
+    if (this.pulses.length > 0) {
+      const phase = spin ? (elapsed % PULSE_PERIOD_MS) / PULSE_PERIOD_MS : 0.5
+      for (const pulse of this.pulses) pulse.ring.scale.setScalar(pulse.size * (1 + 3 * phase))
+      for (const material of Object.values(this.pulseMaterials)) {
+        material.opacity = 0.9 * (1 - phase)
+      }
+    }
     this.renderer.render(this.scene, this.camera)
   }
 
@@ -237,6 +288,8 @@ export class GlobeScene {
       this.lineMaterial,
       this.spikeMaterial,
       this.orbitMaterial,
+      ...Object.values(this.quakeMaterials),
+      ...Object.values(this.pulseMaterials),
     ]) {
       material.dispose()
     }
@@ -278,6 +331,39 @@ export class GlobeScene {
         )
         this.markers.add(new Line(geometry, this.arcMaterial))
       }
+    }
+  }
+
+  private rebuildQuakes(now: number): void {
+    this.quakesCheckedAt = performance.now()
+    const visible = visibleQuakes(this.quakes, now)
+    const key = visible
+      .map(({ quake: q, pulse }) =>
+        [q.id, q.lat, q.lon, q.magnitude, q.maxIntensity, pulse].join(':'),
+      )
+      .join('|')
+    if (key === this.quakeKey) return
+    this.quakeKey = key
+    for (const child of [...this.quakeGroup.children]) {
+      if (child instanceof LineLoop) child.geometry.dispose()
+      this.quakeGroup.remove(child)
+    }
+    this.pulses.length = 0
+    // Oldest first, so the newest is drawn on top where rings overlap.
+    for (const { quake, pulse } of [...visible].reverse()) {
+      const severity = quakeSeverity(quake)
+      const size = 0.012 + 0.008 * Math.max(0, (quake.magnitude ?? 3) - 2)
+      this.quakeGroup.add(ring(quake.lat, quake.lon, size, this.quakeMaterials[severity]))
+      if (!pulse) continue
+      const circle = flatRing(this.pulseMaterials[severity])
+      circle.position.set(...latLonToVec3(quake.lat, quake.lon, 1.004))
+      circle.quaternion.setFromUnitVectors(
+        new Vector3(0, 0, 1),
+        new Vector3(...latLonToVec3(quake.lat, quake.lon)),
+      )
+      circle.scale.setScalar(size)
+      this.quakeGroup.add(circle)
+      this.pulses.push({ ring: circle, size })
     }
   }
 
@@ -340,6 +426,18 @@ function spike(
     ),
   )
   return new LineSegments(geometry, material)
+}
+
+/** A unit circle in the XY plane, to be placed on the surface and scaled (a pulse). */
+function flatRing(material: LineBasicMaterial): LineLoop {
+  const positions: number[] = []
+  for (let i = 0; i < 48; i++) {
+    const a = (i / 48) * Math.PI * 2
+    positions.push(Math.cos(a), Math.sin(a), 0)
+  }
+  const geometry = new BufferGeometry()
+  geometry.setAttribute('position', new Float32BufferAttribute(positions, 3))
+  return new LineLoop(geometry, material)
 }
 
 /** A small circle on the surface around a place, `size` in radians of arc. */

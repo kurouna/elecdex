@@ -1,6 +1,7 @@
 import cities from '@shared/geo/cities.json'
 import centroids from '@shared/geo/country-centroids.json'
 import zones from '@shared/geo/timezone-countries.json'
+import type { Quake } from '@shared/quakes'
 
 /**
  * The globe's geometry, as pure functions: where a latitude/longitude sits on
@@ -146,4 +147,23 @@ export function guessHome(zone: string, locale: string, at: Date): Home | null {
   // cities.json is sorted by population, so the first match is the largest.
   const city = (cities as CityRow[]).find((c) => offsetMinutes(c[5], at) === offset)
   return city ? { zone, country: city[2], lat: city[3], lon: city[4], basis: 'offset' } : null
+}
+
+/** Earthquakes are marked for a day, and pulse for their first hour. */
+export const QUAKE_SHOWN_MS = 24 * 60 * 60_000
+export const QUAKE_PULSE_MS = 60 * 60_000
+
+type LocatedQuake = Quake & { lat: number; lon: number }
+
+/** The marked earthquakes at `now`: located and within a day, with whether each still pulses. */
+export function visibleQuakes(
+  quakes: readonly Quake[],
+  now: number,
+): Array<{ quake: LocatedQuake; pulse: boolean }> {
+  return quakes
+    .filter(
+      (q): q is LocatedQuake =>
+        q.lat !== null && q.lon !== null && now - q.at <= QUAKE_SHOWN_MS && q.at <= now + 60_000,
+    )
+    .map((quake) => ({ quake, pulse: now - quake.at <= QUAKE_PULSE_MS }))
 }

@@ -7,6 +7,7 @@ import LocationPicker from './LocationPicker.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
+import QuakeAlert from './QuakeAlert.svelte'
 import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
@@ -166,6 +167,7 @@ function toggleSound(): void {
 <LocationPicker />
 <SettingsDialog />
 <UpdateNotice />
+<QuakeAlert />
 <WindowCorner />
 
 <style>
