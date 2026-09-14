@@ -441,3 +441,78 @@ test('Ctrl+Shift+Arrow switches the shell tabs, and Ctrl+Shift+S takes focus bac
   await page.keyboard.press('Control+Shift+KeyS')
   await expect.poll(focusedPane).toBe(first)
 })
+
+test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves between shell panes', async () => {
+  const twoShells = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [0.4, 0.3, 0.3],
+      children: [
+        { kind: 'pane', id: 'left', widget: 'terminal' },
+        { kind: 'pane', id: 'clock', widget: 'clock' },
+        { kind: 'pane', id: 'right', widget: 'terminal' },
+      ],
+    },
+  }
+  const own = await launch(undefined, { layout: twoShells })
+  const p = own.page
+  try {
+    const left = p.locator('[data-testid=pane][data-pane-id=left]')
+    const right = p.locator('[data-testid=pane][data-pane-id=right]')
+    // A shell on its own has a tab strip with its one tab and a +, and closes from the tab.
+    for (const shell of [left, right]) {
+      await expect(shell.getByTestId('tab')).toHaveCount(1)
+      await expect(shell.getByTestId('tab-new')).toHaveCount(1)
+      await expect(shell.getByTestId('tab-close')).toHaveCount(1)
+      await expect(shell.getByTestId('pane-close')).toHaveCount(0)
+    }
+
+    // Both shells grow tabs of their own: one group each.
+    await right.getByTestId('tab-new').click()
+    const groups = p.getByTestId('tabs-host')
+    await expect(groups).toHaveCount(1)
+    await expect(groups.getByTestId('tab')).toHaveCount(2)
+    await left.getByTestId('tab-new').click()
+    await expect(groups).toHaveCount(2)
+    await expect(groups.nth(0).getByTestId('tab')).toHaveCount(2)
+    await expect(groups.nth(1).getByTestId('tab')).toHaveCount(2)
+    await groups.nth(1).getByTestId('tab-new').click()
+    await expect(groups.nth(1).getByTestId('tab')).toHaveCount(3)
+    await expect(groups.nth(0).getByTestId('tab')).toHaveCount(2)
+
+    const focusedPane = () =>
+      p.evaluate(
+        () =>
+          document.activeElement?.closest('[data-testid=pane]')?.getAttribute('data-pane-id') ??
+          null,
+      )
+    const selectedIn = (index: number) =>
+      groups.nth(index).locator('li.active [data-testid=tab]').getAttribute('data-pane-id')
+    const leftSelected = await selectedIn(0)
+    const rightSelected = await selectedIn(1)
+
+    // From a shell, the chord goes to the selected shell of the other group, the keyboard with it.
+    await groups.nth(0).locator('.pane:not(.hidden) .xterm-helper-textarea').first().focus()
+    await expect.poll(focusedPane).toBe(leftSelected)
+    await p.keyboard.press('Control+Alt+Shift+ArrowRight')
+    await expect.poll(focusedPane).toBe(rightSelected)
+    // Wrapping round, both ways.
+    await p.keyboard.press('Control+Alt+Shift+ArrowRight')
+    await expect.poll(focusedPane).toBe(leftSelected)
+    await p.keyboard.press('Control+Alt+Shift+ArrowLeft')
+    await expect.poll(focusedPane).toBe(rightSelected)
+
+    // From a pane that is not a shell, the chord does nothing.
+    await p.locator('[data-testid=pane][data-pane-id=clock]').click()
+    await expect.poll(focusedPane).not.toBe(rightSelected)
+    await p.keyboard.press('Control+Alt+Shift+ArrowRight')
+    await p.waitForTimeout(300)
+    expect(await focusedPane()).not.toBe(leftSelected)
+    expect(await focusedPane()).not.toBe(rightSelected)
+  } finally {
+    await own.close()
+  }
+})

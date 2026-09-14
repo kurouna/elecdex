@@ -92,6 +92,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+W | close the focused pane (or its × button, shown on hover) |
 | Ctrl+Shift+[ / ] | move focus between panes |
 | Ctrl+Shift+← / → | previous / next tab in the focused tab group, such as the shell's tabs |
+| Ctrl+Alt+Shift+← / → | from a shell: previous / next shell pane (or group of shell tabs) |
 | Ctrl+Shift+A | add a pane: any widget, right of, below or as a tab beside the focused pane |
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |

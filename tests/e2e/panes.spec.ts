@@ -80,11 +80,15 @@ test('a single-instance widget already on screen is focused, not duplicated', as
 test('every pane has a way to close it', async () => {
   const { page, close } = await launch()
   try {
-    // Panes in a tab group close from their tab; every other pane has a button.
-    const untabbed = page.locator('[data-testid=pane]:not([data-chrome=bare])')
-    const count = await untabbed.count()
+    // Tabs and shells close from their tab; every other pane has a button.
+    const modules = page.locator('[data-testid=pane][data-chrome=module]')
+    const count = await modules.count()
     expect(count).toBeGreaterThan(5)
-    await expect(untabbed.getByTestId('pane-close')).toHaveCount(count)
+    await expect(modules.getByTestId('pane-close')).toHaveCount(count)
+    const tabbed = page.locator('[data-testid=pane][data-chrome=bare]')
+    await expect(page.getByTestId('tabs-host').getByTestId('tab-close')).toHaveCount(
+      await tabbed.count(),
+    )
   } finally {
     await close()
   }

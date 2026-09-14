@@ -9,6 +9,7 @@ import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
+import TabStrip from './TabStrip.svelte'
 
 interface Props {
   node: PaneNode
@@ -97,8 +98,8 @@ $effect(() => () => paneMeta.clear(node.id))
     if (e.target === e.currentTarget && e.animationName === 'crt-power-on') poweringOn = false
   }}
 >
-  {#if chrome !== 'bare'}
-    <!-- Tabs close from their own tab; every other pane closes from here. -->
+  {#if chrome === 'module'}
+    <!-- A shell closes from its tab, as a tab does; every other pane from here. -->
     <button
       type="button"
       class="pane-close"
@@ -115,7 +116,11 @@ $effect(() => () => paneMeta.clear(node.id))
     <header class="hud-label drag-handle" {@attach dragHandle(node.id, () => title)}>
       {@render headline()}
     </header>
-    <div class="shell-frame body">{@render widget()}</div>
+    <!-- A shell on its own still has its tab strip, so its + can start a group of tabs. -->
+    <div class="shell-frame frame">
+      <TabStrip panes={[node]} activeIndex={0} />
+      <div class="body">{@render widget()}</div>
+    </div>
   {:else if chrome === 'module'}
     <div class="hud-module module">
       {#if definition?.headless}
@@ -210,12 +215,19 @@ $effect(() => () => paneMeta.clear(node.id))
   min-width: 0;
 }
 
-.chrome-shell > .body {
+.chrome-shell > .frame {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chrome-shell .body {
   padding: var(--space-1);
 }
 
 /* Focus: the shell frame brightens; a module's rule does. */
-.chrome-shell.focused > .body {
+.chrome-shell.focused > .frame {
   --frame-color: var(--accent);
 }
 

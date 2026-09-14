@@ -95,6 +95,9 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   // Only in a tab group: elsewhere a shell keeps the keys (PSReadLine selects by word).
   'tab.next': () => layout.cycleTab(1),
   'tab.previous': () => layout.cycleTab(-1),
+  // Only from a shell, and only when there is another shell pane to go to.
+  'shell.next': () => cycleShell(1),
+  'shell.previous': () => cycleShell(-1),
   'settings.open': () => ui.openSettings(),
   'window.fullscreen': () => window.elecdex.system.toggleFullscreen(),
   'window.minimize': () => window.elecdex.system.minimize(),
@@ -116,6 +119,13 @@ function focusShell(): void {
   if (pane === null) layout.addPane('terminal', 'right')
   else layout.focus(pane)
   ui.focusShell()
+}
+
+/** Moves to the next or previous shell pane and puts the keyboard in its terminal. */
+function cycleShell(delta: number): boolean {
+  if (!layout.cycleShell(delta)) return false
+  ui.focusShell()
+  return true
 }
 
 /** Shortcuts that still work with a dialog open. */

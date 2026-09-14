@@ -6,6 +6,7 @@ import {
   findNode,
   focusTab,
   moveNode,
+  neighbourShell,
   neighbourTab,
   type Placement,
   pane,
@@ -232,6 +233,18 @@ class LayoutStore {
   cycleTab(delta: number): boolean {
     if (this.focusedPaneId === null) return false
     const next = neighbourTab(this.tree.root, this.focusedPaneId, delta)
+    if (next === null) return false
+    this.focus(next)
+    return true
+  }
+
+  /**
+   * Focuses the next or previous shell pane or group of shell tabs, when a shell
+   * has focus and there is another; false otherwise, so the key goes to the shell.
+   */
+  cycleShell(delta: number): boolean {
+    if (this.focusedPaneId === null) return false
+    const next = neighbourShell(this.tree.root, this.focusedPaneId, delta, (w) => w === 'terminal')
     if (next === null) return false
     this.focus(next)
     return true

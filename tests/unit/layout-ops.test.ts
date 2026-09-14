@@ -7,6 +7,7 @@ import {
   findTabsContaining,
   focusTab,
   moveNode,
+  neighbourShell,
   neighbourTab,
   normalize,
   normalizeSizes,
@@ -656,6 +657,46 @@ describe('tabs', () => {
     expect(neighbourTab(split('row', [lone, pane('b')]), lone.id, 1)).toBeNull()
     const only = pane('a')
     expect(neighbourTab(tabs([only]), only.id, 1)).toBeNull()
+  })
+
+  describe('neighbourShell', () => {
+    const isShell = (widget: string) => widget === 'terminal'
+
+    it('steps through shell panes and groups of shell tabs in tree order, wrapping round', () => {
+      const left = pane('terminal')
+      const t1 = pane('terminal')
+      const t2 = pane('terminal')
+      const right = pane('terminal')
+      const root = split('row', [left, split('column', [pane('cpu'), tabs([t1, t2], 1)]), right])
+      // A group is one stop, entered at its selected tab.
+      expect(neighbourShell(root, left.id, 1, isShell)).toBe(t2.id)
+      expect(neighbourShell(root, t1.id, 1, isShell)).toBe(right.id)
+      expect(neighbourShell(root, t2.id, 1, isShell)).toBe(right.id)
+      expect(neighbourShell(root, right.id, 1, isShell)).toBe(left.id)
+      expect(neighbourShell(root, left.id, -1, isShell)).toBe(right.id)
+      expect(neighbourShell(root, right.id, -1, isShell)).toBe(t2.id)
+    })
+
+    it('enters a mixed group at its first shell when a shell is not selected', () => {
+      const lone = pane('terminal')
+      const shell = pane('terminal')
+      const root = split('row', [lone, tabs([pane('globe'), shell], 0)])
+      expect(neighbourShell(root, lone.id, 1, isShell)).toBe(shell.id)
+    })
+
+    it('is null from a pane that is not a shell, or with no other shell to go to', () => {
+      const shell = pane('terminal')
+      const cpu = pane('cpu')
+      const other = pane('terminal')
+      const root = split('row', [shell, cpu, other])
+      expect(neighbourShell(root, cpu.id, 1, isShell)).toBeNull()
+      // Tabs of one group are for Ctrl+Shift+Arrow, not this.
+      const a = pane('terminal')
+      const b = pane('terminal')
+      expect(neighbourShell(split('row', [tabs([a, b]), pane('cpu')]), a.id, 1, isShell)).toBeNull()
+      expect(neighbourShell(split('row', [shell, pane('cpu')]), shell.id, 1, isShell)).toBeNull()
+      expect(neighbourShell(root, 'missing', 1, isShell)).toBeNull()
+    })
   })
 
   it('visiblePanes returns only the active tab of each group', () => {

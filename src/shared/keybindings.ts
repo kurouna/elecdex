@@ -25,6 +25,8 @@ export const KEYBINDING_ACTIONS = [
   { id: 'shell.focus', label: 'Focus the shell', chord: 'Ctrl+Shift+KeyS' },
   { id: 'tab.next', label: 'Next tab', chord: 'Ctrl+Shift+ArrowRight' },
   { id: 'tab.previous', label: 'Previous tab', chord: 'Ctrl+Shift+ArrowLeft' },
+  { id: 'shell.next', label: 'Next shell pane', chord: 'Ctrl+Alt+Shift+ArrowRight' },
+  { id: 'shell.previous', label: 'Previous shell pane', chord: 'Ctrl+Alt+Shift+ArrowLeft' },
   { id: 'settings.open', label: 'Open settings', chord: 'Ctrl+Shift+Comma' },
   { id: 'window.fullscreen', label: 'Toggle fullscreen', chord: 'F11' },
   {

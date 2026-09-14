@@ -317,6 +317,41 @@ export function neighbourTab(node: LayoutNode, paneId: string, delta: number): s
   return group.children[(((index + delta) % count) + count) % count]?.id ?? null
 }
 
+/**
+ * The shell to focus `delta` shells on from the one `paneId` is in, wrapping
+ * round, or null when `paneId` is not a shell or there is no other to go to.
+ *
+ * A shell here is where a shell is shown: a shell pane on its own, or a tab group
+ * holding one - its selected tab when that is a shell, its first shell otherwise.
+ * Shells are taken in tree order, which runs left to right and top to bottom.
+ */
+export function neighbourShell(
+  node: LayoutNode,
+  paneId: string,
+  delta: number,
+  isShell: (widget: string) => boolean,
+): string | null {
+  const focused = findNode(node, paneId)
+  if (focused === null || focused.kind !== 'pane' || !isShell(focused.widget)) return null
+  const stops: Array<{ panes: string[]; target: string }> = []
+  const visit = (n: LayoutNode): void => {
+    if (n.kind === 'split') {
+      n.children.forEach(visit)
+      return
+    }
+    const panes = n.kind === 'tabs' ? n.children : [n]
+    const selected = n.kind === 'tabs' ? n.children[n.activeIndex] : n
+    const target =
+      selected && isShell(selected.widget) ? selected : panes.find((p) => isShell(p.widget))
+    if (target) stops.push({ panes: panes.map((p) => p.id), target: target.id })
+  }
+  visit(node)
+  const index = stops.findIndex((stop) => stop.panes.includes(paneId))
+  if (index === -1 || stops.length < 2) return null
+  const count = stops.length
+  return stops[(((index + delta) % count) + count) % count]?.target ?? null
+}
+
 /** Focuses a tab within its group. A no-op for a pane that is not tabbed. */
 export function focusTab(tree: LayoutTree, paneId: string): LayoutTree {
   const group = findTabsContaining(tree.root, paneId)
