@@ -102,6 +102,12 @@ docs/            architecture.md (design + §16 decision log), weather-providers
 - **Attribution.** JMA forecasts show「出典：気象庁ホームページ（URL）を加工して作成」; the GeoIP
   data is CC BY 4.0 (NRO) and credited in the globe pane; Yahoo data is marked unofficial,
   possibly delayed, not investment advice. Keep these visible.
+- **Every bug found gets a test.** When a problem turns up (from a user, a review, a flaky run),
+  add a test that fails on the old code and passes on the fix - and cover the related cases
+  around it, not only the one reported (the same path through another widget, the edit or
+  reload that reaches it another way). Check that the test really fails without the fix. Put it
+  at the lowest level that can see the bug (unit, then component, then e2e), plus an e2e check
+  when the bug was only visible in the running app.
 
 ## Conventions
 
