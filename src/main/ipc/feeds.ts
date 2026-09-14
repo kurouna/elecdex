@@ -43,6 +43,8 @@ export function registerFeedsIpc(): { dispose: () => void } {
           cache: 'no-store',
           signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         })
+        // Only a 200's body is read; any other is dropped at once so the connection is freed.
+        if (response.status !== 200) void response.body?.cancel().catch(() => {})
         return {
           status: response.status,
           headers: response.headers,

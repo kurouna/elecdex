@@ -42,6 +42,8 @@ export interface FeedDeps {
 export const MAX_INTERVAL_MS = 60 * 60_000
 /** Delays after consecutive failures, capped at the last. */
 export const RETRY_BACKOFF_MS = [5 * 60_000, 15 * 60_000, 30 * 60_000, 60 * 60_000]
+/** The longest a server's Retry-After is honoured; a longer one is taken as a day. */
+export const MAX_RETRY_AFTER_MS = 24 * 60 * 60_000
 /** Feeds fetched at the same time. */
 export const MAX_CONCURRENT = 2
 /** The most a feed download may be; a bigger one is refused, not parsed in part. */
@@ -80,6 +82,12 @@ interface FeedState {
   checkedAt: number | null
   error: string | null
   failures: number
+  /**
+   * After a failure, when the next attempt is due. Kept apart from the timer so a
+   * pane that stops and starts watching (an edited list, a reload) waits it out
+   * instead of retrying a failing server at once.
+   */
+  retryAt: number | null
   timer: unknown
 }
 
@@ -113,9 +121,8 @@ export function cacheHintMs(headers: FeedResponse['headers'], now: number): numb
 /** Retry-After, as seconds or a date, in ms. */
 function retryAfterMs(headers: FeedResponse['headers'], now: number): number {
   const raw = headers.get('retry-after') ?? ''
-  if (/^\d+$/.test(raw.trim())) return Number(raw) * 1000
-  const at = Date.parse(raw)
-  return Number.isFinite(at) ? Math.max(0, at - now) : 0
+  const ms = /^\d+$/.test(raw.trim()) ? Number(raw) * 1000 : Date.parse(raw) - now
+  return Number.isFinite(ms) ? Math.min(MAX_RETRY_AFTER_MS, Math.max(0, ms)) : 0
 }
 
 /**
@@ -178,7 +185,7 @@ export class FeedService {
     const now = deps.now()
     for (const [url, entry] of Object.entries(deps.loadCache())) {
       if (now - entry.checkedAt > CACHE_TTL_MS) continue
-      this.feeds.set(url, { ...entry, error: null, failures: 0, timer: null })
+      this.feeds.set(url, { ...entry, error: null, failures: 0, retryAt: null, timer: null })
     }
   }
 
@@ -199,8 +206,8 @@ export class FeedService {
     if (this.disposed || this.watched.has(url)) return
     this.watched.add(url)
     const state = this.state(url)
-    const due =
-      state.checkedAt === null ? 0 : state.checkedAt + this.interval(state) - this.deps.now()
+    const nextCheck = state.retryAt ?? (state.checkedAt ?? 0) + this.interval(state)
+    const due = nextCheck - this.deps.now()
     if (due <= 0) this.enqueue(url)
     else this.schedule(url, due)
   }
@@ -238,6 +245,7 @@ export class FeedService {
         checkedAt: null,
         error: null,
         failures: 0,
+        retryAt: null,
         timer: null,
       }
       this.feeds.set(url, s)
@@ -289,9 +297,11 @@ export class FeedService {
       state.error = cause instanceof Error ? cause.message : String(cause)
       const backoff = RETRY_BACKOFF_MS[Math.min(state.failures, RETRY_BACKOFF_MS.length - 1)] ?? 0
       const retryAfter = cause instanceof FeedError ? cause.retryAfterMs : 0
+      const delay = Math.max(backoff, retryAfter)
       state.failures += 1
+      state.retryAt = this.deps.now() + delay
       this.deps.publish(this.snapshot(url))
-      if (this.watched.has(url)) this.schedule(url, Math.max(backoff, retryAfter))
+      if (this.watched.has(url)) this.schedule(url, delay)
     }
   }
 
@@ -304,7 +314,8 @@ export class FeedService {
     }
     const response = await this.deps.fetch(url, { headers })
     const now = this.deps.now()
-    if (response.status === 304) {
+    // A 304 only means something for a feed already downloaded; asked unconditionally, it is an error.
+    if (response.status === 304 && state.fetchedAt !== null) {
       state.checkedAt = now
       this.succeeded(url, state, false)
       return
@@ -330,6 +341,7 @@ export class FeedService {
     const hadError = state.error !== null
     state.error = null
     state.failures = 0
+    state.retryAt = null
     if (changed) this.persist()
     if (!this.disposed && (changed || hadError)) this.deps.publish(this.snapshot(url))
   }

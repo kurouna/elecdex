@@ -198,4 +198,10 @@ describe('text decoding', () => {
     expect(plainText('  a\n\t<br/>b  ')).toBe('a b')
     expect(plainText('x'.repeat(400))).toHaveLength(300)
   })
+
+  it('removes HTML tags but keeps text that only looks like one', () => {
+    expect(plainText({ '#cdata': 'Why <code>Vec<T></code> <a href="/x">grows</a>' })).toBe(
+      'Why Vec<T> grows',
+    )
+  })
 })

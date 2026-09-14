@@ -201,6 +201,18 @@ test('a failing feed is marked and the rest still show; closing the pane stops t
     await expect(pane.getByTestId('rss-item')).toHaveCount(15, { timeout: 20_000 })
     await expect(pane.getByTestId('pane-badge')).toHaveText('stale')
 
+    // Adding a feed fetches only that one: the feeds already listed are not
+    // restarted, so the failing one is not asked again before its retry.
+    requests.length = 0
+    await pane.getByTestId('rss-edit').click()
+    await pane
+      .getByTestId('rss-feeds')
+      .fill([`${origin}/alpha.xml`, `${origin}/gone.xml`, `${origin}/beta.atom`].join('\n'))
+    await pane.getByTestId('rss-save').click()
+    await expect(pane.getByTestId('rss-item')).toHaveCount(20, { timeout: 20_000 })
+    await page.waitForTimeout(1000)
+    expect(requests.map((r) => r.path)).toEqual(['/beta.atom'])
+
     await pane.getByTestId('rss-edit').click()
     await pane.getByTestId('rss-feeds').fill(`${origin}/gone.xml`)
     await pane.getByTestId('rss-save').click()

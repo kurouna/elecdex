@@ -10,6 +10,7 @@ import {
   FeedService,
   MAX_CONCURRENT,
   MAX_INTERVAL_MS,
+  MAX_RETRY_AFTER_MS,
   RETRY_BACKOFF_MS,
   readLimited,
 } from '../../src/main/feeds/service.js'
@@ -209,6 +210,33 @@ describe('FeedService', () => {
     await h.advanceBy(60_000)
     expect(h.count(A)).toBe(5)
     expect(h.published.at(-1)?.error).toBeNull()
+  })
+
+  it('does not retry a failing feed early when a pane stops and starts watching it', async () => {
+    const h = harness()
+    h.reply(A, { status: 404 }, { status: 404 })
+    h.service.watch(A)
+    await h.settle()
+    expect(h.count(A)).toBe(1)
+    // An edited list or a reloaded page unsubscribes and subscribes again.
+    h.service.unwatch(A)
+    h.service.watch(A)
+    await h.settle()
+    expect(h.count(A)).toBe(1)
+    await h.advanceBy(RETRY_BACKOFF_MS[0] ?? 0)
+    expect(h.count(A)).toBe(2)
+  })
+
+  it('treats a 304 to an unconditional request as an error, and caps Retry-After at a day', async () => {
+    const h = harness()
+    h.reply(A, { status: 304 }, { status: 429, headers: { 'retry-after': String(7 * 86_400) } })
+    h.service.watch(A)
+    await h.settle()
+    expect(h.published.at(-1)?.error).toBe('HTTP 304')
+    await h.advanceBy(RETRY_BACKOFF_MS[0] ?? 0)
+    expect(h.count(A)).toBe(2)
+    await h.advanceBy(MAX_RETRY_AFTER_MS)
+    expect(h.count(A)).toBe(3)
   })
 
   it('stops when the last pane goes away, even with a check queued or scheduled', async () => {

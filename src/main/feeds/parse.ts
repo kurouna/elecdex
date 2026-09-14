@@ -116,15 +116,20 @@ function cdataText(value: unknown): string {
 }
 
 /**
- * Text fit for one line: markup removed, references decoded, whitespace
+ * The HTML tags feeds put in titles. Only these are removed, so text that merely
+ * looks like a tag, such as `Vec<T>` in a programming headline, survives.
+ */
+const HTML_TAG =
+  /<\/?(?:a|abbr|b|big|br|cite|code|del|dfn|div|em|font|h[1-6]|hr|i|img|ins|kbd|li|mark|ol|p|q|s|samp|small|span|strike|strong|sub|sup|time|tt|u|ul|var|wbr)(?:\s[^<>]*)?\/?>/gi
+
+/**
+ * Text fit for one line: HTML tags removed, references decoded, whitespace
  * collapsed, length capped. Titles often carry HTML, escaped (so it appears only
  * after the XML decoding) or in CDATA (so its own references are still encoded),
  * hence the second decoding after the tags go. It is only ever rendered as text.
  */
 export function plainText(value: unknown): string {
-  const text = decodeEntities(rawText(value).replace(/<[^>]*>/g, ' '))
-    .replace(/\s+/g, ' ')
-    .trim()
+  const text = decodeEntities(rawText(value).replace(HTML_TAG, ' ')).replace(/\s+/g, ' ').trim()
   return text.length > MAX_TITLE_LENGTH ? `${text.slice(0, MAX_TITLE_LENGTH - 1)}…` : text
 }
 

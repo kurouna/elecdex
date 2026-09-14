@@ -34,20 +34,38 @@ let editing = $state(false)
 let draft = $state('')
 let problem = $state<string | null>(null)
 
+/**
+ * One subscription per listed feed, kept across edits of the list: only feeds
+ * added or removed subscribe or unsubscribe, so an edit does not make main stop
+ * and restart the feeds that stayed.
+ */
+const subscriptions = new Map<string, () => void>()
+
 $effect(() => {
-  const urls = feedKey === '' ? [] : feedKey.split('\n')
+  const urls = new Set(feedKey === '' ? [] : feedKey.split('\n'))
+  for (const [url, off] of subscriptions) {
+    if (urls.has(url)) continue
+    off()
+    subscriptions.delete(url)
+  }
+  for (const url of urls) {
+    if (subscriptions.has(url)) continue
+    subscriptions.set(
+      url,
+      window.elecdex.feeds.subscribe(url, (update) => {
+        updates = { ...updates, [url]: update }
+      }),
+    )
+  }
   // Forget feeds no longer listed; their items must not linger in memory.
   untrack(() => {
-    updates = Object.fromEntries(Object.entries(updates).filter(([url]) => urls.includes(url)))
+    updates = Object.fromEntries(Object.entries(updates).filter(([url]) => urls.has(url)))
   })
-  const offs = urls.map((url) =>
-    window.elecdex.feeds.subscribe(url, (update) => {
-      updates = { ...updates, [url]: update }
-    }),
-  )
-  return () => {
-    for (const off of offs) off()
-  }
+})
+
+$effect(() => () => {
+  for (const off of subscriptions.values()) off()
+  subscriptions.clear()
 })
 
 /** Today's date as the list sees it: set at mount and at each midnight, for the time labels. */
@@ -161,7 +179,7 @@ function saveDraft(): void {
             type="button"
             class="item"
             disabled={item.link === null}
-            title={item.link ?? item.title}
+            title={item.title}
             onclick={() => {
               if (item.link !== null) void window.elecdex.system.openExternal(item.link)
             }}
