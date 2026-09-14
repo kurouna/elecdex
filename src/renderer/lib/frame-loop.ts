@@ -15,10 +15,12 @@
 
 export type FrameCallback = (now: number) => void
 
-/** Draws per second. Well above the ~5 pixel shifts per second a chart makes. */
-export const CHART_FPS = 10
-
-const FRAME_INTERVAL = 1000 / CHART_FPS
+/**
+ * The loop's shortest period: ten frames a second, for the globe's turn. Every
+ * period a subscriber asks for must be a multiple of it, so all frames fall on
+ * the same wall-clock boundaries.
+ */
+export const FRAME_INTERVAL = 100
 
 /**
  * The time axis every scrolling chart shares, so side by side they move at the
@@ -39,21 +41,83 @@ export const CHART_TICK_MS = 200
 /** The shared tick a moment falls in. */
 export const chartTick = (now: number): number => Math.floor(now / CHART_TICK_MS)
 
-const callbacks = new Set<FrameCallback>()
+/**
+ * Milliseconds past a wall-clock boundary at which timed work wakes. Just past,
+ * so a clock reading the time then is already in the new second.
+ */
+const WAKE_PHASE_MS = 5
+
+/**
+ * How long until the next wall-clock multiple of `period` (plus the wake phase).
+ *
+ * Everything that updates the screen on a schedule wakes on these boundaries:
+ * the frame loop every 100ms and the clock every second land on the same
+ * moment, so the clock's change is drawn in the loop's frame instead of forcing
+ * a frame of its own. Each separate frame is a full commit, raster and GPU
+ * swap, which on the default layout costs more than the drawing in it.
+ */
+export function msUntilBoundary(period: number, now = Date.now()): number {
+  return period - ((((now - WAKE_PHASE_MS) % period) + period) % period)
+}
+
+interface Subscriber {
+  period: number
+  /** The period slot this subscriber was last called in. */
+  slot: number
+}
+
+const callbacks = new Map<FrameCallback, Subscriber>()
+/** When the scheduled wake is for, so a shorter period joining can bring it forward. */
+let wakeAt = 0
+/** One-shot callbacks for the next frame (nextFrame). */
+const pending = new Set<FrameCallback>()
 let timer: ReturnType<typeof setTimeout> | null = null
 let raf = 0
+/** A frame requested for pending callbacks alone, while the loop is not running. */
+let loneRaf = 0
+
+function runPending(now: number): void {
+  if (pending.size === 0) return
+  const due = [...pending]
+  pending.clear()
+  for (const callback of due) callback(now)
+}
+
+/** The shortest period anyone is waiting for. */
+function loopPeriod(): number {
+  let period = Number.POSITIVE_INFINITY
+  for (const subscriber of callbacks.values()) period = Math.min(period, subscriber.period)
+  return period
+}
+
+/** The period slot a wall-clock moment falls in, on the shared wake phase. */
+const slotOf = (wall: number, period: number): number => Math.floor((wall - WAKE_PHASE_MS) / period)
+
+function frame(now: number): void {
+  raf = 0
+  if (document.hidden) return
+  runPending(now)
+  const wall = Date.now()
+  for (const [callback, subscriber] of callbacks) {
+    const slot = slotOf(wall, subscriber.period)
+    if (slot === subscriber.slot) continue
+    subscriber.slot = slot
+    callback(now)
+  }
+  schedule()
+}
 
 function schedule(): void {
-  if (timer !== null || raf !== 0 || callbacks.size === 0 || document.hidden) return
+  if (raf !== 0 || callbacks.size === 0 || document.hidden) return
+  const delay = msUntilBoundary(loopPeriod())
+  // Already waking no later than needed.
+  if (timer !== null && wakeAt <= Date.now() + delay) return
+  if (timer !== null) clearTimeout(timer)
+  wakeAt = Date.now() + delay
   timer = setTimeout(() => {
     timer = null
-    raf = requestAnimationFrame((now) => {
-      raf = 0
-      if (callbacks.size === 0 || document.hidden) return
-      for (const callback of callbacks) callback(now)
-      schedule()
-    })
-  }, FRAME_INTERVAL)
+    raf = requestAnimationFrame(frame)
+  }, delay)
 }
 
 function cancel(): void {
@@ -63,17 +127,54 @@ function cancel(): void {
   raf = 0
 }
 
-// Hidden: stop outright. Visible again: resume.
+// Hidden: stop outright, and run anything waiting for a frame now - nothing is
+// drawn, so there is no frame to share. Visible again: resume.
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) cancel()
-  else schedule()
+  if (document.hidden) {
+    cancel()
+    if (loneRaf !== 0) cancelAnimationFrame(loneRaf)
+    loneRaf = 0
+    runPending(performance.now())
+  } else {
+    schedule()
+  }
 })
 
-export function onFrame(callback: FrameCallback): () => void {
-  callbacks.add(callback)
+/**
+ * Runs `callback` once, in the next frame the loop draws - or, when no loop is
+ * running, in the next animation frame. For state that changes the screen at
+ * unscheduled moments (samples arriving over IPC): applied in a shared frame, it
+ * costs no frame of its own. Runs at once while the window is hidden.
+ */
+export function nextFrame(callback: FrameCallback): void {
+  if (document.hidden) {
+    callback(performance.now())
+    return
+  }
+  pending.add(callback)
+  if (callbacks.size > 0) {
+    schedule()
+  } else if (loneRaf === 0) {
+    loneRaf = requestAnimationFrame((now) => {
+      loneRaf = 0
+      runPending(now)
+    })
+  }
+}
+
+/**
+ * Calls `callback` from the loop once in every `period` ms (a multiple of
+ * FRAME_INTERVAL), on wall-clock boundaries. The loop wakes only as often as its
+ * most frequent subscriber needs: charts that change every 200ms do not wake it
+ * ten times a second on a layout with no globe.
+ */
+export function onFrame(callback: FrameCallback, period = FRAME_INTERVAL): () => void {
+  callbacks.set(callback, { period: Math.max(FRAME_INTERVAL, period), slot: Number.NaN })
   schedule()
   return () => {
-    callbacks.delete(callback)
-    if (callbacks.size === 0) cancel()
+    if (!callbacks.delete(callback)) return
+    // A wake set for the leaver's shorter period would be a frame for no one.
+    if (timer !== null) cancel()
+    schedule()
   }
 }

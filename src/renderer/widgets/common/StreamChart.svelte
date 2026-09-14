@@ -98,7 +98,11 @@ $effect(() => {
     lastTick = Number.NaN
   }
 
-  const observer = new ResizeObserver(resize)
+  // Resizing clears the canvas, so draw again at once rather than at the next tick.
+  const observer = new ResizeObserver(() => {
+    resize()
+    draw()
+  })
   observer.observe(el)
   resize()
 
@@ -123,7 +127,8 @@ $effect(() => {
     if (labels) drawLabels(frame, label(range.max), label(range.min))
   }
 
-  const stop = onFrame(draw)
+  // Nothing moves between ticks, so the loop need not wake for this chart in between.
+  const stop = onFrame(draw, CHART_TICK_MS)
 
   return () => {
     stop()

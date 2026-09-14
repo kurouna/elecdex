@@ -1,5 +1,6 @@
 <script lang="ts">
 import { formatClock, zoneAbbreviation } from '../../lib/format.ts'
+import { msUntilBoundary } from '../../lib/frame-loop.ts'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -7,7 +8,8 @@ import type { WidgetProps } from '../registry.ts'
  * does not jitter as numerals change width.
  *
  * Ticks on its own timer aligned to the second boundary, rather than an
- * unaligned setInterval that would drift visibly behind the system clock.
+ * unaligned setInterval that would drift visibly behind the system clock - the
+ * same boundary the frame loop wakes on, so each tick is drawn in its frame.
  */
 const { paneId }: WidgetProps = $props()
 
@@ -16,25 +18,21 @@ let now = $state(new Date())
 $effect(() => {
   let timer: ReturnType<typeof setTimeout>
   const schedule = (): void => {
-    timer = setTimeout(
-      () => {
-        now = new Date()
-        schedule()
-      },
-      1000 - (Date.now() % 1000) + 5,
-    )
+    timer = setTimeout(() => {
+      now = new Date()
+      schedule()
+    }, msUntilBoundary(1000))
   }
   schedule()
   return () => clearTimeout(timer)
 })
 
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-// The abbreviation changes only with daylight saving; once a minute is plenty.
+// The abbreviation changes only with daylight saving; once a minute is plenty. It
+// must read only the minute: reading `now` too would rebuild its Intl formatters
+// every second, the costliest script this widget runs.
 const minute = $derived(Math.floor(now.getTime() / 60_000))
-const zone = $derived.by(() => {
-  void minute
-  return zoneAbbreviation(timeZone, now)
-})
+const zone = $derived(zoneAbbreviation(timeZone, new Date(minute * 60_000)))
 
 const parts = $derived(formatClock(now))
 const digits = $derived([...parts.hh, ':', ...parts.mm, ':', ...parts.ss])

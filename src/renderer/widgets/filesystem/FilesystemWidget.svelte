@@ -263,7 +263,10 @@ const stagger = (index: number) => `${Math.min(index, 40) * 12}ms`
   color: var(--text);
   font: inherit;
   cursor: pointer;
-  animation: tile-in 200ms linear var(--delay, 0ms) both;
+  /* backwards, not both: hidden through its delay, then gone once played. A fill
+     that outlasts the animation keeps it "active", and Chromium then keeps every
+     tile on a GPU layer of its own for good, compositing them all each frame. */
+  animation: tile-in 200ms linear var(--delay, 0ms) backwards;
 }
 
 .tile:hover,
