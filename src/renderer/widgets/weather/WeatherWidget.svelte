@@ -423,8 +423,11 @@ select {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-evenly;
-  gap: 0.1rem;
+  /* Packed and centred, not spread: spread, a tall pane opened wide gaps between the date,
+   * the temperatures and the chance of rain, which then read as unrelated lines. */
+  justify-content: center;
+  gap: clamp(0rem, 2cqh, 0.3rem);
+  line-height: 1.15;
   /* Spacing and rule drawn inside the box, so a dropped day collapses to nothing. */
   box-shadow: inset 0 1px var(--panel-rule);
   font-size: var(--step--1);
