@@ -1,6 +1,7 @@
 import type {
   AppInfo,
   ElecdexApi,
+  MachineFacts,
   PtyCreateOptions,
   PtyHandlers,
   PtySessionSummary,
@@ -290,6 +291,7 @@ const api: ElecdexApi = {
   system: {
     platform: process.platform,
     info: () => ipcRenderer.invoke(CH.system.info) as Promise<AppInfo>,
+    machine: () => ipcRenderer.invoke(CH.system.machine) as Promise<MachineFacts>,
     openExternal: (url) => ipcRenderer.invoke(CH.system.openExternal, url) as Promise<void>,
     revealInFolder: (path) => ipcRenderer.invoke(CH.system.revealInFolder, path) as Promise<void>,
     toggleDevTools: () => ipcRenderer.send(CH.system.toggleDevTools),

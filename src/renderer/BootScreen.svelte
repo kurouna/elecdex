@@ -34,7 +34,7 @@ function onSkip(event: Event): void {
     {#if boot.phase === 'log'}
       <div class="log" bind:this={log} data-testid="boot-log">
         {#each boot.lines as line, index (index)}
-          <div class:strong={line.strong}>{line.text}</div>
+          <div class:strong={line.strong}>{#if line.kind === 'unit'}[<span class="status {line.status}">{line.status === 'failed' ? 'FAILED' : '  OK  '}</span>{'] '}{/if}{line.text}</div>
         {/each}
       </div>
     {:else}
@@ -76,6 +76,15 @@ function onSkip(event: Event): void {
   font-size: var(--step--1);
   line-height: 1.35;
   white-space: pre;
+}
+
+/* systemd's unit status: green OK, red FAILED. */
+.log .status.ok {
+  color: var(--ok);
+}
+
+.log .status.failed {
+  color: var(--danger);
 }
 
 .log .strong {

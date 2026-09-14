@@ -7,6 +7,8 @@
 export const CH = {
   system: {
     info: 'system:info',
+    /** Facts about the machine for the boot log (MachineFacts); slower than info. */
+    machine: 'system:machine',
     openExternal: 'system:open-external',
     revealInFolder: 'system:reveal-in-folder',
     toggleDevTools: 'system:toggle-devtools',

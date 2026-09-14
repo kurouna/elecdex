@@ -52,6 +52,31 @@ export interface HostFacts {
   totalMemory: number
 }
 
+/**
+ * What the boot log reports about the machine: all of it read from the OS and
+ * Electron at the time, none of it invented. No network addresses: the log is on
+ * screen for anyone looking.
+ */
+export interface MachineFacts {
+  /** The OS's own name and version, e.g. "Windows 11 Pro", "10.0.26200". */
+  kernel: { name: string; release: string; machine: string }
+  /** The first processor's reported speed. */
+  cpuSpeedMhz: number
+  freeMemory: number
+  /** The main process. */
+  pid: number
+  /** When the main process started, in ms since the epoch. */
+  startedAt: number
+  /** The command-line switches elecdex was started with, names only. */
+  switches: string[]
+  /** The volume holding the home folder: its root and sizes. */
+  volume: { root: string; total: number; free: number } | null
+  /** Network interfaces with an address beyond loopback, by name only. */
+  network: string[]
+  gpus: Array<{ vendorId: number; deviceId: number; name: string; driver: string }>
+  displays: Array<{ width: number; height: number; hz: number; scale: number; internal: boolean }>
+}
+
 export interface WindowState {
   fullscreen: boolean
 }
@@ -66,6 +91,7 @@ export interface SystemApi {
   /** The OS, known without a round trip: some controls exist only on some platforms. */
   readonly platform: NodeJS.Platform
   info(): Promise<AppInfo>
+  machine(): Promise<MachineFacts>
   /** Opens a http(s) URL in the user's default browser. Rejects anything else. */
   openExternal(url: string): Promise<void>
   /** Reveals a path in the OS file manager. */

@@ -5,6 +5,7 @@ import { CH } from '@shared/channels'
 import { titleBarColors } from '@shared/title-bar'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { APP_VERSION } from '../build-info.js'
+import { machineFacts } from '../machine-facts.js'
 import { openExternalIfSafe, setTitleBarColors } from '../window.js'
 
 /** `--no-intro` skips the boot sequence; the end-to-end tests launch with it. */
@@ -51,6 +52,8 @@ export function registerSystemIpc(): void {
       host: hostFacts(),
     }
   })
+
+  ipcMain.handle(CH.system.machine, () => machineFacts())
 
   ipcMain.handle(CH.system.openExternal, async (_event, rawUrl: unknown) => {
     const url = asString(rawUrl)

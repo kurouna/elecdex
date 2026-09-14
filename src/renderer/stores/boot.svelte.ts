@@ -1,7 +1,14 @@
-import type { AppInfo } from '@shared/api'
+import type { AppInfo, MachineFacts } from '@shared/api'
 import { collectPanes } from '@shared/layout-ops'
 import { METRIC_SOURCE_IDS } from '@shared/metrics'
-import { type BootLine, bootLog, lineDelay, revealDelays } from '../lib/boot-sequence.ts'
+import {
+  type BootLine,
+  bootLog,
+  fallbackMachine,
+  lineDelay,
+  printedText,
+  revealDelays,
+} from '../lib/boot-sequence.ts'
 import { listWidgets, resolveWidget } from '../widgets/registry.ts'
 import { appearance } from './appearance.svelte.ts'
 import { layout } from './layout.svelte.ts'
@@ -39,6 +46,23 @@ export const CRT_ADDED_MS = 520
 const PLAYED_KEY = 'elecdex.intro-played'
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+/** How long the boot log waits for main's machine facts before going on with less. */
+const MACHINE_FACTS_TIMEOUT_MS = 1500
+
+/** Main's facts about the machine, or what the page knows by itself if they do not come. */
+async function machineFacts(info: AppInfo): Promise<MachineFacts> {
+  const fallback = fallbackMachine(info, Math.round(performance.timeOrigin))
+  try {
+    const facts = await Promise.race([
+      window.elecdex.system.machine(),
+      wait(MACHINE_FACTS_TIMEOUT_MS).then(() => null),
+    ])
+    return facts ?? fallback
+  } catch {
+    return fallback
+  }
+}
 
 class BootStore {
   phase = $state<BootPhase>('pending')
@@ -94,17 +118,32 @@ class BootStore {
 
   private async playLog(info: AppInfo): Promise<void> {
     this.phase = 'log'
+    const machine = await machineFacts(info)
     const log = bootLog({
       info,
+      machine,
       now: new Date(),
-      panes: layout.panes.map((p) => p.widget),
+      panes: layout.panes.map((p) => ({
+        widget: p.widget,
+        title: resolveWidget(p.widget)?.title ?? p.widget,
+      })),
       widgets: listWidgets().map((w) => w.id),
       metricSources: METRIC_SOURCE_IDS.length,
+      csp:
+        document
+          .querySelector('meta[http-equiv="Content-Security-Policy"]')
+          ?.getAttribute('content') ?? '',
+      online: navigator.onLine,
+      alerts: appearance.settings.quakes.notify,
+      updateCheck: appearance.settings.updates.check,
     })
     for (const [index, line] of log.entries()) {
       if (this.cancelled) return
-      this.lines = [...this.lines, line]
-      sfx.play(line.text === 'Boot Complete' ? 'granted' : 'stdout')
+      // Kernel lines carry the real time since elecdex started, as dmesg does since boot.
+      // performance, not Date.now(): the stamps show microseconds, and Date has only milliseconds.
+      const seconds = (performance.timeOrigin + performance.now() - machine.startedAt) / 1000
+      this.lines = [...this.lines, { ...line, text: printedText(line, seconds) }]
+      sfx.play(line.final ? 'granted' : 'stdout')
       await wait(lineDelay(line, index, log.length))
     }
   }

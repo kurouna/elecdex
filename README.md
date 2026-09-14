@@ -44,7 +44,7 @@ for Windows, macOS and Linux.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
 - **Look and feel** — four themes (Tron, Amber, Phosphor, White) that switch live, CRT power-on
-  boot sequence (a pane added later powers on the same way), scanlines and glow, synthesised
+  boot sequence after a Linux-style boot log of this machine's real facts (a pane added later powers on the same way), scanlines and glow, synthesised
   interface sounds, a themed title bar and a status bar that slides in from the bottom edge. Short
   entrance effects - a wave of dates for each month, a forecast rising in, new headlines and
   earthquakes sliding in with a three-second highlight - follow the motion setting: with motion
