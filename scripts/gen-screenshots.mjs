@@ -85,8 +85,10 @@ async function shoot(theme, name, extra) {
   await app.close()
 }
 
-await shoot('tron', 'elecdex-tron')
-await shoot('white', 'elecdex-white')
+// One of every built-in theme: the README shows Tron large and the rest in a table.
+for (const theme of ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'business-light']) {
+  await shoot(theme, `elecdex-${theme}`)
+}
 await shoot('tron', 'elecdex-settings', async (page) => {
   await page.keyboard.press('Control+Shift+Comma')
   await page.locator('[data-testid=settings-section][data-section=keyboard]').click()

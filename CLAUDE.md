@@ -88,7 +88,9 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   and handle it in Workspace.svelte; never hard-code a key check elsewhere. A chord must include
   Ctrl/Alt or be a function key, so the shell keeps every other key.
 - **README screenshots** must not show personal data: regenerate them with
-  `npm run gen:screenshots`, which uses a demo home and curated launcher entries.
+  `npm run gen:screenshots`, which uses a demo home and curated launcher entries and shoots every
+  built-in theme plus the settings dialog. Regenerate after a visible change to a theme or the
+  default layout, and add a built-in theme to both the script and the README table.
 - **Releases**: bump `package.json` version, push tag `v<version>`; .github/workflows/release.yml
   builds every platform into a GitHub pre-release that a person promotes to a full release.
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested).
@@ -102,7 +104,11 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   it back when it unmounts (`forceContextLoss`, or `releaseWebglContexts` in lib/webgl.ts):
   Chromium keeps only about 16 and drops the oldest, which may be a visible pane's.
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
-  `appearance.revision`. Components read semantic tokens, not primitives.
+  `appearance.revision`. Components read semantic tokens, not primitives. Text is the accent
+  unless a theme sets `text` (Business does); never assume a dark ground - `mode: 'light'`
+  (Business (Light)) sets `data-mode="light"`, which darkens status colours in tokens.css and turns
+  on xterm's minimum contrast, so check a colour change in both Business themes. Every theme sets
+  every variable (`themeVariables`), so switching never leaves one stale.
 - **Attribution.** JMA forecasts and the quakes pane show「出典：気象庁ホームページ（URL）を加工して作成」,
   earthquake and tsunami alerts name their source (JMA, USGS, NOAA) and say they are not an
   early warning (tsunami cards: follow local authorities); the GeoIP

@@ -43,9 +43,11 @@ for Windows, macOS and Linux.
   effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
-- **Look and feel** — six themes (Tron, Amber, Phosphor, White, and Business (Dark) and Business (Light) - Windows 11 colours and system fonts for an ordinary working day) that switch live, CRT power-on
-  boot sequence after a Linux-style boot log of this machine's real facts (a pane added later powers on the same way), scanlines and glow, synthesised
-  interface sounds, a themed title bar and a status bar that slides in from the bottom edge. Short
+- **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
+  and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
+  icons for an ordinary working day. A CRT power-on boot sequence after a Linux-style boot log of
+  this machine's real facts (a pane added later powers on the same way), scanlines and glow,
+  synthesised interface sounds, a themed title bar and a status bar that slides in from the bottom edge. Short
   entrance effects - a wave of dates for each month, a forecast rising in, new headlines and
   earthquakes sliding in with a three-second highlight - follow the motion setting: with motion
   reduced (or the system's reduce-motion setting), nothing moves.
@@ -54,11 +56,27 @@ for Windows, macOS and Linux.
 
 <table>
   <tr>
+    <td><img src="./docs/screenshots/elecdex-business-light.jpg" alt="The Business (Light) theme: Windows 11 light colours, dark text on a white ground, icons in their own colours"></td>
+    <td><img src="./docs/screenshots/elecdex-business-dark.jpg" alt="The Business (Dark) theme: Windows 11 dark colours, white text, a blue accent"></td>
+  </tr>
+  <tr>
+    <td align="center">Business (Light)</td>
+    <td align="center">Business (Dark)</td>
+  </tr>
+  <tr>
+    <td><img src="./docs/screenshots/elecdex-amber.jpg" alt="The Amber theme, with scanlines and glow"></td>
+    <td><img src="./docs/screenshots/elecdex-phosphor.jpg" alt="The Phosphor theme, green with scanlines and glow"></td>
+  </tr>
+  <tr>
+    <td align="center">Amber</td>
+    <td align="center">Phosphor</td>
+  </tr>
+  <tr>
     <td><img src="./docs/screenshots/elecdex-white.jpg" alt="The White theme, with scanlines"></td>
     <td><img src="./docs/screenshots/elecdex-settings.jpg" alt="The settings dialog, keyboard section"></td>
   </tr>
   <tr>
-    <td align="center">White theme</td>
+    <td align="center">White</td>
     <td align="center">Settings → Keyboard</td>
   </tr>
 </table>
@@ -138,7 +156,7 @@ weather and calendar.
   with space left, filesystem and whether it is removable or on the network; above them the read
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to
-  filter, Enter to launch. Icons take the theme's accent and show their own colours on hover; on
+  filter, Enter to launch. Icons take the theme's accent and show their own colours on hover (always, in the Business themes); on
   Windows they are drawn by the Windows shell, as the Start Menu shows them. Add
   entries under `launcher.items` in `settings.json` (the pane's EDIT LIST button opens it):
 
@@ -240,8 +258,9 @@ themes folder*). It appears straight away; one with a built-in's `id` replaces t
 ```
 
 Colours are `#rrggbb`; `status` (hues for danger / warn / ok / info), `fonts` and `text`
-(`primary` and `muted` text colours; text is the accent without it) and `mode` (`"light"` for a
-light ground: darker status colours, and the terminal raises faint colours to 4.5:1) are optional.
+(`primary` and `muted` text colours; text is the accent without it), `mode` (`"light"` for a
+light ground: darker status colours, and the terminal raises faint colours to 4.5:1) and
+`effects.iconTint` (`false` shows launcher icons in their own colours) are optional.
 The layout lives in `layout.json` beside them; a hand-edited file is validated on load, and one
 that cannot be read is moved aside to `layout.json.bak` rather than discarded.
 
@@ -363,3 +382,7 @@ project. We express our utmost respect and gratitude to its creator and contribu
   - Copyright (c) 2017-2021 Gabriel "Squared" Saillard
   - Created by Gabriel "Squared" Saillard ([gaby.dev](https://gaby.dev))
   - Licensed under the GNU General Public License v3.0
+
+---
+
+<p align="center">Copyright © 2026 elecxzy project</p>

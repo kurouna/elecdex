@@ -17,7 +17,7 @@ import type { WidgetProps } from '../registry.ts'
  * for tiles that scroll into view, and drawn in the theme's accent colour: the
  * icon's own shape is the mask, and its grayscale shading is multiplied over the
  * accent, so each icon stays recognisable while the grid reads as one HUD. The
- * original colours come back on hover. All of it is static CSS - nothing is
+ * original colours come back on hover, and always in a theme with iconTint off. All of it is static CSS - nothing is
  * recomputed per frame, and a theme switch is a plain repaint.
  */
 const { paneId }: WidgetProps = $props()
@@ -387,6 +387,18 @@ const initial = (name: string) =>
 
 .tile:hover .glyph img,
 .tile:focus-visible .glyph img {
+  filter: none;
+  mix-blend-mode: normal;
+}
+
+/* A theme for everyday work shows icons in their own colours, as the Start Menu does. */
+:global(:root[data-icons="color"]) .glyph {
+  background: transparent;
+  mask: none;
+  animation: none;
+}
+
+:global(:root[data-icons="color"]) .glyph img {
   filter: none;
   mix-blend-mode: normal;
 }

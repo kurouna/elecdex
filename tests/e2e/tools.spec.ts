@@ -154,6 +154,35 @@ test('the launcher lists the platform applications, with icons in the theme colo
   }
 })
 
+for (const theme of ['business-dark', 'business-light']) {
+  test(`the launcher shows icons in their own colours in ${theme}`, async () => {
+    const { page, close } = await launch(undefined, {
+      layout: single('launcher'),
+      settings: { theme, sound: { enabled: false } },
+    })
+    try {
+      const icon = page.getByTestId('launcher-icon').first()
+      await expect(icon).toBeVisible({ timeout: 20_000 })
+      const style = () =>
+        icon.evaluate((el) => {
+          const s = getComputedStyle(el)
+          const img = getComputedStyle(el.querySelector('img') as Element)
+          return {
+            mask: s.maskImage || s.webkitMaskImage,
+            background: s.backgroundColor,
+            filter: img.filter,
+            blend: img.mixBlendMode,
+          }
+        })
+      await expect
+        .poll(style)
+        .toEqual({ mask: 'none', background: 'rgba(0, 0, 0, 0)', filter: 'none', blend: 'normal' })
+    } finally {
+      await close()
+    }
+  })
+}
+
 test('the calendar is in English, and holidays are ticked per country in its settings', async () => {
   // Japanese app language: the calendar's text stays English regardless.
   let launched = await launch(undefined, { layout: single('calendar'), args: ['--lang=ja'] })

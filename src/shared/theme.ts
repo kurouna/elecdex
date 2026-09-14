@@ -80,6 +80,11 @@ export const ThemeSchema = z.object({
       scanlines: z.boolean(),
       /** Phosphor glow on text, 0 (none) to 1. */
       glow: z.number().min(0).max(1),
+      /**
+       * Launcher icons drawn in the accent (true, the default, so the grid reads
+       * as one HUD) or in their own colours, as an ordinary app shows them.
+       */
+      iconTint: z.boolean(),
     })
     .partial()
     .optional(),
@@ -184,7 +189,7 @@ export const BUILTIN_THEMES: readonly Theme[] = [
         brightWhite: '#f2f2f2',
       },
     },
-    effects: { scanlines: false, glow: 0 },
+    effects: { scanlines: false, glow: 0, iconTint: false },
   },
   {
     id: 'business-light',
@@ -219,7 +224,7 @@ export const BUILTIN_THEMES: readonly Theme[] = [
         brightWhite: '#ffffff',
       },
     },
-    effects: { scanlines: false, glow: 0 },
+    effects: { scanlines: false, glow: 0, iconTint: false },
   },
 ]
 

@@ -68,6 +68,7 @@ class AppearanceStore {
     }
     root.dataset.theme = theme.id
     root.dataset.mode = theme.mode ?? 'dark'
+    root.dataset.icons = theme.effects?.iconTint === false ? 'color' : 'tinted'
     root.dataset.scanlines = theme.effects?.scanlines ? 'on' : 'off'
     if ((theme.effects?.glow ?? 0) > 0) root.dataset.glow = 'on'
     else delete root.dataset.glow

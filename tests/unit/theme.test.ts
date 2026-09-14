@@ -126,6 +126,8 @@ describe('themeVariables', () => {
       expect(vars['--glow']).toBe('0')
       expect(vars['--scanlines']).toBe('0')
       expect(vars['--font-ui']).toContain('Segoe UI')
+      // Launcher icons in their own colours, as an ordinary app shows them.
+      expect(business.effects?.iconTint).toBe(false)
     },
   )
 
