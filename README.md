@@ -90,6 +90,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+, | settings |
 | F11 | toggle fullscreen |
+| Ctrl+Shift+M | minimize the window (Windows, Linux) |
 | Ctrl+Shift+Q | quit |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
@@ -101,7 +102,8 @@ Every shortcut except the divider keys can be rebound in *Settings → Keyboard*
 press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key, so every other
 key still reaches the shell, and a chord already in use is flagged. The status bar (move the
 pointer to the bottom edge) has buttons for adding a pane, resetting the layout, settings, theme,
-sound and exit.
+sound and exit. In fullscreen on Windows and Linux, moving the pointer into the top-right corner
+brings down minimize, leave-fullscreen and quit buttons.
 
 To move a pane, drag it by its title (a pane without one, such as the clock, by the rule along its
 top) and drop it on another pane: it goes in beside that pane, on the side nearest the pointer. Hold

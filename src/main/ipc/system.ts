@@ -78,6 +78,14 @@ export function registerSystemIpc(): void {
     app.quit()
   })
 
+  // Fullscreen has no title bar, so no native minimise button (WindowCorner, and
+  // the window.minimize shortcut). Not on macOS, which refuses to minimise a
+  // fullscreen window.
+  ipcMain.on(CH.system.minimize, (event) => {
+    if (process.platform === 'darwin') return
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+
   ipcMain.handle(CH.system.windowState, (event) => ({
     fullscreen: BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false,
   }))

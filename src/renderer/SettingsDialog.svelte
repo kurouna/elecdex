@@ -1,5 +1,6 @@
 <script lang="ts">
 import {
+  availableOn,
   chordFromEvent,
   conflicts,
   effectiveBindings,
@@ -44,8 +45,11 @@ let refusal = $state<string | null>(null)
 let checking = $state(false)
 
 const settings = $derived(appearance.settings)
-const bindings = $derived(effectiveBindings(settings.keybindings))
-const clashes = $derived(conflicts(settings.keybindings))
+const platform = window.elecdex.system.platform
+const bindings = $derived(effectiveBindings(settings.keybindings, platform))
+const clashes = $derived(conflicts(settings.keybindings, platform))
+/** Only the actions this platform has: a shortcut that does nothing here would only confuse. */
+const actions = KEYBINDING_ACTIONS.filter((action) => availableOn(action.id, platform))
 
 $effect(() => {
   if (!ui.settingsOpen) return
@@ -292,7 +296,7 @@ function describeUpdate(status: UpdateStatus): string {
               </p>
               <table class="keys">
                 <tbody>
-                  {#each KEYBINDING_ACTIONS as action (action.id)}
+                  {#each actions as action (action.id)}
                     {@const chord = bindings[action.id]}
                     {@const clash = clashes[action.id]}
                     <tr data-testid="keybinding" data-action={action.id}>

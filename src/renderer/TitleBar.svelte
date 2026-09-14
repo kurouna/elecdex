@@ -1,6 +1,7 @@
 <script lang="ts">
 import { cssColorToHex as toHex } from '@shared/title-bar'
 import { appearance } from './stores/appearance.svelte.ts'
+import { windowState } from './stores/window-state.svelte.ts'
 
 /**
  * The window's title bar, drawn by the page so it can wear the theme.
@@ -18,22 +19,10 @@ interface Props {
 
 const { platform }: Props = $props()
 
-let fullscreen = $state(true)
 let probe = $state<HTMLSpanElement | null>(null)
+const fullscreen = $derived(windowState.fullscreen)
 
-$effect(() => {
-  let live = true
-  void window.elecdex.system.windowState().then((state) => {
-    if (live) fullscreen = state.fullscreen
-  })
-  const off = window.elecdex.system.onWindowState((state) => {
-    fullscreen = state.fullscreen
-  })
-  return () => {
-    live = false
-    off()
-  }
-})
+windowState.follow()
 
 // Repaint the native controls whenever the theme changes.
 $effect(() => {

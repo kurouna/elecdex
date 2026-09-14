@@ -239,6 +239,7 @@ const subscribeMarket = keyedSubscriptions<MarketUpdate>({
 
 const api: ElecdexApi = {
   system: {
+    platform: process.platform,
     info: () => ipcRenderer.invoke(CH.system.info) as Promise<AppInfo>,
     openExternal: (url) => ipcRenderer.invoke(CH.system.openExternal, url) as Promise<void>,
     revealInFolder: (path) => ipcRenderer.invoke(CH.system.revealInFolder, path) as Promise<void>,
@@ -246,6 +247,7 @@ const api: ElecdexApi = {
     setFullscreen: (on) => ipcRenderer.send(CH.system.setFullscreen, on),
     toggleFullscreen: () => ipcRenderer.send(CH.system.toggleFullscreen),
     quit: () => ipcRenderer.send(CH.system.quit),
+    minimize: () => ipcRenderer.send(CH.system.minimize),
     windowState: () => ipcRenderer.invoke(CH.system.windowState) as Promise<WindowState>,
     onWindowState: (handler) => listen<WindowState>(CH.system.windowStateChanged, handler),
     setTitleBarColors: (colors) => ipcRenderer.send(CH.system.setTitleBarColors, colors),

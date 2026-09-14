@@ -27,10 +27,26 @@ export const KEYBINDING_ACTIONS = [
   { id: 'tab.previous', label: 'Previous tab', chord: 'Ctrl+Shift+ArrowLeft' },
   { id: 'settings.open', label: 'Open settings', chord: 'Ctrl+Shift+Comma' },
   { id: 'window.fullscreen', label: 'Toggle fullscreen', chord: 'F11' },
+  {
+    id: 'window.minimize',
+    label: 'Minimize window',
+    chord: 'Ctrl+Shift+KeyM',
+    // macOS will not minimise a fullscreen window; its own controls do the rest.
+    platforms: ['win32', 'linux'],
+  },
   { id: 'app.quit', label: 'Quit', chord: 'Ctrl+Shift+KeyQ' },
 ] as const
 
 export type KeybindingAction = (typeof KEYBINDING_ACTIONS)[number]['id']
+
+/** Whether an action exists on this platform. Most do everywhere. */
+export function availableOn(action: KeybindingAction, platform: NodeJS.Platform): boolean {
+  const definition = KEYBINDING_ACTIONS.find((a) => a.id === action)
+  if (definition === undefined) return false
+  return (
+    !('platforms' in definition) || (definition.platforms as readonly string[]).includes(platform)
+  )
+}
 
 /** Per action: a chord, or null to leave the action without a shortcut. */
 export type KeybindingOverrides = Partial<Record<KeybindingAction, string | null>>
@@ -125,14 +141,19 @@ export function formatChord(chord: string): string {
     .join('+')
 }
 
-/** The chord in effect for each action: the user's override where valid, else the default. */
+/**
+ * The chord in effect for each action: the user's override where valid, else the
+ * default - and none for an action this platform does not have, so its chord is
+ * neither taken from the shell nor reported as a clash.
+ */
 export function effectiveBindings(
   overrides: KeybindingOverrides,
+  platform: NodeJS.Platform,
 ): Record<KeybindingAction, string | null> {
   const result = {} as Record<KeybindingAction, string | null>
   for (const action of KEYBINDING_ACTIONS) {
     const override = overrides[action.id]
-    if (override === null) result[action.id] = null
+    if (!availableOn(action.id, platform) || override === null) result[action.id] = null
     else if (typeof override === 'string')
       result[action.id] = normalizeChord(override) ?? action.chord
     else result[action.id] = action.chord
@@ -144,9 +165,12 @@ export function effectiveBindings(
  * Chord -> action. Where two actions share a chord the first in the list keeps
  * it; `conflicts` reports the pairs so the settings UI can say so.
  */
-export function keymap(overrides: KeybindingOverrides): Map<string, KeybindingAction> {
+export function keymap(
+  overrides: KeybindingOverrides,
+  platform: NodeJS.Platform,
+): Map<string, KeybindingAction> {
   const map = new Map<string, KeybindingAction>()
-  for (const [action, chord] of Object.entries(effectiveBindings(overrides))) {
+  for (const [action, chord] of Object.entries(effectiveBindings(overrides, platform))) {
     if (chord !== null && !map.has(chord)) map.set(chord, action as KeybindingAction)
   }
   return map
@@ -155,10 +179,11 @@ export function keymap(overrides: KeybindingOverrides): Map<string, KeybindingAc
 /** Actions whose chord another action already uses, with the action that has it. */
 export function conflicts(
   overrides: KeybindingOverrides,
+  platform: NodeJS.Platform,
 ): Partial<Record<KeybindingAction, KeybindingAction>> {
   const owner = new Map<string, KeybindingAction>()
   const result: Partial<Record<KeybindingAction, KeybindingAction>> = {}
-  for (const [action, chord] of Object.entries(effectiveBindings(overrides))) {
+  for (const [action, chord] of Object.entries(effectiveBindings(overrides, platform))) {
     if (chord === null) continue
     const first = owner.get(chord)
     if (first) result[action as KeybindingAction] = first

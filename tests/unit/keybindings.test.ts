@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  availableOn,
   chordFromEvent,
   conflicts,
   effectiveBindings,
@@ -49,23 +50,43 @@ describe('keybindings', () => {
   })
 
   it('applies overrides, falls back from invalid ones, and can unbind', () => {
-    const bindings = effectiveBindings({
-      'pane.add': 'Alt+KeyP',
-      'app.quit': null,
-      'pane.close': 'KeyW',
-    })
+    const bindings = effectiveBindings(
+      {
+        'pane.add': 'Alt+KeyP',
+        'app.quit': null,
+        'pane.close': 'KeyW',
+      },
+      'win32',
+    )
     expect(bindings['pane.add']).toBe('Alt+KeyP')
     expect(bindings['app.quit']).toBeNull()
     expect(bindings['pane.close']).toBe('Ctrl+Shift+KeyW')
-    const map = keymap({ 'pane.add': 'Alt+KeyP' })
+    const map = keymap({ 'pane.add': 'Alt+KeyP' }, 'win32')
     expect(map.get('Alt+KeyP')).toBe('pane.add')
     expect(map.has('Ctrl+Shift+KeyA')).toBe(false)
   })
 
   it('reports conflicts, the first action keeping the chord', () => {
     const overrides = { 'app.quit': 'Ctrl+Shift+KeyA' }
-    expect(conflicts(overrides)).toEqual({ 'app.quit': 'pane.add' })
-    expect(keymap(overrides).get('Ctrl+Shift+KeyA')).toBe('pane.add')
+    expect(conflicts(overrides, 'win32')).toEqual({ 'app.quit': 'pane.add' })
+    expect(keymap(overrides, 'win32').get('Ctrl+Shift+KeyA')).toBe('pane.add')
+  })
+
+  it('has minimise on Windows and Linux only, and elsewhere its chord stays free', () => {
+    expect(availableOn('window.minimize', 'win32')).toBe(true)
+    expect(availableOn('window.minimize', 'linux')).toBe(true)
+    expect(availableOn('window.minimize', 'darwin')).toBe(false)
+    expect(availableOn('pane.add', 'darwin')).toBe(true)
+
+    expect(keymap({}, 'win32').get('Ctrl+Shift+KeyM')).toBe('window.minimize')
+    expect(keymap({}, 'darwin').has('Ctrl+Shift+KeyM')).toBe(false)
+    expect(
+      effectiveBindings({ 'window.minimize': 'Alt+KeyM' }, 'darwin')['window.minimize'],
+    ).toBeNull()
+    // On macOS another action may take the chord without being told it clashes.
+    const overrides = { 'pane.add': 'Ctrl+Shift+KeyM' }
+    expect(conflicts(overrides, 'darwin')).toEqual({})
+    expect(conflicts(overrides, 'linux')).toEqual({ 'window.minimize': 'pane.add' })
   })
 
   it('drops an override equal to the default', () => {

@@ -74,7 +74,7 @@ function claim(event: KeyboardEvent): void {
   event.stopPropagation()
 }
 
-const bindings = $derived(keymap(appearance.settings.keybindings))
+const bindings = $derived(keymap(appearance.settings.keybindings, window.elecdex.system.platform))
 
 /** An action returns false when it does not apply, leaving the key to the focused pane. */
 // biome-ignore lint/suspicious/noConfusingVoidType: most actions return nothing
@@ -97,6 +97,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'tab.previous': () => layout.cycleTab(-1),
   'settings.open': () => ui.openSettings(),
   'window.fullscreen': () => window.elecdex.system.toggleFullscreen(),
+  'window.minimize': () => window.elecdex.system.minimize(),
   // Fullscreen has no window frame and no close button; this is the way out.
   'app.quit': () => window.elecdex.system.quit(),
 }

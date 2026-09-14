@@ -61,6 +61,8 @@ export interface TitleBarColors {
 }
 
 export interface SystemApi {
+  /** The OS, known without a round trip: some controls exist only on some platforms. */
+  readonly platform: NodeJS.Platform
   info(): Promise<AppInfo>
   /** Opens a http(s) URL in the user's default browser. Rejects anything else. */
   openExternal(url: string): Promise<void>
@@ -71,6 +73,11 @@ export interface SystemApi {
   toggleFullscreen(): void
   /** Quits the app. Every shell is ended, as on any other exit. */
   quit(): void
+  /**
+   * Minimises the window, fullscreen or not. Windows and Linux only: macOS will
+   * not minimise a fullscreen window, and there the native controls suffice.
+   */
+  minimize(): void
   windowState(): Promise<WindowState>
   /** Called when the window enters or leaves fullscreen. Returns an unsubscribe. */
   onWindowState(handler: (state: WindowState) => void): () => void

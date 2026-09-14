@@ -6,6 +6,7 @@ import ConfirmButton from './ConfirmButton.svelte'
 import LocationPicker from './LocationPicker.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
+import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
 import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
@@ -14,6 +15,7 @@ import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import TitleBar from './TitleBar.svelte'
 import UpdateNotice from './UpdateNotice.svelte'
+import WindowCorner from './WindowCorner.svelte'
 
 let info = $state<AppInfo | null>(null)
 
@@ -43,56 +45,23 @@ const HINTS: Array<[KeybindingAction, string]> = [
   ['settings.open', 'settings'],
   ['app.quit', 'quit'],
   ['window.fullscreen', 'fullscreen'],
+  ['window.minimize', 'minimize'],
 ]
 const hint = $derived.by(() => {
-  const bindings = effectiveBindings(appearance.settings.keybindings)
+  const bindings = effectiveBindings(
+    appearance.settings.keybindings,
+    window.elecdex.system.platform,
+  )
   return HINTS.flatMap(([action, label]) => {
     const chord = bindings[action]
     return chord === null ? [] : [`${formatChord(chord).toLowerCase()} ${label}`]
   }).join(' · ')
 })
 
-/**
- * The status bar stays out of the way: it slides in when the pointer reaches the
- * bottom edge, and away again shortly after the pointer moves off it or out of
- * the window - unless something in it has keyboard focus (an open theme list,
- * an armed confirm).
- *
- * Judged from the pointer position on every move rather than from enter/leave
- * events on the bar: the bar slides in under a pointer that is standing still,
- * which never enters it, so it would never be told the pointer left either.
- */
-const HIDE_DELAY_MS = 500
-/** How close to the bottom edge, in CSS pixels, calls the bar up. */
+/** How close to the bottom edge, in CSS pixels, calls the status bar up. */
 const EDGE_PX = 8
-let statusShown = $state(false)
-let statusBar = $state<HTMLElement | null>(null)
-let hideTimer: ReturnType<typeof setTimeout> | undefined
-
-function showStatus(): void {
-  clearTimeout(hideTimer)
-  hideTimer = undefined
-  if (!statusShown) statusShown = true
-}
-
-function hideStatusSoon(): void {
-  if (hideTimer !== undefined) return
-  hideTimer = setTimeout(() => {
-    hideTimer = undefined
-    if (statusBar?.matches(':focus-within')) return
-    statusShown = false
-  }, HIDE_DELAY_MS)
-}
-
-function onPointerMove(event: PointerEvent): void {
-  const bar = statusBar
-  if (event.clientY >= window.innerHeight - EDGE_PX) {
-    showStatus()
-  } else if (statusShown && bar !== null) {
-    if (event.clientY >= bar.getBoundingClientRect().top) showStatus()
-    else hideStatusSoon()
-  }
-}
+/** The status bar slides in from the bottom edge and away again (lib/edge-reveal). */
+const status = new EdgeReveal((_x, y) => y >= window.innerHeight - EDGE_PX)
 
 function toggleSound(): void {
   const enabled = !appearance.settings.sound.enabled
@@ -102,8 +71,8 @@ function toggleSound(): void {
 }
 </script>
 
-<svelte:window onpointermove={onPointerMove} />
-<svelte:body onmouseleave={hideStatusSoon} />
+<svelte:window onpointermove={(event) => status.track(event.clientX, event.clientY)} />
+<svelte:body onmouseleave={() => status.hideSoon()} />
 
 <!--
   The workspace mounts immediately, even under the boot screen, so shells start
@@ -116,14 +85,14 @@ function toggleSound(): void {
   <Workspace />
 
   <!-- A short tick at the bottom edge while the status bar is away, so it can be found. -->
-  <span class="status-handle" class:away={!statusShown} aria-hidden="true"></span>
+  <span class="status-handle" class:away={!status.shown} aria-hidden="true"></span>
   <footer
-    bind:this={statusBar}
-    class:shown={statusShown}
-    onfocusin={showStatus}
-    onfocusout={hideStatusSoon}
+    bind:this={status.element}
+    class:shown={status.shown}
+    onfocusin={() => status.show()}
+    onfocusout={() => status.hideSoon()}
     data-testid="status-bar"
-    data-shown={statusShown}
+    data-shown={status.shown}
   >
     <button
       type="button"
@@ -197,6 +166,7 @@ function toggleSound(): void {
 <LocationPicker />
 <SettingsDialog />
 <UpdateNotice />
+<WindowCorner />
 
 <style>
 main[data-boot="concealed"] {
