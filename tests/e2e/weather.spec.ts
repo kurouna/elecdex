@@ -219,6 +219,33 @@ test('JMA: one request, and a restart reuses the saved forecast', async () => {
   }
 })
 
+test('in a short pane the week gives way, and the credit stays whole', async () => {
+  // Short enough that the forecast cannot all fit: the credit must not be squeezed.
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'column',
+      sizes: [0.2, 0.8],
+      children: [
+        { kind: 'pane', id: 'w', widget: 'weather', state: TOKYO },
+        { kind: 'pane', id: 'c', widget: 'clock' },
+      ],
+    },
+  }
+  const { page, close } = await launch(undefined, { layout, ...services() })
+  try {
+    const credit = pane(page).getByTestId('weather-attribution')
+    await expect(pane(page).getByTestId('weather-day').first()).toBeVisible({ timeout: 20_000 })
+    const size = await credit.evaluate((el) => ({ box: el.clientHeight, content: el.scrollHeight }))
+    expect(size.box).toBeGreaterThan(0)
+    expect(size.box).toBeGreaterThanOrEqual(size.content)
+  } finally {
+    await close()
+  }
+})
+
 test('an old pane that saved a JMA office still shows it', async () => {
   const { page, close } = await launch(undefined, {
     layout: weatherOnly({ office: '270000' }),

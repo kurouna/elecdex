@@ -402,7 +402,7 @@ select {
 .week {
   container-type: size;
   flex: 1;
-  min-height: 5.2rem;
+  min-height: 4.6rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(3.6rem, 1fr));
   /* One row: days that do not fit the width are dropped, not wrapped half into view. */
@@ -433,12 +433,9 @@ select {
   font-size: var(--step--1);
 }
 
+/* Clear of the rule above; nothing below, where the credit follows. */
 .week li > :first-child {
   margin-top: var(--space-1);
-}
-
-.week li > :last-child {
-  margin-bottom: var(--space-1);
 }
 
 .date small {
@@ -464,6 +461,8 @@ select {
 }
 
 .attribution {
+  /* The week gives way first: the credit must stay readable at any pane height. */
+  flex-shrink: 0;
   margin: 0;
   padding: 0 0 0.1rem;
   border: 0;
