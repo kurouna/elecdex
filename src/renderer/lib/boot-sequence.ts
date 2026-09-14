@@ -1,4 +1,5 @@
 import type { AppInfo, MachineFacts } from '@shared/api'
+import { collectPanes } from '@shared/layout-ops'
 import type { LayoutNode } from '@shared/schemas/layout'
 import { formatBytes } from './format.js'
 
@@ -371,49 +372,49 @@ export function lineDelay(line: BootLine, index: number, total: number): number 
 export interface RevealTiming {
   /** When shell panes power on. */
   shellAt: number
-  /** When the first row of module panes powers on. */
+  /** When the first module pane powers on. */
   modulesAt: number
-  /** Gap between successive rows of modules. */
+  /** The average gap between one module and the next. */
   step: number
+  /** The longest the modules take to all come on, whatever their number. */
+  span: number
 }
 
-export const DEFAULT_REVEAL: RevealTiming = { shellAt: 0, modulesAt: 450, step: 200 }
+export const DEFAULT_REVEAL: RevealTiming = { shellAt: 0, modulesAt: 450, step: 200, span: 1400 }
+
+/** How far a module may land from its even place, as a share of the gap: irregular, never bunched. */
+const REVEAL_JITTER = 0.4
 
 /**
  * When each pane powers on, in milliseconds from the start of the reveal.
  *
- * eDEX-UI opened the main shell first, then faded the modules in one row at a
- * time with the left and right columns in step. The general rule that reproduces
- * that for any layout: shells first; then modules by their position from the
- * top, where only column splits count - panes side by side share a row and come
- * on together.
+ * The shells first, as eDEX-UI opened its main shell; then the modules one by
+ * one in a random order and at uneven intervals, as if each came on the moment
+ * it was ready rather than in rows down the screen. The modules spread over
+ * `step` per pane, up to `span` in all, so a big layout does not keep the user
+ * waiting. Background tabs get a delay too; they simply are not seen.
  */
 export function revealDelays(
   root: LayoutNode,
   isShell: (widget: string) => boolean,
   timing: RevealTiming = DEFAULT_REVEAL,
+  random: () => number = Math.random,
 ): Map<string, number> {
   const delays = new Map<string, number>()
-
-  const visit = (node: LayoutNode, row: number): void => {
-    switch (node.kind) {
-      case 'pane':
-        delays.set(
-          node.id,
-          isShell(node.widget) ? timing.shellAt : timing.modulesAt + row * timing.step,
-        )
-        return
-      case 'tabs':
-        for (const child of node.children) visit(child, row)
-        return
-      case 'split':
-        node.children.forEach((child, index) => {
-          visit(child, node.direction === 'column' ? row + index : row)
-        })
-        return
-    }
+  const modules: string[] = []
+  for (const node of collectPanes(root)) {
+    if (isShell(node.widget)) delays.set(node.id, timing.shellAt)
+    else modules.push(node.id)
   }
-
-  visit(root, 0)
+  // Fisher-Yates: every order equally likely.
+  for (let i = modules.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1))
+    ;[modules[i], modules[j]] = [modules[j] as string, modules[i] as string]
+  }
+  const gap = modules.length > 1 ? Math.min(timing.step, timing.span / (modules.length - 1)) : 0
+  modules.forEach((id, i) => {
+    const jitter = i === 0 ? 0 : (random() * 2 - 1) * REVEAL_JITTER * gap
+    delays.set(id, Math.round(timing.modulesAt + i * gap + jitter))
+  })
   return delays
 }

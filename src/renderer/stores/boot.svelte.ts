@@ -183,17 +183,17 @@ class BootStore {
     if (!this.cancelled) this.finish()
   }
 
-  /** One sound per moment something powers on: the shell opening, then each row. */
+  /** One sound per moment something powers on: the shell opening, then each module as it comes on. */
   private playRevealSounds(): void {
     const shells = new Set<number>()
-    const rows = new Set<number>()
+    const modules = new Set<number>()
     for (const node of collectPanes(layout.tree.root)) {
       const delay = this.delays.get(node.id) ?? 0
       if (resolveWidget(node.widget)?.chrome === 'shell') shells.add(delay)
-      else rows.add(delay)
+      else modules.add(delay)
     }
     for (const delay of shells) setTimeout(() => !this.cancelled && sfx.play('expand'), delay)
-    for (const delay of rows) setTimeout(() => !this.cancelled && sfx.play('panel'), delay)
+    for (const delay of modules) setTimeout(() => !this.cancelled && sfx.play('panel'), delay)
   }
 
   private finish(): void {

@@ -1,6 +1,7 @@
 import type { AppInfo, MachineFacts } from '@shared/api'
 import { defaultLayoutNode } from '@shared/default-layout'
 import { collectPanes, pane, split, tabs } from '@shared/layout-ops'
+import type { LayoutNode } from '@shared/schemas/layout'
 import { describe, expect, it } from 'vitest'
 import {
   type BootFacts,
@@ -203,22 +204,60 @@ describe('lineDelay', () => {
 
 describe('revealDelays', () => {
   const isShell = (widget: string) => widget === 'terminal'
+  /** A seeded generator (mulberry32), so each test sees the same "random" order every run. */
+  const seeded = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  const moduleOrder = (root: LayoutNode, seed: number) => {
+    const delays = revealDelays(root, isShell, DEFAULT_REVEAL, seeded(seed))
+    return collectPanes(root)
+      .filter((p) => !isShell(p.widget))
+      .sort((a, b) => (delays.get(a.id) ?? 0) - (delays.get(b.id) ?? 0))
+      .map((p) => p.widget)
+  }
 
-  it('reproduces eDEX-UI: the shell first, then both columns row by row', () => {
+  it('opens the shell first, then the modules one at a time at uneven gaps', () => {
     const root = defaultLayoutNode()
-    const delays = revealDelays(root, isShell)
-    const byWidget = new Map(collectPanes(root).map((p) => [p.widget, delays.get(p.id)]))
+    const delays = revealDelays(root, isShell, DEFAULT_REVEAL, seeded(1))
     const { shellAt, modulesAt, step } = DEFAULT_REVEAL
+    const panes = collectPanes(root)
+    expect(delays.get(panes.find((p) => p.widget === 'terminal')?.id ?? '')).toBe(shellAt)
+    const modules = panes
+      .filter((p) => !isShell(p.widget))
+      .map((p) => delays.get(p.id) as number)
+      .sort((a, b) => a - b)
+    expect(modules[0]).toBe(modulesAt)
+    const gaps = modules.slice(1).map((d, i) => d - (modules[i] as number))
+    // Never two at once, never a long wait, and not a metronome.
+    expect(Math.min(...gaps)).toBeGreaterThan(0)
+    expect(Math.max(...gaps)).toBeLessThanOrEqual(step * 1.8)
+    expect(new Set(gaps).size).toBeGreaterThan(1)
+  })
 
-    expect(byWidget.get('terminal')).toBe(shellAt)
-    // Row 0 of each column together, then row 1 together, and so on.
-    expect(byWidget.get('clock')).toBe(modulesAt)
-    expect(byWidget.get('globe')).toBe(modulesAt)
-    expect(byWidget.get('sysinfo')).toBe(modulesAt + step)
-    expect(byWidget.get('markets')).toBe(modulesAt + step)
-    expect(byWidget.get('disk')).toBe(modulesAt + 4 * step)
-    expect(byWidget.get('toplist')).toBe(modulesAt + 5 * step)
-    expect(byWidget.get('throughput')).toBe(modulesAt + 7 * step)
+  it('comes on in a different order each time, not down the screen', () => {
+    const root = defaultLayoutNode()
+    const orders = new Set([1, 2, 3, 4, 5].map((seed) => moduleOrder(root, seed).join(' ')))
+    expect(orders.size).toBeGreaterThan(1)
+    const topDown = collectPanes(root)
+      .filter((p) => !isShell(p.widget))
+      .map((p) => p.widget)
+      .join(' ')
+    expect([...orders].every((order) => order === topDown)).toBe(false)
+    // Every module still comes on exactly once.
+    for (const order of orders) expect(order.split(' ').sort()).toEqual(topDown.split(' ').sort())
+  })
+
+  it('keeps a big layout within the span', () => {
+    const root = split(
+      'column',
+      Array.from({ length: 40 }, () => pane('clock')),
+    )
+    const delays = [...revealDelays(root, isShell, DEFAULT_REVEAL, seeded(7)).values()]
+    const { modulesAt, span } = DEFAULT_REVEAL
+    expect(Math.max(...delays)).toBeLessThanOrEqual(modulesAt + span * 1.05)
   })
 
   it('gives every pane a delay, including background tabs', () => {
@@ -226,14 +265,10 @@ describe('revealDelays', () => {
       tabs([pane('terminal'), pane('cpu')]),
       split('row', [pane('clock'), pane('memory')]),
     ])
-    const delays = revealDelays(root, isShell)
+    const delays = revealDelays(root, isShell, DEFAULT_REVEAL, seeded(3))
     expect(delays.size).toBe(4)
-    const timing = DEFAULT_REVEAL
-    const [terminal, cpu, clock, memory] = collectPanes(root).map((p) => delays.get(p.id))
-    expect(terminal).toBe(timing.shellAt)
-    expect(cpu).toBe(timing.modulesAt)
-    // Side by side in a row: same moment.
-    expect(clock).toBe(timing.modulesAt + timing.step)
-    expect(memory).toBe(clock)
+    const [terminal, ...modules] = collectPanes(root).map((p) => delays.get(p.id) as number)
+    expect(terminal).toBe(DEFAULT_REVEAL.shellAt)
+    expect(modules.every((d) => d >= DEFAULT_REVEAL.modulesAt)).toBe(true)
   })
 })
