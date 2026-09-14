@@ -68,6 +68,39 @@ export function levelFromDb(db: number): number {
 
 export const isSilent = (bins: readonly number[]): boolean => bins.every((v) => v < SILENCE_LEVEL)
 
+/**
+ * What the capture window can play instead of the system's sound: `tone`, a steady
+ * 1 kHz tone for the tests, or `demo`, music-like movement for screenshots. Neither
+ * captures anything.
+ */
+export type AudioStub = 'tone' | 'demo'
+
+/** `ELECDEX_AUDIO_STUB`: `1` for the tests' tone, `demo` for screenshots, else none. */
+export const audioStubFrom = (value: string | undefined): AudioStub | null =>
+  value === '1' ? 'tone' : value === 'demo' ? 'demo' : null
+
+/** The demo's tempo: a beat every half second. */
+const DEMO_BEAT_MS = 500
+
+/**
+ * The demo's bins at `ms`: a spectrum falling toward the highs as music's does, a
+ * kick on every beat in the lows, a snare between beats in the mids, and each bin
+ * drifting at its own pace so no two frames look alike. Pure, so it is tested.
+ */
+export function demoBins(ms: number): number[] {
+  const sinceBeat = ms % DEMO_BEAT_MS
+  const kick = Math.exp(-sinceBeat / 110)
+  const snare = Math.exp(-(((ms + DEMO_BEAT_MS / 2) % DEMO_BEAT_MS) / 90))
+  return Array.from({ length: SPECTRUM_BINS }, (_, i) => {
+    const x = i / (SPECTRUM_BINS - 1)
+    const base = 0.72 - 0.4 * x
+    const drift = 0.14 * Math.sin(ms / (170 + i * 23) + i * 1.7) + 0.06 * Math.sin(ms / 61 + i)
+    const low = x < 0.22 ? 0.28 * kick : 0
+    const mid = x > 0.35 && x < 0.8 ? 0.16 * snare : 0
+    return Math.max(0, Math.min(1, base + drift + low + mid))
+  })
+}
+
 /** The bands a spectrum pane can show, by their ISO centre frequencies. */
 export const BAND_SETS = {
   7: [63, 160, 400, 1000, 2500, 6300, 16000],

@@ -4,7 +4,8 @@
  * (markets, weather, globe) comes from the real services.
  *
  * Windows only, as written: the demo home is under C:/Users/Public. Run
- * `npm run build` first, then `npm run gen:screenshots`.
+ * `npm run build` first, then `npm run gen:screenshots`; name shots to take only those
+ * (`npm run gen:screenshots -- elecdex-audio`).
  */
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -15,6 +16,8 @@ const OUT = path.resolve('docs/screenshots')
 const MAIN = path.resolve('out/main/index.js')
 const HOME = 'C:\\Users\\Public\\Documents\\elecdex-demo'
 const PROJECT = `${HOME}\\projects\\elecdex`
+/** The shots named on the command line, or every shot. */
+const only = process.argv.slice(2)
 const W = 1600
 const H = 900
 
@@ -39,8 +42,61 @@ const launcherItems = [
   { name: 'elecdex on GitHub', target: 'https://github.com/kurouna/elecdex' },
 ]
 
-async function shoot(theme, name, extra) {
+/*
+ * The default layout (src/shared/default-layout.ts) with a spectrum and a mixer, 2:1,
+ * under the launcher and file browser. Written out here because a script cannot
+ * import the TypeScript source.
+ */
+let nextId = 0
+const pane = (widget) => ({ kind: 'pane', id: `p${nextId++}`, widget })
+const split = (direction, children, sizes, label) => ({
+  kind: 'split',
+  id: `s${nextId++}`,
+  direction,
+  children,
+  sizes,
+  ...(label ? { label } : {}),
+})
+const audioLayout = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      split(
+        'column',
+        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
+        [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165],
+        { left: 'panel', right: 'system' },
+      ),
+      split(
+        'column',
+        [
+          {
+            kind: 'tabs',
+            id: 'shells',
+            children: [pane('terminal'), pane('terminal'), pane('terminal')],
+            activeIndex: 0,
+          },
+          split('row', [pane('launcher'), pane('filesystem')], [0.5, 0.5]),
+          split('row', [pane('spectrum'), pane('mixer')], [0.66, 0.34]),
+        ],
+        [0.52, 0.22, 0.26],
+      ),
+      split(
+        'column',
+        ['globe', 'markets', 'weather', 'calendar'].map(pane),
+        [0.3, 0.25, 0.22, 0.23],
+        { left: 'panel', right: 'world' },
+      ),
+    ],
+    [0.18, 0.64, 0.18],
+  ),
+}
+
+async function shoot(theme, name, { extra, layout, env } = {}) {
+  if (only.length > 0 && !only.includes(name)) return
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
+  if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
   writeFileSync(
     path.join(dir, 'settings.json'),
     JSON.stringify({
@@ -59,6 +115,7 @@ async function shoot(theme, name, extra) {
       USERPROFILE: HOME,
       HOMEPATH: '\\Users\\Public\\Documents\\elecdex-demo',
       HOME,
+      ...env,
     },
   })
   const page = await app.firstWindow()
@@ -92,9 +149,13 @@ async function shoot(theme, name, extra) {
 for (const theme of ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'business-light']) {
   await shoot(theme, `elecdex-${theme}`)
 }
-await shoot('tron', 'elecdex-settings', async (page) => {
-  await page.keyboard.press('Control+Shift+Comma')
-  await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
-  await page.waitForTimeout(600)
+await shoot('tron', 'elecdex-settings', {
+  extra: async (page) => {
+    await page.keyboard.press('Control+Shift+Comma')
+    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    await page.waitForTimeout(600)
+  },
 })
+// The audio panes, playing the demo stand-in: never the machine's sound, apps or volume.
+await shoot('tron', 'elecdex-audio', { layout: audioLayout, env: { ELECDEX_AUDIO_STUB: 'demo' } })
 console.log(`wrote ${OUT}`)

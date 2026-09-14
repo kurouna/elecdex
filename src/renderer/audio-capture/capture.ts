@@ -1,6 +1,7 @@
 import {
   binEdge,
   binsFromFft,
+  demoBins,
   isSilent,
   SPECTRUM_BINS,
   SPECTRUM_FPS,
@@ -17,7 +18,8 @@ import {
  * only into an analyser, and only its levels leave this page.
  *
  * `?stub=tone` plays a steady 1 kHz tone into the spectrum instead, so tests never
- * capture the real system and need no permission.
+ * capture the real system and need no permission; `?stub=demo` moves like music,
+ * for the README screenshots.
  */
 
 interface CaptureBridge {
@@ -95,8 +97,16 @@ function tone(): void {
   pump(() => bins)
 }
 
-if (new URLSearchParams(location.search).get('stub') === 'tone') {
+function demo(): void {
+  bridge.status('running', null)
+  pump(() => demoBins(performance.now()))
+}
+
+const stub = new URLSearchParams(location.search).get('stub')
+if (stub === 'tone') {
   tone()
+} else if (stub === 'demo') {
+  demo()
 } else {
   capture().catch((error: unknown) => {
     bridge.status(

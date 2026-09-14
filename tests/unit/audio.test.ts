@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs'
 import {
   applyMixerCommand,
+  audioStubFrom,
   BALLISTICS,
   BAND_SETS,
   bandLabel,
   bandsFromBins,
   binEdge,
   binsFromFft,
+  demoBins,
   emptyMeters,
   isSilent,
   levelFromDb,
@@ -69,6 +71,28 @@ describe('spectrum bins', () => {
   it('tells silence from sound', () => {
     expect(isSilent(new Array(SPECTRUM_BINS).fill(0.01))).toBe(true)
     expect(isSilent(toneBins(1000, 0.05))).toBe(false)
+  })
+})
+
+describe('stand-in sound', () => {
+  it('is chosen only by the values the tests and screenshots set', () => {
+    expect(audioStubFrom('1')).toBe('tone')
+    expect(audioStubFrom('demo')).toBe('demo')
+    for (const value of [undefined, '', '0', 'true', 'DEMO'])
+      expect(audioStubFrom(value)).toBeNull()
+  })
+
+  it('moves like music: valid levels, never silent, lows pulsing on the beat', () => {
+    const lows = (bins: number[]) => bandsFromBins(bins, 7)[0] ?? 0
+    for (let ms = 0; ms < 4000; ms += 50) {
+      const bins = demoBins(ms)
+      expect(bins).toHaveLength(SPECTRUM_BINS)
+      expect(bins.every((v) => v >= 0 && v <= 1)).toBe(true)
+      expect(isSilent(bins)).toBe(false)
+    }
+    // On the beat the lows are louder than just before the next one.
+    expect(lows(demoBins(1000))).toBeGreaterThan(lows(demoBins(1450)))
+    expect(demoBins(1000)).not.toEqual(demoBins(1050))
   })
 })
 

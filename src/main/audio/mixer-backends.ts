@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import type { MixerChannel, MixerCommand, MixerPeaks, MixerState } from '@shared/audio'
+import type { AudioStub, MixerChannel, MixerCommand, MixerPeaks, MixerState } from '@shared/audio'
 import { parseMacVolume, parsePactlSinkInputs, parseWpctlVolume } from './mixer-parse.js'
 import type { MixerBackend } from './mixer-service.js'
 import { windowsMixerBackend } from './mixer-windows.js'
@@ -23,8 +23,8 @@ const run = promisify(execFile)
 const POLL_MS = 2000
 const RUN_TIMEOUT_MS = 4000
 
-export function mixerBackend(stub: boolean): MixerBackend {
-  if (stub) return stubMixerBackend()
+export function mixerBackend(stub: AudioStub | null): MixerBackend {
+  if (stub) return stubMixerBackend(stub === 'demo' ? 'Speakers' : 'Test Speakers')
   if (process.platform === 'win32') return windowsMixerBackend()
   if (process.platform === 'darwin') return pollingBackend(readMac, applyMac)
   return pollingBackend(readLinux, applyLinux)
@@ -149,11 +149,12 @@ async function applyLinux(command: MixerCommand): Promise<void> {
 /**
  * A mixer with a master and two apps, for the end-to-end tests: they must never
  * change the volume of the machine running them. Peaks move so meters show.
+ * Screenshots use it too, under an ordinary device name.
  */
-export function stubMixerBackend(): MixerBackend {
+export function stubMixerBackend(device = 'Test Speakers'): MixerBackend {
   let state: MixerState = {
     support: 'full',
-    device: 'Test Speakers',
+    device,
     master: { id: 'master', name: 'Master', volume: 0.5, muted: false },
     apps: [
       { id: 'app:music', name: 'Music Player', volume: 0.8, muted: false },

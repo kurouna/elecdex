@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { SPECTRUM_BINS, type SpectrumUpdate } from '@shared/audio'
+import { type AudioStub, SPECTRUM_BINS, type SpectrumUpdate } from '@shared/audio'
 import { CH } from '@shared/channels'
 import { BrowserWindow, desktopCapturer, type IpcMainEvent, ipcMain, session } from 'electron'
 import { markHelperWindow } from '../app-windows.js'
@@ -66,7 +66,7 @@ export function validBins(raw: unknown): number[] | null {
 }
 
 export function openCaptureWindow(options: {
-  stub: boolean
+  stub: AudioStub | null
   onUpdate: (update: SpectrumUpdate) => void
 }): CaptureWindow {
   const win = new BrowserWindow({
@@ -121,10 +121,10 @@ export function openCaptureWindow(options: {
     })
   })
 
-  const query = options.stub ? { stub: 'tone' } : undefined
+  const query = options.stub ? { stub: options.stub } : undefined
   const devServerUrl = process.env.ELECTRON_RENDERER_URL
   if (devServerUrl) {
-    void win.loadURL(`${devServerUrl}/audio-capture.html${query ? '?stub=tone' : ''}`)
+    void win.loadURL(`${devServerUrl}/audio-capture.html${query ? `?stub=${query.stub}` : ''}`)
   } else {
     void win.loadFile(PAGE, query ? { query } : {})
   }

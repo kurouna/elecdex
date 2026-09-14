@@ -96,7 +96,8 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   Ctrl/Alt or be a function key, so the shell keeps every other key.
 - **README screenshots** must not show personal data: regenerate them with
   `npm run gen:screenshots`, which uses a demo home and curated launcher entries and shoots every
-  built-in theme plus the settings dialog. Regenerate after a visible change to a theme or the
+  built-in theme plus the settings dialog and the audio panes (with `ELECDEX_AUDIO_STUB=demo`, never
+  the machine's sound or apps; name shots to take only those). Regenerate after a visible change to a theme or the
   default layout, and add a built-in theme to both the script and the README table.
 - **Releases**: bump `package.json` version, push tag `v<version>`; .github/workflows/release.yml
   builds every platform into a GitHub pre-release that a person promotes to a full release.

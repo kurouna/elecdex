@@ -82,6 +82,12 @@ for Windows, macOS and Linux.
     <td align="center">White</td>
     <td align="center">Settings → Keyboard</td>
   </tr>
+  <tr>
+    <td colspan="2"><img src="./docs/screenshots/elecdex-audio.jpg" alt="The Tron theme with a spectrum pane in fluorescent cyan and a mixer pane with master, Music Player and Web Browser strips, side by side under the launcher and file browser"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Spectrum and mixer</td>
+  </tr>
 </table>
 
 ## Install

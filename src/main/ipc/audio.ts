@@ -1,4 +1,4 @@
-import type { MixerUpdate } from '@shared/audio'
+import { audioStubFrom, type MixerUpdate } from '@shared/audio'
 import { CH } from '@shared/channels'
 import { ipcMain, type WebContents } from 'electron'
 import { openCaptureWindow } from '../audio/capture-window.js'
@@ -18,13 +18,14 @@ import { SubscriptionRegistry } from '../metrics/subscriptions.js'
  *
  * `ELECDEX_AUDIO_STUB=1` swaps both for stand-ins - a steady tone, a mixer with
  * two made-up apps - so the end-to-end tests never capture the machine's sound
- * nor change its volume.
+ * nor change its volume. `ELECDEX_AUDIO_STUB=demo` plays music-like movement
+ * instead of the tone, for the README screenshots.
  */
 const SPECTRUM = 'spectrum'
 const MIXER = 'mixer'
 
 export function registerAudioIpc(): { dispose: () => void } {
-  const stub = process.env.ELECDEX_AUDIO_STUB === '1'
+  const stub = audioStubFrom(process.env.ELECDEX_AUDIO_STUB)
   const registry = new SubscriptionRegistry<WebContents>()
   const tracked = new WeakSet<WebContents>()
 
