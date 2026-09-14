@@ -64,7 +64,7 @@ export function unregisterDynamic(id: string): void {
   dynamic.delete(`plugin:${id}`)
 }
 
-/** Resolves a widget id, dynamic first so a plugin can shadow a builtin. */
+/** Resolves a widget id. Plugin ids carry the `plugin:` prefix, so a plugin never shadows a builtin. */
 export function resolveWidget(id: string): WidgetDefinition | null {
   return dynamic.get(id) ?? builtins.get(id) ?? null
 }
