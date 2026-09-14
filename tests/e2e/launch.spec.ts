@@ -1,8 +1,15 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { _electron as electron, expect, test } from '@playwright/test'
 
 const MAIN = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
+/** The version being built, so this test does not need editing on every release. */
+const PACKAGE_VERSION = (
+  JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as {
+    version: string
+  }
+).version
 
 let app: ElectronApplication
 let page: Page
@@ -87,6 +94,6 @@ test("config lives in an elecdex-named userData dir, not Electron's", async () =
 
 test('reports the package version, not the Electron version', async () => {
   const info = await page.evaluate(() => window.elecdex.system.info())
-  expect(info.version).toBe('0.0.1')
+  expect(info.version).toBe(PACKAGE_VERSION)
   expect(info.version).not.toBe(info.versions.electron)
 })
