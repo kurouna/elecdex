@@ -82,6 +82,8 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   still refuses every permission but the clipboard, and only spectrum levels leave that window.
   On Linux, where Electron has no loopback, main runs `parec` on the default output's monitor
   (main/audio/pulse-capture.ts) - always `@DEFAULT_MONITOR@`, never the default input.
+  Linux audio goes through the pulse protocol (parec, pactl), which PulseAudio and PipeWire both
+  serve; WirePlumber's wpctl is only a fallback, never required (main/audio/mixer-linux.ts).
   Code that means "the elecdex window" asks `appWindows()` (main/app-windows.ts), never
   `BrowserWindow.getAllWindows()`, so the helper window is never taken for it.
 - **Plugins** (docs/plugins.md) run in a blob Web Worker, one per plugin; main only transforms their
