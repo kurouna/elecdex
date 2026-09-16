@@ -79,9 +79,15 @@ $effect(() => {
   }
 })
 
+/**
+ * A primitive, so a re-read (a new listing for the same path) keeps the watch:
+ * reopening it would cost two IPC calls and drop a change main is holding back.
+ */
+const watchedPath = $derived(listing?.path)
+
 // Watch the directory being shown, so files created by a command appear.
 $effect(() => {
-  const dir = listing?.path
+  const dir = watchedPath
   if (dir === undefined) return
   return window.elecdex.fs.watch(dir, () => {
     revision += 1
