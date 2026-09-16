@@ -103,42 +103,45 @@ describe('bands', () => {
       const bands = bandsFromBins(toneBins(1000), count)
       expect(bands).toHaveLength(BAND_SETS[count].length)
       const lit = bands.flatMap((v, i) => (v > 0 ? [i] : []))
-      // Thirty-two bands have no 1 kHz band: the tone's bin (about 950 Hz) falls in 890.
-      const hz = count === 32 ? 890 : 1000
-      expect(lit).toEqual([BAND_SETS[count].indexOf(hz as never)])
+      expect(lit).toEqual([BAND_SETS[count].indexOf(1000 as never)])
     }
   })
 
-  it('offers 32 bands from 20 Hz to 20 kHz, rising, each taking one or two bins', () => {
-    const centres = BAND_SETS[32]
-    expect(centres).toHaveLength(32)
-    expect(centres[0]).toBe(20)
-    expect(centres.at(-1)).toBe(20_000)
-    expect(centres.every((hz, i) => i === 0 || hz > (centres[i - 1] as number))).toBe(true)
-    const binsPerBand = new Array(32).fill(0)
+  it('offers the ISO third-octave bands from 20 Hz to 20 kHz, two bins each, one at the ends', () => {
+    const centres = BAND_SETS[31]
+    expect(centres).toHaveLength(31)
+    // A tenth of a decade apart, to the rounding of the ISO nominal values.
+    centres.forEach((hz, i) => {
+      expect(Math.abs(Math.log10(hz / (20 * 10 ** (i / 10))))).toBeLessThan(0.005)
+    })
+    const binsPerBand = new Array(31).fill(0)
     for (let i = 0; i < SPECTRUM_BINS; i++) {
       const bins = new Array(SPECTRUM_BINS).fill(0)
       bins[i] = 1
-      binsPerBand[bandsFromBins(bins, 32).indexOf(1)]++
+      binsPerBand[bandsFromBins(bins, 31).indexOf(1)]++
     }
-    expect(Math.min(...binsPerBand)).toBeGreaterThanOrEqual(1)
-    expect(Math.max(...binsPerBand)).toBeLessThanOrEqual(2)
-    expect(bandsFromBins(toneBins(21), 32)[0]).toBe(0.9)
-    expect(bandsFromBins(toneBins(19_000), 32).at(-1)).toBe(0.9)
-    expect(centres.map(bandLabel)).toEqual(expect.arrayContaining(['20', '1.1k', '13k', '20k']))
+    expect(binsPerBand).toEqual([1, ...new Array(29).fill(2), 1])
+  })
+
+  it('offers every band set in the settings', () => {
+    expect([...BAND_COUNTS].sort((a, b) => a - b)).toEqual(Object.keys(BAND_SETS).map(Number))
+    for (const count of BAND_COUNTS) expect(BAND_SETS[count]).toHaveLength(count)
   })
 
   it('assigns every bin to a band, the extremes to the end bands', () => {
     const all = new Array(SPECTRUM_BINS).fill(0.5)
     for (const count of BAND_COUNTS) {
       expect(bandsFromBins(all, count).every((v) => v === 0.5)).toBe(true)
+      expect(bandsFromBins(toneBins(21), count)[0]).toBe(0.9)
+      expect(bandsFromBins(toneBins(19_000), count).at(-1)).toBe(0.9)
     }
-    expect(bandsFromBins(toneBins(21), 10)[0]).toBe(0.9)
-    expect(bandsFromBins(toneBins(19_000), 10).at(-1)).toBe(0.9)
   })
 
   it('labels bands as a car display does', () => {
     expect(BAND_SETS[16].map(bandLabel)).toContain('12.5k')
+    expect(BAND_SETS[31].map(bandLabel)).toEqual(
+      expect.arrayContaining(['20', '31.5', '1k', '1.25k', '3.15k', '6.3k', '12.5k', '20k']),
+    )
     expect(BAND_SETS[10].map(bandLabel)).toEqual([
       '31',
       '63',
@@ -205,7 +208,8 @@ describe('spectrum prefs', () => {
       pattern: 'mirror',
       peakHold: false,
     })
-    expect(spectrumPrefs({ bands: 32 }).bands).toBe(32)
+    expect(spectrumPrefs({ bands: 31 }).bands).toBe(31)
+    expect(spectrumPrefs({ bands: 32 }).bands).toBe(10)
     expect(spectrumPrefs({ style: 'plasma', bands: 12, pattern: 1, peakHold: 'yes' })).toEqual(
       spectrumPrefs(undefined),
     )

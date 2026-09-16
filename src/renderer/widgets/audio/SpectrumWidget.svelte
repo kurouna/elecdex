@@ -230,7 +230,7 @@ const note = $derived.by(() => {
 
   <div class="display">
     <canvas bind:this={canvas} aria-label="Spectrum of the system's sound" data-testid="spectrum-canvas"></canvas>
-    {#if note && problem}
+    {#if problem}
       <p class="problem" data-testid="spectrum-note">{note}</p>
     {/if}
   </div>
@@ -310,7 +310,7 @@ canvas {
   height: 100%;
 }
 
-/* The same box as the settings button (top 0, 1.4rem high), text centred in it. */
+/* The same row as the settings button (top 0, 1.4rem high), the text centred in its height. */
 .note {
   position: absolute;
   top: 0;

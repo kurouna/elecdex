@@ -145,22 +145,21 @@ export const BAND_SETS = {
   7: [63, 160, 400, 1000, 2500, 6300, 16000],
   10: [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000],
   16: [25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 12500, 16000],
-  // Thirty-two steps a little wider than a third of an octave, 20 Hz to 20 kHz,
-  // rounded to two figures: the ISO third-octave series has only 31 bands over
-  // that range. Each band still takes one or two of the 60 bins.
-  32: [
-    20, 25, 31, 39, 49, 61, 76, 95, 120, 150, 190, 230, 290, 360, 450, 570, 710, 890, 1100, 1400,
-    1700, 2200, 2700, 3400, 4200, 5300, 6600, 8200, 10000, 13000, 16000, 20000,
+  // The ISO third-octave series over the capture's range. The 60 bins are a
+  // twentieth of a decade each and these bands a tenth, so each band takes two bins
+  // - but the end bands, half outside 20 Hz to 20 kHz, take one.
+  31: [
+    20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250,
+    1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000,
   ],
 } as const satisfies Record<number, readonly number[]>
 
 export type BandCount = keyof typeof BAND_SETS
 
 /** The band counts a pane offers, in the order its settings show them. */
-export const BAND_COUNTS = [7, 10, 16, 32] as const satisfies readonly BandCount[]
+export const BAND_COUNTS = [7, 10, 16, 31] as const satisfies readonly BandCount[]
 
-export const bandLabel = (hz: number): string =>
-  hz >= 1000 ? `${Number.isInteger(hz / 1000) ? hz / 1000 : (hz / 1000).toFixed(1)}k` : `${hz}`
+export const bandLabel = (hz: number): string => (hz >= 1000 ? `${hz / 1000}k` : `${hz}`)
 
 /**
  * The bins grouped into bands: each band takes the loudest bin between the

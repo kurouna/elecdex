@@ -189,20 +189,20 @@ describe('SpectrumWidget', () => {
     expect(getByTestId('spectrum-note').closest('.display')).not.toBeNull()
   })
 
-  it('offers 32 bands and groups frames into them', async () => {
+  it('offers 31 bands and groups frames into them', async () => {
     const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
-    const { getByTestId, container } = render(SpectrumWidget, { props: props({ bands: 32 }) })
+    const { getByTestId, container } = render(SpectrumWidget, { props: props({ bands: 31 }) })
     flushSync()
     setVisible(true)
     spectrumHandler?.({ t: 'frame', bins: tone() })
     const last = spectrumPaints.at(-1)
-    expect(last?.bands).toBe(32)
-    expect(last?.level).toHaveLength(32)
+    expect(last?.bands).toBe(31)
+    expect(last?.level).toHaveLength(31)
     expect(last?.level.findIndex((v) => v > 0)).toBe(17)
     fireEvent.click(getByTestId('spectrum-settings-toggle'))
     flushSync()
     const options = [...container.querySelectorAll('[data-testid=spectrum-bands]')]
-    expect(options.map((b) => b.getAttribute('data-value'))).toEqual(['7', '10', '16', '32'])
+    expect(options.map((b) => b.getAttribute('data-value'))).toEqual(['7', '10', '16', '31'])
     fireEvent.click(options[0] as Element)
     expect(layout.setPaneState).toHaveBeenLastCalledWith(
       expect.anything(),

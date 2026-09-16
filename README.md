@@ -247,7 +247,7 @@ weather and calendar.
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named
   below the month.
 - **Spectrum** — not in the default layout: add it from the picker. The system's sound output in
-  7, 10, 16 or 32 bands, in columns of segments with held peaks; the settings button picks the style
+  7, 10, 16 or 31 bands, in columns of segments with held peaks; the settings button picks the style
   (VFD cyan, the default, VFD amber, LED or the theme), the band count, bars, a mirrored pattern
   or peaks only, and peak hold. It listens only while the pane is on screen - not in a background
   tab - and draws only while there is sound, 20 frames a second (about a third of a core while

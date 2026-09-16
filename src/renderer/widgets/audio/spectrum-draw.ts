@@ -66,7 +66,7 @@ export const segmentRows = (height: number): number =>
 
 /**
  * Label every this many columns, so the widest label keeps a small gap to the next:
- * 32 bands in a narrow pane would otherwise print their labels over each other.
+ * 31 bands in a narrow pane would otherwise print their labels over each other.
  */
 export const labelStep = (colW: number, labelW: number): number =>
   colW > 0 ? Math.max(1, Math.ceil((labelW + 4) / colW)) : 1

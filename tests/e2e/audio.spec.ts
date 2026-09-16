@@ -69,10 +69,10 @@ test('a spectrum pane captures while shown, lights the tone band, and keeps its 
       })
       .toEqual([8])
 
-    // Thirty-two bands: the 1 kHz tone lights the 890 Hz band, the eighteenth.
-    await page.locator('[data-testid=spectrum-bands][data-value="32"]').click()
-    await expect(spectrum).toHaveAttribute('data-bands', '32')
-    await expect(page.getByTestId('pane-subtitle')).toHaveText('system output · 32 bands')
+    // Thirty-one bands: 1 kHz is the eighteenth.
+    await page.locator('[data-testid=spectrum-bands][data-value="31"]').click()
+    await expect(spectrum).toHaveAttribute('data-bands', '31')
+    await expect(page.getByTestId('pane-subtitle')).toHaveText('system output · 31 bands')
     await expect
       .poll(async () => (await litBands(page)).flatMap((v, i) => (v > 0 ? [i] : [])), {
         timeout: 10_000,
