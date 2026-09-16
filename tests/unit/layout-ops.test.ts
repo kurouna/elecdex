@@ -313,15 +313,6 @@ describe('moveNode, details', () => {
     expect((sa + sc) / sb).toBeCloseTo(0.5 / 0.25, 9)
   })
 
-  it('keeps a column label when the column survives', () => {
-    const [a, b, c] = [pane('a'), pane('b'), pane('c')]
-    const label = { left: 'PANEL', right: 'SYSTEM' }
-    const column = split('column', [a, b, c], undefined, label)
-    const t = tree(split('row', [column, pane('shell')]))
-    const result = moveNode(t, c.id, a.id, 'up')
-    expect(findNode(result.root, column.id)).toMatchObject({ label })
-  })
-
   it('keeps the shown tab of the group a tab leaves', () => {
     const [a, b, c] = [pane('a'), pane('b'), pane('c')]
     const group = tabs([a, b, c], 2)
@@ -747,6 +738,44 @@ describe('schema and default layout', () => {
     const layout = defaultLayout()
     const parsed = LayoutTreeSchema.safeParse(JSON.parse(JSON.stringify(layout)))
     expect(parsed.success && parsed.data).toEqual(layout)
+  })
+
+  it('loads a layout saved with column headers, dropping them', () => {
+    const column = (id: string, label: { left: string; right: string }) => ({
+      kind: 'split',
+      id,
+      direction: 'column',
+      children: [
+        { kind: 'pane', id: `${id}-a`, widget: 'cpu' },
+        { kind: 'pane', id: `${id}-b`, widget: 'memory' },
+      ],
+      sizes: [0.5, 0.5],
+      label,
+    })
+    const saved = {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'row',
+        children: [
+          column('left', { left: 'panel', right: 'system' }),
+          { kind: 'pane', id: 'shell', widget: 'terminal' },
+          column('right', { left: 'panel', right: 'world' }),
+        ],
+        sizes: [0.2, 0.6, 0.2],
+      },
+    }
+    const parsed = LayoutTreeSchema.safeParse(saved)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) return
+    expect(JSON.stringify(parsed.data)).not.toContain('label')
+    expect(shapeOf(parsed.data.root)).toBe('row(column(cpu memory) terminal column(cpu memory))')
+    walk(parsed.data.root, (node) => expect(node).not.toHaveProperty('label'))
+  })
+
+  it('draws no column headers in the default layout', () => {
+    walk(defaultLayout().root, (node) => expect(node).not.toHaveProperty('label'))
   })
 
   it.each([

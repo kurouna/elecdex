@@ -34,7 +34,6 @@ export function defaultLayoutNode(): LayoutNode {
           pane('throughput'),
         ],
         [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165],
-        { left: 'panel', right: 'system' },
       ),
       split(
         'column',
@@ -48,7 +47,6 @@ export function defaultLayoutNode(): LayoutNode {
         'column',
         [pane('globe'), pane('markets'), pane('weather'), pane('calendar')],
         [0.3, 0.25, 0.22, 0.23],
-        { left: 'panel', right: 'world' },
       ),
     ],
     [0.18, 0.64, 0.18],

@@ -54,9 +54,11 @@ test('the default layout recreates the original arrangement', async () => {
       'weather',
       'calendar',
     ])
-    // The column headers of the original: PANEL / SYSTEM and PANEL / NETWORK.
-    await expect(page.getByTestId('split-label')).toHaveCount(2)
-    await expect(page.getByTestId('split-label').first()).toContainText(/panel/i)
+    // No column headers (eDEX-UI's PANEL / SYSTEM): panes move between columns, so
+    // the only label pair left is the shell's own header.
+    await expect(page.locator('header.hud-label')).toHaveCount(1)
+    await expect(page.getByTestId('tabs-host').locator('header.hud-label')).toHaveCount(1)
+    await expect(page.getByText(/^panel$/i)).toHaveCount(0)
     await expect(terminalPane(page).getByTestId('terminal-host')).toBeVisible()
     // The shell opens as three tabs, each a live shell.
     await expect(page.getByTestId('tabs-host').getByTestId('tab')).toHaveCount(3)
@@ -65,6 +67,46 @@ test('the default layout recreates the original arrangement', async () => {
         timeout: 20_000,
       })
       .toBe(3)
+  } finally {
+    await close()
+  }
+})
+
+test('a layout saved with column headers still loads, without them', async () => {
+  const pane = (id: string, widget: string) => ({ kind: 'pane', id, widget })
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 'root',
+      direction: 'row',
+      children: [
+        {
+          kind: 'split',
+          id: 'left',
+          direction: 'column',
+          children: [pane('cpu', 'cpu'), pane('memory', 'memory')],
+          sizes: [0.5, 0.5],
+          label: { left: 'panel', right: 'system' },
+        },
+        pane('shell', 'terminal'),
+      ],
+      sizes: [0.3, 0.7],
+    },
+  }
+  const { page, userData, close } = await launch(undefined, { layout })
+  try {
+    // The saved arrangement, not the default one it would fall back to.
+    const widgets = await page.$$eval('[data-testid=pane]', (els) =>
+      els.map((e) => e.getAttribute('data-widget')),
+    )
+    expect(widgets).toEqual(['cpu', 'memory', 'terminal'])
+    await expect(page.getByText(/^system$/i)).toHaveCount(0)
+    // The next save writes the tree without the header.
+    await page.getByTestId('split-handle').first().focus()
+    await page.keyboard.press('ArrowRight')
+    const saved = await waitForSaved(userData, (json) => !json.includes('"label"'))
+    expect(saved).toContain('"id": "left"')
   } finally {
     await close()
   }

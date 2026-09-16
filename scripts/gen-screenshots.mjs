@@ -49,13 +49,12 @@ const launcherItems = [
  */
 let nextId = 0
 const pane = (widget) => ({ kind: 'pane', id: `p${nextId++}`, widget })
-const split = (direction, children, sizes, label) => ({
+const split = (direction, children, sizes) => ({
   kind: 'split',
   id: `s${nextId++}`,
   direction,
   children,
   sizes,
-  ...(label ? { label } : {}),
 })
 const audioLayout = {
   version: 1,
@@ -66,7 +65,6 @@ const audioLayout = {
         'column',
         ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
         [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165],
-        { left: 'panel', right: 'system' },
       ),
       split(
         'column',
@@ -86,7 +84,6 @@ const audioLayout = {
         'column',
         ['globe', 'markets', 'weather', 'calendar'].map(pane),
         [0.3, 0.25, 0.22, 0.23],
-        { left: 'panel', right: 'world' },
       ),
     ],
     [0.18, 0.64, 0.18],

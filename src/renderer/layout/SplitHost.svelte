@@ -1,6 +1,5 @@
 <script lang="ts">
 import type { SplitNode } from '@shared/schemas/layout'
-import { boot } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
 
@@ -81,17 +80,6 @@ function onHandleKeydown(event: KeyboardEvent, index: number): void {
 }
 </script>
 
-<div class="split-wrap" class:labelled={node.label !== undefined}>
-{#if node.label}
-  <header
-    class="hud-label column-label"
-    class:boot-in={boot.phase === 'reveal'}
-    data-testid="split-label"
-  >
-    <span>{node.label.left}</span>
-    <span>{node.label.right}</span>
-  </header>
-{/if}
 <div
   class="split"
   class:row={isRow}
@@ -125,40 +113,8 @@ function onHandleKeydown(event: KeyboardEvent, index: number): void {
     {/if}
   {/each}
 </div>
-</div>
 
 <style>
-/* Column headers draw in ahead of their modules during the boot reveal. */
-.column-label.boot-in {
-  animation: label-in 500ms var(--ease-out) 150ms both;
-}
-
-@keyframes label-in {
-  from {
-    opacity: 0;
-    clip-path: inset(0 50% 0 50%);
-  }
-  to {
-    opacity: 1;
-    clip-path: inset(0 0 0 0);
-  }
-}
-
-.split-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-  width: 100%;
-}
-
-.split-wrap > .split {
-  flex: 1;
-  height: auto;
-}
-
 .split {
   display: flex;
   flex-direction: column;

@@ -10,14 +10,16 @@
  *    through, because the module has no fill.
  *  - Only the main shell gets a frame: a 50% border with its top-right and
  *    bottom-left corners cut off (augmented-ui "tr-clip bl-clip").
- *  - Above each column and above the shell sits a tiny label pair -
- *    "PANEL ... SYSTEM" - on a hairline rule whose ticks hang downward.
+ *  - Above the shell sits a tiny label pair - "TERMINAL ... path" - on a
+ *    hairline rule whose ticks hang downward. The original also put one above
+ *    each column ("PANEL ... SYSTEM"); here panes move between columns, so a
+ *    fixed column name would not describe what is in it.
  *
  * All sizes are rem, so they follow the viewport-height root size.
  */
 
 /* ------------------------------------------------------------------------
- * Tiny label pair: "PANEL ............ SYSTEM"
+ * Tiny label pair: "TERMINAL ............ ~/src"
  * ---------------------------------------------------------------------- */
 .hud-label {
   position: relative;
