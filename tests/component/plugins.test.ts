@@ -359,6 +359,39 @@ describe('a plugin pane', () => {
     expect(screen.getByTestId('plugin-link').textContent).toBe('Open the docsdocs.example.com')
   })
 
+  it('lets a plugin run again once the other file with its id is gone', async () => {
+    const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
+    const stored = { counter: { enabled: true, key: 'counter.ts', granted, values: {} } }
+    await startHost([source('counter.ts', COUNTER), source('copy.ts', COUNTER)], stored)
+    expect(plugins.entries.get('counter.ts')?.status).toBe('duplicate')
+    await startHost([source('counter.ts', COUNTER)], stored)
+    expect(plugins.entries.get('counter.ts')).toMatchObject({ status: 'ready', error: null })
+  })
+
+  it('applies catalogs in the order they arrive, even while one is still being read', async () => {
+    await startHost([], {})
+    const two = [
+      source('counter.ts', COUNTER),
+      source('other.ts', COUNTER.replace("id: 'counter'", "id: 'other'")),
+    ]
+    const first = plugins.apply({ folder: 'C:/plugins', plugins: two })
+    const second = plugins.apply({ folder: 'C:/plugins', plugins: [] })
+    await vi.advanceTimersByTimeAsync(500)
+    await Promise.all([first, second])
+    expect([...plugins.entries.keys()]).toEqual([])
+  })
+
+  it('registers an unchanged plugin only once, however often the settings change', async () => {
+    const { listWidgets } = await import('../../src/renderer/widgets/registry.ts')
+    await startHost([source('counter.ts', COUNTER)], {})
+    const before = listWidgets().find((w) => w.id === 'plugin:counter')
+    settingsWith({
+      counter: { enabled: false, key: null, granted: grantFor(NO_PERMISSIONS), values: {} },
+    })
+    await plugins.apply(catalog)
+    expect(listWidgets().find((w) => w.id === 'plugin:counter')).toBe(before)
+  })
+
   it('dates the ends of a time axis that spans more than a day', async () => {
     const { axisTime } = await import('../../src/renderer/plugins/ticker.svelte.ts')
     const at = new Date(2026, 8, 19, 21, 30).getTime()
@@ -421,6 +454,34 @@ describe('the plugin settings', () => {
     render(PluginSettings)
     await settle()
     expect(screen.queryByTestId('plugin-exposure')).toBeNull()
+  })
+
+  it('turn a plugin off before deleting what it stored', async () => {
+    const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
+    await startHost([source('counter.ts', COUNTER)], {
+      counter: { enabled: true, key: 'counter.ts', granted, values: {} },
+    })
+    const order: string[] = []
+    const bridge = window.elecdex as unknown as {
+      plugins: { forget: (id: string) => Promise<void> }
+      settings: { patch: (p: unknown) => Promise<unknown> }
+    }
+    const patch = bridge.settings.patch
+    bridge.settings.patch = async (p) => {
+      order.push('settings')
+      return patch(p)
+    }
+    bridge.plugins.forget = async () => {
+      order.push('forget')
+    }
+    render(PluginSettings)
+    await settle()
+    const forget = screen.getByTestId('plugin-forget')
+    await fireEvent.click(forget)
+    await fireEvent.click(forget)
+    await settle()
+    expect(order).toEqual(['settings', 'forget'])
+    expect(patches.at(-1)).toEqual({ plugins: { counter: null } })
   })
 
   it('show a broken plugin’s error without an on switch', async () => {

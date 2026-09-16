@@ -64,7 +64,23 @@ export function registerBuiltin(definition: WidgetDefinition): void {
 /** Registers a plugin-provided widget. Ids are namespaced to avoid collisions. */
 export function registerDynamic(definition: WidgetDefinition): void {
   const id = `plugin:${definition.id}`
-  dynamic.set(id, { ...definition, id })
+  const next = { ...definition, id }
+  // Plugins are registered again on every settings change: an unchanged one is left alone,
+  // so panes and the picker that read it are not woken for nothing.
+  const current = dynamic.get(id)
+  if (current && sameDefinition(current, next)) return
+  dynamic.set(id, next)
+}
+
+function sameDefinition(a: WidgetDefinition, b: WidgetDefinition): boolean {
+  return (
+    a.component === b.component &&
+    a.title === b.title &&
+    a.description === b.description &&
+    a.multiple === b.multiple &&
+    a.minSize?.w === b.minSize?.w &&
+    a.minSize?.h === b.minSize?.h
+  )
 }
 
 export function unregisterDynamic(id: string): void {

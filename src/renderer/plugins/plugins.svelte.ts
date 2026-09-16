@@ -418,6 +418,8 @@ export class PluginHost {
   private readonly runners = new Map<string, Runner>()
   private readonly pendingRenders = new Map<string, unknown>()
   private started = false
+  /** The catalog being applied: the next waits for it, so an older one never lands last. */
+  private applying: Promise<void> = Promise.resolve()
 
   constructor(factory: WorkerFactory = createWorker) {
     this.factory = factory
@@ -471,7 +473,12 @@ export class PluginHost {
     return this.entry(id)?.status === 'ready'
   }
 
-  async apply(catalog: PluginCatalog): Promise<void> {
+  apply(catalog: PluginCatalog): Promise<void> {
+    this.applying = this.applying.then(() => this.applyNow(catalog))
+    return this.applying
+  }
+
+  private async applyNow(catalog: PluginCatalog): Promise<void> {
     this.catalog = catalog
     const keys = new Set(catalog.plugins.map((p) => p.key))
     for (const [key, entry] of this.entries) {
@@ -556,6 +563,10 @@ export class PluginHost {
     })
   }
 
+  /**
+   * Marks files that claim the same id, and releases a file whose twin has gone - sync then
+   * gives it its real status.
+   */
   private markDuplicates(): void {
     const byId = new Map<string, PluginEntry[]>()
     for (const entry of this.entries.values()) {
@@ -563,7 +574,13 @@ export class PluginHost {
       if (id !== undefined) byId.set(id, [...(byId.get(id) ?? []), entry])
     }
     for (const [id, list] of byId) {
-      if (list.length < 2) continue
+      if (list.length < 2) {
+        const alone = list[0]
+        if (alone?.status === 'duplicate') {
+          this.entries.set(alone.key, { ...alone, status: 'disabled', error: null })
+        }
+        continue
+      }
       for (const entry of list) {
         this.entries.set(entry.key, {
           ...entry,

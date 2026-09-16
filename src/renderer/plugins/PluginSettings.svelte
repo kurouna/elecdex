@@ -114,9 +114,13 @@ const currentValue = (id: string, key: string) => plugins.values(id)[key]
 const optionsOf = (id: string, def: SettingDef & { type: 'select' }) =>
   plugins.options.get(id)?.[def.key] ?? def.options ?? []
 
+/**
+ * Off first, then the data: while the plugin is still granted, main would take its next
+ * storage write and bring the deleted file back.
+ */
 async function forget(id: string): Promise<void> {
+  await appearance.patch({ plugins: { [id]: null } })
   await window.elecdex.plugins.forget(id)
-  patch(id, null)
 }
 </script>
 
@@ -172,10 +176,14 @@ async function forget(id: string): Promise<void> {
         {#if consentReason(entry, stored)}
           <p class="reason" data-testid="plugin-consent-reason">{consentReason(entry, stored)}</p>
         {/if}
-        <p>{d.title} will be able to:</p>
-        <ul>
-          {#each describe(d.permissions) as line, i (i)}<li>{line}</li>{/each}
-        </ul>
+        {#if describe(d.permissions).length > 0}
+          <p>{d.title} will be able to:</p>
+          <ul>
+            {#each describe(d.permissions) as line, i (i)}<li>{line}</li>{/each}
+          </ul>
+        {:else}
+          <p>{d.title} asks for no permissions.</p>
+        {/if}
         {#if exposure(d.permissions)}<p class="exposure" data-testid="plugin-exposure">{exposure(d.permissions)}</p>{/if}
         <div class="row">
           <button type="button" class="link primary" onclick={() => turnOn(entry)} data-testid="plugin-agree">agree and turn on</button>
