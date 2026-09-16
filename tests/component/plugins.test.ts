@@ -414,39 +414,43 @@ describe('a plugin pane', () => {
     expect(plain?.hasAttribute('aria-label')).toBe(false)
   })
 
-  it('fills under a line from its colour to nothing at the baseline', async () => {
+  it('fills under a line from its colour to nothing at the baseline, column by column', async () => {
     const { fillArea } = await import('../../src/renderer/lib/area-fill.ts')
+    const gradients: number[][] = []
+    const stops: string[] = []
+    const rects: number[][] = []
     const calls: string[] = []
-    const stops: Array<[number, string]> = []
+    let scale = 1
     const ctx = {
       createLinearGradient: (...a: number[]) => {
-        calls.push(`gradient ${a.join(',')}`)
-        return { addColorStop: (o: number, c: string) => stops.push([o, c]) }
+        gradients.push(a)
+        return { addColorStop: (o: number, c: string) => stops.push(`${o} ${c}`) }
       },
+      getTransform: () => ({ a: scale }),
       save: () => calls.push('save'),
       restore: () => calls.push('restore'),
       beginPath: () => calls.push('begin'),
       moveTo: (x: number, y: number) => calls.push(`move ${x},${y}`),
       lineTo: (x: number, y: number) => calls.push(`line ${x},${y}`),
       closePath: () => calls.push('close'),
-      fill: () => calls.push('fill'),
+      clip: () => calls.push('clip'),
+      fillRect: (...a: number[]) => rects.push(a),
+      set fillStyle(_: unknown) {},
     } as unknown as CanvasRenderingContext2D
-    fillArea(
-      ctx,
-      [
-        [0, 30],
-        [50, 10],
-        [100, 20],
-      ],
-      { baseline: 80, color: 'red', alpha: 0.3 },
-    )
-    expect(stops).toEqual([
-      [0, 'red'],
-      [1, 'transparent'],
-    ])
-    // From the line's peak, not the chart's top: a line that stays low keeps its fill.
+    const reset = (): void => {
+      gradients.length = 0
+      stops.length = 0
+      rects.length = 0
+      calls.length = 0
+    }
+    const line: Array<[number, number]> = [
+      [0, 30],
+      [50, 10],
+      [100, 20],
+    ]
+    fillArea(ctx, line, { baseline: 80, color: 'red', alpha: 0.3 })
+    // Clipped to the area under the line.
     expect(calls).toEqual([
-      'gradient 0,10,0,80',
       'save',
       'begin',
       'move 0,80',
@@ -455,18 +459,52 @@ describe('a plugin pane', () => {
       'line 100,20',
       'line 100,80',
       'close',
-      'fill',
+      'clip',
       'restore',
     ])
-    // Below a zero line (download traffic) it runs from the trough up to the line.
-    calls.length = 0
+    // Fading to the same colour with no alpha, never to transparent black.
+    expect(stops.slice(0, 2)).toEqual(['0 red', '1 rgb(from red r g b / 0)'])
+    // Each 2px strip starts where the line is there, not at the peak (y 10) for all of them.
+    expect(rects).toHaveLength(50)
+    expect(gradients[0]).toEqual([0, 29.2, 0, 80])
+    expect(rects[0]).toEqual([0, 29.2, 2, 50.8])
+    expect(gradients[24]).toEqual([0, 10, 0, 80])
+    expect(gradients[49]?.[1]).toBeCloseTo(19.6)
+
+    // A spike between strip edges still reaches the top of its strip.
+    reset()
+    fillArea(
+      ctx,
+      [
+        [0, 70],
+        [3, 10],
+        [6, 70],
+      ],
+      { baseline: 80, color: 'red', alpha: 0.3 },
+    )
+    expect(gradients.map((g) => g[1])).toEqual([30, 10, 30])
+
+    // Strips are whole device pixels wide at any scale.
+    reset()
+    scale = 1.25
+    fillArea(ctx, line, { baseline: 80, color: 'red', alpha: 0.3 })
+    expect(rects[0]?.[2]).toBe(1.6)
+    expect(rects[1]?.[0]).toBe(1.6)
+    scale = 1
+
+    // Below a zero line (download traffic) each strip runs from the line up to the zero line.
+    reset()
     const below: Array<[number, number]> = [
       [0, 60],
       [50, 70],
     ]
     fillArea(ctx, below, { baseline: 40, color: 'red', alpha: 0.3 })
-    expect(calls[0]).toBe('gradient 0,70,0,40')
-    calls.length = 0
+    expect(gradients[0]).toEqual([0, 60.4, 0, 40])
+    expect(rects[0]).toEqual([0, 40, 2, 20.4])
+    expect(gradients.at(-1)).toEqual([0, 70, 0, 40])
+
+    // Nothing to fill: one point, or a line lying on its baseline.
+    reset()
     const flat: Array<[number, number]> = [
       [0, 80],
       [9, 80],
@@ -474,6 +512,7 @@ describe('a plugin pane', () => {
     fillArea(ctx, [[0, 30]], { baseline: 80, color: 'red', alpha: 0.3 })
     fillArea(ctx, flat, { baseline: 80, color: 'red', alpha: 0.3 })
     expect(calls).toEqual([])
+    expect(rects).toEqual([])
   })
 
   it('dates the ends of a time axis that spans more than a day', async () => {
