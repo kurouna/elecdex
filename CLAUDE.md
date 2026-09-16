@@ -94,8 +94,15 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   not refer to anything outside themselves. The real containment is the page CSP (`connect-src
   'self'`, no `unsafe-eval`, `worker-src blob:`): relaxing it means re-auditing plugins. Plugins
   draw only through blocks; add a block to plugin-api.ts, the schema and Blocks.svelte together.
-  Plugins that use unofficial APIs or are personal stay in the user's plugins folder, never here;
-  the committed sample is the pomodoro timer.
+  plugin-api.ts is copied verbatim into the user's plugins folder as elecdex-plugin.d.ts, so it
+  holds types only and every change to it is a change to the public API (update docs/plugins.md).
+  Consent is bound to the plugin id *and* its file or folder name; the host re-checks sizes
+  (pane state, blocks, storage keys) even where the worker runtime already does, since a plugin
+  can post around the runtime. A background service learns whether its panes are open from
+  `ctx.views`, counted in the worker. Plugins that use unofficial APIs or are personal (such as
+  claude-usage) live in the private repository kurouna/elecdex-private-plugins, cloned beside
+  this one and copied into the plugins folder with its `npm run deploy` - never here; the
+  committed sample is the pomodoro timer.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).
