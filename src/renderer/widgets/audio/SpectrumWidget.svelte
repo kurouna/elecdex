@@ -1,5 +1,6 @@
 <script lang="ts">
 import {
+  BAND_COUNTS,
   BAND_SETS,
   bandsFromBins,
   emptyMeters,
@@ -142,6 +143,8 @@ function save(change: Partial<SpectrumPrefs>): void {
   layout.setPaneState(paneId, { ...paneState, ...change })
 }
 
+const problem = $derived(status === 'failed' || status === 'unsupported')
+
 const note = $derived.by(() => {
   if (status === 'starting') return 'starting capture…'
   if (status === 'unsupported') return 'System audio capture is not available on this platform yet.'
@@ -166,6 +169,12 @@ const note = $derived.by(() => {
     ontoggle={() => (settingsOpen = !settingsOpen)}
   />
 
+  <!-- A short status sits on the settings button's row, clear of the bars; the settings
+       take that row while open. -->
+  {#if note && !problem && !settingsOpen}
+    <p class="note" data-testid="spectrum-note">{note}</p>
+  {/if}
+
   {#if settingsOpen}
     <div class="settings" data-testid="spectrum-settings">
       <div class="group" role="radiogroup" aria-label="Style">
@@ -183,7 +192,7 @@ const note = $derived.by(() => {
       </div>
       <div class="group" role="radiogroup" aria-label="Bands">
         <span>bands</span>
-        {#each [7, 10, 16] as const as bands (bands)}
+        {#each BAND_COUNTS as bands (bands)}
           <button
             type="button"
             role="radio"
@@ -221,10 +230,8 @@ const note = $derived.by(() => {
 
   <div class="display">
     <canvas bind:this={canvas} aria-label="Spectrum of the system's sound" data-testid="spectrum-canvas"></canvas>
-    {#if note}
-      <p class="note" class:problem={status === 'failed' || status === 'unsupported'} data-testid="spectrum-note">
-        {note}
-      </p>
+    {#if note && problem}
+      <p class="problem" data-testid="spectrum-note">{note}</p>
     {/if}
   </div>
 </div>
@@ -303,22 +310,33 @@ canvas {
   height: 100%;
 }
 
+/* The same box as the settings button (top 0, 1.4rem high), text centred in it. */
 .note {
   position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
+  top: 0;
+  left: var(--space-1);
+  right: 1.6rem;
+  height: 1.4rem;
   margin: 0;
+  overflow: hidden;
   font-size: var(--step--1);
+  line-height: 1.4rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
+  white-space: nowrap;
+  text-overflow: ellipsis;
   pointer-events: none;
 }
 
-.note.problem {
+.problem {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
   right: var(--space-2);
+  margin: 0;
+  font-size: var(--step--1);
   color: var(--warn);
-  text-transform: none;
-  letter-spacing: 0;
+  pointer-events: none;
 }
 </style>

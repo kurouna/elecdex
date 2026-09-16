@@ -145,9 +145,19 @@ export const BAND_SETS = {
   7: [63, 160, 400, 1000, 2500, 6300, 16000],
   10: [31, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000],
   16: [25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 12500, 16000],
+  // Thirty-two steps a little wider than a third of an octave, 20 Hz to 20 kHz,
+  // rounded to two figures: the ISO third-octave series has only 31 bands over
+  // that range. Each band still takes one or two of the 60 bins.
+  32: [
+    20, 25, 31, 39, 49, 61, 76, 95, 120, 150, 190, 230, 290, 360, 450, 570, 710, 890, 1100, 1400,
+    1700, 2200, 2700, 3400, 4200, 5300, 6600, 8200, 10000, 13000, 16000, 20000,
+  ],
 } as const satisfies Record<number, readonly number[]>
 
 export type BandCount = keyof typeof BAND_SETS
+
+/** The band counts a pane offers, in the order its settings show them. */
+export const BAND_COUNTS = [7, 10, 16, 32] as const satisfies readonly BandCount[]
 
 export const bandLabel = (hz: number): string =>
   hz >= 1000 ? `${Number.isInteger(hz / 1000) ? hz / 1000 : (hz / 1000).toFixed(1)}k` : `${hz}`
@@ -249,7 +259,7 @@ export function spectrumPrefs(state: Record<string, unknown> | undefined): Spect
     allowed.includes(value as T) ? (value as T) : fallback
   return {
     style: pick(state?.style, SPECTRUM_STYLES, DEFAULT_SPECTRUM_PREFS.style),
-    bands: pick(state?.bands, [7, 10, 16] as const, DEFAULT_SPECTRUM_PREFS.bands),
+    bands: pick(state?.bands, BAND_COUNTS, DEFAULT_SPECTRUM_PREFS.bands),
     pattern: pick(state?.pattern, SPECTRUM_PATTERNS, DEFAULT_SPECTRUM_PREFS.pattern),
     peakHold:
       typeof state?.peakHold === 'boolean' ? state.peakHold : DEFAULT_SPECTRUM_PREFS.peakHold,

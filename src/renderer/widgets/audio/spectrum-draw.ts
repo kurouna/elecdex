@@ -64,6 +64,13 @@ function lookFor(style: SpectrumStyle, palette: Palette): Look {
 export const segmentRows = (height: number): number =>
   Math.max(8, Math.min(32, Math.round(height / 12)))
 
+/**
+ * Label every this many columns, so the widest label keeps a small gap to the next:
+ * 32 bands in a narrow pane would otherwise print their labels over each other.
+ */
+export const labelStep = (colW: number, labelW: number): number =>
+  colW > 0 ? Math.max(1, Math.ceil((labelW + 4) / colW)) : 1
+
 interface Geometry {
   w: number
   h: number
@@ -165,7 +172,12 @@ function staticLayer(g: Geometry, palette: Palette): HTMLCanvasElement {
   ctx.font = '10px ui-monospace, monospace'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
+  const every = labelStep(
+    g.colW,
+    Math.max(...g.bands.map((hz) => ctx.measureText(bandLabel(hz)).width)),
+  )
   g.bands.forEach((hz, col) => {
+    if (col % every !== 0) return
     ctx.fillText(bandLabel(hz), g.pad + col * g.colW + g.colW / 2, g.h - 1)
   })
   return layer

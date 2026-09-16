@@ -3,6 +3,7 @@ import {
   applyMixerCommand,
   audioStubFrom,
   BALLISTICS,
+  BAND_COUNTS,
   BAND_SETS,
   bandLabel,
   bandsFromBins,
@@ -98,17 +99,38 @@ describe('stand-in sound', () => {
 
 describe('bands', () => {
   it('lights the one band a tone falls in, for every band count', () => {
-    for (const count of [7, 10, 16] as const) {
+    for (const count of BAND_COUNTS) {
       const bands = bandsFromBins(toneBins(1000), count)
       expect(bands).toHaveLength(BAND_SETS[count].length)
       const lit = bands.flatMap((v, i) => (v > 0 ? [i] : []))
-      expect(lit).toEqual([BAND_SETS[count].indexOf(1000 as never)])
+      // Thirty-two bands have no 1 kHz band: the tone's bin (about 950 Hz) falls in 890.
+      const hz = count === 32 ? 890 : 1000
+      expect(lit).toEqual([BAND_SETS[count].indexOf(hz as never)])
     }
+  })
+
+  it('offers 32 bands from 20 Hz to 20 kHz, rising, each taking one or two bins', () => {
+    const centres = BAND_SETS[32]
+    expect(centres).toHaveLength(32)
+    expect(centres[0]).toBe(20)
+    expect(centres.at(-1)).toBe(20_000)
+    expect(centres.every((hz, i) => i === 0 || hz > (centres[i - 1] as number))).toBe(true)
+    const binsPerBand = new Array(32).fill(0)
+    for (let i = 0; i < SPECTRUM_BINS; i++) {
+      const bins = new Array(SPECTRUM_BINS).fill(0)
+      bins[i] = 1
+      binsPerBand[bandsFromBins(bins, 32).indexOf(1)]++
+    }
+    expect(Math.min(...binsPerBand)).toBeGreaterThanOrEqual(1)
+    expect(Math.max(...binsPerBand)).toBeLessThanOrEqual(2)
+    expect(bandsFromBins(toneBins(21), 32)[0]).toBe(0.9)
+    expect(bandsFromBins(toneBins(19_000), 32).at(-1)).toBe(0.9)
+    expect(centres.map(bandLabel)).toEqual(expect.arrayContaining(['20', '1.1k', '13k', '20k']))
   })
 
   it('assigns every bin to a band, the extremes to the end bands', () => {
     const all = new Array(SPECTRUM_BINS).fill(0.5)
-    for (const count of [7, 10, 16] as const) {
+    for (const count of BAND_COUNTS) {
       expect(bandsFromBins(all, count).every((v) => v === 0.5)).toBe(true)
     }
     expect(bandsFromBins(toneBins(21), 10)[0]).toBe(0.9)
@@ -183,6 +205,7 @@ describe('spectrum prefs', () => {
       pattern: 'mirror',
       peakHold: false,
     })
+    expect(spectrumPrefs({ bands: 32 }).bands).toBe(32)
     expect(spectrumPrefs({ style: 'plasma', bands: 12, pattern: 1, peakHold: 'yes' })).toEqual(
       spectrumPrefs(undefined),
     )

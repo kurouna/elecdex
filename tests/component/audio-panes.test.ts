@@ -166,6 +166,50 @@ describe('SpectrumWidget', () => {
     expect(getByTestId('spectrum').dataset.status).toBe('running')
   })
 
+  it('shows "no sound" on the settings button row, not over the bars', () => {
+    const { getByTestId, queryByTestId } = render(SpectrumWidget, { props: props() })
+    flushSync()
+    setVisible(true)
+    spectrumHandler?.({ t: 'status', status: 'running', message: null })
+    flushSync()
+    const note = getByTestId('spectrum-note')
+    expect(note.textContent).toContain('no sound')
+    // A sibling of the settings button, outside the display the bars are drawn in.
+    expect(note.closest('.display')).toBeNull()
+    expect(note.parentElement).toBe(getByTestId('spectrum'))
+    // The open settings take that row.
+    fireEvent.click(getByTestId('spectrum-settings-toggle'))
+    flushSync()
+    expect(queryByTestId('spectrum-note')).toBeNull()
+    fireEvent.click(getByTestId('spectrum-settings-toggle'))
+    flushSync()
+    // A problem is a longer message and stays over the (empty) display.
+    spectrumHandler?.({ t: 'status', status: 'failed', message: 'denied' })
+    flushSync()
+    expect(getByTestId('spectrum-note').closest('.display')).not.toBeNull()
+  })
+
+  it('offers 32 bands and groups frames into them', async () => {
+    const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+    const { getByTestId, container } = render(SpectrumWidget, { props: props({ bands: 32 }) })
+    flushSync()
+    setVisible(true)
+    spectrumHandler?.({ t: 'frame', bins: tone() })
+    const last = spectrumPaints.at(-1)
+    expect(last?.bands).toBe(32)
+    expect(last?.level).toHaveLength(32)
+    expect(last?.level.findIndex((v) => v > 0)).toBe(17)
+    fireEvent.click(getByTestId('spectrum-settings-toggle'))
+    flushSync()
+    const options = [...container.querySelectorAll('[data-testid=spectrum-bands]')]
+    expect(options.map((b) => b.getAttribute('data-value'))).toEqual(['7', '10', '16', '32'])
+    fireEvent.click(options[0] as Element)
+    expect(layout.setPaneState).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ bands: 7 }),
+    )
+  })
+
   it('groups frames into the band count its settings name', () => {
     render(SpectrumWidget, { props: props({ bands: 16 }) })
     flushSync()
