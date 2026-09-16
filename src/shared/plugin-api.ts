@@ -189,7 +189,14 @@ export interface ServiceContext<S extends SettingValues, M> extends CommonContex
   notify(message: { title: string; body?: string; sound?: boolean }): void
   /** Replaces the choices of a select setting. */
   setOptions(key: string, options: readonly SelectOption[]): void
-  on(event: 'settings' | 'session', fn: () => void): () => void
+  /**
+   * The plugin's panes: how many are open, and how many of those are on screen. A service
+   * can do work only its panes show (a status line, say) while one is open, and keep doing
+   * what must go on regardless.
+   */
+  readonly views: { readonly open: number; readonly visible: number }
+  /** views: a pane opened, closed, or came on or off screen. */
+  on(event: 'settings' | 'session' | 'views', fn: () => void): () => void
   on(event: 'action', fn: (action: PluginAction) => void): () => void
 }
 

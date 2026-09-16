@@ -136,7 +136,8 @@ interface ServiceContext<S, M> extends CommonContext<S> {
   storage: { get<T>(key: string): T | undefined; set(key: string, value: unknown): void; delete(key: string): void }
   notify(message: { title: string; body?: string; sound?: boolean }): void   // permissions.notify
   setOptions(key: string, options: readonly { value: string; label: string }[]): void  // select の選択肢
-  on(event: 'settings' | 'session', fn: () => void): () => void            // session: ログイン・ログアウトした
+  readonly views: { open: number; visible: number }                        // 開いている・見えているペインの数
+  on(event: 'settings' | 'session' | 'views', fn: () => void): () => void  // session: ログイン・ログアウトした / views: ペインの開閉と表示の変化
   on(event: 'action', fn: (action: PluginAction) => void): () => void     // view から来た操作
 }
 
@@ -160,6 +161,7 @@ interface PluginResponse { status: number; headers: Record<string, string>; text
 
 - `service` がないプラグインでは `publish` 系は無く、view が `every` などで自分で描く
 - `fetch` / `storage` / `metrics` / `notify` は service だけが持つ。取得と保存をプラグインに1か所へ寄せるため
+- `views` で、ペインにしか出さないもの（稼働状況など）はペインがある間だけ取り、積み続けるもの（履歴など）は background で取り続ける、と分けられる。数は Worker 内のランタイムが数えるので、ホストとの往復は無い
 - view の `on('action')` はペイン固有の反応（表示切替など）に使い、同じ action は service にも届く
 - `service` と `view` は解除関数を返してよい（terminate 前に呼ぶが保証はない）
 

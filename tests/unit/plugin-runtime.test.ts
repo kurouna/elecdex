@@ -248,6 +248,33 @@ describe('the plugin runtime', () => {
     expect(p.of('render')).toEqual([{ t: 'render', pane: 'wide', blocks: [] }])
   })
 
+  it('tells the service how many panes are open and on screen', () => {
+    const p = run({
+      'index.ts': `export default {
+        apiVersion: 1, id: 'x', title: 'X',
+        service(ctx) {
+          ctx.log('start ' + JSON.stringify(ctx.views))
+          ctx.on('views', () => ctx.log(JSON.stringify(ctx.views)))
+        },
+        view() {},
+      }`,
+    })
+    p.send(start())
+    p.send(mount('a', false))
+    p.send(mount('b', true))
+    p.send({ t: 'visible', pane: 'a', visible: true })
+    p.send({ t: 'visible', pane: 'a', visible: true })
+    p.send({ t: 'unmount', pane: 'b' })
+    p.send({ t: 'stop' })
+    expect(p.of('log').map((m) => m.text)).toEqual([
+      'start {"open":0,"visible":0}',
+      '{"open":1,"visible":0}',
+      '{"open":2,"visible":1}',
+      '{"open":2,"visible":2}',
+      '{"open":1,"visible":1}',
+    ])
+  })
+
   it('answers pings, so the host can tell a busy plugin from a stuck one', () => {
     const p = run({
       'index.ts': `export default { apiVersion: 1, id: 'x', title: 'X', view() {} }`,

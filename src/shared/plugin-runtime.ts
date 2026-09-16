@@ -308,8 +308,18 @@ export function pluginRuntime(
     setOptions(key: string, options: unknown): void {
       post({ t: 'options', key, options })
     },
+    get views() {
+      const all = [...views.values()]
+      return { open: all.length, visible: all.filter((v) => v.visible).length }
+    },
     on: (event: string, fn: Fn) => on(serviceListeners, event, fn),
   })
+
+  /** Tells the service its panes changed; not while the whole plugin is stopping. */
+  let stopping = false
+  const viewsChanged = (): void => {
+    if (!stopping) emit(serviceListeners, null, 'views')
+  }
 
   const viewContext = (view: View) => ({
     get settings() {
@@ -357,6 +367,7 @@ export function pluginRuntime(
     for (const timer of [...view.timers]) timer.stop()
     views.delete(view.pane)
     if (typeof view.cleanup === 'function') call(view.pane, view.cleanup as Fn)
+    viewsChanged()
   }
 
   const handlers: Record<string, (m: Record<string, unknown>) => void> = {
@@ -399,6 +410,7 @@ export function pluginRuntime(
       views.set(pane, view)
       if (typeof p.view !== 'function') throw new Error('the plugin has no view()')
       view.cleanup = call(pane, p.view as Fn, viewContext(view))
+      viewsChanged()
     },
     unmount(m) {
       const view = views.get(String(m.pane))
@@ -415,6 +427,7 @@ export function pluginRuntime(
       if (!view || view.visible === (m.visible === true)) return
       view.visible = m.visible === true
       emit(view.listeners, view.pane, 'visibility')
+      viewsChanged()
       if (!view.visible) return
       for (const timer of view.timers) {
         if (!timer.skipped) continue
@@ -465,6 +478,7 @@ export function pluginRuntime(
       post({ t: 'pong', n: m.n })
     },
     stop() {
+      stopping = true
       for (const view of [...views.values()]) unmount(view)
       for (const stop of [...serviceTimers]) stop()
       if (typeof serviceCleanup === 'function') call(null, serviceCleanup as Fn)
