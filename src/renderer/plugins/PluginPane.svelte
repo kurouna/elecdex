@@ -82,7 +82,7 @@ const openSettings = () => ui.openSettings('plugins')
     </div>
   {:else if entry.status === 'consent'}
     <div class="state">
-      <p>{title} asks for more than you agreed to.</p>
+      <p>{title} is waiting for your agreement.</p>
       <button type="button" onclick={openSettings} data-testid="plugin-open-settings">review in settings</button>
     </div>
   {:else if entry.status !== 'ready'}

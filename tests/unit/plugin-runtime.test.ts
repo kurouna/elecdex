@@ -117,6 +117,29 @@ describe('the plugin runtime', () => {
     expect(p.of('render')).toHaveLength(2)
   })
 
+  it('refuses a storage key that could reach a prototype', () => {
+    const p = run({
+      'index.ts': `export default {
+        apiVersion: 1, id: 'x', title: 'X',
+        service(ctx) {
+          for (const key of ['__proto__', 'constructor', 'a b']) {
+            try { ctx.storage.set(key, { polluted: true }) } catch (e) { ctx.log(e.message) }
+          }
+          ctx.log(String(({}).polluted))
+        },
+        view() {},
+      }`,
+    })
+    p.send(start())
+    expect(p.of('storage')).toEqual([])
+    expect(p.of('log').map((m) => m.text)).toEqual([
+      '"__proto__" is not a storage key: use letters, digits and _ . : -',
+      '"constructor" is not a storage key: use letters, digits and _ . : -',
+      '"a b" is not a storage key: use letters, digits and _ . : -',
+      'undefined',
+    ])
+  })
+
   it('keeps storage within its limit, and pane state within its own', () => {
     const p = run({
       'index.ts': `export default {

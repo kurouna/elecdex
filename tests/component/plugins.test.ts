@@ -192,7 +192,7 @@ describe('a plugin pane', () => {
   it('draws what the plugin renders, and sends a click back to it', async () => {
     const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
     await startHost([source('counter.ts', COUNTER)], {
-      counter: { enabled: true, granted, values: { step: 1 } },
+      counter: { enabled: true, key: 'counter.ts', granted, values: { step: 1 } },
     })
     pane('counter')
     await settle()
@@ -205,7 +205,7 @@ describe('a plugin pane', () => {
   it('shows why a block was dropped, and draws the rest', async () => {
     const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
     await startHost([source('counter.ts', COUNTER)], {
-      counter: { enabled: true, granted, values: { step: 2 } },
+      counter: { enabled: true, key: 'counter.ts', granted, values: { step: 2 } },
     })
     pane('counter')
     await settle()
@@ -217,7 +217,7 @@ describe('a plugin pane', () => {
 
   it('does not run a plugin that now asks for more than was agreed to', async () => {
     await startHost([source('counter.ts', COUNTER)], {
-      counter: { enabled: true, granted: grantFor(NO_PERMISSIONS), values: {} },
+      counter: { enabled: true, key: 'counter.ts', granted: grantFor(NO_PERMISSIONS), values: {} },
     })
     terminated.clear()
     pane('counter')
@@ -230,6 +230,7 @@ describe('a plugin pane', () => {
     await startHost([source('counter.ts', COUNTER)], {
       counter: {
         enabled: true,
+        key: 'counter.ts',
         granted: grantFor({ ...NO_PERMISSIONS, notify: true }),
         values: {},
       },
@@ -254,7 +255,7 @@ describe('a plugin pane', () => {
   it('ends the worker when the last pane goes, unless the plugin runs in the background', async () => {
     const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
     await startHost([source('counter.ts', COUNTER)], {
-      counter: { enabled: true, granted, values: {} },
+      counter: { enabled: true, key: 'counter.ts', granted, values: {} },
     })
     const first = pane('counter', 'a')
     const second = pane('counter', 'b')
@@ -265,6 +266,97 @@ describe('a plugin pane', () => {
     second.unmount()
     await vi.advanceTimersByTimeAsync(500)
     expect(terminated.get('counter.ts')).toBe(true)
+  })
+
+  it('does not hand a plugin’s permissions to another file that takes its id', async () => {
+    const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
+    await startHost([source('impostor.ts', COUNTER)], {
+      counter: { enabled: true, key: 'counter.ts', granted, values: {} },
+    })
+    terminated.clear()
+    pane('counter')
+    await settle()
+    expect(screen.getByTestId('plugin-pane').dataset.status).toBe('consent')
+    expect(terminated.size).toBe(0)
+    render(PluginSettings)
+    await settle()
+    expect(screen.getByTestId('plugin-consent-reason').textContent).toBe(
+      'impostor.ts now uses the id you agreed to for counter.ts.',
+    )
+  })
+
+  it('keeps pane state within its limit even when a plugin posts around the runtime', async () => {
+    const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+    const setPaneState = vi.mocked(layout.setPaneState)
+    setPaneState.mockClear()
+    const code = `export default {
+      apiVersion: 1, id: 'hoarder', title: 'hoarder',
+      view(ctx) {
+        ctx.state.set({ small: true })
+        ctx.render([{ t: 'text', text: 'drawn' }])
+        self.postMessage({ t: 'state', pane: 'pane-1', value: 'x'.repeat(70000) })
+      },
+    }`
+    // In-process, "self" in the plugin is this test's global: route its post to the host.
+    factory = (s) => {
+      const worker = inProcess(s)
+      let deliver: (data: unknown) => void = () => {}
+      vi.stubGlobal('postMessage', (m: unknown) => deliver(structuredClone(m)))
+      return {
+        ...worker,
+        onMessage: (h) => {
+          deliver = h
+          worker.onMessage(h)
+        },
+      }
+    }
+    await startHost([source('hoarder.ts', code)], {
+      hoarder: { enabled: true, key: 'hoarder.ts', granted: grantFor(NO_PERMISSIONS), values: {} },
+    })
+    pane('hoarder')
+    await settle()
+    expect(setPaneState.mock.calls).toEqual([['pane-1', { plugin: { small: true } }]])
+    expect(screen.getByTestId('plugin-error').textContent).toMatch(/at most 64 KiB/)
+  })
+
+  it('describes plugins one at a time, so spinning ones take one core, not all', async () => {
+    let running = 0
+    let most = 0
+    factory = (s) => {
+      running += 1
+      most = Math.max(most, running)
+      const worker = inProcess(s)
+      return {
+        ...worker,
+        terminate: () => {
+          running -= 1
+          worker.terminate()
+        },
+      }
+    }
+    const many = ['a', 'b', 'c'].map((name) =>
+      source(`${name}.ts`, COUNTER.replace("id: 'counter'", `id: '${name}'`)),
+    )
+    await startHost(many, {})
+    expect([...plugins.entries.keys()].filter((k) => k.length === 4)).toEqual([
+      'a.ts',
+      'b.ts',
+      'c.ts',
+    ])
+    expect(most).toBe(1)
+  })
+
+  it('shows the site a link opens next to its text', async () => {
+    const code = `export default {
+      apiVersion: 1, id: 'linker', title: 'linker',
+      view(ctx) { ctx.render([{ t: 'link', text: 'Open the docs', href: 'https://docs.example.com/a' }]) },
+    }`
+    await startHost([source('linker.ts', code)], {
+      linker: { enabled: true, key: 'linker.ts', granted: grantFor(NO_PERMISSIONS), values: {} },
+    })
+    pane('linker')
+    await settle()
+    expect(screen.getByTestId('plugin-link').textContent).toBe('Open the docsdocs.example.com')
   })
 
   it('says a plugin is gone from the folder, keeping the pane', async () => {
@@ -294,10 +386,34 @@ describe('the plugin settings', () => {
     expect(patches).toEqual([
       {
         plugins: {
-          counter: { enabled: true, granted: grantFor({ ...NO_PERMISSIONS, notify: true }) },
+          counter: {
+            enabled: true,
+            key: 'counter.ts',
+            granted: grantFor({ ...NO_PERMISSIONS, notify: true }),
+          },
         },
       },
     ])
+  })
+
+  it('warn when a plugin could send personal readings to the hosts it reaches', async () => {
+    const spy = (permissions: string) =>
+      source(
+        'spy.ts',
+        `export default { apiVersion: 1, id: 'spy', title: 'spy', permissions: ${permissions}, view() {} }`,
+      )
+    await startHost([spy(`{ metrics: ['proc.list', 'cpu.load'], hosts: ['api.example.com'] }`)], {})
+    const view = render(PluginSettings)
+    await settle()
+    expect(screen.getByTestId('plugin-exposure').textContent).toBe(
+      'It could send the names of the programs running to api.example.com.',
+    )
+    view.unmount()
+    // Load alone, or personal readings kept at home, need no warning.
+    await startHost([spy(`{ metrics: ['cpu.load'], hosts: ['api.example.com'] }`)], {})
+    render(PluginSettings)
+    await settle()
+    expect(screen.queryByTestId('plugin-exposure')).toBeNull()
   })
 
   it('show a broken plugin’s error without an on switch', async () => {

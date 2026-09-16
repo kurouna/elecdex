@@ -195,6 +195,21 @@ describe('plugin blocks', () => {
     expect(problems[0]).toMatch(/only the first/)
   })
 
+  it('refuse a link whose text names another site than it opens', () => {
+    const link = (text: string, href: string) => readBlocks([{ t: 'link', text, href }]).blocks
+    for (const text of [
+      'https://github.com/login',
+      'github.com',
+      'github.com/login',
+      'http://github.com',
+    ]) {
+      expect(link(text, 'https://evil.example.com/'), text).toEqual([])
+    }
+    for (const text of ['https://github.com/login', 'github.com', 'Sign in', 'v1.2 notes']) {
+      expect(link(text, 'https://github.com/login'), text).toHaveLength(1)
+    }
+  })
+
   it('open only https links, and sign in only to a host name', () => {
     expect(readBlocks([{ t: 'link', text: 'x', href: 'javascript:alert(1)' }]).blocks).toEqual([])
     expect(readBlocks([{ t: 'link', text: 'x', href: 'http://example.com' }]).blocks).toEqual([])
@@ -221,6 +236,16 @@ describe('plugin worker messages', () => {
     expect(
       WorkerMessageSchema.safeParse({ t: 'fetch', id: 1, url: 'x'.repeat(3000) }).success,
     ).toBe(false)
+  })
+
+  it('name only plain storage keys', () => {
+    const store = (key: string) =>
+      WorkerMessageSchema.safeParse({ t: 'storage', key, value: 1 }).success
+    expect(store('timer')).toBe(true)
+    expect(store('history.session:v2')).toBe(true)
+    for (const key of ['__proto__', 'constructor', 'prototype', '', 'a/b', 'x'.repeat(101)]) {
+      expect(store(key), key).toBe(false)
+    }
   })
 })
 

@@ -61,6 +61,18 @@ export interface PluginCatalog {
   plugins: PluginSource[]
 }
 
+/**
+ * A ctx.storage key: plain characters only, and never a name an object already gives a
+ * meaning to, so a stored object cannot be given another prototype.
+ */
+export function isStorageKey(value: unknown): value is string {
+  return (
+    typeof value === 'string' &&
+    /^[A-Za-z0-9_.:-]{1,100}$/.test(value) &&
+    !['__proto__', 'constructor', 'prototype'].includes(value)
+  )
+}
+
 /*
  * Hosts.
  */
@@ -198,6 +210,11 @@ export type Grant = z.infer<typeof GrantSchema>
 
 export const PluginSettingsSchema = z.object({
   enabled: z.boolean().default(false),
+  /**
+   * The file or folder the user agreed to. Another file claiming the same id is asked about
+   * again, so a plugin cannot take over the permissions of one it replaces by name.
+   */
+  key: z.string().max(255).nullable().default(null),
   granted: GrantSchema.default(NO_PERMISSIONS),
   values: z
     .record(
@@ -378,15 +395,24 @@ const BlockSchema = z.discriminatedUnion('t', [
       8,
     ),
   }),
-  z.object({
-    t: z.literal('link'),
-    text: short,
-    href: z.url({ protocol: /^https$/ }).max(2048),
-  }),
+  z
+    .object({ t: z.literal('link'), text: short, href: z.url({ protocol: /^https$/ }).max(2048) })
+    .refine(
+      (b) => [null, new URL(b.href).hostname].includes(linkTextHost(b.text)),
+      'link text that names a site must name the site it opens',
+    ),
   z.object({ t: z.literal('signin'), host: HostSchema, text: short.optional() }),
   z.object({ t: z.literal('notice'), text, tone }),
   z.object({ t: z.literal('divider') }),
 ])
+
+/** The host a link's text names, when the text looks like an address; otherwise null. */
+export function linkTextHost(text: string): string | null {
+  const match = /^\s*(?:[a-z][a-z0-9+.-]*:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?:[/:?#]|\s*$)/i.exec(
+    text,
+  )
+  return match?.[1]?.toLowerCase() ?? null
+}
 
 /**
  * The blocks a view rendered, each checked on its own: a bad block is dropped with its
@@ -428,7 +454,7 @@ export const WorkerMessageSchema = z.discriminatedUnion('t', [
   }),
   z.object({
     t: z.literal('storage'),
-    key: z.string().min(1).max(200),
+    key: z.string().refine(isStorageKey, 'not a storage key'),
     value: z.unknown(),
     remove: z.boolean().optional(),
   }),

@@ -4,6 +4,7 @@ import { CH } from '@shared/channels'
 import {
   type Grant,
   isPluginHost,
+  isStorageKey,
   PLUGIN_ID,
   PLUGIN_LIMITS,
   type PluginCatalog,
@@ -124,9 +125,7 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
   ipcMain.handle(
     CH.plugins.storageSet,
     (_event, id: unknown, key: unknown, value: unknown, remove: unknown) => {
-      if (grant(id) === null || typeof key !== 'string' || key.length === 0 || key.length > 200) {
-        return false
-      }
+      if (grant(id) === null || !isStorageKey(key)) return false
       return storage.set(id as string, key, value, remove === true)
     },
   )

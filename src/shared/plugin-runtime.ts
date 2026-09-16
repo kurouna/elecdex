@@ -91,6 +91,13 @@ export function pluginRuntime(
   }
 
   const MIN_EVERY_MS = 1000
+  // The rule of isStorageKey in shared/plugins.ts, which main applies again.
+  const storageKey = (key: string): void => {
+    const plain = /^[A-Za-z0-9_.:-]{1,100}$/.test(key)
+    if (!plain || ['__proto__', 'constructor', 'prototype'].includes(key)) {
+      throw new TypeError(`"${key}" is not a storage key: use letters, digits and _ . : -`)
+    }
+  }
   const STATE_BYTES = 64 * 1024
   const STORAGE_BYTES = 1024 * 1024
 
@@ -279,6 +286,7 @@ export function pluginRuntime(
       get: (key: string): unknown =>
         Object.hasOwn(storage, key) ? structuredClone(storage[key]) : undefined,
       set(key: string, value: unknown): void {
+        storageKey(key)
         const json = jsonSize(value, 'a stored value')
         const next = { ...storage, [key]: JSON.parse(json) as unknown }
         if (JSON.stringify(next).length > STORAGE_BYTES)

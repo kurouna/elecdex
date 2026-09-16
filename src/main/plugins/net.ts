@@ -62,9 +62,14 @@ export class PluginNet {
       throw new Error('too many requests: wait a moment and try again')
     }
     let current = url
+    let sent = pluginHeaders(headers)
+    let origin: string | null = null
     for (let hop = 0; hop <= PLUGIN_LIMITS.redirects; hop++) {
       const checked = checkPluginUrl(current, grant.hosts)
       if (!checked.ok) throw new Error(checked.error)
+      origin ??= checked.url.origin
+      // As browsers do: credentials meant for one site are not handed to the next.
+      if (checked.url.origin !== origin) sent = crossOriginHeaders(sent)
       const mapped = this.deps.hostMap.get(checked.url.hostname)
       const target = mapped
         ? `http://${mapped}${checked.url.pathname}${checked.url.search}`
@@ -72,7 +77,7 @@ export class PluginNet {
       const result = await this.deps.request(id, {
         url: target,
         session: grant.session.includes(checked.url.hostname),
-        headers: pluginHeaders(headers),
+        headers: sent,
         maxBytes: PLUGIN_LIMITS.responseBytes,
         timeoutMs: PLUGIN_LIMITS.fetchTimeoutMs,
       })
@@ -111,6 +116,18 @@ export class PluginNet {
     }
     return bucket
   }
+}
+
+/**
+ * The headers kept once a redirect leaves the first request's origin: content negotiation
+ * only. Authorization and the x- headers, where API keys travel, are dropped.
+ */
+export function crossOriginHeaders(
+  headers: Readonly<Record<string, string>>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([name]) => name === 'accept' || name === 'accept-language'),
+  )
 }
 
 /** Response headers for the plugin: lower-case, one string each, and never cookies. */

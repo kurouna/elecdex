@@ -132,7 +132,10 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
         {/each}
       </div>
     {:else if block.t === 'link'}
-      <button type="button" class="link" title={block.href} onclick={() => onlink(block.href)}>{block.text}</button>
+      <!-- The site it opens is always shown, whatever the text says. -->
+      <button type="button" class="link" title={block.href} onclick={() => onlink(block.href)} data-testid="plugin-link"
+        >{block.text}<small class="site">{new URL(block.href).hostname}</small></button
+      >
     {:else if block.t === 'signin'}
       <button type="button" class="signin" onclick={() => onsignin(block.host)} data-testid="plugin-signin"
         >{block.text ?? `sign in to ${block.host}`}</button
@@ -414,6 +417,13 @@ td {
   font: inherit;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.link .site {
+  margin-left: 0.4em;
+  color: var(--text-muted);
+  text-decoration: none;
+  display: inline-block;
 }
 
 .notice {

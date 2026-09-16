@@ -35,6 +35,36 @@ const METRIC_WORDS: Record<string, string> = {
   'os.info': 'the operating system and machine name',
 }
 
+/** Readings that say something about the user or their machine rather than its load. */
+const PERSONAL = new Set([
+  'proc.list',
+  'net.connections',
+  'net.interface',
+  'hardware.system',
+  'os.info',
+])
+
+/**
+ * Said when a plugin may both read such readings and reach the internet: a request's address
+ * can carry what it read, and the user should know that before agreeing.
+ */
+function exposure(p: Permissions): string | null {
+  const personal = p.metrics.filter((m) => PERSONAL.has(m))
+  if (personal.length === 0 || p.hosts.length === 0) return null
+  return `It could send ${personal.map((m) => METRIC_WORDS[m]).join(', ')} to ${p.hosts.join(', ')}.`
+}
+
+/** Why an enabled plugin waits: a different file now has its id, or it asks for more. */
+function consentReason(entry: PluginEntry, stored: PluginSettings | undefined): string | null {
+  if (entry.status !== 'consent' || stored === undefined) return null
+  if (stored.key !== entry.key) {
+    return stored.key === null
+      ? `${entry.key} has not been agreed to yet.`
+      : `${entry.key} now uses the id you agreed to for ${stored.key}.`
+  }
+  return 'It now asks for more than you agreed to.'
+}
+
 function describe(p: Permissions): string[] {
   return [
     ...p.metrics.map((m) => `read ${METRIC_WORDS[m] ?? `${m} readings`}`),
@@ -55,7 +85,11 @@ function turnOn(entry: PluginEntry): void {
   const descriptor = entry.descriptor
   if (descriptor === null) return
   asking = null
-  patch(descriptor.id, { enabled: true, granted: grantFor(descriptor.permissions) })
+  patch(descriptor.id, {
+    enabled: true,
+    key: entry.key,
+    granted: grantFor(descriptor.permissions),
+  })
   sfx.play('granted')
 }
 
@@ -135,10 +169,14 @@ async function forget(id: string): Promise<void> {
 
     {#if d && (asking === d.id || entry.status === 'consent')}
       <div class="consent" data-testid="plugin-consent">
+        {#if consentReason(entry, stored)}
+          <p class="reason" data-testid="plugin-consent-reason">{consentReason(entry, stored)}</p>
+        {/if}
         <p>{d.title} will be able to:</p>
         <ul>
           {#each describe(d.permissions) as line, i (i)}<li>{line}</li>{/each}
         </ul>
+        {#if exposure(d.permissions)}<p class="exposure" data-testid="plugin-exposure">{exposure(d.permissions)}</p>{/if}
         <div class="row">
           <button type="button" class="link primary" onclick={() => turnOn(entry)} data-testid="plugin-agree">agree and turn on</button>
           <button
@@ -155,6 +193,7 @@ async function forget(id: string): Promise<void> {
       <ul class="perms">
         {#each describe(d.permissions) as line, i (i)}<li>{line}</li>{/each}
       </ul>
+        {#if exposure(d.permissions)}<p class="exposure" data-testid="plugin-exposure">{exposure(d.permissions)}</p>{/if}
     {/if}
 
     {#if d && d.settings.length > 0}
@@ -403,6 +442,14 @@ button.link:hover {
 
 .consent p {
   margin: 0;
+}
+
+.reason,
+.exposure {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  color: var(--warn);
 }
 
 .consent ul,

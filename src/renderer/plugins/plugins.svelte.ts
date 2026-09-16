@@ -4,6 +4,7 @@ import {
   type Grant,
   isCovered,
   NO_PERMISSIONS,
+  PLUGIN_LIMITS,
   type PluginCatalog,
   type PluginDescriptor,
   type PluginSettings,
@@ -265,11 +266,7 @@ class Runner {
         if (this.panes.has(m.pane)) this.badge(m.pane, m.text, m.tone)
         return
       case 'state':
-        if (this.panes.has(m.pane)) {
-          const attached = this.panes.get(m.pane)
-          if (attached) attached.state = m.value
-          layout.setPaneState(m.pane, { plugin: m.value })
-        }
+        this.saveState(m.pane, m.value)
         return
       case 'fetch':
         void this.fetch(m.id, m.url, m.headers)
@@ -299,6 +296,27 @@ class Runner {
       case 'descriptor':
         return
     }
+  }
+
+  /**
+   * Keeps a pane's ctx.state in the layout. The runtime holds it to its limit, but a plugin
+   * can post to the host directly, so the size is checked again before it reaches layout.json.
+   */
+  private saveState(pane: string, value: unknown): void {
+    const attached = this.panes.get(pane)
+    if (!attached) return
+    let json: string | undefined
+    try {
+      json = JSON.stringify(value)
+    } catch {
+      json = undefined
+    }
+    if (json === undefined || json.length > PLUGIN_LIMITS.stateBytes) {
+      this.host.paneError(pane, 'pane state was not saved: it must be JSON of at most 64 KiB')
+      return
+    }
+    attached.state = value
+    layout.setPaneState(pane, { plugin: JSON.parse(json) as unknown })
   }
 
   private badge(pane: string, text: string | null, tone: Tone | undefined): void {
@@ -361,6 +379,20 @@ class Runner {
     this.serviceError = message
     this.host.refresh(this.id)
   }
+}
+
+/**
+ * Off, on, or waiting for the user: a plugin runs only as the file that was agreed to, and
+ * only while it asks for no more than was agreed to.
+ */
+export function statusFor(
+  key: string,
+  descriptor: PluginDescriptor,
+  stored: PluginSettings | undefined,
+): PluginStatus {
+  if (!stored?.enabled) return 'disabled'
+  const agreed = stored.key === key && isCovered(descriptor.permissions, stored.granted)
+  return agreed ? 'ready' : 'consent'
 }
 
 type ProbeResult = { descriptor: PluginDescriptor } | { error: string; newer?: boolean }
@@ -445,20 +477,14 @@ export class PluginHost {
     for (const [key, entry] of this.entries) {
       if (!keys.has(key)) this.remove(entry)
     }
-    await Promise.all(
-      catalog.plugins.map(async (source) => {
-        const current = this.entries.get(source.key)
-        if (
-          current &&
-          current.source.hash === source.hash &&
-          current.source.error === source.error
-        ) {
-          return
-        }
-        if (current) this.remove(current)
-        await this.load(source, current?.descriptor?.id ?? current?.knownId ?? null)
-      }),
-    )
+    // One at a time: describing a plugin runs its top-level code, and a folder of plugins
+    // that spin until the probe's deadline should hold one core, not all of them.
+    for (const source of catalog.plugins) {
+      const current = this.entries.get(source.key)
+      if (current?.source.hash === source.hash && current.source.error === source.error) continue
+      if (current) this.remove(current)
+      await this.load(source, current?.descriptor?.id ?? current?.knownId ?? null)
+    }
     this.markDuplicates()
     this.sync(appearance.settings.plugins)
   }
@@ -555,12 +581,7 @@ export class PluginHost {
     for (const entry of this.entries.values()) {
       const descriptor = entry.descriptor
       if (descriptor === null || entry.status === 'duplicate') continue
-      const stored = settings[descriptor.id]
-      const status: PluginStatus = !stored?.enabled
-        ? 'disabled'
-        : isCovered(descriptor.permissions, stored.granted)
-          ? 'ready'
-          : 'consent'
+      const status = statusFor(entry.key, descriptor, settings[descriptor.id])
       if (status !== entry.status) this.entries.set(entry.key, { ...entry, status })
       this.register(descriptor)
       this.run(entry.source, descriptor, status === 'ready')
@@ -642,6 +663,10 @@ export class PluginHost {
 
   /** Coalesces renders to the shared frame loop: only a pane's latest blocks are read. */
   render(pane: string, blocks: unknown): void {
+    // A render means the view works again: its error goes now, so one reported after this
+    // render - before the frame that draws it - is still shown.
+    const current = this.views.get(pane)
+    if (current?.error) this.views.set(pane, { ...current, error: null })
     const first = this.pendingRenders.size === 0
     this.pendingRenders.set(pane, blocks)
     if (!first) return
@@ -650,7 +675,7 @@ export class PluginHost {
         const view = this.views.get(target)
         if (!view) continue
         const { blocks: read, problems } = readBlocks(raw)
-        this.views.set(target, { ...view, blocks: read, problems, error: null })
+        this.views.set(target, { ...view, blocks: read, problems })
       }
       this.pendingRenders.clear()
     })

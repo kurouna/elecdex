@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { PLUGIN_ID, PLUGIN_LIMITS } from '@shared/plugins'
+import { isStorageKey, PLUGIN_ID, PLUGIN_LIMITS } from '@shared/plugins'
 
 /**
  * ctx.storage: one JSON file per plugin under userData/plugin-data (docs/plugins.md 8.1).
@@ -50,6 +50,7 @@ export class PluginStorage {
 
   /** Applies one change; false when it would take the store past its limit. */
   set(id: string, key: string, value: unknown, remove: boolean): boolean {
+    if (!isStorageKey(key)) return false
     const current = this.load(id)
     const next = { ...current }
     if (remove) delete next[key]

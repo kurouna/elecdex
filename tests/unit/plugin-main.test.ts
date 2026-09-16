@@ -229,6 +229,32 @@ describe('requests for plugins', () => {
     ).toEqual(['http://127.0.0.1:9000/a?b=2', 'http://127.0.0.1:9000/next?x=1'])
   })
 
+  it('drops credentials once a redirect leaves the first origin, and keeps them within it', async () => {
+    const headers = { accept: 'application/json', authorization: 'Bearer secret', 'x-api-key': 'k' }
+    const same = net([{ redirect: '/v2' }, ok()])
+    await same.service.fetch('on', 'https://api.example.com/v1', headers)
+    const sameHeaders = same.request.mock.calls.map(
+      (c) => (c as unknown as [string, { headers: Record<string, string> }])[1].headers,
+    )
+    expect(sameHeaders).toEqual([headers, headers])
+
+    // Away and back again: once handed on, the credentials stay dropped.
+    const away = net([
+      { redirect: 'https://claude.ai/next' },
+      { redirect: 'https://api.example.com/back' },
+      ok(),
+    ])
+    await away.service.fetch('on', 'https://api.example.com/v1', headers)
+    const awayHeaders = away.request.mock.calls.map(
+      (c) => (c as unknown as [string, { headers: Record<string, string> }])[1].headers,
+    )
+    expect(awayHeaders).toEqual([
+      headers,
+      { accept: 'application/json' },
+      { accept: 'application/json' },
+    ])
+  })
+
   it('never hands a plugin the cookies a response sets', () => {
     expect(responseHeaders({ 'Set-Cookie': ['a=1'], ETag: '"x"', vary: ['a', 'b'] })).toEqual({
       etag: '"x"',
@@ -279,5 +305,16 @@ describe('plugin storage', () => {
   it('never turns an id into a path outside its folder', () => {
     const store = new PluginStorage(path.join(dir, 'plugin-data'))
     expect(() => store.set('../settings', 'a', 1, false)).toThrow(/not a plugin id/)
+  })
+
+  it('refuses keys that would reach an object’s prototype, and keeps the store plain', () => {
+    const store = new PluginStorage(path.join(dir, 'plugin-data'))
+    for (const key of ['__proto__', 'constructor', 'prototype', '', 'a b', 'x'.repeat(101)]) {
+      expect(store.set('p', key, { polluted: true }, false), key).toBe(false)
+    }
+    expect(store.set('p', 'timer.v1', 1, false)).toBe(true)
+    const value = store.load('p')
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype)
+    expect(value).toEqual({ 'timer.v1': 1 })
   })
 })
