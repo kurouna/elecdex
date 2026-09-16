@@ -243,13 +243,15 @@ weather and calendar.
   tab - and draws only while there is sound, 20 frames a second (about a third of a core while
   sound plays, a tenth while it is silent, on an i5-1335U). Capture runs in a hidden window of its own, and only
   the levels reach the pane; nothing is recorded. Tested on Windows; macOS should work through
-  the same screen-capture route (with screen recording permission) but is untested, and Linux is
-  not supported yet.
+  the same screen-capture route (with screen recording permission) but is untested. On Linux,
+  where Electron has no loopback capture, `parec` (pulseaudio-utils, for PulseAudio or PipeWire)
+  records the monitor of the default output instead.
 - **Mixer** — not in the default layout: add it from the picker. The output device's volume and
   mute, and on Windows and Linux each app playing sound, with faders, mute buttons and, on
   Windows, peak meters. macOS has the master volume only. Read while the pane is on screen: on
-  Windows through one long-lived PowerShell, on macOS with AppleScript and on Linux with PipeWire's
-  wpctl and pactl.
+  Windows through one long-lived PowerShell, on macOS with AppleScript and on Linux with
+  pactl (PulseAudio or PipeWire; pactl from PulseAudio 16 or later), or WirePlumber's wpctl for
+  the master volume where pactl is missing.
 
 ## Plugins
 

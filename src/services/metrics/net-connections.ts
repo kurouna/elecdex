@@ -69,6 +69,17 @@ function decodeProcAddress(hex: string): string | null {
   if (hex.length !== 32) return null
   const words = hex.match(/.{8}/g) ?? []
   const bytes = words.flatMap((w) => (w.match(/../g) ?? []).reverse())
+  // A dual-stack socket talking to an IPv4 peer is listed here as ::ffff:a.b.c.d.
+  // Written as eight hex groups it would pass the private-address filter and the
+  // GeoIP database would not know it, so it is given in the dotted form.
+  const mapped =
+    bytes.slice(0, 10).every((b) => b === '00') &&
+    bytes.slice(10, 12).join('').toUpperCase() === 'FFFF'
+  if (mapped)
+    return `::ffff:${bytes
+      .slice(12)
+      .map((b) => Number.parseInt(b, 16))
+      .join('.')}`
   const groups: string[] = []
   for (let i = 0; i < 16; i += 2) {
     groups.push(`${bytes[i]}${bytes[i + 1]}`.replace(/^0+(?=.)/, ''))

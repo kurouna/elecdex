@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { AudioStub, MixerChannel, MixerCommand, MixerPeaks, MixerState } from '@shared/audio'
-import { parseMacVolume, parsePactlSinkInputs, parseWpctlVolume } from './mixer-parse.js'
+import { linuxMixer } from './mixer-linux.js'
+import { parseMacVolume } from './mixer-parse.js'
 import type { MixerBackend } from './mixer-service.js'
 import { windowsMixerBackend } from './mixer-windows.js'
 
@@ -12,7 +13,8 @@ import { windowsMixerBackend } from './mixer-windows.js'
  *    apps and peak meters.
  *  - macOS: AppleScript's volume settings - the master only; macOS has no per-app
  *    volume without an audio driver.
- *  - Linux: PipeWire's wpctl for the master and pactl for the apps, where present.
+ *  - Linux: pactl (PulseAudio or PipeWire) for the device, master and apps, and
+ *    WirePlumber's wpctl for the master where pactl is missing (mixer-linux.ts).
  *
  * macOS and Linux read every two seconds while a mixer pane shows, and at once
  * after a change. Spawning a reader per poll is fine there; on Windows it is not
@@ -27,11 +29,19 @@ export function mixerBackend(stub: AudioStub | null): MixerBackend {
   if (stub) return stubMixerBackend(stub === 'demo' ? 'Speakers' : 'Test Speakers')
   if (process.platform === 'win32') return windowsMixerBackend()
   if (process.platform === 'darwin') return pollingBackend(readMac, applyMac)
-  return pollingBackend(readLinux, applyLinux)
+  const linux = linuxMixer(output)
+  return pollingBackend(linux.read, linux.apply)
 }
 
+// wpctl prints its volume with the locale's decimal separator; C keeps it a point.
 const output = async (file: string, args: string[]): Promise<string> =>
-  (await run(file, args, { timeout: RUN_TIMEOUT_MS, windowsHide: true })).stdout
+  (
+    await run(file, args, {
+      timeout: RUN_TIMEOUT_MS,
+      windowsHide: true,
+      env: process.platform === 'linux' ? { ...process.env, LC_ALL: 'C' } : process.env,
+    })
+  ).stdout
 
 /** A backend that reads on a timer and applies commands by running a tool. */
 export function pollingBackend(
@@ -103,47 +113,6 @@ async function applyMac(command: MixerCommand): Promise<void> {
       ? `set volume output volume ${Math.round(command.volume * 100)}`
       : `set volume output muted ${command.muted}`
   await output('osascript', ['-e', statement])
-}
-
-const SINK = '@DEFAULT_AUDIO_SINK@'
-
-async function readLinux(): Promise<MixerState> {
-  let master: MixerChannel | null
-  try {
-    master = parseWpctlVolume(await output('wpctl', ['get-volume', SINK]))
-  } catch {
-    return {
-      support: 'none',
-      device: null,
-      master: null,
-      apps: [],
-      error: 'wpctl (PipeWire) was not found',
-    }
-  }
-  const apps = await output('pactl', ['-f', 'json', 'list', 'sink-inputs'])
-    .then(parsePactlSinkInputs)
-    .catch(() => null)
-  return {
-    support: apps === null ? 'master' : 'full',
-    device: null,
-    master,
-    apps: apps ?? [],
-    error: master ? null : 'the default output has no volume',
-  }
-}
-
-async function applyLinux(command: MixerCommand): Promise<void> {
-  if (command.id === 'master') {
-    await (command.t === 'volume'
-      ? output('wpctl', ['set-volume', SINK, command.volume.toFixed(2)])
-      : output('wpctl', ['set-mute', SINK, command.muted ? '1' : '0']))
-    return
-  }
-  const index = /^sink-input:(\d+)$/.exec(command.id)?.[1]
-  if (index === undefined) return
-  await (command.t === 'volume'
-    ? output('pactl', ['set-sink-input-volume', index, `${Math.round(command.volume * 100)}%`])
-    : output('pactl', ['set-sink-input-mute', index, command.muted ? '1' : '0']))
 }
 
 /**

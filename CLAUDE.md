@@ -80,6 +80,8 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   capture with loopback audio, granted only in the hidden capture window (main/audio/capture-window.ts:
   its own session, its own two-function preload, a page with no network). The workspace session
   still refuses every permission but the clipboard, and only spectrum levels leave that window.
+  On Linux, where Electron has no loopback, main runs `parec` on the default output's monitor
+  (main/audio/pulse-capture.ts) - always `@DEFAULT_MONITOR@`, never the default input.
   Code that means "the elecdex window" asks `appWindows()` (main/app-windows.ts), never
   `BrowserWindow.getAllWindows()`, so the helper window is never taken for it.
 - **Plugins** (docs/plugins.md) run in a blob Web Worker, one per plugin; main only transforms their

@@ -4,6 +4,7 @@ import { ipcMain, type WebContents } from 'electron'
 import { openCaptureWindow } from '../audio/capture-window.js'
 import { mixerBackend } from '../audio/mixer-backends.js'
 import { MixerService } from '../audio/mixer-service.js'
+import { openPulseCapture } from '../audio/pulse-capture.js'
 import { SpectrumCapture } from '../audio/spectrum-capture.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 
@@ -37,7 +38,11 @@ export function registerAudioIpc(): { dispose: () => void } {
 
   /* ---- spectrum ---- */
   const capture = new SpectrumCapture({
-    open: (onUpdate) => openCaptureWindow({ stub, onUpdate }),
+    // Linux has no loopback capture through Electron; parec records the output there.
+    open: (onUpdate) =>
+      stub === null && process.platform === 'linux'
+        ? openPulseCapture(onUpdate)
+        : openCaptureWindow({ stub, onUpdate }),
     publish: (update) => send(SPECTRUM, CH.audio.spectrum, update),
   })
   const syncSpectrum = (): void => capture.subscribers(registry.subscribers(SPECTRUM).size)

@@ -15,6 +15,12 @@ export const SPECTRUM_BINS = 60
 export const SPECTRUM_MIN_HZ = 20
 export const SPECTRUM_MAX_HZ = 20_000
 
+/** FFT size: at 48 kHz, bins 12 Hz apart, fine enough for the lowest bands. */
+export const SPECTRUM_FFT_SIZE = 4096
+
+/** The analyser's smoothing: quick to follow, as a car display was; the panes add their own fall. */
+export const SPECTRUM_SMOOTHING = 0.35
+
 /** The quietest and loudest a bin shows, in dBFS: the range a car-audio display spans. */
 export const SPECTRUM_FLOOR_DB = -84
 export const SPECTRUM_CEILING_DB = -18
@@ -67,6 +73,39 @@ export function levelFromDb(db: number): number {
 }
 
 export const isSilent = (bins: readonly number[]): boolean => bins.every((v) => v < SILENCE_LEVEL)
+
+/** How often the spectrum is read once the sound has stopped: enough to notice it start again. */
+export const SPECTRUM_QUIET_FPS = 10
+
+/**
+ * Reads the spectrum and sends frames while there is sound, and for a tail after
+ * it stops so the bars can fall on screen; then nothing, and it reads less often,
+ * until the sound returns. Both capture routes (the capture page, and parec on
+ * Linux) pace themselves with it. Returns a function that stops it.
+ */
+export function pumpSpectrum(read: () => number[], send: (bins: number[]) => void): () => void {
+  let quietSince: number | null = null
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let stopped = false
+  const tick = (): void => {
+    const bins = read()
+    const now = performance.now()
+    let quiet = false
+    if (isSilent(bins)) {
+      quietSince ??= now
+      quiet = now - quietSince > SPECTRUM_TAIL_MS
+    } else {
+      quietSince = null
+    }
+    if (!quiet) send(bins)
+    if (!stopped) timer = setTimeout(tick, 1000 / (quiet ? SPECTRUM_QUIET_FPS : SPECTRUM_FPS))
+  }
+  tick()
+  return () => {
+    stopped = true
+    if (timer) clearTimeout(timer)
+  }
+}
 
 /**
  * What the capture window can play instead of the system's sound: `tone`, a steady

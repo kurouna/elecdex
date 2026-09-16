@@ -2,10 +2,10 @@ import {
   binEdge,
   binsFromFft,
   demoBins,
-  isSilent,
+  pumpSpectrum,
   SPECTRUM_BINS,
-  SPECTRUM_FPS,
-  SPECTRUM_TAIL_MS,
+  SPECTRUM_FFT_SIZE,
+  SPECTRUM_SMOOTHING,
 } from '@shared/audio'
 
 /**
@@ -35,33 +35,8 @@ declare global {
 
 const bridge = window.elecdexCapture
 
-/** FFT size: at 48 kHz, bins 12 Hz apart, fine enough for the lowest bands. */
-const FFT_SIZE = 4096
-
-/** How often the analyser is read once the sound has stopped: enough to notice it start again. */
-const QUIET_READS_PER_SECOND = 10
-
-/**
- * Sends frames while there is sound, and for a tail after it stops so the bars
- * can fall on screen; then nothing, and the analyser is read less often, until
- * the sound returns.
- */
-function pump(read: () => number[]): void {
-  let quietSince: number | null = null
-  const tick = (): void => {
-    const bins = read()
-    const now = performance.now()
-    let quiet = false
-    if (isSilent(bins)) {
-      quietSince ??= now
-      quiet = now - quietSince > SPECTRUM_TAIL_MS
-    } else {
-      quietSince = null
-    }
-    if (!quiet) bridge.frame(bins)
-    setTimeout(tick, 1000 / (quiet ? QUIET_READS_PER_SECOND : SPECTRUM_FPS))
-  }
-  tick()
+const pump = (read: () => number[]): void => {
+  pumpSpectrum(read, (bins) => bridge.frame(bins))
 }
 
 async function capture(): Promise<void> {
@@ -76,9 +51,8 @@ async function capture(): Promise<void> {
   }
   const context = new AudioContext()
   const analyser = context.createAnalyser()
-  analyser.fftSize = FFT_SIZE
-  // Quick to follow, as a car display was; the panes add their own fall.
-  analyser.smoothingTimeConstant = 0.35
+  analyser.fftSize = SPECTRUM_FFT_SIZE
+  analyser.smoothingTimeConstant = SPECTRUM_SMOOTHING
   context.createMediaStreamSource(new MediaStream([audio])).connect(analyser)
   audio.addEventListener('ended', () => bridge.status('failed', 'system audio capture ended'))
   const fft = new Float32Array(analyser.frequencyBinCount)

@@ -65,6 +65,33 @@ describe('parseProcNetTcp', () => {
     ].join('\n')
     expect(parseProcNetTcp(tcp6)).toEqual(['2001:db8:0:0:0:0:0:1'])
   })
+
+  // A dual-stack socket's IPv4 peers are listed in tcp6 as IPv4-mapped addresses;
+  // written as hex groups they slipped past the private filter and GeoIP found none.
+  const mappedTcp6 = [
+    '  sl  local_address                         rem_address                           st',
+    '   0: 0000000000000000FFFF00000F02000A:A2C4 0000000000000000FFFF000008080808:01BB 03',
+    '   1: 0000000000000000FFFF00000F02000A:A2C6 0000000000000000ffff00000101A8C0:0016 03',
+    '   2: 0000000000000000FFFF00000F02000A:A2C8 0000000000000000FFFF00000300F285:01BB 03',
+    '   3: 0000000000000000FFFE00000F02000A:A2CA 0000000000000000FFFE000008080808:01BB 03',
+  ].join('\n')
+
+  it('decodes IPv4-mapped remotes from /proc/net/tcp6 in the dotted form', () => {
+    expect(parseProcNetTcp(mappedTcp6)).toEqual([
+      '::ffff:8.8.8.8',
+      '::ffff:192.168.1.1',
+      '::ffff:133.242.0.3',
+      '0:0:0:0:0:feff:808:808',
+    ])
+  })
+
+  it('drops private IPv4-mapped remotes and places the public ones on the globe', () => {
+    const remotes = publicRemotes(parseProcNetTcp(mappedTcp6))
+    expect(remotes.slice(0, 2)).toEqual(['8.8.8.8', '133.242.0.3'])
+    const summary = summarizeConnections(remotes.slice(0, 2))
+    expect(summary.unresolved).toBe(0)
+    expect(summary.countries.map((c) => c.code).sort()).toEqual(['JP', 'US'])
+  })
 })
 
 describe('parseBsdNetstat', () => {

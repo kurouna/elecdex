@@ -117,8 +117,6 @@ export function parsePactlSinkInputs(text: string): MixerChannel[] {
     const parsed = SinkInputSchema.safeParse(entry)
     if (!parsed.success) return []
     const { index, mute, volume, properties } = parsed.data
-    const values = Object.values(volume).map((v) => v.value)
-    const average = values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length
     const name = [properties['application.name'], properties['application.process.binary']].find(
       (v): v is string => typeof v === 'string' && v.trim() !== '',
     )
@@ -126,10 +124,50 @@ export function parsePactlSinkInputs(text: string): MixerChannel[] {
       {
         id: `sink-input:${index}`,
         name: name ?? `stream ${index}`,
-        // PulseAudio's 100% is 65536.
-        volume: clamp01(average / 65536),
+        volume: averageVolume(volume),
         muted: mute,
       },
     ]
   })
+}
+
+const SinkSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  mute: z.boolean(),
+  volume: z.record(z.string(), z.object({ value: z.number() })),
+})
+
+/**
+ * Linux: the default output, from `pactl -f json list sinks` and the name
+ * `pactl get-default-sink` printed. Null when that sink is not in the list.
+ */
+export function parsePactlDefaultSink(
+  text: string,
+  defaultName: string,
+): { device: string; master: MixerChannel } | null {
+  let raw: unknown
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (!Array.isArray(raw)) return null
+  for (const entry of raw) {
+    const parsed = SinkSchema.safeParse(entry)
+    if (!parsed.success || parsed.data.name !== defaultName.trim()) continue
+    const { name, description, mute, volume } = parsed.data
+    return {
+      device: description?.trim() || name,
+      master: { id: 'master', name: 'Master', volume: averageVolume(volume), muted: mute },
+    }
+  }
+  return null
+}
+
+/** PulseAudio's channel volumes as one level; its 100% is 65536. */
+function averageVolume(volume: Record<string, { value: number }>): number {
+  const values = Object.values(volume).map((v) => v.value)
+  const average = values.length === 0 ? 0 : values.reduce((a, b) => a + b, 0) / values.length
+  return clamp01(average / 65536)
 }

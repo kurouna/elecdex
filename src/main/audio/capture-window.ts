@@ -20,7 +20,9 @@ import { markHelperWindow } from '../app-windows.js'
  *    track unread and sends on only spectrum levels, checked here.
  *
  * It exists only while a spectrum pane is showing (ipc/audio.ts) and is marked as
- * a helper window, so nothing takes it for the elecdex window.
+ * a helper window, so nothing takes it for the elecdex window. Linux has no
+ * loopback capture through Electron, so there only the test stubs use this window;
+ * the real sound comes from parec (pulse-capture.ts).
  */
 
 const PRELOAD = fileURLToPath(new URL('../preload/audio-capture.cjs', import.meta.url))
@@ -103,8 +105,7 @@ export function openCaptureWindow(options: {
     if (!fromHere(event) || (status !== 'running' && status !== 'failed')) return
     options.onUpdate({
       t: 'status',
-      // Linux has no loopback capture through Electron: say so rather than report a failure.
-      status: status === 'failed' && process.platform === 'linux' ? 'unsupported' : status,
+      status,
       message: typeof message === 'string' ? message.slice(0, 300) : null,
     })
   }
