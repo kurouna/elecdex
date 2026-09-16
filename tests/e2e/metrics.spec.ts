@@ -35,6 +35,13 @@ test('every monitoring widget shows live data', async () => {
       /^[A-Z]{3} \d{1,2} (SUN|MON|TUE|WED|THU|FRI|SAT)$/,
     )
     await expect(page.getByTestId('uptime')).toHaveText(/^\d+:\d{2}:\d{2}$/, { timeout: 20_000 })
+    // "Windows 11 Pro Version 25H2 (Build 26200.9457) x64", "Ubuntu 24.04 ... x64".
+    await expect(page.getByTestId('sysinfo-os')).toHaveText(/\S.* (x64|arm64|ia32|arm)$/, {
+      timeout: 30_000,
+    })
+    if (process.platform === 'win32') {
+      await expect(page.getByTestId('sysinfo-os')).toHaveText(/^Windows .*\(Build \d+(\.\d+)?\)/)
+    }
     await expect(page.getByTestId('cpu-tasks')).toHaveText(/^\d+$/, { timeout: 30_000 })
     await expect(page.getByTestId('cpu-avg-1')).toHaveText(/Avg\. \d/, { timeout: 20_000 })
     await expect
@@ -161,6 +168,81 @@ test('a reloaded page does not leave its subscriptions behind', async () => {
     await expect
       .poll(async () => (await stats(page)).active, { timeout: 10_000 })
       .not.toContain('cpu.load')
+  } finally {
+    await close()
+  }
+})
+
+test('what cannot change is collected once, however often it is subscribed again', async () => {
+  const STATIC = ['cpu.info', 'os.info', 'hardware.system'] as const
+  const { page, close } = await launch()
+  const counts = async () => {
+    const { collections } = await stats(page)
+    return STATIC.map((id) => collections[id] ?? 0)
+  }
+  const reload = async () => {
+    await page.reload()
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+  }
+  try {
+    await expect.poll(counts, { timeout: 30_000 }).toEqual([1, 1, 1])
+    await expect(page.getByTestId('sysinfo-os')).not.toHaveText('--')
+
+    // A reload drops every subscription and makes them again.
+    await reload()
+    await reload()
+    await expect(page.getByTestId('sysinfo-os')).not.toHaveText('--')
+
+    // Closing the only readers and bringing them back, as a pane move does.
+    await page.waitForTimeout(2000) // let the page's own debounced save land first
+    const tree = await page.evaluate(() => window.elecdex.layout.load())
+    await closeWidget(page, 'sysinfo')
+    await closeWidget(page, 'cpu')
+    await expect
+      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
+      .not.toContain('os.info')
+    await page.waitForTimeout(2000) // the closes' own save, which would overwrite ours
+    await page.evaluate((t) => window.elecdex.layout.save(t), tree)
+    await reload()
+    // Served from the broker's cache, not collected again.
+    await expect(page.getByTestId('sysinfo-os')).not.toHaveText('--')
+    await expect
+      .poll(async () => (await stats(page)).active, { timeout: 10_000 })
+      .toEqual(expect.arrayContaining([...STATIC]))
+    await page.waitForTimeout(3000)
+    expect(await counts()).toEqual([1, 1, 1])
+  } finally {
+    await close()
+  }
+})
+
+test('the system pane fits its rows in a layout saved before the OS row', async () => {
+  const OLD = [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165]
+  const first = await launch()
+  const saved = await first.page.evaluate(() => window.elecdex.layout.load())
+  await first.app.close()
+  const root = saved.root
+  if (root.kind !== 'split' || root.children[0]?.kind !== 'split') throw new Error('unexpected')
+  root.children[0].sizes = OLD
+  writeFileSync(path.join(first.userData, 'layout.json'), JSON.stringify(saved))
+
+  const { app, page, close } = await launch(first.userData)
+  try {
+    // The size the default layout is designed for; a much smaller window is too
+    // short for three rows at any height the column gives this pane.
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(1920, 1080)
+    })
+    const os = page.getByTestId('sysinfo-os')
+    await expect(os).not.toHaveText('--', { timeout: 30_000 })
+    await page.waitForTimeout(500) // the resize settling
+    const pane = await page.locator('[data-testid=pane][data-widget=sysinfo]').boundingBox()
+    const lastRow = await page.getByTestId('sysinfo').locator('.hud-cells').last().boundingBox()
+    if (!pane || !lastRow) throw new Error('no boxes')
+    expect(lastRow.y + lastRow.height).toBeLessThanOrEqual(pane.y + pane.height + 0.5)
+    const loaded = await page.evaluate(() => window.elecdex.layout.load())
+    const column = loaded.root.kind === 'split' ? loaded.root.children[0] : null
+    expect(column?.kind === 'split' ? column.sizes[1] : 0).toBeCloseTo(0.125)
   } finally {
     await close()
   }

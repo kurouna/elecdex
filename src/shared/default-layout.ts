@@ -33,7 +33,7 @@ export function defaultLayoutNode(): LayoutNode {
           pane('netstat'),
           pane('throughput'),
         ],
-        [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165],
+        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
       ),
       split(
         'column',
@@ -60,4 +60,57 @@ export function defaultLayout(): LayoutTree {
 /** The layout to fall back to when a tree collapses to nothing. */
 export function fallbackNode(): LayoutNode {
   return pane('terminal')
+}
+
+/** The left column's widgets, top to bottom, as the default layout has them. */
+const LEFT_COLUMN = [
+  'clock',
+  'sysinfo',
+  'cpu',
+  'memory',
+  'disk',
+  'toplist',
+  'netstat',
+  'throughput',
+]
+
+/**
+ * Left-column heights earlier versions shipped, each with the heights that replace
+ * it. v0.0.5 gave the system pane a row for the OS version.
+ */
+const LEFT_COLUMN_UPGRADES: ReadonlyArray<{ from: number[]; to: number[] }> = [
+  {
+    from: [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165],
+    to: [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+  },
+]
+
+const sameSizes = (a: readonly number[], b: readonly number[]): boolean =>
+  a.length === b.length && a.every((v, i) => Math.abs(v - (b[i] ?? Number.NaN)) < 1e-6)
+
+function isLeftColumn(node: LayoutNode): node is Extract<LayoutNode, { kind: 'split' }> {
+  return (
+    node.kind === 'split' &&
+    node.direction === 'column' &&
+    node.children.length === LEFT_COLUMN.length &&
+    node.children.every((c, i) => c.kind === 'pane' && c.widget === LEFT_COLUMN[i])
+  )
+}
+
+/**
+ * Brings a saved layout's untouched default left column up to the current
+ * heights. A layout.json keeps the heights it was saved with, so without this a
+ * pane that grew (the system pane's OS row) would draw past its bottom edge for
+ * everyone who upgraded. A column the user resized is left alone.
+ */
+export function upgradeDefaultHeights(node: LayoutNode): LayoutNode {
+  if (node.kind === 'split') {
+    const upgrade = isLeftColumn(node)
+      ? LEFT_COLUMN_UPGRADES.find((u) => sameSizes(node.sizes, u.from))
+      : undefined
+    const children = node.children.map(upgradeDefaultHeights)
+    const changed = upgrade !== undefined || children.some((c, i) => c !== node.children[i])
+    return changed ? { ...node, children, sizes: upgrade ? [...upgrade.to] : node.sizes } : node
+  }
+  return node
 }

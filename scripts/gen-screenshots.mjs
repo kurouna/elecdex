@@ -64,7 +64,7 @@ const audioLayout = {
       split(
         'column',
         ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
-        [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165],
+        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
       ),
       split(
         'column',

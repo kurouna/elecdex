@@ -67,8 +67,16 @@ export interface ProcessList {
 
 export interface OsInfo {
   platform: string
+  /** "Windows 11 Pro", "Ubuntu", "macOS". */
   distro: string
   release: string
+  /** "25H2" on Windows, "Noble Numbat" on Ubuntu, "Sequoia" on macOS; may be empty. */
+  codename: string
+  /** "26200.9457" on Windows, "24B83" on macOS; often empty on Linux. */
+  build: string
+  /** The kernel release, as uname -r prints it. */
+  kernel: string
+  /** Node's name for it: "x64", "arm64". */
   arch: string
   hostname: string
 }

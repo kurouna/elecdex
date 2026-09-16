@@ -27,6 +27,7 @@ import si from 'systeminformation'
 import { type DiskCounters, diskIoBetween, parseDiskstats, posixVolumes } from './disks.js'
 import { summarizeConnections } from './geoip.js'
 import { parseBsdNetstat, parseProcNetTcp, publicRemotes } from './net-connections.js'
+import { parseWindowsVersion } from './os-version.js'
 import type { SourceDefinition } from './scheduler.js'
 import { WindowsSampler } from './windows-sampler.js'
 
@@ -36,9 +37,9 @@ import { WindowsSampler } from './windows-sampler.js'
  * Intervals are set from measurements, not guesses. On Windows 11 (i5-1335U),
  * systeminformation took, per call:
  *
- *   cpu()                 ~1550ms   static                -> 10 min
- *   osInfo()              ~1000ms   static                -> 10 min
- *   system() + chassis()  ~1450ms   static                -> 10 min
+ *   cpu()                 ~1550ms   static                -> once
+ *   osInfo()              ~1000ms   static                -> once (not on win32)
+ *   system() + chassis()  ~1450ms   static                -> once
  *   networkInterfaces()   ~1400ms   rarely changes        -> 30s
  *   battery()              ~450ms                         -> 30s
  *   mem()                  ~400ms   spawns a process      -> swap only, 10s
@@ -56,14 +57,12 @@ import { WindowsSampler } from './windows-sampler.js'
  * those calls starts a fresh PowerShell, wmic or ping.exe. Every frequent Windows
  * source - traffic, processes, interface, ping, battery, swap - therefore reads
  * from WindowsSampler, one long-lived process; see windows-sampler.ts. Only the
- * static sources, read once every ten minutes, still go through
- * systeminformation there.
+ * static sources, read once per collector (see scheduler.ts), still go through
+ * systeminformation there - except the OS version, which one `reg query` answers.
  */
 
 const isWindows = process.platform === 'win32'
 const byPlatform = (windows: number, other: number): number => (isWindows ? windows : other)
-
-const TEN_MINUTES = 10 * 60 * 1000
 
 /** Host pinged for latency. The same default eDEX-UI used. */
 export const PING_HOST = '1.1.1.1'
@@ -73,6 +72,8 @@ const windowsSampler = isWindows ? new WindowsSampler(PING_HOST) : null
 
 /** Processes reported in the top list. */
 const TOP_PROCESSES = 12
+
+const run = promisify(execFile)
 
 const str = (value: unknown): string => (typeof value === 'string' ? value : '')
 const num = (value: unknown): number =>
@@ -154,12 +155,37 @@ async function processList(): Promise<ProcessList> {
   return { all: num(p.all), top }
 }
 
+const WINDOWS_VERSION_KEY = String.raw`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion`
+
+async function windowsOsInfo(): Promise<OsInfo> {
+  const { stdout } = await run('reg', ['query', WINDOWS_VERSION_KEY], {
+    timeout: 5000,
+    windowsHide: true,
+  })
+  const version = parseWindowsVersion(stdout)
+  return {
+    platform: 'Windows',
+    // os.version() says "Windows 11 Pro"; the registry's ProductName still says 10.
+    distro: os.version(),
+    release: os.release(),
+    codename: version.displayVersion,
+    build: version.build,
+    kernel: os.release(),
+    arch: os.arch(),
+    hostname: os.hostname(),
+  }
+}
+
 async function osInfo(): Promise<OsInfo> {
+  if (isWindows) return windowsOsInfo()
   const o = await si.osInfo()
   return {
     platform: str(o.platform),
     distro: str(o.distro),
     release: str(o.release),
+    codename: str(o.codename),
+    build: str(o.build),
+    kernel: str(o.kernel),
     arch: str(o.arch),
     hostname: str(o.hostname),
   }
@@ -224,8 +250,6 @@ async function netPing(): Promise<NetPing> {
   return { host: PING_HOST, ms: typeof ms === 'number' && ms >= 0 ? ms : null }
 }
 
-const run = promisify(execFile)
-
 async function netConnections(): Promise<NetConnections> {
   let remotes: string[]
   if (windowsSampler) {
@@ -275,7 +299,7 @@ async function diskIo(): Promise<DiskIo> {
 }
 
 export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
-  'cpu.info': { intervalMs: TEN_MINUTES, collect: cpuInfo },
+  'cpu.info': { once: true, collect: cpuInfo },
   'cpu.load': { intervalMs: 1000, collect: cpuLoad },
   'cpu.speed': { intervalMs: 2000, collect: cpuSpeed },
   'cpu.temperature': { intervalMs: 5000, collect: cpuTemperature },
@@ -283,10 +307,10 @@ export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'mem.usage': { intervalMs: 1000, collect: memUsage },
   'mem.swap': { intervalMs: 10_000, collect: memSwap },
   'proc.list': { intervalMs: byPlatform(5000, 3000), collect: processList },
-  'os.info': { intervalMs: TEN_MINUTES, collect: osInfo },
+  'os.info': { once: true, collect: osInfo },
   'os.uptime': { intervalMs: 5000, collect: osUptime },
   'power.battery': { intervalMs: 30_000, collect: battery },
-  'hardware.system': { intervalMs: TEN_MINUTES, collect: hardwareSystem },
+  'hardware.system': { once: true, collect: hardwareSystem },
   'net.interface': { intervalMs: byPlatform(5000, 30_000), collect: netInterface },
   'net.throughput': { intervalMs: 1000, collect: netThroughput },
   'net.ping': { intervalMs: 5000, collect: netPing },

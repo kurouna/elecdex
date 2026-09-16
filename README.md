@@ -168,7 +168,9 @@ weather and calendar.
   the same, and shows the shell and full path on hover. A non-zero exit code is flagged on the
   tab. New shells start in the home folder, or in the folder set under *Settings → General →
   Terminal* ("~" for home; a folder that no longer exists falls back to home).
-- **System** — date and weekday, uptime, OS, and power with a battery gauge (green, red below 20%).
+- **System** — date and weekday, uptime, OS type, and power with a battery gauge (green, red below
+  20%); the full OS version and architecture (as `uname` or `winver` would put it); the machine's
+  maker, model and chassis. What cannot change while the app runs is read once, not polled.
 - **CPU** — two graphs of the cores' average load, or a bar per logical core (toggle in the pane).
 - **Memory** — the share in use and swap over the last minute, scrolling in step with the CPU
   graphs, with bars for the amounts now.

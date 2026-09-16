@@ -11,6 +11,7 @@ import {
   formatUptime,
   formatWeekday,
   osLabel,
+  osVersionLabel,
   powerLabel,
   toMegabytesPerSecond,
   trimHardware,
@@ -100,6 +101,102 @@ describe('formatClock', () => {
 describe('formatMonthDay', () => {
   it('matches the original cell', () => {
     expect(formatMonthDay(new Date(2019, 3, 29))).toBe('APR 29')
+  })
+})
+
+describe('osVersionLabel', () => {
+  const windows = {
+    platform: 'Windows',
+    distro: 'Windows 11 Pro',
+    release: '10.0.26200',
+    codename: '25H2',
+    build: '26200.9457',
+    kernel: '10.0.26200',
+    arch: 'x64',
+  }
+
+  it('reads like winver on Windows', () => {
+    expect(osVersionLabel(windows)).toBe('Windows 11 Pro Version 25H2 (Build 26200.9457) x64')
+  })
+
+  it('drops the Microsoft prefix a WMI caption carries', () => {
+    expect(osVersionLabel({ ...windows, distro: 'Microsoft Windows 11 Pro' })).toBe(
+      'Windows 11 Pro Version 25H2 (Build 26200.9457) x64',
+    )
+  })
+
+  it('leaves out the parts Windows did not report', () => {
+    expect(osVersionLabel({ ...windows, codename: '', build: '17763' })).toBe(
+      'Windows 11 Pro (Build 17763) x64',
+    )
+    expect(osVersionLabel({ ...windows, build: '', arch: '' })).toBe('Windows 11 Pro Version 25H2')
+  })
+
+  it('reads like About This Mac on macOS', () => {
+    const mac = {
+      platform: 'darwin',
+      distro: 'macOS',
+      release: '15.1',
+      codename: 'Sequoia',
+      build: '24B83',
+      kernel: '24.1.0',
+      arch: 'arm64',
+    }
+    expect(osVersionLabel(mac)).toBe('macOS Sequoia 15.1 (Build 24B83) arm64')
+    // An unknown release gets "macOS" as its codename; it is not said twice.
+    expect(osVersionLabel({ ...mac, codename: 'macOS', release: '28.0' })).toBe(
+      'macOS 28.0 (Build 24B83) arm64',
+    )
+  })
+
+  it('names the distribution and the kernel on Linux', () => {
+    const linux = {
+      platform: 'linux',
+      distro: 'Ubuntu',
+      release: '24.04.1 LTS',
+      codename: 'Noble Numbat',
+      build: '',
+      kernel: '6.8.0-45-generic',
+      arch: 'x64',
+    }
+    expect(osVersionLabel(linux)).toBe(
+      'Ubuntu 24.04.1 LTS (Noble Numbat) · Linux 6.8.0-45-generic x64',
+    )
+    // Arch Linux: no version, BUILD_ID "rolling" is not a build number worth showing.
+    expect(
+      osVersionLabel({
+        ...linux,
+        distro: 'Arch Linux',
+        release: 'unknown',
+        codename: '',
+        build: 'rolling',
+      }),
+    ).toBe('Arch Linux · Linux 6.8.0-45-generic x64')
+  })
+
+  it('copes with a sample from before the newer fields existed', () => {
+    expect(
+      osVersionLabel({
+        platform: 'Windows',
+        distro: 'Windows 11 Pro',
+        release: '10.0.26200',
+        arch: 'x64',
+      }),
+    ).toBe('Windows 11 Pro x64')
+  })
+
+  it('shows a dash when nothing is known', () => {
+    expect(
+      osVersionLabel({
+        platform: '',
+        distro: '',
+        release: '',
+        codename: '',
+        build: '',
+        kernel: '',
+        arch: '',
+      }),
+    ).toBe('--')
   })
 })
 

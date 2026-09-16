@@ -5,6 +5,7 @@ import {
   formatUptime,
   formatWeekday,
   osLabel,
+  osVersionLabel,
   powerLabel,
   trimHardware,
 } from '../../lib/format.ts'
@@ -14,7 +15,8 @@ import BatteryGauge from './BatteryGauge.svelte'
 
 /**
  * eDEX-UI's system strip and hardware inspector, combined: the date, uptime,
- * OS type and power state on one row, manufacturer / model / chassis below.
+ * OS type and power state on one row, the full OS version (what uname or winver
+ * would say) on the next, manufacturer / model / chassis below.
  */
 const { paneId }: WidgetProps = $props()
 
@@ -33,6 +35,7 @@ const os = $derived(metrics.get('os.info'))
 const battery = $derived(metrics.get('power.battery'))
 const hardware = $derived(metrics.get('hardware.system'))
 const gauge = $derived(battery ? batteryGauge(battery) : null)
+const osVersion = $derived(os ? osVersionLabel(os) : '--')
 </script>
 
 <div class="sysinfo" data-testid="sysinfo" data-pane-id={paneId}>
@@ -67,7 +70,15 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
     </div>
   </div>
 
-  <div class="hud-cells hardware">
+  <div class="hud-cells detail">
+    <div class="hud-cell">
+      <span class="label">os</span>
+      <!-- A narrow column cuts the end off; the title keeps the whole string reachable. -->
+      <span class="value" data-testid="sysinfo-os" title={osVersion}>{osVersion}</span>
+    </div>
+  </div>
+
+  <div class="hud-cells detail">
     <div class="hud-cell">
       <span class="label">manufacturer</span>
       <span class="value">{hardware ? trimHardware(hardware.manufacturer, 2) : '--'}</span>
@@ -93,6 +104,8 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
   justify-content: space-between;
   height: 100%;
   gap: var(--space-1);
+  /* A pane made shorter than its rows cuts them off rather than drawing over the CPU pane. */
+  overflow: hidden;
 }
 
 .power {
@@ -111,11 +124,11 @@ const gauge = $derived(battery ? batteryGauge(battery) : null)
   color: var(--text-muted);
 }
 
-.hardware {
+.detail {
   padding-top: var(--space-1);
 }
 
-.hardware .value {
+.detail .value {
   font-size: var(--step--1);
   font-weight: 400;
 }

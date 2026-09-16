@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   type Clock,
   MetricScheduler,
+  ONCE_RETRY_MS,
   type SourceDefinition,
 } from '../../src/services/metrics/scheduler.js'
 
@@ -214,6 +215,152 @@ describe('MetricScheduler', () => {
     // and b at 0,2,4s.
     await advance(4500)
     expect(scheduler.collections()).toEqual({ a: 5, b: 3 })
+  })
+
+  describe('once-only sources', () => {
+    /** A once-only source that fails its first `failures` calls. */
+    function once(failures = 0) {
+      const calls = { n: 0 }
+      const definition: SourceDefinition = {
+        once: true,
+        collect: async () => {
+          calls.n += 1
+          if (calls.n <= failures) throw new Error(`failure ${calls.n}`)
+          return { call: calls.n }
+        },
+      }
+      return { calls, definition }
+    }
+
+    it('collects once and never again while watched', async () => {
+      const a = once()
+      const { scheduler, samples } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(0)
+      expect(samples).toEqual([{ id: 'a', data: { call: 1 } }])
+      await advance(24 * 60 * 60 * 1000)
+      expect(a.calls.n).toBe(1)
+      expect(scheduler.active()).toEqual(['a'])
+      expect(scheduler.timerCount()).toBe(0)
+    })
+
+    it('does not collect again when subscribed again, as after a pane move or reload', async () => {
+      const a = once()
+      const { scheduler } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(0)
+      for (let i = 0; i < 5; i += 1) {
+        scheduler.setActive([])
+        expect(scheduler.active()).toEqual([])
+        scheduler.setActive(['a'])
+        await advance(1000)
+      }
+      expect(a.calls.n).toBe(1)
+      expect(scheduler.collections()).toEqual({ a: 1 })
+    })
+
+    it('still collects a source dropped while its only collection was in flight', async () => {
+      const calls = { n: 0 }
+      const { scheduler, samples } = setup({
+        slow: {
+          once: true,
+          collect: () =>
+            new Promise((resolve) => {
+              calls.n += 1
+              setTimeout(() => resolve('done'), 1500)
+            }),
+        },
+      })
+      scheduler.setActive(['slow'])
+      scheduler.setActive([])
+      await advance(2000)
+      scheduler.setActive(['slow'])
+      await advance(2000)
+      expect(calls.n).toBe(1)
+      expect(samples).toHaveLength(1)
+    })
+
+    it('retries a failure on a widening delay until it succeeds', async () => {
+      const a = once(2)
+      const { scheduler, samples, errors } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(0)
+      expect(errors).toHaveLength(1)
+
+      await advance(ONCE_RETRY_MS[0] - 1)
+      expect(a.calls.n).toBe(1)
+      await advance(1)
+      expect(a.calls.n).toBe(2)
+      expect(errors).toHaveLength(2)
+
+      await advance(ONCE_RETRY_MS[1] - 1)
+      expect(a.calls.n).toBe(2)
+      await advance(1)
+      expect(a.calls.n).toBe(3)
+      expect(samples).toHaveLength(1)
+
+      await advance(ONCE_RETRY_MS[2] * 3)
+      expect(a.calls.n).toBe(3)
+    })
+
+    it('keeps retrying at the longest delay', async () => {
+      const a = once(100)
+      const { scheduler } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(ONCE_RETRY_MS[0] + ONCE_RETRY_MS[1] + ONCE_RETRY_MS[2] * 2)
+      expect(a.calls.n).toBe(5)
+    })
+
+    it('does not retry while nobody watches, and keeps its backoff when watched again', async () => {
+      const a = once(1)
+      const { scheduler } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(0)
+      scheduler.setActive([])
+      await advance(ONCE_RETRY_MS[2] * 2)
+      expect(a.calls.n).toBe(1)
+
+      // Resubscribing does not retry at once: moving a pane is not a reason to hammer.
+      scheduler.setActive(['a'])
+      await advance(ONCE_RETRY_MS[0] - 1)
+      expect(a.calls.n).toBe(1)
+      await advance(1)
+      expect(a.calls.n).toBe(2)
+    })
+
+    it('arms a single retry however often it is resubscribed', async () => {
+      const a = once(100)
+      const { scheduler } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(0)
+      for (let i = 0; i < 5; i += 1) {
+        scheduler.setActive([])
+        scheduler.setActive(['a'])
+      }
+      await advance(ONCE_RETRY_MS[0])
+      expect(a.calls.n).toBe(2)
+    })
+
+    it('is staggered with the interval sources activated alongside it', async () => {
+      const a = counted(60_000)
+      const b = once()
+      const { scheduler } = setup({ a: a.definition, b: b.definition })
+      scheduler.setActive(['a', 'b'])
+      await advance(0)
+      expect([a.calls.n, b.calls.n]).toEqual([1, 0])
+      await advance(150)
+      expect([a.calls.n, b.calls.n]).toEqual([1, 1])
+    })
+
+    it('cancels a pending retry on dispose', async () => {
+      const a = once(1)
+      const { scheduler } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(0)
+      scheduler.dispose()
+      await advance(ONCE_RETRY_MS[2])
+      expect(a.calls.n).toBe(1)
+    })
   })
 
   it('emits nothing and arms nothing after dispose', async () => {

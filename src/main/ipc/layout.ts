@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { CH } from '@shared/channels'
-import { defaultLayout, fallbackNode } from '@shared/default-layout'
+import { defaultLayout, fallbackNode, upgradeDefaultHeights } from '@shared/default-layout'
 import { normalizeTree } from '@shared/layout-ops'
 import { type LayoutTree, LayoutTreeSchema, migrateLayout } from '@shared/schemas/layout'
 import { app, ipcMain } from 'electron'
@@ -26,7 +26,7 @@ export function registerLayoutIpc(): { dispose: () => void } {
     // running take effect on the next reload instead of being masked by a cache.
     store.invalidate()
     const tree = store.read(migrateLayout)
-    return normalizeTree(tree, fallbackNode())
+    return normalizeTree({ ...tree, root: upgradeDefaultHeights(tree.root) }, fallbackNode())
   })
 
   ipcMain.handle(CH.layout.save, (_event, raw: unknown): LayoutTree => {

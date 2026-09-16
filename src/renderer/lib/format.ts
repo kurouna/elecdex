@@ -97,6 +97,78 @@ export function osLabel(platform: string): string {
   return p
 }
 
+export interface OsVersionParts {
+  platform: string
+  distro: string
+  release: string
+  /** Optional: a sample cached by an older collector lacks the newer fields. */
+  codename?: string
+  build?: string
+  kernel?: string
+  arch: string
+}
+
+/** A reported value, or '' where the source had none ("unknown" on some Linux). */
+const known = (value: string | undefined): string => {
+  const v = (value ?? '').trim()
+  return v === 'unknown' ? '' : v
+}
+
+const joinParts = (parts: readonly string[]): string => parts.filter((p) => p !== '').join(' ')
+
+const wrapped = (before: string, value: string, after = ''): string =>
+  value === '' ? '' : `${before}${value}${after}`
+
+function windowsVersion(os: OsVersionParts): string {
+  return joinParts([
+    known(os.distro).replace(/^Microsoft\s+/i, ''),
+    wrapped('Version ', known(os.codename)),
+    wrapped('(Build ', known(os.build), ')'),
+    known(os.arch),
+  ])
+}
+
+function macVersion(os: OsVersionParts): string {
+  const name = known(os.distro)
+  const codename = known(os.codename)
+  // systeminformation falls back to "macOS" as the codename of a release it does not know.
+  const nickname = name.toLowerCase().includes(codename.toLowerCase()) ? '' : codename
+  return joinParts([
+    name,
+    nickname,
+    known(os.release),
+    wrapped('(Build ', known(os.build), ')'),
+    known(os.arch),
+  ])
+}
+
+function unixVersion(os: OsVersionParts): string {
+  const kernelName = os.platform === 'linux' ? 'Linux' : known(os.platform)
+  return joinParts([
+    known(os.distro),
+    known(os.release),
+    wrapped('(', known(os.codename), ')'),
+    wrapped(`· ${kernelName} `, known(os.kernel)),
+    known(os.arch),
+  ])
+}
+
+/**
+ * The OS cell, in each platform's own words:
+ * "Windows 11 Pro Version 25H2 (Build 26200.9457) x64",
+ * "macOS Sequoia 15.1 (Build 24B83) arm64",
+ * "Ubuntu 24.04.1 LTS (Noble Numbat) · Linux 6.8.0-45-generic x64".
+ * The host name is left out on purpose: screenshots get shared.
+ */
+export function osVersionLabel(os: OsVersionParts): string {
+  const p = os.platform.toLowerCase()
+  let label: string
+  if (p.startsWith('win')) label = windowsVersion(os)
+  else if (p === 'darwin' || p.startsWith('mac')) label = macVersion(os)
+  else label = unixVersion(os)
+  return label === '' ? '--' : label
+}
+
 /**
  * The POWER cell: a percentage on battery, CHARGE while charging, WIRED on a
  * machine with no battery - the same three states the original showed.
