@@ -62,3 +62,13 @@ export function dateOf(at: number): string {
   const t = new Date(at)
   return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`
 }
+
+/**
+ * A time axis label: the time of day, with the date too when the axis spans more than a
+ * day - on a week-long chart, "21:30" at both ends says nothing.
+ */
+export function axisTime(at: number, span: number): string {
+  if (span <= 24 * 3600_000) return timeOfDay(at)
+  const t = new Date(at)
+  return `${pad(t.getMonth() + 1)}/${pad(t.getDate())} ${timeOfDay(at)}`
+}

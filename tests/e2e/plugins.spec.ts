@@ -262,6 +262,10 @@ test('a sign-in session is the plugin’s own, and signing in is seen by the plu
   try {
     await turnOn(page, 'account')
     await expect(pluginPane(page).getByText('signed out')).toBeVisible()
+    // The button is as wide as its words, not stretched across the pane.
+    const button = await pluginPane(page).getByTestId('plugin-signin').boundingBox()
+    const paneBox = await pluginPane(page).boundingBox()
+    expect(button?.width ?? 0).toBeLessThan((paneBox?.width ?? 0) / 2)
     await pluginPane(page).getByTestId('plugin-signin').click()
     await expect.poll(() => app.app.windows().length).toBe(2)
     const signIn = app.app.windows().find((w) => w !== page)

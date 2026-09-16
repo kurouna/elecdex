@@ -359,6 +359,13 @@ describe('a plugin pane', () => {
     expect(screen.getByTestId('plugin-link').textContent).toBe('Open the docsdocs.example.com')
   })
 
+  it('dates the ends of a time axis that spans more than a day', async () => {
+    const { axisTime } = await import('../../src/renderer/plugins/ticker.svelte.ts')
+    const at = new Date(2026, 8, 19, 21, 30).getTime()
+    expect(axisTime(at, 5 * 3600_000)).toBe('21:30')
+    expect(axisTime(at, 7 * 24 * 3600_000)).toBe('09/19 21:30')
+  })
+
   it('says a plugin is gone from the folder, keeping the pane', async () => {
     await startHost([], {})
     pane('vanished')

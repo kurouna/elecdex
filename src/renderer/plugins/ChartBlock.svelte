@@ -2,7 +2,7 @@
 import type { ChartSeries, Tone } from '@shared/plugin-api'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { drawChart } from './chart-draw.ts'
-import { timeOfDay } from './ticker.svelte.ts'
+import { axisTime } from './ticker.svelte.ts'
 
 /**
  * A plugin's chart: series over fixed axes, with limit lines and labels, drawn on a canvas
@@ -36,7 +36,7 @@ $effect(() => {
 })
 
 const unit = $derived(y.unit ?? '')
-const fmt = (v: number) => (x.time ? timeOfDay(v) : String(Math.round(v * 100) / 100))
+const fmt = (v: number) => (x.time ? axisTime(v, x.max - x.min) : String(Math.round(v * 100) / 100))
 </script>
 
 <div class="chart" data-testid="plugin-chart">

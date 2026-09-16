@@ -408,8 +408,13 @@ td {
   cursor: default;
 }
 
-.link {
+/* Buttons that stand alone are as wide as their words, not the pane. */
+.link,
+.signin {
   align-self: flex-start;
+}
+
+.link {
   padding: 0;
   border: 0;
   background: none;
