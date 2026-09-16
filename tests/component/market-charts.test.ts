@@ -112,6 +112,28 @@ describe('ViewToggle', () => {
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['line graph', 'bar graph'])
   })
 
+  it('draws candles as hollow bodies with wicks that stop at them', () => {
+    render(ViewToggle, { props: { view: 'line', views: ['candles'], onchange: () => {} } })
+    const d = document.querySelector('[data-view=candles] path')?.getAttribute('d') ?? ''
+    const numbers = (s: string) => (s.match(/-?[\d.]+/g) ?? []).map(Number)
+    // Wicks are "M x y V y2"; bodies are "M x1 y1 H x2 V y2 H x1 Z".
+    const wicks = [...d.matchAll(/M[\d.]+ [\d.]+ V[\d.]+(?! H)/g)].map((m) => numbers(m[0]))
+    const bodies = [...d.matchAll(/M[\d.]+ [\d.]+ H[\d.]+ V[\d.]+ H[\d.]+ Z/g)].map((m) =>
+      numbers(m[0]),
+    )
+    expect(bodies).toHaveLength(2)
+    expect(wicks).toHaveLength(4)
+    for (const [left = 0, top = 0, right = 0, bottom = 0] of bodies) {
+      // Wide enough to stay open inside a 1.6 stroke.
+      expect(right - left).toBeGreaterThanOrEqual(4)
+      for (const [x = 0, y1 = 0, y2 = 0] of wicks) {
+        if (x <= left || x >= right) continue
+        const [from, to] = [Math.min(y1, y2), Math.max(y1, y2)]
+        expect(to <= top || from >= bottom, `wick ${x} ${y1}-${y2} crosses a body`).toBe(true)
+      }
+    }
+  })
+
   it('shows the views it is given, in order, and reports a choice', async () => {
     const onchange = vi.fn()
     render(ViewToggle, {

@@ -32,11 +32,16 @@ const LABELS: Record<ChartView, string> = {
   candles: 'Candlestick chart',
 }
 
-/** 16 x 16 strokes. A candle's body is a small closed box on its wick. */
+/**
+ * 16 x 16 strokes. A candle is a hollow body with its wick above and below: a
+ * wick drawn through a body narrower than this fills it at the icon's size, and
+ * the candles read as two solid bars.
+ */
 const ICONS: Record<ChartView, string> = {
   line: 'M1.5 12 L5 7.5 L8 10 L11 4 L14.5 6.5',
   bars: 'M3 14 V8 M6.5 14 V4 M10 14 V9.5 M13.5 14 V2.5',
-  candles: 'M4 2 V14 M2.5 5 H5.5 V11 H2.5 Z M12 2 V14 M10.5 4 H13.5 V8 H10.5 Z',
+  candles:
+    'M4 1.5 V4.5 M2 4.5 H6 V11.5 H2 Z M4 11.5 V14.5 M12 1.5 V4.5 M10 4.5 H14 V9.5 H10 Z M12 9.5 V14.5',
 }
 </script>
 
