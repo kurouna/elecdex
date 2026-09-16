@@ -54,6 +54,32 @@ let flashes = $state.raw<Record<string, 'up' | 'down'>>({})
 let editing = $state(false)
 let draft = $state('')
 
+/**
+ * One timer per flashing symbol. Kept outside the subscription effect so that
+ * editing the watchlist does not cancel a timer and leave its flash lit.
+ */
+const flashTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function flash(symbol: string, direction: 'up' | 'down'): void {
+  flashes = { ...flashes, [symbol]: direction }
+  // A second move restarts the flash, rather than the first move's timer ending it early.
+  clearTimeout(flashTimers.get(symbol))
+  flashTimers.set(
+    symbol,
+    setTimeout(() => {
+      flashTimers.delete(symbol)
+      const { [symbol]: _done, ...rest } = flashes
+      flashes = rest
+    }, 900),
+  )
+}
+
+// Runs its teardown only when the pane goes away.
+$effect(() => () => {
+  for (const timer of flashTimers.values()) clearTimeout(timer)
+  flashTimers.clear()
+})
+
 $effect(() => {
   const symbols = watchlist.map((w) => w.symbol)
   const offs = symbols.map((symbol) =>
@@ -62,11 +88,7 @@ $effect(() => {
       const after = update.quote?.price
       updates = { ...updates, [symbol]: update }
       if (before !== undefined && after !== undefined && before !== after) {
-        flashes = { ...flashes, [symbol]: after > before ? 'up' : 'down' }
-        setTimeout(() => {
-          const { [symbol]: _done, ...rest } = flashes
-          flashes = rest
-        }, 900)
+        flash(symbol, after > before ? 'up' : 'down')
       }
     }),
   )
