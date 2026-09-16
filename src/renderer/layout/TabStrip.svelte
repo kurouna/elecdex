@@ -38,7 +38,7 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
     {@const meta = paneMeta.get(child.id)}
     {@const place = places[index] ?? meta.tabName ?? null}
     {@const name = place ?? meta.title ?? titleOf(child.widget)}
-    <li class="tab" class:active={index === activeIndex}>
+    <li class="tab" class:active={index === activeIndex} class:closing={child.id === layout.closingId}>
       <button
         type="button"
         class="select"
@@ -108,6 +108,12 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
 
 .tab + .tab {
   border-left: var(--rule-width) solid var(--panel-border);
+}
+
+/* A tab whose pane is powering off goes dark with it. */
+.tab.closing .upright {
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
 }
 
 .tab.new-tab {

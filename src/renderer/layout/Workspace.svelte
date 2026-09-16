@@ -1,12 +1,14 @@
 <script lang="ts">
 import { chordFromEvent, type KeybindingAction, keymap } from '@shared/keybindings'
 import { appearance } from '../stores/appearance.svelte.ts'
+import { boot } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { sessions } from '../stores/sessions.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import '../widgets/builtins.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
 import PaneDropOverlay from './PaneDropOverlay.svelte'
+import { measureFrames } from './pane-close.ts'
 
 /**
  * Renders the workspace and owns the layout-level keyboard shortcuts.
@@ -24,6 +26,19 @@ let reapTimer: ReturnType<typeof setTimeout> | null = null
 
 $effect(() => {
   void layout.load()
+})
+
+// Closing animates only in a workspace that is on screen and moving: never with
+// motion reduced, nor while the boot reveal is still powering panes on.
+$effect(() => {
+  layout.closeMotion = {
+    animates: () => !appearance.reducedMotion && boot.phase === 'done',
+    frames: () => measureFrames(),
+  }
+  // A close still powering off then just ends, with nothing to measure.
+  return () => {
+    layout.closeMotion = null
+  }
 })
 
 // Re-arm the reaper whenever the set of panes changes.

@@ -9,6 +9,7 @@ import { layout } from '../stores/layout.svelte.ts'
 import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
+import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
 
@@ -37,9 +38,21 @@ const bootDuration = $derived(definition?.chrome === 'shell' ? CRT_SHELL_MS : CR
  * motion reduced, where the class would leave its beam showing, unanimated.
  */
 let poweringOn = $state(untrack(() => layout.arrived(node.id) && !appearance.reducedMotion))
-const crtDuration = $derived(
-  bootDelay !== null ? `${bootDuration}ms` : poweringOn ? `${CRT_ADDED_MS}ms` : undefined,
-)
+/** Powering off: still in the tree until it has, and out of reach meanwhile. */
+const closing = $derived(layout.closingId === node.id)
+/** Uncovering the room a closed pane left; a tab's group does it for a tabbed pane. */
+const extend = $derived(tabbed ? undefined : layout.extending.get(node.id))
+// Either replaces a power-on still playing, whose end would then never be seen.
+$effect(() => {
+  if (closing || extend !== undefined) poweringOn = false
+})
+const crtOn = $derived(!closing && extend === undefined && (bootDelay !== null || poweringOn))
+const crtStyle = $derived.by(() => {
+  if (closing) return `--crt-duration: ${CRT_CLOSE_MS}ms`
+  if (extend !== undefined) return insetStyle(extend)
+  if (bootDelay !== null) return `--crt-delay: ${bootDelay}ms; --crt-duration: ${bootDuration}ms`
+  return poweringOn ? `--crt-duration: ${CRT_ADDED_MS}ms` : undefined
+})
 
 // Subscribe to the sources the widget declares, for exactly as long as this
 // pane exists. Unknown ids (a plugin naming a source this build lacks) are
@@ -88,9 +101,12 @@ $effect(() => () => paneMeta.clear(node.id))
   class="pane chrome-{chrome}"
   class:focused
   class:hidden={!visible}
-  class:crt-on={bootDelay !== null || poweringOn}
-  style:--crt-delay={bootDelay === null ? undefined : `${bootDelay}ms`}
-  style:--crt-duration={crtDuration}
+  class:crt-on={crtOn}
+  class:crt-off={closing}
+  class:crt-beam={closing}
+  class:crt-extend={extend !== undefined}
+  style={crtStyle}
+  inert={closing}
   data-testid="pane"
   data-pane-id={node.id}
   data-widget={node.widget}

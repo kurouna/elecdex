@@ -16,6 +16,14 @@ import {
   visiblePanes,
 } from '@shared/layout-ops'
 import { LAYOUT_VERSION, type LayoutTree, type SplitDirection } from '@shared/schemas/layout'
+import { flushSync } from 'svelte'
+import {
+  CLOSE_SETTLE_MS,
+  CRT_EXTEND_MS,
+  extendFrom,
+  type Frame,
+  type Inset,
+} from '../layout/pane-close.ts'
 import { sfx } from './sound.svelte.ts'
 
 /**
@@ -31,6 +39,17 @@ const SAVE_DEBOUNCE_MS = 400
 /** Where a pane added from the picker goes, relative to the focused pane. */
 export type PanePlacement = 'right' | 'down' | 'tab'
 
+/**
+ * What closing needs from the page, given by the workspace: this store cannot ask
+ * the boot or appearance stores itself (boot imports it) and has no DOM of its own.
+ */
+export interface CloseMotion {
+  /** Whether a close may animate now: motion is not reduced and the boot is over. */
+  animates(): boolean
+  /** The box of every shown pane's frame, by pane id. */
+  frames(): Map<string, Frame>
+}
+
 class LayoutStore {
   tree = $state<LayoutTree>({ version: LAYOUT_VERSION, root: defaultLayoutNode() })
   /** Pane that has focus. Drives which terminal receives keystrokes. */
@@ -39,6 +58,8 @@ class LayoutStore {
 
   readonly panes = $derived(collectPanes(this.tree.root))
   readonly visible = $derived(visiblePanes(this.tree.root))
+  /** The visible panes that stay: what the keyboard can move to. */
+  private readonly shown = $derived(this.visible.filter((p) => p.id !== this.closingId))
 
   /** The terminal pane focused most recently, as remembered by focus(). */
   private lastTerminalId = $state<string | null>(null)
@@ -54,6 +75,19 @@ class LayoutStore {
   })
 
   private saveTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** Unset, every close is immediate (and so it is in tests that do not set it). */
+  closeMotion: CloseMotion | null = null
+  /**
+   * The pane powering off, still in the tree until it has. One at a time: any
+   * other change to the tree first settles it (see settle), so a close never has
+   * to reason about a tree another close is about to change.
+   */
+  closingId = $state<string | null>(null)
+  /** Panes uncovering the room a close gave them, with where their clip starts. */
+  extending = $state.raw<ReadonlyMap<string, Inset>>(new Map())
+  private closeTimer: ReturnType<typeof setTimeout> | null = null
+  private extendTimer: ReturnType<typeof setTimeout> | null = null
 
   /** The pane added last, until its host has taken it to power on (see arrived). */
   private arriving: string | null = null
@@ -92,10 +126,7 @@ class LayoutStore {
     if (next === this.tree) return
     this.tree = next
 
-    // Keep focus on something that still exists.
-    if (this.focusedPaneId !== null && findNode(next.root, this.focusedPaneId) === null) {
-      this.focusedPaneId = visiblePanes(next.root)[0]?.id ?? null
-    }
+    this.focusedPaneId = focusIn(next, this.focusedPaneId)
 
     this.scheduleSave()
   }
@@ -118,6 +149,8 @@ class LayoutStore {
    * user had edited by hand while the app was running.
    */
   async flush(): Promise<void> {
+    // A pane powering off is closed as far as the saved layout is concerned.
+    this.settle()
     if (this.saveTimer === null) return
     clearTimeout(this.saveTimer)
     this.saveTimer = null
@@ -125,6 +158,7 @@ class LayoutStore {
   }
 
   focus(paneId: string): void {
+    if (paneId === this.closingId) return
     const node = findNode(this.tree.root, paneId)
     if (node === null) return
     this.focusedPaneId = paneId
@@ -133,6 +167,7 @@ class LayoutStore {
   }
 
   split(paneId: string, direction: SplitDirection, widget: string): void {
+    this.settle()
     const incoming = pane(widget)
     this.arriving = incoming.id
     this.commit(splitPane(this.tree, paneId, direction, incoming))
@@ -150,6 +185,7 @@ class LayoutStore {
   }
 
   addTab(siblingPaneId: string, widget: string): void {
+    this.settle()
     const incoming = pane(widget)
     this.arriving = incoming.id
     this.commit(addTab(this.tree, siblingPaneId, incoming))
@@ -186,6 +222,7 @@ class LayoutStore {
    * focuses what moved. Does nothing when the move would not change the layout.
    */
   move(nodeId: string, targetId: string, placement: Placement): void {
+    this.settle()
     const next = moveNode(this.tree, nodeId, targetId, placement)
     if (next === this.tree) return
     this.commit(next)
@@ -200,9 +237,82 @@ class LayoutStore {
     return moveNode(this.tree, nodeId, targetId, placement) !== this.tree
   }
 
+  /**
+   * Closes a pane: a shown one powers off first and is removed after, when the
+   * panes left behind extend into its room; anything else goes at once. Focus
+   * moves on straight away, so the keyboard is never left with a closing pane.
+   */
   close(nodeId: string): void {
-    this.commit(closeNode(this.tree, nodeId, fallbackNode()))
+    // Its tab's × still takes a click while it powers off; that is the same close.
+    if (nodeId === this.closingId) return
+    this.settle()
+    if (findNode(this.tree.root, nodeId) === null) return
     sfx.play('collapse')
+    const shown = this.visible.some((p) => p.id === nodeId)
+    if (!shown || this.closeMotion?.animates() !== true) {
+      this.remove(nodeId)
+      return
+    }
+    this.closingId = nodeId
+    this.focusedPaneId = focusIn(closeNode(this.tree, nodeId, fallbackNode()), this.focusedPaneId)
+    this.closeTimer = setTimeout(() => this.finishClosing(), CLOSE_SETTLE_MS)
+  }
+
+  /** The power-off has played: remove the pane and uncover what took its room. */
+  private finishClosing(): void {
+    const id = this.closingId
+    const motion = this.closeMotion
+    this.closeTimer = null
+    this.closingId = null
+    if (id === null) return
+    const before = motion?.frames()
+    const arrived = this.remove(id)
+    if (motion === null || before === undefined) return
+    // Svelte applies the new tree on its next flush; measure after it, not before.
+    flushSync()
+    const extending = new Map<string, Inset>()
+    for (const [paneId, after] of motion.frames()) {
+      if (paneId === arrived) continue
+      const inset = extendFrom(before.get(paneId), after)
+      if (inset !== null) extending.set(paneId, inset)
+    }
+    if (extending.size === 0) return
+    this.extending = extending
+    this.extendTimer = setTimeout(() => this.stopExtending(), CRT_EXTEND_MS)
+  }
+
+  /**
+   * Takes a node out of the tree. A pane put in for a layout closed to nothing
+   * powers on like any pane added; its id is returned so nothing else animates it.
+   */
+  private remove(nodeId: string): string | null {
+    const fallback = fallbackNode()
+    const next = closeNode(this.tree, nodeId, fallback)
+    const arrived = next.root === fallback ? fallback.id : null
+    if (arrived !== null) this.arriving = arrived
+    this.commit(next)
+    return arrived
+  }
+
+  private stopExtending(): void {
+    if (this.extendTimer !== null) clearTimeout(this.extendTimer)
+    this.extendTimer = null
+    if (this.extending.size > 0) this.extending = new Map()
+  }
+
+  /**
+   * Finishes a close in progress at once: the pane powering off is removed and
+   * an extension stops where it is. Every change to the tree but focus and pane
+   * state calls this first; those two leave the closing pane in the tree.
+   */
+  settle(): void {
+    this.stopExtending()
+    if (this.closeTimer !== null) clearTimeout(this.closeTimer)
+    this.closeTimer = null
+    const id = this.closingId
+    if (id === null) return
+    this.closingId = null
+    this.remove(id)
   }
 
   closeFocused(): void {
@@ -210,6 +320,7 @@ class LayoutStore {
   }
 
   resize(splitId: string, sizes: number[]): void {
+    this.settle()
     this.commit(resizeSplit(this.tree, splitId, sizes))
   }
 
@@ -218,6 +329,7 @@ class LayoutStore {
   }
 
   async reset(): Promise<void> {
+    this.settle()
     if (this.saveTimer !== null) {
       clearTimeout(this.saveTimer)
       this.saveTimer = null
@@ -231,6 +343,7 @@ class LayoutStore {
    * false when the focused pane is not tabbed, so the key can go to the pane.
    */
   cycleTab(delta: number): boolean {
+    this.settle()
     if (this.focusedPaneId === null) return false
     const next = neighbourTab(this.tree.root, this.focusedPaneId, delta)
     if (next === null) return false
@@ -243,6 +356,7 @@ class LayoutStore {
    * has focus and there is another; false otherwise, so the key goes to the shell.
    */
   cycleShell(delta: number): boolean {
+    this.settle()
     if (this.focusedPaneId === null) return false
     const next = neighbourShell(this.tree.root, this.focusedPaneId, delta, (w) => w === 'terminal')
     if (next === null) return false
@@ -256,7 +370,7 @@ class LayoutStore {
    * (focusing brings that tab forward). Null when the layout has no shell.
    */
   shellToFocus(): string | null {
-    const shown = this.visible.filter((p) => p.widget === 'terminal')
+    const shown = this.shown.filter((p) => p.widget === 'terminal')
     return (
       shown.find((p) => p.id === this.lastTerminalId)?.id ?? shown[0]?.id ?? this.followedTerminalId
     )
@@ -264,7 +378,7 @@ class LayoutStore {
 
   /** Moves focus to the next or previous visible pane, in tree order. */
   cycleFocus(delta: number): void {
-    const order = this.visible
+    const order = this.shown
     if (order.length === 0) return
     const current = order.findIndex((p) => p.id === this.focusedPaneId)
     const from = current === -1 ? 0 : current
@@ -274,6 +388,12 @@ class LayoutStore {
 }
 
 export const layout = new LayoutStore()
+
+/** The pane to keep focused in `tree`: `current` while it is still there, else the first shown. */
+function focusIn(tree: LayoutTree, current: string | null): string | null {
+  if (current === null || findNode(tree.root, current) !== null) return current
+  return visiblePanes(tree.root)[0]?.id ?? null
+}
 
 /**
  * The pane focused when a layout is loaded: the first visible shell, so the app

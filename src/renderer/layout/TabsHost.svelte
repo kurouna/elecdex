@@ -4,6 +4,7 @@ import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
 import PaneHost from './PaneHost.svelte'
+import { insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
 
@@ -16,6 +17,8 @@ const { node }: Props = $props()
 const activeChild = $derived(node.children[node.activeIndex] ?? node.children[0])
 const activeMeta = $derived(activeChild ? paneMeta.get(activeChild.id) : {})
 const focused = $derived(node.children.some((c) => c.id === layout.focusedPaneId))
+/** The group, as a whole, uncovers the room a closed pane left it. */
+const extend = $derived(activeChild ? layout.extending.get(activeChild.id) : undefined)
 
 /** The selected tab's own title where it has one, else its widget's (TERMINAL for a shell). */
 const activeTitle = $derived(
@@ -28,6 +31,8 @@ const activeTitle = $derived(
 <section
   class="tabs-host"
   class:focused
+  class:crt-extend={extend !== undefined}
+  style={extend === undefined ? undefined : insetStyle(extend)}
   data-testid="tabs-host"
   data-node-id={node.id}
   data-drop-node={node.id}

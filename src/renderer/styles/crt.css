@@ -12,11 +12,15 @@
  *
  * Usage: add `crt-on` to an element, optionally with `--crt-delay` and
  * `--crt-duration`. `crt-off` runs the reverse: the picture collapses to the
- * line, the line to a dot, and the dot fades.
+ * line, the line to a dot, and the dot fades; with `crt-beam` the collapsing edges
+ * glow as the opening ones do. `crt-extend` uncovers a picture from the box given
+ * by `--from-top/right/bottom/left` (insets) to its whole area, with the beam on
+ * the edges that move: what the panes left behind do when one closes.
  */
 
 .crt-on,
-.crt-off {
+.crt-off,
+.crt-extend {
   position: relative;
   transform-origin: 50% 50%;
   will-change: transform, filter, opacity;
@@ -29,7 +33,9 @@
 /* The beam: bright rules with a soft glow on the top and bottom edges only - the
    opening edges - fading as the picture opens. */
 .crt-on::after,
-.crt-on::before {
+.crt-on::before,
+.crt-off.crt-beam::after,
+.crt-extend::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -37,7 +43,8 @@
   z-index: 50;
 }
 
-.crt-on::after {
+.crt-on::after,
+.crt-off.crt-beam::after {
   background:
     linear-gradient(
       to bottom,
@@ -47,6 +54,10 @@
     ),
     linear-gradient(to top, var(--accent-strong) 0 2px, var(--accent-dim) 2px, transparent 0.9rem);
   animation: crt-beam var(--crt-duration, 650ms) linear var(--crt-delay, 0ms) both;
+}
+
+.crt-off.crt-beam::after {
+  animation-name: crt-beam-off;
 }
 
 /* Scanlines that flicker while the tube warms up. */
@@ -155,18 +166,78 @@
   }
 }
 
+/* Brightest while the picture is squeezed into the line, gone with the dot. */
+@keyframes crt-beam-off {
+  0% {
+    opacity: 0.3;
+  }
+  45%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.crt-extend {
+  animation: crt-extend var(--crt-duration, 220ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes crt-extend {
+  0% {
+    clip-path: inset(var(--from-top) var(--from-right) var(--from-bottom) var(--from-left));
+    filter: brightness(1.8) saturate(0.8);
+  }
+  100% {
+    clip-path: inset(0);
+    filter: none;
+  }
+}
+
+/* The beam rides the clip's edges: a rule on each side whose inset is not 0, so
+   only the edges that move glow. */
+.crt-extend::after {
+  border-style: solid;
+  border-color: var(--accent-strong);
+  border-width: min(var(--from-top), 2px) min(var(--from-right), 2px) min(var(--from-bottom), 2px)
+    min(var(--from-left), 2px);
+  box-shadow: 0 0 0.6rem var(--accent-dim);
+  animation: crt-extend-beam var(--crt-duration, 220ms) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes crt-extend-beam {
+  0% {
+    inset: var(--from-top) var(--from-right) var(--from-bottom) var(--from-left);
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.8;
+  }
+  100% {
+    inset: 0;
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) .crt-on,
   :root:not([data-motion="full"]) .crt-off,
+  :root:not([data-motion="full"]) .crt-extend,
   :root:not([data-motion="full"]) .crt-on::before,
-  :root:not([data-motion="full"]) .crt-on::after {
+  :root:not([data-motion="full"]) .crt-on::after,
+  :root:not([data-motion="full"]) .crt-off::after,
+  :root:not([data-motion="full"]) .crt-extend::after {
     animation: none;
   }
 }
 
 :root[data-motion="reduced"] .crt-on,
 :root[data-motion="reduced"] .crt-off,
+:root[data-motion="reduced"] .crt-extend,
 :root[data-motion="reduced"] .crt-on::before,
-:root[data-motion="reduced"] .crt-on::after {
+:root[data-motion="reduced"] .crt-on::after,
+:root[data-motion="reduced"] .crt-off::after,
+:root[data-motion="reduced"] .crt-extend::after {
   animation: none;
 }
