@@ -20,7 +20,8 @@ function isPublicV4(a: number, b: number): boolean {
 
 function isPublicV6(ip: string): boolean {
   const v6 = ip.toLowerCase()
-  if (v6 === '::' || v6 === '::1') return false
+  // Unspecified and loopback, compressed ("::1") or with every group as /proc writes them.
+  if (/^[0:]*$/.test(v6) || /^[0:]*:0*1$/.test(v6)) return false
   // link-local fe80::/10, unique local fc00::/7, multicast ff00::/8
   return !/^(fe[89ab]|f[cd]|ff)/.test(v6)
 }

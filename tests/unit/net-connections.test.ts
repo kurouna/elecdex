@@ -25,6 +25,9 @@ describe('isPublicAddress', () => {
     '224.0.0.251',
     '::1',
     '::',
+    // /proc/net/tcp6 writes every group, so loopback reads like this there.
+    '0:0:0:0:0:0:0:1',
+    '0:0:0:0:0:0:0:0',
     'fe80::1',
     'fd12:3456::1',
     'ff02::fb',
@@ -83,6 +86,19 @@ describe('parseProcNetTcp', () => {
       '::ffff:133.242.0.3',
       '0:0:0:0:0:feff:808:808',
     ])
+  })
+
+  it('drops IPv6 loopback peers from /proc/net/tcp6', () => {
+    const loopback = [
+      '  sl  local_address                         rem_address                           st',
+      '   0: 00000000000000000000000001000000:A000 00000000000000000000000001000000:1F90 03',
+    ].join('\n')
+    expect(publicRemotes(parseProcNetTcp(loopback))).toEqual([])
+  })
+
+  it('keeps public IPv6 peers whose written form ends in 1', () => {
+    expect(isPublicAddress('2001:4860:0:0:0:0:0:1')).toBe(true)
+    expect(isPublicAddress('2a00::1')).toBe(true)
   })
 
   it('drops private IPv4-mapped remotes and places the public ones on the globe', () => {
