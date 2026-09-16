@@ -235,8 +235,6 @@ describe('a change during a close', () => {
     ['addTab', () => layout.addTab(a.id, 'rss')],
     ['move', () => layout.move(a.id, c.id, 'left')],
     ['resize', () => layout.resize('missing', [0.5, 0.5])],
-    ['cycleTab', () => layout.cycleTab(1)],
-    ['cycleShell', () => layout.cycleShell(1)],
   ])('%s finishes the close first', (_name, change) => {
     load(split('row', [a, b, c]), a.id)
     layout.close(b.id)
@@ -246,6 +244,44 @@ describe('a change during a close', () => {
     vi.advanceTimersByTime(CLOSE_SETTLE_MS + CRT_EXTEND_MS)
     expect(ids()).not.toContain(b.id)
     expect(layout.extending.size).toBe(0)
+  })
+
+  it('switching tabs finishes the close first, and skips the tab that closed', () => {
+    load(tabs([a, b, c], 1), b.id)
+    layout.close(b.id)
+    // Focus went to c, the tab taking b's place; b is its neighbour until b has gone.
+    expect(layout.focusedPaneId).toBe(c.id)
+    expect(layout.cycleTab(-1)).toBe(true)
+    expect(layout.closingId).toBeNull()
+    expect(ids()).toEqual([a.id, c.id])
+    expect(layout.focusedPaneId).toBe(a.id)
+  })
+
+  it('moving to the next shell finishes the close first', () => {
+    const [t1, t2, t3] = [pane('terminal'), pane('terminal'), pane('terminal')]
+    load(split('row', [t1, t2, t3]), t1.id)
+    layout.close(t2.id)
+    expect(layout.cycleShell(1)).toBe(true)
+    expect(layout.closingId).toBeNull()
+    expect(layout.focusedPaneId).toBe(t3.id)
+  })
+
+  it('a tab or shell key with nowhere to go leaves the close running', () => {
+    load(split('row', [a, b, c]), a.id)
+    layout.close(b.id)
+    expect(layout.cycleTab(1)).toBe(false)
+    expect(layout.cycleShell(1)).toBe(false)
+    expect(layout.closingId).toBe(b.id)
+  })
+
+  it('the shell to follow or focus is never the one powering off', () => {
+    const [t1, t2] = [pane('terminal'), pane('terminal')]
+    load(split('row', [t1, t2]), t1.id)
+    layout.focus(t1.id)
+    expect(layout.followedTerminalId).toBe(t1.id)
+    layout.close(t1.id)
+    expect(layout.followedTerminalId).toBe(t2.id)
+    expect(layout.shellToFocus()).toBe(t2.id)
   })
 
   it('a move onto the closing pane does nothing once it has gone', () => {

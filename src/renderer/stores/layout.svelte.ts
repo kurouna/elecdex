@@ -68,9 +68,10 @@ class LayoutStore {
    * The terminal that follow-the-shell widgets track: the last one focused if it
    * still exists, else the first in the layout - so the file browser follows the
    * shell the user is working in, and keeps doing so while they click around it.
+   * A shell powering off is already gone for them, as it is for the keyboard.
    */
   readonly followedTerminalId = $derived.by(() => {
-    const terminals = this.panes.filter((p) => p.widget === 'terminal')
+    const terminals = this.panes.filter((p) => p.widget === 'terminal' && p.id !== this.closingId)
     return terminals.find((p) => p.id === this.lastTerminalId)?.id ?? terminals[0]?.id ?? null
   })
 
@@ -343,12 +344,7 @@ class LayoutStore {
    * false when the focused pane is not tabbed, so the key can go to the pane.
    */
   cycleTab(delta: number): boolean {
-    this.settle()
-    if (this.focusedPaneId === null) return false
-    const next = neighbourTab(this.tree.root, this.focusedPaneId, delta)
-    if (next === null) return false
-    this.focus(next)
-    return true
+    return this.cycleTo((from) => neighbourTab(this.tree.root, from, delta))
   }
 
   /**
@@ -356,9 +352,22 @@ class LayoutStore {
    * has focus and there is another; false otherwise, so the key goes to the shell.
    */
   cycleShell(delta: number): boolean {
+    return this.cycleTo((from) =>
+      neighbourShell(this.tree.root, from, delta, (w) => w === 'terminal'),
+    )
+  }
+
+  /**
+   * Focuses the neighbour `find` gives for the focused pane, or returns false when
+   * there is none, leaving the key - and a close in progress - alone. A move does
+   * finish a close first, and the neighbour is found again in the tree it leaves,
+   * since the one found before may have been the pane that closed.
+   */
+  private cycleTo(find: (from: string) => string | null): boolean {
+    const neighbour = () => (this.focusedPaneId === null ? null : find(this.focusedPaneId))
+    if (neighbour() === null) return false
     this.settle()
-    if (this.focusedPaneId === null) return false
-    const next = neighbourShell(this.tree.root, this.focusedPaneId, delta, (w) => w === 'terminal')
+    const next = neighbour()
     if (next === null) return false
     this.focus(next)
     return true
