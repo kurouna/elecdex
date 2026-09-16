@@ -188,8 +188,10 @@ weather and calendar.
   the system time zone (or of the locale, when the zone names none); the OS location service is
   never asked.
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
-  sparklines against the previous close or as bars of the day's change. SYMBOLS edits the list,
-  each symbol optionally followed by a label: `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`. Built-in
+  sparklines, candlesticks or bars of the change. The settings button picks the range - 1D (5-minute
+  bars), 5D (30-minute), 1M (hourly), 6M (daily), 1Y (weekly) or 5Y (monthly) - and edits the list,
+  each symbol optionally followed by a label: `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`. 1D
+  measures from the previous close, longer ranges from the close before the range began. Built-in
   names follow the app language (`--lang=en-US` forces English). Yahoo has no live TOPIX index, so
   the default board shows the CME yen TOPIX future (`TPY=F`).
 - **Weather** — the settings button → PLACE opens a picker over a bundled list of large cities and
@@ -385,7 +387,7 @@ scripts/        asset generators (icon, banner, globe data, city list, README sc
 | Weather, United States | [National Weather Service](https://www.weather.gov/) (api.weather.gov) | Open data. The point lookup is kept for a day; the forecast is asked for about hourly, only while a pane shows the place. |
 | Weather, everywhere else | [MET Norway](https://api.met.no/) Locationforecast 2.0 | [CC BY 4.0](https://api.met.no/doc/License), credited in the pane. Requests follow the [terms of service](https://api.met.no/doc/TermsOfService): an identifying User-Agent, coordinates to four decimals, nothing before the `Expires` of the last response (and at least 30 minutes apart), If-Modified-Since. |
 | City list for the weather picker | [GeoNames](https://www.geonames.org/) (cities of 500,000 people or more, and capitals) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); bundled. Nothing typed in the picker is sent anywhere. |
-| Market quotes | [Yahoo Finance](https://finance.yahoo.com/), through yahoo-finance2 | Unofficial API, not endorsed by Yahoo; quotes may be delayed and are not investment advice (the pane says so). Fetched only while a markets pane is open: one batched request a minute (every five minutes when every listed market is closed) and each intraday chart every five minutes. |
+| Market quotes | [Yahoo Finance](https://finance.yahoo.com/), through yahoo-finance2 | Unofficial API, not endorsed by Yahoo; quotes may be delayed and are not investment advice (the pane says so). Fetched only while a markets pane is open: one batched request a minute (every five minutes when every listed market is closed), and each chart every five minutes (1D) to hourly (6M and longer). |
 | Earthquakes | [Japan Meteorological Agency](https://www.jma.go.jp/) earthquake list JSON: `https://www.jma.go.jp/bosai/quake/data/list.json` | The data JMA's own [earthquake page](https://www.jma.go.jp/bosai/map.html#contents=earthquake_map) loads (about a month of reports), read as JSON. Fetched only while a quakes pane is open or earthquake alerts are on: once a minute, as its `max-age=60` asks, with If-None-Match, so an unchanged list is a 304. Used under JMA's [terms of use](https://www.jma.go.jp/jma/kishou/info/coment.html); the pane credits 「出典：気象庁ホームページ（URL）を加工して作成」 and the alerts name JMA. Not the Earthquake Early Warning. |
 | Tsunamis, Japan | JMA tsunami list JSON: `https://www.jma.go.jp/bosai/tsunami/data/list.json` and each report it names | Checked with the earthquake list (usually an empty list, a 304 after the first request); a new report's details are fetched once. Warnings, major warnings and advisories count; forecasts and liftings do not. Credited like the earthquakes. |
 | Earthquakes, world | [USGS](https://earthquake.usgs.gov/) real-time feed `summary/4.5_day.geojson` | Public domain. Fetched only while the world source is in use by a quakes pane or alerts: once a minute (its `max-age=60`), conditionally. |

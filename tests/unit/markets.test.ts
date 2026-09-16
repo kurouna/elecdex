@@ -145,9 +145,9 @@ function harness() {
         if (fail) throw new Error('network down')
         return symbols.map(quote)
       },
-      intraday: async (symbol) => {
-        calls.push(`chart:${symbol}`)
-        return { points: [{ t: now - MIN, v: 99 }], previousClose: 99 }
+      chart: async (symbol, spec) => {
+        calls.push(spec.id === '1d' ? `chart:${symbol}` : `chart:${symbol}|${spec.id}`)
+        return { candles: [{ t: now - MIN, o: 99, h: 99, l: 99, c: 99 }], previousClose: 99 }
       },
     },
     now: () => now,

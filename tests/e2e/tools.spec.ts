@@ -251,6 +251,7 @@ test.describe('markets', () => {
   let server: Server
   let stubUrl = ''
   let quoteRequests = 0
+  const chartRequests: string[] = []
 
   test.beforeAll(async () => {
     server = createServer((req, res) => {
@@ -272,12 +273,30 @@ test.describe('markets', () => {
         }))
         res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(quotes))
       } else if (url.pathname.startsWith('/chart/')) {
+        const range = url.searchParams.get('range') ?? ''
+        chartRequests.push(`${decodeURIComponent(url.pathname.slice(7))}|${range}`)
         const now = Date.now()
-        const points = Array.from({ length: 30 }, (_, i) => ({
-          t: now - (30 - i) * 60_000,
-          v: 990 + i,
+        if (range === '1d') {
+          // The plain series the stub has always served, read as flat bars.
+          const points = Array.from({ length: 30 }, (_, i) => ({
+            t: now - (30 - i) * 60_000,
+            v: 990 + i,
+          }))
+          res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(points))
+          return
+        }
+        // Daily bars reaching back past the six-month window, all closing at 800.
+        const day = 24 * 60 * 60_000
+        const candles = Array.from({ length: 190 }, (_, i) => ({
+          t: now - (189 - i) * day,
+          o: 790,
+          h: 830 + (i % 7),
+          l: 770 - (i % 5),
+          c: 800,
         }))
-        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(points))
+        res
+          .writeHead(200, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ candles, previousClose: 700 }))
       } else {
         res.writeHead(404).end()
       }
@@ -325,7 +344,7 @@ test.describe('markets', () => {
       ])
 
       // Editing the list changes what main polls.
-      await page.getByTestId('markets-edit').click()
+      await page.getByTestId('markets-settings-toggle').click()
       await page.getByTestId('markets-symbols').fill('^GSPC S&P 500')
       await page.getByTestId('markets-save').click()
       await expect
@@ -338,6 +357,60 @@ test.describe('markets', () => {
     }
   })
 
+  test('candles and a longer range: main keeps only the chosen chart, and both survive a restart', async () => {
+    let launched = await launch(undefined, {
+      // Saved before ranges existed: no range in the pane state.
+      layout: single('markets', { symbols: [{ symbol: '^N225', label: '日経平均' }] }),
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      const { page } = launched
+      const markets = page.getByTestId('markets')
+      const charts = () => page.evaluate(() => window.elecdex.markets.charts())
+      await expect(markets).toHaveAttribute('data-range', '1d')
+      await expect(page.getByTestId('market-price')).toHaveText('1,000', { timeout: 20_000 })
+      expect(await charts()).toEqual(['^N225|1d'])
+      await expect(page.getByTestId('pane-subtitle')).toContainText('1D ·')
+
+      await page.getByTestId('markets-view').locator('[data-view=candles]').click()
+      await expect(markets).toHaveAttribute('data-view', 'candles')
+      const candles = page.getByTestId('market-candles')
+      await expect(candles).toHaveCount(1)
+      await expect(candles).toHaveAttribute('data-bars', /^[1-9]\d*$/)
+      await expect(page.getByTestId('market-spark')).toHaveCount(0)
+
+      await page.getByTestId('markets-settings-toggle').click()
+      await page.getByTestId('markets-range-6mo').check()
+      await expect(markets).toHaveAttribute('data-range', '6mo')
+      await expect(page.getByTestId('markets-range')).toHaveText('6M · 1d')
+      // The 1D chart is dropped as the 6M one is taken; the symbol is quoted once throughout.
+      await expect.poll(charts, { timeout: 10_000 }).toEqual(['^N225|6mo'])
+      expect(await page.evaluate(() => window.elecdex.markets.watching())).toEqual(['^N225'])
+      await expect.poll(() => chartRequests.includes('^N225|6mo'), { timeout: 10_000 }).toBe(true)
+      // Measured from the close before the six months (800), not the day's change.
+      await expect(page.getByTestId('market-row')).toContainText('+25.00%', { timeout: 10_000 })
+      await expect(page.getByTestId('pane-subtitle')).toContainText('6M ·')
+      await expect(candles).toHaveAttribute('data-bars', /^[1-9]\d*$/)
+
+      await page.getByTestId('markets-view').locator('[data-view=bars]').click()
+      const bar = page.getByTestId('market-bar')
+      await expect(bar).toHaveAttribute('data-pct', '25.00')
+      await expect(bar).toHaveAttribute('title', /base 800.00 \(.+ close\) → 1,000/)
+
+      await page.waitForTimeout(1500) // let the layout save
+      launched = await launched.relaunch()
+      const again = launched.page
+      await expect(again.getByTestId('markets')).toHaveAttribute('data-range', '6mo')
+      await expect(again.getByTestId('markets')).toHaveAttribute('data-view', 'bars')
+      await expect(again.getByTestId('market-bar')).toHaveAttribute('data-pct', '25.00', {
+        timeout: 20_000,
+      })
+      expect(await again.evaluate(() => window.elecdex.markets.charts())).toEqual(['^N225|6mo'])
+    } finally {
+      await launched.close()
+    }
+  })
+
   test('a watchlist longer than the pane scrolls in both views instead of covering the credit', async () => {
     // The default layout's markets pane is short and its watchlist has eight symbols.
     const { page, close } = await launch()
@@ -346,6 +419,7 @@ test.describe('markets', () => {
       const credit = pane.locator('.credit')
       for (const [view, list] of [
         ['line', '.board'],
+        ['candles', '.board'],
         ['bars', '[data-testid=markets-bars]'],
       ] as const) {
         await pane.getByTestId('markets-view').locator(`[data-view=${view}]`).click()

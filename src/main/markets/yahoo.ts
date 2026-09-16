@@ -1,4 +1,10 @@
-import { type MarketQuote, type PricePoint, toMarketState } from '@shared/markets'
+import {
+  type CandlePoint,
+  type MarketQuote,
+  normaliseCandles,
+  type PricePoint,
+  toMarketState,
+} from '@shared/markets'
 import YahooFinance from 'yahoo-finance2'
 import type { MarketProvider } from './service.js'
 
@@ -17,6 +23,25 @@ import type { MarketProvider } from './service.js'
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const time = (v: unknown): number | null =>
   v instanceof Date ? v.getTime() : typeof v === 'number' ? v * (v < 1e12 ? 1000 : 1) : null
+
+/**
+ * Bars from yahoo.chart()'s `quotes` rows. A row missing any of its four prices
+ * is dropped: Yahoo leaves the live bar's fields null now and then.
+ */
+export function readCandles(rows: ReadonlyArray<Record<string, unknown>>): CandlePoint[] {
+  const candles: CandlePoint[] = []
+  for (const row of rows) {
+    const t = time(row.date)
+    const o = num(row.open)
+    const h = num(row.high)
+    const l = num(row.low)
+    const c = num(row.close)
+    if (t === null || o === null || h === null || l === null || c === null) continue
+    // A live bar's high and low do not always bracket its open and close yet.
+    candles.push({ t, o, h: Math.max(h, o, c), l: Math.min(l, o, c), c })
+  }
+  return candles
+}
 
 export function yahooProvider(): MarketProvider {
   const yahoo = new YahooFinance({
@@ -59,19 +84,16 @@ export function yahooProvider(): MarketProvider {
       return quotes
     },
 
-    async intraday(symbol) {
+    async chart(symbol, spec) {
       const result = (await yahoo.chart(
         symbol,
-        { period1: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), interval: '15m' },
+        { period1: new Date(Date.now() - spec.fetchMs), interval: spec.interval },
         { validateResult: false },
       )) as unknown as { quotes?: Array<Record<string, unknown>>; meta?: Record<string, unknown> }
-      const points: PricePoint[] = []
-      for (const q of result.quotes ?? []) {
-        const v = num(q.close)
-        const t = time(q.date)
-        if (v !== null && t !== null) points.push({ t, v })
+      return {
+        candles: normaliseCandles(readCandles(result.quotes ?? []), spec.barMs),
+        previousClose: num(result.meta?.chartPreviousClose),
       }
-      return { points, previousClose: num(result.meta?.chartPreviousClose) }
     },
   }
 }
@@ -79,7 +101,8 @@ export function yahooProvider(): MarketProvider {
 /**
  * A provider that reads from a local HTTP server instead of Yahoo, for the
  * end-to-end tests (ELECDEX_MARKETS_STUB_URL), so running them never contacts
- * Yahoo. The server returns the MarketQuote[] and PricePoint[] shapes directly.
+ * Yahoo. The server returns MarketQuote[] for quotes, and for a chart either
+ * `{ candles, previousClose }` or a plain PricePoint[] (each point a flat bar).
  */
 export function stubProvider(baseUrl: string): MarketProvider {
   const get = async (path: string): Promise<unknown> => {
@@ -90,9 +113,20 @@ export function stubProvider(baseUrl: string): MarketProvider {
   return {
     quotes: async (symbols) =>
       (await get(`/quotes?symbols=${encodeURIComponent(symbols.join(','))}`)) as MarketQuote[],
-    intraday: async (symbol) => ({
-      points: (await get(`/chart/${encodeURIComponent(symbol)}`)) as PricePoint[],
-      previousClose: null,
-    }),
+    chart: async (symbol, spec) => {
+      const body = await get(`/chart/${encodeURIComponent(symbol)}?range=${spec.id}`)
+      if (Array.isArray(body)) {
+        const candles = (body as PricePoint[]).map(({ t, v }) => ({ t, o: v, h: v, l: v, c: v }))
+        return { candles, previousClose: null }
+      }
+      const { candles, previousClose } = body as {
+        candles: CandlePoint[]
+        previousClose?: number | null
+      }
+      return {
+        candles: normaliseCandles(candles, spec.barMs),
+        previousClose: previousClose ?? null,
+      }
+    },
   }
 }

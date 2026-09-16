@@ -16,7 +16,9 @@ const { default: MarketsWidget } = await import(
 const handlers = new Map<string, (update: MarketUpdate) => void>()
 
 const update = (symbol: string, price: number): MarketUpdate => ({
+  key: `${symbol}|1d`,
   symbol,
+  range: '1d',
   quote: {
     symbol,
     name: symbol,
@@ -28,7 +30,9 @@ const update = (symbol: string, price: number): MarketUpdate => ({
     state: 'open',
     time: null,
   },
-  series: [],
+  candles: [],
+  base: null,
+  baseTime: null,
   updatedAt: 0,
   error: null,
 })
@@ -68,7 +72,7 @@ beforeEach(() => {
   )
   vi.stubGlobal('elecdex', {
     markets: {
-      subscribe: (symbol: string, handler: (update: MarketUpdate) => void) => {
+      subscribe: (symbol: string, _range: string, handler: (update: MarketUpdate) => void) => {
         handlers.set(symbol, handler)
         return () => handlers.delete(symbol)
       },

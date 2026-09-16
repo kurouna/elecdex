@@ -14,7 +14,7 @@ import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
-import type { MarketUpdate } from '@shared/markets'
+import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { PluginCatalog } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
@@ -241,7 +241,7 @@ const subscribeMarket = keyedSubscriptions<MarketUpdate>({
   subscribe: CH.markets.subscribe,
   unsubscribe: CH.markets.unsubscribe,
   event: CH.markets.update,
-  keyOf: (update) => update.symbol,
+  keyOf: (update) => update.key,
 })
 
 const subscribeFeed = keyedSubscriptions<FeedUpdate>({
@@ -368,8 +368,9 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.settings.chooseStartDirectory) as Promise<string | null>,
   },
   markets: {
-    subscribe: (symbol, handler) => subscribeMarket(symbol, handler),
+    subscribe: (symbol, range, handler) => subscribeMarket(chartKey(symbol, range), handler),
     watching: () => ipcRenderer.invoke(CH.markets.watching) as Promise<string[]>,
+    charts: () => ipcRenderer.invoke(CH.markets.charts) as Promise<string[]>,
   },
   feeds: {
     subscribe: (url, handler) => subscribeFeed(url, handler),

@@ -2,7 +2,7 @@ import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
-import type { MarketUpdate } from './markets.js'
+import type { ChartRange, MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { PluginCatalog } from './plugins.js'
 import type { QuakeAlert, QuakeState } from './quakes.js'
@@ -205,12 +205,14 @@ export interface UpdatesApi {
 
 export interface MarketsApi {
   /**
-   * Keeps a symbol's quote and intraday series current (about once a minute).
-   * The handler gets the cached state at once and every update after.
+   * Keeps a symbol's quote and its chart over `range` current (about once a
+   * minute). The handler gets the cached state at once and every update after.
    */
-  subscribe(symbol: string, handler: (update: MarketUpdate) => void): () => void
+  subscribe(symbol: string, range: ChartRange, handler: (update: MarketUpdate) => void): () => void
   /** Diagnostics: symbols main is currently polling. */
   watching(): Promise<string[]>
+  /** Diagnostics: the charts main is keeping, as "symbol|range". */
+  charts(): Promise<string[]>
 }
 
 export interface FeedsApi {

@@ -58,12 +58,13 @@ export const CH = {
     changed: 'updates:changed',
   },
   markets: {
-    /** renderer -> main, fire and forget: keep a symbol's quote current. */
+    /** renderer -> main, fire and forget: keep a chart (chartKey: symbol and range) current. */
     subscribe: 'markets:subscribe',
     unsubscribe: 'markets:unsubscribe',
     /** main -> renderer: a MarketUpdate. */
     update: 'markets:update',
     watching: 'markets:watching',
+    charts: 'markets:charts',
   },
   feeds: {
     /** renderer -> main, fire and forget: keep a feed's items current. */

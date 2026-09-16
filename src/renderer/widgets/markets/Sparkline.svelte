@@ -1,10 +1,16 @@
 <script lang="ts">
 import type { PricePoint } from '@shared/markets'
 import { appearance } from '../../stores/appearance.svelte.ts'
+import { drawBaseline, drawDividers, observeCanvas, valueScale } from './chart-draw.ts'
 
 /**
- * One symbol's session as a line with a fading fill, and the previous close as a
- * dashed baseline, coloured by whether the price is above or below it.
+ * One symbol's range as a line with a fading fill, and the range's base (the
+ * previous close for 1D) as a dashed baseline, coloured by whether the price is
+ * above or below it.
+ *
+ * Points are spaced evenly by index, not by time, so the nights and weekends of
+ * a multi-day range take no room; `dividers` (point indices) mark where the day
+ * or month changed.
  *
  * Drawn only when the data, the size or the theme changes - at most once a
  * minute in normal use - never on an animation loop.
@@ -13,9 +19,10 @@ interface Props {
   points: PricePoint[]
   baseline: number | null
   up: boolean
+  dividers?: number[]
 }
 
-const { points, baseline, up }: Props = $props()
+const { points, baseline, up, dividers = [] }: Props = $props()
 
 let canvas = $state<HTMLCanvasElement | null>(null)
 let size = $state({ width: 0, height: 0, ratio: 1 })
@@ -23,14 +30,9 @@ let size = $state({ width: 0, height: 0, ratio: 1 })
 $effect(() => {
   const el = canvas
   if (el === null) return
-  const observer = new ResizeObserver(() => {
-    const ratio = window.devicePixelRatio || 1
-    el.width = Math.max(1, Math.round(el.clientWidth * ratio))
-    el.height = Math.max(1, Math.round(el.clientHeight * ratio))
-    size = { width: el.clientWidth, height: el.clientHeight, ratio }
+  return observeCanvas(el, (next) => {
+    size = next
   })
-  observer.observe(el)
-  return () => observer.disconnect()
 })
 
 $effect(() => {
@@ -53,43 +55,28 @@ $effect(() => {
 
   const values = points.map((p) => p.v)
   if (baseline !== null) values.push(baseline)
-  let lo = Math.min(...values)
-  let hi = Math.max(...values)
-  if (hi === lo) {
-    hi += 1
-    lo -= 1
-  }
-  const pad = (hi - lo) * 0.12
-  lo -= pad
-  hi += pad
-  const t0 = points[0]?.t ?? 0
-  const t1 = points.at(-1)?.t ?? 1
-  const x = (t: number) => ((t - t0) / Math.max(1, t1 - t0)) * (width - 2) + 1
-  const y = (v: number) => height - ((v - lo) / (hi - lo)) * height
+  const y = valueScale(Math.min(...values), Math.max(...values), height)
+  const last = points.length - 1
+  const x = (i: number) => (i / last) * (width - 2) + 1
 
-  if (baseline !== null) {
-    ctx.strokeStyle = muted
-    ctx.globalAlpha = 0.6
-    ctx.setLineDash([2, 3])
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(0, Math.round(y(baseline)) + 0.5)
-    ctx.lineTo(width, Math.round(y(baseline)) + 0.5)
-    ctx.stroke()
-    ctx.setLineDash([])
-    ctx.globalAlpha = 1
-  }
+  drawDividers(
+    ctx,
+    dividers.filter((i) => i > 0 && i <= last).map((i) => (x(i - 1) + x(i)) / 2),
+    height,
+    muted,
+  )
+  if (baseline !== null) drawBaseline(ctx, y(baseline), width, muted)
 
   const line = new Path2D()
   points.forEach((p, i) => {
-    if (i === 0) line.moveTo(x(p.t), y(p.v))
-    else line.lineTo(x(p.t), y(p.v))
+    if (i === 0) line.moveTo(x(i), y(p.v))
+    else line.lineTo(x(i), y(p.v))
   })
 
   // Fill under the line, fading toward the bottom.
   const fill = new Path2D(line)
-  fill.lineTo(x(t1), height)
-  fill.lineTo(x(t0), height)
+  fill.lineTo(x(last), height)
+  fill.lineTo(x(0), height)
   fill.closePath()
   const gradient = ctx.createLinearGradient(0, 0, 0, height)
   gradient.addColorStop(0, color)
@@ -105,11 +92,11 @@ $effect(() => {
   ctx.stroke(line)
 
   // The latest price, as a dot at the end.
-  const last = points.at(-1)
-  if (last) {
+  const end = points[last]
+  if (end) {
     ctx.fillStyle = color
     ctx.beginPath()
-    ctx.arc(x(last.t), y(last.v), 2.2, 0, Math.PI * 2)
+    ctx.arc(x(last), y(end.v), 2.2, 0, Math.PI * 2)
     ctx.fill()
   }
 })
