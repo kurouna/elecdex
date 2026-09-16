@@ -149,13 +149,20 @@ test('the working directory follows a cd', async () => {
     .toMatch(expected)
 })
 
-test('a non-zero exit code is surfaced on the pane', async () => {
+test('a non-zero exit code does not badge the pane', async () => {
+  // The exit code badge was turned off on purpose (273c706); the shell's own
+  // prompt reports a failure. Only a shell that exits gets a badge.
   const command = platform === 'win32' ? 'cmd /c exit 42' : '(exit 42)'
-  await typeInto(page, terminalPane(page).first(), command)
-
-  await expect(terminalPane(page).first().getByTestId('pane-badge')).toHaveText('42', {
-    timeout: 40_000,
-  })
+  const shell = terminalPane(page).first()
+  const subtitle = shell.getByTestId('pane-subtitle')
+  const before = await subtitle.innerText()
+  await typeInto(page, shell, command)
+  // A later command's cwd report shows the integration handled the failing one.
+  await typeInto(page, shell, 'cd ..')
+  await expect
+    .poll(() => subtitle.innerText(), { timeout: 40_000, intervals: [300] })
+    .not.toBe(before)
+  await expect(shell.getByTestId('pane-badge')).toHaveCount(0)
 })
 
 test('history survives the terminal being remounted into a tab group', async () => {
