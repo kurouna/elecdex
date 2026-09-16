@@ -1,8 +1,8 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL, showStatusBar } from './support.js'
+import { launch, removeDir, SINGLE_TERMINAL, showStatusBar } from './support.js'
 
 /**
  * Themes and settings: switching without a reload, following hand edits to the
@@ -106,8 +106,47 @@ test('a hand edit to settings.json applies while the app runs', async () => {
     await page.waitForTimeout(1000)
     expect(await rootVar(page, '--accent-h')).toBe('128')
     expect(readFileSync(path.join(userData, 'settings.json'), 'utf8')).toBe('{ "theme": ')
+
+    // A change from the UI replaces it, but keeps the broken edit in .bak.
+    await showStatusBar(page)
+    await page.getByTestId('theme-select').selectOption('amber')
+    await expect.poll(() => rootVar(page, '--accent-h')).toBe('36')
+    expect(readFileSync(path.join(userData, 'settings.json.bak'), 'utf8')).toBe('{ "theme": ')
+    expect(JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).theme).toBe(
+      'amber',
+    )
   } finally {
     await close()
+  }
+})
+
+test('a settings.json broken before launch is kept through startup and quit', async () => {
+  const first = await launch()
+  const dir = first.userData
+  const file = path.join(dir, 'settings.json')
+  const broken = '{ "theme": "amber", '
+  let running: Awaited<ReturnType<typeof launch>> | null = null
+  try {
+    await first.app.close()
+    writeFileSync(file, broken)
+    const broke = await launch(dir)
+    running = broke
+    // Defaults apply, but the user's file is where they left it.
+    await expect.poll(() => rootVar(broke.page, '--accent-h')).toBe('183')
+    expect(readFileSync(file, 'utf8')).toBe(broken)
+    running = null
+    await broke.app.close()
+    expect(readFileSync(file, 'utf8')).toBe(broken)
+    expect(existsSync(`${file}.bak`)).toBe(false)
+
+    // Fixing it by hand while the app runs applies it.
+    const fixed = await launch(dir)
+    running = fixed
+    writeFileSync(file, JSON.stringify({ theme: 'phosphor', sound: { enabled: false } }))
+    await expect.poll(() => rootVar(fixed.page, '--accent-h'), { timeout: 10_000 }).toBe('128')
+  } finally {
+    await running?.app.close()
+    removeDir(dir)
   }
 })
 

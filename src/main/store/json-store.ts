@@ -1,4 +1,12 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import type { z } from 'zod'
 
@@ -14,7 +22,10 @@ import type { z } from 'zod'
  *
  *  - a corrupt file is preserved, not discarded. It is moved aside to `.bak`
  *    and the caller gets the default, so a malformed edit costs the user
- *    nothing and can be recovered by hand.
+ *    nothing and can be recovered by hand. A store the user edits by hand
+ *    (`keepInvalid`, settings.json) leaves the file where it is instead, so the
+ *    user still finds their file and a fix applies live; the file is copied to
+ *    `.bak` only when a write is about to replace it.
  *
  * Writes go to a temp file and are renamed over the target, so a crash mid-write
  * cannot leave a truncated file behind.
@@ -23,12 +34,19 @@ export class JsonStore<T> {
   private readonly file: string
   private readonly schema: z.ZodType<T>
   private readonly makeDefault: () => T
+  private readonly keepInvalid: boolean
   private cache: T | null = null
 
-  constructor(opts: { file: string; schema: z.ZodType<T>; makeDefault: () => T }) {
+  constructor(opts: {
+    file: string
+    schema: z.ZodType<T>
+    makeDefault: () => T
+    keepInvalid?: boolean
+  }) {
     this.file = opts.file
     this.schema = opts.schema
     this.makeDefault = opts.makeDefault
+    this.keepInvalid = opts.keepInvalid ?? false
   }
 
   get path(): string {
@@ -101,6 +119,7 @@ export class JsonStore<T> {
     }
 
     mkdirSync(path.dirname(this.file), { recursive: true })
+    if (this.keepInvalid) this.backUpIfInvalid()
     const temp = `${this.file}.${process.pid}.tmp`
     writeFileSync(temp, `${JSON.stringify(result.data, null, 2)}\n`, 'utf8')
     // rename is atomic within a filesystem, so readers never see a partial file.
@@ -113,8 +132,41 @@ export class JsonStore<T> {
     this.cache = null
   }
 
+  /**
+   * Copies the file on disk to `.bak` when it would not load, so a write never
+   * destroys a broken hand edit - one made before launch or while the app runs.
+   */
+  private backUpIfInvalid(): void {
+    let raw: string
+    try {
+      raw = readFileSync(this.file, 'utf8')
+    } catch {
+      return // No file yet: nothing to lose.
+    }
+    if (this.parses(raw)) return
+    try {
+      copyFileSync(this.file, `${this.file}.bak`)
+      console.warn(`[elecdex] ${path.basename(this.file)} was invalid; copied to ${this.file}.bak`)
+    } catch (error) {
+      // Losing the user's edit is worse than losing this one change.
+      throw new Error(`Refusing to overwrite invalid ${path.basename(this.file)}: ${error}`)
+    }
+  }
+
+  private parses(raw: string): boolean {
+    try {
+      return this.schema.safeParse(JSON.parse(raw)).success
+    } catch {
+      return false
+    }
+  }
+
   /** Moves an unusable file aside instead of deleting the user's work. */
   private quarantine(reason: string): void {
+    if (this.keepInvalid) {
+      console.warn(`[elecdex] ${path.basename(this.file)} ${reason}; using defaults, file kept`)
+      return
+    }
     const backup = `${this.file}.bak`
     try {
       if (existsSync(backup)) unlinkSync(backup)

@@ -35,8 +35,9 @@ import { JsonStore } from '../store/json-store.js'
  * and theme files in the themes/ folder - so both are watched and every change
  * is pushed to every window. A half-saved edit that does not parse is ignored
  * until the next save rather than quarantined, because an editor writing the
- * file is not a corrupt file. (A file that is invalid at startup is quarantined
- * as usual by JsonStore.)
+ * file is not a corrupt file. A file that is invalid at startup stays in place
+ * too (the defaults apply until it is fixed), and a change from the UI first
+ * copies a broken file to settings.json.bak, so a hand edit is never lost.
  */
 
 /** Editors write in bursts: a truncate, a write, a rename. Settle before reading. */
@@ -72,6 +73,8 @@ export function registerSettingsIpc(): SettingsHandle {
     file: settingsFile,
     schema: SettingsSchema,
     makeDefault: defaultSettings,
+    // A broken settings.json stays where the user left it; see JsonStore.
+    keepInvalid: true,
   })
   let settings = store.read()
   let catalog = loadThemes(themesDir)

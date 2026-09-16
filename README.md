@@ -274,7 +274,9 @@ answering is stopped without holding up the app. The API and the rules are in
 ## Themes and settings
 
 Everything in the settings dialog is saved at once to `settings.json` in the app's userData
-folder, which can also be edited by hand while the app runs:
+folder, which can also be edited by hand while the app runs. A file that does not parse is left where it
+is (the defaults apply until it is fixed), and is copied to `settings.json.bak` before a change
+from the app replaces it:
 
 ```json
 {

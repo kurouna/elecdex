@@ -82,6 +82,53 @@ describe('JsonStore', () => {
     expect(makeStore().read((v) => ({ ...v, version: 1 }))).toEqual({ version: 1, name: 'old' })
   })
 
+  describe('keepInvalid (a file edited by hand)', () => {
+    const makeKeeping = () =>
+      new JsonStore<Value>({
+        file,
+        schema: Schema,
+        makeDefault: () => ({ version: 1, name: 'default' }),
+        keepInvalid: true,
+      })
+
+    it.each([
+      ['invalid JSON', '{ not json'],
+      ['schema-invalid JSON', JSON.stringify({ version: 'x' })],
+    ])('leaves %s in place on read and writes nothing', (_label, broken) => {
+      mkdirp()
+      writeFileSync(file, broken, 'utf8')
+      expect(makeKeeping().read()).toEqual({ version: 1, name: 'default' })
+      expect(readFileSync(file, 'utf8')).toBe(broken)
+      expect(existsSync(`${file}.bak`)).toBe(false)
+    })
+
+    it('backs up a file that was broken at startup before a write replaces it', () => {
+      mkdirp()
+      writeFileSync(file, '{ not json', 'utf8')
+      const store = makeKeeping()
+      store.read()
+      store.write({ version: 1, name: 'from the UI' })
+      expect(readFileSync(`${file}.bak`, 'utf8')).toBe('{ not json')
+      expect(makeKeeping().read().name).toBe('from the UI')
+    })
+
+    it('backs up a file broken after it was read, before a write replaces it', () => {
+      const store = makeKeeping()
+      store.write({ version: 1, name: 'good' })
+      writeFileSync(file, '{ "name": ', 'utf8')
+      store.write({ version: 1, name: 'from the UI' })
+      expect(readFileSync(`${file}.bak`, 'utf8')).toBe('{ "name": ')
+      expect(makeKeeping().read().name).toBe('from the UI')
+    })
+
+    it('does not touch .bak when the file on disk is valid', () => {
+      const store = makeKeeping()
+      store.write({ version: 1, name: 'a' })
+      store.write({ version: 1, name: 'b' })
+      expect(existsSync(`${file}.bak`)).toBe(false)
+    })
+  })
+
   it('refuses to write an invalid value and leaves the file untouched', () => {
     makeStore().write({ version: 1, name: 'good' })
     const before = readFileSync(file, 'utf8')
