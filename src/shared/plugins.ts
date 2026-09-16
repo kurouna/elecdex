@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { METRIC_SOURCE_IDS } from './metrics.js'
-import type { Block, SettingValue } from './plugin-api.js'
+import type { Block, ButtonIcon, SettingValue } from './plugin-api.js'
 
 /**
  * Plugins: what main, the renderer's host and the settings share (docs/plugins.md).
@@ -299,6 +299,19 @@ const short = z.string().transform((s) => s.slice(0, 200))
 const capped = <T extends z.ZodType>(item: T, max: number) =>
   z.preprocess((v) => (Array.isArray(v) ? v.slice(0, max) : v), z.array(item))
 
+export const BUTTON_ICONS = [
+  'refresh',
+  'play',
+  'pause',
+  'stop',
+  'skip',
+  'reset',
+  'add',
+  'remove',
+  'settings',
+  'open',
+] as const satisfies readonly ButtonIcon[]
+
 const ToneSchema = z.enum(['ok', 'warn', 'danger', 'dim', 'accent'])
 const tone = ToneSchema.optional()
 const point = z.tuple([z.number(), z.number()])
@@ -389,6 +402,7 @@ const BlockSchema = z.discriminatedUnion('t', [
       z.object({
         action: short,
         text: short,
+        icon: z.enum(BUTTON_ICONS).optional(),
         primary: z.boolean().optional(),
         disabled: z.boolean().optional(),
       }),
@@ -473,6 +487,7 @@ export const WorkerMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('log'), level: z.enum(['log', 'error']), text }),
   z.object({ t: z.literal('error'), pane: pane.nullable(), message: text, fatal: z.boolean() }),
   z.object({ t: z.literal('pong'), n: z.int() }),
+  z.object({ t: z.literal('signin-close') }),
 ])
 export type WorkerMessage = z.infer<typeof WorkerMessageSchema>
 

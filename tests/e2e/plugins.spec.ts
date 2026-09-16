@@ -28,7 +28,11 @@ const ROUTES: Record<string, (req: IncomingMessage, res: ServerResponse) => void
   // The sign-in page: signing in is being given the cookie.
   '/': (_req, res) =>
     res
-      .writeHead(200, { 'content-type': 'text/html', 'set-cookie': 'sid=signed-in; Path=/' })
+      // A lasting cookie, as real sites give: the sign-in survives a restart.
+      .writeHead(200, {
+        'content-type': 'text/html',
+        'set-cookie': 'sid=signed-in; Path=/; Max-Age=86400',
+      })
       .end('<title>stub sign-in</title><p>signed in</p>'),
   '/me': (req, res) => {
     const signedIn = (req.headers.cookie ?? '').includes('sid=signed-in')
@@ -234,7 +238,7 @@ test('editing a plugin reloads its panes, and a broken edit says why', async () 
   }
 })
 
-test('a sign-in session is the plugin’s own, and signing in is seen by the plugin', async () => {
+test('a sign-in session is the plugin’s own, closes its window once it works, and lasts', async () => {
   const dir = withPlugins({
     'account.js': `export default {
       apiVersion: 1, id: 'account', title: 'account',
@@ -243,6 +247,7 @@ test('a sign-in session is the plugin’s own, and signing in is seen by the plu
         const check = async () => {
           const r = await ctx.fetch('https://api.example.test/me')
           ctx.publish(r.status === 200 ? 'signed in' : 'signed out')
+          if (r.status === 200) ctx.closeSignIn()
         }
         check()
         ctx.on('session', check)
@@ -281,10 +286,19 @@ test('a sign-in session is the plugin’s own, and signing in is seen by the plu
       )
     // The workspace's own session never got the cookie.
     expect(await page.evaluate(() => document.cookie)).toBe('')
-    await signIn?.close()
+    // Signing in set the cookie: the plugin sees it and closes the window itself.
+    expect(signIn).toBeDefined()
     await expect(pluginPane(page).getByText('signed in')).toBeVisible()
-  } finally {
+    await expect.poll(() => app.app.windows().length).toBe(1)
+
+    // Still signed in after a restart, with nothing to click.
+    const again = await app.relaunch()
+    await expect(pluginPane(again.page).getByText('signed in')).toBeVisible()
+    await again.close()
+  } catch (error) {
     await app.close()
+    throw error
+  } finally {
     removeDir(dir)
   }
 })

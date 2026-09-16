@@ -116,6 +116,8 @@ export const CH = {
     storageSet: 'plugins:storage-set',
     signIn: 'plugins:sign-in',
     signOut: 'plugins:sign-out',
+    /** renderer -> main, fire and forget: a plugin's sign-in worked; close its window. */
+    closeSignIn: 'plugins:close-sign-in',
     /** main -> renderer: a plugin's sign-in session changed (its id). */
     session: 'plugins:session',
     /** renderer -> main, fire and forget: a system notification for a plugin. */

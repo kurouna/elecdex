@@ -392,6 +392,90 @@ describe('a plugin pane', () => {
     expect(listWidgets().find((w) => w.id === 'plugin:counter')).toBe(before)
   })
 
+  it('draws an icon button with its text as its name', async () => {
+    const code = `export default {
+      apiVersion: 1, id: 'iconic', title: 'iconic',
+      view(ctx) { ctx.render([{ t: 'buttons', items: [
+        { action: 'refresh', text: 'Refresh now', icon: 'refresh' },
+        { action: 'plain', text: 'plain' },
+      ] }]) },
+    }`
+    await startHost([source('iconic.ts', code)], {
+      iconic: { enabled: true, key: 'iconic.ts', granted: grantFor(NO_PERMISSIONS), values: {} },
+    })
+    pane('iconic')
+    await settle()
+    const [icon, plain] = screen.getAllByTestId('plugin-button')
+    expect(icon?.getAttribute('aria-label')).toBe('Refresh now')
+    expect(icon?.getAttribute('title')).toBe('Refresh now')
+    expect(icon?.textContent).toBe('')
+    expect(icon?.querySelector('svg[data-icon="refresh"]')).not.toBeNull()
+    expect(plain?.textContent).toBe('plain')
+    expect(plain?.hasAttribute('aria-label')).toBe(false)
+  })
+
+  it('fills under a line from its colour to nothing at the baseline', async () => {
+    const { fillArea } = await import('../../src/renderer/lib/area-fill.ts')
+    const calls: string[] = []
+    const stops: Array<[number, string]> = []
+    const ctx = {
+      createLinearGradient: (...a: number[]) => {
+        calls.push(`gradient ${a.join(',')}`)
+        return { addColorStop: (o: number, c: string) => stops.push([o, c]) }
+      },
+      save: () => calls.push('save'),
+      restore: () => calls.push('restore'),
+      beginPath: () => calls.push('begin'),
+      moveTo: (x: number, y: number) => calls.push(`move ${x},${y}`),
+      lineTo: (x: number, y: number) => calls.push(`line ${x},${y}`),
+      closePath: () => calls.push('close'),
+      fill: () => calls.push('fill'),
+    } as unknown as CanvasRenderingContext2D
+    fillArea(
+      ctx,
+      [
+        [0, 30],
+        [50, 10],
+        [100, 20],
+      ],
+      { baseline: 80, color: 'red', alpha: 0.3 },
+    )
+    expect(stops).toEqual([
+      [0, 'red'],
+      [1, 'transparent'],
+    ])
+    // From the line's peak, not the chart's top: a line that stays low keeps its fill.
+    expect(calls).toEqual([
+      'gradient 0,10,0,80',
+      'save',
+      'begin',
+      'move 0,80',
+      'line 0,30',
+      'line 50,10',
+      'line 100,20',
+      'line 100,80',
+      'close',
+      'fill',
+      'restore',
+    ])
+    // Below a zero line (download traffic) it runs from the trough up to the line.
+    calls.length = 0
+    const below: Array<[number, number]> = [
+      [0, 60],
+      [50, 70],
+    ]
+    fillArea(ctx, below, { baseline: 40, color: 'red', alpha: 0.3 })
+    expect(calls[0]).toBe('gradient 0,70,0,40')
+    calls.length = 0
+    const flat: Array<[number, number]> = [
+      [0, 80],
+      [9, 80],
+    ]
+    fillArea(ctx, [[0, 30]], { baseline: 80, color: 'red', alpha: 0.3 })
+    fillArea(ctx, flat, { baseline: 80, color: 'red', alpha: 0.3 })
+    expect(calls).toEqual([])
+  })
+
   it('dates the ends of a time axis that spans more than a day', async () => {
     const { axisTime } = await import('../../src/renderer/plugins/ticker.svelte.ts')
     const at = new Date(2026, 8, 19, 21, 30).getTime()

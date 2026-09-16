@@ -331,7 +331,12 @@ export interface PluginsApi {
   /** Opens the sign-in window for a session host; resolves when it is closed. */
   signIn(id: string, host: string): Promise<void>
   signOut(id: string): Promise<void>
-  /** Called with a plugin id when its sign-in session may have changed. */
+  /** Closes the plugin's sign-in window, if one is open. */
+  closeSignIn(id: string): void
+  /**
+   * Called with a plugin id when its sign-in session may have changed: the sign-in window
+   * closed, its cookies changed while it was open, or the user signed out.
+   */
   onSession(handler: (id: string) => void): () => void
   /** A system notification, shown only while no elecdex window is in front. */
   notify(id: string, message: { title: string; body?: string | undefined }): void

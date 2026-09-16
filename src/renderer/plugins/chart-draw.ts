@@ -1,4 +1,5 @@
 import type { ChartSeries, Tone } from '@shared/plugin-api'
+import { FILL_ALPHA, fillArea } from '../lib/area-fill.ts'
 
 /**
  * Drawing a plugin's chart block on a canvas: grid, series, rules and labels, each on
@@ -88,8 +89,18 @@ function drawGrid({ ctx, width, height, color }: Surface): void {
 
 function drawSeries({ ctx, height, px, py, color }: Surface, s: ChartSeries): void {
   const first = s.points[0]
-  const last = s.points.at(-1)
-  if (first === undefined || last === undefined) return
+  if (first === undefined) return
+  if (s.fill) {
+    fillArea(
+      ctx,
+      s.points.map(([x, y]) => [px(x), py(y)] as const),
+      {
+        baseline: height,
+        color: color(s.tone),
+        alpha: s.tone === 'dim' ? FILL_ALPHA.dim : FILL_ALPHA.accent,
+      },
+    )
+  }
   ctx.setLineDash(DASH[s.line ?? 'solid'] ?? [])
   ctx.strokeStyle = color(s.tone)
   ctx.lineWidth = 1.4
@@ -98,14 +109,6 @@ function drawSeries({ ctx, height, px, py, color }: Surface, s: ChartSeries): vo
   ctx.moveTo(px(first[0]), py(first[1]))
   for (const [x, y] of s.points.slice(1)) ctx.lineTo(px(x), py(y))
   ctx.stroke()
-  if (!s.fill) return
-  ctx.lineTo(px(last[0]), height)
-  ctx.lineTo(px(first[0]), height)
-  ctx.closePath()
-  ctx.globalAlpha = 0.14
-  ctx.fillStyle = color(s.tone)
-  ctx.fill()
-  ctx.globalAlpha = 1
 }
 
 function drawRule(surface: Surface, rule: ChartSpec['rules'][number]): void {

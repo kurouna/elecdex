@@ -308,6 +308,7 @@ export function pluginRuntime(
     setOptions(key: string, options: unknown): void {
       post({ t: 'options', key, options })
     },
+    closeSignIn: () => post({ t: 'signin-close' }),
     get views() {
       const all = [...views.values()]
       return { open: all.length, visible: all.filter((v) => v.visible).length }

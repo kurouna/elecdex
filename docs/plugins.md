@@ -136,6 +136,7 @@ interface ServiceContext<S, M> extends CommonContext<S> {
   storage: { get<T>(key: string): T | undefined; set(key: string, value: unknown): void; delete(key: string): void }
   notify(message: { title: string; body?: string; sound?: boolean }): void   // permissions.notify
   setOptions(key: string, options: readonly { value: string; label: string }[]): void  // select の選択肢
+  closeSignIn(): void                        // ログインが通ったらログイン窓を閉じる
   readonly views: { open: number; visible: number }                        // 開いている・見えているペインの数
   on(event: 'settings' | 'session' | 'views', fn: () => void): () => void  // session: ログイン・ログアウトした / views: ペインの開閉と表示の変化
   on(event: 'action', fn: (action: PluginAction) => void): () => void     // view から来た操作
@@ -189,13 +190,15 @@ type Block =
   | { t: 'time'; at: number; style: 'relative' | 'countdown' | 'clock' | 'date'; label?: string; tone?: Tone }
   | { t: 'table'; columns: readonly string[]; rows: readonly (readonly string[])[]; align?: readonly ('left' | 'right')[] }
   | { t: 'list'; items: readonly { id: string; text: string; sub?: string; tone?: Tone }[]; action?: string }
-  | { t: 'buttons'; items: readonly { action: string; text: string; primary?: boolean; disabled?: boolean }[] }
+  | { t: 'buttons'; items: readonly { action: string; text: string; icon?: ButtonIcon; primary?: boolean; disabled?: boolean }[] }
+      // icon: refresh / play / pause / stop / skip / reset / add / remove / settings / open。アイコンだけを描き、text はツールチップと読み上げ名になる
   | { t: 'link'; text: string; href: string }            // https のみ。開くサイト名を必ず添えて描く
   | { t: 'signin'; host: string; text?: string }         // session のホストにログインするボタン
   | { t: 'notice'; text: string; tone?: Tone }           // エラー・出典・「非公式」表示
   | { t: 'divider' }
 ```
 
+- `chart` の `fill` は線の色から透明へのグラデーションで塗る（本体の CPU・メモリ・通信のグラフと同じ）
 - **色は指定できない**。`tone` を semantic トークンに写す（`accent` はテーマの差し色）。テーマ切替と Business (Light) の暗色補正に自動で追従
 - `time` はホストが毎秒描き直す（countdown は `mm:ss`、relative は「2h 13m」）。view が毎秒 render しなくてよい
 - `signin` はホストが描くボタンで、**利用者のクリックでだけ**ログイン窓が開く。プラグインから窓を開く API は無い
@@ -223,6 +226,8 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 
 - `session` に挙げたホストへの取得は、プラグイン専用の保存領域 `persist:plugin-<id>` の Cookie を付けて、Electron の `net`（Chromium の通信経路）で送る。User-Agent は Chromium 標準から Electron と elecdex の表記を除いたもの
 - それ以外のホストはメモリ上の共用領域で、Cookie を送らず残さない。User-Agent は `elecdex/<version> plugin/<id>`
+- 開いている間にその領域の Cookie が変わると（1 秒待ってまとめて）service に `session` イベントを送る。プラグインはそこで取得をやり直し、通るようになったら `ctx.closeSignIn()` で窓を閉じる。ログインのあと利用者が窓を閉じる必要はない
+- ログインの自動更新はしない（資格情報は持たない）。領域は永続なので、サイトの Cookie が有効な間は再起動をまたいでログインが続き、切れたらプラグインが `signin` を出して利用者のクリックを待つ
 - ログイン窓: `signin` ブロック（または設定の「sign in」）のクリックで開く BrowserWindow。プラグインごとに1枚で、2度目は前面に出すだけ。その領域を使い、preload なし・sandbox・権限要求はすべて拒否。https の遷移は許し（Google などの外部ログインのため）、ポップアップは同じ窓で開き、今の origin をタイトルに出す。閉じたら service に `session` イベント
 - 設定の「ログアウト」とプラグインの削除で、その領域を消す
 - プラグインから Cookie の値は見えない。見えるのは応答だけ

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { FILL_ALPHA, fillArea } from '../../lib/area-fill.ts'
 import {
   CHART_DELAY_MS,
   CHART_TICK_MS,
@@ -164,25 +165,32 @@ function drawSeries(f: Frame, s: ChartSeries, range: { min: number; max: number 
 
   const span = range.max - range.min || 1
   const inverted = s.inverted === true
+  const yOf = (v: number) => height - ((v - range.min) / span) * height
 
-  ctx.strokeStyle = s.tone === 'dim' ? f.colors.dim : f.colors.line
-  ctx.lineWidth = 1.25
-  ctx.lineJoin = 'round'
-  ctx.beginPath()
-
-  let started = false
+  const points: Array<[number, number]> = []
   for (const p of s.points) {
     const x = width - (now - p.at) / msPerPixel
     if (x < -2) continue
-    const v = inverted ? -p.v : p.v
-    const y = height - ((v - range.min) / span) * height
-    if (started) {
-      ctx.lineTo(x, y)
-    } else {
-      ctx.moveTo(x, y)
-      started = true
-    }
+    points.push([x, yOf(inverted ? -p.v : p.v)])
   }
+  const color = s.tone === 'dim' ? f.colors.dim : f.colors.line
+
+  // The fill fades toward the zero line when the range spans it (traffic), else the bottom.
+  const baseline = range.min < 0 && range.max > 0 ? yOf(0) : height
+  fillArea(ctx, points, {
+    baseline,
+    color,
+    alpha: s.tone === 'dim' ? FILL_ALPHA.dim : FILL_ALPHA.accent,
+  })
+
+  ctx.strokeStyle = color
+  ctx.lineWidth = 1.25
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  points.forEach(([x, y], i) => {
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  })
   ctx.stroke()
 }
 

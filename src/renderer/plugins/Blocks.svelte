@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { Block } from '@shared/plugin-api'
+import ButtonIcon from './ButtonIcon.svelte'
 import ChartBlock from './ChartBlock.svelte'
 import TimeBlock from './TimeBlock.svelte'
 
@@ -124,10 +125,14 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
           <button
             type="button"
             class:primary={button.primary}
+            class:icon={button.icon !== undefined}
             disabled={button.disabled}
+            title={button.icon ? button.text : undefined}
+            aria-label={button.icon ? button.text : undefined}
             onclick={() => onaction(button.action)}
             data-testid="plugin-button"
-            data-action={button.action}>{button.text}</button
+            data-action={button.action}
+            >{#if button.icon}<ButtonIcon name={button.icon} />{:else}{button.text}{/if}</button
           >
         {/each}
       </div>
@@ -402,6 +407,13 @@ td {
 .buttons button.primary:hover {
   background: var(--accent-strong);
   color: var(--text-inverse);
+}
+.buttons button.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.5rem;
+  padding: 0;
 }
 .buttons button:disabled {
   opacity: 0.4;

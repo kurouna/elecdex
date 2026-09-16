@@ -210,6 +210,15 @@ describe('plugin blocks', () => {
     }
   })
 
+  it('draw a button as an icon only from the icons the host has', () => {
+    const buttons = (icon: string) =>
+      readBlocks([{ t: 'buttons', items: [{ action: 'refresh', text: 'refresh', icon }] }])
+    expect(buttons('refresh').blocks).toEqual([
+      { t: 'buttons', items: [{ action: 'refresh', text: 'refresh', icon: 'refresh' }] },
+    ])
+    expect(buttons('<svg onload=x>').blocks).toEqual([])
+  })
+
   it('open only https links, and sign in only to a host name', () => {
     expect(readBlocks([{ t: 'link', text: 'x', href: 'javascript:alert(1)' }]).blocks).toEqual([])
     expect(readBlocks([{ t: 'link', text: 'x', href: 'http://example.com' }]).blocks).toEqual([])

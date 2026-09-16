@@ -17,6 +17,8 @@ const prepared = new WeakSet<Session>()
 const signIns = new Map<string, { win: BrowserWindow; closed: Promise<void> }>()
 
 const partition = (id: string) => `persist:plugin-${id}`
+/** Signing in sets cookies in bursts: wait for them to settle before telling the plugin. */
+const COOKIE_SETTLE_MS = 1000
 
 function prepare(ses: Session, userAgent: string | null): Session {
   if (prepared.has(ses)) return ses
@@ -104,13 +106,18 @@ export function rawRequest(
 /**
  * The sign-in window for a plugin's session host. It has no preload and no permissions;
  * https navigation is allowed, because signing in often passes through another site, and
- * pop-ups open in the same window. Resolves when the user closes it. A plugin has one at a
- * time: asking again brings the open one forward.
+ * pop-ups open in the same window. Resolves when it closes. A plugin has one at a time:
+ * asking again brings the open one forward.
+ *
+ * While it is open, `onChange` is called (a second after the last change) whenever the
+ * session's cookies change, so the plugin can try its requests again and, once they work,
+ * close the window itself (closeSignIn) instead of leaving that to the user.
  */
 export function openSignIn(
   id: string,
   url: string,
   parent: BrowserWindow | undefined,
+  onChange: () => void,
 ): Promise<void> {
   const open = signIns.get(id)
   if (open) {
@@ -165,15 +172,30 @@ export function openSignIn(
     event.preventDefault()
     showOrigin()
   })
+  let settle: NodeJS.Timeout | undefined
+  const cookiesChanged = (): void => {
+    clearTimeout(settle)
+    settle = setTimeout(onChange, COOKIE_SETTLE_MS)
+  }
+  const cookies = pluginSession(id).cookies
+  cookies.on('changed', cookiesChanged)
   void win.loadURL(url)
   const closed = new Promise<void>((resolve) =>
     win.once('closed', () => {
+      clearTimeout(settle)
+      cookies.removeListener('changed', cookiesChanged)
       signIns.delete(id)
       resolve()
     }),
   )
   signIns.set(id, { win, closed })
   return closed
+}
+
+/** Closes a plugin's sign-in window, if one is open. */
+export function closeSignIn(id: string): void {
+  const open = signIns.get(id)
+  if (open && !open.win.isDestroyed()) open.win.close()
 }
 
 /** Forgets everything the plugin's session holds: cookies, storage and cache. */

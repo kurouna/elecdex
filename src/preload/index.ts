@@ -391,6 +391,7 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.plugins.storageSet, id, key, value, remove) as Promise<boolean>,
     signIn: (id, host) => ipcRenderer.invoke(CH.plugins.signIn, id, host) as Promise<void>,
     signOut: (id) => ipcRenderer.invoke(CH.plugins.signOut, id) as Promise<void>,
+    closeSignIn: (id) => ipcRenderer.send(CH.plugins.closeSignIn, id),
     onSession: (handler) => listen<string>(CH.plugins.session, handler),
     notify: (id, message) => ipcRenderer.send(CH.plugins.notify, id, message),
     forget: (id) => ipcRenderer.invoke(CH.plugins.forget, id) as Promise<void>,

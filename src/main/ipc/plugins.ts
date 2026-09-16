@@ -16,7 +16,7 @@ import { appWindows } from '../app-windows.js'
 import { APP_VERSION } from '../build-info.js'
 import { PluginFolder } from '../plugins/folder.js'
 import { PluginNet } from '../plugins/net.js'
-import { openSignIn, rawRequest, signOut } from '../plugins/sessions.js'
+import { closeSignIn, openSignIn, rawRequest, signOut } from '../plugins/sessions.js'
 import { PluginStorage } from '../plugins/storage.js'
 import { PLUGIN_SAMPLE, PLUGIN_TYPES } from '../plugins/templates.js'
 import type { SettingsHandle } from './settings.js'
@@ -138,8 +138,14 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
       id as string,
       mapped ? `http://${mapped}/` : `https://${host}/`,
       appWindows()[0],
+      () => broadcast(CH.plugins.session, id),
     )
     broadcast(CH.plugins.session, id)
+  })
+
+  // The plugin says its requests work now: the user need not close the window by hand.
+  ipcMain.on(CH.plugins.closeSignIn, (_event, id: unknown) => {
+    if (typeof id === 'string' && PLUGIN_ID.test(id)) closeSignIn(id)
   })
 
   ipcMain.handle(CH.plugins.signOut, async (_event, id: unknown) => {
@@ -201,6 +207,7 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
         ipcMain.removeHandler(channel)
       }
       ipcMain.removeAllListeners(CH.plugins.notify)
+      ipcMain.removeAllListeners(CH.plugins.closeSignIn)
     },
   }
 }

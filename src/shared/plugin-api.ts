@@ -133,9 +133,16 @@ export type Block =
       items: readonly { id: string; text: string; sub?: string; tone?: Tone }[]
       action?: string
     }
+  /** With an icon, a button shows only the icon; its text becomes the tooltip and label. */
   | {
       t: 'buttons'
-      items: readonly { action: string; text: string; primary?: boolean; disabled?: boolean }[]
+      items: readonly {
+        action: string
+        text: string
+        icon?: ButtonIcon
+        primary?: boolean
+        disabled?: boolean
+      }[]
     }
   /** An https link, opened in the user's browser. */
   | { t: 'link'; text: string; href: string }
@@ -143,6 +150,19 @@ export type Block =
   | { t: 'signin'; host: string; text?: string }
   | { t: 'notice'; text: string; tone?: Tone }
   | { t: 'divider' }
+
+/** Icons the host can draw on a button. */
+export type ButtonIcon =
+  | 'refresh'
+  | 'play'
+  | 'pause'
+  | 'stop'
+  | 'skip'
+  | 'reset'
+  | 'add'
+  | 'remove'
+  | 'settings'
+  | 'open'
 
 /** A click on a list item or a button, from one pane. */
 export interface PluginAction {
@@ -190,12 +210,22 @@ export interface ServiceContext<S extends SettingValues, M> extends CommonContex
   /** Replaces the choices of a select setting. */
   setOptions(key: string, options: readonly SelectOption[]): void
   /**
+   * Closes the plugin's sign-in window, if one is open. Call it once a request that needed
+   * signing in works again - the 'session' event fires while the window is open, whenever its
+   * cookies change - so the user does not have to close the window by hand.
+   */
+  closeSignIn(): void
+  /**
    * The plugin's panes: how many are open, and how many of those are on screen. A service
    * can do work only its panes show (a status line, say) while one is open, and keep doing
    * what must go on regardless.
    */
   readonly views: { readonly open: number; readonly visible: number }
-  /** views: a pane opened, closed, or came on or off screen. */
+  /**
+   * session: the sign-in session may have changed (cookies changed while the sign-in window
+   * was open, the window closed, or the user signed out). views: a pane opened, closed, or
+   * came on or off screen.
+   */
   on(event: 'settings' | 'session' | 'views', fn: () => void): () => void
   on(event: 'action', fn: (action: PluginAction) => void): () => void
 }

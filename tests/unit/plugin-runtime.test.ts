@@ -275,6 +275,19 @@ describe('the plugin runtime', () => {
     ])
   })
 
+  it('asks the host to close its sign-in window', () => {
+    const p = run({
+      'index.ts': `export default {
+        apiVersion: 1, id: 'x', title: 'X',
+        service(ctx) { ctx.on('session', () => ctx.closeSignIn()) },
+        view() {},
+      }`,
+    })
+    p.send(start())
+    p.send({ t: 'session' })
+    expect(p.of('signin-close')).toEqual([{ t: 'signin-close' }])
+  })
+
   it('answers pings, so the host can tell a busy plugin from a stuck one', () => {
     const p = run({
       'index.ts': `export default { apiVersion: 1, id: 'x', title: 'X', view() {} }`,

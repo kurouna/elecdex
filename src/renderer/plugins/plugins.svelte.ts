@@ -293,6 +293,9 @@ class Runner {
       case 'pong':
         this.lastPong = Date.now()
         return
+      case 'signin-close':
+        window.elecdex.plugins.closeSignIn(this.id)
+        return
       case 'descriptor':
         return
     }
