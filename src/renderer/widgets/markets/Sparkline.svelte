@@ -80,11 +80,6 @@ $effect(() => {
     ctx.globalAlpha = 1
   }
 
-  ctx.beginPath()
-  points.forEach((p, i) => {
-    if (i === 0) ctx.moveTo(x(p.t), y(p.v))
-    else ctx.lineTo(x(p.t), y(p.v))
-  })
   const line = new Path2D()
   points.forEach((p, i) => {
     if (i === 0) line.moveTo(x(p.t), y(p.v))
