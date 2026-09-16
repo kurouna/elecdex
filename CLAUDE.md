@@ -127,7 +127,12 @@ docs/            architecture.md (design + §16 decision log), weather-providers
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested).
   Widgets keep per-pane choices in pane state (`layout.setPaneState`). Every tree change goes
   through a pure op there; a tabbed pane is split, moved beside or dropped on through its group,
-  and a group only ever holds panes. Pane moves (drag a title; Ctrl for a tab) are covered at three
+  and a group only ever holds panes - of any widget, so a shell can share a group with RSS or the
+  weather (Ctrl-drag, or the picker's "new tab" placement). Nested groups (a split or a group
+  inside a tab) were designed and deliberately postponed (user decision 2026-09-17): do not add
+  them without asking. Splits carry no header: eDEX-UI's column labels (PANEL / SYSTEM) were
+  dropped because panes move between columns; the shell's TERMINAL header stays, as it is the
+  group's drag handle and shows the path. Pane moves (drag a title; Ctrl for a tab) are covered at three
   levels - unit (layout-ops, including seeded random moves), component (pane-drag gesture) and
   e2e (pane-move) - so extend those when touching it.
 - **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state

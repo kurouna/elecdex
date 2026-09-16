@@ -147,6 +147,14 @@ Ctrl (Cmd on macOS) while dropping to add it to that pane as a tab instead. A sh
 its own, and a tab group's header moves the whole group. Escape cancels. A moved shell keeps its
 session.
 
+A tab group can hold any panes, not only shells, so a pane you need now and then can share a place
+with the shells instead of taking room of its own - RSS or the weather behind the shell tabs, for
+example. Put a pane in a group by Ctrl-dragging it onto the group as above, or focus a pane of the
+group, open the picker (Ctrl+Shift+A or the status bar's add button) and choose **⧉ new tab**
+before the widget. Clicking the tabs then switches between them; a shell in a background tab keeps
+running, and its session and screen are there when you switch back. Groups do not nest: a tab
+holds one pane.
+
 ## Panes
 
 The default layout is arranged by what the panes are for — **left, this machine:** clock, system,
