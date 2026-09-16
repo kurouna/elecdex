@@ -103,11 +103,12 @@ $effect(() => {
       : { subtitle: info.integrationPending ? '…' : 'no tracking', tooltip: info.shell }),
     ...(info.exited !== null
       ? { badge: `exited ${info.exited.code}`, badgeKind: 'warn' as const }
-      : info.lastCommand !== null &&
-          info.lastCommand.exitCode !== null &&
-          info.lastCommand.exitCode !== 0
-        ? { badge: String(info.lastCommand.exitCode), badgeKind: 'danger' as const }
-        : {}),
+      : // 表示を無効化: コマンド終了コードのバッジ表示
+        // : info.lastCommand !== null &&
+        //     info.lastCommand.exitCode !== null &&
+        //     info.lastCommand.exitCode !== 0
+        //   ? { badge: String(info.lastCommand.exitCode), badgeKind: 'danger' as const }
+        {}),
   })
 })
 
