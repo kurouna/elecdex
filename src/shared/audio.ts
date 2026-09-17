@@ -265,8 +265,9 @@ export function spectrumPrefs(state: Record<string, unknown> | undefined): Spect
   }
 }
 
-/** What a spectrum pane is sent: levels, or why there are none. */
 /**
+ * What a spectrum pane is sent: levels, or why there are none.
+ *
  * `muted`: capture runs, but the system has muted the monitor it records (or set it
  * to 0%), so there is nothing to show until it is restored (Linux only).
  */
