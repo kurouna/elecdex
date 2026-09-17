@@ -1,7 +1,7 @@
 import { pluginRuntime, stripGlobals } from '@shared/plugin-runtime'
 import { grantFor, NO_PERMISSIONS, type PluginCatalog, type PluginSource } from '@shared/plugins'
 import { defaultSettings, type Settings } from '@shared/settings'
-import { fireEvent, render, screen } from '@testing-library/svelte'
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PluginWorker } from '../../src/renderer/plugins/worker.ts'
@@ -42,6 +42,8 @@ function inProcess(source: PluginSource): PluginWorker {
     `(${stripGlobals})(self);(${pluginRuntime})(self, ${source.code}, ${JSON.stringify(source.entry)})`,
   )(scope)
   terminated.set(source.key, false)
+  const self = {}
+  latest.set(source.key, self)
   return {
     post: (m) => {
       const copy = structuredClone(m)
@@ -52,11 +54,15 @@ function inProcess(source: PluginSource): PluginWorker {
     },
     terminate: () => {
       alive = false
-      terminated.set(source.key, true)
+      // A worker ended late (after its grace) must not mark the one that replaced it.
+      if (latest.get(source.key) === self) terminated.set(source.key, true)
     },
   }
 }
+/** Whether the newest worker for each file has been ended. */
 const terminated = new Map<string, boolean>()
+const latest = new Map<string, object>()
+const realSetTimeout = globalThis.setTimeout
 
 const COUNTER = `export default {
   apiVersion: 1, id: 'counter', title: 'counter', permissions: { notify: true },
@@ -103,6 +109,7 @@ beforeEach(async () => {
   vi.useFakeTimers()
   factory = inProcess
   terminated.clear()
+  latest.clear()
   patches.length = 0
   vi.stubGlobal(
     'IntersectionObserver',
@@ -151,7 +158,12 @@ beforeEach(async () => {
   })
 })
 
-afterEach(() => {
+afterEach(async () => {
+  // Unmount here, under the fake clock, and let the stop grace run out: left to the
+  // shared cleanup (which runs after this hook), a pane's plugin would stop on the real
+  // clock and its worker would be ended in the middle of the next test.
+  cleanup()
+  await vi.advanceTimersByTimeAsync(1000)
   vi.useRealTimers()
   vi.unstubAllGlobals()
 })
@@ -260,6 +272,9 @@ describe('a plugin pane', () => {
     const first = pane('counter', 'a')
     const second = pane('counter', 'b')
     await settle()
+    // Real time passing, as on a loaded machine: nothing left by an earlier test may end
+    // this worker meanwhile.
+    await new Promise((resolve) => realSetTimeout(resolve, 400))
     first.unmount()
     await vi.advanceTimersByTimeAsync(500)
     expect(terminated.get('counter.ts')).toBe(false)
