@@ -194,9 +194,10 @@ test('a Japanese city is forecast by JMA, and the area can be chosen', async () 
 
     // The fixture is Tokyo's; its areas are offered all the same.
     await p.getByTestId('weather-area').selectOption('130040')
-    // The chosen place stays in front of the area, in the title and on the place button.
+    // The title puts the chosen place in front of the area; the place button shows
+    // the place alone, as the area is chosen beside it.
     await expect(p.getByTestId('pane-subtitle')).toContainText('Yokohama 小笠原諸島')
-    await expect(p.getByTestId('weather-location')).toHaveText('Yokohama 小笠原諸島 · change…')
+    await expect(p.getByTestId('weather-location')).toHaveText('Yokohama · change…')
     await expect
       .poll(() => readFileSync(`${userData}/layout.json`, 'utf8'), { timeout: 10_000 })
       .toMatch(/"area":\s*"130040"/)

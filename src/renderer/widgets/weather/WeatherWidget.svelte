@@ -151,7 +151,7 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
       <label>
         <span>place</span>
         <button type="button" class="place" onclick={pickLocation} data-testid="weather-location">
-          {placeLabel(location, report)} · change…
+          {location.name} · change…
         </button>
       </label>
       {#if usPlace}
