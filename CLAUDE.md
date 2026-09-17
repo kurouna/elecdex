@@ -67,7 +67,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
 - **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs, the quake list) are
   reference-counted in preload and in main, and a page's subscriptions are dropped on reload
   (`did-start-navigation`) and destroy. Polling must stop when the last subscriber leaves —
-  there are e2e tests asserting exactly that.
+  there are e2e tests asserting exactly that. A pane in a background tab (display:none)
+  holds only its widget's `keepWhileHidden` sources (builtins.ts): the ones it charts, whose
+  history would otherwise have a gap, and once-only ones; everything else is released until
+  the tab is shown. List a new charted source there.
 - **Tests never contact external services.** `tests/e2e/support.ts` points
   `ELECDEX_JMA_BASE_URL`, `ELECDEX_MET_BASE_URL`, `ELECDEX_NWS_BASE_URL`,
   `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default (the JMA base
@@ -107,6 +110,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).
   Animations share the 10 fps frame loop (`lib/frame-loop.ts`) instead of their own rAF loops.
+  Other timed screen updates wake on wall-clock boundaries with a `setTimeout` chain on
+  `msUntilBoundary(period)` (the clock, the system pane's date), never an unaligned
+  `setInterval`, so their change lands in the loop's frame; assign `$state` only when the
+  shown value actually changes.
   Record measured numbers in docs/architecture.md §16 when a decision depends on them.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
