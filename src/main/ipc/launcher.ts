@@ -16,6 +16,7 @@ import {
   systemEntries,
   userEntries,
 } from '../launcher/catalog.js'
+import { APPS_FOLDER, packagedAppIdOf } from '../launcher/windows-apps.js'
 import { IconBatcher } from '../launcher/windows-icons.js'
 import { JsonStore } from '../store/json-store.js'
 import { openExternalIfSafe } from '../window.js'
@@ -85,7 +86,9 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
     if (icons.has(raw)) return icons.get(raw) ?? null
     const entry = byId.get(raw)
     if (!entry || /^https?:/i.test(entry.target)) return null
-    const data = (await shellIcons?.get(entry.target)) ?? (await electronIcon(entry.target))
+    const data =
+      (await shellIcons?.get(entry.target)) ??
+      (entry.target.startsWith(APPS_FOLDER) ? null : await electronIcon(entry.target))
     if (icons.size < ICON_CACHE_LIMIT) icons.set(raw, data)
     return data
   })
@@ -152,12 +155,23 @@ async function launch(entry: CatalogEntry): Promise<LaunchResult> {
       return { ok: true }
     }
     if (entry.exec !== undefined) return detached(desktopExecArgv(entry.exec))
+    const appId = packagedAppIdOf(entry.target)
+    if (appId !== null) return detached([windowsExplorer(), `${APPS_FOLDER}${appId}`])
     if (entry.args.length > 0) return detached([entry.target, ...entry.args])
     const error = await shell.openPath(entry.target)
     return error === '' ? { ok: true } : { ok: false, error }
   } catch (cause) {
     return { ok: false, error: cause instanceof Error ? cause.message : String(cause) }
   }
+}
+
+/**
+ * A packaged app has no file to open; Explorer starts it from the shell's
+ * Applications folder. Named by its full path, so no other explorer.exe on the
+ * PATH is taken for it.
+ */
+function windowsExplorer(): string {
+  return path.join(process.env.SystemRoot ?? 'C:\\Windows', 'explorer.exe')
 }
 
 /** Starts a program that outlives elecdex, without a shell in between. */

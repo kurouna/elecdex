@@ -10,7 +10,9 @@ import { spawn } from 'node:child_process'
  * Magnify, Git Bash, apps built with electron-builder) it returns Windows'
  * generic program icon. Asking the shell for the icon of the shortcut file itself
  * gives what the Start Menu shows: it resolves advertised shortcuts, icon
- * locations with an index or a resource id, and packaged icons.
+ * locations with an index or a resource id, and packaged icons. The path goes
+ * through `SHParseDisplayName` first, so a packaged app with no file
+ * (`shell:AppsFolder\<id>`, see windows-apps.ts) has its icon too.
  *
  * The icon comes from the system image list by index (`SHGFI_SYSICONINDEX`),
  * which leaves off the shortcut arrow that `SHGFI_ICON` would draw over it; 32
@@ -48,7 +50,11 @@ public static class ElecdexShellIcon {
     [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)] public string typeName;
   }
   [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-  public static extern IntPtr SHGetFileInfo(string path, uint attributes, ref Info info, uint size, uint flags);
+  public static extern int SHParseDisplayName(string name, IntPtr context, out IntPtr pidl, uint query, out uint attributes);
+  [DllImport("shell32.dll", EntryPoint = "SHGetFileInfoW")]
+  public static extern IntPtr SHGetFileInfo(IntPtr pidl, uint attributes, ref Info info, uint size, uint flags);
+  [DllImport("ole32.dll")]
+  public static extern void CoTaskMemFree(IntPtr memory);
   [DllImport("comctl32.dll")]
   public static extern IntPtr ImageList_GetIcon(IntPtr list, int index, uint flags);
   [DllImport("user32.dll")]
@@ -61,8 +67,15 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
   try {
     $file = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($line))
     $info = New-Object ElecdexShellIcon+Info
-    # SHGFI_SYSICONINDEX: the large system image list, and the icon's index in it.
-    $list = [ElecdexShellIcon]::SHGetFileInfo($file, 0, [ref]$info, $size, 0x4000)
+    $pidl = [IntPtr]::Zero
+    $found = 0
+    if ([ElecdexShellIcon]::SHParseDisplayName($file, [IntPtr]::Zero, [ref]$pidl, 0, [ref]$found) -ne 0) { throw 'not found' }
+    try {
+      # SHGFI_SYSICONINDEX | SHGFI_PIDL: the large system image list, and the icon's index in it.
+      $list = [ElecdexShellIcon]::SHGetFileInfo($pidl, 0, [ref]$info, $size, 0x4008)
+    } finally {
+      [ElecdexShellIcon]::CoTaskMemFree($pidl)
+    }
     # ILD_TRANSPARENT
     if ($list -ne [IntPtr]::Zero) { $icon = [ElecdexShellIcon]::ImageList_GetIcon($list, $info.iIcon, 1) }
     if ($icon -eq [IntPtr]::Zero) { [Console]::Out.WriteLine('-'); continue }

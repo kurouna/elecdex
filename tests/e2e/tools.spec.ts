@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { expect, test } from '@playwright/test'
@@ -161,6 +162,37 @@ test('the launcher lists the platform applications, with icons in the theme colo
     await close()
   }
 })
+
+/** The name of a packaged app (Store or MSIX) on this machine, as the Start Menu shows it. */
+function packagedAppName(): string | null {
+  const script = [
+    '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
+    "$apps = @((New-Object -ComObject Shell.Application).NameSpace('shell:AppsFolder').Items())",
+    "$apps | Where-Object { $_.Path -cmatch '_[a-z0-9]{13}![A-Za-z]' } | Select-Object -First 1 -ExpandProperty Name",
+  ].join('\n')
+  const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script])
+  return out.toString('utf8').trim() || null
+}
+
+test('the launcher lists packaged apps that have no Start Menu shortcut, with their icons', async () => {
+  test.skip(process.platform !== 'win32', 'packaged apps are a Windows thing')
+  // Teams, Outlook and the like have no .lnk; a server image may have none of them.
+  const name = packagedAppName()
+  test.skip(name === null, 'no packaged apps on this machine')
+  const { page, close } = await launch(undefined, { layout: single('launcher') })
+  try {
+    await page.getByTestId('launcher-filter').fill(name ?? '')
+    const entry = page.getByTestId('launcher-entry').filter({
+      has: page.locator('.name', { hasText: new RegExp(`^${escapeRegExp(name ?? '')}$`) }),
+    })
+    await expect(entry.first()).toBeVisible({ timeout: 20_000 })
+    await expect(entry.first().getByTestId('launcher-icon')).toBeVisible({ timeout: 20_000 })
+  } finally {
+    await close()
+  }
+})
+
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 for (const theme of ['business-dark', 'business-light']) {
   test(`the launcher shows icons in their own colours in ${theme}`, async () => {

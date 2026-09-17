@@ -31,8 +31,8 @@ for Windows, macOS and Linux.
 - **World view** — a globe of where the machine's connections go, placed with a bundled GeoIP
   database; nothing is looked up online.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
-  and a launcher for the Start Menu, `/Applications` or `.desktop` entries plus your own, most
-  used first.
+  and a launcher for the Start Menu (Store and other packaged apps included), `/Applications` or
+  `.desktop` entries plus your own, most used first.
 - **Weather, markets and calendar** — forecasts for anywhere (JMA in Japan, the National Weather
   Service in the United States, MET Norway elsewhere), a market board from Yahoo Finance, and a
   month calendar with optional Japanese holidays.
@@ -179,7 +179,8 @@ weather and calendar.
   and write rates and how busy the disks are (not shown on macOS, which has no cheap reading).
 - **Launcher** — the platform's applications plus your own entries, most used first. Type to
   filter, Enter to launch. Icons take the theme's accent and show their own colours on hover (always, in the Business themes); on
-  Windows they are drawn by the Windows shell, as the Start Menu shows them. Add
+  Windows they are drawn by the Windows shell, and apps are named, as the Start Menu shows them -
+  packaged apps without a shortcut (Teams, Outlook, Terminal) included. Add
   entries under `launcher.items` in `settings.json` (the pane's EDIT LIST button opens it):
 
   ```json

@@ -5,12 +5,14 @@ import os from 'node:os'
 import path from 'node:path'
 import type { LauncherEntry } from '@shared/launcher'
 import type { LauncherItem } from '@shared/settings'
+import { APPS_FOLDER, readWindowsShell, type WindowsShellView } from './windows-apps.js'
 
 /**
  * What the launcher can start: the platform's own application list, plus
  * entries the user adds in settings.json.
  *
- *  - Windows: the Start Menu folders (all users and this user), as shortcuts.
+ *  - Windows: the Start Menu folders (all users and this user), as shortcuts,
+ *    and the packaged apps the shell lists beside them.
  *  - macOS: .app bundles in /Applications, /System/Applications, ~/Applications.
  *  - Linux: .desktop files in the XDG application directories.
  *
@@ -75,27 +77,83 @@ async function walk(
   return found
 }
 
-async function windowsEntries(): Promise<CatalogEntry[]> {
-  const roots = [
+const SHORTCUT = /\.(lnk|url|appref-ms)$/i
+
+function startMenuRoots(): string[] {
+  return [
     process.env.ProgramData &&
       path.join(process.env.ProgramData, 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
     process.env.APPDATA &&
       path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
   ].filter((r): r is string => Boolean(r))
-  const entries: CatalogEntry[] = []
+}
+
+interface Shortcut {
+  file: string
+  /** The top-level Start Menu folder holding it, or null at the top. */
+  groupDir: string | null
+}
+
+async function startMenuShortcuts(roots: readonly string[]): Promise<Shortcut[]> {
+  const found: Shortcut[] = []
   for (const root of roots) {
-    for (const file of await walk(root, (n) => /\.(lnk|url|appref-ms)$/i.test(n), 4)) {
-      const name = path.basename(file).replace(/\.(lnk|url|appref-ms)$/i, '')
-      const folder = path.relative(root, path.dirname(file))
-      entries.push({
-        id: idOf('system', file),
-        name,
-        group: folder === '' ? null : (folder.split(path.sep)[0] ?? null),
-        source: 'system',
-        target: file,
-        args: [],
-      })
+    for (const file of await walk(root, (n) => SHORTCUT.test(n), 4)) {
+      // An uninstaller named in English is noise whatever the shell calls it.
+      if (isNoise(path.basename(file).replace(SHORTCUT, ''))) continue
+      const top = path.relative(root, path.dirname(file)).split(path.sep)[0] ?? ''
+      found.push({ file, groupDir: top === '' ? null : path.join(root, top) })
     }
+  }
+  return found
+}
+
+async function shellView(
+  paths: readonly string[],
+  read: typeof readWindowsShell,
+): Promise<WindowsShellView> {
+  try {
+    return await read(paths)
+  } catch {
+    // PowerShell failed or is blocked: file names, and no packaged apps.
+    return { names: [], apps: [] }
+  }
+}
+
+/**
+ * The Start Menu of all users and of this user, named as the Start Menu names
+ * it, plus the packaged apps that have no shortcut (see windows-apps.ts).
+ * Shortcut ids stay the hash of the file, so launch counts survive.
+ */
+export async function windowsEntries(
+  roots: readonly string[] = startMenuRoots(),
+  read: typeof readWindowsShell = readWindowsShell,
+): Promise<CatalogEntry[]> {
+  const shortcuts = await startMenuShortcuts(roots)
+  const groupDirs = [
+    ...new Set(shortcuts.flatMap((s) => (s.groupDir === null ? [] : [s.groupDir]))),
+  ]
+  const view = await shellView([...shortcuts.map((s) => s.file), ...groupDirs], read)
+  const groupNames = new Map(
+    groupDirs.map((dir, i) => [dir, view.names[shortcuts.length + i] ?? path.basename(dir)]),
+  )
+  const entries: CatalogEntry[] = shortcuts.map(({ file, groupDir }, i) => ({
+    id: idOf('system', file),
+    name: view.names[i] ?? path.basename(file).replace(SHORTCUT, ''),
+    group: groupDir === null ? null : (groupNames.get(groupDir) ?? null),
+    source: 'system',
+    target: file,
+    args: [],
+  }))
+  for (const app of view.apps) {
+    const target = `${APPS_FOLDER}${app.appId}`
+    entries.push({
+      id: idOf('system', target),
+      name: app.name,
+      group: null,
+      source: 'system',
+      target,
+      args: [],
+    })
   }
   return entries
 }
