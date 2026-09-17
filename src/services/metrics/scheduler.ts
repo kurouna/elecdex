@@ -15,6 +15,11 @@
  *    default layout mounting at launch), those first collections are staggered.
  *    Firing them together spawned half a dozen wmic/PowerShell processes in the
  *    same instant on Windows, a CPU spike visible on the app's own CPU graph;
+ *  - a source dropped and wanted again within its interval (a pane in a tab
+ *    switched away from and back, quickly and often) is not collected at once:
+ *    the broker still shows its last sample, and the next collection comes one
+ *    interval after the last. Otherwise every switch spawned another `ps` on
+ *    macOS, with nothing to bound how often;
  *  - a source that cannot change while the app runs (the OS version, the machine
  *    model) is collected once per collector. Subscribing to it again - a pane
  *    moved, a page reloaded - is answered from the broker's cache instead of
@@ -71,6 +76,8 @@ export class MetricScheduler {
   private readonly groups = new Map<number, Group>()
   private readonly inFlight = new Set<string>()
   private readonly counts = new Map<string, number>()
+  /** When each polled source's latest collection started. */
+  private readonly lastStarted = new Map<string, number>()
   /** Once-only sources somebody is watching. */
   private readonly onceActive = new Set<string>()
   /** Once-only sources collected successfully: never collected again. */
@@ -143,14 +150,25 @@ export class MetricScheduler {
     let group = this.groups.get(definition.intervalMs)
     if (group?.ids.has(id)) return false
 
+    const wait = this.untilDue(id, definition.intervalMs)
     if (!group) {
       group = { intervalMs: definition.intervalMs, ids: new Set(), timer: null }
       this.groups.set(definition.intervalMs, group)
-      this.arm(group)
+      // A group started for a source collected moments ago ticks when that source is due.
+      this.arm(group, wait > 0 ? wait : definition.intervalMs)
     }
     group.ids.add(id)
+    // Collected within its interval: the next tick, at most one interval away, is soon enough.
+    if (wait > 0) return false
     this.collectLater(id, delayMs)
     return true
+  }
+
+  /** Milliseconds until a polled source is due again, or 0 when it is due now. */
+  private untilDue(id: string, intervalMs: number): number {
+    const last = this.lastStarted.get(id)
+    if (last === undefined) return 0
+    return Math.max(0, last + intervalMs - this.clock.now())
   }
 
   private addOnce(id: string, delayMs: number): boolean {
@@ -229,13 +247,13 @@ export class MetricScheduler {
     this.onceActive.clear()
   }
 
-  private arm(group: Group): void {
+  private arm(group: Group, delayMs = group.intervalMs): void {
     group.timer = this.clock.setTimeout(() => {
       // The group may have been emptied and removed while the timer was pending.
       if (this.disposed || this.groups.get(group.intervalMs) !== group) return
       for (const id of group.ids) void this.collect(id)
       this.arm(group)
-    }, group.intervalMs)
+    }, delayMs)
   }
 
   private async collect(id: string): Promise<void> {
@@ -243,6 +261,7 @@ export class MetricScheduler {
     if (!definition || this.inFlight.has(id) || this.onceDone.has(id)) return
 
     this.inFlight.add(id)
+    if (!definition.once) this.lastStarted.set(id, this.clock.now())
     try {
       const data = await definition.collect()
       if (this.disposed) return

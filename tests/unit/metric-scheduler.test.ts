@@ -109,6 +109,63 @@ describe('MetricScheduler', () => {
     expect(a.calls.n).toBe(aBefore + 5)
   })
 
+  it('collects a source toggled quickly and often at most once per interval', async () => {
+    // A process list in a tab switched away from and back: each collection is a `ps` on macOS.
+    const p = counted(3000)
+    const { scheduler } = setup({ p: p.definition })
+
+    scheduler.setActive(['p'])
+    await advance(0)
+    expect(p.calls.n).toBe(1)
+
+    for (let i = 0; i < 20; i++) {
+      scheduler.setActive([])
+      await advance(50)
+      scheduler.setActive(['p'])
+      await advance(50)
+    }
+    // 2 s of switching, all within the first interval.
+    expect(p.calls.n).toBe(1)
+
+    // Due one interval after the last collection, then on its interval as before.
+    await advance(1000)
+    expect(p.calls.n).toBe(2)
+    await advance(3000)
+    expect(p.calls.n).toBe(3)
+    expect(scheduler.timerCount()).toBe(1)
+  })
+
+  it('collects a source wanted again at once when its interval has passed', async () => {
+    const p = counted(3000)
+    const { scheduler } = setup({ p: p.definition })
+
+    scheduler.setActive(['p'])
+    await advance(0)
+    scheduler.setActive([])
+    await advance(3000)
+    scheduler.setActive(['p'])
+    await advance(0)
+    expect(p.calls.n).toBe(2)
+  })
+
+  it('does not collect twice a source rejoining a group that is already ticking', async () => {
+    const a = counted(1000)
+    const b = counted(1000)
+    const { scheduler } = setup({ a: a.definition, b: b.definition })
+
+    scheduler.setActive(['a', 'b'])
+    await advance(1000)
+    const before = b.calls.n
+    scheduler.setActive(['a'])
+    await advance(200)
+    scheduler.setActive(['a', 'b'])
+    await advance(0)
+    expect(b.calls.n).toBe(before)
+    await advance(800)
+    expect(b.calls.n).toBe(before + 1)
+    expect(scheduler.timerCount()).toBe(1)
+  })
+
   it('runs sources that share an interval on a single timer', async () => {
     const { scheduler } = setup({
       a: counted(1000).definition,
