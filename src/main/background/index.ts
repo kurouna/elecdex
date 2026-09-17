@@ -133,7 +133,6 @@ export function registerBackground(settings: SettingsHandle): Background {
   }
   let shortcutStatus = applyShortcut()
   let startInBackground = options().startInBackground
-  if (supported) loginItems.sync(startInBackground)
 
   settings.onChange(() => {
     const before = JSON.stringify(shortcutStatus)

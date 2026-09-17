@@ -1,6 +1,11 @@
 <script lang="ts">
 import type { StartDirectory } from '@shared/api'
-import { type BackgroundState, backgroundSupported, chordToAccelerator } from '@shared/background'
+import {
+  type BackgroundState,
+  backgroundSupported,
+  chordToAccelerator,
+  type ShortcutState,
+} from '@shared/background'
 import {
   availableOn,
   chordFromEvent,
@@ -28,8 +33,7 @@ import { updates } from './stores/updates.svelte.ts'
  * launcher, running in the background (Windows), keyboard shortcuts, alerts,
  * plugins and the update check. Everything here writes through settings.patch, so it
  * lands in settings.json and a hand edit to that file shows up here at once.
- * Launcher entries, themes and window options stay in files; the dialog links
- * to them.
+ * Launcher entries and themes stay in files; the dialog links to them.
  *
  *   Esc   close (or cancel recording a shortcut)
  */
@@ -95,16 +99,20 @@ $effect(() => {
   })
 })
 
-const SHORTCUT_PROBLEMS: Record<string, string> = {
+const SHORTCUT_PROBLEMS: Partial<Record<ShortcutState, string>> = {
   taken: 'in use by another app - choose other keys',
   invalid: 'use a letter, a digit or a function key',
 }
 
-/** Turning the shortcut on only sticks if the keys could be registered. */
-async function setGlobalShortcut(on: boolean): Promise<void> {
+/**
+ * Applies a change to the system-wide shortcut - the switch or its keys - and
+ * keeps the switch on only if the keys could be registered: on and doing
+ * nothing would be worse than off with the reason.
+ */
+async function changeGlobalShortcut(change: SettingsPatch): Promise<void> {
   globalRefusal = null
-  await appearance.patch({ window: { globalShortcut: on } })
-  if (!on) return
+  const saved = await appearance.patch(change)
+  if (!saved.window.globalShortcut) return
   const state = await window.elecdex.background.state()
   background = state
   if (state.shortcut.state === 'registered') return
@@ -179,10 +187,11 @@ function stopRecording(): void {
 }
 
 function setBinding(action: KeybindingAction, chord: string | null | undefined): void {
-  if (isGlobal(action)) globalRefusal = null
-  patch({
+  const change = {
     keybindings: withBinding(settings.keybindings, action, chord) as Settings['keybindings'],
-  })
+  }
+  if (isGlobal(action)) void changeGlobalShortcut(change)
+  else patch(change)
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -231,7 +240,7 @@ async function checkNow(): Promise<void> {
 const labelOf = (action: KeybindingAction): string =>
   KEYBINDING_ACTIONS.find((a) => a.id === action)?.label ?? action
 
-const labelChord = (action: KeybindingAction): string =>
+const defaultChord = (action: KeybindingAction): string =>
   KEYBINDING_ACTIONS.find((a) => a.id === action)?.chord ?? ''
 
 function describeUpdate(status: UpdateStatus): string {
@@ -462,7 +471,7 @@ function describeUpdate(status: UpdateStatus): string {
                     type="checkbox"
                     checked={settings.window.globalShortcut}
                     disabled={toggleChord === null}
-                    onchange={(e) => void setGlobalShortcut(e.currentTarget.checked)}
+                    onchange={(e) => void changeGlobalShortcut({ window: { globalShortcut: e.currentTarget.checked } })}
                     data-testid="settings-global-shortcut"
                   />
                   show or hide elecdex from any app with
@@ -480,7 +489,7 @@ function describeUpdate(status: UpdateStatus): string {
                 <button
                   type="button"
                   class="link"
-                  title={`Default: ${formatChord(labelChord('window.toggle'))}`}
+                  title={`Default: ${formatChord(defaultChord('window.toggle'))}`}
                   disabled={!('window.toggle' in settings.keybindings)}
                   onclick={() => setBinding('window.toggle', undefined)}
                   data-testid="settings-global-shortcut-reset"

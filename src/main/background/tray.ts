@@ -11,8 +11,13 @@ export interface TrayActions {
 export const TRAY_MENU = [
   { id: 'open', label: 'Open elecdex' },
   { id: 'settings', label: 'Settings' },
+  { id: 'separator' },
   { id: 'quit', label: 'Quit elecdex' },
 ] as const
+
+type MenuEntry = (typeof TRAY_MENU)[number]
+type MenuItem = Exclude<MenuEntry, { id: 'separator' }>
+const isItem = (entry: MenuEntry): entry is MenuItem => entry.id !== 'separator'
 
 export interface AppTray {
   /** Shows or removes the icon. */
@@ -47,21 +52,19 @@ function trayImage(): Electron.NativeImage {
  */
 export function createTray(actions: TrayActions): AppTray {
   let tray: Tray | null = null
-  const handlers: Record<(typeof TRAY_MENU)[number]['id'], () => void> = actions
   return {
     setVisible: (on) => {
       if (on && tray === null) {
         tray = new Tray(trayImage())
         tray.setToolTip('elecdex')
         tray.setContextMenu(
-          Menu.buildFromTemplate([
-            ...TRAY_MENU.slice(0, 2).map((item) => ({
-              label: item.label,
-              click: handlers[item.id],
-            })),
-            { type: 'separator' as const },
-            { label: TRAY_MENU[2].label, click: handlers.quit },
-          ]),
+          Menu.buildFromTemplate(
+            TRAY_MENU.map((entry) =>
+              isItem(entry)
+                ? { label: entry.label, click: actions[entry.id] }
+                : { type: 'separator' as const },
+            ),
+          ),
         )
         tray.on('click', actions.open)
         tray.on('double-click', actions.open)
@@ -95,11 +98,11 @@ export class StubTray implements AppTray {
   }
 
   menu(): string[] {
-    return this.visible ? TRAY_MENU.map((item) => item.label) : []
+    return this.visible ? TRAY_MENU.filter(isItem).map((item) => item.label) : []
   }
 
   choose(label: string): void {
-    const item = TRAY_MENU.find((entry) => entry.label === label)
+    const item = TRAY_MENU.filter(isItem).find((entry) => entry.label === label)
     if (this.visible && item) this.#actions[item.id]()
   }
 

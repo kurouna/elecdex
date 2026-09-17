@@ -8,7 +8,6 @@ import {
   HIDDEN_SWITCH,
   type LaunchItem,
   LOGIN_ITEM_NAME,
-  launchItemStale,
   loginArgs,
   ownLaunchItem,
   trayWanted,
@@ -117,17 +116,6 @@ describe('the sign-in entry', () => {
     expect(ownLaunchItem([item({ name: 'other' }), item()])).toEqual(item())
   })
 
-  it('is rewritten when the install moved or the start option changed', () => {
-    const exe = item().path
-    expect(launchItemStale(item(), exe, false)).toBe(false)
-    // Windows paths are not case-sensitive.
-    expect(launchItemStale(item(), exe.toUpperCase(), false)).toBe(false)
-    expect(launchItemStale(item(), 'D:\\elecdex\\elecdex.exe', false)).toBe(true)
-    expect(launchItemStale(item(), exe, true)).toBe(true)
-    expect(launchItemStale(item({ args: [HIDDEN_SWITCH] }), exe, true)).toBe(false)
-    expect(launchItemStale(item({ args: [HIDDEN_SWITCH] }), exe, false)).toBe(true)
-  })
-
   it('reads the state from Windows, including a Task Manager switch-off', () => {
     const runKey = new StubRunKey()
     const items = createLoginItems(runKey)
@@ -144,7 +132,7 @@ describe('the sign-in entry', () => {
     expect(items.state().registered).toBe(false)
   })
 
-  it('keeps a Task Manager switch-off when it rewrites a stale entry', () => {
+  it('rewrites the entry for a changed start option, keeping a Task Manager switch-off', () => {
     const runKey = new StubRunKey()
     const items = createLoginItems(runKey)
     // Nothing to sync without an entry: syncing must never add one.

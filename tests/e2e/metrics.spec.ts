@@ -360,7 +360,7 @@ test('put away in the notification area, the full layout stops drawing', async (
   })
   try {
     // The workspace, not the audio capture window beside it.
-    const workspace = (app: ElectronApplication, action: 'size' | 'close') =>
+    const workspace = (action: 'size' | 'close') =>
       app.evaluate(({ BrowserWindow }, what) => {
         const win = BrowserWindow.getAllWindows().find((w) =>
           w.webContents.getURL().endsWith('/index.html'),
@@ -368,7 +368,7 @@ test('put away in the notification area, the full layout stops drawing', async (
         if (what === 'size') win?.setContentSize(1920, 1080)
         else win?.close()
       }, action)
-    await workspace(app, 'size')
+    await workspace('size')
     await page.waitForTimeout(15_000)
     const WINDOW_MS = 15_000
     const measure = async () => {
@@ -377,7 +377,7 @@ test('put away in the notification area, the full layout stops drawing', async (
       return ((await appUsage(app)).cpuSeconds - start.cpuSeconds) / (WINDOW_MS / 1000)
     }
     const shown = await measure()
-    await workspace(app, 'close')
+    await workspace('close')
     await page.waitForTimeout(3000)
     const hidden = await measure()
     console.log(

@@ -2,7 +2,6 @@ import {
   type LaunchItem,
   LOGIN_ITEM_NAME,
   type LoginItemState,
-  launchItemStale,
   loginArgs,
   ownLaunchItem,
 } from '@shared/background'
@@ -20,8 +19,9 @@ export interface LoginItems {
   /** Adds or removes the entry. Adding also approves it again in Task Manager. */
   set(on: boolean, startInBackground: boolean): void
   /**
-   * Rewrites an existing entry whose path or arguments are out of date (a moved
-   * install, a changed start option), keeping whether Windows has it turned off.
+   * Writes an existing entry again with the start option's arguments, keeping
+   * whether Windows has it turned off. Called when the option changes: the
+   * arguments cannot be read back to compare (see LaunchItem).
    */
   sync(startInBackground: boolean): void
 }
@@ -53,12 +53,15 @@ function realRunKey(): RunKey {
 export class StubRunKey implements RunKey {
   available = true
   entry: LaunchItem | null = null
+  /** How often the Run key was written: a write on every start or setting would show here. */
+  writes = 0
 
   items(): LaunchItem[] {
     return this.entry ? [this.entry] : []
   }
 
   write({ on, args, enabled }: { on: boolean; args: string[]; enabled: boolean }): void {
+    this.writes += 1
     this.entry = on
       ? { name: LOGIN_ITEM_NAME, path: process.execPath, args, scope: 'user', enabled }
       : null
@@ -88,7 +91,7 @@ export function createLoginItems(runKey: RunKey = realRunKey()): LoginItems {
     },
     sync: (startInBackground) => {
       const item = own()
-      if (item === undefined || !launchItemStale(item, process.execPath, startInBackground)) return
+      if (item === undefined) return
       runKey.write({ on: true, args: loginArgs(startInBackground), enabled: item.enabled })
     },
   }

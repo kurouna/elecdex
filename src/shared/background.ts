@@ -146,7 +146,12 @@ export interface BackgroundState {
   shortcut: ShortcutStatus
 }
 
-/** A Run-key entry for this executable, as Electron lists them (LoginItemSettings.launchItems). */
+/**
+ * A Run-key entry for this executable, as Electron lists them
+ * (LoginItemSettings.launchItems). Electron lists only entries for the path it
+ * is asked about, and reports `args` empty whatever the value holds (seen with
+ * Electron 44), so neither a moved install nor the arguments can be read back.
+ */
 export interface LaunchItem {
   name: string
   path: string
@@ -158,17 +163,3 @@ export interface LaunchItem {
 /** Our own entry among the executable's Run-key entries: the per-user one under LOGIN_ITEM_NAME. */
 export const ownLaunchItem = (items: readonly LaunchItem[]): LaunchItem | undefined =>
   items.find((item) => item.name === LOGIN_ITEM_NAME && item.scope === 'user')
-
-/** Whether the entry must be written again: moved install folder, or a changed start option. */
-export function launchItemStale(
-  item: LaunchItem,
-  execPath: string,
-  startInBackground: boolean,
-): boolean {
-  const args = loginArgs(startInBackground)
-  return (
-    item.path.toLowerCase() !== execPath.toLowerCase() ||
-    item.args.length !== args.length ||
-    item.args.some((arg, i) => arg !== args[i])
-  )
-}

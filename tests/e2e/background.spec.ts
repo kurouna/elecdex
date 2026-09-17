@@ -23,6 +23,7 @@ interface Hooks {
   tray: { visible: boolean; click(): void; menu(): string[]; choose(label: string): void }
   runKey: {
     entry: { args: string[]; enabled: boolean } | null
+    writes: number
     setEnabled(enabled: boolean): void
   }
   hintsShown(): number
@@ -291,6 +292,54 @@ test('keys another app holds turn the shortcut back off, and say so', async () =
   }
 })
 
+test('new keys another app holds turn the shortcut off too, recorded or reset', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: {
+      sound: { enabled: false },
+      window: { globalShortcut: true },
+      keybindings: { 'window.toggle': 'Ctrl+Alt+Shift+KeyD' },
+    },
+  })
+  try {
+    await expect
+      .poll(() => hooks(app, (h) => h.registered()))
+      .toEqual(['CommandOrControl+Alt+Shift+D'])
+    await hooks(app, (h) => h.take('CommandOrControl+Alt+Shift+F'))
+    await hooks(app, (h) => h.take('CommandOrControl+Alt+Shift+E'))
+    await page.keyboard.press('Control+Shift+Period')
+    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    const box = page.getByTestId('settings-global-shortcut')
+    const problem = page.getByTestId('settings-global-shortcut-problem')
+    await expect(box).toBeChecked()
+
+    // Recorded keys that cannot be had: off, with the reason, rather than on and doing nothing.
+    await page.getByTestId('settings-global-shortcut-chord').click()
+    await page.keyboard.press('Control+Alt+Shift+KeyF')
+    await expect(problem).toHaveText(/in use by another app/i)
+    await expect(box).not.toBeChecked()
+    await expect
+      .poll(async () => (await page.evaluate(() => window.elecdex.settings.get())).window)
+      .toMatchObject({ globalShortcut: false })
+    expect(await hooks(app, (h) => h.registered())).toEqual([])
+
+    // Free keys, recorded while off, then turned on.
+    await page.getByTestId('settings-global-shortcut-chord').click()
+    await page.keyboard.press('Control+Alt+Shift+KeyG')
+    await expect(problem).toHaveCount(0)
+    await box.check()
+    await expect
+      .poll(() => hooks(app, (h) => h.registered()))
+      .toEqual(['CommandOrControl+Alt+Shift+G'])
+    // The same through the default button, whose keys are taken as well.
+    await page.getByTestId('settings-global-shortcut-reset').click()
+    await expect(problem).toHaveText(/in use by another app/i)
+    await expect(box).not.toBeChecked()
+  } finally {
+    await close()
+  }
+})
+
 test('the sign-in entry follows the switch, the start option and Task Manager', async () => {
   const { app, page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
@@ -315,6 +364,11 @@ test('the sign-in entry follows the switch, the start option and Task Manager', 
     await expect(background).toBeEnabled()
     await background.check()
     await expect.poll(() => hooks(app, (h) => h.runKey.entry?.args)).toEqual(['--hidden'])
+    // Other settings leave the Run key alone.
+    const writes = await hooks(app, (h) => h.runKey.writes)
+    await page.evaluate(() => window.elecdex.settings.patch({ motion: 'reduced' }))
+    await page.evaluate(() => window.elecdex.settings.patch({ window: { closeToTray: true } }))
+    expect(await hooks(app, (h) => h.runKey.writes)).toBe(writes)
     await background.uncheck()
     await expect.poll(() => hooks(app, (h) => h.runKey.entry?.args)).toEqual([])
 
