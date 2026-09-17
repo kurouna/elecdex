@@ -25,8 +25,9 @@ import WeatherWidget from './weather/WeatherWidget.svelte'
  *
  * Imported once for its side effect, before the layout is rendered. Each
  * monitoring widget declares the metric sources it reads; PaneHost subscribes to
- * exactly those for as long as the pane exists, which is what lets the collector
- * stop polling anything no visible widget needs.
+ * those - all of them while it is visible, only `keepWhileHidden` while it is a
+ * tab behind another - which is what lets the collector stop polling anything no
+ * visible widget needs.
  */
 
 const sources = (...ids: MetricSourceId[]): readonly MetricSourceId[] => ids
@@ -57,6 +58,7 @@ registerBuiltin({
   headless: true,
   component: SysinfoWidget,
   metrics: sources('os.uptime', 'os.info', 'power.battery', 'hardware.system'),
+  keepWhileHidden: sources('os.info', 'hardware.system'),
   minSize: { w: 160, h: 60 },
 })
 
@@ -67,6 +69,7 @@ registerBuiltin({
   description: 'Per-core load charts, speed and task count.',
   component: CpuWidget,
   metrics: sources('cpu.info', 'cpu.load', 'cpu.speed', 'cpu.temperature', 'proc.list'),
+  keepWhileHidden: sources('cpu.info', 'cpu.load'),
   minSize: { w: 160, h: 100 },
 })
 
@@ -76,6 +79,8 @@ registerBuiltin({
   description: 'Memory and swap in use over the last minute, and now.',
   component: MemoryWidget,
   metrics: sources('mem.usage', 'mem.swap'),
+  // The swap line carries mem.swap forward on mem.usage's clock: both are charted.
+  keepWhileHidden: sources('mem.usage', 'mem.swap'),
   minSize: { w: 160, h: 80 },
 })
 
@@ -112,6 +117,7 @@ registerBuiltin({
   description: 'Upload and download traffic over time.',
   component: ThroughputWidget,
   metrics: sources('net.throughput', 'net.ping'),
+  keepWhileHidden: sources('net.throughput'),
   minSize: { w: 160, h: 100 },
 })
 

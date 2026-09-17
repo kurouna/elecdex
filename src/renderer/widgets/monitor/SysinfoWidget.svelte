@@ -9,6 +9,7 @@ import {
   powerLabel,
   trimHardware,
 } from '../../lib/format.ts'
+import { msUntilBoundary } from '../../lib/frame-loop.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import BatteryGauge from './BatteryGauge.svelte'
@@ -22,12 +23,22 @@ const { paneId }: WidgetProps = $props()
 
 let today = $state(new Date())
 
+// The date only changes at midnight. Wake on each wall-clock minute - the
+// boundary the frame loop and the clock wake on, so a change is drawn in their
+// frame - and assign only when the day has turned, so the row is not
+// invalidated sixty times an hour for nothing. Checked every minute rather than
+// timed to midnight, which a sleep or a clock change would make miss.
 $effect(() => {
-  // The date only changes at midnight; once a minute is plenty.
-  const timer = setInterval(() => {
-    today = new Date()
-  }, 60_000)
-  return () => clearInterval(timer)
+  let timer: ReturnType<typeof setTimeout>
+  const schedule = (): void => {
+    timer = setTimeout(() => {
+      const now = new Date()
+      if (now.toDateString() !== today.toDateString()) today = now
+      schedule()
+    }, msUntilBoundary(60_000))
+  }
+  schedule()
+  return () => clearTimeout(timer)
 })
 
 const uptime = $derived(metrics.get('os.uptime'))

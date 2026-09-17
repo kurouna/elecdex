@@ -173,6 +173,51 @@ test('a reloaded page does not leave its subscriptions behind', async () => {
   }
 })
 
+test('a tab behind another stops what it does not chart, and resumes when shown', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'tabs',
+        id: 'g',
+        activeIndex: 0,
+        children: [
+          { kind: 'pane', id: 'clock', widget: 'clock' },
+          { kind: 'pane', id: 'top', widget: 'toplist' },
+          { kind: 'pane', id: 'cpu', widget: 'cpu' },
+        ],
+      },
+    },
+  })
+  const active = async () => (await stats(page)).active
+  try {
+    // Hidden from the start: the CPU chart keeps its history, the rest waits.
+    await expect.poll(active, { timeout: 20_000 }).toEqual(['cpu.info', 'cpu.load'])
+    await page.waitForTimeout(3000)
+    expect(await active()).toEqual(['cpu.info', 'cpu.load'])
+    expect((await stats(page)).collections['proc.list'] ?? 0).toBe(0)
+
+    await page.locator('[data-testid=tab][data-pane-id=top]').click()
+    await expect(page.getByTestId('toplist-row').first()).toBeVisible({ timeout: 30_000 })
+    expect(await active()).toEqual(['cpu.info', 'cpu.load', 'proc.list'])
+
+    await page.locator('[data-testid=tab][data-pane-id=cpu]').click()
+    await expect(page.getByTestId('cpu-tasks')).toHaveText(/^\d+$/, { timeout: 30_000 })
+    expect(await active()).toEqual([
+      'cpu.info',
+      'cpu.load',
+      'cpu.speed',
+      'cpu.temperature',
+      'proc.list',
+    ])
+
+    await page.locator('[data-testid=tab][data-pane-id=clock]').click()
+    await expect.poll(active, { timeout: 10_000 }).toEqual(['cpu.info', 'cpu.load'])
+  } finally {
+    await close()
+  }
+})
+
 test('what cannot change is collected once, however often it is subscribed again', async () => {
   const STATIC = ['cpu.info', 'os.info', 'hardware.system'] as const
   const { page, close } = await launch()

@@ -18,8 +18,16 @@ export interface WidgetDefinition {
   /** One line for the add-pane picker. */
   description?: string
   component: Component<WidgetProps>
-  /** Metric source ids this widget reads. Phase 3 subscribes to these. */
+  /** Metric source ids this widget reads; PaneHost subscribes to these. */
   metrics?: readonly string[]
+  /**
+   * The subset of `metrics` still subscribed while the pane is a tab behind
+   * another. The rest are released there, since nobody can see them. Charted
+   * sources belong here - their history would otherwise have a gap - and so do
+   * sources collected once, which cost nothing to hold and would blank the row
+   * for a moment on every tab switch.
+   */
+  keepWhileHidden?: readonly string[]
   /**
    * How the pane is dressed. 'module' is eDEX-UI's unboxed monitoring panel - a
    * top rule with end ticks and a title row. 'shell' is the notched frame the
