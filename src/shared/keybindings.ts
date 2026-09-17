@@ -197,18 +197,41 @@ export function keymap(
   return map
 }
 
-/** Actions whose chord another action already uses, with the action that has it. */
+export interface ConflictOptions {
+  /**
+   * A system-wide action is registered with the OS right now, which hands it its
+   * keys before the page ever sees them.
+   */
+  globalActive: boolean
+}
+
+/**
+ * Actions whose chord another action already uses, with the action that has it.
+ *
+ * A system-wide action is the exception to first-in-the-list-keeps-it: while it
+ * is registered the OS gives it the keys, so an app action sharing them is the
+ * one that stops working and is reported as the clash. While it is not
+ * registered it holds nothing and takes part in no clash at all.
+ */
 export function conflicts(
   overrides: KeybindingOverrides,
   platform: NodeJS.Platform,
+  options: ConflictOptions = { globalActive: false },
 ): Partial<Record<KeybindingAction, KeybindingAction>> {
+  const bindings = Object.entries(effectiveBindings(overrides, platform)) as Array<
+    [KeybindingAction, string | null]
+  >
+  const app = bindings.filter(([action]) => !isGlobal(action))
+  const ordered = options.globalActive
+    ? [...bindings.filter(([action]) => isGlobal(action)), ...app]
+    : app
   const owner = new Map<string, KeybindingAction>()
   const result: Partial<Record<KeybindingAction, KeybindingAction>> = {}
-  for (const [action, chord] of Object.entries(effectiveBindings(overrides, platform))) {
+  for (const [action, chord] of ordered) {
     if (chord === null) continue
     const first = owner.get(chord)
-    if (first) result[action as KeybindingAction] = first
-    else owner.set(chord, action as KeybindingAction)
+    if (first) result[action] = first
+    else owner.set(chord, action)
   }
   return result
 }

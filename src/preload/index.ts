@@ -353,6 +353,7 @@ const api: ElecdexApi = {
     setLaunchAtLogin: (on) =>
       ipcRenderer.invoke(CH.background.setLaunchAtLogin, on) as Promise<BackgroundState>,
     onOpenSettings: (handler) => listen<void>(CH.background.openSettings, () => handler()),
+    suspendShortcut: (on) => ipcRenderer.send(CH.background.suspendShortcut, on),
   },
   pty: {
     create: (opts?: PtyCreateOptions) =>

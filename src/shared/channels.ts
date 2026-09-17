@@ -26,6 +26,8 @@ export const CH = {
     /** main -> renderer: the state changed (BackgroundState). */
     changed: 'background:changed',
     setLaunchAtLogin: 'background:set-launch-at-login',
+    /** renderer -> main: hold the system-wide shortcut while the settings record new keys. */
+    suspendShortcut: 'background:suspend-shortcut',
     /** main -> renderer: the notification-area menu asked for the settings. */
     openSettings: 'background:open-settings',
   },

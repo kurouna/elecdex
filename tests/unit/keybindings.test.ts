@@ -83,11 +83,17 @@ describe('keybindings', () => {
     // The page never acts on it: main takes the keys from the OS.
     expect(keymap({}, 'win32').has('Ctrl+Alt+Shift+KeyE')).toBe(false)
     expect([...keymap({}, 'win32').values()]).not.toContain('window.toggle')
-    // Still a clash when an app shortcut is given the same keys.
-    expect(conflicts({ 'pane.add': 'Ctrl+Alt+Shift+KeyE' }, 'win32')).toEqual({
-      'window.toggle': 'pane.add',
+    // Off, it takes part in no clash: the OS does not hold its keys.
+    expect(conflicts({ 'pane.add': 'Ctrl+Alt+Shift+KeyE' }, 'win32')).toEqual({})
+    // On, it holds them before the page, so the app action is the one that loses.
+    expect(
+      conflicts({ 'pane.add': 'Ctrl+Alt+Shift+KeyE' }, 'win32', { globalActive: true }),
+    ).toEqual({ 'pane.add': 'window.toggle' })
+    expect(conflicts({}, 'win32', { globalActive: true })).toEqual({})
+    // Clashes between app actions are reported as before either way.
+    expect(conflicts({ 'app.quit': 'Ctrl+Shift+KeyA' }, 'win32', { globalActive: true })).toEqual({
+      'app.quit': 'pane.add',
     })
-    expect(conflicts({}, 'win32')).toEqual({})
   })
 
   it('reports conflicts, the first action keeping the chord', () => {

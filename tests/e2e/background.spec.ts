@@ -19,6 +19,7 @@ const SINGLE_CLOCK = { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock
 interface Hooks {
   pressShortcut(): void
   registered(): string[]
+  suspended(): boolean
   take(accelerator: string): void
   tray: { visible: boolean; click(): void; menu(): string[]; choose(label: string): void }
   runKey: {
@@ -181,6 +182,39 @@ test('minimising hides to the tray and opening restores the window', async () =>
   }
 })
 
+test('a fullscreen window comes back from the tray still fullscreen', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: withWindow({ minimizeToTray: true }),
+    args: [],
+  })
+  try {
+    const fullscreen = () =>
+      app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false)
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setFullScreen(true))
+    const entered = await expect
+      .poll(fullscreen, { timeout: 10_000 })
+      .toBe(true)
+      .then(() => true)
+      .catch(() => false)
+    // Some machines have no session to open a fullscreen window in; nothing to test then.
+    test.skip(!entered, 'the window cannot go fullscreen here')
+
+    await page.evaluate(() => window.elecdex.system.minimize())
+    await expect.poll(async () => (await facts(app)).visible).toBe(false)
+    await expect.poll(() => visibility(page)).toBe('hidden')
+
+    await hooks(app, (h) => h.tray.click())
+    await expect.poll(() => facts(app)).toEqual({ visible: true, minimized: false })
+    await expect.poll(() => visibility(page)).toBe('visible')
+    // Still fullscreen, so the page still hides its title bar.
+    expect(await fullscreen()).toBe(true)
+    await expect(page.getByTestId('titlebar')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
 test('turning a tray option off removes the icon, unless the window is hidden', async () => {
   const { app, page, close } = await launch(undefined, {
     layout: SINGLE_CLOCK,
@@ -335,6 +369,111 @@ test('new keys another app holds turn the shortcut off too, recorded or reset', 
     await page.getByTestId('settings-global-shortcut-reset').click()
     await expect(problem).toHaveText(/in use by another app/i)
     await expect(box).not.toBeChecked()
+  } finally {
+    await close()
+  }
+})
+
+test('resetting every app shortcut leaves the system-wide keys alone', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: {
+      sound: { enabled: false },
+      window: { globalShortcut: true },
+      keybindings: { 'window.toggle': 'Ctrl+Alt+Shift+KeyD', 'pane.add': 'Alt+KeyP' },
+    },
+  })
+  try {
+    // The default keys are taken here, so a reset to them would leave the shortcut dead.
+    await hooks(app, (h) => h.take('CommandOrControl+Alt+Shift+E'))
+    await page.keyboard.press('Control+Shift+Period')
+    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    await page.getByTestId('keybindings-reset-all').click()
+    await page.getByTestId('keybindings-reset-all').click()
+
+    await expect
+      .poll(async () => (await page.evaluate(() => window.elecdex.settings.get())).keybindings)
+      .toEqual({ 'window.toggle': 'Ctrl+Alt+Shift+KeyD' })
+    expect(await hooks(app, (h) => h.registered())).toEqual(['CommandOrControl+Alt+Shift+D'])
+    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await expect(page.getByTestId('settings-global-shortcut')).toBeChecked()
+    await expect(page.getByTestId('settings-global-shortcut-problem')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('an app shortcut with the system-wide keys is flagged where it is set', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: {
+      sound: { enabled: false },
+      window: { globalShortcut: true },
+      keybindings: { 'pane.add': 'Ctrl+Alt+Shift+KeyE' },
+    },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+Period')
+    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    // The OS takes the keys first, so it is the pane shortcut that no longer works.
+    await expect(
+      page
+        .locator('[data-testid=keybinding][data-action="pane.add"]')
+        .getByTestId('keybinding-conflict'),
+    ).toHaveText(/system-wide/i)
+    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await expect(page.getByTestId('settings-global-shortcut-shared')).toHaveText(/add a pane/i)
+
+    // Turned off, elecdex keeps the keys and neither side is flagged.
+    await page.getByTestId('settings-global-shortcut').uncheck()
+    await expect(page.getByTestId('settings-global-shortcut-shared')).toHaveCount(0)
+    await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
+    await expect(page.getByTestId('keybinding-conflict')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('recording keys does not fire the system-wide shortcut', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: { sound: { enabled: false }, window: { closeToTray: true, globalShortcut: true } },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+Period')
+    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await page.getByTestId('settings-global-shortcut-chord').click()
+    // The keys are the app's own again while they are being recorded, so pressing
+    // them here records them instead of putting the window away.
+    expect(await hooks(app, (h) => h.suspended())).toBe(true)
+    await hooks(app, (h) => h.pressShortcut())
+    expect((await facts(app)).visible).toBe(true)
+    await page.keyboard.press('Control+Alt+Shift+KeyE')
+    await expect(page.getByTestId('settings-global-shortcut-chord')).toHaveText('Ctrl+Alt+Shift+E')
+    expect(await hooks(app, (h) => h.suspended())).toBe(false)
+
+    // Escape cancels a recording (the dialog stays), and gives the keys back.
+    await page.getByTestId('settings-global-shortcut-chord').click()
+    expect(await hooks(app, (h) => h.suspended())).toBe(true)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('settings-dialog')).toBeVisible()
+    expect(await hooks(app, (h) => h.suspended())).toBe(false)
+
+    // So does closing the dialog while it is still recording.
+    await page.getByTestId('settings-global-shortcut-chord').click()
+    expect(await hooks(app, (h) => h.suspended())).toBe(true)
+    await page.getByTestId('settings-close').click()
+    await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
+    expect(await hooks(app, (h) => h.suspended())).toBe(false)
+
+    // A reload, which no page code survives, gives them back as well.
+    await page.keyboard.press('Control+Shift+Period')
+    await page.locator('[data-testid=settings-section][data-section=window]').click()
+    await page.getByTestId('settings-global-shortcut-chord').click()
+    expect(await hooks(app, (h) => h.suspended())).toBe(true)
+    await page.reload()
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+    expect(await hooks(app, (h) => h.suspended())).toBe(false)
   } finally {
     await close()
   }

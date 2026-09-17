@@ -64,7 +64,6 @@ let webCleared = $state(false)
 
 const settings = $derived(appearance.settings)
 const bindings = $derived(effectiveBindings(settings.keybindings, platform))
-const clashes = $derived(conflicts(settings.keybindings, platform))
 /** The earthquake source in effect, as main resolves `auto` from the same time zone and locale. */
 const magnitudeChoices = $derived(
   [...new Set<number>([...MAGNITUDES, settings.quakes.minMagnitude])].sort((a, b) => a - b),
@@ -88,6 +87,14 @@ const actions = KEYBINDING_ACTIONS.filter(
 let background = $state<BackgroundState | null>(null)
 /** Why the system-wide shortcut was just turned back off. */
 let globalRefusal = $state<string | null>(null)
+
+/**
+ * While the shortcut is registered the OS takes its keys first, so an app action
+ * with the same ones is the clash; the registered state, not the switch, decides
+ * (keys another app holds are still elecdex's own).
+ */
+const globalActive = $derived(background?.shortcut.state === 'registered')
+const clashes = $derived(conflicts(settings.keybindings, platform, { globalActive }))
 
 $effect(() => {
   if (!ui.settingsOpen || !backgroundSupported(platform)) return
@@ -180,12 +187,28 @@ function startRecording(action: KeybindingAction): void {
   recording = action
   refusal = null
   ui.recordingShortcut = true
+  // Otherwise the OS would act on the system-wide keys instead of letting them
+  // be recorded - it would put the window away mid-recording.
+  if (backgroundSupported(platform)) window.elecdex.background.suspendShortcut(true)
 }
 
 function stopRecording(): void {
   recording = null
   refusal = null
   ui.recordingShortcut = false
+  if (backgroundSupported(platform)) window.elecdex.background.suspendShortcut(false)
+}
+
+/**
+ * Every default back, except the system-wide shortcut's keys: they are not in
+ * this list but in the window section, and resetting them unseen could leave
+ * the shortcut pointing at keys another app holds.
+ */
+function resetAppShortcuts(): void {
+  const kept = Object.entries(settings.keybindings).filter(([action]) =>
+    isGlobal(action as KeybindingAction),
+  )
+  patch({ keybindings: Object.fromEntries(kept) })
 }
 
 function setBinding(action: KeybindingAction, chord: string | null | undefined): void {
@@ -241,6 +264,20 @@ async function checkNow(): Promise<void> {
 
 const labelOf = (action: KeybindingAction): string =>
   KEYBINDING_ACTIONS.find((a) => a.id === action)?.label ?? action
+
+/** Why an action has no keys of its own: another action holds them, or the OS does. */
+const clashNote = (clash: KeybindingAction): string =>
+  isGlobal(clash) ? 'taken by the system-wide shortcut' : `in use by ${labelOf(clash)}`
+
+/** The app action whose keys the system-wide shortcut takes while it is on. */
+const globalShares = $derived.by(() => {
+  const chord = bindings['window.toggle']
+  if (!globalActive || chord === null) return null
+  const shared = KEYBINDING_ACTIONS.find(
+    (action) => !isGlobal(action.id) && bindings[action.id] === chord,
+  )
+  return shared?.id ?? null
+})
 
 const defaultChord = (action: KeybindingAction): string =>
   KEYBINDING_ACTIONS.find((a) => a.id === action)?.chord ?? ''
@@ -533,7 +570,11 @@ function describeUpdate(status: UpdateStatus): string {
                 {:else if globalRefusal ?? shortcutProblem}
                   <span class="warn" data-testid="settings-global-shortcut-problem">{globalRefusal ?? shortcutProblem}</span>
                 {:else if toggleClash}
-                  <span class="warn">in use by {labelOf(toggleClash)}</span>
+                  <span class="warn">{clashNote(toggleClash)}</span>
+                {:else if globalShares !== null}
+                  <span class="warn" data-testid="settings-global-shortcut-shared">
+                    taken from {labelOf(globalShares)}
+                  </span>
                 {/if}
               </div>
               <p class="note">
@@ -604,7 +645,7 @@ function describeUpdate(status: UpdateStatus): string {
                         {#if recording === action.id && refusal}
                           <span class="warn">{refusal}</span>
                         {:else if clash}
-                          <span class="warn" data-testid="keybinding-conflict">in use by {labelOf(clash)}</span>
+                          <span class="warn" data-testid="keybinding-conflict">{clashNote(clash)}</span>
                         {/if}
                       </td>
                       <td class="actions">
@@ -631,9 +672,9 @@ function describeUpdate(status: UpdateStatus): string {
                 <ConfirmButton
                   label="reset all shortcuts"
                   action="reset"
-                  title="Restore every default shortcut"
+                  title="Restore every default shortcut in this list"
                   testid="keybindings-reset-all"
-                  onconfirm={() => patch({ keybindings: {} })}
+                  onconfirm={resetAppShortcuts}
                 />
               </div>
             </section>

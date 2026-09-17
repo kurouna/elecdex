@@ -143,7 +143,10 @@ Ctrl+Shift+← / → still reach the shell, where PSReadLine selects by word.
 
 The system-wide show/hide shortcut is set beside its switch in *Settings → Window*; it takes
 letters, digits and function keys only, and if another app already holds the keys it is turned
-back off with a note. With elecdex in front it puts elecdex away; anywhere else it brings elecdex
+back off with a note. It is left alone by *reset all shortcuts*, and gives its keys up while a
+shortcut is being recorded, so it can be recorded too. While it is on, an app shortcut with the
+same keys is flagged in *Settings → Keyboard*: the OS hands the keys to elecdex's window
+shortcut first. With elecdex in front it puts elecdex away; anywhere else it brings elecdex
 to the front.
 
 In *Settings → Window* (Windows) you can also have minimising or closing leave elecdex running in

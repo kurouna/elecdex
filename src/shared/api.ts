@@ -130,6 +130,12 @@ export interface BackgroundApi {
   setLaunchAtLogin(on: boolean): Promise<BackgroundState>
   /** Called when the notification-area menu asks for the settings. Returns an unsubscribe. */
   onOpenSettings(handler: () => void): () => void
+  /**
+   * Stops the system-wide shortcut from acting while the settings record new
+   * keys, so pressing the keys it holds records them instead of putting the
+   * window away. Main hands them back on its own if the page goes away.
+   */
+  suspendShortcut(on: boolean): void
 }
 
 export interface PtyCreateOptions {

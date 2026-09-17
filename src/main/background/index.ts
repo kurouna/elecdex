@@ -148,6 +148,14 @@ export function registerBackground(settings: SettingsHandle): Background {
   })
 
   ipcMain.handle(CH.background.state, state)
+  // Handing the keys back is safe at any time, so anything that means the page
+  // is no longer recording does it: the page saying so, a reload, a crash, the
+  // window going away.
+  const suspendShortcut = (on: boolean): void => toggle.suspend(on)
+  ipcMain.on(CH.background.suspendShortcut, (_event, on: unknown) => {
+    suspendShortcut(on === true)
+  })
+
   ipcMain.handle(CH.background.setLaunchAtLogin, (_event, on: unknown) => {
     if (supported && typeof on === 'boolean') loginItems.set(on, options().startInBackground)
     const next = state()
@@ -157,10 +165,9 @@ export function registerBackground(settings: SettingsHandle): Background {
 
   if (stub) {
     ;(globalThis as Record<string, unknown>).__elecdexBackground = {
-      pressShortcut: () => {
-        for (const callback of registry?.registered.values() ?? []) callback()
-      },
+      pressShortcut: () => registry?.press(),
       registered: () => [...(registry?.registered.keys() ?? [])],
+      suspended: () => registry?.suspended ?? false,
       take: (accelerator: string) => registry?.taken.add(accelerator),
       tray: stubTray,
       runKey,
@@ -182,6 +189,9 @@ export function registerBackground(settings: SettingsHandle): Background {
       })
       // Windows is signing out or shutting down: a close held back would hold that up.
       win.on('session-end', onBeforeQuit)
+      win.on('closed', () => suspendShortcut(false))
+      win.webContents.on('did-start-navigation', () => suspendShortcut(false))
+      win.webContents.on('render-process-gone', () => suspendShortcut(false))
       const follow = (on: boolean) => (): void => {
         hidden = on
         refreshTray()
@@ -194,6 +204,7 @@ export function registerBackground(settings: SettingsHandle): Background {
       app.off('before-quit', onBeforeQuit)
       toggle.dispose()
       tray.dispose()
+      ipcMain.removeAllListeners(CH.background.suspendShortcut)
       ipcMain.removeHandler(CH.background.state)
       ipcMain.removeHandler(CH.background.setLaunchAtLogin)
     },
