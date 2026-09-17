@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { launch, showStatusBar, terminalPane } from './support.js'
+import { launch, selectedRow, showStatusBar, terminalPane } from './support.js'
 
 /**
  * Closing any pane and bringing it back. eDEX-UI's modules were fixed; here a
@@ -188,6 +188,90 @@ test('closing a pane gives its WebGL contexts back at once', async () => {
     // The panes still open keep theirs.
     expect(await liveContexts()).toBeGreaterThanOrEqual(2)
     expect(warnings).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test('the arrow keys keep the selected widget in view in the picker', async () => {
+  const { app, page, close } = await launch()
+  try {
+    // A window short enough that the widget list cannot show every row at once.
+    const window = await app.browserWindow(page)
+    await window.evaluate((w) => {
+      w.setFullScreen(false)
+      w.setSize(1100, 560)
+    })
+
+    await page.keyboard.press('Control+Shift+KeyA')
+    await expect(page.getByTestId('pane-picker')).toBeVisible()
+    const rows = page.getByTestId('pane-picker-item')
+    const count = await rows.count()
+    expect(count).toBeGreaterThan(5)
+    const list = '[data-testid=pane-picker] [role=listbox]'
+    expect((await selectedRow(page, list))?.scrollable).toBe(true)
+
+    // Walking down to the last row scrolls with the selection.
+    await page.keyboard.press('ArrowDown', { delay: 10 })
+    for (let i = 2; i < count; i++) await page.keyboard.press('ArrowDown', { delay: 10 })
+    await expect
+      .poll(() => selectedRow(page, list))
+      .toEqual({
+        index: count - 1,
+        scrollable: true,
+        inView: true,
+      })
+
+    // Down from the last row wraps to the first, which must be shown again.
+    await page.keyboard.press('ArrowDown')
+    await expect
+      .poll(() => selectedRow(page, list))
+      .toEqual({
+        index: 0,
+        scrollable: true,
+        inView: true,
+      })
+
+    // And up from the first wraps back to the last.
+    await page.keyboard.press('ArrowUp')
+    await expect
+      .poll(() => selectedRow(page, list))
+      .toEqual({
+        index: count - 1,
+        scrollable: true,
+        inView: true,
+      })
+  } finally {
+    await close()
+  }
+})
+
+test('a resting pointer does not steal the keyboard selection as the list scrolls', async () => {
+  const { app, page, close } = await launch()
+  try {
+    const window = await app.browserWindow(page)
+    await window.evaluate((w) => {
+      w.setFullScreen(false)
+      w.setSize(1100, 560)
+    })
+
+    await page.keyboard.press('Control+Shift+KeyA')
+    await expect(page.getByTestId('pane-picker')).toBeVisible()
+    const list = '[data-testid=pane-picker] [role=listbox]'
+
+    // Point at a row, then leave the mouse where it is: the rows scroll under it,
+    // and the row that arrives beneath the pointer must not take the selection.
+    const third = page.getByTestId('pane-picker-item').nth(2)
+    await third.hover()
+    await expect.poll(() => selectedRow(page, list).then((r) => r?.index)).toBe(2)
+    for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown', { delay: 30 })
+    await expect
+      .poll(() => selectedRow(page, list))
+      .toEqual({
+        index: 8,
+        scrollable: true,
+        inView: true,
+      })
   } finally {
     await close()
   }

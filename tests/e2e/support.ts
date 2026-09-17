@@ -232,3 +232,36 @@ export function clickThen(page: Page, button: string, selectors: string[]): Prom
 export const LEAVING = { present: true, leaving: true, beamRunning: true }
 /** The state of one that is showing. */
 export const SHOWING = { present: true, leaving: false, beamRunning: false }
+
+/** Where the selected row of a keyboard-driven list sits. */
+export interface SelectedRow {
+  /** The row's place among the rows of the list, counting from zero. */
+  index: number
+  /** Whether the list has more rows than fit: a test about scrolling needs one that does. */
+  scrollable: boolean
+  /** Whether the row is inside the part of the list that is on screen. */
+  inView: boolean
+}
+
+/**
+ * Reads the selection of a listbox driven from the keyboard (the add-pane
+ * picker, the weather place picker). Playwright's own visibility ignores the
+ * scroller's clipping, so the rectangles are compared here.
+ */
+export function selectedRow(page: Page, listbox: string): Promise<SelectedRow | null> {
+  return page.evaluate((selector) => {
+    const list = document.querySelector(selector)
+    if (list === null) return null
+    const rows = [...list.querySelectorAll('[role=option]')]
+    const row = rows.find((r) => r.getAttribute('aria-selected') === 'true')
+    if (row === undefined) return null
+    const box = list.getBoundingClientRect()
+    const seat = row.getBoundingClientRect()
+    return {
+      index: rows.indexOf(row),
+      scrollable: list.scrollHeight > list.clientHeight + 1,
+      // A row sitting exactly on the edge counts as shown, hence the pixel of slack.
+      inView: seat.top >= box.top - 1 && seat.bottom <= box.bottom + 1,
+    }
+  }, listbox)
+}

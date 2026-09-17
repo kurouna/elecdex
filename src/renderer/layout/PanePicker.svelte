@@ -1,6 +1,7 @@
 <script lang="ts">
 import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { revealSelected } from '../lib/list-selection.ts'
 import { plugins } from '../plugins/plugins.svelte.ts'
 import { layout, type PanePlacement } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
@@ -30,6 +31,7 @@ let filter = $state('')
 let selected = $state(0)
 let placement = $state<PanePlacement>('right')
 let input = $state<HTMLInputElement | null>(null)
+let list = $state<HTMLUListElement | null>(null)
 let returnFocus: HTMLElement | null = null
 
 const widgets = $derived.by(() => {
@@ -63,6 +65,12 @@ $effect(() => {
 // Keep the selection on a row that exists as the filter narrows the list.
 $effect(() => {
   if (selected >= widgets.length) selected = Math.max(0, widgets.length - 1)
+})
+
+// Keep the selected row in view as the arrow keys move past the edge.
+$effect(() => {
+  void selected
+  revealSelected(list)
 })
 
 function choose(w: WidgetDefinition | undefined): void {
@@ -151,7 +159,10 @@ function onKeydown(event: KeyboardEvent): void {
           {/each}
         </div>
 
-        <ul class="list" role="listbox" aria-label="Widgets">
+        <!-- The pointer chooses on a move, not on entering a row: the arrow keys
+             scroll rows under a resting pointer, which would otherwise take the
+             selection straight back. -->
+        <ul class="list" role="listbox" aria-label="Widgets" bind:this={list}>
           {#each widgets as w, i (w.id)}
             {@const present = existing(w)}
             <li>
@@ -160,7 +171,7 @@ function onKeydown(event: KeyboardEvent): void {
                 role="option"
                 aria-selected={i === selected}
                 class:selected={i === selected}
-                onpointerenter={() => (selected = i)}
+                onpointermove={() => (selected = i)}
                 onclick={() => choose(w)}
                 data-testid="pane-picker-item"
                 data-widget={w.id}

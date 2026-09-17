@@ -3,6 +3,7 @@ import cities from '@shared/geo/cities.json'
 import type { OfficeInfo } from '@shared/weather'
 import { type CityRow, type PlaceChoice, searchPlaces, sourceName } from '@shared/weather-places'
 import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
+import { revealSelected } from './lib/list-selection.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 
@@ -60,7 +61,7 @@ $effect(() => {
 // Keep the selected row in view as the arrow keys move past the edge.
 $effect(() => {
   void selected
-  list?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
+  revealSelected(list)
 })
 
 function choose(choice: PlaceChoice | undefined): void {
@@ -119,6 +120,9 @@ function onKeydown(event: KeyboardEvent): void {
         />
         <p class="current">now: <strong>{request.current.name}</strong> · {sourceName(request.current.source)}</p>
 
+        <!-- The pointer chooses on a move, not on entering a row: the arrow keys
+             scroll rows under a resting pointer, which would otherwise take the
+             selection straight back. -->
         <ul class="list" role="listbox" aria-label="Places" bind:this={list}>
           {#each choices as choice, i (choice.id)}
             <li>
@@ -127,7 +131,7 @@ function onKeydown(event: KeyboardEvent): void {
                 role="option"
                 aria-selected={i === selected}
                 class:selected={i === selected}
-                onpointerenter={() => (selected = i)}
+                onpointermove={() => (selected = i)}
                 onclick={() => choose(choice)}
                 data-testid="location-choice"
                 data-source={choice.source}

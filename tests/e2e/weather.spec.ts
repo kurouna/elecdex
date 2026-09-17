@@ -3,7 +3,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import { launch, selectedRow } from './support.js'
 
 /**
  * The weather pane, against local stand-ins for JMA, MET Norway and the NWS.
@@ -340,5 +340,45 @@ test('the week forecast can be turned off in the pane settings, keeping the cred
     await expect(p.getByTestId('weather-day').first()).toBeVisible()
   } finally {
     await launched.close()
+  }
+})
+
+test('the place picker scrolls to the row the arrow keys choose', async () => {
+  const { app, page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
+  try {
+    // A window short enough that the matches cannot all show at once.
+    const window = await app.browserWindow(page)
+    await window.evaluate((w) => {
+      w.setFullScreen(false)
+      w.setSize(1100, 560)
+    })
+
+    const p = pane(page)
+    await p.getByTestId('weather-settings-toggle').click()
+    await p.getByTestId('weather-location').click()
+    await expect(page.getByTestId('location-picker')).toBeVisible()
+    // "san" matches far more cities than the list can show.
+    await page.getByTestId('location-filter').fill('san')
+    const list = '[data-testid=location-picker] [role=listbox]'
+    const count = await page.getByTestId('location-choice').count()
+    expect(count).toBeGreaterThan(8)
+    expect((await selectedRow(page, list))?.scrollable).toBe(true)
+
+    for (let i = 1; i < count; i++) await page.keyboard.press('ArrowDown', { delay: 10 })
+    await expect
+      .poll(() => selectedRow(page, list))
+      .toEqual({ index: count - 1, scrollable: true, inView: true })
+
+    // Wrapping round the ends shows the row it lands on.
+    await page.keyboard.press('ArrowDown')
+    await expect
+      .poll(() => selectedRow(page, list))
+      .toEqual({ index: 0, scrollable: true, inView: true })
+    await page.keyboard.press('ArrowUp')
+    await expect
+      .poll(() => selectedRow(page, list))
+      .toEqual({ index: count - 1, scrollable: true, inView: true })
+  } finally {
+    await close()
   }
 })
