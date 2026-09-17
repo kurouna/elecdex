@@ -3,6 +3,7 @@ import { sourceName } from '@shared/weather-places'
 import {
   formatTemperature,
   locationKey,
+  placeLabel,
   readLocation,
   type TemperatureUnit,
   type WeatherDay,
@@ -70,7 +71,7 @@ const week = $derived(report?.days.slice(1, 7) ?? [])
 const source = $derived(report?.source ?? SOURCES[location.source])
 
 $effect(() => {
-  const place = location.source === 'jma' ? (report?.place ?? location.name) : location.name
+  const place = placeLabel(location, report)
   let when = ''
   if (report?.issuedAt) {
     const issued = new Date(report.issuedAt)
@@ -150,7 +151,7 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
       <label>
         <span>place</span>
         <button type="button" class="place" onclick={pickLocation} data-testid="weather-location">
-          {location.source === 'jma' ? (report?.place ?? location.name) : location.name} · change…
+          {placeLabel(location, report)} · change…
         </button>
       </label>
       {#if usPlace}

@@ -102,6 +102,19 @@ export const DEFAULT_LOCATION: WeatherLocation = {
   timeZone: 'America/New_York',
 }
 
+/**
+ * The place as the pane's title shows it. A JMA area name alone ("北部") does
+ * not say where it is, so it follows the chosen place: "奈良県 北部". Until a
+ * report arrives the area is unknown and the place stands alone. Panes from
+ * before places had names read with the office code as the name, which is
+ * no name to show: those keep the area alone.
+ */
+export function placeLabel(location: WeatherLocation, report: WeatherReport | null): string {
+  if (location.source !== 'jma' || !report?.place) return location.name
+  if (location.name === location.office) return report.place
+  return `${location.name} ${report.place}`
+}
+
 /** MET Norway refuses coordinates with more than four decimals. */
 export const roundCoordinate = (value: number): number => Math.round(value * 1e4) / 1e4
 

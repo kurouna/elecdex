@@ -194,7 +194,9 @@ test('a Japanese city is forecast by JMA, and the area can be chosen', async () 
 
     // The fixture is Tokyo's; its areas are offered all the same.
     await p.getByTestId('weather-area').selectOption('130040')
-    await expect(p.getByTestId('pane-subtitle')).toContainText('小笠原諸島')
+    // The chosen place stays in front of the area, in the title and on the place button.
+    await expect(p.getByTestId('pane-subtitle')).toContainText('Yokohama 小笠原諸島')
+    await expect(p.getByTestId('weather-location')).toHaveText('Yokohama 小笠原諸島 · change…')
     await expect
       .poll(() => readFileSync(`${userData}/layout.json`, 'utf8'), { timeout: 10_000 })
       .toMatch(/"area":\s*"130040"/)
@@ -209,7 +211,9 @@ test('JMA: one request, and a restart reuses the saved forecast', async () => {
     'くもり夕方から晴れ所により昼過ぎまで雨',
     { timeout: 20_000 },
   )
-  await expect(pane(first.page).getByTestId('pane-subtitle')).toHaveText('東京地方 · 11:00 発表')
+  await expect(pane(first.page).getByTestId('pane-subtitle')).toHaveText(
+    '東京都 東京地方 · 11:00 発表',
+  )
   await first.page.waitForTimeout(1500)
   expect(requests.filter((r) => r.url.includes('/forecast/data/'))).toHaveLength(1)
   await first.app.close()
@@ -262,6 +266,10 @@ test('an old pane that saved a JMA office still shows it', async () => {
   })
   try {
     await expect.poll(() => watching(page), { timeout: 10_000 }).toEqual(['jma:270000'])
+    // It has no saved name, so the office code is never shown in front of the area.
+    await expect(pane(page).getByTestId('pane-subtitle')).toHaveText('東京地方 · 11:00 発表', {
+      timeout: 20_000,
+    })
   } finally {
     await close()
   }

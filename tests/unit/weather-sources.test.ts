@@ -6,6 +6,7 @@ import {
   formatTemperature,
   locationKey,
   parseLocationKey,
+  placeLabel,
   readLocation,
   sourceForCountry,
 } from '../../src/shared/weather-report.js'
@@ -93,6 +94,39 @@ describe('JMA', () => {
     expect(report?.days[0]?.text).toBe('くもり夕方から晴れ所により昼過ぎまで雨')
     expect(report?.days[0]?.blocks).toHaveLength(4)
     expect(report?.days.length).toBeGreaterThanOrEqual(7)
+  })
+
+  it('titles a place with its area, since an area alone does not say where it is', () => {
+    const forecast = JmaForecastSchema.parse(fixture('jma-forecast-130000.json'))
+    const office = { source: 'jma', office: '130000', name: '東京都' } as const
+    expect(placeLabel(office, jmaReport(forecast, undefined))).toBe('東京都 東京地方')
+    // Another area of the same office keeps the place in front.
+    const other = { ...office, area: '130040' }
+    expect(placeLabel(other, jmaReport(forecast, '130040'))).toBe('東京都 小笠原諸島')
+    // A city chosen in the picker is the place, whatever the office's areas are called.
+    const city = { source: 'jma', office: '130000', name: 'Hachioji' } as const
+    expect(placeLabel(city, jmaReport(forecast, undefined))).toBe('Hachioji 東京地方')
+    // Before a report arrives there is no area to add.
+    expect(placeLabel(office, null)).toBe('東京都')
+    // An old pane saved no name and reads with the office code in its place.
+    const old = readLocation({ office: '130000', area: '130040' })
+    expect(placeLabel(old, jmaReport(forecast, '130040'))).toBe('小笠原諸島')
+    expect(placeLabel(old, null)).toBe('130000')
+  })
+
+  it('titles other sources by the chosen place only', () => {
+    const forecast = MetForecastSchema.parse(fixture('met-london.json'))
+    const london = {
+      source: 'met',
+      lat: 51.5085,
+      lon: -0.1257,
+      name: 'London',
+      country: 'GB',
+      timeZone: 'Europe/London',
+    } as const
+    const report = metReport(forecast, { name: 'Somewhere else', timeZone: london.timeZone }, 0)
+    expect(placeLabel(london, report)).toBe('London')
+    expect(placeLabel(DEFAULT_LOCATION, null)).toBe('New York City')
   })
 })
 
