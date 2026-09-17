@@ -14,7 +14,7 @@
  * `--crt-duration`. `crt-off` runs the reverse: the picture collapses to the
  * line, the line to a dot, and the dot fades. `crt-beam` makes the collapsing
  * edges glow as the opening ones do: with `crt-off` on a pane, and alone on a
- * dialog, whose power-off is a Svelte transition (lib/dialog-transitions.ts).
+ * dialog, whose power-off is a Svelte transition (lib/crt-transitions.ts).
  * `crt-extend` uncovers a picture from the box given by
  * `--from-top/right/bottom/left` (insets) to its whole area, with the beam on
  * the edges that move: what the panes left behind do when one closes.

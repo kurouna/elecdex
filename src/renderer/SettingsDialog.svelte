@@ -14,7 +14,7 @@ import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@sh
 import type { Settings, SettingsPatch } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
-import { backdropShade, dialogDelay, dialogPower } from './lib/dialog-transitions.ts'
+import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
 import PluginSettings from './plugins/PluginSettings.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
@@ -203,7 +203,7 @@ function describeUpdate(status: UpdateStatus): string {
     <div
       class="dialog crt-on"
       style:--crt-delay={dialogDelay()}
-      transition:dialogPower
+      transition:crtPower
       role="dialog"
       aria-modal="true"
       aria-label="Settings"

@@ -5,7 +5,7 @@ import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import type { Quake, QuakeState } from '@shared/quakes'
-import { launch } from './support.js'
+import { clickThen, LEAVING, launch, SHOWING } from './support.js'
 
 /**
  * Earthquakes and tsunamis: the quakes pane, the alert banners and tsunami card,
@@ -225,7 +225,11 @@ test('an alert announces a recent strong earthquake once, marks the globe, and n
     // A reload does not lose it (the alert was sent before this page existed)...
     await page.reload()
     await expect(alerts).toHaveCount(1, { timeout: 20_000 })
-    await page.getByTestId('quake-alert-dismiss').click()
+    // Dismissed, it powers off before it goes.
+    const alert = '[data-testid=quake-alert]'
+    expect(await clickThen(page, '[data-testid=quake-alert-dismiss]', [alert])).toEqual({
+      [alert]: LEAVING,
+    })
     await expect(alerts).toHaveCount(0)
     // ...and a banner closed by hand does not come back.
     await page.reload()
@@ -365,12 +369,20 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
     await expect(areas).toHaveCount(2)
     await expect(areas.first()).toHaveText('津波警報 [TEST] 岩手県 ただちに津波来襲と予測 3 m')
 
-    // Folded, it stays in sight as a tab; the tab opens it again.
-    await page.getByTestId('tsunami-fold').click()
+    // Folded, it stays in sight as a tab; the tab opens it again. Each powers off as the other comes.
+    const [cardSel, tabSel] = ['[data-testid=tsunami-alert]', '[data-testid=tsunami-tab]']
+    expect(await clickThen(page, '[data-testid=tsunami-fold]', [cardSel, tabSel])).toEqual({
+      [cardSel]: LEAVING,
+      [tabSel]: SHOWING,
+    })
     await expect(card).toHaveCount(0)
     await expect(page.getByTestId('tsunami-tab')).toHaveText('津波警報 · 発表中')
-    await page.getByTestId('tsunami-tab').click()
+    expect(await clickThen(page, tabSel, [cardSel, tabSel])).toEqual({
+      [cardSel]: SHOWING,
+      [tabSel]: LEAVING,
+    })
     await expect(card).toBeVisible()
+    await expect(page.getByTestId('tsunami-tab')).toHaveCount(0)
 
     // Lifted: the card says so. (Alerts off and on make main check again at once.)
     served[JMA_TSUNAMI] = tsunamiListing('lifted_VTSE41_1.json')
@@ -381,9 +393,34 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
     })
     await expect(card).toHaveAttribute('data-lifted', 'true', { timeout: 20_000 })
     await expect(card).toContainText('解除')
-    await page.getByTestId('tsunami-fold').click()
+    const lifted = await clickThen(page, '[data-testid=tsunami-fold]', [cardSel, tabSel])
+    expect(lifted).toEqual({
+      [cardSel]: LEAVING,
+      [tabSel]: { present: false, leaving: false, beamRunning: false },
+    })
     await expect(card).toHaveCount(0)
     await expect(page.getByTestId('tsunami-tab')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('a major tsunami warning powers on like every card, then breathes', async () => {
+  served[JMA_TSUNAMI] = tsunamiListing('major_VTSE41_0.json')
+  served['/bosai/tsunami/data/major_VTSE41_0.json'] = tsunamiReport([['宮城県', '52', '10']])
+  const { page, close } = await launch(undefined, {
+    layout: single('clock'),
+    settings: japan({ notify: true, minIntensity: '7' }),
+    ...services(),
+    args: ['--lang=ja'],
+  })
+  try {
+    const card = page.getByTestId('tsunami-alert')
+    await expect(card).toHaveAttribute('data-level', 'major', { timeout: 20_000 })
+    await expect(card).toHaveClass(/major/)
+    // Both, in order: the breathing starts once the power-on has played.
+    await expect(card).toHaveCSS('animation-name', /^crt-power-on, (svelte-[a-z0-9]+-)?breathe$/)
+    await expect(card).toHaveCSS('animation-delay', '0s, 0.3s')
   } finally {
     await close()
   }

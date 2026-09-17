@@ -184,3 +184,45 @@ export async function showStatusBar(page: Page): Promise<void> {
   await page.mouse.move(size.w / 2, size.h - 2)
   await expect(page.getByTestId('status-bar')).toHaveAttribute('data-shown', 'true')
 }
+
+/** What a click leaves on screen a frame later: whether each selector finds something, and whether it is leaving. */
+export interface AfterClick {
+  [selector: string]: { present: boolean; leaving: boolean; beamRunning: boolean }
+}
+
+/**
+ * Clicks `button` and, a frame later, describes `selectors`: a notice or a
+ * dialog powers off for 300 ms, too short to catch reliably between separate
+ * Playwright calls. Leaving means Svelte has made it inert for its close; the
+ * beam is its closing glow (crt.css), playing now.
+ */
+export function clickThen(page: Page, button: string, selectors: string[]): Promise<AfterClick> {
+  return page.evaluate(
+    async ({ button, selectors }) => {
+      document.querySelector<HTMLElement>(button)?.click()
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      const result: AfterClick = {}
+      for (const selector of selectors) {
+        const el = document.querySelector<HTMLElement>(selector)
+        const beamRunning = document.getAnimations().some((a) => {
+          const effect = a.effect as KeyframeEffect | null
+          return (
+            el !== null &&
+            effect?.target === el &&
+            effect.pseudoElement === '::after' &&
+            (a as CSSAnimation).animationName === 'crt-beam-off' &&
+            a.playState === 'running'
+          )
+        })
+        result[selector] = { present: el !== null, leaving: el?.inert ?? false, beamRunning }
+      }
+      return result
+    },
+    { button, selectors },
+  )
+}
+
+/** The state of a notice or dialog that is powering off. */
+export const LEAVING = { present: true, leaving: true, beamRunning: true }
+/** The state of one that is showing. */
+export const SHOWING = { present: true, leaving: false, beamRunning: false }

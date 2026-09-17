@@ -1,11 +1,7 @@
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DIALOG_OFF_MS } from '../../src/renderer/lib/crt-motion.ts'
-import {
-  backdropShade,
-  dialogDelay,
-  dialogPower,
-} from '../../src/renderer/lib/dialog-transitions.ts'
+import { POWER_OFF_MS } from '../../src/renderer/lib/crt-motion.ts'
+import { backdropShade, crtPower, dialogDelay } from '../../src/renderer/lib/crt-transitions.ts'
 import { appearance } from '../../src/renderer/stores/appearance.svelte.ts'
 import { ui } from '../../src/renderer/stores/ui.svelte.ts'
 import { tracked } from './tracked.svelte.ts'
@@ -129,20 +125,20 @@ const reopen = (node: HTMLElement, tick: ((t: number, u: number) => void) | unde
   tick?.(1, 0)
 }
 
-describe('dialogPower', () => {
+describe('crtPower', () => {
   it('leaves an opening to the CSS power-on', () => {
     const node = openingNode()
-    expect(dialogPower(node)).toEqual({ duration: 0 })
+    expect(crtPower(node)).toEqual({ duration: 0 })
     expect(node.className).toBe('')
   })
 
   it('plays the power-off with the beam, from its start', () => {
     const node = leavingNode()
     node.style.setProperty('--crt-delay', '112ms')
-    const config = dialogPower(node)
-    expect(config.duration).toBe(DIALOG_OFF_MS)
+    const config = crtPower(node)
+    expect(config.duration).toBe(POWER_OFF_MS)
     expect(node.classList.contains('crt-beam')).toBe(true)
-    expect(node.style.getPropertyValue('--crt-duration')).toBe(`${DIALOG_OFF_MS}ms`)
+    expect(node.style.getPropertyValue('--crt-duration')).toBe(`${POWER_OFF_MS}ms`)
     expect(node.style.getPropertyValue('--crt-delay')).toBe('0ms')
     // Svelte counts t down from 1 in an outro; u is the progress.
     expect(config.css?.(1, 0)).toContain('scale(1, 1)')
@@ -151,19 +147,19 @@ describe('dialogPower', () => {
 
   it('is asked afresh for a second close, with the beam again', () => {
     const node = leavingNode()
-    dialogPower(node)
+    crtPower(node)
     node.inert = false
-    dialogPower(node)
+    crtPower(node)
     node.inert = true
-    const config = dialogPower(node)
-    expect(config.duration).toBe(DIALOG_OFF_MS)
+    const config = crtPower(node)
+    expect(config.duration).toBe(POWER_OFF_MS)
     expect(node.classList.contains('crt-beam')).toBe(true)
   })
 
   it('does nothing with motion reduced', () => {
     appearance.settings = { ...appearance.settings, motion: 'reduced' }
     const node = leavingNode()
-    expect(dialogPower(node)).toEqual({ duration: 0 })
+    expect(crtPower(node)).toEqual({ duration: 0 })
     expect(node.className).toBe('')
   })
 })
@@ -172,7 +168,7 @@ describe('backdropShade', () => {
   it('fades its shade, and is whole again if the dialog opens again', () => {
     const node = leavingNode()
     const config = backdropShade(node)
-    expect(config.duration).toBe(DIALOG_OFF_MS)
+    expect(config.duration).toBe(POWER_OFF_MS)
     config.tick?.(1, 0)
     expect(node.style.background).toBe('')
     config.tick?.(0.5, 0.5)

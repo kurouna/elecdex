@@ -2,12 +2,14 @@ import { untrack } from 'svelte'
 import type { TransitionConfig } from 'svelte/transition'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
-import { DIALOG_OFF_MS, fadeShade, handoffDelay, powerOffStyle } from './crt-motion.ts'
+import { fadeShade, handoffDelay, POWER_OFF_MS, powerOffStyle } from './crt-motion.ts'
 
 /**
- * How a dialog comes and goes: `transition:dialogPower` on the dialog,
- * `transition:backdropShade` on the backdrop around it, and `dialogDelay()` for
- * the `--crt-delay` of one opening.
+ * How dialogs and notices go: `transition:crtPower` on anything that powers on
+ * with `crt-on` (a dialog, a toast), `transition:backdropShade` on a dialog's
+ * backdrop, and `dialogDelay()` for the `--crt-delay` of a dialog opening.
+ * Where the element leaves with a block around it (a toast in a list that goes
+ * when its last item does), use `|global`.
  *
  * Both ways rather than `out:` only, for two reasons. Svelte keeps an out-only
  * transition's first config for good once a close has been cancelled (the dialog
@@ -25,17 +27,17 @@ const STILL: TransitionConfig = { duration: 0 }
 
 const closing = (node: HTMLElement) => node.inert && !appearance.reducedMotion
 
-/** The dialog powers off, its closing edges glowing as the opening ones did. */
-export function dialogPower(node: HTMLElement): TransitionConfig {
+/** The picture powers off, its closing edges glowing as the opening ones did. */
+export function crtPower(node: HTMLElement): TransitionConfig {
   if (!closing(node)) return STILL
   // The beam reads these too; a handover's delay was for the power-on only.
-  node.style.setProperty('--crt-duration', `${DIALOG_OFF_MS}ms`)
+  node.style.setProperty('--crt-duration', `${POWER_OFF_MS}ms`)
   node.style.setProperty('--crt-delay', '0ms')
   // Restart the beam: a dialog opened again while leaving keeps the class it was given.
   node.classList.remove('crt-beam')
   void node.offsetWidth
   node.classList.add('crt-beam')
-  return { duration: DIALOG_OFF_MS, css: (_t, u) => powerOffStyle(u) }
+  return { duration: POWER_OFF_MS, css: (_t, u) => powerOffStyle(u) }
 }
 
 /** Backdrops still fading, each with a way to hand the page over to a new dialog at once. */
@@ -76,7 +78,7 @@ export function backdropShade(node: HTMLElement): TransitionConfig {
   }
   leaving.add(handOver)
   paint(1)
-  return { duration: DIALOG_OFF_MS, tick: paint }
+  return { duration: POWER_OFF_MS, tick: paint }
 }
 
 /**

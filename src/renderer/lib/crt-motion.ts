@@ -7,8 +7,8 @@
 
 import { CRT_CLOSE_MS } from '../layout/pane-close.js'
 
-/** How long a dialog takes to power off, as a pane does. */
-export const DIALOG_OFF_MS = CRT_CLOSE_MS
+/** How long a dialog or a notice takes to power off, as a pane does. */
+export const POWER_OFF_MS = CRT_CLOSE_MS
 /** How long a dialog's power-on runs (the dialogs' `--crt-duration`). */
 export const DIALOG_ON_MS = 380
 
@@ -61,6 +61,6 @@ export function fadeShade(shade: string, t: number): string {
  * one picture handing over to the next, as a set changing channel.
  */
 export function handoffDelay(sinceClose: number): number {
-  const lineAt = LINE_AT * DIALOG_OFF_MS - LINE_SHOWN_AT * DIALOG_ON_MS
+  const lineAt = LINE_AT * POWER_OFF_MS - LINE_SHOWN_AT * DIALOG_ON_MS
   return Math.round(Math.max(0, lineAt - sinceClose))
 }

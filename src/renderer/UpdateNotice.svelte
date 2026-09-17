@@ -1,4 +1,5 @@
 <script lang="ts">
+import { crtPower } from './lib/crt-transitions.ts'
 import { updates } from './stores/updates.svelte.ts'
 
 /**
@@ -19,7 +20,7 @@ const available = $derived(
 </script>
 
 {#if available}
-  <div class="notice crt-on" role="status" data-testid="update-notice">
+  <div class="notice crt-on" transition:crtPower role="status" data-testid="update-notice">
     <button
       type="button"
       class="open"

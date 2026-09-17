@@ -11,6 +11,9 @@ import {
   sourceCredit,
 } from '@shared/quakes'
 import { type Tsunami, tsunamiAlertKey, tsunamiLevelLabel, tsunamiSummary } from '@shared/tsunami'
+import { flip } from 'svelte/animate'
+import { CRT_EXTEND_MS } from './layout/pane-close.ts'
+import { crtPower } from './lib/crt-transitions.ts'
 import { announcedCard, closeCard, followCard, type TsunamiCard } from './lib/tsunami-card.ts'
 import { appearance } from './stores/appearance.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
@@ -35,6 +38,8 @@ import { windowState } from './stores/window-state.svelte.ts'
 const LINGER_MS = 60_000
 /** Earthquake banners shown at once; more are dropped oldest first. */
 const MAX_SHOWN = 3
+/** How long the banners left take to close up behind one that has gone, as panes extend. */
+const CLOSE_UP_MS = CRT_EXTEND_MS
 /** Banners closed by hand, kept for the session so a reload does not bring them back. */
 const DISMISSED_KEY = 'elecdex.quakes.dismissed'
 
@@ -192,7 +197,8 @@ function height(value: string | null): string {
       {@const value = tsunami.value}
       <button
         type="button"
-        class="tsunami-tab {tsunamiTone(value)}"
+        class="tsunami-tab crt-on {tsunamiTone(value)}"
+        transition:crtPower|global
         onclick={() => tsunami && (tsunami = { ...tsunami, folded: false })}
         data-testid="tsunami-tab"
       >
@@ -202,6 +208,7 @@ function height(value: string | null): string {
       {@const value = tsunami.value}
       <div
         class="alert tsunami crt-on {tsunami.lifted ? 'lifted' : tsunamiTone(value)}"
+        transition:crtPower|global
         class:major={value.level === 'major' && !tsunami.lifted}
         data-testid="tsunami-alert"
         data-level={value.level}
@@ -268,7 +275,14 @@ function height(value: string | null): string {
     {/if}
 
     {#each shown as quake (quake.id)}
-      <div class="alert crt-on {quakeSeverity(quake)}" data-testid="quake-alert" data-id={quake.id}>
+      <!-- Global: the last card leaves with the whole stack. The rest close up behind one that goes. -->
+      <div
+        class="alert crt-on {quakeSeverity(quake)}"
+        transition:crtPower|global
+        animate:flip={{ duration: appearance.reducedMotion ? 0 : CLOSE_UP_MS }}
+        data-testid="quake-alert"
+        data-id={quake.id}
+      >
         <button
           type="button"
           class="body open"
@@ -341,10 +355,13 @@ function height(value: string | null): string {
   --tone: var(--accent);
 }
 
-/* A major tsunami warning breathes, so it reads apart from everything else on screen. */
+/* A major tsunami warning breathes, so it reads apart from everything else on screen -
+   once it has powered on like every card (this rule would otherwise replace that). */
 .alert.major {
   border-width: 2px;
-  animation: breathe 1.6s ease-in-out infinite;
+  animation:
+    crt-power-on var(--crt-duration) linear both,
+    breathe 1.6s ease-in-out var(--crt-duration) infinite;
 }
 
 @keyframes breathe {

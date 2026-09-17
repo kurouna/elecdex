@@ -50,7 +50,7 @@ for Windows, macOS and Linux.
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
   icons for an ordinary working day. A CRT power-on boot sequence after a Linux-style boot log of
   this machine's real facts (a pane added later powers on the same way; a closed one powers off
-  and the panes beside it extend into its room; dialogs power off too), scanlines and glow,
+  and the panes beside it extend into its room; dialogs and notices power off too), scanlines and glow,
   synthesised interface sounds, a themed title bar and a status bar that slides in from the bottom edge. Short
   entrance effects - a wave of dates for each month, a forecast rising in, new headlines and
   earthquakes sliding in with a three-second highlight - follow the motion setting: with motion

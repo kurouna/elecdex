@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL, terminalPane } from './support.js'
+import { clickThen, LEAVING, launch, SINGLE_TERMINAL, terminalPane } from './support.js'
 
 /** The settings dialog: appearance, shortcuts and the update check. */
 
@@ -140,7 +140,11 @@ test.describe('update check', () => {
       await expect
         .poll(() => app.evaluate(() => (globalThis as { __opened?: string[] }).__opened))
         .toEqual(['https://github.com/kurouna/elecdex/releases/tag/v99.0.0'])
-      await page.getByTestId('update-notice-dismiss').click()
+      // Dismissed, it powers off before it goes.
+      const noticeSel = '[data-testid=update-notice]'
+      expect(await clickThen(page, '[data-testid=update-notice-dismiss]', [noticeSel])).toEqual({
+        [noticeSel]: LEAVING,
+      })
       await expect(notice).toHaveCount(0)
     } finally {
       await close()
