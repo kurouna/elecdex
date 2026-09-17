@@ -20,6 +20,15 @@ export const CH = {
     windowStateChanged: 'system:window-state-changed',
     setTitleBarColors: 'system:set-title-bar-colors',
   },
+  /** Running in the background (Windows): sign-in launch, the system-wide shortcut. */
+  background: {
+    state: 'background:state',
+    /** main -> renderer: the state changed (BackgroundState). */
+    changed: 'background:changed',
+    setLaunchAtLogin: 'background:set-launch-at-login',
+    /** main -> renderer: the notification-area menu asked for the settings. */
+    openSettings: 'background:open-settings',
+  },
   layout: {
     load: 'layout:load',
     save: 'layout:save',

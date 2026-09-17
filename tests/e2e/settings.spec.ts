@@ -203,3 +203,15 @@ test('a shell starts in the home folder by default, and in the folder chosen in 
     await close()
   }
 })
+
+test('the window section is only offered on Windows', async () => {
+  test.skip(process.platform === 'win32', 'offered here: background.spec.ts covers it')
+  const { page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
+  try {
+    await page.keyboard.press('Control+Shift+Period')
+    await expect(page.getByTestId('settings-dialog')).toBeVisible()
+    await expect(page.locator('[data-testid=settings-section][data-section=window]')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

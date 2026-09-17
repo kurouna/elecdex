@@ -19,6 +19,7 @@ import { PluginNet } from '../plugins/net.js'
 import { closeSignIn, openSignIn, rawRequest, signOut } from '../plugins/sessions.js'
 import { PluginStorage } from '../plugins/storage.js'
 import { PLUGIN_SAMPLE, PLUGIN_TYPES } from '../plugins/templates.js'
+import { showMainWindow, windowInFront } from '../window-control.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
@@ -174,18 +175,12 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
       notices.set(id as string, bucket)
     }
     if (!bucket.take(Date.now())) return
-    if (appWindows().some((win) => win.isFocused() && !win.isMinimized())) return
+    if (windowInFront()) return
     const notification = new Notification({
       title: title.slice(0, 200),
       body: typeof body === 'string' ? body.slice(0, 500) : '',
     })
-    notification.on('click', () => {
-      const [win] = appWindows()
-      if (!win) return
-      if (win.isMinimized()) win.restore()
-      win.show()
-      win.focus()
-    })
+    notification.on('click', showMainWindow)
     notification.show()
   })
 

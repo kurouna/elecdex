@@ -1,15 +1,19 @@
 import os from 'node:os'
 import path from 'node:path'
 import type { AppInfo, HostFacts } from '@shared/api'
+import { HIDDEN_SWITCH } from '@shared/background'
 import { CH } from '@shared/channels'
 import { titleBarColors } from '@shared/title-bar'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { APP_VERSION } from '../build-info.js'
 import { machineFacts } from '../machine-facts.js'
-import { openExternalIfSafe, setTitleBarColors } from '../window.js'
+import { openExternalIfSafe, setTitleBarColors, windowStateOf } from '../window.js'
 
-/** `--no-intro` skips the boot sequence; the end-to-end tests launch with it. */
-const wantsIntro = !process.argv.includes('--no-intro')
+/**
+ * `--no-intro` skips the boot sequence; the end-to-end tests launch with it. So
+ * does a start in the background, which nobody would be watching.
+ */
+const wantsIntro = !process.argv.includes('--no-intro') && !process.argv.includes(HIDDEN_SWITCH)
 
 function hostFacts(): HostFacts {
   let user: string | null = null
@@ -89,9 +93,9 @@ export function registerSystemIpc(): void {
     BrowserWindow.fromWebContents(event.sender)?.minimize()
   })
 
-  ipcMain.handle(CH.system.windowState, (event) => ({
-    fullscreen: BrowserWindow.fromWebContents(event.sender)?.isFullScreen() ?? false,
-  }))
+  ipcMain.handle(CH.system.windowState, (event) =>
+    windowStateOf(BrowserWindow.fromWebContents(event.sender)),
+  )
 
   ipcMain.on(CH.system.setTitleBarColors, (event, raw: unknown) => {
     const colors = titleBarColors(raw)

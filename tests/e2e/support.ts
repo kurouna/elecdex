@@ -134,6 +134,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ELECDEX_NOAA_BASE_URL: UNREACHABLE_NOAA,
       // A steady tone and a made-up mixer: never the machine's sound or volume.
       ELECDEX_AUDIO_STUB: '1',
+      // An in-memory tray, shortcut and sign-in entry: never the machine's taskbar,
+      // keys or Run key (src/main/background).
+      ELECDEX_BACKGROUND_STUB: '1',
       ...options.env,
     },
   })

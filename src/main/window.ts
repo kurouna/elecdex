@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { WindowState } from '@shared/api'
 import { CH } from '@shared/channels'
 import { BrowserWindow, screen, shell } from 'electron'
 
@@ -8,29 +9,44 @@ const PRELOAD = fileURLToPath(new URL('../preload/index.cjs', import.meta.url))
 const RENDERER_HTML = fileURLToPath(new URL('../renderer/index.html', import.meta.url))
 
 /**
- * The window and taskbar icon, generated from build/icon.svg. Found by walking up
- * from the bundle, since out/main sits two levels below resources/ in development
- * and inside app.asar when packaged. Packaged builds also carry the icon in the
- * executable; this matters for development runs and Linux.
+ * An icon from resources/icons, generated from build/icon.svg. Found by walking
+ * up from the bundle, since out/main sits two levels below resources/ in
+ * development and inside app.asar when packaged.
  */
-function windowIcon(): string | undefined {
+export function resourceIcon(file: string): string | undefined {
   let dir = path.dirname(fileURLToPath(import.meta.url))
   for (let i = 0; i < 5; i++) {
-    const candidate = path.join(dir, 'resources', 'icons', 'icon.png')
+    const candidate = path.join(dir, 'resources', 'icons', file)
     if (existsSync(candidate)) return candidate
     dir = path.dirname(dir)
   }
   return undefined
 }
 
+/**
+ * The window and taskbar icon. Packaged builds also carry the icon in the
+ * executable; this matters for development runs and Linux.
+ */
+const windowIcon = (): string | undefined => resourceIcon('icon.png')
+
 /** Height of the page-drawn title bar, matched by the native controls overlay. */
 export const TITLE_BAR_HEIGHT = 30
+
+const windowStates = new WeakMap<BrowserWindow, () => WindowState>()
+
+/** What the page is told about its window (sent again on every change). */
+export const windowStateOf = (win: BrowserWindow | null): WindowState => {
+  const state = win ? windowStates.get(win) : undefined
+  return state ? state() : { fullscreen: win?.isFullScreen() ?? false, hidden: false }
+}
 
 export interface CreateWindowOptions {
   /** Index into `screen.getAllDisplays()`. Falls back to the primary display. */
   monitor?: number | undefined
   fullscreen: boolean
   devtools: boolean
+  /** False to keep the window hidden once loaded: started at sign-in in the background. */
+  show: boolean
 }
 
 export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
@@ -80,23 +96,43 @@ export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
     },
   })
 
-  win.once('ready-to-show', () => win.show())
+  if (opts.show) win.once('ready-to-show', () => win.show())
 
   // The page hides its title bar in fullscreen. enter/leave-full-screen do not
   // fire on Windows for a window with a hidden title bar, so every resize also
-  // checks, and only a change is sent.
-  let sentFullscreen: boolean | null = null
+  // checks, and only a change is sent. The page also stops drawing while the
+  // window is put away (notification area) or minimised: Electron does not
+  // report that to a page with backgroundThrottling off.
+  let putAway = !opts.show
+  let sentState: string | null = null
+  const current = (): WindowState => ({
+    fullscreen: win.isFullScreen(),
+    hidden: putAway || win.isMinimized(),
+  })
+  windowStates.set(win, current)
   const sendWindowState = (): void => {
-    const fullscreen = win.isFullScreen()
-    if (fullscreen === sentFullscreen || win.webContents.isDestroyed()) return
-    sentFullscreen = fullscreen
-    win.webContents.send(CH.system.windowStateChanged, { fullscreen })
+    if (win.webContents.isDestroyed()) return
+    const state = current()
+    const key = JSON.stringify(state)
+    if (key === sentState) return
+    sentState = key
+    win.webContents.send(CH.system.windowStateChanged, state)
   }
   win.on('enter-full-screen', sendWindowState)
   win.on('leave-full-screen', sendWindowState)
   win.on('resize', sendWindowState)
+  win.on('minimize', sendWindowState)
+  win.on('restore', sendWindowState)
+  win.on('show', () => {
+    putAway = false
+    sendWindowState()
+  })
+  win.on('hide', () => {
+    putAway = true
+    sendWindowState()
+  })
   win.webContents.on('did-start-navigation', () => {
-    sentFullscreen = null
+    sentState = null
   })
 
   // Electron grants every permission request by default. elecdex needs none but

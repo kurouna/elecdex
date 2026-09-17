@@ -60,6 +60,8 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: false
+  # Removes the sign-in entry on uninstall (not on update).
+  include: build/installer.nsh
   # Blockmaps only serve electron-updater's differential downloads, which are unused.
   differentialPackage: false
 

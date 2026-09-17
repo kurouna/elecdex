@@ -137,6 +137,40 @@ describe('onFrame', () => {
     vi.advanceTimersByTime(1000)
     expect(draw).toHaveBeenCalledTimes(10)
   })
+
+  // Electron keeps document.hidden false for a window hidden to the notification
+  // area or minimised, so main reports it and the loop stops all the same.
+  it('does not draw while main reports the window put away, and resumes when it is back', () => {
+    const draw = vi.fn()
+    subscribe(draw)
+    vi.advanceTimersByTime(1000)
+    expect(draw).toHaveBeenCalledTimes(10)
+    loop.setWindowHidden(true)
+    const framesHidden = frames
+    vi.advanceTimersByTime(5000)
+    expect(draw).toHaveBeenCalledTimes(10)
+    expect(frames).toBe(framesHidden)
+    // A subscriber joining while put away does not start the loop either.
+    subscribe(vi.fn(), 200)
+    vi.advanceTimersByTime(1000)
+    expect(frames).toBe(framesHidden)
+    loop.setWindowHidden(false)
+    vi.advanceTimersByTime(1000)
+    expect(draw).toHaveBeenCalledTimes(20)
+  })
+
+  it('stays stopped while either the page or main says hidden', () => {
+    const draw = vi.fn()
+    subscribe(draw)
+    loop.setWindowHidden(true)
+    setHidden(true)
+    setHidden(false)
+    vi.advanceTimersByTime(1000)
+    expect(draw).not.toHaveBeenCalled()
+    loop.setWindowHidden(false)
+    vi.advanceTimersByTime(1000)
+    expect(draw).toHaveBeenCalledTimes(10)
+  })
 })
 
 describe('nextFrame', () => {
@@ -195,5 +229,17 @@ describe('nextFrame', () => {
     const now = vi.fn()
     loop.nextFrame(now)
     expect(now).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs at once while put away, flushing what was waiting', () => {
+    const waiting = vi.fn()
+    subscribe(vi.fn())
+    loop.nextFrame(waiting)
+    loop.setWindowHidden(true)
+    expect(waiting).toHaveBeenCalledTimes(1)
+    const now = vi.fn()
+    loop.nextFrame(now)
+    expect(now).toHaveBeenCalledTimes(1)
+    loop.setWindowHidden(false)
   })
 })

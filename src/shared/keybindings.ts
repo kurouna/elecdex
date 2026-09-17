@@ -37,6 +37,16 @@ export const KEYBINDING_ACTIONS = [
     platforms: ['win32', 'linux'],
   },
   { id: 'app.quit', label: 'Quit', chord: 'Ctrl+Shift+KeyQ' },
+  {
+    id: 'window.toggle',
+    label: 'Show or hide elecdex',
+    chord: 'Ctrl+Alt+Shift+KeyE',
+    platforms: ['win32'],
+    // Registered with the OS by main, and only when the window option turns it on
+    // (settings.window.globalShortcut): it works from every app, so it is never
+    // taken without the user choosing it.
+    scope: 'global',
+  },
 ] as const
 
 export type KeybindingAction = (typeof KEYBINDING_ACTIONS)[number]['id']
@@ -48,6 +58,12 @@ export function availableOn(action: KeybindingAction, platform: NodeJS.Platform)
   return (
     !('platforms' in definition) || (definition.platforms as readonly string[]).includes(platform)
   )
+}
+
+/** Whether an action is a system-wide shortcut, handled by main rather than the page. */
+export function isGlobal(action: KeybindingAction): boolean {
+  const definition = KEYBINDING_ACTIONS.find((a) => a.id === action)
+  return definition !== undefined && 'scope' in definition && definition.scope === 'global'
 }
 
 /** Per action: a chord, or null to leave the action without a shortcut. */
@@ -164,8 +180,10 @@ export function effectiveBindings(
 }
 
 /**
- * Chord -> action. Where two actions share a chord the first in the list keeps
- * it; `conflicts` reports the pairs so the settings UI can say so.
+ * Chord -> action, for the page's own shortcuts. Where two actions share a chord
+ * the first in the list keeps it; `conflicts` reports the pairs so the settings
+ * UI can say so. System-wide actions are left out: main takes their keys before
+ * the page could see them.
  */
 export function keymap(
   overrides: KeybindingOverrides,
@@ -173,6 +191,7 @@ export function keymap(
 ): Map<string, KeybindingAction> {
   const map = new Map<string, KeybindingAction>()
   for (const [action, chord] of Object.entries(effectiveBindings(overrides, platform))) {
+    if (isGlobal(action as KeybindingAction)) continue
     if (chord !== null && !map.has(chord)) map.set(chord, action as KeybindingAction)
   }
   return map

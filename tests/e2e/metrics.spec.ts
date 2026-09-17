@@ -349,3 +349,42 @@ test('the full monitoring layout stays cheap when idle', async () => {
     await close()
   }
 })
+
+test('put away in the notification area, the full layout stops drawing', async () => {
+  test.skip(process.platform !== 'win32', 'running in the background is Windows only for now')
+  test.setTimeout(120_000)
+  // Measured locally: ~24% of one core on screen, ~6% put away (the monitors
+  // still collect, nothing is drawn); without the pause it stayed at ~26%.
+  const { app, page, close } = await launch(undefined, {
+    settings: { sound: { enabled: false }, window: { closeToTray: true } },
+  })
+  try {
+    // The workspace, not the audio capture window beside it.
+    const workspace = (app: ElectronApplication, action: 'size' | 'close') =>
+      app.evaluate(({ BrowserWindow }, what) => {
+        const win = BrowserWindow.getAllWindows().find((w) =>
+          w.webContents.getURL().endsWith('/index.html'),
+        )
+        if (what === 'size') win?.setContentSize(1920, 1080)
+        else win?.close()
+      }, action)
+    await workspace(app, 'size')
+    await page.waitForTimeout(15_000)
+    const WINDOW_MS = 15_000
+    const measure = async () => {
+      const start = await appUsage(app)
+      await page.waitForTimeout(WINDOW_MS)
+      return ((await appUsage(app)).cpuSeconds - start.cpuSeconds) / (WINDOW_MS / 1000)
+    }
+    const shown = await measure()
+    await workspace(app, 'close')
+    await page.waitForTimeout(3000)
+    const hidden = await measure()
+    console.log(
+      `on screen ${(shown * 100).toFixed(1)}%, put away ${(hidden * 100).toFixed(1)}% of one core`,
+    )
+    expect(hidden).toBeLessThan(shown * 0.5)
+  } finally {
+    await close()
+  }
+})

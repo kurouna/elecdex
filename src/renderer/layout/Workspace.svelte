@@ -118,6 +118,8 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'window.minimize': () => window.elecdex.system.minimize(),
   // Fullscreen has no window frame and no close button; this is the way out.
   'app.quit': () => window.elecdex.system.quit(),
+  // System-wide: main registers it with the OS, so the page never receives it.
+  'window.toggle': () => false,
 }
 
 /** Focuses the launcher's search box, or adds a launcher pane first when there is none. */

@@ -1,5 +1,7 @@
+import { backgroundSupported, HIDDEN_SWITCH } from '@shared/background'
 import { app, dialog } from 'electron'
 import { appWindows } from './app-windows.js'
+import { type Background, registerBackground } from './background/index.js'
 import { registerAudioIpc } from './ipc/audio.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
 import { registerFsIpc } from './ipc/fs.js'
@@ -15,6 +17,7 @@ import { registerUpdatesIpc } from './ipc/updates.js'
 import { registerWeatherIpc } from './ipc/weather.js'
 import { registerMetricsIpc } from './metrics/broker.js'
 import { createMainWindow } from './window.js'
+import { showMainWindow } from './window-control.js'
 
 // Must run before anything reads `app.getName()` or `app.getPath('userData')`.
 // Electron derives the name from the app directory's package.json, which `out/`
@@ -25,6 +28,9 @@ app.setAppUserModelId('dev.kurouna.elecdex')
 
 /** `--windowed` is handy during development; fullscreen is the default. */
 const wantsWindowed = process.argv.includes('--windowed')
+
+/** Launched at sign-in with "start in the background": the window waits in the notification area. */
+const startHidden = backgroundSupported(process.platform) && process.argv.includes(HIDDEN_SWITCH)
 
 if (!app.requestSingleInstanceLock()) {
   app.exit(0)
@@ -42,11 +48,11 @@ process.on('uncaughtException', (error) => {
   app.exit(1)
 })
 
-app.on('second-instance', () => {
-  const [win] = appWindows()
-  if (!win) return
-  if (win.isMinimized()) win.restore()
-  win.focus()
+// Starting elecdex again brings the running one forward, from the notification
+// area too - except for the sign-in entry, which only meant "be running".
+app.on('second-instance', (_event, argv) => {
+  if (argv.includes(HIDDEN_SWITCH)) return
+  showMainWindow()
 })
 
 let ptyIpc: PtyIpc | null = null
@@ -62,6 +68,7 @@ let quakesIpc: { dispose: () => void } | null = null
 let updatesIpc: { dispose: () => void } | null = null
 let audioIpc: { dispose: () => void } | null = null
 let pluginsIpc: { dispose: () => void } | null = null
+let background: Background | null = null
 
 app.whenReady().then(() => {
   registerSystemIpc()
@@ -79,14 +86,22 @@ app.whenReady().then(() => {
   quakesIpc = registerQuakesIpc(settings)
   audioIpc = registerAudioIpc()
   pluginsIpc = registerPluginsIpc(settings)
-  createMainWindow({
+  background = registerBackground(settings)
+  const win = createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
+    show: !startHidden,
   })
+  background.attach(win, startHidden)
 
   app.on('activate', () => {
     if (appWindows().length === 0) {
-      createMainWindow({ fullscreen: !wantsWindowed, devtools: !app.isPackaged })
+      const next = createMainWindow({
+        fullscreen: !wantsWindowed,
+        devtools: !app.isPackaged,
+        show: true,
+      })
+      background?.attach(next, false)
     }
   })
 })
@@ -128,6 +143,8 @@ app.on('will-quit', () => {
   audioIpc = null
   pluginsIpc?.dispose()
   pluginsIpc = null
+  background?.dispose()
+  background = null
 })
 
 app.on('window-all-closed', () => {

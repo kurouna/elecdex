@@ -10,6 +10,7 @@ import type {
   WindowState,
 } from '@shared/api'
 import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
+import type { BackgroundState } from '@shared/background'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
@@ -344,6 +345,13 @@ const api: ElecdexApi = {
     windowState: () => ipcRenderer.invoke(CH.system.windowState) as Promise<WindowState>,
     onWindowState: (handler) => listen<WindowState>(CH.system.windowStateChanged, handler),
     setTitleBarColors: (colors) => ipcRenderer.send(CH.system.setTitleBarColors, colors),
+  },
+  background: {
+    state: () => ipcRenderer.invoke(CH.background.state) as Promise<BackgroundState>,
+    onChange: (handler) => listen<BackgroundState>(CH.background.changed, handler),
+    setLaunchAtLogin: (on) =>
+      ipcRenderer.invoke(CH.background.setLaunchAtLogin, on) as Promise<BackgroundState>,
+    onOpenSettings: (handler) => listen<void>(CH.background.openSettings, () => handler()),
   },
   pty: {
     create: (opts?: PtyCreateOptions) =>

@@ -67,6 +67,5 @@ $effect(() => {
   color: var(--text-muted);
   font-family: var(--font-display);
   font-size: var(--step--1);
-  letter-spacing: var(--tracking-wider);
 }
 </style>

@@ -57,6 +57,9 @@ for Windows, macOS and Linux.
   reduced (or the system's reduce-motion setting), nothing moves.
 - **Settings** — a settings dialog for theme, motion, sound, the terminal's start folder, the launcher, rebindable keyboard
   shortcuts and the update check, all saved to a hand-editable `settings.json`.
+- **Background (Windows)** — optionally minimise or close to the notification area, show or hide
+  elecdex from any app with a system-wide shortcut, and launch it when you sign in, in the
+  background if you like. All off until turned on in *Settings → Window*.
 
 <table>
   <tr>
@@ -128,14 +131,26 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+. | settings |
 | F11 | toggle fullscreen |
 | Ctrl+Shift+M | minimize the window (Windows, Linux) |
-| Ctrl+Shift+Q | quit |
+| Ctrl+Shift+Q | quit (also when closing only hides elecdex to the notification area) |
+| Ctrl+Alt+Shift+E | show or hide elecdex from any app (Windows; off until turned on in *Settings → Window*) |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
 The shell has focus when elecdex starts. In a shell, selecting text copies it and a right-click
 pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt. Outside a tab group
 Ctrl+Shift+← / → still reach the shell, where PSReadLine selects by word.
 
-Every shortcut except the divider keys can be rebound in *Settings → Keyboard*: click one and
+The system-wide show/hide shortcut is set beside its switch in *Settings → Window*; it takes
+letters, digits and function keys only, and if another app already holds the keys it is turned
+back off with a note. With elecdex in front it puts elecdex away; anywhere else it brings elecdex
+to the front.
+
+In *Settings → Window* (Windows) you can also have minimising or closing leave elecdex running in
+the notification area, where a click opens it and the right-click menu opens the settings or
+quits. *Launch elecdex when you sign in to Windows* adds a sign-in entry (removed again by the
+uninstaller); *start in the background* starts it with only the icon. The entry can also be
+turned off in Task Manager's startup apps, which the settings show.
+
+Every other shortcut except the divider keys can be rebound in *Settings → Keyboard*: click one and
 press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key, so every other
 key still reaches the shell, and a chord already in use is flagged. The status bar (move the
 pointer to the bottom edge) has buttons for adding a pane, resetting the layout, settings, theme,
@@ -301,6 +316,7 @@ from the app replaces it:
   "motion": "system",
   "terminal": { "startDirectory": "~/work" },
   "keybindings": { "app.quit": null },
+  "window": { "minimizeToTray": false, "closeToTray": true, "globalShortcut": true, "startInBackground": false },
   "updates": { "check": true },
   "quakes": { "source": "auto", "notify": true, "minIntensity": "5-", "minMagnitude": 6, "tsunami": true, "system": true, "sound": true }
 }

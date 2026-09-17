@@ -5,6 +5,7 @@ import {
   conflicts,
   effectiveBindings,
   formatChord,
+  isGlobal,
   isValidChord,
   keymap,
   normalizeChord,
@@ -71,6 +72,22 @@ describe('keybindings', () => {
     const map = keymap({ 'pane.add': 'Alt+KeyP' }, 'win32')
     expect(map.get('Alt+KeyP')).toBe('pane.add')
     expect(map.has('Ctrl+Shift+KeyA')).toBe(false)
+  })
+
+  it('leaves the system-wide show/hide shortcut to main, on Windows only', () => {
+    expect(isGlobal('window.toggle')).toBe(true)
+    expect(isGlobal('app.quit')).toBe(false)
+    expect(effectiveBindings({}, 'win32')['window.toggle']).toBe('Ctrl+Alt+Shift+KeyE')
+    expect(effectiveBindings({}, 'darwin')['window.toggle']).toBeNull()
+    expect(effectiveBindings({}, 'linux')['window.toggle']).toBeNull()
+    // The page never acts on it: main takes the keys from the OS.
+    expect(keymap({}, 'win32').has('Ctrl+Alt+Shift+KeyE')).toBe(false)
+    expect([...keymap({}, 'win32').values()]).not.toContain('window.toggle')
+    // Still a clash when an app shortcut is given the same keys.
+    expect(conflicts({ 'pane.add': 'Ctrl+Alt+Shift+KeyE' }, 'win32')).toEqual({
+      'window.toggle': 'pane.add',
+    })
+    expect(conflicts({}, 'win32')).toEqual({})
   })
 
   it('reports conflicts, the first action keeping the chord', () => {

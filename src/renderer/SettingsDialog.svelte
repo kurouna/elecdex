@@ -1,11 +1,13 @@
 <script lang="ts">
 import type { StartDirectory } from '@shared/api'
+import { type BackgroundState, backgroundSupported, chordToAccelerator } from '@shared/background'
 import {
   availableOn,
   chordFromEvent,
   conflicts,
   effectiveBindings,
   formatChord,
+  isGlobal,
   KEYBINDING_ACTIONS,
   type KeybindingAction,
   withBinding,
@@ -23,7 +25,8 @@ import { updates } from './stores/updates.svelte.ts'
 
 /**
  * Settings, in the app: appearance and sound, the terminal's start folder, the
- * launcher, keyboard shortcuts, alerts, plugins and the update check. Everything here writes through settings.patch, so it
+ * launcher, running in the background (Windows), keyboard shortcuts, alerts,
+ * plugins and the update check. Everything here writes through settings.patch, so it
  * lands in settings.json and a hand edit to that file shows up here at once.
  * Launcher entries, themes and window options stay in files; the dialog links
  * to them.
@@ -31,9 +34,12 @@ import { updates } from './stores/updates.svelte.ts'
  *   Esc   close (or cancel recording a shortcut)
  */
 
-type Section = 'general' | 'keyboard' | 'alerts' | 'plugins' | 'updates'
+type Section = 'general' | 'window' | 'keyboard' | 'alerts' | 'plugins' | 'updates'
+const platform = window.elecdex.system.platform
 const SECTIONS: Array<{ id: Section; label: string }> = [
   { id: 'general', label: 'general' },
+  // Windows only for now: the other platforms were not checked, so they show none of it.
+  ...(backgroundSupported(platform) ? [{ id: 'window' as const, label: 'window' }] : []),
   { id: 'keyboard', label: 'keyboard' },
   { id: 'alerts', label: 'alerts' },
   { id: 'plugins', label: 'plugins' },
@@ -51,7 +57,6 @@ let refusal = $state<string | null>(null)
 let checking = $state(false)
 
 const settings = $derived(appearance.settings)
-const platform = window.elecdex.system.platform
 const bindings = $derived(effectiveBindings(settings.keybindings, platform))
 const clashes = $derived(conflicts(settings.keybindings, platform))
 /** The earthquake source in effect, as main resolves `auto` from the same time zone and locale. */
@@ -65,8 +70,55 @@ const quakeSource = $derived(
     navigator.language,
   ),
 )
-/** Only the actions this platform has: a shortcut that does nothing here would only confuse. */
-const actions = KEYBINDING_ACTIONS.filter((action) => availableOn(action.id, platform))
+/**
+ * Only the actions this platform has: a shortcut that does nothing here would only
+ * confuse. The system-wide one is set beside its switch in the window section.
+ */
+const actions = KEYBINDING_ACTIONS.filter(
+  (action) => availableOn(action.id, platform) && !isGlobal(action.id),
+)
+
+/** The sign-in entry and the system-wide shortcut, as main has them. */
+let background = $state<BackgroundState | null>(null)
+/** Why the system-wide shortcut was just turned back off. */
+let globalRefusal = $state<string | null>(null)
+
+$effect(() => {
+  if (!ui.settingsOpen || !backgroundSupported(platform)) return
+  globalRefusal = null
+  // Read again on every opening: the user may have changed it in Task Manager.
+  void window.elecdex.background.state().then((state) => {
+    background = state
+  })
+  return window.elecdex.background.onChange((state) => {
+    background = state
+  })
+})
+
+const SHORTCUT_PROBLEMS: Record<string, string> = {
+  taken: 'in use by another app - choose other keys',
+  invalid: 'use a letter, a digit or a function key',
+}
+
+/** Turning the shortcut on only sticks if the keys could be registered. */
+async function setGlobalShortcut(on: boolean): Promise<void> {
+  globalRefusal = null
+  await appearance.patch({ window: { globalShortcut: on } })
+  if (!on) return
+  const state = await window.elecdex.background.state()
+  background = state
+  if (state.shortcut.state === 'registered') return
+  globalRefusal = SHORTCUT_PROBLEMS[state.shortcut.state] ?? 'could not be registered'
+  await appearance.patch({ window: { globalShortcut: false } })
+}
+
+async function setLaunchAtLogin(on: boolean): Promise<void> {
+  background = await window.elecdex.background.setLaunchAtLogin(on)
+}
+
+const launchAtLogin = $derived(
+  background?.loginItem.registered === true && !background.loginItem.disabledByOs,
+)
 
 $effect(() => {
   if (!ui.settingsOpen) return
@@ -127,6 +179,7 @@ function stopRecording(): void {
 }
 
 function setBinding(action: KeybindingAction, chord: string | null | undefined): void {
+  if (isGlobal(action)) globalRefusal = null
   patch({
     keybindings: withBinding(settings.keybindings, action, chord) as Settings['keybindings'],
   })
@@ -147,6 +200,11 @@ function onKeydown(event: KeyboardEvent): void {
       if (!['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) {
         refusal = 'use Ctrl, Alt or a function key - the shell needs the rest'
       }
+      return
+    }
+    // Accelerators name keys by character, so punctuation would move with the layout.
+    if (isGlobal(recording) && chordToAccelerator(chord) === null) {
+      refusal = 'use a letter, a digit or a function key'
       return
     }
     setBinding(recording, chord)
@@ -172,6 +230,9 @@ async function checkNow(): Promise<void> {
 
 const labelOf = (action: KeybindingAction): string =>
   KEYBINDING_ACTIONS.find((a) => a.id === action)?.label ?? action
+
+const labelChord = (action: KeybindingAction): string =>
+  KEYBINDING_ACTIONS.find((a) => a.id === action)?.chord ?? ''
 
 function describeUpdate(status: UpdateStatus): string {
   const when = 'checkedAt' in status ? new Date(status.checkedAt).toLocaleString('en-GB') : ''
@@ -365,6 +426,112 @@ function describeUpdate(status: UpdateStatus): string {
                 {settings.launcher.items.length} entries of your own. Add them under
                 <code>launcher.items</code> in settings.json.
               </p>
+            </section>
+          {:else if section === 'window'}
+            {@const toggleChord = bindings['window.toggle']}
+            {@const toggleClash = clashes['window.toggle']}
+            {@const shortcutProblem =
+              settings.window.globalShortcut && background !== null ? SHORTCUT_PROBLEMS[background.shortcut.state] : undefined}
+            <section>
+              <h3>window</h3>
+              <label class="row">
+                <span>minimize to the notification area</span>
+                <input
+                  type="checkbox"
+                  checked={settings.window.minimizeToTray}
+                  onchange={(e) => patch({ window: { minimizeToTray: e.currentTarget.checked } })}
+                  data-testid="settings-minimize-to-tray"
+                />
+              </label>
+              <label class="row">
+                <span>keep running in the notification area when the window is closed</span>
+                <input
+                  type="checkbox"
+                  checked={settings.window.closeToTray}
+                  onchange={(e) => patch({ window: { closeToTray: e.currentTarget.checked } })}
+                  data-testid="settings-close-to-tray"
+                />
+              </label>
+              <p class="note">
+                Open or quit elecdex from its icon there; Windows may keep a new icon under the ^ on the
+                taskbar.
+              </p>
+              <div class="row">
+                <label class="choice">
+                  <input
+                    type="checkbox"
+                    checked={settings.window.globalShortcut}
+                    disabled={toggleChord === null}
+                    onchange={(e) => void setGlobalShortcut(e.currentTarget.checked)}
+                    data-testid="settings-global-shortcut"
+                  />
+                  show or hide elecdex from any app with
+                </label>
+                <button
+                  type="button"
+                  class="chord"
+                  class:recording={recording === 'window.toggle'}
+                  class:custom={'window.toggle' in settings.keybindings}
+                  onclick={() => (recording === 'window.toggle' ? stopRecording() : startRecording('window.toggle'))}
+                  data-testid="settings-global-shortcut-chord"
+                >
+                  {recording === 'window.toggle' ? 'press keys…' : toggleChord === null ? 'none' : formatChord(toggleChord)}
+                </button>
+                <button
+                  type="button"
+                  class="link"
+                  title={`Default: ${formatChord(labelChord('window.toggle'))}`}
+                  disabled={!('window.toggle' in settings.keybindings)}
+                  onclick={() => setBinding('window.toggle', undefined)}
+                  data-testid="settings-global-shortcut-reset"
+                >
+                  default
+                </button>
+                {#if recording === 'window.toggle' && refusal}
+                  <span class="warn">{refusal}</span>
+                {:else if globalRefusal ?? shortcutProblem}
+                  <span class="warn" data-testid="settings-global-shortcut-problem">{globalRefusal ?? shortcutProblem}</span>
+                {:else if toggleClash}
+                  <span class="warn">in use by {labelOf(toggleClash)}</span>
+                {/if}
+              </div>
+              <p class="note">
+                Off until you turn it on, since the keys then work in every app. elecdex in front is put
+                away; anywhere else, it comes to the front.
+              </p>
+            </section>
+
+            <section>
+              <h3>startup</h3>
+              <label class="row">
+                <span>launch elecdex when you sign in to Windows</span>
+                <input
+                  type="checkbox"
+                  checked={launchAtLogin}
+                  disabled={background === null || !background.loginItem.available}
+                  onchange={(e) => void setLaunchAtLogin(e.currentTarget.checked)}
+                  data-testid="settings-launch-at-login"
+                />
+              </label>
+              <label class="row">
+                <span>start in the background</span>
+                <input
+                  type="checkbox"
+                  checked={settings.window.startInBackground}
+                  disabled={!launchAtLogin}
+                  onchange={(e) => patch({ window: { startInBackground: e.currentTarget.checked } })}
+                  data-testid="settings-start-in-background"
+                />
+              </label>
+              {#if background !== null && !background.loginItem.available}
+                <p class="note" data-testid="settings-launch-note">Only in the installed app.</p>
+              {:else if background?.loginItem.disabledByOs}
+                <p class="note problem" data-testid="settings-launch-note">
+                  Turned off in Task Manager's startup apps. Tick the box to turn it on again.
+                </p>
+              {:else}
+                <p class="note">In the background, elecdex starts with only its icon in the notification area.</p>
+              {/if}
             </section>
           {:else if section === 'keyboard'}
             <section>

@@ -1,4 +1,5 @@
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
+import type { BackgroundState } from './background.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
@@ -81,6 +82,8 @@ export interface MachineFacts {
 
 export interface WindowState {
   fullscreen: boolean
+  /** Put away in the notification area, or minimised: nothing of the page is on screen. */
+  hidden: boolean
 }
 
 /** Colours for the window's own title bar controls, as #rrggbb. */
@@ -109,13 +112,23 @@ export interface SystemApi {
    */
   minimize(): void
   windowState(): Promise<WindowState>
-  /** Called when the window enters or leaves fullscreen. Returns an unsubscribe. */
+  /** Called when the window enters or leaves fullscreen, or is hidden or shown. Returns an unsubscribe. */
   onWindowState(handler: (state: WindowState) => void): () => void
   /**
    * Paints the minimise/maximise/close controls (Windows, Linux) to match the
    * theme; the rest of the title bar is drawn by the page.
    */
   setTitleBarColors(colors: TitleBarColors): void
+}
+
+/** Running in the background, Windows only (shared/background.ts). */
+export interface BackgroundApi {
+  state(): Promise<BackgroundState>
+  onChange(handler: (state: BackgroundState) => void): () => void
+  /** Adds or removes the sign-in entry; turning it on also turns it back on in Task Manager. */
+  setLaunchAtLogin(on: boolean): Promise<BackgroundState>
+  /** Called when the notification-area menu asks for the settings. Returns an unsubscribe. */
+  onOpenSettings(handler: () => void): () => void
 }
 
 export interface PtyCreateOptions {
@@ -355,6 +368,7 @@ export interface PluginsApi {
 
 export interface ElecdexApi {
   system: SystemApi
+  background: BackgroundApi
   pty: PtyApi
   layout: LayoutApi
   metrics: MetricsApi

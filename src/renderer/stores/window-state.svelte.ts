@@ -1,3 +1,6 @@
+import type { WindowState } from '@shared/api'
+import { setWindowHidden } from '../lib/frame-loop.ts'
+
 /**
  * Whether the window is fullscreen, as main reports it. Shared by the title bar
  * (drawn only in a window) and the corner controls (shown only in fullscreen),
@@ -12,12 +15,13 @@ class WindowStateStore {
   follow(): void {
     if (this.#started) return
     this.#started = true
-    void window.elecdex.system.windowState().then((state) => {
+    const apply = (state: WindowState): void => {
       this.fullscreen = state.fullscreen
-    })
-    window.elecdex.system.onWindowState((state) => {
-      this.fullscreen = state.fullscreen
-    })
+      // Put away or minimised: the frame loop stops until the window is back.
+      setWindowHidden(state.hidden)
+    }
+    void window.elecdex.system.windowState().then(apply)
+    window.elecdex.system.onWindowState(apply)
   }
 }
 

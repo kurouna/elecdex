@@ -32,6 +32,9 @@ $effect(() => {
   })
 })
 
+// The notification-area menu's "Settings": main has already brought the window forward.
+$effect(() => window.elecdex.background.onOpenSettings(() => ui.openSettings()))
+
 function chooseTheme(id: string): void {
   void appearance.patch({ theme: id }).then(() => sfx.play('theme'))
 }

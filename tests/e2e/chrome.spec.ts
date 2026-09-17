@@ -11,6 +11,10 @@ test('a windowed app draws its title bar in the theme, and not in fullscreen', a
     const bar = page.getByTestId('titlebar')
     await expect(bar).toBeVisible()
     await expect(bar).toHaveText('elecdex')
+    // Spelled as one word, not spaced out as "e l e c d e x".
+    expect(await bar.locator('.title').evaluate((el) => getComputedStyle(el).letterSpacing)).toBe(
+      'normal',
+    )
     const colours = await page.evaluate(() => {
       const el = document.querySelector('[data-testid=titlebar]') as HTMLElement
       const probe = document.createElement('div')

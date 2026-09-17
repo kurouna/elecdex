@@ -158,6 +158,12 @@ describe('settings', () => {
       terminal: { startDirectory: '' },
       launcher: { showSystem: true, items: [] },
       keybindings: {},
+      window: {
+        minimizeToTray: false,
+        closeToTray: false,
+        globalShortcut: false,
+        startInBackground: false,
+      },
       updates: { check: true },
       quakes: {
         source: 'auto',
@@ -200,6 +206,19 @@ describe('settings', () => {
       applySettingsPatch(defaultSettings(), { terminal: { startDirectory: 'x'.repeat(1025) } }),
     ).toBeNull()
     expect(applySettingsPatch(defaultSettings(), { terminal: { startDirectory: 42 } })).toBeNull()
+  })
+
+  it('keeps every background option off until the user turns it on', () => {
+    // A hand-written file from before these options, too.
+    expect(SettingsSchema.parse({ window: {} }).window).toEqual(defaultSettings().window)
+    const next = applySettingsPatch(defaultSettings(), { window: { closeToTray: true } })
+    expect(next?.window).toEqual({
+      minimizeToTray: false,
+      closeToTray: true,
+      globalShortcut: false,
+      startInBackground: false,
+    })
+    expect(applySettingsPatch(defaultSettings(), { window: { globalShortcut: 'yes' } })).toBeNull()
   })
 
   it('patches one field of a group without losing the others', () => {

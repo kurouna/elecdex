@@ -9,6 +9,7 @@ import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { QuakeService } from '../quakes/service.js'
 import { cacheFile } from '../store/cache-file.js'
+import { showMainWindow, windowInFront } from '../window-control.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
@@ -132,17 +133,10 @@ export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => vo
 /** System notifications, when no elecdex window is in front to show the banner. */
 function notifySystem(payload: QuakeAlert, settings: SettingsHandle): void {
   if (!settings.current().quakes.system || !Notification.isSupported()) return
-  const windows = appWindows()
-  if (windows.some((win) => win.isFocused() && !win.isMinimized())) return
+  if (windowInFront()) return
   for (const { title, body } of notificationsFor(payload, quakeLanguage(app.getLocale()))) {
     const notification = new Notification({ title, body })
-    notification.on('click', () => {
-      const [win] = appWindows()
-      if (!win) return
-      if (win.isMinimized()) win.restore()
-      win.show()
-      win.focus()
-    })
+    notification.on('click', showMainWindow)
     notification.show()
   }
 }

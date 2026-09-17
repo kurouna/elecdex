@@ -65,6 +65,29 @@ export const SettingsSchema = z.object({
     .record(z.string().max(60), z.string().max(40).nullable())
     .refine((map) => Object.keys(map).length <= 64, 'too many shortcut overrides')
     .default({}),
+  /**
+   * Running in the background, Windows only (shared/background.ts). All off by
+   * default: each is the user's explicit choice. Whether elecdex launches at
+   * sign-in is not kept here - Windows holds it, and the user can turn it off
+   * there too.
+   */
+  window: z
+    .object({
+      /** Minimising hides the window to the notification area. */
+      minimizeToTray: z.boolean().default(false),
+      /** Closing the window hides it to the notification area, and elecdex keeps running. */
+      closeToTray: z.boolean().default(false),
+      /** The window.toggle shortcut works from every app. */
+      globalShortcut: z.boolean().default(false),
+      /** Launched at sign-in, elecdex starts hidden in the notification area. */
+      startInBackground: z.boolean().default(false),
+    })
+    .default({
+      minimizeToTray: false,
+      closeToTray: false,
+      globalShortcut: false,
+      startInBackground: false,
+    }),
   updates: z
     .object({
       /** Ask GitHub once a day whether a newer release exists. Nothing is downloaded. */
@@ -126,6 +149,7 @@ export interface SettingsPatch {
   terminal?: Partial<Settings['terminal']>
   /** Replaces the whole override map. */
   keybindings?: Settings['keybindings']
+  window?: Partial<Settings['window']>
   updates?: Partial<Settings['updates']>
   quakes?: Partial<Settings['quakes']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
@@ -155,6 +179,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     ...(p.motion !== undefined ? { motion: p.motion } : {}),
     ...(p.keybindings !== undefined ? { keybindings: p.keybindings } : {}),
     sound: merge(current.sound, p.sound),
+    window: merge(current.window, p.window),
     updates: merge(current.updates, p.updates),
     quakes: merge(current.quakes, p.quakes),
     terminal: merge(current.terminal, p.terminal),

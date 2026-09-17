@@ -66,6 +66,16 @@ interface Subscriber {
   slot: number
 }
 
+/**
+ * Put away in the notification area, or minimised, as main reports it. With
+ * backgroundThrottling off (the monitors keep their pace behind other windows)
+ * Electron leaves document.hidden false for such a window, so main says so.
+ */
+let windowHidden = false
+
+/** Nothing of the page is on screen: no frame is worth drawing. */
+const offScreen = (): boolean => document.hidden || windowHidden
+
 const callbacks = new Map<FrameCallback, Subscriber>()
 /** When the scheduled wake is for, so a shorter period joining can bring it forward. */
 let wakeAt = 0
@@ -113,7 +123,7 @@ function frame(now: number): void {
   raf = 0
   if (loopStall !== null) clearTimeout(loopStall)
   loopStall = null
-  if (document.hidden) return
+  if (offScreen()) return
   runPending(now)
   const wall = Date.now()
   for (const [callback, subscriber] of callbacks) {
@@ -126,7 +136,7 @@ function frame(now: number): void {
 }
 
 function schedule(): void {
-  if (raf !== 0 || callbacks.size === 0 || document.hidden) return
+  if (raf !== 0 || callbacks.size === 0 || offScreen()) return
   const delay = msUntilBoundary(loopPeriod())
   // Already waking no later than needed.
   if (timer !== null && wakeAt <= Date.now() + delay) return
@@ -155,8 +165,8 @@ function cancel(): void {
 
 // Hidden: stop outright, and run anything waiting for a frame now - nothing is
 // drawn, so there is no frame to share. Visible again: resume.
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
+function followVisibility(): void {
+  if (offScreen()) {
     cancel()
     if (loneRaf !== 0) cancelAnimationFrame(loneRaf)
     loneRaf = 0
@@ -164,7 +174,16 @@ document.addEventListener('visibilitychange', () => {
   } else {
     schedule()
   }
-})
+}
+
+document.addEventListener('visibilitychange', followVisibility)
+
+/** The window was put away or minimised (true), or is back on screen (false). */
+export function setWindowHidden(hidden: boolean): void {
+  if (hidden === windowHidden) return
+  windowHidden = hidden
+  followVisibility()
+}
 
 /**
  * Runs `callback` once, in the next frame the loop draws - or, when no loop is
@@ -173,7 +192,7 @@ document.addEventListener('visibilitychange', () => {
  * costs no frame of its own. Runs at once while the window is hidden.
  */
 export function nextFrame(callback: FrameCallback): void {
-  if (document.hidden) {
+  if (offScreen()) {
     callback(performance.now())
     return
   }
