@@ -412,6 +412,7 @@ const api: ElecdexApi = {
     list: () => ipcRenderer.invoke(CH.launcher.list) as Promise<LauncherEntry[]>,
     icon: (id) => ipcRenderer.invoke(CH.launcher.icon, id) as Promise<string | null>,
     launch: (id) => ipcRenderer.invoke(CH.launcher.launch, id) as Promise<LaunchResult>,
+    onChange: (handler) => listen<void>(CH.launcher.changed, () => handler()),
   },
   themes: {
     list: () => ipcRenderer.invoke(CH.themes.list) as Promise<ThemeCatalog>,

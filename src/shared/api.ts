@@ -248,6 +248,8 @@ export interface LauncherApi {
   /** The entry's icon as a data: URL, or null. */
   icon(id: string): Promise<string | null>
   launch(id: string): Promise<LaunchResult>
+  /** The platform's list changed in a background rescan; ask for it again. Returns unsubscribe. */
+  onChange(handler: () => void): () => void
 }
 
 export interface ThemeCatalog {

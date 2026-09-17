@@ -10,12 +10,14 @@ import {
 } from '@shared/launcher'
 import { app, ipcMain, shell } from 'electron'
 import { z } from 'zod'
+import { appWindows } from '../app-windows.js'
 import {
   type CatalogEntry,
   desktopExecArgv,
   systemEntries,
   userEntries,
 } from '../launcher/catalog.js'
+import { SystemCache } from '../launcher/system-cache.js'
 import { APPS_FOLDER, packagedAppIdOf } from '../launcher/windows-apps.js'
 import { IconBatcher } from '../launcher/windows-icons.js'
 import { JsonStore } from '../store/json-store.js'
@@ -39,14 +41,22 @@ const UsageSchema = z.record(
   z.object({ count: z.number().int().nonnegative(), last: z.number().nonnegative() }),
 )
 
-/** Rescan the platform's application list at most this often. */
+/** Past this age the platform's application list is served once more and refreshed behind. */
 const SYSTEM_CACHE_MS = 60_000
 
 /** Icons are cached for the life of the app; a changed shortcut icon is rare. */
 const ICON_CACHE_LIMIT = 1000
 
 export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => void } {
-  let system: { at: number; entries: CatalogEntry[] } | null = null
+  const system = new SystemCache<CatalogEntry>({
+    scan: systemEntries,
+    maxAgeMs: SYSTEM_CACHE_MS,
+    onChange: () => {
+      for (const win of appWindows()) {
+        if (!win.webContents.isDestroyed()) win.webContents.send(CH.launcher.changed)
+      }
+    },
+  })
   const icons = new Map<string, string | null>()
   const shellIcons = process.platform === 'win32' ? new IconBatcher() : null
   let byId = new Map<string, CatalogEntry>()
@@ -58,13 +68,7 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
 
   const catalog = async (): Promise<CatalogEntry[]> => {
     const { showSystem, items } = settings.current().launcher
-    let systemList: CatalogEntry[] = []
-    if (showSystem) {
-      if (system === null || Date.now() - system.at > SYSTEM_CACHE_MS) {
-        system = { at: Date.now(), entries: await systemEntries() }
-      }
-      systemList = system.entries
-    }
+    const systemList = showSystem ? await system.get() : []
     const all = [...userEntries(items), ...systemList]
     byId = new Map(all.map((e) => [e.id, e]))
     return all

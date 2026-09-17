@@ -168,7 +168,9 @@ function packagedAppName(): string | null {
   const script = [
     '[Console]::OutputEncoding = [Text.Encoding]::UTF8',
     "$apps = @((New-Object -ComObject Shell.Application).NameSpace('shell:AppsFolder').Items())",
-    "$apps | Where-Object { $_.Path -cmatch '_[a-z0-9]{13}![A-Za-z]' } | Select-Object -First 1 -ExpandProperty Name",
+    // A packaged id as the launcher accepts it, and a name its noise filter keeps ("Get Help" is dropped).
+    "$apps | Where-Object { $_.Path -cmatch '^[A-Za-z0-9.-]{1,100}_[a-z0-9]{13}![A-Za-z][A-Za-z0-9.]{0,99}$' -and $_.Name -notmatch '(?i)uninstall|remove|readme|release notes|license|help|website|manual|アンインストール' } |",
+    '  Select-Object -First 1 -ExpandProperty Name',
   ].join('\n')
   const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script])
   return out.toString('utf8').trim() || null

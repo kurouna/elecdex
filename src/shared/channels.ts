@@ -132,6 +132,8 @@ export const CH = {
     list: 'launcher:list',
     icon: 'launcher:icon',
     launch: 'launcher:launch',
+    /** main -> renderer: a background rescan found a different application list. */
+    changed: 'launcher:changed',
   },
   fs: {
     readDir: 'fs:read-dir',

@@ -45,12 +45,16 @@ $effect(() => {
   })
 })
 
-// Reload when settings change (the user may have added entries by hand) and
-// after each launch, which changes the order.
+// Reload when settings change (the user may have added entries by hand), after
+// each launch, which changes the order, and when main's background rescan found
+// a different list. Until an answer comes, the tiles on screen stay.
 let launched = $state(0)
+let rescanned = $state(0)
+$effect(() => window.elecdex.launcher.onChange(() => rescanned++))
 $effect(() => {
   void appearance.settings.launcher
   void launched
+  void rescanned
   let stale = false
   void window.elecdex.launcher.list().then((list) => {
     if (stale) return
