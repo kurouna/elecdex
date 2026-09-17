@@ -2,7 +2,7 @@
 
 Guidance for AI agents (and humans) working in this repository.
 
-elecdex (latest pre-release: v0.0.5) is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
+elecdex (latest pre-release: v0.0.6) is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
 sci-fi terminal emulator and system monitor — on Electron 44, Svelte 5, TypeScript 7 and
 xterm.js 6. GPL-3.0, like the original. The full design and every decision with its reason
 live in [docs/architecture.md](docs/architecture.md) (§16 is the decision log); plugins in
