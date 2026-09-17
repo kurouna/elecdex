@@ -43,8 +43,11 @@ export function publicRemotes(addresses: Iterable<string>): string[] {
   return [...seen]
 }
 
-/** ESTABLISHED in the kernel's tcp_states numbering. */
-const TCP_ESTABLISHED = '03'
+/**
+ * ESTABLISHED in the kernel's tcp_states enum (include/net/tcp_states.h), which
+ * starts at 1 and puts LISTEN at 10 (0A). 03 is SYN_RECV.
+ */
+const TCP_ESTABLISHED = '01'
 
 /**
  * Parses /proc/net/tcp or /proc/net/tcp6 into established remote addresses.

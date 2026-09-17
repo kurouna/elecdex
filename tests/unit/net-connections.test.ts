@@ -55,16 +55,16 @@ describe('parseProcNetTcp', () => {
     const tcp = [
       '  sl  local_address rem_address   st tx_rx_rcv tx_rx_snd tr tm->when retrnsmt   uid  timeout inode',
       '   0: 0100007F:0CEA 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 1',
-      '   1: 0A00020F:A2C4 08080808:01BB 03 00000000:00000000 00:00000000 00000000  1000        0 2',
-      '   2: 0A00020F:A2C6 0101A8C0:0016 03 00000000:00000000 00:00000000 00000000  1000        0 3',
+      '   1: 0A00020F:A2C4 08080808:01BB 01 00000000:00000000 00:00000000 00000000  1000        0 2',
+      '   2: 0A00020F:A2C6 0101A8C0:0016 01 00000000:00000000 00:00000000 00000000  1000        0 3',
     ].join('\n')
     expect(parseProcNetTcp(tcp)).toEqual(['8.8.8.8', '192.168.1.1'])
 
     const tcp6 = [
       '  sl  local_address                         rem_address                           st',
       '   0: 00000000000000000000000001000000:1F90 00000000000000000000000000000000:0000 0A',
-      '   1: 00000000000000000000000001000000:A000 0048602000000000000000008888000000:01BB 03',
-      '   2: 00000000000000000000000001000000:A002 B80D0120000000000000000001000000:01BB 03',
+      '   1: 00000000000000000000000001000000:A000 0048602000000000000000008888000000:01BB 01',
+      '   2: 00000000000000000000000001000000:A002 B80D0120000000000000000001000000:01BB 01',
     ].join('\n')
     expect(parseProcNetTcp(tcp6)).toEqual(['2001:db8:0:0:0:0:0:1'])
   })
@@ -73,10 +73,10 @@ describe('parseProcNetTcp', () => {
   // written as hex groups they slipped past the private filter and GeoIP found none.
   const mappedTcp6 = [
     '  sl  local_address                         rem_address                           st',
-    '   0: 0000000000000000FFFF00000F02000A:A2C4 0000000000000000FFFF000008080808:01BB 03',
-    '   1: 0000000000000000FFFF00000F02000A:A2C6 0000000000000000ffff00000101A8C0:0016 03',
-    '   2: 0000000000000000FFFF00000F02000A:A2C8 0000000000000000FFFF00000300F285:01BB 03',
-    '   3: 0000000000000000FFFE00000F02000A:A2CA 0000000000000000FFFE000008080808:01BB 03',
+    '   0: 0000000000000000FFFF00000F02000A:A2C4 0000000000000000FFFF000008080808:01BB 01',
+    '   1: 0000000000000000FFFF00000F02000A:A2C6 0000000000000000ffff00000101A8C0:0016 01',
+    '   2: 0000000000000000FFFF00000F02000A:A2C8 0000000000000000FFFF00000300F285:01BB 01',
+    '   3: 0000000000000000FFFE00000F02000A:A2CA 0000000000000000FFFE000008080808:01BB 01',
   ].join('\n')
 
   it('decodes IPv4-mapped remotes from /proc/net/tcp6 in the dotted form', () => {
@@ -88,10 +88,24 @@ describe('parseProcNetTcp', () => {
     ])
   })
 
+  // The st column is the kernel's tcp_states enum (include/net/tcp_states.h),
+  // where ESTABLISHED is 1 and LISTEN is 10; 03 is SYN_RECV. Reading 03 as
+  // established left the Linux globe with no connections at all.
+  it('keeps only ESTABLISHED (01) rows, not SYN_RECV, TIME_WAIT or CLOSE_WAIT', () => {
+    const tcp = [
+      '  sl  local_address rem_address   st tx_rx_rcv tx_rx_snd tr tm->when retrnsmt   uid  timeout inode',
+      '   0: 0A00020F:A2C4 08080808:01BB 01 00000000:00000000 00:00000000 00000000  1000        0 1',
+      '   1: 0A00020F:01BB 01010101:A2C6 03 00000000:00000000 00:00000000 00000000  1000        0 2',
+      '   2: 0A00020F:A2C8 09090909:01BB 06 00000000:00000000 00:00000000 00000000  1000        0 3',
+      '   3: 0A00020F:A2CA 04040404:01BB 08 00000000:00000000 00:00000000 00000000  1000        0 4',
+    ].join('\n')
+    expect(parseProcNetTcp(tcp)).toEqual(['8.8.8.8'])
+  })
+
   it('drops IPv6 loopback peers from /proc/net/tcp6', () => {
     const loopback = [
       '  sl  local_address                         rem_address                           st',
-      '   0: 00000000000000000000000001000000:A000 00000000000000000000000001000000:1F90 03',
+      '   0: 00000000000000000000000001000000:A000 00000000000000000000000001000000:1F90 01',
     ].join('\n')
     expect(publicRemotes(parseProcNetTcp(loopback))).toEqual([])
   })
