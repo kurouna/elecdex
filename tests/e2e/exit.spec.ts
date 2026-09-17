@@ -37,6 +37,28 @@ test('the exit button asks for a second click, then quits', async () => {
   }
 })
 
+test('a window still asking for sessions while the app quits gets an answer', async () => {
+  const { app, page, close } = await launch()
+  try {
+    const stderr: string[] = []
+    app.process().stderr?.on('data', (chunk: Buffer) => stderr.push(chunk.toString()))
+    // What the orphan reaper or a mounting pane does if its moment falls in the quit:
+    // the page is still open after before-quit, until its window closes.
+    await page.evaluate(() => {
+      window.addEventListener('beforeunload', () => {
+        void window.elecdex.pty.list()
+        void window.elecdex.settings.startDirectory()
+      })
+    })
+    const gone = exited(app)
+    await page.evaluate(() => window.elecdex.system.quit())
+    await gone
+    expect(stderr.join('')).not.toMatch(/No handler registered/)
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
 test('Ctrl+Shift+Q quits, even with a terminal focused', async () => {
   const { app, page, close } = await launch()
   try {

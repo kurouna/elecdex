@@ -7,7 +7,7 @@ import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerMarketsIpc } from './ipc/markets.js'
 import { registerPluginsIpc } from './ipc/plugins.js'
-import { registerPtyIpc } from './ipc/pty.js'
+import { type PtyIpc, registerPtyIpc } from './ipc/pty.js'
 import { registerQuakesIpc } from './ipc/quakes.js'
 import { registerSettingsIpc } from './ipc/settings.js'
 import { registerSystemIpc } from './ipc/system.js'
@@ -49,7 +49,7 @@ app.on('second-instance', () => {
   win.focus()
 })
 
-let ptyIpc: { dispose: () => void } | null = null
+let ptyIpc: PtyIpc | null = null
 let layoutIpc: { dispose: () => void } | null = null
 let metricsIpc: { dispose: () => void } | null = null
 let fsIpc: { dispose: () => void } | null = null
@@ -93,14 +93,17 @@ app.whenReady().then(() => {
 
 app.on('before-quit', () => {
   // Kill every shell before the app tears down, so no orphaned pty survives.
-  ptyIpc?.dispose()
-  ptyIpc = null
+  // The handlers stay until will-quit: the window can still ask for sessions.
+  ptyIpc?.closeSessions()
 })
 
-// Layout and metrics handlers must outlive the windows: a closing renderer
-// flushes its pending layout save from beforeunload, and removing the handler
-// in before-quit made that final save fail with "no handler registered".
+// Handlers must outlive the windows: a closing renderer flushes its pending
+// layout save from beforeunload, and the terminal reaper may still list
+// sessions. Removing them in before-quit made those calls fail with "no
+// handler registered".
 app.on('will-quit', () => {
+  ptyIpc?.dispose()
+  ptyIpc = null
   layoutIpc?.dispose()
   layoutIpc = null
   metricsIpc?.dispose()

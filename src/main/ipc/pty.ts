@@ -37,8 +37,20 @@ type PortsBySession = Map<string, Set<Attached>>
 /** Upper bound on a single write, to keep a runaway renderer from wedging the PTY. */
 const MAX_WRITE_BYTES = 1024 * 1024
 
-export function registerPtyIpc(settings: SettingsHandle): { dispose: () => void } {
+export interface PtyIpc {
+  /**
+   * Ends every shell and refuses new ones, keeping the handlers: the window is
+   * still open while the app quits, and a pane or the orphan reaper asking then
+   * must get an answer (no sessions), not a "no handler registered" error.
+   */
+  closeSessions(): void
+  /** Removes the handlers, once the windows are gone. */
+  dispose(): void
+}
+
+export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
   const ports: PortsBySession = new Map()
+  let closing = false
   const startDirectory = (): StartDirectory =>
     resolveStartDirectory(settings.current().terminal.startDirectory, os.homedir())
 
@@ -69,6 +81,7 @@ export function registerPtyIpc(settings: SettingsHandle): { dispose: () => void 
   })
 
   ipcMain.handle(CH.pty.create, (_event, raw: unknown): PtySessionSummary => {
+    if (closing) throw new Error('elecdex is quitting')
     const opts = validateCreateOptions(raw)
     // A pane asks for no folder: it starts where the settings say.
     opts.cwd ??= startDirectory().path
@@ -127,11 +140,17 @@ export function registerPtyIpc(settings: SettingsHandle): { dispose: () => void 
     return true
   })
 
+  const closeSessions = (): void => {
+    closing = true
+    manager.disposeAll()
+    for (const set of ports.values()) for (const { port } of set) port.close()
+    ports.clear()
+  }
+
   return {
+    closeSessions,
     dispose: () => {
-      manager.disposeAll()
-      for (const set of ports.values()) for (const { port } of set) port.close()
-      ports.clear()
+      closeSessions()
       ipcMain.removeHandler(CH.pty.create)
       ipcMain.removeHandler(CH.pty.list)
       ipcMain.removeHandler(CH.pty.dispose)
