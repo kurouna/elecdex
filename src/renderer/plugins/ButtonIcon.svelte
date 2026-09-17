@@ -62,10 +62,15 @@ svg {
     opacity: 0.35;
   }
 }
+/* With motion reduced - by the in-app setting, or by the OS unless the setting says full -
+   a turning icon pulses instead: it still says busy, without moving. */
 @media (prefers-reduced-motion: reduce) {
-  .turn {
+  :global(:root:not([data-motion='full'])) .turn {
     animation: pulse 1.2s ease-in-out infinite;
   }
+}
+:global(:root[data-motion='reduced']) .turn {
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
 svg[data-icon='play'],

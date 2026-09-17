@@ -1,8 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import { launch, removeDir } from './support.js'
 
 /**
  * Entrance and exit effects: the calendar's wave, a new pane's power-on, a closed
@@ -476,4 +477,59 @@ test('with motion reduced, nothing moves: the wave ends before it begins, a new 
   } finally {
     await close()
   }
+})
+
+/** A plugin pane whose buttons are busy: one icon that turns, one that pulses. */
+const BUSY_PLUGIN = `export default {
+  apiVersion: 1, id: 'busy', title: 'busy',
+  view(ctx) {
+    ctx.render([{ t: 'buttons', items: [
+      { action: 'refresh', text: 'refresh', icon: 'refresh', busy: true },
+      { action: 'play', text: 'play', icon: 'play', busy: true },
+    ] }])
+  },
+}`
+
+/** The animation of each busy icon, with motion set in the app as `motion`. */
+async function busyIcons(motion: 'system' | 'full' | 'reduced', osReduced: boolean) {
+  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
+  mkdirSync(path.join(dir, 'plugins'))
+  writeFileSync(path.join(dir, 'plugins', 'busy.js'), BUSY_PLUGIN)
+  writeFileSync(
+    path.join(dir, 'settings.json'),
+    JSON.stringify({
+      sound: { enabled: false },
+      motion,
+      plugins: { busy: { enabled: true, key: 'busy.js' } },
+    }),
+  )
+  const { page, close } = await launch(dir, {
+    layout: { version: 1, root: { kind: 'pane', id: 'p1', widget: 'plugin:busy' } },
+  })
+  try {
+    await page.emulateMedia({ reducedMotion: osReduced ? 'reduce' : 'no-preference' })
+    const icon = (name: string) =>
+      page.locator(`[data-testid=plugin-button] svg[data-icon=${name}]`)
+    await expect(icon('refresh')).toBeVisible()
+    const animation = (name: string) =>
+      icon(name).evaluate((el) => getComputedStyle(el).animationName)
+    return { refresh: await animation('refresh'), play: await animation('play') }
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+}
+
+test('a busy button icon follows the motion setting: it turns, or pulses with motion reduced', async () => {
+  // As the OS says, unless the setting says otherwise.
+  const system = await busyIcons('system', false)
+  expect(system.refresh).toMatch(/turn/)
+  expect(system.play).toMatch(/pulse/)
+  expect((await busyIcons('system', true)).refresh).toMatch(/pulse/)
+
+  // The in-app setting wins either way.
+  const reduced = await busyIcons('reduced', false)
+  expect(reduced.refresh).toMatch(/pulse/)
+  expect(reduced.play).toMatch(/pulse/)
+  expect((await busyIcons('full', true)).refresh).toMatch(/turn/)
 })
