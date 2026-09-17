@@ -405,6 +405,70 @@ test('a JMA tsunami warning shows a card with its areas, folds into a tab, and s
   }
 })
 
+test('the banners left close up behind one that goes', async () => {
+  served[JMA_QUAKES] = JSON.stringify([
+    entry('first', 3, '5+', ['宮城県沖', 'Off the Coast of Miyagi Prefecture']),
+    entry('second', 4, '5+', ['福島県沖', 'Off the Coast of Fukushima Prefecture']),
+    entry('third', 5, '5+', ['茨城県沖', 'Off the Coast of Ibaraki Prefecture']),
+  ])
+  const { page, close } = await launch(undefined, {
+    layout: single('clock'),
+    settings: japan({ notify: true }),
+    ...services(),
+    args: ['--lang=ja'],
+  })
+  try {
+    const alerts = page.getByTestId('quake-alert')
+    await expect(alerts).toHaveCount(3, { timeout: 20_000 })
+    await page.waitForTimeout(500)
+    const ids = await alerts.evaluateAll((els) => els.map((el) => el.getAttribute('data-id')))
+    const [, middle, last] = ids as [string, string, string]
+    const top = (id: string) =>
+      page
+        .locator(`[data-testid=quake-alert][data-id=${id}]`)
+        .evaluate((el) => el.getBoundingClientRect().top)
+    const middleTop = await top(middle)
+    const middleCentre = await page
+      .locator(`[data-testid=quake-alert][data-id=${middle}]`)
+      .evaluate((el) => {
+        const box = el.getBoundingClientRect()
+        return Math.round((box.top + box.bottom) / 2)
+      })
+    const lastTop = await top(last)
+
+    const during = await page.evaluate(
+      async ({ middle, last }) => {
+        const card = (id: string) =>
+          document.querySelector<HTMLElement>(`[data-testid=quake-alert][data-id=${id}]`)
+        card(middle)?.querySelector<HTMLElement>('[data-testid=quake-alert-dismiss]')?.click()
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+        const box = card(middle)?.getBoundingClientRect()
+        return {
+          // Still where it was: it collapses about its own middle, not the top of the stack.
+          middle: box ? Math.round((box.top + box.bottom) / 2) : null,
+          leaving: card(middle)?.inert ?? false,
+          // Taken out of the flow as it powers off, where it was.
+          position: card(middle)?.style.position ?? '',
+          moving: (card(last)?.getAnimations() ?? []).some((a) => a.playState === 'running'),
+        }
+      },
+      { middle, last },
+    )
+    expect(during).toEqual({
+      middle: middleCentre,
+      leaving: true,
+      position: 'absolute',
+      moving: true,
+    })
+    await expect(alerts).toHaveCount(2)
+    await expect.poll(() => top(last)).toBeCloseTo(middleTop, 0)
+    expect(lastTop).toBeGreaterThan(middleTop)
+  } finally {
+    await close()
+  }
+})
+
 test('a major tsunami warning powers on like every card, then breathes', async () => {
   served[JMA_TSUNAMI] = tsunamiListing('major_VTSE41_0.json')
   served['/bosai/tsunami/data/major_VTSE41_0.json'] = tsunamiReport([['宮城県', '52', '10']])
@@ -421,6 +485,18 @@ test('a major tsunami warning powers on like every card, then breathes', async (
     // Both, in order: the breathing starts once the power-on has played.
     await expect(card).toHaveCSS('animation-name', /^crt-power-on, (svelte-[a-z0-9]+-)?breathe$/)
     await expect(card).toHaveCSS('animation-delay', '0s, 0.3s')
+
+    // Folded and opened again at once: the same card plays its close back, and keeps no spent beam.
+    await page.evaluate(async () => {
+      document.querySelector<HTMLElement>('[data-testid=tsunami-fold]')?.click()
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+      document.querySelector<HTMLElement>('[data-testid=tsunami-tab]')?.click()
+    })
+    await page.waitForTimeout(600)
+    await expect(card).toHaveCount(1)
+    await expect(card).not.toHaveClass(/crt-beam/)
+    await expect(card).toHaveCSS('opacity', '1')
+    await expect(page.getByTestId('tsunami-tab')).toHaveCount(0)
   } finally {
     await close()
   }

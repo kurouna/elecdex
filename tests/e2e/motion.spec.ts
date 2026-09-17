@@ -415,6 +415,8 @@ test('a dialog opened again while closing comes back whole, and another opens ou
     await expect(picker).toHaveCSS('opacity', '1')
     await expect(picker).toHaveCSS('transform', WHOLE)
     await expect(page.locator('[data-testid=pane-picker] input').first()).toBeFocused()
+    // Its spent beam is gone with the close, and with it the layer it held.
+    await expect(picker).not.toHaveClass(/crt-beam/)
 
     // Closing that same picker and asking for the settings: it powers off again,
     // beam and all, above a clear backdrop, and the settings open out of its line.

@@ -156,6 +156,22 @@ describe('crtPower', () => {
     expect(node.classList.contains('crt-beam')).toBe(true)
   })
 
+  it('keeps the place a leaving toast is held at', () => {
+    const node = leavingNode()
+    node.style.transform = 'translate(0px, 80px)'
+    expect(crtPower(node).css?.(1, 0)).toContain('transform: translate(0px, 80px) scale(1, 1);')
+  })
+
+  it('drops the beam once a cancelled close has played back, and not before', () => {
+    const node = leavingNode()
+    const config = crtPower(node)
+    // Svelte's first frame of the close passes t = 1 too, while the node is inert.
+    config.tick?.(1, 0)
+    expect(node.classList.contains('crt-beam')).toBe(true)
+    reopen(node, config.tick)
+    expect(node.classList.contains('crt-beam')).toBe(false)
+  })
+
   it('does nothing with motion reduced', () => {
     appearance.settings = { ...appearance.settings, motion: 'reduced' }
     const node = leavingNode()
@@ -213,6 +229,18 @@ describe('backdropShade', () => {
     expect(ended.style.zIndex).toBe('')
     expect(reopened.style.zIndex).toBe('')
     expect(reopened.style.background).toBe('')
+  })
+
+  it('forgets a backdrop destroyed before its fade ended', () => {
+    const gone = leavingNode()
+    backdropShade(gone)
+    gone.remove()
+    backdropShade(openingNode())
+    expect(gone.style.zIndex).toBe('')
+    // Reattached, it is no longer on the list to be handed over.
+    document.body.append(gone)
+    backdropShade(openingNode())
+    expect(gone.style.zIndex).toBe('')
   })
 
   it('a handed-over backdrop opened again is whole and back in its place', () => {

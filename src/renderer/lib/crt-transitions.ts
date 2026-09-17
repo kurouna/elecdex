@@ -37,7 +37,17 @@ export function crtPower(node: HTMLElement): TransitionConfig {
   node.classList.remove('crt-beam')
   void node.offsetWidth
   node.classList.add('crt-beam')
-  return { duration: POWER_OFF_MS, css: (_t, u) => powerOffStyle(u) }
+  // Asked after animate:flip has lifted a leaving toast out of the flow, translated back to its place.
+  const base = node.style.transform
+  return {
+    duration: POWER_OFF_MS,
+    css: (_t, u) => powerOffStyle(u, base),
+    // A cancelled close has played back to the whole picture: the beam is spent, and
+    // its class would otherwise hold a GPU layer (will-change) for as long as it shows.
+    tick: (t) => {
+      if (t >= 1 && !node.inert) node.classList.remove('crt-beam')
+    },
+  }
 }
 
 /** Backdrops still fading, each with a way to hand the page over to a new dialog at once. */
@@ -73,6 +83,11 @@ export function backdropShade(node: HTMLElement): TransitionConfig {
     if (!node.inert || t <= 0) leaving.delete(handOver)
   }
   const handOver = () => {
+    // A backdrop destroyed mid-fade (the page reloading) never reaches its last frame.
+    if (!node.isConnected) {
+      leaving.delete(handOver)
+      return
+    }
     handedOver = true
     paint(0)
   }

@@ -28,6 +28,12 @@ describe('powerOffStyle', () => {
     expect(powerOffStyle(0.9)).toMatch(/opacity: 0\.\d+;/)
   })
 
+  it('keeps a transform the element already has in front of the scale', () => {
+    expect(powerOffStyle(0.45, 'translate(0px, 80px)')).toBe(
+      'transform: translate(0px, 80px) scale(1, 0.004); filter: brightness(4); opacity: 1;',
+    )
+  })
+
   it('holds its ends for progress outside 0 to 1', () => {
     expect(powerOffStyle(-1)).toBe(powerOffStyle(0))
     expect(powerOffStyle(2)).toBe(powerOffStyle(1))

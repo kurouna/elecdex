@@ -29,8 +29,11 @@
   will-change: transform, filter, opacity;
 }
 
+/* Backwards, not both: the last frame is the element as it is anyway, and an animation
+   that stays in effect once played is one the element still reports, which makes
+   Svelte's animate:flip leave a toast that goes in the flow instead of lifting it out. */
 .crt-on {
-  animation: crt-power-on var(--crt-duration, 650ms) linear var(--crt-delay, 0ms) both;
+  animation: crt-power-on var(--crt-duration, 650ms) linear var(--crt-delay, 0ms) backwards;
 }
 
 /* The beam: bright rules with a soft glow on the top and bottom edges only - the

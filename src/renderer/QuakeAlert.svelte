@@ -360,7 +360,7 @@ function height(value: string | null): string {
 .alert.major {
   border-width: 2px;
   animation:
-    crt-power-on var(--crt-duration) linear both,
+    crt-power-on var(--crt-duration) linear backwards,
     breathe 1.6s ease-in-out var(--crt-duration) infinite;
 }
 
