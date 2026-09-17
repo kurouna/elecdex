@@ -302,7 +302,7 @@ const WHOLE = /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/
 
 const ESCAPE = { key: 'Escape', code: 'Escape' }
 const ADD_PANE = { key: 'A', code: 'KeyA', ctrlKey: true, shiftKey: true }
-const SETTINGS = { key: '<', code: 'Comma', ctrlKey: true, shiftKey: true }
+const SETTINGS = { key: '>', code: 'Period', ctrlKey: true, shiftKey: true }
 
 interface DialogState {
   present: boolean
@@ -368,7 +368,7 @@ test('a dialog powers off as it closes: the pane picker, the settings and the we
   try {
     const dialogs = [
       { testid: 'pane-picker', open: () => page.keyboard.press('Control+Shift+KeyA') },
-      { testid: 'settings-dialog', open: () => page.keyboard.press('Control+Shift+Comma') },
+      { testid: 'settings-dialog', open: () => page.keyboard.press('Control+Shift+Period') },
       {
         testid: 'location-picker',
         open: async () => {

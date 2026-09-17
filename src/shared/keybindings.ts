@@ -27,7 +27,7 @@ export const KEYBINDING_ACTIONS = [
   { id: 'tab.previous', label: 'Previous tab', chord: 'Ctrl+Shift+ArrowLeft' },
   { id: 'shell.next', label: 'Next shell pane', chord: 'Ctrl+Alt+Shift+ArrowRight' },
   { id: 'shell.previous', label: 'Previous shell pane', chord: 'Ctrl+Alt+Shift+ArrowLeft' },
-  { id: 'settings.open', label: 'Open settings', chord: 'Ctrl+Shift+Comma' },
+  { id: 'settings.open', label: 'Open settings', chord: 'Ctrl+Shift+Period' },
   { id: 'window.fullscreen', label: 'Toggle fullscreen', chord: 'F11' },
   {
     id: 'window.minimize',

@@ -72,7 +72,7 @@ const pluginPane = (page: Page, id = 'p1') =>
   page.locator(`[data-testid=pane][data-pane-id="${id}"] [data-testid=plugin-pane]`)
 
 async function turnOn(page: Page, id: string): Promise<void> {
-  await page.keyboard.press('Control+Shift+Comma')
+  await page.keyboard.press('Control+Shift+Period')
   await page.locator('[data-testid=settings-section][data-section=plugins]').click()
   const entry = page.locator(`[data-testid=settings-plugin][data-plugin="${id}"]`)
   await entry.getByTestId('plugin-enabled').click()

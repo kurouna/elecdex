@@ -258,7 +258,7 @@ test('turning alerts on in settings announces at the chosen intensity, or magnit
   })
   const saved = () => JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).quakes
   try {
-    await page.keyboard.press('Control+Shift+Comma')
+    await page.keyboard.press('Control+Shift+Period')
     await page.getByTestId('settings-section').locator('text=alerts').click()
     await expect(page.getByTestId('settings-quakes-source')).toHaveValue('jma')
     await expect(page.getByTestId('settings-quakes-intensity')).toBeDisabled()

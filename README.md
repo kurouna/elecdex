@@ -125,7 +125,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
-| Ctrl+Shift+, | settings |
+| Ctrl+Shift+. | settings |
 | F11 | toggle fullscreen |
 | Ctrl+Shift+M | minimize the window (Windows, Linux) |
 | Ctrl+Shift+Q | quit |

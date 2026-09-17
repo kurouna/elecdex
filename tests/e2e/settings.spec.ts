@@ -16,7 +16,7 @@ const savedSettings = (userData: string) =>
 test('settings open from the shortcut, apply at once and are saved', async () => {
   const { page, userData, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
-    await page.keyboard.press('Control+Shift+Comma')
+    await page.keyboard.press('Control+Shift+Period')
     const dialog = page.getByTestId('settings-dialog')
     await expect(dialog).toBeVisible()
 
@@ -38,7 +38,7 @@ test('settings open from the shortcut, apply at once and are saved', async () =>
 test('a shortcut can be rebound, cleared and reset, and conflicts are shown', async () => {
   const { page, userData, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
-    await page.keyboard.press('Control+Shift+Comma')
+    await page.keyboard.press('Control+Shift+Period')
     await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
     const addPane = page.locator('[data-testid=keybinding][data-action="pane.add"]')
     await expect(addPane.getByTestId('keybinding-chord')).toHaveText('Ctrl+Shift+A')
@@ -70,7 +70,7 @@ test('a shortcut can be rebound, cleared and reset, and conflicts are shown', as
     await page.keyboard.press('Escape')
 
     // Cleared, then back to the default.
-    await page.keyboard.press('Control+Shift+Comma')
+    await page.keyboard.press('Control+Shift+Period')
     await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
     await addPane.getByTestId('keybinding-clear').click()
     await expect(addPane.getByTestId('keybinding-chord')).toHaveText('none')
@@ -120,7 +120,7 @@ test.describe('update check', () => {
           opened.push(url)
         }
       })
-      await page.keyboard.press('Control+Shift+Comma')
+      await page.keyboard.press('Control+Shift+Period')
       await page.locator('[data-testid=settings-section][data-section=updates]').click()
       await page.getByTestId('settings-updates-now').click()
       await expect(page.getByTestId('settings-updates-status')).toHaveAttribute(
@@ -165,7 +165,7 @@ test('a shell starts in the home folder by default, and in the folder chosen in 
     // Not the folder the app was started from: home.
     await cwdOf(terminalPane(page).first()).toBe(same(os.homedir()))
 
-    await page.keyboard.press('Control+Shift+Comma')
+    await page.keyboard.press('Control+Shift+Period')
     const input = page.getByTestId('settings-start-directory')
     const note = page.getByTestId('settings-start-directory-note')
     await expect(input).toHaveValue('')
@@ -195,7 +195,7 @@ test('a shell starts in the home folder by default, and in the folder chosen in 
     await cwdOf(panes.nth(0)).toBe(same(os.homedir()))
 
     // "home" clears the setting.
-    await page.keyboard.press('Control+Shift+Comma')
+    await page.keyboard.press('Control+Shift+Period')
     await page.getByTestId('settings-start-directory-home').click()
     await expect.poll(() => savedSettings(userData).terminal?.startDirectory).toBe('')
     await expect(input).toHaveValue('')

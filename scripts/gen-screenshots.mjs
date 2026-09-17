@@ -148,7 +148,7 @@ for (const theme of ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'bus
 }
 await shoot('tron', 'elecdex-settings', {
   extra: async (page) => {
-    await page.keyboard.press('Control+Shift+Comma')
+    await page.keyboard.press('Control+Shift+Period')
     await page.locator('[data-testid=settings-section][data-section=keyboard]').click()
     await page.waitForTimeout(600)
   },

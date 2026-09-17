@@ -35,6 +35,13 @@ describe('keybindings', () => {
     expect(isValidChord('Super+KeyA')).toBe(false)
   })
 
+  it('opens the settings with Ctrl+Shift+.', () => {
+    expect(keymap({}, 'win32').get('Ctrl+Shift+Period')).toBe('settings.open')
+    expect(keymap({}, 'win32').get('Ctrl+Shift+Comma')).toBeUndefined()
+    expect(chordFromEvent(key('Period', { ctrl: true, shift: true }))).toBe('Ctrl+Shift+Period')
+    expect(formatChord('Ctrl+Shift+Period')).toBe('Ctrl+Shift+.')
+  })
+
   it('reads chords from key events, Cmd counting as Ctrl', () => {
     expect(chordFromEvent(key('KeyA', { ctrl: true, shift: true }))).toBe('Ctrl+Shift+KeyA')
     expect(chordFromEvent(key('KeyA', { meta: true, shift: true }))).toBe('Ctrl+Shift+KeyA')
