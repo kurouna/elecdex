@@ -91,6 +91,8 @@ export const CH = {
     spectrumUnsubscribe: 'audio:spectrum-unsubscribe',
     /** main -> renderer: a SpectrumUpdate, to subscribers only. */
     spectrum: 'audio:spectrum',
+    /** renderer -> main, fire and forget: restore the muted monitor the spectrum records. */
+    restoreMonitor: 'audio:restore-monitor',
     /** renderer -> main, fire and forget: a mixer pane is showing. */
     mixerSubscribe: 'audio:mixer-subscribe',
     mixerUnsubscribe: 'audio:mixer-unsubscribe',

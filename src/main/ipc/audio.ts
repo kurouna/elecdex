@@ -2,9 +2,10 @@ import { audioStubFrom, type MixerUpdate } from '@shared/audio'
 import { CH } from '@shared/channels'
 import { ipcMain, type WebContents } from 'electron'
 import { openCaptureWindow } from '../audio/capture-window.js'
-import { mixerBackend } from '../audio/mixer-backends.js'
+import { mixerBackend, output } from '../audio/mixer-backends.js'
 import { MixerService } from '../audio/mixer-service.js'
 import { openPulseCapture } from '../audio/pulse-capture.js'
+import { readMonitorLevel, restoreMonitor } from '../audio/pulse-monitor.js'
 import { SpectrumCapture } from '../audio/spectrum-capture.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 
@@ -37,11 +38,12 @@ export function registerAudioIpc(): { dispose: () => void } {
   }
 
   /* ---- spectrum ---- */
+  // Linux has no loopback capture through Electron; parec records the output there.
+  const pulse = stub === null && process.platform === 'linux'
   const capture = new SpectrumCapture({
-    // Linux has no loopback capture through Electron; parec records the output there.
     open: (onUpdate) =>
-      stub === null && process.platform === 'linux'
-        ? openPulseCapture(onUpdate)
+      pulse
+        ? openPulseCapture(onUpdate, { readMonitor: () => readMonitorLevel(output) })
         : openCaptureWindow({ stub, onUpdate }),
     publish: (update) => send(SPECTRUM, CH.audio.spectrum, update),
   })
@@ -85,6 +87,14 @@ export function registerAudioIpc(): { dispose: () => void } {
     if (registry.unsubscribe(event.sender, SPECTRUM)) syncSpectrum()
   })
 
+  ipcMain.on(CH.audio.restoreMonitor, (event) => {
+    // Only a page showing a spectrum may ask, and only where parec records a monitor.
+    if (!pulse || !registry.subscribers(SPECTRUM).has(event.sender)) return
+    restoreMonitor(output).catch((error: unknown) => {
+      console.warn('[elecdex] could not restore the audio monitor:', error)
+    })
+  })
+
   ipcMain.on(CH.audio.mixerSubscribe, (event) => {
     track(event.sender)
     if (registry.subscribe(event.sender, MIXER)) syncMixer()
@@ -106,6 +116,7 @@ export function registerAudioIpc(): { dispose: () => void } {
       for (const channel of [
         CH.audio.spectrumSubscribe,
         CH.audio.spectrumUnsubscribe,
+        CH.audio.restoreMonitor,
         CH.audio.mixerSubscribe,
         CH.audio.mixerUnsubscribe,
         CH.audio.mixerCommand,

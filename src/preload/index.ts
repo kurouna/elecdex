@@ -378,6 +378,7 @@ const api: ElecdexApi = {
   },
   audio: {
     spectrum: subscribeSpectrum,
+    restoreMonitor: () => ipcRenderer.send(CH.audio.restoreMonitor),
     mixer: subscribeMixer,
     mixerCommand: (command) => ipcRenderer.send(CH.audio.mixerCommand, command),
   },

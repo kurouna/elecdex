@@ -34,7 +34,7 @@ export function mixerBackend(stub: AudioStub | null): MixerBackend {
 }
 
 // wpctl prints its volume with the locale's decimal separator; C keeps it a point.
-const output = async (file: string, args: string[]): Promise<string> =>
+export const output = async (file: string, args: string[]): Promise<string> =>
   (
     await run(file, args, {
       timeout: RUN_TIMEOUT_MS,

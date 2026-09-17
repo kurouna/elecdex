@@ -46,6 +46,7 @@ const setVisible = (visible: boolean) => {
 let spectrumHandler: ((u: SpectrumUpdate) => void) | null = null
 let mixerHandler: ((u: MixerUpdate) => void) | null = null
 const offSpectrum = vi.fn()
+const restoreMonitor = vi.fn()
 const commands: MixerCommand[] = []
 
 beforeEach(() => {
@@ -54,6 +55,7 @@ beforeEach(() => {
   commands.length = 0
   spectrumHandler = mixerHandler = null
   offSpectrum.mockClear()
+  restoreMonitor.mockClear()
   vi.stubGlobal(
     'IntersectionObserver',
     class {
@@ -91,6 +93,7 @@ beforeEach(() => {
         return () => {}
       },
       mixerCommand: (command: MixerCommand) => commands.push(command),
+      restoreMonitor,
     },
   })
 })
@@ -163,6 +166,27 @@ describe('SpectrumWidget', () => {
     expect(getByTestId('spectrum-note').textContent).toContain('NotAllowedError: denied')
     spectrumHandler?.({ t: 'frame', bins: tone() })
     flushSync()
+    expect(getByTestId('spectrum').dataset.status).toBe('running')
+  })
+
+  // A muted monitor records silence: "no sound" gave the user nothing to act on.
+  it('says the monitor is muted, empties the bars and unmutes it only on a click', () => {
+    const { getByTestId, queryByTestId } = render(SpectrumWidget, { props: props() })
+    flushSync()
+    setVisible(true)
+    spectrumHandler?.({ t: 'frame', bins: tone() })
+    expect(queryByTestId('spectrum-restore-monitor')).toBeNull()
+    spectrumHandler?.({ t: 'status', status: 'muted', message: null })
+    flushSync()
+    expect(getByTestId('spectrum').dataset.status).toBe('muted')
+    expect(getByTestId('spectrum-note').textContent).toContain('muted the output monitor')
+    expect(spectrumPaints.at(-1)?.level.every((v) => v === 0)).toBe(true)
+    expect(restoreMonitor).not.toHaveBeenCalled()
+    fireEvent.click(getByTestId('spectrum-restore-monitor'))
+    expect(restoreMonitor).toHaveBeenCalledOnce()
+    spectrumHandler?.({ t: 'status', status: 'running', message: null })
+    flushSync()
+    expect(queryByTestId('spectrum-restore-monitor')).toBeNull()
     expect(getByTestId('spectrum').dataset.status).toBe('running')
   })
 

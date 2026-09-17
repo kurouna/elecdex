@@ -258,7 +258,9 @@ weather and calendar.
   the levels reach the pane; nothing is recorded. Tested on Windows; macOS should work through
   the same screen-capture route (with screen recording permission) but is untested. On Linux,
   where Electron has no loopback capture, `parec` (pulseaudio-utils, for PulseAudio or PipeWire)
-  records the monitor of the default output instead.
+  records the monitor of the default output instead. A monitor turned down in the system
+  settings is compensated, so the bars show the sound as it plays; a muted one is reported with
+  a button that unmutes it.
 - **Mixer** — not in the default layout: add it from the picker. The output device's volume and
   mute, and on Windows and Linux each app playing sound, with faders, mute buttons and, on
   Windows, peak meters. macOS has the master volume only. Read while the pane is on screen: on

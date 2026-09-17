@@ -308,6 +308,11 @@ export interface AudioApi {
    * status at once, then frames while there is sound.
    */
   spectrum(handler: (update: SpectrumUpdate) => void): () => void
+  /**
+   * Unmutes the monitor the spectrum records and sets it to 100%, after the pane
+   * reported it `muted`. Only a page showing a spectrum may ask; Linux only.
+   */
+  restoreMonitor(): void
   /** The mixer's state and peak levels while a handler is subscribed. */
   mixer(handler: (update: MixerUpdate) => void): () => void
   /** Sets a channel's volume or mute; main checks the command against the channels it has. */

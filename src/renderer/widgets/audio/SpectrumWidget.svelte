@@ -38,7 +38,7 @@ const { paneId, state: paneState }: WidgetProps = $props()
 
 const prefs = $derived(spectrumPrefs(paneState))
 let settingsOpen = $state(false)
-let status = $state<'starting' | 'running' | 'unsupported' | 'failed'>('starting')
+let status = $state<'starting' | 'running' | 'muted' | 'unsupported' | 'failed'>('starting')
 let message = $state<string | null>(null)
 /** Whether frames have come in lately: sound is playing, or has just stopped. */
 let hearing = $state(false)
@@ -73,6 +73,11 @@ function onUpdate(update: SpectrumUpdate): void {
   if (update.t === 'status') {
     status = update.status
     message = update.message
+    // No frames come while the monitor is muted, so the bars would stay where they were.
+    if (status === 'muted') {
+      meters = emptyMeters(meters.level.length)
+      draw(true)
+    }
     return
   }
   status = 'running'
@@ -143,10 +148,12 @@ function save(change: Partial<SpectrumPrefs>): void {
   layout.setPaneState(paneId, { ...paneState, ...change })
 }
 
-const problem = $derived(status === 'failed' || status === 'unsupported')
+const problem = $derived(status === 'failed' || status === 'unsupported' || status === 'muted')
 
 const note = $derived.by(() => {
   if (status === 'starting') return 'starting capture…'
+  if (status === 'muted')
+    return 'The system has muted the output monitor this pane listens to, so there is no sound to show.'
   if (status === 'unsupported') return 'System audio capture is not available on this platform yet.'
   if (status === 'failed') return `Could not capture system audio${message ? `: ${message}` : '.'}`
   return hearing ? null : 'no sound'
@@ -231,7 +238,17 @@ const note = $derived.by(() => {
   <div class="display">
     <canvas bind:this={canvas} aria-label="Spectrum of the system's sound" data-testid="spectrum-canvas"></canvas>
     {#if problem}
-      <p class="problem" data-testid="spectrum-note">{note}</p>
+      <div class="problem">
+        <p data-testid="spectrum-note">{note}</p>
+        {#if status === 'muted'}
+          <!-- The system's setting changes only on this click; main unmutes it and sets 100%. -->
+          <button
+            type="button"
+            onclick={() => window.elecdex.audio.restoreMonitor()}
+            data-testid="spectrum-restore-monitor">unmute monitor</button
+          >
+        {/if}
+      </div>
     {/if}
   </div>
 </div>
@@ -338,5 +355,26 @@ canvas {
   font-size: var(--step--1);
   color: var(--warn);
   pointer-events: none;
+}
+
+.problem p {
+  margin: 0;
+}
+
+.problem button {
+  margin-top: var(--space-2);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-transform: uppercase;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.problem button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 </style>

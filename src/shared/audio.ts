@@ -266,11 +266,15 @@ export function spectrumPrefs(state: Record<string, unknown> | undefined): Spect
 }
 
 /** What a spectrum pane is sent: levels, or why there are none. */
+/**
+ * `muted`: capture runs, but the system has muted the monitor it records (or set it
+ * to 0%), so there is nothing to show until it is restored (Linux only).
+ */
 export type SpectrumUpdate =
   | { t: 'frame'; bins: number[] }
   | {
       t: 'status'
-      status: 'starting' | 'running' | 'unsupported' | 'failed'
+      status: 'starting' | 'running' | 'muted' | 'unsupported' | 'failed'
       message: string | null
     }
 

@@ -1,10 +1,12 @@
 import { binsFromFft, SPECTRUM_FFT_SIZE, SPECTRUM_SMOOTHING } from '@shared/audio'
 
 /**
- * The spectrum of raw 16-bit PCM, computed as Chromium's AnalyserNode does - a
+ * The spectrum of raw 32-bit float PCM, computed as Chromium's AnalyserNode does - a
  * Blackman window, magnitudes scaled by 1/N, smoothed over time, in decibels -
  * so the Linux capture (parec) looks the same as the capture page's analyser.
- * Pure apart from its own buffers, and unit-tested.
+ * Floats, not 16-bit samples: a monitor turned down to a few percent leaves a
+ * signal that 16 bits round to 0 and -1, while floats keep it for `gain` to undo
+ * (pulse-monitor.ts). Pure apart from its own buffers, and unit-tested.
  */
 
 const N = SPECTRUM_FFT_SIZE
@@ -21,8 +23,12 @@ export class PcmSpectrum {
   /** The last N samples, as a ring written at #write. */
   readonly #ring = new Float32Array(N)
   #write = 0
-  /** A chunk may end in the middle of a sample: its first byte waits here. */
-  #carry: number | null = null
+  /** A chunk may end in the middle of a sample: its first bytes wait here. */
+  readonly #carry = new Uint8Array(4)
+  #carried = 0
+  readonly #view = new DataView(this.#carry.buffer)
+  /** What each sample is multiplied by: the inverse of the monitor's volume. */
+  gain = 1
   readonly #smoothed = new Float64Array(HALF)
   readonly #re = new Float64Array(N)
   readonly #im = new Float64Array(N)
@@ -32,18 +38,19 @@ export class PcmSpectrum {
     this.#sampleRate = sampleRate
   }
 
-  /** Takes signed 16-bit little-endian mono samples, in any chunking. */
+  /** Takes 32-bit float little-endian mono samples, in any chunking. */
   push(chunk: Uint8Array): void {
     let i = 0
-    if (this.#carry !== null && chunk.length > 0) {
-      this.#add(this.#carry | ((chunk[0] as number) << 8))
-      this.#carry = null
-      i = 1
+    while (this.#carried > 0 && i < chunk.length) {
+      this.#carry[this.#carried++] = chunk[i++] as number
+      if (this.#carried === 4) {
+        this.#add(this.#view.getFloat32(0, true))
+        this.#carried = 0
+      }
     }
-    for (; i + 1 < chunk.length; i += 2) {
-      this.#add((chunk[i] as number) | ((chunk[i + 1] as number) << 8))
-    }
-    if (i < chunk.length) this.#carry = chunk[i] as number
+    const view = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+    for (; i + 3 < chunk.length; i += 4) this.#add(view.getFloat32(i, true))
+    for (; i < chunk.length; i++) this.#carry[this.#carried++] = chunk[i] as number
   }
 
   /** The current spectrum as the panes' bins; each call is one analyser read. */
@@ -65,9 +72,10 @@ export class PcmSpectrum {
     return binsFromFft(this.#db, this.#sampleRate)
   }
 
-  #add(unsigned: number): void {
-    const signed = unsigned >= 0x8000 ? unsigned - 0x10000 : unsigned
-    this.#ring[this.#write] = signed / 0x8000
+  #add(sample: number): void {
+    // Kept within full scale after the gain; a NaN from a broken stream reads as silence.
+    const value = sample * this.gain
+    this.#ring[this.#write] = Number.isFinite(value) ? Math.max(-1, Math.min(1, value)) : 0
     this.#write = (this.#write + 1) % N
   }
 }
