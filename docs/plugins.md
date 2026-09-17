@@ -190,8 +190,8 @@ type Block =
   | { t: 'time'; at: number; style: 'relative' | 'countdown' | 'clock' | 'date'; label?: string; tone?: Tone }
   | { t: 'table'; columns: readonly string[]; rows: readonly (readonly string[])[]; align?: readonly ('left' | 'right')[] }
   | { t: 'list'; items: readonly { id: string; text: string; sub?: string; tone?: Tone }[]; action?: string }
-  | { t: 'buttons'; items: readonly { action: string; text: string; icon?: ButtonIcon; primary?: boolean; disabled?: boolean }[] }
-      // icon: refresh / play / pause / stop / skip / reset / add / remove / settings / open。アイコンだけを描き、text はツールチップと読み上げ名になる
+  | { t: 'buttons'; items: readonly { action: string; text: string; icon?: ButtonIcon; busy?: boolean; primary?: boolean; disabled?: boolean }[] }
+      // icon: refresh / play / pause / stop / skip / reset / add / remove / settings / open。アイコンだけを描き、text はツールチップと読み上げ名になる。busy の間はアイコンが回る（refresh・reset 以外は明滅）
   | { t: 'link'; text: string; href: string }            // https のみ。開くサイト名を必ず添えて描く
   | { t: 'signin'; host: string; text?: string }         // session のホストにログインするボタン
   | { t: 'notice'; text: string; tone?: Tone }           // エラー・出典・「非公式」表示

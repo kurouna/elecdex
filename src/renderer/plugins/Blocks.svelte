@@ -127,12 +127,13 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
             class:primary={button.primary}
             class:icon={button.icon !== undefined}
             disabled={button.disabled}
+            aria-busy={button.busy ? 'true' : undefined}
             title={button.icon ? button.text : undefined}
             aria-label={button.icon ? button.text : undefined}
             onclick={() => onaction(button.action)}
             data-testid="plugin-button"
             data-action={button.action}
-            >{#if button.icon}<ButtonIcon name={button.icon} />{:else}{button.text}{/if}</button
+            >{#if button.icon}<ButtonIcon name={button.icon} busy={button.busy === true} />{:else}{button.text}{/if}</button
           >
         {/each}
       </div>
@@ -154,10 +155,11 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
 </div>
 
 <style>
+/* Blocks sit close: a pane is short, and its charts need the height more than the gaps do. */
 .blocks {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-height: 0;
   padding: var(--space-1);
   container-type: inline-size;

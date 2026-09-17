@@ -217,6 +217,12 @@ describe('plugin blocks', () => {
       { t: 'buttons', items: [{ action: 'refresh', text: 'refresh', icon: 'refresh' }] },
     ])
     expect(buttons('<svg onload=x>').blocks).toEqual([])
+    const busy = (value: unknown) =>
+      readBlocks([{ t: 'buttons', items: [{ action: 'refresh', text: 'refresh', busy: value }] }])
+    expect(busy(true).blocks).toEqual([
+      { t: 'buttons', items: [{ action: 'refresh', text: 'refresh', busy: true }] },
+    ])
+    expect(busy('yes').blocks).toEqual([])
   })
 
   it('open only https links, and sign in only to a host name', () => {

@@ -5,7 +5,10 @@ import type { ButtonIcon } from '@shared/plugin-api'
  * The icons a plugin may put on a button, drawn in the button's own colour so they follow the
  * theme and the hover and disabled states. Line icons on a 16px grid, like the rest of the UI.
  */
-const { name }: { name: ButtonIcon } = $props()
+const { name, busy = false }: { name: ButtonIcon; busy?: boolean } = $props()
+
+/** Icons that are already a circle turn while busy; the rest pulse. */
+const TURNS: readonly ButtonIcon[] = ['refresh', 'reset']
 
 const PATHS: Record<ButtonIcon, string> = {
   // Two arrows chasing each other round: fetch again.
@@ -23,7 +26,13 @@ const PATHS: Record<ButtonIcon, string> = {
 }
 </script>
 
-<svg viewBox="0 0 16 16" aria-hidden="true" data-icon={name}><path d={PATHS[name]} /></svg>
+<svg
+  viewBox="0 0 16 16"
+  aria-hidden="true"
+  data-icon={name}
+  class:turn={busy && TURNS.includes(name)}
+  class:pulse={busy && !TURNS.includes(name)}
+><path d={PATHS[name]} /></svg>
 
 <style>
 svg {
@@ -34,6 +43,29 @@ svg {
   stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* A CSS animation runs on the compositor, and only while the plugin says it is busy. */
+.turn {
+  animation: turn 0.9s linear infinite;
+}
+.pulse {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+@keyframes turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .turn {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
 }
 
 svg[data-icon='play'],

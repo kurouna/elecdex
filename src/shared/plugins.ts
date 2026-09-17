@@ -403,6 +403,7 @@ const BlockSchema = z.discriminatedUnion('t', [
         action: short,
         text: short,
         icon: z.enum(BUTTON_ICONS).optional(),
+        busy: z.boolean().optional(),
         primary: z.boolean().optional(),
         disabled: z.boolean().optional(),
       }),

@@ -398,6 +398,8 @@ describe('a plugin pane', () => {
       view(ctx) { ctx.render([{ t: 'buttons', items: [
         { action: 'refresh', text: 'Refresh now', icon: 'refresh' },
         { action: 'plain', text: 'plain' },
+        { action: 'load', text: 'Loading', icon: 'refresh', busy: true },
+        { action: 'go', text: 'Going', icon: 'play', busy: true },
       ] }]) },
     }`
     await startHost([source('iconic.ts', code)], {
@@ -405,7 +407,13 @@ describe('a plugin pane', () => {
     })
     pane('iconic')
     await settle()
-    const [icon, plain] = screen.getAllByTestId('plugin-button')
+    const [icon, plain, loading, going] = screen.getAllByTestId('plugin-button')
+    // Busy: a round icon turns, any other pulses; an idle one does neither.
+    expect(loading?.getAttribute('aria-busy')).toBe('true')
+    expect(loading?.querySelector('svg')?.classList.contains('turn')).toBe(true)
+    expect(going?.querySelector('svg')?.classList.contains('pulse')).toBe(true)
+    expect(icon?.hasAttribute('aria-busy')).toBe(false)
+    expect(icon?.querySelector('svg')?.getAttribute('class') ?? '').not.toMatch(/turn|pulse/)
     expect(icon?.getAttribute('aria-label')).toBe('Refresh now')
     expect(icon?.getAttribute('title')).toBe('Refresh now')
     expect(icon?.textContent).toBe('')

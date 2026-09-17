@@ -133,13 +133,17 @@ export type Block =
       items: readonly { id: string; text: string; sub?: string; tone?: Tone }[]
       action?: string
     }
-  /** With an icon, a button shows only the icon; its text becomes the tooltip and label. */
+  /**
+   * With an icon, a button shows only the icon; its text becomes the tooltip and label.
+   * `busy` says the work the button starts is under way: its icon turns (refresh) or pulses.
+   */
   | {
       t: 'buttons'
       items: readonly {
         action: string
         text: string
         icon?: ButtonIcon
+        busy?: boolean
         primary?: boolean
         disabled?: boolean
       }[]
