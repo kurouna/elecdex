@@ -146,6 +146,21 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   or in main (a shell reattaches to its session). A widget that creates a WebGL context must give
   it back when it unmounts (`forceContextLoss`, or `releaseWebglContexts` in lib/webgl.ts):
   Chromium keeps only about 16 and drops the oldest, which may be a visible pane's.
+- **Open and close with the CRT effect.** Everything that appears or goes on top of the
+  workspace powers on and off like a tube (styles/crt.css, lib/crt-transitions.ts), and a new
+  pane, dialog or notice must do the same:
+  - Panes: added ones power on through `layout.arrived`. A closed one powers off in the tree
+    (`layout.closingId`), and the panes that gain its room are uncovered by a `crt-extend`
+    clip (layout/pane-close.ts), never by animating sizes, which would send transient sizes to a
+    shell. One close runs at a time; a tree change first calls `layout.settle()`.
+  - Dialogs: the dialog has `crt-on`, `transition:crtPower` and
+    `style:--crt-delay={dialogDelay()}`, its backdrop `transition:backdropShade`, and its
+    open/close goes through `ui` so `ui.closedAt` is kept (a dialog opened just after another
+    closed opens out of its line).
+  - Notices and toasts: `crt-on` and `transition:crtPower`, with `|global` when the element
+    can leave with a block around it (the last of a list).
+  - With motion reduced, all of it is skipped and things just appear and go. Cover a new one in
+    tests/e2e/motion.spec.ts (or its own spec, with `clickThen` from support.ts).
 - **Themes** are data turned into CSS variables; canvas/WebGL widgets re-read colours on
   `appearance.revision`. Components read semantic tokens, not primitives. Text is the accent
   unless a theme sets `text` (Business does); never assume a dark ground - `mode: 'light'`
