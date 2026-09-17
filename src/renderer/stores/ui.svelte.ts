@@ -13,13 +13,27 @@ export interface LocationRequest {
 class UiStore {
   panePickerOpen = $state(false)
 
+  /**
+   * When a dialog last began to close (performance.now), so one opening just
+   * after can power on out of its closing line. Not reactive: read once, as a
+   * dialog opens.
+   */
+  closedAt = Number.NEGATIVE_INFINITY
+
+  /** Notes a close when `open` says a dialog was showing. */
+  private closing(open: boolean): void {
+    if (open) this.closedAt = performance.now()
+  }
+
   openPanePicker(): void {
+    this.closing(this.settingsOpen || this.locationRequest !== null)
     this.settingsOpen = false
     this.locationRequest = null
     this.panePickerOpen = true
   }
 
   closePanePicker(): void {
+    this.closing(this.panePickerOpen)
     this.panePickerOpen = false
   }
 
@@ -51,6 +65,7 @@ class UiStore {
   settingsSection = $state<string | null>(null)
 
   openSettings(section: string | null = null): void {
+    this.closing(this.panePickerOpen || this.locationRequest !== null)
     this.panePickerOpen = false
     this.locationRequest = null
     this.settingsSection = section
@@ -66,16 +81,20 @@ class UiStore {
   locationRequest = $state.raw<LocationRequest | null>(null)
 
   pickLocation(request: LocationRequest): void {
+    // Another pane's request takes over the picker showing, which stays open.
+    this.closing(this.panePickerOpen || this.settingsOpen)
     this.panePickerOpen = false
     this.settingsOpen = false
     this.locationRequest = request
   }
 
   closeLocationPicker(): void {
+    this.closing(this.locationRequest !== null)
     this.locationRequest = null
   }
 
   closeSettings(): void {
+    this.closing(this.settingsOpen)
     this.settingsOpen = false
     this.recordingShortcut = false
   }

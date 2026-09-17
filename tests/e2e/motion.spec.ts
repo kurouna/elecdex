@@ -297,6 +297,152 @@ test('a tab behind another closes at once, the shown one powers off', async () =
   }
 })
 
+/** Unscaled: `none` once a power-on has ended, the identity matrix after a cancelled power-off. */
+const WHOLE = /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/
+
+const ESCAPE = { key: 'Escape', code: 'Escape' }
+const ADD_PANE = { key: 'A', code: 'KeyA', ctrlKey: true, shiftKey: true }
+const SETTINGS = { key: '<', code: 'Comma', ctrlKey: true, shiftKey: true }
+
+interface DialogState {
+  present: boolean
+  inert: boolean
+  beam: boolean
+  /** Whether the dialog's closing beam is playing now, not merely left from an earlier close. */
+  beamRunning: boolean
+  backdropInert: boolean
+  backdropZ: string
+  backdropBackground: string
+  delay: string
+}
+
+/**
+ * Presses `keys` one after another within a single task, each given a frame to
+ * take effect, and then describes the dialog `selector` finds: a close lasts
+ * 300 ms, too short to catch reliably between separate Playwright calls.
+ */
+/** A key press as the workspace reads it: the key, its code and the modifiers held. */
+interface Key {
+  key: string
+  code: string
+  ctrlKey?: boolean
+  shiftKey?: boolean
+}
+
+const keysThen = (page: Page, keys: Key[], selector: string) =>
+  page.evaluate(
+    async ({ keys, selector }): Promise<DialogState> => {
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      for (const init of keys) {
+        window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...init }))
+        await frame()
+      }
+      const dialog = document.querySelector<HTMLElement>(selector)
+      const backdrop = dialog?.parentElement
+      return {
+        present: dialog !== null,
+        inert: dialog?.inert ?? false,
+        beam: dialog?.classList.contains('crt-beam') ?? false,
+        beamRunning: document.getAnimations().some((a) => {
+          const effect = a.effect as KeyframeEffect | null
+          return (
+            effect?.target === dialog &&
+            effect?.pseudoElement === '::after' &&
+            (a as CSSAnimation).animationName === 'crt-beam-off' &&
+            a.playState === 'running'
+          )
+        }),
+        backdropInert: backdrop?.inert ?? false,
+        backdropZ: backdrop?.style.zIndex ?? '',
+        backdropBackground: backdrop?.style.background ?? '',
+        delay: dialog?.style.getPropertyValue('--crt-delay') ?? '',
+      }
+    },
+    { keys, selector },
+  )
+
+test('a dialog powers off as it closes: the pane picker, the settings and the weather location', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: { version: 1, root: paneNode('w', 'weather') },
+  })
+  try {
+    const dialogs = [
+      { testid: 'pane-picker', open: () => page.keyboard.press('Control+Shift+KeyA') },
+      { testid: 'settings-dialog', open: () => page.keyboard.press('Control+Shift+Comma') },
+      {
+        testid: 'location-picker',
+        open: async () => {
+          const weather = byId(page, 'w')
+          if (!(await weather.getByTestId('weather-location').isVisible())) {
+            await weather.getByTestId('weather-settings-toggle').click()
+          }
+          await weather.getByTestId('weather-location').click()
+        },
+      },
+    ]
+    for (const { testid, open } of dialogs) {
+      await open()
+      const dialog = page.getByTestId(testid)
+      await expect(dialog).toBeVisible()
+      await expect(dialog).toHaveCSS('animation-name', 'crt-power-on')
+      const closing = await keysThen(page, [ESCAPE], `[data-testid=${testid}]`)
+      // Still there, powering off, and out of the way of the page below.
+      expect(closing, testid).toMatchObject({
+        present: true,
+        inert: true,
+        beam: true,
+        beamRunning: true,
+        backdropInert: true,
+      })
+      expect(closing.backdropZ, testid).toBe('')
+      await expect(dialog).toHaveCount(0)
+    }
+  } finally {
+    await close()
+  }
+})
+
+test('a dialog opened again while closing comes back whole, and another opens out of its line', async () => {
+  const { page, close } = await launch(undefined, { layout: calendarOnly })
+  try {
+    const picker = page.getByTestId('pane-picker')
+    await page.keyboard.press('Control+Shift+KeyA')
+    await expect(picker).toBeVisible()
+    const reopened = await keysThen(page, [ESCAPE, ADD_PANE], '[data-testid=pane-picker]')
+    expect(reopened).toMatchObject({ present: true, inert: false, backdropInert: false })
+    await page.waitForTimeout(600)
+    await expect(picker).toHaveCount(1)
+    await expect(picker).toHaveCSS('opacity', '1')
+    await expect(picker).toHaveCSS('transform', WHOLE)
+    await expect(page.locator('[data-testid=pane-picker] input').first()).toBeFocused()
+
+    // Closing that same picker and asking for the settings: it powers off again,
+    // beam and all, above a clear backdrop, and the settings open out of its line.
+    const handing = await keysThen(page, [ESCAPE, SETTINGS], '[data-testid=pane-picker]')
+    expect(handing).toMatchObject({
+      present: true,
+      inert: true,
+      beamRunning: true,
+      backdropZ: '901',
+    })
+    expect(handing.backdropBackground).toContain('transparent')
+    const settings = page.getByTestId('settings-dialog')
+    await expect(settings).toBeVisible()
+    expect(
+      Number.parseInt(
+        await settings.evaluate((el) => el.style.getPropertyValue('--crt-delay')),
+        10,
+      ),
+    ).toBeGreaterThan(0)
+    await expect(picker).toHaveCount(0)
+    await expect(settings).toHaveCSS('transform', WHOLE)
+    // Only one shade is left once the picker has gone.
+    await expect(page.locator('.backdrop')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
 test('with motion reduced, nothing moves: the wave ends before it begins, a new pane just appears and a closed one just goes', async () => {
   const { page, close } = await launch(undefined, {
     layout: calendarOnly,
@@ -319,6 +465,12 @@ test('with motion reduced, nothing moves: the wave ends before it begins, a new 
     const clock = '[data-testid=pane][data-widget=clock]'
     expect(await stillThereAfter(page, `${clock} [data-testid=pane-close]`, clock)).toBe(false)
     await expect(page.locator('.crt-off, .crt-extend')).toHaveCount(0)
+
+    // And so does a dialog.
+    await page.keyboard.press('Control+Shift+KeyA')
+    await expect(page.getByTestId('pane-picker')).toBeVisible()
+    const after = await keysThen(page, [ESCAPE], '[data-testid=pane-picker]')
+    expect(after.present).toBe(false)
   } finally {
     await close()
   }

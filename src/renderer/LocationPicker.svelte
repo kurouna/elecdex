@@ -2,6 +2,7 @@
 import cities from '@shared/geo/cities.json'
 import type { OfficeInfo } from '@shared/weather'
 import { type CityRow, type PlaceChoice, searchPlaces, sourceName } from '@shared/weather-places'
+import { backdropShade, dialogDelay, dialogPower } from './lib/dialog-transitions.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 
@@ -101,8 +102,8 @@ function onKeydown(event: KeyboardEvent): void {
 {#if request !== null}
   <!-- The backdrop closes on click; the keyboard path is Escape, handled above. -->
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="backdrop" onpointerdown={(e) => e.target === e.currentTarget && ui.closeLocationPicker()}>
-    <div class="picker crt-on" role="dialog" aria-modal="true" aria-label="Weather location" data-testid="location-picker">
+  <div class="backdrop" transition:backdropShade onpointerdown={(e) => e.target === e.currentTarget && ui.closeLocationPicker()}>
+    <div class="picker crt-on" style:--crt-delay={dialogDelay()} transition:dialogPower role="dialog" aria-modal="true" aria-label="Weather location" data-testid="location-picker">
       <header class="hud-label">
         <span>weather location</span>
         <span>↑↓ choose · enter use · esc close</span>

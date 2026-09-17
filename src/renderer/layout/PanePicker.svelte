@@ -1,5 +1,6 @@
 <script lang="ts">
 import ConfirmButton from '../ConfirmButton.svelte'
+import { backdropShade, dialogDelay, dialogPower } from '../lib/dialog-transitions.ts'
 import { plugins } from '../plugins/plugins.svelte.ts'
 import { layout, type PanePlacement } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
@@ -118,8 +119,8 @@ function onKeydown(event: KeyboardEvent): void {
 {#if ui.panePickerOpen}
   <!-- The backdrop closes on click; the keyboard path is Escape, handled above. -->
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="backdrop" onpointerdown={(e) => e.target === e.currentTarget && ui.closePanePicker()}>
-    <div class="picker crt-on" role="dialog" aria-modal="true" aria-label="Add pane" data-testid="pane-picker">
+  <div class="backdrop" transition:backdropShade onpointerdown={(e) => e.target === e.currentTarget && ui.closePanePicker()}>
+    <div class="picker crt-on" style:--crt-delay={dialogDelay()} transition:dialogPower role="dialog" aria-modal="true" aria-label="Add pane" data-testid="pane-picker">
       <header class="hud-label">
         <span>add pane</span>
         <span>↑↓ choose · tab placement · enter add · esc close</span>

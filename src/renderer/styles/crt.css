@@ -12,14 +12,17 @@
  *
  * Usage: add `crt-on` to an element, optionally with `--crt-delay` and
  * `--crt-duration`. `crt-off` runs the reverse: the picture collapses to the
- * line, the line to a dot, and the dot fades; with `crt-beam` the collapsing edges
- * glow as the opening ones do. `crt-extend` uncovers a picture from the box given
- * by `--from-top/right/bottom/left` (insets) to its whole area, with the beam on
+ * line, the line to a dot, and the dot fades. `crt-beam` makes the collapsing
+ * edges glow as the opening ones do: with `crt-off` on a pane, and alone on a
+ * dialog, whose power-off is a Svelte transition (lib/dialog-transitions.ts).
+ * `crt-extend` uncovers a picture from the box given by
+ * `--from-top/right/bottom/left` (insets) to its whole area, with the beam on
  * the edges that move: what the panes left behind do when one closes.
  */
 
 .crt-on,
 .crt-off,
+.crt-beam,
 .crt-extend {
   position: relative;
   transform-origin: 50% 50%;
@@ -34,7 +37,7 @@
    opening edges - fading as the picture opens. */
 .crt-on::after,
 .crt-on::before,
-.crt-off.crt-beam::after,
+.crt-beam::after,
 .crt-extend::after {
   content: "";
   position: absolute;
@@ -44,7 +47,7 @@
 }
 
 .crt-on::after,
-.crt-off.crt-beam::after {
+.crt-beam::after {
   background:
     linear-gradient(
       to bottom,
@@ -56,7 +59,7 @@
   animation: crt-beam var(--crt-duration, 650ms) linear var(--crt-delay, 0ms) both;
 }
 
-.crt-off.crt-beam::after {
+.crt-beam::after {
   animation-name: crt-beam-off;
 }
 
@@ -226,7 +229,7 @@
   :root:not([data-motion="full"]) .crt-extend,
   :root:not([data-motion="full"]) .crt-on::before,
   :root:not([data-motion="full"]) .crt-on::after,
-  :root:not([data-motion="full"]) .crt-off::after,
+  :root:not([data-motion="full"]) .crt-beam::after,
   :root:not([data-motion="full"]) .crt-extend::after {
     animation: none;
   }
@@ -237,7 +240,7 @@
 :root[data-motion="reduced"] .crt-extend,
 :root[data-motion="reduced"] .crt-on::before,
 :root[data-motion="reduced"] .crt-on::after,
-:root[data-motion="reduced"] .crt-off::after,
+:root[data-motion="reduced"] .crt-beam::after,
 :root[data-motion="reduced"] .crt-extend::after {
   animation: none;
 }

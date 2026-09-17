@@ -14,6 +14,7 @@ import { INTENSITIES, intensityLabel, MAGNITUDES, resolveQuakeSource } from '@sh
 import type { Settings, SettingsPatch } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import ConfirmButton from './ConfirmButton.svelte'
+import { backdropShade, dialogDelay, dialogPower } from './lib/dialog-transitions.ts'
 import PluginSettings from './plugins/PluginSettings.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
@@ -198,9 +199,11 @@ function describeUpdate(status: UpdateStatus): string {
 {#if ui.settingsOpen}
   <!-- The backdrop closes on click; the keyboard path is Escape, handled above. -->
   <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div class="backdrop" onpointerdown={(e) => e.target === e.currentTarget && close()}>
+  <div class="backdrop" transition:backdropShade onpointerdown={(e) => e.target === e.currentTarget && close()}>
     <div
       class="dialog crt-on"
+      style:--crt-delay={dialogDelay()}
+      transition:dialogPower
       role="dialog"
       aria-modal="true"
       aria-label="Settings"
