@@ -478,16 +478,36 @@ test.describe('web panes', () => {
       await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT next')
       await expect.poll(filter).toMatch(/^url\(/)
 
-      // Settings: tint off.
+      // Settings: tint off. The page is behind the dialog, so the pane shows a picture of
+      // it - which is taken again in the new colours rather than waiting for the dialog.
+      const picture = () => webPane(page).getByTestId('web-snapshot').getAttribute('src')
       await page.keyboard.press('Control+Shift+Period')
       const tint = page.getByTestId('settings-web-tint')
       await expect(tint).toBeChecked()
+      const before = await picture()
       await tint.uncheck()
+      await expect.poll(filter).toBe('none')
+      await expect.poll(picture).not.toBe(before)
       await page.keyboard.press('Escape')
       await expect.poll(filter).toBe('none')
       await page.keyboard.press('Control+Shift+Period')
       await page.getByTestId('settings-web-tint').check()
       await page.keyboard.press('Escape')
+      await expect.poll(filter).toMatch(/^url\(/)
+
+      // Each pane has its own switch, which wins over the setting and is saved with the pane.
+      const toggle = webPane(page).getByTestId('web-tint')
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+      await toggle.click()
+      await expect.poll(filter).toBe('none')
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+      await page.keyboard.press('Control+Shift+Period')
+      await page.getByTestId('settings-web-tint').uncheck()
+      await page.getByTestId('settings-web-tint').check()
+      await page.keyboard.press('Escape')
+      // Still its own answer, whatever the setting did.
+      await expect.poll(filter).toBe('none')
+      await toggle.click()
       await expect.poll(filter).toMatch(/^url\(/)
 
       // The Business themes never tint, and the light one asks for light pages.

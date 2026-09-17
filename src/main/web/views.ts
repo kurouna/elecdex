@@ -3,6 +3,7 @@ import { chordFromEvent } from '@shared/keybindings'
 import {
   httpUrl,
   navigationVerdict,
+  paneTint,
   parseAddress,
   tintCss,
   type WebAppearance,
@@ -58,6 +59,8 @@ interface Entry {
   placement: number
   /** The key of the tint CSS in the current document, and the tint it draws. */
   css: { key: string; tint: string } | null
+  /** This pane's own answer to the tint, or null to follow the setting. */
+  tintChoice: boolean | null
   /** The tint change under way: changes run one after another. */
   tinting: Promise<void>
   error: string | null
@@ -79,7 +82,12 @@ const windowOf = (contents: WebContents): BrowserWindow | null =>
 export class WebViews {
   private readonly entries = new Map<string, Entry>()
   private readonly owners = new WeakSet<WebContents>()
-  private appearance: WebAppearance = { tint: null, dark: true, background: '#000000' }
+  private appearance: WebAppearance = {
+    accent: null,
+    tint: false,
+    dark: true,
+    background: '#000000',
+  }
   private readonly options: WebViewsOptions
 
   constructor(options: WebViewsOptions) {
@@ -173,6 +181,10 @@ export class WebViews {
       case 'external':
         void openExternalIfSafe(contents.getURL())
         return
+      case 'tint':
+        entry.tintChoice = command.on
+        this.tint(entry)
+        return
     }
   }
 
@@ -233,6 +245,7 @@ export class WebViews {
       claim,
       placement: 0,
       css: null,
+      tintChoice: null,
       tinting: Promise.resolve(),
       error: null,
       snapshot: null,
@@ -466,7 +479,7 @@ export class WebViews {
   /** Puts the page in the theme's colour, or takes it out, when that differs from what it has. */
   private async retint(entry: Entry): Promise<void> {
     const contents = entry.view.webContents
-    const wanted = this.appearance.tint
+    const wanted = paneTint(this.appearance, entry.tintChoice)
     if (contents.isDestroyed() || (entry.css?.tint ?? null) === wanted) return
     const previous = entry.css
     entry.css = null
@@ -478,6 +491,15 @@ export class WebViews {
       }
     }
     if (previous !== null) await contents.removeInsertedCSS(previous.key).catch(() => {})
+    // A pane showing a picture of a hidden view (under a dialog) would otherwise keep
+    // the old colours until the view came back.
+    if (!entry.view.getVisible() && entry.snapshot !== null) {
+      const picture = await this.capture(entry)
+      if (picture !== null && picture !== entry.snapshot && !entry.view.getVisible()) {
+        entry.snapshot = picture
+        send(entry.owner, 'snapshot', { paneId: entry.paneId, image: picture })
+      }
+    }
   }
 
   private stateOf(entry: Entry): WebState {
@@ -501,7 +523,11 @@ export class WebViews {
   }
 }
 
-function send(owner: WebContents, kind: 'state' | 'shortcut' | 'focused', payload: unknown): void {
+function send(
+  owner: WebContents,
+  kind: 'state' | 'shortcut' | 'focused' | 'snapshot',
+  payload: unknown,
+): void {
   if (!owner.isDestroyed()) owner.send(CH.web[kind], payload)
 }
 

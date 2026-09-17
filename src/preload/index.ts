@@ -435,6 +435,10 @@ const api: ElecdexApi = {
       listen<WebState>(CH.web.state, (state) => {
         if (state.paneId === paneId) handler(state)
       }),
+    onSnapshot: (paneId, handler) =>
+      listen<{ paneId: string; image: string }>(CH.web.snapshot, (payload) => {
+        if (payload.paneId === paneId) handler(payload.image)
+      }),
     onShortcut: (handler) => listen<string>(CH.web.shortcut, handler),
     onFocused: (handler) => listen<string>(CH.web.focused, handler),
   },

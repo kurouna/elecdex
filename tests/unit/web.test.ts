@@ -4,6 +4,7 @@ import {
   hostMatches,
   hslToHex,
   navigationVerdict,
+  paneTint,
   parseAddress,
   presetOfWidget,
   tintCss,
@@ -185,24 +186,36 @@ describe('appearance', () => {
     expect(hslToHex(200, 0, 0)).toBe('#000000')
   })
 
-  it('tints SF themes in their accent, on their ground, in the dark scheme', () => {
+  it("offers an SF theme's accent, on its ground, in the dark scheme", () => {
     const tron = theme('tron')
     const look = webAppearance(tron, true)
     expect(look).toEqual({
-      tint: hslToHex(tron.accent.h, tron.accent.s, tron.accent.l),
+      accent: hslToHex(tron.accent.h, tron.accent.s, tron.accent.l),
+      tint: true,
       dark: true,
       background: tron.surfaces.s0,
     })
     expect(WebAppearanceSchema.safeParse(look).success).toBe(true)
   })
 
-  it('does not tint when the setting is off', () => {
-    expect(webAppearance(theme('amber'), false).tint).toBeNull()
+  it('offers no colour in the Business themes, and asks for light pages in the light one', () => {
+    expect(webAppearance(theme('business-dark'), true)).toMatchObject({ accent: null, dark: true })
+    expect(webAppearance(theme('business-light'), true)).toMatchObject({
+      accent: null,
+      dark: false,
+    })
   })
 
-  it('never tints the Business themes, and asks for light pages in the light one', () => {
-    expect(webAppearance(theme('business-dark'), true)).toMatchObject({ tint: null, dark: true })
-    expect(webAppearance(theme('business-light'), true)).toMatchObject({ tint: null, dark: false })
+  it('draws a pane in its own choice, else the setting, and never where there is no colour', () => {
+    const on = webAppearance(theme('tron'), true)
+    const off = webAppearance(theme('tron'), false)
+    const business = webAppearance(theme('business-dark'), true)
+    expect(paneTint(on, null)).toBe(on.accent)
+    expect(paneTint(off, null)).toBeNull()
+    // The pane's own switch wins either way.
+    expect(paneTint(off, true)).toBe(off.accent)
+    expect(paneTint(on, false)).toBeNull()
+    expect(paneTint(business, true)).toBeNull()
   })
 
   it('draws a page as its brightness times the tint', () => {
@@ -233,10 +246,18 @@ describe('inputs from the page', () => {
   it('accept only known commands', () => {
     expect(WebCommandSchema.safeParse({ t: 'back' }).success).toBe(true)
     expect(WebCommandSchema.safeParse({ t: 'address', input: 'example.com' }).success).toBe(true)
+    expect(WebCommandSchema.safeParse({ t: 'tint', on: false }).success).toBe(true)
+    expect(WebCommandSchema.safeParse({ t: 'tint', on: null }).success).toBe(true)
+    expect(WebCommandSchema.safeParse({ t: 'tint', on: 'yes' }).success).toBe(false)
     expect(WebCommandSchema.safeParse({ t: 'address' }).success).toBe(false)
     expect(WebCommandSchema.safeParse({ t: 'eval', code: '1' }).success).toBe(false)
     expect(
-      WebAppearanceSchema.safeParse({ tint: 'red', dark: true, background: '#000000' }).success,
+      WebAppearanceSchema.safeParse({
+        accent: 'red',
+        tint: true,
+        dark: true,
+        background: '#000000',
+      }).success,
     ).toBe(false)
   })
 })

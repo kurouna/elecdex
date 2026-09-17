@@ -27,6 +27,7 @@ const { web } = await import('../../src/renderer/stores/web.svelte.ts')
 const BODY: WebRect = { x: 10, y: 40, width: 300, height: 200 }
 
 let states = new Map<string, (state: WebState) => void>()
+let pictures = new Map<string, (image: string) => void>()
 let shortcutOff = vi.fn()
 /** IPC clones what it sends, and cannot clone a state proxy: neither can these. */
 const sent = <A extends unknown[]>(...args: A): A => structuredClone(args)
@@ -51,6 +52,10 @@ const api = {
   onState: (paneId: string, handler: (state: WebState) => void) => {
     states.set(paneId, handler)
     return () => states.delete(paneId)
+  },
+  onSnapshot: (paneId: string, handler: (image: string) => void) => {
+    pictures.set(paneId, handler)
+    return () => pictures.delete(paneId)
   },
   onShortcut: () => shortcutOff,
   onFocused: () => () => {},
@@ -81,6 +86,7 @@ let resized: Array<() => void> = []
 
 beforeEach(() => {
   states = new Map()
+  pictures = new Map()
   shortcutOff = vi.fn()
   bodyRect = BODY
   overlays = new Map()
@@ -371,12 +377,11 @@ describe('WebWidget', () => {
     screen.getByTestId('web-home').click()
     screen.getByTestId('web-reload').click()
     screen.getByTestId('web-external').click()
-    expect(api.command.mock.calls.map((call) => call[1])).toEqual([
-      { t: 'back' },
-      { t: 'home' },
-      { t: 'reload' },
-      { t: 'external' },
-    ])
+    expect(
+      api.command.mock.calls
+        .map((call) => call[1] as { t: string })
+        .filter((command) => command.t !== 'tint'),
+    ).toEqual([{ t: 'back' }, { t: 'home' }, { t: 'reload' }, { t: 'external' }])
     expect((screen.getByTestId('web-forward') as HTMLButtonElement).disabled).toBe(true)
   })
 
@@ -410,16 +415,80 @@ describe('WebWidget', () => {
     const first = mount()
     await settle()
     expect(api.setAppearance).toHaveBeenCalledTimes(1)
-    expect(api.setAppearance.mock.calls[0]?.[0].tint).toMatch(/^#[0-9a-f]{6}$/)
+    expect(api.setAppearance.mock.calls[0]?.[0]).toMatchObject({
+      accent: expect.stringMatching(/^#[0-9a-f]{6}$/),
+      tint: true,
+    })
 
     appearance.settings = { ...appearance.settings, web: { tint: false } }
     await settle()
-    expect(api.setAppearance).toHaveBeenLastCalledWith(expect.objectContaining({ tint: null }))
+    expect(api.setAppearance).toHaveBeenLastCalledWith(expect.objectContaining({ tint: false }))
 
     first.unmount()
     api.setAppearance.mockClear()
     appearance.settings = { ...appearance.settings, web: { tint: true } }
     await settle()
     expect(api.setAppearance).not.toHaveBeenCalled()
+  })
+
+  it('has a switch for its own tint, which follows the setting until it is used', async () => {
+    appearance.settings = { ...appearance.settings, theme: 'tron', web: { tint: true } }
+    // Through the real pane host, so the pane's own answer reaches it back as a prop.
+    const view = render(LayoutNodeView, { props: { node: layout.tree.root } })
+    await settle()
+    const button = screen.getByTestId('web-tint')
+    expect(button.getAttribute('aria-pressed')).toBe('true')
+    // Nothing of its own yet: main is told to follow the setting.
+    expect(api.command).toHaveBeenLastCalledWith('p', { t: 'tint', on: null })
+
+    button.click()
+    await view.rerender({ node: layout.tree.root })
+    await settle()
+    expect(api.command).toHaveBeenLastCalledWith('p', { t: 'tint', on: false })
+    expect(screen.getByTestId('web-tint').getAttribute('aria-pressed')).toBe('false')
+    const node = layout.tree.root.kind === 'pane' ? layout.tree.root : null
+    expect(node?.state).toMatchObject({ tint: false })
+
+    // Its own answer stands while the setting changes under it.
+    api.command.mockClear()
+    appearance.settings = { ...appearance.settings, web: { tint: false } }
+    await settle()
+    expect(screen.getByTestId('web-tint').getAttribute('aria-pressed')).toBe('false')
+    expect(api.command).not.toHaveBeenCalled()
+
+    screen.getByTestId('web-tint').click()
+    await view.rerender({ node: layout.tree.root })
+    await settle()
+    expect(api.command).toHaveBeenLastCalledWith('p', { t: 'tint', on: true })
+    expect(screen.getByTestId('web-tint').getAttribute('aria-pressed')).toBe('true')
+    view.unmount()
+  })
+
+  it('offers no tint in a theme that shows sites in their own colours', async () => {
+    appearance.settings = { ...appearance.settings, theme: 'business-dark', web: { tint: true } }
+    mount()
+    await settle()
+    const button = screen.getByTestId('web-tint') as HTMLButtonElement
+    expect(button.disabled).toBe(true)
+    expect(button.getAttribute('aria-pressed')).toBe('false')
+    appearance.settings = { ...appearance.settings, theme: 'tron' }
+    await settle()
+    expect((screen.getByTestId('web-tint') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('takes a fresh picture of a hidden view whose colours changed', async () => {
+    mount()
+    await settle()
+    ui.openSettings()
+    await settle()
+    expect(screen.getByTestId('web-snapshot').getAttribute('src')).toBe(
+      'data:image/jpeg;base64,AAAA',
+    )
+
+    pictures.get('p')?.('data:image/jpeg;base64,BBBB')
+    await settle()
+    expect(screen.getByTestId('web-snapshot').getAttribute('src')).toBe(
+      'data:image/jpeg;base64,BBBB',
+    )
   })
 })

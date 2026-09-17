@@ -489,7 +489,8 @@ function describeUpdate(status: UpdateStatus): string {
               </label>
               <p class="note">
                 The browser, YouTube and X panes. Off shows sites in their own colours, which is
-                easier to read and watch; the Business themes never tint.
+                easier to read and watch; the Business themes never tint. Each pane has the same
+                switch beside its address, and follows this one until it is used.
               </p>
               <div class="row">
                 <span>the web panes share one sign-in for each site</span>

@@ -152,8 +152,13 @@ export const HexColor = z.string().regex(/^#[0-9a-f]{6}$/i)
 
 /** How web pages are drawn, from the theme and settings; applied to every web pane. */
 export const WebAppearanceSchema = z.object({
-  /** The colour pages are tinted in, or null for their own colours. */
-  tint: HexColor.nullable(),
+  /**
+   * The colour pages can be tinted in, or null for a theme that shows sites in their
+   * own colours (Business). A pane that turns its tint on uses this colour.
+   */
+  accent: HexColor.nullable(),
+  /** The setting: whether panes that do not say otherwise are tinted. */
+  tint: z.boolean(),
   /** Asks pages for their dark scheme. */
   dark: z.boolean(),
   /** Shown before a page paints. */
@@ -177,12 +182,18 @@ export function hslToHex(h: number, s: number, l: number): string {
 }
 
 export function webAppearance(theme: Theme, tintSetting: boolean): WebAppearance {
-  const tinted = tintSetting && theme.effects?.iconTint !== false
+  const tintable = theme.effects?.iconTint !== false
   return {
-    tint: tinted ? hslToHex(theme.accent.h, theme.accent.s, theme.accent.l) : null,
+    accent: tintable ? hslToHex(theme.accent.h, theme.accent.s, theme.accent.l) : null,
+    tint: tintSetting,
     dark: theme.mode !== 'light',
     background: theme.surfaces.s0,
   }
+}
+
+/** The colour a pane's pages are drawn in: its own choice, else the setting. */
+export function paneTint(appearance: WebAppearance, pane: boolean | null): string | null {
+  return (pane ?? appearance.tint) ? appearance.accent : null
 }
 
 /** Rec. 709 luma weights: how bright each channel looks. */
@@ -224,6 +235,8 @@ export const WebCommandSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('stop') }),
   z.object({ t: z.literal('home') }),
   z.object({ t: z.literal('external') }),
+  /** This pane's tint: on, off, or null to follow the setting. */
+  z.object({ t: z.literal('tint'), on: z.boolean().nullable() }),
 ])
 export type WebCommand = z.infer<typeof WebCommandSchema>
 

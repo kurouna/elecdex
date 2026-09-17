@@ -291,8 +291,10 @@ weather and calendar.
   files. All web panes share one sign-in per site (sign in to YouTube once), kept apart from the
   rest of the app; *Settings → General → sign out of all sites* deletes it. Google may refuse to
   sign in from an embedded browser; YouTube works without signing in. By default pages are
-  drawn in the theme's colour, like the launcher's icons; *tint pages in the theme's colour*
-  turns that off, and the Business themes never tint. While a dialog, a notice or a dragged pane
+  drawn in the theme's colour, like the launcher's icons. The ◐ button beside the address turns
+  that off and on for one pane as you watch; *Settings → General → tint pages in the theme's
+  colour* is the default for panes that have not used their own button, and the Business themes
+  never tint. While a dialog, a notice or a dragged pane
   is over it, a still picture stands in for the page. App shortcuts work while a page has the
   keyboard; every other key goes to the page. The status bar and the fullscreen window controls
   do not appear while the pointer is over a page (use the shortcuts, or move the pointer to

@@ -298,6 +298,8 @@ export interface WebApi {
   clearData(): Promise<void>
   /** The pane's page changed. Returns an unsubscribe. */
   onState(paneId: string, handler: (state: WebState) => void): () => void
+  /** A new picture of the pane's hidden view (its colours changed under a dialog). */
+  onSnapshot(paneId: string, handler: (image: string) => void): () => void
   /** A shortcut was pressed in a page: the action id, to run as if pressed in the workspace. */
   onShortcut(handler: (action: string) => void): () => void
   /** A page took the keyboard. */

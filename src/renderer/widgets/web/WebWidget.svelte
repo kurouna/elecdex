@@ -2,6 +2,7 @@
 import { presetOfWidget, type WebRect, type WebState } from '@shared/web'
 import { untrack } from 'svelte'
 import { paneDrag } from '../../layout/pane-drag.svelte.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
 import { boot } from '../../stores/boot.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -61,17 +62,42 @@ $effect(() => {
     if (!untrack(() => editing)) address = state.url
   }
   const off = api.onState(id, apply)
+  // A hidden view whose colours changed under a dialog sends its new picture.
+  const offPicture = api.onSnapshot(id, (image) => {
+    if (!showing) snapshot = image
+  })
   void api.open(id, claim, name, savedUrl()).then((state) => {
     if (live && state !== null) apply(state)
   })
   return () => {
     live = false
     off()
+    offPicture()
     // A moved pane mounts again and takes its view back; a closed one is gone.
     if (layout.panes.some((p) => p.id === id)) void api.hide(id, claim, false)
     else api.close(id, claim)
   }
 })
+
+/**
+ * Whether this pane's pages are drawn in the theme's colour: its own choice, kept in
+ * pane state, or the setting until the button is used. A theme that shows launcher
+ * icons in their own colours (Business) never tints, and the button says so.
+ */
+const tintChoice = $derived(typeof paneState?.tint === 'boolean' ? paneState.tint : null)
+const tintable = $derived(appearance.theme.effects?.iconTint !== false)
+const tinted = $derived(tintable && (tintChoice ?? appearance.settings.web.tint))
+
+// Sent as the pane opens and whenever the choice changes; the setting reaches main
+// through the appearance, so following it needs nothing here.
+$effect(() => {
+  const on = tintChoice
+  untrack(() => api.command(paneId, { t: 'tint', on }))
+})
+
+function toggleTint(): void {
+  layout.setPaneState(paneId, { ...untrack(() => paneState), tint: !tinted })
+}
 
 // Where the page is now, for a restart to open it again.
 $effect(() => {
@@ -252,6 +278,21 @@ const where = $derived.by(() => {
           data-testid="web-reload">↻</button
         >
       {/if}
+      <button
+        type="button"
+        class="tint"
+        class:off={!tinted}
+        aria-pressed={tinted}
+        disabled={!tintable}
+        title={tintable
+          ? tinted
+            ? "Showing the page in the theme's colour"
+            : 'Showing the page in its own colours'
+          : 'This theme shows web pages in their own colours'}
+        aria-label="tint the page in the theme's colour"
+        onclick={toggleTint}
+        data-testid="web-tint">◐</button
+      >
       {#if preset.home !== null}
         <button type="button" title="Home" aria-label="home" onclick={() => go({ t: 'home' })} data-testid="web-home">⌂</button>
         <span class="where" title={page?.url ?? ''} data-testid="web-where">{where}</span>
@@ -361,6 +402,17 @@ const where = $derived.by(() => {
 
 .address input:focus {
   border-color: var(--accent);
+}
+
+/* Pressed in: the page is in the theme's colour. */
+.bar button.tint:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.bar button.tint.off:not(:disabled) {
+  color: var(--text-muted);
+  border-color: var(--panel-border);
 }
 
 .where {

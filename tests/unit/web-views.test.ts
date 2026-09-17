@@ -141,6 +141,7 @@ const preset = (id: string): WebPreset => {
 }
 
 const RECT = { x: 10, y: 20, width: 300, height: 200 }
+const look = (accent: string) => ({ accent, tint: true, dark: true, background: '#010203' })
 let owner: FakeContents
 let win: FakeWindow
 let views: InstanceType<typeof WebViews>
@@ -326,14 +327,14 @@ describe('WebViews', () => {
   it('tints each document in the theme, and takes the tint out again', async () => {
     views.open(asOwner(owner), 'p', 'a', preset('x'), null)
     const contents = view().webContents
-    views.setAppearance({ tint: '#00ffff', dark: true, background: '#010203' })
+    views.setAppearance(look('#00ffff'))
     await flush()
     expect(hoisted.theme.themeSource).toBe('dark')
     expect(view().background).toBe('#010203')
     expect([...contents.css.values()]).toEqual([expect.stringContaining('feColorMatrix')])
 
     // The same tint twice changes nothing; a new document gets it again.
-    views.setAppearance({ tint: '#00ffff', dark: true, background: '#010203' })
+    views.setAppearance(look('#00ffff'))
     await flush()
     expect(contents.insertCSS).toHaveBeenCalledTimes(1)
     contents.css.clear()
@@ -342,8 +343,8 @@ describe('WebViews', () => {
     expect(contents.css.size).toBe(1)
 
     // Quick changes run in order and leave one tint, the last.
-    views.setAppearance({ tint: '#ff0000', dark: true, background: '#000000' })
-    views.setAppearance({ tint: '#00ff00', dark: true, background: '#000000' })
+    views.setAppearance(look('#ff0000'))
+    views.setAppearance(look('#00ff00'))
     await flush()
     await flush()
     expect(contents.css.size).toBe(1)
@@ -359,7 +360,7 @@ describe('WebViews', () => {
           }
         }),
     )
-    views.setAppearance({ tint: '#0000ff', dark: true, background: '#000000' })
+    views.setAppearance(look('#0000ff'))
     await flush()
     contents.emit('dom-ready')
     // The old document's CSS went with it.
@@ -369,10 +370,66 @@ describe('WebViews', () => {
     await flush()
     expect([...contents.css.values()]).toEqual([expect.stringContaining('feColorMatrix')])
 
-    views.setAppearance({ tint: null, dark: false, background: '#ffffff' })
+    views.setAppearance({ accent: null, tint: true, dark: false, background: '#ffffff' })
     await flush()
     expect(contents.css.size).toBe(0)
     expect(hoisted.theme.themeSource).toBe('light')
+  })
+
+  it('lets a pane answer the tint for itself, and go back to following the setting', async () => {
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    views.open(asOwner(owner), 'q', 'b', preset('youtube'), null)
+    const [one, two] = win.children.map((v) => v.webContents)
+    views.setAppearance(look('#00ffff'))
+    await flush()
+    expect([one?.css.size, two?.css.size]).toEqual([1, 1])
+
+    // One pane off: the other keeps its colour.
+    views.command(asOwner(owner), 'p', { t: 'tint', on: false })
+    await flush()
+    expect([one?.css.size, two?.css.size]).toEqual([0, 1])
+
+    // The setting goes off: the pane that said "on" keeps it.
+    views.command(asOwner(owner), 'q', { t: 'tint', on: true })
+    views.setAppearance({ accent: '#00ffff', tint: false, dark: true, background: '#010203' })
+    await flush()
+    await flush()
+    expect([one?.css.size, two?.css.size]).toEqual([0, 1])
+
+    // Following the setting again: off like it.
+    views.command(asOwner(owner), 'q', { t: 'tint', on: null })
+    await flush()
+    expect(two?.css.size).toBe(0)
+  })
+
+  it('sends a fresh picture when a hidden view changes colour under a dialog', async () => {
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    views.show(asOwner(owner), 'p', 'a', RECT)
+    const contents = view().webContents
+    // A dialog: the pane holds a picture of the view.
+    await views.hide(asOwner(owner), 'p', 'a', true)
+    owner.sent.length = 0
+
+    contents.capturePage.mockResolvedValueOnce({
+      isEmpty: () => false,
+      toJPEG: () => Buffer.from('tinted'),
+    })
+    views.setAppearance(look('#00ffff'))
+    await flush()
+    await flush()
+    const picture = owner.sent.find(([channel]) => channel === 'web:snapshot')
+    expect(picture?.[1]).toEqual({
+      paneId: 'p',
+      image: `data:image/jpeg;base64,${Buffer.from('tinted').toString('base64')}`,
+    })
+
+    // Nothing to refresh while the view is on screen: the pane sees it itself.
+    views.show(asOwner(owner), 'p', 'a', RECT)
+    owner.sent.length = 0
+    views.setAppearance(look('#ff00ff'))
+    await flush()
+    await flush()
+    expect(owner.sent.filter(([channel]) => channel === 'web:snapshot')).toEqual([])
   })
 
   it('takes app shortcuts from the page and leaves every other key to it', () => {

@@ -165,6 +165,8 @@ export const CH = {
     state: 'web:state',
     /** main -> renderer: a shortcut pressed in a page (its action id). */
     shortcut: 'web:shortcut',
+    /** main -> renderer: a fresh picture of a hidden view, which has changed under its pane. */
+    snapshot: 'web:snapshot',
     /** main -> renderer: a page took the keyboard (its pane id). */
     focused: 'web:focused',
   },
