@@ -411,6 +411,50 @@ test.describe('markets', () => {
     }
   })
 
+  test('in a wide pane the charts start near the names, and candle rows are twice as tall', async () => {
+    const { page, close } = await launch(undefined, {
+      layout: single('markets', { symbols: [{ symbol: '^N225' }, { symbol: 'JPY=X' }] }),
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      const markets = page.getByTestId('markets')
+      const measure = () =>
+        page
+          .getByTestId('market-row')
+          .first()
+          .evaluate((row) => {
+            const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+            const chart = row.querySelector('.chart') as Element
+            return {
+              rowWidth: row.getBoundingClientRect().width / rem,
+              nameToChart:
+                (chart.getBoundingClientRect().left - row.getBoundingClientRect().left) / rem,
+              height: row.getBoundingClientRect().height,
+            }
+          })
+      await expect(page.getByTestId('market-price').first()).toHaveText('1,000', {
+        timeout: 20_000,
+      })
+      const line = await measure()
+      // A wide pane: 28% of it would be far more than the names need.
+      expect(line.rowWidth * 0.28).toBeGreaterThan(12)
+      // The name column (at most 9rem), the padding and the gap.
+      expect(line.nameToChart).toBeLessThan(10.5)
+
+      await page.getByTestId('markets-view').locator('[data-view=candles]').click()
+      await expect(markets).toHaveAttribute('data-view', 'candles')
+      const candles = await measure()
+      expect(candles.nameToChart).toBeCloseTo(line.nameToChart, 1)
+      expect(candles.height / line.height).toBeCloseTo(2, 1)
+
+      // Back to lines, the rows are as they were.
+      await page.getByTestId('markets-view').locator('[data-view=line]').click()
+      expect((await measure()).height).toBeCloseTo(line.height, 0)
+    } finally {
+      await close()
+    }
+  })
+
   test('a watchlist longer than the pane scrolls in both views instead of covering the credit', async () => {
     // The default layout's markets pane is short and its watchlist has eight symbols.
     const { page, close } = await launch()

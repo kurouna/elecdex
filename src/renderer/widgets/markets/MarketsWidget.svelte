@@ -247,7 +247,7 @@ const signed = (percent: number): string =>
   {/if}
 
   {#if view !== 'bars'}
-    <ul class="board">
+    <ul class="board" class:tall={view === 'candles'}>
       {#each rows as row (row.symbol)}
         {@const q = row.update?.quote}
         <li
@@ -463,16 +463,24 @@ const signed = (percent: number): string =>
 
 /* ---- line view ---- */
 
+/* The name column stops at 9rem: in a wide pane a share of the width only put
+   empty space between the names and the charts. */
 .row {
   flex: 1 0 2.4rem;
   max-height: 4rem;
   display: grid;
-  grid-template-columns: minmax(5.5rem, 28%) 1fr minmax(6.5rem, auto);
+  grid-template-columns: minmax(5.5rem, min(28%, 9rem)) 1fr minmax(6.5rem, auto);
   align-items: center;
   gap: var(--space-2);
   padding: 0.15rem var(--space-1);
   border-bottom: 1px solid var(--panel-rule);
   transition: background 700ms var(--ease-out);
+}
+
+/* Candles need height to show their bodies and wicks: twice a line row. */
+.board.tall .row {
+  flex-basis: 4.8rem;
+  max-height: 8rem;
 }
 
 .row.flash-up {
