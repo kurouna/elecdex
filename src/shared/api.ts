@@ -13,6 +13,7 @@ import type { Theme, ThemeProblem } from './theme.js'
 import type { UpdateStatus } from './updates.js'
 import type { OfficeInfo } from './weather.js'
 import type { WeatherUpdate } from './weather-report.js'
+import type { WebAppearance, WebCommand, WebRect, WebState } from './web.js'
 
 /**
  * The single source of truth for the renderer <-> main boundary.
@@ -265,6 +266,38 @@ export interface LauncherApi {
   onChange(handler: () => void): () => void
 }
 
+/** Web panes (docs/architecture.md section 5.4): a view main owns, per pane id. */
+export interface WebApi {
+  /**
+   * Creates the pane's view, or takes over the one it already has (a moved pane, a
+   * reloaded page). `claim` is this mount's own token: show, hide and close with an
+   * older one are ignored. `widget` names the preset; `url` is where the pane was
+   * last, used when there is no view yet and the preset allows it.
+   */
+  open(paneId: string, claim: string, widget: string, url: string | null): Promise<WebState | null>
+  /** Shows the view over a rectangle of the window, in CSS pixels. */
+  show(paneId: string, claim: string, rect: WebRect): void
+  /** Hides the view; with `snapshot`, resolves with a picture of it (a data: URL). */
+  hide(paneId: string, claim: string, snapshot: boolean): Promise<string | null>
+  command(paneId: string, command: WebCommand): void
+  /** Destroys the view: its pane has been closed. A null claim closes it whoever holds it. */
+  close(paneId: string, claim: string | null): void
+  /** Pane ids that have a view. */
+  list(): Promise<string[]>
+  setAppearance(appearance: WebAppearance): void
+  focus(paneId: string): void
+  /** Takes the keyboard back from a page, for the workspace element that has focus. */
+  focusWorkspace(): void
+  /** Signs out of every site: deletes the web panes' cookies, storage and cache. */
+  clearData(): Promise<void>
+  /** The pane's page changed. Returns an unsubscribe. */
+  onState(paneId: string, handler: (state: WebState) => void): () => void
+  /** A shortcut was pressed in a page: the action id, to run as if pressed in the workspace. */
+  onShortcut(handler: (action: string) => void): () => void
+  /** A page took the keyboard. */
+  onFocused(handler: (paneId: string) => void): () => void
+}
+
 export interface ThemeCatalog {
   themes: Theme[]
   /** Theme files that could not be used, and why. */
@@ -383,6 +416,7 @@ export interface ElecdexApi {
   updates: UpdatesApi
   audio: AudioApi
   plugins: PluginsApi
+  web: WebApi
 }
 
 declare global {

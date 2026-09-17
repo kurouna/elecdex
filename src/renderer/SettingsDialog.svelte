@@ -59,6 +59,8 @@ let returnFocus: HTMLElement | null = null
 let recording = $state<KeybindingAction | null>(null)
 let refusal = $state<string | null>(null)
 let checking = $state(false)
+/** The web panes' data was deleted while the dialog was open. */
+let webCleared = $state(false)
 
 const settings = $derived(appearance.settings)
 const bindings = $derived(effectiveBindings(settings.keybindings, platform))
@@ -435,6 +437,36 @@ function describeUpdate(status: UpdateStatus): string {
                 {settings.launcher.items.length} entries of your own. Add them under
                 <code>launcher.items</code> in settings.json.
               </p>
+            </section>
+
+            <section>
+              <h3>web panes</h3>
+              <label class="row">
+                <span>tint pages in the theme's colour</span>
+                <input
+                  type="checkbox"
+                  checked={settings.web.tint}
+                  onchange={(e) => patch({ web: { tint: e.currentTarget.checked } })}
+                  data-testid="settings-web-tint"
+                />
+              </label>
+              <p class="note">
+                The browser, YouTube and X panes. Off shows sites in their own colours, which is
+                easier to read and watch; the Business themes never tint.
+              </p>
+              <div class="row">
+                <span>the web panes share one sign-in for each site</span>
+                <ConfirmButton
+                  label="sign out of all sites"
+                  action="sign out"
+                  title="Delete the web panes' cookies, storage and cache"
+                  testid="settings-web-clear"
+                  onconfirm={() => void window.elecdex.web.clearData().then(() => (webCleared = true))}
+                />
+              </div>
+              {#if webCleared}
+                <p class="note" data-testid="settings-web-cleared">Signed out. Reload a pane to see it.</p>
+              {/if}
             </section>
           {:else if section === 'window'}
             {@const toggleChord = bindings['window.toggle']}

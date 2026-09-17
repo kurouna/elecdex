@@ -165,6 +165,7 @@ describe('settings', () => {
         startInBackground: false,
       },
       updates: { check: true },
+      web: { tint: true },
       quakes: {
         source: 'auto',
         notify: false,

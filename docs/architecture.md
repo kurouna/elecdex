@@ -290,6 +290,80 @@ export const widgets = defineWidgets([
 - ペインを閉じてもセッションは（設定次第で）生き残せる → 誤操作からの復帰、ペインの移動、タブの付け替えが可能
 - ウィンドウ再読み込み（開発時のHMR含む）でもセッションは維持され、`attach` で再結線する
 
+### 5.4 Web ペイン（ブラウザ / YouTube / X）
+
+Web ページをペインに表示する。**汎用の Web ウィジェット 1 つ + プリセット**の構成で、YouTube や X は専用ウィジェットではなくプリセット（データ）として足す。
+
+**方式**: main が所有する `WebContentsView` をペインの矩形に重ねる。
+- `<iframe>` は使わない。X も YouTube も `X-Frame-Options` / `frame-ancestors` で埋め込みを拒否し（YouTube は embed のみ例外）、workspace の CSP（`connect-src 'self'`）を緩めることにもなるため
+- `<webview>` タグも使わない。Electron 自身が推奨しておらず、sandbox 化した workspace の renderer で `webviewTag` を有効にする必要があるため
+- `WebContentsView` は workspace とは別の webContents なので、workspace の CSP・sandbox・権限はそのまま。renderer はペインの表示矩形を送るだけで、ネットワークに触れない
+
+**プリセット**（`src/shared/web.ts` の `WEB_PRESETS`）: 1 件が 1 つのウィジェット `web.<id>` としてレジストリに登録され、ピッカーに並ぶ。プリセットを増やすときは、この配列に 1 件足すだけでよい（renderer・main・テストはこの配列から組み立てる）。
+
+| フィールド | 意味 |
+|---|---|
+| `id` / `title` / `description` | ウィジェット id（`web.<id>`）、ペインのタイトル、ピッカーの説明 |
+| `home` | 最初に開く URL。`null` は汎用ブラウザ（アドレスバーを出し、空のページから始める） |
+| `hosts` | ペイン内で開くホスト（サブドメインを含む）。`null` は http/https ならどこでも。それ以外へのトップレベル遷移・リダイレクト・新しいウィンドウは既定のブラウザで開く。ログインの経路（accounts.google.com など）もここに含める |
+
+初期のプリセットは `browser`（汎用）・`youtube`・`x` の 3 つ。ウィジェット id は `web.browser` / `web.youtube` / `web.x`。どれも複数置ける。
+
+**セッション**: すべての Web ペインで 1 つの永続パーティション `persist:web` を共有する。YouTube プリセットでログインすれば、汎用ブラウザで開いた youtube.com もログイン済みになる。
+- 守るべき境界は「workspace ⇔ Web ペイン」であり、ここは分けたまま。Web ペインどうしの分離は Chromium の Cookie のドメイン分離とサイト分離に任せる
+- 代わりに、同じサイトの複数アカウントを並べては使えない（必要になれば「ペインごとの別セッション」を後から足す）
+- 設定に「Web ペインのサイトデータを削除」（ログアウト）を置く
+
+**ページに与えるもの**（パーティションの準備は 1 回だけ）:
+- preload なし。`sandbox` / `contextIsolation` 有効、`nodeIntegration` 無効、スペルチェック無効（辞書のダウンロードを起こさないため）
+- 権限は `clipboard-sanitized-write`（リンクのコピー）と `fullscreen` だけ許可し、ほかは拒否する（位置情報・カメラ・マイク・通知など）
+- ページが全画面を要求したとき（動画の全画面ボタン）、Electron はウィンドウを全画面にし、終われば元に戻す（アプリがもともと全画面なら全画面のまま。実測）。ページの描画はビューの大きさのままなので、その間 main はビューをウィンドウ全体に広げて最前面に置き、ウィンドウのリサイズにも合わせる。終わればペインの矩形に戻す。その間に届いたペインの矩形は覚えておき、戻すときに使う
+- ダウンロードはすべて取り消す
+- User-Agent から `Electron/…` と `elecdex/…` を除く（ログインページが組み込みブラウザを拒否するため。プラグインのサインインと同じ関数）
+- 遷移は http/https（と `about:blank`）だけ。`file:` / `javascript:` / `chrome:` などは拒否する。汎用ブラウザのアドレスバーの入力も main が同じ規則で検証する
+- 新しいウィンドウ: `hosts` 外は既定のブラウザで開く。`hosts` 内のリンク（`target=_blank`）は同じペインで開く。`hosts` 内の `window.open`（機能指定つき＝ログイン用のポップアップ）だけは、同じパーティションの子ウィンドウとして開く。子ウィンドウは helper として `appWindows()` から外す
+- 右クリックメニュー: 戻る・進む・再読み込み、切り取り・貼り付け（入力欄のみ）・コピー・すべて選択、リンクのコピー、リンクを既定のブラウザで開く
+
+**寿命**: ビューは main がペイン id ごとに保持する（シェルのセッションと同じ考え方）。
+- ペインの移動・タブの付け替えで再マウントしても再読み込みしない
+- コンポーネントはマウントごとにトークン（クレーム）を作り、open / show / hide / close に付ける。main は最後に open したクレーム以外からの show / hide / close を無視する。移動中は新しいコンポーネントが古い方のアンマウントより先にマウントされることがあり、古い方の最後の hide が新しい方の表示を消さないようにするため
+- 開く処理はマウントにつき 1 回（props を追跡しない）。URL をペイン状態に保存するとペインのノードが新しくなり、props を読んだエフェクトは再実行されて、表示済みのビューを隠してしまうため（コンポーネントテストで固定）
+- ペインを閉じたら（アンマウント時にツリーにない）すぐ破棄する。workspace の孤児回収（シェルと同じタイマー）が、レイアウトにないペインのビューも破棄する
+- workspace のページが再読み込みされたらビューを隠し、新しいページが同じペイン id で開き直す。ウィンドウが閉じたら破棄する
+- 最後に開いた URL はペイン状態（`state.url`）に保存し、再起動後に復元する。復元時も main が `hosts` で検証し、外れていれば `home` を開く
+
+**表示と重なり**: `WebContentsView` は DOM より手前に描かれるネイティブ層なので、DOM の要素をその上に重ねられない。
+- 次のときはビューを隠す: 背面タブ（矩形が 0）、ダイアログ（ピッカー・設定・場所選び）、ペインのドラッグ中、起動演出の間、ペインの電源オン／オフ／伸長の CRT 演出の間、DOM のオーバーレイ（地震・津波の通知、更新の通知など、`coverWeb` で登録した要素）と矩形が重なる間
+- 背面タブ以外で隠すときは、main がビューの `capturePage`（ウィンドウの capturePage には子ビューが写らない）を撮って JPEG の data URL で返し、renderer が同じ位置に表示する。ダイアログの下や CRT 演出の中でも、ページが消えずに見える
+- 隠したビュー（`setVisible(false)`）でもページは `visibilityState: 'visible'` のまま（Electron 44 で実測）。そのおかげで背面タブの YouTube は鳴り続けるが、描画や動画のデコードも続く。長く置いた背面タブの負荷が残るのは既知の制約で、e2e がこの挙動を固定している（変われば音が止まるため）
+- ステータスバーと全画面時の右上のウィンドウ操作はポインター位置で出るが、ポインターが Web ペインの上にある間はページにイベントが届くため出ない（既知の制約。ショートカットか、別のペインの上で使う）
+- renderer はペイン本体の矩形を ResizeObserver・レイアウトの木の変更・ウィンドウのリサイズ・表示や CRT 演出の変化のたびに測り直し、変わったときだけ main に送る。常時のポーリングはしない
+- `coverWeb` で登録した要素は、リサイズと `transitionend` / `animationend` のたびに測り直す。スライドインするステータスバーは止まった位置で判定される
+
+**テーマのフィルタ**: ランチャーのアイコンと同じく、ページをテーマのアクセント色の単色で描く。
+- `insertCSS` でページの `html` に SVG の `feColorMatrix`（data URL）を `filter` として入れる。行列は「輝度 × アクセント色」で、白がアクセント色、黒が黒になる。ナビゲーションのたびに（`dom-ready`）入れ直し、テーマが変わったら差し替える
+- テーマの `effects.iconTint` が false のテーマ（Business の 2 つ）では入れない。設定 `web.tint`（既定 on）で全 Web ペインのフィルタを切れる
+- 負荷（実測、i5-1335U）: ペイン全面を 60 fps で描き換えるページで、フィルタあり GPU 10.6% + レンダラー 5.6%、なし 11.5% + 6.3%（1 コア比、8 秒平均）。差は測定のばらつきの範囲で、フィルタはコンポジタで処理される
+- テーマの変更はビューごとに直列に処理する（insertCSS / removeInsertedCSS は非同期のため、続けて変えても最後の 1 つだけが残る）
+- ページには `prefers-color-scheme` をテーマの `mode` で伝える（`nativeTheme.themeSource`）。SF テーマではダークになり、フィルタ後は「暗い地にアクセント色の文字」になる。Business (Light) ではライト
+- ビューの背景色はテーマの `surfaces.s0`。読み込み前やフィルタを入れる前の一瞬の白を抑える
+
+**ショートカット**: ビューにフォーカスがあるとキー入力は workspace に届かない。
+- main がビューの `before-input-event` で、keybindings.ts の実効キーマップ（settings の上書きを含む）に一致するキーだけを取り、アクション id を renderer に送る。Workspace は自分の keydown と同じ処理でそれを実行する
+- それ以外のキーはページに渡す（コードは必ず Ctrl/Alt かファンクションキーを含むので、文字入力は奪わない）
+- ページ内でマウスを押したとき（`input-event` の mouseDown / touchStart）と `focus` イベントで、main が renderer に伝え、そのペインにフォーカスを移す。WebContentsView は `focus` を出さないことがある（Windows、Electron 44 で確認）
+- 転送したアクションの後、フォーカスが Web ペインにない（またはダイアログが開いた）ときは、renderer が `focusWorkspace` で main に workspace の webContents へキーボードを戻させる。アクションが DOM 上で移したフォーカス（シェルなど）が、そのまま効く
+- 逆向き: ショートカットでフォーカスが Web ペインに移ったときだけ、ウィジェットがページにキーボードを渡す。ウィンドウ内のどこかを押した直後（500 ms）は渡さない。押したのがタイトルならドラッグ、アドレスバーなら入力が始まるため
+
+**テスト**: 外部には接続しない。`ELECDEX_WEB_HOMES`（`youtube=http://127.0.0.1:port/yt/,x=…`）でプリセットの `home` を差し替えると、そのプリセットの `hosts` は差し替え先のホストだけになる。tests/e2e/support.ts は既定で全プリセットを閉じたポートに向ける。
+- 単体: プリセットと遷移の判定（shared/web.ts）、main の `WebViews`（偽の Electron で、クレーム・遷移ポリシー・ポップアップ・フィルタ・ショートカット・破棄）
+- コンポーネント: 表示・非表示・スナップショット・再マウント・フォーカス。IPC のモックは引数を structuredClone し、`$state` の Proxy をそのまま送る不具合を検出する
+- e2e: 実際のビューの位置と表示、ダイアログ・背面タブ・リロード・再起動・移動、遷移の制限、権限、フィルタ、ショートカット、アドレスバー、サインアウト
+- e2e の注意 1: Playwright は操作するすべてのページに `prefers-color-scheme: light` をエミュレートするため、ページに伝わる配色は main の `nativeTheme.themeSource` で確認する
+- e2e の注意 2: ドラッグ中にビューを隠すと Chromium が合成のマウス移動を出し、そのボタン状態は OS のもの。Playwright（CDP）で押したボタンをブラウザ側は知らないため「離された」と扱われ、ドラッグが終わる（実際のマウスでは起きない）。ドラッグ中に隠すことはコンポーネントテストで確認し、e2e の移動は Web ペインを背面タブにしたまま行う
+
+**後続（保留）**: Teams などの音声・ビデオ会議はこの土台に載せられるが、カメラ・マイク・画面共有の権限、通話中の非表示の扱い、組織の条件付きアクセスの確認が要る。ユーザーの指示まで着手しない（2026-09-17）。
+
 ---
 
 ## 6. ターミナル設計
@@ -443,6 +517,7 @@ elecdex/
 │  │  ├─ window.ts
 │  │  ├─ ipc/              # ハンドラ（全て zod 検証）
 │  │  ├─ plugins/          # 走査と変換・代行 fetch・保存・サインイン窓（docs/plugins.md）
+│  │  ├─ web/              # Web ペインのビュー（views.ts）と共有セッション（partition.ts）（§5.4）
 │  │  ├─ pty/              # PtyManager, OscParser, shell-resolve, env
 │  │  ├─ metrics/          # MetricsBroker, sources/
 │  │  ├─ settings/
@@ -462,7 +537,8 @@ elecdex/
 │     ├─ widgets/
 │     │  ├─ registry.ts
 │     │  ├─ terminal/ clock/ sysinfo/ cpu/ memory/ toplist/
-│     │  └─ netstat/ throughput/ globe/ filesystem/
+│     │  ├─ netstat/ throughput/ globe/ filesystem/
+│     │  └─ web/           # WebWidget（全プリセット共通、§5.4）
 │     ├─ lib/              # StreamChart, SfxPlayer, theme-apply, ansi-palette
 │     ├─ stores/           # settings, layout, sessions, metrics, theme (runes)
 │     ├─ styles/           # reset.css, tokens.css, frames.css
@@ -490,6 +566,7 @@ elecdex/
 | 入力検証 | renderer 由来の全入力を main 側で zod 検証。パスは `path.resolve` 正規化 + allowlist |
 | ナビゲーション | `will-navigate` / `setWindowOpenHandler` で外部遷移を拒否し、`shell.openExternal` に委譲 |
 | 外部通信 | 更新チェック（GitHub API）、GeoIP DB 更新、気象庁の天気予報、Yahoo Finance の相場のみ。相場は markets ペインがある間だけ（1分に1回の一括リクエスト、全市場クローズ中は5分に1回。チャートは期間に応じて5分〜1時間に1回）。更新チェックと GeoIP は**設定で無効化可能**、GeoIP は初回同意制。天気予報は天気ペインがある間だけ、発表時刻の前後に条件付きリクエストで取得（ペインを置かなければ通信しない）。通信は main が行い、renderer の CSP は `connect-src 'self'` のまま |
+| Web ペイン | workspace とは別の `WebContentsView`（パーティション `persist:web`、preload なし、sandbox）。権限はクリップボード書き込みとフルスクリーンのみ、ダウンロードは取り消し、遷移は http/https のみでプリセットの `hosts` 外は既定のブラウザへ（§5.4）。workspace の CSP は変えない |
 | XSS | `innerHTML` 使用禁止（Biome ルールで機械的に禁止）。原版の `_escapeHtml` / `_purifyCSS` 自作ヘルパは不要になる |
 
 ---
@@ -660,6 +737,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | Linux のモニター音量と接続の状態コード（v0.0.5 以降） | **スペアナ**: Lubuntu 26.04（PipeWire 1.6.2 の pulse サーバー）で、再生中も「NO SOUND」のままだった。既定の入力が出力のモニターになっており、そのモニターの音量が 8%（-66.33 dB）に下がっていたため、16 ビットで録った音楽が 0 と -1 に丸められていた（ミキサーは出力とアプリの音量なので 8% は見えない）。parec を `float32le` で録り、`pactl get-source-volume/get-source-mute @DEFAULT_MONITOR@` を 2 秒ごとに読んで、音量（Pulse の音量は 3 乗: 振幅 = (値/65536)^3）の逆数を掛ける（上限 100 dB、読めなければ 1 倍）。値を決め打ちせず毎回読むので、どの音量でも、途中で変えても追従する。ミュートと 0% は戻せないので `muted` 状態を送ってフレームを止め、ペインは理由と「unmute monitor」ボタンを出す。ボタンを押したときだけ main が `set-source-mute 0` と `set-source-volume 100%` を実行する（スペアナ購読中のページからのみ、Linux の実キャプチャ時のみ）。システム設定を黙って変えないため、補正を先にし、ボタンは補正できない場合だけにした。<br>**接続**: `/proc/net/tcp*` の状態列はカーネルの `tcp_states` 列挙（ESTABLISHED = 1、LISTEN = 10）で、パーサーは `03`（SYN_RECV）を確立済みとして読んでいたため、Linux の地球儀に接続が出なかった。`01` に修正。 |
 | Windows のパッケージアプリと表示名（v0.0.5 以降） | ランチャーは Start Menu フォルダーの走査に加えて、シェルのアプリケーション フォルダー（`shell:AppsFolder`）からパッケージアプリ（AUMID が `パッケージファミリー名!アプリ ID` の形のもの）を一覧に加える。同じ PowerShell 1回で、各ショートカットと最上位フォルダーのシェル上の表示名（desktop.ini の LocalizedResourceName）も取り、名前とグループに使う（main/launcher/windows-apps.ts）。起動は `%SystemRoot%\explorer.exe shell:AppsFolder\<AUMID>` で、AUMID は main のカタログの値を正規表現で再確認したものだけ。アイコンはパスを `SHParseDisplayName` で PIDL にしてから `SHGetFileInfo(SHGFI_PIDL)` に渡す。ショートカットの id は従来どおりファイルのハッシュなので起動回数は引き継がれる。PowerShell が失敗したときはファイル名だけの従来の一覧に戻る | 新しい Teams・Outlook・ターミナル・電卓や Edge からインストールした Word/Excel などは MSIX で、どちらの Start Menu フォルダーにも .lnk がなく一覧に出なかった（この環境で Start Menu 122 件に対しショートカット 83 件、欠けていた 41 件はすべてパッケージアプリ）。ショートカット由来の項目はすでに一覧にあり、アプリケーション フォルダーからはリンク元の .lnk を引けないため、足すのはパッケージアプリだけにした。「Command Prompt」などは英語のファイル名で出ていた。PIDL 経由のアイコンは既存 83 件すべてで従来と同じ PNG だった。走査は PowerShell 込みで約 1.3 秒（従来はフォルダー走査のみ）。そのため一覧は stale-while-revalidate にした（main/launcher/system-cache.ts）: 待つのは初回の走査だけで、60 秒を過ぎた要求には手元の一覧をすぐ返して裏で再走査し、同時の要求は1回の走査を共有する。再走査で id・名前・グループが変わったときだけ `launcher:changed` を送り、ペインは表示中のタイルを残したまま一覧を取り直す。以前は期限切れ後の要求が再走査を待ったため、そのとき開いた・移動したペインは約 1.3 秒空の「scanning…」になり、起動後の並べ替えも遅れていた |
 | バックグラウンド常駐（v0.0.5 以降、Windows のみ） | 設定に window セクションを追加。`window.minimizeToTray`（最小化で通知領域へ）・`window.closeToTray`（閉じても通知領域で実行を続ける）・`window.globalShortcut`（どのアプリからでも表示/隠す）・`window.startInBackground`（サインイン時に隠して起動）で、**すべて既定 off**。ログイン時の自動起動は settings.json に持たず、HKCU の Run キー（値名 `dev.kurouna.elecdex`）を毎回読む。タスクマネージャーで無効にされたら、その旨を表示する。アプリ側でオンにすると `enabled: true` で書き戻す。「start in the background」を切り替えたときだけ既存エントリーを引数付きで書き直し（`sync`）、OS 側の無効は保つ。起動時の比較・書き直しはしない: Electron 44 の `launchItems` は問い合わせたパスのエントリーしか返さず、`args` はレジストリに `--hidden` があっても常に空で返る（実機で確認）ため、比較すると毎回の起動で書き込むことになる。インストール先を移した場合は古いエントリーが見えず「オフ」と表示されるが、オンにし直せば同じ値名で上書きされ、アンインストールでも消える。オフにすると `enabled` の値によらず Run と StartupApproved の両方が消えることも確認した。トレイアイコンは格納系の設定が on のとき、またはウィンドウが隠れているときだけ出す。左クリック/ダブルクリックは「開く」だけで、表示中でも隠さない。メニューは Open / Settings / Quit で、Quit は確認なしで終了する。閉じる・最小化での格納は `quitting` フラグ（before-quit、Windows の session-end）で本当の終了と区別し、明示的な終了（Ctrl+Shift+Q、Quit ボタン、トレイ）は常に終了する。初回の格納時だけ「^ の中にある」と通知する（`background.json`）。ショートカットは keybindings の `window.toggle`（`scope: 'global'`、既定 Ctrl+Alt+Shift+E、win32 のみ）で、main が globalShortcut に登録し、ページの keymap からは外す。Accelerator は文字で解釈されるので、英字・数字・F キー・名前付きキーだけを許す（JIS の半角/全角＝Backquote や記号は不可）。登録に失敗したら（他アプリが使用中なら `register` が false を返すことを実機で確認）、UI がスイッチを off に戻して理由を表示する。動作は、前面なら隠す（格納設定がなければ最小化）、それ以外なら前面へ。`--hidden` での起動は表示せずイントロも省く。二重起動は前面化するが、`--hidden` 付きの二重起動は無視する。アンインストール時は build/installer.nsh で Run キーと StartupApproved の値を削除する（`${isUpdated}` のときは削除しない）。隠れている間・最小化中は main が `WindowState.hidden` を送り、frame-loop が描画を止める | Outlook / Teams / Slack / Discord の慣例と比べて決めた（ユーザー指示 2026-09-18: ショートカット既定なし＝オプトインでキーを横に表示、格納の2項目は別、全画面コーナーの「隠す」は不要、macOS/Linux は未検証なので項目を出さない、バックグラウンド起動は既定 off）。トレイを出す／出さないの独立した項目は置かない（Teams 等にはなく、隠れたウィンドウに戻れなくなるだけ）。Windows 11 は新しいアイコンを ^ の中にしまうので初回だけ案内する。`backgroundThrottling: false` のページでは、隠しても最小化しても `document.hidden` が false のまま（`setBackgroundThrottling(true)` を後から切り替えても変わらないことを Playwright 下で確認）なので、main から明示的に伝える。**実測**（既定レイアウト、1920×1080、この開発機）: 表示中 約19〜24%／格納中 約6%（1コア比）。描画を止めないと格納中も約26%のままだった（tests/e2e/metrics.spec.ts で比率を検査）。e2e は `ELECDEX_BACKGROUND_STUB=1` でトレイ・登録・Run キーをメモリ上のスタブにし、実機のタスクバー・キー・サインインには触れない。実物のトレイとショートカット（SendKeys による隠す／前面化、WM_CLOSE での格納）は手元の Windows で確認した |
+| Web ペイン（v0.0.5 以降） | 汎用の Web ウィジェット 1 つとプリセット（`WEB_PRESETS`: browser / youtube / x、ウィジェット id は `web.<id>`）。main が所有する `WebContentsView` をペイン本体の矩形に重ね、全 Web ペインで永続パーティション `persist:web` を共有する。プリセットは home と、ペイン内で開くホストの一覧だけを持ち、それ以外は既定のブラウザで開く。ページは preload なし・sandbox・権限はクリップボード書き込みとフルスクリーンのみ・ダウンロード不可・http(s) のみ。テーマのフィルタは insertCSS の SVG feColorMatrix（輝度 × アクセント色）で、`effects.iconTint` が false のテーマと設定 `web.tint` が off のときは入れない。ダイアログ・通知・ドラッグ・CRT 演出の間はビューを隠し、ビューの capturePage を代わりに表示する。ページ内のショートカットは main の `before-input-event` で取って renderer で実行する。詳細は §5.4 | `<iframe>` は YouTube と X が埋め込みを拒否し、workspace の CSP を緩めることになる。`<webview>` は非推奨。サイトごとのウィジェットにすると、ビュー管理・フィルタ・権限・ショートカットを重複して持つことになる。セッションを分けると、同じサイトにペインごとにログインし直すことになる（ユーザー判断 2026-09-17: 共有する）。守る境界は workspace ⇔ Web ペインで、ここは分けたまま。フィルタの負荷は実測で誤差の範囲（§5.4）。Teams などの会議は保留（ユーザー判断） |
 
 ## 17. 既知の問題
 

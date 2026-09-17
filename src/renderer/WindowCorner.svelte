@@ -3,6 +3,7 @@ import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/k
 import ConfirmButton from './ConfirmButton.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
 import { appearance } from './stores/appearance.svelte.ts'
+import { coverWeb } from './stores/web.svelte.ts'
 import { windowState } from './stores/window-state.svelte.ts'
 
 /**
@@ -62,6 +63,7 @@ $effect(() => {
     onfocusout={() => reveal.hideSoon()}
     data-testid="window-corner"
     data-shown={reveal.shown}
+    {@attach coverWeb(() => reveal.shown)}
   >
     <button
       type="button"

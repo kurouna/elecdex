@@ -38,7 +38,7 @@ Electron flags go after a second `--`: `npm run dev -- -- --windowed`.
 ## Layout of the code
 
 ```
-src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/, audio/, plugins/
+src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/, audio/, plugins/, web/
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas, channel names and pure logic used by both sides
@@ -73,7 +73,8 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   the tab is shown. List a new charted source there.
 - **Tests never contact external services.** `tests/e2e/support.ts` points
   `ELECDEX_JMA_BASE_URL`, `ELECDEX_MET_BASE_URL`, `ELECDEX_NWS_BASE_URL`,
-  `ELECDEX_MARKETS_STUB_URL` and `ELECDEX_UPDATES_URL` at closed ports by default (the JMA base
+  `ELECDEX_MARKETS_STUB_URL`, `ELECDEX_UPDATES_URL` and `ELECDEX_WEB_HOMES` (the YouTube and X
+  presets) at closed ports by default (the JMA base
   also covers the earthquake and tsunami lists), `ELECDEX_USGS_BASE_URL` and `ELECDEX_NOAA_BASE_URL`
   at closed ports by default, sets `ELECDEX_AUDIO_STUB=1` (a steady tone for the spectrum, a
   made-up mixer - never the machine's sound or volume) and starts with sound off; specs that need
@@ -89,6 +90,15 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   serve; WirePlumber's wpctl is only a fallback, never required (main/audio/mixer-linux.ts).
   Code that means "the elecdex window" asks `appWindows()` (main/app-windows.ts), never
   `BrowserWindow.getAllWindows()`, so the helper window is never taken for it.
+- **Web panes** (docs/architecture.md section 5.4) are WebContentsViews that main owns, one per
+  pane id, over the pane's body - never an iframe or `<webview>` in the workspace, whose CSP stays
+  as it is. A site is a preset in `WEB_PRESETS` (shared/web.ts): its home and the hosts that stay in
+  the pane; add a site there, not as a widget. All web panes share the `persist:web` session and
+  nothing else does; pages get no preload, no permission but clipboard write and fullscreen, no
+  downloads, and only http(s). Each mount claims its view with a token, so a moved pane's old
+  component cannot hide the new one's page. A view is native and covers the DOM: anything drawn
+  over panes registers with `coverWeb` (stores/web.svelte.ts), and dialogs, drags and CRT
+  transitions hide views behind a snapshot. Tests point presets at a stub with `ELECDEX_WEB_HOMES`.
 - **Plugins** (docs/plugins.md) run in a blob Web Worker, one per plugin; main only transforms their
   text (sucrase) and never runs it. Everything a worker posts is checked (shared/plugins.ts) and
   every request, redirect, storage write and notification is checked in main against the grant in

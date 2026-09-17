@@ -65,6 +65,8 @@ const UNREACHABLE_UPDATES = 'http://127.0.0.1:9/releases/latest'
 /** Earthquakes and tsunamis abroad likewise: no test asks the USGS or NOAA. */
 const UNREACHABLE_USGS = 'http://127.0.0.1:9/usgs'
 const UNREACHABLE_NOAA = 'http://127.0.0.1:9/noaa'
+/** The web pane presets likewise open a closed port: no test loads YouTube or X. */
+const UNREACHABLE_WEB = 'youtube=http://127.0.0.1:9/youtube/,x=http://127.0.0.1:9/x/'
 
 /**
  * Deletes a throwaway userData folder. Windows can keep a file in it locked for a
@@ -132,6 +134,7 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
       ELECDEX_USGS_BASE_URL: UNREACHABLE_USGS,
       ELECDEX_NOAA_BASE_URL: UNREACHABLE_NOAA,
+      ELECDEX_WEB_HOMES: UNREACHABLE_WEB,
       // A steady tone and a made-up mixer: never the machine's sound or volume.
       ELECDEX_AUDIO_STUB: '1',
       // An in-memory tray, shortcut and sign-in entry: never the machine's taskbar,

@@ -17,6 +17,7 @@ import { crtPower } from './lib/crt-transitions.ts'
 import { announcedCard, closeCard, followCard, type TsunamiCard } from './lib/tsunami-card.ts'
 import { appearance } from './stores/appearance.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
+import { coverWeb } from './stores/web.svelte.ts'
 import { windowState } from './stores/window-state.svelte.ts'
 
 /**
@@ -192,7 +193,7 @@ function height(value: string | null): string {
 </script>
 
 {#if shown.length > 0 || tsunami !== null}
-  <div class="alerts" class:windowed={!windowState.fullscreen} role="alert" data-testid="quake-alerts">
+  <div class="alerts" class:windowed={!windowState.fullscreen} role="alert" data-testid="quake-alerts" {@attach coverWeb()}>
     {#if tsunami !== null && tsunami.folded}
       {@const value = tsunami.value}
       <button

@@ -88,6 +88,16 @@ export const SettingsSchema = z.object({
       globalShortcut: false,
       startInBackground: false,
     }),
+  /** Web panes (browser, YouTube, X): docs/architecture.md section 5.4. */
+  web: z
+    .object({
+      /**
+       * Draw pages in the theme's accent, as the launcher's icons are. Themes that
+       * keep icons in their own colours (Business) never tint.
+       */
+      tint: z.boolean().default(true),
+    })
+    .default({ tint: true }),
   updates: z
     .object({
       /** Ask GitHub once a day whether a newer release exists. Nothing is downloaded. */
@@ -151,6 +161,7 @@ export interface SettingsPatch {
   keybindings?: Settings['keybindings']
   window?: Partial<Settings['window']>
   updates?: Partial<Settings['updates']>
+  web?: Partial<Settings['web']>
   quakes?: Partial<Settings['quakes']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
@@ -181,6 +192,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     sound: merge(current.sound, p.sound),
     window: merge(current.window, p.window),
     updates: merge(current.updates, p.updates),
+    web: merge(current.web, p.web),
     quakes: merge(current.quakes, p.quakes),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),

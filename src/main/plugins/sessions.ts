@@ -1,5 +1,6 @@
 import { BrowserWindow, net, type Session, session } from 'electron'
 import { markHelperWindow } from '../app-windows.js'
+import { browserUserAgent } from '../user-agent.js'
 import type { RawRequest } from './net.js'
 
 /**
@@ -28,11 +29,6 @@ function prepare(ses: Session, userAgent: string | null): Session {
   // Sign-in pages and their bot checks refuse browsers that name themselves Electron.
   if (userAgent !== null) ses.setUserAgent(userAgent)
   return ses
-}
-
-/** Chromium's own user agent, without the Electron and app tokens. */
-export function browserUserAgent(): string {
-  return session.defaultSession.getUserAgent().replace(/\s(?:elecdex|Electron)\/\S+/gi, '')
 }
 
 export const pluginSession = (id: string): Session =>

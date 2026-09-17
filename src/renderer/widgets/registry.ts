@@ -55,8 +55,15 @@ export interface WidgetProps {
   title: string
   props: Record<string, unknown> | undefined
   state: Record<string, unknown> | undefined
-  /** Whether this pane is the visible one (a hidden tab is still mounted). */
+  /** Whether this pane is the visible one (a hidden tab is still mounted) and has focus. */
   active: boolean
+  /** Whether the pane is on screen: false for a tab behind another. */
+  visible?: boolean
+  /**
+   * True while the pane powers on or off, or uncovers room a closed pane left: it is
+   * being drawn scaled or clipped, not at its place.
+   */
+  transitioning?: boolean
   /** The registry id the pane was resolved from, e.g. `plugin:pomodoro`. */
   widget?: string
 }

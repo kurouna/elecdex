@@ -44,6 +44,8 @@ for Windows, macOS and Linux.
 - **Spectrum and mixer** — a spectrum analyser of what the computer is playing, drawn like a
   1990s car stereo's display (fluorescent cyan or amber, LED, or the theme's colour), and a mixer
   for the system volume and each app playing sound, in panes you add when you want them.
+- **Web panes** — a browser, YouTube and X in panes you add when you want them, drawn in the
+  theme's colour (or their own, by a setting) and sharing one sign-in per site.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset.
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
@@ -277,6 +279,21 @@ weather and calendar.
   records the monitor of the default output instead. A monitor turned down in the system
   settings is compensated, so the bars show the sound as it plays; a muted one is reported with
   a button that unmutes it.
+- **Browser, YouTube and X** — not in the default layout: add them from the picker. *Browser*
+  has an address bar and opens any http(s) page; *YouTube* and *X* open their site, keep to it,
+  and send links to other sites to your default browser. Each pane has back, forward, reload
+  (home for the sites) and "open in your browser" buttons, and remembers its page across restarts.
+  The page is drawn by a separate, sandboxed browser view over the pane: it has no access to
+  elecdex, may not use the camera, microphone, location or notifications, and cannot download
+  files. All web panes share one sign-in per site (sign in to YouTube once), kept apart from the
+  rest of the app; *Settings → General → sign out of all sites* deletes it. Google may refuse to
+  sign in from an embedded browser; YouTube works without signing in. By default pages are
+  drawn in the theme's colour, like the launcher's icons; *tint pages in the theme's colour*
+  turns that off, and the Business themes never tint. While a dialog, a notice or a dragged pane
+  is over it, a still picture stands in for the page. App shortcuts work while a page has the
+  keyboard; every other key goes to the page. The status bar and the fullscreen window controls
+  do not appear while the pointer is over a page (use the shortcuts, or move the pointer to
+  another pane).
 - **Mixer** — not in the default layout: add it from the picker. The output device's volume and
   mute, and on Windows and Linux each app playing sound, with faders, mute buttons and, on
   Windows, peak meters. macOS has the master volume only. Read while the pane is on screen: on
@@ -318,6 +335,7 @@ from the app replaces it:
   "keybindings": { "app.quit": null },
   "window": { "minimizeToTray": false, "closeToTray": true, "globalShortcut": true, "startInBackground": false },
   "updates": { "check": true },
+  "web": { "tint": true },
   "quakes": { "source": "auto", "notify": true, "minIntensity": "5-", "minMagnitude": 6, "tsunami": true, "system": true, "sound": true }
 }
 ```
@@ -387,11 +405,11 @@ also makes node-pty's macOS `spawn-helper` executable. After `--ignore-scripts`,
 
 End-to-end tests never contact a real service: weather, markets and the update check are pointed
 at closed ports or local stubs (JMA's earthquake and tsunami lists with the forecasts, and the USGS
-and NOAA feeds), and RSS feeds are served by a local server.
+and NOAA feeds), and RSS feeds and the web panes' sites are served by a local server.
 
 ```
 src/shared/     contracts shared by all processes (API types, IPC channel names, schemas, pure logic)
-src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feeds, quakes, launcher, updates
+src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feeds, quakes, launcher, web panes, updates
 src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
@@ -423,6 +441,7 @@ scripts/        asset generators (icon, banner, globe data, city list, README sc
 | Earthquakes, world | [USGS](https://earthquake.usgs.gov/) real-time feed `summary/4.5_day.geojson` | Public domain. Fetched only while the world source is in use by a quakes pane or alerts: once a minute (its `max-age=60`), conditionally. |
 | Tsunamis, world | [NOAA Tsunami Warning Centers](https://www.tsunami.gov/): the Pacific (`PHEBAtom.xml`) and National (`PAAQAtom.xml`) Atom feeds | Public domain. Each holds the centre's latest bulletin; warnings, watches, advisories and threat messages count, information statements do not. Checked with the USGS feed, conditionally. Alerts say to follow local authorities. |
 | RSS feeds | The feed URLs you list in an RSS pane | Fetched by the app, never by the page, only while a pane lists them: every 15 minutes (or as the feed asks, at most hourly), conditionally (If-None-Match / If-Modified-Since), two at a time, up to 2 MB each, without cookies and with an `elecdex/<version>` User-Agent. Headlines are shown as plain text; the last ones per feed are kept in `feeds-cache.json` in the app's data folder. Nothing is sent to any other site. |
+| Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 ## Third-party assets

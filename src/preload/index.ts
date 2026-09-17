@@ -24,6 +24,7 @@ import type { Settings } from '@shared/settings'
 import type { UpdateStatus } from '@shared/updates'
 import type { OfficeInfo } from '@shared/weather'
 import type { WeatherUpdate } from '@shared/weather-report'
+import type { WebState } from '@shared/web'
 import { contextBridge, ipcRenderer } from 'electron'
 
 /**
@@ -415,6 +416,26 @@ const api: ElecdexApi = {
     status: () => ipcRenderer.invoke(CH.updates.status) as Promise<UpdateStatus>,
     check: () => ipcRenderer.invoke(CH.updates.check) as Promise<UpdateStatus>,
     onChange: (handler) => listen<UpdateStatus>(CH.updates.changed, handler),
+  },
+  web: {
+    open: (paneId, claim, widget, url) =>
+      ipcRenderer.invoke(CH.web.open, paneId, claim, widget, url) as Promise<WebState | null>,
+    show: (paneId, claim, rect) => ipcRenderer.send(CH.web.show, paneId, claim, rect),
+    hide: (paneId, claim, snapshot) =>
+      ipcRenderer.invoke(CH.web.hide, paneId, claim, snapshot) as Promise<string | null>,
+    command: (paneId, command) => ipcRenderer.send(CH.web.command, paneId, command),
+    close: (paneId, claim) => ipcRenderer.send(CH.web.close, paneId, claim),
+    list: () => ipcRenderer.invoke(CH.web.list) as Promise<string[]>,
+    setAppearance: (appearance) => ipcRenderer.send(CH.web.appearance, appearance),
+    focus: (paneId) => ipcRenderer.send(CH.web.focus, paneId),
+    focusWorkspace: () => ipcRenderer.send(CH.web.focusWorkspace),
+    clearData: () => ipcRenderer.invoke(CH.web.clearData) as Promise<void>,
+    onState: (paneId, handler) =>
+      listen<WebState>(CH.web.state, (state) => {
+        if (state.paneId === paneId) handler(state)
+      }),
+    onShortcut: (handler) => listen<string>(CH.web.shortcut, handler),
+    onFocused: (handler) => listen<string>(CH.web.focused, handler),
   },
   launcher: {
     list: () => ipcRenderer.invoke(CH.launcher.list) as Promise<LauncherEntry[]>,

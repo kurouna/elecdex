@@ -1,5 +1,11 @@
 <script lang="ts">
-import { chordFromEvent, type KeybindingAction, keymap } from '@shared/keybindings'
+import {
+  chordFromEvent,
+  KEYBINDING_ACTIONS,
+  type KeybindingAction,
+  keymap,
+} from '@shared/keybindings'
+import { WEB_WIDGET_PREFIX } from '@shared/web'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -75,7 +81,13 @@ async function reapOrphanSessions(): Promise<void> {
   }
 
   // Forget store entries for panes that are gone, so the store does not grow.
-  sessions.retainOnly(new Set(layout.panes.map((p) => p.id)))
+  const paneIds = new Set(layout.panes.map((p) => p.id))
+  sessions.retainOnly(paneIds)
+
+  // Web pages whose pane is gone, closed while this page was away (a reload).
+  for (const paneId of await window.elecdex.web.list()) {
+    if (!paneIds.has(paneId)) window.elecdex.web.close(paneId, null)
+  }
 
   const alive = await window.elecdex.pty.list()
   for (const session of alive) {
@@ -148,18 +160,38 @@ function cycleShell(delta: number): boolean {
 /** Shortcuts that still work with a dialog open. */
 const THROUGH_DIALOGS = new Set<KeybindingAction>(['app.quit', 'window.fullscreen'])
 
+/** Runs a shortcut's action; false when it did not apply. */
+function run(action: KeybindingAction): boolean {
+  // A dialog over the workspace: nothing behind it should change unseen.
+  if (ui.dialogOpen && !THROUGH_DIALOGS.has(action)) return false
+  return ACTIONS[action]() !== false
+}
+
 function onKeydown(event: KeyboardEvent): void {
   // While a shortcut is being recorded in the settings, every key goes there.
   if (ui.recordingShortcut) return
   const chord = chordFromEvent(event)
   if (chord === null) return
   const action = bindings.get(chord)
-  if (action === undefined) return
-  // A dialog over the workspace: nothing behind it should change unseen.
-  if (ui.dialogOpen && !THROUGH_DIALOGS.has(action)) return
-  if (ACTIONS[action]() === false) return
-  claim(event)
+  if (action !== undefined && run(action)) claim(event)
 }
+
+const isAction = (id: string): id is KeybindingAction => KEYBINDING_ACTIONS.some((a) => a.id === id)
+
+// A web pane's page has the keyboard: main takes the shortcuts from it and sends them here.
+// Unless the action left a web pane focused (which then keeps or takes the keyboard),
+// the keyboard comes back to the workspace, where the action put the focus.
+$effect(() =>
+  window.elecdex.web.onShortcut((action) => {
+    if (!isAction(action)) return
+    run(action)
+    const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
+    if (ui.dialogOpen || !focused?.widget.startsWith(WEB_WIDGET_PREFIX)) {
+      window.elecdex.web.focusWorkspace()
+    }
+  }),
+)
+$effect(() => window.elecdex.web.onFocused((paneId) => layout.focus(paneId)))
 
 // A pending debounced save would be lost if the window went away first.
 function onBeforeUnload(): void {

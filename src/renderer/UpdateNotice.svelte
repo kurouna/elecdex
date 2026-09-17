@@ -1,6 +1,7 @@
 <script lang="ts">
 import { crtPower } from './lib/crt-transitions.ts'
 import { updates } from './stores/updates.svelte.ts'
+import { coverWeb } from './stores/web.svelte.ts'
 
 /**
  * A small notice in the bottom-right corner when a newer release exists. The
@@ -20,7 +21,7 @@ const available = $derived(
 </script>
 
 {#if available}
-  <div class="notice crt-on" transition:crtPower role="status" data-testid="update-notice">
+  <div class="notice crt-on" transition:crtPower role="status" data-testid="update-notice" {@attach coverWeb()}>
     <button
       type="button"
       class="open"

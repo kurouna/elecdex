@@ -47,6 +47,8 @@ $effect(() => {
   if (closing || extend !== undefined) poweringOn = false
 })
 const crtOn = $derived(!closing && extend === undefined && (bootDelay !== null || poweringOn))
+/** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */
+const transitioning = $derived(crtOn || closing || layout.extending.has(node.id))
 const crtStyle = $derived.by(() => {
   if (closing) return `--crt-duration: ${CRT_CLOSE_MS}ms`
   if (extend !== undefined) return insetStyle(extend)
@@ -90,7 +92,7 @@ $effect(() => () => paneMeta.clear(node.id))
     </p>
   {:else}
     {@const Widget = definition.component}
-    <Widget paneId={node.id} title={definition.title} props={node.props} state={node.state} {active} widget={node.widget} />
+    <Widget paneId={node.id} title={definition.title} props={node.props} state={node.state} {active} {visible} {transitioning} widget={node.widget} />
   {/if}
 {/snippet}
 

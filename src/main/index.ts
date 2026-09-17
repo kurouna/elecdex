@@ -15,6 +15,7 @@ import { registerSettingsIpc } from './ipc/settings.js'
 import { registerSystemIpc } from './ipc/system.js'
 import { registerUpdatesIpc } from './ipc/updates.js'
 import { registerWeatherIpc } from './ipc/weather.js'
+import { registerWebIpc } from './ipc/web.js'
 import { registerMetricsIpc } from './metrics/broker.js'
 import { createMainWindow } from './window.js'
 import { showMainWindow } from './window-control.js'
@@ -68,6 +69,7 @@ let quakesIpc: { dispose: () => void } | null = null
 let updatesIpc: { dispose: () => void } | null = null
 let audioIpc: { dispose: () => void } | null = null
 let pluginsIpc: { dispose: () => void } | null = null
+let webIpc: { dispose: () => void } | null = null
 let background: Background | null = null
 
 app.whenReady().then(() => {
@@ -86,6 +88,7 @@ app.whenReady().then(() => {
   quakesIpc = registerQuakesIpc(settings)
   audioIpc = registerAudioIpc()
   pluginsIpc = registerPluginsIpc(settings)
+  webIpc = registerWebIpc(settings)
   background = registerBackground(settings)
   const win = createMainWindow({
     fullscreen: !wantsWindowed,
@@ -143,6 +146,8 @@ app.on('will-quit', () => {
   audioIpc = null
   pluginsIpc?.dispose()
   pluginsIpc = null
+  webIpc?.dispose()
+  webIpc = null
   background?.dispose()
   background = null
 })

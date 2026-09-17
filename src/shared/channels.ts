@@ -137,6 +137,35 @@ export const CH = {
     /** Deletes a plugin's stored data and session. */
     forget: 'plugins:forget',
   },
+  /** Web panes (docs/architecture.md section 5.4), addressed by pane id. */
+  web: {
+    /** Creates or takes over the pane's view and answers its WebState. */
+    open: 'web:open',
+    /** renderer -> main, fire and forget: show the view at a rectangle. */
+    show: 'web:show',
+    /** Hides the view; answers a snapshot of it when asked for one. */
+    hide: 'web:hide',
+    /** renderer -> main, fire and forget: a WebCommand. */
+    command: 'web:command',
+    /** renderer -> main, fire and forget: the pane is gone; destroy its view. */
+    close: 'web:close',
+    /** The pane ids main holds views for, for the workspace's reaper. */
+    list: 'web:list',
+    /** renderer -> main, fire and forget: a WebAppearance for every view. */
+    appearance: 'web:appearance',
+    /** renderer -> main, fire and forget: put the keyboard in the pane's page. */
+    focus: 'web:focus',
+    /** renderer -> main, fire and forget: take the keyboard back from any page. */
+    focusWorkspace: 'web:focus-workspace',
+    /** Deletes the web panes' cookies, storage and cache. */
+    clearData: 'web:clear-data',
+    /** main -> renderer: a WebState. */
+    state: 'web:state',
+    /** main -> renderer: a shortcut pressed in a page (its action id). */
+    shortcut: 'web:shortcut',
+    /** main -> renderer: a page took the keyboard (its pane id). */
+    focused: 'web:focused',
+  },
   launcher: {
     list: 'launcher:list',
     icon: 'launcher:icon',

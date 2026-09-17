@@ -15,6 +15,7 @@ import { boot } from './stores/boot.svelte.ts'
 import { layout } from './stores/layout.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
+import { coverWeb } from './stores/web.svelte.ts'
 import TitleBar from './TitleBar.svelte'
 import UpdateNotice from './UpdateNotice.svelte'
 import WindowCorner from './WindowCorner.svelte'
@@ -100,6 +101,7 @@ function toggleSound(): void {
     onfocusout={() => status.hideSoon()}
     data-testid="status-bar"
     data-shown={status.shown}
+    {@attach coverWeb(() => status.shown)}
   >
     <button
       type="button"

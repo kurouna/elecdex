@@ -1,4 +1,5 @@
 import type { MetricSourceId } from '@shared/metrics'
+import { WEB_PRESETS, webWidgetId } from '@shared/web'
 import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
@@ -19,6 +20,7 @@ import { registerBuiltin } from './registry.ts'
 import RssWidget from './rss/RssWidget.svelte'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
 import WeatherWidget from './weather/WeatherWidget.svelte'
+import WebWidget from './web/WebWidget.svelte'
 
 /**
  * Registers the built-in widgets.
@@ -211,3 +213,15 @@ registerBuiltin({
   component: MixerWidget,
   minSize: { w: 160, h: 160 },
 })
+
+// A web pane per preset (shared/web.ts): the browser, and a pane per site.
+for (const preset of WEB_PRESETS) {
+  registerBuiltin({
+    id: webWidgetId(preset),
+    title: preset.title,
+    description: preset.description,
+    component: WebWidget,
+    minSize: { w: 240, h: 160 },
+    multiple: true,
+  })
+}
