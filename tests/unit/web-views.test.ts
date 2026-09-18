@@ -235,8 +235,19 @@ describe('WebViews', () => {
     views.show(asOwner(owner), 'p', 'a', RECT)
     const hiding = views.hide(asOwner(owner), 'p', 'a', true)
     views.show(asOwner(owner), 'p', 'a', RECT)
-    await hiding
+    // No picture for a pane that has the page back, and none kept here either.
+    expect(await hiding).toBeNull()
     expect(view().visible).toBe(true)
+
+    // Behind another tab, with nothing showing a picture of it: none is taken.
+    await views.hide(asOwner(owner), 'p', 'a', false)
+    owner.sent.length = 0
+    const captures = view().webContents.capturePage.mock.calls.length
+    views.setAppearance(look('#00ffff'))
+    await flush()
+    await flush()
+    expect(view().webContents.capturePage.mock.calls).toHaveLength(captures)
+    expect(owner.sent.filter(([channel]) => channel === 'web:snapshot')).toEqual([])
   })
 
   it('gives the keyboard back to the workspace when a focused page is hidden', async () => {

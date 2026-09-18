@@ -155,8 +155,12 @@ export class WebViews {
     const entry = this.owned(owner, paneId, claim)
     if (entry === null) return null
     const placement = ++entry.placement
-    if (snapshot && entry.view.getVisible()) entry.snapshot = await this.capture(entry)
-    if (placement === entry.placement && this.entries.get(paneId) === entry) this.conceal(entry)
+    const picture = snapshot && entry.view.getVisible() ? await this.capture(entry) : null
+    // Shown again while the picture was taken, or gone: it is out of date either way,
+    // and keeping it would leave the pane holding a picture of a page it can see.
+    if (placement !== entry.placement || this.entries.get(paneId) !== entry) return null
+    if (picture !== null) entry.snapshot = picture
+    this.conceal(entry)
     return snapshot ? entry.snapshot : null
   }
 
