@@ -95,10 +95,18 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   as it is. A site is a preset in `WEB_PRESETS` (shared/web.ts): its home and the hosts that stay in
   the pane; add a site there, not as a widget. All web panes share the `persist:web` session and
   nothing else does; pages get no preload, no permission but clipboard write and fullscreen, no
-  downloads, and only http(s). Each mount claims its view with a token, so a moved pane's old
-  component cannot hide the new one's page. A view is native and covers the DOM: anything drawn
-  over panes registers with `coverWeb` (stores/web.svelte.ts), and dialogs, drags and CRT
-  transitions hide views behind a snapshot. Tests point presets at a stub with `ELECDEX_WEB_HOMES`.
+  downloads, and only http(s). A preset may carry a `userAgent`, which is how the YouTube (TV)
+  pane asks for the television interface; that pane is also the only one that can be signed in,
+  because Google refuses an embedded browser (its device flow, a code entered on a phone, is the
+  sanctioned way - never dress the pane up as Chrome to get past the check). Each mount claims its
+  view with a token, so a moved pane's old component cannot hide the new one's page, and opens it
+  once per mount without tracking props. A view is native and covers the DOM: anything drawn over
+  panes registers with `coverWeb` (stores/web.svelte.ts), and dialogs, drags and CRT transitions
+  hide views behind a snapshot, which is taken again when the page's colours change under them.
+  The view sits on the theme's ground, so main also tells the page which `color-scheme` its own
+  defaults follow - without it a page that brings no colours is black on black. The theme tint is
+  off by default (`web.tint`) and each pane overrides it with the switch beside its address.
+  Tests point presets at a stub with `ELECDEX_WEB_HOMES`.
 - **Plugins** (docs/plugins.md) run in a blob Web Worker, one per plugin; main only transforms their
   text (sucrase) and never runs it. Everything a worker posts is checked (shared/plugins.ts) and
   every request, redirect, storage write and notification is checked in main against the grant in
@@ -187,7 +195,11 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   around it, not only the one reported (the same path through another widget, the edit or
   reload that reaches it another way). Check that the test really fails without the fix. Put it
   at the lowest level that can see the bug (unit, then component, then e2e), plus an e2e check
-  when the bug was only visible in the running app.
+  when the bug was only visible in the running app. A test that fails only under load is usually
+  its own fault: a harness driving a fake clock waits on promises (`await Promise.resolve()`), never
+  on real timers per step, which cost seconds against the five-second limit. A component test that
+  stubs `window.elecdex` flushes what it started (`layout.flush()`) before unstubbing, and its IPC
+  mocks `structuredClone` their arguments, since IPC cannot clone a `$state` proxy.
 
 ## Conventions
 
