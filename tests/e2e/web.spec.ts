@@ -411,6 +411,93 @@ test.describe('web panes', () => {
     }
   })
 
+  test('a fullscreen page is let go of when the workspace reloads, without reloading the page', async () => {
+    const app = await start()
+    const { page } = app
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await inPage(app, 'window.__mark = 42')
+      await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
+      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
+
+      // The workspace's own page goes away and comes back (did-start-navigation hides
+      // every view it owns). The view must not be waiting in fullscreen for it.
+      await page.reload()
+      await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+      await expectShownOverBody(app)
+      await expect
+        .poll(() => inPage<boolean>(app, 'document.fullscreenElement !== null'))
+        .toBe(false)
+      // The same document all along: the page was asked to leave fullscreen, not reloaded.
+      expect(await inPage<number>(app, 'window.__mark')).toBe(42)
+      expect((await views(app)).length).toBe(1)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('the picture that stands in for a fullscreen page is of the pane, not the window', async () => {
+    const app = await start()
+    const { page } = app
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
+      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
+
+      await page.keyboard.press('Control+Shift+Period')
+      await expect(page.getByTestId('settings-dialog')).toBeVisible()
+      const shot = webPane(page).getByTestId('web-snapshot')
+      await expect(shot).toBeVisible()
+      // The picture is taken after the page has left fullscreen, so it has the pane's
+      // shape: the window's would be stretched into the pane's box.
+      const ratio = () =>
+        shot.evaluate((img) => {
+          const { naturalWidth: w, naturalHeight: h } = img as HTMLImageElement
+          return w > 0 && h > 0 ? w / h : 0
+        })
+      await expect.poll(ratio).toBeGreaterThan(0)
+      const shape = await ratio()
+      const body = await box(webPane(page).getByTestId('web-page'))
+      const full = await windowContent(app)
+      const pane = body.width / body.height
+      const window = (full.width ?? 0) / (full.height ?? 1)
+      // Nearer the pane's shape than the window's. Not the pane's exactly: main puts the
+      // view back where the pane last told it, and while the page was fullscreen the
+      // window itself was too (this spec runs windowed), so that rectangle is the pane's
+      // in the larger window. The pane measures again and sends its own as it comes back.
+      expect(Math.abs(shape - pane)).toBeLessThan(Math.abs(shape - window))
+      expect(Math.abs(shape - window)).toBeGreaterThan(0.3)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('a page can go fullscreen again after a dialog has taken it out of one', async () => {
+    const app = await start()
+    const { page } = app
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await inPage(app, 'window.__mark = 42')
+      await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
+      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
+      await page.keyboard.press('Control+Shift+Period')
+      await expect(page.getByTestId('settings-dialog')).toBeVisible()
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
+      await expectShownOverBody(app)
+
+      // Leaving fullscreen when the page is put away must not leave main thinking the
+      // page is still in one, nor stop it going into one again.
+      await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
+      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
+      await inPage(app, 'document.exitFullscreen().then(() => 1)')
+      await expectShownOverBody(app)
+      expect(await inPage<number>(app, 'window.__mark')).toBe(42)
+    } finally {
+      await app.close()
+    }
+  })
+
   test('ask a site for its television interface in the TV pane, and not in the others', async () => {
     const app = await start({ layout: layoutWith('web.youtubetv') })
     try {
