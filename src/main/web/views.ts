@@ -160,6 +160,9 @@ export class WebViews {
     const entry = this.owned(owner, paneId, claim)
     if (entry === null) return null
     const placement = ++entry.placement
+    // Out of fullscreen before the picture is taken, so it is of the pane's shape
+    // rather than the whole window's (conceal would only do it after).
+    if (entry.fullscreen) this.leaveFullscreen(entry)
     const picture = snapshot && entry.view.getVisible() ? await this.capture(entry) : null
     // Shown again while the picture was taken, or gone: it is out of date either way,
     // and keeping it would leave the pane holding a picture of a page it can see.
@@ -341,7 +344,10 @@ export class WebViews {
     const contents = entry.view.webContents
     contents.on('enter-html-full-screen', () => {
       entry.fullscreen = true
-      this.fill(entry)
+      // Only a view on screen may take the window. A pane hidden under a dialog or
+      // behind another tab is asked back out of fullscreen instead (leaveFullscreen).
+      if (entry.view.getVisible()) this.fill(entry)
+      else this.leaveFullscreen(entry)
     })
     contents.on('leave-html-full-screen', () => {
       entry.fullscreen = false
@@ -349,7 +355,27 @@ export class WebViews {
     })
   }
 
+  /**
+   * Takes the page out of fullscreen, and its view back to its pane.
+   *
+   * A hidden view must never be left in fullscreen: shown again it would fill the
+   * window over the whole workspace, while the keyboard went back to the workspace
+   * when it was hidden - so Escape, the way out of fullscreen, would not reach the
+   * page, and the pointer would find nothing but a page nobody asked for. The bounds
+   * are put back here as well as in leave-html-full-screen, for a page that cannot
+   * answer (it has gone, or it is not the one that asked).
+   */
+  private leaveFullscreen(entry: Entry): void {
+    entry.fullscreen = false
+    if (entry.bounds !== null) entry.view.setBounds(entry.bounds)
+    const contents = entry.view.webContents
+    if (contents.isDestroyed()) return
+    // Rejects when the document is not in fullscreen after all, or has gone meanwhile.
+    void contents.executeJavaScript('document.exitFullscreen()').catch(() => {})
+  }
+
   private conceal(entry: Entry): void {
+    if (entry.fullscreen) this.leaveFullscreen(entry)
     const contents = entry.view.webContents
     // The keyboard goes back to the workspace rather than to a page nobody sees.
     const focused = !contents.isDestroyed() && contents.isFocused()

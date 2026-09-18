@@ -155,6 +155,14 @@ async function expectShownOverBody(app: Launched): Promise<void> {
     })
 }
 
+/** The window's whole content area: what a view in fullscreen covers. */
+function windowContent(app: Launched) {
+  return app.app.evaluate(({ BrowserWindow }) => {
+    const [width, height] = BrowserWindow.getAllWindows()[0]?.getContentSize() ?? []
+    return { x: 0, y: 0, width, height }
+  })
+}
+
 /**
  * How far apart the lightest and darkest pixels of the page are, from a picture of the
  * view: 0 means nothing can be made out (black on black).
@@ -340,13 +348,8 @@ test.describe('web panes', () => {
     try {
       await expect(webPane(app.page).getByTestId('pane-subtitle')).toHaveText('YT home')
       await expectShownOverBody(app)
-      const content = () =>
-        app.app.evaluate(({ BrowserWindow }) => {
-          const [width, height] = BrowserWindow.getAllWindows()[0]?.getContentSize() ?? []
-          return { x: 0, y: 0, width, height }
-        })
       await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
-      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await content())
+      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
       await inPage(app, 'document.exitFullscreen().then(() => 1)')
       await expectShownOverBody(app)
       // The app was windowed before, and is again.
@@ -355,6 +358,54 @@ test.describe('web panes', () => {
           app.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen()),
         )
         .toBe(false)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('leave fullscreen when the page is put away, so it cannot come back over the workspace', async () => {
+    const app = await start()
+    const { page } = app
+    const fullscreen = () => inPage<boolean>(app, 'document.fullscreenElement !== null')
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
+      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
+
+      // A dialog over a fullscreen page. Coming back filling the window would cover the
+      // whole workspace: the pointer would find nothing but the page, and the keyboard
+      // went back to the workspace when the view was hidden, so Escape - the way out of
+      // fullscreen - would never reach it.
+      await page.keyboard.press('Control+Shift+Period')
+      await expect(page.getByTestId('settings-dialog')).toBeVisible()
+      await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
+      await expect.poll(fullscreen).toBe(false)
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
+      await expectShownOverBody(app)
+
+      // A page that asks for fullscreen while nobody can see it never takes the window.
+      await page.keyboard.press('Control+Shift+Period')
+      await expect(page.getByTestId('settings-dialog')).toBeVisible()
+      await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
+      await inPage(app, 'document.body.requestFullscreen().then(() => 1).catch(() => 0)')
+      await expect.poll(fullscreen).toBe(false)
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
+      await expectShownOverBody(app)
+
+      // The other way a page is put away: another tab in front of it.
+      await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
+      await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
+      await page
+        .locator('[data-testid=pane][data-pane-id=web]')
+        .click({ position: { x: 20, y: 5 } })
+      await page.keyboard.press('Control+Shift+T')
+      await expect(page.getByTestId('tabs-host')).toHaveCount(1)
+      await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
+      await expect.poll(fullscreen).toBe(false)
+      await page.getByTestId('tabs-host').getByTestId('tab').first().click()
+      await expectShownOverBody(app)
     } finally {
       await app.close()
     }
