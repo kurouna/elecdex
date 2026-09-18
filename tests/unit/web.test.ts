@@ -263,10 +263,10 @@ describe('inputs from the page', () => {
 })
 
 describe('settings', () => {
-  it('tint web pages by default, and a patch turns it off', () => {
-    expect(defaultSettings().web).toEqual({ tint: true })
-    expect(applySettingsPatch(defaultSettings(), { web: { tint: false } })?.web).toEqual({
-      tint: false,
+  it('leave web pages in their own colours until asked, and a patch turns the tint on', () => {
+    expect(defaultSettings().web).toEqual({ tint: false })
+    expect(applySettingsPatch(defaultSettings(), { web: { tint: true } })?.web).toEqual({
+      tint: true,
     })
     expect(applySettingsPatch(defaultSettings(), { web: { tint: 'no' } })).toBeNull()
   })

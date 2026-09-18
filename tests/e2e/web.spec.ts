@@ -461,42 +461,41 @@ test.describe('web panes', () => {
     }
   })
 
-  test('draw pages in the theme, and in their own colours when the setting is off', async () => {
+  test('draw pages in their own colours, and in the theme when asked', async () => {
     const app = await start()
     const { page } = app
     const filter = () => inPage<string>(app, 'getComputedStyle(document.documentElement).filter')
     // What pages are told. Playwright emulates a light scheme in every page it drives,
     // so the page's own media query cannot show it here.
     const scheme = () => app.app.evaluate(({ nativeTheme }) => nativeTheme.themeSource === 'dark')
+    const picture = () => webPane(page).getByTestId('web-snapshot').getAttribute('src')
     try {
       await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
-      await expect.poll(filter).toMatch(/^url\("data:image\/svg\+xml/)
+      // Sites keep their own colours until asked otherwise.
+      await expect.poll(filter).toBe('none')
       await expect.poll(scheme).toBe(true)
+
+      // Settings: tint on. The page is behind the dialog, so the pane shows a picture of
+      // it - which is taken again in the new colours rather than waiting for the dialog.
+      await page.keyboard.press('Control+Shift+Period')
+      const tint = page.getByTestId('settings-web-tint')
+      await expect(tint).not.toBeChecked()
+      const before = await picture()
+      await tint.check()
+      await expect.poll(filter).toMatch(/^url\("data:image\/svg\+xml/)
+      await expect.poll(picture).not.toBe(before)
+      await page.keyboard.press('Escape')
+      await expect.poll(filter).toMatch(/^url\(/)
 
       // A new document gets the tint again.
       await inPage(app, 'document.querySelector("#next").click()')
       await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT next')
       await expect.poll(filter).toMatch(/^url\(/)
 
-      // Settings: tint off. The page is behind the dialog, so the pane shows a picture of
-      // it - which is taken again in the new colours rather than waiting for the dialog.
-      const picture = () => webPane(page).getByTestId('web-snapshot').getAttribute('src')
-      await page.keyboard.press('Control+Shift+Period')
-      const tint = page.getByTestId('settings-web-tint')
-      await expect(tint).toBeChecked()
-      const before = await picture()
-      await tint.uncheck()
-      await expect.poll(filter).toBe('none')
-      await expect.poll(picture).not.toBe(before)
-      await page.keyboard.press('Escape')
-      await expect.poll(filter).toBe('none')
-      await page.keyboard.press('Control+Shift+Period')
-      await page.getByTestId('settings-web-tint').check()
-      await page.keyboard.press('Escape')
-      await expect.poll(filter).toMatch(/^url\(/)
-
-      // Each pane has its own switch, which wins over the setting and is saved with the pane.
+      // Each pane has its own switch, on the right of the address, which wins over the setting.
       const toggle = webPane(page).getByTestId('web-tint')
+      const bar = await box(webPane(page).getByTestId('web-where'))
+      expect((await box(toggle)).x).toBeGreaterThan(bar.x)
       await expect(toggle).toHaveAttribute('aria-pressed', 'true')
       await toggle.click()
       await expect.poll(filter).toBe('none')

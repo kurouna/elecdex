@@ -283,21 +283,6 @@ const where = $derived.by(() => {
           data-testid="web-reload">↻</button
         >
       {/if}
-      <button
-        type="button"
-        class="tint"
-        class:off={!tinted}
-        aria-pressed={tinted}
-        disabled={!tintable}
-        title={tintable
-          ? tinted
-            ? "Showing the page in the theme's colour"
-            : 'Showing the page in its own colours'
-          : 'This theme shows web pages in their own colours'}
-        aria-label="tint the page in the theme's colour"
-        onclick={toggleTint}
-        data-testid="web-tint">◐</button
-      >
       {#if preset.home !== null}
         <button type="button" title="Home" aria-label="home" onclick={() => go({ t: 'home' })} data-testid="web-home">⌂</button>
         <span class="where" title={page?.url ?? ''} data-testid="web-where">{where}</span>
@@ -320,6 +305,21 @@ const where = $derived.by(() => {
           />
         </form>
       {/if}
+      <button
+        type="button"
+        class="tint"
+        class:off={!tinted}
+        aria-pressed={tinted}
+        disabled={!tintable}
+        title={tintable
+          ? tinted
+            ? "Showing the page in the theme's colour"
+            : 'Showing the page in its own colours'
+          : 'This theme shows web pages in their own colours'}
+        aria-label="tint the page in the theme's colour"
+        onclick={toggleTint}
+        data-testid="web-tint">◐</button
+      >
       <button
         type="button"
         title="Open in your browser"

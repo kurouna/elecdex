@@ -290,11 +290,11 @@ weather and calendar.
   elecdex, may not use the camera, microphone, location or notifications, and cannot download
   files. All web panes share one sign-in per site (sign in to YouTube once), kept apart from the
   rest of the app; *Settings → General → sign out of all sites* deletes it. Google may refuse to
-  sign in from an embedded browser; YouTube works without signing in. By default pages are
-  drawn in the theme's colour, like the launcher's icons. The ◐ button beside the address turns
-  that off and on for one pane as you watch; *Settings → General → tint pages in the theme's
-  colour* is the default for panes that have not used their own button, and the Business themes
-  never tint. While a dialog, a notice or a dragged pane
+  sign in from an embedded browser; YouTube works without signing in. Pages are shown in their own
+  colours by default. The ◐ button on the right of the address draws one pane's pages in the
+  theme's colour instead, as you watch; *Settings → General → tint pages in the theme's colour*
+  is the default for panes that have not used their own button, and the Business themes never
+  tint. While a dialog, a notice or a dragged pane
   is over it, a still picture stands in for the page. App shortcuts work while a page has the
   keyboard; every other key goes to the page. The status bar and the fullscreen window controls
   do not appear while the pointer is over a page (use the shortcuts, or move the pointer to
@@ -340,7 +340,7 @@ from the app replaces it:
   "keybindings": { "app.quit": null },
   "window": { "minimizeToTray": false, "closeToTray": true, "globalShortcut": true, "startInBackground": false },
   "updates": { "check": true },
-  "web": { "tint": true },
+  "web": { "tint": false },
   "quakes": { "source": "auto", "notify": true, "minIntensity": "5-", "minMagnitude": 6, "tsunami": true, "system": true, "sound": true }
 }
 ```

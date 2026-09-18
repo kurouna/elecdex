@@ -92,12 +92,14 @@ export const SettingsSchema = z.object({
   web: z
     .object({
       /**
-       * Draw pages in the theme's accent, as the launcher's icons are. Themes that
-       * keep icons in their own colours (Business) never tint.
+       * Draw pages in the theme's accent, as the launcher's icons are, unless a pane
+       * says otherwise with its own switch. Off by default: a tinted site is harder to
+       * read and watch than the HUD around it. Themes that keep icons in their own
+       * colours (Business) never tint.
        */
-      tint: z.boolean().default(true),
+      tint: z.boolean().default(false),
     })
-    .default({ tint: true }),
+    .default({ tint: false }),
   updates: z
     .object({
       /** Ask GitHub once a day whether a newer release exists. Nothing is downloaded. */
