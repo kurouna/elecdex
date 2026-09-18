@@ -1,6 +1,7 @@
 import { webAppearance } from '@shared/web'
 import type { Attachment } from 'svelte/attachments'
 import { SvelteMap } from 'svelte/reactivity'
+import { FRAME_INTERVAL, onFrame } from '../lib/frame-loop.ts'
 import { appearance } from './appearance.svelte.ts'
 
 /**
@@ -35,6 +36,9 @@ class WebStore {
   revision = $state(0)
   private panes = 0
   private stopAppearance: (() => void) | null = null
+  /** Where each overlay was when it was last measured, while panes are watching. */
+  private readonly placed = new Map<HTMLElement, string>()
+  private stopWatch: (() => void) | null = null
 
   /** Whether `box` meets an overlay that is showing. Reactive in the overlays and their revision. */
   covered(box: Box): boolean {
@@ -65,6 +69,7 @@ class WebStore {
         element.removeEventListener('transitionend', bump)
         element.removeEventListener('animationend', bump)
         this.covers.delete(element)
+        this.placed.delete(element)
       }
     }
   }
@@ -73,9 +78,35 @@ class WebStore {
    * Keeps main's picture of the theme current while at least one web pane is
    * mounted: the tint, the colour scheme pages are asked for and their ground.
    */
+  /**
+   * Measures the overlays every frame while a web pane is mounted.
+   *
+   * The observer and the transition events above catch an overlay that changed
+   * size or slid into place, but nothing fires for one the layout moved without
+   * changing its size or its style: a pane whose own rectangle did not change
+   * would then keep its page drawn over it. A few `getBoundingClientRect` reads
+   * at 10 fps, and only while a web pane exists, is the cheapest way to see it;
+   * the revision is bumped only when something really moved, so a still page
+   * costs nothing beyond the reads.
+   */
+  private watch(): void {
+    this.stopWatch = onFrame(() => {
+      let moved = false
+      for (const element of this.covers.keys()) {
+        const box = element.getBoundingClientRect()
+        const at = `${box.x},${box.y},${box.width},${box.height}`
+        if (this.placed.get(element) === at) continue
+        this.placed.set(element, at)
+        moved = true
+      }
+      if (moved) this.revision += 1
+    }, FRAME_INTERVAL)
+  }
+
   retain(): () => void {
     this.panes += 1
     if (this.panes === 1) {
+      this.watch()
       this.stopAppearance = $effect.root(() => {
         $effect(() => {
           window.elecdex.web.setAppearance(
@@ -90,6 +121,9 @@ class WebStore {
       held = false
       this.panes -= 1
       if (this.panes > 0) return
+      this.stopWatch?.()
+      this.stopWatch = null
+      this.placed.clear()
       this.stopAppearance?.()
       this.stopAppearance = null
     }

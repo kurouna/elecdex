@@ -37,8 +37,12 @@ export function valueScale(
   height: number,
   pad = 0.12,
 ): (value: number) => number {
-  let low = lo
-  let high = hi
+  // A range that is reversed, or that a missing quote left as NaN or Infinity, must
+  // still give a usable scale: without this every point would land off the chart, or
+  // the whole chart would be blank, rather than the bad bar alone being wrong.
+  let low = Number.isFinite(lo) ? lo : 0
+  let high = Number.isFinite(hi) ? hi : 0
+  if (high < low) [low, high] = [high, low]
   if (high === low) {
     high += 1
     low -= 1

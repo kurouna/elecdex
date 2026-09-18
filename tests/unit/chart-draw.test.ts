@@ -40,6 +40,29 @@ describe('valueScale', () => {
     expect(y(50)).toBeCloseTo(50, 6)
   })
 
+  it('turns a reversed range the right way round', () => {
+    const y = valueScale(100, 0, 100)
+    expect(y(100)).toBeCloseTo(valueScale(0, 100, 100)(100), 6)
+    expect(y(0)).toBeCloseTo(valueScale(0, 100, 100)(0), 6)
+  })
+
+  it('falls back to a range around zero when a bound is not a number', () => {
+    const bounds: [number, number][] = [
+      [Number.NaN, 100],
+      [0, Number.NaN],
+      [Number.NaN, Number.NaN],
+      [Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY],
+      [0, Number.POSITIVE_INFINITY],
+    ]
+    for (const [lo, hi] of bounds) {
+      const y = valueScale(lo, hi, 100)
+      expect(Number.isFinite(y(0))).toBe(true)
+      expect(Number.isFinite(y(50))).toBe(true)
+      // Still the right way up: a larger value is drawn higher.
+      expect(y(1)).toBeLessThan(y(0))
+    }
+  })
+
   it('spreads a flat range instead of dividing by zero', () => {
     const y = valueScale(7, 7, 100)
     expect(Number.isFinite(y(7))).toBe(true)
