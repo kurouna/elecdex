@@ -742,6 +742,8 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 
 | ピッカーのキーボード選択とスクロール（v0.0.5 以降） | Add pane ピッカーと天気の地点ピッカーは、選択行が一覧の外に出たら `scrollIntoView({ block: 'nearest' })` で追随する（`renderer/lib/list-selection.ts` に共通化）。行の選択はポインターが「入った」ときではなく「動いた」ときにする（pointerenter → pointermove） | 不具合報告: Add pane で上下キーを押すと、画面に出ていない項目が選ばれてもスクロールせず、選択が見えなかった（天気のピッカーには元から追随があった）。ポインターが止まったままでも、スクロールで行がカーソルの下に来ると Chromium は pointerenter を出すため、キーで動かした選択がマウス側の行に戻る。修正前のコードで失敗する e2e を両ピッカーに追加した（行が一覧の矩形に収まるかを比較。Playwright の可視判定はスクロール領域のはみ出しを見ないため） |
 
+| Web ペインのメモリ（v0.0.6 以降） | ペインが表示に戻った時点で、main（`entry.snapshot`）とペイン（`WebWidget` の `snapshot`）の両方が代役の画像を捨てる。`capturePage` の画像は幅 1600 を超えたら `resize` で縮め、JPEG の品質は 80。ウィンドウの `resize` リスナーはページの `destroyed` で外す。**背景のページを CDP で凍結・パージするのは採らない** | 代役の画像はビューを隠すたびに撮られるが、表示に戻しても解放しておらず、ペインごとに data URL とデコード済みビットマップ（2560×1440 なら JPEG 約 700KB、デコード後は数十 MB）が居座っていた。凍結・パージは実機で確かめて捨てた（実測、Electron 44 / Windows）: `Memory.forciblyPurgeJavaScriptMemory` を隠れたビューに送るとページが壊れ（`Runtime.evaluate` が "Cannot find default execution context"、`capturePage` は空、表示に戻しても復帰しない。RSS が減るのはページが消えるため）、`Page.setWebLifecycleState: 'frozen'` は `Page.enable` の有無によらず何も起きない（`freeze` イベントが出ず、スクリプトも動き続ける）。1GB 超は Chromium の素の値（ペイン＝レンダラープロセス）で、減らすにはページを破棄して復帰時に読み直すほかない（未着手） |
+
 ## 17. 既知の問題
 
 現時点で記録すべき既知の問題はない。

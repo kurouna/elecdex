@@ -14,6 +14,15 @@ const hoisted = vi.hoisted(() => ({
   helpers: [] as unknown[],
 }))
 
+/** A picture of a page: `resize` marks the copy, so a test can see it was scaled. */
+const shot = (body: string, width = 900): Electron.NativeImage =>
+  ({
+    isEmpty: () => false,
+    getSize: () => ({ width, height: Math.round(width * 0.6) }),
+    resize: ({ width: to }: { width: number }) => shot(`${body}@${to}`, to),
+    toJPEG: () => Buffer.from(body),
+  }) as unknown as Electron.NativeImage
+
 class FakeContents extends EventEmitter {
   static next = 1
   id = FakeContents.next++
@@ -64,10 +73,7 @@ class FakeContents extends EventEmitter {
   removeInsertedCSS = vi.fn(async (key: string) => {
     this.css.delete(key)
   })
-  capturePage = vi.fn(async () => ({
-    isEmpty: () => false,
-    toJPEG: () => Buffer.from('jpeg'),
-  }))
+  capturePage = vi.fn(async () => shot('jpeg'))
   setWindowOpenHandler = (handler: FakeContents['openHandler']) => {
     this.openHandler = handler
   }
@@ -94,6 +100,8 @@ class FakeWindow extends EventEmitter {
   static byContents = new Map<FakeContents, FakeWindow>()
   children: FakeView[] = []
   size = [800, 600]
+  destroyed = false
+  isDestroyed = () => this.destroyed
   getContentSize = () => this.size
   contentView = {
     addChildView: (view: FakeView) => {
@@ -410,10 +418,7 @@ describe('WebViews', () => {
     await views.hide(asOwner(owner), 'p', 'a', true)
     owner.sent.length = 0
 
-    contents.capturePage.mockResolvedValueOnce({
-      isEmpty: () => false,
-      toJPEG: () => Buffer.from('tinted'),
-    })
+    contents.capturePage.mockResolvedValueOnce(shot('tinted'))
     views.setAppearance(look('#00ffff'))
     await flush()
     await flush()
@@ -527,5 +532,38 @@ describe('WebViews', () => {
     views.dispose()
     expect(contents.every((c) => c.destroyed)).toBe(true)
     expect(win.children).toEqual([])
+  })
+  it('lets go of the picture once the pane draws the page itself again', async () => {
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    views.show(asOwner(owner), 'p', 'a', RECT)
+    // A dialog, and then the pane has the page back: the picture is nobody's business.
+    await views.hide(asOwner(owner), 'p', 'a', true)
+    views.show(asOwner(owner), 'p', 'a', RECT)
+    // Behind another tab, where nothing of it is on screen and no picture was asked for.
+    await views.hide(asOwner(owner), 'p', 'a', false)
+    owner.sent.length = 0
+    const captures = view().webContents.capturePage.mock.calls.length
+
+    views.setAppearance(look('#00ffff'))
+    await flush()
+    await flush()
+    // Nothing is showing a picture of it, so none is taken and none is sent.
+    expect(view().webContents.capturePage.mock.calls).toHaveLength(captures)
+    expect(owner.sent.filter(([channel]) => channel === 'web:snapshot')).toEqual([])
+  })
+
+  it('scales a picture of a large page down', async () => {
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    views.show(asOwner(owner), 'p', 'a', RECT)
+    view().webContents.capturePage.mockResolvedValueOnce(shot('big', 2400))
+    const picture = await views.hide(asOwner(owner), 'p', 'a', true)
+    expect(picture).toBe(`data:image/jpeg;base64,${Buffer.from('big@1600').toString('base64')}`)
+  })
+
+  it('takes its resize listener off the window with the page', () => {
+    views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+    expect(win.listenerCount('resize')).toBe(1)
+    owner.emit('destroyed')
+    expect(win.listenerCount('resize')).toBe(0)
   })
 })

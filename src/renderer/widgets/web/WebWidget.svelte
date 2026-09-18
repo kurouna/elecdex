@@ -178,6 +178,9 @@ $effect(() => {
     placed = key
     api.show(paneId, claim, target)
     showing = true
+    // The page draws itself again: its picture is a decoded bitmap the size of the
+    // pane, which would otherwise be held for as long as the pane lives.
+    snapshot = null
     return
   }
   if (placed === null) return

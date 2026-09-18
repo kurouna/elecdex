@@ -73,7 +73,13 @@ interface Entry {
 
 /** Chromium's code for a load that was replaced by another (a redirect, a new navigation). */
 const ERR_ABORTED = -3
-const SNAPSHOT_QUALITY = 85
+const SNAPSHOT_QUALITY = 80
+/**
+ * A picture of a page stands in for it at the pane's own size, so it needs no more
+ * across: a full-size one of a large window is a megabyte of JPEG, and some tens of
+ * megabytes once the pane has decoded it.
+ */
+const SNAPSHOT_WIDTH = 1600
 const POPUP_SIZE = { width: 520, height: 720 }
 
 const windowOf = (contents: WebContents): BrowserWindow | null =>
@@ -122,6 +128,8 @@ export class WebViews {
     const entry = this.owned(owner, paneId, claim)
     if (entry === null) return
     entry.placement += 1
+    // The pane draws the page itself again: its picture is so much memory from here on.
+    entry.snapshot = null
     const zoom = owner.getZoomFactor()
     entry.bounds = {
       x: Math.round(rect.x * zoom),
@@ -284,14 +292,19 @@ export class WebViews {
         if (entry.owner === owner) this.conceal(entry)
       }
     })
-    owner.once('destroyed', () => {
-      for (const entry of [...this.entries.values()]) {
-        if (entry.owner === owner) this.destroy(entry)
-      }
-    })
-    windowOf(owner)?.on('resize', () => {
+    const win = windowOf(owner)
+    const resized = (): void => {
       for (const entry of this.entries.values()) {
         if (entry.owner === owner && entry.fullscreen) this.fill(entry)
+      }
+    }
+    win?.on('resize', resized)
+    owner.once('destroyed', () => {
+      // The window outlives the pages that owned views in it; the listener would
+      // otherwise pile up, one per page that ever did.
+      if (win !== null && !win.isDestroyed()) win.removeListener('resize', resized)
+      for (const entry of [...this.entries.values()]) {
+        if (entry.owner === owner) this.destroy(entry)
       }
     })
   }
@@ -337,8 +350,10 @@ export class WebViews {
 
   private async capture(entry: Entry): Promise<string | null> {
     try {
-      const image = await entry.view.webContents.capturePage()
-      if (image.isEmpty()) return entry.snapshot
+      const full = await entry.view.webContents.capturePage()
+      if (full.isEmpty()) return entry.snapshot
+      const { width } = full.getSize()
+      const image = width > SNAPSHOT_WIDTH ? full.resize({ width: SNAPSHOT_WIDTH }) : full
       return `data:image/jpeg;base64,${image.toJPEG(SNAPSHOT_QUALITY).toString('base64')}`
     } catch {
       return entry.snapshot
