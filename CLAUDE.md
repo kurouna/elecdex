@@ -197,7 +197,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   around it, not only the one reported (the same path through another widget, the edit or
   reload that reaches it another way). Check that the test really fails without the fix. Put it
   at the lowest level that can see the bug (unit, then component, then e2e), plus an e2e check
-  when the bug was only visible in the running app. A test that fails only under load is usually
+  when the bug was only visible in the running app. A test that needs the window the default
+  layout is designed for (1920x1080) zooms out to get it in CSS pixels where the screen is
+  smaller - the macOS CI runner's is about 1024x640 - rather than measuring a window that
+  cannot fit what it asserts. A test that fails only under load is usually
   its own fault: a harness driving a fake clock waits on promises (`await Promise.resolve()`), never
   on real timers per step, which cost seconds against the five-second limit. A component test that
   stubs `window.elecdex` flushes what it started (`layout.flush()`) before unstubbing, and its IPC

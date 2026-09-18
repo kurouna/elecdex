@@ -273,11 +273,29 @@ test('the system pane fits its rows in a layout saved before the OS row', async 
 
   const { app, page, close } = await launch(first.userData)
   try {
-    // The size the default layout is designed for; a much smaller window is too
-    // short for three rows at any height the column gives this pane.
-    await app.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0]?.setContentSize(1920, 1080)
+    // The size the default layout is designed for; a much smaller window is too short
+    // for three rows at any height the column gives this pane. A screen that cannot give
+    // the window that many pixels - the macOS CI runner's is about 1024x640 - gets them
+    // as CSS pixels instead, by zooming out: the same layout, measured in the same units.
+    const zoom = await app.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows()[0]
+      if (!win) return 0
+      win.setContentSize(1920, 1080)
+      const [width = 0, height = 0] = win.getContentSize()
+      const factor = Math.min(1, width / 1920, height / 1080)
+      win.webContents.setZoomFactor(factor)
+      return factor
     })
+    expect(zoom).toBeGreaterThan(0)
+    await expect
+      .poll(() => page.evaluate(() => [window.innerWidth, window.innerHeight]))
+      .toEqual([expect.any(Number), expect.any(Number)])
+    const viewport = await page.evaluate(() => [window.innerWidth, window.innerHeight])
+    expect(
+      viewport[0],
+      'the workspace has the width the layout is designed for',
+    ).toBeGreaterThanOrEqual(1919)
+    expect(viewport[1], 'and the height, minus the title bar').toBeGreaterThanOrEqual(1040)
     const os = page.getByTestId('sysinfo-os')
     await expect(os).not.toHaveText('--', { timeout: 30_000 })
     await page.waitForTimeout(500) // the resize settling
