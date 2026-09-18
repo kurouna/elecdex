@@ -42,6 +42,13 @@ describe('web presets', () => {
     ])
   })
 
+  it('offers the television pane rather than the plain YouTube one, which still resolves', () => {
+    // Only the television pane can be signed in, so it is the one in the picker; a layout
+    // saved with the plain one, and a YouTube link from another pane, still land there.
+    expect(WEB_PRESETS.filter((p) => p.unlisted === true).map((p) => p.id)).toEqual(['youtube'])
+    expect(presetOfWidget('web.youtube')?.id).toBe('youtube')
+  })
+
   it("tells only YouTube's television pane that it is a television", () => {
     const televisions = WEB_PRESETS.filter((p) => p.userAgent !== undefined)
     expect(televisions.map((p) => p.id)).toEqual(['youtubetv'])

@@ -40,6 +40,8 @@ const widgets = $derived.by(() => {
     (w) =>
       // A plugin is offered once it is on and agreed to; the settings list the rest.
       (!w.plugin || plugins.usable(w.id.slice('plugin:'.length))) &&
+      // Superseded, but still resolved for a layout that names it.
+      !w.unlisted &&
       (q === '' ||
         w.id.includes(q) ||
         w.title.toLowerCase().includes(q) ||

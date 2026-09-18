@@ -283,18 +283,18 @@ weather and calendar.
   settings is compensated, so the bars show the sound as it plays; a muted one is reported with
   a button that unmutes it.
 - **Browser, YouTube and X** — not in the default layout: add them from the picker. *Browser*
-  has an address bar and opens any http(s) page; *YouTube*, *YouTube (TV)* and *X* open their
-  site, keep to it, and send links to other sites to your default browser. *YouTube (TV)* is
-  YouTube's living-room interface, driven by the arrow keys; it is the one that can be signed
-  in, with the code it shows entered at yt.be/activate on a phone, because Google refuses to
-  sign in from an embedded browser ("this browser or app may not be secure"). Each pane has back, forward, reload
+  has an address bar and opens any http(s) page; *YouTube (TV)* and *X* open their site, keep
+  to it, and send links to other sites to your default browser. *YouTube (TV)* is YouTube's
+  living-room interface, driven by the arrow keys; it is the YouTube pane offered, because it is
+  the one that can be signed in - with the code it shows entered at yt.be/activate on a phone -
+  while Google refuses to sign in from an embedded browser ("this browser or app may not be
+  secure"). Each pane has back, forward, reload
   (home for the sites) and "open in your browser" buttons, and remembers its page across restarts.
   The page is drawn by a separate, sandboxed browser view over the pane: it has no access to
   elecdex, may not use the camera, microphone, location or notifications, and cannot download
   files. All web panes share one sign-in per site (sign in to YouTube once), kept apart from the
   rest of the app; *Settings → General → sign out of all sites* deletes it. Google refuses to sign
-  in from an embedded browser, so the YouTube pane stays signed out (watching and search work);
-  sign in through the *YouTube (TV)* pane instead. Pages are shown in their own
+  in from an embedded browser, so signing in to YouTube goes through the *YouTube (TV)* pane. Pages are shown in their own
   colours by default. The ◐ button on the right of the address draws one pane's pages in the
   theme's colour instead, as you watch; *Settings → General → tint pages in the theme's colour*
   is the default for panes that have not used their own button, and the Business themes never

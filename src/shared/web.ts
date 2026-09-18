@@ -30,6 +30,13 @@ export interface WebPreset {
    * a television. Left out, the pages are served the browser's own user agent.
    */
   userAgent?: string
+  /**
+   * Kept out of the add-pane picker, while panes and links that name it still work: the
+   * plain YouTube pane cannot be signed in (Google refuses an embedded browser), so the
+   * television one is the one to add. A layout saved with it, and a YouTube link opened
+   * from another pane, still land here.
+   */
+  unlisted?: boolean
 }
 
 /**
@@ -58,12 +65,14 @@ export const WEB_PRESETS: readonly WebPreset[] = [
     description: 'YouTube in a pane. Other sites open in your browser.',
     home: 'https://www.youtube.com/',
     hosts: ['youtube.com', 'youtu.be', 'google.com'],
+    // The television pane is offered instead: only that one can be signed in.
+    unlisted: true,
   },
   {
     id: 'youtubetv',
     title: 'youtube (tv)',
     description:
-      "YouTube's television interface, for the remote-control layout and signing in with a phone.",
+      "YouTube's television interface: the remote-control layout, and the only YouTube pane that can be signed in - with a code entered on a phone.",
     home: 'https://www.youtube.com/tv',
     hosts: ['youtube.com', 'youtu.be', 'google.com'],
     userAgent: TELEVISION,

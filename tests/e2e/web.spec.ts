@@ -202,11 +202,21 @@ test.describe('web panes', () => {
       expect(await views(app)).toEqual([])
       await page.keyboard.press('Control+Shift+A')
       const picker = page.getByTestId('pane-picker')
-      for (const widget of ['web.browser', 'web.youtube', 'web.youtubetv', 'web.x']) {
+      for (const widget of ['web.browser', 'web.youtubetv', 'web.x']) {
         await expect(
           picker.locator(`[data-testid=pane-picker-item][data-widget="${widget}"]`),
         ).toHaveCount(1)
       }
+      // The plain YouTube pane cannot be signed in, so the television one is offered
+      // instead; a layout that names the plain one still opens it (the tests below).
+      await expect(
+        picker.locator('[data-testid=pane-picker-item][data-widget="web.youtube"]'),
+      ).toHaveCount(0)
+      await picker.getByTestId('pane-picker-filter').fill('youtube')
+      await expect(
+        picker.locator('[data-testid=pane-picker-item][data-widget^="web.youtube"]'),
+      ).toHaveCount(1)
+      await picker.getByTestId('pane-picker-filter').fill('')
       await picker.locator('[data-testid=pane-picker-item][data-widget="web.x"]').click()
       const pane = page.locator('[data-testid=pane][data-widget="web.x"]')
       await expect(pane.getByTestId('pane-subtitle')).toHaveText('X home')

@@ -46,6 +46,11 @@ export interface WidgetDefinition {
   multiple?: boolean
   /** Provided by a plugin (docs/plugins.md): marked as such in the picker. */
   plugin?: boolean
+  /**
+   * Left out of the add-pane picker, though a layout naming it still resolves: a widget
+   * another one supersedes, or one that is only opened by something else.
+   */
+  unlisted?: boolean
 }
 
 /** Every widget receives its pane's identity and configuration. */

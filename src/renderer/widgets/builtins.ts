@@ -223,5 +223,6 @@ for (const preset of WEB_PRESETS) {
     component: WebWidget,
     minSize: { w: 240, h: 160 },
     multiple: true,
+    ...(preset.unlisted === true ? { unlisted: true } : {}),
   })
 }

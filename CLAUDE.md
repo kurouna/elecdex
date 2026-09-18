@@ -96,7 +96,9 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   the pane; add a site there, not as a widget. All web panes share the `persist:web` session and
   nothing else does; pages get no preload, no permission but clipboard write and fullscreen, no
   downloads, and only http(s). A preset may carry a `userAgent`, which is how the YouTube (TV)
-  pane asks for the television interface; that pane is also the only one that can be signed in,
+  pane asks for the television interface, and an `unlisted` one is resolved for a layout that
+  names it but is not offered in the picker (the plain YouTube pane, which the television one
+  supersedes); that pane is also the only one that can be signed in,
   because Google refuses an embedded browser (its device flow, a code entered on a phone, is the
   sanctioned way - never dress the pane up as Chrome to get past the check). Each mount claims its
   view with a token, so a moved pane's old component cannot hide the new one's page, and opens it
