@@ -66,12 +66,34 @@ test('the intro plays through to a revealed workspace', async () => {
     })
     await expect(page.getByTestId('boot-greeting')).toContainText(/welcome back/i)
 
+    // Every pane is powering on with its own delay, the shell first. Recorded in the page
+    // as the delays are set: they last only while the reveal plays, which reading from here
+    // missed on a busy machine - the reveal was over and the style gone.
+    await app.evaluate((element) => {
+      const seen = window as unknown as { __crtDelays?: string[] }
+      seen.__crtDelays = []
+      const record = () => {
+        for (const pane of document.querySelectorAll<HTMLElement>(
+          '[data-testid=pane][data-widget=terminal]',
+        )) {
+          const delay = getComputedStyle(pane).getPropertyValue('--crt-delay').trim()
+          if (delay !== '' && !seen.__crtDelays?.includes(delay)) seen.__crtDelays?.push(delay)
+        }
+      }
+      record()
+      new MutationObserver(record).observe(element, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      })
+    })
     await expect(app).toHaveAttribute('data-boot', 'reveal', { timeout: 20_000 })
-    // Every pane is powering on with its own delay, the shell first.
-    const terminalDelay = await terminalPane(page).evaluate((el) =>
-      getComputedStyle(el).getPropertyValue('--crt-delay'),
-    )
-    expect(terminalDelay.trim()).toBe('0ms')
+    await expect
+      .poll(
+        () => page.evaluate(() => (window as unknown as { __crtDelays?: string[] }).__crtDelays),
+        { timeout: 20_000 },
+      )
+      .toContain('0ms')
     await expect(page.locator('[data-testid=pane].crt-on').first()).toBeAttached()
 
     await expect(app).toHaveAttribute('data-boot', 'done', { timeout: 20_000 })
