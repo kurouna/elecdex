@@ -477,7 +477,14 @@ export class PluginHost {
   }
 
   apply(catalog: PluginCatalog): Promise<void> {
-    this.applying = this.applying.then(() => this.applyNow(catalog))
+    // The chain keeps the catalogs in order, not their results: a failed apply that
+    // stayed in it would leave every later one unapplied, so the plugins folder could
+    // never be put right again.
+    this.applying = this.applying.then(() =>
+      this.applyNow(catalog).catch((error: unknown) => {
+        console.error('applying the plugin catalog failed', error)
+      }),
+    )
     return this.applying
   }
 

@@ -20,8 +20,16 @@ class WindowStateStore {
       // Put away or minimised: the frame loop stops until the window is back.
       setWindowHidden(state.hidden)
     }
-    void window.elecdex.system.windowState().then(apply)
-    window.elecdex.system.onWindowState(apply)
+    let pushed = false
+    // The first answer may come back after main has already reported a change (the
+    // window put away as the page loads): the event is the newer of the two.
+    void window.elecdex.system.windowState().then((state) => {
+      if (!pushed) apply(state)
+    })
+    window.elecdex.system.onWindowState((state) => {
+      pushed = true
+      apply(state)
+    })
   }
 }
 

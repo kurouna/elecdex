@@ -650,3 +650,22 @@ describe('the plugin settings', () => {
     expect(screen.queryByTestId('plugin-enabled')).toBeNull()
   })
 })
+
+describe('the plugin host', () => {
+  it('applies the next catalog after one failed', async () => {
+    await startHost([], {})
+    const failed = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const host = plugins as unknown as { applyNow: (catalog: PluginCatalog) => Promise<void> }
+    const once = vi.spyOn(host, 'applyNow').mockRejectedValueOnce(new Error('boom'))
+    await plugins.apply({ folder: 'C:/plugins', plugins: [] })
+    once.mockRestore()
+
+    const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
+    await startHost([source('counter.ts', COUNTER)], {
+      counter: { enabled: true, key: 'counter.ts', granted, values: { step: 1 } },
+    })
+    expect(plugins.entry('counter')?.status).toBe('ready')
+    expect(failed).toHaveBeenCalled()
+    failed.mockRestore()
+  })
+})
