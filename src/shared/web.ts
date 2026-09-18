@@ -25,7 +25,23 @@ export interface WebPreset {
    * page. Anything else goes to the default browser. Sign-in pages belong here too.
    */
   hosts: readonly string[] | null
+  /**
+   * What the pane tells the site it is, where the site serves a different interface to
+   * a television. Left out, the pages are served the browser's own user agent.
+   */
+  userAgent?: string
 }
+
+/**
+ * A television, for YouTube's living-room interface. Google refuses to sign in from a
+ * browser it does not know - an embedded one above all - so a YouTube pane can only be
+ * signed out; its television interface instead signs in the way a TV does, with a code
+ * entered on a phone (measured 2026-09-18: youtube.com/tv shows the QR code and pairing
+ * code with this user agent). That is Google's own flow for devices, not a way around
+ * the check.
+ */
+const TELEVISION =
+  'Mozilla/5.0 (Linux; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) Version/6.0 TV Safari/537.36'
 
 export const WEB_PRESETS: readonly WebPreset[] = [
   {
@@ -42,6 +58,15 @@ export const WEB_PRESETS: readonly WebPreset[] = [
     description: 'YouTube in a pane. Other sites open in your browser.',
     home: 'https://www.youtube.com/',
     hosts: ['youtube.com', 'youtu.be', 'google.com'],
+  },
+  {
+    id: 'youtubetv',
+    title: 'youtube (tv)',
+    description:
+      "YouTube's television interface, for the remote-control layout and signing in with a phone.",
+    home: 'https://www.youtube.com/tv',
+    hosts: ['youtube.com', 'youtu.be', 'google.com'],
+    userAgent: TELEVISION,
   },
   {
     id: 'x',

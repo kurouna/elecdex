@@ -61,6 +61,10 @@ class FakeContents extends EventEmitter {
     this.destroyed = true
     this.emit('destroyed')
   })
+  userAgent = ''
+  setUserAgent = vi.fn((ua: string) => {
+    this.userAgent = ua
+  })
   reload = vi.fn()
   stop = vi.fn()
   getZoomFactor = () => this.zoom
@@ -186,6 +190,18 @@ describe('WebViews', () => {
       '',
     ])
     expect(win.children.every((v) => !v.visible)).toBe(true)
+  })
+
+  it('tells a television preset that it is a television, before it loads anything', () => {
+    views.open(asOwner(owner), 'p', 'a', preset('youtubetv'), null)
+    const contents = view().webContents
+    expect(contents.userAgent).toMatch(/TV Safari/)
+    expect(contents.setUserAgent.mock.invocationCallOrder[0]).toBeLessThan(
+      contents.loadURL.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    )
+    // Every other pane is served the browser's own user agent, which the session sets.
+    views.open(asOwner(owner), 'q', 'b', preset('youtube'), null)
+    expect(view(1).webContents.setUserAgent).not.toHaveBeenCalled()
   })
 
   it('shows at the rectangle, scaled by the page zoom', () => {

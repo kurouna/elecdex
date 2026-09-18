@@ -41,6 +41,10 @@ function route(url: string): [number, Record<string, string>, string] {
     '/yt/blank': PAGE('YT blank'),
     '/yt/popup': PAGE('YT popup'),
     '/x/': PAGE('X home'),
+    // The stub's television interface: it reports what the pane told it the pane is.
+    '/tv/':
+      '<!doctype html><title>YT tv</title><h1 id="ua"></h1>' +
+      '<script>document.getElementById("ua").textContent = navigator.userAgent</script>',
     '/away': PAGE('Away'),
   }
   const page = pages[url]
@@ -88,7 +92,10 @@ async function start(options: LaunchOptions = {}): Promise<Launched> {
   return launch(undefined, {
     layout: layoutWith('web.youtube'),
     ...options,
-    env: { ELECDEX_WEB_HOMES: `youtube=${yt()},x=http://127.0.0.1:${port}/x/`, ...options.env },
+    env: {
+      ELECDEX_WEB_HOMES: `youtube=${yt()},youtubetv=http://127.0.0.1:${port}/tv/,x=http://127.0.0.1:${port}/x/`,
+      ...options.env,
+    },
   })
 }
 
@@ -186,14 +193,16 @@ const opened = (app: Launched) =>
 test.describe('web panes', () => {
   test('are offered in the picker, one per preset, and open where the preset starts', async () => {
     const app = await launch(undefined, {
-      env: { ELECDEX_WEB_HOMES: `youtube=${yt()},x=http://127.0.0.1:${port}/x/` },
+      env: {
+        ELECDEX_WEB_HOMES: `youtube=${yt()},youtubetv=http://127.0.0.1:${port}/tv/,x=http://127.0.0.1:${port}/x/`,
+      },
     })
     const { page } = app
     try {
       expect(await views(app)).toEqual([])
       await page.keyboard.press('Control+Shift+A')
       const picker = page.getByTestId('pane-picker')
-      for (const widget of ['web.browser', 'web.youtube', 'web.x']) {
+      for (const widget of ['web.browser', 'web.youtube', 'web.youtubetv', 'web.x']) {
         await expect(
           picker.locator(`[data-testid=pane-picker-item][data-widget="${widget}"]`),
         ).toHaveCount(1)
@@ -338,6 +347,30 @@ test.describe('web panes', () => {
         .toBe(false)
     } finally {
       await app.close()
+    }
+  })
+
+  test('ask a site for its television interface in the TV pane, and not in the others', async () => {
+    const app = await start({ layout: layoutWith('web.youtubetv') })
+    try {
+      await expect(webPane(app.page).getByTestId('pane-subtitle')).toHaveText('YT tv')
+      // Google refuses to sign in from an embedded browser, so the television interface is
+      // how a YouTube pane is signed in at all: with a code entered on a phone.
+      const agent = await inPage<string>(app, 'document.getElementById("ua").textContent')
+      expect(agent).toMatch(/TV Safari/)
+      expect(agent).not.toMatch(/Electron|elecdex/)
+    } finally {
+      await app.close()
+    }
+
+    const ordinary = await start()
+    try {
+      await expect(webPane(ordinary.page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      const agent = await inPage<string>(ordinary, 'navigator.userAgent')
+      expect(agent).toMatch(/Chrome[/]/)
+      expect(agent).not.toMatch(/TV Safari/)
+    } finally {
+      await ordinary.close()
     }
   })
 

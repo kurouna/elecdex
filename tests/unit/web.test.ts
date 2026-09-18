@@ -33,8 +33,21 @@ const theme = (id: string): Theme => {
 }
 
 describe('web presets', () => {
-  it('are the browser, YouTube and X, each a widget of its own', () => {
-    expect(WEB_PRESETS.map(webWidgetId)).toEqual(['web.browser', 'web.youtube', 'web.x'])
+  it('are the browser, YouTube (twice) and X, each a widget of its own', () => {
+    expect(WEB_PRESETS.map(webWidgetId)).toEqual([
+      'web.browser',
+      'web.youtube',
+      'web.youtubetv',
+      'web.x',
+    ])
+  })
+
+  it("tells only YouTube's television pane that it is a television", () => {
+    const televisions = WEB_PRESETS.filter((p) => p.userAgent !== undefined)
+    expect(televisions.map((p) => p.id)).toEqual(['youtubetv'])
+    // A television interface is served by the user agent; nothing else is claimed.
+    expect(televisions[0]?.userAgent).toMatch(/TV Safari/)
+    expect(televisions[0]?.userAgent).not.toMatch(/Electron|elecdex/)
   })
 
   it('have unique, lowercase ids, http(s) homes and lowercase hosts', () => {

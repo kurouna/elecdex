@@ -124,9 +124,12 @@ beforeEach(() => {
 /** Any claim: each mount makes its own. */
 const CLAIM = expect.any(String)
 
-afterEach(() => {
+afterEach(async () => {
   ui.closeSettings()
   paneDrag.source = null
+  // A pane state written in a test leaves a debounced save behind, which would fire
+  // after the stubs are gone and throw where nothing is watching.
+  await layout.flush()
   vi.clearAllMocks()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()

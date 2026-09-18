@@ -256,6 +256,8 @@ export class WebViews {
         devTools: !app.isPackaged,
       },
     })
+    // Before anything is loaded: a site serves its television interface by the user agent.
+    if (preset.userAgent !== undefined) view.webContents.setUserAgent(preset.userAgent)
     view.setBackgroundColor(this.appearance.background)
     view.setVisible(false)
     const entry: Entry = {

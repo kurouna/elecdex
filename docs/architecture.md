@@ -306,8 +306,11 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 | `id` / `title` / `description` | ウィジェット id（`web.<id>`）、ペインのタイトル、ピッカーの説明 |
 | `home` | 最初に開く URL。`null` は汎用ブラウザ（アドレスバーを出し、空のページから始める） |
 | `hosts` | ペイン内で開くホスト（サブドメインを含む）。`null` は http/https ならどこでも。それ以外へのトップレベル遷移・リダイレクト・新しいウィンドウは既定のブラウザで開く。ログインの経路（accounts.google.com など）もここに含める |
+| `userAgent` | そのプリセットだけが名乗る User-Agent（省略時はセッションのもの）。サイトがテレビ向けの画面を UA で出し分けるため。ビューを作った直後、読み込みの前に `webContents.setUserAgent` で設定する |
 
-初期のプリセットは `browser`（汎用）・`youtube`・`x` の 3 つ。ウィジェット id は `web.browser` / `web.youtube` / `web.x`。どれも複数置ける。
+初期のプリセットは `browser`（汎用）・`youtube`・`youtubetv`・`x` の 4 つ。ウィジェット id は `web.browser` / `web.youtube` / `web.youtubetv` / `web.x`。どれも複数置ける。
+
+`youtubetv` は YouTube のテレビ向け画面（`youtube.com/tv`）をテレビの User-Agent で開く。Google は知らないブラウザ（とりわけ組み込みのもの）からのログインを拒否するため、`youtube` ペインはログインできない（「このブラウザまたはアプリは安全でない可能性があります」。ユーザー報告 2026-09-18）。テレビ向け画面は Google 自身がテレビや機器のために用意した方式で、画面の QR コードと `yt.be/activate` のコードをスマートフォンで入力してログインする。判定を回避するのではなく、Google が認めている経路を使う（実測 2026-09-18: 上記の UA で QR とコードの画面まで到達）。UA の文字列から Electron の印を外していても、Client Hints のブランドは `Chromium` のままで `Google Chrome` にはならない（実測）。ここを偽装して判定を通すことはしない。
 
 **セッション**: すべての Web ペインで 1 つの永続パーティション `persist:web` を共有する。YouTube プリセットでログインすれば、汎用ブラウザで開いた youtube.com もログイン済みになる。
 - 守るべき境界は「workspace ⇔ Web ペイン」であり、ここは分けたまま。Web ペインどうしの分離は Chromium の Cookie のドメイン分離とサイト分離に任せる

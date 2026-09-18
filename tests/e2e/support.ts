@@ -66,7 +66,8 @@ const UNREACHABLE_UPDATES = 'http://127.0.0.1:9/releases/latest'
 const UNREACHABLE_USGS = 'http://127.0.0.1:9/usgs'
 const UNREACHABLE_NOAA = 'http://127.0.0.1:9/noaa'
 /** The web pane presets likewise open a closed port: no test loads YouTube or X. */
-const UNREACHABLE_WEB = 'youtube=http://127.0.0.1:9/youtube/,x=http://127.0.0.1:9/x/'
+const UNREACHABLE_WEB =
+  'youtube=http://127.0.0.1:9/youtube/,youtubetv=http://127.0.0.1:9/tv/,x=http://127.0.0.1:9/x/'
 
 /**
  * Deletes a throwaway userData folder. Windows can keep a file in it locked for a
