@@ -30,8 +30,7 @@ function recorder(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, rects }
 }
 
-const bar = (o: number, h: number, l: number, c: number): CandlePoint =>
-  ({ t: 0, o, h, l, c }) as CandlePoint
+const bar = (o: number, h: number, l: number, c: number): CandlePoint => ({ t: 0, o, h, l, c })
 
 describe('valueScale', () => {
   it('pads the range so the extremes do not touch the edges', () => {
@@ -121,8 +120,9 @@ describe('observeCanvas', () => {
     const sizes: { width: number; height: number; ratio: number }[] = []
     const stop = observeCanvas(canvas, (size) => sizes.push(size))
 
-    // A pane that is not laid out yet: the backing store may not be zero, but the
-    // size the chart is told is the real one, so it can decline to draw.
+    // A pane that is not laid out yet: the backing store is clamped to a pixel (a
+    // zero-sized canvas throws), but the chart is told the real size, so it can
+    // decline to draw rather than drawing into that one pixel.
     fire()
     expect(el.width).toBe(1)
     expect(el.height).toBe(1)

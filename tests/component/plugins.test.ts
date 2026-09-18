@@ -668,4 +668,31 @@ describe('the plugin host', () => {
     expect(failed).toHaveBeenCalled()
     failed.mockRestore()
   })
+
+  it('applies a catalog that was already waiting behind the one that failed', async () => {
+    await startHost([], {})
+    const failed = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const host = plugins as unknown as { applyNow: (catalog: PluginCatalog) => Promise<void> }
+    const real = host.applyNow.bind(host)
+    // Only the first of the two fails: the second was queued while it was still running,
+    // which is what the folder's change events do.
+    const once = vi
+      .spyOn(host, 'applyNow')
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockImplementation(real)
+    const granted = grantFor({ ...NO_PERMISSIONS, notify: true })
+    settingsWith({ counter: { enabled: true, key: 'counter.ts', granted, values: { step: 1 } } })
+    const first = plugins.apply({ folder: 'C:/plugins', plugins: [] })
+    const second = plugins.apply({
+      folder: 'C:/plugins',
+      plugins: [source('counter.ts', COUNTER)],
+    })
+    await first
+    await second
+    await settle()
+    expect(plugins.entry('counter')?.status).toBe('ready')
+    expect(failed).toHaveBeenCalled()
+    once.mockRestore()
+    failed.mockRestore()
+  })
 })
