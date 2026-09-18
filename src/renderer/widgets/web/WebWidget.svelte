@@ -189,7 +189,9 @@ $effect(() => {
   // A tab put behind another needs no picture: nothing of it is on screen.
   const picture = untrack(() => covered && visible)
   void api.hide(paneId, claim, picture).then((image) => {
-    if (picture && image !== null) snapshot = image
+    // The page may be back before its picture is taken (a dialog closed at once, a
+    // pane moved): holding it then is a bitmap of a page the pane can see.
+    if (picture && image !== null && !showing) snapshot = image
   })
 })
 

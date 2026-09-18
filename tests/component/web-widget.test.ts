@@ -38,7 +38,7 @@ const api = {
     return stateOf(paneId, url)
   }),
   show: vi.fn((paneId: string, claim: string, rect: WebRect) => void sent(paneId, claim, rect)),
-  hide: vi.fn(async (paneId: string, claim: string, snapshot: boolean) => {
+  hide: vi.fn(async (paneId: string, claim: string, snapshot: boolean): Promise<string | null> => {
     sent(paneId, claim, snapshot)
     return snapshot ? 'data:image/jpeg;base64,AAAA' : null
   }),
@@ -474,6 +474,49 @@ describe('WebWidget', () => {
     appearance.settings = { ...appearance.settings, theme: 'tron' }
     await settle()
     expect((screen.getByTestId('web-tint') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('lets go of the picture once the page is back, and shows no stale one later', async () => {
+    const view = mount()
+    await settle()
+    ui.openSettings()
+    await settle()
+    expect(screen.getByTestId('web-snapshot')).toBeTruthy()
+    ui.closeSettings()
+    await settle()
+
+    // Behind another tab, where nothing of the pane is on screen and no picture was
+    // asked for: the one taken for the dialog must not come back.
+    bodyRect = null
+    await view.rerender({ visible: false })
+    await settle()
+    expect(api.hide).toHaveBeenLastCalledWith('p', CLAIM, false)
+    expect(screen.queryByTestId('web-snapshot')).toBeNull()
+  })
+
+  it('ignores a picture that arrives after the page came back', async () => {
+    const view = mount()
+    await settle()
+    let answer: (image: string | null) => void = () => {}
+    api.hide.mockImplementationOnce(
+      () =>
+        new Promise<string | null>((resolve) => {
+          answer = resolve
+        }),
+    )
+    // A dialog opened and closed again before main had taken the picture.
+    ui.openSettings()
+    await settle()
+    ui.closeSettings()
+    await settle()
+    answer('data:image/jpeg;base64,AAAA')
+    await settle()
+    expect(screen.queryByTestId('web-snapshot')).toBeNull()
+
+    bodyRect = null
+    await view.rerender({ visible: false })
+    await settle()
+    expect(screen.queryByTestId('web-snapshot')).toBeNull()
   })
 
   it('takes a fresh picture of a hidden view whose colours changed', async () => {
