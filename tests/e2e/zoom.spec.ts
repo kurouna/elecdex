@@ -37,13 +37,15 @@ function fillsMostOf(box: Box, area: Box): boolean {
   )
 }
 
-/** Brings the clock forward with its own button, which shows on hover. */
-async function zoomClock(page: Page): Promise<void> {
-  await pane(page, 'clock').hover()
-  await pane(page, 'clock').getByTestId('pane-zoom').click()
+/** Brings a pane forward with its own button, which shows on hover. */
+async function zoomPane(page: Page, widget: string): Promise<void> {
+  await pane(page, widget).hover()
+  await pane(page, widget).getByTestId('pane-zoom').click()
   await expect(page.getByTestId('zoom-backdrop')).toBeVisible()
   await zoomSettled(page)
 }
+
+const zoomClock = (page: Page) => zoomPane(page, 'clock')
 
 test('a pane brought forward covers the workspace, and the panes behind it keep their place', async () => {
   const { page, close } = await launch()
@@ -214,6 +216,33 @@ test('a tab group comes forward with its strip, and another tab keeps it forward
 
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('dragging the pane that is forward puts it back, so it can be dropped somewhere', async () => {
+  const { page, close } = await launch()
+  try {
+    // The CPU pane, which has a title to drag it by (the clock has none).
+    await zoomPane(page, 'cpu')
+
+    // Press its title and move: the pane goes home as the drag starts, and the
+    // drop targets behind the shade are reachable again.
+    const from = await boxOf(page, '[data-testid=pane][data-widget=cpu] .module-title')
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+    await page.mouse.down()
+    const onto = await boxOf(page, '[data-testid=pane][data-widget=calendar]')
+    await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height - 12, { steps: 12 })
+    await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+    await expect(page.getByTestId('pane-drag')).toHaveCount(1)
+    await expect(page.getByTestId('pane-drop-preview')).toHaveCount(1)
+    await page.mouse.up()
+
+    // It really moved: under the calendar, at the bottom of the right column.
+    await zoomSettled(page)
+    const moved = await boxOf(page, '[data-testid=pane][data-widget=cpu]')
+    expect(moved.y).toBeGreaterThan(onto.y)
   } finally {
     await close()
   }

@@ -61,7 +61,7 @@ $effect(() => {
       const { top, right, bottom, left } = box
       return { top, right, bottom, left }
     },
-    frameOf: (paneId) => frameOfPane(paneId, layout.pinnedPaneId === paneId),
+    frameOf: (paneId) => frameOfPane(paneId),
   }
   return () => {
     layout.zoomMotion = null
@@ -250,7 +250,6 @@ function onBeforeUnload(): void {
   bind:this={workspace}
   data-testid="workspace"
   data-loaded={layout.loaded}
-  data-zoomed={layout.zoomedPaneId ?? undefined}
 >
   {#if layout.loaded}
     <LayoutNodeView node={layout.tree.root} />

@@ -42,6 +42,10 @@ class PaneDragStore {
   target = $state.raw<DropTarget | null>(null)
 
   begin(nodeId: string, label: string): void {
+    // A pane brought to the front covers the workspace, and the shade behind it
+    // takes every press: nothing could be dropped on. Putting it back first is
+    // also what the gesture means - the pane is being given a new place.
+    layout.unzoom()
     this.source = nodeId
     this.label = label
   }

@@ -6,7 +6,9 @@ import type { Frame } from '../../src/renderer/layout/pane-close.ts'
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
 const { CRT_UNZOOM_MS, CRT_ZOOM_MS } = await import('../../src/renderer/layout/pane-zoom.ts')
+const { frameOfPane } = await import('../../src/renderer/layout/pane-close.ts')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+const { paneDrag } = await import('../../src/renderer/layout/pane-drag.svelte.ts')
 
 /**
  * Bringing one pane to the front of the workspace and putting it back: what is
@@ -151,6 +153,48 @@ describe('zooming a pane', () => {
   })
 })
 
+/**
+ * The pane's own box is where the zoom put it, so a pinned pane must be measured
+ * by the slot it came out of - and that is decided by what is painted, not by
+ * what the store has set, which a flight or a second toggle can disagree with.
+ */
+describe('frameOfPane', () => {
+  function build(pinned: boolean): HTMLElement {
+    const slot = document.createElement('div')
+    const pane = document.createElement('section')
+    pane.dataset.testid = 'pane'
+    pane.dataset.paneId = 'p'
+    pane.setAttribute('data-testid', 'pane')
+    slot.append(pane)
+    document.body.append(slot)
+    slot.getBoundingClientRect = () => DOMRect.fromRect({ x: 0, y: 0, width: 100, height: 80 })
+    pane.getBoundingClientRect = () =>
+      DOMRect.fromRect(
+        pinned ? { x: 50, y: 40, width: 900, height: 720 } : { x: 0, y: 0, width: 100, height: 80 },
+      )
+    if (pinned) pane.style.position = 'fixed'
+    return slot
+  }
+
+  afterEach(() => {
+    document.body.replaceChildren()
+  })
+
+  it('measures the pane where it is laid out', () => {
+    build(false)
+    expect(frameOfPane('p')).toEqual({ top: 0, right: 100, bottom: 80, left: 0 })
+  })
+
+  it('and a pinned one by the slot it came out of', () => {
+    build(true)
+    expect(frameOfPane('p')).toEqual({ top: 0, right: 100, bottom: 80, left: 0 })
+  })
+
+  it('knows nothing of a pane that is not in the page', () => {
+    expect(frameOfPane('gone')).toBeNull()
+  })
+})
+
 describe('what lets go of a zoomed pane', () => {
   const a = pane('clock')
   const b = pane('terminal')
@@ -211,6 +255,15 @@ describe('what lets go of a zoomed pane', () => {
 
     vi.advanceTimersByTime(2000)
     expect(ids()).toEqual([b.id])
+    expect(layout.pinnedPaneId).toBeNull()
+  })
+
+  it('a drag of it, which needs the workspace back to find a drop target', () => {
+    zoom(split('row', [a, b]), a.id)
+    paneDrag.begin(a.id, 'clock')
+    expect(layout.zoomedPaneId).toBeNull()
+    paneDrag.end(false)
+    vi.advanceTimersByTime(CRT_UNZOOM_MS)
     expect(layout.pinnedPaneId).toBeNull()
   })
 

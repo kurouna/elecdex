@@ -127,6 +127,8 @@ const CLAIM = expect.any(String)
 afterEach(async () => {
   ui.closeSettings()
   paneDrag.source = null
+  layout.zoomedPaneId = null
+  layout.pinnedPaneId = null
   // A pane state written in a test leaves a debounced save behind, which would fire
   // after the stubs are gone and throw where nothing is watching.
   await layout.flush()
@@ -216,6 +218,41 @@ describe('WebWidget', () => {
     await view.rerender({ transitioning: true })
     await settle()
     expect(api.hide).toHaveBeenLastCalledWith('p', CLAIM, true)
+  })
+
+  it('steps aside while another pane is at the front, until that pane is home again', async () => {
+    mount()
+    await settle()
+
+    // The pane at the front is DOM, and so is the shade behind it: a view would
+    // be drawn above both.
+    layout.zoomedPaneId = 'other'
+    layout.pinnedPaneId = 'other'
+    await settle()
+    expect(api.hide).toHaveBeenLastCalledWith('p', CLAIM, true)
+    expect(screen.getByTestId('web-snapshot')).toBeTruthy()
+
+    // Released, but still flying home (or powering off): the shade is still
+    // fading over this pane, so the page stays aside until it has let go.
+    api.show.mockClear()
+    layout.zoomedPaneId = null
+    await settle()
+    expect(api.show).not.toHaveBeenCalled()
+
+    layout.pinnedPaneId = null
+    await settle()
+    expect(api.show).toHaveBeenCalledWith('p', CLAIM, BODY)
+  })
+
+  it('stays where it is when it is the pane at the front', async () => {
+    mount()
+    await settle()
+    api.hide.mockClear()
+    layout.zoomedPaneId = 'p'
+    layout.pinnedPaneId = 'p'
+    await settle()
+    expect(api.hide).not.toHaveBeenCalled()
+    expect(screen.getByTestId('web').dataset.showing).toBe('true')
   })
 
   it('is not shown before the boot reveal ends', async () => {

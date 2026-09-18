@@ -165,9 +165,11 @@ const covered = $derived(
     paneDrag.source !== null ||
     boot.phase !== 'done' ||
     transitioning ||
-    // Another pane is forward, over this one: the shade and the pane over it are
-    // DOM, which a view is always drawn above, so the page steps aside for them.
-    (layout.zoomedPaneId !== null && layout.zoomedPaneId !== paneId) ||
+    // Another pane is over this one: the shade and the pane on it are DOM, which
+    // a view is always drawn above, so the page steps aside for them. Pinned
+    // rather than zoomed, so it stays aside while that pane flies home or powers
+    // off, when the shade is still fading over this one.
+    (layout.pinnedPaneId !== null && layout.pinnedPaneId !== paneId) ||
     (rect !== null && web.covered(rect)),
 )
 const wanted = $derived(hasPage && visible && rect !== null && !covered)
