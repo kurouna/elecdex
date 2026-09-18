@@ -156,6 +156,11 @@ let views: InstanceType<typeof WebViews>
 const keymap = new Map([['Ctrl+Shift+KeyA', 'pane.add']])
 
 const asOwner = (contents: FakeContents) => contents as unknown as Electron.WebContents
+/** The CSS in a document, told apart: the tint's filter and the colour scheme. */
+const tintCssOf = (contents: FakeContents) =>
+  [...contents.css.values()].filter((css) => css.includes('feColorMatrix'))
+const schemeCssOf = (contents: FakeContents) =>
+  [...contents.css.values()].filter((css) => css.includes('color-scheme'))
 const view = (index = 0) => win.children[index] as FakeView
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
@@ -350,23 +355,28 @@ describe('WebViews', () => {
     await flush()
     expect(hoisted.theme.themeSource).toBe('dark')
     expect(view().background).toBe('#010203')
-    expect([...contents.css.values()]).toEqual([expect.stringContaining('feColorMatrix')])
+    expect(tintCssOf(contents)).toHaveLength(1)
+    // The ground is the theme's, so the page's own defaults are told to match it: a page
+    // that brings no colours would otherwise keep black text on it.
+    expect(schemeCssOf(contents)).toEqual([':root { color-scheme: dark; }'])
 
     // The same tint twice changes nothing; a new document gets it again.
     views.setAppearance(look('#00ffff'))
     await flush()
-    expect(contents.insertCSS).toHaveBeenCalledTimes(1)
+    expect(contents.insertCSS).toHaveBeenCalledTimes(2)
     contents.css.clear()
     contents.emit('dom-ready')
     await flush()
-    expect(contents.css.size).toBe(1)
+    await flush()
+    expect(tintCssOf(contents)).toHaveLength(1)
+    expect(schemeCssOf(contents)).toHaveLength(1)
 
     // Quick changes run in order and leave one tint, the last.
     views.setAppearance(look('#ff0000'))
     views.setAppearance(look('#00ff00'))
     await flush()
     await flush()
-    expect(contents.css.size).toBe(1)
+    expect(tintCssOf(contents)).toHaveLength(1)
 
     // A new document while a change is under way still ends up tinted.
     let finish: (key: string) => void = () => {}
@@ -387,11 +397,14 @@ describe('WebViews', () => {
     contents.css.clear()
     await flush()
     await flush()
-    expect([...contents.css.values()]).toEqual([expect.stringContaining('feColorMatrix')])
+    expect(tintCssOf(contents)).toHaveLength(1)
 
+    // A light theme: no colour to tint with, and the page's defaults go light too.
     views.setAppearance({ accent: null, tint: true, dark: false, background: '#ffffff' })
     await flush()
-    expect(contents.css.size).toBe(0)
+    await flush()
+    expect(tintCssOf(contents)).toEqual([])
+    expect(schemeCssOf(contents)).toEqual([':root { color-scheme: light; }'])
     expect(hoisted.theme.themeSource).toBe('light')
   })
 
@@ -401,24 +414,27 @@ describe('WebViews', () => {
     const [one, two] = win.children.map((v) => v.webContents)
     views.setAppearance(look('#00ffff'))
     await flush()
-    expect([one?.css.size, two?.css.size]).toEqual([1, 1])
+    const tints = () => [one, two].map((c) => (c === undefined ? -1 : tintCssOf(c).length))
+    expect(tints()).toEqual([1, 1])
 
     // One pane off: the other keeps its colour.
     views.command(asOwner(owner), 'p', { t: 'tint', on: false })
     await flush()
-    expect([one?.css.size, two?.css.size]).toEqual([0, 1])
+    expect(tints()).toEqual([0, 1])
 
     // The setting goes off: the pane that said "on" keeps it.
     views.command(asOwner(owner), 'q', { t: 'tint', on: true })
     views.setAppearance({ accent: '#00ffff', tint: false, dark: true, background: '#010203' })
     await flush()
     await flush()
-    expect([one?.css.size, two?.css.size]).toEqual([0, 1])
+    expect(tints()).toEqual([0, 1])
 
     // Following the setting again: off like it.
     views.command(asOwner(owner), 'q', { t: 'tint', on: null })
     await flush()
-    expect(two?.css.size).toBe(0)
+    expect(tintCssOf(two as FakeContents)).toEqual([])
+    // Whatever the tint does, both pages are told the theme's scheme.
+    expect([one, two].map((c) => schemeCssOf(c as FakeContents).length)).toEqual([1, 1])
   })
 
   it('sends a fresh picture when a hidden view changes colour under a dialog', async () => {

@@ -35,6 +35,9 @@ function route(url: string): [number, Record<string, string>, string] {
        <input id="field">`,
     ),
     '/yt/next': PAGE('YT next'),
+    // No background and no colour scheme of its own: what the page's own defaults are
+    // told decides whether it can be read at all.
+    '/yt/bare': '<!doctype html><title>YT bare</title><h1>bare page</h1><p>plain text</p>',
     '/yt/blank': PAGE('YT blank'),
     '/yt/popup': PAGE('YT popup'),
     '/x/': PAGE('X home'),
@@ -143,6 +146,28 @@ async function expectShownOverBody(app: Launched): Promise<void> {
         height: Math.round(body.height),
       },
     })
+}
+
+/**
+ * How far apart the lightest and darkest pixels of the page are, from a picture of the
+ * view: 0 means nothing can be made out (black on black).
+ */
+function pageContrast(app: Launched): Promise<number> {
+  return app.app.evaluate(async ({ BrowserWindow }) => {
+    const view = BrowserWindow.getAllWindows()[0]?.contentView.children[0]
+    const image = await (view as Electron.WebContentsView).webContents.capturePage()
+    const pixels = image.toBitmap()
+    let darkest = 255
+    let lightest = 0
+    for (let i = 0; i < pixels.length; i += 4) {
+      const luma = Math.round(
+        0.2126 * (pixels[i + 2] ?? 0) + 0.7152 * (pixels[i + 1] ?? 0) + 0.0722 * (pixels[i] ?? 0),
+      )
+      if (luma < darkest) darkest = luma
+      if (luma > lightest) lightest = luma
+    }
+    return lightest - darkest
+  })
 }
 
 async function stubExternal(app: Launched): Promise<void> {
@@ -516,6 +541,36 @@ test.describe('web panes', () => {
       await page.evaluate(() => window.elecdex.settings.patch({ theme: 'amber' }))
       await expect.poll(filter).toMatch(/^url\(/)
       await expect.poll(scheme).toBe(true)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test("keep a page readable on the theme's ground, whatever colours it brings", async () => {
+    const app = await start({ layout: layoutWith('web.youtube', { url: `${yt()}bare` }) })
+    const { page } = app
+    const filter = () => inPage<string>(app, 'getComputedStyle(document.documentElement).filter')
+    try {
+      await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT bare')
+      await expectShownOverBody(app)
+      // The view sits on the theme's near-black ground; the page brings no colours of its
+      // own, so it is told to follow the theme's scheme and is light on dark.
+      expect(
+        await inPage<string>(app, 'getComputedStyle(document.documentElement).colorScheme'),
+      ).toBe('dark')
+      await expect.poll(() => pageContrast(app)).toBeGreaterThan(40)
+
+      // Tinted as well: still readable.
+      await webPane(page).getByTestId('web-tint').click()
+      await expect.poll(filter).toMatch(/^url\(/)
+      await expect.poll(() => pageContrast(app)).toBeGreaterThan(40)
+
+      // A light theme: the page's defaults go light with it, on a light ground.
+      await page.evaluate(() => window.elecdex.settings.patch({ theme: 'business-light' }))
+      await expect
+        .poll(() => inPage<string>(app, 'getComputedStyle(document.documentElement).colorScheme'))
+        .toBe('light')
+      await expect.poll(() => pageContrast(app)).toBeGreaterThan(40)
     } finally {
       await app.close()
     }

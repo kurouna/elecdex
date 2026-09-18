@@ -1,6 +1,7 @@
 import { CH } from '@shared/channels'
 import { chordFromEvent } from '@shared/keybindings'
 import {
+  colorSchemeCss,
   httpUrl,
   navigationVerdict,
   paneTint,
@@ -57,8 +58,12 @@ interface Entry {
   claim: string
   /** Bumped by every show and hide, so a hide that waited for a snapshot does not undo a later show. */
   placement: number
-  /** The key of the tint CSS in the current document, and the tint it draws. */
+  /**
+   * The CSS put into the current document and what it says: the tint it draws, and the
+   * colour scheme the page's own defaults follow.
+   */
   css: { key: string; tint: string } | null
+  scheme: { key: string; dark: boolean } | null
   /** This pane's own answer to the tint, or null to follow the setting. */
   tintChoice: boolean | null
   /** The tint change under way: changes run one after another. */
@@ -217,6 +222,10 @@ export class WebViews {
 
   setAppearance(appearance: WebAppearance): void {
     this.appearance = appearance
+    // App-wide, which is what it is for: pages ask Chromium for the colour scheme, and
+    // so do the native menus and dialogs, and the app has one theme at a time. Pages are
+    // also told in CSS (rescheme), since prefers-color-scheme alone does not change a
+    // page's own defaults.
     nativeTheme.themeSource = appearance.dark ? 'dark' : 'light'
     for (const entry of this.entries.values()) {
       entry.view.setBackgroundColor(appearance.background)
@@ -257,6 +266,7 @@ export class WebViews {
       claim,
       placement: 0,
       css: null,
+      scheme: null,
       tintChoice: null,
       tinting: Promise.resolve(),
       error: null,
@@ -484,22 +494,49 @@ export class WebViews {
   }
 
   /**
-   * Puts the page in the theme's colour, or takes it out, once the changes before have
-   * run - `fresh` for a new document, which has none of the CSS a change before it put
-   * in (queued too, so a change still under way cannot record its key after).
+   * Dresses the page in the theme - its colour scheme and the tint - once the changes
+   * before have run. `fresh` is a new document, which has none of the CSS a change
+   * before it put in (queued too, so a change still under way cannot record its key
+   * after).
    */
   private tint(entry: Entry, fresh = false): void {
-    entry.tinting = entry.tinting.then(() => {
-      if (fresh) entry.css = null
-      return this.retint(entry)
+    entry.tinting = entry.tinting.then(async () => {
+      if (fresh) {
+        entry.css = null
+        entry.scheme = null
+      }
+      // Both, always: `||` would leave the tint alone whenever the scheme changed.
+      const scheme = await this.rescheme(entry)
+      const tint = await this.retint(entry)
+      if (scheme || tint) await this.refreshPicture(entry)
     })
   }
 
+  /**
+   * Tells the page which scheme its own defaults should follow. The view's ground is
+   * the theme's, so a page that brings no colours of its own must not be left with the
+   * light scheme's black text on a dark ground.
+   */
+  private async rescheme(entry: Entry): Promise<boolean> {
+    const contents = entry.view.webContents
+    const dark = this.appearance.dark
+    if (contents.isDestroyed() || entry.scheme?.dark === dark) return false
+    const previous = entry.scheme
+    entry.scheme = null
+    try {
+      entry.scheme = { key: await contents.insertCSS(colorSchemeCss(dark)), dark }
+    } catch {
+      // The page went away meanwhile; its next document is dressed on dom-ready.
+    }
+    if (previous !== null) await contents.removeInsertedCSS(previous.key).catch(() => {})
+    return true
+  }
+
   /** Puts the page in the theme's colour, or takes it out, when that differs from what it has. */
-  private async retint(entry: Entry): Promise<void> {
+  private async retint(entry: Entry): Promise<boolean> {
     const contents = entry.view.webContents
     const wanted = paneTint(this.appearance, entry.tintChoice)
-    if (contents.isDestroyed() || (entry.css?.tint ?? null) === wanted) return
+    if (contents.isDestroyed() || (entry.css?.tint ?? null) === wanted) return false
     const previous = entry.css
     entry.css = null
     if (wanted !== null) {
@@ -510,14 +547,19 @@ export class WebViews {
       }
     }
     if (previous !== null) await contents.removeInsertedCSS(previous.key).catch(() => {})
-    // A pane showing a picture of a hidden view (under a dialog) would otherwise keep
-    // the old colours until the view came back.
-    if (!entry.view.getVisible() && entry.snapshot !== null) {
-      const picture = await this.capture(entry)
-      if (picture !== null && picture !== entry.snapshot && !entry.view.getVisible()) {
-        entry.snapshot = picture
-        send(entry.owner, 'snapshot', { paneId: entry.paneId, image: picture })
-      }
+    return true
+  }
+
+  /**
+   * A pane showing a picture of a hidden view (under a dialog) would otherwise keep the
+   * old colours until the view came back.
+   */
+  private async refreshPicture(entry: Entry): Promise<void> {
+    if (entry.view.getVisible() || entry.snapshot === null) return
+    const picture = await this.capture(entry)
+    if (picture !== null && picture !== entry.snapshot && !entry.view.getVisible()) {
+      entry.snapshot = picture
+      send(entry.owner, 'snapshot', { paneId: entry.paneId, image: picture })
     }
   }
 

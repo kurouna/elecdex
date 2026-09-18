@@ -196,6 +196,17 @@ export function paneTint(appearance: WebAppearance, pane: boolean | null): strin
   return (pane ?? appearance.tint) ? appearance.accent : null
 }
 
+/**
+ * What a page's own defaults should be, told to it as CSS rather than only through
+ * `nativeTheme`: a view sits on the theme's ground (`setBackgroundColor`), and a page
+ * that declares no background of its own would otherwise keep the light scheme's black
+ * text on it and be unreadable. A page that declares a scheme of its own keeps it -
+ * nothing here is `!important`.
+ */
+export function colorSchemeCss(dark: boolean): string {
+  return `:root { color-scheme: ${dark ? 'dark' : 'light'}; }`
+}
+
 /** Rec. 709 luma weights: how bright each channel looks. */
 const LUMA = [0.2126, 0.7152, 0.0722] as const
 

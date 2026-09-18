@@ -1,6 +1,7 @@
 import { applySettingsPatch, defaultSettings } from '@shared/settings'
 import { BUILTIN_THEMES, type Theme } from '@shared/theme'
 import {
+  colorSchemeCss,
   hostMatches,
   hslToHex,
   navigationVerdict,
@@ -216,6 +217,15 @@ describe('appearance', () => {
     expect(paneTint(off, true)).toBe(off.accent)
     expect(paneTint(on, false)).toBeNull()
     expect(paneTint(business, true)).toBeNull()
+  })
+
+  it('tells a page which scheme its own colours should follow, without overriding it', () => {
+    // A view sits on the theme's ground, so a page that declares no colours of its own
+    // must not be left with the light scheme's black text on it.
+    expect(colorSchemeCss(true)).toBe(':root { color-scheme: dark; }')
+    expect(colorSchemeCss(false)).toBe(':root { color-scheme: light; }')
+    // A page that declares a scheme of its own keeps it: nothing here is !important.
+    expect(colorSchemeCss(true)).not.toContain('!important')
   })
 
   it('draws a page as its brightness times the tint', () => {
