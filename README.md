@@ -16,7 +16,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.7 — pre-release.** Everything below works today; builds are unsigned.
+> **v0.0.8 — pre-release.** Everything below works today; builds are unsigned.
 > Design notes and every decision with its reason: [docs/architecture.md](docs/architecture.md).
 
 ## Features
