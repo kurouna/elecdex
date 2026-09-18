@@ -165,6 +165,9 @@ const covered = $derived(
     paneDrag.source !== null ||
     boot.phase !== 'done' ||
     transitioning ||
+    // Another pane is forward, over this one: the shade and the pane over it are
+    // DOM, which a view is always drawn above, so the page steps aside for them.
+    (layout.zoomedPaneId !== null && layout.zoomedPaneId !== paneId) ||
     (rect !== null && web.covered(rect)),
 )
 const wanted = $derived(hasPage && visible && rect !== null && !covered)

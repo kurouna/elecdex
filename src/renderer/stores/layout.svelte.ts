@@ -4,6 +4,7 @@ import {
   closeNode,
   collectPanes,
   findNode,
+  findTabsContaining,
   focusTab,
   moveNode,
   neighbourShell,
@@ -24,6 +25,14 @@ import {
   type Frame,
   type Inset,
 } from '../layout/pane-close.ts'
+import {
+  CRT_UNZOOM_MS,
+  CRT_ZOOM_MS,
+  type Flip,
+  flipFrom,
+  pinStyle,
+  zoomBox,
+} from '../layout/pane-zoom.ts'
 import { sfx } from './sound.svelte.ts'
 
 /**
@@ -48,6 +57,23 @@ export interface CloseMotion {
   animates(): boolean
   /** The box of every shown pane's frame, by pane id. */
   frames(): Map<string, Frame>
+}
+
+/**
+ * What zooming needs from the page, given by the workspace, as closing does: the
+ * box a pinned pane is placed in and where a pane's element is laid out, neither
+ * of which this store can measure itself.
+ */
+export interface ZoomMotion {
+  /** Whether the flight may play now: motion is not reduced and the boot is over. */
+  animates(): boolean
+  /** The workspace's box, which a zoomed pane covers most of. */
+  area(): Frame | null
+  /**
+   * Where the pane's element sits when it is not pinned - its group's box for a
+   * tabbed pane, since the group is what is brought forward.
+   */
+  frameOf(paneId: string): Frame | null
 }
 
 class LayoutStore {
@@ -89,6 +115,38 @@ class LayoutStore {
   extending = $state.raw<ReadonlyMap<string, Inset>>(new Map())
   private closeTimer: ReturnType<typeof setTimeout> | null = null
   private extendTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** Unset, a pane cannot be zoomed (and is not in tests that do not set it). */
+  zoomMotion: ZoomMotion | null = null
+  /**
+   * The pane the user has brought to the front, if any. Never saved: a zoom is a
+   * look at one pane, not an arrangement, and a layout that reopened zoomed
+   * would hide the rest of the workspace behind a state the user had forgotten.
+   */
+  zoomedPaneId = $state<string | null>(null)
+  /**
+   * The pane whose element is pinned over the workspace now. The same pane while
+   * it is zoomed, and still it while it flies back to its place or powers off
+   * where it stands - so a pane closed from the front does not snap back first.
+   */
+  pinnedPaneId = $state<string | null>(null)
+  /** Where it is pinned, in viewport pixels. */
+  zoomPin = $state.raw<Frame | null>(null)
+  /** The transform it is flying from, while a flight is playing. */
+  zoomFlip = $state.raw<Flip | null>(null)
+  zoomPhase = $state<'in' | 'out' | null>(null)
+  private zoomTimer: ReturnType<typeof setTimeout> | null = null
+
+  /** The CSS variables that place the pinned pane and play its flight. */
+  readonly zoomStyle = $derived(
+    this.zoomPin === null
+      ? null
+      : pinStyle(
+          this.zoomPin,
+          this.zoomFlip,
+          this.zoomPhase === 'out' ? CRT_UNZOOM_MS : CRT_ZOOM_MS,
+        ),
+  )
 
   /** The pane added last, until its host has taken it to power on (see arrived). */
   private arriving: string | null = null
@@ -162,9 +220,129 @@ class LayoutStore {
     if (paneId === this.closingId) return
     const node = findNode(this.tree.root, paneId)
     if (node === null) return
+    if (this.zoomedPaneId !== null && this.zoomedPaneId !== paneId) this.followZoom(paneId)
     this.focusedPaneId = paneId
     if (node.kind === 'pane' && node.widget === 'terminal') this.lastTerminalId = paneId
     this.commit(focusTab(this.tree, paneId))
+  }
+
+  /**
+   * Brings a pane to the front of the workspace: it is pinned over the others at
+   * most of the window, and flies there from where it sat. Nothing in the tree
+   * changes, so the pane is not remounted - a shell keeps its session, a web
+   * pane its page - and the panes it covers keep their size, so no terminal is
+   * resized but this one, once.
+   */
+  zoom(paneId: string): void {
+    if (paneId === this.zoomedPaneId) return
+    this.settle()
+    const motion = this.zoomMotion
+    if (motion === null) return
+    if (findNode(this.tree.root, paneId) === null) return
+    const area = motion.area()
+    const box = area === null ? null : zoomBox(area)
+    // A workspace with no area (a page that has not been laid out yet): nothing
+    // to pin the pane to, and pinning it to nothing would hide it.
+    if (box === null) return
+    const from = motion.frameOf(paneId)
+    this.focus(paneId)
+    this.zoomedPaneId = paneId
+    this.pinnedPaneId = paneId
+    this.zoomPin = box
+    sfx.play('expand')
+    this.fly('in', motion.animates() && from !== null ? flipFrom(from, box) : null)
+  }
+
+  /** Puts it back where it belongs, flying it down into its place first. */
+  unzoom(): void {
+    const id = this.zoomedPaneId
+    if (id === null) return
+    this.zoomedPaneId = null
+    sfx.play('collapse')
+    const motion = this.zoomMotion
+    const box = this.zoomPin
+    const home = motion?.frameOf(id) ?? null
+    const flip =
+      motion?.animates() === true && box !== null && home !== null ? flipFrom(home, box) : null
+    if (flip === null) {
+      this.unpin()
+      return
+    }
+    this.fly('out', flip)
+  }
+
+  toggleZoom(paneId: string): void {
+    if (paneId === this.zoomedPaneId) this.unzoom()
+    else this.zoom(paneId)
+  }
+
+  /** Places the pinned pane again after the window changed size. Not a flight. */
+  repin(): void {
+    if (this.pinnedPaneId === null) return
+    const area = this.zoomMotion?.area() ?? null
+    const box = area === null ? null : zoomBox(area)
+    if (box !== null) this.zoomPin = box
+  }
+
+  /** Plays a flight, or, without one, leaves the pane where the phase puts it. */
+  private fly(phase: 'in' | 'out', flip: Flip | null): void {
+    if (this.zoomTimer !== null) clearTimeout(this.zoomTimer)
+    this.zoomTimer = null
+    if (flip === null) {
+      this.zoomPhase = null
+      this.zoomFlip = null
+      if (phase === 'out') this.unpin()
+      return
+    }
+    this.zoomPhase = phase
+    this.zoomFlip = flip
+    this.zoomTimer = setTimeout(
+      () => {
+        this.zoomTimer = null
+        this.zoomPhase = null
+        this.zoomFlip = null
+        if (phase === 'out') this.unpin()
+      },
+      phase === 'out' ? CRT_UNZOOM_MS : CRT_ZOOM_MS,
+    )
+  }
+
+  /** Lets go of the pinned pane, which is laid out with the others again. */
+  private unpin(): void {
+    this.pinnedPaneId = null
+    this.zoomPin = null
+  }
+
+  /**
+   * A tab of the zoomed pane's own group takes the zoom with it - the group is
+   * what is pinned, and the tab shown in it has only changed. Anything else
+   * focused puts the zoomed pane back.
+   */
+  private followZoom(paneId: string): void {
+    const zoomed = this.zoomedPaneId
+    if (zoomed === null) return
+    const group = findTabsContaining(this.tree.root, zoomed)
+    if (group !== null && group === findTabsContaining(this.tree.root, paneId)) {
+      this.zoomedPaneId = paneId
+      this.pinnedPaneId = paneId
+      return
+    }
+    this.unzoom()
+  }
+
+  /**
+   * Lets go of a zoom at once, without the flight: every change to the tree does
+   * this, since the pane's place is about to be a different one. The pane being
+   * closed stays pinned, so that it powers off where the user is looking.
+   */
+  private clearZoom(closing: string | null = null): void {
+    if (this.zoomTimer !== null) clearTimeout(this.zoomTimer)
+    this.zoomTimer = null
+    this.zoomedPaneId = null
+    this.zoomPhase = null
+    this.zoomFlip = null
+    if (this.pinnedPaneId !== null && this.pinnedPaneId === closing) return
+    this.unpin()
   }
 
   split(paneId: string, direction: SplitDirection, widget: string): void {
@@ -246,7 +424,8 @@ class LayoutStore {
   close(nodeId: string): void {
     // Its tab's × still takes a click while it powers off; that is the same close.
     if (nodeId === this.closingId) return
-    this.settle()
+    // Closed from the front: it keeps the room it was pinned in to power off in.
+    this.settleFor(this.zoomedPaneId === nodeId ? nodeId : null)
     if (findNode(this.tree.root, nodeId) === null) return
     sfx.play('collapse')
     const shown = this.visible.some((p) => p.id === nodeId)
@@ -292,6 +471,8 @@ class LayoutStore {
     const arrived = next.root === fallback ? fallback.id : null
     if (arrived !== null) this.arriving = arrived
     this.commit(next)
+    // A pane pinned while it powered off is gone: nothing is over the workspace now.
+    if (this.pinnedPaneId !== null && findNode(next.root, this.pinnedPaneId) === null) this.unpin()
     return arrived
   }
 
@@ -307,6 +488,12 @@ class LayoutStore {
    * state calls this first; those two leave the closing pane in the tree.
    */
   settle(): void {
+    this.settleFor(null)
+  }
+
+  /** Settling, with the pane in `closing` left pinned where it is (see close). */
+  private settleFor(closing: string | null): void {
+    this.clearZoom(closing)
     this.stopExtending()
     if (this.closeTimer !== null) clearTimeout(this.closeTimer)
     this.closeTimer = null

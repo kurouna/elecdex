@@ -40,6 +40,17 @@ const bootDuration = $derived(definition?.chrome === 'shell' ? CRT_SHELL_MS : CR
 let poweringOn = $state(untrack(() => layout.arrived(node.id) && !appearance.reducedMotion))
 /** Powering off: still in the tree until it has, and out of reach meanwhile. */
 const closing = $derived(layout.closingId === node.id)
+/**
+ * Brought to the front: this pane is pinned over the workspace. A tabbed pane is
+ * brought forward with its whole group, which pins itself, so only a pane
+ * outside a group is pinned here - but either way the pane flies with it, which
+ * a web pane must know about (its page is a view that cannot be transformed).
+ */
+const pinned = $derived(!tabbed && layout.pinnedPaneId === node.id)
+const flying = $derived(layout.pinnedPaneId === node.id && layout.zoomPhase !== null)
+const zoomed = $derived(layout.zoomedPaneId === node.id)
+/** Every other pane is behind the zoom: out of reach until it is put back. */
+const behindZoom = $derived(layout.zoomedPaneId !== null && !zoomed)
 /** Uncovering the room a closed pane left; a tab's group does it for a tabbed pane. */
 const extend = $derived(tabbed ? undefined : layout.extending.get(node.id))
 // Either replaces a power-on still playing, whose end would then never be seen.
@@ -48,13 +59,18 @@ $effect(() => {
 })
 const crtOn = $derived(!closing && extend === undefined && (bootDelay !== null || poweringOn))
 /** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */
-const transitioning = $derived(crtOn || closing || layout.extending.has(node.id))
+const transitioning = $derived(crtOn || closing || flying || layout.extending.has(node.id))
 const crtStyle = $derived.by(() => {
   if (closing) return `--crt-duration: ${CRT_CLOSE_MS}ms`
   if (extend !== undefined) return insetStyle(extend)
   if (bootDelay !== null) return `--crt-delay: ${bootDelay}ms; --crt-duration: ${bootDuration}ms`
   return poweringOn ? `--crt-duration: ${CRT_ADDED_MS}ms` : undefined
 })
+/** The pane's own effects, then where the zoom has put it, which comes last. */
+const paneStyle = $derived(
+  [crtStyle, pinned ? layout.zoomStyle : null].filter((part) => part != null).join('; ') ||
+    undefined,
+)
 
 // Subscribe to the sources the widget declares: those it keeps while hidden for
 // as long as the pane exists, the rest only while it is visible - a tab behind
@@ -115,12 +131,16 @@ $effect(() => () => paneMeta.clear(node.id))
   class:crt-off={closing}
   class:crt-beam={closing}
   class:crt-extend={extend !== undefined}
-  style={crtStyle}
-  inert={closing}
+  class:zoomed={pinned}
+  class:crt-zoom={pinned && layout.zoomPhase === 'in'}
+  class:crt-zoom-out={pinned && layout.zoomPhase === 'out'}
+  style={paneStyle}
+  inert={closing || behindZoom}
   data-testid="pane"
   data-pane-id={node.id}
   data-widget={node.widget}
   data-chrome={chrome}
+  data-zoomed={zoomed ? 'true' : undefined}
   data-drop-node={tabbed ? undefined : node.id}
   onfocusin={() => layout.focus(node.id)}
   onpointerdown={() => layout.focus(node.id)}
@@ -130,6 +150,19 @@ $effect(() => () => paneMeta.clear(node.id))
   }}
 >
   {#if chrome === 'module'}
+    <!-- A shell is brought forward from its tab strip, where its close is too. -->
+    <button
+      type="button"
+      class="pane-zoom"
+      aria-pressed={zoomed}
+      aria-label={`${zoomed ? 'put back' : 'bring forward'} ${title}`}
+      title={zoomed ? 'Put the pane back (Ctrl+Shift+Z)' : 'Bring the pane forward (Ctrl+Shift+Z)'}
+      onclick={(e) => {
+        e.stopPropagation()
+        layout.toggleZoom(node.id)
+      }}
+      data-testid="pane-zoom">{zoomed ? '⤡' : '⤢'}</button
+    >
     <!-- A shell closes from its tab, as a tab does; every other pane from here. -->
     <button
       type="button"
@@ -183,7 +216,8 @@ $effect(() => () => paneMeta.clear(node.id))
   height: 100%;
 }
 
-.pane-close {
+.pane-close,
+.pane-zoom {
   position: absolute;
   top: calc(var(--tick-size) * 0.2);
   right: 0;
@@ -202,10 +236,19 @@ $effect(() => () => paneMeta.clear(node.id))
   transition: opacity var(--dur-fast) var(--ease-out);
 }
 
+/* Beside the close, inside it: the pane is brought forward more often than closed. */
+.pane-zoom {
+  right: 1.3rem;
+}
+
 /* Out of the way until wanted: on hover, or when the pane has keyboard focus. */
 .pane:hover > .pane-close,
 .pane:focus-within > .pane-close,
-.pane-close:focus-visible {
+.pane-close:focus-visible,
+.pane:hover > .pane-zoom,
+.pane:focus-within > .pane-zoom,
+.pane-zoom:focus-visible,
+.pane-zoom[aria-pressed='true'] {
   opacity: 1;
 }
 
@@ -213,6 +256,30 @@ $effect(() => () => paneMeta.clear(node.id))
   color: var(--text-inverse);
   background: var(--danger);
   border-color: var(--danger);
+}
+
+.pane-zoom:hover,
+.pane-zoom[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/*
+ * Pinned over the workspace by the zoom (styles/crt.css plays the flight). Fixed
+ * rather than moved in the tree: the pane is not remounted, so its widget keeps
+ * everything it holds, and the slot it came out of keeps its size, so none of
+ * the panes it covers is resized.
+ */
+.pane.zoomed {
+  position: fixed;
+  /* On the app's own ground: a pane is see-through, and over the shade its
+     widget would be read against whatever is behind it. */
+  background: var(--app-bg);
+  top: var(--zoom-top);
+  left: var(--zoom-left);
+  width: var(--zoom-width);
+  height: var(--zoom-height);
+  z-index: 61;
 }
 
 /* A hidden tab keeps its DOM (and its shell) but takes no space. */

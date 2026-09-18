@@ -23,7 +23,9 @@
 .crt-on,
 .crt-off,
 .crt-beam,
-.crt-extend {
+.crt-extend,
+.crt-zoom,
+.crt-zoom-out {
   position: relative;
   transform-origin: 50% 50%;
   will-change: transform, filter, opacity;
@@ -41,7 +43,9 @@
 .crt-on::after,
 .crt-on::before,
 .crt-beam::after,
-.crt-extend::after {
+.crt-extend::after,
+.crt-zoom::after,
+.crt-zoom-out::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -50,7 +54,9 @@
 }
 
 .crt-on::after,
-.crt-beam::after {
+.crt-beam::after,
+.crt-zoom::after,
+.crt-zoom-out::after {
   background:
     linear-gradient(
       to bottom,
@@ -62,7 +68,8 @@
   animation: crt-beam var(--crt-duration, 650ms) linear var(--crt-delay, 0ms) both;
 }
 
-.crt-beam::after {
+.crt-beam::after,
+.crt-zoom-out::after {
   animation-name: crt-beam-off;
 }
 
@@ -226,6 +233,37 @@
   }
 }
 
+/*
+ * A pane brought to the front (layout/pane-zoom.ts): it is pinned over the
+ * workspace at its final size in one step - a terminal is fitted once, and no
+ * transient size reaches its shell - and flown there from where it sat by a
+ * transform, which costs the compositor alone. The picture is a little
+ * overexposed on the way, as a tube's is while it opens.
+ */
+.crt-zoom {
+  animation: crt-zoom var(--crt-duration, 260ms) cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+/*
+ * And the way back: the same flight played towards the pane's place, held there
+ * (forwards) until the pane is laid out with the others again, so the picture
+ * never jumps at the end.
+ */
+.crt-zoom-out {
+  animation: crt-zoom var(--crt-duration, 220ms) cubic-bezier(0.4, 0, 0.2, 1) reverse forwards;
+}
+
+@keyframes crt-zoom {
+  0% {
+    transform: translate(var(--zoom-dx), var(--zoom-dy)) scale(var(--zoom-sx), var(--zoom-sy));
+    filter: brightness(1.7) saturate(0.85);
+  }
+  100% {
+    transform: none;
+    filter: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-motion="full"]) .crt-on,
   :root:not([data-motion="full"]) .crt-off,
@@ -233,7 +271,11 @@
   :root:not([data-motion="full"]) .crt-on::before,
   :root:not([data-motion="full"]) .crt-on::after,
   :root:not([data-motion="full"]) .crt-beam::after,
-  :root:not([data-motion="full"]) .crt-extend::after {
+  :root:not([data-motion="full"]) .crt-extend::after,
+  :root:not([data-motion="full"]) .crt-zoom,
+  :root:not([data-motion="full"]) .crt-zoom-out,
+  :root:not([data-motion="full"]) .crt-zoom::after,
+  :root:not([data-motion="full"]) .crt-zoom-out::after {
     animation: none;
   }
 }
@@ -244,6 +286,10 @@
 :root[data-motion="reduced"] .crt-on::before,
 :root[data-motion="reduced"] .crt-on::after,
 :root[data-motion="reduced"] .crt-beam::after,
-:root[data-motion="reduced"] .crt-extend::after {
+:root[data-motion="reduced"] .crt-extend::after,
+:root[data-motion="reduced"] .crt-zoom,
+:root[data-motion="reduced"] .crt-zoom-out,
+:root[data-motion="reduced"] .crt-zoom::after,
+:root[data-motion="reduced"] .crt-zoom-out::after {
   animation: none;
 }

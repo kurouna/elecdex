@@ -474,6 +474,15 @@ test('with motion reduced, nothing moves: the wave ends before it begins, a new 
     await expect(page.getByTestId('pane-picker')).toBeVisible()
     const after = await keysThen(page, [ESCAPE], '[data-testid=pane-picker]')
     expect(after.present).toBe(false)
+
+    // A pane brought forward is simply there, at its full size, and simply back.
+    await page.keyboard.press('Control+Shift+KeyZ')
+    const forward = page.locator('[data-testid=pane].zoomed')
+    await expect(forward).toHaveCount(1)
+    await expect(forward).not.toHaveClass(/crt-zoom/)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('[data-testid=pane].zoomed')).toHaveCount(0)
+    await expect(page.locator('.crt-zoom, .crt-zoom-out')).toHaveCount(0)
   } finally {
     await close()
   }

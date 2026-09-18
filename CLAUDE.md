@@ -173,6 +173,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
     (`layout.closingId`), and the panes that gain its room are uncovered by a `crt-extend`
     clip (layout/pane-close.ts), never by animating sizes, which would send transient sizes to a
     shell. One close runs at a time; a tree change first calls `layout.settle()`.
+  - A pane brought forward (`layout.zoom`, docs/architecture.md section 5.5) is pinned over the
+    workspace with `position: fixed` and flies there with a transform (`crt-zoom`), never by
+    growing: the tree is untouched, so nothing is remounted, the panes behind keep their size,
+    and the pane's own size changes once. Every tree change lets go of it (`settle`).
   - Dialogs: the dialog has `crt-on`, `transition:crtPower` and
     `style:--crt-delay={dialogDelay()}`, its backdrop `transition:backdropShade`, and its
     open/close goes through `ui` so `ui.closedAt` is kept (a dialog opened just after another

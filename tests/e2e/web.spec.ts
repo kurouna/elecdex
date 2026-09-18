@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { type Launched, type LaunchOptions, launch } from './support.js'
+import { type Launched, type LaunchOptions, launch, zoomSettled } from './support.js'
 
 /**
  * Web panes (the browser, YouTube and X presets) against a local server standing in
@@ -248,6 +248,7 @@ test.describe('web panes', () => {
       await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
       await expect(webPane(page).getByTestId('web-snapshot')).toBeVisible()
       await page.keyboard.press('Escape')
+      await zoomSettled(page)
       await expectShownOverBody(app)
       await expect(webPane(page).getByTestId('web-snapshot')).toHaveCount(0)
 
@@ -859,6 +860,43 @@ test.describe('web panes', () => {
       await address.press('Enter')
       await expect(pane.getByTestId('web-error')).toBeVisible()
       await expect(pane.getByTestId('pane-badge')).toHaveText('error')
+    } finally {
+      await app.close()
+    }
+  })
+
+  test('follow the pane brought to the front, and step aside for one in front of it', async () => {
+    const app = await start()
+    const { page } = app
+    try {
+      await expectShownOverBody(app)
+
+      // Brought forward: the pane is pinned over the workspace and the view
+      // follows it there, measured from the pane's body as ever.
+      await webPane(page).hover()
+      await webPane(page).getByTestId('pane-zoom').click()
+      await expect(page.getByTestId('zoom-backdrop')).toBeVisible()
+      await zoomSettled(page)
+      await expectShownOverBody(app)
+
+      // Put back: it follows the pane home again.
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+      await zoomSettled(page)
+      await expectShownOverBody(app)
+
+      // Another pane forward: a view is drawn above all of the page, so this one
+      // steps aside for the shade and shows a picture of itself instead.
+      const clock = page.locator('[data-testid=pane][data-pane-id=clock]')
+      await clock.hover()
+      await clock.getByTestId('pane-zoom').click()
+      await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
+      await expect(webPane(page).getByTestId('web-snapshot')).toBeVisible()
+
+      await page.keyboard.press('Escape')
+      await zoomSettled(page)
+      await expectShownOverBody(app)
+      await expect(webPane(page).getByTestId('web-snapshot')).toHaveCount(0)
     } finally {
       await app.close()
     }

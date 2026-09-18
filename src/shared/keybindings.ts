@@ -18,6 +18,7 @@ export const KEYBINDING_ACTIONS = [
   { id: 'pane.splitDown', label: 'Split down', chord: 'Ctrl+Shift+KeyO' },
   { id: 'pane.newTab', label: 'New tab', chord: 'Ctrl+Shift+KeyT' },
   { id: 'pane.close', label: 'Close pane', chord: 'Ctrl+Shift+KeyW' },
+  { id: 'pane.zoom', label: 'Bring the pane forward', chord: 'Ctrl+Shift+KeyZ' },
   { id: 'focus.next', label: 'Focus next pane', chord: 'Ctrl+Shift+BracketRight' },
   { id: 'focus.previous', label: 'Focus previous pane', chord: 'Ctrl+Shift+BracketLeft' },
   { id: 'layout.reset', label: 'Reset layout', chord: 'Ctrl+Shift+Backspace' },

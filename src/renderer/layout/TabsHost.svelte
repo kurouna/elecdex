@@ -19,6 +19,17 @@ const activeMeta = $derived(activeChild ? paneMeta.get(activeChild.id) : {})
 const focused = $derived(node.children.some((c) => c.id === layout.focusedPaneId))
 /** The group, as a whole, uncovers the room a closed pane left it. */
 const extend = $derived(activeChild ? layout.extending.get(activeChild.id) : undefined)
+/**
+ * A tab brought to the front brings its group with it: the strip and the header
+ * come too, so the other tabs are still there to switch to, and the group is one
+ * picture rather than a pane floating out of its own frame.
+ */
+const pinned = $derived(activeChild !== undefined && layout.pinnedPaneId === activeChild.id)
+const groupStyle = $derived(
+  [extend === undefined ? null : insetStyle(extend), pinned ? layout.zoomStyle : null]
+    .filter((part) => part != null)
+    .join('; ') || undefined,
+)
 
 /** The selected tab's own title where it has one, else its widget's (TERMINAL for a shell). */
 const activeTitle = $derived(
@@ -32,7 +43,10 @@ const activeTitle = $derived(
   class="tabs-host"
   class:focused
   class:crt-extend={extend !== undefined}
-  style={extend === undefined ? undefined : insetStyle(extend)}
+  class:zoomed={pinned}
+  class:crt-zoom={pinned && layout.zoomPhase === 'in'}
+  class:crt-zoom-out={pinned && layout.zoomPhase === 'out'}
+  style={groupStyle}
   data-testid="tabs-host"
   data-node-id={node.id}
   data-drop-node={node.id}
@@ -78,6 +92,19 @@ const activeTitle = $derived(
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+
+/* Pinned over the workspace by the zoom, as a lone pane is (layout/PaneHost). */
+.tabs-host.zoomed {
+  position: fixed;
+  /* On the app's own ground: a pane is see-through, and over the shade its
+     widget would be read against whatever is behind it. */
+  background: var(--app-bg);
+  top: var(--zoom-top);
+  left: var(--zoom-left);
+  width: var(--zoom-width);
+  height: var(--zoom-height);
+  z-index: 61;
 }
 
 .tabs-host.focused > .frame {

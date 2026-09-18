@@ -12,9 +12,10 @@ import { layout } from '../stores/layout.svelte.ts'
 import { sessions } from '../stores/sessions.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import '../widgets/builtins.ts'
+import { backdropShade } from '../lib/crt-transitions.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
 import PaneDropOverlay from './PaneDropOverlay.svelte'
-import { measureFrames } from './pane-close.ts'
+import { frameOfPane, measureFrames } from './pane-close.ts'
 
 /**
  * Renders the workspace and owns the layout-level keyboard shortcuts.
@@ -29,6 +30,8 @@ import { measureFrames } from './pane-close.ts'
 const REAP_DELAY_MS = 4000
 
 let reapTimer: ReturnType<typeof setTimeout> | null = null
+/** The workspace element, which a pane brought forward is placed inside. */
+let workspace = $state<HTMLDivElement | null>(null)
 
 $effect(() => {
   void layout.load()
@@ -44,6 +47,24 @@ $effect(() => {
   // A close still powering off then just ends, with nothing to measure.
   return () => {
     layout.closeMotion = null
+  }
+})
+
+// Bringing a pane forward measures the workspace it is pinned over, and the
+// place the pane came out of, which is where it flies from and back to.
+$effect(() => {
+  layout.zoomMotion = {
+    animates: () => !appearance.reducedMotion && boot.phase === 'done',
+    area: () => {
+      const box = workspace?.getBoundingClientRect()
+      if (box === undefined) return null
+      const { top, right, bottom, left } = box
+      return { top, right, bottom, left }
+    },
+    frameOf: (paneId) => frameOfPane(paneId, layout.pinnedPaneId === paneId),
+  }
+  return () => {
+    layout.zoomMotion = null
   }
 })
 
@@ -114,6 +135,12 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'pane.splitDown': () => layout.splitFocused('down'),
   'pane.newTab': () => layout.addTabToFocused(),
   'pane.close': () => layout.closeFocused(),
+  // Brings the focused pane forward, or puts back the pane that is forward.
+  'pane.zoom': () => {
+    const target = layout.zoomedPaneId ?? layout.focusedPaneId
+    if (target === null) return false
+    layout.toggleZoom(target)
+  },
   'focus.next': () => layout.cycleFocus(1),
   'focus.previous': () => layout.cycleFocus(-1),
   'layout.reset': () => void layout.reset(),
@@ -170,6 +197,14 @@ function run(action: KeybindingAction): boolean {
 function onKeydown(event: KeyboardEvent): void {
   // While a shortcut is being recorded in the settings, every key goes there.
   if (ui.recordingShortcut) return
+  // Escape puts a pane that is forward back, as it closes a dialog. Not a
+  // binding: a chord must hold Ctrl or Alt (keybindings.ts), so Escape cannot be
+  // one, and a dialog over the workspace has the key first.
+  if (event.key === 'Escape' && layout.zoomedPaneId !== null && !ui.dialogOpen) {
+    layout.unzoom()
+    claim(event)
+    return
+  }
   const chord = chordFromEvent(event)
   if (chord === null) return
   const action = bindings.get(chord)
@@ -204,13 +239,35 @@ function onBeforeUnload(): void {
   handler and stops propagation, so a bubbling listener never sees them. App-level
   shortcuts must be taken before the focused terminal gets the event.
 -->
-<svelte:window onkeydowncapture={onKeydown} onbeforeunload={onBeforeUnload} />
+<svelte:window
+  onkeydowncapture={onKeydown}
+  onbeforeunload={onBeforeUnload}
+  onresize={() => layout.repin()}
+/>
 
-<div class="workspace" data-testid="workspace" data-loaded={layout.loaded}>
+<div
+  class="workspace"
+  bind:this={workspace}
+  data-testid="workspace"
+  data-loaded={layout.loaded}
+  data-zoomed={layout.zoomedPaneId ?? undefined}
+>
   {#if layout.loaded}
     <LayoutNodeView node={layout.tree.root} />
   {/if}
 </div>
+{#if layout.zoomedPaneId !== null}
+  <!-- The shade behind the pane that is forward: clicking it puts the pane back,
+       as clicking a dialog's backdrop closes the dialog. The keyboard path is
+       Escape, handled above, and the shortcut. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div
+    class="zoom-backdrop"
+    transition:backdropShade
+    onpointerdown={(e) => e.target === e.currentTarget && layout.unzoom()}
+    data-testid="zoom-backdrop"
+  ></div>
+{/if}
 <PaneDropOverlay />
 
 <style>
@@ -219,6 +276,17 @@ function onBeforeUnload(): void {
   height: 100%;
   min-height: 0;
   min-width: 0;
+}
+
+/*
+ * Behind the pane brought forward and above every other pane, so a press lands
+ * here and puts the pane back rather than reaching what is underneath.
+ */
+.zoom-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 0.45);
 }
 
 .workspace > :global(*) {

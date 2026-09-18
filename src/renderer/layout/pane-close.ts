@@ -67,6 +67,26 @@ export function measureFrames(root: ParentNode = document): Map<string, Frame> {
   return frames
 }
 
+/**
+ * Where a pane's element sits: its group's box when it is tabbed, as
+ * `measureFrames` measures it, since the group is what is brought forward.
+ *
+ * A pinned pane is measured by the slot it came out of instead - its own box is
+ * then the one the zoom put it in, not the one it belongs to.
+ */
+export function frameOfPane(
+  paneId: string,
+  pinned = false,
+  root: ParentNode = document,
+): Frame | null {
+  const pane = root.querySelector<HTMLElement>(`[data-testid=pane][data-pane-id="${paneId}"]`)
+  if (pane === null) return null
+  const host = pane.closest<HTMLElement>('[data-testid=tabs-host]') ?? pane
+  const element = pinned ? (host.parentElement ?? host) : host
+  const { top, right, bottom, left } = element.getBoundingClientRect()
+  return { top, right, bottom, left }
+}
+
 /** The CSS variables `crt-extend` reads its starting clip from. */
 export function insetStyle(inset: Inset): string {
   const px = (n: number) => `${Math.round(n)}px`

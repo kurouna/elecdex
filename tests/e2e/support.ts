@@ -192,6 +192,25 @@ export async function showStatusBar(page: Page): Promise<void> {
   await expect(page.getByTestId('status-bar')).toHaveAttribute('data-shown', 'true')
 }
 
+/**
+ * Waits until no pane is flying to or from the front of the workspace: until it
+ * has landed, a pane brought forward is drawn transformed, so anything measured
+ * from it is where it is passing, not where it will be.
+ */
+export async function zoomSettled(page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .some(
+            (a) => (a as CSSAnimation).animationName === 'crt-zoom' && a.playState === 'running',
+          ),
+      ),
+    )
+    .toBe(false)
+}
+
 /** What a click leaves on screen a frame later: whether each selector finds something, and whether it is leaving. */
 export interface AfterClick {
   [selector: string]: { present: boolean; leaving: boolean; beamRunning: boolean }

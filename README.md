@@ -123,6 +123,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+O | split the focused pane (a tab: its whole group) downward |
 | Ctrl+Shift+T | new tab beside the focused pane |
 | Ctrl+Shift+W | close the focused pane (or its × button, shown on hover) |
+| Ctrl+Shift+Z | bring the focused pane forward over the workspace, and put it back (Escape too) |
 | Ctrl+Shift+[ / ] | move focus between panes |
 | Ctrl+Shift+← / → | previous / next tab in the focused tab group, such as the shell's tabs |
 | Ctrl+Alt+Shift+← / → | from a shell: previous / next shell pane (or group of shell tabs) |
@@ -167,6 +168,13 @@ top) and drop it on another pane: it goes in beside that pane, on the side neare
 Ctrl (Cmd on macOS) while dropping to add it to that pane as a tab instead. A shell tab drags out on
 its own, and a tab group's header moves the whole group. Escape cancels. A moved shell keeps its
 session.
+
+A pane you want a better look at can be brought forward: **Ctrl+Shift+Z**, the ⤢ button beside its
+× (or in a shell's tab strip), and it covers most of the window over the other panes, which keep
+their place behind a shade. Escape, the shortcut again, the button or a click on the shade puts it
+back. A tab comes forward with its group, so its other tabs are still there to switch to. Nothing
+is rearranged and nothing is saved: a shell keeps its session and a web pane its page, and the app
+starts with every pane in its place.
 
 A tab group can hold any panes, not only shells, so a pane you need now and then can share a place
 with the shells instead of taking room of its own - RSS or the weather behind the shell tabs, for

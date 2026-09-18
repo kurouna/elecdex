@@ -25,6 +25,10 @@ const titleOf = (widget: string): string => resolveWidget(widget)?.title ?? widg
 
 /** Shell tabs by folder, with parent folders only where two would read the same. */
 const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).tabPath)))
+
+/** The tab the strip's own buttons act on: the one showing. */
+const active = $derived(panes[activeIndex] ?? panes[0])
+const zoomed = $derived(active !== undefined && layout.zoomedPaneId === active.id)
 </script>
 
 <!--
@@ -75,6 +79,21 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
       data-testid="tab-new"><span class="upright">+</span></button
     >
   </li>
+  <!-- Brings the group forward, and puts it back: a shell has no module chrome
+       to carry the button, and a tabbed pane's chrome is the group's. -->
+  <li class="tab zoom">
+    <button
+      type="button"
+      class="select"
+      aria-pressed={zoomed}
+      aria-label={zoomed ? 'Put back' : 'Bring forward'}
+      title={zoomed ? 'Put the pane back (Ctrl+Shift+Z)' : 'Bring the pane forward (Ctrl+Shift+Z)'}
+      onclick={() => {
+        if (active) layout.toggleZoom(active.id)
+      }}
+      data-testid="tab-zoom"><span class="upright">{zoomed ? '⤡' : '⤢'}</span></button
+    >
+  </li>
 </ul>
 
 <style>
@@ -116,8 +135,13 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
   transition: opacity var(--dur-base) var(--ease-out);
 }
 
-.tab.new-tab {
+.tab.new-tab,
+.tab.zoom {
   flex: 0 0 2.4rem;
+}
+
+.tab.zoom button[aria-pressed='true'] {
+  color: var(--accent);
 }
 
 .tab.active {
