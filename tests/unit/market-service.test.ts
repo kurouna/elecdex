@@ -356,8 +356,12 @@ function harness(opts: { bars?: (spec: ChartRangeSpec, now: number) => CandlePoi
     },
     publish: (u) => published.push(u),
   })
+  // The service's own work is promises only (its timers are the ones above), so letting
+  // the microtasks run is enough - and unlike a real timer per step, it costs nothing.
+  // A step per virtual minute over an hour used to take seconds of real time, which left
+  // this file failing its five-second limit whenever the machine was busy.
   const settle = async () => {
-    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0))
+    for (let i = 0; i < 20; i++) await Promise.resolve()
   }
   const advance = async (ms: number) => {
     const target = now + ms
@@ -533,7 +537,8 @@ describe('MarketService with ranges', () => {
         timers.shift()
         now = due.at
         due.fn()
-        for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0))
+        // Promises only, as in the harness above.
+        for (let i = 0; i < 20; i++) await Promise.resolve()
       }
       now = to
     }
