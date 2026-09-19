@@ -36,6 +36,15 @@ export function decideClose(options: WindowOptions, quitting: boolean): 'hide' |
   return options.closeToTray && !quitting ? 'hide' : 'close'
 }
 
+/**
+ * Whether closing the window would put it away rather than end elecdex, which
+ * the page needs to know: the fullscreen corner's close button asks before
+ * quitting, but not before hiding - as the ordinary window's close button does
+ * not either.
+ */
+export const closesToTray = (options: WindowOptions, platform: NodeJS.Platform): boolean =>
+  backgroundSupported(platform) && options.closeToTray
+
 /** What minimising does: hide it to the notification area, or leave it on the taskbar. */
 export function decideMinimize(options: WindowOptions): 'hide' | 'minimize' {
   return options.minimizeToTray ? 'hide' : 'minimize'

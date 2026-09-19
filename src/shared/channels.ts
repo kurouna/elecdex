@@ -15,6 +15,7 @@ export const CH = {
     setFullscreen: 'system:set-fullscreen',
     toggleFullscreen: 'system:toggle-fullscreen',
     quit: 'system:quit',
+    closeWindow: 'system:close-window',
     minimize: 'system:minimize',
     windowState: 'system:window-state',
     windowStateChanged: 'system:window-state-changed',

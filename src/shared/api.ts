@@ -111,6 +111,11 @@ export interface SystemApi {
   /** Quits the app. Every shell is ended, as on any other exit. */
   quit(): void
   /**
+   * Closes the window, exactly as its own close button does: with "keep running
+   * in the notification area" on it goes there, and otherwise elecdex quits.
+   */
+  closeWindow(): void
+  /**
    * Minimises the window, fullscreen or not. Windows and Linux only: macOS will
    * not minimise a fullscreen window, and there the native controls suffice.
    */

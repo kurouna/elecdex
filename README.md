@@ -166,7 +166,8 @@ press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key,
 key still reaches the shell, and a chord already in use is flagged. The status bar (move the
 pointer to the bottom edge) has buttons for adding a pane, resetting the layout, settings, theme,
 sound and exit. In fullscreen on Windows and Linux, moving the pointer into the top-right corner
-brings down minimize, leave-fullscreen and quit buttons.
+brings down minimize, leave-fullscreen and close buttons; close puts elecdex in the notification
+area when it is set to keep running there, and otherwise quits after asking.
 
 To move a pane, drag it by its title (a pane without one, such as the clock, by the rule along its
 top) and drop it on another pane: it goes in beside that pane, on the side nearest the pointer. Hold

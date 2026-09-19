@@ -1,4 +1,5 @@
 <script lang="ts">
+import { closesToTray } from '@shared/background'
 import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/keybindings'
 import ConfirmButton from './ConfirmButton.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
@@ -8,8 +9,13 @@ import { windowState } from './stores/window-state.svelte.ts'
 
 /**
  * Window controls for fullscreen, where there is no title bar: minimise, leave
- * fullscreen and quit, slid down from the top-right corner - where a window's
+ * fullscreen and close, slid down from the top-right corner - where a window's
  * own controls sit - when the pointer reaches it.
+ *
+ * Closing means here what it means on an ordinary window: with "keep running in
+ * the notification area" on, one click puts elecdex there, and asking first
+ * would only make the same button behave differently in fullscreen. Without it,
+ * closing ends elecdex and every shell in it, so it asks first.
  *
  * Only the corner calls them up, not the whole top edge: pane titles and the
  * shell's tabs sit just below that edge and are dragged and clicked all the
@@ -35,6 +41,8 @@ windowState.follow()
 const bindings = $derived(
   effectiveBindings(appearance.settings.keybindings, window.elecdex.system.platform),
 )
+/** Whether the close button puts elecdex in the notification area rather than ending it. */
+const hides = $derived(closesToTray(appearance.settings.window, window.elecdex.system.platform))
 /** A tooltip naming the shortcut in effect, which the user may have changed or removed. */
 const titled = (label: string, action: KeybindingAction): string => {
   const chord = bindings[action]
@@ -85,13 +93,26 @@ $effect(() => {
     >
       <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 3.5h5v5h-5z M3.5 3.5v-2h5v5h-2" /></svg>
     </button>
-    <ConfirmButton
-      label="✕"
-      action="exit"
-      title={titled('Quit elecdex', 'app.quit')}
-      testid="window-quit"
-      onconfirm={() => window.elecdex.system.quit()}
-    />
+    {#if hides}
+      <button
+        type="button"
+        class="control close"
+        title="Close to the notification area"
+        aria-label="Close to the notification area"
+        onclick={() => window.elecdex.system.closeWindow()}
+        data-testid="window-quit"
+      >
+        ✕
+      </button>
+    {:else}
+      <ConfirmButton
+        label="✕"
+        action="exit"
+        title={titled('Quit elecdex', 'app.quit')}
+        testid="window-quit"
+        onconfirm={() => window.elecdex.system.quit()}
+      />
+    {/if}
   </div>
 {/if}
 
@@ -145,6 +166,11 @@ $effect(() => {
   color: var(--accent);
   border-color: var(--accent);
   outline: none;
+}
+
+.control.close {
+  font: inherit;
+  line-height: 1;
 }
 
 .control svg {

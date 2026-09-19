@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   backgroundSupported,
   chordToAccelerator,
+  closesToTray,
   decideClose,
   decideMinimize,
   decideToggle,
@@ -54,6 +55,17 @@ describe('running in the background', () => {
     expect(decideClose(on({ closeToTray: true }), false)).toBe('hide')
     // Quit from the shortcut, the tray menu or a Windows sign-out.
     expect(decideClose(on({ closeToTray: true }), true)).toBe('close')
+  })
+
+  it('tells the page whether closing the window would put it away', () => {
+    // The fullscreen corner's close button: it hides on Windows with the option
+    // on, and quits (after asking) everywhere else.
+    expect(closesToTray(on({ closeToTray: true }), 'win32')).toBe(true)
+    expect(closesToTray(OFF, 'win32')).toBe(false)
+    expect(closesToTray(on({ minimizeToTray: true }), 'win32')).toBe(false)
+    // The option exists in the file on every platform, but only Windows acts on it.
+    expect(closesToTray(on({ closeToTray: true }), 'darwin')).toBe(false)
+    expect(closesToTray(on({ closeToTray: true }), 'linux')).toBe(false)
   })
 
   it('minimises to the tray only when chosen', () => {

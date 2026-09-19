@@ -345,6 +345,7 @@ const api: ElecdexApi = {
     setFullscreen: (on) => ipcRenderer.send(CH.system.setFullscreen, on),
     toggleFullscreen: () => ipcRenderer.send(CH.system.toggleFullscreen),
     quit: () => ipcRenderer.send(CH.system.quit),
+    closeWindow: () => ipcRenderer.send(CH.system.closeWindow),
     minimize: () => ipcRenderer.send(CH.system.minimize),
     windowState: () => ipcRenderer.invoke(CH.system.windowState) as Promise<WindowState>,
     onWindowState: (handler) => listen<WindowState>(CH.system.windowStateChanged, handler),

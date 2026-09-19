@@ -310,6 +310,84 @@ test('turning a tray option off removes the icon, unless the window is hidden', 
   }
 })
 
+/** Fullscreen, with the corner controls called up; false where a window cannot go fullscreen. */
+async function fullscreenCorner(app: ElectronApplication, page: Page): Promise<boolean> {
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setFullScreen(true))
+  const entered = await expect
+    .poll(
+      () =>
+        app.evaluate(
+          ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false,
+        ),
+      { timeout: 10_000 },
+    )
+    .toBe(true)
+    .then(() => true)
+    .catch(() => false)
+  if (!entered) return false
+  const corner = page.getByTestId('window-corner')
+  await expect(corner).toHaveAttribute('data-shown', 'false', { timeout: 10_000 })
+  await page.mouse.move((await page.evaluate(() => window.innerWidth)) - 10, 2)
+  await expect(corner).toHaveAttribute('data-shown', 'true')
+  return true
+}
+
+test('the fullscreen corner closes to the tray when that is what closing does', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: withWindow({ closeToTray: true }),
+  })
+  try {
+    test.skip(!(await fullscreenCorner(app, page)), 'the window cannot go fullscreen here')
+    const button = page.getByTestId('window-quit')
+    await expect(button).toHaveAttribute('title', /notification area/i)
+
+    // One click, no asking: the same as the ordinary window's close button.
+    await button.click()
+    await expect.poll(() => facts(app)).toEqual({ visible: false, minimized: false })
+    expect(app.process().exitCode).toBeNull()
+    await expect.poll(() => visibility(page)).toBe('hidden')
+
+    // Back from the tray, still fullscreen.
+    await hooks(app, (h) => h.tray.click())
+    await expect.poll(() => facts(app)).toEqual({ visible: true, minimized: false })
+    expect(
+      await app.evaluate(
+        ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false,
+      ),
+    ).toBe(true)
+
+    // Quitting is still the corner's other way out.
+    const gone = exited(app)
+    await page.evaluate(() => window.elecdex.system.quit())
+    await gone
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
+test('the fullscreen corner still asks before quitting when closing quits', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: withWindow({ minimizeToTray: true }),
+  })
+  try {
+    test.skip(!(await fullscreenCorner(app, page)), 'the window cannot go fullscreen here')
+    const button = page.getByTestId('window-quit')
+    await expect(button).toHaveAttribute('title', /quit/i)
+    await button.click()
+    await expect(button).toHaveText(/click again to exit/)
+    await page.waitForTimeout(500)
+    expect(await facts(app)).toEqual({ visible: true, minimized: false })
+
+    const gone = exited(app)
+    await button.click()
+    await gone
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
 test('the system-wide shortcut is off until turned on, and then shows and hides', async () => {
   const { app, page, close } = await launch(undefined, {
     layout: SINGLE_CLOCK,

@@ -85,6 +85,13 @@ export function registerSystemIpc(): void {
     app.quit()
   })
 
+  // The fullscreen corner's close button. It goes through the window's own close,
+  // so what closing means - quit, or wait in the notification area - is decided
+  // in one place (main/background).
+  ipcMain.on(CH.system.closeWindow, (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close()
+  })
+
   // Fullscreen has no title bar, so no native minimise button (WindowCorner, and
   // the window.minimize shortcut). Not on macOS, which refuses to minimise a
   // fullscreen window.
