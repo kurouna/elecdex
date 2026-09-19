@@ -8,7 +8,7 @@ import { boot, CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.
 import { layout } from '../stores/layout.svelte.ts'
 import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
-import { resolveWidget } from '../widgets/registry.ts'
+import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
@@ -49,8 +49,12 @@ const closing = $derived(layout.closingId === node.id)
 const pinned = $derived(!tabbed && layout.pinnedPaneId === node.id)
 const flying = $derived(layout.pinnedPaneId === node.id && layout.zoomPhase !== null)
 const zoomed = $derived(layout.zoomedPaneId === node.id)
-/** Whether this widget is brought forward at all (widgets/registry.ts). */
-const zoomable = $derived(layout.zoomModeFor(node.id) !== null)
+/**
+ * Whether this widget is brought forward at all (widgets/registry.ts). Asked of
+ * the node this host already has, rather than of the store, which would walk the
+ * tree for an id it was given from that same node.
+ */
+const zoomable = $derived(zoomModeOf(node.widget) !== null)
 /** Every other pane is behind the zoom: out of reach until it is put back. */
 const behindZoom = $derived(layout.zoomedPaneId !== null && !zoomed)
 /** Uncovering the room a closed pane left; a tab's group does it for a tabbed pane. */

@@ -256,6 +256,24 @@ describe('which panes may be brought forward', () => {
     expect((layout.zoomPin?.right ?? 0) - (layout.zoomPin?.left ?? 0)).toBe(PANEL_BOX.w)
   })
 
+  it('a tab of another size re-places the group it brought forward', () => {
+    load(split('row', [a, tabs([pane('rss'), pane('calc')], 0)]), a.id)
+    const [, full, panelTab] = collectPanes(layout.tree.root)
+    if (full === undefined || panelTab === undefined) throw new Error('no tabs')
+    layout.zoom(full.id)
+    vi.advanceTimersByTime(CRT_ZOOM_MS)
+    const wide = (layout.zoomPin?.right ?? 0) - (layout.zoomPin?.left ?? 0)
+
+    layout.focus(panelTab.id)
+    expect(layout.zoomedPaneId).toBe(panelTab.id)
+    expect(layout.zoomMode).toBe('panel')
+    // The group is still forward, but held to what a panel takes.
+    expect((layout.zoomPin?.bottom ?? 0) - (layout.zoomPin?.top ?? 0)).toBeLessThanOrEqual(
+      PANEL_BOX.h,
+    )
+    expect((layout.zoomPin?.right ?? 0) - (layout.zoomPin?.left ?? 0)).toBeLessThanOrEqual(wide)
+  })
+
   it('a tab that cannot be brought forward puts the group back', () => {
     load(split('row', [a, tabs([pane('rss'), small], 0)]), a.id)
     const group = layout.tree.root

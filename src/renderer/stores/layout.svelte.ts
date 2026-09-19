@@ -328,7 +328,11 @@ class LayoutStore {
     else this.zoom(paneId)
   }
 
-  /** How the pane's widget is brought forward, or null when it is not. */
+  /**
+   * How the pane's widget is brought forward, or null when it is not. For a
+   * caller holding only an id (the shortcut); a component with the node itself
+   * asks the registry directly.
+   */
   zoomModeFor(paneId: string): ZoomMode | null {
     const node = findNode(this.tree.root, paneId)
     return node === null || node.kind !== 'pane' ? null : zoomModeOf(node.widget)

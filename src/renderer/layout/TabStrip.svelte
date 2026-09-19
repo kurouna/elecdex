@@ -2,7 +2,7 @@
 import type { PaneNode } from '@shared/schemas/layout'
 import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
-import { resolveWidget } from '../widgets/registry.ts'
+import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import { tabLabels } from './tab-labels.ts'
 
@@ -34,7 +34,7 @@ const zoomed = $derived(active !== undefined && layout.zoomedPaneId === active.i
  * forward as a whole: a tab whose widget has nothing to gain from the room is
  * offered nothing while it is the one on screen.
  */
-const zoomable = $derived(active !== undefined && layout.zoomModeFor(active.id) !== null)
+const zoomable = $derived(active !== undefined && zoomModeOf(active.widget) !== null)
 </script>
 
 <!--
