@@ -172,6 +172,15 @@ test('a theme dropped into the themes folder appears and can be chosen', async (
     const catalog = await page.evaluate(() => window.elecdex.themes.list())
     expect(catalog.problems.map((p) => p.file)).toEqual(['broken.json'])
 
+    // And the settings say why, rather than leaving the file silently missing
+    // from the list of themes.
+    await page.keyboard.press('Control+Shift+Period')
+    const problems = page.getByTestId('theme-problems')
+    await expect(problems).toContainText('broken.json')
+    await expect(problems).toContainText('accent')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
+
     await showStatusBar(page)
     await select.selectOption('ice')
     await expect.poll(() => rootVar(page, '--accent-h')).toBe('200')

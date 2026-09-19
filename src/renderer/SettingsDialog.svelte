@@ -374,6 +374,19 @@ function describeUpdate(status: UpdateStatus): string {
                   themes folder
                 </button>
               </label>
+              {#if appearance.catalog.problems.length > 0}
+                <!-- A theme file that does not parse is simply left out of the list
+                     above, which from the outside looks like the file being ignored
+                     for no reason. This is where the reason is. -->
+                <ul class="problems" data-testid="theme-problems">
+                  {#each appearance.catalog.problems as problem (problem.file)}
+                    <li>
+                      <span class="file-name">{problem.file}</span>
+                      <span class="why">{problem.message}</span>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
               <div class="row" role="radiogroup" aria-label="Motion">
                 <span>motion</span>
                 {#each ['system', 'full', 'reduced'] as const as motion (motion)}
@@ -982,6 +995,25 @@ input.path:focus {
 
 .note.problem {
   color: var(--warn);
+}
+
+/* Theme files the themes folder holds but that could not be read. */
+.problems {
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+  color: var(--warn);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  line-height: 1.5;
+}
+
+.problems .file-name {
+  font-family: var(--font-mono);
+}
+
+.problems .why {
+  color: var(--text-muted);
 }
 
 .note {

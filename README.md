@@ -440,7 +440,9 @@ from the app replaces it:
 ```
 
 To add a theme, drop a JSON file into the `themes` folder next to it (*Settings → General →
-themes folder*). It appears straight away; one with a built-in's `id` replaces that theme.
+themes folder*). It appears straight away; one with a built-in's `id` replaces that theme. A file
+that cannot be read is listed under the theme picker with the reason, rather than silently
+missing from it.
 
 ```json
 {
