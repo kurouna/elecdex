@@ -169,10 +169,24 @@ function onKeydown(event: KeyboardEvent): void {
     recall(1)
     return
   }
-  if (event.key === 'Escape' && input !== '') {
+  if (event.key === 'Escape') {
+    if (helpOpen) {
+      event.preventDefault()
+      helpOpen = false
+      return
+    }
+    if (input !== '') {
+      event.preventDefault()
+      input = ''
+      error = null
+    }
+    return
+  }
+  // "?" on an empty line asks what the calculator knows; typed into an
+  // expression it is a character like any other.
+  if (event.key === '?' && input === '') {
     event.preventDefault()
-    input = ''
-    error = null
+    helpOpen = !helpOpen
     return
   }
   // Ctrl+L clears the tape, as it clears a terminal.
@@ -324,8 +338,13 @@ const histogram = $derived.by<Bar[]>(() => {
 
     <div class="tape" bind:this={tapeEl} data-testid="calc-tape">
       {#each tape as entry, i (i)}
-        <div class="row" data-testid="calc-tape-row">
-          <button type="button" class="src" onclick={() => (input = entry.src)} title="Type this again">
+        <div class="row" class:landed={i === tape.length - 1} data-testid="calc-tape-row">
+          <button
+          type="button"
+          class="src"
+          onclick={() => (input = entry.src)}
+          title="Put this line back"
+        >
             {#if entry.assigned}<span class="assigned">{entry.assigned}</span>{/if}{entry.src}
           </button>
           <button
@@ -336,13 +355,16 @@ const histogram = $derived.by<Bar[]>(() => {
               e.preventDefault()
               copy(entry.text)
             }}
-            title={entry.described}
+            title={`${entry.described} — click to use it, right-click to copy`}
           >
             {grouped ? entry.grouped : entry.text}
           </button>
         </div>
       {:else}
-        <p class="empty">type an expression · 1920*1080 · 3百万/12 · 2*tb/(512*gib)</p>
+        <p class="empty">
+          type an expression · 1920*1080 · 3百万/12 · 2*tb/(512*gib)
+          <span class="keys">↑ history · ? help</span>
+        </p>
       {/each}
     </div>
 
@@ -365,6 +387,23 @@ const histogram = $derived.by<Bar[]>(() => {
       {#if input.length > CALC_MAX_INPUT - 50}
         <span class="left">{CALC_MAX_INPUT - input.length}</span>
       {/if}
+      <!-- Escape clears the line and Ctrl+L the tape, but a keyboard shortcut
+           nobody can see is a shortcut nobody uses. -->
+      <button
+        type="button"
+        class="clear"
+        title={input === '' ? 'Clear the tape (Ctrl+L)' : 'Clear the line (Esc)'}
+        aria-label={input === '' ? 'clear the tape' : 'clear the line'}
+        onclick={() => {
+          if (input === '') save({ tape: [] })
+          else input = ''
+          error = null
+          inputEl?.focus()
+        }}
+        data-testid="calc-clear"
+      >
+        {input === '' ? 'AC' : 'C'}
+      </button>
     </div>
 
     <div class="answer" class:has={shown !== null}>
@@ -415,10 +454,22 @@ const histogram = $derived.by<Bar[]>(() => {
           <div class="figures">
             <span class="count">{report.count} numbers{report.truncated ? ' (first)' : ''}</span>
             {#each report.figures as figure (figure.label)}
-              <div class="figure">
+              <!-- A figure is a number like any other: taking it into the
+                   calculator is one click, rather than reading it back by eye. -->
+              <button
+                type="button"
+                class="figure"
+                title="Use this in the calculator"
+                onclick={() => {
+                  input = `${input}${figure.value.text}`
+                  save({ mode: 'calc' })
+                }}
+                data-testid="calc-tally-figure"
+                data-label={figure.label}
+              >
                 <span class="figure-label">{figure.label}</span>
                 <span class="figure-value">{figure.value.grouped}</span>
-              </div>
+              </button>
             {/each}
           </div>
         </div>
@@ -431,6 +482,7 @@ const histogram = $derived.by<Bar[]>(() => {
 
 <style>
 .calc {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -440,6 +492,41 @@ const histogram = $derived.by<Bar[]>(() => {
   padding: var(--space-1) var(--space-1) var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--step--1);
+}
+
+/*
+ * A wide pane is not a reason for a long thin line of digits with a hand's width
+ * of nothing on either side of it: the column keeps a readable measure and sits
+ * in the middle, and the tally puts its figures beside its chart.
+ */
+@container (min-width: 32rem) {
+  .tape,
+  .entry,
+  .answer,
+  .bits,
+  .registers {
+    width: min(100%, 40rem);
+    margin-inline: auto;
+  }
+
+  .tally {
+    flex-direction: row;
+    gap: var(--space-2);
+  }
+
+  .tally textarea {
+    flex: 0 0 40%;
+    height: 100%;
+  }
+
+  .report {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .figures {
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
 }
 
 .modes {
@@ -528,6 +615,26 @@ const histogram = $derived.by<Bar[]>(() => {
   background: var(--accent-faint);
 }
 
+/* The answer lands on the tape rather than appearing on it: a single wipe from
+   the left, in the phosphor, the width of the row. */
+.row.landed {
+  animation: land calc(260ms * var(--motion-scale)) var(--ease-out) backwards;
+}
+
+@keyframes land {
+  from {
+    clip-path: inset(0 100% 0 0);
+    background: var(--accent-dim);
+  }
+  60% {
+    background: var(--accent-faint);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    background: transparent;
+  }
+}
+
 .src,
 .value {
   border: 0;
@@ -567,6 +674,13 @@ const histogram = $derived.by<Bar[]>(() => {
   text-align: center;
 }
 
+.keys {
+  display: block;
+  margin-top: var(--space-1);
+  letter-spacing: var(--tracking-wide);
+  opacity: 0.7;
+}
+
 .entry {
   display: flex;
   align-items: baseline;
@@ -604,6 +718,23 @@ input {
 .left {
   color: var(--warn);
   font-size: var(--step--2);
+}
+
+.clear {
+  flex: none;
+  border: 1px solid var(--panel-rule);
+  padding: 0 var(--space-2);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+}
+
+.clear:hover {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .answer {
@@ -780,6 +911,16 @@ textarea:focus {
   display: flex;
   justify-content: space-between;
   gap: var(--space-1);
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.figure:hover {
+  border-bottom-color: var(--accent-dim);
 }
 
 .figure-value {

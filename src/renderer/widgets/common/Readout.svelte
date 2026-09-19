@@ -66,7 +66,15 @@ const cells = $derived([...value])
 </span>
 
 <style>
+/*
+ * A readout is an instrument, not something to click on - and it must not take a
+ * click meant for what is under it. A digit rolls in from half a line below, and
+ * the browser hit-tests where a transform puts a box: for those few frames every
+ * second the number lay over the buttons beneath it and swallowed whatever was
+ * pressed there. Found as a lost click on the chrono's reset.
+ */
 .readout {
+  pointer-events: none;
   display: inline-flex;
   align-items: baseline;
   font-family: var(--font-mono);

@@ -34,8 +34,23 @@ class TasksStore {
 
   async add(task: NewTask): Promise<Task | null> {
     const made = await window.elecdex.tasks.add(task)
-    if (made !== null) this.items = [...this.items, made]
+    if (made !== null) this.merge(made)
     return made
+  }
+
+  /**
+   * Puts one task in, whether or not it is already there.
+   *
+   * Main broadcasts the whole file as it writes, and that broadcast can reach
+   * the window before the call that caused it has returned - so appending what
+   * comes back would put the same task in the list twice. A pane keyed by task
+   * id then threw on the duplicate, and with the render broken it looked as
+   * though nothing worked afterwards: a task ticked off simply stayed put.
+   */
+  private merge(task: Task): void {
+    const at = this.items.findIndex((entry) => entry.id === task.id)
+    if (at === -1) this.items = [...this.items, task]
+    else this.items = this.items.map((entry) => (entry.id === task.id ? task : entry))
   }
 
   async update(id: string, patch: TaskPatch): Promise<Task | null> {
@@ -62,7 +77,9 @@ class TasksStore {
 
   async addList(name: string): Promise<TaskList | null> {
     const list = await window.elecdex.tasks.addList(name)
-    if (list !== null) this.lists = [...this.lists, list]
+    if (list !== null && !this.lists.some((entry) => entry.id === list.id)) {
+      this.lists = [...this.lists, list]
+    }
     return list
   }
 

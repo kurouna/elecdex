@@ -188,6 +188,99 @@ test('a task due now is announced, with the pane closed and no reminder pane ope
   }
 })
 
+test('a note deleted from the switcher goes, and the pane shows what it fell back to', async () => {
+  const { page, close } = await launch(undefined, { layout: single('notes') })
+  try {
+    await page.getByTestId('notes-new').click()
+    await page.getByTestId('notes-body').fill('note one')
+    await expect(page.getByTestId('notes-status')).toContainText('wrote', { timeout: 5000 })
+    await page.getByTestId('notes-new').click()
+    await page.getByTestId('notes-body').fill('note two')
+    await expect(page.getByTestId('notes-status')).toContainText('wrote', { timeout: 5000 })
+
+    await page.getByTestId('notes-switcher-toggle').click()
+    await expect(page.getByTestId('notes-switcher-item')).toHaveCount(2)
+    // The note being shown is deleted from the list it is listed in.
+    await page.getByTestId('notes-switcher-delete').first().click()
+
+    // It really goes, and the text on screen is the note that is left - not the
+    // deleted one's, which the next keystroke would have written into it.
+    await expect(page.getByTestId('notes-body')).toHaveValue('note one')
+    // The list stays open, with one note left in it.
+    await expect(page.getByTestId('notes-switcher-item')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a completed task is shown, not lost behind a heading', async () => {
+  const { page, close } = await launch(undefined, { layout: single('todo') })
+  try {
+    await page.getByTestId('todo-input').fill('buy milk')
+    await page.getByTestId('todo-input').press('Enter')
+    await expect(page.getByTestId('todo-row')).toHaveCount(1)
+    await page.getByTestId('todo-complete').click()
+
+    await expect(page.getByTestId('todo-row-done')).toHaveCount(1)
+    await expect(page.getByTestId('todo-row-done')).toContainText('buy milk')
+
+    // And it can be hidden and brought back from the heading, which is a button.
+    await page.getByTestId('todo-toggle-done').click()
+    await expect(page.getByTestId('todo-row-done')).toHaveCount(0)
+    await page.getByTestId('todo-toggle-done').click()
+    await expect(page.getByTestId('todo-row-done')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('the stopwatch and the countdowns run as separate machines', async () => {
+  const { page, close } = await launch(undefined, { layout: single('timer') })
+  try {
+    await page.getByTestId('timer-start').click()
+    await expect(page.getByTestId('timer')).toHaveAttribute('data-running', 'true')
+
+    // Starting the stopwatch started no countdown.
+    await page.getByTestId('timer-mode-timer').click()
+    await expect(page.getByTestId('timer-card')).toHaveCount(1)
+    await expect(page.locator('[data-testid=timer-card][data-running=true]')).toHaveCount(0)
+    // The stopwatch says it is still going, from the timers mode.
+    await expect(page.getByTestId('timer-stopwatch-aside')).toBeVisible()
+
+    // A countdown runs beside it, and resetting one leaves the other alone.
+    await page.getByTestId('timer-start').first().click()
+    await expect(page.locator('[data-testid=timer-card][data-running=true]')).toHaveCount(1)
+    await page.getByTestId('timer-reset').first().click()
+    await expect(page.locator('[data-testid=timer-card][data-running=true]')).toHaveCount(0)
+
+    await page.getByTestId('timer-mode-stopwatch').click()
+    await expect
+      .poll(async () => page.getByTestId('timer-readout').first().textContent())
+      .not.toMatch(/^00:00/)
+  } finally {
+    await close()
+  }
+})
+
+test('several countdowns can be kept, each with its own duration', async () => {
+  let launched = await launch(undefined, { layout: single('timer', { mode: 'timer' }) })
+  try {
+    const { page } = launched
+    await page.locator('[data-testid=timer-add-preset][data-minutes="3"]').click()
+    await page.locator('[data-testid=timer-add-preset][data-minutes="10"]').click()
+    await expect(page.getByTestId('timer-card')).toHaveCount(3)
+
+    await page.getByTestId('timer-remove').first().click()
+    await expect(page.getByTestId('timer-card')).toHaveCount(2)
+
+    await page.waitForTimeout(1500) // let the layout save
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('timer-card')).toHaveCount(2)
+  } finally {
+    await launched.close()
+  }
+})
+
 test('the chrono keeps counting across a restart, and its laps with it', async () => {
   let launched = await launch(undefined, { layout: single('timer') })
   try {
@@ -216,9 +309,12 @@ test('the chrono keeps counting across a restart, and its laps with it', async (
 
 test('a countdown reaching zero stops itself and says so once', async () => {
   const { page, close } = await launch(undefined, {
+    // The shape a pane saved by the build where the two shared one clock has;
+    // it opens with that duration as its countdown.
     layout: single('timer', { mode: 'timer', durationMs: 2000 }),
   })
   try {
+    await expect(page.getByTestId('timer-card')).toHaveCount(1)
     await page.getByTestId('timer-start').click()
     await expect(page.getByTestId('toast')).toHaveCount(1, { timeout: 15_000 })
     await expect(page.getByTestId('timer-readout')).toHaveText(/00:00/)
@@ -226,6 +322,84 @@ test('a countdown reaching zero stops itself and says so once', async () => {
     // Not once per frame afterwards.
     await page.waitForTimeout(1000)
     await expect(page.getByTestId('toast')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a task is renamed and given a deadline where it is read', async () => {
+  const { page, close } = await launch(undefined, { layout: single('todo') })
+  try {
+    await page.getByTestId('todo-input').fill('buy milk')
+    await page.getByTestId('todo-input').press('Enter')
+    await expect(page.getByTestId('todo-row')).toHaveCount(1)
+
+    await page.getByTestId('todo-title').click()
+    await page.getByTestId('todo-edit-title').fill('buy oat milk')
+    await page.getByTestId('todo-edit-title').press('Enter')
+    await expect(page.getByTestId('todo-title')).toHaveText('buy oat milk')
+
+    // A deadline is typed the way it is typed when a task is added.
+    await page.getByTestId('todo-when').click()
+    await page.getByTestId('todo-edit-due').fill('明日 9:00')
+    await page.getByTestId('todo-edit-due').press('Enter')
+    await expect(page.getByTestId('todo-when')).toHaveText(/09:00|9 /)
+    await expect(page.getByTestId('todo-next')).toContainText(/\d\d:\d\d/)
+
+    // And an empty line takes it off again.
+    await page.getByTestId('todo-when').click()
+    await page.getByTestId('todo-edit-due').fill('')
+    await page.getByTestId('todo-edit-due').press('Enter')
+    await expect(page.getByTestId('todo-when')).toHaveText('—')
+  } finally {
+    await close()
+  }
+})
+
+test('a rolling readout never takes a click meant for the controls under it', async () => {
+  // A digit rolls in from half a line below, and the browser hit-tests where a
+  // transform puts a box: the number used to lie over the buttons for a few
+  // frames every second and swallow whatever was pressed there.
+  const { page, close } = await launch(undefined, { layout: single('timer', { mode: 'timer' }) })
+  try {
+    await page.getByTestId('timer-start').first().click()
+    await expect(page.locator('[data-testid=timer-card][data-running=true]')).toHaveCount(1)
+
+    // Watch the point the reset button sits at for longer than a whole roll.
+    const covered = await page.evaluate(async () => {
+      const button = document.querySelector('[data-testid=timer-reset]') as HTMLElement
+      const seen = new Set<string>()
+      for (let i = 0; i < 40; i += 1) {
+        const box = button.getBoundingClientRect()
+        const at = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+        seen.add((at as HTMLElement | null)?.getAttribute('data-testid') ?? at?.className ?? 'none')
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      return [...seen]
+    })
+    expect(covered).toEqual(['timer-reset'])
+
+    // And the click really lands, with the digits changing under it.
+    await page.getByTestId('timer-reset').first().click()
+    await expect(page.locator('[data-testid=timer-card][data-running=true]')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('a wide pane keeps a measure instead of stretching its contents', async () => {
+  // One pane filling the window is the width these panes look worst at: a line
+  // of digits or a three-word task drawn across the whole screen.
+  const { page, close } = await launch(undefined, { layout: single('calc') })
+  try {
+    const width = async (testid: string): Promise<number> =>
+      (await page.getByTestId(testid).first().boundingBox())?.width ?? 0
+
+    const pane = await width('calc')
+    expect(pane).toBeGreaterThan(700)
+    // The tape and the line it is typed on stay inside a readable column.
+    expect(await width('calc-tape')).toBeLessThan(pane)
+    expect(await width('calc-input')).toBeLessThan(pane)
   } finally {
     await close()
   }

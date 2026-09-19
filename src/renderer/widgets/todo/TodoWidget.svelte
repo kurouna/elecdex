@@ -45,13 +45,29 @@ const listId = $derived(
     : (tasks.lists[0]?.id ?? DEFAULT_LIST_ID),
 )
 const list = $derived(tasks.lists.find((entry) => entry.id === listId) ?? tasks.lists[0] ?? null)
-const showCompleted = $derived(paneState?.showCompleted === true)
+/**
+ * Completed tasks are shown unless they are hidden.
+ *
+ * They were collapsed by default, behind a heading small enough that it did not
+ * read as a button: a task ticked off looked as though it had simply gone, and
+ * there was no obvious way to see it again. Having done something is worth
+ * seeing.
+ */
+const showCompleted = $derived(paneState?.showCompleted !== false)
 
 let draft = $state('')
 let settingsOpen = $state(false)
 let listsOpen = $state(false)
 /** The task whose row is playing its completion, so the strike can be drawn. */
 let striking = $state<string | null>(null)
+/**
+ * What is being edited in place, if anything.
+ *
+ * A task typed in a hurry is a task typed with the wrong word in it, and a
+ * deadline is the thing most likely to move. Both are changed where they are
+ * read rather than in a dialog: the row is the record, so the row is the form.
+ */
+let editing = $state<{ id: string; field: 'title' | 'due'; value: string } | null>(null)
 
 /**
  * Now, to the second.
@@ -179,6 +195,66 @@ function complete(task: Task): void {
 
 function reopen(task: Task): void {
   void tasks.update(task.id, { done: false })
+}
+
+function beginEdit(task: Task, field: 'title' | 'due'): void {
+  editing = { id: task.id, field, value: field === 'title' ? task.title : '' }
+}
+
+/**
+ * Commits an in-place edit.
+ *
+ * A deadline is typed the same way it is typed when the task is added - the same
+ * parser, so "明日 9:00" means the same thing in both places - and an empty line
+ * takes the deadline off rather than meaning nothing.
+ */
+function commitEdit(task: Task): void {
+  const edit = editing
+  editing = null
+  if (edit === null) return
+
+  if (edit.field === 'title') {
+    const title = edit.value.trim()
+    if (title === '' || title === task.title) return
+    void tasks.update(task.id, { title })
+    return
+  }
+
+  const line = edit.value.trim()
+  if (line === '') {
+    if (task.due !== undefined) void tasks.update(task.id, { due: null })
+    return
+  }
+  // The parser wants something to hang the date on; the title will do.
+  const parsed = parseTask(`${task.title} ${line}`, now)
+  if (parsed.due === undefined) {
+    sfx.play('glitch')
+    return
+  }
+  void tasks.update(task.id, {
+    due: parsed.due,
+    allDay: parsed.allDay,
+    ...(parsed.repeat === 'none' ? {} : { repeat: parsed.repeat }),
+  })
+}
+
+/**
+ * The keys a row answers to, from the box that tabbing lands on.
+ *
+ * Space and Enter are the button's own - they tick the task off - so only the
+ * two extra ones are handled here; taking Space as well would complete a task
+ * twice.
+ */
+function onRowKey(event: KeyboardEvent, task: Task): void {
+  if (event.key === 'Delete') {
+    event.preventDefault()
+    remove(task)
+    return
+  }
+  if (event.key === 'F2' || event.key === 'e') {
+    event.preventDefault()
+    beginEdit(task, 'title')
+  }
 }
 
 function remove(task: Task): void {
@@ -439,12 +515,59 @@ $effect(() => {
             type="button"
             class="check"
             aria-label="complete {task.title}"
+            title="Complete · Delete removes · F2 renames"
             onclick={() => complete(task)}
+            onkeydown={(event) => onRowKey(event, task)}
             data-testid="todo-complete">[ ]</button
           >
-          <span class="title">{task.title}</span>
+          {#if editing?.id === task.id && editing.field === 'title'}
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              class="edit title"
+              autofocus
+              bind:value={editing.value}
+              onkeydown={(event) => {
+                if (event.key === 'Enter') commitEdit(task)
+                if (event.key === 'Escape') editing = null
+              }}
+              onblur={() => commitEdit(task)}
+              aria-label="Task title"
+              data-testid="todo-edit-title"
+            />
+          {:else}
+            <button
+              type="button"
+              class="title"
+              title="Click to rename"
+              onclick={() => beginEdit(task, 'title')}
+              data-testid="todo-title">{task.title}</button
+            >
+          {/if}
           {#if task.repeat !== 'none'}<span class="repeat" title={task.repeat}>↻</span>{/if}
-          <span class="when">{timeOf(task)}</span>
+          {#if editing?.id === task.id && editing.field === 'due'}
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              class="edit when"
+              autofocus
+              bind:value={editing.value}
+              placeholder="明日 9:00 · fri 18:30 · empty to clear"
+              onkeydown={(event) => {
+                if (event.key === 'Enter') commitEdit(task)
+                if (event.key === 'Escape') editing = null
+              }}
+              onblur={() => commitEdit(task)}
+              aria-label="Deadline"
+              data-testid="todo-edit-due"
+            />
+          {:else}
+            <button
+              type="button"
+              class="when"
+              title="Click to set a deadline"
+              onclick={() => beginEdit(task, 'due')}
+              data-testid="todo-when">{timeOf(task) || '—'}</button
+            >
+          {/if}
           {#if task.due !== undefined}
             <span class="meter" title="time gone before this is due">
               <SegmentMeter
@@ -471,11 +594,17 @@ $effect(() => {
 
     {#if done.length > 0}
       <div class="band-head done-head">
-        <button type="button" onclick={() => save({ showCompleted: !showCompleted })} data-testid="todo-toggle-done">
+        <button
+          type="button"
+          class="disclose"
+          aria-expanded={showCompleted}
+          onclick={() => save({ showCompleted: !showCompleted })}
+          data-testid="todo-toggle-done"
+        >
           <span class="chevron" aria-hidden="true">{showCompleted ? '▾' : '▸'}</span>
-          done
+          <span>done</span>
+          <span class="band-count">{done.length}</span>
         </button>
-        <span class="band-count">{done.length}</span>
         <button type="button" class="clear" onclick={clearDone} data-testid="todo-clear-done">clear</button>
       </div>
       {#if showCompleted}
@@ -498,6 +627,7 @@ $effect(() => {
 
 <style>
 .todo {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -507,6 +637,41 @@ $effect(() => {
   padding: var(--space-1) var(--space-1) var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--step--1);
+}
+
+/*
+ * A wide pane: the rows keep a measure rather than stretching a three-word task
+ * across the whole screen, and the meter grows into the room instead.
+ */
+@container (min-width: 32rem) {
+  .rows,
+  .compose,
+  .decoded {
+    width: min(100%, 46rem);
+    margin-inline: auto;
+  }
+
+  .meter {
+    width: 6rem;
+  }
+}
+
+/* Wider still, the bands stand side by side rather than one long column. */
+@container (min-width: 56rem) {
+  .rows {
+    width: min(100%, 72rem);
+    columns: 2;
+    column-gap: var(--space-5);
+  }
+
+  .band-head,
+  .row {
+    break-inside: avoid;
+  }
+
+  .band-head {
+    break-after: avoid;
+  }
 }
 
 .head {
@@ -703,6 +868,22 @@ $effect(() => {
   opacity: 0.7;
 }
 
+/* The whole heading is the switch, and it looks like one: the tiny chevron on
+   its own was not enough to say that completed tasks could be brought back. */
+.done-head .disclose {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-1);
+  border: 1px solid transparent;
+}
+
+.done-head .disclose:hover {
+  border-color: var(--panel-rule);
+  color: var(--accent);
+}
+
 .done-head .clear {
   margin-left: var(--space-2);
   color: var(--text-muted);
@@ -757,6 +938,40 @@ $effect(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text);
+  border: 0;
+  background: transparent;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: text;
+}
+
+.row:hover .title {
+  text-decoration: underline;
+  text-decoration-color: var(--accent-dim);
+  text-underline-offset: 2px;
+}
+
+/* Editing happens in the row, in the same type, so nothing jumps. */
+.edit {
+  border: 0;
+  border-bottom: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  outline: none;
+  padding: 0;
+}
+
+.edit.title {
+  flex: 1;
+  min-width: 0;
+}
+
+.edit.when {
+  flex: 0 1 14rem;
+  min-width: 6rem;
+  font-size: var(--step--2);
 }
 
 .repeat {
@@ -767,6 +982,17 @@ $effect(() => {
   color: var(--row-tone);
   font-size: var(--step--2);
   white-space: nowrap;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  padding: 0;
+  cursor: text;
+}
+
+.row:hover .when {
+  text-decoration: underline;
+  text-decoration-color: var(--accent-dim);
+  text-underline-offset: 2px;
 }
 
 .meter {

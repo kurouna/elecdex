@@ -1,6 +1,6 @@
 <script lang="ts">
 import { evaluateAt } from '@shared/calc'
-import { noteTitle } from '@shared/notes'
+import { type Note, noteTitle } from '@shared/notes'
 import { layout } from '../../stores/layout.svelte.ts'
 import { notes } from '../../stores/notes.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -34,8 +34,16 @@ const zoom = $derived(
 )
 
 let draft = $state('')
-/** The revision this pane last wrote or loaded, so its own echo is not applied. */
-let knownRev = $state(0)
+/**
+ * Which note the draft on screen belongs to, and at which revision.
+ *
+ * The id has to be part of this. Comparing revisions alone, a switch to another
+ * note that happens to be at the same revision - which is exactly what happens
+ * when the note being shown is deleted and the pane falls back to another - left
+ * the gone note's text on screen, pointed at a note that did not contain it. The
+ * next keystroke would then have written it there.
+ */
+let loaded = $state<{ id: string; rev: number } | null>(null)
 let dirtyAt = $state<number | null>(null)
 let savedAt = $state<number | null>(null)
 /** Bumped on each write, to flash the bar. */
@@ -75,22 +83,34 @@ $effect(() => {
 /** Takes the note's text when it changes underneath: a switch, or another pane's edit. */
 $effect(() => {
   const note = current
-  if (note === null) return
-  if (note.rev === knownRev) return
-  if (dirtyAt !== null && note.rev > knownRev && draft !== note.body) {
+  if (note === null) {
+    if (loaded !== null) {
+      // The last note went. Nothing is being shown, so nothing may be written.
+      loaded = null
+      draft = ''
+      dirtyAt = null
+    }
+    return
+  }
+  const sameNote = loaded?.id === note.id
+  if (sameNote && note.rev === loaded?.rev) return
+  if (sameNote && dirtyAt !== null && draft !== note.body) {
     // Someone else wrote while this pane had unsaved keystrokes. Their text is
     // what is on disk; say so rather than overwriting it silently.
     elsewhere = true
     return
   }
+  // A different note - a switch, or the one being shown was deleted - always
+  // replaces what is on screen, whatever was half typed for the old one.
+  if (!sameNote) dirtyAt = null
   draft = note.body
-  knownRev = note.rev
+  loaded = { id: note.id, rev: note.rev }
   elsewhere = false
 })
 
 function select(id: string): void {
   flushNow()
-  knownRev = 0
+  loaded = null
   dirtyAt = null
   elsewhere = false
   switcherOpen = false
@@ -113,7 +133,7 @@ function flushNow(): void {
   dirtyAt = null
   void notes.save(id, body).then((note) => {
     if (note === null) return
-    knownRev = note.rev
+    loaded = { id: note.id, rev: note.rev }
     savedAt = note.updatedAt
     flash += 1
     elsewhere = false
@@ -135,9 +155,10 @@ async function newNote(): Promise<void> {
   area?.focus()
 }
 
-function removeNote(): void {
-  const note = current
-  if (note === null) return
+/** Deletes a note - the one shown, or one picked out of the switcher. */
+function removeNote(target?: Note): void {
+  const note = target ?? current
+  if (note === null || note === undefined) return
   const body = note.body
   void notes.remove(note.id)
   sfx.play('collapse')
@@ -173,6 +194,17 @@ function onKeydown(event: KeyboardEvent): void {
   if (event.key === 'f') {
     event.preventDefault()
     search = search ?? ''
+    return
+  }
+  // Writing happens on its own, but asking for it is a habit worth answering.
+  if (event.key === 's') {
+    event.preventDefault()
+    flushNow()
+    return
+  }
+  if (event.key === 'n') {
+    event.preventDefault()
+    void newNote()
     return
   }
   // Ctrl+= evaluates the expression the caret is in, and writes the answer after
@@ -313,7 +345,7 @@ $effect(() => {
         }}
         data-testid="notes-export">save as .md…</button
       >
-      <button type="button" class="row-action danger" onclick={removeNote} data-testid="notes-delete">
+      <button type="button" class="row-action danger" onclick={() => removeNote()} data-testid="notes-delete">
         delete this note
       </button>
     </div>
@@ -322,15 +354,20 @@ $effect(() => {
   {#if switcherOpen}
     <div class="switcher" data-testid="notes-switcher">
       {#each list as note (note.id)}
-        <button
-          type="button"
-          class:on={note.id === noteId}
-          onclick={() => select(note.id)}
-          data-testid="notes-switcher-item"
-        >
-          <span class="entry-title">{noteTitle(note.body)}</span>
-          <span class="entry-when">{clock(note.updatedAt)}</span>
-        </button>
+        <div class="entry" class:on={note.id === noteId}>
+          <button type="button" onclick={() => select(note.id)} data-testid="notes-switcher-item">
+            <span class="entry-title">{noteTitle(note.body)}</span>
+            <span class="entry-when">{clock(note.updatedAt)}</span>
+          </button>
+          <button
+            type="button"
+            class="entry-kill"
+            aria-label="delete {noteTitle(note.body)}"
+            title="Delete this note"
+            onclick={() => removeNote(note)}
+            data-testid="notes-switcher-delete">×</button
+          >
+        </div>
       {:else}
         <p class="empty">no notes yet</p>
       {/each}
@@ -352,7 +389,7 @@ $effect(() => {
         aria-label="Find in note"
         data-testid="notes-find"
       />
-      <span class="hits">{hits}</span>
+      <span class="hits">{hits === 0 ? 'none' : `${hits} · ↵ next`}</span>
       <button type="button" class="icon" aria-label="close find" onclick={() => (search = null)}>×</button>
     </div>
   {/if}
@@ -384,6 +421,7 @@ $effect(() => {
   <div class="foot" data-testid="notes-status">
     <span class="stat">ln {lines}</span>
     <span class="stat">ch {chars}</span>
+    <span class="stat keys">ctrl+= sum · ctrl+f find · ctrl+n new</span>
     {#if elsewhere}
       <span class="stat warn" data-testid="notes-elsewhere">edited elsewhere</span>
     {/if}
@@ -399,6 +437,7 @@ $effect(() => {
 
 <style>
 .notes {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -406,6 +445,27 @@ $effect(() => {
   height: 100%;
   min-height: 0;
   padding: var(--space-1) var(--space-1) 0;
+}
+
+/*
+ * A wide pane gets a line length that can still be read. Prose set across 200
+ * characters is not a feature of the extra room; the text keeps a measure and
+ * the switcher takes the width instead.
+ */
+@container (min-width: 34rem) {
+  .body {
+    width: min(100%, 52rem);
+    margin-inline: auto;
+  }
+
+  .switcher {
+    columns: 2;
+    column-gap: 0;
+  }
+
+  .entry {
+    break-inside: avoid;
+  }
 }
 
 .head {
@@ -519,12 +579,19 @@ $effect(() => {
   color: var(--danger);
 }
 
-.switcher button {
+.entry {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--panel-rule);
+}
+
+.entry > button {
+  flex: 1;
+  min-width: 0;
   display: flex;
   justify-content: space-between;
   gap: var(--space-2);
   border: 0;
-  border-bottom: 1px solid var(--panel-rule);
   background: transparent;
   color: var(--text);
   font-family: var(--font-mono);
@@ -534,10 +601,33 @@ $effect(() => {
   cursor: pointer;
 }
 
-.switcher button:hover,
-.switcher button.on {
+.entry:hover,
+.entry.on {
   background: var(--accent-faint);
+}
+
+.entry.on > button {
   color: var(--accent-strong);
+}
+
+/* Deleting a note belongs where the notes are listed: hunting through a
+   settings panel for it is why it looked as though one could not be deleted. */
+.entry-kill {
+  flex: none;
+  border: 0;
+  padding: 0 var(--space-2);
+  background: transparent;
+  color: transparent;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.entry:hover .entry-kill {
+  color: var(--text-muted);
+}
+
+.entry-kill:hover {
+  color: var(--danger);
 }
 
 .entry-title {
@@ -647,6 +737,20 @@ textarea::placeholder {
 
 .stat.warn {
   color: var(--warn);
+}
+
+/* The keys this pane answers to, where the eye already goes for the save. */
+.keys {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.6;
+}
+
+@container (max-width: 26rem) {
+  .keys {
+    display: none;
+  }
 }
 
 .spacer {

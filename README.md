@@ -40,8 +40,8 @@ for Windows, macOS and Linux.
   you want it.
 - **Desk panes** — a calculator you type into (full-width digits and 3百万 read as typed, with a
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
-  deadlines are drawn as meters and announced whether or not their pane is open, and a chrono
-  whose laps stack up like a spectrum.
+  deadlines are drawn as meters and announced whether or not their pane is open, and a chrono with
+  a stopwatch whose laps stack up like a spectrum and countdowns that run beside it.
 - **Earthquakes and tsunamis** — for Japan (JMA) or the world (USGS and NOAA): alerts at the
   intensity or magnitude you choose (off by default), tsunami warnings kept in sight while in
   effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
@@ -284,7 +284,9 @@ weather and calendar.
   read as typed, so an expression can be written without leaving the Japanese keyboard. There are
   constants for bytes, time, percentages and 万・億・兆, functions from `sqrt` to `gcd`, 32-bit bit
   operations, and `ans` for the answer before this one; `rate = 8 * percent` keeps a name in the
-  register row for later lines. `0x` adds a 32-column bit map under the answer. The **tally** mode
+  register row for later lines. `0x` adds a 32-column bit map under the answer. `C` clears the
+  line and, with nothing on it, the tape; `?` on an empty line shows everything the calculator
+  knows, and ↑ walks back through what was typed. The **tally** mode
   summarises a pasted column of numbers - count, sum, mean, median, standard deviation, quartiles -
   with a histogram and a box plot, and does not mistake the parts of a date for numbers of their
   own. Nothing is evaluated as code: the expression parser is elecxzy's, vendored with its tests.
@@ -293,7 +295,8 @@ weather and calendar.
   write is due and flashes when it lands, so a silent autosave is never something to wonder about.
   Notes are kept in `notes.json` under the app's userData, not in the layout, so they outlive the
   pane and two panes can show the same note (the second says *edited elsewhere* rather than
-  overwriting what you are typing). The first line names the note; the title bar lists them all.
+  overwriting what you are typing). The first line names the note; the title bar lists them all,
+  each with a × to delete it (with an undo).
   **Ctrl+=** works out the expression the caret is in and writes the answer after it, leaving prose
   alone. *Save as .md…* and *delete* (with an undo) are under the settings button.
 - **Tasks** — not in the default layout: add it from the picker. A list where each deadline is
@@ -301,7 +304,10 @@ weather and calendar.
   past, with the nearest deadline counting down in the header. Typing `歯医者 明日 9:00`,
   `review fri 18:30` or `毎週 掃除` reads the date and the repeat out of the line - and shows what it
   understood before the task is added, so a misreading is caught there and then; a line it does not
-  understand is left exactly as typed. Tasks are kept in `tasks.json`, and the reminder for the next
+  understand is left exactly as typed. A task is corrected where it is read: click its title to
+  rename it, click its time to set a deadline in the same words (an empty line takes it off), and
+  from the keyboard Delete removes the task and F2 renames it. Completed tasks are listed under
+  DONE, which folds away when you want it to. Tasks are kept in `tasks.json`, and the reminder for the next
   deadline is scheduled by the app itself: it arrives with the pane closed, on another tab, or never
   opened, as a card in the corner with *done*, *snooze* and *open*, and as a system notification when
   elecdex is not in front. One timer waits for the next deadline of all - nothing is polled.
@@ -309,13 +315,16 @@ weather and calendar.
   how far ahead to warn.
 - **Timer** — not in the default layout: add it from the picker. A stopwatch whose laps stand as
   bars that grow while they are being timed and lock with a flash when taken, fastest and slowest
-  marked, with a held peak across the tallest; and a countdown that burns down a ladder of segments,
-  one going out at a time, pulsing in the last ten seconds and saying so in a card when it lands.
-  The custom duration goes through the calculator, so `90/2` is forty-five minutes. Both are kept as
-  wall-clock moments rather than a count of ticks, so a pane moved, a tab switched away from, a
-  reload and a restart all leave a running chrono exactly where it was; the readout shows tenths,
-  which is what the shared 10 fps draw loop can honestly show, while laps are recorded to the
-  millisecond.
+  marked, with a held peak across the tallest; and **countdowns** - up to six, each with its own
+  duration - that burn down a ladder of segments, one going out at a time, pulsing in the last ten
+  seconds and saying so in a card when they land. The stopwatch and the countdowns are separate
+  machines, as they are on a phone: starting one does not start the other, resetting one leaves the
+  other alone, and a countdown goes on running (and still goes off) while the stopwatch is the mode
+  on screen, which each mode says in its heading. A duration typed by hand goes through the
+  calculator, so `90/2` is forty-five minutes. Everything is kept as wall-clock moments rather than
+  a count of ticks, so a pane moved, a tab switched away from, a reload and a restart all leave a
+  running chrono exactly where it was; the readout shows tenths, which is what the shared 10 fps
+  draw loop can honestly show, while laps are recorded to the millisecond.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
   sweep in the way it moved. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named

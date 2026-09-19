@@ -114,6 +114,41 @@ describe('NotesWidget', () => {
     expect(body().value).toBe('first line\nsecond')
   })
 
+  it('shows the note it falls back to, not the text of the one just deleted', async () => {
+    // The bug: the draft was kept against a revision alone, so falling back to
+    // another note at the same revision left the deleted note's text on screen -
+    // and the next keystroke would have written it into the surviving note.
+    file = {
+      version: 1,
+      notes: [note({ id: 'n2', body: 'second note', updatedAt: 2000, rev: 1 }), note()],
+    }
+    render(NotesWidget, { props: { paneId: 'p', state: { noteId: 'n2' } } as never })
+    await settle()
+    expect(body().value).toBe('second note')
+
+    // n2 goes, here or in another window; the pane falls back to the other note.
+    changed({ version: 1, notes: [note()] })
+    await settle()
+    expect(body().value).toBe(note().body)
+  })
+
+  it('deletes the note picked out of the switcher, not the one on screen', async () => {
+    file = {
+      version: 1,
+      notes: [note({ id: 'n2', body: 'second note', updatedAt: 2000, rev: 1 }), note()],
+    }
+    render(NotesWidget, { props: { paneId: 'p', state: { noteId: 'n2' } } as never })
+    await settle()
+    await fireEvent.click(screen.getByTestId('notes-switcher-toggle'))
+    await settle()
+
+    const kill = screen.getAllByTestId('notes-switcher-delete')[1]
+    expect(kill).toBeTruthy()
+    await fireEvent.click(kill as HTMLElement)
+    await settle()
+    expect(window.elecdex.notes.remove).toHaveBeenCalledWith('n1')
+  })
+
   it('works out the sum under the caret, and leaves prose alone', async () => {
     vi.useFakeTimers()
     render(NotesWidget, { props: { paneId: 'p', state: { noteId: 'n1' } } as never })

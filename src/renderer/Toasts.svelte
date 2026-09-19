@@ -32,6 +32,15 @@ import { coverWeb } from './stores/web.svelte.ts'
         data-testid="toast"
         data-tone={toast.tone}
       >
+        {#if toast.timeoutMs > 0}
+          <!-- How long it will stay, as a fuse burning down the edge of the card.
+               It stops with the rest of the stack while the pointer is over it. -->
+          <span
+            class="fuse"
+            style:animation-duration="{toast.timeoutMs}ms"
+            aria-hidden="true"
+          ></span>
+        {/if}
         <div class="text">
           <span class="title">{toast.title}</span>
           {#if toast.body}<span class="body">{toast.body}</span>{/if}
@@ -77,6 +86,7 @@ import { coverWeb } from './stores/web.svelte.ts'
 
 .toast {
   --crt-duration: 320ms;
+  position: relative;
   --toast-tone: var(--accent);
   display: flex;
   flex-direction: column;
@@ -89,6 +99,33 @@ import { coverWeb } from './stores/web.svelte.ts'
   box-shadow: 0 0 14px color-mix(in srgb, var(--toast-tone) 40%, transparent);
   font-family: var(--font-ui);
   letter-spacing: var(--tracking-wide);
+}
+
+.fuse {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  transform-origin: left;
+  background: var(--toast-tone);
+  opacity: 0.55;
+  animation-name: burn;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.stack:hover .fuse {
+  animation-play-state: paused;
+}
+
+@keyframes burn {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
 .toast.warn { --toast-tone: var(--warn); }

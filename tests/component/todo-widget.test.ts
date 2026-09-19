@@ -1,5 +1,5 @@
 import { defaultSettings } from '@shared/settings'
-import type { NewTask, Task, TasksFile } from '@shared/tasks'
+import type { NewTask, Task, TaskPatch, TasksFile } from '@shared/tasks'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync, tick } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -34,6 +34,8 @@ const task = (over: Partial<Task> = {}): Task => ({
 })
 
 let file: TasksFile
+/** Main's broadcast, so a test can make it land before the call returns. */
+let changed: ((next: TasksFile) => void) | null = null
 let add: ReturnType<typeof vi.fn>
 let update: ReturnType<typeof vi.fn>
 let remove: ReturnType<typeof vi.fn>
@@ -41,6 +43,7 @@ let remove: ReturnType<typeof vi.fn>
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(NOW)
+  changed = null
   file = { version: 1, lists: [{ id: 'tasks', name: 'tasks' }], tasks: [] }
   add = vi.fn(async (input: NewTask) =>
     task({
@@ -52,7 +55,17 @@ beforeEach(() => {
       repeat: input.repeat ?? 'none',
     }),
   )
-  update = vi.fn(async (id: string) => task({ id, done: true }))
+  // Answers as main does: the task as it is after the change, not a fixed one.
+  update = vi.fn(async (id: string, patch: TaskPatch) => {
+    const next = task({ id })
+    if (patch.title !== undefined) next.title = patch.title
+    if (patch.done !== undefined) next.done = patch.done
+    if (patch.allDay !== undefined) next.allDay = patch.allDay
+    if (patch.repeat !== undefined) next.repeat = patch.repeat
+    if (patch.due === null) delete next.due
+    else if (patch.due !== undefined) next.due = patch.due
+    return next
+  })
   remove = vi.fn(async () => true)
   vi.stubGlobal(
     'ResizeObserver',
@@ -83,7 +96,10 @@ beforeEach(() => {
       addList: vi.fn(async () => null),
       renameList: vi.fn(async () => true),
       removeList: vi.fn(async () => true),
-      onChange: () => () => {},
+      onChange: (handler: (next: TasksFile) => void) => {
+        changed = handler
+        return () => {}
+      },
       onRemind: () => () => {},
     },
     layout: { load: vi.fn(), save: vi.fn(async () => undefined) },
@@ -108,6 +124,20 @@ async function settle(): Promise<void> {
 }
 
 const input = (): HTMLInputElement => screen.getByTestId('todo-input') as HTMLInputElement
+
+/**
+ * Renders the pane on the tasks this test set up.
+ *
+ * The store is one object for the whole window, so it outlives a single test's
+ * component; pushing the file the way main's broadcast does puts it on the tasks
+ * this test means, whether or not the store happened to re-read them.
+ */
+async function mount(state: Record<string, unknown> = {}): Promise<void> {
+  render(TodoWidget, { props: { paneId: 'p', state } as never })
+  await settle()
+  changed?.(structuredClone(file))
+  await settle()
+}
 
 describe('TodoWidget', () => {
   it('reads the line back before anything is added', async () => {
@@ -152,8 +182,7 @@ describe('TodoWidget', () => {
         task({ id: 'someday', title: 'no date' }),
       ],
     }
-    render(TodoWidget, { props: { paneId: 'p', state: {} } as never })
-    await settle()
+    await mount()
 
     const text = screen.getByTestId('todo-rows').textContent ?? ''
     expect(text.indexOf('overdue')).toBeLessThan(text.indexOf('today one'))
@@ -164,8 +193,7 @@ describe('TodoWidget', () => {
 
   it('offers a deleted task back', async () => {
     file = { ...file, tasks: [task({ title: 'delete me' })] }
-    render(TodoWidget, { props: { paneId: 'p', state: {} } as never })
-    await settle()
+    await mount()
     await fireEvent.click(screen.getByTestId('todo-remove'))
     await settle()
 
@@ -177,10 +205,93 @@ describe('TodoWidget', () => {
     expect(add).toHaveBeenCalledWith(expect.objectContaining({ title: 'delete me' }))
   })
 
-  it('lets the row play its completion before the task is ticked off', async () => {
-    file = { ...file, tasks: [task()] }
+  it('adds a task once when main has already broadcast it', async () => {
+    // Main writes the file and broadcasts it before the call returns, so the
+    // window can hear about a task before it is handed the task. Appending what
+    // came back put it in the list twice, the keyed rows threw on the duplicate,
+    // and with the render broken the pane stopped answering altogether.
+    add.mockImplementation(async (input: NewTask) => {
+      const made = task({ id: 'echo', title: input.title })
+      changed?.({ ...file, tasks: [made] })
+      return made
+    })
     render(TodoWidget, { props: { paneId: 'p', state: {} } as never })
     await settle()
+    await fireEvent.input(input(), { target: { value: 'buy milk' } })
+    await fireEvent.keyDown(input(), { key: 'Enter' })
+    await settle()
+
+    expect(screen.getAllByTestId('todo-row')).toHaveLength(1)
+  })
+
+  it('shows a completed task rather than letting it look as though it went', async () => {
+    file = { ...file, tasks: [task({ title: 'done one', done: true, completedAt: NOW })] }
+    await mount()
+
+    // Completed tasks were collapsed behind a heading too small to read as a
+    // button, so ticking one off looked like losing it. They show by default.
+    expect(screen.getByTestId('todo-row-done')).toBeTruthy()
+    expect(screen.getByTestId('todo-toggle-done').getAttribute('aria-expanded')).toBe('true')
+  })
+
+  it('renames a task where it is read', async () => {
+    file = { ...file, tasks: [task({ title: 'buy milk' })] }
+    await mount()
+
+    await fireEvent.click(screen.getByTestId('todo-title'))
+    await settle()
+    const field = screen.getByTestId('todo-edit-title')
+    await fireEvent.input(field, { target: { value: 'buy oat milk' } })
+    await fireEvent.keyDown(field, { key: 'Enter' })
+    await settle()
+    expect(update).toHaveBeenCalledWith('t1', { title: 'buy oat milk' })
+
+    // Escape leaves the task as it was.
+    await fireEvent.click(screen.getByTestId('todo-title'))
+    await settle()
+    await fireEvent.input(screen.getByTestId('todo-edit-title'), { target: { value: 'nonsense' } })
+    await fireEvent.keyDown(screen.getByTestId('todo-edit-title'), { key: 'Escape' })
+    await settle()
+    expect(update).toHaveBeenCalledTimes(1)
+  })
+
+  it('sets and clears a deadline with the same words the quick-add takes', async () => {
+    file = { ...file, tasks: [task({ title: 'call back' })] }
+    await mount()
+
+    await fireEvent.click(screen.getByTestId('todo-when'))
+    await settle()
+    const field = screen.getByTestId('todo-edit-due')
+    await fireEvent.input(field, { target: { value: '明日 9:00' } })
+    await fireEvent.keyDown(field, { key: 'Enter' })
+    await settle()
+    expect(update).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ due: new Date(2026, 8, 17, 9, 0).getTime(), allDay: false }),
+    )
+
+    // An empty line takes the deadline off rather than meaning nothing.
+    file = { ...file, tasks: [task({ title: 'call back', due: NOW })] }
+    cleanup()
+    await mount()
+    await fireEvent.click(screen.getByTestId('todo-when'))
+    await settle()
+    await fireEvent.keyDown(screen.getByTestId('todo-edit-due'), { key: 'Enter' })
+    await settle()
+    expect(update).toHaveBeenCalledWith('t1', { due: null })
+  })
+
+  it('removes a task with Delete from the box tabbing lands on', async () => {
+    file = { ...file, tasks: [task()] }
+    await mount()
+    await fireEvent.keyDown(screen.getByTestId('todo-complete'), { key: 'Delete' })
+    await settle()
+    expect(remove).toHaveBeenCalledWith('t1')
+  })
+
+  it('lets the row play its completion before the task is ticked off', async () => {
+    file = { ...file, tasks: [task()] }
+    await mount()
     await fireEvent.click(screen.getByTestId('todo-complete'))
     await settle()
     expect(update).not.toHaveBeenCalled()

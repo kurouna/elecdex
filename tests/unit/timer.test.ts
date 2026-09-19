@@ -1,9 +1,12 @@
 import {
   type ChronoState,
+  clampDuration,
   elapsed,
   formatClock,
   lapExtremes,
   litSegments,
+  MAX_TIMERS,
+  readChrono,
   remaining,
   segmentCount,
   splitDuration,
@@ -101,5 +104,74 @@ describe('the ladder', () => {
 
   it('does not divide by a duration of nothing', () => {
     expect(litSegments(5, 0, 20)).toBe(0)
+  })
+})
+
+describe('readChrono', () => {
+  it('starts a fresh pane with a stopped stopwatch and one countdown', () => {
+    const chrono = readChrono(undefined)
+    expect(chrono.mode).toBe('stopwatch')
+    expect(chrono.stopwatch).toMatchObject({ running: false, accumulatedMs: 0, laps: [] })
+    expect(chrono.timers).toHaveLength(1)
+  })
+
+  it('keeps the two apart: a running stopwatch is not a running countdown', () => {
+    const chrono = readChrono({
+      stopwatch: { running: true, startedAt: T0, accumulatedMs: 0, laps: [] },
+      timers: [
+        {
+          id: 'a',
+          durationMs: 60_000,
+          running: false,
+          startedAt: 0,
+          accumulatedMs: 0,
+          rang: false,
+        },
+      ],
+    })
+    expect(chrono.stopwatch.running).toBe(true)
+    expect(chrono.timers[0]?.running).toBe(false)
+  })
+
+  it('reads a pane saved when the two shared one clock', () => {
+    // The older shape: one run at the top level, and a single duration.
+    const chrono = readChrono({
+      mode: 'timer',
+      running: true,
+      startedAt: T0,
+      accumulatedMs: 5000,
+      laps: [{ ms: 1000, atMs: 1000 }],
+      durationMs: 180_000,
+    })
+    expect(chrono.stopwatch).toMatchObject({ running: true, startedAt: T0, accumulatedMs: 5000 })
+    expect(chrono.stopwatch.laps).toHaveLength(1)
+    expect(chrono.timers).toHaveLength(1)
+    expect(chrono.timers[0]?.durationMs).toBe(180_000)
+    // The old pane's run belonged to the stopwatch; the countdown starts stopped.
+    expect(chrono.timers[0]?.running).toBe(false)
+  })
+
+  it('throws nothing at rubbish, and never leaves the pane with no countdown', () => {
+    const chrono = readChrono({ mode: 7, stopwatch: 'no', timers: [1, null, { durationMs: 5 }] })
+    expect(chrono.mode).toBe('stopwatch')
+    expect(chrono.stopwatch.running).toBe(false)
+    expect(chrono.timers).toHaveLength(1)
+  })
+
+  it('holds no more countdowns than it can show', () => {
+    const many = Array.from({ length: MAX_TIMERS + 4 }, (_, i) => ({
+      id: `t${i}`,
+      durationMs: 60_000,
+      running: false,
+      startedAt: 0,
+      accumulatedMs: 0,
+      rang: false,
+    }))
+    expect(readChrono({ timers: many }).timers).toHaveLength(MAX_TIMERS)
+  })
+
+  it('keeps a duration within what a countdown may be set to', () => {
+    expect(clampDuration(1)).toBe(1000)
+    expect(clampDuration(99 * 3_600_000)).toBe(24 * 3_600_000)
   })
 })

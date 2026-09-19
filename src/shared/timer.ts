@@ -110,3 +110,120 @@ export function litSegments(remainingMs: number, durationMs: number, segments: n
   const ratio = Math.max(0, Math.min(1, remainingMs / durationMs))
   return Math.min(segments, Math.ceil(ratio * segments))
 }
+
+/**
+ * What the chrono pane keeps.
+ *
+ * The stopwatch and the countdowns are separate machines, as they are on a
+ * phone: starting one does not start the other, resetting one does not stop the
+ * other, and a countdown goes on counting while the stopwatch is the mode on
+ * screen. They were one clock at first, which meant the pane had a single
+ * running flag and the two modes were only ever two views of it - the wrong
+ * model, and confusing to use.
+ */
+
+/** How many countdowns one pane will hold. Beyond this they are unreadable. */
+export const MAX_TIMERS = 6
+
+export interface StopwatchState extends ChronoState {
+  laps: Lap[]
+}
+
+export interface TimerEntry extends ChronoState {
+  id: string
+  durationMs: number
+  /** Set when this countdown has already announced that it finished. */
+  rang: boolean
+}
+
+export interface ChronoPane {
+  mode: 'stopwatch' | 'timer'
+  stopwatch: StopwatchState
+  timers: TimerEntry[]
+}
+
+const DEFAULT_DURATION_MS = 5 * 60_000
+
+const num = (value: unknown, fallback = 0): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+function readLaps(raw: unknown): Lap[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .flatMap((lap) => {
+      if (typeof lap !== 'object' || lap === null) return []
+      const { ms, atMs } = lap as Record<string, unknown>
+      if (typeof ms !== 'number' || typeof atMs !== 'number') return []
+      return [{ ms, atMs }]
+    })
+    .slice(-TIMER_MAX_LAPS)
+}
+
+function readRun(raw: Record<string, unknown>): ChronoState {
+  return {
+    running: raw.running === true,
+    startedAt: num(raw.startedAt),
+    accumulatedMs: Math.max(0, num(raw.accumulatedMs)),
+  }
+}
+
+export function makeTimer(minutes: number): TimerEntry {
+  return {
+    id: `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    durationMs: clampDuration(minutes * 60_000),
+    running: false,
+    startedAt: 0,
+    accumulatedMs: 0,
+    rang: false,
+  }
+}
+
+export const clampDuration = (ms: number): number =>
+  Math.min(TIMER_MAX_MS, Math.max(1000, Math.round(ms)))
+
+/**
+ * Reads the pane state, including the shape it had when the two modes shared one
+ * clock: that pane's run becomes the stopwatch, and its duration the first
+ * countdown, so a pane saved by the older build opens with its settings intact.
+ */
+export function readChrono(state: Record<string, unknown> | undefined): ChronoPane {
+  const raw = state ?? {}
+  const mode = raw.mode === 'timer' ? 'timer' : 'stopwatch'
+
+  const storedStopwatch = raw.stopwatch
+  const stopwatch: StopwatchState =
+    typeof storedStopwatch === 'object' && storedStopwatch !== null
+      ? {
+          ...readRun(storedStopwatch as Record<string, unknown>),
+          laps: readLaps((storedStopwatch as Record<string, unknown>).laps),
+        }
+      : { ...readRun(raw), laps: readLaps(raw.laps) }
+
+  const storedTimers = raw.timers
+  const timers: TimerEntry[] = Array.isArray(storedTimers)
+    ? storedTimers
+        .flatMap((entry) => {
+          if (typeof entry !== 'object' || entry === null) return []
+          const record = entry as Record<string, unknown>
+          const id = typeof record.id === 'string' ? record.id : null
+          if (id === null) return []
+          return [
+            {
+              id,
+              durationMs: clampDuration(num(record.durationMs, DEFAULT_DURATION_MS)),
+              ...readRun(record),
+              rang: record.rang === true,
+            },
+          ]
+        })
+        .slice(0, MAX_TIMERS)
+    : [
+        {
+          ...makeTimer(num(raw.durationMs, DEFAULT_DURATION_MS) / 60_000),
+          // The older pane's countdown kept no run of its own; start it stopped.
+          id: 'timer-1',
+        },
+      ]
+
+  return { mode, stopwatch, timers: timers.length === 0 ? [makeTimer(5)] : timers }
+}

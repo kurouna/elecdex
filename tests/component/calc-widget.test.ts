@@ -133,6 +133,60 @@ describe('CalcWidget', () => {
     expect(input().value).toBe('7*6')
   })
 
+  it('opens its help from the keyboard, but only on an empty line', async () => {
+    render(CalcWidget, { props: { paneId: 'p', state: {} } as never })
+    await settle()
+    await fireEvent.keyDown(input(), { key: '?' })
+    await settle()
+    expect(screen.getByTestId('calc-help')).toBeTruthy()
+
+    await fireEvent.keyDown(input(), { key: 'Escape' })
+    await settle()
+    expect(screen.queryByTestId('calc-help')).toBeNull()
+
+    // Typed into an expression, "?" is a character like any other.
+    await type('1+')
+    await fireEvent.keyDown(input(), { key: '?' })
+    await settle()
+    expect(screen.queryByTestId('calc-help')).toBeNull()
+  })
+
+  it('clears the line, then the tape', async () => {
+    const view = render(CalcWidget, { props: { paneId: 'p', state: {} } as never })
+    await type('2+2')
+    await enter()
+    await view.rerender({ paneId: 'p', state } as never)
+    await settle()
+
+    await type('99')
+    await fireEvent.click(screen.getByTestId('calc-clear'))
+    await settle()
+    expect(input().value).toBe('')
+    expect((state.tape as unknown[]).length).toBe(1)
+
+    // With nothing on the line, the same button clears the tape.
+    await fireEvent.click(screen.getByTestId('calc-clear'))
+    await settle()
+    expect(state.tape).toEqual([])
+  })
+
+  it('takes a figure out of the tally into the calculator', async () => {
+    render(CalcWidget, { props: { paneId: 'p', state: { mode: 'tally' } } as never })
+    await settle()
+    await fireEvent.input(screen.getByTestId('calc-tally-input'), {
+      target: { value: ['10', '20', '30'].join(String.fromCharCode(10)) },
+    })
+    await settle()
+
+    const sum = screen
+      .getAllByTestId('calc-tally-figure')
+      .find((el) => el.getAttribute('data-label') === 'sum')
+    expect(sum).toBeTruthy()
+    await fireEvent.click(sum as HTMLElement)
+    await settle()
+    expect(state.mode).toBe('calc')
+  })
+
   it('summarises a column of numbers in the tally', async () => {
     render(CalcWidget, { props: { paneId: 'p', state: { mode: 'tally' } } as never })
     await settle()
