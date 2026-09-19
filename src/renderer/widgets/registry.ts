@@ -1,5 +1,6 @@
 import type { Component } from 'svelte'
 import { SvelteMap } from 'svelte/reactivity'
+import type { ZoomMode } from '../layout/pane-zoom.ts'
 
 /**
  * The widget registry.
@@ -42,6 +43,17 @@ export interface WidgetDefinition {
   headless?: boolean
   /** Minimum useful size in CSS pixels; the splitter will not go below it. */
   minSize?: { w: number; h: number }
+  /**
+   * Whether the pane can be brought to the front of the workspace, and how big
+   * it is then (layout/pane-zoom.ts): 'full' for a widget that fills the room it
+   * is given - a shell, a page, a chart, a list - and 'panel' for one that reads
+   * better at a fixed size than spread over the window.
+   *
+   * Left out on purpose for the rest: a readout of three figures has nothing
+   * more to show at any size, so it is offered no button and refuses the
+   * shortcut. Saying nothing is saying no.
+   */
+  zoom?: ZoomMode
   /** True when several instances in one layout make sense. */
   multiple?: boolean
   /** Provided by a plugin (docs/plugins.md): marked as such in the picker. */
@@ -99,7 +111,8 @@ function sameDefinition(a: WidgetDefinition, b: WidgetDefinition): boolean {
     a.description === b.description &&
     a.multiple === b.multiple &&
     a.minSize?.w === b.minSize?.w &&
-    a.minSize?.h === b.minSize?.h
+    a.minSize?.h === b.minSize?.h &&
+    a.zoom === b.zoom
   )
 }
 
@@ -110,6 +123,15 @@ export function unregisterDynamic(id: string): void {
 /** Resolves a widget id. Plugin ids carry the `plugin:` prefix, so a plugin never shadows a builtin. */
 export function resolveWidget(id: string): WidgetDefinition | null {
   return dynamic.get(id) ?? builtins.get(id) ?? null
+}
+
+/**
+ * How `id` is brought to the front, or null when it is not brought forward at
+ * all - which is also the answer for a widget this build does not have, such as
+ * a plugin that is not loaded.
+ */
+export function zoomModeOf(id: string): ZoomMode | null {
+  return resolveWidget(id)?.zoom ?? null
 }
 
 export function listWidgets(): WidgetDefinition[] {

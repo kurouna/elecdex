@@ -347,8 +347,10 @@ const whenLabel = (inDays: number): string =>
   place-items: center;
   min-height: 0;
   font-family: var(--font-ui);
-  /* Grows with the pane, bounded by row height and column width. */
-  font-size: clamp(0.62rem, min(6.5cqh, 5.5cqw), 1.1rem);
+  /* Grows with the pane, bounded by row height and column width. The ceiling is
+     for a pane brought to the front, where 1.1rem left the dates lost in cells
+     the size of a hand. */
+  font-size: clamp(0.62rem, min(6.5cqh, 5.5cqw), 2.2rem);
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--text);

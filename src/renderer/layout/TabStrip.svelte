@@ -29,6 +29,12 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
 /** The tab the strip's own buttons act on: the one showing. */
 const active = $derived(panes[activeIndex] ?? panes[0])
 const zoomed = $derived(active !== undefined && layout.zoomedPaneId === active.id)
+/**
+ * The strip offers the zoom for the tab that is showing, since the group comes
+ * forward as a whole: a tab whose widget has nothing to gain from the room is
+ * offered nothing while it is the one on screen.
+ */
+const zoomable = $derived(active !== undefined && layout.zoomModeFor(active.id) !== null)
 </script>
 
 <!--
@@ -85,9 +91,10 @@ const zoomed = $derived(active !== undefined && layout.zoomedPaneId === active.i
       data-testid="tab-new"><span class="upright">+</span></button
     >
   </li>
-  <!-- Brings the group forward, and puts it back: a shell has no module chrome
-       to carry the button, and a tabbed pane's chrome is the group's. -->
-  <li class="tab zoom">
+  {#if zoomable}
+    <!-- Brings the group forward, and puts it back: a shell has no module chrome
+         to carry the button, and a tabbed pane's chrome is the group's. -->
+    <li class="tab zoom">
     <button
       type="button"
       class="select"
@@ -97,9 +104,10 @@ const zoomed = $derived(active !== undefined && layout.zoomedPaneId === active.i
       onclick={() => {
         if (active) layout.toggleZoom(active.id)
       }}
-      data-testid="tab-zoom"><span class="upright">{zoomed ? '⤡' : '⤢'}</span></button
-    >
-  </li>
+        data-testid="tab-zoom"><span class="upright">{zoomed ? '⤡' : '⤢'}</span></button
+      >
+    </li>
+  {/if}
 </ul>
 
 <style>

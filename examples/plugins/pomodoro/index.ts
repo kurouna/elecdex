@@ -102,6 +102,8 @@ const plugin: ElecdexPlugin<Settings, Model> = {
     { key: 'autoStart', type: 'boolean', label: 'Start the next phase by itself', default: false },
   ],
   minSize: { w: 160, h: 90 },
+  // A phase and a countdown: worth a closer look, but not the whole workspace.
+  zoom: 'panel',
   multiple: true,
   service,
   view(ctx) {

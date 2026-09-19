@@ -455,7 +455,9 @@ select {
 }
 
 .week li {
-  --sky-size: clamp(1.7rem, 30cqh, 3rem);
+  /* The ceiling is for a pane brought to the front: at 3rem the sky drew the
+     same small glyph in a cell four times its size. */
+  --sky-size: clamp(1.7rem, 30cqh, 5.5rem);
   overflow: hidden;
   min-height: 0;
   display: flex;

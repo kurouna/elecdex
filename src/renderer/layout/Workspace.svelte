@@ -135,10 +135,12 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'pane.splitDown': () => layout.splitFocused('down'),
   'pane.newTab': () => layout.addTabToFocused(),
   'pane.close': () => layout.closeFocused(),
-  // Brings the focused pane forward, or puts back the pane that is forward.
+  // Brings the focused pane forward, or puts back the pane that is forward. A
+  // widget that is not brought forward leaves the keys to the pane, as a pane
+  // outside a tab group leaves the tab keys to the shell.
   'pane.zoom': () => {
     const target = layout.zoomedPaneId ?? layout.focusedPaneId
-    if (target === null) return false
+    if (target === null || layout.zoomModeFor(target) === null) return false
     layout.toggleZoom(target)
   },
   'focus.next': () => layout.cycleFocus(1),

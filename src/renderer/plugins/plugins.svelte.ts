@@ -624,6 +624,7 @@ export class PluginHost {
       plugin: true,
       multiple: descriptor.multiple,
       ...(descriptor.minSize ? { minSize: descriptor.minSize } : {}),
+      ...(descriptor.zoom ? { zoom: descriptor.zoom } : {}),
     })
   }
 

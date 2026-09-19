@@ -59,6 +59,19 @@ describe('plugin descriptors', () => {
     })
   })
 
+  it('carry how the pane is brought forward, and refuse anything else', () => {
+    // A plugin says 'full' or 'panel' for a pane worth the room; saying nothing
+    // means the pane is not brought forward at all, as for a built-in widget.
+    const full = parseDescriptor(descriptor({ zoom: 'full' }))
+    expect(full.ok && full.descriptor.zoom).toBe('full')
+    const panel = parseDescriptor(descriptor({ zoom: 'panel' }))
+    expect(panel.ok && panel.descriptor.zoom).toBe('panel')
+    const quiet = parseDescriptor(descriptor())
+    expect(quiet.ok && quiet.descriptor.zoom).toBeUndefined()
+    expect(parseDescriptor(descriptor({ zoom: 'huge' })).ok).toBe(false)
+    expect(parseDescriptor(descriptor({ zoom: true })).ok).toBe(false)
+  })
+
   it('say a plugin needs a newer elecdex rather than that it is broken', () => {
     const parsed = parseDescriptor(descriptor({ apiVersion: 2 }))
     expect(parsed).toMatchObject({ ok: false, newer: true })

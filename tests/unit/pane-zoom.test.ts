@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CRT_ZOOM_MS,
   flipFrom,
+  PANEL_BOX,
   pinStyle,
   ZOOM_FRACTION,
   zoomBox,
@@ -21,18 +22,38 @@ const box = (top: number, right: number, bottom: number, left: number) => ({
 
 describe('zoomBox', () => {
   it('centres nine tenths of the workspace in it', () => {
-    expect(zoomBox(box(0, 1000, 800, 0))).toEqual(box(40, 950, 760, 50))
+    expect(zoomBox(box(0, 1000, 800, 0), 'full')).toEqual(box(40, 950, 760, 50))
     expect(ZOOM_FRACTION).toBe(0.9)
   })
 
   it('keeps the workspace offset', () => {
     // The workspace sits inside the window's padding, so its box rarely starts at 0.
-    expect(zoomBox(box(100, 1100, 900, 100), 0.5)).toEqual(box(300, 850, 700, 350))
+    expect(zoomBox(box(100, 1100, 900, 100), 'full')).toEqual(box(140, 1050, 860, 150))
+  })
+
+  it('holds a panel to its own size, centred in the same place', () => {
+    // A widget with little to show is brought forward as a panel: a readout with
+    // a hand's width of nothing around it is worse than the pane it came from.
+    const area = box(0, 1920, 1080, 0)
+    const panel = zoomBox(area, 'panel')
+    expect(panel).toEqual(
+      box(
+        (1080 - PANEL_BOX.h) / 2,
+        (1920 + PANEL_BOX.w) / 2,
+        (1080 + PANEL_BOX.h) / 2,
+        (1920 - PANEL_BOX.w) / 2,
+      ),
+    )
+  })
+
+  it('never lets a panel grow past what a full one would take', () => {
+    // A small window: the panel is the nine tenths, not its own larger size.
+    expect(zoomBox(box(0, 600, 400, 0), 'panel')).toEqual(zoomBox(box(0, 600, 400, 0), 'full'))
   })
 
   it('gives nothing for a workspace with no area', () => {
-    expect(zoomBox(box(0, 0, 0, 0))).toBeNull()
-    expect(zoomBox(box(10, 10, 10, 10))).toBeNull()
+    expect(zoomBox(box(0, 0, 0, 0), 'full')).toBeNull()
+    expect(zoomBox(box(10, 10, 10, 10), 'panel')).toBeNull()
   })
 })
 

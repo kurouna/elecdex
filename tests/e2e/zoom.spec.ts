@@ -268,3 +268,84 @@ test('closing the pane that is forward, and a layout change, let go of it', asyn
     await close()
   }
 })
+
+/** A layout of one pane per widget named, side by side. */
+const rowOf = (...widgets: string[]) => ({
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 'root',
+    direction: 'row',
+    sizes: widgets.map(() => 1 / widgets.length),
+    children: widgets.map((widget, i) => ({ kind: 'pane', id: `p${i}`, widget })),
+  },
+})
+
+test('a pane with nothing more to show at any size has no way forward', async () => {
+  const { page, close } = await launch(undefined, { layout: rowOf('netstat', 'sysinfo', 'clock') })
+  try {
+    // No button on either readout, and the shortcut leaves them where they are.
+    for (const widget of ['netstat', 'sysinfo']) {
+      await pane(page, widget).hover()
+      await expect(pane(page, widget).getByTestId('pane-zoom')).toHaveCount(0)
+      await pane(page, widget).dispatchEvent('pointerdown')
+      await page.keyboard.press('Control+Shift+KeyZ')
+      await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+    }
+
+    // The clock beside them still has both.
+    await pane(page, 'clock').hover()
+    await expect(pane(page, 'clock').getByTestId('pane-zoom')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a widget with little to show comes forward as a panel, not as the whole workspace', async () => {
+  const { page, close } = await launch(undefined, { layout: rowOf('calc', 'clock') })
+  try {
+    await zoomPane(page, 'calc')
+    const area = await boxOf(page, '[data-testid=workspace]')
+    const panel = await boxOf(page, '[data-testid=pane][data-widget=calc]')
+
+    // Its own size, centred in the workspace - not the nine tenths a full pane takes.
+    expect(panel.width).toBeLessThan(area.width * 0.9 - 2)
+    expect(Math.abs(panel.x + panel.width / 2 - (area.x + area.width / 2))).toBeLessThanOrEqual(2)
+    expect(Math.abs(panel.y + panel.height / 2 - (area.y + area.height / 2))).toBeLessThanOrEqual(2)
+
+    // And it is still a zoom: the shade is there and Escape puts it back.
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('a tab strip offers the zoom only for a tab that can take it', async () => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [
+        { kind: 'pane', id: 't', widget: 'terminal' },
+        { kind: 'pane', id: 'n', widget: 'netstat' },
+      ],
+    },
+  }
+  const { page, close } = await launch(undefined, { layout })
+  try {
+    const strip = page.getByTestId('tabs-host')
+    await expect(strip.getByTestId('tab-zoom')).toHaveCount(1)
+
+    // The second tab has nothing to gain from the whole workspace, so the group
+    // offers nothing while it is the one showing.
+    await strip.getByTestId('tab').nth(1).click()
+    await expect(strip.getByTestId('tab-zoom')).toHaveCount(0)
+    await strip.getByTestId('tab').nth(0).click()
+    await expect(strip.getByTestId('tab-zoom')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})

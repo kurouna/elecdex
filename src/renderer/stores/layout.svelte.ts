@@ -32,8 +32,10 @@ import {
   type Flip,
   flipFrom,
   pinStyle,
+  type ZoomMode,
   zoomBox,
 } from '../layout/pane-zoom.ts'
+import { zoomModeOf } from '../widgets/registry.ts'
 import { sfx } from './sound.svelte.ts'
 import { toasts } from './toasts.svelte.ts'
 
@@ -142,6 +144,8 @@ class LayoutStore {
   /** The transform it is flying from, while a flight is playing. */
   zoomFlip = $state.raw<Flip | null>(null)
   zoomPhase = $state<'in' | 'out' | null>(null)
+  /** How the pinned pane is placed, which its widget decides (registry). */
+  zoomMode = $state<ZoomMode | null>(null)
   private zoomTimer: ReturnType<typeof setTimeout> | null = null
 
   /** The CSS variables that place the pinned pane and play its flight. */
@@ -282,9 +286,12 @@ class LayoutStore {
     this.settle()
     const motion = this.zoomMotion
     if (motion === null) return
-    if (findNode(this.tree.root, paneId) === null) return
+    // The widget decides whether it is worth the room, and how much (registry):
+    // the shortcut ends here as well as the button, so there is one answer.
+    const mode = this.zoomModeFor(paneId)
+    if (mode === null) return
     const area = motion.area()
-    const box = area === null ? null : zoomBox(area)
+    const box = area === null ? null : zoomBox(area, mode)
     // A workspace with no area (a page that has not been laid out yet): nothing
     // to pin the pane to, and pinning it to nothing would hide it.
     if (box === null) return
@@ -293,6 +300,7 @@ class LayoutStore {
     this.zoomedPaneId = paneId
     this.pinnedPaneId = paneId
     this.zoomPin = box
+    this.zoomMode = mode
     sfx.play('expand')
     this.fly('in', motion.animates() && from !== null ? flipFrom(from, box) : null)
   }
@@ -320,11 +328,17 @@ class LayoutStore {
     else this.zoom(paneId)
   }
 
+  /** How the pane's widget is brought forward, or null when it is not. */
+  zoomModeFor(paneId: string): ZoomMode | null {
+    const node = findNode(this.tree.root, paneId)
+    return node === null || node.kind !== 'pane' ? null : zoomModeOf(node.widget)
+  }
+
   /** Places the pinned pane again after the window changed size. Not a flight. */
   repin(): void {
     if (this.pinnedPaneId === null) return
     const area = this.zoomMotion?.area() ?? null
-    const box = area === null ? null : zoomBox(area)
+    const box = area === null ? null : zoomBox(area, this.zoomMode ?? 'full')
     if (box !== null) this.zoomPin = box
   }
 
@@ -355,6 +369,7 @@ class LayoutStore {
   private unpin(): void {
     this.pinnedPaneId = null
     this.zoomPin = null
+    this.zoomMode = null
   }
 
   /**
@@ -366,9 +381,14 @@ class LayoutStore {
     const zoomed = this.zoomedPaneId
     if (zoomed === null) return
     const group = findTabsContaining(this.tree.root, zoomed)
-    if (group !== null && group === findTabsContaining(this.tree.root, paneId)) {
+    const mode = this.zoomModeFor(paneId)
+    // A tab that is not brought forward at all takes the group back rather than
+    // holding a pane the user was never offered the button for over everything.
+    if (group !== null && group === findTabsContaining(this.tree.root, paneId) && mode !== null) {
       this.zoomedPaneId = paneId
       this.pinnedPaneId = paneId
+      this.zoomMode = mode
+      this.repin()
       return
     }
     this.unzoom()

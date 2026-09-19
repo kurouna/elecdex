@@ -46,6 +46,7 @@ export default {
     { key: 'work', type: 'number', label: 'Work (min)', default: 25, min: 1, max: 120 },
   ],
   minSize: { w: 180, h: 120 },
+  zoom: 'panel',                   // 'full' | 'panel' | 省略（前面表示しない）
   multiple: true,
 
   service(ctx) { /* 取得・保存・ctx.publish(model) */ },
@@ -54,6 +55,9 @@ export default {
 ```
 
 - `export default` にオブジェクトを1つ。`service` / `view` 以外は**データだけ**（descriptor として取り出せること）
+- `zoom` はペインを前面に大きく出せるか（Ctrl+Shift+Z、× の隣の ⤢）。`'full'` はワークスペースのほぼ全面で、
+  与えられた場所を埋めるペイン（リスト・グラフ・ページ）向け。`'panel'` は真ん中に読みやすい大きさで出す。
+  **省略するとボタンも出ず、ショートカットも効かない**（数値がいくつか並ぶだけのペインはこれが正しい）
 - `view` は必須、`service` は任意
 - 値の import はフォルダ内の相対パスだけ。`require`・パッケージ名・フォルダ外は実行時に throw
 - `apiVersion` がこのビルドより新しいものは読まずに「新しい elecdex が必要」と表示

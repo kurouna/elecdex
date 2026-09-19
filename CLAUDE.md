@@ -194,7 +194,11 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   - A pane brought forward (`layout.zoom`, docs/architecture.md section 5.5) is pinned over the
     workspace with `position: fixed` and flies there with a transform (`crt-zoom`), never by
     growing: the tree is untouched, so nothing is remounted, the panes behind keep their size,
-    and the pane's own size changes once. Every tree change lets go of it (`settle`).
+    and the pane's own size changes once. Every tree change lets go of it (`settle`). Whether a
+    widget is brought forward at all is its registry entry's `zoom` ('full', 'panel', or left out,
+    which means no button and no shortcut - the default). A new widget that fills the room it is
+    given says 'full'; one that reads better at a fixed size says 'panel'; a readout of a few
+    figures says nothing. Plugins declare the same in their descriptor.
   - Dialogs: the dialog has `crt-on`, `transition:crtPower` and
     `style:--crt-delay={dialogDelay()}`, its backdrop `transition:backdropShade`, and its
     open/close goes through `ui` so `ui.closedAt` is kept (a dialog opened just after another

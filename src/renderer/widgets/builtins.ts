@@ -29,6 +29,11 @@ import WebWidget from './web/WebWidget.svelte'
 /**
  * Registers the built-in widgets.
  *
+ * `zoom` says whether a widget is brought to the front of the workspace and how
+ * big it is then (layout/pane-zoom.ts). It is left out for the system strip and
+ * the network status on purpose: both are a handful of figures on one or two
+ * rows, and a pane of nothing around them is worse than the pane they came from.
+ *
  * Imported once for its side effect, before the layout is rendered. Each
  * monitoring widget declares the metric sources it reads; PaneHost subscribes to
  * those - all of them while it is visible, only `keepWhileHidden` while it is a
@@ -46,6 +51,7 @@ registerBuiltin({
   component: TerminalWidget,
   minSize: { w: 240, h: 120 },
   multiple: true,
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -55,6 +61,7 @@ registerBuiltin({
   headless: true,
   component: ClockWidget,
   minSize: { w: 120, h: 40 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -77,6 +84,7 @@ registerBuiltin({
   metrics: sources('cpu.info', 'cpu.load', 'cpu.speed', 'cpu.temperature', 'proc.list'),
   keepWhileHidden: sources('cpu.info', 'cpu.load'),
   minSize: { w: 160, h: 100 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -88,6 +96,7 @@ registerBuiltin({
   // The swap line carries mem.swap forward on mem.usage's clock: both are charted.
   keepWhileHidden: sources('mem.usage', 'mem.swap'),
   minSize: { w: 160, h: 80 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -97,6 +106,7 @@ registerBuiltin({
   component: DiskWidget,
   metrics: sources('disk.volumes', 'disk.io'),
   minSize: { w: 160, h: 80 },
+  zoom: 'panel',
 })
 
 registerBuiltin({
@@ -106,6 +116,7 @@ registerBuiltin({
   component: ToplistWidget,
   metrics: sources('proc.list'),
   minSize: { w: 160, h: 80 },
+  zoom: 'panel',
 })
 
 registerBuiltin({
@@ -125,6 +136,7 @@ registerBuiltin({
   metrics: sources('net.throughput', 'net.ping'),
   keepWhileHidden: sources('net.throughput'),
   minSize: { w: 160, h: 100 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -133,6 +145,7 @@ registerBuiltin({
   description: "The followed terminal's directory; click to cd or insert a path.",
   component: FilesystemWidget,
   minSize: { w: 200, h: 100 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -142,6 +155,7 @@ registerBuiltin({
   component: WeatherWidget,
   minSize: { w: 200, h: 120 },
   multiple: true,
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -152,6 +166,7 @@ registerBuiltin({
   component: GlobeWidget,
   metrics: sources('net.connections', 'net.ping'),
   minSize: { w: 160, h: 160 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -161,6 +176,7 @@ registerBuiltin({
     'Start applications: the Start Menu (or /Applications, .desktop files) plus your own entries.',
   component: LauncherWidget,
   minSize: { w: 200, h: 120 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -171,6 +187,7 @@ registerBuiltin({
   component: MarketsWidget,
   minSize: { w: 240, h: 160 },
   multiple: true,
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -181,6 +198,7 @@ registerBuiltin({
   component: RssWidget,
   minSize: { w: 220, h: 120 },
   multiple: true,
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -190,6 +208,7 @@ registerBuiltin({
     'Recent earthquakes in and around Japan from JMA, checked every minute. Alerts are set in settings.',
   component: QuakesWidget,
   minSize: { w: 220, h: 120 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -199,6 +218,7 @@ registerBuiltin({
     'The month with today and weekends marked, and optionally Japanese holidays. Scroll to change month.',
   component: CalendarWidget,
   minSize: { w: 180, h: 140 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -208,6 +228,7 @@ registerBuiltin({
     "A spectrum analyser of the computer's sound, like a car stereo's display. Capture runs only while it shows.",
   component: SpectrumWidget,
   minSize: { w: 200, h: 120 },
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -216,6 +237,7 @@ registerBuiltin({
   description: 'The system volume and each app playing sound, with faders, mute and meters.',
   component: MixerWidget,
   minSize: { w: 160, h: 160 },
+  zoom: 'panel',
 })
 
 registerBuiltin({
@@ -226,6 +248,7 @@ registerBuiltin({
   component: CalcWidget,
   minSize: { w: 200, h: 160 },
   multiple: true,
+  zoom: 'panel',
 })
 
 registerBuiltin({
@@ -236,6 +259,7 @@ registerBuiltin({
   component: NotesWidget,
   minSize: { w: 200, h: 140 },
   multiple: true,
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -246,6 +270,7 @@ registerBuiltin({
   component: TodoWidget,
   minSize: { w: 240, h: 180 },
   multiple: true,
+  zoom: 'full',
 })
 
 registerBuiltin({
@@ -256,6 +281,7 @@ registerBuiltin({
   component: TimerWidget,
   minSize: { w: 180, h: 140 },
   multiple: true,
+  zoom: 'panel',
 })
 
 // A web pane per preset (shared/web.ts): the browser, and a pane per site.
@@ -267,6 +293,7 @@ for (const preset of WEB_PRESETS) {
     component: WebWidget,
     minSize: { w: 240, h: 160 },
     multiple: true,
+    zoom: 'full',
     ...(preset.unlisted === true ? { unlisted: true } : {}),
   })
 }

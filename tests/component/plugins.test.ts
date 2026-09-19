@@ -396,6 +396,20 @@ describe('a plugin pane', () => {
     expect([...plugins.entries.keys()]).toEqual([])
   })
 
+  it('carries how a plugin wants its pane brought forward to the registry', async () => {
+    const { zoomModeOf } = await import('../../src/renderer/widgets/registry.ts')
+    const code = `export default {
+      apiVersion: 1, id: 'roomy', title: 'roomy', zoom: 'panel',
+      view(ctx) { ctx.render([{ t: 'text', text: 'hi' }]) },
+    }`
+    await startHost([source('roomy.ts', code)], {
+      roomy: { enabled: true, key: 'roomy.ts', granted: grantFor(NO_PERMISSIONS), values: {} },
+    })
+    expect(zoomModeOf('plugin:roomy')).toBe('panel')
+    // The sample plugin says nothing about it, so its pane is not brought forward.
+    expect(zoomModeOf('plugin:counter')).toBeNull()
+  })
+
   it('registers an unchanged plugin only once, however often the settings change', async () => {
     const { listWidgets } = await import('../../src/renderer/widgets/registry.ts')
     await startHost([source('counter.ts', COUNTER)], {})

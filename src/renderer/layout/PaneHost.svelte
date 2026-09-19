@@ -49,6 +49,8 @@ const closing = $derived(layout.closingId === node.id)
 const pinned = $derived(!tabbed && layout.pinnedPaneId === node.id)
 const flying = $derived(layout.pinnedPaneId === node.id && layout.zoomPhase !== null)
 const zoomed = $derived(layout.zoomedPaneId === node.id)
+/** Whether this widget is brought forward at all (widgets/registry.ts). */
+const zoomable = $derived(layout.zoomModeFor(node.id) !== null)
 /** Every other pane is behind the zoom: out of reach until it is put back. */
 const behindZoom = $derived(layout.zoomedPaneId !== null && !zoomed)
 /** Uncovering the room a closed pane left; a tab's group does it for a tabbed pane. */
@@ -150,19 +152,23 @@ $effect(() => () => paneMeta.clear(node.id))
   }}
 >
   {#if chrome === 'module'}
-    <!-- A shell is brought forward from its tab strip, where its close is too. -->
-    <button
-      type="button"
-      class="pane-zoom"
-      aria-pressed={zoomed}
-      aria-label={`${zoomed ? 'put back' : 'bring forward'} ${title}`}
-      title={zoomed ? 'Put the pane back (Ctrl+Shift+Z)' : 'Bring the pane forward (Ctrl+Shift+Z)'}
-      onclick={(e) => {
-        e.stopPropagation()
-        layout.toggleZoom(node.id)
-      }}
-      data-testid="pane-zoom">{zoomed ? '⤡' : '⤢'}</button
-    >
+    {#if zoomable}
+      <!-- A shell is brought forward from its tab strip, where its close is too. -->
+      <button
+        type="button"
+        class="pane-zoom"
+        aria-pressed={zoomed}
+        aria-label={`${zoomed ? 'put back' : 'bring forward'} ${title}`}
+        title={zoomed
+          ? 'Put the pane back (Ctrl+Shift+Z)'
+          : 'Bring the pane forward (Ctrl+Shift+Z)'}
+        onclick={(e) => {
+          e.stopPropagation()
+          layout.toggleZoom(node.id)
+        }}
+        data-testid="pane-zoom">{zoomed ? '⤡' : '⤢'}</button
+      >
+    {/if}
     <!-- A shell closes from its tab, as a tab does; every other pane from here. -->
     <button
       type="button"

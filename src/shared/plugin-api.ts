@@ -261,6 +261,16 @@ export interface ElecdexPlugin<S extends SettingValues = SettingValues, M = unkn
   permissions?: PluginPermissions
   settings?: readonly PluginSetting[]
   minSize?: { w: number; h: number }
+  /**
+   * Whether the pane can be brought to the front of the workspace (Ctrl+Shift+Z,
+   * or the button beside its close), and how big it is then: 'full' covers most
+   * of the window and suits a pane that fills the room it is given - a list, a
+   * chart, a page - while 'panel' holds it to a readable size in the middle.
+   *
+   * Left out, the pane is not brought forward at all and is offered no button,
+   * which is right for a readout of a few figures.
+   */
+  zoom?: 'full' | 'panel'
   /** Whether several panes of the plugin make sense. */
   multiple?: boolean
   /** Runs once for the plugin, before any view. Optional. May return a cleanup function. */

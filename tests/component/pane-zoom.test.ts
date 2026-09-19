@@ -5,10 +5,26 @@ import type { Frame } from '../../src/renderer/layout/pane-close.ts'
 
 vi.mock('../../src/renderer/stores/sound.svelte.ts', () => ({ sfx: { play: vi.fn() } }))
 
-const { CRT_UNZOOM_MS, CRT_ZOOM_MS } = await import('../../src/renderer/layout/pane-zoom.ts')
+const { CRT_UNZOOM_MS, CRT_ZOOM_MS, PANEL_BOX } = await import(
+  '../../src/renderer/layout/pane-zoom.ts'
+)
 const { frameOfPane } = await import('../../src/renderer/layout/pane-close.ts')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { paneDrag } = await import('../../src/renderer/layout/pane-drag.svelte.ts')
+const { registerBuiltin, zoomModeOf } = await import('../../src/renderer/widgets/registry.ts')
+
+/**
+ * Which widgets may be brought forward is the registry's to say, so the widgets
+ * these tests use are registered here with the three answers: the whole
+ * workspace, a panel, and not at all.
+ */
+const nothing = (() => {}) as unknown as Parameters<typeof registerBuiltin>[0]['component']
+registerBuiltin({ id: 'clock', title: 'clock', component: nothing, zoom: 'full' })
+registerBuiltin({ id: 'terminal', title: 'terminal', component: nothing, zoom: 'full' })
+registerBuiltin({ id: 'rss', title: 'rss', component: nothing, zoom: 'full' })
+registerBuiltin({ id: 'calc', title: 'calculator', component: nothing, zoom: 'panel' })
+// No `zoom`: a readout with nothing more to show at any size (system, network status).
+registerBuiltin({ id: 'netstat', title: 'network status', component: nothing })
 
 /**
  * Bringing one pane to the front of the workspace and putting it back: what is
@@ -192,6 +208,68 @@ describe('frameOfPane', () => {
 
   it('knows nothing of a pane that is not in the page', () => {
     expect(frameOfPane('gone')).toBeNull()
+  })
+})
+
+describe('which panes may be brought forward', () => {
+  const a = pane('clock')
+  const small = pane('netstat')
+  const panel = pane('calc')
+
+  it('is the registry that says so, and a widget says nothing by default', () => {
+    expect(zoomModeOf('clock')).toBe('full')
+    expect(zoomModeOf('calc')).toBe('panel')
+    expect(zoomModeOf('netstat')).toBeNull()
+    // A widget this build does not have (a plugin that is not loaded) cannot either.
+    expect(zoomModeOf('plugin:nowhere')).toBeNull()
+  })
+
+  it('a pane whose widget says nothing is left where it is', () => {
+    load(split('row', [a, small]), small.id)
+    layout.zoom(small.id)
+    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoomPin).toBeNull()
+    // And the toggle does not put it forward either.
+    layout.toggleZoom(small.id)
+    expect(layout.zoomedPaneId).toBeNull()
+  })
+
+  it('a panel widget is pinned in its own box, not over the whole workspace', () => {
+    load(split('row', [a, panel]), panel.id)
+    layout.zoom(panel.id)
+    const pin = layout.zoomPin
+    expect(pin).not.toBeNull()
+    expect(layout.zoomMode).toBe('panel')
+    // The workspace here is 1000x800, so the panel is held to the nine tenths it
+    // cannot exceed - what matters is that it is never wider than its own size.
+    expect((pin?.right ?? 0) - (pin?.left ?? 0)).toBeLessThanOrEqual(PANEL_BOX.w)
+    expect((pin?.bottom ?? 0) - (pin?.top ?? 0)).toBeLessThanOrEqual(PANEL_BOX.h)
+  })
+
+  it('a window resize keeps a panel a panel', () => {
+    load(split('row', [a, panel]), panel.id)
+    layout.zoom(panel.id)
+    vi.advanceTimersByTime(CRT_ZOOM_MS)
+    area = { top: 0, right: 4000, bottom: 3000, left: 0 }
+    layout.repin()
+    expect((layout.zoomPin?.right ?? 0) - (layout.zoomPin?.left ?? 0)).toBe(PANEL_BOX.w)
+  })
+
+  it('a tab that cannot be brought forward puts the group back', () => {
+    load(split('row', [a, tabs([pane('rss'), small], 0)]), a.id)
+    const group = layout.tree.root
+    const first = collectPanes(group)[1]
+    const second = collectPanes(group)[2]
+    if (first === undefined || second === undefined) throw new Error('no tabs')
+    layout.zoom(first.id)
+    vi.advanceTimersByTime(CRT_ZOOM_MS)
+    expect(layout.zoomedPaneId).toBe(first.id)
+
+    layout.focus(second.id)
+    expect(layout.zoomedPaneId).toBeNull()
+    vi.advanceTimersByTime(CRT_UNZOOM_MS)
+    expect(layout.pinnedPaneId).toBeNull()
   })
 })
 

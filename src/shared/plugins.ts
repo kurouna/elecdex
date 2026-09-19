@@ -169,6 +169,9 @@ export const DescriptorSchema = z.object({
     .refine((list) => unique(list.map((s) => s.key)), 'setting keys repeat')
     .default([]),
   minSize: z.object({ w: z.number().min(0).max(4000), h: z.number().min(0).max(4000) }).optional(),
+  // How the pane is brought to the front of the workspace, if at all: a plugin
+  // that says nothing is not offered the button, as a built-in widget is not.
+  zoom: z.enum(['full', 'panel']).optional(),
   multiple: z.boolean().default(false),
   hasService: z.boolean(),
 })
