@@ -187,7 +187,13 @@ docs/            architecture.md (design + §16 decision log), weather-providers
 - **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state
   or in main (a shell reattaches to its session). A widget that creates a WebGL context must give
   it back when it unmounts (`forceContextLoss`, or `releaseWebglContexts` in lib/webgl.ts):
-  Chromium keeps only about 16 and drops the oldest, which may be a visible pane's.
+  Chromium keeps only about 16 and drops the oldest, which may be a visible pane's. Only two
+  things take a GPU context - the shell (xterm's WebGL addon) and the globe (three.js); every
+  other drawing widget is plain 2D canvas, deliberately. **There is no WebGPU here** and none is
+  wanted: with 23 widgets that panes create and destroy freely, the context budget is what
+  decides, and the clock's rolling digits (the one measured animation cost, ~4% of one core) are
+  the compositor rasterising glyphs, which no renderer API of ours would touch. Asked and left
+  as it is, 2026-09-19.
 - **Open and close with the CRT effect.** Everything that appears or goes on top of the
   workspace powers on and off like a tube (styles/crt.css, lib/crt-transitions.ts), and a new
   pane, dialog or notice must do the same:
