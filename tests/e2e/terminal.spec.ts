@@ -165,6 +165,50 @@ test('a non-zero exit code does not badge the pane', async () => {
   await expect(shell.getByTestId('pane-badge')).toHaveCount(0)
 })
 
+test('Ctrl+Shift+F finds text in the scrollback and leaves the clipboard alone', async () => {
+  const pane = terminalPane(page).first()
+  const needle = `FINDME${Date.now()}`
+  // Deliberately before the tests that fill this pane with tabs: what there is
+  // to find is what the shell echoed back, so it must be the live one.
+  await typeInto(page, pane, `echo ${needle}`)
+
+  // Selecting text in this terminal copies it, and a search moves the selection
+  // over every match - so the clipboard is what tells us a search is not being
+  // mistaken for a selection the user made.
+  const readClipboard = () => launched.app.evaluate(({ clipboard }) => clipboard.readText())
+  const sentinel = `KEEP-${Date.now()}`
+  await launched.app.evaluate(({ clipboard }, text) => clipboard.writeText(text), sentinel)
+
+  await pane.locator('.xterm-helper-textarea').first().focus()
+  await page.keyboard.press('Control+Shift+KeyF')
+  const box = pane.getByTestId('terminal-search-box')
+  await expect(box).toBeFocused()
+
+  await page.keyboard.type(needle)
+  const tally = pane.getByTestId('terminal-search-tally')
+  // Each attempt searches again: a search runs when the term changes, so waiting
+  // on the tally alone would wait forever if the shell had not echoed yet.
+  const search = async (): Promise<string> => {
+    await box.fill('')
+    await box.fill(needle)
+    return (await tally.textContent()) ?? ''
+  }
+  await expect.poll(search, { timeout: 20_000 }).toMatch(/^\d/)
+
+  // Step through the matches; the clipboard still holds what it did.
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Shift+Enter')
+  expect(await readClipboard()).toBe(sentinel)
+
+  // A word that is not there says so, and Escape closes the bar and gives the
+  // keyboard back to the shell.
+  await box.fill(`ABSENT${Date.now()}`)
+  await expect(tally).toHaveText('no matches')
+  await page.keyboard.press('Escape')
+  await expect(box).toBeHidden()
+  expect(await readClipboard()).toBe(sentinel)
+})
+
 test('history survives the terminal being remounted into a tab group', async () => {
   // Regression: Ctrl+Shift+T on a lone terminal remounts it as a background tab.
   // Fitting that hidden pane sent the shell a 12x5 size, ConPTY rewrapped its

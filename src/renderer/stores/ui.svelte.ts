@@ -57,6 +57,17 @@ class UiStore {
     this.shellFocus += 1
   }
 
+  /**
+   * Bumped to ask the focused shell to open its search bar. A counter, like
+   * shellFocus - but a terminal remembers the number it has answered, since
+   * opening the bar again every time the pane regains focus would be wrong.
+   */
+  shellFind = $state(0)
+
+  findInShell(): void {
+    this.shellFind += 1
+  }
+
   settingsOpen = $state(false)
   /** True while the settings dialog is capturing a new shortcut: app shortcuts stand down. */
   recordingShortcut = $state(false)

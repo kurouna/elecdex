@@ -24,7 +24,8 @@ for Windows, macOS and Linux.
 - **Terminal** — real shells (PowerShell, bash, zsh, fish) in unlimited tabs and splits. Shell
   integration reports the working directory and exit codes, on Windows too, and a session keeps
   its scrollback when its pane is moved or reloaded. The shell has focus at start; selecting text
-  copies it and a right-click pastes.
+  copies it and a right-click pastes. Ctrl+Shift+F finds text in the scrollback, and a URL the
+  shell prints opens in your browser.
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
   network status and traffic. The default layout idles at about 13% of one core.
@@ -136,6 +137,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
+| Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
 | Ctrl+Shift+. | settings |
 | F11 | toggle fullscreen |
 | Ctrl+Shift+M | minimize the window (Windows, Linux) |
@@ -144,7 +146,8 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
 The shell has focus when elecdex starts. In a shell, selecting text copies it and a right-click
-pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt. Outside a tab group
+pastes, as in PuTTY or Windows Terminal; Ctrl+C stays the shell's interrupt. A match the search
+bar moves to is not copied - only what you select yourself is. Outside a tab group
 Ctrl+Shift+← / → still reach the shell, where PSReadLine selects by word.
 
 The system-wide show/hide shortcut is set beside its switch in *Settings → Window*; it takes
@@ -204,7 +207,9 @@ weather and calendar.
   named after its folder (home too, by its own name), with parent folders added only when two tabs would read
   the same, and shows the shell and full path on hover. A non-zero exit code is flagged on the
   tab. New shells start in the home folder, or in the folder set under *Settings → General →
-  Terminal* ("~" for home; a folder that no longer exists falls back to home).
+  Terminal* ("~" for home; a folder that no longer exists falls back to home). **Ctrl+Shift+F**
+  opens a search bar over the pane: matches are marked in the theme's colour and counted, Enter
+  and Shift+Enter step through them. A URL the shell prints is a link, and opens in your browser.
 - **System** — date and weekday, uptime, OS type, and power with a battery gauge (green, red below
   20%); the full OS version and architecture (as `uname` or `winver` would put it); the machine's
   maker, model and chassis. What cannot change while the app runs is read once, not polled.

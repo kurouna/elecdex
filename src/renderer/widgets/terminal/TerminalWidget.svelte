@@ -1,7 +1,9 @@
 <script lang="ts">
 import { ClipboardAddon } from '@xterm/addon-clipboard'
 import { FitAddon } from '@xterm/addon-fit'
+import { SearchAddon } from '@xterm/addon-search'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import { displayPath } from '../../layout/tab-labels.ts'
@@ -13,12 +15,14 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sessions, shellName } from '../../stores/sessions.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
+import TerminalSearch from './TerminalSearch.svelte'
 import './xterm-css.ts'
 import {
   buildXtermTheme,
   minimumContrastRatio,
   monoFontFamily,
   paletteFromCss,
+  searchDecorations,
 } from './xterm-theme.ts'
 
 /**
@@ -47,6 +51,23 @@ let host = $state<HTMLDivElement | null>(null)
 // the pane is already active before its session has been created.
 let term = $state.raw<Terminal | null>(null)
 let fit: FitAddon | null = null
+// State: the search bar is rendered only once its addon exists.
+let search = $state.raw<SearchAddon | null>(null)
+let searchOpen = $state(false)
+/** Bumped by the shortcut, to put the keyboard back in a bar that is already open. */
+let searchFocus = $state(0)
+/**
+ * Whether the selection on screen was put there by a search rather than by the
+ * user.
+ *
+ * Selecting text in this terminal copies it (bindClipboard), so without this
+ * every match stepped through would land on the clipboard - and the last one
+ * would still be there after the bar was closed. It is not a window in time:
+ * xterm reports a selection change after the call that caused it, so the flag
+ * stays set until the mouse goes down in the terminal, which is how a selection
+ * the user makes begins.
+ */
+let selectionIsSearch = false
 
 const info = $derived(sessions.get(paneId))
 
@@ -145,6 +166,15 @@ $effect(() => {
     terminal.loadAddon(fitAddon)
     terminal.loadAddon(new ClipboardAddon())
 
+    const searchAddon = new SearchAddon()
+    terminal.loadAddon(searchAddon)
+
+    // A link goes to the user's browser, never into a pane: what a shell prints
+    // is not a site elecdex chose to show. main refuses anything but http(s).
+    terminal.loadAddon(
+      new WebLinksAddon((_event, uri) => void window.elecdex.system.openExternal(uri)),
+    )
+
     const unicode = new Unicode11Addon()
     terminal.loadAddon(unicode)
     terminal.unicode.activeVersion = '11'
@@ -163,6 +193,7 @@ $effect(() => {
 
     term = terminal
     fit = fitAddon
+    search = searchAddon
 
     // Size the terminal before attaching: the session's current screen arrives as
     // a snapshot on attach, and it should reflow into the pane's real width
@@ -223,6 +254,8 @@ $effect(() => {
     terminal?.dispose()
     term = null
     fit = null
+    search = null
+    searchOpen = false
     // The session is deliberately NOT disposed here: unmounting a pane must not
     // kill the shell, or a reload would lose the user's work. Orphaned sessions
     // are reaped by the workspace once the layout has settled.
@@ -261,9 +294,16 @@ $effect(() => {
  */
 function bindClipboard(t: Terminal, el: HTMLElement): () => void {
   const selection = t.onSelectionChange(() => {
+    // A match the search bar moved to is not a selection the user made.
+    if (selectionIsSearch) return
     const text = t.getSelection()
     if (text !== '') void navigator.clipboard.writeText(text).catch(() => {})
   })
+  // A selection the user makes starts with the mouse going down in the terminal.
+  const press = (): void => {
+    selectionIsSearch = false
+  }
+  el.addEventListener('mousedown', press)
   const paste = (event: MouseEvent): void => {
     event.preventDefault()
     t.focus()
@@ -277,8 +317,48 @@ function bindClipboard(t: Terminal, el: HTMLElement): () => void {
   el.addEventListener('contextmenu', paste)
   return () => {
     selection.dispose()
+    el.removeEventListener('mousedown', press)
     el.removeEventListener('contextmenu', paste)
   }
+}
+
+// The shortcut (Ctrl+Shift+F), answered by the pane that has the keyboard. The
+// number answered is remembered, so the bar does not open again every time this
+// pane regains focus - and it is remembered whoever answered, so a later focus
+// does not open a bar for a request that was another pane's.
+let findSeen = ui.shellFind
+$effect(() => {
+  const request = ui.shellFind
+  const mine = active
+  if (request === findSeen) return
+  findSeen = request
+  if (!mine) return
+  searchOpen = true
+  searchFocus += 1
+})
+
+/** Moves the selection to a match, with the clipboard held back while it does. */
+function runSearch(addon: SearchAddon, query: string, back: boolean): void {
+  const el = host
+  if (el === null) return
+  const options = {
+    // Incremental only going forward: it expands the selection while the term is
+    // still being typed, which is what the addon supports for findNext alone.
+    incremental: !back,
+    decorations: searchDecorations(paletteFromCss(el), appearance.theme.mode),
+  }
+  selectionIsSearch = true
+  if (back) addon.findPrevious(query, options)
+  else addon.findNext(query, options)
+}
+
+function closeSearch(): void {
+  searchOpen = false
+  // Stays set: clearing the decorations clears the selection too, and xterm
+  // reports that change after this call rather than inside it.
+  selectionIsSearch = true
+  search?.clearDecorations()
+  term?.focus()
 }
 
 /** A pane that is not displayed measures as zero; fitting it yields a nonsense size. */
@@ -299,10 +379,31 @@ function safeFit(): void {
 {#if info.error !== null}
   <p class="error" data-testid="terminal-error">{info.error}</p>
 {:else}
-  <div class="host" bind:this={host} data-testid="terminal-host"></div>
+  <div class="frame">
+    <div class="host" bind:this={host} data-testid="terminal-host"></div>
+    {#if searchOpen && search !== null}
+      {@const addon = search}
+      <TerminalSearch
+        {addon}
+        find={(query, back) => runSearch(addon, query, back)}
+        focusToken={searchFocus}
+        onclose={closeSearch}
+      />
+    {/if}
+  </div>
 {/if}
 
 <style>
+/* The search bar is placed against this, over the terminal rather than beside
+   it: a row of its own would change the pane's height and send a new size to
+   the shell every time the bar opened. */
+.frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
 .host {
   width: 100%;
   height: 100%;

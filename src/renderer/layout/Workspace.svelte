@@ -148,6 +148,8 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.reset': () => void layout.reset(),
   'launcher.focus': () => focusLauncher(),
   'shell.focus': () => focusShell(),
+  // Searches the shell that has the keyboard, or the one the keys would go to.
+  'shell.find': () => findInShell(),
   // Only in a tab group: elsewhere a shell keeps the keys (PSReadLine selects by word).
   'tab.next': () => layout.cycleTab(1),
   'tab.previous': () => layout.cycleTab(-1),
@@ -177,6 +179,23 @@ function focusShell(): void {
   if (pane === null) layout.addPane('terminal', 'right')
   else layout.focus(pane)
   ui.focusShell()
+}
+
+/**
+ * Opens the search bar of the shell that has the keyboard, or of the shell the
+ * keys would go to when another widget is focused. With no shell pane at all it
+ * does nothing: unlike `shell.focus`, a search over a shell that had to be
+ * created first would have nothing to find.
+ */
+function findInShell(): boolean {
+  const focused = layout.panes.find((p) => p.id === layout.focusedPaneId)
+  if (focused?.widget !== 'terminal') {
+    const pane = layout.shellToFocus()
+    if (pane === null) return false
+    layout.focus(pane)
+  }
+  ui.findInShell()
+  return true
 }
 
 /** Moves to the next or previous shell pane and puts the keyboard in its terminal. */

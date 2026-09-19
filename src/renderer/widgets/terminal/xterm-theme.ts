@@ -1,4 +1,5 @@
 import type { AnsiOverrides, Theme } from '@shared/theme'
+import type { ISearchOptions } from '@xterm/addon-search'
 import type { ITheme } from '@xterm/xterm'
 
 /**
@@ -107,6 +108,62 @@ export function buildXtermTheme(input: PaletteInput, overrides?: AnsiOverrides):
  */
 export function minimumContrastRatio(mode: Theme['mode']): number {
   return mode === 'light' ? 4.5 : 1
+}
+
+/**
+ * The colours the search addon paints matches with.
+ *
+ * They must be #rrggbb: the addon parses them itself and hands them to its own
+ * decoration layer rather than to CSS, so a `hsl()` string - which every other
+ * colour here is - comes out as nothing at all. The saturation has a floor so
+ * that a near-monochrome theme (White, Phosphor) still marks a match visibly,
+ * and a light theme tints the ground rather than darkening it.
+ */
+export function searchDecorations(
+  input: PaletteInput,
+  mode: Theme['mode'],
+): NonNullable<ISearchOptions['decorations']> {
+  const { hue } = input
+  const saturation = Math.max(input.saturation, MIN_MATCH_SATURATION)
+  const light = mode === 'light'
+  const match = hslToHex(hue, saturation, light ? 80 : 26)
+  const active = hslToHex(hue, saturation, light ? 62 : 46)
+  return {
+    matchBackground: match,
+    matchOverviewRuler: match,
+    activeMatchBackground: active,
+    activeMatchBorder: active,
+    activeMatchColorOverviewRuler: active,
+  }
+}
+
+/** Below this a match on a grey theme would be the same grey as the ground. */
+const MIN_MATCH_SATURATION = 35
+
+/** An HSL colour as #rrggbb, for the few consumers that cannot take a CSS colour. */
+export function hslToHex(h: number, s: number, l: number): string {
+  const hh = ((h % 360) + 360) % 360
+  const ss = clampPct(s) / 100
+  const ll = clampPct(l) / 100
+  const c = (1 - Math.abs(2 * ll - 1)) * ss
+  const x = c * (1 - Math.abs(((hh / 60) % 2) - 1))
+  const m = ll - c / 2
+  const sextant = Math.floor(hh / 60) % 6
+  const [r, g, b] = (
+    [
+      [c, x, 0],
+      [x, c, 0],
+      [0, c, x],
+      [0, x, c],
+      [x, 0, c],
+      [c, 0, x],
+    ] as const
+  )[sextant] ?? [0, 0, 0]
+  const byte = (n: number): string =>
+    Math.round((n + m) * 255)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${byte(r)}${byte(g)}${byte(b)}`
 }
 
 /** Formats an hsl(a) colour, clamping each component to its valid range. */

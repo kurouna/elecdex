@@ -24,6 +24,7 @@ export const KEYBINDING_ACTIONS = [
   { id: 'layout.reset', label: 'Reset layout', chord: 'Ctrl+Shift+Backspace' },
   { id: 'launcher.focus', label: 'Search the launcher', chord: 'Ctrl+Shift+KeyL' },
   { id: 'shell.focus', label: 'Focus the shell', chord: 'Ctrl+Shift+KeyS' },
+  { id: 'shell.find', label: 'Search the shell', chord: 'Ctrl+Shift+KeyF' },
   { id: 'tab.next', label: 'Next tab', chord: 'Ctrl+Shift+ArrowRight' },
   { id: 'tab.previous', label: 'Previous tab', chord: 'Ctrl+Shift+ArrowLeft' },
   { id: 'shell.next', label: 'Next shell pane', chord: 'Ctrl+Alt+Shift+ArrowRight' },
