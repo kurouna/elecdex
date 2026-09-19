@@ -125,9 +125,9 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   (pane state, blocks, storage keys) even where the worker runtime already does, since a plugin
   can post around the runtime. A background service learns whether its panes are open from
   `ctx.views`, counted in the worker. Plugins that use unofficial APIs or are personal (such as
-  claude-usage) live in the private repository kurouna/elecdex-private-plugins, cloned beside
-  this one and copied into the plugins folder with its `npm run deploy` - never here; the
-  committed sample is the pomodoro timer.
+  claude-usage) live in a separate private repository, cloned beside this one and copied into
+  the plugins folder with its `npm run deploy` - never here; the committed sample is the
+  pomodoro timer.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).
