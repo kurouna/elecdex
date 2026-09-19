@@ -34,6 +34,7 @@ import {
   zoomBox,
 } from '../layout/pane-zoom.ts'
 import { sfx } from './sound.svelte.ts'
+import { toasts } from './toasts.svelte.ts'
 
 /**
  * The live layout.
@@ -102,6 +103,11 @@ class LayoutStore {
   })
 
   private saveTimer: ReturnType<typeof setTimeout> | null = null
+  /**
+   * True while the layout on disk could not be read. What is on screen is then
+   * not the user's arrangement, so nothing is written back over it.
+   */
+  private unread = false
 
   /** Unset, every close is immediate (and so it is in tests that do not set it). */
   closeMotion: CloseMotion | null = null
@@ -174,8 +180,33 @@ class LayoutStore {
   }
 
   async load(): Promise<void> {
-    this.adopt(await window.elecdex.layout.load())
+    try {
+      this.adopt(await window.elecdex.layout.load())
+      this.unread = false
+    } catch (error) {
+      console.error('[elecdex] could not read the layout', error)
+      // The page has to come up regardless: the boot sequence waits for `loaded`
+      // and the workspace draws nothing without it, so the window would be left
+      // on the intro for good. It comes up on the tree it already has - the
+      // default at startup, or what the user has arranged since an earlier
+      // attempt failed - and holds every save back until a read succeeds, since
+      // writing that tree would put it over the arrangement on disk.
+      if (!this.loaded) this.focusedPaneId = initialFocus(this.tree)
+      this.unread = true
+      this.warnUnread()
+    }
     this.loaded = true
+  }
+
+  /** Says the layout could not be read, and offers another go at it. */
+  private warnUnread(): void {
+    toasts.show({
+      title: 'could not read the layout',
+      body: 'Showing the default arrangement. Changes are not being saved until the layout can be read.',
+      tone: 'danger',
+      timeoutMs: 0,
+      actions: [{ label: 'try again', primary: true, run: () => void this.load() }],
+    })
   }
 
   /**
@@ -201,6 +232,8 @@ class LayoutStore {
   }
 
   private scheduleSave(): void {
+    // Never over a layout that could not be read (see load).
+    if (this.unread) return
     if (this.saveTimer !== null) clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null

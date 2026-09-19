@@ -80,12 +80,23 @@ class UiStore {
   /** The weather location picker, opened by a weather pane for itself. */
   locationRequest = $state.raw<LocationRequest | null>(null)
 
-  pickLocation(request: LocationRequest): void {
+  /**
+   * Opens the picker for one pane, and hands that pane the way to take its
+   * request back. A pane closed or remounted while its picker is open would
+   * otherwise leave the picker over the workspace with nothing behind it: the
+   * choice would be handed to a component that is no longer there.
+   */
+  pickLocation(request: LocationRequest): () => void {
     // Another pane's request takes over the picker showing, which stays open.
     this.closing(this.panePickerOpen || this.settingsOpen)
     this.panePickerOpen = false
     this.settingsOpen = false
     this.locationRequest = request
+    return () => {
+      // Only while it is still this pane's picker: another pane may have taken
+      // it over, or the user may have answered it already.
+      if (this.locationRequest === request) this.closeLocationPicker()
+    }
   }
 
   closeLocationPicker(): void {

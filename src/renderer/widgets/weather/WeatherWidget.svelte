@@ -96,9 +96,15 @@ function chooseLocation(next: WeatherLocation): void {
   save({ location: next })
 }
 
+/** Set while this pane's place picker is open, to take it back as the pane goes. */
+let withdrawPicker: (() => void) | null = null
+
 function pickLocation(): void {
-  ui.pickLocation({ current: location, choose: chooseLocation })
+  withdrawPicker = ui.pickLocation({ current: location, choose: chooseLocation })
 }
+
+// Closed, or moved and so remounted: the picker cannot be answered any more.
+$effect(() => () => withdrawPicker?.())
 
 /** A US place can be forecast by either service; the NWS is the default. */
 const usPlace = $derived(location.source !== 'jma' && location.country === 'US')
