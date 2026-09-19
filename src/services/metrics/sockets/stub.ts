@@ -59,8 +59,34 @@ const STATES = new Set([
 ]) as ReadonlySet<string>
 
 export function stubSocketReader(mode: string): SocketReader {
-  const rows = buildRows(mode === 'demo')
-  return { read: async () => ({ sockets: rows, ownersUnknown: false }) }
+  const demo = mode === 'demo'
+  const rows = buildRows(demo)
+  // The demo table never moves: a screenshot has to be the same every time it is
+  // taken. The test one gains and loses a socket every other reading, because a
+  // table that never changes is exactly the table that hid the pane's worst bug
+  // - an effect that ran itself for ever on the first reading that added a row.
+  let reading = 0
+  return {
+    read: async () => {
+      reading += 1
+      const extra = !demo && reading % 2 === 0 ? [churn(reading)] : []
+      return { sockets: [...rows, ...extra], ownersUnknown: false }
+    },
+  }
+}
+
+/** A short-lived connection, of the kind a page load opens and closes. */
+function churn(reading: number): RawSocket {
+  return {
+    family: 4,
+    localAddress: '192.0.2.2',
+    localPort: 40_000 + reading,
+    remoteAddress: '198.51.100.23',
+    remotePort: 443,
+    state: 'established',
+    pid: PIDS.firefox ?? 0,
+    process: 'firefox',
+  }
 }
 
 function buildRows(demo: boolean): RawSocket[] {

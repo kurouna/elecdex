@@ -182,6 +182,62 @@ describe('ConnectionsWidget', () => {
     expect(shown).not.toContain('216.34')
   })
 
+  it('survives a reading that adds a socket, which is every reading on a busy machine', async () => {
+    // The pane froze here: the effect that marks new rows both read and wrote
+    // the same set, so the first reading that added anything ran it for ever
+    // (svelte.dev/e/effect_update_depth_exceeded). A fixed table never showed it.
+    const thrown: string[] = []
+    const onError = (event: ErrorEvent): void => {
+      thrown.push(event.message)
+    }
+    window.addEventListener('error', onError)
+    try {
+      const push = await mount()
+      await push(table([socket()]))
+      await push(table([socket(), socket({ localPort: 4822, remoteAddress: '203.0.113.9' })]))
+      await push(table([socket(), socket({ localPort: 4823, remoteAddress: '198.51.100.7' })]))
+      expect(thrown).toEqual([])
+      expect(screen.getAllByTestId('connection-row').length).toBeGreaterThan(1)
+    } finally {
+      window.removeEventListener('error', onError)
+    }
+  })
+
+  it('draws a service listening on both stacks as two rows, not one key twice', async () => {
+    // A keyed list throws on a repeated key and stops drawing. sshd on 0.0.0.0:22
+    // and on [::]:22 is the same pid and the same port with no peer to tell them
+    // apart, so the key has to carry the address and the family.
+    const push = await mount({ view: 'listening' })
+    await push(
+      table([
+        socket({
+          state: 'listen',
+          pid: 812,
+          process: 'sshd',
+          localAddress: '0.0.0.0',
+          localPort: 22,
+          remoteAddress: '',
+          remotePort: 0,
+          publicPeer: false,
+          country: '',
+        }),
+        socket({
+          family: 6,
+          state: 'listen',
+          pid: 812,
+          process: 'sshd',
+          localAddress: '::',
+          localPort: 22,
+          remoteAddress: '',
+          remotePort: 0,
+          publicPeer: false,
+          country: '',
+        }),
+      ]),
+    )
+    expect(screen.getAllByTestId('connection-row')).toHaveLength(2)
+  })
+
   it('says what the platform could not tell it', async () => {
     const push = await mount()
     await push({ ...table([socket({ pid: 0, process: '' })]), ownersUnknown: true })

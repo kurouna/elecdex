@@ -65,6 +65,30 @@ test('the listening view shows the doors, and the choice survives a restart', as
   }
 })
 
+test('keeps drawing as sockets come and go, reading after reading', async () => {
+  // The pane froze on the first reading that added a socket: an effect that both
+  // read and wrote the set of new rows ran itself for ever, and everything on the
+  // page stopped. Nothing but a running app shows that, so the stub's table gains
+  // and loses a socket every other reading and the page is watched for the throw.
+  const { page, close } = await launch(undefined, { layout: single('connections') })
+  const thrown: string[] = []
+  page.on('pageerror', (error) => thrown.push(error.message))
+  try {
+    const rows = page.getByTestId('connection-row')
+    await expect.poll(() => rows.count(), { timeout: 20_000 }).toBeGreaterThan(0)
+    // Long enough for several readings, with a socket arriving and going in them.
+    await page.waitForTimeout(12_000)
+    expect(thrown).toEqual([])
+
+    // Still answering: the switch works and the list redraws.
+    await page.getByTestId('connections-view').filter({ hasText: 'LISTENING' }).click()
+    await expect(rows.first()).toContainText('listening')
+    expect(thrown).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
 test('masking hides the half of an address that names a machine', async () => {
   const { page, close } = await launch(undefined, { layout: single('connections') })
   try {

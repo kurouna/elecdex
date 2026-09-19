@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { NetSocket } from '@shared/metrics'
 import { groupByProcess, inView, matches, type SocketView, socketKey } from '@shared/sockets'
+import { untrack } from 'svelte'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { GhostTracker } from '../../lib/ghosts.ts'
 import { layout } from '../../stores/layout.svelte.ts'
@@ -48,14 +49,23 @@ let fresh = $state.raw<ReadonlySet<string>>(new Set())
 /** The reading, with the rows that went since the one before it. */
 let drawn = $state.raw<{ item: NetSocket; gone: boolean }[]>([])
 
-// A reading arrives every few seconds; both trackers are driven from it, so
-// nothing here keeps a timer and a ghost lasts exactly one interval.
+/*
+ * A reading arrives every few seconds; both trackers are driven from it, so
+ * nothing here keeps a timer and a ghost lasts exactly one interval.
+ *
+ * The reading is the only thing this effect follows. `carryFresh` reads the set
+ * it is replacing, and an effect that both reads and writes the same state runs
+ * itself again for ever - which is what froze the pane, on any machine busy
+ * enough to open a socket after the first reading (a fixed table never did).
+ */
 $effect(() => {
   const sockets = sample?.sockets
   if (sockets === undefined) return
-  drawn = ghosts.update(sockets)
-  const keys = sockets.map(socketKey)
-  fresh = carryFresh(fresh, tracker.next(keys), keys)
+  untrack(() => {
+    drawn = ghosts.update(sockets)
+    const keys = sockets.map(socketKey)
+    fresh = carryFresh(fresh, tracker.next(keys), keys)
+  })
 })
 
 function settled(key: string, event: AnimationEvent): void {

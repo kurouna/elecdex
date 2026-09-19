@@ -258,6 +258,21 @@ describe('what the pane makes of a table', () => {
     expect(socketKey(socket())).not.toBe(socketKey(socket({ localPort: 1 })))
   })
 
+  it('tells apart two listening sockets that differ only in their stack', () => {
+    // A service bound to both holds 0.0.0.0:22 and [::]:22: same pid, same port,
+    // no peer. One key for both makes the pane's keyed list throw.
+    const listen = {
+      state: 'listen' as const,
+      pid: 812,
+      localPort: 22,
+      remoteAddress: '',
+      remotePort: 0,
+    }
+    expect(socketKey(socket({ ...listen, family: 4, localAddress: '0.0.0.0' }))).not.toBe(
+      socketKey(socket({ ...listen, family: 6, localAddress: '::' })),
+    )
+  })
+
   it('masks the half of an address that identifies a machine', () => {
     expect(maskAddress('93.184.216.34')).toBe('93.184.·.·')
     expect(maskAddress('2001:db8:1:2::9')).toBe('2001:db8:····')

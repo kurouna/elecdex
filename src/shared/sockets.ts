@@ -6,9 +6,16 @@ import type { NetSocket, SocketState } from './metrics.js'
  * read off the screen.
  */
 
-/** Stable across samples, so a row that is still there is the same row. */
+/**
+ * Stable across samples, so a row that is still there is the same row.
+ *
+ * The local address and the family are in it because a listening socket has no
+ * peer to tell it apart: a service bound to both stacks holds 0.0.0.0:22 and
+ * [::]:22 at once, and two rows with one key make a keyed list throw.
+ */
 export function socketKey(socket: NetSocket): string {
-  return `${socket.pid}/${socket.localPort}/${socket.remoteAddress}/${socket.remotePort}`
+  const local = `${socket.family}/${socket.localAddress}:${socket.localPort}`
+  return `${socket.pid}/${local}/${socket.remoteAddress}:${socket.remotePort}`
 }
 
 /** Four letters, because the column is four letters wide. */
