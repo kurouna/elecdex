@@ -1,5 +1,6 @@
 <script lang="ts">
 import type { Block } from '@shared/plugin-api'
+import Digits from '../widgets/common/Digits.svelte'
 import ButtonIcon from './ButtonIcon.svelte'
 import ChartBlock from './ChartBlock.svelte'
 import TimeBlock from './TimeBlock.svelte'
@@ -7,6 +8,11 @@ import TimeBlock from './TimeBlock.svelte'
 /**
  * Draws a plugin's blocks (docs/plugins.md section 6). They arrive checked, so every field
  * here has its type; text is always text - nothing a plugin sends is read as markup.
+ *
+ * A big block's figures roll as they change, the same as the clock's and the
+ * chrono's, so a plugin gets a countdown that reads like an instrument without
+ * asking for anything: the sample pomodoro's timer is a `big` block and a
+ * `time` one (TimeBlock.svelte).
  */
 interface Props {
   blocks: readonly Block[]
@@ -30,7 +36,7 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
       <div class="big">
         {#if block.label}<span class="label">{block.label}</span>{/if}
         <span class="value tone-{block.tone ?? 'none'}"
-          >{block.value}{#if block.unit}<small>{block.unit}</small>{/if}</span
+          ><Digits value={block.value} />{#if block.unit}<small>{block.unit}</small>{/if}</span
         >
       </div>
     {:else if block.t === 'time'}

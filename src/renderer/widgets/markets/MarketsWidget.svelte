@@ -22,6 +22,7 @@ import {
 } from '@shared/markets'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import Digits from '../common/Digits.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import ViewToggle, { type ChartView } from '../common/ViewToggle.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -277,7 +278,9 @@ const signed = (percent: number): string =>
             {/if}
           </div>
           <div class="figures">
-            <span class="price" data-testid="market-price">{q ? formatPrice(q.price) : '—'}</span>
+            <span class="price" data-testid="market-price"
+              >{#if q}<Digits value={formatPrice(q.price)} />{:else}—{/if}</span
+            >
             <span class="change">{#if row.move}{row.move.change >= 0 ? '▲' : '▼'} {formatChange(row.move.change, row.move.percent)}{:else}{q ? '—' : (row.update?.error ?? 'loading')}{/if}</span>
           </div>
         </li>
@@ -558,6 +561,11 @@ const signed = (percent: number): string =>
   font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The figures roll as they change, so a price that has moved is seen to move
+ * even after its flash has gone. Only the digits that changed play it, which on
+ * a quote is usually the last one or two.
+ */
 .price {
   font-family: var(--font-display);
   font-size: var(--step-1);

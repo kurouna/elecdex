@@ -165,7 +165,14 @@ function cancel(): void {
 
 // Hidden: stop outright, and run anything waiting for a frame now - nothing is
 // drawn, so there is no frame to share. Visible again: resume.
+//
+// The attribute takes `--motion-scale` to zero (tokens.css). Stopping the loop
+// is not enough on its own: a CSS animation is the compositor's, not ours, and
+// with backgroundThrottling off it goes on painting a window nobody can see -
+// the clock's digits roll every second, which is most of a put-away window's
+// remaining cost.
 function followVisibility(): void {
+  document.documentElement.toggleAttribute('data-offscreen', offScreen())
   if (offScreen()) {
     cancel()
     if (loneRaf !== 0) cancelAnimationFrame(loneRaf)

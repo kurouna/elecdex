@@ -137,3 +137,13 @@
   --dur-panel: 1ms;
   --motion-scale: 0;
 }
+
+/* Put away in the notification area or minimised (lib/frame-loop.ts). Nothing is
+   on screen, so an animation is pure waste - and with backgroundThrottling off
+   Chromium keeps running it. */
+:root[data-offscreen] {
+  --dur-fast: 1ms;
+  --dur-base: 1ms;
+  --dur-panel: 1ms;
+  --motion-scale: 0;
+}

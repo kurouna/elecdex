@@ -1,7 +1,11 @@
 <script lang="ts">
+import Digits from '../widgets/common/Digits.svelte'
 import { countdown, dateOf, relative, ticker, timeOfDay } from './ticker.svelte.ts'
 
-/** A moment that the host keeps current every second, so a plugin need not redraw for it. */
+/**
+ * A moment that the host keeps current every second, so a plugin need not redraw
+ * for it. Its figures roll as they change, so a countdown is seen to run.
+ */
 interface Props {
   at: number
   style: 'relative' | 'countdown' | 'clock' | 'date'
@@ -25,7 +29,7 @@ const text = $derived.by(() => {
 
 <div class="time size-{size}" data-testid="plugin-time">
   {#if label}<span class="label">{label}</span>{/if}
-  <span class="value tone-{tone ?? 'none'}">{text}</span>
+  <span class="value tone-{tone ?? 'none'}"><Digits value={text} /></span>
 </div>
 
 <style>

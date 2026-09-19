@@ -1,6 +1,7 @@
 <script lang="ts">
 import { formatClock, zoneAbbreviation } from '../../lib/format.ts'
 import { msUntilBoundary } from '../../lib/frame-loop.ts'
+import Digits from '../common/Digits.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -10,6 +11,10 @@ import type { WidgetProps } from '../registry.ts'
  * Ticks on its own timer aligned to the second boundary, rather than an
  * unaligned setInterval that would drift visibly behind the system clock - the
  * same boundary the frame loop wakes on, so each tick is drawn in its frame.
+ *
+ * The digits roll as they change (Digits.svelte), so the second is seen to land
+ * rather than simply to be different. Only the column that changed plays it, so
+ * the hours sit still through the hour.
  */
 const { paneId }: WidgetProps = $props()
 
@@ -35,14 +40,12 @@ const minute = $derived(Math.floor(now.getTime() / 60_000))
 const zone = $derived(zoneAbbreviation(timeZone, new Date(minute * 60_000)))
 
 const parts = $derived(formatClock(now))
-const digits = $derived([...parts.hh, ':', ...parts.mm, ':', ...parts.ss])
+const shown = $derived(`${parts.hh}:${parts.mm}:${parts.ss}`)
 </script>
 
 <div class="clock" data-testid="clock" data-pane-id={paneId}>
   <time datetime={now.toISOString()}>
-    {#each digits as char, i (i)}
-      {#if char === ':'}<em>:</em>{:else}<span>{char}</span>{/if}
-    {/each}
+    <Digits value={shown} />
     {#if zone}<small class="zone" title={timeZone} data-testid="clock-zone">{zone}</small>{/if}
   </time>
 </div>
@@ -66,12 +69,12 @@ time {
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
-}
-
-span {
-  display: inline-block;
-  width: 0.62em;
-  text-align: center;
+  /* Every digit takes the same room, so the row does not shuffle as one rolls
+     through it; the colons are narrower, as they were when they were their own
+     element. */
+  --digit-width: 0.62em;
+  --separator-width: 0.4em;
+  --separator-opacity: 0.8;
 }
 
 /* The zone sits on the digits' baseline, small enough not to compete with them. */
@@ -82,13 +85,5 @@ span {
   font-weight: 400;
   letter-spacing: 0.08em;
   color: var(--text-muted);
-}
-
-em {
-  display: inline-block;
-  width: 0.4em;
-  text-align: center;
-  font-style: normal;
-  opacity: 0.8;
 }
 </style>

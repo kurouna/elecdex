@@ -159,6 +159,21 @@ describe('onFrame', () => {
     expect(draw).toHaveBeenCalledTimes(20)
   })
 
+  it('marks the document off screen, so CSS stops animating what nobody sees', () => {
+    // Stopping the loop is not enough: a CSS animation belongs to the compositor,
+    // and with backgroundThrottling off it goes on painting a window that has been
+    // put away. The attribute takes `--motion-scale` to zero (styles/tokens.css).
+    expect(document.documentElement.hasAttribute('data-offscreen')).toBe(false)
+    loop.setWindowHidden(true)
+    expect(document.documentElement.hasAttribute('data-offscreen')).toBe(true)
+    loop.setWindowHidden(false)
+    expect(document.documentElement.hasAttribute('data-offscreen')).toBe(false)
+    setHidden(true)
+    expect(document.documentElement.hasAttribute('data-offscreen')).toBe(true)
+    setHidden(false)
+    expect(document.documentElement.hasAttribute('data-offscreen')).toBe(false)
+  })
+
   it('stays stopped while either the page or main says hidden', () => {
     const draw = vi.fn()
     subscribe(draw)

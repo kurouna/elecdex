@@ -73,3 +73,25 @@
     opacity: 0;
   }
 }
+
+/*
+ * A digit that has just changed, rising into the place it will keep: the second
+ * on the clock, a price that has moved, a plugin's countdown (widgets/common/
+ * Digits.svelte). Only the column whose character changed plays it, which is
+ * what makes a number read as a machine rather than a label.
+ *
+ * Transform and opacity only, so it stays on the compositor. Readout's own roll
+ * flares the phosphor with `filter` as well; that repaints the glyph on every
+ * frame, which is nothing at a readout's size but is not free for the clock,
+ * whose digits fill the pane and land every second.
+ */
+.fx-digit {
+  animation: fx-digit calc(140ms * var(--motion-scale)) var(--ease-out) backwards;
+}
+
+@keyframes fx-digit {
+  from {
+    opacity: 0;
+    transform: translateY(0.3em);
+  }
+}

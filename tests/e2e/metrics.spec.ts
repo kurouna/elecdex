@@ -371,8 +371,10 @@ test('the full monitoring layout stays cheap when idle', async () => {
 test('put away in the notification area, the full layout stops drawing', async () => {
   test.skip(process.platform !== 'win32', 'running in the background is Windows only for now')
   test.setTimeout(120_000)
-  // Measured locally: ~24% of one core on screen, ~6% put away (the monitors
-  // still collect, nothing is drawn); without the pause it stayed at ~26%.
+  // Measured locally: ~25% of one core on screen, ~7.5% put away (the monitors
+  // still collect, nothing is drawn); without the pause it stayed at ~26%. The
+  // clock's rolling digits are ~4% of the figure on screen and none of the one
+  // put away, which is what `data-offscreen` buys (docs/architecture.md 16).
   const { app, page, close } = await launch(undefined, {
     settings: { sound: { enabled: false }, window: { closeToTray: true } },
   })
