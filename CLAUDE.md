@@ -208,7 +208,11 @@ docs/            architecture.md (design + §16 decision log), weather-providers
     widget is brought forward at all is its registry entry's `zoom` ('full', 'panel', or left out,
     which means no button and no shortcut - the default). A new widget that fills the room it is
     given says 'full'; one that reads better at a fixed size says 'panel'; a readout of a few
-    figures says nothing. Plugins declare the same in their descriptor.
+    figures says nothing. Plugins declare the same in their descriptor. A widget that lays
+    itself out by its own size (the calendar shows three months when there is room) reads that
+    size from the `ResizeObserver` entry's rectangle, never by measuring the element again
+    inside the callback: a pane just pinned over the workspace still answers there with the size
+    it had in the layout it left, so the widget would keep the layout it had before.
   - Dialogs: the dialog has `crt-on`, `transition:crtPower` and
     `style:--crt-delay={dialogDelay()}`, its backdrop `transition:backdropShade`, and its
     open/close goes through `ui` so `ui.closedAt` is kept (a dialog opened just after another
