@@ -192,10 +192,12 @@ is rearranged and nothing is saved: a shell keeps its session and a web pane its
 starts with every pane in its place.
 
 An arrangement worth keeping can be saved by name — **Ctrl+Shift+G**, or *layouts* in the status
-bar — and returned to later; the first four are on Ctrl+Shift+1 to 4. Up to twelve are kept, in
-`layouts.json` beside the live `layout.json`, so rearranging the workspace never loses one. Saving
-under a name you already keep updates it. Applying a layout replaces the workspace, which ends the
-shells of the panes it replaces, exactly as closing those panes would.
+bar — and returned to later; the first four are on Ctrl+Shift+1 to 4. A layout follows the work:
+the one you are in is marked, and whatever you do to the workspace is kept in it, so coming back
+finds it as you left it. Resetting the layout leaves all of them, and what you arrange after that
+belongs to none until you save it or apply one. Up to twelve are kept, in `layouts.json` beside the
+live `layout.json`. Applying a layout replaces the workspace, which ends the shells of the panes it
+replaces, exactly as closing those panes would.
 
 A tab group can hold any panes, not only shells, so a pane you need now and then can share a place
 with the shells instead of taking room of its own - RSS or the weather behind the shell tabs, for

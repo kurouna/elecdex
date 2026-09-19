@@ -422,6 +422,59 @@ test('a layout can be saved by name, applied again and forgotten', async () => {
   }
 })
 
+test('the layout being worked in keeps what is done to the workspace', async () => {
+  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  try {
+    const save = async (name: string) => {
+      await page.keyboard.press('Control+Shift+KeyG')
+      await page.getByTestId('layouts-name').fill(name)
+      await page.getByTestId('layouts-save').click()
+      await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    }
+    const split = async () => {
+      const before = await terminalPane(page).count()
+      await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+      await page.keyboard.press('Control+Shift+KeyE')
+      await expect(terminalPane(page)).toHaveCount(before + 1)
+    }
+
+    await save('one')
+    await split()
+    await save('two')
+
+    // Rearrange inside "two", then leave it and come back: the change is there.
+    // Switching writes the pending save out first, so nothing waits on a timer.
+    await split()
+    await expect(terminalPane(page)).toHaveCount(3)
+    await page.keyboard.press('Control+Shift+Digit1')
+    await expect(terminalPane(page)).toHaveCount(1)
+    await page.keyboard.press('Control+Shift+Digit2')
+    await expect(terminalPane(page)).toHaveCount(3)
+
+    // And the layout being worked in is the one that is marked.
+    await page.keyboard.press('Control+Shift+KeyG')
+    const items = page.getByTestId('layouts-item')
+    await expect(items.nth(0)).toHaveAttribute('data-active', 'false')
+    await expect(items.nth(1)).toHaveAttribute('data-active', 'true')
+    await page.keyboard.press('Escape')
+
+    // A reset belongs to no layout: what is arranged after it must not be
+    // written back into the one that was being worked in.
+    await page.keyboard.press('Control+Shift+Backspace')
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(17)
+    await split()
+    await page.keyboard.press('Control+Shift+Digit2')
+    await expect(terminalPane(page)).toHaveCount(3)
+
+    const saved = JSON.parse(readFileSync(path.join(userData, 'layouts.json'), 'utf8'))
+    expect(saved.items.map((item: { name: string }) => item.name)).toEqual(['one', 'two'])
+  } finally {
+    await close()
+  }
+})
+
 test('a saved layout survives a restart, and an empty slot leaves its keys alone', async () => {
   let launched = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {

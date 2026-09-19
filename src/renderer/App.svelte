@@ -137,7 +137,7 @@ function toggleSound(): void {
       title="Saved layouts (Ctrl+Shift+G)"
       data-testid="open-layouts"
     >
-      layouts
+      {layout.activeLayout === null ? 'layouts' : `layout · ${layout.activeLayout.name}`}
     </button>
     <ConfirmButton
       label="reset layout"

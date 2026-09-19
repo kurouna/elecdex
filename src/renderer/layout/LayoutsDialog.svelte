@@ -7,13 +7,13 @@ import { sfx } from '../stores/sound.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 
 /**
- * Saved layouts: arrangements kept by name, and come back to.
+ * Saved layouts: the arrangements the user works in, kept by name.
  *
- * The workspace still has one live layout. This keeps copies of it, so the
- * arrangement for one kind of work is not lost by arranging the workspace for
- * another. Applying one replaces the workspace, which ends the shells of the
- * panes it replaces - the same as closing those panes - so the dialog says so
- * rather than letting it be a surprise.
+ * A layout follows the work: the one being worked in is marked, and what
+ * happens to the workspace is written into it, so coming back to it finds it as
+ * it was left. Applying one replaces the workspace, which ends the shells of
+ * the panes it replaces - the same as closing those panes - so the dialog says
+ * so rather than letting it be a surprise.
  *
  *   ↑ ↓      choose        Enter    apply      Esc   close
  */
@@ -166,9 +166,10 @@ function onKeydown(event: KeyboardEvent): void {
                 onclick={() => void apply(entry.id)}
                 data-testid="layouts-item"
                 data-name={entry.name}
+                data-active={entry.active}
               >
                 <span class="title">{entry.name}</span>
-                <span class="state">apply</span>
+                <span class="state">{entry.active ? 'in this one' : 'apply'}</span>
               </button>
               <ConfirmButton
                 label="×"
@@ -186,8 +187,9 @@ function onKeydown(event: KeyboardEvent): void {
         </ul>
 
         <footer>
-          applying a layout replaces the workspace, so the shells of the panes it
-          replaces end, as they do when those panes are closed
+          the layout you are in keeps whatever you do to the workspace. applying
+          another replaces the workspace, so the shells of the panes it replaces
+          end, as they do when those panes are closed
         </footer>
       </div>
     </div>
@@ -299,6 +301,10 @@ function onKeydown(event: KeyboardEvent): void {
 .list li > button.selected {
   border-color: var(--panel-border);
   background: var(--surface-2);
+}
+
+.list li > button[data-active='true'] .title {
+  color: var(--accent-strong);
 }
 
 .state {

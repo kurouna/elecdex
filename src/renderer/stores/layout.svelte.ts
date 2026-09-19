@@ -243,26 +243,49 @@ class LayoutStore {
     if (this.saveTimer !== null) clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => {
       this.saveTimer = null
-      window.elecdex.layout.save(this.snapshot()).catch((error: unknown) => {
-        // Surface it: a save that fails quietly loses the user's layout on next launch.
-        console.error('[elecdex] failed to save layout', error)
-      })
+      void this.write()
     }, SAVE_DEBOUNCE_MS)
   }
 
+  /** Sends the tree to main, and keeps the promise so `flush` can wait for it. */
+  private write(): Promise<void> {
+    const done = window.elecdex.layout
+      .save(this.snapshot())
+      .catch((error: unknown) => {
+        // Surface it: a save that fails quietly loses the user's layout on next launch.
+        console.error('[elecdex] failed to save layout', error)
+      })
+      .then(() => {
+        if (this.saving === done) this.saving = null
+      })
+    this.saving = done
+    return done
+  }
+
+  /** The save in flight, if any. */
+  private saving: Promise<void> | null = null
+
   /**
-   * Writes a pending save immediately, for teardown where the debounce would be
-   * lost. Does nothing when no change is pending: writing the in-memory tree
-   * unconditionally on every reload or close would overwrite a layout.json the
-   * user had edited by hand while the app was running.
+   * Writes a pending save immediately and waits for main to have it, for
+   * teardown where the debounce would be lost and before the workspace becomes
+   * another layout. Nothing is written when no change is pending: writing the
+   * in-memory tree unconditionally on every reload or close would overwrite a
+   * layout.json the user had edited by hand while the app was running.
+   *
+   * A save already in flight is waited for too. It carries the arrangement of
+   * the layout being left, and main writes each save back into the layout being
+   * worked in (shared/layouts.ts) - so one still travelling when the next layout
+   * is applied would land in that one instead.
    */
   async flush(): Promise<void> {
     // A pane powering off is closed as far as the saved layout is concerned.
     this.settle()
-    if (this.saveTimer === null) return
-    clearTimeout(this.saveTimer)
-    this.saveTimer = null
-    await window.elecdex.layout.save(this.snapshot())
+    if (this.saveTimer !== null) {
+      clearTimeout(this.saveTimer)
+      this.saveTimer = null
+      await this.write()
+    }
+    await this.saving
   }
 
   focus(paneId: string): void {
@@ -609,9 +632,11 @@ class LayoutStore {
   }
 
   async reset(): Promise<void> {
-    this.settle()
-    this.dropPendingSave()
+    // Written out first, not dropped: a save still pending belongs to the layout
+    // being left, which main writes back into it before the reset clears it.
+    await this.flush()
     this.adopt(await window.elecdex.layout.reset())
+    await this.loadSaved()
   }
 
   /**
@@ -642,16 +667,18 @@ class LayoutStore {
   }
 
   /**
-   * Makes a saved arrangement the live one. Like `reset`, a save already pending
-   * is dropped: it holds the layout being replaced, and would be written over
-   * the one that just arrived.
+   * Makes a saved arrangement the live one.
+   *
+   * The pending save is written out first rather than dropped: it holds the
+   * arrangement of the layout being left, and a layout follows the work, so it
+   * has to reach that layout before the workspace becomes another one.
    */
   async applySaved(id: string): Promise<boolean> {
-    this.settle()
-    this.dropPendingSave()
+    await this.flush()
     const tree = await window.elecdex.layout.saved.apply(id)
     if (tree === null) return false
     this.adopt(tree)
+    await this.loadSaved()
     return true
   }
 
@@ -659,11 +686,8 @@ class LayoutStore {
     this.savedLayouts = await window.elecdex.layout.saved.remove(id)
   }
 
-  private dropPendingSave(): void {
-    if (this.saveTimer === null) return
-    clearTimeout(this.saveTimer)
-    this.saveTimer = null
-  }
+  /** The layout being worked in: what the workspace is written back into. */
+  readonly activeLayout = $derived(this.savedLayouts.find((entry) => entry.active) ?? null)
 
   /**
    * Switches the focused pane's tab group to its next or previous tab. Returns
