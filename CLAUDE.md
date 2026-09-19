@@ -38,7 +38,7 @@ Electron flags go after a second `--`: `npm run dev -- -- --windowed`.
 ## Layout of the code
 
 ```
-src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/, audio/, plugins/, web/
+src/main/        main process: window, IPC handlers (ipc/), pty/, fs/, weather/, markets/, feeds/, quakes/, launcher/, audio/, plugins/, web/, background/
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas, channel names and pure logic used by both sides
@@ -79,7 +79,9 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   at closed ports by default, sets `ELECDEX_AUDIO_STUB=1` (a steady tone for the spectrum, a
   made-up mixer - never the machine's sound or volume) and starts with sound off; specs that need
   data run a local stub server. A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`
-  (`api.example.test=127.0.0.1:port`), which keeps the grant checks as they are. Keep it that way.
+  (`api.example.test=127.0.0.1:port`), which keeps the grant checks as they are, and
+  `ELECDEX_BACKGROUND_STUB=1` stands in for the notification-area icon, the system-wide shortcut
+  and the sign-in entry, so no run touches the machine's taskbar, keys or startup. Keep it that way.
 - **Audio capture stays out of the workspace.** The spectrum's system audio comes through screen
   capture with loopback audio, granted only in the hidden capture window (main/audio/capture-window.ts:
   its own session, its own two-function preload, a page with no network). The workspace session
@@ -143,7 +145,23 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   rewraps its buffer to every size and garbles history (see the remount regression test).
 - **Shortcuts** are data (src/shared/keybindings.ts): add an action there with its default chord
   and handle it in Workspace.svelte; never hard-code a key check elsewhere. A chord must include
-  Ctrl/Alt or be a function key, so the shell keeps every other key.
+  Ctrl/Alt or be a function key, so the shell keeps every other key. An action with
+  `scope: 'global'` is registered with the OS by main instead, so it is out of the page's `keymap`,
+  out of the shortcut list and out of "reset all shortcuts", and `conflicts` reports the app action
+  as the loser while the OS holds the keys.
+- **Running in the background** (Windows only, docs/architecture.md section 16): minimising or
+  closing to the notification area, the system-wide show/hide shortcut and the sign-in entry.
+  Every option is off until the user turns it on. The decisions are pure in shared/background.ts
+  (`decideClose`, `decideMinimize`, `decideToggle`, `trayWanted`, `closesToTray`) and main/background/
+  carries them out, so the page never hides the window itself: its close button asks main to close
+  the window (`system.closeWindow`) and main decides. Putting the window away is told apart from
+  quitting by `quitting` (before-quit, Windows' session-end); an explicit quit - the shortcut, the
+  status bar, the tray menu - always quits. The icon is there only while a tray option is on or the
+  window is hidden, so a hidden window is never unreachable. Windows holds whether elecdex launches
+  at sign-in, not settings.json, and `launchItems` reports neither a moved install nor the
+  arguments, so the entry is written only when the user changes something. A hidden or minimised
+  window is not reported hidden to a page with `backgroundThrottling: false`, so main sends
+  `WindowState.hidden` and the frame loop stops drawing on it.
 - **README screenshots** must not show personal data: regenerate them with
   `npm run gen:screenshots`, which uses a demo home and curated launcher entries and shoots every
   built-in theme plus the settings dialog and the audio panes (with `ELECDEX_AUDIO_STUB=demo`, never
