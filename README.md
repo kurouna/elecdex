@@ -340,7 +340,9 @@ weather and calendar.
   one-off switches itself off once it has rung; `07:30`, `7`, `19.5` and `１９：３０` are all read as
   times.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
-  sweep in the way it moved. The settings
+  sweep in the way it moved. Given room - a wide pane, or the pane brought forward with
+  Ctrl+Shift+Z - the month before and the month after join it either side, dimmed, and the arrows
+  move all three. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named
   below the month.
 - **Spectrum** — not in the default layout: add it from the picker. The system's sound output in

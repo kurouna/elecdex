@@ -4,6 +4,7 @@ import {
   firstDayOfWeek,
   isoWeek,
   monthGrid,
+  monthsShown,
   msUntilMidnight,
   sameDay,
   type WaveDirection,
@@ -28,6 +29,11 @@ import type { WidgetProps } from '../registry.ts'
  * A month comes in as a wave of dates, sweeping the way the calendar moved, and
  * "today" pings once the wave reaches it - when the pane appears and on every
  * change of month, as CSS animations of the cells created for it.
+ *
+ * A pane with room for them (lib/calendar.ts) puts the month before and the
+ * month after either side of the one on screen, dimmed: brought to the front, a
+ * calendar shows the quarter around today rather than one month with a hand's
+ * width of nothing around its dates. The arrows and the wheel move all three.
  */
 const { paneId, state: paneState }: WidgetProps = $props()
 
@@ -70,7 +76,51 @@ $effect(() => {
   return () => clearTimeout(timer)
 })
 
-const days = $derived(monthGrid(shown.getFullYear(), shown.getMonth(), weekStart))
+/** The pane's own size, which decides how many months fit (lib/calendar.ts). */
+let offsets = $state.raw<number[]>([0])
+let root = $state<HTMLDivElement | null>(null)
+
+$effect(() => {
+  const element = root
+  if (element === null) return
+  /**
+   * The box comes from the observer's own entry rather than from a fresh
+   * measurement: asked again inside the callback, a pane that has just been
+   * pinned over the workspace (layout/pane-zoom.ts) still answers with the size
+   * it had in the layout it left, and the calendar would keep its one month.
+   */
+  const measure = (width: number, height: number): void => {
+    const next = monthsShown(width, height)
+    // Assigned only when the answer changed: a resize of a pane that still shows
+    // one month must not rebuild its grid, which would replay its wave.
+    if (next.length !== offsets.length) offsets = next
+  }
+  const box = element.getBoundingClientRect()
+  measure(box.width, box.height)
+  const observer = new ResizeObserver((entries) => {
+    const entry = entries[entries.length - 1]
+    if (entry !== undefined) measure(entry.contentRect.width, entry.contentRect.height)
+  })
+  observer.observe(element)
+  return () => observer.disconnect()
+})
+
+const monthAt = (offset: number): Date =>
+  new Date(shown.getFullYear(), shown.getMonth() + offset, 1)
+
+/** The months on screen: the one shown, with its neighbours when there is room. */
+const months = $derived(
+  offsets.map((offset) => {
+    const first = monthAt(offset)
+    return {
+      offset,
+      first,
+      key: `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, '0')}`,
+      name: new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(first),
+      days: monthGrid(first.getFullYear(), first.getMonth(), weekStart),
+    }
+  }),
+)
 
 const weekdays = $derived.by(() => {
   const format = new Intl.DateTimeFormat(locale, { weekday: 'short' })
@@ -135,7 +185,9 @@ const whenLabel = (inDays: number): string =>
 
 <div
   class="calendar"
+  bind:this={root}
   data-testid="calendar"
+  data-months={months.length}
   data-holidays={countries.join(' ') || 'none'}
   data-wave={wave.direction}
 >
@@ -183,32 +235,53 @@ const whenLabel = (inDays: number): string =>
     </div>
   </div>
 
-  <div class="grid" onwheel={onWheel} role="grid" aria-label={title}>
-    {#each weekdays as w (w.day)}
-      <span class="weekday" class:sun={w.day === 0} class:sat={w.day === 6} role="columnheader">{w.name}</span>
+  <div class="months" onwheel={onWheel}>
+    {#each months as month (month.key)}
+      {@const current = month.offset === 0}
+      <section class="month" class:other={!current}>
+        {#if months.length > 1}
+          {#key wave.id}
+            <span class="caption" data-testid="calendar-caption">{month.name}</span>
+          {/key}
+        {/if}
+        <div
+          class="grid"
+          role="grid"
+          aria-label={month.name}
+          data-testid="calendar-grid"
+          data-month={month.key}
+          data-current={current || undefined}
+        >
+          {#each weekdays as w (w.day)}
+            <span class="weekday" class:sun={w.day === 0} class:sat={w.day === 6} role="columnheader">{w.name}</span>
+          {/each}
+          {#key wave.id}
+          {#each month.days as date, i (date.getTime())}
+            {@const outside = date.getMonth() !== month.first.getMonth()}
+            {@const holiday = holidayName(date)}
+            {@const isToday = !outside && sameDay(date, today)}
+            <span
+              style:--wave={waveStep(i, wave.direction)}
+              class="day"
+              class:outside
+              class:sun={date.getDay() === 0 || holiday !== undefined}
+              class:sat={date.getDay() === 6 && holiday === undefined}
+              class:today={isToday}
+              role="gridcell"
+              title={holiday}
+              data-testid="calendar-day"
+              data-date={iso(date)}
+              data-today={isToday || undefined}
+              data-holiday={holiday}
+            >
+              {date.getDate()}
+              {#if holiday}<i class="mark" aria-hidden="true"></i>{/if}
+            </span>
+          {/each}
+          {/key}
+        </div>
+      </section>
     {/each}
-    {#key wave.id}
-    {#each days as date, i (date.getTime())}
-      {@const holiday = holidayName(date)}
-      <span
-        style:--wave={waveStep(i, wave.direction)}
-        class="day"
-        class:outside={date.getMonth() !== shown.getMonth()}
-        class:sun={date.getDay() === 0 || holiday !== undefined}
-        class:sat={date.getDay() === 6 && holiday === undefined}
-        class:today={sameDay(date, today)}
-        role="gridcell"
-        title={holiday}
-        data-testid="calendar-day"
-        data-date={iso(date)}
-        data-today={sameDay(date, today) || undefined}
-        data-holiday={holiday}
-      >
-        {date.getDate()}
-        {#if holiday}<i class="mark" aria-hidden="true"></i>{/if}
-      </span>
-    {/each}
-    {/key}
   </div>
 
   <p class="foot" data-testid="calendar-next-holiday">
@@ -318,6 +391,42 @@ const whenLabel = (inDays: number): string =>
 }
 
 .nav .now.away {
+  color: var(--accent);
+}
+
+/* The months side by side, each taking the same share of the pane. */
+.months {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-3);
+}
+
+.month {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--space-1);
+}
+
+/* The months either side are there for context: present, and quieter. */
+.month.other {
+  opacity: 0.55;
+}
+
+.caption {
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  animation: title-in calc(420ms * var(--motion-scale)) var(--ease-emphasized) backwards;
+}
+
+.month:not(.other) .caption {
   color: var(--accent);
 }
 

@@ -3,7 +3,9 @@ import {
   firstDayOfWeek,
   isoWeek,
   monthGrid,
+  monthsShown,
   msUntilMidnight,
+  THREE_MONTHS,
   waveStep,
   waveTowards,
 } from '../../src/renderer/lib/calendar.js'
@@ -59,5 +61,18 @@ describe('calendar', () => {
     expect(waveTowards(new Date(2027, 0, 1), new Date(2026, 11, 1))).toBe('prev')
     // "today" on the month already shown replays nothing.
     expect(waveTowards(new Date(2026, 8, 1), new Date(2026, 8, 1))).toBeNull()
+  })
+
+  it('shows the months either side once the pane has room for all three', () => {
+    // A pane brought to the front, or a wide one in the layout: the month on
+    // screen keeps the middle, with the one before and the one after beside it.
+    expect(monthsShown(THREE_MONTHS.w, THREE_MONTHS.h)).toEqual([-1, 0, 1])
+    expect(monthsShown(1700, 900)).toEqual([-1, 0, 1])
+    // The pane in the default layout, and anything narrower: one month.
+    expect(monthsShown(340, 250)).toEqual([0])
+    expect(monthsShown(THREE_MONTHS.w - 1, 900)).toEqual([0])
+    // Wide but short - a strip along the bottom - would give three cramped
+    // grids of a hand's height, so it keeps the one.
+    expect(monthsShown(1700, THREE_MONTHS.h - 1)).toEqual([0])
   })
 })

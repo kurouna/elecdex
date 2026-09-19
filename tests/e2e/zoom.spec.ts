@@ -248,6 +248,28 @@ test('dragging the pane that is forward puts it back, so it can be dropped somew
   }
 })
 
+test('a widget that follows its size sees the room the front gives it', async () => {
+  // Regression: the calendar asks how many months fit whenever its pane resizes,
+  // and measured the pane again inside the resize callback. A pane just pinned
+  // over the workspace still answers there with the size it had in the layout it
+  // left, so a calendar brought forward kept its one month in a window of space.
+  const { page, close } = await launch()
+  try {
+    const calendar = page.getByTestId('calendar')
+    await expect(calendar).toHaveAttribute('data-months', '1')
+
+    await zoomPane(page, 'calendar')
+    await expect(calendar).toHaveAttribute('data-months', '3')
+    await expect(page.getByTestId('calendar-grid')).toHaveCount(3)
+
+    await page.keyboard.press('Escape')
+    await zoomSettled(page)
+    await expect(calendar).toHaveAttribute('data-months', '1')
+  } finally {
+    await close()
+  }
+})
+
 test('closing the pane that is forward, and a layout change, let go of it', async () => {
   const { page, close } = await launch()
   try {

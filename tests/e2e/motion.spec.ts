@@ -15,12 +15,20 @@ import { launch, removeDir } from './support.js'
  */
 
 const calendarOnly = { version: 1, root: { kind: 'pane', id: 'c', widget: 'calendar' } }
-const cells = (page: Page) => page.getByTestId('calendar-day')
+/**
+ * The month on screen. A pane this size shows the months either side of it as
+ * well (tools.spec covers that); the wave is the same in each, so it is read
+ * from the one in the middle.
+ */
+const CURRENT = '[data-testid=calendar-grid][data-current]'
+const cells = (page: Page) => page.locator(`${CURRENT} [data-testid=calendar-day]`)
 
 /** The computed animation of the first and last cells, and of today's ring. */
 const waveStyle = (page: Page) =>
-  page.evaluate(() => {
-    const days = [...document.querySelectorAll<HTMLElement>('[data-testid=calendar-day]')]
+  page.evaluate((current) => {
+    const days = [
+      ...document.querySelectorAll<HTMLElement>(`${current} [data-testid=calendar-day]`),
+    ]
     const style = (el: Element | undefined, pseudo?: string) => {
       if (el === undefined) return null
       const s = getComputedStyle(el, pseudo)
@@ -31,7 +39,7 @@ const waveStyle = (page: Page) =>
       last: style(days[41]),
       today: style(document.querySelector('[data-today]') ?? undefined, '::after'),
     }
-  })
+  }, CURRENT)
 
 test('a month comes in as a wave the way the calendar moved, and "today" pings once it arrives', async () => {
   const { page, close } = await launch(undefined, { layout: calendarOnly })
@@ -48,10 +56,10 @@ test('a month comes in as a wave the way the calendar moved, and "today" pings o
 
     // Each change of month makes new cells, which replay the wave from its side.
     const marked = () =>
-      page.evaluate(() => {
-        const first = document.querySelector('[data-testid=calendar-day]') as HTMLElement
+      page.evaluate((current) => {
+        const first = document.querySelector(`${current} [data-testid=calendar-day]`) as HTMLElement
         first.dataset.probe = 'old'
-      })
+      }, CURRENT)
     const stillThere = () => page.locator('[data-probe=old]').count()
     await marked()
     await page.getByTestId('calendar-prev').click()

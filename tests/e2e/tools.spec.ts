@@ -225,6 +225,63 @@ for (const theme of ['business-dark', 'business-light']) {
   })
 }
 
+test('a calendar with room for them shows the months either side', async () => {
+  // A pane the size of the window: the month on screen keeps the middle, with
+  // the month before and the month after beside it, and only the middle one
+  // carries today. The pane in the default layout has room for one.
+  const { page, close } = await launch(undefined, { layout: single('calendar') })
+  try {
+    const grids = page.getByTestId('calendar-grid')
+    await expect(grids).toHaveCount(3)
+    const months = await grids.evaluateAll((list) =>
+      list.map((el) => `${el.dataset.month}${el.hasAttribute('data-current') ? '*' : ''}`),
+    )
+    const now = new Date()
+    const month = (offset: number) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + offset, 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    }
+    expect(months).toEqual([month(-1), `${month(0)}*`, month(1)])
+    await expect(page.getByTestId('calendar-day')).toHaveCount(126)
+    // Today is marked once: in its own month, not as a spare day of the next.
+    await expect(page.locator('[data-testid=calendar-day][data-today]')).toHaveCount(1)
+
+    // The arrows move all three, the middle one still leading.
+    await page.getByTestId('calendar-next').click()
+    await expect(page.getByTestId('calendar-grid').first()).toHaveAttribute('data-month', month(0))
+    await expect(page.getByTestId('calendar-title')).toHaveText(
+      new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long' }).format(
+        new Date(now.getFullYear(), now.getMonth() + 1, 1),
+      ),
+    )
+  } finally {
+    await close()
+  }
+})
+
+test('a calendar with room for one month shows one', async () => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 'root',
+      direction: 'row',
+      sizes: [0.22, 0.78],
+      children: [
+        { kind: 'pane', id: 'c', widget: 'calendar' },
+        { kind: 'pane', id: 't', widget: 'terminal' },
+      ],
+    },
+  }
+  const { page, close } = await launch(undefined, { layout })
+  try {
+    await expect(page.getByTestId('calendar-grid')).toHaveCount(1)
+    await expect(page.getByTestId('calendar-day')).toHaveCount(42)
+  } finally {
+    await close()
+  }
+})
+
 test('the calendar is in English, and holidays are ticked per country in its settings', async () => {
   // Japanese app language: the calendar's text stays English regardless.
   let launched = await launch(undefined, { layout: single('calendar'), args: ['--lang=ja'] })
@@ -233,7 +290,11 @@ test('the calendar is in English, and holidays are ticked per country in its set
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-    await expect(page.getByTestId('calendar-day')).toHaveCount(42)
+    // The pane fills the window, so the months either side are there too.
+    await expect(page.getByTestId('calendar-grid')).toHaveCount(3)
+    await expect(
+      page.locator('[data-testid=calendar-grid][data-current] [data-testid=calendar-day]'),
+    ).toHaveCount(42)
     await expect(page.locator('[data-testid=calendar-day][data-today]')).toHaveAttribute(
       'data-date',
       iso(now),

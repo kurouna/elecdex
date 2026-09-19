@@ -7,6 +7,22 @@
 /** Always six weeks, so the pane does not change height from month to month. */
 export const GRID_DAYS = 42
 
+/**
+ * The pane a month's neighbours need beside it, in CSS pixels: three grids of
+ * seven columns each want the width, and six rows of dates want the height -
+ * three grids squeezed into a strip along the bottom of a screen would be a
+ * worse calendar than the one month that fits there.
+ */
+export const THREE_MONTHS = { w: 620, h: 320 } as const
+
+/**
+ * Which months a pane of this size shows, as offsets from the one on screen:
+ * the month before and the month after keep it company once there is room.
+ */
+export function monthsShown(width: number, height: number): number[] {
+  return width >= THREE_MONTHS.w && height >= THREE_MONTHS.h ? [-1, 0, 1] : [0]
+}
+
 /** The dates shown for a month: from the week holding the 1st, 42 days. `month` is 0-11. */
 export function monthGrid(year: number, month: number, weekStart: number): Date[] {
   const first = new Date(year, month, 1)
