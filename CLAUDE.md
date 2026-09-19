@@ -2,7 +2,7 @@
 
 Guidance for AI agents (and humans) working in this repository.
 
-elecdex (latest pre-release: v0.0.9) is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
+elecdex (latest pre-release: v0.0.10) is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a
 sci-fi terminal emulator and system monitor — on Electron 44, Svelte 5, TypeScript 7 and
 xterm.js 6. GPL-3.0, like the original. The full design and every decision with its reason
 live in [docs/architecture.md](docs/architecture.md) (§16 is the decision log); plugins in
@@ -132,6 +132,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).
   Animations share the 10 fps frame loop (`lib/frame-loop.ts`) instead of their own rAF loops.
+  A CSS animation is the compositor's, not the loop's, and `backgroundThrottling` is off, so one
+  keeps painting a window that has been put away: the frame loop marks the page `data-offscreen`
+  and tokens.css takes `--motion-scale` to zero there. Weigh a new animation by the area it
+  repaints - the clock's rolling digits cost ~4% of one core on the default layout, measured.
   Other timed screen updates wake on wall-clock boundaries with a `setTimeout` chain on
   `msUntilBoundary(period)` (the clock, the system pane's date), never an unaligned
   `setInterval`, so their change lands in the loop's frame; assign `$state` only when the
