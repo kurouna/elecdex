@@ -347,6 +347,8 @@ test('the fullscreen corner closes to the tray when that is what closing does', 
     await expect.poll(() => facts(app)).toEqual({ visible: false, minimized: false })
     expect(app.process().exitCode).toBeNull()
     await expect.poll(() => visibility(page)).toBe('hidden')
+    // Put away the same way, so the same one-time hint says where it went.
+    expect(await hooks(app, (h) => h.hintsShown())).toBe(1)
 
     // Back from the tray, still fullscreen.
     await hooks(app, (h) => h.tray.click())
