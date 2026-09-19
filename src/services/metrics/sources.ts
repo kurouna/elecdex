@@ -17,6 +17,7 @@ import type {
   NetConnections,
   NetInterface,
   NetPing,
+  NetSockets,
   NetThroughput,
   OsInfo,
   OsUptime,
@@ -29,6 +30,7 @@ import { summarizeConnections } from './geoip.js'
 import { parseBsdNetstat, parseProcNetTcp, publicRemotes } from './net-connections.js'
 import { parseWindowsVersion } from './os-version.js'
 import type { SourceDefinition } from './scheduler.js'
+import { readSockets } from './sockets/index.js'
 import { WindowsSampler } from './windows-sampler.js'
 
 /**
@@ -266,6 +268,15 @@ async function netConnections(): Promise<NetConnections> {
   return summarizeConnections(publicRemotes(remotes))
 }
 
+/**
+ * The socket table, for the connections pane. Read only while that pane is open
+ * - it is not in `keepWhileHidden` - and every three seconds, which is short
+ * enough that a connection that came and went leaves a trace on screen and long
+ * enough to cost nothing (on Windows it is the sampler's own five-second tick,
+ * so it costs nothing at all there).
+ */
+const netSockets = (): Promise<NetSockets> => readSockets(windowsSampler)
+
 async function diskVolumes(): Promise<DiskVolumes> {
   if (windowsSampler) return windowsSampler.diskVolumes()
   const rows = await si.fsSize()
@@ -315,6 +326,7 @@ export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'net.throughput': { intervalMs: 1000, collect: netThroughput },
   'net.ping': { intervalMs: 5000, collect: netPing },
   'net.connections': { intervalMs: 5000, collect: netConnections },
+  'net.sockets': { intervalMs: byPlatform(5000, 3000), collect: netSockets },
   'disk.volumes': { intervalMs: 30_000, collect: diskVolumes },
   'disk.io': { intervalMs: 2000, collect: diskIo },
 }

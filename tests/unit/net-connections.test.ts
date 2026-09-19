@@ -138,14 +138,17 @@ describe('parseBsdNetstat', () => {
 })
 
 describe('the Windows sampler tcp line', () => {
-  it('parses remote addresses, including the one-row collapse', () => {
-    expect(parseSamplerLine('{"t":"tcp","data":[{"r":"8.8.8.8"},{"r":"1.1.1.1"}]}')).toEqual({
+  // The emit carries the whole socket table now, for the connections pane; the
+  // globe takes its remotes from the same rows (see sockets.test.ts).
+  it('parses the packed rows, including the one-row collapse', () => {
+    const rows = ['4|5|192.0.2.2|4821|8.8.8.8|443|2140', '4|5|192.0.2.2|4822|1.1.1.1|443|2140']
+    expect(parseSamplerLine(`{"t":"tcp","data":${JSON.stringify(rows)}}`)).toEqual({
       kind: 'tcp',
-      remotes: ['8.8.8.8', '1.1.1.1'],
+      rows,
     })
-    expect(parseSamplerLine('{"t":"tcp","data":{"r":"8.8.8.8"}}')).toEqual({
+    expect(parseSamplerLine(`{"t":"tcp","data":${JSON.stringify(rows[0])}}`)).toEqual({
       kind: 'tcp',
-      remotes: ['8.8.8.8'],
+      rows: [rows[0]],
     })
   })
 })

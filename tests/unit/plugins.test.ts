@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { METRIC_SOURCE_IDS } from '@shared/metrics'
+import { PLUGIN_METRIC_SOURCE_IDS } from '@shared/metrics'
 import {
   checkPluginUrl,
   grantFor,
@@ -332,9 +332,12 @@ describe('the plugin API file', () => {
     expect(source).not.toMatch(/^import /m)
   })
 
-  it('names every metric source the host has', () => {
+  it('names every metric source a plugin can be granted, and no other', () => {
     const union = source.slice(source.indexOf('export type MetricId'), source.indexOf('/** What'))
     const named = [...union.matchAll(/'([a-z.]+)'/g)].map((m) => m[1])
-    expect(named).toEqual([...METRIC_SOURCE_IDS])
+    // Not METRIC_SOURCE_IDS: this file is the public API, and advertising a
+    // reading no plugin can ever be granted (net.sockets) would be a promise the
+    // host refuses to keep.
+    expect(named).toEqual([...PLUGIN_METRIC_SOURCE_IDS])
   })
 })

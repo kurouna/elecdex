@@ -65,7 +65,11 @@ export function parseProcNetTcp(text: string): string[] {
   return remotes
 }
 
-function decodeProcAddress(hex: string): string | null {
+/**
+ * One address from /proc, exported because the connections pane reads the same
+ * table for its rows (sockets/linux.ts) and must decode it the same way.
+ */
+export function decodeProcAddress(hex: string): string | null {
   if (hex.length === 8) {
     const bytes = hex.match(/../g)?.map((h) => Number.parseInt(h, 16)) ?? []
     return bytes.reverse().join('.')

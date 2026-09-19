@@ -141,6 +141,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       // An in-memory tray, shortcut and sign-in entry: never the machine's taskbar,
       // keys or Run key (src/main/background).
       ELECDEX_BACKGROUND_STUB: '1',
+      // A made-up socket table: never where this machine has actually been
+      // (src/services/metrics/sockets/stub.ts).
+      ELECDEX_SOCKETS_STUB: '1',
       ...options.env,
     },
   })

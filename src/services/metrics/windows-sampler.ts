@@ -87,7 +87,7 @@ export type SamplerLine =
   | { kind: 'proc'; data: RawProcess[] }
   | { kind: 'iface'; data: RawIface[] }
   | { kind: 'ping'; ms: number | null }
-  | { kind: 'tcp'; remotes: string[] }
+  | { kind: 'tcp'; rows: string[] }
   | { kind: 'power'; data: RawPower }
   | { kind: 'swap'; data: RawSwap }
   | { kind: 'drives'; data: RawDrive[] }
@@ -201,6 +201,23 @@ export function computeTopProcesses(
   return { all: current.data.length, top }
 }
 
+/**
+ * The peers of the established rows, which is all the globe wants.
+ *
+ * MIB_TCP_STATE numbers ESTABLISHED 5, and .NET's TcpState enum happens to use
+ * the same numbering, so the fallback table reads the same way.
+ */
+export function establishedRemotes(rows: readonly string[]): string[] {
+  const remotes: string[] = []
+  for (const row of rows) {
+    const fields = row.split('|')
+    if (fields[1] !== '5') continue
+    const remote = fields[4] ?? ''
+    if (remote !== '') remotes.push(remote)
+  }
+  return remotes
+}
+
 /** The interface holding the default route, as NetInterface. */
 export function toNetInterface(ifaces: readonly RawIface[]): NetInterface {
   // With no default route (offline), fall back to any real adapter with an
@@ -243,6 +260,16 @@ export function toSwap(swap: RawSwap, freeMemory: number): MemSwap {
   }
 }
 
+/**
+ * The socket table's rows, which are packed strings rather than objects: a
+ * machine can hold thousands of sockets, and `family|state|local|port|remote|
+ * port|pid` is a third of the JSON the same row would take as an object.
+ */
+function packedRows(data: unknown): string[] {
+  const list = Array.isArray(data) ? data : data == null ? [] : [data]
+  return list.filter((row): row is string => typeof row === 'string')
+}
+
 /** Parses one sampler line. Returns null for anything that is not a reading. */
 export function parseSamplerLine(line: string): SamplerLine | null {
   let message: unknown
@@ -278,7 +305,7 @@ export function parseSamplerLine(line: string): SamplerLine | null {
         })),
       }
     case 'tcp':
-      return { kind: 'tcp', remotes: rows.map((r) => str(r.r)).filter((r) => r !== '') }
+      return { kind: 'tcp', rows: packedRows(data) }
     case 'iface':
       return {
         kind: 'iface',
@@ -339,21 +366,140 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' 
 /**
  * The loop PowerShell runs, one tick per second:
  *   every tick       interface byte counters
- *   every 5 ticks    process table, interface addresses, TCP connections, ping
+ *   every 5 ticks    process table, interface addresses, TCP sockets, ping
  *   every 2 ticks    disk read/write rates and busy time (performance counters)
  *   every 30 ticks   power status, page file (the only WMI read), drives
+ *
+ * The socket table comes from iphlpapi's GetExtendedTcpTable, because it is the
+ * only source that says which process holds a socket: .NET leaves the owner out
+ * and `netstat -ano` would be a process per reading. Compiling the P/Invoke
+ * costs a second, so it happens once, with the performance counters, after the
+ * first round of readings is out; a machine that cannot compile it falls back to
+ * .NET's own table, which is the same rows without their owners.
  *
  * It must never outlive us. Windows does not take child processes down with
  * their parent, and the collector is ended with a hard kill, so an unguarded
  * loop would run forever as an orphan. The script therefore exits as soon as
  * its parent is gone, or as soon as a write to the pipe fails.
  */
+/**
+ * The C# the sampler compiles once, to read the socket table with its owners.
+ *
+ * GetExtendedTcpTable with TCP_TABLE_OWNER_PID_ALL returns every socket -
+ * listening ones included - each with the pid of the process holding it. The
+ * ports in MIB_TCPROW_OWNER_PID are in network byte order in the low half of a
+ * DWORD, hence the swap; a listening row's remote address is zero, which the
+ * reader drops when it sees the state.
+ *
+ * Kept in its own constant rather than inline, so the PowerShell around it stays
+ * readable. It goes into a single-quoted here-string, so nothing in it is
+ * expanded: it must contain no line beginning with the here-string terminator.
+ */
+const TCP_TABLE_SOURCE = `
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Runtime.InteropServices;
+
+public class ElecdexTcpTable {
+  [DllImport("iphlpapi.dll", SetLastError = true)]
+  static extern uint GetExtendedTcpTable(IntPtr table, ref int size, bool order, int af, int cls, int reserved);
+
+  [StructLayout(LayoutKind.Sequential)]
+  struct Row4 {
+    public uint state;
+    public uint localAddr;
+    public uint localPort;
+    public uint remoteAddr;
+    public uint remotePort;
+    public uint pid;
+  }
+
+  [StructLayout(LayoutKind.Sequential)]
+  struct Row6 {
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)] public byte[] localAddr;
+    public uint localScope;
+    public uint localPort;
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)] public byte[] remoteAddr;
+    public uint remoteScope;
+    public uint remotePort;
+    public uint state;
+    public uint pid;
+  }
+
+  const int AF_INET = 2;
+  const int AF_INET6 = 23;
+  const int OWNER_PID_ALL = 5;
+  // A pane draws a few hundred rows at most; this only bounds what crosses the pipe.
+  const int MAX_ROWS = 2000;
+
+  static int Port(uint value) {
+    return (int)(((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
+  }
+
+  public static string[] Rows() {
+    List<string> rows = new List<string>();
+    Collect(rows, AF_INET);
+    Collect(rows, AF_INET6);
+    return rows.ToArray();
+  }
+
+  static void Collect(List<string> rows, int af) {
+    int size = 0;
+    GetExtendedTcpTable(IntPtr.Zero, ref size, false, af, OWNER_PID_ALL, 0);
+    if (size <= 0) return;
+    IntPtr buffer = Marshal.AllocHGlobal(size);
+    try {
+      if (GetExtendedTcpTable(buffer, ref size, false, af, OWNER_PID_ALL, 0) != 0) return;
+      int count = Marshal.ReadInt32(buffer);
+      IntPtr at = (IntPtr)((long)buffer + 4);
+      int stride = Marshal.SizeOf(af == AF_INET ? typeof(Row4) : typeof(Row6));
+      for (int i = 0; i < count && rows.Count < MAX_ROWS; i++) {
+        rows.Add(af == AF_INET ? Format4(at) : Format6(at));
+        at = (IntPtr)((long)at + stride);
+      }
+    } finally {
+      Marshal.FreeHGlobal(buffer);
+    }
+  }
+
+  static string Format4(IntPtr at) {
+    Row4 row = (Row4)Marshal.PtrToStructure(at, typeof(Row4));
+    return string.Format("4|{0}|{1}|{2}|{3}|{4}|{5}", row.state, new IPAddress((long)row.localAddr),
+      Port(row.localPort), new IPAddress((long)row.remoteAddr), Port(row.remotePort), row.pid);
+  }
+
+  static string Format6(IntPtr at) {
+    Row6 row = (Row6)Marshal.PtrToStructure(at, typeof(Row6));
+    return string.Format("6|{0}|{1}|{2}|{3}|{4}|{5}", row.state, new IPAddress(row.localAddr),
+      Port(row.localPort), new IPAddress(row.remoteAddr), Port(row.remotePort), row.pid);
+  }
+}
+`
+
 const script = (parentPid: number, pingHost: string): string => `
 $ErrorActionPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Windows.Forms
 $parent = ${parentPid}
+$tcpSource = @'${TCP_TABLE_SOURCE}'@
 $pinger = New-Object System.Net.NetworkInformation.Ping
 $tick = 0
+$tcpMode = 'managed'
+
+function TcpRows {
+  if ($tcpMode -eq 'pinvoke') { return [ElecdexTcpTable]::Rows() }
+  # Without the P/Invoke: the same rows, with 0 for every owner. .NET numbers
+  # TcpState exactly as MIB_TCP_STATE does, so the state needs no translation.
+  $out = New-Object System.Collections.ArrayList
+  foreach ($c in [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpConnections()) {
+    $l = $c.LocalEndPoint
+    $r = $c.RemoteEndPoint
+    $fam = 4
+    if ($r.AddressFamily -eq 'InterNetworkV6') { $fam = 6 }
+    [void]$out.Add(('{0}|{1}|{2}|{3}|{4}|{5}|0' -f $fam, [int]$c.State, $l.Address, $l.Port, $r.Address, $r.Port))
+  }
+  return $out.ToArray()
+}
 function Emit($t, $data) {
   try {
     [Console]::Out.WriteLine((ConvertTo-Json -Compress -Depth 4 -InputObject @{ t = $t; data = $data }))
@@ -389,10 +535,7 @@ while ($true) {
     }
     Emit 'iface' @($ifaces)
 
-    $tcp = foreach ($c in [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpConnections()) {
-      if ($c.State -eq 'Established') { @{ r = $c.RemoteEndPoint.Address.ToString() } }
-    }
-    Emit 'tcp' @($tcp)
+    Emit 'tcp' @(TcpRows)
 
     $ms = $null
     try { $r = $pinger.Send('${pingHost}', 1000); if ($r.Status -eq 'Success') { $ms = $r.RoundtripTime } } catch {}
@@ -418,6 +561,14 @@ while ($true) {
   # display language. Creating them takes about a second, so it happens once,
   # after the first round of readings is out; each read then takes ~2ms.
   if ($tick -eq 1) {
+    try {
+      Add-Type -TypeDefinition $tcpSource
+      $null = [ElecdexTcpTable]::Rows()
+      $tcpMode = 'pinvoke'
+    } catch { $tcpMode = 'managed' }
+    # Straight away, rather than waiting for tick 5: the owners are the point.
+    Emit 'tcp' @(TcpRows)
+
     try {
       $diskRead = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Read Bytes/sec', '_Total')
       $diskWrite = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Write Bytes/sec', '_Total')
@@ -501,10 +652,22 @@ export class WindowsSampler {
     return { host: this.pingHost, ms: this.ping?.ms ?? null }
   }
 
-  /** Remote addresses of established TCP connections. */
+  /** Remote addresses of established TCP connections, for the globe. */
   async tcpRemotes(): Promise<string[]> {
     await this.until(() => this.tcp !== null)
-    return this.tcp ?? []
+    return establishedRemotes(this.tcp ?? [])
+  }
+
+  /**
+   * The whole socket table, with the process names from the reading taken on the
+   * same tick: the connections pane wants the owner of every row, and the
+   * sampler already knows what each pid is called.
+   */
+  async tcpSockets(): Promise<{ rows: string[]; names: Map<number, string> }> {
+    await this.until(() => this.tcp !== null)
+    const names = new Map<number, string>()
+    for (const process of this.procCurrent?.data ?? []) names.set(process.id, process.n)
+    return { rows: this.tcp ?? [], names }
   }
 
   async battery(): Promise<Battery> {
@@ -629,7 +792,7 @@ export class WindowsSampler {
         this.ping = { ms: parsed.ms }
         break
       case 'tcp':
-        this.tcp = parsed.remotes
+        this.tcp = parsed.rows
         break
       case 'power':
         this.power = parsed.data

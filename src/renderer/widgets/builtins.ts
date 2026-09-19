@@ -4,6 +4,7 @@ import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
 import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
+import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
 import LauncherWidget from './launcher/LauncherWidget.svelte'
@@ -126,6 +127,19 @@ registerBuiltin({
   component: NetstatWidget,
   metrics: sources('net.interface', 'net.ping'),
   minSize: { w: 160, h: 50 },
+})
+
+registerBuiltin({
+  id: 'connections',
+  title: 'connections',
+  description: 'Every socket this machine holds, by the program holding it.',
+  component: ConnectionsWidget,
+  metrics: sources('net.sockets'),
+  // Not kept while hidden on purpose: nothing here is charted, so a gap costs
+  // nothing, and reading the socket table for a pane nobody can see does not.
+  minSize: { w: 200, h: 120 },
+  zoom: 'full',
+  multiple: true,
 })
 
 registerBuiltin({

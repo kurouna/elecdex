@@ -57,6 +57,13 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   `window.elecdex` (src/shared/api.ts, src/preload/index.ts). Main validates every input
   (zod or explicit checks). Never expose a generic channel, a path-taking "run" or raw
   `ipcRenderer`. The launcher launches by opaque id from main's own catalog, never by path.
+- **The connections pane reads the kernel, not the network.** Its `net.sockets` source lives in
+  `src/services/metrics/sockets/`, one file per platform behind one `RawSocket` (Linux reads
+  /proc, macOS runs netstat and cannot name an owner, Windows goes through the sampler's
+  GetExtendedTcpTable P/Invoke). Peers are placed with the bundled GeoIP database, never a
+  lookup service. It is the one reading a plugin can never be granted, so a new metric source
+  goes into `PLUGIN_METRIC_SOURCE_IDS` or `PRIVATE_METRIC_SOURCE_IDS` deliberately (a unit test
+  checks every source is in one of them).
 - **Network lives in main**, never the renderer: weather (JMA, MET Norway, NWS - see
   docs/weather-providers.md; follow each service's terms), markets (yahoo-finance2 is
   Node-only — CORS and cookies block it in a browser), RSS feeds (src/main/feeds; the XML
@@ -81,7 +88,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   data run a local stub server. A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`
   (`api.example.test=127.0.0.1:port`), which keeps the grant checks as they are, and
   `ELECDEX_BACKGROUND_STUB=1` stands in for the notification-area icon, the system-wide shortcut
-  and the sign-in entry, so no run touches the machine's taskbar, keys or startup. Keep it that way.
+  and the sign-in entry, so no run touches the machine's taskbar, keys or startup, and
+  `ELECDEX_SOCKETS_STUB=1` gives the connections pane a made-up socket table instead of the real
+  one (`=demo` for the screenshots), so no run depends on - or records - where this machine has
+  actually been. Keep it that way.
 - **Audio capture stays out of the workspace.** The spectrum's system audio comes through screen
   capture with loopback audio, granted only in the hidden capture window (main/audio/capture-window.ts:
   its own session, its own two-function preload, a page with no network). The workspace session

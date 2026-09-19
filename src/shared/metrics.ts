@@ -145,6 +145,66 @@ export interface NetConnections {
   countries: ConnectionCountry[]
 }
 
+/**
+ * A TCP socket's state, as the kernel names it. Every platform reports the same
+ * set under a different spelling, so the collector maps into this one.
+ */
+export type SocketState =
+  | 'established'
+  | 'listen'
+  | 'syn-sent'
+  | 'syn-recv'
+  | 'fin-wait'
+  | 'time-wait'
+  | 'close-wait'
+  | 'last-ack'
+  | 'closing'
+  | 'closed'
+  | 'unknown'
+
+/**
+ * One socket, as the connections pane draws it.
+ *
+ * Unlike `net.connections`, which leaves the addresses in the collector and
+ * reports only counts per country, this carries the addresses themselves: the
+ * pane exists to show them. That is why it is not a reading a plugin can be
+ * granted (PLUGIN_METRIC_SOURCE_IDS).
+ */
+export interface NetSocket {
+  family: 4 | 6
+  /** The address on this machine; 0.0.0.0 or :: for a socket listening on all of them. */
+  localAddress: string
+  localPort: number
+  /** '' while listening. */
+  remoteAddress: string
+  /** 0 while listening. */
+  remotePort: number
+  state: SocketState
+  /** 0 where the platform does not say who owns the socket (macOS). */
+  pid: number
+  /** '' where the owner is unknown, or the process has gone. */
+  process: string
+  /** ISO 3166 alpha-2 for the peer, or '' when it is private or unplaceable. */
+  country: string
+  /** The peer is on the public internet - not loopback, private or link-local. */
+  publicPeer: boolean
+}
+
+/**
+ * The machine's TCP sockets. Read only while a connections pane is open, and
+ * capped: a busy machine can hold thousands, and no pane draws thousands.
+ */
+export interface NetSockets {
+  sockets: NetSocket[]
+  /** Totals before the cap, so the pane can say what it is not showing. */
+  established: number
+  listening: number
+  /** Rows left out by the cap. */
+  dropped: number
+  /** True where the platform cannot name the owning process, so the pane says so. */
+  ownersUnknown: boolean
+}
+
 export type VolumeKind = 'fixed' | 'removable' | 'network' | 'other'
 
 export interface DiskVolume {
@@ -190,6 +250,7 @@ export interface MetricSamples {
   'net.throughput': NetThroughput
   'net.ping': NetPing
   'net.connections': NetConnections
+  'net.sockets': NetSockets
   'disk.volumes': DiskVolumes
   'disk.io': DiskIo
 }
@@ -197,6 +258,45 @@ export interface MetricSamples {
 export type MetricSourceId = keyof MetricSamples
 
 export const METRIC_SOURCE_IDS = [
+  'cpu.info',
+  'cpu.load',
+  'cpu.speed',
+  'cpu.temperature',
+  'mem.usage',
+  'mem.swap',
+  'proc.list',
+  'os.info',
+  'os.uptime',
+  'power.battery',
+  'hardware.system',
+  'net.interface',
+  'net.throughput',
+  'net.ping',
+  'net.connections',
+  'net.sockets',
+  'disk.volumes',
+  'disk.io',
+] as const satisfies readonly MetricSourceId[]
+
+/** Readings that are never a plugin's to ask for, whatever its descriptor says. */
+export const PRIVATE_METRIC_SOURCE_IDS = [
+  'net.sockets',
+] as const satisfies readonly MetricSourceId[]
+
+/**
+ * The readings a plugin can be granted (shared/plugins.ts).
+ *
+ * Everything except `net.sockets`, which carries the addresses this machine is
+ * talking to together with the name of the program holding each one - the whole
+ * point of the connections pane, and far more than the country counts a plugin
+ * agrees to when it asks for `net.connections`. Widening a grant somebody has
+ * already given, without asking them again, is what this list exists to prevent.
+ *
+ * Written out rather than filtered, so it stays a tuple of literals for zod - and
+ * so a new source has to be put here deliberately. A unit test checks that every
+ * source is either in this list or in PRIVATE_METRIC_SOURCE_IDS.
+ */
+export const PLUGIN_METRIC_SOURCE_IDS = [
   'cpu.info',
   'cpu.load',
   'cpu.speed',

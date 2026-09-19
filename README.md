@@ -236,6 +236,15 @@ weather and calendar.
 - **World view** — connections by country on a turning globe. "You are here" is the country of
   the system time zone (or of the locale, when the zone names none); the OS location service is
   never asked.
+- **Connections** — every TCP socket this machine holds, grouped by the program holding it: the
+  local port, the peer, what the port is known for, and the country the peer is in. A switch
+  shows the listening sockets instead - the doors this machine leaves open. A connection that
+  opened and closed between two readings is still drawn once, struck through, so a short-lived
+  one is not invisible. The table comes from the kernel (`GetExtendedTcpTable` on Windows,
+  `/proc/net/tcp*` on Linux, `netstat` on macOS - which cannot name the owning process, and the
+  pane says so), and the countries from the same bundled GeoIP database the world view uses.
+  Nothing is ever looked up online. **MASK** hides the second half of every address, for a
+  screenshot or a shared screen.
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
   sparklines, candlesticks or bars of the change. The settings button picks the range - 1D (5-minute
   bars), 5D (30-minute), 1M (hourly), 6M (daily), 1Y (weekly) or 5Y (monthly) - and edits the list,

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { METRIC_SOURCE_IDS } from './metrics.js'
+import { PLUGIN_METRIC_SOURCE_IDS } from './metrics.js'
 import type { Block, ButtonIcon, SettingValue } from './plugin-api.js'
 
 /**
@@ -104,7 +104,11 @@ const unique = <T>(list: readonly T[]) => new Set(list).size === list.length
 
 export const PermissionsSchema = z
   .object({
-    metrics: z.array(z.enum(METRIC_SOURCE_IDS)).max(METRIC_SOURCE_IDS.length).default([]),
+    // Not every reading: `net.sockets` is deliberately out (shared/metrics.ts).
+    metrics: z
+      .array(z.enum(PLUGIN_METRIC_SOURCE_IDS))
+      .max(PLUGIN_METRIC_SOURCE_IDS.length)
+      .default([]),
     hosts: z.array(HostSchema).max(16).refine(unique, 'hosts repeat').default([]),
     session: z.array(HostSchema).max(4).refine(unique, 'session hosts repeat').default([]),
     background: z.boolean().default(false),
