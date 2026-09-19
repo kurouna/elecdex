@@ -35,6 +35,9 @@ let workspace = $state<HTMLDivElement | null>(null)
 
 $effect(() => {
   void layout.load()
+  // The names only: the trees stay in main. Read at startup because the
+  // shortcuts for the first slots work without the dialog ever being opened.
+  void layout.loadSaved()
 })
 
 // Closing animates only in a workspace that is on screen and moving: never with
@@ -146,6 +149,12 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'focus.next': () => layout.cycleFocus(1),
   'focus.previous': () => layout.cycleFocus(-1),
   'layout.reset': () => void layout.reset(),
+  'layout.saved': () => ui.openLayouts(),
+  // A slot with nothing saved in it leaves the keys to the focused pane.
+  'layout.saved1': () => applySavedSlot(0),
+  'layout.saved2': () => applySavedSlot(1),
+  'layout.saved3': () => applySavedSlot(2),
+  'layout.saved4': () => applySavedSlot(3),
   'launcher.focus': () => focusLauncher(),
   'shell.focus': () => focusShell(),
   // Searches the shell that has the keyboard, or the one the keys would go to.
@@ -179,6 +188,14 @@ function focusShell(): void {
   if (pane === null) layout.addPane('terminal', 'right')
   else layout.focus(pane)
   ui.focusShell()
+}
+
+/** Applies the saved layout in a slot; false when nothing is saved there. */
+function applySavedSlot(index: number): boolean {
+  const entry = layout.savedLayouts[index]
+  if (entry === undefined) return false
+  void layout.applySaved(entry.id)
+  return true
 }
 
 /**

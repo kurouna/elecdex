@@ -4,6 +4,7 @@ import type { BackgroundState } from './background.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
+import type { SavedLayoutSummary } from './layouts.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { Note, NotesFile } from './notes.js'
@@ -200,6 +201,21 @@ export interface LayoutApi {
   reset(): Promise<LayoutTree>
   /** Absolute path of layout.json, for a "reveal in folder" action. */
   filePath(): Promise<string>
+  /**
+   * Arrangements kept by name (shared/layouts.ts), in a file of their own. The
+   * trees stay in main: the renderer lists names and asks for one to be applied,
+   * which main writes over the live layout and hands back.
+   */
+  saved: SavedLayoutsApi
+}
+
+export interface SavedLayoutsApi {
+  list(): Promise<SavedLayoutSummary[]>
+  /** Saves the tree under a name, replacing one already saved under it. Returns the new list. */
+  save(name: string, tree: LayoutTree): Promise<SavedLayoutSummary[]>
+  /** Makes a saved layout the live one. Null when there is no such layout. */
+  apply(id: string): Promise<LayoutTree | null>
+  remove(id: string): Promise<SavedLayoutSummary[]>
 }
 
 export interface SettingsApi {

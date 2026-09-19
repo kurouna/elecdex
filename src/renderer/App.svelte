@@ -4,6 +4,7 @@ import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/k
 import BootScreen from './BootScreen.svelte'
 import ConfirmButton from './ConfirmButton.svelte'
 import LocationPicker from './LocationPicker.svelte'
+import LayoutsDialog from './layout/LayoutsDialog.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
@@ -129,6 +130,15 @@ function toggleSound(): void {
     >
       + pane
     </button>
+    <button
+      type="button"
+      class="control toggle"
+      onclick={() => ui.openLayouts()}
+      title="Saved layouts (Ctrl+Shift+G)"
+      data-testid="open-layouts"
+    >
+      layouts
+    </button>
     <ConfirmButton
       label="reset layout"
       action="reset"
@@ -179,6 +189,7 @@ function toggleSound(): void {
 
 <BootScreen />
 <PanePicker />
+<LayoutsDialog />
 <LocationPicker />
 <SettingsDialog />
 <UpdateNotice />

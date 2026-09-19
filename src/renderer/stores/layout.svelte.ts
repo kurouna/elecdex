@@ -17,6 +17,7 @@ import {
   splitPane,
   visiblePanes,
 } from '@shared/layout-ops'
+import type { SavedLayoutSummary } from '@shared/layouts'
 import { LAYOUT_VERSION, type LayoutTree, type SplitDirection } from '@shared/schemas/layout'
 import { flushSync } from 'svelte'
 import {
@@ -609,11 +610,59 @@ class LayoutStore {
 
   async reset(): Promise<void> {
     this.settle()
-    if (this.saveTimer !== null) {
-      clearTimeout(this.saveTimer)
-      this.saveTimer = null
-    }
+    this.dropPendingSave()
     this.adopt(await window.elecdex.layout.reset())
+  }
+
+  /**
+   * Arrangements the user keeps by name (shared/layouts.ts). Only the names are
+   * held here: the trees stay in main until one is applied, so the page never
+   * carries a dozen layouts it is not showing.
+   */
+  savedLayouts = $state.raw<SavedLayoutSummary[]>([])
+
+  async loadSaved(): Promise<void> {
+    try {
+      this.savedLayouts = await window.elecdex.layout.saved.list()
+    } catch (error) {
+      // Not being able to list them costs nothing that is on screen.
+      console.error('[elecdex] could not read the saved layouts', error)
+    }
+  }
+
+  /**
+   * Keeps the current arrangement under a name, replacing one already saved
+   * under it. False when the list is full, so the caller can say so.
+   */
+  async saveAs(name: string): Promise<boolean> {
+    // A pane still powering off is closed as far as a saved arrangement goes.
+    this.settle()
+    this.savedLayouts = await window.elecdex.layout.saved.save(name, this.snapshot())
+    return this.savedLayouts.some((entry) => entry.name === name)
+  }
+
+  /**
+   * Makes a saved arrangement the live one. Like `reset`, a save already pending
+   * is dropped: it holds the layout being replaced, and would be written over
+   * the one that just arrived.
+   */
+  async applySaved(id: string): Promise<boolean> {
+    this.settle()
+    this.dropPendingSave()
+    const tree = await window.elecdex.layout.saved.apply(id)
+    if (tree === null) return false
+    this.adopt(tree)
+    return true
+  }
+
+  async removeSaved(id: string): Promise<void> {
+    this.savedLayouts = await window.elecdex.layout.saved.remove(id)
+  }
+
+  private dropPendingSave(): void {
+    if (this.saveTimer === null) return
+    clearTimeout(this.saveTimer)
+    this.saveTimer = null
   }
 
   /**

@@ -53,7 +53,8 @@ for Windows, macOS and Linux.
 - **Web panes** — a browser, YouTube and X in panes you add when you want them, drawn in the
   theme's colour (or their own, by a setting) and sharing one sign-in per site.
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
-  brought back; the layout is saved and can be reset.
+  brought back; the layout is saved and can be reset. An arrangement can be kept by name and
+  returned to later (Ctrl+Shift+G, or *layouts* in the status bar).
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
   icons for an ordinary working day. A CRT power-on boot sequence after a Linux-style boot log of
@@ -135,6 +136,8 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Alt+Shift+← / → | from a shell: previous / next shell pane (or group of shell tabs) |
 | Ctrl+Shift+A | add a pane: any widget, right of, below or as a tab beside the focused pane |
 | Ctrl+Shift+Backspace | reset to the default layout |
+| Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
+| Ctrl+Shift+1 … 4 | apply the first four saved layouts |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
@@ -187,6 +190,12 @@ list come forward as a panel in the middle rather than over the whole window. Es
 back. A tab comes forward with its group, so its other tabs are still there to switch to. Nothing
 is rearranged and nothing is saved: a shell keeps its session and a web pane its page, and the app
 starts with every pane in its place.
+
+An arrangement worth keeping can be saved by name — **Ctrl+Shift+G**, or *layouts* in the status
+bar — and returned to later; the first four are on Ctrl+Shift+1 to 4. Up to twelve are kept, in
+`layouts.json` beside the live `layout.json`, so rearranging the workspace never loses one. Saving
+under a name you already keep updates it. Applying a layout replaces the workspace, which ends the
+shells of the panes it replaces, exactly as closing those panes would.
 
 A tab group can hold any panes, not only shells, so a pane you need now and then can share a place
 with the shells instead of taking room of its own - RSS or the weather behind the shell tabs, for

@@ -366,6 +366,83 @@ test('reset restores the default layout', async () => {
   }
 })
 
+test('a layout can be saved by name, applied again and forgotten', async () => {
+  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  try {
+    // One terminal, saved as "one".
+    await page.keyboard.press('Control+Shift+KeyG')
+    const dialog = page.getByTestId('layouts-dialog')
+    await expect(dialog).toBeVisible()
+    await dialog.getByTestId('layouts-name').fill('one')
+    await dialog.getByTestId('layouts-save').click()
+    await expect(dialog.getByTestId('layouts-item')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+
+    // Split, and save the two-pane arrangement under another name.
+    await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(terminalPane(page)).toHaveCount(2)
+    await page.keyboard.press('Control+Shift+KeyG')
+    await dialog.getByTestId('layouts-name').fill('two')
+    await dialog.getByTestId('layouts-save').click()
+    await expect(dialog.getByTestId('layouts-item')).toHaveCount(2)
+    await page.keyboard.press('Escape')
+
+    // The saved layouts live in a file of their own: layout.json still means
+    // the one live arrangement.
+    const saved = JSON.parse(readFileSync(path.join(userData, 'layouts.json'), 'utf8'))
+    expect(saved.items.map((item: { name: string }) => item.name)).toEqual(['one', 'two'])
+
+    // The shortcut for the first slot brings the single terminal back, and the
+    // live layout on disk follows.
+    await page.keyboard.press('Control+Shift+Digit1')
+    await expect(terminalPane(page)).toHaveCount(1)
+    await waitForSaved(userData, (json) => (json.match(/"terminal"/g) ?? []).length === 1)
+
+    // And the second slot puts the split back.
+    await page.keyboard.press('Control+Shift+Digit2')
+    await expect(terminalPane(page)).toHaveCount(2)
+
+    // Saving over a name updates that entry rather than adding another.
+    await page.keyboard.press('Control+Shift+KeyG')
+    await dialog.getByTestId('layouts-name').fill('two')
+    await expect(dialog.getByTestId('layouts-save')).toHaveText('update')
+    await dialog.getByTestId('layouts-save').click()
+    await expect(dialog.getByTestId('layouts-item')).toHaveCount(2)
+
+    // Forgetting one takes two clicks, as every destructive button here does.
+    const remove = dialog.getByTestId('layouts-remove').first()
+    await remove.click()
+    await remove.click()
+    await expect(dialog.getByTestId('layouts-item')).toHaveCount(1)
+    await expect(dialog.getByTestId('layouts-item')).toHaveAttribute('data-name', 'two')
+  } finally {
+    await close()
+  }
+})
+
+test('a saved layout survives a restart, and an empty slot leaves its keys alone', async () => {
+  let launched = await launch(undefined, { layout: SINGLE_TERMINAL })
+  try {
+    // Nothing is saved yet: the slot shortcut must not swallow the key.
+    await launched.page.keyboard.press('Control+Shift+Digit1')
+    await expect(terminalPane(launched.page)).toHaveCount(1)
+
+    await launched.page.keyboard.press('Control+Shift+KeyG')
+    await launched.page.getByTestId('layouts-name').fill('kept')
+    await launched.page.getByTestId('layouts-save').click()
+    await expect(launched.page.getByTestId('layouts-item')).toHaveCount(1)
+    await launched.page.keyboard.press('Escape')
+
+    launched = await launched.relaunch()
+    await launched.page.keyboard.press('Control+Shift+KeyG')
+    await expect(launched.page.getByTestId('layouts-item')).toHaveAttribute('data-name', 'kept')
+  } finally {
+    await launched.close()
+  }
+})
+
 test('a malformed save from the renderer is rejected and the good layout kept', async () => {
   const { page, userData, close } = await launch()
   try {

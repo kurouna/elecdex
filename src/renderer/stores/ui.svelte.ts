@@ -26,15 +26,32 @@ class UiStore {
   }
 
   openPanePicker(): void {
-    this.closing(this.settingsOpen || this.locationRequest !== null)
+    this.closing(this.settingsOpen || this.locationRequest !== null || this.layoutsOpen)
     this.settingsOpen = false
     this.locationRequest = null
+    this.layoutsOpen = false
     this.panePickerOpen = true
   }
 
   closePanePicker(): void {
     this.closing(this.panePickerOpen)
     this.panePickerOpen = false
+  }
+
+  /** The saved layouts: keeping the arrangement on screen, and coming back to one. */
+  layoutsOpen = $state(false)
+
+  openLayouts(): void {
+    this.closing(this.panePickerOpen || this.settingsOpen || this.locationRequest !== null)
+    this.panePickerOpen = false
+    this.settingsOpen = false
+    this.locationRequest = null
+    this.layoutsOpen = true
+  }
+
+  closeLayouts(): void {
+    this.closing(this.layoutsOpen)
+    this.layoutsOpen = false
   }
 
   /**
@@ -76,16 +93,19 @@ class UiStore {
   settingsSection = $state<string | null>(null)
 
   openSettings(section: string | null = null): void {
-    this.closing(this.panePickerOpen || this.locationRequest !== null)
+    this.closing(this.panePickerOpen || this.locationRequest !== null || this.layoutsOpen)
     this.panePickerOpen = false
     this.locationRequest = null
+    this.layoutsOpen = false
     this.settingsSection = section
     this.settingsOpen = true
   }
 
   /** Whether any dialog covers the workspace. */
   get dialogOpen(): boolean {
-    return this.panePickerOpen || this.settingsOpen || this.locationRequest !== null
+    return (
+      this.panePickerOpen || this.settingsOpen || this.locationRequest !== null || this.layoutsOpen
+    )
   }
 
   /** The weather location picker, opened by a weather pane for itself. */
@@ -99,9 +119,10 @@ class UiStore {
    */
   pickLocation(request: LocationRequest): () => void {
     // Another pane's request takes over the picker showing, which stays open.
-    this.closing(this.panePickerOpen || this.settingsOpen)
+    this.closing(this.panePickerOpen || this.settingsOpen || this.layoutsOpen)
     this.panePickerOpen = false
     this.settingsOpen = false
+    this.layoutsOpen = false
     this.locationRequest = request
     return () => {
       // Only while it is still this pane's picker: another pane may have taken

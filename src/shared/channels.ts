@@ -37,6 +37,11 @@ export const CH = {
     save: 'layout:save',
     reset: 'layout:reset',
     revealFile: 'layout:reveal-file',
+    /** Saved layouts (shared/layouts.ts): the list, and the four ways it changes. */
+    savedList: 'layout:saved-list',
+    savedSave: 'layout:saved-save',
+    savedApply: 'layout:saved-apply',
+    savedRemove: 'layout:saved-remove',
   },
   metrics: {
     /** renderer -> main, fire and forget: start receiving a source. */

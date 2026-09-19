@@ -16,6 +16,7 @@ import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
+import type { SavedLayoutSummary } from '@shared/layouts'
 import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { Note, NotesFile } from '@shared/notes'
@@ -505,6 +506,14 @@ const api: ElecdexApi = {
     save: (tree) => ipcRenderer.invoke(CH.layout.save, tree) as Promise<LayoutTree>,
     reset: () => ipcRenderer.invoke(CH.layout.reset) as Promise<LayoutTree>,
     filePath: () => ipcRenderer.invoke(CH.layout.revealFile) as Promise<string>,
+    saved: {
+      list: () => ipcRenderer.invoke(CH.layout.savedList) as Promise<SavedLayoutSummary[]>,
+      save: (name, tree) =>
+        ipcRenderer.invoke(CH.layout.savedSave, name, tree) as Promise<SavedLayoutSummary[]>,
+      apply: (id) => ipcRenderer.invoke(CH.layout.savedApply, id) as Promise<LayoutTree | null>,
+      remove: (id) =>
+        ipcRenderer.invoke(CH.layout.savedRemove, id) as Promise<SavedLayoutSummary[]>,
+    },
   },
 }
 
