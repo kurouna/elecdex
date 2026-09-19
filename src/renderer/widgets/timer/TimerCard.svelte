@@ -4,7 +4,7 @@ import {
   litSegments,
   remaining,
   segmentCount,
-  TIMER_PRESETS,
+  TIMER_STEPS,
   type TimerEntry,
 } from '@shared/timer'
 import Readout from '../common/Readout.svelte'
@@ -27,10 +27,13 @@ interface Props {
   onstop: () => void
   onreset: () => void
   onremove: () => void
+  /** Sets the countdown to exactly this many minutes. */
   onduration: (minutes: number) => void
+  /** Adds to what it is set to, which is how a duration is usually built up. */
+  onadd: (minutes: number) => void
 }
 
-const { timer, now, onstart, onstop, onreset, onremove, onduration }: Props = $props()
+const { timer, now, onstart, onstop, onreset, onremove, onduration, onadd }: Props = $props()
 
 let ladder = $state<HTMLDivElement | null>(null)
 let segments = $state(24)
@@ -133,31 +136,40 @@ function setCustom(): void {
       <button type="button" onclick={onreset} data-testid="timer-reset">reset</button>
     </div>
 
+    <!--
+      The steps add to what is set rather than replacing it, so any duration can
+      be built by tapping - 25 + 10 + 1 - and the list is not a ceiling. The
+      field beside them sets an exact number of minutes, and says so.
+    -->
     <div class="presets">
-      {#each TIMER_PRESETS as preset (preset)}
+      {#each TIMER_STEPS as step (step)}
         <button
           type="button"
-          class:on={minutes === preset}
-          onclick={() => onduration(preset)}
-          data-testid="timer-preset"
-          data-minutes={preset}
+          title="{step} minutes more"
+          onclick={() => onadd(step)}
+          data-testid="timer-step"
+          data-minutes={step}
         >
-          {preset}
+          +{step}
         </button>
       {/each}
-      <input
-        bind:value={custom}
-        onkeydown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            setCustom()
-          }
-        }}
-        placeholder="min"
-        aria-label="Minutes"
-        spellcheck="false"
-        data-testid="timer-card-custom"
-      />
+      <label class="exact">
+        <span class="exact-label">set</span>
+        <input
+          bind:value={custom}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              setCustom()
+            }
+          }}
+          placeholder={String(minutes)}
+          aria-label="Minutes"
+          spellcheck="false"
+          data-testid="timer-card-custom"
+        />
+        <span class="exact-label">min</span>
+      </label>
     </div>
   </div>
 </div>
@@ -307,10 +319,23 @@ function setCustom(): void {
   color: var(--accent-strong);
 }
 
-.controls .go,
-.presets button.on {
+.controls .go {
   border-color: var(--accent);
   color: var(--accent-strong);
+}
+
+.exact {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.exact-label {
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .presets input {

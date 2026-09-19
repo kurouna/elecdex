@@ -41,7 +41,8 @@ for Windows, macOS and Linux.
 - **Desk panes** — a calculator you type into (full-width digits and 3百万 read as typed, with a
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
   deadlines are drawn as meters and announced whether or not their pane is open, and a chrono with
-  a stopwatch whose laps stack up like a spectrum and countdowns that run beside it.
+  a stopwatch whose laps stack up like a spectrum, countdowns that run beside it, and alarms for
+  the times the day is built around.
 - **Earthquakes and tsunamis** — for Japan (JMA) or the world (USGS and NOAA): alerts at the
   intensity or magnitude you choose (off by default), tsunami warnings kept in sight while in
   effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
@@ -313,7 +314,8 @@ weather and calendar.
   elecdex is not in front. One timer waits for the next deadline of all - nothing is polled.
   Reminders are in *Settings → the pane's own settings button*: on by default, with the snooze and
   how far ahead to warn.
-- **Timer** — not in the default layout: add it from the picker. A stopwatch whose laps stand as
+- **Timer** — not in the default layout: add it from the picker. Three instruments in one pane.
+  A stopwatch whose laps stand as
   bars that grow while they are being timed and lock with a flash when taken, fastest and slowest
   marked, with a held peak across the tallest; and **countdowns** - up to six, each with its own
   duration - that burn down a ladder of segments, one going out at a time, pulsing in the last ten
@@ -324,7 +326,15 @@ weather and calendar.
   calculator, so `90/2` is forty-five minutes. Everything is kept as wall-clock moments rather than
   a count of ticks, so a pane moved, a tab switched away from, a reload and a restart all leave a
   running chrono exactly where it was; the readout shows tenths, which is what the shared 10 fps
-  draw loop can honestly show, while laps are recorded to the millisecond.
+  draw loop can honestly show, while laps are recorded to the millisecond. A countdown is built up
+  by tapping `+1 +3 +5 +10 +25`, which add to what is set, and the field beside them sets an exact
+  number of minutes.
+  The third is **alarms**: a time of day with a label, on the days you choose, switched on and off
+  from a list rather than made again each time - waking up, the start of lunch. They are kept in
+  `alarms.json` and scheduled by the app, so one goes off with the pane closed or never opened, as
+  a card that waits to be answered and (when elecdex is not in front) a system notification. A
+  one-off switches itself off once it has rung; `07:30`, `7`, `19.5` and `１９：３０` are all read as
+  times.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
   sweep in the way it moved. The settings
   button ticks holiday calendars (Japan for now, computed locally), and the next holiday is named

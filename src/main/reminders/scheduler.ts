@@ -1,48 +1,51 @@
-import { dueAt, nextReminder, type Task } from '@shared/tasks'
-
 /**
- * One timer for every deadline there is.
+ * One timer for every moment something has to be announced.
  *
- * The tasks are searched for the one that comes due first and a single
- * `setTimeout` waits for that moment; nothing is polled. A thousand tasks cost
- * the same as one, and a machine with no deadlines at all has no timer running.
+ * The entries are searched for the one that comes first and a single
+ * `setTimeout` waits for it; nothing is polled. A thousand deadlines cost the
+ * same as one, and a machine with nothing waiting has no timer running at all.
+ * Both the tasks' deadlines and the alarms' times of day are scheduled this way
+ * - each gives the moments, this keeps the clock.
  *
- * Two things a plain timeout would get wrong, both handled here:
+ * Three things a plain timeout would get wrong, all handled here:
  *
  *  - `setTimeout` counts monotonic time, so a machine asleep for an hour wakes
- *    with its timers an hour behind. The schedule is recomputed on resume.
- *  - A deadline further out than `MAX_DELAY_MS` overflows the 32-bit delay and
+ *    with its timers an hour behind. Callers recompute the schedule on resume.
+ *  - A delay further out than `MAX_DELAY_MS` overflows the 32-bit value and
  *    fires immediately, so long waits are taken in hops.
+ *  - The caller records what it has announced, but that record may not have come
+ *    back by the time the schedule is worked out again - and if it never does, a
+ *    moment already past would be announced on every turn of the loop. What has
+ *    been fired is remembered here too, which is what makes "once" true whatever
+ *    the caller does with it.
  */
 
 /** Just under 24.8 days, the largest delay setTimeout takes without overflowing. */
 const MAX_DELAY_MS = 2_000_000_000
 
-export interface ReminderScheduler {
-  /** Recomputes the schedule from the tasks as they are now. */
-  update: (tasks: readonly Task[], leadMs: number) => void
-  /** The moment the next reminder is due, for tests and diagnostics. */
+/** One thing waiting to be announced, and when. */
+export interface ScheduleEntry {
+  id: string
+  at: number
+}
+
+export interface Scheduler {
+  /** Recomputes the schedule from the moments as they are now. */
+  update: (entries: readonly ScheduleEntry[]) => void
+  /** The moment the next announcement is due, for tests and diagnostics. */
   next: () => number | null
   dispose: () => void
 }
 
 export function createScheduler(
-  fire: (task: Task, at: number) => void,
+  fire: (id: string, at: number) => void,
   now: () => number = Date.now,
-): ReminderScheduler {
+): Scheduler {
   let timer: NodeJS.Timeout | null = null
-  let tasks: readonly Task[] = []
-  let leadMs = 0
+  let entries: readonly ScheduleEntry[] = []
   let due: number | null = null
 
-  /**
-   * What has been announced, by task id and the moment it was announced for.
-   *
-   * The caller records the same thing on the task itself, but it may not have
-   * come back by the time the schedule is worked out again - and if it never
-   * does, a deadline already past would be announced on every turn of the loop.
-   * This is what makes "once" true regardless of what the caller does with it.
-   */
+  /** What has been announced, by id and the moment it was announced for. */
   const announced = new Map<string, number>()
 
   const clear = (): void => {
@@ -50,17 +53,20 @@ export function createScheduler(
     timer = null
   }
 
-  /** The tasks as the search should see them, with what this scheduler already said. */
-  const pending = (): Task[] =>
-    tasks.map((task) => {
-      const said = announced.get(task.id)
-      if (said === undefined) return task
-      return { ...task, remindedAt: Math.max(task.remindedAt ?? 0, said) }
-    })
+  /** The soonest entry this scheduler has not already announced. */
+  const soonest = (): ScheduleEntry | null => {
+    let best: ScheduleEntry | null = null
+    for (const entry of entries) {
+      const said = announced.get(entry.id)
+      if (said !== undefined && said >= entry.at) continue
+      if (best === null || entry.at < best.at) best = entry
+    }
+    return best
+  }
 
   const schedule = (): void => {
     clear()
-    const candidate = nextReminder(pending(), leadMs)
+    const candidate = soonest()
     due = candidate?.at ?? null
     if (candidate === null) return
 
@@ -68,43 +74,42 @@ export function createScheduler(
     if (wait <= 0) {
       // Already due. Announce on the next turn of the loop rather than from
       // inside the update that found it, so a caller's own state is settled
-      // before it hears about the reminder.
+      // before it hears about the announcement.
       timer = setTimeout(() => {
         timer = null
-        ring(candidate.task, candidate.at)
+        ring(candidate)
       }, 0)
       return
     }
     timer = setTimeout(
       () => {
         timer = null
-        // A hop towards a distant deadline: look again rather than announce.
+        // A hop towards a distant moment: look again rather than announce.
         if (wait > MAX_DELAY_MS) schedule()
-        else ring(candidate.task, candidate.at)
+        else ring(candidate)
       },
       Math.min(wait, MAX_DELAY_MS),
     )
   }
 
-  /** Announces one task, then looks for the next. */
-  const ring = (task: Task, at: number): void => {
-    // The task may have been ticked off or moved between being scheduled and
-    // coming due; only announce what is still waiting for this moment.
-    const current = tasks.find((entry) => entry.id === task.id)
-    if (current !== undefined && dueAt(current, leadMs) === at) {
-      announced.set(task.id, at)
-      fire(current, at)
+  /** Announces one entry, then looks for the next. */
+  const ring = (entry: ScheduleEntry): void => {
+    // It may have been taken away or moved between being scheduled and coming
+    // due; only announce what is still waiting for this very moment.
+    const current = entries.find((candidate) => candidate.id === entry.id)
+    if (current !== undefined && current.at === entry.at) {
+      announced.set(entry.id, entry.at)
+      fire(entry.id, entry.at)
     }
     schedule()
   }
 
   return {
-    update: (next, lead) => {
-      tasks = next
-      leadMs = lead
-      // Forget tasks that are gone, so the map cannot grow without end.
+    update: (next) => {
+      entries = next
+      // Forget what is gone, so the map cannot grow without end.
       for (const id of [...announced.keys()]) {
-        if (!next.some((task) => task.id === id)) announced.delete(id)
+        if (!next.some((entry) => entry.id === id)) announced.delete(id)
       }
       schedule()
     },

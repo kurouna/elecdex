@@ -13,7 +13,7 @@ import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
 import { layout } from './stores/layout.svelte.ts'
-import { watchReminders } from './stores/reminders.svelte.ts'
+import { watchAlarms, watchReminders } from './stores/reminders.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import { coverWeb } from './stores/web.svelte.ts'
@@ -38,6 +38,7 @@ $effect(() => {
 // Task deadlines arrive whether or not a tasks pane is open, so the window
 // listens for them here rather than in the widget.
 $effect(() => watchReminders())
+$effect(() => watchAlarms())
 
 // The notification-area menu's "Settings": main has already brought the window forward.
 $effect(() => window.elecdex.background.onOpenSettings(() => ui.openSettings()))

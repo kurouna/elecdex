@@ -199,6 +199,17 @@ export const CH = {
     /** main -> renderer: a TaskReminder, when one comes due. */
     remind: 'tasks:remind',
   },
+  /** Alarms (alarms.json): a time of day announced whether or not a pane is open. */
+  alarms: {
+    list: 'alarms:list',
+    add: 'alarms:add',
+    update: 'alarms:update',
+    remove: 'alarms:remove',
+    /** main -> renderer: the whole file after any change. */
+    changed: 'alarms:changed',
+    /** main -> renderer: an AlarmRing, when one goes off. */
+    ring: 'alarms:ring',
+  },
   launcher: {
     list: 'launcher:list',
     icon: 'launcher:icon',

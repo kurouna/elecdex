@@ -9,8 +9,14 @@
 
 export const TIMER_MAX_LAPS = 100
 
-/** Presets the timer offers, in minutes. */
-export const TIMER_PRESETS = [1, 3, 5, 10, 25] as const
+/**
+ * The steps the timer offers, in minutes.
+ *
+ * They add to what is set rather than replacing it, so any duration can be built
+ * up by tapping - 25 + 10 + 1 - instead of the list being the only times on
+ * offer. Setting an exact number is the field beside them.
+ */
+export const TIMER_STEPS = [1, 3, 5, 10, 25] as const
 
 /** The longest a timer may be set for: a day, beyond which it is a calendar entry. */
 export const TIMER_MAX_MS = 24 * 3_600_000
@@ -136,8 +142,10 @@ export interface TimerEntry extends ChronoState {
   rang: boolean
 }
 
+export type ChronoMode = 'stopwatch' | 'timer' | 'alarm'
+
 export interface ChronoPane {
-  mode: 'stopwatch' | 'timer'
+  mode: ChronoMode
   stopwatch: StopwatchState
   timers: TimerEntry[]
 }
@@ -188,7 +196,8 @@ export const clampDuration = (ms: number): number =>
  */
 export function readChrono(state: Record<string, unknown> | undefined): ChronoPane {
   const raw = state ?? {}
-  const mode = raw.mode === 'timer' ? 'timer' : 'stopwatch'
+  const mode: ChronoMode =
+    raw.mode === 'timer' ? 'timer' : raw.mode === 'alarm' ? 'alarm' : 'stopwatch'
 
   const storedStopwatch = raw.stopwatch
   const stopwatch: StopwatchState =

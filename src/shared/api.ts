@@ -1,3 +1,4 @@
+import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
 import type { FeedUpdate } from './feeds.js'
@@ -297,6 +298,17 @@ export interface TasksApi {
   onRemind(handler: (reminder: TaskReminder) => void): () => void
 }
 
+/** Alarms: a time of day, scheduled in main so it goes off with the pane closed. */
+export interface AlarmsApi {
+  list(): Promise<AlarmsFile>
+  add(alarm: NewAlarm): Promise<Alarm | null>
+  update(id: string, patch: AlarmPatch): Promise<Alarm | null>
+  remove(id: string): Promise<boolean>
+  onChange(handler: (file: AlarmsFile) => void): () => void
+  /** One went off, as main decided it. */
+  onRing(handler: (ring: AlarmRing) => void): () => void
+}
+
 export interface LauncherApi {
   /** User entries from settings.json first, then the platform's applications. */
   list(): Promise<LauncherEntry[]>
@@ -458,6 +470,7 @@ export interface ElecdexApi {
   quakes: QuakesApi
   notes: NotesApi
   tasks: TasksApi
+  alarms: AlarmsApi
   updates: UpdatesApi
   audio: AudioApi
   plugins: PluginsApi

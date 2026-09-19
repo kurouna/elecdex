@@ -2,6 +2,7 @@ import { backgroundSupported, HIDDEN_SWITCH } from '@shared/background'
 import { app, dialog } from 'electron'
 import { appWindows } from './app-windows.js'
 import { type Background, registerBackground } from './background/index.js'
+import { registerAlarmsIpc } from './ipc/alarms.js'
 import { registerAudioIpc } from './ipc/audio.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
 import { registerFsIpc } from './ipc/fs.js'
@@ -70,6 +71,7 @@ let feedsIpc: { dispose: () => void } | null = null
 let quakesIpc: { dispose: () => void } | null = null
 let notesIpc: { dispose: () => void } | null = null
 let tasksIpc: { dispose: () => void } | null = null
+let alarmsIpc: { dispose: () => void } | null = null
 let updatesIpc: { dispose: () => void } | null = null
 let audioIpc: { dispose: () => void } | null = null
 let pluginsIpc: { dispose: () => void } | null = null
@@ -92,6 +94,7 @@ app.whenReady().then(() => {
   quakesIpc = registerQuakesIpc(settings)
   notesIpc = registerNotesIpc()
   tasksIpc = registerTasksIpc(settings)
+  alarmsIpc = registerAlarmsIpc(settings)
   audioIpc = registerAudioIpc()
   pluginsIpc = registerPluginsIpc(settings)
   webIpc = registerWebIpc(settings)
@@ -150,6 +153,8 @@ app.on('will-quit', () => {
   notesIpc = null
   tasksIpc?.dispose()
   tasksIpc = null
+  alarmsIpc?.dispose()
+  alarmsIpc = null
   updatesIpc?.dispose()
   updatesIpc = null
   audioIpc?.dispose()

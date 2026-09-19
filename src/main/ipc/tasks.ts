@@ -2,6 +2,7 @@ import path from 'node:path'
 import { CH } from '@shared/channels'
 import {
   DEFAULT_LIST_ID,
+  dueAt,
   emptyTasks,
   type NewTask,
   NewTaskSchema,
@@ -51,13 +52,25 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
 
   const leadMs = (): number => settings.current().reminders.leadMinutes * 60_000
 
-  const scheduler = createScheduler((task, at) => announce(task, at))
+  /** The moments the scheduler waits on: one per task still to be announced. */
+  const moments = (): { id: string; at: number }[] =>
+    tasks.tasks.flatMap((task) => {
+      const at = dueAt(task, leadMs())
+      if (at === null) return []
+      if (task.remindedAt !== undefined && task.remindedAt >= at) return []
+      return [{ id: task.id, at }]
+    })
+
+  const scheduler = createScheduler((id, at) => {
+    const task = tasks.tasks.find((entry) => entry.id === id)
+    if (task !== undefined) announce(task, at)
+  })
 
   const commit = (next: TasksFile): void => {
     tasks = next
     store.write(next)
     broadcast(CH.tasks.changed, tasks)
-    scheduler.update(tasks.tasks, leadMs())
+    scheduler.update(moments())
   }
 
   /**
@@ -98,11 +111,11 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
   // whether this module is still the one running.
   let disposed = false
   settings.onChange(() => {
-    if (!disposed) scheduler.update(tasks.tasks, leadMs())
+    if (!disposed) scheduler.update(moments())
   })
   // Timers count monotonic time, so a machine that slept through a deadline
   // wakes with the timeout still pending. Look again as soon as it is back.
-  const onResume = (): void => scheduler.update(tasks.tasks, leadMs())
+  const onResume = (): void => scheduler.update(moments())
   powerMonitor.on('resume', onResume)
 
   const watcher = watchUserFile(file, () => {
@@ -111,7 +124,7 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
     if (JSON.stringify(next) === JSON.stringify(tasks)) return
     tasks = next
     broadcast(CH.tasks.changed, tasks)
-    scheduler.update(tasks.tasks, leadMs())
+    scheduler.update(moments())
   })
 
   ipcMain.handle(CH.tasks.list, (): TasksFile => tasks)
@@ -190,7 +203,7 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
     return true
   })
 
-  scheduler.update(tasks.tasks, leadMs())
+  scheduler.update(moments())
 
   return {
     dispose: () => {

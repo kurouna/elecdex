@@ -14,10 +14,11 @@ import {
   splitDuration,
   TIMER_MAX_LAPS,
   TIMER_MAX_MS,
-  TIMER_PRESETS,
+  TIMER_STEPS,
   type TimerEntry,
 } from '@shared/timer'
-import { onFrame } from '../../lib/frame-loop.ts'
+import { msUntilBoundary, onFrame } from '../../lib/frame-loop.ts'
+import { alarms } from '../../stores/alarms.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -26,6 +27,7 @@ import type { Bar } from '../common/bars.ts'
 import LevelBars from '../common/LevelBars.svelte'
 import Readout from '../common/Readout.svelte'
 import type { WidgetProps } from '../registry.ts'
+import AlarmList from './AlarmList.svelte'
 import TimerCard from './TimerCard.svelte'
 
 /**
@@ -73,6 +75,24 @@ $effect(() => {
 $effect(() => {
   void ticking
   now = Date.now()
+})
+
+/**
+ * The alarms count down in words - "in 7h 20m" - so a minute is as fine as they
+ * need. Woken on the wall-clock minute rather than by an interval, so the change
+ * lands in the same frame as the clock's; nothing is drawn in between.
+ */
+$effect(() => {
+  if (mode !== 'alarm' || ticking) return
+  let timer: ReturnType<typeof setTimeout>
+  const tick = (): void => {
+    timer = setTimeout(() => {
+      now = Date.now()
+      tick()
+    }, msUntilBoundary(60_000))
+  }
+  tick()
+  return () => clearTimeout(timer)
 })
 
 function save(change: Partial<ChronoPane>): void {
@@ -200,6 +220,11 @@ function removeTimer(timer: TimerEntry): void {
   // The last one leaves a fresh countdown behind rather than an empty pane.
   setTimers(timers.length === 1 ? [makeTimer(5)] : timers.filter((entry) => entry.id !== timer.id))
   sfx.play('collapse')
+}
+
+/** Adds to what a countdown is set to, so a duration can be built by tapping. */
+function addMinutes(timer: TimerEntry, minutes: number): void {
+  setDuration(timer, timer.durationMs / 60_000 + minutes)
 }
 
 function setDuration(timer: TimerEntry, minutes: number): void {
@@ -338,14 +363,19 @@ const soonest = $derived.by(() => {
 let published = ''
 $effect(() => {
   const running = timers.filter((timer) => timer.running).length
+  const armed = alarms.items.filter((alarm) => alarm.enabled).length
   const subtitle =
     mode === 'stopwatch'
       ? stopwatch.running
         ? swDigits
         : 'stopwatch'
-      : running > 0
-        ? `${running} running`
-        : `${timers.length} timers`
+      : mode === 'alarm'
+        ? armed > 0
+          ? `${armed} armed`
+          : 'alarms'
+        : running > 0
+          ? `${running} running`
+          : `${timers.length} timers`
   if (subtitle === published) return
   published = subtitle
   paneMeta.set(paneId, { subtitle })
@@ -373,6 +403,12 @@ $effect(() => {
       class:on={mode === 'timer'}
       onclick={() => save({ mode: 'timer' })}
       data-testid="timer-mode-timer">timers</button
+    >
+    <button
+      type="button"
+      class:on={mode === 'alarm'}
+      onclick={() => save({ mode: 'alarm' })}
+      data-testid="timer-mode-alarm">alarms</button
     >
     <!-- What the other mode is doing, so a countdown running behind the
          stopwatch is never a surprise when it goes off. -->
@@ -450,7 +486,7 @@ $effect(() => {
         {/if}
       </div>
     </div>
-  {:else}
+  {:else if mode === 'timer'}
     <div class="timers" data-testid="timer-list">
       {#each timers as timer (timer.id)}
         <TimerCard
@@ -461,13 +497,14 @@ $effect(() => {
           onreset={() => resetTimer(timer)}
           onremove={() => removeTimer(timer)}
           onduration={(minutes) => setDuration(timer, minutes)}
+          onadd={(minutes) => addMinutes(timer, minutes)}
         />
       {/each}
     </div>
 
     <div class="add" data-testid="timer-add">
       <span class="add-label">add</span>
-      {#each TIMER_PRESETS as minutes (minutes)}
+      {#each TIMER_STEPS as minutes (minutes)}
         <button
           type="button"
           onclick={() => addTimer(minutes)}
@@ -491,6 +528,8 @@ $effect(() => {
         data-testid="timer-custom"
       />
     </div>
+  {:else}
+    <AlarmList {now} />
   {/if}
 </div>
 

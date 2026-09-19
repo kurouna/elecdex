@@ -672,12 +672,21 @@ $effect(() => {
   min-height: 0;
 }
 
+/*
+ * The sheet.
+ *
+ * Panes in this HUD have no fill of their own, which left the words sitting on
+ * the same ground as the margin around them: there was no telling where typing
+ * would go. A barely-there fill and a hairline give the writing area an edge
+ * without turning the pane into a box - the grid still shows through it.
+ */
 textarea {
   width: 100%;
   height: 100%;
   resize: none;
-  border: 0;
-  background: transparent;
+  border: 1px solid var(--panel-rule);
+  padding: var(--space-1) var(--space-2);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
   color: var(--text);
   caret-color: var(--accent-strong);
   font-family: var(--font-mono);
@@ -697,6 +706,22 @@ textarea.nowrap {
 
 textarea::placeholder {
   color: var(--text-muted);
+}
+
+/* While it has the keyboard the sheet says so, as the line the caret is on. */
+textarea:focus {
+  border-color: var(--accent-dim);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+/* A light theme's ground is white: the same tint would be invisible, and a
+   slightly darker sheet is what reads as paper there. */
+:global(:root[data-mode='light']) textarea {
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+:global(:root[data-mode='light']) textarea:focus {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 
 /* A single sweep over the text when something in it was just read and answered. */

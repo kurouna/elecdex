@@ -60,7 +60,12 @@ test('a time zone with no country still places home, approximately, without aski
     env: { TZ: 'Etc/Unknown' },
   })
   try {
-    const zone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
+    // The zone the pane used, not the one the page reports now: the widget reads
+    // it once as it is created, and Chromium may still have been on the machine's
+    // own zone at that moment. Asking the page later then disagreed with what was
+    // drawn, and the test failed for the environment rather than for the code.
+    const shown = (await page.getByTestId('globe-home').textContent()) ?? ''
+    const zone = shown.split(' · ')[0] ?? ''
     test.skip(
       zone !== 'Etc/Unknown' && zone !== 'UTC' && zone !== 'Etc/UTC',
       `TZ not honoured (${zone})`,

@@ -1,3 +1,4 @@
+import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from '@shared/alarms'
 import type {
   AppInfo,
   ElecdexApi,
@@ -436,6 +437,15 @@ const api: ElecdexApi = {
     removeList: (id) => ipcRenderer.invoke(CH.tasks.removeList, id) as Promise<boolean>,
     onChange: (handler) => listen<TasksFile>(CH.tasks.changed, handler),
     onRemind: (handler) => listen<TaskReminder>(CH.tasks.remind, handler),
+  },
+  alarms: {
+    list: () => ipcRenderer.invoke(CH.alarms.list) as Promise<AlarmsFile>,
+    add: (alarm: NewAlarm) => ipcRenderer.invoke(CH.alarms.add, alarm) as Promise<Alarm | null>,
+    update: (id: string, patch: AlarmPatch) =>
+      ipcRenderer.invoke(CH.alarms.update, id, patch) as Promise<Alarm | null>,
+    remove: (id) => ipcRenderer.invoke(CH.alarms.remove, id) as Promise<boolean>,
+    onChange: (handler) => listen<AlarmsFile>(CH.alarms.changed, handler),
+    onRing: (handler) => listen<AlarmRing>(CH.alarms.ring, handler),
   },
   updates: {
     status: () => ipcRenderer.invoke(CH.updates.status) as Promise<UpdateStatus>,

@@ -356,6 +356,102 @@ test('a task is renamed and given a deadline where it is read', async () => {
   }
 })
 
+test('a countdown is built up by adding minutes, and set exactly by typing', async () => {
+  const { page, close } = await launch(undefined, { layout: single('timer', { mode: 'timer' }) })
+  try {
+    const card = page.getByTestId('timer-card').first()
+    await expect(card.getByTestId('timer-readout')).toHaveText('05:00')
+
+    // The steps add to what is set, so the list is not a ceiling.
+    await card.locator('[data-testid=timer-step][data-minutes="25"]').click()
+    await expect(card.getByTestId('timer-readout')).toHaveText('30:00')
+    await card.locator('[data-testid=timer-step][data-minutes="10"]').click()
+    await card.locator('[data-testid=timer-step][data-minutes="1"]').click()
+    await expect(card.getByTestId('timer-readout')).toHaveText('41:00')
+
+    // And the field beside them sets an exact number of minutes.
+    await card.getByTestId('timer-card-custom').fill('90')
+    await card.getByTestId('timer-card-custom').press('Enter')
+    await expect(card.getByTestId('timer-readout')).toHaveText('1:30:00')
+  } finally {
+    await close()
+  }
+})
+
+test('an alarm goes off at its time, with the chrono pane closed', async () => {
+  // An alarm is a time of day, so the shortest honest wait is the turn of the
+  // next minute - which is the one thing in the suite worth waiting for: it is
+  // what says an alarm rings with nothing of its pane on screen.
+  test.setTimeout(180_000)
+  // Only a clock in the layout: nothing on screen knows about alarms.
+  const { page, close, userData } = await launch(undefined, { layout: single('clock') })
+  try {
+    // Far enough into the next minute that the write lands before it comes round.
+    const soon = new Date(Date.now() + 65_000)
+    soon.setSeconds(0, 0)
+    const alarms = {
+      version: 1,
+      alarms: [
+        {
+          id: 'lunch',
+          label: 'lunch break',
+          hour: soon.getHours(),
+          minute: soon.getMinutes(),
+          days: [],
+          enabled: true,
+        },
+      ],
+    }
+    // Written after launch, so main picks it up through its watcher - the same
+    // path a hand edit takes.
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(path.join(userData, 'alarms.json'), JSON.stringify(alarms))
+
+    const toast = page.getByTestId('toast')
+    await expect(toast).toHaveCount(1, { timeout: 120_000 })
+    await expect(toast).toContainText('lunch break')
+
+    // A one-off has had its moment and switches itself off, as a phone's does.
+    await expect
+      .poll(() => JSON.stringify(readJson(userData, 'alarms.json')), { timeout: 10_000 })
+      .toContain('"enabled":false')
+  } finally {
+    await close()
+  }
+})
+
+test('an alarm is set, switched off and removed from the pane', async () => {
+  let launched = await launch(undefined, { layout: single('timer') })
+  try {
+    const { page } = launched
+    await page.getByTestId('timer-mode-alarm').click()
+    await expect(page.getByTestId('alarm-next')).toContainText('nothing set')
+
+    await page.getByTestId('alarm-time-input').fill('07:30')
+    await page.getByTestId('alarm-label-input').fill('wake up')
+    await page.getByTestId('alarm-add-button').click()
+
+    const alarm = page.getByTestId('alarm')
+    await expect(alarm).toHaveCount(1)
+    await expect(alarm).toHaveAttribute('data-enabled', 'true')
+    await expect(page.getByTestId('alarm-next')).toContainText('07:30')
+
+    await page.getByTestId('alarm-toggle').click()
+    await expect(alarm).not.toHaveAttribute('data-enabled', 'true')
+    await expect(page.getByTestId('alarm-next')).toContainText('nothing set')
+
+    // It outlives the pane: alarms are main's, not the layout's.
+    await page.waitForTimeout(1500)
+    launched = await launched.relaunch()
+    await launched.page.getByTestId('timer-mode-alarm').click()
+    await expect(launched.page.getByTestId('alarm')).toHaveCount(1)
+    await launched.page.getByTestId('alarm-remove').click()
+    await expect(launched.page.getByTestId('alarm')).toHaveCount(0)
+  } finally {
+    await launched.close()
+  }
+})
+
 test('a rolling readout never takes a click meant for the controls under it', async () => {
   // A digit rolls in from half a line below, and the browser hit-tests where a
   // transform puts a box: the number used to lie over the buttons for a few
@@ -382,6 +478,28 @@ test('a rolling readout never takes a click meant for the controls under it', as
     // And the click really lands, with the digits changing under it.
     await page.getByTestId('timer-reset').first().click()
     await expect(page.locator('[data-testid=timer-card][data-running=true]')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('the notes pane shows where the writing goes', async () => {
+  const { page, close } = await launch(undefined, { layout: single('notes') })
+  try {
+    await page.getByTestId('notes-new').click()
+    const sheet = page.getByTestId('notes-body')
+    const ground = await page.evaluate(() => {
+      const pane = document.querySelector('[data-testid=notes]') as HTMLElement
+      return getComputedStyle(pane).backgroundColor
+    })
+    const fill = await sheet.evaluate((el) => getComputedStyle(el).backgroundColor)
+    const border = await sheet.evaluate((el) => getComputedStyle(el).borderTopWidth)
+
+    // The sheet is not the same surface as the margin around it: there was no
+    // telling where typing would go when both were the pane's own ground.
+    expect(fill).not.toBe(ground)
+    expect(fill).not.toBe('rgba(0, 0, 0, 0)')
+    expect(border).not.toBe('0px')
   } finally {
     await close()
   }
