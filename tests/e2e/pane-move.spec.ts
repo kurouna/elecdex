@@ -394,3 +394,152 @@ test('panes with WebGL canvases survive being moved again and again', async () =
   await expect(paneOf('globe').getByText(/context was lost/)).toHaveCount(0)
   expect(warnings).toEqual([])
 })
+
+test('Ctrl over its own group reorders a tab along the strip, without remounting it', async () => {
+  const strip = shellGroup().getByTestId('tab')
+  const tabs = shellGroup().locator('[data-drop-tab]')
+  await expect(strip).toHaveCount(3)
+  const ids = await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))
+  const sessions = await sessionIds()
+
+  // Past the midpoint of the last tab: the gap after it.
+  const last = await boxOf(tabs.nth(2))
+  await page.keyboard.down('Control')
+  await drag(strip.first(), last.x + last.width - 2, last.y + last.height / 2, false)
+  // A tab changing places in its own group joins nothing, so no area is outlined.
+  await expect(page.getByTestId('tab-drop-caret')).toHaveAttribute('data-index', '3')
+  await expect(preview()).toHaveCount(0)
+  await page.mouse.up()
+  await page.keyboard.up('Control')
+
+  await expect(strip).toHaveCount(3)
+  expect(await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))).toEqual([
+    ids[1],
+    ids[2],
+    ids[0],
+  ])
+  // The tab that moved is the one showing, and it is still the same shell: the
+  // pane was not remounted, so nothing was torn down and started again.
+  await expect(shellGroup().locator('li.active [data-testid=tab]')).toHaveAttribute(
+    'data-pane-id',
+    ids[0] ?? '',
+  )
+  await page.waitForTimeout(2000)
+  expect(await sessionIds()).toEqual(sessions)
+})
+
+test('Ctrl over another group puts the pane at the place in the strip the pointer picks', async () => {
+  const strip = shellGroup().getByTestId('tab')
+  await expect(strip).toHaveCount(3)
+  const globeId = await paneOf('globe').getAttribute('data-pane-id')
+
+  // The left end of the strip: before every tab there is.
+  const bar = await boxOf(shellGroup().getByTestId('tab-strip'))
+  await page.keyboard.down('Control')
+  await drag(titleOf('globe'), bar.x + 3, bar.y + bar.height / 2, false)
+  await expect(page.getByTestId('tab-drop-caret')).toHaveAttribute('data-index', '0')
+  // It is joining this group, so the group it would join is outlined too.
+  await expect(preview()).toHaveAttribute('data-placement', 'tab')
+  await page.mouse.up()
+  await page.keyboard.up('Control')
+
+  await expect(strip).toHaveCount(4)
+  await expect(strip.first()).toHaveAttribute('data-pane-id', globeId ?? '')
+  await expect(paneOf('globe')).toHaveAttribute('data-chrome', 'bare')
+})
+
+test('without Ctrl a tab still leaves its group, and the reorder is offered', async () => {
+  const strip = shellGroup().getByTestId('tab')
+  const tabs = shellGroup().locator('[data-drop-tab]')
+  await expect(strip).toHaveCount(3)
+
+  const last = await boxOf(tabs.nth(2))
+  await drag(strip.first(), last.x + last.width - 2, last.y + last.height / 2, false)
+  // No gap is picked, the group is outlined as a side to land on, and the label
+  // says which key would reorder it instead.
+  await expect(page.getByTestId('tab-drop-caret')).toHaveCount(0)
+  await expect(preview()).not.toHaveAttribute('data-placement', 'tab')
+  await expect(page.getByTestId('pane-drag')).toContainText('Ctrl: reorder')
+  await page.mouse.up()
+
+  await expect(strip).toHaveCount(2)
+})
+
+test('a reordered strip survives a restart', async () => {
+  const strip = shellGroup().getByTestId('tab')
+  const tabs = shellGroup().locator('[data-drop-tab]')
+  await expect(strip).toHaveCount(3)
+  const ids = await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))
+
+  const last = await boxOf(tabs.nth(2))
+  await page.keyboard.down('Control')
+  await drag(strip.first(), last.x + last.width - 2, last.y + last.height / 2)
+  await page.keyboard.up('Control')
+  const after = [ids[1], ids[2], ids[0]]
+  expect(await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))).toEqual(
+    after,
+  )
+  // Past the save debounce.
+  await page.waitForTimeout(1500)
+
+  launched = await launched.relaunch()
+  ;({ page } = launched)
+  const again = shellGroup().getByTestId('tab')
+  await expect(again).toHaveCount(3)
+  expect(await again.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))).toEqual(
+    after,
+  )
+})
+
+test('a tab reorders into the middle of the strip, and stays clickable after', async () => {
+  const strip = shellGroup().getByTestId('tab')
+  const tabs = shellGroup().locator('[data-drop-tab]')
+  await expect(strip).toHaveCount(3)
+  const ids = await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))
+
+  // Between the second and third tabs: just past the second one's midpoint.
+  const second = await boxOf(tabs.nth(1))
+  await page.keyboard.down('Control')
+  await drag(strip.first(), second.x + second.width - 2, second.y + second.height / 2, false)
+  await expect(page.getByTestId('tab-drop-caret')).toHaveAttribute('data-index', '2')
+  await page.mouse.up()
+  await page.keyboard.up('Control')
+
+  expect(await strip.evaluateAll((els) => els.map((e) => e.getAttribute('data-pane-id')))).toEqual([
+    ids[1],
+    ids[0],
+    ids[2],
+  ])
+  // The drop swallowed its own click; a real click afterwards still selects.
+  await strip.first().click()
+  await expect(shellGroup().locator('li.active [data-testid=tab]')).toHaveAttribute(
+    'data-pane-id',
+    ids[1] ?? '',
+  )
+})
+
+test('the caret for the first gap stays inside the strip, not out on the frame', async () => {
+  const strip = shellGroup().getByTestId('tab')
+  const bar = await boxOf(shellGroup().getByTestId('tab-strip'))
+  await expect(strip).toHaveCount(3)
+
+  // The first tab's slanted edge is pushed outside the frame on purpose, so its
+  // own box starts left of the strip that clips it; the caret must not follow.
+  const firstTab = await boxOf(shellGroup().locator('[data-drop-tab]').first())
+  expect(firstTab.x).toBeLessThan(bar.x)
+
+  await page.keyboard.down('Control')
+  await drag(strip.last(), bar.x + 3, bar.y + bar.height / 2, false)
+  const caret = page.getByTestId('tab-drop-caret')
+  await expect(caret).toHaveAttribute('data-index', '0')
+  // The placed left edge, not the rendered box: the caret is skewed with the
+  // tabs and slides between gaps, so its box is neither square nor settled.
+  const left = () => caret.evaluate((el) => Number.parseFloat((el as HTMLElement).style.left))
+  // An inline style is serialised to three decimals, so allow a sub-pixel; the
+  // overhang this guards against is the best part of a rem.
+  await expect.poll(left).toBeGreaterThanOrEqual(bar.x - 0.5)
+  expect(await left()).toBeLessThanOrEqual(bar.x + bar.width)
+  expect(firstTab.x).toBeLessThan(bar.x - 4)
+  await page.mouse.up()
+  await page.keyboard.up('Control')
+})

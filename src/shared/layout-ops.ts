@@ -188,6 +188,30 @@ function replace(node: LayoutNode, id: string, replacement: LayoutNode | null): 
 export type Placement = SplitDirection | 'tab'
 
 /**
+ * Puts `incoming` into the group `target` is, or becomes, at the gap `index`
+ * among the tabs already there, without normalising.
+ *
+ * A pane target becomes a group of the two; a group incoming brings all of its
+ * tabs, as one block. The group shows the first tab that arrived, wherever it
+ * landed. `index` is clamped, so a caller may hand over a gap from a strip it
+ * measured before the tree changed.
+ */
+function placeAsTab(
+  root: LayoutNode,
+  target: PaneNode | TabsNode,
+  incoming: PaneNode | TabsNode,
+  index: number,
+): LayoutNode | null {
+  const existing = target.kind === 'tabs' ? target.children : [target]
+  const at = Math.min(Math.max(index, 0), existing.length)
+  const added = incoming.kind === 'tabs' ? incoming.children : [incoming]
+  const children = [...existing.slice(0, at), ...added, ...existing.slice(at)]
+  const group: TabsNode =
+    target.kind === 'tabs' ? { ...target, children, activeIndex: at } : tabs(children, at)
+  return replace(root, target.id, group)
+}
+
+/**
  * Puts `incoming` beside the node `targetId`, without normalising.
  *
  * On a side, the target is replaced by a split of the two. As a tab, the target
@@ -206,14 +230,8 @@ function placeBeside(
 
   if (placement === 'tab') {
     if (target.kind === 'split') return null
-    const existing = target.kind === 'tabs' ? target.children : [target]
-    const added = incoming.kind === 'tabs' ? incoming.children : [incoming]
-    const children = [...existing, ...added]
-    const group: TabsNode =
-      target.kind === 'tabs'
-        ? { ...target, children, activeIndex: existing.length }
-        : tabs(children, existing.length)
-    return replace(root, targetId, group)
+    const end = target.kind === 'tabs' ? target.children.length : 1
+    return placeAsTab(root, target, incoming, end)
   }
 
   const axis = placement === 'left' || placement === 'right' ? 'row' : 'column'
@@ -288,6 +306,53 @@ export function moveNode(
   const detached = replace(tree.root, nodeId, null)
   if (detached === null) return tree
   const placed = placeBeside(detached, anchor.id, source, placement)
+  return placed === null ? tree : normalizeTree({ ...tree, root: placed }, placed)
+}
+
+/**
+ * Moves a pane, or a whole group's tabs, into the strip of another pane or group
+ * at the gap `index`: what dragging a tab along a strip does. A pane target
+ * becomes a group of the two, and a tab as a target means the group it is drawn
+ * in, whose strip the gaps belong to.
+ *
+ * `index` counts the gaps in that strip as it looks now - before the tab being
+ * moved has left it - so a tab moving within its own group lands in the gap the
+ * pointer is over rather than one place short of it. Out-of-range indices are
+ * clamped. Returns the same tree when the move would change nothing or cannot be
+ * made, so a caller can tell whether a drop would do anything. The node keeps its
+ * id and state, so a moved shell keeps its session.
+ */
+export function moveTabTo(
+  tree: LayoutTree,
+  nodeId: string,
+  targetId: string,
+  index: number,
+): LayoutTree {
+  const source = findNode(tree.root, nodeId)
+  const target = findNode(tree.root, targetId)
+  if (source === null || source.kind === 'split' || target === null) return tree
+
+  const anchor =
+    target.kind === 'pane' ? (findTabsContaining(tree.root, targetId) ?? target) : target
+  // A split holds no tabs, and nothing goes inside itself or inside what it holds.
+  if (anchor.kind === 'split' || anchor.id === nodeId) return tree
+  if (findNode(source, anchor.id) !== null) return tree
+
+  const existing = anchor.kind === 'tabs' ? anchor.children : [anchor]
+  const at = Math.min(Math.max(index, 0), existing.length)
+  // Taking the tab out shifts every gap after it down by one, which is also why
+  // the two gaps either side of a tab both leave it exactly where it was.
+  const from = existing.findIndex((child) => child.id === nodeId)
+  const landing = from !== -1 && from < at ? at - 1 : at
+  if (from === landing) return tree
+
+  // Detach without normalising, so the anchor keeps its id even when this empties
+  // the group or split around it; normalising the result tidies up.
+  const detached = replace(tree.root, nodeId, null)
+  if (detached === null) return tree
+  const kept = findNode(detached, anchor.id)
+  if (kept === null || kept.kind === 'split') return tree
+  const placed = placeAsTab(detached, kept, source, landing)
   return placed === null ? tree : normalizeTree({ ...tree, root: placed }, placed)
 }
 

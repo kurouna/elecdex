@@ -18,7 +18,9 @@ $effect(() => {
 
 {#if paneDrag.source !== null}
   <div class="drag-layer" data-testid="pane-drag">
-    {#if target !== null}
+    <!-- A tab changing places in its own group joins nothing: the outline saying
+         which group it would land in has no news, and the caret says it all. -->
+    {#if target !== null && !target.reorder}
       <div
         class="preview"
         class:as-tab={target.placement === 'tab'}
@@ -30,9 +32,19 @@ $effect(() => {
         data-placement={target.placement}
       ></div>
     {/if}
+    {#if target?.insertion}
+      <div
+        class="caret"
+        style:left="{target.insertion.caret.left}px"
+        style:top="{target.insertion.caret.top}px"
+        style:height="{target.insertion.caret.height}px"
+        data-testid="tab-drop-caret"
+        data-index={target.insertion.index}
+      ></div>
+    {/if}
     <div class="label" style:left="{paneDrag.pointer.x}px" style:top="{paneDrag.pointer.y}px">
       {paneDrag.label}
-      <span class="hint">{paneDrag.asTab ? 'as tab' : 'Ctrl: as tab'}</span>
+      <span class="hint">{paneDrag.hint}</span>
     </div>
   </div>
 {/if}
@@ -67,6 +79,17 @@ $effect(() => {
   background: transparent;
   outline: var(--rule-width) dashed var(--accent);
   outline-offset: calc(-1 * var(--space-2));
+}
+
+/* On the gap between two tabs, skewed with them so it follows their slant. */
+.caret {
+  position: fixed;
+  width: 0;
+  border-left: calc(var(--rule-width) * 2) solid var(--accent);
+  transform: skewX(var(--tab-skew));
+  transition:
+    left var(--dur-fast) var(--ease-out),
+    top var(--dur-fast) var(--ease-out);
 }
 
 .label {

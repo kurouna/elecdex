@@ -7,6 +7,7 @@ import {
   findTabsContaining,
   focusTab,
   moveNode,
+  moveTabTo,
   neighbourShell,
   neighbourTab,
   type Placement,
@@ -445,18 +446,41 @@ class LayoutStore {
    */
   move(nodeId: string, targetId: string, placement: Placement): void {
     this.settle()
-    const next = moveNode(this.tree, nodeId, targetId, placement)
+    this.applyMove(moveNode(this.tree, nodeId, targetId, placement), nodeId)
+  }
+
+  /**
+   * Moves a pane, or a whole group's tabs, into a strip at the gap `index`:
+   * dragging a tab along the strip it is in, or into another group's.
+   */
+  moveTab(nodeId: string, targetId: string, index: number): void {
+    this.settle()
+    this.applyMove(moveTabTo(this.tree, nodeId, targetId, index), nodeId)
+  }
+
+  /** Whether moving `nodeId` to `targetId` with `placement` would change the layout. */
+  canMove(nodeId: string, targetId: string, placement: Placement): boolean {
+    return moveNode(this.tree, nodeId, targetId, placement) !== this.tree
+  }
+
+  /** Whether moving `nodeId` into `targetId`'s strip at `index` would change the layout. */
+  canMoveTab(nodeId: string, targetId: string, index: number): boolean {
+    return moveTabTo(this.tree, nodeId, targetId, index) !== this.tree
+  }
+
+  /** The id of the tab group a pane is drawn in, or null when it is not tabbed. */
+  groupOf(paneId: string): string | null {
+    return findTabsContaining(this.tree.root, paneId)?.id ?? null
+  }
+
+  /** Takes the result of a move, focusing what moved. A move that changed nothing does nothing. */
+  private applyMove(next: LayoutTree, nodeId: string): void {
     if (next === this.tree) return
     this.commit(next)
     const moved = findNode(next.root, nodeId)
     const shown = moved === null ? null : visiblePanes(moved)[0]
     if (shown) this.focus(shown.id)
     sfx.play('expand')
-  }
-
-  /** Whether moving `nodeId` to `targetId` with `placement` would change the layout. */
-  canMove(nodeId: string, targetId: string, placement: Placement): boolean {
-    return moveNode(this.tree, nodeId, targetId, placement) !== this.tree
   }
 
   /**

@@ -37,12 +37,18 @@ const zoomed = $derived(active !== undefined && layout.zoomedPaneId === active.i
   accent and its label turns dark. The label is counter-skewed so the text
   stays upright.
 -->
-<ul class="tabs" data-testid="tab-strip">
+<ul class="tabs" data-testid="tab-strip" data-drop-strip>
   {#each panes as child, index (child.id)}
     {@const meta = paneMeta.get(child.id)}
     {@const place = places[index] ?? meta.tabName ?? null}
     {@const name = place ?? meta.title ?? titleOf(child.widget)}
-    <li class="tab" class:active={index === activeIndex} class:closing={child.id === layout.closingId}>
+    <!-- A tab is a place in the strip, which is what a Ctrl-drag lands in. -->
+    <li
+      class="tab"
+      class:active={index === activeIndex}
+      class:closing={child.id === layout.closingId}
+      data-drop-tab={child.id}
+    >
       <button
         type="button"
         class="select"

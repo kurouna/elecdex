@@ -51,3 +51,39 @@ export function dropPreview(box: Box, placement: Placement): Box {
       return { left, top, width, height }
   }
 }
+
+/** Where a drop lands in a tab strip. */
+export interface TabInsertion {
+  /** The gap, counted 0 before the first tab through `boxes.length` after the last. */
+  index: number
+  /** A hairline on that gap, spanning the tabs, in viewport pixels. */
+  caret: Box
+}
+
+/**
+ * The gap in a strip of tab boxes that a drop at `x` would land in: the tabs are
+ * divided at their midpoints, so a pointer over a tab picks the side it is on.
+ *
+ * Only `x` is read. A strip is barely more than a line - 1.6rem over a pane that
+ * may be hundreds of pixels tall - and a drag cannot be asked to hit it, so the
+ * whole group answers for its strip and the caret is drawn where the tabs are.
+ *
+ * The caret is held inside `bounds`, the strip itself, which clips its tabs: the
+ * first tab's slanted edge is deliberately pushed outside the frame, so the gap
+ * before it would otherwise be drawn there too.
+ *
+ * Null where there are no tabs to land among: a pane that draws no strip takes a
+ * plain tab drop instead.
+ */
+export function tabInsertion(boxes: readonly Box[], x: number, bounds: Box): TabInsertion | null {
+  const last = boxes[boxes.length - 1]
+  if (last === undefined) return null
+  const found = boxes.findIndex((box) => x < box.left + box.width / 2)
+  const index = found === -1 ? boxes.length : found
+  const edge = boxes[index]
+  const gap = edge === undefined ? last.left + last.width : edge.left
+  const left = Math.min(Math.max(gap, bounds.left), bounds.left + bounds.width)
+  const top = Math.min(...boxes.map((box) => box.top))
+  const bottom = Math.max(...boxes.map((box) => box.top + box.height))
+  return { index, caret: { left, top, width: 0, height: bottom - top } }
+}

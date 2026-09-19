@@ -170,9 +170,10 @@ brings down minimize, leave-fullscreen and quit buttons.
 
 To move a pane, drag it by its title (a pane without one, such as the clock, by the rule along its
 top) and drop it on another pane: it goes in beside that pane, on the side nearest the pointer. Hold
-Ctrl (Cmd on macOS) while dropping to add it to that pane as a tab instead. A shell tab drags out on
-its own, and a tab group's header moves the whole group. Escape cancels. A moved shell keeps its
-session.
+Ctrl (Cmd on macOS) while dropping to add it to that pane as a tab instead, in the place along the
+strip your pointer picks — and over the group a tab is already in, that same Ctrl reorders it. A
+shell tab drags out on its own, and a tab group's header moves the whole group. Escape cancels. A
+moved shell keeps its session.
 
 A pane you want a better look at can be brought forward: **Ctrl+Shift+Z**, the ⤢ button beside its
 × (or in a shell's tab strip), and it covers most of the window over the other panes, which keep

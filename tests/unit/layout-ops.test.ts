@@ -7,6 +7,7 @@ import {
   findTabsContaining,
   focusTab,
   moveNode,
+  moveTabTo,
   neighbourShell,
   neighbourTab,
   normalize,
@@ -357,6 +358,244 @@ describe('moveNode, details', () => {
   })
 })
 
+describe('moveTabTo', () => {
+  /** tabs(a b c) with fresh panes, and their ids in order. */
+  const trio = () => {
+    const children = ['a', 'b', 'c'].map((w) => pane(w))
+    return { group: tabs(children, 0), ids: children.map((p) => p.id) }
+  }
+
+  it.each([
+    [0, 2, 'tabs(b a c)'],
+    [0, 3, 'tabs(b c a)'],
+    [1, 0, 'tabs(b a c)'],
+    [1, 3, 'tabs(a c b)'],
+    [2, 0, 'tabs(c a b)'],
+    [2, 1, 'tabs(a c b)'],
+  ])('reorders the tab at %i to index %i', (from, index, expected) => {
+    const { group, ids } = trio()
+    const result = moveTabTo(tree(group), ids[from] as string, group.id, index)
+    expect(shapeOf(result.root)).toBe(expected)
+    assertInvariants(result.root)
+  })
+
+  it('shows the tab it moved', () => {
+    const { group, ids } = trio()
+    const result = moveTabTo(tree(group), ids[0] as string, group.id, 3)
+    if (result.root.kind !== 'tabs') throw new Error('expected the group to remain')
+    expect(result.root.children[result.root.activeIndex]?.id).toBe(ids[0])
+  })
+
+  it.each([
+    ['its own place', 0, 0],
+    ['the gap just after itself, which is the same gap', 0, 1],
+    ['its own place, last', 2, 2],
+    ['past the end, from last place', 2, 3],
+  ])('returns the same tree for a drop in %s', (_, from, index) => {
+    const { group, ids } = trio()
+    const t = tree(group)
+    expect(moveTabTo(t, ids[from] as string, group.id, index)).toBe(t)
+  })
+
+  it('clamps an index outside the group', () => {
+    const { group, ids } = trio()
+    expect(shapeOf(moveTabTo(tree(group), ids[2] as string, group.id, -5).root)).toBe('tabs(c a b)')
+    expect(shapeOf(moveTabTo(tree(group), ids[0] as string, group.id, 99).root)).toBe('tabs(b c a)')
+  })
+
+  it('keeps the moved pane itself, with its id and state', () => {
+    const shell = pane('terminal', { state: { sessionId: 's1' } })
+    const group = tabs([pane('a'), shell], 0)
+    const result = moveTabTo(tree(group), shell.id, group.id, 0)
+    expect(findNode(result.root, shell.id)).toEqual(shell)
+  })
+
+  it('inserts a tab from another group at the index, not at the end', () => {
+    const [a, b, c, d] = [pane('a'), pane('b'), pane('c'), pane('d')]
+    const from = tabs([a, b], 0)
+    const to = tabs([c, d], 0)
+    const result = moveTabTo(tree(split('row', [from, to])), a.id, to.id, 1)
+    expect(shapeOf(result.root)).toBe('row(b tabs(c a d))')
+    assertInvariants(result.root)
+  })
+
+  it('collapses the group a tab leaves when only one is left', () => {
+    const [a, b, c] = [pane('a'), pane('b'), pane('c')]
+    const from = tabs([a, b], 0)
+    const result = moveTabTo(tree(split('row', [from, c])), b.id, c.id, 0)
+    expect(shapeOf(result.root)).toBe('row(a tabs(b c))')
+    assertInvariants(result.root)
+  })
+
+  it('keeps the shown tab of the group a tab leaves', () => {
+    const [a, b, c] = [pane('a'), pane('b'), pane('c')]
+    const from = tabs([a, b, c], 2)
+    const other = pane('d')
+    const result = moveTabTo(tree(split('row', [from, other])), a.id, other.id, 0)
+    const left = findNode(result.root, from.id)
+    if (left?.kind !== 'tabs') throw new Error('expected the group to remain')
+    expect(left.children[left.activeIndex]?.id).toBe(c.id)
+  })
+
+  it('inserts a whole group as one block, showing the first tab that came with it', () => {
+    const [a, b, c, d] = [pane('a'), pane('b'), pane('c'), pane('d')]
+    const from = tabs([a, b], 1)
+    const to = tabs([c, d], 0)
+    const result = moveTabTo(tree(split('row', [from, to])), from.id, to.id, 1)
+    expect(shapeOf(result.root)).toBe('tabs(c a b d)')
+    expect(result.root).toMatchObject({ kind: 'tabs', activeIndex: 1 })
+    assertInvariants(result.root)
+  })
+
+  it('makes a group of two out of a lone pane, on either side of its one tab', () => {
+    const [a, b] = [pane('a'), pane('b')]
+    const t = tree(split('row', [a, b]))
+    expect(shapeOf(moveTabTo(t, a.id, b.id, 0).root)).toBe('tabs(a b)')
+    expect(shapeOf(moveTabTo(t, a.id, b.id, 1).root)).toBe('tabs(b a)')
+    expect(moveTabTo(t, a.id, b.id, 1).root).toMatchObject({ activeIndex: 1 })
+  })
+
+  it('takes a tab as a target to mean its group', () => {
+    const [a, b, c] = [pane('a'), pane('b'), pane('c')]
+    const group = tabs([a, b], 0)
+    const t = tree(split('row', [group, c]))
+    expect(shapeOf(moveTabTo(t, c.id, b.id, 0).root)).toBe('tabs(c a b)')
+  })
+
+  it('puts a tab at the end exactly as a tab placement does', () => {
+    const [a, b, c] = [pane('a'), pane('b'), pane('c')]
+    const group = tabs([a, b], 0)
+    const t = tree(split('row', [group, c]))
+    expect(moveTabTo(t, c.id, group.id, 2)).toEqual(moveNode(t, c.id, group.id, 'tab'))
+  })
+
+  it('returns the same tree for a move that cannot be made', () => {
+    const [a, b, c, d] = [pane('a'), pane('b'), pane('c'), pane('d')]
+    const group = tabs([a, b], 0)
+    const inner = split('column', [c, d])
+    const t = tree(split('row', [group, inner]))
+    // A group into itself, by its own id or through one of its tabs.
+    expect(moveTabTo(t, group.id, group.id, 0)).toBe(t)
+    expect(moveTabTo(t, group.id, a.id, 0)).toBe(t)
+    // A pane onto itself.
+    expect(moveTabTo(t, c.id, c.id, 0)).toBe(t)
+    // A split cannot be moved, and cannot hold tabs.
+    expect(moveTabTo(t, inner.id, group.id, 0)).toBe(t)
+    expect(moveTabTo(t, a.id, inner.id, 0)).toBe(t)
+    expect(moveTabTo(t, a.id, t.root.id, 0)).toBe(t)
+    // Ids that are not in the tree.
+    expect(moveTabTo(t, 'nope', group.id, 0)).toBe(t)
+    expect(moveTabTo(t, c.id, 'nope', 0)).toBe(t)
+  })
+
+  it('does not mutate the tree it is given', () => {
+    const [a, b, c] = [pane('a'), pane('b'), pane('c')]
+    const group = tabs([a, b], 1)
+    const t = tree(split('row', [group, c], [0.6, 0.4]))
+    const before = structuredClone(t)
+    moveTabTo(t, a.id, group.id, 2)
+    moveTabTo(t, c.id, group.id, 1)
+    expect(t).toEqual(before)
+  })
+
+  it('swaps the two tabs of the smallest group there can be', () => {
+    const [a, b] = [pane('a'), pane('b')]
+    const group = tabs([a, b], 0)
+    expect(shapeOf(moveTabTo(tree(group), a.id, group.id, 2).root)).toBe('tabs(b a)')
+    expect(shapeOf(moveTabTo(tree(group), b.id, group.id, 0).root)).toBe('tabs(b a)')
+  })
+
+  it.each([
+    [1, 3, 'tabs(a c b d e)'],
+    [3, 1, 'tabs(a d b c e)'],
+    [1, 4, 'tabs(a c d b e)'],
+  ])('moves tab %i to gap %i in a group of five', (from, index, expected) => {
+    const children = ['a', 'b', 'c', 'd', 'e'].map((w) => pane(w))
+    const group = tabs(children, 0)
+    const moving = children[from] as PaneNode
+    expect(shapeOf(moveTabTo(tree(group), moving.id, group.id, index).root)).toBe(expected)
+  })
+
+  it('brings a whole group onto a lone pane, on either side of its one tab', () => {
+    const [a, b, c] = [pane('a'), pane('b'), pane('c')]
+    const group = tabs([a, b], 1)
+    const t = tree(split('row', [group, c]))
+    expect(shapeOf(moveTabTo(t, group.id, c.id, 0).root)).toBe('tabs(a b c)')
+    expect(shapeOf(moveTabTo(t, group.id, c.id, 1).root)).toBe('tabs(c a b)')
+    // Either way it shows the first tab that came with the group.
+    expect(moveTabTo(t, group.id, c.id, 0).root).toMatchObject({ activeIndex: 0 })
+    expect(moveTabTo(t, group.id, c.id, 1).root).toMatchObject({ activeIndex: 1 })
+  })
+
+  it('leaves the group a tab came from standing when two are left in it', () => {
+    const [a, b, c, d] = [pane('a'), pane('b'), pane('c'), pane('d')]
+    const from = tabs([a, b, c], 0)
+    const to = tabs([d, pane('e')], 0)
+    const result = moveTabTo(tree(split('row', [from, to])), b.id, to.id, 1)
+    expect(shapeOf(result.root)).toBe('row(tabs(a c) tabs(d b e))')
+    assertInvariants(result.root)
+  })
+
+  it('comes back to the same shape when a tab is sent to the end and back', () => {
+    const children = ['a', 'b', 'c', 'd'].map((w) => pane(w))
+    const group = tabs(children, 0)
+    const t = tree(group)
+    const moving = children[1] as PaneNode
+    const there = moveTabTo(t, moving.id, group.id, 4)
+    expect(shapeOf(there.root)).toBe('tabs(a c d b)')
+    const back = moveTabTo(there, moving.id, group.id, 1)
+    expect(shapeOf(back.root)).toBe(shapeOf(t.root))
+    if (back.root.kind !== 'tabs') throw new Error('expected the group to remain')
+    expect(back.root.children).toEqual(children)
+    // The order is back; the tab that made the trip is the one being shown.
+    expect(back.root.activeIndex).toBe(1)
+  })
+
+  it("keeps a pane's props as well as its state", () => {
+    const kept = pane('terminal', { props: { shell: 'fish' }, state: { sessionId: 's1' } })
+    const group = tabs([pane('a'), kept, pane('b')], 0)
+    const result = moveTabTo(tree(group), kept.id, group.id, 0)
+    expect(findNode(result.root, kept.id)).toEqual(kept)
+  })
+
+  it('collapses and flattens what a tab leaves behind, deep in the tree', () => {
+    const [a, b, c, d] = [pane('a'), pane('b'), pane('c'), pane('d')]
+    const from = tabs([a, b], 0)
+    // column(d row(c column(tabs(a b)))) - taking a tab out empties the branch.
+    const t = tree(split('column', [d, split('row', [c, from])]))
+    const result = moveTabTo(t, a.id, d.id, 0)
+    expect(shapeOf(result.root)).toBe('column(tabs(a d) row(c b))')
+    assertInvariants(result.root)
+  })
+
+  it('keeps every tab of the group it joins, wherever the new one lands', () => {
+    const children = ['a', 'b', 'c'].map((w) => pane(w))
+    const to = tabs(children, 2)
+    const incoming = pane('x')
+    const t = tree(split('row', [to, incoming]))
+    for (const index of [0, 1, 2, 3]) {
+      const result = moveTabTo(t, incoming.id, to.id, index)
+      const group = findNode(result.root, to.id)
+      if (group?.kind !== 'tabs') throw new Error('expected the group to remain')
+      expect(group.children.map((c) => c.widget)).toEqual([
+        ...['a', 'b', 'c'].slice(0, index),
+        'x',
+        ...['a', 'b', 'c'].slice(index),
+      ])
+    }
+  })
+
+  it('keeps the proportions of the panes it does not touch', () => {
+    const [a, b, c, d] = [pane('a'), pane('b'), pane('c'), pane('d')]
+    const group = tabs([a, b], 0)
+    const t = tree(split('row', [group, c, d], [0.5, 0.3, 0.2]))
+    const result = moveTabTo(t, d.id, group.id, 0)
+    if (result.root.kind !== 'split') throw new Error('expected a split')
+    const [sg, sc] = result.root.sizes as [number, number]
+    expect(sg / sc).toBeCloseTo(0.5 / 0.3, 9)
+  })
+})
+
 describe('moveNode over generated layouts', () => {
   /** A small seeded generator (mulberry32), so a failure reproduces exactly. */
   function random(seed: number): () => number {
@@ -497,6 +736,74 @@ describe('moveNode over generated layouts', () => {
     if (placement === 'tab') expectTabbed(result, moving, staying)
     else expectBeside(result, moving, staying, placement)
   }
+
+  /** As tabs at a gap: the target's panes with the moved ones spliced in, showing the first moved. */
+  function expectTabbedAt(
+    result: LayoutTree,
+    moving: string[],
+    staying: string[],
+    landing: number,
+  ): void {
+    const group = findTabsContaining(result.root, moving[0] as string)
+    if (group === null) throw new Error('moved pane is not in a group')
+    expect(group.children.map((c) => c.id)).toEqual([
+      ...staying.slice(0, landing),
+      ...moving,
+      ...staying.slice(landing),
+    ])
+    expect(group.activeIndex).toBe(landing)
+  }
+
+  function checkMoveTab(t: LayoutTree, source: LayoutNode, target: LayoutNode, index: number) {
+    const before = structuredClone(t)
+    const result = moveTabTo(t, source.id, target.id, index)
+    expectIntact(t, before, result)
+
+    const anchor = findTabsContaining(t.root, target.id) ?? target
+    const moving = paneIds(source)
+    const staying = paneIds(anchor).filter((id) => !moving.includes(id))
+    // Where the moved tabs end up among the ones staying, worked out by counting
+    // rather than by the op's own arithmetic: how many stay before that gap.
+    const children = anchor.kind === 'tabs' ? anchor.children.map((c) => c.id) : [anchor.id]
+    const at = Math.min(Math.max(index, 0), children.length)
+    const landing = children.slice(0, at).filter((id) => !moving.includes(id)).length
+    // A tab already sitting there has that many staying tabs before it too.
+    const sitting = children.indexOf(source.id)
+
+    const impossible = anchor.id === source.id || findNode(source, anchor.id) !== null
+    if (impossible || (sitting !== -1 && landing === sitting)) {
+      expect(result).toBe(t)
+      return
+    }
+    expect(result).not.toBe(t)
+    expectShownTabsKept(t, result, moving, anchor.id)
+    expectTabbedAt(result, moving, staying, landing)
+  }
+
+  it.each(Array.from({ length: 40 }, (_, i) => i + 1))(
+    'seed %i: every tab move keeps the tree valid and lands in the gap asked for',
+    (seed) => {
+      const rand = random(seed)
+      let t = normalizeTree(tree(generate(rand, 3, 'row')), pane('fallback'))
+      let moved = 0
+      for (let step = 0; step < 50; step++) {
+        const nodes = movable(t.root)
+        const source = nodes[Math.floor(rand() * nodes.length)] as LayoutNode
+        const target = nodes[Math.floor(rand() * nodes.length)] as LayoutNode
+        const anchor = findTabsContaining(t.root, target.id) ?? target
+        const span = anchor.kind === 'tabs' ? anchor.children.length : 1
+        // One either side of the range as well, so clamping is exercised too.
+        const index = Math.floor(rand() * (span + 3)) - 1
+        checkMoveTab(t, source, target, index)
+        const next = moveTabTo(t, source.id, target.id, index)
+        if (next !== t) moved += 1
+        t = next
+      }
+      // Most attempts land on a pane the source cannot join; enough must be real
+      // moves that the checks above are proving something.
+      expect(moved).toBeGreaterThan(8)
+    },
+  )
 
   it.each(Array.from({ length: 40 }, (_, i) => i + 1))(
     'seed %i: every move keeps the tree valid and lands where asked',
@@ -831,6 +1138,20 @@ describe('random operation sequences keep the invariants', () => {
     )
   }
 
+  /** Drags a pane into some pane's strip, at any gap in it. */
+  function randomTabMove(
+    t: LayoutTree,
+    rand: () => number,
+    nodeId: string,
+    panes: PaneNode[],
+  ): LayoutTree {
+    const other = panes[Math.floor(rand() * panes.length)]
+    if (!other) return t
+    const group = findTabsContaining(t.root, other.id)
+    const span = group === null ? 1 : group.children.length
+    return moveTabTo(t, nodeId, other.id, Math.floor(rand() * (span + 1)))
+  }
+
   /** Applies one randomly chosen operation to a randomly chosen pane. */
   function randomStep(t: LayoutTree, rand: () => number): LayoutTree {
     const panes = collectPanes(t.root)
@@ -842,9 +1163,10 @@ describe('random operation sequences keep the invariants', () => {
       const direction = directions[Math.floor(rand() * directions.length)] ?? 'right'
       return splitPane(t, target.id, direction, pane('terminal'))
     }
-    if (op < 0.5) return addTab(t, target.id, pane('terminal'))
-    if (op < 0.75) return closeNode(t, target.id, fallbackNode())
-    if (op < 0.85) return focusTab(t, target.id)
+    if (op < 0.45) return addTab(t, target.id, pane('terminal'))
+    if (op < 0.65) return closeNode(t, target.id, fallbackNode())
+    if (op < 0.75) return focusTab(t, target.id)
+    if (op < 0.9) return randomTabMove(t, rand, target.id, panes)
     return randomResize(t, rand)
   }
 
