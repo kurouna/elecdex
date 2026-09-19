@@ -28,6 +28,7 @@ interface Hooks {
     setEnabled(enabled: boolean): void
   }
   hintsShown(): number
+  offTaskbar(): boolean
 }
 
 /** Runs `fn` against the main process's background stubs. */
@@ -63,6 +64,16 @@ const closeWindow = (app: ElectronApplication) =>
 
 const minimizeWindow = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.minimize())
+
+/**
+ * The window shown again the way the taskbar and the task switcher do it: the
+ * window manager shows it, and nothing of elecdex restores it first.
+ */
+const showWithoutRestore = (app: ElectronApplication) =>
+  app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.show())
+
+const restoreWindow = (app: ElectronApplication) =>
+  app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.restore())
 
 function exited(app: ElectronApplication): Promise<void> {
   const child = app.process()
@@ -177,6 +188,71 @@ test('minimising hides to the tray and opening restores the window', async () =>
     const gone = exited(app)
     await closeWindow(app)
     await gone
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
+test('a window put away from the notification area gives up its taskbar button, and comes back from it usable', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: withWindow({ minimizeToTray: true }),
+  })
+  try {
+    expect(await hooks(app, (h) => h.offTaskbar())).toBe(false)
+    await page.evaluate(() => window.elecdex.system.minimize())
+    await expect.poll(async () => (await facts(app)).visible).toBe(false)
+    // Put away from the minimised state: that state is what leaves a taskbar
+    // button behind, and what the window must not come back in.
+    expect(await facts(app)).toEqual({ visible: false, minimized: true })
+    expect(await hooks(app, (h) => h.offTaskbar())).toBe(true)
+
+    await showWithoutRestore(app)
+    await expect.poll(() => facts(app)).toEqual({ visible: true, minimized: false })
+    // Still reported minimised, the page would have been told it is off screen
+    // and would have stopped drawing.
+    await expect.poll(() => visibility(page)).toBe('visible')
+    expect(await hooks(app, (h) => h.offTaskbar())).toBe(false)
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
+test('a minimised window closed to the notification area comes back from the taskbar usable too', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: SINGLE_CLOCK,
+    settings: withWindow({ closeToTray: true }),
+  })
+  try {
+    // Minimising alone stays on the taskbar here; closing it from there is then
+    // what hides an already minimised window.
+    await minimizeWindow(app)
+    await expect.poll(async () => (await facts(app)).minimized).toBe(true)
+    await closeWindow(app)
+    await expect.poll(async () => (await facts(app)).visible).toBe(false)
+    expect(await hooks(app, (h) => h.offTaskbar())).toBe(true)
+
+    await showWithoutRestore(app)
+    await expect.poll(() => facts(app)).toEqual({ visible: true, minimized: false })
+    await expect.poll(() => visibility(page)).toBe('visible')
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
+test('without a tray option the window keeps its taskbar button, and a plain minimise still ends', async () => {
+  const { app, page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
+  try {
+    await minimizeWindow(app)
+    await expect.poll(async () => (await facts(app)).minimized).toBe(true)
+    await expect.poll(() => visibility(page)).toBe('hidden')
+    // Nothing was put away, so nothing gives up the taskbar button.
+    expect(await hooks(app, (h) => h.offTaskbar())).toBe(false)
+
+    await restoreWindow(app)
+    await expect.poll(() => facts(app)).toEqual({ visible: true, minimized: false })
+    await expect.poll(() => visibility(page)).toBe('visible')
+    expect(await hooks(app, (h) => h.offTaskbar())).toBe(false)
   } finally {
     await close().catch(() => {})
   }

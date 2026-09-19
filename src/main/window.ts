@@ -125,6 +125,13 @@ export function createMainWindow(opts: CreateWindowOptions): BrowserWindow {
   win.on('restore', sendWindowState)
   win.on('show', () => {
     putAway = false
+    // A window put away from the notification area was minimised first, and
+    // Windows brings it back from the taskbar without restoring it: visible and
+    // still minimised, it takes no click or key, and `current` below would call
+    // it hidden for as long as that lasted, so the page would stop drawing too.
+    // Every way back - the tray, the shortcut, the taskbar, the task switcher -
+    // passes here, so the state is put right here rather than at each of them.
+    if (win.isMinimized()) win.restore()
     sendWindowState()
   })
   win.on('hide', () => {

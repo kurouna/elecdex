@@ -96,6 +96,19 @@ export function registerBackground(settings: SettingsHandle): Background {
     notification.show()
   }
 
+  /**
+   * Off the taskbar while the window is in the notification area, and back on it
+   * when it returns. A window hidden while minimised keeps its taskbar button,
+   * and it is the one place the window can be brought back from that does not
+   * restore it (window.ts puts that right); being in both places at once is not
+   * what "minimize to the notification area" says either.
+   */
+  let offTaskbar = false
+  const keepOffTaskbar = (win: BrowserWindow, off: boolean): void => {
+    offTaskbar = off
+    win.setSkipTaskbar(off)
+  }
+
   const putAway = (win: BrowserWindow): void => {
     win.hide()
     hintOnce()
@@ -172,6 +185,7 @@ export function registerBackground(settings: SettingsHandle): Background {
       tray: stubTray,
       runKey,
       hintsShown: () => hintsShown,
+      offTaskbar: () => offTaskbar,
     }
   }
 
@@ -194,6 +208,7 @@ export function registerBackground(settings: SettingsHandle): Background {
       win.webContents.on('render-process-gone', () => suspendShortcut(false))
       const follow = (on: boolean) => (): void => {
         hidden = on
+        keepOffTaskbar(win, on)
         refreshTray()
       }
       win.on('show', follow(false))
