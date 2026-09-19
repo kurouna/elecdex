@@ -174,9 +174,19 @@ class LayoutStore {
   }
 
   async load(): Promise<void> {
-    const tree = await window.elecdex.layout.load()
-    this.tree = tree
+    this.adopt(await window.elecdex.layout.load())
     this.loaded = true
+  }
+
+  /**
+   * Takes a tree that came from main, whole. A zoom is let go of here as well as
+   * before the ask: `reset` settles first, but the tree arrives later, and a pane
+   * zoomed in between would be left zoomed over a tree it is not in - with every
+   * pane behind it inert, the workspace would take no click and no key.
+   */
+  private adopt(tree: LayoutTree): void {
+    this.tree = tree
+    this.clearZoom()
     this.focusedPaneId = initialFocus(tree)
   }
 
@@ -522,8 +532,7 @@ class LayoutStore {
       clearTimeout(this.saveTimer)
       this.saveTimer = null
     }
-    this.tree = await window.elecdex.layout.reset()
-    this.focusedPaneId = initialFocus(this.tree)
+    this.adopt(await window.elecdex.layout.reset())
   }
 
   /**

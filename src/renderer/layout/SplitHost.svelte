@@ -2,6 +2,7 @@
 import type { SplitNode } from '@shared/schemas/layout'
 import { layout } from '../stores/layout.svelte.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
+import { sizesWithDelta, startDividerDrag } from './split-drag.ts'
 
 interface Props {
   node: SplitNode
@@ -13,50 +14,16 @@ const isRow = $derived(node.direction === 'row')
 
 let container = $state<HTMLDivElement | null>(null)
 
-/** Smallest fraction a child may be dragged to, so a pane cannot vanish. */
-const MIN_FRACTION = 0.05
-
-/**
- * Dragging a divider moves size between its two neighbours only.
- *
- * Redistributing across every child instead would make a drag feel like it
- * moves panes the user is not touching.
- */
+/** The gesture itself is in split-drag.ts, where it can be driven by tests. */
 function startDrag(event: PointerEvent, index: number): void {
   const el = container
   if (el === null) return
-
-  event.preventDefault()
-  const handle = event.currentTarget as HTMLElement
-  handle.setPointerCapture(event.pointerId)
-
-  const total = isRow ? el.clientWidth : el.clientHeight
-  if (total <= 0) return
-
-  const start = isRow ? event.clientX : event.clientY
-  const before = node.sizes[index] ?? 0
-  const after = node.sizes[index + 1] ?? 0
-  const pairTotal = before + after
-
-  const onMove = (move: PointerEvent): void => {
-    const delta = ((isRow ? move.clientX : move.clientY) - start) / total
-    const nextBefore = Math.min(Math.max(before + delta, MIN_FRACTION), pairTotal - MIN_FRACTION)
-    const sizes = [...node.sizes]
-    sizes[index] = nextBefore
-    sizes[index + 1] = pairTotal - nextBefore
-    layout.resize(node.id, sizes)
-  }
-
-  const onUp = (): void => {
-    handle.releasePointerCapture(event.pointerId)
-    handle.removeEventListener('pointermove', onMove)
-    handle.removeEventListener('pointerup', onUp)
-    handle.removeEventListener('pointercancel', onUp)
-  }
-
-  handle.addEventListener('pointermove', onMove)
-  handle.addEventListener('pointerup', onUp)
-  handle.addEventListener('pointercancel', onUp)
+  startDividerDrag(event, {
+    node,
+    index,
+    row: isRow,
+    total: isRow ? el.clientWidth : el.clientHeight,
+  })
 }
 
 /** Keyboard resizing, so a divider is not mouse-only. */
@@ -68,15 +35,7 @@ function onHandleKeydown(event: KeyboardEvent, index: number): void {
 
   event.preventDefault()
   const delta = event.key === increase ? step : -step
-  const before = node.sizes[index] ?? 0
-  const after = node.sizes[index + 1] ?? 0
-  const pairTotal = before + after
-  const nextBefore = Math.min(Math.max(before + delta, MIN_FRACTION), pairTotal - MIN_FRACTION)
-
-  const sizes = [...node.sizes]
-  sizes[index] = nextBefore
-  sizes[index + 1] = pairTotal - nextBefore
-  layout.resize(node.id, sizes)
+  layout.resize(node.id, sizesWithDelta(node, index, delta))
 }
 </script>
 

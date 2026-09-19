@@ -267,6 +267,40 @@ describe('what lets go of a zoomed pane', () => {
     expect(layout.pinnedPaneId).toBeNull()
   })
 
+  it('resetting the layout, including a zoom asked for while the new tree was on its way', async () => {
+    // reset() settles - which lets go of the zoom - and only then asks main for
+    // the default tree. A pane zoomed while that was in flight would be left
+    // zoomed over a tree it is not in, and every pane behind it is inert: the
+    // workspace would take no click and no key at all.
+    let deliver: (tree: LayoutTree) => void = () => {}
+    const fresh: LayoutTree = {
+      version: LAYOUT_VERSION,
+      root: split('row', [pane('clock'), pane('terminal')]),
+    }
+    vi.stubGlobal('elecdex', {
+      layout: {
+        save: saved,
+        reset: () =>
+          new Promise<LayoutTree>((resolve) => {
+            deliver = resolve
+          }),
+      },
+    })
+
+    zoom(split('row', [a, b]), a.id)
+    const done = layout.reset()
+    layout.zoom(b.id)
+    expect(layout.zoomedPaneId).toBe(b.id)
+
+    deliver(fresh)
+    await done
+
+    expect(ids()).toEqual(collectPanes(fresh.root).map((p) => p.id))
+    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.zoomPin).toBeNull()
+  })
+
   it('a window resize re-places it where it is', () => {
     zoom(split('row', [a, b]), a.id)
     area = { top: 0, right: 500, bottom: 400, left: 0 }
