@@ -181,8 +181,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   built-in theme plus the settings dialog and the audio panes (with `ELECDEX_AUDIO_STUB=demo`, never
   the machine's sound or apps; name shots to take only those). Regenerate after a visible change to a theme or the
   default layout, and add a built-in theme to both the script and the README table.
-- **Releases**: bump `package.json` version, push tag `v<version>`; .github/workflows/release.yml
-  builds every platform into a GitHub pre-release that a person promotes to a full release.
+- **Releases**: run the whole Playwright suite (`npx playwright test`) before bumping the version -
+  this is the one point where every spec is expected to run. Then bump `package.json` version, push
+  tag `v<version>`; .github/workflows/release.yml builds every platform into a GitHub pre-release
+  that a person promotes to a full release.
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested).
   Widgets keep per-pane choices in pane state (`layout.setPaneState`). Every tree change goes
   through a pure op there; a tabbed pane is split, moved beside or dropped on through its group,
@@ -280,6 +282,18 @@ feat(scope): english subject / 日本語の件名
 English paragraph. / 日本語の段落。
 ```
 
-No `[` `]`, no absolute paths, no attribution trailers. Run `npm run verify`, `npm run build`
-and the relevant Playwright specs before committing; update docs/architecture.md §16 and the
+No `[` `]`, no absolute paths, no attribution trailers. Update docs/architecture.md §16 and the
 README when behaviour or data sources change.
+
+**What to run before committing.** The whole e2e suite takes minutes, so it is not the toll on
+every change:
+
+- **A feature or a fix**: `npm run verify`, `npm run build`, then the e2e specs added or changed
+  for it, plus the ones the change could plausibly reach - the spec of the subsystem touched, and
+  any spec that drives what was changed (a new shortcut: the specs that press shortcuts; a change
+  to the status bar or a dialog: the specs that open them). Judge that list from what the change
+  touches, and say which specs were run.
+- **Before a release** - the version bump and the tag: the whole suite, `npx playwright test`.
+
+A change whose blast radius really is the whole app (the layout tree, the settings schema, the
+preload surface) is a release-shaped change: run everything for that one too.
