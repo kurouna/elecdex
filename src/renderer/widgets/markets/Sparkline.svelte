@@ -1,7 +1,8 @@
 <script lang="ts">
 import type { PricePoint } from '@shared/markets'
+import { observeCanvas } from '../../lib/canvas.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { drawBaseline, drawDividers, observeCanvas, valueScale } from './chart-draw.ts'
+import { drawBaseline, drawDividers, valueScale } from './chart-draw.ts'
 
 /**
  * One symbol's range as a line with a fading fill, and the range's base (the

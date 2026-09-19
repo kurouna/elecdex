@@ -1,10 +1,10 @@
 import type { CandlePoint } from '@shared/markets'
 import { describe, expect, it } from 'vitest'
+import { observeCanvas } from '../../src/renderer/lib/canvas.js'
 import {
   barsFor,
   drawCandles,
   MIN_SLOT_PX,
-  observeCanvas,
   valueScale,
 } from '../../src/renderer/widgets/markets/chart-draw.js'
 

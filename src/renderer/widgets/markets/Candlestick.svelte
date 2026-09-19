@@ -1,14 +1,8 @@
 <script lang="ts">
 import { type CandlePoint, type ChartRange, dividerIndices, mergeCandles } from '@shared/markets'
+import { observeCanvas } from '../../lib/canvas.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import {
-  barsFor,
-  drawBaseline,
-  drawCandles,
-  drawDividers,
-  observeCanvas,
-  valueScale,
-} from './chart-draw.ts'
+import { barsFor, drawBaseline, drawCandles, drawDividers, valueScale } from './chart-draw.ts'
 
 /**
  * One symbol's range as candles in even slots, with the range's base (the

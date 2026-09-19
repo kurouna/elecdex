@@ -13,10 +13,12 @@ import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
 import { layout } from './stores/layout.svelte.ts'
+import { watchReminders } from './stores/reminders.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import { coverWeb } from './stores/web.svelte.ts'
 import TitleBar from './TitleBar.svelte'
+import Toasts from './Toasts.svelte'
 import UpdateNotice from './UpdateNotice.svelte'
 import WindowCorner from './WindowCorner.svelte'
 
@@ -32,6 +34,10 @@ $effect(() => {
     void boot.run(result)
   })
 })
+
+// Task deadlines arrive whether or not a tasks pane is open, so the window
+// listens for them here rather than in the widget.
+$effect(() => watchReminders())
 
 // The notification-area menu's "Settings": main has already brought the window forward.
 $effect(() => window.elecdex.background.onOpenSettings(() => ui.openSettings()))
@@ -176,6 +182,7 @@ function toggleSound(): void {
 <SettingsDialog />
 <UpdateNotice />
 <QuakeAlert />
+<Toasts />
 <WindowCorner />
 
 <style>

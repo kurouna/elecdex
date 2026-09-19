@@ -17,10 +17,12 @@ import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
+import type { Note, NotesFile } from '@shared/notes'
 import type { PluginCatalog } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
+import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from '@shared/tasks'
 import type { UpdateStatus } from '@shared/updates'
 import type { OfficeInfo } from '@shared/weather'
 import type { WeatherUpdate } from '@shared/weather-report'
@@ -412,6 +414,28 @@ const api: ElecdexApi = {
     subscribe: subscribeQuakes,
     observe: observeQuakes,
     onAlert: (handler) => listen<QuakeAlert>(CH.quakes.alert, handler),
+  },
+  notes: {
+    list: () => ipcRenderer.invoke(CH.notes.list) as Promise<NotesFile>,
+    create: () => ipcRenderer.invoke(CH.notes.create) as Promise<Note | null>,
+    save: (id, body) => ipcRenderer.invoke(CH.notes.save, id, body) as Promise<Note | null>,
+    remove: (id) => ipcRenderer.invoke(CH.notes.remove, id) as Promise<boolean>,
+    export: (id) => ipcRenderer.invoke(CH.notes.export, id) as Promise<string | null>,
+    onChange: (handler) => listen<NotesFile>(CH.notes.changed, handler),
+  },
+  tasks: {
+    list: () => ipcRenderer.invoke(CH.tasks.list) as Promise<TasksFile>,
+    add: (task: NewTask) => ipcRenderer.invoke(CH.tasks.add, task) as Promise<Task | null>,
+    update: (id: string, patch: TaskPatch) =>
+      ipcRenderer.invoke(CH.tasks.update, id, patch) as Promise<Task | null>,
+    remove: (id) => ipcRenderer.invoke(CH.tasks.remove, id) as Promise<boolean>,
+    clearCompleted: (listId) =>
+      ipcRenderer.invoke(CH.tasks.clearCompleted, listId) as Promise<number>,
+    addList: (name) => ipcRenderer.invoke(CH.tasks.addList, name) as Promise<TaskList | null>,
+    renameList: (id, name) => ipcRenderer.invoke(CH.tasks.renameList, id, name) as Promise<boolean>,
+    removeList: (id) => ipcRenderer.invoke(CH.tasks.removeList, id) as Promise<boolean>,
+    onChange: (handler) => listen<TasksFile>(CH.tasks.changed, handler),
+    onRemind: (handler) => listen<TaskReminder>(CH.tasks.remind, handler),
   },
   updates: {
     status: () => ipcRenderer.invoke(CH.updates.status) as Promise<UpdateStatus>,

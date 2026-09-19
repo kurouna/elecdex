@@ -140,6 +140,24 @@ export const SettingsSchema = z.object({
       sound: true,
     }),
   /**
+   * Task reminders (the tasks pane). Unlike the quake alerts these are on by default:
+   * nothing is fetched for them, they only go off for deadlines the user typed in, and
+   * a reminder that has to be switched on first is a reminder that is missed once.
+   */
+  reminders: z
+    .object({
+      notify: z.boolean().default(true),
+      /** Also a system notification, when the window is not in front. */
+      system: z.boolean().default(true),
+      /** A sound, when interface sounds are on. */
+      sound: z.boolean().default(true),
+      /** How long "snooze" puts a task off for. */
+      snoozeMinutes: z.number().int().min(1).max(1440).default(10),
+      /** Announce this many minutes before the deadline itself. */
+      leadMinutes: z.number().int().min(0).max(1440).default(0),
+    })
+    .default({ notify: true, system: true, sound: true, snoozeMinutes: 10, leadMinutes: 0 }),
+  /**
    * Plugins by id: whether each is on, what the user agreed it may do, and its setting
    * values. A plugin never listed here is off (docs/plugins.md section 8).
    */
@@ -165,6 +183,7 @@ export interface SettingsPatch {
   updates?: Partial<Settings['updates']>
   web?: Partial<Settings['web']>
   quakes?: Partial<Settings['quakes']>
+  reminders?: Partial<Settings['reminders']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
 }
@@ -196,6 +215,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     updates: merge(current.updates, p.updates),
     web: merge(current.web, p.web),
     quakes: merge(current.quakes, p.quakes),
+    reminders: merge(current.reminders, p.reminders),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),
     // Only showSystem: the launcher's own entries are edited in settings.json.

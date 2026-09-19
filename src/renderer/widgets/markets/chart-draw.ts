@@ -6,30 +6,6 @@ import type { CandlePoint } from '@shared/markets'
  * dividers mark where the day (or week, month, year) changed instead.
  */
 
-export interface CanvasSize {
-  width: number
-  height: number
-  ratio: number
-}
-
-/**
- * Keeps a canvas's backing store at its CSS size times the pixel ratio, and
- * reports each new size. Returns the disconnect.
- */
-export function observeCanvas(
-  el: HTMLCanvasElement,
-  onSize: (size: CanvasSize) => void,
-): () => void {
-  const observer = new ResizeObserver(() => {
-    const ratio = window.devicePixelRatio || 1
-    el.width = Math.max(1, Math.round(el.clientWidth * ratio))
-    el.height = Math.max(1, Math.round(el.clientHeight * ratio))
-    onSize({ width: el.clientWidth, height: el.clientHeight, ratio })
-  })
-  observer.observe(el)
-  return () => observer.disconnect()
-}
-
 /** A vertical mapping from value to y, padded so the extremes do not touch the edges. */
 export function valueScale(
   lo: number,

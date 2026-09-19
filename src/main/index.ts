@@ -8,11 +8,13 @@ import { registerFsIpc } from './ipc/fs.js'
 import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerMarketsIpc } from './ipc/markets.js'
+import { registerNotesIpc } from './ipc/notes.js'
 import { registerPluginsIpc } from './ipc/plugins.js'
 import { type PtyIpc, registerPtyIpc } from './ipc/pty.js'
 import { registerQuakesIpc } from './ipc/quakes.js'
 import { registerSettingsIpc } from './ipc/settings.js'
 import { registerSystemIpc } from './ipc/system.js'
+import { registerTasksIpc } from './ipc/tasks.js'
 import { registerUpdatesIpc } from './ipc/updates.js'
 import { registerWeatherIpc } from './ipc/weather.js'
 import { registerWebIpc } from './ipc/web.js'
@@ -66,6 +68,8 @@ let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
 let feedsIpc: { dispose: () => void } | null = null
 let quakesIpc: { dispose: () => void } | null = null
+let notesIpc: { dispose: () => void } | null = null
+let tasksIpc: { dispose: () => void } | null = null
 let updatesIpc: { dispose: () => void } | null = null
 let audioIpc: { dispose: () => void } | null = null
 let pluginsIpc: { dispose: () => void } | null = null
@@ -86,6 +90,8 @@ app.whenReady().then(() => {
   feedsIpc = registerFeedsIpc()
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
+  notesIpc = registerNotesIpc()
+  tasksIpc = registerTasksIpc(settings)
   audioIpc = registerAudioIpc()
   pluginsIpc = registerPluginsIpc(settings)
   webIpc = registerWebIpc(settings)
@@ -140,6 +146,10 @@ app.on('will-quit', () => {
   feedsIpc = null
   quakesIpc?.dispose()
   quakesIpc = null
+  notesIpc?.dispose()
+  notesIpc = null
+  tasksIpc?.dispose()
+  tasksIpc = null
   updatesIpc?.dispose()
   updatesIpc = null
   audioIpc?.dispose()

@@ -542,3 +542,42 @@ test('a busy button icon follows the motion setting: it turns, or pulses with mo
   expect(reduced.play).toMatch(/pulse/)
   expect((await busyIcons('full', true)).refresh).toMatch(/turn/)
 })
+
+/**
+ * A toast is raised from a running timer, which is the shortest way to one that
+ * does not involve waiting for a deadline or a release.
+ */
+const shortTimer = {
+  version: 1,
+  root: { kind: 'pane', id: 't', widget: 'timer', state: { mode: 'timer', durationMs: 1000 } },
+}
+
+test('a toast powers on like the rest of the HUD, and just appears with motion reduced', async () => {
+  for (const motion of ['full', 'reduced'] as const) {
+    const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-motion-'))
+    writeFileSync(
+      path.join(dir, 'settings.json'),
+      JSON.stringify({ sound: { enabled: false }, motion }),
+    )
+    const { page, close } = await launch(dir, { layout: shortTimer })
+    try {
+      await page.getByTestId('timer-start').click()
+      const toast = page.getByTestId('toast')
+      await expect(toast).toHaveCount(1, { timeout: 15_000 })
+      const style = await toast.evaluate((el) => {
+        const s = getComputedStyle(el)
+        return { name: s.animationName, duration: s.animationDuration }
+      })
+      if (motion === 'reduced') {
+        // Not a shortened power-on: no animation at all, and the card is simply there.
+        expect(style.name).toBe('none')
+      } else {
+        expect(style.name).toMatch(/crt-power-on/)
+        expect(style.duration).toBe('0.32s')
+      }
+    } finally {
+      await close()
+      removeDir(dir)
+    }
+  }
+})

@@ -175,6 +175,13 @@ describe('settings', () => {
         system: true,
         sound: true,
       },
+      reminders: {
+        notify: true,
+        system: true,
+        sound: true,
+        snoozeMinutes: 10,
+        leadMinutes: 0,
+      },
       plugins: {},
     })
   })

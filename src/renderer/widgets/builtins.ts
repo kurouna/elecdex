@@ -2,6 +2,7 @@ import type { MetricSourceId } from '@shared/metrics'
 import { WEB_PRESETS, webWidgetId } from '@shared/web'
 import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
+import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
@@ -15,10 +16,13 @@ import NetstatWidget from './monitor/NetstatWidget.svelte'
 import SysinfoWidget from './monitor/SysinfoWidget.svelte'
 import ThroughputWidget from './monitor/ThroughputWidget.svelte'
 import ToplistWidget from './monitor/ToplistWidget.svelte'
+import NotesWidget from './notes/NotesWidget.svelte'
 import QuakesWidget from './quakes/QuakesWidget.svelte'
 import { registerBuiltin } from './registry.ts'
 import RssWidget from './rss/RssWidget.svelte'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
+import TimerWidget from './timer/TimerWidget.svelte'
+import TodoWidget from './todo/TodoWidget.svelte'
 import WeatherWidget from './weather/WeatherWidget.svelte'
 import WebWidget from './web/WebWidget.svelte'
 
@@ -212,6 +216,46 @@ registerBuiltin({
   description: 'The system volume and each app playing sound, with faders, mute and meters.',
   component: MixerWidget,
   minSize: { w: 160, h: 160 },
+})
+
+registerBuiltin({
+  id: 'calc',
+  title: 'calculator',
+  description:
+    'A calculator you type into: full-width digits, 3百万, units and constants, with a tape - and a tally for a column of numbers.',
+  component: CalcWidget,
+  minSize: { w: 200, h: 160 },
+  multiple: true,
+})
+
+registerBuiltin({
+  id: 'notes',
+  title: 'notes',
+  description:
+    'Plain text that saves itself, kept in notes.json. Ctrl+= works out the sum under the caret.',
+  component: NotesWidget,
+  minSize: { w: 200, h: 140 },
+  multiple: true,
+})
+
+registerBuiltin({
+  id: 'todo',
+  title: 'tasks',
+  description:
+    'A list with deadlines drawn as meters. Reminders are scheduled in the app, so they arrive with the pane closed.',
+  component: TodoWidget,
+  minSize: { w: 240, h: 180 },
+  multiple: true,
+})
+
+registerBuiltin({
+  id: 'timer',
+  title: 'timer',
+  description:
+    'A stopwatch whose laps stack up like a spectrum, and a countdown that burns down a ladder.',
+  component: TimerWidget,
+  minSize: { w: 180, h: 140 },
+  multiple: true,
 })
 
 // A web pane per preset (shared/web.ts): the browser, and a pane per site.

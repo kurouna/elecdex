@@ -170,6 +170,35 @@ export const CH = {
     /** main -> renderer: a page took the keyboard (its pane id). */
     focused: 'web:focused',
   },
+  /** Notes (notes.json); main owns the text, a pane holds only which note it shows. */
+  notes: {
+    /** The whole file. */
+    list: 'notes:list',
+    create: 'notes:create',
+    /** Replaces a note's body; answers the stored note, with its new revision. */
+    save: 'notes:save',
+    remove: 'notes:remove',
+    /** Opens the system's save dialog and writes the note as markdown. */
+    export: 'notes:export',
+    /** main -> renderer: the whole file after any change, including a hand edit. */
+    changed: 'notes:changed',
+  },
+  /** Tasks (tasks.json) and their reminders. */
+  tasks: {
+    list: 'tasks:list',
+    add: 'tasks:add',
+    update: 'tasks:update',
+    remove: 'tasks:remove',
+    /** Removes every completed task in a list; answers how many went. */
+    clearCompleted: 'tasks:clear-completed',
+    addList: 'tasks:add-list',
+    renameList: 'tasks:rename-list',
+    removeList: 'tasks:remove-list',
+    /** main -> renderer: the whole file after any change. */
+    changed: 'tasks:changed',
+    /** main -> renderer: a TaskReminder, when one comes due. */
+    remind: 'tasks:remind',
+  },
   launcher: {
     list: 'launcher:list',
     icon: 'launcher:icon',

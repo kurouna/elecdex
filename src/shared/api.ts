@@ -5,10 +5,12 @@ import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
+import type { Note, NotesFile } from './notes.js'
 import type { PluginCatalog } from './plugins.js'
 import type { QuakeAlert, QuakeState } from './quakes.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
+import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from './tasks.js'
 import type { Theme, ThemeProblem } from './theme.js'
 import type { UpdateStatus } from './updates.js'
 import type { OfficeInfo } from './weather.js'
@@ -262,6 +264,39 @@ export interface QuakesApi {
   onAlert(handler: (alert: QuakeAlert) => void): () => void
 }
 
+/**
+ * Notes. The text lives in main (notes.json), so it outlives the pane showing it
+ * and two panes can show the same note.
+ */
+export interface NotesApi {
+  list(): Promise<NotesFile>
+  /** A new, empty note, or null when the file is full. */
+  create(): Promise<Note | null>
+  /** Stores a body and answers the note as kept, with its new revision. */
+  save(id: string, body: string): Promise<Note | null>
+  remove(id: string): Promise<boolean>
+  /** Asks the user where to write the note as markdown; answers the path, or null. */
+  export(id: string): Promise<string | null>
+  /** Every change, however it was made - another pane, or a hand edit of notes.json. */
+  onChange(handler: (file: NotesFile) => void): () => void
+}
+
+/** Tasks and their deadlines. Reminders are scheduled in main, pane open or not. */
+export interface TasksApi {
+  list(): Promise<TasksFile>
+  add(task: NewTask): Promise<Task | null>
+  update(id: string, patch: TaskPatch): Promise<Task | null>
+  remove(id: string): Promise<boolean>
+  /** Drops every completed task in a list; answers how many went. */
+  clearCompleted(listId: string): Promise<number>
+  addList(name: string): Promise<TaskList | null>
+  renameList(id: string, name: string): Promise<boolean>
+  removeList(id: string): Promise<boolean>
+  onChange(handler: (file: TasksFile) => void): () => void
+  /** A deadline reached, as main decided it. */
+  onRemind(handler: (reminder: TaskReminder) => void): () => void
+}
+
 export interface LauncherApi {
   /** User entries from settings.json first, then the platform's applications. */
   list(): Promise<LauncherEntry[]>
@@ -421,6 +456,8 @@ export interface ElecdexApi {
   markets: MarketsApi
   feeds: FeedsApi
   quakes: QuakesApi
+  notes: NotesApi
+  tasks: TasksApi
   updates: UpdatesApi
   audio: AudioApi
   plugins: PluginsApi
