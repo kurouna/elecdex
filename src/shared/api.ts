@@ -216,6 +216,15 @@ export interface SavedLayoutsApi {
   /** Makes a saved layout the live one. Null when there is no such layout. */
   apply(id: string): Promise<LayoutTree | null>
   remove(id: string): Promise<SavedLayoutSummary[]>
+  /** Renames one. The list comes back unchanged when the name is not usable. */
+  rename(id: string, name: string): Promise<SavedLayoutSummary[]>
+  /**
+   * Moves one up or down the list by `delta` places, which is how a layout is
+   * put on a number shortcut. Unchanged at either end.
+   */
+  move(id: string, delta: number): Promise<SavedLayoutSummary[]>
+  /** Absolute path of layouts.json, which is the file to copy to another machine. */
+  filePath(): Promise<string>
 }
 
 export interface SettingsApi {

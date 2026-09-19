@@ -137,7 +137,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+A | add a pane: any widget, right of, below or as a tab beside the focused pane |
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
-| Ctrl+Shift+1 … 4 | apply the first four saved layouts |
+| Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
@@ -170,8 +170,9 @@ turned off in Task Manager's startup apps, which the settings show.
 Every other shortcut except the divider keys can be rebound in *Settings → Keyboard*: click one and
 press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key, so every other
 key still reaches the shell, and a chord already in use is flagged. The status bar (move the
-pointer to the bottom edge) has buttons for adding a pane, resetting the layout, settings, theme,
-sound and exit. In fullscreen on Windows and Linux, moving the pointer into the top-right corner
+pointer to the bottom edge) has a numbered button per saved layout at the left — the number is the
+key that applies it — and buttons for adding a pane, saved layouts, resetting the layout, settings,
+theme, sound and exit. In fullscreen on Windows and Linux, moving the pointer into the top-right corner
 brings down minimize, leave-fullscreen and close buttons; close puts elecdex in the notification
 area when it is set to keep running there, and otherwise quits after asking.
 
@@ -192,12 +193,22 @@ is rearranged and nothing is saved: a shell keeps its session and a web pane its
 starts with every pane in its place.
 
 An arrangement worth keeping can be saved by name — **Ctrl+Shift+G**, or *layouts* in the status
-bar — and returned to later; the first four are on Ctrl+Shift+1 to 4. A layout follows the work:
-the one you are in is marked, and whatever you do to the workspace is kept in it, so coming back
-finds it as you left it. Resetting the layout leaves all of them, and what you arrange after that
-belongs to none until you save it or apply one. Up to twelve are kept, in `layouts.json` beside the
-live `layout.json`. Applying a layout replaces the workspace, which ends the shells of the panes it
-replaces, exactly as closing those panes would.
+bar — and returned to later; the first nine are on Ctrl+Shift+1 to 9, and on the numbered buttons
+at the left of the status bar. A layout follows the work: the one you are in is marked, and
+whatever you do to the workspace is kept in it, so coming back finds it as you left it. Resetting
+the layout leaves all of them, and what you arrange after that belongs to none until you save it or
+apply one. In the dialog a layout can be renamed, and moved up or down — its place in the list *is*
+its number key. Up to twelve are kept.
+
+Applying a layout replaces the workspace, which ends the shells of the panes it replaces, exactly as
+closing those panes would; while shells are open you are asked first, and the question carries the
+way to stop asking (*Settings → General → ask before switching layout*). The old arrangement powers
+off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
+reduced.
+
+The saved layouts live in `layouts.json`, beside the live `layout.json`, and hold nothing that
+belongs to this machine: **copy that one file to another computer and your arrangements come with
+you.** The dialog's *layouts.json* button shows it in the file manager.
 
 A tab group can hold any panes, not only shells, so a pane you need now and then can share a place
 with the shells instead of taking room of its own - RSS or the weather behind the shell tabs, for

@@ -196,6 +196,16 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   group's drag handle and shows the path. Pane moves (drag a title; Ctrl for a tab) are covered at three
   levels - unit (layout-ops, including seeded random moves), component (pane-drag gesture) and
   e2e (pane-move) - so extend those when touching it.
+- **Saved layouts** (src/shared/layouts.ts) are the arrangements the user works in, kept by name in
+  `layouts.json` with the id of the one being worked in. Each file has one job: `layout.json` is the
+  live arrangement, with the volatile state a reload needs (a terminal's session id) and the one a
+  hand edit reaches; `layouts.json` holds named copies with that state stripped (`portableTree`), so
+  it can be copied to another machine and so a new shell does not rewrite it. main writes the live
+  tree back into the active entry on every save, and only when it differs. A layout follows the work:
+  never turn it back into a snapshot without asking (user decision 2026-09-20). Switching flushes the
+  pending save *and waits for one in flight* - main writes each save into whichever layout is active
+  when it arrives. A broken entry is dropped on its own; the file is never discarded whole for one
+  bad layout.
 - **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state
   or in main (a shell reattaches to its session). A widget that creates a WebGL context must give
   it back when it unmounts (`forceContextLoss`, or `releaseWebglContexts` in lib/webgl.ts):

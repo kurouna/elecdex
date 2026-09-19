@@ -4,7 +4,7 @@ import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
 import PaneHost from './PaneHost.svelte'
-import { insetStyle } from './pane-close.ts'
+import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
 
@@ -20,13 +20,25 @@ const focused = $derived(node.children.some((c) => c.id === layout.focusedPaneId
 /** The group, as a whole, uncovers the room a closed pane left it. */
 const extend = $derived(activeChild ? layout.extending.get(activeChild.id) : undefined)
 /**
+ * The whole group powers off with its panes when one layout gives way to
+ * another: its header and tab strip are part of the picture, and leaving them
+ * lit over panes that have gone would show the frame of an empty room.
+ */
+const leaving = $derived(
+  layout.leaving.size > 0 && node.children.every((child) => layout.leaving.has(child.id)),
+)
+/**
  * A tab brought to the front brings its group with it: the strip and the header
  * come too, so the other tabs are still there to switch to, and the group is one
  * picture rather than a pane floating out of its own frame.
  */
 const pinned = $derived(activeChild !== undefined && layout.pinnedPaneId === activeChild.id)
 const groupStyle = $derived(
-  [extend === undefined ? null : insetStyle(extend), pinned ? layout.zoomStyle : null]
+  [
+    leaving ? `--crt-duration: ${CRT_CLOSE_MS}ms` : null,
+    extend === undefined ? null : insetStyle(extend),
+    pinned ? layout.zoomStyle : null,
+  ]
     .filter((part) => part != null)
     .join('; ') || undefined,
 )
@@ -42,11 +54,14 @@ const activeTitle = $derived(
 <section
   class="tabs-host"
   class:focused
+  class:crt-off={leaving}
+  class:crt-beam={leaving}
   class:crt-extend={extend !== undefined}
   class:zoomed={pinned}
   class:crt-zoom={pinned && layout.zoomPhase === 'in'}
   class:crt-zoom-out={pinned && layout.zoomPhase === 'out'}
   style={groupStyle}
+  inert={leaving}
   data-testid="tabs-host"
   data-node-id={node.id}
   data-drop-node={node.id}

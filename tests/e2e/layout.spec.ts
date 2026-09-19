@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL, terminalPane, typeInto } from './support.js'
+import { launch, SINGLE_TERMINAL, showStatusBar, terminalPane, typeInto } from './support.js'
 
 /**
  * Layout engine, end to end. Each test gets its own userData directory because
@@ -366,8 +366,17 @@ test('reset restores the default layout', async () => {
   }
 })
 
+/**
+ * Switching between saved layouts without the question about the shells, which
+ * has its own test: these are about the layouts, not about being asked.
+ */
+const NO_SWITCH_PROMPT = { layout: { confirmSwitch: false } } as const
+
 test('a layout can be saved by name, applied again and forgotten', async () => {
-  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const { page, userData, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
   try {
     // One terminal, saved as "one".
     await page.keyboard.press('Control+Shift+KeyG')
@@ -379,15 +388,20 @@ test('a layout can be saved by name, applied again and forgotten', async () => {
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
 
-    // Split, and save the two-pane arrangement under another name.
-    await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
-    await page.keyboard.press('Control+Shift+KeyE')
-    await expect(terminalPane(page)).toHaveCount(2)
+    // A second name for the same arrangement, which is now the one being worked
+    // in - so the split below belongs to "two" and leaves "one" as it is. (That
+    // is the whole point of a layout following the work; rearranging before
+    // saving the second name would put the split into "one" as well.)
     await page.keyboard.press('Control+Shift+KeyG')
     await dialog.getByTestId('layouts-name').fill('two')
     await dialog.getByTestId('layouts-save').click()
     await expect(dialog.getByTestId('layouts-item')).toHaveCount(2)
     await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+
+    await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(terminalPane(page)).toHaveCount(2)
 
     // The saved layouts live in a file of their own: layout.json still means
     // the one live arrangement.
@@ -423,7 +437,10 @@ test('a layout can be saved by name, applied again and forgotten', async () => {
 })
 
 test('the layout being worked in keeps what is done to the workspace', async () => {
-  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const { page, userData, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
   try {
     const save = async (name: string) => {
       await page.keyboard.press('Control+Shift+KeyG')
@@ -440,12 +457,14 @@ test('the layout being worked in keeps what is done to the workspace', async () 
       await expect(terminalPane(page)).toHaveCount(before + 1)
     }
 
+    // Both names taken while the workspace is one terminal, so what is
+    // rearranged next belongs to "two" alone.
     await save('one')
-    await split()
     await save('two')
 
     // Rearrange inside "two", then leave it and come back: the change is there.
     // Switching writes the pending save out first, so nothing waits on a timer.
+    await split()
     await split()
     await expect(terminalPane(page)).toHaveCount(3)
     await page.keyboard.press('Control+Shift+Digit1')
@@ -464,7 +483,9 @@ test('the layout being worked in keeps what is done to the workspace', async () 
     // written back into the one that was being worked in.
     await page.keyboard.press('Control+Shift+Backspace')
     await expect(page.locator('[data-testid=pane]')).toHaveCount(17)
-    await split()
+    await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(terminalPane(page)).toHaveCount(2)
     await page.keyboard.press('Control+Shift+Digit2')
     await expect(terminalPane(page)).toHaveCount(3)
 
@@ -476,7 +497,7 @@ test('the layout being worked in keeps what is done to the workspace', async () 
 })
 
 test('a saved layout survives a restart, and an empty slot leaves its keys alone', async () => {
-  let launched = await launch(undefined, { layout: SINGLE_TERMINAL })
+  let launched = await launch(undefined, { layout: SINGLE_TERMINAL, settings: NO_SWITCH_PROMPT })
   try {
     // Nothing is saved yet: the slot shortcut must not swallow the key.
     await launched.page.keyboard.press('Control+Shift+Digit1')
@@ -491,6 +512,218 @@ test('a saved layout survives a restart, and an empty slot leaves its keys alone
     launched = await launched.relaunch()
     await launched.page.keyboard.press('Control+Shift+KeyG')
     await expect(launched.page.getByTestId('layouts-item')).toHaveAttribute('data-name', 'kept')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('a switch is asked about while shells are open, and can be told to stop asking', async () => {
+  const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
+  try {
+    const save = async (name: string) => {
+      await page.keyboard.press('Control+Shift+KeyG')
+      await page.getByTestId('layouts-name').fill(name)
+      await page.getByTestId('layouts-save').click()
+      await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    }
+    await save('one')
+    await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(terminalPane(page)).toHaveCount(2)
+    await save('two')
+
+    // Going back to "one" would end two shells, so it asks first, and saying no
+    // leaves the workspace exactly as it was.
+    await page.keyboard.press('Control+Shift+Digit1')
+    const ask = page.getByTestId('switch-layout-dialog')
+    await expect(ask).toBeVisible()
+    await expect(ask.getByTestId('switch-layout-name')).toHaveText('one')
+    await expect(ask.getByTestId('switch-layout-cost')).toContainText('2 shells')
+    await page.keyboard.press('Escape')
+    await expect(ask).toHaveCount(0)
+    await expect(terminalPane(page)).toHaveCount(2)
+
+    // Saying yes goes.
+    await page.keyboard.press('Control+Shift+Digit1')
+    await ask.getByTestId('switch-layout-go').click()
+    await expect(terminalPane(page)).toHaveCount(1)
+
+    // And "stop asking" both goes and writes the setting, so the next switch is
+    // not asked about at all.
+    await page.keyboard.press('Control+Shift+Digit2')
+    await expect(ask).toBeVisible()
+    await ask.getByTestId('switch-layout-always').click()
+    await expect(terminalPane(page)).toHaveCount(2)
+    await expect
+      .poll(
+        () =>
+          JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).layout
+            ?.confirmSwitch,
+      )
+      .toBe(false)
+
+    await page.keyboard.press('Control+Shift+Digit1')
+    await expect(terminalPane(page)).toHaveCount(1)
+    await expect(ask).toHaveCount(0)
+
+    // And the settings turn the question back on, so the link is not a one-way
+    // door.
+    await page.keyboard.press('Control+Shift+Period')
+    await page.getByTestId('settings-confirm-switch').check()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
+    await page.keyboard.press('Control+Shift+Digit2')
+    await expect(ask).toBeVisible()
+    await ask.getByTestId('switch-layout-cancel').click()
+    await expect(terminalPane(page)).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a saved layout can be renamed, and moved onto another number key', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    const dialog = page.getByTestId('layouts-dialog')
+    const save = async (name: string) => {
+      await page.getByTestId('layouts-name').fill(name)
+      await page.getByTestId('layouts-save').click()
+      await expect(dialog.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
+    }
+    await page.keyboard.press('Control+Shift+KeyG')
+    await save('one')
+    await save('two')
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    // Rearranged while "two" is the one being worked in, so the two layouts
+    // differ by a split.
+    await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(terminalPane(page)).toHaveCount(2)
+    await page.keyboard.press('Control+Shift+KeyG')
+
+    // Rename the second.
+    await dialog.getByTestId('layouts-rename').nth(1).click()
+    const box = dialog.getByTestId('layouts-rename-box')
+    await expect(box).toBeFocused()
+    await box.fill('split')
+    await box.press('Enter')
+    await expect(dialog.getByTestId('layouts-item').nth(1)).toHaveAttribute('data-name', 'split')
+
+    // A name another layout already has is refused, and the old one stays.
+    await dialog.getByTestId('layouts-rename').nth(1).click()
+    await dialog.getByTestId('layouts-rename-box').fill('one')
+    await dialog.getByTestId('layouts-rename-box').press('Enter')
+    await expect(dialog.getByTestId('layouts-item').nth(1)).toHaveAttribute('data-name', 'split')
+
+    // Moving it up puts it on key 1, and the key applies it.
+    await dialog.getByTestId('layouts-up').nth(1).click()
+    await expect(dialog.getByTestId('layouts-item').nth(0)).toHaveAttribute('data-name', 'split')
+    await expect(dialog.getByTestId('layouts-up').nth(0)).toBeDisabled()
+    await expect(dialog.getByTestId('layouts-down').nth(1)).toBeDisabled()
+    await page.keyboard.press('Escape')
+
+    await page.keyboard.press('Control+Shift+Digit2')
+    await expect(terminalPane(page)).toHaveCount(1)
+    await page.keyboard.press('Control+Shift+Digit1')
+    await expect(terminalPane(page)).toHaveCount(2)
+  } finally {
+    await close()
+  }
+})
+
+test('the status bar carries a numbered button per saved layout', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    const save = async (name: string) => {
+      await page.keyboard.press('Control+Shift+KeyG')
+      await page.getByTestId('layouts-name').fill(name)
+      await page.getByTestId('layouts-save').click()
+      await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
+      await page.keyboard.press('Escape')
+      await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    }
+    await save('one')
+    await save('two')
+    await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(terminalPane(page)).toHaveCount(2)
+
+    await showStatusBar(page)
+    const slots = page.getByTestId('layout-slot')
+    await expect(slots).toHaveCount(2)
+    await expect(slots.nth(0)).toHaveText('1')
+    await expect(slots.nth(1)).toHaveAttribute('data-name', 'two')
+    // The one being worked in is marked rather than offered.
+    await expect(slots.nth(1)).toHaveAttribute('aria-pressed', 'true')
+
+    await slots.nth(0).click()
+    await expect(terminalPane(page)).toHaveCount(1)
+    await showStatusBar(page)
+    await expect(page.getByTestId('layout-slot').nth(0)).toHaveAttribute('aria-pressed', 'true')
+  } finally {
+    await close()
+  }
+})
+
+test('a broken entry in layouts.json costs only that entry, and broken JSON is kept aside', async () => {
+  const good = {
+    id: 'aaaa1111',
+    name: 'good',
+    tree: { version: 1, root: { kind: 'pane', id: 'p', widget: 'calendar' } },
+  }
+  const file = (userData: string) => path.join(userData, 'layouts.json')
+
+  // One entry that is not a layout: the others must survive it. Losing eleven
+  // arrangements to one bad one is the failure this guards against.
+  let launched = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    writeFileSync(
+      file(launched.userData),
+      JSON.stringify({
+        version: 1,
+        active: null,
+        items: [
+          { id: 'bbbb2222', name: 'broken', tree: { version: 1, root: { kind: 'nonsense' } } },
+          good,
+          'not an entry at all',
+        ],
+      }),
+      'utf8',
+    )
+    launched = await launched.relaunch()
+    await launched.page.keyboard.press('Control+Shift+KeyG')
+    const items = launched.page.getByTestId('layouts-item')
+    await expect(items).toHaveCount(1)
+    await expect(items).toHaveAttribute('data-name', 'good')
+    // And it still works: the layout applies.
+    await items.click()
+    await expect(launched.page.locator('[data-testid=pane][data-widget=calendar]')).toHaveCount(1)
+  } finally {
+    await launched.close()
+  }
+
+  // A file that is not JSON at all is moved aside rather than overwritten, so a
+  // hand edit gone wrong can be got back.
+  launched = await launch(undefined, { layout: SINGLE_TERMINAL, settings: NO_SWITCH_PROMPT })
+  try {
+    writeFileSync(file(launched.userData), '{ this is not json', 'utf8')
+    launched = await launched.relaunch()
+    await launched.page.keyboard.press('Control+Shift+KeyG')
+    await expect(launched.page.getByTestId('layouts-item')).toHaveCount(0)
+    await expect.poll(() => existsSync(`${file(launched.userData)}.bak`)).toBe(true)
+    expect(readFileSync(`${file(launched.userData)}.bak`, 'utf8')).toContain('not json')
   } finally {
     await launched.close()
   }

@@ -88,6 +88,17 @@ export const SettingsSchema = z.object({
       globalShortcut: false,
       startInBackground: false,
     }),
+  /** The workspace layout, and the saved arrangements (shared/layouts.ts). */
+  layout: z
+    .object({
+      /**
+       * Ask before applying a saved layout while shells are open. Applying one
+       * replaces the workspace, which ends those shells, so the default is to
+       * ask; the question carries the way to stop asking.
+       */
+      confirmSwitch: z.boolean().default(true),
+    })
+    .default({ confirmSwitch: true }),
   /** Web panes (browser, YouTube, X): docs/architecture.md section 5.4. */
   web: z
     .object({
@@ -179,6 +190,7 @@ export interface SettingsPatch {
   terminal?: Partial<Settings['terminal']>
   /** Replaces the whole override map. */
   keybindings?: Settings['keybindings']
+  layout?: Partial<Settings['layout']>
   window?: Partial<Settings['window']>
   updates?: Partial<Settings['updates']>
   web?: Partial<Settings['web']>
@@ -214,6 +226,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     window: merge(current.window, p.window),
     updates: merge(current.updates, p.updates),
     web: merge(current.web, p.web),
+    layout: merge(current.layout, p.layout),
     quakes: merge(current.quakes, p.quakes),
     reminders: merge(current.reminders, p.reminders),
     terminal: merge(current.terminal, p.terminal),

@@ -23,12 +23,18 @@ export const KEYBINDING_ACTIONS = [
   { id: 'focus.previous', label: 'Focus previous pane', chord: 'Ctrl+Shift+BracketLeft' },
   { id: 'layout.reset', label: 'Reset layout', chord: 'Ctrl+Shift+Backspace' },
   { id: 'layout.saved', label: 'Saved layouts', chord: 'Ctrl+Shift+KeyG' },
-  // The first four saved arrangements, by position in the list. An action whose
-  // slot is empty leaves the keys to the focused pane.
+  // The first nine saved arrangements, by position in the list - which is why the
+  // dialog can reorder them. An action whose slot is empty leaves the keys to the
+  // focused pane.
   { id: 'layout.saved1', label: 'Apply the 1st saved layout', chord: 'Ctrl+Shift+Digit1' },
   { id: 'layout.saved2', label: 'Apply the 2nd saved layout', chord: 'Ctrl+Shift+Digit2' },
   { id: 'layout.saved3', label: 'Apply the 3rd saved layout', chord: 'Ctrl+Shift+Digit3' },
   { id: 'layout.saved4', label: 'Apply the 4th saved layout', chord: 'Ctrl+Shift+Digit4' },
+  { id: 'layout.saved5', label: 'Apply the 5th saved layout', chord: 'Ctrl+Shift+Digit5' },
+  { id: 'layout.saved6', label: 'Apply the 6th saved layout', chord: 'Ctrl+Shift+Digit6' },
+  { id: 'layout.saved7', label: 'Apply the 7th saved layout', chord: 'Ctrl+Shift+Digit7' },
+  { id: 'layout.saved8', label: 'Apply the 8th saved layout', chord: 'Ctrl+Shift+Digit8' },
+  { id: 'layout.saved9', label: 'Apply the 9th saved layout', chord: 'Ctrl+Shift+Digit9' },
   { id: 'launcher.focus', label: 'Search the launcher', chord: 'Ctrl+Shift+KeyL' },
   { id: 'shell.focus', label: 'Focus the shell', chord: 'Ctrl+Shift+KeyS' },
   { id: 'shell.find', label: 'Search the shell', chord: 'Ctrl+Shift+KeyF' },

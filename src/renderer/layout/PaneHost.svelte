@@ -29,17 +29,33 @@ const focused = $derived(layout.focusedPaneId === node.id)
 const active = $derived(visible && focused)
 const chrome = $derived(tabbed ? 'bare' : (definition?.chrome ?? 'module'))
 const title = $derived(meta.title ?? definition?.title ?? node.widget)
-/** Set only during the boot reveal: when this pane's CRT power-on starts. */
+/**
+ * When this pane's CRT power-on starts: during the boot reveal, or while a
+ * layout arrives in place of another (layout-switch.ts), which is the same
+ * effect played quicker.
+ */
 const bootDelay = $derived(boot.delayFor(node.id))
-const bootDuration = $derived(definition?.chrome === 'shell' ? CRT_SHELL_MS : CRT_MODULE_MS)
+const switchDelay = $derived(layout.switchDelays?.get(node.id) ?? null)
+const revealDelay = $derived(bootDelay ?? switchDelay)
+const revealDuration = $derived(
+  bootDelay === null
+    ? layout.switchOnMs
+    : definition?.chrome === 'shell'
+      ? CRT_SHELL_MS
+      : CRT_MODULE_MS,
+)
 /**
  * A pane just added powers on like the panes at boot, only quicker, and once: asked
  * as the pane mounts, so a later remount (a move) is not an arrival. Not at all with
  * motion reduced, where the class would leave its beam showing, unanimated.
  */
 let poweringOn = $state(untrack(() => layout.arrived(node.id) && !appearance.reducedMotion))
-/** Powering off: still in the tree until it has, and out of reach meanwhile. */
-const closing = $derived(layout.closingId === node.id)
+/**
+ * Powering off: still in the tree until it has, and out of reach meanwhile.
+ * Either this pane alone, or the whole screen as one layout gives way to
+ * another.
+ */
+const closing = $derived(layout.closingId === node.id || (!tabbed && layout.leaving.has(node.id)))
 /**
  * Brought to the front: this pane is pinned over the workspace. A tabbed pane is
  * brought forward with its whole group, which pins itself, so only a pane
@@ -63,13 +79,14 @@ const extend = $derived(tabbed ? undefined : layout.extending.get(node.id))
 $effect(() => {
   if (closing || extend !== undefined) poweringOn = false
 })
-const crtOn = $derived(!closing && extend === undefined && (bootDelay !== null || poweringOn))
+const crtOn = $derived(!closing && extend === undefined && (revealDelay !== null || poweringOn))
 /** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */
 const transitioning = $derived(crtOn || closing || flying || layout.extending.has(node.id))
 const crtStyle = $derived.by(() => {
   if (closing) return `--crt-duration: ${CRT_CLOSE_MS}ms`
   if (extend !== undefined) return insetStyle(extend)
-  if (bootDelay !== null) return `--crt-delay: ${bootDelay}ms; --crt-duration: ${bootDuration}ms`
+  if (revealDelay !== null)
+    return `--crt-delay: ${revealDelay}ms; --crt-duration: ${revealDuration}ms`
   return poweringOn ? `--crt-duration: ${CRT_ADDED_MS}ms` : undefined
 })
 /** The pane's own effects, then where the zoom has put it, which comes last. */

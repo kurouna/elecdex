@@ -1,3 +1,4 @@
+import type { SavedLayoutsApi } from '@shared/api'
 import { defaultLayoutNode, fallbackNode } from '@shared/default-layout'
 import {
   addTab,
@@ -21,6 +22,14 @@ import type { SavedLayoutSummary } from '@shared/layouts'
 import { LAYOUT_VERSION, type LayoutTree, type SplitDirection } from '@shared/schemas/layout'
 import { flushSync } from 'svelte'
 import {
+  SWITCH_GAP_MS,
+  SWITCH_OFF_MS,
+  SWITCH_ON_MS,
+  switchDelaysFor,
+  switchRevealEnd,
+  switchSoundTimes,
+} from '../layout/layout-switch.ts'
+import {
   CLOSE_SETTLE_MS,
   CRT_EXTEND_MS,
   extendFrom,
@@ -36,9 +45,11 @@ import {
   type ZoomMode,
   zoomBox,
 } from '../layout/pane-zoom.ts'
-import { zoomModeOf } from '../widgets/registry.ts'
+import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
+import { appearance } from './appearance.svelte.ts'
 import { sfx } from './sound.svelte.ts'
 import { toasts } from './toasts.svelte.ts'
+import { ui } from './ui.svelte.ts'
 
 /**
  * The live layout.
@@ -49,6 +60,14 @@ import { toasts } from './toasts.svelte.ts'
  */
 
 const SAVE_DEBOUNCE_MS = 400
+
+/** Shared empty set, so `leaving` does not allocate one per switch. */
+const EMPTY_IDS: ReadonlySet<string> = new Set<string>()
+
+const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** A shell is framed differently and powers on ahead of the modules. */
+const isShellWidget = (widget: string): boolean => resolveWidget(widget)?.chrome === 'shell'
 
 /** Where a pane added from the picker goes, relative to the focused pane. */
 export type PanePlacement = 'right' | 'down' | 'tab'
@@ -635,9 +654,83 @@ class LayoutStore {
     // Written out first, not dropped: a save still pending belongs to the layout
     // being left, which main writes back into it before the reset clears it.
     await this.flush()
-    this.adopt(await window.elecdex.layout.reset())
+    const tree = await window.elecdex.layout.reset()
+    // The default arrangement belongs to no saved layout; main has cleared it.
+    this.markActive(null)
+    await this.replaceTree(tree)
     await this.loadSaved()
   }
+
+  /**
+   * Panes powering off together while the whole layout is replaced, and when
+   * each pane of the layout arriving powers on.
+   *
+   * A pane at a time has its own close (`closingId`), whose neighbours extend
+   * into its room; that is wrong for a switch, where the room is not shared out
+   * but handed to another arrangement. So the whole screen powers off at once
+   * and the new one comes up as it does at boot, one pane after another in no
+   * fixed order.
+   */
+  leaving = $state.raw<ReadonlySet<string>>(EMPTY_IDS)
+  switchDelays = $state.raw<ReadonlyMap<string, number> | null>(null)
+  /** Tells a switch still playing that a newer one has taken over. */
+  private switchToken = 0
+
+  /**
+   * Puts the current arrangement away and brings the given one up in its place.
+   *
+   * Without motion - reduced motion, the boot sequence still playing - the tree
+   * is simply taken, as everything else here does.
+   */
+  private async replaceTree(next: LayoutTree): Promise<void> {
+    const token = ++this.switchToken
+    if (this.closeMotion?.animates() !== true) {
+      this.leaving = EMPTY_IDS
+      this.switchDelays = null
+      this.adopt(next)
+      return
+    }
+
+    // A pane already powering off on its own is finished first, so the two
+    // effects do not run over each other.
+    this.settle()
+    this.leaving = new Set(this.visible.map((node) => node.id))
+    if (this.leaving.size > 0) {
+      sfx.play('collapse')
+      await wait(SWITCH_OFF_MS + SWITCH_GAP_MS)
+      if (token !== this.switchToken) return
+    }
+
+    // The delays are set before the tree, so each pane's host finds its own as
+    // it mounts - the same way the boot reveal reaches them.
+    const delays = switchDelaysFor(next.root, isShellWidget)
+    this.switchDelays = delays
+    this.leaving = EMPTY_IDS
+    this.adopt(next)
+    this.playSwitchSounds(next, delays, token)
+
+    await wait(switchRevealEnd(delays) + SWITCH_GAP_MS)
+    // A newer switch owns the screen now; clearing here would cut its power-on.
+    if (token === this.switchToken) this.switchDelays = null
+  }
+
+  /** One sound per moment something comes on, dropped if a newer switch starts. */
+  private playSwitchSounds(
+    next: LayoutTree,
+    delays: ReadonlyMap<string, number>,
+    token: number,
+  ): void {
+    const { shells, modules } = switchSoundTimes(next.root, isShellWidget, delays)
+    for (const delay of shells) {
+      setTimeout(() => token === this.switchToken && sfx.play('expand'), delay)
+    }
+    for (const delay of modules) {
+      setTimeout(() => token === this.switchToken && sfx.play('panel'), delay)
+    }
+  }
+
+  /** How long a pane arriving takes; the hosts style their power-on with it. */
+  readonly switchOnMs = SWITCH_ON_MS
 
   /**
    * Arrangements the user keeps by name (shared/layouts.ts). Only the names are
@@ -662,8 +755,10 @@ class LayoutStore {
   async saveAs(name: string): Promise<boolean> {
     // A pane still powering off is closed as far as a saved arrangement goes.
     this.settle()
-    this.savedLayouts = await window.elecdex.layout.saved.save(name, this.snapshot())
-    return this.savedLayouts.some((entry) => entry.name === name)
+    const next = await this.ask((saved) => saved.save(name, this.snapshot()))
+    if (next === undefined) return false
+    this.savedLayouts = next
+    return next.some((entry) => entry.name === name)
   }
 
   /**
@@ -675,15 +770,86 @@ class LayoutStore {
    */
   async applySaved(id: string): Promise<boolean> {
     await this.flush()
-    const tree = await window.elecdex.layout.saved.apply(id)
-    if (tree === null) return false
-    this.adopt(tree)
+    const tree = await this.ask((saved) => saved.apply(id))
+    if (tree === null || tree === undefined) return false
+    // Which layout is now being worked in, before the effect rather than after
+    // it: main has already decided, and a second switch pressed while the panes
+    // are still coming on asks this list which one it is in.
+    this.markActive(id)
+    await this.replaceTree(tree)
     await this.loadSaved()
     return true
   }
 
+  /** Records which saved layout the workspace belongs to, as main has just said. */
+  private markActive(id: string | null): void {
+    if (this.savedLayouts.every((entry) => entry.active === (entry.id === id))) return
+    this.savedLayouts = this.savedLayouts.map((entry) => ({
+      ...entry,
+      active: entry.id === id,
+    }))
+  }
+
+  /**
+   * Goes to a saved layout, asking first when shells would end by it.
+   *
+   * This is the way in for everything that switches - the number shortcuts, the
+   * buttons in the status bar, the dialog - so the question is asked once, in
+   * one place, whichever of them was used. The layout already being worked in is
+   * not re-applied: there would be nothing to see but the effect.
+   */
+  async switchTo(id: string): Promise<boolean> {
+    const entry = this.savedLayouts.find((layout) => layout.id === id)
+    // A switch still playing is not a reason to refuse: pressing 1 then 2 must
+    // end at 2, and `replaceTree` hands the screen to whichever came last.
+    if (entry === undefined || entry.active) return false
+    const shells = this.panes.filter((node) => node.widget === 'terminal').length
+    if (shells > 0 && appearance.settings.layout.confirmSwitch) {
+      const go = await ui.askLayoutSwitch({ name: entry.name, shells })
+      if (!go) return false
+    }
+    return this.applySaved(id)
+  }
+
   async removeSaved(id: string): Promise<void> {
-    this.savedLayouts = await window.elecdex.layout.saved.remove(id)
+    await this.change((saved) => saved.remove(id))
+  }
+
+  /** Renames one; the name it keeps is whatever comes back. */
+  async renameSaved(id: string, name: string): Promise<void> {
+    await this.change((saved) => saved.rename(id, name))
+  }
+
+  /** Moves one up or down the list, which is what the number shortcuts follow. */
+  async moveSaved(id: string, delta: number): Promise<void> {
+    await this.change((saved) => saved.move(id, delta))
+  }
+
+  /**
+   * Runs a change to the list and takes the list it answers with. A failure
+   * leaves the list as it is: main is the one that decides what is saved, and
+   * a dialog showing the old list is better than one showing a guess.
+   */
+  private async change(
+    run: (saved: SavedLayoutsApi) => Promise<SavedLayoutSummary[]>,
+  ): Promise<void> {
+    const next = await this.ask(run)
+    if (next !== undefined) this.savedLayouts = next
+  }
+
+  /** Asks main about the saved layouts; undefined when it could not be reached. */
+  private async ask<T>(run: (saved: SavedLayoutsApi) => Promise<T>): Promise<T | undefined> {
+    try {
+      return await run(window.elecdex.layout.saved)
+    } catch (error) {
+      console.error('[elecdex] a saved layout could not be changed', error)
+      toasts.show({
+        title: 'the saved layouts could not be changed',
+        body: 'Nothing was saved. The list on screen is the one on disk.',
+        tone: 'danger',
+      })
+      return undefined
+    }
   }
 
   /** The layout being worked in: what the workspace is written back into. */

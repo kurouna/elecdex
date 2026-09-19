@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { LayoutNode, LayoutTree, PaneNode } from './schemas/layout.js'
 import { LayoutTreeSchema } from './schemas/layout.js'
 
 /**
@@ -31,9 +32,28 @@ export const SavedLayoutSchema = z.object({
 })
 export type SavedLayout = z.infer<typeof SavedLayoutSchema>
 
+/**
+ * Entries are validated one by one and the ones that do not hold are dropped,
+ * rather than the array failing as a whole.
+ *
+ * The alternative loses eleven good arrangements to one bad one: JsonStore
+ * quarantines a file that does not parse and starts from the default, which
+ * here is an empty list. The file is still kept as `.bak`, but the user would
+ * open elecdex to find every layout gone. Extra entries past the limit are
+ * dropped for the same reason.
+ */
+const SavedLayoutList = z.array(z.unknown()).transform((list) =>
+  list
+    .flatMap((raw) => {
+      const parsed = SavedLayoutSchema.safeParse(raw)
+      return parsed.success ? [parsed.data] : []
+    })
+    .slice(0, MAX_SAVED_LAYOUTS),
+)
+
 export const SavedLayoutsFileSchema = z.object({
   version: z.literal(1).default(1),
-  items: z.array(SavedLayoutSchema).max(MAX_SAVED_LAYOUTS).default([]),
+  items: SavedLayoutList.default([]),
   /**
    * The layout being worked in, which the live layout is written back into. Null
    * after a reset, or when nothing has been applied: the workspace is then an
@@ -55,6 +75,43 @@ export const summarize = (
   items: readonly SavedLayout[],
   activeId: string | null,
 ): SavedLayoutSummary[] => items.map(({ id, name }) => ({ id, name, active: id === activeId }))
+
+/**
+ * Pane state that means nothing anywhere but this machine, in this run.
+ *
+ * A terminal records the session it adopted, which is how a pane finds its shell
+ * again after a reload. Kept in a saved layout it is worse than useless: the
+ * session is gone by the time the layout is applied, it changes every time a
+ * shell is created - which would rewrite the file for nothing - and it is the
+ * one thing in a layout that cannot mean anything on another machine.
+ */
+const VOLATILE_PANE_STATE: readonly string[] = ['sessionId']
+
+/**
+ * A tree fit to be saved and carried to another machine: the arrangement, with
+ * the state that belongs to this run left out.
+ */
+export function portableTree(tree: LayoutTree): LayoutTree {
+  return { ...tree, root: portableNode(tree.root) }
+}
+
+function portableNode(node: LayoutNode): LayoutNode {
+  if (node.kind === 'split') return { ...node, children: node.children.map(portableNode) }
+  if (node.kind === 'tabs') return { ...node, children: node.children.map(portablePane) }
+  return portablePane(node)
+}
+
+function portablePane(node: PaneNode): PaneNode {
+  if (node.state === undefined) return node
+  const state: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(node.state)) {
+    if (!VOLATILE_PANE_STATE.includes(key)) state[key] = value
+  }
+  // An empty object is dropped, so a pane that carried only a session id is
+  // written the same as one that never had state at all.
+  const { state: _dropped, ...rest } = node
+  return Object.keys(state).length > 0 ? { ...rest, state } : rest
+}
 
 /** Trimmed, and rejected when nothing is left or it is too long to show. */
 export function cleanLayoutName(raw: unknown): string | null {
@@ -80,6 +137,45 @@ export function withSavedLayout(
   if (at >= 0) return items.map((item, i) => (i === at ? { ...entry, id: item.id } : item))
   if (items.length >= MAX_SAVED_LAYOUTS) return null
   return [...items, entry]
+}
+
+/**
+ * The list after renaming one layout. Null when there is no such layout, or when
+ * another already has that name - two rows with one name could not be told
+ * apart, and a save under that name would then be ambiguous.
+ */
+export function renameSavedLayout(
+  items: readonly SavedLayout[],
+  id: string,
+  name: string,
+): SavedLayout[] | null {
+  const at = items.findIndex((item) => item.id === id)
+  if (at < 0) return null
+  if (items.some((item, i) => i !== at && item.name === name)) return null
+  return items.map((item, i) => (i === at ? { ...item, name } : item))
+}
+
+/**
+ * The list after moving one layout up or down by `delta` places. Null when there
+ * is no such layout or it is already at that end.
+ *
+ * Order is not decoration: the first nine are what the number shortcuts apply,
+ * so this is how a layout is put on a key.
+ */
+export function moveSavedLayout(
+  items: readonly SavedLayout[],
+  id: string,
+  delta: number,
+): SavedLayout[] | null {
+  const at = items.findIndex((item) => item.id === id)
+  if (at < 0 || !Number.isInteger(delta) || delta === 0) return null
+  const to = at + delta
+  if (to < 0 || to >= items.length) return null
+  const next = [...items]
+  const [moved] = next.splice(at, 1)
+  if (moved === undefined) return null
+  next.splice(to, 0, moved)
+  return next
 }
 
 /** The list after writing `tree` into the active layout; unchanged when there is none. */

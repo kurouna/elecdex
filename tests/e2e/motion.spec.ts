@@ -455,6 +455,99 @@ test('a dialog opened again while closing comes back whole, and another opens ou
   }
 })
 
+/**
+ * Watches the panes across a layout switch, from one frame to the next.
+ *
+ * The two halves last a few hundred milliseconds each, which is too short to
+ * catch between separate Playwright calls - so the key is dispatched and the
+ * panes sampled every frame inside the page, and what comes back is what was
+ * ever seen.
+ */
+const watchSwitch = (page: Page, code: string) =>
+  page.evaluate(async (key): Promise<{ off: boolean; on: boolean; delays: string[] }> => {
+    const seen = { off: false, on: false, delays: [] as string[] }
+    const sample = (): void => {
+      const off = document.querySelectorAll('[data-testid=pane].crt-off').length
+      const on = [...document.querySelectorAll<HTMLElement>('[data-testid=pane].crt-on')]
+      if (off > 0) seen.off = true
+      if (on.length > 0) seen.on = true
+      for (const pane of on) {
+        const delay = pane.style.getPropertyValue('--crt-delay')
+        if (delay !== '') seen.delays.push(delay)
+      }
+    }
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        bubbles: true,
+        key: '1',
+        code: key,
+        ctrlKey: true,
+        shiftKey: true,
+      }),
+    )
+    const start = performance.now()
+    while (performance.now() - start < 2000) {
+      sample()
+      await new Promise((resolve) => requestAnimationFrame(resolve))
+    }
+    return seen
+  }, code)
+
+/** Saves the workspace under a name, from the layouts dialog. */
+async function keepLayout(page: Page, name: string): Promise<void> {
+  await page.keyboard.press('Control+Shift+KeyG')
+  await page.getByTestId('layouts-name').fill(name)
+  await page.getByTestId('layouts-save').click()
+  await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+}
+
+test('a layout switch powers the old arrangement off and brings the new one on', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: { version: 1, root: paneNode('term', 'terminal') },
+    settings: { sound: { enabled: false }, layout: { confirmSwitch: false } },
+  })
+  try {
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
+    // Something to come back to that is not what is on screen.
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(2)
+
+    const seen = await watchSwitch(page, 'Digit1')
+    expect(seen.off, 'the arrangement being left powers off').toBe(true)
+    expect(seen.on, 'the one arriving powers on').toBe(true)
+    // One after another rather than all at once, as at boot.
+    expect(seen.delays.length).toBeGreaterThan(0)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('with motion reduced, a layout switch just happens', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: { version: 1, root: paneNode('term', 'terminal') },
+    settings: { sound: { enabled: false }, motion: 'reduced', layout: { confirmSwitch: false } },
+  })
+  try {
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(2)
+
+    const seen = await watchSwitch(page, 'Digit1')
+    expect(seen.off, 'nothing powers off').toBe(false)
+    expect(seen.on, 'nothing powers on').toBe(false)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
 test('with motion reduced, nothing moves: the wave ends before it begins, a new pane just appears and a closed one just goes', async () => {
   const { page, close } = await launch(undefined, {
     layout: calendarOnly,

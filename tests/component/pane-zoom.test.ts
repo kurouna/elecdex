@@ -385,10 +385,16 @@ describe('what lets go of a zoomed pane', () => {
 
     zoom(split('row', [a, b]), a.id)
     const done = layout.reset()
+    // reset writes out any pending save before it asks, so the ask - and the
+    // `deliver` that answers it - exists only after those microtasks have run.
+    await vi.advanceTimersByTimeAsync(0)
     layout.zoom(b.id)
     expect(layout.zoomedPaneId).toBe(b.id)
 
     deliver(fresh)
+    // The tree arriving replaces the whole layout, which powers the old one off
+    // and the new one on (layout-switch.ts); the timers carry that through.
+    await vi.advanceTimersByTimeAsync(3000)
     await done
 
     expect(ids()).toEqual(collectPanes(fresh.root).map((p) => p.id))

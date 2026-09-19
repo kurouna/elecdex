@@ -6,6 +6,7 @@ import ConfirmButton from './ConfirmButton.svelte'
 import LocationPicker from './LocationPicker.svelte'
 import LayoutsDialog from './layout/LayoutsDialog.svelte'
 import PanePicker from './layout/PanePicker.svelte'
+import SwitchLayoutDialog from './layout/SwitchLayoutDialog.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
 import { plugins } from './plugins/plugins.svelte.ts'
@@ -50,28 +51,25 @@ function chooseTheme(id: string): void {
 
 const REPO_URL = 'https://github.com/kurouna/elecdex'
 
-/** The shortcut hint in the status bar, from the bindings in effect. */
-const HINTS: Array<[KeybindingAction, string]> = [
-  ['pane.add', 'add pane'],
-  ['pane.splitRight', 'split'],
-  ['pane.splitDown', 'split down'],
-  ['pane.newTab', 'tab'],
-  ['pane.close', 'close'],
-  ['launcher.focus', 'launcher'],
-  ['settings.open', 'settings'],
-  ['app.quit', 'quit'],
-  ['window.fullscreen', 'fullscreen'],
-  ['window.minimize', 'minimize'],
-]
-const hint = $derived.by(() => {
+/**
+ * The saved layouts, as numbered buttons.
+ *
+ * They took the place of the list of shortcuts that used to fill this bar: a
+ * list of keys is read once and then never again, while these are the one thing
+ * here that is worth reaching for twice. The number is the key that applies it
+ * (Ctrl+Shift+1 and so on), so the bar also teaches the shortcut. Only the first
+ * nine have a key, and only those are shown.
+ */
+const layoutButtons = $derived(layout.savedLayouts.slice(0, 9))
+const layoutChords = $derived.by(() => {
   const bindings = effectiveBindings(
     appearance.settings.keybindings,
     window.elecdex.system.platform,
   )
-  return HINTS.flatMap(([action, label]) => {
-    const chord = bindings[action]
-    return chord === null ? [] : [`${formatChord(chord).toLowerCase()} ${label}`]
-  }).join(' · ')
+  return layoutButtons.map((_, i) => {
+    const chord = bindings[`layout.saved${i + 1}` as KeybindingAction]
+    return chord === null ? null : formatChord(chord)
+  })
 })
 
 /** How close to the bottom edge, in CSS pixels, calls the status bar up. */
@@ -120,7 +118,23 @@ function toggleSound(): void {
     >
       elecdex{info === null ? '' : ` ${info.version}`}
     </button>
-    <span class="hint" data-testid="shortcut-hint">{hint}</span>
+    <span class="layouts" data-testid="layout-buttons">
+      {#each layoutButtons as entry, i (entry.id)}
+        <button
+          type="button"
+          class="slot"
+          class:active={entry.active}
+          aria-pressed={entry.active}
+          title={`${entry.name}${layoutChords[i] === null ? '' : ` (${layoutChords[i]})`}`}
+          onclick={() => void layout.switchTo(entry.id)}
+          data-testid="layout-slot"
+          data-name={entry.name}
+        >
+          {i + 1}
+        </button>
+      {/each}
+    </span>
+    <span class="gap"></span>
     <button
       type="button"
       class="control toggle"
@@ -190,6 +204,7 @@ function toggleSound(): void {
 <BootScreen />
 <PanePicker />
 <LayoutsDialog />
+<SwitchLayoutDialog />
 <LocationPicker />
 <SettingsDialog />
 <UpdateNotice />
@@ -313,12 +328,36 @@ footer.shown {
   outline: none;
 }
 
-.hint {
+/* The numbered layout buttons sit next to the name, at the left of the bar. */
+.layouts {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.gap {
   flex: 1;
-  text-align: right;
+}
+
+.slot {
+  min-width: 1.6rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-muted);
   font-family: var(--font-mono);
-  text-transform: none;
-  letter-spacing: 0;
-  opacity: 0.55;
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+
+.slot:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+/* The one being worked in: it is not a button that does anything, it is where
+   you are. */
+.slot.active {
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
 }
 </style>

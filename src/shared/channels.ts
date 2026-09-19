@@ -42,6 +42,9 @@ export const CH = {
     savedSave: 'layout:saved-save',
     savedApply: 'layout:saved-apply',
     savedRemove: 'layout:saved-remove',
+    savedRename: 'layout:saved-rename',
+    savedMove: 'layout:saved-move',
+    savedFile: 'layout:saved-file',
   },
   metrics: {
     /** renderer -> main, fire and forget: start receiving a source. */

@@ -1,5 +1,12 @@
 import type { WeatherLocation } from '@shared/weather-report'
 
+/** A saved layout waiting to be let in, and the shells its arrival would end. */
+export interface LayoutSwitchRequest {
+  name: string
+  shells: number
+  answer: (go: boolean) => void
+}
+
 /** A pane waiting for the user to pick a place. */
 export interface LocationRequest {
   current: WeatherLocation
@@ -55,6 +62,36 @@ class UiStore {
   }
 
   /**
+   * The question asked before a saved layout replaces a workspace with shells in
+   * it: applying one ends those shells, as closing their panes would.
+   *
+   * It is a request rather than a flag so the caller simply awaits an answer,
+   * and so a second one cannot be asked over the first.
+   */
+  layoutSwitch = $state.raw<LayoutSwitchRequest | null>(null)
+
+  askLayoutSwitch(question: { name: string; shells: number }): Promise<boolean> {
+    // Only one at a time: the one already on screen is the one being answered.
+    if (this.layoutSwitch !== null) return Promise.resolve(false)
+    this.closing(this.panePickerOpen || this.settingsOpen || this.layoutsOpen)
+    this.panePickerOpen = false
+    this.settingsOpen = false
+    this.layoutsOpen = false
+    return new Promise<boolean>((resolve) => {
+      this.layoutSwitch = { ...question, answer: resolve }
+    })
+  }
+
+  /** Answers the question, if one is being asked. */
+  answerLayoutSwitch(go: boolean): void {
+    const request = this.layoutSwitch
+    if (request === null) return
+    this.closing(true)
+    this.layoutSwitch = null
+    request.answer(go)
+  }
+
+  /**
    * Bumped to ask the launcher pane to take keyboard focus in its search box.
    * A counter rather than a flag, so the same request twice still arrives.
    */
@@ -104,7 +141,11 @@ class UiStore {
   /** Whether any dialog covers the workspace. */
   get dialogOpen(): boolean {
     return (
-      this.panePickerOpen || this.settingsOpen || this.locationRequest !== null || this.layoutsOpen
+      this.panePickerOpen ||
+      this.settingsOpen ||
+      this.locationRequest !== null ||
+      this.layoutsOpen ||
+      this.layoutSwitch !== null
     )
   }
 

@@ -155,6 +155,11 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.saved2': () => applySavedSlot(1),
   'layout.saved3': () => applySavedSlot(2),
   'layout.saved4': () => applySavedSlot(3),
+  'layout.saved5': () => applySavedSlot(4),
+  'layout.saved6': () => applySavedSlot(5),
+  'layout.saved7': () => applySavedSlot(6),
+  'layout.saved8': () => applySavedSlot(7),
+  'layout.saved9': () => applySavedSlot(8),
   'launcher.focus': () => focusLauncher(),
   'shell.focus': () => focusShell(),
   // Searches the shell that has the keyboard, or the one the keys would go to.
@@ -190,11 +195,14 @@ function focusShell(): void {
   ui.focusShell()
 }
 
-/** Applies the saved layout in a slot; false when nothing is saved there. */
+/**
+ * Applies the saved layout in a slot; false when nothing is saved there, so the
+ * keys go to the focused pane instead.
+ */
 function applySavedSlot(index: number): boolean {
   const entry = layout.savedLayouts[index]
   if (entry === undefined) return false
-  void layout.applySaved(entry.id)
+  void layout.switchTo(entry.id)
   return true
 }
 

@@ -298,7 +298,11 @@ describe('a change during a close', () => {
     })
     load(split('row', [a, b]), a.id)
     layout.close(a.id)
-    await layout.reset()
+    const done = layout.reset()
+    // The default tree replaces the layout, which powers the old one off and the
+    // new one on (layout-switch.ts).
+    await vi.advanceTimersByTimeAsync(3000)
+    await done
     expect(layout.closingId).toBeNull()
     vi.advanceTimersByTime(CLOSE_SETTLE_MS + CRT_EXTEND_MS)
     expect(ids()).toEqual([fresh.id])

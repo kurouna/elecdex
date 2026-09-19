@@ -473,6 +473,23 @@ function describeUpdate(status: UpdateStatus): string {
             </section>
 
             <section>
+              <h3>layouts</h3>
+              <label class="row">
+                <span>ask before switching layout</span>
+                <input
+                  type="checkbox"
+                  checked={settings.layout.confirmSwitch}
+                  onchange={(e) => patch({ layout: { confirmSwitch: e.currentTarget.checked } })}
+                  data-testid="settings-confirm-switch"
+                />
+              </label>
+              <p class="note">
+                Applying a saved layout replaces the workspace, which ends the shells of the panes
+                it replaces. The question is only asked while shells are open.
+              </p>
+            </section>
+
+            <section>
               <h3>launcher</h3>
               <label class="row">
                 <span>list installed applications</span>

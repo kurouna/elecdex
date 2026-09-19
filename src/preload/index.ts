@@ -513,6 +513,11 @@ const api: ElecdexApi = {
       apply: (id) => ipcRenderer.invoke(CH.layout.savedApply, id) as Promise<LayoutTree | null>,
       remove: (id) =>
         ipcRenderer.invoke(CH.layout.savedRemove, id) as Promise<SavedLayoutSummary[]>,
+      rename: (id, name) =>
+        ipcRenderer.invoke(CH.layout.savedRename, id, name) as Promise<SavedLayoutSummary[]>,
+      move: (id, delta) =>
+        ipcRenderer.invoke(CH.layout.savedMove, id, delta) as Promise<SavedLayoutSummary[]>,
+      filePath: () => ipcRenderer.invoke(CH.layout.savedFile) as Promise<string>,
     },
   },
 }
