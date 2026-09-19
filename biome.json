@@ -13,7 +13,8 @@
       "!**/release",
       "!**/node_modules",
       "!**/.svelte-check",
-      "!**/*.code-workspace"
+      "!**/*.code-workspace",
+      "!src/shared/calc/vendor"
     ]
   },
   "formatter": {

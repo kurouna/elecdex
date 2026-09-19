@@ -70,6 +70,7 @@
     "electron-builder": "26.15.3",
     "electron-playwright-helpers": "3.1.2",
     "electron-vite": "5.0.0",
+    "fast-check": "^4.10.1",
     "fflate": "^0.8.3",
     "i18n-iso-countries": "^7.14.0",
     "jsdom": "30.0.1",

@@ -11,6 +11,7 @@ export default defineConfig({
       '@shared': r('src/shared'),
       '@main': r('src/main'),
       '@renderer': r('src/renderer'),
+      '@calc': r('src/shared/calc/vendor'),
     },
   },
   test: {
@@ -21,7 +22,9 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'node',
-          include: ['tests/unit/**/*.test.ts'],
+          // The vendored calculator brings its own tests; they run here unchanged,
+          // which is how a sync says whether anything moved underneath us.
+          include: ['tests/unit/**/*.test.ts', 'src/shared/calc/vendor/**/*.test.ts'],
         },
       },
       {

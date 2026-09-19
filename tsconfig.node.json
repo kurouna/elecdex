@@ -25,7 +25,11 @@
     // TypeScript 7 removed `baseUrl`; path patterns resolve relative to this file.
     "paths": {
       "@shared/*": ["./src/shared/*"],
-      "@main/*": ["./src/main/*"]
+      "@main/*": ["./src/main/*"],
+      // The vendored calculator is kept out of the program: it would not pass
+      // noUncheckedIndexedAccess, and editing it would break the one-way sync.
+      // These declarations are the contract the wrapper codes against.
+      "@calc/*": ["./src/shared/calc/types/*"]
     },
     "incremental": true
   },
@@ -38,5 +42,6 @@
     "tests/unit/**/*.ts",
     "electron.vite.config.ts",
     "vitest.config.ts"
-  ]
+  ],
+  "exclude": ["src/shared/calc/vendor/**"]
 }

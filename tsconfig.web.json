@@ -29,7 +29,11 @@
     // TypeScript 7 removed `baseUrl`; path patterns resolve relative to this file.
     "paths": {
       "@shared/*": ["./src/shared/*"],
-      "@renderer/*": ["./src/renderer/*"]
+      "@renderer/*": ["./src/renderer/*"],
+      // The vendored calculator is kept out of the program: it would not pass
+      // noUncheckedIndexedAccess, and editing it would break the one-way sync.
+      // These declarations are the contract the wrapper codes against.
+      "@calc/*": ["./src/shared/calc/types/*"]
     },
     "incremental": true
   },
@@ -40,5 +44,6 @@
     "src/preload/index.ts",
     "tests/component/**/*.ts",
     "tests/component/**/*.svelte"
-  ]
+  ],
+  "exclude": ["src/shared/calc/vendor/**"]
 }

@@ -19,6 +19,9 @@ export default defineConfig({
       alias: {
         '@shared': r('src/shared'),
         '@main': r('src/main'),
+        // The vendored calculator, resolved to the real files; TypeScript sees
+        // the declarations in src/shared/calc/types instead (vendor/README.md).
+        '@calc': r('src/shared/calc/vendor'),
       },
     },
     build: {
@@ -37,6 +40,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@shared': r('src/shared'),
+        '@calc': r('src/shared/calc/vendor'),
       },
     },
     build: {
@@ -64,6 +68,7 @@ export default defineConfig({
       alias: {
         '@shared': r('src/shared'),
         '@renderer': r('src/renderer'),
+        '@calc': r('src/shared/calc/vendor'),
       },
     },
     build: {

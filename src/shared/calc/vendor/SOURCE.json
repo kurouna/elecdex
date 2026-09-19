@@ -1,0 +1,10 @@
+{
+  "project": "elecxzy",
+  "repository": "https://github.com/kurouna/elecxzy",
+  "path": "src/utils/calc",
+  "version": "0.19.2",
+  "commit": "2be5329092eb2c890f65af5557ab21e9c274d251",
+  "copiedAt": "2026-09-19",
+  "license": "MIT",
+  "omitted": ["index.docs.test.ts"]
+}

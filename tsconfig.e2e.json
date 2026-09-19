@@ -27,8 +27,11 @@
 
     // TypeScript 7 removed `baseUrl`; path patterns are relative to this file.
     "paths": {
-      "@shared/*": ["./src/shared/*"]
+      "@shared/*": ["./src/shared/*"],
+      // See tsconfig.node.json: the vendored calculator stays out of the program.
+      "@calc/*": ["./src/shared/calc/types/*"]
     }
   },
-  "include": ["tests/e2e/**/*.ts", "src/shared/**/*.ts", "playwright.config.ts"]
+  "include": ["tests/e2e/**/*.ts", "src/shared/**/*.ts", "playwright.config.ts"],
+  "exclude": ["src/shared/calc/vendor/**"]
 }
