@@ -217,6 +217,59 @@ test('a provider is added in the settings; its key goes to main and never comes 
   }
 })
 
+test('a key typed and not saved is the key "test" uses, and a hosted service asked without one says so', async () => {
+  const settings = withProviders()
+  const { page, close } = await launch(undefined, {
+    layout: single(),
+    settings: {
+      ...settings,
+      ai: {
+        ...settings.ai,
+        providers: [
+          // Counted as hosted (https), yet nothing leaves this machine: nobody listens there.
+          {
+            id: 'hosted',
+            name: 'Hosted',
+            kind: 'openai',
+            baseUrl: 'https://127.0.0.1:9/v1',
+            model: '',
+          },
+          ...settings.ai.providers,
+        ],
+      },
+    },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+Period')
+    await page.locator('[data-testid=settings-section][data-section=ai]').click()
+
+    // No key, and the service's own words do not say that is what is missing (Gemini: a 404).
+    const hosted = page.locator('[data-testid=ai-provider][data-provider=hosted]')
+    await hosted.getByTestId('ai-test').click()
+    await expect(hosted.getByTestId('ai-test-result')).toContainText(
+      'no key is held for this provider',
+    )
+
+    // Typed, and straight to "test" - as every other field here is saved as you go.
+    const local = page.locator('[data-testid=ai-provider][data-provider=local]')
+    await local.getByTestId('ai-key').fill('sk-typed-only')
+    await local.getByTestId('ai-test').click()
+    await expect(local.getByTestId('ai-test-result')).toHaveText('ok · 2 models')
+    expect(seen.at(-1)?.headers.authorization).toBe('Bearer sk-typed-only')
+    await expect(local.getByTestId('ai-key-state')).toContainText('key held')
+    await expect(local.getByTestId('ai-key')).toHaveValue('')
+
+    // Leaving the field keeps the key too.
+    const claude = page.locator('[data-testid=ai-provider][data-provider=claude]')
+    await claude.getByTestId('ai-key').fill('sk-left-behind')
+    await claude.getByTestId('ai-key').press('Tab')
+    await expect(claude.getByTestId('ai-key-state')).toContainText('key held')
+    expect(await page.content()).not.toContain('sk-left-behind')
+  } finally {
+    await close()
+  }
+})
+
 test('an answer streams in, is drawn as markdown, and is there after a restart', async () => {
   const launched = await launch(undefined, { layout: single(), settings: withProviders() })
   const { userData } = launched

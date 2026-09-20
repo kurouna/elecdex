@@ -85,17 +85,23 @@ let modelsOf = $state<Record<string, AiModel[]>>({})
 
 async function test(provider: AiProvider): Promise<void> {
   testing = provider.id
+  // A key typed and not yet handed over is what the user means to test with.
+  await saveKey(provider.id)
   // The answer before this one goes first: the same words twice would look like no answer.
   const { [provider.id]: _before, ...others } = tested
   tested = others
   const result = await window.elecdex.ai.models(provider.id)
   testing = null
   modelsOf = { ...modelsOf, [provider.id]: result.models }
+  // A service asked with no key answers in its own way (Gemini: "404, not found"), which does
+  // not say what is missing.
+  const keyless = result.error !== null && !isLocal(provider) && ai.keys[provider.id] == null
   tested = {
     ...tested,
     [provider.id]:
-      result.error ??
-      `ok · ${result.models.length} ${result.models.length === 1 ? 'model' : 'models'}`,
+      result.error === null
+        ? `ok · ${result.models.length} ${result.models.length === 1 ? 'model' : 'models'}`
+        : `${result.error}${keyless ? ' - no key is held for this provider' : ''}`,
   }
 }
 
@@ -245,6 +251,7 @@ function addressProblem(provider: AiProvider): string | null {
         value={typed[provider.id] ?? ''}
         placeholder={keyPlaceholder(provider, held !== null)}
         oninput={(e) => (typed = { ...typed, [provider.id]: e.currentTarget.value })}
+        onchange={() => void saveKey(provider.id)}
         onkeydown={(e) => {
           if (e.key === 'Enter') void saveKey(provider.id)
         }}
