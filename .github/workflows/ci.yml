@@ -54,9 +54,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      # Minimising a window and taking it fullscreen belong to the window manager,
+      # not to the app: a bare Xvfb has none, so the window stays where it is, is
+      # never reported minimised, and the tests about a window nobody can see have
+      # nothing to watch. openbox is the smallest one that answers.
+      - name: A window manager for the headless session
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y openbox
       - name: Run Electron e2e (headless)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum npm run test:e2e
+        run: xvfb-run --auto-servernum bash -c "openbox --sm-disable & sleep 2 && npm run test:e2e"
       - name: Run Electron e2e
         if: runner.os != 'Linux'
         run: npm run test:e2e

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ElectronApplication, Page } from '@playwright/test'
-import { _electron as electron, expect } from '@playwright/test'
+import { _electron as electron, expect, test } from '@playwright/test'
 
 export const MAIN = fileURLToPath(new URL('../../out/main/index.js', import.meta.url))
 
@@ -262,6 +262,57 @@ export async function zoomSettled(page: Page): Promise<void> {
       ),
     )
     .toBe(false)
+}
+
+/** Whether the window is minimised, as the platform has it. */
+const minimised = (app: ElectronApplication) =>
+  app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows().some((win) => win.isMinimized()),
+  )
+
+/**
+ * Puts the window away and waits for the page to notice, for a test about what
+ * happens - or does not - while nobody is looking.
+ *
+ * Minimising belongs to the window manager, not to the app. A session with none
+ * (a bare Xvfb, which is what a headless runner has unless a window manager is
+ * started beside it) leaves the window where it is and never reports it
+ * minimised, so main never tells the page (src/main/window.ts) and there is
+ * nothing here to test. The test is skipped there rather than failing on a bare
+ * "0 elements", and the two steps are told apart in the log: the platform not
+ * minimising the window is the session's doing, the page not hearing about a
+ * window that *is* minimised is ours.
+ */
+export async function putWindowAway(app: ElectronApplication, page: Page): Promise<void> {
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((win) => win.isVisible())
+      ?.minimize(),
+  )
+  const went = await expect
+    .poll(() => minimised(app), { timeout: 5_000 })
+    .toBe(true)
+    .then(() => true)
+    .catch(() => false)
+  if (!went) console.warn('[e2e] the window did not minimise: no window manager in this session?')
+  test.skip(!went, 'the window cannot be minimised here')
+  await expect(
+    page.locator(':root[data-offscreen]'),
+    'the window is minimised, but the page was not told (system.windowStateChanged)',
+  ).toHaveCount(1)
+}
+
+/** Brings the window back from {@link putWindowAway} and waits for the page to hear of it. */
+export async function bringWindowBack(app: ElectronApplication, page: Page): Promise<void> {
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((win) => win.isMinimized())
+      ?.restore(),
+  )
+  await expect(
+    page.locator(':root[data-offscreen]'),
+    'the window is back, but the page is still drawing nothing',
+  ).toHaveCount(0)
 }
 
 /** What a click leaves on screen a frame later: whether each selector finds something, and whether it is leaving. */

@@ -140,19 +140,34 @@ async function box(locator: Locator) {
   return found
 }
 
+/**
+ * The view stands over its pane's body.
+ *
+ * The body is measured on every turn rather than once before the poll: coming
+ * back from fullscreen the window is laid out again, so a body read beforehand
+ * can be the shape the pane had on the way out, and the two would never meet.
+ */
 async function expectShownOverBody(app: Launched): Promise<void> {
-  const body = await box(webPane(app.page).getByTestId('web-page'))
+  const where = async () => {
+    const measured = await box(webPane(app.page).getByTestId('web-page'))
+    const body = {
+      x: Math.round(measured.x),
+      y: Math.round(measured.y),
+      width: Math.round(measured.width),
+      height: Math.round(measured.height),
+    }
+    const view = (await views(app))[0]
+    const bounds = view?.bounds
+    const over =
+      view?.visible === true &&
+      bounds !== undefined &&
+      (['x', 'y', 'width', 'height'] as const).every((side) => bounds[side] === body[side])
+    // Both are reported, so a run that fails says by how much and on which side.
+    return { over, view: { visible: view?.visible ?? false, bounds }, body }
+  }
   await expect
-    .poll(async () => (await views(app))[0])
-    .toMatchObject({
-      visible: true,
-      bounds: {
-        x: Math.round(body.x),
-        y: Math.round(body.y),
-        width: Math.round(body.width),
-        height: Math.round(body.height),
-      },
-    })
+    .poll(where, { message: 'the view never came to stand over its pane body' })
+    .toMatchObject({ over: true })
 }
 
 /** The window's whole content area: what a view in fullscreen covers. */
@@ -367,7 +382,22 @@ test.describe('web panes', () => {
   test('leave fullscreen when the page is put away, so it cannot come back over the workspace', async () => {
     const app = await start()
     const { page } = app
-    const fullscreen = () => inPage<boolean>(app, 'document.fullscreenElement !== null')
+    /**
+     * What the page and the window each make of fullscreen, and whether anyone
+     * can see the view.
+     *
+     * Reported together because they fail apart: a page still in fullscreen over
+     * a window that is not means main never heard `enter-html-full-screen` for a
+     * view it had already put away (src/main/web/views.ts), so it never asked the
+     * page to leave - which reads nothing like a page that was asked and refused.
+     */
+    const fullscreen = async () => ({
+      page: await inPage<boolean>(app, 'document.fullscreenElement !== null'),
+      window: await app.app.evaluate(
+        ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false,
+      ),
+      viewShown: (await views(app))[0]?.visible ?? false,
+    })
     try {
       await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
       await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
@@ -380,7 +410,9 @@ test.describe('web panes', () => {
       await page.keyboard.press('Control+Shift+Period')
       await expect(page.getByTestId('settings-dialog')).toBeVisible()
       await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
-      await expect.poll(fullscreen).toBe(false)
+      await expect
+        .poll(fullscreen, { message: 'the page was not taken out of fullscreen' })
+        .toMatchObject({ page: false })
       await page.keyboard.press('Escape')
       await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
       await expectShownOverBody(app)
@@ -390,7 +422,9 @@ test.describe('web panes', () => {
       await expect(page.getByTestId('settings-dialog')).toBeVisible()
       await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
       await inPage(app, 'document.body.requestFullscreen().then(() => 1).catch(() => 0)')
-      await expect.poll(fullscreen).toBe(false)
+      await expect
+        .poll(fullscreen, { message: 'the page was not taken out of fullscreen' })
+        .toMatchObject({ page: false })
       await page.keyboard.press('Escape')
       await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
       await expectShownOverBody(app)
@@ -404,7 +438,9 @@ test.describe('web panes', () => {
       await page.keyboard.press('Control+Shift+T')
       await expect(page.getByTestId('tabs-host')).toHaveCount(1)
       await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
-      await expect.poll(fullscreen).toBe(false)
+      await expect
+        .poll(fullscreen, { message: 'the page was not taken out of fullscreen' })
+        .toMatchObject({ page: false })
       await page.getByTestId('tabs-host').getByTestId('tab').first().click()
       await expectShownOverBody(app)
     } finally {

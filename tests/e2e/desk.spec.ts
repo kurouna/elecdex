@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import { launch, putWindowAway } from './support.js'
 
 /**
  * The desk panes: the calculator, the notes, the tasks and the chrono.
@@ -384,12 +384,7 @@ test('a countdown lands while the window is minimised, not when it comes back', 
     await page.getByTestId('timer-start').click()
     // Minimised, the page draws no frames (lib/frame-loop.ts) - and the countdown
     // was only looked at from a frame, so it rang when the window was next shown.
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((win) => win.isVisible())
-        ?.minimize(),
-    )
-    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    await putWindowAway(app, page)
     await expect(page.getByTestId('toast')).toHaveCount(1, { timeout: 15_000 })
     await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
   } finally {

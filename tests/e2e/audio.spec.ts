@@ -129,13 +129,35 @@ test('a spectrum pane in a background tab does not capture, and the app quits wi
 
     await page.locator('[data-testid=tab][data-pane-id=spec]').click()
     await expect.poll(() => windowCount(app)).toBe(2)
-    // Closing the workspace window with capture running still ends the app.
+    // Closing the workspace window with capture running still ends the app: the
+    // hidden capture window is not a window of the app's own (main/app-windows.ts)
+    // and must not keep it alive.
     const exited = new Promise<void>((resolve) => app.process().once('exit', () => resolve()))
     await app.evaluate(({ BrowserWindow }) => {
       const workspace = BrowserWindow.getAllWindows().find((w) => w.isVisible())
       workspace?.close()
     })
-    await expect(exited).resolves.toBeUndefined()
+    // macOS keeps an app running with no window at all (src/main/index.ts), so the
+    // last window closing is not what ends it there: asking it to quit is.
+    if (process.platform === 'darwin') await app.evaluate(({ app }) => app.quit())
+    const ended = await Promise.race([
+      exited.then(() => true),
+      new Promise<false>((resolve) => setTimeout(() => resolve(false), 20_000)),
+    ])
+    // Otherwise this waits out the whole test with nothing in the log to say which
+    // window would not go.
+    if (!ended) {
+      const left = await app
+        .evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().map((w) => ({
+            title: w.getTitle(),
+            visible: w.isVisible(),
+          })),
+        )
+        .catch((error: Error) => error.message)
+      console.warn(`[e2e] the app is still running, windows: ${JSON.stringify(left)}`)
+    }
+    expect(ended, 'the app did not end with capture running').toBe(true)
   } finally {
     await close().catch(() => {})
   }

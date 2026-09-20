@@ -612,7 +612,23 @@ test.describe('markets', () => {
       }
       const zero = await pane.locator('.ticks span').nth(1).evaluate(centre)
       const axis = await pane.locator('.axis').first().evaluate(centre)
-      expect(Math.abs(zero - axis)).toBeLessThan(1.5)
+      // The scale and the rows are two grids on the same columns, so they line up
+      // only while they are the same width. What that is made of - each one's own
+      // content box, and the gutter each reserves for a scrollbar - is measured
+      // here, since a machine where they differ says nothing by the offset alone.
+      const widths = await pane.evaluate((el) => {
+        const of = (selector: string) => {
+          const found = el.querySelector(selector)
+          return found === null
+            ? null
+            : { client: found.clientWidth, box: Math.round(found.getBoundingClientRect().width) }
+        }
+        return { scale: of('.scale'), bars: of('.bars'), row: of('.bar-row .hit') }
+      })
+      expect(
+        Math.abs(zero - axis),
+        `zero ${zero} vs axis ${axis}; ${JSON.stringify(widths)}`,
+      ).toBeLessThan(1.5)
 
       const order = () =>
         pane

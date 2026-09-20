@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, removeDir } from './support.js'
+import { bringWindowBack, launch, putWindowAway, removeDir } from './support.js'
 
 /**
  * Entrance and exit effects: the calendar's wave, a new pane's power-on, a closed
@@ -253,23 +253,13 @@ test('a clock stands still while the window is minimised, and is right the momen
   try {
     const shown = () => page.locator('[data-testid=clock] time').getAttribute('datetime')
     await expect(page.getByTestId('clock')).toBeVisible()
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((win) => win.isVisible())
-        ?.minimize(),
-    )
-    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    await putWindowAway(app, page)
     // Nothing of the page is rewritten for a window nobody can see.
     const put = await shown()
     await page.waitForTimeout(2500)
     expect(await shown()).toBe(put)
 
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((win) => win.isMinimized())
-        ?.restore(),
-    )
-    await expect(page.locator(':root[data-offscreen]')).toHaveCount(0)
+    await bringWindowBack(app, page)
     // At once, not at the next second: read in the same task as the page learns of it.
     const back = Date.parse((await shown()) ?? '')
     expect(back - Date.parse(put ?? '')).toBeGreaterThanOrEqual(2000)
@@ -307,19 +297,9 @@ test('an animation that never ends stops while the window is put away', async ()
           .map((animation) => animation.playState),
       )
     await expect.poll(endless).toEqual(['running', 'running'])
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((win) => win.isVisible())
-        ?.minimize(),
-    )
-    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    await putWindowAway(app, page)
     expect(await endless()).toEqual(['paused', 'paused'])
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((win) => win.isMinimized())
-        ?.restore(),
-    )
-    await expect(page.locator(':root[data-offscreen]')).toHaveCount(0)
+    await bringWindowBack(app, page)
     expect(await endless()).toEqual(['running', 'running'])
   } finally {
     await close()
@@ -347,19 +327,9 @@ test('a toast burning down its fuse stops while the window is put away', async (
             ?.playState ?? 'gone',
       )
     expect(await fuse()).toBe('running')
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((win) => win.isVisible())
-        ?.minimize(),
-    )
-    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    await putWindowAway(app, page)
     expect(await fuse()).toBe('paused')
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows()
-        .find((win) => win.isMinimized())
-        ?.restore(),
-    )
-    await expect(page.locator(':root[data-offscreen]')).toHaveCount(0)
+    await bringWindowBack(app, page)
     expect(await fuse()).toBe('running')
   } finally {
     await close()
