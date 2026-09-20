@@ -228,7 +228,11 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
     const chatId = asChat(rawChat)
     const request = chatRequest(rawRequest)
     if (chatId === null || request === null) return { ok: false, error: 'not a valid request' }
-    return chats().send(chatId, request)
+    const result = chats().send(chatId, request)
+    // A pane sends first and follows a moment later. One that never does - closed in
+    // between - must not leave an answer running that nobody will read.
+    if (result.ok && !registry.activeSources().includes(chatId)) orphaned(chatId)
+    return result
   })
 
   ipcMain.on(CH.ai.stop, (_event, raw: unknown) => {

@@ -1,4 +1,5 @@
 import {
+  AI_LIMITS,
   AI_PRESETS,
   aiBaseUrl,
   applyChatEvent,
@@ -8,11 +9,13 @@ import {
   chatMarkdown,
   chatRequest,
   chatTitle,
+  compactCount,
   EMPTY_VIEW,
   freshProviderId,
   keyMayTravel,
   paneAiChat,
   ThinkSplitter,
+  tokensPerSecond,
 } from '@shared/ai'
 import { applySettingsPatch, defaultSettings, SettingsSchema } from '@shared/settings'
 import { describe, expect, it } from 'vitest'
@@ -202,6 +205,15 @@ describe('what a pane may ask', () => {
     })
   })
 
+  it('a message longer than a message may be is cut, not refused', () => {
+    const long = chatRequest({
+      provider: 'ollama',
+      model: 'm',
+      text: 'x'.repeat(AI_LIMITS.text + 10),
+    })
+    expect(long?.text).toHaveLength(AI_LIMITS.text)
+  })
+
   it('anything else is refused', () => {
     for (const bad of [
       null,
@@ -230,6 +242,26 @@ describe('pane state', () => {
       provider: 'ollama',
       model: 'qwen3:8b',
     })
+  })
+})
+
+describe('readouts', () => {
+  const answer = { id: 'a', role: 'assistant' as const, text: 'x', at: 1 }
+
+  it('tokens a second, only when both were measured and it took long enough to say', () => {
+    expect(tokensPerSecond({ ...answer, usage: { input: 9, output: 90 }, ms: 3000 })).toBe(30)
+    expect(tokensPerSecond({ ...answer, usage: { input: 9, output: 90 } })).toBeNull()
+    expect(tokensPerSecond({ ...answer, ms: 3000 })).toBeNull()
+    expect(tokensPerSecond({ ...answer, usage: { input: 9, output: 90 }, ms: 50 })).toBeNull()
+    expect(tokensPerSecond({ ...answer, usage: { input: 9, output: 0 }, ms: 3000 })).toBeNull()
+  })
+
+  it('counts are shortened for a readout', () => {
+    expect(compactCount(0)).toBe('0')
+    expect(compactCount(999)).toBe('999')
+    expect(compactCount(1234)).toBe('1.2k')
+    expect(compactCount(9999)).toBe('10.0k')
+    expect(compactCount(45_678)).toBe('46k')
   })
 })
 

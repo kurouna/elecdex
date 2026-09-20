@@ -100,6 +100,37 @@ describe('block markdown', () => {
     })
   })
 
+  it("keeps a list's first number, reads ~~~ fences, and blocks inside a quote", () => {
+    expect(parseMarkdown('3. c\n4. d')[0]).toMatchObject({ t: 'list', ordered: true, start: 3 })
+    expect(parseMarkdown('~~~\n```not a fence```\n~~~')).toEqual([
+      { t: 'code', lang: '', v: '```not a fence```' },
+    ])
+    expect(parseMarkdown('> # Title\n> - item')).toEqual([
+      {
+        t: 'quote',
+        c: [
+          { t: 'h', level: 1, c: [text('Title')] },
+          { t: 'list', ordered: false, start: 1, items: [[{ t: 'p', c: [text('item')] }]] },
+        ],
+      },
+    ])
+  })
+
+  it('items a blank line apart are one list, and a paragraph under an item stays in it', () => {
+    const [list, after] = parseMarkdown('- a\n\n  more of a\n\n- b\n\nnot in the list')
+    expect(list).toMatchObject({
+      t: 'list',
+      items: [
+        [
+          { t: 'p', c: [text('a')] },
+          { t: 'p', c: [text('more of a')] },
+        ],
+        [{ t: 'p', c: [text('b')] }],
+      ],
+    })
+    expect(after).toEqual({ t: 'p', c: [text('not in the list')] })
+  })
+
   it('a list interrupts a paragraph, a hashtag is not a heading', () => {
     expect(parseMarkdown('Options:\n- a\n- b').map((b) => b.t)).toEqual(['p', 'list'])
     expect(parseMarkdown('#hashtag')).toEqual([{ t: 'p', c: [text('#hashtag')] }])

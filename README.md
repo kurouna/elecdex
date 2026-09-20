@@ -321,7 +321,9 @@ weather and calendar.
   (Shift+Enter for a new line; Esc or **stop** ends an answer and keeps what was written). Answers
   are drawn as markdown with a copy button on every code block; a model's reasoning, where the
   provider shows it (Claude's summarized thinking, `reasoning_content`, or inline `<think>`), is
-  folded under **reasoning**. Hover a message to **copy** it, **edit** an earlier question (which
+  folded under **reasoning**. While an answer is written its heading counts the seconds and the
+  characters; once it lands it shows the tokens read and written and the tokens a second, where
+  the provider reports them. Hover a message to **copy** it, **edit** an earlier question (which
   replaces it and what followed) or ask **again**. **history** lists your conversations, exports
   one as markdown, or deletes it. A conversation belongs to the app, not the pane: moving the pane
   or putting it behind a tab does not interrupt an answer, and closing it stops the request.

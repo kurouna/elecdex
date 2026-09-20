@@ -67,7 +67,6 @@ interface Chunk {
     finish_reason?: unknown
   }>
   usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } | null
-  model?: unknown
 }
 
 /** One answer being read: what the chunks said, passed on to the sink as they come. */

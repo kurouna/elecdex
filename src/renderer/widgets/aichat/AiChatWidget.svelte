@@ -1,18 +1,25 @@
 <script lang="ts">
 import {
   type AiModel,
+  aiBaseUrl,
   applyChatEvent,
   type ChatMessage,
   type ChatView,
+  compactCount,
   EMPTY_VIEW,
   paneAiChat,
+  tokensPerSecond,
 } from '@shared/ai'
 import { tick } from 'svelte'
 import ConfirmButton from '../../ConfirmButton.svelte'
+import { CopyFlag } from '../../lib/copied.svelte.ts'
+import { onBoundary } from '../../lib/frame-loop.ts'
+import { pulse } from '../../lib/pulse.svelte.ts'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { sfx } from '../../stores/sound.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -89,13 +96,42 @@ const run = $derived(view.run)
 const busy = $derived(run !== null)
 const title = $derived(view.chat?.title ?? '')
 
+/*
+ * While an answer is written the pane reads like a link in use: a caret that
+ * steps with the shared pulse, and the seconds since it began. Both hang off the
+ * wall-clock ticks everything else uses, and off the run's start - a number - not
+ * the run itself, which is a new object ten times a second.
+ */
+const startedAt = $derived(run?.startedAt ?? null)
+let elapsed = $state(0)
+
 $effect(() => {
-  const name = title === '' ? null : title
-  const using = model === '' ? null : model
+  if (startedAt === null) return
+  const began = startedAt
+  const count = (): void => {
+    const next = Math.max(0, Math.floor((Date.now() - began) / 1000))
+    if (next !== elapsed) elapsed = next
+  }
+  count()
+  return onBoundary(1000, count)
+})
+
+$effect(() => {
+  if (busy) return pulse.use()
+})
+
+/** An answer that ends while this pane watches is heard: landed, or lost. */
+let wasBusy = false
+$effect(() => {
+  const now = busy
+  if (wasBusy && !now) sfx.play(messages.at(-1)?.stop === 'error' ? 'glitch' : 'granted')
+  wasBusy = now
+})
+
+/** The pane's heading names the conversation; the model is already in the bar below it. */
+$effect(() => {
   paneMeta.set(paneId, {
-    ...(name === null && using === null
-      ? {}
-      : { subtitle: [name, using].filter((part) => part !== null).join(' · ') }),
+    ...(title === '' ? {} : { subtitle: title }),
     ...(busy ? { badge: 'writing', badgeKind: 'ok' as const } : {}),
   })
 })
@@ -146,6 +182,7 @@ async function ask(text: string | undefined, replaceFrom?: string): Promise<bool
   const result = await window.elecdex.ai.send(chatId, request)
   if (result.ok) {
     if (fresh) save({ chat: chatId })
+    sfx.play('stdout')
     return true
   }
   problem = result.error
@@ -253,18 +290,25 @@ const STOP_WORDS: Record<NonNullable<ChatMessage['stop']>, string> = {
   error: 'failed',
 }
 
-let copiedId = $state<string | null>(null)
-function copyMessage(message: ChatMessage): void {
-  void navigator.clipboard.writeText(message.text).then(() => {
-    copiedId = message.id
-    setTimeout(() => {
-      if (copiedId === message.id) copiedId = null
-    }, 1500)
-  })
+const copied = new CopyFlag()
+$effect(() => () => copied.dispose())
+
+/** "42 > 180 tok - 38 t/s": what the provider counted, and how fast it wrote. */
+function telemetry(message: ChatMessage): string | null {
+  if (message.usage === undefined) return null
+  const counted = `${compactCount(message.usage.input)} › ${compactCount(message.usage.output)} tok`
+  const speed = tokensPerSecond(message)
+  return speed === null ? counted : `${counted} · ${speed} t/s`
 }
+
+/** Where the provider is, for the standby line: the host, never the path or a key. */
+const host = $derived.by(() => {
+  const url = provider === null ? null : aiBaseUrl(provider.baseUrl)
+  return url === null ? null : new URL(url).host
+})
 </script>
 
-<div class="chat" data-testid="aichat" data-busy={busy}>
+<div class="chat" data-testid="aichat" data-busy={busy} data-pulse={busy ? pulse.phase : undefined}>
   <SettingsButton
     open={false}
     label="ai settings"
@@ -356,23 +400,24 @@ function copyMessage(message: ChatMessage): void {
 
     <div class="messages" bind:this={list} onscroll={scrolled} data-testid="aichat-messages">
       {#if messages.length === 0 && !busy}
-        <p class="note" data-testid="aichat-empty">
-          {model === ''
-            ? 'Choose a model above, then ask.'
-            : `Ask ${provider.name} · ${model}. Conversations are kept on this computer.`}
-        </p>
+        <div class="standby fx-rise" data-testid="aichat-empty">
+          <span class="state"><span class="lamp" class:ready={model !== ''}></span>{model === '' ? 'no model chosen' : 'link standby'}</span>
+          <span class="target">{provider.name}{model === '' ? '' : ` · ${model}`}</span>
+          <span class="hint">
+            {model === ''
+              ? 'Choose a model above, then ask.'
+              : `${host ?? 'unusable address'} · nothing is sent until you ask · conversations stay on this computer`}
+          </span>
+        </div>
       {/if}
       {#each messages as message, i (message.id)}
-        <article class="message {message.role}" data-testid="aichat-message" data-role={message.role}>
+        {@const readout = telemetry(message)}
+        <article class="message {message.role} fx-rise" data-testid="aichat-message" data-role={message.role}>
           <header>
-            <span>{message.role === 'user' ? 'you' : (message.model ?? 'assistant')}</span>
-            <span class="when">{time(message.at)}</span>
-            {#if message.usage}
-              <span class="when" title="tokens read · tokens written">{message.usage.input} · {message.usage.output} tok</span>
-            {/if}
-            <span class="spacer"></span>
-            <button type="button" class="act" onclick={() => copyMessage(message)}>
-              {copiedId === message.id ? 'copied' : 'copy'}
+            <span class="who">{message.role === 'user' ? 'you' : (message.model ?? 'assistant')}</span>
+            <span class="rule"></span>
+            <button type="button" class="act" onclick={() => void copied.copy(message.id, message.text)}>
+              {copied.key === message.id ? 'copied' : 'copy'}
             </button>
             {#if message.role === 'user'}
               <button type="button" class="act" disabled={busy} onclick={() => edit(message)} data-testid="aichat-edit">edit</button>
@@ -381,6 +426,10 @@ function copyMessage(message: ChatMessage): void {
                 again
               </button>
             {/if}
+            {#if readout !== null}
+              <span class="meta" title="tokens read › tokens written · tokens a second" data-testid="aichat-usage">{readout}</span>
+            {/if}
+            <span class="meta">{time(message.at)}</span>
           </header>
           {#if message.thinking}
             <details class="thinking">
@@ -401,10 +450,13 @@ function copyMessage(message: ChatMessage): void {
         </article>
       {/each}
       {#if run !== null}
-        <article class="message assistant running" data-testid="aichat-run">
+        <article class="message assistant running fx-rise" data-testid="aichat-run">
           <header>
-            <span>{run.model}</span>
-            <span class="when">writing…</span>
+            <span class="who">{run.model}</span>
+            <span class="rule"></span>
+            <span class="meta live" data-testid="aichat-telemetry">
+              {run.text === '' ? (run.thinking === '' ? 'linking' : 'reasoning') : 'writing'} · T+{elapsed}s · {compactCount(run.text.length + run.thinking.length)} ch
+            </span>
           </header>
           {#if run.thinking !== ''}
             <details class="thinking" open={run.text === ''}>
@@ -415,7 +467,7 @@ function copyMessage(message: ChatMessage): void {
           {#if run.text !== ''}
             <Markdown source={run.text} />
           {:else if run.thinking === ''}
-            <p class="note">waiting for {run.provider}…</p>
+            <p class="note">waiting for {run.provider}<span class="caret">▍</span></p>
           {/if}
         </article>
       {/if}
@@ -427,15 +479,17 @@ function copyMessage(message: ChatMessage): void {
 
     <form
       class="composer"
+      class:editing={editing !== null}
       onsubmit={(e) => {
         e.preventDefault()
         void send()
       }}
     >
+      <span class="prompt" aria-hidden="true">{editing === null ? '>' : '±'}</span>
       <textarea
         bind:this={composer}
         bind:value={draft}
-        rows="2"
+        rows="1"
         placeholder={editing === null ? 'message · enter to send, shift+enter for a new line' : 'rewriting an earlier message · esc to leave it as it was'}
         onkeydown={onComposerKey}
         data-testid="aichat-input"
@@ -509,8 +563,7 @@ select {
 }
 
 select:focus,
-.model:focus,
-textarea:focus {
+.model:focus {
   border-color: var(--accent);
   outline: none;
 }
@@ -611,44 +664,133 @@ textarea:focus {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   overflow-y: auto;
-  padding-right: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) 0;
   scrollbar-width: thin;
   scrollbar-color: var(--accent-dim) transparent;
   /* Text here is for reading and copying, unlike the HUD around it. */
   user-select: text;
 }
 
+/*
+ * No conversation yet: the link's state, the way the rest of the HUD states
+ * things - a lamp, a label, what it is pointed at.
+ */
+.standby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  margin: auto;
+  max-width: 90%;
+  text-align: center;
+  user-select: none;
+}
+
+.state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lamp {
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1px solid var(--warn);
+}
+
+.lamp.ready {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.target {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent-strong);
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  font-size: var(--step--1);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/*
+ * A message is an entry in a log: who, a rule out to the readouts, then the
+ * text hung from a line down its left - the accent for what you said, the
+ * panel's rule for what came back, lit while it is still arriving.
+ */
 .message {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
-}
-
-.message header {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  font-size: var(--step--2);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  color: var(--accent-strong);
-  user-select: none;
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--panel-rule);
 }
 
 .message.user {
   padding: var(--space-1) var(--space-2);
   border-left: 2px solid var(--accent);
   background: var(--accent-faint);
+  /* The cut corner the panels have. */
+  clip-path: polygon(0 0, calc(100% - 0.5rem) 0, 100% 0.5rem, 100% 100%, 0 100%);
 }
 
-.spacer {
+.message.running {
+  border-left-color: var(--accent);
+}
+
+.message header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  user-select: none;
+}
+
+.who {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  color: var(--accent-strong);
+}
+
+.rule {
   flex: 1;
+  min-width: var(--space-2);
+  height: 1px;
+  background: linear-gradient(to right, var(--accent-dim), transparent);
+}
+
+.meta {
+  flex: none;
+  font-family: var(--font-mono);
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+.meta.live {
+  color: var(--accent);
 }
 
 .act {
+  flex: none;
   padding: 0;
   border: 0;
   background: transparent;
@@ -692,13 +834,44 @@ textarea:focus {
   user-select: none;
 }
 
+.thinking summary:hover {
+  color: var(--accent);
+}
+
 .thinking p {
   margin: var(--space-1) 0 0;
   padding-left: var(--space-2);
-  border-left: 1px solid var(--panel-rule);
+  border-left: 1px dashed var(--panel-rule);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.4;
+}
+
+/*
+ * The caret at the end of what is being written. It steps with the shared pulse
+ * (lib/pulse.svelte.ts) rather than blinking as an animation of its own, which
+ * would be the compositor's for as long as a slow model takes. It hangs off the
+ * last thing the answer holds: the last paragraph, the last item, the code.
+ */
+.caret,
+.running :global(.markdown > :last-child:not(.code, .table-frame, ul, ol, hr)::after),
+.running :global(.markdown > :is(ul, ol):last-child > li:last-child > :last-child::after),
+.running :global(.markdown > .code:last-child pre > code::after) {
+  content: '▍';
+  margin-left: 0.1em;
+  color: var(--accent);
+}
+
+.chat[data-pulse='1'] .caret,
+.chat[data-pulse='3'] .caret,
+.chat[data-pulse='1'] .running :global(.markdown ::after),
+.chat[data-pulse='3'] .running :global(.markdown ::after) {
+  opacity: 0.6;
+}
+
+.chat[data-pulse='2'] .caret,
+.chat[data-pulse='2'] .running :global(.markdown ::after) {
+  opacity: 0.15;
 }
 
 .note {
@@ -709,6 +882,8 @@ textarea:focus {
 .stop {
   margin: 0;
   font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -717,31 +892,59 @@ textarea:focus {
   color: var(--warn);
 }
 
+.stop.failed {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .problem {
   margin: 0;
   font-size: var(--step--2);
 }
 
+/* A command line: the prompt, what is typed, and the key that sends it. */
 .composer {
   display: flex;
   align-items: stretch;
-  gap: var(--space-1);
-  padding-bottom: var(--space-1);
+  margin-bottom: var(--space-1);
+  border: 1px solid var(--panel-border);
+}
+
+.composer:focus-within {
+  border-color: var(--accent);
+}
+
+.composer.editing {
+  border-style: dashed;
+}
+
+.prompt {
+  flex: none;
+  padding: var(--space-1) 0 0 var(--space-2);
+  font-family: var(--font-mono);
+  line-height: 1.4;
+  color: var(--accent);
+  user-select: none;
 }
 
 textarea {
   flex: 1;
   min-width: 0;
   resize: none;
-  padding: var(--space-1);
-  border: 1px solid var(--panel-border);
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  outline: none;
   background: transparent;
   color: var(--text);
   font-family: var(--font-ui);
   font-size: var(--step--1);
   line-height: 1.4;
   field-sizing: content;
-  min-height: 2.6rem;
-  max-height: 40%;
+  min-height: 1.4em;
+  max-height: 12rem;
+}
+
+.composer .cmd {
+  border-width: 0 0 0 1px;
 }
 </style>

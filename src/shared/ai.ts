@@ -58,8 +58,6 @@ export interface AiPreset {
   kind: AiProviderKind
   baseUrl: string
   model: string
-  /** Runs on this machine: no key is asked for. */
-  local: boolean
 }
 
 /** What "add a provider" offers. Every field can be edited afterwards. */
@@ -70,7 +68,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'http://localhost:11434/v1',
     model: '',
-    local: true,
   },
   {
     id: 'lmstudio',
@@ -78,7 +75,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'http://localhost:1234/v1',
     model: '',
-    local: true,
   },
   {
     id: 'llamacpp',
@@ -86,7 +82,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'http://localhost:8080/v1',
     model: '',
-    local: true,
   },
   {
     id: 'anthropic',
@@ -94,7 +89,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'anthropic',
     baseUrl: 'https://api.anthropic.com',
     model: 'claude-opus-5',
-    local: false,
   },
   {
     id: 'openai',
@@ -102,7 +96,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'https://api.openai.com/v1',
     model: '',
-    local: false,
   },
   {
     id: 'gemini',
@@ -110,7 +103,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
     model: '',
-    local: false,
   },
   {
     id: 'openrouter',
@@ -118,7 +110,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'https://openrouter.ai/api/v1',
     model: '',
-    local: false,
   },
   {
     id: 'custom',
@@ -126,7 +117,6 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'http://localhost:8000/v1',
     model: '',
-    local: true,
   },
 ]
 
@@ -224,6 +214,8 @@ export const ChatMessageSchema = z.object({
   usage: z
     .object({ input: z.number().int().nonnegative(), output: z.number().int().nonnegative() })
     .optional(),
+  /** How long the answer took to write, in milliseconds: with `usage`, the pane's tokens a second. */
+  ms: z.number().int().nonnegative().optional(),
   stop: z.enum(CHAT_STOPS).optional(),
   error: z.string().max(600).optional(),
 })
@@ -415,6 +407,20 @@ export class ThinkSplitter {
     }
     return rest.length
   }
+}
+
+/** Tokens written a second, when the provider counted them and the answer took long enough to say. */
+export function tokensPerSecond(message: ChatMessage): number | null {
+  if (message.usage === undefined || message.ms === undefined || message.ms < 200) return null
+  if (message.usage.output === 0) return null
+  return Math.round((message.usage.output / message.ms) * 1000)
+}
+
+/** 1234 -> "1.2k": a count for a readout, not for accounting. */
+export function compactCount(n: number): string {
+  if (n < 1000) return String(n)
+  if (n < 10_000) return `${(n / 1000).toFixed(1)}k`
+  return `${Math.round(n / 1000)}k`
 }
 
 /** A conversation as a markdown document, for "export". */

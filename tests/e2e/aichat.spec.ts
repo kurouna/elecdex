@@ -212,7 +212,7 @@ test('an answer streams in, is drawn as markdown, and is there after a restart',
     await expect(answer).toContainText('That is all.')
     await expect(answer.getByTestId('chat-code')).toContainText('console.log("hi")')
     await expect(answer.locator('strong')).toHaveText('all')
-    await expect(answer).toContainText('11 · 22 tok')
+    await expect(answer).toContainText('11 › 22 tok')
     await expect(answer.locator('details.thinking')).toContainText('reasoning')
 
     const request = seen.find((entry) => entry.path === '/v1/chat/completions')

@@ -99,7 +99,13 @@ export class AiChatService {
   }
 
   remove(chatId: string): boolean {
-    this.stop(chatId)
+    // The answer being written goes with it: nothing of it is kept, so nothing is written
+    // only to be deleted.
+    const running = this.running.get(chatId)
+    if (running !== undefined) {
+      this.close(running)
+      running.abort.abort()
+    }
     if (!this.deps.store.remove(chatId)) return false
     this.deps.publish({ type: 'snapshot', chatId, chat: null, run: null })
     this.deps.listChanged(this.list())
@@ -133,7 +139,11 @@ export class AiChatService {
 
     const chat: Chat = {
       ...stored,
-      title: stored.title === '' ? chatTitle(messages[0]?.text ?? '') : stored.title,
+      // Named after the first question - also when that question is the one being rewritten.
+      title:
+        stored.title === '' || messages.length === 1
+          ? chatTitle(messages[0]?.text ?? '')
+          : stored.title,
       updatedAt: this.deps.now(),
       messages,
     }
@@ -287,20 +297,27 @@ export class AiChatService {
     running.sentThinking = run.thinking.length
   }
 
-  /** Turns the run into the conversation's next message, once: a stop and the stream's own end both arrive here. */
-  private finish(running: Running, result: StreamResult): void {
-    if (running.finished) return
+  /** The run is over, whatever becomes of it: no more pieces, no more flushes. */
+  private close(running: Running): void {
     running.finished = true
     if (running.timer !== null) this.deps.clearTimer(running.timer)
     this.running.delete(running.chat.id)
+  }
+
+  /** Turns the run into the conversation's next message, once: a stop and the stream's own end both arrive here. */
+  private finish(running: Running, result: StreamResult): void {
+    if (running.finished) return
+    this.close(running)
 
     const { run } = running
+    const now = this.deps.now()
     const stop: ChatStop | undefined = result.stop
     const message: ChatMessage = {
       id: run.id,
       role: 'assistant',
       text: run.text,
-      at: this.deps.now(),
+      at: now,
+      ms: Math.max(0, now - run.startedAt),
       provider: run.provider,
       model: result.model ?? run.model,
       ...(run.thinking === '' ? {} : { thinking: run.thinking }),
@@ -310,7 +327,7 @@ export class AiChatService {
     }
     const chat: Chat = {
       ...running.chat,
-      updatedAt: this.deps.now(),
+      updatedAt: now,
       messages: [...running.chat.messages, message],
     }
     // A conversation deleted while it was being answered stays deleted.

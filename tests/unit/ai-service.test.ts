@@ -149,6 +149,8 @@ describe('an answer', () => {
       model: 'llama3',
       usage: { input: 12, output: 5 },
     })
+    // How long it took, for the pane's tokens a second.
+    expect(messages?.[1]?.ms).toBeGreaterThan(0)
     expect(h.service.active()).toEqual([])
     // And it is what a new service reads back.
     expect(harness(dir).service.get(chatId)?.messages).toHaveLength(2)
@@ -286,6 +288,17 @@ describe('rewriting history', () => {
     ])
   })
 
+  it('rewriting the first question renames the conversation after it', async () => {
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    await answered(h, chatId, 'about cats', 'a1')
+    await answered(h, chatId, 'and dogs', 'a2')
+    expect(h.service.list()[0]?.title).toBe('about cats')
+    const q1 = h.service.get(chatId)?.messages[0]?.id as string
+    h.service.send(chatId, { ...ASK, text: 'about birds', replaceFrom: q1 })
+    expect(h.service.list()[0]?.title).toBe('about birds')
+  })
+
   it('refuses what cannot be done', () => {
     const h = harness(dir)
     const chatId = h.service.create() as string
@@ -347,8 +360,13 @@ describe('the conversations folder', () => {
     const chatId = h.service.create() as string
     h.service.send(chatId, { ...ASK, text: 'hi' })
     await h.settle()
+    ;(h.pending[0] as Pending).sink.text('half')
+    const before = h.events.length
     expect(h.service.remove(chatId)).toBe(true)
-    expect(h.events.at(-1)).toEqual({ type: 'snapshot', chatId, chat: null, run: null })
+    expect((h.pending[0] as Pending).request.signal.aborted).toBe(true)
+    // The half answer is not written only to be deleted: one event, saying it is gone.
+    expect(h.events.slice(before)).toEqual([{ type: 'snapshot', chatId, chat: null, run: null }])
+    expect(h.service.active()).toEqual([])
     expect(h.lists.at(-1)).toEqual([])
     expect(readdirSync(dir)).toEqual([])
     await h.settle()
@@ -360,6 +378,14 @@ describe('the conversations folder', () => {
     const store = new ChatStore(dir)
     expect(store.get('../settings')).toBeNull()
     expect(store.remove('../settings')).toBe(false)
+  })
+
+  it('a file renamed by hand does not answer to an id it does not carry', () => {
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    const other = '00000000-0000-4000-8000-0000000000ff'
+    writeFileSync(path.join(dir, `${other}.json`), readFileSync(path.join(dir, `${chatId}.json`)))
+    expect(new ChatStore(dir).list().map((c) => c.id)).toEqual([chatId])
   })
 
   it('a file that does not parse is left alone and not listed', () => {
@@ -401,6 +427,29 @@ describe('keys', () => {
     expect(vault.storage('openai')).toBeNull()
     expect(vault.get('openai')).toBeNull()
     expect(file().keys).toEqual({})
+  })
+
+  it('forgetting a key that was never held writes nothing', () => {
+    let saves = 0
+    const vault = new KeyVault({
+      codec: stubCodec,
+      load: emptyKeyFile,
+      save: () => {
+        saves += 1
+      },
+    })
+    vault.remove('openai')
+    expect(saves).toBe(0)
+  })
+
+  it('a key stored after a session key replaces it', () => {
+    let canEncrypt = false
+    const { vault, file } = vaultOn({ ...stubCodec, available: () => canEncrypt })
+    expect(vault.set('openai', 'sk-one')).toBe('session')
+    canEncrypt = true
+    expect(vault.set('openai', 'sk-two')).toBe('stored')
+    expect(vault.get('openai')).toBe('sk-two')
+    expect(Object.keys(file().keys)).toEqual(['openai'])
   })
 
   it('stay in memory where the system cannot encrypt', () => {

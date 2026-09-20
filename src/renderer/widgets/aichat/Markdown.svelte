@@ -1,4 +1,5 @@
 <script lang="ts">
+import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { type Block, type Inline, parseMarkdown } from '../../lib/markdown.ts'
 
 /**
@@ -13,21 +14,9 @@ const { source }: Props = $props()
 
 const blocks = $derived(parseMarkdown(source))
 
-/** The code block whose text was just copied, for its button's word. */
-let copied = $state<string | null>(null)
-let copiedTimer: ReturnType<typeof setTimeout> | undefined
-
-function copy(key: string, text: string): void {
-  void navigator.clipboard.writeText(text).then(() => {
-    copied = key
-    clearTimeout(copiedTimer)
-    copiedTimer = setTimeout(() => {
-      copied = null
-    }, 1500)
-  })
-}
-
-$effect(() => () => clearTimeout(copiedTimer))
+/** Which code block was just copied, for its button's word. */
+const copied = new CopyFlag()
+$effect(() => () => copied.dispose())
 </script>
 
 <!-- One line on purpose: white space between these tags would be drawn between the words. -->
@@ -43,8 +32,8 @@ $effect(() => () => clearTimeout(copiedTimer))
       <div class="code" data-testid="chat-code">
         <div class="code-bar">
           <span>{node.lang}</span>
-          <button type="button" onclick={() => copy(`${path}${i}`, node.v)} data-testid="chat-code-copy">
-            {copied === `${path}${i}` ? 'copied' : 'copy'}
+          <button type="button" onclick={() => void copied.copy(`${path}${i}`, node.v)} data-testid="chat-code-copy">
+            {copied.key === `${path}${i}` ? 'copied' : 'copy'}
           </button>
         </div>
         <pre><code>{node.v}</code></pre>

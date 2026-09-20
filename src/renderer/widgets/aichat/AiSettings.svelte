@@ -86,11 +86,15 @@ async function test(provider: AiProvider): Promise<void> {
   }
 }
 
+/** On this computer or network, reached in the clear: the kind of server that asks for no key. */
+function isLocal(provider: AiProvider): boolean {
+  const url = aiBaseUrl(provider.baseUrl)
+  return url?.startsWith('http:') === true && keyMayTravel(url)
+}
+
 function keyPlaceholder(provider: AiProvider, held: boolean): string {
   if (held) return 'type a new key to replace it'
-  const url = aiBaseUrl(provider.baseUrl)
-  const local = url?.startsWith('http:') === true && keyMayTravel(url)
-  return local
+  return isLocal(provider)
     ? 'none - a local server usually needs none'
     : 'none yet - paste the key for this service'
 }
@@ -137,6 +141,12 @@ function addressProblem(provider: AiProvider): string | null {
   {@const held = ai.keys[provider.id] ?? null}
   {@const problem = addressProblem(provider)}
   <section class="provider" data-testid="ai-provider" data-provider={provider.id}>
+    <div class="head">
+      <span class="name">{provider.name}</span>
+      <span class="chip">{isLocal(provider) ? 'local' : 'hosted'}</span>
+      <span class="chip">{provider.kind === 'anthropic' ? 'anthropic api' : 'openai api'}</span>
+      {#if held !== null}<span class="chip held">key held</span>{/if}
+    </div>
     <label class="row">
       <span>name</span>
       <input
@@ -225,7 +235,7 @@ function addressProblem(provider: AiProvider): string | null {
     {/if}
     <div class="row end">
       {#if tested[provider.id]}
-        <span class="result" data-testid="ai-test-result">{tested[provider.id]}</span>
+        <output class="result" data-testid="ai-test-result">{tested[provider.id]}</output>
       {/if}
       <button
         type="button"
@@ -381,5 +391,36 @@ button.primary {
 .provider {
   padding-top: var(--space-2);
   border-top: 1px dashed var(--panel-rule);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  font-family: var(--font-ui);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.chip {
+  padding: 0 0.35rem;
+  border: 1px solid var(--panel-border);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.chip.held {
+  border-color: var(--ok);
+  color: var(--ok);
 }
 </style>
