@@ -5,7 +5,10 @@
 >
 > **この文書の読み方**: §1〜§13 は設計で、実装に合わせて更新している。§14 は最初の実装計画の記録で、
 > 当時のまま残してある。その後に加わった機能（天気・相場・RSS・地震・音声・プラグイン・Web ペイン・
-> 保存レイアウト・バックグラウンド常駐など）の判断は、理由と実測値つきで §16 にある。
+> 保存レイアウト・バックグラウンド常駐・AI チャットなど）の判断は、理由と実測値つきで §16 にある。
+>
+> **動作確認の範囲**: 開発と日常の使用は Windows。macOS と Linux は GitHub Actions の e2e が通ることしか
+> 確かめておらず、**人の手による動作確認は十分でない**（§13、§17）。
 > 変えてはならない約束事の要約は [CLAUDE.md](../CLAUDE.md)。
 
 ---
@@ -127,7 +130,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 以下は最初の設計時のスケッチで、考え方（名前空間ごとの型付き API、購読は解除関数を返す）を示す。
 **現在の正確な形は `src/shared/api.ts`** にあり、名前空間は `system` / `background` / `pty` / `layout` /
 `metrics` / `fs` / `weather` / `settings` / `themes` / `launcher` / `markets` / `feeds` / `quakes` /
-`notes` / `tasks` / `alarms` / `updates` / `audio` / `plugins` / `web` の20個。
+`ai` / `notes` / `tasks` / `alarms` / `updates` / `audio` / `plugins` / `web` の21個。
 
 ```ts
 interface ElecdexApi {
@@ -575,7 +578,8 @@ run 自体は毎秒 10 回作り直されるオブジェクトなので、それ
 **ツールは持たせない（v1、ユーザー了承 2026-09-20）**。MCP / ツール実行は 2026 年のチャット UI の主流だが、「モデルの判断で
 プロセスを起動し、ファイルを読む」経路は、このアプリの境界（§11: 汎用チャネルなし、パスを取る run なし）と
 正面からぶつかる。入れるならプラグインと同じ水準の同意設計（ツールごとの許可、呼び出しごとの確認）が
-先に要る。画像添付、会話の分岐、自動要約によるコンテキスト圧縮も見送り。
+先に要る。画像添付、会話の分岐、自動要約によるコンテキスト圧縮も見送り。名前を付けて切り替える
+システムプロンプト（「リンクプロファイル」）も見送った（ユーザー判断 2026-09-21）。
 
 **テスト**: 単体（`shared/ai.ts` の純関数、`AiChatService` を偽アダプタと実ファイルで、`KeyVault`、
 両アダプタをローカル HTTP サーバー相手に — 送るパス・ヘッダ・本文と、サーバーの答え方ごとの解釈、
@@ -762,6 +766,7 @@ elecdex/
 │  │  ├─ plugin-api.ts / plugin-runtime.ts / plugins.ts   # プラグインの公開型・Worker の実行時・検証
 │  │  ├─ calc/             # vendor/（elecxzy の評価器を無改変で）+ elecdex 側のラッパー + types/
 │  │  ├─ geo/              # 生成データ: 都市、国の重心、タイムゾーン → 国
+│  │  ├─ ai.ts             # AI チャット: プロバイダ、会話、main とページの間のイベント（§5.7）
 │  │  └─ weather*.ts / quakes*.ts / tsunami.ts / markets.ts / feeds.ts / notes.ts / tasks.ts / ...
 │  ├─ main/
 │  │  ├─ index.ts / window.ts / app-windows.ts / window-control.ts
@@ -770,6 +775,7 @@ elecdex/
 │  │  ├─ pty/              # PtyManager、OscParser、shell-integration、screen-mirror、start-directory
 │  │  ├─ metrics/          # broker と購読（collector は services/）
 │  │  ├─ fs/ launcher/ weather/ markets/ feeds/ quakes/ updates/
+│  │  ├─ ai/               # 会話ストア、キー保管、チャットサービス、方言ごとのアダプタ（openai / anthropic）（§5.7）
 │  │  ├─ reminders/        # 次の1件だけを待つスケジューラ（タスクとアラーム）
 │  │  ├─ audio/            # 隠しキャプチャウィンドウ、parec、OS ごとのミキサー
 │  │  ├─ plugins/          # 走査と変換・導入（install.ts）・代行 fetch・保存・サインイン窓（plugins.md）
@@ -787,7 +793,7 @@ elecdex/
 │     ├─ plugins/          # PluginHost（Worker）、PluginPane、ブロック描画、設定欄
 │     ├─ widgets/          # registry.ts、builtins.ts、common/（StreamChart、Digits、SegmentMeter…）、
 │     │                    # ウィジェットごとのフォルダ（monitor/ は監視系をまとめて持つ）
-│     ├─ lib/              # frame-loop、crt-transitions、sfx、webgl、time-series …
+│     ├─ lib/              # frame-loop、crt-transitions、sfx、webgl、time-series、markdown（AI チャットの木）…
 │     ├─ stores/           # layout、appearance、sessions、metrics、ui、web、background …（runes）
 │     └─ styles/           # reset / tokens / frames / effects / crt / motion
 ├─ tests/
@@ -841,6 +847,11 @@ elecdex/
 | E2E | 起動 → ターミナルでコマンド実行 → 出力検証 / タブ追加・削除 / ペイン分割 / テーマ切替（リロードなし）/ 設定変更の反映 | Playwright `_electron` |
 
 **性能回帰テスト**: アイドル時の CPU 使用率とメモリを E2E で計測して縛る（`tests/e2e/metrics.spec.ts`）。原版の最大の問題が性能だったため、これを数値で持つ。既定レイアウトの実測は1コアの約12〜13%・ワーキングセット約600MB で、ローカルの閾値は 40%・1200MB、共有ランナーで揺れる CI は 300%・1500MB（暴走だけを捕まえる）。設計当初の目安（アイドル CPU < 3%、RSS < 400MB）は監視ペインを並べた既定レイアウトでは現実的でなく、実測に置き換えた。
+
+**プラットフォームごとの確認の範囲**: 手元で動かして確かめているのは Windows だけ。macOS と Linux は
+GitHub Actions の e2e（`ci.yml` の `ubuntu-latest` / `windows-latest` / `macos-latest`）が通ることしか
+確かめていない。e2e はスタブ相手の自動操作なので、実機の音声デバイス、通知領域、Keychain / keyring、
+IME、HiDPI、実際のシェルとの相性などは見ていない。**macOS と Linux の動作確認は十分でない**（§17）。
 
 **テストは外部サービスに触れない**: 天気・相場・地震・更新確認・Web ペインの行き先は既定で閉じたポートに向け、必要な spec だけがローカルのスタブを立てる。音声・通知領域・サインイン時起動・ソケット一覧もスタブに差し替え、実機の音量・タスクバー・スタートアップ・接続先に触れない（環境変数の一覧は CLAUDE.md）。
 
@@ -1061,4 +1072,9 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 
 ## 17. 既知の問題
 
-現時点で記録すべき既知の問題はない。
+- **macOS と Linux の動作確認は十分でない**。どちらも配布物は作っているが、確かめてあるのは
+  GitHub Actions の e2e が通ることだけで、人が日常的に使って確かめた実績がない。とくに OS に触れる部分 —
+  スペクトラムの音声取り込み（macOS は未確認と README にも明記）、ミキサー、通知領域とシステム全体の
+  ショートカット、サインイン時の起動、CONNECTIONS ペインのソケット読み取り、AI チャットのキー暗号化
+  （Keychain / keyring。e2e では `ELECDEX_AI_KEYS_STUB` で差し替えているので、本物は一度も通っていない）—
+  は、Windows 以外では実機での確認を経ていない。

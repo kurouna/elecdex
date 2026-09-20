@@ -16,7 +16,14 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.10 — pre-release.** Everything below works today; builds are unsigned.
+> **v0.0.11 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> *unreleased* is on `main` and arrives with the next release.
+>
+> **Developed and used on Windows.** macOS and Linux are built for every release, but they have
+> only been run by the automated end-to-end tests on GitHub Actions - nobody has used them by hand
+> for any length of time, so **macOS and Linux are not sufficiently verified**. Expect rough edges
+> there, and please [report](https://github.com/kurouna/elecdex/issues) what you find.
+>
 > Design notes and every decision with its reason: [docs/architecture.md](docs/architecture.md).
 
 ## Features
@@ -40,7 +47,7 @@ for Windows, macOS and Linux.
   month calendar with optional Japanese holidays.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
   you want it.
-- **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
+- **AI chat** *(unreleased)* — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
   that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
   Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
   the operating system and never reach the page, and conversations stay on your computer.
@@ -127,6 +134,10 @@ Download the installer for your platform from
 | macOS Apple silicon / Intel | `elecdex-mac-arm64-<version>.dmg` / `elecdex-mac-x64-<version>.dmg` |
 | Linux x64 | `elecdex-linux-x86_64-<version>.AppImage` or `elecdex-linux-amd64-<version>.deb` |
 | Linux arm64 | `elecdex-linux-arm64-<version>.AppImage` or `elecdex-linux-arm64-<version>.deb` |
+
+The Windows builds are the ones the author runs. The macOS and Linux builds come out of the same
+release workflow and pass the end-to-end tests on GitHub's runners, but have had no hands-on
+testing: treat them as not sufficiently verified.
 
 The builds are not code-signed yet. Windows SmartScreen shows "Windows protected your PC" — choose
 *More info → Run anyway*. On macOS, open the app once with right-click → *Open* (or allow it in
@@ -313,7 +324,7 @@ weather and calendar.
   the week forecast on or off, per pane; the default is New York City. A click on the forecast
   opens the source's own page for the place in the browser - JMA's forecast page, the NWS point
   forecast or yr.no.
-- **AI chat** — not in the default layout: add it from the picker (Ctrl+Shift+A), as many as you
+- **AI chat** *(unreleased: on `main`, not in v0.0.11)* — not in the default layout: add it from the picker (Ctrl+Shift+A), as many as you
   like. First list a provider in *Settings -> AI chat*: pick a preset (Ollama, LM Studio, llama.cpp,
   Anthropic, OpenAI, Gemini, OpenRouter, or a custom address), adjust the address, and - for a
   hosted service - paste its API key. **test** asks the provider for its models, which then
@@ -327,7 +338,9 @@ weather and calendar.
   replaces it and what followed) or ask **again**. An answer that did not simply finish says how it
   ended - `STOPPED`, `TRUNCATED`, `DECLINED`, `LINK ERROR`, or `NO CARRIER` when nobody answered
   at the address - with the provider's own words beside it. **log** lists your conversations,
-  newest first; point at one to export it as markdown or delete it. A conversation belongs to the app, not the pane: moving the pane
+  newest first; point at one to export it as markdown or delete it. An empty pane shows where it
+  points (`LINK STANDBY`, the provider and model, the address) and the model field shows
+  `QUERYING` while a provider's list is read, or `NO LIST` with the reason when it cannot be. A conversation belongs to the app, not the pane: moving the pane
   or putting it behind a tab does not interrupt an answer, and closing it stops the request.
   Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
   an optional system prompt in the settings goes ahead of every conversation. There are no tools:

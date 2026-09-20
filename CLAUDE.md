@@ -5,6 +5,9 @@ Guidance for AI agents (and humans) working in this repository.
 elecdex is a ground-up rewrite of [eDEX-UI](https://github.com/GitSquared/edex-ui) — a sci-fi
 terminal emulator and system monitor — on Electron 44, Svelte 5, TypeScript 7 and xterm.js 6.
 GPL-3.0, like the original; the version is in package.json, and releases are pre-releases.
+It is developed and used on Windows; macOS and Linux have only been run by the e2e tests on GitHub
+Actions and are **not sufficiently verified** - the README says so, and must go on saying so until
+someone has used them by hand.
 
 This file holds the rules that must not be broken and where each one lives. The design, and every
 decision with its reason and its measured numbers, is in [docs/architecture.md](docs/architecture.md)
@@ -164,8 +167,15 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - The Anthropic adapter follows the claude-api skill: capabilities from the Models API rather
     than the model's name, `stop_reason` read before content, thinking shown summarized and never
     replayed, server-side fallbacks only on Anthropic's own endpoint.
-  - No tools, no MCP: a model that can start processes or read files needs a consent design like
-    the plugins' first. Do not add them without asking.
+  - The pane speaks the link's language (LINK STANDBY, TX / RX, LOG, NO CARRIER), but never at
+    the cost of what the user needs to read: how an answer ended is a short code *with the
+    provider's own words beside it*, not in a tooltip. The ways of failing are one set (`FAILED`)
+    read by both the mark's colour and the sound; add a new `ChatStop` there deliberately. The
+    caret and the receive lamp step with `lib/pulse.svelte.ts`, not a CSS animation. The pane
+    badge stays in words (`receiving`), like the other panes' badges.
+  - No tools, no MCP, no images, no branching, no named prompt profiles: left out on purpose
+    (user decisions 2026-09-20 and 2026-09-21). A model that can start processes or read files
+    needs a consent design like the plugins' first. Do not add any of them without asking.
 - **The vendored calculator is never edited.** `src/shared/calc/vendor` is elecxzy's evaluator
   copied whole (MIT), kept out of tsconfig and biome, typed through hand-written `.d.ts` behind
   `@calc/*`. What elecdex needs goes in the wrapper beside it; `scripts/sync-calc.mjs` overwrites
@@ -348,6 +358,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   (JMA, USGS, NOAA) and say they are not an early warning (tsunami cards: follow local
   authorities); the GeoIP data is CC BY 4.0 (NRO), credited in the globe pane; Yahoo data is marked
   unofficial, possibly delayed, not investment advice.
+- **The README's status line** names the last *released* version (package.json), and marks what
+  is on main but not in it as *unreleased*; update both when the version is bumped. It also says
+  macOS and Linux are not sufficiently verified - keep that until they are.
 - **Releases**: run the whole Playwright suite (`npx playwright test`) before bumping the version.
   Then bump `package.json` version and push tag `v<version>`; .github/workflows/release.yml builds
   every platform into a GitHub pre-release that a person promotes to a full release.
