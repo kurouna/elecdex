@@ -163,17 +163,25 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   `scope: 'global'` is registered with the OS by main instead, so it is out of the page's `keymap`,
   out of the shortcut list and out of "reset all shortcuts", and `conflicts` reports the app action
   as the loser while the OS holds the keys.
-- **Running in the background** (Windows only, docs/architecture.md section 16): minimising or
-  closing to the notification area, the system-wide show/hide shortcut and the sign-in entry.
-  Every option is off until the user turns it on. The decisions are pure in shared/background.ts
-  (`decideClose`, `decideMinimize`, `decideToggle`, `trayWanted`, `closesToTray`) and main/background/
-  carries them out, so the page never hides the window itself: its close button asks main to close
-  the window (`system.closeWindow`) and main decides. Putting the window away is told apart from
+- **Running in the background** (docs/architecture.md section 16): the icon outside the window,
+  minimising or closing to it, the system-wide show/hide shortcut and the sign-in entry. Every
+  option is off until the user turns it on. **Never gate any of it on the platform name**: ask
+  `backgroundCapabilities` (shared/background.ts), which main computes from what this machine
+  actually has - it probes for a tray (a Linux desktop may have none, and putting the window
+  somewhere that does not exist loses it) and reads the session type (a Wayland session swallows
+  system-wide shortcuts). The answer travels to the page in `BackgroundState`, and the settings
+  and the fullscreen corner read it from `stores/background.svelte.ts`. macOS keeps the app
+  running with no window, so closing and minimising stay the platform's (`staysWithoutWindow`)
+  and `window-all-closed` does not quit there. The decisions are pure (`decideClose`,
+  `decideMinimize`, `decideToggle`, `trayWanted`, `closesToTray`) and main/background/ carries
+  them out, so the page never hides the window itself: its close button asks main to close the
+  window (`system.closeWindow`) and main decides; main also ignores an option the machine cannot
+  do, since settings.json travels between machines. Putting the window away is told apart from
   quitting by `quitting` (before-quit, Windows' session-end); an explicit quit - the shortcut, the
-  status bar, the tray menu - always quits. The icon is there only while a tray option is on or the
-  window is hidden, so a hidden window is never unreachable. Windows holds whether elecdex launches
-  at sign-in, not settings.json, and `launchItems` reports neither a moved install nor the
-  arguments, so the entry is written only when the user changes something. A hidden or minimised
+  status bar, the tray menu - always quits. The sign-in entry is one file per platform behind one
+  `LoginBackend` (main/background/login/): a Run-key value, a macOS login service, a freedesktop
+  autostart file - and the platform, not settings.json, holds whether it is on, because the user
+  can also turn it off in Task Manager, System Settings or their desktop. A hidden or minimised
   window is not reported hidden to a page with `backgroundThrottling: false`, so main sends
   `WindowState.hidden` and the frame loop stops drawing on it.
 - **README screenshots** must not show personal data: regenerate them with

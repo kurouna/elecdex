@@ -1,10 +1,12 @@
 <script lang="ts">
 import type { StartDirectory } from '@shared/api'
 import {
-  type BackgroundState,
-  backgroundSupported,
+  backgroundOffered,
   chordToAccelerator,
+  loginItemPlace,
   type ShortcutState,
+  signInName,
+  trayName,
 } from '@shared/background'
 import {
   availableOn,
@@ -24,6 +26,7 @@ import ConfirmButton from './ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from './lib/crt-transitions.ts'
 import PluginSettings from './plugins/PluginSettings.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
+import { background } from './stores/background.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import { updates } from './stores/updates.svelte.ts'
@@ -40,15 +43,18 @@ import { updates } from './stores/updates.svelte.ts'
 
 type Section = 'general' | 'window' | 'keyboard' | 'alerts' | 'plugins' | 'updates'
 const platform = window.elecdex.system.platform
-const SECTIONS: Array<{ id: Section; label: string }> = [
+/** What this machine can do in the background; main found it out (stores/background). */
+const capabilities = $derived(background.capabilities)
+const SECTIONS = $derived<Array<{ id: Section; label: string }>>([
   { id: 'general', label: 'general' },
-  // Windows only for now: the other platforms were not checked, so they show none of it.
-  ...(backgroundSupported(platform) ? [{ id: 'window' as const, label: 'window' }] : []),
+  // Only where there is something to offer: what that is differs by platform,
+  // and on Linux by the desktop.
+  ...(backgroundOffered(capabilities) ? [{ id: 'window' as const, label: 'window' }] : []),
   { id: 'keyboard', label: 'keyboard' },
   { id: 'alerts', label: 'alerts' },
   { id: 'plugins', label: 'plugins' },
   { id: 'updates', label: 'updates' },
-]
+])
 
 let section = $state<Section>('general')
 let version = $state('')
@@ -84,7 +90,7 @@ const actions = KEYBINDING_ACTIONS.filter(
 )
 
 /** The sign-in entry and the system-wide shortcut, as main has them. */
-let background = $state<BackgroundState | null>(null)
+const bgState = $derived(background.state)
 /** Why the system-wide shortcut was just turned back off. */
 let globalRefusal = $state<string | null>(null)
 
@@ -93,19 +99,15 @@ let globalRefusal = $state<string | null>(null)
  * with the same ones is the clash; the registered state, not the switch, decides
  * (keys another app holds are still elecdex's own).
  */
-const globalActive = $derived(background?.shortcut.state === 'registered')
+const globalActive = $derived(bgState?.shortcut.state === 'registered')
 const clashes = $derived(conflicts(settings.keybindings, platform, { globalActive }))
 
 $effect(() => {
-  if (!ui.settingsOpen || !backgroundSupported(platform)) return
+  if (!ui.settingsOpen) return
   globalRefusal = null
-  // Read again on every opening: the user may have changed it in Task Manager.
-  void window.elecdex.background.state().then((state) => {
-    background = state
-  })
-  return window.elecdex.background.onChange((state) => {
-    background = state
-  })
+  // Read again on every opening: the user may have turned the sign-in entry off
+  // in the platform's own settings since it was last asked.
+  void background.refresh()
 })
 
 const SHORTCUT_PROBLEMS: Partial<Record<ShortcutState, string>> = {
@@ -122,19 +124,19 @@ async function changeGlobalShortcut(change: SettingsPatch): Promise<void> {
   globalRefusal = null
   const saved = await appearance.patch(change)
   if (!saved.window.globalShortcut) return
-  const state = await window.elecdex.background.state()
-  background = state
-  if (state.shortcut.state === 'registered') return
-  globalRefusal = SHORTCUT_PROBLEMS[state.shortcut.state] ?? 'could not be registered'
+  await background.refresh()
+  const shortcut = background.state?.shortcut
+  if (shortcut === undefined || shortcut.state === 'registered') return
+  globalRefusal = SHORTCUT_PROBLEMS[shortcut.state] ?? 'could not be registered'
   await appearance.patch({ window: { globalShortcut: false } })
 }
 
 async function setLaunchAtLogin(on: boolean): Promise<void> {
-  background = await window.elecdex.background.setLaunchAtLogin(on)
+  await background.setLaunchAtLogin(on)
 }
 
 const launchAtLogin = $derived(
-  background?.loginItem.registered === true && !background.loginItem.disabledByOs,
+  bgState?.loginItem.registered === true && !bgState.loginItem.disabledByOs,
 )
 
 $effect(() => {
@@ -189,14 +191,14 @@ function startRecording(action: KeybindingAction): void {
   ui.recordingShortcut = true
   // Otherwise the OS would act on the system-wide keys instead of letting them
   // be recorded - it would put the window away mid-recording.
-  if (backgroundSupported(platform)) window.elecdex.background.suspendShortcut(true)
+  if (capabilities.globalShortcut) window.elecdex.background.suspendShortcut(true)
 }
 
 function stopRecording(): void {
   recording = null
   refusal = null
   ui.recordingShortcut = false
-  if (backgroundSupported(platform)) window.elecdex.background.suspendShortcut(false)
+  if (capabilities.globalShortcut) window.elecdex.background.suspendShortcut(false)
 }
 
 /**
@@ -540,37 +542,66 @@ function describeUpdate(status: UpdateStatus): string {
             {@const toggleChord = bindings['window.toggle']}
             {@const toggleClash = clashes['window.toggle']}
             {@const shortcutProblem =
-              settings.window.globalShortcut && background !== null ? SHORTCUT_PROBLEMS[background.shortcut.state] : undefined}
+              settings.window.globalShortcut && bgState !== null ? SHORTCUT_PROBLEMS[bgState.shortcut.state] : undefined}
             <section>
               <h3>window</h3>
-              <label class="row">
-                <span>minimize to the notification area</span>
-                <input
-                  type="checkbox"
-                  checked={settings.window.minimizeToTray}
-                  onchange={(e) => patch({ window: { minimizeToTray: e.currentTarget.checked } })}
-                  data-testid="settings-minimize-to-tray"
-                />
-              </label>
-              <label class="row">
-                <span>keep running in the notification area when the window is closed</span>
-                <input
-                  type="checkbox"
-                  checked={settings.window.closeToTray}
-                  onchange={(e) => patch({ window: { closeToTray: e.currentTarget.checked } })}
-                  data-testid="settings-close-to-tray"
-                />
-              </label>
-              <p class="note">
-                Open or quit elecdex from its icon there; Windows may keep a new icon under the ^ on the
-                taskbar.
-              </p>
+              {#if capabilities.tray}
+                <label class="row">
+                  <span>show an icon in {trayName(platform)}</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.window.trayIcon}
+                    onchange={(e) => patch({ window: { trayIcon: e.currentTarget.checked } })}
+                    data-testid="settings-tray-icon"
+                  />
+                </label>
+              {/if}
+              {#if capabilities.minimizeToTray}
+                <label class="row">
+                  <span>minimize to {trayName(platform)}</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.window.minimizeToTray}
+                    onchange={(e) => patch({ window: { minimizeToTray: e.currentTarget.checked } })}
+                    data-testid="settings-minimize-to-tray"
+                  />
+                </label>
+              {/if}
+              {#if capabilities.closeToTray}
+                <label class="row">
+                  <span>keep running in {trayName(platform)} when the window is closed</span>
+                  <input
+                    type="checkbox"
+                    checked={settings.window.closeToTray}
+                    onchange={(e) => patch({ window: { closeToTray: e.currentTarget.checked } })}
+                    data-testid="settings-close-to-tray"
+                  />
+                </label>
+              {/if}
+              {#if capabilities.staysWithoutWindow}
+                <p class="note" data-testid="settings-stays-note">
+                  Closing the window leaves elecdex running, as macOS apps do, and it comes back from
+                  the Dock. The icon above is another way to reach it.
+                </p>
+              {:else if capabilities.tray}
+                <p class="note">
+                  Open or quit elecdex from its icon there.
+                  {#if platform === 'win32'}Windows may keep a new icon under the ^ on the taskbar.{/if}
+                  {#if platform === 'linux'}Some desktops need an extension before it appears; starting
+                    elecdex again always brings the window back.{/if}
+                </p>
+              {:else}
+                <p class="note" data-testid="settings-no-tray-note">
+                  This desktop has nowhere to put an icon, so elecdex does not offer to put the window
+                  where nothing could bring it back.
+                </p>
+              {/if}
               <div class="row">
                 <label class="choice">
                   <input
                     type="checkbox"
                     checked={settings.window.globalShortcut}
-                    disabled={toggleChord === null}
+                    disabled={toggleChord === null || !capabilities.globalShortcut}
                     onchange={(e) => void changeGlobalShortcut({ window: { globalShortcut: e.currentTarget.checked } })}
                     data-testid="settings-global-shortcut"
                   />
@@ -608,44 +639,61 @@ function describeUpdate(status: UpdateStatus): string {
                   </span>
                 {/if}
               </div>
-              <p class="note">
-                Off until you turn it on, since the keys then work in every app. elecdex in front is put
-                away; anywhere else, it comes to the front.
-              </p>
-            </section>
-
-            <section>
-              <h3>startup</h3>
-              <label class="row">
-                <span>launch elecdex when you sign in to Windows</span>
-                <input
-                  type="checkbox"
-                  checked={launchAtLogin}
-                  disabled={background === null || !background.loginItem.available}
-                  onchange={(e) => void setLaunchAtLogin(e.currentTarget.checked)}
-                  data-testid="settings-launch-at-login"
-                />
-              </label>
-              <label class="row">
-                <span>start in the background</span>
-                <input
-                  type="checkbox"
-                  checked={settings.window.startInBackground}
-                  disabled={!launchAtLogin}
-                  onchange={(e) => patch({ window: { startInBackground: e.currentTarget.checked } })}
-                  data-testid="settings-start-in-background"
-                />
-              </label>
-              {#if background !== null && !background.loginItem.available}
-                <p class="note" data-testid="settings-launch-note">Only in the installed app.</p>
-              {:else if background?.loginItem.disabledByOs}
-                <p class="note problem" data-testid="settings-launch-note">
-                  Turned off in Task Manager's startup apps. Tick the box to turn it on again.
+              {#if capabilities.globalShortcut}
+                <p class="note">
+                  Off until you turn it on, since the keys then work in every app. elecdex in front is
+                  put away; anywhere else, it comes to the front.
                 </p>
               {:else}
-                <p class="note">In the background, elecdex starts with only its icon in the notification area.</p>
+                <p class="note problem" data-testid="settings-no-shortcut-note">
+                  A Wayland session keeps system-wide shortcuts to itself, so this one would never
+                  arrive. Set it in the desktop's own keyboard settings instead.
+                </p>
               {/if}
             </section>
+
+            {#if capabilities.launchAtLogin}
+              <section>
+                <h3>startup</h3>
+                <label class="row">
+                  <span>launch elecdex when {signInName(platform)}</span>
+                  <input
+                    type="checkbox"
+                    checked={launchAtLogin}
+                    disabled={bgState === null || !bgState.loginItem.available}
+                    onchange={(e) => void setLaunchAtLogin(e.currentTarget.checked)}
+                    data-testid="settings-launch-at-login"
+                  />
+                </label>
+                {#if capabilities.launchHidden}
+                  <label class="row">
+                    <span>start in the background</span>
+                    <input
+                      type="checkbox"
+                      checked={settings.window.startInBackground}
+                      disabled={!launchAtLogin}
+                      onchange={(e) => patch({ window: { startInBackground: e.currentTarget.checked } })}
+                      data-testid="settings-start-in-background"
+                    />
+                  </label>
+                {/if}
+                {#if bgState !== null && !bgState.loginItem.available}
+                  <p class="note" data-testid="settings-launch-note">Only in the installed app.</p>
+                {:else if bgState?.loginItem.disabledByOs}
+                  <p class="note problem" data-testid="settings-launch-note">
+                    Turned off in {loginItemPlace(platform)}. Tick the box to turn it on again.
+                  </p>
+                {:else if capabilities.launchHidden}
+                  <p class="note">
+                    In the background, elecdex starts with only its icon in {trayName(platform)}.
+                  </p>
+                {:else}
+                  <p class="note" data-testid="settings-launch-note">
+                    macOS starts the app itself; it has no way to ask for a hidden window.
+                  </p>
+                {/if}
+              </section>
+            {/if}
           {:else if section === 'keyboard'}
             <section>
               <h3>shortcuts</h3>

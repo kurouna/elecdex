@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  elecdex's menu bar mark (macOS template image), rendered by scripts/gen-icon.mjs
+  into resources/icons/trayTemplate.png and @2x.
+
+  A template image is black plus alpha and nothing else: macOS recolours it for
+  the light and dark menu bar, and for the moment it is clicked. So this cannot
+  be the app icon shrunk - that one is a light card with dark panes on it, which
+  would come out as a solid block. It is the same motif reduced to its shape:
+  the workspace of panes, one tall on the left and three stacked on the right,
+  which is still legible at 16 px.
+-->
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>elecdex</title>
+  <g fill="black">
+    <rect x="1" y="2" width="5.5" height="12" rx="1"/>
+    <rect x="8.5" y="2" width="6.5" height="3.5" rx="1"/>
+    <rect x="8.5" y="6.75" width="6.5" height="3.5" rx="1"/>
+    <rect x="8.5" y="11.5" width="6.5" height="2.5" rx="1"/>
+  </g>
+</svg>

@@ -159,6 +159,7 @@ describe('settings', () => {
       launcher: { showSystem: true, items: [] },
       keybindings: {},
       window: {
+        trayIcon: false,
         minimizeToTray: false,
         closeToTray: false,
         globalShortcut: false,
@@ -222,6 +223,7 @@ describe('settings', () => {
     expect(SettingsSchema.parse({ window: {} }).window).toEqual(defaultSettings().window)
     const next = applySettingsPatch(defaultSettings(), { window: { closeToTray: true } })
     expect(next?.window).toEqual({
+      trayIcon: false,
       minimizeToTray: false,
       closeToTray: true,
       globalShortcut: false,

@@ -1,16 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  backgroundSupported,
+  type BackgroundCapabilities,
+  backgroundCapabilities,
+  backgroundOffered,
   chordToAccelerator,
   closesToTray,
   decideClose,
   decideMinimize,
   decideToggle,
   HIDDEN_SWITCH,
+  isWayland,
   type LaunchItem,
   LOGIN_ITEM_NAME,
   loginArgs,
+  loginItemPlace,
   ownLaunchItem,
+  trayName,
   trayWanted,
   type WindowOptions,
 } from '../../src/shared/background.js'
@@ -23,9 +28,16 @@ vi.mock('electron', () => ({
 const { createGlobalToggle, StubRegistry } = await import(
   '../../src/main/background/global-shortcut.js'
 )
-const { createLoginItems, StubRunKey } = await import('../../src/main/background/login-item.js')
+const { StubRunKey } = await import('../../src/main/background/login/stub.js')
+const { windowsLoginBackend } = await import('../../src/main/background/login/windows.js')
+const createLoginItems = (runKey: InstanceType<typeof StubRunKey>) =>
+  windowsLoginBackend(true, runKey)
+
+const caps = (platform: NodeJS.Platform, facts = {}): BackgroundCapabilities =>
+  backgroundCapabilities({ platform, ...facts })
 
 const OFF: WindowOptions = {
+  trayIcon: false,
   minimizeToTray: false,
   closeToTray: false,
   globalShortcut: false,
@@ -33,13 +45,79 @@ const OFF: WindowOptions = {
 }
 const on = (change: Partial<WindowOptions>): WindowOptions => ({ ...OFF, ...change })
 
-describe('running in the background', () => {
-  it('is offered on Windows only', () => {
-    expect(backgroundSupported('win32')).toBe(true)
-    expect(backgroundSupported('darwin')).toBe(false)
-    expect(backgroundSupported('linux')).toBe(false)
+describe('what a machine can do in the background', () => {
+  it('gives Windows all of it', () => {
+    expect(caps('win32')).toEqual({
+      tray: true,
+      closeToTray: true,
+      minimizeToTray: true,
+      staysWithoutWindow: false,
+      globalShortcut: true,
+      launchAtLogin: true,
+      launchHidden: true,
+    })
   })
 
+  it('leaves closing and minimising to macOS, which keeps the app without a window', () => {
+    const mac = caps('darwin')
+    expect(mac.staysWithoutWindow).toBe(true)
+    expect(mac.closeToTray).toBe(false)
+    expect(mac.minimizeToTray).toBe(false)
+    // The menu bar icon and the shortcut are still on offer.
+    expect(mac.tray).toBe(true)
+    expect(mac.globalShortcut).toBe(true)
+    // The login item is the app itself: no arguments, so no "start hidden".
+    expect(mac.launchAtLogin).toBe(true)
+    expect(mac.launchHidden).toBe(false)
+  })
+
+  it('ties putting the window away on Linux to there being an icon to bring it back from', () => {
+    expect(caps('linux', { trayAvailable: true }).closeToTray).toBe(true)
+    expect(caps('linux', { trayAvailable: true }).minimizeToTray).toBe(true)
+    const noTray = caps('linux', { trayAvailable: false })
+    expect(noTray.tray).toBe(false)
+    expect(noTray.closeToTray).toBe(false)
+    expect(noTray.minimizeToTray).toBe(false)
+    // Not knowing is not the same as knowing there is one.
+    expect(caps('linux').closeToTray).toBe(false)
+  })
+
+  it('does not offer a shortcut a Wayland session would swallow', () => {
+    expect(caps('linux', { trayAvailable: true, wayland: true }).globalShortcut).toBe(false)
+    expect(caps('linux', { trayAvailable: true, wayland: false }).globalShortcut).toBe(true)
+    // The sign-in entry is a file, and does not depend on the session.
+    expect(caps('linux', { wayland: true }).launchAtLogin).toBe(true)
+    expect(caps('linux', { wayland: true }).launchHidden).toBe(true)
+  })
+
+  it('offers nothing on a platform it does not know', () => {
+    expect(backgroundOffered(caps('freebsd'))).toBe(false)
+    expect(backgroundOffered(caps('win32'))).toBe(true)
+    expect(backgroundOffered(caps('darwin'))).toBe(true)
+    // Linux with no tray still has the shortcut and the sign-in entry.
+    expect(backgroundOffered(caps('linux', { trayAvailable: false }))).toBe(true)
+  })
+
+  it('names the place outside the window as the platform does', () => {
+    expect(trayName('win32')).toBe('the notification area')
+    expect(trayName('darwin')).toBe('the menu bar')
+    expect(trayName('linux')).toBe('the system tray')
+    expect(loginItemPlace('win32')).toContain('Task Manager')
+    expect(loginItemPlace('darwin')).toContain('System Settings')
+    expect(loginItemPlace('linux')).toContain('startup applications')
+  })
+
+  it('reads a Wayland session out of the environment', () => {
+    expect(isWayland({ XDG_SESSION_TYPE: 'wayland' })).toBe(true)
+    expect(isWayland({ XDG_SESSION_TYPE: 'Wayland' })).toBe(true)
+    expect(isWayland({ WAYLAND_DISPLAY: 'wayland-0' })).toBe(true)
+    expect(isWayland({ XDG_SESSION_TYPE: 'x11' })).toBe(false)
+    expect(isWayland({ XDG_SESSION_TYPE: '', WAYLAND_DISPLAY: '' })).toBe(false)
+    expect(isWayland({})).toBe(false)
+  })
+})
+
+describe('running in the background', () => {
   it('shows the tray icon while a tray option is on, or while the window is hidden', () => {
     expect(trayWanted(OFF, false)).toBe(false)
     expect(trayWanted(on({ minimizeToTray: true }), false)).toBe(true)
@@ -47,6 +125,9 @@ describe('running in the background', () => {
     // The shortcut alone or a start in the background never leaves a hidden window unreachable.
     expect(trayWanted(on({ globalShortcut: true }), false)).toBe(false)
     expect(trayWanted(OFF, true)).toBe(true)
+    // Asked for on its own: on macOS this is all the icon is for, since closing
+    // and minimising belong to the platform there.
+    expect(trayWanted(on({ trayIcon: true }), false)).toBe(true)
   })
 
   it('closes to the tray only when chosen, and never once quitting', () => {
@@ -58,14 +139,18 @@ describe('running in the background', () => {
   })
 
   it('tells the page whether closing the window would put it away', () => {
-    // The fullscreen corner's close button: it hides on Windows with the option
-    // on, and quits (after asking) everywhere else.
-    expect(closesToTray(on({ closeToTray: true }), 'win32')).toBe(true)
-    expect(closesToTray(OFF, 'win32')).toBe(false)
-    expect(closesToTray(on({ minimizeToTray: true }), 'win32')).toBe(false)
-    // The option exists in the file on every platform, but only Windows acts on it.
-    expect(closesToTray(on({ closeToTray: true }), 'darwin')).toBe(false)
-    expect(closesToTray(on({ closeToTray: true }), 'linux')).toBe(false)
+    // The fullscreen corner's close button: it hides where the machine can do
+    // that and the option is on, and quits (after asking) otherwise.
+    expect(closesToTray(on({ closeToTray: true }), caps('win32'))).toBe(true)
+    expect(closesToTray(OFF, caps('win32'))).toBe(false)
+    expect(closesToTray(on({ minimizeToTray: true }), caps('win32'))).toBe(false)
+    // The option exists in the file everywhere; a machine that cannot act on it
+    // does not, whether that is macOS or a Linux desktop with no tray.
+    expect(closesToTray(on({ closeToTray: true }), caps('darwin'))).toBe(false)
+    expect(closesToTray(on({ closeToTray: true }), caps('linux'))).toBe(false)
+    expect(closesToTray(on({ closeToTray: true }), caps('linux', { trayAvailable: true }))).toBe(
+      true,
+    )
   })
 
   it('minimises to the tray only when chosen', () => {

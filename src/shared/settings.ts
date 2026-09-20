@@ -66,13 +66,21 @@ export const SettingsSchema = z.object({
     .refine((map) => Object.keys(map).length <= 64, 'too many shortcut overrides')
     .default({}),
   /**
-   * Running in the background, Windows only (shared/background.ts). All off by
-   * default: each is the user's explicit choice. Whether elecdex launches at
-   * sign-in is not kept here - Windows holds it, and the user can turn it off
-   * there too.
+   * Running in the background (shared/background.ts), as far as this machine can:
+   * `backgroundCapabilities` decides what is offered, and main ignores an option
+   * the machine cannot do. All off by default: each is the user's explicit
+   * choice. Whether elecdex launches at sign-in is not kept here - the platform
+   * holds it, and the user can turn it off there too.
    */
   window: z
     .object({
+      /**
+       * Show the icon outside the window (the notification area, the menu bar)
+       * whether or not the window is ever put away there. On macOS, where
+       * closing and minimising belong to the platform, this is the whole of what
+       * the icon is for.
+       */
+      trayIcon: z.boolean().default(false),
       /** Minimising hides the window to the notification area. */
       minimizeToTray: z.boolean().default(false),
       /** Closing the window hides it to the notification area, and elecdex keeps running. */
@@ -83,6 +91,7 @@ export const SettingsSchema = z.object({
       startInBackground: z.boolean().default(false),
     })
     .default({
+      trayIcon: false,
       minimizeToTray: false,
       closeToTray: false,
       globalShortcut: false,

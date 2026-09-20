@@ -1,9 +1,10 @@
 <script lang="ts">
-import { closesToTray } from '@shared/background'
+import { closesToTray, trayName } from '@shared/background'
 import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/keybindings'
 import ConfirmButton from './ConfirmButton.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
 import { appearance } from './stores/appearance.svelte.ts'
+import { background } from './stores/background.svelte.ts'
 import { coverWeb } from './stores/web.svelte.ts'
 import { windowState } from './stores/window-state.svelte.ts'
 
@@ -13,7 +14,7 @@ import { windowState } from './stores/window-state.svelte.ts'
  * own controls sit - when the pointer reaches it.
  *
  * Closing means here what it means on an ordinary window: with "keep running in
- * the notification area" on, one click puts elecdex there, and asking first
+ * the notification area" (the menu bar, the tray) on, one click puts elecdex there, and asking first
  * would only make the same button behave differently in fullscreen. Without it,
  * closing ends elecdex and every shell in it, so it asks first.
  *
@@ -38,11 +39,10 @@ const reveal = new EdgeReveal((x, y) => {
 
 windowState.follow()
 
-const bindings = $derived(
-  effectiveBindings(appearance.settings.keybindings, window.elecdex.system.platform),
-)
-/** Whether the close button puts elecdex in the notification area rather than ending it. */
-const hides = $derived(closesToTray(appearance.settings.window, window.elecdex.system.platform))
+const platform = $derived(window.elecdex.system.platform)
+const bindings = $derived(effectiveBindings(appearance.settings.keybindings, platform))
+/** Whether the close button puts elecdex away rather than ending it. */
+const hides = $derived(closesToTray(appearance.settings.window, background.capabilities))
 /** A tooltip naming the shortcut in effect, which the user may have changed or removed. */
 const titled = (label: string, action: KeybindingAction): string => {
   const chord = bindings[action]
@@ -97,8 +97,8 @@ $effect(() => {
       <button
         type="button"
         class="control close"
-        title="Close to the notification area"
-        aria-label="Close to the notification area"
+        title={`Close to ${trayName(platform)}`}
+        aria-label={`Close to ${trayName(platform)}`}
         onclick={() => window.elecdex.system.closeWindow()}
         data-testid="window-quit"
       >

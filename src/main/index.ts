@@ -1,4 +1,4 @@
-import { backgroundSupported, HIDDEN_SWITCH } from '@shared/background'
+import { backgroundCapabilities, HIDDEN_SWITCH, isWayland } from '@shared/background'
 import { app, dialog } from 'electron'
 import { appWindows } from './app-windows.js'
 import { type Background, registerBackground } from './background/index.js'
@@ -33,8 +33,15 @@ app.setAppUserModelId('dev.kurouna.elecdex')
 /** `--windowed` is handy during development; fullscreen is the default. */
 const wantsWindowed = process.argv.includes('--windowed')
 
-/** Launched at sign-in with "start in the background": the window waits in the notification area. */
-const startHidden = backgroundSupported(process.platform) && process.argv.includes(HIDDEN_SWITCH)
+/**
+ * Launched at sign-in with "start in the background": the window waits in the
+ * notification area. Only where the sign-in entry can carry the switch at all -
+ * elsewhere the argument could only have been typed by hand, and a window that
+ * never appears is not what that would mean.
+ */
+const startHidden =
+  backgroundCapabilities({ platform: process.platform, wayland: isWayland(process.env) })
+    .launchHidden && process.argv.includes(HIDDEN_SWITCH)
 
 if (!app.requestSingleInstanceLock()) {
   app.exit(0)
@@ -168,5 +175,9 @@ app.on('will-quit', () => {
 })
 
 app.on('window-all-closed', () => {
-  app.quit()
+  // macOS keeps an app running with no window open - it is in the Dock and the
+  // menu bar, and `activate` above makes a window when it is asked for. Quitting
+  // here would make closing the window mean quitting, which is a Windows habit,
+  // and would leave that `activate` unreachable.
+  if (process.platform !== 'darwin') app.quit()
 })

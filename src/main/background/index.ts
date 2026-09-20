@@ -1,11 +1,14 @@
 import path from 'node:path'
 import {
   type BackgroundState,
-  backgroundSupported,
+  backgroundCapabilities,
   decideClose,
   decideMinimize,
   decideToggle,
+  isWayland,
+  type ShortcutStatus,
   trayWanted,
+  type WindowOptions,
 } from '@shared/background'
 import { CH } from '@shared/channels'
 import { effectiveBindings } from '@shared/keybindings'
@@ -16,13 +19,21 @@ import type { SettingsHandle } from '../ipc/settings.js'
 import { JsonStore } from '../store/json-store.js'
 import { mainWindow, showMainWindow } from '../window-control.js'
 import { createGlobalToggle, StubRegistry } from './global-shortcut.js'
-import { createLoginItems, StubRunKey } from './login-item.js'
-import { type AppTray, createTray, StubTray } from './tray.js'
+import { createLoginItems } from './login/index.js'
+import { StubRunKey } from './login/stub.js'
+import { windowsLoginBackend } from './login/windows.js'
+import { type AppTray, createTray, StubTray, trayCanBeShown } from './tray.js'
 
 /**
- * Running in the background, Windows only: closing or minimising to the
- * notification area, the system-wide show/hide shortcut and the sign-in entry.
- * The decisions are in shared/background.ts; this carries them out.
+ * Running in the background: closing or minimising to the icon outside the
+ * window, the system-wide show/hide shortcut and the sign-in entry. The
+ * decisions are in shared/background.ts; this carries them out.
+ *
+ * What is on offer is `backgroundCapabilities`, not the platform name: macOS
+ * keeps the app running with no window and has no minimise-to-menu-bar, and on
+ * Linux the tray and the shortcut depend on the desktop, so both are found out
+ * here - the tray by trying to make one, the shortcut from the session type -
+ * and the answer travels to the page with the rest of the state.
  *
  * `quitting` separates putting the window away from quitting: every real quit
  * (the Quit shortcut and button, the tray menu, Windows signing out) goes
@@ -43,8 +54,15 @@ export interface Background {
 }
 
 export function registerBackground(settings: SettingsHandle): Background {
-  const supported = backgroundSupported(process.platform)
   const stub = process.env.ELECDEX_BACKGROUND_STUB === '1'
+  const capabilities = backgroundCapabilities({
+    platform: process.platform,
+    // Asked once, by making one and taking it away again: on Linux the desktop
+    // decides, and an option to put the window somewhere that does not exist
+    // would be an option to lose it. The stub always has one.
+    trayAvailable: stub || trayCanBeShown(),
+    wayland: isWayland(process.env),
+  })
   const options = () => settings.current().window
   let quitting = false
   const onBeforeQuit = (): void => {
@@ -71,7 +89,9 @@ export function registerBackground(settings: SettingsHandle): Background {
   const stubTray = stub ? new StubTray(actions) : null
   const tray: AppTray = stubTray ?? createTray(actions)
   const runKey = stub ? new StubRunKey() : undefined
-  const loginItems = createLoginItems(runKey)
+  const loginItems = createLoginItems(
+    runKey === undefined ? undefined : windowsLoginBackend(true, runKey),
+  )
   const registry = stub ? new StubRegistry() : undefined
   const toggle = createGlobalToggle(() => toggleWindow(), registry)
 
@@ -79,8 +99,20 @@ export function registerBackground(settings: SettingsHandle): Background {
   // still loading before its first show.
   let hidden = false
   const refreshTray = (): void => {
-    if (supported) tray.setVisible(trayWanted(options(), hidden))
+    if (capabilities.tray) tray.setVisible(trayWanted(wanted(), hidden))
   }
+
+  /**
+   * The window options with anything this machine cannot do turned off, so a
+   * settings.json carried from another platform - or edited by hand - cannot
+   * ask for a tray that is not there.
+   */
+  const wanted = (): WindowOptions => ({
+    ...options(),
+    trayIcon: capabilities.tray && options().trayIcon,
+    closeToTray: capabilities.closeToTray && options().closeToTray,
+    minimizeToTray: capabilities.minimizeToTray && options().minimizeToTray,
+  })
 
   /** Once ever: where the window went, since Windows 11 tucks new icons under "^". */
   const hintOnce = (): void => {
@@ -122,13 +154,14 @@ export function registerBackground(settings: SettingsHandle): Background {
       minimized: win.isMinimized(),
       focused: win.isFocused(),
     }
-    const action = decideToggle(options(), facts)
+    const action = decideToggle(wanted(), facts)
     if (action === 'show') showMainWindow()
     else if (action === 'hide') win.hide()
     else win.minimize()
   }
 
   const state = (): BackgroundState => ({
+    capabilities,
     loginItem: loginItems.state(),
     shortcut: shortcutStatus,
   })
@@ -138,11 +171,14 @@ export function registerBackground(settings: SettingsHandle): Background {
     }
   }
 
-  const applyShortcut = () => {
+  const applyShortcut = (): ShortcutStatus => {
+    // Nowhere to register it: say so rather than reporting it merely off, so the
+    // settings can give the reason instead of an unexplained dead switch.
+    if (!capabilities.globalShortcut) return { state: 'unavailable', chord: null }
     const chord = effectiveBindings(settings.current().keybindings, process.platform)[
       'window.toggle'
     ]
-    return toggle.apply(chord, supported && options().globalShortcut)
+    return toggle.apply(chord, options().globalShortcut)
   }
   let shortcutStatus = applyShortcut()
   let startInBackground = options().startInBackground
@@ -151,7 +187,7 @@ export function registerBackground(settings: SettingsHandle): Background {
     const before = JSON.stringify(shortcutStatus)
     shortcutStatus = applyShortcut()
     let changed = JSON.stringify(shortcutStatus) !== before
-    if (supported && options().startInBackground !== startInBackground) {
+    if (capabilities.launchHidden && options().startInBackground !== startInBackground) {
       startInBackground = options().startInBackground
       loginItems.sync(startInBackground)
       changed = true
@@ -170,7 +206,9 @@ export function registerBackground(settings: SettingsHandle): Background {
   })
 
   ipcMain.handle(CH.background.setLaunchAtLogin, (_event, on: unknown) => {
-    if (supported && typeof on === 'boolean') loginItems.set(on, options().startInBackground)
+    if (capabilities.launchAtLogin && typeof on === 'boolean') {
+      loginItems.set(on, capabilities.launchHidden && options().startInBackground)
+    }
     const next = state()
     broadcast()
     return next
@@ -191,15 +229,14 @@ export function registerBackground(settings: SettingsHandle): Background {
 
   return {
     attach: (win, startHidden) => {
-      if (!supported) return
       hidden = startHidden
       win.on('close', (event) => {
-        if (decideClose(options(), quitting) === 'close') return
+        if (decideClose(wanted(), quitting) === 'close') return
         event.preventDefault()
         putAway(win)
       })
       win.on('minimize', () => {
-        if (decideMinimize(options()) === 'hide') putAway(win)
+        if (decideMinimize(wanted()) === 'hide') putAway(win)
       })
       // Windows is signing out or shutting down: a close held back would hold that up.
       win.on('session-end', onBeforeQuit)

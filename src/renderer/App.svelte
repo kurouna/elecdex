@@ -14,6 +14,7 @@ import { plugins } from './plugins/plugins.svelte.ts'
 import QuakeAlert from './QuakeAlert.svelte'
 import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
+import { background } from './stores/background.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
 import { layout } from './stores/layout.svelte.ts'
 import { watchAlarms, watchReminders } from './stores/reminders.svelte.ts'
@@ -26,6 +27,10 @@ import UpdateNotice from './UpdateNotice.svelte'
 import WindowCorner from './WindowCorner.svelte'
 
 let info = $state<AppInfo | null>(null)
+
+// What this machine can do in the background: the settings and the fullscreen
+// corner both read it, and only main can find it out.
+$effect(() => background.init())
 
 $effect(() => {
   // The theme is applied before the boot sequence starts, so the intro plays in

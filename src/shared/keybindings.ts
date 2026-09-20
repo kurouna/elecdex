@@ -56,7 +56,10 @@ export const KEYBINDING_ACTIONS = [
     id: 'window.toggle',
     label: 'Show or hide elecdex',
     chord: 'Ctrl+Alt+Shift+KeyE',
-    platforms: ['win32'],
+    // Every desktop platform can hold one - except a Wayland session, which
+    // keeps system-wide shortcuts to itself; main finds that out at runtime
+    // (backgroundCapabilities) and says so rather than offering a dead switch.
+    platforms: ['win32', 'darwin', 'linux'],
     // Registered with the OS by main, and only when the window option turns it on
     // (settings.window.globalShortcut): it works from every app, so it is never
     // taken without the user choosing it.

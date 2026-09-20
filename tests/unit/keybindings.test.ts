@@ -76,12 +76,15 @@ describe('keybindings', () => {
     expect(map.has('Ctrl+Shift+KeyA')).toBe(false)
   })
 
-  it('leaves the system-wide show/hide shortcut to main, on Windows only', () => {
+  it('leaves the system-wide show/hide shortcut to main, on every desktop platform', () => {
     expect(isGlobal('window.toggle')).toBe(true)
     expect(isGlobal('app.quit')).toBe(false)
-    expect(effectiveBindings({}, 'win32')['window.toggle']).toBe('Ctrl+Alt+Shift+KeyE')
-    expect(effectiveBindings({}, 'darwin')['window.toggle']).toBeNull()
-    expect(effectiveBindings({}, 'linux')['window.toggle']).toBeNull()
+    for (const platform of ['win32', 'darwin', 'linux'] as const) {
+      expect(effectiveBindings({}, platform)['window.toggle'], platform).toBe('Ctrl+Alt+Shift+KeyE')
+    }
+    // Whether it can actually be held is a fact about the machine, not about the
+    // platform: a Wayland session cannot (shared/background.ts).
+    expect(effectiveBindings({}, 'freebsd')['window.toggle']).toBeNull()
     // The page never acts on it: main takes the keys from the OS.
     expect(keymap({}, 'win32').has('Ctrl+Alt+Shift+KeyE')).toBe(false)
     expect([...keymap({}, 'win32').values()]).not.toContain('window.toggle')

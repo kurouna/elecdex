@@ -26,29 +26,64 @@ export interface AppTray {
 }
 
 /**
- * The notification-area icon at the sizes Windows asks for: 16 px at 100 %
- * scaling up to 32 px at 200 %. Rendered from the SVG by `npm run gen:icon`, so
- * no size is a blurry resample of another.
+ * The icon outside the window, at the sizes the platform asks for. Rendered from
+ * the SVGs by `npm run gen:icon`, so no size is a blurry resample of another.
+ *
+ * macOS gets a template image - black plus alpha, which the system recolours for
+ * the light and dark menu bar and while it is clicked. It is a different drawing
+ * (build/tray-template.svg), because the app icon is a light card with dark
+ * panes on it and would come out of that treatment as a solid block.
  */
 function trayImage(): Electron.NativeImage {
   const image = nativeImage.createEmpty()
-  for (const [size, scaleFactor] of [
-    [16, 1],
-    [20, 1.25],
-    [24, 1.5],
-    [32, 2],
-  ] as const) {
-    const file = resourceIcon(`tray-${size}.png`)
+  const sizes: ReadonlyArray<readonly [string, number]> =
+    process.platform === 'darwin'
+      ? [
+          ['trayTemplate.png', 1],
+          ['trayTemplate@2x.png', 2],
+        ]
+      : [
+          ['tray-16.png', 1],
+          ['tray-20.png', 1.25],
+          ['tray-24.png', 1.5],
+          ['tray-32.png', 2],
+        ]
+  for (const [name, scaleFactor] of sizes) {
+    const file = resourceIcon(name)
     if (file)
       image.addRepresentation({ scaleFactor, buffer: nativeImage.createFromPath(file).toPNG() })
   }
+  if (process.platform === 'darwin') image.setTemplateImage(true)
   return image
+}
+
+/**
+ * Whether an icon can be shown at all, asked by making one and taking it away.
+ *
+ * Windows and macOS always can. On Linux it is the desktop's decision - a
+ * session with no StatusNotifier host (stock GNOME, without an extension) has
+ * nowhere to put it - and hiding the window where nothing can bring it back
+ * would be worse than not offering to hide it. The probe catches the case where
+ * Electron refuses outright; a desktop that accepts the icon and then ignores it
+ * cannot be told apart from here, which is why the settings say so and why
+ * starting elecdex again always brings the window back (main/index.ts).
+ */
+export function trayCanBeShown(): boolean {
+  if (process.platform !== 'linux') return true
+  try {
+    const probe = new Tray(trayImage())
+    probe.destroy()
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
  * The icon, created only while it is wanted and destroyed after. As in Teams or
  * Slack, a click (or double-click) opens the window rather than toggling it,
- * and the menu is on the right button.
+ * and the menu is on the right button - on macOS, where a status item with a
+ * menu shows it on either button, the menu's first entry does the same thing.
  */
 export function createTray(actions: TrayActions): AppTray {
   let tray: Tray | null = null

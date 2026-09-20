@@ -204,13 +204,39 @@ test('a shell starts in the home folder by default, and in the folder chosen in 
   }
 })
 
-test('the window section is only offered on Windows', async () => {
-  test.skip(process.platform === 'win32', 'offered here: background.spec.ts covers it')
+test('the window section offers what this machine can actually do', async () => {
+  test.skip(process.platform === 'win32', 'all of it is offered here: background.spec.ts covers it')
   const { page, close } = await launch(undefined, { layout: SINGLE_CLOCK })
   try {
     await page.keyboard.press('Control+Shift+Period')
     await expect(page.getByTestId('settings-dialog')).toBeVisible()
-    await expect(page.locator('[data-testid=settings-section][data-section=window]')).toHaveCount(0)
+    const section = page.locator('[data-testid=settings-section][data-section=window]')
+    await section.click()
+
+    if (process.platform === 'darwin') {
+      // macOS keeps the app running with no window, so closing and minimising
+      // are the platform's and are not offered; the menu bar icon, the shortcut
+      // and the login item are.
+      await expect(page.getByTestId('settings-close-to-tray')).toHaveCount(0)
+      await expect(page.getByTestId('settings-minimize-to-tray')).toHaveCount(0)
+      await expect(page.getByTestId('settings-stays-note')).toBeVisible()
+      await expect(page.getByTestId('settings-tray-icon')).toBeVisible()
+      await expect(page.getByTestId('settings-launch-at-login')).toBeVisible()
+      // The login item is the app itself: no arguments, so no "start hidden".
+      await expect(page.getByTestId('settings-start-in-background')).toHaveCount(0)
+      return
+    }
+
+    // Linux: the sign-in entry is always on offer, and the rest depends on the
+    // desktop this run happens to have - a tray to put the window in, and a
+    // session that lets an app hold keys.
+    await expect(page.getByTestId('settings-launch-at-login')).toBeVisible()
+    const trayRows = await page.getByTestId('settings-close-to-tray').count()
+    const trayNote = await page.getByTestId('settings-no-tray-note').count()
+    expect(trayRows + trayNote, 'either the option or the reason it is missing').toBeGreaterThan(0)
+    const shortcut = await page.getByTestId('settings-global-shortcut').isDisabled()
+    const shortcutNote = await page.getByTestId('settings-no-shortcut-note').count()
+    expect(shortcut ? shortcutNote : 0, 'a disabled shortcut says why').toBe(shortcut ? 1 : 0)
   } finally {
     await close()
   }

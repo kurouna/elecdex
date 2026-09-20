@@ -1,18 +1,21 @@
 import { flushSync, mount, unmount } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { appearance } from '../../src/renderer/stores/appearance.svelte.ts'
+import { background } from '../../src/renderer/stores/background.svelte.ts'
 import WindowCorner from '../../src/renderer/WindowCorner.svelte'
+import { backgroundCapabilities } from '../../src/shared/background.ts'
 import { defaultSettings } from '../../src/shared/settings.ts'
 
 /**
  * The controls that slide down in fullscreen, where the window has no frame of
  * its own: what their close button does.
  *
- * Closing means here what it means on an ordinary window, so with "keep running
- * in the notification area" on it hides at one click and otherwise it asks
- * first. The end-to-end test for it can only run on Windows (tests/e2e/background.spec.ts);
- * this covers the other platforms, where the option is in the file but not
- * acted on, and a setting changed while the controls are on screen.
+ * Closing means here what it means on an ordinary window, so where the machine
+ * can keep elecdex running outside the window it hides at one click, and
+ * otherwise it asks first. The end-to-end test for it can only run on Windows
+ * (tests/e2e/background.spec.ts); this covers the other platforms, where the
+ * option may be in the file without the machine being able to act on it, and a
+ * setting changed while the controls are on screen.
  */
 
 const quit = vi.fn()
@@ -65,6 +68,7 @@ beforeEach(() => {
 afterEach(() => {
   if (component !== null) unmount(component)
   component = null
+  background.state = null
   appearance.settings = defaultSettings()
   document.body.replaceChildren()
   vi.unstubAllGlobals()
@@ -92,14 +96,37 @@ describe('the fullscreen corner close button', () => {
     expect(closeWindow).not.toHaveBeenCalled()
   })
 
-  it('asks on the platforms that do not run in the background, option or not', () => {
-    // settings.json carries the option everywhere; only Windows acts on it.
+  it('asks where the machine cannot put the window away, option or not', () => {
+    // settings.json carries the option everywhere - it travels between machines -
+    // but a Linux desktop with nowhere to put an icon does not act on it.
     const button = show('linux', true)
     expect(button.title).toMatch(/quit/i)
     button.click()
     closeButton().click()
     expect(quit).toHaveBeenCalledOnce()
     expect(closeWindow).not.toHaveBeenCalled()
+  })
+
+  it('is not there at all on macOS, which draws its own fullscreen controls', () => {
+    background.state = {
+      capabilities: backgroundCapabilities({ platform: 'darwin' }),
+      loginItem: { available: false, registered: false, disabledByOs: false },
+      shortcut: { state: 'off', chord: null },
+    }
+    expect(() => show('darwin', true)).toThrow(/no close button/)
+  })
+
+  it('hides on a Linux desktop that does have a tray', () => {
+    background.state = {
+      capabilities: backgroundCapabilities({ platform: 'linux', trayAvailable: true }),
+      loginItem: { available: false, registered: false, disabledByOs: false },
+      shortcut: { state: 'off', chord: null },
+    }
+    const button = show('linux', true)
+    expect(button.title).toMatch(/system tray/i)
+    button.click()
+    expect(closeWindow).toHaveBeenCalledOnce()
+    expect(quit).not.toHaveBeenCalled()
   })
 
   it('follows the setting while the controls are on screen', () => {

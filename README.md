@@ -68,9 +68,13 @@ for Windows, macOS and Linux.
 - **Settings** — a settings dialog for theme, motion, sound, the terminal's start folder, saved
   layouts, the launcher, rebindable keyboard shortcuts and the update check, all saved to a
   hand-editable `settings.json`.
-- **Background (Windows)** — optionally minimise or close to the notification area, show or hide
-  elecdex from any app with a system-wide shortcut, and launch it when you sign in, in the
-  background if you like. All off until turned on in *Settings → Window*.
+- **Running in the background** — an icon in the notification area, the menu bar or the tray; a
+  system-wide show/hide shortcut; and launching when you sign in. What is offered is what the
+  machine can actually do, so it differs: Windows adds minimising and closing to the notification
+  area, macOS leaves those to the Dock (closing the window already keeps elecdex running) and its
+  login item cannot start hidden, and on Linux the tray and the shortcut depend on the desktop —
+  a session that has neither says so instead of showing a switch that does nothing. All off until
+  turned on in *Settings → Window*.
 
 <table>
   <tr>
@@ -163,11 +167,21 @@ same keys is flagged in *Settings → Keyboard*: the OS hands the keys to elecde
 shortcut first. With elecdex in front it puts elecdex away; anywhere else it brings elecdex
 to the front.
 
-In *Settings → Window* (Windows) you can also have minimising or closing leave elecdex running in
-the notification area, where a click opens it and the right-click menu opens the settings or
-quits. *Launch elecdex when you sign in to Windows* adds a sign-in entry (removed again by the
-uninstaller); *start in the background* starts it with only the icon. The entry can also be
-turned off in Task Manager's startup apps, which the settings show.
+*Settings → Window* also has the icon outside the window — in the notification area, the menu bar
+or the tray — where a click opens elecdex and the right-click menu opens the settings or quits, and
+*launch elecdex when you sign in*, which the settings show as turned off again if the system has
+turned it off. What else is there depends on the machine, and elecdex offers only what it can
+actually do:
+
+| | Windows | macOS | Linux |
+| --- | --- | --- | --- |
+| minimise / close to the icon | yes | no — closing the window already leaves elecdex running, and it comes back from the Dock | when the desktop has somewhere to put an icon |
+| system-wide show/hide shortcut | yes | yes | on X11; a Wayland session keeps those keys to itself, so the option says so instead |
+| launch when you sign in | Run-key entry, removed by the uninstaller | the app's login item (macOS may ask you to allow it) | `~/.config/autostart/elecdex.desktop` |
+| *start in the background* | yes | no — the login item takes no arguments | yes |
+
+Whatever happens, starting elecdex again brings the running one back, so the window is never out of
+reach.
 
 Every other shortcut except the divider keys can be rebound in *Settings → Keyboard*: click one and
 press the new keys. A shortcut needs Ctrl (Cmd on macOS), Alt or a function key, so every other
