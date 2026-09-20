@@ -296,6 +296,7 @@ function onBeforeUnload(): void {
   bind:this={workspace}
   data-testid="workspace"
   data-loaded={layout.loaded}
+  data-switching={layout.switching}
 >
   {#if layout.loaded}
     <LayoutNodeView node={layout.tree.root} />

@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { type Launched, launch } from './support.js'
+import { type Launched, launch, settleLayout } from './support.js'
 
 /**
  * Moving panes by dragging their titles, end to end, on the default layout.
@@ -357,6 +357,9 @@ test('panes with WebGL canvases survive being moved again and again', async () =
     if (i > 0) {
       await page.keyboard.press('Control+Shift+Backspace')
       await expect(strip).toHaveCount(3)
+      // The default layout arrives powering on, pane by pane: pressing on a
+      // title before that ends presses where the pane is going to be.
+      await settleLayout(page)
     }
     // The globe, alternately below the weather and the markets panes.
     const anchor = i % 2 === 0 ? 'weather' : 'markets'

@@ -526,11 +526,14 @@ test('a saved layout survives a restart, and an empty slot leaves its keys alone
 test('a switch is asked about while shells are open, and can be told to stop asking', async () => {
   const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
+    // Both names taken while the workspace is one terminal: a layout follows the
+    // work, so splitting first would put the split into "one" as well - which is
+    // what the layout being worked in means, and is covered by its own test.
     await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
     await expect(terminalPane(page)).toHaveCount(2)
-    await keepLayout(page, 'two')
 
     // Going back to "one" would end two shells, so it asks first, and saying no
     // leaves the workspace exactly as it was.

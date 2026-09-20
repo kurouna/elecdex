@@ -26,6 +26,8 @@ const TWO: LayoutTree = { version: LAYOUT_VERSION, root: pane('terminal') }
 let outstanding = false
 /** What `outstanding` was when the apply reached main; null while none has. */
 let appliedWhileSaving: boolean | null
+/** The same for keeping the arrangement under a name. */
+let keptWhileSaving: boolean | null
 let answerSave: (() => void) | null
 
 const stub = (): void => {
@@ -48,7 +50,10 @@ const stub = (): void => {
           appliedWhileSaving = outstanding
           return TWO
         }),
-        save: vi.fn(async () => []),
+        save: vi.fn(async () => {
+          keptWhileSaving = outstanding
+          return []
+        }),
         remove: vi.fn(async () => []),
       },
     },
@@ -59,6 +64,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   outstanding = false
   appliedWhileSaving = null
+  keptWhileSaving = null
   answerSave = null
   layout.loaded = false
   layout.tree = ONE
@@ -114,6 +120,22 @@ describe('applying a saved layout', () => {
     answerSave?.()
     await applied
     expect(appliedWhileSaving).toBe(false)
+  })
+
+  it('writes the pending save out before keeping the arrangement under a new name', async () => {
+    // Saving under a new name is entering that layout, so what came before it
+    // belongs to the one being left. Left to the debounce, whether it does is a
+    // race: the same few seconds of work land in one layout or the other
+    // depending on how long the user took to type the name.
+    await layout.load()
+    rearrange()
+    const kept = layout.saveAs('two')
+    await vi.advanceTimersByTimeAsync(10)
+    expect(keptWhileSaving).toBeNull()
+
+    answerSave?.()
+    await kept
+    expect(keptWhileSaving).toBe(false)
   })
 
   it('does the same for a reset, which belongs to no saved layout', async () => {

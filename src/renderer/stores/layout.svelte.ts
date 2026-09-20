@@ -677,6 +677,19 @@ class LayoutStore {
   private switchToken = 0
 
   /**
+   * True while one layout is being carried away and the next brought up.
+   *
+   * The panes are drawn scaled and clipped through all of it, and the ones on
+   * the way out are inert, so what is under a given point is not where it will
+   * be when the effect ends. The workspace carries this as `data-switching` so
+   * a test can wait for the screen to stand still, as it would wait for a
+   * dialog to finish opening.
+   */
+  get switching(): boolean {
+    return this.switchDelays !== null || this.leaving.size > 0
+  }
+
+  /**
    * Puts the current arrangement away and brings the given one up in its place.
    *
    * Without motion - reduced motion, the boot sequence still playing - the tree
@@ -756,8 +769,13 @@ class LayoutStore {
    * under it. False when the list is full, so the caller can say so.
    */
   async saveAs(name: string): Promise<boolean> {
-    // A pane still powering off is closed as far as a saved arrangement goes.
-    this.settle()
+    // A pane still powering off is closed as far as a saved arrangement goes,
+    // and a save still pending belongs to the layout being left: keeping the
+    // arrangement under a new name enters that new layout, so main must have
+    // the old one first. Left to the debounce, the last few hundred
+    // milliseconds of work would land in one layout or the other depending on
+    // how long the user took to type the name.
+    await this.flush()
     const next = await this.ask((saved) => saved.save(name, this.snapshot()))
     if (next === undefined) return false
     this.savedLayouts = next

@@ -186,6 +186,19 @@ export async function typeInto(page: Page, pane: ReturnType<Page['locator']>, te
 }
 
 /**
+ * Waits until no layout is being carried away or brought up.
+ *
+ * Applying a saved layout - and resetting, which is the same thing - powers the
+ * screen off and the next arrangement on, and through all of it the panes are
+ * drawn scaled and clipped. Anything that measures a pane or presses on one has
+ * to wait for that to end, or it will press where the pane is going to be
+ * rather than where it is.
+ */
+export async function settleLayout(page: Page): Promise<void> {
+  await expect(page.getByTestId('workspace')).toHaveAttribute('data-switching', 'false')
+}
+
+/**
  * Brings up the status bar, which stays hidden until the pointer reaches the
  * bottom edge of the window.
  */
