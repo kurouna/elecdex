@@ -12,10 +12,11 @@ import { observeCanvas } from '../../lib/canvas.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import {
   barsFor,
-  drawBaseline,
+  drawBase,
   drawCandles,
   drawDividers,
   niceTicks,
+  scaleBounds,
   timeTicks,
   valueScale,
 } from './chart-draw.ts'
@@ -66,19 +67,20 @@ $effect(() => {
 
 /** Where everything goes: the plot's box, the bars shown in it and the prices it spans. */
 const frame = $derived.by(() => {
-  let lo = baseline ?? Number.POSITIVE_INFINITY
-  let hi = baseline ?? Number.NEGATIVE_INFINITY
+  let low = Number.POSITIVE_INFINITY
+  let high = Number.NEGATIVE_INFINITY
   for (const bar of candles) {
-    lo = Math.min(lo, view === 'candles' ? bar.l : bar.c)
-    hi = Math.max(hi, view === 'candles' ? bar.h : bar.c)
+    low = Math.min(low, view === 'candles' ? bar.l : bar.c)
+    high = Math.max(high, view === 'candles' ? bar.h : bar.c)
   }
+  const { lo, hi, base } = scaleBounds(low, high, baseline)
   // The font is monospaced: the widest label is the longest one.
   const chars = Math.max(formatPrice(lo).length, formatPrice(hi).length, 4)
   const axis = Math.ceil(chars * fontPx * 0.62) + AXIS_GAP + 4
   const plotW = Math.max(1, size.width - axis)
   const plotH = Math.max(1, size.height - Math.ceil(fontPx * 1.6))
   const shown = view === 'candles' ? mergeCandles(candles, barsFor(plotW)) : candles
-  return { lo, hi, axis, plotW, plotH, shown, slot: plotW / Math.max(1, shown.length) }
+  return { lo, hi, base, axis, plotW, plotH, shown, slot: plotW / Math.max(1, shown.length) }
 })
 
 const hovered = $derived(hover === null ? null : (frame.shown[hover] ?? null))
@@ -212,7 +214,7 @@ $effect(() => {
     plotH,
     palette.muted,
   )
-  if (baseline !== null) drawBaseline(ctx, y(baseline), plotW, palette.muted)
+  drawBase(ctx, frame, baseline, y, plotW, plotH, palette.muted)
   if (view === 'candles') drawCandles(ctx, shown, slot, y, palette)
   else drawLine(ctx, y, palette.series)
   drawLast(ctx, y, palette)

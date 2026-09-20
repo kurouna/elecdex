@@ -29,6 +29,50 @@ export function valueScale(
   return (value) => height - ((value - low) / (high - low)) * height
 }
 
+export interface ScaleBounds {
+  lo: number
+  hi: number
+  /** Where the base is: on the chart, or too far above or below it to be drawn. */
+  base: 'on' | 'above' | 'below' | 'none'
+}
+
+/**
+ * The prices a chart spans: its data, and the base it is measured from when that
+ * is near enough. Over a long range the base can be far from anything the chart
+ * shows (5Y, after a run), and stretching the scale to reach it would press the
+ * whole line flat against one edge; further than the data's own height away, it
+ * is left out and an arrow at the edge says which way it lies.
+ */
+export function scaleBounds(lo: number, hi: number, baseline: number | null): ScaleBounds {
+  if (baseline === null || !Number.isFinite(baseline)) return { lo, hi, base: 'none' }
+  if (!Number.isFinite(lo) || !Number.isFinite(hi))
+    return { lo: baseline, hi: baseline, base: 'on' }
+  const span = hi - lo
+  if (baseline > hi + span) return { lo, hi, base: 'above' }
+  if (baseline < lo - span) return { lo, hi, base: 'below' }
+  return { lo: Math.min(lo, baseline), hi: Math.max(hi, baseline), base: 'on' }
+}
+
+/** A base off the chart: a small arrow in the left corner, pointing to where it lies. */
+export function drawBaseArrow(
+  ctx: CanvasRenderingContext2D,
+  side: 'above' | 'below',
+  height: number,
+  color: string,
+): void {
+  const tip = side === 'above' ? 1 : height - 1
+  const back = side === 'above' ? 6 : height - 6
+  ctx.fillStyle = color
+  ctx.globalAlpha = 0.8
+  ctx.beginPath()
+  ctx.moveTo(4.5, tip)
+  ctx.lineTo(8, back)
+  ctx.lineTo(1, back)
+  ctx.closePath()
+  ctx.fill()
+  ctx.globalAlpha = 1
+}
+
 /** The previous close (or the range's base) as a dashed line across the chart. */
 export function drawBaseline(
   ctx: CanvasRenderingContext2D,
@@ -90,7 +134,10 @@ export function drawCandles(
   y: (value: number) => number,
   colors: CandleColors,
 ): void {
-  const body = Math.max(1, Math.floor(slot * 0.7) - (Math.floor(slot * 0.7) % 2 === 0 ? 1 : 0))
+  const share = Math.floor(slot * 0.7)
+  // Odd, so it sits evenly on the wick. A four-pixel slot's share is two, which would
+  // round down to a body no wider than the wick: three still leaves a pixel between bars.
+  const body = Math.max(slot >= 4 ? 3 : 1, share - (share % 2 === 0 ? 1 : 0))
   candles.forEach((bar, i) => {
     const centre = Math.floor(i * slot + slot / 2)
     ctx.fillStyle = bar.c >= bar.o ? colors.up : colors.down
@@ -178,4 +225,19 @@ export function timeTicks(
     lastX = i * slot
   }
   return out
+}
+
+/** The base where the scale put it: the dashed line across the chart, or the arrow towards it. */
+export function drawBase(
+  ctx: CanvasRenderingContext2D,
+  bounds: ScaleBounds,
+  baseline: number | null,
+  y: (value: number) => number,
+  width: number,
+  height: number,
+  color: string,
+): void {
+  if (baseline === null || bounds.base === 'none') return
+  if (bounds.base === 'on') drawBaseline(ctx, y(baseline), width, color)
+  else drawBaseArrow(ctx, bounds.base, height, color)
 }

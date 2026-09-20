@@ -298,12 +298,19 @@ describe('MarketsWidget ranges', () => {
     flushSync()
   }
 
+  const checkedRange = () =>
+    screen
+      .getByTestId('markets-ranges')
+      .querySelector('[aria-checked=true]')
+      ?.getAttribute('data-range')
+
   it('shows 1D for a pane saved before ranges, and subscribes with it', () => {
     render(MarketsWidget, { props: props({}) })
     flushSync()
     expect(subscriptions.map((s) => `${s.symbol}|${s.range}`)).toEqual(['AAA|1d', 'BBB|1d'])
     expect(screen.getByTestId('markets').getAttribute('data-range')).toBe('1d')
-    expect(screen.getByTestId('markets-range').textContent).toBe('1D · 5m')
+    expect(screen.getByTestId('markets-range').textContent).toBe('5m')
+    expect(checkedRange()).toBe('1d')
   })
 
   it('subscribes with the range in pane state, and moves when it changes', async () => {
@@ -324,11 +331,19 @@ describe('MarketsWidget ranges', () => {
     expect(subscriptions.map((s) => s.range)).toEqual(['1d', '1d'])
   })
 
-  it('saves the range picked in the settings, keeping the rest of the pane state', async () => {
+  it('saves the range picked above the board, keeping the rest of the pane state', async () => {
     render(MarketsWidget, { props: props({ view: 'bars' }) })
     flushSync()
-    await fireEvent.click(screen.getByTestId('markets-settings-toggle'))
-    await fireEvent.click(screen.getByTestId('markets-range-1mo'))
+    const ranges = screen.getByTestId('markets-ranges')
+    expect([...ranges.querySelectorAll('button')].map((b) => b.textContent)).toEqual([
+      '1D',
+      '5D',
+      '1M',
+      '6M',
+      '1Y',
+      '5Y',
+    ])
+    await fireEvent.click(ranges.querySelector('[data-range="1mo"]') as HTMLElement)
     expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith('p', {
       symbols: [{ symbol: 'AAA' }, { symbol: 'BBB' }],
       view: 'bars',
@@ -416,7 +431,7 @@ describe('MarketsWidget ranges', () => {
     expect(bars[3]?.textContent).toContain('+175.00%')
     // The median move is about 9%, so the scale stops at 50% instead of 200%.
     expect(screen.getByText('+50%')).toBeTruthy()
-    expect(screen.getByText('1Y')).toBeTruthy()
+    expect(checkedRange()).toBe('1y')
     expect(bars[0]?.getAttribute('title')).toBe('AAA · base 100.00 (previous close) → 110.00')
   })
 

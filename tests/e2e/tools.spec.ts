@@ -474,10 +474,10 @@ test.describe('markets', () => {
       await expect(candles).toHaveAttribute('data-bars', /^[1-9]\d*$/)
       await expect(page.getByTestId('market-spark')).toHaveCount(0)
 
-      await page.getByTestId('markets-settings-toggle').click()
-      await page.getByTestId('markets-range-6mo').check()
+      // The ranges stand above the board: one click, no settings panel.
+      await page.getByTestId('markets-ranges').locator('[data-range="6mo"]').click()
       await expect(markets).toHaveAttribute('data-range', '6mo')
-      await expect(page.getByTestId('markets-range')).toHaveText('6M · 1d')
+      await expect(page.getByTestId('markets-range')).toHaveText('1d')
       // The 1D chart is dropped as the 6M one is taken; the symbol is quoted once throughout.
       await expect.poll(charts, { timeout: 10_000 }).toEqual(['^N225|6mo'])
       expect(await page.evaluate(() => window.elecdex.markets.watching())).toEqual(['^N225'])
@@ -506,7 +506,7 @@ test.describe('markets', () => {
     }
   })
 
-  test('in a wide pane the charts start near the names, and candle rows are twice as tall', async () => {
+  test('the rows fill the pane: charts from the names to the figures, candles across the row', async () => {
     const { page, close } = await launch(undefined, {
       layout: single('markets', { symbols: [{ symbol: '^N225' }, { symbol: 'JPY=X' }] }),
       env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
@@ -514,19 +514,20 @@ test.describe('markets', () => {
     try {
       const markets = page.getByTestId('markets')
       const measure = () =>
-        page
-          .getByTestId('market-row')
-          .first()
-          .evaluate((row) => {
-            const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-            const chart = row.querySelector('.chart') as Element
-            return {
-              rowWidth: row.getBoundingClientRect().width / rem,
-              nameToChart:
-                (chart.getBoundingClientRect().left - row.getBoundingClientRect().left) / rem,
-              height: row.getBoundingClientRect().height,
-            }
-          })
+        page.locator('.board').evaluate((board) => {
+          const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+          const box = (el: Element | null) => (el as Element).getBoundingClientRect()
+          const rows = [...board.querySelectorAll('[data-testid=market-row]')]
+          const first = rows[0] as Element
+          return {
+            rowWidth: box(first).width / rem,
+            nameToChart: (box(first.querySelector('.chart')).left - box(first).left) / rem,
+            chartWidth: box(first.querySelector('.chart')).width / rem,
+            chartLefts: rows.map((r) => Math.round(box(r.querySelector('.chart')).left)),
+            rowsHeight: rows.reduce((sum, r) => sum + box(r).height, 0),
+            boardHeight: box(board).height,
+          }
+        })
       await expect(page.getByTestId('market-price').first()).toHaveText('1,000', {
         timeout: 20_000,
       })
@@ -535,16 +536,100 @@ test.describe('markets', () => {
       expect(line.rowWidth * 0.28).toBeGreaterThan(12)
       // The name column (at most 9rem), the padding and the gap.
       expect(line.nameToChart).toBeLessThan(10.5)
+      // The names and the figures take what they need, and the chart has the rest.
+      expect(line.chartWidth).toBeGreaterThan(line.rowWidth * 0.75)
+      // One grid for the board: every chart starts on the same line.
+      expect(new Set(line.chartLefts).size).toBe(1)
+      // The rows share the whole height: no strip of empty pane under the last of them.
+      expect(line.rowsHeight).toBeGreaterThan(line.boardHeight - 2)
 
       await page.getByTestId('markets-view').locator('[data-view=candles]').click()
       await expect(markets).toHaveAttribute('data-view', 'candles')
       const candles = await measure()
-      expect(candles.nameToChart).toBeCloseTo(line.nameToChart, 1)
-      expect(candles.height / line.height).toBeCloseTo(2, 1)
+      // Under the name and the figures, not between them: the row's whole width.
+      expect(candles.nameToChart).toBeLessThan(1)
+      expect(candles.chartWidth).toBeGreaterThan(candles.rowWidth * 0.95)
+      expect(candles.rowsHeight).toBeGreaterThan(candles.boardHeight - 2)
 
       // Back to lines, the rows are as they were.
       await page.getByTestId('markets-view').locator('[data-view=line]').click()
-      expect((await measure()).height).toBeCloseTo(line.height, 0)
+      expect((await measure()).nameToChart).toBeCloseTo(line.nameToChart, 1)
+    } finally {
+      await close()
+    }
+  })
+
+  test('a wide pane stands the rows in two columns; the side pane packs them', async () => {
+    // Wide: the markets pane alone, with the default eight symbols.
+    const wide = await launch(undefined, { layout: single('markets') })
+    try {
+      const board = wide.page.locator('.board')
+      await expect(board).toHaveAttribute('data-columns', '2')
+      const tops = await board.evaluate((el) =>
+        [...el.querySelectorAll('[data-testid=market-row]')].map((r) =>
+          Math.round(r.getBoundingClientRect().top),
+        ),
+      )
+      // Eight rows on four lines, side by side in pairs.
+      expect(tops).toHaveLength(8)
+      expect(new Set(tops).size).toBe(4)
+      expect(tops[0]).toBe(tops[1])
+    } finally {
+      await wide.close()
+    }
+
+    // The default layout's pane is short for eight rows: they are packed to one line each.
+    const side = await launch()
+    try {
+      const pane = side.page.locator('[data-testid=pane][data-widget=markets]')
+      const board = pane.locator('.board')
+      await expect(board).toHaveAttribute('data-dense', 'true')
+      await expect(board).toHaveAttribute('data-columns', '1')
+      const first = pane.getByTestId('market-row').first()
+      await expect(first.locator('.ticker')).toBeHidden()
+      await expect(first.locator('.short')).toBeHidden() // nothing to show until a quote arrives
+      const rem = await side.page.evaluate(() =>
+        Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+      )
+      expect(((await first.boundingBox())?.height ?? 0) / rem).toBeLessThan(2.2)
+    } finally {
+      await side.close()
+    }
+  })
+
+  test("the bar view's zero stands on the rows' axis, and the rows sort by the change", async () => {
+    // The default pane's list scrolls: a scale as wide as the pane once stood beside the axis.
+    const { page, close } = await launch(undefined, { env: { ELECDEX_MARKETS_STUB_URL: stubUrl } })
+    try {
+      const pane = page.locator('[data-testid=pane][data-widget=markets]')
+      await pane.getByTestId('markets-view').locator('[data-view=bars]').click()
+      await expect(pane.getByTestId('market-bar').first()).toHaveAttribute('data-pct', '1.25', {
+        timeout: 20_000,
+      })
+      const centre = (el: Element) => {
+        const box = el.getBoundingClientRect()
+        return box.left + box.width / 2
+      }
+      const zero = await pane.locator('.ticks span').nth(1).evaluate(centre)
+      const axis = await pane.locator('.axis').first().evaluate(centre)
+      expect(Math.abs(zero - axis)).toBeLessThan(1.5)
+
+      const order = () =>
+        pane
+          .getByTestId('market-bar')
+          .evaluateAll((bars) => bars.map((b) => Number(b.getAttribute('data-pct'))))
+      const listed = await order()
+      await pane.getByTestId('markets-sort').click()
+      await expect(pane.getByTestId('markets-sort')).toHaveAttribute('aria-pressed', 'true')
+      const sorted = await order()
+      expect(sorted).toEqual([...listed].sort((a, b) => b - a))
+      expect(sorted).not.toEqual(listed)
+
+      // Packed rows show the change as its percentage alone.
+      await pane.getByTestId('markets-view').locator('[data-view=line]').click()
+      const first = pane.getByTestId('market-row').first()
+      await expect(first.locator('.short')).toBeVisible()
+      await expect(first.locator('.full')).toBeHidden()
     } finally {
       await close()
     }
@@ -602,7 +687,7 @@ test.describe('markets', () => {
       await expect(page.getByTestId('market-detail-readout')).toContainText(/O .+H .+L .+C /)
 
       // The range beside the chart is the pane's.
-      await page.getByTestId('markets-detail-ranges').locator('[data-range="6mo"]').click()
+      await page.getByTestId('markets-ranges').locator('[data-range="6mo"]').click()
       await expect(markets).toHaveAttribute('data-range', '6mo')
       await expect(detail).toContainText('%', { timeout: 10_000 })
 

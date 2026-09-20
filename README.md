@@ -292,12 +292,14 @@ weather and calendar.
   Nothing is ever looked up online. **MASK** hides the second half of every address, for a
   screenshot or a shared screen.
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
-  sparklines, candlesticks or bars of the change. Click a symbol and its chart takes the whole
-  pane - with a price axis, the time along the bottom, the ranges beside it and a readout of the
-  bar under the pointer - until the arrow takes you back to the list. The settings button picks
-  the range - 1D (5-minute
-  bars), 5D (30-minute), 1M (hourly), 6M (daily), 1Y (weekly) or 5Y (monthly) - and edits the list,
-  each symbol optionally followed by a label: `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`. 1D
+  sparklines, candlesticks or bars of the change (in the list's order, or sorted by it). The rows
+  share the pane: two columns when it is wide, one line each when it is short, and candles across
+  the whole row under the name. Click a symbol and its chart takes the whole pane - with a price
+  axis, the time along the bottom, the range's high, low and base, and a readout of the bar under
+  the pointer - until the arrow takes you back to the list. The strip above the board picks the
+  range - 1D (5-minute bars), 5D (30-minute), 1M (hourly), 6M (daily), 1Y (weekly) or 5Y
+  (monthly) - and the settings button edits the list, each symbol optionally followed by a label:
+  `^N225 日経平均, JPY=X ドル円, 7203.T トヨタ`. 1D
   measures from the previous close, longer ranges from the close before the range began. Built-in
   names follow the app language (`--lang=en-US` forces English). Yahoo has no live TOPIX index, so
   the default board shows the CME yen TOPIX future (`TPY=F`).

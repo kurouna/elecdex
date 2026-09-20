@@ -29,6 +29,7 @@ const ctx: Record<string, unknown> = {
   beginPath: () => {},
   moveTo: () => {},
   lineTo: () => {},
+  closePath: () => {},
   stroke: () => {},
   fill: () => {},
   arc: () => {},
@@ -229,7 +230,7 @@ describe('MarketsWidget: one symbol over the whole pane', () => {
   it('changes the range from the chart, for the whole pane', async () => {
     render(MarketsWidget, { props: props({ focus: 'AAA' }) })
     flushSync()
-    const ranges = screen.getByTestId('markets-detail-ranges')
+    const ranges = screen.getByTestId('markets-ranges')
     expect(ranges.querySelector('[aria-checked=true]')?.getAttribute('data-range')).toBe('1d')
     await fireEvent.click(ranges.querySelector('[data-range="6mo"]') as HTMLElement)
     expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith(

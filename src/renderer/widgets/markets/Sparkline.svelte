@@ -2,12 +2,13 @@
 import type { PricePoint } from '@shared/markets'
 import { observeCanvas } from '../../lib/canvas.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { drawBaseline, drawDividers, valueScale } from './chart-draw.ts'
+import { drawBase, drawDividers, scaleBounds, valueScale } from './chart-draw.ts'
 
 /**
  * One symbol's range as a line with a fading fill, and the range's base (the
  * previous close for 1D) as a dashed baseline, coloured by whether the price is
- * above or below it.
+ * above or below it. A base too far off to share the scale is left out of it
+ * (scaleBounds), with an arrow towards it.
  *
  * Points are spaced evenly by index, not by time, so the nights and weekends of
  * a multi-day range take no room; `dividers` (point indices) mark where the day
@@ -55,8 +56,9 @@ $effect(() => {
   const muted = style.getPropertyValue('--text-muted').trim() || '#888'
 
   const values = points.map((p) => p.v)
-  if (baseline !== null) values.push(baseline)
-  const y = valueScale(Math.min(...values), Math.max(...values), height)
+  const bounds = scaleBounds(Math.min(...values), Math.max(...values), baseline)
+  // A row is short: a thin margin, so the line has the height there is.
+  const y = valueScale(bounds.lo, bounds.hi, height, 0.08)
   const last = points.length - 1
   const x = (i: number) => (i / last) * (width - 2) + 1
 
@@ -66,7 +68,7 @@ $effect(() => {
     height,
     muted,
   )
-  if (baseline !== null) drawBaseline(ctx, y(baseline), width, muted)
+  drawBase(ctx, bounds, baseline, y, width, height, muted)
 
   const line = new Path2D()
   points.forEach((p, i) => {

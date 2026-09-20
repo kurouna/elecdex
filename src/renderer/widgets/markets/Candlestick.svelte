@@ -2,7 +2,14 @@
 import { type CandlePoint, type ChartRange, dividerIndices, mergeCandles } from '@shared/markets'
 import { observeCanvas } from '../../lib/canvas.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { barsFor, drawBaseline, drawCandles, drawDividers, valueScale } from './chart-draw.ts'
+import {
+  barsFor,
+  drawBase,
+  drawCandles,
+  drawDividers,
+  scaleBounds,
+  valueScale,
+} from './chart-draw.ts'
 
 /**
  * One symbol's range as candles in even slots, with the range's base (the
@@ -57,13 +64,14 @@ $effect(() => {
     down: getComputedStyle(downProbe).color || '#c66',
   }
 
-  let lo = baseline ?? Number.POSITIVE_INFINITY
-  let hi = baseline ?? Number.NEGATIVE_INFINITY
+  let lo = Number.POSITIVE_INFINITY
+  let hi = Number.NEGATIVE_INFINITY
   for (const bar of shown) {
     if (bar.l < lo) lo = bar.l
     if (bar.h > hi) hi = bar.h
   }
-  const y = valueScale(lo, hi, height, 0.08)
+  const bounds = scaleBounds(lo, hi, baseline)
+  const y = valueScale(bounds.lo, bounds.hi, height, 0.08)
   const slot = width / shown.length
 
   drawDividers(
@@ -72,7 +80,7 @@ $effect(() => {
     height,
     muted,
   )
-  if (baseline !== null) drawBaseline(ctx, y(baseline), width, muted)
+  drawBase(ctx, bounds, baseline, y, width, height, muted)
   drawCandles(ctx, shown, slot, y, colors)
 })
 </script>

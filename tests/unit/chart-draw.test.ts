@@ -6,6 +6,7 @@ import {
   drawCandles,
   MIN_SLOT_PX,
   niceTicks,
+  scaleBounds,
   timeTicks,
   valueScale,
 } from '../../src/renderer/widgets/markets/chart-draw.js'
@@ -90,7 +91,9 @@ describe('drawCandles', () => {
 
   it('keeps the body odd, so it sits evenly on the wick', () => {
     expect(widths(3)).toBe(1)
-    expect(widths(4)).toBe(1)
+    // A share of two would round down to the wick's own width: three, with a pixel between bars.
+    expect(widths(4)).toBe(3)
+    expect(widths(4.2)).toBe(3)
     expect(widths(5)).toBe(3)
     expect(widths(10)).toBe(7)
     for (const slot of [3, 4, 5, 6, 7, 8, 9, 10, 17, 40]) {
@@ -227,5 +230,31 @@ describe('timeTicks', () => {
   it('gives nothing for one bar or none', () => {
     expect(timeTicks([], '1d', 10, 40)).toEqual([])
     expect(timeTicks([at(9, 1)], '5y', 10, 40)).toEqual([])
+  })
+})
+
+describe('scaleBounds', () => {
+  it('stretches to a base near the data, so the line is read against it', () => {
+    expect(scaleBounds(100, 110, 98)).toEqual({ lo: 98, hi: 110, base: 'on' })
+    expect(scaleBounds(100, 110, 113)).toEqual({ lo: 100, hi: 113, base: 'on' })
+    expect(scaleBounds(100, 110, 105)).toEqual({ lo: 100, hi: 110, base: 'on' })
+    // As far away as the data is tall: still on, at half the height at worst.
+    expect(scaleBounds(100, 110, 90)).toEqual({ lo: 90, hi: 110, base: 'on' })
+  })
+
+  it('leaves out a base further off than that, and says which way it lies', () => {
+    // Five years after 40: reaching it would press 100-110 into the top seventh.
+    expect(scaleBounds(100, 110, 40)).toEqual({ lo: 100, hi: 110, base: 'below' })
+    expect(scaleBounds(100, 110, 121)).toEqual({ lo: 100, hi: 110, base: 'above' })
+  })
+
+  it('has no base to place without one, and is all base without data', () => {
+    expect(scaleBounds(100, 110, null)).toEqual({ lo: 100, hi: 110, base: 'none' })
+    expect(scaleBounds(100, 110, Number.NaN)).toEqual({ lo: 100, hi: 110, base: 'none' })
+    expect(scaleBounds(Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 50)).toEqual({
+      lo: 50,
+      hi: 50,
+      base: 'on',
+    })
   })
 })
