@@ -93,8 +93,13 @@ $effect(() => {
 })
 
 const messages = $derived(view.chat?.messages ?? [])
+const CUT_WHY =
+  "This model's context window is full, so the messages above this line are no longer sent to it. They stay here and in the export. The window is set per provider in settings › ai chat."
+
 /** Where what the model is sent begins, when the conversation outgrew its window. */
 const sentFrom = $derived(view.chat?.context?.from ?? null)
+/** What the model is told in place of what is above that line, when a summary was written. */
+const summary = $derived(view.chat?.context?.summary ?? null)
 const run = $derived(view.run)
 const busy = $derived(run !== null)
 const title = $derived(view.chat?.title ?? '')
@@ -142,7 +147,12 @@ $effect(() => {
   paneMeta.set(paneId, {
     ...(title === '' ? {} : { subtitle: title }),
     // In words, like the other panes' badges: RX means something inside the pane, not beside its title.
-    ...(busy ? { badge: 'receiving', badgeKind: 'ok' as const } : {}),
+    ...(busy
+      ? {
+          badge: run?.phase === 'compacting' ? 'compacting' : 'receiving',
+          badgeKind: 'ok' as const,
+        }
+      : {}),
   })
 })
 
@@ -326,6 +336,7 @@ const STOP_CODES: Record<NonNullable<ChatMessage['stop']>, string> = {
 /** What the link is doing while an answer comes: sent and waiting, or receiving. */
 const phase = $derived.by(() => {
   if (run === null) return ''
+  if (run.phase === 'compacting') return 'tx · compacting'
   if (run.text !== '') return 'rx'
   return run.thinking === '' ? 'tx' : 'rx · reasoning'
 })
@@ -461,13 +472,19 @@ const host = $derived.by(() => {
         {@const readout = telemetry(message)}
         {#if message.id === sentFrom && i > 0}
           <!-- Said in the log, where it happened: the model no longer reads what is above. -->
-          <p
-            class="cut"
-            title="This model's context window is full, so the messages above this line are no longer sent to it. They stay here and in the export. The window is set per provider in settings › ai chat."
-            data-testid="aichat-cut"
-          >
-            <span class="rule back"></span>not sent · {i} above<span class="rule"></span>
-          </p>
+          {#if summary === null}
+            <p class="cut" title={CUT_WHY} data-testid="aichat-cut">
+              <span class="rule back"></span>not sent · {i} above<span class="rule"></span>
+            </p>
+          {:else}
+            <!-- What the model is told on the user's behalf is theirs to read: a model wrote it, so as text. -->
+            <details class="cut-summary" data-testid="aichat-summary">
+              <summary class="cut" class:told={summary.before === sentFrom} title={CUT_WHY} data-testid="aichat-cut">
+                <span class="rule back"></span>{summary.before === sentFrom ? 'summarised' : 'not sent'} · {i} above<span class="more" aria-hidden="true"></span><span class="rule"></span>
+              </summary>
+              <p>{summary.text}</p>
+            </details>
+          {/if}
         {/if}
         <article class="message {message.role} fx-rise" data-testid="aichat-message" data-role={message.role}>
           <header>
@@ -524,7 +541,9 @@ const host = $derived.by(() => {
           {#if run.text !== ''}
             <Markdown source={run.text} />
           {:else if run.thinking === ''}
-            <p class="note">waiting for {run.provider}<span class="caret">▍</span></p>
+            <p class="note">
+              {run.phase === 'compacting' ? 'summarising what no longer fits' : `waiting for ${run.provider}`}<span class="caret">▍</span>
+            </p>
           {/if}
         </article>
       {/if}
@@ -942,6 +961,40 @@ select:focus,
   color: var(--warn);
   user-select: none;
   cursor: help;
+}
+
+/* A summary stands in for what is above: said, not warned. It opens. */
+summary.cut {
+  list-style: none;
+  cursor: pointer;
+}
+
+summary.cut::-webkit-details-marker {
+  display: none;
+}
+
+.cut.told {
+  color: var(--accent);
+}
+
+/* That it opens, and that it is open. */
+.more::after {
+  content: '▸';
+}
+
+.cut-summary[open] .more::after {
+  content: '▾';
+}
+
+.cut-summary > p {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1) var(--space-2);
+  border-left: 1px dashed var(--accent-dim);
+  font-size: var(--step--1);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
 }
 
 .meta {

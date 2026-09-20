@@ -94,6 +94,7 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
       store: new ChatStore(path.join(app.getPath('userData'), 'chats')),
       providers: () => settings.current().ai.providers,
       systemPrompt: () => settings.current().ai.systemPrompt,
+      compact: () => settings.current().ai.compact,
       keyFor: (id) => vault.get(id),
       adapter: adapterFor,
       now: () => Date.now(),

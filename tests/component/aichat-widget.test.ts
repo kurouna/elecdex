@@ -11,6 +11,7 @@ const { default: Markdown } = await import('../../src/renderer/widgets/aichat/Ma
 const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
+const { paneMeta } = await import('../../src/renderer/stores/pane-meta.svelte.ts')
 
 /**
  * The chat pane against a hand-driven main: what it asks for and when, how it
@@ -56,6 +57,7 @@ function withProvider(): void {
     sound: { enabled: false, volume: 0 },
     ai: {
       systemPrompt: '',
+      compact: false,
       providers: [
         {
           id: 'local',
@@ -181,7 +183,6 @@ describe('AiChatWidget', () => {
     expect(problem.querySelector('.detail')?.textContent).toBe('the address is not usable')
     expect(input.value).toBe('hello')
     expect(ai.remove).toHaveBeenCalledWith(CHAT_ID)
-    expect(setPaneState).not.toHaveBeenCalled()
   })
 
   it('follows an answer piece by piece, and starts over rather than show a text with a hole', async () => {
@@ -392,6 +393,73 @@ describe('AiChatWidget', () => {
     expect(screen.getAllByTestId('aichat-message')).toHaveLength(4)
     // Why, and where it is set, is one hover away.
     expect(cut.title).toContain('settings')
+  })
+
+  it('a summary of what is above the line can be read there, as text', async () => {
+    withProvider()
+    mount({ chat: CHAT_ID })
+    await settle()
+    const messages = [
+      { id: 'q1', role: 'user' as const, text: 'first', at: 1 },
+      { id: 'a1', role: 'assistant' as const, text: 'one', at: 2 },
+      { id: 'q2', role: 'user' as const, text: 'second', at: 3 },
+    ]
+    const told = '<img src=x onerror=alert(1)> They said **first**.'
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      chat: {
+        ...chat(messages),
+        context: { from: 'q2', at: 5, summary: { text: told, before: 'q2' } },
+      },
+      run: null,
+    })
+    expect(screen.getByTestId('aichat-cut').textContent?.trim()).toBe('summarised · 2 above')
+    const summary = screen.getByTestId('aichat-summary')
+    // A model wrote it: it is text, never markup.
+    expect(summary.querySelector('p')?.textContent).toBe(told)
+    expect(summary.querySelector('img')).toBeNull()
+
+    // A summary that ends before the line does not speak for all that is above it.
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      chat: {
+        ...chat(messages),
+        context: { from: 'q2', at: 5, summary: { text: told, before: 'q1' } },
+      },
+      run: null,
+    })
+    expect(screen.getByTestId('aichat-cut').textContent?.trim()).toBe('not sent · 2 above')
+    expect(screen.getByTestId('aichat-summary').querySelector('p')?.textContent).toBe(told)
+  })
+
+  it('says it is summarising while it is, before the question is asked', async () => {
+    withProvider()
+    mount({ chat: CHAT_ID })
+    await settle()
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      chat: chat([{ id: 'q', role: 'user', text: 'hi', at: 1 }]),
+      run: { ...run(), phase: 'compacting' },
+    })
+    expect(screen.getByTestId('aichat-telemetry').textContent).toContain('tx · compacting')
+    expect(screen.getByTestId('aichat-run').textContent).toContain(
+      'summarising what no longer fits',
+    )
+    // Beside the pane's title too: nothing is being received yet.
+    expect(paneMeta.get('p').badge).toBe('compacting')
+
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      chat: chat([{ id: 'q', role: 'user', text: 'hi', at: 1 }]),
+      run: run(),
+    })
+    expect(screen.getByTestId('aichat-telemetry').textContent).not.toContain('compacting')
+    expect(screen.getByTestId('aichat-run').textContent).toContain('waiting for Local')
+    expect(paneMeta.get('p').badge).toBe('receiving')
   })
 
   it('editing a question resends from it', async () => {

@@ -86,7 +86,7 @@ describe('provider ids', () => {
 
 describe('the ai settings', () => {
   it('start with no provider and no prompt', () => {
-    expect(defaultSettings().ai).toEqual({ providers: [], systemPrompt: '' })
+    expect(defaultSettings().ai).toEqual({ providers: [], systemPrompt: '', compact: false })
   })
 
   it('a patch replaces the provider list and leaves the prompt', () => {

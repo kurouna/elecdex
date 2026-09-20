@@ -58,6 +58,7 @@ function harness(dir: string, keys: Record<string, string> = {}) {
     store: new ChatStore(dir),
     providers: () => [LOCAL, REMOTE_HTTP, BROKEN],
     systemPrompt: () => 'be brief',
+    compact: () => false,
     keyFor: (id) => keys[id] ?? null,
     adapter: async () => adapter,
     now: () => {

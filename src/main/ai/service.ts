@@ -1,4 +1,5 @@
 import {
+  AI_CONTEXT,
   AI_LIMITS,
   type AiModelsResult,
   type AiProvider,
@@ -13,11 +14,14 @@ import {
   type ChatSendResult,
   type ChatStop,
   type ChatSummary,
+  COMPACT_PROMPT,
   chatTitle,
   chatWindow,
+  compactTranscript,
   contextWindow,
   estimateTokens,
   keyMayTravel,
+  withSummary,
 } from '@shared/ai'
 import {
   describeFailure,
@@ -56,6 +60,8 @@ export interface AiDeps {
   store: ChatStore
   providers(): readonly AiProvider[]
   systemPrompt(): string
+  /** Whether what stays behind of a long conversation is summarised (settings: `ai.compact`). */
+  compact(): boolean
   keyFor(providerId: string): string | null
   adapter(kind: AiProviderKind): Promise<ProviderAdapter>
   now(): number
@@ -67,13 +73,21 @@ export interface AiDeps {
   listChanged(list: ChatSummary[]): void
 }
 
+type Summary = NonNullable<NonNullable<Chat['context']>['summary']>
+
 /** What goes to the model for one question: the conversation is longer when it did not all fit. */
 interface Outgoing {
+  /** The system prompt as typed, and as sent: with the summary of what stays behind after it. */
+  typed: string
   system: string
   messages: { role: ChatMessage['role']; text: string }[]
   /** The id of the first message sent, when some stayed behind. */
   from: string | undefined
-  /** The uncorrected estimate of it all, and whose correction the provider's count becomes. */
+  /** The summary that still holds for this cut, if there is one. */
+  summary: Summary | undefined
+  /** Set when the cut is new and summaries are on: what to summarise before asking. */
+  transcript: string | undefined
+  /** The uncorrected estimate of the messages, and whose correction the provider's count becomes. */
   estimate: number
   measures: string
 }
@@ -169,7 +183,7 @@ export class AiChatService {
     const messages = this.nextMessages(stored.messages, request)
     if (typeof messages === 'string') return { ok: false, error: messages }
 
-    const outgoing = this.outgoingFor(messages, stored.context?.from, target, request.model)
+    const outgoing = this.outgoingFor(messages, stored.context, target, request.model)
     const now = this.deps.now()
     const { context: previous, ...rest } = stored
     const chat: Chat = {
@@ -189,6 +203,7 @@ export class AiChatService {
             context: {
               from: outgoing.from,
               at: previous?.from === outgoing.from ? previous.at : now,
+              ...(outgoing.summary === undefined ? {} : { summary: outgoing.summary }),
             },
           }),
     }
@@ -269,34 +284,114 @@ export class AiChatService {
   /** What of the conversation goes to this model (`chatWindow`). */
   private outgoingFor(
     all: readonly ChatMessage[],
-    from: string | undefined,
+    context: Chat['context'],
     target: Target,
     model: string,
   ): Outgoing {
-    const system = this.deps.systemPrompt()
+    const typed = this.deps.systemPrompt()
+    const compacts = this.deps.compact()
     // An answer that failed outright said nothing: it is not part of the history.
     const messages = all.filter((m) => m.text !== '')
     const measures = `${target.provider.id}\n${model}`
+    const window = contextWindow(target.provider)
+    const ratio = this.ratios.get(measures) ?? 1
+    // A summary has its room before there is one, so writing it does not move the cut it was written for.
+    const kept = context?.summary
+    const ahead = compacts
+      ? AI_CONTEXT.summaryTokens
+      : kept === undefined
+        ? 0
+        : estimateTokens(kept.text)
     const cut = chatWindow(messages, {
-      window: contextWindow(target.provider),
-      system: estimateTokens(system),
-      ratio: this.ratios.get(measures) ?? 1,
-      from,
+      window,
+      system: estimateTokens(typed) + ahead,
+      ratio,
+      from: context?.from,
     })
+    const from = cut.from === 0 ? undefined : messages[cut.from]?.id
+    // A summary speaks for what is before `before`: it holds while that is still behind the cut
+    // (a conversation rewritten from further back has lost it, and one sent whole needs none).
+    const covered = kept === undefined ? -1 : messages.findIndex((m) => m.id === kept.before)
+    const summary = covered > 0 && covered <= cut.from ? kept : undefined
+    // Once for each cut, not once a question: a provider that cannot summarise is not asked again
+    // until there is more to summarise.
+    const fresh = compacts && from !== undefined && from !== context?.from
     return {
-      system,
+      typed,
+      system: summary === undefined ? typed : withSummary(typed, summary.text),
       messages: messages.slice(cut.from).map((m) => ({ role: m.role, text: m.text })),
-      from: cut.from === 0 ? undefined : messages[cut.from]?.id,
-      estimate: cut.estimate,
+      from,
+      summary,
+      transcript: fresh
+        ? compactTranscript(
+            summary?.text,
+            messages.slice(summary === undefined ? 0 : covered, cut.from),
+            (window * AI_CONTEXT.low) / ratio - estimateTokens(COMPACT_PROMPT),
+          )
+        : undefined,
+      estimate: cut.estimate - estimateTokens(typed) - ahead,
       measures,
     }
   }
 
   private measured(outgoing: Outgoing, usage: StreamResult['usage']): void {
-    if (usage === undefined || outgoing.estimate < MEASURE_FROM) return
+    const estimate = outgoing.estimate + estimateTokens(outgoing.system)
+    if (usage === undefined || estimate < MEASURE_FROM) return
     if (this.ratios.size >= 200) this.ratios.clear()
-    const ratio = Math.min(RATIO_MAX, Math.max(1, usage.input / outgoing.estimate))
+    const ratio = Math.min(RATIO_MAX, Math.max(1, usage.input / estimate))
     this.ratios.set(outgoing.measures, ratio)
+  }
+
+  /**
+   * Asks the same model for a summary of what stays behind, ahead of the question. Whatever
+   * goes wrong, the question is still asked - with the summary there was, or none: the messages
+   * are then simply not sent, which is what happens with summaries off.
+   */
+  private async compact(
+    running: Running,
+    target: Target,
+    model: string,
+    adapter: ProviderAdapter,
+  ): Promise<void> {
+    const { outgoing } = running
+    if (outgoing.transcript === undefined || outgoing.from === undefined) return
+    let text = ''
+    try {
+      await adapter.stream(
+        {
+          baseUrl: target.baseUrl,
+          key: target.key,
+          model,
+          system: COMPACT_PROMPT,
+          messages: [{ role: 'user', text: outgoing.transcript }],
+          signal: running.abort.signal,
+        },
+        {
+          text: (piece) => {
+            if (text.length < AI_LIMITS.summary) text += piece
+          },
+          thinking: () => {},
+        },
+      )
+    } catch {
+      text = ''
+    }
+    // Stopped, or deleted, while it was written: there is no question to go on to.
+    if (running.finished) return
+    const summary = text.trim().slice(0, AI_LIMITS.summary)
+    if (summary !== '' && running.chat.context !== undefined) {
+      outgoing.summary = { text: summary, before: outgoing.from }
+      outgoing.system = withSummary(outgoing.typed, summary)
+      running.chat = {
+        ...running.chat,
+        context: { ...running.chat.context, summary: outgoing.summary },
+      }
+      if (this.deps.store.get(running.chat.id) !== null) this.deps.store.save(running.chat)
+    }
+    // The answer's clock starts with the question: tokens a second are the answer's, not the summary's.
+    const { phase: _done, ...run } = running.run
+    running.run = { ...run, startedAt: this.deps.now() }
+    this.deps.publish(this.snapshot(running.chat.id))
   }
 
   private start(chat: Chat, target: Target, model: string, outgoing: Outgoing): void {
@@ -308,6 +403,7 @@ export class AiChatService {
         provider: target.provider.name,
         model,
         startedAt: this.deps.now(),
+        ...(outgoing.transcript === undefined ? {} : { phase: 'compacting' as const }),
       },
       chat,
       outgoing,
@@ -325,6 +421,8 @@ export class AiChatService {
   private async generate(running: Running, target: Target, model: string): Promise<void> {
     try {
       const adapter = await this.deps.adapter(target.provider.kind)
+      await this.compact(running, target, model, adapter)
+      if (running.finished) return
       const result = await adapter.stream(
         {
           baseUrl: target.baseUrl,

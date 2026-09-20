@@ -289,6 +289,25 @@ function addressProblem(provider: AiProvider): string | null {
 {/each}
 
 <section>
+  <h3>long conversations</h3>
+  <label class="row">
+    <span>summarise what no longer fits</span>
+    <input
+      type="checkbox"
+      checked={appearance.settings.ai.compact}
+      onchange={(e) => void appearance.patch({ ai: { compact: e.currentTarget.checked } })}
+      data-testid="ai-compact"
+    />
+  </label>
+  <p class="note">
+    A conversation longer than its provider's context window is sent without its oldest messages;
+    the log marks where. With this on, the model is first asked for a summary of what stays behind,
+    which is sent along from then on and can be read in the log - one more request to the same
+    provider and model, each time the conversation is cut, and a wait before that answer.
+  </p>
+</section>
+
+<section>
   <h3>system prompt</h3>
   <textarea
     rows="4"

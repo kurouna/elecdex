@@ -192,8 +192,13 @@ export const SettingsSchema = z.object({
         .default([]),
       /** Sent ahead of every conversation; empty for none. */
       systemPrompt: z.string().max(AI_LIMITS.systemPrompt).default(''),
+      /**
+       * When a conversation outgrows a provider's window, ask the model for a summary of
+       * what stays behind. Off until the user says: it is a request they did not type.
+       */
+      compact: z.boolean().default(false),
     })
-    .default({ providers: [], systemPrompt: '' }),
+    .default({ providers: [], systemPrompt: '', compact: false }),
   /**
    * Plugins by id: whether each is on, what the user agreed it may do, and its setting
    * values. A plugin never listed here is off (docs/plugins.md section 8).

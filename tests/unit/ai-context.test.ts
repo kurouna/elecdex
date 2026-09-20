@@ -7,9 +7,12 @@ import {
   AiProviderSchema,
   type ChatEvent,
   ChatSchema,
+  COMPACT_PROMPT,
   chatWindow,
+  compactTranscript,
   contextWindow,
   estimateTokens,
+  withSummary,
 } from '@shared/ai'
 import { applySettingsPatch, defaultSettings } from '@shared/settings'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -156,6 +159,8 @@ const SMALL: AiProvider = {
   model: 'tiny',
   contextTokens: 1024,
 }
+/** Room for a summary's 600 tokens: 3072 may go, and a cut leaves 2048. */
+const ROOMY: AiProvider = { ...SMALL, id: 'roomy', name: 'Roomy', contextTokens: 4096 }
 const HOSTED: AiProvider = {
   id: 'hosted',
   name: 'Hosted',
@@ -168,25 +173,29 @@ interface Pending {
   request: StreamRequest
   sink: StreamSink
   end(result?: StreamResult): void
+  fail(error: unknown): void
 }
 
-function harness(dir: string) {
+function harness(dir: string, compacts = false) {
+  const flags = { compacts }
   const events: ChatEvent[] = []
   const pending: Pending[] = []
   let clock = 1_000
   let ids = 0
   const adapter: ProviderAdapter = {
     stream: (request, sink) =>
-      new Promise<StreamResult>((resolve) => {
-        pending.push({ request, sink, end: (result = {}) => resolve(result) })
+      new Promise<StreamResult>((resolve, reject) => {
+        pending.push({ request, sink, end: (result = {}) => resolve(result), fail: reject })
+        request.signal.addEventListener('abort', () => reject(new Error('aborted')))
       }),
     models: async () => [],
   }
   const store = new ChatStore(dir)
   const service = new AiChatService({
     store,
-    providers: () => [SMALL, HOSTED],
+    providers: () => [SMALL, ROOMY, HOSTED],
     systemPrompt: () => '',
+    compact: () => flags.compacts,
     keyFor: () => null,
     adapter: async () => adapter,
     now: () => {
@@ -220,7 +229,7 @@ function harness(dir: string) {
     await settle()
     return call.request
   }
-  return { service, store, events, pending, settle, ask }
+  return { service, store, events, pending, settle, ask, flags }
 }
 
 let dir: string
@@ -325,5 +334,222 @@ describe("the provider's own count", () => {
     await h.ask(chatId, {}, { usage: { input: 208, output: 100 } })
     for (let i = 0; i < 2; i += 1) await h.ask(chatId, {})
     expect((await h.ask(chatId, {})).messages).toHaveLength(7)
+  })
+})
+
+describe('the summary that goes with a cut conversation', () => {
+  it('follows the system prompt, or stands alone', () => {
+    expect(withSummary('', 'They want X.')).toMatch(
+      /^Summary of the earlier part.*:\nThey want X\.$/,
+    )
+    expect(withSummary('Be brief.', 'They want X.')).toMatch(/^Be brief\.\n\nSummary of/)
+  })
+
+  it('is written from the summary so far and what stays behind, the latest first to be kept', () => {
+    const said = [
+      { role: 'user' as const, text: 'first question' },
+      { role: 'assistant' as const, text: 'first answer' },
+      { role: 'user' as const, text: 'second question' },
+    ]
+    expect(compactTranscript(undefined, said, 1000)).toBe(
+      'Conversation:\nUser: first question\n\nAssistant: first answer\n\nUser: second question',
+    )
+    expect(compactTranscript('They greeted.', said, 1000)).toMatch(
+      /^Summary so far:\nThey greeted\.\n\nConversation:\nUser: first/,
+    )
+    // Room for the last two, and for the beginning of the one before them.
+    const tight = compactTranscript(undefined, said, 16)
+    expect(tight).toBe('Conversation:\nUs…\n\nAssistant: first answer\n\nUser: second question')
+    expect(compactTranscript(undefined, said, 0)).toBe('Conversation:\n')
+  })
+})
+
+/** Four hundred tokens by the estimate, numbered so a transcript can be told from another. */
+const big = (n: number): string => `Q${n} ${'x'.repeat(1600 - 3)}`
+
+describe('summaries, when they are on', () => {
+  /**
+   * One question and its answer. When the conversation is cut the model is asked for a summary
+   * first: `summary` is what it writes, or an error to fail with.
+   */
+  async function turn(
+    h: ReturnType<typeof harness>,
+    chatId: string,
+    n: number,
+    summary: string | Error = `summary at Q${n}`,
+    extra: { replaceFrom?: string } = {},
+  ) {
+    const before = h.pending.length
+    const request = { provider: 'roomy', model: 'tiny', text: big(n), ...extra }
+    expect(h.service.send(chatId, request)).toEqual({ ok: true })
+    await h.settle()
+    let compaction: StreamRequest | undefined
+    if (h.pending.at(-1)?.request.system === COMPACT_PROMPT) {
+      const call = h.pending.at(-1) as Pending
+      compaction = call.request
+      if (summary instanceof Error) call.fail(summary)
+      else {
+        call.sink.thinking('hmm')
+        call.sink.text(` ${summary}\n`)
+        call.end()
+      }
+      await h.settle()
+    }
+    const call = h.pending.at(-1) as Pending
+    call.sink.text('x'.repeat(1600))
+    call.end()
+    await h.settle()
+    return { compaction, asked: call.request, calls: h.pending.length - before }
+  }
+
+  it('the model is asked for one when the conversation is cut, and the question goes with it', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3]) expect((await turn(h, chatId, n)).calls).toBe(1)
+
+    // Seven messages and the room a summary is given do not fit: three go, four are summarised.
+    const fourth = await turn(h, chatId, 4, 'They asked Q1 to Q3.')
+    expect(fourth.compaction?.model).toBe('tiny')
+    expect(fourth.compaction?.messages).toHaveLength(1)
+    const transcript = fourth.compaction?.messages[0]?.text ?? ''
+    expect(transcript.startsWith('Conversation:\nUser: Q1 ')).toBe(true)
+    expect(transcript).toContain('User: Q2 ')
+    expect(transcript).not.toContain('Q3 ')
+    expect(fourth.asked.system).toBe(withSummary('', 'They asked Q1 to Q3.'))
+    expect(fourth.asked.messages.map((m) => m.text.slice(0, 3))).toEqual(['Q3 ', 'xxx', 'Q4 '])
+
+    const chat = h.store.get(chatId)
+    expect(chat?.context).toMatchObject({
+      from: chat?.messages[4]?.id,
+      summary: { text: 'They asked Q1 to Q3.', before: chat?.messages[4]?.id },
+    })
+    // The pane is told it is summarising, then - with the summary - that the question is being asked.
+    const runs = h.events.flatMap((e) => (e.type === 'snapshot' && e.run !== null ? [e] : []))
+    const [compacting, asking] = runs.slice(-2)
+    expect(compacting?.run?.phase).toBe('compacting')
+    expect(asking?.run?.phase).toBeUndefined()
+    expect(asking?.chat?.context?.summary?.text).toBe('They asked Q1 to Q3.')
+    // The answer's clock is the answer's: tokens a second do not count the summary's time.
+    expect(asking?.run?.startedAt).toBeGreaterThan(compacting?.run?.startedAt ?? 0)
+  })
+
+  it('once for each cut: the next questions go with the same summary and ask for no other', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3, 4]) await turn(h, chatId, n)
+    const fifth = await turn(h, chatId, 5)
+    expect(fifth.calls).toBe(1)
+    expect(fifth.asked.system).toBe(withSummary('', 'summary at Q4'))
+    expect(fifth.asked.messages).toHaveLength(5)
+
+    // The next cut is summarised from the summary so far and what it leaves behind since.
+    const sixth = await turn(h, chatId, 6)
+    const transcript = sixth.compaction?.messages[0]?.text ?? ''
+    expect(
+      transcript.startsWith('Summary so far:\nsummary at Q4\n\nConversation:\nUser: Q3 '),
+    ).toBe(true)
+    expect(transcript).toContain('User: Q4 ')
+    expect(transcript).not.toContain('Q1 ')
+    expect(transcript).not.toContain('Q5 ')
+    expect(sixth.asked.system).toBe(withSummary('', 'summary at Q6'))
+  })
+
+  it('a summary that fails, or says nothing, costs the summary and not the question', async () => {
+    for (const nothing of [new Error('HTTP 500'), '   ']) {
+      const h = harness(dir, true)
+      const chatId = h.service.create() as string
+      for (const n of [1, 2, 3]) await turn(h, chatId, n)
+      const fourth = await turn(h, chatId, 4, nothing)
+      expect(fourth.compaction).toBeDefined()
+      expect(fourth.asked.system).toBe('')
+      expect(fourth.asked.messages).toHaveLength(3)
+      const chat = h.store.get(chatId)
+      expect(chat?.context?.from).toBe(chat?.messages[4]?.id)
+      expect(chat?.context?.summary).toBeUndefined()
+      expect(chat?.messages.at(-1)).toMatchObject({ role: 'assistant' })
+      expect(chat?.messages.at(-1)?.stop).toBeUndefined()
+      // Not asked again question after question: only when there is a new cut.
+      expect((await turn(h, chatId, 5)).calls).toBe(1)
+    }
+  })
+
+  it('what a failed summary missed is in the next one, and the one before it goes on being sent', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3, 4, 5]) await turn(h, chatId, n)
+    const sixth = await turn(h, chatId, 6, new Error('HTTP 500'))
+    expect(sixth.asked.system).toBe(withSummary('', 'summary at Q4'))
+    expect(h.store.get(chatId)?.context?.summary?.before).toBe(h.store.get(chatId)?.messages[4]?.id)
+
+    await turn(h, chatId, 7)
+    const eighth = await turn(h, chatId, 8)
+    const transcript = eighth.compaction?.messages[0]?.text ?? ''
+    // From where the summary so far ends (Q3), not from where the failed one would have.
+    expect(transcript).toContain('Summary so far:\nsummary at Q4')
+    expect(transcript).toContain('User: Q6 ')
+    expect(transcript).toContain('User: Q5 ')
+  })
+
+  it('stopped while it is summarised, nothing is asked and what there is is kept', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3]) await turn(h, chatId, n)
+    h.service.send(chatId, { provider: 'roomy', model: 'tiny', text: big(4) })
+    await h.settle()
+    const calls = h.pending.length
+    expect(h.pending.at(-1)?.request.system).toBe(COMPACT_PROMPT)
+    h.service.stop(chatId)
+    await h.settle()
+    expect(h.pending).toHaveLength(calls)
+    expect(h.service.active()).toEqual([])
+    const chat = h.store.get(chatId)
+    expect(chat?.messages.at(-1)).toMatchObject({ role: 'assistant', text: '', stop: 'stopped' })
+    expect(chat?.context?.summary).toBeUndefined()
+  })
+
+  it('a conversation deleted while it is summarised stays deleted', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3]) await turn(h, chatId, n)
+    h.service.send(chatId, { provider: 'roomy', model: 'tiny', text: big(4) })
+    await h.settle()
+    const calls = h.pending.length
+    h.service.remove(chatId)
+    await h.settle()
+    expect(h.pending).toHaveLength(calls)
+    expect(h.store.get(chatId)).toBeNull()
+  })
+
+  it('turned off, the summary there is still goes, and no other is asked for', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3, 4]) await turn(h, chatId, n)
+    h.flags.compacts = false
+    const fifth = await turn(h, chatId, 5)
+    expect(fifth.asked.system).toBe(withSummary('', 'summary at Q4'))
+    for (const n of [6, 7, 8, 9]) expect((await turn(h, chatId, n)).calls).toBe(1)
+  })
+
+  it('a conversation rewritten from before it loses it; one sent whole needs none', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3, 4]) await turn(h, chatId, n)
+    const second = h.store.get(chatId)?.messages[2]?.id as string
+    const again = await turn(h, chatId, 9, 'unused', { replaceFrom: second })
+    expect(again.calls).toBe(1)
+    expect(again.asked.system).toBe('')
+    expect(again.asked.messages).toHaveLength(3)
+    expect(h.store.get(chatId)?.context).toBeUndefined()
+  })
+
+  it('off, nothing is asked but the question', async () => {
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+      const asked = await turn(h, chatId, n)
+      expect(asked.calls).toBe(1)
+      expect(asked.asked.system).toBe('')
+    }
+    expect(h.store.get(chatId)?.context?.from).toBeDefined()
   })
 })

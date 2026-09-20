@@ -348,7 +348,12 @@ weather and calendar.
   a hosted service; for Ollama, type the context length it is set to). Up to three quarters of
   it is sent; past that the oldest messages stay behind - in one large step, not one a turn, so
   the server's prompt cache survives - and a `NOT SENT · n ABOVE` line in the log marks where the
-  model's view begins. The conversation itself, and its export, stay whole. A conversation belongs to the app, not the pane: moving the pane
+  model's view begins. The conversation itself, and its export, stay whole. With *summarise
+  what no longer fits* on (Settings -> AI chat; off by default) the model is first asked for a
+  summary of what stays behind - one more request to the same provider and model each time the
+  conversation is cut, shown as `TX · COMPACTING` - which is sent after the system prompt from
+  then on; the line then reads `SUMMARISED · n ABOVE` and opens to show what the model was told.
+  A summary that fails costs only the summary: the question is still asked. A conversation belongs to the app, not the pane: moving the pane
   or putting it behind a tab does not interrupt an answer, and closing it stops the request.
   Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
   an optional system prompt in the settings goes ahead of every conversation. There are no tools:

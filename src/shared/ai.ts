@@ -32,6 +32,8 @@ export const AI_LIMITS = {
   models: 1000,
   /** The largest context window a provider can be given, in tokens. */
   contextTokens: 4_000_000,
+  /** Characters of the summary that stands in for the part of a conversation no longer sent. */
+  summary: 4000,
 } as const
 
 export const AI_PROVIDER_KINDS = ['openai', 'anthropic'] as const
@@ -209,6 +211,8 @@ export const AI_CONTEXT = {
   high: 0.75,
   /** What a cut leaves, so the next one is many turns away (see `chatWindow`). */
   low: 0.5,
+  /** Room kept ahead of the messages for a summary, while summaries are on. */
+  summaryTokens: 600,
 } as const
 
 /** The provider's window in tokens, or 0 when its conversations are sent whole. */
@@ -283,6 +287,57 @@ export function chatWindow(
   return at(last)
 }
 
+/**
+ * What the model is asked when the part of a conversation that stays behind is
+ * summarised (settings: `ai.compact`). The answer is drawn in the log for the
+ * user to read, and sent after the system prompt from then on.
+ */
+export const COMPACT_PROMPT = [
+  'You are compacting a conversation so that it can go on in a small context window.',
+  'Summarise the conversation below so that an assistant who has read only your summary can continue it as if it had read everything.',
+  'Keep: what the user wants, constraints, decisions made, names, numbers, identifiers from code, and questions still open.',
+  'Drop: pleasantries, repetition, and attempts that were corrected later.',
+  'Write in the language the conversation is in. Plain text, at most 300 words. Output the summary and nothing else.',
+].join(' ')
+
+const SUMMARY_HEAD =
+  'Summary of the earlier part of this conversation, which you no longer see in full:'
+
+/** The system prompt with the summary after it: it changes only when a cut does, like the rest of the beginning. */
+export function withSummary(system: string, summary: string): string {
+  const said = `${SUMMARY_HEAD}\n${summary}`
+  return system === '' ? said : `${system}\n\n${said}`
+}
+
+/**
+ * What is handed over to be summarised: the summary so far, then the messages
+ * that stay behind - the latest of them first to be kept when not all fit in
+ * `budget` estimated tokens, since the summary so far speaks for the oldest.
+ */
+export function compactTranscript(
+  summary: string | undefined,
+  messages: readonly Pick<ChatMessage, 'role' | 'text'>[],
+  budget: number,
+): string {
+  const head = summary === undefined ? '' : `Summary so far:\n${summary}\n\n`
+  let room = budget - estimateTokens(head)
+  const said: string[] = []
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const message = messages[i]
+    if (message === undefined) continue
+    const line = `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.text}`
+    const cost = estimateTokens(line) + 1
+    // The one that does not fit gives its beginning to the room that is left, and ends the list.
+    if (cost > room) {
+      if (room >= 1) said.unshift(`${line.slice(0, Math.floor(room))}…`)
+      break
+    }
+    room -= cost
+    said.unshift(line)
+  }
+  return `${head}Conversation:\n${said.join('\n\n')}`
+}
+
 /** A model a provider lists. `label` is set when the service gives a friendlier name. */
 export interface AiModel {
   id: string
@@ -345,7 +400,14 @@ export const ChatSchema = z.object({
    * there. A value that does not read costs the line, not the conversation.
    */
   context: z
-    .object({ from: z.string().max(64), at: z.number().int().nonnegative() })
+    .object({
+      from: z.string().max(64),
+      at: z.number().int().nonnegative(),
+      /** What stands in for everything before the message `before`, written by a model. */
+      summary: z
+        .object({ text: z.string().min(1).max(AI_LIMITS.summary), before: z.string().max(64) })
+        .optional(),
+    })
     .optional()
     .catch(undefined),
 })
@@ -382,6 +444,8 @@ export interface ChatRun {
   provider: string
   model: string
   startedAt: number
+  /** Set while what stays behind is being summarised, before the question itself is asked. */
+  phase?: 'compacting'
 }
 
 /**

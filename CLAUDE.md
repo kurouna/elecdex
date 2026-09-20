@@ -171,6 +171,11 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     turn it into a per-turn sliding window. A provider's token count corrects the estimate
     upwards only - a server that silently truncated reports a small one. The pane says where
     the model's view begins (`NOT SENT`).
+  - A summary of what stays behind (`ai.compact`, off by default) is asked for once per cut, as
+    part of the send - never after an answer or on a timer - and goes after the system prompt,
+    never as a message (templates that want roles to alternate fail on two user turns). Its
+    failure costs the summary, never the question. What the model is told on the user's behalf
+    is theirs to read: the `SUMMARISED` line opens, and draws it as text.
   - A model's text is untrusted: it is drawn from the tree `lib/markdown.ts` makes, never as HTML.
   - The Anthropic adapter follows the claude-api skill: capabilities from the Models API rather
     than the model's name, `stop_reason` read before content, thinking shown summarized and never
