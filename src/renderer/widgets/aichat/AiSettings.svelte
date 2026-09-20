@@ -1,10 +1,13 @@
 <script lang="ts">
 import {
+  AI_CONTEXT,
   AI_LIMITS,
   AI_PRESETS,
   type AiProvider,
   aiBaseUrl,
+  contextWindow,
   freshProviderId,
+  isLocalAddress,
   keyMayTravel,
 } from '@shared/ai'
 import ConfirmButton from '../../ConfirmButton.svelte'
@@ -86,10 +89,23 @@ async function test(provider: AiProvider): Promise<void> {
   }
 }
 
-/** On this computer or network, reached in the clear: the kind of server that asks for no key. */
-function isLocal(provider: AiProvider): boolean {
-  const url = aiBaseUrl(provider.baseUrl)
-  return url?.startsWith('http:') === true && keyMayTravel(url)
+const isLocal = (provider: AiProvider): boolean => isLocalAddress(provider.baseUrl)
+
+/** The window typed for a provider; an empty field goes back to what its address suggests. */
+function setWindow(provider: AiProvider, field: HTMLInputElement): void {
+  const typed = field.value.trim()
+  const tokens = Number(typed)
+  const { contextTokens: _was, ...rest } = provider
+  if (typed === '') write(providers.map((p) => (p.id === provider.id ? rest : p)))
+  else if (Number.isInteger(tokens) && tokens >= 0 && tokens <= AI_LIMITS.contextTokens) {
+    change(provider.id, { contextTokens: tokens })
+  } else field.value = provider.contextTokens === undefined ? '' : String(provider.contextTokens)
+}
+
+function windowNote(provider: AiProvider): string {
+  const tokens = contextWindow(provider)
+  if (tokens === 0) return 'every conversation is sent whole'
+  return `up to ${Math.round(tokens * AI_CONTEXT.high)} tokens of a conversation are sent - the oldest messages stay behind`
 }
 
 function keyPlaceholder(provider: AiProvider, held: boolean): string {
@@ -200,6 +216,20 @@ function addressProblem(provider: AiProvider): string | null {
       <datalist id={`ai-models-${provider.id}`}>
         {#each modelsOf[provider.id] ?? [] as id (id)}<option value={id}></option>{/each}
       </datalist>
+    </label>
+    <label class="row">
+      <span>context window</span>
+      <input
+        class="path short"
+        type="text"
+        inputmode="numeric"
+        value={provider.contextTokens ?? ''}
+        placeholder={isLocal(provider) ? '8192' : 'unlimited'}
+        title="The context length of the model at this address, in tokens - for Ollama, the context length it is set to. 0 sends every conversation whole."
+        onchange={(e) => setWindow(provider, e.currentTarget)}
+        data-testid="ai-context"
+      />
+      <span class="hint" data-testid="ai-context-note">{windowNote(provider)}</span>
     </label>
     <div class="row">
       <span>api key</span>
@@ -333,6 +363,20 @@ textarea {
 input.path {
   flex: 1;
   min-width: 12rem;
+}
+
+input.short {
+  flex: none;
+  width: 7rem;
+  min-width: 0;
+}
+
+.hint {
+  flex: 1;
+  min-width: 12rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
 }
 
 textarea {

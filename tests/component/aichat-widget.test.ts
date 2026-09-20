@@ -366,6 +366,34 @@ describe('AiChatWidget', () => {
     expect(screen.getByTestId('aichat-usage').textContent).toBe('1.2k › 90 tok · 30 t/s')
   })
 
+  it('draws a line where what the model is sent begins, and none while all of it goes', async () => {
+    withProvider()
+    mount({ chat: CHAT_ID })
+    await settle()
+    const messages = [
+      { id: 'q1', role: 'user' as const, text: 'first', at: 1 },
+      { id: 'a1', role: 'assistant' as const, text: 'one', at: 2 },
+      { id: 'q2', role: 'user' as const, text: 'second', at: 3 },
+      { id: 'a2', role: 'assistant' as const, text: 'two', at: 4 },
+    ]
+    await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(messages), run: null })
+    expect(screen.queryByTestId('aichat-cut')).toBeNull()
+
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      chat: { ...chat(messages), context: { from: 'q2', at: 5 } },
+      run: null,
+    })
+    const cut = screen.getByTestId('aichat-cut')
+    expect(cut.textContent?.trim()).toBe('not sent · 2 above')
+    // In the log, right above the first message that still goes - and nothing is hidden.
+    expect(cut.nextElementSibling?.textContent).toContain('second')
+    expect(screen.getAllByTestId('aichat-message')).toHaveLength(4)
+    // Why, and where it is set, is one hover away.
+    expect(cut.title).toContain('settings')
+  })
+
   it('editing a question resends from it', async () => {
     withProvider()
     mount({ chat: CHAT_ID })

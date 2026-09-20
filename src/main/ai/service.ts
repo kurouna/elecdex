@@ -14,6 +14,9 @@ import {
   type ChatStop,
   type ChatSummary,
   chatTitle,
+  chatWindow,
+  contextWindow,
+  estimateTokens,
   keyMayTravel,
 } from '@shared/ai'
 import {
@@ -39,6 +42,16 @@ import type { ChatStore } from './store.js'
 
 const FLUSH_MS = 100
 
+/**
+ * A provider's count of what it read corrects the estimate of what was sent -
+ * once there is enough of it that the chat template's own tokens do not decide
+ * the figure, and only ever upwards: a server that silently dropped the beginning
+ * of a prompt too long for it reports a small count, and believing that would
+ * send it more still.
+ */
+const MEASURE_FROM = 500
+const RATIO_MAX = 2
+
 export interface AiDeps {
   store: ChatStore
   providers(): readonly AiProvider[]
@@ -54,9 +67,21 @@ export interface AiDeps {
   listChanged(list: ChatSummary[]): void
 }
 
+/** What goes to the model for one question: the conversation is longer when it did not all fit. */
+interface Outgoing {
+  system: string
+  messages: { role: ChatMessage['role']; text: string }[]
+  /** The id of the first message sent, when some stayed behind. */
+  from: string | undefined
+  /** The uncorrected estimate of it all, and whose correction the provider's count becomes. */
+  estimate: number
+  measures: string
+}
+
 interface Running {
   run: ChatRun
   chat: Chat
+  outgoing: Outgoing
   abort: AbortController
   /** Where the page's copy of the run ends: what has been published so far. */
   sentText: number
@@ -74,6 +99,8 @@ interface Target {
 export class AiChatService {
   private readonly deps: AiDeps
   private readonly running = new Map<string, Running>()
+  /** Real tokens to estimated ones, as last measured, by provider and model. Not kept across runs. */
+  private readonly ratios = new Map<string, number>()
 
   constructor(deps: AiDeps) {
     this.deps = deps
@@ -142,21 +169,34 @@ export class AiChatService {
     const messages = this.nextMessages(stored.messages, request)
     if (typeof messages === 'string') return { ok: false, error: messages }
 
+    const outgoing = this.outgoingFor(messages, stored.context?.from, target, request.model)
+    const now = this.deps.now()
+    const { context: previous, ...rest } = stored
     const chat: Chat = {
-      ...stored,
+      ...rest,
       // Named after the first question - also when that question is the one being rewritten.
       title:
         stored.title === '' || messages.length === 1
           ? chatTitle(messages[0]?.text ?? '')
           : stored.title,
-      updatedAt: this.deps.now(),
+      updatedAt: now,
       messages,
+      // What this question sends is what the pane shows as sent: a conversation that fits
+      // again (rewritten shorter, or asked of a model with more room) loses its line.
+      ...(outgoing.from === undefined
+        ? {}
+        : {
+            context: {
+              from: outgoing.from,
+              at: previous?.from === outgoing.from ? previous.at : now,
+            },
+          }),
     }
     // The question is kept before the answer is asked for: a crash loses the answer, not the question.
     if (!this.deps.store.save(chat))
       return { ok: false, error: 'the conversation could not be saved' }
     this.deps.listChanged(this.list())
-    this.start(chat, target, request.model)
+    this.start(chat, target, request.model, outgoing)
     return { ok: true }
   }
 
@@ -226,7 +266,40 @@ export class AiChatService {
     return messages
   }
 
-  private start(chat: Chat, target: Target, model: string): void {
+  /** What of the conversation goes to this model (`chatWindow`). */
+  private outgoingFor(
+    all: readonly ChatMessage[],
+    from: string | undefined,
+    target: Target,
+    model: string,
+  ): Outgoing {
+    const system = this.deps.systemPrompt()
+    // An answer that failed outright said nothing: it is not part of the history.
+    const messages = all.filter((m) => m.text !== '')
+    const measures = `${target.provider.id}\n${model}`
+    const cut = chatWindow(messages, {
+      window: contextWindow(target.provider),
+      system: estimateTokens(system),
+      ratio: this.ratios.get(measures) ?? 1,
+      from,
+    })
+    return {
+      system,
+      messages: messages.slice(cut.from).map((m) => ({ role: m.role, text: m.text })),
+      from: cut.from === 0 ? undefined : messages[cut.from]?.id,
+      estimate: cut.estimate,
+      measures,
+    }
+  }
+
+  private measured(outgoing: Outgoing, usage: StreamResult['usage']): void {
+    if (usage === undefined || outgoing.estimate < MEASURE_FROM) return
+    if (this.ratios.size >= 200) this.ratios.clear()
+    const ratio = Math.min(RATIO_MAX, Math.max(1, usage.input / outgoing.estimate))
+    this.ratios.set(outgoing.measures, ratio)
+  }
+
+  private start(chat: Chat, target: Target, model: string, outgoing: Outgoing): void {
     const running: Running = {
       run: {
         id: this.deps.newId(),
@@ -237,6 +310,7 @@ export class AiChatService {
         startedAt: this.deps.now(),
       },
       chat,
+      outgoing,
       abort: new AbortController(),
       sentText: 0,
       sentThinking: 0,
@@ -256,11 +330,8 @@ export class AiChatService {
           baseUrl: target.baseUrl,
           key: target.key,
           model,
-          system: this.deps.systemPrompt(),
-          // An answer that failed outright said nothing: it is not part of the history.
-          messages: running.chat.messages
-            .filter((m) => m.text !== '')
-            .map((m) => ({ role: m.role, text: m.text })),
+          system: running.outgoing.system,
+          messages: running.outgoing.messages,
           signal: running.abort.signal,
         },
         {
@@ -316,6 +387,7 @@ export class AiChatService {
   private finish(running: Running, result: StreamResult): void {
     if (running.finished) return
     this.close(running)
+    this.measured(running.outgoing, result.usage)
 
     const { run } = running
     const now = this.deps.now()

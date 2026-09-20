@@ -340,7 +340,15 @@ weather and calendar.
   at the address - with the provider's own words beside it. **log** lists your conversations,
   newest first; point at one to export it as markdown or delete it. An empty pane shows where it
   points (`LINK STANDBY`, the provider and model, the address) and the model field shows
-  `QUERYING` while a provider's list is read, or `NO LIST` with the reason when it cannot be. A conversation belongs to the app, not the pane: moving the pane
+  `QUERYING` while a provider's list is read, or `NO LIST` with the reason when it cannot be.
+  **A long conversation is fitted to the model's context window**: a local server answers with
+  the few thousand tokens it was started with and silently drops the beginning of anything
+  longer, system prompt first - so every provider has a *context window* in the settings
+  (8192 tokens for an address on this computer or network until you type another, unlimited for
+  a hosted service; for Ollama, type the context length it is set to). Up to three quarters of
+  it is sent; past that the oldest messages stay behind - in one large step, not one a turn, so
+  the server's prompt cache survives - and a `NOT SENT · n ABOVE` line in the log marks where the
+  model's view begins. The conversation itself, and its export, stay whole. A conversation belongs to the app, not the pane: moving the pane
   or putting it behind a tab does not interrupt an answer, and closing it stops the request.
   Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
   an optional system prompt in the settings goes ahead of every conversation. There are no tools:

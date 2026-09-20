@@ -250,6 +250,95 @@ test('an answer streams in, is drawn as markdown, and is there after a restart',
   }
 })
 
+test('a conversation past the window of its model stays whole, and is sent from where it fits', async () => {
+  const settings = withProviders()
+  const launched = await launch(undefined, {
+    layout: single(),
+    settings: {
+      ...settings,
+      ai: {
+        ...settings.ai,
+        // The smallest window there is: 768 tokens may go, and a cut leaves 512.
+        providers: settings.ai.providers.map((p) =>
+          p.id === 'local' ? { ...p, contextTokens: 1024 } : p,
+        ),
+      },
+    },
+  })
+  try {
+    const { page } = launched
+    // About three hundred tokens a question.
+    const long = (n: number): string => `Question ${n}: ${'word '.repeat(236)}`.trim()
+    const answers = pane(page).locator('[data-testid=aichat-message][data-role=assistant]')
+    for (const n of [1, 2, 3]) {
+      await say(page, long(n))
+      await expect(answers).toHaveCount(n)
+      await expect(answers.nth(n - 1)).toContainText('That is all.')
+    }
+    const sent = seen
+      .filter((entry) => entry.path === '/v1/chat/completions')
+      .map((entry) => entry.body?.messages?.map((m) => m.role))
+    expect(sent).toEqual([
+      ['system', 'user'],
+      ['system', 'user', 'assistant', 'user'],
+      // Seven would not fit: it begins again at the third question, system prompt intact.
+      ['system', 'user'],
+    ])
+    expect(seen.at(-1)?.body?.messages?.at(-1)?.content).toBe(long(3))
+
+    // Nothing left the log, and it says where the model's view of it begins.
+    await expect(pane(page).getByTestId('aichat-message')).toHaveCount(6)
+    const cut = pane(page).getByTestId('aichat-cut')
+    await expect(cut).toHaveText(/not sent · 4 above/i)
+    await expect(cut.locator('xpath=following-sibling::*[1]')).toContainText('Question 3')
+
+    // The line is the conversation's, so it is there for the next pane to open it.
+    await page.reload()
+    await expect(pane(page).getByTestId('aichat-cut')).toHaveText(/not sent · 4 above/i)
+  } finally {
+    await launched.close()
+  }
+})
+
+test("a provider's window goes by its address until a figure is typed", async () => {
+  const { page, userData, close } = await launch(undefined, { layout: single() })
+  const saved = () =>
+    JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).ai.providers[0]
+  try {
+    await pane(page).getByTestId('aichat-open-settings').click()
+    await page.getByTestId('ai-preset').selectOption('ollama')
+    await page.getByTestId('ai-add').click()
+    const provider = page.locator('[data-testid=ai-provider][data-provider=ollama]')
+    await expect(provider.getByTestId('ai-context-note')).toContainText('up to 6144 tokens')
+
+    await provider.getByTestId('ai-context').fill('32768')
+    await provider.getByTestId('ai-context').press('Tab')
+    await expect(provider.getByTestId('ai-context-note')).toContainText('up to 24576 tokens')
+    await expect.poll(() => saved().contextTokens).toBe(32768)
+
+    await provider.getByTestId('ai-context').fill('0')
+    await provider.getByTestId('ai-context').press('Tab')
+    await expect(provider.getByTestId('ai-context-note')).toContainText('sent whole')
+
+    // Not a figure: the field goes back to what is held. Emptied, the address decides again.
+    await provider.getByTestId('ai-context').fill('lots')
+    await provider.getByTestId('ai-context').press('Tab')
+    await expect(provider.getByTestId('ai-context')).toHaveValue('0')
+    await provider.getByTestId('ai-context').fill('')
+    await provider.getByTestId('ai-context').press('Tab')
+    await expect(provider.getByTestId('ai-context-note')).toContainText('up to 6144 tokens')
+    await expect.poll(() => 'contextTokens' in saved()).toBe(false)
+
+    // A hosted service is left to itself.
+    await provider.getByTestId('ai-address').fill('https://api.example.test/v1')
+    await provider.getByTestId('ai-address').press('Tab')
+    await expect(provider.getByTestId('ai-context-note')).toContainText('sent whole')
+    expect(seen).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
 test('an answer can be stopped, and what was written is kept', async () => {
   const { page, close } = await launch(undefined, {
     layout: single({ provider: 'local', model: 'slow' }),

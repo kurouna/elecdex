@@ -30,6 +30,8 @@ export const AI_LIMITS = {
   key: 512,
   /** Model ids listed for a provider (OpenRouter lists several hundred). */
   models: 1000,
+  /** The largest context window a provider can be given, in tokens. */
+  contextTokens: 4_000_000,
 } as const
 
 export const AI_PROVIDER_KINDS = ['openai', 'anthropic'] as const
@@ -49,6 +51,18 @@ export const AiProviderSchema = z.object({
   baseUrl: z.string().max(2048),
   /** The model a new chat pane starts with; empty until the user picks one. */
   model: z.string().max(120).default(''),
+  /**
+   * The context window of what answers at this address, in tokens; 0 sends every
+   * conversation whole. Absent until the user says: `contextWindow` then goes by
+   * the address. Judged when used, like the address, so a hand edit costs nothing.
+   */
+  contextTokens: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(AI_LIMITS.contextTokens)
+    .optional()
+    .catch(undefined),
 })
 export type AiProvider = z.infer<typeof AiProviderSchema>
 
@@ -173,6 +187,102 @@ export function keyMayTravel(baseUrl: string): boolean {
   }
 }
 
+/** On this computer or network, reached in the clear: the kind of server that asks for no key. */
+export function isLocalAddress(raw: string): boolean {
+  const url = aiBaseUrl(raw)
+  return url?.startsWith('http:') === true && keyMayTravel(url)
+}
+
+/**
+ * How a long conversation is fitted to a model (architecture.md §5.7).
+ *
+ * A local server answers with whatever window it was started with - a few
+ * thousand tokens - and, handed more, silently drops the beginning, system prompt
+ * first. A hosted model's window is its own business and large.
+ */
+export const AI_CONTEXT = {
+  /** The window assumed of a local server nobody has described. */
+  localWindow: 8192,
+  /** The smallest window worth the name: a smaller figure is read as this. */
+  minWindow: 1024,
+  /** What may be sent, of the window: the rest is the answer's, and its reasoning's. */
+  high: 0.75,
+  /** What a cut leaves, so the next one is many turns away (see `chatWindow`). */
+  low: 0.5,
+} as const
+
+/** The provider's window in tokens, or 0 when its conversations are sent whole. */
+export function contextWindow(provider: Pick<AiProvider, 'baseUrl' | 'contextTokens'>): number {
+  const set = provider.contextTokens
+  if (set === undefined) return isLocalAddress(provider.baseUrl) ? AI_CONTEXT.localWindow : 0
+  return set === 0 ? 0 : Math.max(AI_CONTEXT.minWindow, set)
+}
+
+/**
+ * Roughly how many tokens a text is, without a tokenizer (each model has its own,
+ * and none is worth shipping): four ASCII characters to a token, and a token for
+ * every other character - Japanese and Chinese run at about that, which a flat
+ * "four characters" would miss by four times. Main corrects it upwards with what
+ * providers report (`AiChatService`), never downwards.
+ */
+export function estimateTokens(text: string): number {
+  let ascii = 0
+  for (let i = 0; i < text.length; i += 1) if (text.charCodeAt(i) < 0x80) ascii += 1
+  return Math.ceil(ascii / 4 + (text.length - ascii))
+}
+
+/** What a message costs beyond its text: its role and the template's marks around it. */
+const MESSAGE_OVERHEAD = 4
+
+/**
+ * Where the history sent to a model begins: an index into `messages`, 0 for all
+ * of it. The conversation itself is never touched - this only chooses what goes.
+ *
+ * It cuts rarely and by a lot, not a message a turn: every cut changes the
+ * beginning of the prompt, which throws away a local server's KV cache (the whole
+ * prompt is read again, slowly) and a hosted one's prompt cache. So the place cut
+ * at is kept (`from`) and used until what follows it outgrows `high`; then the
+ * cut moves far enough to leave `low`. A conversation that fits is sent whole,
+ * whatever was kept - the pane may have moved to a model with more room.
+ *
+ * A cut lands on a user message, so what is sent still opens with a question.
+ * The last question always goes, fitting or not: the provider says so if not.
+ */
+export function chatWindow(
+  messages: readonly Pick<ChatMessage, 'id' | 'role' | 'text'>[],
+  options: {
+    /** The window in tokens; 0 for no limit. */
+    window: number
+    /** Estimated tokens of what is sent ahead of the messages. */
+    system: number
+    /** Estimated to real tokens, as last measured for this model; 1 when unknown. */
+    ratio: number
+    /** The id of the message the last cut was made at. */
+    from?: string | undefined
+  },
+): { from: number; estimate: number } {
+  // after[i]: the estimate of messages i.. on their own.
+  const after = new Array<number>(messages.length + 1).fill(0)
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    after[i] = (after[i + 1] ?? 0) + estimateTokens(messages[i]?.text ?? '') + MESSAGE_OVERHEAD
+  }
+  const at = (from: number) => ({ from, estimate: options.system + (after[from] ?? 0) })
+  const fits = (from: number, share: number): boolean =>
+    at(from).estimate * options.ratio <= options.window * share
+
+  if (options.window <= 0 || fits(0, AI_CONTEXT.high)) return at(0)
+  const kept = options.from === undefined ? -1 : messages.findIndex((m) => m.id === options.from)
+  if (kept > 0 && messages[kept]?.role === 'user' && fits(kept, AI_CONTEXT.high)) return at(kept)
+
+  let last = 0
+  for (let i = 0; i < messages.length; i += 1) {
+    if (messages[i]?.role !== 'user') continue
+    if (fits(i, AI_CONTEXT.low)) return at(i)
+    last = i
+  }
+  return at(last)
+}
+
 /** A model a provider lists. `label` is set when the service gives a friendlier name. */
 export interface AiModel {
   id: string
@@ -229,6 +339,15 @@ export const ChatSchema = z.object({
   createdAt: z.number().int().nonnegative(),
   updatedAt: z.number().int().nonnegative(),
   messages: z.array(ChatMessageSchema).max(AI_LIMITS.messages).default([]),
+  /**
+   * What the last question sent of the conversation, when not all of it: the
+   * messages before `from` stayed behind (`chatWindow`). The pane draws a line
+   * there. A value that does not read costs the line, not the conversation.
+   */
+  context: z
+    .object({ from: z.string().max(64), at: z.number().int().nonnegative() })
+    .optional()
+    .catch(undefined),
 })
 export type Chat = z.infer<typeof ChatSchema>
 

@@ -93,6 +93,8 @@ $effect(() => {
 })
 
 const messages = $derived(view.chat?.messages ?? [])
+/** Where what the model is sent begins, when the conversation outgrew its window. */
+const sentFrom = $derived(view.chat?.context?.from ?? null)
 const run = $derived(view.run)
 const busy = $derived(run !== null)
 const title = $derived(view.chat?.title ?? '')
@@ -457,6 +459,16 @@ const host = $derived.by(() => {
       {/if}
       {#each messages as message, i (message.id)}
         {@const readout = telemetry(message)}
+        {#if message.id === sentFrom && i > 0}
+          <!-- Said in the log, where it happened: the model no longer reads what is above. -->
+          <p
+            class="cut"
+            title="This model's context window is full, so the messages above this line are no longer sent to it. They stay here and in the export. The window is set per provider in settings › ai chat."
+            data-testid="aichat-cut"
+          >
+            <span class="rule back"></span>not sent · {i} above<span class="rule"></span>
+          </p>
+        {/if}
         <article class="message {message.role} fx-rise" data-testid="aichat-message" data-role={message.role}>
           <header>
             <span class="who">{message.role === 'user' ? 'you' : (message.model ?? 'remote')}</span>
@@ -912,6 +924,24 @@ select:focus,
   min-width: var(--space-2);
   height: 1px;
   background: linear-gradient(to right, var(--accent-dim), transparent);
+}
+
+.rule.back {
+  background: linear-gradient(to left, var(--accent-dim), transparent);
+}
+
+/* Where the model's view of the conversation begins. */
+.cut {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--warn);
+  user-select: none;
+  cursor: help;
 }
 
 .meta {

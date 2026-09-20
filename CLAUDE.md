@@ -163,6 +163,14 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     follows is stopped after a few seconds.
   - A provider is asked only when the user sends, presses test, or opens the model list - never
     on mount.
+  - **The conversation is never cut; what is sent of it is** (`chatWindow`, a pure function in
+    shared/ai.ts, called by main only). The window is the provider's (`contextTokens`; by its
+    address when unset), in estimated tokens - never characters, which are four times off for
+    Japanese. It cuts rarely and by a lot, and keeps the place in `Chat.context`, because a
+    beginning that moves every turn throws away the server's prompt cache every turn: do not
+    turn it into a per-turn sliding window. A provider's token count corrects the estimate
+    upwards only - a server that silently truncated reports a small one. The pane says where
+    the model's view begins (`NOT SENT`).
   - A model's text is untrusted: it is drawn from the tree `lib/markdown.ts` makes, never as HTML.
   - The Anthropic adapter follows the claude-api skill: capabilities from the Models API rather
     than the model's name, `stop_reason` read before content, thinking shown summarized and never
