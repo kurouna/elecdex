@@ -1167,6 +1167,7 @@ button:disabled {
   background: var(--accent-faint);
   color: var(--accent-strong);
   animation: blink 1s steps(2, start) infinite;
+  animation-play-state: var(--ambient-play-state);
 }
 
 @keyframes blink {

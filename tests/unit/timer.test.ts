@@ -6,6 +6,7 @@ import {
   lapExtremes,
   litSegments,
   MAX_TIMERS,
+  nextLanding,
   readChrono,
   remaining,
   segmentCount,
@@ -70,6 +71,34 @@ describe('splitDuration and formatClock', () => {
   it('treats a negative as zero rather than printing a minus', () => {
     expect(formatClock(-5)).toBe('00:00')
     expect(splitDuration(-5).seconds).toBe(0)
+  })
+})
+
+describe('nextLanding', () => {
+  const entry = (
+    id: string,
+    over: Partial<ChronoState & { durationMs: number; rang: boolean }>,
+  ) => ({
+    id,
+    durationMs: 60_000,
+    rang: false,
+    ...running(),
+    ...over,
+  })
+
+  it('is the moment the countdown that ends first reaches zero', () => {
+    const timers = [
+      entry('a', { durationMs: 300_000 }),
+      // Forty seconds were banked by an earlier run: twenty are left of this one.
+      entry('b', { accumulatedMs: 40_000 }),
+    ]
+    expect(nextLanding(timers)).toBe(T0 + 20_000)
+  })
+
+  it('waits for nothing that is stopped or has already rung', () => {
+    expect(nextLanding([entry('a', { running: false, startedAt: 0 })])).toBeNull()
+    expect(nextLanding([entry('a', { rang: true })])).toBeNull()
+    expect(nextLanding([])).toBeNull()
   })
 })
 

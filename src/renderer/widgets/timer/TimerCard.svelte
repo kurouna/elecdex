@@ -220,6 +220,7 @@ function setCustom(): void {
 
 .ladder.pulse {
   animation: ladder-pulse 1s steps(2, end) infinite;
+  animation-play-state: var(--ambient-play-state);
 }
 
 @keyframes ladder-pulse {

@@ -190,6 +190,19 @@ export const clampDuration = (ms: number): number =>
   Math.min(TIMER_MAX_MS, Math.max(1000, Math.round(ms)))
 
 /**
+ * The moment the next countdown reaches zero, or null when none is on its way
+ * there. What the pane waits for on a timer of its own: the frame loop shows a
+ * countdown running down, but stops with the window out of sight, and a
+ * countdown has to land whether anyone is looking or not.
+ */
+export function nextLanding(timers: readonly TimerEntry[]): number | null {
+  const ends = timers
+    .filter((timer) => timer.running && !timer.rang)
+    .map((timer) => timer.startedAt + timer.durationMs - timer.accumulatedMs)
+  return ends.length === 0 ? null : Math.min(...ends)
+}
+
+/**
  * Reads the pane state, including the shape it had when the two modes shared one
  * clock: that pane's run becomes the stopwatch, and its duration the first
  * countdown, so a pane saved by the older build opens with its settings intact.

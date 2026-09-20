@@ -502,6 +502,33 @@ test('a major tsunami warning powers on like every card, then breathes', async (
   }
 })
 
+test('a major tsunami warning breathes as the motion setting says, whatever the OS says', async () => {
+  // It asked the OS alone: still with motion reduced there though the app said
+  // full, and breathing on with motion reduced in the app.
+  const cases = [
+    { motion: 'reduced', os: 'no-preference', breathes: false },
+    { motion: 'full', os: 'reduce', breathes: true },
+  ] as const
+  for (const { motion, os, breathes } of cases) {
+    served[JMA_TSUNAMI] = tsunamiListing('major_VTSE41_0.json')
+    served['/bosai/tsunami/data/major_VTSE41_0.json'] = tsunamiReport([['宮城県', '52', '10']])
+    const { page, close } = await launch(undefined, {
+      layout: single('clock'),
+      settings: { ...japan({ notify: true, minIntensity: '7' }), motion },
+      ...services(),
+      args: ['--lang=ja'],
+    })
+    try {
+      await page.emulateMedia({ reducedMotion: os })
+      const card = page.getByTestId('tsunami-alert')
+      await expect(card).toHaveAttribute('data-level', 'major', { timeout: 20_000 })
+      await expect(card).toHaveCSS('animation-name', breathes ? /breathe$/ : 'none')
+    } finally {
+      await close()
+    }
+  }
+})
+
 test('the world source lists the USGS by magnitude, with a NOAA tsunami warning in the pane and the alerts', async () => {
   const now = Date.now()
   served[USGS_FEED] = JSON.stringify({

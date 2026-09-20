@@ -165,6 +165,14 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   keeps painting a window that has been put away: the frame loop marks the page `data-offscreen`
   and tokens.css takes `--motion-scale` to zero there. A hidden or minimised window is not
   reported hidden to such a page, so main sends `WindowState.hidden` and the loop stops drawing.
+  - An `infinite` animation has no length to scale: it takes
+    `animation-play-state: var(--ambient-play-state)` after its `animation` shorthand, in every
+    rule that sets the shorthand (which resets it).
+  - The loop only draws. Anything that must happen at a moment whether or not the window is on
+    screen (a countdown landing) waits on its own `setTimeout`, never on a frame.
+  - No `will-change`, and no fill that outlasts an animation (`forwards`, `both`) on what stays in
+    the page: either keeps a GPU layer for good. `crt-on` is left on dialogs, toasts and the
+    notes' sheet, so styles/crt.css holds to this too.
 - Weigh a new animation by the area it repaints — the clock's rolling digits cost ~4% of one core
   on the default layout, measured.
 - Other timed screen updates wake on wall-clock boundaries with a `setTimeout` chain on

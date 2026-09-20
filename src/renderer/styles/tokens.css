@@ -97,6 +97,11 @@
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   /* Scales the length and delay of entrance effects: 0 with motion reduced. */
   --motion-scale: 1;
+  /* The play state of an animation that never ends (a pulse, a busy icon): it has
+     no length for --motion-scale to take to nothing, so it is paused instead while
+     the window is out of sight. Every `infinite` animation takes this, after its
+     `animation` shorthand, which would otherwise reset it. */
+  --ambient-play-state: running;
 
   /* ---------- semantic: HUD geometry ---------- */
   --frame-notch: 0.75rem;
@@ -146,4 +151,5 @@
   --dur-base: 1ms;
   --dur-panel: 1ms;
   --motion-scale: 0;
+  --ambient-play-state: paused;
 }

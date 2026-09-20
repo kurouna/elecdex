@@ -45,12 +45,15 @@ svg {
   stroke-linejoin: round;
 }
 
-/* A CSS animation runs on the compositor, and only while the plugin says it is busy. */
+/* A CSS animation runs on the compositor, and only while the plugin says it is busy -
+   and the window is on screen: each takes the play state of tokens.css after its shorthand. */
 .turn {
   animation: turn 0.9s linear infinite;
+  animation-play-state: var(--ambient-play-state);
 }
 .pulse {
   animation: pulse 1.2s ease-in-out infinite;
+  animation-play-state: var(--ambient-play-state);
 }
 @keyframes turn {
   to {
@@ -67,10 +70,12 @@ svg {
 @media (prefers-reduced-motion: reduce) {
   :global(:root:not([data-motion='full'])) .turn {
     animation: pulse 1.2s ease-in-out infinite;
+    animation-play-state: var(--ambient-play-state);
   }
 }
 :global(:root[data-motion='reduced']) .turn {
   animation: pulse 1.2s ease-in-out infinite;
+  animation-play-state: var(--ambient-play-state);
 }
 
 svg[data-icon='play'],

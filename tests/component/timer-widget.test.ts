@@ -256,6 +256,49 @@ describe('TimerWidget', () => {
     expect(toasts.items).toHaveLength(1)
   })
 
+  it('lands a countdown while the window is put away, when no frame is drawn', async () => {
+    // The frame loop stops for a window in the notification area or minimised,
+    // and the countdown was only ever looked at from the loop: it rang when the
+    // window came back, however long after.
+    const loop = await import('../../src/renderer/lib/frame-loop.ts')
+    const view = render(TimerWidget, {
+      props: {
+        paneId: 'p',
+        state: {
+          mode: 'timer',
+          timers: [
+            {
+              id: 'a',
+              durationMs: 60_000,
+              running: false,
+              startedAt: 0,
+              accumulatedMs: 0,
+              rang: false,
+            },
+          ],
+        },
+      } as never,
+    })
+    await settle()
+    await fireEvent.click(screen.getByTestId('timer-start'))
+    await apply(view)
+
+    loop.setWindowHidden(true)
+    try {
+      vi.advanceTimersByTime(59_000)
+      await settle()
+      expect(toasts.items).toHaveLength(0)
+
+      vi.advanceTimersByTime(1500)
+      await settle()
+      await apply(view)
+      expect(toasts.items).toHaveLength(1)
+      expect(timersOf(state)[0]).toMatchObject({ running: false, rang: true })
+    } finally {
+      loop.setWindowHidden(false)
+    }
+  })
+
   it('takes a duration through the calculator', async () => {
     render(TimerWidget, { props: { paneId: 'p', state: { mode: 'timer' } } as never })
     await settle()

@@ -43,7 +43,7 @@ export function crtPower(node: HTMLElement): TransitionConfig {
     duration: POWER_OFF_MS,
     css: (_t, u) => powerOffStyle(u, base),
     // A cancelled close has played back to the whole picture: the beam is spent, and
-    // its class would otherwise hold a GPU layer (will-change) for as long as it shows.
+    // its class goes with it, leaving the element as it was before the close.
     tick: (t) => {
       if (t >= 1 && !node.inert) node.classList.remove('crt-beam')
     },

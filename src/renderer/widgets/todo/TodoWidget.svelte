@@ -1006,6 +1006,7 @@ $effect(() => {
    move on its own, and only while something really is late. */
 .row.late .when {
   animation: late-pulse 1s steps(2, end) infinite;
+  animation-play-state: var(--ambient-play-state);
 }
 
 @keyframes late-pulse {

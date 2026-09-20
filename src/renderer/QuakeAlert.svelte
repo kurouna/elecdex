@@ -363,6 +363,8 @@ function height(value: string | null): string {
   animation:
     crt-power-on var(--crt-duration) linear backwards,
     breathe 1.6s ease-in-out var(--crt-duration) infinite;
+  /* The breathing never ends, so it stops while the window is out of sight (tokens.css). */
+  animation-play-state: running, var(--ambient-play-state);
 }
 
 @keyframes breathe {
@@ -371,10 +373,15 @@ function height(value: string | null): string {
   }
 }
 
+/* Still with motion reduced - by the in-app setting, or by the OS unless the setting
+   says full. It asked the OS alone at first, and so went against the setting both ways. */
 @media (prefers-reduced-motion: reduce) {
-  .alert.major {
+  :global(:root:not([data-motion='full'])) .alert.major {
     animation: none;
   }
+}
+:global(:root[data-motion='reduced']) .alert.major {
+  animation: none;
 }
 
 button {

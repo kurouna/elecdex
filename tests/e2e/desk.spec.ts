@@ -327,6 +327,27 @@ test('a countdown reaching zero stops itself and says so once', async () => {
   }
 })
 
+test('a countdown lands while the window is minimised, not when it comes back', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: single('timer', { mode: 'timer', durationMs: 3000 }),
+  })
+  try {
+    await page.getByTestId('timer-start').click()
+    // Minimised, the page draws no frames (lib/frame-loop.ts) - and the countdown
+    // was only looked at from a frame, so it rang when the window was next shown.
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((win) => win.isVisible())
+        ?.minimize(),
+    )
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    await expect(page.getByTestId('toast')).toHaveCount(1, { timeout: 15_000 })
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
 test('a task is renamed and given a deadline where it is read', async () => {
   const { page, close } = await launch(undefined, { layout: single('todo') })
   try {

@@ -105,6 +105,187 @@ test('a pane added from the picker powers on once', async () => {
 const paneNode = (id: string, widget: string) => ({ kind: 'pane', id, widget })
 const byId = (page: Page, id: string) => page.locator(`[data-testid=pane][data-pane-id="${id}"]`)
 
+/** Starts counting the power-ons panes play, by widget, from here on. */
+const recordPowerOns = (page: Page) =>
+  page.evaluate(() => {
+    const played: string[] = []
+    ;(window as unknown as { powerOns: string[] }).powerOns = played
+    document.addEventListener(
+      'animationstart',
+      (event) => {
+        const el = event.target as HTMLElement
+        if (event.animationName === 'crt-power-on' && el.dataset.testid === 'pane')
+          played.push(el.dataset.widget ?? '')
+      },
+      true,
+    )
+  })
+
+const powerOns = (page: Page) =>
+  page.evaluate(() => (window as unknown as { powerOns: string[] }).powerOns)
+
+test('a new tab put behind another before it has powered on does not power on again when shown', async () => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [paneNode('a', 'calendar'), paneNode('b', 'sysinfo')],
+    },
+  }
+  const { page, close } = await launch(undefined, { layout })
+  try {
+    await expect(page.getByTestId('tab')).toHaveCount(2)
+    await recordPowerOns(page)
+    // Two new tabs within the first one's power-on: it is display:none before it
+    // has played, which cancels the animation without an event to say so.
+    await page.evaluate(async () => {
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      document.querySelector<HTMLElement>('[data-testid=tab-new]')?.click()
+      await frame()
+      await frame()
+      document.querySelector<HTMLElement>('[data-testid=tab-new]')?.click()
+    })
+    await expect(page.getByTestId('tab')).toHaveCount(4)
+    await expect(page.locator('[data-testid=pane].crt-on')).toHaveCount(0, { timeout: 3000 })
+    // One or two by now: the first tab may be hidden before its animation has started.
+    const played = await powerOns(page)
+    expect(played.length).toBeGreaterThanOrEqual(1)
+
+    await page.getByTestId('tab').nth(2).click()
+    await page.waitForTimeout(700)
+    expect(await powerOns(page)).toEqual(played)
+  } finally {
+    await close()
+  }
+})
+
+test('a new pane brought forward before it has powered on does not power on again in front', async () => {
+  const { page, close } = await launch(undefined, { layout: calendarOnly })
+  try {
+    await recordPowerOns(page)
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=notes]').click()
+    // Within the power-on: the flight replaces its animation, so it never ends.
+    await page.evaluate(async () => {
+      const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      for (let i = 0; i < 6; i++) await frame()
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          bubbles: true,
+          key: 'Z',
+          code: 'KeyZ',
+          ctrlKey: true,
+          shiftKey: true,
+        }),
+      )
+    })
+    await expect(page.locator('[data-testid=pane].zoomed')).toHaveCount(1)
+    await page.waitForTimeout(1200)
+    expect(await powerOns(page)).toEqual(['notes'])
+    await expect(page.locator('[data-testid=pane].zoomed')).not.toHaveClass(/crt-on/)
+  } finally {
+    await close()
+  }
+})
+
+/** What an element goes on asking of the compositor: its `will-change`, and animations still in effect. */
+const heldBy = (page: Page, selector: string) =>
+  page.locator(selector).evaluate((el) => ({
+    willChange: getComputedStyle(el).willChange,
+    animations: el.getAnimations({ subtree: true }).map((animation) => {
+      const effect = animation.effect as KeyframeEffect | null
+      return `${(animation as CSSAnimation).animationName}${effect?.pseudoElement ?? ''}`
+    }),
+  }))
+
+test('what keeps its power-on class holds nothing once it has played: a note, a toast', async () => {
+  // A pane loses the class when it has powered on; a note's sheet, a toast, a
+  // dialog keep it for as long as they show. The class asked for a layer
+  // (will-change) and its beam and scanlines filled forwards, so each kept three
+  // layers for good - a note's for as long as the pane was open.
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [
+        paneNode('n', 'notes'),
+        { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 1000 } },
+      ],
+    },
+  }
+  const { page, close } = await launch(undefined, {
+    layout,
+    settings: { sound: { enabled: false }, motion: 'full' },
+  })
+  try {
+    const sheet = '[data-widget=notes] .body.crt-on'
+    await expect(page.locator(sheet)).toHaveCount(1)
+    await expect
+      .poll(() => heldBy(page, sheet), { timeout: 5000 })
+      .toEqual({
+        willChange: 'auto',
+        animations: [],
+      })
+
+    await page.getByTestId('timer-start').click()
+    await expect(page.getByTestId('toast')).toHaveCount(1, { timeout: 15_000 })
+    // The fuse burning down the card's edge is the toast's own, and still running.
+    await expect
+      .poll(async () => {
+        const held = await heldBy(page, '[data-testid=toast]')
+        return { ...held, animations: held.animations.filter((name) => !/burn/.test(name)) }
+      })
+      .toEqual({ willChange: 'auto', animations: [] })
+  } finally {
+    await close()
+  }
+})
+
+test('an animation that never ends stops while the window is put away', async () => {
+  const layout = {
+    version: 1,
+    root: { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 9000 } },
+  }
+  const { app, page, close } = await launch(undefined, { layout })
+  try {
+    await page.getByTestId('timer-start').click()
+    // Under ten seconds the ladder pulses, for as long as the countdown runs.
+    const endless = () =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation.effect?.getComputedTiming().iterations === Number.POSITIVE_INFINITY,
+          )
+          .map((animation) => animation.playState),
+      )
+    await expect.poll(endless).toEqual(['running'])
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((win) => win.isVisible())
+        ?.minimize(),
+    )
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    expect(await endless()).toEqual(['paused'])
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((win) => win.isMinimized())
+        ?.restore(),
+    )
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(0)
+    // Going again - unless the countdown has landed meanwhile, on a slow machine.
+    expect((await endless()).every((state) => state === 'running')).toBe(true)
+  } finally {
+    await close()
+  }
+})
+
 interface Effects {
   /** Each effect class a pane was given, as "id:class". */
   seen: Set<string>

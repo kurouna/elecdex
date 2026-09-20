@@ -75,9 +75,13 @@ const zoomable = $derived(zoomModeOf(node.widget) !== null)
 const behindZoom = $derived(layout.zoomedPaneId !== null && !zoomed)
 /** Uncovering the room a closed pane left; a tab's group does it for a tabbed pane. */
 const extend = $derived(tabbed ? undefined : layout.extending.get(node.id))
-// Either replaces a power-on still playing, whose end would then never be seen.
+// Each of these cuts short a power-on still playing, whose end is then never seen:
+// a close or an extension replaces its animation, as the flight of a pane brought
+// forward does, and a tab put behind another is display:none, which cancels it
+// without an event to say so. Left set, the power-on played again - when the tab
+// was next shown, or in front of everything as the flight landed.
 $effect(() => {
-  if (closing || extend !== undefined) poweringOn = false
+  if (closing || extend !== undefined || pinned || !visible) poweringOn = false
 })
 const crtOn = $derived(!closing && extend === undefined && (revealDelay !== null || poweringOn))
 /** Drawn scaled or clipped rather than at its place; a tab's group clips it as a whole. */

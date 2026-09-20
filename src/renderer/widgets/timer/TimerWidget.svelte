@@ -9,6 +9,7 @@ import {
   lapExtremes,
   MAX_TIMERS,
   makeTimer,
+  nextLanding,
   readChrono,
   remaining,
   splitDuration,
@@ -69,6 +70,31 @@ $effect(() => {
   return onFrame(() => {
     now = Date.now()
   })
+})
+
+/**
+ * A countdown lands on a timer of its own, for the moment it reaches zero. The
+ * loop above only draws: it stops while the window is in the notification area
+ * or minimised (lib/frame-loop.ts), and a countdown looked at from there alone
+ * rang when the window came back, however long after it had run out.
+ */
+const landing = $derived(nextLanding(timers))
+
+$effect(() => {
+  if (landing === null) return
+  let timer: ReturnType<typeof setTimeout>
+  const wait = (): void => {
+    timer = setTimeout(
+      () => {
+        // A timer runs on another clock than the one the countdown is read from.
+        if (Date.now() < landing) wait()
+        else now = Date.now()
+      },
+      Math.max(0, landing - Date.now()),
+    )
+  }
+  wait()
+  return () => clearTimeout(timer)
 })
 
 // A stopped chrono still has to be right when the pane is mounted or shown again.
