@@ -34,6 +34,15 @@ const { value, segments, direction = 'up', tone = 'accent', flash = null, testid
 let canvas = $state<HTMLCanvasElement | null>(null)
 let size = $state({ width: 0, height: 0, ratio: 1 })
 
+/**
+ * How many segments are lit: all the picture takes from `value`. A countdown's
+ * value moves every frame and this only once in many, so the drawing below reads
+ * this and not the value - it was drawn ten times a second for a picture that
+ * had not changed.
+ */
+const count = $derived(Math.max(1, segments))
+const alive = $derived(Math.min(count, Math.ceil(Math.max(0, Math.min(1, value)) * count)))
+
 $effect(() => {
   const el = canvas
   if (el === null) return
@@ -78,13 +87,11 @@ $effect(() => {
   const vertical = direction === 'up'
   const span = vertical ? height : width
   const thickness = vertical ? width : height
-  const count = Math.max(1, segments)
   // A gap of a fifth of the pitch, and never less than a whole pixel: below that
   // the gaps disappear into antialiasing and the ladder becomes a bar again.
   const pitch = span / count
   const gap = Math.max(1, Math.min(3, pitch * 0.2))
   const length = Math.max(1, pitch - gap)
-  const alive = Math.min(count, Math.ceil(Math.max(0, Math.min(1, value)) * count))
 
   for (let i = 0; i < count; i += 1) {
     const paint = paintOf(i, alive, flash)

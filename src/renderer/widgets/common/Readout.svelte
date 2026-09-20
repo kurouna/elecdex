@@ -11,6 +11,13 @@
  * (`{#key}`), so nothing is scheduled in JavaScript and an unchanged digit is
  * not touched at all. With motion reduced the animation has no duration and the
  * digit simply appears.
+ *
+ * The tail does not roll. It is for tenths, which change twice in the length of
+ * a roll: the digit never landed, so it was never sharp, and with an animation
+ * always running the compositor drew at the display's rate for as long as the
+ * stopwatch ran. Measured with the stopwatch on its own: 33% of one core with
+ * the tail rolling, 11% without. The tenths change where they stand, ten times a
+ * second, which is what reads as a spin.
  */
 
 interface Props {
@@ -55,11 +62,7 @@ const cells = $derived([...value])
   {#if tail !== undefined}
     <span class="tail">
       {#each [...tail] as cell, i (i)}
-        {#if /\d/.test(cell)}
-          {#key cell}<span class="digit">{cell}</span>{/key}
-        {:else}
-          <span class="fixed">{cell}</span>
-        {/if}
+        <span class={/\d/.test(cell) ? 'still' : 'fixed'}>{cell}</span>
       {/each}
     </span>
   {/if}
@@ -92,6 +95,7 @@ const cells = $derived([...value])
 .readout.ok { color: var(--ok); }
 
 .digit,
+.still,
 .fixed {
   display: inline-block;
   /* A fixed advance keeps the row still while a digit rolls through it. */
