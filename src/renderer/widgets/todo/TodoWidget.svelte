@@ -9,6 +9,7 @@ import {
   urgency,
 } from '@shared/tasks'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -89,6 +90,10 @@ const soonest = $derived.by(() => {
 })
 
 const fine = $derived(soonest !== null && soonest - now < 86_400_000)
+
+/** Something is late: its row pulses, and only then is the beat asked for. */
+const anyLate = $derived(soonest !== null && soonest < now)
+$effect(() => (anyLate ? pulse.use() : undefined))
 
 $effect(() =>
   onBoundary(fine ? 1000 : 60_000, () => {
@@ -325,7 +330,7 @@ $effect(() => {
 })
 </script>
 
-<div class="todo" data-testid="todo">
+<div class="todo" data-testid="todo" data-pulse={anyLate ? pulse.phase : undefined}>
   <SettingsButton
     open={settingsOpen}
     label="tasks settings"
@@ -996,15 +1001,15 @@ $effect(() => {
 }
 
 /* An overdue row breathes once a second - the one thing in the pane allowed to
-   move on its own, and only while something really is late. */
-.row.late .when {
-  animation: late-pulse 1s steps(2, end) infinite;
-  animation-play-state: var(--ambient-play-state);
+   move on its own, and only while something really is late: full, part, low,
+   part, a step each quarter second, on the shared beat (lib/pulse.svelte.ts). */
+.todo[data-pulse='1'] .row.late .when,
+.todo[data-pulse='3'] .row.late .when {
+  opacity: 0.725;
 }
 
-@keyframes late-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+.todo[data-pulse='2'] .row.late .when {
+  opacity: 0.45;
 }
 
 /* Completion: the row is struck through left to right, then collapses. */

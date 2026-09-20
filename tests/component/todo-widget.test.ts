@@ -300,4 +300,24 @@ describe('TodoWidget', () => {
     await settle()
     expect(update).toHaveBeenCalledWith('t1', { done: true })
   })
+
+  it('pulses a late task on the shared beat, and asks for no beat when nothing is late', async () => {
+    file.tasks = [task({ id: 'late', title: 'overdue', due: NOW - 3_600_000 })]
+    await mount()
+    const pane = screen.getByTestId('todo')
+    expect(pane.querySelector('.row.late')).not.toBeNull()
+    const phases: Array<string | undefined> = []
+    for (let step = 0; step < 4; step++) {
+      vi.advanceTimersByTime(250)
+      flushSync()
+      phases.push(pane.dataset.pulse)
+    }
+    expect(new Set(phases)).toEqual(new Set(['0', '1', '2', '3']))
+
+    // Done with: nothing is late, and the pane stops asking.
+    changed?.({ ...file, tasks: [] })
+    await settle()
+    expect(pane.querySelector('.row.late')).toBeNull()
+    expect(pane.dataset.pulse).toBeUndefined()
+  })
 })

@@ -280,14 +280,22 @@ test('a clock stands still while the window is minimised, and is right the momen
 })
 
 test('an animation that never ends stops while the window is put away', async () => {
-  const layout = {
-    version: 1,
-    root: { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 9000 } },
-  }
-  const { app, page, close } = await launch(undefined, { layout })
+  // A plugin's busy icons: they turn and pulse for as long as the plugin says so.
+  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
+  mkdirSync(path.join(dir, 'plugins'))
+  writeFileSync(path.join(dir, 'plugins', 'busy.js'), BUSY_PLUGIN)
+  writeFileSync(
+    path.join(dir, 'settings.json'),
+    JSON.stringify({
+      sound: { enabled: false },
+      plugins: { busy: { enabled: true, key: 'busy.js' } },
+    }),
+  )
+  const { app, page, close } = await launch(dir, {
+    layout: { version: 1, root: paneNode('p1', 'plugin:busy') },
+  })
   try {
-    await page.getByTestId('timer-start').click()
-    // Under ten seconds the ladder pulses, for as long as the countdown runs.
+    await expect(page.locator('[data-testid=plugin-button] svg[data-icon=refresh]')).toBeVisible()
     const endless = () =>
       page.evaluate(() =>
         document
@@ -298,22 +306,50 @@ test('an animation that never ends stops while the window is put away', async ()
           )
           .map((animation) => animation.playState),
       )
-    await expect.poll(endless).toEqual(['running'])
+    await expect.poll(endless).toEqual(['running', 'running'])
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
         .find((win) => win.isVisible())
         ?.minimize(),
     )
     await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
-    expect(await endless()).toEqual(['paused'])
+    expect(await endless()).toEqual(['paused', 'paused'])
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows()
         .find((win) => win.isMinimized())
         ?.restore(),
     )
     await expect(page.locator(':root[data-offscreen]')).toHaveCount(0)
-    // Going again - unless the countdown has landed meanwhile, on a slow machine.
-    expect((await endless()).every((state) => state === 'running')).toBe(true)
+    expect(await endless()).toEqual(['running', 'running'])
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})
+
+test("a countdown's last seconds pulse its ladder without an animation that never ends", async () => {
+  const layout = {
+    version: 1,
+    root: { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 9000 } },
+  }
+  const { page, close } = await launch(undefined, { layout })
+  try {
+    await page.getByTestId('timer-start').click()
+    // Under ten seconds the ladder pulses: the steps it always had, on the shared beat.
+    const seen = await page.evaluate(async () => {
+      const ladder = document.querySelector('.ladder') as HTMLElement
+      const levels = new Set<string>()
+      for (let i = 0; i < 14; i++) {
+        levels.add(getComputedStyle(ladder).opacity)
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      const endless = document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations === Number.POSITIVE_INFINITY)
+      return { levels: [...levels].sort(), endless: endless.length }
+    })
+    expect(seen.endless).toBe(0)
+    expect(seen.levels).toEqual(['0.55', '0.775', '1'])
   } finally {
     await close()
   }

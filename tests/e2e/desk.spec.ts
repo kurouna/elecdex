@@ -327,6 +327,55 @@ test('a countdown reaching zero stops itself and says so once', async () => {
   }
 })
 
+test('a late task pulses without an animation that never ends', async () => {
+  const now = Date.now()
+  const tasks = {
+    version: 1,
+    lists: [{ id: 'tasks', name: 'tasks' }],
+    tasks: [
+      {
+        id: 'late',
+        listId: 'tasks',
+        title: 'overdue',
+        due: now - 3_600_000,
+        allDay: false,
+        repeat: 'none',
+        done: false,
+        order: 0,
+        createdAt: now,
+        updatedAt: now,
+        remindedAt: now - 3_600_000,
+      },
+    ],
+  }
+  const { page, close, userData } = await launch(undefined, { layout: single('todo') })
+  try {
+    const { writeFileSync } = await import('node:fs')
+    writeFileSync(path.join(userData, 'tasks.json'), JSON.stringify(tasks))
+    const when = page.locator('.row.late [data-testid=todo-when]')
+    await expect(when).toHaveCount(1, { timeout: 10_000 })
+
+    // It was a CSS animation that never ended, the compositor's for as long as
+    // the task stayed late. The pulse is the same steps, on the shared wall-clock beat.
+    const seen = await page.evaluate(async () => {
+      const el = document.querySelector('.row.late [data-testid=todo-when]') as HTMLElement
+      const levels = new Set<string>()
+      for (let i = 0; i < 14; i++) {
+        levels.add(getComputedStyle(el).opacity)
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+      const endless = document
+        .getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations === Number.POSITIVE_INFINITY)
+      return { levels: [...levels].sort(), endless: endless.length }
+    })
+    expect(seen.endless).toBe(0)
+    expect(seen.levels).toEqual(['0.45', '0.725', '1'])
+  } finally {
+    await close()
+  }
+})
+
 test('a countdown lands while the window is minimised, not when it comes back', async () => {
   const { app, page, close } = await launch(undefined, {
     layout: single('timer', { mode: 'timer', durationMs: 3000 }),

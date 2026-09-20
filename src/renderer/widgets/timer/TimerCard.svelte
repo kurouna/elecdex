@@ -7,6 +7,7 @@ import {
   TIMER_STEPS,
   type TimerEntry,
 } from '@shared/timer'
+import { pulse } from '../../lib/pulse.svelte.ts'
 import Readout from '../common/Readout.svelte'
 import SegmentMeter from '../common/SegmentMeter.svelte'
 
@@ -51,6 +52,9 @@ const critical = $derived(timer.running && ms <= 3000)
 const tone = $derived<'accent' | 'warn' | 'danger' | 'ok'>(
   spent ? 'ok' : critical ? 'danger' : urgent ? 'warn' : 'accent',
 )
+
+// The ladder pulses through the last ten seconds, on the shared beat (lib/pulse.svelte.ts).
+$effect(() => (urgent ? pulse.use() : undefined))
 
 const minutes = $derived(Math.round(timer.durationMs / 60_000))
 
@@ -97,7 +101,7 @@ function setCustom(): void {
   data-timer={timer.id}
   data-running={timer.running || undefined}
 >
-  <div class="ladder" bind:this={ladder} class:pulse={urgent}>
+  <div class="ladder" bind:this={ladder} data-pulse={urgent ? pulse.phase : undefined}>
     <SegmentMeter
       value={left}
       {segments}
@@ -218,19 +222,14 @@ function setCustom(): void {
   min-height: 3rem;
 }
 
-.ladder.pulse {
-  animation: ladder-pulse 1s steps(2, end) infinite;
-  animation-play-state: var(--ambient-play-state);
+/* The last ten seconds: full, part, low, part, a step each quarter second. */
+.ladder[data-pulse='1'],
+.ladder[data-pulse='3'] {
+  opacity: 0.775;
 }
 
-@keyframes ladder-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.55;
-  }
+.ladder[data-pulse='2'] {
+  opacity: 0.55;
 }
 
 .face {
