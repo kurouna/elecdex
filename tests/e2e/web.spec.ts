@@ -383,13 +383,13 @@ test.describe('web panes', () => {
     const app = await start()
     const { page } = app
     /**
-     * What the page and the window each make of fullscreen, and whether anyone
-     * can see the view.
+     * What the page and the window each make of fullscreen, whether anyone can
+     * see the view, and which fullscreen events main has heard.
      *
-     * Reported together because they fail apart: a page still in fullscreen over
-     * a window that is not means main never heard `enter-html-full-screen` for a
-     * view it had already put away (src/main/web/views.ts), so it never asked the
-     * page to leave - which reads nothing like a page that was asked and refused.
+     * Reported together because they fail apart: a page still in fullscreen with
+     * no `enter` in the log means main was never told the page had asked - it
+     * cannot have asked it to leave (src/main/web/views.ts) - which reads nothing
+     * like a page that was asked and stayed.
      */
     const fullscreen = async () => ({
       page: await inPage<boolean>(app, 'document.fullscreenElement !== null'),
@@ -397,9 +397,34 @@ test.describe('web panes', () => {
         ({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isFullScreen() ?? false,
       ),
       viewShown: (await views(app))[0]?.visible ?? false,
+      heard: await app.app.evaluate(
+        () => (globalThis as { __fullscreenHeard?: string[] }).__fullscreenHeard ?? null,
+      ),
     })
+    /** The page's fullscreen events as main hears them, for {@link fullscreen}. */
+    const listenForFullscreen = () =>
+      app.app.evaluate(({ BrowserWindow }) => {
+        const view = BrowserWindow.getAllWindows()[0]?.contentView.children[0]
+        if (view === undefined || !('webContents' in view)) return
+        const heard: string[] = []
+        ;(globalThis as { __fullscreenHeard?: string[] }).__fullscreenHeard = heard
+        const contents = (view as Electron.WebContentsView).webContents
+        contents.on('enter-html-full-screen', () => heard.push('enter'))
+        contents.on('leave-html-full-screen', () => heard.push('leave'))
+      })
+    /** Waits for the page to be let out of fullscreen, and says what was true if it never is. */
+    const expectLeftFullscreen = async () => {
+      const left = await expect
+        .poll(async () => (await fullscreen()).page)
+        .toBe(false)
+        .then(() => true)
+        .catch(() => false)
+      if (!left) console.warn(`[e2e] still fullscreen: ${JSON.stringify(await fullscreen())}`)
+      expect(left, 'the page was not taken out of fullscreen').toBe(true)
+    }
     try {
       await expect(webPane(page).getByTestId('pane-subtitle')).toHaveText('YT home')
+      await listenForFullscreen()
       await inPage(app, 'document.body.requestFullscreen().then(() => 1)')
       await expect.poll(async () => (await views(app))[0]?.bounds).toEqual(await windowContent(app))
 
@@ -410,9 +435,7 @@ test.describe('web panes', () => {
       await page.keyboard.press('Control+Shift+Period')
       await expect(page.getByTestId('settings-dialog')).toBeVisible()
       await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
-      await expect
-        .poll(fullscreen, { message: 'the page was not taken out of fullscreen' })
-        .toMatchObject({ page: false })
+      await expectLeftFullscreen()
       await page.keyboard.press('Escape')
       await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
       await expectShownOverBody(app)
@@ -422,9 +445,7 @@ test.describe('web panes', () => {
       await expect(page.getByTestId('settings-dialog')).toBeVisible()
       await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
       await inPage(app, 'document.body.requestFullscreen().then(() => 1).catch(() => 0)')
-      await expect
-        .poll(fullscreen, { message: 'the page was not taken out of fullscreen' })
-        .toMatchObject({ page: false })
+      await expectLeftFullscreen()
       await page.keyboard.press('Escape')
       await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
       await expectShownOverBody(app)
@@ -438,9 +459,7 @@ test.describe('web panes', () => {
       await page.keyboard.press('Control+Shift+T')
       await expect(page.getByTestId('tabs-host')).toHaveCount(1)
       await expect.poll(async () => (await views(app))[0]?.visible).toBe(false)
-      await expect
-        .poll(fullscreen, { message: 'the page was not taken out of fullscreen' })
-        .toMatchObject({ page: false })
+      await expectLeftFullscreen()
       await page.getByTestId('tabs-host').getByTestId('tab').first().click()
       await expectShownOverBody(app)
     } finally {
@@ -502,8 +521,11 @@ test.describe('web panes', () => {
       // view back where the pane last told it, and while the page was fullscreen the
       // window itself was too (this spec runs windowed), so that rectangle is the pane's
       // in the larger window. The pane measures again and sends its own as it comes back.
-      expect(Math.abs(shape - pane)).toBeLessThan(Math.abs(shape - window))
-      expect(Math.abs(shape - window)).toBeGreaterThan(0.3)
+      const figures = `picture ${shape.toFixed(3)}, pane ${pane.toFixed(3)}, window ${window.toFixed(3)}`
+      // The two shapes have to be far enough apart for the comparison to mean
+      // anything: in a window no wider than a pane there is nothing to tell apart.
+      expect(Math.abs(pane - window), `${figures}: too alike to tell apart`).toBeGreaterThan(0.3)
+      expect(Math.abs(shape - pane), figures).toBeLessThan(Math.abs(shape - window))
     } finally {
       await app.close()
     }

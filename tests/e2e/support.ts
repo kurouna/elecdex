@@ -302,6 +302,29 @@ export async function putWindowAway(app: ElectronApplication, page: Page): Promi
   ).toHaveCount(1)
 }
 
+/**
+ * Gives the page the 1920x1080 the default layout is designed for.
+ *
+ * A screen that cannot give the window that many pixels - a headless runner's is
+ * often far smaller - gets them as CSS pixels instead, by zooming out: the same
+ * layout in the same units. A pane measured in a window narrower than that is
+ * not the pane anyone designed, and what does not fit in it there says nothing
+ * about the widget.
+ */
+export async function atDesignSize(app: ElectronApplication, page: Page): Promise<void> {
+  const factor = await app.evaluate(({ BrowserWindow }) => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (!win) return 0
+    win.setContentSize(1920, 1080)
+    const [width = 0, height = 0] = win.getContentSize()
+    const zoom = Math.min(1, width / 1920, height / 1080)
+    win.webContents.setZoomFactor(zoom)
+    return zoom
+  })
+  expect(factor, 'no window to size').toBeGreaterThan(0)
+  await expect.poll(() => page.evaluate(() => window.innerWidth)).toBeGreaterThanOrEqual(1900)
+}
+
 /** Brings the window back from {@link putWindowAway} and waits for the page to hear of it. */
 export async function bringWindowBack(app: ElectronApplication, page: Page): Promise<void> {
   await app.evaluate(({ BrowserWindow }) =>

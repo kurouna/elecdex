@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { expect, test } from '@playwright/test'
-import { launch } from './support.js'
+import { atDesignSize, launch } from './support.js'
 
 /**
  * The CPU bar view, the application launcher and the market board.
@@ -599,8 +599,14 @@ test.describe('markets', () => {
 
   test("the bar view's zero stands on the rows' axis, and the rows sort by the change", async () => {
     // The default pane's list scrolls: a scale as wide as the pane once stood beside the axis.
-    const { page, close } = await launch(undefined, { env: { ELECDEX_MARKETS_STUB_URL: stubUrl } })
+    const { app, page, close } = await launch(undefined, {
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
     try {
+      // In the window the default layout is designed for: narrower than that, the
+      // scale's own labels are wider than the column they share with the bars, and
+      // what they overflow into is the widget's problem, not the axis's.
+      await atDesignSize(app, page)
       const pane = page.locator('[data-testid=pane][data-widget=markets]')
       await pane.getByTestId('markets-view').locator('[data-view=bars]').click()
       await expect(pane.getByTestId('market-bar').first()).toHaveAttribute('data-pct', '1.25', {
