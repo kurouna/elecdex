@@ -57,6 +57,17 @@ function add(): void {
 async function remove(id: string): Promise<void> {
   await window.elecdex.ai.removeKey(id)
   write(providers.filter((p) => p.id !== id))
+  // The next provider from the same preset gets the same id: it must not inherit this one's
+  // test result, model list or half-typed key.
+  tested = without(tested, id)
+  modelsOf = without(modelsOf, id)
+  typed = without(typed, id)
+  refused = without(refused, id)
+}
+
+function without<T>(record: Record<string, T>, id: string): Record<string, T> {
+  const { [id]: _gone, ...rest } = record
+  return rest
 }
 
 /** What was typed into each provider's key field; cleared the moment it is handed over. */
@@ -88,8 +99,7 @@ async function test(provider: AiProvider): Promise<void> {
   // A key typed and not yet handed over is what the user means to test with.
   await saveKey(provider.id)
   // The answer before this one goes first: the same words twice would look like no answer.
-  const { [provider.id]: _before, ...others } = tested
-  tested = others
+  tested = without(tested, provider.id)
   const result = await window.elecdex.ai.models(provider.id)
   testing = null
   modelsOf = { ...modelsOf, [provider.id]: result.models }
@@ -266,19 +276,26 @@ function addressProblem(provider: AiProvider): string | null {
       >
         save key
       </button>
-      {#if held !== null}
-        <button type="button" class="link" onclick={() => void window.elecdex.ai.removeKey(provider.id)} data-testid="ai-key-remove">
-          forget key
-        </button>
-      {/if}
+      <!-- Always there, like the line under it: a key is kept on leaving its field, which a press
+           on "test" does - and a button that moves between the press and the release is not clicked. -->
+      <button
+        type="button"
+        class="link"
+        disabled={held === null}
+        onclick={() => void window.elecdex.ai.removeKey(provider.id)}
+        data-testid="ai-key-remove"
+      >
+        forget key
+      </button>
     </div>
     {#if refused[provider.id]}
       <p class="note problem" data-testid="ai-key-refused">
         that key was not kept - a key is up to {AI_LIMITS.key} characters, with nothing else pasted along
       </p>
-    {/if}
-    {#if held !== null}
-      <p class="note" class:problem={held === 'session'} data-testid="ai-key-state">{KEY_WORDS[held]}</p>
+    {:else}
+      <p class="note" class:problem={held === 'session'} data-testid="ai-key-state">
+        {held === null ? 'no key held' : KEY_WORDS[held]}
+      </p>
     {/if}
     <div class="row end">
       {#if tested[provider.id]}

@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { createServer, type IncomingHttpHeaders, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
-import { expect, type Page, test } from '@playwright/test'
+import { expect, type Locator, type Page, test } from '@playwright/test'
 import { launch } from './support'
 
 /**
@@ -151,6 +151,20 @@ const withProviders = () => ({
   },
 })
 
+/**
+ * A press as a hand makes it: down, a moment, up. Playwright's own click is over before the page
+ * has reacted to the press, so it cannot see a button that moves away under the pointer.
+ */
+async function pressSlowly(page: Page, target: Locator): Promise<void> {
+  await target.scrollIntoViewIfNeeded()
+  const box = await target.boundingBox()
+  if (box === null) throw new Error('nothing to press')
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.waitForTimeout(250)
+  await page.mouse.up()
+}
+
 async function say(page: Page, text: string): Promise<void> {
   await pane(page).getByTestId('aichat-input').fill(text)
   await pane(page).getByTestId('aichat-input').press('Enter')
@@ -252,9 +266,18 @@ test('a key typed and not saved is the key "test" uses, and a hosted service ask
 
     // Typed, and straight to "test" - as every other field here is saved as you go.
     const local = page.locator('[data-testid=ai-provider][data-provider=local]')
+    // Pressed as a hand does. Leaving the field keeps the key while the button is still held down:
+    // once that made a line appear above the button, which moved from under the pointer and was
+    // never clicked - no result, and no sign of why.
     await local.getByTestId('ai-key').fill('sk-typed-only')
-    await local.getByTestId('ai-test').click()
+    // Where the button is within its provider: the dialog may scroll, the button must not move.
+    const within = async (): Promise<number> =>
+      ((await local.getByTestId('ai-test').boundingBox())?.y ?? 0) -
+      ((await local.boundingBox())?.y ?? 0)
+    const before = await within()
+    await pressSlowly(page, local.getByTestId('ai-test'))
     await expect(local.getByTestId('ai-test-result')).toHaveText('ok · 2 models')
+    expect(await within()).toBe(before)
     expect(seen.at(-1)?.headers.authorization).toBe('Bearer sk-typed-only')
     await expect(local.getByTestId('ai-key-state')).toContainText('key held')
     await expect(local.getByTestId('ai-key')).toHaveValue('')
@@ -265,6 +288,25 @@ test('a key typed and not saved is the key "test" uses, and a hosted service ask
     await claude.getByTestId('ai-key').press('Tab')
     await expect(claude.getByTestId('ai-key-state')).toContainText('key held')
     expect(await page.content()).not.toContain('sk-left-behind')
+
+    // A provider removed takes its result with it: the next one added gets the same id.
+    await local.getByTestId('ai-remove').click()
+    await local.getByTestId('ai-remove').click()
+    await expect(local).toHaveCount(0)
+    await page.getByTestId('ai-preset').selectOption('custom')
+    await page.getByTestId('ai-add').click()
+    const first = page.locator('[data-testid=ai-provider][data-provider=custom]')
+    await first.getByTestId('ai-address').fill(`${origin}/v1`)
+    await first.getByTestId('ai-address').press('Tab')
+    await first.getByTestId('ai-test').click()
+    await expect(first.getByTestId('ai-test-result')).toHaveText('ok · 2 models')
+    await first.getByTestId('ai-remove').click()
+    await first.getByTestId('ai-remove').click()
+    await expect(first).toHaveCount(0)
+    await page.getByTestId('ai-add').click()
+    await expect(first).toHaveCount(1)
+    await expect(first.getByTestId('ai-test-result')).toHaveCount(0)
+    await expect(first.getByTestId('ai-key-state')).toHaveText('no key held')
   } finally {
     await close()
   }
