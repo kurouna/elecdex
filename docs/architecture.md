@@ -2,6 +2,11 @@
 
 > eDEX-UI (GitSquared/edex-ui, v2.2.8, 2021年アーカイブ) の完全リライト。
 > 原版のコード・アセットは一切継承せず、同等以上の体験をモダンな技術スタックで再構築する。
+>
+> **この文書の読み方**: §1〜§13 は設計で、実装に合わせて更新している。§14 は最初の実装計画の記録で、
+> 当時のまま残してある。その後に加わった機能（天気・相場・RSS・地震・音声・プラグイン・Web ペイン・
+> 保存レイアウト・バックグラウンド常駐など）の判断は、理由と実測値つきで §16 にある。
+> 変えてはならない約束事の要約は [CLAUDE.md](../CLAUDE.md)。
 
 ---
 
@@ -17,7 +22,7 @@
 - オンスクリーンキーボード / タッチ端末対応
 - 内蔵ビューア（PDF / 画像 / 動画 / 音声）、ファジーファインダ
 - 原版テーマJSON・キーボードレイアウトJSONとの互換性
-- 外部プラグインの動的ロード（※レジストリ設計は将来のプラグイン化を見据える）
+- ~~外部プラグインの動的ロード~~ — v0.0.5 で実装した（[plugins.md](plugins.md)）。コマンド型のプラグインは見送り中
 
 ### ライセンス方針
 elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソース・アセット（テーマ、SFX wav、grid.json、vendored encom-globe.js）は、ライセンス上は利用可能になったが、設計を刷新するため持ち込まない方針は維持する。
@@ -36,7 +41,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 | シェル | Electron | 44.x | Chromium 最新系。`sandbox: true` + `contextIsolation: true` |
 | 言語 | TypeScript | **7.0.2**（native）+ 6.0.3（JS API） | `typescript@6.0.3` を JS Compiler API 用に、`@typescript/native@npm:typescript@7.0.2` をネイティブコンパイラとして併置。`svelte-check --tsgo` で Svelte も TS7 で型検査する（elecxzy と同じ TS7 運用）|
 | ビルド | electron-vite | 5.x (Vite 7.3.6) | main / preload / renderer の3ターゲット + HMR<br>**Vite 8 は採用不可**: Rolldown が Svelte 5.57 の内部 ESM をパースできずビルドが失敗する（実測済み）|
-| UI | Svelte | 5.x (runes) | VDOM なし。常駐60fps UI に最適 |
+| UI | Svelte | 5.x (runes) | VDOM なし。常駐する UI の更新コストが小さい（動きは共有の 10 fps フレームループに載せる。§16） |
 | スタイル | 素のCSS + CSS変数デザイントークン + Svelte scoped CSS | — | Tailwind 不採用（clip-path/SVG装飾主体のため） |
 | 端末 | `@xterm/xterm` | 6.x | addon: fit 0.11 / webgl 0.19 / unicode11 0.9 / search 0.16 / web-links 0.12 / serialize 0.14 / clipboard 0.2 |
 | PTY | `node-pty` | 1.1.x | main プロセスで spawn。プリビルド配布あり |
@@ -45,7 +50,10 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 | フォント | Chakra Petch / Saira Condensed / JetBrains Mono | fontsource 5.3 | すべて SIL OFL 1.1。woff2 をローカル同梱（`font-src 'self'`） |
 | GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb` + `mmdb-lib` | 2.3 / 3.0 | データは **CC BY 4.0（NRO）**、統合版 7.8MB のみ同梱。アカウント・APIキー・初回DL・同意が全て不要で完全オフライン |
 | 設定検証 | `zod` | 4.x | 設定・テーマ・IPC入力の全検証 |
-| ファイル監視 | `chokidar` | 5.x | 設定/テーマのホットリロード |
+| ファイル監視 | `node:fs` の `watch` + mtime のポーリング | — | 設定 / テーマ / プラグインのホットリロード（`main/store/watch-user-file.ts`）。`fs.watch` が取りこぼす環境があるため更新時刻も見る。chokidar は使っていない |
+| RSS / Atom | `fast-xml-parser` | 5.x | main でのみ使用。RSS ペインができるまで import しない |
+| プラグインの変換 | `sucrase` | 3.35 | TypeScript を剥がすだけ。main は変換するだけで実行しない |
+| 相場 | `yahoo-finance2` | 4.x | Node 専用（ブラウザでは CORS と cookie で動かない）。main にバンドル |
 | Lint/Format | Biome | 2.x | ESLint + Prettier を置換 |
 | テスト | Vitest 5 / Playwright 1.63 (`_electron`) | — | unit + component + E2E |
 | パッケージング | electron-builder | 26.x | nsis / dmg / AppImage + deb |
@@ -69,7 +77,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 │    ├── utilityProcess: metrics   (systeminformation)        │
 │      └ geoip: 同じ collector 内で mmdb-lib + 同梱DB を遅延読込 │
 │                                                             │
-│  SettingsStore    zod 検証 + chokidar 監視                   │
+│  SettingsStore    zod 検証 + fs.watch 監視                   │
 │  ThemeResolver    内蔵(asar) ← ユーザー(userData) オーバーレイ│
 │  FsBridge         ディレクトリ読み取り（allowlist 付き）     │
 │                                                             │
@@ -84,9 +92,8 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 ┌───────────────┴─────────────────────────────────────────────┐
 │  renderer (Svelte 5)                                        │
 │    LayoutTree ─ PaneHost ─ WidgetRegistry                   │
-│      └─ widgets: terminal / cpu / memory / toplist /        │
-│                  netstat / throughput / globe / filesystem /│
-│                  clock / sysinfo                            │
+│      └─ widgets: widgets/builtins.ts の内蔵ウィジェット      │
+│                  + plugin:<id>（blob Worker、plugins.md）   │
 │    stores: settings / layout / sessions / metrics / theme    │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -116,8 +123,12 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 
 ### 4.2 公開 API（preload）
 
+以下は最初の設計時のスケッチで、考え方（名前空間ごとの型付き API、購読は解除関数を返す）を示す。
+**現在の正確な形は `src/shared/api.ts`** にあり、名前空間は `system` / `background` / `pty` / `layout` /
+`metrics` / `fs` / `weather` / `settings` / `themes` / `launcher` / `markets` / `feeds` / `quakes` /
+`notes` / `tasks` / `alarms` / `updates` / `audio` / `plugins` / `web` の20個。
+
 ```ts
-// src/shared/api.ts が型の唯一のソース
 interface ElecdexApi {
   pty: {
     create(opts: PtyCreateOptions): Promise<PtySessionId>
@@ -271,23 +282,28 @@ v1 の既定レイアウトは原版の見た目（左カラム=システム / �
 ### 5.2 ウィジェットレジストリ
 
 ```ts
-interface WidgetDefinition<P = unknown> {
-  id: WidgetId
+// src/renderer/widgets/registry.ts（抜粋）
+interface WidgetDefinition {
+  id: string
   title: string
-  component: Component                  // Svelte コンポーネント
-  propsSchema?: z.ZodType<P>            // props の検証
-  metrics?: MetricSourceId[]            // 宣言した分だけ購読される
+  description?: string                  // ピッカーに出す1行
+  component: Component<WidgetProps>
+  metrics?: readonly string[]           // 宣言した分だけ購読される
+  keepWhileHidden?: readonly string[]   // 背面タブでも持ち続けるソース（チャートの履歴、1回きりのもの）
+  chrome?: 'module' | 'shell'
+  headless?: boolean                    // タイトル行なし（時計、システム）
   minSize?: { w: number; h: number }
-  aspect?: "free" | "square"
-  capabilities?: ("resizable" | "multiple" | "needsGpu")[]
+  zoom?: 'full' | 'panel'               // 前面表示（§5.5）。省略 = 前面に出さない
+  multiple?: boolean
+  plugin?: boolean
+  unlisted?: boolean                    // ピッカーに出さないが、レイアウトが名指しすれば解決する
 }
-
-export const widgets = defineWidgets([
-  terminalWidget, clockWidget, sysinfoWidget, cpuWidget,
-  memoryWidget, toplistWidget, netstatWidget, throughputWidget,
-  globeWidget, filesystemWidget,
-])
 ```
+
+内蔵ウィジェットは `widgets/builtins.ts` に並ぶ（2026-09 時点で24個: terminal / clock / sysinfo / cpu /
+memory / disk / toplist / netstat / connections / throughput / filesystem / weather / globe / launcher /
+markets / rss / quakes / calendar / spectrum / mixer / calc / notes / todo / timer）。Web ペインは
+`WEB_PRESETS` の各プリセットが `web.<id>` として同じレジストリに載る（§5.4）。
 
 - `PaneHost.svelte` が `widget: WidgetId` からレジストリを引いてコンポーネントを解決する
 - ウィジェットは **自分が欲しいメトリクスを宣言するだけ**。購読/解除は `PaneHost` が生存期間に合わせて自動処理する
@@ -297,7 +313,7 @@ export const widgets = defineWidgets([
 ペインの寿命と PTY セッションの寿命を**分離**する。
 
 - PTY は main の `PtyManager` が `sessionId` で保持する
-- ペインを閉じてもセッションは（設定次第で）生き残せる → 誤操作からの復帰、ペインの移動、タブの付け替えが可能
+- ペインの移動やタブの付け替えは再マウントになるが、セッションは生きたままで、新しいコンポーネントが `attach` し直す。どのペインからも指されなくなったセッションは、レイアウトが落ち着いてから4秒後にまとめて終了する（`Workspace.svelte` の `REAP_DELAY_MS`）。ペインを閉じる・保存レイアウトを切り替えることはシェルを終わらせることなので、切り替えはシェルがある間は先に尋ねる（§5.6）
 - ウィンドウ再読み込み（開発時のHMR含む）でもセッションは維持され、`attach` で再結線する
 
 ### 5.4 Web ペイン（ブラウザ / YouTube / X）
@@ -484,8 +500,8 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 - `resources/shell-integration/` に bash / zsh / fish / pwsh 用の注入スクリプトを同梱
 - PTY 起動時に注入する: bash は `--init-file`、zsh は `ZDOTDIR` 差し替え、fish は `XDG_DATA_DIRS`、pwsh は `-NoExit -Command`
 - main の `OscParser` が PTY 出力ストリームから該当シーケンスを抽出（xterm には渡さず消費）し、`onCwd` / `onProcess` として通知する
-- **フォールバック**: 一定時間 OSC が来なければ、Linux `/proc` / macOS `lsof` を**低頻度**（3〜5秒）でポーリング。Windows はフォールバックなし（注入が効かないシェルでは CWD 追従を無効表示）
-- 副産物として「直前コマンドの終了コード」「実行時間」が取れるので、ステータス表示に使える
+- ネイティブ取得へのフォールバック（`/proc` や `lsof` の低頻度ポーリング）は設計時に考えたが入れていない。注入が効かないシェルでは CWD 追従が働かないだけで、ポーリングは一切しない
+- 副産物として「直前コマンドの終了コード」「実行時間」が取れる。セッション情報には入れているが、タブに終了コードを出すバッジは意図して無効にしてある（シェルそのものが終了したときの `exited N` だけを出す）
 
 ### 6.3 シェル解決
 `which` 相当を main 側で実装し、`shell-env` 相当（ログインシェルの環境変数取り込み、原版 issue #366）も main で行う。`TERM=xterm-256color` / `COLORTERM=truecolor` / `TERM_PROGRAM=elecdex` を付与する。
@@ -532,16 +548,23 @@ CSS カスタムプロパティを**階層化**する。原版は `--color_r/g/b
 ### 7.2 テーマスキーマと適用
 
 ```ts
+// src/shared/theme.ts（抜粋）
 const ThemeSchema = z.object({
-  id: z.string(), name: z.string(), author: z.string().optional(),
-  accent: z.object({ h: z.number(), s: z.number(), l: z.number() }),
+  id, name, author?,
+  mode: z.enum(['dark', 'light']).optional(),        // 'light' は明るい地: 状態色を暗くし、端末は最小コントラストを上げる
+  accent: z.object({ h: Hue, s: Percent, l: Percent }),
   surfaces: z.object({ s0: Hex, s1: Hex, s2: Hex, line: Hex }),
-  fonts: z.object({ display: z.string(), ui: z.string(), mono: z.string() }),
-  terminal: z.object({ /* fg, bg, cursor, selection, ansi16?: … */ }),
-  globe: z.object({ base: Hex, marker: Hex, pin: Hex, arc: Hex }).optional(),
-  effects: z.object({ scanlines: z.boolean(), glow: z.number() }).optional(),
+  text: z.object({ primary: Hex, muted: Hex }).partial().optional(),   // 省略時、文字はアクセント色
+  status: z.object({ danger: Hue, warn: Hue, ok: Hue, info: Hue }).partial().optional(),
+  fonts: z.object({ display, ui, mono }).partial().optional(),
+  terminal: z.object({ ansiPull?, ansi? }).optional(), // 16色はアクセントから派生し、指定した色だけ上書き
+  effects: z.object({ scanlines, glow, iconTint }).partial().optional(),
 })
 ```
+
+- 内蔵は6つ: tron / amber / phosphor / white / business-dark / business-light。地球儀などの Canvas / WebGL は
+  テーマ専用の色を持たず、同じトークンを `appearance.revision` のたびに読み直す
+- **どのテーマも全ての変数を設定する**（`themeVariables`）ので、切り替えで前のテーマの値が残らない
 
 - 適用は `el.style.setProperty("--accent-h", …)` の一括更新。**DOM/HTML の再注入はしない**（原版の `head.innerHTML +=` / `injectCSS` 生注入を廃止）
 - テーマ切替は**ページリロード不要**（原版は `window.location.reload(true)` していた）。xterm のテーマも `term.options.theme = …` で差し替える
@@ -557,12 +580,12 @@ const ThemeSchema = z.object({
 
 | 原版 | elecdex |
 |---|---|
-| smoothie 1.35（DOM canvas、ライブラリのRAFループ） | 自前 `StreamChart`。単一RAFループを全チャートで共有し、`OffscreenCanvas` + Worker に描画を逃がす |
-| RAM: 440個の `<div>` を毎1.5秒更新 | 単一 Canvas のドットマップ（DOMノード440個の更新を排除） |
-| ENCOM Globe（vendored three.js 43,539行） | three 0.186 + threlte。タイルは Natural Earth から自前生成、ピン/アーク/衛星軌道を InstancedMesh で描画 |
+| smoothie 1.35（DOM canvas、ライブラリのRAFループ） | 自前 `StreamChart`（2D Canvas）。全チャートと全アニメーションが1つの 10 fps フレームループ（`lib/frame-loop.ts`）を共有する。`OffscreenCanvas` + Worker は設計時の案で、この描画量では不要だったので入れていない |
+| RAM: 440個の `<div>` を毎1.5秒更新 | 単一 Canvas。使用率とスワップを CPU と同じ時間軸のグラフで描く（ドットマップはやめた） |
+| ENCOM Globe（vendored three.js 43,539行） | 素の three 0.186（threlte は不採用、§2）。陸地は Natural Earth から生成した点群で、接続先・弧・震源も `Points` で描く |
 
-- Globe は GPU負荷が高いので、**設定で無効化でき、ウィンドウ非フォーカス時はフレームレートを落とす**
-- `backgroundThrottling: false` は原版同様必要だが、可視性に応じた自前のレート制御を入れる
+- Globe を含め、描画はペインかウィンドウが見えていない間は止まる。WebGL コンテキストを取るのは地球儀とシェルだけで、他は 2D Canvas に揃えている（Chromium が保持するのは約16個。§16）
+- `backgroundThrottling: false` は原版同様必要なので、隠れた・最小化したウィンドウは main が `WindowState.hidden` で知らせ、フレームループが止まり、CSS アニメーションも `data-offscreen` で止める
 
 ---
 
@@ -571,18 +594,25 @@ const ThemeSchema = z.object({
 `app.getPath("userData")` 配下:
 
 ```
-settings.json       # zod 検証付き。未知キーは保持したまま警告
-keybindings.json    # ショートカット定義
+settings.json       # zod 検証付き。未知キーは保持したまま警告。ショートカットの変更もここ（keybindings）
 layout.json         # LayoutTree（version 付き、マイグレータあり）。生きている配置は常にこの1つ
 layouts.json        # 名前を付けて保存した配置と、いま作業中のもの（shared/layouts.ts。最大12件）
                     # 機械に依存する状態（セッション id）を含まないので、他の PC にそのまま持っていける
 notes.json          # メモ本文（main 所有。ペインは noteId だけを持つ）
 tasks.json          # タスクとリスト（main 所有。期限の通知も main がスケジュールする）
 alarms.json         # アラーム（時刻・曜日・on/off。main 所有。ペインを閉じていても鳴る）
-sessions.json       # 復元するターミナルセッション
+background.json     # 「通知領域に入りました」の案内を出し済みかどうか
+launcher-usage.json # ランチャーの起動回数（よく使う順）
+quake-alerts.json   # 通知済みの地震・津波（再起動で同じものを知らせ直さない）
+feeds-cache.json / weather-cache.json / weather-cache-points.json   # 最後に取れたデータ
 themes/             # ユーザーテーマ（内蔵へのオーバーレイ）
-logs/
+plugins/            # プラグイン本体と elecdex-plugin.d.ts（plugins.md）
+plugin-data/        # プラグインごとの保存領域
+Partitions/web      # Web ペインの cookie とサイトデータ（§5.4）
 ```
+
+ターミナルのセッションはファイルに残さない: 生きている間は main が持ち、`layout.json` のペインが
+その `sessionId` を指す（§5.3）。
 
 - **layout.json は「生きている配置」、layouts.json は「名前付きの写し」**（§5.6）。前者はこの実行に
   だけ意味のある状態（`sessionId`）を持ち、後者は `portableTree` がそれを落としてから書くので、
@@ -593,8 +623,8 @@ logs/
   持つ。タスクがとくに main 所有なのは、期限の通知がペインの開閉と無関係に届く必要があるため
   （`src/main/reminders`: 次の1件だけを `setTimeout` で待ち、ポーリングしない）
 - すべて **zod スキーマ + 既定値マージ**。壊れていたら既定に戻し、破損ファイルを `.bak` に退避して警告を出す（手編集する settings.json はその場に残し、上書きする直前に `.bak` へコピーする）
-- `chokidar` で監視 → 変更を renderer に push（再起動不要）
-- ショートカットは原版同様 `app` / `shell` の2種（アプリ動作 / 端末へコマンド送出）。`globalShortcut` は**アプリがフォーカスされている間だけ**登録する（原版 issue #361 相当の挙動を明示的に設計へ入れる）
+- `fs.watch` + 更新時刻のポーリングで監視（`main/store/watch-user-file.ts`）→ 変更を renderer に push（再起動不要）
+- ショートカットはデータ（`shared/keybindings.ts`）で、ページの `keydown` が解決する。Electron の `globalShortcut` を使うのは `scope: 'global'` の1つ（表示 / 非表示の切り替え）だけで、利用者が設定で有効にしたときに限って OS に登録する（§16）
 
 ---
 
@@ -602,64 +632,64 @@ logs/
 
 ```
 elecdex/
-├─ package.json
-├─ electron.vite.config.ts
-├─ electron-builder.yml
-├─ biome.json
-├─ tsconfig.json / tsconfig.node.json / tsconfig.web.json
+├─ package.json / electron.vite.config.ts / electron-builder.yml / biome.json
+├─ tsconfig.json / tsconfig.node.json / tsconfig.web.json / tsconfig.e2e.json
+├─ vitest.config.ts / playwright.config.ts
+├─ build/                  # icon.svg と生成物、NSIS の installer.nsh、macOS の entitlements
+├─ public/                 # README のバナー（elecdex_repo_card.svg）
 ├─ resources/
-│  ├─ icons/               # アプリアイコン (ico/icns/png)
-│  ├─ fonts/               # OFL/Apache フォント
-│  ├─ sfx/                 # CC0/新規 SFX
-│  ├─ shell-integration/   # bash/zsh/fish/pwsh 注入スクリプト
-│  └─ geo/                 # Natural Earth から生成したタイルデータ
-├─ scripts/
-│  ├─ gen-geo-tiles.ts     # Natural Earth → タイルJSON
-│  └─ gen-icons.ts
+│  ├─ icons/               # アプリと通知領域のアイコン
+│  └─ shell-integration/   # bash / zsh / fish / pwsh の注入スクリプト
+├─ scripts/                # gen-icon / gen-repo-card / gen-geo / gen-cities / gen-screenshots、
+│                          # sync-calc（vendor の電卓を上書き同期）、fix-node-pty（postinstall）
+├─ examples/plugins/pomodoro/   # 新しい plugins フォルダに書き出すサンプル
 ├─ src/
-│  ├─ shared/              # ★ main/preload/renderer で共有
-│  │  ├─ api.ts            # ElecdexApi 型
+│  ├─ shared/              # ★ main / preload / renderer で共有: 型・チャネル名・純粋なロジック
+│  │  ├─ api.ts            # ElecdexApi 型（唯一のソース）
 │  │  ├─ channels.ts       # IPC チャネル名の定数
-│  │  ├─ schemas/          # zod: settings / theme / layout / metrics
-│  │  └─ types/
+│  │  ├─ schemas/          # zod: layout（設定・テーマなどのスキーマは各モジュールに置く）
+│  │  ├─ layout-ops.ts / layouts.ts / default-layout.ts   # 木の操作、保存レイアウト、既定の配置
+│  │  ├─ settings.ts / theme.ts / keybindings.ts / background.ts / web.ts
+│  │  ├─ plugin-api.ts / plugin-runtime.ts / plugins.ts   # プラグインの公開型・Worker の実行時・検証
+│  │  ├─ calc/             # vendor/（elecxzy の評価器を無改変で）+ elecdex 側のラッパー + types/
+│  │  ├─ geo/              # 生成データ: 都市、国の重心、タイムゾーン → 国
+│  │  └─ weather*.ts / quakes*.ts / tsunami.ts / markets.ts / feeds.ts / notes.ts / tasks.ts / ...
 │  ├─ main/
-│  │  ├─ index.ts
-│  │  ├─ window.ts
-│  │  ├─ ipc/              # ハンドラ（全て zod 検証）
-│  │  ├─ plugins/          # 走査と変換・代行 fetch・保存・サインイン窓（docs/plugins.md）
+│  │  ├─ index.ts / window.ts / app-windows.ts / window-control.ts
+│  │  ├─ ipc/              # 名前空間ごとのハンドラ（全て入力を検証）
+│  │  ├─ store/            # json-store、cache-file、watch-user-file
+│  │  ├─ pty/              # PtyManager、OscParser、shell-integration、screen-mirror、start-directory
+│  │  ├─ metrics/          # broker と購読（collector は services/）
+│  │  ├─ fs/ launcher/ weather/ markets/ feeds/ quakes/ updates/
+│  │  ├─ reminders/        # 次の1件だけを待つスケジューラ（タスクとアラーム）
+│  │  ├─ audio/            # 隠しキャプチャウィンドウ、parec、OS ごとのミキサー
+│  │  ├─ plugins/          # 走査と変換・導入（install.ts）・代行 fetch・保存・サインイン窓（plugins.md）
 │  │  ├─ web/              # Web ペインのビュー（views.ts）と共有セッション（partition.ts）（§5.4）
-│  │  ├─ pty/              # PtyManager, OscParser, shell-resolve, env
-│  │  ├─ metrics/          # MetricsBroker, sources/
-│  │  ├─ settings/
-│  │  ├─ themes/
-│  │  └─ fsbridge/
-│  ├─ services/            # utilityProcess エントリ
+│  │  └─ background/       # 通知領域のアイコン、システム全体のショートカット、login/（OS ごと）
+│  ├─ services/            # utilityProcess
 │  │  ├─ metrics.worker.ts
-│  │  └─ geoip.worker.ts
-│  ├─ preload/
-│  │  └─ index.ts          # 唯一の境界
+│  │  └─ metrics/          # scheduler、sources、windows-sampler、geoip、sockets/（OS ごと）
+│  ├─ preload/index.ts     # 唯一の境界
 │  └─ renderer/
-│     ├─ index.html
-│     ├─ main.ts
-│     ├─ App.svelte
-│     ├─ layout/           # LayoutTree 描画, Splitter, TabStrip, PaneHost
+│     ├─ index.html / main.ts / App.svelte / BootScreen / SettingsDialog / TitleBar / Toasts / ...
+│     ├─ audio-capture/    # 隠しキャプチャウィンドウのページ（workspace とは別セッション）
+│     ├─ layout/           # Workspace、LayoutNodeView、SplitHost、TabsHost、PaneHost、PanePicker、
+│     │                    # LayoutsDialog、pane-drag / pane-close / pane-zoom / layout-switch
 │     ├─ plugins/          # PluginHost（Worker）、PluginPane、ブロック描画、設定欄
-│     ├─ widgets/
-│     │  ├─ registry.ts
-│     │  ├─ terminal/ clock/ sysinfo/ cpu/ memory/ toplist/
-│     │  ├─ netstat/ throughput/ globe/ filesystem/
-│     │  └─ web/           # WebWidget（全プリセット共通、§5.4）
-│     ├─ lib/              # StreamChart, SfxPlayer, theme-apply, ansi-palette
-│     ├─ stores/           # settings, layout, sessions, metrics, theme (runes)
-│     ├─ styles/           # reset.css, tokens.css, frames.css
-│     └─ boot/             # ブート演出
+│     ├─ widgets/          # registry.ts、builtins.ts、common/（StreamChart、Digits、SegmentMeter…）、
+│     │                    # ウィジェットごとのフォルダ（monitor/ は監視系をまとめて持つ）
+│     ├─ lib/              # frame-loop、crt-transitions、sfx、webgl、time-series …
+│     ├─ stores/           # layout、appearance、sessions、metrics、ui、web、background …（runes）
+│     └─ styles/           # reset / tokens / frames / effects / crt / motion
 ├─ tests/
-│  ├─ unit/                # Vitest
-│  └─ e2e/                 # Playwright _electron
+│  ├─ unit/                # Vitest（node）
+│  ├─ component/           # Vitest + jsdom
+│  └─ e2e/                 # Playwright _electron（support.ts が外部サービスを全てスタブに向ける）
 └─ docs/
    ├─ architecture.md      # 本書
-   ├─ theming.md
-   └─ widgets.md
+   ├─ plugins.md           # プラグイン API とその規則
+   ├─ weather-providers.md # 天気の提供元ごとの規約と取得方針
+   └─ screenshots/         # README の画像（npm run gen:screenshots）
 ```
 
 ---
@@ -675,7 +705,7 @@ elecdex/
 | CSP | `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src blob:` — Svelte scoped CSS はビルド時に静的CSSになるので `unsafe-inline` 不要。`worker-src blob:` はプラグインの Worker のためだけにあり、その Worker もこの CSP を継承する（docs/plugins.md §4） |
 | 入力検証 | renderer 由来の全入力を main 側で zod 検証。パスは `path.resolve` 正規化 + allowlist |
 | ナビゲーション | `will-navigate` / `setWindowOpenHandler` で外部遷移を拒否し、`shell.openExternal` に委譲 |
-| 外部通信 | 更新チェック（GitHub API）、GeoIP DB 更新、気象庁の天気予報、Yahoo Finance の相場のみ。相場は markets ペインがある間だけ（1分に1回の一括リクエスト、全市場クローズ中は5分に1回。チャートは期間に応じて5分〜1時間に1回）。更新チェックと GeoIP は**設定で無効化可能**、GeoIP は初回同意制。天気予報は天気ペインがある間だけ、発表時刻の前後に条件付きリクエストで取得（ペインを置かなければ通信しない）。通信は main が行い、renderer の CSP は `connect-src 'self'` のまま |
+| 外部通信 | すべて main が行い、renderer の CSP は `connect-src 'self'` のまま。行き先は、更新チェック（GitHub API。設定で無効化可能）、天気（気象庁 / MET Norway / NWS）、相場（Yahoo Finance）、地震と津波（気象庁、または USGS と NOAA）、利用者が並べた RSS フィード、同意したプラグインが名指ししたホスト、Web ペインで開いたサイト。**どれも、それを必要とするペインがある間（地震は通知が有効な間も）だけ**通信し、条件付きリクエストでまとめて取り、失敗時は間隔を空けて最後のデータを画面に残す。相場は1分に1回の一括リクエスト（全市場クローズ中は5分に1回、チャートは期間に応じて5分〜1時間に1回）、天気は発表時刻の前後だけ。GeoIP は同梱データベースを引くだけで、更新のダウンロードも問い合わせもしない。取得間隔と各サービスの規約は README「Data sources」と [weather-providers.md](weather-providers.md) |
 | Web ペイン | workspace とは別の `WebContentsView`（パーティション `persist:web`、preload なし、sandbox）。権限はクリップボード書き込みとフルスクリーンのみ、ダウンロードは取り消し、遷移は http/https のみでプリセットの `hosts` 外は既定のブラウザへ（§5.4）。workspace の CSP は変えない |
 | XSS | `innerHTML` 使用禁止（Biome ルールで機械的に禁止）。原版の `_escapeHtml` / `_purifyCSS` 自作ヘルパは不要になる |
 
@@ -686,7 +716,7 @@ elecdex/
 - **ターゲット**: Windows `nsis` (x64, arm64) / macOS `dmg` (x64, arm64) / Linux `AppImage` + `deb` (x64, arm64)
 - `node-pty` はネイティブモジュール。electron-builder の `npmRebuild` + `@electron/rebuild` で対応。プリビルドが無い組み合わせのみビルドツールチェーンが必要
 - **CI は GitHub Actions のネイティブ arm64 ランナー**（`ubuntu-24.04-arm` / Apple Silicon の `macos-latest`）を使う。原版の QEMU + Docker クロスビルドは廃止 → ビルド時間とトラブルが激減する
-- ワークフロー: `lint` → `typecheck` (`tsc --noEmit` + `svelte-check`) → `test:unit` → `build` → `test:e2e` →（タグ時のみ）`release`
+- ワークフロー（`.github/workflows/ci.yml`）: `static`（lint + typecheck）と `test`（vitest）を ubuntu で、`e2e`（build → Playwright）を ubuntu / windows / macos の3つで並行に走らせる。リリースは別ファイル（`release.yml`）で、タグ `v<version>` の push で動き、タグと `package.json` の一致を確かめてから6つの配布物をプレリリースに添付する
 - 署名は任意。macOS notarization の設定だけ用意し、secrets が無ければスキップする
 - 配布物のサイズ目標: 原版比で縮小（vendored three.js と pdf.js が消え、バンドル + tree-shaking が効く）
 
@@ -701,11 +731,15 @@ elecdex/
 | integration | PtyManager（実 PTY を spawn して `echo` の往復）、MetricsBroker の購読ライフサイクル | Vitest (node 環境) |
 | E2E | 起動 → ターミナルでコマンド実行 → 出力検証 / タブ追加・削除 / ペイン分割 / テーマ切替（リロードなし）/ 設定変更の反映 | Playwright `_electron` |
 
-**性能回帰テスト**: アイドル時の CPU 使用率とメモリを E2E で計測し、閾値（例: アイドル CPU < 3%、RSS < 400MB）を CI でガードする。原版の最大の問題が性能だったため、これを数値で縛る。
+**性能回帰テスト**: アイドル時の CPU 使用率とメモリを E2E で計測して縛る（`tests/e2e/metrics.spec.ts`）。原版の最大の問題が性能だったため、これを数値で持つ。既定レイアウトの実測は1コアの約12〜13%・ワーキングセット約600MB で、ローカルの閾値は 40%・1200MB、共有ランナーで揺れる CI は 300%・1500MB（暴走だけを捕まえる）。設計当初の目安（アイドル CPU < 3%、RSS < 400MB）は監視ペインを並べた既定レイアウトでは現実的でなく、実測に置き換えた。
+
+**テストは外部サービスに触れない**: 天気・相場・地震・更新確認・Web ペインの行き先は既定で閉じたポートに向け、必要な spec だけがローカルのスタブを立てる。音声・通知領域・サインイン時起動・ソケット一覧もスタブに差し替え、実機の音量・タスクバー・スタートアップ・接続先に触れない（環境変数の一覧は CLAUDE.md）。
 
 ---
 
-## 14. 実装フェーズ
+## 14. 実装フェーズ（最初の計画の記録）
+
+最初に立てた計画で、Phase 7 まで完了している（v0.0.1、2026-09-13）。当時の記述のまま残す — Phase 0 の pnpm は採用せず npm にした（§2）。以後の機能は §16 に記録している。
 
 | Phase | 内容 | 完了条件 |
 |---|---|---|
@@ -726,7 +760,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 
 1. ~~**更新チェック**~~ — Phase 7 で決定: GitHub Releases の確認のみ（§16「更新チェック」）
 2. **リガチャ** — Phase 5 で事前生成方式を入れるか、恒久的に見送るか
-3. **都市単位 GeoIP** — 国単位（同梱 CC0）で足りるか。都市単位が必要なら DB-IP City (CC-BY-4.0, 134MB) のオプトインDLを足す
+3. **都市単位 GeoIP** — 国単位（同梱、CC BY 4.0）で足りるか。都市単位が必要なら DB-IP City (CC-BY-4.0, 134MB) のオプトインDLを足す
 
 ---
 

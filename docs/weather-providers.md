@@ -1,4 +1,4 @@
-# 天気ペインの複数データソース化（設計案）
+# 天気ペインの複数データソース化（設計と決定）
 
 状態: **実装済み**（2026-09-13）。対象: `src/shared/weather-report.ts`（共通モデル）・`src/shared/weather-sources.ts`（各ソースの変換）・`src/shared/weather-places.ts`（地点検索）・`src/main/weather/point-forecasts.ts`（MET・NWS の取得）・`src/main/ipc/weather.ts`・`WeatherWidget.svelte`・`LocationPicker.svelte`。
 
@@ -24,7 +24,7 @@
 | 発表・更新 | 0/5/11/17 時（JST） | `Expires` ヘッダ（約 30 分）と `Last-Modified` | 約 1 時間ごと |
 | 利用条件 | 出典「気象庁ホームページ（URL）を加工して作成」 | CC BY 4.0（出典・ライセンスへのリンク・加工の明示）。連絡先入り User-Agent 必須、座標は小数 4 桁まで、`Expires` 前の再取得禁止、`If-Modified-Since` 必須、"Yr" の名称・ロゴ使用不可 | パブリックドメイン相当のオープンデータ。User-Agent 必須、`/points` の結果はキャッシュ可 |
 
-## 3. 共通モデル（`src/shared/weather/model.ts`）
+## 3. 共通モデル（`src/shared/weather-report.ts`）
 
 ```ts
 type Sky = 'clear' | 'partly' | 'cloudy' | 'fog' | 'drizzle' | 'rain' | 'heavyRain'

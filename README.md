@@ -29,8 +29,9 @@ for Windows, macOS and Linux.
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
   network status and traffic. The default layout idles at about 13% of one core.
-- **World view** — a globe of where the machine's connections go, placed with a bundled GeoIP
-  database; nothing is looked up online.
+- **World view and connections** — a globe of where the machine's connections go, and a pane
+  listing every TCP socket by the program holding it, both placed with a bundled GeoIP database;
+  nothing is looked up online.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
   and a launcher for the Start Menu (Store and other packaged apps included), `/Applications` or
   `.desktop` entries plus your own, most used first.
@@ -41,7 +42,7 @@ for Windows, macOS and Linux.
   you want it.
 - **Desk panes** — a calculator you type into (full-width digits and 3百万 read as typed, with a
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
-  deadlines are drawn as meters and announced whether or not their pane is open, and a chrono with
+  deadlines are drawn as meters and announced whether or not their pane is open, and a timer with
   a stopwatch whose laps stack up like a spectrum, countdowns that run beside it, and alarms for
   the times the day is built around.
 - **Earthquakes and tsunamis** — for Japan (JMA) or the world (USGS and NOAA): alerts at the
@@ -52,6 +53,8 @@ for Windows, macOS and Linux.
   for the system volume and each app playing sound, in panes you add when you want them.
 - **Web panes** — a browser, YouTube and X in panes you add when you want them, drawn in the
   theme's colour (or their own, by a setting) and sharing one sign-in per site.
+- **Plugins** — a pane of your own from one TypeScript file, run in a sandboxed worker with only
+  the permissions you grant it ([Plugins](#plugins)).
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
   returned to later (Ctrl+Shift+G, or *layouts* in the status bar).
@@ -151,7 +154,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | F11 | toggle fullscreen |
 | Ctrl+Shift+M | minimize the window (Windows, Linux) |
 | Ctrl+Shift+Q | quit (also when closing only hides elecdex to the notification area) |
-| Ctrl+Alt+Shift+E | show or hide elecdex from any app (Windows; off until turned on in *Settings → Window*) |
+| Ctrl+Alt+Shift+E | show or hide elecdex from any app (not in a Wayland session; off until turned on in *Settings → Window*) |
 | Arrow keys on a divider | resize (Shift for larger steps) |
 
 The shell has focus when elecdex starts. In a shell, selecting text copies it and a right-click
@@ -243,8 +246,8 @@ weather and calendar.
 
 - **Terminal** — the pane is headed TERMINAL with the selected shell's full path; each tab is
   named after its folder (home too, by its own name), with parent folders added only when two tabs would read
-  the same, and shows the shell and full path on hover. A non-zero exit code is flagged on the
-  tab. New shells start in the home folder, or in the folder set under *Settings → General →
+  the same, and shows the shell and full path on hover. A shell that has exited says so on its
+  tab, with its exit code. New shells start in the home folder, or in the folder set under *Settings → General →
   Terminal* ("~" for home; a folder that no longer exists falls back to home). **Ctrl+Shift+F**
   opens a search bar over the pane: matches are marked in the theme's colour and counted, Enter
   and Shift+Enter step through them. A URL the shell prints is a link, and opens in your browser.
@@ -368,8 +371,8 @@ weather and calendar.
   deadline is scheduled by the app itself: it arrives with the pane closed, on another tab, or never
   opened, as a card in the corner with *done*, *snooze* and *open*, and as a system notification when
   elecdex is not in front. One timer waits for the next deadline of all - nothing is polled.
-  Reminders are in *Settings → the pane's own settings button*: on by default, with the snooze and
-  how far ahead to warn.
+  Reminders are set under the pane's own settings button: on by default, with the snooze and how
+  far ahead to warn.
 - **Timer** — not in the default layout: add it from the picker. Three instruments in one pane.
   A stopwatch whose laps stand as
   bars that grow while they are being timed and lock with a flash when taken, fastest and slowest
@@ -381,7 +384,7 @@ weather and calendar.
   on screen, which each mode says in its heading. A duration typed by hand goes through the
   calculator, so `90/2` is forty-five minutes. Everything is kept as wall-clock moments rather than
   a count of ticks, so a pane moved, a tab switched away from, a reload and a restart all leave a
-  running chrono exactly where it was; the readout shows tenths, which is what the shared 10 fps
+  running timer exactly where it was; the readout shows tenths, which is what the shared 10 fps
   draw loop can honestly show, while laps are recorded to the millisecond. A countdown is built up
   by tapping `+1 +3 +5 +10 +25`, which add to what is set, and the field beside them sets an exact
   number of minutes.
@@ -420,9 +423,8 @@ weather and calendar.
   The page is drawn by a separate, sandboxed browser view over the pane: it has no access to
   elecdex, may not use the camera, microphone, location or notifications, and cannot download
   files. All web panes share one sign-in per site (sign in to YouTube once), kept apart from the
-  rest of the app; *Settings → General → sign out of all sites* deletes it. Google refuses to sign
-  in from an embedded browser, so signing in to YouTube goes through the *YouTube (TV)* pane. Pages are shown in their own
-  colours by default. The ◐ button on the right of the address draws one pane's pages in the
+  rest of the app; *Settings → General → sign out of all sites* deletes it. Pages are shown in
+  their own colours by default. The ◐ button on the right of the address draws one pane's pages in the
   theme's colour instead, as you watch; *Settings → General → tint pages in the theme's colour*
   is the default for panes that have not used their own button, and the Business themes never
   tint. While a dialog, a notice or a dragged pane
@@ -568,19 +570,29 @@ install script of its own, and electron-vite does not trigger its download-on-fi
 also makes node-pty's macOS `spawn-helper` executable. After `--ignore-scripts`, run
 `npx install-electron` once.
 
-End-to-end tests never contact a real service: weather, markets and the update check are pointed
-at closed ports or local stubs (JMA's earthquake and tsunami lists with the forecasts, and the USGS
-and NOAA feeds), and RSS feeds and the web panes' sites are served by a local server.
+End-to-end tests never contact a real service, and never touch the machine they run on: weather,
+markets and the update check are pointed at closed ports or local stubs (JMA's earthquake and
+tsunami lists with the forecasts, and the USGS and NOAA feeds), RSS feeds, plugin hosts and the web
+panes' sites are served by a local server, and the sound, the notification-area icon, the sign-in
+entry and the socket table are stand-ins. The whole suite takes minutes; it is run in full before a
+release, and a change runs the specs it can reach.
 
 ```
 src/shared/     contracts shared by all processes (API types, IPC channel names, schemas, pure logic)
-src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feeds, quakes, launcher, web panes, updates
+src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feeds, quakes, launcher,
+                audio, plugins, web panes, reminders, running in the background, updates
 src/preload/    the one and only contextBridge surface
-src/renderer/   Svelte 5 UI: layout tree, widgets, dialogs, design tokens
+src/renderer/   Svelte 5 UI: layout tree, widgets, the plugin host, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
+examples/       the sample plugin (pomodoro)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
+docs/           architecture.md (the design and the decision log, in Japanese), plugins.md,
+                weather-providers.md
 ```
+
+The rules a change must keep - the security boundary, where the network lives, what tests may
+touch - are in [CLAUDE.md](CLAUDE.md).
 
 ### Releasing
 
@@ -621,6 +633,7 @@ scripts/        asset generators (icon, banner, globe data, city list, README sc
 | Country codes and time zones | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries), [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT (build time only) |
 | README banner font | [Source Sans 3](https://fonts.google.com/specimen/Source+Sans+3) | SIL OFL 1.1 (outlined into the SVG at build time) |
 | Market data client | [yahoo-finance2](https://github.com/gadicc/yahoo-finance2) | MIT (bundled into the main process) |
+| Calculator's expression evaluator | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`, copied unmodified into `src/shared/calc/vendor` | MIT |
 
 The geolocation database is bundled, so there is no account, no API key and no first-run
 download, and IP lookups never leave the machine.
