@@ -1,6 +1,6 @@
 <script lang="ts">
 import { formatClock, zoneAbbreviation } from '../../lib/format.ts'
-import { msUntilBoundary } from '../../lib/frame-loop.ts'
+import { onBoundary } from '../../lib/frame-loop.ts'
 import Digits from '../common/Digits.svelte'
 import type { WidgetProps } from '../registry.ts'
 
@@ -8,9 +8,10 @@ import type { WidgetProps } from '../registry.ts'
  * eDEX-UI's clock: large light digits, each in a fixed-width cell so the time
  * does not jitter as numerals change width.
  *
- * Ticks on its own timer aligned to the second boundary, rather than an
+ * Ticks on the shared second boundary (lib/frame-loop.ts), rather than an
  * unaligned setInterval that would drift visibly behind the system clock - the
- * same boundary the frame loop wakes on, so each tick is drawn in its frame.
+ * same boundary the frame loop wakes on, so each tick is drawn in its frame, and
+ * none at all while the window is put away.
  *
  * The digits roll as they change (Digits.svelte), so the second is seen to land
  * rather than simply to be different. Only the column that changed plays it, so
@@ -20,17 +21,11 @@ const { paneId }: WidgetProps = $props()
 
 let now = $state(new Date())
 
-$effect(() => {
-  let timer: ReturnType<typeof setTimeout>
-  const schedule = (): void => {
-    timer = setTimeout(() => {
-      now = new Date()
-      schedule()
-    }, msUntilBoundary(1000))
-  }
-  schedule()
-  return () => clearTimeout(timer)
-})
+$effect(() =>
+  onBoundary(1000, () => {
+    now = new Date()
+  }),
+)
 
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
 // The abbreviation changes only with daylight saving; once a minute is plenty. It

@@ -66,6 +66,14 @@ interface Subscriber {
   slot: number
 }
 
+/** Everyone waiting for the multiples of one period, and the one timer they share. */
+interface Boundary {
+  callbacks: Set<() => void>
+  timer: ReturnType<typeof setTimeout> | null
+}
+
+const boundaries = new Map<number, Boundary>()
+
 /**
  * Put away in the notification area, or minimised, as main reports it. With
  * backgroundThrottling off (the monitors keep their pace behind other windows)
@@ -178,8 +186,14 @@ function followVisibility(): void {
     if (loneRaf !== 0) cancelAnimationFrame(loneRaf)
     loneRaf = 0
     runPending(performance.now())
+    for (const boundary of boundaries.values()) disarm(boundary)
   } else {
     schedule()
+    // What they show is as old as the window was away: put right now, not at the next boundary.
+    for (const [period, boundary] of boundaries) {
+      for (const callback of [...boundary.callbacks]) callback()
+      arm(period, boundary)
+    }
   }
 }
 
@@ -229,5 +243,47 @@ export function onFrame(callback: FrameCallback, period = FRAME_INTERVAL): () =>
     // A wake set for the leaver's shorter period would be a frame for no one.
     if (timer !== null) cancel()
     schedule()
+  }
+}
+
+function disarm(boundary: Boundary): void {
+  if (boundary.timer !== null) clearTimeout(boundary.timer)
+  boundary.timer = null
+}
+
+function arm(period: number, boundary: Boundary): void {
+  if (boundary.timer !== null || boundary.callbacks.size === 0 || offScreen()) return
+  boundary.timer = setTimeout(() => {
+    boundary.timer = null
+    for (const callback of [...boundary.callbacks]) callback()
+    arm(period, boundary)
+  }, msUntilBoundary(period))
+}
+
+/**
+ * Calls `callback` just past every wall-clock multiple of `period`: the tick of
+ * what shows the time (the clock each second, the date each minute). The same
+ * boundaries the loop draws on, so the change lands in its frame.
+ *
+ * Everyone on a period shares one timer, and none runs while the page is off
+ * screen: a clock in a window put away went on rewriting the page every second
+ * (measured minimised: 3.7% of one core for a clock alone, 0.6% for a pane that
+ * does nothing). Back on screen every callback runs at once, so nothing shows the
+ * time the window went away at. Only for what is shown - what must happen at a
+ * moment, seen or not, waits on a timer of its own.
+ */
+export function onBoundary(period: number, callback: () => void): () => void {
+  let boundary = boundaries.get(period)
+  if (boundary === undefined) {
+    boundary = { callbacks: new Set(), timer: null }
+    boundaries.set(period, boundary)
+  }
+  const held = boundary
+  held.callbacks.add(callback)
+  arm(period, held)
+  return () => {
+    if (!held.callbacks.delete(callback) || held.callbacks.size > 0) return
+    disarm(held)
+    boundaries.delete(period)
   }
 }

@@ -175,9 +175,11 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     notes' sheet, so styles/crt.css holds to this too.
 - Weigh a new animation by the area it repaints — the clock's rolling digits cost ~4% of one core
   on the default layout, measured.
-- Other timed screen updates wake on wall-clock boundaries with a `setTimeout` chain on
-  `msUntilBoundary(period)` (the clock, the system pane's date), never an unaligned `setInterval`,
-  so their change lands in the loop's frame; assign `$state` only when the shown value changes.
+- Other timed screen updates wake on wall-clock boundaries through `onBoundary(period, …)`
+  (lib/frame-loop.ts: the clock, the system pane's date, the tasks' T-minus), never a timer of
+  their own or an unaligned `setInterval`: their change lands in the loop's frame, everyone on a
+  period shares one timer, and none runs while the window is put away (they catch up the moment
+  it is back). Assign `$state` only when the shown value changes.
 - **GPU contexts are a budget.** Chromium keeps only about 16 WebGL contexts and drops the oldest,
   which may be a visible pane's. Only the shell (xterm's WebGL addon) and the globe (three.js) take
   one, and a widget that creates one gives it back on unmount (`forceContextLoss`, or

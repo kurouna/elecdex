@@ -18,7 +18,7 @@ import {
   TIMER_STEPS,
   type TimerEntry,
 } from '@shared/timer'
-import { msUntilBoundary, onFrame } from '../../lib/frame-loop.ts'
+import { onBoundary, onFrame } from '../../lib/frame-loop.ts'
 import { alarms } from '../../stores/alarms.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -110,15 +110,9 @@ $effect(() => {
  */
 $effect(() => {
   if (mode !== 'alarm' || ticking) return
-  let timer: ReturnType<typeof setTimeout>
-  const tick = (): void => {
-    timer = setTimeout(() => {
-      now = Date.now()
-      tick()
-    }, msUntilBoundary(60_000))
-  }
-  tick()
-  return () => clearTimeout(timer)
+  return onBoundary(60_000, () => {
+    now = Date.now()
+  })
 })
 
 function save(change: Partial<ChronoPane>): void {

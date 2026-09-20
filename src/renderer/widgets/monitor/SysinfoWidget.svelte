@@ -9,7 +9,7 @@ import {
   powerLabel,
   trimHardware,
 } from '../../lib/format.ts'
-import { msUntilBoundary } from '../../lib/frame-loop.ts'
+import { onBoundary } from '../../lib/frame-loop.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import BatteryGauge from './BatteryGauge.svelte'
@@ -28,18 +28,12 @@ let today = $state(new Date())
 // frame - and assign only when the day has turned, so the row is not
 // invalidated sixty times an hour for nothing. Checked every minute rather than
 // timed to midnight, which a sleep or a clock change would make miss.
-$effect(() => {
-  let timer: ReturnType<typeof setTimeout>
-  const schedule = (): void => {
-    timer = setTimeout(() => {
-      const now = new Date()
-      if (now.toDateString() !== today.toDateString()) today = now
-      schedule()
-    }, msUntilBoundary(60_000))
-  }
-  schedule()
-  return () => clearTimeout(timer)
-})
+$effect(() =>
+  onBoundary(60_000, () => {
+    const now = new Date()
+    if (now.toDateString() !== today.toDateString()) today = now
+  }),
+)
 
 const uptime = $derived(metrics.get('os.uptime'))
 const os = $derived(metrics.get('os.info'))

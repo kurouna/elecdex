@@ -246,6 +246,39 @@ test('what keeps its power-on class holds nothing once it has played: a note, a 
   }
 })
 
+test('a clock stands still while the window is minimised, and is right the moment it is back', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: { version: 1, root: paneNode('k', 'clock') },
+  })
+  try {
+    const shown = () => page.locator('[data-testid=clock] time').getAttribute('datetime')
+    await expect(page.getByTestId('clock')).toBeVisible()
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((win) => win.isVisible())
+        ?.minimize(),
+    )
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    // Nothing of the page is rewritten for a window nobody can see.
+    const put = await shown()
+    await page.waitForTimeout(2500)
+    expect(await shown()).toBe(put)
+
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((win) => win.isMinimized())
+        ?.restore(),
+    )
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(0)
+    // At once, not at the next second: read in the same task as the page learns of it.
+    const back = Date.parse((await shown()) ?? '')
+    expect(back - Date.parse(put ?? '')).toBeGreaterThanOrEqual(2000)
+    expect(Math.abs(Date.now() - back)).toBeLessThan(1500)
+  } finally {
+    await close()
+  }
+})
+
 test('an animation that never ends stops while the window is put away', async () => {
   const layout = {
     version: 1,

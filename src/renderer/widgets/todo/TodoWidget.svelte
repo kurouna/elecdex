@@ -8,7 +8,7 @@ import {
   type TaskBand,
   urgency,
 } from '@shared/tasks'
-import { msUntilBoundary } from '../../lib/frame-loop.ts'
+import { onBoundary } from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
@@ -90,18 +90,11 @@ const soonest = $derived.by(() => {
 
 const fine = $derived(soonest !== null && soonest - now < 86_400_000)
 
-$effect(() => {
-  const period = fine ? 1000 : 60_000
-  let timer: ReturnType<typeof setTimeout>
-  const tick = (): void => {
-    timer = setTimeout(() => {
-      now = Date.now()
-      tick()
-    }, msUntilBoundary(period))
-  }
-  tick()
-  return () => clearTimeout(timer)
-})
+$effect(() =>
+  onBoundary(fine ? 1000 : 60_000, () => {
+    now = Date.now()
+  }),
+)
 
 /** The header's T-minus, or null when nothing in this list is waiting. */
 const countdown = $derived.by(() => {

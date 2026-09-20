@@ -258,3 +258,83 @@ describe('nextFrame', () => {
     loop.setWindowHidden(false)
   })
 })
+
+describe('onBoundary', () => {
+  /** onBoundary, remembering the unsubscribe as `subscribe` does. */
+  function every(period: number, callback: () => void): () => void {
+    const stop = loop.onBoundary(period, callback)
+    stops.push(stop)
+    return stop
+  }
+
+  it('calls back just past each wall-clock multiple of the period, on one timer for all', () => {
+    const seconds: number[] = []
+    const again = vi.fn()
+    every(1000, () => seconds.push(Date.now() % 1000))
+    every(1000, again)
+    expect(vi.getTimerCount()).toBe(1)
+    vi.advanceTimersByTime(3000)
+    expect(seconds).toHaveLength(3)
+    for (const at of seconds) expect(at).toBeLessThan(50)
+    expect(again).toHaveBeenCalledTimes(3)
+  })
+
+  it('keeps each period on its own boundaries', () => {
+    const second = vi.fn()
+    const minute = vi.fn()
+    every(1000, second)
+    every(60_000, minute)
+    vi.advanceTimersByTime(60_000)
+    expect(second).toHaveBeenCalledTimes(60)
+    expect(minute).toHaveBeenCalledTimes(1)
+  })
+
+  // A clock ticking in a window nobody can see still rewrites the page every
+  // second: measured minimised, a clock alone cost 3.7% of one core against 0.6%
+  // for a pane that does nothing.
+  it('waits for nothing while the window is put away, and catches up at once when it is back', () => {
+    const tick = vi.fn()
+    every(1000, tick)
+    vi.advanceTimersByTime(2000)
+    expect(tick).toHaveBeenCalledTimes(2)
+
+    loop.setWindowHidden(true)
+    expect(vi.getTimerCount()).toBe(0)
+    vi.advanceTimersByTime(60_000)
+    expect(tick).toHaveBeenCalledTimes(2)
+    // Joining while put away starts nothing either.
+    const late = vi.fn()
+    every(1000, late)
+    expect(vi.getTimerCount()).toBe(0)
+
+    // Back: what is shown is a minute old, so it is put right now, not at the next boundary.
+    loop.setWindowHidden(false)
+    expect(tick).toHaveBeenCalledTimes(3)
+    expect(late).toHaveBeenCalledTimes(1)
+    vi.advanceTimersByTime(1000)
+    expect(tick).toHaveBeenCalledTimes(4)
+  })
+
+  it('stops with a page hidden the ordinary way as well', () => {
+    const tick = vi.fn()
+    every(1000, tick)
+    setHidden(true)
+    vi.advanceTimersByTime(5000)
+    expect(tick).not.toHaveBeenCalled()
+    setHidden(false)
+    expect(tick).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves no timer behind when the last one goes', () => {
+    const stopA = every(1000, vi.fn())
+    const stopB = every(1000, vi.fn())
+    stopA()
+    expect(vi.getTimerCount()).toBe(1)
+    stopB()
+    expect(vi.getTimerCount()).toBe(0)
+    // And one that leaves from inside its own call does not bring the timer back.
+    const stop = every(1000, () => stop())
+    vi.advanceTimersByTime(1000)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+})
