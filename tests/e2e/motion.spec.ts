@@ -327,6 +327,45 @@ test('an animation that never ends stops while the window is put away', async ()
   }
 })
 
+test('a toast burning down its fuse stops while the window is put away', async () => {
+  // A reminder is raised precisely when nobody is looking, and its fuse then
+  // burned for ten or twenty seconds in a window that is not on screen.
+  const layout = {
+    version: 1,
+    root: { ...paneNode('t', 'timer'), state: { mode: 'timer', durationMs: 2000 } },
+  }
+  const { app, page, close } = await launch(undefined, { layout })
+  try {
+    await page.getByTestId('timer-start').click()
+    await expect(page.getByTestId('toast')).toHaveCount(1, { timeout: 15_000 })
+    const fuse = () =>
+      page.evaluate(
+        () =>
+          document
+            .getAnimations()
+            .find((animation) => ((animation as CSSAnimation).animationName ?? '').includes('burn'))
+            ?.playState ?? 'gone',
+      )
+    expect(await fuse()).toBe('running')
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((win) => win.isVisible())
+        ?.minimize(),
+    )
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(1)
+    expect(await fuse()).toBe('paused')
+    await app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows()
+        .find((win) => win.isMinimized())
+        ?.restore(),
+    )
+    await expect(page.locator(':root[data-offscreen]')).toHaveCount(0)
+    expect(await fuse()).toBe('running')
+  } finally {
+    await close()
+  }
+})
+
 test("a countdown's last seconds pulse its ladder without an animation that never ends", async () => {
   const layout = {
     version: 1,
@@ -858,9 +897,18 @@ test('with motion reduced, nothing moves: the wave ends before it begins, a new 
     expect(await stillThereAfter(page, `${clock} [data-testid=pane-close]`, clock)).toBe(false)
     await expect(page.locator('.crt-off, .crt-extend')).toHaveCount(0)
 
-    // And so does a dialog.
+    // And so does a dialog - which keeps `crt-on` for as long as it shows, so with
+    // its animations off its beam and scanlines were simply painted over it: bright
+    // rules across the top and bottom of every dialog, toast and notice. They are
+    // unseen but for their animation, which fills backwards (styles/crt.css).
     await page.keyboard.press('Control+Shift+KeyA')
-    await expect(page.getByTestId('pane-picker')).toBeVisible()
+    const picker = page.getByTestId('pane-picker')
+    await expect(picker).toBeVisible()
+    const overlays = await picker.evaluate((el) => [
+      getComputedStyle(el, '::after').opacity,
+      getComputedStyle(el, '::before').opacity,
+    ])
+    expect(overlays).toEqual(['0', '0'])
     const after = await keysThen(page, [ESCAPE], '[data-testid=pane-picker]')
     expect(after.present).toBe(false)
 

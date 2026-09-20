@@ -165,7 +165,8 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   keeps painting a window that has been put away: the frame loop marks the page `data-offscreen`
   and tokens.css takes `--motion-scale` to zero there. A hidden or minimised window is not
   reported hidden to such a page, so main sends `WindowState.hidden` and the loop stops drawing.
-  - An `infinite` animation has no length to scale: it takes
+  - An animation that outlives the frame it started in — endless, or merely long (a toast's
+    ten-second fuse) — cannot be scaled to nothing by `--motion-scale`, so it takes
     `animation-play-state: var(--ambient-play-state)` after its `animation` shorthand, in every
     rule that sets the shorthand (which resets it).
   - The loop only draws. Anything that must happen at a moment whether or not the window is on

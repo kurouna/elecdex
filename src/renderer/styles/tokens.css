@@ -97,10 +97,12 @@
   --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
   /* Scales the length and delay of entrance effects: 0 with motion reduced. */
   --motion-scale: 1;
-  /* The play state of an animation that never ends (a pulse, a busy icon): it has
-     no length for --motion-scale to take to nothing, so it is paused instead while
-     the window is out of sight. Every `infinite` animation takes this, after its
-     `animation` shorthand, which would otherwise reset it. */
+  /* The play state of an animation that outlives the frame it started in - one
+     that never ends (a busy icon), or one long enough to matter (a toast's fuse,
+     ten seconds). `--motion-scale` cannot help: an endless animation has no length
+     to take to nothing, and a fuse's length is what it means. So it is paused
+     instead while the window is out of sight. Such an animation takes this after
+     its `animation` shorthand, which would otherwise reset it. */
   --ambient-play-state: running;
 
   /* ---------- semantic: HUD geometry ---------- */

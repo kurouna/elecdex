@@ -118,6 +118,13 @@ import { coverWeb } from './stores/web.svelte.ts'
   animation-name: burn;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
+  /* Ten or twenty seconds is long enough to matter: a window put away paints
+     nothing (tokens.css). A reminder is raised precisely when nobody is looking,
+     so this is the usual case, not the rare one. The stack's own timer is
+     wall-clock, so a toast raised while the window was away has gone by the time
+     it is back; a shorter absence leaves the fuse a little behind, on a rule two
+     pixels tall. The hover rule below is more specific, so it still wins. */
+  animation-play-state: var(--ambient-play-state);
 }
 
 .stack:hover .fuse {
