@@ -79,6 +79,66 @@ describe('what is taken out of the folder', () => {
     expect(plan).toEqual({ files: ['index.ts'], bytes: PLUGIN.length })
   })
 
+  it('takes a file out of tests/ when the plugin actually imports it', () => {
+    // The folder's name means nothing here: what is copied is what the entry
+    // reaches. A plugin that keeps a helper under tests/ and imports it gets it.
+    const plan = planInstall(
+      tree({
+        'index.ts': "import { fake } from './tests/fixtures'\nexport default { fake }",
+        tests: null,
+        'tests/fixtures.ts': 'export const fake = 1',
+        'tests/usage.test.ts': "import assert from 'node:assert/strict'\nassert.ok(true)",
+      }),
+    )
+    // The fixture it imports, and not the test beside it.
+    expect('files' in plan && plan.files).toEqual(['index.ts', 'tests/fixtures.ts'])
+  })
+
+  it('refuses an import the scanner would not bundle, which would break once installed', () => {
+    // The scanner skips dotted names and node_modules at every depth, and stops
+    // at the depth limit (main/plugins/folder.ts). A file it will not bundle is
+    // one the worker cannot load, so importing it is refused here rather than
+    // copied and found missing on the first open.
+    expect(
+      planInstall(
+        tree({ 'index.ts': "import './.internal/x'", '.internal': null, '.internal/x.ts': 'x' }),
+      ),
+    ).toEqual({ error: expect.stringContaining('not in the folder') })
+
+    expect(
+      planInstall(
+        tree({
+          'index.ts': "import './node_modules/dep'",
+          node_modules: null,
+          'node_modules/dep.ts': 'x',
+        }),
+      ),
+    ).toEqual({ error: expect.stringContaining('not in the folder') })
+
+    const deep = tree({
+      'index.ts': "import './a/b/c/d/far'",
+      a: null,
+      'a/b': null,
+      'a/b/c': null,
+      'a/b/c/d': null,
+      'a/b/c/d/far.ts': 'export const far = 1',
+    })
+    expect(planInstall(deep)).toEqual({ error: expect.stringContaining('not in the folder') })
+
+    // One level up is within what the scanner reads, and is taken.
+    const reachable = tree({
+      'index.ts': "import './a/b/c/near'",
+      a: null,
+      'a/b': null,
+      'a/b/c': null,
+      'a/b/c/near.ts': 'export const near = 1',
+    })
+    expect(planInstall(reachable)).toEqual({
+      files: ['a/b/c/near.ts', 'index.ts'],
+      bytes: expect.any(Number),
+    })
+  })
+
   it('follows an import through the files it reaches, once each', () => {
     const plan = planInstall(
       tree({

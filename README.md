@@ -443,8 +443,9 @@ A plugin adds a pane. It is a TypeScript or JavaScript file, or a folder with an
 `plugins` folder under the app's userData; edits load as you save, and `elecdex-plugin.d.ts` beside
 them gives an editor the API's types. *Settings → Plugins → **install from a folder…*** copies one
 in for you: pick the plugin's folder and elecdex takes the plugin out of it — the entry and what it
-imports, and nothing else, so a README, a `package.json`, a `.git`, a `node_modules` and the tests
-beside the code stay where they are — under the folder's own name, asking first
+imports, and nothing else, so a README, a `package.json`, a `.git`, a `node_modules` and any test
+beside the code stay where they are (a file under `tests/` the plugin does import comes with it:
+what counts is whether the plugin reaches it, not what the folder is called) — under the folder's own name, asking first
 if a plugin of that name is already there. What can be known without running it is checked before
 anything is copied — that the code compiles, and that every import is a file that came with it — so
 a folder that is not a plugin, or one that needs npm, is refused with the reason rather than failing

@@ -187,16 +187,23 @@ function resolveImport(
 }
 
 /**
- * Whether a path is a code file in the folder, asked of the listing its parent
- * gives. Code, because the worker resolves among the plugin's modules and
- * nothing else is one: `import './data.json'` finds nothing there, so it must
- * find nothing here either.
+ * Whether a path is a file the worker would have as a module.
+ *
+ * Which is not the same as "a file that is there": the scanner builds the
+ * module table from the code files it walks, skipping dotted names and
+ * node_modules at every depth and stopping at the depth limit
+ * (main/plugins/folder.ts). A file it will not bundle is one the worker cannot
+ * load, so importing it has to be refused here - copying it instead would
+ * install a plugin that fails the moment it is opened. `import './data.json'`
+ * is the same case: nothing but code is a module.
  */
 function isCodeFile(tree: SourceTree, relative: string): boolean {
-  const cut = relative.lastIndexOf('/')
-  const parent = cut < 0 ? '' : relative.slice(0, cut)
-  const name = cut < 0 ? relative : relative.slice(cut + 1)
+  const segments = relative.split('/')
+  if (segments.length > PLUGIN_LIMITS.depth) return false
+  if (segments.some((segment) => isNoise(segment))) return false
+  const name = segments[segments.length - 1] ?? ''
   if (!isCode(name)) return false
+  const parent = segments.slice(0, -1).join('/')
   return tree.list(parent).some((entry) => entry.kind === 'file' && entry.name === name)
 }
 
