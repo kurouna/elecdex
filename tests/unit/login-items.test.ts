@@ -8,7 +8,9 @@ vi.mock('electron', () => ({
 const { desktopEntry, parseDesktopEntry, quoteExecArg } = await import(
   '../../src/main/background/login/desktop-entry.js'
 )
-const { autostartDir, linuxLoginBackend } = await import('../../src/main/background/login/linux.js')
+const { autostartDir, autostartExec, linuxLoginBackend } = await import(
+  '../../src/main/background/login/linux.js'
+)
 const { darwinLoginBackend } = await import('../../src/main/background/login/darwin.js')
 
 /**
@@ -70,6 +72,19 @@ describe('an autostart file', () => {
     const text = '[Desktop Entry]\n# Exec=/wrong\nExec=/right\nHidden=true\nHidden=false'
     expect(parseDesktopEntry(text)?.args).toEqual([])
     expect(parseDesktopEntry(text)?.disabled).toBe(true)
+  })
+
+  it('names the AppImage file, not the mount it is running from', () => {
+    // An AppImage is mounted somewhere new every launch, so the running path is
+    // under /tmp and will not exist next time; the entry has to name the file.
+    expect(
+      autostartExec({ APPIMAGE: '/home/a/Apps/elecdex.AppImage' }, '/tmp/.mount_x/elecdex'),
+    ).toBe('/home/a/Apps/elecdex.AppImage')
+    // A .deb install, or a development run: the running path is the right one.
+    expect(autostartExec({}, '/opt/elecdex/elecdex')).toBe('/opt/elecdex/elecdex')
+    expect(autostartExec({ APPIMAGE: '' }, '/opt/elecdex/elecdex')).toBe('/opt/elecdex/elecdex')
+    // Not a path at all: whatever it is, it is not something to write into a file.
+    expect(autostartExec({ APPIMAGE: 'yes' }, '/opt/elecdex/elecdex')).toBe('/opt/elecdex/elecdex')
   })
 
   it('goes where the spec says, XDG_CONFIG_HOME first', () => {

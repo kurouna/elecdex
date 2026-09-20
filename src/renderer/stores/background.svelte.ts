@@ -26,7 +26,7 @@ class BackgroundStore {
    * the bridge it would read is not there yet in a component test.
    */
   private assumed(): BackgroundCapabilities {
-    const platform = globalThis.window?.elecdex?.system.platform
+    const platform = globalThis.window?.elecdex?.system?.platform
     // No bridge at all: offer nothing rather than guess.
     return backgroundCapabilities({ platform: platform ?? ('unknown' as NodeJS.Platform) })
   }
@@ -53,12 +53,22 @@ class BackgroundStore {
   }
 
   async refresh(): Promise<void> {
-    this.state = await window.elecdex.background.state()
+    try {
+      this.state = await window.elecdex.background.state()
+    } catch (error) {
+      // Nothing on screen depends on it having arrived: what is assumed stands,
+      // and main is the only thing that could have refused (a window closing).
+      console.error('[elecdex] could not read the background state', error)
+    }
   }
 
   /** Adds or removes the sign-in entry, and takes the state back. */
   async setLaunchAtLogin(on: boolean): Promise<void> {
-    this.state = await window.elecdex.background.setLaunchAtLogin(on)
+    try {
+      this.state = await window.elecdex.background.setLaunchAtLogin(on)
+    } catch (error) {
+      console.error('[elecdex] could not change the sign-in entry', error)
+    }
   }
 }
 

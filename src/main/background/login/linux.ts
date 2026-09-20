@@ -26,6 +26,19 @@ export interface AutostartFile {
   remove(): void
 }
 
+/**
+ * The command the entry should run.
+ *
+ * An AppImage is mounted somewhere new on every launch, so `process.execPath`
+ * there is a path under /tmp that will not exist next time - the entry would
+ * point at nothing. `APPIMAGE` is the file the user actually keeps, which is
+ * what a .desktop file has to name. A .deb or a dev run has neither problem.
+ */
+export function autostartExec(env: Record<string, string | undefined>, execPath: string): string {
+  const appImage = env.APPIMAGE ?? ''
+  return appImage.startsWith('/') ? appImage : execPath
+}
+
 /** `$XDG_CONFIG_HOME/autostart`, or the `~/.config` the spec falls back to. */
 export function autostartDir(env: Record<string, string | undefined>, home: string): string {
   const configured = env.XDG_CONFIG_HOME ?? ''
@@ -59,7 +72,7 @@ export function realAutostartFile(packaged: boolean): AutostartFile {
 export function linuxLoginBackend(
   packaged: boolean,
   file: AutostartFile = realAutostartFile(packaged),
-  exec: string = process.execPath,
+  exec: string = autostartExec(process.env, process.execPath),
 ): LoginBackend {
   const entry = (): { args: string[]; disabled: boolean } | null => {
     if (!file.available) return null

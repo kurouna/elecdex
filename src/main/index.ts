@@ -113,15 +113,21 @@ app.whenReady().then(() => {
   })
   background.attach(win, startHidden)
 
+  // macOS, where the app goes on running with no window: the Dock icon, and the
+  // app menu, ask for it back. A window that is only hidden or minimised is
+  // brought forward rather than left where it is - the Dock is the one way back
+  // there, and it has to work.
   app.on('activate', () => {
-    if (appWindows().length === 0) {
-      const next = createMainWindow({
-        fullscreen: !wantsWindowed,
-        devtools: !app.isPackaged,
-        show: true,
-      })
-      background?.attach(next, false)
+    if (appWindows().length > 0) {
+      showMainWindow()
+      return
     }
+    const next = createMainWindow({
+      fullscreen: !wantsWindowed,
+      devtools: !app.isPackaged,
+      show: true,
+    })
+    background?.attach(next, false)
   })
 })
 

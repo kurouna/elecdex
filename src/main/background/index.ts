@@ -7,6 +7,7 @@ import {
   decideToggle,
   isWayland,
   type ShortcutStatus,
+  trayName,
   trayWanted,
   type WindowOptions,
 } from '@shared/background'
@@ -120,9 +121,13 @@ export function registerBackground(settings: SettingsHandle): Background {
     hints.write({ trayHintShown: true })
     hintsShown += 1
     if (stub || !Notification.isSupported()) return
+    const where =
+      process.platform === 'win32'
+        ? 'Open it from the notification area (^) on the taskbar.'
+        : `Open it from its icon in ${trayName(process.platform)}.`
     const notification = new Notification({
       title: 'elecdex is still running',
-      body: 'Open it from the notification area (^) on the taskbar.',
+      body: where,
     })
     notification.on('click', showMainWindow)
     notification.show()
