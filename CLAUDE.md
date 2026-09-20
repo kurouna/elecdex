@@ -323,3 +323,10 @@ every change:
 
 A change whose blast radius really is the whole app (the layout tree, the settings schema, the
 preload surface) is a release-shaped change: run everything for that one too.
+
+**A test that hangs must say where.** A Playwright timeout prints a locator's call log when it was
+waiting on one, and nothing at all when it was waiting on an app to start or quit - so `launch` and
+the guarded `quit`/`close` in tests/e2e/support.ts warn while they are still going (SLOW_MS) as well
+as after. A test that starts a second app on the same profile calls `launched.quit()`, never
+`launched.app.close()`: the guarded one kills an app that will not quit instead of holding the test
+until it times out with nothing in the log.

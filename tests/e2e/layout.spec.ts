@@ -257,7 +257,7 @@ test('the layout survives an app restart, with fresh shells', async () => {
 test('a corrupt layout.json is quarantined, not lost, and the default is used', async () => {
   const first = await launch()
   const { userData } = first
-  await first.app.close()
+  await first.quit()
 
   writeFileSync(layoutFile(userData), '{ "version": 1, "root": { this is not json', 'utf8')
 
@@ -275,7 +275,7 @@ test('a corrupt layout.json is quarantined, not lost, and the default is used', 
 test('a hand-edited layout.json is honoured and normalised', async () => {
   const first = await launch()
   const { userData } = first
-  await first.app.close()
+  await first.quit()
 
   // A split with one child and unnormalised sizes: the engine must collapse it.
   writeFileSync(
@@ -318,7 +318,7 @@ test('a hand-edited layout.json is honoured and normalised', async () => {
 test('an unknown widget id renders a visible placeholder instead of breaking the layout', async () => {
   const first = await launch()
   const { userData } = first
-  await first.app.close()
+  await first.quit()
 
   writeFileSync(
     layoutFile(userData),

@@ -75,7 +75,7 @@ test('every monitoring widget shows live data', async () => {
 
 test('the collector is never started for a layout without monitoring widgets', async () => {
   const first = await launch()
-  await first.app.close()
+  await first.quit()
   writeFileSync(path.join(first.userData, 'layout.json'), JSON.stringify(TERMINAL_ONLY))
 
   const second = await launch(first.userData)
@@ -265,7 +265,7 @@ test('the system pane fits its rows in a layout saved before the OS row', async 
   const OLD = [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165]
   const first = await launch()
   const saved = await first.page.evaluate(() => window.elecdex.layout.load())
-  await first.app.close()
+  await first.quit()
   const root = saved.root
   if (root.kind !== 'split' || root.children[0]?.kind !== 'split') throw new Error('unexpected')
   root.children[0].sizes = OLD

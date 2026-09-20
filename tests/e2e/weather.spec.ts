@@ -217,7 +217,7 @@ test('JMA: one request, and a restart reuses the saved forecast', async () => {
   )
   await first.page.waitForTimeout(1500)
   expect(requests.filter((r) => r.url.includes('/forecast/data/'))).toHaveLength(1)
-  await first.app.close()
+  await first.quit()
 
   requests.length = 0
   const second = await launch(first.userData, services())

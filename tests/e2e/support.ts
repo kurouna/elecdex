@@ -22,6 +22,12 @@ export interface Launched {
   platform: NodeJS.Platform
   /** Relaunches against the same userData, to test what survives a restart. */
   relaunch(): Promise<Launched>
+  /**
+   * Quits the app and keeps the profile, for a test that starts a second one on
+   * it. Guarded: an app that will not quit is killed rather than left to hold
+   * the test until it times out, with nothing in the log to say so.
+   */
+  quit(): Promise<void>
   close(): Promise<void>
 }
 
@@ -86,6 +92,15 @@ export function removeDir(dir: string): void {
 const CLOSE_TIMEOUT_MS = 20_000
 
 /**
+ * Longer than this and a launch or a quit is worth a line in the log.
+ *
+ * Both are a second or two on an idle machine. A test that times out inside one
+ * prints no call log - there is no locator to report - so without this there is
+ * nothing to say which of them it was hanging in.
+ */
+const SLOW_MS = 8_000
+
+/**
  * Quits the app, and kills it (with its shells) if quitting hangs.
  *
  * On a loaded Windows CI runner, closing ConPTY sessions has occasionally kept
@@ -96,6 +111,11 @@ const CLOSE_TIMEOUT_MS = 20_000
 async function closeApp(app: ElectronApplication): Promise<void> {
   const child = app.process()
   let timer: NodeJS.Timeout | undefined
+  const started = Date.now()
+  const watchdog = setTimeout(
+    () => console.warn(`[e2e] the app is still quitting after ${SLOW_MS / 1000}s`),
+    SLOW_MS,
+  )
   const closed = await Promise.race([
     app.close().then(() => true),
     new Promise<false>((resolve) => {
@@ -103,6 +123,11 @@ async function closeApp(app: ElectronApplication): Promise<void> {
     }),
   ])
   clearTimeout(timer)
+  clearTimeout(watchdog)
+  // A close that took seconds but did finish leaves no other trace, and it is
+  // what a test that timed out with no call log was most likely waiting on.
+  const took = Date.now() - started
+  if (took > SLOW_MS) console.warn(`[e2e] the app took ${(took / 1000).toFixed(1)}s to quit`)
   if (closed || child.pid === undefined) return
   console.warn(`[e2e] app did not quit within ${CLOSE_TIMEOUT_MS}ms; killing it`)
   if (process.platform === 'win32') {
@@ -124,6 +149,14 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   const args = [MAIN, '--windowed', `--user-data-dir=${dir}`]
   if (!options.intro) args.push('--no-intro')
   if (options.args) args.push(...options.args)
+  const startedAt = Date.now()
+  // Said while it is still happening, not after: a test that times out inside a
+  // launch never reaches the line below, and a timeout there prints no call log
+  // (there is no locator to report), so this is the only thing that would name it.
+  const watchdog = setTimeout(
+    () => console.warn(`[e2e] the app is still coming up after ${SLOW_MS / 1000}s`),
+    SLOW_MS,
+  )
   const app = await electron.launch({
     args,
     env: {
@@ -151,6 +184,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   await page.waitForLoadState('domcontentloaded')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
   const platform = await app.evaluate(() => process.platform)
+  clearTimeout(watchdog)
+  const took = Date.now() - startedAt
+  if (took > SLOW_MS) console.warn(`[e2e] the app took ${(took / 1000).toFixed(1)}s to come up`)
 
   const launched: Launched = {
     app,
@@ -163,6 +199,7 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       const { layout: _seeded, ...rest } = options
       return launch(dir, rest)
     },
+    quit: () => closeApp(app),
     close: async () => {
       await closeApp(app)
       if (userData === undefined) removeDir(dir)

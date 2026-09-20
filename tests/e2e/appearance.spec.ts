@@ -127,7 +127,7 @@ test('a settings.json broken before launch is kept through startup and quit', as
   const broken = '{ "theme": "amber", '
   let running: Awaited<ReturnType<typeof launch>> | null = null
   try {
-    await first.app.close()
+    await first.quit()
     writeFileSync(file, broken)
     const broke = await launch(dir)
     running = broke
@@ -135,7 +135,7 @@ test('a settings.json broken before launch is kept through startup and quit', as
     await expect.poll(() => rootVar(broke.page, '--accent-h')).toBe('183')
     expect(readFileSync(file, 'utf8')).toBe(broken)
     running = null
-    await broke.app.close()
+    await broke.quit()
     expect(readFileSync(file, 'utf8')).toBe(broken)
     expect(existsSync(`${file}.bak`)).toBe(false)
 
@@ -145,7 +145,7 @@ test('a settings.json broken before launch is kept through startup and quit', as
     writeFileSync(file, JSON.stringify({ theme: 'phosphor', sound: { enabled: false } }))
     await expect.poll(() => rootVar(fixed.page, '--accent-h'), { timeout: 10_000 }).toBe('128')
   } finally {
-    await running?.app.close()
+    await running?.quit()
     removeDir(dir)
   }
 })
