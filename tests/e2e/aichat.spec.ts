@@ -203,7 +203,7 @@ test('an answer streams in, is drawn as markdown, and is there after a restart',
   const { userData } = launched
   try {
     const { page } = launched
-    await expect(pane(page).getByTestId('aichat-empty')).toContainText('Local · tiny')
+    await expect(pane(page).getByTestId('aichat-empty')).toContainText(/Local\s·\stiny/i)
     // A pane in a layout calls nobody by itself.
     expect(seen).toEqual([])
 
@@ -223,7 +223,7 @@ test('an answer streams in, is drawn as markdown, and is there after a restart',
     // No key was set, so none is sent.
     expect(request?.headers.authorization).toBeUndefined()
     expect(await active(page)).toEqual([])
-    await expect(pane(page).getByTestId('pane-subtitle')).toContainText('Say hi in JavaScript')
+    await expect(pane(page).getByTestId('pane-subtitle')).toContainText(/Say hi in JavaScript/i)
 
     expect(readdirSync(path.join(userData, 'chats'))).toHaveLength(1)
     await launched.quit()
@@ -263,7 +263,8 @@ test('an answer can be stopped, and what was written is kept', async () => {
     await pane(page).getByTestId('aichat-stop-button').click()
     const answer = pane(page).locator('[data-testid=aichat-message][data-role=assistant]')
     await expect(answer).toContainText('The first half')
-    await expect(answer.getByTestId('aichat-stop')).toHaveText('stopped')
+    // The code is drawn in capitals by the stylesheet; which of the two a matcher sees is not ours to say.
+    await expect(answer.getByTestId('aichat-stop')).toHaveText(/^stopped$/i)
     await expect(pane(page).getByTestId('aichat-run')).toHaveCount(0)
     expect(await active(page)).toEqual([])
 

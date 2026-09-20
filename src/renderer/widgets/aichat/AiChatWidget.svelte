@@ -121,11 +121,17 @@ $effect(() => {
   if (busy) return pulse.use()
 })
 
+/**
+ * The ways an answer can end that are a failure: one set, for the colour of its
+ * mark and for the sound it ends with. Stopping it yourself is not one of them.
+ */
+const FAILED = new Set<ChatMessage['stop']>(['error', 'unreachable', 'refusal'])
+
 /** An answer that ends while this pane watches is heard: landed, or lost. */
 let wasBusy = false
 $effect(() => {
   const now = busy
-  if (wasBusy && !now) sfx.play(messages.at(-1)?.stop === 'error' ? 'glitch' : 'granted')
+  if (wasBusy && !now) sfx.play(FAILED.has(messages.at(-1)?.stop) ? 'glitch' : 'granted')
   wasBusy = now
 })
 
@@ -133,7 +139,8 @@ $effect(() => {
 $effect(() => {
   paneMeta.set(paneId, {
     ...(title === '' ? {} : { subtitle: title }),
-    ...(busy ? { badge: 'rx', badgeKind: 'ok' as const } : {}),
+    // In words, like the other panes' badges: RX means something inside the pane, not beside its title.
+    ...(busy ? { badge: 'receiving', badgeKind: 'ok' as const } : {}),
   })
 })
 
@@ -176,7 +183,7 @@ async function ask(text: string | undefined, replaceFrom?: string): Promise<bool
   const fresh = choice.chat === null
   const chatId = choice.chat ?? (await window.elecdex.ai.create())
   if (chatId === null) {
-    problem = 'no more conversations can be kept - delete some from the history'
+    problem = 'no more conversations can be kept - delete some from the log'
     return false
   }
   pinned = true
@@ -264,15 +271,20 @@ let models = $state.raw<AiModel[]>([])
 let modelsOf: string | null = null
 let modelsProblem = $state<string | null>(null)
 let modelsLoading = $state(false)
+/** Counts the requests, so an answer can tell whether it is still the one being waited for. */
+let modelsAsked = 0
 
 async function loadModels(): Promise<void> {
   if (provider === null || modelsOf === provider.id) return
   const id = provider.id
+  modelsAsked += 1
+  const asked = modelsAsked
   modelsOf = id
   modelsLoading = true
   const result = await window.elecdex.ai.models(id)
+  // An answer for a provider since left: the request that replaced it owns the state now.
+  if (asked !== modelsAsked) return
   modelsLoading = false
-  if (modelsOf !== id) return
   models = result.models
   modelsProblem = result.error
   // Asked again next time, in case the server was only not running yet.
@@ -280,6 +292,9 @@ async function loadModels(): Promise<void> {
 }
 
 function chooseProvider(id: string): void {
+  // Whatever was being asked of the provider left behind is nobody's answer now.
+  modelsAsked += 1
+  modelsLoading = false
   models = []
   modelsOf = null
   modelsProblem = null
@@ -306,8 +321,6 @@ const STOP_CODES: Record<NonNullable<ChatMessage['stop']>, string> = {
   error: 'link error',
   unreachable: 'no carrier',
 }
-const FAILED = new Set<ChatMessage['stop']>(['error', 'unreachable', 'refusal'])
-
 /** What the link is doing while an answer comes: sent and waiting, or receiving. */
 const phase = $derived.by(() => {
   if (run === null) return ''
@@ -344,9 +357,7 @@ const host = $derived.by(() => {
   {#if provider === null}
     <div class="standby fx-rise" data-testid="aichat-setup">
       <span class="state"><span class="lamp"></span>no link</span>
-      <span class="hint">
-        A local server (Ollama, LM Studio, llama.cpp) or a service you have an API key for.
-      </span>
+      <span class="hint">a local server, or a service you have a key for</span>
       <button type="button" class="command" onclick={() => ui.openSettings('ai')} data-testid="aichat-open-settings">
         <span aria-hidden="true">&gt;</span> set up provider
       </button>
@@ -363,24 +374,32 @@ const host = $derived.by(() => {
           <option value={p.id}>{p.name}</option>
         {/each}
       </select>
-      <input
-        type="text"
-        class="model"
-        list={`models-${paneId}`}
-        value={model}
-        placeholder={modelsLoading ? 'querying models…' : 'model'}
-        spellcheck="false"
-        aria-label="model"
-        title={modelsProblem ?? 'the model to ask; the list is read from the provider when you open it'}
-        onfocus={() => void loadModels()}
-        onchange={(e) => chooseModel(e.currentTarget.value)}
-        data-testid="aichat-model"
-      />
-      <datalist id={`models-${paneId}`}>
-        {#each models as m (m.id)}
-          <option value={m.id}>{m.label ?? ''}</option>
-        {/each}
-      </datalist>
+      <span class="field">
+        <input
+          type="text"
+          class="model"
+          list={`models-${paneId}`}
+          value={model}
+          placeholder="model"
+          spellcheck="false"
+          aria-label="model"
+          title={modelsProblem ?? 'the model to ask; the list is read from the provider when you open it'}
+          onfocus={() => void loadModels()}
+          onchange={(e) => chooseModel(e.currentTarget.value)}
+          data-testid="aichat-model"
+        />
+        <datalist id={`models-${paneId}`}>
+          {#each models as m (m.id)}
+            <option value={m.id}>{m.label ?? ''}</option>
+          {/each}
+        </datalist>
+        <!-- Over the field's end, so it shows whether or not a model is already typed there. -->
+        {#if modelsLoading}
+          <span class="tag" data-testid="aichat-models-state">querying</span>
+        {:else if modelsProblem !== null}
+          <span class="tag warn" title={modelsProblem} data-testid="aichat-models-state">no list</span>
+        {/if}
+      </span>
       <button type="button" class="cmd" onclick={newChat} disabled={busy} data-testid="aichat-new">new</button>
       <button
         type="button"
@@ -430,8 +449,9 @@ const host = $derived.by(() => {
         <div class="standby fx-rise" data-testid="aichat-empty">
           <span class="state"><span class="lamp" class:ready={model !== ''}></span>{model === '' ? 'no model chosen' : 'link standby'}</span>
           <span class="target" title="nothing is sent until you ask · conversations stay on this computer">
-            <span class="mark" aria-hidden="true">▌</span>{provider.name}{model === '' ? '' : ` · ${model}`}<span class="host">{host ?? 'unusable address'}</span>
+            <span class="part"><span class="mark" aria-hidden="true">▌</span>{provider.name}</span>{#if model !== ''}<span class="part">&nbsp;· {model}</span>{/if}
           </span>
+          <span class="host">{host ?? 'unusable address'}</span>
           <span class="state">{model === '' ? 'choose a model above' : 'awaiting input'}</span>
         </div>
       {/if}
@@ -575,8 +595,37 @@ select {
   flex: 0 1 9rem;
 }
 
-.model {
+.field {
+  position: relative;
+  display: flex;
   flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.model {
+  flex: 1;
+}
+
+/* What the model list is doing, over the end of the field it fills. */
+.tag {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-1);
+  background: var(--app-bg);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent);
+  pointer-events: none;
+}
+
+.tag.warn {
+  color: var(--warn);
+  pointer-events: auto;
 }
 
 select:focus,
@@ -764,23 +813,27 @@ select:focus,
   overflow-wrap: anywhere;
 }
 
+/* Too narrow for both, the line breaks between the provider and the model before it breaks inside a name. */
+.part {
+  display: inline-block;
+  max-width: 100%;
+}
+
 .mark {
   margin-right: var(--space-1);
   color: var(--accent);
 }
 
-/* The address is read, not announced: as typed, in the readouts' face. */
-.host::before {
-  content: '·';
-  margin: 0 0.5em;
-}
-
+/*
+ * A line of its own under the target: beside it, a narrow pane broke the address
+ * in the middle. Read, not announced - as typed, in the readouts' face.
+ */
 .host {
+  max-width: 100%;
   font-family: var(--font-mono);
   font-size: var(--step--1);
-  letter-spacing: 0;
-  text-transform: none;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 /* "> set up provider": a command, where a pane with no provider has nothing else to offer. */

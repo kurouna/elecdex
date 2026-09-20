@@ -10,6 +10,7 @@ const { default: AiChatWidget } = await import(
 const { default: Markdown } = await import('../../src/renderer/widgets/aichat/Markdown.svelte')
 const { appearance } = await import('../../src/renderer/stores/appearance.svelte.ts')
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+const { sfx } = await import('../../src/renderer/stores/sound.svelte.ts')
 
 /**
  * The chat pane against a hand-driven main: what it asks for and when, how it
@@ -125,8 +126,11 @@ describe('AiChatWidget', () => {
     withProvider()
     mount()
     await settle()
-    expect(screen.getByTestId('aichat-empty').textContent).toContain('Local · tiny')
-    expect(screen.getByTestId('aichat-empty').textContent).toContain('localhost:11434')
+    expect(screen.getByTestId('aichat-empty').textContent).toMatch(/Local\s·\stiny/)
+    // The address has a line to itself: beside the model, a narrow pane broke it in the middle.
+    const host = screen.getByTestId('aichat-empty').querySelector('.host')
+    expect(host?.textContent).toBe('localhost:11434')
+    expect(host?.parentElement).toBe(screen.getByTestId('aichat-empty'))
     expect(ai.models).not.toHaveBeenCalled()
 
     await fireEvent.focus(screen.getByTestId('aichat-model'))
@@ -230,9 +234,9 @@ describe('AiChatWidget', () => {
     )
   })
 
-  it('says it is querying while the model list is read', async () => {
+  it('says it is querying while the model list is read, whatever the field already holds', async () => {
     withProvider()
-    let answer: (value: { models: never[]; error: null }) => void = () => {}
+    let answer: (value: { models: never[]; error: string | null }) => void = () => {}
     ai.models?.mockReturnValueOnce(
       new Promise((resolve) => {
         answer = resolve
@@ -241,12 +245,89 @@ describe('AiChatWidget', () => {
     mount()
     await settle()
     const field = screen.getByTestId('aichat-model') as HTMLInputElement
+    // A model is already typed there, so a placeholder would never be seen.
+    expect(field.value).toBe('tiny')
+    expect(screen.queryByTestId('aichat-models-state')).toBeNull()
+
     await fireEvent.focus(field)
     await settle()
-    expect(field.placeholder).toBe('querying models…')
-    answer({ models: [], error: null })
+    expect(screen.getByTestId('aichat-models-state').textContent).toBe('querying')
+
+    answer({ models: [], error: 'could not reach localhost:11434 - is it running?' })
     await settle()
-    expect(field.placeholder).toBe('model')
+    // A list that could not be read says so, with why.
+    const state = screen.getByTestId('aichat-models-state')
+    expect(state.textContent).toBe('no list')
+    expect(state.title).toBe('could not reach localhost:11434 - is it running?')
+  })
+
+  it('an answer for the provider left behind does not end the wait for the one chosen since', async () => {
+    withProvider()
+    appearance.settings.ai.providers.push({
+      id: 'other',
+      name: 'Other',
+      kind: 'openai',
+      baseUrl: 'http://localhost:1234/v1',
+      model: 'big',
+    })
+    const answers: Array<(value: { models: Array<{ id: string }>; error: null }) => void> = []
+    ai.models?.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve)
+        }),
+    )
+    const view = mount()
+    await settle()
+    await fireEvent.focus(screen.getByTestId('aichat-model'))
+    await settle()
+
+    // The pane moves to the other provider before the first has answered, and asks again.
+    await view.rerender({ paneId: 'p', state: { provider: 'other' } } as never)
+    await fireEvent.change(screen.getByTestId('aichat-provider'), { target: { value: 'other' } })
+    await fireEvent.focus(screen.getByTestId('aichat-model'))
+    await settle()
+    expect(ai.models).toHaveBeenLastCalledWith('other')
+
+    answers[0]?.({ models: [{ id: 'from-the-first' }], error: null })
+    await settle()
+    expect(screen.getByTestId('aichat-models-state').textContent).toBe('querying')
+    expect(document.querySelector('datalist option')).toBeNull()
+
+    answers[1]?.({ models: [{ id: 'from-the-second' }], error: null })
+    await settle()
+    expect(screen.queryByTestId('aichat-models-state')).toBeNull()
+    expect(document.querySelector('datalist option')?.getAttribute('value')).toBe('from-the-second')
+  })
+
+  it('an answer that ends is heard: landed, stopped by hand, or lost - NO CARRIER included', async () => {
+    withProvider()
+    const play = vi.spyOn(sfx, 'play').mockImplementation(() => {})
+    mount({ chat: CHAT_ID })
+    await settle()
+    const ended = async (stop?: 'stopped' | 'error' | 'unreachable' | 'refusal'): Promise<void> => {
+      play.mockClear()
+      await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(), run: run('so far') })
+      await emit({
+        type: 'snapshot',
+        chatId: CHAT_ID,
+        run: null,
+        chat: chat([
+          { id: 'q', role: 'user', text: 'hi', at: 1 },
+          { id: 'a', role: 'assistant', text: 'so far', at: 2, ...(stop ? { stop } : {}) },
+        ]),
+      })
+    }
+    await ended()
+    expect(play).toHaveBeenCalledWith('granted')
+    await ended('stopped')
+    expect(play).toHaveBeenCalledWith('granted')
+    for (const lost of ['error', 'unreachable', 'refusal'] as const) {
+      await ended(lost)
+      expect(play, lost).toHaveBeenCalledWith('glitch')
+      expect(play, lost).not.toHaveBeenCalledWith('granted')
+    }
+    play.mockRestore()
   })
 
   it('stops the answer from the button and with Escape', async () => {
