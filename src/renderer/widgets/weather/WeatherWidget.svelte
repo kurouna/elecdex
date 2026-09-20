@@ -10,7 +10,7 @@ import {
   type WeatherLocation,
   type WeatherUpdate,
 } from '@shared/weather-report'
-import { SOURCES } from '@shared/weather-sources'
+import { forecastPageUrl, SOURCES } from '@shared/weather-sources'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
@@ -142,6 +142,15 @@ function wet(value: { pop: number | null; precipMm: number | null } | null): str
 }
 
 const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? ''
+
+/**
+ * The forecast opens the source's own page for the place, as an earthquake
+ * opens its report: today and each day of the week lead to the same page, since
+ * none of the three sources has a page for a single day.
+ */
+const page = $derived(forecastPageUrl(location))
+
+const openPage = (): void => void window.elecdex.system.openExternal(page)
 </script>
 
 <div class="weather" data-testid="weather" data-source={location.source}>
@@ -221,20 +230,22 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
   {:else}
     {#if today}
       <section class="today fx-rise" data-testid="weather-today">
-        <SkyIcon glyph={report.now?.sky ?? today.sky} />
-        <div class="today-text">
-          <p class="telop" data-testid="weather-telop">{summaryText(today)}</p>
-          <p class="wind">{today.wind ?? ''}</p>
-        </div>
-        <div class="today-temps">
-          {#if report.now?.temp != null}
-            <span class="max" data-testid="weather-now">{temp(report.now.temp)}</span>
-            <span class="min">{temp(today.tempMax)} / {temp(today.tempMin)}</span>
-          {:else}
-            <span class="max" data-testid="weather-max">{temp(today.tempMax)}</span>
-            <span class="min">{temp(today.tempMin)}</span>
-          {/if}
-        </div>
+        <button type="button" class="now" title={page} onclick={openPage} data-testid="weather-open">
+          <SkyIcon glyph={report.now?.sky ?? today.sky} />
+          <span class="today-text">
+            <span class="telop" data-testid="weather-telop">{summaryText(today)}</span>
+            <span class="wind">{today.wind ?? ''}</span>
+          </span>
+          <span class="today-temps">
+            {#if report.now?.temp != null}
+              <span class="max" data-testid="weather-now">{temp(report.now.temp)}</span>
+              <span class="min">{temp(today.tempMax)} / {temp(today.tempMin)}</span>
+            {:else}
+              <span class="max" data-testid="weather-max">{temp(today.tempMax)}</span>
+              <span class="min">{temp(today.tempMin)}</span>
+            {/if}
+          </span>
+        </button>
         {#if today.blocks}
           <ol class="pops" aria-label="precipitation by six hours">
             {#each today.blocks as block, i (i)}
@@ -252,16 +263,20 @@ const summaryText = (day: WeatherDay): string => day.text ?? day.sky?.label ?? '
       <ol class="week" data-testid="weather-week">
         {#each week as day, i (day.date)}
           {@const label = dayLabel(day.date)}
-          <li
-            class="fx-rise"
-            style:--fx-delay={`${(i + 1) * WEEK_STAGGER_MS}ms`}
-            data-testid="weather-day"
-            title={summaryText(day)}
-          >
-            <span class="date {label.weekend ?? ''}">{label.day}<small>{label.weekday}</small></span>
-            <SkyIcon glyph={day.sky} />
-            <span class="temps"><em>{temp(day.tempMax)}</em> / {temp(day.tempMin)}</span>
-            <span class="pop">{wet(day)}</span>
+          <li>
+            <button
+              type="button"
+              class="day fx-rise"
+              style:--fx-delay={`${(i + 1) * WEEK_STAGGER_MS}ms`}
+              onclick={openPage}
+              data-testid="weather-day"
+              title={summaryText(day)}
+            >
+              <span class="date {label.weekend ?? ''}">{label.day}<small>{label.weekday}</small></span>
+              <SkyIcon glyph={day.sky} />
+              <span class="temps"><em>{temp(day.tempMax)}</em> / {temp(day.tempMin)}</span>
+              <span class="pop">{wet(day)}</span>
+            </button>
           </li>
         {/each}
       </ol>
@@ -360,17 +375,44 @@ select {
 }
 
 .today {
-  --sky-size: 3.2rem;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
   padding-right: 1.6rem;
 }
 
-.today-text p {
-  margin: 0;
+/* Today's forecast is one button: it opens the source's page for the place. */
+.now {
+  --sky-size: 3.2rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The accent is the text colour in most themes, so the pull is a wash and a
+   rule under the words, as a market row and a headline have. */
+.now:hover,
+.now:focus-visible {
+  background: linear-gradient(to right, var(--accent-faint), transparent 80%);
+}
+
+.now:hover .telop,
+.now:focus-visible .telop {
+  text-decoration: underline;
+}
+
+.today-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .telop {
@@ -385,6 +427,7 @@ select {
 
 .today-temps {
   display: flex;
+  justify-self: end;
   flex-direction: column;
   align-items: flex-end;
   font-family: var(--font-display);
@@ -402,7 +445,6 @@ select {
 }
 
 .pops {
-  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   margin: 0;
@@ -455,11 +497,25 @@ select {
 }
 
 .week li {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Each day opens the same page as today: the whole cell is the button. */
+.week .day {
   /* The ceiling is for a pane brought to the front: at 3rem the sky drew the
      same small glyph in a cell four times its size. */
   --sky-size: clamp(1.7rem, 30cqh, 5.5rem);
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -474,8 +530,15 @@ select {
 }
 
 /* Clear of the rule above; nothing below, where the credit follows. */
-.week li > :first-child {
+.week .day > :first-child {
   margin-top: var(--space-1);
+}
+
+/* Flat, not a gradient: a tall pane centres the day's figures far below the
+   top of its cell, where a gradient would have faded out. */
+.week .day:hover,
+.week .day:focus-visible {
+  background: var(--accent-faint);
 }
 
 .date small {

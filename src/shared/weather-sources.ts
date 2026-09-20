@@ -4,9 +4,11 @@ import { JMA_FORECAST_URL, type JmaForecast, summarizeForecast } from './weather
 import {
   localDate,
   localHour,
+  roundCoordinate,
   type SkyGlyph,
   type SkyKind,
   type WeatherDay,
+  type WeatherLocation,
   type WeatherReport,
   type WeatherSource,
 } from './weather-report.js'
@@ -37,6 +39,28 @@ export const SOURCES: Record<'jma' | 'met' | 'nws', WeatherSource> = {
     credit: 'Source: National Weather Service (NOAA)',
     url: 'https://www.weather.gov/',
   },
+}
+
+/**
+ * The source's own forecast page for this place, opened when the forecast is
+ * clicked - the same gesture as an earthquake in the quakes pane.
+ *
+ * JMA's page takes the office in its hash; there is no deep link to a class10
+ * area (`area_type=class10s` falls back to the whole country), so it opens the
+ * prefecture and the page's own area picker takes it from there. MET Norway's
+ * data is read on yr.no, the site it runs with NRK, which takes coordinates;
+ * the NWS point forecast takes them as query parameters.
+ */
+export function forecastPageUrl(location: WeatherLocation): string {
+  if (location.source === 'jma') {
+    return `${JMA_FORECAST_URL}#area_type=offices&area_code=${location.office}`
+  }
+  const lat = roundCoordinate(location.lat)
+  const lon = roundCoordinate(location.lon)
+  if (location.source === 'nws') {
+    return `https://forecast.weather.gov/MapClick.php?lat=${lat}&lon=${lon}`
+  }
+  return `https://www.yr.no/en/forecast/daily-table/${lat},${lon}`
 }
 
 const glyph = (primary: SkyKind, label: string, secondary: SkyKind | null = null): SkyGlyph => ({

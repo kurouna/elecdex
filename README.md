@@ -306,7 +306,9 @@ weather and calendar.
 - **Weather** — the settings button → PLACE opens a picker over a bundled list of large cities and
   capitals and JMA's forecast offices, or takes `lat, lon`. Japan uses JMA, the United States the
   National Weather Service (or MET Norway, by choice), everywhere else MET Norway. °C or °F, and
-  the week forecast on or off, per pane; the default is New York City.
+  the week forecast on or off, per pane; the default is New York City. A click on the forecast
+  opens the source's own page for the place in the browser - JMA's forecast page, the NWS point
+  forecast or yr.no.
 - **RSS** — not in the default layout: add it from the picker (Ctrl+Shift+A). It starts empty and
   fetches nothing until its settings button lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
   per pane). The newest 20 headlines across its feeds are shown, each with its feed and the time

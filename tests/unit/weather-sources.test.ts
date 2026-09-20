@@ -11,6 +11,7 @@ import {
   sourceForCountry,
 } from '../../src/shared/weather-report.js'
 import {
+  forecastPageUrl,
   jmaReport,
   MetForecastSchema,
   metGlyph,
@@ -80,6 +81,27 @@ describe('locations', () => {
     expect(formatTemperature(20, 'f')).toBe('68°')
     expect(formatTemperature(-40, 'f')).toBe('-40°')
     expect(formatTemperature(null, 'f')).toBe('--')
+  })
+})
+
+describe('the page each source shows the place on', () => {
+  it('opens the prefecture on JMA, the point on the NWS and on yr.no', () => {
+    expect(
+      forecastPageUrl({ source: 'jma', office: '270000', area: '270000', name: '大阪市' }),
+    ).toBe('https://www.jma.go.jp/bosai/forecast/#area_type=offices&area_code=270000')
+    expect(forecastPageUrl(DEFAULT_LOCATION)).toBe(
+      'https://forecast.weather.gov/MapClick.php?lat=40.7143&lon=-74.006',
+    )
+    expect(
+      forecastPageUrl({
+        source: 'met',
+        lat: 51.50735,
+        lon: -0.12776,
+        name: 'London',
+        country: 'GB',
+        timeZone: 'Europe/London',
+      }),
+    ).toBe('https://www.yr.no/en/forecast/daily-table/51.5074,-0.1278')
   })
 })
 

@@ -139,6 +139,30 @@ test('the default is New York from the National Weather Service, in °F', async 
   }
 })
 
+test("the forecast opens the source's page for the place", async () => {
+  const { page, app, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
+  try {
+    const p = pane(page)
+    await expect(p.getByTestId('weather-now')).toHaveText(/^\d+°$/, { timeout: 20_000 })
+    await app.evaluate(({ shell }) => {
+      const opened: string[] = []
+      ;(globalThis as { __opened?: string[] }).__opened = opened
+      shell.openExternal = async (url: string) => {
+        opened.push(url)
+      }
+    })
+    const url = 'https://forecast.weather.gov/MapClick.php?lat=40.7143&lon=-74.006'
+    // Today and any day of the week lead to the same page, through main.
+    await p.getByTestId('weather-open').click()
+    await p.getByTestId('weather-day').nth(2).click()
+    await expect
+      .poll(() => app.evaluate(() => (globalThis as { __opened?: string[] }).__opened))
+      .toEqual([url, url])
+  } finally {
+    await close()
+  }
+})
+
 test('a place chosen in the picker is forecast by MET Norway, within its terms', async () => {
   const { page, close } = await launch(undefined, { layout: weatherOnly(), ...services() })
   try {
