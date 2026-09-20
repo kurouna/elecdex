@@ -1,3 +1,11 @@
+import type {
+  AiKeyStorage,
+  AiModelsResult,
+  AiProviderStatus,
+  ChatEvent,
+  ChatSendResult,
+  ChatSummary,
+} from '@shared/ai'
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from '@shared/alarms'
 import type {
   AppInfo,
@@ -258,6 +266,45 @@ const subscribeFeed = keyedSubscriptions<FeedUpdate>({
 })
 
 /**
+ * Conversations of the AI chat pane. Reference-counted like the rest, but what
+ * main sends is a snapshot and then deltas to it, so the last event is no use to
+ * a second pane joining the same conversation: it asks main for a snapshot of
+ * its own, which main sends only after bringing everyone up to the same place.
+ */
+const chatHandlers = new Map<string, Set<(event: ChatEvent) => void>>()
+
+ipcRenderer.on(CH.ai.event, (_event, payload: ChatEvent) => {
+  for (const handler of chatHandlers.get(payload.chatId) ?? []) handler(payload)
+})
+
+function subscribeChat(chatId: string, handler: (event: ChatEvent) => void): () => void {
+  let set = chatHandlers.get(chatId)
+  let active = true
+  if (!set) {
+    set = new Set()
+    chatHandlers.set(chatId, set)
+    ipcRenderer.send(CH.ai.subscribe, chatId)
+  } else {
+    void (ipcRenderer.invoke(CH.ai.snapshot, chatId) as Promise<ChatEvent | null>).then((event) => {
+      if (active && event !== null) handler(event)
+    })
+  }
+  set.add(handler)
+
+  return () => {
+    if (!active) return
+    active = false
+    const current = chatHandlers.get(chatId)
+    if (!current) return
+    current.delete(handler)
+    if (current.size === 0) {
+      chatHandlers.delete(chatId)
+      ipcRenderer.send(CH.ai.unsubscribe, chatId)
+    }
+  }
+}
+
+/**
  * The earthquake list: every change is broadcast, so observing is just listening
  * (after one read of the current state); subscribing also tells main, reference
  * counted, that a pane needs the list kept current.
@@ -390,6 +437,24 @@ const api: ElecdexApi = {
   feeds: {
     subscribe: (url, handler) => subscribeFeed(url, handler),
     watching: () => ipcRenderer.invoke(CH.feeds.watching) as Promise<string[]>,
+  },
+  ai: {
+    providers: () => ipcRenderer.invoke(CH.ai.providers) as Promise<AiProviderStatus[]>,
+    onProviders: (handler) => listen<AiProviderStatus[]>(CH.ai.providersChanged, handler),
+    setKey: (providerId, key) =>
+      ipcRenderer.invoke(CH.ai.setKey, providerId, key) as Promise<AiKeyStorage>,
+    removeKey: (providerId) => ipcRenderer.invoke(CH.ai.removeKey, providerId) as Promise<void>,
+    models: (providerId) => ipcRenderer.invoke(CH.ai.models, providerId) as Promise<AiModelsResult>,
+    chats: () => ipcRenderer.invoke(CH.ai.chats) as Promise<ChatSummary[]>,
+    onChats: (handler) => listen<ChatSummary[]>(CH.ai.chatsChanged, handler),
+    create: () => ipcRenderer.invoke(CH.ai.create) as Promise<string | null>,
+    remove: (chatId) => ipcRenderer.invoke(CH.ai.remove, chatId) as Promise<boolean>,
+    export: (chatId) => ipcRenderer.invoke(CH.ai.export, chatId) as Promise<string | null>,
+    subscribe: subscribeChat,
+    send: (chatId, request) =>
+      ipcRenderer.invoke(CH.ai.send, chatId, request) as Promise<ChatSendResult>,
+    stop: (chatId) => ipcRenderer.send(CH.ai.stop, chatId),
+    active: () => ipcRenderer.invoke(CH.ai.active) as Promise<string[]>,
   },
   audio: {
     spectrum: subscribeSpectrum,

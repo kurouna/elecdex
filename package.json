@@ -90,6 +90,7 @@
     "url": "https://github.com/kurouna"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.127.0",
     "@ip-location-db/geo-whois-asn-country-mmdb": "^2.3.2026061719",
     "@xterm/addon-clipboard": "^0.2.0",
     "@xterm/addon-fit": "^0.11.0",

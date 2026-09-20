@@ -184,6 +184,7 @@ describe('settings', () => {
         snoozeMinutes: 10,
         leadMinutes: 0,
       },
+      ai: { providers: [], systemPrompt: '' },
       plugins: {},
     })
   })

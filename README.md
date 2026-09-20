@@ -40,6 +40,10 @@ for Windows, macOS and Linux.
   month calendar with optional Japanese holidays.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
   you want it.
+- **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
+  that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
+  Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
+  the operating system and never reach the page, and conversations stay on your computer.
 - **Desk panes** — a calculator you type into (full-width digits and 3百万 read as typed, with a
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
   deadlines are drawn as meters and announced whether or not their pane is open, and a timer with
@@ -309,6 +313,21 @@ weather and calendar.
   the week forecast on or off, per pane; the default is New York City. A click on the forecast
   opens the source's own page for the place in the browser - JMA's forecast page, the NWS point
   forecast or yr.no.
+- **AI chat** — not in the default layout: add it from the picker (Ctrl+Shift+A), as many as you
+  like. First list a provider in *Settings -> AI chat*: pick a preset (Ollama, LM Studio, llama.cpp,
+  Anthropic, OpenAI, Gemini, OpenRouter, or a custom address), adjust the address, and - for a
+  hosted service - paste its API key. **test** asks the provider for its models, which then
+  complete the model field. In the pane, choose the provider and the model, type, and press Enter
+  (Shift+Enter for a new line; Esc or **stop** ends an answer and keeps what was written). Answers
+  are drawn as markdown with a copy button on every code block; a model's reasoning, where the
+  provider shows it (Claude's summarized thinking, `reasoning_content`, or inline `<think>`), is
+  folded under **reasoning**. Hover a message to **copy** it, **edit** an earlier question (which
+  replaces it and what followed) or ask **again**. **history** lists your conversations, exports
+  one as markdown, or deletes it. A conversation belongs to the app, not the pane: moving the pane
+  or putting it behind a tab does not interrupt an answer, and closing it stops the request.
+  Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
+  an optional system prompt in the settings goes ahead of every conversation. There are no tools:
+  the model cannot read your files, run commands or browse.
 - **RSS** — not in the default layout: add it from the picker (Ctrl+Shift+A). It starts empty and
   fetches nothing until its settings button lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
   per pane). The newest 20 headlines across its feeds are shown, each with its feed and the time
@@ -579,9 +598,9 @@ also makes node-pty's macOS `spawn-helper` executable. After `--ignore-scripts`,
 
 End-to-end tests never contact a real service, and never touch the machine they run on: weather,
 markets and the update check are pointed at closed ports or local stubs (JMA's earthquake and
-tsunami lists with the forecasts, and the USGS and NOAA feeds), RSS feeds, plugin hosts and the web
-panes' sites are served by a local server, and the sound, the notification-area icon, the sign-in
-entry and the socket table are stand-ins. The whole suite takes minutes; it is run in full before a
+tsunami lists with the forecasts, and the USGS and NOAA feeds), RSS feeds, AI providers, plugin
+hosts and the web panes' sites are served by a local server, and the sound, the notification-area
+icon, the sign-in entry, the socket table and the encryption of API keys are stand-ins. The whole suite takes minutes; it is run in full before a
 release, and a change runs the specs it can reach.
 
 ```
@@ -625,6 +644,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Earthquakes, world | [USGS](https://earthquake.usgs.gov/) real-time feed `summary/4.5_day.geojson` | Public domain. Fetched only while the world source is in use by a quakes pane or alerts: once a minute (its `max-age=60`), conditionally. |
 | Tsunamis, world | [NOAA Tsunami Warning Centers](https://www.tsunami.gov/): the Pacific (`PHEBAtom.xml`) and National (`PAAQAtom.xml`) Atom feeds | Public domain. Each holds the centre's latest bulletin; warnings, watches, advisories and threat messages count, information statements do not. Checked with the USGS feed, conditionally. Alerts say to follow local authorities. |
 | RSS feeds | The feed URLs you list in an RSS pane | Fetched by the app, never by the page, only while a pane lists them: every 15 minutes (or as the feed asks, at most hourly), conditionally (If-None-Match / If-Modified-Since), two at a time, up to 2 MB each, without cookies and with an `elecdex/<version>` User-Agent. Headlines are shown as plain text; the last ones per feed are kept in `feeds-cache.json` in the app's data folder. Nothing is sent to any other site. |
+| AI chat | The providers you list in *Settings -> AI chat*: a server on your computer or network, or a hosted API (Anthropic through its [official SDK](https://github.com/anthropics/anthropic-sdk-typescript); the rest as OpenAI-compatible `chat/completions`) | Asked by the app, never by the page, and only when you send a message, press **test** or open a pane's model list - a chat pane sitting in a layout calls nobody. What is sent is the conversation so far, your system prompt and the model's name, to the address you chose and nowhere else; each provider's own terms and data retention apply. No cookies, no redirects followed. An API key is encrypted by the operating system (DPAPI, the Keychain, the desktop's keyring) into `ai-keys.json`, apart from `settings.json`, and is never shown again; where the system cannot encrypt, it is kept in memory until elecdex quits. A key is refused for a plain-http address outside your computer and local network. With no key of its own, the Anthropic SDK looks where it always does (`ANTHROPIC_API_KEY`, an `ant auth login` profile). On Anthropic's own endpoint, `claude-opus-5` and `claude-fable-5-1` are asked with server-side fallbacks (`fallbacks: "default"`), so a request their safety classifiers decline is re-run on another Claude model in the same call; the answer names the model that wrote it. Conversations are files in `chats/` in the app's data folder. |
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 

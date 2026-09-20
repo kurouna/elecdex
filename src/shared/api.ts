@@ -1,3 +1,12 @@
+import type {
+  AiKeyStorage,
+  AiModelsResult,
+  AiProviderStatus,
+  ChatEvent,
+  ChatRequest,
+  ChatSendResult,
+  ChatSummary,
+} from './ai.js'
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
@@ -268,6 +277,42 @@ export interface MarketsApi {
   charts(): Promise<string[]>
 }
 
+/**
+ * The AI chat pane. Every request to a provider is main's; the page names a
+ * provider by its id in the settings and never sees its key.
+ */
+export interface AiApi {
+  /** Whether a key is held for each provider, and how - never the key. */
+  providers(): Promise<AiProviderStatus[]>
+  onProviders(handler: (status: AiProviderStatus[]) => void): () => void
+  /**
+   * Hands a key to main: 'stored' when the system encrypted it onto disk,
+   * 'session' when it cannot and the key lasts until elecdex quits, null when
+   * it was not a key.
+   */
+  setKey(providerId: string, key: string): Promise<AiKeyStorage>
+  removeKey(providerId: string): Promise<void>
+  /** Asks the provider which models it has. Only when the user asks: it is a request. */
+  models(providerId: string): Promise<AiModelsResult>
+  chats(): Promise<ChatSummary[]>
+  onChats(handler: (chats: ChatSummary[]) => void): () => void
+  /** A new, empty conversation's id; null when no more can be kept. */
+  create(): Promise<string | null>
+  remove(chatId: string): Promise<boolean>
+  /** Saves the conversation as markdown where the user says; answers the path, or null. */
+  export(chatId: string): Promise<string | null>
+  /**
+   * Follows a conversation: a snapshot at once, then what is written as it is
+   * written (fold the events with `applyChatEvent`). An answer nobody follows
+   * any more is stopped.
+   */
+  subscribe(chatId: string, handler: (event: ChatEvent) => void): () => void
+  send(chatId: string, request: ChatRequest): Promise<ChatSendResult>
+  stop(chatId: string): void
+  /** Diagnostics: the conversations an answer is being written for. */
+  active(): Promise<string[]>
+}
+
 export interface FeedsApi {
   /**
    * Keeps an RSS or Atom feed's items current (every 15 minutes, or as the feed
@@ -503,6 +548,7 @@ export interface ElecdexApi {
   launcher: LauncherApi
   markets: MarketsApi
   feeds: FeedsApi
+  ai: AiApi
   quakes: QuakesApi
   notes: NotesApi
   tasks: TasksApi

@@ -44,7 +44,7 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 
 ```
 src/main/        main process: window, ipc/ (handlers), store/ (json files), pty/, fs/, weather/,
-                 markets/, feeds/, quakes/, launcher/, audio/, plugins/, web/, background/,
+                 markets/, feeds/, quakes/, ai/, launcher/, audio/, plugins/, web/, background/,
                  reminders/, updates/, metrics/ (the broker between the collector and pages)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
 src/preload/     the single contextBridge API, window.elecdex
@@ -145,6 +145,27 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - Plugins that use unofficial APIs or are personal (such as claude-usage) live in a separate
     private repository, cloned beside this one and deployed with its `npm run deploy` — never
     here. The committed sample is the pomodoro timer.
+- **The AI chat pane** (architecture.md §5.7, shared/ai.ts, main/ai/). A provider is an address
+  and a dialect: OpenAI-compatible `chat/completions` (plain fetch + SSE, which covers Ollama,
+  LM Studio, llama.cpp and most hosted services) or Anthropic's Messages API (the official SDK,
+  imported lazily). Add a service as a preset in `AI_PRESETS`, not as code.
+  - **A key never reaches the page**: it goes to main once (`ai.setKey`), is encrypted with
+    `safeStorage` into `ai-keys.json` - never settings.json, which travels - and the page only
+    learns whether one is held. Asking that decrypts nothing (the first decryption is what makes
+    the macOS Keychain entry). A key is not sent over plain http beyond the local network
+    (`keyMayTravel`), and requests follow no redirects.
+  - The conversation *and the answer being written* are main's (`AiChatService`): a moved pane
+    remounts, and the answer must not care. Pages get a snapshot and then deltas that say where
+    they append; one that does not fit is a resync, never a text with a hole. An answer nobody
+    follows is stopped after a few seconds.
+  - A provider is asked only when the user sends, presses test, or opens the model list - never
+    on mount.
+  - A model's text is untrusted: it is drawn from the tree `lib/markdown.ts` makes, never as HTML.
+  - The Anthropic adapter follows the claude-api skill: capabilities from the Models API rather
+    than the model's name, `stop_reason` read before content, thinking shown summarized and never
+    replayed, server-side fallbacks only on Anthropic's own endpoint.
+  - No tools, no MCP: a model that can start processes or read files needs a consent design like
+    the plugins' first. Do not add them without asking.
 - **The vendored calculator is never edited.** `src/shared/calc/vendor` is elecxzy's evaluator
   copied whole (MIT), kept out of tsconfig and biome, typed through hand-written `.d.ts` behind
   `@calc/*`. What elecdex needs goes in the wrapper beside it; `scripts/sync-calc.mjs` overwrites
@@ -292,7 +313,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   - `ELECDEX_BACKGROUND_STUB=1` for the notification-area icon, the system-wide shortcut and the
     sign-in entry, so no run touches the taskbar, keys or startup;
   - `ELECDEX_SOCKETS_STUB=1` for a made-up socket table (`=demo` for screenshots), so no run
-    depends on — or records — where this machine has been.
+    depends on — or records — where this machine has been;
+  - `ELECDEX_AI_KEYS_STUB=1` for a reversible stand-in for `safeStorage`, so no run opens the
+    Keychain or a keyring. AI providers are the user's own addresses, so a spec lists a local stub.
   A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`
   (`api.example.test=127.0.0.1:port`), which keeps the grant checks as they are. Keep it that way.
 - **Every bug found gets a test.** When a problem turns up (from a user, a review, a flaky run),

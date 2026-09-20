@@ -54,6 +54,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 | RSS / Atom | `fast-xml-parser` | 5.x | main でのみ使用。RSS ペインができるまで import しない |
 | プラグインの変換 | `sucrase` | 3.35 | TypeScript を剥がすだけ。main は変換するだけで実行しない |
 | 相場 | `yahoo-finance2` | 4.x | Node 専用（ブラウザでは CORS と cookie で動かない）。main にバンドル |
+| AI チャット | `@anthropic-ai/sdk` | 0.127 | Anthropic の Messages API 用。main でのみ使い、anthropic 種別のプロバイダに最初に問い合わせるまで import しない。OpenAI 互換側は依存を足さず素の fetch + SSE（§5.7） |
 | Lint/Format | Biome | 2.x | ESLint + Prettier を置換 |
 | テスト | Vitest 5 / Playwright 1.63 (`_electron`) | — | unit + component + E2E |
 | パッケージング | electron-builder | 26.x | nsis / dmg / AppImage + deb |
@@ -300,9 +301,9 @@ interface WidgetDefinition {
 }
 ```
 
-内蔵ウィジェットは `widgets/builtins.ts` に並ぶ（2026-09 時点で24個: terminal / clock / sysinfo / cpu /
+内蔵ウィジェットは `widgets/builtins.ts` に並ぶ（2026-09 時点で25個: terminal / clock / sysinfo / cpu /
 memory / disk / toplist / netstat / connections / throughput / filesystem / weather / globe / launcher /
-markets / rss / quakes / calendar / spectrum / mixer / calc / notes / todo / timer）。Web ペインは
+markets / rss / aichat / quakes / calendar / spectrum / mixer / calc / notes / todo / timer）。Web ペインは
 `WEB_PRESETS` の各プリセットが `web.<id>` として同じレジストリに載る（§5.4）。
 
 - `PaneHost.svelte` が `widget: WidgetId` からレジストリを引いてコンポーネントを解決する
@@ -420,7 +421,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 - Web ペインのビューはネイティブ層で DOM より手前に描かれるため、**留まっているペイン以外の Web ペインはビューを隠してスナップショットに差し替える**（`pinnedPaneId` で判定する。矩形の重なりでは、前面のペイン自身が自分のカバー矩形の内側に入って自分を隠してしまう。`zoomedPaneId` では、戻る飛行中や電源オフ中＝暗幕がまだ消えていない間にビューが復帰してしまう）。前面に出た Web ペイン自身は、ペイン本体の `ResizeObserver` がそのまま新しい矩形を main に送るので、追加の IPC はない
 
 **どのペインを出せるか**: ウィジェットの登録（`widgets/registry.ts` の `zoom`）が決める。**既定は「出さない」**で、指定のないウィジェットには ⤢ ボタンも出ず、ショートカットも効かない（`layout.zoomModeFor` が唯一の判定で、ボタンもキーもここを通る）。
-- `'full'`: ワークスペースの 9 割。与えられた場所を埋めるもの — シェル、Web ページ、地球儀、スペクトラム、CPU / メモリ / トラフィックのチャート、相場、RSS、地震、ランチャー、ファイル、カレンダー、天気、メモ、タスク、時計
+- `'full'`: ワークスペースの 9 割。与えられた場所を埋めるもの — シェル、Web ページ、地球儀、スペクトラム、CPU / メモリ / トラフィックのチャート、相場、RSS、AI チャット、地震、ランチャー、ファイル、カレンダー、天気、メモ、タスク、時計
 - `'panel'`: 中央に最大 880×560（`PANEL_BOX`、ウィンドウが小さいときは 9 割の方）。固定の大きさの方が読みやすいもの — 電卓、タイマー、ミキサー、ディスク、プロセス一覧（収集側が 12 件で頭打ちのため、全面にしても行は増えない）
 - 指定なし: システム情報とネットワーク状態。数行の数値しかなく、拡大しても余白が広がるだけ（ユーザー指摘 2026-09-20）
 - プラグインも同じ語彙を `descriptor.zoom` で宣言する（docs/plugins.md）。同梱のポモドーロは `'panel'`
@@ -478,6 +479,88 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 **テスト**: 単体（`shared/layouts.ts` の純関数と破損許容）、コンポーネント（演出の時間計算、
 飛行中の保存、確認の解決）、e2e（改名・並び替え・番号キー・ステータスバー・確認と設定の往復・
 終了時の保存・破損した layouts.json・演出とモーション低減）。
+
+### 5.7 AI チャットペイン
+
+ローカルの LLM（Ollama / LM Studio / llama.cpp / vLLM）か、API キーを持っているサービス（Anthropic /
+OpenAI / Gemini / OpenRouter）と話すペイン（`widgets/aichat`、`shared/ai.ts`、`main/ai/`、`main/ipc/ai.ts`）。
+既定レイアウトには入れず、ペイン追加から置く（複数可、`zoom: 'full'`）。
+
+**プロバイダは「アドレス + 方言」**。2026 年時点でローカルサーバーのほぼ全部と多くのクラウドが OpenAI の
+`chat/completions` を話すので、方言は 2 つだけにした: `openai`（互換 API。素の fetch + SSE。依存なし）と
+`anthropic`（Messages API。公式 SDK）。新しいサービスはコードではなく `AI_PRESETS` の 1 行で足す。
+プロバイダは設定 `ai.providers`（id・表示名・種別・アドレス・既定モデル）、システムプロンプトは `ai.systemPrompt`。
+アドレスはスキーマでは弾かず、使うときに `aiBaseUrl` で正規化する（http/https のみ、認証情報・クエリ・
+フラグメントなし）。手編集の 1 行の誤りで settings.json 全体が既定に落ちるのを避けるため。
+
+**キーはページに戻らない**。ページは `ai.setKey(providerId, key)` で main に渡すだけで、以後わかるのは
+「保持しているか・どこにか」（`'stored' | 'session' | null`）だけ。main は Electron の `safeStorage`
+（DPAPI / Keychain / デスクトップの keyring）で暗号化して `ai-keys.json` に置く。settings.json に置かないのは、
+あのファイルが他の PC に持ち運ばれ、不具合報告に貼られるものだから。暗号化できない環境（keyring のない
+Linux。`basic_text` バックエンドは固定パスワードなので「できない」扱い）では書かずにメモリに持ち、
+終了まで有効であることを画面に出す。保持の有無を答えるだけなら復号しない（macOS では最初の復号が
+Keychain の項目を作るため、チャットを使わない人に Keychain を触らせない）。平文 http の相手にキーを
+送るのは、この PC かローカルネットワーク（loopback / RFC1918 / `.local`）に限る（`keyMayTravel`）。
+リダイレクトは追わない（`redirect: 'error'`。`x-api-key` のような独自ヘッダは、fetch が別オリジンへの
+リダイレクトでも落とさない）。キーなしの anthropic プロバイダでは SDK の通常の解決（`ANTHROPIC_API_KEY`、
+`ant auth login` のプロファイル）に任せる。
+
+**会話は main のもの**（メモと同じ理由）。`chats/<uuid>.json` に 1 会話 1 ファイル — 回答は数十 KB、
+長い会話は MB になるので、1 つ答え終わるたびに全会話を書き直さない。ペイン状態は `chat` / `provider` /
+`model` の 3 つだけ。**生成中の回答も main が持つ**（`AiChatService`、Electron 非依存で依存はすべて注入）:
+ペインの移動は再マウントで、ページの再読み込みもあり得るが、どちらでも回答は途切れず、次に購読した
+ページに「会話 + 書きかけ」のスナップショットが渡る。質問は問い合わせの前にディスクに書く（落ちても
+失うのは回答だけ）。停止・失敗・終了時は書けたところまでを残し、理由（`stopped` / `length` / `refusal` /
+`error`）をメッセージに持たせる。終了時（`will-quit`）の保存は同期で行う。
+
+**配信はスナップショット + 差分**。断片は 100ms ごとにまとめて送る（速いローカルモデルは毎秒数百断片を
+出すが、画面は 10 fps）。差分は「どこに足すか」（`textAt`）を持ち、合わなければページは
+`applyChatEvent` が `'resync'` を返して取り直す — 欠けた文章を黙って表示しない。購読は preload と main で
+参照カウントし、`did-start-navigation` と destroy で落とす（他の購読と同じ）。**誰も見ていない会話の
+生成は 3 秒後に止める**（移動による再マウントはその内側で戻ってくる）。ペインを閉じたのに課金だけ続く、
+を避けるため。
+
+**通信するのは利用者が頼んだときだけ**: メッセージの送信、設定の「test」、ペインのモデル欄を開いたとき
+（`/models`）。レイアウトに置いてあるだけのチャットペインはどこにも問い合わせない。
+
+**推論（reasoning）の表示**: 方言・サーバーごとに出方が違うので main でそろえる。Anthropic は
+`thinking: {type: 'adaptive', display: 'summarized'}`（既定の `omitted` だと長い無音になる）。OpenAI 互換は
+`delta.reasoning_content`（DeepSeek / llama.cpp / vLLM）と `delta.reasoning`（Ollama / OpenRouter）、さらに
+本文に `<think>…</think>` で書くローカルモデルのために `ThinkSplitter`（チャンク境界でタグが割れても 1 つの
+タグとして扱い、回答の先頭のタグだけを数える）。表示は折りたたみ。**履歴として送り返すのは本文だけ**で、
+thinking ブロックは送り返さない: ツールを使わない会話では API が要求せず、送り返さないので過去の質問の
+編集・再生成が（Fable 5.1 の履歴編集チェックを含め）何も無効化しない。
+
+**Anthropic 固有**: モデルの能力は名前から推測せず Models API に聞く（`max_tokens` の上限、adaptive thinking
+の可否。プロバイダ + モデルごとに 1 回）。Models API のないプロキシでは thinking を付けず `max_tokens`
+64000 で送る（どのモデルも受け付ける形）。会話の接頭辞は毎ターン同じなのでトップレベルの
+`cache_control` でキャッシュする。`stop_reason` は本文より先に読み、`refusal` は理由つきの停止として残す。
+`api.anthropic.com` 宛ての `claude-opus-5` / `claude-fable-5-1` に限り、サーバー側フォールバック
+（beta `server-side-fallback-2026-07-01`、`fallbacks: "default"`）を付ける: 安全分類器が断った要求を同じ呼び出しの
+中で別モデルが答え、メッセージには実際に答えたモデル名を残す。プロキシやクラウド基盤はこのパラメータを
+知らない可能性があるので付けない（beta 面を使うのもこのときだけ）。
+
+**Markdown は HTML を経由しない**。`lib/markdown.ts` が既知のノードだけの木を作り、`Markdown.svelte` が
+要素として描く（段落・見出し・コードフェンス・リスト・引用・表・罫線、インラインはコード・強調・
+打ち消し・リンク）。モデルの出力は信頼できないテキスト（Web ページの引用や、それに誘導された出力を
+含み得る）で、木にはスクリプトもスタイルも画像リクエストも載らない。リンクは http/https だけで、
+他のリンクと同じく `system.openExternal`。書きかけの回答を 100ms ごとに解釈するので、閉じていない
+フェンスは「開いたコードブロック」として扱う。メモの「Markdown を描画しない」決定（§16）とは別の話で、
+あちらは自分の文章、こちらは Markdown で答えるよう訓練されたモデルの文章。
+
+**ツールは持たせない（v1）**。MCP / ツール実行は 2026 年のチャット UI の主流だが、「モデルの判断で
+プロセスを起動し、ファイルを読む」経路は、このアプリの境界（§11: 汎用チャネルなし、パスを取る run なし）と
+正面からぶつかる。入れるならプラグインと同じ水準の同意設計（ツールごとの許可、呼び出しごとの確認）が
+先に要る。画像添付、会話の分岐、自動要約によるコンテキスト圧縮も見送り。
+
+**テスト**: 単体（`shared/ai.ts` の純関数、`AiChatService` を偽アダプタと実ファイルで、`KeyVault`、
+両アダプタをローカル HTTP サーバー相手に — 送るパス・ヘッダ・本文と、サーバーの答え方ごとの解釈、
+リダイレクトを追わないこと、`lib/markdown.ts`）、e2e（`aichat.spec.ts`: プロバイダなしでは何にも触れない、
+キーがページ・settings.json・ai-keys.json のどこにも平文で現れない、ストリーミングと再起動後の復元、停止、
+再読み込みをまたぐ生成とペインを閉じたときの停止、Anthropic 方言、平文 http へのキー拒否）。
+プロバイダは利用者自身のアドレスなので、テストはローカルのスタブを並べるだけでオフラインのまま。
+`ELECDEX_AI_KEYS_STUB=1` が safeStorage を可逆のダミーに差し替える（Keychain と、その確認ダイアログに
+触れないため）。
 
 ## 6. ターミナル設計
 
@@ -600,6 +683,8 @@ layouts.json        # 名前を付けて保存した配置と、いま作業中�
                     # 機械に依存する状態（セッション id）を含まないので、他の PC にそのまま持っていける
 notes.json          # メモ本文（main 所有。ペインは noteId だけを持つ）
 tasks.json          # タスクとリスト（main 所有。期限の通知も main がスケジュールする）
+chats/              # AI チャットの会話。1 会話 1 ファイル（<uuid>.json。main 所有。§5.7）
+ai-keys.json        # AI プロバイダの API キー。OS の暗号化（safeStorage）を通した値だけ。settings.json には置かない
 alarms.json         # アラーム（時刻・曜日・on/off。main 所有。ペインを閉じていても鳴る）
 background.json     # 「通知領域に入りました」の案内を出し済みかどうか
 launcher-usage.json # ランチャーの起動回数（よく使う順）
@@ -705,7 +790,7 @@ elecdex/
 | CSP | `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src blob:` — Svelte scoped CSS はビルド時に静的CSSになるので `unsafe-inline` 不要。`worker-src blob:` はプラグインの Worker のためだけにあり、その Worker もこの CSP を継承する（docs/plugins.md §4） |
 | 入力検証 | renderer 由来の全入力を main 側で zod 検証。パスは `path.resolve` 正規化 + allowlist |
 | ナビゲーション | `will-navigate` / `setWindowOpenHandler` で外部遷移を拒否し、`shell.openExternal` に委譲 |
-| 外部通信 | すべて main が行い、renderer の CSP は `connect-src 'self'` のまま。行き先は、更新チェック（GitHub API。設定で無効化可能）、天気（気象庁 / MET Norway / NWS）、相場（Yahoo Finance）、地震と津波（気象庁、または USGS と NOAA）、利用者が並べた RSS フィード、同意したプラグインが名指ししたホスト、Web ペインで開いたサイト。**どれも、それを必要とするペインがある間（地震は通知が有効な間も）だけ**通信し、条件付きリクエストでまとめて取り、失敗時は間隔を空けて最後のデータを画面に残す。相場は1分に1回の一括リクエスト（全市場クローズ中は5分に1回、チャートは期間に応じて5分〜1時間に1回）、天気は発表時刻の前後だけ。GeoIP は同梱データベースを引くだけで、更新のダウンロードも問い合わせもしない。取得間隔と各サービスの規約は README「Data sources」と [weather-providers.md](weather-providers.md) |
+| 外部通信 | すべて main が行い、renderer の CSP は `connect-src 'self'` のまま。行き先は、更新チェック（GitHub API。設定で無効化可能）、天気（気象庁 / MET Norway / NWS）、相場（Yahoo Finance）、地震と津波（気象庁、または USGS と NOAA）、利用者が並べた RSS フィード、利用者が設定に並べた AI プロバイダ（メッセージを送ったとき・「test」・モデル一覧を開いたときだけ。§5.7）、同意したプラグインが名指ししたホスト、Web ペインで開いたサイト。**どれも、それを必要とするペインがある間（地震は通知が有効な間も）だけ**通信し、条件付きリクエストでまとめて取り、失敗時は間隔を空けて最後のデータを画面に残す。相場は1分に1回の一括リクエスト（全市場クローズ中は5分に1回、チャートは期間に応じて5分〜1時間に1回）、天気は発表時刻の前後だけ。GeoIP は同梱データベースを引くだけで、更新のダウンロードも問い合わせもしない。取得間隔と各サービスの規約は README「Data sources」と [weather-providers.md](weather-providers.md) |
 | Web ペイン | workspace とは別の `WebContentsView`（パーティション `persist:web`、preload なし、sandbox）。権限はクリップボード書き込みとフルスクリーンのみ、ダウンロードは取り消し、遷移は http/https のみでプリセットの `hosts` 外は既定のブラウザへ（§5.4）。workspace の CSP は変えない |
 | XSS | `innerHTML` 使用禁止（Biome ルールで機械的に禁止）。原版の `_escapeHtml` / `_purifyCSS` 自作ヘルパは不要になる |
 
@@ -948,6 +1033,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | マーケットの銘柄を全面のチャートで開く（v0.0.11） | 行（線・ローソク・バーのどの表示でも）を押すと、その銘柄のチャートがペイン全体を使い、← で一覧に戻る。開いている銘柄はペイン状態 `focus`、全面での線 / ローソクは `detailView` で、一覧の `view` とは別に持つ | 既定レイアウトのペイン（341×243px）では一覧のチャートが幅 115px・高さ 27px（ローソクでも約 50px）しかなく、形が読めなかった。全面では価格軸・時刻軸・最新値の札・ポインタ下のバーの読み取りを足す（`DetailChart.svelte`、目盛りは `chart-draw.ts` の `niceTicks` / `timeTicks`）。十字線と読み取りは canvas の上の要素なので、ポインタを動かしても再描画しない。**購読は一覧のぶんを持ったまま**にした: main は `watch` のたびに 250ms 後の相場取得を予約するので、開くたびに外して戻るたびに取り直すと、行き来するだけで Yahoo への要求が増える（相場は 1 回にまとめて取るので、持ち続けても増えない）。銘柄が一覧から消えていれば一覧に戻る。行は `<button>` にしたが、クラスを `.open` にすると市場の状態灯（`.state.open`）に当たって灯が横に伸びたので `.hit` にした（e2e で灯の形を確認している） |
 | マーケットの一覧は、ある場所を使い切る（v0.0.11） | 一覧は 1 つのグリッドで、行はその subgrid。名前と数字の列は中身の幅だけを取り、残りがチャート。行は高さを分け合い（上限なし）、幅 56rem 以上で 2 列、収まらないときは 1 行 1 段に詰める（`board-layout.ts`）。ローソクは名前と数字の下に行の全幅で置く。期間は一覧の上のチップで選び、設定パネルからは外した。基準値がデータの高さより遠いときは縦軸に含めず、端の矢印で方向だけ示す（`scaleBounds`）。バー表示は騰落率順に並べ替えられる（ペイン状態 `sort`） | 実測（2026-09-20、既定レイアウトのペイン 341×243px、8 銘柄）。**改修前**: チャートは幅 115px（ペインの 34%）・高さ 27px、見えるのは線で 4.4 行、ローソクで 2.2 行。名前列の最小 5.5rem と数字列の最小 6.5rem が中身より合わせて 60px ほど広く、ローソクは 1D の 78 本が 38 本に統合されていた。単独のペイン（1090×660px）では行の上限 4rem のため下 1/3 が空いていた。**改修後**: 線は幅約 150px で 6.5 行（詰めた行 1.7rem）、ローソクは幅 315px で 79 本を統合なしで描き 2.8 行（詰めた行 3.8rem）、単独のペインは 2 列 × 4 段で全面を使う。詰めるかどうかは CSS のコンテナクエリではなく行数と一覧の高さから決める（高さだけでは、銘柄が 3 つしかない低いペインまで詰めてしまう）。大きさは `ResizeObserver` のエントリから読む（前面表示の直後に要素を測ると、元の配置での大きさが返る）。行の最小高は CSS と `board-layout.ts` の両方にあるので、単体テストが一致を確かめる。**4px スロットのローソク**は胴が `floor(4×0.7)=2`→奇数化で 1px になり芯と見分けがつかなかったので、4px 以上では 3px を下限にした。**バー表示の目盛り**は、一覧にスクロールバーが出ると行だけが狭くなり「0」が軸から約 6px ずれていた。目盛りと一覧の両方に `scrollbar-gutter: stable` を付けて揃えた（e2e で確認）。ツール行を出典の行にまとめる案は、既定のペインで出典（「not investment advice」まで見せる決まり）が切れるので採らなかった |
 | 天気ペインから提供元のページを開く（v0.0.11） | 今日の予報と週間予報の各日が `<button>` になり、押すと地震ペインと同じく `system.openExternal` でその地点のページを開く（`forecastPageUrl`）。気象庁は予報ページのハッシュに府県予報区を渡し（`#area_type=offices&area_code=130000`）、NWS は `forecast.weather.gov/MapClick.php?lat&lon`、MET Norway は同社が NRK と運営する yr.no の座標 URL。出典のリンク（規約が求める先）はこれまで通り提供元のトップとライセンスのページ | ユーザー要望: 地震と同じく、クリックで詳細のページに飛びたい。気象庁のページは `area_type=class10s` を渡すと全国にフォールバックするため（実際に開いて確認）、一次細分区域ではなく府県予報区まで送り、細かい区域はページ側の選択に任せる。日ごとのページを持つ提供元は 3 つとも無いので、どの日を押しても同じページを開く。ホバーの手応えは `--accent` が多くのテーマで本文色と同じため色ではなく薄い面（`--accent-faint`、週間予報は平坦な面。背の高いペインでは中身が下に寄りグラデーションが消えるため）と今日の文の下線にした |
+| AI チャットペイン（未リリース、2026-09-20） | 設計の全体は §5.7。要点: (1) プロバイダは「アドレス + 方言」で、方言は OpenAI 互換（素の fetch + SSE）と Anthropic（公式 SDK `@anthropic-ai/sdk` 0.127、遅延 import）の 2 つ。(2) API キーは `safeStorage` で暗号化して `ai-keys.json` に置き、ページには保持の有無しか返さない。暗号化できない環境ではメモリのみ。平文 http でキーを送るのはローカルネットワークまで、リダイレクトは追わない。(3) 会話と生成中の回答は main が持つ（`chats/<uuid>.json`、スナップショット + 100ms ごとの差分、購読者がいなくなって 3 秒で生成停止）。(4) 通信は送信・test・モデル一覧を開いたときだけ。(5) Markdown は HTML を経由しない自前の木。(6) ツール / MCP・画像・分岐は見送り | ローカル LLM と API キーの両方を 1 つのペインで、という要望（2026-09-20）。ライブラリを OpenAI 側に足さなかったのは、互換サーバーごとの差（reasoning の出方、usage の有無）を寛容に読む必要があり、SDK の型がかえって邪魔になるため。Anthropic 側を SDK にしたのは、ストリームのイベント・型付きエラー・再試行・beta パラメータ（フォールバック）を自前で追わないため。キーを settings.json に置かなかったのは、あのファイルが PC 間で持ち運ばれ、issue に貼られるから。生成を main に置いたのは、ペインの移動が再マウントであるこのアプリでは、ページに置くと「動かしただけで回答が消える」ため |
 
 ## 17. 既知の問題
 

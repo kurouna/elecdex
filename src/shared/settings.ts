@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AI_LIMITS, AiProviderSchema } from './ai.js'
 import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
 import { INTENSITIES, MAGNITUDES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
@@ -178,6 +179,22 @@ export const SettingsSchema = z.object({
     })
     .default({ notify: true, system: true, sound: true, snoozeMinutes: 10, leadMinutes: 0 }),
   /**
+   * The AI chat pane (shared/ai.ts): the providers the user listed, local servers and
+   * hosted services alike. No key is kept here - main holds those, encrypted, in a
+   * file of its own - so this file can still be copied to another machine.
+   */
+  ai: z
+    .object({
+      providers: z
+        .array(AiProviderSchema)
+        .max(AI_LIMITS.providers)
+        .refine((list) => new Set(list.map((p) => p.id)).size === list.length, 'duplicate id')
+        .default([]),
+      /** Sent ahead of every conversation; empty for none. */
+      systemPrompt: z.string().max(AI_LIMITS.systemPrompt).default(''),
+    })
+    .default({ providers: [], systemPrompt: '' }),
+  /**
    * Plugins by id: whether each is on, what the user agreed it may do, and its setting
    * values. A plugin never listed here is off (docs/plugins.md section 8).
    */
@@ -205,6 +222,8 @@ export interface SettingsPatch {
   web?: Partial<Settings['web']>
   quakes?: Partial<Settings['quakes']>
   reminders?: Partial<Settings['reminders']>
+  /** `providers` replaces the whole list. */
+  ai?: Partial<Settings['ai']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
 }
@@ -238,6 +257,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     layout: merge(current.layout, p.layout),
     quakes: merge(current.quakes, p.quakes),
     reminders: merge(current.reminders, p.reminders),
+    ai: merge(current.ai, p.ai),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),
     // Only showSystem: the launcher's own entries are edited in settings.json.

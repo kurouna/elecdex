@@ -1,5 +1,6 @@
 import type { MetricSourceId } from '@shared/metrics'
 import { WEB_PRESETS, webWidgetId } from '@shared/web'
+import AiChatWidget from './aichat/AiChatWidget.svelte'
 import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
 import CalcWidget from './calc/CalcWidget.svelte'
@@ -200,6 +201,17 @@ registerBuiltin({
     'Indices, currencies and more from Yahoo Finance, every minute, as sparklines or bars.',
   component: MarketsWidget,
   minSize: { w: 240, h: 160 },
+  multiple: true,
+  zoom: 'full',
+})
+
+registerBuiltin({
+  id: 'aichat',
+  title: 'ai chat',
+  description:
+    'Chat with a language model: a local server (Ollama, LM Studio, llama.cpp) or a service you have an API key for.',
+  component: AiChatWidget,
+  minSize: { w: 260, h: 200 },
   multiple: true,
   zoom: 'full',
 })

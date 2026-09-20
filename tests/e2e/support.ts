@@ -177,6 +177,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       // A made-up socket table: never where this machine has actually been
       // (src/services/metrics/sockets/stub.ts).
       ELECDEX_SOCKETS_STUB: '1',
+      // A reversible stand-in for the system's encryption: never the Keychain or a
+      // keyring, and never the prompt either may show (src/main/ai/keys.ts).
+      ELECDEX_AI_KEYS_STUB: '1',
       ...options.env,
     },
   })

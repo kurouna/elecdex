@@ -2,6 +2,7 @@ import { backgroundCapabilities, HIDDEN_SWITCH, isWayland } from '@shared/backgr
 import { app, dialog } from 'electron'
 import { appWindows } from './app-windows.js'
 import { type Background, registerBackground } from './background/index.js'
+import { registerAiIpc } from './ipc/ai.js'
 import { registerAlarmsIpc } from './ipc/alarms.js'
 import { registerAudioIpc } from './ipc/audio.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
@@ -75,6 +76,7 @@ let settingsIpc: { dispose: () => void } | null = null
 let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
 let feedsIpc: { dispose: () => void } | null = null
+let aiIpc: { dispose: () => void } | null = null
 let quakesIpc: { dispose: () => void } | null = null
 let notesIpc: { dispose: () => void } | null = null
 let tasksIpc: { dispose: () => void } | null = null
@@ -97,6 +99,7 @@ app.whenReady().then(() => {
   launcherIpc = registerLauncherIpc(settings)
   marketsIpc = registerMarketsIpc()
   feedsIpc = registerFeedsIpc()
+  aiIpc = registerAiIpc(settings)
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
   notesIpc = registerNotesIpc()
@@ -160,6 +163,8 @@ app.on('will-quit', () => {
   marketsIpc = null
   feedsIpc?.dispose()
   feedsIpc = null
+  aiIpc?.dispose()
+  aiIpc = null
   quakesIpc?.dispose()
   quakesIpc = null
   notesIpc?.dispose()

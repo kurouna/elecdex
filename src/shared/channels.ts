@@ -94,6 +94,38 @@ export const CH = {
     update: 'feeds:update',
     watching: 'feeds:watching',
   },
+  /** The AI chat pane (shared/ai.ts). A key goes to main and never comes back. */
+  ai: {
+    /** What the page may know of each provider's key (AiProviderStatus[]). */
+    providers: 'ai:providers',
+    /** main -> renderer: the same, after a key was set or removed. */
+    providersChanged: 'ai:providers-changed',
+    setKey: 'ai:set-key',
+    removeKey: 'ai:remove-key',
+    /** Asks a provider which models it has (AiModelsResult). */
+    models: 'ai:models',
+    /** The conversations, newest first (ChatSummary[]). */
+    chats: 'ai:chats',
+    /** main -> renderer: the list after any change. */
+    chatsChanged: 'ai:chats-changed',
+    create: 'ai:create',
+    remove: 'ai:remove',
+    /** Opens the system's save dialog and writes the conversation as markdown. */
+    export: 'ai:export',
+    /** renderer -> main, fire and forget: a pane is showing this conversation. */
+    subscribe: 'ai:subscribe',
+    unsubscribe: 'ai:unsubscribe',
+    /** The conversation and its run as they stand, for a second pane on the same page. */
+    snapshot: 'ai:snapshot',
+    /** main -> renderer: a ChatEvent, to the pages showing that conversation. */
+    event: 'ai:event',
+    /** Adds a message (or asks again) and starts the answer. */
+    send: 'ai:send',
+    /** renderer -> main, fire and forget: end the answer being written. */
+    stop: 'ai:stop',
+    /** Diagnostics: the conversations an answer is being written for. */
+    active: 'ai:active',
+  },
   quakes: {
     /** renderer -> main, fire and forget: a quakes pane wants the list kept current. */
     subscribe: 'quakes:subscribe',

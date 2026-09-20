@@ -30,18 +30,19 @@ import { background } from './stores/background.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import { updates } from './stores/updates.svelte.ts'
+import AiSettings from './widgets/aichat/AiSettings.svelte'
 
 /**
  * Settings, in the app: appearance and sound, the terminal's start folder, the
  * launcher, running in the background (Windows), keyboard shortcuts, alerts,
- * plugins and the update check. Everything here writes through settings.patch, so it
+ * the AI chat's providers, plugins and the update check. Everything here writes through settings.patch, so it
  * lands in settings.json and a hand edit to that file shows up here at once.
  * Launcher entries and themes stay in files; the dialog links to them.
  *
  *   Esc   close (or cancel recording a shortcut)
  */
 
-type Section = 'general' | 'window' | 'keyboard' | 'alerts' | 'plugins' | 'updates'
+type Section = 'general' | 'window' | 'keyboard' | 'alerts' | 'ai' | 'plugins' | 'updates'
 const platform = window.elecdex.system.platform
 /** What this machine can do in the background; main found it out (stores/background). */
 const capabilities = $derived(background.capabilities)
@@ -52,6 +53,7 @@ const SECTIONS = $derived<Array<{ id: Section; label: string }>>([
   ...(backgroundOffered(capabilities) ? [{ id: 'window' as const, label: 'window' }] : []),
   { id: 'keyboard', label: 'keyboard' },
   { id: 'alerts', label: 'alerts' },
+  { id: 'ai', label: 'ai chat' },
   { id: 'plugins', label: 'plugins' },
   { id: 'updates', label: 'updates' },
 ])
@@ -852,6 +854,8 @@ function describeUpdate(status: UpdateStatus): string {
                 />
               </label>
             </section>
+          {:else if section === 'ai'}
+            <AiSettings />
           {:else if section === 'plugins'}
             <PluginSettings />
           {:else}
