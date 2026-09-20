@@ -16,6 +16,18 @@ export const PLUGIN_API_VERSION = 1
 export const PLUGIN_ID = /^[a-z0-9][a-z0-9-]{0,39}$/
 const SETTING_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/
 
+/**
+ * What came of installing a plugin from a folder (main/plugins/install.ts).
+ *
+ * The page never names a path: it asks main to ask the user, and main answers
+ * with what happened. 'cancelled' is the dialog being closed, which is not a
+ * failure and says nothing on screen.
+ */
+export type PluginInstalled =
+  | { status: 'installed'; name: string; files: number }
+  | { status: 'cancelled' }
+  | { status: 'refused'; reason: string }
+
 export const PLUGIN_LIMITS = {
   /** Source read for one plugin, all files together. */
   sourceBytes: 1024 * 1024,

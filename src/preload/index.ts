@@ -20,7 +20,7 @@ import type { SavedLayoutSummary } from '@shared/layouts'
 import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { Note, NotesFile } from '@shared/notes'
-import type { PluginCatalog } from '@shared/plugins'
+import type { PluginCatalog, PluginInstalled } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
@@ -401,6 +401,7 @@ const api: ElecdexApi = {
     catalog: () => ipcRenderer.invoke(CH.plugins.catalog) as Promise<PluginCatalog>,
     onChange: (handler) => listen<PluginCatalog>(CH.plugins.changed, handler),
     openFolder: () => ipcRenderer.invoke(CH.plugins.openFolder) as Promise<void>,
+    install: () => ipcRenderer.invoke(CH.plugins.install) as Promise<PluginInstalled>,
     fetch: (id, url, headers) => ipcRenderer.invoke(CH.plugins.fetch, id, url, headers),
     storageLoad: (id) =>
       ipcRenderer.invoke(CH.plugins.storageLoad, id) as Promise<Record<string, unknown>>,

@@ -8,7 +8,7 @@ import type { SavedLayoutSummary } from './layouts.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { Note, NotesFile } from './notes.js'
-import type { PluginCatalog } from './plugins.js'
+import type { PluginCatalog, PluginInstalled } from './plugins.js'
 import type { QuakeAlert, QuakeState } from './quakes.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
@@ -456,6 +456,12 @@ export interface PluginsApi {
   catalog(): Promise<PluginCatalog>
   onChange(handler: (catalog: PluginCatalog) => void): () => void
   openFolder(): Promise<void>
+  /**
+   * Asks the user for a folder and copies the plugin in it into the plugins
+   * folder. The page hands in no path - main opens the picker itself - and what
+   * is copied is what the scanner would read, nothing else.
+   */
+  install(): Promise<PluginInstalled>
   /** A GET for a plugin; main checks the URL and every redirect against the plugin's grant. */
   fetch(
     id: string,

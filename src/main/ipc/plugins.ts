@@ -8,13 +8,15 @@ import {
   PLUGIN_ID,
   PLUGIN_LIMITS,
   type PluginCatalog,
+  type PluginInstalled,
   parseHostMap,
   TokenBucket,
 } from '@shared/plugins'
-import { app, ipcMain, Notification, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Notification, shell } from 'electron'
 import { appWindows } from '../app-windows.js'
 import { APP_VERSION } from '../build-info.js'
 import { PluginFolder } from '../plugins/folder.js'
+import { type InstallResult, installFromFolder } from '../plugins/install.js'
 import { PluginNet } from '../plugins/net.js'
 import { closeSignIn, openSignIn, rawRequest, signOut } from '../plugins/sessions.js'
 import { PluginStorage } from '../plugins/storage.js'
@@ -100,6 +102,39 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
   ipcMain.handle(CH.plugins.openFolder, async () => {
     catalog ??= scan()
     await shell.openPath(folder.dir)
+  })
+
+  /**
+   * Installs a plugin from a folder the user picks.
+   *
+   * main opens the picker and does the copying: the page never says where to
+   * read from, which keeps the boundary where it is (there is no path-taking
+   * call in the API). A name already taken is asked about rather than
+   * overwritten, since replacing is how a plugin is updated and losing one to a
+   * mis-click is not.
+   */
+  ipcMain.handle(CH.plugins.install, async (event): Promise<PluginInstalled> => {
+    const owner = BrowserWindow.fromWebContents(event.sender)
+    const source = await pickPluginFolder(owner)
+    if (source === null) return { status: 'cancelled' }
+
+    // The folder may not exist yet on a first run.
+    catalog ??= scan()
+    const first = installFromFolder({ pluginsDir: folder.dir, source })
+    const result =
+      first.status === 'exists'
+        ? await replaceAfterAsking(owner, folder.dir, source, first.name)
+        : first
+    if (result.status === 'cancelled') return result
+    if (result.status !== 'installed') {
+      return { status: 'refused', reason: 'reason' in result ? result.reason : 'already there' }
+    }
+
+    // The watcher would find it on its own after its debounce; this puts it on
+    // screen with the answer, so the plugin is there when the note appears.
+    catalog = scan()
+    broadcast(CH.plugins.changed, catalog)
+    return { status: 'installed', name: result.name, files: result.files }
   })
 
   ipcMain.handle(CH.plugins.fetch, async (_event, id: unknown, url: unknown, headers: unknown) => {
@@ -192,6 +227,7 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
       for (const channel of [
         CH.plugins.catalog,
         CH.plugins.openFolder,
+        CH.plugins.install,
         CH.plugins.fetch,
         CH.plugins.storageLoad,
         CH.plugins.storageSet,
@@ -205,4 +241,44 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
       ipcMain.removeAllListeners(CH.plugins.closeSignIn)
     },
   }
+}
+
+/** The folder to install from, or null when the picker was closed. */
+async function pickPluginFolder(owner: BrowserWindow | null): Promise<string | null> {
+  const options: Electron.OpenDialogOptions = {
+    title: 'Install a plugin from a folder',
+    properties: ['openDirectory'],
+    buttonLabel: 'Install',
+  }
+  const picked = owner
+    ? await dialog.showOpenDialog(owner, options)
+    : await dialog.showOpenDialog(options)
+  return picked.canceled ? null : (picked.filePaths[0] ?? null)
+}
+
+/**
+ * Asks before replacing a plugin of the same name, and replaces it if the user
+ * says so. What it is allowed to do and what it saved are keyed by its id, so
+ * they are untouched - and a plugin whose id changed asks for consent again on
+ * its own (docs/plugins.md).
+ */
+async function replaceAfterAsking(
+  owner: BrowserWindow | null,
+  pluginsDir: string,
+  source: string,
+  name: string,
+): Promise<InstallResult | { status: 'cancelled' }> {
+  const question: Electron.MessageBoxOptions = {
+    type: 'question',
+    message: `Replace the plugin "${name}"?`,
+    detail: 'Its files are replaced. What it is allowed to do, and anything it saved, stay.',
+    buttons: ['Replace', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+  }
+  const answer = owner
+    ? await dialog.showMessageBox(owner, question)
+    : await dialog.showMessageBox(question)
+  if (answer.response !== 0) return { status: 'cancelled' }
+  return installFromFolder({ pluginsDir, source, replace: true })
 }

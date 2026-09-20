@@ -132,6 +132,8 @@ export const CH = {
     /** main -> renderer: the catalog after a change in the folder. */
     changed: 'plugins:changed',
     openFolder: 'plugins:open-folder',
+    /** Picks a folder and copies the plugin in it into the plugins folder. */
+    install: 'plugins:install',
     /** A plugin's ctx.fetch, checked against its grant in main. */
     fetch: 'plugins:fetch',
     storageLoad: 'plugins:storage-load',

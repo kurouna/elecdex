@@ -122,6 +122,31 @@ async function forget(id: string): Promise<void> {
   await appearance.patch({ plugins: { [id]: null } })
   await window.elecdex.plugins.forget(id)
 }
+
+/**
+ * Installing from a folder: main asks the user where, copies what the scanner
+ * would read, and answers with what happened (main/plugins/install.ts). The
+ * page names no path of its own, and the plugin arrives turned off - it goes
+ * through the same consent as one put there by hand.
+ */
+let installing = $state(false)
+let installed = $state<{ name: string; files: number } | null>(null)
+let refused = $state<string | null>(null)
+
+async function install(): Promise<void> {
+  installing = true
+  installed = null
+  refused = null
+  try {
+    const result = await window.elecdex.plugins.install()
+    if (result.status === 'installed') installed = { name: result.name, files: result.files }
+    else if (result.status === 'refused') refused = result.reason
+  } catch (error) {
+    refused = error instanceof Error ? error.message : String(error)
+  } finally {
+    installing = false
+  }
+}
 </script>
 
 <section data-testid="settings-plugins">
@@ -132,10 +157,21 @@ async function forget(id: string): Promise<void> {
     plugin load as you save.
   </p>
   <div class="row">
+    <button type="button" class="link primary" onclick={() => void install()} disabled={installing} data-testid="plugins-install">
+      {installing ? 'installing…' : 'install from a folder…'}
+    </button>
     <button type="button" class="link" onclick={() => void window.elecdex.plugins.openFolder()} data-testid="plugins-open-folder">
       open plugins folder
     </button>
   </div>
+  {#if installed !== null}
+    <p class="note" data-testid="plugins-install-note">
+      <b>{installed.name}</b> installed, {installed.files}
+      {installed.files === 1 ? 'file' : 'files'}. Turn it on below; it asks for what it needs first.
+    </p>
+  {:else if refused !== null}
+    <p class="note problem" data-testid="plugins-install-problem">{refused}</p>
+  {/if}
   {#if entries.length === 0}
     <p class="note">No plugins found.</p>
   {/if}

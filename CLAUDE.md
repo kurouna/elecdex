@@ -137,7 +137,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   `ctx.views`, counted in the worker. Plugins that use unofficial APIs or are personal (such as
   claude-usage) live in a separate private repository, cloned beside this one and copied into
   the plugins folder with its `npm run deploy` - never here; the committed sample is the
-  pomodoro timer.
+  pomodoro timer. *Settings -> Plugins -> install from a folder* copies one in
+  (main/plugins/install.ts): main opens the picker, so the page never hands over a path, and what
+  is copied is what the scanner would read and nothing else - keep the two in step if the scanner's
+  rules change.
 - **Performance is measured, not assumed.** The idle budget is enforced in
   tests/e2e/metrics.spec.ts (default layout ~13% of one core). On Windows never spawn a process
   per reading — frequent readings go through `WindowsSampler` (one long-lived PowerShell).
