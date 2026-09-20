@@ -582,6 +582,8 @@ interface DialogState {
   backdropZ: string
   backdropBackground: string
   delay: string
+  /** From the first key press to the last frame: how long the run took to press them. */
+  elapsedMs: number
 }
 
 /**
@@ -601,6 +603,7 @@ const keysThen = (page: Page, keys: Key[], selector: string) =>
   page.evaluate(
     async ({ keys, selector }): Promise<DialogState> => {
       const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+      const startedAt = performance.now()
       for (const init of keys) {
         window.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, ...init }))
         await frame()
@@ -624,6 +627,7 @@ const keysThen = (page: Page, keys: Key[], selector: string) =>
         backdropZ: backdrop?.style.zIndex ?? '',
         backdropBackground: backdrop?.style.background ?? '',
         delay: dialog?.style.getPropertyValue('--crt-delay') ?? '',
+        elapsedMs: performance.now() - startedAt,
       }
     },
     { keys, selector },
@@ -699,11 +703,20 @@ test('a dialog opened again while closing comes back whole, and another opens ou
     expect(handing.backdropBackground).toContain('transparent')
     const settings = page.getByTestId('settings-dialog')
     await expect(settings).toBeVisible()
+    const delay = await settings.evaluate((el) => el.style.getPropertyValue('--crt-delay'))
+    // The handover is only offered while the picture the other dialog is leaving
+    // behind is still becoming a line - about 112 ms in (crt-motion.ts: 0.45 of the
+    // 300 ms power-off, less 0.06 of the 380 ms power-on). A machine too loaded to
+    // get the second key pressed inside that has nothing left to hand over, and no
+    // delay is then the right answer rather than a failure.
+    const handedOver = handing.elapsedMs < 100
+    if (!handedOver) {
+      console.warn(`[e2e] ${handing.elapsedMs.toFixed(0)}ms to press two keys: no handover to test`)
+    }
+    test.skip(!handedOver, 'too slow here to hand one dialog to the next')
     expect(
-      Number.parseInt(
-        await settings.evaluate((el) => el.style.getPropertyValue('--crt-delay')),
-        10,
-      ),
+      Number.parseInt(delay, 10),
+      `--crt-delay "${delay}" after ${handing.elapsedMs.toFixed(0)}ms`,
     ).toBeGreaterThan(0)
     await expect(picker).toHaveCount(0)
     await expect(settings).toHaveCSS('transform', WHOLE)
