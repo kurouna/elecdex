@@ -11,7 +11,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { PLUGIN_LIMITS } from '@shared/plugins'
-import { type SourceFile, transformFile } from './folder.js'
+import { transformFile } from './folder.js'
 
 /**
  * Installing a plugin from a folder the user picks.
@@ -42,6 +42,8 @@ export interface SourceTree {
   list(relative: string): Array<{ name: string; kind: EntryKind }>
   /** Size in bytes of a file. */
   size(relative: string): number
+  /** The text of a file; '' when it cannot be read. */
+  read(relative: string): string
 }
 
 export interface InstallPlan {
@@ -74,89 +76,73 @@ export function installName(folder: string): string | null {
 /**
  * What would be copied, or why nothing would be.
  *
+ * What is copied is the plugin: the entry, and the files it imports, and the
+ * files those import. A folder kept in a repository holds more than the plugin -
+ * tests beside the code, a scratch file, an old version - and the worker never
+ * loads any of it: it resolves what is required from the entry and nothing
+ * else. Copying the rest would put files in the plugins folder that elecdex
+ * only ever stringifies into the worker unread, and checking the rest would
+ * refuse a plugin for a test file that imports node:assert - which is what it
+ * did, until a plugin with tests beside it was installed.
+ *
  * The message is shown to the user as it is, so it says what to do about it
  * rather than which rule was broken.
  */
 export function planInstall(tree: SourceTree): InstallPlan | { error: string } {
   const root = tree.list('')
-  if (!hasIndex(root)) {
-    // A folder of plugins - another elecdex's plugins folder, say - is a likely
-    // mistake, and the answer to it is not "this is not a plugin".
-    const inside = root.filter(
-      (entry) => entry.kind === 'dir' && !isNoise(entry.name) && hasIndex(tree.list(entry.name)),
-    )
-    if (inside.length === 1) {
-      const only = inside[0]?.name ?? ''
-      return { error: `that folder is not a plugin, but "${only}" inside it is - pick that one` }
-    }
-    if (inside.length > 1) {
-      return { error: `that folder holds ${inside.length} plugins; install them one at a time` }
-    }
-    return { error: 'that folder has no index.ts or index.js, so it is not a plugin' }
-  }
+  const entry = ['index.ts', 'index.js'].find((name) =>
+    root.some((item) => item.kind === 'file' && item.name === name),
+  )
+  if (entry === undefined) return { error: notAPlugin(tree, root) }
 
   const files: string[] = []
-  collect(tree, '', 1, files)
-  if (files.length > LIMITS.files) return { error: `more than ${LIMITS.files} source files` }
+  const seen = new Set<string>()
+  const queue = [entry]
+  let bytes = 0
+  while (queue.length > 0) {
+    const current = queue.shift() as string
+    if (seen.has(current)) continue
+    seen.add(current)
 
-  const bytes = files.reduce((sum, file) => sum + tree.size(file), 0)
-  if (bytes > LIMITS.bytes) {
-    return { error: `more than ${Math.round(LIMITS.bytes / 1024)} kB of source` }
-  }
-  return { files, bytes }
-}
-
-/**
- * The code files under `relative`, down to the depth limit. Stops once past the
- * file limit, so a folder of thousands is not walked to the end just to be
- * refused - the same shape as the scanner's own walk (folder.ts).
- *
- * Symbolic links and everything else are left where they are, as the scanner
- * leaves them: a plugin is the code in front of you.
- */
-function collect(tree: SourceTree, relative: string, depth: number, out: string[]): void {
-  if (out.length > LIMITS.files) return
-  for (const entry of tree.list(relative).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (isNoise(entry.name)) continue
-    const child = relative === '' ? entry.name : `${relative}/${entry.name}`
-    if (entry.kind === 'dir') {
-      if (depth < LIMITS.depth) collect(tree, child, depth + 1, out)
-    } else if (entry.kind === 'file' && isCode(entry.name)) {
-      out.push(child)
+    const source = tree.read(current)
+    bytes += tree.size(current)
+    files.push(current)
+    if (files.length > LIMITS.files) return { error: `more than ${LIMITS.files} source files` }
+    if (bytes > LIMITS.bytes) {
+      return { error: `more than ${Math.round(LIMITS.bytes / 1024)} kB of source` }
     }
-  }
-}
 
-/**
- * Whether the files would load at all, said before anything is copied.
- *
- * A plugin that does not compile, or that imports a package, fails when the
- * worker loads it - which is after it has been installed, turned on and given
- * a pane, and the reason is then a line in a settings row rather than an answer
- * to what the user just did. The two things that can be known without running
- * it are checked here instead: the code parses, and every import it makes is a
- * file that came with it.
- *
- * The resolution below mirrors the worker's (shared/plugin-runtime.ts); change
- * one and change the other.
- */
-export function checkSources(files: readonly SourceFile[]): string | null {
-  const byPath = new Map(files.map((file) => [file.path, file]))
-  for (const file of files) {
     let code: string
     try {
-      // Sucrase turns every value import into a require call, so the specifiers
-      // can be read off the result rather than parsed out of the source.
-      code = transformFile(file)
+      // The same transform the worker will see, so a file that cannot compile
+      // is refused now rather than when the plugin is first opened.
+      code = transformFile({ path: current, source })
     } catch (error) {
-      return message(error)
+      return { error: message(error) }
     }
     for (const specifier of requires(code)) {
-      const problem = resolves(file.path, specifier, byPath)
-      if (problem !== null) return `${file.path}: ${problem}`
+      const next = resolveImport(current, specifier, tree)
+      if (typeof next !== 'string') return { error: `${current}: ${next.error}` }
+      queue.push(next)
     }
   }
-  return null
+  return { files: files.sort(), bytes }
+}
+
+/** Why a folder with no index at its root is not a plugin. */
+function notAPlugin(tree: SourceTree, root: ReturnType<SourceTree['list']>): string {
+  // A folder of plugins - another elecdex's plugins folder, say - is a likely
+  // mistake, and the answer to it is not "this is not a plugin".
+  const inside = root.filter(
+    (entry) => entry.kind === 'dir' && !isNoise(entry.name) && hasIndex(tree.list(entry.name)),
+  )
+  if (inside.length === 1) {
+    return `that folder is not a plugin, but "${inside[0]?.name ?? ''}" inside it is - pick that one`
+  }
+  if (inside.length > 1) {
+    return `that folder holds ${inside.length} plugins; install them one at a time`
+  }
+  return 'that folder has no index.ts or index.js, so it is not a plugin'
 }
 
 /** Every `require("...")` in transformed code, in order. */
@@ -169,20 +155,49 @@ function requires(code: string): string[] {
   return found
 }
 
-/** Why a specifier would not resolve, or null when it would. */
-function resolves(from: string, specifier: string, files: Map<string, SourceFile>): string | null {
+/**
+ * The file a specifier names, or why it names none.
+ *
+ * This mirrors the worker's own resolution (shared/plugin-runtime.ts); change
+ * one and change the other.
+ */
+function resolveImport(
+  from: string,
+  specifier: string,
+  tree: SourceTree,
+): string | { error: string } {
   if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
-    return `imports "${specifier}", and a plugin can import only its own files`
+    return { error: `imports "${specifier}", and a plugin can import only its own files` }
   }
   const parts = from.split('/').slice(0, -1)
   for (const segment of specifier.split('/').filter((part) => part !== '.' && part !== '')) {
     if (segment !== '..') parts.push(segment)
-    else if (parts.pop() === undefined) return `imports "${specifier}", which is outside the folder`
+    else if (parts.pop() === undefined) {
+      return { error: `imports "${specifier}", which is outside the folder` }
+    }
   }
   const base = parts.join('/')
-  const candidates = [base, `${base}.ts`, `${base}.js`, `${base}/index.ts`, `${base}/index.js`]
-  if (candidates.some((candidate) => files.has(candidate))) return null
-  return `imports "${specifier}", which is not in the folder`
+  const found = [base, `${base}.ts`, `${base}.js`, `${base}/index.ts`, `${base}/index.js`].find(
+    (candidate) => isCodeFile(tree, candidate),
+  )
+  if (found === undefined) {
+    return { error: `imports "${specifier}", which is not in the folder` }
+  }
+  return found
+}
+
+/**
+ * Whether a path is a code file in the folder, asked of the listing its parent
+ * gives. Code, because the worker resolves among the plugin's modules and
+ * nothing else is one: `import './data.json'` finds nothing there, so it must
+ * find nothing here either.
+ */
+function isCodeFile(tree: SourceTree, relative: string): boolean {
+  const cut = relative.lastIndexOf('/')
+  const parent = cut < 0 ? '' : relative.slice(0, cut)
+  const name = cut < 0 ? relative : relative.slice(cut + 1)
+  if (!isCode(name)) return false
+  return tree.list(parent).some((entry) => entry.kind === 'file' && entry.name === name)
 }
 
 /** The real folder on disk, for `planInstall` and the copy. */
@@ -208,6 +223,13 @@ export function diskTree(root: string): SourceTree {
         return 0
       }
     },
+    read: (relative) => {
+      try {
+        return readFileSync(path.join(root, relative), 'utf8')
+      } catch {
+        return ''
+      }
+    },
   }
 }
 
@@ -225,8 +247,6 @@ export interface InstallOptions {
   replace?: boolean
   /** Injected by the tests; the disk otherwise. */
   tree?: SourceTree
-  /** Injected by the tests; `checkSources` otherwise. */
-  check?: (files: readonly SourceFile[]) => string | null
 }
 
 /**
@@ -247,21 +267,12 @@ export function installFromFolder(options: InstallOptions): InstallResult {
     return { status: 'refused', reason: 'that folder is already in the plugins folder' }
   }
 
-  const plan = planInstall(options.tree ?? diskTree(resolved))
+  const tree = options.tree ?? diskTree(resolved)
+  // The plan is the module graph from the entry, and making it is what says the
+  // plugin compiles and that its imports are files that came with it.
+  const plan = planInstall(tree)
   if ('error' in plan) return { status: 'refused', reason: plan.error }
-
-  // Read once: the check needs the source, and the limits above bound it.
-  let sources: SourceFile[]
-  try {
-    sources = plan.files.map((file) => ({
-      path: file,
-      source: readFileSync(path.join(resolved, file), 'utf8'),
-    }))
-  } catch (error) {
-    return { status: 'refused', reason: message(error) }
-  }
-  const problem = options.check?.(sources) ?? checkSources(sources)
-  if (problem !== null) return { status: 'refused', reason: problem }
+  const sources = plan.files.map((file) => ({ path: file, source: tree.read(file) }))
 
   const target = path.join(plugins, name)
   const exists = readdirSync(plugins, { withFileTypes: true }).some((entry) => entry.name === name)

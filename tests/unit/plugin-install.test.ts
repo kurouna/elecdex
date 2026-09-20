@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
-  checkSources,
   type EntryKind,
   installFromFolder,
   installName,
@@ -15,16 +14,18 @@ import { PLUGIN_LIMITS } from '../../src/shared/plugins.js'
 /**
  * Installing a plugin from a folder the user picked.
  *
- * What is copied has to be what the scanner would read (main/plugins/folder.ts)
- * and nothing else: a plugin kept in a repository sits beside a README, a
- * package.json, a .git and often a node_modules, and copying the folder as it
- * stands would fill the plugins folder with what elecdex never looks at.
+ * What is copied is the plugin: the entry, and what it imports, and what those
+ * import. A folder kept in a repository holds more than the plugin - tests
+ * beside the code, a README, a package.json, a .git, often a node_modules - and
+ * the worker loads none of it. Copying the rest would fill the plugins folder
+ * with what elecdex never reads, and checking the rest would refuse a plugin
+ * for a test file that imports node:assert.
  */
 
-/** A folder as a listing, so the rules can be read without a disk. */
-function tree(entries: Record<string, number | null>): SourceTree {
-  // null marks a directory; a number is a file of that many bytes.
-  const kindOf = (value: number | null): EntryKind => (value === null ? 'dir' : 'file')
+/** A folder as a listing with contents, so the rules can be read without a disk. */
+function tree(entries: Record<string, string | null>): SourceTree {
+  // null marks a directory; a string is a file with that source.
+  const kindOf = (value: string | null): EntryKind => (value === null ? 'dir' : 'file')
   return {
     list: (relative) => {
       const prefix = relative === '' ? '' : `${relative}/`
@@ -37,116 +38,58 @@ function tree(entries: Record<string, number | null>): SourceTree {
       }
       return [...seen].map(([name, kind]) => ({ name, kind }))
     },
-    size: (relative) => entries[relative] ?? 0,
+    size: (relative) => (entries[relative] ?? '').length,
+    read: (relative) => entries[relative] ?? '',
   }
 }
 
-describe('what a folder has to be to be a plugin', () => {
-  it('needs an index at its root', () => {
-    expect(planInstall(tree({ 'index.ts': 10 }))).toEqual({ files: ['index.ts'], bytes: 10 })
-    expect(planInstall(tree({ 'index.js': 10 }))).toEqual({ files: ['index.js'], bytes: 10 })
-    // The plugin is one folder down: say which, rather than "not a plugin".
-    const refused = planInstall(tree({ 'plugin.ts': 10, src: null, 'src/index.ts': 10 }))
-    expect(refused).toEqual({ error: expect.stringContaining('"src" inside it is') })
-    // Nothing that looks like a plugin anywhere: the plain answer.
-    expect(planInstall(tree({ 'notes.md': 10 }))).toEqual({
-      error: expect.stringContaining('no index.ts or index.js'),
-    })
-  })
+const PLUGIN = 'export default { id: "p", name: "P" }'
 
-  it('says so when the folder holds plugins rather than being one', () => {
-    // Picking another elecdex's plugins folder is a likely mistake, and "this is
-    // not a plugin" would not explain it.
+describe('what is taken out of the folder', () => {
+  it('takes the entry and what it imports, and nothing else', () => {
     const plan = planInstall(
       tree({
-        pomodoro: null,
-        'pomodoro/index.ts': 1,
-        clock: null,
-        'clock/index.js': 1,
-        'README.md': 1,
-      }),
-    )
-    expect(plan).toEqual({ error: expect.stringContaining('2 plugins') })
-  })
-
-  it('takes the code and leaves everything else where it is', () => {
-    const plan = planInstall(
-      tree({
-        'index.ts': 10,
+        'index.ts': "import { t } from './lib/timer'\nexport default { t }",
         lib: null,
-        'lib/timer.ts': 20,
-        'README.md': 999,
-        'package.json': 999,
-        'icon.png': 999,
-        'elecdex-plugin.d.ts': 999,
+        'lib/timer.ts': 'export const t = 1',
+        'old.ts': 'export default {}',
+        'README.md': '# hello',
+        'package.json': '{}',
         '.git': null,
-        '.git/config': 999,
+        '.git/config': 'x',
         node_modules: null,
         'node_modules/left-pad': null,
-        'node_modules/left-pad/index.js': 999,
-        '.hidden.ts': 999,
+        'node_modules/left-pad/index.js': 'x',
       }),
     )
-    expect(plan).toEqual({ files: ['index.ts', 'lib/timer.ts'], bytes: 30 })
+    expect(plan).toEqual({ files: ['index.ts', 'lib/timer.ts'], bytes: expect.any(Number) })
   })
 
-  it('stops at the depth the scanner reads to', () => {
+  it('leaves the tests beside a plugin alone, and does not judge them', () => {
+    // The case that found this: a plugin kept with its tests, where a test
+    // imports node:assert. The worker never loads it, so nothing about it can
+    // stop the plugin being installed.
     const plan = planInstall(
       tree({
-        'index.ts': 1,
-        a: null,
-        'a/one.ts': 1,
-        'a/b': null,
-        'a/b/two.ts': 1,
-        'a/b/c': null,
-        'a/b/c/three.ts': 1,
-        'a/b/c/d': null,
-        'a/b/c/d/four.ts': 1,
+        'index.ts': PLUGIN,
+        tests: null,
+        'tests/usage.test.ts': "import assert from 'node:assert/strict'\nassert.ok(true)",
       }),
     )
-    expect('files' in plan && plan.files).toEqual([
-      'a/b/c/three.ts',
-      'a/b/two.ts',
-      'a/one.ts',
-      'index.ts',
-    ])
+    expect(plan).toEqual({ files: ['index.ts'], bytes: PLUGIN.length })
   })
 
-  it('refuses a folder of too many files, or of too much source', () => {
-    const many: Record<string, number | null> = { 'index.ts': 1 }
-    for (let i = 0; i < PLUGIN_LIMITS.files + 1; i += 1) many[`file${i}.ts`] = 1
-    expect(planInstall(tree(many))).toEqual({ error: expect.stringContaining('source files') })
-
-    expect(planInstall(tree({ 'index.ts': PLUGIN_LIMITS.sourceBytes + 1 }))).toEqual({
-      error: expect.stringContaining('kB of source'),
-    })
-  })
-
-  it('does not follow what is neither a file nor a folder', () => {
-    const linked: SourceTree = {
-      list: (relative) =>
-        relative === ''
-          ? [
-              { name: 'index.ts', kind: 'file' },
-              { name: 'elsewhere', kind: 'other' },
-            ]
-          : [],
-      size: () => 1,
-    }
-    expect(planInstall(linked)).toEqual({ files: ['index.ts'], bytes: 1 })
-  })
-})
-
-describe('whether the files would load at all', () => {
-  const file = (path: string, source: string) => ({ path, source })
-
-  it('passes a plugin that compiles and imports only its own files', () => {
-    expect(
-      checkSources([
-        file('index.ts', "import { t } from './lib/timer'\nexport default { t }"),
-        file('lib/timer.ts', 'export const t = 1'),
-      ]),
-    ).toBeNull()
+  it('follows an import through the files it reaches, once each', () => {
+    const plan = planInstall(
+      tree({
+        'index.ts': "import './a'\nimport './b'",
+        'a.ts': "import './shared'\nexport const a = 1",
+        'b.ts': "import './shared'\nexport const b = 1",
+        'shared.ts': 'export const s = 1',
+        'unused.ts': 'export const u = 1',
+      }),
+    )
+    expect('files' in plan && plan.files).toEqual(['a.ts', 'b.ts', 'index.ts', 'shared.ts'])
   })
 
   it('finds a file the way the worker does: the name, .ts, .js, or an index in it', () => {
@@ -155,45 +98,86 @@ describe('whether the files would load at all', () => {
       ['./timer', 'timer.js'],
       ['./lib', 'lib/index.ts'],
       ['./lib/', 'lib/index.js'],
-      ['../shared/x', 'shared/x.ts'],
     ] as const) {
-      const files = [
-        file('app/index.ts', `import './x'\nimport '${specifier}'\nexport default {}`),
-        file('app/x.ts', 'export {}'),
-        file(target.startsWith('shared') ? target : `app/${target}`, 'export const t = 1'),
-      ]
-      expect(checkSources(files), specifier).toBeNull()
+      const dir = target.includes('/') ? { lib: null } : {}
+      const plan = planInstall(
+        tree({ 'index.ts': `import '${specifier}'`, ...dir, [target]: 'export const t = 1' }),
+      )
+      expect('files' in plan && plan.files, specifier).toEqual(['index.ts', target])
     }
   })
 
+  it('needs an index at its root, and says which folder is the plugin when one is', () => {
+    expect(planInstall(tree({ 'index.js': PLUGIN }))).toEqual({
+      files: ['index.js'],
+      bytes: PLUGIN.length,
+    })
+    // The plugin is one folder down: say which, rather than "not a plugin".
+    expect(planInstall(tree({ 'plugin.ts': 'x', src: null, 'src/index.ts': PLUGIN }))).toEqual({
+      error: expect.stringContaining('"src" inside it is'),
+    })
+    expect(
+      planInstall(
+        tree({ a: null, 'a/index.ts': PLUGIN, b: null, 'b/index.js': PLUGIN, 'README.md': 'x' }),
+      ),
+    ).toEqual({ error: expect.stringContaining('2 plugins') })
+    // Nothing that looks like a plugin anywhere: the plain answer.
+    expect(planInstall(tree({ 'notes.md': 'x' }))).toEqual({
+      error: expect.stringContaining('no index.ts or index.js'),
+    })
+  })
+
+  it('refuses a plugin of too many files, or of too much source', () => {
+    const many: Record<string, string | null> = {
+      'index.ts': Array.from({ length: PLUGIN_LIMITS.files }, (_, i) => `import './f${i}'`).join(
+        '\n',
+      ),
+    }
+    for (let i = 0; i < PLUGIN_LIMITS.files; i += 1) many[`f${i}.ts`] = 'export const x = 1'
+    expect(planInstall(tree(many))).toEqual({ error: expect.stringContaining('source files') })
+
+    expect(planInstall(tree({ 'index.ts': 'x'.repeat(PLUGIN_LIMITS.sourceBytes + 1) }))).toEqual({
+      error: expect.stringContaining('kB of source'),
+    })
+  })
+})
+
+describe('whether the plugin would load at all', () => {
   it('says which file will not compile, before anything is copied', () => {
-    const broken = checkSources([file('index.ts', 'export default { name: ')])
-    expect(broken).toContain('index.ts')
+    expect(planInstall(tree({ 'index.ts': 'export default { name: ' }))).toEqual({
+      error: expect.stringContaining('index.ts'),
+    })
   })
 
   it('refuses a plugin that imports a package, since there is no npm in a worker', () => {
-    const reason = checkSources([file('index.ts', "import x from 'lodash'\nexport default { x }")])
-    expect(reason).toContain('lodash')
-    expect(reason).toContain('its own files')
+    const plan = planInstall(tree({ 'index.ts': "import x from 'lodash'\nexport default { x }" }))
+    expect(plan).toEqual({ error: expect.stringContaining('lodash') })
+    expect(plan).toEqual({ error: expect.stringContaining('its own files') })
   })
 
   it('refuses an import of a file that did not come with it', () => {
-    const reason = checkSources([file('index.ts', "import './lib/timer'\nexport default {}")])
-    expect(reason).toContain('./lib/timer')
-    expect(reason).toContain('not in the folder')
+    expect(planInstall(tree({ 'index.ts': "import './lib/timer'" }))).toEqual({
+      error: expect.stringContaining('not in the folder'),
+    })
   })
 
   it('refuses an import that climbs out of the plugin', () => {
-    const reason = checkSources([file('index.ts', "import '../../secrets'\nexport default {}")])
-    expect(reason).toContain('outside the folder')
+    expect(planInstall(tree({ 'index.ts': "import '../../secrets'" }))).toEqual({
+      error: expect.stringContaining('outside the folder'),
+    })
+  })
+
+  it('refuses an import of something that is not code, which the worker cannot load', () => {
+    expect(planInstall(tree({ 'index.ts': "import './data.json'", 'data.json': '{}' }))).toEqual({
+      error: expect.stringContaining('not in the folder'),
+    })
   })
 
   it('says nothing about a type-only import, which the transform removes', () => {
-    expect(
-      checkSources([
-        file('index.ts', "import type { Plugin } from './elecdex-plugin'\nexport default {}"),
-      ]),
-    ).toBeNull()
+    const plan = planInstall(
+      tree({ 'index.ts': "import type { Plugin } from './elecdex-plugin'\nexport default {}" }),
+    )
+    expect('files' in plan && plan.files).toEqual(['index.ts'])
   })
 })
 
@@ -225,9 +209,14 @@ describe('installing into the plugins folder', () => {
     source = path.join(root, 'pomodoro')
     mkdirSync(plugins, { recursive: true })
     mkdirSync(path.join(source, 'lib'), { recursive: true })
-    writeFileSync(path.join(source, 'index.ts'), 'export default {}')
+    mkdirSync(path.join(source, 'tests'), { recursive: true })
+    writeFileSync(path.join(source, 'index.ts'), "import './lib/timer'\nexport default {}")
     writeFileSync(path.join(source, 'lib', 'timer.ts'), 'export const t = 1')
     writeFileSync(path.join(source, 'README.md'), '# hello')
+    writeFileSync(
+      path.join(source, 'tests', 'timer.test.ts'),
+      "import assert from 'node:assert/strict'\nassert.ok(true)",
+    )
   })
 
   afterEach(() => {
@@ -236,13 +225,13 @@ describe('installing into the plugins folder', () => {
 
   const installed = () => readdirSync(path.join(plugins, 'pomodoro')).sort()
 
-  it('copies the code and nothing else', () => {
+  it('copies the plugin, and not the repository around it', () => {
     const result = installFromFolder({ pluginsDir: plugins, source })
     expect(result).toEqual({ status: 'installed', name: 'pomodoro', files: 2 })
     expect(installed()).toEqual(['index.ts', 'lib'])
     expect(readdirSync(path.join(plugins, 'pomodoro', 'lib'))).toEqual(['timer.ts'])
-    expect(readFileSync(path.join(plugins, 'pomodoro', 'index.ts'), 'utf8')).toBe(
-      'export default {}',
+    expect(readFileSync(path.join(plugins, 'pomodoro', 'index.ts'), 'utf8')).toContain(
+      'export default',
     )
     // Nothing is left behind from the copy.
     expect(readdirSync(plugins)).toEqual(['pomodoro'])
@@ -250,28 +239,25 @@ describe('installing into the plugins folder', () => {
 
   it('asks before replacing one of the same name, and replaces it when told to', () => {
     installFromFolder({ pluginsDir: plugins, source })
-    writeFileSync(path.join(source, 'index.ts'), 'export default { v: 2 }')
+    writeFileSync(path.join(source, 'index.ts'), "import './lib/timer'\nexport default { v: 2 }")
     expect(installFromFolder({ pluginsDir: plugins, source })).toEqual({
       status: 'exists',
       name: 'pomodoro',
     })
     // Refusing to replace leaves the old one exactly as it was.
-    expect(readFileSync(path.join(plugins, 'pomodoro', 'index.ts'), 'utf8')).toBe(
-      'export default {}',
-    )
+    expect(readFileSync(path.join(plugins, 'pomodoro', 'index.ts'), 'utf8')).not.toContain('v: 2')
 
     expect(installFromFolder({ pluginsDir: plugins, source, replace: true })).toEqual({
       status: 'installed',
       name: 'pomodoro',
       files: 2,
     })
-    expect(readFileSync(path.join(plugins, 'pomodoro', 'index.ts'), 'utf8')).toBe(
-      'export default { v: 2 }',
-    )
+    expect(readFileSync(path.join(plugins, 'pomodoro', 'index.ts'), 'utf8')).toContain('v: 2')
   })
 
   it('leaves no file behind from a plugin that got smaller', () => {
     installFromFolder({ pluginsDir: plugins, source })
+    writeFileSync(path.join(source, 'index.ts'), 'export default {}')
     rmSync(path.join(source, 'lib'), { recursive: true, force: true })
     installFromFolder({ pluginsDir: plugins, source, replace: true })
     expect(installed()).toEqual(['index.ts'])
