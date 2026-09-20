@@ -33,6 +33,7 @@ class UiStore {
   }
 
   openPanePicker(): void {
+    this.answerLayoutSwitch(false)
     this.closing(this.settingsOpen || this.locationRequest !== null || this.layoutsOpen)
     this.settingsOpen = false
     this.locationRequest = null
@@ -49,6 +50,7 @@ class UiStore {
   layoutsOpen = $state(false)
 
   openLayouts(): void {
+    this.answerLayoutSwitch(false)
     this.closing(this.panePickerOpen || this.settingsOpen || this.locationRequest !== null)
     this.panePickerOpen = false
     this.settingsOpen = false
@@ -70,6 +72,13 @@ class UiStore {
    */
   layoutSwitch = $state.raw<LayoutSwitchRequest | null>(null)
 
+  /**
+   * Asks, and resolves with the answer.
+   *
+   * Every other dialog answers a question still open with no, rather than
+   * leaving it on screen behind itself - and rather than leaving the switch
+   * that asked it waiting for a promise that would never settle.
+   */
   askLayoutSwitch(question: { name: string; shells: number }): Promise<boolean> {
     // Only one at a time: the one already on screen is the one being answered.
     if (this.layoutSwitch !== null) return Promise.resolve(false)
@@ -130,6 +139,7 @@ class UiStore {
   settingsSection = $state<string | null>(null)
 
   openSettings(section: string | null = null): void {
+    this.answerLayoutSwitch(false)
     this.closing(this.panePickerOpen || this.locationRequest !== null || this.layoutsOpen)
     this.panePickerOpen = false
     this.locationRequest = null
@@ -160,6 +170,7 @@ class UiStore {
    */
   pickLocation(request: LocationRequest): () => void {
     // Another pane's request takes over the picker showing, which stays open.
+    this.answerLayoutSwitch(false)
     this.closing(this.panePickerOpen || this.settingsOpen || this.layoutsOpen)
     this.panePickerOpen = false
     this.settingsOpen = false

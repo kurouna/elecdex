@@ -31,7 +31,7 @@ export const SWITCH_GAP_MS = 40
  * Quicker than the boot reveal (450 / 200 / 1400): the same shape, about a third
  * of the time.
  */
-export const SWITCH_REVEAL: RevealTiming = { shellAt: 0, modulesAt: 120, step: 70, span: 460 }
+const SWITCH_REVEAL: RevealTiming = { shellAt: 0, modulesAt: 120, step: 70, span: 460 }
 
 /** When each pane of the layout arriving powers on, by pane id. */
 export function switchDelaysFor(

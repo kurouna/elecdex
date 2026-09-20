@@ -694,7 +694,10 @@ class LayoutStore {
     // A pane already powering off on its own is finished first, so the two
     // effects do not run over each other.
     this.settle()
-    this.leaving = new Set(this.visible.map((node) => node.id))
+    // Every pane, not only the ones on screen: a tab group powers off as one
+    // picture, and it can only tell that its turn has come if all of its tabs -
+    // including the ones stacked behind - are in here.
+    this.leaving = new Set(this.panes.map((node) => node.id))
     if (this.leaving.size > 0) {
       sfx.play('collapse')
       await wait(SWITCH_OFF_MS + SWITCH_GAP_MS)

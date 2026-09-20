@@ -113,6 +113,12 @@ export function registerLayoutIpc(): { dispose: () => void } {
   ipcMain.handle(CH.layout.revealFile, () => store.path)
 
   ipcMain.handle(CH.layout.savedList, () => {
+    // From disk, as the live layout is read: the list is asked for when a page
+    // loads and when the dialog opens, so this is cheap - and it is what lets a
+    // layouts.json edited or replaced by hand (the file is made to be carried
+    // between machines) be seen without a restart, instead of being written
+    // over from a stale copy in memory.
+    saved.invalidate()
     const current = readSaved()
     return summarize(current.items, current.active)
   })

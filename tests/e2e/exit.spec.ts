@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import type { ElectronApplication } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, showStatusBar } from './support.js'
+import { launch, SINGLE_TERMINAL, showStatusBar, terminalPane } from './support.js'
 
 /**
  * Leaving the app. In fullscreen the window has no frame and no close button,
@@ -70,6 +72,51 @@ test('Ctrl+Shift+Q quits, even with a terminal focused', async () => {
     // The window can close before the key-up is delivered, which rejects the press.
     await page.keyboard.press('Control+Shift+KeyQ').catch(() => {})
     await gone
+  } finally {
+    await close().catch(() => {})
+  }
+})
+
+test('a rearrangement made a moment before quitting is still saved, live and in its layout', async () => {
+  // The save is debounced, so quitting straight after a change is the case that
+  // loses it if the page does not write out on its way down - and with a layout
+  // being worked in, it would be lost from two files rather than one.
+  const { app, page, userData, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: { layout: { confirmSwitch: false } },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+KeyG')
+    await page.getByTestId('layouts-name').fill('one')
+    await page.getByTestId('layouts-save').click()
+    await expect(page.getByTestId('layouts-item')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+    await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
+
+    const gone = exited(app)
+    // Split and quit in one task: the debounce cannot have fired in between, so
+    // what reaches the disk can only have come from the flush on the way out.
+    await page.evaluate(() => {
+      const press = (code: string) =>
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            bubbles: true,
+            code,
+            key: code,
+            ctrlKey: true,
+            shiftKey: true,
+          }),
+        )
+      press('KeyE')
+      press('KeyQ')
+    })
+    await gone
+
+    const count = (file: string) =>
+      (readFileSync(path.join(userData, file), 'utf8').match(/"terminal"/g) ?? []).length
+    expect(count('layout.json'), 'the live layout').toBe(2)
+    expect(count('layouts.json'), 'the layout being worked in').toBe(2)
   } finally {
     await close().catch(() => {})
   }

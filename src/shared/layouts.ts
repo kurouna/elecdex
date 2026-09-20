@@ -24,6 +24,14 @@ import { LayoutTreeSchema } from './schemas/layout.js'
 /** Enough for the handful of arrangements a person actually switches between. */
 export const MAX_SAVED_LAYOUTS = 12
 
+/**
+ * How many of them a number key applies: the first nine, by their place in the
+ * list (shared/keybindings.ts has one action each). The rest are kept and can be
+ * applied from the dialog, and moving one into the first nine is how it gets a
+ * key - which is what the dialog's up and down buttons are for.
+ */
+export const KEYED_LAYOUTS = 9
+
 export const SavedLayoutSchema = z.object({
   /** Assigned by main, so the renderer cannot collide two of them. */
   id: z.string().regex(/^[a-z0-9]{4,32}$/),

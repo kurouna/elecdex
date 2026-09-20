@@ -7,10 +7,12 @@ import {
   formatChord,
   isGlobal,
   isValidChord,
+  KEYBINDING_ACTIONS,
   keymap,
   normalizeChord,
   withBinding,
 } from '../../src/shared/keybindings.js'
+import { KEYED_LAYOUTS } from '../../src/shared/layouts.js'
 
 const key = (
   code: string,
@@ -124,5 +126,28 @@ describe('keybindings', () => {
     expect(withBinding({ 'pane.add': 'Alt+KeyP' }, 'pane.add', 'Ctrl+Shift+KeyA')).toEqual({})
     expect(withBinding({}, 'pane.add', null)).toEqual({ 'pane.add': null })
     expect(withBinding({ 'pane.add': null }, 'pane.add', undefined)).toEqual({})
+  })
+})
+
+describe('the saved layout slots', () => {
+  it('has one action per keyed slot, and no more', () => {
+    // The dialog numbers rows up to KEYED_LAYOUTS and the status bar shows that
+    // many buttons; an action added in one place and not the other would leave a
+    // number on screen that no key answers.
+    const slots = KEYBINDING_ACTIONS.filter((action) => /^layout\.saved\d+$/.test(action.id))
+    expect(slots).toHaveLength(KEYED_LAYOUTS)
+    expect(slots.map((action) => action.id)).toEqual(
+      Array.from({ length: KEYED_LAYOUTS }, (_, i) => `layout.saved${i + 1}`),
+    )
+  })
+
+  it('puts each on its own number key, in order', () => {
+    const chords = KEYBINDING_ACTIONS.filter((action) => /^layout\.saved\d+$/.test(action.id)).map(
+      (action) => action.chord,
+    )
+    expect(chords).toEqual(
+      Array.from({ length: KEYED_LAYOUTS }, (_, i) => `Ctrl+Shift+Digit${i + 1}`),
+    )
+    expect(new Set(chords).size).toBe(chords.length)
   })
 })

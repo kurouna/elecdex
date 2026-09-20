@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { launch, SINGLE_TERMINAL, showStatusBar, terminalPane, typeInto } from './support.js'
 
@@ -367,6 +368,19 @@ test('reset restores the default layout', async () => {
 })
 
 /**
+ * Keeps the workspace under a name from the layouts dialog, and closes it again.
+ * Four tests here do this, so it lives once.
+ */
+async function keepLayout(page: Page, name: string): Promise<void> {
+  await page.keyboard.press('Control+Shift+KeyG')
+  await page.getByTestId('layouts-name').fill(name)
+  await page.getByTestId('layouts-save').click()
+  await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+}
+
+/**
  * Switching between saved layouts without the question about the shells, which
  * has its own test: these are about the layouts, not about being asked.
  */
@@ -442,14 +456,6 @@ test('the layout being worked in keeps what is done to the workspace', async () 
     settings: NO_SWITCH_PROMPT,
   })
   try {
-    const save = async (name: string) => {
-      await page.keyboard.press('Control+Shift+KeyG')
-      await page.getByTestId('layouts-name').fill(name)
-      await page.getByTestId('layouts-save').click()
-      await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
-      await page.keyboard.press('Escape')
-      await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
-    }
     const split = async () => {
       const before = await terminalPane(page).count()
       await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
@@ -459,8 +465,8 @@ test('the layout being worked in keeps what is done to the workspace', async () 
 
     // Both names taken while the workspace is one terminal, so what is
     // rearranged next belongs to "two" alone.
-    await save('one')
-    await save('two')
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
 
     // Rearrange inside "two", then leave it and come back: the change is there.
     // Switching writes the pending save out first, so nothing waits on a timer.
@@ -520,19 +526,11 @@ test('a saved layout survives a restart, and an empty slot leaves its keys alone
 test('a switch is asked about while shells are open, and can be told to stop asking', async () => {
   const { page, userData, close } = await launch(undefined, { layout: SINGLE_TERMINAL })
   try {
-    const save = async (name: string) => {
-      await page.keyboard.press('Control+Shift+KeyG')
-      await page.getByTestId('layouts-name').fill(name)
-      await page.getByTestId('layouts-save').click()
-      await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
-      await page.keyboard.press('Escape')
-      await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
-    }
-    await save('one')
+    await keepLayout(page, 'one')
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
     await expect(terminalPane(page)).toHaveCount(2)
-    await save('two')
+    await keepLayout(page, 'two')
 
     // Going back to "one" would end two shells, so it asks first, and saying no
     // leaves the workspace exactly as it was.
@@ -590,16 +588,8 @@ test('a saved layout can be renamed, and moved onto another number key', async (
   })
   try {
     const dialog = page.getByTestId('layouts-dialog')
-    const save = async (name: string) => {
-      await page.getByTestId('layouts-name').fill(name)
-      await page.getByTestId('layouts-save').click()
-      await expect(dialog.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
-    }
-    await page.keyboard.press('Control+Shift+KeyG')
-    await save('one')
-    await save('two')
-    await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
     // Rearranged while "two" is the one being worked in, so the two layouts
     // differ by a split.
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
@@ -643,16 +633,8 @@ test('the status bar carries a numbered button per saved layout', async () => {
     settings: NO_SWITCH_PROMPT,
   })
   try {
-    const save = async (name: string) => {
-      await page.keyboard.press('Control+Shift+KeyG')
-      await page.getByTestId('layouts-name').fill(name)
-      await page.getByTestId('layouts-save').click()
-      await expect(page.getByTestId('layouts-item').filter({ hasText: name })).toHaveCount(1)
-      await page.keyboard.press('Escape')
-      await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
-    }
-    await save('one')
-    await save('two')
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
     await expect(terminalPane(page)).toHaveCount(2)
@@ -669,6 +651,43 @@ test('the status bar carries a numbered button per saved layout', async () => {
     await expect(terminalPane(page)).toHaveCount(1)
     await showStatusBar(page)
     await expect(page.getByTestId('layout-slot').nth(0)).toHaveAttribute('aria-pressed', 'true')
+  } finally {
+    await close()
+  }
+})
+
+test('a save that only carries the state of this run leaves the saved layouts untouched', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    await page.keyboard.press('Control+Shift+KeyG')
+    await page.getByTestId('layouts-name').fill('one')
+    await page.getByTestId('layouts-save').click()
+    await expect(page.getByTestId('layouts-item')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+
+    const saved = path.join(userData, 'layouts.json')
+    await expect.poll(() => existsSync(saved)).toBe(true)
+    // A saved layout holds no session id, so what is kept for this run must not
+    // rewrite it - a shell is created on every reload, and every launch.
+    expect(readFileSync(saved, 'utf8')).not.toContain('sessionId')
+    const before = statSync(saved).mtimeMs
+
+    const written = await page.evaluate(async () => {
+      const tree = await window.elecdex.layout.load()
+      const root = tree.root as { state?: Record<string, unknown> }
+      root.state = { ...root.state, sessionId: `made-up-${Date.now()}` }
+      await window.elecdex.layout.save(tree)
+      return root.state.sessionId as string
+    })
+
+    await expect
+      .poll(() => readFileSync(layoutFile(userData), 'utf8').includes(written), { timeout: 10_000 })
+      .toBe(true)
+    expect(statSync(saved).mtimeMs, 'layouts.json was not rewritten').toBe(before)
+    expect(readFileSync(saved, 'utf8')).not.toContain(written)
   } finally {
     await close()
   }

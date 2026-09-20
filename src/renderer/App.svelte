@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { AppInfo } from '@shared/api'
 import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/keybindings'
+import { KEYED_LAYOUTS } from '@shared/layouts'
 import BootScreen from './BootScreen.svelte'
 import ConfirmButton from './ConfirmButton.svelte'
 import LocationPicker from './LocationPicker.svelte'
@@ -60,7 +61,7 @@ const REPO_URL = 'https://github.com/kurouna/elecdex'
  * (Ctrl+Shift+1 and so on), so the bar also teaches the shortcut. Only the first
  * nine have a key, and only those are shown.
  */
-const layoutButtons = $derived(layout.savedLayouts.slice(0, 9))
+const layoutButtons = $derived(layout.savedLayouts.slice(0, KEYED_LAYOUTS))
 const layoutChords = $derived.by(() => {
   const bindings = effectiveBindings(
     appearance.settings.keybindings,

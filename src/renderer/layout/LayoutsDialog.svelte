@@ -1,5 +1,5 @@
 <script lang="ts">
-import { cleanLayoutName, MAX_SAVED_LAYOUTS } from '@shared/layouts'
+import { cleanLayoutName, KEYED_LAYOUTS, MAX_SAVED_LAYOUTS } from '@shared/layouts'
 import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -20,9 +20,6 @@ import { ui } from '../stores/ui.svelte.ts'
  *
  *   ↑ ↓      choose        Enter    apply      Esc   close
  */
-
-/** Only the first nine have a number key (shared/keybindings.ts). */
-const KEYED = 9
 
 let name = $state('')
 let input = $state<HTMLInputElement | null>(null)
@@ -202,8 +199,8 @@ function revealFile(): void {
           {#each saved as entry, i (entry.id)}
             <li>
               <!-- The place in the list is the number key that applies it. -->
-              <span class="slot" class:none={i >= KEYED} data-testid="layouts-slot">
-                {i < KEYED ? i + 1 : '·'}
+              <span class="slot" class:none={i >= KEYED_LAYOUTS} data-testid="layouts-slot">
+                {i < KEYED_LAYOUTS ? i + 1 : '·'}
               </span>
               {#if renaming !== null && renaming.id === entry.id}
                 <input

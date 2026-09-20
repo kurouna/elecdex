@@ -464,34 +464,39 @@ test('a dialog opened again while closing comes back whole, and another opens ou
  * ever seen.
  */
 const watchSwitch = (page: Page, code: string) =>
-  page.evaluate(async (key): Promise<{ off: boolean; on: boolean; delays: string[] }> => {
-    const seen = { off: false, on: false, delays: [] as string[] }
-    const sample = (): void => {
-      const off = document.querySelectorAll('[data-testid=pane].crt-off').length
-      const on = [...document.querySelectorAll<HTMLElement>('[data-testid=pane].crt-on')]
-      if (off > 0) seen.off = true
-      if (on.length > 0) seen.on = true
-      for (const pane of on) {
-        const delay = pane.style.getPropertyValue('--crt-delay')
-        if (delay !== '') seen.delays.push(delay)
+  page.evaluate(
+    async (key): Promise<{ off: boolean; on: boolean; delays: string[]; groupOff: boolean }> => {
+      const seen = { off: false, on: false, delays: [] as string[], groupOff: false }
+      const any = (selector: string): boolean => document.querySelector(selector) !== null
+      const sample = (): void => {
+        seen.off ||= any('[data-testid=pane].crt-off')
+        // A tab group powers off as a whole, its header and strip with it.
+        seen.groupOff ||= any('[data-testid=tabs-host].crt-off')
+        const on = [...document.querySelectorAll<HTMLElement>('[data-testid=pane].crt-on')]
+        seen.on ||= on.length > 0
+        for (const pane of on) {
+          const delay = pane.style.getPropertyValue('--crt-delay')
+          if (delay !== '') seen.delays.push(delay)
+        }
       }
-    }
-    window.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        bubbles: true,
-        key: '1',
-        code: key,
-        ctrlKey: true,
-        shiftKey: true,
-      }),
-    )
-    const start = performance.now()
-    while (performance.now() - start < 2000) {
-      sample()
-      await new Promise((resolve) => requestAnimationFrame(resolve))
-    }
-    return seen
-  }, code)
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          bubbles: true,
+          key: '1',
+          code: key,
+          ctrlKey: true,
+          shiftKey: true,
+        }),
+      )
+      const start = performance.now()
+      while (performance.now() - start < 2000) {
+        sample()
+        await new Promise((resolve) => requestAnimationFrame(resolve))
+      }
+      return seen
+    },
+    code,
+  )
 
 /** Saves the workspace under a name, from the layouts dialog. */
 async function keepLayout(page: Page, name: string): Promise<void> {
@@ -522,6 +527,38 @@ test('a layout switch powers the old arrangement off and brings the new one on',
     // One after another rather than all at once, as at boot.
     expect(seen.delays.length).toBeGreaterThan(0)
     await expect(page.locator('[data-testid=pane]')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('a tab group powers off as one picture when the layout is switched', async () => {
+  // Its header and tab strip are part of the picture: powering off only the tab
+  // on top would leave the frame of an empty room lit.
+  const group = {
+    version: 1,
+    root: {
+      kind: 'tabs',
+      id: 'g',
+      activeIndex: 0,
+      children: [paneNode('t1', 'terminal'), paneNode('t2', 'terminal')],
+    },
+  }
+  const { page, close } = await launch(undefined, {
+    layout: group,
+    settings: { sound: { enabled: false }, layout: { confirmSwitch: false } },
+  })
+  try {
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
+    await page.keyboard.press('Control+Shift+KeyA')
+    await page.locator('[data-testid=pane-picker-item][data-widget=clock]').click()
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(3)
+
+    const seen = await watchSwitch(page, 'Digit1')
+    expect(seen.groupOff, 'the group powers off with its tabs').toBe(true)
+    expect(seen.on).toBe(true)
+    await expect(page.locator('[data-testid=pane]')).toHaveCount(2)
   } finally {
     await close()
   }
