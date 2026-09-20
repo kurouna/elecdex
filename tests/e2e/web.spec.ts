@@ -522,10 +522,11 @@ test.describe('web panes', () => {
       // window itself was too (this spec runs windowed), so that rectangle is the pane's
       // in the larger window. The pane measures again and sends its own as it comes back.
       const figures = `picture ${shape.toFixed(3)}, pane ${pane.toFixed(3)}, window ${window.toFixed(3)}`
-      // The two shapes have to be far enough apart for the comparison to mean
-      // anything: in a window no wider than a pane there is nothing to tell apart.
-      expect(Math.abs(pane - window), `${figures}: too alike to tell apart`).toBeGreaterThan(0.3)
-      expect(Math.abs(shape - pane), figures).toBeLessThan(Math.abs(shape - window))
+      // Unmistakably the pane's shape, by a wide margin rather than a hair: a hair
+      // would also be what a window and a pane of nearly the same shape leave, and
+      // then the comparison would mean nothing. How wide the window is decides how
+      // far apart the two are, so the margin is relative and no figure is fixed here.
+      expect(Math.abs(shape - pane) * 3, figures).toBeLessThan(Math.abs(shape - window))
     } finally {
       await app.close()
     }
