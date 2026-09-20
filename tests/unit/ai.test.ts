@@ -1,6 +1,7 @@
 import {
   AI_LIMITS,
   AI_PRESETS,
+  ago,
   aiBaseUrl,
   applyChatEvent,
   type Chat,
@@ -254,6 +255,17 @@ describe('readouts', () => {
     expect(tokensPerSecond({ ...answer, ms: 3000 })).toBeNull()
     expect(tokensPerSecond({ ...answer, usage: { input: 9, output: 90 }, ms: 50 })).toBeNull()
     expect(tokensPerSecond({ ...answer, usage: { input: 9, output: 0 }, ms: 3000 })).toBeNull()
+  })
+
+  it('how long ago, as a log says it', () => {
+    const now = Date.UTC(2026, 8, 21, 12, 0)
+    const minute = 60_000
+    expect(ago(now, now)).toBe('now')
+    expect(ago(now + 5 * minute, now)).toBe('now')
+    expect(ago(now - 5 * minute, now)).toBe('5m')
+    expect(ago(now - 125 * minute, now)).toBe('2h')
+    expect(ago(now - 3 * 24 * 60 * minute, now)).toBe('3d')
+    expect(ago(now - 40 * 24 * 60 * minute, now)).toBe('2026-08-12')
   })
 
   it('counts are shortened for a readout', () => {

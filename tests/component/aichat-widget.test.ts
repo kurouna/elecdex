@@ -172,7 +172,9 @@ describe('AiChatWidget', () => {
     await fireEvent.input(input, { target: { value: 'hello' } })
     await fireEvent.keyDown(input, { key: 'Enter' })
     await settle()
-    expect(screen.getByTestId('aichat-problem').textContent).toBe('the address is not usable')
+    const problem = screen.getByTestId('aichat-problem')
+    expect(problem.querySelector('.code')?.textContent).toBe('refused')
+    expect(problem.querySelector('.detail')?.textContent).toBe('the address is not usable')
     expect(input.value).toBe('hello')
     expect(ai.remove).toHaveBeenCalledWith(CHAT_ID)
     expect(setPaneState).not.toHaveBeenCalled()
@@ -188,7 +190,8 @@ describe('AiChatWidget', () => {
     await emit(delta(0, 'Hel'))
     await emit(delta(3, 'lo'))
     expect(screen.getByTestId('aichat-run').textContent).toContain('Hello')
-    expect(screen.getByTestId('aichat-telemetry').textContent).toContain('writing')
+    // Sent and waiting is TX; once text arrives the link is receiving.
+    expect(screen.getByTestId('aichat-telemetry').textContent).toContain('rx · T+')
 
     // A piece went missing between 5 and 9.
     await emit(delta(9, 'ld'))
@@ -197,6 +200,53 @@ describe('AiChatWidget', () => {
 
     await emit({ type: 'snapshot', chatId: CHAT_ID, chat: chat(), run: run('Hello world') })
     expect(screen.getByTestId('aichat-run').textContent).toContain('Hello world')
+  })
+
+  it("marks an answer that failed with a code, and keeps the provider's own words in view", async () => {
+    withProvider()
+    mount({ chat: CHAT_ID })
+    await settle()
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      run: null,
+      chat: chat([
+        { id: 'q', role: 'user', text: 'hi', at: 1 },
+        {
+          id: 'a',
+          role: 'assistant',
+          text: '',
+          at: 2,
+          stop: 'unreachable',
+          error: 'could not reach localhost:11434 - is it running?',
+        },
+      ]),
+    })
+    const stop = screen.getByTestId('aichat-stop')
+    expect(stop.querySelector('.code')?.textContent).toBe('no carrier')
+    // Not tucked into a tooltip: it is what the fault is fixed with.
+    expect(stop.querySelector('.detail')?.textContent).toBe(
+      'could not reach localhost:11434 - is it running?',
+    )
+  })
+
+  it('says it is querying while the model list is read', async () => {
+    withProvider()
+    let answer: (value: { models: never[]; error: null }) => void = () => {}
+    ai.models?.mockReturnValueOnce(
+      new Promise((resolve) => {
+        answer = resolve
+      }),
+    )
+    mount()
+    await settle()
+    const field = screen.getByTestId('aichat-model') as HTMLInputElement
+    await fireEvent.focus(field)
+    await settle()
+    expect(field.placeholder).toBe('querying models…')
+    answer({ models: [], error: null })
+    await settle()
+    expect(field.placeholder).toBe('model')
   })
 
   it('stops the answer from the button and with Escape', async () => {

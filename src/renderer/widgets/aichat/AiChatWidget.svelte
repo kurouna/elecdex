@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   type AiModel,
+  ago,
   aiBaseUrl,
   applyChatEvent,
   type ChatMessage,
@@ -132,7 +133,7 @@ $effect(() => {
 $effect(() => {
   paneMeta.set(paneId, {
     ...(title === '' ? {} : { subtitle: title }),
-    ...(busy ? { badge: 'writing', badgeKind: 'ok' as const } : {}),
+    ...(busy ? { badge: 'rx', badgeKind: 'ok' as const } : {}),
   })
 })
 
@@ -235,6 +236,13 @@ function newChat(): void {
 }
 
 let historyOpen = $state(false)
+/** When the log was opened: its "2h" are said from then, and do not tick. */
+let openedAt = $state(Date.now())
+
+function toggleHistory(): void {
+  historyOpen = !historyOpen
+  if (historyOpen) openedAt = Date.now()
+}
 
 function openChat(id: string): void {
   leaveEdit()
@@ -255,12 +263,15 @@ async function removeChat(id: string): Promise<void> {
 let models = $state.raw<AiModel[]>([])
 let modelsOf: string | null = null
 let modelsProblem = $state<string | null>(null)
+let modelsLoading = $state(false)
 
 async function loadModels(): Promise<void> {
   if (provider === null || modelsOf === provider.id) return
   const id = provider.id
   modelsOf = id
+  modelsLoading = true
   const result = await window.elecdex.ai.models(id)
+  modelsLoading = false
   if (modelsOf !== id) return
   models = result.models
   modelsProblem = result.error
@@ -283,12 +294,26 @@ function chooseModel(value: string): void {
 
 const time = (at: number): string => new Date(at).toTimeString().slice(0, 5)
 
-const STOP_WORDS: Record<NonNullable<ChatMessage['stop']>, string> = {
+/**
+ * How an answer that did not simply finish is marked: a short code, as a link
+ * reports its state, with the provider's own words after it - the code is for
+ * the eye, the words are what the fault is fixed with.
+ */
+const STOP_CODES: Record<NonNullable<ChatMessage['stop']>, string> = {
   stopped: 'stopped',
-  length: 'cut off at the length limit',
-  refusal: 'the model declined',
-  error: 'failed',
+  length: 'truncated',
+  refusal: 'declined',
+  error: 'link error',
+  unreachable: 'no carrier',
 }
+const FAILED = new Set<ChatMessage['stop']>(['error', 'unreachable', 'refusal'])
+
+/** What the link is doing while an answer comes: sent and waiting, or receiving. */
+const phase = $derived.by(() => {
+  if (run === null) return ''
+  if (run.text !== '') return 'rx'
+  return run.thinking === '' ? 'tx' : 'rx · reasoning'
+})
 
 const copied = new CopyFlag()
 $effect(() => () => copied.dispose())
@@ -317,13 +342,13 @@ const host = $derived.by(() => {
   />
 
   {#if provider === null}
-    <div class="setup" data-testid="aichat-setup">
-      <p>
-        No provider yet. Add a local server (Ollama, LM Studio, llama.cpp) or a service you have an
-        API key for; nothing is sent anywhere until you send a message.
-      </p>
-      <button type="button" class="cmd" onclick={() => ui.openSettings('ai')} data-testid="aichat-open-settings">
-        set up a provider
+    <div class="standby fx-rise" data-testid="aichat-setup">
+      <span class="state"><span class="lamp"></span>no link</span>
+      <span class="hint">
+        A local server (Ollama, LM Studio, llama.cpp) or a service you have an API key for.
+      </span>
+      <button type="button" class="command" onclick={() => ui.openSettings('ai')} data-testid="aichat-open-settings">
+        <span aria-hidden="true">&gt;</span> set up provider
       </button>
     </div>
   {:else}
@@ -343,7 +368,7 @@ const host = $derived.by(() => {
         class="model"
         list={`models-${paneId}`}
         value={model}
-        placeholder="model"
+        placeholder={modelsLoading ? 'querying models…' : 'model'}
         spellcheck="false"
         aria-label="model"
         title={modelsProblem ?? 'the model to ask; the list is read from the provider when you open it'}
@@ -361,24 +386,26 @@ const host = $derived.by(() => {
         type="button"
         class="cmd"
         aria-expanded={historyOpen}
-        onclick={() => (historyOpen = !historyOpen)}
+        onclick={toggleHistory}
+        title="the conversations kept on this computer"
         data-testid="aichat-history-toggle"
       >
-        history
+        log
       </button>
     </div>
 
     {#if historyOpen}
       <ul class="history" data-testid="aichat-history">
-        {#each ai.chats.filter((chat) => chat.messages > 0) as chat (chat.id)}
+        {#each ai.chats.filter((chat) => chat.messages > 0) as chat, n (chat.id)}
           <li class:current={chat.id === choice.chat}>
             <button type="button" class="open" onclick={() => openChat(chat.id)} data-testid="aichat-history-item">
+              <span class="index">{String(n + 1).padStart(2, '0')}</span>
               <span class="name">{chat.title === '' ? 'untitled' : chat.title}</span>
-              <span class="when">{new Date(chat.updatedAt).toLocaleDateString()} · {chat.messages}</span>
+              <span class="when" title={new Date(chat.updatedAt).toLocaleString()}>{ago(chat.updatedAt, openedAt)} · {chat.messages}</span>
             </button>
             <button
               type="button"
-              class="cmd"
+              class="cmd tool"
               title="save as markdown"
               onclick={() => void window.elecdex.ai.export(chat.id)}
             >
@@ -402,19 +429,18 @@ const host = $derived.by(() => {
       {#if messages.length === 0 && !busy}
         <div class="standby fx-rise" data-testid="aichat-empty">
           <span class="state"><span class="lamp" class:ready={model !== ''}></span>{model === '' ? 'no model chosen' : 'link standby'}</span>
-          <span class="target">{provider.name}{model === '' ? '' : ` · ${model}`}</span>
-          <span class="hint">
-            {model === ''
-              ? 'Choose a model above, then ask.'
-              : `${host ?? 'unusable address'} · nothing is sent until you ask · conversations stay on this computer`}
+          <span class="target" title="nothing is sent until you ask · conversations stay on this computer">
+            <span class="mark" aria-hidden="true">▌</span>{provider.name}{model === '' ? '' : ` · ${model}`}<span class="host">{host ?? 'unusable address'}</span>
           </span>
+          <span class="state">{model === '' ? 'choose a model above' : 'awaiting input'}</span>
         </div>
       {/if}
       {#each messages as message, i (message.id)}
         {@const readout = telemetry(message)}
         <article class="message {message.role} fx-rise" data-testid="aichat-message" data-role={message.role}>
           <header>
-            <span class="who">{message.role === 'user' ? 'you' : (message.model ?? 'assistant')}</span>
+            <span class="who">{message.role === 'user' ? 'you' : (message.model ?? 'remote')}</span>
+            <span class="meta">{time(message.at)}</span>
             <span class="rule"></span>
             <button type="button" class="act" onclick={() => void copied.copy(message.id, message.text)}>
               {copied.key === message.id ? 'copied' : 'copy'}
@@ -429,7 +455,6 @@ const host = $derived.by(() => {
             {#if readout !== null}
               <span class="meta" title="tokens read › tokens written · tokens a second" data-testid="aichat-usage">{readout}</span>
             {/if}
-            <span class="meta">{time(message.at)}</span>
           </header>
           {#if message.thinking}
             <details class="thinking">
@@ -443,8 +468,8 @@ const host = $derived.by(() => {
             <Markdown source={message.text} />
           {/if}
           {#if message.stop}
-            <p class="stop" class:failed={message.stop === 'error' || message.stop === 'refusal'} data-testid="aichat-stop">
-              {STOP_WORDS[message.stop]}{message.error ? `: ${message.error}` : ''}
+            <p class="stop" class:failed={FAILED.has(message.stop)} data-testid="aichat-stop">
+              <span class="code">{STOP_CODES[message.stop]}</span>{#if message.error}<span class="detail">{message.error}</span>{/if}
             </p>
           {/if}
         </article>
@@ -455,7 +480,7 @@ const host = $derived.by(() => {
             <span class="who">{run.model}</span>
             <span class="rule"></span>
             <span class="meta live" data-testid="aichat-telemetry">
-              {run.text === '' ? (run.thinking === '' ? 'linking' : 'reasoning') : 'writing'} · T+{elapsed}s · {compactCount(run.text.length + run.thinking.length)} ch
+              <span class="lamp rx" aria-hidden="true"></span>{phase} · T+{elapsed}s · {compactCount(run.text.length + run.thinking.length)} ch
             </span>
           </header>
           {#if run.thinking !== ''}
@@ -474,7 +499,7 @@ const host = $derived.by(() => {
     </div>
 
     {#if problem !== null}
-      <p class="problem" data-testid="aichat-problem">{problem}</p>
+      <p class="problem" data-testid="aichat-problem"><span class="code">refused</span><span class="detail">{problem}</span></p>
     {/if}
 
     <form
@@ -524,14 +549,6 @@ const host = $derived.by(() => {
   font-family: var(--font-ui);
   font-size: var(--step--1);
   color: var(--text);
-}
-
-.setup {
-  margin: auto;
-  max-width: 28rem;
-  text-align: center;
-  color: var(--text-muted);
-  line-height: 1.5;
 }
 
 .bar {
@@ -597,8 +614,9 @@ select:focus,
 }
 
 .history {
-  flex: 0 1 40%;
-  min-height: 3rem;
+  /* As tall as its entries, up to two fifths of the pane; then it scrolls. */
+  flex: 0 0 auto;
+  max-height: 40%;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -608,11 +626,29 @@ select:focus,
   scrollbar-color: var(--accent-dim) transparent;
 }
 
+/* A session log: number, what was asked, how long ago, how many messages - one line each. */
 .history li {
   display: flex;
   align-items: stretch;
   gap: var(--space-1);
   padding: 0.1rem var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+}
+
+/* What can be done to an entry shows when it is pointed at, or reached by keyboard. */
+.history li > :global(:not(.open)) {
+  opacity: 0;
+}
+
+.history li:hover > :global(:not(.open)),
+.history li:focus-within > :global(:not(.open)) {
+  opacity: 1;
+}
+
+.index {
+  flex: none;
+  color: var(--text-muted);
 }
 
 .history li + li {
@@ -632,7 +668,6 @@ select:focus,
   flex: 1;
   min-width: 0;
   gap: var(--space-2);
-  justify-content: space-between;
   padding: 0;
   border: 0;
   background: transparent;
@@ -648,6 +683,8 @@ select:focus,
 }
 
 .name {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -704,9 +741,18 @@ select:focus,
   border: 1px solid var(--warn);
 }
 
-.lamp.ready {
+.lamp.ready,
+.lamp.rx {
   border-color: var(--ok);
   background: var(--ok);
+}
+
+/* The receive lamp beats with the caret, on the same shared pulse. */
+.lamp.rx {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: var(--space-1);
 }
 
 .target {
@@ -716,6 +762,43 @@ select:focus,
   text-transform: uppercase;
   color: var(--accent-strong);
   overflow-wrap: anywhere;
+}
+
+.mark {
+  margin-right: var(--space-1);
+  color: var(--accent);
+}
+
+/* The address is read, not announced: as typed, in the readouts' face. */
+.host::before {
+  content: '·';
+  margin: 0 0.5em;
+}
+
+.host {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
+
+/* "> set up provider": a command, where a pane with no provider has nothing else to offer. */
+.command {
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+
+.command:hover,
+.command:focus-visible {
+  background: var(--accent-faint);
+  outline: none;
 }
 
 .hint {
@@ -862,6 +945,8 @@ select:focus,
   color: var(--accent);
 }
 
+.chat[data-pulse='1'] .lamp.rx,
+.chat[data-pulse='3'] .lamp.rx,
 .chat[data-pulse='1'] .caret,
 .chat[data-pulse='3'] .caret,
 .chat[data-pulse='1'] .running :global(.markdown ::after),
@@ -869,6 +954,7 @@ select:focus,
   opacity: 0.6;
 }
 
+.chat[data-pulse='2'] .lamp.rx,
 .chat[data-pulse='2'] .caret,
 .chat[data-pulse='2'] .running :global(.markdown ::after) {
   opacity: 0.15;
@@ -879,11 +965,14 @@ select:focus,
   color: var(--text-muted);
 }
 
-.stop {
+.stop,
+.problem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
   margin: 0;
   font-size: var(--step--2);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -892,14 +981,19 @@ select:focus,
   color: var(--warn);
 }
 
-.stop.failed {
-  text-transform: none;
-  letter-spacing: 0;
+/* The state, as a link reports it; what the provider said follows in its own words. */
+.code {
+  flex: none;
+  padding: 0 0.35rem;
+  border: 1px solid currentcolor;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
 }
 
-.problem {
-  margin: 0;
-  font-size: var(--step--2);
+.detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* A command line: the prompt, what is typed, and the key that sends it. */
@@ -910,8 +1004,14 @@ select:focus,
   border: 1px solid var(--panel-border);
 }
 
+/* The line that has the keyboard is lit down its left, like the message being written. */
 .composer:focus-within {
   border-color: var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.composer:not(:focus-within) .prompt {
+  color: var(--text-muted);
 }
 
 .composer.editing {
@@ -945,6 +1045,8 @@ textarea {
 }
 
 .composer .cmd {
+  display: flex;
+  align-items: center;
   border-width: 0 0 0 1px;
 }
 </style>

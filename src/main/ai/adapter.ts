@@ -59,6 +59,28 @@ const STATUS_WORDS: Record<number, string> = {
   529: 'the provider is overloaded',
 }
 
+/** Nobody answered at the address: not running, not there, no network. */
+export class UnreachableError extends ProviderError {}
+
+const UNREACHABLE =
+  /ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ETIMEDOUT|ERR_CONNECTION_REFUSED|ERR_CONNECTION_TIMED_OUT|ERR_ADDRESS_UNREACHABLE/i
+const UNRESOLVED = /ENOTFOUND|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/i
+
+/** Every message a failed fetch may carry: its own, and its cause's (Node says "fetch failed" and puts why below). */
+function messagesOf(error: unknown): string {
+  if (!(error instanceof Error)) return String(error)
+  const cause = error.cause instanceof Error ? ` ${error.cause.message}` : ''
+  return `${error.message}${cause}`
+}
+
+/** Whether a failure is the link itself, which the pane words as NO CARRIER. */
+export function isUnreachable(error: unknown): boolean {
+  if (error instanceof UnreachableError) return true
+  if (error instanceof ProviderError) return false
+  const message = messagesOf(error)
+  return UNREACHABLE.test(message) || UNRESOLVED.test(message)
+}
+
 /** "the key was refused (401): invalid x-api-key", with the service's own words when it gave any. */
 export function statusFailure(status: number, detail: string | null): ProviderError {
   const words = STATUS_WORDS[status] ?? 'the request failed'
@@ -70,13 +92,9 @@ export function statusFailure(status: number, detail: string | null): ProviderEr
 export function describeFailure(error: unknown, baseUrl: string): string {
   if (error instanceof ProviderError) return error.message
   const host = hostOf(baseUrl)
-  const message = error instanceof Error ? error.message : String(error)
-  if (/ECONNREFUSED|ERR_CONNECTION_REFUSED|fetch failed|Connection error/i.test(message)) {
-    return `could not reach ${host} - is it running?`
-  }
-  if (/ENOTFOUND|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/i.test(message)) {
-    return `could not find ${host}`
-  }
+  const message = messagesOf(error)
+  if (UNRESOLVED.test(message)) return `could not find ${host}`
+  if (UNREACHABLE.test(message)) return `could not reach ${host} - is it running?`
   if (/redirect/i.test(message)) return `${host} answered with a redirect, which is not followed`
   return message.slice(0, 300)
 }

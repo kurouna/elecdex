@@ -197,7 +197,8 @@ export const CHAT_VERSION = 1
 export const CHAT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Why an answer ended, when it did not simply finish. */
-export const CHAT_STOPS = ['stopped', 'length', 'refusal', 'error'] as const
+/** `unreachable` is an error too, told apart because the pane says it differently: nobody answered. */
+export const CHAT_STOPS = ['stopped', 'length', 'refusal', 'error', 'unreachable'] as const
 export type ChatStop = (typeof CHAT_STOPS)[number]
 
 export const ChatMessageSchema = z.object({
@@ -414,6 +415,16 @@ export function tokensPerSecond(message: ChatMessage): number | null {
   if (message.usage === undefined || message.ms === undefined || message.ms < 200) return null
   if (message.usage.output === 0) return null
   return Math.round((message.usage.output / message.ms) * 1000)
+}
+
+/** How long ago, as a log says it: "now", "5m", "2h", "3d", then the date. */
+export function ago(at: number, now: number): string {
+  const minutes = Math.floor(Math.max(0, now - at) / 60_000)
+  if (minutes < 1) return 'now'
+  if (minutes < 60) return `${minutes}m`
+  if (minutes < 60 * 24) return `${Math.floor(minutes / 60)}h`
+  if (minutes < 60 * 24 * 30) return `${Math.floor(minutes / (60 * 24))}d`
+  return new Date(at).toISOString().slice(0, 10)
 }
 
 /** 1234 -> "1.2k": a count for a readout, not for accounting. */

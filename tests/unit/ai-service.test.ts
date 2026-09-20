@@ -214,6 +214,22 @@ describe('an answer', () => {
     ])
   })
 
+  it('nobody answering is told apart from an error: the pane says NO CARRIER', async () => {
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    h.service.send(chatId, { ...ASK, text: 'hi' })
+    await h.settle()
+    const refused = Object.assign(new TypeError('fetch failed'), {
+      cause: new Error('connect ECONNREFUSED 127.0.0.1:11434'),
+    })
+    ;(h.pending[0] as Pending).fail(refused)
+    await h.settle()
+    expect(h.service.get(chatId)?.messages[1]).toMatchObject({
+      stop: 'unreachable',
+      error: 'could not reach localhost:11434 - is it running?',
+    })
+  })
+
   it('a refusal and a length stop are recorded with what the provider said', async () => {
     const h = harness(dir)
     const chatId = h.service.create() as string

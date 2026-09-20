@@ -1,7 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { describeFailure, type FetchLike } from '../../src/main/ai/adapter.js'
+import {
+  describeFailure,
+  type FetchLike,
+  isUnreachable,
+  ProviderError,
+} from '../../src/main/ai/adapter.js'
 import { anthropicAdapter } from '../../src/main/ai/anthropic.js'
 import { openaiAdapter, SseLines } from '../../src/main/ai/openai.js'
 
@@ -92,6 +97,14 @@ const collect = () => {
 }
 
 const signal = () => new AbortController().signal
+
+/** An address on this machine where nothing listens: a port that was just given back. */
+async function closedOrigin(): Promise<string> {
+  const gone = createServer()
+  const at = await listen(gone)
+  await new Promise((resolve) => gone.close(resolve))
+  return at
+}
 
 describe('server-sent events', () => {
   it('lines are whole however the bytes were cut', () => {
@@ -201,12 +214,36 @@ describe('the OpenAI dialect', () => {
   })
 
   it('a server that is not there is said plainly', async () => {
+    const nowhere = await closedOrigin()
     const failure = await openaiAdapter(nodeFetch)
-      .stream({ ...ask(), baseUrl: 'http://127.0.0.1:9/v1' }, collect().sink)
+      .stream({ ...ask(), baseUrl: `${nowhere}/v1` }, collect().sink)
       .catch((error: unknown) => error)
-    expect(describeFailure(failure, 'http://127.0.0.1:9/v1')).toBe(
-      'could not reach 127.0.0.1:9 - is it running?',
+    expect(describeFailure(failure, `${nowhere}/v1`)).toBe(
+      `could not reach ${new URL(nowhere).host} - is it running?`,
     )
+    expect(isUnreachable(failure)).toBe(true)
+  })
+
+  it('a name that does not resolve is not found, not "not running"', () => {
+    // As Node's fetch reports it: the reason is in the cause. No lookup is made here.
+    const failure = Object.assign(new TypeError('fetch failed'), {
+      cause: new Error('getaddrinfo ENOTFOUND llm.example.test'),
+    })
+    expect(describeFailure(failure, 'http://llm.example.test/v1')).toBe(
+      'could not find llm.example.test',
+    )
+    expect(isUnreachable(failure)).toBe(true)
+  })
+
+  it('only the link itself is "unreachable": a refused key or a redirect is not', async () => {
+    expect(isUnreachable(new ProviderError('the key was refused (401)'))).toBe(false)
+    reply = (_req, res) => {
+      res.writeHead(307, { location: `${otherOrigin}/v1/chat/completions` }).end()
+    }
+    const redirected = await openaiAdapter(nodeFetch)
+      .stream(ask(), collect().sink)
+      .catch((error: unknown) => error)
+    expect(isUnreachable(redirected)).toBe(false)
   })
 
   it('stopping ends the read', async () => {
@@ -403,7 +440,15 @@ describe('the Anthropic dialect', () => {
       .stream(ask(), collect().sink)
       .catch((error: unknown) => error)
     expect(describeFailure(failure, origin)).toBe('the key was refused (401): invalid x-api-key')
+    expect(isUnreachable(failure)).toBe(false)
   })
+
+  it('nobody at the address is the link, whatever the SDK calls it', async () => {
+    const failure = await anthropicAdapter(nodeFetch)
+      .stream({ ...ask(), baseUrl: await closedOrigin() }, collect().sink)
+      .catch((error: unknown) => error)
+    expect(isUnreachable(failure)).toBe(true)
+  }, 20_000)
 
   it('lists models with their display names', async () => {
     reply = (_req, res) => {

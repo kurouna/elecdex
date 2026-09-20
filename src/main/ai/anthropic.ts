@@ -9,6 +9,7 @@ import {
   type StreamResult,
   type StreamSink,
   statusFailure,
+  UnreachableError,
 } from './adapter.js'
 
 /**
@@ -49,7 +50,7 @@ function failure(error: unknown): unknown {
   // Most specific first: a connection failure is an APIError too, with no status.
   if (error instanceof Anthropic.APIUserAbortError) return error
   if (error instanceof Anthropic.APIConnectionError) {
-    return new ProviderError('could not reach the provider - check the address and the network')
+    return new UnreachableError('could not reach the provider - check the address and the network')
   }
   if (error instanceof Anthropic.APIError && typeof error.status === 'number') {
     const body = error.error as { error?: { message?: unknown } } | undefined

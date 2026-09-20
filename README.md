@@ -324,8 +324,10 @@ weather and calendar.
   folded under **reasoning**. While an answer is written its heading counts the seconds and the
   characters; once it lands it shows the tokens read and written and the tokens a second, where
   the provider reports them. Hover a message to **copy** it, **edit** an earlier question (which
-  replaces it and what followed) or ask **again**. **history** lists your conversations, exports
-  one as markdown, or deletes it. A conversation belongs to the app, not the pane: moving the pane
+  replaces it and what followed) or ask **again**. An answer that did not simply finish says how it
+  ended - `STOPPED`, `TRUNCATED`, `DECLINED`, `LINK ERROR`, or `NO CARRIER` when nobody answered
+  at the address - with the provider's own words beside it. **log** lists your conversations,
+  newest first; point at one to export it as markdown or delete it. A conversation belongs to the app, not the pane: moving the pane
   or putting it behind a tab does not interrupt an answer, and closing it stops the request.
   Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
   an optional system prompt in the settings goes ahead of every conversation. There are no tools:

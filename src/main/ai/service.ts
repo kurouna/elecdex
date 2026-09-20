@@ -16,7 +16,12 @@ import {
   chatTitle,
   keyMayTravel,
 } from '@shared/ai'
-import { describeFailure, type ProviderAdapter, type StreamResult } from './adapter.js'
+import {
+  describeFailure,
+  isUnreachable,
+  type ProviderAdapter,
+  type StreamResult,
+} from './adapter.js'
 import type { ChatStore } from './store.js'
 
 /**
@@ -265,7 +270,10 @@ export class AiChatService {
       )
       this.finish(running, result)
     } catch (error) {
-      this.finish(running, { stop: 'error', note: describeFailure(error, target.baseUrl) })
+      this.finish(running, {
+        stop: isUnreachable(error) ? 'unreachable' : 'error',
+        note: describeFailure(error, target.baseUrl),
+      })
     }
   }
 
