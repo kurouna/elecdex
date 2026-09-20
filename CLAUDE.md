@@ -205,7 +205,11 @@ docs/            architecture.md (design + §16 decision log), weather-providers
   never turn it back into a snapshot without asking (user decision 2026-09-20). Switching flushes the
   pending save *and waits for one in flight* - main writes each save into whichever layout is active
   when it arrives. A broken entry is dropped on its own; the file is never discarded whole for one
-  bad layout.
+  bad layout. The first `KEYED_LAYOUTS` of them answer Ctrl+Shift+1..9 *by their place in the list*,
+  which is why the dialog can reorder them - add a slot in shared/layouts.ts, keybindings.ts and
+  Workspace.svelte together (a unit test checks the actions match the constant). Switching asks
+  first while shells are open (`layout.confirmSwitch`); that question is a promise the switch
+  awaits, so anything that takes the screen from it must answer it.
 - **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state
   or in main (a shell reattaches to its session). A widget that creates a WebGL context must give
   it back when it unmounts (`forceContextLoss`, or `releaseWebglContexts` in lib/webgl.ts):
@@ -223,6 +227,10 @@ docs/            architecture.md (design + §16 decision log), weather-providers
     (`layout.closingId`), and the panes that gain its room are uncovered by a `crt-extend`
     clip (layout/pane-close.ts), never by animating sizes, which would send transient sizes to a
     shell. One close runs at a time; a tree change first calls `layout.settle()`.
+  - Layouts: applying a saved one replaces the whole workspace, so the screen powers off as one
+    (`layout.leaving`, a tab group with its header and strip) and the arrangement arriving powers
+    on pane by pane as at boot, quicker (`layout/layout-switch.ts`). Overlapping switches are
+    last-one-wins through a token.
   - A pane brought forward (`layout.zoom`, docs/architecture.md section 5.5) is pinned over the
     workspace with `position: fixed` and flies there with a transform (`crt-zoom`), never by
     growing: the tree is untouched, so nothing is remounted, the panes behind keep their size,

@@ -59,13 +59,15 @@ for Windows, macOS and Linux.
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
   icons for an ordinary working day. A CRT power-on boot sequence after a Linux-style boot log of
   this machine's real facts (a pane added later powers on the same way; a closed one powers off
-  and the panes beside it extend into its room; dialogs and notices power off too), scanlines and glow,
+  and the panes beside it extend into its room; switching to a saved layout powers the whole
+  screen off and brings the next one up pane by pane; dialogs and notices power off too), scanlines and glow,
   synthesised interface sounds, a themed title bar and a status bar that slides in from the bottom edge. Short
   entrance effects - a wave of dates for each month, a forecast rising in, new headlines and
   earthquakes sliding in with a three-second highlight - follow the motion setting: with motion
   reduced (or the system's reduce-motion setting), nothing moves.
-- **Settings** — a settings dialog for theme, motion, sound, the terminal's start folder, the launcher, rebindable keyboard
-  shortcuts and the update check, all saved to a hand-editable `settings.json`.
+- **Settings** — a settings dialog for theme, motion, sound, the terminal's start folder, saved
+  layouts, the launcher, rebindable keyboard shortcuts and the update check, all saved to a
+  hand-editable `settings.json`.
 - **Background (Windows)** — optionally minimise or close to the notification area, show or hide
   elecdex from any app with a system-wide shortcut, and launch it when you sign in, in the
   background if you like. All off until turned on in *Settings → Window*.
@@ -202,13 +204,13 @@ its number key. Up to twelve are kept.
 
 Applying a layout replaces the workspace, which ends the shells of the panes it replaces, exactly as
 closing those panes would; while shells are open you are asked first, and the question carries the
-way to stop asking (*Settings → General → ask before switching layout*). The old arrangement powers
+way to stop asking (*Settings → General → Layouts*). The old arrangement powers
 off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
 reduced.
 
-The saved layouts live in `layouts.json`, beside the live `layout.json`, and hold nothing that
-belongs to this machine: **copy that one file to another computer and your arrangements come with
-you.** The dialog's *layouts.json* button shows it in the file manager.
+They are kept in one file that holds nothing belonging to this machine: **copy `layouts.json` to
+another computer and your arrangements come with you.** The dialog's *layouts.json* button shows it
+in the file manager (details under [Themes and settings](#themes-and-settings)).
 
 A tab group can hold any panes, not only shells, so a pane you need now and then can share a place
 with the shells instead of taking room of its own - RSS or the weather behind the shell tabs, for
@@ -455,6 +457,7 @@ from the app replaces it:
   "keybindings": { "app.quit": null },
   "window": { "minimizeToTray": false, "closeToTray": true, "globalShortcut": true, "startInBackground": false },
   "updates": { "check": true },
+  "layout": { "confirmSwitch": true },
   "web": { "tint": false },
   "quakes": { "source": "auto", "notify": true, "minIntensity": "5-", "minMagnitude": 6, "tsunami": true, "system": true, "sound": true },
   "reminders": { "notify": true, "system": true, "sound": true, "snoozeMinutes": 10, "leadMinutes": 0 }
@@ -481,8 +484,24 @@ Colours are `#rrggbb`; `status` (hues for danger / warn / ok / info), `fonts` an
 (`primary` and `muted` text colours; text is the accent without it), `mode` (`"light"` for a
 light ground: darker status colours, and the terminal raises faint colours to 4.5:1) and
 `effects.iconTint` (`false` shows launcher icons in their own colours) are optional.
-The layout lives in `layout.json` beside them; a hand-edited file is validated on load, and one
-that cannot be read is moved aside to `layout.json.bak` rather than discarded.
+The layout lives in `layout.json` beside them: the one live arrangement, validated on load when
+edited by hand, and moved aside to `layout.json.bak` rather than discarded when it cannot be read.
+
+The saved layouts live in `layouts.json`, which holds each one by name plus the id of the one being
+worked in. It carries nothing that belongs to this machine — a terminal's session id is stripped on
+the way in — so **the file can be copied to another computer as it is**, and a new shell never
+rewrites it. One entry that cannot be read is dropped on its own, leaving the rest; a file
+that cannot be read at all is moved aside to `layouts.json.bak`.
+
+```json
+{
+  "version": 1,
+  "active": "k3f9d1ab",
+  "items": [
+    { "id": "k3f9d1ab", "name": "work", "tree": { "version": 1, "root": { "kind": "pane", "id": "p1", "widget": "terminal" } } }
+  ]
+}
+```
 
 ## Why a rewrite
 
