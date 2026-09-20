@@ -66,8 +66,13 @@ async function saveKey(id: string): Promise<void> {
   const key = (typed[id] ?? '').trim()
   if (key === '') return
   typed = { ...typed, [id]: '' }
-  await window.elecdex.ai.setKey(id, key)
+  const kept = await window.elecdex.ai.setKey(id, key)
+  // Said, not swallowed: a key main refused would otherwise look saved, and fail at "test".
+  refused = { ...refused, [id]: kept === null }
 }
+
+/** Providers whose last key main would not keep. */
+let refused = $state<Record<string, boolean>>({})
 
 const KEY_WORDS = {
   stored: 'key held, encrypted by this computer',
@@ -80,6 +85,9 @@ let modelsOf = $state<Record<string, AiModel[]>>({})
 
 async function test(provider: AiProvider): Promise<void> {
   testing = provider.id
+  // The answer before this one goes first: the same words twice would look like no answer.
+  const { [provider.id]: _before, ...others } = tested
+  tested = others
   const result = await window.elecdex.ai.models(provider.id)
   testing = null
   modelsOf = { ...modelsOf, [provider.id]: result.models }
@@ -257,6 +265,11 @@ function addressProblem(provider: AiProvider): string | null {
         </button>
       {/if}
     </div>
+    {#if refused[provider.id]}
+      <p class="note problem" data-testid="ai-key-refused">
+        that key was not kept - a key is up to {AI_LIMITS.key} characters, with nothing else pasted along
+      </p>
+    {/if}
     {#if held !== null}
       <p class="note" class:problem={held === 'session'} data-testid="ai-key-state">{KEY_WORDS[held]}</p>
     {/if}

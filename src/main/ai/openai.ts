@@ -1,7 +1,8 @@
-import { AI_LIMITS, type AiModel, ThinkSplitter } from '@shared/ai'
+import { AI_LIMITS, type AiModel, isLocalAddress, ThinkSplitter } from '@shared/ai'
 import {
   type AdapterTarget,
   type FetchLike,
+  isUnreachable,
   type ProviderAdapter,
   ProviderError,
   type StreamRequest,
@@ -32,6 +33,72 @@ const headersFor = (key: string | null): Record<string, string> => ({
   ...(key === null ? {} : { authorization: `Bearer ${key}` }),
 })
 
+/**
+ * A hosted service now and then answers "busy" or drops the connection, and the
+ * same request a moment later goes through: every SDK for these services asks
+ * again by itself (Anthropic's does, on the other dialect), so this does too -
+ * before anything of an answer has arrived, never after. A server on this
+ * computer or network is not asked again: there a failure means what it says
+ * (not running, out of memory, no such model), and asking again only delays it.
+ */
+const RETRY_STATUS = new Set([408, 429, 500, 502, 503, 504])
+const RETRY_WAITS_MS = [500, 1500]
+/** A service that says when to come back is obeyed if that is soon, and believed if it is not. */
+const RETRY_AFTER_MAX_MS = 5000
+
+export interface RetryPolicy {
+  /** How long to wait before each further attempt; none for no retries. */
+  waits(baseUrl: string): readonly number[]
+}
+
+const defaultRetries: RetryPolicy = {
+  waits: (baseUrl) => (isLocalAddress(baseUrl) ? [] : RETRY_WAITS_MS),
+}
+
+const pause = (ms: number, signal: AbortSignal): Promise<void> =>
+  new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason)
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', stopped)
+      resolve()
+    }, ms)
+    const stopped = (): void => {
+      clearTimeout(timer)
+      reject(signal.reason)
+    }
+    signal.addEventListener('abort', stopped, { once: true })
+  })
+
+/** How long the service asked to be left alone, when it said so in seconds. */
+function retryAfter(response: Response): number | null {
+  const seconds = Number(response.headers.get('retry-after'))
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : null
+}
+
+/** The response to read: the first that is not a passing failure, or the last there is patience for. */
+async function fetchPatiently(
+  fetchLike: FetchLike,
+  url: string,
+  init: RequestInit & { signal: AbortSignal },
+  waits: readonly number[],
+): Promise<Response> {
+  for (let attempt = 0; ; attempt += 1) {
+    let wait = waits[attempt]
+    try {
+      const response = await fetchLike(url, init)
+      if (wait === undefined || !RETRY_STATUS.has(response.status)) return response
+      const asked = retryAfter(response)
+      if (asked !== null && asked > RETRY_AFTER_MAX_MS) return response
+      wait = Math.max(wait, asked ?? 0)
+      await response.body?.cancel().catch(() => {})
+    } catch (error) {
+      // Stopped, or nobody there at all: neither gets better by asking again.
+      if (wait === undefined || init.signal.aborted || isUnreachable(error)) throw error
+    }
+    await pause(wait, init.signal)
+  }
+}
+
 /** Server-sent events, decoded line by line: only `data:` lines matter to this dialect. */
 export class SseLines {
   private buffer = ''
@@ -48,7 +115,13 @@ async function errorDetail(response: Response): Promise<string | null> {
   try {
     const text = (await response.text()).slice(0, ERROR_BODY_BYTES)
     try {
-      const body = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown }
+      const parsed = JSON.parse(text) as unknown
+      // Google's compatibility layer wraps some of its errors in a list.
+      const body = (Array.isArray(parsed) ? parsed[0] : parsed) as {
+        error?: { message?: unknown } | string
+        message?: unknown
+      } | null
+      if (typeof body !== 'object' || body === null) return null
       const said =
         typeof body.error === 'string' ? body.error : (body.error?.message ?? body.message)
       return typeof said === 'string' ? said : null
@@ -180,18 +253,26 @@ async function readAnswer(
   return reading.end()
 }
 
-export function openaiAdapter(fetchLike: FetchLike): ProviderAdapter {
+export function openaiAdapter(
+  fetchLike: FetchLike,
+  retries: RetryPolicy = defaultRetries,
+): ProviderAdapter {
   const stream = async (request: StreamRequest, sink: StreamSink): Promise<StreamResult> => {
     const guard = idleGuard(request.signal)
     try {
-      const response = await fetchLike(`${request.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: headersFor(request.key),
-        body: bodyFor(request),
-        // A key must not follow a redirect to wherever it points.
-        redirect: 'error',
-        signal: guard.signal,
-      })
+      const response = await fetchPatiently(
+        fetchLike,
+        `${request.baseUrl}/chat/completions`,
+        {
+          method: 'POST',
+          headers: headersFor(request.key),
+          body: bodyFor(request),
+          // A key must not follow a redirect to wherever it points.
+          redirect: 'error',
+          signal: guard.signal,
+        },
+        retries.waits(request.baseUrl),
+      )
       return await readAnswer(response, sink, guard.touch)
     } catch (error) {
       // The guard's own reason (the idle timeout) says more than "aborted".
@@ -203,12 +284,17 @@ export function openaiAdapter(fetchLike: FetchLike): ProviderAdapter {
   }
 
   const models = async (target: AdapterTarget): Promise<AiModel[]> => {
-    const response = await fetchLike(`${target.baseUrl}/models`, {
-      method: 'GET',
-      headers: headersFor(target.key),
-      redirect: 'error',
-      signal: AbortSignal.any([target.signal, AbortSignal.timeout(MODELS_TIMEOUT_MS)]),
-    })
+    const response = await fetchPatiently(
+      fetchLike,
+      `${target.baseUrl}/models`,
+      {
+        method: 'GET',
+        headers: headersFor(target.key),
+        redirect: 'error',
+        signal: AbortSignal.any([target.signal, AbortSignal.timeout(MODELS_TIMEOUT_MS)]),
+      },
+      retries.waits(target.baseUrl),
+    )
     if (!response.ok) throw statusFailure(response.status, await errorDetail(response))
     const body = (await response.json()) as { data?: unknown }
     const list = Array.isArray(body.data) ? body.data : []

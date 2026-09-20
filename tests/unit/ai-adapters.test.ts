@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   describeFailure,
   type FetchLike,
@@ -280,6 +280,133 @@ describe('the OpenAI dialect', () => {
     })
     expect(seen[0]).toMatchObject({ method: 'GET', path: '/v1/models' })
     expect(models).toEqual([{ id: 'llama3' }, { id: 'qwen3:8b' }])
+  })
+
+  describe('a hosted service that is busy for a moment', () => {
+    // The test servers are on this machine, where nothing is asked twice: say they are not.
+    const hosted = { waits: () => [1, 1] }
+    const busyThen = (failures: number, status = 503, headers: Record<string, string> = {}) => {
+      let asked = 0
+      reply = (req, res) => {
+        asked += 1
+        if (asked <= failures) {
+          res.writeHead(status, { 'content-type': 'application/json', ...headers })
+          res.end(JSON.stringify({ error: { message: 'The model is overloaded.' } }))
+        } else if (req.path === '/v1/models') {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ data: [{ id: 'gemini-test' }] }))
+        } else sse(res, [chunk({ content: 'there' }), 'data: [DONE]\n\n'])
+      }
+    }
+    const target = () => ({ baseUrl: `${origin}/v1`, key: 'sk-test', signal: signal() })
+
+    it('is asked again, for the model list and for an answer, and the user sees only the answer', async () => {
+      busyThen(2)
+      expect(await openaiAdapter(nodeFetch, hosted).models(target())).toEqual([
+        { id: 'gemini-test' },
+      ])
+      expect(seen).toHaveLength(3)
+
+      seen.length = 0
+      busyThen(1, 429)
+      const { got, sink } = collect()
+      await openaiAdapter(nodeFetch, hosted).stream(ask(), sink)
+      expect(got.text).toBe('there')
+      expect(seen).toHaveLength(2)
+      // The same request, key and all.
+      expect(seen[1]?.headers.authorization).toBe('Bearer sk-test')
+      expect(seen[1]?.body).toEqual(seen[0]?.body)
+    })
+
+    it('but not for ever: the last failure is the one told', async () => {
+      busyThen(9)
+      const failure = await openaiAdapter(nodeFetch, hosted)
+        .models(target())
+        .catch((error: unknown) => error)
+      expect(describeFailure(failure, origin)).toBe(
+        'the provider is overloaded (503): The model is overloaded.',
+      )
+      expect(seen).toHaveLength(3)
+    })
+
+    it('a failure that asking again cannot mend is told at once', async () => {
+      for (const status of [400, 401, 403, 404]) {
+        seen.length = 0
+        busyThen(9, status)
+        await openaiAdapter(nodeFetch, hosted)
+          .models(target())
+          .catch(() => {})
+        expect(seen, String(status)).toHaveLength(1)
+      }
+    })
+
+    it('a service that says to come back much later is believed, not waited for', async () => {
+      busyThen(9, 429, { 'retry-after': '3600' })
+      const failure = await openaiAdapter(nodeFetch, hosted)
+        .models(target())
+        .catch((error: unknown) => error)
+      expect(describeFailure(failure, origin)).toContain('rate limited')
+      expect(seen).toHaveLength(1)
+    })
+
+    it('a connection dropped before any answer is asked again; nobody at the address is not', async () => {
+      let asked = 0
+      reply = (_req, res) => {
+        asked += 1
+        if (asked === 1) res.destroy()
+        else {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ data: [{ id: 'gemini-test' }] }))
+        }
+      }
+      expect(await openaiAdapter(nodeFetch, hosted).models(target())).toHaveLength(1)
+      expect(asked).toBe(2)
+
+      let attempts = 0
+      const refused: FetchLike = async () => {
+        attempts += 1
+        throw Object.assign(new TypeError('fetch failed'), {
+          cause: new Error('connect ECONNREFUSED 127.0.0.1:9'),
+        })
+      }
+      await openaiAdapter(refused, hosted)
+        .models(target())
+        .catch(() => {})
+      expect(attempts).toBe(1)
+    })
+
+    it('stopping ends the wait between attempts', async () => {
+      busyThen(9)
+      const stop = new AbortController()
+      const waiting = openaiAdapter(nodeFetch, { waits: () => [60_000] })
+        .models({ ...target(), signal: stop.signal })
+        .catch((error: unknown) => error)
+      await vi.waitFor(() => expect(seen).toHaveLength(1))
+      stop.abort()
+      expect(await waiting).toBeDefined()
+      expect(seen).toHaveLength(1)
+    })
+
+    it('a server on this computer or network is never asked twice', async () => {
+      busyThen(9)
+      await openaiAdapter(nodeFetch)
+        .models(target())
+        .catch(() => {})
+      expect(seen).toHaveLength(1)
+    })
+  })
+
+  it("reads an error Google's compatibility layer wraps in a list", async () => {
+    reply = (_req, res) => {
+      res.writeHead(400, { 'content-type': 'application/json' })
+      res.end(JSON.stringify([{ error: { code: 400, message: 'API key not valid.' } }]))
+    }
+    const failure = await openaiAdapter(nodeFetch)
+      .models({ baseUrl: `${origin}/v1`, key: 'sk-test', signal: signal() })
+      .catch((error: unknown) => error)
+    expect(describeFailure(failure, origin)).toBe(
+      'the request was not accepted (400): API key not valid.',
+    )
   })
 })
 

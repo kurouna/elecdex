@@ -181,8 +181,15 @@ test('a provider is added in the settings; its key goes to main and never comes 
     await provider.getByTestId('ai-address').fill(`${origin}/v1`)
     await provider.getByTestId('ai-address').press('Tab')
 
+    // What main will not keep is said, not swallowed: it would look saved and fail at "test".
+    await provider.getByTestId('ai-key').fill('x'.repeat(600))
+    await provider.getByTestId('ai-key-save').click()
+    await expect(provider.getByTestId('ai-key-refused')).toContainText('not kept')
+    await expect(provider.getByTestId('ai-key-state')).toHaveCount(0)
+
     await provider.getByTestId('ai-key').fill('sk-e2e-secret')
     await provider.getByTestId('ai-key-save').click()
+    await expect(provider.getByTestId('ai-key-refused')).toHaveCount(0)
     await expect(provider.getByTestId('ai-key-state')).toContainText('key held')
     // The field is emptied the moment the key is handed over.
     await expect(provider.getByTestId('ai-key')).toHaveValue('')
