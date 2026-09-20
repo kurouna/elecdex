@@ -5,6 +5,8 @@ import {
   barsFor,
   drawCandles,
   MIN_SLOT_PX,
+  niceTicks,
+  timeTicks,
   valueScale,
 } from '../../src/renderer/widgets/markets/chart-draw.js'
 
@@ -164,5 +166,66 @@ describe('observeCanvas', () => {
       configurable: true,
     })
     Object.defineProperty(globalThis, 'window', { value: previous.win, configurable: true })
+  })
+})
+
+describe('niceTicks', () => {
+  it('steps by 1, 2 or 5 times a power of ten, inside the range', () => {
+    expect(niceTicks(0, 10, 5)).toEqual([0, 2, 4, 6, 8, 10])
+    expect(niceTicks(36_480, 37_420, 4)).toEqual([36_500, 37_000])
+    expect(niceTicks(149.2, 150.9, 4)).toEqual([149.5, 150, 150.5])
+  })
+
+  it('keeps the last tick despite rounding, and the values clean', () => {
+    // 0.1 * 3 is 0.30000000000000004: a sum would step past 0.3 and print the error.
+    expect(niceTicks(0, 0.3, 3)).toEqual([0, 0.1, 0.2, 0.3])
+  })
+
+  it('gives nothing for a range it cannot divide', () => {
+    expect(niceTicks(5, 5, 4)).toEqual([])
+    expect(niceTicks(9, 1, 4)).toEqual([])
+    expect(niceTicks(Number.NaN, 1, 4)).toEqual([])
+    expect(niceTicks(Number.NEGATIVE_INFINITY, 1, 4)).toEqual([])
+    expect(niceTicks(0, 1, 0)).toEqual([])
+  })
+})
+
+describe('timeTicks', () => {
+  const at = (month: number, day: number, hour = 0, minute = 0) => ({
+    t: new Date(2026, month - 1, day, hour, minute).getTime(),
+  })
+
+  it('labels the hours of a 1D chart, at the first bar of each', () => {
+    const bars = [
+      at(9, 1, 9, 50),
+      at(9, 1, 9, 55),
+      at(9, 1, 10, 0),
+      at(9, 1, 10, 5),
+      at(9, 1, 11, 0),
+    ]
+    expect(timeTicks(bars, '1d', 100, 50, 'en-GB')).toEqual([
+      { index: 2, text: '10:00' },
+      { index: 4, text: '11:00' },
+    ])
+  })
+
+  it('leaves out a label that would start too close to the one before', () => {
+    const bars = [at(9, 1, 9), at(9, 1, 10), at(9, 1, 11), at(9, 1, 12), at(9, 1, 13)]
+    // Ten pixels a bar and forty between labels: every fourth hour at most.
+    expect(timeTicks(bars, '1d', 10, 40, 'en-GB').map((t) => t.index)).toEqual([1])
+    expect(timeTicks(bars, '1d', 10, 20, 'en-GB').map((t) => t.index)).toEqual([1, 3])
+  })
+
+  it('counts in days, months and years for the longer ranges, across a weekend or a new year', () => {
+    const days = [at(9, 4, 9), at(9, 4, 15), at(9, 7, 9), at(9, 8, 9)]
+    expect(timeTicks(days, '5d', 100, 50, 'en-US').map((t) => t.text)).toEqual(['9/7', '9/8'])
+    const months = [at(11, 28), at(12, 1), at(12, 31), { t: new Date(2027, 0, 4).getTime() }]
+    expect(timeTicks(months, '6mo', 100, 50, 'en-US').map((t) => t.index)).toEqual([1, 3])
+    expect(timeTicks(months, '5y', 100, 50, 'en-US')).toEqual([{ index: 3, text: '2027' }])
+  })
+
+  it('gives nothing for one bar or none', () => {
+    expect(timeTicks([], '1d', 10, 40)).toEqual([])
+    expect(timeTicks([at(9, 1)], '5y', 10, 40)).toEqual([])
   })
 })

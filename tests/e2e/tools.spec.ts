@@ -550,6 +550,80 @@ test.describe('markets', () => {
     }
   })
 
+  test('a row opens its chart over the whole pane, and the arrow goes back to the list', async () => {
+    let launched = await launch(undefined, {
+      layout: single('markets', { symbols: [{ symbol: '^N225' }, { symbol: 'JPY=X' }] }),
+      env: { ELECDEX_MARKETS_STUB_URL: stubUrl },
+    })
+    try {
+      const { page } = launched
+      const markets = page.getByTestId('markets')
+      await expect(page.getByTestId('market-price').first()).toHaveText('1,000', {
+        timeout: 20_000,
+      })
+      // The row is a button now; the market's state light must still be a dot, not
+      // whatever the button's styles would make of it (they once shared a class).
+      const dot = await page
+        .locator('[data-testid=market-row] .state')
+        .first()
+        .evaluate((el) => el.getBoundingClientRect())
+      expect(dot.width).toBeCloseTo(dot.height, 0)
+      expect(dot.width).toBeLessThan(10)
+
+      await page.getByTestId('market-row').nth(1).getByTestId('market-open').click()
+      const detail = page.getByTestId('markets-detail')
+      await expect(detail).toHaveAttribute('data-symbol', 'JPY=X')
+      await expect(page.getByTestId('market-detail-price')).toHaveText('150.25')
+      await expect(detail).toContainText('−0.80%')
+      await expect(page.getByTestId('market-row')).toHaveCount(0)
+      const chart = page.getByTestId('market-detail-chart')
+      await expect(chart).toHaveAttribute('data-bars', /^[1-9]\d*$/)
+      // The chart has the pane: everything under the head, down to the credit. Polled,
+      // because it powers on like a tube and is drawn scaled until it has.
+      const paneBox = await markets.boundingBox()
+      const share = async () => {
+        const box = await chart.boundingBox()
+        return Math.min(
+          (box?.width ?? 0) / (paneBox?.width ?? 1) / 0.95,
+          (box?.height ?? 0) / (paneBox?.height ?? 1) / 0.8,
+        )
+      }
+      // At least 95% of the pane's width and 80% of its height.
+      await expect.poll(share).toBeGreaterThan(1)
+      // Both symbols stay quoted, so the list is current when it comes back.
+      expect(await page.evaluate(() => window.elecdex.markets.watching())).toEqual([
+        'JPY=X',
+        '^N225',
+      ])
+
+      await page.getByTestId('markets-view').locator('[data-view=candles]').click()
+      await expect(chart).toHaveAttribute('data-view', 'candles')
+      await chart.hover({ position: { x: 40, y: 40 } })
+      await expect(page.getByTestId('market-detail-readout')).toContainText(/O .+H .+L .+C /)
+
+      // The range beside the chart is the pane's.
+      await page.getByTestId('markets-detail-ranges').locator('[data-range="6mo"]').click()
+      await expect(markets).toHaveAttribute('data-range', '6mo')
+      await expect(detail).toContainText('%', { timeout: 10_000 })
+
+      // The open chart is pane state: it is there after a restart.
+      await page.waitForTimeout(1500) // let the layout save
+      launched = await launched.relaunch()
+      const again = launched.page
+      await expect(again.getByTestId('markets-detail')).toHaveAttribute('data-symbol', 'JPY=X')
+      await expect(again.getByTestId('market-detail-chart')).toHaveAttribute('data-view', 'candles')
+
+      await again.getByTestId('markets-back').click()
+      await expect(again.getByTestId('markets-detail')).toHaveCount(0)
+      await expect(again.getByTestId('market-row')).toHaveCount(2)
+      // The board kept its own view: choosing candles for the chart did not change it.
+      await expect(again.getByTestId('markets')).toHaveAttribute('data-view', 'line')
+      await expect(again.getByTestId('market-spark')).toHaveCount(2)
+    } finally {
+      await launched.close()
+    }
+  })
+
   test('a watchlist longer than the pane scrolls in both views instead of covering the credit', async () => {
     // The default layout's markets pane is short and its watchlist has eight symbols.
     const { page, close } = await launch()

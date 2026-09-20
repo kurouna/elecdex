@@ -1,4 +1,4 @@
-import type { CandlePoint } from '@shared/markets'
+import type { CandlePoint, ChartRange } from '@shared/markets'
 
 /**
  * Drawing shared by the market board's two charts. Both place their points by
@@ -102,4 +102,80 @@ export function drawCandles(
     const bodyHeight = Math.max(1, Math.round(Math.max(open, close)) - bodyTop)
     ctx.fillRect(centre - (body - 1) / 2, bodyTop, body, bodyHeight)
   })
+}
+
+/**
+ * Round prices between `lo` and `hi` for a price axis, about `target` of them,
+ * a 1-2-5 step apart.
+ */
+export function niceTicks(lo: number, hi: number, target: number): number[] {
+  if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi <= lo || target < 1) return []
+  const rough = (hi - lo) / target
+  const power = 10 ** Math.floor(Math.log10(rough))
+  const step = ([1, 2, 5].find((m) => m * power >= rough) ?? 10) * power
+  const out: number[] = []
+  // Counted in whole steps, so the sum's rounding error never drops the last tick.
+  const last = Math.floor(hi / step + 1e-9)
+  for (let n = Math.ceil(lo / step - 1e-9); n <= last; n++)
+    out.push(Number((n * step).toPrecision(12)))
+  return out
+}
+
+export interface TimeTick {
+  /** The bar the label belongs to: the first of its hour, day, month or year. */
+  index: number
+  text: string
+}
+
+/** What the time axis counts in, per range: finer than the dividers only for 1D, which has none. */
+const TICK_UNITS: Readonly<Record<ChartRange, 'hour' | 'day' | 'month' | 'year'>> = {
+  '1d': 'hour',
+  '5d': 'day',
+  '1mo': 'day',
+  '6mo': 'month',
+  '1y': 'month',
+  '5y': 'year',
+}
+
+const TICK_FORMATS: Readonly<
+  Record<'hour' | 'day' | 'month' | 'year', Intl.DateTimeFormatOptions>
+> = {
+  hour: { hour: '2-digit', minute: '2-digit', hour12: false },
+  day: { month: 'numeric', day: 'numeric' },
+  month: { year: '2-digit', month: 'numeric' },
+  year: { year: 'numeric' },
+}
+
+function tickUnit(t: number, unit: 'hour' | 'day' | 'month' | 'year'): number {
+  const d = new Date(t)
+  const day = d.getFullYear() * 10_000 + d.getMonth() * 100 + d.getDate()
+  if (unit === 'hour') return day * 100 + d.getHours()
+  if (unit === 'day') return day
+  return unit === 'month' ? d.getFullYear() * 12 + d.getMonth() : d.getFullYear()
+}
+
+/**
+ * The labels under a chart whose bars sit in even slots: one where the hour (1D),
+ * day, month or year changes in local time, leaving out any that would start
+ * within `minGap` pixels of the one before.
+ */
+export function timeTicks(
+  candles: readonly { t: number }[],
+  range: ChartRange,
+  slot: number,
+  minGap: number,
+  locale?: string,
+): TimeTick[] {
+  const unit = TICK_UNITS[range]
+  const format = new Intl.DateTimeFormat(locale, TICK_FORMATS[unit])
+  const out: TimeTick[] = []
+  let lastX = Number.NEGATIVE_INFINITY
+  for (let i = 1; i < candles.length; i++) {
+    const t = (candles[i] as { t: number }).t
+    if (tickUnit((candles[i - 1] as { t: number }).t, unit) === tickUnit(t, unit)) continue
+    if (i * slot - lastX < minGap) continue
+    out.push({ index: i, text: format.format(t) })
+    lastX = i * slot
+  }
+  return out
 }
