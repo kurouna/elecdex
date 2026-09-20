@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  checkSources,
   type EntryKind,
   installFromFolder,
   installName,
@@ -44,8 +45,28 @@ describe('what a folder has to be to be a plugin', () => {
   it('needs an index at its root', () => {
     expect(planInstall(tree({ 'index.ts': 10 }))).toEqual({ files: ['index.ts'], bytes: 10 })
     expect(planInstall(tree({ 'index.js': 10 }))).toEqual({ files: ['index.js'], bytes: 10 })
+    // The plugin is one folder down: say which, rather than "not a plugin".
     const refused = planInstall(tree({ 'plugin.ts': 10, src: null, 'src/index.ts': 10 }))
-    expect(refused).toEqual({ error: expect.stringContaining('index.ts') })
+    expect(refused).toEqual({ error: expect.stringContaining('"src" inside it is') })
+    // Nothing that looks like a plugin anywhere: the plain answer.
+    expect(planInstall(tree({ 'notes.md': 10 }))).toEqual({
+      error: expect.stringContaining('no index.ts or index.js'),
+    })
+  })
+
+  it('says so when the folder holds plugins rather than being one', () => {
+    // Picking another elecdex's plugins folder is a likely mistake, and "this is
+    // not a plugin" would not explain it.
+    const plan = planInstall(
+      tree({
+        pomodoro: null,
+        'pomodoro/index.ts': 1,
+        clock: null,
+        'clock/index.js': 1,
+        'README.md': 1,
+      }),
+    )
+    expect(plan).toEqual({ error: expect.stringContaining('2 plugins') })
   })
 
   it('takes the code and leaves everything else where it is', () => {
@@ -113,6 +134,66 @@ describe('what a folder has to be to be a plugin', () => {
       size: () => 1,
     }
     expect(planInstall(linked)).toEqual({ files: ['index.ts'], bytes: 1 })
+  })
+})
+
+describe('whether the files would load at all', () => {
+  const file = (path: string, source: string) => ({ path, source })
+
+  it('passes a plugin that compiles and imports only its own files', () => {
+    expect(
+      checkSources([
+        file('index.ts', "import { t } from './lib/timer'\nexport default { t }"),
+        file('lib/timer.ts', 'export const t = 1'),
+      ]),
+    ).toBeNull()
+  })
+
+  it('finds a file the way the worker does: the name, .ts, .js, or an index in it', () => {
+    for (const [specifier, target] of [
+      ['./timer', 'timer.ts'],
+      ['./timer', 'timer.js'],
+      ['./lib', 'lib/index.ts'],
+      ['./lib/', 'lib/index.js'],
+      ['../shared/x', 'shared/x.ts'],
+    ] as const) {
+      const files = [
+        file('app/index.ts', `import './x'\nimport '${specifier}'\nexport default {}`),
+        file('app/x.ts', 'export {}'),
+        file(target.startsWith('shared') ? target : `app/${target}`, 'export const t = 1'),
+      ]
+      expect(checkSources(files), specifier).toBeNull()
+    }
+  })
+
+  it('says which file will not compile, before anything is copied', () => {
+    const broken = checkSources([file('index.ts', 'export default { name: ')])
+    expect(broken).toContain('index.ts')
+  })
+
+  it('refuses a plugin that imports a package, since there is no npm in a worker', () => {
+    const reason = checkSources([file('index.ts', "import x from 'lodash'\nexport default { x }")])
+    expect(reason).toContain('lodash')
+    expect(reason).toContain('its own files')
+  })
+
+  it('refuses an import of a file that did not come with it', () => {
+    const reason = checkSources([file('index.ts', "import './lib/timer'\nexport default {}")])
+    expect(reason).toContain('./lib/timer')
+    expect(reason).toContain('not in the folder')
+  })
+
+  it('refuses an import that climbs out of the plugin', () => {
+    const reason = checkSources([file('index.ts', "import '../../secrets'\nexport default {}")])
+    expect(reason).toContain('outside the folder')
+  })
+
+  it('says nothing about a type-only import, which the transform removes', () => {
+    expect(
+      checkSources([
+        file('index.ts', "import type { Plugin } from './elecdex-plugin'\nexport default {}"),
+      ]),
+    ).toBeNull()
   })
 })
 
@@ -194,6 +275,15 @@ describe('installing into the plugins folder', () => {
     rmSync(path.join(source, 'lib'), { recursive: true, force: true })
     installFromFolder({ pluginsDir: plugins, source, replace: true })
     expect(installed()).toEqual(['index.ts'])
+  })
+
+  it('refuses a plugin that would not load, and copies nothing', () => {
+    // The point of the check: the reason arrives with the click, not later as a
+    // line in a settings row after it has been installed and turned on.
+    writeFileSync(path.join(source, 'index.ts'), "import x from 'lodash'\nexport default { x }")
+    const result = installFromFolder({ pluginsDir: plugins, source })
+    expect(result).toEqual({ status: 'refused', reason: expect.stringContaining('lodash') })
+    expect(readdirSync(plugins)).toEqual([])
   })
 
   it('says why when the folder is not a plugin, and copies nothing', () => {

@@ -3,12 +3,15 @@ import {
   type Dirent,
   mkdirSync,
   readdirSync,
+  readFileSync,
   renameSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
 import { PLUGIN_LIMITS } from '@shared/plugins'
+import { type SourceFile, transformFile } from './folder.js'
 
 /**
  * Installing a plugin from a folder the user picks.
@@ -47,6 +50,9 @@ export interface InstallPlan {
   bytes: number
 }
 
+const hasIndex = (entries: ReadonlyArray<{ name: string; kind: EntryKind }>): boolean =>
+  entries.some((entry) => entry.kind === 'file' && /^index\.(ts|js)$/.test(entry.name))
+
 const isCode = (name: string) => /\.(ts|js)$/.test(name) && !name.endsWith('.d.ts')
 /** Skipped wherever they appear, as the scanner skips them. */
 const isNoise = (name: string) => name.startsWith('.') || name === 'node_modules'
@@ -73,8 +79,19 @@ export function installName(folder: string): string | null {
  */
 export function planInstall(tree: SourceTree): InstallPlan | { error: string } {
   const root = tree.list('')
-  const index = root.some((entry) => entry.kind === 'file' && /^index\.(ts|js)$/.test(entry.name))
-  if (!index) {
+  if (!hasIndex(root)) {
+    // A folder of plugins - another elecdex's plugins folder, say - is a likely
+    // mistake, and the answer to it is not "this is not a plugin".
+    const inside = root.filter(
+      (entry) => entry.kind === 'dir' && !isNoise(entry.name) && hasIndex(tree.list(entry.name)),
+    )
+    if (inside.length === 1) {
+      const only = inside[0]?.name ?? ''
+      return { error: `that folder is not a plugin, but "${only}" inside it is - pick that one` }
+    }
+    if (inside.length > 1) {
+      return { error: `that folder holds ${inside.length} plugins; install them one at a time` }
+    }
     return { error: 'that folder has no index.ts or index.js, so it is not a plugin' }
   }
 
@@ -108,6 +125,64 @@ function collect(tree: SourceTree, relative: string, depth: number, out: string[
       out.push(child)
     }
   }
+}
+
+/**
+ * Whether the files would load at all, said before anything is copied.
+ *
+ * A plugin that does not compile, or that imports a package, fails when the
+ * worker loads it - which is after it has been installed, turned on and given
+ * a pane, and the reason is then a line in a settings row rather than an answer
+ * to what the user just did. The two things that can be known without running
+ * it are checked here instead: the code parses, and every import it makes is a
+ * file that came with it.
+ *
+ * The resolution below mirrors the worker's (shared/plugin-runtime.ts); change
+ * one and change the other.
+ */
+export function checkSources(files: readonly SourceFile[]): string | null {
+  const byPath = new Map(files.map((file) => [file.path, file]))
+  for (const file of files) {
+    let code: string
+    try {
+      // Sucrase turns every value import into a require call, so the specifiers
+      // can be read off the result rather than parsed out of the source.
+      code = transformFile(file)
+    } catch (error) {
+      return message(error)
+    }
+    for (const specifier of requires(code)) {
+      const problem = resolves(file.path, specifier, byPath)
+      if (problem !== null) return `${file.path}: ${problem}`
+    }
+  }
+  return null
+}
+
+/** Every `require("...")` in transformed code, in order. */
+function requires(code: string): string[] {
+  const found: string[] = []
+  for (const match of code.matchAll(/\brequire\(\s*(['"])([^'"]*)\1\s*\)/g)) {
+    const specifier = match[2]
+    if (specifier !== undefined) found.push(specifier)
+  }
+  return found
+}
+
+/** Why a specifier would not resolve, or null when it would. */
+function resolves(from: string, specifier: string, files: Map<string, SourceFile>): string | null {
+  if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+    return `imports "${specifier}", and a plugin can import only its own files`
+  }
+  const parts = from.split('/').slice(0, -1)
+  for (const segment of specifier.split('/').filter((part) => part !== '.' && part !== '')) {
+    if (segment !== '..') parts.push(segment)
+    else if (parts.pop() === undefined) return `imports "${specifier}", which is outside the folder`
+  }
+  const base = parts.join('/')
+  const candidates = [base, `${base}.ts`, `${base}.js`, `${base}/index.ts`, `${base}/index.js`]
+  if (candidates.some((candidate) => files.has(candidate))) return null
+  return `imports "${specifier}", which is not in the folder`
 }
 
 /** The real folder on disk, for `planInstall` and the copy. */
@@ -150,6 +225,8 @@ export interface InstallOptions {
   replace?: boolean
   /** Injected by the tests; the disk otherwise. */
   tree?: SourceTree
+  /** Injected by the tests; `checkSources` otherwise. */
+  check?: (files: readonly SourceFile[]) => string | null
 }
 
 /**
@@ -173,6 +250,19 @@ export function installFromFolder(options: InstallOptions): InstallResult {
   const plan = planInstall(options.tree ?? diskTree(resolved))
   if ('error' in plan) return { status: 'refused', reason: plan.error }
 
+  // Read once: the check needs the source, and the limits above bound it.
+  let sources: SourceFile[]
+  try {
+    sources = plan.files.map((file) => ({
+      path: file,
+      source: readFileSync(path.join(resolved, file), 'utf8'),
+    }))
+  } catch (error) {
+    return { status: 'refused', reason: message(error) }
+  }
+  const problem = options.check?.(sources) ?? checkSources(sources)
+  if (problem !== null) return { status: 'refused', reason: problem }
+
   const target = path.join(plugins, name)
   const exists = readdirSync(plugins, { withFileTypes: true }).some((entry) => entry.name === name)
   if (exists && options.replace !== true) return { status: 'exists', name }
@@ -180,10 +270,10 @@ export function installFromFolder(options: InstallOptions): InstallResult {
   const staging = path.join(plugins, `.installing-${name}`)
   try {
     rmSync(staging, { recursive: true, force: true })
-    for (const file of plan.files) {
-      const to = path.join(staging, file)
+    for (const file of sources) {
+      const to = path.join(staging, file.path)
       mkdirSync(path.dirname(to), { recursive: true })
-      copyFileSync(path.join(resolved, file), to)
+      writeFileSync(to, file.source, 'utf8')
     }
     rmSync(target, { recursive: true, force: true })
     // Renaming a directory over a path that no longer exists is atomic enough:

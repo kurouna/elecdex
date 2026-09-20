@@ -31,7 +31,7 @@ export interface PluginFolderOptions {
   sample: Readonly<Record<string, string>>
 }
 
-interface SourceFile {
+export interface SourceFile {
   /** Relative to the plugin: "index.ts", "lib/timer.ts". */
   path: string
   source: string
@@ -178,22 +178,29 @@ function hashFiles(files: readonly SourceFile[]): string {
 }
 
 /**
- * The module table: each file as CommonJS inside a function, keyed by its path. Type-only
- * imports disappear in the transform; value imports become require calls, which the worker
- * resolves among these keys alone.
+ * One file as CommonJS. Type-only imports disappear here; value imports become
+ * require calls, which the worker resolves among the plugin's own files alone.
+ *
+ * Exported because installing a plugin transforms it before copying it, to
+ * refuse a folder that could not load (main/plugins/install.ts): both have to
+ * see the same code the worker will.
  */
+export function transformFile(file: SourceFile): string {
+  const transforms: Array<'typescript' | 'imports'> = file.path.endsWith('.ts')
+    ? ['typescript', 'imports']
+    : ['imports']
+  try {
+    return transform(file.source, { transforms, filePath: file.path }).code
+  } catch (error) {
+    throw new Error(`${file.path}: ${message(error)}`)
+  }
+}
+
+/** The module table: each file as CommonJS inside a function, keyed by its path. */
 export function bundle(files: readonly SourceFile[]): string {
-  const entries = files.map((file) => {
-    const transforms: Array<'typescript' | 'imports'> = file.path.endsWith('.ts')
-      ? ['typescript', 'imports']
-      : ['imports']
-    let code: string
-    try {
-      code = transform(file.source, { transforms, filePath: file.path }).code
-    } catch (error) {
-      throw new Error(`${file.path}: ${message(error)}`)
-    }
-    return `${JSON.stringify(file.path)}: function (module, exports, require) {\n${code}\n}`
-  })
+  const entries = files.map(
+    (file) =>
+      `${JSON.stringify(file.path)}: function (module, exports, require) {\n${transformFile(file)}\n}`,
+  )
   return `{\n${entries.join(',\n')}\n}`
 }
