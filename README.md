@@ -444,8 +444,11 @@ A plugin adds a pane. It is a TypeScript or JavaScript file, or a folder with an
 them gives an editor the API's types. *Settings → Plugins → **install from a folder…*** copies one
 in for you: pick the plugin's folder and elecdex takes the code it would read and nothing else — no
 README, no `package.json`, no `.git`, no `node_modules` — under the folder's own name, asking first
-if a plugin of that name is already there. *Open plugins folder* is still there for putting one in
-by hand. A new plugins
+if a plugin of that name is already there. What can be known without running it is checked before
+anything is copied — that the code compiles, and that every import is a file that came with it — so
+a folder that is not a plugin, or one that needs npm, is refused with the reason rather than failing
+later; a folder that *holds* plugins is told apart from one that is one. *Open plugins folder* is
+still there for putting one in by hand. A new plugins
 folder comes with a **pomodoro timer** (`examples/plugins/pomodoro` in this repository): focus
 sessions, short breaks and a long break every few rounds, with a VFD meter, a chime and a
 notification when a phase ends, carrying on across restarts.
