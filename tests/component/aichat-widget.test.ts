@@ -235,6 +235,63 @@ describe('AiChatWidget', () => {
     )
   })
 
+  it('offers every model the provider lists, in a list of its own that can be scrolled and walked', async () => {
+    withProvider()
+    const many = Array.from({ length: 120 }, (_, i) => ({ id: `models/m-${i}` }))
+    ai.models?.mockResolvedValueOnce({ models: [...many, { id: 'tiny' }], error: null })
+    mount()
+    await settle()
+    const field = screen.getByTestId('aichat-model') as HTMLInputElement
+    await fireEvent.focus(field)
+    await settle()
+    // Not a datalist: that popup is the browser's, and what did not fit on it could not be reached.
+    expect(document.querySelector('datalist')).toBeNull()
+    // All of them, though the field already names one - a list that offered only "tiny" would be no list.
+    expect(screen.getAllByTestId('aichat-model-option')).toHaveLength(121)
+
+    // Typing narrows it; the arrows walk it and Enter takes the one they are on.
+    await fireEvent.input(field, { target: { value: 'm-11' } })
+    expect(screen.getAllByTestId('aichat-model-option').map((o) => o.textContent)).toEqual([
+      'models/m-11',
+      ...Array.from({ length: 10 }, (_, i) => `models/m-11${i}`),
+    ])
+    await fireEvent.keyDown(field, { key: 'ArrowDown' })
+    await fireEvent.keyDown(field, { key: 'ArrowDown' })
+    expect(screen.getAllByTestId('aichat-model-option')[1]?.getAttribute('aria-selected')).toBe(
+      'true',
+    )
+    await fireEvent.keyDown(field, { key: 'Enter' })
+    expect(setPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'models/m-110' })
+    expect(screen.queryByTestId('aichat-model-list')).toBeNull()
+  })
+
+  it('a model is chosen with the pointer, typed as it is, or left alone with Escape', async () => {
+    withProvider()
+    mount()
+    await settle()
+    const field = screen.getByTestId('aichat-model') as HTMLInputElement
+    await fireEvent.focus(field)
+    await settle()
+    await fireEvent.click(screen.getAllByTestId('aichat-model-option')[1] as HTMLElement)
+    expect(setPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'large' })
+
+    // A model the list does not know is still a model: the list may be out of date.
+    await fireEvent.focus(field)
+    await fireEvent.input(field, { target: { value: ' my-own:7b ' } })
+    await fireEvent.blur(field)
+    expect(setPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'my-own:7b' })
+
+    // Escape closes the list and takes nothing - and is the list's, not the pane's "stop".
+    setPaneState.mockClear()
+    await fireEvent.focus(field)
+    await fireEvent.input(field, { target: { value: 'half typed' } })
+    await fireEvent.keyDown(field, { key: 'Escape' })
+    expect(screen.queryByTestId('aichat-model-list')).toBeNull()
+    await fireEvent.blur(field)
+    expect(setPaneState).not.toHaveBeenCalled()
+    expect(ai.stop).not.toHaveBeenCalled()
+  })
+
   it('says it is querying while the model list is read, whatever the field already holds', async () => {
     withProvider()
     let answer: (value: { models: never[]; error: string | null }) => void = () => {}
@@ -293,12 +350,14 @@ describe('AiChatWidget', () => {
     answers[0]?.({ models: [{ id: 'from-the-first' }], error: null })
     await settle()
     expect(screen.getByTestId('aichat-models-state').textContent).toBe('querying')
-    expect(document.querySelector('datalist option')).toBeNull()
+    expect(screen.queryAllByTestId('aichat-model-option')).toEqual([])
 
     answers[1]?.({ models: [{ id: 'from-the-second' }], error: null })
     await settle()
     expect(screen.queryByTestId('aichat-models-state')).toBeNull()
-    expect(document.querySelector('datalist option')?.getAttribute('value')).toBe('from-the-second')
+    expect(screen.getAllByTestId('aichat-model-option').map((o) => o.textContent)).toEqual([
+      'from-the-second',
+    ])
   })
 
   it('an answer that ends is heard: landed, stopped by hand, or lost - NO CARRIER included', async () => {

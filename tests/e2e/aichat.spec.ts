@@ -82,6 +82,12 @@ function anthropicAnswer(res: ServerResponse): void {
   res.end(event('message_stop', {}))
 }
 
+/** What each provider's model list answers; `/many` has more than a screen holds (Gemini lists about a hundred). */
+const MODEL_LISTS: Record<string, string[]> = {
+  '/v1/models': ['tiny', 'slow'],
+  '/many/v1/models': Array.from({ length: 150 }, (_, i) => `models/number-${i}`),
+}
+
 test.beforeAll(async () => {
   server = createServer((req, res) => {
     let raw = ''
@@ -95,9 +101,10 @@ test.beforeAll(async () => {
         body: raw === '' ? null : JSON.parse(raw),
       }
       seen.push(entry)
-      if (entry.path === '/v1/models') {
+      const listed = MODEL_LISTS[entry.path]
+      if (listed !== undefined) {
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify({ data: [{ id: 'tiny' }, { id: 'slow' }] }))
+        res.end(JSON.stringify({ data: listed.map((id) => ({ id })) }))
       } else if (entry.path === '/v1/chat/completions') {
         openaiAnswer(entry, res)
       } else if (entry.path === '/claude/v1/messages') {
@@ -402,6 +409,53 @@ test("a provider's window goes by its address until a figure is typed", async ()
     await provider.getByTestId('ai-address').press('Tab')
     await expect(provider.getByTestId('ai-context-note')).toContainText('sent whole')
     expect(seen).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test('a provider with more models than fit is scrolled through, in the settings and in the pane', async () => {
+  const { page, userData, close } = await launch(undefined, { layout: single() })
+  const saved = () =>
+    JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).ai.providers[0]
+  try {
+    await pane(page).getByTestId('aichat-open-settings').click()
+    await page.getByTestId('ai-preset').selectOption('custom')
+    await page.getByTestId('ai-add').click()
+    const provider = page.locator('[data-testid=ai-provider][data-provider=custom]')
+    await provider.getByTestId('ai-address').fill(`${origin}/many/v1`)
+    await provider.getByTestId('ai-address').press('Tab')
+    await provider.getByTestId('ai-test').click()
+    await expect(provider.getByTestId('ai-test-result')).toHaveText('ok · 150 models')
+
+    await provider.getByTestId('ai-model').click()
+    const list = provider.getByTestId('ai-model-list')
+    await expect(list.getByTestId('ai-model-option')).toHaveCount(150)
+    // The page's own list: taller inside than out, and the wheel moves it.
+    const room = await list.evaluate((el) => [el.scrollHeight, el.clientHeight])
+    expect(room[0]).toBeGreaterThan((room[1] ?? 0) * 3)
+    await list.hover()
+    await page.mouse.wheel(0, 600)
+    await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+    // Its last model (the list is sorted) can be reached and chosen - pressing in the list does not close it first.
+    await list.getByTestId('ai-model-option').last().click()
+    await expect(provider.getByTestId('ai-model')).toHaveValue('models/number-99')
+    await expect(list).toHaveCount(0)
+    await expect.poll(() => saved().model).toBe('models/number-99')
+
+    await page.keyboard.press('Escape')
+    const field = pane(page).getByTestId('aichat-model')
+    await field.click()
+    const inPane = pane(page).getByTestId('aichat-model-list')
+    await expect(inPane.getByTestId('aichat-model-option')).toHaveCount(150)
+    // Typing narrows it; the arrow keys and Enter choose without the pointer.
+    await field.fill('number-7')
+    await expect(inPane.getByTestId('aichat-model-option')).toHaveCount(11)
+    await field.press('ArrowDown')
+    await field.press('ArrowDown')
+    await field.press('Enter')
+    await expect(field).toHaveValue('models/number-70')
+    await expect(pane(page).getByTestId('aichat-empty')).toContainText(/number-70/i)
   } finally {
     await close()
   }

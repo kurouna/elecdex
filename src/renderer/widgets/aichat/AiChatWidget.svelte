@@ -25,6 +25,7 @@ import { ui } from '../../stores/ui.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import Markdown from './Markdown.svelte'
+import ModelField from './ModelField.svelte'
 
 /**
  * A conversation with a language model: a local server or a hosted service the
@@ -388,24 +389,14 @@ const host = $derived.by(() => {
         {/each}
       </select>
       <span class="field">
-        <input
-          type="text"
-          class="model"
-          list={`models-${paneId}`}
+        <ModelField
           value={model}
-          placeholder="model"
-          spellcheck="false"
-          aria-label="model"
+          {models}
           title={modelsProblem ?? 'the model to ask; the list is read from the provider when you open it'}
-          onfocus={() => void loadModels()}
-          onchange={(e) => chooseModel(e.currentTarget.value)}
-          data-testid="aichat-model"
+          onopen={() => void loadModels()}
+          onchoose={chooseModel}
+          testid="aichat-model"
         />
-        <datalist id={`models-${paneId}`}>
-          {#each models as m (m.id)}
-            <option value={m.id}>{m.label ?? ''}</option>
-          {/each}
-        </datalist>
         <!-- Over the field's end, so it shows whether or not a model is already typed there. -->
         {#if modelsLoading}
           <span class="tag" data-testid="aichat-models-state">querying</span>
@@ -611,8 +602,7 @@ const host = $derived.by(() => {
   min-height: 1.4rem;
 }
 
-select,
-.model {
+select {
   min-width: 0;
   padding: 0 var(--space-1);
   border: 1px solid var(--panel-border);
@@ -631,10 +621,6 @@ select {
   display: flex;
   flex: 1 1 8rem;
   min-width: 0;
-}
-
-.model {
-  flex: 1;
 }
 
 /* What the model list is doing, over the end of the field it fills. */
@@ -659,8 +645,7 @@ select {
   pointer-events: auto;
 }
 
-select:focus,
-.model:focus {
+select:focus {
   border-color: var(--accent);
   outline: none;
 }

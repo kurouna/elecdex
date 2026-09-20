@@ -3,6 +3,7 @@ import {
   AI_CONTEXT,
   AI_LIMITS,
   AI_PRESETS,
+  type AiModel,
   type AiProvider,
   aiBaseUrl,
   contextWindow,
@@ -13,6 +14,7 @@ import {
 import ConfirmButton from '../../ConfirmButton.svelte'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
+import ModelField from './ModelField.svelte'
 
 /**
  * The AI section of the settings dialog: the providers the chat pane may ask,
@@ -74,13 +76,13 @@ const KEY_WORDS = {
 
 let tested = $state<Record<string, string>>({})
 let testing = $state<string | null>(null)
-let modelsOf = $state<Record<string, string[]>>({})
+let modelsOf = $state<Record<string, AiModel[]>>({})
 
 async function test(provider: AiProvider): Promise<void> {
   testing = provider.id
   const result = await window.elecdex.ai.models(provider.id)
   testing = null
-  modelsOf = { ...modelsOf, [provider.id]: result.models.map((m) => m.id) }
+  modelsOf = { ...modelsOf, [provider.id]: result.models }
   tested = {
     ...tested,
     [provider.id]:
@@ -201,22 +203,17 @@ function addressProblem(provider: AiProvider): string | null {
       />
     </label>
     {#if problem !== null}<p class="note problem" data-testid="ai-address-problem">{problem}</p>{/if}
-    <label class="row">
+    <div class="row">
       <span>default model</span>
-      <input
-        class="path"
-        type="text"
-        list={`ai-models-${provider.id}`}
+      <ModelField
         value={provider.model}
-        spellcheck="false"
+        models={modelsOf[provider.id] ?? []}
         placeholder="press test to list the provider's models"
-        onchange={(e) => change(provider.id, { model: e.currentTarget.value.trim() })}
-        data-testid="ai-model"
+        onchoose={(model) => change(provider.id, { model })}
+        size="form"
+        testid="ai-model"
       />
-      <datalist id={`ai-models-${provider.id}`}>
-        {#each modelsOf[provider.id] ?? [] as id (id)}<option value={id}></option>{/each}
-      </datalist>
-    </label>
+    </div>
     <label class="row">
       <span>context window</span>
       <input
