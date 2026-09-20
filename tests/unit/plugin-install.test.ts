@@ -244,7 +244,10 @@ describe('whether the plugin would load at all', () => {
 describe('the name a plugin is installed under', () => {
   it('is the folder it came from', () => {
     expect(installName('/home/a/work/pomodoro')).toBe('pomodoro')
-    expect(installName('C:\\work\\my plugin')).toBe('my plugin')
+    // A path as this machine writes it: installName runs in main on the folder
+    // the user picked, so a Windows path is only a path on Windows - spelled
+    // out, it is one long name full of separators anywhere else.
+    expect(installName(path.join('work', 'my plugin'))).toBe('my plugin')
   })
 
   it('refuses names the scanner would skip, or a path could escape through', () => {
