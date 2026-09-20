@@ -69,8 +69,12 @@ function paintOf(
 }
 
 $effect(() => {
-  // Re-read the colours when the theme changes under a drawn surface.
+  // The colours are read from the computed style below, so what decides them is
+  // named here or the ladder keeps the ones it was drawn with: the theme, and the
+  // tone. Drawing followed `value` until it followed `alive`, and `value` moving
+  // every frame was what had been carrying a tone change onto the canvas.
   void appearance.revision
+  void tone
   const el = canvas
   const { width, height, ratio } = size
   if (el === null || width === 0 || height === 0) return
@@ -110,7 +114,7 @@ $effect(() => {
   class="meter {tone}"
   class:horizontal={direction === 'right'}
   data-testid={testid}
-  data-lit={Math.min(segments, Math.ceil(Math.max(0, Math.min(1, value)) * segments))}
+  data-lit={alive}
   aria-hidden="true"
 ></canvas>
 

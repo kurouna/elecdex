@@ -17,8 +17,9 @@ export type FrameCallback = (now: number) => void
 
 /**
  * The loop's shortest period: ten frames a second, for the globe's turn. Every
- * period a subscriber asks for must be a multiple of it, so all frames fall on
- * the same wall-clock boundaries.
+ * period an `onFrame` subscriber asks for must be a multiple of it, so all frames
+ * fall on the same wall-clock boundaries. (`onBoundary` below keeps its own
+ * timers and takes any period.)
  */
 export const FRAME_INTERVAL = 100
 
@@ -262,8 +263,10 @@ function arm(period: number, boundary: Boundary): void {
 
 /**
  * Calls `callback` just past every wall-clock multiple of `period`: the tick of
- * what shows the time (the clock each second, the date each minute). The same
- * boundaries the loop draws on, so the change lands in its frame.
+ * what shows the time (the clock each second, the date each minute). A period
+ * that is a multiple of FRAME_INTERVAL shares its boundaries with the loop, so
+ * the change lands in a frame the loop draws anyway; one that is not (the
+ * pulse's 250ms) costs a frame of its own on the boundaries in between.
  *
  * Everyone on a period shares one timer, and none runs while the page is off
  * screen: a clock in a window put away went on rewriting the page every second

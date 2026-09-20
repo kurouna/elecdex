@@ -50,11 +50,12 @@ const drawn = () => ctx.clearRect.mock.calls.length
 
 const T0 = 1_700_000_000_000
 const HOUR = 3_600_000
+const TEN_MINUTES = 600_000
 
 // Through the card that uses it, as the app does: a component's own props all
 // change together when a test rerenders it, which would redraw it for any of them.
-const card = (now: number) => ({
-  timer: { id: 'a', durationMs: HOUR, running: true, startedAt: T0, accumulatedMs: 0, rang: false },
+const card = (now: number, durationMs = HOUR) => ({
+  timer: { id: 'a', durationMs, running: true, startedAt: T0, accumulatedMs: 0, rang: false },
   now,
   onstart: () => {},
   onstop: () => {},
@@ -86,5 +87,30 @@ describe('SegmentMeter', () => {
     flushSync()
     expect(lit()).not.toBe(before)
     expect(drawn()).toBeGreaterThan(first)
+  })
+
+  it('is drawn again when the tone changes, though the same segments are lit', () => {
+    // The colours are read from the computed style at draw time, so a tone the
+    // ladder is never redrawn for is a tone it never takes. On a ten-minute
+    // countdown one segment is nearly a minute, so the warn at ten seconds and
+    // the danger at three both fall inside the last segment: the readout beside
+    // it went amber and then red while the ladder stayed accent.
+    const at = (left: number) => card(T0 + TEN_MINUTES - left, TEN_MINUTES)
+    const view = render(TimerCard, { props: at(11_000) })
+    flushSync()
+    const lit = () => view.getByTestId('timer-ladder').dataset.lit
+    const accent = drawn()
+    expect(lit()).toBe('1')
+
+    view.rerender(at(8000))
+    flushSync()
+    expect(lit()).toBe('1')
+    const warn = drawn()
+    expect(warn).toBeGreaterThan(accent)
+
+    view.rerender(at(2000))
+    flushSync()
+    expect(lit()).toBe('1')
+    expect(drawn()).toBeGreaterThan(warn)
   })
 })
