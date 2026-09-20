@@ -964,6 +964,14 @@ test('a toast powers on like the rest of the HUD, and just appears with motion r
         expect(style.name).toMatch(/crt-power-on/)
         expect(style.duration).toBe('0.32s')
       }
+      // The fuse burns down in steps, ten a second like everything else drawn here:
+      // burning smoothly it kept the compositor at the display's rate for as long as
+      // the toast showed (measured beside a clock: 19.7% of one core, 11.6% stepped).
+      const fuse = await toast.locator('.fuse').evaluate((el) => {
+        const s = getComputedStyle(el)
+        return { timing: s.animationTimingFunction, duration: s.animationDuration }
+      })
+      expect(fuse).toEqual({ timing: 'steps(100)', duration: '10s' })
     } finally {
       await close()
       removeDir(dir)

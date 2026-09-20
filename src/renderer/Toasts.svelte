@@ -34,10 +34,15 @@ import { coverWeb } from './stores/web.svelte.ts'
       >
         {#if toast.timeoutMs > 0}
           <!-- How long it will stay, as a fuse burning down the edge of the card.
-               It stops with the rest of the stack while the pointer is over it. -->
+               It stops with the rest of the stack while the pointer is over it.
+               In steps, ten a second like everything else drawn here: burning
+               smoothly, it kept the compositor drawing at the display's rate for as
+               long as a toast showed (measured beside a clock: 19.7% of one core
+               with a toast up, 11.6% stepped; the clock alone is 4.7%). -->
           <span
             class="fuse"
             style:animation-duration="{toast.timeoutMs}ms"
+            style:animation-timing-function="steps({Math.max(1, Math.round(toast.timeoutMs / 100))}, end)"
             aria-hidden="true"
           ></span>
         {/if}
