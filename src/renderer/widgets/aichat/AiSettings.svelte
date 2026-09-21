@@ -11,14 +11,16 @@ import {
   isLocalAddress,
   keyMayTravel,
 } from '@shared/ai'
+import { ELEC_LIMITS, ELEC_UNITS, UNIT_INDICES, type UnitIndex, unitLabel } from '@shared/elec'
 import ConfirmButton from '../../ConfirmButton.svelte'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import ModelField from './ModelField.svelte'
 
 /**
- * The AI section of the settings dialog: the providers the chat pane may ask,
- * and what is said to a model ahead of every conversation.
+ * The AI section of the settings dialog: the providers the chat pane and the
+ * ELEC system may ask, what is said to a model ahead of every conversation, and
+ * the ELEC units' standpoints.
  *
  * A key typed here goes to main once and is gone from the page: what comes back
  * is only where it is held. Nothing on this page asks a provider anything until
@@ -36,6 +38,13 @@ function write(next: AiProvider[]): void {
 
 function change(id: string, fields: Partial<AiProvider>): void {
   write(providers.map((p) => (p.id === id ? { ...p, ...fields } : p)))
+}
+
+function setPersona(unit: UnitIndex, text: string): void {
+  const personas = UNIT_INDICES.map((u) =>
+    u === unit ? text.trim() : (appearance.settings.elec.personas[u] ?? ''),
+  )
+  void appearance.patch({ elec: { personas } })
 }
 
 let preset = $state(AI_PRESETS[0]?.id ?? 'custom')
@@ -377,6 +386,27 @@ function addressProblem(provider: AiProvider): string | null {
   ></textarea>
 </section>
 
+<section>
+  <h3>elec system · standpoints</h3>
+  <p class="note">
+    What each unit of the ELEC system judges a motion by. Empty for its own; the seats (provider and
+    model) are chosen in the pane.
+  </p>
+  {#each UNIT_INDICES as unit (unit)}
+    <label class="standpoint">
+      <span>{unitLabel(unit)}</span>
+      <textarea
+        rows="2"
+        maxlength={ELEC_LIMITS.persona}
+        value={appearance.settings.elec.personas[unit] ?? ''}
+        placeholder={ELEC_UNITS[unit].persona}
+        onchange={(e) => setPersona(unit, e.currentTarget.value)}
+        data-testid="elec-persona"
+      ></textarea>
+    </label>
+  {/each}
+</section>
+
 <style>
 /* The settings dialog's own look for its sections, rows and controls (its styles are scoped). */
 section + section {
@@ -454,6 +484,17 @@ input.short {
   text-transform: none;
   letter-spacing: 0;
   color: var(--text-muted);
+}
+
+.standpoint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  color: var(--accent-strong);
 }
 
 textarea {

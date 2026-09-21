@@ -1,89 +1,139 @@
 import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { AI_LIMITS, CHAT_ID, type Chat, ChatSchema, type ChatSummary, summaryOf } from '@shared/ai'
+import {
+  ELEC_LIMITS,
+  SESSION_ID,
+  type Session,
+  SessionSchema,
+  type SessionSummary,
+  sessionSummaryOf,
+} from '@shared/elec'
+import type { z } from 'zod'
 
 /**
- * Conversations, one JSON file each under userData/chats.
+ * Records kept one JSON file each in a folder of userData: conversations
+ * (chats/) and deliberations (elec/).
  *
- * One file per conversation rather than one file for all, unlike notes: an
- * answer can run to tens of kilobytes and a long conversation to megabytes, and
- * finishing one answer should rewrite that conversation, not every one. The list
- * a pane shows is read from the folder the first time a chat pane asks and kept
- * in memory from then on.
+ * One file per record rather than one file for all, unlike notes: an answer can
+ * run to tens of kilobytes and a long conversation to megabytes, and finishing
+ * one answer should rewrite that record, not every one. The list a pane shows is
+ * read from the folder the first time a pane asks and kept in memory from then on.
  *
  * A file that does not parse is left where it is and simply not listed: it may
  * be a hand edit, or written by a newer build.
  */
-export class ChatStore {
-  private readonly dir: string
-  private summaries: Map<string, ChatSummary> | null = null
+interface FolderRecord {
+  id: string
+  updatedAt: number
+}
 
-  constructor(dir: string) {
+interface FolderKind<T extends FolderRecord, S extends { updatedAt: number }> {
+  schema: z.ZodType<T>
+  /** Ids are checked against this before they name a file, so they cannot name another folder. */
+  id: RegExp
+  summaryOf(record: T): S
+  /** Kept at most; a new one is refused past this rather than an old one dropped. */
+  limit: number
+}
+
+export class FolderStore<T extends FolderRecord, S extends { updatedAt: number }> {
+  private readonly dir: string
+  private readonly kind: FolderKind<T, S>
+  private summaries: Map<string, S> | null = null
+
+  constructor(dir: string, kind: FolderKind<T, S>) {
     this.dir = dir
+    this.kind = kind
   }
 
   /** Newest first. */
-  list(): ChatSummary[] {
+  list(): S[] {
     return [...this.index().values()].sort((a, b) => b.updatedAt - a.updatedAt)
   }
 
-  get(id: string): Chat | null {
-    if (!CHAT_ID.test(id)) return null
+  get(id: string): T | null {
+    if (!this.kind.id.test(id)) return null
     return this.readFile(this.fileOf(id))
   }
 
-  /** False when the conversation could not be kept: too many of them, or an id that is not one. */
-  save(chat: Chat): boolean {
-    const parsed = ChatSchema.safeParse(chat)
-    if (!parsed.success) return false
+  /** False when the record could not be kept: too many of them, or an id that is not one. */
+  save(record: T): boolean {
+    const parsed = this.kind.schema.safeParse(record)
+    if (!parsed.success || !this.kind.id.test(parsed.data.id)) return false
     const index = this.index()
-    if (!index.has(chat.id) && index.size >= AI_LIMITS.chats) return false
+    if (!index.has(record.id) && index.size >= this.kind.limit) return false
     mkdirSync(this.dir, { recursive: true })
-    const file = this.fileOf(chat.id)
+    const file = this.fileOf(record.id)
     const temp = `${file}.${process.pid}.tmp`
-    writeFileSync(temp, `${JSON.stringify(parsed.data, null, 2)}\n`, 'utf8')
+    writeFileSync(
+      temp,
+      `${JSON.stringify(parsed.data, null, 2)}
+`,
+      'utf8',
+    )
     renameSync(temp, file)
-    index.set(chat.id, summaryOf(parsed.data))
+    index.set(record.id, this.kind.summaryOf(parsed.data))
     return true
   }
 
   remove(id: string): boolean {
-    if (!CHAT_ID.test(id) || !this.index().has(id)) return false
+    if (!this.kind.id.test(id) || !this.index().has(id)) return false
     rmSync(this.fileOf(id), { force: true })
     this.index().delete(id)
     return true
   }
 
-  /** The id is checked against CHAT_ID before it gets here, so it cannot name another folder. */
   private fileOf(id: string): string {
     return path.join(this.dir, `${id}.json`)
   }
 
-  private index(): Map<string, ChatSummary> {
+  private index(): Map<string, S> {
     if (this.summaries !== null) return this.summaries
-    const found = new Map<string, ChatSummary>()
+    const found = new Map<string, S>()
     let names: string[] = []
     try {
       names = readdirSync(this.dir)
     } catch {
-      // No folder yet: no conversations.
+      // No folder yet: nothing kept.
     }
     for (const name of names) {
-      if (!name.endsWith('.json') || !CHAT_ID.test(name.slice(0, -5))) continue
-      const chat = this.readFile(path.join(this.dir, name))
+      if (!name.endsWith('.json') || !this.kind.id.test(name.slice(0, -5))) continue
+      const record = this.readFile(path.join(this.dir, name))
       // A file renamed by hand must not answer to an id it does not carry.
-      if (chat !== null && `${chat.id}.json` === name) found.set(chat.id, summaryOf(chat))
+      if (record !== null && `${record.id}.json` === name) {
+        found.set(record.id, this.kind.summaryOf(record))
+      }
     }
     this.summaries = found
     return found
   }
 
-  private readFile(file: string): Chat | null {
+  private readFile(file: string): T | null {
     try {
-      const parsed = ChatSchema.safeParse(JSON.parse(readFileSync(file, 'utf8')))
+      const parsed = this.kind.schema.safeParse(JSON.parse(readFileSync(file, 'utf8')))
       return parsed.success ? parsed.data : null
     } catch {
       return null
     }
+  }
+}
+
+/** Conversations of the chat pane, under userData/chats. */
+export class ChatStore extends FolderStore<Chat, ChatSummary> {
+  constructor(dir: string) {
+    super(dir, { schema: ChatSchema, id: CHAT_ID, summaryOf, limit: AI_LIMITS.chats })
+  }
+}
+
+/** Deliberations of the ELEC system pane, under userData/elec. */
+export class SessionStore extends FolderStore<Session, SessionSummary> {
+  constructor(dir: string) {
+    super(dir, {
+      schema: SessionSchema,
+      id: SESSION_ID,
+      summaryOf: sessionSummaryOf,
+      limit: ELEC_LIMITS.sessions,
+    })
   }
 }

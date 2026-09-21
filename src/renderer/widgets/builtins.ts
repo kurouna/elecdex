@@ -6,6 +6,7 @@ import SpectrumWidget from './audio/SpectrumWidget.svelte'
 import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
 import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
+import ElecWidget from './elec/ElecWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
 import LauncherWidget from './launcher/LauncherWidget.svelte'
@@ -212,6 +213,17 @@ registerBuiltin({
     'Chat with a language model: a local server (Ollama, LM Studio, llama.cpp) or a service you have an API key for.',
   component: AiChatWidget,
   minSize: { w: 260, h: 200 },
+  multiple: true,
+  zoom: 'full',
+})
+
+registerBuiltin({
+  id: 'elec',
+  title: 'elec system',
+  description:
+    'A council of three models - logic, ethics, feeling - that votes on a motion you put, with the providers of the ai settings.',
+  component: ElecWidget,
+  minSize: { w: 300, h: 260 },
   multiple: true,
   zoom: 'full',
 })

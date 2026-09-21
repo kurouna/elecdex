@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AI_LIMITS, AiProviderSchema } from './ai.js'
+import { defaultElecSettings, ElecSettingsSchema } from './elec.js'
 import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
 import { INTENSITIES, MAGNITUDES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
@@ -200,6 +201,12 @@ export const SettingsSchema = z.object({
     })
     .default({ providers: [], systemPrompt: '', compact: false }),
   /**
+   * The ELEC system pane (shared/elec.ts): which provider and model sits in each of the
+   * three seats, their standpoints, and how the council decides. The providers are the
+   * AI section's; a slip in a hand edit here costs only this group.
+   */
+  elec: ElecSettingsSchema.catch(defaultElecSettings()).default(defaultElecSettings()),
+  /**
    * Plugins by id: whether each is on, what the user agreed it may do, and its setting
    * values. A plugin never listed here is off (docs/plugins.md section 8).
    */
@@ -229,6 +236,8 @@ export interface SettingsPatch {
   reminders?: Partial<Settings['reminders']>
   /** `providers` replaces the whole list. */
   ai?: Partial<Settings['ai']>
+  /** `seats` and `personas` replace the whole list. */
+  elec?: Partial<Settings['elec']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
 }
@@ -263,6 +272,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     quakes: merge(current.quakes, p.quakes),
     reminders: merge(current.reminders, p.reminders),
     ai: merge(current.ai, p.ai),
+    elec: merge(current.elec, p.elec),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),
     // Only showSystem: the launcher's own entries are edited in settings.json.

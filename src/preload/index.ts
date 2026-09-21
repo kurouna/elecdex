@@ -21,6 +21,7 @@ import type {
 import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
 import type { BackgroundState } from '@shared/background'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
+import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
@@ -305,6 +306,45 @@ function subscribeChat(chatId: string, handler: (event: ChatEvent) => void): () 
 }
 
 /**
+ * Deliberations of the ELEC system pane, followed as conversations are: a
+ * snapshot and deltas, and a second pane joining asks main for a snapshot of its own.
+ */
+const sessionHandlers = new Map<string, Set<(event: ElecEvent) => void>>()
+
+ipcRenderer.on(CH.elec.event, (_event, payload: ElecEvent) => {
+  for (const handler of sessionHandlers.get(payload.sessionId) ?? []) handler(payload)
+})
+
+function subscribeSession(sessionId: string, handler: (event: ElecEvent) => void): () => void {
+  let set = sessionHandlers.get(sessionId)
+  let active = true
+  if (!set) {
+    set = new Set()
+    sessionHandlers.set(sessionId, set)
+    ipcRenderer.send(CH.elec.subscribe, sessionId)
+  } else {
+    void (ipcRenderer.invoke(CH.elec.snapshot, sessionId) as Promise<ElecEvent | null>).then(
+      (event) => {
+        if (active && event !== null) handler(event)
+      },
+    )
+  }
+  set.add(handler)
+
+  return () => {
+    if (!active) return
+    active = false
+    const current = sessionHandlers.get(sessionId)
+    if (!current) return
+    current.delete(handler)
+    if (current.size === 0) {
+      sessionHandlers.delete(sessionId)
+      ipcRenderer.send(CH.elec.unsubscribe, sessionId)
+    }
+  }
+}
+
+/**
  * The earthquake list: every change is broadcast, so observing is just listening
  * (after one read of the current state); subscribing also tells main, reference
  * counted, that a pane needs the list kept current.
@@ -455,6 +495,16 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.ai.send, chatId, request) as Promise<ChatSendResult>,
     stop: (chatId) => ipcRenderer.send(CH.ai.stop, chatId),
     active: () => ipcRenderer.invoke(CH.ai.active) as Promise<string[]>,
+  },
+  elec: {
+    sessions: () => ipcRenderer.invoke(CH.elec.sessions) as Promise<SessionSummary[]>,
+    onSessions: (handler) => listen<SessionSummary[]>(CH.elec.sessionsChanged, handler),
+    submit: (motion) => ipcRenderer.invoke(CH.elec.submit, motion) as Promise<ElecSubmitResult>,
+    remove: (sessionId) => ipcRenderer.invoke(CH.elec.remove, sessionId) as Promise<boolean>,
+    export: (sessionId) => ipcRenderer.invoke(CH.elec.export, sessionId) as Promise<string | null>,
+    subscribe: subscribeSession,
+    stop: (sessionId) => ipcRenderer.send(CH.elec.stop, sessionId),
+    active: () => ipcRenderer.invoke(CH.elec.active) as Promise<string[]>,
   },
   audio: {
     spectrum: subscribeSpectrum,

@@ -185,6 +185,16 @@ describe('settings', () => {
         leadMinutes: 0,
       },
       ai: { providers: [], systemPrompt: '', compact: false },
+      elec: {
+        seats: [
+          { provider: '', model: '' },
+          { provider: '', model: '' },
+          { provider: '', model: '' },
+        ],
+        personas: ['', '', ''],
+        rule: 'majority',
+        rounds: 1,
+      },
       plugins: {},
     })
   })

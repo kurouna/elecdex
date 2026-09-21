@@ -10,6 +10,7 @@ import type {
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
+import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
@@ -313,6 +314,29 @@ export interface AiApi {
   active(): Promise<string[]>
 }
 
+/**
+ * The ELEC system pane. The page puts a motion; main reads the seats, their
+ * standpoints and the rule from the settings, asks the providers and keeps the
+ * deliberation. Keys stay in main, as for the chat pane.
+ */
+export interface ElecApi {
+  sessions(): Promise<SessionSummary[]>
+  onSessions(handler: (sessions: SessionSummary[]) => void): () => void
+  submit(motion: string): Promise<ElecSubmitResult>
+  remove(sessionId: string): Promise<boolean>
+  /** Saves the deliberation as markdown where the user says; answers the path, or null. */
+  export(sessionId: string): Promise<string | null>
+  /**
+   * Follows a deliberation: a snapshot at once, then the answers as they are
+   * written (fold the events with `applyElecEvent`). One nobody follows any more
+   * is stopped.
+   */
+  subscribe(sessionId: string, handler: (event: ElecEvent) => void): () => void
+  stop(sessionId: string): void
+  /** Diagnostics: the deliberations being voted. */
+  active(): Promise<string[]>
+}
+
 export interface FeedsApi {
   /**
    * Keeps an RSS or Atom feed's items current (every 15 minutes, or as the feed
@@ -549,6 +573,7 @@ export interface ElecdexApi {
   markets: MarketsApi
   feeds: FeedsApi
   ai: AiApi
+  elec: ElecApi
   quakes: QuakesApi
   notes: NotesApi
   tasks: TasksApi

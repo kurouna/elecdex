@@ -22,10 +22,12 @@ import { ChatStore } from '../ai/store.js'
 import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { cacheFile } from '../store/cache-file.js'
+import { registerElecIpc } from './elec.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
- * The AI chat pane's IPC (shared/ai.ts, docs/architecture.md section 5.7).
+ * The AI chat pane's IPC (shared/ai.ts, docs/architecture.md section 5.7), and
+ * through it the ELEC system's (ipc/elec.ts), which asks the same providers.
  *
  * Nothing here runs until a chat pane or the settings ask: the conversations
  * folder is read on the first question about it, a provider's client library is
@@ -243,8 +245,12 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
 
   ipcMain.handle(CH.ai.active, (): string[] => service?.active() ?? [])
 
+  // The ELEC system asks the same providers, with the same keys and adapters.
+  const elec = registerElecIpc(settings, { keyFor: (id) => vault.get(id), adapter: adapterFor })
+
   return {
     dispose: () => {
+      elec.dispose()
       for (const timer of orphans.values()) clearTimeout(timer)
       service?.dispose()
       for (const channel of [CH.ai.subscribe, CH.ai.unsubscribe, CH.ai.stop]) {

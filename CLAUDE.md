@@ -192,6 +192,17 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - No tools, no MCP, no images, no branching, no named prompt profiles: left out on purpose
     (user decisions 2026-09-20 and 2026-09-21). A model that can start processes or read files
     needs a consent design like the plugins' first. Do not add any of them without asking.
+- **The ELEC system pane** (architecture.md §5.8, shared/elec.ts, main/ai/elec.ts) puts a
+  motion to three units - LOGOS, ETHOS, PATHOS - on the AI chat's providers, keys and adapters,
+  under the same rules (main asks, snapshot + deltas, an unfollowed deliberation stops, nothing
+  asked on mount). The seats, standpoints, rule and rounds are settings (`elec`); a deliberation
+  keeps its own copy, and the page sends only the motion.
+  - A vote is read from the answer's last `VERDICT` line (`readVote`), never from structured
+    output. An invalid vote (a failed link, NO VERDICT) is not an abstention; CONFIDENCE is
+    shown, never counted. The resolution is computed from the ballots (`resolve`), never stored.
+  - Seats on one local server are asked one after another, hosted ones at once; the second
+    round passes the other statements cut to the provider's window (`statementRoom`).
+  - The app's words never name MAGI or its source (user decision 2026-09-21).
 - **The vendored calculator is never edited.** `src/shared/calc/vendor` is elecxzy's evaluator
   copied whole (MIT), kept out of tsconfig and biome, typed through hand-written `.d.ts` behind
   `@calc/*`. What elecdex needs goes in the wrapper beside it; `scripts/sync-calc.mjs` overwrites

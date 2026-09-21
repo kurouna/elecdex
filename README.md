@@ -51,6 +51,11 @@ for Windows, macOS and Linux.
   that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
   Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
   the operating system and never reach the page, and conversations stay on your computer.
+- **ELEC system** *(unreleased)* — put a yes-or-no motion to a council of three models, after the
+  MAGI of *Neon Genesis Evangelion*: LOGOS (logic), ETHOS (ethics) and PATHOS (feeling) each
+  judge it from their own standpoint and vote APPROVE, REJECT or ABSTAIN, and the pane resolves it
+  by majority or unanimity. The seats use the providers of the AI chat - the same model in all
+  three will do.
 - **Desk panes** — a calculator you type into (full-width digits and 3百万 read as typed, with a
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
   deadlines are drawn as meters and announced whether or not their pane is open, and a timer with
@@ -126,6 +131,12 @@ for Windows, macOS and Linux.
   </tr>
   <tr>
     <td colspan="2" align="center">AI chat, with a model on your own computer or a service you have a key for</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="./docs/screenshots/elecdex-elec.jpg" alt="The Tron theme with an ELEC system pane filling the middle column: three plates in a triangle around a hexagonal core, ETHOS lit red with REJECT and LOGOS and PATHOS lit green with APPROVE, the resolution strip reading APPROVED 2-1-0-0, and the three statements below"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">ELEC system (unreleased): three models vote on a motion</td>
   </tr>
 </table>
 
@@ -368,6 +379,26 @@ weather and calendar.
   Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
   an optional system prompt in the settings goes ahead of every conversation. There are no tools:
   the model cannot read your files, run commands or browse.
+- **ELEC system** *(unreleased)* — not in the default layout: add it from the picker. It asks the
+  providers of *Settings -> AI*, so list one there first. **seats** chooses the provider and model
+  of each unit - LOGOS, ETHOS, PATHOS - and **all** puts one seat's choice in all three; the same
+  model in every seat is fine, since each unit is told its own standpoint (edit them under
+  *Settings -> AI -> elec system · standpoints*). Type a motion that can be answered yes or no and
+  press Enter. Each unit writes a short statement, in the motion's language, ending with a
+  `VERDICT` line (APPROVE, REJECT or ABSTAIN) and a `CONFIDENCE`; the plates light as they vote
+  (`TX`, `RX`, then the verdict), and the **resolution** follows the rule chosen in the bar:
+  **majority** (two seats decide; otherwise `DEADLOCK`) or **unanimous** (all three approve; one
+  rejection rejects; otherwise `NO CONSENSUS`). A vote that does not count - a link that failed
+  (`LINK ERROR`, `NO CARRIER`) or an answer with no verdict (`NO VERDICT`) - is invalid, not an
+  abstention, and fewer than two valid votes is `QUORUM NOT MET`. Confidence is shown, never
+  counted. With **2 rounds** each unit then reads the others' first statements (cut to fit a small
+  context window) and votes again - twice the requests - and a changed vote shows as
+  `REJECT › APPROVE`. Units on one server of your computer or network are asked one after
+  another, hosted services at once. Esc or **stop** ends a deliberation, keeping what was written;
+  **again** puts the same motion to the council as it is seated now; **log** lists past
+  deliberations with their resolutions, to reopen, export as markdown or delete. The seats, rule
+  and rounds are settings, and a deliberation keeps the seats it was put to. Nothing is sent until
+  you submit a motion (or open a model list).
 - **RSS** — not in the default layout: add it from the picker (Ctrl+Shift+A). It starts empty and
   fetches nothing until its settings button lists feed URLs, one per line (RSS 2.0, RSS 1.0 or Atom, up to 10
   per pane). The newest 20 headlines across its feeds are shown, each with its feed and the time
@@ -685,6 +716,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Tsunamis, world | [NOAA Tsunami Warning Centers](https://www.tsunami.gov/): the Pacific (`PHEBAtom.xml`) and National (`PAAQAtom.xml`) Atom feeds | Public domain. Each holds the centre's latest bulletin; warnings, watches, advisories and threat messages count, information statements do not. Checked with the USGS feed, conditionally. Alerts say to follow local authorities. |
 | RSS feeds | The feed URLs you list in an RSS pane | Fetched by the app, never by the page, only while a pane lists them: every 15 minutes (or as the feed asks, at most hourly), conditionally (If-None-Match / If-Modified-Since), two at a time, up to 2 MB each, without cookies and with an `elecdex/<version>` User-Agent. Headlines are shown as plain text; the last ones per feed are kept in `feeds-cache.json` in the app's data folder. Nothing is sent to any other site. |
 | AI chat | The providers you list in *Settings -> AI*: a server on your computer or network, or a hosted API (Anthropic through its [official SDK](https://github.com/anthropics/anthropic-sdk-typescript); the rest as OpenAI-compatible `chat/completions`) | Asked by the app, never by the page, and only when you send a message, press **test** or open a pane's model list - a chat pane sitting in a layout calls nobody. What is sent is the conversation so far, your system prompt and the model's name, to the address you chose and nowhere else; each provider's own terms and data retention apply. No cookies, no redirects followed. An API key is encrypted by the operating system (DPAPI, the Keychain, the desktop's keyring) into `ai-keys.json`, apart from `settings.json`, and is never shown again; where the system cannot encrypt, it is kept in memory until elecdex quits. A key is refused for a plain-http address outside your computer and local network. With no key of its own, the Anthropic SDK looks where it always does (`ANTHROPIC_API_KEY`, an `ant auth login` profile). On Anthropic's own endpoint, `claude-opus-5` and `claude-fable-5-1` are asked with server-side fallbacks (`fallbacks: "default"`), so a request their safety classifiers decline is re-run on another Claude model in the same call; the answer names the model that wrote it. Conversations are files in `chats/` in the app's data folder. |
+| ELEC system *(unreleased)* | The same providers, as each seat names them | As for the AI chat, and only when you submit a motion (or open a model list): each unit is sent its standpoint, the voting instructions and the motion - in a second round, the other units' first statements too. Three requests a round, one or two rounds. Deliberations are files in `elec/` in the app's data folder. |
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 

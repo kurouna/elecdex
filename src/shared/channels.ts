@@ -126,6 +126,29 @@ export const CH = {
     /** Diagnostics: the conversations an answer is being written for. */
     active: 'ai:active',
   },
+  /** The ELEC system pane (shared/elec.ts): deliberations put to the providers of `ai`. */
+  elec: {
+    /** The deliberations, newest first (SessionSummary[]). */
+    sessions: 'elec:sessions',
+    /** main -> renderer: the list after any change. */
+    sessionsChanged: 'elec:sessions-changed',
+    /** Puts a motion to the council as the settings seat it; answers the new deliberation's id. */
+    submit: 'elec:submit',
+    remove: 'elec:remove',
+    /** Opens the system's save dialog and writes the deliberation as markdown. */
+    export: 'elec:export',
+    /** renderer -> main, fire and forget: a pane is showing this deliberation. */
+    subscribe: 'elec:subscribe',
+    unsubscribe: 'elec:unsubscribe',
+    /** The deliberation and its answers as they stand, for a second pane on the same page. */
+    snapshot: 'elec:snapshot',
+    /** main -> renderer: an ElecEvent, to the pages showing that deliberation. */
+    event: 'elec:event',
+    /** renderer -> main, fire and forget: end the deliberation, keeping what was written. */
+    stop: 'elec:stop',
+    /** Diagnostics: the deliberations being voted. */
+    active: 'elec:active',
+  },
   quakes: {
     /** renderer -> main, fire and forget: a quakes pane wants the list kept current. */
     subscribe: 'quakes:subscribe',

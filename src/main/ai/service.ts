@@ -4,7 +4,6 @@ import {
   type AiModelsResult,
   type AiProvider,
   type AiProviderKind,
-  aiBaseUrl,
   CHAT_VERSION,
   type Chat,
   type ChatEvent,
@@ -21,7 +20,6 @@ import {
   compactTranscript,
   contextWindow,
   estimateTokens,
-  keyMayTravel,
   summaryRoom,
   withSummary,
 } from '@shared/ai'
@@ -32,6 +30,7 @@ import {
   type StreamResult,
 } from './adapter.js'
 import type { ChatStore } from './store.js'
+import { type Target, targetFor } from './target.js'
 
 /**
  * The conversations and the answers being written.
@@ -113,12 +112,6 @@ interface Running {
   sentThinking: number
   timer: unknown
   finished: boolean
-}
-
-interface Target {
-  provider: AiProvider
-  baseUrl: string
-  key: string | null
 }
 
 export class AiChatService {
@@ -255,15 +248,7 @@ export class AiChatService {
   }
 
   private targetFor(providerId: string): Target | string {
-    const provider = this.deps.providers().find((p) => p.id === providerId)
-    if (provider === undefined) return 'that provider is no longer listed in the settings'
-    const baseUrl = aiBaseUrl(provider.baseUrl)
-    if (baseUrl === null) return `${provider.name}: the address is not a usable http(s) URL`
-    const key = this.deps.keyFor(provider.id)
-    if (key !== null && !keyMayTravel(baseUrl)) {
-      return `${provider.name}: the key is not sent over plain http to another network - use https`
-    }
-    return { provider, baseUrl, key }
+    return targetFor(this.deps.providers(), (id) => this.deps.keyFor(id), providerId)
   }
 
   /** The history the request leaves, ending in a user message for the model to answer. */
