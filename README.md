@@ -133,7 +133,7 @@ for Windows, macOS and Linux.
     <td colspan="2" align="center">AI chat, with a model on your own computer or a service you have a key for</td>
   </tr>
   <tr>
-    <td colspan="2"><img src="./docs/screenshots/elecdex-elec.jpg" alt="The Tron theme with an ELEC system pane filling the middle column: three plates in a triangle around a hexagonal core, ETHOS lit red with REJECT and LOGOS and PATHOS lit green with APPROVE, the resolution strip reading APPROVED 2-1-0-0, and the three statements below"></td>
+    <td colspan="2"><img src="./docs/screenshots/elecdex-elec.jpg" alt="The Tron theme with an ELEC system pane filling the middle column: three plates of one size in a triangle around a hexagonal core, LOGOS and PATHOS lit green with APPROVE and ETHOS, outvoted with REJECT, stepped back in dim red, the resolution strip reading APPROVED 2-1-0-0, and the three statements below"></td>
   </tr>
   <tr>
     <td colspan="2" align="center">ELEC system (unreleased): three models vote on a motion</td>

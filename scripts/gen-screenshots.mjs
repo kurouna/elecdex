@@ -6,6 +6,10 @@
  * Windows only, as written: the demo home is under C:/Users/Public. Run
  * `npm run build` first, then `npm run gen:screenshots`; name shots to take only those
  * (`npm run gen:screenshots -- elecdex-audio`).
+ *
+ * Shots for posting (`social-elec-sitting`, `social-elec-approved`) are taken only when named,
+ * as PNG into release/social, which is not committed: the ELEC system pane alone,
+ * so nothing of the machine is in them.
  */
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -14,6 +18,7 @@ import path from 'node:path'
 import { _electron as electron } from '@playwright/test'
 
 const OUT = path.resolve('docs/screenshots')
+const SOCIAL = path.resolve('release/social')
 const MAIN = path.resolve('out/main/index.js')
 const HOME = 'C:\\Users\\Public\\Documents\\elecdex-demo'
 const PROJECT = `${HOME}\\projects\\elecdex`
@@ -220,7 +225,7 @@ const VOTES = {
     'People are tired. A long weekend is the kind of promise that makes a team want to stay - it feels right, and it would be felt.\nVERDICT: APPROVE\nCONFIDENCE: 85',
 }
 
-function elecStandIn() {
+function elecStandIn(pace = 25) {
   const server = createServer((req, res) => {
     let raw = ''
     req.on('data', (piece) => {
@@ -240,7 +245,7 @@ function elecStandIn() {
           return
         }
         res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: piece } }] })}\n\n`)
-        setTimeout(step, 25)
+        setTimeout(step, pace)
       }
       step()
     })
@@ -260,6 +265,16 @@ async function deliberating(page) {
   await page.waitForTimeout(1500)
 }
 
+/** The council sitting: one vote each way is in, ETHOS's still landing, and PATHOS, which decides it, is answering. */
+async function sitting(page) {
+  const elec = page.locator('[data-testid=pane][data-widget=elec]')
+  const input = elec.getByTestId('elec-input')
+  await input.fill(MOTION)
+  await input.press('Enter')
+  await elec.locator('[data-testid=elec-unit][data-unit="2"][data-state=rx]').waitFor()
+  await page.waitForTimeout(600)
+}
+
 async function chatting(page) {
   const chat = page.locator('[data-testid=pane][data-widget=aichat]')
   const input = chat.getByTestId('aichat-input')
@@ -272,7 +287,7 @@ async function chatting(page) {
   await page.waitForTimeout(3000)
 }
 
-async function shoot(theme, name, { extra, layout, env, settings } = {}) {
+async function shoot(theme, name, { extra, layout, env, settings, social } = {}) {
   if (only.length > 0 && !only.includes(name)) return
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
   if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
@@ -324,7 +339,12 @@ async function shoot(theme, name, { extra, layout, env, settings } = {}) {
   // where a real pointer over the window may have left it.
   await page.waitForTimeout(1000)
   if (extra) await extra(page)
-  await page.screenshot({ path: path.join(OUT, `${name}.jpg`), type: 'jpeg', quality: 88 })
+  if (social) {
+    mkdirSync(SOCIAL, { recursive: true })
+    await page.screenshot({ path: path.join(SOCIAL, `${name}.png`), type: 'png' })
+  } else {
+    await page.screenshot({ path: path.join(OUT, `${name}.jpg`), type: 'jpeg', quality: 88 })
+  }
   await app.close()
 }
 
@@ -370,6 +390,28 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
     layout: elecLayout,
     settings: { ai: { providers: [provider] } },
     extra: deliberating,
+  })
+  standIn.close()
+}
+// For posting: the pane alone, the council sitting and the council decided. Only when named.
+for (const [name, extra, pace] of [
+  ['social-elec-sitting', sitting, 110],
+  ['social-elec-approved', deliberating, 25],
+]) {
+  if (!only.includes(name)) continue
+  const standIn = await elecStandIn(pace)
+  const provider = {
+    id: 'ollama',
+    name: 'Ollama',
+    kind: 'openai',
+    baseUrl: `http://127.0.0.1:${standIn.address().port}/v1`,
+    model: 'qwen3:14b',
+  }
+  await shoot('tron', name, {
+    layout: { version: 1, root: pane('elec') },
+    settings: { ai: { providers: [provider] } },
+    extra,
+    social: true,
   })
   standIn.close()
 }
