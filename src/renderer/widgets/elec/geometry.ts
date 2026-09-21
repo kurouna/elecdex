@@ -5,30 +5,45 @@ import type { UnitIndex } from '@shared/elec'
  * 2.3 times as wide as it is high, so percentages are not the same length both ways).
  */
 
-/** Each plate's outline, the corner that faces the core cut away. */
+/**
+ * Each plate's outline, the corner that faces the core cut away. The three are one area (a
+ * unit test holds them to it): no seat of the council is drawn bigger than another. The top
+ * one is lower than the other two, so it is wider; the lower two give up their outer edges,
+ * which leaves every edge that faces the core - and so the core's place - where it was.
+ */
 export const PLATE_POINTS: Record<UnitIndex, ReadonlyArray<readonly [number, number]>> = {
   0: [
-    [2, 58],
+    [4.5, 58],
     [36, 58],
     [42, 66],
     [42, 97],
-    [2, 97],
+    [4.5, 97],
   ],
   1: [
-    [29, 2],
-    [71, 2],
-    [71, 26],
-    [64, 33],
-    [36, 33],
-    [29, 26],
+    [26, 2],
+    [74, 2],
+    [74, 26],
+    [67, 33],
+    [33, 33],
+    [26, 26],
   ],
   2: [
     [64, 58],
-    [98, 58],
-    [98, 97],
+    [95.5, 58],
+    [95.5, 97],
     [58, 97],
     [58, 66],
   ],
+}
+
+/** A plate's area in the board's units (the shoelace formula). */
+export function plateArea(unit: UnitIndex): number {
+  const points = PLATE_POINTS[unit]
+  const twice = points.reduce((sum, [x, y], i) => {
+    const [nx, ny] = points[(i + 1) % points.length] ?? [x, y]
+    return sum + x * ny - nx * y
+  }, 0)
+  return Math.abs(twice) / 2
 }
 
 /** The top plate's lower edge, and UNIT-1's cut (UNIT-3's is its mirror): the edges facing the core. */

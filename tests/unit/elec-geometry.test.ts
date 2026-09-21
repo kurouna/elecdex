@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { coreGaps, coreTop } from '../../src/renderer/widgets/elec/geometry.js'
+import { coreGaps, coreTop, plateArea } from '../../src/renderer/widgets/elec/geometry.js'
+
+describe("the council's plates", () => {
+  it('are one area: the top one was a fifth smaller than the two below it', () => {
+    expect(plateArea(2)).toBe(plateArea(0))
+    expect(plateArea(1) / plateArea(0)).toBeCloseTo(1, 2)
+  })
+})
 
 describe("the council's core", () => {
   it('is as far from the top plate as from the cut edges of the lower two, at any proportion', () => {

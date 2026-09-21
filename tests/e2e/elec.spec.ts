@@ -349,6 +349,51 @@ test('stop ends the deliberation, and closing the pane stops one nobody reads', 
   }
 })
 
+test('back on standby the units power off in their own colours, never through another', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: single(),
+    settings: withProviders('yes'),
+  })
+  try {
+    await submit(page, 'Ship on Friday?')
+    await expect(pane(page).getByTestId('elec-outcome')).toHaveText('approved')
+    await pane(page).getByTestId('elec-new').click()
+    await expect(pane(page).getByTestId('elec-stage')).toHaveClass(/was-on/)
+    await expect(pane(page).getByTestId('elec-stage')).not.toHaveClass(/powered/)
+    // The power-off animated the plates' colours as well as their opacity, and what Chromium
+    // drew on the way from the accent to a colour mixed with transparent was a black plate
+    // with a yellow rim. Watched a frame at a time, for longer than the power-off lasts.
+    const seen = await page.evaluate(
+      () =>
+        new Promise<{ strokes: string[]; fills: string[]; flickered: boolean }>((resolve) => {
+          const plate = document.querySelector('[data-testid=elec-stage] .plate')
+          const strokes = new Set<string>()
+          const fills = new Set<string>()
+          let flickered = false
+          const began = performance.now()
+          const look = (): void => {
+            if (plate === null) {
+              resolve({ strokes: [], fills: [], flickered })
+              return
+            }
+            const style = getComputedStyle(plate)
+            strokes.add(style.stroke)
+            fills.add(style.fill)
+            if (Number(style.opacity) < 1) flickered = true
+            if (performance.now() - began < 1200) requestAnimationFrame(look)
+            else resolve({ strokes: [...strokes], fills: [...fills], flickered })
+          }
+          look()
+        }),
+    )
+    expect(seen.flickered).toBe(true)
+    expect(seen.strokes).toHaveLength(1)
+    expect(seen.fills).toHaveLength(1)
+  } finally {
+    await close()
+  }
+})
+
 test('with motion reduced the council draws no light, and still decides', async () => {
   const { page, close } = await launch(undefined, {
     layout: single(),

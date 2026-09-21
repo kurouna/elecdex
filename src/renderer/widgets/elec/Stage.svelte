@@ -115,9 +115,9 @@ $effect.pre(() => {
 
 /** Where each plate's words go: left, top, width, height in percent. */
 const BOXES: Record<UnitIndex, [number, number, number, number]> = {
-  0: [2, 58, 40, 39],
-  1: [29, 2, 42, 31],
-  2: [58, 58, 40, 39],
+  0: [4.5, 58, 37.5, 39],
+  1: [26, 2, 48, 31],
+  2: [58, 58, 37.5, 39],
 }
 const pointsOf = (unit: UnitIndex): string => PLATE_POINTS[unit].map((p) => p.join(',')).join(' ')
 
@@ -836,8 +836,8 @@ $effect(() => {
 
 /*
  * And off again, when the pane goes back to standby: the units that were lit flicker and drop
- * to the dark glass they are drawn as, the last to come on first. Once, from the lit look
- * to the element's own; a pane that opens on standby has nothing to switch off (`was-on`).
+ * to the dark glass they are drawn as, the last to come on first. Once; a pane that opens
+ * on standby has nothing to switch off (`was-on`).
  */
 .was-on:not(.powered) .plate {
   animation: elec-plate-off calc(520ms * var(--motion-scale)) linear
@@ -849,10 +849,13 @@ $effect(() => {
     calc(var(--off-delay, 0ms) * var(--motion-scale)) backwards;
 }
 
+/*
+ * Opacity only. The plate's colours were animated too, from the lit look to the dark one, and
+ * what Chromium draws between an hsl accent and a colour mixed with transparent is a black
+ * plate with a yellow rim - seen by the user on every "+ new" (2026-09-21).
+ */
 @keyframes elec-plate-off {
   0% {
-    fill: color-mix(in srgb, var(--accent) 10%, var(--app-bg));
-    stroke: var(--accent);
     opacity: 1;
   }
   30% {
@@ -915,7 +918,8 @@ $effect(() => {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  width: min(24rem, 27cqw);
+  /* Clear of the top plate, which begins a quarter of the way across. */
+  width: min(24rem, 25cqw);
   height: 52%;
   margin: 0;
   padding: 0;
