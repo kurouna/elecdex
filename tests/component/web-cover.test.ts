@@ -150,6 +150,10 @@ function step(
 beforeEach(() => {
   observers.clear()
   vi.useFakeTimers()
+  // On the loop's wake phase, where a frame's boundary is also the end of every
+  // `frame()` here: the case that left a frame queued at the end of a test. The
+  // clock used to start wherever the real one was, so it failed about once a hundred runs.
+  vi.setSystemTime(new Date('2026-09-18T00:00:00.005Z'))
   vi.stubGlobal('ResizeObserver', FakeResizeObserver)
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) =>
     setTimeout(() => callback(performance.now()), 0),
@@ -162,6 +166,10 @@ beforeEach(() => {
 
 afterEach(() => {
   release()
+  // The frame loop's state outlives the test. A frame it has asked for must come
+  // now: the fake timers are about to be thrown away, and a request that never
+  // answers would leave the loop waiting on it through every later test.
+  vi.runOnlyPendingTimers()
   for (const it of made.splice(0)) it.detach()
   document.body.innerHTML = ''
   vi.useRealTimers()

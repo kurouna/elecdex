@@ -55,6 +55,17 @@ async function painterScript(): Promise<string> {
 test.beforeAll(async () => {
   launched = await launch()
   await launched.page.evaluate(await painterScript())
+  // The first text a page draws may come before its font does: on the macOS runner
+  // the first case's labels differed between its two canvases, one drawn in a
+  // fallback face. Draw the labels once and wait for the fonts before comparing.
+  await launched.page.evaluate(async () => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
+    ctx.font = '10px ui-monospace, monospace'
+    ctx.fillText('16k', 0, 10)
+    await document.fonts.ready
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+  })
 })
 
 test.afterAll(async () => {
@@ -133,12 +144,23 @@ for (const c of CASES) {
 
       const a = pixels(stepped)
       const b = pixels(whole)
+      const rowBytes = stepped.width * 4
       let count = 0
-      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) count += 1
+      const rows = new Set<number>()
+      for (let i = 0; i < a.length; i++) {
+        if (a[i] === b[i]) continue
+        count += 1
+        rows.add(Math.floor(i / rowBytes))
+      }
       stepped.remove()
       whole.remove()
-      return a.length === b.length ? count : -1
+      if (a.length !== b.length) return 'different sizes'
+      // Where they differ says what differs: the plot, or the labels below it.
+      const sorted = [...rows].sort((x, y) => x - y)
+      return count === 0
+        ? ''
+        : `${count} bytes in rows ${sorted[0]}-${sorted.at(-1)} of ${stepped.height}`
     }, c)
-    expect(differing).toBe(0)
+    expect(differing).toBe('')
   })
 }
