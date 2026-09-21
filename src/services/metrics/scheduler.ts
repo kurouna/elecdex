@@ -49,8 +49,14 @@ export interface SchedulerEvents {
 /** Gap between the first collections of sources activated together. */
 export const DEFAULT_STAGGER_MS = 150
 
-/** Delays before retrying a once-only source that failed; the last one repeats. */
-export const ONCE_RETRY_MS = [30_000, 120_000, 600_000] as const
+/**
+ * Delays before retrying a once-only source that failed; the last one repeats.
+ *
+ * The first is short: what fails is most likely a launch on a machine busy
+ * starting everything else (`reg query` or a PowerShell outlasting its timeout),
+ * and until the retry the pane shows "--" where the OS version belongs.
+ */
+export const ONCE_RETRY_MS = [5_000, 30_000, 120_000, 600_000] as const
 
 const realClock: Clock = {
   setTimeout: (fn, ms) => setTimeout(fn, ms),

@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { atDesignSize, launch } from './support.js'
+import { atDesignSize, type Launched, launch } from './support.js'
 
 /**
  * Metrics and monitoring widgets, end to end.
@@ -261,9 +261,28 @@ test('what cannot change is collected once, however often it is subscribed again
   }
 })
 
+/**
+ * Waits for the system pane's OS row to be filled in. A collection that failed is
+ * retried within seconds (ONCE_RETRY_MS); if the row still stays empty on a busy
+ * runner, the failure says what main was told, which the row alone cannot.
+ */
+async function osRowShown({ page, warnings }: Launched): Promise<void> {
+  await expect(page.getByTestId('sysinfo-os'))
+    .not.toHaveText('--', { timeout: 30_000 })
+    .catch((error: Error) => {
+      throw new Error(`${error.message}\nmain warned:\n${warnings().join('\n') || '(nothing)'}`)
+    })
+}
+
 test('the system pane fits its rows in a layout saved before the OS row', async () => {
   const OLD = [0.04, 0.075, 0.19, 0.12, 0.116, 0.239, 0.055, 0.165]
   const first = await launch()
+  // Settled before it quits: both times this test failed on CI, the first app had
+  // hung for 20 s quitting in the middle of its start.
+  await osRowShown(first).catch(async (error: unknown) => {
+    await first.close()
+    throw error
+  })
   const saved = await first.page.evaluate(() => window.elecdex.layout.load())
   await first.quit()
   const root = saved.root
@@ -271,7 +290,8 @@ test('the system pane fits its rows in a layout saved before the OS row', async 
   root.children[0].sizes = OLD
   writeFileSync(path.join(first.userData, 'layout.json'), JSON.stringify(saved))
 
-  const { app, page, close } = await launch(first.userData)
+  const second = await launch(first.userData)
+  const { app, page, close } = second
   try {
     // The size the default layout is designed for; a much smaller window is too short
     // for three rows at any height the column gives this pane. A screen that cannot give
@@ -284,8 +304,7 @@ test('the system pane fits its rows in a layout saved before the OS row', async 
       'the workspace has the width the layout is designed for',
     ).toBeGreaterThanOrEqual(1919)
     expect(viewport[1], 'and the height, minus the title bar').toBeGreaterThanOrEqual(1040)
-    const os = page.getByTestId('sysinfo-os')
-    await expect(os).not.toHaveText('--', { timeout: 30_000 })
+    await osRowShown(second)
     await page.waitForTimeout(500) // the resize settling
     const pane = await page.locator('[data-testid=pane][data-widget=sysinfo]').boundingBox()
     const lastRow = await page.getByTestId('sysinfo').locator('.hud-cells').last().boundingBox()

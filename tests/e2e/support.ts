@@ -29,6 +29,11 @@ export interface Launched {
    */
   quit(): Promise<void>
   close(): Promise<void>
+  /**
+   * The lines main has warned so far ("[elecdex] metric os.info failed: ..."), for
+   * a failure message: a pane left empty says nothing about why.
+   */
+  warnings(): string[]
 }
 
 export interface LaunchOptions {
@@ -183,6 +188,12 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ...options.env,
     },
   })
+  const warnings: string[] = []
+  app.process().stderr?.on('data', (chunk: Buffer) => {
+    for (const line of chunk.toString().split(/\r?\n/)) {
+      if (line.includes('[elecdex]') && warnings.length < 200) warnings.push(line.trim())
+    }
+  })
   const page = await app.firstWindow()
   await page.waitForLoadState('domcontentloaded')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
@@ -203,6 +214,7 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       return launch(dir, rest)
     },
     quit: () => closeApp(app),
+    warnings: () => [...warnings],
     close: async () => {
       await closeApp(app)
       if (userData === undefined) removeDir(dir)

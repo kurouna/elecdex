@@ -360,12 +360,26 @@ describe('MetricScheduler', () => {
       expect(a.calls.n).toBe(3)
     })
 
+    it('tries a failure at launch again within seconds, not half a minute', async () => {
+      // On a busy Windows runner the system pane's OS row stayed "--" through a
+      // 30 s wait: a first collection that fails at launch waited that long for
+      // its retry.
+      const a = once(1)
+      const { scheduler, samples } = setup({ a: a.definition })
+      scheduler.setActive(['a'])
+      await advance(0)
+      await advance(5_000)
+      expect(a.calls.n).toBe(2)
+      expect(samples).toHaveLength(1)
+    })
+
     it('keeps retrying at the longest delay', async () => {
       const a = once(100)
       const { scheduler } = setup({ a: a.definition })
       scheduler.setActive(['a'])
-      await advance(ONCE_RETRY_MS[0] + ONCE_RETRY_MS[1] + ONCE_RETRY_MS[2] * 2)
-      expect(a.calls.n).toBe(5)
+      const widening = ONCE_RETRY_MS.reduce((sum, ms) => sum + ms, 0)
+      await advance(widening + (ONCE_RETRY_MS.at(-1) ?? 0) * 2)
+      expect(a.calls.n).toBe(ONCE_RETRY_MS.length + 3)
     })
 
     it('does not retry while nobody watches, and keeps its backoff when watched again', async () => {
