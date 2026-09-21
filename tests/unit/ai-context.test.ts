@@ -9,9 +9,12 @@ import {
   ChatSchema,
   COMPACT_PROMPT,
   chatWindow,
+  clipToTokens,
+  compactPrompt,
   compactTranscript,
   contextWindow,
   estimateTokens,
+  summaryRoom,
   withSummary,
 } from '@shared/ai'
 import { applySettingsPatch, defaultSettings } from '@shared/settings'
@@ -159,7 +162,7 @@ const SMALL: AiProvider = {
   model: 'tiny',
   contextTokens: 1024,
 }
-/** Room for a summary's 600 tokens: 3072 may go, and a cut leaves 2048. */
+/** A window of 4096: 3072 may go, a cut leaves 2048, and a summary has 409 of it. */
 const ROOMY: AiProvider = { ...SMALL, id: 'roomy', name: 'Roomy', contextTokens: 4096 }
 const HOSTED: AiProvider = {
   id: 'hosted',
@@ -367,24 +370,49 @@ describe('the summary that goes with a cut conversation', () => {
 /** Four hundred tokens by the estimate, numbered so a transcript can be told from another. */
 const big = (n: number): string => `Q${n} ${'x'.repeat(1600 - 3)}`
 
+describe('the room a summary is given', () => {
+  it('is a tenth of the window, up to 600 tokens, and a summary is held to it', () => {
+    expect(summaryRoom(8192)).toBe(600)
+    expect(summaryRoom(4096)).toBe(409)
+    expect(summaryRoom(1024)).toBe(102)
+    expect(clipToTokens('abcdefgh', 1)).toBe('abcd')
+    expect(clipToTokens('こんにちは', 3)).toBe('こんに')
+    expect(clipToTokens('short', 100)).toBe('short')
+    // Never between the halves of a character outside the basic plane.
+    expect(clipToTokens('a😀b', 1.5)).toBe('a')
+    expect(compactPrompt(600).startsWith(COMPACT_PROMPT)).toBe(true)
+    expect(compactPrompt(600)).toContain('At most 300 words.')
+    expect(compactPrompt(102)).toContain('At most 51 words.')
+  })
+})
+
 describe('summaries, when they are on', () => {
+  const summarising = (request: StreamRequest | undefined): boolean =>
+    request?.system.startsWith(COMPACT_PROMPT) === true
+
   /**
-   * One question and its answer. When the conversation is cut the model is asked for a summary
-   * first: `summary` is what it writes, or an error to fail with.
+   * One question and its answer. When the model is first asked for a summary, `summary` is what
+   * it writes, or an error to fail with. With no `text`, the last answer is asked for again.
    */
   async function turn(
     h: ReturnType<typeof harness>,
     chatId: string,
     n: number,
     summary: string | Error = `summary at Q${n}`,
-    extra: { replaceFrom?: string } = {},
+    extra: { replaceFrom?: string; provider?: string; text?: string | null; answer?: string } = {},
   ) {
     const before = h.pending.length
-    const request = { provider: 'roomy', model: 'tiny', text: big(n), ...extra }
+    const { provider = 'roomy', text = big(n), answer = 'x'.repeat(1600), replaceFrom } = extra
+    const request = {
+      provider,
+      model: 'tiny',
+      ...(text === null ? {} : { text }),
+      ...(replaceFrom === undefined ? {} : { replaceFrom }),
+    }
     expect(h.service.send(chatId, request)).toEqual({ ok: true })
     await h.settle()
     let compaction: StreamRequest | undefined
-    if (h.pending.at(-1)?.request.system === COMPACT_PROMPT) {
+    if (summarising(h.pending.at(-1)?.request)) {
       const call = h.pending.at(-1) as Pending
       compaction = call.request
       if (summary instanceof Error) call.fail(summary)
@@ -396,7 +424,7 @@ describe('summaries, when they are on', () => {
       await h.settle()
     }
     const call = h.pending.at(-1) as Pending
-    call.sink.text('x'.repeat(1600))
+    call.sink.text(answer)
     call.end()
     await h.settle()
     return { compaction, asked: call.request, calls: h.pending.length - before }
@@ -410,6 +438,7 @@ describe('summaries, when they are on', () => {
     // Seven messages and the room a summary is given do not fit: three go, four are summarised.
     const fourth = await turn(h, chatId, 4, 'They asked Q1 to Q3.')
     expect(fourth.compaction?.model).toBe('tiny')
+    expect(fourth.compaction?.system).toBe(compactPrompt(409))
     expect(fourth.compaction?.messages).toHaveLength(1)
     const transcript = fourth.compaction?.messages[0]?.text ?? ''
     expect(transcript.startsWith('Conversation:\nUser: Q1 ')).toBe(true)
@@ -437,21 +466,28 @@ describe('summaries, when they are on', () => {
     const h = harness(dir, true)
     const chatId = h.service.create() as string
     for (const n of [1, 2, 3, 4]) await turn(h, chatId, n)
-    const fifth = await turn(h, chatId, 5)
-    expect(fifth.calls).toBe(1)
-    expect(fifth.asked.system).toBe(withSummary('', 'summary at Q4'))
-    expect(fifth.asked.messages).toHaveLength(5)
+    // The summary counts as what it is - a few tokens - not as the room it was given: two more
+    // questions fit behind the same cut.
+    for (const [n, sent] of [
+      [5, 5],
+      [6, 7],
+    ] as const) {
+      const next = await turn(h, chatId, n)
+      expect(next.calls).toBe(1)
+      expect(next.asked.system).toBe(withSummary('', 'summary at Q4'))
+      expect(next.asked.messages).toHaveLength(sent)
+    }
 
     // The next cut is summarised from the summary so far and what it leaves behind since.
-    const sixth = await turn(h, chatId, 6)
-    const transcript = sixth.compaction?.messages[0]?.text ?? ''
+    const seventh = await turn(h, chatId, 7)
+    const transcript = seventh.compaction?.messages[0]?.text ?? ''
     expect(
       transcript.startsWith('Summary so far:\nsummary at Q4\n\nConversation:\nUser: Q3 '),
     ).toBe(true)
     expect(transcript).toContain('User: Q4 ')
     expect(transcript).not.toContain('Q1 ')
     expect(transcript).not.toContain('Q5 ')
-    expect(sixth.asked.system).toBe(withSummary('', 'summary at Q6'))
+    expect(seventh.asked.system).toBe(withSummary('', 'summary at Q7'))
   })
 
   it('a summary that fails, or says nothing, costs the summary and not the question', async () => {
@@ -468,26 +504,73 @@ describe('summaries, when they are on', () => {
       expect(chat?.context?.summary).toBeUndefined()
       expect(chat?.messages.at(-1)).toMatchObject({ role: 'assistant' })
       expect(chat?.messages.at(-1)?.stop).toBeUndefined()
-      // Not asked again question after question: only when there is a new cut.
-      expect((await turn(h, chatId, 5)).calls).toBe(1)
     }
+  })
+
+  it('is asked for once more with the next question - a passing failure leaves no hole - and then no more', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3]) await turn(h, chatId, n)
+    await turn(h, chatId, 4, new Error('HTTP 500'))
+
+    // The same cut, and what is behind it still has nobody to speak for it.
+    const fifth = await turn(h, chatId, 5, 'They asked Q1 and Q2.')
+    expect(fifth.calls).toBe(2)
+    expect(fifth.compaction?.messages[0]?.text.startsWith('Conversation:\nUser: Q1 ')).toBe(true)
+    expect(fifth.asked.system).toBe(withSummary('', 'They asked Q1 and Q2.'))
+    const chat = h.store.get(chatId)
+    expect(chat?.context?.summary?.before).toBe(chat?.context?.from)
+
+    // A model that cannot summarise is not asked with every question: twice a cut, and that is all.
+    const other = h.service.create() as string
+    for (const n of [1, 2, 3]) await turn(h, other, n)
+    expect((await turn(h, other, 4, new Error('HTTP 500'))).calls).toBe(2)
+    expect((await turn(h, other, 5, new Error('HTTP 500'))).calls).toBe(2)
+    const again = await turn(h, other, 5, 'unused', { text: null })
+    expect(again.calls).toBe(1)
+    expect(again.asked.system).toBe('')
+    // Until there is a new cut, with more to summarise.
+    expect((await turn(h, other, 6)).calls).toBe(2)
   })
 
   it('what a failed summary missed is in the next one, and the one before it goes on being sent', async () => {
     const h = harness(dir, true)
     const chatId = h.service.create() as string
-    for (const n of [1, 2, 3, 4, 5]) await turn(h, chatId, n)
-    const sixth = await turn(h, chatId, 6, new Error('HTTP 500'))
-    expect(sixth.asked.system).toBe(withSummary('', 'summary at Q4'))
+    for (const n of [1, 2, 3, 4, 5, 6]) await turn(h, chatId, n)
+    const seventh = await turn(h, chatId, 7, new Error('HTTP 500'))
+    expect(seventh.compaction).toBeDefined()
+    expect(seventh.asked.system).toBe(withSummary('', 'summary at Q4'))
     expect(h.store.get(chatId)?.context?.summary?.before).toBe(h.store.get(chatId)?.messages[4]?.id)
 
-    await turn(h, chatId, 7)
     const eighth = await turn(h, chatId, 8)
     const transcript = eighth.compaction?.messages[0]?.text ?? ''
-    // From where the summary so far ends (Q3), not from where the failed one would have.
-    expect(transcript).toContain('Summary so far:\nsummary at Q4')
-    expect(transcript).toContain('User: Q6 ')
-    expect(transcript).toContain('User: Q5 ')
+    // From where the summary so far ends (Q3), not from the cut it failed at.
+    expect(
+      transcript.startsWith('Summary so far:\nsummary at Q4\n\nConversation:\nUser: Q3 '),
+    ).toBe(true)
+    expect(transcript).toContain('User: Q4 ')
+    expect(eighth.asked.system).toBe(withSummary('', 'summary at Q8'))
+  })
+
+  it('a summary longer than its room is held to it, so it cannot push the cut along', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3]) await turn(h, chatId, n)
+    await turn(h, chatId, 4, 'z'.repeat(5000))
+    // 409 tokens of room in a window of 4096: four ASCII characters to one.
+    expect(h.store.get(chatId)?.context?.summary?.text).toHaveLength(409 * 4)
+    expect((await turn(h, chatId, 5)).calls).toBe(1)
+  })
+
+  it('in a small window it is asked for at a cut, not with every question', async () => {
+    const h = harness(dir, true)
+    const chatId = h.service.create() as string
+    const small = { provider: 'small', text: HUNDRED, answer: HUNDRED }
+    const calls: number[] = []
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) calls.push((await turn(h, chatId, n, 'ok', small)).calls)
+    // A flat 600 tokens of room was most of a window of 1024: what was left for the messages was
+    // outgrown by every question, and each of them cut the conversation and asked for a summary.
+    expect(calls).toEqual([1, 1, 1, 2, 1, 1, 2])
   })
 
   it('stopped while it is summarised, nothing is asked and what there is is kept', async () => {
@@ -497,7 +580,7 @@ describe('summaries, when they are on', () => {
     h.service.send(chatId, { provider: 'roomy', model: 'tiny', text: big(4) })
     await h.settle()
     const calls = h.pending.length
-    expect(h.pending.at(-1)?.request.system).toBe(COMPACT_PROMPT)
+    expect(summarising(h.pending.at(-1)?.request)).toBe(true)
     h.service.stop(chatId)
     await h.settle()
     expect(h.pending).toHaveLength(calls)
@@ -528,6 +611,18 @@ describe('summaries, when they are on', () => {
     const fifth = await turn(h, chatId, 5)
     expect(fifth.asked.system).toBe(withSummary('', 'summary at Q4'))
     for (const n of [6, 7, 8, 9]) expect((await turn(h, chatId, n)).calls).toBe(1)
+  })
+
+  it('turned on after a cut, what is already behind it is summarised with the next question', async () => {
+    const h = harness(dir)
+    const chatId = h.service.create() as string
+    for (const n of [1, 2, 3, 4, 5]) expect((await turn(h, chatId, n)).calls).toBe(1)
+    const cut = h.store.get(chatId)?.context?.from
+    expect(cut).toBeDefined()
+    h.flags.compacts = true
+    const sixth = await turn(h, chatId, 6)
+    expect(sixth.calls).toBe(2)
+    expect(h.store.get(chatId)?.context?.summary?.text).toBe('summary at Q6')
   })
 
   it('a conversation rewritten from before it loses it; one sent whole needs none', async () => {

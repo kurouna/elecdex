@@ -14,13 +14,15 @@ import {
   type ChatSendResult,
   type ChatStop,
   type ChatSummary,
-  COMPACT_PROMPT,
   chatTitle,
   chatWindow,
+  clipToTokens,
+  compactPrompt,
   compactTranscript,
   contextWindow,
   estimateTokens,
   keyMayTravel,
+  summaryRoom,
   withSummary,
 } from '@shared/ai'
 import {
@@ -56,6 +58,14 @@ const FLUSH_MS = 100
 const MEASURE_FROM = 500
 const RATIO_MAX = 2
 
+/**
+ * How often a summary is asked for at one cut: once, and once more with the next question if
+ * that came to nothing - a passing failure should not leave a stretch of the conversation neither
+ * sent nor summarised until the next cut, many turns away. Not for ever: a model that cannot
+ * summarise is not asked with every question.
+ */
+const COMPACT_TRIES = 2
+
 export interface AiDeps {
   store: ChatStore
   providers(): readonly AiProvider[]
@@ -85,8 +95,9 @@ interface Outgoing {
   from: string | undefined
   /** The summary that still holds for this cut, if there is one. */
   summary: Summary | undefined
-  /** Set when the cut is new and summaries are on: what to summarise before asking. */
+  /** Set when a summary is to be asked for before the question: what to summarise, and its room. */
   transcript: string | undefined
+  room: number
   /** The uncorrected estimate of the messages, and whose correction the provider's count becomes. */
   estimate: number
   measures: string
@@ -115,6 +126,8 @@ export class AiChatService {
   private readonly running = new Map<string, Running>()
   /** Real tokens to estimated ones, as last measured, by provider and model. Not kept across runs. */
   private readonly ratios = new Map<string, number>()
+  /** By conversation: the cut a summary was last asked for, and how many times (`COMPACT_TRIES`). */
+  private readonly asked = new Map<string, { from: string; tries: number }>()
 
   constructor(deps: AiDeps) {
     this.deps = deps
@@ -153,6 +166,7 @@ export class AiChatService {
       running.abort.abort()
     }
     if (!this.deps.store.remove(chatId)) return false
+    this.asked.delete(chatId)
     this.deps.publish({ type: 'snapshot', chatId, chat: null, run: null })
     this.deps.listChanged(this.list())
     return true
@@ -183,7 +197,7 @@ export class AiChatService {
     const messages = this.nextMessages(stored.messages, request)
     if (typeof messages === 'string') return { ok: false, error: messages }
 
-    const outgoing = this.outgoingFor(messages, stored.context, target, request.model)
+    const outgoing = this.outgoingFor(chatId, messages, stored.context, target, request.model)
     const now = this.deps.now()
     const { context: previous, ...rest } = stored
     const chat: Chat = {
@@ -283,6 +297,7 @@ export class AiChatService {
 
   /** What of the conversation goes to this model (`chatWindow`). */
   private outgoingFor(
+    chatId: string,
     all: readonly ChatMessage[],
     context: Chat['context'],
     target: Target,
@@ -295,13 +310,12 @@ export class AiChatService {
     const measures = `${target.provider.id}\n${model}`
     const window = contextWindow(target.provider)
     const ratio = this.ratios.get(measures) ?? 1
-    // A summary has its room before there is one, so writing it does not move the cut it was written for.
+    const room = summaryRoom(window)
+    // The summary there is counts as what it is; one still to be written has its room already, so
+    // that writing it does not move the cut it is written for (a later one may be longer, but
+    // never by more than the room, which is well within what a cut leaves free).
     const kept = context?.summary
-    const ahead = compacts
-      ? AI_CONTEXT.summaryTokens
-      : kept === undefined
-        ? 0
-        : estimateTokens(kept.text)
+    const ahead = kept !== undefined ? estimateTokens(kept.text) : compacts ? room : 0
     const cut = chatWindow(messages, {
       window,
       system: estimateTokens(typed) + ahead,
@@ -313,25 +327,39 @@ export class AiChatService {
     // (a conversation rewritten from further back has lost it, and one sent whole needs none).
     const covered = kept === undefined ? -1 : messages.findIndex((m) => m.id === kept.before)
     const summary = covered > 0 && covered <= cut.from ? kept : undefined
-    // Once for each cut, not once a question: a provider that cannot summarise is not asked again
-    // until there is more to summarise.
-    const fresh = compacts && from !== undefined && from !== context?.from
+    const unspoken = summary === undefined || covered < cut.from
+    const asks = compacts && this.asksSummary(chatId, from, unspoken)
     return {
       typed,
       system: summary === undefined ? typed : withSummary(typed, summary.text),
       messages: messages.slice(cut.from).map((m) => ({ role: m.role, text: m.text })),
       from,
       summary,
-      transcript: fresh
+      transcript: asks
         ? compactTranscript(
             summary?.text,
             messages.slice(summary === undefined ? 0 : covered, cut.from),
-            (window * AI_CONTEXT.low) / ratio - estimateTokens(COMPACT_PROMPT),
+            (window * AI_CONTEXT.low) / ratio - estimateTokens(compactPrompt(room)),
           )
         : undefined,
+      room,
       estimate: cut.estimate - estimateTokens(typed) - ahead,
       measures,
     }
+  }
+
+  /**
+   * Whether a summary is asked for with this question, counting the asking: while something
+   * behind the cut has none - a new cut, one whose summary failed, or summaries turned on since -
+   * but only so many times a cut.
+   */
+  private asksSummary(chatId: string, from: string | undefined, unspoken: boolean): boolean {
+    if (from === undefined || !unspoken) return false
+    const before = this.asked.get(chatId)
+    const tries = before?.from === from ? before.tries : 0
+    if (tries >= COMPACT_TRIES) return false
+    this.asked.set(chatId, { from, tries: tries + 1 })
+    return true
   }
 
   private measured(outgoing: Outgoing, usage: StreamResult['usage']): void {
@@ -362,7 +390,7 @@ export class AiChatService {
           baseUrl: target.baseUrl,
           key: target.key,
           model,
-          system: COMPACT_PROMPT,
+          system: compactPrompt(outgoing.room),
           messages: [{ role: 'user', text: outgoing.transcript }],
           signal: running.abort.signal,
         },
@@ -378,8 +406,9 @@ export class AiChatService {
     }
     // Stopped, or deleted, while it was written: there is no question to go on to.
     if (running.finished) return
-    const summary = text.trim().slice(0, AI_LIMITS.summary)
+    const summary = clipToTokens(text.trim().slice(0, AI_LIMITS.summary), outgoing.room)
     if (summary !== '' && running.chat.context !== undefined) {
+      this.asked.delete(running.chat.id)
       outgoing.summary = { text: summary, before: outgoing.from }
       outgoing.system = withSummary(outgoing.typed, summary)
       running.chat = {

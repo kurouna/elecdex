@@ -211,9 +211,19 @@ export const AI_CONTEXT = {
   high: 0.75,
   /** What a cut leaves, so the next one is many turns away (see `chatWindow`). */
   low: 0.5,
-  /** Room kept ahead of the messages for a summary, while summaries are on. */
+  /** The most a summary may take of the window, in tokens - and never more than a tenth of it. */
   summaryTokens: 600,
 } as const
+
+/**
+ * The room a summary is given in this window. It is held to it (`clipToTokens`), so that writing
+ * one never moves the cut it was written for: the room is well under what lies between `high`
+ * and `low`. A flat 600 was most of a small window - at 1024 it left so little for the messages
+ * that every question cut the conversation again, and asked for another summary.
+ */
+export function summaryRoom(window: number): number {
+  return Math.min(AI_CONTEXT.summaryTokens, Math.floor(window / 10))
+}
 
 /** The provider's window in tokens, or 0 when its conversations are sent whole. */
 export function contextWindow(provider: Pick<AiProvider, 'baseUrl' | 'contextTokens'>): number {
@@ -233,6 +243,19 @@ export function estimateTokens(text: string): number {
   let ascii = 0
   for (let i = 0; i < text.length; i += 1) if (text.charCodeAt(i) < 0x80) ascii += 1
   return Math.ceil(ascii / 4 + (text.length - ascii))
+}
+
+/** The beginning of a text that fits in `max` estimated tokens. */
+export function clipToTokens(text: string, max: number): string {
+  let cost = 0
+  for (let i = 0; i < text.length; i += 1) {
+    cost += text.charCodeAt(i) < 0x80 ? 0.25 : 1
+    if (cost <= max) continue
+    // Not between the halves of a character outside the basic plane.
+    const high = i > 0 && (text.charCodeAt(i - 1) & 0xfc00) === 0xd800
+    return text.slice(0, high ? i - 1 : i)
+  }
+  return text
 }
 
 /** What a message costs beyond its text: its role and the template's marks around it. */
@@ -297,8 +320,13 @@ export const COMPACT_PROMPT = [
   'Summarise the conversation below so that an assistant who has read only your summary can continue it as if it had read everything.',
   'Keep: what the user wants, constraints, decisions made, names, numbers, identifiers from code, and questions still open.',
   'Drop: pleasantries, repetition, and attempts that were corrected later.',
-  'Write in the language the conversation is in. Plain text, at most 300 words. Output the summary and nothing else.',
+  'Write in the language the conversation is in. Plain text. Output the summary and nothing else.',
 ].join(' ')
+
+/** The prompt with the length the window has room for: about a word to two tokens, as a guide - the text is clipped to the room anyway. */
+export function compactPrompt(room: number): string {
+  return `${COMPACT_PROMPT} At most ${Math.max(30, Math.round(room / 2))} words.`
+}
 
 const SUMMARY_HEAD =
   'Summary of the earlier part of this conversation, which you no longer see in full:'
