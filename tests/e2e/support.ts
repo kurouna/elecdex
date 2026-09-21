@@ -313,19 +313,33 @@ export async function putWindowAway(app: ElectronApplication, page: Page): Promi
  * layout in the same units. A pane measured in a window narrower than that is
  * not the pane anyone designed, and what does not fit in it there says nothing
  * about the widget.
+ *
+ * The zoom is worked out again until the page has the size, not once: a window
+ * asked to be larger than its screen says it is for a moment, and is cut down to the
+ * screen after. Read once, straight after the asking, the macOS runner's window
+ * was 1920 wide and 1080 tall - so no zoom - and then 677 tall.
  */
 export async function atDesignSize(app: ElectronApplication, page: Page): Promise<void> {
-  const factor = await app.evaluate(({ BrowserWindow }) => {
+  const asked = await app.evaluate(({ BrowserWindow }) => {
     const win = BrowserWindow.getAllWindows()[0]
-    if (!win) return 0
-    win.setContentSize(1920, 1080)
-    const [width = 0, height = 0] = win.getContentSize()
-    const zoom = Math.min(1, width / 1920, height / 1080)
-    win.webContents.setZoomFactor(zoom)
-    return zoom
+    win?.setContentSize(1920, 1080)
+    return win !== undefined
   })
-  expect(factor, 'no window to size').toBeGreaterThan(0)
-  await expect.poll(() => page.evaluate(() => window.innerWidth)).toBeGreaterThanOrEqual(1900)
+  expect(asked, 'no window to size').toBe(true)
+  await expect
+    .poll(async () => {
+      await app.evaluate(({ BrowserWindow }) => {
+        const win = BrowserWindow.getAllWindows()[0]
+        if (!win) return
+        const [width = 0, height = 0] = win.getContentSize()
+        const zoom = Math.min(1, width / 1920, height / 1080)
+        if (zoom > 0 && Math.abs(win.webContents.getZoomFactor() - zoom) > 0.001) {
+          win.webContents.setZoomFactor(zoom)
+        }
+      })
+      return page.evaluate(() => Math.min(window.innerWidth / 1920, window.innerHeight / 1080))
+    })
+    .toBeGreaterThanOrEqual(0.99)
 }
 
 /** Brings the window back from {@link putWindowAway} and waits for the page to hear of it. */
