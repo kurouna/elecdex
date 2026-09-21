@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { WEB_PRESETS, type WebPreset } from '@shared/web'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
  * main's web views against a fake Electron: who may place a view, what a page may
@@ -78,6 +78,23 @@ class FakeContents extends EventEmitter {
     this.css.delete(key)
   })
   capturePage = vi.fn(async () => shot('jpeg'))
+  /**
+   * The document's side of fullscreen, as far as main's one script goes: whether it is in
+   * fullscreen now, and how many more askings it takes before it is (the window manager's time).
+   */
+  inFullscreen = false
+  entersAfter = 0
+  executeJavaScript = vi.fn(async (_script: string) => {
+    if (this.entersAfter > 0) {
+      this.entersAfter -= 1
+      if (this.entersAfter === 0) this.inFullscreen = true
+      return 'not in'
+    }
+    if (!this.inFullscreen) return 'not in'
+    this.inFullscreen = false
+    this.emit('leave-html-full-screen')
+    return 'left'
+  })
   setWindowOpenHandler = (handler: FakeContents['openHandler']) => {
     this.openHandler = handler
   }
@@ -480,6 +497,50 @@ describe('WebViews', () => {
     expect(owner.sent.filter(([channel]) => channel === 'web:snapshot')).toEqual([])
   })
 
+  it('takes the picture again when it comes back unchanged: a hidden view may not have drawn the new colours yet', async () => {
+    vi.useFakeTimers()
+    try {
+      views.open(asOwner(owner), 'p', 'a', preset('x'), null)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      const contents = view().webContents
+      await views.hide(asOwner(owner), 'p', 'a', true)
+      owner.sent.length = 0
+      const pictures = () => owner.sent.filter(([channel]) => channel === 'web:snapshot')
+
+      // The frame from before the change, twice; then the page has drawn.
+      contents.capturePage
+        .mockResolvedValueOnce(shot('jpeg'))
+        .mockResolvedValueOnce(shot('jpeg'))
+        .mockResolvedValueOnce(shot('tinted'))
+      views.setAppearance(look('#00ffff'))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(pictures()).toEqual([])
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(pictures().map(([, sent]) => sent)).toEqual([
+        {
+          paneId: 'p',
+          image: `data:image/jpeg;base64,${Buffer.from('tinted').toString('base64')}`,
+        },
+      ])
+
+      // A picture that really is the same is asked for a few times, and then left alone.
+      contents.capturePage.mockResolvedValue(shot('tinted'))
+      const before = contents.capturePage.mock.calls.length
+      views.setAppearance(look('#ff00ff'))
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(contents.capturePage.mock.calls.length - before).toBe(4)
+      // And not at all once the pane has the page back.
+      views.setAppearance(look('#ffff00'))
+      await vi.advanceTimersByTimeAsync(0)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      const shown = contents.capturePage.mock.calls.length
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(contents.capturePage.mock.calls.length).toBe(shown)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('takes app shortcuts from the page and leaves every other key to it', () => {
     views.open(asOwner(owner), 'p', 'a', preset('x'), null)
     const contents = view().webContents
@@ -566,6 +627,91 @@ describe('WebViews', () => {
 
     contents.emit('leave-html-full-screen')
     expect(win.children.at(-1)?.bounds).toEqual({ ...RECT, x: 40 })
+  })
+
+  describe('a page put away is taken out of fullscreen', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    /** Lets the asking run its course: every wait between two askings, and the promises around them. */
+    const settle = () => vi.advanceTimersByTimeAsync(5_000)
+
+    it('at once, when its document is in fullscreen already', async () => {
+      views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      const contents = view().webContents
+      contents.inFullscreen = true
+      contents.emit('enter-html-full-screen')
+      expect(view().bounds).toEqual({ x: 0, y: 0, width: 800, height: 600 })
+
+      await views.hide(asOwner(owner), 'p', 'a', false)
+      await settle()
+      expect(contents.inFullscreen).toBe(false)
+      expect(contents.executeJavaScript).toHaveBeenCalledTimes(1)
+      expect(view().bounds).toEqual(RECT)
+    })
+
+    it('a request made while hidden is refused, however long the window takes to become fullscreen', async () => {
+      views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      await views.hide(asOwner(owner), 'p', 'a', false)
+      const contents = view().webContents
+
+      // On X11 the request is granted - and heard here - before the document is in fullscreen:
+      // the first askings find nothing to leave. Asked once, the page then went in and stayed.
+      contents.entersAfter = 3
+      contents.emit('enter-html-full-screen')
+      await settle()
+      expect(contents.inFullscreen).toBe(false)
+      expect(contents.executeJavaScript).toHaveBeenCalledTimes(4)
+      // Shown again it is in its pane, not over the workspace.
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      expect(view().bounds).toEqual(RECT)
+    })
+
+    it('a page that never goes in is asked for a moment, not for ever', async () => {
+      views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      await views.hide(asOwner(owner), 'p', 'a', false)
+      const contents = view().webContents
+      contents.emit('enter-html-full-screen')
+      await vi.advanceTimersByTimeAsync(60_000)
+      const asked = contents.executeJavaScript.mock.calls.length
+      expect(asked).toBeGreaterThan(1)
+      expect(asked).toBeLessThanOrEqual(25)
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(contents.executeJavaScript).toHaveBeenCalledTimes(asked)
+    })
+
+    it('a request made in sight afterwards is not taken for the one being refused', async () => {
+      views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      await views.hide(asOwner(owner), 'p', 'a', false)
+      const contents = view().webContents
+      // Refused while hidden, and still being asked out when the dialog closes...
+      contents.emit('enter-html-full-screen')
+      await vi.advanceTimersByTimeAsync(100)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      // ...and the user asks for fullscreen themselves, in sight: that one stays.
+      contents.inFullscreen = true
+      contents.emit('enter-html-full-screen')
+      await settle()
+      expect(contents.inFullscreen).toBe(true)
+      expect(view().bounds).toEqual({ x: 0, y: 0, width: 800, height: 600 })
+    })
+
+    it('a page that has gone is not asked', async () => {
+      views.open(asOwner(owner), 'p', 'a', preset('youtube'), null)
+      views.show(asOwner(owner), 'p', 'a', RECT)
+      await views.hide(asOwner(owner), 'p', 'a', false)
+      const contents = view().webContents
+      contents.emit('enter-html-full-screen')
+      await vi.advanceTimersByTimeAsync(100)
+      const asked = contents.executeJavaScript.mock.calls.length
+      views.close(asOwner(owner), 'p', 'a')
+      await settle()
+      expect(contents.executeJavaScript).toHaveBeenCalledTimes(asked)
+    })
   })
 
   it('destroys every view on dispose', () => {

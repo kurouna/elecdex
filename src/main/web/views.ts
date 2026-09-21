@@ -74,6 +74,10 @@ interface Entry {
   bounds: Rectangle | null
   /** The page asked for fullscreen (a video): the view covers the whole window meanwhile. */
   fullscreen: boolean
+  /** Counts the times the page was asked out of fullscreen, and what ends the asking (`askOut`). */
+  leaving: number
+  /** Counts the pictures asked for after a change of colours: the latest asking is the one that counts. */
+  picturing: number
 }
 
 /** Chromium's code for a load that was replaced by another (a redirect, a new navigation). */
@@ -86,6 +90,17 @@ const SNAPSHOT_QUALITY = 80
  */
 const SNAPSHOT_WIDTH = 1600
 const POPUP_SIZE = { width: 520, height: 720 }
+/**
+ * How a page is asked out of fullscreen, and how long for (`askOut`): it says `left`, or that
+ * it has nothing to leave - which, just after it asked for fullscreen, means "not yet".
+ */
+const LEAVE_SCRIPT =
+  "document.fullscreenElement ? document.exitFullscreen().then(() => 'left') : 'not in'"
+const LEAVE_TRIES = 25
+const LEAVE_RETRY_MS = 80
+/** How often, and how far apart, a picture that came back unchanged is taken again (`refreshPicture`). */
+const REPICTURE_TRIES = 4
+const REPICTURE_WAIT_MS = 150
 
 const windowOf = (contents: WebContents): BrowserWindow | null =>
   contents.isDestroyed() ? null : BrowserWindow.fromWebContents(contents)
@@ -278,6 +293,8 @@ export class WebViews {
       snapshot: null,
       bounds: null,
       fullscreen: false,
+      leaving: 0,
+      picturing: 0,
     }
     this.entries.set(paneId, entry)
     this.watchPolicy(entry)
@@ -344,6 +361,8 @@ export class WebViews {
     const contents = entry.view.webContents
     contents.on('enter-html-full-screen', () => {
       entry.fullscreen = true
+      // Asked for again, in sight: whatever asking-out is still under way is about the last time.
+      entry.leaving += 1
       // Only a view on screen may take the window. A pane hidden under a dialog or
       // behind another tab is asked back out of fullscreen instead (leaveFullscreen).
       if (entry.view.getVisible()) this.fill(entry)
@@ -351,6 +370,7 @@ export class WebViews {
     })
     contents.on('leave-html-full-screen', () => {
       entry.fullscreen = false
+      entry.leaving += 1
       if (entry.bounds !== null) entry.view.setBounds(entry.bounds)
     })
   }
@@ -368,10 +388,35 @@ export class WebViews {
   private leaveFullscreen(entry: Entry): void {
     entry.fullscreen = false
     if (entry.bounds !== null) entry.view.setBounds(entry.bounds)
+    entry.leaving += 1
+    void this.askOut(entry, entry.leaving)
+  }
+
+  /**
+   * Asks the page out of fullscreen until it has left, not once.
+   *
+   * `enter-html-full-screen` is heard when the request is granted, which is before the document
+   * is in fullscreen: that happens when the window has become fullscreen and the page is told.
+   * On Windows and macOS the window is fullscreen by the time this runs, and the first asking
+   * finds a document that can leave. On X11 the window manager answers in its own time: the
+   * document has nothing to leave yet, `exitFullscreen` rejects - and, asked only once, the page
+   * went into fullscreen a moment later and stayed there, hidden (seen on the Linux runner only:
+   * a page that asks for fullscreen under a dialog). So a page with nothing to leave is asked
+   * again for a couple of seconds, which is all the asking costs one that never goes in.
+   *
+   * It ends when the page has left, when main hears it leave, or when the page asks for
+   * fullscreen anew - each of which moves `leaving` on - so a request made in sight later is
+   * never taken for the one being refused here.
+   */
+  private async askOut(entry: Entry, asking: number): Promise<void> {
     const contents = entry.view.webContents
-    if (contents.isDestroyed()) return
-    // Rejects when the document is not in fullscreen after all, or has gone meanwhile.
-    void contents.executeJavaScript('document.exitFullscreen()').catch(() => {})
+    for (let tries = 0; tries < LEAVE_TRIES; tries += 1) {
+      if (contents.isDestroyed() || entry.leaving !== asking) return
+      // Rejects when the document has gone meanwhile, or would not leave: asked again either way.
+      const answer: unknown = await contents.executeJavaScript(LEAVE_SCRIPT).catch(() => null)
+      if (answer === 'left') return
+      await new Promise((resolve) => setTimeout(resolve, LEAVE_RETRY_MS))
+    }
   }
 
   private conceal(entry: Entry): void {
@@ -583,12 +628,32 @@ export class WebViews {
    * old colours until the view came back.
    */
   private async refreshPicture(entry: Entry): Promise<void> {
-    if (entry.view.getVisible() || entry.snapshot === null) return
+    const asking = ++entry.picturing
+    if (await this.repicture(entry)) return
+    // The same picture as before. The colours were put into the page a moment ago, and a hidden
+    // view draws when it is asked to, not before: on a busy machine the frame captured can still
+    // be the one from before the change (seen on the Linux runner: the page had the tint, the
+    // pane's picture never did). Taken again a few times, apart from the changes that queue
+    // behind this one - a picture that really is the same costs three more captures, and no wait.
+    void (async () => {
+      for (let tries = 1; tries < REPICTURE_TRIES; tries += 1) {
+        await new Promise((resolve) => setTimeout(resolve, REPICTURE_WAIT_MS))
+        if (asking !== entry.picturing || (await this.repicture(entry))) return
+      }
+    })()
+  }
+
+  /** Takes the hidden view's picture again; true when there is nothing more to do about it. */
+  private async repicture(entry: Entry): Promise<boolean> {
+    const hidden = (): boolean =>
+      !entry.view.webContents.isDestroyed() && !entry.view.getVisible() && entry.snapshot !== null
+    if (!hidden()) return true
     const picture = await this.capture(entry)
-    if (picture !== null && picture !== entry.snapshot && !entry.view.getVisible()) {
-      entry.snapshot = picture
-      send(entry.owner, 'snapshot', { paneId: entry.paneId, image: picture })
-    }
+    if (!hidden()) return true
+    if (picture === null || picture === entry.snapshot) return false
+    entry.snapshot = picture
+    send(entry.owner, 'snapshot', { paneId: entry.paneId, image: picture })
+    return true
   }
 
   private stateOf(entry: Entry): WebState {
