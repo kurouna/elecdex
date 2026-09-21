@@ -49,7 +49,7 @@ jobs:
       # One release up front: parallel package jobs would otherwise race to create it.
       # The installers are unsigned, so the notes open with what to do when Windows or
       # macOS warns - the same steps as the README's "If a warning appears", kept short
-      # here - and GitHub appends the generated changes below them.
+      # here, in English and Japanese - and GitHub appends the generated changes below them.
       - name: Create pre-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,6 +65,16 @@ jobs:
           - **Linux**: no warning. On Ubuntu 24.04+ prefer the **.deb**, which installs the AppArmor profile Electron's sandbox needs; the AppImage needs `chmod +x` and `libfuse2` (`libfuse2t64`). Never run it with `--no-sandbox`.
 
           macOS and Linux builds pass the end-to-end tests on GitHub's runners but have had no hands-on testing yet.
+
+          ## インストール：ビルドは未署名です
+
+          インストーラーにコード署名がないため、Windows と macOS は初回の起動前に警告を出します。警告は発行元が分からないという意味で、ファイルに何かが見つかったわけではありません。各ファイルの SHA-256 は下の一覧に表示されています。詳しい手順は [README → If a warning appears](https://github.com/kurouna/elecdex#if-a-warning-appears)（英語）にあります。
+
+          - **Windows**：ブラウザーがダウンロードを止めたら「保存」を選びます（Edge は「⋯ → 保存 → 詳細表示 → 保持する」）。SmartScreen の「Windows によって PC が保護されました」が出たら「**詳細情報 → 実行**」を押します。インストールはユーザー単位で、管理者権限は求めません。
+          - **macOS 15 以降**：アプリを一度開いて「**完了**」を押し、「**システム設定 → プライバシーとセキュリティ → このまま開く**」を押します。macOS 14 以前は、アプリを右クリックして「**開く**」を選びます。「壊れているため開けません」と出たら `xattr -dr com.apple.quarantine /Applications/elecdex.app` を実行します。
+          - **Linux**：警告は出ません。Ubuntu 24.04 以降では **.deb** を使ってください（Electron のサンドボックスに必要な AppArmor のプロファイルも入ります）。AppImage は `chmod +x` と `libfuse2`（`libfuse2t64`）が必要です。`--no-sandbox` では起動しないでください。
+
+          macOS 版と Linux 版は GitHub のランナーで e2e テストを通していますが、実機での確認はまだです。
 
           EOF
           gh release create "$TAG" --prerelease --verify-tag --title "elecdex ${TAG#v}" \

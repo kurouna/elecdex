@@ -427,7 +427,7 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   every platform into a GitHub pre-release that a person promotes to a full release.
 - **The builds are unsigned**, so the README's *If a warning appears* says, per OS, what to do when
   SmartScreen or Gatekeeper stops the first run, and release.yml opens every release's notes with
-  a short copy of it. Change one and change the other.
+  a short copy of it in English and Japanese. Change one and change the other.
 
 ## Conventions
 
