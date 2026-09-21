@@ -214,19 +214,19 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     per delta from main, as many as `nextPackets` lets on a spoke - never a loop. The resolution
     waits for the dark (`HOLD_MS`): `held` is marked *while* the council sits, so the hold is in
     the very update that ends it; the strip, the console's last line, the core's word and the
-    sound all wait, and a deliberation that was not watched, or motion reduced, does not.
+    sound all wait, and a deliberation that was not watched, or motion reduced, does not. The
+    floor stops where it is by holding its phase, not by pausing its animation.
   - Animate opacity and transform there, **never a colour in keyframes**: between the hsl accent
     and a colour mixed with `transparent` Chromium drew a black plate with a yellow rim. A plate
     is never dimmed by opacity either (the ring shows through): thin its colour towards the ground.
-  - Taken out as too theatrical, and not to come back without asking: a convergence on the core
-    with a shock wave, orbits round the core, a radar in it (user decisions 2026-09-21).
-  - **Nothing there is an animation for as long as the council sits.** The comets, the light
-    round a plate, the packets and the floor are stepped by the frame loop (`onFrame`, placed by
-    `lap` from the frame's time), and the plates take no `transition` while it sits (the pulse
-    steps their fill four times a second). One endless animation has the whole stage composited
-    at the display's rate: measured, 70% of one core with them, the same with any one left,
-    28% stepped (17% with no light at all). Only what lasts a moment is CSS (a vote's outline,
-    flash and stamp, the spoke's blink, the power-on). Measure before adding anything that runs.
+  - Taken out as too theatrical, and not to come back without asking: a convergence on the core with a shock wave, orbits round the core, a
+    radar in it (user decisions 2026-09-21).
+  - **Its light stays smooth, at the display's rate, and may use the CPU for it** (user decision
+    2026-09-21): about 70% of one core while the council sits, 0.5% otherwise, and the pane is
+    not in the default layout. Stepping it on the 10 fps frame loop was built (28%) and taken
+    out as visibly jerky - do not move it to the loop again. The cost is not any one effect: one
+    endless animation has the whole stage composited every frame (§5.8 has the measurements),
+    so dropping an effect or two saves nothing.
 - **The vendored calculator is never edited.** `src/shared/calc/vendor` is elecxzy's evaluator
   copied whole (MIT), kept out of tsconfig and biome, typed through hand-written `.d.ts` behind
   `@calc/*`. What elecdex needs goes in the wrapper beside it; `scripts/sync-calc.mjs` overwrites
