@@ -150,10 +150,11 @@ const PLATES: Record<UnitIndex, { points: string; box: [number, number, number, 
  */
 .stage {
   position: relative;
-  flex: 0 0 auto;
+  /* Gives way before the record below is squeezed under its least (see .record). */
+  flex: 0 1 auto;
   /* No taller than the board can use: a narrow pane's board is lower (see .board). */
-  height: min(clamp(10rem, 50%, 34rem), 64cqw);
-  min-height: 0;
+  height: min(clamp(10rem, 64%, 48rem), 64cqw);
+  min-height: 10rem;
   container: stage / size;
   background: radial-gradient(
       circle,

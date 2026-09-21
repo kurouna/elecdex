@@ -927,7 +927,8 @@ select:focus {
 
 .record {
   flex: 1;
-  min-height: 0;
+  /* The statements keep a few lines in sight however tall the stage wants to be. */
+  min-height: 7rem;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
