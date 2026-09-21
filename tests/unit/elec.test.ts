@@ -197,6 +197,14 @@ describe('the seats', () => {
       /You are UNIT-3 PATHOS\. Your standpoint:\nBe bold\.$/,
     )
   })
+
+  it('anchors CONFIDENCE to how firmly the verdict can be asserted, so models do not all say 85', () => {
+    const system = unitSystem(0, 'Be careful.')
+    for (const band of ['95-100', '75-90', '55-70', '40-50', 'Below 40']) {
+      expect(system).toContain(`${band}:`)
+    }
+    expect(system).toMatch(/whole scale/)
+  })
 })
 
 describe('the settings', () => {

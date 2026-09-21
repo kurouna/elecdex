@@ -142,6 +142,15 @@ export const ELEC_CONTRACT = [
   'VERDICT: APPROVE or REJECT or ABSTAIN',
   'CONFIDENCE: a whole number from 0 to 100',
   'Abstain only when the motion cannot be answered yes or no, and say why.',
+  // Asked for a bare 0-100, models settle on 85 whatever they think: the scale
+  // needs anchors, and leave to use the whole of it.
+  'Set CONFIDENCE by how firmly you can assert your verdict, using the whole scale:',
+  '95-100: you can state it as settled - the facts are clear and no serious objection stands.',
+  '75-90: you are convinced, but a reasonable objection or an unknown remains.',
+  '55-70: you lean this way; the case against is nearly as strong.',
+  '40-50: you cannot tell; your verdict is close to a guess.',
+  'Below 40: you vote this way with little ground, or only because you must choose.',
+  'Do not default to a round high number; lower it when facts are missing or depend on the future.',
 ].join('\n')
 
 /** What a unit is told before the motion: the contract, and who it is. */
