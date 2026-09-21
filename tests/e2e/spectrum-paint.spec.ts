@@ -65,16 +65,16 @@ interface Case {
   width: number
   bands: 7 | 10 | 16 | 31
   style: 'vfd-cyan' | 'led' | 'accent'
-  pattern: 'bars' | 'mirror' | 'peak'
+  pattern: 'bar' | 'mirror' | 'peak'
 }
 
 const CASES: Case[] = [
   // The pane in the report: 31 bands, where the glow is wider than the gap between bars.
-  { width: 524, bands: 31, style: 'vfd-cyan', pattern: 'bars' },
+  { width: 524, bands: 31, style: 'vfd-cyan', pattern: 'bar' },
   { width: 523, bands: 31, style: 'vfd-cyan', pattern: 'mirror' },
   { width: 401, bands: 16, style: 'vfd-cyan', pattern: 'peak' },
-  { width: 333, bands: 10, style: 'accent', pattern: 'bars' },
-  { width: 524, bands: 31, style: 'led', pattern: 'bars' },
+  { width: 333, bands: 10, style: 'accent', pattern: 'bar' },
+  { width: 524, bands: 31, style: 'led', pattern: 'bar' },
 ]
 
 for (const c of CASES) {

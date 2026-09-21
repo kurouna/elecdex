@@ -71,7 +71,7 @@ export const segmentRows = (height: number): number =>
 export const labelStep = (colW: number, labelW: number): number =>
   colW > 0 ? Math.max(1, Math.ceil((labelW + 4) / colW)) : 1
 
-interface Geometry {
+export interface Geometry {
   w: number
   h: number
   dpr: number
@@ -90,7 +90,7 @@ interface Geometry {
   count: number
 }
 
-function geometry(
+export function geometry(
   w: number,
   h: number,
   dpr: number,
@@ -148,6 +148,31 @@ export function columnStrip(
 ): { left: number; width: number } {
   const left = Math.round(g.pad + col * g.colW)
   return { left, width: Math.round(g.pad + (col + 1) * g.colW) - left }
+}
+
+/**
+ * A segment's rectangle grown by `grow` and cut to its column's strip.
+ *
+ * Cut by arithmetic, not by a clip, and a glow (grown) on whole pixels: macOS's
+ * canvas smoothed a fractional edge a pixel past the rectangle - and past a clip
+ * on whole pixels - so the corner of a glow crossed into a strip that was not
+ * redrawn and stayed there. A rectangle on whole pixels that ends on the strip's
+ * edge touches nothing beyond it.
+ */
+export function segmentRect(
+  g: Geometry,
+  col: number,
+  row: number,
+  grow: number,
+): { x: number; y: number; width: number; height: number } {
+  const { x, y } = segmentAt(g, col, row)
+  const { left, width } = columnStrip(g, col)
+  const out = (v: number, up: boolean): number =>
+    grow > 0 ? (up ? Math.ceil(v) : Math.floor(v)) : v
+  const from = Math.max(left, out(x - grow, false))
+  const to = Math.min(left + width, out(x + g.barW + grow, true))
+  const top = out(y - grow, false)
+  return { x: from, y: top, width: to - from, height: out(y + g.segH + grow, true) - top }
 }
 
 function offscreen(w: number, h: number, dpr: number): HTMLCanvasElement {
@@ -276,8 +301,8 @@ export class SpectrumPainter {
 
   /**
    * Redraws one column's strip: its piece of the static layer, then its lit
-   * segments, clipped to the strip so a glow never lingers over a neighbour that
-   * is not redrawn.
+   * segments, every rectangle cut to the strip (segmentRect) so a glow never
+   * lingers over a neighbour that is not redrawn.
    */
   #column(
     ctx: CanvasRenderingContext2D,
@@ -289,9 +314,6 @@ export class SpectrumPainter {
   ): void {
     const { left, width } = columnStrip(g, col)
     ctx.save()
-    ctx.beginPath()
-    ctx.rect(left, 0, width, g.plotH)
-    ctx.clip()
     if (!restored) {
       ctx.clearRect(left, 0, width, g.plotH)
       const d = g.dpr
@@ -339,8 +361,8 @@ export class SpectrumPainter {
   ): void {
     ctx.beginPath()
     for (const row of rows) {
-      const { x, y } = segmentAt(g, col, row)
-      ctx.rect(x - grow, y - grow, g.barW + grow * 2, g.segH + grow * 2)
+      const r = segmentRect(g, col, row, grow)
+      ctx.rect(r.x, r.y, r.width, r.height)
     }
     ctx.fill()
   }
