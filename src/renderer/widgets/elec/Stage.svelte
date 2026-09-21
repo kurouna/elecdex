@@ -468,14 +468,9 @@ $effect(() => {
   fill: color-mix(in srgb, var(--info) 12%, var(--app-bg));
 }
 
-/*
- * A vote that does not count is a plate gone dark, not a warning: unlit, in the colour of
- * what is switched off here (it was the warning yellow, which no other state of the council
- * is near - user decision 2026-09-21). What went wrong is said in words, on the plate and below.
- */
 .plate[data-state='invalid'] {
-  --tone: var(--text-muted);
-  fill: color-mix(in srgb, var(--text-muted) 9%, var(--app-bg));
+  --tone: var(--warn);
+  fill: color-mix(in srgb, var(--warn) 9%, var(--app-bg));
   stroke-dasharray: 4 3;
 }
 
@@ -601,7 +596,7 @@ $effect(() => {
 }
 
 .unit[data-state='invalid'] {
-  --tone: var(--text-muted);
+  --tone: var(--warn);
 }
 
 /*

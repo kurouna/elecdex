@@ -396,7 +396,7 @@ weather and calendar.
   **majority** (two seats decide; otherwise `DEADLOCK`) or **unanimous** (all three approve; one
   rejection rejects; otherwise `NO CONSENSUS`). A vote that does not count - a link that failed
   (`LINK ERROR`, `NO CARRIER`) or an answer with no verdict (`NO VERDICT`) - is invalid, not an
-  abstention (its plate goes dark), and fewer than two valid votes is `QUORUM NOT MET`. Confidence is shown, never
+  abstention, and fewer than two valid votes is `QUORUM NOT MET`. Confidence is shown, never
   counted. With **2 rounds** each unit then reads the others' first statements (cut to fit a small
   context window) and votes again - twice the requests - and a changed vote shows as
   `REJECT › APPROVE`. Units on one server of your computer or network are asked one after

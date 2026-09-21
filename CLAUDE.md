@@ -219,9 +219,7 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - Animate opacity and transform there, **never a colour in keyframes**: between the hsl accent
     and a colour mixed with `transparent` Chromium drew a black plate with a yellow rim. A plate
     is never dimmed by opacity either (the ring shows through): thin its colour towards the ground.
-  - A vote that does not count is a plate gone dark (`--text-muted`), not the warning yellow; the
-    strip, the tally and the console keep `--warn`. Taken out as too theatrical, and not to come
-    back without asking: a convergence on the core with a shock wave, orbits round the core, a
+  - Taken out as too theatrical, and not to come back without asking: a convergence on the core with a shock wave, orbits round the core, a
     radar in it (user decisions 2026-09-21).
   - While the council sits the pane costs about 70% of one core (measured 2026-09-21; the dashed
     SVG animations and the floor repaint every frame). It is idle otherwise, so the idle budget
