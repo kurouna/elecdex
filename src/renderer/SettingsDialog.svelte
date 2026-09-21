@@ -53,7 +53,7 @@ const SECTIONS = $derived<Array<{ id: Section; label: string }>>([
   ...(backgroundOffered(capabilities) ? [{ id: 'window' as const, label: 'window' }] : []),
   { id: 'keyboard', label: 'keyboard' },
   { id: 'alerts', label: 'alerts' },
-  { id: 'ai', label: 'ai chat' },
+  { id: 'ai', label: 'ai' },
   { id: 'plugins', label: 'plugins' },
   { id: 'updates', label: 'updates' },
 ])

@@ -325,9 +325,11 @@ weather and calendar.
   opens the source's own page for the place in the browser - JMA's forecast page, the NWS point
   forecast or yr.no.
 - **AI chat** *(unreleased: on `main`, not in v0.0.11)* — not in the default layout: add it from the picker (Ctrl+Shift+A), as many as you
-  like. First list a provider in *Settings -> AI chat*: pick a preset (Ollama, LM Studio, llama.cpp,
+  like. First list a provider in *Settings -> AI*: pick a preset (Ollama, LM Studio, llama.cpp,
   Anthropic, OpenAI, Gemini, OpenRouter, or a custom address), adjust the address, and - for a
-  hosted service - paste its API key. **test** asks the provider for its models, which then
+  hosted service - paste its API key (kept as you leave the field, like every other setting;
+  **show** lets you look at what you typed before that, and a key that is held reads as dots -
+  it is never shown again). **test** asks the provider for its models, which then
   complete the model field. In the pane, choose the provider and the model, type, and press Enter
   (Shift+Enter for a new line; Esc or **stop** ends an answer and keeps what was written). Answers
   are drawn as markdown with a copy button on every code block; a model's reasoning, where the
@@ -337,8 +339,10 @@ weather and calendar.
   the provider reports them. Hover a message to **copy** it, **edit** an earlier question (which
   replaces it and what followed) or ask **again**. An answer that did not simply finish says how it
   ended - `STOPPED`, `TRUNCATED`, `DECLINED`, `LINK ERROR`, or `NO CARRIER` when nobody answered
-  at the address - with the provider's own words beside it. **log** lists your conversations,
-  newest first; point at one to export it as markdown or delete it. An empty pane shows where it
+  at the address - with the provider's own words beside it. **+ new** starts a new conversation and **log** lists
+  the ones you have, newest first; point at one to export it as markdown or delete it. A
+  conversation reopened goes on with the provider and model that answered it (by name, if the
+  provider was removed and added again), and when nothing can be sent the pane says why. An empty pane shows where it
   points (`LINK STANDBY`, the provider and model, the address) and the model field shows
   `QUERYING` while a provider's list is read, or `NO LIST` with the reason when it cannot be.
   **A long conversation is fitted to the model's context window**: a local server answers with
@@ -349,7 +353,7 @@ weather and calendar.
   it is sent; past that the oldest messages stay behind - in one large step, not one a turn, so
   the server's prompt cache survives - and a `NOT SENT · n ABOVE` line in the log marks where the
   model's view begins. The conversation itself, and its export, stay whole. With *summarise
-  what no longer fits* on (Settings -> AI chat; off by default) the model is first asked for a
+  what no longer fits* on (Settings -> AI; off by default) the model is first asked for a
   summary of what stays behind - one more request to the same provider and model each time the
   conversation is cut, shown as `TX · COMPACTING` - which is sent after the system prompt from
   then on; the line then reads `SUMMARISED · n ABOVE` and opens to show what the model was told.
@@ -674,7 +678,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Earthquakes, world | [USGS](https://earthquake.usgs.gov/) real-time feed `summary/4.5_day.geojson` | Public domain. Fetched only while the world source is in use by a quakes pane or alerts: once a minute (its `max-age=60`), conditionally. |
 | Tsunamis, world | [NOAA Tsunami Warning Centers](https://www.tsunami.gov/): the Pacific (`PHEBAtom.xml`) and National (`PAAQAtom.xml`) Atom feeds | Public domain. Each holds the centre's latest bulletin; warnings, watches, advisories and threat messages count, information statements do not. Checked with the USGS feed, conditionally. Alerts say to follow local authorities. |
 | RSS feeds | The feed URLs you list in an RSS pane | Fetched by the app, never by the page, only while a pane lists them: every 15 minutes (or as the feed asks, at most hourly), conditionally (If-None-Match / If-Modified-Since), two at a time, up to 2 MB each, without cookies and with an `elecdex/<version>` User-Agent. Headlines are shown as plain text; the last ones per feed are kept in `feeds-cache.json` in the app's data folder. Nothing is sent to any other site. |
-| AI chat | The providers you list in *Settings -> AI chat*: a server on your computer or network, or a hosted API (Anthropic through its [official SDK](https://github.com/anthropics/anthropic-sdk-typescript); the rest as OpenAI-compatible `chat/completions`) | Asked by the app, never by the page, and only when you send a message, press **test** or open a pane's model list - a chat pane sitting in a layout calls nobody. What is sent is the conversation so far, your system prompt and the model's name, to the address you chose and nowhere else; each provider's own terms and data retention apply. No cookies, no redirects followed. An API key is encrypted by the operating system (DPAPI, the Keychain, the desktop's keyring) into `ai-keys.json`, apart from `settings.json`, and is never shown again; where the system cannot encrypt, it is kept in memory until elecdex quits. A key is refused for a plain-http address outside your computer and local network. With no key of its own, the Anthropic SDK looks where it always does (`ANTHROPIC_API_KEY`, an `ant auth login` profile). On Anthropic's own endpoint, `claude-opus-5` and `claude-fable-5-1` are asked with server-side fallbacks (`fallbacks: "default"`), so a request their safety classifiers decline is re-run on another Claude model in the same call; the answer names the model that wrote it. Conversations are files in `chats/` in the app's data folder. |
+| AI chat | The providers you list in *Settings -> AI*: a server on your computer or network, or a hosted API (Anthropic through its [official SDK](https://github.com/anthropics/anthropic-sdk-typescript); the rest as OpenAI-compatible `chat/completions`) | Asked by the app, never by the page, and only when you send a message, press **test** or open a pane's model list - a chat pane sitting in a layout calls nobody. What is sent is the conversation so far, your system prompt and the model's name, to the address you chose and nowhere else; each provider's own terms and data retention apply. No cookies, no redirects followed. An API key is encrypted by the operating system (DPAPI, the Keychain, the desktop's keyring) into `ai-keys.json`, apart from `settings.json`, and is never shown again; where the system cannot encrypt, it is kept in memory until elecdex quits. A key is refused for a plain-http address outside your computer and local network. With no key of its own, the Anthropic SDK looks where it always does (`ANTHROPIC_API_KEY`, an `ant auth login` profile). On Anthropic's own endpoint, `claude-opus-5` and `claude-fable-5-1` are asked with server-side fallbacks (`fallbacks: "default"`), so a request their safety classifiers decline is re-run on another Claude model in the same call; the answer names the model that wrote it. Conversations are files in `chats/` in the app's data folder. |
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 

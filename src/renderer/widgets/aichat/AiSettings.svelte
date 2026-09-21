@@ -53,66 +53,71 @@ function add(): void {
   ])
 }
 
+/**
+ * What this page holds about a provider besides its settings: the key being typed (gone the moment
+ * it is handed over), whether that is shown, and how the last save and the last test went. By id -
+ * and dropped with the provider, since the next one from the same preset gets the same id.
+ */
+interface Row {
+  typed: string
+  revealed: boolean
+  /** The last key typed was one main would not keep. */
+  refused: boolean
+  tested: string | null
+  models: AiModel[]
+}
+const BLANK: Row = { typed: '', revealed: false, refused: false, tested: null, models: [] }
+
+let rows = $state<Record<string, Row>>({})
+let testing = $state<string | null>(null)
+
+const rowOf = (id: string): Row => rows[id] ?? BLANK
+
+function note(id: string, change: Partial<Row>): void {
+  rows = { ...rows, [id]: { ...rowOf(id), ...change } }
+}
+
 /** The key first, then the provider: a key left behind would be a key nobody can see. */
 async function remove(id: string): Promise<void> {
   await window.elecdex.ai.removeKey(id)
   write(providers.filter((p) => p.id !== id))
-  // The next provider from the same preset gets the same id: it must not inherit this one's
-  // test result, model list or half-typed key.
-  tested = without(tested, id)
-  modelsOf = without(modelsOf, id)
-  typed = without(typed, id)
-  refused = without(refused, id)
+  const { [id]: _gone, ...rest } = rows
+  rows = rest
 }
-
-function without<T>(record: Record<string, T>, id: string): Record<string, T> {
-  const { [id]: _gone, ...rest } = record
-  return rest
-}
-
-/** What was typed into each provider's key field; cleared the moment it is handed over. */
-let typed = $state<Record<string, string>>({})
 
 async function saveKey(id: string): Promise<void> {
-  const key = (typed[id] ?? '').trim()
+  const key = rowOf(id).typed.trim()
   if (key === '') return
-  typed = { ...typed, [id]: '' }
+  note(id, { typed: '', revealed: false })
   const kept = await window.elecdex.ai.setKey(id, key)
   // Said, not swallowed: a key main refused would otherwise look saved, and fail at "test".
-  refused = { ...refused, [id]: kept === null }
+  note(id, { refused: kept === null })
 }
-
-/** Providers whose last key main would not keep. */
-let refused = $state<Record<string, boolean>>({})
 
 const KEY_WORDS = {
   stored: 'key held, encrypted by this computer',
   session: 'key held until elecdex quits - this system cannot encrypt it',
 } as const
 
-let tested = $state<Record<string, string>>({})
-let testing = $state<string | null>(null)
-let modelsOf = $state<Record<string, AiModel[]>>({})
-
 async function test(provider: AiProvider): Promise<void> {
-  testing = provider.id
+  const { id } = provider
+  testing = id
   // A key typed and not yet handed over is what the user means to test with.
-  await saveKey(provider.id)
+  await saveKey(id)
   // The answer before this one goes first: the same words twice would look like no answer.
-  tested = without(tested, provider.id)
-  const result = await window.elecdex.ai.models(provider.id)
+  note(id, { tested: null })
+  const result = await window.elecdex.ai.models(id)
   testing = null
-  modelsOf = { ...modelsOf, [provider.id]: result.models }
   // A service asked with no key answers in its own way (Gemini: "404, not found"), which does
   // not say what is missing.
-  const keyless = result.error !== null && !isLocal(provider) && ai.keys[provider.id] == null
-  tested = {
-    ...tested,
-    [provider.id]:
+  const keyless = result.error !== null && !isLocal(provider) && ai.keys[id] == null
+  note(id, {
+    models: result.models,
+    tested:
       result.error === null
         ? `ok · ${result.models.length} ${result.models.length === 1 ? 'model' : 'models'}`
         : `${result.error}${keyless ? ' - no key is held for this provider' : ''}`,
-  }
+  })
 }
 
 const isLocal = (provider: AiProvider): boolean => isLocalAddress(provider.baseUrl)
@@ -134,8 +139,15 @@ function windowNote(provider: AiProvider): string {
   return `up to ${Math.round(tokens * AI_CONTEXT.high)} tokens of a conversation are sent - the oldest messages stay behind`
 }
 
+/**
+ * A key that is held reads as one: dots, as a saved password does everywhere. They are the
+ * field's placeholder, not its value - the page never has the key, so there is nothing to show,
+ * nothing to copy, and nothing that could be saved back by mistake.
+ */
+const HELD_MASK = '•'.repeat(16)
+
 function keyPlaceholder(provider: AiProvider, held: boolean): string {
-  if (held) return 'type a new key to replace it'
+  if (held) return HELD_MASK
   return isLocal(provider)
     ? 'none - a local server usually needs none'
     : 'none yet - paste the key for this service'
@@ -152,9 +164,9 @@ function addressProblem(provider: AiProvider): string | null {
 </script>
 
 <section data-testid="settings-ai">
-  <h3>ai chat</h3>
+  <h3>ai providers</h3>
   <p class="note">
-    The chat pane talks to the providers listed here: a model running on this computer or your
+    What elecdex asks a language model, it asks of the providers listed here: a model running on this computer or your
     network (Ollama, LM Studio, llama.cpp - anything that speaks the OpenAI chat API), or a service
     you have an API key for. Messages go to the provider you chose and nowhere else; conversations
     are kept on this computer. Keys are encrypted by the operating system, kept out of
@@ -181,6 +193,7 @@ function addressProblem(provider: AiProvider): string | null {
 
 {#each providers as provider (provider.id)}
   {@const held = ai.keys[provider.id] ?? null}
+  {@const row = rowOf(provider.id)}
   {@const problem = addressProblem(provider)}
   <section class="provider" data-testid="ai-provider" data-provider={provider.id}>
     <div class="head">
@@ -231,7 +244,7 @@ function addressProblem(provider: AiProvider): string | null {
       <span>default model</span>
       <ModelField
         value={provider.model}
-        models={modelsOf[provider.id] ?? []}
+        models={row.models}
         placeholder="press test to list the provider's models"
         onchoose={(model) => change(provider.id, { model })}
         size="form"
@@ -254,27 +267,38 @@ function addressProblem(provider: AiProvider): string | null {
     </label>
     <div class="row">
       <span>api key</span>
+      <!-- Kept on leaving the field or on Enter, like every other field here: no button of its own.
+           Not on "change": switching the field between dots and text makes Chromium forget that
+           its value changed, and Enter after "show" then kept nothing. -->
       <input
         class="path"
-        type="password"
+        class:held={held !== null}
+        type={row.revealed ? 'text' : 'password'}
         autocomplete="off"
-        value={typed[provider.id] ?? ''}
+        spellcheck="false"
+        value={row.typed}
         placeholder={keyPlaceholder(provider, held !== null)}
-        oninput={(e) => (typed = { ...typed, [provider.id]: e.currentTarget.value })}
-        onchange={() => void saveKey(provider.id)}
+        title={held === null ? undefined : 'a key is held - type a new one to replace it'}
+        oninput={(e) => note(provider.id, { typed: e.currentTarget.value })}
+        onblur={() => void saveKey(provider.id)}
         onkeydown={(e) => {
           if (e.key === 'Enter') void saveKey(provider.id)
         }}
         data-testid="ai-key"
       />
+      <!-- What is being typed can be looked at - a paste that went in twice is otherwise a row of
+           dots like any other. A key already held cannot: it never comes back to the page. -->
       <button
         type="button"
         class="link"
-        disabled={(typed[provider.id] ?? '').trim() === ''}
-        onclick={() => void saveKey(provider.id)}
-        data-testid="ai-key-save"
+        aria-pressed={row.revealed}
+        disabled={row.typed === ''}
+        title={held !== null && row.typed === '' ? 'a key that is held is never shown again' : 'show what is typed'}
+        onmousedown={(e) => e.preventDefault()}
+        onclick={() => note(provider.id, { revealed: !row.revealed })}
+        data-testid="ai-key-reveal"
       >
-        save key
+        {row.revealed ? 'hide' : 'show'}
       </button>
       <!-- Always there, like the line under it: a key is kept on leaving its field, which a press
            on "test" does - and a button that moves between the press and the release is not clicked. -->
@@ -288,7 +312,7 @@ function addressProblem(provider: AiProvider): string | null {
         forget key
       </button>
     </div>
-    {#if refused[provider.id]}
+    {#if row.refused}
       <p class="note problem" data-testid="ai-key-refused">
         that key was not kept - a key is up to {AI_LIMITS.key} characters, with nothing else pasted along
       </p>
@@ -298,8 +322,8 @@ function addressProblem(provider: AiProvider): string | null {
       </p>
     {/if}
     <div class="row end">
-      {#if tested[provider.id]}
-        <output class="result" data-testid="ai-test-result">{tested[provider.id]}</output>
+      {#if row.tested !== null}
+        <output class="result" data-testid="ai-test-result">{row.tested}</output>
       {/if}
       <button
         type="button"
@@ -323,7 +347,7 @@ function addressProblem(provider: AiProvider): string | null {
 {/each}
 
 <section>
-  <h3>long conversations</h3>
+  <h3>chat · long conversations</h3>
   <label class="row">
     <span>summarise what no longer fits</span>
     <input
@@ -342,7 +366,7 @@ function addressProblem(provider: AiProvider): string | null {
 </section>
 
 <section>
-  <h3>system prompt</h3>
+  <h3>chat · system prompt</h3>
   <textarea
     rows="4"
     maxlength={AI_LIMITS.systemPrompt}
@@ -438,6 +462,12 @@ textarea {
   resize: vertical;
   font-family: var(--font-ui);
   line-height: 1.4;
+}
+
+/* The dots of a key that is held are read as its value, not as a hint. */
+input.held::placeholder {
+  color: var(--text);
+  opacity: 1;
 }
 
 input.path:focus,

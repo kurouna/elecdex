@@ -45,14 +45,6 @@ const { paneId, state: paneState }: WidgetProps = $props()
 
 const choice = $derived(paneAiChat(paneState))
 const providers = $derived(appearance.settings.ai.providers)
-/** The provider in use: the pane's own, while it is still listed, or the first one. */
-const provider = $derived(providers.find((p) => p.id === choice.provider) ?? providers[0] ?? null)
-/** The model in use: the pane's own for its own provider, else the provider's default. */
-const model = $derived(
-  provider === null
-    ? ''
-    : ((provider.id === choice.provider ? choice.model : null) ?? provider.model),
-)
 
 $effect(() => ai.use())
 
@@ -94,8 +86,33 @@ $effect(() => {
 })
 
 const messages = $derived(view.chat?.messages ?? [])
+
+/** Who last answered here. A provider is remembered by name: its id goes when it is removed. */
+const lastAnswer = $derived(
+  messages.findLast((m) => m.role === 'assistant' && m.model !== undefined),
+)
+/**
+ * The provider in use: the pane's own while it is listed; else the one that
+ * answered this conversation, by name (removed and added again, it has a new
+ * id); else the first.
+ */
+const provider = $derived(
+  providers.find((p) => p.id === choice.provider) ??
+    providers.find((p) => p.name === lastAnswer?.provider) ??
+    providers[0] ??
+    null,
+)
+/** The model in use: the pane's own for its own provider, else what answered here, else the provider's default. */
+const model = $derived.by(() => {
+  if (provider === null) return ''
+  const own = provider.id === choice.provider ? choice.model : null
+  if (own != null && own !== '') return own
+  const before = provider.name === lastAnswer?.provider ? lastAnswer.model : undefined
+  return before ?? provider.model
+})
+
 const CUT_WHY =
-  "This model's context window is full, so the messages above this line are no longer sent to it. They stay here and in the export. The window is set per provider in settings › ai chat."
+  "This model's context window is full, so the messages above this line are no longer sent to it. They stay here and in the export. The window is set per provider in settings › ai."
 
 /** Where what the model is sent begins, when the conversation outgrew its window. */
 const sentFrom = $derived(view.chat?.context?.from ?? null)
@@ -342,6 +359,16 @@ const phase = $derived.by(() => {
   return run.thinking === '' ? 'tx' : 'rx · reasoning'
 })
 
+/** Why nothing can be sent, when that is so: a button that is merely dark says nothing. */
+const blocked = $derived(
+  model === '' && (messages.length > 0 || draft.trim() !== '')
+    ? 'no model is chosen - pick one in the bar above'
+    : null,
+)
+
+/** The sweep of a link sending: one of four marks lit, stepping with the shared pulse. */
+const SWEEP = ['▰▱▱▱', '▱▰▱▱', '▱▱▰▱', '▱▱▱▰'] as const
+
 const copied = new CopyFlag()
 $effect(() => () => copied.dispose())
 
@@ -378,6 +405,27 @@ const host = $derived.by(() => {
     </div>
   {:else}
     <div class="bar">
+      <!-- The conversation's own controls first, where a "new" is looked for; then what it talks to. -->
+      <button
+        type="button"
+        class="cmd new"
+        onclick={newChat}
+        disabled={busy || choice.chat === null}
+        title={choice.chat === null ? 'this is a new conversation' : 'start a new conversation'}
+        data-testid="aichat-new"
+      >
+        <span aria-hidden="true">+</span> new
+      </button>
+      <button
+        type="button"
+        class="cmd"
+        aria-expanded={historyOpen}
+        onclick={toggleHistory}
+        title="the conversations kept on this computer"
+        data-testid="aichat-history-toggle"
+      >
+        log
+      </button>
       <select
         value={provider.id}
         onchange={(e) => chooseProvider(e.currentTarget.value)}
@@ -393,6 +441,7 @@ const host = $derived.by(() => {
           value={model}
           {models}
           title={modelsProblem ?? 'the model to ask; the list is read from the provider when you open it'}
+          wanting={blocked !== null}
           onopen={() => void loadModels()}
           onchoose={chooseModel}
           testid="aichat-model"
@@ -404,23 +453,12 @@ const host = $derived.by(() => {
           <span class="tag warn" title={modelsProblem} data-testid="aichat-models-state">no list</span>
         {/if}
       </span>
-      <button type="button" class="cmd" onclick={newChat} disabled={busy} data-testid="aichat-new">new</button>
-      <button
-        type="button"
-        class="cmd"
-        aria-expanded={historyOpen}
-        onclick={toggleHistory}
-        title="the conversations kept on this computer"
-        data-testid="aichat-history-toggle"
-      >
-        log
-      </button>
     </div>
 
     {#if historyOpen}
       <ul class="history" data-testid="aichat-history">
         {#each ai.chats.filter((chat) => chat.messages > 0) as chat, n (chat.id)}
-          <li class:current={chat.id === choice.chat}>
+          <li class="fx-rise" class:current={chat.id === choice.chat} style:--fx-delay={`${Math.min(n, 12) * 22}ms`}>
             <button type="button" class="open" onclick={() => openChat(chat.id)} data-testid="aichat-history-item">
               <span class="index">{String(n + 1).padStart(2, '0')}</span>
               <span class="name">{chat.title === '' ? 'untitled' : chat.title}</span>
@@ -450,7 +488,7 @@ const host = $derived.by(() => {
 
     <div class="messages" bind:this={list} onscroll={scrolled} data-testid="aichat-messages">
       {#if messages.length === 0 && !busy}
-        <div class="standby fx-rise" data-testid="aichat-empty">
+        <div class="standby rising" data-testid="aichat-empty">
           <span class="state"><span class="lamp" class:ready={model !== ''}></span>{model === '' ? 'no model chosen' : 'link standby'}</span>
           <span class="target" title="nothing is sent until you ask · conversations stay on this computer">
             <span class="part"><span class="mark" aria-hidden="true">▌</span>{provider.name}</span>{#if model !== ''}<span class="part">&nbsp;· {model}</span>{/if}
@@ -520,7 +558,11 @@ const host = $derived.by(() => {
             <span class="who">{run.model}</span>
             <span class="rule"></span>
             <span class="meta live" data-testid="aichat-telemetry">
-              <span class="lamp rx" aria-hidden="true"></span>{phase} · T+{elapsed}s · {compactCount(run.text.length + run.thinking.length)} ch
+              {#if run.text === '' && run.thinking === ''}
+                <span class="sweep" aria-hidden="true">{SWEEP[pulse.phase] ?? SWEEP[0]}</span>
+              {:else}
+                <span class="lamp rx" aria-hidden="true"></span>
+              {/if}{phase} · T+{elapsed}s · {compactCount(run.text.length + run.thinking.length)} ch
             </span>
           </header>
           {#if run.thinking !== ''}
@@ -542,6 +584,8 @@ const host = $derived.by(() => {
 
     {#if problem !== null}
       <p class="problem" data-testid="aichat-problem"><span class="code">refused</span><span class="detail">{problem}</span></p>
+    {:else if blocked !== null}
+      <p class="problem" data-testid="aichat-blocked"><span class="code">no model</span><span class="detail">{blocked}</span></p>
     {/if}
 
     <form
@@ -595,6 +639,8 @@ const host = $derived.by(() => {
 
 .bar {
   display: flex;
+  /* Too narrow for all of it, the link drops under the conversation's buttons. */
+  flex-wrap: wrap;
   align-items: stretch;
   gap: var(--space-1);
   /* Clears the settings button in the corner. */
@@ -603,6 +649,7 @@ const host = $derived.by(() => {
 }
 
 select {
+  flex: 0 1 9rem;
   min-width: 0;
   padding: 0 var(--space-1);
   border: 1px solid var(--panel-border);
@@ -610,10 +657,6 @@ select {
   color: var(--text);
   font-family: var(--font-mono);
   font-size: var(--step--2);
-}
-
-select {
-  flex: 0 1 9rem;
 }
 
 .field {
@@ -676,6 +719,35 @@ select:focus {
 .cmd.stop {
   border-color: var(--warn);
   color: var(--warn);
+}
+
+/* The one button here that begins something: lit, where the rest wait to be pointed at. */
+.cmd.new:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+/* The link coming up, a line at a time. Once, like every entrance here (styles/motion.css). */
+.rising > * {
+  animation: fx-rise calc(360ms * var(--motion-scale)) var(--ease-emphasized) backwards;
+}
+
+.rising > :nth-child(2) {
+  animation-delay: calc(70ms * var(--motion-scale));
+}
+
+.rising > :nth-child(3) {
+  animation-delay: calc(140ms * var(--motion-scale));
+}
+
+.rising > :nth-child(4) {
+  animation-delay: calc(210ms * var(--motion-scale));
+}
+
+/* Sending, before anything comes back: it rides the pulse the caret already keeps. */
+.sweep {
+  margin-right: var(--space-1);
+  letter-spacing: 0.05em;
 }
 
 .history {

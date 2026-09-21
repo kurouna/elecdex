@@ -23,7 +23,6 @@ import {
 
 /** A server that has sent nothing for this long is given up on; a local model may take minutes to load. */
 const IDLE_TIMEOUT_MS = 5 * 60_000
-const MODELS_TIMEOUT_MS = 15_000
 /** An error body is read this far, for its message. */
 const ERROR_BODY_BYTES = 8192
 
@@ -115,13 +114,7 @@ async function errorDetail(response: Response): Promise<string | null> {
   try {
     const text = (await response.text()).slice(0, ERROR_BODY_BYTES)
     try {
-      const parsed = JSON.parse(text) as unknown
-      // Google's compatibility layer wraps some of its errors in a list.
-      const body = (Array.isArray(parsed) ? parsed[0] : parsed) as {
-        error?: { message?: unknown } | string
-        message?: unknown
-      } | null
-      if (typeof body !== 'object' || body === null) return null
+      const body = JSON.parse(text) as { error?: { message?: unknown } | string; message?: unknown }
       const said =
         typeof body.error === 'string' ? body.error : (body.error?.message ?? body.message)
       return typeof said === 'string' ? said : null
@@ -291,7 +284,8 @@ export function openaiAdapter(
         method: 'GET',
         headers: headersFor(target.key),
         redirect: 'error',
-        signal: AbortSignal.any([target.signal, AbortSignal.timeout(MODELS_TIMEOUT_MS)]),
+        // Whoever asks says how long the list may take (main: MODELS_TIMEOUT_MS), retries included.
+        signal: target.signal,
       },
       retries.waits(target.baseUrl),
     )

@@ -22,6 +22,8 @@ interface Props {
   title?: string
   /** `bar` for the pane's narrow strip, `form` for the settings' rows. */
   size?: 'bar' | 'form'
+  /** Marked as what is missing: nothing can be sent until a model is named. */
+  wanting?: boolean
   testid: string
 }
 const {
@@ -32,6 +34,7 @@ const {
   placeholder = 'model',
   title,
   size = 'bar',
+  wanting = false,
   testid,
 }: Props = $props()
 
@@ -114,6 +117,7 @@ function keydown(event: KeyboardEvent): void {
     aria-controls={`${testid}-list`}
     aria-autocomplete="list"
     aria-label="model"
+    aria-invalid={wanting}
     value={shown}
     {placeholder}
     {title}
@@ -187,6 +191,10 @@ input {
   font-size: inherit;
   letter-spacing: 0;
   text-transform: none;
+}
+
+input[aria-invalid='true'] {
+  border-color: var(--warn);
 }
 
 input:focus {

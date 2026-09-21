@@ -154,7 +154,8 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   imported lazily). Add a service as a preset in `AI_PRESETS`, not as code.
   - **A key never reaches the page**: it goes to main once (`ai.setKey`), is encrypted with
     `safeStorage` into `ai-keys.json` - never settings.json, which travels - and the page only
-    learns whether one is held. Asking that decrypts nothing (the first decryption is what makes
+    learns whether one is held. The dots of a held key are the field's placeholder, never its
+    value, and "show" only ever shows what is being typed. Asking that decrypts nothing (the first decryption is what makes
     the macOS Keychain entry). A key is not sent over plain http beyond the local network
     (`keyMayTravel`), and requests follow no redirects.
   - The conversation *and the answer being written* are main's (`AiChatService`): a moved pane

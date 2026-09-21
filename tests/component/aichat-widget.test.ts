@@ -426,6 +426,101 @@ describe('AiChatWidget', () => {
     expect(screen.getByTestId('aichat-usage').textContent).toBe('1.2k › 90 tok · 30 t/s')
   })
 
+  it('"new" comes first in the bar, and is dark while the conversation is already a new one', async () => {
+    withProvider()
+    mount()
+    await settle()
+    const fresh = screen.getByTestId('aichat-new') as HTMLButtonElement
+    expect(fresh.disabled).toBe(true)
+    expect(fresh.title).toBe('this is a new conversation')
+    // Ahead of the provider and the model: it belongs to the conversation, not to the link.
+    const bar = fresh.parentElement as HTMLElement
+    expect([...bar.children].indexOf(fresh)).toBe(0)
+    expect(bar.children[1]).toBe(screen.getByTestId('aichat-history-toggle'))
+    cleanup()
+
+    mount({ chat: CHAT_ID })
+    await settle()
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      chat: chat([{ id: 'q', role: 'user', text: 'hi', at: 1 }]),
+      run: null,
+    })
+    const again = screen.getByTestId('aichat-new') as HTMLButtonElement
+    expect(again.disabled).toBe(false)
+    await fireEvent.click(again)
+    expect(setPaneState).toHaveBeenLastCalledWith('p', {})
+  })
+
+  it('a conversation whose provider was removed goes on with the one of the same name, and its model', async () => {
+    withProvider()
+    // Removed and added again: the same name, a new id - and no default model yet.
+    appearance.settings.ai.providers = [
+      { id: 'ollama', name: 'Other', kind: 'openai', baseUrl: 'http://localhost:1/v1', model: '' },
+      {
+        id: 'gemini-2',
+        name: 'Gemini',
+        kind: 'openai',
+        baseUrl: 'https://g.example/v1',
+        model: '',
+      },
+    ]
+    mount({ chat: CHAT_ID, provider: 'gemini', model: 'flash' })
+    await settle()
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      run: null,
+      chat: chat([
+        { id: 'q', role: 'user', text: 'hi', at: 1 },
+        { id: 'a', role: 'assistant', text: 'hello', at: 2, provider: 'Gemini', model: 'flash' },
+      ]),
+    })
+    expect((screen.getByTestId('aichat-provider') as HTMLSelectElement).value).toBe('gemini-2')
+    expect((screen.getByTestId('aichat-model') as HTMLInputElement).value).toBe('flash')
+    expect(screen.queryByTestId('aichat-blocked')).toBeNull()
+
+    await fireEvent.input(screen.getByTestId('aichat-input'), { target: { value: 'and again' } })
+    await fireEvent.keyDown(screen.getByTestId('aichat-input'), { key: 'Enter' })
+    await settle()
+    expect(ai.send).toHaveBeenCalledWith(CHAT_ID, {
+      provider: 'gemini-2',
+      model: 'flash',
+      text: 'and again',
+    })
+  })
+
+  it('says why nothing can be sent, instead of a button that is merely dark', async () => {
+    withProvider()
+    appearance.settings.ai.providers = [
+      { id: 'other', name: 'Other', kind: 'openai', baseUrl: 'http://localhost:1/v1', model: '' },
+    ]
+    const view = mount({ chat: CHAT_ID })
+    await settle()
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      run: null,
+      chat: chat([
+        { id: 'q', role: 'user', text: 'hi', at: 1 },
+        { id: 'a', role: 'assistant', text: 'hello', at: 2, provider: 'Gone', model: 'flash' },
+      ]),
+    })
+    expect((screen.getByTestId('aichat-send') as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByTestId('aichat-blocked').textContent).toContain('no model is chosen')
+    expect(screen.getByTestId('aichat-model').getAttribute('aria-invalid')).toBe('true')
+
+    // Naming a model is all it takes to go on - with another provider than the one that is gone.
+    await view.rerender({
+      paneId: 'p',
+      state: { chat: CHAT_ID, provider: 'other', model: 'big' },
+    } as never)
+    await settle()
+    expect(screen.queryByTestId('aichat-blocked')).toBeNull()
+    expect(screen.getByTestId('aichat-model').getAttribute('aria-invalid')).toBe('false')
+  })
+
   it('draws a line where what the model is sent begins, and none while all of it goes', async () => {
     withProvider()
     mount({ chat: CHAT_ID })

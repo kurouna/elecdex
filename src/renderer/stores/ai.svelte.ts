@@ -10,7 +10,6 @@ import type { AiKeyStorage, AiProviderStatus, ChatSummary } from '@shared/ai'
 class AiStore {
   chats = $state<ChatSummary[]>([])
   keys = $state<Record<string, AiKeyStorage>>({})
-  ready = $state(false)
 
   private users = 0
   private stop: (() => void) | null = null
@@ -44,7 +43,6 @@ class AiStore {
     void api.providers().then(status)
     void api.chats().then((list) => {
       this.chats = list
-      this.ready = true
     })
   }
 }

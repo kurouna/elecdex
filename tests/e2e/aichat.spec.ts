@@ -189,6 +189,10 @@ test('a provider is added in the settings; its key goes to main and never comes 
   const { page, userData, close } = await launch(undefined, { layout: single() })
   try {
     await pane(page).getByTestId('aichat-open-settings').click()
+    // Not "ai chat": the providers are there for whatever asks a model, not for one pane.
+    await expect(page.locator('[data-testid=settings-section][data-section=ai]')).toHaveText(
+      /^ai$/i,
+    )
     await page.getByTestId('ai-preset').selectOption('custom')
     await page.getByTestId('ai-add').click()
     const provider = page.locator('[data-testid=ai-provider][data-provider=custom]')
@@ -196,17 +200,33 @@ test('a provider is added in the settings; its key goes to main and never comes 
     await provider.getByTestId('ai-address').press('Tab')
 
     // What main will not keep is said, not swallowed: it would look saved and fail at "test".
-    await provider.getByTestId('ai-key').fill('x'.repeat(600))
-    await provider.getByTestId('ai-key-save').click()
+    const key = provider.getByTestId('ai-key')
+    const reveal = provider.getByTestId('ai-key-reveal')
+    await key.fill('x'.repeat(600))
+    await key.press('Enter')
     await expect(provider.getByTestId('ai-key-refused')).toContainText('not kept')
     await expect(provider.getByTestId('ai-key-state')).toHaveCount(0)
 
-    await provider.getByTestId('ai-key').fill('sk-e2e-secret')
-    await provider.getByTestId('ai-key-save').click()
+    // What is typed is dots until asked for: a paste that went in three times over looked like
+    // any other, was kept, and was refused by the service with words about something else.
+    await expect(reveal).toBeDisabled()
+    await key.fill('sk-e2e-secret')
+    await expect(key).toHaveAttribute('type', 'password')
+    await reveal.click()
+    await expect(key).toHaveAttribute('type', 'text')
+    await expect(key).toBeFocused()
+    await expect(reveal).toHaveText('hide')
+
+    // Kept on Enter (or on leaving), like every other field here.
+    await key.press('Enter')
     await expect(provider.getByTestId('ai-key-refused')).toHaveCount(0)
     await expect(provider.getByTestId('ai-key-state')).toContainText('key held')
-    // The field is emptied the moment the key is handed over.
-    await expect(provider.getByTestId('ai-key')).toHaveValue('')
+    // The field is emptied the moment the key is handed over, and hidden again. A key that is
+    // held reads as one - dots - which are not its value: there is nothing to show or to copy.
+    await expect(key).toHaveValue('')
+    await expect(key).toHaveAttribute('type', 'password')
+    await expect(key).toHaveAttribute('placeholder', /^•+$/)
+    await expect(reveal).toBeDisabled()
 
     await provider.getByTestId('ai-test').click()
     await expect(provider.getByTestId('ai-test-result')).toHaveText('ok · 2 models')

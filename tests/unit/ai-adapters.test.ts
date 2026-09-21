@@ -395,19 +395,6 @@ describe('the OpenAI dialect', () => {
       expect(seen).toHaveLength(1)
     })
   })
-
-  it("reads an error Google's compatibility layer wraps in a list", async () => {
-    reply = (_req, res) => {
-      res.writeHead(400, { 'content-type': 'application/json' })
-      res.end(JSON.stringify([{ error: { code: 400, message: 'API key not valid.' } }]))
-    }
-    const failure = await openaiAdapter(nodeFetch)
-      .models({ baseUrl: `${origin}/v1`, key: 'sk-test', signal: signal() })
-      .catch((error: unknown) => error)
-    expect(describeFailure(failure, origin)).toBe(
-      'the request was not accepted (400): API key not valid.',
-    )
-  })
 })
 
 describe('the Anthropic dialect', () => {
