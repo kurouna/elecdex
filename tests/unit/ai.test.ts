@@ -4,6 +4,7 @@ import {
   ago,
   aiBaseUrl,
   applyChatEvent,
+  CHAT_STOPS,
   type Chat,
   type ChatRun,
   type ChatView,
@@ -12,9 +13,11 @@ import {
   chatTitle,
   compactCount,
   EMPTY_VIEW,
+  FAILED_STOPS,
   freshProviderId,
   keyMayTravel,
   paneAiChat,
+  STOP_CODES,
   ThinkSplitter,
   tokensPerSecond,
 } from '@shared/ai'
@@ -297,5 +300,23 @@ describe('titles and export', () => {
       ],
     }
     expect(chatMarkdown(chat)).toBe('# Lists\n\n## You\n\nHow?\n\n## llama3\n\nLike so.\n')
+  })
+})
+
+describe('how an answer that did not simply finish is marked', () => {
+  it('words every stop once, for the chat pane, the ELEC pane and its console alike', () => {
+    expect(Object.keys(STOP_CODES).sort()).toEqual([...CHAT_STOPS].sort())
+    expect(STOP_CODES).toEqual({
+      stopped: 'stopped',
+      length: 'truncated',
+      refusal: 'declined',
+      error: 'link error',
+      unreachable: 'no carrier',
+    })
+  })
+
+  it('counts as failed only what went wrong on the link or with the model, not a stop or a cut', () => {
+    expect([...FAILED_STOPS].sort()).toEqual(['error', 'refusal', 'unreachable'])
+    expect(FAILED_STOPS.has(undefined)).toBe(false)
   })
 })

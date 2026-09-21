@@ -1,3 +1,4 @@
+import { STOP_CODES } from '@shared/ai'
 import {
   type Ballot,
   countsAsVote,
@@ -33,14 +34,6 @@ export interface StandbySeat {
 
 const VERDICT_TONES: Record<string, LogTone> = { approve: 'ok', reject: 'danger', abstain: 'info' }
 
-const WHY: Record<string, string> = {
-  stopped: 'STOPPED',
-  length: 'TRUNCATED',
-  refusal: 'DECLINED',
-  error: 'LINK ERROR',
-  unreachable: 'NO CARRIER',
-}
-
 function ballotLines(ballot: Ballot): LogLine[] {
   const who = unitLabel(ballot.unit)
   const lines: LogLine[] = []
@@ -54,7 +47,7 @@ function ballotLines(ballot: Ballot): LogLine[] {
       tone: VERDICT_TONES[ballot.verdict] ?? 'accent',
     })
   } else {
-    const why = ballot.stop === undefined ? 'NO VERDICT' : (WHY[ballot.stop] ?? 'VOID')
+    const why = ballot.stop === undefined ? 'NO VERDICT' : STOP_CODES[ballot.stop].toUpperCase()
     lines.push({ at: ballot.at, text: `${who} · ${why}`, tone: 'warn' })
   }
   return lines

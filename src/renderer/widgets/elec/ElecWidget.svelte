@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ago, type ChatStop, compactCount } from '@shared/ai'
+import { ago, compactCount, FAILED_STOPS, STOP_CODES } from '@shared/ai'
 import {
   applyElecEvent,
   type Ballot,
@@ -149,23 +149,13 @@ $effect(() => {
   if (busy) return pulse.use()
 })
 
-/** The ways a ballot ends that are the link's, worded as the chat pane words them. */
-const STOP_CODES: Record<ChatStop, string> = {
-  stopped: 'stopped',
-  length: 'truncated',
-  refusal: 'declined',
-  error: 'link error',
-  unreachable: 'no carrier',
-}
-
 const ballotOf = (unit: UnitIndex, r: number): Ballot | undefined =>
   session?.ballots.find((b) => b.unit === unit && b.round === r)
 const runOf = (unit: UnitIndex): ElecRun | undefined => live?.runs.find((r) => r.unit === unit)
 
 /** What a ballot that does not count says instead of a verdict. */
 function voidCode(ballot: Ballot): string {
-  if (ballot.stop !== undefined && ballot.stop !== 'length') return STOP_CODES[ballot.stop]
-  return ballot.stop === 'length' ? 'truncated' : 'no verdict'
+  return ballot.stop === undefined ? 'no verdict' : STOP_CODES[ballot.stop]
 }
 
 function runCode(run: ElecRun): string {
@@ -439,8 +429,6 @@ function telemetry(ballot: Ballot): string | null {
   if (ballot.ms !== undefined && ballot.text !== '') parts.push(seconds(ballot.ms))
   return parts.length === 0 ? null : parts.join(' · ')
 }
-
-const FAILED = new Set<ChatStop | undefined>(['error', 'unreachable', 'refusal'])
 </script>
 
 <div
@@ -671,7 +659,7 @@ const FAILED = new Set<ChatStop | undefined>(['error', 'unreachable', 'refusal']
                   <Markdown source={readVote(ballot.text).statement} />
                 {/if}
                 {#if ballot.stop !== undefined || !countsAsVote(ballot)}
-                  <p class="stop" class:failed={FAILED.has(ballot.stop) || ballot.verdict === null} data-testid="elec-ballot-stop">
+                  <p class="stop" class:failed={FAILED_STOPS.has(ballot.stop) || ballot.verdict === null} data-testid="elec-ballot-stop">
                     <span class="code">{voidCode(ballot)}</span>{#if ballot.error}<span class="detail">{ballot.error}</span>{:else if ballot.verdict === null && ballot.stop === undefined}<span class="detail">no VERDICT line could be read - the vote does not count</span>{/if}
                   </p>
                 {/if}

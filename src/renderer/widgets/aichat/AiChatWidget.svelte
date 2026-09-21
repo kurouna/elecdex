@@ -8,7 +8,9 @@ import {
   type ChatView,
   compactCount,
   EMPTY_VIEW,
+  FAILED_STOPS,
   paneAiChat,
+  STOP_CODES,
   tokensPerSecond,
 } from '@shared/ai'
 import { tick } from 'svelte'
@@ -146,17 +148,11 @@ $effect(() => {
   if (busy) return pulse.use()
 })
 
-/**
- * The ways an answer can end that are a failure: one set, for the colour of its
- * mark and for the sound it ends with. Stopping it yourself is not one of them.
- */
-const FAILED = new Set<ChatMessage['stop']>(['error', 'unreachable', 'refusal'])
-
 /** An answer that ends while this pane watches is heard: landed, or lost. */
 let wasBusy = false
 $effect(() => {
   const now = busy
-  if (wasBusy && !now) sfx.play(FAILED.has(messages.at(-1)?.stop) ? 'glitch' : 'granted')
+  if (wasBusy && !now) sfx.play(FAILED_STOPS.has(messages.at(-1)?.stop) ? 'glitch' : 'granted')
   wasBusy = now
 })
 
@@ -339,18 +335,6 @@ function chooseModel(value: string): void {
 
 const time = (at: number): string => new Date(at).toTimeString().slice(0, 5)
 
-/**
- * How an answer that did not simply finish is marked: a short code, as a link
- * reports its state, with the provider's own words after it - the code is for
- * the eye, the words are what the fault is fixed with.
- */
-const STOP_CODES: Record<NonNullable<ChatMessage['stop']>, string> = {
-  stopped: 'stopped',
-  length: 'truncated',
-  refusal: 'declined',
-  error: 'link error',
-  unreachable: 'no carrier',
-}
 /** What the link is doing while an answer comes: sent and waiting, or receiving. */
 const phase = $derived.by(() => {
   if (run === null) return ''
@@ -546,7 +530,7 @@ const host = $derived.by(() => {
             <Markdown source={message.text} />
           {/if}
           {#if message.stop}
-            <p class="stop" class:failed={FAILED.has(message.stop)} data-testid="aichat-stop">
+            <p class="stop" class:failed={FAILED_STOPS.has(message.stop)} data-testid="aichat-stop">
               <span class="code">{STOP_CODES[message.stop]}</span>{#if message.error}<span class="detail">{message.error}</span>{/if}
             </p>
           {/if}

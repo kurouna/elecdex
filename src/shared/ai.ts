@@ -394,6 +394,29 @@ export const CHAT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 export const CHAT_STOPS = ['stopped', 'length', 'refusal', 'error', 'unreachable'] as const
 export type ChatStop = (typeof CHAT_STOPS)[number]
 
+/**
+ * How an answer that did not simply finish is marked: a short code, as a link reports its
+ * state, with the provider's own words after it - the code is for the eye, the words are
+ * what the fault is fixed with. The chat pane, the ELEC pane and its console all say these.
+ */
+export const STOP_CODES: Readonly<Record<ChatStop, string>> = {
+  stopped: 'stopped',
+  length: 'truncated',
+  refusal: 'declined',
+  error: 'link error',
+  unreachable: 'no carrier',
+}
+
+/**
+ * The ways an answer can end that are a failure: one set, for the colour of its mark and
+ * for the sound it ends with. Stopping it yourself, or being cut at the length, is not one.
+ */
+export const FAILED_STOPS: ReadonlySet<ChatStop | undefined> = new Set<ChatStop | undefined>([
+  'error',
+  'unreachable',
+  'refusal',
+])
+
 export const ChatMessageSchema = z.object({
   id: z.string().min(1).max(64),
   role: z.enum(['user', 'assistant']),
