@@ -72,9 +72,9 @@ const PLATES: Record<UnitIndex, { points: string; box: [number, number, number, 
   <div class="board">
     <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <polygon class="ring" points="50,18 22,78 78,78" vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="50" y1="33" x2="50" y2="46" vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="42" y1="66" x2="50" y2="46" vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="58" y1="66" x2="50" y2="46" vector-effect="non-scaling-stroke" />
+      <line class="spoke" x1="50" y1="33" x2="50" y2="45.5" vector-effect="non-scaling-stroke" />
+      <line class="spoke" x1="39" y1="62" x2="50" y2="45.5" vector-effect="non-scaling-stroke" />
+      <line class="spoke" x1="61" y1="62" x2="50" y2="45.5" vector-effect="non-scaling-stroke" />
       {#each units as view (view.unit)}
         <polygon
           class="plate"
@@ -291,11 +291,16 @@ const PLATES: Record<UnitIndex, { points: string; box: [number, number, number, 
   stroke-dasharray: 4 3;
 }
 
-/* The core: a hexagon where the spokes meet, and what the council is doing under it. */
+/*
+ * The core: a hexagon where the spokes meet, and what the council is doing under it. Its centre
+ * is half-way between the top plate's lower edge (33) and the lower plates' upper edges (58) -
+ * the middle of the gap between the plates, not of the board, nor the centroid of the ring
+ * (58), which sat it down among the lower plates.
+ */
 .core {
   position: absolute;
   left: 50%;
-  top: 46%;
+  top: 45.5%;
   display: flex;
   flex-direction: column;
   align-items: center;

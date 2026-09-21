@@ -850,9 +850,10 @@ select:focus {
   --tone: var(--text-muted);
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 2.2rem;
-  padding: 0 var(--space-1);
+  gap: var(--space-3);
+  /* The decision is what the pane is for: a band of its own, not a status line. */
+  min-height: 3.6rem;
+  padding: var(--space-1);
   border-block: 1px solid var(--panel-rule);
   font-family: var(--font-mono);
   font-size: var(--step--2);
@@ -886,6 +887,9 @@ select:focus {
 
 .label {
   flex: none;
+  font-family: var(--font-display);
+  font-size: var(--step-0);
+  letter-spacing: var(--tracking-wider);
 }
 
 .rule {
@@ -910,25 +914,41 @@ select:focus {
 .pending {
   display: inline-flex;
   gap: var(--space-2);
+  font-size: var(--step-0);
   letter-spacing: var(--tracking-wider);
 }
 
 /* The verdict, struck in the display face between two rules of its colour. */
 .verdict {
-  padding: 0.05rem 0.8rem;
+  padding: 0.1rem 1.6rem;
   border: 1px solid var(--tone);
-  background: color-mix(in srgb, var(--tone) 16%, transparent);
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
   font-family: var(--font-display);
-  font-size: var(--step-1);
-  letter-spacing: var(--tracking-wider);
+  font-size: var(--step-3);
+  line-height: 1.2;
+  letter-spacing: 0.3em;
   color: var(--tone);
-  clip-path: polygon(0.5rem 0, 100% 0, 100% calc(100% - 0.5rem), calc(100% - 0.5rem) 100%, 0 100%, 0 0.5rem);
+  text-shadow: 0 0 calc(var(--glow) * 0.6rem) var(--tone);
+  clip-path: polygon(0.8rem 0, 100% 0, 100% calc(100% - 0.8rem), calc(100% - 0.8rem) 100%, 0 100%, 0 0.8rem);
+}
+
+/* A narrow pane keeps the verdict on one line: QUORUM NOT MET is the longest it says. */
+@container (max-width: 34rem) {
+  .verdict {
+    padding: 0.1rem 0.8rem;
+    font-size: var(--step-1);
+    letter-spacing: var(--tracking-wider);
+  }
+
+  .resolution .label {
+    display: none;
+  }
 }
 
 .tally {
   display: inline-flex;
-  gap: 0.3rem;
-  font-size: var(--step--1);
+  gap: 0.4rem;
+  font-size: var(--step-1);
   color: var(--text-muted);
 }
 
