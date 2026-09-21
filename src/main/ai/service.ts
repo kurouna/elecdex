@@ -126,8 +126,8 @@ export class AiChatService {
   private readonly running = new Map<string, Running>()
   /** Real tokens to estimated ones, as last measured, by provider and model. Not kept across runs. */
   private readonly ratios = new Map<string, number>()
-  /** By conversation: the cut a summary was last asked for, and how many times (`COMPACT_TRIES`). */
-  private readonly asked = new Map<string, { from: string; tries: number }>()
+  /** By conversation: the cut a summary last came to nothing at, and how many times (`COMPACT_TRIES`). */
+  private readonly failed = new Map<string, { from: string; tries: number }>()
 
   constructor(deps: AiDeps) {
     this.deps = deps
@@ -166,7 +166,7 @@ export class AiChatService {
       running.abort.abort()
     }
     if (!this.deps.store.remove(chatId)) return false
-    this.asked.delete(chatId)
+    this.failed.delete(chatId)
     this.deps.publish({ type: 'snapshot', chatId, chat: null, run: null })
     this.deps.listChanged(this.list())
     return true
@@ -328,7 +328,7 @@ export class AiChatService {
     const covered = kept === undefined ? -1 : messages.findIndex((m) => m.id === kept.before)
     const summary = covered > 0 && covered <= cut.from ? kept : undefined
     const unspoken = summary === undefined || covered < cut.from
-    const asks = compacts && this.asksSummary(chatId, from, unspoken)
+    const asks = compacts && unspoken && this.mayAskSummary(chatId, from)
     return {
       typed,
       system: summary === undefined ? typed : withSummary(typed, summary.text),
@@ -349,17 +349,14 @@ export class AiChatService {
   }
 
   /**
-   * Whether a summary is asked for with this question, counting the asking: while something
-   * behind the cut has none - a new cut, one whose summary failed, or summaries turned on since -
-   * but only so many times a cut.
+   * Whether a summary may still be asked for at this cut. What counts against it is a summary
+   * that came to nothing (`compact`) - not a question that was never sent, and not the user
+   * stopping the wait.
    */
-  private asksSummary(chatId: string, from: string | undefined, unspoken: boolean): boolean {
-    if (from === undefined || !unspoken) return false
-    const before = this.asked.get(chatId)
-    const tries = before?.from === from ? before.tries : 0
-    if (tries >= COMPACT_TRIES) return false
-    this.asked.set(chatId, { from, tries: tries + 1 })
-    return true
+  private mayAskSummary(chatId: string, from: string | undefined): boolean {
+    if (from === undefined) return false
+    const before = this.failed.get(chatId)
+    return before?.from !== from || before.tries < COMPACT_TRIES
   }
 
   private measured(outgoing: Outgoing, usage: StreamResult['usage']): void {
@@ -407,8 +404,12 @@ export class AiChatService {
     // Stopped, or deleted, while it was written: there is no question to go on to.
     if (running.finished) return
     const summary = clipToTokens(text.trim().slice(0, AI_LIMITS.summary), outgoing.room)
-    if (summary !== '' && running.chat.context !== undefined) {
-      this.asked.delete(running.chat.id)
+    if (summary === '') {
+      const before = this.failed.get(running.chat.id)
+      const tries = before?.from === outgoing.from ? before.tries : 0
+      this.failed.set(running.chat.id, { from: outgoing.from, tries: tries + 1 })
+    } else if (running.chat.context !== undefined) {
+      this.failed.delete(running.chat.id)
       outgoing.summary = { text: summary, before: outgoing.from }
       outgoing.system = withSummary(outgoing.typed, summary)
       running.chat = {

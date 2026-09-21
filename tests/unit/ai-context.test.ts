@@ -588,6 +588,12 @@ describe('summaries, when they are on', () => {
     const chat = h.store.get(chatId)
     expect(chat?.messages.at(-1)).toMatchObject({ role: 'assistant', text: '', stop: 'stopped' })
     expect(chat?.context?.summary).toBeUndefined()
+
+    // Stopping the wait is not the summary failing: both tries at this cut are still to come.
+    const again = { text: null }
+    expect((await turn(h, chatId, 4, new Error('HTTP 500'), again)).calls).toBe(2)
+    expect((await turn(h, chatId, 4, new Error('HTTP 500'), again)).calls).toBe(2)
+    expect((await turn(h, chatId, 4, 'unused', again)).calls).toBe(1)
   })
 
   it('a conversation deleted while it is summarised stays deleted', async () => {
