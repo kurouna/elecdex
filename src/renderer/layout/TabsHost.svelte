@@ -2,7 +2,8 @@
 import type { TabsNode } from '@shared/schemas/layout'
 import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
-import { resolveWidget } from '../widgets/registry.ts'
+import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
+import PaneCorner from './PaneCorner.svelte'
 import PaneHost from './PaneHost.svelte'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
@@ -28,14 +29,26 @@ const leaving = $derived(
   layout.leaving.size > 0 && node.children.every((child) => layout.leaving.has(child.id)),
 )
 /**
+ * The whole group powering off, from its corner's ×: every tab goes with it, as
+ * one picture, where a tab's own × takes just that tab (layout.close takes either).
+ */
+const closing = $derived(layout.closingId === node.id)
+/**
  * A tab brought to the front brings its group with it: the strip and the header
  * come too, so the other tabs are still there to switch to, and the group is one
  * picture rather than a pane floating out of its own frame.
  */
 const pinned = $derived(activeChild !== undefined && layout.pinnedPaneId === activeChild.id)
+const zoomed = $derived(activeChild !== undefined && layout.zoomedPaneId === activeChild.id)
+/**
+ * The corner offers the zoom for the tab that is showing, since the group comes
+ * forward as a whole: a tab whose widget has nothing to gain from the room is
+ * offered nothing while it is the one on screen.
+ */
+const zoomable = $derived(activeChild !== undefined && zoomModeOf(activeChild.widget) !== null)
 const groupStyle = $derived(
   [
-    leaving ? `--crt-duration: ${CRT_CLOSE_MS}ms` : null,
+    leaving || closing ? `--crt-duration: ${CRT_CLOSE_MS}ms` : null,
     extend === undefined ? null : insetStyle(extend),
     pinned ? layout.zoomStyle : null,
   ]
@@ -54,18 +67,29 @@ const activeTitle = $derived(
 <section
   class="tabs-host"
   class:focused
-  class:crt-off={leaving}
-  class:crt-beam={leaving}
+  class:crt-off={leaving || closing}
+  class:crt-beam={leaving || closing}
   class:crt-extend={extend !== undefined}
   class:zoomed={pinned}
   class:crt-zoom={pinned && layout.zoomPhase === 'in'}
   class:crt-zoom-out={pinned && layout.zoomPhase === 'out'}
   style={groupStyle}
-  inert={leaving}
+  inert={leaving || closing}
   data-testid="tabs-host"
   data-node-id={node.id}
   data-drop-node={node.id}
 >
+  <!-- The same corner every pane has: ⤢ brings the group forward, × closes all of it. -->
+  <PaneCorner
+    title={activeTitle}
+    kind="group"
+    {zoomable}
+    {zoomed}
+    onzoom={() => {
+      if (activeChild) layout.toggleZoom(activeChild.id)
+    }}
+    onclose={() => layout.close(node.id)}
+  />
   <!-- The group's header moves the whole group; a tab moves just that tab. -->
   <header
     class="hud-label drag-handle"
@@ -94,6 +118,7 @@ const activeTitle = $derived(
 }
 
 .tabs-host {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);

@@ -565,12 +565,14 @@ test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves bet
   try {
     const left = p.locator('[data-testid=pane][data-pane-id=left]')
     const right = p.locator('[data-testid=pane][data-pane-id=right]')
-    // A shell on its own has a tab strip with its one tab and a +, and closes from the tab.
+    // A shell on its own has a tab strip with its one tab and a +, closes from the
+    // tab as well as from the corner every pane has, and comes forward from there.
     for (const shell of [left, right]) {
       await expect(shell.getByTestId('tab')).toHaveCount(1)
       await expect(shell.getByTestId('tab-new')).toHaveCount(1)
       await expect(shell.getByTestId('tab-close')).toHaveCount(1)
-      await expect(shell.getByTestId('pane-close')).toHaveCount(0)
+      await expect(shell.getByTestId('pane-close')).toHaveCount(1)
+      await expect(shell.getByTestId('pane-zoom')).toHaveCount(1)
     }
 
     // Both shells grow tabs of their own: one group each.

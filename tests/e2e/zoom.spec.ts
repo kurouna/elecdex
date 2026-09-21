@@ -152,7 +152,9 @@ test('a shell brought forward and put back keeps its history', async () => {
     await typeInto(page, shell, `echo ${marker}`)
     await page.waitForTimeout(1500)
 
-    await shell.getByTestId('tab-zoom').click()
+    // A shell on its own has the same corner as a module pane, shown on hover.
+    await shell.hover()
+    await shell.getByTestId('pane-zoom').click()
     await expect(page.getByTestId('zoom-backdrop')).toBeVisible()
     await zoomSettled(page)
     await page.waitForTimeout(800) // the shell is told its new size once, and repaints
@@ -199,7 +201,10 @@ test('a tab group comes forward with its strip, and another tab keeps it forward
   const { page, close } = await launch()
   try {
     const group = page.getByTestId('tabs-host').first()
-    await group.getByTestId('tab-zoom').click()
+    // The group's corner, where every pane has its ⤢: not in its tab strip.
+    await expect(group.getByTestId('tab-zoom')).toHaveCount(0)
+    await group.hover()
+    await group.getByTestId('group-zoom').click()
     await expect(page.getByTestId('zoom-backdrop')).toBeVisible()
     await zoomSettled(page)
 
@@ -343,7 +348,7 @@ test('a widget with little to show comes forward as a panel, not as the whole wo
   }
 })
 
-test('a tab strip offers the zoom only for a tab that can take it', async () => {
+test('a tab group offers the zoom only while the tab it shows can take it', async () => {
   const layout = {
     version: 1,
     root: {
@@ -358,15 +363,18 @@ test('a tab strip offers the zoom only for a tab that can take it', async () => 
   }
   const { page, close } = await launch(undefined, { layout })
   try {
-    const strip = page.getByTestId('tabs-host')
-    await expect(strip.getByTestId('tab-zoom')).toHaveCount(1)
+    const group = page.getByTestId('tabs-host')
+    await expect(group.getByTestId('group-zoom')).toHaveCount(1)
+    // The × is always there: it closes the whole group.
+    await expect(group.getByTestId('group-close')).toHaveCount(1)
 
     // The second tab has nothing to gain from the whole workspace, so the group
     // offers nothing while it is the one showing.
-    await strip.getByTestId('tab').nth(1).click()
-    await expect(strip.getByTestId('tab-zoom')).toHaveCount(0)
-    await strip.getByTestId('tab').nth(0).click()
-    await expect(strip.getByTestId('tab-zoom')).toHaveCount(1)
+    await group.getByTestId('tab').nth(1).click()
+    await expect(group.getByTestId('group-zoom')).toHaveCount(0)
+    await expect(group.getByTestId('group-close')).toHaveCount(1)
+    await group.getByTestId('tab').nth(0).click()
+    await expect(group.getByTestId('group-zoom')).toHaveCount(1)
   } finally {
     await close()
   }

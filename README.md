@@ -276,7 +276,8 @@ shell tab drags out on its own, and a tab group's header moves the whole group. 
 moved shell keeps its session.
 
 A pane you want a better look at can be brought forward: **Ctrl+Shift+Z**, the ⤢ button beside its
-× (or in a shell's tab strip), and it covers most of the window over the other panes, which keep
+× in the top-right corner (a tab group has the same corner, whose × closes every tab in it; a tab's
+own × closes just that tab), and it covers most of the window over the other panes, which keep
 their place behind a shade. Panes that gain nothing from the room are left out of it: the system
 strip and the network status have no ⤢ at all, and the calculator, timer, mixer, disk and process
 list come forward as a panel in the middle rather than over the whole window. Escape, the shortcut again, the button or a click on the shade puts it

@@ -565,6 +565,51 @@ test('a tab behind another closes at once, the shown one powers off', async () =
   }
 })
 
+test('a tab group closed from its corner powers off as one, and every tab goes with it', async () => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [0.5, 0.5],
+      children: [
+        paneNode('c', 'clock'),
+        {
+          kind: 'tabs',
+          id: 'g',
+          activeIndex: 0,
+          children: [paneNode('front', 'calendar'), paneNode('back', 'sysinfo')],
+        },
+      ],
+    },
+  }
+  const { page, close } = await launch(undefined, { layout })
+  try {
+    const group = page.getByTestId('tabs-host')
+    await expect(group).toHaveCount(1)
+    await recordEffects(page)
+    await group.hover()
+    await group.getByTestId('group-close').click()
+    // The whole group, header and strip included, is one picture going dark.
+    await expect(group).toHaveClass(/crt-off/)
+    await expect(group).toHaveClass(/crt-beam/)
+    await expect(group).toHaveAttribute('inert', '')
+    await expect(group).toHaveCSS('animation-name', 'crt-power-off')
+    // Focus has already moved on.
+    await expect(byId(page, 'c')).toHaveClass(/focused/)
+
+    await expect(group).toHaveCount(0)
+    await expect(byId(page, 'front')).toHaveCount(0)
+    await expect(byId(page, 'back')).toHaveCount(0)
+    // The clock takes the room, uncovered from where it ended.
+    await expect(page.locator('.crt-off, .crt-extend')).toHaveCount(0)
+    expect(await effectsSeen(page)).toEqual(['c:crt-extend'])
+  } finally {
+    await close()
+  }
+})
+
 /** Unscaled: `none` once a power-on has ended, the identity matrix after a cancelled power-off. */
 const WHOLE = /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/
 

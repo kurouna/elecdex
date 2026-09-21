@@ -9,6 +9,7 @@ import { layout } from '../stores/layout.svelte.ts'
 import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
+import PaneCorner from './PaneCorner.svelte'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
@@ -176,36 +177,16 @@ $effect(() => () => paneMeta.clear(node.id))
     if (e.target === e.currentTarget && e.animationName === 'crt-power-on') poweringOn = false
   }}
 >
-  {#if chrome === 'module'}
-    {#if zoomable}
-      <!-- A shell is brought forward from its tab strip, where its close is too. -->
-      <button
-        type="button"
-        class="pane-zoom"
-        aria-pressed={zoomed}
-        aria-label={`${zoomed ? 'put back' : 'bring forward'} ${title}`}
-        title={zoomed
-          ? 'Put the pane back (Ctrl+Shift+Z)'
-          : 'Bring the pane forward (Ctrl+Shift+Z)'}
-        onclick={(e) => {
-          e.stopPropagation()
-          layout.toggleZoom(node.id)
-        }}
-        data-testid="pane-zoom">{zoomed ? '⤡' : '⤢'}</button
-      >
-    {/if}
-    <!-- A shell closes from its tab, as a tab does; every other pane from here. -->
-    <button
-      type="button"
-      class="pane-close"
-      aria-label={`close ${title}`}
-      title="Close pane (Ctrl+Shift+W)"
-      onclick={(e) => {
-        e.stopPropagation()
-        layout.close(node.id)
-      }}
-      data-testid="pane-close"
-    >×</button>
+  {#if chrome !== 'bare'}
+    <!-- A tabbed pane's corner is its group's (TabsHost); every other pane has its own. -->
+    <PaneCorner
+      {title}
+      kind="pane"
+      {zoomable}
+      {zoomed}
+      onzoom={() => layout.toggleZoom(node.id)}
+      onclose={() => layout.close(node.id)}
+    />
   {/if}
   {#if chrome === 'shell'}
     <header class="hud-label drag-handle" {@attach dragHandle(node.id, () => title)}>
@@ -245,54 +226,6 @@ $effect(() => () => paneMeta.clear(node.id))
   min-width: 0;
   min-height: 0;
   height: 100%;
-}
-
-.pane-close,
-.pane-zoom {
-  position: absolute;
-  top: calc(var(--tick-size) * 0.2);
-  right: 0;
-  z-index: 5;
-  width: 1.1rem;
-  height: 1.1rem;
-  padding: 0;
-  border: 1px solid var(--panel-border);
-  background: var(--app-bg);
-  color: var(--text-muted);
-  font: inherit;
-  font-size: var(--step--1);
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-
-/* Beside the close, inside it: the pane is brought forward more often than closed. */
-.pane-zoom {
-  right: 1.3rem;
-}
-
-/* Out of the way until wanted: on hover, or when the pane has keyboard focus. */
-.pane:hover > .pane-close,
-.pane:focus-within > .pane-close,
-.pane-close:focus-visible,
-.pane:hover > .pane-zoom,
-.pane:focus-within > .pane-zoom,
-.pane-zoom:focus-visible,
-.pane-zoom[aria-pressed='true'] {
-  opacity: 1;
-}
-
-.pane-close:hover {
-  color: var(--text-inverse);
-  background: var(--danger);
-  border-color: var(--danger);
-}
-
-.pane-zoom:hover,
-.pane-zoom[aria-pressed='true'] {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 /*

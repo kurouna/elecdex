@@ -114,6 +114,43 @@ describe('closing a pane', () => {
     expect(layout.extending.get(d.id)).toEqual({ top: 300, right: 0, bottom: 300, left: 0 })
   })
 
+  it('closes a whole group by its id: it powers off as one, then every tab goes', () => {
+    const group = tabs([b, c], 0)
+    load(split('row', [a, group]), b.id)
+    layout.close(group.id)
+    expect(layout.closingId).toBe(group.id)
+    expect(ids()).toEqual([a.id, b.id, c.id])
+    expect(layout.focusedPaneId).toBe(a.id)
+    expect(sfx.play).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(CLOSE_SETTLE_MS)
+    expect(layout.closingId).toBeNull()
+    expect(ids()).toEqual([a.id])
+    // a was the left half and is now everything: its clip starts at its old right.
+    expect(layout.extending.get(a.id)).toEqual({ top: 0, right: 600, bottom: 0, left: 0 })
+  })
+
+  it('a group closed to nothing gives way to the fallback pane', () => {
+    const group = tabs([a, b], 1)
+    load(group, b.id)
+    layout.close(group.id)
+    vi.advanceTimersByTime(CLOSE_SETTLE_MS)
+    expect(ids()).toHaveLength(1)
+    expect(ids()).not.toContain(a.id)
+    expect(ids()).not.toContain(b.id)
+    expect(layout.extending.size).toBe(0)
+  })
+
+  it('a group closes at once when motion is reduced', () => {
+    animates = false
+    const group = tabs([b, c], 0)
+    load(split('row', [a, group]), c.id)
+    layout.close(group.id)
+    expect(layout.closingId).toBeNull()
+    expect(ids()).toEqual([a.id])
+    expect(layout.focusedPaneId).toBe(a.id)
+  })
+
   it('closes at once when motion is reduced or during the boot', () => {
     animates = false
     load(split('row', [a, b]), a.id)

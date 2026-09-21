@@ -2,7 +2,7 @@
 import type { PaneNode } from '@shared/schemas/layout'
 import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
-import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
+import { resolveWidget } from '../widgets/registry.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import { tabLabels } from './tab-labels.ts'
 
@@ -13,6 +13,10 @@ import { tabLabels } from './tab-labels.ts'
  * A tab group draws one over its panes, and so does a terminal pane on its own,
  * with its single tab: every shell can grow tabs from the pane itself. The + on a
  * lone pane turns it into a group (layout.addTab), as Ctrl+Shift+T does.
+ *
+ * Each tab carries its own ×, for closing one tab - shown or not - at a click.
+ * Closing or bringing forward the group as a whole is the corner's (PaneCorner),
+ * where every other pane has those buttons.
  */
 interface Props {
   panes: readonly PaneNode[]
@@ -25,16 +29,6 @@ const titleOf = (widget: string): string => resolveWidget(widget)?.title ?? widg
 
 /** Shell tabs by folder, with parent folders only where two would read the same. */
 const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).tabPath)))
-
-/** The tab the strip's own buttons act on: the one showing. */
-const active = $derived(panes[activeIndex] ?? panes[0])
-const zoomed = $derived(active !== undefined && layout.zoomedPaneId === active.id)
-/**
- * The strip offers the zoom for the tab that is showing, since the group comes
- * forward as a whole: a tab whose widget has nothing to gain from the room is
- * offered nothing while it is the one on screen.
- */
-const zoomable = $derived(active !== undefined && zoomModeOf(active.widget) !== null)
 </script>
 
 <!--
@@ -91,23 +85,6 @@ const zoomable = $derived(active !== undefined && zoomModeOf(active.widget) !== 
       data-testid="tab-new"><span class="upright">+</span></button
     >
   </li>
-  {#if zoomable}
-    <!-- Brings the group forward, and puts it back: a shell has no module chrome
-         to carry the button, and a tabbed pane's chrome is the group's. -->
-    <li class="tab zoom">
-    <button
-      type="button"
-      class="select"
-      aria-pressed={zoomed}
-      aria-label={zoomed ? 'Put back' : 'Bring forward'}
-      title={zoomed ? 'Put the pane back (Ctrl+Shift+Z)' : 'Bring the pane forward (Ctrl+Shift+Z)'}
-      onclick={() => {
-        if (active) layout.toggleZoom(active.id)
-      }}
-        data-testid="tab-zoom"><span class="upright">{zoomed ? '⤡' : '⤢'}</span></button
-      >
-    </li>
-  {/if}
 </ul>
 
 <style>
@@ -149,13 +126,8 @@ const zoomable = $derived(active !== undefined && zoomModeOf(active.widget) !== 
   transition: opacity var(--dur-base) var(--ease-out);
 }
 
-.tab.new-tab,
-.tab.zoom {
+.tab.new-tab {
   flex: 0 0 2.4rem;
-}
-
-.tab.zoom button[aria-pressed='true'] {
-  color: var(--accent);
 }
 
 .tab.active {

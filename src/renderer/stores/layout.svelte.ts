@@ -551,18 +551,26 @@ class LayoutStore {
   }
 
   /**
-   * Closes a pane: a shown one powers off first and is removed after, when the
-   * panes left behind extend into its room; anything else goes at once. Focus
-   * moves on straight away, so the keyboard is never left with a closing pane.
+   * Closes a pane, or a whole tab group by its id: a shown one powers off first
+   * and is removed after, when the panes left behind extend into its room;
+   * anything else goes at once. Focus moves on straight away, so the keyboard is
+   * never left with a closing pane.
    */
   close(nodeId: string): void {
     // Its tab's × still takes a click while it powers off; that is the same close.
     if (nodeId === this.closingId) return
+    const node = findNode(this.tree.root, nodeId)
     // Closed from the front: it keeps the room it was pinned in to power off in.
-    this.settleFor(this.zoomedPaneId === nodeId ? nodeId : null)
-    if (findNode(this.tree.root, nodeId) === null) return
+    // A group closed with its shown tab in front does the same, pinned by that tab.
+    const zoomed = this.zoomedPaneId
+    const inFront =
+      zoomed !== null &&
+      (zoomed === nodeId || (node?.kind === 'tabs' && findNode(node, zoomed) !== null))
+    this.settleFor(inFront ? zoomed : null)
+    if (node === null) return
     sfx.play('collapse')
-    const shown = this.visible.some((p) => p.id === nodeId)
+    // A group is always on screen; a pane is not when it is a tab behind another.
+    const shown = node.kind === 'tabs' || this.visible.some((p) => p.id === nodeId)
     if (!shown || this.closeMotion?.animates() !== true) {
       this.remove(nodeId)
       return

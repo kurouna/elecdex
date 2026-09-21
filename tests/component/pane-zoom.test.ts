@@ -354,6 +354,31 @@ describe('what lets go of a zoomed pane', () => {
     expect(layout.pinnedPaneId).toBeNull()
   })
 
+  it('closing the group of the zoomed tab, which powers off in front as a whole', () => {
+    const group = tabs([b, c], 0)
+    zoom(split('row', [a, group]), b.id)
+    layout.close(group.id)
+    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.closingId).toBe(group.id)
+    // The group stays where it was brought forward, pinned by the tab it shows.
+    expect(layout.pinnedPaneId).toBe(b.id)
+    expect(layout.zoomPin).toEqual(PINNED)
+    expect(layout.zoomPhase).toBeNull()
+
+    vi.advanceTimersByTime(2000)
+    expect(ids()).toEqual([a.id])
+    expect(layout.pinnedPaneId).toBeNull()
+  })
+
+  it('closing a group the zoomed pane is not in', () => {
+    const group = tabs([b, c], 0)
+    zoom(split('row', [a, group]), a.id)
+    layout.close(group.id)
+    expect(layout.zoomedPaneId).toBeNull()
+    expect(layout.pinnedPaneId).toBeNull()
+    expect(layout.closingId).toBe(group.id)
+  })
+
   it('a drag of it, which needs the workspace back to find a drop target', () => {
     zoom(split('row', [a, b]), a.id)
     paneDrag.begin(a.id, 'clock')
