@@ -33,6 +33,7 @@ export interface Readout {
 
 <script lang="ts">
 import { ELEC_UNITS } from '@shared/elec'
+import { coreTop, PLATE_POINTS } from './geometry.ts'
 
 /**
  * The council: three plates in a triangle around the core, as the source of the
@@ -57,35 +58,53 @@ interface Props {
 }
 const { units, live, left, right, core }: Props = $props()
 
-/**
- * Each plate's outline in the board's 100 x 100, the corner that faces the core cut
- * away; and where its words go (left, top, width, height in percent).
- */
-const PLATES: Record<UnitIndex, { points: string; box: [number, number, number, number] }> = {
-  0: { points: '2,58 36,58 42,66 42,97 2,97', box: [2, 58, 40, 39] },
-  1: { points: '29,2 71,2 71,26 64,33 36,33 29,26', box: [29, 2, 42, 31] },
-  2: { points: '64,58 98,58 98,97 58,97 58,66', box: [58, 58, 40, 39] },
+/** Where each plate's words go: left, top, width, height in percent. */
+const BOXES: Record<UnitIndex, [number, number, number, number]> = {
+  0: [2, 58, 40, 39],
+  1: [29, 2, 42, 31],
+  2: [58, 58, 40, 39],
 }
+const pointsOf = (unit: UnitIndex): string => PLATE_POINTS[unit].map((p) => p.join(',')).join(' ')
+
+/*
+ * The core sits as far from the top plate's lower edge as from the lower plates' cut edges,
+ * which depends on the board's proportions (`coreTop`). Read from the ResizeObserver entry's
+ * rectangle, as the rules for widgets that lay themselves out by their size ask.
+ */
+let board = $state<HTMLDivElement>()
+let top = $state(coreTop(0, 0))
+
+$effect(() => {
+  if (board === undefined) return
+  const observer = new ResizeObserver((entries) => {
+    const rect = entries[0]?.contentRect
+    if (rect === undefined) return
+    const next = Math.round(coreTop(rect.width, rect.height) * 100) / 100
+    if (next !== top) top = next
+  })
+  observer.observe(board)
+  return () => observer.disconnect()
+})
 </script>
 
 <div class="stage" class:live data-testid="elec-stage">
-  <div class="board">
+  <div class="board" bind:this={board}>
     <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <polygon class="ring" points="50,18 22,78 78,78" vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="50" y1="33" x2="50" y2="45.5" vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="39" y1="62" x2="50" y2="45.5" vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="61" y1="62" x2="50" y2="45.5" vector-effect="non-scaling-stroke" />
+      <line class="spoke" x1="50" y1="33" x2="50" y2={top} vector-effect="non-scaling-stroke" />
+      <line class="spoke" x1="39" y1="62" x2="50" y2={top} vector-effect="non-scaling-stroke" />
+      <line class="spoke" x1="61" y1="62" x2="50" y2={top} vector-effect="non-scaling-stroke" />
       {#each units as view (view.unit)}
         <polygon
           class="plate"
           data-state={view.state}
-          points={PLATES[view.unit].points}
+          points={pointsOf(view.unit)}
           vector-effect="non-scaling-stroke"
         />
       {/each}
     </svg>
 
-    <div class="core" data-testid="elec-core">
+    <div class="core" data-testid="elec-core" style:top={`${top}%`}>
       <span class="hex">
         <svg viewBox="0 0 116 100" aria-hidden="true">
           <polygon class="outer" points="29,1 87,1 115,50 87,99 29,99 1,50" />
@@ -97,7 +116,7 @@ const PLATES: Record<UnitIndex, { points: string; box: [number, number, number, 
     </div>
 
     {#each units as view (view.unit)}
-      {@const [x, y, w, h] = PLATES[view.unit].box}
+      {@const [x, y, w, h] = BOXES[view.unit]}
       <div
         class="unit u{view.unit}"
         data-state={view.state}
@@ -292,15 +311,12 @@ const PLATES: Record<UnitIndex, { points: string; box: [number, number, number, 
 }
 
 /*
- * The core: a hexagon where the spokes meet, and what the council is doing under it. Its centre
- * is half-way between the top plate's lower edge (33) and the lower plates' upper edges (58) -
- * the middle of the gap between the plates, not of the board, nor the centroid of the ring
- * (58), which sat it down among the lower plates.
+ * The core: a hexagon where the spokes meet, and what the council is doing under it. How far
+ * down is `coreTop`'s (set inline): equally far from the three edges that face it.
  */
 .core {
   position: absolute;
   left: 50%;
-  top: 45.5%;
   display: flex;
   flex-direction: column;
   align-items: center;
