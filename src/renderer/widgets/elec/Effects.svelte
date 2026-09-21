@@ -63,7 +63,7 @@ const TONES: Record<string, string> = {
   approve: 'var(--ok)',
   reject: 'var(--danger)',
   abstain: 'var(--info)',
-  invalid: 'var(--warn)',
+  invalid: 'var(--text-muted)',
 }
 const asked = (view: UnitView): boolean => view.state === 'tx' || view.state === 'rx'
 const ready = $derived(width > 0 && height > 0)

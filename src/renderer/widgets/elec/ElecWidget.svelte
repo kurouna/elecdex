@@ -1251,7 +1251,7 @@ header {
 }
 
 .ballot[data-state='invalid'] {
-  --tone: var(--warn);
+  --tone: var(--text-muted);
 }
 
 .chip {
