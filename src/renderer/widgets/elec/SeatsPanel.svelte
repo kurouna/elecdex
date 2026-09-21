@@ -111,9 +111,35 @@ async function loadModels(providerId: string): Promise<void> {
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-1);
+  position: relative;
+  /*
+   * Above what follows it - the motion band (its clip-path makes it a layer of its own) and the
+   * stage - so a model list dropping out of the panel is drawn over them, whatever layers the
+   * rows' entrance leaves on the way.
+   */
+  z-index: 3;
   border: 1px solid var(--panel-border);
   background: var(--panel-bg-raised);
-  clip-path: polygon(0 0, calc(100% - 0.6rem) 0, 100% 0.6rem, 100% 100%, 0 100%);
+}
+
+/*
+ * The cut corner the panels have, drawn over the corner rather than cut with clip-path: a clip
+ * would cut the model list too, which drops out of the panel and over the stage below.
+ */
+.seats::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 0.6rem;
+  height: 0.6rem;
+  background: linear-gradient(
+    to bottom left,
+    var(--app-bg) calc(50% - 0.5px),
+    var(--panel-border) calc(50% - 0.5px) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+  pointer-events: none;
 }
 
 .seat {

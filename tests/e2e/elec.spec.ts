@@ -54,6 +54,11 @@ test.beforeAll(async () => {
       raw += piece
     })
     req.on('end', () => {
+      if (req.url === '/v1/models') {
+        const data = Array.from({ length: 40 }, (_, i) => ({ id: `models/number-${i}` }))
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ data }))
+        return
+      }
       if (req.url !== '/v1/chat/completions') {
         res.writeHead(404, { 'content-type': 'application/json' }).end('{}')
         return
@@ -327,6 +332,50 @@ test('with motion reduced the council draws no light, and still decides', async 
       .locator('.lines')
       .evaluate((el) => getComputedStyle(el).animationName)
     expect(floor).toBe('none')
+  } finally {
+    await close()
+  }
+})
+
+test("a seat's model list drops out of the seats panel, over the stage, and can be read whole", async () => {
+  const { page, close } = await launch(undefined, {
+    layout: single(),
+    settings: withProviders('yes'),
+  })
+  try {
+    await pane(page).getByTestId('elec-seats-toggle').click()
+    const field = pane(page).getByTestId('elec-seat-model-2')
+    await field.click()
+    const list = pane(page).getByTestId('elec-seat-model-2-list')
+    await expect(list.getByRole('option')).toHaveCount(40)
+    // Not cut at the panel's edge (it was, by the clip-path that drew the panel's corner): the
+    // rows well below the panel are the ones under the pointer, not the stage behind them.
+    // Measured and probed in one step: the list may scroll to keep its selection in view.
+    const probe = await page.evaluate(() => {
+      const panel = document.querySelector('[data-testid=elec-seats]')?.getBoundingClientRect()
+      const list = document
+        .querySelector('[data-testid=elec-seat-model-2-list]')
+        ?.getBoundingClientRect()
+      const rows = [
+        ...document.querySelectorAll('[data-testid=elec-seat-model-2-list] [role=option]'),
+      ]
+      // A row in the list's own view (it scrolls), and below the panel it drops out of.
+      const below = rows.find((r) => {
+        const box = r.getBoundingClientRect()
+        return (
+          panel !== undefined &&
+          list !== undefined &&
+          box.top > panel.bottom + 4 &&
+          box.bottom < list.bottom - 2
+        )
+      })
+      if (panel === undefined || below === undefined) return null
+      const box = below.getBoundingClientRect()
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+      return { row: below.textContent, hit: hit?.closest('[role=option]')?.textContent ?? null }
+    })
+    expect(probe).not.toBeNull()
+    expect(probe?.hit).toBe(probe?.row)
   } finally {
     await close()
   }
