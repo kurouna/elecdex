@@ -397,6 +397,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   clock waits on promises (`await Promise.resolve()`), never on real timers per step. A component
   test that stubs `window.elecdex` flushes what it started (`layout.flush()`) before unstubbing,
   and its IPC mocks `structuredClone` their arguments, since IPC cannot clone a `$state` proxy.
+  A pty session a test makes for itself belongs to no pane, so the workspace's reaper ends it
+  four seconds after the panes last changed: go through `runCapture` (terminal.spec.ts), which
+  starts over when that happens, rather than waiting on a shell that is gone.
 - **A test that hangs must say where.** A Playwright timeout prints nothing when it was waiting on
   an app to start or quit, so `launch` and the guarded `quit`/`close` in support.ts warn while
   they are still going (SLOW_MS) as well as after. A test that starts a second app on the same

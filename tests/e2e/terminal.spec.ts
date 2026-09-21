@@ -38,44 +38,73 @@ test.afterAll(async () => {
  * Deliberately uses its own session rather than the visible pane so the test is
  * not racing the UI, and so a failure points at the data path rather than at
  * rendering.
+ *
+ * No pane claims such a session, so the workspace's reaper - which runs once, a
+ * few seconds after the panes last changed - ends it if it is alive just then.
+ * That was always the third capture after a launch, which then waited out its
+ * whole timeout on a shell that was gone. A session that ends before it has
+ * answered is the reaper's doing, and the capture starts over on a new one.
  */
 async function runCapture(command: string, expected: RegExp): Promise<string> {
   return page.evaluate(
     async ({ cmd, pattern }) => {
-      const session = await window.elecdex.pty.create({ cols: 120, rows: 40 })
-      const decoder = new TextDecoder()
-      let output = ''
-
       const re = new RegExp(pattern)
-      const result = await new Promise<string>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`timeout; saw: ${output}`)), 25_000)
 
-        void window.elecdex.pty
-          .attach(session.id, {
-            onData: (chunk) => {
-              output += decoder.decode(chunk, { stream: true })
-              if (re.test(output)) {
-                clearTimeout(timer)
-                resolve(output)
-              }
-            },
-            onExit: () => {},
-            onCwd: () => {},
-            onCommandEnd: () => {},
-            onIntegrationUnavailable: () => {},
-          })
-          .then(() => {
-            // Give the shell a moment to print its first prompt before typing.
-            setTimeout(() => window.elecdex.pty.write(session.id, `${cmd}\r`), 1200)
-          })
-      })
+      /** One session's output once it matches, or null when the session was ended first. */
+      const attempt = async (): Promise<string | null> => {
+        const session = await window.elecdex.pty.create({ cols: 120, rows: 40 })
+        const decoder = new TextDecoder()
+        let output = ''
 
-      await window.elecdex.pty.dispose(session.id)
-      return result
+        const result = await new Promise<string | null>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error(`timeout; saw: ${output}`)), 25_000)
+          const settle = (value: string | null): void => {
+            clearTimeout(timer)
+            resolve(value)
+          }
+
+          void window.elecdex.pty
+            .attach(session.id, {
+              onData: (chunk) => {
+                output += decoder.decode(chunk, { stream: true })
+                if (re.test(output)) settle(output)
+              },
+              onExit: () => settle(null),
+              onCwd: () => {},
+              onCommandEnd: () => {},
+              onIntegrationUnavailable: () => {},
+            })
+            .then(() => {
+              // Give the shell a moment to print its first prompt before typing.
+              setTimeout(() => window.elecdex.pty.write(session.id, `${cmd}\r`), 1200)
+            })
+            // Reaped between create and attach: there is no session to attach to.
+            .catch(() => settle(null))
+        })
+
+        await window.elecdex.pty.dispose(session.id)
+        return result
+      }
+
+      for (let tries = 0; tries < 3; tries++) {
+        const result = await attempt()
+        if (result !== null) return result
+      }
+      throw new Error('the session was ended before it answered, three times over')
     },
     { cmd: command, pattern: expected.source },
   )
 }
+
+test('captures in a row all answer, the one the reaper ends too', async () => {
+  // First in the file on purpose: four captures take about five seconds, so one of
+  // them is alive when the reaper runs, four seconds after the launch. Before the
+  // capture started over, that one waited 25 s for a shell that had been ended.
+  for (let i = 0; i < 4; i++) {
+    const marker = `capture-${i}-${Date.now()}`
+    expect(await runCapture(`echo ${marker}`, new RegExp(`${marker}\\r?\\n`))).toContain(marker)
+  }
+})
 
 test('a shell starts and its output reaches the renderer', async () => {
   const marker = `elecdex-ok-${Date.now()}`
