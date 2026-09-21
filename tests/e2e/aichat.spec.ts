@@ -583,6 +583,38 @@ test('a provider with more models than fit is scrolled through, in the settings 
   }
 })
 
+test('"send" is seen to come alive when there is something to send, in every theme', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: single(),
+    settings: { ...withProviders(), motion: 'reduced' },
+  })
+  try {
+    const send = pane(page).getByTestId('aichat-send')
+    const look = () =>
+      send.evaluate((el) => {
+        const style = getComputedStyle(el)
+        return { color: style.color, ground: style.backgroundColor, opacity: style.opacity }
+      })
+    for (const theme of ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'business-light']) {
+      await page.evaluate((id) => window.elecdex.settings.patch({ theme: id }), theme)
+      await pane(page).getByTestId('aichat-input').fill('')
+      await expect(send).toBeDisabled()
+      const idle = await look()
+      await pane(page).getByTestId('aichat-input').fill('something to send')
+      await expect(send).toBeEnabled()
+      const armed = await look()
+      // Lit, not merely un-dimmed: on Tron the muted text of an enabled button was hardly
+      // brighter than a disabled one, and the button did not look as if it had woken up.
+      expect(armed.color, theme).not.toBe(idle.color)
+      expect(armed.ground, theme).not.toBe(idle.ground)
+      expect(armed.opacity, theme).toBe('1')
+      expect(idle.opacity, theme).toBe('0.5')
+    }
+  } finally {
+    await close()
+  }
+})
+
 test('an answer can be stopped, and what was written is kept', async () => {
   const { page, close } = await launch(undefined, {
     layout: single({ provider: 'local', model: 'slow' }),

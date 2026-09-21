@@ -408,7 +408,7 @@ const host = $derived.by(() => {
       <!-- The conversation's own controls first, where a "new" is looked for; then what it talks to. -->
       <button
         type="button"
-        class="cmd new"
+        class="cmd lit"
         onclick={newChat}
         disabled={busy || choice.chat === null}
         title={choice.chat === null ? 'this is a new conversation' : 'start a new conversation'}
@@ -615,7 +615,7 @@ const host = $derived.by(() => {
           stop
         </button>
       {:else}
-        <button type="submit" class="cmd" disabled={draft.trim() === '' || model === ''} data-testid="aichat-send">
+        <button type="submit" class="cmd lit" disabled={draft.trim() === '' || model === ''} data-testid="aichat-send">
           {editing === null ? 'send' : 'resend'}
         </button>
       {/if}
@@ -721,10 +721,26 @@ select:focus {
   color: var(--warn);
 }
 
-/* The one button here that begins something: lit, where the rest wait to be pointed at. */
-.cmd.new:not(:disabled) {
+/*
+ * The buttons that begin something - a new conversation, a message on its way: lit while they
+ * can be pressed, where the rest wait to be pointed at. "send" goes from dark to lit the moment
+ * there is something to send, and that has to be seen in every theme: the muted text of an idle
+ * button is, on Tron, hardly brighter than a disabled one.
+ */
+.cmd.lit:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent-strong);
+}
+
+.composer .cmd.lit:not(:disabled) {
+  background: var(--accent-faint);
+}
+
+.cmd.lit:not(:disabled):hover,
+.cmd.lit:not(:disabled):focus-visible {
+  background: var(--accent);
+  color: var(--app-bg);
+  outline: none;
 }
 
 /* The link coming up, a line at a time. Once, like every entrance here (styles/motion.css). */
