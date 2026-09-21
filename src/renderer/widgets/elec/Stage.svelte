@@ -39,7 +39,7 @@ export interface Readout {
 import { ELEC_UNITS } from '@shared/elec'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import Effects from './Effects.svelte'
-import { coreTop, PLATE_POINTS } from './geometry.ts'
+import { coreTop, MOUTHS, PLATE_POINTS, plateBox, RING } from './geometry.ts'
 import { floorPhase } from './light.ts'
 import type { LogLine } from './log.ts'
 
@@ -113,12 +113,6 @@ $effect.pre(() => {
   floorRan = runs
 })
 
-/** Where each plate's words go: left, top, width, height in percent. */
-const BOXES: Record<UnitIndex, [number, number, number, number]> = {
-  0: [4.5, 58, 37.5, 39],
-  1: [26, 2, 48, 31],
-  2: [58, 58, 37.5, 39],
-}
 const pointsOf = (unit: UnitIndex): string => PLATE_POINTS[unit].map((p) => p.join(',')).join(' ')
 
 /*
@@ -164,10 +158,10 @@ $effect(() => {
   </div>
   <div class="board" bind:this={board}>
     <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-      <polygon class="ring" points="50,18 22,78 78,78" vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="50" y1="33" x2="50" y2={top} vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="39" y1="62" x2="50" y2={top} vector-effect="non-scaling-stroke" />
-      <line class="spoke" x1="61" y1="62" x2="50" y2={top} vector-effect="non-scaling-stroke" />
+      <polygon class="ring" points={RING.map((p) => p.join(',')).join(' ')} vector-effect="non-scaling-stroke" />
+      {#each Object.values(MOUTHS) as [x, y] (x)}
+        <line class="spoke" x1={x} y1={y} x2="50" y2={top} vector-effect="non-scaling-stroke" />
+      {/each}
     </svg>
     {#if moving}
       <Effects width={size.width} height={size.height} {top} {units} {live} layer="under" />
@@ -206,7 +200,7 @@ $effect(() => {
 
     {#key power}
     {#each units as view (view.unit)}
-      {@const [x, y, w, h] = BOXES[view.unit]}
+      {@const [x, y, w, h] = plateBox(view.unit)}
       <div
         class="unit u{view.unit}"
         class:back={view.back}
@@ -918,8 +912,7 @@ $effect(() => {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  /* Clear of the top plate, which begins a quarter of the way across. */
-  width: min(24rem, 25cqw);
+  width: min(24rem, 27cqw);
   height: 52%;
   margin: 0;
   padding: 0;

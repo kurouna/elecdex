@@ -2,7 +2,7 @@
 import type { UnitIndex } from '@shared/elec'
 import { untrack } from 'svelte'
 import { fade } from 'svelte/transition'
-import { PLATE_POINTS } from './geometry.ts'
+import { MOUTHS, PLATE_POINTS, RING } from './geometry.ts'
 import { HOLD_MS, nextPackets, type Packet } from './light.ts'
 import type { UnitView } from './Stage.svelte'
 
@@ -51,8 +51,7 @@ const { width, height, top, units, live, layer }: Props = $props()
 const px = (x: number, y: number): string => `${(x / 100) * width},${(y / 100) * height}`
 const outline = (unit: UnitIndex): string => PLATE_POINTS[unit].map(([x, y]) => px(x, y)).join(' ')
 
-/** Where each plate's spoke leaves it: the edge that faces the core. */
-const MOUTHS: Record<UnitIndex, [number, number]> = { 0: [39, 62], 1: [50, 33], 2: [61, 62] }
+const ring = $derived(RING.map(([x, y]) => px(x, y)).join(' '))
 const core = $derived<[number, number]>([width / 2, (top / 100) * height])
 const mouth = (unit: UnitIndex): [number, number] => {
   const [x, y] = MOUTHS[unit]
@@ -104,8 +103,8 @@ function landed(id: number): void {
     {#if live && layer === 'under'}
       <!-- A comet on the ring, two out of phase. -->
       <g transition:fade={light}>
-        <polygon class="comet" points={`${px(50, 18)} ${px(22, 78)} ${px(78, 78)}`} pathLength="300" />
-        <polygon class="comet late" points={`${px(50, 18)} ${px(22, 78)} ${px(78, 78)}`} pathLength="300" />
+        <polygon class="comet" points={ring} pathLength="300" />
+        <polygon class="comet late" points={ring} pathLength="300" />
       </g>
     {/if}
 
