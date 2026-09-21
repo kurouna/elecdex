@@ -55,17 +55,6 @@ async function painterScript(): Promise<string> {
 test.beforeAll(async () => {
   launched = await launch()
   await launched.page.evaluate(await painterScript())
-  // The first text a page draws may come before its font does: on the macOS runner
-  // the first case's labels differed between its two canvases, one drawn in a
-  // fallback face. Draw the labels once and wait for the fonts before comparing.
-  await launched.page.evaluate(async () => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-    ctx.font = '10px ui-monospace, monospace'
-    ctx.fillText('16k', 0, 10)
-    await document.fonts.ready
-    await new Promise((resolve) => requestAnimationFrame(resolve))
-  })
 })
 
 test.afterAll(async () => {
