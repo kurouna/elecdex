@@ -33,6 +33,8 @@ export interface Readout {
 
 <script lang="ts">
 import { ELEC_UNITS } from '@shared/elec'
+import { appearance } from '../../stores/appearance.svelte.ts'
+import Effects from './Effects.svelte'
 import { coreTop, PLATE_POINTS } from './geometry.ts'
 
 /**
@@ -55,8 +57,13 @@ interface Props {
   right: readonly Readout[]
   /** What the stage is doing, under its core. */
   core: string
+  /** A resolution that landed while the pane watched: its light converges on the core once. */
+  converge?: { key: string; tone: string } | null
 }
-const { units, live, left, right, core }: Props = $props()
+const { units, live, left, right, core, converge = null }: Props = $props()
+
+/** The light is motion: none of it with motion reduced. */
+const moving = $derived(!appearance.reducedMotion)
 
 /** Where each plate's words go: left, top, width, height in percent. */
 const BOXES: Record<UnitIndex, [number, number, number, number]> = {
@@ -73,6 +80,7 @@ const pointsOf = (unit: UnitIndex): string => PLATE_POINTS[unit].map((p) => p.jo
  */
 let board = $state<HTMLDivElement>()
 let top = $state(coreTop(0, 0))
+let size = $state({ width: 0, height: 0 })
 
 $effect(() => {
   if (board === undefined) return
@@ -81,19 +89,34 @@ $effect(() => {
     if (rect === undefined) return
     const next = Math.round(coreTop(rect.width, rect.height) * 100) / 100
     if (next !== top) top = next
+    const width = Math.round(rect.width)
+    const height = Math.round(rect.height)
+    if (width !== size.width || height !== size.height) size = { width, height }
   })
   observer.observe(board)
   return () => observer.disconnect()
 })
 </script>
 
-<div class="stage" class:live data-testid="elec-stage">
+<div class="stage" class:live class:moving data-testid="elec-stage">
+  <!--
+    The grid of a Tron floor, laid back in perspective under the lower plates: still while the
+    council waits, running towards the viewer while it sits. One transformed layer, moved by
+    transform alone.
+  -->
+  <div class="floor" aria-hidden="true"><div class="plane"><div class="lines"></div></div></div>
   <div class="board" bind:this={board}>
     <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <polygon class="ring" points="50,18 22,78 78,78" vector-effect="non-scaling-stroke" />
       <line class="spoke" x1="50" y1="33" x2="50" y2={top} vector-effect="non-scaling-stroke" />
       <line class="spoke" x1="39" y1="62" x2="50" y2={top} vector-effect="non-scaling-stroke" />
       <line class="spoke" x1="61" y1="62" x2="50" y2={top} vector-effect="non-scaling-stroke" />
+    </svg>
+    {#if moving}
+      <Effects width={size.width} height={size.height} {top} {units} {live} {converge} layer="under" />
+    {/if}
+    <!-- The plates in a picture of their own, over the ring's light. -->
+    <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       {#each units as view (view.unit)}
         <polygon
           class="plate"
@@ -104,8 +127,16 @@ $effect(() => {
       {/each}
     </svg>
 
+    {#if moving}
+      <Effects width={size.width} height={size.height} {top} {units} {live} {converge} layer="over" />
+    {/if}
+
     <div class="core" data-testid="elec-core" style:top={`${top}%`}>
       <span class="hex">
+        <!-- An orbit round the core, and a sweep inside it, turning while the council sits. -->
+        <span class="orbit" aria-hidden="true"></span>
+        <span class="orbit inner" aria-hidden="true"></span>
+        <span class="radar" aria-hidden="true"><span class="beam"></span></span>
         <svg viewBox="0 0 116 100" aria-hidden="true">
           <polygon class="outer" points="29,1 87,1 115,50 87,99 29,99 1,50" />
           <polygon class="inner" points="35,11 81,11 103,50 81,89 35,89 13,50" />
@@ -204,6 +235,55 @@ $effect(() => {
   right: 0;
   bottom: 0;
   border-width: 0 1px 1px 0;
+}
+
+/* The floor: a grid in perspective, fading into the horizon. */
+.floor {
+  position: absolute;
+  inset: 45% -10% 0;
+  overflow: hidden;
+  perspective: 22rem;
+  perspective-origin: 50% 0;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, transparent, #000 45%);
+}
+
+.plane {
+  position: absolute;
+  inset: 0 0 -60%;
+  overflow: hidden;
+  transform: rotateX(62deg);
+  transform-origin: 50% 0;
+}
+
+/* Taller than the plane by one cell, so moving it one cell loops without a seam. */
+.lines {
+  position: absolute;
+  inset: -2.5rem 0 0;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--accent) 22%, transparent) 1px, transparent 1px)
+      0 0 / 2.5rem 2.5rem,
+    linear-gradient(to bottom, color-mix(in srgb, var(--accent) 22%, transparent) 1px, transparent 1px)
+      0 0 / 2.5rem 2.5rem;
+}
+
+.live .lines {
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--accent) 38%, transparent) 1px, transparent 1px)
+      0 0 / 2.5rem 2.5rem,
+    linear-gradient(to bottom, color-mix(in srgb, var(--accent) 38%, transparent) 1px, transparent 1px)
+      0 0 / 2.5rem 2.5rem;
+}
+
+.live.moving .lines {
+  animation: elec-floor 0.9s linear infinite;
+  animation-play-state: var(--ambient-play-state);
+}
+
+@keyframes elec-floor {
+  to {
+    transform: translateY(2.5rem);
+  }
 }
 
 /*
@@ -335,6 +415,7 @@ $effect(() => {
 }
 
 .hex svg {
+  z-index: 1;
   position: absolute;
   inset: 0;
   width: 100%;
@@ -362,7 +443,71 @@ $effect(() => {
   fill: color-mix(in srgb, var(--accent) 6%, var(--app-bg));
 }
 
+/* Orbits: a dashed ring and a broken arc round the hexagon, turning opposite ways. */
+.orbit {
+  position: absolute;
+  inset: -34%;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.orbit.inner {
+  inset: -16%;
+  border: 2px solid transparent;
+  border-top-color: var(--accent);
+  border-bottom-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  opacity: 0;
+}
+
+.live.moving .orbit {
+  animation: elec-spin 9s linear infinite;
+  animation-play-state: var(--ambient-play-state);
+}
+
+.live.moving .orbit.inner {
+  opacity: 1;
+  animation: elec-spin 1.6s linear infinite reverse;
+  animation-play-state: var(--ambient-play-state);
+}
+
+/* The sweep: a turning wedge of light inside the hexagon, clipped to it. */
+.radar {
+  z-index: 1;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+  opacity: 0;
+}
+
+.beam {
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 70%,
+    color-mix(in srgb, var(--accent) 55%, transparent) 100%
+  );
+}
+
+.live.moving .radar {
+  opacity: 1;
+}
+
+.live.moving .beam {
+  animation: elec-spin 1.8s linear infinite;
+  animation-play-state: var(--ambient-play-state);
+}
+
+@keyframes elec-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .mark {
+  z-index: 2;
   position: relative;
   font-family: var(--font-display);
   font-size: clamp(0.6rem, 4.4cqh, 1rem);

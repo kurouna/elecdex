@@ -272,10 +272,20 @@ let heardOf: string | null = null
 let heardVotes = 0
 let wasBusy = false
 
+/** A resolution that landed while this pane watched: the stage converges on it once. */
+let converge = $state<{ key: string; tone: string } | null>(null)
+
+const OUTCOME_TONES: Partial<Record<Outcome, string>> = {
+  approved: 'var(--ok)',
+  rejected: 'var(--danger)',
+}
+
 function hear(votes: number, now: boolean): void {
   if (votes > heardVotes && now) sfx.play('panel')
   if (!wasBusy || now) return
   sfx.play(outcome === 'approved' ? 'granted' : outcome === 'rejected' ? 'alarm' : 'glitch')
+  const tone = outcome === null || outcome === 'interrupted' ? undefined : OUTCOME_TONES[outcome]
+  converge = { key: `${session?.id}:${votes}`, tone: tone ?? 'var(--warn)' }
 }
 
 $effect(() => {
@@ -336,6 +346,7 @@ let motionOpen = $state(false)
 $effect(() => {
   void choice.session
   motionOpen = false
+  converge = null
 })
 let seatsOpen = $state(false)
 /** When the log was opened: its "2h" are said from then, and do not tick. */
@@ -512,7 +523,7 @@ const FAILED = new Set<ChatStop | undefined>(['error', 'unreachable', 'refusal']
       {/if}
     </div>
 
-    <Stage {units} live={busy} {left} {right} {core} />
+    <Stage {units} live={busy} {left} {right} {core} {converge} />
 
     <!-- The resolution: what the council decided, powering on like every notice here. -->
     <div class="resolution" data-testid="elec-resolution" data-outcome={outcome ?? (busy ? 'pending' : 'none')}>

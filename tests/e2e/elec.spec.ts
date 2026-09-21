@@ -279,6 +279,9 @@ test('stop ends the deliberation, and closing the pane stops one nobody reads', 
     await submit(page, 'Wait forever?')
     await expect(unit(page, 0)).toHaveAttribute('data-state', 'rx')
     await expect(unit(page, 1)).toHaveAttribute('data-state', 'queued')
+    // While the council sits, light runs round the one plate being asked, and round the ring.
+    await expect(pane(page).getByTestId('elec-trace')).toHaveCount(1)
+    await expect(pane(page).locator('.comet')).toHaveCount(2)
     await expect(page.getByTestId('pane-badge')).toHaveText('deliberating')
     await pane(page).getByTestId('elec-stop-button').click()
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('quorum not met')
@@ -296,6 +299,24 @@ test('stop ends the deliberation, and closing the pane stops one nobody reads', 
     await expect
       .poll(() => page.evaluate(() => window.elecdex.elec.active()), { timeout: 10_000 })
       .toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test('with motion reduced the council draws no light, and still decides', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: single(),
+    settings: { ...withProviders('split'), motion: 'reduced' },
+  })
+  try {
+    await submit(page, 'Adopt the plan?')
+    await expect(pane(page).getByTestId('elec-outcome')).toHaveText('approved')
+    await expect(pane(page).locator('.effects')).toHaveCount(0)
+    const floor = await pane(page)
+      .locator('.lines')
+      .evaluate((el) => getComputedStyle(el).animationName)
+    expect(floor).toBe('none')
   } finally {
     await close()
   }
