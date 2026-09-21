@@ -242,6 +242,12 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   depends on them.
 - On Windows never spawn a process per reading — frequent readings go through `WindowsSampler`
   (one long-lived PowerShell).
+- **`spawn` is synchronous, and main is the browser process**: while it waits, the window draws
+  nothing. Windows scans a new process's command line inside `CreateProcess`, and a PowerShell
+  script there (`-EncodedCommand`, or P/Invoke code after `-Command`) held main for 0.7-1.7 s -
+  that was the wait before the boot log (§16). Hand PowerShell its script in an environment
+  variable (`powerShellStart`, the shell integration's `ELECDEX_PS_INIT`), and time the `spawn`
+  of any new PowerShell start: the cost follows the content, not the length.
 - Animations share the 10 fps frame loop (`lib/frame-loop.ts`) instead of their own rAF loops.
   A CSS animation is the compositor's, not the loop's, and `backgroundThrottling` is off, so one
   keeps painting a window that has been put away: the frame loop marks the page `data-offscreen`

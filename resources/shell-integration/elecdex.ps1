@@ -4,8 +4,12 @@
 # which the original eDEX-UI could not do at all: it polled /proc and lsof, and
 # fell back to a detached file browser on win32.
 #
-# Dot-sourced via `-NoExit -Command`, which does NOT suppress the user's profile
+# Run via `-NoExit -Command`, which does NOT suppress the user's profile
 # (PowerShell already ran it), so there is nothing to source back.
+
+# This text arrived in an environment variable (see shell-integration.ts). Taken
+# out before anything else, so no program started from this shell inherits it.
+Remove-Item Env:ELECDEX_PS_INIT -ErrorAction SilentlyContinue
 
 if ($env:ELECDEX_SHELL_INTEGRATION) { return }
 $env:ELECDEX_SHELL_INTEGRATION = '1'

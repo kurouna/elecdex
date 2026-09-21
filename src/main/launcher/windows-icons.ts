@@ -94,17 +94,39 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
 /** Runs PowerShell with `input` on stdin; resolves with its stdout. */
 export type PowerShellRunner = (script: string, input: string) => Promise<string>
 
+/** Carries a script to the PowerShell that runs it. */
+export const POWERSHELL_SCRIPT_ENV = 'ELECDEX_PS_SCRIPT'
+
+/**
+ * How PowerShell is started to run `script`: what `spawn` is given.
+ *
+ * The script is a command, never written to or run from a file, so Windows'
+ * ExecutionPolicy does not apply to it. It travels in an environment variable
+ * and the command line only names it: Windows scans a new process's command
+ * line while CreateProcess waits, and `spawn` waits with it, in main. With the
+ * icon script on the command line that was 1.3 s in which the window drew
+ * nothing - in the middle of the boot log (architecture.md section 16).
+ */
+export function powerShellStart(
+  script: string,
+  env: NodeJS.ProcessEnv,
+): { args: string[]; env: NodeJS.ProcessEnv } {
+  return {
+    args: [
+      '-NoLogo',
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      `Invoke-Expression $env:${POWERSHELL_SCRIPT_ENV}`,
+    ],
+    env: { ...env, [POWERSHELL_SCRIPT_ENV]: script },
+  }
+}
+
 export const runPowerShell: PowerShellRunner = (script, input) =>
   new Promise((resolve, reject) => {
-    // The script is passed as a command, never written to or run from a file,
-    // so Windows' ExecutionPolicy does not apply to it.
-    const child = spawn(
-      'powershell.exe',
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
-      {
-        windowsHide: true,
-      },
-    )
+    const start = powerShellStart(script, process.env)
+    const child = spawn('powershell.exe', start.args, { env: start.env, windowsHide: true })
     let stdout = ''
     const timer = setTimeout(() => {
       child.kill()

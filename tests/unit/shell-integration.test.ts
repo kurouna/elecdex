@@ -3,6 +3,7 @@ import {
   buildInjection,
   detectShellKind,
   outsideAsar,
+  POWERSHELL_INIT_ENV,
   terminalEnv,
 } from '../../src/main/pty/shell-integration.js'
 
@@ -67,25 +68,42 @@ describe('buildInjection', () => {
   it('passes PowerShell the script inline, not as a file path', () => {
     // Windows ships with an ExecutionPolicy that refuses to run script FILES,
     // so dot-sourcing a .ps1 silently yields no integration on a default
-    // install. -EncodedCommand is not governed by ExecutionPolicy.
+    // install. A command is not governed by ExecutionPolicy.
     const injection = buildInjection('powershell.exe', {})
     expect(injection.supported).toBe(true)
-    expect(injection.args[0]).toBe('-NoExit')
-    expect(injection.args[1]).toBe('-EncodedCommand')
-
-    const encoded = injection.args[2]
-    expect(encoded).toBeTruthy()
     expect(injection.args.join(' ')).not.toMatch(/\.ps1/)
 
-    // The payload must be base64 of UTF-16LE, and must be our script.
-    const decoded = Buffer.from(encoded as string, 'base64').toString('utf16le')
-    expect(decoded).toContain('ELECDEX_SHELL_INTEGRATION')
-    expect(decoded).toContain('133;A')
-    expect(decoded).toContain('7;file://')
+    // The script travels in the environment, and it must be our script.
+    const script = injection.env[POWERSHELL_INIT_ENV]
+    expect(script).toContain('ELECDEX_SHELL_INTEGRATION')
+    expect(script).toContain('133;A')
+    expect(script).toContain('7;file://')
+  })
+
+  it('keeps the PowerShell script off the command line', () => {
+    // Windows scans a new process's command line while CreateProcess waits, in
+    // main: -EncodedCommand held it for 1.4 s, and with it the window's first
+    // frames. The command line only names the variable that carries the code.
+    const injection = buildInjection('powershell.exe', {})
+    expect(injection.args).toEqual([
+      '-NoExit',
+      '-Command',
+      `Invoke-Expression $env:${POWERSHELL_INIT_ENV}`,
+    ])
+    expect(injection.args.join(' ')).not.toMatch(/EncodedCommand/i)
+  })
+
+  it('has the PowerShell script take its own text out of the environment', () => {
+    // Otherwise every program started from the shell would inherit the script.
+    const script = buildInjection('powershell.exe', {}).env[POWERSHELL_INIT_ENV] ?? ''
+    const removal = script.indexOf(`Remove-Item Env:${POWERSHELL_INIT_ENV}`)
+    expect(removal).toBeGreaterThanOrEqual(0)
+    // Before the guard that returns early in a nested shell.
+    expect(removal).toBeLessThan(script.indexOf('if ($env:ELECDEX_SHELL_INTEGRATION)'))
   })
 
   it('treats pwsh the same as powershell', () => {
-    expect(buildInjection('pwsh', {}).args[1]).toBe('-EncodedCommand')
+    expect(buildInjection('pwsh', {})).toEqual(buildInjection('powershell.exe', {}))
   })
 
   it('reports an unsupported shell rather than guessing', () => {

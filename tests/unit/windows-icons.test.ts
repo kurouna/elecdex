@@ -4,7 +4,9 @@ import {
   extractWindowsIcons,
   ICON_BATCH_MAX,
   IconBatcher,
+  POWERSHELL_SCRIPT_ENV,
   parseIconLines,
+  powerShellStart,
 } from '../../src/main/launcher/windows-icons.js'
 
 const PNG =
@@ -97,6 +99,19 @@ describe('IconBatcher', () => {
     const batcher = new IconBatcher(extract, 1)
     expect(await batcher.get('a')).toBeNull()
     expect(await batcher.get('a')).toBe('icon')
+  })
+})
+
+describe('powerShellStart', () => {
+  it('keeps the script off the command line, which Windows scans while spawn waits', () => {
+    // With the icon script as an argument CreateProcess took 1.3 s, in main, and
+    // the window drew nothing meanwhile. The command line only names the variable.
+    const script = 'Add-Type -TypeDefinition @\'\n[DllImport("shell32.dll")]\n\'@'
+    const start = powerShellStart(script, { PATH: 'C:\\Windows' })
+    expect(start.args.join(' ')).not.toContain('DllImport')
+    expect(start.args.at(-1)).toBe(`Invoke-Expression $env:${POWERSHELL_SCRIPT_ENV}`)
+    expect(start.env[POWERSHELL_SCRIPT_ENV]).toBe(script)
+    expect(start.env.PATH).toBe('C:\\Windows')
   })
 })
 

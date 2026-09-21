@@ -12,6 +12,9 @@ import { fileURLToPath } from 'node:url'
  * section 6.2.
  */
 
+/** Carries the PowerShell integration script to the shell; elecdex.ps1 removes it again. */
+export const POWERSHELL_INIT_ENV = 'ELECDEX_PS_INIT'
+
 export type ShellKind = 'bash' | 'zsh' | 'fish' | 'pwsh' | 'powershell' | 'unknown'
 
 export interface Injection {
@@ -148,19 +151,24 @@ export function buildInjection(shellPath: string, env: Record<string, string>): 
       // same code as a command is not governed by ExecutionPolicy, so this
       // works everywhere without asking the user to weaken a security setting.
       //
-      // -EncodedCommand takes base64 of UTF-16LE, which also sidesteps every
-      // quoting hazard in handing a multi-line script through a command line.
+      // The code travels in an environment variable and the command line only
+      // names it, which also sidesteps every quoting hazard in handing a
+      // multi-line script through a command line. It used to be
+      // -EncodedCommand, and Windows' scan of a new process held CreateProcess
+      // for 1.4 s on that - in main, synchronously, so the window drew nothing
+      // just as the boot log should have begun (architecture.md section 16).
+      // The script takes the variable out of the environment first, so nothing
+      // the shell starts inherits it.
       //
       // Deliberately not wrapped in a try/catch: a missing or unreadable script
       // is a broken build, and reporting it as "this shell is unsupported"
       // would hide the bug behind a plausible-looking degraded mode.
       const script = readFileSync(path.join(dir, 'elecdex.ps1'), 'utf8')
-      const encoded = Buffer.from(script, 'utf16le').toString('base64')
       // PowerShell has already run the user's profile by the time this executes,
       // so it is purely additive; -NoExit keeps the session interactive.
       return {
-        args: ['-NoExit', '-EncodedCommand', encoded],
-        env: {},
+        args: ['-NoExit', '-Command', `Invoke-Expression $env:${POWERSHELL_INIT_ENV}`],
+        env: { [POWERSHELL_INIT_ENV]: script },
         supported: true,
       }
     }

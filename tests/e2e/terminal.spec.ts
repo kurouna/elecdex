@@ -135,6 +135,26 @@ test('shell integration reports the working directory on this platform', async (
   expect(text).not.toBe('no tracking')
 })
 
+test('PowerShell does not keep the integration script in its environment', async () => {
+  // The script reaches PowerShell in an environment variable, so the command
+  // line stays short (a long or encoded one held main for over a second at
+  // startup). It takes itself out, or every program the shell starts inherits it.
+  test.skip(platform !== 'win32', 'only PowerShell is handed its script this way')
+  const shell = terminalPane(page).first()
+  await typeInto(
+    page,
+    shell,
+    'if ($env:ELECDEX_PS_INIT) { cd $env:SystemRoot } else { cd $env:ProgramFiles }',
+  )
+  // The header follows the cd, so it says which branch the shell took.
+  await expect
+    .poll(() => shell.getByTestId('pane-subtitle').innerText(), {
+      timeout: 40_000,
+      intervals: [300],
+    })
+    .toMatch(/program files/i)
+})
+
 test('the working directory follows a cd', async () => {
   const command = platform === 'win32' ? 'cd $env:TEMP' : 'cd /tmp'
   const expected = platform === 'win32' ? /temp/i : /tmp/
