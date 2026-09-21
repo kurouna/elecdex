@@ -204,6 +204,28 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - Seats on one local server are asked one after another, hosted ones at once; the second
     round passes the other statements cut to the provider's window (`statementRoom`).
   - The app's words never name MAGI or its source (user decision 2026-09-21).
+  - **Its drawing is one geometry** (widgets/elec/geometry.ts): the three plates are one height
+    and one area (a unit test holds them to it), and the ring, the spokes' mouths, the boxes the
+    words sit in and the clip of what is laid over a plate (`plateClip`: the vote's flash, the
+    power-on's scan line) all follow from the plates' points. Change a plate there, never a
+    coordinate in Stage or Effects.
+  - **Its light** (architecture.md §5.8; the decisions are pure, in widgets/elec/light.ts) moves
+    only while the council sits, or once for an event. An answer's packets are its traffic - one
+    per delta from main, as many as `nextPackets` lets on a spoke - never a loop. The resolution
+    waits for the dark (`HOLD_MS`): `held` is marked *while* the council sits, so the hold is in
+    the very update that ends it; the strip, the console's last line, the core's word and the
+    sound all wait, and a deliberation that was not watched, or motion reduced, does not. The
+    floor stops where it is by holding its phase, not by pausing its animation.
+  - Animate opacity and transform there, **never a colour in keyframes**: between the hsl accent
+    and a colour mixed with `transparent` Chromium drew a black plate with a yellow rim. A plate
+    is never dimmed by opacity either (the ring shows through): thin its colour towards the ground.
+  - A vote that does not count is a plate gone dark (`--text-muted`), not the warning yellow; the
+    strip, the tally and the console keep `--warn`. Taken out as too theatrical, and not to come
+    back without asking: a convergence on the core with a shock wave, orbits round the core, a
+    radar in it (user decisions 2026-09-21).
+  - While the council sits the pane costs about 70% of one core (measured 2026-09-21; the dashed
+    SVG animations and the floor repaint every frame). It is idle otherwise, so the idle budget
+    holds - but measure before adding anything that runs per frame.
 - **The vendored calculator is never edited.** `src/shared/calc/vendor` is elecxzy's evaluator
   copied whole (MIT), kept out of tsconfig and biome, typed through hand-written `.d.ts` behind
   `@calc/*`. What elecdex needs goes in the wrapper beside it; `scripts/sync-calc.mjs` overwrites

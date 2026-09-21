@@ -387,13 +387,16 @@ weather and calendar.
   press Enter. Each unit writes a short statement, in the motion's language, ending with a
   `VERDICT` line (APPROVE, REJECT or ABSTAIN) and a `CONFIDENCE`; the plates light as they vote
   (`TX`, `RX`, then the verdict) - the units sit powered off until a motion comes and power on one
-  after another; while the council sits, light runs round the plates being asked, along the spokes
-  and over a moving grid floor (none of it with motion reduced), and a console in the corner logs
-  each step - and the **resolution** follows the rule chosen in the bar:
+  after another; while the council sits, light runs round the plates being asked and over a moving grid floor,
+  and each piece of an answer runs down its spoke as it arrives, so a quick model streams and one
+  thinking it over leaves its spoke dark (none of it with motion reduced); a console in the
+  corner logs each step. The last vote puts the lights out, and a moment later the
+  **resolution** powers on - the units that did not carry it step back - following the rule
+  chosen in the bar:
   **majority** (two seats decide; otherwise `DEADLOCK`) or **unanimous** (all three approve; one
   rejection rejects; otherwise `NO CONSENSUS`). A vote that does not count - a link that failed
   (`LINK ERROR`, `NO CARRIER`) or an answer with no verdict (`NO VERDICT`) - is invalid, not an
-  abstention, and fewer than two valid votes is `QUORUM NOT MET`. Confidence is shown, never
+  abstention (its plate goes dark), and fewer than two valid votes is `QUORUM NOT MET`. Confidence is shown, never
   counted. With **2 rounds** each unit then reads the others' first statements (cut to fit a small
   context window) and votes again - twice the requests - and a changed vote shows as
   `REJECT › APPROVE`. Units on one server of your computer or network are asked one after
