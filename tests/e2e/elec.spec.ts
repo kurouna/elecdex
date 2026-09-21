@@ -143,7 +143,10 @@ test('a motion is voted by three units, resolved, and is there after a restart',
     await expect(unit(page, 0)).toHaveAttribute('data-state', 'standby')
     expect(seen).toEqual([])
 
+    await expect(pane(page).getByTestId('elec-motion')).toContainText('awaiting motion')
     await submit(page, 'Adopt the four-day week?')
+    // What the council answers stands over it, in the same view as the plates.
+    await expect(pane(page).getByTestId('elec-motion-text')).toHaveText('Adopt the four-day week?')
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('approved')
     await expect(pane(page).getByTestId('elec-resolution')).toHaveAttribute(
       'data-outcome',

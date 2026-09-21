@@ -216,7 +216,6 @@ const seconds = (ms: number): string =>
   ms < 60_000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms / 60_000)}m`
 
 const left = $derived<Readout[]>([
-  { label: 'MOTION', value: `#${sign}` },
   { label: 'RULE', value: (session?.rule ?? settings.rule).toUpperCase() },
   {
     label: 'ROUND',
@@ -332,6 +331,12 @@ function fresh(): void {
 }
 
 let historyOpen = $state(false)
+/** Whether a long motion is shown whole; each deliberation opens folded to two lines. */
+let motionOpen = $state(false)
+$effect(() => {
+  void choice.session
+  motionOpen = false
+})
 let seatsOpen = $state(false)
 /** When the log was opened: its "2h" are said from then, and do not tick. */
 let openedAt = $state(Date.now())
@@ -474,6 +479,39 @@ const FAILED = new Set<ChatStop | undefined>(['error', 'unreachable', 'refusal']
       </ul>
     {/if}
 
+    <!--
+      The motion, over the council that votes on it: what the plates and the resolution are the
+      answer to. Always there, so submitting one does not move the stage; two lines at most, the
+      rest a click away.
+    -->
+    <div class="motion" class:open={motionOpen} data-testid="elec-motion" data-empty={session === null}>
+      <span class="sign">motion #{sign}</span>
+      {#if session === null}
+        <span class="said quiet">awaiting motion · type one below</span>
+      {:else}
+        {#key session.id}
+          <button
+            type="button"
+            class="said fx-rise"
+            title={motionOpen ? 'show less' : session.motion}
+            onclick={() => (motionOpen = !motionOpen)}
+            data-testid="elec-motion-text"
+          >
+            {session.motion}
+          </button>
+        {/key}
+        <span class="tools">
+          <span class="meta">{time(session.createdAt)}</span>
+          <button type="button" class="act" onclick={() => void copied.copy(session.id, session.motion)}>
+            {copied.key === session.id ? 'copied' : 'copy'}
+          </button>
+          <button type="button" class="act" onclick={() => (draft = session.motion)} title="put it in the line below, to change and submit">
+            edit
+          </button>
+        </span>
+      {/if}
+    </div>
+
     <Stage {units} live={busy} {left} {right} {core} />
 
     <!-- The resolution: what the council decided, powering on like every notice here. -->
@@ -517,21 +555,6 @@ const FAILED = new Set<ChatStop | undefined>(['error', 'unreachable', 'refusal']
           <span class="quiet">Nothing is sent until you submit · deliberations stay on this computer</span>
         </p>
       {:else}
-        <article class="motion fx-rise" data-testid="elec-motion">
-          <header>
-            <span class="who">motion #{sign}</span>
-            <span class="meta">{time(session.createdAt)}</span>
-            <span class="rule"></span>
-            <button type="button" class="act" onclick={() => void copied.copy(session.id, session.motion)}>
-              {copied.key === session.id ? 'copied' : 'copy'}
-            </button>
-            <button type="button" class="act" onclick={() => (draft = session.motion)} title="put it in the line below, to change and submit">
-              edit
-            </button>
-          </header>
-          <p class="said">{session.motion}</p>
-        </article>
-
         <div class="ballots">
           {#each UNIT_INDICES as unit (unit)}
             {@const run = runOf(unit)}
@@ -972,14 +995,89 @@ select:focus {
 }
 
 /* The motion reads as the chat pane's own message: the accent down its left, the cut corner. */
+/*
+ * The motion over the stage: its call sign as a tag, then the question itself in the display
+ * size a heading gets, on the accent's band with the cut corner the panels have.
+ */
 .motion {
+  flex: none;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
   padding: var(--space-1) var(--space-2);
   border-left: 2px solid var(--accent);
   background: var(--accent-faint);
-  clip-path: polygon(0 0, calc(100% - 0.5rem) 0, 100% 0.5rem, 100% 100%, 0 100%);
+  clip-path: polygon(0 0, calc(100% - 0.6rem) 0, 100% 0.6rem, 100% 100%, 0 100%);
+}
+
+.motion[data-empty='true'] {
+  border-left-color: var(--panel-border);
+  background: transparent;
+}
+
+.sign {
+  flex: none;
+  padding: 0 0.35rem;
+  border: 1px solid var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--accent);
+  user-select: none;
+}
+
+.motion[data-empty='true'] .sign {
+  border-color: var(--panel-border);
+  color: var(--text-muted);
+}
+
+.motion .said {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-ui);
+  font-size: var(--step-1);
+  line-height: 1.35;
+  text-align: left;
+  color: var(--accent-strong);
+  text-shadow: 0 0 calc(var(--glow) * 0.4rem) var(--accent);
+  cursor: pointer;
+  user-select: text;
+  /* Two lines at most, the rest a click away. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.motion.open .said {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.motion .said.quiet {
+  font-size: var(--step--1);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-shadow: none;
+  cursor: default;
+}
+
+.tools {
+  flex: none;
+  display: flex;
+  gap: var(--space-2);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
 }
 
 header {
