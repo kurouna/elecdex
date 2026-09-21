@@ -32,6 +32,7 @@ import { ui } from '../../stores/ui.svelte.ts'
 import Markdown from '../aichat/Markdown.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
+import { councilLog } from './log.ts'
 import SeatsPanel from './SeatsPanel.svelte'
 import Stage, { type Readout, type UnitView } from './Stage.svelte'
 
@@ -215,13 +216,15 @@ const sign = $derived(session === null ? '----' : session.id.slice(0, 4).toUpper
 const seconds = (ms: number): string =>
   ms < 60_000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms / 60_000)}m`
 
-const left = $derived<Readout[]>([
-  { label: 'RULE', value: (session?.rule ?? settings.rule).toUpperCase() },
-  {
-    label: 'ROUND',
-    value: `${session === null ? '-' : round} / ${session?.rounds ?? settings.rounds}`,
-  },
-])
+/** The console's lines: the deliberation as a log, or the council on standby. */
+const log = $derived(
+  councilLog(
+    session,
+    live,
+    UNIT_INDICES.map((unit) => ({ unit, model: seatsNow[unit]?.model ?? '' })),
+    providers.length > 0,
+  ),
+)
 
 const right = $derived.by<Readout[]>(() => {
   const ballots = session?.ballots ?? []
@@ -238,6 +241,11 @@ const right = $derived.by<Readout[]>(() => {
         : seconds(Math.max(0, lastAt - session.createdAt))
   const voted = ballots.filter((b) => b.round === round && countsAsVote(b)).length
   return [
+    { label: 'RULE', value: (session?.rule ?? settings.rule).toUpperCase() },
+    {
+      label: 'ROUND',
+      value: `${session === null ? '-' : round} / ${session?.rounds ?? settings.rounds}`,
+    },
     { label: busy ? 'ELAPSED' : 'TOOK', value: time },
     { label: 'VOTES', value: session === null ? '-' : `${voted} / 3` },
     { label: 'TOKENS', value: tokens === 0 ? '-' : compactCount(tokens) },
@@ -272,20 +280,10 @@ let heardOf: string | null = null
 let heardVotes = 0
 let wasBusy = false
 
-/** A resolution that landed while this pane watched: the stage converges on it once. */
-let converge = $state<{ key: string; tone: string } | null>(null)
-
-const OUTCOME_TONES: Partial<Record<Outcome, string>> = {
-  approved: 'var(--ok)',
-  rejected: 'var(--danger)',
-}
-
 function hear(votes: number, now: boolean): void {
   if (votes > heardVotes && now) sfx.play('panel')
   if (!wasBusy || now) return
   sfx.play(outcome === 'approved' ? 'granted' : outcome === 'rejected' ? 'alarm' : 'glitch')
-  const tone = outcome === null || outcome === 'interrupted' ? undefined : OUTCOME_TONES[outcome]
-  converge = { key: `${session?.id}:${votes}`, tone: tone ?? 'var(--warn)' }
 }
 
 $effect(() => {
@@ -312,6 +310,8 @@ async function submit(text: string): Promise<boolean> {
   historyOpen = false
   save({ session: result.sessionId })
   sfx.play('stdout')
+  // The units powering on: a tube warming.
+  sfx.play('expand')
   return true
 }
 
@@ -346,7 +346,6 @@ let motionOpen = $state(false)
 $effect(() => {
   void choice.session
   motionOpen = false
-  converge = null
 })
 let seatsOpen = $state(false)
 /** When the log was opened: its "2h" are said from then, and do not tick. */
@@ -523,7 +522,7 @@ const FAILED = new Set<ChatStop | undefined>(['error', 'unreachable', 'refusal']
       {/if}
     </div>
 
-    <Stage {units} live={busy} {left} {right} {core} {converge} />
+    <Stage {units} live={busy} {log} {right} {core} power={session?.id ?? null} />
 
     <!-- The resolution: what the council decided, powering on like every notice here. -->
     <div class="resolution" data-testid="elec-resolution" data-outcome={outcome ?? (busy ? 'pending' : 'none')}>

@@ -36,6 +36,7 @@ import { ELEC_UNITS } from '@shared/elec'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import Effects from './Effects.svelte'
 import { coreTop, PLATE_POINTS } from './geometry.ts'
+import type { LogLine } from './log.ts'
 
 /**
  * The council: three plates in a triangle around the core, as the source of the
@@ -53,17 +54,29 @@ interface Props {
   units: readonly UnitView[]
   /** Voting now: the ring runs with the pulse. */
   live: boolean
-  left: readonly Readout[]
+  /** The console in the top left corner, oldest first. */
+  log: readonly LogLine[]
   right: readonly Readout[]
+  /**
+   * The deliberation shown, or null. With none the units are powered off; each new one powers
+   * them on again, one after another, like relays closing.
+   */
+  power: string | null
   /** What the stage is doing, under its core. */
   core: string
-  /** A resolution that landed while the pane watched: its light converges on the core once. */
-  converge?: { key: string; tone: string } | null
 }
-const { units, live, left, right, core, converge = null }: Props = $props()
+const { units, live, log, right, core, power }: Props = $props()
+
+/** The last lines of the console: it shows the newest, the older fading out above them. */
+const LOG_LINES = 14
+const shown = $derived(log.slice(-LOG_LINES))
+const clock = (at: number): string => new Date(at).toTimeString().slice(0, 8)
 
 /** The light is motion: none of it with motion reduced. */
 const moving = $derived(!appearance.reducedMotion)
+
+/** The order the units power on in: the top one first, then left and right, as relays close. */
+const POWER_ORDER: Record<UnitIndex, number> = { 1: 0, 0: 1, 2: 2 }
 
 /** Where each plate's words go: left, top, width, height in percent. */
 const BOXES: Record<UnitIndex, [number, number, number, number]> = {
@@ -98,7 +111,7 @@ $effect(() => {
 })
 </script>
 
-<div class="stage" class:live class:moving data-testid="elec-stage">
+<div class="stage" class:live class:moving class:powered={power !== null} data-testid="elec-stage">
   <!--
     The grid of a Tron floor, laid back in perspective under the lower plates: still while the
     council waits, running towards the viewer while it sits. One transformed layer, moved by
@@ -113,30 +126,29 @@ $effect(() => {
       <line class="spoke" x1="61" y1="62" x2="50" y2={top} vector-effect="non-scaling-stroke" />
     </svg>
     {#if moving}
-      <Effects width={size.width} height={size.height} {top} {units} {live} {converge} layer="under" />
+      <Effects width={size.width} height={size.height} {top} {units} {live} layer="under" />
     {/if}
     <!-- The plates in a picture of their own, over the ring's light. -->
     <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      {#key power}
       {#each units as view (view.unit)}
         <polygon
           class="plate"
           data-state={view.state}
           points={pointsOf(view.unit)}
           vector-effect="non-scaling-stroke"
+          style:--power-delay={`${POWER_ORDER[view.unit] * 220}ms`}
         />
       {/each}
+      {/key}
     </svg>
 
     {#if moving}
-      <Effects width={size.width} height={size.height} {top} {units} {live} {converge} layer="over" />
+      <Effects width={size.width} height={size.height} {top} {units} {live} layer="over" />
     {/if}
 
     <div class="core" data-testid="elec-core" style:top={`${top}%`}>
       <span class="hex">
-        <!-- An orbit round the core, and a sweep inside it, turning while the council sits. -->
-        <span class="orbit" aria-hidden="true"></span>
-        <span class="orbit inner" aria-hidden="true"></span>
-        <span class="radar" aria-hidden="true"><span class="beam"></span></span>
         <svg viewBox="0 0 116 100" aria-hidden="true">
           <polygon class="outer" points="29,1 87,1 115,50 87,99 29,99 1,50" />
           <polygon class="inner" points="35,11 81,11 103,50 81,89 35,89 13,50" />
@@ -146,6 +158,7 @@ $effect(() => {
       <span class="doing">{core}</span>
     </div>
 
+    {#key power}
     {#each units as view (view.unit)}
       {@const [x, y, w, h] = BOXES[view.unit]}
       <div
@@ -157,7 +170,9 @@ $effect(() => {
         style:top={`${y}%`}
         style:width={`${w}%`}
         style:height={`${h}%`}
+        style:--power-delay={`${POWER_ORDER[view.unit] * 220}ms`}
       >
+        {#if power !== null}<span class="boot" aria-hidden="true"></span>{/if}
         {#key view.ballot}
           {#if view.ballot !== null}<span class="flash" aria-hidden="true"></span>{/if}
         {/key}
@@ -177,14 +192,18 @@ $effect(() => {
         {/if}
       </div>
     {/each}
+    {/key}
   </div>
 
-  <dl class="readout left">
-    {#each left as row (row.label)}
-      <dt>{row.label}</dt>
-      <dd>{row.value}</dd>
+  <!-- A console of what the council has done, in the corner the triangle leaves. -->
+  <ol class="console" data-testid="elec-log" aria-label="council log">
+    {#each shown as line, i (`${log.length - shown.length + i}:${line.text}`)}
+      <li class="fx-rise" data-tone={line.tone} class:last={i === shown.length - 1}>
+        <span class="time">{line.at === null ? '--:--:--' : clock(line.at)}</span>
+        <span class="text">{line.text}</span>
+      </li>
     {/each}
-  </dl>
+  </ol>
   <dl class="readout right">
     {#each right as row (row.label)}
       <dt>{row.label}</dt>
@@ -443,69 +462,6 @@ $effect(() => {
   fill: color-mix(in srgb, var(--accent) 6%, var(--app-bg));
 }
 
-/* Orbits: a dashed ring and a broken arc round the hexagon, turning opposite ways. */
-.orbit {
-  position: absolute;
-  inset: -34%;
-  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.orbit.inner {
-  inset: -16%;
-  border: 2px solid transparent;
-  border-top-color: var(--accent);
-  border-bottom-color: color-mix(in srgb, var(--accent) 50%, transparent);
-  opacity: 0;
-}
-
-.live.moving .orbit {
-  animation: elec-spin 9s linear infinite;
-  animation-play-state: var(--ambient-play-state);
-}
-
-.live.moving .orbit.inner {
-  opacity: 1;
-  animation: elec-spin 1.6s linear infinite reverse;
-  animation-play-state: var(--ambient-play-state);
-}
-
-/* The sweep: a turning wedge of light inside the hexagon, clipped to it. */
-.radar {
-  z-index: 1;
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
-  opacity: 0;
-}
-
-.beam {
-  position: absolute;
-  inset: -40%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0 70%,
-    color-mix(in srgb, var(--accent) 55%, transparent) 100%
-  );
-}
-
-.live.moving .radar {
-  opacity: 1;
-}
-
-.live.moving .beam {
-  animation: elec-spin 1.8s linear infinite;
-  animation-play-state: var(--ambient-play-state);
-}
-
-@keyframes elec-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .mark {
   z-index: 2;
   position: relative;
@@ -712,6 +668,161 @@ $effect(() => {
 .readout dd {
   margin: 0;
   color: var(--accent);
+}
+
+/*
+ * Powered off: before any motion the units are dark glass - no fill, a dotted rim, their names
+ * dim. Powering on is mechanical: each plate and its words flicker up like a tube catching,
+ * the top one first and the others a beat after, and a scan line runs down each plate once.
+ */
+.stage:not(.powered) .plate {
+  fill: var(--app-bg);
+  stroke: color-mix(in srgb, var(--accent) 30%, transparent);
+  stroke-dasharray: 2 5;
+}
+
+.stage:not(.powered) .unit {
+  opacity: 0.4;
+}
+
+.stage:not(.powered) .name {
+  color: var(--text-muted);
+  text-shadow: none;
+}
+
+.powered .plate,
+.powered .unit {
+  animation: elec-power-on calc(900ms * var(--motion-scale)) linear
+    calc(var(--power-delay, 0ms) * var(--motion-scale)) backwards;
+}
+
+@keyframes elec-power-on {
+  0% {
+    opacity: 0.15;
+  }
+  8% {
+    opacity: 0.9;
+  }
+  12% {
+    opacity: 0.2;
+  }
+  22% {
+    opacity: 0.8;
+  }
+  27% {
+    opacity: 0.35;
+  }
+  40% {
+    opacity: 1;
+  }
+  46% {
+    opacity: 0.7;
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+.boot {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent 0 94%,
+    color-mix(in srgb, var(--accent) 60%, transparent) 98%,
+    transparent 100%
+  );
+  animation: elec-boot calc(700ms * var(--motion-scale)) var(--ease-in-out)
+    calc((var(--power-delay, 0ms) + 250ms) * var(--motion-scale)) backwards;
+}
+
+@keyframes elec-boot {
+  from {
+    opacity: 1;
+    transform: translateY(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The console: newest at the bottom, the older fading out above it. */
+.console {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: min(24rem, 27cqw);
+  height: 52%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  line-height: 1.45;
+  pointer-events: none;
+  mask-image: linear-gradient(to bottom, transparent, #000 40%);
+}
+
+.console li {
+  display: flex;
+  gap: 0.6rem;
+  min-width: 0;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.console .time {
+  flex: none;
+  opacity: 0.7;
+}
+
+.console .text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
+}
+
+.console li.last .text {
+  color: var(--accent-strong);
+}
+
+.console li[data-tone='accent'] .text {
+  color: var(--accent);
+}
+
+.console li[data-tone='ok'] .text {
+  color: var(--ok);
+}
+
+.console li[data-tone='danger'] .text {
+  color: var(--danger);
+}
+
+.console li[data-tone='info'] .text {
+  color: var(--info);
+}
+
+.console li[data-tone='warn'] .text {
+  color: var(--warn);
+}
+
+/* The cursor after the newest line, on the shared pulse while the council sits. */
+.console li.last .text::after {
+  content: '▌';
+  margin-left: 0.3em;
+  color: var(--accent);
+}
+
+:global([data-pulse='2']) .console li.last .text::after {
+  opacity: 0.15;
 }
 
 /* Too narrow for the corners: the plates need all of it. */

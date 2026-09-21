@@ -386,9 +386,10 @@ weather and calendar.
   *Settings -> AI -> elec system · standpoints*). Type a motion that can be answered yes or no and
   press Enter. Each unit writes a short statement, in the motion's language, ending with a
   `VERDICT` line (APPROVE, REJECT or ABSTAIN) and a `CONFIDENCE`; the plates light as they vote
-  (`TX`, `RX`, then the verdict) - while the council sits, light runs round the plates being asked,
-  along the spokes and over a moving grid floor, and the resolution converges on the core (none of
-  it with motion reduced) - and the **resolution** follows the rule chosen in the bar:
+  (`TX`, `RX`, then the verdict) - the units sit powered off until a motion comes and power on one
+  after another; while the council sits, light runs round the plates being asked, along the spokes
+  and over a moving grid floor (none of it with motion reduced), and a console in the corner logs
+  each step - and the **resolution** follows the rule chosen in the bar:
   **majority** (two seats decide; otherwise `DEADLOCK`) or **unanimous** (all three approve; one
   rejection rejects; otherwise `NO CONSENSUS`). A vote that does not count - a link that failed
   (`LINK ERROR`, `NO CARRIER`) or an answer with no verdict (`NO VERDICT`) - is invalid, not an

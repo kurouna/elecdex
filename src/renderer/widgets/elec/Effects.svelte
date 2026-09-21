@@ -1,5 +1,5 @@
 <script lang="ts">
-import { UNIT_INDICES, type UnitIndex } from '@shared/elec'
+import type { UnitIndex } from '@shared/elec'
 import { PLATE_POINTS } from './geometry.ts'
 import type { UnitView } from './Stage.svelte'
 
@@ -13,11 +13,11 @@ import type { UnitView } from './Stage.svelte'
  * While a unit is asked, light runs round its plate, and along its spoke - out from the core
  * while the question travels (TX), in from the plate while the answer comes back (RX); a
  * comet runs round the ring. A vote draws its plate's outline once in its colour. The
- * resolution sends the three plates' light down the spokes into the core, which sends a ring
- * out across the board.
+ * resolution itself has none of this (a convergence on the core was tried and taken out as
+ * too theatrical, 2026-09-21): it powers on in the strip below, as notices do.
  *
  * All of it is SVG stroke-dashoffset and transform animation, only while the council sits or
- * for the moment something lands. Endless ones pause with the window put away
+ * for the moment a vote lands. Endless ones pause with the window put away
  * (`--ambient-play-state`); none of it is drawn with motion reduced (the owner leaves this
  * component out), and a background tab's `display: none` stops it.
  */
@@ -28,15 +28,13 @@ interface Props {
   top: number
   units: readonly UnitView[]
   live: boolean
-  /** Set when a resolution lands while the pane watches: the convergence plays once for it. */
-  converge: { key: string; tone: string } | null
   /**
    * The ring's comet runs under the plates (they are opaque, so it shows only in the gaps
    * between them, as the ring does); everything else is drawn over them.
    */
   layer: 'under' | 'over'
 }
-const { width, height, top, units, live, converge, layer }: Props = $props()
+const { width, height, top, units, live, layer }: Props = $props()
 
 const px = (x: number, y: number): string => `${(x / 100) * width},${(y / 100) * height}`
 const outline = (unit: UnitIndex): string => PLATE_POINTS[unit].map(([x, y]) => px(x, y)).join(' ')
@@ -94,18 +92,6 @@ const ready = $derived(width > 0 && height > 0)
       {/key}
     {/each}
 
-    {#if converge !== null && layer === 'over'}
-      {#key converge.key}
-        <g class="converge" style:--tone={converge.tone} data-testid="elec-converge">
-          {#each UNIT_INDICES as unit (unit)}
-            {@const [mx, my] = mouth(unit)}
-            <line class="inflow" x1={mx} y1={my} x2={core[0]} y2={core[1]} pathLength="100" />
-          {/each}
-          <circle class="shock" cx={core[0]} cy={core[1]} r={Math.min(width, height) * 0.08} />
-          <circle class="shock late" cx={core[0]} cy={core[1]} r={Math.min(width, height) * 0.08} />
-        </g>
-      {/key}
-    {/if}
   </svg>
 {/if}
 
@@ -120,8 +106,7 @@ const ready = $derived(width > 0 && height > 0)
 }
 
 polygon,
-line,
-circle {
+line {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -200,7 +185,7 @@ circle {
   }
 }
 
-/* ---- Once: a vote landing, the resolution arriving ---- */
+/* ---- Once: a vote landing ---- */
 
 .draw {
   stroke: var(--tone);
@@ -226,54 +211,4 @@ circle {
   }
 }
 
-.inflow {
-  stroke: var(--tone);
-  stroke-width: 3;
-  stroke-dasharray: 100 100;
-  opacity: 0;
-  filter: drop-shadow(0 0 6px var(--tone));
-  animation: elec-inflow calc(700ms * var(--motion-scale)) var(--ease-in-out) backwards;
-}
-
-@keyframes elec-inflow {
-  from {
-    stroke-dashoffset: 100;
-    opacity: 1;
-  }
-  70% {
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-  to {
-    stroke-dashoffset: -100;
-    opacity: 0;
-  }
-}
-
-/* The ring the core sends out: transform and opacity only, from its own centre. */
-.shock {
-  stroke: var(--tone);
-  stroke-width: 2;
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  filter: drop-shadow(0 0 6px var(--tone));
-  animation: elec-shock calc(1200ms * var(--motion-scale)) var(--ease-out)
-    calc(450ms * var(--motion-scale)) backwards;
-}
-
-.shock.late {
-  animation-delay: calc(650ms * var(--motion-scale));
-}
-
-@keyframes elec-shock {
-  from {
-    opacity: 0.9;
-    transform: scale(0.6);
-  }
-  to {
-    opacity: 0;
-    transform: scale(7);
-  }
-}
 </style>

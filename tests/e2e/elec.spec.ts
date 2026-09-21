@@ -144,10 +144,20 @@ test('a motion is voted by three units, resolved, and is there after a restart',
     expect(seen).toEqual([])
 
     await expect(pane(page).getByTestId('elec-motion')).toContainText('awaiting motion')
+    // Before a motion the units sit powered off, and the console says so.
+    await expect(pane(page).getByTestId('elec-stage')).not.toHaveClass(/powered/)
+    await expect(pane(page).getByTestId('elec-log')).toContainText(
+      'UNIT-1 LOGOS · split · POWER OFF',
+    )
     await submit(page, 'Adopt the four-day week?')
     // What the council answers stands over it, in the same view as the plates.
     await expect(pane(page).getByTestId('elec-motion-text')).toHaveText('Adopt the four-day week?')
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('approved')
+    await expect(pane(page).getByTestId('elec-stage')).toHaveClass(/powered/)
+    const log = pane(page).getByTestId('elec-log')
+    await expect(log).toContainText('POWER ON · 3 UNITS')
+    await expect(log).toContainText('UNIT-2 ETHOS · VOTE REJECT 55%')
+    await expect(log).toContainText('RESOLUTION · APPROVED 2·1·0·0')
     await expect(pane(page).getByTestId('elec-resolution')).toHaveAttribute(
       'data-outcome',
       'approved',
