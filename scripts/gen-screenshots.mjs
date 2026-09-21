@@ -8,6 +8,7 @@
  * (`npm run gen:screenshots -- elecdex-audio`).
  */
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { _electron as electron } from '@playwright/test'
@@ -90,7 +91,112 @@ const audioLayout = {
   ),
 }
 
-async function shoot(theme, name, { extra, layout, env } = {}) {
+/*
+ * The AI chat pane, talking to a stand-in served from this machine: no model, no key and no
+ * service is involved, and what is "said" is written here. It speaks the OpenAI dialect the way
+ * Ollama does - the first answer whole, with its token counts; the second slowly, so the shot
+ * catches it arriving.
+ */
+const chatLayout = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      split(
+        'column',
+        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
+        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+      ),
+      split('column', [pane('terminal'), pane('aichat')], [0.34, 0.66]),
+      split(
+        'column',
+        ['globe', 'markets', 'weather', 'calendar'].map(pane),
+        [0.3, 0.25, 0.22, 0.23],
+      ),
+    ],
+    [0.18, 0.64, 0.18],
+  ),
+}
+
+const CHAT = [
+  {
+    ask: 'How do I watch a folder for changes in Node.js?',
+    answer: [
+      'Use `fs.watch` on the folder, and keep a poll on the modification time as a fallback - some editors save by renaming a temporary file over the original, which a watcher on the file itself never sees.',
+      '',
+      '```js',
+      "import { watch } from 'node:fs'",
+      '',
+      'const watcher = watch(dir, { persistent: false }, (event, name) => {',
+      "  if (name === 'settings.json') reload()",
+      '})',
+      '```',
+      '',
+      '- **Watch the folder**, not the file.',
+      '- **Debounce**: one save is often several events.',
+    ].join('\n'),
+  },
+  {
+    ask: 'And how do I debounce those events?',
+    answer: [
+      'Keep one timer per key and start it again on every event, so only the last of a burst runs:',
+      '',
+      '```js',
+      'const timers = new Map()',
+      '',
+      'function debounced(key, fn, ms = 150) {',
+      '  clearTimeout(timers.get(key))',
+      '  timers.set(key, setTimeout(fn, ms))',
+      '}',
+      '```',
+      '',
+      'A hundred and fifty milliseconds is enough for an editor that writes a file in two steps, and short enough that the reload still feels immediate.',
+    ].join('\n'),
+  },
+]
+
+function chatStandIn() {
+  let asked = 0
+  const server = createServer((req, res) => {
+    req.resume()
+    req.on('end', () => {
+      const { answer } = CHAT[Math.min(asked, CHAT.length - 1)]
+      const slow = asked > 0
+      asked += 1
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      const pieces = answer.match(/.{1,12}/gs) ?? []
+      const step = () => {
+        const piece = pieces.shift()
+        if (piece === undefined) {
+          const usage = { prompt_tokens: 38, completion_tokens: 212 }
+          res.write(`data: ${JSON.stringify({ choices: [], usage })}\n\n`)
+          res.end('data: [DONE]\n\n')
+          return
+        }
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: piece } }] })}\n\n`)
+        setTimeout(step, slow ? 110 : 45)
+      }
+      step()
+    })
+  })
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => resolve(server))
+  })
+}
+
+async function chatting(page) {
+  const chat = page.locator('[data-testid=pane][data-widget=aichat]')
+  const input = chat.getByTestId('aichat-input')
+  await input.fill(CHAT[0].ask)
+  await input.press('Enter')
+  await chat.getByTestId('aichat-usage').waitFor()
+  await input.fill(CHAT[1].ask)
+  await input.press('Enter')
+  // Far enough into the second answer for its code to be on screen, not so far that it is over.
+  await page.waitForTimeout(3000)
+}
+
+async function shoot(theme, name, { extra, layout, env, settings } = {}) {
   if (only.length > 0 && !only.includes(name)) return
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
   if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
@@ -101,6 +207,7 @@ async function shoot(theme, name, { extra, layout, env } = {}) {
       sound: { enabled: false },
       updates: { check: false },
       launcher: { showSystem: false, items: launcherItems },
+      ...settings,
     }),
   )
   const app = await electron.launch({
@@ -155,4 +262,20 @@ await shoot('tron', 'elecdex-settings', {
 })
 // The audio panes, playing the demo stand-in: never the machine's sound, apps or volume.
 await shoot('tron', 'elecdex-audio', { layout: audioLayout, env: { ELECDEX_AUDIO_STUB: 'demo' } })
+if (only.length === 0 || only.includes('elecdex-aichat')) {
+  const standIn = await chatStandIn()
+  const provider = {
+    id: 'ollama',
+    name: 'Ollama',
+    kind: 'openai',
+    baseUrl: `http://127.0.0.1:${standIn.address().port}/v1`,
+    model: 'qwen3:8b',
+  }
+  await shoot('tron', 'elecdex-aichat', {
+    layout: chatLayout,
+    settings: { ai: { providers: [provider] } },
+    extra: chatting,
+  })
+  standIn.close()
+}
 console.log(`wrote ${OUT}`)

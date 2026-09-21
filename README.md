@@ -16,7 +16,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.11 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.12 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -47,7 +47,7 @@ for Windows, macOS and Linux.
   month calendar with optional Japanese holidays.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
   you want it.
-- **AI chat** *(unreleased)* — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
+- **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
   that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
   Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
   the operating system and never reach the page, and conversations stay on your computer.
@@ -120,6 +120,12 @@ for Windows, macOS and Linux.
   </tr>
   <tr>
     <td colspan="2" align="center">Spectrum and mixer</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="./docs/screenshots/elecdex-aichat.jpg" alt="The Tron theme with an AI chat pane under the terminal: a question about watching a folder in Node.js answered with a code block and its token counts, and a second answer arriving, its heading reading RX with the seconds and characters so far"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">AI chat, with a model on your own computer or a service you have a key for</td>
   </tr>
 </table>
 
@@ -324,7 +330,7 @@ weather and calendar.
   the week forecast on or off, per pane; the default is New York City. A click on the forecast
   opens the source's own page for the place in the browser - JMA's forecast page, the NWS point
   forecast or yr.no.
-- **AI chat** *(unreleased: on `main`, not in v0.0.11)* — not in the default layout: add it from the picker (Ctrl+Shift+A), as many as you
+- **AI chat** — not in the default layout: add it from the picker (Ctrl+Shift+A), as many as you
   like. First list a provider in *Settings -> AI*: pick a preset (Ollama, LM Studio, llama.cpp,
   Anthropic, OpenAI, Gemini, OpenRouter, or a custom address), adjust the address, and - for a
   hosted service - paste its API key (kept as you leave the field, like every other setting;
