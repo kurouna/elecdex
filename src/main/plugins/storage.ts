@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { isStorageKey, PLUGIN_ID, PLUGIN_LIMITS } from '@shared/plugins'
+import { replaceFile } from '../store/replace-file.js'
 
 /**
  * ctx.storage: one JSON file per plugin under userData/plugin-data (docs/plugins.md 8.1).
@@ -90,7 +91,7 @@ export class PluginStorage {
       mkdirSync(this.dir, { recursive: true })
       const file = this.file(id)
       writeFileSync(`${file}.tmp`, JSON.stringify(value))
-      renameSync(`${file}.tmp`, file)
+      replaceFile(`${file}.tmp`, file)
     } catch (error) {
       console.warn(`[elecdex] could not save plugin data for ${id}:`, error)
     }

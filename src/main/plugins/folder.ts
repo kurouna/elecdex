@@ -6,12 +6,12 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
-  renameSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
 import { PLUGIN_LIMITS, type PluginSource } from '@shared/plugins'
 import { transform } from 'sucrase'
+import { replaceFile } from '../store/replace-file.js'
 
 /**
  * The plugins folder: finding plugins and turning their source into something a worker
@@ -43,7 +43,7 @@ function writeAtomic(file: string, text: string): void {
   mkdirSync(path.dirname(file), { recursive: true })
   const temp = `${file}.tmp`
   writeFileSync(temp, text)
-  renameSync(temp, file)
+  replaceFile(temp, file)
 }
 
 export class PluginFolder {

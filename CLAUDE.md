@@ -436,6 +436,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 - Comments explain *why*, in full sentences; match the density of the surrounding code.
 - Library versions are pinned to the latest release; when the latest cannot be used, the reason
   is recorded in architecture.md (e.g. Vite 7 because Vite 8's Rolldown cannot parse Svelte 5.57).
+- A file main writes by renaming a temp file over it goes through `replaceFile`
+  (main/store/replace-file.ts), never a bare `renameSync`: Windows refuses the rename while
+  anything - a scanner, an editor, a test - has the file open, and the write was lost.
 - Renderer-only and build-time packages are devDependencies (bundled by Vite), so they are not
   shipped twice; runtime Node dependencies of main stay in dependencies.
 

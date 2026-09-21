@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { z } from 'zod'
+import { replaceFile } from './replace-file.js'
 
 /**
  * A cache kept as one JSON file: read whole, validated, and written atomically.
@@ -22,7 +23,7 @@ export function cacheFile<T>(file: string, schema: z.ZodType<T>, empty: T) {
       mkdirSync(path.dirname(file), { recursive: true })
       const temp = `${file}.tmp`
       writeFileSync(temp, JSON.stringify(value))
-      renameSync(temp, file)
+      replaceFile(temp, file)
     },
   }
 }

@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
@@ -250,6 +251,35 @@ test('the layout survives an app restart, with fresh shells', async () => {
       })
       .toBe(2)
   } finally {
+    await launched.close()
+  }
+})
+
+test('a save lands while another program keeps reading layout.json', async () => {
+  // Windows refuses a rename over a file another process has open, and the save
+  // behind the test above was lost now and then to its own polling read - as it
+  // would be to an antivirus scan or an editor. This reader opens the file every
+  // millisecond, so nearly every save meets it.
+  const launched = await launch(undefined, { layout: SINGLE_TERMINAL })
+  const reader = spawn(process.execPath, [
+    '-e',
+    `const fs = require('fs')
+    setInterval(() => { try { fs.readFileSync(process.argv[1]) } catch {} }, 1)`,
+    layoutFile(launched.userData),
+  ])
+  try {
+    const { page, userData } = launched
+    await terminalPane(page).locator('.xterm-helper-textarea').first().focus()
+    for (let panes = 2; panes <= 4; panes++) {
+      await page.keyboard.press('Control+Shift+KeyO')
+      await expect(terminalPane(page)).toHaveCount(panes)
+      await waitForSaved(
+        userData,
+        (json) => (json.match(/"widget": "terminal"/g) ?? []).length === panes,
+      )
+    }
+  } finally {
+    reader.kill()
     await launched.close()
   }
 })

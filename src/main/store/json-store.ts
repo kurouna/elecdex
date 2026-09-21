@@ -9,6 +9,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import type { z } from 'zod'
+import { replaceFile } from './replace-file.js'
 
 /**
  * A validated, atomically-written JSON file under userData.
@@ -28,7 +29,8 @@ import type { z } from 'zod'
  *    `.bak` only when a write is about to replace it.
  *
  * Writes go to a temp file and are renamed over the target, so a crash mid-write
- * cannot leave a truncated file behind.
+ * cannot leave a truncated file behind. The rename goes through replaceFile, which
+ * tries again when Windows refuses it because another process has the file open.
  */
 export class JsonStore<T> {
   private readonly file: string
@@ -123,7 +125,7 @@ export class JsonStore<T> {
     const temp = `${this.file}.${process.pid}.tmp`
     writeFileSync(temp, `${JSON.stringify(result.data, null, 2)}\n`, 'utf8')
     // rename is atomic within a filesystem, so readers never see a partial file.
-    renameSync(temp, this.file)
+    replaceFile(temp, this.file)
     this.cache = result.data
   }
 

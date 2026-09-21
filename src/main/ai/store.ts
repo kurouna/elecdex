@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { AI_LIMITS, CHAT_ID, type Chat, ChatSchema, type ChatSummary, summaryOf } from '@shared/ai'
 import {
@@ -10,6 +10,7 @@ import {
   sessionSummaryOf,
 } from '@shared/elec'
 import type { z } from 'zod'
+import { replaceFile } from '../store/replace-file.js'
 
 /**
  * Records kept one JSON file each in a folder of userData: conversations
@@ -72,7 +73,7 @@ export class FolderStore<T extends FolderRecord, S extends { updatedAt: number }
 `,
       'utf8',
     )
-    renameSync(temp, file)
+    replaceFile(temp, file)
     index.set(record.id, this.kind.summaryOf(parsed.data))
     return true
   }

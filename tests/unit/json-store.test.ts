@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -149,6 +150,38 @@ describe('JsonStore', () => {
     expect(store.read().name).toBe('first')
     store.invalidate()
     expect(store.read().name).toBe('changed on disk')
+  })
+})
+
+describe('JsonStore while another process reads the file', () => {
+  // On Windows a rename over a file someone has open fails with EPERM. The e2e
+  // test polling layout.json for a save lost that save now and then, and so would
+  // an antivirus scan or an editor: the layout, settings or notes of that moment.
+  // The reader here opens the file every millisecond, far more often than any of those.
+  it.runIf(process.platform === 'win32')('keeps every write', async () => {
+    const store = makeStore()
+    store.write({ version: 1, name: 'first' })
+    const reader = spawn(process.execPath, [
+      '-e',
+      `const fs = require('fs')
+      console.log('ready')
+      setInterval(() => { try { fs.readFileSync(process.argv[1]) } catch {} }, 1)`,
+      file,
+    ])
+    try {
+      await new Promise((resolve) => reader.stdout.once('data', resolve))
+      for (let i = 0; i < 500; i++) store.write({ version: 1, name: `write ${i}` })
+      // Still being read: the last write reaches the disk anyway, soon after.
+      await vi.waitFor(
+        () => expect(JSON.parse(readFileSync(file, 'utf8')).name).toBe('write 499'),
+        {
+          timeout: 10_000,
+          interval: 20,
+        },
+      )
+    } finally {
+      reader.kill()
+    }
   })
 })
 
