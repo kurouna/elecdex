@@ -1,6 +1,9 @@
 <script lang="ts">
 import type { UnitIndex } from '@shared/elec'
+import { untrack } from 'svelte'
+import { fade } from 'svelte/transition'
 import { PLATE_POINTS } from './geometry.ts'
+import { HOLD_MS, nextPackets, type Packet } from './light.ts'
 import type { UnitView } from './Stage.svelte'
 
 /**
@@ -11,10 +14,19 @@ import type { UnitView } from './Stage.svelte'
  *
  * The light-cycle vocabulary of Tron: a bright head with a short tail running on the circuit.
  * While a unit is asked, light runs round its plate, and along its spoke - out from the core
- * while the question travels (TX), in from the plate while the answer comes back (RX); a
+ * while the question travels (TX), in from the plate as the answer comes back (RX); a
  * comet runs round the ring. A vote draws its plate's outline once in its colour. The
  * resolution itself has none of this (a convergence on the core was tried and taken out as
  * too theatrical, 2026-09-21): it powers on in the strip below, as notices do.
+ *
+ * The answer's packets are its traffic, not a loop: one sets out for each piece main sends
+ * (`received` growing), as many as `nextPackets` lets on the spoke - so a quick model streams,
+ * a slow one ticks, and a unit thinking it over leaves its spoke dark. The moment the first
+ * piece arrives the spoke blinks once and the light round the plate starts over at its
+ * quicker pace (restarted, because a running animation given a new duration jumps).
+ *
+ * What runs while the council sits comes up and goes out over a moment (`HOLD_MS`) instead of
+ * appearing whole: the last vote puts the lights out, and the resolution waits for the dark.
  *
  * All of it is SVG stroke-dashoffset and transform animation, only while the council sits or
  * for the moment a vote lands. Endless ones pause with the window put away
@@ -55,30 +67,82 @@ const TONES: Record<string, string> = {
 }
 const asked = (view: UnitView): boolean => view.state === 'tx' || view.state === 'rx'
 const ready = $derived(width > 0 && height > 0)
+const light = { duration: HOLD_MS }
+
+/** The packets on the spokes now; each is taken away by its own animation ending. */
+let packets = $state.raw<readonly Packet[]>([])
+/** How much of each unit's answer had arrived when last looked at; not reactive. */
+const heard = new Map<UnitIndex, number>()
+
+$effect(() => {
+  if (layer !== 'over') return
+  for (const view of units) {
+    const before = heard.get(view.unit)
+    // Only an answer being followed is counted: one first seen part-written (a pane mounted
+    // mid-answer, a deliberation opened from the log) is not a piece arriving.
+    if (!live || !asked(view)) {
+      heard.delete(view.unit)
+      continue
+    }
+    heard.set(view.unit, view.received)
+    if (before === undefined || view.received <= before) continue
+    packets = nextPackets(
+      untrack(() => packets),
+      view.unit,
+      performance.now(),
+    )
+  }
+})
+
+function landed(id: number): void {
+  packets = packets.filter((p) => p.id !== id)
+}
 </script>
 
 {#if ready}
   <svg class="effects" viewBox={`0 0 ${width} ${height}`} aria-hidden="true" data-layer={layer}>
     {#if live && layer === 'under'}
       <!-- A comet on the ring, two out of phase. -->
-      <polygon class="comet" points={`${px(50, 18)} ${px(22, 78)} ${px(78, 78)}`} pathLength="300" />
-      <polygon class="comet late" points={`${px(50, 18)} ${px(22, 78)} ${px(78, 78)}`} pathLength="300" />
+      <g transition:fade={light}>
+        <polygon class="comet" points={`${px(50, 18)} ${px(22, 78)} ${px(78, 78)}`} pathLength="300" />
+        <polygon class="comet late" points={`${px(50, 18)} ${px(22, 78)} ${px(78, 78)}`} pathLength="300" />
+      </g>
     {/if}
 
     {#each layer === 'over' ? units : [] as view (view.unit)}
       {#if live && asked(view)}
         {@const [mx, my] = mouth(view.unit)}
         {@const [cx, cy] = core}
-        <!-- Light round the plate of a unit being asked, faster once its answer comes. -->
-        <polygon class="trace" class:rx={view.state === 'rx'} points={outline(view.unit)} pathLength="100" data-testid="elec-trace" />
-        <polygon class="trace second" class:rx={view.state === 'rx'} points={outline(view.unit)} pathLength="100" />
-        <!-- A packet on the spoke: out to the unit with the question, back to the core with the answer. -->
-        {#if view.state === 'tx'}
-          <line class="packet" x1={cx} y1={cy} x2={mx} y2={my} pathLength="100" />
-        {:else}
-          <line class="packet rx" x1={mx} y1={my} x2={cx} y2={cy} pathLength="100" />
-        {/if}
+        <g transition:fade={light}>
+          <!-- Light round the plate of a unit being asked, started over and faster once its answer comes. -->
+          {#key view.state}
+            <polygon class="trace" class:rx={view.state === 'rx'} points={outline(view.unit)} pathLength="100" data-testid="elec-trace" />
+            <polygon class="trace second" class:rx={view.state === 'rx'} points={outline(view.unit)} pathLength="100" />
+          {/key}
+          {#if view.state === 'tx'}
+            <!-- The question on its way out to the unit, for as long as nothing comes back. -->
+            <line class="packet" x1={cx} y1={cy} x2={mx} y2={my} pathLength="100" />
+          {:else}
+            <!-- The carrier caught: the spoke blinks once as the first piece of the answer arrives. -->
+            <line class="lock" x1={mx} y1={my} x2={cx} y2={cy} data-testid="elec-lock" />
+          {/if}
+        </g>
       {/if}
+      <!-- The answer's traffic: a packet to the core for a piece received, each run once. -->
+      {#each packets.filter((p) => p.unit === view.unit) as packet (packet.id)}
+        {@const [mx, my] = mouth(view.unit)}
+        {@const [cx, cy] = core}
+        <line
+          class="packet once"
+          x1={mx}
+          y1={my}
+          x2={cx}
+          y2={cy}
+          pathLength="100"
+          data-testid="elec-packet"
+          onanimationend={() => landed(packet.id)}
+        />
+      {/each}
       {#key view.ballot}
         {#if view.ballot !== null}
           <!-- The vote landing: the plate's outline drawn once, in its colour, then fading. -->
@@ -162,9 +226,49 @@ line {
   animation-play-state: var(--ambient-play-state);
 }
 
-.packet.rx {
-  animation-duration: 0.6s;
-  animation-play-state: var(--ambient-play-state);
+/*
+ * One piece of an answer, once down the spoke. The gap is longer than the spoke, so the dash
+ * comes in from before its start and leaves past its end with no second one in sight.
+ */
+.packet.once {
+  stroke-dasharray: 14 200;
+  opacity: 0;
+  animation: elec-packet calc(600ms * var(--motion-scale)) linear backwards;
+}
+
+@keyframes elec-packet {
+  from {
+    stroke-dashoffset: 16;
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: -102;
+    opacity: 1;
+  }
+}
+
+/* The first piece of an answer: the spoke blinks once, as a carrier is caught. */
+.lock {
+  stroke: var(--accent-strong);
+  stroke-width: 2;
+  opacity: 0;
+  filter: drop-shadow(0 0 4px var(--accent));
+  animation: elec-lock calc(480ms * var(--motion-scale)) linear backwards;
+}
+
+@keyframes elec-lock {
+  from {
+    opacity: 0.9;
+  }
+  25% {
+    opacity: 0.15;
+  }
+  45% {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes elec-run-100 {
@@ -211,4 +315,8 @@ line {
   }
 }
 
+/* On a light ground a glow is a smudge round the line, not light: the line runs alone there. */
+:global(:root[data-mode='light']) .effects :is(polygon, line) {
+  filter: none;
+}
 </style>

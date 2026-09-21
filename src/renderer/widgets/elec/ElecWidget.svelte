@@ -18,6 +18,7 @@ import {
   type UnitIndex,
   unitLabel,
 } from '@shared/elec'
+import { untrack } from 'svelte'
 import ConfirmButton from '../../ConfirmButton.svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
@@ -32,6 +33,7 @@ import { ui } from '../../stores/ui.svelte.ts'
 import Markdown from '../aichat/Markdown.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
+import { HOLD_MS, steppedBack } from './light.ts'
 import { councilLog } from './log.ts'
 import SeatsPanel from './SeatsPanel.svelte'
 import Stage, { type Readout, type UnitView } from './Stage.svelte'
@@ -100,9 +102,18 @@ const live = $derived(view.live)
 const busy = $derived(live !== null)
 const round = $derived(live?.round ?? session?.rounds ?? settings.rounds)
 const resolution = $derived(session === null ? null : resolve(session))
+/**
+ * The moment between the last vote and the resolution (`HOLD_MS`), in a pane that watched the
+ * council sit: its lights go out, nothing moves, and then the resolution powers on. The
+ * deliberation is over - nothing is asked, Stop has nothing to stop - only what it came to is
+ * not said yet. `held` is the deliberation this pane is watching sit (none with motion
+ * reduced), until its resolution has been shown; one opened meanwhile is not held with it.
+ */
+let held = $state<string | null>(null)
+const holding = $derived(held !== null && held === session?.id && !busy)
 /** A deliberation that stopped with no resolution and nobody voting: the app went away mid-vote. */
 const outcome = $derived<Outcome | 'interrupted' | null>(
-  session === null || busy ? null : (resolution?.outcome ?? 'interrupted'),
+  session === null || busy || holding ? null : (resolution?.outcome ?? 'interrupted'),
 )
 
 /** The seats as the settings have them: what a motion submitted now is put to. */
@@ -166,7 +177,17 @@ function runCode(run: ElecRun): string {
 function standbyView(unit: UnitIndex): UnitView {
   const model = seatsNow[unit]?.model ?? ''
   const code = providers.length === 0 ? 'no link' : model === '' ? 'no model' : 'standby'
-  return { unit, state: 'standby', code, model, confidence: null, ballot: null, was: null }
+  return {
+    unit,
+    state: 'standby',
+    code,
+    model,
+    confidence: null,
+    ballot: null,
+    was: null,
+    received: 0,
+    back: false,
+  }
 }
 
 /** A seat's vote in the round shown, and the first round's when the second changed it. */
@@ -196,11 +217,14 @@ function unitView(unit: UnitIndex): UnitView {
     confidence: null,
     ballot: null,
     was: null,
+    received: 0,
+    back: false,
   }
   const run = runOf(unit)
   if (run !== undefined) {
     const state = run.text === '' && run.thinking === '' ? 'tx' : 'rx'
-    return { ...base, state, code: runCode(run) }
+    const received = run.text.length + run.thinking.length
+    return { ...base, state, code: runCode(run), received }
   }
   const ballot = ballotOf(unit, round)
   if (ballot !== undefined) return ballotView(base, ballot)
@@ -208,7 +232,10 @@ function unitView(unit: UnitIndex): UnitView {
   return busy ? base : { ...base, state: 'invalid', code: 'interrupted' }
 }
 
-const units = $derived(UNIT_INDICES.map(unitView))
+/** Once the council has decided, the units that did not carry the decision step back. */
+const units = $derived(
+  UNIT_INDICES.map(unitView).map((u) => ({ ...u, back: steppedBack(outcome, u.state) })),
+)
 
 /** The motion's call sign: the first letters of its id, as a console numbers what it files. */
 const sign = $derived(session === null ? '----' : session.id.slice(0, 4).toUpperCase())
@@ -217,7 +244,7 @@ const seconds = (ms: number): string =>
   ms < 60_000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms / 60_000)}m`
 
 /** The console's lines: the deliberation as a log, or the council on standby. */
-const log = $derived(
+const wholeLog = $derived(
   councilLog(
     session,
     live,
@@ -225,6 +252,8 @@ const log = $derived(
     providers.length > 0,
   ),
 )
+/** A deliberation over ends in one line, how it ended: not written before the resolution is shown. */
+const log = $derived(holding ? wholeLog.slice(0, -1) : wholeLog)
 
 const right = $derived.by<Readout[]>(() => {
   const ballots = session?.ballots ?? []
@@ -258,7 +287,7 @@ const SWEEP = ['▰▱▱▱', '▱▰▱▱', '▱▱▰▱', '▱▱▱▰'] a
 const core = $derived.by(() => {
   if (providers.length === 0) return 'no link'
   if (session === null) return blocked === null ? 'awaiting motion' : 'no model'
-  if (busy) return `round ${round} · T+${elapsed}s`
+  if (busy || holding) return `round ${round} · T+${elapsed}s`
   return outcome === null || outcome === 'interrupted' ? 'interrupted' : OUTCOME_WORDS[outcome]
 })
 
@@ -279,21 +308,50 @@ $effect(() => {
 let heardOf: string | null = null
 let heardVotes = 0
 let wasBusy = false
+let holdTimer: ReturnType<typeof setTimeout> | null = null
 
-function hear(votes: number, now: boolean): void {
+/**
+ * The resolution, shown and heard: after the hold in a pane that watched the council sit
+ * with motion on (`held` says so), at once in any other.
+ */
+function resolved(id: string, result: Outcome | null): void {
+  const reveal = (): void => {
+    holdTimer = null
+    held = null
+    if (viewOf !== id) return
+    sfx.play(result === 'approved' ? 'granted' : result === 'rejected' ? 'alarm' : 'glitch')
+  }
+  if (holdTimer !== null) clearTimeout(holdTimer)
+  if (untrack(() => held) !== id) {
+    reveal()
+    return
+  }
+  // A moment, not a frame: it ends whether or not the window is there to be drawn.
+  holdTimer = setTimeout(reveal, HOLD_MS)
+}
+
+function hear(id: string | null, votes: number, now: boolean): void {
   if (votes > heardVotes && now) sfx.play('panel')
-  if (!wasBusy || now) return
-  sfx.play(outcome === 'approved' ? 'granted' : outcome === 'rejected' ? 'alarm' : 'glitch')
+  if (!wasBusy || now || id === null) return
+  resolved(id, resolution?.outcome ?? null)
 }
 
 $effect(() => {
   const id = session?.id ?? null
   const votes = session?.ballots.length ?? 0
   const now = busy
-  if (id === heardOf) hear(votes, now)
+  if (id === heardOf) hear(id, votes, now)
+  // Marked while the council sits, so the hold is there in the very update that ends it.
+  if (now && id !== null) held = appearance.reducedMotion ? null : id
+  // Over with no hold begun (the view started again from a snapshot): nothing is left held.
+  else if (holdTimer === null) held = null
   heardOf = id
   heardVotes = votes
   wasBusy = now
+})
+
+$effect(() => () => {
+  if (holdTimer !== null) clearTimeout(holdTimer)
 })
 
 let draft = $state('')
@@ -525,11 +583,13 @@ const FAILED = new Set<ChatStop | undefined>(['error', 'unreachable', 'refusal']
     <Stage {units} live={busy} {log} {right} {core} power={session?.id ?? null} />
 
     <!-- The resolution: what the council decided, powering on like every notice here. -->
-    <div class="resolution" data-testid="elec-resolution" data-outcome={outcome ?? (busy ? 'pending' : 'none')}>
+    <div class="resolution" data-testid="elec-resolution" data-outcome={outcome ?? (busy || holding ? 'pending' : 'none')}>
       <span class="label">resolution</span>
       <span class="rule"></span>
       {#if busy}
         <span class="pending"><span class="sweep" aria-hidden="true">{SWEEP[pulse.phase] ?? SWEEP[0]}</span>deliberating</span>
+      {:else if holding}
+        <!-- The hold: the strip says nothing until the council's lights are out. -->
       {:else if outcome === null}
         <span class="pending">awaiting motion</span>
       {:else}

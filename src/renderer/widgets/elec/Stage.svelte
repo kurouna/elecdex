@@ -23,6 +23,10 @@ export interface UnitView {
   ballot: string | null
   /** The first round's verdict, when the second changed it. */
   was: string | null
+  /** How much of the answer being written has arrived: each step up is a packet on the spoke. */
+  received: number
+  /** Decided without it: the plate steps back, and the ones that carried the decision stay lit. */
+  back: boolean
 }
 
 export interface Readout {
@@ -36,6 +40,7 @@ import { ELEC_UNITS } from '@shared/elec'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import Effects from './Effects.svelte'
 import { coreTop, PLATE_POINTS } from './geometry.ts'
+import { floorPhase } from './light.ts'
 import type { LogLine } from './log.ts'
 
 /**
@@ -46,9 +51,9 @@ import type { LogLine } from './log.ts'
  * (container query units) instead of shrinking with a picture.
  *
  * Nothing here runs on a timer. While the council sits, the plates of the units
- * writing, the core and the ring between them step with the shared pulse
- * (`data-pulse` on the widget); a verdict lands with a stamp and a flash that
- * play once.
+ * writing, the core, the ring between them and the rim of a unit waiting its turn
+ * step with the shared pulse (`data-pulse` on the widget); a verdict lands with a
+ * stamp and a flash that play once.
  */
 interface Props {
   units: readonly UnitView[]
@@ -77,6 +82,36 @@ const moving = $derived(!appearance.reducedMotion)
 
 /** The order the units power on in: the top one first, then left and right, as relays close. */
 const POWER_ORDER: Record<UnitIndex, number> = { 1: 0, 0: 1, 2: 2 }
+const onDelay = (unit: UnitIndex): string => `${POWER_ORDER[unit] * 220}ms`
+/** And off in the other: the last relay to close is the first to open. */
+const offDelay = (unit: UnitIndex): string => `${(2 - POWER_ORDER[unit]) * 140}ms`
+
+/**
+ * Whether the units have been on since this pane was mounted: only then is going back to
+ * standby a power-off to be seen. A pane that opens with no motion shows them dark at once.
+ */
+let wasOn = $state(false)
+$effect.pre(() => {
+  if (power !== null) wasOn = true
+})
+
+/*
+ * The floor stops where it is. Taking its animation away would put the grid back at its
+ * start - a jump of up to a cell - and a paused one would keep its layer for as long as the
+ * council waits. So, before the page is changed, where the grid has got to is read and held
+ * as a plain transform, and the next sitting starts its run from there.
+ */
+let lines = $state<HTMLDivElement>()
+let floorAt = $state(0)
+let floorRan = false
+$effect.pre(() => {
+  const runs = live && moving
+  if (floorRan && !runs && lines !== undefined) {
+    const cell = 2.5 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+    floorAt = floorPhase(getComputedStyle(lines).transform, cell)
+  }
+  floorRan = runs
+})
 
 /** Where each plate's words go: left, top, width, height in percent. */
 const BOXES: Record<UnitIndex, [number, number, number, number]> = {
@@ -111,13 +146,22 @@ $effect(() => {
 })
 </script>
 
-<div class="stage" class:live class:moving class:powered={power !== null} data-testid="elec-stage">
+<div
+  class="stage"
+  class:live
+  class:moving
+  class:powered={power !== null}
+  class:was-on={wasOn}
+  data-testid="elec-stage"
+>
   <!--
     The grid of a Tron floor, laid back in perspective under the lower plates: still while the
     council waits, running towards the viewer while it sits. One transformed layer, moved by
     transform alone.
   -->
-  <div class="floor" aria-hidden="true"><div class="plane"><div class="lines"></div></div></div>
+  <div class="floor" aria-hidden="true">
+    <div class="plane"><div class="lines" bind:this={lines} style:--floor-at={floorAt}></div></div>
+  </div>
   <div class="board" bind:this={board}>
     <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
       <polygon class="ring" points="50,18 22,78 78,78" vector-effect="non-scaling-stroke" />
@@ -134,10 +178,12 @@ $effect(() => {
       {#each units as view (view.unit)}
         <polygon
           class="plate"
+          class:back={view.back}
           data-state={view.state}
           points={pointsOf(view.unit)}
           vector-effect="non-scaling-stroke"
-          style:--power-delay={`${POWER_ORDER[view.unit] * 220}ms`}
+          style:--power-delay={onDelay(view.unit)}
+          style:--off-delay={offDelay(view.unit)}
         />
       {/each}
       {/key}
@@ -163,6 +209,7 @@ $effect(() => {
       {@const [x, y, w, h] = BOXES[view.unit]}
       <div
         class="unit u{view.unit}"
+        class:back={view.back}
         data-state={view.state}
         data-testid="elec-unit"
         data-unit={view.unit}
@@ -170,7 +217,8 @@ $effect(() => {
         style:top={`${y}%`}
         style:width={`${w}%`}
         style:height={`${h}%`}
-        style:--power-delay={`${POWER_ORDER[view.unit] * 220}ms`}
+        style:--power-delay={onDelay(view.unit)}
+        style:--off-delay={offDelay(view.unit)}
       >
         {#if power !== null}<span class="boot" aria-hidden="true"></span>{/if}
         {#key view.ballot}
@@ -275,10 +323,14 @@ $effect(() => {
   transform-origin: 50% 0;
 }
 
-/* Taller than the plane by one cell, so moving it one cell loops without a seam. */
+/*
+ * Taller than the plane by one cell, so moving it one cell loops without a seam. At rest it
+ * sits where its last run left it (`--floor-at`, a part of a cell), and runs on from there.
+ */
 .lines {
   position: absolute;
   inset: -2.5rem 0 0;
+  transform: translateY(calc(var(--floor-at, 0) * 2.5rem));
   background:
     linear-gradient(to right, color-mix(in srgb, var(--accent) 22%, transparent) 1px, transparent 1px)
       0 0 / 2.5rem 2.5rem,
@@ -295,11 +347,14 @@ $effect(() => {
 }
 
 .live.moving .lines {
-  animation: elec-floor 0.9s linear infinite;
+  animation: elec-floor 0.9s linear calc(var(--floor-at, 0) * -0.9s) infinite;
   animation-play-state: var(--ambient-play-state);
 }
 
 @keyframes elec-floor {
+  from {
+    transform: translateY(0);
+  }
   to {
     transform: translateY(2.5rem);
   }
@@ -362,11 +417,26 @@ $effect(() => {
   fill: color-mix(in srgb, var(--accent) 4%, var(--app-bg));
   stroke: var(--tone);
   stroke-width: 1;
-  transition: fill calc(var(--dur-base) * var(--motion-scale)) var(--ease-out);
+  transition:
+    fill calc(var(--dur-base) * var(--motion-scale)) var(--ease-out),
+    stroke calc(var(--dur-base) * var(--motion-scale)) var(--ease-out);
 }
 
 .plate[data-state='queued'] {
   stroke-dasharray: 4 3;
+}
+
+/* Waiting its turn: the dashes of its rim move on a quarter of their length a beat. */
+:global([data-pulse='1']) .plate[data-state='queued'] {
+  stroke-dashoffset: -1.75;
+}
+
+:global([data-pulse='2']) .plate[data-state='queued'] {
+  stroke-dashoffset: -3.5;
+}
+
+:global([data-pulse='3']) .plate[data-state='queued'] {
+  stroke-dashoffset: -5.25;
 }
 
 .plate:is([data-state='tx'], [data-state='rx']) {
@@ -407,6 +477,17 @@ $effect(() => {
   --tone: var(--warn);
   fill: color-mix(in srgb, var(--warn) 9%, var(--app-bg));
   stroke-dasharray: 4 3;
+}
+
+/*
+ * Decided without it: the plate steps back - its colour thinned towards the ground, no glow -
+ * and the ones that carried the decision are what is left lit. Not by opacity, which would
+ * let the ring show through a plate. After every rule that gives a plate its colour.
+ */
+.plate.back {
+  fill: color-mix(in srgb, var(--tone) 8%, var(--app-bg));
+  stroke: color-mix(in srgb, var(--tone) 45%, var(--app-bg));
+  filter: none;
 }
 
 /*
@@ -523,6 +604,22 @@ $effect(() => {
   --tone: var(--warn);
 }
 
+/*
+ * The words of a plate that stepped back. On the words and not the unit, whose own opacity is
+ * the power-on's to animate: a deliberation opened from the log powers on already decided.
+ */
+.unit > :not(.flash, .boot) {
+  transition: opacity calc(400ms * var(--motion-scale)) var(--ease-out);
+}
+
+.unit.back > :not(.flash, .boot) {
+  opacity: 0.55;
+}
+
+.unit.back :is(.name, .state) {
+  text-shadow: none;
+}
+
 /* The bottom seats' words keep clear of the corner cut towards the core. */
 .u0 {
   padding-right: 1.4rem;
@@ -592,10 +689,19 @@ $effect(() => {
   border: 1px solid color-mix(in srgb, var(--tone) 50%, transparent);
 }
 
+/* The gauge fills once, from nothing, when the vote it belongs to lands. */
 .confidence .fill {
   position: absolute;
   inset: 0 auto 0 0;
   background: color-mix(in srgb, var(--tone) 45%, transparent);
+  transform-origin: 0 50%;
+  animation: elec-gauge calc(420ms * var(--motion-scale)) var(--ease-out) backwards;
+}
+
+@keyframes elec-gauge {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 .confidence .figure {
@@ -723,6 +829,53 @@ $effect(() => {
   }
 }
 
+/*
+ * And off again, when the pane goes back to standby: the units that were lit flicker and drop
+ * to the dark glass they are drawn as, the last to come on first. Once, from the lit look
+ * to the element's own; a pane that opens on standby has nothing to switch off (`was-on`).
+ */
+.was-on:not(.powered) .plate {
+  animation: elec-plate-off calc(520ms * var(--motion-scale)) linear
+    calc(var(--off-delay, 0ms) * var(--motion-scale)) backwards;
+}
+
+.was-on:not(.powered) .unit {
+  animation: elec-unit-off calc(520ms * var(--motion-scale)) linear
+    calc(var(--off-delay, 0ms) * var(--motion-scale)) backwards;
+}
+
+@keyframes elec-plate-off {
+  0% {
+    fill: color-mix(in srgb, var(--accent) 10%, var(--app-bg));
+    stroke: var(--accent);
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.3;
+  }
+  45% {
+    opacity: 0.9;
+  }
+  70% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes elec-unit-off {
+  0% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0.2;
+  }
+  45% {
+    opacity: 0.8;
+  }
+  70% {
+    opacity: 0.25;
+  }
+}
+
 .boot {
   position: absolute;
   inset: 0;
@@ -783,11 +936,22 @@ $effect(() => {
   opacity: 0.7;
 }
 
+/* A line is typed on, left to right in steps, as a terminal writes it. */
 .console .text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: 0.04em;
+  animation: elec-type calc(200ms * var(--motion-scale)) steps(14, end) backwards;
+}
+
+@keyframes elec-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
 }
 
 .console li.last .text {

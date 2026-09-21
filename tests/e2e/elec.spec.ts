@@ -297,9 +297,39 @@ test('stop ends the deliberation, and closing the pane stops one nobody reads', 
     // While the council sits, light runs round the one plate being asked, and round the ring.
     await expect(pane(page).getByTestId('elec-trace')).toHaveCount(1)
     await expect(pane(page).locator('.comet')).toHaveCount(2)
+    // The first piece of its answer has come: the spoke has blinked, and the floor runs.
+    await expect(pane(page).getByTestId('elec-lock')).toHaveCount(1)
+    const floor = () =>
+      pane(page)
+        .locator('.lines')
+        .evaluate((el) => {
+          const style = getComputedStyle(el)
+          const cell = 2.5 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+          const ty = Number(/^matrix\(([^)]+)\)$/.exec(style.transform)?.[1]?.split(',')[5])
+          return {
+            animation: style.animationName,
+            part: ty / cell,
+            held: el.style.getPropertyValue('--floor-at'),
+          }
+        })
+    // Svelte scopes a keyframe's name.
+    expect((await floor()).animation).toMatch(/elec-floor$/)
     await expect(page.getByTestId('pane-badge')).toHaveText('deliberating')
     await pane(page).getByTestId('elec-stop-button').click()
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('quorum not met')
+    // The lights go out rather than vanish, and they are gone once the resolution is up.
+    await expect(pane(page).locator('.comet')).toHaveCount(0)
+    await expect(pane(page).getByTestId('elec-trace')).toHaveCount(0)
+    // The floor stops where it is - not back at its start, which was a jump of up to a cell -
+    // and nothing is left running (or paused, which would keep its layer) while the council waits.
+    const stopped = await floor()
+    expect(stopped.animation).toBe('none')
+    expect(stopped.held).not.toBe('')
+    expect(stopped.part).toBeGreaterThanOrEqual(0)
+    expect(stopped.part).toBeLessThanOrEqual(1)
+    expect(stopped.part).toBeCloseTo(Number(stopped.held), 2)
+    // Nobody carried a decision: all three step back alike.
+    await expect(pane(page).locator('[data-testid=elec-unit].back')).toHaveCount(3)
     await expect(unit(page, 0)).toContainText('stopped')
     await expect(unit(page, 2)).toContainText('stopped')
     expect(await page.evaluate(() => window.elecdex.elec.active())).toEqual([])
