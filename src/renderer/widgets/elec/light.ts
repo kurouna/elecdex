@@ -2,8 +2,14 @@ import type { Outcome, UnitIndex } from '@shared/elec'
 
 /**
  * What the council's light is decided by, kept apart from the components that draw it so it
- * can be tested without a page: when an answer's traffic puts a packet on its spoke, where the
- * floor stopped, and which plates step back once the council has decided.
+ * can be tested without a page: when an answer's traffic puts a packet on its spoke, where
+ * each run of light is at a moment, and which plates step back once the council has decided.
+ *
+ * Everything that moves for as long as the council sits is stepped by the shared frame loop,
+ * ten times a second, and never a CSS animation. One animation running is enough to have the
+ * whole stage composited sixty times a second, and that - not any one effect - was the cost:
+ * measured with two units answering, about 70% of one core with the lights, the floor and the
+ * plates' fill transition as animations, and as much with any one of them left; 17% with none.
  */
 
 /**
@@ -50,17 +56,27 @@ export function nextPackets(
   return [...fresh, { id, unit, at: now }]
 }
 
+/** How long each run of light takes round its path, in ms. */
+export const RUN_MS = { comet: 3200, trace: 2400, traceRx: 1200, tx: 900, floor: 900 } as const
+
 /**
- * How far through a cell the floor's grid is, 0 to 1, read from the computed transform of its
- * running layer (`matrix(a, b, c, d, tx, ty)`) and the size of a cell in pixels. The floor is
- * stopped where it is by holding this and dropping the animation, and started again from it.
+ * How far round its path a run of light is at `now`, 0 to 1: `period` ms a lap, `lead` of a
+ * lap ahead (the second of a pair runs half a lap on).
  */
-export function floorPhase(transform: string, cell: number): number {
-  if (!(cell > 0)) return 0
-  const ty = Number(/^matrix\(([^)]+)\)$/.exec(transform)?.[1]?.split(',')[5])
-  if (!Number.isFinite(ty)) return 0
-  const phase = (ty / cell) % 1
-  return Math.round((phase < 0 ? phase + 1 : phase) * 1000) / 1000
+export function lap(now: number, period: number, lead = 0): number {
+  if (!(period > 0)) return 0
+  const at = (now / period + lead) % 1
+  return at < 0 ? at + 1 : at
+}
+
+/** How far down its spoke a packet is at `now`, 0 to 1; 1 and over, it has landed. */
+export const packetProgress = (packet: Packet, now: number): number =>
+  Math.max(0, (now - packet.at) / PACKET_MS)
+
+/** The packets still on their way at `now`; the same list when none has landed. */
+export function inFlight(packets: readonly Packet[], now: number): readonly Packet[] {
+  const flying = packets.filter((p) => packetProgress(p, now) < 1)
+  return flying.length === packets.length ? packets : flying
 }
 
 /**

@@ -197,11 +197,11 @@ describe("the council's light", () => {
     }
     expect(screen.getAllByTestId('elec-packet').length).toBeLessThanOrEqual(PACKETS_PER_UNIT)
 
-    // A packet is gone when its run ends.
-    const [first] = screen.getAllByTestId('elec-packet')
-    first?.dispatchEvent(new Event('animationend'))
-    flushSync()
-    expect(screen.queryAllByTestId('elec-packet')).not.toContain(first)
+    // Each is placed by the frame loop, not by an animation of its own.
+    for (const packet of screen.getAllByTestId('elec-packet')) {
+      expect(packet.getAttribute('stroke-dashoffset')).not.toBeNull()
+    }
+    expect(screen.getByTestId('elec-trace').getAttribute('stroke-dashoffset')).not.toBeNull()
   })
 
   it("keeps the flash of a vote landing to its plate's outline, not the box around it", () => {
@@ -293,9 +293,11 @@ describe("the council's light", () => {
     const { unmount } = render(ElecWidget, { props: props() })
     flushSync()
     snapshot(sitting())
-    const before = vi.getTimerCount()
     snapshot(null, DECIDED)
-    expect(vi.getTimerCount()).toBeGreaterThan(before)
+    // Held: its timer is running. (Not counted against the timers before it - the frame loop
+    // that stepped the light while the council sat has just let go of its own.)
+    expect(screen.queryByTestId('elec-outcome')).toBeNull()
+    expect(vi.getTimerCount()).toBeGreaterThan(0)
     unmount()
     vi.advanceTimersByTime(HOLD_MS)
     expect(vi.getTimerCount()).toBe(0)

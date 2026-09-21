@@ -37,10 +37,12 @@ export interface Readout {
 
 <script lang="ts">
 import { ELEC_UNITS } from '@shared/elec'
+import { untrack } from 'svelte'
+import { onFrame } from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import Effects from './Effects.svelte'
 import { coreTop, MOUTHS, PLATE_POINTS, plateBox, plateClip, RING } from './geometry.ts'
-import { floorPhase } from './light.ts'
+import { lap, RUN_MS } from './light.ts'
 import type { LogLine } from './log.ts'
 
 /**
@@ -96,21 +98,21 @@ $effect.pre(() => {
 })
 
 /*
- * The floor stops where it is. Taking its animation away would put the grid back at its
- * start - a jump of up to a cell - and a paused one would keep its layer for as long as the
- * council waits. So, before the page is changed, where the grid has got to is read and held
- * as a plain transform, and the next sitting starts its run from there.
+ * The floor runs towards the viewer while the council sits, a step a frame of the shared loop
+ * (ten a second) and never a CSS animation, which would have the stage composited at the
+ * display's rate for the whole sitting (light.ts has the numbers). It stops where it is - the
+ * part of a cell it has got to stays in `floorAt` - and the next sitting runs on from there.
  */
-let lines = $state<HTMLDivElement>()
 let floorAt = $state(0)
-let floorRan = false
-$effect.pre(() => {
-  const runs = live && moving
-  if (floorRan && !runs && lines !== undefined) {
-    const cell = 2.5 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-    floorAt = floorPhase(getComputedStyle(lines).transform, cell)
-  }
-  floorRan = runs
+$effect(() => {
+  if (!(live && moving)) return
+  let since: number | null = null
+  // Read once, as the run begins: tracked, every step would begin the run again.
+  const from = untrack(() => floorAt)
+  return onFrame((time) => {
+    since ??= time
+    floorAt = Math.round(lap(time - since, RUN_MS.floor, from) * 1000) / 1000
+  })
 })
 
 const pointsOf = (unit: UnitIndex): string => PLATE_POINTS[unit].map((p) => p.join(',')).join(' ')
@@ -154,7 +156,7 @@ $effect(() => {
     transform alone.
   -->
   <div class="floor" aria-hidden="true">
-    <div class="plane"><div class="lines" bind:this={lines} style:--floor-at={floorAt}></div></div>
+    <div class="plane"><div class="lines" style:--floor-at={floorAt}></div></div>
   </div>
   <div class="board" bind:this={board}>
     <svg class="frame" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -319,8 +321,8 @@ $effect(() => {
 }
 
 /*
- * Taller than the plane by one cell, so moving it one cell loops without a seam. At rest it
- * sits where its last run left it (`--floor-at`, a part of a cell), and runs on from there.
+ * Taller than the plane by one cell, so moving it one cell loops without a seam. Where it is
+ * (`--floor-at`, a part of a cell) is the frame loop's to say; at rest it keeps the last.
  */
 .lines {
   position: absolute;
@@ -339,20 +341,6 @@ $effect(() => {
       0 0 / 2.5rem 2.5rem,
     linear-gradient(to bottom, color-mix(in srgb, var(--accent) 38%, transparent) 1px, transparent 1px)
       0 0 / 2.5rem 2.5rem;
-}
-
-.live.moving .lines {
-  animation: elec-floor 0.9s linear calc(var(--floor-at, 0) * -0.9s) infinite;
-  animation-play-state: var(--ambient-play-state);
-}
-
-@keyframes elec-floor {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(2.5rem);
-  }
 }
 
 /*
@@ -415,6 +403,14 @@ $effect(() => {
   transition:
     fill calc(var(--dur-base) * var(--motion-scale)) var(--ease-out),
     stroke calc(var(--dur-base) * var(--motion-scale)) var(--ease-out);
+}
+
+/*
+ * While the council sits the pulse steps a plate's fill four times a second, and a transition
+ * on it would be an animation that never ends: steps are steps. A vote landing has its flash.
+ */
+.live .plate {
+  transition: none;
 }
 
 .plate[data-state='queued'] {

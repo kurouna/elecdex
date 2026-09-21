@@ -2,8 +2,17 @@
 import type { UnitIndex } from '@shared/elec'
 import { untrack } from 'svelte'
 import { fade } from 'svelte/transition'
+import { onFrame } from '../../lib/frame-loop.ts'
 import { MOUTHS, PLATE_POINTS, RING } from './geometry.ts'
-import { HOLD_MS, nextPackets, type Packet } from './light.ts'
+import {
+  HOLD_MS,
+  inFlight,
+  lap,
+  nextPackets,
+  type Packet,
+  packetProgress,
+  RUN_MS,
+} from './light.ts'
 import type { UnitView } from './Stage.svelte'
 
 /**
@@ -22,16 +31,19 @@ import type { UnitView } from './Stage.svelte'
  * The answer's packets are its traffic, not a loop: one sets out for each piece main sends
  * (`received` growing), as many as `nextPackets` lets on the spoke - so a quick model streams,
  * a slow one ticks, and a unit thinking it over leaves its spoke dark. The moment the first
- * piece arrives the spoke blinks once and the light round the plate starts over at its
- * quicker pace (restarted, because a running animation given a new duration jumps).
+ * piece arrives the spoke blinks once, and the light round the plate takes its quicker pace
+ * under that blink (a lap at another pace is somewhere else on the path).
  *
  * What runs while the council sits comes up and goes out over a moment (`HOLD_MS`) instead of
  * appearing whole: the last vote puts the lights out, and the resolution waits for the dark.
  *
- * All of it is SVG stroke-dashoffset and transform animation, only while the council sits or
- * for the moment a vote lands. Endless ones pause with the window put away
- * (`--ambient-play-state`); none of it is drawn with motion reduced (the owner leaves this
- * component out), and a background tab's `display: none` stops it.
+ * What runs for as long as the council sits - the comets, the light round a plate, the
+ * question on its spoke, the answer's packets - is stepped by the shared frame loop, ten times
+ * a second: a dash offset worked out from the frame's time (`lap`), not a CSS animation, which
+ * would have the stage composited at the display's rate for the whole sitting (light.ts has
+ * the numbers). The loop stops with the window put away. Only what lasts a moment is an
+ * animation: a vote's outline, the spoke's blink. None of it is drawn with motion reduced
+ * (the owner leaves this component out).
  */
 interface Props {
   width: number
@@ -93,9 +105,25 @@ $effect(() => {
   }
 })
 
-function landed(id: number): void {
-  packets = packets.filter((p) => p.id !== id)
-}
+/** The time of the frame being drawn: what every run of light is placed by. */
+let now = $state(performance.now())
+
+$effect(() => {
+  if (!live && packets.length === 0) return
+  return onFrame((time) => {
+    now = time
+    packets = inFlight(
+      untrack(() => packets),
+      time,
+    )
+  })
+})
+
+/** A dash's offset along a path of `length` units, `at` of the way round. */
+const offset = (length: number, at: number): number => Math.round(-length * at * 10) / 10
+/** A packet's dash comes in from before the spoke's start and leaves past its end. */
+const packetOffset = (packet: Packet): number =>
+  Math.round((16 - 118 * Math.min(1, packetProgress(packet, now))) * 10) / 10
 </script>
 
 {#if ready}
@@ -103,8 +131,8 @@ function landed(id: number): void {
     {#if live && layer === 'under'}
       <!-- A comet on the ring, two out of phase. -->
       <g transition:fade={light}>
-        <polygon class="comet" points={ring} pathLength="300" />
-        <polygon class="comet late" points={ring} pathLength="300" />
+        <polygon class="comet" points={ring} pathLength="300" stroke-dashoffset={offset(300, lap(now, RUN_MS.comet))} />
+        <polygon class="comet" points={ring} pathLength="300" stroke-dashoffset={offset(300, lap(now, RUN_MS.comet, 0.5))} />
       </g>
     {/if}
 
@@ -112,22 +140,21 @@ function landed(id: number): void {
       {#if live && asked(view)}
         {@const [mx, my] = mouth(view.unit)}
         {@const [cx, cy] = core}
+        {@const round = view.state === 'rx' ? RUN_MS.traceRx : RUN_MS.trace}
         <g transition:fade={light}>
-          <!-- Light round the plate of a unit being asked, started over and faster once its answer comes. -->
-          {#key view.state}
-            <polygon class="trace" class:rx={view.state === 'rx'} points={outline(view.unit)} pathLength="100" data-testid="elec-trace" />
-            <polygon class="trace second" class:rx={view.state === 'rx'} points={outline(view.unit)} pathLength="100" />
-          {/key}
+          <!-- Light round the plate of a unit being asked, faster once its answer comes. -->
+          <polygon class="trace" points={outline(view.unit)} pathLength="100" stroke-dashoffset={offset(100, lap(now, round))} data-testid="elec-trace" />
+          <polygon class="trace" points={outline(view.unit)} pathLength="100" stroke-dashoffset={offset(100, lap(now, round, 0.5))} />
           {#if view.state === 'tx'}
             <!-- The question on its way out to the unit, for as long as nothing comes back. -->
-            <line class="packet" x1={cx} y1={cy} x2={mx} y2={my} pathLength="100" />
+            <line class="packet" x1={cx} y1={cy} x2={mx} y2={my} pathLength="100" stroke-dashoffset={offset(100, lap(now, RUN_MS.tx))} />
           {:else}
             <!-- The carrier caught: the spoke blinks once as the first piece of the answer arrives. -->
             <line class="lock" x1={mx} y1={my} x2={cx} y2={cy} data-testid="elec-lock" />
           {/if}
         </g>
       {/if}
-      <!-- The answer's traffic: a packet to the core for a piece received, each run once. -->
+      <!-- The answer's traffic: a packet to the core for a piece received, each run once and taken away by the loop. -->
       {#each packets.filter((p) => p.unit === view.unit) as packet (packet.id)}
         {@const [mx, my] = mouth(view.unit)}
         {@const [cx, cy] = core}
@@ -138,8 +165,8 @@ function landed(id: number): void {
           x2={cx}
           y2={cy}
           pathLength="100"
+          stroke-dashoffset={packetOffset(packet)}
           data-testid="elec-packet"
-          onanimationend={() => landed(packet.id)}
         />
       {/each}
       {#key view.ballot}
@@ -175,20 +202,13 @@ line {
   stroke-linejoin: round;
 }
 
-/* ---- While the council sits: endless, paused with the window away ---- */
+/* ---- While the council sits: placed by the frame loop, a step a frame (no animation) ---- */
 
 .comet {
   stroke: var(--accent-strong);
   stroke-width: 2;
   stroke-dasharray: 22 278;
   filter: drop-shadow(0 0 4px var(--accent));
-  animation: elec-run-300 3.2s linear infinite;
-  animation-play-state: var(--ambient-play-state);
-}
-
-.comet.late {
-  animation-delay: -1.6s;
-  animation-play-state: var(--ambient-play-state);
 }
 
 .trace {
@@ -196,24 +216,6 @@ line {
   stroke-width: 2.5;
   stroke-dasharray: 9 91;
   filter: drop-shadow(0 0 5px var(--accent));
-  animation: elec-run-100 2.4s linear infinite;
-  animation-play-state: var(--ambient-play-state);
-}
-
-.trace.second {
-  animation-delay: -1.2s;
-  animation-play-state: var(--ambient-play-state);
-}
-
-/* An answer coming back runs quicker round its plate. */
-.trace.rx {
-  animation-duration: 1.2s;
-  animation-play-state: var(--ambient-play-state);
-}
-
-.trace.second.rx {
-  animation-delay: -0.6s;
-  animation-play-state: var(--ambient-play-state);
 }
 
 .packet {
@@ -221,8 +223,6 @@ line {
   stroke-width: 3;
   stroke-dasharray: 14 86;
   filter: drop-shadow(0 0 4px var(--accent));
-  animation: elec-run-100 0.9s linear infinite;
-  animation-play-state: var(--ambient-play-state);
 }
 
 /*
@@ -231,19 +231,6 @@ line {
  */
 .packet.once {
   stroke-dasharray: 14 200;
-  opacity: 0;
-  animation: elec-packet calc(600ms * var(--motion-scale)) linear backwards;
-}
-
-@keyframes elec-packet {
-  from {
-    stroke-dashoffset: 16;
-    opacity: 1;
-  }
-  to {
-    stroke-dashoffset: -102;
-    opacity: 1;
-  }
 }
 
 /* The first piece of an answer: the spoke blinks once, as a carrier is caught. */
@@ -267,24 +254,6 @@ line {
   }
   to {
     opacity: 0;
-  }
-}
-
-@keyframes elec-run-100 {
-  from {
-    stroke-dashoffset: 0;
-  }
-  to {
-    stroke-dashoffset: -100;
-  }
-}
-
-@keyframes elec-run-300 {
-  from {
-    stroke-dashoffset: 0;
-  }
-  to {
-    stroke-dashoffset: -300;
   }
 }
 

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
-  floorPhase,
+  inFlight,
+  lap,
   nextPackets,
   PACKET_GAP_MS,
   PACKET_MS,
   PACKETS_PER_UNIT,
   type Packet,
+  packetProgress,
+  RUN_MS,
   steppedBack,
 } from '../../src/renderer/widgets/elec/light.js'
 
@@ -50,18 +53,45 @@ describe("an answer's packets", () => {
   })
 })
 
-describe('where the floor stopped', () => {
-  it('is the part of a cell its running layer had moved', () => {
-    expect(floorPhase('matrix(1, 0, 0, 1, 0, 10)', 40)).toBe(0.25)
-    expect(floorPhase('matrix(1, 0, 0, 1, 0, 39.99)', 40)).toBe(1)
-    expect(floorPhase('matrix(1, 0, 0, 1, 0, 50)', 40)).toBe(0.25)
+describe('a run of light, stepped by the frame loop', () => {
+  it('is placed by the time alone: a lap every period, the second of a pair half a lap on', () => {
+    expect(lap(0, RUN_MS.trace)).toBe(0)
+    expect(lap(RUN_MS.trace / 4, RUN_MS.trace)).toBeCloseTo(0.25, 6)
+    expect(lap(RUN_MS.trace * 3.25, RUN_MS.trace)).toBeCloseTo(0.25, 6)
+    expect(lap(RUN_MS.trace / 4, RUN_MS.trace, 0.5)).toBeCloseTo(0.75, 6)
+    expect(lap(RUN_MS.trace / 4, RUN_MS.trace, 0.9)).toBeCloseTo(0.15, 6)
   })
 
-  it('is the start for anything it cannot read', () => {
-    expect(floorPhase('none', 40)).toBe(0)
-    expect(floorPhase('matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 10, 0, 1)', 40)).toBe(0)
-    expect(floorPhase('matrix(1, 0, 0, 1, 0, 10)', 0)).toBe(0)
-    expect(floorPhase('matrix(1, 0, 0, 1, 0, 10)', Number.NaN)).toBe(0)
+  it('stays on the path for any moment, and still for a period that is none', () => {
+    for (const now of [-1, -12345.6, 0, 1e9]) {
+      const at = lap(now, RUN_MS.comet)
+      expect(at).toBeGreaterThanOrEqual(0)
+      expect(at).toBeLessThan(1)
+    }
+    expect(lap(500, 0)).toBe(0)
+  })
+
+  it('moves a step a frame that reads as a run: less than the dash it moves', () => {
+    // Ten frames a second. A comet's dash is 22 of 300, a plate's 9 of 100 at the slower pace.
+    expect((300 * 100) / RUN_MS.comet).toBeLessThan(22)
+    expect((100 * 100) / RUN_MS.trace).toBeLessThan(9)
+  })
+})
+
+describe('a packet on its way', () => {
+  const packet: Packet = { id: 1, unit: 0, at: 1000 }
+
+  it('is as far down its spoke as the time since it set out', () => {
+    expect(packetProgress(packet, 1000)).toBe(0)
+    expect(packetProgress(packet, 1000 + PACKET_MS / 2)).toBe(0.5)
+    expect(packetProgress(packet, 900)).toBe(0)
+  })
+
+  it('is taken away once it has landed, and the list is the same one while none has', () => {
+    const packets = [packet, { id: 2, unit: 1 as const, at: 1300 }]
+    expect(inFlight(packets, 1400)).toBe(packets)
+    expect(inFlight(packets, 1000 + PACKET_MS)).toEqual([packets[1]])
+    expect(inFlight(packets, 1e6)).toEqual([])
   })
 })
 

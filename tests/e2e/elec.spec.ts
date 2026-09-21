@@ -302,32 +302,35 @@ test('stop ends the deliberation, and closing the pane stops one nobody reads', 
     const floor = () =>
       pane(page)
         .locator('.lines')
-        .evaluate((el) => {
-          const style = getComputedStyle(el)
-          const cell = 2.5 * Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
-          const ty = Number(/^matrix\(([^)]+)\)$/.exec(style.transform)?.[1]?.split(',')[5])
-          return {
-            animation: style.animationName,
-            part: ty / cell,
-            held: el.style.getPropertyValue('--floor-at'),
-          }
-        })
-    // Svelte scopes a keyframe's name.
-    expect((await floor()).animation).toMatch(/elec-floor$/)
+        .evaluate((el) => ({
+          animation: getComputedStyle(el).animationName,
+          at: Number(el.style.getPropertyValue('--floor-at')),
+        }))
+    // What runs for as long as the council sits is stepped by the frame loop, never a CSS
+    // animation: one of those has the whole stage composited at the display's rate.
+    const running = await floor()
+    expect(running.animation).toBe('none')
+    await expect.poll(async () => (await floor()).at).not.toBe(running.at)
+    const endless = await pane(page)
+      .locator('.effects :is(.comet, .trace, .packet)')
+      .evaluateAll((els) => els.map((el) => getComputedStyle(el).animationName))
+    expect(endless.length).toBeGreaterThan(0)
+    expect(endless.every((name) => name === 'none')).toBe(true)
+    const trace = pane(page).getByTestId('elec-trace')
+    const offset = await trace.getAttribute('stroke-dashoffset')
+    await expect.poll(() => trace.getAttribute('stroke-dashoffset')).not.toBe(offset)
     await expect(page.getByTestId('pane-badge')).toHaveText('deliberating')
     await pane(page).getByTestId('elec-stop-button').click()
     await expect(pane(page).getByTestId('elec-outcome')).toHaveText('quorum not met')
     // The lights go out rather than vanish, and they are gone once the resolution is up.
     await expect(pane(page).locator('.comet')).toHaveCount(0)
     await expect(pane(page).getByTestId('elec-trace')).toHaveCount(0)
-    // The floor stops where it is - not back at its start, which was a jump of up to a cell -
-    // and nothing is left running (or paused, which would keep its layer) while the council waits.
+    // The floor stops where it is - not back at its start, which was a jump of up to a cell.
     const stopped = await floor()
-    expect(stopped.animation).toBe('none')
-    expect(stopped.held).not.toBe('')
-    expect(stopped.part).toBeGreaterThanOrEqual(0)
-    expect(stopped.part).toBeLessThanOrEqual(1)
-    expect(stopped.part).toBeCloseTo(Number(stopped.held), 2)
+    expect(stopped.at).toBeGreaterThanOrEqual(0)
+    expect(stopped.at).toBeLessThan(1)
+    await page.waitForTimeout(400)
+    expect((await floor()).at).toBe(stopped.at)
     // Nobody carried a decision: all three step back alike.
     await expect(pane(page).locator('[data-testid=elec-unit].back')).toHaveCount(3)
     await expect(unit(page, 0)).toContainText('stopped')

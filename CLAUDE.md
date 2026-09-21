@@ -214,16 +214,19 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     per delta from main, as many as `nextPackets` lets on a spoke - never a loop. The resolution
     waits for the dark (`HOLD_MS`): `held` is marked *while* the council sits, so the hold is in
     the very update that ends it; the strip, the console's last line, the core's word and the
-    sound all wait, and a deliberation that was not watched, or motion reduced, does not. The
-    floor stops where it is by holding its phase, not by pausing its animation.
+    sound all wait, and a deliberation that was not watched, or motion reduced, does not.
   - Animate opacity and transform there, **never a colour in keyframes**: between the hsl accent
     and a colour mixed with `transparent` Chromium drew a black plate with a yellow rim. A plate
     is never dimmed by opacity either (the ring shows through): thin its colour towards the ground.
-  - Taken out as too theatrical, and not to come back without asking: a convergence on the core with a shock wave, orbits round the core, a
-    radar in it (user decisions 2026-09-21).
-  - While the council sits the pane costs about 70% of one core (measured 2026-09-21; the dashed
-    SVG animations and the floor repaint every frame). It is idle otherwise, so the idle budget
-    holds - but measure before adding anything that runs per frame.
+  - Taken out as too theatrical, and not to come back without asking: a convergence on the core
+    with a shock wave, orbits round the core, a radar in it (user decisions 2026-09-21).
+  - **Nothing there is an animation for as long as the council sits.** The comets, the light
+    round a plate, the packets and the floor are stepped by the frame loop (`onFrame`, placed by
+    `lap` from the frame's time), and the plates take no `transition` while it sits (the pulse
+    steps their fill four times a second). One endless animation has the whole stage composited
+    at the display's rate: measured, 70% of one core with them, the same with any one left,
+    28% stepped (17% with no light at all). Only what lasts a moment is CSS (a vote's outline,
+    flash and stamp, the spoke's blink, the power-on). Measure before adding anything that runs.
 - **The vendored calculator is never edited.** `src/shared/calc/vendor` is elecxzy's evaluator
   copied whole (MIT), kept out of tsconfig and biome, typed through hand-written `.d.ts` behind
   `@calc/*`. What elecdex needs goes in the wrapper beside it; `scripts/sync-calc.mjs` overwrites
