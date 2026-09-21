@@ -156,9 +156,50 @@ The Windows builds are the ones the author runs. The macOS and Linux builds come
 release workflow and pass the end-to-end tests on GitHub's runners, but have had no hands-on
 testing: treat them as not sufficiently verified.
 
-The builds are not code-signed yet. Windows SmartScreen shows "Windows protected your PC" — choose
-*More info → Run anyway*. On macOS, open the app once with right-click → *Open* (or allow it in
-*System Settings → Privacy & Security*).
+### If a warning appears
+
+The installers are not code-signed: a certificate costs more than a personal project can carry. So
+Windows and macOS warn before the first run. The warnings mean the publisher is unknown to them, not that
+anything was found in the file. If you want to check a download first, the release page lists every
+file's SHA-256 checksum. Each installer is built from the tagged source by the
+[release workflow](.github/workflows/release.yml) on GitHub's runners. These steps are needed once
+per install.
+
+**Windows**
+
+1. The browser may hold the download back ("isn't commonly downloaded"). In Edge, open the download's
+   *⋯* menu → *Keep* → *Show more* → *Keep anyway*. In Chrome, choose *Keep*.
+2. Run the `.exe`. SmartScreen shows **"Windows protected your PC"**: click **More info**, then
+   **Run anyway**.
+3. The installer installs for your user only, so it asks for no administrator rights.
+
+If Windows says the file was blocked and offers no *Run anyway*, right-click the `.exe` →
+*Properties* → tick **Unblock** → *OK*, and run it again.
+
+**macOS** (15 Sequoia and later; older versions in the last step)
+
+1. Open the `.dmg` and drag **elecdex** into *Applications*.
+2. Open elecdex from *Applications*. macOS says it **"could not verify 'elecdex' is free of
+   malware"**: click **Done** (not *Move to Trash*).
+3. Open **System Settings → Privacy & Security**, scroll to *Security*, and click **Open Anyway**
+   beside the line about elecdex. Confirm with your password or Touch ID, then **Open Anyway** again.
+4. On macOS 14 or earlier, right-click the app → **Open** → **Open** does the same.
+
+If macOS instead says **"elecdex is damaged and can't be opened"**, the file is not damaged. The
+quarantine mark from the download is what stops it. Remove the mark and open the app again:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/elecdex.app
+```
+
+**Linux** (no warning, but two things to know)
+
+- **deb** (Debian, Ubuntu): `sudo apt install ./elecdex-linux-amd64-<version>.deb`. It also installs
+  the AppArmor profile that Ubuntu 24.04 and later need before Electron's sandbox can start.
+- **AppImage**: `chmod +x elecdex-linux-*.AppImage` and run it. It needs FUSE 2 (`libfuse2`, or
+  `libfuse2t64` on Ubuntu 24.04). On Ubuntu 24.04 and later it may stop with a message about the
+  *SUID sandbox helper*, because AppArmor blocks the sandbox there. Use the deb in that case. Do not
+  start it with `--no-sandbox`: the sandbox is what keeps the renderer away from your files.
 
 elecdex starts fullscreen. **F11** leaves fullscreen and **Ctrl+Shift+Q** quits; `--windowed`
 starts in a window and `--no-intro` skips the boot sequence.

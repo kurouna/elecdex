@@ -425,6 +425,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 - **Releases**: run the whole Playwright suite (`npx playwright test`) before bumping the version.
   Then bump `package.json` version and push tag `v<version>`; .github/workflows/release.yml builds
   every platform into a GitHub pre-release that a person promotes to a full release.
+- **The builds are unsigned**, so the README's *If a warning appears* says, per OS, what to do when
+  SmartScreen or Gatekeeper stops the first run, and release.yml opens every release's notes with
+  a short copy of it. Change one and change the other.
 
 ## Conventions
 

@@ -47,13 +47,28 @@ jobs:
       - run: npm ci
       - run: npm run verify
       # One release up front: parallel package jobs would otherwise race to create it.
+      # The installers are unsigned, so the notes open with what to do when Windows or
+      # macOS warns - the same steps as the README's "If a warning appears", kept short
+      # here - and GitHub appends the generated changes below them.
       - name: Create pre-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --prerelease --verify-tag --title "elecdex ${TAG#v}" --generate-notes
-          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then exit 0; fi
+          cat > "$RUNNER_TEMP/notes.md" <<'EOF'
+          ## Installing: the builds are unsigned
+
+          Windows and macOS warn before the first run because the installers are not code-signed. The warning means the publisher is unknown to them, not that anything was found in the file. Each file's SHA-256 is listed beside it below. Full steps: [README → If a warning appears](https://github.com/kurouna/elecdex#if-a-warning-appears).
+
+          - **Windows**: if the browser holds the download back, choose *Keep* (Edge: *⋯ → Keep → Show more → Keep anyway*). SmartScreen then shows "Windows protected your PC": click **More info → Run anyway**. The installer is per-user and asks for no administrator rights.
+          - **macOS 15+**: open the app once and click **Done**. Then go to **System Settings → Privacy & Security → Open Anyway**. On macOS 14 or earlier, right-click the app and choose **Open**. If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine /Applications/elecdex.app`.
+          - **Linux**: no warning. On Ubuntu 24.04+ prefer the **.deb**, which installs the AppArmor profile Electron's sandbox needs; the AppImage needs `chmod +x` and `libfuse2` (`libfuse2t64`). Never run it with `--no-sandbox`.
+
+          macOS and Linux builds pass the end-to-end tests on GitHub's runners but have had no hands-on testing yet.
+
+          EOF
+          gh release create "$TAG" --prerelease --verify-tag --title "elecdex ${TAG#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes
 
   package:
     name: publish (${{ matrix.os }} ${{ matrix.arch }})
