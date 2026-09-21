@@ -49,7 +49,8 @@
     "gen:card": "node scripts/gen-repo-card.mjs",
     "gen:geo": "node scripts/gen-geo.mjs",
     "gen:cities": "node scripts/gen-cities.mjs",
-    "gen:screenshots": "node scripts/gen-screenshots.mjs"
+    "gen:screenshots": "node scripts/gen-screenshots.mjs",
+    "demo:elec": "node scripts/demo-elec.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",

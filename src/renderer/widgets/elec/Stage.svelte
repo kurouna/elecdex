@@ -39,7 +39,7 @@ export interface Readout {
 import { ELEC_UNITS } from '@shared/elec'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import Effects from './Effects.svelte'
-import { coreTop, MOUTHS, PLATE_POINTS, plateBox, RING } from './geometry.ts'
+import { coreTop, MOUTHS, PLATE_POINTS, plateBox, plateClip, RING } from './geometry.ts'
 import { floorPhase } from './light.ts'
 import type { LogLine } from './log.ts'
 
@@ -213,6 +213,7 @@ $effect(() => {
         style:height={`${h}%`}
         style:--power-delay={onDelay(view.unit)}
         style:--off-delay={offDelay(view.unit)}
+        style:--plate-clip={plateClip(view.unit)}
       >
         {#if power !== null}<span class="boot" aria-hidden="true"></span>{/if}
         {#key view.ballot}
@@ -726,6 +727,12 @@ $effect(() => {
   60% {
     opacity: 1;
   }
+}
+
+/* Both lights laid over a plate keep to its outline, the cut corner included. */
+.flash,
+.boot {
+  clip-path: var(--plate-clip);
 }
 
 .flash {

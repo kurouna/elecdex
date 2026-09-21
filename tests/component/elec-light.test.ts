@@ -204,6 +204,18 @@ describe("the council's light", () => {
     expect(screen.queryAllByTestId('elec-packet')).not.toContain(first)
   })
 
+  it("keeps the flash of a vote landing to its plate's outline, not the box around it", () => {
+    render(ElecWidget, { props: props() })
+    flushSync()
+    snapshot(null, DECIDED)
+    for (const n of [0, 1, 2]) {
+      expect(unit(n).querySelector('.flash')).not.toBeNull()
+      expect(unit(n).style.getPropertyValue('--plate-clip')).toMatch(/^polygon\(/)
+    }
+    // The lower plates lose the corner that faces the core: the clip is not the whole box.
+    expect(unit(0).style.getPropertyValue('--plate-clip')).toContain('85% 0%')
+  })
+
   it('shows no packet for an answer already under way when the pane is mounted', () => {
     render(ElecWidget, { props: props() })
     flushSync()

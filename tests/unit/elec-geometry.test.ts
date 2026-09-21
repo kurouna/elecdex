@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { coreGaps, coreTop, plateArea, plateBox } from '../../src/renderer/widgets/elec/geometry.js'
+import {
+  coreGaps,
+  coreTop,
+  plateArea,
+  plateBox,
+  plateClip,
+} from '../../src/renderer/widgets/elec/geometry.js'
 
 describe("the council's plates", () => {
   it('are one area: the top one was a fifth smaller than the two below it', () => {
@@ -15,6 +21,19 @@ describe("the council's plates", () => {
     expect(100 - (plateBox(2)[0] + plateBox(2)[2])).toBe(plateBox(0)[0])
     // The top one sits on the centre line.
     expect(plateBox(1)[0] + plateBox(1)[2] / 2).toBeCloseTo(50, 6)
+  })
+})
+
+describe('what is laid over a plate', () => {
+  it('is clipped to its outline, in percent of its own box: the flash was a plain rectangle', () => {
+    // UNIT-1: the top right corner, towards the core, is cut away.
+    expect(plateClip(0)).toBe('polygon(0% 0%, 85% 0%, 100% 22.857%, 100% 100%, 0% 100%)')
+    // UNIT-3 is its mirror.
+    expect(plateClip(2)).toBe('polygon(15% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 22.857%)')
+    // UNIT-2 loses both lower corners.
+    expect(plateClip(1)).toBe(
+      'polygon(0% 0%, 100% 0%, 100% 80%, 82.801% 100%, 17.199% 100%, 0% 80%)',
+    )
   })
 })
 

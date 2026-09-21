@@ -44,6 +44,20 @@ export function plateBox(unit: UnitIndex): [number, number, number, number] {
   return [left, top, Math.max(...xs) - left, Math.max(...ys) - top]
 }
 
+/**
+ * A plate's outline as a CSS `clip-path`, in percent of its own box: what is laid over a plate
+ * in HTML (the flash of a vote landing, the scan line of the power-on) is a rectangle, and
+ * without this it lit the corner the plate has cut away.
+ */
+export function plateClip(unit: UnitIndex): string {
+  const [left, top, width, height] = plateBox(unit)
+  const round = (n: number): number => Math.round(n * 1000) / 1000
+  const points = PLATE_POINTS[unit].map(
+    ([x, y]) => `${round(((x - left) / width) * 100)}% ${round(((y - top) / height) * 100)}%`,
+  )
+  return `polygon(${points.join(', ')})`
+}
+
 /** Where each plate's spoke leaves it: the middle of the edge that faces the core. */
 export const MOUTHS: Record<UnitIndex, readonly [number, number]> = {
   0: [39, 66],
