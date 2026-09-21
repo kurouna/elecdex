@@ -133,6 +133,23 @@ function segmentAt(g: Geometry, col: number, row: number): { x: number; y: numbe
   }
 }
 
+/**
+ * The strip of the canvas that is a column's to redraw, on whole pixels.
+ *
+ * A column is a fraction of a pixel wide, and a clip with a fractional edge is
+ * anti-aliased: the pixel two columns share took part of one's glow, and clearing
+ * that strip again took only part of it out. What stayed was a thin line as tall
+ * as the sound had been, standing over a silent display. On whole pixels the
+ * strips tile the plot with nothing shared.
+ */
+export function columnStrip(
+  g: { pad: number; colW: number },
+  col: number,
+): { left: number; width: number } {
+  const left = Math.round(g.pad + col * g.colW)
+  return { left, width: Math.round(g.pad + (col + 1) * g.colW) - left }
+}
+
 function offscreen(w: number, h: number, dpr: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(w * dpr))
@@ -270,15 +287,15 @@ export class SpectrumPainter {
     [bars, peak]: [number, number],
     restored: boolean,
   ): void {
-    const left = g.pad + col * g.colW
+    const { left, width } = columnStrip(g, col)
     ctx.save()
     ctx.beginPath()
-    ctx.rect(left, 0, g.colW, g.plotH)
+    ctx.rect(left, 0, width, g.plotH)
     ctx.clip()
     if (!restored) {
-      ctx.clearRect(left, 0, g.colW, g.plotH)
+      ctx.clearRect(left, 0, width, g.plotH)
       const d = g.dpr
-      ctx.drawImage(layer, left * d, 0, g.colW * d, g.plotH * d, left, 0, g.colW, g.plotH)
+      ctx.drawImage(layer, left * d, 0, width * d, g.plotH * d, left, 0, width, g.plotH)
     }
     // Lit segments by colour, each colour one path: a halo of slightly larger,
     // faint rectangles for the glow, then the segments. A few fills a column, not a
@@ -306,7 +323,7 @@ export class SpectrumPainter {
       this.#mesh ??= meshPattern(ctx)
       if (this.#mesh) {
         ctx.fillStyle = this.#mesh
-        ctx.fillRect(left, 0, g.colW, g.plotH)
+        ctx.fillRect(left, 0, width, g.plotH)
       }
     }
     ctx.restore()
