@@ -17,7 +17,18 @@ const fixture = (name: string) =>
   readFileSync(new URL(`../unit/fixtures/${name}`, import.meta.url), 'utf8')
 
 const jmaForecast = fixture('jma-forecast-130000.json')
-const metForecast = fixture('met-london.json')
+// The capture's hours are moved to begin at this hour, since a forecast whose
+// days have all passed shows no week and the test would expire with the fixture.
+function metForecastNow(): string {
+  const forecast = JSON.parse(fixture('met-london.json'))
+  const series: Array<{ time: string }> = forecast.properties.timeseries
+  const hour = 3_600_000
+  const shift = Math.floor(Date.now() / hour) * hour - Date.parse(series[0]?.time ?? '')
+  for (const step of series)
+    step.time = new Date(Date.parse(step.time) + shift).toISOString().replace('.000Z', 'Z')
+  return JSON.stringify(forecast)
+}
+const metForecast = metForecastNow()
 const areaList = JSON.stringify({
   centers: {},
   offices: {
