@@ -30,7 +30,6 @@ npm run gen:cities     # weather picker city list (GeoNames)
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
 npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
-npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 ```
 
