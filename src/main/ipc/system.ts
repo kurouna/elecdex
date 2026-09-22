@@ -15,18 +15,26 @@ import { openExternalIfSafe, setTitleBarColors, windowStateOf } from '../window.
  */
 const wantsIntro = !process.argv.includes('--no-intro') && !process.argv.includes(HIDDEN_SWITCH)
 
+/**
+ * A demo recording (scripts/elec-full-demo.mjs) names a made-up user and machine, so the boot
+ * sequence's welcome does not show whose computer it was filmed on.
+ */
+const DEMO_USER = process.env.ELECDEX_DEMO_USER || null
+const DEMO_HOST = process.env.ELECDEX_DEMO_HOST || null
+
 function hostFacts(): HostFacts {
-  let user: string | null = null
-  try {
-    user = os.userInfo().username || null
-  } catch {
-    // No passwd entry for this uid, e.g. in some containers.
-  }
+  let user: string | null = DEMO_USER
+  if (user === null)
+    try {
+      user = os.userInfo().username || null
+    } catch {
+      // No passwd entry for this uid, e.g. in some containers.
+    }
   const cpus = os.cpus()
   return {
     user,
     home: os.homedir(),
-    hostname: os.hostname(),
+    hostname: DEMO_HOST ?? os.hostname(),
     osRelease: `${os.type()} ${os.release()}`,
     cpuModel: cpus[0]?.model.trim() ?? 'unknown',
     cpuThreads: cpus.length,

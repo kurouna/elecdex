@@ -50,7 +50,8 @@
     "gen:geo": "node scripts/gen-geo.mjs",
     "gen:cities": "node scripts/gen-cities.mjs",
     "gen:screenshots": "node scripts/gen-screenshots.mjs",
-    "demo:elec": "node scripts/demo-elec.mjs"
+    "demo:elec": "node scripts/demo-elec.mjs",
+    "demo:full": "node scripts/elec-full-demo.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
