@@ -44,6 +44,7 @@ describe('a pane of its own', () => {
     const { container } = render(PaneHost, { props: { node, visible: true, tabbed: false } })
     flushSync()
     expect(byTestId(container, 'pane-close')).not.toBeNull()
+    expect(byTestId(container, 'pane-close')?.getAttribute('aria-label')).toBe('close clock')
     expect(byTestId(container, 'pane-zoom')).not.toBeNull()
     expect(byTestId(container, 'group-close')).toBeNull()
   })
@@ -98,6 +99,32 @@ describe('a tab group', () => {
     expect(zoom).toHaveBeenCalledWith(shown.id)
     byTestId(container, 'group-close')?.click()
     expect(close).toHaveBeenCalledWith(node.id)
+  })
+
+  it('says its × takes every tab, and shows which while the × is aimed', () => {
+    const node = tabs([pane('clock'), pane('netstat'), pane('clock')], 0)
+    const { container } = render(TabsHost, { props: { node } })
+    flushSync()
+    const close = byTestId(container, 'group-close') as HTMLButtonElement
+    expect(close.getAttribute('aria-label')).toBe('close all 3 tabs')
+    expect(close.title).toMatch(/all 3 tabs/)
+    const doomed = () => container.querySelectorAll('.tab.doomed').length
+
+    // Under the pointer, every tab dims: this × is not a browser's one-tab ×.
+    expect(doomed()).toBe(0)
+    close.dispatchEvent(new PointerEvent('pointerenter'))
+    flushSync()
+    expect(doomed()).toBe(3)
+    close.dispatchEvent(new PointerEvent('pointerleave'))
+    flushSync()
+    expect(doomed()).toBe(0)
+    // And under the keyboard.
+    close.dispatchEvent(new FocusEvent('focus'))
+    flushSync()
+    expect(doomed()).toBe(3)
+    close.dispatchEvent(new FocusEvent('blur'))
+    flushSync()
+    expect(doomed()).toBe(0)
   })
 
   it('offers the ⤢ only while the tab it shows can be brought forward', async () => {

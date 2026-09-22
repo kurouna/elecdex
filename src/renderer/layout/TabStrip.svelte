@@ -21,9 +21,11 @@ import { tabLabels } from './tab-labels.ts'
 interface Props {
   panes: readonly PaneNode[]
   activeIndex: number
+  /** The group's × is aimed at every tab here (TabsHost): they all dim to say so. */
+  doomed?: boolean
 }
 
-const { panes, activeIndex }: Props = $props()
+const { panes, activeIndex, doomed = false }: Props = $props()
 
 const titleOf = (widget: string): string => resolveWidget(widget)?.title ?? widget
 
@@ -47,6 +49,7 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
       class="tab"
       class:active={index === activeIndex}
       class:closing={child.id === layout.closingId}
+      class:doomed
       data-drop-tab={child.id}
     >
       <button
@@ -124,6 +127,12 @@ const places = $derived(tabLabels(panes.map((child) => paneMeta.get(child.id).ta
 .tab.closing .upright {
   opacity: 0;
   transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* Every tab, half dark, while the group's × is aimed at all of them. */
+.tab.doomed .upright {
+  opacity: 0.35;
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .tab.new-tab {

@@ -91,6 +91,19 @@ test('every pane has a way to close it', async () => {
     const tabbed = page.locator('[data-testid=pane][data-chrome=bare]')
     await expect(groups.getByTestId('tab-close')).toHaveCount(await tabbed.count())
     await expect(tabbed.getByTestId('pane-close')).toHaveCount(0)
+
+    // The group's × says what it takes, and every tab dims while it is aimed.
+    const group = groups.first()
+    const tabsOf = group.getByTestId('tab')
+    await expect(group.getByTestId('group-close')).toHaveAttribute(
+      'aria-label',
+      `close all ${await tabsOf.count()} tabs`,
+    )
+    await group.hover()
+    await group.getByTestId('group-close').hover()
+    await expect(group.locator('.tab.doomed')).toHaveCount(await tabsOf.count())
+    await group.getByTestId('tab-new').hover()
+    await expect(group.locator('.tab.doomed')).toHaveCount(0)
   } finally {
     await close()
   }

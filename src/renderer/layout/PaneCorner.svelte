@@ -18,11 +18,26 @@ interface Props {
   kind: 'pane' | 'group'
   zoomable: boolean
   zoomed: boolean
+  /** For a group: how many tabs its × closes, which its label says. */
+  count?: number
   onzoom: () => void
   onclose: () => void
+  /**
+   * The pointer, or the keyboard, is on the ×: what it would close can show it -
+   * a group dims every tab, so the × is never taken for a browser's one-tab ×.
+   */
+  onaim?: (aimed: boolean) => void
 }
 
-const { title, kind, zoomable, zoomed, onzoom, onclose }: Props = $props()
+const { title, kind, zoomable, zoomed, count, onzoom, onclose, onaim }: Props = $props()
+
+/** A group's × says it takes every tab; a pane's, the pane. */
+const closeLabel = $derived(kind === 'group' ? `close all ${count ?? 0} tabs` : `close ${title}`)
+const closeTitle = $derived(
+  kind === 'group'
+    ? `Close all ${count ?? 0} tabs (a tab's × closes one)`
+    : 'Close pane (Ctrl+Shift+W)',
+)
 </script>
 
 {#if zoomable}
@@ -42,12 +57,16 @@ const { title, kind, zoomable, zoomed, onzoom, onclose }: Props = $props()
 <button
   type="button"
   class="close"
-  aria-label={`close ${title}`}
-  title={kind === 'group' ? 'Close every tab (Ctrl+Shift+W closes one)' : 'Close pane (Ctrl+Shift+W)'}
+  aria-label={closeLabel}
+  title={closeTitle}
   onclick={(e) => {
     e.stopPropagation()
     onclose()
   }}
+  onpointerenter={() => onaim?.(true)}
+  onpointerleave={() => onaim?.(false)}
+  onfocus={() => onaim?.(true)}
+  onblur={() => onaim?.(false)}
   data-testid="{kind}-close">×</button
 >
 

@@ -34,6 +34,12 @@ const leaving = $derived(
  */
 const closing = $derived(layout.closingId === node.id)
 /**
+ * The corner's × is under the pointer: every tab dims, as a closing tab does, so
+ * what that × takes is seen before it is pressed - a tab's own × takes one tab,
+ * and a browser has taught that every × on a strip does.
+ */
+let aimed = $state(false)
+/**
  * A tab brought to the front brings its group with it: the strip and the header
  * come too, so the other tabs are still there to switch to, and the group is one
  * picture rather than a pane floating out of its own frame.
@@ -85,10 +91,14 @@ const activeTitle = $derived(
     kind="group"
     {zoomable}
     {zoomed}
+    count={node.children.length}
     onzoom={() => {
       if (activeChild) layout.toggleZoom(activeChild.id)
     }}
     onclose={() => layout.close(node.id)}
+    onaim={(on) => {
+      aimed = on
+    }}
   />
   <!-- The group's header moves the whole group; a tab moves just that tab. -->
   <header
@@ -100,7 +110,7 @@ const activeTitle = $derived(
   </header>
 
   <div class="shell-frame frame">
-    <TabStrip panes={node.children} activeIndex={node.activeIndex} />
+    <TabStrip panes={node.children} activeIndex={node.activeIndex} doomed={aimed} />
 
     <div class="panes">
       {#each node.children as child, index (child.id)}
