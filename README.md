@@ -378,9 +378,11 @@ weather and calendar.
   its command line - `node` becomes `vite · my-app` - without the port being asked anything.
 - **Agent** *(unreleased, experimental)* — one card per running Claude Code session: its name and
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
-  in its view and written, and its answers. Open a card for the tools it has used and the files it
+  in its view and written, and its answers. Below them, the subagents it started and the commands
+  it left running in the background: running, done, failed or stopped, with a running subagent's
+  own last step; a finished one stays ten minutes. Open a card for the tools it has used and the files it
   has changed; a file opens as a diff against the copy Claude Code kept before the session first
-  touched it. Read from Claude Code's own folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) only
+  touched it (what a subagent changed is marked SUB, and has no such copy). Read from Claude Code's own folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) only
   while the pane is open, and only the part of a record written since the last look - a long record
   is read from its end, and its counts say *recent*. Nothing is sent anywhere. These records are
   Claude Code's and not documented, so a new version of it may change what can be shown - hence

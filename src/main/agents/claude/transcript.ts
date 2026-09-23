@@ -1,5 +1,5 @@
 import path from 'node:path'
-import type { AgentActivity } from '@shared/agents'
+import type { AgentActivity, AgentTaskKind, AgentTaskState } from '@shared/agents'
 
 /**
  * Reading a Claude Code session's record (`projects/<folder>/<session>.jsonl`),
@@ -24,6 +24,26 @@ export interface Tally {
   /** Files the session wrote, by full path, with the backup Claude Code took before the first edit. */
   files: Map<string, { backup: string | null; seen: boolean }>
   activity: AgentActivity | null
+  /** Subagents and background commands the session started, by the id of the call. */
+  tasks: Map<string, TaskMark>
+  /** The answer the last line was part of: one answer is written as several lines. */
+  message: string
+}
+
+/** A task as the record tells it; the source adds what the subagent's own record says. */
+export interface TaskMark {
+  kind: AgentTaskKind
+  title: string
+  type: string
+  /** The call asked for it to run in the background. */
+  background: boolean
+  startedAt: number
+  /** The answer that started it. */
+  message: string
+  /** When the next answer began: a subagent the session waited for has finished by then. */
+  answeredAt: number | null
+  /** What Claude Code's notice of its end said. */
+  ended: { state: AgentTaskState; at: number } | null
 }
 
 export const emptyTally = (): Tally => ({
@@ -35,6 +55,8 @@ export const emptyTally = (): Tally => ({
   tools: new Map(),
   files: new Map(),
   activity: null,
+  tasks: new Map(),
+  message: '',
 })
 
 const WRITES = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit'])
@@ -68,19 +90,31 @@ export function toolDetail(name: string, input: Record<string, unknown>): string
 export const toolName = (name: string): string =>
   name.startsWith('mcp__') ? (name.split('__').at(-1) ?? name) : name
 
+/** A new answer begins: the session only answers again once every call of the last one has returned. */
+function noteAnswer(id: string, at: number, tally: Tally): void {
+  if (id === '' || id === tally.message) return
+  tally.message = id
+  for (const task of tally.tasks.values()) {
+    if (task.message !== id && task.answeredAt === null) task.answeredAt = at
+  }
+}
+
+function readUsage(usage: Record<string, unknown> | undefined, tally: Tally): void {
+  if (usage === undefined) return
+  const n = (key: string) => (typeof usage[key] === 'number' ? (usage[key] as number) : 0)
+  tally.context =
+    n('input_tokens') + n('cache_read_input_tokens') + n('cache_creation_input_tokens')
+  tally.output += n('output_tokens')
+}
+
 function readAssistant(line: Record<string, unknown>, tally: Tally): void {
   const message = line.message as Record<string, unknown> | undefined
   if (message === undefined) return
   const at = Date.parse(str(line.timestamp)) || 0
+  noteAnswer(str(message.id), at, tally)
   if (typeof message.model === 'string' && message.model !== '<synthetic>')
     tally.model = message.model
-  const usage = message.usage as Record<string, unknown> | undefined
-  if (usage !== undefined) {
-    const n = (key: string) => (typeof usage[key] === 'number' ? (usage[key] as number) : 0)
-    tally.context =
-      n('input_tokens') + n('cache_read_input_tokens') + n('cache_creation_input_tokens')
-    tally.output += n('output_tokens')
-  }
+  readUsage(message.usage as Record<string, unknown> | undefined, tally)
   if (message.stop_reason === 'end_turn') tally.turns += 1
   const content = Array.isArray(message.content) ? message.content : []
   for (const block of content as Record<string, unknown>[]) {
@@ -103,6 +137,61 @@ function readTool(block: Record<string, unknown>, at: number, tally: Tally): voi
   if (WRITES.has(name) && file !== '' && !tally.files.has(file)) {
     tally.files.set(file, { backup: null, seen: false })
   }
+  const kind = taskKind(name, input)
+  const id = str(block.id)
+  if (kind !== null && id !== '' && !tally.tasks.has(id)) {
+    tally.tasks.set(id, {
+      kind,
+      title: toolDetail(name, input) || name,
+      type: kind === 'agent' ? str(input.subagent_type) || 'general-purpose' : '',
+      background: input.run_in_background === true,
+      startedAt: at,
+      message: tally.message,
+      answeredAt: null,
+      ended: null,
+    })
+  }
+}
+
+/** A call that starts a task: any subagent, and a command left to run in the background. */
+function taskKind(name: string, input: Record<string, unknown>): AgentTaskKind | null {
+  // `Task` is the tool's older name.
+  if (name === 'Agent' || name === 'Task') return 'agent'
+  if ((name === 'Bash' || name === 'PowerShell') && input.run_in_background === true) return 'shell'
+  return null
+}
+
+/** Claude Code's words for how a task ended; `running` (a progress notice) and the rest end nothing. */
+const ENDINGS: Record<string, AgentTaskState> = {
+  completed: 'done',
+  failed: 'failed',
+  stopped: 'stopped',
+  killed: 'stopped',
+}
+
+/**
+ * The notice Claude Code gives the session when a background task ends
+ * (`<task-notification>`): queued while the session is busy, then handed to it
+ * as a message. The first ends the task; one with a later time ends it again.
+ */
+function readNotice(line: Record<string, unknown>, tally: Tally): void {
+  const message = line.message as Record<string, unknown> | undefined
+  const text =
+    line.type === 'queue-operation'
+      ? line.operation === 'enqueue'
+        ? str(line.content)
+        : ''
+      : (line.origin as Record<string, unknown> | undefined)?.kind === 'task-notification'
+        ? str(message?.content)
+        : ''
+  if (!text.startsWith('<task-notification>')) return
+  const id = /<tool-use-id>([^<]+)<\/tool-use-id>/.exec(text)?.[1] ?? ''
+  const state = ENDINGS[/<status>([a-z_]+)<\/status>/.exec(text)?.[1] ?? '']
+  const task = tally.tasks.get(id)
+  if (task === undefined || state === undefined) return
+  const at = Date.parse(str(line.timestamp)) || task.startedAt
+  // A subagent sent another message runs again, and ends again: the latest notice is the one.
+  if (task.ended === null || at > task.ended.at) task.ended = { state, at }
 }
 
 /**
@@ -125,8 +214,12 @@ function readBackups(line: Record<string, unknown>, cwd: string, tally: Tally): 
   }
 }
 
-/** The kinds of line worth parsing, told apart before parsing: a tool result never is. */
-const WANTED = /"role":"assistant"|"type":"custom-title"|"type":"file-history-(snapshot|delta)"/
+/**
+ * The kinds of line worth parsing, told apart before parsing: a tool result never is. The
+ * quotes are the record's own, so a tool's output that mentions them (escaped) is not taken.
+ */
+const WANTED =
+  /"role":"assistant"|"type":"custom-title"|"type":"file-history-(snapshot|delta)"|"type":"queue-operation"|"kind":"task-notification"/
 
 /** A line longer than this (a tool's output, an image) is never one worth parsing. */
 export const LINE_LIMIT = 4 * 1024 * 1024
@@ -146,8 +239,27 @@ export function readLines(text: string, cwd: string, tally: Tally): string {
     if (line.type === 'assistant') readAssistant(line, tally)
     else if (line.type === 'custom-title') tally.title = str(line.customTitle).slice(0, 120)
     else if (str(line.type).startsWith('file-history-')) readBackups(line, cwd, tally)
+    else readNotice(line, tally)
   }
   return rest
+}
+
+/** A subagent as its `agent-<id>.meta.json` has it: which call started it, and how. */
+export interface SubagentMeta {
+  toolUseId: string
+  background: boolean
+}
+
+export function readSubagentMeta(text: string): SubagentMeta | null {
+  let data: Record<string, unknown>
+  try {
+    data = JSON.parse(text) as Record<string, unknown>
+  } catch {
+    return null
+  }
+  const toolUseId = str(data.toolUseId)
+  if (toolUseId === '') return null
+  return { toolUseId, background: data.requestShape === 'background' }
 }
 
 /** A session as `sessions/<pid>.json` has it, or null for anything else. */

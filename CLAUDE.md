@@ -239,6 +239,10 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - Claude Code's records are read only while a pane is open, from where the last reading stopped;
     a record over 32 MB from its last 512 kB, marked partial. Never parse a whole record on a
     change (a 124 MB one took 944 ms), and never parse a line that is not the model's own.
+  - A session's subagents and background commands are its tasks: started by its own tool calls,
+    ended by the `<task-notification>` lines (or, for a subagent it waited for, its next answer),
+    and a subagent is read from its own record under `<session>/subagents/`. A task still running
+    when its session went is `unknown`, never guessed done.
   - Tests never read this machine's `~/.claude`: support.ts points `ELECDEX_CLAUDE_DIR` at a
     folder that does not exist, and specs make their own.
 - **The ELEC system pane** (architecture.md §5.8, shared/elec.ts, main/ai/elec.ts) puts a

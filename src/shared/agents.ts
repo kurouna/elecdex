@@ -38,6 +38,36 @@ export interface AgentFile {
   path: string
   /** The session created it (there was no file before its first edit). */
   created: boolean
+  /** A subagent of the session changed it, and the session itself did not. */
+  subagent: boolean
+}
+
+/** A subagent the session started, or a command it left running in the background. */
+export type AgentTaskKind = 'agent' | 'shell'
+
+/**
+ * How a task stands. `unknown` is a task still running when its session went:
+ * nothing in the record says how it ended, so the pane does not guess.
+ */
+export type AgentTaskState = 'running' | 'done' | 'failed' | 'stopped' | 'unknown'
+
+export interface AgentTask {
+  /** The tool call that started it; opaque to the page. */
+  id: string
+  kind: AgentTaskKind
+  /** What the session called it: the subagent's description, the command's. */
+  title: string
+  /** A subagent's type (general-purpose, Explore…); empty for a command. */
+  type: string
+  /** Started to run on its own while the session went on. */
+  background: boolean
+  state: AgentTaskState
+  startedAt: number
+  endedAt: number | null
+  /** A subagent's last step, from its own record. */
+  activity: AgentActivity | null
+  /** Tool calls a subagent has made so far. */
+  steps: number
 }
 
 export interface AgentSession {
@@ -61,6 +91,8 @@ export interface AgentSession {
   turns: number
   tools: { name: string; count: number }[]
   files: AgentFile[]
+  /** Running first, then the newest; a finished one stays for ENDED_KEPT_MS. */
+  tasks: AgentTask[]
   /** Only the end of a long record was read, so the counts are the recent ones. */
   partial: boolean
 }
@@ -96,5 +128,5 @@ export function parseAgentDiffRequest(raw: unknown): AgentDiffRequest | null {
   return { source, sessionId, key }
 }
 
-/** Sessions that ended stay on the board this long, so a finished one is seen finishing. */
+/** Sessions and tasks that ended stay on the board this long, so a finished one is seen finishing. */
 export const ENDED_KEPT_MS = 10 * 60_000

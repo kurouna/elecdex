@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { AgentBoard, AgentSession } from '@shared/agents'
+import type { AgentBoard, AgentSession, AgentTask, AgentTaskState } from '@shared/agents'
 import { compactCount } from '@shared/ai'
 import type { GitDiff } from '@shared/git'
 import { untrack } from 'svelte'
@@ -123,12 +123,14 @@ $effect(() => {
   })
 })
 
-const since = (at: number): string => {
-  const minutes = Math.max(0, Math.floor((now - at) / 60_000))
+/** A length of time in minutes, then hours. */
+const span = (ms: number): string => {
+  const minutes = Math.max(0, Math.floor(ms / 60_000))
   return minutes < 60
     ? `${minutes}m`
     : `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
 }
+const since = (at: number): string => span(now - at)
 
 const STATUS_LABEL: Record<AgentSession['status'], string> = {
   busy: 'BUSY',
@@ -137,6 +139,20 @@ const STATUS_LABEL: Record<AgentSession['status'], string> = {
   ended: 'ENDED',
   unknown: '—',
 }
+
+const TASK_LABEL: Record<AgentTaskState, string> = {
+  running: 'RUN',
+  done: 'DONE',
+  failed: 'FAIL',
+  stopped: 'STOP',
+  unknown: '—',
+}
+
+/** How long a task has run, or ran. */
+const lasted = (task: AgentTask): string => span((task.endedAt ?? now) - task.startedAt)
+
+const running = (session: AgentSession): number =>
+  session.tasks.filter((task) => task.state === 'running').length
 
 function toggle(session: AgentSession): void {
   setState(open === session.id ? { open: null, file: null } : { open: session.id, file: null })
@@ -182,6 +198,9 @@ function toggle(session: AgentSession): void {
             <span class="status" data-testid="agent-status">{STATUS_LABEL[session.status]}</span>
             <span class="title" title={session.cwd}>{session.title}</span>
             <span class="project">{session.project}</span>
+            {#if running(session) > 0}
+              <span class="running" data-testid="agent-running">{running(session)} RUNNING</span>
+            {/if}
             <span class="when">{since(session.startedAt)}</span>
           </button>
           {#if session.activity}
@@ -201,6 +220,26 @@ function toggle(session: AgentSession): void {
                 >recent</span
               >{/if}
           </p>
+          {#if session.tasks.length > 0}
+            <ul class="tasks" data-testid="agent-tasks">
+              {#each session.tasks as task (task.id)}
+                <li class="task" data-state={task.state} data-testid="agent-task">
+                  <span class="kind">{task.kind === 'agent' ? 'AGENT' : 'SHELL'}</span>
+                  <span class="task-state" data-testid="agent-task-state">{TASK_LABEL[task.state]}</span>
+                  <span class="task-title" title={task.type ? `${task.type}: ${task.title}` : task.title}
+                    >{task.title}</span
+                  >
+                  <span class="task-when">{lasted(task)}</span>
+                  {#if task.state === 'running' && task.activity}
+                    <span class="step" data-testid="agent-task-step"
+                      ><span class="tool">{task.activity.tool.toUpperCase()}</span>
+                      {task.activity.detail}</span
+                    >
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
           {#if isOpen}
             <div class="more">
               {#if session.tools.length > 0}
@@ -220,7 +259,8 @@ function toggle(session: AgentSession): void {
                   title={file.path}
                   onclick={() => setState({ file: file.key === fileKey ? null : file.key })}
                   ><span class="mark" class:created={file.created}>{file.created ? 'A' : 'M'}</span
-                  >{file.path}</button
+                  >{#if file.subagent}<span class="by" title="Changed by a subagent">SUB</span
+                    >{/if}{file.path}</button
                 >
               {:else}
                 <p class="note">none yet</p>
@@ -577,6 +617,78 @@ function toggle(session: AgentSession): void {
 
 .mark.created {
   color: var(--ok);
+}
+
+.by {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.running {
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.12em;
+  color: var(--ok);
+}
+
+/* A task a line: what it is, how it stands, what it is called, how long; a running subagent's step below. */
+.tasks {
+  margin: 0;
+  padding: 0 var(--space-2) 0.25rem calc(var(--space-2) + 1rem);
+  list-style: none;
+}
+
+.task {
+  display: grid;
+  grid-template-columns: 3.4em 2.8em minmax(0, 1fr) auto;
+  column-gap: 0.5rem;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+
+.kind,
+.task-state {
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+}
+
+.task[data-state='running'] {
+  color: var(--text);
+}
+
+.task[data-state='running'] .task-state {
+  color: var(--ok);
+}
+
+.task[data-state='failed'] .task-state {
+  color: var(--danger);
+}
+
+.task[data-state='stopped'] .task-state {
+  color: var(--warn);
+}
+
+.task-title,
+.step {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-when {
+  font-size: var(--step--2);
+}
+
+.step {
+  grid-column: 3 / -1;
+  color: var(--text);
 }
 
 .credit {

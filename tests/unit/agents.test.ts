@@ -17,6 +17,7 @@ import {
   emptyTally,
   readLines,
   readLiveRecord,
+  readSubagentMeta,
   toolDetail,
 } from '../../src/main/agents/claude/transcript.js'
 import { AgentHub } from '../../src/main/agents/hub.js'
@@ -54,6 +55,46 @@ const assistant = (
       content,
     },
   })
+
+/** An answer's line, with the id every line of one answer shares. */
+const answer = (id: string, content: unknown[], at = '2026-09-23T01:00:00Z') =>
+  JSON.stringify({
+    type: 'assistant',
+    timestamp: at,
+    message: { id, model: 'claude-opus-5-5', role: 'assistant', stop_reason: 'tool_use', content },
+  })
+
+const agentCall = (id: string, description: string, input: Record<string, unknown>) => ({
+  type: 'tool_use',
+  id,
+  name: 'Agent',
+  input: { description, prompt: 'Look.', ...input },
+})
+
+const shellCall = (id: string, description: string, background: boolean) => ({
+  type: 'tool_use',
+  id,
+  name: 'Bash',
+  input: { command: 'npx playwright test', description, run_in_background: background },
+})
+
+/**
+ * Claude Code's notice that a background task ended: queued while the session
+ * is busy (`queue`), then handed to it as a message (`user`).
+ */
+const notice = (as: 'queue' | 'user', id: string, status: string, at: string) => {
+  const text = `<task-notification>\n<task-id>x</task-id>\n<tool-use-id>${id}</tool-use-id>\n<status>${status}</status>\n<summary>Ended</summary>\n</task-notification>`
+  return JSON.stringify(
+    as === 'queue'
+      ? { type: 'queue-operation', operation: 'enqueue', timestamp: at, content: text }
+      : {
+          type: 'user',
+          timestamp: at,
+          message: { role: 'user', content: text },
+          origin: { kind: 'task-notification' },
+        },
+  )
+}
 
 describe('reading a Claude Code record', () => {
   it('counts the tools, the tokens and the answers, and keeps the last step', () => {
@@ -156,6 +197,107 @@ describe('reading a Claude Code record', () => {
     expect(read(['codex'])).toEqual([])
     expect(read(['codex', 'claude-code', 'claude-code'])).toEqual(['claude-code'])
     expect(read('everything')).toEqual(['claude-code'])
+  })
+
+  it('marks the subagents and background commands a session starts, and how each ended', () => {
+    const tally = emptyTally()
+    readLines(
+      `${[
+        answer('m1', [
+          agentCall('t1', 'Review the fix', { subagent_type: 'Explore' }),
+          agentCall('t2', 'Research the terms', { run_in_background: true }),
+          shellCall('t3', 'Run the whole suite', true),
+          shellCall('t4', 'List the files', false),
+        ]),
+        notice('queue', 't2', 'completed', '2026-09-23T01:05:00Z'),
+        notice('user', 't3', 'failed', '2026-09-23T01:06:00Z'),
+        // A progress notice ends nothing.
+        notice('user', 't1', 'running', '2026-09-23T01:06:30Z'),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    expect([...tally.tasks.keys()]).toEqual(['t1', 't2', 't3'])
+    expect(tally.tasks.get('t1')).toMatchObject({
+      kind: 'agent',
+      title: 'Review the fix',
+      type: 'Explore',
+      background: false,
+      answeredAt: null,
+      ended: null,
+    })
+    expect(tally.tasks.get('t2')?.ended).toEqual({
+      state: 'done',
+      at: Date.parse('2026-09-23T01:05:00Z'),
+    })
+    expect(tally.tasks.get('t3')).toMatchObject({ kind: 'shell', background: true })
+    expect(tally.tasks.get('t3')?.ended?.state).toBe('failed')
+  })
+
+  it('counts a subagent the session waited for as answered only when the next answer begins', () => {
+    const tally = emptyTally()
+    // One answer is written as several lines, one per block: the second is not a new answer.
+    readLines(
+      `${[
+        answer('m1', [agentCall('t1', 'Review', {})], '2026-09-23T01:00:00Z'),
+        answer('m1', [agentCall('t2', 'Also review', {})], '2026-09-23T01:00:01Z'),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('t1')?.answeredAt).toBeNull()
+    readLines(
+      `${answer('m2', [{ type: 'text', text: 'Both done.' }], '2026-09-23T01:09:00Z')}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('t1')?.answeredAt).toBe(Date.parse('2026-09-23T01:09:00Z'))
+    expect(tally.tasks.get('t2')?.answeredAt).toBe(Date.parse('2026-09-23T01:09:00Z'))
+  })
+
+  it('ends no task on a tool output that quotes a notice, and takes the latest notice', () => {
+    const tally = emptyTally()
+    const quoted = JSON.stringify({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            content:
+              '<task-notification>\n<tool-use-id>t1</tool-use-id>\n<status>completed</status>',
+          },
+        ],
+      },
+    })
+    readLines(
+      `${answer('m1', [agentCall('t1', 'Review', { run_in_background: true })])}\n${quoted}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('t1')?.ended).toBeNull()
+    // Sent another message, a subagent ends again; an older notice read later changes nothing.
+    readLines(
+      `${[
+        notice('user', 't1', 'completed', '2026-09-23T01:05:00Z'),
+        notice('user', 't1', 'failed', '2026-09-23T01:08:00Z'),
+        notice('queue', 't1', 'completed', '2026-09-23T01:07:00Z'),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('t1')?.ended?.state).toBe('failed')
+  })
+
+  it("reads a subagent's meta file, and refuses one that names no call", () => {
+    expect(
+      readSubagentMeta('{"agentType":"Explore","toolUseId":"toolu_1","requestShape":"background"}'),
+    ).toEqual({ toolUseId: 'toolu_1', background: true })
+    expect(
+      readSubagentMeta('{"toolUseId":"toolu_1","requestShape":"foreground"}')?.background,
+    ).toBe(false)
+    expect(readSubagentMeta('{"agentType":"Explore"}')).toBeNull()
+    expect(readSubagentMeta('not json')).toBeNull()
   })
 
   it('takes a file written by a tool and by a backup as one file', () => {
@@ -379,6 +521,143 @@ describe('the Claude Code source', () => {
     const second = source.sessions(2_000)[0]?.updatedAt
     source.stop()
     expect(first).toBe(second)
+  })
+
+  /** A subagent's record and meta file, where Claude Code puts them beside the session's. */
+  function subagent(
+    id: string,
+    agent: string,
+    call: string,
+    shape: 'background' | 'foreground',
+    lines: string[],
+  ) {
+    const folder = path.join(dir, 'projects', 'work', id, 'subagents')
+    mkdirSync(folder, { recursive: true })
+    writeFileSync(
+      path.join(folder, `agent-${agent}.meta.json`),
+      JSON.stringify({ agentType: 'general-purpose', toolUseId: call, requestShape: shape }),
+    )
+    const record = path.join(folder, `agent-${agent}.jsonl`)
+    writeFileSync(record, `${lines.join('\n')}\n`)
+    return record
+  }
+
+  const steps = (work: string, at = '2026-09-23T01:02:00Z') => [
+    answer(
+      's1',
+      [{ type: 'tool_use', id: 'u1', name: 'Read', input: { file_path: path.join(work, 'a.ts') } }],
+      at,
+    ),
+    answer(
+      's2',
+      [{ type: 'tool_use', id: 'u2', name: 'Edit', input: { file_path: path.join(work, 'c.ts') } }],
+      at,
+    ),
+  ]
+
+  it('shows a subagent at work from its own record, and the files it changed', async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    // Started with no flag: Claude Code ran it in the background by default, as its meta file says.
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_a', 'Review the fix', {})])}\n`)
+    appendFileSync(record, `${answer('m2', [{ type: 'text', text: 'Waiting.' }])}\n`)
+    subagent(id, 'a1', 'toolu_a', 'background', steps(work))
+    writeFileSync(path.join(work, 'c.ts'), 'changed by the subagent\n')
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.steps).toBe(2))
+    const session = source.sessions(Date.now())[0]
+    expect(session?.tasks).toEqual([
+      expect.objectContaining({
+        kind: 'agent',
+        title: 'Review the fix',
+        background: true,
+        state: 'running',
+        activity: expect.objectContaining({ tool: 'Edit', detail: 'c.ts' }),
+      }),
+    ])
+    const file = session?.files.find((f) => f.path === 'c.ts')
+    expect(file).toMatchObject({ subagent: true, created: false })
+    expect(session?.files.find((f) => f.path === 'a.ts')?.subagent).toBe(false)
+    // Claude Code keeps no copy from before a subagent's edit: the pane says so, not "all new".
+    const diff = await source.diff(id, file?.key ?? '')
+    expect(diff?.problem).toMatch(/subagent/)
+
+    appendFileSync(record, `${notice('queue', 'toolu_a', 'completed', new Date().toISOString())}\n`)
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.state).toBe('done'), {
+      timeout: 5000,
+    })
+    // A finished task stays a while, then leaves the card.
+    expect(source.sessions(Date.now() + 11 * 60_000)[0]?.tasks).toEqual([])
+    source.stop()
+  })
+
+  it('counts a subagent the session waited for as done once the session answers again', async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_f', 'Look it up', {})])}\n`)
+    subagent(id, 'f1', 'toolu_f', 'foreground', steps(work))
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.steps).toBe(2))
+    expect(source.sessions(Date.now())[0]?.tasks[0]).toMatchObject({
+      background: false,
+      state: 'running',
+    })
+    appendFileSync(
+      record,
+      `${answer('m2', [{ type: 'text', text: 'Found it.' }], new Date().toISOString())}\n`,
+    )
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.state).toBe('done'), {
+      timeout: 5000,
+    })
+    source.stop()
+  })
+
+  it('finds a subagent started while the pane is open, and runs it again when it is resumed', async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await settle()
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_b', 'Hunt bugs', {})])}\n`)
+    const sub = subagent(id, 'b1', 'toolu_b', 'background', steps(work))
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.steps).toBe(2), {
+      timeout: 5000,
+    })
+    appendFileSync(
+      record,
+      `${notice('user', 'toolu_b', 'completed', new Date(Date.now() - 60_000).toISOString())}\n`,
+    )
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.state).toBe('done'), {
+      timeout: 5000,
+    })
+    // Sent another message: its record moves on past the notice.
+    appendFileSync(sub, `${steps(work, new Date().toISOString())[0]}\n`)
+    await vi.waitFor(
+      () => expect(source.sessions(Date.now())[0]?.tasks[0]?.state).toBe('running'),
+      {
+        timeout: 5000,
+      },
+    )
+    source.stop()
+  }, 20_000)
+
+  it('does not guess how a task ended when its session went', async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    appendFileSync(
+      record,
+      `${answer('m1', [agentCall('toolu_c', 'Hunt', { run_in_background: true }), shellCall('toolu_s', 'Build', true)])}\n`,
+    )
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks).toHaveLength(2))
+    // The session's process is gone: its file names one that is not running.
+    writeFileSync(
+      path.join(dir, 'sessions', `${process.pid}.json`),
+      JSON.stringify({ pid: 2 ** 22 + 12_345, sessionId: id, cwd: work, status: 'busy' }),
+    )
+    ;(source as unknown as { scan(): void }).scan()
+    const tasks = source.sessions(Date.now())[0]?.tasks ?? []
+    source.stop()
+    expect(tasks.map((t) => t.state)).toEqual(['unknown', 'unknown'])
   })
 })
 

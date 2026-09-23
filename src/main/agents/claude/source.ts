@@ -4,7 +4,13 @@ import { open, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
-import { type AgentSession, type AgentStatus, ENDED_KEPT_MS } from '@shared/agents'
+import {
+  type AgentSession,
+  type AgentStatus,
+  type AgentTask,
+  type AgentTaskState,
+  ENDED_KEPT_MS,
+} from '@shared/agents'
 import { addedFileDiff, type GitDiff, looksBinary, MAX_UNTRACKED_BYTES } from '@shared/git'
 import { cutHunks, diffLines, toHunks } from '@shared/text-diff'
 import type { AgentSource } from '../source.js'
@@ -14,7 +20,10 @@ import {
   type LiveRecord,
   readLines,
   readLiveRecord,
+  readSubagentMeta,
+  type SubagentMeta,
   type Tally,
+  type TaskMark,
 } from './transcript.js'
 
 /**
@@ -30,8 +39,14 @@ import {
  *    they are partial. Measured on this machine: a 124 MB record parsed whole
  *    took 944 ms; the last 64 kB take 0.3 ms, and a busy session adds 20-160 kB
  *    a minute.
+ *  - `projects/<folder>/<session>/subagents/agent-<id>.jsonl`: a subagent's
+ *    record, read the same way, with `agent-<id>.meta.json` naming the call
+ *    that started it. Looked for when the session's record starts a subagent
+ *    not yet found. The session's record says when a background task ended
+ *    (`<task-notification>`).
  *  - `file-history/<session>/<name>@v1`: a file as it was before the session
- *    first changed it, which is what a session's diff is taken against.
+ *    first changed it, which is what a session's diff is taken against. There
+ *    is none for what a subagent changed.
  */
 
 const FULL_READ_BYTES = 32 * 1024 * 1024
@@ -43,10 +58,8 @@ const SETTLE_MS = 400
 /** How often to ask whether a session's process is still there (one can die without a word). */
 const ALIVE_CHECK_MS = 60_000
 
-interface Tracked {
-  live: LiveRecord
-  ended: number | null
-  transcript: string | null
+/** A record followed from where the last reading stopped: a session's, or a subagent's. */
+interface Reading {
   offset: number
   /** Bytes to text across reads: a character split between two pieces stays one character. */
   decoder: StringDecoder
@@ -60,9 +73,30 @@ interface Tracked {
   again: boolean
 }
 
+interface Tracked extends Reading {
+  live: LiveRecord
+  ended: number | null
+  transcript: string | null
+  /** The session's subagents by their agent id, each with a record of its own. */
+  subagents: Map<string, Subagent>
+}
+
+interface Subagent extends Reading {
+  file: string
+  /** Which call started it, from its meta file; null until that has been read. */
+  meta: SubagentMeta | null
+}
+
+/** A file a session or one of its subagents wrote. */
+interface Written {
+  backup: string | null
+  seen: boolean
+  subagent: boolean
+}
+
 /** A record read from its start: nothing carried over. */
 const fresh = (): Pick<
-  Tracked,
+  Reading,
   'offset' | 'decoder' | 'rest' | 'skipLine' | 'partial' | 'tally'
 > => ({
   offset: 0,
@@ -72,6 +106,13 @@ const fresh = (): Pick<
   partial: false,
   tally: emptyTally(),
 })
+
+/** Tasks shown on a card at most; the running ones come first. */
+const TASKS_SHOWN = 12
+
+/** Where Claude Code keeps a session's subagents' records: a folder beside the session's own. */
+const subagentFolder = (transcript: string, sessionId: string): string =>
+  path.join(path.dirname(transcript), sessionId, 'subagents')
 
 export function claudeDir(): string {
   return (
@@ -182,10 +223,30 @@ export class ClaudeCodeSource implements AgentSource {
       this.debounce('sessions', () => this.scan())
       return
     }
+    const parts = name.split(/[\\/]/)
+    if (parts.at(-2) === 'subagents') {
+      // <folder>/<session>/subagents/agent-<id>.jsonl (or its .meta.json)
+      const entry = this.tracked.get(parts.at(-3) ?? '')
+      const agent = /^agent-([0-9a-z]+)\./i.exec(parts.at(-1) ?? '')?.[1]
+      if (entry !== undefined && agent !== undefined)
+        this.debounce(`${entry.live.sessionId}/${agent}`, () => this.onSubagent(entry, agent))
+      return
+    }
     const id = path.basename(name, '.jsonl')
     const entry = this.tracked.get(id)
     if (entry !== undefined && name.endsWith('.jsonl'))
       this.debounce(id, () => void this.read(entry))
+  }
+
+  private onSubagent(entry: Tracked, agent: string): void {
+    if (this.tracked.get(entry.live.sessionId) !== entry) return
+    const known = entry.subagents.get(agent)
+    if (known === undefined) {
+      this.findSubagents(entry)
+      return
+    }
+    known.meta ??= readMeta(known.file)
+    void this.readSubagent(entry, known)
   }
 
   private debounce(key: string, fn: () => void): void {
@@ -229,6 +290,7 @@ export class ClaudeCodeSource implements AgentSource {
         live,
         ended: null,
         transcript: this.findTranscript(live.sessionId, live.cwd),
+        subagents: new Map(),
         ...fresh(),
         reading: false,
         again: false,
@@ -262,36 +324,87 @@ export class ClaudeCodeSource implements AgentSource {
     return null
   }
 
-  /** Reads what the record gained since the last reading, a piece at a time. */
+  /** Reads what the session's record gained since the last reading, a piece at a time. */
   private async read(entry: Tracked): Promise<void> {
     entry.transcript ??= this.findTranscript(entry.live.sessionId, entry.live.cwd)
     if (entry.transcript === null) return
-    if (entry.reading) {
-      entry.again = true
-      return
-    }
-    entry.reading = true
-    entry.again = false
-    try {
-      await this.readFrom(entry, entry.transcript)
-    } catch {
-      // The record went away mid-read; the next change reads it again.
-    } finally {
-      entry.reading = false
-    }
+    if (!(await this.follow(entry, entry.transcript, entry.live.cwd))) return
+    if (this.subagentMissing(entry)) this.findSubagents(entry)
     this.changed()
     // The last lines of a turn can land while the rest is read: they must not wait for the next turn.
     if (entry.again && this.tracked.get(entry.live.sessionId) === entry) void this.read(entry)
   }
 
-  private async readFrom(entry: Tracked, transcript: string): Promise<void> {
-    const size = statSync(transcript).size
+  private async readSubagent(entry: Tracked, sub: Subagent): Promise<void> {
+    if (!(await this.follow(sub, sub.file, entry.live.cwd))) return
+    this.changed()
+    if (sub.again && this.tracked.get(entry.live.sessionId) === entry)
+      void this.readSubagent(entry, sub)
+  }
+
+  /** One reading of a record, or none when one is already under way (which then reads again). */
+  private async follow(reading: Reading, file: string, cwd: string): Promise<boolean> {
+    if (reading.reading) {
+      reading.again = true
+      return false
+    }
+    reading.reading = true
+    reading.again = false
+    try {
+      await this.readFrom(reading, file, cwd)
+    } catch {
+      // The record went away mid-read; the next change reads it again.
+    } finally {
+      reading.reading = false
+    }
+    return true
+  }
+
+  /** The session's record has started a subagent whose own record has not been found. */
+  private subagentMissing(entry: Tracked): boolean {
+    const found = new Set<string>()
+    for (const sub of entry.subagents.values()) if (sub.meta) found.add(sub.meta.toolUseId)
+    for (const [id, task] of entry.tally.tasks) {
+      if (task.kind === 'agent' && !found.has(id)) return true
+    }
+    return false
+  }
+
+  /** Finds the session's subagents' records, and starts reading each one new. */
+  private findSubagents(entry: Tracked): void {
+    if (entry.transcript === null) return
+    const folder = subagentFolder(entry.transcript, entry.live.sessionId)
+    let names: string[]
+    try {
+      names = readdirSync(folder)
+    } catch {
+      return
+    }
+    for (const name of names) {
+      const agent = /^agent-([0-9a-z]+)\.jsonl$/i.exec(name)?.[1]
+      if (agent === undefined) continue
+      const known = entry.subagents.get(agent)
+      if (known !== undefined) {
+        // Written with the record, but a reading can come between the two.
+        known.meta ??= readMeta(known.file)
+        continue
+      }
+      // A known one is read on its own changes; only a new one is read from here.
+      const file = path.join(folder, name)
+      const sub: Subagent = { file, meta: readMeta(file), ...fresh(), reading: false, again: false }
+      entry.subagents.set(agent, sub)
+      void this.readSubagent(entry, sub)
+    }
+  }
+
+  private async readFrom(entry: Reading, file: string, cwd: string): Promise<void> {
+    const size = statSync(file).size
     if (size < entry.offset) Object.assign(entry, fresh())
     if (entry.offset === 0 && size > FULL_READ_BYTES) {
       // A tail starts mid-line: that line is not whole, and is left out.
       Object.assign(entry, { offset: size - TAIL_BYTES, partial: true, skipLine: true })
     }
-    const handle = await open(transcript, 'r')
+    const handle = await open(file, 'r')
     try {
       while (entry.offset < size) {
         const length = Math.min(CHUNK_BYTES, size - entry.offset)
@@ -299,7 +412,7 @@ export class ClaudeCodeSource implements AgentSource {
         const { bytesRead } = await handle.read(buffer, 0, length, entry.offset)
         if (bytesRead === 0) break
         entry.offset += bytesRead
-        this.take(entry, entry.decoder.write(buffer.subarray(0, bytesRead)))
+        this.take(entry, entry.decoder.write(buffer.subarray(0, bytesRead)), cwd)
       }
     } finally {
       await handle.close()
@@ -307,7 +420,7 @@ export class ClaudeCodeSource implements AgentSource {
   }
 
   /** Reads a piece of the record into the tally, carrying an unfinished line to the next. */
-  private take(entry: Tracked, piece: string): void {
+  private take(entry: Reading, piece: string, cwd: string): void {
     let text = entry.rest + piece
     if (entry.skipLine) {
       const end = text.indexOf('\n')
@@ -318,21 +431,48 @@ export class ClaudeCodeSource implements AgentSource {
       text = text.slice(end + 1)
       entry.skipLine = false
     }
-    entry.rest = readLines(text, entry.live.cwd, entry.tally)
+    entry.rest = readLines(text, cwd, entry.tally)
     // A line past the limit is skipped when whole anyway: stop gathering it now, not at its end.
     if (entry.rest.length > LINE_LIMIT) Object.assign(entry, { rest: '', skipLine: true })
   }
 
-  sessions(_now: number): AgentSession[] {
+  sessions(now: number): AgentSession[] {
     return [...this.tracked.values()]
-      .map((entry) => this.session(entry))
+      .map((entry) => this.session(entry, now))
       .sort((a, b) => Number(b.live) - Number(a.live) || b.updatedAt - a.updatedAt)
   }
 
-  private session(entry: Tracked): AgentSession {
+  /** What the session and its subagents wrote; the session's own word on a file comes first. */
+  private written(entry: Tracked): Map<string, Written> {
+    const files = new Map<string, Written>()
+    for (const [file, info] of entry.tally.files) files.set(file, { ...info, subagent: false })
+    for (const sub of entry.subagents.values()) {
+      for (const [file, info] of sub.tally.files) {
+        if (!files.has(file)) files.set(file, { ...info, subagent: true })
+      }
+    }
+    return files
+  }
+
+  /** The session's tasks: running first, then the newest, and a finished one only for a while. */
+  private tasks(entry: Tracked, now: number): AgentTask[] {
+    const subs = new Map<string, Subagent>()
+    for (const sub of entry.subagents.values()) if (sub.meta) subs.set(sub.meta.toolUseId, sub)
+    return [...entry.tally.tasks.entries()]
+      .map(([id, mark]) => taskOf(id, mark, subs.get(id), entry.ended))
+      .filter((task) => task.endedAt === null || now - task.endedAt <= ENDED_KEPT_MS)
+      .sort(
+        (a, b) =>
+          Number(b.state === 'running') - Number(a.state === 'running') ||
+          b.startedAt - a.startedAt,
+      )
+      .slice(0, TASKS_SHOWN)
+  }
+
+  private session(entry: Tracked, now: number): AgentSession {
     const { live, tally } = entry
     const cwd = live.cwd
-    const files = [...tally.files.entries()].slice(-60).map(([file, info]) => {
+    const files = [...this.written(entry).entries()].slice(-60).map(([file, info]) => {
       const inside = path.relative(cwd, file)
       const shown =
         inside !== '' && !inside.startsWith('..') && !path.isAbsolute(inside) ? inside : file
@@ -340,6 +480,7 @@ export class ClaudeCodeSource implements AgentSource {
         key: keyOf(file),
         path: shown.replaceAll('\\', '/'),
         created: info.seen && info.backup === null,
+        subagent: info.subagent,
       }
     })
     return {
@@ -363,6 +504,7 @@ export class ClaudeCodeSource implements AgentSource {
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count),
       files,
+      tasks: this.tasks(entry, now),
       partial: entry.partial,
     }
   }
@@ -378,8 +520,7 @@ export class ClaudeCodeSource implements AgentSource {
     const [file, info] = found
     const base = { repoId: sessionId, path: file }
     // Written, but no copy of what it was has been read (yet, or before a tail): not "all new".
-    if (!info.seen)
-      return blank(base, { problem: 'no copy of the file from before the session has been found' })
+    if (!info.seen) return blank(base, { problem: noCopy(info) })
     const now = await readSmall(file)
     const before =
       info.backup === null ? null : await readSmall(this.firstCopy(sessionId, info.backup))
@@ -396,12 +537,10 @@ export class ClaudeCodeSource implements AgentSource {
   }
 
   /** A file of a session by the key the page was given for it. */
-  private fileOf(
-    sessionId: string,
-    key: string,
-  ): [string, { backup: string | null; seen: boolean }] | null {
+  private fileOf(sessionId: string, key: string): [string, Written] | null {
     const entry = this.tracked.get(sessionId)
-    return [...(entry?.tally.files.entries() ?? [])].find(([file]) => keyOf(file) === key) ?? null
+    if (entry === undefined) return null
+    return [...this.written(entry).entries()].find(([file]) => keyOf(file) === key) ?? null
   }
 
   /** The first copy is the file before the session touched it; later ones are between its edits. */
@@ -412,6 +551,61 @@ export class ClaudeCodeSource implements AgentSource {
       sessionId,
       path.basename(backup).replace(/@v\d+$/, '@v1'),
     )
+  }
+}
+
+/**
+ * A task as the page gets it. One that ended says so in the session's record,
+ * or is a subagent the session waited for and has answered after; one still
+ * running when its session went is `unknown`.
+ */
+function taskOf(
+  id: string,
+  mark: TaskMark,
+  sub: Subagent | undefined,
+  sessionEnded: number | null,
+): AgentTask {
+  // The call's own flag, or Claude Code's word that it ran in the background by default.
+  const background = mark.background || sub?.meta?.background === true
+  const answered = mark.kind === 'agent' && !background ? mark.answeredAt : null
+  // A subagent that moved on after its last notice was sent another message: it runs again.
+  const resumed = mark.ended !== null && (sub?.tally.activity?.at ?? 0) > mark.ended.at
+  const ended = resumed ? null : mark.ended
+  const end: { state: AgentTaskState; at: number } | null =
+    ended ??
+    (answered !== null
+      ? { state: 'done', at: answered }
+      : sessionEnded !== null
+        ? { state: 'unknown', at: sessionEnded }
+        : null)
+  let steps = 0
+  for (const count of sub?.tally.tools.values() ?? []) steps += count
+  return {
+    id,
+    kind: mark.kind,
+    title: mark.title,
+    type: mark.type,
+    background,
+    state: end?.state ?? 'running',
+    startedAt: mark.startedAt,
+    endedAt: end?.at ?? null,
+    activity: sub?.tally.activity ?? null,
+    steps,
+  }
+}
+
+/** Why a written file has no "before" to diff against. */
+const noCopy = (info: Written): string =>
+  info.subagent
+    ? 'a subagent changed it, and Claude Code keeps no copy of a file from before a subagent changes it'
+    : 'no copy of the file from before the session has been found'
+
+/** A subagent's meta file, beside its record. */
+function readMeta(record: string): SubagentMeta | null {
+  try {
+    return readSubagentMeta(readFileSync(record.replace(/\.jsonl$/, '.meta.json'), 'utf8'))
+  } catch {
+    return null
   }
 }
 

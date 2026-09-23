@@ -166,3 +166,80 @@ test('keeps the width of the session list beside the diff, across a restart', as
     removeDir(dir)
   }
 })
+
+test('shows the subagents and background commands a session runs, until they end', async () => {
+  const { dir, record } = claudeFolder()
+  const work = path.join(dir, 'work')
+  const call = (id: string, name: string, input: Record<string, unknown>) =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: new Date().toISOString(),
+      message: {
+        id: 'm-tasks',
+        role: 'assistant',
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', id, name, input }],
+      },
+    })
+  appendFileSync(
+    record,
+    `${[
+      call('toolu_sub', 'Agent', { description: 'Hunt the orbit bugs', prompt: 'Look.' }),
+      call('toolu_sh', 'Bash', {
+        command: 'npx playwright test',
+        description: 'Run the whole suite',
+        run_in_background: true,
+      }),
+    ].join('\n')}\n`,
+  )
+  // The subagent's own record and meta file, beside the session's, as Claude Code keeps them.
+  const subagents = path.join(dir, 'projects', 'work', ID, 'subagents')
+  mkdirSync(subagents, { recursive: true })
+  writeFileSync(
+    path.join(subagents, 'agent-a1.meta.json'),
+    JSON.stringify({ agentType: 'Explore', toolUseId: 'toolu_sub', requestShape: 'background' }),
+  )
+  writeFileSync(
+    path.join(subagents, 'agent-a1.jsonl'),
+    `${line([{ type: 'tool_use', name: 'Write', input: { file_path: path.join(work, 'tle.ts') } }])}\n`,
+  )
+  writeFileSync(path.join(work, 'tle.ts'), 'export const TLE = 2\n')
+  const notice = (id: string, status: string) =>
+    JSON.stringify({
+      type: 'queue-operation',
+      operation: 'enqueue',
+      timestamp: new Date().toISOString(),
+      content: `<task-notification>\n<task-id>x</task-id>\n<tool-use-id>${id}</tool-use-id>\n<status>${status}</status>\n</task-notification>`,
+    })
+
+  const { page, close } = await launch(undefined, {
+    layout: single,
+    env: { ELECDEX_CLAUDE_DIR: dir },
+  })
+  try {
+    const tasks = page.getByTestId('agent-task')
+    await expect(tasks).toHaveCount(2, { timeout: 15_000 })
+    await expect(page.getByTestId('agent-running')).toHaveText('2 RUNNING')
+    await expect(tasks.filter({ hasText: 'Hunt the orbit bugs' })).toContainText('AGENT')
+    await expect(page.getByTestId('agent-task-step')).toContainText('tle.ts')
+    await expect(tasks.filter({ hasText: 'Run the whole suite' })).toContainText('SHELL')
+
+    // What the subagent wrote is among the session's files, marked as its.
+    await page.getByTestId('agent-card').locator('.head').click()
+    await expect(page.getByTestId('agent-file').filter({ hasText: 'tle.ts' })).toContainText('SUB')
+
+    appendFileSync(
+      record,
+      `${[notice('toolu_sub', 'completed'), notice('toolu_sh', 'failed')].join('\n')}\n`,
+    )
+    const state = (title: string) =>
+      tasks.filter({ hasText: title }).getByTestId('agent-task-state')
+    await expect(state('Hunt the orbit bugs')).toHaveText('DONE', { timeout: 10_000 })
+    await expect(state('Run the whole suite')).toHaveText('FAIL')
+    await expect(page.getByTestId('agent-running')).toHaveCount(0)
+    await expect(page.getByTestId('agent-task-step')).toHaveCount(0)
+  } finally {
+    await close()
+    removeDir(dir)
+  }
+})
