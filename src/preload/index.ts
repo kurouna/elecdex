@@ -1,3 +1,4 @@
+import type { AgentBoard } from '@shared/agents'
 import type {
   AiKeyStorage,
   AiModelsResult,
@@ -30,6 +31,7 @@ import type { SavedLayoutSummary } from '@shared/layouts'
 import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { Note, NotesFile } from '@shared/notes'
+import type { OrbitSet, OrbitUpdate } from '@shared/orbits'
 import type { PluginCatalog, PluginInstalled } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
@@ -260,6 +262,21 @@ const subscribeMarket = keyedSubscriptions<MarketUpdate>({
   keyOf: (update) => update.key,
 })
 
+/** The one agents board: every handler shares one subscription, as a keyed one would. */
+const subscribeAgents = keyedSubscriptions<AgentBoard>({
+  subscribe: CH.agents.subscribe,
+  unsubscribe: CH.agents.unsubscribe,
+  event: CH.agents.update,
+  keyOf: () => 'board',
+})
+
+const subscribeOrbits = keyedSubscriptions<OrbitUpdate>({
+  subscribe: CH.orbits.subscribe,
+  unsubscribe: CH.orbits.unsubscribe,
+  event: CH.orbits.update,
+  keyOf: (update) => update.set,
+})
+
 const subscribeGit = keyedSubscriptions<GitState>({
   subscribe: CH.git.subscribe,
   unsubscribe: CH.git.unsubscribe,
@@ -485,6 +502,15 @@ const api: ElecdexApi = {
   feeds: {
     subscribe: (url, handler) => subscribeFeed(url, handler),
     watching: () => ipcRenderer.invoke(CH.feeds.watching) as Promise<string[]>,
+  },
+  agents: {
+    subscribe: (handler) => subscribeAgents('board', handler),
+    diff: (request) => ipcRenderer.invoke(CH.agents.diff, request) as Promise<GitDiff | null>,
+    watching: () => ipcRenderer.invoke(CH.agents.watching) as Promise<boolean>,
+  },
+  orbits: {
+    subscribe: (set, handler) => subscribeOrbits(set, handler),
+    watching: () => ipcRenderer.invoke(CH.orbits.watching) as Promise<OrbitSet[]>,
   },
   git: {
     subscribe: (repoId, handler) => subscribeGit(repoId, handler),

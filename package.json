@@ -49,6 +49,7 @@
     "gen:card": "node scripts/gen-repo-card.mjs",
     "gen:geo": "node scripts/gen-geo.mjs",
     "gen:cities": "node scripts/gen-cities.mjs",
+    "gen:orbit-map": "node scripts/gen-orbit-map.mjs",
     "gen:screenshots": "node scripts/gen-screenshots.mjs",
     "demo:elec": "node scripts/demo-elec.mjs",
     "demo:full": "node scripts/elec-full-demo.mjs"
@@ -78,6 +79,7 @@
     "i18n-iso-countries": "^7.14.0",
     "jsdom": "30.0.1",
     "opentype.js": "^2.0.0",
+    "satellite.js": "7.1.0",
     "svelte": "5.57.0",
     "svelte-check": "4.7.6",
     "three": "^0.186.0",

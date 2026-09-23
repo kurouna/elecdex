@@ -168,6 +168,7 @@ describe('settings', () => {
       updates: { check: true },
       layout: { confirmSwitch: true },
       web: { tint: false },
+      agents: { sources: ['claude-code'] },
       git: { openCommand: '' },
       quakes: {
         source: 'auto',

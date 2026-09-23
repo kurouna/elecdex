@@ -44,6 +44,8 @@ export interface LaunchOptions {
    * port, so no test ever sends a request to the real JMA site.
    */
   jmaBaseUrl?: string
+  /** Where the ORBIT pane asks CelesTrak; a closed port unless a spec serves elements. */
+  celestrakBaseUrl?: string
   /** A layout.json to start from, instead of the default layout. */
   layout?: unknown
   /** Extra environment variables for the app. */
@@ -76,6 +78,9 @@ const UNREACHABLE_UPDATES = 'http://127.0.0.1:9/releases/latest'
 /** Earthquakes and tsunamis abroad likewise: no test asks the USGS or NOAA. */
 const UNREACHABLE_USGS = 'http://127.0.0.1:9/usgs'
 const UNREACHABLE_NOAA = 'http://127.0.0.1:9/noaa'
+const UNREACHABLE_CELESTRAK = 'http://127.0.0.1:9/celestrak'
+/** No Claude Code folder: the AGENT pane must never read this machine's sessions in a test. */
+const NO_CLAUDE_DIR = path.join(tmpdir(), 'elecdex-e2e-no-claude')
 /** The web pane presets likewise open a closed port: no test loads YouTube or X. */
 const UNREACHABLE_WEB =
   'youtube=http://127.0.0.1:9/youtube/,youtubetv=http://127.0.0.1:9/tv/,x=http://127.0.0.1:9/x/'
@@ -173,6 +178,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       ELECDEX_UPDATES_URL: UNREACHABLE_UPDATES,
       ELECDEX_USGS_BASE_URL: UNREACHABLE_USGS,
       ELECDEX_NOAA_BASE_URL: UNREACHABLE_NOAA,
+      ELECDEX_CELESTRAK_BASE_URL: options.celestrakBaseUrl ?? UNREACHABLE_CELESTRAK,
+      // The AGENT pane reads Claude Code's own folder; a test gives it a made-up one.
+      ELECDEX_CLAUDE_DIR: NO_CLAUDE_DIR,
       ELECDEX_WEB_HOMES: UNREACHABLE_WEB,
       // A steady tone and a made-up mixer: never the machine's sound or volume.
       ELECDEX_AUDIO_STUB: '1',

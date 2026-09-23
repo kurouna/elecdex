@@ -2,6 +2,7 @@ import { backgroundCapabilities, HIDDEN_SWITCH, isWayland } from '@shared/backgr
 import { app, dialog } from 'electron'
 import { appWindows } from './app-windows.js'
 import { type Background, registerBackground } from './background/index.js'
+import { registerAgentsIpc } from './ipc/agents.js'
 import { registerAiIpc } from './ipc/ai.js'
 import { registerAlarmsIpc } from './ipc/alarms.js'
 import { registerAudioIpc } from './ipc/audio.js'
@@ -12,6 +13,7 @@ import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerMarketsIpc } from './ipc/markets.js'
 import { registerNotesIpc } from './ipc/notes.js'
+import { registerOrbitsIpc } from './ipc/orbits.js'
 import { registerPluginsIpc } from './ipc/plugins.js'
 import { type PtyIpc, registerPtyIpc } from './ipc/pty.js'
 import { registerQuakesIpc } from './ipc/quakes.js'
@@ -78,6 +80,8 @@ let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
 let feedsIpc: { dispose: () => void } | null = null
 let gitIpc: { dispose: () => void } | null = null
+let orbitsIpc: { dispose: () => void } | null = null
+let agentsIpc: { dispose: () => void } | null = null
 let aiIpc: { dispose: () => void } | null = null
 let quakesIpc: { dispose: () => void } | null = null
 let notesIpc: { dispose: () => void } | null = null
@@ -102,6 +106,8 @@ app.whenReady().then(() => {
   marketsIpc = registerMarketsIpc()
   feedsIpc = registerFeedsIpc()
   gitIpc = registerGitIpc(settings)
+  orbitsIpc = registerOrbitsIpc()
+  agentsIpc = registerAgentsIpc(settings)
   aiIpc = registerAiIpc(settings)
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
@@ -168,6 +174,10 @@ app.on('will-quit', () => {
   feedsIpc = null
   gitIpc?.dispose()
   gitIpc = null
+  orbitsIpc?.dispose()
+  orbitsIpc = null
+  agentsIpc?.dispose()
+  agentsIpc = null
   aiIpc?.dispose()
   aiIpc = null
   quakesIpc?.dispose()

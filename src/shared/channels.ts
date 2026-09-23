@@ -94,6 +94,25 @@ export const CH = {
     update: 'feeds:update',
     watching: 'feeds:watching',
   },
+  /** The AGENT pane (shared/agents.ts): one board, from the sources settings turn on. */
+  agents: {
+    /** renderer -> main, fire and forget: keep the board current. */
+    subscribe: 'agents:subscribe',
+    unsubscribe: 'agents:unsubscribe',
+    /** main -> renderer: an AgentBoard. */
+    update: 'agents:update',
+    diff: 'agents:diff',
+    watching: 'agents:watching',
+  },
+  /** The ORBIT pane's orbital elements (shared/orbits.ts), by set. */
+  orbits: {
+    /** renderer -> main, fire and forget: keep a set of elements. */
+    subscribe: 'orbits:subscribe',
+    unsubscribe: 'orbits:unsubscribe',
+    /** main -> renderer: an OrbitUpdate. */
+    update: 'orbits:update',
+    watching: 'orbits:watching',
+  },
   /** The git pane (shared/git.ts): read only, by repository id. */
   git: {
     /** renderer -> main, fire and forget: keep a repository's state current. */

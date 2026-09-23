@@ -47,6 +47,13 @@ for Windows, macOS and Linux.
   month calendar with optional Japanese holidays.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
   you want it.
+- **Agent** *(unreleased, experimental)* — the Claude Code sessions at work on your computer: what
+  each is doing this moment, how much it carries, and a diff of every file it changed, read from
+  Claude Code's own records on this machine.
+- **Orbit** *(unreleased)* — mission control's front screen: a world map with the night side, the
+  lines where clocks change and the hour each zone keeps, the ISS and Tiangong where they are now
+  with their ground tracks, the next pass over a city you choose, and the world's clocks around
+  mission control's GMT day-of-year clock. The Starlink constellation on request.
 - **Git** *(unreleased)* — a repository you choose, read only: the files changed, the diff of
   each with its syntax coloured, and the last commits, kept current as they change - watch an AI
   agent work in the next pane. One pane per repository.
@@ -369,6 +376,26 @@ weather and calendar.
   Nothing is ever looked up online. **MASK** hides the second half of every address, for a
   screenshot or a shared screen. *(unreleased)* A listening program says what it serves, told from
   its command line - `node` becomes `vite · my-app` - without the port being asked anything.
+- **Agent** *(unreleased, experimental)* — one card per running Claude Code session: its name and
+  folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
+  in its view and written, and its answers. Open a card for the tools it has used and the files it
+  has changed; a file opens as a diff against the copy Claude Code kept before the session first
+  touched it. Read from Claude Code's own folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) only
+  while the pane is open, and only the part of a record written since the last look - a long record
+  is read from its end, and its counts say *recent*. Nothing is sent anywhere. These records are
+  Claude Code's and not documented, so a new version of it may change what can be shown - hence
+  *experimental*. `agents.sources` in `settings.json` says whose records are read (so far
+  `claude-code`).
+- **Orbit** *(unreleased)* — positions are worked out on your computer (SGP4) from orbital
+  elements the app downloads from CelesTrak: the stations twice a day, and the roughly 10,000
+  Starlink satellites once a day and only while a pane shows them (**STARLINK**). The focused
+  station's track runs one orbit back and two ahead, bright in sunlight and dim in the Earth's
+  shadow, marked every ten minutes; the ring round it is the ground that can see it. Below the
+  map: where it is, how high and how fast, when it next enters or leaves the Earth's shadow, and
+  its next pass over the observer - visible to the eye or not. The observer is the pane's own,
+  chosen from the bundled city list (by default the largest city in your time zone); no location
+  is asked for. The thin lines across the map are where clocks differ today, and the ruler along
+  its top gives each fifteen-degree zone its hour, midnight and noon lit.
 - **Git** *(unreleased)* — **SELECT REPOSITORY** picks a folder; the pane watches that repository
   from then on and reads it again after each change (at most once a second, and never while
   nothing changes). The staged, unstaged, untracked and conflicted files, each with its lines
@@ -778,6 +805,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | AI chat | The providers you list in *Settings -> AI*: a server on your computer or network, or a hosted API (Anthropic through its [official SDK](https://github.com/anthropics/anthropic-sdk-typescript); the rest as OpenAI-compatible `chat/completions`) | Asked by the app, never by the page, and only when you send a message, press **test** or open a pane's model list - a chat pane sitting in a layout calls nobody. What is sent is the conversation so far, your system prompt and the model's name, to the address you chose and nowhere else; each provider's own terms and data retention apply. No cookies, no redirects followed. An API key is encrypted by the operating system (DPAPI, the Keychain, the desktop's keyring) into `ai-keys.json`, apart from `settings.json`, and is never shown again; where the system cannot encrypt, it is kept in memory until elecdex quits. A key is refused for a plain-http address outside your computer and local network. With no key of its own, the Anthropic SDK looks where it always does (`ANTHROPIC_API_KEY`, an `ant auth login` profile). On Anthropic's own endpoint, `claude-opus-5` and `claude-fable-5-1` are asked with server-side fallbacks (`fallbacks: "default"`), so a request their safety classifiers decline is re-run on another Claude model in the same call; the answer names the model that wrote it. Conversations are files in `chats/` in the app's data folder. |
 | ELEC system | The same providers, as each seat names them | As for the AI chat, and only when you submit a motion (or open a model list): each unit is sent its standpoint, the voting instructions and the motion - in a second round, the other units' first statements too. Three requests a round, one or two rounds. Deliberations are files in `elec/` in the app's data folder. |
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
+| Orbital elements *(unreleased)* | [CelesTrak](https://celestrak.org/) GP data (from the 18th and 19th Space Defense Squadrons via [Space-Track.org](https://www.space-track.org/)): `GROUP=stations` as OMM JSON, `GROUP=starlink` as TLE | Positions are computed on your computer; only elements are downloaded. Following CelesTrak's [usage policy](https://celestrak.org/usage-policy.php): only while an ORBIT pane shows the set, the stations at most twice a day and Starlink at most once a day (CelesTrak updates every two hours), kept on disk across restarts, an identifying User-Agent, and nothing more for a day after any answer but a 200. Credited in the pane. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 ## Third-party assets
@@ -792,6 +820,10 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Country codes and time zones | [i18n-iso-countries](https://github.com/michaelwittig/node-i18n-iso-countries), [countries-and-timezones](https://github.com/manuelmhtr/countries-and-timezones) | MIT (build time only) |
 | README banner font | [Source Sans 3](https://fonts.google.com/specimen/Source+Sans+3) | SIL OFL 1.1 (outlined into the SVG at build time) |
 | Market data client | [yahoo-finance2](https://github.com/gadicc/yahoo-finance2) | MIT (bundled into the main process) |
+| Time zone boundaries (ORBIT) | [timezone-boundary-builder](https://github.com/evansiroky/timezone-boundary-builder) 2026d, from OpenStreetMap data | [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/), © OpenStreetMap contributors. The derived lines in `src/renderer/widgets/orbit/tz-lines.json` (made by `npm run gen:orbit-map`) are under the ODbL too; credited in the pane. |
+| Land for the ORBIT map | [Natural Earth](https://www.naturalearthdata.com/) 50m land via world-atlas | Public domain ("Made with Natural Earth", credited in the pane) |
+| Orbit propagation (SGP4) | [satellite.js](https://github.com/shashwatak/satellite-js) | MIT |
+| Syntax colours in the git pane's diffs | [highlight.js](https://highlightjs.org/) | BSD-3-Clause |
 | Calculator's expression evaluator | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`, copied unmodified into `src/shared/calc/vendor` | MIT |
 
 The geolocation database is bundled, so there is no account, no API key and no first-run

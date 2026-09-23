@@ -27,6 +27,7 @@ npm run gen:icon       # build/icon.svg -> build/icon.png + resources/icons/icon
 npm run gen:card       # README banner: public/elecdex_repo_card.svg
 npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
+npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
 npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
@@ -77,7 +78,11 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   docs/weather-providers.md; follow each service's terms), markets (yahoo-finance2 is Node-only),
   RSS feeds (src/main/feeds; the XML parser is imported lazily, so an app without an RSS pane
   never loads it), earthquakes and tsunamis from JMA, or the USGS and NOAA (src/main/quakes;
-  running only while alerts are on or a quakes pane is open, and only for the chosen source).
+  running only while alerts are on or a quakes pane is open, and only for the chosen source),
+  orbital elements from CelesTrak (src/main/orbits; only while an ORBIT pane shows the set, the
+  stations twice a day and Starlink once a day, kept on disk, and nothing for a day after any
+  answer but a 200 - CelesTrak's policy, architecture.md §5.10). Positions are computed in the
+  page (SGP4); a service is never asked where something is.
   Fetch only while a pane needs the data, batch, back off on failure, and keep the last good data
   on screen.
 - **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs, the quake
@@ -210,6 +215,16 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     and git's own bookkeeping in the git folder (`index.lock`, objects) is not a change.
   - A file's text is untrusted: highlight.js's answer is read back into tokens (lib/highlight.ts)
     and drawn as text, never as HTML.
+- **The AGENT pane** (architecture.md §5.11, shared/agents.ts, main/agents/) is experimental and
+  reads coding agents' own local records - never sends anything, never runs them.
+  - The page talks to one layer (`AgentHub`), which asks the sources `agents.sources` turns on;
+    an agent is an `AgentSource` adapter (main/agents/source.ts). Add an agent there and in
+    `AGENT_SOURCE_IDS`, never in the pane.
+  - Claude Code's records are read only while a pane is open, from where the last reading stopped;
+    a record over 32 MB from its last 512 kB, marked partial. Never parse a whole record on a
+    change (a 124 MB one took 944 ms), and never parse a line that is not the model's own.
+  - Tests never read this machine's `~/.claude`: support.ts points `ELECDEX_CLAUDE_DIR` at a
+    folder that does not exist, and specs make their own.
 - **The ELEC system pane** (architecture.md §5.8, shared/elec.ts, main/ai/elec.ts) puts a
   motion to three units - LOGOS, ETHOS, PATHOS - on the AI chat's providers, keys and adapters,
   under the same rules (main asks, snapshot + deltas, an unfollowed deliberation stops, nothing
@@ -390,7 +405,7 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   sets, by default:
   - closed ports for `ELECDEX_JMA_BASE_URL` (also the earthquake and tsunami lists),
     `ELECDEX_MET_BASE_URL`, `ELECDEX_NWS_BASE_URL`, `ELECDEX_USGS_BASE_URL`,
-    `ELECDEX_NOAA_BASE_URL`, `ELECDEX_MARKETS_STUB_URL`, `ELECDEX_UPDATES_URL` and
+    `ELECDEX_NOAA_BASE_URL`, `ELECDEX_CELESTRAK_BASE_URL`, `ELECDEX_MARKETS_STUB_URL`, `ELECDEX_UPDATES_URL` and
     `ELECDEX_WEB_HOMES` (the web presets' homes); specs that need data run a local stub server;
   - `ELECDEX_AUDIO_STUB=1` (a steady tone and a made-up mixer, never the machine's sound or
     volume), with sound off;
@@ -434,7 +449,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 - **Attribution** stays visible. JMA forecasts and the quakes pane show
   「出典：気象庁ホームページ（URL）を加工して作成」; earthquake and tsunami alerts name their source
   (JMA, USGS, NOAA) and say they are not an early warning (tsunami cards: follow local
-  authorities); the GeoIP data is CC BY 4.0 (NRO), credited in the globe pane; Yahoo data is marked
+  authorities); the GeoIP data is CC BY 4.0 (NRO), credited in the globe pane; the ORBIT pane
+  credits CelesTrak and the Space Defense Squadrons, and the time zone lines are ODbL
+  (© OpenStreetMap contributors) - the pane says so, and `tz-lines.json` carries its licence; Yahoo data is marked
   unofficial, possibly delayed, not investment advice.
 - **The README's status line** names the last *released* version (package.json), and marks what
   is on main but not in it as *unreleased*; update both when the version is bumped. It also says

@@ -24,7 +24,8 @@ test('a closed pane can be brought back from the picker', async () => {
     const picker = page.getByTestId('pane-picker')
     await expect(picker).toBeVisible()
     await page.keyboard.type('clock')
-    await expect(picker.getByTestId('pane-picker-item')).toHaveCount(1)
+    // The clock comes first; other panes that keep time (orbit's world clocks) may follow it.
+    await expect(picker.getByTestId('pane-picker-item').first()).toContainText('clock')
     await page.keyboard.press('Enter')
 
     await expect(picker).toHaveCount(0)

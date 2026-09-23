@@ -1,5 +1,6 @@
 import type { MetricSourceId } from '@shared/metrics'
 import { WEB_PRESETS, webWidgetId } from '@shared/web'
+import AgentsWidget from './agents/AgentsWidget.svelte'
 import AiChatWidget from './aichat/AiChatWidget.svelte'
 import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
@@ -21,6 +22,7 @@ import SysinfoWidget from './monitor/SysinfoWidget.svelte'
 import ThroughputWidget from './monitor/ThroughputWidget.svelte'
 import ToplistWidget from './monitor/ToplistWidget.svelte'
 import NotesWidget from './notes/NotesWidget.svelte'
+import OrbitWidget from './orbit/OrbitWidget.svelte'
 import QuakesWidget from './quakes/QuakesWidget.svelte'
 import { registerBuiltin } from './registry.ts'
 import RssWidget from './rss/RssWidget.svelte'
@@ -237,6 +239,27 @@ registerBuiltin({
     'A git repository, read only: the files changed, the diff of each, and the last commits, kept current as they change.',
   component: GitWidget,
   minSize: { w: 260, h: 160 },
+  multiple: true,
+  zoom: 'full',
+})
+
+registerBuiltin({
+  id: 'agents',
+  title: 'agent',
+  description:
+    'Experimental. Claude Code sessions at work on this machine: what each is doing, how much it carries, and a diff of every file it changed. Read from Claude Code’s own undocumented local records, so a new version may change what can be shown.',
+  component: AgentsWidget,
+  minSize: { w: 280, h: 160 },
+  zoom: 'full',
+})
+
+registerBuiltin({
+  id: 'orbit',
+  title: 'orbit',
+  description:
+    'The ISS and Tiangong over a world map with the night side, time zones and world clocks; Starlink on request. Orbital elements from CelesTrak.',
+  component: OrbitWidget,
+  minSize: { w: 320, h: 200 },
   multiple: true,
   zoom: 'full',
 })

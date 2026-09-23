@@ -1,3 +1,4 @@
+import type { AgentBoard, AgentDiffRequest } from './agents.js'
 import type {
   AiKeyStorage,
   AiModelsResult,
@@ -19,6 +20,7 @@ import type { SavedLayoutSummary } from './layouts.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { Note, NotesFile } from './notes.js'
+import type { OrbitSet, OrbitUpdate } from './orbits.js'
 import type { PluginCatalog, PluginInstalled } from './plugins.js'
 import type { QuakeAlert, QuakeState } from './quakes.js'
 import type { LayoutTree } from './schemas/layout.js'
@@ -349,6 +351,30 @@ export interface FeedsApi {
   watching(): Promise<string[]>
 }
 
+/**
+ * The AGENT pane (experimental): coding agents at work on this machine, read
+ * from their own local records by the layer in main (agents/hub.ts).
+ */
+export interface AgentsApi {
+  /** Keeps the board current while subscribed: at once, then after each change. */
+  subscribe(handler: (board: AgentBoard) => void): () => void
+  /** What a session did to one of its files, or null when that cannot be read. */
+  diff(request: AgentDiffRequest): Promise<GitDiff | null>
+  /** Diagnostics: whether main is reading any agent's records. */
+  watching(): Promise<boolean>
+}
+
+/** The ORBIT pane's orbital elements, downloaded by main under CelesTrak's rules. */
+export interface OrbitsApi {
+  /**
+   * Keeps a set of elements while subscribed: the last copy at once, then each
+   * new download (the stations twice a day, Starlink once).
+   */
+  subscribe(set: OrbitSet, handler: (update: OrbitUpdate) => void): () => void
+  /** Diagnostics: the sets main is keeping. */
+  watching(): Promise<OrbitSet[]>
+}
+
 /** The git pane: it only reads. Repositories are known to the page by id. */
 export interface GitApi {
   /**
@@ -606,6 +632,8 @@ export interface ElecdexApi {
   markets: MarketsApi
   feeds: FeedsApi
   git: GitApi
+  orbits: OrbitsApi
+  agents: AgentsApi
   ai: AiApi
   elec: ElecApi
   quakes: QuakesApi

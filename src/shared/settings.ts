@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AGENT_SOURCE_IDS } from './agents.js'
 import { AI_LIMITS, AiProviderSchema } from './ai.js'
 import { defaultElecSettings, ElecSettingsSchema } from './elec.js'
 import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
@@ -200,6 +201,19 @@ export const SettingsSchema = z.object({
       compact: z.boolean().default(false),
     })
     .default({ providers: [], systemPrompt: '', compact: false }),
+  /**
+   * The AGENT pane (shared/agents.ts): whose records it reads. Only agents listed
+   * here are read at all, and only while an AGENT pane is open.
+   */
+  agents: z
+    .object({
+      sources: z
+        .array(z.enum(AGENT_SOURCE_IDS))
+        .max(8)
+        .catch(['claude-code'])
+        .default(['claude-code']),
+    })
+    .default({ sources: ['claude-code'] }),
   /** The git pane (shared/git.ts). */
   git: z
     .object({
@@ -243,6 +257,8 @@ export interface SettingsPatch {
   window?: Partial<Settings['window']>
   updates?: Partial<Settings['updates']>
   web?: Partial<Settings['web']>
+  /** `sources` replaces the whole list. */
+  agents?: Partial<Settings['agents']>
   quakes?: Partial<Settings['quakes']>
   reminders?: Partial<Settings['reminders']>
   /** `providers` replaces the whole list. */
@@ -279,6 +295,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     window: merge(current.window, p.window),
     updates: merge(current.updates, p.updates),
     web: merge(current.web, p.web),
+    agents: merge(current.agents, p.agents),
     layout: merge(current.layout, p.layout),
     quakes: merge(current.quakes, p.quakes),
     reminders: merge(current.reminders, p.reminders),
