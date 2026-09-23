@@ -66,6 +66,8 @@ export function readObserver(value: unknown): Observer | null {
   if (typeof o.name !== 'string' || typeof o.timeZone !== 'string') return null
   if (typeof o.lat !== 'number' || typeof o.lon !== 'number') return null
   if (Math.abs(o.lat) > 90 || Math.abs(o.lon) > 180) return null
+  // A layout can come from another machine or a hand edit: a zone this one does not know is no observer.
+  if (!knownZone(o.timeZone)) return null
   return {
     name: o.name.slice(0, 60),
     country: typeof o.country === 'string' ? o.country.slice(0, 2) : '',
@@ -88,16 +90,45 @@ export function findCities(cities: readonly CityRow[], query: string, limit = 12
 
 /** A clock's face in a zone: `09:42`, the offset as `UTC+9`, and whether it is night there. */
 export function clockFace(at: Date, timeZone: string): { time: string; offset: string } {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-    timeZoneName: 'shortOffset',
-  }).formatToParts(at)
+  const parts = formatter(timeZone, true).formatToParts(at)
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
   return {
     time: `${part('hour')}:${part('minute')}`,
     offset: part('timeZoneName').replace('GMT', 'UTC') || 'UTC',
   }
+}
+
+/** Whether this machine's Intl knows the zone. */
+export function knownZone(timeZone: string): boolean {
+  try {
+    formatter(timeZone, false)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Hours and minutes in a zone, 24-hour. */
+export const hourMinute = (timeZone: string): Intl.DateTimeFormat => formatter(timeZone, false)
+
+/**
+ * The clocks ask once a second for ten zones: a formatter is made once for each
+ * zone and kept, rather than made again each time.
+ */
+const formatters = new Map<string, Intl.DateTimeFormat>()
+
+function formatter(timeZone: string, offset: boolean): Intl.DateTimeFormat {
+  const key = `${timeZone}|${offset}`
+  let made = formatters.get(key)
+  if (made === undefined) {
+    made = new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+      ...(offset ? { timeZoneName: 'shortOffset' as const } : {}),
+    })
+    formatters.set(key, made)
+  }
+  return made
 }

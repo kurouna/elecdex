@@ -193,7 +193,17 @@ export class OrbitService {
         quietUntil: now + ORBIT_REFUSED_MS,
       }
     }
-    const text = await response.text(ORBIT_MAX_BYTES)
+    let text: string | null
+    try {
+      text = await response.text(ORBIT_MAX_BYTES)
+    } catch {
+      // The connection went while the body came (or the timeout struck): the network, not a refusal.
+      return {
+        ...before,
+        error: 'CelesTrak could not be reached',
+        quietUntil: now + ORBIT_OFFLINE_MS,
+      }
+    }
     const elements = text === null ? null : readOrbitSet(set, text)
     if (elements === null) {
       return {

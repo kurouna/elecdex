@@ -172,12 +172,6 @@ export function drawNight(
   ctx.putImageData(image, 0, 0)
 }
 
-/** The red, green and blue of a resolved `rgb(...)` colour. */
-export function rgbOf(color: string): [number, number, number] {
-  const [r = 0, g = 0, b = 0] = (color.match(/[\d.]+/g) ?? []).map(Number)
-  return [r, g, b]
-}
-
 export interface TrackPoint extends GroundPoint {
   t: number
   sunlit: boolean

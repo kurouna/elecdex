@@ -13,7 +13,6 @@
  */
 
 export type OrbitSet = 'stations' | 'starlink'
-export const ORBIT_SETS: readonly OrbitSet[] = ['stations', 'starlink']
 
 /** How long a set's elements are used before main asks for new ones. */
 export const ORBIT_REFRESH_MS: Record<OrbitSet, number> = {

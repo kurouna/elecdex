@@ -1,5 +1,11 @@
 import { readFileSync } from 'node:fs'
-import { ORBIT_REFRESH_MS, ORBIT_REFUSED_MS, type OrbitSet, type OrbitUpdate } from '@shared/orbits'
+import {
+  ORBIT_OFFLINE_MS,
+  ORBIT_REFRESH_MS,
+  ORBIT_REFUSED_MS,
+  type OrbitSet,
+  type OrbitUpdate,
+} from '@shared/orbits'
 import { describe, expect, it } from 'vitest'
 import { type OrbitCache, type OrbitResponse, OrbitService } from '../../src/main/orbits/service.js'
 
@@ -20,6 +26,7 @@ function harness(options: { status?: number; saved?: Partial<Record<OrbitSet, Or
   const published: OrbitUpdate[] = []
   const disk: Partial<Record<OrbitSet, OrbitCache>> = { ...options.saved }
   let status = options.status ?? 200
+  let bodyFails = false
   const service = new OrbitService({
     baseUrl: 'https://celestrak.test',
     userAgent: 'elecdex/test',
@@ -27,7 +34,10 @@ function harness(options: { status?: number; saved?: Partial<Record<OrbitSet, Or
       asked.push(url)
       return {
         status,
-        text: async () => (url.includes('starlink') ? STARLINK : STATIONS),
+        text: async () => {
+          if (bodyFails) throw new Error('connection reset')
+          return url.includes('starlink') ? STARLINK : STATIONS
+        },
         discard: () => {},
       }
     },
@@ -57,6 +67,9 @@ function harness(options: { status?: number; saved?: Partial<Record<OrbitSet, Or
     disk,
     setStatus: (next: number) => {
       status = next
+    },
+    failBody: (fails: boolean) => {
+      bodyFails = fails
     },
     advance: async (ms: number) => {
       const until = now + ms
@@ -124,6 +137,23 @@ describe('the orbit service', () => {
     expect(h.asked).toHaveLength(2)
     await h.advance(1)
     expect(h.asked).toHaveLength(3)
+  })
+
+  it('treats a body that breaks off as the network down: kept, said, and asked again in an hour', async () => {
+    const h = harness()
+    h.service.watch('stations')
+    await h.advance(0)
+    h.failBody(true)
+    await h.advance(ORBIT_REFRESH_MS.stations)
+    expect(h.asked).toHaveLength(2)
+    expect(h.published.at(-1)?.error).toMatch(/could not be reached/)
+    expect(h.published.at(-1)?.elements).toHaveLength(2)
+    // The wait is saved, so a restart is not a way round it either.
+    expect(h.disk.stations?.quietUntil).not.toBeNull()
+    h.failBody(false)
+    await h.advance(ORBIT_OFFLINE_MS)
+    expect(h.asked).toHaveLength(3)
+    expect(h.published.at(-1)?.error).toBeNull()
   })
 
   it('keeps a refusal across a restart, and a fresh copy spares the download', async () => {

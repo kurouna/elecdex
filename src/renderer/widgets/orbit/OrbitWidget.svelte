@@ -26,10 +26,12 @@ import {
   clockFace,
   defaultObserver,
   findCities,
+  hourMinute,
   type Observer,
   observerOf,
   readObserver,
 } from './clocks.ts'
+import { rgbOf } from './colour.ts'
 import {
   drawGround,
   drawNight,
@@ -39,7 +41,6 @@ import {
   type Palette,
   px,
   py,
-  rgbOf,
   type TrackPoint,
 } from './draw.ts'
 import { StarlinkField } from './starlink.ts'
@@ -64,12 +65,19 @@ const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
 const observer = $derived<Observer>(
   readObserver(paneState?.observer) ?? defaultObserver(CITY_ROWS, zone),
 )
+/**
+ * Pane state is a new object with every change to it, and so is `observer`: the
+ * passes are worked out again only when the place itself changes, not when a
+ * layer is switched.
+ */
+const observerKey = $derived(`${observer.lat},${observer.lon},${observer.timeZone}`)
 const focusCode = $derived(paneState?.focus === 'CSS' ? 'CSS' : 'ISS')
+const showStarlink = $derived(paneState?.starlink === true)
 const show = $derived({
   tracks: paneState?.tracks !== false,
   night: paneState?.night !== false,
   cities: paneState?.cities !== false,
-  starlink: paneState?.starlink === true,
+  starlink: showStarlink,
 })
 
 const setState = (patch: Record<string, unknown>): void => {
@@ -87,10 +95,13 @@ let query = $state('')
 let gmt = $state('')
 let faces = $state.raw<{ code: string; time: string; offset: string; night: boolean }[]>([])
 let readout = $state.raw({ pos: '—', alt: '—', vel: '—', light: '—', lit: true, pass: '—' })
+/** The minute now, so the title's "elements 5 h old" ages without a timer of its own. */
+let minute = $state(0)
 
 $effect(() => window.elecdex.orbits.subscribe('stations', (update) => (stations = update)))
+// Keyed on the switch alone: another layer switched must not drop the subscription and the field.
 $effect(() => {
-  if (!show.starlink) {
+  if (!showStarlink) {
     starlink = null
     return
   }
@@ -123,6 +134,8 @@ let upcoming: Pass[] = []
 let tracksAt = 0
 let passesAt = 0
 let nightAt = 0
+/** Longer than any pass of a station in low orbit. */
+const PASS_LOOKBACK_MS = 15 * 60_000
 
 function readPalette(el: Element): Palette {
   const style = getComputedStyle(el)
@@ -179,6 +192,12 @@ $effect(() => {
 
 function recompute(now: number): void {
   const satrec = records.get(focusCode)
+  if (satrec === undefined) {
+    // No elements for the station in focus: nothing of the other one's may stay.
+    past = []
+    next = []
+    upcoming = []
+  }
   if (satrec !== undefined && now - tracksAt >= 60_000) {
     tracksAt = now
     const sample = (from: number, to: number): TrackPoint[] => {
@@ -195,7 +214,8 @@ function recompute(now: number): void {
   }
   if (satrec !== undefined && now - passesAt >= 10 * 60_000) {
     passesAt = now
-    upcoming = passes(satrec, observer, now, 24)
+    // From a pass's length back, so one already overhead is found from where it rose.
+    upcoming = passes(satrec, observer, now - PASS_LOOKBACK_MS, 24)
   }
   if (now - nightAt >= 60_000) {
     nightAt = now
@@ -223,17 +243,18 @@ function draw(now: number): void {
     ctx.drawImage(night, f.left, f.top, 360 * f.scale, 180 * f.scale)
   }
   const at = new Date(now)
-  const focus = records.get(focusCode)
-  const state = focus ? satState(focus, at) : null
+  // Every station once a frame, for the drawing and for the tests alike.
+  const placed = STATIONS.flatMap((station) => {
+    const satrec = records.get(station.code)
+    const where = satrec ? satState(satrec, at) : null
+    return where ? [{ code: station.code, state: where }] : []
+  })
+  const state = placed.find((p) => p.code === focusCode)?.state ?? null
   drawScene(ctx, f, palette, {
     at,
     beat: Math.floor(now / 1000) % 2 === 0,
     focus: state ? { code: focusCode, state, past, next } : null,
-    others: STATIONS.filter((s) => s.code !== focusCode).flatMap((station) => {
-      const satrec = records.get(station.code)
-      const other = satrec ? satState(satrec, at) : null
-      return other ? [{ code: station.code, state: other }] : []
-    }),
+    others: placed.filter((p) => p.code !== focusCode),
     starlink: show.starlink && field !== null ? field.positions : null,
     cities: CLOCK_CITIES.map((c) => ({ ...c, home: c.timeZone === observer.timeZone })),
     observer: { lat: observer.lat, lon: observer.lon, code: observer.name },
@@ -244,13 +265,7 @@ function draw(now: number): void {
   if (pointer !== null) updateTip(now)
   // Where the stations are drawn and how many satellites are, for the tests to aim at.
   el.dataset.stations = JSON.stringify(
-    Object.fromEntries(
-      STATIONS.flatMap((station) => {
-        const satrec = records.get(station.code)
-        const where = satrec ? satState(satrec, at) : null
-        return where ? [[station.code, [px(f, where.lon), py(f, where.lat)]]] : []
-      }),
-    ),
+    Object.fromEntries(placed.map((p) => [p.code, [px(f, p.state.lon), py(f, p.state.lat)]])),
   )
   el.dataset.starlink = String(show.starlink && field !== null ? field.placed() : 0)
 }
@@ -274,7 +289,8 @@ function updateReadout(now: number, state: ReturnType<typeof satState>): void {
 
 /** Day or eclipse, and how long until the orbit crosses into the other. */
 function lightText(now: number, sunlit: boolean): string {
-  const flip = next.find((point) => point.sunlit !== sunlit)
+  // `next` was sampled up to a minute ago: a point already behind is not the crossing ahead.
+  const flip = next.find((point) => point.t > now && point.sunlit !== sunlit)
   if (flip === undefined) return sunlit ? 'DAY' : 'ECLIPSE'
   const left = Math.max(0, Math.round((flip.t - now) / 1000))
   const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`
@@ -285,12 +301,7 @@ function lightText(now: number, sunlit: boolean): string {
 function passText(now: number): string {
   const pass = upcoming.find((p) => p.visible && p.end > now) ?? upcoming.find((p) => p.end > now)
   if (pass === undefined) return 'none in 24 h'
-  const time = new Intl.DateTimeFormat('en-GB', {
-    timeZone: observer.timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).format(pass.start)
+  const time = hourMinute(observer.timeZone).format(pass.start)
   const path = `${compass(pass.startAzimuth)}→${compass(pass.endAzimuth)}`
   return `${time} · ${Math.round(pass.maxElevation)}° ${path}${pass.visible ? '' : ' · not visible'}`
 }
@@ -308,13 +319,15 @@ function tick(): void {
   }))
   if (JSON.stringify(nextFaces) !== JSON.stringify(faces)) faces = nextFaces
   if (show.starlink) field?.step(now)
+  const m = Math.floor(now / 60_000)
+  if (m !== minute) minute = m
   draw(now)
 }
 
 // Once a second, on the second, with every other clock in the app; nothing runs while the window is put away.
 $effect(() => {
   void records
-  void observer
+  void observerKey
   void focusCode
   untrack(() => {
     tracksAt = 0
@@ -443,20 +456,21 @@ function onLeave(): void {
 // The pane's title, and the observer
 // ---------------------------------------------------------------------------
 
-const ago = (at: number | null): string => {
+const ago = (at: number | null, nowMinute: number): string => {
   if (at === null) return 'no elements yet'
-  const hours = Math.floor((Date.now() - at) / 3_600_000)
+  const hours = Math.floor((nowMinute * 60_000 - at) / 3_600_000)
   return hours < 1 ? 'elements <1 h old' : `elements ${hours} h old`
 }
 
 $effect(() => {
-  const error = stations?.error ?? starlink?.error ?? null
+  const error = orbitError
   paneMeta.set(paneId, {
-    subtitle: `${focusCode} · ${show.starlink ? `STARLINK ${starlinkCount} · ` : ''}${ago(stations?.fetchedAt ?? null)}`,
+    subtitle: `${focusCode} · ${show.starlink ? `STARLINK ${starlinkCount} · ` : ''}${ago(stations?.fetchedAt ?? null, minute)}`,
     ...(error !== null ? { badge: 'CelesTrak', badgeKind: 'warn' as const } : {}),
   })
 })
 
+const orbitError = $derived(stations?.error ?? starlink?.error ?? null)
 const starlinkCount = $derived(starlink?.elements.length.toLocaleString('en-US') ?? '…')
 const found = $derived(choosing ? findCities(CITY_ROWS, query) : [])
 
@@ -586,7 +600,7 @@ const TOGGLES = [
   <p class="credit">
     Orbital elements: CelesTrak, from the 18th / 19th Space Defense Squadrons via Space-Track.org.
     Time zones: timezone-boundary-builder, © OpenStreetMap contributors (ODbL). Map: Made with
-    Natural Earth.{#if stations?.error}<span class="error"> {stations.error}</span>{/if}
+    Natural Earth.{#if orbitError !== null}<span class="error"> {orbitError}</span>{/if}
   </p>
 </div>
 

@@ -122,21 +122,6 @@ export function satState(satrec: SatRec, at: Date): SatState | null {
   }
 }
 
-/** Points along the ground track from `from` to `to`, `stepS` apart. */
-export function groundTrack(
-  satrec: SatRec,
-  from: number,
-  to: number,
-  stepS = 30,
-): (GroundPoint & { t: number })[] {
-  const points: (GroundPoint & { t: number })[] = []
-  for (let t = from; t <= to; t += stepS * 1000) {
-    const state = satState(satrec, new Date(t))
-    if (state !== null) points.push({ lat: state.lat, lon: state.lon, t })
-  }
-  return points
-}
-
 /**
  * The part of the Earth that sees the satellite above the horizon: a circle
  * this many degrees (of arc on the ground) around the point below it.
