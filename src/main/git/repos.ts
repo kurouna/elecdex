@@ -73,6 +73,9 @@ export class RepoCatalog {
   touch(id: string, now: number): void {
     const file = this.store.read()
     if (!file.repos.some((entry) => entry.id === id)) return
+    // Already the most recent: the list's order would not change, so the file is not written.
+    const latest = file.repos.reduce((a, b) => (b.lastUsed > a.lastUsed ? b : a))
+    if (latest.id === id) return
     this.store.write({
       version: 1,
       repos: file.repos.map((entry) => (entry.id === id ? { ...entry, lastUsed: now } : entry)),

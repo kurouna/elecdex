@@ -20,6 +20,7 @@ import {
   rangeSpec,
   type WatchSymbol,
 } from '@shared/markets'
+import { untrack } from 'svelte'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
@@ -166,11 +167,23 @@ $effect(() => () => {
   flashTimers.clear()
 })
 
-// Quoted only while the pane is on screen: behind another tab main asks Yahoo nothing, and the
-// board keeps the last quotes. A return costs one batched quote; the charts are fetched only if due.
+/**
+ * The symbols as one string: pane state is a new object with every click (the
+ * detail view, the sort), and the subscriptions must follow the list itself,
+ * not each new array of it - or every click would drop and take them all again.
+ */
+const symbolKey = $derived(watchlist.map((w) => w.symbol).join('\n'))
+
+// Quoted only while the pane is seen: behind another tab main asks Yahoo nothing, and the board
+// keeps the last quotes. Main asks again on a return only for what is no longer this minute's.
 $effect(() => {
-  const symbols = watchlist.map((w) => w.symbol)
+  const symbols = symbolKey === '' ? [] : symbolKey.split('\n')
   const chosen = range
+  // A range or symbol no longer shown keeps no bars here.
+  const keys = new Set(symbols.map((symbol) => chartKey(symbol, chosen)))
+  untrack(() => {
+    updates = Object.fromEntries(Object.entries(updates).filter(([key]) => keys.has(key)))
+  })
   if (!visible) return
   const offs = symbols.map((symbol) =>
     window.elecdex.markets.subscribe(symbol, chosen, (update) => {

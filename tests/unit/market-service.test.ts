@@ -438,6 +438,30 @@ describe('MarketService with ranges', () => {
     expect(h.quoteCalls).toHaveLength(2)
   })
 
+  it('asks nothing for a pane that comes back within the minute, and all it missed after longer', async () => {
+    const h = harness()
+    h.service.watch('X', '1d')
+    await h.advance(WATCH_BATCH_MS)
+    expect(h.quoteCalls).toHaveLength(1)
+    // Behind a tab for ten seconds: the quote and bars are still this minute's.
+    h.service.unwatch('X', '1d')
+    await h.advance(10_000)
+    h.service.watch('X', '1d')
+    await h.advance(WATCH_BATCH_MS)
+    expect(h.quoteCalls).toHaveLength(1)
+    // The minute goes on from the last quote, not from the return.
+    await h.advance(QUOTE_INTERVAL_MS - 10_000 - WATCH_BATCH_MS)
+    expect(h.quoteCalls).toHaveLength(2)
+    // Away for ten minutes: quoted at once, and the bars fetched again for the gap.
+    h.service.unwatch('X', '1d')
+    await h.advance(10 * MIN)
+    const charts = h.chartsOf('X|1d')
+    h.service.watch('X', '1d')
+    await h.advance(WATCH_BATCH_MS)
+    expect(h.quoteCalls).toHaveLength(3)
+    expect(h.chartsOf('X|1d')).toBe(charts + 1)
+  })
+
   it('fetches a range added later without waiting a minute', async () => {
     const h = harness()
     h.service.watch('X', '1d')

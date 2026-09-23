@@ -431,7 +431,9 @@ test.describe('markets', () => {
       await expect(page.getByTestId('market-bar').first()).toHaveAttribute('data-pct', '1.25')
       await expect(page.getByTestId('market-bar').nth(1)).toHaveAttribute('data-pct', '-0.80')
 
-      // Two symbols, one batched request - not one per symbol.
+      // Two symbols, one batched request - not one per symbol. Nor one per click: another view
+      // is a new pane state, and must not drop and take the subscriptions again.
+      await page.waitForTimeout(1500)
       expect(quoteRequests).toBe(1)
       expect(await page.evaluate(() => window.elecdex.markets.watching())).toEqual([
         'JPY=X',

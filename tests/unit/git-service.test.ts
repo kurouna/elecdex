@@ -7,6 +7,7 @@ import {
   filterGuard,
   GitService,
   MIN_GAP_MS,
+  PARK_MS,
   RETRY_MS,
   SETTLE_MS,
 } from '../../src/main/git/service.js'
@@ -233,6 +234,38 @@ describe('the git service', () => {
     expect(GIT_FLAGS).toEqual(expect.arrayContaining(['log.showSignature=false']))
   })
 
+  it('keeps a repository nobody shows for a while, so a return is one reading, not a start', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    const first = h.published.at(-1)
+    const setup = (calls: string[][]) =>
+      calls.filter((args) => ['rev-parse', 'config'].includes(commandOf(args) ?? '')).length
+    expect(setup(h.calls)).toBe(2)
+    // Behind a tab: the watches go, the reading stays.
+    h.service.unwatch(ID)
+    expect(h.service.watching()).toEqual([])
+    h.fire('a.txt')
+    await h.advance(5000)
+    expect(statusCalls(h.calls)).toBe(1)
+    expect(h.service.snapshot(ID)).toBe(first)
+    // Back within the time: no git folder or filters asked again, one reading for what changed.
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(setup(h.calls)).toBe(2)
+    expect(statusCalls(h.calls)).toBe(2)
+    // And it follows changes again.
+    h.fire('b.txt')
+    await h.advance(2000)
+    expect(statusCalls(h.calls)).toBe(3)
+    // Away for longer: it starts over.
+    h.service.unwatch(ID)
+    await h.advance(PARK_MS)
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(setup(h.calls)).toBe(4)
+  })
+
   it('tries again after a failure, so a pane mends itself once git is there', async () => {
     const h = harness()
     h.git.present = false
@@ -401,5 +434,36 @@ describe('starting the open command', () => {
       program: 'code',
       args: ['a&b.ts'],
     })
+  })
+})
+
+describe('the recent repositories', () => {
+  it('writes the list only when a use changes its order', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const { RepoCatalog } = await import('../../src/main/git/repos.js')
+    const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-repos-'))
+    try {
+      const catalog = new RepoCatalog(path.join(dir, 'git-repos.json'))
+      const a = catalog.add(path.join(dir, 'a'), 1000)
+      const b = catalog.add(path.join(dir, 'b'), 2000)
+      const lastUsed = (id: string) =>
+        (
+          new RepoCatalog(path.join(dir, 'git-repos.json')) as unknown as {
+            store: { read(): { repos: { id: string; lastUsed: number }[] } }
+          }
+        ).store
+          .read()
+          .repos.find((r) => r.id === id)?.lastUsed
+      // A pane coming back to the repository already on top: nothing to write.
+      catalog.touch(b.id, 3000)
+      expect(lastUsed(b.id)).toBe(2000)
+      // Another one used: it goes to the top.
+      catalog.touch(a.id, 4000)
+      expect(lastUsed(a.id)).toBe(4000)
+      expect(catalog.recent().map((r) => r.id)).toEqual([a.id, b.id])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

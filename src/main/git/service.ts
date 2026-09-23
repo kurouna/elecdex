@@ -74,6 +74,14 @@ export const SETTLE_MS = 300
 export const MIN_GAP_MS = 1000
 /** After a reading that failed (no git, the folder gone), the next try: the pane mends itself. */
 export const RETRY_MS = 30_000
+/**
+ * How long a repository nobody shows is kept - its last reading, its git
+ * folder and the filters it needs emptied - with its watches closed: a pane
+ * behind another tab, or a window put away for a while, comes back to its
+ * reading at once and costs one reading rather than a start from nothing.
+ */
+export const PARK_MS = 10 * 60_000
+const MAX_PARKED = 8
 /** Changed paths remembered between readings; past this, every listed file counts as touched. */
 const MAX_TOUCHED = 500
 
@@ -132,6 +140,7 @@ export function filterGuard(output: string): string[] {
 export class GitService {
   private readonly deps: GitServiceDeps
   private readonly watched = new Map<string, Watched>()
+  private readonly parked = new Map<string, { entry: Watched; at: number }>()
 
   constructor(deps: GitServiceDeps) {
     this.deps = deps
@@ -139,7 +148,7 @@ export class GitService {
 
   /** What the pane should show now: the last reading, or an empty state before the first. */
   snapshot(id: string): GitState {
-    return this.watched.get(id)?.state ?? emptyState(id)
+    return this.watched.get(id)?.state ?? this.parked.get(id)?.entry.state ?? emptyState(id)
   }
 
   watching(): string[] {
@@ -151,6 +160,14 @@ export class GitService {
     const ref = this.deps.repo(id)
     if (ref === null) {
       this.deps.publish(emptyState(id, 'unknown'))
+      return
+    }
+    const parked = this.unpark(id, ref)
+    if (parked !== null) {
+      this.watched.set(id, parked)
+      this.follow(parked)
+      // What changed while nobody looked: one reading, published only if it differs.
+      void this.read(parked)
       return
     }
     const entry: Watched = {
@@ -175,11 +192,34 @@ export class GitService {
     if (entry === undefined) return
     this.watched.delete(id)
     if (entry.timer !== null) this.deps.clearTimer(entry.timer)
+    entry.timer = null
     for (const watch of entry.watches) watch.close()
+    entry.watches = []
+    // Only a repository that was read as one is worth keeping; a failed one starts over.
+    if (entry.gitDir !== null && entry.state.problem === null) this.park(entry)
+  }
+
+  private park(entry: Watched): void {
+    const now = this.deps.now()
+    this.parked.set(entry.ref.id, { entry, at: now })
+    for (const [id, kept] of this.parked) {
+      if (now - kept.at >= PARK_MS || this.parked.size > MAX_PARKED) this.parked.delete(id)
+    }
+  }
+
+  /** A kept repository, if it is recent and still the same folder. */
+  private unpark(id: string, ref: GitRepoRef): Watched | null {
+    const kept = this.parked.get(id)
+    this.parked.delete(id)
+    if (kept === undefined || this.deps.now() - kept.at >= PARK_MS) return null
+    if (kept.entry.ref.path !== ref.path) return null
+    Object.assign(kept.entry, { reading: false, again: false, pendingSince: null, touched: 'all' })
+    return kept.entry
   }
 
   dispose(): void {
     for (const id of [...this.watched.keys()]) this.unwatch(id)
+    this.parked.clear()
   }
 
   /** git, with the flags that keep this repository's own filters from running. */
@@ -205,7 +245,15 @@ export class GitService {
     if (!this.isCurrent(entry)) return
     entry.guard = filterGuard(filters.stdout)
     entry.gitDir = path.resolve(found.stdout.trim())
+    this.follow(entry)
+    await this.read(entry)
+  }
+
+  /** Watches the working tree, and the git folder where it lies outside it (a linked worktree). */
+  private follow(entry: Watched): void {
+    const root = entry.ref.path
     const gitDir = entry.gitDir
+    if (gitDir === null) return
     const insideRoot = path.relative(root, gitDir)
     const rootWatch = this.deps.watch(root, (relative) => {
       const inGit = pathIn(insideRoot, relative)
@@ -221,7 +269,6 @@ export class GitService {
       })
       if (gitWatch !== null) entry.watches.push(gitWatch)
     }
-    await this.read(entry)
   }
 
   /** Remembers a changed working-tree path, so a file whose counts stayed the same is still read again. */

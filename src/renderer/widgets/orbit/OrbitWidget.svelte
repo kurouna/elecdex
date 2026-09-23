@@ -1,6 +1,6 @@
 <script lang="ts">
 import cities from '@shared/geo/cities.json'
-import { type OrbitElements, type OrbitUpdate, STATIONS } from '@shared/orbits'
+import { keptUpdate, type OrbitElements, type OrbitUpdate, STATIONS } from '@shared/orbits'
 import type { CityRow } from '@shared/weather-places'
 import { untrack } from 'svelte'
 import { type CanvasSize, observeCanvas } from '../../lib/canvas.ts'
@@ -108,7 +108,10 @@ let minute = $state(0)
  */
 $effect(() =>
   visible
-    ? window.elecdex.orbits.subscribe('stations', (update) => (stations = update))
+    ? window.elecdex.orbits.subscribe(
+        'stations',
+        (update) => (stations = keptUpdate(stations, update)),
+      )
     : undefined,
 )
 // Keyed on the switch alone: another layer switched must not drop the subscription and the field.
@@ -118,7 +121,10 @@ $effect(() => {
     return
   }
   if (!visible) return
-  return window.elecdex.orbits.subscribe('starlink', (update) => (starlink = update))
+  return window.elecdex.orbits.subscribe(
+    'starlink',
+    (update) => (starlink = keptUpdate(starlink, update)),
+  )
 })
 
 /** SGP4 records for the stations, by code. */

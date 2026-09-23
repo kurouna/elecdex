@@ -149,3 +149,18 @@ export const readOrbitSet = (set: OrbitSet, text: string): OrbitElements[] | nul
 
 export const isOrbitSet = (value: unknown): value is OrbitSet =>
   value === 'stations' || value === 'starlink'
+
+/**
+ * The update a pane keeps: the one it holds already when main sends the same
+ * download again (the pane back from behind a tab), so the SGP4 records - ten
+ * thousand for Starlink - are not made again from elements that did not change.
+ */
+export function keptUpdate(held: OrbitUpdate | null, next: OrbitUpdate): OrbitUpdate {
+  const same =
+    held !== null &&
+    held.set === next.set &&
+    held.fetchedAt === next.fetchedAt &&
+    held.error === next.error &&
+    held.elements.length === next.elements.length
+  return same ? held : next
+}

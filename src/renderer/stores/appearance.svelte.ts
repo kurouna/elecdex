@@ -11,9 +11,14 @@ import { BUILTIN_THEMES, DEFAULT_THEME_ID, type Theme, themeVariables } from '@s
  * `revision` and re-read.
  */
 class AppearanceStore {
-  settings = $state<Settings>(defaultSettings())
+  /** Replaced whole with each change from main, never changed in place: no deep proxy is needed. */
+  settings = $state.raw<Settings>(defaultSettings())
   catalog = $state.raw<ThemeCatalog>({ themes: [...BUILTIN_THEMES], problems: [] })
-  /** Bumped after every application of a theme, for canvas-drawn widgets. */
+  /**
+   * Bumped when what a theme puts on the page changed, for canvas-drawn widgets:
+   * not for every settings change, which would have every terminal rebuild its
+   * glyphs and every chart restart for, say, a reminder toggled.
+   */
   revision = $state(0)
 
   readonly theme = $derived.by((): Theme => {
@@ -26,6 +31,8 @@ class AppearanceStore {
   })
 
   private started = false
+  /** What was last put on the page, to tell a change of look from any other change. */
+  private applied = ''
 
   /** Loads settings and themes, applies them, and follows later changes. */
   async init(): Promise<void> {
@@ -63,6 +70,9 @@ class AppearanceStore {
   private apply(): void {
     const root = document.documentElement
     const theme = this.theme
+    const look = JSON.stringify([theme, this.settings.motion])
+    if (look === this.applied) return
+    this.applied = look
     for (const [name, value] of Object.entries(themeVariables(theme))) {
       root.style.setProperty(name, value)
     }

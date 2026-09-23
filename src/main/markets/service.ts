@@ -129,9 +129,29 @@ export class MarketService {
         stale: false,
       })
     }
-    // A new chart wants data now, not at the next minute - but give the rest of
-    // the pane's charts a moment to arrive, so they share the request.
-    this.schedule(WATCH_BATCH_MS)
+    this.scheduleFor(symbol, key)
+  }
+
+  /**
+   * When a chart just watched needs Yahoo. A new chart, or a symbol not quoted
+   * this minute, wants data now - after a moment for the rest of the pane's
+   * charts to arrive, so they share the request. A pane coming back from behind
+   * a tab with everything fresh asks for nothing: its snapshot is current, and
+   * the minute goes on as it was.
+   */
+  private scheduleFor(symbol: string, key: string): void {
+    const quote = this.quotes.get(symbol)
+    const chart = this.charts.get(key)
+    if (quote === undefined || chart === undefined) return
+    const now = this.deps.now()
+    const quoted = quote.updatedAt
+    // Unquoted for longer than a minute's step, its bars have a gap the minute quotes did not fill.
+    if (quoted === null || now - quoted > 2 * QUOTE_INTERVAL_MS) chart.fetchedAt = null
+    if (quoted === null || now - quoted >= QUOTE_INTERVAL_MS || this.due(chart, now)) {
+      this.schedule(WATCH_BATCH_MS)
+    } else if (this.timer === null) {
+      this.schedule(quoted + QUOTE_INTERVAL_MS - now)
+    }
   }
 
   unwatch(symbol: string, range: ChartRange = DEFAULT_RANGE): void {

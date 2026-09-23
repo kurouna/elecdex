@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { orbitQuery, readStations, readTle } from '@shared/orbits'
+import { keptUpdate, orbitQuery, readStations, readTle } from '@shared/orbits'
 import { json2satrec, propagate, twoline2satrec } from 'satellite.js'
 import { describe, expect, it } from 'vitest'
 
@@ -62,5 +62,22 @@ describe('Starlink as TLE', () => {
   it('asks for the smallest format of each set', () => {
     expect(orbitQuery('stations')).toContain('GROUP=stations&FORMAT=json')
     expect(orbitQuery('starlink')).toContain('GROUP=starlink&FORMAT=tle')
+  })
+})
+
+describe('an update a pane already holds', () => {
+  const update = (fetchedAt: number | null, error: string | null = null) => ({
+    set: 'starlink' as const,
+    elements: [],
+    fetchedAt,
+    error,
+  })
+
+  it('keeps the held one for the same download, and takes a new download or error', () => {
+    const held = update(1000)
+    expect(keptUpdate(held, update(1000))).toBe(held)
+    expect(keptUpdate(held, update(2000)).fetchedAt).toBe(2000)
+    expect(keptUpdate(held, update(1000, 'CelesTrak answered 403')).error).toMatch(/403/)
+    expect(keptUpdate(null, held)).toBe(held)
   })
 })
