@@ -203,8 +203,13 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   commits or checks out. A repository is chosen through main's folder picker and known to the page
   by an id (`git-repos.json`), so a layout carries no path; a pane is tied to no other pane.
   - git runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags, always: a repository's own
-    config can name programs (`core.fsmonitor`, external diff, textconv), and the pane must never
-    run one by looking. `--no-optional-locks` keeps its reads off the user's index.lock.
+    config can name programs (`core.fsmonitor`, external diff, textconv, `gpg.program` through
+    `log.showSignature`, a clean filter), and the pane must never run one by looking. The filters
+    the repository itself defines are emptied per repository (`filterGuard`), and a submodule's
+    working tree is not looked into. `--no-optional-locks` keeps its reads off the user's
+    index.lock.
+  - With no open command set, a file the system would run rather than show (a program, script,
+    shortcut or installer: `runsWhenOpened`) is shown in its folder instead.
   - Main answers a diff only for a file its last reading listed, and opens or reveals only a file
     that resolves inside the working tree (`GitService.locate`).
   - `git.openCommand` is set in settings.json only, never by settings.patch (as launcher entries):
