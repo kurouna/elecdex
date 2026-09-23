@@ -87,7 +87,10 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   on screen.
 - **Subscriptions** (metrics, fs watches, weather offices, market symbols, feed URLs, the quake
   list) are reference-counted in preload and in main, and a page's subscriptions are dropped on
-  reload (`did-start-navigation`) and destroy. Polling must stop when the last subscriber leaves —
+  reload (`did-start-navigation`) and destroy - through `whenPageGoes` (main/ipc/page-gone.ts), one
+  pair of listeners per page, never listeners of a module's own (a dozen passed Node's limit; a
+  unit test checks). A page store shared by its panes starts and stops with `refCounted`
+  (lib/ref-counted.ts), whose release counts once. Polling must stop when the last subscriber leaves —
   e2e tests assert exactly that. A pane in a background tab (display:none) holds only its widget's
   `keepWhileHidden` sources (builtins.ts): the ones it charts, whose history would otherwise have
   a gap, and once-only ones. List a new charted source there. Every other subscription a pane
@@ -325,8 +328,9 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
 ### Panes and layout
 
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested); every
-  tree change goes through a pure op there. Widgets keep per-pane choices in pane state
-  (`layout.setPaneState`). A tabbed pane is split, moved beside or dropped on through its group,
+  tree change goes through a pure op there. Widgets keep per-pane choices in pane state, changed
+  with `layout.patchPaneState(paneId, change)` (undefined removes a key) - never by spreading the
+  `state` prop into `setPaneState`, which lost a change made in the same moment. A tabbed pane is split, moved beside or dropped on through its group,
   and a group only ever holds panes — of any widget (Ctrl-drag, or the picker's "new tab").
   Nested groups were designed and deliberately postponed (user decision 2026-09-17): do not add
   them without asking. Splits carry no header (eDEX-UI's PANEL / SYSTEM labels were dropped
@@ -490,7 +494,10 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   (main/store/replace-file.ts), never a bare `renameSync`: Windows refuses the rename while
   anything - a scanner, an editor, a test - has the file open, and the write was lost.
 - Renderer-only and build-time packages are devDependencies (bundled by Vite), so they are not
-  shipped twice; runtime Node dependencies of main stay in dependencies.
+  shipped twice; runtime Node dependencies of main stay in dependencies (tests/unit/package-deps.test.ts
+  checks both ways). A heavy package only one pane needs (yahoo-finance2, the Anthropic SDK, the
+  XML parser) is loaded by main with `import()` on first use, never at start (lazy-imports.test.ts).
+  The page is built minified.
 
 ## Commits
 
