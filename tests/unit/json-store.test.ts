@@ -132,6 +132,34 @@ describe('JsonStore', () => {
       expect(readFileSync(`${file}.bak`, 'utf8')).toBe(broken)
     })
 
+    it('reads a file restored after a broken edit, rather than taking it for its own write', () => {
+      const store = makeKeeping()
+      store.write({ version: 1, name: 'mine' })
+      const mine = readFileSync(file, 'utf8')
+      // Broken by hand: the watcher reads it and gets the default.
+      writeFileSync(file, '{ "name": ', 'utf8')
+      expect(store.unchangedOnDisk()).toBe(false)
+      store.invalidate()
+      expect(store.read().name).toBe('default')
+      // Undone in the editor: exactly what the store wrote. It must be read again,
+      // or the next save would replace it with the default's contents.
+      writeFileSync(file, mine, 'utf8')
+      expect(store.unchangedOnDisk()).toBe(false)
+      store.invalidate()
+      expect(store.read().name).toBe('mine')
+    })
+
+    it('reads a file restored after it was deleted', () => {
+      const store = makeKeeping()
+      store.write({ version: 1, name: 'mine' })
+      const mine = readFileSync(file, 'utf8')
+      rmSync(file)
+      store.invalidate()
+      expect(store.read().name).toBe('default')
+      writeFileSync(file, mine, 'utf8')
+      expect(store.unchangedOnDisk()).toBe(false)
+    })
+
     it('does not touch .bak when the file on disk is valid', () => {
       const store = makeKeeping()
       store.write({ version: 1, name: 'a' })

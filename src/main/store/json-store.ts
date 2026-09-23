@@ -66,21 +66,25 @@ export class JsonStore<T> {
    */
   read(repair?: (value: T) => T | null): T {
     if (this.cache !== null) return this.cache
+    // Only a file read whole and valid is ours to recognise later: a default taken for a missing,
+    // broken or unreadable file must not let that file, put back as it was, pass for our own.
+    this.bytes = null
 
     if (!existsSync(this.file)) {
       this.cache = this.makeDefault()
       return this.cache
     }
 
-    let raw: string
+    let bytes: Buffer
     try {
-      raw = readFileSync(this.file, 'utf8')
+      bytes = readFileSync(this.file)
     } catch (error) {
       console.error(`[elecdex] cannot read ${this.file}`, error)
       this.cache = this.makeDefault()
       return this.cache
     }
 
+    const raw = bytes.toString('utf8')
     let parsed: unknown
     try {
       parsed = JSON.parse(raw)
@@ -107,7 +111,7 @@ export class JsonStore<T> {
     }
 
     this.cache = repaired
-    this.bytes = Buffer.from(raw, 'utf8')
+    this.bytes = bytes
     return this.cache
   }
 
