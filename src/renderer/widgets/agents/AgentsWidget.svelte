@@ -21,7 +21,7 @@ import type { WidgetProps } from '../registry.ts'
  * the one there is. Their records are theirs and undocumented, which is why the
  * pane says it is experimental.
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible = true }: WidgetProps = $props()
 
 const open = $derived(typeof paneState?.open === 'string' ? paneState.open : null)
 const fileKey = $derived(typeof paneState?.file === 'string' ? paneState.file : null)
@@ -53,18 +53,21 @@ let board = $state.raw<AgentBoard | null>(null)
 let diff = $state.raw<GitDiff | null>(null)
 let now = $state(Date.now())
 
-$effect(() => window.elecdex.agents.subscribe((next) => (board = next)))
+// The records are read only while the pane is on screen; behind another tab the last board stays.
+$effect(() => (visible ? window.elecdex.agents.subscribe((next) => (board = next)) : undefined))
 
 // Elapsed times move on by the minute; nothing else here keeps time.
-$effect(() =>
-  onBoundary(60_000, () => {
+$effect(() => {
+  if (!visible) return
+  now = Date.now()
+  return onBoundary(60_000, () => {
     now = Date.now()
-  }),
-)
+  })
+})
 
 const busy = $derived(board?.sessions.some((s) => s.status === 'busy') ?? false)
 // A busy session's lamp blinks on the shared pulse, only while one is busy.
-$effect(() => (busy ? pulse.use() : undefined))
+$effect(() => (visible && busy ? pulse.use() : undefined))
 
 const openSession = $derived(board?.sessions.find((s) => s.id === open) ?? null)
 const openFile = $derived(openSession?.files.find((f) => f.key === fileKey) ?? null)

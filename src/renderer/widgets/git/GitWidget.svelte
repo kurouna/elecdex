@@ -32,7 +32,7 @@ import { landIn } from './motion.ts'
  * and sends a new state after each change. Nothing here polls, and nothing is
  * connected to any other pane - a second git pane is simply a second repository.
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible = true }: WidgetProps = $props()
 
 const repoId = $derived(isRepoId(paneState?.repo) ? paneState.repo : null)
 /** The file chosen, as `area:path`, and the commit being looked at instead of the tree. */
@@ -77,14 +77,27 @@ let quiet = $state(true)
 let switching = $state(false)
 let now = $state(Date.now())
 
+/**
+ * Main watches the repository only while the pane is on screen: behind another
+ * tab it reads nothing and runs no git. What was shown stays, so coming back is
+ * the last reading at once and then a fresh one - which, if the repository
+ * moved on meanwhile, lands as the change it is.
+ */
+let shownRepo: string | null = null
+
 $effect(() => {
   const id = repoId
-  repoState = null
-  diff = null
-  quiet = true
-  if (id === null) return
+  if (id !== shownRepo) {
+    repoState = null
+    diff = null
+    quiet = true
+    shownRepo = id
+  }
+  if (id === null || !visible) return
   return window.elecdex.git.subscribe(id, (next) => {
     const before = untrack(() => repoState)
+    // Main's word before its first reading after a return is not news: keep what is shown.
+    if (next.readAt === 0 && before !== null && before.readAt !== 0 && next.problem === null) return
     repoState = next
     // The first reading is what the repository is, not a change to it.
     if (before === null || before.readAt === 0) return
@@ -102,14 +115,16 @@ $effect(() => {
 })
 
 // The log's "2h" moves on by itself; once a minute is as fine as it reads.
-$effect(() =>
-  onBoundary(60_000, () => {
+$effect(() => {
+  if (!visible) return
+  now = Date.now()
+  return onBoundary(60_000, () => {
     now = Date.now()
-  }),
-)
+  })
+})
 
 // The operation chip blinks on the shared pulse while a merge or rebase is left half done.
-$effect(() => (repoState?.operation ? pulse.use() : undefined))
+$effect(() => (visible && repoState?.operation ? pulse.use() : undefined))
 
 /** The files shown: the working tree's, or the chosen commit's. */
 const files = $derived(commit !== null ? (commitFiles ?? []) : (repoState?.files ?? []))

@@ -57,7 +57,7 @@ import { StarlinkField } from './starlink.ts'
  * The observer the passes are worked out for is this pane's own choice, from the
  * bundled city list - no location is asked for and no other pane consulted.
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible = true }: WidgetProps = $props()
 
 const CITY_ROWS = cities as CityRow[]
 const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -98,13 +98,23 @@ let readout = $state.raw({ pos: '—', alt: '—', vel: '—', light: '—', lit
 /** The minute now, so the title's "elements 5 h old" ages without a timer of its own. */
 let minute = $state(0)
 
-$effect(() => window.elecdex.orbits.subscribe('stations', (update) => (stations = update)))
+/*
+ * Elements are asked for only while the pane is on screen: behind another tab
+ * main keeps no timer for CelesTrak and the page computes nothing. The last
+ * elements stay, and main answers a return from its copy on disk at once.
+ */
+$effect(() =>
+  visible
+    ? window.elecdex.orbits.subscribe('stations', (update) => (stations = update))
+    : undefined,
+)
 // Keyed on the switch alone: another layer switched must not drop the subscription and the field.
 $effect(() => {
   if (!showStarlink) {
     starlink = null
     return
   }
+  if (!visible) return
   return window.elecdex.orbits.subscribe('starlink', (update) => (starlink = update))
 })
 
@@ -329,6 +339,7 @@ $effect(() => {
   void records
   void observerKey
   void focusCode
+  if (!visible) return
   untrack(() => {
     tracksAt = 0
     passesAt = 0
