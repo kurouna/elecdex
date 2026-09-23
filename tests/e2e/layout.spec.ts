@@ -671,8 +671,16 @@ test('the status bar carries a numbered button per saved layout', async () => {
     await terminalPane(page).first().locator('.xterm-helper-textarea').first().focus()
     await page.keyboard.press('Control+Shift+KeyE')
     await expect(terminalPane(page)).toHaveCount(2)
+    // The new shell is up before the switch is asked for. Its start is synchronous in main
+    // (a PowerShell spawn, a second on a busy machine), and the switch's own calls queue
+    // behind it: once, in a full run, the switch did not land within the ten seconds.
+    for (const subtitle of await terminalPane(page).getByTestId('pane-subtitle').all()) {
+      await expect(subtitle).not.toHaveText(/^(…)?$/, { timeout: 30_000 })
+    }
 
     await showStatusBar(page)
+    // Settings given to launch keep the sound off (support.ts): these tests once played every switch.
+    await expect(page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'false')
     const slots = page.getByTestId('layout-slot')
     await expect(slots).toHaveCount(2)
     await expect(slots.nth(0)).toHaveText('1')

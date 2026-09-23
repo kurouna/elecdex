@@ -214,17 +214,27 @@ $effect(() => {
     terminal.onResize(sendSize)
 
     const decoder = new TextDecoder()
-    const off = await window.elecdex.pty.attach(id, {
-      onData: (chunk) => terminal?.write(decoder.decode(chunk, { stream: true })),
-      onCwd: (cwd) => sessions.patch(paneId, { cwd, integrationPending: false }),
-      onCommandEnd: (exitCode, durationMs) =>
-        sessions.patch(paneId, { lastCommand: { exitCode, durationMs } }),
-      onIntegrationUnavailable: () => sessions.patch(paneId, { integrationPending: false }),
-      onExit: (code, signal) => {
-        sessions.patch(paneId, { exited: { code, signal } })
-        terminal?.write(`\r\n\u001b[2m[process exited with code ${code}]\u001b[0m\r\n`)
-      },
-    })
+    let off: () => void
+    try {
+      off = await window.elecdex.pty.attach(id, {
+        onData: (chunk) => terminal?.write(decoder.decode(chunk, { stream: true })),
+        onCwd: (cwd) => sessions.patch(paneId, { cwd, integrationPending: false }),
+        onCommandEnd: (exitCode, durationMs) =>
+          sessions.patch(paneId, { lastCommand: { exitCode, durationMs } }),
+        onIntegrationUnavailable: () => sessions.patch(paneId, { integrationPending: false }),
+        onExit: (code, signal) => {
+          sessions.patch(paneId, { exited: { code, signal } })
+          terminal?.write(`\r\n\u001b[2m[process exited with code ${code}]\u001b[0m\r\n`)
+        },
+      })
+    } catch (cause) {
+      // The pane went while it was reaching its shell, and the shell was reaped with it.
+      if (disposed) return
+      // Still here, and its shell gone before it could attach: say so in the pane rather than
+      // leave it blank. (The reaper no longer ends a shell this young: see layout/reap.ts.)
+      sessions.patch(paneId, { error: (cause as Error).message })
+      return
+    }
 
     if (disposed) {
       off()

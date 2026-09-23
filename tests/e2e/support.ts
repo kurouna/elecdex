@@ -53,13 +53,26 @@ export interface LaunchOptions {
   /** Extra command-line switches for Electron, e.g. --lang=en-US. */
   args?: string[]
   /**
-   * A settings.json to start from. By default sound is off, so running the suite
-   * does not beep at whoever is sitting at the machine.
+   * A settings.json to start from. Sound is off unless these settings say
+   * otherwise, so running the suite does not beep at whoever is sitting at the
+   * machine.
    */
   settings?: unknown
 }
 
 const QUIET = { sound: { enabled: false } }
+
+/**
+ * The settings a test gave, over sound off: a test that sets something else
+ * (the layout question, say) must not bring the app's sounds back with it -
+ * four layout tests played every switch aloud that way.
+ */
+function quietly(settings: unknown): unknown {
+  if (typeof settings !== 'object' || settings === null || Array.isArray(settings)) {
+    return settings ?? QUIET
+  }
+  return { ...QUIET, ...settings }
+}
 
 /** One terminal filling the window: for tests about terminals and splitting, not the default layout. */
 export const SINGLE_TERMINAL = {
@@ -151,7 +164,7 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
   const dir = userData ?? mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
   // Only on a fresh directory: a relaunch keeps whatever the app saved.
   if (userData === undefined) {
-    writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(options.settings ?? QUIET))
+    writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(quietly(options.settings)))
   }
   if (options.layout !== undefined) {
     writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(options.layout))
@@ -203,6 +216,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
     }
   })
   const page = await app.firstWindow()
+  // An exception in the page says nothing in a test's failure: printed here, a pane that
+  // stopped updating after one shows why in the run's output.
+  page.on('pageerror', (error) => console.warn(`[e2e] page error: ${error.message}`))
   await page.waitForLoadState('domcontentloaded')
   await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
   const platform = await app.evaluate(() => process.platform)

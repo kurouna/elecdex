@@ -60,6 +60,11 @@ import { ui } from './ui.svelte.ts'
  * because a drag produces a resize event per frame.
  */
 
+/**
+ * Longer than a layout switch's power-off (SWITCH_OFF_MS + SWITCH_GAP_MS): main makes the
+ * next layout active before the page adopts its tree, so a save sent in that gap would
+ * carry the old arrangement into the new layout (tests/component/layout-saved.test.ts).
+ */
 const SAVE_DEBOUNCE_MS = 400
 
 /** Shared empty set, so `leaving` does not allocate one per switch. */

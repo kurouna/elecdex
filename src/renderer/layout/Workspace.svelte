@@ -16,6 +16,7 @@ import { backdropShade } from '../lib/crt-transitions.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
 import PaneDropOverlay from './PaneDropOverlay.svelte'
 import { frameOfPane, measureFrames } from './pane-close.ts'
+import { sessionsToReap } from './reap.ts'
 
 /**
  * Renders the workspace and owns the layout-level keyboard shortcuts.
@@ -76,11 +77,7 @@ $effect(() => {
   // Touch the dependency explicitly so the effect re-runs on layout changes.
   void layout.panes.length
 
-  if (reapTimer !== null) clearTimeout(reapTimer)
-  reapTimer = setTimeout(() => {
-    reapTimer = null
-    void reapOrphanSessions()
-  }, REAP_DELAY_MS)
+  armReaper()
 
   return () => {
     if (reapTimer !== null) clearTimeout(reapTimer)
@@ -88,21 +85,16 @@ $effect(() => {
   }
 })
 
+function armReaper(): void {
+  if (reapTimer !== null) clearTimeout(reapTimer)
+  reapTimer = setTimeout(() => {
+    reapTimer = null
+    void reapOrphanSessions()
+  }, REAP_DELAY_MS)
+}
+
 async function reapOrphanSessions(): Promise<void> {
   if (!layout.loaded) return
-
-  // Claims come only from panes that still exist in the layout. Consulting the
-  // session store as a whole would be wrong: a closed pane's entry lingers there,
-  // so its shell would count as claimed forever and never be reaped.
-  const claimed = new Set<string>()
-  for (const node of layout.panes) {
-    // The live adoption, and the id recorded in layout state - the latter covers
-    // a pane that restored its session but has not re-adopted it yet.
-    const live = sessions.get(node.id).sessionId
-    if (live !== null) claimed.add(live)
-    const recorded = node.state?.sessionId
-    if (typeof recorded === 'string') claimed.add(recorded)
-  }
 
   // Forget store entries for panes that are gone, so the store does not grow.
   const paneIds = new Set(layout.panes.map((p) => p.id))
@@ -114,9 +106,32 @@ async function reapOrphanSessions(): Promise<void> {
   }
 
   const alive = await window.elecdex.pty.list()
-  for (const session of alive) {
-    if (!claimed.has(session.id)) await window.elecdex.pty.dispose(session.id)
+  // The claims are taken after the list, not before it: a pane that created its
+  // shell while the list was on its way has recorded it by now, or is about to -
+  // which is what `sessionsToReap` waits for.
+  const { reap, later } = sessionsToReap(alive, claimedSessions(), Date.now(), REAP_DELAY_MS)
+  for (const id of reap) await window.elecdex.pty.dispose(id)
+  // A shell too new to judge is looked at again, even if the panes do not change.
+  if (later && reapTimer === null) armReaper()
+}
+
+/**
+ * The shells the panes claim. Claims come only from panes that still exist in
+ * the layout. Consulting the session store as a whole would be wrong: a closed
+ * pane's entry lingers there, so its shell would count as claimed forever and
+ * never be reaped.
+ */
+function claimedSessions(): Set<string> {
+  const claimed = new Set<string>()
+  for (const node of layout.panes) {
+    // The live adoption, and the id recorded in layout state - the latter covers
+    // a pane that restored its session but has not re-adopted it yet.
+    const live = sessions.get(node.id).sessionId
+    if (live !== null) claimed.add(live)
+    const recorded = node.state?.sessionId
+    if (typeof recorded === 'string') claimed.add(recorded)
   }
+  return claimed
 }
 
 /** Takes a shortcut away from whatever is focused, including a terminal. */

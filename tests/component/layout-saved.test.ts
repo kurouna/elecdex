@@ -138,6 +138,31 @@ describe('applying a saved layout', () => {
     expect(keptWhileSaving).toBe(false)
   })
 
+  it('never writes the layout being left into the one being entered while it powers off', async () => {
+    // Main makes the new layout the active one before the page has adopted its tree: a
+    // save of the old arrangement landing in that gap (a shell's session id arriving late,
+    // say) would be written into the new layout. It holds while the save's debounce is
+    // longer than the power-off; this pins that down.
+    layout.closeMotion = { animates: () => true, frames: () => new Map() }
+    try {
+      await layout.load()
+      const old = layout.panes[0]
+      if (old === undefined) throw new Error('no pane')
+      const applied = layout.applySaved('two')
+      await vi.advanceTimersByTimeAsync(10)
+      const save = vi.mocked(window.elecdex.layout.save)
+      save.mockClear()
+      // The old pane's widget, not yet gone, records something while the screen goes dark.
+      layout.setPaneState(old.id, { sessionId: 'late' })
+      await vi.advanceTimersByTimeAsync(5000)
+      answerSave?.()
+      await applied
+      for (const [tree] of save.mock.calls) expect(tree).toMatchObject({ root: TWO.root })
+    } finally {
+      layout.closeMotion = null
+    }
+  })
+
   it('does the same for a reset, which belongs to no saved layout', async () => {
     vi.stubGlobal('elecdex', {
       layout: {

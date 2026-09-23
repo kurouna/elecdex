@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import type { z } from 'zod'
-import { replaceFile } from './replace-file.js'
+import { replaceFile, replacePending } from './replace-file.js'
 
 /**
  * A validated, atomically-written JSON file under userData.
@@ -130,7 +130,7 @@ export class JsonStore<T> {
     mkdirSync(path.dirname(this.file), { recursive: true })
     // A file still as this store left it was valid then: only someone else's edit needs checking.
     if (this.keepInvalid && !this.unchangedOnDisk()) this.backUpIfInvalid()
-    const temp = `${this.file}.${process.pid}.tmp`
+    const temp = this.temp
     const bytes = Buffer.from(`${JSON.stringify(result.data, null, 2)}\n`, 'utf8')
     writeFileSync(temp, bytes)
     // rename is atomic within a filesystem, so readers never see a partial file.
@@ -157,8 +157,19 @@ export class JsonStore<T> {
     }
   }
 
-  /** Drops the in-memory copy, so the next read hits disk again. */
+  /** Where a write goes before it is renamed over the file. */
+  private get temp(): string {
+    return `${this.file}.${process.pid}.tmp`
+  }
+
+  /**
+   * Drops the in-memory copy, so the next read hits disk again - unless this
+   * store's last write is still waiting to be renamed over the file (Windows
+   * refuses while anything has it open): the disk is the older one then, and a
+   * read would bring back what was just replaced.
+   */
   invalidate(): void {
+    if (replacePending(this.temp)) return
     this.cache = null
   }
 

@@ -36,6 +36,9 @@ const code = (error: unknown): string => (error as NodeJS.ErrnoException).code ?
 /** Retries waiting for their turn, by temp file: one per file is enough. */
 const pending = new Set<string>()
 
+/** A write to `temp` is still waiting to be renamed over its file: the file on disk is older. */
+export const replacePending = (temp: string): boolean => pending.has(temp)
+
 export function replaceFile(temp: string, file: string, deps: ReplaceDeps = {}): void {
   const rename = deps.rename ?? renameSync
   try {
