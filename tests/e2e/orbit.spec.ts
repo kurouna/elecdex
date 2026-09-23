@@ -62,7 +62,24 @@ test('draws the stations from one download, and asks for Starlink only when show
     await page.locator('[data-testid="orbit-toggle"][data-toggle="starlink"]').click()
     await expect.poll(() => stand.asked.length).toBe(2)
     expect(stand.asked[1]).toContain('GROUP=starlink&FORMAT=tle')
-    await expect(page.getByTestId('orbit')).toBeVisible()
+    // The dots are drawn: a worker once left them missing where the page could not start it.
+    const map = page.getByTestId('orbit-map')
+    await expect
+      .poll(async () => Number(await map.getAttribute('data-starlink')), { timeout: 10_000 })
+      .toBe(60)
+
+    // The ISS tells its details to the pointer.
+    const marks = JSON.parse((await map.getAttribute('data-stations')) ?? '{}') as Record<
+      string,
+      [number, number]
+    >
+    const [x, y] = marks.ISS ?? [0, 0]
+    await map.hover({ position: { x, y } })
+    await expect(page.getByTestId('orbit-tip')).toContainText('International Space Station')
+    await expect(page.getByTestId('orbit-tip')).toContainText('NORAD 25544')
+    await expect(page.getByTestId('orbit-tip')).toContainText('PERIOD')
+    await page.mouse.move(2, 2)
+    await expect(page.getByTestId('orbit-tip')).toHaveCount(0)
 
     // Tiangong can be followed instead, from the same download.
     await page.locator('[data-testid="orbit-focus"][data-code="CSS"]').click()

@@ -34,12 +34,15 @@ import {
   drawGround,
   drawNight,
   drawScene,
+  type Frame,
   frameFor,
   type Palette,
+  px,
+  py,
   rgbOf,
   type TrackPoint,
 } from './draw.ts'
-import StarlinkWorker from './starlink.worker.ts?worker&inline'
+import { StarlinkField } from './starlink.ts'
 
 /**
  * ORBIT: the world as mission control's front screen shows it. A flat map with
@@ -120,7 +123,6 @@ let upcoming: Pass[] = []
 let tracksAt = 0
 let passesAt = 0
 let nightAt = 0
-let starlinkPositions: Float32Array | null = null
 
 function readPalette(el: Element): Palette {
   const style = getComputedStyle(el)
@@ -232,13 +234,25 @@ function draw(now: number): void {
       const other = satrec ? satState(satrec, at) : null
       return other ? [{ code: station.code, state: other }] : []
     }),
-    starlink: show.starlink ? starlinkPositions : null,
+    starlink: show.starlink && field !== null ? field.positions : null,
     cities: CLOCK_CITIES.map((c) => ({ ...c, home: c.timeZone === observer.timeZone })),
     observer: { lat: observer.lat, lon: observer.lon, code: observer.name },
     footprintDeg: footprintDegrees(state?.altKm ?? 420),
     show,
   })
   updateReadout(now, state)
+  if (pointer !== null) updateTip(now)
+  // Where the stations are drawn and how many satellites are, for the tests to aim at.
+  el.dataset.stations = JSON.stringify(
+    Object.fromEntries(
+      STATIONS.flatMap((station) => {
+        const satrec = records.get(station.code)
+        const where = satrec ? satState(satrec, at) : null
+        return where ? [[station.code, [px(f, where.lon), py(f, where.lat)]]] : []
+      }),
+    ),
+  )
+  el.dataset.starlink = String(show.starlink && field !== null ? field.placed() : 0)
 }
 
 function updateReadout(now: number, state: ReturnType<typeof satState>): void {
@@ -293,8 +307,7 @@ function tick(): void {
     night: sunAltitude(c, sun) < 0,
   }))
   if (JSON.stringify(nextFaces) !== JSON.stringify(faces)) faces = nextFaces
-  if (show.starlink && Math.floor(now / 1000) % 10 === 0)
-    worker?.postMessage({ kind: 'at', time: now })
+  if (show.starlink) field?.step(now)
   draw(now)
 }
 
@@ -312,30 +325,119 @@ $effect(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Starlink, off the page's thread
+// Starlink, a slice each second (starlink.ts)
 // ---------------------------------------------------------------------------
 
-let worker: Worker | null = null
+let field: StarlinkField | null = null
 
 $effect(() => {
   const update = starlink
-  if (update === null || update.elements.length === 0) return
-  const w = new StarlinkWorker()
-  worker = w
-  w.onmessage = (event: MessageEvent<{ positions: Float32Array }>) => {
-    starlinkPositions = event.data.positions
-  }
-  w.postMessage({
-    kind: 'load',
-    tles: update.elements.flatMap((e) => (e.tle ? [e.tle] : [])),
-  })
-  w.postMessage({ kind: 'at', time: Date.now() })
+  field = update !== null && update.elements.length > 0 ? new StarlinkField(update.elements) : null
   return () => {
-    w.terminate()
-    if (worker === w) worker = null
-    starlinkPositions = null
+    field = null
   }
 })
+
+// ---------------------------------------------------------------------------
+// What is under the pointer
+// ---------------------------------------------------------------------------
+
+interface Tip {
+  x: number
+  y: number
+  title: string
+  lines: string[]
+  station: boolean
+}
+
+let pointer: { x: number; y: number } | null = null
+let tip = $state.raw<Tip | null>(null)
+
+/** How close the pointer must come to a mark, in CSS pixels. */
+const REACH_STATION = 14
+const REACH_STARLINK = 6
+
+const julianMs = (satrec: SatRec): number => (satrec.jdsatepoch - 2440587.5) * 86_400_000
+
+/** The lines a tooltip shows for a satellite: where it is, its orbit, and how old its elements are. */
+function satLines(satrec: SatRec, id: number, now: number): string[] {
+  const state = satState(satrec, new Date(now))
+  const lines = [`NORAD ${id}`]
+  if (state !== null) {
+    const sign = (v: number, pos: string, neg: string) =>
+      `${Math.abs(v).toFixed(2)}°${v >= 0 ? pos : neg}`
+    lines.push(`${sign(state.lat, 'N', 'S')} ${sign(state.lon, 'E', 'W')}`)
+    lines.push(`ALT ${state.altKm.toFixed(0)} km · VEL ${state.speedKmS.toFixed(2)} km/s`)
+    lines.push(state.sunlit ? 'IN SUNLIGHT' : "IN THE EARTH'S SHADOW")
+  }
+  const period = (2 * Math.PI) / satrec.no
+  lines.push(
+    `INC ${((satrec.inclo * 180) / Math.PI).toFixed(2)}° · PERIOD ${period.toFixed(1)} min`,
+  )
+  const age = Math.max(0, Math.round((now - julianMs(satrec)) / 3_600_000))
+  lines.push(`ELEMENTS ${age} h old`)
+  return lines
+}
+
+function stationTip(f: Frame, at: { x: number; y: number }, now: number): Tip | null {
+  for (const station of STATIONS) {
+    const satrec = records.get(station.code)
+    const state = satrec ? satState(satrec, new Date(now)) : null
+    if (!satrec || state === null) continue
+    if (Math.hypot(px(f, state.lon) - at.x, py(f, state.lat) - at.y) > REACH_STATION) continue
+    const lines = satLines(satrec, station.id, now)
+    if (station.code === focusCode)
+      lines.push(`NEXT PASS · ${observer.name.toUpperCase()} ${readout.pass}`)
+    return { x: at.x, y: at.y, title: `${station.code} · ${station.name}`, lines, station: true }
+  }
+  return null
+}
+
+function starlinkTip(f: Frame, at: { x: number; y: number }, now: number): Tip | null {
+  if (!show.starlink || field === null) return null
+  const positions = field.positions
+  let best = -1
+  let bestDistance = REACH_STARLINK
+  for (let i = 0; i < field.size; i += 1) {
+    const lat = positions[i * 2] ?? Number.NaN
+    if (Number.isNaN(lat)) continue
+    const distance = Math.hypot(px(f, positions[i * 2 + 1] ?? 0) - at.x, py(f, lat) - at.y)
+    if (distance < bestDistance) {
+      best = i
+      bestDistance = distance
+    }
+  }
+  const satrec = best < 0 ? null : field.record(best)
+  if (satrec === null) return null
+  return {
+    x: at.x,
+    y: at.y,
+    title: field.names[best] ?? 'STARLINK',
+    lines: satLines(satrec, Number(satrec.satnum), now),
+    station: false,
+  }
+}
+
+/** The tooltip for what is under the pointer; again each second while it rests there, as marks move. */
+function updateTip(now: number): void {
+  const s = size
+  if (pointer === null || s === null) {
+    if (tip !== null) tip = null
+    return
+  }
+  const f = frameFor(s.width, s.height)
+  tip = stationTip(f, pointer, now) ?? starlinkTip(f, pointer, now)
+}
+
+function onPointer(event: PointerEvent): void {
+  pointer = { x: event.offsetX, y: event.offsetY }
+  updateTip(Date.now())
+}
+
+function onLeave(): void {
+  pointer = null
+  tip = null
+}
 
 // ---------------------------------------------------------------------------
 // The pane's title, and the observer
@@ -423,7 +525,24 @@ const TOGGLES = [
   </div>
 
   <div class="map">
-    <canvas bind:this={canvas} data-testid="orbit-map" aria-label="World map with the stations' ground tracks"></canvas>
+    <canvas
+      bind:this={canvas}
+      onpointermove={onPointer}
+      onpointerleave={onLeave}
+      data-testid="orbit-map" aria-label="World map with the stations' ground tracks"></canvas>
+    {#if tip !== null}
+      <div
+        class="tip"
+        class:station={tip.station}
+        class:flip={tip.x > (size?.width ?? 0) - 280}
+        style:left="{tip.x}px"
+        style:top="{tip.y}px"
+        data-testid="orbit-tip"
+      >
+        <p class="tip-title">{tip.title}</p>
+        {#each tip.lines as line (line)}<p>{line}</p>{/each}
+      </div>
+    {/if}
     {#if choosing}
       <div class="picker" data-testid="orbit-picker">
         <input
@@ -474,6 +593,8 @@ const TOGGLES = [
   position: relative;
   display: flex;
   flex-direction: column;
+  /* A pane taller than the map needs keeps it in the middle, not hung from the top. */
+  justify-content: center;
   height: 100%;
   min-height: 0;
 }
@@ -598,6 +719,48 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/*
+ * The tooltip: a small readout pinned beside the mark, flipped to its left near the
+ * right edge. It takes no pointer, so moving onto it never loses the mark beneath.
+ */
+.tip {
+  position: absolute;
+  z-index: 1;
+  min-width: 13rem;
+  max-width: 18rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--accent-dim);
+  border-left: 2px solid var(--info);
+  background: color-mix(in srgb, var(--panel-bg-raised) 92%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  line-height: 1.45;
+  color: var(--text);
+  pointer-events: none;
+  transform: translate(0.9rem, 0.9rem);
+}
+
+.tip.station {
+  border-left-color: var(--accent-strong);
+}
+
+.tip.flip {
+  transform: translate(calc(-100% - 0.9rem), 0.9rem);
+}
+
+.tip p {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.tip .tip-title {
+  margin-bottom: 0.15rem;
+  font-family: var(--font-display);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  color: var(--accent-strong);
 }
 
 .picker {
