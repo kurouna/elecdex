@@ -18,6 +18,7 @@ import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
 import DiffView from '../common/DiffView.svelte'
+import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
 import GitFiles from './GitFiles.svelte'
 import { landIn } from './motion.ts'
@@ -38,6 +39,25 @@ const repoId = $derived(isRepoId(paneState?.repo) ? paneState.repo : null)
 const chosen = $derived(typeof paneState?.chosen === 'string' ? paneState.chosen : null)
 const commit = $derived(isCommitId(paneState?.commit) ? paneState.commit : null)
 const split = $derived(paneState?.split === true)
+
+/**
+ * The lines between the parts, as shares the user drags and the pane keeps:
+ * how wide the list is beside the diff, and how much of the list's height the
+ * log takes. Kept in pane state, so each pane has its own and a restart keeps it.
+ */
+const LIST_WIDTH = { min: 0.15, max: 0.7, reset: 0.34 }
+const LOG_SHARE = { min: 0.15, max: 0.85, reset: 0.6 }
+const share = (value: unknown, range: { min: number; max: number; reset: number }): number =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(range.max, Math.max(range.min, value))
+    : range.reset
+/** While a line is being dragged: drawn from here, saved when it is let go. */
+let draggedWidth = $state<number | null>(null)
+let draggedLog = $state<number | null>(null)
+const listWidth = $derived(draggedWidth ?? share(paneState?.listWidth, LIST_WIDTH))
+const logShare = $derived(draggedLog ?? share(paneState?.logShare, LOG_SHARE))
+let bodyEl = $state<HTMLElement | null>(null)
+let leftEl = $state<HTMLElement | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
   layout.setPaneState(paneId, { ...(paneState ?? {}), ...patch })
@@ -245,12 +265,33 @@ const counts = $derived.by(() => {
 
     <div
       class="body"
+      bind:this={bodyEl}
+      style:--list-width="{listWidth * 100}%"
       class:switching
       onanimationend={(event) => {
         if (event.animationName === 'git-switch') switching = false
       }}
     >
-      <div class="left">
+      <div
+        class="left"
+        bind:this={leftEl}
+        style:grid-template-rows="minmax(0, {1 - logShare}fr) minmax(0, {logShare}fr)"
+      >
+        <Splitter
+          axis="x"
+          value={listWidth}
+          min={LIST_WIDTH.min}
+          max={LIST_WIDTH.max}
+          reset={LIST_WIDTH.reset}
+          label="Width of the file list"
+          testid="git-split-width"
+          within={() => bodyEl}
+          onmove={(next) => (draggedWidth = next)}
+          ondone={(next) => {
+            draggedWidth = null
+            setState({ listWidth: next })
+          }}
+        />
         <GitFiles
           {files}
           selected={selected === null ? null : keyOf(selected)}
@@ -263,6 +304,21 @@ const counts = $derived.by(() => {
           repoPath={repoState?.repo?.path ?? ''}
         />
         <div class="log" data-testid="git-log">
+          <Splitter
+            axis="y"
+            value={1 - logShare}
+            min={1 - LOG_SHARE.max}
+            max={1 - LOG_SHARE.min}
+            reset={1 - LOG_SHARE.reset}
+            label="Height of the log"
+            testid="git-split-log"
+            within={() => leftEl}
+            onmove={(next) => (draggedLog = 1 - next)}
+            ondone={(next) => {
+              draggedLog = null
+              setState({ logShare: 1 - next })
+            }}
+          />
           <p class="label">LOG</p>
           {#each repoState?.log ?? [] as entry (entry.oid)}
             <button
@@ -508,7 +564,7 @@ const counts = $derived.by(() => {
 
 .body {
   display: grid;
-  grid-template-columns: minmax(12rem, 34%) minmax(0, 1fr);
+  grid-template-columns: minmax(10rem, var(--list-width, 34%)) minmax(0, 1fr);
   grid-row: 3;
   min-height: 0;
 }
@@ -537,7 +593,9 @@ const counts = $derived.by(() => {
 
 .left {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  /* The rows are the shares the user set (style), the log three fifths by default: it is most of what there is to read. */
+  grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+  position: relative;
   min-width: 0;
   min-height: 0;
   border-right: 1px solid var(--panel-rule);
@@ -549,7 +607,8 @@ const counts = $derived.by(() => {
 }
 
 .log {
-  max-height: 11rem;
+  position: relative;
+  min-height: 0;
   overflow: auto;
   padding: 0 0 var(--space-1);
   border-top: 1px solid var(--panel-rule);
@@ -626,6 +685,11 @@ const counts = $derived.by(() => {
   .left {
     border-right: none;
     border-bottom: 1px solid var(--panel-rule);
+  }
+
+  /* Stacked, the list has no width of its own to set. */
+  .left > :global(.splitter.x) {
+    display: none;
   }
 
   .subject {

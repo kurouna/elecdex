@@ -176,3 +176,54 @@ test('stops watching when the pane goes, and says so when the folder is not a re
     removeDir(plain)
   }
 })
+
+test('keeps the list width and the log height the user drags, per pane, across a restart', async () => {
+  const repo = makeRepo()
+  let launched = await launch(undefined, { layout: single })
+  try {
+    await watchRepo(launched.page, launched.app, repo)
+    const page = launched.page
+    const list = page.getByTestId('git-files').locator('..')
+    const log = page.getByTestId('git-log')
+    const before = {
+      width: (await list.boundingBox())?.width ?? 0,
+      log: (await log.boundingBox())?.height ?? 0,
+    }
+
+    const drag = async (testid: string, dx: number, dy: number) => {
+      const box = await page.getByTestId(testid).boundingBox()
+      if (box === null) throw new Error(`${testid} is not on screen`)
+      const x = box.x + box.width / 2
+      const y = box.y + box.height / 2
+      await page.mouse.move(x, y)
+      await page.mouse.down()
+      await page.mouse.move(x + dx / 2, y + dy / 2)
+      await page.mouse.move(x + dx, y + dy)
+      await page.mouse.up()
+    }
+    await drag('git-split-width', 150, 0)
+    await drag('git-split-log', 0, -80)
+    const after = {
+      width: (await list.boundingBox())?.width ?? 0,
+      log: (await log.boundingBox())?.height ?? 0,
+    }
+    expect(after.width).toBeGreaterThan(before.width + 100)
+    expect(after.log).toBeGreaterThan(before.log + 50)
+
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('git-branch')).toContainText('main')
+    const again = launched.page.getByTestId('git-files').locator('..')
+    expect(Math.abs(((await again.boundingBox())?.width ?? 0) - after.width)).toBeLessThan(4)
+    const logAgain = (await launched.page.getByTestId('git-log').boundingBox())?.height ?? 0
+    expect(Math.abs(logAgain - after.log)).toBeLessThan(4)
+
+    // A double-click puts the width back where it began.
+    await launched.page.getByTestId('git-split-width').dblclick()
+    await expect
+      .poll(async () => Math.abs(((await again.boundingBox())?.width ?? 0) - before.width))
+      .toBeLessThan(4)
+  } finally {
+    await launched.close()
+    removeDir(repo)
+  }
+})
