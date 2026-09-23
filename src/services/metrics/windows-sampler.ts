@@ -11,6 +11,7 @@ import type {
   ProcessList,
 } from '@shared/metrics'
 import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
+import { SamplerDemand, type SamplerKind } from './sampler-demand.js'
 
 /**
  * Frequent metrics on Windows, without spawning a process per reading.
@@ -22,10 +23,13 @@ import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
  * systeminformation's "persistent PowerShell" mode would avoid the cold start,
  * but on the same machine every call after the first hung indefinitely.
  *
- * Instead we keep ONE PowerShell alive, running a loop that reads everything
- * through .NET APIs - IP Helper for interfaces, the process table, ICMP for
- * ping, SystemInformation for power - and writes a JSON line per reading. Only
- * the page file needs WMI, and that is read every 30 seconds.
+ * Instead we keep ONE PowerShell alive, running a loop that reads through .NET
+ * APIs - IP Helper for interfaces, the process table, ICMP for ping,
+ * SystemInformation for power - and writes a JSON line per reading. Only the
+ * page file needs WMI, and that is read every 30 seconds. It reads only the
+ * kinds the collector has asked for lately (sampler-demand.ts), told on its
+ * standard input: with the window put away and only the charts sampling, no
+ * process table, socket table or ping is taken.
  *
  * Rates are computed here, in Node, from successive raw counters, in pure
  * functions that are unit-tested.
@@ -548,7 +552,41 @@ $parent = ${parentPid}
 $tcpSource = @'${TCP_TABLE_SOURCE}'@
 $pinger = New-Object System.Net.NetworkInformation.Ping
 $tick = 0
-$tcpMode = 'managed'
+$tcpMode = 'unset'
+$diskRead = $null
+$diskReady = -1
+$procAgain = -1
+
+# What the collector wants read, one line of kinds on standard input whenever it
+# changes (sampler-demand.ts). Read without waiting: the read is a task looked at
+# once a tick. A kind newly wanted is read on the tick it arrives (the fresh set).
+$in = [Console]::OpenStandardInput()
+$inBuf = New-Object byte[] 4096
+$inText = ''
+$pending = $in.ReadAsync($inBuf, 0, $inBuf.Length)
+$want = @{}
+$fresh = @{}
+function ReadWanted {
+  while ($null -ne $script:pending -and $script:pending.IsCompleted) {
+    $n = 0
+    try { $n = $script:pending.Result } catch { $n = 0 }
+    if ($n -le 0) { $script:pending = $null; break }
+    $script:inText += [System.Text.Encoding]::UTF8.GetString($script:inBuf, 0, $n)
+    while ($script:inText.Contains("\`n")) {
+      $i = $script:inText.IndexOf("\`n")
+      $line = $script:inText.Substring(0, $i).Trim()
+      $script:inText = $script:inText.Substring($i + 1)
+      $next = @{}
+      foreach ($k in $line.Split(',')) { if ($k) { $next[$k] = $true } }
+      foreach ($k in $next.Keys) { if (-not $script:want.ContainsKey($k)) { $script:fresh[$k] = $true } }
+      $script:want = $next
+    }
+    $script:pending = $script:in.ReadAsync($script:inBuf, 0, $script:inBuf.Length)
+  }
+}
+function Due($k, $every) {
+  return $script:want.ContainsKey($k) -and ($script:fresh.ContainsKey($k) -or $script:tick % $every -eq 0)
+}
 
 function TcpRows {
   if ($tcpMode -eq 'pinvoke') { return [ElecdexTcpTable]::Rows() }
@@ -587,6 +625,14 @@ function ListenOwners($rows) {
   return @($owners.Values)
 }
 function EmitTcp {
+  # The P/Invoke table is compiled the first time sockets are wanted: about a second, once.
+  if ($script:tcpMode -eq 'unset') {
+    try {
+      Add-Type -TypeDefinition $script:tcpSource
+      $null = [ElecdexTcpTable]::Rows()
+      $script:tcpMode = 'pinvoke'
+    } catch { $script:tcpMode = 'managed' }
+  }
   $rows = @(TcpRows)
   Emit 'tcp' $rows
   Emit 'lsnr' @(ListenOwners $rows)
@@ -600,22 +646,31 @@ while ($true) {
   $alive = $false
   try { $null = [System.Diagnostics.Process]::GetProcessById($parent); $alive = $true } catch {}
   if (-not $alive) { exit 0 }
+  ReadWanted
 
-  $adapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()
-  $net = foreach ($a in $adapters) {
-    $s = $a.GetIPStatistics()
-    @{ n = $a.Name; up = ($a.OperationalStatus -eq 'Up'); rx = $s.BytesReceived; tx = $s.BytesSent }
+  if ($want.ContainsKey('net') -or (Due 'iface' 5)) {
+    $adapters = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()
   }
-  Emit 'net' @($net)
+  if ($want.ContainsKey('net')) {
+    $net = foreach ($a in $adapters) {
+      $s = $a.GetIPStatistics()
+      @{ n = $a.Name; up = ($a.OperationalStatus -eq 'Up'); rx = $s.BytesReceived; tx = $s.BytesSent }
+    }
+    Emit 'net' @($net)
+  }
 
-  if ($tick % 5 -eq 0) {
+  # The CPU share needs two readings: one newly wanted is read again on the next tick.
+  if ((Due 'proc' 5) -or ($want.ContainsKey('proc') -and $tick -eq $procAgain)) {
+    if ($fresh.ContainsKey('proc')) { $procAgain = $tick + 1 }
     $procs = foreach ($p in [System.Diagnostics.Process]::GetProcesses()) {
       $c = $null
       try { $c = $p.TotalProcessorTime.TotalMilliseconds } catch {}
       @{ id = $p.Id; n = $p.ProcessName; c = $c; m = $p.WorkingSet64 }
     }
     Emit 'proc' @($procs)
+  }
 
+  if (Due 'iface' 5) {
     $ifaces = foreach ($a in $adapters) {
       if ($a.OperationalStatus -ne 'Up') { continue }
       $props = $a.GetIPProperties()
@@ -625,21 +680,27 @@ while ($true) {
       @{ n = $a.Name; ip4 = if ($v4) { $v4.Address.ToString() } else { $null }; mac = $mac; gw = [bool]$gw }
     }
     Emit 'iface' @($ifaces)
+  }
 
-    EmitTcp
+  if (Due 'tcp' 5) { EmitTcp }
 
+  if (Due 'ping' 5) {
     $ms = $null
     try { $r = $pinger.Send('${pingHost}', 1000); if ($r.Status -eq 'Success') { $ms = $r.RoundtripTime } } catch {}
     Emit 'ping' @{ ms = $ms }
   }
 
-  if ($tick % 30 -eq 0) {
+  if (Due 'power' 30) {
     $ps = [System.Windows.Forms.SystemInformation]::PowerStatus
     Emit 'power' @{ pct = $ps.BatteryLifePercent; line = $ps.PowerLineStatus.ToString(); status = [int]$ps.BatteryChargeStatus }
+  }
 
+  if (Due 'swap' 30) {
     $pf = Get-CimInstance Win32_PageFileUsage
     Emit 'swap' @{ totalMb = [int](($pf | Measure-Object AllocatedBaseSize -Sum).Sum); usedMb = [int](($pf | Measure-Object CurrentUsage -Sum).Sum) }
+  }
 
+  if (Due 'drives' 30) {
     # Network drives are left out: an unreachable share can block IsReady for seconds.
     $drives = foreach ($d in [System.IO.DriveInfo]::GetDrives()) {
       if (($d.DriveType -ne 'Fixed' -and $d.DriveType -ne 'Removable') -or -not $d.IsReady) { continue }
@@ -649,31 +710,27 @@ while ($true) {
   }
 
   # Performance counters by their English names, which Windows accepts in every
-  # display language. Creating them takes about a second, so it happens once,
-  # after the first round of readings is out; each read then takes ~2ms.
-  if ($tick -eq 1) {
-    try {
-      Add-Type -TypeDefinition $tcpSource
-      $null = [ElecdexTcpTable]::Rows()
-      $tcpMode = 'pinvoke'
-    } catch { $tcpMode = 'managed' }
-    # Straight away, rather than waiting for tick 5: the owners are the point.
-    EmitTcp
-
-    try {
-      $diskRead = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Read Bytes/sec', '_Total')
-      $diskWrite = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Write Bytes/sec', '_Total')
-      $diskIdle = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', '% Idle Time', '_Total')
-      $null = $diskRead.NextValue(); $null = $diskWrite.NextValue(); $null = $diskIdle.NextValue()
-    } catch { $diskRead = $null }
-  }
-  if ($tick -gt 1 -and $tick % 2 -eq 0) {
-    if ($diskRead) {
-      Emit 'dio' @{ r = $diskRead.NextValue(); w = $diskWrite.NextValue(); idle = $diskIdle.NextValue() }
-    } else {
-      Emit 'dio' @{ r = 0; w = 0; idle = $null }
+  # display language. Creating them takes about a second, so it happens the first
+  # time disk activity is wanted; their first values are empty, so the first
+  # reading goes out a tick later, and each read then takes ~2ms.
+  if ($want.ContainsKey('dio')) {
+    if ($diskReady -lt 0) {
+      try {
+        $diskRead = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Read Bytes/sec', '_Total')
+        $diskWrite = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Write Bytes/sec', '_Total')
+        $diskIdle = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', '% Idle Time', '_Total')
+        $null = $diskRead.NextValue(); $null = $diskWrite.NextValue(); $null = $diskIdle.NextValue()
+      } catch { $diskRead = $null }
+      $diskReady = $tick + 1
+    } elseif ($tick -ge $diskReady -and ($fresh.ContainsKey('dio') -or $tick -eq $diskReady -or $tick % 2 -eq 0)) {
+      if ($diskRead) {
+        Emit 'dio' @{ r = $diskRead.NextValue(); w = $diskWrite.NextValue(); idle = $diskIdle.NextValue() }
+      } else {
+        Emit 'dio' @{ r = 0; w = 0; idle = $null }
+      }
     }
   }
+  $fresh = @{}
 
   try { [Console]::Out.Flush() } catch { exit 0 }
   $tick++
@@ -682,6 +739,8 @@ while ($true) {
 
 /** Stop the sampler when nothing has read from it for this long. */
 const IDLE_TIMEOUT_MS = 40_000
+/** How often the sampler looks at what is still wanted, and at whether it is idle. */
+const WANTED_CHECK_MS = 5000
 /** Give up waiting for a reading after this long. */
 const FIRST_READING_TIMEOUT_MS = 20_000
 /** Do not respawn a sampler that died more often than this. */
@@ -711,6 +770,9 @@ export class WindowsSampler {
   private swap: RawSwap | null = null
   private drives: RawDrive[] | null = null
   private dio: { r: number; w: number; idle: number | null } | null = null
+  private readonly demand = new SamplerDemand()
+  /** Readings received, by kind: what the sampler actually did, for the tests to hold it to. */
+  readonly readings = new Map<string, number>()
 
   constructor(pingHost: string) {
     // The host is interpolated into the script, so accept only an address or
@@ -720,7 +782,7 @@ export class WindowsSampler {
   }
 
   async throughput(): Promise<NetThroughput> {
-    await this.until(() => this.netCurrent !== null && this.netPrevious !== null)
+    await this.until(['net', 'iface'], () => this.netCurrent !== null && this.netPrevious !== null)
     const preferred = this.ifaces?.find((i) => i.gw)?.n ?? null
     return computeThroughput(this.netPrevious, this.netCurrent as Reading<RawAdapter>, preferred)
   }
@@ -730,23 +792,23 @@ export class WindowsSampler {
     totalMemory: number
     limit: number
   }): Promise<ProcessList> {
-    await this.until(() => this.procCurrent !== null && this.procPrevious !== null)
+    await this.until(['proc'], () => this.procCurrent !== null && this.procPrevious !== null)
     return computeTopProcesses(this.procPrevious, this.procCurrent as Reading<RawProcess>, options)
   }
 
   async netInterface(): Promise<NetInterface> {
-    await this.until(() => this.ifaces !== null)
+    await this.until(['iface'], () => this.ifaces !== null)
     return toNetInterface(this.ifaces ?? [])
   }
 
   async netPing(): Promise<NetPing> {
-    await this.until(() => this.ping !== null)
+    await this.until(['ping'], () => this.ping !== null)
     return { host: this.pingHost, ms: this.ping?.ms ?? null }
   }
 
   /** Remote addresses of established TCP connections, for the globe. */
   async tcpRemotes(): Promise<string[]> {
-    await this.until(() => this.tcp !== null)
+    await this.until(['tcp'], () => this.tcp !== null)
     return establishedRemotes(this.tcp ?? [])
   }
 
@@ -760,29 +822,29 @@ export class WindowsSampler {
     names: Map<number, string>
     listeners: RawListener[]
   }> {
-    await this.until(() => this.tcp !== null)
+    await this.until(['tcp', 'proc'], () => this.tcp !== null)
     const names = new Map<number, string>()
     for (const process of this.procCurrent?.data ?? []) names.set(process.id, process.n)
     return { rows: this.tcp ?? [], names, listeners: this.listeners }
   }
 
   async battery(): Promise<Battery> {
-    await this.until(() => this.power !== null)
+    await this.until(['power'], () => this.power !== null)
     return toBattery(this.power as RawPower)
   }
 
   async memSwap(freeMemory: number): Promise<MemSwap> {
-    await this.until(() => this.swap !== null)
+    await this.until(['swap'], () => this.swap !== null)
     return toSwap(this.swap as RawSwap, freeMemory)
   }
 
   async diskVolumes(): Promise<DiskVolumes> {
-    await this.until(() => this.drives !== null)
+    await this.until(['drives'], () => this.drives !== null)
     return { volumes: windowsVolumes(this.drives ?? []) }
   }
 
   async diskIo(): Promise<DiskIo> {
-    await this.until(() => this.dio !== null)
+    await this.until(['dio'], () => this.dio !== null)
     return windowsDiskIo(this.dio ?? { r: 0, w: 0, idle: null })
   }
 
@@ -793,10 +855,16 @@ export class WindowsSampler {
     this.child = null
   }
 
-  /** Starts the sampler if needed, then resolves once `ready()` holds. */
-  private until(ready: () => boolean): Promise<void> {
-    this.lastRead = Date.now()
+  /**
+   * Marks `kinds` wanted, starts the sampler if needed and tells it what is
+   * wanted, then resolves once `ready()` holds.
+   */
+  private until(kinds: readonly SamplerKind[], ready: () => boolean): Promise<void> {
+    const now = Date.now()
+    this.lastRead = now
+    this.demand.want(kinds, now)
     this.ensureRunning()
+    this.tellWanted(now)
     if (ready()) return Promise.resolve()
 
     return new Promise((resolve, reject) => {
@@ -812,6 +880,49 @@ export class WindowsSampler {
       }
       this.waiters.add(check)
     })
+  }
+
+  /** Sends the wanted set when it changed, and forgets the readings of kinds that lapsed. */
+  private tellWanted(now: number): void {
+    const change = this.demand.change(now)
+    if (change === null) return
+    for (const kind of change.lapsed) this.forget(kind)
+    const stdin = this.child?.stdin
+    if (stdin?.writable) stdin.write(`${change.line}\n`)
+  }
+
+  /** A kind no longer read: its last reading would be stale by the time it is wanted again. */
+  private forget(kind: SamplerKind): void {
+    switch (kind) {
+      case 'net':
+        this.netPrevious = this.netCurrent = null
+        break
+      case 'proc':
+        this.procPrevious = this.procCurrent = null
+        break
+      case 'iface':
+        this.ifaces = null
+        break
+      case 'tcp':
+        this.tcp = null
+        this.listeners = []
+        break
+      case 'ping':
+        this.ping = null
+        break
+      case 'power':
+        this.power = null
+        break
+      case 'swap':
+        this.swap = null
+        break
+      case 'drives':
+        this.drives = null
+        break
+      case 'dio':
+        this.dio = null
+        break
+    }
   }
 
   private ensureRunning(): void {
@@ -830,6 +941,9 @@ export class WindowsSampler {
     )
     this.child = child
     this.buffer = ''
+    // A new sampler has been told nothing: the wanted set goes to it whole.
+    this.demand.restart()
+    child.stdin.on('error', () => {})
 
     child.stdout.setEncoding('utf8')
     child.stdout.on('data', (chunk: string) => this.onData(chunk))
@@ -849,10 +963,14 @@ export class WindowsSampler {
       this.procPrevious = this.procCurrent = null
     })
 
+    // Also what is wanted, on the sampler's own clock: a kind nobody asks for any more must stop
+    // being read even when nothing asks for anything, until the idle limit stops the sampler.
     if (this.idleTimer === null) {
       this.idleTimer = setInterval(() => {
-        if (Date.now() - this.lastRead > IDLE_TIMEOUT_MS) this.stop()
-      }, IDLE_TIMEOUT_MS / 2)
+        const now = Date.now()
+        if (now - this.lastRead > IDLE_TIMEOUT_MS) this.stop()
+        else this.tellWanted(now)
+      }, WANTED_CHECK_MS)
       this.idleTimer.unref?.()
     }
   }
@@ -872,6 +990,7 @@ export class WindowsSampler {
     const parsed = parseSamplerLine(line)
     if (parsed === null) return
     const at = Date.now()
+    this.readings.set(parsed.kind, (this.readings.get(parsed.kind) ?? 0) + 1)
     switch (parsed.kind) {
       case 'net':
         this.netPrevious = this.netCurrent
