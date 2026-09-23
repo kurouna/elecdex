@@ -100,7 +100,7 @@ const shown = $derived(preview === null ? null : grouped ? preview.grouped : pre
 const nibbles = $derived(showHex && preview !== null ? bitNibbles(preview.value) : null)
 
 function save(change: Record<string, unknown>): void {
-  layout.setPaneState(paneId, { ...paneState, ...change })
+  layout.patchPaneState(paneId, change)
 }
 
 function submit(): void {

@@ -3,7 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({ layout: { setPaneState: vi.fn() } }))
+vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({
+  layout: { setPaneState: vi.fn(), patchPaneState: vi.fn() },
+}))
 
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { default: DetailChart } = await import(
@@ -54,7 +56,7 @@ beforeEach(() => {
   rects.length = 0
   subscriptions.length = 0
   handlers.clear()
-  vi.mocked(layout.setPaneState).mockClear()
+  vi.mocked(layout.patchPaneState).mockClear()
   vi.stubGlobal('Path2D', FakePath)
   vi.stubGlobal(
     'ResizeObserver',
@@ -139,26 +141,20 @@ const send = (symbol: string, range: string, price = 110) => {
 }
 
 describe('MarketsWidget: one symbol over the whole pane', () => {
-  it('opens the chart of the row that is clicked, keeping the rest of the pane state', async () => {
+  it('opens the chart of the row that is clicked, changing only the focus', async () => {
     render(MarketsWidget, { props: props({ range: '5d' }) })
     flushSync()
     expect(screen.queryByTestId('markets-detail')).toBeNull()
     await fireEvent.click(screen.getAllByTestId('market-open')[1] as HTMLElement)
-    expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith('p', {
-      symbols: [{ symbol: 'AAA' }, { symbol: 'BBB' }],
-      range: '5d',
-      focus: 'BBB',
-    })
+    // Only the change is sent; the layout store keeps the rest of the pane state.
+    expect(vi.mocked(layout.patchPaneState)).toHaveBeenLastCalledWith('p', { focus: 'BBB' })
   })
 
   it('opens it from the bar view too', async () => {
     render(MarketsWidget, { props: props({ view: 'bars' }) })
     flushSync()
     await fireEvent.click(screen.getAllByTestId('market-open')[0] as HTMLElement)
-    expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith(
-      'p',
-      expect.objectContaining({ view: 'bars', focus: 'AAA' }),
-    )
+    expect(vi.mocked(layout.patchPaneState)).toHaveBeenLastCalledWith('p', { focus: 'AAA' })
   })
 
   it('shows the focused symbol alone, with its price and change, and no list', () => {
@@ -185,10 +181,12 @@ describe('MarketsWidget: one symbol over the whole pane', () => {
     const { rerender } = render(MarketsWidget, { props: props({ focus: 'AAA', view: 'bars' }) })
     flushSync()
     await fireEvent.click(screen.getByTestId('markets-back'))
-    expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith('p', {
-      symbols: [{ symbol: 'AAA' }, { symbol: 'BBB' }],
-      view: 'bars',
-    })
+    // The focus is removed and nothing else is touched, so the view stays the bars.
+    // Strictly, since an undefined key is how the store is told to remove it.
+    expect(vi.mocked(layout.patchPaneState).mock.lastCall).toStrictEqual([
+      'p',
+      { focus: undefined },
+    ])
     await rerender({ state: props({ view: 'bars' }).state })
     flushSync()
     expect(screen.queryByTestId('markets-detail')).toBeNull()
@@ -214,10 +212,10 @@ describe('MarketsWidget: one symbol over the whole pane', () => {
     expect(views.filter((v) => v !== null)).toEqual(['line', 'candles'])
 
     await fireEvent.click(document.querySelector('[data-view=candles]') as HTMLElement)
-    expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith(
-      'p',
-      expect.objectContaining({ view: 'bars', detailView: 'candles' }),
-    )
+    // The chart's choice is its own key; the board's view is not touched.
+    expect(vi.mocked(layout.patchPaneState)).toHaveBeenLastCalledWith('p', {
+      detailView: 'candles',
+    })
     await rerender({ state: props({ focus: 'AAA', view: 'bars', detailView: 'candles' }).state })
     flushSync()
     expect(chart()).toBe('candles')
@@ -233,10 +231,8 @@ describe('MarketsWidget: one symbol over the whole pane', () => {
     const ranges = screen.getByTestId('markets-ranges')
     expect(ranges.querySelector('[aria-checked=true]')?.getAttribute('data-range')).toBe('1d')
     await fireEvent.click(ranges.querySelector('[data-range="6mo"]') as HTMLElement)
-    expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith(
-      'p',
-      expect.objectContaining({ focus: 'AAA', range: '6mo' }),
-    )
+    // The range is the pane's, and the chart stays open: the focus is not touched.
+    expect(vi.mocked(layout.patchPaneState)).toHaveBeenLastCalledWith('p', { range: '6mo' })
   })
 
   it('flashes the open chart when its price moves', () => {

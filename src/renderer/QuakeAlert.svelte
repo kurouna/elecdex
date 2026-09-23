@@ -14,7 +14,13 @@ import { type Tsunami, tsunamiAlertKey, tsunamiLevelLabel, tsunamiSummary } from
 import { flip } from 'svelte/animate'
 import { CRT_EXTEND_MS } from './layout/pane-close.ts'
 import { crtPower } from './lib/crt-transitions.ts'
-import { announcedCard, closeCard, followCard, type TsunamiCard } from './lib/tsunami-card.ts'
+import {
+  announcedCard,
+  closeCard,
+  followCard,
+  type TsunamiCard,
+  tsunamiTone,
+} from './lib/tsunami-card.ts'
 import { appearance } from './stores/appearance.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { coverWeb } from './stores/web.svelte.ts'
@@ -177,9 +183,6 @@ $effect(() => {
     timers.clear()
   }
 })
-
-const tsunamiTone = (value: Tsunami) =>
-  value.level === 'major' || value.level === 'warning' ? 'severe' : 'moderate'
 
 function arrival(area: Tsunami['areas'][number]): string {
   if (area.arrivalAt !== null) return clockTime(area.arrivalAt)

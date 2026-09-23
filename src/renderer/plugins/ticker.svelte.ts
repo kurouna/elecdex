@@ -1,4 +1,5 @@
 import { onFrame } from '../lib/frame-loop.ts'
+import { refCounted } from '../lib/ref-counted.ts'
 
 /**
  * The current time for plugin time blocks, moved on once a second by the shared frame
@@ -6,27 +7,13 @@ import { onFrame } from '../lib/frame-loop.ts'
  */
 class Ticker {
   now = $state(Date.now())
-  private users = 0
-  private stop: (() => void) | null = null
-
-  use(): () => void {
-    this.users += 1
-    if (this.users === 1) {
+  /** Ticks while any block shows it; returns the release. */
+  readonly use = refCounted(() => {
+    this.now = Date.now()
+    return onFrame(() => {
       this.now = Date.now()
-      this.stop = onFrame(() => {
-        this.now = Date.now()
-      }, 1000)
-    }
-    let released = false
-    return () => {
-      if (released) return
-      released = true
-      this.users -= 1
-      if (this.users > 0) return
-      this.stop?.()
-      this.stop = null
-    }
-  }
+    }, 1000)
+  })
 }
 
 export const ticker = new Ticker()

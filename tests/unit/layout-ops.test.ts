@@ -15,6 +15,7 @@ import {
   normalizeTree,
   type Placement,
   pane,
+  patchPaneState,
   resizeSplit,
   setPaneState,
   split,
@@ -1028,6 +1029,29 @@ describe('resizeSplit and setPaneState', () => {
     const updated = findNode(result.root, a.id)
     expect(updated?.kind === 'pane' && updated.state).toEqual({ sessionId: 'abc' })
     expect(findNode(result.root, b.id)).toBe(b)
+  })
+
+  it('patches pane state into what the tree holds now, and removes what is set undefined', () => {
+    const a = pane('markets')
+    const t = tree(split('row', [a, pane('clock')]))
+    // Two changes in a row, each against the tree as the one before left it: neither is lost,
+    // as one would be if each spread a state read before the other was made.
+    const once = patchPaneState(t, a.id, { view: 'bars', focus: '^N225' })
+    const twice = patchPaneState(once, a.id, { range: '5d', focus: undefined })
+    const node = findNode(twice.root, a.id)
+    expect(node?.kind === 'pane' && node.state).toEqual({ view: 'bars', range: '5d' })
+    expect(patchPaneState(t, 'no such pane', { x: 1 })).toBe(t)
+  })
+
+  it('leaves the tree as it is for a patch that changes nothing', () => {
+    // A new tree is a layout save and a new round for every effect that reads the tree: an
+    // effect that patches what is already there would go round for ever.
+    const a = pane('notes', { state: { noteId: 'n1' } })
+    const t = tree(split('row', [a, pane('clock')]))
+    expect(patchPaneState(t, a.id, { noteId: 'n1' })).toBe(t)
+    expect(patchPaneState(t, a.id, { gone: undefined })).toBe(t)
+    expect(patchPaneState(t, a.id, {})).toBe(t)
+    expect(patchPaneState(t, a.id, { noteId: 'n2' })).not.toBe(t)
   })
 })
 

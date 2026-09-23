@@ -45,7 +45,7 @@ let settingsOpen = $state(false)
 
 function setCountry(id: string, on: boolean): void {
   const next = on ? [...countries, id] : countries.filter((c) => c !== id)
-  layout.setPaneState(paneId, { ...paneState, holidays: next })
+  layout.patchPaneState(paneId, { holidays: next })
 }
 
 let today = $state(new Date())

@@ -21,6 +21,19 @@ const T0 = 1_700_000_000_000
 
 let state: Record<string, unknown>
 
+/**
+ * Merges a patch into the state held, as the layout store does: the widget
+ * sends only what changed, and a key set to undefined is removed.
+ */
+function merged(
+  held: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...held, ...patch }
+  for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key]
+  return next
+}
+
 beforeEach(() => {
   state = {}
   vi.useFakeTimers()
@@ -41,8 +54,8 @@ beforeEach(() => {
   vi.stubGlobal('elecdex', {
     layout: { load: vi.fn(), save: vi.fn(async () => undefined) },
   })
-  vi.spyOn(layout, 'setPaneState').mockImplementation((_id, next) => {
-    state = structuredClone(next)
+  vi.spyOn(layout, 'patchPaneState').mockImplementation((_id, patch) => {
+    state = merged(state, structuredClone(patch))
   })
 })
 
@@ -89,6 +102,17 @@ describe('TimerWidget', () => {
     vi.advanceTimersByTime(200)
     await settle()
     expect(readout()).toContain('01:05')
+  })
+
+  it('keeps both of two changes made before the pane state comes back', async () => {
+    render(TimerWidget, { props: { paneId: 'p', state: {} } as never })
+    await settle()
+    // Started, then another view chosen, with no render in between: the second save must not
+    // carry the first one's field back from the state it was given.
+    await fireEvent.click(screen.getByTestId('timer-start'))
+    await fireEvent.click(screen.getByTestId('timer-mode-timer'))
+    expect(stopwatchOf(state)).toMatchObject({ running: true, startedAt: T0 })
+    expect(state.mode).toBe('timer')
   })
 
   it('leaves the countdowns alone when the stopwatch starts', async () => {

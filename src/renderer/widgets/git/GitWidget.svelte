@@ -63,7 +63,7 @@ let bodyEl = $state<HTMLElement | null>(null)
 let leftEl = $state<HTMLElement | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.setPaneState(paneId, { ...(paneState ?? {}), ...patch })
+  layout.patchPaneState(paneId, patch)
 }
 
 let repoState = $state.raw<GitState | null>(null)

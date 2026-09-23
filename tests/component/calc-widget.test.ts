@@ -35,10 +35,13 @@ beforeEach(() => {
   vi.stubGlobal('elecdex', {
     layout: { load: vi.fn(), save: vi.fn(async () => undefined) },
   })
-  // The pane writes its state through the layout store; keep the last write.
-  vi.spyOn(layout, 'setPaneState').mockImplementation((_id, next) => {
+  // The pane writes only what changed through the layout store; merge it into
+  // what is held, as the store does, removing a key set to undefined.
+  vi.spyOn(layout, 'patchPaneState').mockImplementation((_id, patch) => {
     // IPC cannot clone a $state proxy, so a mock must copy as IPC would.
-    state = structuredClone(next)
+    const next = { ...state, ...structuredClone(patch) }
+    for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key]
+    state = next
   })
 })
 

@@ -1,9 +1,11 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import { formatTotal, toMegabytesPerSecond } from '../../lib/format.ts'
 import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import StreamChart from '../common/StreamChart.svelte'
 import type { WidgetProps } from '../registry.ts'
 
@@ -11,9 +13,21 @@ import type { WidgetProps } from '../registry.ts'
  * eDEX-UI's network traffic: running totals, then upload above the axis and
  * download mirrored below it, on a scrolling graph labelled in MB/s.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
+/**
+ * The traffic goes on being sampled behind another tab or with the window put
+ * away, so the graph has no gap when the pane is seen again (`keepWhileHidden`);
+ * the totals written on the pane follow it only while it is seen.
+ */
 const sample = $derived(metrics.sample('net.throughput'))
+let shownSample = $state.raw(untrack(() => sample))
+$effect(() => {
+  const next = sample
+  if (visible) shownSample = next
+})
 const ping = $derived(metrics.get('net.ping'))
 
 const up = new TimeSeries(CHART_WINDOW_MS + 5000)
@@ -41,8 +55,8 @@ const peak = $derived(
   <div class="totals">
     <span>total</span>
     <span class="figures" data-testid="net-totals">
-      {sample
-        ? `${formatTotal(sample.data.txTotal)} OUT, ${formatTotal(sample.data.rxTotal)} IN`
+      {shownSample
+        ? `${formatTotal(shownSample.data.txTotal)} OUT, ${formatTotal(shownSample.data.rxTotal)} IN`
         : '--'}
     </span>
   </div>

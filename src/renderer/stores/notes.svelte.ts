@@ -1,4 +1,5 @@
 import { type Note, sortNotes } from '@shared/notes'
+import { refCounted } from '../lib/ref-counted.ts'
 
 /**
  * The notes every notes pane shares.
@@ -9,24 +10,12 @@ import { type Note, sortNotes } from '@shared/notes'
  * with no notes pane is not listening for anything.
  */
 class NotesStore {
-  items = $state<Note[]>([])
+  // Replaced whole with each change from main, never changed in place: no deep proxy.
+  items = $state.raw<Note[]>([])
   ready = $state(false)
 
-  private users = 0
-  private stop: (() => void) | null = null
-
   /** Called by a pane while it is mounted; returns the release. */
-  use(): () => void {
-    this.users += 1
-    if (this.users === 1) this.start()
-    return () => {
-      this.users -= 1
-      if (this.users === 0) {
-        this.stop?.()
-        this.stop = null
-      }
-    }
-  }
+  readonly use = refCounted(() => this.start())
 
   get sorted(): Note[] {
     return sortNotes(this.items)
@@ -61,16 +50,18 @@ class NotesStore {
     else this.items = this.items.map((entry) => (entry.id === note.id ? note : entry))
   }
 
-  private start(): void {
+  /** Follows main's file and answers the first reading; returns how to stop. */
+  private start(): () => void {
     const off = window.elecdex.notes.onChange((file) => {
       this.items = file.notes
       this.ready = true
     })
-    this.stop = off
+    const stop = off
     void window.elecdex.notes.list().then((file) => {
       this.items = file.notes
       this.ready = true
     })
+    return stop
   }
 }
 

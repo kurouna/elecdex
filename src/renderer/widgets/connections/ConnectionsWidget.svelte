@@ -40,7 +40,7 @@ let query = $state('')
 let hovered = $state<string | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.setPaneState(paneId, { ...(paneState ?? {}), ...patch })
+  layout.patchPaneState(paneId, patch)
 }
 
 const tracker = new FreshTracker()

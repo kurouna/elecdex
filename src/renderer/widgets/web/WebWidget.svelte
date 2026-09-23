@@ -96,7 +96,7 @@ $effect(() => {
 })
 
 function toggleTint(): void {
-  layout.setPaneState(paneId, { ...untrack(() => paneState), tint: !tinted })
+  layout.patchPaneState(paneId, { tint: !tinted })
 }
 
 // Where the page is now, for a restart to open it again.
@@ -107,7 +107,7 @@ $effect(() => {
   // Untracked: writing the tree must not make this effect depend on the tree.
   untrack(() => {
     const current = paneState
-    if (current?.url !== url) layout.setPaneState(id, { ...current, url })
+    if (current?.url !== url) layout.patchPaneState(id, { url })
   })
 })
 

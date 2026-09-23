@@ -51,7 +51,7 @@ const providers = $derived(appearance.settings.ai.providers)
 $effect(() => ai.use())
 
 function save(change: Record<string, unknown>): void {
-  layout.setPaneState(paneId, { ...paneState, ...change })
+  layout.patchPaneState(paneId, change)
 }
 
 let view = $state.raw<ChatView>(EMPTY_VIEW)

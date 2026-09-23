@@ -1,4 +1,5 @@
 import type { SessionSummary } from '@shared/elec'
+import { refCounted } from '../lib/ref-counted.ts'
 
 /**
  * The deliberations every ELEC system pane lists in its log. The seats and the
@@ -7,32 +8,22 @@ import type { SessionSummary } from '@shared/elec'
  * Reference-counted like the chat store: a window with no ELEC pane listens for nothing.
  */
 class ElecStore {
-  sessions = $state<SessionSummary[]>([])
-
-  private users = 0
-  private stop: (() => void) | null = null
+  // Replaced whole with each change from main, never changed in place: no deep proxy.
+  sessions = $state.raw<SessionSummary[]>([])
 
   /** Called while an ELEC pane is mounted; returns the release. */
-  use(): () => void {
-    this.users += 1
-    if (this.users === 1) this.start()
-    return () => {
-      this.users -= 1
-      if (this.users === 0) {
-        this.stop?.()
-        this.stop = null
-      }
-    }
-  }
+  readonly use = refCounted(() => this.start())
 
-  private start(): void {
+  /** Follows main's file and answers the first reading; returns how to stop. */
+  private start(): () => void {
     const api = window.elecdex.elec
-    this.stop = api.onSessions((list) => {
+    const stop = api.onSessions((list) => {
       this.sessions = list
     })
     void api.sessions().then((list) => {
       this.sessions = list
     })
+    return stop
   }
 }
 

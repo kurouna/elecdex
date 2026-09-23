@@ -27,7 +27,7 @@ const visible = $derived(seen(inTab))
 const view = $derived<ChartView>(paneState?.view === 'bars' ? 'bars' : 'line')
 
 function setView(next: ChartView): void {
-  layout.setPaneState(paneId, { ...paneState, view: next })
+  layout.patchPaneState(paneId, { view: next })
 }
 
 /** Above this, a core's bar is drawn in the warning colour. */

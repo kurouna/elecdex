@@ -144,9 +144,9 @@ describe('ConnectionsWidget', () => {
 
     // The switch writes the choice to pane state, which is what brings it back
     // after a restart; the view itself comes from that state.
-    const asked = vi.spyOn(layout, 'setPaneState')
+    const asked = vi.spyOn(layout, 'patchPaneState')
     await fireEvent.click(document.querySelector('[data-view="listening"]') as HTMLElement)
-    expect(asked).toHaveBeenCalledWith('p1', expect.objectContaining({ view: 'listening' }))
+    expect(asked).toHaveBeenCalledWith('p1', { view: 'listening' })
     asked.mockRestore()
 
     cleanup()

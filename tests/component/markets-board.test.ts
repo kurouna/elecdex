@@ -3,7 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({ layout: { setPaneState: vi.fn() } }))
+vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({
+  layout: { setPaneState: vi.fn(), patchPaneState: vi.fn() },
+}))
 
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { default: MarketsWidget } = await import(
@@ -33,7 +35,7 @@ const handlers = new Map<string, (update: MarketUpdate) => void>()
 beforeEach(() => {
   observers.length = 0
   handlers.clear()
-  vi.mocked(layout.setPaneState).mockClear()
+  vi.mocked(layout.patchPaneState).mockClear()
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -194,19 +196,16 @@ describe('MarketsWidget: the bar view in order', () => {
     expect(sort.getAttribute('aria-pressed')).toBe('false')
 
     await fireEvent.click(sort)
-    expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith(
-      'p',
-      expect.objectContaining({ view: 'bars', sort: 'change' }),
-    )
+    expect(vi.mocked(layout.patchPaneState)).toHaveBeenLastCalledWith('p', { sort: 'change' })
     await rerender({ state: props({ view: 'bars', symbols: symbols(4), sort: 'change' }).state })
     flushSync()
     expect(order()).toEqual(['S1', 'S0', 'S2', 'S3'])
     expect(sort.getAttribute('aria-pressed')).toBe('true')
 
     await fireEvent.click(sort)
-    const last = vi.mocked(layout.setPaneState).mock.lastCall?.[1] as Record<string, unknown>
-    expect('sort' in last).toBe(false)
-    expect(last.view).toBe('bars')
+    // Unsorting removes the key, and leaves the view where it was.
+    // Strictly, since an undefined key is how the store is told to remove it.
+    expect(vi.mocked(layout.patchPaneState).mock.lastCall).toStrictEqual(['p', { sort: undefined }])
   })
 
   it('leaves the line view in the order of the list', () => {

@@ -3,7 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({ layout: { setPaneState: vi.fn() } }))
+vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({
+  layout: { setPaneState: vi.fn(), patchPaneState: vi.fn() },
+}))
 
 const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
 const { default: ViewToggle } = await import('../../src/renderer/widgets/common/ViewToggle.svelte')
@@ -71,7 +73,7 @@ beforeEach(() => {
   calls.length = 0
   paths.length = 0
   width = 120
-  vi.mocked(layout.setPaneState).mockClear()
+  vi.mocked(layout.patchPaneState).mockClear()
   vi.stubGlobal('Path2D', FakePath)
   vi.stubGlobal(
     'ResizeObserver',
@@ -331,7 +333,7 @@ describe('MarketsWidget ranges', () => {
     expect(subscriptions.map((s) => s.range)).toEqual(['1d', '1d'])
   })
 
-  it('saves the range picked above the board, keeping the rest of the pane state', async () => {
+  it('saves the range picked above the board, and nothing else', async () => {
     render(MarketsWidget, { props: props({ view: 'bars' }) })
     flushSync()
     const ranges = screen.getByTestId('markets-ranges')
@@ -344,11 +346,8 @@ describe('MarketsWidget ranges', () => {
       '5Y',
     ])
     await fireEvent.click(ranges.querySelector('[data-range="1mo"]') as HTMLElement)
-    expect(vi.mocked(layout.setPaneState)).toHaveBeenLastCalledWith('p', {
-      symbols: [{ symbol: 'AAA' }, { symbol: 'BBB' }],
-      view: 'bars',
-      range: '1mo',
-    })
+    // Only the change is sent; the layout store keeps the rest of the pane state.
+    expect(vi.mocked(layout.patchPaneState)).toHaveBeenLastCalledWith('p', { range: '1mo' })
   })
 
   it("shows the range's change on each row, from its base", () => {

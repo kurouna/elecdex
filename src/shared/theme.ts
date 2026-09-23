@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { HEX_COLOUR, SLUG_ID } from './validate.js'
 
 /**
  * Themes: a small, validated description of the look, applied as CSS custom
@@ -12,7 +13,7 @@ import { z } from 'zod'
  * a theme contains is ever parsed as CSS or HTML.
  */
 
-const Hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'a #rrggbb colour')
+const Hex = z.string().regex(HEX_COLOUR, 'a #rrggbb colour')
 const Hue = z.number().min(0).max(360)
 const Percent = z.number().min(0).max(100)
 /** A font family list. Quotes, commas and spaces only - no url(), no semicolons. */
@@ -43,7 +44,7 @@ const AnsiColors = z
   .partial()
 
 export const ThemeSchema = z.object({
-  id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, 'lowercase letters, digits and hyphens'),
+  id: z.string().regex(SLUG_ID, 'lowercase letters, digits and hyphens'),
   name: z.string().min(1).max(60),
   author: z.string().max(60).optional(),
   /**

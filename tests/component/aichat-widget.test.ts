@@ -49,7 +49,7 @@ const delta = (textAt: number, text: string): ChatEvent => ({
 let handlers: Array<(event: ChatEvent) => void>
 let ai: Record<string, ReturnType<typeof vi.fn>>
 let openExternal: ReturnType<typeof vi.fn>
-let setPaneState: ReturnType<typeof vi.spyOn>
+let patchPaneState: ReturnType<typeof vi.spyOn>
 
 function withProvider(): void {
   appearance.settings = {
@@ -93,13 +93,13 @@ beforeEach(() => {
   }
   vi.stubGlobal('elecdex', { ai, system: { openExternal } })
   Object.assign(navigator, { clipboard: { writeText: vi.fn(async () => undefined) } })
-  setPaneState = vi.spyOn(layout, 'setPaneState').mockImplementation(() => {})
+  patchPaneState = vi.spyOn(layout, 'patchPaneState').mockImplementation(() => {})
   appearance.settings = { ...defaultSettings(), sound: { enabled: false, volume: 0 } }
 })
 
 afterEach(() => {
   cleanup()
-  setPaneState.mockRestore()
+  patchPaneState.mockRestore()
   vi.unstubAllGlobals()
 })
 
@@ -165,7 +165,7 @@ describe('AiChatWidget', () => {
       model: 'tiny',
       text: 'こんにちは',
     })
-    expect(setPaneState).toHaveBeenCalledWith('p', { chat: CHAT_ID })
+    expect(patchPaneState).toHaveBeenCalledWith('p', { chat: CHAT_ID })
     expect(input.value).toBe('')
   })
 
@@ -261,7 +261,10 @@ describe('AiChatWidget', () => {
       'true',
     )
     await fireEvent.keyDown(field, { key: 'Enter' })
-    expect(setPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'models/m-110' })
+    expect(patchPaneState).toHaveBeenLastCalledWith('p', {
+      provider: 'local',
+      model: 'models/m-110',
+    })
     expect(screen.queryByTestId('aichat-model-list')).toBeNull()
   })
 
@@ -273,22 +276,22 @@ describe('AiChatWidget', () => {
     await fireEvent.focus(field)
     await settle()
     await fireEvent.click(screen.getAllByTestId('aichat-model-option')[1] as HTMLElement)
-    expect(setPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'large' })
+    expect(patchPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'large' })
 
     // A model the list does not know is still a model: the list may be out of date.
     await fireEvent.focus(field)
     await fireEvent.input(field, { target: { value: ' my-own:7b ' } })
     await fireEvent.blur(field)
-    expect(setPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'my-own:7b' })
+    expect(patchPaneState).toHaveBeenLastCalledWith('p', { provider: 'local', model: 'my-own:7b' })
 
     // Escape closes the list and takes nothing - and is the list's, not the pane's "stop".
-    setPaneState.mockClear()
+    patchPaneState.mockClear()
     await fireEvent.focus(field)
     await fireEvent.input(field, { target: { value: 'half typed' } })
     await fireEvent.keyDown(field, { key: 'Escape' })
     expect(screen.queryByTestId('aichat-model-list')).toBeNull()
     await fireEvent.blur(field)
-    expect(setPaneState).not.toHaveBeenCalled()
+    expect(patchPaneState).not.toHaveBeenCalled()
     expect(ai.stop).not.toHaveBeenCalled()
   })
 
@@ -450,7 +453,8 @@ describe('AiChatWidget', () => {
     const again = screen.getByTestId('aichat-new') as HTMLButtonElement
     expect(again.disabled).toBe(false)
     await fireEvent.click(again)
-    expect(setPaneState).toHaveBeenLastCalledWith('p', {})
+    // Strictly, since the undefined key is how the store is told to let go of the conversation.
+    expect(patchPaneState.mock.lastCall).toStrictEqual(['p', { chat: undefined }])
   })
 
   it('a conversation whose provider was removed goes on with the one of the same name, and its model', async () => {
@@ -648,11 +652,8 @@ describe('AiChatWidget', () => {
     mount({ chat: CHAT_ID, model: 'large', provider: 'local' })
     await settle()
     await emit({ type: 'snapshot', chatId: CHAT_ID, chat: null, run: null })
-    expect(setPaneState).toHaveBeenCalledWith('p', {
-      chat: undefined,
-      model: 'large',
-      provider: 'local',
-    })
+    // Only the conversation is let go of; the provider and the model stay in the pane state.
+    expect(patchPaneState.mock.lastCall).toStrictEqual(['p', { chat: undefined }])
   })
 
   it('stops following when it goes', async () => {

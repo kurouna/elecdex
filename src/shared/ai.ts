@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { SLUG_ID } from './validate.js'
 
 /**
  * The AI chat pane: the providers a user lists, the conversations main keeps, and
@@ -39,7 +40,7 @@ export const AI_LIMITS = {
 export const AI_PROVIDER_KINDS = ['openai', 'anthropic'] as const
 export type AiProviderKind = (typeof AI_PROVIDER_KINDS)[number]
 
-export const AI_PROVIDER_ID = /^[a-z0-9][a-z0-9-]{0,39}$/
+export const AI_PROVIDER_ID = SLUG_ID
 
 /**
  * One provider in settings.json. The address is kept as typed and judged when it

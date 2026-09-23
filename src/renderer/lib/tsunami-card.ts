@@ -48,3 +48,7 @@ export function followCard(
 /** Closing the card: a lifted one goes; one in effect folds into a tab. */
 export const closeCard = (card: TsunamiCard): TsunamiCard | null =>
   card.lifted ? null : { ...card, folded: true }
+
+/** How loud a tsunami is drawn, the same in the alert banner and the quakes pane. */
+export const tsunamiTone = (value: Tsunami): 'severe' | 'moderate' =>
+  value.level === 'major' || value.level === 'warning' ? 'severe' : 'moderate'

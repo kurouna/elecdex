@@ -34,7 +34,8 @@ const MAX_TOASTS = 4
 const DEFAULT_TIMEOUT_MS = 10_000
 
 class ToastStore {
-  items = $state<Toast[]>([])
+  // Replaced whole on every change, never changed in place: no deep proxy.
+  items = $state.raw<Toast[]>([])
 
   private nextId = 1
   private timers = new Map<number, ReturnType<typeof setTimeout>>()

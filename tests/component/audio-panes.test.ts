@@ -22,7 +22,9 @@ vi.mock('../../src/renderer/widgets/audio/spectrum-draw.ts', () => ({
     paint() {}
   },
 }))
-vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({ layout: { setPaneState: vi.fn() } }))
+vi.mock('../../src/renderer/stores/layout.svelte.ts', () => ({
+  layout: { setPaneState: vi.fn(), patchPaneState: vi.fn() },
+}))
 
 const { whileVisible } = await import('../../src/renderer/widgets/audio/while-visible.ts')
 const { default: SpectrumWidget } = await import(
@@ -228,10 +230,7 @@ describe('SpectrumWidget', () => {
     const options = [...container.querySelectorAll('[data-testid=spectrum-bands]')]
     expect(options.map((b) => b.getAttribute('data-value'))).toEqual(['7', '10', '16', '31'])
     fireEvent.click(options[0] as Element)
-    expect(layout.setPaneState).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.objectContaining({ bands: 7 }),
-    )
+    expect(layout.patchPaneState).toHaveBeenLastCalledWith(expect.anything(), { bands: 7 })
   })
 
   it('groups frames into the band count its settings name', () => {

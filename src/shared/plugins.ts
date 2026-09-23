@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { PLUGIN_METRIC_SOURCE_IDS } from './metrics.js'
 import type { Block, ButtonIcon, SettingValue } from './plugin-api.js'
+import { SLUG_ID } from './validate.js'
 
 /**
  * Plugins: what main, the renderer's host and the settings share (docs/plugins.md).
@@ -13,7 +14,7 @@ import type { Block, ButtonIcon, SettingValue } from './plugin-api.js'
 export const PLUGIN_API_VERSION = 1
 
 /** A plugin id, also its storage file name and session partition: no path characters. */
-export const PLUGIN_ID = /^[a-z0-9][a-z0-9-]{0,39}$/
+export const PLUGIN_ID = SLUG_ID
 const SETTING_KEY = /^[a-zA-Z][a-zA-Z0-9_]{0,39}$/
 
 /**

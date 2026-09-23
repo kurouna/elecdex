@@ -145,7 +145,7 @@ $effect(() => {
 })
 
 function save(change: Partial<SpectrumPrefs>): void {
-  layout.setPaneState(paneId, { ...paneState, ...change })
+  layout.patchPaneState(paneId, change)
 }
 
 const problem = $derived(status === 'failed' || status === 'unsupported' || status === 'muted')

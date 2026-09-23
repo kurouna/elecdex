@@ -65,7 +65,7 @@ const sitting = (text = ''): ElecLive => ({
 })
 
 let handlers: Array<(event: ElecEvent) => void>
-let setPaneState: ReturnType<typeof vi.spyOn>
+let patchPaneState: ReturnType<typeof vi.spyOn>
 
 const send = (event: ElecEvent): void => {
   for (const handler of [...handlers]) handler(event)
@@ -145,7 +145,7 @@ beforeEach(() => {
       }),
     },
   })
-  setPaneState = vi.spyOn(layout, 'setPaneState').mockImplementation(() => {})
+  patchPaneState = vi.spyOn(layout, 'patchPaneState').mockImplementation(() => {})
   appearance.settings = {
     ...defaultSettings(),
     // Said outright, so the store does not ask the system (jsdom has no matchMedia).
@@ -169,7 +169,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  setPaneState.mockRestore()
+  patchPaneState.mockRestore()
   vi.useRealTimers()
   vi.unstubAllGlobals()
   Reflect.deleteProperty(Element.prototype, 'animate')
@@ -282,7 +282,7 @@ describe("the council's light", () => {
       thinking: '',
     })
     send({ type: 'snapshot', sessionId: ID, session: null, live: null })
-    expect(setPaneState).toHaveBeenCalled()
+    expect(patchPaneState).toHaveBeenCalled()
     snapshot(null, DECIDED)
     vi.advanceTimersByTime(HOLD_MS)
     flushSync()

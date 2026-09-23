@@ -13,6 +13,7 @@ import {
   neighbourTab,
   type Placement,
   pane,
+  patchPaneState,
   resizeSplit,
   setPaneState,
   splitPane,
@@ -656,6 +657,11 @@ class LayoutStore {
 
   setPaneState(paneId: string, state: Record<string, unknown>): void {
     this.commit(setPaneState(this.tree, paneId, state))
+  }
+
+  /** Merges a change into a pane's state as it is now (see patchPaneState); undefined removes a key. */
+  patchPaneState(paneId: string, patch: Record<string, unknown>): void {
+    this.commit(patchPaneState(this.tree, paneId, patch))
   }
 
   async reset(): Promise<void> {

@@ -84,7 +84,7 @@ const show = $derived({
 })
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.setPaneState(paneId, { ...(paneState ?? {}), ...patch })
+  layout.patchPaneState(paneId, patch)
 }
 
 let stations = $state.raw<OrbitUpdate | null>(null)

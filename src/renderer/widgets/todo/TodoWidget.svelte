@@ -156,7 +156,7 @@ const grouped = $derived.by(() => {
 })
 
 function save(change: Record<string, unknown>): void {
-  layout.setPaneState(paneId, { ...paneState, ...change })
+  layout.patchPaneState(paneId, change)
 }
 
 function add(): void {

@@ -279,30 +279,28 @@ $effect(() => {
 function setView(next: ChartView): void {
   // A list made by this change of view has not come back from anywhere.
   cameBack = false
-  layout.setPaneState(paneId, { ...paneState, view: next })
+  layout.patchPaneState(paneId, { view: next })
 }
 
 function setDetailView(next: ChartView): void {
-  if (next !== 'bars') layout.setPaneState(paneId, { ...paneState, detailView: next })
+  if (next !== 'bars') layout.patchPaneState(paneId, { detailView: next })
 }
 
 function openDetail(symbol: string): void {
-  layout.setPaneState(paneId, { ...paneState, focus: symbol })
+  layout.patchPaneState(paneId, { focus: symbol })
 }
 
 function closeDetail(): void {
-  const { focus: _left, ...rest } = paneState ?? {}
   cameBack = true
-  layout.setPaneState(paneId, rest)
+  layout.patchPaneState(paneId, { focus: undefined })
 }
 
 function toggleSort(): void {
-  const { sort: _order, ...rest } = paneState ?? {}
-  layout.setPaneState(paneId, sorted ? rest : { ...rest, sort: 'change' })
+  layout.patchPaneState(paneId, { sort: sorted ? undefined : 'change' })
 }
 
 function setRange(next: ChartRange): void {
-  layout.setPaneState(paneId, { ...paneState, range: next })
+  layout.patchPaneState(paneId, { range: next })
 }
 
 function toggleSettings(): void {
@@ -312,10 +310,7 @@ function toggleSettings(): void {
 
 function saveDraft(): void {
   const parsed = parseWatchlist(draft)
-  layout.setPaneState(paneId, {
-    ...paneState,
-    symbols: parsed.length ? parsed : [...DEFAULT_WATCHLIST],
-  })
+  layout.patchPaneState(paneId, { symbols: parsed.length ? parsed : [...DEFAULT_WATCHLIST] })
   settingsOpen = false
 }
 

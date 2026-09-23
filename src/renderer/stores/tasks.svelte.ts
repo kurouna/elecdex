@@ -1,4 +1,5 @@
 import type { NewTask, Task, TaskList, TaskPatch } from '@shared/tasks'
+import { refCounted } from '../lib/ref-counted.ts'
 
 /**
  * The tasks every tasks pane shares.
@@ -9,24 +10,13 @@ import type { NewTask, Task, TaskList, TaskPatch } from '@shared/tasks'
  * the broadcast to come back round.
  */
 class TasksStore {
-  items = $state<Task[]>([])
-  lists = $state<TaskList[]>([])
+  // Replaced whole with each change from main, never changed in place: no deep proxy.
+  items = $state.raw<Task[]>([])
+  lists = $state.raw<TaskList[]>([])
   ready = $state(false)
 
-  private users = 0
-  private stop: (() => void) | null = null
-
-  use(): () => void {
-    this.users += 1
-    if (this.users === 1) this.start()
-    return () => {
-      this.users -= 1
-      if (this.users === 0) {
-        this.stop?.()
-        this.stop = null
-      }
-    }
-  }
+  /** Called by a pane while it is mounted; returns the release. */
+  readonly use = refCounted(() => this.start())
 
   inList(listId: string): Task[] {
     return this.items.filter((task) => task.listId === listId)
@@ -95,8 +85,9 @@ class TasksStore {
     this.lists = file.lists
   }
 
-  private start(): void {
-    this.stop = window.elecdex.tasks.onChange((file) => {
+  /** Follows main's file and answers the first reading; returns how to stop. */
+  private start(): () => void {
+    const stop = window.elecdex.tasks.onChange((file) => {
       this.items = file.tasks
       this.lists = file.lists
       this.ready = true
@@ -106,6 +97,7 @@ class TasksStore {
       this.lists = file.lists
       this.ready = true
     })
+    return stop
   }
 }
 

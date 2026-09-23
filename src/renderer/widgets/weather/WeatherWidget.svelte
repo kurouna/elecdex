@@ -103,7 +103,7 @@ $effect(() => {
 })
 
 function save(change: Record<string, unknown>): void {
-  layout.setPaneState(paneId, { ...paneState, office: undefined, area: undefined, ...change })
+  layout.patchPaneState(paneId, { office: undefined, area: undefined, ...change })
 }
 
 function chooseLocation(next: WeatherLocation): void {
@@ -215,7 +215,7 @@ const openPage = (): void => void window.elecdex.system.openExternal(page)
         <input
           type="checkbox"
           checked={showWeek}
-          onchange={(e) => layout.setPaneState(paneId, { ...paneState, week: e.currentTarget.checked })}
+          onchange={(e) => layout.patchPaneState(paneId, { week: e.currentTarget.checked })}
           data-testid="weather-week-toggle"
         />
       </label>

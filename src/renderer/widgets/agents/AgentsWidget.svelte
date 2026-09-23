@@ -49,7 +49,7 @@ const listHeight = $derived(draggedHeight ?? share(paneState?.listHeight, LIST_H
 let workEl = $state<HTMLElement | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.setPaneState(paneId, { ...(paneState ?? {}), ...patch })
+  layout.patchPaneState(paneId, patch)
 }
 
 let board = $state.raw<AgentBoard | null>(null)

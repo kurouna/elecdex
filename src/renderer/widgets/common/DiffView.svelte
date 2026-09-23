@@ -1,6 +1,7 @@
 <script lang="ts">
 import { type DiffLine, type GitDiff, pairChanges, splitRows } from '@shared/git'
 import { untrack } from 'svelte'
+import { formatBytes } from '../../lib/format.ts'
 import { highlightLines, languageOf, markSpan, type Token } from '../../lib/highlight.ts'
 import ImageViewer from './ImageViewer.svelte'
 
@@ -56,13 +57,6 @@ $effect(() => {
   sizes = {}
   zoomed = null
 })
-
-const bytes = (n: number): string =>
-  n < 1024
-    ? `${n} B`
-    : n < 1024 * 1024
-      ? `${(n / 1024).toFixed(1)} KiB`
-      : `${(n / 1024 / 1024).toFixed(1)} MiB`
 
 const lines = $derived(diff?.hunks.flatMap((hunk) => hunk.lines) ?? [])
 const spans = $derived(pairChanges(lines))
@@ -253,7 +247,7 @@ function jump(step: 1 | -1): void {
               {#if image !== null}
                 {@const size = sizes[side]}
                 {#if size}<span>{size.w} × {size.h}</span>{/if}
-                <span>{bytes(image.bytes)}</span>
+                <span>{formatBytes(image.bytes)}</span>
               {/if}
             </figcaption>
             {#if image !== null}

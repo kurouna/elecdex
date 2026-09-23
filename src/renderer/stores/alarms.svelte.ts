@@ -1,4 +1,5 @@
 import type { Alarm, AlarmPatch, NewAlarm } from '@shared/alarms'
+import { refCounted } from '../lib/ref-counted.ts'
 
 /**
  * The alarms every chrono pane shares.
@@ -9,23 +10,12 @@ import type { Alarm, AlarmPatch, NewAlarm } from '@shared/alarms'
  * here is only what the pane draws.
  */
 class AlarmsStore {
-  items = $state<Alarm[]>([])
+  // Replaced whole with each change from main, never changed in place: no deep proxy.
+  items = $state.raw<Alarm[]>([])
   ready = $state(false)
 
-  private users = 0
-  private stop: (() => void) | null = null
-
-  use(): () => void {
-    this.users += 1
-    if (this.users === 1) this.start()
-    return () => {
-      this.users -= 1
-      if (this.users === 0) {
-        this.stop?.()
-        this.stop = null
-      }
-    }
-  }
+  /** Called by a pane while it is mounted; returns the release. */
+  readonly use = refCounted(() => this.start())
 
   async add(alarm: NewAlarm): Promise<Alarm | null> {
     const made = await window.elecdex.alarms.add(alarm)
@@ -57,8 +47,9 @@ class AlarmsStore {
     else this.items = this.items.map((entry) => (entry.id === alarm.id ? alarm : entry))
   }
 
-  private start(): void {
-    this.stop = window.elecdex.alarms.onChange((file) => {
+  /** Follows main's file and answers the first reading; returns how to stop. */
+  private start(): () => void {
+    const stop = window.elecdex.alarms.onChange((file) => {
       this.items = file.alarms
       this.ready = true
     })
@@ -66,6 +57,7 @@ class AlarmsStore {
       this.items = file.alarms
       this.ready = true
     })
+    return stop
   }
 }
 

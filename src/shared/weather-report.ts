@@ -1,3 +1,5 @@
+import { isOfficeCode } from './weather.js'
+
 /**
  * The weather pane's view of a forecast, whatever the source.
  *
@@ -118,8 +120,6 @@ export function placeLabel(location: WeatherLocation, report: WeatherReport | nu
 /** MET Norway refuses coordinates with more than four decimals. */
 export const roundCoordinate = (value: number): number => Math.round(value * 1e4) / 1e4
 
-const OFFICE = /^\d{6}$/
-
 /**
  * The key a location is fetched and cached under. Two panes on the same place
  * share one fetch. Only what changes the request is in it: the name is not.
@@ -160,11 +160,11 @@ export function isTimeZone(zone: string): boolean {
 }
 
 function readJma(l: Record<string, unknown>): WeatherLocation | null {
-  if (typeof l.office !== 'string' || !OFFICE.test(l.office)) return null
+  if (typeof l.office !== 'string' || !isOfficeCode(l.office)) return null
   return {
     source: 'jma',
     office: l.office,
-    ...(typeof l.area === 'string' && OFFICE.test(l.area) ? { area: l.area } : {}),
+    ...(typeof l.area === 'string' && isOfficeCode(l.area) ? { area: l.area } : {}),
     name: typeof l.name === 'string' ? l.name : l.office,
   }
 }

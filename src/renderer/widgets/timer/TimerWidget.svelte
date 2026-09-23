@@ -18,6 +18,7 @@ import {
   TIMER_STEPS,
   type TimerEntry,
 } from '@shared/timer'
+import { untrack } from 'svelte'
 import { onBoundary, onFrame } from '../../lib/frame-loop.ts'
 import { alarms } from '../../stores/alarms.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
@@ -115,8 +116,22 @@ $effect(() => {
   })
 })
 
+// A pane that holds only part of the chrono - new, or saved in an older shape - is written
+// whole once, so the defaults it was read with stay put and every save after is its change alone.
+$effect(() => {
+  untrack(() => {
+    const whole =
+      typeof paneState?.mode === 'string' &&
+      typeof paneState.stopwatch === 'object' &&
+      Array.isArray(paneState.timers)
+    if (!whole) layout.patchPaneState(paneId, { ...chrono })
+  })
+})
+
 function save(change: Partial<ChronoPane>): void {
-  layout.setPaneState(paneId, { ...paneState, ...chrono, ...change })
+  // Only what changed: the rest of `chrono` is the state as it was given, which a save made
+  // just before this one may already have moved on.
+  layout.patchPaneState(paneId, change)
 }
 
 function setTimers(next: TimerEntry[]): void {

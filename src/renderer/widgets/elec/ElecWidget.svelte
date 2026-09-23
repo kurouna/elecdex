@@ -61,7 +61,7 @@ const settings = $derived(appearance.settings.elec)
 $effect(() => elec.use())
 
 function save(change: Record<string, unknown>): void {
-  layout.setPaneState(paneId, { ...paneState, ...change })
+  layout.patchPaneState(paneId, change)
 }
 
 let view = $state.raw<ElecView>(EMPTY_ELEC_VIEW)

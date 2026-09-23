@@ -1,4 +1,5 @@
 import { onBoundary } from './frame-loop.ts'
+import { refCounted } from './ref-counted.ts'
 
 /**
  * The beat of whatever pulses for attention: a late task, a countdown's last
@@ -24,27 +25,13 @@ const phaseAt = (now: number): number => Math.floor(now / PULSE_STEP_MS) % 4
 
 class Pulse {
   phase = $state(0)
-  private users = 0
-  private stop: (() => void) | null = null
-
-  use(): () => void {
-    this.users += 1
-    if (this.users === 1) {
+  /** Steps while anything uses it; returns the release. */
+  readonly use = refCounted(() => {
+    this.phase = phaseAt(Date.now())
+    return onBoundary(PULSE_STEP_MS, () => {
       this.phase = phaseAt(Date.now())
-      this.stop = onBoundary(PULSE_STEP_MS, () => {
-        this.phase = phaseAt(Date.now())
-      })
-    }
-    let released = false
-    return () => {
-      if (released) return
-      released = true
-      this.users -= 1
-      if (this.users > 0) return
-      this.stop?.()
-      this.stop = null
-    }
-  }
+    })
+  })
 }
 
 export const pulse = new Pulse()

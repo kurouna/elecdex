@@ -448,6 +448,36 @@ export function setPaneState(
   return replaced === null ? tree : { ...tree, root: replaced }
 }
 
+/**
+ * Merges `patch` into a pane's state as the tree holds it now; a key set to
+ * undefined is removed. A widget that spread the state it was given and added
+ * its change lost an earlier change made in the same moment, since the state
+ * comes back to it as a prop only on the next render.
+ */
+export function patchPaneState(
+  tree: LayoutTree,
+  paneId: string,
+  patch: Record<string, unknown>,
+): LayoutTree {
+  const node = findNode(tree.root, paneId)
+  if (node === null || node.kind !== 'pane') return tree
+  const before = node.state ?? {}
+  const state: Record<string, unknown> = { ...before }
+  let changed = false
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) {
+      if (key in state) changed = true
+      delete state[key]
+    } else {
+      // By identity: a new object is a change, even if it holds the same values.
+      if (!Object.is(state[key], value)) changed = true
+      state[key] = value
+    }
+  }
+  // Nothing new: the same tree, so no save and no new round for what reads it.
+  return changed ? setPaneState(tree, paneId, state) : tree
+}
+
 /** The pane that should have focus: the active tab of its group, or the pane. */
 export function visiblePanes(node: LayoutNode): PaneNode[] {
   if (node.kind === 'pane') return [node]

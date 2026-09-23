@@ -1,4 +1,5 @@
 import type { AiKeyStorage, AiProviderStatus, ChatSummary } from '@shared/ai'
+import { refCounted } from '../lib/ref-counted.ts'
 
 /**
  * What every chat pane and the settings' AI section share: the list of
@@ -8,26 +9,15 @@ import type { AiKeyStorage, AiProviderStatus, ChatSummary } from '@shared/ai'
  * Reference-counted like the notes: a window with neither open listens for nothing.
  */
 class AiStore {
-  chats = $state<ChatSummary[]>([])
-  keys = $state<Record<string, AiKeyStorage>>({})
-
-  private users = 0
-  private stop: (() => void) | null = null
+  // Replaced whole with each change from main, never changed in place: no deep proxy.
+  chats = $state.raw<ChatSummary[]>([])
+  keys = $state.raw<Record<string, AiKeyStorage>>({})
 
   /** Called while a chat pane or the AI settings are mounted; returns the release. */
-  use(): () => void {
-    this.users += 1
-    if (this.users === 1) this.start()
-    return () => {
-      this.users -= 1
-      if (this.users === 0) {
-        this.stop?.()
-        this.stop = null
-      }
-    }
-  }
+  readonly use = refCounted(() => this.start())
 
-  private start(): void {
+  /** Follows main's file and answers the first reading; returns how to stop. */
+  private start(): () => void {
     const api = window.elecdex.ai
     const status = (list: AiProviderStatus[]): void => {
       this.keys = Object.fromEntries(list.map((entry) => [entry.id, entry.key]))
@@ -36,7 +26,7 @@ class AiStore {
       this.chats = list
     })
     const offProviders = api.onProviders(status)
-    this.stop = () => {
+    const stop = () => {
       offChats()
       offProviders()
     }
@@ -44,6 +34,7 @@ class AiStore {
     void api.chats().then((list) => {
       this.chats = list
     })
+    return stop
   }
 }
 

@@ -168,7 +168,7 @@ function saveDraft(): void {
     problem = `up to ${FEED_MAX_URLS} feeds`
     return
   }
-  layout.setPaneState(paneId, { ...paneState, feeds: urls })
+  layout.patchPaneState(paneId, { feeds: urls })
   editing = false
 }
 </script>

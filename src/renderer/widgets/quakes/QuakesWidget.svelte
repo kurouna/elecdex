@@ -12,10 +12,11 @@ import {
   quakeSeverity,
   USGS_QUAKE_PAGE,
 } from '@shared/quakes'
-import { type Tsunami, tsunamiLevelLabel, tsunamiSummary } from '@shared/tsunami'
+import { tsunamiLevelLabel, tsunamiSummary } from '@shared/tsunami'
 import { flip } from 'svelte/animate'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { NewAbove } from '../../lib/new-above.svelte.ts'
+import { tsunamiTone } from '../../lib/tsunami-card.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
@@ -127,9 +128,6 @@ function meta(quake: Quake): string {
   if (quake.distant) parts.push('distant')
   return parts.join(' · ')
 }
-
-const tsunamiTone = (value: Tsunami) =>
-  value.level === 'major' || value.level === 'warning' ? 'severe' : 'moderate'
 </script>
 
 <div class="quakes" data-testid="quakes" data-source={source}>

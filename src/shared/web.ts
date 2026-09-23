@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Theme } from './theme.js'
+import { HEX_COLOUR } from './validate.js'
 
 /**
  * Web panes: a page in a pane, shown by a WebContentsView that main owns
@@ -182,7 +183,7 @@ export function parseAddress(input: string): string | null {
   return httpUrl(`https://${text}`)?.toString() ?? null
 }
 
-export const HexColor = z.string().regex(/^#[0-9a-f]{6}$/i)
+export const HexColor = z.string().regex(HEX_COLOUR)
 
 /** How web pages are drawn, from the theme and settings; applied to every web pane. */
 export const WebAppearanceSchema = z.object({

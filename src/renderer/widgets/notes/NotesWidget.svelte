@@ -76,7 +76,7 @@ $effect(() => {
   if (!notes.ready) return
   const id = current?.id ?? null
   if (id === savedId) return
-  layout.setPaneState(paneId, { ...paneState, ...(id === null ? {} : { noteId: id }) })
+  layout.patchPaneState(paneId, { noteId: id ?? undefined })
   if (id === null) draft = ''
 })
 
@@ -114,7 +114,7 @@ function select(id: string): void {
   dirtyAt = null
   elsewhere = false
   switcherOpen = false
-  layout.setPaneState(paneId, { ...paneState, noteId: id })
+  layout.patchPaneState(paneId, { noteId: id })
   sfx.play('folder')
 }
 
@@ -318,7 +318,7 @@ $effect(() => {
         <input
           type="checkbox"
           checked={wrap}
-          onchange={(e) => layout.setPaneState(paneId, { ...paneState, wrap: e.currentTarget.checked })}
+          onchange={(e) => layout.patchPaneState(paneId, { wrap: e.currentTarget.checked })}
           data-testid="notes-wrap"
         />
         <span>wrap lines</span>
@@ -329,7 +329,7 @@ $effect(() => {
           <button
             type="button"
             class:on={zoom === step}
-            onclick={() => layout.setPaneState(paneId, { ...paneState, zoom: step })}
+            onclick={() => layout.patchPaneState(paneId, { zoom: step })}
             data-testid="notes-zoom"
             data-step={step}
           >
