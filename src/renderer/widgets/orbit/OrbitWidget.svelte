@@ -515,10 +515,13 @@ const TOGGLES = [
         onclick={() => setState({ [key]: !show[key] })}>{label}</button
       >
     {/each}
+    <span class="label" id="orbit-observer-label-{paneId}">OBSERVER</span>
     <button
       type="button"
       class="observer"
-      title="Where passes are worked out for"
+      title="The place the next pass is worked out for - choose another"
+      aria-labelledby="orbit-observer-label-{paneId} orbit-observer-{paneId}"
+      id="orbit-observer-{paneId}"
       data-testid="orbit-observer"
       onclick={() => (choosing = !choosing)}>⌖ {observer.name}</button
     >
@@ -700,9 +703,18 @@ const TOGGLES = [
   color: var(--text);
 }
 
-.bar .observer {
+/* What the button beside it is for; the button holds only the place, as weather's "place" does. */
+.bar .label {
   margin-left: auto;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+}
+
+.bar .observer {
   letter-spacing: 0.04em;
+  color: var(--text);
 }
 
 .map {
