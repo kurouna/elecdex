@@ -132,3 +132,37 @@ test('reads only the agents settings name, and nothing once the pane is gone', a
     removeDir(dir)
   }
 })
+
+test('keeps the width of the session list beside the diff, across a restart', async () => {
+  const { dir } = claudeFolder()
+  let launched = await launch(undefined, { layout: single, env: { ELECDEX_CLAUDE_DIR: dir } })
+  try {
+    const page = launched.page
+    await page.getByTestId('agent-card').locator('.head').click()
+    await page.getByTestId('agent-file').click()
+    await expect(page.getByTestId('agent-diff')).toBeVisible()
+    const list = page.locator('[data-testid="agents"] .list')
+    const before = (await list.boundingBox())?.width ?? 0
+
+    const handle = await page.getByTestId('agent-split-width').boundingBox()
+    if (handle === null) throw new Error('the width handle is not on screen')
+    const x = handle.x + handle.width / 2
+    const y = handle.y + handle.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 60, y)
+    await page.mouse.move(x + 120, y)
+    await page.mouse.up()
+    const after = (await list.boundingBox())?.width ?? 0
+    expect(after).toBeGreaterThan(before + 80)
+
+    launched = await launched.relaunch()
+    await expect(launched.page.getByTestId('agent-diff')).toBeVisible({ timeout: 15_000 })
+    const again =
+      (await launched.page.locator('[data-testid="agents"] .list').boundingBox())?.width ?? 0
+    expect(Math.abs(again - after)).toBeLessThan(4)
+  } finally {
+    await launched.close()
+    removeDir(dir)
+  }
+})

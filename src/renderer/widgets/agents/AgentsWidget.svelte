@@ -7,6 +7,7 @@ import { pulse } from '../../lib/pulse.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import DiffView from '../common/DiffView.svelte'
+import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -24,6 +25,24 @@ const { paneId, state: paneState }: WidgetProps = $props()
 const open = $derived(typeof paneState?.open === 'string' ? paneState.open : null)
 const fileKey = $derived(typeof paneState?.file === 'string' ? paneState.file : null)
 const split = $derived(paneState?.split === true)
+
+/**
+ * The line between the sessions and the diff, as the git pane has it: across
+ * (the list's width) when the pane is wide, down (the list's height) when it is
+ * narrow and the two are stacked. Each is kept in pane state, so each pane has
+ * its own and a restart keeps it.
+ */
+const LIST_WIDTH = { min: 0.2, max: 0.75, reset: 0.4 }
+const LIST_HEIGHT = { min: 0.15, max: 0.85, reset: 0.45 }
+const share = (value: unknown, range: { min: number; max: number; reset: number }): number =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(range.max, Math.max(range.min, value))
+    : range.reset
+let draggedWidth = $state<number | null>(null)
+let draggedHeight = $state<number | null>(null)
+const listWidth = $derived(draggedWidth ?? share(paneState?.listWidth, LIST_WIDTH))
+const listHeight = $derived(draggedHeight ?? share(paneState?.listHeight, LIST_HEIGHT))
+let workEl = $state<HTMLElement | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
   layout.setPaneState(paneId, { ...(paneState ?? {}), ...patch })
@@ -121,7 +140,14 @@ function toggle(session: AgentSession): void {
       {/each}
     </div>
   {:else}
-    <div class="list" class:opened={openSession !== null}>
+    <div
+      class="work"
+      class:with-diff={openFile !== null}
+      bind:this={workEl}
+      style:--list-width="{listWidth * 100}%"
+      style:--list-rows="minmax(0, {listHeight}fr) minmax(0, {1 - listHeight}fr)"
+    >
+    <div class="list">
       {#each board.sessions as session (session.id)}
         {@const isOpen = session.id === open}
         <section class="card" class:open={isOpen} data-status={session.status} data-testid="agent-card">
@@ -184,9 +210,41 @@ function toggle(session: AgentSession): void {
     </div>
     {#if openFile !== null}
       <div class="diff" data-testid="agent-diff">
+        <Splitter
+          axis="x"
+          edge="start"
+          value={listWidth}
+          min={LIST_WIDTH.min}
+          max={LIST_WIDTH.max}
+          reset={LIST_WIDTH.reset}
+          label="Width of the session list"
+          testid="agent-split-width"
+          within={() => workEl}
+          onmove={(next) => (draggedWidth = next)}
+          ondone={(next) => {
+            draggedWidth = null
+            setState({ listWidth: next })
+          }}
+        />
+        <Splitter
+          axis="y"
+          value={listHeight}
+          min={LIST_HEIGHT.min}
+          max={LIST_HEIGHT.max}
+          reset={LIST_HEIGHT.reset}
+          label="Height of the session list"
+          testid="agent-split-height"
+          within={() => workEl}
+          onmove={(next) => (draggedHeight = next)}
+          ondone={(next) => {
+            draggedHeight = null
+            setState({ listHeight: next })
+          }}
+        />
         <DiffView {diff} path={openFile.path} {split} onsplit={(next) => setState({ split: next })} />
       </div>
     {/if}
+    </div>
   {/if}
   <p class="credit">
     EXPERIMENTAL · read from the agents' own records on this machine, whose format is not
@@ -203,22 +261,59 @@ function toggle(session: AgentSession): void {
   min-height: 0;
 }
 
-.list {
+/*
+ * The sessions, and beside them the diff of the file chosen: across when the
+ * pane is wide, stacked when it is narrow; the line between them moves.
+ */
+.work {
+  display: grid;
   flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.work.with-diff {
+  grid-template-columns: minmax(12rem, var(--list-width, 40%)) minmax(0, 1fr);
+}
+
+.list {
+  position: relative;
   overflow: auto;
   min-height: 0;
   padding: var(--space-1) 0;
 }
 
-.list.opened {
-  flex: 0 1 auto;
-  max-height: 50%;
+.diff {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--panel-rule);
 }
 
-.diff {
-  flex: 1 1 0;
-  min-height: 8rem;
-  border-top: 1px solid var(--panel-rule);
+/* Across, the height line has nothing to divide. */
+.diff > :global(.splitter.y) {
+  display: none;
+}
+
+@container (max-width: 40rem) {
+  .work.with-diff {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--list-rows);
+  }
+
+  .diff {
+    border-left: none;
+    border-top: 1px solid var(--panel-rule);
+  }
+
+  .diff > :global(.splitter.x) {
+    display: none;
+  }
+
+  .diff > :global(.splitter.y) {
+    display: block;
+  }
 }
 
 .note,

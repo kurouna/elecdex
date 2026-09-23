@@ -22,9 +22,27 @@ interface Props {
   onmove: (share: number) => void
   ondone: (share: number) => void
   testid?: string
+  /**
+   * Which edge of its parent it sits on, across: the right (`end`, the default) or
+   * the left (`start`) - for a handle that must live in the part after the line,
+   * because the part before it scrolls and would cut it off.
+   */
+  edge?: 'start' | 'end'
 }
 
-const { axis, value, min, max, reset, label, within, onmove, ondone, testid }: Props = $props()
+const {
+  axis,
+  value,
+  min,
+  max,
+  reset,
+  label,
+  within,
+  onmove,
+  ondone,
+  testid,
+  edge = 'end',
+}: Props = $props()
 
 let dragging = $state(false)
 
@@ -76,6 +94,7 @@ function key(event: KeyboardEvent): void {
 <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 <div
   class="splitter {axis}"
+  class:start={edge === 'start'}
   class:dragging
   role="separator"
   tabindex="0"
@@ -105,6 +124,11 @@ function key(event: KeyboardEvent): void {
   bottom: 0;
   width: 7px;
   cursor: col-resize;
+}
+
+.splitter.x.start {
+  right: auto;
+  left: -4px;
 }
 
 .splitter.y {
