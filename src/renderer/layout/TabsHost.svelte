@@ -102,11 +102,15 @@ const activeTitle = $derived(
   />
   <!-- The group's header moves the whole group; a tab moves just that tab. -->
   <header
-    class="hud-label drag-handle"
+    class="hud-label pane-head drag-handle"
     {@attach dragHandle(node.id, () => activeTitle)}
+    data-testid="group-head"
   >
     <span>{activeTitle}</span>
-    <span class="keep-case">{activeMeta.subtitle ?? ''}</span>
+    <span class="keep-case pane-head-sub" data-testid="group-subtitle" title={activeMeta.subtitle ?? ''}
+      >{activeMeta.subtitle ?? ''}</span
+    >
+    <span class="pane-head-balance" aria-hidden="true"></span>
   </header>
 
   <div class="shell-frame frame">

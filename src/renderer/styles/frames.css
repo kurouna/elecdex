@@ -49,6 +49,47 @@
   text-align: right;
 }
 
+/*
+ * A pane's corner buttons (layout/PaneCorner.svelte) appear over the right end of its
+ * header on hover: ⤢ and ×, or × alone. The header keeps that room free all the time, so
+ * nothing is hidden under them and nothing moves when they appear.
+ */
+:root {
+  --corner-room: 2.5rem;
+  --corner-room-close: 1.3rem;
+}
+
+/*
+ * A shell's or a tab group's header: its title on the left, what it shows (the shell's
+ * folder, a page's title) in the middle, and a balance on the right as wide as the title's
+ * side, never narrower than the corner's buttons. A long subtitle is cut, not pushed under
+ * them.
+ */
+.pane-head > :first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pane-head > .pane-head-sub {
+  flex: 0 1 auto;
+  max-width: 60%;
+  text-align: center;
+}
+
+.pane-head > .pane-head-balance {
+  flex: 1 1 0;
+  min-width: var(--corner-room);
+}
+
+/* A module's readouts stay on the right, short of the corner's buttons. */
+.module-title.pane-head {
+  padding-right: var(--corner-room);
+}
+
+.module-title.pane-head.close-only {
+  padding-right: var(--corner-room-close);
+}
+
 /* A title that moves its pane when dragged (layout/pane-drag.svelte.ts). */
 .drag-handle {
   cursor: grab;

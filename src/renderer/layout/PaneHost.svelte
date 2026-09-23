@@ -142,14 +142,16 @@ $effect(() => () => paneMeta.clear(node.id))
   {/if}
 {/snippet}
 
-{#snippet headline()}
+<!-- A shell's header centres what it shows; a module's keeps its readouts on the right. -->
+{#snippet headline(centred: boolean)}
   <span>{title}</span>
-  <span class="sub">
+  <span class="sub" class:pane-head-sub={centred} title={meta.subtitle ?? ''}>
     {#if meta.badge}
       <em class={meta.badgeKind ?? 'danger'} data-testid="pane-badge">{meta.badge}</em>
     {/if}
     <span data-testid="pane-subtitle">{meta.subtitle ?? ''}</span>
   </span>
+  {#if centred}<span class="pane-head-balance" aria-hidden="true"></span>{/if}
 {/snippet}
 
 <section
@@ -191,8 +193,8 @@ $effect(() => () => paneMeta.clear(node.id))
     />
   {/if}
   {#if chrome === 'shell'}
-    <header class="hud-label drag-handle" {@attach dragHandle(node.id, () => title)}>
-      {@render headline()}
+    <header class="hud-label pane-head drag-handle" {@attach dragHandle(node.id, () => title)}>
+      {@render headline(true)}
     </header>
     <!-- A shell on its own still has its tab strip, so its + can start a group of tabs. -->
     <div class="shell-frame frame">
@@ -209,8 +211,12 @@ $effect(() => () => paneMeta.clear(node.id))
           data-testid="pane-drag-strip"
         ></div>
       {:else}
-        <header class="module-title drag-handle" {@attach dragHandle(node.id, () => title)}>
-          {@render headline()}
+        <header
+          class="module-title pane-head drag-handle"
+          class:close-only={!zoomable}
+          {@attach dragHandle(node.id, () => title)}
+        >
+          {@render headline(false)}
         </header>
       {/if}
       <div class="body">{@render widget()}</div>
@@ -309,6 +315,10 @@ $effect(() => () => paneMeta.clear(node.id))
   white-space: nowrap;
   text-overflow: ellipsis;
   text-transform: none;
+}
+
+.sub.pane-head-sub {
+  justify-content: center;
 }
 
 .sub em {
