@@ -11,6 +11,7 @@ import {
   isRepoPath,
   openCommand,
   parseDiffRequest,
+  parseLogRequest,
 } from '@shared/git'
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from 'electron'
 import { launchPlan, resolveOnPath, runsWhenOpened } from '../git/open.js'
@@ -129,6 +130,11 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
     isRepoId(repoId) && isCommitId(oid) ? service.commit(repoId, oid) : null,
   )
 
+  ipcMain.handle(CH.git.log, async (_event, raw: unknown) => {
+    const request = parseLogRequest(raw)
+    return request === null ? null : service.log(request)
+  })
+
   ipcMain.handle(
     CH.git.open,
     async (_event, repoId: unknown, file: unknown, line: unknown): Promise<OpenResult> => {
@@ -162,6 +168,7 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
         CH.git.recent,
         CH.git.diff,
         CH.git.commit,
+        CH.git.log,
         CH.git.open,
         CH.git.reveal,
         CH.git.watching,

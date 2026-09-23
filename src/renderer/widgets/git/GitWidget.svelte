@@ -1,19 +1,18 @@
 <script lang="ts">
-import { ago } from '@shared/ai'
 import {
   type GitArea,
   type GitDiff,
   type GitFile,
+  type GitGraphCommit,
+  type GitLogScope,
   type GitRepoRef,
   type GitState,
   isCommitId,
   isRepoId,
 } from '@shared/git'
 import { untrack } from 'svelte'
-import { flip } from 'svelte/animate'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
-import { appearance } from '../../stores/appearance.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
@@ -21,12 +20,13 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import DiffView from '../common/DiffView.svelte'
 import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
+import GitCommitCard from './GitCommitCard.svelte'
 import GitFiles from './GitFiles.svelte'
-import { landIn } from './motion.ts'
+import GitGraph from './GitGraph.svelte'
 
 /**
  * One git repository, read only: its branch, what changed, the diff of the file
- * chosen, and the last commits.
+ * chosen, and the commit graph.
  *
  * The pane knows its repository by an id (pane state `repo`), which main maps to
  * a folder in git-repos.json; main watches that folder while the pane is open
@@ -42,6 +42,8 @@ const repoId = $derived(isRepoId(paneState?.repo) ? paneState.repo : null)
 const chosen = $derived(typeof paneState?.chosen === 'string' ? paneState.chosen : null)
 const commit = $derived(isCommitId(paneState?.commit) ? paneState.commit : null)
 const split = $derived(paneState?.split === true)
+/** The graph's history: this branch with its upstream (the default), or everything. */
+const scope = $derived<GitLogScope>(paneState?.graph === 'all' ? 'all' : 'head')
 
 /**
  * The lines between the parts, as shares the user drags and the pane keeps:
@@ -60,6 +62,7 @@ let draggedLog = $state<number | null>(null)
 const listWidth = $derived(draggedWidth ?? share(paneState?.listWidth, LIST_WIDTH))
 const logShare = $derived(draggedLog ?? share(paneState?.logShare, LOG_SHARE))
 let bodyEl = $state<HTMLElement | null>(null)
+let rootEl = $state<HTMLElement | null>(null)
 let leftEl = $state<HTMLElement | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
@@ -247,6 +250,52 @@ $effect(() => {
   })
 })
 
+/**
+ * The commit the pointer rests on in the graph, where its card goes (in the
+ * pane's own pixels), and the files it changed once read. Each commit's files
+ * are read once: a commit never changes.
+ */
+let hover = $state.raw<{
+  commit: GitGraphCommit
+  at: { x: number; top: number; bottom: number }
+  bounds: { width: number; height: number }
+} | null>(null)
+let hoverFiles = $state.raw<GitFile[] | null>(null)
+const filesOf = new Map<string, GitFile[]>()
+
+function onhover(next: { commit: GitGraphCommit; row: DOMRect; x: number } | null): void {
+  if (next === null || rootEl === null || repoId === null) {
+    hover = null
+    return
+  }
+  const box = rootEl.getBoundingClientRect()
+  hover = {
+    commit: next.commit,
+    at: { x: next.x - box.left, top: next.row.top - box.top, bottom: next.row.bottom - box.top },
+    bounds: { width: box.width, height: box.height },
+  }
+  const oid = next.commit.oid
+  const known = filesOf.get(oid)
+  hoverFiles = known ?? null
+  if (known !== undefined) return
+  const id = repoId
+  void window.elecdex.git.commit(id, oid).then((list) => {
+    if (list === null || repoId !== id) return
+    filesOf.set(oid, list)
+    if (hover?.commit.oid === oid) hoverFiles = list
+  })
+}
+
+// Another repository, or the pane put away: no card stays behind, and no files are kept for it.
+$effect(() => {
+  void repoId
+  if (!visible) hover = null
+  return () => {
+    hover = null
+    filesOf.clear()
+  }
+})
+
 const counts = $derived.by(() => {
   const by: Record<GitArea, number> = { staged: 0, unstaged: 0, untracked: 0, conflicted: 0 }
   for (const file of repoState?.files ?? []) by[file.area] += 1
@@ -254,7 +303,7 @@ const counts = $derived.by(() => {
 })
 </script>
 
-<div class="git" data-testid="git" data-pane-id={paneId}>
+<div class="git" data-testid="git" data-pane-id={paneId} bind:this={rootEl}>
   {#if repoId === null || choosing}
     <div class="choose" data-testid="git-choose">
       <button type="button" class="select" data-testid="git-select" onclick={pick}
@@ -301,9 +350,9 @@ const counts = $derived.by(() => {
         >
       {/if}
       {#key repoState?.branch.oid}
-        <span class="hash" class:roll={received > 0}>{repoState?.log[0]?.short ?? ''}</span>
+        <span class="hash" class:roll={received > 0}>{repoState?.head?.short ?? ''}</span>
       {/key}
-      <span class="subject">{repoState?.log[0]?.subject ?? ''}</span>
+      <span class="subject">{repoState?.head?.subject ?? ''}</span>
       {#if (repoState?.stash ?? 0) > 0}<span class="ab">stash {repoState?.stash}</span>{/if}
       <button
         type="button"
@@ -380,26 +429,23 @@ const counts = $derived.by(() => {
               setState({ logShare: 1 - next })
             }}
           />
-          <p class="label">LOG</p>
-          {#each repoState?.log ?? [] as entry (entry.oid)}
-            <button
-              type="button"
-              class="commit"
-              class:on={entry.oid === commit}
-              data-testid="git-commit"
-              title={`${entry.author} · ${new Date(entry.time * 1000).toLocaleString()}`}
-              onclick={() => setState({ commit: entry.oid === commit ? null : entry.oid, chosen: null })}
-              in:landIn={{ still: quiet }}
-              animate:flip={{ duration: appearance.reducedMotion ? 0 : 200 }}
-            >
-              <span class="node" aria-hidden="true"></span>
-              <span class="hash">{entry.short}</span>
-              <span class="subj">{entry.subject}</span>
-              <span class="when">{ago(entry.time * 1000, now)}</span>
-            </button>
-          {:else}
-            <p class="empty">no commits yet</p>
-          {/each}
+          {#if repoId !== null}
+            {#key repoId}
+              <GitGraph
+                {repoId}
+                historyAt={repoState?.historyAt ?? 0}
+                headOid={repoState?.branch.oid ?? null}
+                selected={commit}
+                {visible}
+                {scope}
+                still={quiet}
+                {now}
+                onselect={(oid) => setState({ commit: oid === commit ? null : oid, chosen: null })}
+                onscope={(next) => setState({ graph: next === 'all' ? 'all' : undefined })}
+                {onhover}
+              />
+            {/key}
+          {/if}
         </div>
       </div>
       <div class="right">
@@ -413,12 +459,17 @@ const counts = $derived.by(() => {
         />
       </div>
     </div>
+    {#if hover !== null}
+      <GitCommitCard commit={hover.commit} files={hoverFiles} at={hover.at} bounds={hover.bounds} />
+    {/if}
   {/if}
 </div>
 
 <style>
 .git {
   container-type: inline-size;
+  /* The commit card is laid over the pane, placed in its pixels. */
+  position: relative;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100%;
@@ -667,73 +718,14 @@ const counts = $derived.by(() => {
   min-height: 0;
 }
 
+/* The graph's header stays; its rows scroll (GitGraph). */
 .log {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   position: relative;
   min-height: 0;
-  overflow: auto;
-  padding: 0 0 var(--space-1);
-  border-top: 1px solid var(--panel-rule);
-}
-
-.log .label {
-  padding: 0 var(--space-2);
-}
-
-.commit {
-  display: grid;
-  grid-template-columns: 0.9rem 4.6em minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0 0.5rem;
-  width: 100%;
-  padding: 0 var(--space-2);
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  text-align: left;
-  cursor: pointer;
-}
-
-.commit:hover,
-.commit.on {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-
-.node {
-  position: relative;
-  justify-self: center;
-  width: 0.4rem;
-  height: 0.4rem;
-  border: 1px solid var(--accent);
-  border-radius: 50%;
-}
-
-.node::after {
-  content: "";
-  position: absolute;
-  top: 0.4rem;
-  left: calc(50% - 0.5px);
-  width: 1px;
-  height: 0.8rem;
-  background: var(--accent-dim);
-}
-
-.commit:last-child .node::after {
-  display: none;
-}
-
-.subj {
   overflow: hidden;
-  color: var(--text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.empty {
-  margin: 0 var(--space-2);
-  color: var(--text-muted);
-  font-family: var(--font-ui);
+  border-top: 1px solid var(--panel-rule);
 }
 
 /* Narrow: the list above the diff, rather than a sliver beside it. */

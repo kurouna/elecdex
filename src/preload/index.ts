@@ -25,7 +25,7 @@ import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
-import type { GitDiff, GitFile, GitRepoRef, GitState } from '@shared/git'
+import type { GitDiff, GitFile, GitLog, GitRepoRef, GitState } from '@shared/git'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { SavedLayoutSummary } from '@shared/layouts'
 import { chartKey, type MarketUpdate } from '@shared/markets'
@@ -506,6 +506,7 @@ const api: ElecdexApi = {
     diff: (request) => ipcRenderer.invoke(CH.git.diff, request) as Promise<GitDiff | null>,
     commit: (repoId, oid) =>
       ipcRenderer.invoke(CH.git.commit, repoId, oid) as Promise<GitFile[] | null>,
+    log: (request) => ipcRenderer.invoke(CH.git.log, request) as Promise<GitLog | null>,
     open: (repoId, path, line) =>
       ipcRenderer.invoke(CH.git.open, repoId, path, line) as Promise<
         { ok: true } | { ok: false; message: string }

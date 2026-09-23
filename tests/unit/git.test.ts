@@ -4,15 +4,21 @@ import {
   commitFiles,
   isImagePath,
   isRepoPath,
+  LOG_MAX,
+  LOG_PAGE,
   looksBinary,
+  MAX_BODY,
   MAX_DIFF_LINES,
   openCommand,
   pairChanges,
   parseDiff,
   parseDiffRequest,
+  parseGraphLog,
   parseLog,
+  parseLogRequest,
   parseNameStatus,
   parseNumstat,
+  parseRefs,
   parseStatus,
   sniffImage,
   withCounts,
@@ -123,6 +129,64 @@ describe('git log and commits', () => {
       ['15e193e', 'first', 1_790_126_710],
     ])
     expect(parseLog('')).toEqual([])
+  })
+
+  it('reads the graph: parents, the names on each commit, and a message body', () => {
+    // As git 2.54 printed it for a merge of a branch with a tag on the merge (--decorate=full, -z).
+    const output =
+      'eca456646bdb530f5fc886a5a15ce7d9cac7095a\x1feca4566\x1fba6e110db88bf49abddaa731fab2f02f0303204 18baaf06e1c17975c725b2fda3b4ae1f0888d250\x1fT\x1f1790174061\x1fHEAD -> refs/heads/main, tag: refs/tags/v1\x1fMerge f\x1f\0' +
+      '18baaf06e1c17975c725b2fda3b4ae1f0888d250\x1f18baaf0\x1fba6e110db88bf49abddaa731fab2f02f0303204\x1fT\x1f1790174061\x1frefs/heads/f\x1ffeat: on f\x1fThe body line one.\nLine two.\n\0' +
+      'ba6e110db88bf49abddaa731fab2f02f0303204\x1fba6e110\x1f\x1fT\x1f1790174061\x1f\x1ffirst\x1f\0'
+    const commits = parseGraphLog(output)
+    expect(commits.map((c) => [c.short, c.parents.length, c.subject])).toEqual([
+      ['eca4566', 2, 'Merge f'],
+      ['18baaf0', 1, 'feat: on f'],
+      ['ba6e110', 0, 'first'],
+    ])
+    expect(commits[0]?.refs).toEqual([
+      { name: 'main', kind: 'branch', current: true },
+      { name: 'v1', kind: 'tag', current: false },
+    ])
+    expect(commits[1]?.refs).toEqual([{ name: 'f', kind: 'branch', current: false }])
+    expect(commits[1]?.body).toBe('The body line one.\nLine two.')
+    expect(parseGraphLog('')).toEqual([])
+  })
+
+  it('tells a local branch from a remote one by its full name, and leaves out a remote HEAD', () => {
+    expect(
+      parseRefs(
+        'refs/remotes/origin/main, refs/remotes/origin/HEAD, tag: refs/tags/v0.0.14, refs/heads/feature/x',
+      ),
+    ).toEqual([
+      { name: 'feature/x', kind: 'branch', current: false },
+      { name: 'origin/main', kind: 'remote', current: false },
+      { name: 'v0.0.14', kind: 'tag', current: false },
+    ])
+    expect(parseRefs('HEAD, refs/heads/main')[0]).toEqual({
+      name: 'HEAD',
+      kind: 'head',
+      current: true,
+    })
+  })
+
+  it('cuts a long message body, which is drawn as text', () => {
+    const body = 'x'.repeat(MAX_BODY + 50)
+    const [commit] = parseGraphLog(
+      `ba6e110db88bf49abddaa731fab2f02f0303204\x1fba6e110\x1f\x1fT\x1f1\x1f\x1fs\x1f${body}\0`,
+    )
+    expect(commit?.body).toHaveLength(MAX_BODY)
+  })
+
+  it('takes a graph request for one of its repositories, in whole pages', () => {
+    const ok = { repoId: '0123456789abcdef', scope: 'all', count: 100 }
+    expect(parseLogRequest(ok)).toEqual(ok)
+    expect(parseLogRequest({ ...ok, count: 250 })?.count).toBe(300)
+    expect(parseLogRequest({ ...ok, count: 1 })?.count).toBe(LOG_PAGE)
+    expect(parseLogRequest({ ...ok, count: 10 ** 9 })?.count).toBe(LOG_MAX)
+    expect(parseLogRequest({ ...ok, scope: '--all' })).toBeNull()
+    expect(parseLogRequest({ ...ok, repoId: '../x' })).toBeNull()
+    expect(parseLogRequest({ ...ok, count: 1.5 })).toBeNull()
+    expect(parseLogRequest(null)).toBeNull()
   })
 
   it('gives a commit its files with their real codes', () => {

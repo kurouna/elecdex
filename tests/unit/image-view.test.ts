@@ -4,6 +4,7 @@ import {
   fitView,
   MAX_SCALE,
   minScale,
+  pairLayout,
   panBy,
   wheelFactor,
   zoomAt,
@@ -55,5 +56,42 @@ describe('the image viewer', () => {
     expect(wheelFactor(100, 0)).toBeLessThan(1)
     expect(wheelFactor(3, 1)).toBeCloseTo(wheelFactor(48, 0))
     expect(wheelFactor(-10, 2)).toBeCloseTo(Math.exp(0.9))
+  })
+})
+
+describe('before and after, side by side or one above the other', () => {
+  const chrome = { pad: 8, gap: 8, caption: 20, frame: 16 }
+  // The screenshot the pane was reported with: two 1360 x 880 shots in a diff 660 px wide, 950 tall.
+  const shot = { w: 1360, h: 880 }
+
+  it('stacks two wide images in a tall, narrow diff, where they are drawn larger', () => {
+    const layout = pairLayout([shot, shot], { w: 660, h: 950 }, chrome)
+    expect(layout.direction).toBe('column')
+    // Stacked, each is drawn about twice the width it had beside the other.
+    const beside = pairLayout([shot, shot], { w: 660, h: 950 }, { ...chrome, gap: 10_000 })
+    expect(layout.cell.w).toBeGreaterThan(600)
+    expect(beside.direction).toBe('column')
+  })
+
+  it('keeps them side by side where the diff is wide, and for tall images', () => {
+    expect(pairLayout([shot, shot], { w: 1600, h: 500 }, chrome).direction).toBe('row')
+    const tall = { w: 400, h: 1200 }
+    expect(pairLayout([tall, tall], { w: 660, h: 950 }, chrome).direction).toBe('row')
+  })
+
+  it('keeps small images side by side: drawn at their own size either way', () => {
+    const icon = { w: 32, h: 32 }
+    expect(pairLayout([icon, icon], { w: 300, h: 900 }, chrome).direction).toBe('row')
+  })
+
+  it('goes by the image it knows while the other loads, or is not there', () => {
+    expect(pairLayout([null, shot], { w: 660, h: 950 }, chrome).direction).toBe('column')
+    expect(pairLayout([null, null], { w: 660, h: 950 }, chrome)).toMatchObject({ direction: 'row' })
+  })
+
+  it('never gives an image less than a sliver of room', () => {
+    const { cell } = pairLayout([shot], { w: 20, h: 20 }, chrome)
+    expect(cell.w).toBeGreaterThanOrEqual(32)
+    expect(cell.h).toBeGreaterThanOrEqual(32)
   })
 })

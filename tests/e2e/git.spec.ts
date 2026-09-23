@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { crc32, deflateSync } from 'node:zlib'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { launch, removeDir } from './support.js'
 
@@ -378,5 +379,155 @@ test("runs none of the programs a repository's own config names, reading it or i
     await close()
     removeDir(repo)
     for (const file of [marker, `${marker}.cjs`, `${marker}.sh`]) removeDir(file)
+  }
+})
+
+test('draws the commit graph with its branches and names, and shows a commit on a rest', async () => {
+  const repo = makeRepo()
+  // A branch merged back with a message body, a tag on the merge, and a branch not merged.
+  git(repo, 'checkout', '-q', '-b', 'feature')
+  writeFileSync(path.join(repo, 'feature.ts'), 'export const on = true\n')
+  git(repo, 'add', '.')
+  git(repo, 'commit', '-q', '-m', 'add the feature', '-m', 'Why it is here.\nAnd how.')
+  git(repo, 'checkout', '-q', 'main')
+  git(repo, 'merge', '-q', '--no-ff', 'feature', '-m', 'merge the feature')
+  git(repo, 'tag', 'v1.0')
+  git(repo, 'checkout', '-q', '-b', 'side')
+  git(repo, 'commit', '-q', '--allow-empty', '-m', 'on the side')
+  git(repo, 'checkout', '-q', 'main')
+  const { app, page, close } = await launch(undefined, { layout: single })
+  try {
+    await watchRepo(page, app, repo)
+    const commits = page.getByTestId('git-commit')
+    // This branch: the side branch is not in it.
+    await expect(commits).toHaveCount(3)
+    await expect(commits.first()).toContainText('merge the feature')
+    await expect(page.locator('[data-testid="git-ref"][data-kind="tag"]')).toHaveText('◆ v1.0')
+    await expect(commits.first().locator('[data-testid="git-ref"]').first()).toHaveClass(/current/)
+    await expect(page.locator('[data-testid="git-node"][data-merge="true"]')).toHaveCount(1)
+
+    // Every branch: the side branch's commit, on a lane of its own.
+    await page.getByTestId('git-scope-all').click()
+    await expect(commits).toHaveCount(4)
+    await expect(commits.first()).toContainText('on the side')
+
+    // A rest on a commit: the whole of it, the body as written and what it changed.
+    await commits.filter({ hasText: 'add the feature' }).hover()
+    const card = page.getByTestId('git-card')
+    await expect(card).toBeVisible()
+    await expect(page.getByTestId('git-card-body')).toHaveText('Why it is here.\nAnd how.')
+    await expect(page.getByTestId('git-card-files')).toContainText('1 file changed · +1 −0')
+    await page.mouse.move(2, 2)
+    await expect(card).toHaveCount(0)
+
+    // A tag made outside: HEAD has not moved, and the graph still shows it.
+    git(repo, 'tag', 'v1.1', 'HEAD~1')
+    await expect(page.locator('[data-testid="git-ref"][data-kind="tag"]')).toHaveCount(2, {
+      timeout: 10_000,
+    })
+  } finally {
+    await close()
+    removeDir(repo)
+  }
+})
+
+test('reads a hundred commits at first, and more when asked', async () => {
+  const repo = makeRepo()
+  // 120 commits more, written straight into the repository: quicker than 120 commit commands.
+  const lines = ['reset refs/heads/main', 'from refs/heads/main^0']
+  for (let i = 1; i <= 120; i++) {
+    const message = `commit ${i}`
+    lines.push(
+      'commit refs/heads/main',
+      `committer Test <test@example.test> ${1_790_000_000 + i} +0000`,
+      `data ${Buffer.byteLength(message)}`,
+      message,
+    )
+  }
+  execFileSync('git', ['fast-import', '--quiet'], { cwd: repo, input: `${lines.join('\n')}\n` })
+  git(repo, 'reset', '-q', '--hard', 'main')
+  const { app, page, close } = await launch(undefined, { layout: single })
+  try {
+    await watchRepo(page, app, repo)
+    const commits = page.getByTestId('git-commit')
+    await expect(commits).toHaveCount(100)
+    await page.getByTestId('git-more').click()
+    await expect(commits).toHaveCount(121)
+    await expect(page.getByTestId('git-more')).toHaveCount(0)
+  } finally {
+    await close()
+    removeDir(repo)
+  }
+})
+
+/** A solid PNG of the given size, made here: a screenshot's shape without a screenshot's bytes. */
+function solidPng(width: number, height: number, rgb: [number, number, number]): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type), data])
+    const out = Buffer.alloc(12 + data.length)
+    out.writeUInt32BE(data.length, 0)
+    body.copy(out, 4)
+    out.writeUInt32BE(crc32(body), 8 + data.length)
+    return out
+  }
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0)
+  header.writeUInt32BE(height, 4)
+  header.set([8, 2, 0, 0, 0], 8)
+  const row = Buffer.concat([Buffer.from([0]), Buffer.from(Array(width).fill(rgb).flat())])
+  const pixels = deflateSync(Buffer.concat(Array(height).fill(row)))
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', pixels),
+    chunk('IEND', Buffer.alloc(0)),
+  ])
+}
+
+test('puts two wide images one above the other in a tall, narrow diff, and side by side in a wide one', async () => {
+  const repo = makeRepo()
+  writeFileSync(path.join(repo, 'shot.png'), solidPng(1360, 880, [200, 40, 40]))
+  git(repo, 'add', 'shot.png')
+  git(repo, 'commit', '-q', '-m', 'a screenshot')
+  // The git pane a narrow column beside the clock: its diff is tall and narrow.
+  const narrow = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [0.62, 0.38],
+      children: [
+        { kind: 'pane', id: 'c', widget: 'clock' },
+        { kind: 'pane', id: 'g', widget: 'git' },
+      ],
+    },
+  }
+  const { app, page, close } = await launch(undefined, { layout: narrow })
+  try {
+    await page.setViewportSize({ width: 1920, height: 1080 })
+    await watchRepo(page, app, repo)
+    writeFileSync(path.join(repo, 'shot.png'), solidPng(1360, 880, [40, 40, 200]))
+    const row = page.locator('[data-testid="git-file"][data-path="shot.png"]')
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await row.click()
+    const pair = page.getByTestId('diff-images')
+    await expect(page.getByTestId('diff-image')).toHaveCount(2)
+    await expect(pair).toHaveAttribute('data-direction', 'column')
+    const [top, bottom] = await page
+      .getByTestId('diff-image')
+      .evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()))
+    // One above the other, each wider than half the diff would have allowed.
+    expect(bottom.top).toBeGreaterThan(top.bottom)
+    const body = await page.getByTestId('diff-body').boundingBox()
+    expect(top.width).toBeGreaterThan((body?.width ?? 0) * 0.6)
+
+    // Brought forward in a short window, the diff is wide and low: side by side again.
+    await page.setViewportSize({ width: 1920, height: 640 })
+    await page.locator('[data-testid=pane][data-widget=git]').getByTestId('pane-zoom').click()
+    await expect(pair).toHaveAttribute('data-direction', 'row', { timeout: 5000 })
+  } finally {
+    await close()
+    removeDir(repo)
   }
 })

@@ -8,18 +8,21 @@ import {
   type GitDiffRequest,
   type GitFile,
   type GitImage,
+  type GitLog,
+  type GitLogRequest,
   type GitOperation,
   type GitRepoRef,
   type GitState,
+  GRAPH_FORMAT,
   isImagePath,
   LOG_FORMAT,
-  LOG_LENGTH,
   looksBinary,
   MAX_FILES,
   MAX_IMAGE_BYTES,
   MAX_UNTRACKED_BYTES,
   OPERATION_MARKERS,
   parseDiff,
+  parseGraphLog,
   parseLog,
   parseNameStatus,
   parseNumstat,
@@ -97,6 +100,8 @@ interface Watched {
   pendingSince: number | null
   /** Working-tree paths changed since the last reading started (forward slashes), or 'all'. */
   touched: Set<string> | 'all'
+  /** A ref moved since the last reading began (a branch, a tag, a fetch): the graph is stale. */
+  refsMoved: boolean
   /** `-c` pairs that empty the filters this repository's own config defines. */
   guard: string[]
   state: GitState
@@ -108,6 +113,10 @@ interface Watched {
  * emptied here. Its commit moving still shows.
  */
 const SUBMODULES = '--ignore-submodules=dirty'
+
+/** Changes in the git folder that move the history the graph shows: HEAD, a ref, the packed refs. */
+const movesHistory = (inGitDir: string): boolean =>
+  /^(HEAD|packed-refs|refs([/].*)?)$/.test(inGitDir.split(path.sep).join('/'))
 const DIFF_FLAGS = ['--no-color', '--no-ext-diff', '--no-textconv', SUBMODULES, '-M', '-U3']
 
 /**
@@ -180,6 +189,7 @@ export class GitService {
       lastStart: 0,
       pendingSince: null,
       touched: new Set(),
+      refsMoved: false,
       guard: [],
       state: { ...emptyState(id), repo: ref },
     }
@@ -259,13 +269,16 @@ export class GitService {
       const inGit = pathIn(insideRoot, relative)
       if (!changeMatters(relative, inGit)) return
       if (inGit === null) this.touch(entry, relative)
+      else if (movesHistory(inGit)) entry.refsMoved = true
       this.changed(entry)
     })
     if (rootWatch !== null) entry.watches.push(rootWatch)
     // A linked worktree keeps its git folder elsewhere; its index and HEAD are there.
     if (insideRoot.startsWith('..') || path.isAbsolute(insideRoot)) {
       const gitWatch = this.deps.watch(gitDir, (relative) => {
-        if (changeMatters(relative, relative)) this.changed(entry)
+        if (!changeMatters(relative, relative)) return
+        if (movesHistory(relative)) entry.refsMoved = true
+        this.changed(entry)
       })
       if (gitWatch !== null) entry.watches.push(gitWatch)
     }
@@ -313,8 +326,10 @@ export class GitService {
     entry.lastStart = this.deps.now()
     const touched = entry.touched
     entry.touched = new Set()
+    const refsMoved = entry.refsMoved
+    entry.refsMoved = false
     try {
-      const next = await this.reading(entry)
+      const next = await this.reading(entry, refsMoved)
       // A listed file written again with the same counts is a new diff all the same.
       const rewritten =
         touched === 'all'
@@ -366,7 +381,7 @@ export class GitService {
     return { ...base, problem: 'failed', message: gitError(result) }
   }
 
-  private async reading(entry: Watched): Promise<GitState> {
+  private async reading(entry: Watched, refsMoved = false): Promise<GitState> {
     const status = await this.git(entry, [
       'status',
       '--porcelain=v2',
@@ -392,7 +407,7 @@ export class GitService {
         '-M',
       ]),
       headMoved && parsed.branch.oid !== null
-        ? this.git(entry, ['log', `-n${LOG_LENGTH}`, '-z', `--format=${LOG_FORMAT}`])
+        ? this.git(entry, ['log', '-n1', '-z', `--format=${LOG_FORMAT}`])
         : Promise.resolve(null),
     ])
     let files = withCounts(parsed.files, 'unstaged', parseNumstat(unstaged.stdout))
@@ -405,8 +420,13 @@ export class GitService {
       operation: this.operation(entry.gitDir),
       files: files.slice(0, MAX_FILES),
       dropped: Math.max(0, files.length - MAX_FILES),
-      log:
-        log === null ? (parsed.branch.oid === null ? [] : entry.state.log) : parseLog(log.stdout),
+      head:
+        log === null
+          ? parsed.branch.oid === null
+            ? null
+            : entry.state.head
+          : (parseLog(log.stdout)[0] ?? null),
+      historyAt: headMoved || refsMoved ? this.deps.now() : entry.state.historyAt,
       readAt: this.deps.now(),
     }
   }
@@ -520,6 +540,45 @@ export class GitService {
         after: side(after, 'after'),
         note: notes.join('; ') || null,
       },
+    }
+  }
+
+  /**
+   * The commits for the graph, newest first, children before their parents
+   * (`--topo-order`), each with its parents and the names pointing at it. HEAD's
+   * history with its upstream's, or every branch, tag and remote; one more than
+   * asked for says whether there are older ones.
+   */
+  async log(request: GitLogRequest): Promise<GitLog | null> {
+    const entry = this.watched.get(request.repoId)
+    if (entry === undefined) return null
+    const empty = { repoId: request.repoId, scope: request.scope, commits: [], more: false }
+    if (entry.state.branch.oid === null) return empty
+    const upstream = entry.state.branch.upstream !== null ? ['@{upstream}'] : []
+    const tips =
+      request.scope === 'all'
+        ? ['--branches', '--tags', '--remotes', 'HEAD']
+        : ['HEAD', ...upstream]
+    const run = (from: string[]) =>
+      this.git(entry, [
+        'log',
+        '--topo-order',
+        `-n${request.count + 1}`,
+        '-z',
+        '--decorate=full',
+        `--format=${GRAPH_FORMAT}`,
+        ...from,
+        '--',
+      ])
+    let result = await run(tips)
+    // An upstream that has gone (deleted on the remote, pruned) is no reason to show nothing.
+    if (!result.ok && upstream.length > 0 && request.scope === 'head') result = await run(['HEAD'])
+    if (!result.ok) return empty
+    const commits = parseGraphLog(result.stdout)
+    return {
+      ...empty,
+      commits: commits.slice(0, request.count),
+      more: commits.length > request.count,
     }
   }
 

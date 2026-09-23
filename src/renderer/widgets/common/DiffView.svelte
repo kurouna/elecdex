@@ -3,6 +3,7 @@ import { type DiffLine, type GitDiff, pairChanges, splitRows } from '@shared/git
 import { untrack } from 'svelte'
 import { formatBytes } from '../../lib/format.ts'
 import { highlightLines, languageOf, markSpan, type Token } from '../../lib/highlight.ts'
+import { pairLayout } from '../../lib/image-view.ts'
 import ImageViewer from './ImageViewer.svelte'
 
 /**
@@ -51,6 +52,31 @@ let viewer = $state<ReturnType<typeof ImageViewer> | null>(null)
 let viewScale = $state(1)
 /** The picture to show alone, while the diff still has one on that side. */
 const alone = $derived(zoomed !== null && diff?.images ? diff.images[zoomed] : null)
+/**
+ * The diff body's size, from its ResizeObserver entry, while it shows an image
+ * change: the pair goes side by side or one above the other, whichever draws
+ * them larger (`pairLayout`), and follows the pane as it is resized.
+ */
+let bodySize = $state.raw<{ w: number; h: number } | null>(null)
+const showsPair = $derived(diff?.images !== undefined && alone === null)
+$effect(() => {
+  const element = body
+  if (element === null || !showsPair) return
+  const observer = new ResizeObserver(([entry]) => {
+    if (entry === undefined) return
+    const { width, height } = entry.contentRect
+    if (bodySize?.w !== width || bodySize?.h !== height) bodySize = { w: width, h: height }
+  })
+  observer.observe(element)
+  return () => observer.disconnect()
+})
+/** In CSS pixels, as the pair's CSS lays it out: its padding and gap, a caption's line, a frame. */
+const PAIR_CHROME = { pad: 12, gap: 12, caption: 22, frame: 16 }
+const pair = $derived(
+  bodySize === null
+    ? null
+    : pairLayout([sizes.before ?? null, sizes.after ?? null], bodySize, PAIR_CHROME),
+)
 // Forgotten for another file only: a new reading of the same image keeps its <img>, which does not load again.
 $effect(() => {
   void path
@@ -239,7 +265,14 @@ function jump(step: 1 | -1): void {
       />
     {:else if diff.images}
       {@const images = diff.images}
-      <div class="images" data-testid="diff-images">
+      <div
+        class="images"
+        class:stacked={pair?.direction === 'column'}
+        data-testid="diff-images"
+        data-direction={pair?.direction ?? 'row'}
+        style:--cell-w={pair ? `${pair.cell.w}px` : null}
+        style:--cell-h={pair ? `${pair.cell.h}px` : null}
+      >
         {#each [['BEFORE', images.before, 'before'], ['AFTER', images.after, 'after']] as const as [label, image, side] (side)}
           <figure class="side" data-side={side}>
             <figcaption>
@@ -508,8 +541,13 @@ function jump(step: 1 | -1): void {
 .images {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-2);
-  padding: var(--space-2);
+  gap: 12px;
+  padding: 12px;
+}
+
+/* One above the other, where that draws them larger (pairLayout). */
+.images.stacked {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .side {
@@ -563,10 +601,11 @@ function jump(step: 1 | -1): void {
   outline: none;
 }
 
+/* As large as its cell allows, and never larger than the image itself. */
 .frame img {
   display: block;
-  max-width: 100%;
-  max-height: 60vh;
+  max-width: min(100%, var(--cell-w, 100%));
+  max-height: var(--cell-h, 60vh);
   image-rendering: auto;
 }
 

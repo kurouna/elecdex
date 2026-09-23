@@ -80,15 +80,19 @@ export interface GitState {
   files: GitFile[]
   /** Files left out of `files` by the cap. */
   dropped: number
-  log: GitCommit[]
+  /** The commit HEAD is at, for the header; the graph asks for its own (`GitApi.log`). */
+  head: GitCommit | null
+  /**
+   * When the history last moved - HEAD, a branch, a tag or a remote - ms since the
+   * epoch: a pane reads its graph again when this changes, and only then.
+   */
+  historyAt: number
   /** When main last read the repository, ms since the epoch; 0 before the first read. */
   readAt: number
 }
 
 /** Rows sent to the page; a checkout of a generated tree can change thousands. */
 export const MAX_FILES = 500
-/** Commits in the log. */
-export const LOG_LENGTH = 30
 /** Lines of one diff drawn before it is cut. */
 export const MAX_DIFF_LINES = 3000
 /** An untracked file larger than this is not read to show it. */
@@ -113,7 +117,8 @@ export function emptyState(repoId: string, problem: GitProblem | null = null): G
     stash: 0,
     files: [],
     dropped: 0,
-    log: [],
+    head: null,
+    historyAt: 0,
     readAt: 0,
   }
 }
@@ -329,6 +334,115 @@ export function parseLog(output: string): GitCommit[] {
     })
   }
   return commits
+}
+
+// ---------------------------------------------------------------------------
+// The graph: commits with their parents and the names that point at them
+// ---------------------------------------------------------------------------
+
+/** Which history the graph shows: HEAD's, with its upstream, or every branch, tag and remote. */
+export type GitLogScope = 'head' | 'all'
+
+/** A name pointing at a commit. `current` is the branch checked out; a detached HEAD is kind `head`. */
+export interface GitRef {
+  name: string
+  kind: 'head' | 'branch' | 'remote' | 'tag'
+  current: boolean
+}
+
+export interface GitGraphCommit extends GitCommit {
+  parents: string[]
+  refs: GitRef[]
+  /** The message after its subject, cut to MAX_BODY. Untrusted text: drawn as text. */
+  body: string
+}
+
+export interface GitLogRequest {
+  repoId: string
+  scope: GitLogScope
+  /** How many commits, LOG_PAGE at a time up to LOG_MAX. */
+  count: number
+}
+
+export interface GitLog {
+  repoId: string
+  scope: GitLogScope
+  commits: GitGraphCommit[]
+  /** There are older commits than these. */
+  more: boolean
+}
+
+/** Commits the graph reads at first, and adds each time more are asked for. */
+export const LOG_PAGE = 100
+export const LOG_MAX = 2000
+/** A message body's length shown on hover; a longer one is cut. */
+export const MAX_BODY = 2000
+
+/**
+ * The format `parseGraphLog` reads, with `--decorate=full` so a local branch and a
+ * remote one are told apart by their full names, not by a slash in them.
+ */
+export const GRAPH_FORMAT = '%H%x1f%h%x1f%P%x1f%an%x1f%at%x1f%D%x1f%s%x1f%b'
+
+/** `%D` with full names: `HEAD -> refs/heads/main, refs/remotes/origin/main, tag: refs/tags/v1`. */
+export function parseRefs(decoration: string): GitRef[] {
+  const refs: GitRef[] = []
+  for (const raw of decoration.split(', ')) {
+    const part = raw.trim()
+    if (part === '') continue
+    if (part === 'HEAD') {
+      refs.push({ name: 'HEAD', kind: 'head', current: true })
+      continue
+    }
+    const current = part.startsWith('HEAD -> ')
+    const full = current ? part.slice('HEAD -> '.length) : part.replace(/^tag: /, '')
+    const ref = namedRef(full, current)
+    if (ref !== null) refs.push(ref)
+  }
+  // The branch checked out first, then branches, remotes, tags: the order the eye wants.
+  const order = { head: 0, branch: 1, remote: 2, tag: 3 }
+  return refs.sort((a, b) => Number(b.current) - Number(a.current) || order[a.kind] - order[b.kind])
+}
+
+function namedRef(full: string, current: boolean): GitRef | null {
+  if (full.startsWith('refs/heads/')) return { name: full.slice(11), kind: 'branch', current }
+  if (full.startsWith('refs/tags/')) return { name: full.slice(10), kind: 'tag', current: false }
+  // A remote's HEAD only says which of its branches is the default: not a name to show.
+  if (full.startsWith('refs/remotes/') && !full.endsWith('/HEAD'))
+    return { name: full.slice(13), kind: 'remote', current: false }
+  return null
+}
+
+export function parseGraphLog(output: string): GitGraphCommit[] {
+  const commits: GitGraphCommit[] = []
+  for (const record of output.split('\0')) {
+    const [oid, short, parents, author, time, refs, subject, ...body] = record
+      .replace(/^\n/, '')
+      .split('\x1f')
+    if (oid === undefined || !isCommitId(oid) || short === undefined) continue
+    const text = body.join('\x1f').trim()
+    commits.push({
+      oid,
+      short,
+      parents: (parents ?? '').split(' ').filter(isCommitId),
+      author: author ?? '',
+      time: Number(time) || 0,
+      refs: parseRefs(refs ?? ''),
+      subject: subject ?? '',
+      body: text.length > MAX_BODY ? `${text.slice(0, MAX_BODY - 1)}…` : text,
+    })
+  }
+  return commits
+}
+
+/** What the page may ask for: one of main's repositories, a scope, and a count in whole pages. */
+export function parseLogRequest(raw: unknown): GitLogRequest | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const { repoId, scope, count } = raw as Record<string, unknown>
+  if (!isRepoId(repoId) || (scope !== 'head' && scope !== 'all')) return null
+  if (typeof count !== 'number' || !Number.isInteger(count)) return null
+  const pages = Math.min(LOG_MAX, Math.max(LOG_PAGE, count))
+  return { repoId, scope, count: Math.ceil(pages / LOG_PAGE) * LOG_PAGE }
 }
 
 /**

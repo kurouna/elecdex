@@ -51,7 +51,14 @@ const LOCAL_FILTER = [
   'local\tfilter.x.required true',
 ].join('\n')
 
-function harness(options: { known?: boolean; config?: string } = {}): Harness {
+/** Two commits as `git log` prints the graph's format: a tip with the branch on it, and the root. */
+const GRAPH =
+  'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\x1fbbbbbbb\x1faaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1fme\x1f2\x1fHEAD -> refs/heads/main\x1ftip\x1f\0' +
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\x1faaaaaaa\x1f\x1fme\x1f1\x1f\x1froot\x1f\0'
+
+function harness(
+  options: { known?: boolean; config?: string; upstreamGone?: boolean } = {},
+): Harness {
   let now = 1_000_000
   const timers: { at: number; fn: () => void }[] = []
   const listeners: ((relative: string) => void)[] = []
@@ -66,6 +73,14 @@ function harness(options: { known?: boolean; config?: string } = {}): Harness {
     missing: false,
     tooLarge: false,
   })
+  /** HEAD's commit for the header, or the graph; an upstream that has gone fails as git does. */
+  const log = (args: readonly string[]): GitResult => {
+    if (!args.includes('--topo-order'))
+      return ok('aaaaaaaaaaaaaaaa\x1faaaaaaa\x1fme\x1f1\x1ffirst\0')
+    if (options.upstreamGone && args.includes('@{upstream}'))
+      return { ok: false, stdout: '', stderr: 'no upstream', missing: false, tooLarge: false }
+    return ok(GRAPH)
+  }
   const service = new GitService({
     run: async (_cwd, args) => {
       calls.push([...args])
@@ -74,7 +89,7 @@ function harness(options: { known?: boolean; config?: string } = {}): Harness {
       if (command === 'rev-parse') return ok(`${path.join(ROOT, '.git')}\n`)
       if (command === 'config') return ok(options.config ?? '')
       if (command === 'status') return ok(status.output)
-      if (command === 'log') return ok('aaaaaaaaaaaaaaaa\x1faaaaaaa\x1fme\x1f1\x1ffirst\0')
+      if (command === 'log') return log(args)
       return ok('')
     },
     repo: (id) => (id === ID && options.known !== false ? { id, name: 'app', path: ROOT } : null),
@@ -144,7 +159,66 @@ describe('the git service', () => {
       branch: { head: 'main' },
       problem: null,
     })
-    expect(h.published.at(-1)?.log[0]?.subject).toBe('first')
+    expect(h.published.at(-1)?.head?.subject).toBe('first')
+    expect(h.published.at(-1)?.historyAt).toBeGreaterThan(0)
+  })
+
+  it('reads the graph for HEAD with its upstream, or for every branch, tag and remote', async () => {
+    const h = harness()
+    h.status.output = '# branch.oid aaaaaaa\0# branch.head main\0# branch.upstream origin/main\0'
+    h.service.watch(ID)
+    await h.advance(0)
+    const head = await h.service.log({ repoId: ID, scope: 'head', count: 100 })
+    const all = await h.service.log({ repoId: ID, scope: 'all', count: 200 })
+    const logs = h.calls.filter((args) => args.includes('--topo-order'))
+    expect(logs[0]?.slice(-3)).toEqual(['HEAD', '@{upstream}', '--'])
+    expect(logs[0]).toEqual(expect.arrayContaining(['-n101', '--decorate=full', '-z']))
+    expect(logs[1]?.slice(-5)).toEqual(['--branches', '--tags', '--remotes', 'HEAD', '--'])
+    expect(logs[1]).toContain('-n201')
+    expect(head?.commits.map((c) => c.subject)).toEqual(['tip', 'root'])
+    expect(head?.commits[0]?.refs[0]).toMatchObject({ name: 'main', current: true })
+    expect(all?.more).toBe(false)
+    // Asked for no more than there are, it says there are more when git gave one extra.
+    expect((await h.service.log({ repoId: ID, scope: 'head', count: 1 }))?.more).toBe(true)
+  })
+
+  it('falls back to HEAD alone when the upstream has gone', async () => {
+    const h = harness({ upstreamGone: true })
+    h.status.output = '# branch.oid aaaaaaa\0# branch.head main\0# branch.upstream origin/gone\0'
+    h.service.watch(ID)
+    await h.advance(0)
+    const log = await h.service.log({ repoId: ID, scope: 'head', count: 100 })
+    expect(log?.commits).toHaveLength(2)
+    expect(
+      h.calls
+        .filter((args) => args.includes('--topo-order'))
+        .at(-1)
+        ?.slice(-2),
+    ).toEqual(['HEAD', '--'])
+  })
+
+  it('answers no graph for a repository no pane shows', async () => {
+    const h = harness()
+    expect(await h.service.log({ repoId: ID, scope: 'head', count: 100 })).toBeNull()
+    expect(h.calls).toEqual([])
+  })
+
+  it('says the history moved when a ref moves, and not for the index', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    const first = h.published.at(-1)?.historyAt ?? 0
+    h.fire(path.join('.git', 'index'))
+    await h.advance(2000)
+    expect(h.published.at(-1)?.historyAt).toBe(first)
+    // A tag made, or a fetch: HEAD is where it was, and the graph is stale all the same.
+    h.fire(path.join('.git', 'refs', 'tags', 'v1'))
+    await h.advance(2000)
+    expect(h.published.at(-1)?.historyAt).toBeGreaterThan(first)
+    const second = h.published.at(-1)?.historyAt ?? 0
+    h.fire(path.join('.git', 'packed-refs'))
+    await h.advance(2000)
+    expect(h.published.at(-1)?.historyAt).toBeGreaterThan(second)
   })
 
   it('says an id is unknown rather than guessing a folder', async () => {

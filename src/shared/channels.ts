@@ -125,6 +125,7 @@ export const CH = {
     recent: 'git:recent',
     diff: 'git:diff',
     commit: 'git:commit',
+    log: 'git:log',
     open: 'git:open',
     reveal: 'git:reveal',
     watching: 'git:watching',

@@ -14,7 +14,15 @@ import type { BackgroundState } from './background.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
-import type { GitDiff, GitDiffRequest, GitFile, GitRepoRef, GitState } from './git.js'
+import type {
+  GitDiff,
+  GitDiffRequest,
+  GitFile,
+  GitLog,
+  GitLogRequest,
+  GitRepoRef,
+  GitState,
+} from './git.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { SavedLayoutSummary } from './layouts.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
@@ -392,6 +400,12 @@ export interface GitApi {
   diff(request: GitDiffRequest): Promise<GitDiff | null>
   /** The files a commit changed, or null when it cannot be read. */
   commit(repoId: string, oid: string): Promise<GitFile[] | null>
+  /**
+   * The commits for the graph, with their parents and the names on them; null
+   * while the repository is not open in a pane. Asked again when the state's
+   * `historyAt` moves.
+   */
+  log(request: GitLogRequest): Promise<GitLog | null>
   /**
    * Opens a file of the repository with the command in settings (`git.openCommand`),
    * at `line` where the command takes one, or with the system's own application.

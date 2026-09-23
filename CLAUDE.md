@@ -227,6 +227,9 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     a command the page could change is a program the page could start. It runs as a program and
     its arguments, never through a shell; a Windows .cmd goes through `cmd.exe` only with every
     argument free of what cmd.exe acts on (main/git/open.ts).
+  - The commit graph is asked for by the page (`git.log`: scope and count only), read again when
+    the state's `historyAt` moves - HEAD, or a ref (a tag, a fetch) - and laid out by the pure
+    `graphRows` (shared/git-graph.ts). Its hover card stays inside the pane.
   - A repository is watched only while a pane shows it, read after changes at most once a second,
     and git's own bookkeeping in the git folder (`index.lock`, objects) is not a change.
   - A file's text is untrusted: highlight.js's answer is read back into tokens (lib/highlight.ts)

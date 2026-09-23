@@ -34,6 +34,62 @@ const centred = (image: Size, box: Size, scale: number): View => ({
   scale,
 })
 
+/** Room an image of a pair takes besides itself: its caption above, its frame around it, the gaps. */
+export interface PairChrome {
+  /** The padding round the pair, on each side. */
+  pad: number
+  /** Between the two. */
+  gap: number
+  /** The caption's height, with its gap to the frame. */
+  caption: number
+  /** The frame's padding and border, both sides together. */
+  frame: number
+}
+
+export interface PairLayout {
+  direction: 'row' | 'column'
+  /** The most an image may take in its frame; never more than its own size is drawn. */
+  cell: Size
+}
+
+/**
+ * Before and after side by side, or one above the other: whichever draws them
+ * larger in `box`. Two wide images in a tall, narrow pane go one above the
+ * other, rather than two small ones beside empty space; a tie stays side by
+ * side, where the eye compares best. An image whose size is not known yet
+ * (still loading, or the side that has none) does not count.
+ */
+export function pairLayout(
+  images: readonly (Size | null)[],
+  box: Size,
+  chrome: PairChrome,
+): PairLayout {
+  const inner = { w: box.w - 2 * chrome.pad, h: box.h - 2 * chrome.pad }
+  const cellOf = (direction: 'row' | 'column'): Size => {
+    const across = direction === 'row' ? (inner.w - chrome.gap) / 2 : inner.w
+    const down = direction === 'row' ? inner.h : (inner.h - chrome.gap) / 2
+    return {
+      w: Math.max(32, across - chrome.frame),
+      h: Math.max(32, down - chrome.caption - chrome.frame),
+    }
+  }
+  const drawn = (cell: Size): number => {
+    let least = Number.POSITIVE_INFINITY
+    for (const image of images) {
+      if (image === null || image.w <= 0 || image.h <= 0) continue
+      least = Math.min(least, Math.min(1, cell.w / image.w, cell.h / image.h))
+    }
+    return least
+  }
+  const row = cellOf('row')
+  const column = cellOf('column')
+  const [rowScale, columnScale] = [drawn(row), drawn(column)]
+  // Nothing known yet, or no gain worth the move: side by side.
+  if (!Number.isFinite(rowScale) || columnScale <= rowScale * 1.05)
+    return { direction: 'row', cell: row }
+  return { direction: 'column', cell: column }
+}
+
 /** The least scale: a quarter of the fitted one, or of the image's own size if that is smaller. */
 export const minScale = (image: Size, box: Size): number =>
   Math.min(fitView(image, box).scale, 1) / 4
