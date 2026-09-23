@@ -18,4 +18,9 @@ test('the page is built minified', () => {
   // Unminified it was 3.4 MB on 77,800 lines; minified, 2.0 MB on 4,400 (template strings keep theirs).
   expect(lines).toBeLessThan(10_000)
   expect(code.length).toBeLessThan(2_500_000)
+  // The licence notices the bundle keeps are kept at its end, not minified away.
+  expect(code).toContain('@license')
+  // No helper injected into functions (keepNames): the plugin worker is built from
+  // stripGlobals' and pluginRuntime's source text, which must not call outside themselves.
+  expect(code).not.toContain('__name(')
 })

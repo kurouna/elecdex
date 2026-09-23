@@ -61,6 +61,8 @@ export default defineConfig({
 
   renderer: {
     root: r('src/renderer'),
+    // Minified, the licence comments the bundle keeps go to the end of the file, not away.
+    esbuild: { legalComments: 'eof' },
     // The renderer root is not the project root, so point the plugin at the
     // shared svelte.config.js explicitly instead of letting it fall back.
     plugins: [svelte({ configFile: r('svelte.config.js') })],
