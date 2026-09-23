@@ -470,6 +470,11 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   credits CelesTrak and the Space Defense Squadrons, and the time zone lines are ODbL
   (© OpenStreetMap contributors) - the pane says so, and `tz-lines.json` carries its licence; Yahoo data is marked
   unofficial, possibly delayed, not investment advice.
+- **Third-party notices**: `npm run build` writes `out/THIRD_PARTY_NOTICES.txt`
+  (scripts/gen-notices.mjs) from the packages each build actually bundled (the `bundledPackages`
+  plugin in electron.vite.config.ts), the production dependencies and `DATA_SOURCES`; the
+  package puts it, and LICENSE, beside the executable. New bundled data from someone else's data
+  goes into `DATA_SOURCES` (scripts/third-party-notices.mjs) as well as the README table.
 - **The README's status line** names the last *released* version (package.json), and marks what
   is on main but not in it as *unreleased*; update both when the version is bumped. It also says
   macOS and Linux are not sufficiently verified - keep that until they are.

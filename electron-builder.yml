@@ -8,11 +8,21 @@ directories:
 
 files:
   - out/**
+  # What each build bundled, read to write THIRD_PARTY_NOTICES.txt; not part of the app.
+  - '!out/.notices/**'
   - resources/**
   - package.json
   # The GeoIP package ships the database three ways; only the combined file is read.
   - '!node_modules/@ip-location-db/geo-whois-asn-country-mmdb/geo-whois-asn-country-ipv4.mmdb'
   - '!node_modules/@ip-location-db/geo-whois-asn-country-mmdb/geo-whois-asn-country-ipv6.mmdb'
+
+# The third-party notices (npm run build writes them) and the app's own licence, beside the
+# executable where a person can find them, not only inside app.asar.
+extraFiles:
+  - from: out/THIRD_PARTY_NOTICES.txt
+    to: THIRD_PARTY_NOTICES.txt
+  - from: LICENSE
+    to: LICENSE.elecdex.txt
 
 # win/mac/linux icons are all derived from build/icon.png, which scripts/gen-icon.mjs
 # renders from build/icon.svg (the elec series icon with the "E" badge).

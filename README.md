@@ -829,6 +829,9 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 The geolocation database is bundled, so there is no account, no API key and no first-run
 download, and IP lookups never leave the machine.
 
+Every package the app is built from, and the data above, are listed with their licence texts in
+`THIRD_PARTY_NOTICES.txt`, beside the executable in each release (written by `npm run build`).
+
 ---
 
 ## License / ライセンス

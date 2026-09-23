@@ -24,3 +24,26 @@ test('the page is built minified', () => {
   // stripGlobals' and pluginRuntime's source text, which must not call outside themselves.
   expect(code).not.toContain('__name(')
 })
+
+test('the third-party notices list every package the builds bundled, with its licence', () => {
+  const out = path.join(process.cwd(), 'out')
+  const notices = readFileSync(path.join(out, 'THIRD_PARTY_NOTICES.txt'), 'utf8')
+  const bundledDir = path.join(out, '.notices')
+  const roots = readdirSync(bundledDir).flatMap(
+    (file) => JSON.parse(readFileSync(path.join(bundledDir, file), 'utf8')) as string[],
+  )
+  expect(roots.length).toBeGreaterThan(20)
+  for (const root of roots) {
+    const { name, version } = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
+    expect(notices, `${name}@${version}`).toContain(`${name}@${version}`)
+  }
+  // The page's own, the main process's own, and what ships as it is in app.asar.
+  for (const name of ['svelte@', 'three@', '@xterm/xterm@', 'yahoo-finance2@', 'node-pty@']) {
+    expect(notices).toContain(name)
+  }
+  // The data the app is made from, with the credits their licences ask for.
+  expect(notices).toContain('GeoNames')
+  expect(notices).toContain('© OpenStreetMap contributors')
+  expect(notices).toContain('www.nro.net')
+  expect(notices).toContain('elecxzy')
+})

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+// Records what each build bundled, for THIRD_PARTY_NOTICES.txt (scripts/gen-notices.mjs).
+import { bundledPackages } from './scripts/third-party-notices.mjs'
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url))
 
@@ -14,7 +16,7 @@ const define = { __APP_VERSION__: JSON.stringify(pkg.version) }
 export default defineConfig({
   main: {
     define,
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin(), bundledPackages('main')],
     resolve: {
       alias: {
         '@shared': r('src/shared'),
@@ -36,7 +38,7 @@ export default defineConfig({
   },
 
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin(), bundledPackages('preload')],
     resolve: {
       alias: {
         '@shared': r('src/shared'),
@@ -65,7 +67,7 @@ export default defineConfig({
     esbuild: { legalComments: 'eof' },
     // The renderer root is not the project root, so point the plugin at the
     // shared svelte.config.js explicitly instead of letting it fall back.
-    plugins: [svelte({ configFile: r('svelte.config.js') })],
+    plugins: [svelte({ configFile: r('svelte.config.js') }), bundledPackages('renderer')],
     resolve: {
       alias: {
         '@shared': r('src/shared'),
