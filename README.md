@@ -16,7 +16,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.14 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.15 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -47,14 +47,14 @@ for Windows, macOS and Linux.
   month calendar with optional Japanese holidays.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
   you want it.
-- **Agent** *(unreleased, experimental)* — the Claude Code sessions at work on your computer: what
+- **AI Agent** *(experimental)* — the Claude Code sessions at work on your computer: what
   each is doing this moment, how much it carries, and a diff of every file it changed, read from
   Claude Code's own records on this machine.
-- **Orbit** *(unreleased)* — mission control's front screen: a world map with the night side, the
+- **Orbit** — mission control's front screen: a world map with the night side, the
   lines where clocks change and the hour each zone keeps, the ISS and Tiangong where they are now
   with their ground tracks, the next pass over a city you choose, and the world's clocks around
   mission control's GMT day-of-year clock. The Starlink constellation on request.
-- **Git** *(unreleased)* — a repository you choose, read only: the files changed, the diff of
+- **Git** — a repository you choose, read only: the files changed, the diff of
   each with its syntax coloured, and the commit graph with its branches and tags, kept current as they change - watch an AI
   agent work in the next pane. One pane per repository.
 - **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
@@ -149,7 +149,7 @@ for Windows, macOS and Linux.
     <td colspan="2" align="center">ELEC system: three models vote on a motion</td>
   </tr>
   <tr>
-    <td colspan="2"><img src="./docs/screenshots/elecdex-dev.jpg" alt="The Tron theme with the system column on the left, an AGENT pane in the middle and a GIT pane on the right: the AGENT pane shows two Claude Code sessions, one busy with a subagent at work and the tests running in the background, a finished subagent below them, and its changed files; the GIT pane shows the same checkout with passes.ts modified and shadow.ts untracked, the diff of passes.ts, and the commit graph - a merged branch with a tag, an unmerged branch on a lane of its own, origin/main one commit behind - with the card of a commit the pointer rests on: its message, author, date and one file changed"></td>
+    <td colspan="2"><img src="./docs/screenshots/elecdex-dev.jpg" alt="The Tron theme with the system column on the left, an AI AGENT pane in the middle and a GIT pane on the right: the AI AGENT pane shows two Claude Code sessions, one busy with a subagent at work and the tests running in the background, a finished subagent below them, and its changed files; the GIT pane shows the same checkout with passes.ts modified and shadow.ts untracked, the diff of passes.ts, and the commit graph - a merged branch with a tag, an unmerged branch on a lane of its own, origin/main one commit behind - with the card of a commit the pointer rests on: its message, author, date and one file changed"></td>
   </tr>
   <tr>
     <td colspan="2" align="center">Development: coding agents at work with their subagents and background tasks, and the repository they are changing, with its commit graph</td>
@@ -386,9 +386,9 @@ weather and calendar.
   `/proc/net/tcp*` on Linux, `netstat` on macOS - which cannot name the owning process, and the
   pane says so), and the countries from the same bundled GeoIP database the world view uses.
   Nothing is ever looked up online. **MASK** hides the second half of every address, for a
-  screenshot or a shared screen. *(unreleased)* A listening program says what it serves, told from
+  screenshot or a shared screen. A listening program says what it serves, told from
   its command line - `node` becomes `vite · my-app` - without the port being asked anything.
-- **Agent** *(unreleased, experimental)* — one card per running Claude Code session: its name and
+- **AI Agent** *(experimental)* — one card per running Claude Code session: its name and
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
   in its view and written, and its answers. Below them, the subagents it started and the commands
   it left running in the background: running, done, failed or stopped, with a running subagent's
@@ -400,7 +400,7 @@ weather and calendar.
   Claude Code's and not documented, so a new version of it may change what can be shown - hence
   *experimental*. `agents.sources` in `settings.json` says whose records are read (so far
   `claude-code`).
-- **Orbit** *(unreleased)* — positions are worked out on your computer (SGP4) from orbital
+- **Orbit** — positions are worked out on your computer (SGP4) from orbital
   elements the app downloads from CelesTrak: the stations twice a day, and the roughly 10,000
   Starlink satellites once a day and only while a pane shows them (**STARLINK**). The focused
   station's track runs one orbit back and two ahead, bright in sunlight and dim in the Earth's
@@ -410,7 +410,7 @@ weather and calendar.
   chosen from the bundled city list (by default the largest city in your time zone); no location
   is asked for. The thin lines across the map are where clocks differ today, and the ruler along
   its top gives each fifteen-degree zone its hour, midnight and noon lit.
-- **Git** *(unreleased)* — **SELECT REPOSITORY** picks a folder; the pane watches that repository
+- **Git** — **SELECT REPOSITORY** picks a folder; the pane watches that repository
   from then on and reads it again after each change (at most once a second, and never while
   nothing changes). The staged, unstaged, untracked and conflicted files, each with its lines
   added and removed; the diff of the file chosen, unified or side by side, with the changed words
@@ -822,7 +822,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | AI chat | The providers you list in *Settings -> AI*: a server on your computer or network, or a hosted API (Anthropic through its [official SDK](https://github.com/anthropics/anthropic-sdk-typescript); the rest as OpenAI-compatible `chat/completions`) | Asked by the app, never by the page, and only when you send a message, press **test** or open a pane's model list - a chat pane sitting in a layout calls nobody. What is sent is the conversation so far, your system prompt and the model's name, to the address you chose and nowhere else; each provider's own terms and data retention apply. No cookies, no redirects followed. An API key is encrypted by the operating system (DPAPI, the Keychain, the desktop's keyring) into `ai-keys.json`, apart from `settings.json`, and is never shown again; where the system cannot encrypt, it is kept in memory until elecdex quits. A key is refused for a plain-http address outside your computer and local network. With no key of its own, the Anthropic SDK looks where it always does (`ANTHROPIC_API_KEY`, an `ant auth login` profile). On Anthropic's own endpoint, `claude-opus-5` and `claude-fable-5-1` are asked with server-side fallbacks (`fallbacks: "default"`), so a request their safety classifiers decline is re-run on another Claude model in the same call; the answer names the model that wrote it. Conversations are files in `chats/` in the app's data folder. |
 | ELEC system | The same providers, as each seat names them | As for the AI chat, and only when you submit a motion (or open a model list): each unit is sent its standpoint, the voting instructions and the motion - in a second round, the other units' first statements too. Three requests a round, one or two rounds. Deliberations are files in `elec/` in the app's data folder. |
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
-| Orbital elements *(unreleased)* | [CelesTrak](https://celestrak.org/) GP data (from the 18th and 19th Space Defense Squadrons via [Space-Track.org](https://www.space-track.org/)): `GROUP=stations` as OMM JSON, `GROUP=starlink` as TLE | Positions are computed on your computer; only elements are downloaded. Following CelesTrak's [usage policy](https://celestrak.org/usage-policy.php): only while an ORBIT pane shows the set, the stations at most twice a day and Starlink at most once a day (CelesTrak updates every two hours), kept on disk across restarts, an identifying User-Agent, and nothing more for a day after any answer but a 200. Credited in the pane. |
+| Orbital elements | [CelesTrak](https://celestrak.org/) GP data (from the 18th and 19th Space Defense Squadrons via [Space-Track.org](https://www.space-track.org/)): `GROUP=stations` as OMM JSON, `GROUP=starlink` as TLE | Positions are computed on your computer; only elements are downloaded. Following CelesTrak's [usage policy](https://celestrak.org/usage-policy.php): only while an ORBIT pane shows the set, the stations at most twice a day and Starlink at most once a day (CelesTrak updates every two hours), kept on disk across restarts, an identifying User-Agent, and nothing more for a day after any answer but a 200. Credited in the pane. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 ## Third-party assets

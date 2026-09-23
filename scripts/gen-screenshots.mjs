@@ -444,8 +444,8 @@ function elecStandIn(pace = 25) {
 }
 
 /*
- * The development shot: the system column, then the AGENT pane, then the GIT pane. The
- * AGENT pane reads a made-up Claude Code folder (ELECDEX_CLAUDE_DIR), never this machine's: one
+ * The development shot: the system column, then the AI AGENT pane, then the GIT pane. The
+ * AI AGENT pane reads a made-up Claude Code folder (ELECDEX_CLAUDE_DIR), never this machine's: one
  * session at work on the demo checkout with a subagent and the tests running in the background,
  * and one waiting. Their processes are this script's and its parent's, so both count as running.
  */

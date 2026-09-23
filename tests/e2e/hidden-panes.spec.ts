@@ -6,7 +6,7 @@ import { expect, type Page, test } from '@playwright/test'
 import { launch, removeDir } from './support.js'
 
 /**
- * The GIT, ORBIT and AGENT panes do nothing while nobody sees them: not added,
+ * The GIT, ORBIT and AI AGENT panes do nothing while nobody sees them: not added,
  * or behind another tab. Main watches no repository, no Claude Code folder and
  * asks CelesTrak for nothing; the page changes nothing in them (no clock, no
  * pulse, no Starlink slice). Shown again, each takes up where it was.

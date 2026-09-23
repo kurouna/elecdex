@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 import { launch, removeDir } from './support.js'
 
 /**
- * The AGENT pane against a made-up Claude Code folder (ELECDEX_CLAUDE_DIR) -
+ * The AI AGENT pane against a made-up Claude Code folder (ELECDEX_CLAUDE_DIR) -
  * never this machine's. The session's process is this test's own, so it counts
  * as running. What only the running app can show: that main's layer finds the
  * session, follows its record as it grows, diffs a file it changed against the

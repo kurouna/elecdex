@@ -8,7 +8,7 @@ import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
- * Agents IPC: the AGENT pane subscribes to one board; the hub (agents/hub.ts)
+ * Agents IPC: the AI AGENT pane subscribes to one board; the hub (agents/hub.ts)
  * gathers it from the sources the settings turn on. While no page is
  * subscribed no source watches anything, and a page's subscription goes with
  * its reload or its end.

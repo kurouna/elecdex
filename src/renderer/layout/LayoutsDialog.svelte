@@ -1,5 +1,6 @@
 <script lang="ts">
 import { cleanLayoutName, KEYED_LAYOUTS, MAX_SAVED_LAYOUTS } from '@shared/layouts'
+import { tick } from 'svelte'
 import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
 import { layout } from '../stores/layout.svelte.ts'
@@ -29,6 +30,8 @@ let returnFocus: HTMLElement | null = null
 /** The layout being renamed, and the name being typed for it. */
 let renaming = $state<{ id: string; draft: string } | null>(null)
 let renameBox = $state<HTMLInputElement | null>(null)
+/** The rows' apply buttons, by place, so the keyboard can be put on one. */
+const rows: (HTMLButtonElement | null)[] = $state([])
 
 const saved = $derived(layout.savedLayouts)
 const cleaned = $derived(cleanLayoutName(name))
@@ -42,13 +45,28 @@ $effect(() => {
   selected = 0
   full = false
   renaming = null
-  void layout.loadSaved()
-  queueMicrotask(() => input?.focus())
+  void openOnActive()
   return () => {
     returnFocus?.focus()
     returnFocus = null
   }
 })
+
+/**
+ * Opens on the layout being worked in - the one a number key or a status-bar
+ * button last applied - with the keyboard on it, so Enter keeps it and the
+ * arrows go from there. With none (nothing saved yet, or after a reset) the
+ * name box has the keys, to save the arrangement under a name.
+ */
+async function openOnActive(): Promise<void> {
+  await layout.loadSaved()
+  if (!ui.layoutsOpen) return
+  const at = layout.savedLayouts.findIndex((entry) => entry.active)
+  if (at >= 0) selected = at
+  await tick()
+  if (at >= 0) rows[at]?.focus()
+  else input?.focus()
+}
 
 // Keep the selection on a row that exists as the list shrinks.
 $effect(() => {
@@ -117,6 +135,9 @@ function onKeydown(event: KeyboardEvent): void {
   if (step !== 0) {
     take()
     selected = (selected + step + saved.length) % saved.length
+    // On a row, the keyboard goes with the choice: a focus ring on one row and the
+    // choice on another would say two things about what Enter applies.
+    if (rows.includes(document.activeElement as HTMLButtonElement)) rows[selected]?.focus()
     sfx.play('folder')
     return
   }
@@ -220,6 +241,7 @@ function revealFile(): void {
                 />
               {:else}
                 <button
+                  bind:this={rows[i]}
                   type="button"
                   role="option"
                   class="go"

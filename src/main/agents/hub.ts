@@ -9,7 +9,7 @@ import type { GitDiff } from '@shared/git'
 import type { AgentSource } from './source.js'
 
 /**
- * The AGENT pane's one layer: the page asks it, and it asks each agent source
+ * The AI AGENT pane's one layer: the page asks it, and it asks each agent source
  * the settings turn on. It knows nothing of any agent's files - adding an agent
  * is adding a source - and it runs only while a page is subscribed: the first
  * subscriber starts the sources' watches, the last one leaving stops them.

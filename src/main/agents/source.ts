@@ -2,7 +2,7 @@ import type { AgentSession, AgentSourceId } from '@shared/agents'
 import type { GitDiff } from '@shared/git'
 
 /**
- * One kind of coding agent, as the AGENT pane's layer (hub.ts) sees it. An
+ * One kind of coding agent, as the AI AGENT pane's layer (hub.ts) sees it. An
  * adapter reads that agent's own local records and answers in the pane's one
  * shape; the hub never knows whose records they are.
  */

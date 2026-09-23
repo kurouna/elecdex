@@ -660,6 +660,39 @@ test('a saved layout can be renamed, and moved onto another number key', async (
   }
 })
 
+test('the layouts dialog opens on the layout being worked in', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    // Nothing saved yet: nothing to choose, and the name box has the keys.
+    await page.keyboard.press('Control+Shift+KeyG')
+    await expect(page.getByTestId('layouts-name')).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+
+    await keepLayout(page, 'one')
+    await keepLayout(page, 'two')
+    // Reported: after Ctrl+Shift+2 the dialog still opened on the first row.
+    await page.keyboard.press('Control+Shift+Digit1')
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-switching', 'false')
+    await page.keyboard.press('Control+Shift+Digit2')
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-switching', 'false')
+    await page.keyboard.press('Control+Shift+KeyG')
+    const items = page.getByTestId('layouts-item')
+    await expect(items.nth(1)).toBeFocused()
+    await expect(items.nth(1)).toHaveAttribute('aria-selected', 'true')
+    await expect(items.nth(0)).toHaveAttribute('aria-selected', 'false')
+    // The arrows move the focus with the choice, so the two never part.
+    await page.keyboard.press('ArrowUp')
+    await expect(items.nth(0)).toBeFocused()
+    await expect(items.nth(0)).toHaveAttribute('aria-selected', 'true')
+  } finally {
+    await close()
+  }
+})
+
 test('the status bar carries a numbered button per saved layout', async () => {
   const { page, close } = await launch(undefined, {
     layout: SINGLE_TERMINAL,

@@ -245,9 +245,9 @@ registerBuiltin({
 
 registerBuiltin({
   id: 'agents',
-  title: 'agent',
+  title: 'ai agent',
   description:
-    'Experimental. Claude Code sessions at work on this machine: what each is doing, how much it carries, and a diff of every file it changed. Read from Claude Code’s own undocumented local records, so a new version may change what can be shown.',
+    'Experimental. AI coding agents at work on this machine, so far Claude Code sessions: what each is doing, how much it carries, and a diff of every file it changed. Read from Claude Code’s own undocumented local records, so a new version may change what can be shown.',
   component: AgentsWidget,
   minSize: { w: 280, h: 160 },
   zoom: 'full',

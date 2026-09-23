@@ -94,7 +94,7 @@ export const CH = {
     update: 'feeds:update',
     watching: 'feeds:watching',
   },
-  /** The AGENT pane (shared/agents.ts): one board, from the sources settings turn on. */
+  /** The AI AGENT pane (shared/agents.ts): one board, from the sources settings turn on. */
   agents: {
     /** renderer -> main, fire and forget: keep the board current. */
     subscribe: 'agents:subscribe',

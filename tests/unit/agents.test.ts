@@ -24,7 +24,7 @@ import { AgentHub } from '../../src/main/agents/hub.js'
 import type { AgentSource } from '../../src/main/agents/source.js'
 
 /**
- * The AGENT pane's layer and its Claude Code source. The records are shaped as
+ * The AI AGENT pane's layer and its Claude Code source. The records are shaped as
  * Claude Code 2.1 writes them (seen on 2026-09-23): an assistant line carries
  * the model, the usage and the tool calls; a snapshot line names the copies of
  * files taken before they were first changed.

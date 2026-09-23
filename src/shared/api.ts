@@ -360,7 +360,7 @@ export interface FeedsApi {
 }
 
 /**
- * The AGENT pane (experimental): coding agents at work on this machine, read
+ * The AI AGENT pane (experimental): coding agents at work on this machine, read
  * from their own local records by the layer in main (agents/hub.ts).
  */
 export interface AgentsApi {

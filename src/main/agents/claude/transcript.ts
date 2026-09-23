@@ -3,7 +3,7 @@ import type { AgentActivity, AgentTaskKind, AgentTaskState } from '@shared/agent
 
 /**
  * Reading a Claude Code session's record (`projects/<folder>/<session>.jsonl`),
- * a line at a time, into the few things the AGENT pane shows. Pure: the lines
+ * a line at a time, into the few things the AI AGENT pane shows. Pure: the lines
  * come in as text, so it is tested on records shaped as Claude Code wrote them.
  *
  * The record is the whole conversation, tool output included - a line can be a

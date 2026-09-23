@@ -202,8 +202,8 @@ export const SettingsSchema = z.object({
     })
     .default({ providers: [], systemPrompt: '', compact: false }),
   /**
-   * The AGENT pane (shared/agents.ts): whose records it reads. Only agents listed
-   * here are read at all, and only while an AGENT pane is open.
+   * The AI AGENT pane (shared/agents.ts): whose records it reads. Only agents listed
+   * here are read at all, and only while an AI AGENT pane is open.
    */
   agents: z
     .object({

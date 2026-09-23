@@ -234,7 +234,7 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     and git's own bookkeeping in the git folder (`index.lock`, objects) is not a change.
   - A file's text is untrusted: highlight.js's answer is read back into tokens (lib/highlight.ts)
     and drawn as text, never as HTML.
-- **The AGENT pane** (architecture.md §5.11, shared/agents.ts, main/agents/) is experimental and
+- **The AI AGENT pane** (architecture.md §5.11, shared/agents.ts, main/agents/) is experimental and
   reads coding agents' own local records - never sends anything, never runs them.
   - The page talks to one layer (`AgentHub`), which asks the sources `agents.sources` turns on;
     an agent is an `AgentSource` adapter (main/agents/source.ts). Add an agent there and in
@@ -473,7 +473,7 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 - **README screenshots** must not show personal data: regenerate them with
   `npm run gen:screenshots`, which uses a demo home and curated launcher entries and shoots every
   built-in theme plus the settings dialog, the audio panes (with `ELECDEX_AUDIO_STUB=demo`) and
-  the AI chat pane (talking to a stand-in the script serves: no model, no key), the AGENT and GIT
+  the AI chat pane (talking to a stand-in the script serves: no model, no key), the AI AGENT and GIT
   panes (a made-up Claude Code folder and a demo repository by a made-up author, built afresh) and
   the ORBIT pane; name shots to
   take only those. Regenerate after a visible change to a theme or the default

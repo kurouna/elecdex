@@ -1,5 +1,5 @@
 /**
- * The AGENT pane: coding agents at work on this machine, as their own local
+ * The AI AGENT pane: coding agents at work on this machine, as their own local
  * records tell it. Experimental - the records belong to the agents and are not
  * documented, so a new version of one may change what can be read.
  *
