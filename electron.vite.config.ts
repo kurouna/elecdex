@@ -73,6 +73,9 @@ export default defineConfig({
     },
     build: {
       target: 'chrome140',
+      // The page is parsed and compiled whole at every start; electron-vite leaves it
+      // unminified by default (3.4 MB, 77,000 lines). Measured in architecture.md §16.
+      minify: 'esbuild',
       // Never inline fonts. Vite base64-inlines small assets by default, and a
       // `data:` @font-face URL is blocked by our `font-src 'self'` CSP - so the
       // choice is between loosening the CSP and emitting real files. We emit
