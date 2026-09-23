@@ -1010,7 +1010,7 @@ Stop とペインを閉じたときの停止）。
   （2.1.280 で確認）:
   - 起動は親の記録のツール呼び出し（`Agent`、旧名 `Task`。`run_in_background: true` の Bash / PowerShell）。
   - バックグラウンドの終わりは親の記録の `<task-notification>`（混んでいるときの `queue-operation` の enqueue と、
-    渡されたときの `origin.kind: task-notification` の user 行。どちらも小さい）。`<tool-use-id>` で呼び出しに結び、
+    渡されたときの `origin.kind: task-notification` の user 行。どちらも小さい）。`<tool-use-id>` で呼び出しに結び（`<tool-use-id>` は同じタスクの最初の通知にしか付かない。2 通目以降は `<task-id>` だけなので、起動の結果で覚えた id で結ぶ。止まっては動き出すサブエージェントの最終通知がこれで、別 PC の報告で見つかった。2026-09-24）、note が「background work of its own still running / may be interim」の中間通知では終わりにせず、
     `<status>` の completed / failed / stopped / killed を読む（running は途中経過なので読まない）。時刻の新しい
     通知が勝つ。続きを頼まれたサブエージェントは、その記録が通知より先へ進んだら RUN に戻す。
   - 呼び出し自身の結果も読む（レビューで分かった、通知の来ない終わり方: この PC の記録で TaskStop で止めた

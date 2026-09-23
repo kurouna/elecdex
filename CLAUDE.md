@@ -245,7 +245,9 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     for the small ones that end a task: its notice, and the result of a call still waiting for it
     (told by its id in the record's own quotes, so an output quoting the id is not taken).
   - A session's subagents and background commands are its tasks: started by its own tool calls,
-    ended by the `<task-notification>` lines, a TaskStop naming the id their result gave, or their
+    ended by the `<task-notification>` lines (matched by the call's id, which only the first
+    notice of a task carries, or else by the task id its result gave; an interim one ends
+    nothing), a TaskStop naming that task id, or their
     own result (refused, interrupted, or a subagent's report; its next answer as the fallback),
     and a subagent is read from its own record under `<session>/subagents/`. A task still running
     when its session went is `unknown`, never guessed done.

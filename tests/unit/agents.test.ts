@@ -96,6 +96,43 @@ const notice = (as: 'queue' | 'user', id: string, status: string, at: string) =>
   )
 }
 
+/** The note of a notice sent while the subagent still had background work of its own. */
+const INTERIM =
+  'The agent stopped with background work of its own still running, so the result below may be interim.'
+
+/**
+ * A notice as Claude Code writes them all: `<tool-use-id>` on the first notice of a
+ * task only, the task id on every one, and a note.
+ */
+const idNotice = (n: {
+  use?: string
+  task: string
+  status: string
+  at: string
+  note?: string
+  as?: 'queue' | 'user'
+}) => {
+  const text = [
+    '<task-notification>',
+    `<task-id>${n.task}</task-id>`,
+    ...(n.use ? [`<tool-use-id>${n.use}</tool-use-id>`] : []),
+    `<status>${n.status}</status>`,
+    '<summary>Agent finished</summary>',
+    ...(n.note ? [`<note>${n.note}</note>`] : []),
+    '</task-notification>',
+  ].join('\n')
+  return JSON.stringify(
+    n.as === 'user'
+      ? {
+          type: 'user',
+          timestamp: n.at,
+          message: { role: 'user', content: text },
+          origin: { kind: 'task-notification' },
+        }
+      : { type: 'queue-operation', operation: 'enqueue', timestamp: n.at, content: text },
+  )
+}
+
 /** A call's result, as Claude Code hands it back to the session. */
 const result = (id: string, text: string, error: boolean, at: string) =>
   JSON.stringify({
@@ -386,6 +423,93 @@ describe('reading a Claude Code record', () => {
     })
     readLines(`${quoting}\n`, CWD, tally)
     expect(tally.tasks.get('t1')?.ended).toBeNull()
+  })
+
+  it('ends a subagent by a later notice that names only its task id', () => {
+    // As reported from another machine: the first notice was interim (the subagent had
+    // background work of its own still running) and carried the call's id; the final one,
+    // like every repeat notice of one task, carried only the task id.
+    const tally = emptyTally()
+    readLines(
+      `${[
+        answer('m1', [agentCall('t1', 'FE registration_card dummy fixes', {})]),
+        result(
+          't1',
+          'Async agent launched successfully.\nagentId: a8fa52d9e9f53f216 (internal ID)',
+          false,
+          '2026-09-23T13:30:00Z',
+        ),
+        idNotice({
+          use: 't1',
+          task: 'a8fa52d9e9f53f216',
+          status: 'completed',
+          at: '2026-09-23T13:39:17Z',
+          note: INTERIM,
+        }),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    // An interim notice is not the end: the subagent goes on.
+    expect(tally.tasks.get('t1')?.ended).toBeNull()
+    readLines(
+      `${idNotice({ task: 'a8fa52d9e9f53f216', status: 'completed', at: '2026-09-23T14:15:00Z', as: 'user' })}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('t1')?.ended).toEqual({
+      state: 'done',
+      at: Date.parse('2026-09-23T14:15:00Z'),
+    })
+  })
+
+  it('reads a notice that names only the task id, however it arrives and however it ended', () => {
+    const tally = emptyTally()
+    readLines(
+      `${[
+        answer('m1', [
+          agentCall('a', 'Fails', { run_in_background: true }),
+          agentCall('b', 'Is stopped', { run_in_background: true }),
+          shellCall('s', 'Runs the suite', true),
+          agentCall('c', 'Goes on', { run_in_background: true }),
+        ]),
+        result(
+          'a',
+          'Async agent launched successfully.\nagentId: aaa1',
+          false,
+          '2026-09-23T01:00:01Z',
+        ),
+        result(
+          'b',
+          'Async agent launched successfully.\nagentId: bbb2',
+          false,
+          '2026-09-23T01:00:01Z',
+        ),
+        result(
+          's',
+          'Command running in background with ID: bsh3. Output is being written to: x',
+          false,
+          '2026-09-23T01:00:01Z',
+        ),
+        result(
+          'c',
+          'Async agent launched successfully.\nagentId: ccc4',
+          false,
+          '2026-09-23T01:00:01Z',
+        ),
+        idNotice({ task: 'aaa1', status: 'failed', at: '2026-09-23T01:05:00Z' }),
+        idNotice({ task: 'bbb2', status: 'killed', at: '2026-09-23T01:05:00Z', as: 'user' }),
+        idNotice({ task: 'bsh3', status: 'completed', at: '2026-09-23T01:06:00Z' }),
+        // Another task's notice ends nothing here.
+        idNotice({ task: 'zzz9', status: 'completed', at: '2026-09-23T01:07:00Z' }),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('a')?.ended?.state).toBe('failed')
+    expect(tally.tasks.get('b')?.ended?.state).toBe('stopped')
+    expect(tally.tasks.get('s')?.ended?.state).toBe('done')
+    expect(tally.tasks.get('c')?.ended).toBeNull()
   })
 
   it("reads a subagent's meta file, and refuses one that names no call", () => {
@@ -839,6 +963,50 @@ describe('the Claude Code source', () => {
     const before = changes
     await reading
     expect(changes).toBe(before)
+  })
+
+  it.each([
+    ['says it is interim', INTERIM],
+    // Were Claude Code to word it otherwise: taken for an end, undone by the steps after it.
+    ['says nothing of it', undefined],
+  ])('shows a subagent done at its final notice after one that %s', async (_label, note) => {
+    const { id, record, work } = claudeFolder(process.pid)
+    const now = Date.now()
+    const at = (s: number) => new Date(now - s * 1000).toISOString()
+    appendFileSync(
+      record,
+      `${[
+        answer('m1', [agentCall('toolu_fe', 'FE registration_card dummy fixes', {})], at(300)),
+        result(
+          'toolu_fe',
+          'Async agent launched successfully.\nagentId: a8fa52d9e9f53f216',
+          false,
+          at(299),
+        ),
+        idNotice({
+          use: 'toolu_fe',
+          task: 'a8fa52d9e9f53f216',
+          status: 'completed',
+          at: at(200),
+          ...(note ? { note } : {}),
+        }),
+      ].join('\n')}\n`,
+    )
+    // The subagent went on well past that notice.
+    subagent(id, 'a8fa52d9e9f53f216', 'toolu_fe', 'background', steps(work, at(10)))
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.steps).toBe(2))
+    expect(source.sessions(Date.now())[0]?.tasks[0]?.state).toBe('running')
+    // The final notice names only the task.
+    appendFileSync(
+      record,
+      `${idNotice({ task: 'a8fa52d9e9f53f216', status: 'completed', at: at(8) })}\n`,
+    )
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.state).toBe('done'), {
+      timeout: 5000,
+    })
+    source.stop()
   })
 
   it('does not guess how a task ended when its session went', async () => {

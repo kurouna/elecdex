@@ -234,6 +234,25 @@ const ENDINGS: Record<string, AgentTaskState> = {
   killed: 'stopped',
 }
 
+/** A notice's note that says the task has not really ended yet. */
+const INTERIM = /background work of its own still running|may be interim/i
+
+/**
+ * The task a notice is about. Only the first notice of a task names the call
+ * (`<tool-use-id>`); every notice names the task (`<task-id>`), which is the id
+ * the call's result gave - so a repeat notice, the final one of a subagent that
+ * stopped and went on, is found by that.
+ */
+function noticeTask(text: string, tally: Tally): TaskMark | undefined {
+  const call = /<tool-use-id>([^<]+)<\/tool-use-id>/.exec(text)?.[1]
+  const byCall = call === undefined ? undefined : tally.tasks.get(call)
+  if (byCall !== undefined) return byCall
+  const id = /<task-id>([^<]+)<\/task-id>/.exec(text)?.[1]
+  if (id === undefined) return undefined
+  for (const task of tally.tasks.values()) if (task.taskId === id) return task
+  return undefined
+}
+
 /**
  * The notice Claude Code gives the session when a background task ends
  * (`<task-notification>`): queued while the session is busy, then handed to it
@@ -250,10 +269,12 @@ function readNotice(line: Record<string, unknown>, tally: Tally): void {
         ? str(message?.content)
         : ''
   if (!text.startsWith('<task-notification>')) return
-  const id = /<tool-use-id>([^<]+)<\/tool-use-id>/.exec(text)?.[1] ?? ''
   const state = ENDINGS[/<status>([a-z_]+)<\/status>/.exec(text)?.[1] ?? '']
-  const task = tally.tasks.get(id)
+  const task = noticeTask(text, tally)
   if (task === undefined || state === undefined) return
+  // Stopped with background work of its own still running: the subagent goes on, and a
+  // later notice ends it. Its note is Claude Code's words, as the statuses are.
+  if (INTERIM.test(/<note>([^<]*)<\/note>/.exec(text)?.[1] ?? '')) return
   const at = Date.parse(str(line.timestamp)) || task.startedAt
   // A subagent sent another message runs again, and ends again: the latest notice is the one.
   if (task.ended === null || at > task.ended.at) task.ended = { state, at }
