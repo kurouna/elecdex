@@ -11,7 +11,7 @@ import type {
   ProcessList,
 } from '@shared/metrics'
 import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
-import { SamplerDemand, type SamplerKind } from './sampler-demand.js'
+import { SAMPLER_KINDS, SamplerDemand, type SamplerKind } from './sampler-demand.js'
 
 /**
  * Frequent metrics on Windows, without spawning a process per reading.
@@ -634,8 +634,9 @@ function EmitTcp {
     } catch { $script:tcpMode = 'managed' }
   }
   $rows = @(TcpRows)
-  Emit 'tcp' $rows
+  # The owners before the table: whoever waits on the table finds its owners already there.
   Emit 'lsnr' @(ListenOwners $rows)
+  Emit 'tcp' $rows
 }
 function Emit($t, $data) {
   try {
@@ -722,7 +723,12 @@ while ($true) {
         $null = $diskRead.NextValue(); $null = $diskWrite.NextValue(); $null = $diskIdle.NextValue()
       } catch { $diskRead = $null }
       $diskReady = $tick + 1
-    } elseif ($tick -ge $diskReady -and ($fresh.ContainsKey('dio') -or $tick -eq $diskReady -or $tick % 2 -eq 0)) {
+    } elseif ($fresh.ContainsKey('dio')) {
+      # Wanted again after a gap: a counter's next value is its average since the last one, so
+      # that one is thrown away and the reading goes out a tick later, as at first.
+      if ($diskRead) { $null = $diskRead.NextValue(); $null = $diskWrite.NextValue(); $null = $diskIdle.NextValue() }
+      $diskReady = $tick + 1
+    } elseif ($tick -ge $diskReady -and ($tick -eq $diskReady -or $tick % 2 -eq 0)) {
       if ($diskRead) {
         Emit 'dio' @{ r = $diskRead.NextValue(); w = $diskWrite.NextValue(); idle = $diskIdle.NextValue() }
       } else {
@@ -746,7 +752,8 @@ const FIRST_READING_TIMEOUT_MS = 20_000
 /** Do not respawn a sampler that died more often than this. */
 const RESPAWN_MIN_INTERVAL_MS = 5000
 
-type Waiter = () => void
+/** A reading being waited for, and the kinds it waits on. */
+type Waiter = (() => void) & { kinds?: readonly SamplerKind[] }
 
 export class WindowsSampler {
   private readonly pingHost: string
@@ -822,7 +829,8 @@ export class WindowsSampler {
     names: Map<number, string>
     listeners: RawListener[]
   }> {
-    await this.until(['tcp', 'proc'], () => this.tcp !== null)
+    // The names come from the process table: a table read for the globe alone has none yet.
+    await this.until(['tcp', 'proc'], () => this.tcp !== null && this.procCurrent !== null)
     const names = new Map<number, string>()
     for (const process of this.procCurrent?.data ?? []) names.set(process.id, process.n)
     return { rows: this.tcp ?? [], names, listeners: this.listeners }
@@ -853,6 +861,10 @@ export class WindowsSampler {
     this.idleTimer = null
     this.child?.kill()
     this.child = null
+    // Nothing read before a stop is served after it: a pane back minutes later waits for a
+    // fresh reading. And a stop asked for is not a crash, so the next start is not held back.
+    for (const kind of SAMPLER_KINDS) this.forget(kind)
+    this.lastSpawn = 0
   }
 
   /**
@@ -872,12 +884,15 @@ export class WindowsSampler {
         this.waiters.delete(check)
         reject(new Error(this.exitReason ?? 'Windows sampler produced no reading'))
       }, FIRST_READING_TIMEOUT_MS)
-      const check: Waiter = () => {
-        if (!ready()) return
-        clearTimeout(timer)
-        this.waiters.delete(check)
-        resolve()
-      }
+      const check: Waiter = Object.assign(
+        () => {
+          if (!ready()) return
+          clearTimeout(timer)
+          this.waiters.delete(check)
+          resolve()
+        },
+        { kinds },
+      )
       this.waiters.add(check)
     })
   }
@@ -968,8 +983,13 @@ export class WindowsSampler {
     if (this.idleTimer === null) {
       this.idleTimer = setInterval(() => {
         const now = Date.now()
-        if (now - this.lastRead > IDLE_TIMEOUT_MS) this.stop()
-        else this.tellWanted(now)
+        if (now - this.lastRead > IDLE_TIMEOUT_MS) {
+          this.stop()
+          return
+        }
+        // A reading still awaited stays wanted, however long its first answer takes.
+        for (const waiter of this.waiters) this.demand.want(waiter.kinds ?? [], now)
+        this.tellWanted(now)
       }, WANTED_CHECK_MS)
       this.idleTimer.unref?.()
     }

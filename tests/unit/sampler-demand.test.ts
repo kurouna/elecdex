@@ -69,13 +69,31 @@ describe.runIf(process.platform === 'win32')('the Windows sampler, for real', ()
     }
   }, 60_000)
 
+  it('serves nothing from before a stop, and names the owners on the first socket reading', async () => {
+    const sampler = new WindowsSampler('127.0.0.1')
+    try {
+      // The battery pane, then the sampler stopped (as its idle limit does), then the pane again.
+      await sampler.battery()
+      const before = sampler.readings.get('power') ?? 0
+      sampler.stop()
+      await sampler.battery()
+      expect(sampler.readings.get('power') ?? 0).toBe(before + 1)
+      // The globe keeps the socket table read; the connections pane then opens and wants names.
+      await sampler.tcpRemotes()
+      const { names } = await sampler.tcpSockets()
+      expect(names.size).toBeGreaterThan(0)
+    } finally {
+      sampler.stop()
+    }
+  }, 60_000)
+
   it('stops reading what nobody asks for any more, even while nothing asks at all', async () => {
     const sampler = new WindowsSampler('127.0.0.1')
     try {
       await sampler.processes({ cores: 4, totalMemory: 8e9, limit: 5 })
       // The list goes behind a tab and nothing else reads: the sampler stays up (its idle limit
       // is longer), and must drop processes on its own clock once their window has passed.
-      await new Promise((resolve) => setTimeout(resolve, WANTED_FOR_MS.proc + 6000))
+      await new Promise((resolve) => setTimeout(resolve, WANTED_FOR_MS.proc + 5000 + 5000))
       const settled = sampler.readings.get('proc') ?? 0
       await new Promise((resolve) => setTimeout(resolve, 11_000))
       expect(sampler.readings.get('proc') ?? 0).toBe(settled)
