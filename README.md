@@ -55,7 +55,7 @@ for Windows, macOS and Linux.
   with their ground tracks, the next pass over a city you choose, and the world's clocks around
   mission control's GMT day-of-year clock. The Starlink constellation on request.
 - **Git** *(unreleased)* — a repository you choose, read only: the files changed, the diff of
-  each with its syntax coloured, and the last commits, kept current as they change - watch an AI
+  each with its syntax coloured, and the commit graph with its branches and tags, kept current as they change - watch an AI
   agent work in the next pane. One pane per repository.
 - **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
   that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
@@ -147,6 +147,18 @@ for Windows, macOS and Linux.
   </tr>
   <tr>
     <td colspan="2" align="center">ELEC system: three models vote on a motion</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="./docs/screenshots/elecdex-dev.jpg" alt="The Tron theme with the system column on the left, an AGENT pane in the middle and a GIT pane on the right: the AGENT pane shows two Claude Code sessions, one busy with a subagent at work and the tests running in the background, a finished subagent below them, and its changed files; the GIT pane shows the same checkout with passes.ts modified and shadow.ts untracked, the diff of passes.ts, and the commit graph - a merged branch with a tag, an unmerged branch on a lane of its own, origin/main one commit behind - with the card of a commit the pointer rests on: its message, author, date and one file changed"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Development: coding agents at work with their subagents and background tasks, and the repository they are changing, with its commit graph</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="./docs/screenshots/elecdex-orbit.jpg" alt="The Tron theme with the system column on the left and an ORBIT pane in the other two thirds: a world map with the night side, time zone lines and the clocks of nine cities along the top, the ISS with its ground track one orbit back and two ahead, the ring of ground that can see it, Tiangong, the Starlink satellites as faint dots, and below the map the station's position, altitude, speed, when it next leaves the Earth's shadow and its next pass over Tokyo"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">Orbit: the space stations and the Starlink satellites, worked out on your computer</td>
   </tr>
 </table>
 
@@ -402,7 +414,10 @@ weather and calendar.
   from then on and reads it again after each change (at most once a second, and never while
   nothing changes). The staged, unstaged, untracked and conflicted files, each with its lines
   added and removed; the diff of the file chosen, unified or side by side, with the changed words
-  lit; the last 30 commits, each of which opens its own files and diff. It only reads: stage and
+  lit; the commit graph - the lines of the branches, the names on each commit (the branch checked
+  out, other branches, remotes, tags), this branch with its upstream or **ALL** of them, a hundred
+  commits at a time with **MORE** - where a click opens a commit's files and diff and a rest on one
+  shows the whole of it: its message, author, date and what it changed. It only reads: stage and
   commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
   in `settings.json` (`{file}` and `{line}` are filled in, e.g. `code -g "{file}:{line}"`),
   or with the system's own application when it is empty. git must be on PATH.
