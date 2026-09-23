@@ -93,11 +93,6 @@ export function normalizeAddress(raw: string): string {
   return raw.replace(/^::ffff:/i, '').replace(/%.*$/, '')
 }
 
-/** A listening socket has no peer; different platforms spell that differently. */
-export function isNoPeer(address: string, port: number): boolean {
-  return port === 0 || address === '' || address === '0.0.0.0' || address === '::'
-}
-
 /** Builds the row the pane receives, with the peer placed. */
 export function place(
   raw: RawSocket,

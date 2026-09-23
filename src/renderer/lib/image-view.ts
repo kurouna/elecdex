@@ -28,9 +28,6 @@ export function fitView(image: Size, box: Size): View {
   return centred(image, box, scale)
 }
 
-/** The picture at its own size (one image pixel to one CSS pixel), in the middle. */
-export const actualView = (image: Size, box: Size): View => centred(image, box, 1)
-
 const centred = (image: Size, box: Size, scale: number): View => ({
   x: (box.w - image.w * scale) / 2,
   y: (box.h - image.h * scale) / 2,

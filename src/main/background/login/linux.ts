@@ -2,7 +2,6 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import { type LoginItemState, loginArgs } from '@shared/background'
-import { app } from 'electron'
 import { AUTOSTART_FILE, desktopEntry, parseDesktopEntry } from './desktop-entry.js'
 import type { LoginBackend } from './index.js'
 
@@ -108,6 +107,3 @@ export function linuxLoginBackend(
     },
   }
 }
-
-/** Where the entry would be written, for the settings to show. */
-export const autostartPath = (): string => realAutostartFile(app.isPackaged).path
