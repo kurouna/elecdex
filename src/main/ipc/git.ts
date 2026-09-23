@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { existsSync, realpathSync, statSync, watch } from 'node:fs'
-import { open as openFile } from 'node:fs/promises'
+import { open as openFile, readFile as readFileBytes } from 'node:fs/promises'
 import path from 'node:path'
 import { CH } from '@shared/channels'
 import {
@@ -15,7 +15,7 @@ import {
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from 'electron'
 import { launchPlan, resolveOnPath } from '../git/open.js'
 import { RepoCatalog } from '../git/repos.js'
-import { gitError, runGit } from '../git/run.js'
+import { gitBytes, gitError, runGit } from '../git/run.js'
 import { GitService, type Watch } from '../git/service.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import type { SettingsHandle } from './settings.js'
@@ -48,6 +48,15 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
     watch: watchTree,
     exists: existsSync,
     readText,
+    readBytes: async (file, max) => {
+      try {
+        if (statSync(file).size > max) return 'too-large'
+        return await readFileBytes(file)
+      } catch {
+        return null
+      }
+    },
+    gitBytes,
     realpath: (file) => {
       try {
         return realpathSync.native(file)

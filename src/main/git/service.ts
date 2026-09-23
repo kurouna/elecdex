@@ -7,13 +7,16 @@ import {
   type GitDiff,
   type GitDiffRequest,
   type GitFile,
+  type GitImage,
   type GitOperation,
   type GitRepoRef,
   type GitState,
+  isImagePath,
   LOG_FORMAT,
   LOG_LENGTH,
   looksBinary,
   MAX_FILES,
+  MAX_IMAGE_BYTES,
   MAX_UNTRACKED_BYTES,
   OPERATION_MARKERS,
   parseDiff,
@@ -22,9 +25,10 @@ import {
   parseNumstat,
   parseStatus,
   sameState,
+  sniffImage,
   withCounts,
 } from '@shared/git'
-import { type GitResult, gitError, type RunGit } from './run.js'
+import { type GitBytes, type GitResult, gitError, type RunGit } from './run.js'
 
 /**
  * Keeps the repositories open in git panes current, and answers their diffs.
@@ -52,6 +56,10 @@ export interface GitServiceDeps {
   exists(file: string): boolean
   /** A file's text, or null when it is missing, unreadable or larger than `max` bytes. */
   readText(file: string, max: number): Promise<string | 'too-large' | null>
+  /** A file's bytes, or null when it is missing, or 'too-large' past `max`. */
+  readBytes(file: string, max: number): Promise<Buffer | 'too-large' | null>
+  /** A file's bytes as git holds them at a revision (`HEAD:path`, `:path` for the index). */
+  gitBytes: GitBytes
   /** The path with every link resolved, or null when it does not exist. */
   realpath(file: string): string | null
   now(): number
@@ -270,6 +278,7 @@ export class GitService {
     const entry = this.watched.get(request.repoId)
     if (entry === undefined) return problem(base, 'the repository is not open in a pane')
     const root = entry.ref.path
+    if (isImagePath(request.path)) return this.imageDiff(entry, request, base)
     if ('commit' in request) {
       const shown = await this.deps.run(root, [
         'show',
@@ -289,6 +298,67 @@ export class GitService {
     const cached = file.area === 'staged' ? ['--cached'] : []
     const shown = await this.deps.run(root, ['diff', ...cached, ...DIFF_FLAGS, '--', ...paths])
     return fromResult(shown, base)
+  }
+
+  /**
+   * An image's change, as the file before and after rather than hunks: for a
+   * working-tree file, the index against the tree (unstaged) or HEAD against the
+   * index (staged); for a commit, its first parent against it. The request is
+   * held to what the last reading listed, as a text diff is.
+   */
+  private async imageDiff(
+    entry: Watched,
+    request: GitDiffRequest,
+    base: { repoId: string; path: string },
+  ): Promise<GitDiff> {
+    const root = entry.ref.path
+    let before: Buffer | 'too-large' | null
+    let after: Buffer | 'too-large' | null
+    if ('commit' in request) {
+      before = await this.deps.gitBytes(root, `${request.commit}^:${request.path}`, MAX_IMAGE_BYTES)
+      after = await this.deps.gitBytes(root, `${request.commit}:${request.path}`, MAX_IMAGE_BYTES)
+    } else {
+      const file = entry.state.files.find((f) => f.path === request.path && f.area === request.area)
+      if (file === undefined) return problem(base, 'the file is no longer in that list')
+      const earlier = file.from ?? file.path
+      const onDisk = async () => {
+        const real = this.locate(request.repoId, file.path)
+        return real === null ? null : this.deps.readBytes(real, MAX_IMAGE_BYTES)
+      }
+      if (file.area === 'staged') {
+        before = await this.deps.gitBytes(root, `HEAD:${earlier}`, MAX_IMAGE_BYTES)
+        after = await this.deps.gitBytes(root, `:${file.path}`, MAX_IMAGE_BYTES)
+      } else if (file.area === 'untracked') {
+        before = null
+        after = await onDisk()
+      } else {
+        before = await this.deps.gitBytes(root, `:${earlier}`, MAX_IMAGE_BYTES)
+        after = await onDisk()
+      }
+    }
+    const notes: string[] = []
+    const side = (bytes: Buffer | 'too-large' | null, which: string): GitImage | null => {
+      if (bytes === null) return null
+      if (bytes === 'too-large') {
+        notes.push(`${which} is larger than ${MAX_IMAGE_BYTES / 1024 / 1024} MB`)
+        return null
+      }
+      const type = sniffImage(bytes)
+      if (type === null) {
+        notes.push(`${which} is not an image`)
+        return null
+      }
+      return { dataUrl: `data:${type};base64,${bytes.toString('base64')}`, bytes: bytes.length }
+    }
+    return {
+      ...problem(base, null),
+      binary: true,
+      images: {
+        before: side(before, 'before'),
+        after: side(after, 'after'),
+        note: notes.join('; ') || null,
+      },
+    }
   }
 
   /** The files a commit changed, against its first parent. */

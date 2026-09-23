@@ -395,9 +395,21 @@ export interface DiffHunk {
   lines: DiffLine[]
 }
 
+/** One side of an image's change, ready for an `<img>`: a data URL the page's CSP admits. */
+export interface GitImage {
+  dataUrl: string
+  bytes: number
+}
+
 export interface GitDiff {
   repoId: string
   path: string
+  /**
+   * For an image, the file before and after the change instead of hunks (either
+   * side null where there is none: a new file, a deleted one), or the side's
+   * problem - too large, or not the image its name says.
+   */
+  images?: { before: GitImage | null; after: GitImage | null; note: string | null }
   binary: boolean
   /** Lines were left out after MAX_DIFF_LINES. */
   cut: boolean
@@ -485,6 +497,33 @@ export function addedFileDiff(text: string, base: { repoId: string; path: string
       },
     ],
   }
+}
+
+/** An image larger than this is not sent to the page to be shown. */
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+/** The raster images the pane shows side by side, by extension. */
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico', 'avif'])
+
+export const isImagePath = (path: string): boolean =>
+  IMAGE_EXTENSIONS.has(path.split('.').at(-1)?.toLowerCase() ?? '')
+
+/**
+ * The image type a file's first bytes say it is, or null. The name is not
+ * trusted: only bytes that begin as a known image become a data URL for the
+ * page, so a file named `.png` that is something else is never shown as one.
+ */
+export function sniffImage(bytes: Uint8Array): string | null {
+  const at = (i: number, ...values: number[]) => values.every((v, k) => bytes[i + k] === v)
+  const ascii = (i: number, text: string) => at(i, ...[...text].map((c) => c.charCodeAt(0)))
+  if (at(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png'
+  if (at(0, 0xff, 0xd8, 0xff)) return 'image/jpeg'
+  if (ascii(0, 'GIF87a') || ascii(0, 'GIF89a')) return 'image/gif'
+  if (ascii(0, 'RIFF') && ascii(8, 'WEBP')) return 'image/webp'
+  if (ascii(0, 'BM')) return 'image/bmp'
+  if (at(0, 0x00, 0x00, 0x01, 0x00)) return 'image/x-icon'
+  if (ascii(4, 'ftypavif') || ascii(4, 'ftypavis')) return 'image/avif'
+  return null
 }
 
 /** Text with a NUL in its first 8000 bytes is binary: git's own test. */

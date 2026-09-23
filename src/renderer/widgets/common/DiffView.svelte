@@ -37,6 +37,20 @@ interface Row {
 let tokens = $state.raw<Token[][] | null>(null)
 let fresh = $state.raw<ReadonlySet<number>>(new Set())
 let body = $state<HTMLElement | null>(null)
+/** An image's drawn size, once it has loaded, by side. */
+let sizes = $state.raw<Partial<Record<'before' | 'after', { w: number; h: number }>>>({})
+// Forgotten for another file only: a new reading of the same image keeps its <img>, which does not load again.
+$effect(() => {
+  void path
+  sizes = {}
+})
+
+const bytes = (n: number): string =>
+  n < 1024
+    ? `${n} B`
+    : n < 1024 * 1024
+      ? `${(n / 1024).toFixed(1)} KiB`
+      : `${(n / 1024 / 1024).toFixed(1)} MiB`
 
 const lines = $derived(diff?.hunks.flatMap((hunk) => hunk.lines) ?? [])
 const spans = $derived(pairChanges(lines))
@@ -140,7 +154,7 @@ function jump(step: 1 | -1): void {
       >
       <span class="count">{diff.hunks.length} {diff.hunks.length === 1 ? 'hunk' : 'hunks'}</span>
     {/if}
-    <span class="tools">
+    <span class="tools" class:hidden={diff?.images !== undefined}>
       <button
         type="button"
         class:on={!split}
@@ -164,6 +178,38 @@ function jump(step: 1 | -1): void {
       <p class="note">{loading ? 'reading…' : 'nothing selected'}</p>
     {:else if diff.problem !== null}
       <p class="note" data-testid="diff-problem">{diff.problem}</p>
+    {:else if diff.images}
+      {@const images = diff.images}
+      <div class="images" data-testid="diff-images">
+        {#each [['BEFORE', images.before, 'before'], ['AFTER', images.after, 'after']] as const as [label, image, side] (side)}
+          <figure class="side" data-side={side}>
+            <figcaption>
+              <span class="which">{label}</span>
+              {#if image !== null}
+                {@const size = sizes[side]}
+                {#if size}<span>{size.w} × {size.h}</span>{/if}
+                <span>{bytes(image.bytes)}</span>
+              {/if}
+            </figcaption>
+            {#if image !== null}
+              <div class="frame">
+                <img
+                  src={image.dataUrl}
+                  alt="{path}, {side} the change"
+                  data-testid="diff-image"
+                  onload={(event) => {
+                    const img = event.currentTarget as HTMLImageElement
+                    sizes = { ...sizes, [side]: { w: img.naturalWidth, h: img.naturalHeight } }
+                  }}
+                />
+              </div>
+            {:else}
+              <p class="note">{side === 'before' ? 'none - the file is new' : 'none - the file is gone'}</p>
+            {/if}
+          </figure>
+        {/each}
+      </div>
+      {#if images.note}<p class="note">{images.note}</p>{/if}
     {:else if diff.binary}
       <p class="note">BINARY · not drawn</p>
     {:else if diff.tooLarge}
@@ -294,6 +340,10 @@ function jump(step: 1 | -1): void {
   margin-left: auto;
 }
 
+.tools.hidden {
+  visibility: hidden;
+}
+
 .tools button {
   padding: 0 0.4rem;
   border: 1px solid var(--panel-rule);
@@ -337,6 +387,67 @@ function jump(step: 1 | -1): void {
   font-family: var(--font-ui);
   letter-spacing: 0.08em;
   color: var(--text-muted);
+}
+
+/*
+ * An image's change: before and after side by side, each on a checkerboard so a
+ * transparent part shows as one, scaled down to fit and never up.
+ */
+.images {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.side {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.3rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.side figcaption {
+  display: flex;
+  gap: 0.8rem;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.side .which {
+  color: var(--text);
+}
+
+.side[data-side='before'] .which {
+  color: var(--danger);
+}
+
+.side[data-side='after'] .which {
+  color: var(--ok);
+}
+
+.frame {
+  display: grid;
+  place-items: center;
+  min-height: 4rem;
+  padding: 0.4rem;
+  border: 1px solid var(--panel-rule);
+  background:
+    repeating-conic-gradient(
+      color-mix(in srgb, var(--text-muted) 18%, transparent) 0 25%,
+      transparent 0 50%
+    )
+    0 0 / 16px 16px;
+}
+
+.frame img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  image-rendering: auto;
 }
 
 /* A hunk's head: where it starts, and the function git found it in. */

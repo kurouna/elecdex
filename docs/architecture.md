@@ -868,6 +868,11 @@ Stop とペインを閉じたときの停止）。
   文字」だけの小さな文法として読み戻して**文字として描く**（HTML として挿さない。`<script>` を含むファイルで
   e2e が確認）。色は highlight.js のテーマではなくテーマのトークン（info・warn・accent など）で、
   Business（Light）でも読めることをスクリーンショットで確認した。
+- **画像**（利用者の提案）: PNG・JPEG・GIF・WebP・BMP・ICO・AVIF の変更は差分の代わりに前後の画像を並べる。前後は
+  unstaged なら index と作業ツリー、staged なら HEAD と index、untracked は作業ツリーだけ、コミットは親とそのコミット
+  （`git show <rev>:<path>` をバイト列で）。拡張子は信用せず、先頭のバイトが画像の形式のもの（`sniffImage`）だけを
+  data URL にしてページに渡す（CSP の `img-src data:` のまま）。SVG はテキストとして差分で見せ、画像としては描かない。
+  5 MB を超えるものは描かない。
 - **区切りを動かす**（利用者の指示）: 一覧と差分の間（一覧の幅）と、変更ファイルと LOG の間（LOG の高さ）に
   つまみ（`widgets/common/Splitter.svelte`）があり、ドラッグか、フォーカスして矢印キーで動かせる。ダブルクリックで
   既定に戻る。値はペイン状態（`listWidth`、`logShare`）に持つので、ペインごとに別で、再起動しても残る。ドラッグ中は

@@ -227,3 +227,43 @@ test('keeps the list width and the log height the user drags, per pane, across a
     removeDir(repo)
   }
 })
+
+test('shows a changed image as before and after, and a file only named as one as neither', async () => {
+  const repo = makeRepo()
+  // Two one-pixel PNGs, told apart by colour.
+  const red = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  const blue = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  writeFileSync(path.join(repo, 'logo.png'), red)
+  git(repo, 'add', 'logo.png')
+  git(repo, 'commit', '-q', '-m', 'a red logo')
+  const { app, page, close } = await launch(undefined, { layout: single })
+  try {
+    await watchRepo(page, app, repo)
+    writeFileSync(path.join(repo, 'logo.png'), blue)
+    const row = page.locator('[data-testid="git-file"][data-path="logo.png"]')
+    await expect(row).toBeVisible({ timeout: 10_000 })
+    await row.click()
+    const images = page.getByTestId('diff-image')
+    await expect(images).toHaveCount(2)
+    await expect(page.getByTestId('diff-images')).toContainText('BEFORE')
+    await expect(page.getByTestId('diff-images')).toContainText('1 × 1')
+    expect(await images.first().getAttribute('src')).toMatch(/^data:image\/png;base64,/)
+
+    // Bytes that are not an image never reach an <img>, whatever the name says.
+    writeFileSync(path.join(repo, 'fake.png'), '<svg onload="window.__gitOwned = true"></svg>')
+    const fake = page.locator('[data-testid="git-file"][data-path="fake.png"]')
+    await expect(fake).toBeVisible({ timeout: 10_000 })
+    await fake.click()
+    await expect(page.getByTestId('diff-view')).toContainText('after is not an image')
+    await expect(page.getByTestId('diff-image')).toHaveCount(0)
+  } finally {
+    await close()
+    removeDir(repo)
+  }
+})

@@ -11,6 +11,12 @@ import { GitService, MIN_GAP_MS, SETTLE_MS } from '../../src/main/git/service.js
  */
 
 const ROOT = path.resolve('/work/app')
+/** A one-pixel PNG, and text in a file named as an image. */
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+)
+const TEXT = Buffer.from('not an image at all')
 const ID = '0123456789abcdef'
 
 interface Harness {
@@ -51,6 +57,9 @@ function harness(options: { known?: boolean } = {}): Harness {
     },
     exists: () => true,
     readText: async () => 'hello\n',
+    readBytes: async () => PNG,
+    gitBytes: async (_cwd, spec) =>
+      spec.startsWith('HEAD:') ? PNG : spec.startsWith(':') ? TEXT : null,
     realpath: (file) => path.resolve(file),
     now: () => now,
     setTimer: (fn, ms) => {
@@ -205,6 +214,27 @@ describe('the git service', () => {
     )
     const untracked = await h.service.diff({ repoId: ID, path: 'new.txt', area: 'untracked' })
     expect(untracked.hunks[0]?.lines[0]).toMatchObject({ kind: 'add', text: 'hello' })
+  })
+
+  it('shows an image as before and after, and never passes on bytes that are not one', async () => {
+    const h = harness()
+    h.status.output += `1 M. N... 100644 100644 100644 a a logo.png\0? new.png\0`
+    h.service.watch(ID)
+    await h.advance(0)
+    // Staged: HEAD against the index; the index copy here is text named .png.
+    const staged = await h.service.diff({ repoId: ID, path: 'logo.png', area: 'staged' })
+    expect(staged.images?.before?.dataUrl).toMatch(/^data:image\/png;base64,/)
+    expect(staged.images?.after).toBeNull()
+    expect(staged.images?.note).toBe('after is not an image')
+    expect(staged.hunks).toEqual([])
+    // Untracked: nothing before, the file on disk after.
+    const added = await h.service.diff({ repoId: ID, path: 'new.png', area: 'untracked' })
+    expect(added.images?.before).toBeNull()
+    expect(added.images?.after?.bytes).toBe(PNG.length)
+    // Still only what the last reading listed.
+    expect(
+      (await h.service.diff({ repoId: ID, path: 'other.png', area: 'unstaged' })).problem,
+    ).toMatch(/no longer/)
   })
 
   it('never locates a file outside the repository or in its git folder', async () => {

@@ -77,6 +77,34 @@ export const runGit: RunGit = (cwd, args) =>
     )
   })
 
+/** A file's bytes as git holds them (`git show <rev>:<path>`), or null when it has none there. */
+export type GitBytes = (
+  cwd: string,
+  spec: string,
+  max: number,
+) => Promise<Buffer | 'too-large' | null>
+
+export const gitBytes: GitBytes = (cwd, spec, max) =>
+  new Promise((resolve) => {
+    execFile(
+      'git',
+      [...GIT_FLAGS, 'show', spec],
+      {
+        cwd,
+        encoding: 'buffer',
+        maxBuffer: max,
+        timeout: TIMEOUT_MS,
+        windowsHide: true,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat' },
+      },
+      (error, stdout) => {
+        const code = (error as NodeJS.ErrnoException | null)?.code
+        if (code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') resolve('too-large')
+        else resolve(error === null ? Buffer.from(stdout) : null)
+      },
+    )
+  })
+
 /** The first line of what git said went wrong, for the pane to show. */
 export const gitError = (result: GitResult): string =>
   (result.stderr.trim().split('\n')[0] ?? '').replace(/^(fatal|error): /, '').slice(0, 200)

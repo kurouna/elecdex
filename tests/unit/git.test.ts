@@ -2,6 +2,7 @@ import {
   addedFileDiff,
   changedSpan,
   commitFiles,
+  isImagePath,
   isRepoPath,
   looksBinary,
   MAX_DIFF_LINES,
@@ -13,6 +14,7 @@ import {
   parseNameStatus,
   parseNumstat,
   parseStatus,
+  sniffImage,
   withCounts,
 } from '@shared/git'
 import { applySettingsPatch, defaultSettings, SettingsSchema } from '@shared/settings'
@@ -248,5 +250,20 @@ describe('who may set the open command', () => {
     expect(next?.git.openCommand).toBe('')
     // A hand edit that is not a string costs only the command, not the file.
     expect(SettingsSchema.parse({ git: { openCommand: 42 } }).git.openCommand).toBe('')
+  })
+})
+
+describe('telling an image by its bytes', () => {
+  it('knows the raster formats by their first bytes, not their names', () => {
+    const bytes = (...values: number[]) => new Uint8Array(values)
+    const text = (s: string) => new Uint8Array([...s].map((c) => c.charCodeAt(0)))
+    expect(sniffImage(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a))).toBe('image/png')
+    expect(sniffImage(bytes(0xff, 0xd8, 0xff, 0xe0))).toBe('image/jpeg')
+    expect(sniffImage(text('GIF89a...'))).toBe('image/gif')
+    expect(sniffImage(text('RIFF\0\0\0\0WEBPVP8 '))).toBe('image/webp')
+    expect(sniffImage(text('<svg onload="alert(1)">'))).toBeNull()
+    expect(sniffImage(text('not an image'))).toBeNull()
+    expect(isImagePath('docs/shot.PNG')).toBe(true)
+    expect(isImagePath('icon.svg')).toBe(false)
   })
 })
