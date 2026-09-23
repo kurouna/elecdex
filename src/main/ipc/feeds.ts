@@ -6,6 +6,7 @@ import { USER_AGENT } from '../build-info.js'
 import { FeedCacheSchema, FeedService, readLimited } from '../feeds/service.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { cacheFile } from '../store/cache-file.js'
+import { whenPageGoes } from './page-gone.js'
 
 /**
  * Feeds IPC: pages subscribe to feed URLs; main fetches only what is watched.
@@ -21,7 +22,6 @@ const FETCH_TIMEOUT_MS = 10_000
 
 export function registerFeedsIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
 
   const send = (sender: WebContents, update: FeedUpdate): void => {
     if (!sender.isDestroyed()) sender.send(CH.feeds.update, update)
@@ -72,15 +72,10 @@ export function registerFeedsIpc(): { dispose: () => void } {
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender) && service !== null) sync(service)
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   /** Only a URL already in canonical form is a key; anything else is not ours to fetch. */

@@ -16,6 +16,7 @@ import { ElecService } from '../ai/elec.js'
 import { SessionStore } from '../ai/store.js'
 import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
@@ -39,7 +40,6 @@ export function registerElecIpc(
   links: ElecLinks,
 ): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
   const orphans = new Map<string, NodeJS.Timeout>()
 
   const broadcast = (channel: string, payload: unknown): void => {
@@ -84,18 +84,13 @@ export function registerElecIpc(
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       const before = registry.activeSources()
       if (!registry.dropSubscriber(sender)) return
       const after = new Set(registry.activeSources())
       for (const sessionId of before) if (!after.has(sessionId)) orphaned(sessionId)
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   const asSession = (raw: unknown): string | null =>

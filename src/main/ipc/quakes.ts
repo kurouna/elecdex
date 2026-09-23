@@ -10,6 +10,7 @@ import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { QuakeService } from '../quakes/service.js'
 import { cacheFile } from '../store/cache-file.js'
 import { showMainWindow, windowInFront } from '../window-control.js'
+import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
@@ -36,7 +37,6 @@ const base = (env: string | undefined, fallback: string) => (env ?? fallback).re
 
 export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
   const alerted = cacheFile(
     path.join(app.getPath('userData'), 'quake-alerts.json'),
     z.array(z.string().max(200)).max(1000),
@@ -100,15 +100,10 @@ export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => vo
   settings.onChange(sync)
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender)) sync()
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   ipcMain.on(CH.quakes.subscribe, (event) => {

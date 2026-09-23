@@ -4,6 +4,7 @@ import { CH } from '@shared/channels'
 import { ipcMain, type WebContents } from 'electron'
 import { ClaudeCodeSource } from '../agents/claude/source.js'
 import { AgentHub } from '../agents/hub.js'
+import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
@@ -14,7 +15,6 @@ import type { SettingsHandle } from './settings.js'
  */
 export function registerAgentsIpc(settings: SettingsHandle): { dispose: () => void } {
   const subscribers = new Set<WebContents>()
-  const tracked = new WeakSet<WebContents>()
 
   const hub = new AgentHub({
     sources: { 'claude-code': new ClaudeCodeSource() },
@@ -33,12 +33,7 @@ export function registerAgentsIpc(settings: SettingsHandle): { dispose: () => vo
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
-    sender.once('destroyed', () => drop(sender))
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop(sender)
-    })
+    whenPageGoes(sender, subscribers, () => drop(sender))
   }
 
   ipcMain.on(CH.agents.subscribe, (event) => {

@@ -3,6 +3,7 @@ import { CH } from '@shared/channels'
 import { ipcMain, type WebContents } from 'electron'
 import { listDrives, readDirectory, validatePath } from '../fs/listing.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { whenPageGoes } from './page-gone.js'
 
 /**
  * Filesystem IPC: read-only listings, volume usage, drives, and directory watches.
@@ -18,7 +19,6 @@ const CHANGE_DEBOUNCE_MS = 200
 export function registerFsIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
   const watchers = new Map<string, { watcher: FSWatcher; timer: NodeJS.Timeout | null }>()
-  const tracked = new WeakSet<WebContents>()
 
   const notify = (dir: string): void => {
     for (const sender of registry.subscribers(dir)) {
@@ -60,15 +60,10 @@ export function registerFsIpc(): { dispose: () => void } {
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender)) syncWatchers()
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   ipcMain.handle(CH.fs.readDir, async (_event, raw: unknown) => {

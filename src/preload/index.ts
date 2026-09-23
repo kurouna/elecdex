@@ -292,82 +292,68 @@ const subscribeFeed = keyedSubscriptions<FeedUpdate>({
 })
 
 /**
- * Conversations of the AI chat pane. Reference-counted like the rest, but what
- * main sends is a snapshot and then deltas to it, so the last event is no use to
- * a second pane joining the same conversation: it asks main for a snapshot of
- * its own, which main sends only after bringing everyone up to the same place.
+ * Streams followed as a snapshot and then deltas: the AI chat's conversations
+ * and ELEC's deliberations. Reference-counted like the rest, but what arrives
+ * is not a whole state each time, so a second pane joining the same stream asks
+ * main for a snapshot of its own, which main sends only after bringing everyone
+ * up to the same place.
  */
-const chatHandlers = new Map<string, Set<(event: ChatEvent) => void>>()
+function snapshotSubscriptions<T>(channels: {
+  subscribe: string
+  unsubscribe: string
+  snapshot: string
+  event: string
+  keyOf: (event: T) => string
+}): (key: string, handler: (event: T) => void) => () => void {
+  const handlers = new Map<string, Set<(event: T) => void>>()
 
-ipcRenderer.on(CH.ai.event, (_event, payload: ChatEvent) => {
-  for (const handler of chatHandlers.get(payload.chatId) ?? []) handler(payload)
-})
+  ipcRenderer.on(channels.event, (_event, payload: T) => {
+    for (const handler of handlers.get(channels.keyOf(payload)) ?? []) handler(payload)
+  })
 
-function subscribeChat(chatId: string, handler: (event: ChatEvent) => void): () => void {
-  let set = chatHandlers.get(chatId)
-  let active = true
-  if (!set) {
-    set = new Set()
-    chatHandlers.set(chatId, set)
-    ipcRenderer.send(CH.ai.subscribe, chatId)
-  } else {
-    void (ipcRenderer.invoke(CH.ai.snapshot, chatId) as Promise<ChatEvent | null>).then((event) => {
-      if (active && event !== null) handler(event)
-    })
-  }
-  set.add(handler)
-
-  return () => {
-    if (!active) return
-    active = false
-    const current = chatHandlers.get(chatId)
-    if (!current) return
-    current.delete(handler)
-    if (current.size === 0) {
-      chatHandlers.delete(chatId)
-      ipcRenderer.send(CH.ai.unsubscribe, chatId)
-    }
-  }
-}
-
-/**
- * Deliberations of the ELEC system pane, followed as conversations are: a
- * snapshot and deltas, and a second pane joining asks main for a snapshot of its own.
- */
-const sessionHandlers = new Map<string, Set<(event: ElecEvent) => void>>()
-
-ipcRenderer.on(CH.elec.event, (_event, payload: ElecEvent) => {
-  for (const handler of sessionHandlers.get(payload.sessionId) ?? []) handler(payload)
-})
-
-function subscribeSession(sessionId: string, handler: (event: ElecEvent) => void): () => void {
-  let set = sessionHandlers.get(sessionId)
-  let active = true
-  if (!set) {
-    set = new Set()
-    sessionHandlers.set(sessionId, set)
-    ipcRenderer.send(CH.elec.subscribe, sessionId)
-  } else {
-    void (ipcRenderer.invoke(CH.elec.snapshot, sessionId) as Promise<ElecEvent | null>).then(
-      (event) => {
+  return (key, handler) => {
+    let set = handlers.get(key)
+    let active = true
+    if (!set) {
+      set = new Set()
+      handlers.set(key, set)
+      ipcRenderer.send(channels.subscribe, key)
+    } else {
+      void (ipcRenderer.invoke(channels.snapshot, key) as Promise<T | null>).then((event) => {
         if (active && event !== null) handler(event)
-      },
-    )
-  }
-  set.add(handler)
+      })
+    }
+    set.add(handler)
 
-  return () => {
-    if (!active) return
-    active = false
-    const current = sessionHandlers.get(sessionId)
-    if (!current) return
-    current.delete(handler)
-    if (current.size === 0) {
-      sessionHandlers.delete(sessionId)
-      ipcRenderer.send(CH.elec.unsubscribe, sessionId)
+    return () => {
+      if (!active) return
+      active = false
+      const current = handlers.get(key)
+      if (!current) return
+      current.delete(handler)
+      if (current.size === 0) {
+        handlers.delete(key)
+        ipcRenderer.send(channels.unsubscribe, key)
+      }
     }
   }
 }
+
+const subscribeChat = snapshotSubscriptions<ChatEvent>({
+  subscribe: CH.ai.subscribe,
+  unsubscribe: CH.ai.unsubscribe,
+  snapshot: CH.ai.snapshot,
+  event: CH.ai.event,
+  keyOf: (event) => event.chatId,
+})
+
+const subscribeSession = snapshotSubscriptions<ElecEvent>({
+  subscribe: CH.elec.subscribe,
+  unsubscribe: CH.elec.unsubscribe,
+  snapshot: CH.elec.snapshot,
+  event: CH.elec.event,
+  keyOf: (event) => event.sessionId,
+})
 
 /**
  * The earthquake list: every change is broadcast, so observing is just listening

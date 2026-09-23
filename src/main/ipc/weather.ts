@@ -9,6 +9,7 @@ import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { cacheFile } from '../store/cache-file.js'
 import { PointCacheSchema, PointForecasts } from '../weather/point-forecasts.js'
 import { CachedForecastsSchema, type FetchResponse, WeatherService } from '../weather/service.js'
+import { whenPageGoes } from './page-gone.js'
 
 /**
  * Weather IPC: pages subscribe to a location key; main fetches only what is
@@ -30,7 +31,6 @@ const base = (env: string | undefined, fallback: string) => (env ?? fallback).re
 
 export function registerWeatherIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
   const userData = app.getPath('userData')
 
   const fetch = async (
@@ -125,15 +125,10 @@ export function registerWeatherIpc(): { dispose: () => void } {
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender)) sync()
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   ipcMain.on(CH.weather.subscribe, (event, raw: unknown) => {

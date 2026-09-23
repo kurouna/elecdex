@@ -18,6 +18,7 @@ import { RepoCatalog } from '../git/repos.js'
 import { gitBytes, gitError, runGit } from '../git/run.js'
 import { GitService, type Watch } from '../git/service.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
@@ -33,7 +34,6 @@ type OpenResult = { ok: true } | { ok: false; message: string }
 
 export function registerGitIpc(settings: SettingsHandle): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
   const catalog = new RepoCatalog(path.join(app.getPath('userData'), 'git-repos.json'))
 
   const publish = (state: GitState): void => {
@@ -77,15 +77,10 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender)) sync()
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   ipcMain.on(CH.git.subscribe, (event, raw: unknown) => {

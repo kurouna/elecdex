@@ -4,6 +4,7 @@ import { ipcMain, type WebContents } from 'electron'
 import { MarketService } from '../markets/service.js'
 import { stubProvider, yahooProvider } from '../markets/yahoo.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { whenPageGoes } from './page-gone.js'
 
 /**
  * Markets IPC: pages subscribe to charts - a symbol over a range, keyed
@@ -14,7 +15,6 @@ import { SubscriptionRegistry } from '../metrics/subscriptions.js'
  */
 export function registerMarketsIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
   const stub = process.env.ELECDEX_MARKETS_STUB_URL
 
   const send = (sender: WebContents, update: MarketUpdate): void => {
@@ -44,15 +44,10 @@ export function registerMarketsIpc(): { dispose: () => void } {
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender)) sync()
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   ipcMain.on(CH.markets.subscribe, (event, raw: unknown) => {

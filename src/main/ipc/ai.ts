@@ -23,6 +23,7 @@ import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { cacheFile } from '../store/cache-file.js'
 import { registerElecIpc } from './elec.js'
+import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 
 /**
@@ -57,7 +58,6 @@ const providerFetch: FetchLike = (url, init) =>
 
 export function registerAiIpc(settings: SettingsHandle): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
   const orphans = new Map<string, NodeJS.Timeout>()
 
   const keyFile = cacheFile(
@@ -142,18 +142,13 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       const before = registry.activeSources()
       if (!registry.dropSubscriber(sender)) return
       const after = new Set(registry.activeSources())
       for (const chatId of before) if (!after.has(chatId)) orphaned(chatId)
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   const asChat = (raw: unknown): string | null =>

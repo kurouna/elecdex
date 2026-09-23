@@ -8,6 +8,7 @@ import { openPulseCapture } from '../audio/pulse-capture.js'
 import { readMonitorLevel, restoreMonitor } from '../audio/pulse-monitor.js'
 import { SpectrumCapture } from '../audio/spectrum-capture.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { whenPageGoes } from './page-gone.js'
 
 /**
  * The audio panes' IPC: the spectrum of the system's output and the system mixer.
@@ -29,7 +30,6 @@ const MIXER = 'mixer'
 export function registerAudioIpc(): { dispose: () => void } {
   const stub = audioStubFrom(process.env.ELECDEX_AUDIO_STUB)
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
 
   const send = (source: string, channel: string, update: unknown): void => {
     for (const contents of registry.subscribers(source)) {
@@ -66,15 +66,10 @@ export function registerAudioIpc(): { dispose: () => void } {
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender)) sync()
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   ipcMain.on(CH.audio.spectrumSubscribe, (event) => {

@@ -8,6 +8,7 @@ import {
 } from '@shared/metrics'
 import { ipcMain, type UtilityProcess, utilityProcess, type WebContents } from 'electron'
 import type { WorkerMessage, WorkerRequest } from '../../services/metrics.worker.js'
+import { whenPageGoes } from '../ipc/page-gone.js'
 import { SubscriptionRegistry } from './subscriptions.js'
 
 const WORKER = fileURLToPath(new URL('./metrics.worker.js', import.meta.url))
@@ -31,7 +32,6 @@ const RESTART_BACKOFF_MS = [500, 2000, 5000, 15_000]
 export class MetricsBroker {
   private readonly registry = new SubscriptionRegistry<WebContents>()
   private readonly latest = new Map<string, MetricSample>()
-  private readonly tracked = new WeakSet<WebContents>()
   private worker: UtilityProcess | null = null
   private restarts = 0
   private restartTimer: ReturnType<typeof setTimeout> | null = null
@@ -88,17 +88,10 @@ export class MetricsBroker {
 
   /** Watches a renderer so its subscriptions die with its page. */
   private track(sender: WebContents): void {
-    if (this.tracked.has(sender)) return
-    this.tracked.add(sender)
-
-    const drop = (): void => {
-      if (this.registry.dropSubscriber(sender)) this.syncWorker()
-    }
-    sender.once('destroyed', drop)
     // A reload keeps the same WebContents but starts a fresh page whose preload
     // knows nothing of the old subscriptions.
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
+    whenPageGoes(sender, this, () => {
+      if (this.registry.dropSubscriber(sender)) this.syncWorker()
     })
   }
 

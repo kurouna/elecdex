@@ -6,6 +6,7 @@ import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { type OrbitCache, OrbitCacheSchema, OrbitService } from '../orbits/service.js'
 import { cacheFile } from '../store/cache-file.js'
+import { whenPageGoes } from './page-gone.js'
 
 /**
  * Orbits IPC: ORBIT panes subscribe to a set of elements; main keeps only those.
@@ -20,7 +21,6 @@ const FETCH_TIMEOUT_MS = 30_000
 
 export function registerOrbitsIpc(): { dispose: () => void } {
   const registry = new SubscriptionRegistry<WebContents>()
-  const tracked = new WeakSet<WebContents>()
   const files = new Map<OrbitSet, ReturnType<typeof cacheFile<OrbitCache | null>>>()
   const file = (set: OrbitSet) => {
     let found = files.get(set)
@@ -73,15 +73,10 @@ export function registerOrbitsIpc(): { dispose: () => void } {
   }
 
   const track = (sender: WebContents): void => {
-    if (tracked.has(sender)) return
-    tracked.add(sender)
     const drop = (): void => {
       if (registry.dropSubscriber(sender)) sync()
     }
-    sender.once('destroyed', drop)
-    sender.on('did-start-navigation', (details) => {
-      if (details.isMainFrame && !details.isSameDocument) drop()
-    })
+    whenPageGoes(sender, registry, drop)
   }
 
   ipcMain.on(CH.orbits.subscribe, (event, raw: unknown) => {
