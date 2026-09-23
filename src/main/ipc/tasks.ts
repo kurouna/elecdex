@@ -119,6 +119,8 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
   powerMonitor.on('resume', onResume)
 
   const watcher = watchUserFile(file, () => {
+    // Our own save comes back through the watcher too: one read tells it from a hand edit.
+    if (store.unchangedOnDisk()) return
     store.invalidate()
     const next = withDefaultList(store.read())
     if (JSON.stringify(next) === JSON.stringify(tasks)) return

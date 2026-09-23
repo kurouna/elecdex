@@ -113,6 +113,8 @@ export function registerAlarmsIpc(settings: SettingsHandle): { dispose: () => vo
   powerMonitor.on('resume', onResume)
 
   const watcher = watchUserFile(file, () => {
+    // Our own save comes back through the watcher too: one read tells it from a hand edit.
+    if (store.unchangedOnDisk()) return
     store.invalidate()
     const next = store.read()
     if (JSON.stringify(next) === JSON.stringify(alarms)) return

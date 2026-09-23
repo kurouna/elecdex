@@ -53,6 +53,8 @@ export function registerNotesIpc(): { dispose: () => void } {
 
   // A hand edit while the app runs takes effect, as it does for settings.json.
   const watcher = watchUserFile(file, () => {
+    // Our own save comes back through the watcher too: one read tells it from a hand edit.
+    if (store.unchangedOnDisk()) return
     store.invalidate()
     const next = store.read()
     if (JSON.stringify(next) === JSON.stringify(notes)) return

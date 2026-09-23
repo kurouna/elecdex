@@ -122,6 +122,16 @@ describe('JsonStore', () => {
       expect(makeKeeping().read().name).toBe('from the UI')
     })
 
+    it('backs up a hand edit that broke the file without changing its size', () => {
+      const store = makeKeeping()
+      store.write({ version: 1, name: 'good' })
+      const before = readFileSync(file, 'utf8')
+      const broken = `{${'x'.repeat(before.length - 1)}`
+      writeFileSync(file, broken, 'utf8')
+      store.write({ version: 1, name: 'from the UI' })
+      expect(readFileSync(`${file}.bak`, 'utf8')).toBe(broken)
+    })
+
     it('does not touch .bak when the file on disk is valid', () => {
       const store = makeKeeping()
       store.write({ version: 1, name: 'a' })
@@ -141,6 +151,22 @@ describe('JsonStore', () => {
     makeStore().write({ version: 1, name: 'a' })
     makeStore().write({ version: 1, name: 'b' })
     expect(readdirSync(path.dirname(file)).filter((f) => f.endsWith('.tmp'))).toEqual([])
+  })
+
+  it('tells its own last write or read from a change made by someone else', () => {
+    const store = makeStore()
+    // Nothing read or written yet: whatever is there is news.
+    expect(store.unchangedOnDisk()).toBe(false)
+    store.write({ version: 1, name: 'mine' })
+    // The watcher that sees this write must not read the file back and compare it all again.
+    expect(store.unchangedOnDisk()).toBe(true)
+    writeFileSync(file, JSON.stringify({ version: 1, name: 'by hand' }))
+    expect(store.unchangedOnDisk()).toBe(false)
+    store.invalidate()
+    expect(store.read().name).toBe('by hand')
+    expect(store.unchangedOnDisk()).toBe(true)
+    rmSync(file)
+    expect(store.unchangedOnDisk()).toBe(false)
   })
 
   it('caches reads until invalidated', () => {
