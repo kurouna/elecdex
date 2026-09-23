@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
@@ -304,5 +304,79 @@ test('shows a changed image as before and after, and a file only named as one as
   } finally {
     await close()
     removeDir(repo)
+  }
+})
+
+/**
+ * A program a repository's own config names, as a cloned repository could: it
+ * writes `marker` when run. A shell script, which git starts through its shell
+ * on every platform, running this test's node.
+ */
+function trap(marker: string): { script: string; command: string } {
+  const slash = (p: string) => p.replaceAll('\\', '/')
+  const js = `${marker}.cjs`
+  writeFileSync(
+    js,
+    `require('node:fs').appendFileSync(${JSON.stringify(marker)}, 'ran\\n')\nif (process.argv[2] === 'pass') process.stdin.pipe(process.stdout)\nelse process.exit(1)\n`,
+  )
+  const script = `${marker}.sh`
+  writeFileSync(script, `#!/bin/sh\nexec "${slash(process.execPath)}" "${slash(js)}" "$@"\n`, {
+    mode: 0o755,
+  })
+  return { script: slash(script), command: `"${slash(process.execPath)}" "${slash(js)}" pass` }
+}
+
+test("runs none of the programs a repository's own config names, reading it or its log", async () => {
+  const repo = makeRepo()
+  const marker = path.join(repo, '..', `${path.basename(repo)}-ran`)
+  const { script, command } = trap(marker)
+  // A clean filter on every file, and signature checks through a program of the repository's choosing.
+  writeFileSync(path.join(repo, '.gitattributes'), '* filter=x\n')
+  git(repo, 'add', '.gitattributes')
+  git(repo, 'commit', '-q', '-m', 'attributes')
+  const body = git(repo, 'cat-file', 'commit', 'HEAD').toString()
+  const signed = body.replace(
+    /^(committer .*)$/m,
+    '$1\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n iQEzBAABCAAdFiEE\n -----END PGP SIGNATURE-----',
+  )
+  const oid = execFileSync('git', ['hash-object', '-t', 'commit', '-w', '--stdin'], {
+    cwd: repo,
+    input: signed,
+  })
+    .toString()
+    .trim()
+  git(repo, 'update-ref', 'refs/heads/main', oid)
+  git(repo, 'config', 'filter.x.clean', command)
+  git(repo, 'config', 'log.showSignature', 'true')
+  git(repo, 'config', 'gpg.program', script)
+  // A file touched since the index was written: git must read it, through the filter, to compare.
+  const touched = path.join(repo, 'app.ts')
+  const later = new Date(Date.now() + 5000)
+  utimesSync(touched, later, later)
+  // The trap is armed: git left to itself runs both.
+  git(repo, 'status', '--porcelain')
+  git(repo, 'log', '-1')
+  expect(readFileSync(marker, 'utf8').trim().split('\n').length).toBeGreaterThanOrEqual(2)
+  rmSync(marker)
+
+  const { app, page, close } = await launch(undefined, { layout: single })
+  try {
+    await watchRepo(page, app, repo)
+    await expect(page.getByTestId('git-commit').first()).toContainText('attributes')
+    // Another change, read and diffed, and the signed commit opened.
+    writeFileSync(path.join(repo, 'new.txt'), 'new\n')
+    await expect(page.locator('[data-testid="git-file"][data-path="new.txt"]')).toBeVisible({
+      timeout: 10_000,
+    })
+    utimesSync(touched, new Date(Date.now() + 9000), new Date(Date.now() + 9000))
+    await page.getByTestId('git-commit').first().click()
+    await expect(page.getByTestId('git-viewing')).toBeVisible()
+    await expect(page.getByTestId('diff-view')).toContainText('.gitattributes')
+    await page.waitForTimeout(1500)
+    expect(existsSync(marker)).toBe(false)
+  } finally {
+    await close()
+    removeDir(repo)
+    for (const file of [marker, `${marker}.cjs`, `${marker}.sh`]) removeDir(file)
   }
 })

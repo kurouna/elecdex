@@ -225,6 +225,10 @@ describe('the git service', () => {
       expect(args.slice(0, 2)).toEqual(['-c', 'filter.x.clean='])
     }
     expect(h.calls.filter((a) => commandOf(a) === 'status')).toHaveLength(1)
+    // A submodule's working tree is never looked into: its own filters are not emptied here.
+    for (const args of h.calls.filter((a) => ['status', 'diff'].includes(commandOf(a) ?? ''))) {
+      expect(args).toContain('--ignore-submodules=dirty')
+    }
     // And no signature check, which would run gpg.program, on any call.
     expect(GIT_FLAGS).toEqual(expect.arrayContaining(['log.showSignature=false']))
   })
