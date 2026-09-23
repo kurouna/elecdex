@@ -200,6 +200,17 @@ export const SettingsSchema = z.object({
       compact: z.boolean().default(false),
     })
     .default({ providers: [], systemPrompt: '', compact: false }),
+  /** The git pane (shared/git.ts). */
+  git: z
+    .object({
+      /**
+       * How a double-clicked file is opened: a program and its arguments, with
+       * `{file}`, `{line}` and `{dir}` filled in (`code -g "{file}:{line}"`). Run as a
+       * program, never through a shell. Empty: the system's own application.
+       */
+      openCommand: z.string().max(1000).catch('').default(''),
+    })
+    .default({ openCommand: '' }),
   /**
    * The ELEC system pane (shared/elec.ts): which provider and model sits in each of the
    * three seats, their standpoints, and how the council decides. The providers are the

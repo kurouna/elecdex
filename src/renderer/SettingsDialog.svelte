@@ -477,6 +477,26 @@ function describeUpdate(status: UpdateStatus): string {
             </section>
 
             <section>
+              <h3>git</h3>
+              <div class="row">
+                <span>open files with</span>
+                <code class="command" data-testid="settings-git-open"
+                  >{settings.git.openCommand || "the system's own application"}</code
+                >
+                <button type="button" class="link" onclick={() => void window.elecdex.settings.openFile()}>
+                  edit in settings.json…
+                </button>
+              </div>
+              <!-- Set in the file only, as the launcher's entries are: a command the page could
+                   change is a program the page could start. -->
+              <p class="note">
+                A double-clicked file opens with <code>git.openCommand</code>; {'{file}'} and {'{line}'} are
+                filled in, as in <code>code -g "{'{file}'}:{'{line}'}"</code>. It runs as a program, never
+                through a shell.
+              </p>
+            </section>
+
+            <section>
               <h3>layouts</h3>
               <label class="row">
                 <span>ask before switching layout</span>
@@ -1095,6 +1115,14 @@ input.path:focus {
 code {
   font-family: var(--font-mono);
   color: var(--text);
+}
+
+.command {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 button.link,

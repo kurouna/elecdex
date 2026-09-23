@@ -16,6 +16,8 @@ export interface WidgetDefinition {
   id: string
   /** Shown in the pane header and on a tab. */
   title: string
+  /** The name in the add-pane picker, where it says more than the header should. */
+  pickerTitle?: string
   /** One line for the add-pane picker. */
   description?: string
   component: Component<WidgetProps>

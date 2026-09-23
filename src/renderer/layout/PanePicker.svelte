@@ -44,7 +44,7 @@ const widgets = $derived.by(() => {
       !w.unlisted &&
       (q === '' ||
         w.id.includes(q) ||
-        w.title.toLowerCase().includes(q) ||
+        (w.pickerTitle ?? w.title).toLowerCase().includes(q) ||
         (w.description ?? '').toLowerCase().includes(q)),
   )
 })
@@ -178,7 +178,7 @@ function onKeydown(event: KeyboardEvent): void {
                 data-testid="pane-picker-item"
                 data-widget={w.id}
               >
-                <span class="title">{w.title}{#if w.plugin}<em class="plugin-tag">plugin</em>{/if}</span>
+                <span class="title">{w.pickerTitle ?? w.title}{#if w.plugin}<em class="plugin-tag">plugin</em>{/if}</span>
                 <span class="description">{w.description ?? ''}</span>
                 <span class="state">{present !== null ? 'on screen · focus' : w.multiple ? 'add another' : 'add'}</span>
               </button>

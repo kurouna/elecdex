@@ -1,0 +1,258 @@
+import path from 'node:path'
+import type { GitState } from '@shared/git'
+import { describe, expect, it } from 'vitest'
+import { launchPlan, resolveOnPath } from '../../src/main/git/open.js'
+import type { GitResult } from '../../src/main/git/run.js'
+import { GitService, MIN_GAP_MS, SETTLE_MS } from '../../src/main/git/service.js'
+
+/**
+ * The git service against a made-up git, a made-up watcher and a made-up
+ * clock: when it reads, how often, and what it answers the page.
+ */
+
+const ROOT = path.resolve('/work/app')
+const ID = '0123456789abcdef'
+
+interface Harness {
+  service: GitService
+  published: GitState[]
+  calls: string[][]
+  fire(relative: string): void
+  advance(ms: number): Promise<void>
+  status: { output: string }
+}
+
+function harness(options: { known?: boolean } = {}): Harness {
+  let now = 1_000_000
+  const timers: { at: number; fn: () => void }[] = []
+  const listeners: ((relative: string) => void)[] = []
+  const published: GitState[] = []
+  const calls: string[][] = []
+  const status = { output: '# branch.oid aaaaaaa\0# branch.head main\0' }
+  const ok = (stdout: string): GitResult => ({
+    ok: true,
+    stdout,
+    stderr: '',
+    missing: false,
+    tooLarge: false,
+  })
+  const service = new GitService({
+    run: async (_cwd, args) => {
+      calls.push([...args])
+      if (args[0] === 'rev-parse') return ok(`${path.join(ROOT, '.git')}\n`)
+      if (args[0] === 'status') return ok(status.output)
+      if (args[0] === 'log') return ok('aaaaaaaaaaaaaaaa\x1faaaaaaa\x1fme\x1f1\x1ffirst\0')
+      return ok('')
+    },
+    repo: (id) => (id === ID && options.known !== false ? { id, name: 'app', path: ROOT } : null),
+    watch: (_folder, onChange) => {
+      listeners.push(onChange)
+      return { close: () => listeners.splice(listeners.indexOf(onChange), 1) }
+    },
+    exists: () => true,
+    readText: async () => 'hello\n',
+    realpath: (file) => path.resolve(file),
+    now: () => now,
+    setTimer: (fn, ms) => {
+      const timer = { at: now + ms, fn }
+      timers.push(timer)
+      return timer
+    },
+    clearTimer: (handle) => {
+      const i = timers.indexOf(handle as (typeof timers)[number])
+      if (i >= 0) timers.splice(i, 1)
+    },
+    publish: (state) => published.push(state),
+  })
+  const flush = async (): Promise<void> => {
+    for (let i = 0; i < 10; i += 1) await Promise.resolve()
+  }
+  return {
+    service,
+    published,
+    calls,
+    status,
+    fire: (relative) => {
+      for (const listener of [...listeners]) listener(relative)
+    },
+    advance: async (ms) => {
+      const until = now + ms
+      await flush()
+      for (;;) {
+        timers.sort((a, b) => a.at - b.at)
+        const next = timers[0]
+        if (next === undefined || next.at > until) break
+        timers.shift()
+        now = next.at
+        next.fn()
+        await flush()
+      }
+      now = until
+      await flush()
+    },
+  }
+}
+
+const statusCalls = (calls: string[][]): number =>
+  calls.filter((args) => args[0] === 'status').length
+
+describe('the git service', () => {
+  it('reads a repository once when a pane opens it, and publishes what it read', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(statusCalls(h.calls)).toBe(1)
+    expect(h.published.at(-1)).toMatchObject({
+      repoId: ID,
+      branch: { head: 'main' },
+      problem: null,
+    })
+    expect(h.published.at(-1)?.log[0]?.subject).toBe('first')
+  })
+
+  it('says an id is unknown rather than guessing a folder', async () => {
+    const h = harness({ known: false })
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(h.published.at(-1)?.problem).toBe('unknown')
+    expect(h.calls).toEqual([])
+  })
+
+  it('reads after a quiet spell, once for a burst of changes', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(2000)
+    for (let i = 0; i < 50; i += 1) h.fire(`src/file${i}.ts`)
+    await h.advance(SETTLE_MS - 1)
+    expect(statusCalls(h.calls)).toBe(1)
+    await h.advance(1)
+    expect(statusCalls(h.calls)).toBe(2)
+  })
+
+  it('reads at most once a second while changes keep coming', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    for (let t = 0; t < 5000; t += 100) {
+      h.fire('out/bundle.js')
+      await h.advance(100)
+    }
+    // A reading starts at 0, then the steady stream earns one a second at most.
+    expect(statusCalls(h.calls)).toBeLessThanOrEqual(1 + Math.ceil(5000 / MIN_GAP_MS))
+  })
+
+  it('ignores git bookkeeping but follows the index, HEAD and refs', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(2000)
+    for (const noise of [
+      '.git/index.lock',
+      '.git/objects/ab/cdef',
+      '.git/logs/HEAD',
+      '.git/FETCH_HEAD',
+    ]) {
+      h.fire(noise)
+    }
+    await h.advance(2000)
+    expect(statusCalls(h.calls)).toBe(1)
+    for (const signal of ['.git/index', '.git/HEAD', '.git/refs/heads/main']) {
+      h.fire(signal)
+      await h.advance(2000)
+    }
+    expect(statusCalls(h.calls)).toBe(4)
+  })
+
+  it('publishes only when what the pane shows changed', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    const before = h.published.length
+    h.fire('README.md')
+    await h.advance(2000)
+    expect(h.published.length).toBe(before)
+    h.status.output += `1 .M N... 100644 100644 100644 a a README.md\0`
+    h.fire('README.md')
+    await h.advance(2000)
+    expect(h.published.length).toBe(before + 1)
+    expect(h.published.at(-1)?.files[0]).toMatchObject({ path: 'README.md', area: 'unstaged' })
+  })
+
+  it('stops watching when the last pane goes, and reads nothing after', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    h.service.unwatch(ID)
+    h.fire('a.txt')
+    await h.advance(5000)
+    expect(statusCalls(h.calls)).toBe(1)
+    expect(h.service.watching()).toEqual([])
+  })
+
+  it('answers a diff only for a file the last reading listed, in that list', async () => {
+    const h = harness()
+    h.status.output += `1 .M N... 100644 100644 100644 a a a.txt\0? new.txt\0`
+    h.service.watch(ID)
+    await h.advance(0)
+    expect((await h.service.diff({ repoId: ID, path: 'b.txt', area: 'unstaged' })).problem).toMatch(
+      /no longer/,
+    )
+    expect((await h.service.diff({ repoId: ID, path: 'a.txt', area: 'staged' })).problem).toMatch(
+      /no longer/,
+    )
+    await h.service.diff({ repoId: ID, path: 'a.txt', area: 'unstaged' })
+    expect(h.calls.at(-1)).toEqual(
+      expect.arrayContaining(['diff', '--no-ext-diff', '--no-textconv', '--', 'a.txt']),
+    )
+    const untracked = await h.service.diff({ repoId: ID, path: 'new.txt', area: 'untracked' })
+    expect(untracked.hunks[0]?.lines[0]).toMatchObject({ kind: 'add', text: 'hello' })
+  })
+
+  it('never locates a file outside the repository or in its git folder', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(h.service.locate(ID, 'src/a.ts')).toBe(path.join(ROOT, 'src', 'a.ts'))
+    expect(h.service.locate(ID, '.git/config')).toBeNull()
+    expect(h.service.locate('ffffffffffffffff', 'src/a.ts')).toBeNull()
+  })
+})
+
+describe('starting the open command', () => {
+  const exists = (known: string[]) => (file: string) => known.includes(file)
+
+  it('finds a bare command on PATH through PATHEXT, as Windows does', () => {
+    const env = { PATH: 'C:\\bin;C:\\code\\bin', PATHEXT: '.EXE;.CMD' }
+    expect(resolveOnPath('code', env, exists(['C:\\code\\bin\\code.cmd']))).toBe(
+      'C:\\code\\bin\\code.cmd',
+    )
+    expect(resolveOnPath('C:\\x\\zed.exe', env, exists([]))).toBe('C:\\x\\zed.exe')
+  })
+
+  it('starts a program as a program, and a .cmd through cmd.exe with each argument quoted', () => {
+    const resolve = (program: string) => (program === 'code' ? 'C:\\code\\bin\\code.cmd' : program)
+    expect(launchPlan('zed', ['a b.ts'], 'win32', resolve)).toEqual({
+      kind: 'spawn',
+      program: 'zed',
+      args: ['a b.ts'],
+    })
+    expect(launchPlan('code', ['-g', 'C:\\w\\a b.ts:3'], 'win32', resolve)).toEqual({
+      kind: 'cmd',
+      line: '""C:\\code\\bin\\code.cmd" "-g" "C:\\w\\a b.ts:3""',
+    })
+  })
+
+  it('refuses a .cmd for a file whose name cmd.exe would act on', () => {
+    const resolve = () => 'C:\\code\\bin\\code.cmd'
+    for (const name of ['a&calc.ts', 'a%PATH%.ts', 'a"b.ts', 'a^b.ts', 'a|b.ts']) {
+      expect(launchPlan('code', [`C:\\w\\${name}`], 'win32', resolve).kind).toBe('refused')
+    }
+  })
+
+  it('never goes near a shell on other systems', () => {
+    expect(launchPlan('code', ['a&b.ts'], 'linux', (p) => p)).toEqual({
+      kind: 'spawn',
+      program: 'code',
+      args: ['a&b.ts'],
+    })
+  })
+})

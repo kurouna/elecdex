@@ -47,6 +47,9 @@ for Windows, macOS and Linux.
   month calendar with optional Japanese holidays.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
   you want it.
+- **Git** *(unreleased)* — a repository you choose, read only: the files changed, the diff of
+  each with its syntax coloured, and the last commits, kept current as they change - watch an AI
+  agent work in the next pane. One pane per repository.
 - **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
   that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
   Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
@@ -364,7 +367,16 @@ weather and calendar.
   `/proc/net/tcp*` on Linux, `netstat` on macOS - which cannot name the owning process, and the
   pane says so), and the countries from the same bundled GeoIP database the world view uses.
   Nothing is ever looked up online. **MASK** hides the second half of every address, for a
-  screenshot or a shared screen.
+  screenshot or a shared screen. *(unreleased)* A listening program says what it serves, told from
+  its command line - `node` becomes `vite · my-app` - without the port being asked anything.
+- **Git** *(unreleased)* — **SELECT REPOSITORY** picks a folder; the pane watches that repository
+  from then on and reads it again after each change (at most once a second, and never while
+  nothing changes). The staged, unstaged, untracked and conflicted files, each with its lines
+  added and removed; the diff of the file chosen, unified or side by side, with the changed words
+  lit; the last 30 commits, each of which opens its own files and diff. It only reads: stage and
+  commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
+  in `settings.json` (`{file}` and `{line}` are filled in, e.g. `code -g "{file}:{line}"`),
+  or with the system's own application when it is empty. git must be on PATH.
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
   sparklines, candlesticks or bars of the change (in the list's order, or sorted by it). The rows
   share the pane: two columns when it is wide, one line each when it is short, and candles across

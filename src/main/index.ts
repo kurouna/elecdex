@@ -7,6 +7,7 @@ import { registerAlarmsIpc } from './ipc/alarms.js'
 import { registerAudioIpc } from './ipc/audio.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
 import { registerFsIpc } from './ipc/fs.js'
+import { registerGitIpc } from './ipc/git.js'
 import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerMarketsIpc } from './ipc/markets.js'
@@ -76,6 +77,7 @@ let settingsIpc: { dispose: () => void } | null = null
 let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
 let feedsIpc: { dispose: () => void } | null = null
+let gitIpc: { dispose: () => void } | null = null
 let aiIpc: { dispose: () => void } | null = null
 let quakesIpc: { dispose: () => void } | null = null
 let notesIpc: { dispose: () => void } | null = null
@@ -99,6 +101,7 @@ app.whenReady().then(() => {
   launcherIpc = registerLauncherIpc(settings)
   marketsIpc = registerMarketsIpc()
   feedsIpc = registerFeedsIpc()
+  gitIpc = registerGitIpc(settings)
   aiIpc = registerAiIpc(settings)
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
@@ -163,6 +166,8 @@ app.on('will-quit', () => {
   marketsIpc = null
   feedsIpc?.dispose()
   feedsIpc = null
+  gitIpc?.dispose()
+  gitIpc = null
   aiIpc?.dispose()
   aiIpc = null
   quakesIpc?.dispose()

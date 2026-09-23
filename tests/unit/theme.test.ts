@@ -168,6 +168,7 @@ describe('settings', () => {
       updates: { check: true },
       layout: { confirmSwitch: true },
       web: { tint: false },
+      git: { openCommand: '' },
       quakes: {
         source: 'auto',
         notify: false,

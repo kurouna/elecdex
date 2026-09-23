@@ -13,6 +13,7 @@ import type { BackgroundState } from './background.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
+import type { GitDiff, GitDiffRequest, GitFile, GitRepoRef, GitState } from './git.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { SavedLayoutSummary } from './layouts.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
@@ -348,6 +349,38 @@ export interface FeedsApi {
   watching(): Promise<string[]>
 }
 
+/** The git pane: it only reads. Repositories are known to the page by id. */
+export interface GitApi {
+  /**
+   * Keeps a repository's state current while subscribed: main watches its
+   * folder and reads it after each change, at most once a second.
+   */
+  subscribe(repoId: string, handler: (state: GitState) => void): () => void
+  /**
+   * Main opens a folder picker and adds the repository the chosen folder is in.
+   * Null when the picker was closed; a problem when the folder is not in one.
+   */
+  pick(): Promise<{ repo: GitRepoRef } | { problem: string } | null>
+  /** Repositories used before on this machine, most recent first. */
+  recent(): Promise<GitRepoRef[]>
+  diff(request: GitDiffRequest): Promise<GitDiff>
+  /** The files a commit changed, or null when it cannot be read. */
+  commit(repoId: string, oid: string): Promise<GitFile[] | null>
+  /**
+   * Opens a file of the repository with the command in settings (`git.openCommand`),
+   * at `line` where the command takes one, or with the system's own application.
+   */
+  open(
+    repoId: string,
+    path: string,
+    line: number | null,
+  ): Promise<{ ok: true } | { ok: false; message: string }>
+  /** Shows the file in the system's file manager. */
+  reveal(repoId: string, path: string): Promise<boolean>
+  /** Diagnostics: the repositories main is watching. */
+  watching(): Promise<string[]>
+}
+
 export interface QuakesApi {
   /**
    * Keeps the earthquake list and tsunami state current while subscribed (a quakes pane). The
@@ -572,6 +605,7 @@ export interface ElecdexApi {
   launcher: LauncherApi
   markets: MarketsApi
   feeds: FeedsApi
+  git: GitApi
   ai: AiApi
   elec: ElecApi
   quakes: QuakesApi

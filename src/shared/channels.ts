@@ -94,6 +94,22 @@ export const CH = {
     update: 'feeds:update',
     watching: 'feeds:watching',
   },
+  /** The git pane (shared/git.ts): read only, by repository id. */
+  git: {
+    /** renderer -> main, fire and forget: keep a repository's state current. */
+    subscribe: 'git:subscribe',
+    unsubscribe: 'git:unsubscribe',
+    /** main -> renderer: a GitState. */
+    update: 'git:update',
+    /** Main opens a folder picker; the page never hands over a path. */
+    pick: 'git:pick',
+    recent: 'git:recent',
+    diff: 'git:diff',
+    commit: 'git:commit',
+    open: 'git:open',
+    reveal: 'git:reveal',
+    watching: 'git:watching',
+  },
   /** The AI chat pane (shared/ai.ts). A key goes to main and never comes back. */
   ai: {
     /** What the page may know of each provider's key (AiProviderStatus[]). */

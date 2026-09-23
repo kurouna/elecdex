@@ -1,3 +1,4 @@
+import { splitCommandLine } from '@shared/command-line'
 import type { NetSocket } from '@shared/metrics'
 import {
   METRIC_SOURCE_IDS,
@@ -22,7 +23,6 @@ import {
   identifyOwner,
   listenerOwners,
   type RawCommand,
-  splitCommandLine,
 } from '../../src/services/metrics/sockets/identify.js'
 import { MAX_SOCKETS, summarize } from '../../src/services/metrics/sockets/index.js'
 import { parseProcSockets } from '../../src/services/metrics/sockets/linux.js'

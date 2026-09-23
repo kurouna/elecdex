@@ -8,6 +8,7 @@ import CalendarWidget from './calendar/CalendarWidget.svelte'
 import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
 import ElecWidget from './elec/ElecWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
+import GitWidget from './git/GitWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
 import LauncherWidget from './launcher/LauncherWidget.svelte'
 import MarketsWidget from './markets/MarketsWidget.svelte'
@@ -224,6 +225,18 @@ registerBuiltin({
     'A council of three models - logic, ethics, feeling - that votes on a motion you put, with the providers of the ai settings.',
   component: ElecWidget,
   minSize: { w: 300, h: 260 },
+  multiple: true,
+  zoom: 'full',
+})
+
+registerBuiltin({
+  id: 'git',
+  title: 'git',
+  pickerTitle: 'git status',
+  description:
+    'A git repository, read only: the files changed, the diff of each, and the last commits, kept current as they change.',
+  component: GitWidget,
+  minSize: { w: 260, h: 160 },
   multiple: true,
   zoom: 'full',
 })

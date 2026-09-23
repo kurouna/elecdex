@@ -194,6 +194,22 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - No tools, no MCP, no images, no branching, no named prompt profiles: left out on purpose
     (user decisions 2026-09-20 and 2026-09-21). A model that can start processes or read files
     needs a consent design like the plugins' first. Do not add any of them without asking.
+- **The git pane** (architecture.md §5.9, shared/git.ts, main/git/) only reads: it never stages,
+  commits or checks out. A repository is chosen through main's folder picker and known to the page
+  by an id (`git-repos.json`), so a layout carries no path; a pane is tied to no other pane.
+  - git runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags, always: a repository's own
+    config can name programs (`core.fsmonitor`, external diff, textconv), and the pane must never
+    run one by looking. `--no-optional-locks` keeps its reads off the user's index.lock.
+  - Main answers a diff only for a file its last reading listed, and opens or reveals only a file
+    that resolves inside the working tree (`GitService.locate`).
+  - `git.openCommand` is set in settings.json only, never by settings.patch (as launcher entries):
+    a command the page could change is a program the page could start. It runs as a program and
+    its arguments, never through a shell; a Windows .cmd goes through `cmd.exe` only with every
+    argument free of what cmd.exe acts on (main/git/open.ts).
+  - A repository is watched only while a pane shows it, read after changes at most once a second,
+    and git's own bookkeeping in the git folder (`index.lock`, objects) is not a change.
+  - A file's text is untrusted: highlight.js's answer is read back into tokens (lib/highlight.ts)
+    and drawn as text, never as HTML.
 - **The ELEC system pane** (architecture.md §5.8, shared/elec.ts, main/ai/elec.ts) puts a
   motion to three units - LOGOS, ETHOS, PATHOS - on the AI chat's providers, keys and adapters,
   under the same rules (main asks, snapshot + deltas, an unfollowed deliberation stops, nothing

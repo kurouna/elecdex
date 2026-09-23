@@ -24,6 +24,7 @@ import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
+import type { GitDiff, GitFile, GitRepoRef, GitState } from '@shared/git'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { SavedLayoutSummary } from '@shared/layouts'
 import { chartKey, type MarketUpdate } from '@shared/markets'
@@ -259,6 +260,13 @@ const subscribeMarket = keyedSubscriptions<MarketUpdate>({
   keyOf: (update) => update.key,
 })
 
+const subscribeGit = keyedSubscriptions<GitState>({
+  subscribe: CH.git.subscribe,
+  unsubscribe: CH.git.unsubscribe,
+  event: CH.git.update,
+  keyOf: (state) => state.repoId,
+})
+
 const subscribeFeed = keyedSubscriptions<FeedUpdate>({
   subscribe: CH.feeds.subscribe,
   unsubscribe: CH.feeds.unsubscribe,
@@ -477,6 +485,21 @@ const api: ElecdexApi = {
   feeds: {
     subscribe: (url, handler) => subscribeFeed(url, handler),
     watching: () => ipcRenderer.invoke(CH.feeds.watching) as Promise<string[]>,
+  },
+  git: {
+    subscribe: (repoId, handler) => subscribeGit(repoId, handler),
+    pick: () =>
+      ipcRenderer.invoke(CH.git.pick) as Promise<{ repo: GitRepoRef } | { problem: string } | null>,
+    recent: () => ipcRenderer.invoke(CH.git.recent) as Promise<GitRepoRef[]>,
+    diff: (request) => ipcRenderer.invoke(CH.git.diff, request) as Promise<GitDiff>,
+    commit: (repoId, oid) =>
+      ipcRenderer.invoke(CH.git.commit, repoId, oid) as Promise<GitFile[] | null>,
+    open: (repoId, path, line) =>
+      ipcRenderer.invoke(CH.git.open, repoId, path, line) as Promise<
+        { ok: true } | { ok: false; message: string }
+      >,
+    reveal: (repoId, path) => ipcRenderer.invoke(CH.git.reveal, repoId, path) as Promise<boolean>,
+    watching: () => ipcRenderer.invoke(CH.git.watching) as Promise<string[]>,
   },
   ai: {
     providers: () => ipcRenderer.invoke(CH.ai.providers) as Promise<AiProviderStatus[]>,
