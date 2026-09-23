@@ -20,14 +20,26 @@ interface Props {
   commit: boolean
   counts: Record<GitArea, number> | null
   dropped: number
+  /** Rows arriving now are the first reading, not a change: no motion. */
+  still: boolean
   repoPath: string
   onselect: (file: GitFile) => void
   onopen: (file: GitFile) => void
   onreveal: (file: GitFile) => void
 }
 
-const { files, selected, commit, counts, dropped, repoPath, onselect, onopen, onreveal }: Props =
-  $props()
+const {
+  files,
+  selected,
+  commit,
+  counts,
+  dropped,
+  still,
+  repoPath,
+  onselect,
+  onopen,
+  onreveal,
+}: Props = $props()
 
 const AREAS: { area: GitArea; label: string }[] = [
   { area: 'conflicted', label: 'CONFLICTED' },
@@ -114,7 +126,7 @@ const fullPath = (file: GitFile): string =>
 
 <div class="files" bind:this={list} data-testid="git-files">
   {#each rows as row (row.key)}
-    <div class="slot" animate:flip={{ duration: appearance.reducedMotion ? 0 : 180 }} in:landIn out:foldOut>
+    <div class="slot" animate:flip={{ duration: appearance.reducedMotion ? 0 : 180 }} in:landIn={{ still }} out:foldOut>
       {#if row.kind === 'head'}
         <p class="section" data-area={row.area}>{row.label}<span>{row.count}</span></p>
       {:else}

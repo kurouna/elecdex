@@ -63,3 +63,60 @@ export function launchPlan(
   // /s strips the outer quotes and leaves each quoted argument as it is.
   return { kind: 'cmd', line: `"${parts.map((part) => `"${part}"`).join(' ')}"` }
 }
+
+/**
+ * Files the system's own "open" would run rather than show: programs, scripts,
+ * shortcuts and installers. With no command set, the pane opens a file the way
+ * a double-click in the file manager would, and in a repository just cloned
+ * that could be `setup.bat`; such a file is shown in its folder instead, so a
+ * pane that only reads never starts one.
+ */
+const RUNS_ON: Record<string, readonly string[]> = {
+  win32: [
+    '.exe',
+    '.com',
+    '.bat',
+    '.cmd',
+    '.ps1',
+    '.psm1',
+    '.vbs',
+    '.vbe',
+    '.js',
+    '.jse',
+    '.wsf',
+    '.wsh',
+    '.msc',
+    '.msi',
+    '.msp',
+    '.scr',
+    '.pif',
+    '.lnk',
+    '.url',
+    '.hta',
+    '.cpl',
+    '.reg',
+    '.jar',
+    '.appref-ms',
+    '.application',
+    '.scf',
+    '.inf',
+    '.settingcontent-ms',
+  ],
+  darwin: [
+    '.app',
+    '.command',
+    '.tool',
+    '.terminal',
+    '.workflow',
+    '.action',
+    '.pkg',
+    '.mpkg',
+    '.jar',
+  ],
+  linux: ['.desktop', '.appimage', '.run', '.sh', '.jar', '.deb', '.rpm'],
+}
+
+export function runsWhenOpened(file: string, platform: NodeJS.Platform): boolean {
+  const extension = path.extname(file).toLowerCase()
+  return extension !== '' && (RUNS_ON[platform] ?? RUNS_ON.linux ?? []).includes(extension)
+}

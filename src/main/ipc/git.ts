@@ -13,7 +13,7 @@ import {
   parseDiffRequest,
 } from '@shared/git'
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from 'electron'
-import { launchPlan, resolveOnPath } from '../git/open.js'
+import { launchPlan, resolveOnPath, runsWhenOpened } from '../git/open.js'
 import { RepoCatalog } from '../git/repos.js'
 import { gitBytes, gitError, runGit } from '../git/run.js'
 import { GitService, type Watch } from '../git/service.js'
@@ -126,6 +126,7 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
 
   ipcMain.handle(CH.git.diff, async (_event, raw: unknown) => {
     const request = parseDiffRequest(raw)
+    // Null for what can never be a file of a repository; the page shows nothing for it.
     return request === null ? null : service.diff(request)
   })
 
@@ -219,6 +220,10 @@ async function openWith(
 ): Promise<OpenResult> {
   const command = openCommand(template, { file, line, dir: root })
   if (command === null) {
+    if (runsWhenOpened(file, process.platform)) {
+      shell.showItemInFolder(file)
+      return { ok: false, message: 'it would run rather than open: shown in its folder instead' }
+    }
     const error = await shell.openPath(file)
     return error === '' ? { ok: true } : { ok: false, message: error }
   }

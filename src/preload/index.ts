@@ -517,7 +517,7 @@ const api: ElecdexApi = {
     pick: () =>
       ipcRenderer.invoke(CH.git.pick) as Promise<{ repo: GitRepoRef } | { problem: string } | null>,
     recent: () => ipcRenderer.invoke(CH.git.recent) as Promise<GitRepoRef[]>,
-    diff: (request) => ipcRenderer.invoke(CH.git.diff, request) as Promise<GitDiff>,
+    diff: (request) => ipcRenderer.invoke(CH.git.diff, request) as Promise<GitDiff | null>,
     commit: (repoId, oid) =>
       ipcRenderer.invoke(CH.git.commit, repoId, oid) as Promise<GitFile[] | null>,
     open: (repoId, path, line) =>

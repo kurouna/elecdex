@@ -72,6 +72,10 @@ export interface GitServiceDeps {
 export const SETTLE_MS = 300
 /** The least time between two readings of one repository. */
 export const MIN_GAP_MS = 1000
+/** After a reading that failed (no git, the folder gone), the next try: the pane mends itself. */
+export const RETRY_MS = 30_000
+/** Changed paths remembered between readings; past this, every listed file counts as touched. */
+const MAX_TOUCHED = 500
 
 interface Watched {
   ref: GitRepoRef
@@ -81,10 +85,49 @@ interface Watched {
   reading: boolean
   again: boolean
   lastStart: number
+  /** When the first change not yet read arrived; a steady stream still gets a reading a second. */
+  pendingSince: number | null
+  /** Working-tree paths changed since the last reading started (forward slashes), or 'all'. */
+  touched: Set<string> | 'all'
+  /** `-c` pairs that empty the filters this repository's own config defines. */
+  guard: string[]
   state: GitState
 }
 
-const DIFF_FLAGS = ['--no-color', '--no-ext-diff', '--no-textconv', '-M', '-U3']
+/**
+ * A submodule's working tree is not looked into (`dirty`): git would run
+ * status there under that submodule's own config, whose filters are not
+ * emptied here. Its commit moving still shows.
+ */
+const SUBMODULES = '--ignore-submodules=dirty'
+const DIFF_FLAGS = ['--no-color', '--no-ext-diff', '--no-textconv', SUBMODULES, '-M', '-U3']
+
+/**
+ * The filter drivers a repository's own config defines (`filter.<name>.clean`
+ * and the rest), from `git config --get-regexp --show-scope`: git runs a clean
+ * filter to compare a touched file with the index, so a cloned repository could
+ * otherwise run a program of its choosing whenever the pane reads it. The
+ * user's own (global, system) filters, such as Git LFS, are left alone.
+ */
+export function filterGuard(output: string): string[] {
+  const names = new Set<string>()
+  for (const line of output.split('\n')) {
+    const match = /^(\S+)\tfilter\.(.+)\.(clean|smudge|process|required)\s/.exec(`${line} `)
+    if (match === null) continue
+    const [, scope, name] = match
+    if (scope !== 'global' && scope !== 'system' && name !== undefined) names.add(name)
+  }
+  return [...names].flatMap((name) => [
+    '-c',
+    `filter.${name}.clean=`,
+    '-c',
+    `filter.${name}.smudge=`,
+    '-c',
+    `filter.${name}.process=`,
+    '-c',
+    `filter.${name}.required=false`,
+  ])
+}
 
 export class GitService {
   private readonly deps: GitServiceDeps
@@ -118,6 +161,9 @@ export class GitService {
       reading: false,
       again: false,
       lastStart: 0,
+      pendingSince: null,
+      touched: new Set(),
+      guard: [],
       state: { ...emptyState(id), repo: ref },
     }
     this.watched.set(id, entry)
@@ -136,6 +182,11 @@ export class GitService {
     for (const id of [...this.watched.keys()]) this.unwatch(id)
   }
 
+  /** git, with the flags that keep this repository's own filters from running. */
+  private git(entry: Watched, args: readonly string[]): Promise<GitResult> {
+    return this.deps.run(entry.ref.path, [...entry.guard, ...args])
+  }
+
   /** Finds the git folder, starts watching, and takes the first reading. */
   private async start(entry: Watched): Promise<void> {
     const root = entry.ref.path
@@ -145,12 +196,22 @@ export class GitService {
       this.settle(entry, this.failure(entry, found))
       return
     }
+    const filters = await this.deps.run(root, [
+      'config',
+      '--get-regexp',
+      '--show-scope',
+      '^filter\\.',
+    ])
+    if (!this.isCurrent(entry)) return
+    entry.guard = filterGuard(filters.stdout)
     entry.gitDir = path.resolve(found.stdout.trim())
     const gitDir = entry.gitDir
     const insideRoot = path.relative(root, gitDir)
     const rootWatch = this.deps.watch(root, (relative) => {
       const inGit = pathIn(insideRoot, relative)
-      if (changeMatters(relative, inGit)) this.changed(entry)
+      if (!changeMatters(relative, inGit)) return
+      if (inGit === null) this.touch(entry, relative)
+      this.changed(entry)
     })
     if (rootWatch !== null) entry.watches.push(rootWatch)
     // A linked worktree keeps its git folder elsewhere; its index and HEAD are there.
@@ -163,18 +224,33 @@ export class GitService {
     await this.read(entry)
   }
 
+  /** Remembers a changed working-tree path, so a file whose counts stayed the same is still read again. */
+  private touch(entry: Watched, relative: string): void {
+    if (entry.touched === 'all') return
+    entry.touched.add(relative.split(path.sep).join('/'))
+    if (entry.touched.size > MAX_TOUCHED) entry.touched = 'all'
+  }
+
+  /**
+   * Reads after a quiet spell (an editor's save is several writes), but a
+   * stream of changes that never goes quiet - a build in watch mode - still
+   * gets a reading a second rather than none until it stops.
+   */
   private changed(entry: Watched): void {
     if (!this.isCurrent(entry)) return
+    const now = this.deps.now()
+    entry.pendingSince ??= now
     if (entry.reading) {
       entry.again = true
       return
     }
     if (entry.timer !== null) this.deps.clearTimer(entry.timer)
-    const wait = Math.max(SETTLE_MS, entry.lastStart + MIN_GAP_MS - this.deps.now())
+    const quiet = Math.min(now + SETTLE_MS, entry.pendingSince + MIN_GAP_MS)
+    const due = Math.max(quiet, entry.lastStart + MIN_GAP_MS)
     entry.timer = this.deps.setTimer(() => {
       entry.timer = null
       void this.read(entry)
-    }, wait)
+    }, due - now)
   }
 
   private isCurrent(entry: Watched): boolean {
@@ -186,10 +262,18 @@ export class GitService {
     if (!this.isCurrent(entry)) return
     entry.reading = true
     entry.again = false
+    entry.pendingSince = null
     entry.lastStart = this.deps.now()
+    const touched = entry.touched
+    entry.touched = new Set()
     try {
       const next = await this.reading(entry)
-      if (this.isCurrent(entry)) this.settle(entry, next)
+      // A listed file written again with the same counts is a new diff all the same.
+      const rewritten =
+        touched === 'all'
+          ? next.files.length > 0
+          : next.files.some((file) => touched.has(file.path))
+      if (this.isCurrent(entry)) this.settle(entry, next, rewritten)
     } finally {
       entry.reading = false
       // Something changed while git was reading: what it read may be stale.
@@ -197,15 +281,38 @@ export class GitService {
     }
   }
 
-  private settle(entry: Watched, next: GitState): void {
-    const changed = !sameState(entry.state, next) || entry.state.readAt === 0
+  private settle(entry: Watched, next: GitState, rewritten = false): void {
+    const changed = rewritten || !sameState(entry.state, next) || entry.state.readAt === 0
     entry.state = next
     if (changed) this.deps.publish(next)
+    if (next.problem !== null && entry.timer === null) {
+      // Git installed, the folder cloned again: try once in a while rather than never.
+      entry.timer = this.deps.setTimer(() => {
+        entry.timer = null
+        this.restart(entry)
+      }, RETRY_MS)
+    }
+  }
+
+  /** Starts over: the git folder, the filters and the watches may all be different now. */
+  private restart(entry: Watched): void {
+    if (!this.isCurrent(entry)) return
+    for (const watch of entry.watches) watch.close()
+    entry.watches = []
+    entry.gitDir = null
+    void this.start(entry)
   }
 
   private failure(entry: Watched, result: GitResult): GitState {
     const base = { ...emptyState(entry.ref.id), repo: entry.ref, readAt: this.deps.now() }
     if (result.missing) return { ...base, problem: 'no-git', message: 'git was not found on PATH' }
+    if (result.tooLarge) {
+      return {
+        ...base,
+        problem: 'failed',
+        message: 'git status said more than the pane can take (too many untracked files?)',
+      }
+    }
     if (!this.deps.exists(entry.ref.path)) {
       return { ...base, problem: 'missing', message: 'the folder is no longer there' }
     }
@@ -213,31 +320,32 @@ export class GitService {
   }
 
   private async reading(entry: Watched): Promise<GitState> {
-    const root = entry.ref.path
-    const status = await this.deps.run(root, [
+    const status = await this.git(entry, [
       'status',
       '--porcelain=v2',
       '-z',
       '--branch',
       '--show-stash',
       '--untracked-files=all',
+      SUBMODULES,
     ])
     if (!status.ok) return this.failure(entry, status)
     const parsed = parseStatus(status.stdout)
     const headMoved = parsed.branch.oid !== entry.state.branch.oid || entry.state.readAt === 0
     const [unstaged, staged, log] = await Promise.all([
-      this.deps.run(root, ['diff', '--numstat', '-z', '--no-ext-diff', '--no-textconv']),
-      this.deps.run(root, [
+      this.git(entry, ['diff', '--numstat', '-z', '--no-ext-diff', '--no-textconv', SUBMODULES]),
+      this.git(entry, [
         'diff',
         '--cached',
         '--numstat',
         '-z',
         '--no-ext-diff',
         '--no-textconv',
+        SUBMODULES,
         '-M',
       ]),
       headMoved && parsed.branch.oid !== null
-        ? this.deps.run(root, ['log', `-n${LOG_LENGTH}`, '-z', `--format=${LOG_FORMAT}`])
+        ? this.git(entry, ['log', `-n${LOG_LENGTH}`, '-z', `--format=${LOG_FORMAT}`])
         : Promise.resolve(null),
     ])
     let files = withCounts(parsed.files, 'unstaged', parseNumstat(unstaged.stdout))
@@ -277,16 +385,18 @@ export class GitService {
     const base = { repoId: request.repoId, path: request.path }
     const entry = this.watched.get(request.repoId)
     if (entry === undefined) return problem(base, 'the repository is not open in a pane')
-    const root = entry.ref.path
     if (isImagePath(request.path)) return this.imageDiff(entry, request, base)
     if ('commit' in request) {
-      const shown = await this.deps.run(root, [
+      // Against the first parent, as the commit's list is; a rename needs both names to pair.
+      const paths = request.from === undefined ? [request.path] : [request.from, request.path]
+      const shown = await this.git(entry, [
         'show',
         '--format=',
+        '--diff-merges=first-parent',
         ...DIFF_FLAGS,
         request.commit,
         '--',
-        request.path,
+        ...paths,
       ])
       return fromResult(shown, base)
     }
@@ -296,7 +406,7 @@ export class GitService {
     if (file.area === 'conflicted') return this.conflicted(file, base)
     const paths = file.from === undefined ? [file.path] : [file.from, file.path]
     const cached = file.area === 'staged' ? ['--cached'] : []
-    const shown = await this.deps.run(root, ['diff', ...cached, ...DIFF_FLAGS, '--', ...paths])
+    const shown = await this.git(entry, ['diff', ...cached, ...DIFF_FLAGS, '--', ...paths])
     return fromResult(shown, base)
   }
 
@@ -315,7 +425,8 @@ export class GitService {
     let before: Buffer | 'too-large' | null
     let after: Buffer | 'too-large' | null
     if ('commit' in request) {
-      before = await this.deps.gitBytes(root, `${request.commit}^:${request.path}`, MAX_IMAGE_BYTES)
+      const earlier = request.from ?? request.path
+      before = await this.deps.gitBytes(root, `${request.commit}^:${earlier}`, MAX_IMAGE_BYTES)
       after = await this.deps.gitBytes(root, `${request.commit}:${request.path}`, MAX_IMAGE_BYTES)
     } else {
       const file = entry.state.files.find((f) => f.path === request.path && f.area === request.area)
@@ -330,6 +441,10 @@ export class GitService {
         after = await this.deps.gitBytes(root, `:${file.path}`, MAX_IMAGE_BYTES)
       } else if (file.area === 'untracked') {
         before = null
+        after = await onDisk()
+      } else if (file.area === 'conflicted') {
+        // The index holds the conflict's stages, not one copy: the last commit against the file as it stands.
+        before = await this.deps.gitBytes(root, `HEAD:${file.path}`, MAX_IMAGE_BYTES)
         after = await onDisk()
       } else {
         before = await this.deps.gitBytes(root, `:${earlier}`, MAX_IMAGE_BYTES)
@@ -365,11 +480,10 @@ export class GitService {
   async commit(repoId: string, oid: string): Promise<GitFile[] | null> {
     const entry = this.watched.get(repoId)
     if (entry === undefined) return null
-    const root = entry.ref.path
     const flags = ['--no-commit-id', '-r', '-z', '-M', '--root', '-m', '--first-parent']
     const [names, counts] = await Promise.all([
-      this.deps.run(root, ['diff-tree', ...flags, '--name-status', oid]),
-      this.deps.run(root, ['diff-tree', ...flags, '--numstat', oid]),
+      this.git(entry, ['diff-tree', ...flags, '--name-status', oid]),
+      this.git(entry, ['diff-tree', ...flags, '--numstat', oid]),
     ])
     if (!names.ok) return null
     return commitFiles(parseNameStatus(names.stdout), parseNumstat(counts.stdout)).slice(

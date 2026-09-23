@@ -6,9 +6,11 @@ import { execFile } from 'node:child_process'
  * A repository's own config can name programs for git to run - a file system
  * monitor (`core.fsmonitor`), an external diff, a text converter - so a
  * repository cloned from anywhere could run code the moment the pane looks at
- * it. Every call therefore turns the monitor off and asks for no external diff
- * and no conversion (the diff commands add those), and none of the commands
- * used here runs a hook.
+ * it. Every call therefore turns the monitor off and signature checks (which
+ * run `gpg.program`) off, and asks for no external diff and no conversion (the
+ * diff commands add those); clean filters the repository itself defines are
+ * emptied per repository (GitService), and none of the commands used here runs
+ * a hook.
  *
  * `--no-optional-locks` keeps `git status` from writing the index to refresh
  * it: the write would take index.lock, which could fail the user's own git
@@ -31,6 +33,8 @@ export const GIT_FLAGS: readonly string[] = [
   'core.quotepath=false',
   '-c',
   'color.ui=false',
+  '-c',
+  'log.showSignature=false',
 ]
 
 /** A diff larger than this is not drawn; git's output is cut here. */

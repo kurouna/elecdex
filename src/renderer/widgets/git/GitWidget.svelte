@@ -72,6 +72,8 @@ let choosing = $state(false)
 let problem = $state<string | null>(null)
 /** Bumped on each state after the first: the receive lamp and the branch change play on it. */
 let received = $state(0)
+/** Until a reading after the first: the rows of what the repository already is land without motion. */
+let quiet = $state(true)
 let switching = $state(false)
 let now = $state(Date.now())
 
@@ -79,12 +81,14 @@ $effect(() => {
   const id = repoId
   repoState = null
   diff = null
+  quiet = true
   if (id === null) return
   return window.elecdex.git.subscribe(id, (next) => {
     const before = untrack(() => repoState)
     repoState = next
     // The first reading is what the repository is, not a change to it.
     if (before === null || before.readAt === 0) return
+    quiet = false
     received += 1
     if (before.branch.head !== next.branch.head) switching = true
   })
@@ -118,32 +122,70 @@ $effect(() => {
   const oid = commit
   commitFiles = null
   if (id === null || oid === null) return
+  // Commits clicked in quick succession: only the last one's files may land.
+  let cancelled = false
   void window.elecdex.git.commit(id, oid).then((list) => {
-    commitFiles = list ?? []
+    if (!cancelled) commitFiles = list ?? []
   })
+  return () => {
+    cancelled = true
+  }
 })
 
-/** Reads the diff again for the file shown whenever main reads the repository again. */
+/**
+ * Which diff is wanted, as a string, so the effect below runs for another file
+ * and not for every new list that holds the same one.
+ */
+const wanted = $derived(
+  repoId === null || selected === null
+    ? null
+    : [repoId, commit ?? '', selected.area, selected.from ?? '', selected.path].join('\u0000'),
+)
+/** A commit's diff never changes; the working tree's may whenever main reads it again. */
+const readAgain = $derived(commit === null ? (repoState?.readAt ?? 0) : 0)
+/** The diff on screen is of this; another file's is never shown under this one's name. */
+let shownFor: string | null = null
+
 $effect(() => {
+  const key = wanted
+  void readAgain
   const id = repoId
-  const file = selected
+  const file = untrack(() => selected)
   const oid = commit
-  void repoState?.readAt
-  if (id === null || file === null) {
+  if (key !== shownFor) {
+    // Another file: the last one's lines go at once, and none of the next one's counts as new.
     diff = null
+    shownFor = key
+  }
+  if (key === null || id === null || file === null) return
+  if (file.path.endsWith('/')) {
+    // git lists a repository inside this one, not yet added, as its folder.
+    diff = {
+      repoId: id,
+      path: file.path,
+      binary: false,
+      cut: false,
+      tooLarge: false,
+      hunks: [],
+      problem: 'a folder: a repository of its own inside this one',
+    }
     return
   }
   let cancelled = false
   loadingDiff = true
   const request =
     oid !== null
-      ? { repoId: id, path: file.path, commit: oid }
+      ? { repoId: id, path: file.path, commit: oid, ...(file.from ? { from: file.from } : {}) }
       : { repoId: id, path: file.path, area: file.area }
-  void window.elecdex.git.diff(request).then((next) => {
-    if (cancelled) return
-    diff = next
-    loadingDiff = false
-  })
+  void window.elecdex.git
+    .diff(request)
+    .then((next) => {
+      if (!cancelled) diff = next
+    })
+    .catch(() => {})
+    .finally(() => {
+      if (!cancelled) loadingDiff = false
+    })
   return () => {
     cancelled = true
   }
@@ -298,6 +340,7 @@ const counts = $derived.by(() => {
           commit={commit !== null}
           counts={commit !== null ? null : counts}
           dropped={commit !== null ? 0 : (repoState?.dropped ?? 0)}
+          still={quiet}
           onselect={(file) => setState({ chosen: keyOf(file) })}
           onopen={(file) => void open(file, null)}
           onreveal={(file) => repoId !== null && void window.elecdex.git.reveal(repoId, file.path)}
@@ -328,7 +371,7 @@ const counts = $derived.by(() => {
               data-testid="git-commit"
               title={`${entry.author} · ${new Date(entry.time * 1000).toLocaleString()}`}
               onclick={() => setState({ commit: entry.oid === commit ? null : entry.oid, chosen: null })}
-              in:landIn
+              in:landIn={{ still: quiet }}
               animate:flip={{ duration: appearance.reducedMotion ? 0 : 200 }}
             >
               <span class="node" aria-hidden="true"></span>

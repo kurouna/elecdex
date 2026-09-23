@@ -3,13 +3,14 @@ import { appearance } from '../../stores/appearance.svelte.ts'
 
 /**
  * How a row arrives in and leaves the git pane. Transform and opacity only, and
- * nothing with motion reduced. Svelte plays them only for a row added to or
- * taken from a list already on screen, so the first reading lands still.
+ * nothing with motion reduced. Svelte plays them for every row added to a list
+ * on screen - the lists are there, empty, before the first reading - so the
+ * pane says when a reading is the first (`still`), which lands without motion.
  */
 
 /** A new file or commit drops into its place from just above. */
-export function landIn(_node: Element): TransitionConfig {
-  if (appearance.reducedMotion) return { duration: 0 }
+export function landIn(_node: Element, params: { still?: boolean } = {}): TransitionConfig {
+  if (appearance.reducedMotion || params.still === true) return { duration: 0 }
   return {
     duration: 420,
     easing: (t) => 1 - (1 - t) ** 3,

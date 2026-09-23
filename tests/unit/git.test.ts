@@ -216,6 +216,11 @@ describe('what the page may ask for', () => {
     expect(parseDiffRequest({ repoId, path: 'a', area: 'everything' })).toBeNull()
     expect(parseDiffRequest({ repoId, path: 'a', commit: 'HEAD; rm -rf' })).toBeNull()
     expect(parseDiffRequest({ repoId: 'x', path: 'a', area: 'staged' })).toBeNull()
+    // A rename in a commit names where it came from, held to the same rules as the path.
+    expect(parseDiffRequest({ repoId, path: 'b', commit: 'dfb20b4', from: 'a' })).toMatchObject({
+      from: 'a',
+    })
+    expect(parseDiffRequest({ repoId, path: 'b', commit: 'dfb20b4', from: '../x' })).toBeNull()
   })
 })
 
@@ -239,6 +244,11 @@ describe('the command that opens a file', () => {
       'C:\\w\\my repo\\a.ts:1',
     ])
     expect(openCommand('   ', target)).toBeNull()
+  })
+
+  it('fills in one pass: a placeholder inside a file name stays as it is', () => {
+    const odd = { file: 'C:\\w\\a{dir}{line}.txt', line: 3, dir: 'C:\\w' }
+    expect(openCommand('ed {file}', odd)?.args).toEqual(['C:\\w\\a{dir}{line}.txt'])
   })
 })
 

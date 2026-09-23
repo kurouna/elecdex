@@ -134,13 +134,17 @@ function open(line: DiffLine): void {
 /** Scrolls to the next or previous hunk band below the top of the view. */
 function jump(step: 1 | -1): void {
   if (body === null) return
-  const bands = [...body.querySelectorAll<HTMLElement>('.band')]
-  const top = body.scrollTop + 4
+  const view = body
+  // Where each band sits in the scrolled content, whatever is positioned around the view.
+  const origin = view.getBoundingClientRect().top - view.scrollTop
+  const at = (band: HTMLElement): number => band.getBoundingClientRect().top - origin
+  const bands = [...view.querySelectorAll<HTMLElement>('.band')]
+  const top = view.scrollTop + 4
   const target =
     step === 1
-      ? bands.find((band) => band.offsetTop > top)
-      : bands.filter((band) => band.offsetTop < top - 8).at(-1)
-  body.scrollTo({ top: target?.offsetTop ?? (step === 1 ? body.scrollHeight : 0) })
+      ? bands.find((band) => at(band) > top)
+      : bands.filter((band) => at(band) < top - 8).at(-1)
+  view.scrollTo({ top: target ? at(target) : step === 1 ? view.scrollHeight : 0 })
 }
 </script>
 

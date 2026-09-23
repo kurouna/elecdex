@@ -1,9 +1,15 @@
 import path from 'node:path'
 import type { GitState } from '@shared/git'
 import { describe, expect, it } from 'vitest'
-import { launchPlan, resolveOnPath } from '../../src/main/git/open.js'
-import type { GitResult } from '../../src/main/git/run.js'
-import { GitService, MIN_GAP_MS, SETTLE_MS } from '../../src/main/git/service.js'
+import { launchPlan, resolveOnPath, runsWhenOpened } from '../../src/main/git/open.js'
+import { GIT_FLAGS, type GitResult } from '../../src/main/git/run.js'
+import {
+  filterGuard,
+  GitService,
+  MIN_GAP_MS,
+  RETRY_MS,
+  SETTLE_MS,
+} from '../../src/main/git/service.js'
 
 /**
  * The git service against a made-up git, a made-up watcher and a made-up
@@ -26,15 +32,32 @@ interface Harness {
   fire(relative: string): void
   advance(ms: number): Promise<void>
   status: { output: string }
+  /** Whether git can be found; false makes every call fail as a missing git does. */
+  git: { present: boolean }
 }
 
-function harness(options: { known?: boolean } = {}): Harness {
+/** The git command in a call, past the `-c` pairs in front of it. */
+const commandOf = (args: readonly string[]): string | undefined => {
+  let i = 0
+  while (args[i] === '-c') i += 2
+  return args[i]
+}
+
+const LOCAL_FILTER = [
+  'system\tfilter.lfs.clean git-lfs clean -- %f',
+  'system\tfilter.lfs.process git-lfs filter-process',
+  "local\tfilter.x.clean sh -c 'evil'",
+  'local\tfilter.x.required true',
+].join('\n')
+
+function harness(options: { known?: boolean; config?: string } = {}): Harness {
   let now = 1_000_000
   const timers: { at: number; fn: () => void }[] = []
   const listeners: ((relative: string) => void)[] = []
   const published: GitState[] = []
   const calls: string[][] = []
   const status = { output: '# branch.oid aaaaaaa\0# branch.head main\0' }
+  const git = { present: true }
   const ok = (stdout: string): GitResult => ({
     ok: true,
     stdout,
@@ -45,9 +68,12 @@ function harness(options: { known?: boolean } = {}): Harness {
   const service = new GitService({
     run: async (_cwd, args) => {
       calls.push([...args])
-      if (args[0] === 'rev-parse') return ok(`${path.join(ROOT, '.git')}\n`)
-      if (args[0] === 'status') return ok(status.output)
-      if (args[0] === 'log') return ok('aaaaaaaaaaaaaaaa\x1faaaaaaa\x1fme\x1f1\x1ffirst\0')
+      if (!git.present) return { ok: false, stdout: '', stderr: '', missing: true, tooLarge: false }
+      const command = commandOf(args)
+      if (command === 'rev-parse') return ok(`${path.join(ROOT, '.git')}\n`)
+      if (command === 'config') return ok(options.config ?? '')
+      if (command === 'status') return ok(status.output)
+      if (command === 'log') return ok('aaaaaaaaaaaaaaaa\x1faaaaaaa\x1fme\x1f1\x1ffirst\0')
       return ok('')
     },
     repo: (id) => (id === ID && options.known !== false ? { id, name: 'app', path: ROOT } : null),
@@ -81,6 +107,7 @@ function harness(options: { known?: boolean } = {}): Harness {
     published,
     calls,
     status,
+    git,
     fire: (relative) => {
       for (const listener of [...listeners]) listener(relative)
     },
@@ -103,7 +130,7 @@ function harness(options: { known?: boolean } = {}): Harness {
 }
 
 const statusCalls = (calls: string[][]): number =>
-  calls.filter((args) => args[0] === 'status').length
+  calls.filter((args) => commandOf(args) === 'status').length
 
 describe('the git service', () => {
   it('reads a repository once when a pane opens it, and publishes what it read', async () => {
@@ -148,6 +175,80 @@ describe('the git service', () => {
     }
     // A reading starts at 0, then the steady stream earns one a second at most.
     expect(statusCalls(h.calls)).toBeLessThanOrEqual(1 + Math.ceil(5000 / MIN_GAP_MS))
+  })
+
+  it('still reads once a second while changes never stop coming', async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(2000)
+    // A build in watch mode: a write every 100 ms, never the quiet spell a save ends with.
+    for (let t = 0; t < 5000; t += 100) {
+      h.fire('out/bundle.js')
+      await h.advance(100)
+    }
+    expect(statusCalls(h.calls)).toBeGreaterThanOrEqual(1 + 4)
+  })
+
+  it('publishes again when a listed file is written with the same counts', async () => {
+    const h = harness()
+    h.status.output += `1 .M N... 100644 100644 100644 a a src/a.ts\0`
+    h.service.watch(ID)
+    await h.advance(0)
+    const before = h.published.length
+    // A changed line reworded: +1 -1 before and after, but the diff is another one.
+    h.fire(path.join('src', 'a.ts'))
+    await h.advance(2000)
+    expect(h.published.length).toBe(before + 1)
+    // A file that is not in the list changes nothing the pane shows.
+    h.fire('notes.txt')
+    await h.advance(2000)
+    expect(h.published.length).toBe(before + 1)
+  })
+
+  it("empties the repository's own filters, and leaves the user's alone", async () => {
+    expect(filterGuard(LOCAL_FILTER)).toEqual([
+      '-c',
+      'filter.x.clean=',
+      '-c',
+      'filter.x.smudge=',
+      '-c',
+      'filter.x.process=',
+      '-c',
+      'filter.x.required=false',
+    ])
+    const h = harness({ config: LOCAL_FILTER })
+    h.status.output += `1 .M N... 100644 100644 100644 a a a.txt\0`
+    h.service.watch(ID)
+    await h.advance(0)
+    await h.service.diff({ repoId: ID, path: 'a.txt', area: 'unstaged' })
+    for (const args of h.calls.filter((a) => ['status', 'diff'].includes(commandOf(a) ?? ''))) {
+      expect(args.slice(0, 2)).toEqual(['-c', 'filter.x.clean='])
+    }
+    expect(h.calls.filter((a) => commandOf(a) === 'status')).toHaveLength(1)
+    // And no signature check, which would run gpg.program, on any call.
+    expect(GIT_FLAGS).toEqual(expect.arrayContaining(['log.showSignature=false']))
+  })
+
+  it('tries again after a failure, so a pane mends itself once git is there', async () => {
+    const h = harness()
+    h.git.present = false
+    h.service.watch(ID)
+    await h.advance(0)
+    expect(h.published.at(-1)?.problem).toBe('no-git')
+    h.git.present = true
+    await h.advance(RETRY_MS)
+    expect(h.published.at(-1)?.problem).toBeNull()
+    expect(h.published.at(-1)?.branch.head).toBe('main')
+  })
+
+  it("shows a commit's file against its first parent, under both names when renamed", async () => {
+    const h = harness()
+    h.service.watch(ID)
+    await h.advance(0)
+    await h.service.diff({ repoId: ID, path: 'new.ts', commit: 'abcdef1', from: 'old.ts' })
+    const shown = h.calls.at(-1) ?? []
+    expect(shown).toEqual(expect.arrayContaining(['show', '--diff-merges=first-parent']))
+    expect(shown.slice(-3)).toEqual(['--', 'old.ts', 'new.ts'])
   })
 
   it('ignores git bookkeeping but follows the index, HEAD and refs', async () => {
@@ -248,6 +349,18 @@ describe('the git service', () => {
 })
 
 describe('starting the open command', () => {
+  it('never runs a program, script or shortcut when no command is set', () => {
+    for (const file of ['setup.bat', 'tool.EXE', 'run.ps1', 'x.lnk', 'a.js', 'go.cmd']) {
+      expect(runsWhenOpened(`C:\\w\\${file}`, 'win32')).toBe(true)
+    }
+    expect(runsWhenOpened('/w/Tool.app', 'darwin')).toBe(true)
+    expect(runsWhenOpened('/w/start.command', 'darwin')).toBe(true)
+    expect(runsWhenOpened('/w/app.desktop', 'linux')).toBe(true)
+    for (const file of ['README.md', 'a.ts', 'logo.png', 'Makefile']) {
+      expect(runsWhenOpened(`C:\\w\\${file}`, 'win32')).toBe(false)
+    }
+  })
+
   const exists = (known: string[]) => (file: string) => known.includes(file)
 
   it('finds a bare command on PATH through PATHEXT, as Windows does', () => {

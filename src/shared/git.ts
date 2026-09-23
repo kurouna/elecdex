@@ -147,13 +147,16 @@ export const GIT_AREAS: readonly GitArea[] = ['staged', 'unstaged', 'untracked',
 /** Which diff the pane wants: a file in the working tree, or one in a commit. */
 export type GitDiffRequest =
   | { repoId: string; path: string; area: GitArea }
-  | { repoId: string; path: string; commit: string }
+  | { repoId: string; path: string; commit: string; from?: string }
 
 export function parseDiffRequest(raw: unknown): GitDiffRequest | null {
   if (typeof raw !== 'object' || raw === null) return null
-  const { repoId, path, area, commit } = raw as Record<string, unknown>
+  const { repoId, path, area, commit, from } = raw as Record<string, unknown>
   if (!isRepoId(repoId) || !isRepoPath(path)) return null
-  if (isCommitId(commit)) return { repoId, path, commit }
+  if (isCommitId(commit)) {
+    if (from === undefined) return { repoId, path, commit }
+    return isRepoPath(from) ? { repoId, path, commit, from } : null
+  }
   if (typeof area === 'string' && (GIT_AREAS as readonly string[]).includes(area)) {
     return { repoId, path, area: area as GitArea }
   }
@@ -681,11 +684,14 @@ export function openCommand(
   const parts = splitCommandLine(template.trim())
   const [program, ...rest] = parts
   if (program === undefined || program === '') return null
+  const values: Record<string, string> = {
+    file: target.file,
+    line: String(target.line ?? 1),
+    dir: target.dir,
+  }
+  // In one pass, so a file whose name holds `{dir}` is not filled in again.
   const fill = (arg: string): string =>
-    arg
-      .replaceAll('{file}', target.file)
-      .replaceAll('{line}', String(target.line ?? 1))
-      .replaceAll('{dir}', target.dir)
+    arg.replace(/\{(file|line|dir)\}/g, (_, name: string) => values[name] ?? '')
   const args = rest.map(fill)
   if (!rest.some((arg) => arg.includes('{file}'))) args.push(target.file)
   return { program: fill(program), args }

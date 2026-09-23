@@ -389,7 +389,7 @@ export interface GitApi {
   pick(): Promise<{ repo: GitRepoRef } | { problem: string } | null>
   /** Repositories used before on this machine, most recent first. */
   recent(): Promise<GitRepoRef[]>
-  diff(request: GitDiffRequest): Promise<GitDiff>
+  diff(request: GitDiffRequest): Promise<GitDiff | null>
   /** The files a commit changed, or null when it cannot be read. */
   commit(repoId: string, oid: string): Promise<GitFile[] | null>
   /**
