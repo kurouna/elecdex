@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import type { WeatherUpdate } from '@shared/weather-report'
-import { describe, expect, it } from 'vitest'
+import { MetForecastSchema } from '@shared/weather-sources'
+import { describe, expect, it, vi } from 'vitest'
 import {
   MET_MIN_INTERVAL_MS,
   NWS_INTERVAL_MS,
@@ -103,6 +104,29 @@ describe('MET Norway forecasts', () => {
     await h.advance(2000)
     expect(h.requests).toHaveLength(2)
     expect(h.requests[1]?.headers['If-Modified-Since']).toBe('Sun, 13 Sep 2026 11:40:00 GMT')
+  })
+
+  it('sends after a 304 only what a page would see differently, and reads the forecast once', async () => {
+    const expires = new Date(Date.parse('2026-09-13T13:00:00Z')).toUTCString()
+    const h = harness((_url, headers) =>
+      headers['If-Modified-Since']
+        ? { status: 304, headers: { expires } }
+        : { status: 200, body: met, headers: { expires, 'last-modified': 'x' } },
+    )
+    h.service.watch(MET_KEY)
+    await h.settle()
+    // Four hours of checks answered 304: the forecast is the same, but "now" moves on through it.
+    await h.advance(4 * 60 * 60_000)
+    expect(h.requests.length).toBeGreaterThan(2)
+    const reports = h.published.map((update) => JSON.stringify(update.report))
+    // Nothing sent twice alike, and what the pane holds is the report as of now, not of the download.
+    expect(reports.every((report, i) => i === 0 || report !== reports[i - 1])).toBe(true)
+    expect(reports.at(-1)).toBe(JSON.stringify(h.service.snapshot(MET_KEY).report))
+    // A page subscribing asks for a snapshot; the forecast is not validated again for it.
+    const parse = vi.spyOn(MetForecastSchema, 'safeParse')
+    for (let i = 0; i < 5; i += 1) expect(h.service.snapshot(MET_KEY).report).not.toBeNull()
+    expect(parse).not.toHaveBeenCalled()
+    parse.mockRestore()
   })
 
   it('waits at least thirty minutes even when Expires is sooner, and keeps the report on failure', async () => {

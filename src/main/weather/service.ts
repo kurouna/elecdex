@@ -192,12 +192,15 @@ export class WeatherService {
         { headers },
       )
       const now = this.deps.now()
-      await this.accept(state, response, now)
+      const fresh = await this.accept(state, response, now)
+      // A 304 changes nothing a page shows, unless it ends a run of failures.
+      const news = fresh || state.error !== null
       state.error = null
       state.failures = 0
+      // Kept on disk either way: the time of the check is what spares a download after a restart.
       this.persist()
       if (this.disposed) return
-      this.deps.publish(this.snapshot(office))
+      if (news) this.deps.publish(this.snapshot(office))
       if (this.watched.has(office)) this.schedule(office, nextCheckAt(now) - now)
     } catch (cause) {
       if (this.disposed) return
@@ -213,11 +216,11 @@ export class WeatherService {
     }
   }
 
-  /** Applies a 200 or 304 to the office's state; anything else throws. */
-  private async accept(state: OfficeState, response: FetchResponse, now: number): Promise<void> {
+  /** Applies a 200 or 304 to the office's state, saying whether it brought a forecast; anything else throws. */
+  private async accept(state: OfficeState, response: FetchResponse, now: number): Promise<boolean> {
     if (response.status === 304) {
       state.checkedAt = now
-      return
+      return false
     }
     if (response.status !== 200) throw new Error(`HTTP ${response.status}`)
     const parsed = JmaForecastSchema.safeParse(await response.json())
@@ -226,6 +229,7 @@ export class WeatherService {
     state.etag = response.headers.get('etag')
     state.fetchedAt = now
     state.checkedAt = now
+    return true
   }
 
   private async fetchOffices(): Promise<OfficeInfo[]> {

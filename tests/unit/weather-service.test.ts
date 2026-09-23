@@ -118,6 +118,24 @@ describe('WeatherService', () => {
     expect(h.service.snapshot('130000').error).toBeNull()
   })
 
+  it('sends the pages nothing for a 304 that changes nothing they show, and clears an error on one', async () => {
+    const h = harness({ now: jst('2026-09-13T12:00:00') })
+    h.service.watch('130000')
+    await h.settle()
+    await h.settle()
+    const sent = h.published.length
+    // The same forecast again: nothing new for the pane.
+    h.responses.push({ status: 304 })
+    await h.advanceTo(jst('2026-09-13T16:49:00'))
+    expect(h.requests).toHaveLength(2)
+    expect(h.published).toHaveLength(sent)
+    // A failure, then a 304: the error goes, and the pane hears so.
+    h.responses.push({ status: -1 }, { status: 304 })
+    await h.advanceTo(jst('2026-09-13T22:00:00'))
+    expect(h.published.at(-1)?.error).toBeNull()
+    expect(h.published.length).toBeGreaterThan(sent + 1)
+  })
+
   it('makes about a dozen requests a day at most', async () => {
     const h = harness({ now: jst('2026-09-13T00:30:00') })
     h.service.watch('130000')

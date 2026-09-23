@@ -1,6 +1,7 @@
 import type { WeatherReport, WeatherUpdate } from '@shared/weather-report'
 import { parseLocationKey } from '@shared/weather-report'
 import {
+  type MetForecast,
   MetForecastSchema,
   metReport,
   type NwsForecast,
@@ -79,7 +80,16 @@ interface State {
   failures: number
   timer: unknown
   inFlight: Promise<void> | null
+  /** `raw` and `hourly` read into their forecasts once, for the raw they were read from. */
+  read: { raw: unknown; hourly: unknown; report: ReadForecast | null } | null
+  /** The report last sent to the pages, to send another only when it differs. */
+  sent: string | null
 }
+
+/** A place's forecast as validated, whichever source gave it. */
+type ReadForecast =
+  | { source: 'met'; forecast: MetForecast }
+  | { source: 'nws'; forecast: NwsForecast; hourly: NwsForecast | null }
 
 const blank = (): State => ({
   raw: null,
@@ -93,6 +103,8 @@ const blank = (): State => ({
   failures: 0,
   timer: null,
   inFlight: null,
+  read: null,
+  sent: null,
 })
 
 /** A stable offset in [0, SPREAD_MS) for a key. */
@@ -176,19 +188,37 @@ export class PointForecasts {
   private report(key: string, s: State): WeatherReport | null {
     const parsed = parseLocationKey(key)
     if (parsed === null || parsed.source === 'jma' || s.raw === null) return null
+    const read = this.read(parsed.source, s)
     try {
-      if (parsed.source === 'met') {
-        const forecast = MetForecastSchema.safeParse(s.raw)
-        if (!forecast.success) return null
-        return metReport(forecast.data, { name: '', timeZone: parsed.timeZone }, this.deps.now())
+      if (read?.source === 'met') {
+        return metReport(read.forecast, { name: '', timeZone: parsed.timeZone }, this.deps.now())
       }
-      const forecast = NwsForecastSchema.safeParse(s.raw)
-      const hourly = NwsForecastSchema.safeParse(s.hourly)
-      if (!forecast.success || s.point === null) return null
-      return nwsReport(s.point, forecast.data, hourly.success ? hourly.data : null, '')
+      if (read?.source !== 'nws' || s.point === null) return null
+      return nwsReport(s.point, read.forecast, read.hourly, '')
     } catch {
       return null
     }
+  }
+
+  /**
+   * The raw documents validated into forecasts, once per download: a report
+   * is built for every page that subscribes and every update, and a forecast
+   * is a large document to validate each time.
+   */
+  private read(source: 'met' | 'nws', s: State): ReadForecast | null {
+    if (s.read !== null && s.read.raw === s.raw && s.read.hourly === s.hourly) return s.read.report
+    let report: ReadForecast | null = null
+    if (source === 'met') {
+      const forecast = MetForecastSchema.safeParse(s.raw)
+      if (forecast.success) report = { source, forecast: forecast.data }
+    } else {
+      const forecast = NwsForecastSchema.safeParse(s.raw)
+      const hourly = NwsForecastSchema.safeParse(s.hourly)
+      if (forecast.success)
+        report = { source, forecast: forecast.data, hourly: hourly.success ? hourly.data : null }
+    }
+    s.read = { raw: s.raw, hourly: s.hourly, report }
+    return report
   }
 
   private schedule(key: string, delayMs: number): void {
@@ -214,6 +244,7 @@ export class PointForecasts {
   private async fetchFor(key: string, state: State): Promise<void> {
     const parsed = parseLocationKey(key)
     if (parsed === null || parsed.source === 'jma') return
+    const failing = state.error !== null
     try {
       const nextAt =
         parsed.source === 'met'
@@ -222,9 +253,17 @@ export class PointForecasts {
       state.error = null
       state.failures = 0
       state.expiresAt = nextAt
+      // Kept on disk either way: when the source may be asked again must hold across a restart.
       this.persist()
       if (this.disposed) return
-      this.deps.publish(this.snapshot(key))
+      // Sent when a page would see something new: a 304 still moves "now" on through
+      // the forecast (reports are built for the time of asking), and ends a run of failures.
+      const update = this.snapshot(key)
+      const report = JSON.stringify(update.report)
+      if (report !== state.sent || failing) {
+        state.sent = report
+        this.deps.publish(update)
+      }
       if (this.watched.has(key)) this.schedule(key, nextAt + spreadFor(key) - this.deps.now())
     } catch (cause) {
       if (this.disposed) return

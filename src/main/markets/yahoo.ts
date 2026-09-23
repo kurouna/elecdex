@@ -1,12 +1,16 @@
 import {
   type CandlePoint,
+  type ChartRangeSpec,
   type MarketQuote,
   normaliseCandles,
   type PricePoint,
   toMarketState,
 } from '@shared/markets'
-import YahooFinance from 'yahoo-finance2'
+import type YahooFinance from 'yahoo-finance2'
 import type { MarketProvider } from './service.js'
+
+/** A yahoo-finance2 client: the package's default export is the class. */
+type Yahoo = InstanceType<typeof YahooFinance>
 
 /**
  * Market data from Yahoo Finance, through yahoo-finance2.
@@ -43,8 +47,38 @@ export function readCandles(rows: ReadonlyArray<Record<string, unknown>>): Candl
   return candles
 }
 
+/**
+ * yahoo-finance2 is loaded the first time a quote is asked for, not with the
+ * app: it took ~70 ms of main's start, before the window could open, in every
+ * session - most of which show no market board.
+ */
 export function yahooProvider(): MarketProvider {
-  const yahoo = new YahooFinance({
+  let client: Promise<Yahoo> | null = null
+  const load = (): Promise<Yahoo> => {
+    client ??= import('yahoo-finance2')
+      .then(({ default: Client }) => create(Client))
+      .catch((error: unknown) => {
+        // Not kept: the next request tries again, rather than failing until a restart.
+        client = null
+        throw error
+      })
+    return client
+  }
+
+  return {
+    async quotes(symbols) {
+      return readQuotes(
+        await (await load()).quote(symbols, { return: 'array' }, { validateResult: false }),
+      )
+    },
+    async chart(symbol, spec) {
+      return readChart(await load(), symbol, spec)
+    },
+  }
+}
+
+function create(Client: typeof YahooFinance): Yahoo {
+  return new Client({
     suppressNotices: ['yahooSurvey'],
     versionCheck: false,
     // Keep its warnings out of the app's console unless they are errors.
@@ -56,45 +90,43 @@ export function yahooProvider(): MarketProvider {
       error: (...args: unknown[]) => console.error('[elecdex] yahoo-finance2:', ...args),
     },
   })
+}
 
+/** Quotes from yahoo.quote()'s rows, read leniently. */
+function readQuotes(raw: unknown): MarketQuote[] {
+  const rows = Array.isArray(raw) ? raw : [raw]
+  const quotes: MarketQuote[] = []
+  for (const row of rows as Array<Record<string, unknown>>) {
+    const price = num(row.regularMarketPrice)
+    if (typeof row.symbol !== 'string' || price === null) continue
+    quotes.push({
+      symbol: row.symbol,
+      name: String(row.shortName ?? row.longName ?? row.symbol),
+      price,
+      change: num(row.regularMarketChange) ?? 0,
+      changePercent: num(row.regularMarketChangePercent) ?? 0,
+      previousClose: num(row.regularMarketPreviousClose),
+      currency: typeof row.currency === 'string' ? row.currency : null,
+      state: toMarketState(row.marketState),
+      time: time(row.regularMarketTime),
+    })
+  }
+  return quotes
+}
+
+async function readChart(
+  yahoo: Yahoo,
+  symbol: string,
+  spec: ChartRangeSpec,
+): Promise<{ candles: CandlePoint[]; previousClose: number | null }> {
+  const result = (await yahoo.chart(
+    symbol,
+    { period1: new Date(Date.now() - spec.fetchMs), interval: spec.interval },
+    { validateResult: false },
+  )) as unknown as { quotes?: Array<Record<string, unknown>>; meta?: Record<string, unknown> }
   return {
-    async quotes(symbols) {
-      const raw = (await yahoo.quote(
-        symbols,
-        { return: 'array' },
-        { validateResult: false },
-      )) as unknown
-      const rows = Array.isArray(raw) ? raw : [raw]
-      const quotes: MarketQuote[] = []
-      for (const row of rows as Array<Record<string, unknown>>) {
-        const price = num(row.regularMarketPrice)
-        if (typeof row.symbol !== 'string' || price === null) continue
-        quotes.push({
-          symbol: row.symbol,
-          name: String(row.shortName ?? row.longName ?? row.symbol),
-          price,
-          change: num(row.regularMarketChange) ?? 0,
-          changePercent: num(row.regularMarketChangePercent) ?? 0,
-          previousClose: num(row.regularMarketPreviousClose),
-          currency: typeof row.currency === 'string' ? row.currency : null,
-          state: toMarketState(row.marketState),
-          time: time(row.regularMarketTime),
-        })
-      }
-      return quotes
-    },
-
-    async chart(symbol, spec) {
-      const result = (await yahoo.chart(
-        symbol,
-        { period1: new Date(Date.now() - spec.fetchMs), interval: spec.interval },
-        { validateResult: false },
-      )) as unknown as { quotes?: Array<Record<string, unknown>>; meta?: Record<string, unknown> }
-      return {
-        candles: normaliseCandles(readCandles(result.quotes ?? []), spec.barMs),
-        previousClose: num(result.meta?.chartPreviousClose),
-      }
-    },
+    candles: normaliseCandles(readCandles(result.quotes ?? []), spec.barMs),
+    previousClose: num(result.meta?.chartPreviousClose),
   }
 }
 
