@@ -42,6 +42,10 @@ export interface TaskMark {
   message: string
   /** When the next answer began: a subagent the session waited for has finished by then. */
   answeredAt: number | null
+  /** The call's own result has been read: nothing more is looked for in the tool results. */
+  resulted: boolean
+  /** The id Claude Code gave the running task, which TaskStop names. */
+  taskId: string | null
   /** What Claude Code's notice of its end said. */
   ended: { state: AgentTaskState; at: number } | null
 }
@@ -148,9 +152,70 @@ function readTool(block: Record<string, unknown>, at: number, tally: Tally): voi
       startedAt: at,
       message: tally.message,
       answeredAt: null,
+      resulted: false,
+      taskId: null,
       ended: null,
     })
   }
+  if (STOPS.has(name)) stopTask(str(input.task_id) || str(input.shell_id), at, tally)
+}
+
+/** The tools that stop a background task by the id Claude Code gave it. */
+const STOPS = new Set(['TaskStop', 'KillShell', 'KillBash'])
+
+function stopTask(taskId: string, at: number, tally: Tally): void {
+  if (taskId === '') return
+  for (const task of tally.tasks.values()) {
+    if (task.taskId === taskId && task.ended === null) task.ended = { state: 'stopped', at }
+  }
+}
+
+/**
+ * A line that carries the result of a call whose task is still waiting for it. Tool
+ * results are otherwise never parsed; these are few, and say how a call went: refused,
+ * interrupted, or launched with the id a stop will name. The quotes are the record's
+ * own, so an output that only quotes the id (escaped) is not taken.
+ */
+function resultFor(raw: string, tally: Tally): boolean {
+  if (!raw.includes('"tool_use_id":"')) return false
+  for (const [id, task] of tally.tasks) {
+    if (!task.resulted && task.ended === null && raw.includes(`"tool_use_id":"${id}"`)) return true
+  }
+  return false
+}
+
+const resultText = (content: unknown): string =>
+  typeof content === 'string'
+    ? content
+    : Array.isArray(content)
+      ? content.map((part) => str((part as Record<string, unknown>)?.text)).join('\n')
+      : ''
+
+function readResult(line: Record<string, unknown>, tally: Tally): void {
+  const content = (line.message as Record<string, unknown> | undefined)?.content
+  if (!Array.isArray(content)) return
+  const at = Date.parse(str(line.timestamp)) || 0
+  for (const block of content as Record<string, unknown>[]) {
+    const task = block.type === 'tool_result' ? tally.tasks.get(str(block.tool_use_id)) : undefined
+    if (task === undefined || task.resulted) continue
+    task.resulted = true
+    settle(task, resultText(block.content), block.is_error === true, at)
+  }
+}
+
+/** What a call's result says of its task: ended, or running on its own under an id. */
+function settle(task: TaskMark, text: string, error: boolean, at: number): void {
+  if (task.ended !== null) return
+  if (error) {
+    task.ended = { state: /interrupted/i.test(text) ? 'stopped' : 'failed', at }
+    return
+  }
+  const launched = /^Async agent launched/.test(text)
+  const id = /agentId: ([0-9a-z]+)/i.exec(text)?.[1] ?? /with ID: ([0-9a-z]+)/i.exec(text)?.[1]
+  if (launched) task.background = true
+  if (id !== undefined && (launched || task.kind === 'shell')) task.taskId = id
+  // A subagent the session waited for answers with its report: it has finished.
+  else if (task.kind === 'agent' && !task.background) task.ended = { state: 'done', at }
 }
 
 /** A call that starts a task: any subagent, and a command left to run in the background. */
@@ -229,7 +294,7 @@ export function readLines(text: string, cwd: string, tally: Tally): string {
   const lines = text.split('\n')
   const rest = lines.pop() ?? ''
   for (const raw of lines) {
-    if (raw.length > LINE_LIMIT || !WANTED.test(raw)) continue
+    if (raw.length > LINE_LIMIT || !(WANTED.test(raw) || resultFor(raw, tally))) continue
     let line: Record<string, unknown>
     try {
       line = JSON.parse(raw) as Record<string, unknown>
@@ -239,7 +304,10 @@ export function readLines(text: string, cwd: string, tally: Tally): string {
     if (line.type === 'assistant') readAssistant(line, tally)
     else if (line.type === 'custom-title') tally.title = str(line.customTitle).slice(0, 120)
     else if (str(line.type).startsWith('file-history-')) readBackups(line, cwd, tally)
-    else readNotice(line, tally)
+    else {
+      readNotice(line, tally)
+      readResult(line, tally)
+    }
   }
   return rest
 }

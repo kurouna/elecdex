@@ -89,9 +89,11 @@ export class AgentHub {
   }
 
   private changed(): void {
-    if (this.timer !== null) return
+    // A reading that was under way when the last pane went reports in late: nobody is asking.
+    if (this.timer !== null || this.running.size === 0) return
     this.timer = this.deps.setTimer(() => {
       this.timer = null
+      if (this.running.size === 0) return
       const board = this.board()
       const shape = JSON.stringify({ ...board, readAt: 0 })
       if (shape === this.last) return

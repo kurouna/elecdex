@@ -96,6 +96,17 @@ const notice = (as: 'queue' | 'user', id: string, status: string, at: string) =>
   )
 }
 
+/** A call's result, as Claude Code hands it back to the session. */
+const result = (id: string, text: string, error: boolean, at: string) =>
+  JSON.stringify({
+    type: 'user',
+    timestamp: at,
+    message: {
+      role: 'user',
+      content: [{ type: 'tool_result', content: text, is_error: error, tool_use_id: id }],
+    },
+  })
+
 describe('reading a Claude Code record', () => {
   it('counts the tools, the tokens and the answers, and keeps the last step', () => {
     const tally = emptyTally()
@@ -287,6 +298,94 @@ describe('reading a Claude Code record', () => {
       tally,
     )
     expect(tally.tasks.get('t1')?.ended?.state).toBe('failed')
+  })
+
+  it('ends a background command stopped with TaskStop, and one refused before it ran', () => {
+    const tally = emptyTally()
+    readLines(
+      `${[
+        answer('m1', [shellCall('t1', 'Run the suite', true), shellCall('t2', 'Build', true)]),
+        result(
+          't1',
+          'Command running in background with ID: bx1. Output is being written to: x',
+          false,
+          '2026-09-23T01:00:01Z',
+        ),
+        result('t2', 'Permission to use Bash has been denied.', true, '2026-09-23T01:00:02Z'),
+        answer(
+          'm2',
+          [{ type: 'tool_use', id: 't3', name: 'TaskStop', input: { task_id: 'bx1' } }],
+          '2026-09-23T01:04:00Z',
+        ),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    // No notice came for either: the stop and the refusal are all the record says.
+    expect(tally.tasks.get('t1')?.ended).toEqual({
+      state: 'stopped',
+      at: Date.parse('2026-09-23T01:04:00Z'),
+    })
+    expect(tally.tasks.get('t2')?.ended).toEqual({
+      state: 'failed',
+      at: Date.parse('2026-09-23T01:00:02Z'),
+    })
+  })
+
+  it('ends a subagent the session waited for by its own result, as that result says', () => {
+    const tally = emptyTally()
+    readLines(
+      `${[
+        answer('m1', [
+          agentCall('t1', 'Look it up', {}),
+          agentCall('t2', 'Review', {}),
+          agentCall('t3', 'Explore', { subagent_type: 'Nope' }),
+          agentCall('t4', 'Hunt', {}),
+        ]),
+        result('t1', 'Found it in PassList.', false, '2026-09-23T01:02:00Z'),
+        result('t2', '[Request interrupted by user for tool use]', true, '2026-09-23T01:03:00Z'),
+        result('t3', 'Agent type Nope not found.', true, '2026-09-23T01:00:01Z'),
+        // No flag, but Claude Code ran it in the background: its result says so.
+        result(
+          't4',
+          'Async agent launched successfully.\nagentId: a9f (internal ID)',
+          false,
+          '2026-09-23T01:00:01Z',
+        ),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('t1')?.ended).toEqual({
+      state: 'done',
+      at: Date.parse('2026-09-23T01:02:00Z'),
+    })
+    expect(tally.tasks.get('t2')?.ended?.state).toBe('stopped')
+    expect(tally.tasks.get('t3')?.ended?.state).toBe('failed')
+    expect(tally.tasks.get('t4')).toMatchObject({ background: true, ended: null })
+    readLines(
+      `${answer('m2', [{ type: 'tool_use', id: 't5', name: 'TaskStop', input: { task_id: 'a9f' } }])}\n`,
+      CWD,
+      tally,
+    )
+    expect(tally.tasks.get('t4')?.ended?.state).toBe('stopped')
+  })
+
+  it("parses no tool result but a pending task's, and never one that only quotes its id", () => {
+    const tally = emptyTally()
+    readLines(`${answer('m1', [agentCall('t1', 'Look', {})])}\n`, CWD, tally)
+    // Another call's result that mentions t1's id in its text is not t1's result.
+    const quoting = JSON.stringify({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'x9', content: '{"tool_use_id":"t1"} was here' },
+        ],
+      },
+    })
+    readLines(`${quoting}\n`, CWD, tally)
+    expect(tally.tasks.get('t1')?.ended).toBeNull()
   })
 
   it("reads a subagent's meta file, and refuses one that names no call", () => {
@@ -640,6 +739,108 @@ describe('the Claude Code source', () => {
     source.stop()
   }, 20_000)
 
+  it('keeps every running task on the card, and cuts only finished ones', async () => {
+    const { record } = claudeFolder(process.pid)
+    const now = Date.now()
+    const calls = Array.from({ length: 14 }, (_, i) => shellCall(`r${i}`, `Run ${i}`, true))
+    const done = Array.from({ length: 3 }, (_, i) => shellCall(`d${i}`, `Done ${i}`, true))
+    appendFileSync(
+      record,
+      `${[
+        answer('m1', [...done, ...calls], new Date(now - 60_000).toISOString()),
+        ...done.map((call) => notice('queue', call.id, 'completed', new Date(now).toISOString())),
+      ].join('\n')}\n`,
+    )
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks.length).toBeGreaterThan(0))
+    const tasks = source.sessions(Date.now())[0]?.tasks ?? []
+    source.stop()
+    expect(tasks.filter((t) => t.state === 'running')).toHaveLength(14)
+    expect(tasks.every((t) => t.state === 'running')).toBe(true)
+  })
+
+  it("keeps the session's own files when its subagents wrote many more", async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_w', 'Write a lot', {})])}\n`)
+    const many = Array.from({ length: 80 }, (_, i) =>
+      answer(`s${i}`, [
+        {
+          type: 'tool_use',
+          id: `w${i}`,
+          name: 'Write',
+          input: { file_path: path.join(work, `gen${i}.ts`) },
+        },
+      ]),
+    )
+    subagent(id, 'w1', 'toolu_w', 'background', many)
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await vi.waitFor(() =>
+      expect(source.sessions(Date.now())[0]?.files.some((f) => f.subagent)).toBe(true),
+    )
+    const files = source.sessions(Date.now())[0]?.files ?? []
+    source.stop()
+    expect(files.find((f) => f.path === 'a.ts')?.subagent).toBe(false)
+    expect(files.length).toBeLessThanOrEqual(60)
+  })
+
+  it('looks for a subagent it cannot find once, not with every reading', async () => {
+    const { id, record } = claudeFolder(process.pid)
+    // Refused before it ran: no record of its own will ever come.
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_x', 'Never ran', {})])}\n`)
+    const find = vi.spyOn(
+      ClaudeCodeSource.prototype as unknown as { findSubagents(entry: unknown): void },
+      'findSubagents',
+    )
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await readAll(source, id, record)
+    const entry = entryOf(source, id)
+    for (let i = 0; i < 3; i++) {
+      appendFileSync(record, `${answer(`n${i}`, [{ type: 'text', text: 'More.' }])}\n`)
+      await readNow(source, entry)
+    }
+    source.stop()
+    expect(find).toHaveBeenCalledTimes(1)
+    find.mockRestore()
+  })
+
+  it('finds a subagent from its meta file changing', async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_m', 'Look', {})])}\n`)
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await readAll(source, id, record)
+    subagent(id, 'm1', 'toolu_m', 'background', steps(work))
+    // As the watcher names it: the meta file of a subagent of this session.
+    ;(source as unknown as { onChange(folder: string, name: string): void }).onChange(
+      'projects',
+      `work/${id}/subagents/agent-m1.meta.json`,
+    )
+    await vi.waitFor(() => expect(source.sessions(Date.now())[0]?.tasks[0]?.steps).toBe(2), {
+      timeout: 5000,
+    })
+    source.stop()
+  })
+
+  it('says nothing more once stopped, even with a reading under way', async () => {
+    const { id, record } = claudeFolder(process.pid)
+    let changes = 0
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {
+      changes += 1
+    })
+    await readAll(source, id, record)
+    const entry = entryOf(source, id)
+    appendFileSync(record, `${answer('m1', [agentCall('toolu_s', 'Look', {})])}\n`)
+    const reading = readNow(source, entry)
+    source.stop()
+    const before = changes
+    await reading
+    expect(changes).toBe(before)
+  })
+
   it('does not guess how a task ended when its session went', async () => {
     const { id, record, work } = claudeFolder(process.pid)
     appendFileSync(
@@ -699,5 +900,28 @@ describe('the layer', () => {
     hub.sync(false)
     expect(source.stopped).toBe(1)
     expect(hub.board().sources[0]).toMatchObject({ id: 'claude-code', enabled: true, found: true })
+  })
+
+  it('publishes nothing, and is not watching, once the last pane has gone', () => {
+    let told = () => {}
+    const source = { ...fake(), start: (changed: () => void) => (told = changed) }
+    const timers: (() => void)[] = []
+    const published: unknown[] = []
+    const hub = new AgentHub({
+      sources: { 'claude-code': source },
+      enabled: () => ['claude-code'],
+      now: () => 0,
+      setTimer: (fn: () => void) => timers.push(fn),
+      clearTimer: () => {},
+      publish: (board) => published.push(board),
+    })
+    hub.sync(true)
+    for (const fn of timers.splice(0)) fn()
+    hub.sync(false)
+    // A reading that was under way when the pane went reports in late.
+    told()
+    for (const fn of timers.splice(0)) fn()
+    expect(published).toHaveLength(1)
+    expect(hub.active).toBe(false)
   })
 })

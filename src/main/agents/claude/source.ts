@@ -79,6 +79,8 @@ interface Tracked extends Reading {
   transcript: string | null
   /** The session's subagents by their agent id, each with a record of its own. */
   subagents: Map<string, Subagent>
+  /** Subagent calls already looked for: one never found (refused, say) is not looked for again. */
+  sought: Set<string>
 }
 
 interface Subagent extends Reading {
@@ -107,8 +109,11 @@ const fresh = (): Pick<
   tally: emptyTally(),
 })
 
-/** Tasks shown on a card at most; the running ones come first. */
+/** Tasks shown on a card: every running one, and finished ones up to this many in all. */
 const TASKS_SHOWN = 12
+/** Files listed on a card at most, and the share its subagents' files always have. */
+const FILES_SHOWN = 60
+const SUBAGENT_FILES = 20
 
 /** Where Claude Code keeps a session's subagents' records: a folder beside the session's own. */
 const subagentFolder = (transcript: string, sessionId: string): string =>
@@ -291,6 +296,7 @@ export class ClaudeCodeSource implements AgentSource {
         ended: null,
         transcript: this.findTranscript(live.sessionId, live.cwd),
         subagents: new Map(),
+        sought: new Set(),
         ...fresh(),
         reading: false,
         again: false,
@@ -329,17 +335,19 @@ export class ClaudeCodeSource implements AgentSource {
     entry.transcript ??= this.findTranscript(entry.live.sessionId, entry.live.cwd)
     if (entry.transcript === null) return
     if (!(await this.follow(entry, entry.transcript, entry.live.cwd))) return
-    if (this.subagentMissing(entry)) this.findSubagents(entry)
+    // Stopped, or the session dropped, while this was read: nothing more to say or look for.
+    if (this.tracked.get(entry.live.sessionId) !== entry) return
+    if (this.subagentUnsought(entry)) this.findSubagents(entry)
     this.changed()
     // The last lines of a turn can land while the rest is read: they must not wait for the next turn.
-    if (entry.again && this.tracked.get(entry.live.sessionId) === entry) void this.read(entry)
+    if (entry.again) void this.read(entry)
   }
 
   private async readSubagent(entry: Tracked, sub: Subagent): Promise<void> {
     if (!(await this.follow(sub, sub.file, entry.live.cwd))) return
+    if (this.tracked.get(entry.live.sessionId) !== entry) return
     this.changed()
-    if (sub.again && this.tracked.get(entry.live.sessionId) === entry)
-      void this.readSubagent(entry, sub)
+    if (sub.again) void this.readSubagent(entry, sub)
   }
 
   /** One reading of a record, or none when one is already under way (which then reads again). */
@@ -360,14 +368,18 @@ export class ClaudeCodeSource implements AgentSource {
     return true
   }
 
-  /** The session's record has started a subagent whose own record has not been found. */
-  private subagentMissing(entry: Tracked): boolean {
-    const found = new Set<string>()
-    for (const sub of entry.subagents.values()) if (sub.meta) found.add(sub.meta.toolUseId)
+  /**
+   * The session's record has started a subagent not yet looked for. Each call is looked
+   * for once from here; one whose record comes later is found by its folder's changes.
+   */
+  private subagentUnsought(entry: Tracked): boolean {
+    let unsought = false
     for (const [id, task] of entry.tally.tasks) {
-      if (task.kind === 'agent' && !found.has(id)) return true
+      if (task.kind !== 'agent' || entry.sought.has(id)) continue
+      entry.sought.add(id)
+      unsought = true
     }
-    return false
+    return unsought
   }
 
   /** Finds the session's subagents' records, and starts reading each one new. */
@@ -442,16 +454,27 @@ export class ClaudeCodeSource implements AgentSource {
       .sort((a, b) => Number(b.live) - Number(a.live) || b.updatedAt - a.updatedAt)
   }
 
-  /** What the session and its subagents wrote; the session's own word on a file comes first. */
+  /**
+   * What the session and its subagents wrote, FILES_SHOWN at most; the session's own word on a
+   * file comes first, and its subagents' files never take more than their share, so a subagent
+   * that writes a hundred files does not push the session's own off the card.
+   */
   private written(entry: Tracked): Map<string, Written> {
-    const files = new Map<string, Written>()
-    for (const [file, info] of entry.tally.files) files.set(file, { ...info, subagent: false })
+    const own = [...entry.tally.files].map(([file, info]): [string, Written] => [
+      file,
+      { ...info, subagent: false },
+    ])
+    const known = new Set(entry.tally.files.keys())
+    const theirs: [string, Written][] = []
     for (const sub of entry.subagents.values()) {
       for (const [file, info] of sub.tally.files) {
-        if (!files.has(file)) files.set(file, { ...info, subagent: true })
+        if (known.has(file)) continue
+        known.add(file)
+        theirs.push([file, { ...info, subagent: true }])
       }
     }
-    return files
+    const room = Math.min(theirs.length, Math.max(SUBAGENT_FILES, FILES_SHOWN - own.length))
+    return new Map([...own.slice(-(FILES_SHOWN - room)), ...(room > 0 ? theirs.slice(-room) : [])])
   }
 
   /** The session's tasks: running first, then the newest, and a finished one only for a while. */
@@ -466,13 +489,13 @@ export class ClaudeCodeSource implements AgentSource {
           Number(b.state === 'running') - Number(a.state === 'running') ||
           b.startedAt - a.startedAt,
       )
-      .slice(0, TASKS_SHOWN)
+      .filter((task, i) => task.state === 'running' || i < TASKS_SHOWN)
   }
 
   private session(entry: Tracked, now: number): AgentSession {
     const { live, tally } = entry
     const cwd = live.cwd
-    const files = [...this.written(entry).entries()].slice(-60).map(([file, info]) => {
+    const files = [...this.written(entry).entries()].map(([file, info]) => {
       const inside = path.relative(cwd, file)
       const shown =
         inside !== '' && !inside.startsWith('..') && !path.isAbsolute(inside) ? inside : file
@@ -505,7 +528,8 @@ export class ClaudeCodeSource implements AgentSource {
         .sort((a, b) => b.count - a.count),
       files,
       tasks: this.tasks(entry, now),
-      partial: entry.partial,
+      // A subagent's long record read from its end makes its steps the recent ones too.
+      partial: entry.partial || [...entry.subagents.values()].some((sub) => sub.partial),
     }
   }
 

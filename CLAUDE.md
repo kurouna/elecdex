@@ -238,9 +238,12 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     `AGENT_SOURCE_IDS`, never in the pane.
   - Claude Code's records are read only while a pane is open, from where the last reading stopped;
     a record over 32 MB from its last 512 kB, marked partial. Never parse a whole record on a
-    change (a 124 MB one took 944 ms), and never parse a line that is not the model's own.
+    change (a 124 MB one took 944 ms), and never parse a line that is not the model's own - but
+    for the small ones that end a task: its notice, and the result of a call still waiting for it
+    (told by its id in the record's own quotes, so an output quoting the id is not taken).
   - A session's subagents and background commands are its tasks: started by its own tool calls,
-    ended by the `<task-notification>` lines (or, for a subagent it waited for, its next answer),
+    ended by the `<task-notification>` lines, a TaskStop naming the id their result gave, or their
+    own result (refused, interrupted, or a subagent's report; its next answer as the fallback),
     and a subagent is read from its own record under `<session>/subagents/`. A task still running
     when its session went is `unknown`, never guessed done.
   - Tests never read this machine's `~/.claude`: support.ts points `ELECDEX_CLAUDE_DIR` at a
@@ -464,7 +467,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 - **README screenshots** must not show personal data: regenerate them with
   `npm run gen:screenshots`, which uses a demo home and curated launcher entries and shoots every
   built-in theme plus the settings dialog, the audio panes (with `ELECDEX_AUDIO_STUB=demo`) and
-  the AI chat pane (talking to a stand-in the script serves: no model, no key); name shots to
+  the AI chat pane (talking to a stand-in the script serves: no model, no key), the AGENT and GIT
+  panes (a made-up Claude Code folder and a demo repository by a made-up author, built afresh) and
+  the ORBIT pane; name shots to
   take only those. Regenerate after a visible change to a theme or the default
   layout, and add a built-in theme to both the script and the README table.
 - **Attribution** stays visible. JMA forecasts and the quakes pane show
