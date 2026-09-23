@@ -76,8 +76,13 @@ $effect(() => {
   if (!notes.ready) return
   const id = current?.id ?? null
   if (id === savedId) return
-  layout.patchPaneState(paneId, { noteId: id ?? undefined })
-  if (id === null) draft = ''
+  // An empty list (a broken notes.json, a layout from another machine) keeps the
+  // pane's note, so the pane shows it again when it is back.
+  if (id === null) {
+    draft = ''
+    return
+  }
+  layout.patchPaneState(paneId, { noteId: id })
 })
 
 /** Takes the note's text when it changes underneath: a switch, or another pane's edit. */

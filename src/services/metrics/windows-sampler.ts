@@ -755,8 +755,19 @@ const RESPAWN_MIN_INTERVAL_MS = 5000
 /** A reading being waited for, and the kinds it waits on. */
 type Waiter = (() => void) & { kinds?: readonly SamplerKind[] }
 
+/** Starts the sampler script. */
+export type StartSampler = (script: string) => ChildProcessWithoutNullStreams
+
+// The script is passed as a command, never written to or run from a file,
+// so Windows' ExecutionPolicy does not apply to it.
+const startPowerShell: StartSampler = (text) =>
+  spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', text], {
+    windowsHide: true,
+  })
+
 export class WindowsSampler {
   private readonly pingHost: string
+  private readonly start: StartSampler
   private child: ChildProcessWithoutNullStreams | null = null
   private buffer = ''
   private lastRead = 0
@@ -781,11 +792,13 @@ export class WindowsSampler {
   /** Readings received, by kind: what the sampler actually did, for the tests to hold it to. */
   readonly readings = new Map<string, number>()
 
-  constructor(pingHost: string) {
+  /** `start` runs the script; a test gives one that answers for PowerShell. */
+  constructor(pingHost: string, start: StartSampler = startPowerShell) {
     // The host is interpolated into the script, so accept only an address or
     // hostname - never anything that could close the string.
     if (!/^[A-Za-z0-9.:-]+$/.test(pingHost)) throw new Error(`Invalid ping host: ${pingHost}`)
     this.pingHost = pingHost
+    this.start = start
   }
 
   async throughput(): Promise<NetThroughput> {
@@ -947,13 +960,7 @@ export class WindowsSampler {
     this.lastSpawn = now
     this.exitReason = null
 
-    // The script is passed as a command, never written to or run from a file,
-    // so Windows' ExecutionPolicy does not apply to it.
-    const child = spawn(
-      'powershell.exe',
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script(process.pid, this.pingHost)],
-      { windowsHide: true },
-    )
+    const child = this.start(script(process.pid, this.pingHost))
     this.child = child
     this.buffer = ''
     // A new sampler has been told nothing: the wanted set goes to it whole.
@@ -961,9 +968,14 @@ export class WindowsSampler {
     child.stdin.on('error', () => {})
 
     child.stdout.setEncoding('utf8')
-    child.stdout.on('data', (chunk: string) => this.onData(chunk))
+    // Only the running sampler is heard: one stopped a moment ago may still have lines on the
+    // way, from before the stop, which must not come back as readings.
+    child.stdout.on('data', (chunk: string) => {
+      if (this.child === child) this.onData(chunk)
+    })
     child.stderr.setEncoding('utf8')
     child.stderr.on('data', (chunk: string) => {
+      if (this.child !== child) return
       this.exitReason = `Windows sampler: ${chunk.trim().slice(0, 300)}`
     })
     child.on('error', (error) => {

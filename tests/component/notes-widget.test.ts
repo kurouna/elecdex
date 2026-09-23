@@ -132,6 +132,18 @@ describe('NotesWidget', () => {
     expect(body().value).toBe(note().body)
   })
 
+  it('keeps the note it shows while the list is empty for a moment', async () => {
+    // notes.json broken by hand, or a layout opened where there are no notes: the list is
+    // empty, and the pane must not forget which note was its own for when it is back.
+    const patch = vi.spyOn(layout, 'patchPaneState')
+    render(NotesWidget, { props: { paneId: 'p', state: { noteId: 'n1' } } as never })
+    await settle()
+    changed({ version: 1, notes: [] })
+    await settle()
+    expect(patch).not.toHaveBeenCalledWith('p', { noteId: undefined })
+    patch.mockRestore()
+  })
+
   it('deletes the note picked out of the switcher, not the one on screen', async () => {
     file = {
       version: 1,

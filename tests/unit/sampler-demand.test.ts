@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events'
+import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { SamplerDemand, WANTED_FOR_MS } from '../../src/services/metrics/sampler-demand.js'
 import { WindowsSampler } from '../../src/services/metrics/windows-sampler.js'
@@ -101,4 +103,45 @@ describe.runIf(process.platform === 'win32')('the Windows sampler, for real', ()
       sampler.stop()
     }
   }, 60_000)
+})
+
+describe('the Windows sampler, with a made-up PowerShell', () => {
+  /** A child process that says what the test tells it to. */
+  function fakeChild() {
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      stdin: new PassThrough(),
+      killed: false,
+      kill() {
+        child.killed = true
+        return true
+      },
+    })
+    return child
+  }
+  const powerLine = `${JSON.stringify({ t: 'power', data: { pct: 0.5, line: 'Online', status: 8 } })}\n`
+
+  it('reads nothing a stopped sampler still had on its way', async () => {
+    const children: ReturnType<typeof fakeChild>[] = []
+    const sampler = new WindowsSampler('127.0.0.1', () => {
+      const child = fakeChild()
+      children.push(child)
+      return child as never
+    })
+    const first = sampler.battery()
+    children[0]?.stdout.write(powerLine)
+    await first
+    sampler.stop()
+    // Asked again at once: a new sampler. The old one's last line arrives only now.
+    const second = sampler.battery()
+    expect(children).toHaveLength(2)
+    children[0]?.stdout.write(powerLine)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(sampler.readings.get('power')).toBe(1)
+    children[1]?.stdout.write(powerLine)
+    await second
+    expect(sampler.readings.get('power')).toBe(2)
+    sampler.stop()
+  })
 })

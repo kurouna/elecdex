@@ -29,18 +29,28 @@ function files(dir: string): string[] {
   })
 }
 
-/** The packages a tree imports as values, by name (`@scope/name` or `name`); `import type` loads nothing. */
+/**
+ * The packages a text loads as values, by name (`@scope/name` or `name`): an import or
+ * export from, a side-effect import, a dynamic import and a require. `import type` loads nothing.
+ */
+function packagesIn(text: string): string[] {
+  const pattern =
+    /^\s*(?:import|export)\s+(?!type\b)[^'"]*?from\s+['"]([^'"\s.][^'"\s]*)['"]|^\s*import\s+['"]([^'"\s.][^'"\s]*)['"]|\b(?:import|require)\(\s*['"]([^'"\s.][^'"\s]*)['"]\s*\)/gm
+  const found: string[] = []
+  for (const match of text.matchAll(pattern)) {
+    const spec = match[1] ?? match[2] ?? match[3] ?? ''
+    if (/^(node:|@shared|@calc|@renderer|@main)/.test(spec)) continue
+    const parts = spec.split('/')
+    found.push(spec.startsWith('@') ? `${parts[0]}/${parts[1]}` : (parts[0] ?? spec))
+  }
+  return found
+}
+
+/** The packages a tree loads. */
 function imported(dir: string): Set<string> {
   const found = new Set<string>()
-  const pattern =
-    /^\s*(?:import|export)\s+(?!type\b)[^'"]*?from\s+['"]([^'"\s.][^'"\s]*)['"]|\bimport\(\s*['"]([^'"\s.][^'"\s]*)['"]\s*\)/gm
   for (const file of files(path.join(root, dir))) {
-    for (const match of readFileSync(file, 'utf8').matchAll(pattern)) {
-      const spec = match[1] ?? match[2] ?? ''
-      if (/^(node:|@shared|@calc|@renderer|@main)/.test(spec)) continue
-      const parts = spec.split('/')
-      found.add(spec.startsWith('@') ? `${parts[0]}/${parts[1]}` : (parts[0] ?? spec))
-    }
+    for (const name of packagesIn(readFileSync(file, 'utf8'))) found.add(name)
   }
   return found
 }
@@ -54,6 +64,20 @@ const runtime = new Set([
 const shipped = Object.keys(pkg.dependencies ?? {})
 
 describe('what the app ships', () => {
+  it('sees every way a file loads a package', () => {
+    const text = [
+      "import a from 'pkg-a'",
+      "import type { B } from 'pkg-type-only'",
+      "import 'pkg-side-effect'",
+      "export { c } from '@scope/pkg-c/sub'",
+      "const d = await import('pkg-d')",
+      "const e = require('pkg-e/deep')",
+      "import f from './local'",
+      "import g from 'node:fs'",
+    ].join('\n')
+    expect(packagesIn(text)).toEqual(['pkg-a', 'pkg-side-effect', '@scope/pkg-c', 'pkg-d', 'pkg-e'])
+  })
+
   it('keeps packages only the page imports out of dependencies', () => {
     const pageOnly = [...imported('src/renderer')].filter((name) => !runtime.has(name))
     expect(pageOnly.filter((name) => shipped.includes(name))).toEqual([])
