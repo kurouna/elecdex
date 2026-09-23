@@ -82,12 +82,23 @@ export interface Reading<T> {
   data: T[]
 }
 
+/**
+ * A listening process's executable and command line (`p`, `e`, `c`), read
+ * once per process by the sampler. Empty for a process that is not ours to open.
+ */
+export interface RawListener {
+  p: number
+  e: string
+  c: string
+}
+
 export type SamplerLine =
   | { kind: 'net'; data: RawAdapter[] }
   | { kind: 'proc'; data: RawProcess[] }
   | { kind: 'iface'; data: RawIface[] }
   | { kind: 'ping'; ms: number | null }
   | { kind: 'tcp'; rows: string[] }
+  | { kind: 'lsnr'; data: RawListener[] }
   | { kind: 'power'; data: RawPower }
   | { kind: 'swap'; data: RawSwap }
   | { kind: 'drives'; data: RawDrive[] }
@@ -306,6 +317,11 @@ export function parseSamplerLine(line: string): SamplerLine | null {
       }
     case 'tcp':
       return { kind: 'tcp', rows: packedRows(data) }
+    case 'lsnr':
+      return {
+        kind: 'lsnr',
+        data: rows.map((r) => ({ p: finite(r.p), e: str(r.e), c: str(r.c).slice(0, 4096) })),
+      }
     case 'iface':
       return {
         kind: 'iface',
@@ -400,6 +416,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Text;
 
 public class ElecdexTcpTable {
   [DllImport("iphlpapi.dll", SetLastError = true)]
@@ -427,11 +444,58 @@ public class ElecdexTcpTable {
     public uint pid;
   }
 
+  [DllImport("ntdll.dll")]
+  static extern int NtQueryInformationProcess(IntPtr process, int cls, IntPtr info, int length, out int returned);
+
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern IntPtr OpenProcess(int access, bool inherit, int pid);
+
+  [DllImport("kernel32.dll")]
+  static extern bool CloseHandle(IntPtr handle);
+
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+  static extern bool QueryFullProcessImageName(IntPtr process, int flags, StringBuilder name, ref int size);
+
   const int AF_INET = 2;
   const int AF_INET6 = 23;
   const int OWNER_PID_ALL = 5;
   // A pane draws a few hundred rows at most; this only bounds what crosses the pipe.
   const int MAX_ROWS = 2000;
+
+  const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+  const int PROCESS_COMMAND_LINE_INFORMATION = 60;
+
+  // A listening process's executable and command line. The limited right is
+  // enough for the user's own processes, the only ones worth naming; a service's
+  // is refused without elevation and comes back empty, which is fine.
+  public static string[] Owner(int pid) {
+    IntPtr process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+    if (process == IntPtr.Zero) return new string[] { "", "" };
+    try {
+      StringBuilder name = new StringBuilder(1024);
+      int size = name.Capacity;
+      string exe = QueryFullProcessImageName(process, 0, name, ref size) ? name.ToString() : "";
+      return new string[] { exe, CommandLine(process) };
+    } finally {
+      CloseHandle(process);
+    }
+  }
+
+  // The answer is a UNICODE_STRING (two lengths, then a pointer at the next
+  // pointer-aligned offset) followed by the text it points at.
+  static string CommandLine(IntPtr process) {
+    int length;
+    NtQueryInformationProcess(process, PROCESS_COMMAND_LINE_INFORMATION, IntPtr.Zero, 0, out length);
+    if (length <= 0 || length > 65536) return "";
+    IntPtr buffer = Marshal.AllocHGlobal(length);
+    try {
+      if (NtQueryInformationProcess(process, PROCESS_COMMAND_LINE_INFORMATION, buffer, length, out length) != 0) return "";
+      int bytes = Marshal.ReadInt16(buffer) & 0xFFFF;
+      return Marshal.PtrToStringUni(Marshal.ReadIntPtr(buffer, IntPtr.Size), bytes / 2);
+    } finally {
+      Marshal.FreeHGlobal(buffer);
+    }
+  }
 
   static int Port(uint value) {
     return (int)(((value & 0xFF) << 8) | ((value >> 8) & 0xFF));
@@ -500,6 +564,31 @@ function TcpRows {
   }
   return $out.ToArray()
 }
+# The owners of the listening sockets, read once per process and forgotten when
+# it stops listening, so a pid Windows hands to a new process is read afresh.
+$owners = @{}
+function ListenOwners($rows) {
+  if ($tcpMode -ne 'pinvoke') { return @() }
+  $seen = @{}
+  foreach ($r in $rows) {
+    $f = $r.Split('|')
+    if ($f[1] -ne '2') { continue }
+    $id = [int]$f[6]
+    if ($id -le 4 -or $seen.ContainsKey($id)) { continue }
+    $seen[$id] = $true
+    if (-not $owners.ContainsKey($id)) {
+      $o = [ElecdexTcpTable]::Owner($id)
+      $owners[$id] = @{ p = $id; e = $o[0]; c = $o[1] }
+    }
+  }
+  foreach ($k in @($owners.Keys)) { if (-not $seen.ContainsKey($k)) { $owners.Remove($k) } }
+  return @($owners.Values)
+}
+function EmitTcp {
+  $rows = @(TcpRows)
+  Emit 'tcp' $rows
+  Emit 'lsnr' @(ListenOwners $rows)
+}
 function Emit($t, $data) {
   try {
     [Console]::Out.WriteLine((ConvertTo-Json -Compress -Depth 4 -InputObject @{ t = $t; data = $data }))
@@ -535,7 +624,7 @@ while ($true) {
     }
     Emit 'iface' @($ifaces)
 
-    Emit 'tcp' @(TcpRows)
+    EmitTcp
 
     $ms = $null
     try { $r = $pinger.Send('${pingHost}', 1000); if ($r.Status -eq 'Success') { $ms = $r.RoundtripTime } } catch {}
@@ -567,7 +656,7 @@ while ($true) {
       $tcpMode = 'pinvoke'
     } catch { $tcpMode = 'managed' }
     # Straight away, rather than waiting for tick 5: the owners are the point.
-    Emit 'tcp' @(TcpRows)
+    EmitTcp
 
     try {
       $diskRead = New-Object System.Diagnostics.PerformanceCounter('PhysicalDisk', 'Disk Read Bytes/sec', '_Total')
@@ -615,6 +704,7 @@ export class WindowsSampler {
   private ifaces: RawIface[] | null = null
   private ping: { ms: number | null } | null = null
   private tcp: string[] | null = null
+  private listeners: RawListener[] = []
   private power: RawPower | null = null
   private swap: RawSwap | null = null
   private drives: RawDrive[] | null = null
@@ -663,11 +753,15 @@ export class WindowsSampler {
    * same tick: the connections pane wants the owner of every row, and the
    * sampler already knows what each pid is called.
    */
-  async tcpSockets(): Promise<{ rows: string[]; names: Map<number, string> }> {
+  async tcpSockets(): Promise<{
+    rows: string[]
+    names: Map<number, string>
+    listeners: RawListener[]
+  }> {
     await this.until(() => this.tcp !== null)
     const names = new Map<number, string>()
     for (const process of this.procCurrent?.data ?? []) names.set(process.id, process.n)
-    return { rows: this.tcp ?? [], names }
+    return { rows: this.tcp ?? [], names, listeners: this.listeners }
   }
 
   async battery(): Promise<Battery> {
@@ -793,6 +887,9 @@ export class WindowsSampler {
         break
       case 'tcp':
         this.tcp = parsed.rows
+        break
+      case 'lsnr':
+        this.listeners = parsed.data
         break
       case 'power':
         this.power = parsed.data

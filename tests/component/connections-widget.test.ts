@@ -43,6 +43,7 @@ const table = (sockets: NetSocket[]): NetSockets => ({
   listening: sockets.filter((entry) => entry.state === 'listen').length,
   dropped: 0,
   ownersUnknown: false,
+  owners: {},
 })
 
 beforeEach(() => {
@@ -153,7 +154,32 @@ describe('ConnectionsWidget', () => {
     const again = await mount({ view: 'listening' })
     await again(both)
     expect(screen.getAllByTestId('connection-row')).toHaveLength(1)
-    expect(screen.getByTestId('connection-remote').textContent).toContain('listening')
+    expect(screen.getByTestId('connection-row').dataset.state).toBe('listen')
+  })
+
+  it('gives a listening address the room of the peer it does not have', async () => {
+    // `0.0.0.0:49664` sat in the column sized for a bare port and ran over the
+    // word beside it. A listening row now draws its one end where the circuit
+    // and the peer would be.
+    const push = await mount({ view: 'listening' })
+    await push(
+      table([
+        socket({
+          state: 'listen',
+          localAddress: '0.0.0.0',
+          localPort: 49_664,
+          remoteAddress: '',
+          remotePort: 0,
+          publicPeer: false,
+          country: '',
+        }),
+      ]),
+    )
+    const row = screen.getByTestId('connection-row')
+    expect(row.classList.contains('listen')).toBe(true)
+    expect(screen.getByTestId('connection-local').textContent).toBe('0.0.0.0:49664')
+    expect(row.querySelector('.link')).toBeNull()
+    expect(screen.queryByTestId('connection-remote')).toBeNull()
   })
 
   it('filters on what a row shows', async () => {
@@ -236,6 +262,33 @@ describe('ConnectionsWidget', () => {
       ]),
     )
     expect(screen.getAllByTestId('connection-row')).toHaveLength(2)
+  })
+
+  it('tells two node listeners apart by what they were started to serve', async () => {
+    const push = await mount({ view: 'listening' })
+    const listener = (pid: number, port: number): NetSocket =>
+      socket({
+        state: 'listen',
+        pid,
+        process: 'node',
+        localAddress: '127.0.0.1',
+        localPort: port,
+        remoteAddress: '',
+        remotePort: 0,
+        publicPeer: false,
+        country: '',
+      })
+    await push({
+      ...table([listener(1502, 5173), listener(1600, 3000), listener(1700, 8081)]),
+      owners: {
+        '1502': { tool: 'vite', project: 'elecdex' },
+        '1600': { tool: 'next', project: '' },
+      },
+    })
+    const roles = screen.getAllByTestId('connections-role').map((role) => role.textContent)
+    expect(roles.sort()).toEqual(['next', 'vite · elecdex'])
+    // A process the collector had nothing to say about keeps a plain head.
+    expect(screen.getAllByTestId('connections-group-head')).toHaveLength(3)
   })
 
   it('says what the platform could not tell it', async () => {

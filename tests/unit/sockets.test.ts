@@ -18,6 +18,12 @@ import { describe, expect, it } from 'vitest'
 import { isPublicAddress } from '../../src/services/metrics/net-connections.js'
 import { place } from '../../src/services/metrics/sockets/common.js'
 import { parseBsdSockets } from '../../src/services/metrics/sockets/darwin.js'
+import {
+  identifyOwner,
+  listenerOwners,
+  type RawCommand,
+  splitCommandLine,
+} from '../../src/services/metrics/sockets/identify.js'
 import { MAX_SOCKETS, summarize } from '../../src/services/metrics/sockets/index.js'
 import { parseProcSockets } from '../../src/services/metrics/sockets/linux.js'
 import { noneOwned, parseSamplerSockets } from '../../src/services/metrics/sockets/windows.js'
@@ -143,6 +149,105 @@ describe('the Windows table', () => {
       kind: 'tcp',
       rows: ['4|5|a|1|b|2|3'],
     })
+  })
+
+  it('takes the listeners off the wire, one or many, with long lines cut', () => {
+    const one = parseSamplerLine(
+      '{"t":"lsnr","data":{"p":12,"e":"C:\\\\node.exe","c":"node a.js"}}',
+    )
+    expect(one).toEqual({ kind: 'lsnr', data: [{ p: 12, e: 'C:\\node.exe', c: 'node a.js' }] })
+    const long = parseSamplerLine(
+      JSON.stringify({ t: 'lsnr', data: [{ p: 1, e: '', c: 'x'.repeat(9000) }] }),
+    )
+    expect(long?.kind === 'lsnr' && long.data[0]?.c.length).toBe(4096)
+    expect(parseSamplerLine('{"t":"lsnr","data":[]}')).toEqual({ kind: 'lsnr', data: [] })
+  })
+})
+
+describe('what a listening process is', () => {
+  const win = (commandLine: string, exe = ''): RawCommand => ({ pid: 1, exe, commandLine, cwd: '' })
+  const nix = (args: string[], cwd = ''): RawCommand => ({
+    pid: 1,
+    exe: '',
+    commandLine: args.join(String.fromCharCode(0)),
+    cwd,
+  })
+
+  it('splits a Windows command line as the C runtime does', () => {
+    expect(splitCommandLine('"C:\\Program Files\\nodejs\\node.exe" a.js --port 5')).toEqual([
+      'C:\\Program Files\\nodejs\\node.exe',
+      'a.js',
+      '--port',
+      '5',
+    ])
+    // Backslashes are literal unless they come before a quote.
+    expect(splitCommandLine('x "a\\\\" b\\c "d\\"e" ""')).toEqual(['x', 'a\\', 'b\\c', 'd"e', ''])
+  })
+
+  it('names the package a node server runs and the project it serves', () => {
+    const vite = win(
+      '"C:\\Program Files\\nodejs\\node.exe" C:\\work\\elecdex\\node_modules\\vite\\bin\\vite.js --port 5173',
+      'C:\\Program Files\\nodejs\\node.exe',
+    )
+    expect(identifyOwner(vite)).toEqual({ tool: 'vite', project: 'elecdex' })
+    const next = nix(['node', '/home/u/shop/node_modules/.bin/next', 'dev'])
+    expect(identifyOwner(next)).toEqual({ tool: 'next', project: 'shop' })
+    const scoped = nix(['node', '/w/app/node_modules/@angular/cli/bin/ng.js', 'serve'])
+    expect(identifyOwner(scoped).tool).toBe('@angular/cli')
+  })
+
+  it('names a plain script by its file and its folder, or the working directory', () => {
+    expect(identifyOwner(win('node --inspect C:\\src\\api\\server.js'))).toEqual({
+      tool: 'server',
+      project: 'api',
+    })
+    expect(identifyOwner(nix(['node', 'index.js'], '/home/u/blog'))).toEqual({
+      tool: 'index',
+      project: 'blog',
+    })
+    expect(identifyOwner(nix(['deno', 'run', '-A', '/p/bot/main.ts']))).toEqual({
+      tool: 'main',
+      project: 'bot',
+    })
+  })
+
+  it('names a Python module or script, and sees through a venv', () => {
+    expect(identifyOwner(nix(['python3', '-m', 'http.server', '8000'], '/home/u/site'))).toEqual({
+      tool: 'http.server',
+      project: 'site',
+    })
+    const venv = win(
+      'C:\\p\\ml\\.venv\\Scripts\\python.exe C:\\p\\ml\\.venv\\Scripts\\uvicorn-script.py app:app',
+    )
+    expect(identifyOwner(venv)).toEqual({ tool: 'uvicorn-script', project: 'ml' })
+  })
+
+  it('names what svchost hosts, and says nothing about a program its name already names', () => {
+    expect(identifyOwner(win('C:\\Windows\\system32\\svchost.exe -k RPCSS -p')).tool).toBe('RPCSS')
+    expect(
+      identifyOwner(win('C:\\Windows\\system32\\svchost.exe -k netsvcs -s Dnscache')).tool,
+    ).toBe('Dnscache')
+    expect(identifyOwner(nix(['postgres', '-D', '/var/lib/postgresql']))).toEqual({
+      tool: '',
+      project: '',
+    })
+    // A process that was not ours to read has neither an executable nor a line.
+    expect(identifyOwner(win(''))).toEqual({ tool: '', project: '' })
+  })
+
+  it('keeps only what it can say, and never the command line itself', () => {
+    const owners = listenerOwners([
+      { ...win('node C:\\a\\b\\tool.js --token=SECRET'), pid: 7 },
+      { ...win(''), pid: 8 },
+    ])
+    expect(owners).toEqual({ '7': { tool: 'tool', project: 'b' } })
+    expect(JSON.stringify(owners)).not.toContain('SECRET')
+  })
+
+  it('cuts a long name rather than letting it push the row about', () => {
+    const tool = identifyOwner(win(`node C:\\p\\x\\${'a'.repeat(80)}.js`)).tool
+    expect(tool).toHaveLength(40)
+    expect(tool.endsWith('…')).toBe(true)
   })
 })
 

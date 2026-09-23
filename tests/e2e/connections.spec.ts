@@ -51,15 +51,19 @@ test('the listening view shows the doors, and the choice survives a restart', as
     await expect(page.getByTestId('connection-row').first()).toContainText('93.184.216.34')
 
     await page.getByTestId('connections-view').filter({ hasText: 'LISTENING' }).click()
-    await expect(page.getByTestId('connection-row').first()).toContainText('listening')
+    await expect(page.getByTestId('connection-row').first()).toHaveAttribute('data-state', 'listen')
     // Listening rows group by program too, busiest first - nginx holds two ports.
     await expect(page.getByTestId('connections-group-head').first()).toContainText('nginx')
     await expect(page.getByTestId('connections-list')).toContainText('sshd')
 
     launched = await launched.relaunch()
-    await expect(launched.page.getByTestId('connection-row').first()).toContainText('listening', {
-      timeout: 20_000,
-    })
+    await expect(launched.page.getByTestId('connection-row').first()).toHaveAttribute(
+      'data-state',
+      'listen',
+      {
+        timeout: 20_000,
+      },
+    )
   } finally {
     await launched.close()
   }
@@ -82,7 +86,7 @@ test('keeps drawing as sockets come and go, reading after reading', async () => 
 
     // Still answering: the switch works and the list redraws.
     await page.getByTestId('connections-view').filter({ hasText: 'LISTENING' }).click()
-    await expect(rows.first()).toContainText('listening')
+    await expect(rows.first()).toHaveAttribute('data-state', 'listen')
     expect(thrown).toEqual([])
   } finally {
     await close()

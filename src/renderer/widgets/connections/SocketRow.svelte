@@ -58,13 +58,17 @@ const listening = $derived(socket.state === 'listen')
   onpointerenter={() => onhover(socket.country || null)}
   onpointerleave={() => onhover(null)}
   onanimationend={onsettled}
+  class:listen={listening}
 >
   <span class="state" data-testid="connection-state">{STATE_LABEL[socket.state]}</span>
-  <span class="local">{listening ? endpoint(local, socket.localPort) : `:${socket.localPort}`}</span>
-  <span class="link" aria-hidden="true"></span>
-  <span class="remote" data-testid="connection-remote">
-    {listening ? 'listening' : endpoint(address, socket.remotePort)}
-  </span>
+  {#if listening}
+    <!-- No peer, so no circuit: the address it waits on takes the room. -->
+    <span class="local bound" data-testid="connection-local">{endpoint(local, socket.localPort)}</span>
+  {:else}
+    <span class="local">:{socket.localPort}</span>
+    <span class="link" aria-hidden="true"></span>
+    <span class="remote" data-testid="connection-remote">{endpoint(address, socket.remotePort)}</span>
+  {/if}
   <span class="service">{service}</span>
   <span class="country">{socket.country}</span>
 </div>
@@ -112,6 +116,21 @@ const listening = $derived(socket.state === 'listen')
 .local {
   text-align: right;
   color: var(--text-muted);
+}
+
+/*
+ * A listening row has one end. Its address - `0.0.0.0:49664`, `[::1]:42050` - is
+ * longer than a bare port, and in the port's column it ran over the row.
+ */
+.row.listen {
+  grid-template-columns: 2.9em 1fr auto 1.8em;
+}
+
+.local.bound {
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  color: var(--text);
 }
 
 /*
@@ -192,6 +211,10 @@ const listening = $derived(socket.state === 'listen')
     grid-template-columns: 2.9em 4.6em 1.4em 1fr 1.8em;
   }
 
+  .row.listen {
+    grid-template-columns: 2.9em 1fr 1.8em;
+  }
+
   .service {
     display: none;
   }
@@ -200,6 +223,10 @@ const listening = $derived(socket.state === 'listen')
 @container (max-width: 19rem) {
   .row {
     grid-template-columns: 2.9em 3.4em 1fr;
+  }
+
+  .row.listen {
+    grid-template-columns: 2.9em 1fr;
   }
 
   .link,

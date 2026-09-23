@@ -1,6 +1,7 @@
 import { readdir, readFile, readlink } from 'node:fs/promises'
 import { decodeProcAddress } from '../net-connections.js'
-import { LINUX_STATES, type RawSocket, type SocketReader } from './common.js'
+import { LINUX_STATES, type RawSocket, type SocketReader, type SocketTable } from './common.js'
+import type { RawCommand } from './identify.js'
 
 /**
  * Linux sockets, read from /proc - no process spawned at all.
@@ -54,14 +55,34 @@ export class LinuxSocketReader implements SocketReader {
   /** inode -> pid, kept between samples: a long-lived connection is the common case. */
   private owners = new Map<string, { pid: number; name: string }>()
 
-  async read(): Promise<{ sockets: RawSocket[]; ownersUnknown: boolean }> {
+  /** pid -> its command line and working directory, read once per listening process. */
+  private commands = new Map<number, RawCommand>()
+
+  async read(): Promise<SocketTable> {
     const [v4 = '', v6 = ''] = await Promise.all(TABLES.map((file) => readText(file)))
     const rows = [...parseProcSockets(v4, 4), ...parseProcSockets(v6, 6)]
     await this.resolveOwners(rows)
-    return {
-      sockets: rows.map(({ inode: _inode, ...socket }) => socket),
-      ownersUnknown: false,
+    const sockets = rows.map(({ inode: _inode, ...socket }) => socket)
+    return { sockets, ownersUnknown: false, commands: await this.listenerCommands(sockets) }
+  }
+
+  /**
+   * The command line and working directory of each listening process. Both are
+   * readable only for the user's own processes, which are the ones worth
+   * naming; a system daemon's stay empty, and its name is enough.
+   */
+  private async listenerCommands(sockets: readonly RawSocket[]): Promise<RawCommand[]> {
+    const pids = new Set(sockets.filter((s) => s.state === 'listen' && s.pid > 0).map((s) => s.pid))
+    for (const pid of this.commands.keys()) if (!pids.has(pid)) this.commands.delete(pid)
+    for (const pid of pids) {
+      if (this.commands.has(pid)) continue
+      const [commandLine, cwd] = await Promise.all([
+        readText(`/proc/${pid}/cmdline`),
+        readlink(`/proc/${pid}/cwd`).catch(() => ''),
+      ])
+      this.commands.set(pid, { pid, exe: '', commandLine: commandLine.slice(0, 4096), cwd })
     }
+    return [...this.commands.values()]
   }
 
   /** Fills in the owner of every row, walking /proc only for inodes not yet known. */

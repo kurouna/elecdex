@@ -4,6 +4,7 @@ import { isPublicAddress } from '../net-connections.js'
 import type { WindowsSampler } from '../windows-sampler.js'
 import { place, type SocketReader } from './common.js'
 import { DarwinSocketReader } from './darwin.js'
+import { listenerOwners } from './identify.js'
 import { LinuxSocketReader } from './linux.js'
 import { stubSocketReader } from './stub.js'
 import { WindowsSocketReader } from './windows.js'
@@ -41,13 +42,16 @@ let reader: SocketReader | null = null
 
 export async function readSockets(sampler: WindowsSampler | null): Promise<NetSockets> {
   reader ??= readerFor(sampler)
-  const { sockets, ownersUnknown } = await reader.read()
+  const { sockets, ownersUnknown, commands } = await reader.read()
   const placed = sockets.map((socket) => place(socket, countryOf, isPublicAddress))
-  return summarize(placed, ownersUnknown)
+  return { ...summarize(placed, ownersUnknown), owners: listenerOwners(commands) }
 }
 
 /** Counts the whole table, then keeps the rows worth drawing. */
-export function summarize(sockets: readonly NetSocket[], ownersUnknown: boolean): NetSockets {
+export function summarize(
+  sockets: readonly NetSocket[],
+  ownersUnknown: boolean,
+): Omit<NetSockets, 'owners'> {
   let established = 0
   let listening = 0
   for (const socket of sockets) {

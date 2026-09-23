@@ -110,6 +110,17 @@ const bus = $derived.by(() => {
   return { countries, unplaced }
 })
 
+/**
+ * What a group's process is, where its command line said more than its name:
+ * five `node` groups become Vite on one project and Next on another. Only for
+ * processes that listen - the collector reads no other command lines.
+ */
+function roleOf(pid: number): string {
+  const owner = pid > 0 ? sample?.owners[String(pid)] : undefined
+  if (owner === undefined) return ''
+  return [owner.tool, owner.project].filter((part) => part !== '').join(' · ')
+}
+
 function toggle(name: string): void {
   const next = new Set(collapsed)
   if (!next.delete(name)) next.add(name)
@@ -190,6 +201,7 @@ function asStrings(value: unknown): string[] {
     {:else}
       {#each groups as group (group.name + group.pid)}
         {@const folded = collapsed.has(group.name)}
+        {@const role = roleOf(group.pid)}
         <section class="group" data-testid="connections-group">
           <button
             type="button"
@@ -201,6 +213,7 @@ function asStrings(value: unknown): string[] {
             <span class="caret" aria-hidden="true">{folded ? '▸' : '▾'}</span>
             <span class="name">{group.name}</span>
             {#if group.pid > 0}<span class="pid">{group.pid}</span>{/if}
+            {#if role !== ''}<span class="role" data-testid="connections-role">{role}</span>{/if}
             <span class="tally">{group.rows.length}</span>
             {#if group.outside > 0}<span class="out" title="peers on the public internet"
                 >⟶ {group.outside}</span
@@ -351,6 +364,19 @@ function asStrings(value: unknown): string[] {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Beside the name and quieter than it: the name is the process, this is what
+   it was started to do. It gives way before the name does. */
+.role {
+  overflow: hidden;
+  min-width: 0;
+  flex-shrink: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--accent-dim);
 }
 
 .pid,

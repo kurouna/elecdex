@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { BSD_STATES, type RawSocket, type SocketReader } from './common.js'
+import { BSD_STATES, type RawSocket, type SocketReader, type SocketTable } from './common.js'
 
 /**
  * macOS sockets, from `netstat -an -p tcp`.
@@ -61,8 +61,8 @@ function splitEndpoint(field: string): { address: string; port: number } | null 
 }
 
 export class DarwinSocketReader implements SocketReader {
-  async read(): Promise<{ sockets: RawSocket[]; ownersUnknown: boolean }> {
+  async read(): Promise<SocketTable> {
     const { stdout } = await run('netstat', ['-an', '-p', 'tcp'], { timeout: 4000 })
-    return { sockets: parseBsdSockets(stdout), ownersUnknown: true }
+    return { sockets: parseBsdSockets(stdout), ownersUnknown: true, commands: [] }
   }
 }

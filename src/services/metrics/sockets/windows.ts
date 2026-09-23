@@ -1,5 +1,5 @@
 import type { WindowsSampler } from '../windows-sampler.js'
-import { type RawSocket, type SocketReader, WINDOWS_STATES } from './common.js'
+import { type RawSocket, type SocketReader, type SocketTable, WINDOWS_STATES } from './common.js'
 
 /**
  * Windows sockets, from the long-lived sampler (windows-sampler.ts).
@@ -63,9 +63,10 @@ export class WindowsSocketReader implements SocketReader {
     this.sampler = sampler
   }
 
-  async read(): Promise<{ sockets: RawSocket[]; ownersUnknown: boolean }> {
-    const { rows, names } = await this.sampler.tcpSockets()
+  async read(): Promise<SocketTable> {
+    const { rows, names, listeners } = await this.sampler.tcpSockets()
     const sockets = parseSamplerSockets(rows, names)
-    return { sockets, ownersUnknown: noneOwned(sockets) }
+    const commands = listeners.map(({ p, e, c }) => ({ pid: p, exe: e, commandLine: c, cwd: '' }))
+    return { sockets, ownersUnknown: noneOwned(sockets), commands }
   }
 }

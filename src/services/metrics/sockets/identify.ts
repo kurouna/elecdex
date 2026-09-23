@@ -1,0 +1,210 @@
+import type { SocketOwner } from '@shared/metrics'
+
+/**
+ * What a listening process is, told from its command line.
+ *
+ * The socket table names a listener's process, and on a developer's machine that
+ * name is mostly `node` - five of them, one per dev server, and nothing to tell
+ * them apart. The command line does: `node …\elecdex\node_modules\vite\bin\vite.js`
+ * is Vite, serving elecdex. So the collector reads the command line of each
+ * listening process once (the platform readers cache it) and keeps only what
+ * this function makes of it - a tool and a project - never the line itself,
+ * which can carry a token or a password as an argument.
+ *
+ * Nothing is asked of the port: knowing what a server is by talking to it would
+ * be a request the user did not make.
+ */
+
+/** The owner as the platform reader found it. */
+export interface RawCommand {
+  pid: number
+  /** The executable's full path, or '' when the process is not ours to read. */
+  exe: string
+  /** The whole command line, as the OS holds it. */
+  commandLine: string
+  /** The working directory, where the platform tells it (Linux); '' elsewhere. */
+  cwd: string
+}
+
+/** Script runtimes: the program that matters is their first argument, not them. */
+const SCRIPT_RUNTIMES = new Set(['node', 'bun', 'deno', 'tsx', 'ts-node'])
+const PYTHONS = /^(python|pythonw|py)(\d+(\.\d+)?)?$/
+/** Folders that hold a project's tools rather than being the project. */
+const TOOL_FOLDERS = new Set(['node_modules', '.venv', 'venv', 'env', 'site-packages', 'scripts'])
+
+const LIMIT = 40
+
+/**
+ * Splits a command line the way the C runtime does on Windows
+ * (CommandLineToArgvW): quotes group, and backslashes are literal except
+ * before a quote. POSIX lines arrive already split, joined with NULs.
+ */
+export function splitCommandLine(line: string): string[] {
+  if (line.includes('\0')) return line.split('\0').filter((arg) => arg !== '')
+  const split: Splitting = { args: [], current: '', quoted: false, started: false }
+  let i = 0
+  while (i < line.length) i = step(line, i, split)
+  if (split.started) split.args.push(split.current)
+  return split.args
+}
+
+interface Splitting {
+  args: string[]
+  current: string
+  quoted: boolean
+  /** An argument has begun, which `""` does too: it is an empty argument, not none. */
+  started: boolean
+}
+
+/** Reads what starts at `i` and returns where the next thing starts. */
+function step(line: string, i: number, split: Splitting): number {
+  const char = line[i] ?? ''
+  if (!split.quoted && (char === ' ' || char === '\t')) {
+    if (split.started) split.args.push(split.current)
+    split.current = ''
+    split.started = false
+    return i + 1
+  }
+  split.started = true
+  if (char === '\\') {
+    const run = slashRun(line, i)
+    split.current += run.text
+    return run.next
+  }
+  if (char !== '"') {
+    split.current += char
+    return i + 1
+  }
+  if (split.quoted && line[i + 1] === '"') {
+    split.current += '"'
+    return i + 2
+  }
+  split.quoted = !split.quoted
+  return i + 1
+}
+
+/**
+ * A run of backslashes: before a quote, each pair is one backslash and an odd
+ * one out escapes the quote; anywhere else they are all literal.
+ */
+function slashRun(line: string, at: number): { text: string; next: number } {
+  let end = at
+  while (line[end] === '\\') end += 1
+  const count = end - at
+  if (line[end] !== '"') return { text: '\\'.repeat(count), next: end }
+  const half = '\\'.repeat(Math.floor(count / 2))
+  // An even run leaves the quote to be read as a quote.
+  return count % 2 === 1 ? { text: `${half}"`, next: end + 1 } : { text: half, next: end }
+}
+
+const segments = (path: string): string[] => path.split(/[\\/]+/).filter((part) => part !== '')
+
+const baseName = (path: string): string => segments(path).at(-1) ?? ''
+
+const stem = (path: string): string =>
+  baseName(path).replace(/\.(exe|cmd|bat|m?[jt]s|cjs|py|jar|dll)$/i, '')
+
+const clip = (text: string): string => (text.length > LIMIT ? `${text.slice(0, LIMIT - 1)}…` : text)
+
+/**
+ * The project a path belongs to: the folder above the first tool folder in it
+ * (`…\elecdex\node_modules\vite\…` is elecdex's), else the folder the script
+ * sits in.
+ */
+export function projectOf(path: string): string {
+  const parts = segments(path)
+  const tools = parts.findIndex((part) => TOOL_FOLDERS.has(part.toLowerCase()))
+  if (tools > 0) return parts[tools - 1] ?? ''
+  if (tools === 0) return ''
+  return parts.length >= 2 ? (parts.at(-2) ?? '') : ''
+}
+
+/** The package a path inside node_modules runs: `vite`, `@angular/cli`, a `.bin` name. */
+function packageOf(path: string): string {
+  const parts = segments(path)
+  const at = parts.map((part) => part.toLowerCase()).lastIndexOf('node_modules')
+  if (at < 0) return ''
+  const first = parts[at + 1] ?? ''
+  if (first === '.bin') return stem(parts[at + 2] ?? '')
+  return first.startsWith('@') ? `${first}/${parts[at + 2] ?? ''}` : first
+}
+
+/** The first argument after the runtime that is not an option. */
+function firstOperand(args: readonly string[]): string {
+  for (const arg of args) {
+    if (arg.startsWith('-')) continue
+    // `deno run main.ts`, `bun run dev`: the subcommand is not the script.
+    if (arg === 'run') continue
+    return arg
+  }
+  return ''
+}
+
+function fromScript(script: string, cwd: string): SocketOwner {
+  const pkg = packageOf(script)
+  if (pkg !== '') return { tool: pkg, project: projectOf(script) }
+  // `node server.js` is told apart by its folder: a relative script sits in the
+  // working directory, which only Linux reports.
+  return { tool: stem(script), project: projectOf(script) || baseName(cwd) }
+}
+
+function fromPython(args: readonly string[], cwd: string): SocketOwner {
+  const module = args.indexOf('-m')
+  if (module >= 0 && args[module + 1] !== undefined) {
+    return { tool: args[module + 1] ?? '', project: baseName(cwd) }
+  }
+  const script = firstOperand(args)
+  return script === '' ? { tool: '', project: '' } : fromScript(script, cwd)
+}
+
+function fromJava(args: readonly string[], cwd: string): SocketOwner {
+  const jar = args.indexOf('-jar')
+  if (jar >= 0 && args[jar + 1] !== undefined) {
+    return {
+      tool: stem(args[jar + 1] ?? ''),
+      project: projectOf(args[jar + 1] ?? '') || baseName(cwd),
+    }
+  }
+  return { tool: '', project: baseName(cwd) }
+}
+
+/** svchost says which service group, or which service, it is hosting. */
+function fromSvchost(args: readonly string[]): SocketOwner {
+  const service = args.indexOf('-s')
+  if (service >= 0) return { tool: args[service + 1] ?? '', project: '' }
+  const group = args.indexOf('-k')
+  return { tool: group >= 0 ? (args[group + 1] ?? '') : '', project: '' }
+}
+
+/**
+ * The tool and project a listening process is, or empty strings where its
+ * command line says nothing its process name does not already say.
+ */
+export function identifyOwner(command: RawCommand): SocketOwner {
+  const args = splitCommandLine(command.commandLine)
+  const program = stem(command.exe || args[0] || '').toLowerCase()
+  const rest = args.slice(1)
+  let owner: SocketOwner = { tool: '', project: '' }
+  if (SCRIPT_RUNTIMES.has(program)) {
+    const script = firstOperand(rest)
+    if (script !== '') owner = fromScript(script, command.cwd)
+  } else if (PYTHONS.test(program)) owner = fromPython(rest, command.cwd)
+  else if (program === 'java' || program === 'javaw') owner = fromJava(rest, command.cwd)
+  else if (program === 'dotnet') {
+    const dll = rest.find((arg) => /\.dll$/i.test(arg))
+    owner = dll
+      ? { tool: stem(dll), project: projectOf(dll) }
+      : { tool: '', project: baseName(command.cwd) }
+  } else if (program === 'svchost') owner = fromSvchost(rest)
+  return { tool: clip(owner.tool), project: clip(owner.project) }
+}
+
+/** The owners of the listening processes, by pid, leaving out those with nothing to say. */
+export function listenerOwners(commands: readonly RawCommand[]): Record<string, SocketOwner> {
+  const owners: Record<string, SocketOwner> = {}
+  for (const command of commands) {
+    const owner = identifyOwner(command)
+    if (owner.tool !== '' || owner.project !== '') owners[String(command.pid)] = owner
+  }
+  return owners
+}

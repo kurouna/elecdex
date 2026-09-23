@@ -1,4 +1,5 @@
 import type { RawSocket, SocketReader } from './common.js'
+import type { RawCommand } from './identify.js'
 
 /**
  * A made-up socket table, for the tests and the README screenshots.
@@ -36,6 +37,30 @@ const LISTENING: [string, number, string][] = [
   ['elecdex', 9229, '127.0.0.1'],
 ]
 
+/** How /proc/<pid>/cmdline separates arguments. */
+const NUL = String.fromCharCode(0)
+
+/** What the listening node and postgres are running, in a made-up home. */
+const COMMANDS: RawCommand[] = [
+  {
+    pid: 1502,
+    exe: '/usr/bin/node',
+    commandLine: [
+      'node',
+      '/home/demo/src/orbit-lab/node_modules/vite/bin/vite.js',
+      '--port',
+      '5173',
+    ].join(NUL),
+    cwd: '/home/demo/src/orbit-lab',
+  },
+  {
+    pid: 1288,
+    exe: '/usr/lib/postgresql/16/bin/postgres',
+    commandLine: ['postgres', '-D', '/var/lib/postgresql'].join(NUL),
+    cwd: '/',
+  },
+]
+
 const PIDS: Record<string, number> = {
   firefox: 2140,
   code: 3312,
@@ -70,7 +95,7 @@ export function stubSocketReader(mode: string): SocketReader {
     read: async () => {
       reading += 1
       const extra = !demo && reading % 2 === 0 ? [churn(reading)] : []
-      return { sockets: [...rows, ...extra], ownersUnknown: false }
+      return { sockets: [...rows, ...extra], ownersUnknown: false, commands: COMMANDS }
     },
   }
 }

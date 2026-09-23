@@ -1,4 +1,5 @@
 import type { NetSocket, SocketState } from '@shared/metrics'
+import type { RawCommand } from './identify.js'
 
 /**
  * What every platform reader produces before the collector places and caps it.
@@ -18,9 +19,17 @@ export interface RawSocket {
   process: string
 }
 
+/** What one reading of a platform's table gives. */
+export interface SocketTable {
+  sockets: RawSocket[]
+  ownersUnknown: boolean
+  /** The command lines of the listening processes, where the platform can read them. */
+  commands: RawCommand[]
+}
+
 /** A reader for one platform. */
 export interface SocketReader {
-  read(): Promise<{ sockets: RawSocket[]; ownersUnknown: boolean }>
+  read(): Promise<SocketTable>
 }
 
 /**

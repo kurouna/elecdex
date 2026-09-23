@@ -203,6 +203,20 @@ export interface NetSockets {
   dropped: number
   /** True where the platform cannot name the owning process, so the pane says so. */
   ownersUnknown: boolean
+  /**
+   * What each listening process is, by pid, told from its command line (the
+   * line itself never leaves the collector). Only processes with something to
+   * say beyond their name are here.
+   */
+  owners: Record<string, SocketOwner>
+}
+
+/** A listening process as its command line tells it: `vite` serving `elecdex`. */
+export interface SocketOwner {
+  /** The program it runs: a package, a script, a module, a hosted service. '' if nothing. */
+  tool: string
+  /** The folder it serves: the project above node_modules or a venv. '' if unknown. */
+  project: string
 }
 
 export type VolumeKind = 'fixed' | 'removable' | 'network' | 'other'
