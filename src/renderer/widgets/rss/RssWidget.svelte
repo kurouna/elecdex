@@ -27,7 +27,7 @@ import type { WidgetProps } from '../registry.ts'
  * layout and starts with no feeds, so nothing is fetched until the user adds one.
  * Plain text and no timers beyond one at midnight, so it costs nothing at idle.
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible = true }: WidgetProps = $props()
 
 const feeds = $derived(paneFeeds(paneState?.feeds))
 /**
@@ -81,12 +81,15 @@ function settled(key: string, event: AnimationEvent): void {
 
 $effect(() => {
   const urls = new Set(feedKey === '' ? [] : feedKey.split('\n'))
+  // Followed only while the pane is on screen: behind another tab main fetches no feed. The
+  // headlines stay, and what arrived meanwhile comes in as new when the tab is back.
+  const followed = visible ? urls : new Set<string>()
   for (const [url, off] of subscriptions) {
-    if (urls.has(url)) continue
+    if (followed.has(url)) continue
     off()
     subscriptions.delete(url)
   }
-  for (const url of urls) {
+  for (const url of followed) {
     if (subscriptions.has(url)) continue
     subscriptions.set(
       url,

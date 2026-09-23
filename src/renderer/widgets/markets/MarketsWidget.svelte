@@ -59,7 +59,7 @@ import Sparkline from './Sparkline.svelte'
  * otherwise); labels the user types are kept as typed.
  * Quotes are unofficial and may be delayed, and the pane says so.
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible = true }: WidgetProps = $props()
 
 const VIEWS: readonly ChartView[] = ['line', 'candles', 'bars']
 /** One symbol has nothing to compare: its chart is a line or candles. */
@@ -163,9 +163,12 @@ $effect(() => () => {
   flashTimers.clear()
 })
 
+// Quoted only while the pane is on screen: behind another tab main asks Yahoo nothing, and the
+// board keeps the last quotes. A return costs one batched quote; the charts are fetched only if due.
 $effect(() => {
   const symbols = watchlist.map((w) => w.symbol)
   const chosen = range
+  if (!visible) return
   const offs = symbols.map((symbol) =>
     window.elecdex.markets.subscribe(symbol, chosen, (update) => {
       const key = chartKey(symbol, chosen)

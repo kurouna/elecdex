@@ -155,3 +155,129 @@ test('behind another tab, the three panes do nothing, and take up again when sho
     removeDir(claude)
   }
 })
+
+/** Every built-in pane (builtins.ts), each behind the clock in one tab group. */
+const WIDGETS = [
+  'terminal',
+  'sysinfo',
+  'cpu',
+  'memory',
+  'disk',
+  'toplist',
+  'netstat',
+  'connections',
+  'throughput',
+  'filesystem',
+  'weather',
+  'globe',
+  'launcher',
+  'markets',
+  'aichat',
+  'elec',
+  'git',
+  'agents',
+  'orbit',
+  'rss',
+  'quakes',
+  'calendar',
+  'spectrum',
+  'mixer',
+  'calc',
+  'notes',
+  'todo',
+  'timer',
+]
+
+/** The sources a pane behind a tab keeps (builtins.ts `keepWhileHidden`): charts, and once-only readings. */
+const KEPT = [
+  'cpu.info',
+  'cpu.load',
+  'hardware.system',
+  'mem.swap',
+  'mem.usage',
+  'net.throughput',
+  'os.info',
+]
+
+test('behind another tab, no built-in pane changes anything or has main fetch for it', async () => {
+  test.setTimeout(120_000)
+  const { page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'tabs',
+        id: 't',
+        activeIndex: 0,
+        children: [
+          { kind: 'pane', id: 'p-clock', widget: 'clock' },
+          ...WIDGETS.map((widget) => ({
+            kind: 'pane',
+            id: `p-${widget}`,
+            widget,
+            ...(widget === 'rss' ? { state: { feeds: ['http://127.0.0.1:9/feed.xml'] } } : {}),
+          })),
+        ],
+      },
+    },
+  })
+  const main = () =>
+    page.evaluate(async () => ({
+      metrics: (await window.elecdex.metrics.stats()).active,
+      weather: await window.elecdex.weather.watching(),
+      markets: await window.elecdex.markets.watching(),
+      feeds: await window.elecdex.feeds.watching(),
+      orbits: await window.elecdex.orbits.watching(),
+      git: await window.elecdex.git.watching(),
+      agents: await window.elecdex.agents.watching(),
+    }))
+  try {
+    await expect(page.getByTestId('pane')).toHaveCount(WIDGETS.length + 1)
+    // Only what a chart needs goes on: no forecast, quote, feed or orbit is asked for.
+    await expect.poll(main, { timeout: 20_000 }).toEqual({
+      metrics: KEPT,
+      weather: [],
+      markets: [],
+      feeds: [],
+      orbits: [],
+      git: [],
+      agents: false,
+    })
+    // Once the start is over (a shell's first prompt, the launcher's catalog, the one-off readings),
+    // the page writes nothing into any of them: no figure, no clock, no pulse.
+    await page.waitForTimeout(6000)
+    const changed = await page.evaluate(async (widgets) => {
+      const counts: Record<string, number> = {}
+      const observers = widgets.map((widget) => {
+        counts[widget] = 0
+        const observer = new MutationObserver((records) => {
+          counts[widget] = (counts[widget] ?? 0) + records.length
+        })
+        const pane = document.querySelector(`[data-testid=pane][data-pane-id=p-${widget}]`)
+        if (pane !== null)
+          observer.observe(pane, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            characterData: true,
+          })
+        return observer
+      })
+      await new Promise((resolve) => setTimeout(resolve, 4000))
+      for (const observer of observers) observer.disconnect()
+      return Object.fromEntries(Object.entries(counts).filter(([, n]) => n > 0))
+    }, WIDGETS)
+    expect(changed).toEqual({})
+
+    // Shown, each asks again for what it shows.
+    await page.locator('[data-testid=tab][data-pane-id=p-weather]').click()
+    await expect.poll(async () => (await main()).weather).toHaveLength(1)
+    await page.locator('[data-testid=tab][data-pane-id=p-markets]').click()
+    await expect.poll(async () => (await main()).markets.length).toBeGreaterThan(0)
+    await expect.poll(async () => (await main()).weather).toEqual([])
+    await page.locator('[data-testid=tab][data-pane-id=p-rss]').click()
+    await expect.poll(async () => (await main()).feeds).toEqual(['http://127.0.0.1:9/feed.xml'])
+    await expect.poll(async () => (await main()).markets).toEqual([])
+  } finally {
+    await close()
+  }
+})

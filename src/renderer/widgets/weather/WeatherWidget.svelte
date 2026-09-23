@@ -31,7 +31,7 @@ import SkyIcon from './SkyIcon.svelte'
  * temperature unit are pane state, chosen from the settings toggle. The credit
  * line is the one the source's terms ask for.
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible = true }: WidgetProps = $props()
 
 const location = $derived(readLocation(paneState))
 const key = $derived(locationKey(location))
@@ -57,9 +57,20 @@ const showWeek = $derived(paneState?.week !== false)
 let update = $state.raw<WeatherUpdate | null>(null)
 let settingsOpen = $state(false)
 
+/**
+ * Main keeps a forecast current only while the pane is on screen: behind
+ * another tab it asks nobody. The forecast shown stays, and main answers a
+ * return from its copy at once, asking again only if a new one may be out.
+ */
+let shownKey: string | null = null
+
 $effect(() => {
   const k = key
-  update = null
+  if (k !== shownKey) {
+    update = null
+    shownKey = k
+  }
+  if (!visible) return
   return window.elecdex.weather.subscribe(k, (next) => {
     update = next
   })

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import { formatPercent } from '../../lib/format.ts'
 import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
@@ -18,7 +19,7 @@ import type { WidgetProps } from '../registry.ts'
  * A toggle switches to a bar per logical core, as Task Manager shows them; the
  * choice is kept in the pane state.
  */
-const { paneId, state: paneState }: WidgetProps = $props()
+const { paneId, state: paneState, visible = true }: WidgetProps = $props()
 
 const view = $derived<ChartView>(paneState?.view === 'bars' ? 'bars' : 'line')
 
@@ -30,7 +31,17 @@ function setView(next: ChartView): void {
 const HOT_CORE = 85
 
 const info = $derived(metrics.get('cpu.info'))
-const load = $derived(metrics.sample('cpu.load'))
+/**
+ * The load goes on being sampled behind another tab, so the graph has no gap
+ * when the tab comes back (`keepWhileHidden`); the figures written on the pane
+ * follow it only while it is seen, since nobody reads them meanwhile.
+ */
+const liveLoad = $derived(metrics.sample('cpu.load'))
+let load = $state.raw(untrack(() => liveLoad))
+$effect(() => {
+  const next = liveLoad
+  if (visible) load = next
+})
 const speed = $derived(metrics.get('cpu.speed'))
 const temperature = $derived(metrics.get('cpu.temperature'))
 const processes = $derived(metrics.get('proc.list'))
@@ -48,9 +59,12 @@ const firstAvg = $derived(average(cores.slice(0, half)))
 const secondAvg = $derived(average(cores.slice(half)))
 
 $effect(() => {
-  if (load === null) return
-  firstHalf.push(load.at, firstAvg)
-  secondHalf.push(load.at, secondAvg)
+  const sample = liveLoad
+  if (sample === null) return
+  const all = sample.data.cores
+  const middle = Math.max(1, Math.ceil(all.length / 2))
+  firstHalf.push(sample.at, average(all.slice(0, middle)))
+  secondHalf.push(sample.at, average(all.slice(middle)))
 })
 
 // eDEX-UI printed the brand in the module title's right-hand slot.

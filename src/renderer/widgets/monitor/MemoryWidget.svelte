@@ -16,10 +16,26 @@ import type { WidgetProps } from '../registry.ts'
  * than the percentage did, and nothing about how it changed; the graph shows a
  * leak or a spike at a glance.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, visible = true }: WidgetProps = $props()
 
-const usage = $derived(metrics.sample('mem.usage'))
-const swap = $derived(metrics.get('mem.swap'))
+/**
+ * Memory goes on being sampled behind another tab, so the graph has no gap
+ * when the tab comes back (`keepWhileHidden`); the figures and bars follow it
+ * only while the pane is seen, since nobody reads them meanwhile.
+ */
+const liveUsage = $derived(metrics.sample('mem.usage'))
+const liveSwap = $derived(metrics.get('mem.swap'))
+let usage = $state.raw(untrack(() => liveUsage))
+let swap = $state.raw(untrack(() => liveSwap))
+$effect(() => {
+  const next = { usage: liveUsage, swap: liveSwap }
+  if (!visible) return
+  usage = next.usage
+  swap = next.swap
+})
+
+const fractionOf = (used: number, total: number): number =>
+  total > 0 ? Math.min(1, used / total) : 0
 
 const usedSeries = new TimeSeries(CHART_WINDOW_MS + 5000)
 const swapSeries = new TimeSeries(CHART_WINDOW_MS + 5000)
@@ -30,14 +46,15 @@ const usedFraction = $derived(
 const swapFraction = $derived(swap && swap.total > 0 ? Math.min(1, swap.used / swap.total) : 0)
 
 $effect(() => {
-  if (usage === null) return
-  const at = usage.at
-  const used = usedFraction * 100
+  const sample = liveUsage
+  if (sample === null) return
+  const used = fractionOf(sample.data.used, sample.data.total) * 100
   // Swap is sampled less often; its line carries the last reading forward, on
   // the memory samples' clock rather than adding points of its own.
   untrack(() => {
-    usedSeries.push(at, used)
-    if (swap !== null) swapSeries.push(at, swapFraction * 100)
+    usedSeries.push(sample.at, used)
+    if (liveSwap !== null)
+      swapSeries.push(sample.at, fractionOf(liveSwap.used, liveSwap.total) * 100)
   })
 })
 

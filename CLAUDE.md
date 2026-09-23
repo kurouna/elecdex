@@ -90,7 +90,13 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   reload (`did-start-navigation`) and destroy. Polling must stop when the last subscriber leaves —
   e2e tests assert exactly that. A pane in a background tab (display:none) holds only its widget's
   `keepWhileHidden` sources (builtins.ts): the ones it charts, whose history would otherwise have
-  a gap, and once-only ones. List a new charted source there.
+  a gap, and once-only ones. List a new charted source there. Every other subscription a pane
+  makes (a forecast, quotes, feeds, orbital elements, a repository, agents' records) is taken
+  only while the pane is `visible`, keeping what it showed; so is anything it writes on a timer
+  or a pulse. Only what must go on unseen goes on: a shell, an answer being written (main's), a
+  timer or alarm, quake alerts, and a plugin (which decides for itself from `ctx.views`).
+  tests/e2e/hidden-panes.spec.ts puts every built-in pane behind a tab and checks that main
+  fetches nothing for it and its DOM does not change - add a new widget to its list.
 - **The connections pane reads the kernel, not the network.** Its `net.sockets` source lives in
   `src/services/metrics/sockets/`, one file per platform behind one `RawSocket` (Linux reads
   /proc, macOS runs netstat and cannot name an owner, Windows goes through the sampler's
