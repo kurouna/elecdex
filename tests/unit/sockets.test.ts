@@ -211,6 +211,24 @@ describe('what a listening process is', () => {
     })
   })
 
+  it("never takes an option's value for the script", () => {
+    expect(identifyOwner(nix(['node', '-r', 'dotenv/config', '/w/api/server.js']))).toEqual({
+      tool: 'server',
+      project: 'api',
+    })
+    expect(identifyOwner(nix(['node', '--import', 'tsx', '/w/api/app.ts'])).tool).toBe('app')
+    expect(identifyOwner(nix(['python3', '-W', 'ignore', '/w/ml/serve.py'])).tool).toBe('serve')
+  })
+
+  it('shows nothing of code given on the command line', () => {
+    // The code could hold anything - a token in a URL - and is never a label.
+    const none = { tool: '', project: '' }
+    expect(identifyOwner(nix(['node', '-e', "fetch('https://x/?token=abc/def')"]))).toEqual(none)
+    expect(identifyOwner(nix(['node', '--eval=require("http")']))).toEqual(none)
+    expect(identifyOwner(nix(['python3', '-c', 'import http.server as s; s.test()']))).toEqual(none)
+    expect(identifyOwner(nix(['deno', 'eval', 'Deno.serve(() => 1)']))).toEqual(none)
+  })
+
   it('names a Python module or script, and sees through a venv', () => {
     expect(identifyOwner(nix(['python3', '-m', 'http.server', '8000'], '/home/u/site'))).toEqual({
       tool: 'http.server',

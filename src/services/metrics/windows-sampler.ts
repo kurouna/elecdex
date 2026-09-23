@@ -578,7 +578,9 @@ function ListenOwners($rows) {
     $seen[$id] = $true
     if (-not $owners.ContainsKey($id)) {
       $o = [ElecdexTcpTable]::Owner($id)
-      $owners[$id] = @{ p = $id; e = $o[0]; c = $o[1] }
+      # Cut here as well as in the collector: the line crosses the pipe every five seconds.
+      $c = if ($o[1].Length -gt 4096) { $o[1].Substring(0, 4096) } else { $o[1] }
+      $owners[$id] = @{ p = $id; e = $o[0]; c = $c }
     }
   }
   foreach ($k in @($owners.Keys)) { if (-not $seen.ContainsKey($k)) { $owners.Remove($k) } }

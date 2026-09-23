@@ -67,15 +67,51 @@ function packageOf(path: string): string {
   return first.startsWith('@') ? `${first}/${parts[at + 2] ?? ''}` : first
 }
 
-/** The first argument after the runtime that is not an option. */
-function firstOperand(args: readonly string[]): string {
-  for (const arg of args) {
-    if (arg.startsWith('-')) continue
+/** A runtime's options that take the next argument as their value (`-r dotenv/config`). */
+const NODE_VALUED = new Set([
+  '-r',
+  '--require',
+  '--import',
+  '--loader',
+  '--experimental-loader',
+  '--inspect-port',
+  '--env-file',
+  '-C',
+  '--conditions',
+  '--title',
+  '--watch-path',
+  '--input-type',
+])
+const PYTHON_VALUED = new Set(['-W', '-X', '--check-hash-based-pycs'])
+/** Options whose value is code, not a file: there is no script, and the code is never shown. */
+const NODE_INLINE = new Set(['-e', '--eval', '-p', '--print'])
+const PYTHON_INLINE = new Set(['-c'])
+
+/**
+ * The first argument after the runtime that is not an option or an option's
+ * value: the script. Null when the program is code on the command line
+ * (`node -e`, `python -c`), which must not become a label.
+ */
+function firstOperand(
+  args: readonly string[],
+  valued: ReadonlySet<string>,
+  inline: ReadonlySet<string>,
+): string | null {
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i] ?? ''
+    const option = arg.split('=')[0] ?? arg
+    if (inline.has(option)) return null
+    if (arg.startsWith('-')) {
+      if (valued.has(arg)) i += 1
+      continue
+    }
     // `deno run main.ts`, `bun run dev`: the subcommand is not the script.
     if (arg === 'run') continue
+    // `deno eval <code>`
+    if (arg === 'eval') return null
     return arg
   }
-  return ''
+  return null
 }
 
 function fromScript(script: string, cwd: string): SocketOwner {
@@ -88,11 +124,12 @@ function fromScript(script: string, cwd: string): SocketOwner {
 
 function fromPython(args: readonly string[], cwd: string): SocketOwner {
   const module = args.indexOf('-m')
-  if (module >= 0 && args[module + 1] !== undefined) {
+  const code = args.indexOf('-c')
+  if (module >= 0 && args[module + 1] !== undefined && (code < 0 || module < code)) {
     return { tool: args[module + 1] ?? '', project: baseName(cwd) }
   }
-  const script = firstOperand(args)
-  return script === '' ? { tool: '', project: '' } : fromScript(script, cwd)
+  const script = firstOperand(args, PYTHON_VALUED, PYTHON_INLINE)
+  return script === null ? { tool: '', project: '' } : fromScript(script, cwd)
 }
 
 function fromJava(args: readonly string[], cwd: string): SocketOwner {
@@ -124,8 +161,8 @@ export function identifyOwner(command: RawCommand): SocketOwner {
   const rest = args.slice(1)
   let owner: SocketOwner = { tool: '', project: '' }
   if (SCRIPT_RUNTIMES.has(program)) {
-    const script = firstOperand(rest)
-    if (script !== '') owner = fromScript(script, command.cwd)
+    const script = firstOperand(rest, NODE_VALUED, NODE_INLINE)
+    if (script !== null) owner = fromScript(script, command.cwd)
   } else if (PYTHONS.test(program)) owner = fromPython(rest, command.cwd)
   else if (program === 'java' || program === 'javaw') owner = fromJava(rest, command.cwd)
   else if (program === 'dotnet') {
