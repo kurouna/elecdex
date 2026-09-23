@@ -9,6 +9,7 @@ import type { SatRec } from '../../lib/sgp4.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import {
   compass,
@@ -57,7 +58,9 @@ import { StarlinkField } from './starlink.ts'
  * The observer the passes are worked out for is this pane's own choice, from the
  * bundled city list - no location is asked for and no other pane consulted.
  */
-const { paneId, state: paneState, visible = true }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
 const CITY_ROWS = cities as CityRow[]
 const zone = Intl.DateTimeFormat().resolvedOptions().timeZone

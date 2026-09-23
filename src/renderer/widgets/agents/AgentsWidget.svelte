@@ -7,6 +7,7 @@ import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import DiffView from '../common/DiffView.svelte'
 import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -21,7 +22,9 @@ import type { WidgetProps } from '../registry.ts'
  * the one there is. Their records are theirs and undocumented, which is why the
  * pane says it is experimental.
  */
-const { paneId, state: paneState, visible = true }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
 const open = $derived(typeof paneState?.open === 'string' ? paneState.open : null)
 const fileKey = $derived(typeof paneState?.file === 'string' ? paneState.file : null)

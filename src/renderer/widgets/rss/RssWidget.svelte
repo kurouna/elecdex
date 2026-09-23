@@ -15,6 +15,7 @@ import { NewAbove } from '../../lib/new-above.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import NewPill from '../common/NewPill.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -27,7 +28,9 @@ import type { WidgetProps } from '../registry.ts'
  * layout and starts with no feeds, so nothing is fetched until the user adds one.
  * Plain text and no timers beyond one at midnight, so it costs nothing at idle.
  */
-const { paneId, state: paneState, visible = true }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
 const feeds = $derived(paneFeeds(paneState?.feeds))
 /**

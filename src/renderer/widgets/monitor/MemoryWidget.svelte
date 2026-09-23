@@ -5,6 +5,7 @@ import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import StreamChart from '../common/StreamChart.svelte'
 import type { WidgetProps } from '../registry.ts'
 
@@ -16,7 +17,9 @@ import type { WidgetProps } from '../registry.ts'
  * than the percentage did, and nothing about how it changed; the graph shows a
  * leak or a spike at a glance.
  */
-const { paneId, visible = true }: WidgetProps = $props()
+const { paneId, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
 /**
  * Memory goes on being sampled behind another tab, so the graph has no gap

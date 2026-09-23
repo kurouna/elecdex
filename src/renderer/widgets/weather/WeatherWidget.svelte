@@ -14,6 +14,7 @@ import { forecastPageUrl, SOURCES } from '@shared/weather-sources'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import SkyIcon from './SkyIcon.svelte'
@@ -31,7 +32,9 @@ import SkyIcon from './SkyIcon.svelte'
  * temperature unit are pane state, chosen from the settings toggle. The credit
  * line is the one the source's terms ask for.
  */
-const { paneId, state: paneState, visible = true }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
 const location = $derived(readLocation(paneState))
 const key = $derived(locationKey(location))

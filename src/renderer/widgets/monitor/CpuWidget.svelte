@@ -6,6 +6,7 @@ import { TimeSeries } from '../../lib/time-series.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import StreamChart from '../common/StreamChart.svelte'
 import ViewToggle, { type ChartView } from '../common/ViewToggle.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -19,7 +20,9 @@ import type { WidgetProps } from '../registry.ts'
  * A toggle switches to a bar per logical core, as Task Manager shows them; the
  * choice is kept in the pane state.
  */
-const { paneId, state: paneState, visible = true }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
 const view = $derived<ChartView>(paneState?.view === 'bars' ? 'bars' : 'line')
 
@@ -30,21 +33,31 @@ function setView(next: ChartView): void {
 /** Above this, a core's bar is drawn in the warning colour. */
 const HOT_CORE = 85
 
-const info = $derived(metrics.get('cpu.info'))
 /**
- * The load goes on being sampled behind another tab, so the graph has no gap
- * when the tab comes back (`keepWhileHidden`); the figures written on the pane
- * follow it only while it is seen, since nobody reads them meanwhile.
+ * The load goes on being sampled behind another tab or with the window put
+ * away, so the graph has no gap when the pane is seen again (`keepWhileHidden`);
+ * everything written on the pane follows the readings only while it is seen,
+ * since nobody reads it meanwhile - not even the last reading that lands as a
+ * source is let go.
  */
 const liveLoad = $derived(metrics.sample('cpu.load'))
-let load = $state.raw(untrack(() => liveLoad))
-$effect(() => {
-  const next = liveLoad
-  if (visible) load = next
+const live = $derived({
+  info: metrics.get('cpu.info'),
+  load: liveLoad,
+  speed: metrics.get('cpu.speed'),
+  temperature: metrics.get('cpu.temperature'),
+  processes: metrics.get('proc.list'),
 })
-const speed = $derived(metrics.get('cpu.speed'))
-const temperature = $derived(metrics.get('cpu.temperature'))
-const processes = $derived(metrics.get('proc.list'))
+let shown = $state.raw(untrack(() => live))
+$effect(() => {
+  const next = live
+  if (visible) shown = next
+})
+const info = $derived(shown.info)
+const load = $derived(shown.load)
+const speed = $derived(shown.speed)
+const temperature = $derived(shown.temperature)
+const processes = $derived(shown.processes)
 
 const firstHalf = new TimeSeries(CHART_WINDOW_MS + 5000)
 const secondHalf = new TimeSeries(CHART_WINDOW_MS + 5000)

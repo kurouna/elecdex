@@ -281,3 +281,118 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
     await close()
   }
 })
+
+/** The panes that fetch or write only for the eye, side by side, all on screen. */
+const FOR_THE_EYE = [
+  'git',
+  'orbit',
+  'agents',
+  'weather',
+  'markets',
+  'rss',
+  'cpu',
+  'memory',
+  'toplist',
+]
+const FEED = 'http://127.0.0.1:9/feed.xml'
+
+test('minimised, the panes stop what they do for the eye, and take it up again when restored', async () => {
+  test.setTimeout(120_000)
+  const dir = repo()
+  const claude = claudeFolder()
+  const { app, page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: FOR_THE_EYE.map(() => 100 / FOR_THE_EYE.length),
+        children: FOR_THE_EYE.map((widget) => ({
+          kind: 'pane',
+          id: `p-${widget}`,
+          widget,
+          ...(widget === 'rss' ? { state: { feeds: [FEED] } } : {}),
+        })),
+      },
+    },
+    env: { ELECDEX_CLAUDE_DIR: claude },
+  })
+  const main = () =>
+    page.evaluate(async () => ({
+      metrics: (await window.elecdex.metrics.stats()).active,
+      weather: (await window.elecdex.weather.watching()).length,
+      markets: (await window.elecdex.markets.watching()).length,
+      feeds: await window.elecdex.feeds.watching(),
+      orbits: await window.elecdex.orbits.watching(),
+      git: (await window.elecdex.git.watching()).length,
+      agents: await window.elecdex.agents.watching(),
+    }))
+  const atWork = async () => {
+    const now = await main()
+    return (
+      now.metrics.includes('proc.list') &&
+      now.weather === 1 &&
+      now.markets > 0 &&
+      now.feeds.length === 1 &&
+      now.orbits.length === 1 &&
+      now.git === 1 &&
+      now.agents
+    )
+  }
+  const windowTo = (how: 'minimize' | 'restore') =>
+    app.evaluate(({ BrowserWindow }, action) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.isVisible() || w.isMinimized())
+      if (action === 'minimize') win?.minimize()
+      else win?.restore()
+    }, how)
+  try {
+    await app.evaluate(({ dialog }, answer) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
+    }, dir)
+    await page.getByTestId('git-select').click()
+    await expect.poll(atWork, { timeout: 20_000 }).toBe(true)
+
+    await windowTo('minimize')
+    // Only the charts' samples go on, so the graphs have no gap when the window is back.
+    await expect.poll(main, { timeout: 10_000 }).toEqual({
+      metrics: ['cpu.info', 'cpu.load', 'mem.swap', 'mem.usage'],
+      weather: 0,
+      markets: 0,
+      feeds: [],
+      orbits: [],
+      git: 0,
+      agents: false,
+    })
+    const writes = await page.evaluate(async (widgets) => {
+      let count = 0
+      const observer = new MutationObserver((records) => {
+        count += records.length
+      })
+      for (const widget of widgets) {
+        const pane = document.querySelector(`[data-testid=pane][data-pane-id=p-${widget}]`)
+        if (pane !== null)
+          observer.observe(pane, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            characterData: true,
+          })
+      }
+      await new Promise((resolve) => setTimeout(resolve, 4000))
+      observer.disconnect()
+      return count
+    }, FOR_THE_EYE)
+    expect(writes).toBe(0)
+
+    // Restored, every one of them is at work again, and what it showed is still there.
+    await windowTo('restore')
+    await expect.poll(atWork, { timeout: 20_000 }).toBe(true)
+    await expect(page.locator('[data-testid="git-file"][data-path="a.txt"]')).toBeVisible()
+    await expect(page.getByTestId('agent-card')).toHaveCount(1)
+  } finally {
+    await close()
+    removeDir(dir)
+    removeDir(claude)
+  }
+})

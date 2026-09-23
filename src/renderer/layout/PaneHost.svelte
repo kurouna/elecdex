@@ -8,6 +8,7 @@ import { boot, CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.
 import { layout } from '../stores/layout.svelte.ts'
 import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
+import { seen } from '../stores/window-state.svelte.ts'
 import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
 import PaneCorner from './PaneCorner.svelte'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
@@ -118,7 +119,8 @@ function retainAll(ids: readonly MetricSourceId[]): () => void {
 }
 
 $effect(() => retainAll(declared.filter((id) => kept.has(id))))
-$effect(() => (visible ? retainAll(declared.filter((id) => !kept.has(id))) : undefined))
+// Nor while the window is minimised or put away: nobody sees the pane then either.
+$effect(() => (seen(visible) ? retainAll(declared.filter((id) => !kept.has(id))) : undefined))
 
 // Clean up the pane's published metadata when it goes away, so a recycled id
 // cannot inherit a previous pane's cwd.

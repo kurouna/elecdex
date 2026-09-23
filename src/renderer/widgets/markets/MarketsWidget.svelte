@@ -22,6 +22,7 @@ import {
 } from '@shared/markets'
 import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { seen } from '../../stores/window-state.svelte.ts'
 import Digits from '../common/Digits.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import ViewToggle, { type ChartView } from '../common/ViewToggle.svelte'
@@ -59,7 +60,9 @@ import Sparkline from './Sparkline.svelte'
  * otherwise); labels the user types are kept as typed.
  * Quotes are unofficial and may be delayed, and the pane says so.
  */
-const { paneId, state: paneState, visible = true }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+/** Shown in its tab, with the window on screen: what the pane does for the eye runs only then. */
+const visible = $derived(seen(inTab))
 
 const VIEWS: readonly ChartView[] = ['line', 'candles', 'bars']
 /** One symbol has nothing to compare: its chart is a line or candles. */
