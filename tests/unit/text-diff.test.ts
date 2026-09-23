@@ -1,4 +1,5 @@
-import { diffLines, toHunks } from '@shared/text-diff'
+import { MAX_DIFF_LINES } from '@shared/git'
+import { cutHunks, diffLines, toHunks } from '@shared/text-diff'
 import { describe, expect, it } from 'vitest'
 
 /** The line diff behind an agent session's changes to a file. */
@@ -40,6 +41,25 @@ describe('a line diff', () => {
       text: 'line twenty-five',
       new: 25,
     })
+  })
+
+  it('finds the shortest edit in a long file with changes spread through it', () => {
+    const before = Array.from({ length: 3000 }, (_, i) => `line ${i}`)
+    const after = before.map((line, i) => (i % 7 === 0 ? `${line} changed` : line))
+    const ops = diffLines(before.join('\n'), after.join('\n'))
+    const rebuilt = apply(ops)
+    expect(rebuilt.before).toEqual(before)
+    expect(rebuilt.after).toEqual(after)
+    // Every seventh line changed: one removal and one addition each, nothing more.
+    expect(ops.filter((o) => o.kind === 'del')).toHaveLength(Math.ceil(3000 / 7))
+  })
+
+  it('cuts what it shows after MAX_DIFF_LINES lines, and says so', () => {
+    const many = Array.from({ length: MAX_DIFF_LINES + 500 }, (_, i) => `n${i}`).join('\n')
+    const { hunks, cut } = cutHunks(toHunks(diffLines('', many)))
+    expect(cut).toBe(true)
+    expect(hunks.flatMap((h) => h.lines)).toHaveLength(MAX_DIFF_LINES)
+    expect(cutHunks(toHunks(diffLines('a\n', 'b\n'))).cut).toBe(false)
   })
 
   it('gives up on texts that differ everywhere, showing them whole', () => {

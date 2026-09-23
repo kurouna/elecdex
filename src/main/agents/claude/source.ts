@@ -3,11 +3,19 @@ import { existsSync, type FSWatcher, readdirSync, readFileSync, statSync, watch 
 import { open, readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
+import { StringDecoder } from 'node:string_decoder'
 import { type AgentSession, type AgentStatus, ENDED_KEPT_MS } from '@shared/agents'
 import { addedFileDiff, type GitDiff, looksBinary, MAX_UNTRACKED_BYTES } from '@shared/git'
-import { diffLines, toHunks } from '@shared/text-diff'
+import { cutHunks, diffLines, toHunks } from '@shared/text-diff'
 import type { AgentSource } from '../source.js'
-import { emptyTally, type LiveRecord, readLines, readLiveRecord, type Tally } from './transcript.js'
+import {
+  emptyTally,
+  LINE_LIMIT,
+  type LiveRecord,
+  readLines,
+  readLiveRecord,
+  type Tally,
+} from './transcript.js'
 
 /**
  * Claude Code sessions, from Claude Code's own folder (`~/.claude`, or
@@ -40,11 +48,30 @@ interface Tracked {
   ended: number | null
   transcript: string | null
   offset: number
+  /** Bytes to text across reads: a character split between two pieces stays one character. */
+  decoder: StringDecoder
   rest: string
+  /** Up to the next line's start is not a whole line: a tail's first, or one past LINE_LIMIT. */
+  skipLine: boolean
   partial: boolean
   tally: Tally
   reading: boolean
+  /** The record grew while it was being read: read again once this reading ends. */
+  again: boolean
 }
+
+/** A record read from its start: nothing carried over. */
+const fresh = (): Pick<
+  Tracked,
+  'offset' | 'decoder' | 'rest' | 'skipLine' | 'partial' | 'tally'
+> => ({
+  offset: 0,
+  decoder: new StringDecoder('utf8'),
+  rest: '',
+  skipLine: false,
+  partial: false,
+  tally: emptyTally(),
+})
 
 export function claudeDir(): string {
   return (
@@ -79,7 +106,8 @@ export class ClaudeCodeSource implements AgentSource {
   readonly id = 'claude-code' as const
   private readonly dir: string
   private readonly tracked = new Map<string, Tracked>()
-  private watchers: FSWatcher[] = []
+  private readonly watchers = new Map<'sessions' | 'projects', FSWatcher>()
+  private presence: { at: number; found: boolean } | null = null
   private timers = new Map<string, NodeJS.Timeout>()
   private aliveTimer: NodeJS.Timeout | null = null
   private changed: () => void = () => {}
@@ -88,38 +116,60 @@ export class ClaudeCodeSource implements AgentSource {
     this.dir = dir
   }
 
+  /** Asked with every board; the folders are looked for once a scan at most. */
   found(): boolean {
-    return (
-      existsSync(path.join(this.dir, 'sessions')) || existsSync(path.join(this.dir, 'projects'))
-    )
+    const now = Date.now()
+    if (this.presence === null || now - this.presence.at >= ALIVE_CHECK_MS) {
+      const found =
+        existsSync(path.join(this.dir, 'sessions')) || existsSync(path.join(this.dir, 'projects'))
+      this.presence = { at: now, found }
+    }
+    return this.presence.found
   }
 
   start(changed: () => void): void {
     this.changed = changed
+    this.watch()
     this.scan()
+    this.aliveTimer = setInterval(() => {
+      this.watch()
+      this.scan()
+    }, ALIVE_CHECK_MS)
+    this.aliveTimer.unref()
+  }
+
+  /**
+   * Watches the two folders, each once. One not there yet (Claude Code has not
+   * run on this machine), or whose watch failed, is tried again with each scan,
+   * so a first session started while the pane is open is still followed.
+   */
+  private watch(): void {
     for (const [folder, recursive] of [
       ['sessions', false],
       ['projects', true],
     ] as const) {
+      if (this.watchers.has(folder)) continue
       try {
         const watcher = watch(
           path.join(this.dir, folder),
           { recursive, persistent: false },
           (_event, name) => this.onChange(folder, typeof name === 'string' ? name : ''),
         )
-        watcher.on('error', () => watcher.close())
-        this.watchers.push(watcher)
+        watcher.on('error', () => {
+          watcher.close()
+          if (this.watchers.get(folder) === watcher) this.watchers.delete(folder)
+        })
+        this.watchers.set(folder, watcher)
+        this.presence = null
       } catch {
-        // Not there yet: Claude Code has not run on this machine.
+        // Not there yet; the next scan tries again.
       }
     }
-    this.aliveTimer = setInterval(() => this.scan(), ALIVE_CHECK_MS)
-    this.aliveTimer.unref()
   }
 
   stop(): void {
-    for (const watcher of this.watchers) watcher.close()
-    this.watchers = []
+    for (const watcher of this.watchers.values()) watcher.close()
+    this.watchers.clear()
     for (const timer of this.timers.values()) clearTimeout(timer)
     this.timers.clear()
     if (this.aliveTimer !== null) clearInterval(this.aliveTimer)
@@ -178,12 +228,10 @@ export class ClaudeCodeSource implements AgentSource {
       const entry: Tracked = {
         live,
         ended: null,
-        transcript: this.findTranscript(live.sessionId),
-        offset: 0,
-        rest: '',
-        partial: false,
-        tally: emptyTally(),
+        transcript: this.findTranscript(live.sessionId, live.cwd),
+        ...fresh(),
         reading: false,
+        again: false,
       }
       this.tracked.set(live.sessionId, entry)
       void this.read(entry)
@@ -196,8 +244,11 @@ export class ClaudeCodeSource implements AgentSource {
     this.changed()
   }
 
-  private findTranscript(sessionId: string): string | null {
+  private findTranscript(sessionId: string, cwd: string): string | null {
     const projects = path.join(this.dir, 'projects')
+    // Claude Code names a project's folder after its path, every other character a dash.
+    const named = path.join(projects, cwd.replace(/[^A-Za-z0-9]/g, '-'), `${sessionId}.jsonl`)
+    if (existsSync(named)) return named
     let folders: string[]
     try {
       folders = readdirSync(projects)
@@ -213,53 +264,72 @@ export class ClaudeCodeSource implements AgentSource {
 
   /** Reads what the record gained since the last reading, a piece at a time. */
   private async read(entry: Tracked): Promise<void> {
-    entry.transcript ??= this.findTranscript(entry.live.sessionId)
-    if (entry.transcript === null || entry.reading) return
+    entry.transcript ??= this.findTranscript(entry.live.sessionId, entry.live.cwd)
+    if (entry.transcript === null) return
+    if (entry.reading) {
+      entry.again = true
+      return
+    }
     entry.reading = true
+    entry.again = false
     try {
-      const size = statSync(entry.transcript).size
-      if (size < entry.offset)
-        Object.assign(entry, { offset: 0, rest: '', tally: emptyTally(), partial: false })
-      if (entry.offset === 0 && size > FULL_READ_BYTES) {
-        entry.offset = size - TAIL_BYTES
-        entry.partial = true
-        entry.rest = ''
-      }
-      const handle = await open(entry.transcript, 'r')
-      try {
-        let skipFirst = entry.partial && entry.offset === size - TAIL_BYTES
-        while (entry.offset < size) {
-          const length = Math.min(CHUNK_BYTES, size - entry.offset)
-          const buffer = Buffer.alloc(length)
-          const { bytesRead } = await handle.read(buffer, 0, length, entry.offset)
-          if (bytesRead === 0) break
-          entry.offset += bytesRead
-          let text = entry.rest + buffer.subarray(0, bytesRead).toString('utf8')
-          // A tail starts mid-line: that line is not whole, and is left out.
-          if (skipFirst) {
-            text = text.slice(text.indexOf('\n') + 1)
-            skipFirst = false
-          }
-          entry.rest = readLines(text, entry.live.cwd, entry.tally)
-        }
-      } finally {
-        await handle.close()
-      }
+      await this.readFrom(entry, entry.transcript)
     } catch {
       // The record went away mid-read; the next change reads it again.
     } finally {
       entry.reading = false
     }
     this.changed()
+    // The last lines of a turn can land while the rest is read: they must not wait for the next turn.
+    if (entry.again && this.tracked.get(entry.live.sessionId) === entry) void this.read(entry)
   }
 
-  sessions(now: number): AgentSession[] {
+  private async readFrom(entry: Tracked, transcript: string): Promise<void> {
+    const size = statSync(transcript).size
+    if (size < entry.offset) Object.assign(entry, fresh())
+    if (entry.offset === 0 && size > FULL_READ_BYTES) {
+      // A tail starts mid-line: that line is not whole, and is left out.
+      Object.assign(entry, { offset: size - TAIL_BYTES, partial: true, skipLine: true })
+    }
+    const handle = await open(transcript, 'r')
+    try {
+      while (entry.offset < size) {
+        const length = Math.min(CHUNK_BYTES, size - entry.offset)
+        const buffer = Buffer.alloc(length)
+        const { bytesRead } = await handle.read(buffer, 0, length, entry.offset)
+        if (bytesRead === 0) break
+        entry.offset += bytesRead
+        this.take(entry, entry.decoder.write(buffer.subarray(0, bytesRead)))
+      }
+    } finally {
+      await handle.close()
+    }
+  }
+
+  /** Reads a piece of the record into the tally, carrying an unfinished line to the next. */
+  private take(entry: Tracked, piece: string): void {
+    let text = entry.rest + piece
+    if (entry.skipLine) {
+      const end = text.indexOf('\n')
+      if (end < 0) {
+        entry.rest = ''
+        return
+      }
+      text = text.slice(end + 1)
+      entry.skipLine = false
+    }
+    entry.rest = readLines(text, entry.live.cwd, entry.tally)
+    // A line past the limit is skipped when whole anyway: stop gathering it now, not at its end.
+    if (entry.rest.length > LINE_LIMIT) Object.assign(entry, { rest: '', skipLine: true })
+  }
+
+  sessions(_now: number): AgentSession[] {
     return [...this.tracked.values()]
-      .map((entry) => this.session(entry, now))
+      .map((entry) => this.session(entry))
       .sort((a, b) => Number(b.live) - Number(a.live) || b.updatedAt - a.updatedAt)
   }
 
-  private session(entry: Tracked, now: number): AgentSession {
+  private session(entry: Tracked): AgentSession {
     const { live, tally } = entry
     const cwd = live.cwd
     const files = [...tally.files.entries()].slice(-60).map(([file, info]) => {
@@ -281,7 +351,9 @@ export class ClaudeCodeSource implements AgentSource {
       status: entry.ended !== null ? 'ended' : (STATUSES[live.status] ?? 'unknown'),
       live: entry.ended === null,
       startedAt: live.startedAt,
-      updatedAt: Math.max(live.updatedAt, tally.activity?.at ?? 0, entry.ended ?? 0) || now,
+      // Never the time of asking: that would make every board differ from the last.
+      updatedAt:
+        Math.max(live.updatedAt, tally.activity?.at ?? 0, entry.ended ?? 0) || live.startedAt,
       model: tally.model,
       activity: tally.activity,
       context: tally.context,
@@ -301,43 +373,58 @@ export class ClaudeCodeSource implements AgentSource {
    * all additions.
    */
   async diff(sessionId: string, key: string): Promise<GitDiff | null> {
-    const entry = this.tracked.get(sessionId)
-    if (entry === undefined) return null
-    const found = [...entry.tally.files.entries()].find(([file]) => keyOf(file) === key)
-    if (found === undefined) return null
+    const found = this.fileOf(sessionId, key)
+    if (found === null) return null
     const [file, info] = found
     const base = { repoId: sessionId, path: file }
+    // Written, but no copy of what it was has been read (yet, or before a tail): not "all new".
+    if (!info.seen)
+      return blank(base, { problem: 'no copy of the file from before the session has been found' })
     const now = await readSmall(file)
-    if (now === 'too-large')
-      return { ...base, binary: false, cut: false, tooLarge: true, hunks: [], problem: null }
     const before =
-      info.backup === null
-        ? null
-        : await readSmall(
-            // The first copy is the file before the session touched it; later ones are between its edits.
-            path.join(
-              this.dir,
-              'file-history',
-              sessionId,
-              path.basename(info.backup).replace(/@v\d+$/, '@v1'),
-            ),
-          )
-    if (before === 'too-large')
-      return { ...base, binary: false, cut: false, tooLarge: true, hunks: [], problem: null }
+      info.backup === null ? null : await readSmall(this.firstCopy(sessionId, info.backup))
+    if (now === 'too-large' || before === 'too-large') return blank(base, { tooLarge: true })
     if ((now !== null && looksBinary(now)) || (before !== null && looksBinary(before))) {
-      return { ...base, binary: true, cut: false, tooLarge: false, hunks: [], problem: null }
+      return blank(base, { binary: true })
     }
-    if (before === null && info.backup === null) return addedFileDiff(now ?? '', base)
+    if (info.backup === null) return addedFileDiff(now ?? '', base)
+    const { hunks, cut } = cutHunks(toHunks(diffLines(before ?? '', now ?? '')))
     return {
-      ...base,
-      binary: false,
-      cut: false,
-      tooLarge: false,
-      problem: now === null ? 'the file is no longer there' : null,
-      hunks: toHunks(diffLines(before ?? '', now ?? '')),
+      ...blank(base, { cut, problem: now === null ? 'the file is no longer there' : null }),
+      hunks,
     }
   }
+
+  /** A file of a session by the key the page was given for it. */
+  private fileOf(
+    sessionId: string,
+    key: string,
+  ): [string, { backup: string | null; seen: boolean }] | null {
+    const entry = this.tracked.get(sessionId)
+    return [...(entry?.tally.files.entries() ?? [])].find(([file]) => keyOf(file) === key) ?? null
+  }
+
+  /** The first copy is the file before the session touched it; later ones are between its edits. */
+  private firstCopy(sessionId: string, backup: string): string {
+    return path.join(
+      this.dir,
+      'file-history',
+      sessionId,
+      path.basename(backup).replace(/@v\d+$/, '@v1'),
+    )
+  }
 }
+
+/** A diff with nothing to draw, and what to say instead. */
+const blank = (base: { repoId: string; path: string }, patch: Partial<GitDiff>): GitDiff => ({
+  ...base,
+  binary: false,
+  cut: false,
+  tooLarge: false,
+  hunks: [],
+  problem: null,
+  ...patch,
+})
 
 async function readSmall(file: string): Promise<string | 'too-large' | null> {
   try {

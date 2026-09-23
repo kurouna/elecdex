@@ -56,7 +56,8 @@ export function registerAgentsIpc(settings: SettingsHandle): { dispose: () => vo
     return request === null ? null : hub.diff(request)
   })
 
-  ipcMain.handle(CH.agents.watching, () => subscribers.size > 0)
+  // Whether any source still watches, not merely whether a page is subscribed.
+  ipcMain.handle(CH.agents.watching, () => hub.active)
 
   // Turning a source on or off in settings takes effect for an open pane at once.
   settings.onChange(() => hub.sync(subscribers.size > 0))

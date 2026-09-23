@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AGENT_SOURCE_IDS } from './agents.js'
+import { isAgentSource } from './agents.js'
 import { AI_LIMITS, AiProviderSchema } from './ai.js'
 import { defaultElecSettings, ElecSettingsSchema } from './elec.js'
 import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
@@ -207,9 +207,12 @@ export const SettingsSchema = z.object({
    */
   agents: z
     .object({
+      // An agent this build does not know (a newer build's) is left out, not a reason to
+      // turn the whole list back to the default - which could switch on one turned off.
       sources: z
-        .array(z.enum(AGENT_SOURCE_IDS))
+        .array(z.string())
         .max(8)
+        .transform((ids) => [...new Set(ids.filter(isAgentSource))])
         .catch(['claude-code'])
         .default(['claude-code']),
     })

@@ -97,7 +97,9 @@ function readTool(block: Record<string, unknown>, at: number, tally: Tally): voi
   const shown = toolName(name)
   tally.tools.set(shown, (tally.tools.get(shown) ?? 0) + 1)
   tally.activity = { tool: shown, detail: toolDetail(name, input), at }
-  const file = str(input.file_path) || str(input.notebook_path)
+  const written = str(input.file_path) || str(input.notebook_path)
+  // Normalised as the backups' paths are, so one file is one entry however it was written.
+  const file = written === '' ? '' : path.resolve(written)
   if (WRITES.has(name) && file !== '' && !tally.files.has(file)) {
     tally.files.set(file, { backup: null, seen: false })
   }
@@ -110,7 +112,7 @@ function readTool(block: Record<string, unknown>, at: number, tally: Tally): voi
  */
 function readBackups(line: Record<string, unknown>, cwd: string, tally: Tally): void {
   const note = (tracked: string, backup: unknown) => {
-    const full = path.isAbsolute(tracked) ? tracked : path.join(cwd, tracked)
+    const full = path.resolve(cwd, tracked)
     const name = (backup as Record<string, unknown> | null)?.backupFileName
     const known = tally.files.get(full)
     if (known?.seen) return
@@ -126,12 +128,15 @@ function readBackups(line: Record<string, unknown>, cwd: string, tally: Tally): 
 /** The kinds of line worth parsing, told apart before parsing: a tool result never is. */
 const WANTED = /"role":"assistant"|"type":"custom-title"|"type":"file-history-(snapshot|delta)"/
 
+/** A line longer than this (a tool's output, an image) is never one worth parsing. */
+export const LINE_LIMIT = 4 * 1024 * 1024
+
 /** Reads whole lines into the tally; returns what is left of a line not yet finished. */
 export function readLines(text: string, cwd: string, tally: Tally): string {
   const lines = text.split('\n')
   const rest = lines.pop() ?? ''
   for (const raw of lines) {
-    if (raw.length > 4 * 1024 * 1024 || !WANTED.test(raw)) continue
+    if (raw.length > LINE_LIMIT || !WANTED.test(raw)) continue
     let line: Record<string, unknown>
     try {
       line = JSON.parse(raw) as Record<string, unknown>

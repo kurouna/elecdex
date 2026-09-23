@@ -92,7 +92,7 @@ export function parseAgentDiffRequest(raw: unknown): AgentDiffRequest | null {
   const { source, sessionId, key } = raw as Record<string, unknown>
   if (!isAgentSource(source)) return null
   if (typeof sessionId !== 'string' || !/^[0-9a-f-]{8,64}$/i.test(sessionId)) return null
-  if (typeof key !== 'string' || !/^[0-9a-f]{1,64}(@v\d+)?$|^new:\d{1,4}$/.test(key)) return null
+  if (typeof key !== 'string' || !/^[0-9a-f]{16}$/.test(key)) return null
   return { source, sessionId, key }
 }
 

@@ -1,8 +1,17 @@
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { parseAgentDiffRequest } from '@shared/agents'
-import { afterEach, describe, expect, it } from 'vitest'
+import { SettingsSchema } from '@shared/settings'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ClaudeCodeSource } from '../../src/main/agents/claude/source.js'
 import {
   emptyTally,
@@ -137,6 +146,34 @@ describe('reading a Claude Code record', () => {
     expect(parseAgentDiffRequest(ok)).toEqual(ok)
     expect(parseAgentDiffRequest({ ...ok, source: 'codex' })).toBeNull()
     expect(parseAgentDiffRequest({ ...ok, key: '../x' })).toBeNull()
+    // Only the keys the source hands out: sixteen hex digits.
+    expect(parseAgentDiffRequest({ ...ok, key: 'new:12' })).toBeNull()
+  })
+
+  it("leaves out an agent this build does not know, and keeps the user's choice of the rest", () => {
+    const read = (sources: unknown) => SettingsSchema.parse({ agents: { sources } }).agents.sources
+    // A newer build's settings: another agent on, Claude Code turned off. It must stay off.
+    expect(read(['codex'])).toEqual([])
+    expect(read(['codex', 'claude-code', 'claude-code'])).toEqual(['claude-code'])
+    expect(read('everything')).toEqual(['claude-code'])
+  })
+
+  it('takes a file written by a tool and by a backup as one file', () => {
+    const tally = emptyTally()
+    readLines(
+      `${[
+        assistant([
+          { type: 'tool_use', name: 'Edit', input: { file_path: `${CWD}/src/../src/a.ts` } },
+        ]),
+        JSON.stringify({
+          type: 'file-history-snapshot',
+          snapshot: { trackedFileBackups: { 'src/a.ts': { backupFileName: 'aaaa@v1' } } },
+        }),
+      ].join('\n')}\n`,
+      CWD,
+      tally,
+    )
+    expect([...tally.files.keys()]).toEqual([path.join(CWD, 'src', 'a.ts')])
   })
 })
 
@@ -240,6 +277,108 @@ describe('the Claude Code source', () => {
     ])
     expect(changes).toBeGreaterThan(1)
     void work
+  })
+
+  /** The session's entry, as the source keeps it: for driving a reading directly. */
+  const entryOf = (source: ClaudeCodeSource, id: string) =>
+    (source as unknown as { tracked: Map<string, unknown> }).tracked.get(id)
+  const readNow = (source: ClaudeCodeSource, entry: unknown): Promise<void> =>
+    (source as unknown as { read(entry: unknown): Promise<void> }).read(entry)
+  /** Until the source has read the whole record, however long a loaded machine takes. */
+  const readAll = (source: ClaudeCodeSource, id: string, record: string) =>
+    vi.waitFor(
+      () => {
+        const entry = entryOf(source, id) as { offset: number; reading: boolean } | undefined
+        if (entry === undefined || entry.reading || entry.offset < statSync(record).size)
+          throw new Error('still reading')
+      },
+      { timeout: 10_000, interval: 10 },
+    )
+
+  it('reads again what the record gained while it was being read', async () => {
+    const { id, record } = claudeFolder(process.pid)
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await settle()
+    const entry = entryOf(source, id)
+    // A reading starts; the turn's last line lands before it ends, and its own read finds one running.
+    const reading = readNow(source, entry)
+    appendFileSync(record, `${assistant([{ type: 'text', text: 'Done.' }], {}, 'end_turn')}\n`)
+    void readNow(source, entry)
+    await reading
+    await settle()
+    const [session] = source.sessions(Date.now())
+    source.stop()
+    expect(session?.activity).toMatchObject({ tool: 'reply', detail: 'Done.' })
+  })
+
+  it('keeps a character whole when a read ends in the middle of it', async () => {
+    const { id, record } = claudeFolder(process.pid)
+    const reply = assistant([{ type: 'text', text: '日本語の返事です' }], {}, 'end_turn')
+    const at = Buffer.byteLength(reply.slice(0, reply.indexOf('日')))
+    // Filler before the reply, sized so the first read's 1 MB ends one byte into 日.
+    const before = Buffer.byteLength(`${readFileSync(record, 'utf8')}`)
+    const pad = 1024 * 1024 - before - at - 1 - '{"type":"user","x":""}\n'.length
+    appendFileSync(record, `{"type":"user","x":"${'x'.repeat(pad)}"}\n${reply}\n`)
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await readAll(source, id, record)
+    const session = source.sessions(Date.now()).find((s) => s.id === id)
+    source.stop()
+    expect(session?.activity?.detail).toBe('日本語の返事です')
+  })
+
+  it('reads the line after one too long to keep, gathered over several reads', async () => {
+    const { id, record } = claudeFolder(process.pid)
+    const huge = `{"type":"user","x":"${'y'.repeat(5 * 1024 * 1024)}"}`
+    appendFileSync(
+      record,
+      `${huge}\n${assistant([{ type: 'text', text: 'After.' }], {}, 'end_turn')}\n`,
+    )
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await readAll(source, id, record)
+    const session = source.sessions(Date.now()).find((s) => s.id === id)
+    source.stop()
+    expect(session?.activity).toMatchObject({ tool: 'reply', detail: 'After.' })
+  })
+
+  it('says it has no copy for a file written with no backup read, rather than calling it new', async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    // Written after the snapshot, and no snapshot names it (a tail that began past it, say).
+    writeFileSync(path.join(work, 'b.ts'), 'long\nexisting\nfile\n')
+    appendFileSync(
+      record,
+      `${assistant([{ type: 'tool_use', name: 'Edit', input: { file_path: path.join(work, 'b.ts') } }])}\n`,
+    )
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await settle()
+    const session = source.sessions(Date.now()).find((s) => s.id === id)
+    const file = session?.files.find((f) => f.path === 'b.ts')
+    const diff = await source.diff(id, file?.key ?? '')
+    source.stop()
+    expect(file?.created).toBe(false)
+    expect(diff?.hunks).toEqual([])
+    expect(diff?.problem).toMatch(/no copy/)
+  })
+
+  it('never stamps a session with the time of asking', async () => {
+    const { id, record, work } = claudeFolder(process.pid)
+    // A session that has said nothing yet: no update time, and no timed line in its record.
+    writeFileSync(
+      path.join(dir, 'sessions', `${process.pid}.json`),
+      JSON.stringify({ pid: process.pid, sessionId: id, cwd: work, status: 'idle', startedAt: 5 }),
+    )
+    writeFileSync(record, '')
+    const source = new ClaudeCodeSource(dir)
+    source.start(() => {})
+    await settle()
+    // Two boards a second apart must still be alike, or every board is sent as new.
+    const first = source.sessions(1_000)[0]?.updatedAt
+    const second = source.sessions(2_000)[0]?.updatedAt
+    source.stop()
+    expect(first).toBe(second)
   })
 })
 

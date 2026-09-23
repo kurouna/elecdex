@@ -1,4 +1,4 @@
-import type { DiffHunk, DiffLine } from './git.js'
+import { type DiffHunk, type DiffLine, MAX_DIFF_LINES } from './git.js'
 
 /**
  * A line diff of two texts, as unified hunks, for a change git did not make -
@@ -11,8 +11,12 @@ import type { DiffHunk, DiffLine } from './git.js'
  * rather than holding the process.
  */
 
-/** Beyond this many differing lines the search stops and the change is shown whole. */
-const MAX_EDIT = 4000
+/**
+ * Beyond this many differing lines the search stops and the change is shown
+ * whole. The search keeps, for each step, only the diagonals that step can
+ * reach, so the most it holds is about MAX_EDIT squared numbers (16 MB here).
+ */
+const MAX_EDIT = 2000
 const CONTEXT = 3
 
 type Op = { kind: DiffLine['kind']; text: string }
@@ -23,16 +27,17 @@ function myers(a: readonly string[], b: readonly string[]): Op[] | null {
   const max = Math.min(n + m, MAX_EDIT)
   const offset = max + 1
   const v = new Int32Array(2 * max + 3)
+  // Step d reads only diagonals -d..d of the step before: that band is all the way back needs.
   const trace: Int32Array[] = []
   for (let d = 0; d <= max; d += 1) {
-    trace.push(v.slice())
+    trace.push(v.slice(offset - d, offset + d + 1))
     for (let k = -d; k <= d; k += 2) {
       const start = downward(v, offset, k, d)
         ? (v[offset + k + 1] ?? 0)
         : (v[offset + k - 1] ?? 0) + 1
       const x = snake(a, b, start, start - k)
       v[offset + k] = x
-      if (x >= n && x - k >= m) return backtrack(trace, a, b, offset, d)
+      if (x >= n && x - k >= m) return backtrack(trace, a, b, d)
     }
   }
   return null
@@ -53,14 +58,15 @@ function backtrack(
   trace: Int32Array[],
   a: readonly string[],
   b: readonly string[],
-  offset: number,
   last: number,
 ): Op[] {
   const ops: Op[] = []
   let x = a.length
   let y = b.length
   for (let d = last; d > 0; d -= 1) {
+    // Step d's band starts at diagonal -d.
     const v = trace[d] as Int32Array
+    const offset = d
     const k = x - y
     const down = downward(v, offset, k, d)
     const prevK = down ? k + 1 : k - 1
@@ -135,6 +141,23 @@ function numbered(ops: readonly Op[]): DiffLine[] {
     else lines.push({ kind: 'add', text: op.text, old: null, new: newLine++ })
   }
   return lines
+}
+
+/** The hunks with no more than MAX_DIFF_LINES lines in all, and whether any were left out. */
+export function cutHunks(hunks: readonly DiffHunk[]): { hunks: DiffHunk[]; cut: boolean } {
+  const out: DiffHunk[] = []
+  let left = MAX_DIFF_LINES
+  for (const hunk of hunks) {
+    if (left <= 0) return { hunks: out, cut: true }
+    if (hunk.lines.length <= left) {
+      out.push(hunk)
+      left -= hunk.lines.length
+      continue
+    }
+    out.push({ ...hunk, lines: hunk.lines.slice(0, left) })
+    return { hunks: out, cut: true }
+  }
+  return { hunks: out, cut: false }
 }
 
 /** Runs of kept lines, each a hunk. */

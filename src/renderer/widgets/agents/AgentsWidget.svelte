@@ -2,6 +2,7 @@
 import type { AgentBoard, AgentSession } from '@shared/agents'
 import { compactCount } from '@shared/ai'
 import type { GitDiff } from '@shared/git'
+import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { layout } from '../../stores/layout.svelte.ts'
@@ -68,21 +69,36 @@ $effect(() => (busy ? pulse.use() : undefined))
 const openSession = $derived(board?.sessions.find((s) => s.id === open) ?? null)
 const openFile = $derived(openSession?.files.find((f) => f.key === fileKey) ?? null)
 
-/** The chosen file's diff, again whenever the board says the session moved on. */
+/**
+ * The chosen file, and when its session last moved on, as plain values: every
+ * board is new objects, and the diff is read again only when these change.
+ */
+const wanted = $derived(
+  openSession === null || openFile === null
+    ? null
+    : { source: openSession.source, sessionId: openSession.id, key: openFile.key },
+)
+const wantedKey = $derived(wanted === null ? null : `${wanted.sessionId}:${wanted.key}`)
+const movedAt = $derived(openSession?.updatedAt ?? 0)
+/** The diff on screen is of this; another file's is never shown under this one's name. */
+let shownFor: string | null = null
+
 $effect(() => {
-  const session = openSession
-  const file = openFile
-  void session?.updatedAt
-  if (session === null || file === null) {
+  const key = wantedKey
+  void movedAt
+  const request = untrack(() => wanted)
+  if (key !== shownFor) {
     diff = null
-    return
+    shownFor = key
   }
+  if (request === null) return
   let cancelled = false
   void window.elecdex.agents
-    .diff({ source: session.source, sessionId: session.id, key: file.key })
+    .diff(request)
     .then((next) => {
       if (!cancelled) diff = next
     })
+    .catch(() => {})
   return () => {
     cancelled = true
   }
