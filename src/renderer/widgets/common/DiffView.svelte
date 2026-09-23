@@ -2,6 +2,7 @@
 import { type DiffLine, type GitDiff, pairChanges, splitRows } from '@shared/git'
 import { untrack } from 'svelte'
 import { highlightLines, languageOf, markSpan, type Token } from '../../lib/highlight.ts'
+import ImageViewer from './ImageViewer.svelte'
 
 /**
  * One file's diff: hunk bands, the old and new line numbers, the lines with
@@ -39,10 +40,21 @@ let fresh = $state.raw<ReadonlySet<number>>(new Set())
 let body = $state<HTMLElement | null>(null)
 /** An image's drawn size, once it has loaded, by side. */
 let sizes = $state.raw<Partial<Record<'before' | 'after', { w: number; h: number }>>>({})
+/**
+ * The side of an image change shown alone, filling the body to be zoomed and
+ * panned (ImageViewer); null for the two side by side. A click on either
+ * picture opens it, ← in the bar goes back.
+ */
+let zoomed = $state<'before' | 'after' | null>(null)
+let viewer = $state<ReturnType<typeof ImageViewer> | null>(null)
+let viewScale = $state(1)
+/** The picture to show alone, while the diff still has one on that side. */
+const alone = $derived(zoomed !== null && diff?.images ? diff.images[zoomed] : null)
 // Forgotten for another file only: a new reading of the same image keeps its <img>, which does not load again.
 $effect(() => {
   void path
   sizes = {}
+  zoomed = null
 })
 
 const bytes = (n: number): string =>
@@ -150,6 +162,16 @@ function jump(step: 1 | -1): void {
 
 <div class="diffview" data-testid="diff-view">
   <div class="bar">
+    {#if alone !== null}
+      <button
+        type="button"
+        class="back"
+        title="Back to before and after (Escape)"
+        aria-label="Back to before and after"
+        data-testid="image-back"
+        onclick={() => (zoomed = null)}>←</button
+      >
+    {/if}
     <span class="file" title={path}>{path}</span>
     {#if diff !== null && !diff.binary && diff.hunks.length > 0}
       <span class="count"
@@ -158,6 +180,36 @@ function jump(step: 1 | -1): void {
       >
       <span class="count">{diff.hunks.length} {diff.hunks.length === 1 ? 'hunk' : 'hunks'}</span>
     {/if}
+    {#if alone !== null && diff?.images}
+      {@const images = diff.images}
+      <span class="tools" data-testid="image-tools">
+        <button
+          type="button"
+          class="before"
+          class:on={zoomed === 'before'}
+          aria-pressed={zoomed === 'before'}
+          disabled={images.before === null}
+          onclick={() => (zoomed = 'before')}>BEFORE</button
+        ><button
+          type="button"
+          class="after"
+          class:on={zoomed === 'after'}
+          aria-pressed={zoomed === 'after'}
+          disabled={images.after === null}
+          onclick={() => (zoomed = 'after')}>AFTER</button
+        >
+        <button type="button" class="nav" title="Zoom out (-)" onclick={() => viewer?.zoom(0.8)}
+          >−</button
+        ><span class="scale" data-testid="image-scale">{Math.round(viewScale * 100)}%</span><button
+          type="button"
+          title="Zoom in (+)"
+          onclick={() => viewer?.zoom(1.25)}>+</button
+        >
+        <button type="button" class="nav" title="The whole picture (0)" onclick={() => viewer?.showWhole()}
+          >FIT</button
+        ><button type="button" title="Its own size (1)" onclick={() => viewer?.showActual()}>1:1</button>
+      </span>
+    {:else}
     <span class="tools" class:hidden={diff?.images !== undefined}>
       <button
         type="button"
@@ -175,6 +227,7 @@ function jump(step: 1 | -1): void {
       <button type="button" class="nav" title="previous hunk" onclick={() => jump(-1)}>◀</button>
       <button type="button" class="nav" title="next hunk" onclick={() => jump(1)}>▶</button>
     </span>
+    {/if}
   </div>
 
   <div class="body" bind:this={body} data-testid="diff-body">
@@ -182,6 +235,14 @@ function jump(step: 1 | -1): void {
       <p class="note">{loading ? 'reading…' : 'nothing selected'}</p>
     {:else if diff.problem !== null}
       <p class="note" data-testid="diff-problem">{diff.problem}</p>
+    {:else if alone !== null}
+      <ImageViewer
+        bind:this={viewer}
+        bind:scale={viewScale}
+        src={alone.dataUrl}
+        alt="{path}, {zoomed} the change"
+        onback={() => (zoomed = null)}
+      />
     {:else if diff.images}
       {@const images = diff.images}
       <div class="images" data-testid="diff-images">
@@ -196,7 +257,13 @@ function jump(step: 1 | -1): void {
               {/if}
             </figcaption>
             {#if image !== null}
-              <div class="frame">
+              <button
+                type="button"
+                class="frame"
+                title="Look closer: zoom and pan"
+                data-testid="diff-image-open"
+                onclick={() => (zoomed = side)}
+              >
                 <img
                   src={image.dataUrl}
                   alt="{path}, {side} the change"
@@ -206,7 +273,7 @@ function jump(step: 1 | -1): void {
                     sizes = { ...sizes, [side]: { w: img.naturalWidth, h: img.naturalHeight } }
                   }}
                 />
-              </div>
+              </button>
             {:else}
               <p class="note">{side === 'before' ? 'none - the file is new' : 'none - the file is gone'}</p>
             {/if}
@@ -348,6 +415,53 @@ function jump(step: 1 | -1): void {
   visibility: hidden;
 }
 
+.back {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0 0.45rem;
+  border: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.back:hover,
+.back:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.tools .scale {
+  display: inline-block;
+  min-width: 3.6em;
+  padding: 0 0.3rem;
+  border-block: 1px solid var(--panel-rule);
+  color: var(--text);
+  font-size: var(--step--2);
+  text-align: center;
+}
+
+.tools .scale + button {
+  border-left: 1px solid var(--panel-rule);
+}
+
+.tools .before.on {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.tools .after.on {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+}
+
+.tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .tools button {
   padding: 0 0.4rem;
   border: 1px solid var(--panel-rule);
@@ -436,15 +550,23 @@ function jump(step: 1 | -1): void {
 .frame {
   display: grid;
   place-items: center;
+  width: 100%;
   min-height: 4rem;
   padding: 0.4rem;
   border: 1px solid var(--panel-rule);
+  cursor: zoom-in;
   background:
     repeating-conic-gradient(
       color-mix(in srgb, var(--text-muted) 18%, transparent) 0 25%,
       transparent 0 50%
     )
     0 0 / 16px 16px;
+}
+
+.frame:hover,
+.frame:focus-visible {
+  border-color: var(--accent);
+  outline: none;
 }
 
 .frame img {

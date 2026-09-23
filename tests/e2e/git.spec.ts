@@ -255,6 +255,45 @@ test('shows a changed image as before and after, and a file only named as one as
     await expect(page.getByTestId('diff-images')).toContainText('1 × 1')
     expect(await images.first().getAttribute('src')).toMatch(/^data:image\/png;base64,/)
 
+    // A click on a side shows it alone, fitted to the body (a pixel this small, as large as allowed).
+    await page.getByTestId('diff-image-open').nth(1).click()
+    const viewer = page.getByTestId('image-viewer')
+    await expect(viewer).toBeVisible()
+    await expect(page.getByTestId('diff-images')).toHaveCount(0)
+    await expect(viewer).toHaveAttribute('data-scale', '32.000')
+    await expect(page.getByTestId('image-tools').locator('.after')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    // The wheel zooms, a drag pans, 0 fits again.
+    const box = await viewer.boundingBox()
+    if (box === null) throw new Error('no viewer')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.wheel(0, 400)
+    await expect.poll(async () => Number(await viewer.getAttribute('data-scale'))).toBeLessThan(32)
+    const picture = viewer.locator('img')
+    const before = await picture.evaluate((img) => (img as HTMLElement).style.transform)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2 + 20, { steps: 4 })
+    await page.mouse.up()
+    expect(await picture.evaluate((img) => (img as HTMLElement).style.transform)).not.toBe(before)
+    await page.keyboard.press('0')
+    await expect(viewer).toHaveAttribute('data-scale', '32.000')
+    // The other side at the same place, then ← back to the two side by side.
+    await page.getByTestId('image-tools').getByRole('button', { name: 'BEFORE' }).click()
+    await expect(page.getByTestId('image-tools').locator('.before')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    await page.getByTestId('image-back').click()
+    await expect(page.getByTestId('diff-images')).toBeVisible()
+    await expect(page.getByTestId('image-back')).toHaveCount(0)
+    // Escape goes back too.
+    await page.getByTestId('diff-image-open').first().click()
+    await expect(viewer).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('diff-images')).toBeVisible()
+
     // Bytes that are not an image never reach an <img>, whatever the name says.
     writeFileSync(path.join(repo, 'fake.png'), '<svg onload="window.__gitOwned = true"></svg>')
     const fake = page.locator('[data-testid="git-file"][data-path="fake.png"]')
