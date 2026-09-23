@@ -52,7 +52,8 @@
     "gen:orbit-map": "node scripts/gen-orbit-map.mjs",
     "gen:screenshots": "node scripts/gen-screenshots.mjs",
     "demo:elec": "node scripts/demo-elec.mjs",
-    "demo:full": "node scripts/elec-full-demo.mjs"
+    "demo:full": "node scripts/elec-full-demo.mjs",
+    "demo:dev": "node scripts/demo-dev.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
