@@ -247,6 +247,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
+| Ctrl+Shift+F1 … F6 | go to a preset: standard, network, earth, dev, media, desk (*unreleased*) |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
@@ -333,7 +334,8 @@ Six **presets** sit under the list, each drawn as a small map of its panes (*unr
 the calculator, tasks and the calendar). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
-it again goes back to that layout rather than adding another; ↺ puts it back to the preset. A new
+it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
+preset has a key of its own, Ctrl+Shift+F1 to F6, which does the same from anywhere. A new
 install starts with all six on Ctrl+Shift+1 to 6; an existing list is never added to.
 
 They are kept in one file that holds nothing belonging to this machine: **copy `layouts.json` to

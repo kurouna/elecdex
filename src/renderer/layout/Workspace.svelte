@@ -16,6 +16,7 @@ import { backdropShade } from '../lib/crt-transitions.ts'
 import LayoutNodeView from './LayoutNodeView.svelte'
 import PaneDropOverlay from './PaneDropOverlay.svelte'
 import { frameOfPane, measureFrames } from './pane-close.ts'
+import { goToPreset } from './presets.ts'
 import { sessionsToReap } from './reap.ts'
 
 /**
@@ -175,6 +176,13 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.saved7': () => applySavedSlot(6),
   'layout.saved8': () => applySavedSlot(7),
   'layout.saved9': () => applySavedSlot(8),
+  // The presets' keys: the layout made from each, or a new one (layout/presets.ts).
+  'layout.preset.standard': () => void goToPreset('standard'),
+  'layout.preset.network': () => void goToPreset('network'),
+  'layout.preset.earth': () => void goToPreset('earth'),
+  'layout.preset.dev': () => void goToPreset('dev'),
+  'layout.preset.media': () => void goToPreset('media'),
+  'layout.preset.desk': () => void goToPreset('desk'),
   'launcher.focus': () => focusLauncher(),
   'shell.focus': () => focusShell(),
   // Searches the shell that has the keyboard, or the one the keys would go to.

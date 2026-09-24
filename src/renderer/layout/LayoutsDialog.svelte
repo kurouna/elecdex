@@ -1,4 +1,5 @@
 <script lang="ts">
+import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/keybindings'
 import {
   LAYOUT_PRESETS,
   presetBadge,
@@ -17,6 +18,7 @@ import { sfx } from '../stores/sound.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import LayoutThumb from './LayoutThumb.svelte'
 import { goToPreset, restorePreset } from './presets.ts'
+import { shelfScrollFor } from './shelf-scroll.ts'
 
 /**
  * Saved layouts: the arrangements the user works in, kept by name.
@@ -33,7 +35,9 @@ import { goToPreset, restorePreset } from './presets.ts'
  * Below the list is the shelf of presets (shared/layout-presets.ts). Choosing
  * one goes to the layout made from it, or makes one and goes there; a layout
  * made from a preset can be put back to it (↺). Whatever is chosen blinks, as a
- * launcher tile does, before the dialog powers off and the switch begins.
+ * launcher tile does, before the dialog powers off and the switch begins. The
+ * shelf scrolls sideways, so more presets do not make the dialog taller, and each
+ * card names its key (Ctrl+Shift+F1 and on, as the user has them).
  *
  *   ↑ ↓      choose        Enter    apply      Esc   close
  *   Tab      to the presets, ← → along them, ↑ back to the list
@@ -62,8 +66,39 @@ const cards: (HTMLButtonElement | null)[] = $state([])
 let chosen = $state<string | null>(null)
 let chosenTimer: ReturnType<typeof setTimeout> | null = null
 
+let shelfBox = $state<HTMLDivElement | null>(null)
+
 const saved = $derived(layout.savedLayouts)
 const shelf = $derived(presetCards(saved))
+/** Each preset's key as the user has it bound; null when it has none. */
+const presetChords = $derived.by(() => {
+  const bindings = effectiveBindings(
+    appearance.settings.keybindings,
+    window.elecdex.system.platform,
+  )
+  return new Map(
+    LAYOUT_PRESETS.map((preset) => {
+      const chord = bindings[`layout.preset.${preset.id}` as KeybindingAction]
+      return [preset.id, chord === null || chord === undefined ? null : formatChord(chord)]
+    }),
+  )
+})
+
+// The wheel turns the shelf sideways. Added by hand rather than as `onwheel`,
+// because taking the turn from the page means a listener that is not passive.
+$effect(() => {
+  const box = shelfBox
+  if (box === null) return
+  const onWheel = (event: WheelEvent): void => {
+    const delta = shelfScrollFor(event, box)
+    if (delta === null) return
+    event.preventDefault()
+    box.scrollLeft += delta
+  }
+  box.addEventListener('wheel', onWheel, { passive: false })
+  return () => box.removeEventListener('wheel', onWheel)
+})
+
 const cleaned = $derived(cleanLayoutName(name))
 /** Saving over a name already kept updates it, which the button should say. */
 const replacing = $derived(saved.some((entry) => entry.name === cleaned))
@@ -421,7 +456,7 @@ function revealFile(): void {
             <span>presets</span>
             <span>a preset becomes one of your layouts, and follows your work from then on</span>
           </div>
-          <div class="shelf">
+          <div class="shelf" bind:this={shelfBox} data-testid="layouts-shelf">
             {#each shelf as card, i (card.id)}
               <button
                 bind:this={cards[i]}
@@ -429,7 +464,9 @@ function revealFile(): void {
                 class="card"
                 class:kept={card.savedId !== null}
                 class:chosen={chosen === `preset:${card.id}`}
-                title={card.description}
+                title={presetChords.get(card.id)
+                  ? `${card.description} (${presetChords.get(card.id)})`
+                  : card.description}
                 onclick={() => applyPreset(card.id)}
                 data-testid="layouts-preset"
                 data-preset={card.id}
@@ -440,6 +477,9 @@ function revealFile(): void {
                 <span class="card-line">
                   <span class="title">{card.name}</span>
                   <span class="badge" data-testid="layouts-preset-badge">{presetBadge(card)}</span>
+                </span>
+                <span class="chord" data-testid="layouts-preset-chord">
+                  {presetChords.get(card.id) ?? 'no key'}
                 </span>
               </button>
             {/each}
@@ -641,13 +681,22 @@ function revealFile(): void {
   letter-spacing: var(--tracking-wide);
 }
 
+/* One row that scrolls sideways: presets can be added without the dialog
+   growing taller. Cards snap to the start edge so none is left cut in half. */
 .shelf {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6.6rem, 1fr));
+  display: flex;
   gap: var(--space-2);
+  padding-bottom: var(--space-1);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-dim) transparent;
 }
 
 .card {
+  flex: 0 0 6.9rem;
+  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -678,6 +727,15 @@ function revealFile(): void {
   color: var(--text-muted);
   font-size: var(--step--2);
   letter-spacing: var(--tracking-wide);
+}
+
+.chord {
+  align-self: stretch;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  text-align: left;
+  white-space: nowrap;
 }
 
 .card:not(.kept) .badge {

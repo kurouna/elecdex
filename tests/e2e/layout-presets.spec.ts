@@ -227,3 +227,69 @@ test('with motion reduced, a choice in the layouts dialog does not blink', async
     await close()
   }
 })
+
+test('Ctrl+Shift and a function key go to each preset, and each card names its key', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    env: SEED,
+    layout: SINGLE_TERMINAL,
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    await openLayouts(page)
+    await expect(card(page, 'standard').getByTestId('layouts-preset-chord')).toHaveText(
+      'Ctrl+Shift+F1',
+    )
+    await expect(card(page, 'desk').getByTestId('layouts-preset-chord')).toHaveText('Ctrl+Shift+F6')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
+
+    // Not yet among the layouts: the key adds one and goes there, as the card does.
+    await page.keyboard.press('Control+Shift+F6')
+    await settleLayout(page)
+    await expect(widget(page, 'notes')).toHaveCount(1)
+    await page.keyboard.press('Control+Shift+F4')
+    await settleLayout(page)
+    await expect(widget(page, 'git')).toHaveCount(1)
+    // Already among them: the key goes back to it rather than adding another.
+    await page.keyboard.press('Control+Shift+F6')
+    await settleLayout(page)
+    await expect(widget(page, 'notes')).toHaveCount(1)
+    expect(savedFile(userData).items.map((l) => l.preset)).toEqual(['desk', 'dev'])
+  } finally {
+    await close()
+  }
+})
+
+test('the preset shelf scrolls sideways when it does not fit, by wheel and by keys', async () => {
+  const { app, page, close } = await launch(undefined, { env: SEED, layout: SINGLE_TERMINAL })
+  try {
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0]?.setContentSize(460, 700)
+    })
+    await expect.poll(() => page.evaluate(() => window.innerWidth)).toBeLessThan(500)
+    await openLayouts(page)
+    const shelf = page.getByTestId('layouts-shelf')
+    const scroll = () => shelf.evaluate((el) => el.scrollLeft)
+    // One row, wider than the dialog: the dialog does not grow for it. (The type
+    // scales with the window, so at 620 pixels all six still fit.)
+    await expect.poll(() => shelf.evaluate((el) => el.scrollWidth > el.clientWidth + 20)).toBe(true)
+    expect(await scroll()).toBe(0)
+
+    const box = await shelf.boundingBox()
+    if (box === null) throw new Error('no shelf')
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.wheel(0, 240)
+    await expect.poll(scroll).toBeGreaterThan(0)
+    await page.mouse.wheel(0, -2000)
+    await expect.poll(scroll).toBe(0)
+
+    // Along the shelf by keys: the card with the keyboard is brought into view.
+    await card(page, 'standard').focus()
+    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
+    await expect(card(page, 'desk')).toBeFocused()
+    await expect(card(page, 'desk')).toBeInViewport({ ratio: 0.9 })
+    expect(await scroll()).toBeGreaterThan(0)
+  } finally {
+    await close()
+  }
+})

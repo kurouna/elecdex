@@ -12,6 +12,7 @@ import {
   normalizeChord,
   withBinding,
 } from '../../src/shared/keybindings.js'
+import { LAYOUT_PRESETS } from '../../src/shared/layout-presets.js'
 import { KEYED_LAYOUTS } from '../../src/shared/layouts.js'
 
 const key = (
@@ -151,6 +152,31 @@ describe('the saved layout slots', () => {
     expect(chords).toEqual(
       Array.from({ length: KEYED_LAYOUTS }, (_, i) => `Ctrl+Shift+Digit${i + 1}`),
     )
+    expect(new Set(chords).size).toBe(chords.length)
+  })
+})
+
+describe('the preset keys', () => {
+  const presetActions = KEYBINDING_ACTIONS.filter((action) =>
+    action.id.startsWith('layout.preset.'),
+  )
+
+  it('has one action per preset, named by its id, and no more', () => {
+    // A preset without a key would be the one the dialog cannot name a key for;
+    // an action without a preset would be a key that goes nowhere.
+    expect(presetActions.map((action) => action.id)).toEqual(
+      LAYOUT_PRESETS.map((preset) => `layout.preset.${preset.id}`),
+    )
+  })
+
+  it('puts them on Ctrl+Shift and the function keys, in the order of the shelf', () => {
+    expect(presetActions.map((action) => action.chord)).toEqual(
+      LAYOUT_PRESETS.map((_, i) => `Ctrl+Shift+F${i + 1}`),
+    )
+  })
+
+  it('takes no chord another action already has', () => {
+    const chords = KEYBINDING_ACTIONS.map((action) => action.chord)
     expect(new Set(chords).size).toBe(chords.length)
   })
 })
