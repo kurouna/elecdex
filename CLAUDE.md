@@ -491,6 +491,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   plugin in electron.vite.config.ts), the production dependencies and `DATA_SOURCES`; the
   package puts it, and LICENSE, beside the executable. New bundled data from someone else's data
   goes into `DATA_SOURCES` (scripts/third-party-notices.mjs) as well as the README table.
+- **README.ja.md** is the README in Japanese, section for section: a change to one is made to
+  the other in the same commit.
 - **The README's status line** names the last *released* version (package.json), and marks what
   is on main but not in it as *unreleased*; update both when the version is bumped. It also says
   macOS and Linux are not sufficiently verified - keep that until they are.

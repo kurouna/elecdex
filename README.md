@@ -6,6 +6,8 @@
 [![Zenn](https://img.shields.io/badge/Zenn-kurouna-blue)](https://zenn.dev/kurouna)
 [![X](https://img.shields.io/badge/X-elecxzy-black)](https://x.com/elecxzy)
 
+**English** | [日本語](README.ja.md)
+
 # elecdex
 
 A science-fiction desktop terminal emulator and system monitor — a ground-up rewrite of
