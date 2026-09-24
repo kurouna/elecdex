@@ -7,6 +7,7 @@ import {
   channelOf,
   cipherLabel,
   counterDelta,
+  culpritStation,
   derivedEvents,
   diagnose,
   freqOf,
@@ -303,6 +304,19 @@ describe('diagnose', () => {
   const now = 100_000
   const judge = (points: WifiPoint[], over: Partial<WifiLink> = {}) =>
     diagnose(link(over), pathFigures(points, now))
+
+  it('names the station to single out, and none while all is well', () => {
+    expect(culpritStation(judge(minute(now)))).toBeNull()
+    expect(culpritStation(judge(minute(now, (i) => (i >= 54 ? { internet: null } : {}))))).toBe(
+      'internet',
+    )
+    expect(culpritStation(judge(minute(now, () => ({ rssi: -80 }))))).toBe('radio')
+    expect(culpritStation(judge(minute(now, (i) => ({ gateway: i % 5 === 0 ? null : 3 }))))).toBe(
+      'gateway',
+    )
+    expect(culpritStation(judge(minute(now), { state: 'off' }))).toBe('radio')
+    expect(culpritStation(diagnose(null, pathFigures([], now)))).toBeNull()
+  })
 
   it('says so when all is well', () => {
     const d = judge(minute(now))

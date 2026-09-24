@@ -55,7 +55,8 @@
     "demo:full": "node scripts/elec-full-demo.mjs",
     "demo:dev": "node scripts/demo-dev.mjs",
     "demo:presets": "node scripts/demo-presets.mjs",
-    "demo:shorts": "node scripts/demo-shorts.mjs"
+    "demo:shorts": "node scripts/demo-shorts.mjs",
+    "demo:wifi": "node scripts/demo-wifi.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",

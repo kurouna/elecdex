@@ -800,6 +800,28 @@ function judgeSegments(segments: Diagnosis['segments'], f: PathFigures): Diagnos
   }
 }
 
+/** A station on the path. */
+export type Station = 'pc' | 'radio' | 'gateway' | 'internet'
+
+const CULPRITS: Partial<Record<WifiCause, Station>> = {
+  radio: 'radio',
+  off: 'radio',
+  disconnected: 'radio',
+  local: 'gateway',
+  'own-upload': 'pc',
+  upstream: 'internet',
+  'upstream-lost': 'internet',
+  'sign-in': 'internet',
+}
+
+/**
+ * The station a diagnosis blames, for the path to single out, or null when all
+ * is well (or there is nothing yet to judge).
+ */
+export function culpritStation(d: Diagnosis): Station | null {
+  return d.health === 'ok' ? null : (CULPRITS[d.cause] ?? null)
+}
+
 /** What each cause is called on screen. */
 export const CAUSE_LABELS: Record<WifiCause, string> = {
   ok: 'CLEAR',

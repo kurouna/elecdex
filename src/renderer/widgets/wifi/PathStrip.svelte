@@ -1,6 +1,7 @@
 <script lang="ts">
 import {
   CAUSE_LABELS,
+  culpritStation,
   type Diagnosis,
   type Health,
   type PathFigures,
@@ -26,6 +27,10 @@ import { drawRibbons, megabits, type Palette, readPalette, sparkPath } from './d
  * room between the stations, wide when the pane is brought forward, says
  * something rather than nothing.
  *
+ * The station the verdict blames is singled out - filled in its colour and a
+ * size up - so in a pane as narrow as the network preset's the eye finds it
+ * before it reads a word.
+ *
  * The packets step, a quarter of the wire a second, rather than glide: a
  * gliding one was a 0.7 s CSS animation per wire every second, which kept the
  * compositor drawing at the display's rate for most of every second - measured
@@ -41,6 +46,8 @@ interface Props {
 }
 
 const { diagnosis, figures, latest, points }: Props = $props()
+
+const culprit = $derived(culpritStation(diagnosis))
 
 const RIBBON_SECONDS = 60
 /** Where on its wire this second's packet sits: a quarter further each second. */
@@ -190,6 +197,8 @@ $effect(() => {
       {/if}
       <li
         class="station"
+        class:culprit={station.id === culprit}
+        data-culprit={station.id === culprit ? 'true' : undefined}
         data-health={station.health}
         data-testid="wifi-station"
         data-station={station.id}
@@ -202,7 +211,7 @@ $effect(() => {
     {/each}
   </ol>
 
-  <p class="verdict" data-health={diagnosis.health} data-testid="wifi-verdict" data-hint="cause">
+  <p class="verdict" class:loud={culprit !== null} data-health={diagnosis.health} data-testid="wifi-verdict" data-hint="cause">
     <span class="tag">CAUSE ▸</span>
     <span class="cause">{CAUSE_LABELS[diagnosis.cause]}</span>
     <span class="evidence">{diagnosis.evidence}</span>
@@ -291,6 +300,41 @@ $effect(() => {
   font-size: var(--step--2);
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/*
+ * The station to blame: its plate filled with its colour and a size up, drawn
+ * over its neighbours. A transform, so nothing around it moves; set once, not
+ * animated.
+ */
+.station.culprit {
+  position: relative;
+  z-index: 1;
+}
+
+.station.culprit .node {
+  background: var(--tone);
+  transform: scale(1.18);
+}
+
+.station.culprit .name {
+  color: var(--app-bg);
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.station.culprit .main {
+  margin-top: 0.35rem;
+  font-weight: 600;
+  color: var(--tone);
+}
+
+.station.culprit .sub {
+  color: var(--tone);
+}
+
+.verdict.loud .cause {
+  font-size: var(--step-1);
 }
 
 /* The strip between two stations: its line at the plates' middle, its sparkline over it. */

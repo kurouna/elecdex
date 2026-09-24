@@ -140,6 +140,9 @@ describe('WifiWidget', () => {
     expect(screen.getByTestId('wifi-ssid').textContent).toBe('ELECDEX-LAB')
     expect(screen.getByTestId('wifi-state').textContent).toContain('ONLINE')
     expect(screen.getByTestId('wifi-verdict').textContent).toContain('CLEAR')
+    expect(screen.getAllByTestId('wifi-station').some((s) => s.dataset.culprit === 'true')).toBe(
+      false,
+    )
     expect(screen.getByTestId('wifi-mos').textContent).toMatch(/4\.\d/)
     expect(paneMeta.get('w1').subtitle).toBe('5 GHz · ch 60 · -55 dBm')
     expect(paneMeta.get('w1').badge).toBeUndefined()
@@ -157,6 +160,11 @@ describe('WifiWidget', () => {
     await play(push, 'train', 12, 26)
     expect(screen.getByTestId('wifi-verdict').textContent).toContain('UPSTREAM LOST')
     expect(paneMeta.get('w1')).toMatchObject({ badge: 'upstream lost', badgeKind: 'danger' })
+    // The station to blame is singled out, and only that one.
+    const culprits = screen
+      .getAllByTestId('wifi-station')
+      .filter((s) => s.dataset.culprit === 'true')
+    expect(culprits.map((s) => s.dataset.station)).toEqual(['internet'])
   })
 
   it('masked, shows neither the name nor an address, and the report hides them too', async () => {

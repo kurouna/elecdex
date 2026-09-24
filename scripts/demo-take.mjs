@@ -56,7 +56,7 @@ export function takeOptions(defaults) {
     height: number('height', defaults.height),
     x: option('x') === undefined ? null : number('x', 0),
     y: option('y') === undefined ? null : number('y', 0),
-    lead: number('lead', 10),
+    lead: number('lead', defaults.lead ?? 10),
     zoom: number('zoom', defaults.zoom ?? 1),
     pace: number('pace', 1),
     stay: number('stay', 3),
@@ -85,9 +85,10 @@ export function withDemoState(tree, standIn) {
 
 /**
  * The window, on a profile whose saved layouts are `items` and whose workspace is the first of
- * them. Resolves with what a take drives it by.
+ * them. Resolves with what a take drives it by. `env` is laid over the take's environment: a
+ * take of its own stub (the Wi-Fi demo's train) says so there.
  */
-export async function openTake({ items, options, standIn }) {
+export async function openTake({ items, options, standIn, env = {} }) {
   const profile = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-'))
   writeFileSync(path.join(profile, 'layout.json'), JSON.stringify(items[0].tree))
   writeFileSync(
@@ -137,6 +138,7 @@ export async function openTake({ items, options, standIn }) {
       ELECDEX_WEB_HOMES: standIn.homes,
       // No tray icon or system-wide shortcut from a recording run.
       ELECDEX_BACKGROUND_STUB: '1',
+      ...env,
     },
   })
   const page = await app.firstWindow()

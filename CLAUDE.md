@@ -34,6 +34,7 @@ npm run demo:full      # the whole app for a screen recording, windowed (Windows
 npm run demo:dev       # AI AGENT + GIT at work, then ORBIT, for a recording (Windows; build first; --probe)
 npm run demo:presets   # the layouts dialog stepping through every preset, for a recording (Windows; build first; --probe)
 npm run demo:shorts    # the same in a tall 9:16 window, layouts in 2 or 3 tiers (--tiers=2|3; Windows; build first)
+npm run demo:wifi      # the Wi-Fi pane on the train stub, 9:16, cards opening on the way (Windows; build first)
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 ```
 
