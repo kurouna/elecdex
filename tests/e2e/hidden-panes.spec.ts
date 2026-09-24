@@ -200,6 +200,13 @@ const KEPT = [
   'os.info',
 ]
 
+/**
+ * The readings collected once per collector (scheduler.ts), which a pane behind a tab keeps
+ * (`keepWhileHidden`) so its row never blanks: the first of each fills the row wherever the pane
+ * is, and that is the start, not a change.
+ */
+const ONCE = ['cpu.info', 'hardware.system', 'os.info']
+
 test('behind another tab, no built-in pane changes anything or has main fetch for it', async () => {
   test.setTimeout(120_000)
   const { page, close } = await launch(undefined, {
@@ -244,7 +251,18 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       agents: false,
     })
     // Once the start is over (a shell's first prompt, the launcher's catalog, the one-off readings),
-    // the page writes nothing into any of them: no figure, no clock, no pulse.
+    // the page writes nothing into any of them: no figure, no clock, no pulse. The one-off readings
+    // are waited for, not timed: on a busy machine the OS version and the machine's model took
+    // longer than the six seconds below, landed in the watched window, and failed the check.
+    await expect
+      .poll(
+        async () => {
+          const { collections } = await page.evaluate(() => window.elecdex.metrics.stats())
+          return ONCE.filter((id) => !((collections as Record<string, number>)[id] ?? 0))
+        },
+        { timeout: 60_000 },
+      )
+      .toEqual([])
     await page.waitForTimeout(6000)
     const changed = await page.evaluate(async (widgets) => {
       const counts: Record<string, number> = {}
