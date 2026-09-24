@@ -116,13 +116,13 @@ async function nextLayout(name) {
   say('dialog: open')
   await page.keyboard.press('Control+Shift+KeyG')
   await page.getByTestId('layouts-dialog').waitFor()
-  await wait(1100)
+  await wait(700)
   say(`dialog: down to ${name}`)
   await page.keyboard.press('ArrowDown')
-  await wait(900)
+  await wait(500)
   say(`dialog: ${name}`)
   await page.keyboard.press('Enter')
-  await wait(600)
+  await wait(400)
   await settled()
   // Out of the way of the panes, and of any card a pointer would bring up.
   await page.mouse.move(4, 4)
@@ -130,7 +130,6 @@ async function nextLayout(name) {
 }
 
 await run(async () => {
-  await wait(options.stay * 600)
   const names = chosen.map(([name]) => name)
   for (const name of [...names.slice(1), names[0]]) await nextLayout(name)
 })

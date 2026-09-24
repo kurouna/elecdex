@@ -40,7 +40,7 @@ export const say = (text) => console.log(`${new Date().toTimeString().slice(0, 8
  *   --lead=10        seconds between the window appearing and the take starting
  *   --zoom           page zoom: below 1 fits more of the workspace in a small window
  *   --pace=1         a factor on every pause: 1.5 for a slower take, 0.8 for a quicker one
- *   --stay=5         seconds each layout stays on screen
+ *   --stay=3         seconds each layout stays on screen
  *   --theme=tron     any built-in theme
  *   --shots=<dir>    also save a screenshot every two seconds there, to look the take over
  */
@@ -59,7 +59,7 @@ export function takeOptions(defaults) {
     lead: number('lead', 10),
     zoom: number('zoom', defaults.zoom ?? 1),
     pace: number('pace', 1),
-    stay: number('stay', 5),
+    stay: number('stay', 3),
     theme: option('theme') ?? 'tron',
     shots: option('shots'),
   }
@@ -167,16 +167,19 @@ export async function openTake({ items, options, standIn }) {
     // Typed into once the prompt is up: keys sent before it are lost to a shell still loading.
     // The pane names the shell's folder once it has started, and the prompt follows shortly -
     // the prompt itself cannot be waited for, since the shell is drawn on a canvas.
+    // A shell in a tab group has its folder in the group's header rather than its own.
     await page
-      .locator('[data-testid=pane][data-widget=terminal]:not(.hidden) [data-testid=pane-subtitle]')
-      .first()
+      .locator('[data-testid=pane-subtitle], [data-testid=group-subtitle]')
       .filter({ hasText: /[\\/]/ })
+      .first()
       .waitFor({ timeout: 20_000 })
       .catch(() => {})
-    await wait(2000)
+    await wait(1000)
     await shell.click()
     await page.keyboard.type(`cd "${PROJECT}"; Get-ChildItem -Name`, { delay: 25 })
     await page.keyboard.press('Enter')
+    // Long enough for the listing to be read on screen, no longer.
+    await wait(1200)
   }
 
   /** Waits until the arrangement has finished powering on. */
@@ -217,9 +220,11 @@ export async function openTake({ items, options, standIn }) {
       return false
     }
     keepShots(options.shots)
-    await shellAtWork()
     say(`window up - the take starts in ${options.lead} s`)
     await wait((options.lead * 1000) / pace)
+    // The typing is the take's opening, and the first switch follows it at once.
+    say('shell: types')
+    await shellAtWork()
     return true
   }
 

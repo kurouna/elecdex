@@ -40,17 +40,17 @@ async function nextPreset(from, name) {
   say('dialog: open')
   await page.keyboard.press('Control+Shift+KeyG')
   await page.getByTestId('layouts-dialog').waitFor()
-  await wait(1100)
+  await wait(700)
   say(`shelf: ${from}`)
   // Onto the shelf from the keyboard, so the card shows the keyboard's ring.
   await page.locator(`[data-testid=layouts-preset][data-preset="${from}"]`).focus()
-  await wait(900)
+  await wait(500)
   say(`shelf: along to ${name}`)
   await page.keyboard.press('ArrowRight')
-  await wait(900)
+  await wait(500)
   say(`shelf: ${name}`)
   await page.keyboard.press('Enter')
-  await wait(600)
+  await wait(400)
   await settled()
   // Out of the way of the panes, and of any card a pointer would bring up.
   await page.mouse.move(options.width / 2, 4)
@@ -58,7 +58,6 @@ async function nextPreset(from, name) {
 }
 
 await run(async () => {
-  await wait(options.stay * 600)
   for (const [i, name] of [...ORDER.slice(1), ORDER[0]].entries()) {
     await nextPreset(ORDER[i], name)
   }
