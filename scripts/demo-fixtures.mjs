@@ -5,7 +5,7 @@
  * shot or recording carries this machine's paths, files, repositories or sessions.
  */
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -359,4 +359,30 @@ export function gitRepos(dir) {
       repos: [{ id: REPO_ID, path: PROJECT, name: 'elecdex', lastUsed: Date.now() }],
     }),
   )
+}
+
+/*
+ * The orbital elements the ORBIT pane downloads from CelesTrak, kept between runs. Each run of
+ * the screenshots or a demo starts a fresh profile, and a fresh profile asks CelesTrak again:
+ * a morning of runs asked for the Starlink set many times over, against CelesTrak's policy
+ * (once a day at most), and was refused. The pane's own files are copied into the profile before
+ * the app starts and back out after it closes, so the app decides when to ask, as it would for
+ * a person who never cleared their profile.
+ */
+export const ORBIT_CACHE = path.join(HOME, '.orbit-cache')
+const ORBIT_FILES = ['orbits-stations.json', 'orbits-starlink.json']
+
+export function seedOrbits(profile) {
+  for (const name of ORBIT_FILES) {
+    const kept = path.join(ORBIT_CACHE, name)
+    if (existsSync(kept)) copyFileSync(kept, path.join(profile, name))
+  }
+}
+
+export function keepOrbits(profile) {
+  mkdirSync(ORBIT_CACHE, { recursive: true })
+  for (const name of ORBIT_FILES) {
+    const used = path.join(profile, name)
+    if (existsSync(used)) copyFileSync(used, path.join(ORBIT_CACHE, name))
+  }
 }

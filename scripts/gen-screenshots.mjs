@@ -21,10 +21,12 @@ import {
   demoRepository,
   gitRepos,
   HOME,
+  keepOrbits,
   PROJECT,
   prepareHome,
   REPO_ID,
   SESSION,
+  seedOrbits,
 } from './demo-fixtures.mjs'
 
 const OUT = path.resolve('docs/screenshots')
@@ -336,6 +338,7 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-readme-'))
   if (layout) writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(layout))
   prepare?.(dir)
+  seedOrbits(dir)
   writeFileSync(
     path.join(dir, 'settings.json'),
     JSON.stringify({
@@ -391,6 +394,7 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
     await page.screenshot({ path: path.join(OUT, `${name}.jpg`), type: 'jpeg', quality: 88 })
   }
   await app.close()
+  keepOrbits(dir)
 }
 
 // One of every built-in theme: the README shows Tron large and the rest in a table.
