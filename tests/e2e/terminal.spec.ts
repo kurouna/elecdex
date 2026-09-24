@@ -323,17 +323,94 @@ test('terminal tabs are not capped at five', async () => {
     .toBeGreaterThanOrEqual(9)
 })
 
+/**
+ * What the page looks like around a tab's ×, and which pointer events reached what,
+ * for a close that did not happen.
+ *
+ * Once on the macOS runner (2026-09-24) a click on a tab's × took focus but the tab
+ * stayed, for twenty seconds, and nothing on this machine does it; this is what the
+ * next time should tell.
+ */
+async function closeDiagnosis(paneId: string): Promise<string> {
+  const state = await page.evaluate((id) => {
+    const describe = (element: Element | null): string | null => {
+      if (element === null) return null
+      const testId = element.getAttribute('data-testid')
+      const pane = element.getAttribute('data-pane-id')
+      return `${element.tagName.toLowerCase()}${testId ? `[${testId}]` : ''}${pane ? `(${pane})` : ''}.${element.className}`
+    }
+    const close = document.querySelector(`[data-testid=tab-close][data-pane-id="${id}"]`)
+    const box = close?.getBoundingClientRect()
+    const centre = box
+      ? document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+      : null
+    const group = close?.closest('[data-testid=tabs-host]') ?? null
+    return {
+      events: (window as { __closeLog?: string[] }).__closeLog ?? [],
+      tabs: [...document.querySelectorAll('[data-testid=tab]')].map(
+        (tab) => `${tab.getAttribute('data-pane-id')} ${tab.closest('li')?.className ?? ''}`,
+      ),
+      close: describe(close),
+      box: box ? [box.x, box.y, box.width, box.height].map(Math.round) : null,
+      atCentre: describe(centre),
+      group: group ? `${group.className} inert=${(group as HTMLElement).inert}` : null,
+      active: describe(document.activeElement),
+      offscreen: document.documentElement.dataset.offscreen ?? null,
+    }
+  }, paneId)
+  const sessions = await page.evaluate(() => window.elecdex.pty.list())
+  return JSON.stringify({ ...state, sessions: sessions.length }, null, 2)
+}
+
 test('closing a tab ends its session once the layout settles', async () => {
-  const before = (await page.evaluate(() => window.elecdex.pty.list())).length
-  await page.getByTestId('tabs-host').getByTestId('tab-close').last().click()
+  // A tab of its own, rather than the last of those an earlier test opened: a retry
+  // starts on a lone shell, where there were none to close.
+  const tabs = page.getByTestId('tab')
+  const idsBefore = await tabs.evaluateAll((all) => all.map((t) => t.getAttribute('data-pane-id')))
+  const listed = async () => (await page.evaluate(() => window.elecdex.pty.list())).length
+  const before = await listed()
+  await page.getByTestId('tab-new').first().click()
+  await expect(tabs).toHaveCount(idsBefore.length + 1)
+  const ids = await tabs.evaluateAll((all) => all.map((t) => t.getAttribute('data-pane-id')))
+  const added = ids.find((id) => !idsBefore.includes(id))
+  if (added == null) throw new Error(`no new tab among ${ids.join(', ')}`)
+  await expect.poll(listed, { timeout: 20_000 }).toBe(before + 1)
+
+  // Every pointer event from here on, and where it landed, for the diagnosis.
+  await page.evaluate(() => {
+    const log: string[] = []
+    ;(window as { __closeLog?: string[] }).__closeLog = log
+    const start = performance.now()
+    for (const type of ['pointerdown', 'pointerup', 'click']) {
+      window.addEventListener(
+        type,
+        (event) => {
+          const target = event.target as Element
+          const where = `${target.tagName.toLowerCase()}[${target.getAttribute('data-testid') ?? ''}]`
+          const note = event.defaultPrevented ? ' prevented' : ''
+          log.push(`${Math.round(performance.now() - start)}ms ${type} ${where}${note}`)
+        },
+        { capture: true },
+      )
+    }
+  })
+  await page.locator(`[data-testid=tab-close][data-pane-id="${added}"]`).click()
+
+  // The tab goes first; only then is its shell's end worth waiting for.
+  try {
+    await expect(page.locator(`[data-testid=tab][data-pane-id="${added}"]`)).toHaveCount(0)
+  } catch (error) {
+    const diagnosis = await closeDiagnosis(added)
+    console.warn(`[e2e] the closed tab ${added} is still there:\n${diagnosis}`)
+    await test
+      .info()
+      .attach('close-diagnosis', { body: diagnosis, contentType: 'application/json' })
+    throw error
+  }
 
   // Unmounting a pane deliberately keeps its shell alive (a reload must not
   // lose work); the workspace reaps unclaimed sessions a few seconds later.
-  await expect
-    .poll(async () => (await page.evaluate(() => window.elecdex.pty.list())).length, {
-      timeout: 20_000,
-    })
-    .toBe(before - 1)
+  await expect.poll(listed, { timeout: 20_000 }).toBe(before)
 })
 
 test('detaching leaves the session alive, and it can be reattached', async () => {
