@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.15 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.16 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -34,7 +34,7 @@ for Windows, macOS and Linux.
 
 The panes are arranged by what you are doing: six **layout presets** put the right ones on
 screen at a key each - **Ctrl+Shift+F1** to **F6** - and every one keeps the system column on the
-left, so a switch changes the stage and leaves the instruments where they were (*unreleased*). The
+left, so a switch changes the stage and leaves the instruments where they were. The
 features below are grouped by the preset that shows them, and each picture is that preset in a
 different theme.
 
@@ -157,7 +157,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
   returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the six
-  presets (*unreleased*).
+  presets.
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
   icons for an ordinary working day - every one of them is in a picture above. A CRT power-on boot
@@ -268,7 +268,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
-| Ctrl+Shift+F1 … F6 | go to a preset: standard, network, earth, dev, media, desk (*unreleased*) |
+| Ctrl+Shift+F1 … F6 | go to a preset: standard, network, earth, dev, media, desk |
 | Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
@@ -348,7 +348,7 @@ way to stop asking (*Settings → General → Layouts*). The old arrangement pow
 off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
 reduced.
 
-Six **presets** sit under the list, each drawn as a small map of its panes (*unreleased*):
+Six **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe, connections and shells), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT), **media**
 (YouTube (TV) with the spectrum and mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,

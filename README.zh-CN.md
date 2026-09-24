@@ -19,7 +19,7 @@
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器，中间是三个 shell 标签页以及启动器和文件浏览器，右侧是世界视图、行情、天气和日历">
 </p>
 
-> **v0.0.15 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.16 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -32,7 +32,7 @@
 
 窗格按你正在做的事来编排：六个**布局预设**各用一个按键就能把合适的窗格摆上屏幕——
 **Ctrl+Shift+F1** 到 **F6**——而且每个预设都把系统栏留在左侧，所以切换时换的是舞台，
-仪表仍在原处（*unreleased*）。下面的功能按展示它们的预设分组，每张图都是该预设配上不同的主题。
+仪表仍在原处。下面的功能按展示它们的预设分组，每张图都是该预设配上不同的主题。
 
 ### standard — 这台机器、它的 shell，以及外面的世界
 
@@ -143,7 +143,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 
 - **布局** — 每个窗格都可以拖动标题来移动，也可以关闭、分屏、放入标签页、调整大小并恢复；
   布局会被保存，也可以重置。一种排布可以命名保存以便日后回到它（Ctrl+Shift+G，或状态栏中的
-  *layouts*），也可以从六个预设之一开始（*unreleased*）。
+  *layouts*），也可以从六个预设之一开始。
 - **外观与体验** — 六种可实时切换的主题：用于 HUD 风格的 Tron、Amber、Phosphor 和 White，
   以及采用 Windows 11 配色、系统字体和全彩图标、适合日常办公的 Business (Dark) 和
   Business (Light)——上面的截图里每一种都出现过。先是一段展示本机真实信息的 Linux 风格启动日志，
@@ -244,7 +244,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+Backspace | 重置为默认布局 |
 | Ctrl+Shift+G | 已保存布局：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9 | 应用前九个已保存布局，顺序与对话框中的列表一致 |
-| Ctrl+Shift+F1 … F6 | 切换到预设：standard、network、earth、dev、media、desk（*unreleased*） |
+| Ctrl+Shift+F1 … F6 | 切换到预设：standard、network、earth、dev、media、desk |
 | Ctrl+Shift+L | 搜索启动器（若没有启动器窗格则添加一个） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
 | Ctrl+Shift+F | 在 shell 的回滚缓冲区中查找（Enter / Shift+Enter 下一个和上一个，Escape 关闭） |
@@ -309,7 +309,7 @@ elecdex 在前台时按下它会把 elecdex 收起；在其他地方按下则把
 打开时会先询问你，询问中也提供了不再询问的方法（*Settings → General → Layouts*）。旧的排布
 像显像管一样断电，新的排布逐个窗格点亮，和启动时一样——减少动效时则完全没有动画。
 
-列表下方有六个**预设**，每个都画成其窗格的小地图（*unreleased*）：**standard**（默认布局）、
+列表下方有六个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
 **network**（地球、连接和 shell）、**earth**（ORBIT、地球、地震和天气）、**dev**（AI AGENT、
 shell 和 GIT）、**media**（YouTube (TV)，下方是频谱和混音器，X 和 RSS 作为标签页）以及
 **desk**（记事、计时器、计算器、任务和日历）。每个预设都把系统栏留在左侧，所以切换时换的是
