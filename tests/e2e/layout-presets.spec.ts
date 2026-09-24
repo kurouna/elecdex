@@ -124,6 +124,8 @@ test('an existing profile is given no presets, and a card adds one and goes ther
     await openLayouts(page)
     await expect(card(page, 'desk').getByTestId('layouts-preset-badge')).toHaveText('in this one')
     await card(page, 'earth').focus()
+    // On the shelf the list shows no choice of its own, so only the card says what Enter takes.
+    await expect(page.locator('[data-testid=layouts-item][aria-selected=true]')).toHaveCount(0)
     await page.keyboard.press('ArrowRight')
     await expect(card(page, 'dev')).toBeFocused()
     await page.keyboard.press('Enter')

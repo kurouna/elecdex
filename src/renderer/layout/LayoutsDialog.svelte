@@ -67,6 +67,11 @@ let chosen = $state<string | null>(null)
 let chosenTimer: ReturnType<typeof setTimeout> | null = null
 
 let shelfBox = $state<HTMLDivElement | null>(null)
+/**
+ * The keyboard is on the shelf. The list's choice is not shown meanwhile: a marked row and a
+ * focused card would say two things about what Enter takes.
+ */
+let onShelf = $state(false)
 
 const saved = $derived(layout.savedLayouts)
 const shelf = $derived(presetCards(saved))
@@ -111,6 +116,8 @@ $effect(() => {
   full = false
   renaming = null
   chosen = null
+  // A dialog closed from the shelf takes its cards away without a focusout.
+  onShelf = false
   void openOnActive()
   return () => {
     // A choice still blinking when the dialog was closed some other way is let go.
@@ -374,9 +381,9 @@ function revealFile(): void {
                   type="button"
                   role="option"
                   class="go"
-                  class:selected={i === selected}
+                  class:selected={i === selected && !onShelf}
                   class:chosen={chosen === `saved:${entry.id}`}
-                  aria-selected={i === selected}
+                  aria-selected={i === selected && !onShelf}
                   onpointermove={() => (selected = i)}
                   onclick={() => apply(entry.id)}
                   data-testid="layouts-item"
@@ -456,7 +463,13 @@ function revealFile(): void {
             <span>presets</span>
             <span>a preset becomes one of your layouts, and follows your work from then on</span>
           </div>
-          <div class="shelf" bind:this={shelfBox} data-testid="layouts-shelf">
+          <div
+            class="shelf"
+            bind:this={shelfBox}
+            onfocusin={() => (onShelf = true)}
+            onfocusout={(e) => (onShelf = shelfBox?.contains(e.relatedTarget as Node) ?? false)}
+            data-testid="layouts-shelf"
+          >
             {#each shelf as card, i (card.id)}
               <button
                 bind:this={cards[i]}

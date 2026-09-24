@@ -1,7 +1,12 @@
 /**
  * The layout presets, driven for a screen recording (a post on X): from standard, the layouts
- * dialog opens, the keyboard steps down to the next preset and Enter takes it - network, earth,
- * dev, media, desk - and last back round to standard, each one left on screen for a moment.
+ * dialog opens, the keyboard goes onto the shelf of presets, steps along to the next card and
+ * Enter takes it - network, earth, dev, media, desk - and last back round to standard, each one
+ * left on screen for a moment.
+ *
+ * Each preset is already among the saved layouts, with the state its panes need (a repository,
+ * a feed), so choosing its card goes to that layout: the card is what is chosen, and what comes
+ * up is the preset with something in it.
  *
  * The data is the README screenshots' (scripts/preset-shots.mjs, demo-fixtures.mjs): the demo
  * home and repository, a made-up Claude Code folder, the made-up socket table and sound, stand-in
@@ -195,18 +200,23 @@ async function settled() {
 }
 
 /**
- * The layouts dialog, one step down, Enter: the chosen row blinks, the dialog powers off and
- * the next preset comes up pane by pane. From desk, the step down comes round to standard.
+ * The layouts dialog, onto the card of the preset in use, one step along the shelf, Enter: the
+ * chosen card blinks, the dialog powers off and the next preset comes up pane by pane. From
+ * desk, the step along comes round to standard.
  */
-async function nextPreset(name) {
-  say(`dialog: open`)
+async function nextPreset(from, name) {
+  say('dialog: open')
   await page.keyboard.press('Control+Shift+KeyG')
   await page.getByTestId('layouts-dialog').waitFor()
-  await wait(1300)
-  say(`dialog: down to ${name}`)
-  await page.keyboard.press('ArrowDown')
+  await wait(1100)
+  say(`shelf: ${from}`)
+  // Onto the shelf from the keyboard, so the card shows the keyboard's ring.
+  await page.locator(`[data-testid=layouts-preset][data-preset="${from}"]`).focus()
   await wait(900)
-  say(`dialog: ${name}`)
+  say(`shelf: along to ${name}`)
+  await page.keyboard.press('ArrowRight')
+  await wait(900)
+  say(`shelf: ${name}`)
   await page.keyboard.press('Enter')
   await wait(600)
   await settled()
@@ -231,7 +241,9 @@ say(`window up - the take starts in ${LEAD} s`)
 await wait((LEAD * 1000) / PACE)
 try {
   await wait(STAY * 600)
-  for (const name of [...ORDER.slice(1), ORDER[0]]) await nextPreset(name)
+  for (const [i, name] of [...ORDER.slice(1), ORDER[0]].entries()) {
+    await nextPreset(ORDER[i], name)
+  }
   say('done - close the window to end')
   await closed
 } catch (error) {
