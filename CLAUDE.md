@@ -481,13 +481,18 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 ### Publishing
 
 - **README screenshots** must not show personal data: regenerate them with
-  `npm run gen:screenshots`, which uses a demo home and curated launcher entries and shoots every
-  built-in theme plus the settings dialog, the audio panes (with `ELECDEX_AUDIO_STUB=demo`) and
-  the AI chat pane (talking to a stand-in the script serves: no model, no key), the AI AGENT and GIT
-  panes (a made-up Claude Code folder and a demo repository by a made-up author, built afresh) and
-  the ORBIT pane; name shots to
-  take only those. Regenerate after a visible change to a theme or the default
-  layout, and add a built-in theme to both the script and the README table.
+  `npm run gen:screenshots`, which uses a demo home and curated launcher entries. The README's
+  Features are grouped by layout preset, one shot per preset, each in a different theme (so every
+  built-in theme is shown once), plus the layouts dialog, the settings dialog, the AI chat pane
+  (talking to a stand-in the script serves: no model, no key) and the ELEC pane. The preset trees
+  come from the built app itself (scripts/preset-shots.mjs), never written out in the script.
+  What would show someone else's pages or this machine is made up: the web panes show stand-in
+  pages (never YouTube's or X's own), the feed, the socket table (`ELECDEX_SOCKETS_STUB=demo`),
+  the sound (`ELECDEX_AUDIO_STUB=demo`), notes and tasks, a Claude Code folder and a demo
+  repository by a made-up author. Web panes are native views the page's screenshot cannot see,
+  so the script lays main's pictures of them over it. Name shots to take only those. Regenerate
+  after a visible change to a theme, a preset or the default layout; a new theme or preset gets a
+  shot and a place in the three READMEs.
 - **Attribution** stays visible. JMA forecasts and the quakes pane show
   「出典：気象庁ホームページ（URL）を加工して作成」; earthquake and tsunami alerts name their source
   (JMA, USGS, NOAA) and say they are not an early warning (tsunami cards: follow local
@@ -500,8 +505,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   plugin in electron.vite.config.ts), the production dependencies and `DATA_SOURCES`; the
   package puts it, and LICENSE, beside the executable. New bundled data from someone else's data
   goes into `DATA_SOURCES` (scripts/third-party-notices.mjs) as well as the README table.
-- **README.ja.md** is the README in Japanese, section for section: a change to one is made to
-  the other in the same commit.
+- **README.ja.md** and **README.zh-CN.md** are the README in Japanese and in Simplified
+  Chinese, section for section: a change to one is made to the others in the same commit.
 - **The README's status line** names the last *released* version (package.json), and marks what
   is on main but not in it as *unreleased*; update both when the version is bumped. It also says
   macOS and Linux are not sufficiently verified - keep that until they are.

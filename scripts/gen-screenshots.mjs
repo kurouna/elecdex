@@ -1,11 +1,14 @@
 /**
- * README screenshots (docs/screenshots/*.jpg): the default layout in a clean demo
- * profile, so no personal paths, Start Menu entries or files appear. Live data
- * (markets, weather, globe) comes from the real services.
+ * README screenshots (docs/screenshots/*.jpg): the layout presets
+ * (shared/layout-presets.ts), each in a theme of its own, in a clean demo profile, so
+ * no personal paths, Start Menu entries or files appear. Live data (markets, weather,
+ * quakes, the stations' orbits) comes from the real services; what would show someone
+ * else's pages or this machine - the web panes, feeds, sockets, sound, agents, notes -
+ * is made up.
  *
  * Windows only, as written: the demo home is under C:/Users/Public. Run
  * `npm run build` first, then `npm run gen:screenshots`; name shots to take only those
- * (`npm run gen:screenshots -- elecdex-audio`).
+ * (`npm run gen:screenshots -- elecdex-media`).
  *
  * Shots for posting (`social-elec-sitting`, `social-elec-approved`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
@@ -28,6 +31,7 @@ import {
   SESSION,
   seedOrbits,
 } from './demo-fixtures.mjs'
+import { deskFiles, mediaStandIn, presetTrees, withState } from './preset-shots.mjs'
 
 const OUT = path.resolve('docs/screenshots')
 const SOCIAL = path.resolve('release/social')
@@ -52,9 +56,9 @@ const launcherItems = [
 ]
 
 /*
- * The default layout (src/shared/default-layout.ts) with a spectrum and a mixer, 2:1,
- * under the launcher and file browser. Written out here because a script cannot
- * import the TypeScript source.
+ * Trees for the shots that are not presets (the AI chat and ELEC panes). The presets'
+ * own come from the built app (preset-shots.mjs), since a script cannot import the
+ * TypeScript source.
  */
 let nextId = 0
 const pane = (widget) => ({ kind: 'pane', id: `p${nextId++}`, widget })
@@ -65,39 +69,6 @@ const split = (direction, children, sizes) => ({
   children,
   sizes,
 })
-const audioLayout = {
-  version: 1,
-  root: split(
-    'row',
-    [
-      split(
-        'column',
-        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
-        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
-      ),
-      split(
-        'column',
-        [
-          {
-            kind: 'tabs',
-            id: 'shells',
-            children: [pane('terminal'), pane('terminal'), pane('terminal')],
-            activeIndex: 0,
-          },
-          split('row', [pane('launcher'), pane('filesystem')], [0.5, 0.5]),
-          split('row', [pane('spectrum'), pane('mixer')], [0.66, 0.34]),
-        ],
-        [0.52, 0.22, 0.26],
-      ),
-      split(
-        'column',
-        ['globe', 'markets', 'weather', 'calendar'].map(pane),
-        [0.3, 0.25, 0.22, 0.23],
-      ),
-    ],
-    [0.18, 0.64, 0.18],
-  ),
-}
 
 /*
  * The AI chat pane, talking to a stand-in served from this machine: no model, no key and no
@@ -258,49 +229,6 @@ function elecStandIn(pace = 25) {
   })
 }
 
-/*
- * The development shot: the system column, then the AI AGENT pane, then the GIT pane. The
- * AI AGENT pane reads a made-up Claude Code folder (ELECDEX_CLAUDE_DIR), never this machine's: one
- * session at work on the demo checkout with a subagent and the tests running in the background,
- * and one waiting. Their processes are this script's and its parent's, so both count as running.
- */
-const devLayout = {
-  version: 1,
-  root: split(
-    'row',
-    [
-      split(
-        'column',
-        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
-        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
-      ),
-      { ...pane('agents'), state: { open: SESSION } },
-      { ...pane('git'), state: { repo: REPO_ID, graph: 'all', listWidth: 0.46 } },
-    ],
-    [0.2, 0.34, 0.46],
-  ),
-}
-
-/*
- * The system column and the ORBIT pane in the other two thirds: the stations, their tracks and the Starlink
- * satellites, from elements downloaded from CelesTrak once for the shot.
- */
-const orbitLayout = {
-  version: 1,
-  root: split(
-    'row',
-    [
-      split(
-        'column',
-        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
-        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
-      ),
-      { ...pane('orbit'), state: { starlink: true } },
-    ],
-    [1 / 3, 2 / 3],
-  ),
-}
-
 async function deliberating(page) {
   const elec = page.locator('[data-testid=pane][data-widget=elec]')
   const input = elec.getByTestId('elec-input')
@@ -331,6 +259,53 @@ async function chatting(page) {
   await input.press('Enter')
   // Far enough into the second answer for its code to be on screen, not so far that it is over.
   await page.waitForTimeout(3000)
+}
+
+/**
+ * The window as JPEG, web panes included. A web pane is a view of its own laid over the
+ * page (architecture.md §5.4), so the page's screenshot has a hole where it is: main
+ * takes each view's picture, and the page lays them over its own on a canvas.
+ */
+async function withWebViews(app, page) {
+  const views = await app.evaluate(async ({ BrowserWindow }) => {
+    const out = []
+    for (const win of BrowserWindow.getAllWindows()) {
+      for (const view of win.contentView.children) {
+        if (!('webContents' in view) || !view.getVisible()) continue
+        const image = await view.webContents.capturePage()
+        out.push({ bounds: view.getBounds(), png: image.toPNG().toString('base64') })
+      }
+    }
+    return out
+  })
+  if (views.length === 0) return page.screenshot({ type: 'jpeg', quality: 88 })
+  const shot = (await page.screenshot({ type: 'png' })).toString('base64')
+  const jpeg = await page.evaluate(
+    async ({ shot, views }) => {
+      const load = (png) =>
+        new Promise((resolve, reject) => {
+          const image = new Image()
+          image.onload = () => resolve(image)
+          image.onerror = reject
+          image.src = `data:image/png;base64,${png}`
+        })
+      const base = await load(shot)
+      const canvas = document.createElement('canvas')
+      canvas.width = base.naturalWidth
+      canvas.height = base.naturalHeight
+      const scale = base.naturalWidth / window.innerWidth
+      const context = canvas.getContext('2d')
+      context.drawImage(base, 0, 0)
+      for (const { bounds, png } of views) {
+        const image = await load(png)
+        const { x, y, width, height } = bounds
+        context.drawImage(image, x * scale, y * scale, width * scale, height * scale)
+      }
+      return canvas.toDataURL('image/jpeg', 0.88).split(',')[1]
+    },
+    { shot, views },
+  )
+  return Buffer.from(jpeg, 'base64')
 }
 
 async function shoot(theme, name, { extra, layout, env, settings, social, prepare } = {}) {
@@ -391,16 +366,72 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
     mkdirSync(SOCIAL, { recursive: true })
     await page.screenshot({ path: path.join(SOCIAL, `${name}.png`), type: 'png' })
   } else {
-    await page.screenshot({ path: path.join(OUT, `${name}.jpg`), type: 'jpeg', quality: 88 })
+    writeFileSync(path.join(OUT, `${name}.jpg`), await withWebViews(app, page))
   }
   await app.close()
   keepOrbits(dir)
 }
 
-// One of every built-in theme: the README shows Tron large and the rest in a table.
-for (const theme of ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'business-light']) {
-  await shoot(theme, `elecdex-${theme}`)
+const PRESETS = await presetTrees(MAIN)
+const preset = (id) => {
+  const tree = PRESETS.get(id)
+  if (tree === undefined) throw new Error(`no preset ${id} in the built app`)
+  return tree
 }
+
+// Each preset in a theme of its own, so the README shows every theme at work: standard is
+// the default layout, which a profile without layout.json opens with.
+await shoot('tron', 'elecdex-tron')
+await shoot('amber', 'elecdex-network', {
+  layout: preset('network'),
+  env: { ELECDEX_SOCKETS_STUB: 'demo' },
+})
+await shoot('tron', 'elecdex-earth', {
+  layout: withState(preset('earth'), { orbit: { starlink: true } }),
+})
+// Development: a coding agent at work and what it has changed, all of it made up for the shot.
+if (only.length === 0 || only.includes('elecdex-dev')) {
+  demoRepository()
+  await shoot('phosphor', 'elecdex-dev', {
+    layout: withState(preset('dev'), {
+      agents: { open: SESSION },
+      git: { repo: REPO_ID, graph: 'all', listWidth: 0.46 },
+    }),
+    env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
+    prepare: gitRepos,
+    // A rest on the merged branch's commit: the card with the whole of it.
+    extra: async (page) => {
+      await page
+        .locator('[data-testid=git-commit]', { hasText: 'bright in sunlight' })
+        .hover({ position: { x: 120, y: 10 } })
+      await page.getByTestId('git-card').waitFor()
+      await page.waitForTimeout(900)
+    },
+  })
+}
+// Media: stand-ins for YouTube and X, a made-up feed behind, the demo sound on the spectrum.
+if (only.length === 0 || only.includes('elecdex-media')) {
+  const standIn = await mediaStandIn()
+  await shoot('white', 'elecdex-media', {
+    // X in front, as the preset has it; sixteen bands on the spectrum.
+    layout: withState(preset('media'), {
+      rss: { feeds: [standIn.feedUrl] },
+      spectrum: { bands: 16 },
+    }),
+    env: { ELECDEX_AUDIO_STUB: 'demo', ELECDEX_WEB_HOMES: standIn.homes },
+  })
+  standIn.server.close()
+}
+await shoot('business-light', 'elecdex-desk', { layout: preset('desk'), prepare: deskFiles })
+// The layouts dialog on a first start: every preset on the shelf and on the number keys.
+await shoot('tron', 'elecdex-layouts', {
+  env: { ELECDEX_SEED_LAYOUTS: '1' },
+  extra: async (page) => {
+    await page.keyboard.press('Control+Shift+KeyG')
+    await page.getByTestId('layouts-preset').first().waitFor()
+    await page.waitForTimeout(900)
+  },
+})
 await shoot('tron', 'elecdex-settings', {
   extra: async (page) => {
     await page.keyboard.press('Control+Shift+Period')
@@ -408,8 +439,6 @@ await shoot('tron', 'elecdex-settings', {
     await page.waitForTimeout(600)
   },
 })
-// The audio panes, playing the demo stand-in: never the machine's sound, apps or volume.
-await shoot('tron', 'elecdex-audio', { layout: audioLayout, env: { ELECDEX_AUDIO_STUB: 'demo' } })
 if (only.length === 0 || only.includes('elecdex-aichat')) {
   const standIn = await chatStandIn()
   const provider = {
@@ -419,7 +448,7 @@ if (only.length === 0 || only.includes('elecdex-aichat')) {
     baseUrl: `http://127.0.0.1:${standIn.address().port}/v1`,
     model: 'qwen3:8b',
   }
-  await shoot('tron', 'elecdex-aichat', {
+  await shoot('business-dark', 'elecdex-aichat', {
     layout: chatLayout,
     settings: { ai: { providers: [provider] } },
     extra: chatting,
@@ -442,24 +471,6 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
   })
   standIn.close()
 }
-// Development: a coding agent at work and what it has changed, all of it made up for the shot.
-if (only.length === 0 || only.includes('elecdex-dev')) {
-  demoRepository()
-  await shoot('tron', 'elecdex-dev', {
-    layout: devLayout,
-    env: { ELECDEX_CLAUDE_DIR: claudeFolder() },
-    prepare: gitRepos,
-    // A rest on the merged branch's commit: the card with the whole of it.
-    extra: async (page) => {
-      await page
-        .locator('[data-testid=git-commit]', { hasText: 'bright in sunlight' })
-        .hover({ position: { x: 120, y: 10 } })
-      await page.getByTestId('git-card').waitFor()
-      await page.waitForTimeout(900)
-    },
-  })
-}
-await shoot('tron', 'elecdex-orbit', { layout: orbitLayout })
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [
   ['social-elec-sitting', sitting, 110],

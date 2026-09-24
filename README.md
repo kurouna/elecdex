@@ -8,7 +8,7 @@
 [![Zenn](https://img.shields.io/badge/Zenn-kurouna-blue)](https://zenn.dev/kurouna)
 [![X](https://img.shields.io/badge/X-elecxzy-black)](https://x.com/elecxzy)
 
-**English** | [日本語](README.ja.md)
+**English** | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
 # elecdex
 
@@ -32,6 +32,16 @@ for Windows, macOS and Linux.
 
 ## Features
 
+The panes are arranged by what you are doing: six **layout presets** put the right ones on
+screen at a key each - **Ctrl+Shift+F1** to **F6** - and every one keeps the system column on the
+left, so a switch changes the stage and leaves the instruments where they were (*unreleased*). The
+features below are grouped by the preset that shows them, and each picture is that preset in a
+different theme.
+
+### standard — this machine, its shells and the world outside
+
+The arrangement elecdex opens with, in the picture at the top (Tron).
+
 - **Terminal** — real shells (PowerShell, bash, zsh, fish) in unlimited tabs and splits. Shell
   integration reports the working directory and exit codes, on Windows too, and a session keeps
   its scrollback when its pane is moved or reloaded. The shell has focus at start; selecting text
@@ -40,58 +50,118 @@ for Windows, macOS and Linux.
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
   graphs or bars), memory and swap over time, disks with read/write activity, top processes,
   network status and traffic. The default layout idles at about 13% of one core.
-- **World view and connections** — a globe of where the machine's connections go, and a pane
-  listing every TCP socket by the program holding it, both placed with a bundled GeoIP database;
-  nothing is looked up online.
 - **Files and apps** — a file browser that follows the shell (click to `cd` or insert a path),
   and a launcher for the Start Menu (Store and other packaged apps included), `/Applications` or
   `.desktop` entries plus your own, most used first.
 - **Weather, markets and calendar** — forecasts for anywhere (JMA in Japan, the National Weather
   Service in the United States, MET Norway elsewhere), a market board from Yahoo Finance, and a
   month calendar with optional Japanese holidays.
-- **RSS** — headlines from the RSS and Atom feeds you list, newest first, in a pane you add when
-  you want it.
-- **AI Agent** *(experimental)* — the Claude Code sessions at work on your computer: what
-  each is doing this moment, how much it carries, and a diff of every file it changed, read from
-  Claude Code's own records on this machine.
+
+### network — who this machine talks to
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-network.jpg" alt="The network preset in the Amber theme: the system column on the left, the world view globe in amber with arcs to where connections go, the connections pane beside it listing sockets by program - firefox, code, elecdex, thunderbird, curl, ssh, syncthing - and a wide shell below">
+  <br><sub>network · Amber</sub>
+</p>
+
+- **World view and connections** — a globe of where the machine's connections go, and a pane
+  listing every TCP socket by the program holding it, both placed with a bundled GeoIP database;
+  nothing is looked up online. A wide shell beneath is there for ping and traceroute.
+
+### earth — overhead and underfoot
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-earth.jpg" alt="The earth preset in the Tron theme: an ORBIT pane with the world map, time zone lines and nine cities' clocks, the ISS with its ground track, Tiangong, the Starlink satellites as faint dots and the card of one of them; beside it the world view, a quakes pane listing recent earthquakes in Japan, and the weather; a shell below the map">
+  <br><sub>earth · Tron</sub>
+</p>
+
 - **Orbit** — mission control's front screen: a world map with the night side, the
   lines where clocks change and the hour each zone keeps, the ISS and Tiangong where they are now
   with their ground tracks, the next pass over a city you choose, and the world's clocks around
   mission control's GMT day-of-year clock. The Starlink constellation on request.
+- **Earthquakes and tsunamis** — for Japan (JMA) or the world (USGS and NOAA): alerts at the
+  intensity or magnitude you choose (off by default), tsunami warnings kept in sight while in
+  effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
+
+### dev — agents at work, and the repository they change
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; two shell tabs under it; a GIT pane on the right with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
+  <br><sub>dev · Phosphor</sub>
+</p>
+
+- **AI Agent** *(experimental)* — the Claude Code sessions at work on your computer: what
+  each is doing this moment, how much it carries, its subagents and background tasks, and a diff
+  of every file it changed, read from Claude Code's own records on this machine.
 - **Git** — a repository you choose, read only: the files changed, the diff of
-  each with its syntax coloured, and the commit graph with its branches and tags, kept current as they change - watch an AI
-  agent work in the next pane. One pane per repository.
-- **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
-  that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
-  Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
-  the operating system and never reach the page, and conversations stay on your computer.
-- **ELEC system** — put a yes-or-no motion to a council of three models, after the
-  MAGI of *Neon Genesis Evangelion*: LOGOS (logic), ETHOS (ethics) and PATHOS (feeling) each
-  judge it from their own standpoint and vote APPROVE, REJECT or ABSTAIN, and the pane resolves it
-  by majority or unanimity. The seats use the providers of the AI chat - the same model in all
-  three will do.
+  each with its syntax coloured, and the commit graph with its branches and tags, kept current as
+  they change - watch an AI agent work in the next pane. One pane per repository.
+
+### media — watch, scroll, and see the sound
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-media.jpg" alt="The media preset in the White theme: a YouTube (TV) pane and an X pane, each showing a stand-in page made for the screenshot in the manner of a television video home and a social timeline, with made-up channels and accounts, and an RSS tab behind X; under the television a 16-band spectrum in fluorescent cyan and a mixer with master, Music Player and Web Browser strips">
+  <br><sub>media · White — the web panes show stand-in pages made for the picture</sub>
+</p>
+
+- **Web panes** — a browser, YouTube and X in panes you add when you want them, drawn in the
+  theme's colour (or their own, by a setting) and sharing one sign-in per site.
+- **Spectrum and mixer** — a spectrum analyser of what the computer is playing, drawn like a
+  1990s car stereo's display (fluorescent cyan or amber, LED, or the theme's colour), and a mixer
+  for the system volume and each app playing sound.
+- **RSS** — headlines from the RSS and Atom feeds you list, newest first.
+
+### desk — writing, counting and keeping time
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk preset in the Business (Light) theme: a notes pane with a release checklist, a timer and a calculator under it, a tasks pane with deadlines drawn as meters under today, tomorrow and later, and a three-month calendar">
+  <br><sub>desk · Business (Light)</sub>
+</p>
+
 - **Desk panes** — a calculator you type into (full-width digits and 3百万 read as typed, with a
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
   deadlines are drawn as meters and announced whether or not their pane is open, and a timer with
   a stopwatch whose laps stack up like a spectrum, countdowns that run beside it, and alarms for
   the times the day is built around.
-- **Earthquakes and tsunamis** — for Japan (JMA) or the world (USGS and NOAA): alerts at the
-  intensity or magnitude you choose (off by default), tsunami warnings kept in sight while in
-  effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
-- **Spectrum and mixer** — a spectrum analyser of what the computer is playing, drawn like a
-  1990s car stereo's display (fluorescent cyan or amber, LED, or the theme's colour), and a mixer
-  for the system volume and each app playing sound, in panes you add when you want them.
-- **Web panes** — a browser, YouTube and X in panes you add when you want them, drawn in the
-  theme's colour (or their own, by a setting) and sharing one sign-in per site.
-- **Plugins** — a pane of your own from one TypeScript file, run in a sandboxed worker with only
-  the permissions you grant it ([Plugins](#plugins)).
+
+### Talking to models
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-aichat.jpg" alt="The Business (Dark) theme with an AI chat pane under the terminal: a question about watching a folder in Node.js answered with a code block and its token counts, and a second answer arriving, its heading reading RX with the seconds and characters so far">
+  <br><sub>AI chat · Business (Dark)</sub>
+</p>
+
+- **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
+  that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
+  Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
+  the operating system and never reach the page, and conversations stay on your computer.
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-elec.jpg" alt="The Tron theme with an ELEC system pane filling the middle column: three plates of one size in a triangle around a hexagonal core, LOGOS and PATHOS lit green with APPROVE and ETHOS, outvoted with REJECT, stepped back in dim red, the resolution strip reading APPROVED 2-1-0-0, and the three statements below">
+  <br><sub>ELEC system · Tron</sub>
+</p>
+
+- **ELEC system** — put a yes-or-no motion to a council of three models, after the
+  MAGI of *Neon Genesis Evangelion*: LOGOS (logic), ETHOS (ethics) and PATHOS (feeling) each
+  judge it from their own standpoint and vote APPROVE, REJECT or ABSTAIN, and the pane resolves it
+  by majority or unanimity. The seats use the providers of the AI chat - the same model in all
+  three will do.
+
+### Layouts, looks and the rest
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the six presets as saved layouts numbered 1 to 6, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F6">
+  <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
+</p>
+
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
-  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of six
-  presets - standard, network, earth, dev, media and desk (*unreleased*).
+  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the six
+  presets (*unreleased*).
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
-  icons for an ordinary working day. A CRT power-on boot sequence after a Linux-style boot log of
+  icons for an ordinary working day - every one of them is in a picture above. A CRT power-on boot
+  sequence after a Linux-style boot log of
   this machine's real facts (a pane added later powers on the same way; a closed one powers off
   and the panes beside it extend into its room; switching to a saved layout powers the whole
   screen off and brings the next one up pane by pane; dialogs and notices power off too), scanlines and glow,
@@ -102,6 +172,14 @@ for Windows, macOS and Linux.
 - **Settings** — a settings dialog for theme, motion, sound, the terminal's start folder, saved
   layouts, the launcher, rebindable keyboard shortcuts and the update check, all saved to a
   hand-editable `settings.json`.
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-settings.jpg" alt="The settings dialog in the Tron theme, keyboard section">
+  <br><sub>Settings → Keyboard · Tron</sub>
+</p>
+
+- **Plugins** — a pane of your own from one TypeScript file, run in a sandboxed worker with only
+  the permissions you grant it ([Plugins](#plugins)).
 - **Running in the background** — an icon in the notification area, the menu bar or the tray; a
   system-wide show/hide shortcut; and launching when you sign in. What is offered is what the
   machine can actually do, so it differs: Windows adds minimising and closing to the notification
@@ -109,63 +187,6 @@ for Windows, macOS and Linux.
   login item cannot start hidden, and on Linux the tray and the shortcut depend on the desktop —
   a session that has neither says so instead of showing a switch that does nothing. All off until
   turned on in *Settings → Window*.
-
-<table>
-  <tr>
-    <td><img src="./docs/screenshots/elecdex-business-light.jpg" alt="The Business (Light) theme: Windows 11 light colours, dark text on a white ground, icons in their own colours"></td>
-    <td><img src="./docs/screenshots/elecdex-business-dark.jpg" alt="The Business (Dark) theme: Windows 11 dark colours, white text, a blue accent"></td>
-  </tr>
-  <tr>
-    <td align="center">Business (Light)</td>
-    <td align="center">Business (Dark)</td>
-  </tr>
-  <tr>
-    <td><img src="./docs/screenshots/elecdex-amber.jpg" alt="The Amber theme, with scanlines and glow"></td>
-    <td><img src="./docs/screenshots/elecdex-phosphor.jpg" alt="The Phosphor theme, green with scanlines and glow"></td>
-  </tr>
-  <tr>
-    <td align="center">Amber</td>
-    <td align="center">Phosphor</td>
-  </tr>
-  <tr>
-    <td><img src="./docs/screenshots/elecdex-white.jpg" alt="The White theme, with scanlines"></td>
-    <td><img src="./docs/screenshots/elecdex-settings.jpg" alt="The settings dialog, keyboard section"></td>
-  </tr>
-  <tr>
-    <td align="center">White</td>
-    <td align="center">Settings → Keyboard</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="./docs/screenshots/elecdex-audio.jpg" alt="The Tron theme with a spectrum pane in fluorescent cyan and a mixer pane with master, Music Player and Web Browser strips, side by side under the launcher and file browser"></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Spectrum and mixer</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="./docs/screenshots/elecdex-aichat.jpg" alt="The Tron theme with an AI chat pane under the terminal: a question about watching a folder in Node.js answered with a code block and its token counts, and a second answer arriving, its heading reading RX with the seconds and characters so far"></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">AI chat, with a model on your own computer or a service you have a key for</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="./docs/screenshots/elecdex-elec.jpg" alt="The Tron theme with an ELEC system pane filling the middle column: three plates of one size in a triangle around a hexagonal core, LOGOS and PATHOS lit green with APPROVE and ETHOS, outvoted with REJECT, stepped back in dim red, the resolution strip reading APPROVED 2-1-0-0, and the three statements below"></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">ELEC system: three models vote on a motion</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="./docs/screenshots/elecdex-dev.jpg" alt="The Tron theme with the system column on the left, an AI AGENT pane in the middle and a GIT pane on the right: the AI AGENT pane shows two Claude Code sessions, one busy with a subagent at work and the tests running in the background, a finished subagent below them, and its changed files; the GIT pane shows the same checkout with passes.ts modified and shadow.ts untracked, the diff of passes.ts, and the commit graph - a merged branch with a tag, an unmerged branch on a lane of its own, origin/main one commit behind - with the card of a commit the pointer rests on: its message, author, date and one file changed"></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Development: coding agents at work with their subagents and background tasks, and the repository they are changing, with its commit graph</td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="./docs/screenshots/elecdex-orbit.jpg" alt="The Tron theme with the system column on the left and an ORBIT pane in the other two thirds: a world map with the night side, time zone lines and the clocks of nine cities along the top, the ISS with its ground track one orbit back and two ahead, the ring of ground that can see it, Tiangong, the Starlink satellites as faint dots, and below the map the station's position, altitude, speed, when it next leaves the Earth's shadow and its next pass over Tokyo"></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">Orbit: the space stations and the Starlink satellites, worked out on your computer</td>
-  </tr>
-</table>
 
 ## Install
 
