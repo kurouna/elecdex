@@ -143,17 +143,36 @@ describe('the Windows script', () => {
     expect(parsed?.kind === 'wlanlog' && parsed.data[0]?.g).toBe('abc')
   })
 
-  it('pings the host once a round for both panes', () => {
+  it("pings the host once a round for both panes, and every adapter's gateway", () => {
     const step = probeStep('1.1.1.1')
     expect(step.match(/SendPingAsync\('1\.1\.1\.1'/g)).toHaveLength(1)
+    expect(step).toContain('$gwPingers[$i].SendPingAsync')
+    expect(WLAN_SCRIPT).toContain('function WlanGateways')
     expect(step).toContain("Emit 'probe'")
     expect(step).toContain("Emit 'ping'")
   })
 
   it('reads its lines back', () => {
-    expect(parseWifiLine('probe', { net: 6, gw: 4, gwa: '192.0.2.1' })).toEqual({
+    // Every connected adapter's gateway, each with its echo; a row without an address is dropped.
+    expect(
+      parseWifiLine('probe', {
+        net: 6,
+        gws: [{ l: 'a', a: '192.0.2.1', r: 4 }, { l: 'b', a: '192.0.2.129', r: null }, { l: 'c' }],
+      }),
+    ).toEqual({
       kind: 'probe',
-      data: { net: 6, gw: 4, gwa: '192.0.2.1' },
+      data: {
+        net: 6,
+        gws: [
+          { l: 'a', a: '192.0.2.1', r: 4 },
+          { l: 'b', a: '192.0.2.129', r: null },
+        ],
+      },
+    })
+    // ConvertTo-Json writes a one-element array as a bare object.
+    expect(parseWifiLine('probe', { net: 6, gws: { l: 'a', a: '192.0.2.1', r: 3 } })).toEqual({
+      kind: 'probe',
+      data: { net: 6, gws: [{ l: 'a', a: '192.0.2.1', r: 3 }] },
     })
     expect(parseWifiLine('probe', 'nonsense')).toBeNull()
     expect(parseWifiLine('net', [])).toBeUndefined()
@@ -229,15 +248,14 @@ describe('Windows readings', () => {
     const wifi = toNetWifi(
       null,
       { at: 1, data: [row] },
-      { at: 5, net: 6, gw: null, gwa: null },
+      { at: 5, net: 6, gws: [{ l: 'g', a: '192.0.2.1', r: null }] },
       'h',
     )
     expect(wifi.probe).toEqual({
       at: 5,
       host: 'h',
       internet: 6,
-      gatewayAddress: null,
-      gateway: null,
+      gateways: [{ link: 'g', address: '192.0.2.1', rtt: null }],
     })
     expect(wifi.limits).toContain('bssid-location')
   })
@@ -399,6 +417,12 @@ describe('the ping stream', () => {
 })
 
 describe('the stub', () => {
+  it('has two adapters in `dual`, each with its own gateway echo', () => {
+    const wifi = stubWifi('dual', 0, 5000)
+    expect(wifi.links.map((l) => l.id)).toEqual(['stub-wlan0', 'stub-wlan1'])
+    expect(wifi.probe?.gateways.map((g) => g.link)).toEqual(['stub-wlan0', 'stub-wlan1'])
+  })
+
   it('is steady for `1`, so a spec can assert on it', () => {
     const a = stubWifi('steady', 0, 10_000)
     const b = stubWifi('steady', 0, 20_000)
@@ -409,7 +433,7 @@ describe('the stub', () => {
   it('on a train, loses the way out for eight seconds in every forty, and changes car', () => {
     const lost = [20, 21, 27].map((s) => stubWifi('train', 0, s * 1000).probe?.internet)
     expect(lost).toEqual([null, null, null])
-    expect(stubWifi('train', 0, 29_000).probe?.gateway).not.toBeNull()
+    expect(stubWifi('train', 0, 29_000).probe?.gateways[0]?.rtt).not.toBeNull()
     expect(stubWifi('train', 0, 0).links[0]?.channel).not.toBe(
       stubWifi('train', 0, 30_000).links[0]?.channel,
     )

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  availability,
   bandOf,
   bucketize,
   buildReport,
@@ -9,6 +10,7 @@ import {
   derivedEvents,
   diagnose,
   freqOf,
+  gatewayEcho,
   isDfs,
   latencySpikes,
   logEvents,
@@ -32,6 +34,7 @@ import {
   standardLabel,
   standardOfPhy,
   toPoint,
+  WIDE_FROM,
   WIFI_HISTORY_MS,
   type WifiCounters,
   type WifiLink,
@@ -214,17 +217,31 @@ describe('points', () => {
     at: 1000,
     host: '192.0.2.53',
     internet: 20,
-    gatewayAddress: '192.0.2.1',
-    gateway: 2,
+    gateways: [{ link: 'g1', address: '192.0.2.1', rtt: 2 }],
     ...over,
   })
 
   it('say a gateway that was not asked was not asked, not lost', () => {
+    expect(toPoint(link(), probe({ gateways: [] }), 1000, null).gateway).toBe(undefined)
     expect(
-      toPoint(link(), probe({ gatewayAddress: null, gateway: null }), 1000, null).gateway,
-    ).toBe(undefined)
-    expect(toPoint(link(), probe({ gateway: null }), 1000, null).gateway).toBeNull()
+      toPoint(link(), probe({ gateways: [{ link: 'g1', address: 'a', rtt: null }] }), 1000, null)
+        .gateway,
+    ).toBeNull()
     expect(toPoint(link(), null, 1000, null).internet).toBe(undefined)
+  })
+
+  it("take each adapter's own gateway echo, never another's", () => {
+    const both = probe({
+      gateways: [
+        { link: 'g1', address: '192.0.2.1', rtt: 2 },
+        { link: 'g2', address: '192.0.2.129', rtt: 9 },
+      ],
+    })
+    expect(toPoint(link(), both, 1000, null).gateway).toBe(2)
+    expect(toPoint(link({ id: 'g2' }), both, 1000, null).gateway).toBe(9)
+    expect(toPoint(link({ id: 'g3' }), both, 1000, null).gateway).toBe(undefined)
+    expect(gatewayEcho(both, 'g2')).toBe(9)
+    expect(gatewayEcho(null, 'g2')).toBe(undefined)
   })
 
   it('take retries only against the same adapter', () => {
@@ -398,6 +415,44 @@ describe('events', () => {
   })
 })
 
+describe('the last day', () => {
+  const H = 3_600_000
+  const ev = (at: number, kind: 'connected' | 'disconnected' | 'failed') => ({
+    key: `${kind}${at}`,
+    at,
+    kind,
+    ssid: null,
+    code: null,
+    reason: '',
+  })
+
+  it('is unknown before the log begins, then up and down by its events', () => {
+    const now = 24 * H
+    const day = availability(
+      [ev(2 * H, 'connected'), ev(5 * H, 'disconnected'), ev(6 * H, 'connected')],
+      now,
+    )
+    expect(day.map((s) => [s.state, s.from / H, s.to / H])).toEqual([
+      ['unknown', 0, 2],
+      ['up', 2, 5],
+      ['down', 5, 6],
+      ['up', 6, 24],
+    ])
+  })
+
+  it('starts from what held before the day, and a failed attempt changes nothing', () => {
+    const now = 30 * H
+    const day = availability(
+      [ev(3 * H, 'connected'), ev(10 * H, 'failed'), ev(20 * H, 'disconnected')],
+      now,
+    )
+    expect(day.map((s) => [s.state, s.from / H, s.to / H])).toEqual([
+      ['up', 6, 20],
+      ['down', 20, 30],
+    ])
+  })
+})
+
 describe('the timeline', () => {
   it('draws a column per stretch, with its spread and its loss', () => {
     const points = [
@@ -411,9 +466,10 @@ describe('the timeline', () => {
     expect(second?.loss).toBe(100)
   })
 
-  it('leaves a gap a gap', () => {
-    const [empty] = bucketize([point(3000)], 0, 4000, 2)
-    expect(empty).toMatchObject({ rssi: null, internet: null, loss: null, up: null })
+  it('leaves a gap a gap, and says it held nothing', () => {
+    const [empty, full] = bucketize([point(3000)], 0, 4000, 2)
+    expect(empty).toMatchObject({ count: 0, rssi: null, internet: null, loss: null, up: null })
+    expect(full?.count).toBe(1)
   })
 })
 
@@ -421,10 +477,22 @@ describe('the pane shape', () => {
   it('stacks everything when brought forward, and tabs it in the network preset', () => {
     // The network preset at 1080p: the Wi-Fi pane over the socket table, half and
     // half, leaves its body about 620 by 455.
-    expect(wifiSections(620, 455)).toEqual({ radio: false, radioWide: true, stacked: false })
+    expect(wifiSections(620, 455)).toEqual({
+      radio: false,
+      radioWide: true,
+      stacked: false,
+      wide: false,
+    })
     const h = SECTION_HEIGHTS
     const all = h.header + h.path + h.radio + h.timeline + h.log + h.detail
-    expect(wifiSections(1700, all)).toEqual({ radio: true, radioWide: true, stacked: true })
+    // Brought forward on a wide screen, two columns; the same height narrower, one.
+    expect(wifiSections(1700, all)).toEqual({
+      radio: true,
+      radioWide: true,
+      stacked: true,
+      wide: true,
+    })
+    expect(wifiSections(WIDE_FROM - 1, all).wide).toBe(false)
     expect(wifiSections(380, 700).radioWide).toBe(false)
   })
 })

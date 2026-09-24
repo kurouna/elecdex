@@ -1,4 +1,4 @@
-import type { NetWifi, NetWifiEvents, WifiLink } from '@shared/wifi'
+import type { NetWifi, NetWifiEvents, WifiGatewayEcho, WifiLink } from '@shared/wifi'
 import type { WindowsSampler } from '../windows-sampler.js'
 import { DarwinWifiReader } from './darwin.js'
 import { LinuxWifiReader } from './linux.js'
@@ -23,16 +23,35 @@ const startedAt = Date.now()
 
 let reader: { read(): Promise<WifiLink[]> } | null = null
 const internetPing = new PingStream()
-const gatewayPing = new PingStream()
+/** One stream per connected adapter's gateway, by the adapter's id. */
+const gatewayPings = new Map<string, PingStream>()
+
+/** Each connected adapter's gateway echo; streams for adapters gone are ended. */
+function gatewayEchoes(links: readonly WifiLink[], now: number): WifiGatewayEcho[] {
+  const up = links.filter((l) => l.state === 'connected' && l.gateway !== null).slice(0, 4)
+  for (const [id, stream] of gatewayPings) {
+    if (up.some((l) => l.id === id)) continue
+    stream.end()
+    gatewayPings.delete(id)
+  }
+  const echoes: WifiGatewayEcho[] = []
+  for (const link of up) {
+    const stream = gatewayPings.get(link.id) ?? new PingStream()
+    gatewayPings.set(link.id, stream)
+    const rtt = stream.read(link.gateway, now)
+    if (rtt !== undefined && link.gateway !== null)
+      echoes.push({ link: link.id, address: link.gateway, rtt })
+  }
+  return echoes
+}
 
 export async function readWifi(sampler: WindowsSampler | null, host: string): Promise<NetWifi> {
   if (stub !== null) return stubWifi(stub, startedAt, Date.now())
   if (sampler !== null) return sampler.wifi()
   reader ??= process.platform === 'linux' ? new LinuxWifiReader() : new DarwinWifiReader()
   const links = await reader.read()
-  const up = links.find((link) => link.state === 'connected' && link.gateway !== null) ?? null
   const now = Date.now()
-  const gateway = gatewayPing.read(up?.gateway ?? null, now)
+  const gateways = gatewayEchoes(links, now)
   const internet = internetPing.read(host, now)
   return {
     links,
@@ -43,8 +62,7 @@ export async function readWifi(sampler: WindowsSampler | null, host: string): Pr
             at: Math.floor(now / 1000) * 1000,
             host,
             internet,
-            gatewayAddress: gateway === undefined ? null : (up?.gateway ?? null),
-            gateway: gateway ?? null,
+            gateways,
           },
     limits:
       process.platform === 'darwin'

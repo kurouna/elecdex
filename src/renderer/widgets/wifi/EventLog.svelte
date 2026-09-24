@@ -1,5 +1,5 @@
 <script lang="ts">
-import { maskName, type TrackEvent } from '@shared/wifi'
+import { maskName, type Stretch, type TrackEvent } from '@shared/wifi'
 import { EVENT_MARKS } from './draw.ts'
 
 /**
@@ -21,9 +21,18 @@ interface Props {
   noLog: boolean
   /** Its own title, when it is not under a tab that says it already. */
   titled?: boolean
+  /** The last day as connected and not, from the system's log (`availability`). */
+  day?: readonly Stretch[]
 }
 
-const { events, mask, dropEvery, spikeEvery, noLog, titled = true }: Props = $props()
+const { events, mask, dropEvery, spikeEvery, noLog, titled = true, day = [] }: Props = $props()
+
+/** The day bar's span: from its first stretch to its last. */
+const dayFrom = $derived(day[0]?.from ?? 0)
+const dayTo = $derived(day[day.length - 1]?.to ?? 1)
+const share = (at: number): number => ((at - dayFrom) / Math.max(1, dayTo - dayFrom)) * 100
+/** The way out lost, which the log does not hold, marked on the day where the pane saw it. */
+const lostMarks = $derived(events.filter((e) => e.kind === 'upstream-lost' && e.at >= dayFrom))
 
 const LABELS: Record<TrackEvent['kind'], string> = {
   connected: 'CONNECTED',
@@ -67,10 +76,27 @@ const rows = $derived(
       <span class="beat" data-testid="wifi-spike-beat">delay spikes every ~{every(spikeEvery)} — a scan?</span>
     {/if}
   </header>
+  {#if !noLog && day.length > 0}
+    <div class="day" data-hint="uptime" data-testid="wifi-day">
+      <div class="bar">
+        {#each day as stretch (stretch.from)}
+          <i
+            class={stretch.state}
+            style:left="{share(stretch.from)}%"
+            style:width="{share(stretch.to) - share(stretch.from)}%"
+            data-testid="wifi-day-stretch"
+            data-state={stretch.state}
+          ></i>
+        {/each}
+        {#each lostMarks as mark (mark.key)}<b style:left="{share(mark.at)}%"></b>{/each}
+      </div>
+      <div class="hours"><span>−24 h</span><span>−18</span><span>−12</span><span>−6</span><span>now</span></div>
+    </div>
+  {/if}
   <ol>
     {#each rows as { e, since } (e.key)}
       {@const mark = EVENT_MARKS[e.kind]}
-      <li data-kind={e.kind} data-tone={mark.tone} data-testid="wifi-event">
+      <li data-kind={e.kind} data-tone={mark.tone} data-testid="wifi-event" data-hint="event-{e.kind}">
         <time>{clock(e.at)}</time>
         <span class="glyph">{mark.glyph}</span>
         <span class="kind">{LABELS[e.kind]}</span>
@@ -124,6 +150,52 @@ header {
   font-family: var(--font-mono);
   font-size: var(--step--2);
   color: var(--warn);
+}
+
+/* The last day, connected and not: a strip under the header, with the hours below it. */
+.day {
+  padding: 0.3rem 0.2rem 0.15rem;
+}
+
+.bar {
+  position: relative;
+  height: 0.55rem;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--accent-faint) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+.bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.bar i.up {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.bar i.down {
+  background: var(--danger);
+}
+
+.bar b {
+  position: absolute;
+  top: -0.15rem;
+  bottom: -0.15rem;
+  width: 2px;
+  background: var(--warn);
+}
+
+.hours {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--text-muted);
 }
 
 ol {

@@ -101,20 +101,38 @@ export interface WifiLink {
 }
 
 /**
- * One round of pings, taken together: to the Wi-Fi gateway and to the host the
- * network status pane pings (one ICMP echo serves both panes).
+ * One round of pings, taken together: to the gateway of every connected Wi-Fi
+ * adapter, and to the host the network status pane pings (one ICMP echo serves
+ * both panes). The internet's echo leaves by the system's default route, which
+ * no adapter chosen in the pane changes.
  *
- * A number is a round trip in ms; null is an echo that did not come back. The
- * gateway is undefined-free on purpose: `gatewayAddress` null means there was
- * no gateway to ask, and then `gateway` is null without meaning a loss.
+ * A number is a round trip in ms; null is an echo that did not come back. An
+ * adapter with no gateway to ask has no entry, which is not a loss.
  */
 export interface WifiProbe {
   /** Epoch ms of the round: the key a history is kept by, so no round is counted twice. */
   at: number
   host: string
   internet: number | null
-  gatewayAddress: string | null
-  gateway: number | null
+  gateways: WifiGatewayEcho[]
+}
+
+/** One adapter's gateway and its echo this round. */
+export interface WifiGatewayEcho {
+  /** The link's id. */
+  link: string
+  address: string
+  rtt: number | null
+}
+
+/** A link's own gateway echo this round: undefined when it had none to ask. */
+export function gatewayEcho(
+  probe: WifiProbe | null,
+  link: string | null,
+): number | null | undefined {
+  if (probe === null || link === null) return undefined
+  const echo = probe.gateways.find((g) => g.link === link)
+  return echo === undefined ? undefined : echo.rtt
 }
 
 export interface NetWifi {
@@ -396,7 +414,7 @@ export function toPoint(
     retry: retryShare(delta),
     frames: delta?.frames ?? null,
     retries: delta?.retries ?? null,
-    gateway: probe === null || probe.gatewayAddress === null ? undefined : probe.gateway,
+    gateway: gatewayEcho(probe, link?.id ?? null),
     internet: probe === null ? undefined : probe.internet,
   }
 }
@@ -900,6 +918,54 @@ export function logEvents(events: readonly WifiEvent[]): TrackEvent[] {
   })
 }
 
+export type LinkState = 'up' | 'down' | 'unknown'
+
+/** What held at a moment: the last change before it, in events sorted oldest first. */
+function stateAt(ascending: readonly WifiEvent[], at: number): LinkState {
+  let state: LinkState = 'unknown'
+  for (const e of ascending) {
+    if (e.at >= at) break
+    if (e.kind === 'connected') state = 'up'
+    else if (e.kind === 'disconnected') state = 'down'
+  }
+  return state
+}
+
+/** A stretch of the day in one state, for the connection bar. */
+export interface Stretch {
+  from: number
+  to: number
+  state: LinkState
+}
+
+/**
+ * The last `span` as stretches of up and down, from the system's log: up from a
+ * connection until the next disconnection, down from a disconnection until the
+ * next connection, unknown before the first event the log holds. A failed
+ * attempt changes nothing: the link was down already, or stays up.
+ */
+export function availability(
+  events: readonly WifiEvent[],
+  now: number,
+  span = 86_400_000,
+): Stretch[] {
+  const from = now - span
+  const ascending = events.filter((e) => e.at <= now).sort((a, b) => a.at - b.at)
+  let state = stateAt(ascending, from)
+  const out: Stretch[] = []
+  let at = from
+  for (const e of ascending) {
+    if (e.at < from || e.kind === 'failed') continue
+    const next: LinkState = e.kind === 'connected' ? 'up' : 'down'
+    if (next === state) continue
+    if (e.at > at) out.push({ from: at, to: e.at, state })
+    at = e.at
+    state = next
+  }
+  out.push({ from: at, to: now, state })
+  return out
+}
+
 /** Both kinds together, newest first. */
 export function mergeEvents(
   log: readonly TrackEvent[],
@@ -955,6 +1021,8 @@ export function latencySpikes(points: readonly WifiPoint[]): number[] {
 export interface Bucket {
   from: number
   to: number
+  /** Points in the column; none is time the pane was not watched. */
+  count: number
   rssi: Spread | null
   retry: Spread | null
   gateway: Spread | null
@@ -1001,6 +1069,7 @@ export function bucketize(
     return {
       from: from + i * width,
       to: from + (i + 1) * width,
+      count: column.length,
       rssi: spread(column.map((p) => p.rssi)),
       retry: spread(column.map((p) => p.retry)),
       gateway: spread(column.map((p) => p.gateway)),
@@ -1043,6 +1112,12 @@ export interface WifiSections {
    * share the room as tabs, one at a time.
    */
   stacked: boolean
+  /**
+   * Room for two columns: the path beside the radio, and the log beside the
+   * detail - what a pane brought forward on a wide screen has, where one column
+   * of parts spread its figures to the far edges.
+   */
+  wide: boolean
 }
 
 /** The height each part wants, in CSS pixels, at the type scale of a 1080p screen. */
@@ -1065,12 +1140,17 @@ export function wifiSections(width: number, height: number): WifiSections {
   const h = SECTION_HEIGHTS
   const radio = height >= h.header + h.path + h.radio + h.timeline
   const room = height - h.header - h.path - (radio ? h.radio : 0)
+  const stacked = room >= h.timeline + h.log + h.detail
   return {
     radio,
     radioWide: width >= 460,
-    stacked: room >= h.timeline + h.log + h.detail,
+    stacked,
+    wide: stacked && width >= WIDE_FROM,
   }
 }
+
+/** The width, in CSS pixels, from which the stacked pane goes to two columns. */
+export const WIDE_FROM = 1100
 
 // ---------------------------------------------------------------------------
 // The report the copy button writes

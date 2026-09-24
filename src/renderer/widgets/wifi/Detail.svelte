@@ -46,6 +46,33 @@ const COUNTERS: [keyof WifiCounters, string, boolean][] = [
   ['handshakeFailures', '4-way failures', true],
 ]
 
+/**
+ * How far a counter's bar reaches: the frames against the larger of the two
+ * directions, and a trouble counter as a share of the frames sent in the same
+ * minute - a full bar at half of them, where a link is well past broken.
+ */
+function reach(key: keyof WifiCounters, trouble: boolean): number {
+  const rate = rates?.[key]
+  if (rates === null || rate === undefined) return 0
+  if (!trouble) return rate / Math.max(1, rates.txFrames, rates.rxFrames)
+  return Math.min(1, rate / Math.max(1, rates.txFrames) / 0.5)
+}
+
+/** A trouble counter's share of the frames sent this minute, as the bar's colour. */
+function severity(key: keyof WifiCounters, trouble: boolean): 'ok' | 'warn' | 'bad' {
+  if (!trouble || rates === null) return 'ok'
+  const share = ((rates[key] ?? 0) / Math.max(1, rates.txFrames)) * 100
+  return share >= 30 ? 'bad' : share >= 15 ? 'warn' : 'ok'
+}
+
+/** The facts that have a card of their own. */
+const FACT_HINTS: Record<string, string> = {
+  BSSID: 'f-bssid',
+  scan: 'f-scan',
+  DHCP: 'f-dhcp',
+  'echo host': 'f-echo',
+}
+
 const rows = $derived<[string, string][]>([
   ['SSID', link.ssid === null ? 'withheld by the OS' : mask ? maskName(link.ssid) : link.ssid],
   ['BSSID', 'not read — needs location access'],
@@ -68,20 +95,23 @@ const rows = $derived<[string, string][]>([
 <section class="detail" data-testid="wifi-detail">
   <dl class="facts">
     {#each rows as [k, v] (k)}
-      <dt>{k}</dt>
-      <dd>{v}</dd>
+      <dt data-hint={FACT_HINTS[k]}>{k}</dt>
+      <dd data-hint={FACT_HINTS[k]}>{v}</dd>
     {/each}
   </dl>
   {#if link.counters !== null}
     <table class="counters">
-      <thead><tr><th>frames</th><th>total</th><th>/min</th></tr></thead>
+      <thead><tr><th>frames</th><th>total</th><th>/min</th><th class="bar-head"></th></tr></thead>
       <tbody>
         {#each COUNTERS as [key, label, trouble] (key)}
           {@const rate = rates?.[key] ?? null}
-          <tr class:rising={trouble && rate !== null && rate > 0}>
+          <tr class:rising={trouble && rate !== null && rate > 0} data-hint="c-{key}" data-testid="wifi-counter">
             <td>{label}</td>
             <td>{count(link.counters[key])}</td>
             <td>{rate === null ? '—' : count(rate)}</td>
+            <td class="bar-cell"
+              ><i class={severity(key, trouble)} class:frames={!trouble} style:--reach={reach(key, trouble)}></i></td
+            >
           </tr>
         {/each}
       </tbody>
@@ -92,7 +122,7 @@ const rows = $derived<[string, string][]>([
 <style>
 .detail {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   gap: 0.6rem;
   font-family: var(--font-mono);
   font-size: var(--step--2);
@@ -149,8 +179,43 @@ td:first-child {
   color: var(--text-muted);
 }
 
-tr.rising td:last-child {
+tr.rising td:nth-child(3) {
   color: var(--warn);
+}
+
+.counters {
+  width: 100%;
+}
+
+.bar-head {
+  width: 40%;
+}
+
+/* The minute's rate as a bar: frames against the busier direction, trouble as a share of frames. */
+.bar-cell {
+  padding-left: 0.6rem;
+}
+
+.bar-cell i {
+  display: block;
+  height: 0.4rem;
+  background: linear-gradient(
+    90deg,
+    var(--tone, var(--accent)) calc(var(--reach) * 100%),
+    var(--accent-faint) calc(var(--reach) * 100%)
+  );
+}
+
+.bar-cell i.frames {
+  --tone: var(--accent-dim);
+}
+
+.bar-cell i.warn {
+  --tone: var(--warn);
+}
+
+.bar-cell i.bad {
+  --tone: var(--danger);
 }
 
 @container (max-width: 30rem) {

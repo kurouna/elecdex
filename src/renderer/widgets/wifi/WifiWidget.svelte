@@ -1,5 +1,6 @@
 <script lang="ts">
 import {
+  availability,
   bandOf,
   buildReport,
   CAUSE_LABELS,
@@ -26,6 +27,8 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import Detail from './Detail.svelte'
 import EventLog from './EventLog.svelte'
+import HintCard from './HintCard.svelte'
+import { shortAdapter } from './hints.ts'
 import { wifiHistory } from './history.svelte.ts'
 import PathStrip from './PathStrip.svelte'
 import RadioPanel from './RadioPanel.svelte'
@@ -41,6 +44,12 @@ import Timeline from './Timeline.svelte'
  * machine is sending meanwhile - and `diagnose` (shared/wifi.ts) says which
  * segment is at fault, with the figures it rests on. Under that, the radio as
  * it stands, a timeline of the last minutes, and the log of what happened.
+ *
+ * With room for it - brought forward on a wide screen - the parts go to two
+ * columns (`wifiSections().wide`). Every figure explains itself when the pointer
+ * rests on it (HintCard, hints.ts), with what it reads now. With more than one
+ * adapter, chips under the header choose the one followed; each keeps its own
+ * history and its own gateway's echoes.
  *
  * Everything is read only while the pane is seen; nothing is kept on disk.
  * The judgements are pure functions in shared/wifi.ts; this file only wires
@@ -65,12 +74,12 @@ const setState = (patch: Record<string, unknown>): void => {
 $effect(() => {
   const next = sample
   if (next === null) return
-  untrack(() => wifiHistory.push(next, chosen))
+  untrack(() => wifiHistory.push(next))
 })
 
-const points = $derived(wifiHistory.points)
 const links = $derived<WifiLink[]>(sample?.data.links ?? [])
 const link = $derived(primaryLink(links, chosen))
+const points = $derived(wifiHistory.points(link?.id ?? null))
 const probe = $derived(sample?.data.probe ?? null)
 const limits = $derived(sample?.data.limits ?? [])
 const latest = $derived(points[points.length - 1] ?? null)
@@ -189,10 +198,23 @@ function copyReport(): void {
   void copier.copy('report', text)
 }
 
-const rates = $derived(perMinute(wifiHistory.marks))
+const rates = $derived(perMinute(wifiHistory.marks(link?.id ?? null)))
+
+/** The last day, connected and not, from the system's log. */
+const day = $derived(availability(log?.events ?? [], now || Date.now()))
+
+let root = $state<HTMLElement | null>(null)
+const hintContext = $derived({
+  link,
+  figures,
+  diagnosis,
+  mos,
+  rates,
+  host: probe?.host ?? null,
+})
 </script>
 
-<div class="wifi" data-testid="wifi" data-pane-id={paneId} {@attach observe}>
+<div class="wifi" data-testid="wifi" data-pane-id={paneId} bind:this={root} {@attach observe}>
   <header class="top">
     <svg class="bars" viewBox="0 0 20 16" aria-hidden="true">
       {#each [0, 1, 2, 3] as i (i)}
@@ -203,17 +225,7 @@ const rates = $derived(perMinute(wifiHistory.marks))
     <span class="state" data-state={link?.state ?? 'none'} data-testid="wifi-state">
       <i></i>{stateWord}
     </span>
-    {#if links.length > 1}
-      <select
-        class="pick"
-        aria-label="which adapter to follow"
-        value={link?.id}
-        onchange={(e) => setState({ link: e.currentTarget.value })}
-      >
-        {#each links as l (l.id)}<option value={l.id}>{l.adapter}</option>{/each}
-      </select>
-    {/if}
-    <span class="mos" data-tone={mosTone} title="estimated call quality (E-model), from the last minute of echoes" data-testid="wifi-mos">
+    <span class="mos" data-tone={mosTone} data-hint="mos" data-testid="wifi-mos">
       <span class="k">MOS</span>
       <b>{mos === null ? '—' : mos.toFixed(1)}</b>
       <span class="meter" aria-hidden="true">
@@ -238,18 +250,47 @@ const rates = $derived(perMinute(wifiHistory.marks))
     >
   </header>
 
+  {#if links.length > 1}
+    <!-- More than one adapter: each as a chip with its signal; the chosen one is followed. -->
+    <div class="adapters" role="tablist" aria-label="which adapter to follow">
+      {#each links as l (l.id)}
+        <button
+          type="button"
+          role="tab"
+          class="chip"
+          class:on={l.id === link?.id}
+          aria-selected={l.id === link?.id}
+          data-state={l.state}
+          data-testid="wifi-adapter"
+          data-link={l.id}
+          data-hint="adapter-chip"
+          onclick={() => setState({ link: l.id })}
+        >
+          <svg class="mini" viewBox="0 0 20 16" aria-hidden="true">
+            {#each [0, 1, 2, 3] as i (i)}
+              <rect x={i * 5} y={12 - i * 4} width="3.4" height={4 + i * 4} class:on={i < signalBars(l.rssi)} />
+            {/each}
+          </svg>
+          <span class="name">{shortAdapter(l.adapter)}</span>
+          <span class="dbm">{l.state === 'connected' ? `${l.rssi ?? '—'} dBm` : l.state}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+
   {#if sample === null}
     <p class="empty" data-testid="wifi-empty">ACQUIRING LINK…</p>
   {:else if links.length === 0}
     <p class="empty" data-testid="wifi-empty">NO WIRELESS ADAPTER</p>
   {:else}
-    <PathStrip {diagnosis} {figures} {latest} {points} />
+    <div class="upper" class:wide={sections.wide}>
+      <PathStrip {diagnosis} {figures} {latest} {points} />
+      {#if sections.radio && link !== null && link.state === 'connected'}
+        <RadioPanel {link} wide={sections.radioWide} />
+      {/if}
+    </div>
 
-    {#if sections.radio && link !== null && link.state === 'connected'}
-      <RadioPanel {link} wide={sections.radioWide} />
-    {/if}
-
-    <div class="lower" class:stacked={sections.stacked}>
+    <div class="lower" class:stacked={sections.stacked} class:wide={sections.wide}>
       {#if !sections.stacked}
         <div class="tabs" role="tablist" aria-label="what the lower part shows">
           {#each tabs as id (id)}
@@ -295,6 +336,7 @@ const rates = $derived(perMinute(wifiHistory.marks))
             {spikeEvery}
             noLog={limits.includes('no-log')}
             titled={sections.stacked}
+            {day}
           />
         </div>
       {/if}
@@ -304,12 +346,14 @@ const rates = $derived(perMinute(wifiHistory.marks))
         </div>
       {/if}
     </div>
+    <HintCard {root} context={hintContext} />
   {/if}
 </div>
 
 <style>
 .wifi {
   container-type: inline-size;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -375,15 +419,6 @@ const rates = $derived(perMinute(wifiHistory.marks))
   transform: rotate(45deg);
   background: var(--tone);
   box-shadow: 0 0 calc(var(--glow) * 0.5rem) var(--tone);
-}
-
-.pick {
-  max-width: 10rem;
-  border: 1px solid var(--panel-rule);
-  background: transparent;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
 }
 
 .mos {
@@ -533,5 +568,87 @@ const rates = $derived(perMinute(wifiHistory.marks))
   .state {
     display: none;
   }
+}
+.adapters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: -0.2rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.12rem 0.55rem 0.12rem 0.4rem;
+  border: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  cursor: pointer;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+
+.chip:hover {
+  color: var(--text);
+}
+
+.chip.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+}
+
+.chip:not([data-state='connected']) .dbm {
+  color: var(--danger);
+}
+
+.chip .name {
+  font-family: var(--font-ui);
+  letter-spacing: 0.06em;
+}
+
+.mini {
+  width: 0.85rem;
+}
+
+.mini rect {
+  fill: var(--accent-faint);
+}
+
+.mini rect.on {
+  fill: var(--accent);
+}
+
+.upper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+/* Wide: the path and its verdict beside the radio, rather than one above the other
+   with their figures spread to the far edges. */
+.upper.wide {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1.2rem;
+}
+
+/* And the timeline across, with the log beside the detail beneath it. */
+.lower.stacked.wide {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 0.6rem 1.2rem;
+}
+
+.lower.stacked.wide .timeline-slot {
+  grid-column: 1 / -1;
+}
+
+.lower.stacked.wide .detail-slot {
+  overflow-y: auto;
 }
 </style>

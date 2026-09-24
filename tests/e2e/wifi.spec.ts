@@ -123,3 +123,44 @@ test('the network preset puts the Wi-Fi pane over the socket table, beside the g
     await close()
   }
 })
+
+test('with two adapters, a chip chooses the one followed, with its own gateway', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: alone(),
+    env: { ELECDEX_WIFI_STUB: 'dual' },
+  })
+  try {
+    const chips = page.getByTestId('wifi-adapter')
+    await expect(chips).toHaveCount(2, { timeout: 20_000 })
+    await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB')
+    await chips.nth(1).click()
+    await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB-2G')
+    await expect(chips.nth(1)).toHaveAttribute('aria-selected', 'true')
+    // The second adapter's own gateway, not the first one's.
+    await expect(page.locator('[data-testid=wifi-station][data-station=gateway]')).toContainText(
+      '7 ms',
+      { timeout: 15_000 },
+    )
+  } finally {
+    await close()
+  }
+})
+
+test('a figure the pointer rests on explains itself, with what it reads now', async () => {
+  const { page, close } = await launch(undefined, { layout: alone() })
+  try {
+    const internet = page.locator('[data-testid=wifi-station][data-station=internet]')
+    await expect(internet).toContainText('18 ms', { timeout: 20_000 })
+    await expect(page.getByTestId('wifi-legend')).toContainText('median ± jitter')
+    await internet.hover()
+    const card = page.getByTestId('wifi-hint')
+    await expect(card).toHaveAttribute('data-key', 'station-internet')
+    await expect(page.getByTestId('wifi-hint-now')).toContainText('median 18 ms')
+    await page.getByTestId('wifi-mos').hover()
+    await expect(card).toHaveAttribute('data-key', 'mos')
+    await page.mouse.move(2, 2)
+    await expect(card).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

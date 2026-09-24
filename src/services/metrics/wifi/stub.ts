@@ -14,6 +14,8 @@ import type {
  *
  *  - `1`: a steady link with fixed figures, for asserting on.
  *  - `demo`: a lively one for screenshots and recordings.
+ *  - `dual`: the steady link and a second adapter (a USB one on 2.4 GHz), for
+ *    the adapter chips and the gateway echo that follows the one shown.
  *  - `train`: a trip. Every 40 seconds the way out goes for 8 (a tunnel, the
  *    gateway still answering), the channel changes every 30 (a new car's access
  *    point), and the signal swings.
@@ -22,12 +24,13 @@ import type {
  * for a phase rather than race one. The addresses are documentation ranges.
  */
 
-export type WifiStub = 'steady' | 'demo' | 'train'
+export type WifiStub = 'steady' | 'demo' | 'train' | 'dual'
 
 export function wifiStubFrom(value: string | undefined): WifiStub | null {
   if (value === '1') return 'steady'
   if (value === 'demo') return 'demo'
   if (value === 'train') return 'train'
+  if (value === 'dual') return 'dual'
   return null
 }
 
@@ -35,6 +38,7 @@ const SSID: Record<WifiStub, string> = {
   steady: 'ELECDEX-LAB',
   demo: 'ELECDEX-LAB',
   train: 'TRAIN_FREE_WiFi',
+  dual: 'ELECDEX-LAB',
 }
 
 /** Frames a second the stub link sends: a call's worth, so its retry share counts. */
@@ -65,7 +69,7 @@ function counters(kind: WifiStub, seconds: number): WifiCounters {
 function motion(kind: WifiStub, seconds: number) {
   const wave = Math.sin(seconds / 7)
   const noise = Math.sin(seconds * 1.7) * 2
-  if (kind === 'steady')
+  if (kind === 'steady' || kind === 'dual')
     return { wave: 0, rssi: -55, channel: 60, retry: 0.04, rx: 250_000, tx: 50_000 }
   const train = kind === 'train'
   return {
@@ -128,14 +132,42 @@ function probe(kind: WifiStub, seconds: number, at: number): WifiProbe {
     if (phase >= 20 && phase < 28) internet = null
     else if (seconds % 9 === 0) internet = null
   }
-  return { at, host: '192.0.2.53', internet, gatewayAddress: '192.0.2.1', gateway }
+  const gateways = [{ link: 'stub-wlan0', address: '192.0.2.1', rtt: gateway }]
+  if (kind === 'dual') gateways.push({ link: 'stub-wlan1', address: '192.0.2.129', rtt: 7 })
+  return { at, host: '192.0.2.53', internet, gateways }
+}
+
+/** The dual scenario's second adapter: a USB stick on 2.4 GHz, weaker and slower. */
+function second(seconds: number): WifiLink {
+  return {
+    ...link('steady', seconds),
+    id: 'stub-wlan1',
+    adapter: 'USB Wireless Adapter (stub)',
+    ssid: 'ELECDEX-LAB-2G',
+    standard: 'n',
+    freqMhz: 2437,
+    channel: 6,
+    widthMhz: 20,
+    rssi: -63,
+    quality: 74,
+    rxMbps: 144,
+    txMbps: 130,
+    security: 'WPA2-Personal',
+    cipher: 'CCMP',
+    backgroundScan: false,
+    mac: '02:00:5e:10:00:02',
+    ip4: '192.0.2.140',
+    gateway: '192.0.2.129',
+    rxSec: 20_000,
+    txSec: 4000,
+  }
 }
 
 export function stubWifi(kind: WifiStub, startedAt: number, now: number): NetWifi {
   const seconds = Math.floor((now - startedAt) / 1000)
   const at = Math.floor(now / 1000) * 1000
   return {
-    links: [link(kind, seconds)],
+    links: kind === 'dual' ? [link(kind, seconds), second(seconds)] : [link(kind, seconds)],
     probe: probe(kind, seconds, at),
     limits: ['bssid-location'],
   }

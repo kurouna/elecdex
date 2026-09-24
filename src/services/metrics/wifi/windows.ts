@@ -234,7 +234,8 @@ $profiles = @{}
 $profilesAt = -100
 $wlanKey = ''
 $logLast = -1
-$gwPinger = New-Object System.Net.NetworkInformation.Ping
+# One pinger per gateway echoed in a round: a Ping sends one request at a time.
+$gwPingers = @(1..4 | ForEach-Object { New-Object System.Net.NetworkInformation.Ping })
 
 function WlanProfiles {
   $out = @{}
@@ -284,19 +285,19 @@ function NicInfo($a) {
 
 $nics = @{}
 $nicInfo = @{}
-$wlanGw = $null
+$wlanGws = @()
 
 function WlanNics {
   $script:nics = @{}
   $script:nicInfo = @{}
-  $script:wlanGw = $null
+  $script:wlanGws = @()
   foreach ($a in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
     if ($a.NetworkInterfaceType -ne 'Wireless80211') { continue }
     $id = $a.Id.Trim('{}').ToLower()
     $info = NicInfo $a
     $script:nics[$id] = $a
     $script:nicInfo[$id] = $info
-    if ($null -eq $script:wlanGw -and $a.OperationalStatus -eq 'Up' -and $info['gw']) { $script:wlanGw = $info['gw'] }
+    if ($a.OperationalStatus -eq 'Up' -and $info['gw']) { $script:wlanGws += @{ l = $id; a = $info['gw'] } }
   }
 }
 
@@ -330,8 +331,9 @@ function EmitWlan {
   Emit 'wlan' $rows
 }
 
-# The gateway the last reading found; the echo round runs before this tick's reading.
-function WlanGateway { return $script:wlanGw }
+# Every connected adapter's gateway as the last reading found them (the echo round
+# runs before this tick's reading), so the pane can follow whichever it shows.
+function WlanGateways { return @($script:wlanGws | Select-Object -First 4) }
 
 function PingResult($task) {
   if ($null -eq $task) { return $null }
@@ -368,21 +370,27 @@ function EmitWlanLog {
 
 /**
  * The loop's part: one echo round serves both the network status pane (`ping`,
- * every five ticks) and the Wi-Fi pane (`probe`, every tick, with the gateway).
+ * every five ticks) and the Wi-Fi pane (`probe`, every tick, with each connected
+ * adapter's gateway, echoed at once).
  * `$host` is the validated ping host.
  */
 export const probeStep = (pingHost: string): string => `
   $probeOn = $want.ContainsKey('probe')
   $pingDue = Due 'ping' 5
   if ($probeOn -or $pingDue) {
-    $gwAddr = $null
-    if ($probeOn) { $gwAddr = WlanGateway }
-    $tNet = $null; $tGw = $null
+    $gws = @()
+    if ($probeOn) { $gws = @(WlanGateways) }
+    $tNet = $null
     try { $tNet = $pinger.SendPingAsync('${pingHost}', 900) } catch {}
-    if ($gwAddr) { try { $tGw = $gwPinger.SendPingAsync($gwAddr, 900) } catch {} }
+    $sent = @()
+    for ($i = 0; $i -lt $gws.Count; $i++) {
+      $t = $null
+      try { $t = $gwPingers[$i].SendPingAsync($gws[$i]['a'], 900) } catch {}
+      $sent += @{ g = $gws[$i]; t = $t }
+    }
     $ms = PingResult $tNet
-    $gms = PingResult $tGw
-    if ($probeOn) { Emit 'probe' @{ net = $ms; gw = $gms; gwa = $gwAddr } }
+    $echoes = @(foreach ($x in $sent) { @{ l = $x.g['l']; a = $x.g['a']; r = (PingResult $x.t) } })
+    if ($probeOn) { Emit 'probe' @{ net = $ms; gws = $echoes } }
     if ($pingDue) { Emit 'ping' @{ ms = $ms } }
   }
   if ($want.ContainsKey('wlan')) { EmitWlan }
@@ -444,8 +452,8 @@ export interface RawWlan {
 
 export interface RawProbe {
   net: number | null
-  gw: number | null
-  gwa: string | null
+  /** Each connected adapter's gateway (`l` the interface, `a` the address) and its echo. */
+  gws: { l: string; a: string; r: number | null }[]
 }
 
 export interface RawWlanEvent {
@@ -536,7 +544,12 @@ export function parseWlanRows(data: unknown): RawWlan[] {
 
 export function parseProbe(data: unknown): RawProbe | null {
   if (!isRow(data)) return null
-  return { net: num(data.net), gw: num(data.gw), gwa: text(data.gwa, 64) }
+  const gws = list(data.gws)
+    .filter(isRow)
+    .slice(0, 4)
+    .map((g) => ({ l: text(g.l, 64) ?? '', a: text(g.a, 64) ?? '', r: num(g.r) }))
+    .filter((g) => g.l !== '' && g.a !== '')
+  return { net: num(data.net), gws }
 }
 
 export function parseWlanEvents(data: unknown): RawWlanEvent[] {
@@ -730,8 +743,7 @@ export function toNetWifi(
           at: probe.at,
           host,
           internet: probe.net,
-          gatewayAddress: probe.gwa,
-          gateway: probe.gwa === null ? null : probe.gw,
+          gateways: probe.gws.map((g) => ({ link: g.l, address: g.a, rtt: g.r })),
         }
   return { links, probe: wifiProbe, limits: ['bssid-location'] }
 }

@@ -13,6 +13,7 @@ import { appearance } from '../../stores/appearance.svelte.ts'
 import {
   drawTimeline,
   LABEL_WIDTH,
+  laneBoxes,
   latencyTop,
   megabits,
   type Palette,
@@ -50,7 +51,7 @@ const span = $derived(windowMs(windowId))
 
 /** The moment under the crosshair, and what every lane read then. */
 const hovered = $derived.by(() => {
-  if (hoverX === null || width <= LABEL_WIDTH) return null
+  if (hoverX === null || width <= LABEL_WIDTH || hoverX < LABEL_WIDTH) return null
   const to = Math.floor(Date.now() / 1000) * 1000
   const at = to - span + ((hoverX - LABEL_WIDTH) / (width - LABEL_WIDTH)) * span
   const tolerance = Math.max(1000, span / Math.max(1, (width - LABEL_WIDTH) / 2))
@@ -159,6 +160,15 @@ const ms = (v: number | null | undefined): string =>
     }}
   >
     <canvas bind:this={canvas}></canvas>
+    <!-- The lanes' names, drawn on the canvas, each with the card that explains its lane. -->
+    {#each laneBoxes(height) as box (box.lane)}
+      <span
+        class="lane-name"
+        style:top="{box.y}px"
+        style:height="{box.h}px"
+        data-hint="lane-{box.lane === 'latency' ? 'rtt' : box.lane}"
+      ></span>
+    {/each}
     {#if hovered !== null}
       <div
         class="readout"
@@ -272,6 +282,13 @@ header {
   flex: 1;
   min-height: 0;
   cursor: crosshair;
+}
+
+.lane-name {
+  position: absolute;
+  left: 0;
+  width: 44px;
+  cursor: help;
 }
 
 canvas {

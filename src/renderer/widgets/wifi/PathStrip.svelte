@@ -9,7 +9,7 @@ import {
 import { untrack } from 'svelte'
 import { nextFrame } from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { drawRibbons, megabits, type Palette, readPalette } from './draw.ts'
+import { drawRibbons, megabits, type Palette, readPalette, sparkPath } from './draw.ts'
 
 /**
  * The way a packet goes - this machine, the radio, the access point's gateway,
@@ -20,6 +20,11 @@ import { drawRibbons, megabits, type Palette, readPalette } from './draw.ts'
  * answered, on to the internet when that did. A lost one does not run; its
  * wire breaks into dashes instead. Under it the ribbons keep the last minute of
  * echoes, one cell a second, so a burst of loss is seen as a burst.
+ *
+ * Each wire carries its segment's last minute as a sparkline - the signal on
+ * the radio's, the round trips on the gateway's and the internet's - so the
+ * room between the stations, wide when the pane is brought forward, says
+ * something rather than nothing.
  *
  * The packets step, a quarter of the wire a second, rather than glide: a
  * gliding one was a 0.7 s CSS animation per wire every second, which kept the
@@ -98,6 +103,28 @@ const stations = $derived<Station[]>([
   },
 ])
 
+/** Each wire's last minute: the values, and the range they are drawn in. */
+const SPARK_W = 100
+const SPARK_H = 20
+const sparks = $derived.by(() => {
+  const last = points.slice(-RIBBON_SECONDS)
+  const top = (values: (number | null | undefined)[], floor: number): number =>
+    Math.max(floor, ...values.filter((v): v is number => typeof v === 'number')) * 1.1
+  const gateway = last.map((p) => p.gateway)
+  const internet = last.map((p) => p.internet)
+  return {
+    radio: sparkPath(
+      last.map((p) => p.rssi),
+      -90,
+      -30,
+      SPARK_W,
+      SPARK_H,
+    ),
+    gateway: sparkPath(gateway, 0, top(gateway, 20), SPARK_W, SPARK_H),
+    internet: sparkPath(internet, 0, top(internet, 120), SPARK_W, SPARK_H),
+  }
+})
+
 /** Which segments carried this second's echo: machine to radio always, then as far as it got. */
 const runs = $derived({
   radio: latest !== null && latest.state === 'connected',
@@ -148,16 +175,26 @@ $effect(() => {
         <li
           class="wire"
           data-health={station.health}
+          data-hint="station-{segment}"
           class:lost={(segment === 'gateway' && runs.lostGateway) ||
             (segment === 'internet' && runs.lostInternet)}
           aria-hidden="true"
         >
+          <svg class="spark" viewBox="0 0 {SPARK_W} {SPARK_H}" preserveAspectRatio="none">
+            <path d={sparks[segment]} />
+          </svg>
           {#if runs[segment]}
             <span class="packet" style:--at={step / (STEPS - 1)}></span>
           {/if}
         </li>
       {/if}
-      <li class="station" data-health={station.health} data-testid="wifi-station" data-station={station.id}>
+      <li
+        class="station"
+        data-health={station.health}
+        data-testid="wifi-station"
+        data-station={station.id}
+        data-hint="station-{station.id}"
+      >
         <span class="node"><span class="name">{station.name}</span></span>
         <span class="main">{station.main}</span>
         <span class="sub">{station.sub}</span>
@@ -165,13 +202,20 @@ $effect(() => {
     {/each}
   </ol>
 
-  <p class="verdict" data-health={diagnosis.health} data-testid="wifi-verdict">
+  <p class="verdict" data-health={diagnosis.health} data-testid="wifi-verdict" data-hint="cause">
     <span class="tag">CAUSE ▸</span>
     <span class="cause">{CAUSE_LABELS[diagnosis.cause]}</span>
     <span class="evidence">{diagnosis.evidence}</span>
   </p>
+  <!-- What the figures above and the ribbons below are, so none has to be guessed. -->
+  <p class="legend" data-hint="legend" data-testid="wifi-legend">
+    <span><b>18 ms ±2</b> median ± jitter</span>
+    <span><b>loss</b> echoes lost</span>
+    <span class="tones"><i class="ok"></i>fine <i class="warn"></i>watch <i class="bad"></i>cause</span>
+    <span><b>▮</b> 1 s <b class="x">☒</b> lost</span>
+  </p>
 
-  <div class="ribbons">
+  <div class="ribbons" data-hint="ribbons">
     <canvas bind:this={canvas} aria-label="the last minute of echoes, one cell a second"></canvas>
   </div>
 </section>
@@ -249,24 +293,47 @@ $effect(() => {
   white-space: nowrap;
 }
 
-/* The line between two stations, at the plates' middle. */
+/* The strip between two stations: its line at the plates' middle, its sparkline over it. */
 .wire {
   --tone: var(--accent);
   position: relative;
-  height: 2px;
-  margin: calc(0.775rem - 1px) 0.25rem 0;
+  height: 1.55rem;
+  margin: 0 0.25rem;
   overflow: hidden;
+}
+
+.wire::before {
+  content: '';
+  position: absolute;
+  inset: calc(50% - 1px) 0 auto;
+  height: 2px;
   background: color-mix(in srgb, var(--tone) 55%, transparent);
 }
 
-.wire.lost {
+.wire.lost::before {
   background: repeating-linear-gradient(90deg, var(--danger) 0 4px, transparent 4px 7px);
+}
+
+.spark {
+  position: absolute;
+  inset: 0.1rem 0;
+  width: 100%;
+  height: calc(100% - 0.2rem);
+  opacity: 0.55;
+}
+
+.spark path {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
 
 /* This second's echo, a quarter further along its wire than the last one (see above). */
 .packet {
   position: absolute;
-  inset: 0;
+  inset: calc(50% - 1px) 0 auto;
+  height: 2px;
   transform: translateX(calc(var(--at) * (100% - 14px)));
 }
 
@@ -316,6 +383,47 @@ $effect(() => {
   font-family: var(--font-mono);
   font-size: var(--step--2);
   color: var(--text);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.9rem;
+  margin: -0.15rem 0 0;
+  padding-left: 0.6rem;
+  font-family: var(--font-mono);
+  font-size: var(--step--2);
+  color: var(--text-muted);
+}
+
+.legend b {
+  font-weight: 400;
+  color: var(--text);
+}
+
+.legend b.x {
+  color: var(--danger);
+}
+
+.tones i {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: 0 0.2rem 0 0.35rem;
+  vertical-align: -0.05rem;
+  background: var(--accent);
+}
+
+.tones i:first-child {
+  margin-left: 0;
+}
+
+.tones i.warn {
+  background: var(--warn);
+}
+
+.tones i.bad {
+  background: var(--danger);
 }
 
 .ribbons {

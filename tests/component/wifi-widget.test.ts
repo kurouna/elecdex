@@ -120,7 +120,7 @@ async function mount(state: Record<string, unknown> = {}) {
 /** `seconds` of a stub scenario, one sample a second. */
 async function play(
   push: (w: NetWifi, e?: NetWifiEvents) => Promise<void>,
-  kind: 'steady' | 'train',
+  kind: 'steady' | 'train' | 'dual',
   from: number,
   to: number,
 ): Promise<void> {
@@ -214,14 +214,70 @@ describe('WifiWidget', () => {
     expect(screen.getByTestId('wifi-notes').textContent).toContain('DFS')
   })
 
+  it('with two adapters, offers each as a chip and follows the one chosen, its own gateway too', async () => {
+    const patch = vi.spyOn(layout, 'patchPaneState')
+    const first = await mount()
+    await play(first.push, 'dual', 0, 12)
+    const chips = screen.getAllByTestId('wifi-adapter')
+    expect(chips.map((c) => c.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
+      'Wireless Adap… -55 dBm',
+      'USB Wireless … -63 dBm',
+    ])
+    expect(chips[0]?.getAttribute('aria-selected')).toBe('true')
+    await fireEvent.click(chips[1] as HTMLElement)
+    expect(patch).toHaveBeenLastCalledWith('w1', { link: 'stub-wlan1' })
+    first.view.unmount()
+
+    // Chosen, the second one is followed: its name, and its own gateway's 7 ms.
+    const second = await mount({ link: 'stub-wlan1' })
+    await play(second.push, 'dual', 12, 14)
+    expect(screen.getByTestId('wifi-ssid').textContent).toBe('ELECDEX-LAB-2G')
+    const gateway = screen
+      .getAllByTestId('wifi-station')
+      .find((s) => s.dataset.station === 'gateway')
+    expect(gateway?.textContent).toContain('7 ms')
+    expect(wifiHistory.points('stub-wlan1').length).toBeGreaterThan(10)
+  })
+
+  it('explains a figure the pointer rests on, with what it reads now', async () => {
+    const { push } = await mount()
+    await play(push, 'steady', 0, 12)
+    expect(screen.getByTestId('wifi-legend').textContent).toContain('median ± jitter')
+    const internet = screen
+      .getAllByTestId('wifi-station')
+      .find((s) => s.dataset.station === 'internet') as HTMLElement
+    await fireEvent.pointerOver(internet)
+    await settle()
+    // Not at once: a pointer passing over the pane opens nothing.
+    expect(screen.queryByTestId('wifi-hint')).toBeNull()
+    await vi.advanceTimersByTimeAsync(400)
+    await settle()
+    expect(screen.getByTestId('wifi-hint').dataset.key).toBe('station-internet')
+    expect(screen.getByTestId('wifi-hint-now').textContent).toContain('median 18 ms')
+    await fireEvent.pointerLeave(screen.getByTestId('wifi'))
+    await settle()
+    expect(screen.queryByTestId('wifi-hint')).toBeNull()
+  })
+
+  it('brought forward on a wide screen, goes to two columns with the day bar in the log', async () => {
+    size = { width: 1700, height: 1000 }
+    const { push } = await mount()
+    await play(push, 'train', 0, 3)
+    expect(document.querySelector('.upper.wide')).not.toBeNull()
+    expect(document.querySelector('.lower.stacked.wide')).not.toBeNull()
+    const stretches = screen.getAllByTestId('wifi-day-stretch').map((s) => s.dataset.state)
+    expect(stretches).toContain('down')
+    expect(stretches).toContain('up')
+  })
+
   it('keeps its history when the pane is remounted, as a move does', async () => {
     const first = await mount()
     await play(first.push, 'steady', 0, 5)
-    const kept = wifiHistory.points.length
+    const kept = wifiHistory.points('stub-wlan0').length
     first.view.unmount()
     await settle()
     const second = await mount()
     await play(second.push, 'steady', 5, 6)
-    expect(wifiHistory.points.length).toBe(kept + 1)
+    expect(wifiHistory.points('stub-wlan0').length).toBe(kept + 1)
   })
 })

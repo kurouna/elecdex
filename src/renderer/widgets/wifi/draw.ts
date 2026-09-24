@@ -210,6 +210,7 @@ export function drawTimeline(s: Surface, p: Palette, t: TimelineInput): void {
   const boxes = laneBoxes(s.height)
   for (const box of boxes) drawLaneFrame(s, p, box, plot)
   const column = plot.w / Math.max(1, t.buckets.length)
+  drawUnwatched(s, p, boxes, plot, t.buckets, column)
   for (const box of boxes) {
     switch (box.lane) {
       case 'signal':
@@ -233,6 +234,91 @@ export function drawTimeline(s: Surface, p: Palette, t: TimelineInput): void {
     }
   }
   if (t.hoverX !== null && t.hoverX >= plot.x) drawCrosshair(s, p, t.hoverX)
+}
+
+/** Runs of columns with no reading at all: time the pane was not on screen. */
+export function unwatchedRuns(buckets: readonly Bucket[]): { from: number; to: number }[] {
+  const runs: { from: number; to: number }[] = []
+  let start = -1
+  buckets.forEach((b, i) => {
+    if (b.count === 0 && start < 0) start = i
+    if (b.count > 0 && start >= 0) {
+      runs.push({ from: start, to: i })
+      start = -1
+    }
+  })
+  if (start >= 0) runs.push({ from: start, to: buckets.length })
+  return runs
+}
+
+/**
+ * Stretches the pane was not watching, hatched across the lanes and named when
+ * there is room: an empty stretch is otherwise read as a dead link, or a
+ * broken chart.
+ */
+function drawUnwatched(
+  s: Surface,
+  p: Palette,
+  boxes: readonly LaneBox[],
+  plot: Plot,
+  buckets: readonly Bucket[],
+  column: number,
+): void {
+  const { ctx } = s
+  const last = boxes[boxes.length - 1]
+  const bottom = last === undefined ? s.height : last.y + last.h
+  for (const run of unwatchedRuns(buckets)) {
+    const x0 = plot.x + run.from * column
+    const x1 = plot.x + run.to * column
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(x0, 0, x1 - x0, bottom)
+    ctx.clip()
+    ctx.strokeStyle = p.faint
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    for (let x = x0 - bottom; x < x1; x += 7) {
+      ctx.moveTo(x, bottom)
+      ctx.lineTo(x + bottom, 0)
+    }
+    ctx.stroke()
+    ctx.restore()
+    if (x1 - x0 >= 110) {
+      ctx.fillStyle = p.muted
+      ctx.font = `10px ${p.font}`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('NOT WATCHED', (x0 + x1) / 2, bottom / 2)
+      ctx.textAlign = 'left'
+    }
+  }
+}
+
+/**
+ * An SVG path for a sparkline across `width` by `height`, one step per value,
+ * low values at the bottom; broken where a value is missing (null or undefined).
+ */
+export function sparkPath(
+  values: readonly (number | null | undefined)[],
+  lo: number,
+  hi: number,
+  width: number,
+  height: number,
+): string {
+  const step = values.length > 1 ? width / (values.length - 1) : width
+  const span = hi - lo || 1
+  let d = ''
+  let drawing = false
+  values.forEach((v, i) => {
+    if (typeof v !== 'number') {
+      drawing = false
+      return
+    }
+    const y = height - ((Math.min(hi, Math.max(lo, v)) - lo) / span) * height
+    d += `${drawing ? 'L' : 'M'}${(i * step).toFixed(1)} ${y.toFixed(1)}`
+    drawing = true
+  })
+  return d
 }
 
 interface Plot {

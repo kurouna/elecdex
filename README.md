@@ -440,6 +440,12 @@ weather and calendar.
   timeline of 1 to 60 minutes with a crosshair, the drops the system logged in the last day with
   their reasons (Windows), changes of access point, and the frame counters. **MASK** hides the
   network's name and the addresses; **COPY** puts a report of the last minutes on the clipboard.
+  Every figure explains itself when the pointer rests on it - what it is, the limits it is judged
+  by, and what it reads now - and a legend under the verdict says how to read the rest. Brought
+  forward on a wide screen, the pane goes to two columns, with each segment's last minute drawn on
+  the wire between its stations and the last day of connections as a bar over the log. With more
+  than one wireless adapter, chips under the header choose the one followed, each with its own
+  gateway echo and its own history.
   Nothing that needs your location is read, so there is no BSSID and no scan of the networks
   around. The echoes run only while the pane is on screen.
 - **AI Agent** *(experimental)* — one card per running Claude Code session: its name and

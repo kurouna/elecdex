@@ -122,19 +122,22 @@ const rateTop = $derived(
 const rateShare = (mbps: number | null): number => (mbps === null ? 0 : Math.min(1, mbps / rateTop))
 const mbps = (v: number | null): string => (v === null ? '—' : `${Math.round(v)}`)
 
+/** Warnings about the link as it stands, each with the key of the card that explains it. */
 const notes = $derived(
   [
-    isDfs(link.channel, band) ? 'DFS channel: radar can move the access point' : null,
-    link.backgroundScan === true && link.streamingMode !== true
-      ? 'background scan on: brief stalls every minute or so'
+    isDfs(link.channel, band)
+      ? { key: 'dfs', text: 'DFS channel: radar can move the access point' }
       : null,
-    link.metered === true ? 'metered connection' : null,
-  ].filter((n): n is string => n !== null),
+    link.backgroundScan === true && link.streamingMode !== true
+      ? { key: 'bgscan', text: 'background scan on: brief stalls every minute or so' }
+      : null,
+    link.metered === true ? { key: 'metered', text: 'metered connection' } : null,
+  ].filter((n): n is { key: string; text: string } => n !== null),
 )
 </script>
 
 <section class="radio" class:wide data-testid="wifi-radio" data-tone={tone}>
-  <div class="gauge">
+  <div class="gauge" data-hint="gauge">
     <svg viewBox="0 0 120 108" role="img" aria-label="signal {link.rssi ?? 'unknown'} dBm, {grade}">
       {#each segments as d, i (i)}
         <path {d} class:on={i < lit} class="seg" />
@@ -153,7 +156,7 @@ const notes = $derived(
   </div>
 
   <div class="side">
-    <div class="map" bind:clientWidth={mapWidth}>
+    <div class="map" bind:clientWidth={mapWidth} data-hint="channel">
       <svg
         width={mapWidth}
         height={ROWS.length * ROW_H}
@@ -197,7 +200,7 @@ const notes = $derived(
       </p>
     </div>
 
-    <div class="std">
+    <div class="std" data-hint="standard">
       <svg viewBox="0 0 52 46" class="hex" aria-hidden="true">
         <polygon points="13,1 39,1 51,23 39,45 13,45 1,23" />
         <text x="26" y="29">{generation}</text>
@@ -217,7 +220,7 @@ const notes = $derived(
 
   {#if notes.length > 0}
     <ul class="notes" data-testid="wifi-notes">
-      {#each notes as note (note)}<li>{note}</li>{/each}
+      {#each notes as note (note.key)}<li data-hint={note.key}>{note.text}</li>{/each}
     </ul>
   {/if}
 </section>

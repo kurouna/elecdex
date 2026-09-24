@@ -122,7 +122,9 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     long-lived `ping` elsewhere); pinging is done in the collector, never in main.
   - `net.wifi` and `net.wifi.events` are private, and not kept while hidden: a pane nobody sees
     pings nothing, and its timeline keeps the gap. Its judgements are pure functions in
-    shared/wifi.ts; the page only wires them.
+    shared/wifi.ts; the page only wires them. Every figure marked `data-hint` has a card in
+    widgets/wifi/hints.ts that quotes `WIFI_LIMITS` rather than restating them (a unit test
+    checks both).
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or
@@ -464,7 +466,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   - `ELECDEX_SOCKETS_STUB=1` for a made-up socket table (`=demo` for screenshots), so no run
     depends on — or records — where this machine has been;
   - `ELECDEX_WIFI_STUB=1` for a made-up Wi-Fi link, echoes and log (`=train` for a trip with
-    tunnels and changes of car, `=demo` for screenshots), so no run reads the network or pings;
+    tunnels and changes of car, `=dual` for two adapters, `=demo` for screenshots), so no run
+    reads the network or pings;
   - `ELECDEX_AI_KEYS_STUB=1` for a reversible stand-in for `safeStorage`, so no run opens the
     Keychain or a keyring. AI providers are the user's own addresses, so a spec lists a local stub.
   - `ELECDEX_SEED_LAYOUTS=0`, so a new profile starts with no saved layouts rather than the
