@@ -1,5 +1,13 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { crc32, deflateSync } from 'node:zlib'
@@ -133,7 +141,11 @@ test('opens a double-clicked file with the command in settings, at its line', as
     await page.locator('[data-testid="diff-line"][data-kind="add"]').first().dblclick()
     await expect.poll(() => existsSync(out), { timeout: 10_000 }).toBe(true)
     const args = JSON.parse(readFileSync(out, 'utf8')) as string[]
-    expect(args).toEqual(['--goto', `${path.join(repo, 'app.ts')}:1`])
+    // Main hands over the file with every link resolved (GitService.locate), and a
+    // temp folder may not be written that way: a short 8.3 name on Windows, /var
+    // standing for /private/var on macOS.
+    const file = realpathSync.native(path.join(repo, 'app.ts'))
+    expect(args).toEqual(['--goto', `${file}:1`])
   } finally {
     await close()
     removeDir(repo)
