@@ -31,6 +31,7 @@ import TimerWidget from './timer/TimerWidget.svelte'
 import TodoWidget from './todo/TodoWidget.svelte'
 import WeatherWidget from './weather/WeatherWidget.svelte'
 import WebWidget from './web/WebWidget.svelte'
+import WifiWidget from './wifi/WifiWidget.svelte'
 
 /**
  * Registers the built-in widgets.
@@ -145,6 +146,21 @@ registerBuiltin({
   minSize: { w: 200, h: 120 },
   zoom: 'full',
   multiple: true,
+})
+
+registerBuiltin({
+  id: 'wifi',
+  title: 'wi-fi',
+  pickerTitle: 'Wi-Fi status',
+  description:
+    'Where a wireless connection is failing: signal, retries, echoes to the gateway and the internet, a timeline and the drops the system logged.',
+  component: WifiWidget,
+  metrics: sources('net.wifi', 'net.wifi.events'),
+  // Not kept while hidden, by the user's choice (2026-09-25): the pane pings every
+  // second while seen, and a pane nobody sees pings nothing. Its timeline shows the
+  // time away as a gap; the OS's log still has the drops.
+  minSize: { w: 300, h: 220 },
+  zoom: 'full',
 })
 
 registerBuiltin({

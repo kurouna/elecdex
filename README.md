@@ -66,7 +66,9 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 
 - **World view and connections** — a globe of where the machine's connections go, and a pane
   listing every TCP socket by the program holding it, both placed with a bundled GeoIP database;
-  nothing is looked up online. A wide shell beneath is there for ping and traceroute.
+  nothing is looked up online. The shells beneath the globe are there for ping and traceroute.
+- **Wi-Fi** — over the socket table, where the wireless link is failing, segment by segment
+  (see *Panes*).
 
 ### earth — overhead and underfoot
 
@@ -349,7 +351,7 @@ off like a tube and the new one comes up pane by pane, as at boot — and not at
 reduced.
 
 Six **presets** sit under the list, each drawn as a small map of its panes:
-**standard** (the default layout), **network** (the globe, connections and shells), **earth**
+**standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT), **media**
 (YouTube (TV) with the spectrum and mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
 the calculator, tasks and the calendar). Every one keeps the system column on the left, so a switch
@@ -426,6 +428,18 @@ weather and calendar.
   Nothing is ever looked up online. **MASK** hides the second half of every address, for a
   screenshot or a shared screen. A listening program says what it serves, told from
   its command line - `node` becomes `vite · my-app` - without the port being asked anything.
+- **Wi-Fi** — where a wireless connection is failing, for a call that stutters or a train's Wi-Fi
+  that keeps dropping. The path from this machine to the internet is measured a segment at a time
+  (the radio's signal and retries, an echo to the gateway and one to the internet every second,
+  and what the machine itself is sending) and the pane names the segment at fault with the figures
+  it rests on: RADIO, LOCAL LINK, UPSTREAM, UPSTREAM LOST (the access point answers, the way beyond
+  does not), OWN UPLOAD or SIGN-IN NEEDED, with an estimated call score (MOS). Below that are the
+  radio (signal gauge, the bands with its channel and the DFS range, standard and PHY rates), a
+  timeline of 1 to 60 minutes with a crosshair, the drops the system logged in the last day with
+  their reasons (Windows), changes of access point, and the frame counters. **MASK** hides the
+  network's name and the addresses; **COPY** puts a report of the last minutes on the clipboard.
+  Nothing that needs your location is read, so there is no BSSID and no scan of the networks
+  around. The echoes run only while the pane is on screen.
 - **AI Agent** *(experimental)* — one card per running Claude Code session: its name and
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
   in its view and written, and its answers. Below them, the subagents it started and the commands
@@ -861,6 +875,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | ELEC system | The same providers, as each seat names them | As for the AI chat, and only when you submit a motion (or open a model list): each unit is sent its standpoint, the voting instructions and the motion - in a second round, the other units' first statements too. Three requests a round, one or two rounds. Deliberations are files in `elec/` in the app's data folder. |
 | Web panes | The sites you open in a browser, YouTube or X pane | Loaded by a sandboxed browser view of the app, as a browser would, only while such a pane exists; elecdex itself sends nothing to them. Cookies and site data are kept in the app's data folder (`Partitions/web`) until *sign out of all sites*. YouTube and X are used under their own terms. |
 | Orbital elements | [CelesTrak](https://celestrak.org/) GP data (from the 18th and 19th Space Defense Squadrons via [Space-Track.org](https://www.space-track.org/)): `GROUP=stations` as OMM JSON, `GROUP=starlink` as TLE | Positions are computed on your computer; only elements are downloaded. Following CelesTrak's [usage policy](https://celestrak.org/usage-policy.php): only while an ORBIT pane shows the set, the stations at most twice a day and Starlink at most once a day (CelesTrak updates every two hours), kept on disk across restarts, an identifying User-Agent, and nothing more for a day after any answer but a 200. Credited in the pane. |
+| Wi-Fi pane | Your own gateway, and `1.1.1.1` (the host the network status pane already pings) | One echo to each a second, and only while a Wi-Fi pane is on screen; the internet's echo is the one the network status pane reads too, so the host is not asked twice. The rest - the signal, the channel, the connection log - is read from the operating system, never from a service. On Windows the network's name comes from the connection profile and nothing behind the location permission is read (no BSSID, no scan); on macOS the name stays hidden without Location Services, which elecdex never asks for. |
 | Update check | [GitHub Releases API](https://docs.github.com/rest/releases/releases#get-the-latest-release) | One request for the latest published release, 15 seconds after start and then daily, while enabled (the default). Nothing is downloaded or installed: a newer release shows a notice that opens its page. |
 
 ## Third-party assets

@@ -166,6 +166,7 @@ const WIDGETS = [
   'toplist',
   'netstat',
   'connections',
+  'wifi',
   'throughput',
   'filesystem',
   'weather',
@@ -293,6 +294,7 @@ const FOR_THE_EYE = [
   'cpu',
   'memory',
   'toplist',
+  'wifi',
 ]
 const FEED = 'http://127.0.0.1:9/feed.xml'
 
@@ -332,6 +334,7 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
     const now = await main()
     return (
       now.metrics.includes('proc.list') &&
+      now.metrics.includes('net.wifi') &&
       now.weather === 1 &&
       now.markets > 0 &&
       now.feeds.length === 1 &&

@@ -425,6 +425,7 @@ const app = await electron.launch({
     HOMEPATH: '\\Users\\Public\\Documents\\elecdex-demo',
     HOME,
     ELECDEX_CLAUDE_DIR: claude,
+    ELECDEX_WIFI_STUB: 'demo',
     // No tray icon or system-wide shortcut from a recording run.
     ELECDEX_BACKGROUND_STUB: '1',
   },

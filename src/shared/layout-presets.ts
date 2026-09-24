@@ -61,23 +61,19 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     build: defaultLayoutNode,
   },
   {
-    // The globe given three fifths of the stage, where it draws largest; the
-    // socket table beside it needs less (user decision 2026-09-24); a wide shell
-    // beneath for ping and traceroute. Status and traffic are in the system
-    // column already.
+    // The globe over the shells, two to one, in three fifths of the stage; beside
+    // them the Wi-Fi pane over the socket table, half and half (user decision
+    // 2026-09-25). Status and traffic are in the system column already.
     id: 'network',
     name: 'network',
-    description: 'who this machine talks to, and where in the world they are',
+    description: 'the wireless link, who this machine talks to, and where in the world they are',
     build: () =>
       withSystemColumn(
         [
-          split(
-            'column',
-            [split('row', [pane('globe'), pane('connections')], [0.6, 0.4]), shells(2)],
-            [0.66, 0.34],
-          ),
+          split('column', [pane('globe'), shells(2)], [2 / 3, 1 / 3]),
+          split('column', [pane('wifi'), pane('connections')], [0.5, 0.5]),
         ],
-        [1],
+        [0.6, 0.4],
       ),
   },
   {

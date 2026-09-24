@@ -10,8 +10,19 @@ import type {
   ProcessEntry,
   ProcessList,
 } from '@shared/metrics'
+import type { NetWifi, NetWifiEvents } from '@shared/wifi'
 import { type RawDrive, windowsDiskIo, windowsVolumes } from './disks.js'
 import { SAMPLER_KINDS, SamplerDemand, type SamplerKind } from './sampler-demand.js'
+import {
+  parseWifiLine,
+  probeStep,
+  type RawProbe,
+  type RawWlan,
+  type RawWlanEvent,
+  toNetWifi,
+  toWifiEvents,
+  WLAN_SCRIPT,
+} from './wifi/windows.js'
 
 /**
  * Frequent metrics on Windows, without spawning a process per reading.
@@ -107,6 +118,9 @@ export type SamplerLine =
   | { kind: 'swap'; data: RawSwap }
   | { kind: 'drives'; data: RawDrive[] }
   | { kind: 'dio'; data: { r: number; w: number; idle: number | null } }
+  | { kind: 'wlan'; data: RawWlan[] }
+  | { kind: 'probe'; data: RawProbe }
+  | { kind: 'wlanlog'; data: RawWlanEvent[] }
 
 // ---------------------------------------------------------------------------
 // Pure computations
@@ -369,7 +383,7 @@ export function parseSamplerLine(line: string): SamplerLine | null {
           }
         : null
     default:
-      return null
+      return parseWifiLine(t, data) ?? null
   }
 }
 
@@ -385,8 +399,8 @@ const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' 
 
 /**
  * The loop PowerShell runs, one tick per second:
- *   every tick       interface byte counters
- *   every 5 ticks    process table, interface addresses, TCP sockets, ping
+ *   every tick       interface byte counters; Wi-Fi and its echoes (wifi/windows.ts)
+ *   every 5 ticks    process table, interface addresses, TCP sockets, ping, the WLAN log
  *   every 2 ticks    disk read/write rates and busy time (performance counters)
  *   every 30 ticks   power status, page file (the only WMI read), drives
  *
@@ -547,10 +561,16 @@ public class ElecdexTcpTable {
 
 const script = (parentPid: number, pingHost: string): string => `
 $ErrorActionPreference = 'SilentlyContinue'
+# UTF-8 out, as the collector reads it. Left to the console's code page (Shift-JIS on a
+# Japanese Windows), a name or a reason in the system's language came out mangled, and a
+# trail byte of 0x5C - a backslash, the second byte of katakana SO - escaped the quote
+# after it, so the whole line failed to parse and the reading was lost.
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
 Add-Type -AssemblyName System.Windows.Forms
 $parent = ${parentPid}
 $tcpSource = @'${TCP_TABLE_SOURCE}'@
 $pinger = New-Object System.Net.NetworkInformation.Ping
+${WLAN_SCRIPT}
 $tick = 0
 $tcpMode = 'unset'
 $diskRead = $null
@@ -685,11 +705,7 @@ while ($true) {
 
   if (Due 'tcp' 5) { EmitTcp }
 
-  if (Due 'ping' 5) {
-    $ms = $null
-    try { $r = $pinger.Send('${pingHost}', 1000); if ($r.Status -eq 'Success') { $ms = $r.RoundtripTime } } catch {}
-    Emit 'ping' @{ ms = $ms }
-  }
+${probeStep(pingHost)}
 
   if (Due 'power' 30) {
     $ps = [System.Windows.Forms.SystemInformation]::PowerStatus
@@ -740,7 +756,9 @@ while ($true) {
 
   try { [Console]::Out.Flush() } catch { exit 0 }
   $tick++
-  Start-Sleep -Milliseconds 1000
+  # To the next whole second, so readings land on the wall clock's seconds as the
+  # pages' own timelines do, however long this tick's echoes waited.
+  Start-Sleep -Milliseconds ([Math]::Max(20, 1000 - [DateTime]::Now.Millisecond))
 }`
 
 /** Stop the sampler when nothing has read from it for this long. */
@@ -788,6 +806,11 @@ export class WindowsSampler {
   private swap: RawSwap | null = null
   private drives: RawDrive[] | null = null
   private dio: { r: number; w: number; idle: number | null } | null = null
+  private wlanPrevious: Reading<RawWlan> | null = null
+  private wlanCurrent: Reading<RawWlan> | null = null
+  private probe: (RawProbe & { at: number }) | null = null
+  /** The WLAN log's records by record id, gathered from the first read of the day on. */
+  private wlanLog: Map<number, RawWlanEvent> | null = null
   private readonly demand = new SamplerDemand()
   /** Readings received, by kind: what the sampler actually did, for the tests to hold it to. */
   readonly readings = new Map<string, number>()
@@ -867,6 +890,25 @@ export class WindowsSampler {
   async diskIo(): Promise<DiskIo> {
     await this.until(['dio'], () => this.dio !== null)
     return windowsDiskIo(this.dio ?? { r: 0, w: 0, idle: null })
+  }
+
+  /**
+   * The Wi-Fi interfaces and the last round of echoes. The echo round is the
+   * same one `netPing` reads the internet's round trip from.
+   */
+  async wifi(): Promise<NetWifi> {
+    await this.until(['wlan', 'probe'], () => this.wlanCurrent !== null && this.probe !== null)
+    return toNetWifi(
+      this.wlanPrevious,
+      this.wlanCurrent as Reading<RawWlan>,
+      this.probe,
+      this.pingHost,
+    )
+  }
+
+  async wifiEvents(): Promise<NetWifiEvents> {
+    await this.until(['wlanlog'], () => this.wlanLog !== null)
+    return { events: toWifiEvents(this.wlanLog?.values() ?? [], Date.now()) }
   }
 
   stop(): void {
@@ -949,6 +991,15 @@ export class WindowsSampler {
         break
       case 'dio':
         this.dio = null
+        break
+      case 'wlan':
+        this.wlanPrevious = this.wlanCurrent = null
+        break
+      case 'probe':
+        this.probe = null
+        break
+      case 'wlanlog':
+        this.wlanLog = null
         break
     }
   }
@@ -1056,6 +1107,22 @@ export class WindowsSampler {
       case 'dio':
         this.dio = parsed.data
         break
+      case 'wlan':
+        this.wlanPrevious = this.wlanCurrent
+        this.wlanCurrent = { at, data: parsed.data }
+        break
+      case 'probe':
+        this.probe = { ...parsed.data, at }
+        break
+      case 'wlanlog': {
+        const log = this.wlanLog ?? new Map<number, RawWlanEvent>()
+        for (const record of parsed.data) log.set(record.rid, record)
+        // A day's worth at most: the script sends only newer records after the first read.
+        const cutoff = at - 86_400_000
+        for (const [rid, record] of log) if (record.at < cutoff) log.delete(rid)
+        this.wlanLog = log
+        break
+      }
     }
     for (const waiter of [...this.waiters]) waiter()
   }

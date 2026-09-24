@@ -55,7 +55,7 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 src/main/        main process: window, ipc/ (handlers), store/ (json files), pty/, fs/, weather/,
                  markets/, feeds/, quakes/, ai/, launcher/, audio/, plugins/, web/, background/,
                  reminders/, updates/, metrics/ (the broker between the collector and pages)
-src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/)
+src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas (schemas/), channel names and pure logic used by both sides;
                  calc/ (vendor/ is elecxzy's evaluator, the wrapper beside it is ours)
@@ -112,6 +112,17 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   service. It is the one reading a plugin can never be granted, so a new metric source goes into
   `PLUGIN_METRIC_SOURCE_IDS` or `PRIVATE_METRIC_SOURCE_IDS` deliberately (a unit test checks every
   source is in one of them).
+- **The Wi-Fi pane reads nothing behind the location consent** (architecture.md §5.12,
+  shared/wifi.ts, src/services/metrics/wifi/). No BSSID, no scan of the networks around, on any
+  platform (user decision 2026-09-25): on Windows never WlanGetNetworkBssList,
+  WlanGetAvailableNetworkList, WlanScan or WlanQueryInterface opcode 7 - the name comes from the
+  WinRT connection profile - and a unit test holds the script to it; on macOS never CoreWLAN.
+  The event log names the access point too: only the fields named leave the script.
+  - One echo round serves both the network status pane and this one (the sampler's `probe`, or a
+    long-lived `ping` elsewhere); pinging is done in the collector, never in main.
+  - `net.wifi` and `net.wifi.events` are private, and not kept while hidden: a pane nobody sees
+    pings nothing, and its timeline keeps the gap. Its judgements are pure functions in
+    shared/wifi.ts; the page only wires them.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or
@@ -452,6 +463,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
     sign-in entry, so no run touches the taskbar, keys or startup;
   - `ELECDEX_SOCKETS_STUB=1` for a made-up socket table (`=demo` for screenshots), so no run
     depends on — or records — where this machine has been;
+  - `ELECDEX_WIFI_STUB=1` for a made-up Wi-Fi link, echoes and log (`=train` for a trip with
+    tunnels and changes of car, `=demo` for screenshots), so no run reads the network or pings;
   - `ELECDEX_AI_KEYS_STUB=1` for a reversible stand-in for `safeStorage`, so no run opens the
     Keychain or a keyring. AI providers are the user's own addresses, so a spec lists a local stub.
   - `ELECDEX_SEED_LAYOUTS=0`, so a new profile starts with no saved layouts rather than the
@@ -490,6 +503,7 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   come from the built app itself (scripts/preset-shots.mjs), never written out in the script.
   What would show someone else's pages or this machine is made up: the web panes show stand-in
   pages (never YouTube's or X's own), the feed, the socket table (`ELECDEX_SOCKETS_STUB=demo`),
+  the Wi-Fi link (`ELECDEX_WIFI_STUB=demo`),
   the sound (`ELECDEX_AUDIO_STUB=demo`), notes and tasks, a Claude Code folder and a demo
   repository by a made-up author. Web panes are native views the page's screenshot cannot see,
   so the script lays main's pictures of them over it. Name shots to take only those. Regenerate

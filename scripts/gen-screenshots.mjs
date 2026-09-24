@@ -333,6 +333,8 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
       USERPROFILE: HOME,
       HOMEPATH: '\\Users\\Public\\Documents\\elecdex-demo',
       HOME,
+      // A made-up Wi-Fi link in every shot: never this machine's network or addresses.
+      ELECDEX_WIFI_STUB: 'demo',
       ...env,
     },
   })

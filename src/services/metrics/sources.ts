@@ -31,6 +31,7 @@ import { parseBsdNetstat, parseProcNetTcp, publicRemotes } from './net-connectio
 import { parseWindowsVersion } from './os-version.js'
 import type { SourceDefinition } from './scheduler.js'
 import { readSockets } from './sockets/index.js'
+import { readWifi, readWifiEvents, sharedInternetPing } from './wifi/index.js'
 import { WindowsSampler } from './windows-sampler.js'
 
 /**
@@ -248,6 +249,9 @@ async function netThroughput(): Promise<NetThroughput> {
 
 async function netPing(): Promise<NetPing> {
   if (windowsSampler) return windowsSampler.netPing()
+  // While the Wi-Fi pane pings the same host every second, its echo is this one's too.
+  const shared = sharedInternetPing(PING_HOST)
+  if (shared !== undefined) return { host: PING_HOST, ms: shared }
   const ms = await si.inetLatency(PING_HOST)
   return { host: PING_HOST, ms: typeof ms === 'number' && ms >= 0 ? ms : null }
 }
@@ -309,6 +313,13 @@ async function diskIo(): Promise<DiskIo> {
   return { readSec: null, writeSec: null, busy: null }
 }
 
+/**
+ * The Wi-Fi pane's link and echoes, every second, and the OS's log of
+ * connections every five (wifi/index.ts). Read only while the pane is seen.
+ */
+const netWifi = () => readWifi(windowsSampler, PING_HOST)
+const netWifiEvents = () => readWifiEvents(windowsSampler)
+
 export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'cpu.info': { once: true, collect: cpuInfo },
   'cpu.load': { intervalMs: 1000, collect: cpuLoad },
@@ -327,6 +338,8 @@ export const SOURCES: Record<MetricSourceId, SourceDefinition> = {
   'net.ping': { intervalMs: 5000, collect: netPing },
   'net.connections': { intervalMs: 5000, collect: netConnections },
   'net.sockets': { intervalMs: byPlatform(5000, 3000), collect: netSockets },
+  'net.wifi': { intervalMs: 1000, collect: netWifi },
+  'net.wifi.events': { intervalMs: 5000, collect: netWifiEvents },
   'disk.volumes': { intervalMs: 30_000, collect: diskVolumes },
   'disk.io': { intervalMs: 2000, collect: diskIo },
 }

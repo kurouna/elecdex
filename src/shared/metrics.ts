@@ -1,3 +1,5 @@
+import type { NetWifi, NetWifiEvents } from './wifi.js'
+
 /**
  * Metric sources: the contract between the collector, the broker and widgets.
  *
@@ -265,6 +267,8 @@ export interface MetricSamples {
   'net.ping': NetPing
   'net.connections': NetConnections
   'net.sockets': NetSockets
+  'net.wifi': NetWifi
+  'net.wifi.events': NetWifiEvents
   'disk.volumes': DiskVolumes
   'disk.io': DiskIo
 }
@@ -288,6 +292,8 @@ export const METRIC_SOURCE_IDS = [
   'net.ping',
   'net.connections',
   'net.sockets',
+  'net.wifi',
+  'net.wifi.events',
   'disk.volumes',
   'disk.io',
 ] as const satisfies readonly MetricSourceId[]
@@ -295,6 +301,10 @@ export const METRIC_SOURCE_IDS = [
 /** Readings that are never a plugin's to ask for, whatever its descriptor says. */
 export const PRIVATE_METRIC_SOURCE_IDS = [
   'net.sockets',
+  // The network's name, its addresses and a day of connection events: where the
+  // machine has been, as much as the socket table is (user decision 2026-09-25).
+  'net.wifi',
+  'net.wifi.events',
 ] as const satisfies readonly MetricSourceId[]
 
 /**

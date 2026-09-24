@@ -22,6 +22,9 @@ export const SAMPLER_KINDS = [
   'power',
   'swap',
   'drives',
+  'wlan',
+  'probe',
+  'wlanlog',
 ] as const
 export type SamplerKind = (typeof SAMPLER_KINDS)[number]
 
@@ -40,6 +43,9 @@ export const WANTED_FOR_MS: Record<SamplerKind, number> = {
   power: 75_000,
   swap: 75_000,
   drives: 75_000,
+  wlan: 15_000,
+  probe: 15_000,
+  wlanlog: 30_000,
 }
 
 export class SamplerDemand {
