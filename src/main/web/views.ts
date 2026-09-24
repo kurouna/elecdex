@@ -556,7 +556,12 @@ export class WebViews {
     })
     // A press in the page focuses its pane. The focus event alone is not enough: a
     // WebContentsView does not always report it (seen on Windows, Electron 44).
-    const focused = (): void => send(entry.owner, 'focused', entry.paneId)
+    // Only a view in sight says so: a page behind another tab, or put away under a
+    // dialog, may take the focus as it loads, and focusing its pane brought its tab
+    // to the front over the one the user had chosen (seen with X behind the feeds).
+    const focused = (): void => {
+      if (entry.view.getVisible()) send(entry.owner, 'focused', entry.paneId)
+    }
     contents.on('focus', focused)
     contents.on('input-event', (_event, input) => {
       if (input.type === 'mouseDown' || input.type === 'touchStart') focused()

@@ -983,3 +983,51 @@ test.describe('web panes', () => {
     }
   })
 })
+
+test('a page behind another tab that takes focus does not bring its tab forward', async () => {
+  // Found taking the README's media shot: the X page behind the feeds took focus as it
+  // loaded, and its pane came to the front. Only a page in sight can be pressed, so
+  // only a page in sight may say it was.
+  const launched = await start({
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'row',
+        sizes: [0.3, 0.7],
+        children: [
+          { kind: 'pane', id: 'clock', widget: 'clock' },
+          {
+            kind: 'tabs',
+            id: 'tabs',
+            activeIndex: 0,
+            children: [
+              { kind: 'pane', id: 'calc', widget: 'calc' },
+              { kind: 'pane', id: 'web', widget: 'web.x' },
+            ],
+          },
+        ],
+      },
+    },
+  })
+  const { app, page, close } = launched
+  try {
+    const shown = page.locator('[data-testid=pane][data-widget=calc]')
+    await expect(shown).toBeVisible()
+    // The view behind is made, and its page loaded, before it grabs the focus.
+    await expect
+      .poll(async () => (await views(launched)).some((v) => v.title === 'X home'))
+      .toBe(true)
+    await app.evaluate(({ BrowserWindow, WebContentsView }) => {
+      for (const view of BrowserWindow.getAllWindows()[0]?.contentView.children ?? []) {
+        if (view instanceof WebContentsView) view.webContents.focus()
+      }
+    })
+    await page.waitForTimeout(800)
+    await expect(shown).toBeVisible()
+    await expect(page.locator('[data-testid=pane][data-widget="web.x"]')).toBeHidden()
+  } finally {
+    await close()
+  }
+})

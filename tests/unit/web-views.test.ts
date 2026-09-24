@@ -541,7 +541,7 @@ describe('WebViews', () => {
     }
   })
 
-  it('takes app shortcuts from the page and leaves every other key to it', () => {
+  it('takes app shortcuts from the page and leaves every other key to it, and says when a page in sight is focused', () => {
     views.open(asOwner(owner), 'p', 'a', preset('x'), null)
     const contents = view().webContents
     const press = (input: Record<string, unknown>) => {
@@ -565,6 +565,14 @@ describe('WebViews', () => {
     expect(press({ code: 'KeyA', control: true, shift: true })).toHaveBeenCalled()
     expect(owner.sent).toContainEqual(['web:shortcut', 'pane.add'])
 
+    // Out of sight - not yet placed, or behind another tab - its focus is not the user's:
+    // a page taking it as it loads brought a background tab to the front.
+    owner.sent.length = 0
+    contents.emit('focus')
+    contents.emit('input-event', {}, { type: 'mouseDown' })
+    expect(owner.sent).toEqual([])
+
+    views.show(asOwner(owner), 'p', 'a', RECT)
     contents.emit('focus')
     expect(owner.sent).toContainEqual(['web:focused', 'p'])
     owner.sent.length = 0
