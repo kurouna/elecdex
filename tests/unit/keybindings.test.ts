@@ -161,6 +161,16 @@ describe('the preset keys', () => {
     action.id.startsWith('layout.preset.'),
   )
 
+  it('has as many Ctrl+Shift+F keys as there are presets', () => {
+    // The guard for a preset added later: without a key of its own, this count
+    // falls one short of the presets, whatever else the new preset gets right.
+    const functionKeys = KEYBINDING_ACTIONS.filter((action) =>
+      /^Ctrl\+Shift\+F\d+$/.test(action.chord),
+    )
+    expect(functionKeys).toHaveLength(LAYOUT_PRESETS.length)
+    expect(presetActions).toHaveLength(LAYOUT_PRESETS.length)
+  })
+
   it('has one action per preset, named by its id, and no more', () => {
     // A preset without a key would be the one the dialog cannot name a key for;
     // an action without a preset would be a key that goes nowhere.

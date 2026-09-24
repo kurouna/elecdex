@@ -61,9 +61,10 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
     build: defaultLayoutNode,
   },
   {
-    // The globe near square, where it draws largest; the socket table beside it;
-    // a wide shell beneath for ping and traceroute. Status and traffic are in
-    // the system column already.
+    // The globe given three fifths of the stage, where it draws largest; the
+    // socket table beside it needs less (user decision 2026-09-24); a wide shell
+    // beneath for ping and traceroute. Status and traffic are in the system
+    // column already.
     id: 'network',
     name: 'network',
     description: 'who this machine talks to, and where in the world they are',
@@ -72,7 +73,7 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
         [
           split(
             'column',
-            [split('row', [pane('globe'), pane('connections')], [0.45, 0.55]), shells(2)],
+            [split('row', [pane('globe'), pane('connections')], [0.6, 0.4]), shells(2)],
             [0.66, 0.34],
           ),
         ],
