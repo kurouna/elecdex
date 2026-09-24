@@ -1,7 +1,9 @@
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { CH } from '@shared/channels'
 import { defaultLayout, fallbackNode, upgradeDefaultHeights } from '@shared/default-layout'
 import { normalizeTree } from '@shared/layout-ops'
+import { seededLayouts, withPresetLayout, withPresetRestored } from '@shared/layout-presets'
 import {
   cleanLayoutName,
   moveSavedLayout,
@@ -25,8 +27,14 @@ import { JsonStore } from '../store/json-store.js'
  * be possible to wedge the UI with one.
  */
 export function registerLayoutIpc(): { dispose: () => void } {
+  const layoutFile = path.join(app.getPath('userData'), 'layout.json')
+  const savedFile = path.join(app.getPath('userData'), 'layouts.json')
+  // Asked before either store reads or writes anything: a first start is one with
+  // neither file, and the answer decides what the saved layouts begin with.
+  const firstStart = !existsSync(layoutFile) && !existsSync(savedFile)
+
   const store = new JsonStore<LayoutTree>({
-    file: path.join(app.getPath('userData'), 'layout.json'),
+    file: layoutFile,
     schema: LayoutTreeSchema,
     makeDefault: defaultLayout,
   })
@@ -36,10 +44,17 @@ export function registerLayoutIpc(): { dispose: () => void } {
    * exactly what it did: the one live arrangement, editable by hand.
    */
   const saved = new JsonStore<SavedLayoutsFile>({
-    file: path.join(app.getPath('userData'), 'layouts.json'),
+    file: savedFile,
     schema: SavedLayoutsFileSchema,
     makeDefault: () => ({ version: 1, items: [], active: null }),
   })
+
+  if (firstStart && seedPresets()) {
+    // The presets on the number keys from the first minute, and the workspace -
+    // the default arrangement, which is the first of them - belonging to it.
+    const items = seededLayouts(newLayoutId)
+    keep({ version: 1, items, active: items[0]?.id ?? null })
+  }
 
   const readSaved = (): SavedLayoutsFile => saved.read()
 
@@ -158,6 +173,26 @@ export function registerLayoutIpc(): { dispose: () => void } {
 
   ipcMain.handle(CH.layout.savedFile, () => saved.path)
 
+  ipcMain.handle(CH.layout.savedAddPreset, (_event, rawPreset: unknown) => {
+    const current = readSaved()
+    const added = withPresetLayout(current.items, rawPreset, newLayoutId(current.items))
+    if (added === null) return { list: summarize(current.items, current.active), id: null }
+    // Written only when it is new: one already made from the preset is simply found.
+    if (added.items.length !== current.items.length) saved.write({ ...current, items: added.items })
+    return { list: summarize(added.items, current.active), id: added.id }
+  })
+
+  ipcMain.handle(CH.layout.savedRestorePreset, (_event, rawId: unknown) => {
+    const current = readSaved()
+    const items = withPresetRestored(current.items, rawId)
+    if (items === null) return summarize(current.items, current.active)
+    // Putting back the layout being worked in changes the workspace too, which the
+    // page does by applying it next - after it has flushed its own saves, so none
+    // still travelling is written back over what was just restored.
+    saved.write({ ...current, items })
+    return summarize(items, current.active)
+  })
+
   ipcMain.handle(CH.layout.savedRename, (_event, rawId: unknown, rawName: unknown) => {
     const current = readSaved()
     const name = cleanLayoutName(rawName)
@@ -201,8 +236,19 @@ export function registerLayoutIpc(): { dispose: () => void } {
       ipcMain.removeHandler(CH.layout.savedRename)
       ipcMain.removeHandler(CH.layout.savedMove)
       ipcMain.removeHandler(CH.layout.savedFile)
+      ipcMain.removeHandler(CH.layout.savedAddPreset)
+      ipcMain.removeHandler(CH.layout.savedRestorePreset)
     },
   }
+}
+
+/**
+ * Whether a first start is given the presets. The end-to-end tests turn it off
+ * (tests/e2e/support.ts), since nearly all of them begin from a new profile and
+ * are about something else; the spec for presets turns it back on.
+ */
+function seedPresets(): boolean {
+  return process.env.ELECDEX_SEED_LAYOUTS !== '0'
 }
 
 /**

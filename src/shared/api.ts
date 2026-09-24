@@ -246,6 +246,14 @@ export interface SavedLayoutsApi {
   move(id: string, delta: number): Promise<SavedLayoutSummary[]>
   /** Absolute path of layouts.json, which is the file to copy to another machine. */
   filePath(): Promise<string>
+  /**
+   * Makes a preset one of the saved layouts, or finds the one already made from
+   * it, and answers with the list and that layout's id - null when the preset is
+   * unknown or the list is full. Applying it is a separate step, `apply`.
+   */
+  addPreset(presetId: string): Promise<{ list: SavedLayoutSummary[]; id: string | null }>
+  /** Puts a layout made from a preset back to that preset. Unchanged for any other. */
+  restorePreset(id: string): Promise<SavedLayoutSummary[]>
 }
 
 export interface SettingsApi {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { layoutShape, type ShapeRect } from './layout-shape.js'
 import type { LayoutNode, LayoutTree, PaneNode } from './schemas/layout.js'
 import { LayoutTreeSchema } from './schemas/layout.js'
 
@@ -37,6 +38,15 @@ export const SavedLayoutSchema = z.object({
   id: z.string().regex(/^[a-z0-9]{4,32}$/),
   name: z.string().min(1).max(40),
   tree: LayoutTreeSchema,
+  /**
+   * The preset it was made from (shared/layout-presets.ts), which is what lets it
+   * be put back to it. Kept as a plain id rather than checked against this
+   * build's presets: a file from a newer build is carried, not pruned.
+   */
+  preset: z
+    .string()
+    .regex(/^[a-z0-9-]{1,32}$/)
+    .optional(),
 })
 export type SavedLayout = z.infer<typeof SavedLayoutSchema>
 
@@ -77,12 +87,23 @@ export interface SavedLayoutSummary {
   name: string
   /** The one being worked in: what the workspace is written back into. */
   active: boolean
+  /** The preset it was made from, or null for one the user saved. */
+  preset: string | null
+  /** Its arrangement as rectangles, for the dialog's thumbnail. */
+  shape: ShapeRect[]
 }
 
 export const summarize = (
   items: readonly SavedLayout[],
   activeId: string | null,
-): SavedLayoutSummary[] => items.map(({ id, name }) => ({ id, name, active: id === activeId }))
+): SavedLayoutSummary[] =>
+  items.map(({ id, name, tree, preset }) => ({
+    id,
+    name,
+    active: id === activeId,
+    preset: preset ?? null,
+    shape: layoutShape(tree),
+  }))
 
 /**
  * Pane state that means nothing anywhere but this machine, in this run.
@@ -142,7 +163,12 @@ export function withSavedLayout(
   entry: SavedLayout,
 ): SavedLayout[] | null {
   const at = items.findIndex((item) => item.name === entry.name)
-  if (at >= 0) return items.map((item, i) => (i === at ? { ...entry, id: item.id } : item))
+  // Updating one made from a preset keeps it that preset's: it is the same layout.
+  const kept = (item: SavedLayout): SavedLayout =>
+    item.preset === undefined
+      ? { ...entry, id: item.id }
+      : { ...entry, id: item.id, preset: item.preset }
+  if (at >= 0) return items.map((item, i) => (i === at ? kept(item) : item))
   if (items.length >= MAX_SAVED_LAYOUTS) return null
   return [...items, entry]
 }

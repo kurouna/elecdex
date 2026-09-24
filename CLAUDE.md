@@ -366,6 +366,13 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   shared/layouts.ts, keybindings.ts and Workspace.svelte together (a unit test checks they match).
   Switching asks first while shells are open (`layout.confirmSwitch`); that question is a promise
   the switch awaits, so anything that takes the screen from it must answer it.
+  - **Presets** (shared/layout-presets.ts, §5.6) are templates, never a second kind of layout:
+    choosing one adds a saved layout carrying `preset` and goes there, and it then follows the
+    work like any other. Every preset keeps the default layout's system column, at its width and
+    heights (a unit test holds it, and every pane to its `minSize`). Only a first start (neither
+    layout.json nor layouts.json) is given them; an existing list is never added to (user
+    decision 2026-09-24). The decisions are pure functions there and in layout-shape.ts, and only
+    layout/presets.ts knows presets in the page: the layout store does not.
 - **Shortcuts** are data (src/shared/keybindings.ts): add an action there with its default chord
   and handle it in Workspace.svelte; never hard-code a key check elsewhere. A chord must include
   Ctrl/Alt or be a function key, so the shell keeps every other key. An action with
@@ -445,6 +452,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
     depends on — or records — where this machine has been;
   - `ELECDEX_AI_KEYS_STUB=1` for a reversible stand-in for `safeStorage`, so no run opens the
     Keychain or a keyring. AI providers are the user's own addresses, so a spec lists a local stub.
+  - `ELECDEX_SEED_LAYOUTS=0`, so a new profile starts with no saved layouts rather than the
+    presets a real first start is given (layout-presets.spec.ts turns it back on).
   A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`
   (`api.example.test=127.0.0.1:port`), which keeps the grant checks as they are. Keep it that way.
 - **Every bug found gets a test.** When a problem turns up (from a user, a review, a flaky run),

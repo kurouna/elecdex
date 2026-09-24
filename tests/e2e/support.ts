@@ -206,6 +206,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       // A reversible stand-in for the system's encryption: never the Keychain or a
       // keyring, and never the prompt either may show (src/main/ai/keys.ts).
       ELECDEX_AI_KEYS_STUB: '1',
+      // A new profile starts with no saved layouts, as every spec but the presets' own
+      // expects; a real first start is given the presets (shared/layout-presets.ts).
+      ELECDEX_SEED_LAYOUTS: '0',
       ...options.env,
     },
   })

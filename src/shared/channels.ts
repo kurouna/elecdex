@@ -45,6 +45,9 @@ export const CH = {
     savedRename: 'layout:saved-rename',
     savedMove: 'layout:saved-move',
     savedFile: 'layout:saved-file',
+    /** Presets (shared/layout-presets.ts): made into a saved layout, or one put back. */
+    savedAddPreset: 'layout:saved-add-preset',
+    savedRestorePreset: 'layout:saved-restore-preset',
   },
   metrics: {
     /** renderer -> main, fire and forget: start receiving a source. */

@@ -843,12 +843,20 @@ class LayoutStore {
     // A switch still playing is not a reason to refuse: pressing 1 then 2 must
     // end at 2, and `replaceTree` hands the screen to whichever came last.
     if (entry === undefined || entry.active) return false
-    const shells = this.panes.filter((node) => node.widget === 'terminal').length
-    if (shells > 0 && appearance.settings.layout.confirmSwitch) {
-      const go = await ui.askLayoutSwitch({ name: entry.name, shells })
-      if (!go) return false
-    }
+    if (!(await this.mayReplace(entry.name))) return false
     return this.applySaved(id)
+  }
+
+  /**
+   * Whether the workspace may be replaced by the layout of that name: asked
+   * while shells are open, which the replacement would end, and settings have
+   * not turned the question off. Also the question a preset asks before it is
+   * added (layout/presets.ts), so both ways in say the same thing.
+   */
+  async mayReplace(name: string): Promise<boolean> {
+    const shells = this.panes.filter((node) => node.widget === 'terminal').length
+    if (shells === 0 || !appearance.settings.layout.confirmSwitch) return true
+    return ui.askLayoutSwitch({ name, shells })
   }
 
   async removeSaved(id: string): Promise<void> {

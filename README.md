@@ -87,7 +87,8 @@ for Windows, macOS and Linux.
   the permissions you grant it ([Plugins](#plugins)).
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
-  returned to later (Ctrl+Shift+G, or *layouts* in the status bar).
+  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of six
+  presets - standard, network, earth, dev, media and desk (*unreleased*).
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
   icons for an ordinary working day. A CRT power-on boot sequence after a Linux-style boot log of
@@ -324,6 +325,16 @@ closing those panes would; while shells are open you are asked first, and the qu
 way to stop asking (*Settings → General → Layouts*). The old arrangement powers
 off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
 reduced.
+
+Six **presets** sit under the list, each drawn as a small map of its panes (*unreleased*):
+**standard** (the default layout), **network** (the globe, connections and shells), **earth**
+(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT), **media**
+(YouTube (TV) with the spectrum and mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
+the calculator, tasks and the calendar). Every one keeps the system column on the left, so a switch
+changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
+from it and goes there - from then on it is one of your layouts, following your work - and choosing
+it again goes back to that layout rather than adding another; ↺ puts it back to the preset. A new
+install starts with all six on Ctrl+Shift+1 to 6; an existing list is never added to.
 
 They are kept in one file that holds nothing belonging to this machine: **copy `layouts.json` to
 another computer and your arrangements come with you.** The dialog's *layouts.json* button shows it

@@ -1,11 +1,22 @@
 <script lang="ts">
+import {
+  LAYOUT_PRESETS,
+  presetBadge,
+  presetById,
+  presetCards,
+  presetTree,
+} from '@shared/layout-presets'
+import { layoutShape } from '@shared/layout-shape'
 import { cleanLayoutName, KEYED_LAYOUTS, MAX_SAVED_LAYOUTS } from '@shared/layouts'
 import { tick } from 'svelte'
 import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
+import { appearance } from '../stores/appearance.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
+import LayoutThumb from './LayoutThumb.svelte'
+import { goToPreset, restorePreset } from './presets.ts'
 
 /**
  * Saved layouts: the arrangements the user works in, kept by name.
@@ -19,8 +30,21 @@ import { ui } from '../stores/ui.svelte.ts'
  * A layout's place in the list is the number key that applies it, which is why
  * the rows can be moved rather than only added and removed.
  *
+ * Below the list is the shelf of presets (shared/layout-presets.ts). Choosing
+ * one goes to the layout made from it, or makes one and goes there; a layout
+ * made from a preset can be put back to it (↺). Whatever is chosen blinks, as a
+ * launcher tile does, before the dialog powers off and the switch begins.
+ *
  *   ↑ ↓      choose        Enter    apply      Esc   close
+ *   Tab      to the presets, ← → along them, ↑ back to the list
  */
+
+/** How long a choice blinks before the dialog goes: three beats of the launcher's blink. */
+const CHOSEN_MS = 300
+/** The presets' shapes, worked out once: they are the same every time the dialog opens. */
+const PRESET_SHAPES = new Map(
+  LAYOUT_PRESETS.map((preset) => [preset.id, layoutShape(presetTree(preset))]),
+)
 
 let name = $state('')
 let input = $state<HTMLInputElement | null>(null)
@@ -32,8 +56,14 @@ let renaming = $state<{ id: string; draft: string } | null>(null)
 let renameBox = $state<HTMLInputElement | null>(null)
 /** The rows' apply buttons, by place, so the keyboard can be put on one. */
 const rows: (HTMLButtonElement | null)[] = $state([])
+/** The presets' cards, by place, for the arrow keys along the shelf. */
+const cards: (HTMLButtonElement | null)[] = $state([])
+/** What was chosen and is blinking - `saved:<id>` or `preset:<id>` - before it is carried out. */
+let chosen = $state<string | null>(null)
+let chosenTimer: ReturnType<typeof setTimeout> | null = null
 
 const saved = $derived(layout.savedLayouts)
+const shelf = $derived(presetCards(saved))
 const cleaned = $derived(cleanLayoutName(name))
 /** Saving over a name already kept updates it, which the button should say. */
 const replacing = $derived(saved.some((entry) => entry.name === cleaned))
@@ -45,8 +75,13 @@ $effect(() => {
   selected = 0
   full = false
   renaming = null
+  chosen = null
   void openOnActive()
   return () => {
+    // A choice still blinking when the dialog was closed some other way is let go.
+    if (chosenTimer !== null) clearTimeout(chosenTimer)
+    chosenTimer = null
+    chosen = null
     returnFocus?.focus()
     returnFocus = null
   }
@@ -86,12 +121,37 @@ async function keep(): Promise<void> {
   sfx.play('theme')
 }
 
-async function apply(id: string): Promise<void> {
-  // Let go of the focus first: the pane it points at is about to be replaced.
-  returnFocus = null
-  close()
+/**
+ * Marks what was chosen and carries it out once it has blinked - at once with
+ * motion reduced. One choice at a time: a second press while the first blinks
+ * is not a second switch.
+ */
+function choose(key: string, act: () => Promise<unknown>): void {
+  if (chosen !== null) return
+  const run = (): void => {
+    chosen = null
+    chosenTimer = null
+    // Let go of the focus first: the pane it points at is about to be replaced.
+    returnFocus = null
+    close()
+    void act()
+  }
+  if (appearance.reducedMotion) {
+    run()
+    return
+  }
+  chosen = key
+  sfx.play('folder')
+  chosenTimer = setTimeout(run, CHOSEN_MS)
+}
+
+function apply(id: string): void {
   // Through the store, so the question about the shells is asked here too.
-  await layout.switchTo(id)
+  choose(`saved:${id}`, () => layout.switchTo(id))
+}
+
+function applyPreset(id: string): void {
+  choose(`preset:${id}`, () => goToPreset(id))
 }
 
 function startRename(entry: { id: string; name: string }): void {
@@ -129,8 +189,21 @@ function onKeydown(event: KeyboardEvent): void {
     else close()
     return
   }
+  // A choice blinking is already on its way; nothing else is taken meanwhile.
+  if (chosen !== null) {
+    if (event.key === 'Enter' || event.key.startsWith('Arrow')) take()
+    return
+  }
   // A rename has the keyboard to itself while it is open.
-  if (renaming !== null || saved.length === 0) return
+  if (renaming !== null) return
+  const onCard = cards.indexOf(document.activeElement as HTMLButtonElement)
+  if (onCard >= 0) onShelfKey(event, onCard, take)
+  else onListKey(event, take)
+}
+
+/** The list's keys: ↑ ↓ to choose, Enter to apply (or, in the name box, to save). */
+function onListKey(event: KeyboardEvent, take: () => void): void {
+  if (saved.length === 0) return
   const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
   if (step !== 0) {
     take()
@@ -147,6 +220,27 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
+/** The shelf's keys: ← → along the cards, ↑ back to the list, Enter to choose. */
+function onShelfKey(event: KeyboardEvent, at: number, take: () => void): void {
+  const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+  if (step !== 0) {
+    take()
+    cards[(at + step + cards.length) % cards.length]?.focus()
+    sfx.play('folder')
+    return
+  }
+  if (event.key === 'ArrowUp') {
+    take()
+    ;(rows[selected] ?? input)?.focus()
+    return
+  }
+  if (event.key === 'Enter') {
+    take()
+    const card = shelf[at]
+    if (card !== undefined) applyPreset(card.id)
+  }
+}
+
 /**
  * Enter: in the name box it keeps the arrangement, and anywhere else it applies
  * the layout the arrow keys are on.
@@ -157,7 +251,7 @@ function enter(): void {
     return
   }
   const entry = saved[selected]
-  if (entry !== undefined) void apply(entry.id)
+  if (entry !== undefined) apply(entry.id)
 }
 
 function revealFile(): void {
@@ -188,7 +282,7 @@ function revealFile(): void {
     >
       <header class="hud-label">
         <span>layouts</span>
-        <span>↑↓ choose · enter apply · esc close</span>
+        <span>↑↓ choose · tab presets · enter apply · esc close</span>
       </header>
       <div class="shell-frame body">
         <div class="keep">
@@ -246,13 +340,16 @@ function revealFile(): void {
                   role="option"
                   class="go"
                   class:selected={i === selected}
+                  class:chosen={chosen === `saved:${entry.id}`}
                   aria-selected={i === selected}
                   onpointermove={() => (selected = i)}
-                  onclick={() => void apply(entry.id)}
+                  onclick={() => apply(entry.id)}
                   data-testid="layouts-item"
                   data-name={entry.name}
                   data-active={entry.active}
+                  data-chosen={chosen === `saved:${entry.id}`}
                 >
+                  <LayoutThumb shape={entry.shape} />
                   <span class="title">{entry.name}</span>
                   <span class="state">{entry.active ? 'in this one' : 'apply'}</span>
                 </button>
@@ -288,6 +385,20 @@ function revealFile(): void {
                 >
                   ↓
                 </button>
+                {#if presetById(entry.preset) !== null}
+                  <ConfirmButton
+                    label="↺"
+                    action="restore"
+                    title={entry.active
+                      ? 'Put this layout, and the workspace, back to its preset'
+                      : 'Put this layout back to its preset'}
+                    testid="layouts-restore"
+                    onconfirm={() => void restorePreset(entry.id)}
+                  />
+                {:else}
+                  <!-- Holds the column, so the remove buttons line up down the list. -->
+                  <span class="restore-room"></span>
+                {/if}
                 <ConfirmButton
                   label="×"
                   action="remove"
@@ -299,10 +410,41 @@ function revealFile(): void {
             </li>
           {:else}
             <li class="empty">
-              nothing saved yet — arrange the workspace, name it above and save it
+              nothing saved yet — arrange the workspace, name it above and save it, or start
+              from a preset below
             </li>
           {/each}
         </ul>
+
+        <section class="presets" aria-label="Presets">
+          <div class="shelf-head">
+            <span>presets</span>
+            <span>a preset becomes one of your layouts, and follows your work from then on</span>
+          </div>
+          <div class="shelf">
+            {#each shelf as card, i (card.id)}
+              <button
+                bind:this={cards[i]}
+                type="button"
+                class="card"
+                class:kept={card.savedId !== null}
+                class:chosen={chosen === `preset:${card.id}`}
+                title={card.description}
+                onclick={() => applyPreset(card.id)}
+                data-testid="layouts-preset"
+                data-preset={card.id}
+                data-kept={card.savedId !== null}
+                data-chosen={chosen === `preset:${card.id}`}
+              >
+                <LayoutThumb shape={PRESET_SHAPES.get(card.id) ?? []} width={96} />
+                <span class="card-line">
+                  <span class="title">{card.name}</span>
+                  <span class="badge" data-testid="layouts-preset-badge">{presetBadge(card)}</span>
+                </span>
+              </button>
+            {/each}
+          </div>
+        </section>
 
         <footer>
           <span>
@@ -340,8 +482,8 @@ function revealFile(): void {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  width: min(38rem, 90vw);
-  max-height: min(30rem, 80vh);
+  width: min(46rem, 92vw);
+  max-height: min(42rem, 90vh);
   background: var(--app-bg);
 }
 
@@ -439,7 +581,7 @@ function revealFile(): void {
 .go {
   flex: 1;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
   padding: 0.35rem var(--space-2);
@@ -452,9 +594,94 @@ function revealFile(): void {
   cursor: pointer;
 }
 
+.go .title {
+  flex: 1;
+}
+
 .go.selected {
   border-color: var(--panel-border);
   background: var(--surface-2);
+}
+
+/* The launcher's blink (widgets/launcher): the choice flashes in the accent a
+   few times before it is carried out, so the eye follows it into the switch. */
+.go.chosen,
+.card.chosen {
+  animation: layouts-chosen 100ms linear 3;
+}
+
+@keyframes layouts-chosen {
+  50% {
+    background: var(--accent);
+    color: var(--text-inverse);
+  }
+}
+
+.restore-room {
+  flex: none;
+  width: 1.7rem;
+}
+
+.presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--panel-border);
+}
+
+.shelf-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+}
+
+.shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.6rem, 1fr));
+  gap: var(--space-2);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  cursor: pointer;
+}
+
+.card:hover,
+.card:focus-visible {
+  background: var(--accent-faint);
+  outline: none;
+}
+
+.card-line {
+  display: flex;
+  align-self: stretch;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+
+.badge {
+  color: var(--text-muted);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+}
+
+.card:not(.kept) .badge {
+  color: var(--accent-strong);
 }
 
 .go[data-active='true'] .title {

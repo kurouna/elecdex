@@ -670,6 +670,13 @@ const api: ElecdexApi = {
       move: (id, delta) =>
         ipcRenderer.invoke(CH.layout.savedMove, id, delta) as Promise<SavedLayoutSummary[]>,
       filePath: () => ipcRenderer.invoke(CH.layout.savedFile) as Promise<string>,
+      addPreset: (presetId) =>
+        ipcRenderer.invoke(CH.layout.savedAddPreset, presetId) as Promise<{
+          list: SavedLayoutSummary[]
+          id: string | null
+        }>,
+      restorePreset: (id) =>
+        ipcRenderer.invoke(CH.layout.savedRestorePreset, id) as Promise<SavedLayoutSummary[]>,
     },
   },
 }

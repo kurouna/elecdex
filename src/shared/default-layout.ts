@@ -21,20 +21,7 @@ export function defaultLayoutNode(): LayoutNode {
   return split(
     'row',
     [
-      split(
-        'column',
-        [
-          pane('clock'),
-          pane('sysinfo'),
-          pane('cpu'),
-          pane('memory'),
-          pane('disk'),
-          pane('toplist'),
-          pane('netstat'),
-          pane('throughput'),
-        ],
-        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
-      ),
+      systemColumn(),
       split(
         'column',
         [
@@ -49,7 +36,23 @@ export function defaultLayoutNode(): LayoutNode {
         [0.3, 0.25, 0.22, 0.23],
       ),
     ],
-    [0.18, 0.64, 0.18],
+    [SYSTEM_COLUMN_WIDTH, 0.64, 0.18],
+  )
+}
+
+/** The share of the width the system column has, here and in every preset (layout-presets.ts). */
+export const SYSTEM_COLUMN_WIDTH = 0.18
+
+/**
+ * The left column, "this machine": the default layout's, and every preset's, so
+ * that switching between them changes the stage and leaves the instruments where
+ * the eye expects them.
+ */
+export function systemColumn(): LayoutNode {
+  return split(
+    'column',
+    LEFT_COLUMN.map((widget) => pane(widget)),
+    [...LEFT_COLUMN_SIZES],
   )
 }
 
@@ -63,7 +66,7 @@ export function fallbackNode(): LayoutNode {
 }
 
 /** The left column's widgets, top to bottom, as the default layout has them. */
-const LEFT_COLUMN = [
+export const LEFT_COLUMN: readonly string[] = [
   'clock',
   'sysinfo',
   'cpu',
@@ -73,6 +76,9 @@ const LEFT_COLUMN = [
   'netstat',
   'throughput',
 ]
+
+/** Their heights, the same fractions the upgrade below brings older layouts to. */
+const LEFT_COLUMN_SIZES: readonly number[] = [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165]
 
 /**
  * Left-column heights earlier versions shipped, each with the heights that replace
