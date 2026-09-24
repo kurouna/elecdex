@@ -278,3 +278,129 @@
 .hud-dashed {
   border-top: var(--rule-width) dashed var(--panel-rule);
 }
+
+/* ------------------------------------------------------------------------
+ * Zoom frame (layout/ZoomFrame.svelte): round a pane brought to the front.
+ * The shell frame's vocabulary a size up - its notched corners, its masked
+ * border - with brackets on the two square corners and a rail of ticks at the
+ * middle of the long edges. Outside the pane's box and behind it: the pane is
+ * pinned at the size the zoom gave it (layout/pane-zoom.ts), and a frame inside
+ * would take that room from the widget.
+ * ---------------------------------------------------------------------- */
+.zoom-frame {
+  --zoom-gap: 0.7rem;
+  --notch: calc(var(--frame-notch) * 1.8);
+  /* Brighter than a shell's 50% edge: this is the pane being looked at. */
+  --zoom-edge: color-mix(in srgb, var(--accent) 75%, transparent);
+  position: absolute;
+  inset: calc(-1 * var(--zoom-gap));
+  /* Behind the pane's own content, inside the pinned element's stacking context. */
+  z-index: -1;
+  pointer-events: none;
+  /* The gap is ground too: over the shade, a see-through rim would show the panes behind. */
+  background: var(--app-bg);
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--notch)) 0,
+    100% var(--notch),
+    100% 100%,
+    var(--notch) 100%,
+    0 calc(100% - var(--notch))
+  );
+}
+
+.zoom-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--zoom-edge);
+  clip-path: inherit;
+  padding: calc(var(--frame-border) * 1.5);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.zoom-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to top right,
+      transparent calc(50% - var(--frame-border)),
+      var(--zoom-edge) calc(50% - var(--frame-border)) 50%,
+      transparent 50%
+    )
+    top right / var(--notch) var(--notch) no-repeat,
+    linear-gradient(
+      to top right,
+      transparent 50%,
+      var(--zoom-edge) 50% calc(50% + var(--frame-border)),
+      transparent calc(50% + var(--frame-border))
+    )
+    bottom left / var(--notch) var(--notch) no-repeat;
+}
+
+/* The square corners, marked as a sight marks its target. */
+.zoom-bracket {
+  position: absolute;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 0 solid var(--accent);
+}
+
+.zoom-bracket.tl {
+  top: 0;
+  left: 0;
+  border-top-width: 2px;
+  border-left-width: 2px;
+}
+
+.zoom-bracket.br {
+  right: 0;
+  bottom: 0;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+}
+
+/* Five ticks standing on the middle of the top and bottom edges. */
+.zoom-rail {
+  position: absolute;
+  left: 50%;
+  width: 4.5rem;
+  height: 0.35rem;
+  transform: translateX(-50%);
+  background: repeating-linear-gradient(
+    to right,
+    var(--accent) 0 2px,
+    transparent 2px calc((100% - 2px) / 4)
+  );
+}
+
+.zoom-rail.top {
+  top: 0;
+}
+
+.zoom-rail.bottom {
+  bottom: 0;
+}
+
+/* How it goes back, on the bottom edge, short of the notch. */
+.zoom-hint {
+  position: absolute;
+  right: 2.4rem;
+  bottom: 0;
+  padding: 0 0.35rem;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  line-height: var(--zoom-gap);
+  letter-spacing: var(--tracking-wider);
+  color: var(--text-muted);
+  background: var(--app-bg);
+}

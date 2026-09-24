@@ -331,7 +331,9 @@ A pane you want a better look at can be brought forward: **Ctrl+Shift+Z**, the �
 own × closes just that tab), and it covers most of the window over the other panes, which keep
 their place behind a shade. Panes that gain nothing from the room are left out of it: the system
 strip and the network status have no ⤢ at all, and the calculator, timer, mixer, disk and process
-list come forward as a panel in the middle rather than over the whole window. Escape, the shortcut again, the button or a click on the shade puts it
+list come forward as a panel in the middle rather than over the whole window. It is framed while
+it is forward - the shell's notched border a size up, with corner brackets - just outside its own
+edges, so it keeps all the room it was given. Escape, the shortcut again, the button or a click on the shade puts it
 back. A tab comes forward with its group, so its other tabs are still there to switch to. Nothing
 is rearranged and nothing is saved: a shell keeps its session and a web pane its page, and the app
 starts with every pane in its place.

@@ -79,6 +79,38 @@ test('a pane brought forward covers the workspace, and the panes behind it keep 
   }
 })
 
+test('a pane and a tab group forward are framed round the outside, and the frame goes with them', async () => {
+  const { page, close } = await launch()
+  try {
+    await expect(page.getByTestId('zoom-frame')).toHaveCount(0)
+    await zoomClock(page)
+    const frame = pane(page, 'clock').getByTestId('zoom-frame')
+    await expect(frame).toHaveCount(1)
+    await expect(frame).toContainText('ESC')
+    // Outside the pane's box, all round: the widget keeps the room the zoom gave it.
+    const clock = await boxOf(page, '[data-testid=pane][data-widget=clock]')
+    const around = await frame.boundingBox()
+    if (around === null) throw new Error('the frame has no box')
+    expect(around.x).toBeLessThan(clock.x)
+    expect(around.y).toBeLessThan(clock.y)
+    expect(around.x + around.width).toBeGreaterThan(clock.x + clock.width)
+    expect(around.y + around.height).toBeGreaterThan(clock.y + clock.height)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('zoom-frame')).toHaveCount(0)
+
+    const group = page.getByTestId('tabs-host').first()
+    await group.hover()
+    await group.getByTestId('group-zoom').click()
+    await zoomSettled(page)
+    await expect(group.getByTestId('zoom-frame')).toHaveCount(1)
+    await expect(page.getByTestId('zoom-frame')).toHaveCount(1)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('zoom-frame')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
 test('it is at its full size from the first frame, and flies there rather than growing', async () => {
   const { page, close } = await launch()
   try {

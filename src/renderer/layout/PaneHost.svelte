@@ -14,6 +14,7 @@ import PaneCorner from './PaneCorner.svelte'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
+import ZoomFrame from './ZoomFrame.svelte'
 
 interface Props {
   node: PaneNode
@@ -181,6 +182,7 @@ $effect(() => () => paneMeta.clear(node.id))
     if (e.target === e.currentTarget && e.animationName === 'crt-power-on') poweringOn = false
   }}
 >
+  {#if pinned}<ZoomFrame />{/if}
   {#if chrome !== 'bare'}
     <!-- A tabbed pane's corner is its group's (TabsHost); every other pane has its own. -->
     <PaneCorner

@@ -8,6 +8,7 @@ import PaneHost from './PaneHost.svelte'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
+import ZoomFrame from './ZoomFrame.svelte'
 
 interface Props {
   node: TabsNode
@@ -85,6 +86,7 @@ const activeTitle = $derived(
   data-node-id={node.id}
   data-drop-node={node.id}
 >
+  {#if pinned}<ZoomFrame />{/if}
   <!-- The same corner every pane has: ⤢ brings the group forward, × closes all of it. -->
   <PaneCorner
     title={activeTitle}
