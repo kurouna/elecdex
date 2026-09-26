@@ -7,7 +7,7 @@ import {
   clipSize,
   clipTags,
 } from '@shared/clipboard'
-import type { CardAnchor, CardSize } from '../../lib/hover-card.ts'
+import { type CardAnchor, type CardSize, cardTime } from '../../lib/hover-card.ts'
 import HoverCard from '../common/HoverCard.svelte'
 
 /**
@@ -28,13 +28,7 @@ interface Props {
 
 const { entry, current, now, anchor, bounds }: Props = $props()
 
-const time = (at: number): string =>
-  new Date(at).toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+const time = cardTime
 /** The page has the beginning of a long entry only; the card says how much more there is. */
 const cut = $derived(entry.chars > CLIP_PREVIEW_CHARS)
 </script>

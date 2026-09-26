@@ -87,7 +87,23 @@ test('follows a session as it works, and shows what it changed in a file', async
       timeout: 10_000,
     })
 
+    // A rest on the session: what its row has no room for.
+    await card.locator('.head').hover()
+    const detail = page.getByTestId('agent-detail')
+    await expect(detail).toHaveAttribute('data-kind', 'session')
+    await expect(page.getByTestId('agent-detail-sub')).toHaveText(path.join(dir, 'work'))
+    await expect(detail).toContainText(ID)
+    await expect(detail).toContainText('tokens')
+    await page.mouse.move(2, 2)
+    await expect(detail).toHaveCount(0)
+
     await card.locator('.head').click()
+    // A changed file's card gives its full path; the row gives it from the session's folder.
+    await page.getByTestId('agent-file').hover()
+    await expect(detail).toHaveAttribute('data-kind', 'file')
+    await expect(page.getByTestId('agent-detail-title')).toHaveText(
+      path.join(dir, 'work', 'orbit.ts'),
+    )
     await page.getByTestId('agent-file').click()
     await expect(page.getByTestId('agent-diff')).toContainText('export const CSS = 48274')
     await expect(page.locator('[data-testid="agent-diff"] [data-kind="add"]')).toHaveCount(1)

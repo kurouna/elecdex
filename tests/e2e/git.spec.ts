@@ -72,6 +72,19 @@ test('follows a repository through an edit, staging and a commit', async () => {
     const row = page.locator('[data-testid="git-file"][data-path="app.ts"]')
     await expect(row).toHaveAttribute('data-area', 'unstaged', { timeout: 10_000 })
     await expect(page.getByTestId('diff-view')).toContainText('hello, world')
+
+    // A rest on the row: its full path on this machine, not the name the row already shows.
+    await row.hover()
+    const cardPath = page.getByTestId('git-file-card-path')
+    await expect(cardPath).toHaveText(/app\.ts$/)
+    const full = (await cardPath.textContent()) ?? ''
+    expect(path.isAbsolute(full)).toBe(true)
+    expect(full.endsWith(`${path.basename(repo)}${path.sep}app.ts`)).toBe(true)
+    await expect(page.getByTestId('git-file-card')).toContainText(
+      'modified · in the working tree, not staged',
+    )
+    await page.mouse.move(2, 2)
+    await expect(page.getByTestId('git-file-card')).toHaveCount(0)
     await expect(page.locator('[data-testid="diff-line"][data-kind="del"]')).toHaveCount(1)
 
     git(repo, 'add', 'app.ts')

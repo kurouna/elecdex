@@ -452,12 +452,14 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   on xterm's minimum contrast, so check a colour change in both Business themes. Every theme sets
   every variable (`themeVariables`), so switching never leaves one stale.
 - **Detail cards** (architecture.md §7.4): the whole of something shown while the pointer rests on
-  it - a commit, a clipboard entry, a Wi-Fi figure, a satellite - is drawn by
+  it - a commit or a changed file, an agent's session, a clipboard entry, a Wi-Fi figure, a
+  satellite - is drawn by
   `widgets/common/HoverCard.svelte` and placed and timed by `lib/hover-card.ts` (`cardPlacement`,
   `anchorOf`, `HoverRest`), never by a card of a widget's own. It keeps inside its pane, opens
   after a rest (at once for the keyboard or when moving on from an open card), and powers on and
-  off like a dialog. A plain `title` tooltip is not a card. A unit test lists the cards: add a new
-  one there.
+  off like a dialog. It says what the row has no room for - never the row again: the exact
+  figure, the full path, the word for the letter. A plain `title` tooltip is not a card. A unit
+  test lists the cards: add a new one there.
 - **Type sizes by role** (architecture.md §7): what people read - a list's rows, a state word, a
   figure, a time, an error - is `--step--1` or larger; `--step--2` is for legends, credits, labels
   and chrome, and nothing goes below it. Name only the steps tokens.css defines: an unknown one

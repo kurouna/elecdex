@@ -4,6 +4,7 @@ import { compactCount } from '@shared/ai'
 import type { GitDiff } from '@shared/git'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
@@ -11,6 +12,8 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import DiffView from '../common/DiffView.svelte'
 import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
+import AgentCard, { type AgentDetail } from './AgentCard.svelte'
+import { span } from './cards.ts'
 
 /**
  * AGENT (experimental): the coding agents at work on this machine - one card
@@ -123,13 +126,6 @@ $effect(() => {
   })
 })
 
-/** A length of time in minutes, then hours. */
-const span = (ms: number): string => {
-  const minutes = Math.max(0, Math.floor(ms / 60_000))
-  return minutes < 60
-    ? `${minutes}m`
-    : `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}`
-}
 const since = (at: number): string => span(now - at)
 
 const STATUS_LABEL: Record<AgentSession['status'], string> = {
@@ -154,12 +150,74 @@ const lasted = (task: AgentTask): string => span((task.endedAt ?? now) - task.st
 const running = (session: AgentSession): number =>
   session.tasks.filter((task) => task.state === 'running').length
 
+/**
+ * The detail card: a session (its head), a task or a changed file, while the
+ * pointer rests on it or the keyboard is on it. It names what it shows by ids,
+ * so it follows the board as it changes, and goes when that thing goes.
+ */
+type Pointed =
+  | { kind: 'session'; session: string }
+  | { kind: 'task'; session: string; task: string }
+  | { kind: 'file'; session: string; file: string }
+let rootEl = $state<HTMLElement | null>(null)
+let hover = $state.raw<{ pointed: Pointed; anchor: CardAnchor; bounds: CardSize } | null>(null)
+const resting = new HoverRest<string>(() => (hover = null))
+
+const keyOf = (pointed: Pointed): string =>
+  pointed.kind === 'session'
+    ? `s:${pointed.session}`
+    : pointed.kind === 'task'
+      ? `t:${pointed.session}:${pointed.task}`
+      : `f:${pointed.session}:${pointed.file}`
+
+function point(pointed: Pointed, event: PointerEvent | FocusEvent): void {
+  const target = event.currentTarget as HTMLElement
+  const x = 'clientX' in event ? event.clientX : null
+  // The keyboard's focus opens it at once; the focus a click leaves behind opens nothing.
+  if (x === null && !target.matches(':focus-visible')) return
+  resting.enter(
+    keyOf(pointed),
+    () => {
+      if (rootEl === null) return
+      const box = rootEl.getBoundingClientRect()
+      hover = {
+        pointed,
+        anchor: anchorOf(box, target.getBoundingClientRect(), x),
+        bounds: { width: box.width, height: box.height },
+      }
+    },
+    x === null,
+  )
+}
+
+const unpoint = (pointed: Pointed): void => resting.leave(keyOf(pointed))
+
+const detail = $derived.by((): AgentDetail | null => {
+  if (hover === null || board === null) return null
+  const pointed = hover.pointed
+  const session = board.sessions.find((s) => s.id === pointed.session)
+  if (session === undefined) return null
+  if (pointed.kind === 'session') return { kind: 'session', session }
+  if (pointed.kind === 'task') {
+    const task = session.tasks.find((t) => t.id === pointed.task)
+    return task === undefined ? null : { kind: 'task', session, task }
+  }
+  const file = session.files.find((f) => f.key === pointed.file)
+  return file === undefined ? null : { kind: 'file', session, file }
+})
+
+// Put away, the card goes with the rest of what the pane does for the eye.
+$effect(() => {
+  if (!visible) resting.leave()
+})
+$effect(() => () => resting.dispose())
+
 function toggle(session: AgentSession): void {
   setState(open === session.id ? { open: null, file: null } : { open: session.id, file: null })
 }
 </script>
 
-<div class="agents" data-testid="agents" data-pane-id={paneId}>
+<div class="agents" data-testid="agents" data-pane-id={paneId} bind:this={rootEl}>
   {#if board === null}
     <p class="note">reading…</p>
   {:else if board.sessions.length === 0}
@@ -185,18 +243,27 @@ function toggle(session: AgentSession): void {
       style:--list-width="{listWidth * 100}%"
       style:--list-rows="minmax(0, {listHeight}fr) minmax(0, {1 - listHeight}fr)"
     >
-    <div class="list">
+    <div class="list" onscroll={() => resting.leave()}>
       {#each board.sessions as session (session.id)}
         {@const isOpen = session.id === open}
         <section class="card" class:open={isOpen} data-status={session.status} data-testid="agent-card">
-          <button type="button" class="head" onclick={() => toggle(session)} aria-expanded={isOpen}>
+          <button
+            type="button"
+            class="head"
+            onclick={() => toggle(session)}
+            aria-expanded={isOpen}
+            onpointerenter={(event) => point({ kind: 'session', session: session.id }, event)}
+            onpointerleave={() => unpoint({ kind: 'session', session: session.id })}
+            onfocus={(event) => point({ kind: 'session', session: session.id }, event)}
+            onblur={() => unpoint({ kind: 'session', session: session.id })}
+          >
             <span
               class="lamp"
               class:blink={session.status === 'busy' && pulse.phase === 2}
               aria-hidden="true"
             ></span>
             <span class="status" data-testid="agent-status">{STATUS_LABEL[session.status]}</span>
-            <span class="title" title={session.cwd}>{session.title}</span>
+            <span class="title">{session.title}</span>
             <span class="project">{session.project}</span>
             {#if running(session) > 0}
               <span class="running" data-testid="agent-running">{running(session)} RUNNING</span>
@@ -223,12 +290,17 @@ function toggle(session: AgentSession): void {
           {#if session.tasks.length > 0}
             <ul class="tasks" data-testid="agent-tasks">
               {#each session.tasks as task (task.id)}
-                <li class="task" data-state={task.state} data-testid="agent-task">
+                <li
+                  class="task"
+                  data-state={task.state}
+                  data-testid="agent-task"
+                  onpointerenter={(event) =>
+                    point({ kind: 'task', session: session.id, task: task.id }, event)}
+                  onpointerleave={() => unpoint({ kind: 'task', session: session.id, task: task.id })}
+                >
                   <span class="kind">{task.kind === 'agent' ? 'AGENT' : 'SHELL'}</span>
                   <span class="task-state" data-testid="agent-task-state">{TASK_LABEL[task.state]}</span>
-                  <span class="task-title" title={task.type ? `${task.type}: ${task.title}` : task.title}
-                    >{task.title}</span
-                  >
+                  <span class="task-title">{task.title}</span>
                   <span class="task-when">{lasted(task)}</span>
                   {#if task.state === 'running' && task.activity}
                     <span class="step" data-testid="agent-task-step"
@@ -256,7 +328,11 @@ function toggle(session: AgentSession): void {
                   class="file"
                   class:on={file.key === fileKey}
                   data-testid="agent-file"
-                  title={file.path}
+                  onpointerenter={(event) =>
+                    point({ kind: 'file', session: session.id, file: file.key }, event)}
+                  onpointerleave={() => unpoint({ kind: 'file', session: session.id, file: file.key })}
+                  onfocus={(event) => point({ kind: 'file', session: session.id, file: file.key }, event)}
+                  onblur={() => unpoint({ kind: 'file', session: session.id, file: file.key })}
                   onclick={() => setState({ file: file.key === fileKey ? null : file.key })}
                   ><span class="mark" class:created={file.created}>{file.created ? 'A' : 'M'}</span
                   >{#if file.subagent}<span class="by" title="Changed by a subagent">SUB</span
@@ -308,6 +384,9 @@ function toggle(session: AgentSession): void {
     {/if}
     </div>
   {/if}
+  {#if detail !== null && hover !== null}
+    <AgentCard {detail} {now} anchor={hover.anchor} bounds={hover.bounds} />
+  {/if}
   <p class="credit">
     EXPERIMENTAL · read from the agents' own records on this machine, whose format is not
     documented and may change with their versions. Nothing is sent anywhere.
@@ -316,6 +395,7 @@ function toggle(session: AgentSession): void {
 
 <style>
 .agents {
+  position: relative;
   container-type: inline-size;
   display: flex;
   flex-direction: column;

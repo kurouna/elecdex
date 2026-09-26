@@ -1,7 +1,9 @@
 <script lang="ts">
 import type { GitArea, GitFile } from '@shared/git'
 import { flip } from 'svelte/animate'
+import { HoverRest } from '../../lib/hover-card.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
+import { repoFilePath } from './file-card.ts'
 import { foldOut, landIn } from './motion.ts'
 
 /**
@@ -26,6 +28,8 @@ interface Props {
   onselect: (file: GitFile) => void
   onopen: (file: GitFile) => void
   onreveal: (file: GitFile) => void
+  /** A row came under the pointer (with where it is) or the keyboard, for its card; null when none is. */
+  onhover: (hover: { file: GitFile; row: DOMRect; x: number | null } | null) => void
 }
 
 const {
@@ -39,6 +43,7 @@ const {
   onselect,
   onopen,
   onreveal,
+  onhover,
 }: Props = $props()
 
 const AREAS: { area: GitArea; label: string }[] = [
@@ -114,8 +119,24 @@ function copy(text: string): void {
   menu = null
 }
 
-const fullPath = (file: GitFile): string =>
-  `${repoPath}${repoPath.includes('\\') ? '\\' : '/'}${repoPath.includes('\\') ? file.path.replaceAll('/', '\\') : file.path}`
+const fullPath = (file: GitFile): string => repoFilePath(repoPath, file.path)
+
+// A rest on a row brings its card, as every detail card opens (lib/hover-card.ts).
+const resting = new HoverRest<string>(() => onhover(null))
+
+function point(file: GitFile, event: PointerEvent | FocusEvent): void {
+  const target = event.currentTarget as HTMLElement
+  const x = 'clientX' in event ? event.clientX : null
+  // The keyboard's focus opens it at once; the focus a click leaves behind opens nothing.
+  if (x === null && !target.matches(':focus-visible')) return
+  resting.enter(
+    keyOf(file),
+    () => onhover({ file, row: target.getBoundingClientRect(), x }),
+    x === null,
+  )
+}
+
+$effect(() => () => resting.dispose())
 </script>
 
 <svelte:window onpointerdown={(event) => {
@@ -124,7 +145,7 @@ const fullPath = (file: GitFile): string =>
   if (event.key === 'Escape') menu = null
 }} />
 
-<div class="files" bind:this={list} data-testid="git-files">
+<div class="files" bind:this={list} onscroll={() => resting.leave()} data-testid="git-files">
   {#each rows as row (row.key)}
     <div class="slot" animate:flip={{ duration: appearance.reducedMotion ? 0 : 180 }} in:landIn={{ still }} out:foldOut>
       {#if row.kind === 'head'}
@@ -138,7 +159,10 @@ const fullPath = (file: GitFile): string =>
           data-testid="git-file"
           data-area={file.area}
           data-path={file.path}
-          title={file.from ? `${file.from} → ${file.path}` : file.path}
+          onpointerenter={(event) => point(file, event)}
+          onpointerleave={() => resting.leave(keyOf(file))}
+          onfocus={(event) => point(file, event)}
+          onblur={() => resting.leave(keyOf(file))}
           onclick={() => onselect(file)}
           ondblclick={() => onopen(file)}
           oncontextmenu={(event) => showMenu(event, file)}

@@ -22,6 +22,7 @@ import DiffView from '../common/DiffView.svelte'
 import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
 import GitCommitCard from './GitCommitCard.svelte'
+import GitFileCard from './GitFileCard.svelte'
 import GitFiles from './GitFiles.svelte'
 import GitGraph from './GitGraph.svelte'
 
@@ -287,12 +288,32 @@ function onhover(next: { commit: GitGraphCommit; row: DOMRect; x: number } | nul
   })
 }
 
+/** The changed file whose card is up, and where its row is (the pane's pixels). */
+let fileHover = $state.raw<{ file: GitFile; anchor: CardAnchor; bounds: CardSize } | null>(null)
+
+function onfilehover(next: { file: GitFile; row: DOMRect; x: number | null } | null): void {
+  if (next === null || rootEl === null) {
+    fileHover = null
+    return
+  }
+  const box = rootEl.getBoundingClientRect()
+  fileHover = {
+    file: next.file,
+    anchor: anchorOf(box, next.row, next.x),
+    bounds: { width: box.width, height: box.height },
+  }
+}
+
 // Another repository, or the pane put away: no card stays behind, and no files are kept for it.
 $effect(() => {
   void repoId
-  if (!visible) hover = null
+  if (!visible) {
+    hover = null
+    fileHover = null
+  }
   return () => {
     hover = null
+    fileHover = null
     filesOf.clear()
   }
 })
@@ -413,6 +434,7 @@ const counts = $derived.by(() => {
           onopen={(file) => void open(file, null)}
           onreveal={(file) => repoId !== null && void window.elecdex.git.reveal(repoId, file.path)}
           repoPath={repoState?.repo?.path ?? ''}
+          onhover={onfilehover}
         />
         <div class="log" data-testid="git-log">
           <Splitter
@@ -460,6 +482,15 @@ const counts = $derived.by(() => {
         />
       </div>
     </div>
+    {#if fileHover !== null}
+      <GitFileCard
+        file={fileHover.file}
+        repoPath={repoState?.repo?.path ?? ''}
+        commit={commit !== null}
+        anchor={fileHover.anchor}
+        bounds={fileHover.bounds}
+      />
+    {/if}
     {#if hover !== null}
       <GitCommitCard commit={hover.commit} files={hoverFiles} anchor={hover.anchor} bounds={hover.bounds} />
     {/if}

@@ -15,6 +15,24 @@ export const CARD_GAP = 6
 /** How far right of the pointer a card starts, so the pointer does not cover its first letters. */
 export const POINTER_OFFSET = 14
 
+/** A fact on a card (widgets/common/CardRows.svelte): a small label, and what it says. */
+export interface CardRow {
+  label: string
+  value: string
+  /** Said quietly: an id, a note. */
+  muted?: boolean
+}
+
+/** A moment as a card writes it: the day and the minute, in the user's own way. */
+export function cardTime(at: number): string {
+  return new Date(at).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 /** What a card is about, in the pane's own pixels: where it starts, and its top and bottom. */
 export interface CardAnchor {
   x: number
