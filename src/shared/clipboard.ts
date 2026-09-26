@@ -123,6 +123,9 @@ export interface ClipEntry {
   copies: number
 }
 
+/** A format kept beside the text. */
+export type ClipFormat = 'html' | 'rtf'
+
 /** An entry as the page sees it: a preview, never the whole text or its HTML. */
 export interface ClipEntryView {
   id: string
@@ -132,6 +135,8 @@ export interface ClipEntryView {
   kind: ClipKind
   /** It was copied with its formatting (HTML or RTF), and is put back with it. */
   rich: boolean
+  /** Which formats came with the text, for the card. */
+  formats: ClipFormat[]
   kept: boolean
   firstAt: number
   at: number
@@ -323,6 +328,10 @@ export function entryView(entry: ClipEntry): ClipEntryView {
     lines: entry.lines,
     kind: entry.kind,
     rich: entry.html !== null || entry.rtf !== null,
+    formats: [
+      ...(entry.html !== null ? (['html'] as const) : []),
+      ...(entry.rtf !== null ? (['rtf'] as const) : []),
+    ],
     kept: entry.kept,
     firstAt: entry.firstAt,
     at: entry.at,
@@ -360,22 +369,15 @@ export function isClipId(value: unknown): value is string {
 // ---------------------------------------------------------------------------
 
 /**
- * What a row's tag says, and whether RICH goes on its second line instead. Plain
- * text has no tag: nearly everything copied is text, and a tag on every row says
- * nothing. A kind (a link, a path, a number, a colour) is worth saying first; a
- * text copied with its formatting says RICH, since it is put back with it.
+ * A row's tags: what it is (TXT, URL, PATH, NUM, CLR), and RICH under it when it
+ * was copied with its formatting, which is put back with it.
  */
-export function clipTag(entry: Pick<ClipEntryView, 'kind' | 'rich'>): {
-  tag: string | null
-  richInMeta: boolean
-} {
-  const kind = KIND_TAGS[entry.kind]
-  if (kind !== null) return { tag: kind, richInMeta: entry.rich }
-  return { tag: entry.rich ? 'RICH' : null, richInMeta: false }
+export function clipTags(entry: Pick<ClipEntryView, 'kind' | 'rich'>): string[] {
+  return entry.rich ? [KIND_TAGS[entry.kind], 'RICH'] : [KIND_TAGS[entry.kind]]
 }
 
-const KIND_TAGS: Record<ClipKind, string | null> = {
-  text: null,
+const KIND_TAGS: Record<ClipKind, string> = {
+  text: 'TXT',
   url: 'URL',
   path: 'PATH',
   color: 'CLR',
@@ -407,6 +409,11 @@ export function clipAge(at: number, now: number): string {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h`
   return `${Math.floor(hours / 24)}d`
+}
+
+/** What came with the text, for the card: "text + HTML + RTF". */
+export function clipFormats(entry: Pick<ClipEntryView, 'formats'>): string {
+  return ['text', ...entry.formats.map((f) => f.toUpperCase())].join(' + ')
 }
 
 /** The size of an entry, for a row's second line: "3 lines · 1,204 chars". */

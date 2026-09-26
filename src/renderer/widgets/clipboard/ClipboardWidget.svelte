@@ -9,6 +9,7 @@ import { sfx } from '../../stores/sound.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
+import ClipCard from './ClipCard.svelte'
 import ClipRow from './ClipRow.svelte'
 
 /**
@@ -139,12 +140,62 @@ const lamp = $derived(
 )
 const STATE_WORDS = { watching: 'WATCHING', paused: 'PAUSED', idle: 'STANDBY' } as const
 
+/**
+ * The entry whose card is up, and where its row is (in the pane's own pixels).
+ * The card waits for a moment's rest, so passing over the rows does not flash
+ * one per row; the keyboard brings it at once. Masked, there is no card: it
+ * would say what the mask hides.
+ */
+let rootEl = $state<HTMLElement | null>(null)
+let hover = $state.raw<{
+  id: string
+  at: { x: number; top: number; bottom: number }
+  bounds: { width: number; height: number }
+} | null>(null)
+let restTimer: ReturnType<typeof setTimeout> | undefined
+
+function onhover(id: string, event: { row: DOMRect; x: number | null } | null): void {
+  clearTimeout(restTimer)
+  if (event === null) {
+    if (hover?.id === id) hover = null
+    return
+  }
+  const show = (): void => {
+    if (rootEl === null) return
+    const box = rootEl.getBoundingClientRect()
+    const x = event.x ?? event.row.left + 48
+    hover = {
+      id,
+      at: { x: x - box.left, top: event.row.top - box.top, bottom: event.row.bottom - box.top },
+      bounds: { width: box.width, height: box.height },
+    }
+  }
+  if (event.x === null) show()
+  else restTimer = setTimeout(show, 350)
+}
+
+const hovered = $derived(
+  hover === null || masked ? null : (entries.find((entry) => entry.id === hover?.id) ?? null),
+)
+
+// Put away, the card goes with the pane's other moving parts.
+$effect(() => {
+  if (!visible) hover = null
+})
+$effect(() => () => clearTimeout(restTimer))
+
 /** Rows show fewer lines when the pane is short. */
 let height = $state(0)
 const lines = $derived(height > 0 && height < 260 ? 1 : 3)
 </script>
 
-<div class="clip" data-testid="clipboard" data-pane-id={paneId} bind:clientHeight={height}>
+<div
+  class="clip"
+  data-testid="clipboard"
+  data-pane-id={paneId}
+  bind:clientHeight={height}
+  bind:this={rootEl}
+>
   <header class="top">
     <span class="state" data-state={lamp} data-testid="clip-state"><i></i>{STATE_WORDS[lamp]}</span>
     <span class="count" data-testid="clip-count">{entries.length}<span class="of">/{CLIP_MAX_ENTRIES}</span></span>
@@ -204,7 +255,7 @@ const lines = $derived(height > 0 && height < 260 ? 1 : 3)
     <div class="empty"><b>NOTHING MATCHES</b></div>
   {:else}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <ul class="list" onkeydown={onListKey} data-testid="clip-list">
+    <ul class="list" onkeydown={onListKey} onscroll={() => (hover = null)} data-testid="clip-list">
       {#each shown as entry (entry.id)}
         <li
           class:fx-fresh={fresh.has(entry.id)}
@@ -220,10 +271,21 @@ const lines = $derived(height > 0 && height < 260 ? 1 : 3)
             copied={copied === entry.id}
             onrestore={() => void restore(entry.id)}
             onremove={() => remove(entry.id)}
+            onhover={(event) => onhover(entry.id, event)}
           />
         </li>
       {/each}
     </ul>
+  {/if}
+
+  {#if hovered !== null && hover !== null}
+    <ClipCard
+      entry={hovered}
+      current={board?.current === hovered.id}
+      {now}
+      at={hover.at}
+      bounds={hover.bounds}
+    />
   {/if}
 
   <footer class="foot" data-testid="clip-foot">
@@ -243,6 +305,7 @@ const lines = $derived(height > 0 && height < 260 ? 1 : 3)
 
 <style>
 .clip {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;

@@ -13,8 +13,9 @@ import {
   classifyClip,
   cleared,
   clipAge,
+  clipFormats,
   clipSize,
-  clipTag,
+  clipTags,
   emptyHistory,
   filterEntries,
   historyFlagSaysPrivate,
@@ -314,13 +315,18 @@ describe('rows', () => {
     expect(previewLines('', 3)).toEqual([''])
   })
 
-  it('tags a kind, or RICH for formatted text, and nothing for plain text', () => {
-    expect(clipTag({ kind: 'text', rich: false })).toEqual({ tag: null, richInMeta: false })
-    expect(clipTag({ kind: 'text', rich: true })).toEqual({ tag: 'RICH', richInMeta: false })
-    expect(clipTag({ kind: 'url', rich: false })).toEqual({ tag: 'URL', richInMeta: false })
-    // A link copied from a page has HTML too: the kind is the tag, RICH goes below.
-    expect(clipTag({ kind: 'url', rich: true })).toEqual({ tag: 'URL', richInMeta: true })
-    expect(clipTag({ kind: 'color', rich: false }).tag).toBe('CLR')
+  it('tags every row with its kind, and RICH under it when it came formatted', () => {
+    expect(clipTags({ kind: 'text', rich: false })).toEqual(['TXT'])
+    expect(clipTags({ kind: 'text', rich: true })).toEqual(['TXT', 'RICH'])
+    expect(clipTags({ kind: 'url', rich: true })).toEqual(['URL', 'RICH'])
+    expect(clipTags({ kind: 'color', rich: false })).toEqual(['CLR'])
+  })
+
+  it('names the formats that came with the text', () => {
+    expect(clipFormats({ formats: [] })).toBe('text')
+    expect(clipFormats({ formats: ['html', 'rtf'] })).toBe('text + HTML + RTF')
+    const read: ClipRead = { kind: 'text', text: 'a', html: '<b>a</b>', rtf: '{}' }
+    expect(boardOf(history([read]), true, false).entries[0]?.formats).toEqual(['html', 'rtf'])
   })
 
   it('masks a preview to its shape only', () => {

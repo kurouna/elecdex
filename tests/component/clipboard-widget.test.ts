@@ -28,6 +28,7 @@ const entry = (id: string, preview: string, over: Partial<ClipEntryView> = {}): 
   lines: preview.split('\n').length,
   kind: 'text',
   rich: false,
+  formats: [],
   kept: true,
   firstAt: Date.now() - 120_000,
   at: Date.now() - 120_000,
@@ -53,6 +54,20 @@ beforeEach(() => {
   pause.mockClear()
   // New rows come in with a flip; jsdom runs no animations.
   Element.prototype.getAnimations ??= () => []
+  // jsdom has no Web Animations: enough of one for a transition to run its length and end.
+  Element.prototype.animate = function animate(_frames, options) {
+    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
+    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
+    setTimeout(() => animation.onfinish?.(), length)
+    return animation as unknown as Animation
+  }
+  // The card powers on like a tube, which asks whether motion is reduced.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
   // The pane measures its height (fewer lines per row when short); jsdom has no observer.
   vi.stubGlobal(
     'ResizeObserver',
@@ -83,6 +98,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   cleanup()
+  Reflect.deleteProperty(Element.prototype, 'animate')
   await layout.flush()
   vi.unstubAllGlobals()
 })
@@ -197,6 +213,51 @@ describe('ClipboardWidget', () => {
     await fireEvent.keyDown(first, { key: 'Delete' })
     expect(remove).toHaveBeenCalledWith('c2')
     expect(document.activeElement).toBe(screen.getAllByTestId('clip-entry')[1])
+  })
+
+  it('tags every row, TXT included, with RICH under a formatted one', async () => {
+    await mount()
+    await push(board([entry('c2', 'plain'), entry('c1', 'bold', { rich: true, formats: ['rtf'] })]))
+    const tags = (i: number) =>
+      [
+        ...(screen.getAllByTestId('clip-row')[i]?.querySelectorAll('[data-testid=clip-tag]') ?? []),
+      ].map((el) => el.textContent)
+    expect(tags(0)).toEqual(['TXT'])
+    expect(tags(1)).toEqual(['TXT', 'RICH'])
+  })
+
+  it('shows the whole preview in a card after a rest of the pointer, and none while masked', async () => {
+    const long = `first line
+${'x'.repeat(700)}`
+    const view = await mount()
+    await push(
+      board([
+        entry('c1', long.slice(0, 600), {
+          chars: long.length,
+          lines: 2,
+          formats: ['html'],
+          rich: true,
+        }),
+      ]),
+    )
+    const row = screen.getByTestId('clip-row')
+    await fireEvent.pointerEnter(row, { clientX: 40 })
+    // Passing over is not resting: nothing yet.
+    expect(screen.queryByTestId('clip-card')).toBeNull()
+    await vi.waitFor(() => expect(screen.getByTestId('clip-card')).toBeTruthy())
+    expect(screen.getByTestId('clip-card-text').textContent).toContain('first line')
+    expect(screen.getByTestId('clip-card').textContent).toContain('the first 600 of 711 characters')
+    expect(screen.getByTestId('clip-card-formats').textContent).toBe('text + HTML')
+    await fireEvent.pointerLeave(row)
+    // It powers off first.
+    await vi.waitFor(() => expect(screen.queryByTestId('clip-card')).toBeNull())
+
+    await view.rerender({ state: { mask: true } })
+    await settle()
+    await fireEvent.pointerEnter(screen.getByTestId('clip-row'), { clientX: 40 })
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await settle()
+    expect(screen.queryByTestId('clip-card')).toBeNull()
   })
 
   it('says how many private copies were left out', async () => {

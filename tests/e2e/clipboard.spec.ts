@@ -76,9 +76,15 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
     // The newest is what the clipboard holds.
     await expect(page.getByTestId('clip-row').first().getByTestId('clip-current')).toBeVisible()
     await expect(page.getByTestId('clip-row').first()).toHaveAttribute('data-kind', 'color')
-    // Formatted text says RICH where a kind would be; a kind keeps its tag.
-    const tags = page.getByTestId('clip-tag')
-    await expect(tags).toHaveText(['CLR', 'URL', 'RICH'])
+    // Every row says what it is; one copied with its formatting says RICH under that.
+    await expect(page.getByTestId('clip-tag')).toHaveText(['CLR', 'URL', 'TXT', 'RICH'])
+
+    // Resting on a row brings its card, drawn like the git pane's; leaving takes it away.
+    await page.getByTestId('clip-row').nth(2).hover()
+    await expect(page.getByTestId('clip-card-text')).toHaveText('first copy')
+    await expect(page.getByTestId('clip-card-formats')).toHaveText('text + HTML')
+    await page.getByTestId('clip-count').hover()
+    await expect(page.getByTestId('clip-card')).toHaveCount(0)
 
     // Put back: the text and its HTML, the row marked, and nothing moves.
     await page.getByTestId('clip-entry').nth(2).click()
@@ -120,14 +126,20 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
   }
 })
 
-test('keeps what WordPad copies - RTF alone - and puts it back; plain text has no tag', async () => {
+test('keeps what WordPad copies - RTF alone - and puts it back, and shows it in a card', async () => {
   const { app, page, close } = await launch(undefined, { layout: beside('clock') })
   try {
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     const rtf = '{\\rtf1\\ansi {\\b bold} words}'
     await copied(app, page, 'bold words', { rtf })
     await copied(app, page, 'plain words')
-    await expect(page.getByTestId('clip-tag')).toHaveText(['', 'RICH'])
+    await expect(page.getByTestId('clip-tag')).toHaveText(['TXT', 'TXT', 'RICH'])
+    // The keyboard brings the card at once.
+    await page.getByTestId('clip-filter').focus()
+    await page.keyboard.press('Tab')
+    await expect(page.getByTestId('clip-card-text')).toHaveText('plain words')
+    await page.keyboard.press('ArrowDown')
+    await expect(page.getByTestId('clip-card-formats')).toHaveText('text + RTF')
     await page.getByTestId('clip-entry').nth(1).click()
     await expect(page.getByTestId('clip-age').nth(1)).toHaveText('COPIED')
     expect(await held(app)).toEqual({ text: 'bold words', html: null, rtf })

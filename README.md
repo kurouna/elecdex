@@ -666,9 +666,10 @@ weather and calendar.
   times.
 - **Clipboard** *(unreleased)* — in the desk preset, or add it from the picker ("clipboard
   history"). What you copy while the pane is on screen, newest first, with its size and how long
-  ago. A link, a path, a number or a colour is tagged URL, PATH, NUM or CLR (with a swatch); text
-  copied with its formatting (HTML, or the RTF that Word and WordPad copy) is tagged RICH; plain
-  text has no tag. Click one (or Enter) to put it back on the clipboard, formatting and all, and paste it
+  ago, each tagged with what it is - TXT, URL, PATH, NUM, or CLR with a swatch - and RICH under
+  that when it was copied with its formatting (HTML, or the RTF that Word and WordPad copy).
+  Resting the pointer on one (or reaching it with the keyboard) opens a card with the whole of it,
+  as the git pane does for a commit: its text, what came with it and when it was copied. Click one (or Enter) to put it back on the clipboard, formatting and all, and paste it
   wherever you like; ↑ ↓ move between entries and Delete or × takes one out. The same text copied
   again moves up rather than appearing twice, and a selection dragged in a shell - which copies at
   every step - is one entry. The clipboard is read four times a second, and only while a
