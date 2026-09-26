@@ -113,6 +113,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   for the system volume and each app playing sound.
 - **Now playing** *(unreleased)* — what a player is playing, as Windows' own media overlay knows
   it: the art, the title, artist and album, where the track is, and previous, play/pause and next.
+  **Windows only: macOS and Linux are not supported yet.**
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first.
 
 ### desk — writing, counting and keeping time
@@ -738,7 +739,8 @@ weather and calendar.
   whole title, artist and album. Read twice a second
   through one long-lived PowerShell, and only while the pane is on screen: behind another tab, with
   the window minimised or put away, nothing is read. Nothing is written to disk or logged, and no
-  plugin can reach it. Windows only for now; on macOS and Linux the pane says so.
+  plugin can reach it. **Windows only: macOS and Linux are not supported yet** - there the pane
+  shows UNSUPPORTED.
 
 ## Plugins
 
