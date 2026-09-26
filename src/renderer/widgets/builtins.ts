@@ -23,6 +23,7 @@ import SysinfoWidget from './monitor/SysinfoWidget.svelte'
 import ThroughputWidget from './monitor/ThroughputWidget.svelte'
 import ToplistWidget from './monitor/ToplistWidget.svelte'
 import NotesWidget from './notes/NotesWidget.svelte'
+import NowPlayingWidget from './nowplaying/NowPlayingWidget.svelte'
 import OrbitWidget from './orbit/OrbitWidget.svelte'
 import QuakesWidget from './quakes/QuakesWidget.svelte'
 import { registerBuiltin } from './registry.ts'
@@ -351,6 +352,17 @@ registerBuiltin({
   description: 'The system volume and each app playing sound, with faders, mute and meters.',
   component: MixerWidget,
   minSize: { w: 160, h: 160 },
+  zoom: 'panel',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'nowplaying',
+  title: 'now playing',
+  description:
+    'What a player is playing - its art, title, artist and album - with previous, play/pause and next. Read only while it shows; Windows only for now.',
+  component: NowPlayingWidget,
+  minSize: { w: 220, h: 120 },
   zoom: 'panel',
   popup: true,
 })

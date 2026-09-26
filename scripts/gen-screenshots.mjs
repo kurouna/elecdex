@@ -337,6 +337,7 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
       ELECDEX_WIFI_STUB: 'demo',
       // A made-up clipboard history (the desk shot): never what this machine has copied.
       ELECDEX_CLIPBOARD_STUB: 'demo',
+      ELECDEX_NOWPLAYING_STUB: 'demo',
       ...env,
     },
   })

@@ -29,6 +29,7 @@ import type { SavedLayoutSummary } from './layouts.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
 import type { MetricSample, MetricSourceId, MetricsStats } from './metrics.js'
 import type { Note, NotesFile } from './notes.js'
+import type { NowPlaying, NowPlayingAction, NowPlayingControlResult } from './now-playing.js'
 import type { OrbitSet, OrbitUpdate } from './orbits.js'
 import type { PluginCatalog, PluginInstalled } from './plugins.js'
 import type { QuakeAlert, QuakeState } from './quakes.js'
@@ -390,6 +391,22 @@ export interface ClipboardApi {
 }
 
 /**
+ * The NOW PLAYING pane: the media session the system calls current, read by
+ * main while a pane is seen, and its player's three buttons.
+ */
+export interface NowPlayingApi {
+  /**
+   * Keeps the session current while subscribed: at once, then after each
+   * change. Main reads it only while some page is subscribed.
+   */
+  subscribe(handler: (state: NowPlaying) => void): () => void
+  /** Presses a button of the player shown: only these three, never the volume. */
+  control(action: NowPlayingAction): Promise<NowPlayingControlResult>
+  /** Diagnostics: whether main is reading the session now. */
+  watching(): Promise<boolean>
+}
+
+/**
  * The AI AGENT pane (experimental): coding agents at work on this machine, read
  * from their own local records by the layer in main (agents/hub.ts).
  */
@@ -676,6 +693,7 @@ export interface ElecdexApi {
   markets: MarketsApi
   feeds: FeedsApi
   clipboard: ClipboardApi
+  nowPlaying: NowPlayingApi
   git: GitApi
   orbits: OrbitsApi
   agents: AgentsApi

@@ -110,6 +110,16 @@ export const CH = {
     pause: 'clipboard:pause',
     watching: 'clipboard:watching',
   },
+  /** The NOW PLAYING pane (shared/now-playing.ts): one session, read only while a pane is seen. */
+  nowPlaying: {
+    /** renderer -> main, fire and forget: keep the session current. */
+    subscribe: 'now-playing:subscribe',
+    unsubscribe: 'now-playing:unsubscribe',
+    /** main -> renderer: a NowPlaying. */
+    update: 'now-playing:update',
+    control: 'now-playing:control',
+    watching: 'now-playing:watching',
+  },
   /** The AI AGENT pane (shared/agents.ts): one board, from the sources settings turn on. */
   agents: {
     /** renderer -> main, fire and forget: keep the board current. */

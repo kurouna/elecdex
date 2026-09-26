@@ -427,6 +427,7 @@ const app = await electron.launch({
     ELECDEX_CLAUDE_DIR: claude,
     ELECDEX_WIFI_STUB: 'demo',
     ELECDEX_CLIPBOARD_STUB: 'demo',
+    ELECDEX_NOWPLAYING_STUB: 'demo',
     // No tray icon or system-wide shortcut from a recording run.
     ELECDEX_BACKGROUND_STUB: '1',
   },

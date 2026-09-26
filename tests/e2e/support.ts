@@ -217,6 +217,10 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       // its clipboard (src/main/clipboard/stub.ts). Specs copy through
       // globalThis.__elecdexClipboard.
       ELECDEX_CLIPBOARD_STUB: '1',
+      // A stand-in media session: never what this machine is playing, and no player's
+      // button pressed (src/main/media/stub.ts). Specs change the track through
+      // globalThis.__elecdexNowPlaying.
+      ELECDEX_NOWPLAYING_STUB: '1',
       // A reversible stand-in for the system's encryption: never the Keychain or a
       // keyring, and never the prompt either may show (src/main/ai/keys.ts).
       ELECDEX_AI_KEYS_STUB: '1',

@@ -130,8 +130,8 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 以下は最初の設計時のスケッチで、考え方（名前空間ごとの型付き API、購読は解除関数を返す）を示す。
 **現在の正確な形は `src/shared/api.ts`** にあり、名前空間は `system` / `background` / `pty` / `layout` /
 `metrics` / `fs` / `weather` / `settings` / `themes` / `launcher` / `markets` / `feeds` / `clipboard` /
-`git` / `orbits` / `agents` / `ai` / `elec` / `quakes` / `notes` / `tasks` / `alarms` / `updates` / `audio` /
-`plugins` / `web` の 26 個。
+`nowPlaying` / `git` / `orbits` / `agents` / `ai` / `elec` / `quakes` / `notes` / `tasks` / `alarms` /
+`updates` / `audio` / `plugins` / `web` の 27 個。
 
 ```ts
 interface ElecdexApi {
@@ -488,7 +488,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 
 **プリセット**（`shared/layout-presets.ts`、2026-09-24）: 用途別の配置を組み込みで持つ。standard（既定
 レイアウトそのもの）/ network（地球儀・connections を 3:2・シェル）/ earth（ORBIT・地球儀・地震・天気・シェル）/
-dev（AI AGENT・シェル・GIT）/ media（YouTube (TV)・spectrum・mixer、X と RSS のタブ）/ desk（notes・timer・
+dev（AI AGENT・シェル・GIT）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（notes・timer・
 calculator・tasks・calendar・clipboard。シェルなし。clipboard は見えている間だけ読むのでタブに重ねず、カレンダーの横。§5.14）の 6 つ。どれも既定の左カラム（システム列）を同じ幅・同じ高さで
 左端に持つので、切り替えると計器盤はそのままで右の舞台だけが替わって見える。名前は ORBIT ペインと重ならない
 ように earth にした（利用者の判断）。
@@ -1213,6 +1213,21 @@ Web ペイン（ビューが `reapOrphanSessions` に閉じられ、ポップア
 - **画面**: 見出し行（状態のランプ WATCHING / PAUSED / STANDBY、件数、PAUSE・MASK・CLEAR）、絞り込み欄（MASK 中は出さない。当たる推測が伏せた内容を明かすため）、一覧、脚注。各行はタグ（`clipTags`: 種類 TXT・URL・PATH・NUM・CLR を全行に、CLR は色見本付き、`classifyClip`。書式付きならその下に RICH。一度は普通のテキストのタグを外したが、TXT だけ無いのは不自然という利用者の判断で全行に戻した、2026-09-26）、プレビュー（最大 3 行、高さ 260px 未満で 1 行）、大きさ・RICH・×回数、何分前か。クリックか Enter で戻し、↑ ↓ で行を移り、Delete か × で消す。CLEAR は 2 度押し（3 秒で解除）。**カード**（`ClipCard.svelte`、利用者の依頼で GIT のコミットカードと同じ作り）: 行に 350 ms 留まるか、キーボードで移ると（`:focus-visible` のときだけ。クリックで残るフォーカスでは出さない）、ペインの中で行の下（入らなければ上）にプレビュー全体（最大 600 文字、それより長いものは「the first 600 of N characters」）・形式（`text + HTML + RTF`、`clipFormats`）・コピーした時刻と回数を出す。無効なボタンはポインタのイベントを受けないので、ポインタは行の要素で追う。MASK 中は出さない。一覧のスクロールと非表示で消す。新しい行は RSS と同じ `fx-fresh`、並べ替えは `flip`
 - **テスト**: 単体（`clipboard.test.ts`: 境界・非公開の判定・分類・積み方・吸収と間の途切れ・上限・戻す・消す・ページに全文が渡らないこと、`clipboard-watcher.test.ts`: 購読の有無と一時停止で読まない・壁時計の境界・重ねない・長文の間引き・失敗しても止まらない）、コンポーネント（`clipboard-widget.test.ts`）、e2e（`clipboard.spec.ts`、`hidden-panes.spec.ts`、`layout-presets.spec.ts`）。e2e は `ELECDEX_CLIPBOARD_STUB=1` で main のメモリ上の代役を読み、実機のクリップボードを読まず書かない（コピーは `globalThis.__elecdexClipboard` から）。スクリーンショットは `demo`（作り物の午前の履歴）
 
+### 5.15 NOW PLAYING ペイン（再生中のメディア）
+
+いま再生中の曲や動画を、アート・曲名・アーティスト・アルバム・どこまで進んだかとともに出し、前へ・再生／一時停止・次へを送る（2026-09-27、利用者の依頼と設計案から）。ピッカー名と見出しは "now playing" / NOW PLAYING。既定のレイアウトには入れず、media プリセットの spectrum と mixer の並び（左端）に入れる。ボリュームは扱わない（mixer の領分）。
+
+- **読む場所は main**（`main/media/`）。案ではメトリクスのソース（`media.nowPlaying`、`PRIVATE_METRIC_SOURCE_IDS`）だったが、ボタンの押下を送る経路が要り、collector の購読は読み取り専用なので、mixer と同じく main のサービスにした。メトリクスのソースではないので `PRIVATE_METRIC_SOURCE_IDS` にも入れない。プラグイン API には最初から無い（届く経路が無い）
+- **Windows**: System Media Transport Controls（音量フライアウトが出すもの）を、常駐する PowerShell 1 つで読む（`main/media/windows.ts`）。1 行送るたびに 1 行の JSON で答える（`read`、または `playPause` / `next` / `previous` の後の読み取り）。セッションは Windows 自身が「現在」とするもの、無ければ再生中の最初のもの。ほかのセッションは数だけ（`+N`）。スクリプトは環境変数で渡す（`powerShellStart`: `spawn` 25 ms）。PowerShell 5.1 は WinRT のストリームを素の COM オブジェクトとして見るので、`AsStreamForRead` はリフレクションで呼ぶ（そうすると型変換が効く）。実測（i5-1335U）: 起動から最初の答えまで約 0.6 s、以後 1 回の読み取りは 1 ms 前後、押下と読み取りで 20 ms 前後
+- **アート**: 曲（アプリ・曲名・アーティスト・アルバム・サムネイルの有無）が変わったときだけ、リーダーの中で長辺 192 px の JPEG（品質 82）に縮めて base64 で 1 回送る。ブラウザーはサムネイルを曲名より少し遅れて出すので、有無もキーに入れる。main は大きさ（base64 で 88 000 字まで）と JPEG の先頭（`/9j/`）を確かめ、`data:` URL にしてページへ（CSP `img-src 'self' data:` の範囲）。ディスクには置かない
+- **いつ読むか**: 見えている NOW PLAYING ペインが 1 つ以上あるときだけ（ペインは `seen` の間だけ購読）。壁時計の 0.5 秒境界（`nextBoundary`）でタイマー 1 本を張り直し、`setInterval` は使わない。前の読み取りが終わっていなければその境界は飛ばす。案の「変更通知を主に」は取らなかった: PowerShell 5.1 から WinRT のイベントを受ける確かな手段が無く、読み取りが 1 ms なので、0.5 秒ごとに読んで変わったときだけページへ送る方が単純で確か。最後のペインが消えたら読むのをすぐやめ、リーダーのプロセスは 15 秒後に閉じる（`NOW_PLAYING_LINGER_MS`: ペインの移動やタブの切り替えで PowerShell を起こし直さないため。その間も読まない）。直前の 1 件はメモリにだけ残し、ペインが戻った瞬間に出す
+- **位置**: プレーヤーは位置をときどき（シーク・一時停止・数秒ごと）しか報告しないので、報告された位置とその時刻（SMTC の `LastUpdatedTime`。10 年以上ずれた時刻は信じず読み取り時刻にする）から、再生中はページが壁時計の 1 秒境界（`onBoundary`）で数え進める（`positionNow`、終わりを越えない）。長さの無いストリームはバーを出さない
+- **押下**: `control` は `playPause` / `next` / `previous` だけ（`isNowPlayingAction`）。購読している（=見えている）ページからしか受けない。プレーヤーが出していないボタンは無効にする（`IsNextEnabled` など）。結果は `ok` / `refused`（プレーヤーが受けなかった）/ `no-session` / `unsupported` / `failed` で、`ok` 以外はボタンの横に 3 秒だけ言う。Space キーの割り当ては案にあったが、キーは Ctrl/Alt か F キーを含むという規則（シェルのキーを奪わない）に反するので入れない。ボタンにフォーカスすれば Space / Enter で押せる
+- **正規化**（`readSession`、純粋関数）: 文字列は制御文字を空白にして 200 字（コードポイント）で切る。アプリ名は既知の id を表の名前に（`appLabel`: Firefox はハッシュの AUMID で登録する、パッケージアプリは名前の部分）。読めないものは推測せず null
+- **画面**: 横長ならアートが左、縦長なら上（コンテナクエリ）。アートの枠は角を切ったプレートで、アートが無いときは線で描いた円盤。ランプ（PLAYING 緑 / PAUSED アクセント / NO SESSION・STANDBY 淡色 / UNSUPPORTED・エラー 警告色）とアプリ名、曲名（`--step-1`、2 行まで）、アーティスト（`--step-0`）、アルバム（`--step--1`）、バーと時刻（`--step--1`）、ボタン 3 つ。バーは 1 秒ごとの段で、CSS のアニメーションは使わない
+- **macOS / Linux**: 今は読まない（ペインが「Windows only」と言う）。macOS の MediaRemote は非公開 API で、15.4 から Apple の署名の無いプロセスには答えない。Linux は MPRIS（D-Bus）で読める見込み（Phase 2）
+- **テスト**: 単体（`now-playing.test.ts`: 正規化・切り詰め・アプリ名・アートの検査・位置の補間・リーダーの行・スクリプトが押すのは 3 つだけでスクリプトを環境変数で渡すこと・監視の境界・重ねない・読まない間・余韻と閉じ方・失敗しても止まらない・押下の可否）、コンポーネント（`now-playing-widget.test.ts`）、e2e（`now-playing.spec.ts`、`hidden-panes.spec.ts`）。e2e は `ELECDEX_NOWPLAYING_STUB=1` で main の代役を読み、実機のプレーヤーを読まず押さない（曲は `globalThis.__elecdexNowPlaying` から変える）。スクリーンショットは `demo`（架空の曲）。実機の SMTC は、音量 0 の `Windows.Media.Playback.MediaPlayer` に表示用の曲情報とサムネイルを載せた PowerShell で確かめた（日本語の曲名、アート、一時停止）
+
 ## 6. ターミナル設計
 
 ### 6.1 構成
@@ -1416,6 +1431,7 @@ elecdex/
 │  │  ├─ metrics/          # broker と購読（collector は services/）
 │  │  ├─ fs/ launcher/ weather/ markets/ feeds/ quakes/ updates/
 │  │  ├─ clipboard/        # 見えている間だけ読む監視（watcher）、Electron の読み書き、テスト用の代役（§5.14）
+│  │  ├─ media/            # NOW PLAYING: 見えている間だけ読む監視（watcher）、Windows の SMTC リーダー、代役（§5.15）
 │  │  ├─ ai/               # 会話ストア、キー保管、チャットサービス、方言ごとのアダプタ（openai / anthropic）（§5.7）
 │  │  ├─ reminders/        # 次の1件だけを待つスケジューラ（タスクとアラーム）
 │  │  ├─ audio/            # 隠しキャプチャウィンドウ、parec、OS ごとのミキサー
@@ -1751,6 +1767,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | レイアウトに載せないポップアップ（2026-09-26） | 利用者の提案（Ctrl+Shift+L がランチャーを常設で追加し、起動したいだけで分割が変わる）を、次の点を変えて実装した（§5.13）。**状態は別ストアでなく `ui.popup`**: ダイアログの排他と相互参照になるため。**汎用だが opt-in**: 提案は任意のウィジェットを出せる形だったが、ツリーに無いペインでは `patchPaneState` が黙って効かず、シェルは刈られ、Web ビューは閉じられるので、登録の `popup: true`（ランチャー・ミキサー・地震）に限り、単体テストで条件を守らせる。**起動で閉じる**は `WidgetProps.ondone` で渡す（イベントバスより細く、ウィジェットは出し方を知らない）。**Escape はポップアップが先に取る**ので、ランチャーの Escape（検索欄を空にする）はポップアップでは閉じる動作になる。ダイアログと同じ振る舞いを優先した |
 | ポップアップを大半のウィジェットに（2026-09-26） | 利用者の指摘（Add pane で POP UP を選べないペインが大半）。提案 A（状態を持たない読み取り表示 8 種に宣言を付けるだけ）と B（状態の書き先を振り分ける `widgetState`）を採用し、C（シェルの Quake 風ポップアップ、Web ペイン）は見送った。B は各ウィジェットの `layout.patchPaneState` 呼び出し（18 ファイル）を `widgetState.patch` に置き換えるだけで、レイアウトのストアは変えていない。ポップアップの状態はセッション中だけ覚える（閉じて開き直すと前のまま）。タイマーは出さない: カウントダウンの終わりをマウント中のウィジェットが知らせるため、閉じると黙って終わる。天気の地点選択はポップアップの上に開くようにした（そうしないとポップアップが閉じて、選んだ地点を受け取るウィジェットがいなくなる）。3 → 27 種（§5.13） |
 | クリップボードペイン（2026-09-26） | 設計は §5.14。利用者の依頼と、別の AI と作った設計案を参考にした。案から変えたもの: **読む場所は collector でなく main**（utilityProcess に `clipboard` が無い。Electron 44 の API は非同期で main をほぼ止めない）。したがってメトリクスのソースにはせず、`PRIVATE_METRIC_SOURCE_IDS` にも入れない（プラグインが届く経路が最初から無い）。**画像は持たない**（変化を知るのに毎回 PNG を読む必要があり 8.4 ms × 4/秒）。**パスワードマネージャーの非公開の印を尊重**（案に無かった）。**ドラッグ中の選択を 1 件にまとめる**（シェルが選択の変化ごとにコピーするため。案に無かった）。**PAUSE を足した**（非公開の印を付けないアプリからパスワードをコピーするときのため）。設定項目は作らなかった（件数は 50 固定、画像は対象外）。desk プリセットでは右列の下段をカレンダーとクリップボードの横並びにした（タブに重ねると見えず、読まないため） | ペインが見えている間だけ読むことと、実測で差が出ない負荷の両立 |
+| NOW PLAYING ペイン（2026-09-27） | 設計は §5.15。利用者の設計案をレビューして確定。案から変えたもの: **メトリクスのソースにせず main のサービスに**（押下を送る経路が要る。mixer と同じ形）。**変更通知でなく壁時計の 0.5 秒境界で読む**（PowerShell 5.1 で WinRT のイベントを確かに受ける手段が無く、1 回 1 ms）。**押下を Phase 1 に入れた**（SMTC の `TryTogglePlayPauseAsync` などで数行）。**Space キーは割り当てない**（キーの規則）。**アートは長辺 192 px**（案は 128。プレートは最大 15rem で、2 倍の密度でも粗く見えない大きさ）。**リーダーは最後のペインから 15 秒残す**（読むのはやめる）。案どおり: 見えている間だけ読む、private（プラグインに届かない）、ディスクとログに書かない、UNSUPPORTED の表示、スタブと e2e。media プリセットの下段を now playing・spectrum・mixer（0.32 : 0.44 : 0.24）にした | 案の目的（音の状況を一画面に）と規則（見えている間だけ、壁時計、`setInterval` を使わない）はそのまま守れた。変えた点はどれも、既存の規則か実測に合わせたもの |
 
 ## 17. 既知の問題
 

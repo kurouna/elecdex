@@ -14,6 +14,7 @@ import { registerLauncherIpc } from './ipc/launcher.js'
 import { registerLayoutIpc } from './ipc/layout.js'
 import { registerMarketsIpc } from './ipc/markets.js'
 import { registerNotesIpc } from './ipc/notes.js'
+import { registerNowPlayingIpc } from './ipc/now-playing.js'
 import { registerOrbitsIpc } from './ipc/orbits.js'
 import { registerPluginsIpc } from './ipc/plugins.js'
 import { type PtyIpc, registerPtyIpc } from './ipc/pty.js'
@@ -81,6 +82,7 @@ let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
 let feedsIpc: { dispose: () => void } | null = null
 let clipboardIpc: { dispose: () => void } | null = null
+let nowPlayingIpc: { dispose: () => void } | null = null
 let gitIpc: { dispose: () => void } | null = null
 let orbitsIpc: { dispose: () => void } | null = null
 let agentsIpc: { dispose: () => void } | null = null
@@ -108,6 +110,7 @@ app.whenReady().then(() => {
   marketsIpc = registerMarketsIpc()
   feedsIpc = registerFeedsIpc()
   clipboardIpc = registerClipboardIpc()
+  nowPlayingIpc = registerNowPlayingIpc()
   gitIpc = registerGitIpc(settings)
   orbitsIpc = registerOrbitsIpc()
   agentsIpc = registerAgentsIpc(settings)
@@ -177,6 +180,8 @@ app.on('will-quit', () => {
   feedsIpc = null
   clipboardIpc?.dispose()
   clipboardIpc = null
+  nowPlayingIpc?.dispose()
+  nowPlayingIpc = null
   gitIpc?.dispose()
   gitIpc = null
   orbitsIpc?.dispose()

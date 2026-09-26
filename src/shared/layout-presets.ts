@@ -104,8 +104,9 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
       ),
   },
   {
-    // YouTube's television interface near 16:9, the spectrum under it dancing to
-    // its sound; X and the feeds stacked as tabs down the side, X in front.
+    // YouTube's television interface near 16:9; under it what is playing, the
+    // spectrum dancing to its sound and the mixer, in a row; X and the feeds
+    // stacked as tabs down the side, X in front.
     id: 'media',
     name: 'media',
     description: 'watch, scroll, and see the sound',
@@ -114,7 +115,14 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
         [
           split(
             'column',
-            [pane('web.youtubetv'), split('row', [pane('spectrum'), pane('mixer')], [0.66, 0.34])],
+            [
+              pane('web.youtubetv'),
+              split(
+                'row',
+                [pane('nowplaying'), pane('spectrum'), pane('mixer')],
+                [0.32, 0.44, 0.24],
+              ),
+            ],
             [0.62, 0.38],
           ),
           tabs([pane('web.x'), pane('rss')]),

@@ -54,7 +54,7 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 
 ```
 src/main/        main process: window, ipc/ (handlers), store/ (json files), pty/, fs/, weather/,
-                 markets/, feeds/, quakes/, clipboard/, ai/, launcher/, audio/, plugins/, web/, background/,
+                 markets/, feeds/, quakes/, clipboard/, media/, ai/, launcher/, audio/, plugins/, web/, background/,
                  reminders/, updates/, metrics/ (the broker between the collector and pages)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/)
 src/preload/     the single contextBridge API, window.elecdex
@@ -136,6 +136,15 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - The decisions are pure (`recordRead`: dedupe, the dragged-selection absorption, limits); a
     selection is absorbed only between looks in a row, never across a pause or a hidden spell.
   - Tests set `ELECDEX_CLIPBOARD_STUB=1` and copy through `globalThis.__elecdexClipboard`.
+- **The NOW PLAYING pane reads only while it is seen** (architecture.md §5.15, shared/now-playing.ts,
+  main/media/). Main reads the system's media session - on Windows, SMTC through one long-lived
+  PowerShell - on the wall clock's half seconds, only while a pane is subscribed; the reader lingers
+  unread for a while after the last pane, then closes. It is main's, not a metric source, and no
+  plugin API reaches it; nothing of it is logged or written. The page may press only
+  previous, play/pause and next (never the volume: the mixer's), and only while subscribed. The
+  art is made small in the reader and passed as a checked JPEG data URL. The decisions are pure
+  (`readSession`, `positionNow`, `appLabel`); tests set `ELECDEX_NOWPLAYING_STUB=1` and change the
+  track through `globalThis.__elecdexNowPlaying`.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or
@@ -505,6 +514,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
     depends on — or records — where this machine has been;
   - `ELECDEX_CLIPBOARD_STUB=1` for a stand-in clipboard in main's memory (`=demo` for
     screenshots), so no run reads what this machine has copied or writes to its clipboard;
+  - `ELECDEX_NOWPLAYING_STUB=1` for a stand-in media session (`=demo` for screenshots), so no run
+    reads what this machine plays or presses its player's buttons;
   - `ELECDEX_WIFI_STUB=1` for a made-up Wi-Fi link, echoes and log (`=train` for a trip with
     tunnels and changes of car, `=dual` for two adapters, `=demo` for screenshots), so no run
     reads the network or pings;
@@ -553,6 +564,7 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   What would show someone else's pages or this machine is made up: the web panes show stand-in
   pages (never YouTube's or X's own), the feed, the socket table (`ELECDEX_SOCKETS_STUB=demo`),
   the Wi-Fi link (`ELECDEX_WIFI_STUB=demo`), the clipboard history (`ELECDEX_CLIPBOARD_STUB=demo`),
+  what is playing (`ELECDEX_NOWPLAYING_STUB=demo`),
   the sound (`ELECDEX_AUDIO_STUB=demo`), notes and tasks, a Claude Code folder and a demo
   repository by a made-up author. Web panes are native views the page's screenshot cannot see,
   so the script lays main's pictures of them over it. Name shots to take only those. Regenerate

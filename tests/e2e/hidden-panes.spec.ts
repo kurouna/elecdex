@@ -188,6 +188,7 @@ const WIDGETS = [
   'todo',
   'timer',
   'clipboard',
+  'nowplaying',
 ]
 
 /** The sources a pane behind a tab keeps (builtins.ts `keepWhileHidden`): charts, and once-only readings. */
@@ -239,6 +240,7 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       git: await window.elecdex.git.watching(),
       agents: await window.elecdex.agents.watching(),
       clipboard: await window.elecdex.clipboard.watching(),
+      nowPlaying: await window.elecdex.nowPlaying.watching(),
     }))
   try {
     await expect(page.getByTestId('pane')).toHaveCount(WIDGETS.length + 1)
@@ -252,6 +254,7 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       git: [],
       agents: false,
       clipboard: false,
+      nowPlaying: false,
     })
     // Once the start is over (a shell's first prompt, the launcher's catalog, the one-off readings),
     // the page writes nothing into any of them: no figure, no clock, no pulse. The one-off readings
@@ -317,6 +320,7 @@ const FOR_THE_EYE = [
   'toplist',
   'wifi',
   'clipboard',
+  'nowplaying',
 ]
 const FEED = 'http://127.0.0.1:9/feed.xml'
 
@@ -352,6 +356,7 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       git: (await window.elecdex.git.watching()).length,
       agents: await window.elecdex.agents.watching(),
       clipboard: await window.elecdex.clipboard.watching(),
+      nowPlaying: await window.elecdex.nowPlaying.watching(),
     }))
   const atWork = async () => {
     const now = await main()
@@ -364,7 +369,8 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       now.orbits.length === 1 &&
       now.git === 1 &&
       now.agents &&
-      now.clipboard
+      now.clipboard &&
+      now.nowPlaying
     )
   }
   const windowTo = (how: 'minimize' | 'restore') =>
@@ -391,6 +397,7 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       git: 0,
       agents: false,
       clipboard: false,
+      nowPlaying: false,
     })
     const writes = await page.evaluate(async (widgets) => {
       let count = 0

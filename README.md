@@ -111,6 +111,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Spectrum and mixer** — a spectrum analyser of what the computer is playing, drawn like a
   1990s car stereo's display (fluorescent cyan or amber, LED, or the theme's colour), and a mixer
   for the system volume and each app playing sound.
+- **Now playing** *(unreleased)* — what a player is playing, as Windows' own media overlay knows
+  it: the art, the title, artist and album, where the track is, and previous, play/pause and next.
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first.
 
 ### desk — writing, counting and keeping time
@@ -331,8 +333,8 @@ A pane you want a better look at can be brought forward: **Ctrl+Shift+Z**, the �
 × in the top-right corner (a tab group has the same corner, whose × closes every tab in it; a tab's
 own × closes just that tab), and it covers most of the window over the other panes, which keep
 their place behind a shade. Panes that gain nothing from the room are left out of it: the system
-strip and the network status have no ⤢ at all, and the calculator, timer, mixer, disk and process
-list come forward as a panel in the middle rather than over the whole window. It is framed while
+strip and the network status have no ⤢ at all, and the calculator, timer, mixer, now playing, disk and
+process list come forward as a panel in the middle rather than over the whole window. It is framed while
 it is forward - the shell's notched border a size up, with corner brackets - just outside its own
 edges, so it keeps all the room it was given. Escape, the shortcut again, the button or a click on the shade puts it
 back. A tab comes forward with its group, so its other tabs are still there to switch to. Nothing
@@ -356,7 +358,7 @@ reduced.
 Six **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT), **media**
-(YouTube (TV) with the spectrum and mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
+(YouTube (TV) with the spectrum and mixer beneath - and, *unreleased*, what is playing - X and RSS as tabs) and **desk** (notes, a timer,
 the calculator, tasks and the calendar, and - *unreleased* - the clipboard). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
@@ -726,6 +728,14 @@ weather and calendar.
   Windows through one long-lived PowerShell, on macOS with AppleScript and on Linux with
   pactl (PulseAudio or PipeWire; pactl from PulseAudio 16 or later), or WirePlumber's wpctl for
   the master volume where pactl is missing.
+- **Now playing** *(unreleased)* — in the media preset, or add it from the picker ("now
+  playing"). The media session Windows calls current - Spotify, a browser playing YouTube, Media
+  Player, any player that tells the system what it plays - with its art, title, artist, album and
+  application, where the track is (counted on each second between the player's own reports), and
+  previous, play/pause and next, each offered only when the player offers it. Read twice a second
+  through one long-lived PowerShell, and only while the pane is on screen: behind another tab, with
+  the window minimised or put away, nothing is read. Nothing is written to disk or logged, and no
+  plugin can reach it. Windows only for now; on macOS and Linux the pane says so.
 
 ## Plugins
 

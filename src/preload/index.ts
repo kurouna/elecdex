@@ -32,6 +32,7 @@ import type { SavedLayoutSummary } from '@shared/layouts'
 import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { Note, NotesFile } from '@shared/notes'
+import type { NowPlaying, NowPlayingControlResult } from '@shared/now-playing'
 import type { OrbitSet, OrbitUpdate } from '@shared/orbits'
 import type { PluginCatalog, PluginInstalled } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
@@ -271,6 +272,14 @@ const subscribeClipboard = keyedSubscriptions<ClipBoard>({
   keyOf: () => 'board',
 })
 
+/** The one media session, shared by every pane showing it. */
+const subscribeNowPlaying = keyedSubscriptions<NowPlaying>({
+  subscribe: CH.nowPlaying.subscribe,
+  unsubscribe: CH.nowPlaying.unsubscribe,
+  event: CH.nowPlaying.update,
+  keyOf: () => 'session',
+})
+
 /** The one agents board: every handler shares one subscription, as a keyed one would. */
 const subscribeAgents = keyedSubscriptions<AgentBoard>({
   subscribe: CH.agents.subscribe,
@@ -505,6 +514,12 @@ const api: ElecdexApi = {
     clear: () => ipcRenderer.send(CH.clipboard.clear),
     pause: (paused) => ipcRenderer.send(CH.clipboard.pause, paused),
     watching: () => ipcRenderer.invoke(CH.clipboard.watching) as Promise<boolean>,
+  },
+  nowPlaying: {
+    subscribe: (handler) => subscribeNowPlaying('session', handler),
+    control: (action) =>
+      ipcRenderer.invoke(CH.nowPlaying.control, action) as Promise<NowPlayingControlResult>,
+    watching: () => ipcRenderer.invoke(CH.nowPlaying.watching) as Promise<boolean>,
   },
   agents: {
     subscribe: (handler) => subscribeAgents('board', handler),
