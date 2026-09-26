@@ -11,12 +11,21 @@ export class CopyFlag {
   private timer: ReturnType<typeof setTimeout> | undefined
 
   async copy(key: string, text: string): Promise<void> {
-    await navigator.clipboard.writeText(text)
+    await this.through(key, async () => {
+      await navigator.clipboard.writeText(text)
+      return true
+    })
+  }
+
+  /** A copy made some other way (through main, say): says so only when `write` did. */
+  async through(key: string, write: () => Promise<boolean>): Promise<boolean> {
+    if (!(await write())) return false
     this.key = key
     clearTimeout(this.timer)
     this.timer = setTimeout(() => {
       this.key = null
     }, SHOWN_MS)
+    return true
   }
 
   dispose(): void {

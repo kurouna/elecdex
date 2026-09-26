@@ -57,6 +57,8 @@ export interface BootFacts {
   alerts: boolean
   /** The daily release check on. */
   updateCheck: boolean
+  /** AWAKE's hold taken up from last time, in words (`system · until 15:42`), or null. */
+  awake: string | null
 }
 
 /** The machine facts main could not give (an old main, a failed call): only what the page knows. */
@@ -288,7 +290,7 @@ const NETWORK_SERVICES = [
 ] as const
 
 function serviceLines(facts: BootFacts): BootLine[] {
-  const { info, panes, metricSources, online, alerts, updateCheck } = facts
+  const { info, panes, metricSources, online, alerts, updateCheck, awake } = facts
   const present = new Set(panes.map((p) => p.widget))
   const terminals = panes.filter((p) => p.widget === 'terminal').length
   const lines: BootLine[] = [
@@ -319,6 +321,8 @@ function serviceLines(facts: BootFacts): BootLine[] {
     )
   }
   if (updateCheck) lines.push(unit('Started update-check.timer - Daily Release Check (GitHub).'))
+  // A hold taken up from last time keeps the machine from sleeping: say so at the start.
+  if (awake !== null) lines.push(unit(`Started awake.service - Hold, ${awake}.`))
   const seen = new Map<string, number>()
   for (const { widget, title } of panes) {
     const n = (seen.get(widget) ?? 0) + 1

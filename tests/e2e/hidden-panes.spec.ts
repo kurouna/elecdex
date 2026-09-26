@@ -189,6 +189,7 @@ const WIDGETS = [
   'timer',
   'clipboard',
   'nowplaying',
+  'utility',
 ]
 
 /** The sources a pane behind a tab keeps (builtins.ts `keepWhileHidden`): charts, and once-only readings. */

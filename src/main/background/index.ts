@@ -51,6 +51,8 @@ const HintSchema = z.object({ trayHintShown: z.boolean().default(false) })
 export interface Background {
   /** Takes over the window's close and minimise; `startHidden` when started at sign-in in the background. */
   attach(win: BrowserWindow, startHidden: boolean): void
+  /** What the tray's tooltip adds after the name: AWAKE's hold, while there is one. */
+  setNote(note: string | null): void
   dispose(): void
 }
 
@@ -257,6 +259,7 @@ export function registerBackground(settings: SettingsHandle): Background {
       win.on('hide', follow(true))
       refreshTray()
     },
+    setNote: (note) => tray.setNote(note),
     dispose: () => {
       app.off('before-quit', onBeforeQuit)
       toggle.dispose()

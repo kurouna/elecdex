@@ -22,8 +22,14 @@ const isItem = (entry: MenuEntry): entry is MenuItem => entry.id !== 'separator'
 export interface AppTray {
   /** Shows or removes the icon. */
   setVisible(on: boolean): void
+  /** A few words after the name in its tooltip (AWAKE's hold), or null for the name alone. */
+  setNote(note: string | null): void
   dispose(): void
 }
+
+/** The icon's tooltip: the name, and what is going on that the window is not there to say. */
+export const trayTooltip = (note: string | null): string =>
+  note === null ? 'elecdex' : `elecdex · ${note}`
 
 /**
  * The icon outside the window, at the sizes the platform asks for. Rendered from
@@ -87,11 +93,12 @@ export function trayCanBeShown(): boolean {
  */
 export function createTray(actions: TrayActions): AppTray {
   let tray: Tray | null = null
+  let note: string | null = null
   return {
     setVisible: (on) => {
       if (on && tray === null) {
         tray = new Tray(trayImage())
-        tray.setToolTip('elecdex')
+        tray.setToolTip(trayTooltip(note))
         tray.setContextMenu(
           Menu.buildFromTemplate(
             TRAY_MENU.map((entry) =>
@@ -108,6 +115,10 @@ export function createTray(actions: TrayActions): AppTray {
         tray = null
       }
     },
+    setNote: (next) => {
+      note = next
+      tray?.setToolTip(trayTooltip(note))
+    },
     dispose: () => {
       tray?.destroy()
       tray = null
@@ -118,6 +129,7 @@ export function createTray(actions: TrayActions): AppTray {
 /** The end-to-end tests' tray: never on the machine's taskbar, clicked through its methods. */
 export class StubTray implements AppTray {
   visible = false
+  tooltip = trayTooltip(null)
   readonly #actions: TrayActions
 
   constructor(actions: TrayActions) {
@@ -126,6 +138,10 @@ export class StubTray implements AppTray {
 
   setVisible(on: boolean): void {
     this.visible = on
+  }
+
+  setNote(note: string | null): void {
+    this.tooltip = trayTooltip(note)
   }
 
   click(): void {

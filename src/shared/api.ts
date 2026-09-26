@@ -38,6 +38,7 @@ import type { Settings, SettingsPatch } from './settings.js'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from './tasks.js'
 import type { Theme, ThemeProblem } from './theme.js'
 import type { UpdateStatus } from './updates.js'
+import type { AwakeRequest, AwakeState, UtilityCopy } from './utility.js'
 import type { OfficeInfo } from './weather.js'
 import type { WeatherUpdate } from './weather-report.js'
 import type { WebAppearance, WebCommand, WebRect, WebState } from './web.js'
@@ -411,6 +412,27 @@ export interface NowPlayingApi {
 }
 
 /**
+ * The UTILITY pane (docs/architecture.md section 5.16). AWAKE's hold is main's -
+ * one for the machine, kept whether or not a pane shows it - and the page is
+ * told of every change. Sealed secrets and copies go through main too.
+ */
+export interface UtilityApi {
+  awake: {
+    state(): Promise<AwakeState>
+    set(request: AwakeRequest): Promise<AwakeState>
+    /** Makes a timed hold `AWAKE_EXTEND_MS` longer. */
+    extend(): Promise<AwakeState>
+    onChange(handler: (state: AwakeState) => void): () => void
+  }
+  /** A secret sealed for the page to keep, or null where the system cannot encrypt. */
+  seal(secret: string): Promise<string | null>
+  /** A secret sealed here, again; null when it cannot be opened (another machine). */
+  unseal(sealed: string): Promise<string | null>
+  /** Puts text or a PNG on the clipboard; false when it was refused or failed. */
+  copy(what: UtilityCopy): Promise<boolean>
+}
+
+/**
  * The AI AGENT pane (experimental): coding agents at work on this machine, read
  * from their own local records by the layer in main (agents/hub.ts).
  */
@@ -698,6 +720,7 @@ export interface ElecdexApi {
   feeds: FeedsApi
   clipboard: ClipboardApi
   nowPlaying: NowPlayingApi
+  utility: UtilityApi
   git: GitApi
   orbits: OrbitsApi
   agents: AgentsApi

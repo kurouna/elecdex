@@ -44,9 +44,17 @@ export async function clearSystemClipboard(): Promise<void> {
   clipboard.clear()
 }
 
-export async function writeSystemClipboard(entry: ClipEntry): Promise<void> {
+export async function writeSystemClipboard(
+  entry: Pick<ClipEntry, 'text' | 'html' | 'rtf'>,
+): Promise<void> {
   const data: Record<string, string> = { 'text/plain': entry.text }
   if (entry.html !== null) data['text/html'] = entry.html
   if (entry.rtf !== null) data['text/rtf'] = entry.rtf
   await clipboard.write([new ClipboardItem(data)])
+}
+
+/** A picture, as the PNG it was drawn to (the UTILITY pane's QR code). */
+export async function writeSystemImage(png: Uint8Array): Promise<void> {
+  const blob = new Blob([png as Uint8Array<ArrayBuffer>], { type: 'image/png' })
+  await clipboard.write([new ClipboardItem({ 'image/png': blob })])
 }

@@ -55,7 +55,7 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 ```
 src/main/        main process: window, ipc/ (handlers), store/ (json files), pty/, fs/, weather/,
                  markets/, feeds/, quakes/, clipboard/, media/, ai/, launcher/, audio/, plugins/, web/, background/,
-                 reminders/, updates/, metrics/ (the broker between the collector and pages)
+                 reminders/, updates/, awake/, metrics/ (the broker between the collector and pages)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas (schemas/), channel names and pure logic used by both sides;
@@ -147,6 +147,23 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   copy stays in main until a card opens. The decisions are pure
   (`readSession`, `positionNow`, `appLabel`); tests set `ELECDEX_NOWPLAYING_STUB=1` and change the
   track through `globalThis.__elecdexNowPlaying`.
+- **The UTILITY pane** (architecture.md §5.16, shared/utility.ts, shared/codec.ts, main/awake/)
+  holds small tools, one shown at a time: AWAKE, QR, CODEC. A tool is a module in
+  `UTILITY_MODULES`, never a pane of its own, and only one that starts with the user's own
+  action, runs in main through Electron or what is already there (no process per action), uses
+  no network, reads nothing behind a consent and is out of the plugin API.
+  - AWAKE holds through `powerSaveBlocker` alone, in three levels (OFF / SYSTEM / DISPLAY:
+    display implies system). The hold is main's (`AwakeService`), saved in `awake.json` and
+    restored at start - never in pane state, which travels with saved layouts - and goes on
+    with no pane open, so the status bar and the tray say so. Its end waits on one
+    `setTimeout` for `until` and is checked again on `resume`; never a tick.
+  - What they copy goes through main (`utility.copy`), so the clipboard stub catches it.
+  - A Wi-Fi password is kept in pane state only sealed (`utility.seal`, `safeStorage` as the AI
+    keys, main/secrets/), unsealed only while the Wi-Fi code is shown, and never written in
+    plain where the system cannot encrypt. CODEC's input is never written to disk.
+  - A QR code is always dark modules on a light ground, in the theme's colours when their
+    contrast holds (`qrColours`); a test reads every theme's code back.
+  - Tests set `ELECDEX_AWAKE_STUB=1` and read the hold through `globalThis.__elecdexAwake`.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or
@@ -521,8 +538,10 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   - `ELECDEX_WIFI_STUB=1` for a made-up Wi-Fi link, echoes and log (`=train` for a trip with
     tunnels and changes of car, `=dual` for two adapters, `=demo` for screenshots), so no run
     reads the network or pings;
-  - `ELECDEX_AI_KEYS_STUB=1` for a reversible stand-in for `safeStorage`, so no run opens the
-    Keychain or a keyring. AI providers are the user's own addresses, so a spec lists a local stub.
+  - `ELECDEX_AWAKE_STUB=1` for a stand-in power-save blocker and power source, so no run keeps
+    this machine awake;
+  - `ELECDEX_AI_KEYS_STUB=1` for a reversible stand-in for `safeStorage` (the AI keys and the
+    UTILITY pane's sealed Wi-Fi password), so no run opens the Keychain or a keyring. AI providers are the user's own addresses, so a spec lists a local stub.
   - `ELECDEX_SEED_LAYOUTS=0`, so a new profile starts with no saved layouts rather than the
     presets a real first start is given (layout-presets.spec.ts turns it back on).
   A plugin's hosts reach a stub through `ELECDEX_PLUGIN_HOST_MAP`

@@ -1,6 +1,7 @@
 import type { AppInfo, MachineFacts } from '@shared/api'
 import { collectPanes } from '@shared/layout-ops'
 import { METRIC_SOURCE_IDS } from '@shared/metrics'
+import { awakeLine } from '@shared/utility'
 import {
   type BootLine,
   bootLog,
@@ -11,6 +12,7 @@ import {
 } from '../lib/boot-sequence.ts'
 import { listWidgets, resolveWidget } from '../widgets/registry.ts'
 import { appearance } from './appearance.svelte.ts'
+import { awake } from './awake.svelte.ts'
 import { layout } from './layout.svelte.ts'
 import { sfx } from './sound.svelte.ts'
 
@@ -118,7 +120,7 @@ class BootStore {
 
   private async playLog(info: AppInfo): Promise<void> {
     this.phase = 'log'
-    const machine = await machineFacts(info)
+    const [machine] = await Promise.all([machineFacts(info), awake.init()])
     const log = bootLog({
       info,
       machine,
@@ -136,6 +138,7 @@ class BootStore {
       online: navigator.onLine,
       alerts: appearance.settings.quakes.notify,
       updateCheck: appearance.settings.updates.check,
+      awake: awakeLine(awake.state, Date.now()),
     })
     for (const [index, line] of log.entries()) {
       if (this.cancelled) return

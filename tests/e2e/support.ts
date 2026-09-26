@@ -221,6 +221,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       // button pressed (src/main/media/stub.ts). Specs change the track through
       // globalThis.__elecdexNowPlaying.
       ELECDEX_NOWPLAYING_STUB: '1',
+      // A stand-in power-save blocker and power source: no run keeps this machine awake
+      // (src/main/awake/stub.ts). Specs read the hold through globalThis.__elecdexAwake.
+      ELECDEX_AWAKE_STUB: '1',
       // A reversible stand-in for the system's encryption: never the Keychain or a
       // keyring, and never the prompt either may show (src/main/ai/keys.ts).
       ELECDEX_AI_KEYS_STUB: '1',

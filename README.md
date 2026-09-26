@@ -193,6 +193,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   login item cannot start hidden, and on Linux the tray and the shortcut depend on the desktop —
   a session that has neither says so instead of showing a switch that does nothing. All off until
   turned on in *Settings → Window*.
+- **Utility** *(unreleased)* — small tools in one pane: keep the machine awake while you say so,
+  make a QR code (a text, an address or a Wi-Fi network), and encode, decode, hash or read a time.
 
 ## Install
 
@@ -741,6 +743,24 @@ weather and calendar.
   the window minimised or put away, nothing is read. Nothing is written to disk or logged, and no
   plugin can reach it. **Windows only: macOS and Linux are not supported yet** - there the pane
   shows UNSUPPORTED.
+- **Utility** *(unreleased)* — add it from the picker ("utility"). Small tools behind a switch,
+  one at a time, and the pane can be popped up:
+  - **AWAKE** keeps the machine from sleeping: SYSTEM (the screen may go dark) or DISPLAY (it
+    stays on), for good or for 30 minutes to 4 hours, with +30M to add. It is asked of the system
+    through Electron's power-save blocker, so no program is started; closing the lid or choosing
+    sleep still sleeps. The hold goes on with the pane closed and is taken up again after a
+    restart until you turn it off or its time runs out: the status bar says so (its bottom-edge
+    tick lights up), as does the tray's tooltip, and the boot log names it.
+  - **QR** makes a code for a text, an address or a Wi-Fi network (the format a phone joins by
+    pointing its camera), at error correction L to H, in the theme's colours - always dark on
+    light, and black on white where a theme's contrast is not enough - and COPY puts it on the
+    clipboard as a picture. The Wi-Fi password is kept only sealed by the system's encryption,
+    as the AI keys are, and a code that holds it is veiled until you press REVEAL.
+  - **CODEC** encodes and decodes Base64, Base64URL, URL-encoding and hex, lays out a JWT (the
+    signature is not checked), hashes with SHA-1, SHA-256 and SHA-512, reads a Unix time or a
+    date both ways, turns full-width ASCII half-width and back (and NFKC), and makes UUIDs. What
+    you type into it is never written to disk.
+  Everything runs on this machine with no network, and no plugin can reach any of it.
 
 ## Plugins
 

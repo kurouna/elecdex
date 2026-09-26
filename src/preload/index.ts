@@ -40,6 +40,7 @@ import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from '@shared/tasks'
 import type { UpdateStatus } from '@shared/updates'
+import type { AwakeState } from '@shared/utility'
 import type { OfficeInfo } from '@shared/weather'
 import type { WeatherUpdate } from '@shared/weather-report'
 import type { WebState } from '@shared/web'
@@ -523,6 +524,17 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.nowPlaying.seek, seconds) as Promise<NowPlayingControlResult>,
     art: () => ipcRenderer.invoke(CH.nowPlaying.art) as Promise<string | null>,
     watching: () => ipcRenderer.invoke(CH.nowPlaying.watching) as Promise<boolean>,
+  },
+  utility: {
+    awake: {
+      state: () => ipcRenderer.invoke(CH.utility.awakeState) as Promise<AwakeState>,
+      set: (request) => ipcRenderer.invoke(CH.utility.awakeSet, request) as Promise<AwakeState>,
+      extend: () => ipcRenderer.invoke(CH.utility.awakeExtend) as Promise<AwakeState>,
+      onChange: (handler) => listen<AwakeState>(CH.utility.awakeChanged, handler),
+    },
+    seal: (secret) => ipcRenderer.invoke(CH.utility.seal, secret) as Promise<string | null>,
+    unseal: (sealed) => ipcRenderer.invoke(CH.utility.unseal, sealed) as Promise<string | null>,
+    copy: (what) => ipcRenderer.invoke(CH.utility.copy, what) as Promise<boolean>,
   },
   agents: {
     subscribe: (handler) => subscribeAgents('board', handler),

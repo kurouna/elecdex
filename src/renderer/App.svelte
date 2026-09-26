@@ -2,12 +2,14 @@
 import type { AppInfo } from '@shared/api'
 import { effectiveBindings, formatChord, type KeybindingAction } from '@shared/keybindings'
 import { KEYED_LAYOUTS } from '@shared/layouts'
+import { awakeLine } from '@shared/utility'
 import BootScreen from './BootScreen.svelte'
 import ConfirmButton from './ConfirmButton.svelte'
 import LocationPicker from './LocationPicker.svelte'
 import LayoutsDialog from './layout/LayoutsDialog.svelte'
 import PanePicker from './layout/PanePicker.svelte'
 import PopupPane from './layout/PopupPane.svelte'
+import { popupPaneId } from './layout/popup.ts'
 import SwitchLayoutDialog from './layout/SwitchLayoutDialog.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
@@ -15,6 +17,7 @@ import { plugins } from './plugins/plugins.svelte.ts'
 import QuakeAlert from './QuakeAlert.svelte'
 import SettingsDialog from './SettingsDialog.svelte'
 import { appearance } from './stores/appearance.svelte.ts'
+import { awake } from './stores/awake.svelte.ts'
 import { background } from './stores/background.svelte.ts'
 import { boot } from './stores/boot.svelte.ts'
 import { layout } from './stores/layout.svelte.ts'
@@ -22,6 +25,7 @@ import { watchAlarms, watchReminders } from './stores/reminders.svelte.ts'
 import { sfx } from './stores/sound.svelte.ts'
 import { ui } from './stores/ui.svelte.ts'
 import { coverWeb } from './stores/web.svelte.ts'
+import { widgetState } from './stores/widget-state.svelte.ts'
 import TitleBar from './TitleBar.svelte'
 import Toasts from './Toasts.svelte'
 import UpdateNotice from './UpdateNotice.svelte'
@@ -48,6 +52,18 @@ $effect(() => {
 // listens for them here rather than in the widget.
 $effect(() => watchReminders())
 $effect(() => watchAlarms())
+
+// AWAKE's hold goes on with no pane open, so the status bar follows it for the whole window.
+$effect(() => void awake.init())
+
+/** The hold in words, while there is one: its end is a clock time, so nothing here counts down. */
+const awakeWords = $derived(awakeLine(awake.state, Date.now()))
+
+/** The status bar's AWAKE button: the UTILITY pane, popped up on AWAKE. */
+function openAwake(): void {
+  widgetState.patch(popupPaneId('utility'), { module: 'awake' })
+  ui.openPopup('utility')
+}
 
 // The notification-area menu's "Settings": main has already brought the window forward.
 $effect(() => window.elecdex.background.onOpenSettings(() => ui.openSettings()))
@@ -106,7 +122,12 @@ function toggleSound(): void {
   <Workspace />
 
   <!-- A short tick at the bottom edge while the status bar is away, so it can be found. -->
-  <span class="status-handle" class:away={!status.shown} aria-hidden="true"></span>
+  <span
+    class="status-handle"
+    class:away={!status.shown}
+    class:holding={awakeWords !== null}
+    aria-hidden="true"
+  ></span>
   <footer
     bind:this={status.element}
     class:shown={status.shown}
@@ -142,6 +163,17 @@ function toggleSound(): void {
       {/each}
     </span>
     <span class="gap"></span>
+    {#if awakeWords !== null}
+      <button
+        type="button"
+        class="control toggle awake"
+        title="Keeping this machine awake: open AWAKE"
+        onclick={openAwake}
+        data-testid="status-awake"
+      >
+        <i aria-hidden="true"></i>awake · {awakeWords}
+      </button>
+    {/if}
     <button
       type="button"
       class="control toggle"
@@ -307,6 +339,31 @@ footer {
 
 .status-handle.away {
   opacity: 0.6;
+}
+
+/* Kept awake: the tick at the bottom edge is lit, so the hold is seen with the bar away. */
+.status-handle.holding {
+  background: var(--accent);
+  box-shadow: 0 0 calc(0.3rem + var(--glow) * 0.5rem) var(--accent);
+}
+
+.status-handle.away.holding {
+  opacity: 1;
+}
+
+.awake {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.awake i {
+  width: 0.4rem;
+  height: 0.4rem;
+  transform: rotate(45deg);
+  background: var(--accent);
 }
 
 footer.shown {

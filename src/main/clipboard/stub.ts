@@ -16,7 +16,9 @@ import {
  */
 export interface StubClipboard {
   read(last: string | null): Promise<ClipRead>
-  write(entry: ClipEntry): Promise<void>
+  write(entry: Pick<ClipEntry, 'text' | 'html' | 'rtf'>): Promise<void>
+  /** A picture (the UTILITY pane's QR code), as PNG bytes. */
+  writeImage(png: Uint8Array): Promise<void>
   clear(): Promise<void>
 }
 
@@ -32,6 +34,8 @@ export interface ClipboardHooks {
   /** Something the pane does not keep, an image say. */
   copyOther(): void
   current(): { text: string; html: string | null; rtf: string | null } | null
+  /** The picture on the stand-in clipboard, as PNG bytes, or null. */
+  image(): Uint8Array | null
   /** How many times the clipboard has been looked at. */
   reads(): number
 }
@@ -40,6 +44,7 @@ export interface ClipboardHooks {
 export function stubClipboard(holding: string | null = null): StubClipboard {
   let held: Held | null =
     holding === null ? null : { text: holding, html: null, rtf: null, private: false }
+  let image: Uint8Array | null = null
   let reads = 0
   const hooks: ClipboardHooks = {
     copy: (text, options) => {
@@ -49,11 +54,14 @@ export function stubClipboard(holding: string | null = null): StubClipboard {
         rtf: options?.rtf ?? null,
         private: options?.private === true,
       }
+      image = null
     },
     copyOther: () => {
       held = null
+      image = null
     },
     current: () => (held === null ? null : { text: held.text, html: held.html, rtf: held.rtf }),
+    image: () => image,
     reads: () => reads,
   }
   ;(globalThis as { __elecdexClipboard?: ClipboardHooks }).__elecdexClipboard = hooks
@@ -66,9 +74,15 @@ export function stubClipboard(holding: string | null = null): StubClipboard {
     },
     write: async (entry) => {
       held = { text: entry.text, html: entry.html, rtf: entry.rtf, private: false }
+      image = null
+    },
+    writeImage: async (png) => {
+      held = null
+      image = png
     },
     clear: async () => {
       held = null
+      image = null
     },
   }
 }

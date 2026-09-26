@@ -122,6 +122,17 @@ export const CH = {
     art: 'now-playing:art',
     watching: 'now-playing:watching',
   },
+  /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
+  utility: {
+    awakeState: 'utility:awake-state',
+    awakeSet: 'utility:awake-set',
+    awakeExtend: 'utility:awake-extend',
+    /** main -> renderer: the hold changed (AwakeState). */
+    awakeChanged: 'utility:awake-changed',
+    seal: 'utility:seal',
+    unseal: 'utility:unseal',
+    copy: 'utility:copy',
+  },
   /** The AI AGENT pane (shared/agents.ts): one board, from the sources settings turn on. */
   agents: {
     /** renderer -> main, fire and forget: keep the board current. */

@@ -24,6 +24,7 @@ import { registerSettingsIpc } from './ipc/settings.js'
 import { registerSystemIpc } from './ipc/system.js'
 import { registerTasksIpc } from './ipc/tasks.js'
 import { registerUpdatesIpc } from './ipc/updates.js'
+import { registerUtilityIpc, type UtilityIpc } from './ipc/utility.js'
 import { registerWeatherIpc } from './ipc/weather.js'
 import { registerWebIpc } from './ipc/web.js'
 import { registerMetricsIpc } from './metrics/broker.js'
@@ -82,8 +83,9 @@ let settingsIpc: { dispose: () => void } | null = null
 let launcherIpc: { dispose: () => void } | null = null
 let marketsIpc: { dispose: () => void } | null = null
 let feedsIpc: { dispose: () => void } | null = null
-let clipboardIpc: { dispose: () => void } | null = null
+let clipboardIpc: ReturnType<typeof registerClipboardIpc> | null = null
 let nowPlayingIpc: { dispose: () => void } | null = null
+let utilityIpc: UtilityIpc | null = null
 let gitIpc: { dispose: () => void } | null = null
 let orbitsIpc: { dispose: () => void } | null = null
 let agentsIpc: { dispose: () => void } | null = null
@@ -112,6 +114,8 @@ app.whenReady().then(() => {
   feedsIpc = registerFeedsIpc()
   clipboardIpc = registerClipboardIpc()
   nowPlayingIpc = registerNowPlayingIpc()
+  // Before the window: AWAKE's hold from last time is taken up at once.
+  utilityIpc = registerUtilityIpc(clipboardIpc.writer)
   gitIpc = registerGitIpc(settings)
   orbitsIpc = registerOrbitsIpc()
   agentsIpc = registerAgentsIpc(settings)
@@ -125,6 +129,8 @@ app.whenReady().then(() => {
   pluginsIpc = registerPluginsIpc(settings)
   webIpc = registerWebIpc(settings)
   background = registerBackground(settings)
+  // The hold goes on with the window put away: the tray's tooltip says so.
+  utilityIpc.onLine((line) => background?.setNote(line))
   const win = createMainWindow({
     fullscreen: !wantsWindowed,
     devtools: !app.isPackaged,
@@ -183,6 +189,8 @@ app.on('will-quit', () => {
   clipboardIpc = null
   nowPlayingIpc?.dispose()
   nowPlayingIpc = null
+  utilityIpc?.dispose()
+  utilityIpc = null
   gitIpc?.dispose()
   gitIpc = null
   orbitsIpc?.dispose()

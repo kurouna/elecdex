@@ -31,6 +31,7 @@ import RssWidget from './rss/RssWidget.svelte'
 import TerminalWidget from './terminal/TerminalWidget.svelte'
 import TimerWidget from './timer/TimerWidget.svelte'
 import TodoWidget from './todo/TodoWidget.svelte'
+import UtilityWidget from './utility/UtilityWidget.svelte'
 import WeatherWidget from './weather/WeatherWidget.svelte'
 import WebWidget from './web/WebWidget.svelte'
 import WifiWidget from './wifi/WifiWidget.svelte'
@@ -363,6 +364,18 @@ registerBuiltin({
     'What a player is playing - its art, title, artist and album - with previous, play/pause and next. Read only while it shows; Windows only for now.',
   component: NowPlayingWidget,
   minSize: { w: 220, h: 120 },
+  zoom: 'panel',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'utility',
+  title: 'utility',
+  description:
+    'Small tools behind a switch: AWAKE keeps the machine from sleeping, QR makes a code for a text, an address or a Wi-Fi network, CODEC encodes, hashes and reads times.',
+  component: UtilityWidget,
+  minSize: { w: 260, h: 220 },
+  multiple: true,
   zoom: 'panel',
   popup: true,
 })

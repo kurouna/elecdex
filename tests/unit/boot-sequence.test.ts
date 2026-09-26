@@ -73,6 +73,7 @@ const facts: BootFacts = {
   online: true,
   alerts: false,
   updateCheck: true,
+  awake: null,
 }
 
 const texts = (f: BootFacts = facts) => bootLog(f).map((l) => l.text)
@@ -137,6 +138,13 @@ describe('bootLog', () => {
     const other = texts({ ...facts, alerts: true, updateCheck: false })
     expect(other).toContain('Started quakes.service - Earthquakes and Tsunamis.')
     expect(other.some((t) => t.includes('update-check'))).toBe(false)
+  })
+
+  it('says when AWAKE took up the hold from last time, and nothing when there is none', () => {
+    expect(texts(facts).some((t) => t.includes('awake'))).toBe(false)
+    expect(texts({ ...facts, awake: 'system · until 15:42' })).toContain(
+      'Started awake.service - Hold, system · until 15:42.',
+    )
   })
 
   it('reports an offline machine as a failed unit', () => {

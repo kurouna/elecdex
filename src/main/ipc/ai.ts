@@ -14,13 +14,14 @@ import {
   chatRequest,
 } from '@shared/ai'
 import { CH } from '@shared/channels'
-import { app, dialog, ipcMain, net, safeStorage, type WebContents } from 'electron'
+import { app, dialog, ipcMain, net, type WebContents } from 'electron'
 import type { FetchLike, ProviderAdapter } from '../ai/adapter.js'
-import { emptyKeyFile, type KeyCodec, KeyFileSchema, KeyVault, stubCodec } from '../ai/keys.js'
+import { emptyKeyFile, KeyFileSchema, KeyVault } from '../ai/keys.js'
 import { AiChatService } from '../ai/service.js'
 import { ChatStore } from '../ai/store.js'
 import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
+import { secretCodec } from '../secrets/system.js'
 import { cacheFile } from '../store/cache-file.js'
 import { registerElecIpc } from './elec.js'
 import { whenPageGoes } from './page-gone.js'
@@ -43,15 +44,6 @@ import type { SettingsHandle } from './settings.js'
 const ORPHAN_GRACE_MS = 3000
 const MODELS_TIMEOUT_MS = 20_000
 
-/** Keys encrypted by the system, where it can do better than a fixed password. */
-const systemCodec: KeyCodec = {
-  available: () =>
-    safeStorage.isEncryptionAvailable() &&
-    (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
-  encrypt: (plain) => safeStorage.encryptString(plain),
-  decrypt: (data) => safeStorage.decryptString(data),
-}
-
 /** Providers are asked with no cookies and no cache between the model and the pane. */
 const providerFetch: FetchLike = (url, init) =>
   net.fetch(url, { ...init, credentials: 'omit', cache: 'no-store' })
@@ -66,7 +58,7 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
     emptyKeyFile(),
   )
   const vault = new KeyVault({
-    codec: process.env.ELECDEX_AI_KEYS_STUB === '1' ? stubCodec : systemCodec,
+    codec: secretCodec(),
     load: keyFile.load,
     save: keyFile.save,
   })

@@ -7,6 +7,7 @@ import {
   clearSystemClipboard,
   readSystemClipboard,
   writeSystemClipboard,
+  writeSystemImage,
 } from '../clipboard/system.js'
 import { ClipboardWatcher } from '../clipboard/watcher.js'
 import { whenPageGoes } from './page-gone.js'
@@ -18,8 +19,16 @@ import { whenPageGoes } from './page-gone.js'
  *
  * The page is given previews; the whole text and its HTML stay here, and are
  * put back by id. No plugin can reach any of it: plugin-api.ts has no clipboard.
+ *
+ * What other panes put on the clipboard through main (the UTILITY pane's copies)
+ * goes through `writer`, so the tests' stand-in catches it as well.
  */
-export function registerClipboardIpc(): { dispose: () => void } {
+export interface ClipboardWriter {
+  writeText(text: string): Promise<void>
+  writeImage(png: Uint8Array): Promise<void>
+}
+
+export function registerClipboardIpc(): { dispose: () => void; writer: ClipboardWriter } {
   const subscribers = new Set<WebContents>()
   const stub = process.env.ELECDEX_CLIPBOARD_STUB
   const stand =
@@ -66,7 +75,14 @@ export function registerClipboardIpc(): { dispose: () => void } {
   // Diagnostics: whether main is reading the clipboard now.
   ipcMain.handle(CH.clipboard.watching, () => watcher.active)
 
+  const write = stand?.write ?? writeSystemClipboard
+  const writer: ClipboardWriter = {
+    writeText: (text) => write({ text, html: null, rtf: null }),
+    writeImage: stand?.writeImage ?? writeSystemImage,
+  }
+
   return {
+    writer,
     dispose: () => {
       watcher.dispose()
       for (const channel of [
