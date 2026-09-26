@@ -66,6 +66,32 @@ export function sunAltitude(place: GroundPoint, sun: GroundPoint): number {
   )
 }
 
+/** A latitude and longitude as the pane writes them: `0.64°S 42.13°W`. */
+export function latLonText(point: GroundPoint): string {
+  const sign = (v: number, pos: string, neg: string) =>
+    `${Math.abs(v).toFixed(2)}°${v >= 0 ? pos : neg}`
+  return `${sign(point.lat, 'N', 'S')} ${sign(point.lon, 'E', 'W')}`
+}
+
+/**
+ * What the Sun's mark says on its card: where it is, what that point is, and
+ * how the Sun stands for the pane's observer. Its latitude is the Sun's
+ * declination - the season, read off the map - and its longitude is where it
+ * is noon.
+ */
+export function sunLines(sun: GroundPoint, observer: GroundPoint & { name: string }): string[] {
+  const altitude = sunAltitude(observer, sun)
+  const light = altitude > 0 ? 'DAY' : altitude > -6 ? 'TWILIGHT' : 'NIGHT'
+  const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(0)}°`
+  return [
+    latLonText(sun),
+    `DECLINATION ${sun.lat >= 0 ? '+' : '−'}${Math.abs(sun.lat).toFixed(2)}°`,
+    'SOLAR NOON HERE · MOVES 15° WEST AN HOUR',
+    'DAY AND NIGHT MEET 90° FROM IT',
+    `${observer.name.toUpperCase()}: SUN ${signed(altitude)} · ${light}`,
+  ]
+}
+
 /** Mission control's clock: GMT as day of the year and time, `266/00:34:26`. */
 export function gmtClock(at: Date): { day: number; text: string } {
   const start = Date.UTC(at.getUTCFullYear(), 0, 1)

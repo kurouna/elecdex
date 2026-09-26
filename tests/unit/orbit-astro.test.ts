@@ -7,12 +7,14 @@ import {
   footprintDegrees,
   gmtClock,
   hourRuler,
+  latLonText,
   passes,
   satrecOf,
   satState,
   splitAtDateLine,
   subsolarPoint,
   sunAltitude,
+  sunLines,
 } from '../../src/renderer/widgets/orbit/astro.js'
 
 /**
@@ -34,6 +36,21 @@ describe('the Sun', () => {
 
   it('crosses the equator at the September equinox', () => {
     expect(Math.abs(subsolarPoint(new Date(Date.UTC(2026, 8, 23, 0, 5))).lat)).toBeLessThan(0.3)
+  })
+
+  it('says on its card where it is, the season, and how it stands for the observer', () => {
+    const tokyo = { ...TOKYO, name: 'Tokyo' }
+    const noon = sunLines(subsolarPoint(new Date(Date.UTC(2026, 8, 23, 3, 0))), tokyo)
+    expect(noon[0]).toMatch(/^\d+\.\d{2}°[NS] \d+\.\d{2}°E$/)
+    expect(noon[1]).toMatch(/^DECLINATION [+−]0\.\d{2}°$/)
+    expect(noon.at(-1)).toMatch(/^TOKYO: SUN \+\d+° · DAY$/)
+    const night = sunLines(subsolarPoint(new Date(Date.UTC(2026, 8, 23, 15, 0))), tokyo)
+    expect(night.at(-1)).toMatch(/^TOKYO: SUN −\d+° · NIGHT$/)
+    // At the June solstice the declination is the Tropic of Cancer.
+    expect(sunLines(subsolarPoint(new Date(Date.UTC(2026, 5, 21, 12))), tokyo)[1]).toMatch(
+      /^DECLINATION \+23\.4\d°$/,
+    )
+    expect(latLonText({ lat: -0.64, lon: -42.131 })).toBe('0.64°S 42.13°W')
   })
 
   it('is up at noon and down at midnight', () => {

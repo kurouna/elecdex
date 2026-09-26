@@ -84,6 +84,16 @@ test('draws the stations from one download, and asks for Starlink only when show
     await page.mouse.move(2, 2)
     await expect(page.getByTestId('orbit-tip')).toHaveCount(0)
 
+    // The Sun's mark tells what it is: where it stands overhead, and how it stands for the observer.
+    const [sx, sy] = JSON.parse((await map.getAttribute('data-sun')) ?? '[0,0]') as [number, number]
+    await map.hover({ position: { x: sx, y: sy } })
+    await expect(page.getByTestId('orbit-tip')).toHaveAttribute('data-kind', 'sun')
+    await expect(page.getByTestId('orbit-tip')).toContainText('SUN · overhead here')
+    await expect(page.getByTestId('orbit-tip')).toContainText('DECLINATION')
+    await expect(page.getByTestId('orbit-tip')).toHaveClass(/crt-on/)
+    await page.mouse.move(2, 2)
+    await expect(page.getByTestId('orbit-tip')).toHaveCount(0)
+
     // Tiangong can be followed instead, from the same download.
     await page.locator('[data-testid="orbit-focus"][data-code="CSS"]').click()
     await expect(page.getByTestId('orbit-telemetry')).toContainText('CSS LAT / LON')

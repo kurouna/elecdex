@@ -23,6 +23,7 @@ import {
   satState,
   subsolarPoint,
   sunAltitude,
+  sunLines,
 } from './astro.ts'
 import {
   CLOCK_CITIES,
@@ -289,6 +290,8 @@ function draw(now: number): void {
     Object.fromEntries(placed.map((p) => [p.code, [px(f, p.state.lon), py(f, p.state.lat)]])),
   )
   el.dataset.starlink = String(show.starlink && field !== null ? field.placed() : 0)
+  const sun = subsolarPoint(new Date(now))
+  el.dataset.sun = JSON.stringify([px(f, sun.lon), py(f, sun.lat)])
 }
 
 function updateReadout(now: number, state: ReturnType<typeof satState>): void {
@@ -382,7 +385,8 @@ interface Tip {
   y: number
   title: string
   lines: string[]
-  station: boolean
+  /** A station and the Sun are read, and their cards power on; Starlink's dots are swept. */
+  kind: 'station' | 'sun' | 'starlink'
 }
 
 let pointer: { x: number; y: number } | null = null
@@ -423,9 +427,24 @@ function stationTip(f: Frame, at: { x: number; y: number }, now: number): Tip | 
     const lines = satLines(satrec, station.id, now)
     if (station.code === focusCode)
       lines.push(`NEXT PASS · ${observer.name.toUpperCase()} ${readout.pass}`)
-    return { x: at.x, y: at.y, title: `${station.code} · ${station.name}`, lines, station: true }
+    return { x: at.x, y: at.y, title: `${station.code} · ${station.name}`, lines, kind: 'station' }
   }
   return null
+}
+
+/** How close the pointer must come to the Sun's mark, in CSS pixels: the mark is 12 across. */
+const REACH_SUN = 10
+
+function sunTip(f: Frame, at: { x: number; y: number }, now: number): Tip | null {
+  const sun = subsolarPoint(new Date(now))
+  if (Math.hypot(px(f, sun.lon) - at.x, py(f, sun.lat) - at.y) > REACH_SUN) return null
+  return {
+    x: at.x,
+    y: at.y,
+    title: 'SUN · overhead here',
+    lines: sunLines(sun, observer),
+    kind: 'sun',
+  }
 }
 
 function starlinkTip(f: Frame, at: { x: number; y: number }, now: number): Tip | null {
@@ -449,7 +468,7 @@ function starlinkTip(f: Frame, at: { x: number; y: number }, now: number): Tip |
     y: at.y,
     title: field.names[best] ?? 'STARLINK',
     lines: satLines(satrec, Number(satrec.satnum), now),
-    station: false,
+    kind: 'starlink',
   }
 }
 
@@ -461,7 +480,7 @@ function updateTip(now: number): void {
     return
   }
   const f = frameFor(s.width, s.height)
-  tip = stationTip(f, pointer, now) ?? starlinkTip(f, pointer, now)
+  tip = stationTip(f, pointer, now) ?? sunTip(f, pointer, now) ?? starlinkTip(f, pointer, now)
 }
 
 function onPointer(event: PointerEvent): void {
@@ -577,17 +596,17 @@ const TOGGLES = [
       onpointerleave={onLeave}
       data-testid="orbit-map" aria-label="World map with the stations' ground tracks"></canvas>
     <!-- Every detail card's frame (architecture.md §7.4), at once and following the
-         pointer across the map: it is explored, not read. A station's card powers on and
-         off as every other card does; one of Starlink's thousands of dots comes and goes
-         bare, as fast as the pointer sweeps them. Two blocks, so each kind always opens its
+         pointer across the map: it is explored, not read. A station's card and the Sun's power
+         on and off as every other card does; one of Starlink's thousands of dots comes and
+         goes bare, as fast as the pointer sweeps them. Two blocks, so each kind always opens its
          own way, whichever came first. -->
-    {#if tip !== null && tip.station && size !== null}
-      <HoverCard anchor={tipAnchor(tip)} bounds={size} testid="orbit-tip" data-kind="station">
-        <p class="tip-title station">{tip.title}</p>
+    {#if tip !== null && tip.kind !== 'starlink' && size !== null}
+      <HoverCard anchor={tipAnchor(tip)} bounds={size} testid="orbit-tip" data-kind={tip.kind}>
+        <p class="tip-title">{tip.title}</p>
         {#each tip.lines as line (line)}<p class="tip-line">{line}</p>{/each}
       </HoverCard>
     {/if}
-    {#if tip !== null && !tip.station && size !== null}
+    {#if tip !== null && tip.kind === 'starlink' && size !== null}
       <HoverCard anchor={tipAnchor(tip)} bounds={size} power={false} testid="orbit-tip" data-kind="starlink">
         <p class="tip-title">{tip.title}</p>
         {#each tip.lines as line (line)}<p class="tip-line">{line}</p>{/each}
@@ -795,11 +814,6 @@ canvas {
   font-size: var(--step--1);
   letter-spacing: 0.06em;
   color: var(--info);
-}
-
-/* A station, rather than one of Starlink's: in the accent, as its mark is. */
-.tip-title.station {
-  color: var(--accent-strong);
 }
 
 .picker {
