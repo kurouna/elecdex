@@ -1,5 +1,5 @@
 /**
- * A pane popped up (docs/architecture.md section 5.5): one widget over the
+ * A pane popped up (docs/architecture.md section 5.13): one widget over the
  * workspace, in a frame with only a ×, and never in the layout tree - so it is
  * neither saved, nor moved, nor split, nor tabbed, and closing it leaves the
  * arrangement exactly as it was. The launcher's shortcut opens one when the

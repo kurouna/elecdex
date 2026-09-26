@@ -502,7 +502,13 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 - **Test craft.** A test that needs the window the default layout is designed for (1920x1080)
   zooms out to get it in CSS pixels where the screen is smaller (the macOS CI runner's is about
   1024x640). A test that fails only under load is usually its own fault: a harness driving a fake
-  clock waits on promises (`await Promise.resolve()`), never on real timers per step. A component
+  clock waits on promises (`await Promise.resolve()`), never on real timers per step. Two more of
+  those, both found only under load (2026-09-26): a pane is measured after `settleLayout`, never
+  as soon as it is visible - a layout arriving powers its panes on scaled from a line; and a click
+  on what lies over other elements (the status bar over the panes) is held, `click({ delay: 20 })`
+  - pressed and released in the same few milliseconds, the release once landed on the shell
+  underneath, and a press and a release on different elements make no click. To catch one, run
+  the spec under CPU load (a dozen busy `node -e` loops) with the page's events logged. A component
   test that stubs `window.elecdex` flushes what it started (`layout.flush()`) before unstubbing,
   and its IPC mocks `structuredClone` their arguments, since IPC cannot clone a `$state` proxy.
   A pty session a test makes for itself belongs to no pane, so the workspace's reaper ends it
