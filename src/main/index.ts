@@ -1,4 +1,5 @@
 import { backgroundCapabilities, HIDDEN_SWITCH, isWayland } from '@shared/background'
+import { ELECDEX_APP_ID } from '@shared/now-playing'
 import { app, dialog } from 'electron'
 import { appWindows } from './app-windows.js'
 import { type Background, registerBackground } from './background/index.js'
@@ -34,7 +35,7 @@ import { showMainWindow } from './window-control.js'
 // does not have - so unpackaged runs would otherwise be called "Electron" and
 // write their config into Electron's own userData folder.
 app.setName('elecdex')
-app.setAppUserModelId('dev.kurouna.elecdex')
+app.setAppUserModelId(ELECDEX_APP_ID)
 
 /** `--windowed` is handy during development; fullscreen is the default. */
 const wantsWindowed = process.argv.includes('--windowed')

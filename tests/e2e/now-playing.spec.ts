@@ -67,6 +67,12 @@ test('shows the track, counts on, and presses the player', async () => {
     await setTrack(app, { title: 'Changed Elsewhere' })
     await expect(page.getByTestId('np-title')).toHaveText('Changed Elsewhere')
 
+    // A web pane of elecdex playing: Windows names the app's own id, shown as the app's name.
+    await setTrack(app, { app: 'DEV.KUROUNA.ELECDEX' })
+    await expect(page.getByTestId('np-app')).toHaveText('elecdex')
+    await setTrack(app, { app: 'Spotify.exe' })
+    await expect(page.getByTestId('np-app')).toHaveText('Spotify')
+
     // The player gone: the pane says so, and offers no button.
     await setTrack(app, null)
     await expect(page.getByTestId('np-state')).toContainText('NO SESSION')

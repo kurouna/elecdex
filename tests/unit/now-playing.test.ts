@@ -3,8 +3,10 @@ import {
   appLabel,
   artUrl,
   cutText,
+  ELECDEX_APP_ID,
   EMPTY_NOW_PLAYING,
   formatClock,
+  isOwnApp,
   MAX_ART_BASE64,
   MAX_TEXT_CHARS,
   NOW_PLAYING_LINGER_MS,
@@ -102,6 +104,22 @@ describe('reading a session', () => {
   it('takes out control characters a player leaves in a title', () => {
     expect(cutText('a\u0000b\u200Bc\td')).toBe('a b c d')
     expect(cutText('   ')).toBeNull()
+  })
+
+  it("names elecdex's own session elecdex, in whatever case Windows reports it", () => {
+    // A YouTube (TV) pane playing was shown as DEV.KUROUNA.ELECDEX.
+    expect(readSession(raw({ app: 'DEV.KUROUNA.ELECDEX' }), null, 0)?.app).toBe('elecdex')
+    expect(appLabel(ELECDEX_APP_ID)).toBe('elecdex')
+    expect(isOwnApp(' Dev.Kurouna.Elecdex ')).toBe(true)
+    expect(isOwnApp('dev.kurouna.elecdex.other')).toBe(false)
+    expect(appLabel('Contoso.Elecdex_abc123!App')).toBe('Elecdex')
+  })
+
+  it('is the id main gives the app and the package is built with', () => {
+    expect(readFileSync('src/main/index.ts', 'utf8')).toMatch(/setAppUserModelId\(ELECDEX_APP_ID\)/)
+    expect(readFileSync('electron-builder.yml', 'utf8').split(/\r?\n/)).toContain(
+      `appId: ${ELECDEX_APP_ID}`,
+    )
   })
 
   it('names applications by what people call them', () => {

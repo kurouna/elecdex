@@ -122,8 +122,18 @@ const KNOWN_APPS: readonly (readonly [RegExp, string])[] = [
   [/^foobar2000/, 'foobar2000'],
   [/^musicbee/, 'MusicBee'],
   [/^amazonmobilellc\.amazonmusic|^amazon music/, 'Amazon Music'],
-  [/^elecdex|^electron/, 'elecdex'],
 ]
+
+/**
+ * elecdex's own AppUserModelId (main/index.ts sets it, electron-builder.yml's
+ * appId): what Windows names the session of a web pane playing.
+ */
+export const ELECDEX_APP_ID = 'dev.kurouna.elecdex'
+
+/** Whether an application id is elecdex's own; Windows may report it in capitals. */
+export function isOwnApp(appId: string): boolean {
+  return appId.trim().toLowerCase() === ELECDEX_APP_ID
+}
 
 /**
  * The name to show for an application id: a known one by name, otherwise the id
@@ -133,6 +143,8 @@ const KNOWN_APPS: readonly (readonly [RegExp, string])[] = [
 export function appLabel(appId: string): string {
   const id = appId.trim()
   const lower = id.toLowerCase()
+  // A web pane playing: Windows names the session by the app's own id, in capitals.
+  if (isOwnApp(id)) return 'elecdex'
   for (const [pattern, name] of KNOWN_APPS) if (pattern.test(lower)) return name
   const packaged = /^[^!_]+?\.([^.!_]+)_[a-z0-9]+!/i.exec(id)
   if (packaged?.[1]) return packaged[1]
