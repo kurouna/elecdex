@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test'
-import { launch } from './support.js'
+import { launch, settleLayout } from './support.js'
 
 /**
  * The Wi-Fi pane, on the collector's stub (support.ts sets ELECDEX_WIFI_STUB=1,
@@ -100,9 +100,15 @@ test('the network preset puts the Wi-Fi pane over the socket table, beside the g
   })
   try {
     await page.keyboard.press('Control+Shift+Digit2')
+    // Measured once the layout stands still: while it arrives, each pane powers on
+    // scaled from a line (the Wi-Fi pane was once measured at 186x2), which a box
+    // taken as soon as the pane is visible caught more often than not.
+    await expect(page.locator('[data-testid=pane][data-widget=wifi]')).toBeVisible({
+      timeout: 20_000,
+    })
+    await settleLayout(page)
     const box = async (widget: string) => {
       const pane = page.locator(`[data-testid=pane][data-widget=${widget}]`).first()
-      await expect(pane).toBeVisible({ timeout: 20_000 })
       const b = await pane.boundingBox()
       if (b === null) throw new Error(`${widget} has no box`)
       return b

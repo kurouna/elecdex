@@ -721,7 +721,10 @@ test('the status bar carries a numbered button per saved layout', async () => {
     // The one being worked in is marked rather than offered.
     await expect(slots.nth(1)).toHaveAttribute('aria-pressed', 'true')
 
-    await slots.nth(0).click()
+    // Held a moment, as a hand would: pressed and let go in the same few milliseconds,
+    // on a machine under load the release once landed on the shell under the bar,
+    // and a press and a release on different elements make no click.
+    await slots.nth(0).click({ delay: 20 })
     await expect(terminalPane(page)).toHaveCount(1)
     await showStatusBar(page)
     await expect(page.getByTestId('layout-slot').nth(0)).toHaveAttribute('aria-pressed', 'true')
