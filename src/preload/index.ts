@@ -519,6 +519,9 @@ const api: ElecdexApi = {
     subscribe: (handler) => subscribeNowPlaying('session', handler),
     control: (action) =>
       ipcRenderer.invoke(CH.nowPlaying.control, action) as Promise<NowPlayingControlResult>,
+    seek: (seconds) =>
+      ipcRenderer.invoke(CH.nowPlaying.seek, seconds) as Promise<NowPlayingControlResult>,
+    art: () => ipcRenderer.invoke(CH.nowPlaying.art) as Promise<string | null>,
     watching: () => ipcRenderer.invoke(CH.nowPlaying.watching) as Promise<boolean>,
   },
   agents: {

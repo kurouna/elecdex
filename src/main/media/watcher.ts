@@ -1,6 +1,7 @@
 import {
   artUrl,
   EMPTY_NOW_PLAYING,
+  MAX_LARGE_ART_BASE64,
   NOW_PLAYING_LINGER_MS,
   type NowPlaying,
   type NowPlayingAction,
@@ -8,25 +9,37 @@ import {
   type NowPlayingSession,
   nextBoundary,
   readSession,
+  type SessionArt,
   sameSession,
+  seekTarget,
 } from '@shared/now-playing'
 
 /**
  * One answer from a platform's reader: the session it chose (the raw object,
- * checked by `readSession`) or null, and the art when it changed - base64 of a
- * JPEG, null for none, left out when it is the same as last time.
+ * checked by `readSession`) or null, and the art when it changed - null for
+ * none, left out when it is the same as last time.
  */
 export interface NowPlayingReading {
   session: unknown
-  art?: string | null
+  art?: ReaderArt | null
   /** For a press: whether the player took it. */
   done?: boolean
+}
+
+/** The art as a reader makes it: base64 of two JPEGs (the plate's, the card's) and its own size. */
+export interface ReaderArt {
+  small: string
+  large: string
+  width: number
+  height: number
 }
 
 /** A platform's way of reading media sessions (main/media/windows.ts, stub.ts). */
 export interface NowPlayingBackend {
   read(): Promise<NowPlayingReading>
   control(action: NowPlayingAction): Promise<NowPlayingReading>
+  /** Moves the track to `seconds` from its start. */
+  seek(seconds: number): Promise<NowPlayingReading>
   /** Ends whatever the reader holds (its process); the next read starts it again. */
   close(): void
 }
@@ -61,7 +74,9 @@ export class NowPlayingWatcher {
   #linger: unknown = null
   #busy = false
   /** The art of the session shown, kept apart: the reader sends it only when it changes. */
-  #art: string | null = null
+  #art: SessionArt | null = null
+  /** The card's art, given to a page only when it opens a card (`largeArt`). */
+  #large: string | null = null
 
   constructor(deps: NowPlayingDeps) {
     this.#deps = deps
@@ -95,14 +110,32 @@ export class NowPlayingWatcher {
   }
 
   /** A press of one of the pane's buttons, passed to the player the pane shows. */
-  async control(action: NowPlayingAction): Promise<NowPlayingControlResult> {
+  control(action: NowPlayingAction): Promise<NowPlayingControlResult> {
+    return this.#ask((backend) => backend.control(action))
+  }
+
+  /** A new position for the track, when the player takes one; refused otherwise. */
+  seek(seconds: unknown): Promise<NowPlayingControlResult> {
+    const to = seekTarget(this.#state.session, seconds)
+    if (this.#state.session !== null && to === null) return Promise.resolve('refused')
+    return this.#ask((backend) => backend.seek(to ?? 0))
+  }
+
+  /** The card's art for the session shown, or null. */
+  largeArt(): string | null {
+    return this.#wanted && this.#state.session?.art ? this.#large : null
+  }
+
+  async #ask(
+    send: (backend: NowPlayingBackend) => Promise<NowPlayingReading>,
+  ): Promise<NowPlayingControlResult> {
     const backend = this.#deps.backend
     if (backend === null) return 'unsupported'
     // Only a pane on screen presses anything; a page that is not subscribed is refused.
     if (!this.#wanted) return 'unsupported'
     if (this.#state.session === null) return 'no-session'
     try {
-      const reading = await backend.control(action)
+      const reading = await send(backend)
       this.#take(reading)
       if (reading.session === null) return 'no-session'
       return reading.done === false ? 'refused' : 'ok'
@@ -161,7 +194,7 @@ export class NowPlayingWatcher {
   #take(reading: NowPlayingReading): void {
     // The art is kept even from a reading that is not shown: the reader sends it
     // only once per track, and would not send it again.
-    if (reading.art !== undefined) this.#art = artUrl(reading.art)
+    if (reading.art !== undefined) this.#keepArt(reading.art)
     // The last pane went while it was reading: what it read is not news to anyone.
     if (!this.#wanted) return
     const session: NowPlayingSession | null = readSession(
@@ -169,13 +202,22 @@ export class NowPlayingWatcher {
       this.#art,
       this.#deps.now(),
     )
-    if (session === null) this.#art = null
+    if (session === null) {
+      this.#art = null
+      this.#large = null
+    }
     const same = sameSession(session, this.#state.session)
     this.#set({
       ...this.#state,
       session: same ? this.#state.session : session,
       error: null,
     })
+  }
+
+  #keepArt(art: ReaderArt | null): void {
+    const url = art === null ? null : artUrl(art.small)
+    this.#art = art === null || url === null ? null : { url, width: art.width, height: art.height }
+    this.#large = this.#art === null ? null : artUrl(art?.large, MAX_LARGE_ART_BASE64)
   }
 
   #set(next: NowPlaying): void {

@@ -63,6 +63,27 @@ test('shows the track, counts on, and presses the player', async () => {
     await expect(page.getByTestId('np-title')).toHaveText('Second Track')
     expect(await presses(app)).toEqual(['playPause', 'next'])
 
+    // The stand-in takes a new position: the bar has a head, and the keyboard moves it.
+    const bar = page.getByTestId('np-bar')
+    await expect(bar).toHaveAttribute('data-seekable', 'true')
+    await bar.focus()
+    await page.keyboard.press('End')
+    await expect.poll(() => presses(app)).toContain('seek 200')
+    await expect(page.getByTestId('np-time')).toHaveText('3:20 / 3:20')
+    // A player that does not: a plain meter.
+    await setTrack(app, { seek: false })
+    await expect(bar).toHaveAttribute('data-seekable', 'false')
+
+    // Resting on the art opens the track's card, with the larger art main keeps.
+    await setTrack(app, { art: '/9j/4AAQSkZJRgABAQ' })
+    await expect(page.getByTestId('np-art')).toHaveAttribute('data-art', 'image')
+    await page.getByTestId('np-art').hover()
+    await expect(page.getByTestId('np-card-title')).toHaveText('Second Track')
+    await expect(page.getByTestId('np-card-art')).toHaveAttribute('data-large', 'true')
+    await expect(page.getByTestId('np-card')).toContainText('640 × 640 px')
+    await page.getByTestId('np-title').hover()
+    await expect(page.getByTestId('np-card')).toHaveCount(0)
+
     // A change made in the player itself shows within a look or two.
     await setTrack(app, { title: 'Changed Elsewhere' })
     await expect(page.getByTestId('np-title')).toHaveText('Changed Elsewhere')

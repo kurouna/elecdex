@@ -12,11 +12,13 @@ import {
   NOW_PLAYING_LINGER_MS,
   NOW_PLAYING_PERIOD_MS,
   type NowPlaying,
-  type NowPlayingAction,
   nextBoundary,
   positionNow,
   readSession,
+  SEEK_HOLD_MS,
   sameSession,
+  seekTarget,
+  shownPosition,
   statusWord,
 } from '@shared/now-playing'
 import { describe, expect, it } from 'vitest'
@@ -25,10 +27,13 @@ import {
   type NowPlayingBackend,
   type NowPlayingReading,
   NowPlayingWatcher,
+  type ReaderArt,
 } from '../../src/main/media/watcher.js'
 import { NOW_PLAYING_SCRIPT, parseReaderLine } from '../../src/main/media/windows.js'
+import { nowPlayingRows } from '../../src/renderer/widgets/nowplaying/card.js'
 
 const JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD'
+const LARGE = '/9j/LARGEArtOfTheTrack'
 
 const raw = (over: Record<string, unknown> = {}) => ({
   app: 'Spotify.exe',
@@ -58,7 +63,7 @@ describe('reading a session', () => {
     expect(s?.duration).toBe(200)
     expect(s?.position).toBe(30)
     expect(s?.positionAt).toBe(1_000_000)
-    expect(s?.controls).toEqual({ playPause: true, next: true, previous: false })
+    expect(s?.controls).toEqual({ playPause: true, next: true, previous: false, seek: false })
   })
 
   it('is null for what is not a session', () => {
@@ -179,13 +184,16 @@ describe('the state word', () => {
 })
 
 describe("the reader's lines", () => {
-  it('reads a session, its art, and whether a press was taken', () => {
+  it('reads a session, its art at both sizes, and whether a press was taken', () => {
     expect(parseReaderLine('{"session":null}')).toEqual({ session: null })
-    expect(parseReaderLine(`{"session":{"title":"x"},"art":"${JPEG}","done":false}`)).toEqual({
+    const art = { small: JPEG, large: LARGE, width: 600, height: 400 }
+    expect(parseReaderLine(JSON.stringify({ session: { title: 'x' }, art, done: false }))).toEqual({
       session: { title: 'x' },
-      art: JPEG,
+      art,
       done: false,
     })
+    // An art that is not the reader's shape is none.
+    expect(parseReaderLine(`{"session":{},"art":"${JPEG}"}`)).toEqual({ session: {}, art: null })
     // Art null means "none", said once; no art key means "the same as before".
     expect(parseReaderLine('{"session":{},"art":null}')).toEqual({ session: {}, art: null })
   })
@@ -204,11 +212,12 @@ describe('the Windows reader', () => {
     expect(source).not.toMatch(/'-Command',\s*NOW_PLAYING_SCRIPT/)
   })
 
-  it('presses only the three buttons, and never touches the volume', () => {
+  it('presses only the three buttons and the position, and never touches the volume', () => {
     expect(NOW_PLAYING_SCRIPT).toMatch(/TryTogglePlayPauseAsync/)
     expect(NOW_PLAYING_SCRIPT).toMatch(/TrySkipNextAsync/)
     expect(NOW_PLAYING_SCRIPT).toMatch(/TrySkipPreviousAsync/)
-    expect(NOW_PLAYING_SCRIPT).not.toMatch(
+    expect(NOW_PLAYING_SCRIPT).toMatch(/TryChangePlaybackPositionAsync/)
+    expect(NOW_PLAYING_SCRIPT.replaceAll('TryChangePlaybackPositionAsync', '')).not.toMatch(
       /TryChange|TryStop|TryRecord|TryFastForward|TryRewind|Volume|Shuffle|AutoRepeat/i,
     )
   })
@@ -266,9 +275,11 @@ function rig(backend: NowPlayingBackend | null = fakeReader().backend, start = 1
 
 function fakeReader() {
   let session: unknown = raw()
-  let art: string | null | undefined = JPEG
+  const both = (small: string | null): ReaderArt | null =>
+    small === null ? null : { small, large: LARGE, width: 600, height: 400 }
+  let art: ReaderArt | null | undefined = both(JPEG)
   const readAt: number[] = []
-  const presses: NowPlayingAction[] = []
+  const presses: string[] = []
   let closed = 0
   let hold: Promise<void> | null = null
   let fail = false
@@ -289,6 +300,10 @@ function fakeReader() {
       presses.push(action)
       return { ...answer(), done: true }
     },
+    seek: async (seconds) => {
+      presses.push(`seek ${seconds}`)
+      return { ...answer(), done: true }
+    },
     close: () => {
       closed += 1
     },
@@ -300,7 +315,7 @@ function fakeReader() {
     closed: () => closed,
     set: (next: unknown, nextArt?: string | null) => {
       session = next
-      art = nextArt
+      art = nextArt === undefined ? undefined : both(nextArt)
     },
     holdReads: () => {
       let release = () => {}
@@ -444,6 +459,39 @@ describe('the watcher', () => {
     expect(await r.watcher.control('next')).toBe('no-session')
   })
 
+  it('passes a seek on only inside the track and to a player that takes one', async () => {
+    const reader = fakeReader()
+    reader.set(raw({ seek: true, end: 200 }))
+    const r = rig(reader.backend)
+    expect(await r.watcher.seek(50)).toBe('unsupported')
+    r.watcher.sync(true)
+    await r.flush()
+    expect(await r.watcher.seek(500)).toBe('ok')
+    expect(await r.watcher.seek('50')).toBe('refused')
+    reader.set(raw({ seek: false }))
+    await r.advance(600)
+    expect(await r.watcher.seek(50)).toBe('refused')
+    expect(reader.presses).toEqual(['seek 200'])
+  })
+
+  it('keeps the art at the card size, for a page that shows the track only', async () => {
+    const reader = fakeReader()
+    const r = rig(reader.backend)
+    expect(r.watcher.largeArt()).toBeNull()
+    r.watcher.sync(true)
+    await r.flush()
+    expect(r.watcher.largeArt()).toBe(`data:image/jpeg;base64,${LARGE}`)
+    expect(r.last()?.session?.artSize).toEqual({ width: 600, height: 400 })
+    // The page is never sent the large one with every reading.
+    expect(JSON.stringify(r.states)).not.toContain(LARGE)
+    reader.set(raw({ title: 'No Art' }), null)
+    await r.advance(600)
+    expect(r.watcher.largeArt()).toBeNull()
+    expect(r.last()?.session?.artSize).toBeNull()
+    r.watcher.sync(false)
+    expect(r.watcher.largeArt()).toBeNull()
+  })
+
   it('runs nothing where the platform cannot be read, and says so', async () => {
     const r = rig(null)
     expect(r.watcher.state().support).toBe('none')
@@ -452,6 +500,66 @@ describe('the watcher', () => {
     expect(r.timers.size).toBe(0)
     expect(r.watcher.active).toBe(false)
     expect(await r.watcher.control('playPause')).toBe('unsupported')
+  })
+})
+
+describe('seeking', () => {
+  const session = readSession(raw({ seek: true, end: 200 }), null, 0)
+  if (session === null) throw new Error('no session')
+
+  it('lands inside the track, and only on a player that takes a position', () => {
+    expect(session.controls.seek).toBe(true)
+    expect(seekTarget(session, 42)).toBe(42)
+    expect(seekTarget(session, 900)).toBe(200)
+    expect(seekTarget(session, -5)).toBe(0)
+    expect(seekTarget(session, Number.NaN)).toBeNull()
+    expect(seekTarget(session, '42')).toBeNull()
+    expect(
+      seekTarget({ ...session, controls: { ...session.controls, seek: false } }, 42),
+    ).toBeNull()
+    expect(seekTarget({ ...session, duration: null }, 42)).toBeNull()
+    expect(seekTarget(null, 42)).toBeNull()
+  })
+
+  it('shows the position asked for until the player reports one of its own', () => {
+    const s = { ...session, position: 30, positionAt: 1000 }
+    const hold = { to: 120, at: 5000 }
+    // Playing: the hold is carried on; the old report would have said 34.
+    expect(shownPosition(s, 5000, hold)).toBe(120)
+    expect(shownPosition(s, 6000, hold)).toBe(121)
+    // Paused: held still.
+    expect(shownPosition({ ...s, status: 'paused' }, 6000, hold)).toBe(120)
+    // The player reported after the seek: its word wins.
+    expect(shownPosition({ ...s, position: 119, positionAt: 5200 }, 6000, hold)).toBeCloseTo(119.8)
+    // It never reported: after a while, the player's position again.
+    expect(shownPosition(s, 5000 + SEEK_HOLD_MS, hold)).toBe(positionNow(s, 5000 + SEEK_HOLD_MS))
+    expect(shownPosition(s, 6000, null)).toBe(positionNow(s, 6000))
+  })
+})
+
+describe('the card', () => {
+  it('says what the pane cuts or has no room for', () => {
+    const s = readSession(
+      raw({ app: 'Spotify.exe', others: 2, end: 0 }),
+      { url: 'data:image/jpeg;base64,x', width: 640, height: 640 },
+      0,
+    )
+    if (s === null) throw new Error('no session')
+    const rows = Object.fromEntries(nowPlayingRows(s).map((r) => [r.label, r.value]))
+    expect(rows).toEqual({
+      artist: 'Artist',
+      album: 'Album',
+      player: 'Spotify · Spotify.exe',
+      length: 'no length (a stream)',
+      art: '640 × 640 px',
+      others: '2 more players: Windows chooses the one shown',
+    })
+    const own = readSession(raw({ app: 'dev.kurouna.elecdex', artist: null }), null, 0)
+    if (own === null) throw new Error('no session')
+    const ownRows = nowPlayingRows(own)
+    expect(ownRows.find((r) => r.label === 'artist')).toBeUndefined()
+    expect(ownRows.find((r) => r.label === 'player')?.value).toBe('elecdex · dev.kurouna.elecdex')
+    expect(ownRows.find((r) => r.label === 'art')).toBeUndefined()
   })
 })
 
@@ -465,6 +573,8 @@ describe('the stand-in', () => {
     const stub = stubNowPlaying(false, () => 1000)
     const first = await stub.read()
     expect(first.art).toBeNull()
+    const moved = await stub.seek(42)
+    expect((moved.session as { position: number }).position).toBe(42)
     expect((await stub.read()).art).toBeUndefined()
     const paused = await stub.control('playPause')
     expect((paused.session as { status: string }).status).toBe('Paused')

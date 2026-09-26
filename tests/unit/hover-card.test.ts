@@ -176,13 +176,14 @@ describe('every detail card', () => {
     expect(own).toEqual([])
   })
 
-  it('includes the six there are', () => {
+  it('includes the seven there are', () => {
     const users = all
       .filter((file) => readFileSync(file, 'utf8').includes("from '../common/HoverCard.svelte'"))
       .map((file) => path.basename(file))
       .sort()
     expect(users).toEqual([
       'AgentCard.svelte',
+      'ArtCard.svelte',
       'ClipCard.svelte',
       'GitCommitCard.svelte',
       'GitFileCard.svelte',

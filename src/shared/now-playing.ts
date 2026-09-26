@@ -34,12 +34,21 @@ export interface NowPlayingSession {
   duration: number | null
   /** When `position` was true (epoch ms): the page carries it on from there while playing. */
   positionAt: number
-  /** Which buttons the player itself offers now. */
-  controls: { playPause: boolean; next: boolean; previous: boolean }
+  /** Which buttons the player itself offers now; `seek`, whether it takes a new position. */
+  controls: { playPause: boolean; next: boolean; previous: boolean; seek: boolean }
   /** Other players with a session, not shown (the system's own choice is). */
   others: number
   /** The art, made small in the reader: a JPEG data URL, or null. */
   art: string | null
+  /** The size the player gave the art in, in pixels (the card says it). */
+  artSize: { width: number; height: number } | null
+}
+
+/** The art as main holds it for a session: the plate's image, and the size it came in. */
+export interface SessionArt {
+  url: string
+  width: number
+  height: number
 }
 
 export interface NowPlaying {
@@ -73,8 +82,18 @@ export const NOW_PLAYING_LINGER_MS = 15_000
 export const MAX_TEXT_CHARS = 200
 /** The art's longer edge in the reader, in pixels: sharp at twice the plate's size. */
 export const ART_EDGE = 192
+/** The card's art: large enough for a card that fits in a pane, a few tens of kB. */
+export const LARGE_ART_EDGE = 512
 /** The most art main passes on, as base64 characters (about 64 kB of JPEG). */
 export const MAX_ART_BASE64 = 88_000
+/** The same for the card's art (about 300 kB), which goes to the page only when a card opens. */
+export const MAX_LARGE_ART_BASE64 = 400_000
+/**
+ * How long the pane shows the position it was asked for after a seek, until the
+ * player reports one of its own: a browser takes a moment to report it, and the
+ * head would jump back meanwhile.
+ */
+export const SEEK_HOLD_MS = 3000
 
 export const EMPTY_NOW_PLAYING: NowPlaying = {
   support: 'full',
@@ -198,7 +217,7 @@ function timeline(
  */
 export function readSession(
   raw: unknown,
-  art: string | null,
+  art: SessionArt | null,
   readAt: number,
 ): NowPlayingSession | null {
   if (typeof raw !== 'object' || raw === null) return null
@@ -217,9 +236,14 @@ export function readSession(
       playPause: r.playPause === true,
       next: r.next === true,
       previous: r.previous === true,
+      seek: r.seek === true,
     },
     others: others !== null && others > 0 ? Math.min(99, Math.floor(others)) : 0,
-    art,
+    art: art?.url ?? null,
+    artSize:
+      art !== null && art.width > 0 && art.height > 0
+        ? { width: Math.round(art.width), height: Math.round(art.height) }
+        : null,
   }
 }
 
@@ -227,9 +251,8 @@ export function readSession(
  * The art the reader sent (base64 of a JPEG it made), as a data URL the page's
  * CSP allows (`img-src data:`); null when it is missing, too big, or not a JPEG.
  */
-export function artUrl(base64: unknown): string | null {
-  if (typeof base64 !== 'string' || base64.length === 0 || base64.length > MAX_ART_BASE64)
-    return null
+export function artUrl(base64: unknown, max: number = MAX_ART_BASE64): string | null {
+  if (typeof base64 !== 'string' || base64.length === 0 || base64.length > max) return null
   // A JPEG starts FF D8 FF, which base64 writes "/9j/".
   if (!base64.startsWith('/9j/') || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) return null
   return `data:image/jpeg;base64,${base64}`
@@ -251,6 +274,9 @@ export function sameSession(a: NowPlayingSession | null, b: NowPlayingSession | 
     a.controls.playPause === b.controls.playPause &&
     a.controls.next === b.controls.next &&
     a.controls.previous === b.controls.previous &&
+    a.controls.seek === b.controls.seek &&
+    a.artSize?.width === b.artSize?.width &&
+    a.artSize?.height === b.artSize?.height &&
     a.others === b.others &&
     a.art === b.art
   )
@@ -267,6 +293,41 @@ export function positionNow(session: NowPlayingSession, now: number): number | n
   const moved =
     session.status === 'playing' ? (Math.max(0, now - session.positionAt) / 1000) * session.rate : 0
   const at = session.position + moved
+  return session.duration === null ? at : Math.min(session.duration, at)
+}
+
+/**
+ * Where a seek to `seconds` lands, or null when it cannot be asked for: the
+ * player does not take a position, the track has no length, or the number is
+ * not a time in it.
+ */
+export function seekTarget(session: NowPlayingSession | null, seconds: unknown): number | null {
+  if (session === null || !session.controls.seek || session.duration === null) return null
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null
+  return Math.max(0, Math.min(session.duration, seconds))
+}
+
+/** A seek the pane asked for: where to, and when. */
+export interface SeekHold {
+  to: number
+  at: number
+}
+
+/**
+ * The position to show: the one asked for by a seek, carried on while playing,
+ * until the player reports a position of its own after it (or `SEEK_HOLD_MS`
+ * passes, if it never does); otherwise the player's (`positionNow`).
+ */
+export function shownPosition(
+  session: NowPlayingSession,
+  now: number,
+  hold: SeekHold | null,
+): number | null {
+  if (hold === null || now - hold.at >= SEEK_HOLD_MS || session.positionAt >= hold.at)
+    return positionNow(session, now)
+  const moved =
+    session.status === 'playing' ? (Math.max(0, now - hold.at) / 1000) * session.rate : 0
+  const at = hold.to + moved
   return session.duration === null ? at : Math.min(session.duration, at)
 }
 

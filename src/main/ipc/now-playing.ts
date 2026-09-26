@@ -56,6 +56,15 @@ export function registerNowPlayingIpc(): { dispose: () => void } {
       : 'unsupported',
   )
 
+  // The position is checked against the session shown (`seekTarget`).
+  ipcMain.handle(CH.nowPlaying.seek, (event, seconds: unknown) =>
+    subscribers.has(event.sender) ? watcher.seek(seconds) : 'unsupported',
+  )
+
+  ipcMain.handle(CH.nowPlaying.art, (event) =>
+    subscribers.has(event.sender) ? watcher.largeArt() : null,
+  )
+
   // Diagnostics: whether main is reading the session now.
   ipcMain.handle(CH.nowPlaying.watching, () => watcher.active)
 
@@ -65,6 +74,8 @@ export function registerNowPlayingIpc(): { dispose: () => void } {
       ipcMain.removeAllListeners(CH.nowPlaying.subscribe)
       ipcMain.removeAllListeners(CH.nowPlaying.unsubscribe)
       ipcMain.removeHandler(CH.nowPlaying.control)
+      ipcMain.removeHandler(CH.nowPlaying.seek)
+      ipcMain.removeHandler(CH.nowPlaying.art)
       ipcMain.removeHandler(CH.nowPlaying.watching)
     },
   }

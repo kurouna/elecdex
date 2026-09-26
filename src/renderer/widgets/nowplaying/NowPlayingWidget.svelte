@@ -1,24 +1,34 @@
 <script lang="ts">
 import {
   EMPTY_NOW_PLAYING,
-  formatClock,
   type NowPlaying,
   type NowPlayingAction,
   type NowPlayingControlResult,
-  positionNow,
+  type SeekHold,
+  shownPosition,
   statusWord,
 } from '@shared/now-playing'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import {
+  anchorOf,
+  CARD_GAP,
+  type CardAnchor,
+  type CardSize,
+  HoverRest,
+} from '../../lib/hover-card.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
+import ArtCard from './ArtCard.svelte'
 import Plate from './Plate.svelte'
+import SeekBar from './SeekBar.svelte'
 
 /**
  * What is playing (architecture.md §5.15): the media session the system calls
  * current - its art, title, artist and album, where it is - and the player's
- * previous, play/pause and next.
+ * previous, play/pause and next; the position moves when the player takes a new
+ * one. Resting on the art opens the track's card, with the art large.
  *
  * Main reads the session only while a pane like this is seen: this one
  * subscribes only then, so behind another tab or with the window put away
@@ -52,13 +62,10 @@ $effect(() => {
   })
 })
 
-const position = $derived(session === null ? null : positionNow(session, now))
+/** The last seek asked for: shown until the player reports a position of its own. */
+let hold = $state.raw<SeekHold | null>(null)
+const position = $derived(session === null ? null : shownPosition(session, now, hold))
 const duration = $derived(session?.duration ?? null)
-const fraction = $derived(
-  position === null || duration === null || duration <= 0
-    ? null
-    : Math.min(1, Math.max(0, position / duration)),
-)
 const lamp = $derived(
   !connected
     ? 'idle'
@@ -92,7 +99,18 @@ const NOTES: Record<Exclude<NowPlayingControlResult, 'ok'>, string> = {
 
 async function press(action: NowPlayingAction): Promise<void> {
   sfx.play('folder')
-  const result = await window.elecdex.nowPlaying.control(action)
+  tell(await window.elecdex.nowPlaying.control(action))
+}
+
+async function seek(to: number): Promise<void> {
+  hold = { to, at: Date.now() }
+  now = Date.now()
+  const result = await window.elecdex.nowPlaying.seek(to)
+  if (result !== 'ok') hold = null
+  tell(result)
+}
+
+function tell(result: NowPlayingControlResult): void {
   clearTimeout(noteTimer)
   note = result === 'ok' ? null : NOTES[result]
   if (note !== null)
@@ -104,16 +122,65 @@ async function press(action: NowPlayingAction): Promise<void> {
 $effect(() => () => clearTimeout(noteTimer))
 
 const byline = $derived(session === null ? '' : (session.artist ?? ''))
+
+/**
+ * The track's card, and where it goes: beside the plate when the pane is wide
+ * enough (the plate fills its height), else under or over it. It waits for a
+ * rest like every detail card, and asks main for the larger art as it opens.
+ */
+let rootEl = $state<HTMLElement | null>(null)
+let card = $state.raw<{ anchor: CardAnchor; bounds: CardSize } | null>(null)
+let large = $state.raw<{ for: string; url: string | null } | null>(null)
+const resting = new HoverRest<string>(() => (card = null))
+/** Room a card needs beside the plate. */
+const CARD_BESIDE_PX = 300
+
+function onplate(event: { plate: DOMRect; x: number | null } | null): void {
+  if (event === null) {
+    resting.leave('art')
+    return
+  }
+  const show = (): void => {
+    if (rootEl === null) return
+    const box = rootEl.getBoundingClientRect()
+    const right = event.plate.right - box.left
+    const beside = box.width - right > CARD_BESIDE_PX
+    const top = event.plate.top - box.top - CARD_GAP
+    card = {
+      anchor: beside
+        ? { x: right + CARD_GAP, top, bottom: top }
+        : anchorOf(box, event.plate, event.x),
+      bounds: { width: box.width, height: box.height },
+    }
+    void fetchLarge()
+  }
+  resting.enter('art', show, event.x === null)
+}
+
+async function fetchLarge(): Promise<void> {
+  const art = session?.art ?? null
+  if (art === null || large?.for === art) return
+  const url = await window.elecdex.nowPlaying.art()
+  // The track changed while it was asked for: the answer is another track's.
+  if (session?.art === art) large = { for: art, url }
+}
+
+// Put away, or the track gone, the card goes.
+$effect(() => {
+  if (!visible || session === null) resting.leave()
+})
+$effect(() => () => resting.dispose())
 </script>
 
 <div
   class="np"
+  bind:this={rootEl}
   data-testid="now-playing"
   data-pane-id={paneId}
   data-status={session?.status ?? (media.support === 'none' ? 'unsupported' : 'none')}
 >
   <div class="deck">
-    <Plate art={session?.art ?? null} {playing} />
+    <Plate art={session?.art ?? null} {playing} onhover={session === null ? undefined : onplate} />
 
     <div class="info">
       <div class="lamp" data-lamp={lamp} data-testid="np-state">
@@ -143,22 +210,14 @@ const byline = $derived(session === null ? '' : (session.artist ?? ''))
         {#if byline}<p class="artist" data-testid="np-artist">{byline}</p>{/if}
         {#if session.album}<p class="album" data-testid="np-album">{session.album}</p>{/if}
 
-        <div class="track">
-          {#if fraction !== null}
-            <div class="bar" data-testid="np-bar">
-              <span class="fill" style:transform="scaleX({fraction})"></span>
-              <span class="head" style:left="{fraction * 100}%"></span>
-            </div>
-          {/if}
-          {#if position !== null}
-            <span class="times" data-testid="np-time">
-              {formatClock(position)}{#if duration !== null}<span class="of">{` / ${formatClock(duration)}`}</span>{/if}
-            </span>
-          {/if}
+        <div class="seek">
+          <SeekBar {position} {duration} seekable={session.controls.seek} onseek={(to) => void seek(to)} />
         </div>
       {/if}
 
       <div class="controls">
+        <span></span>
+        <span class="buttons">
         <button
           type="button"
           class="ctl"
@@ -196,12 +255,20 @@ const byline = $derived(session === null ? '' : (session.artist ?? ''))
         >
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11 3h2v10h-2z M3 3v10l7-5z" /></svg>
         </button>
-        {#if note !== null}
-          <span class="note" data-testid="np-note">{note}</span>
-        {/if}
+        </span>
+        <span class="note" data-testid="np-note">{note ?? ''}</span>
       </div>
     </div>
   </div>
+
+  {#if card !== null && session !== null}
+    <ArtCard
+      {session}
+      large={large !== null && large.for === session.art ? large.url : null}
+      anchor={card.anchor}
+      bounds={card.bounds}
+    />
+  {/if}
 
   {#if media.error !== null}
     <p class="problem" data-testid="np-error">{media.error}</p>
@@ -210,6 +277,7 @@ const byline = $derived(session === null ? '' : (session.artist ?? ''))
 
 <style>
 .np {
+  position: relative;
   container-type: size;
   display: flex;
   flex-direction: column;
@@ -327,57 +395,23 @@ const byline = $derived(session === null ? '' : (session.artist ?? ''))
   color: var(--text-muted);
 }
 
-.track {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.seek {
   margin-top: auto;
   padding-top: var(--space-2);
 }
 
-.bar {
-  position: relative;
-  flex: 1;
-  height: 3px;
-  background: var(--accent-faint);
-}
-
-.fill {
-  position: absolute;
-  inset: 0;
-  background: var(--accent);
-  transform-origin: left center;
-}
-
-.head {
-  position: absolute;
-  top: 50%;
-  width: 0.45rem;
-  height: 0.45rem;
-  translate: -50% -50%;
-  rotate: 45deg;
-  background: var(--accent-strong);
-  box-shadow: 0 0 calc(var(--glow) * 0.5rem) var(--accent);
-}
-
-.times {
-  flex: none;
-  margin-left: auto;
-  font-family: var(--font-display);
-  font-size: var(--step--1);
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-.times .of {
-  color: var(--text-muted);
-}
-
+/* The buttons in the middle; a note on a press that was not taken to their right. */
 .controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--space-2);
   padding-top: var(--space-2);
+}
+
+.buttons {
+  display: flex;
+  gap: 0.4rem;
 }
 
 .ctl {
@@ -422,7 +456,6 @@ const byline = $derived(session === null ? '' : (session.artist ?? ''))
 
 .note {
   overflow: hidden;
-  margin-left: var(--space-2);
   font-size: var(--step--1);
   color: var(--warn);
   text-overflow: ellipsis;
@@ -472,7 +505,7 @@ const byline = $derived(session === null ? '' : (session.artist ?? ''))
     max-width: 38rem;
   }
 
-  .track {
+  .seek {
     margin-top: 0;
   }
 

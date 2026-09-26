@@ -1,4 +1,3 @@
-import type { NowPlayingAction } from '@shared/now-playing'
 import type { NowPlayingBackend, NowPlayingReading } from './watcher.js'
 
 /**
@@ -20,17 +19,19 @@ export interface StubTrack {
   end: number
   /** When `position` was true (epoch ms). */
   at: number
-  /** Base64 of a JPEG, or null. */
+  /** Base64 of a JPEG, or null: the stand-in sends it as both the plate's and the card's. */
   art: string | null
   next: boolean
   previous: boolean
+  /** Whether it takes a new position. */
+  seek: boolean
 }
 
 export interface NowPlayingHooks {
   /** Puts a track on (merged over the current one), or takes the session away (null). */
   set(track: Partial<StubTrack> | null): void
-  /** The presses the pane passed on, in order. */
-  presses(): NowPlayingAction[]
+  /** The presses the pane passed on, in order; a seek as `seek <seconds>`. */
+  presses(): string[]
   /** How many times the session has been read. */
   reads(): number
   /** Whether the stand-in reader is open (a real one would be a process). */
@@ -49,6 +50,7 @@ const DEMO: Omit<StubTrack, 'at'>[] = [
     art: null,
     next: true,
     previous: true,
+    seek: true,
   },
   {
     app: 'Spotify.exe',
@@ -61,6 +63,7 @@ const DEMO: Omit<StubTrack, 'at'>[] = [
     art: null,
     next: true,
     previous: true,
+    seek: true,
   },
 ]
 
@@ -75,6 +78,7 @@ const TEST: Omit<StubTrack, 'at'> = {
   art: null,
   next: true,
   previous: true,
+  seek: true,
 }
 
 export function stubNowPlaying(demo: boolean, now: () => number = Date.now): NowPlayingBackend {
@@ -85,7 +89,7 @@ export function stubNowPlaying(demo: boolean, now: () => number = Date.now): Now
   let artSent: string | null | undefined
   let open = false
   let reads = 0
-  const presses: NowPlayingAction[] = []
+  const presses: string[] = []
 
   const hooks: NowPlayingHooks = {
     set: (next) => {
@@ -119,11 +123,15 @@ export function stubNowPlaying(demo: boolean, now: () => number = Date.now): Now
       playPause: true,
       next: track.next,
       previous: track.previous,
+      seek: track.seek,
       others: 0,
     }
     if (art === artSent) return { session }
     artSent = art
-    return { session, art }
+    return {
+      session,
+      art: art === null ? null : { small: art, large: art, width: 640, height: 640 },
+    }
   }
 
   const skip = (step: number): void => {
@@ -144,6 +152,12 @@ export function stubNowPlaying(demo: boolean, now: () => number = Date.now): Now
       } else if (action === 'next') skip(1)
       else if (action === 'previous') skip(-1)
       return { ...reading(), done: track !== null }
+    },
+    seek: async (seconds) => {
+      presses.push(`seek ${seconds}`)
+      const done = track?.seek === true
+      if (track !== null && done) track = { ...track, position: seconds, at: now() }
+      return { ...reading(), done }
     },
     close: () => {
       open = false

@@ -402,6 +402,10 @@ export interface NowPlayingApi {
   subscribe(handler: (state: NowPlaying) => void): () => void
   /** Presses a button of the player shown: only these three, never the volume. */
   control(action: NowPlayingAction): Promise<NowPlayingControlResult>
+  /** Moves the track to `seconds` from its start, when the player takes a new position. */
+  seek(seconds: number): Promise<NowPlayingControlResult>
+  /** The art at the card's size (a JPEG data URL), asked for only when the card opens. */
+  art(): Promise<string | null>
   /** Diagnostics: whether main is reading the session now. */
   watching(): Promise<boolean>
 }

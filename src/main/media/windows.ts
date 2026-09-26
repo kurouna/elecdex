@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn } from 'node:child_process'
-import { ART_EDGE, type NowPlayingAction } from '@shared/now-playing'
+import { ART_EDGE, LARGE_ART_EDGE, type NowPlayingAction } from '@shared/now-playing'
 import { powerShellStart } from '../launcher/windows-icons.js'
-import type { NowPlayingBackend, NowPlayingReading } from './watcher.js'
+import type { NowPlayingBackend, NowPlayingReading, ReaderArt } from './watcher.js'
 
 /**
  * Windows' media sessions (System Media Transport Controls: what the volume
@@ -9,11 +9,12 @@ import type { NowPlayingBackend, NowPlayingReading } from './watcher.js'
  * sampler do - never a process per reading.
  *
  * It answers one JSON line for each line it is sent: "read", or a press
- * ("playPause", "next", "previous") followed by a reading. The session is the
- * one Windows itself calls current, else the first one playing. The art is read
- * and made small (JPEG, `ART_EDGE` on its longer side) only when the track
- * changes - or its thumbnail arrives, as a browser's does a moment after the
- * title - and sent once. It ends when stdin closes, so it cannot outlive elecdex.
+ * ("playPause", "next", "previous", "seek <seconds>") followed by a reading. The
+ * session is the one Windows itself calls current, else the first one playing.
+ * The art is read and made small twice (JPEGs, `ART_EDGE` and `LARGE_ART_EDGE`
+ * on the longer side: the plate's and the card's) only when the track changes -
+ * or its thumbnail arrives, as a browser's does a moment after the title - and
+ * sent once. It ends when stdin closes, so it cannot outlive elecdex.
  *
  * Nothing here needs the location consent, and nothing is written: the script
  * holds the session manager and the last track's key, no more.
@@ -54,22 +55,13 @@ function Session {
   return @{ session = $current; count = $all.Count }
 }
 
-function Art($thumbnail) {
-  if ($null -eq $thumbnail) { return $null }
-  $stream = Await ($thumbnail.OpenReadAsync()) $streamType
-  if ($stream.Size -gt 8MB) { return $null }
-  $image = $null; $small = $null
+# The image made at most edge pixels on its longer side, as base64 of a JPEG.
+function Shrunk($image, $edge) {
+  # 1.0, not 1: with an integer PowerShell picks Math.Min(int, int) and rounds the scale to 0.
+  $scale = [Math]::Min(1.0, $edge / [double][Math]::Max($image.Width, $image.Height))
+  $w = [Math]::Max(1, [int]($image.Width * $scale)); $h = [Math]::Max(1, [int]($image.Height * $scale))
+  $small = New-Object System.Drawing.Bitmap $w, $h
   try {
-    $source = $asStream.Invoke($null, @($stream))
-    $buffer = New-Object System.IO.MemoryStream
-    $source.CopyTo($buffer)
-    $source.Dispose()
-    $buffer.Position = 0
-    $image = [System.Drawing.Image]::FromStream($buffer)
-    # 1.0, not 1: with an integer PowerShell picks Math.Min(int, int) and rounds the scale to 0.
-    $scale = [Math]::Min(1.0, ${ART_EDGE}.0 / [Math]::Max($image.Width, $image.Height))
-    $w = [Math]::Max(1, [int]($image.Width * $scale)); $h = [Math]::Max(1, [int]($image.Height * $scale))
-    $small = New-Object System.Drawing.Bitmap $w, $h
     $g = [System.Drawing.Graphics]::FromImage($small)
     $g.InterpolationMode = 'HighQualityBicubic'
     $g.DrawImage($image, 0, 0, $w, $h)
@@ -78,8 +70,26 @@ function Art($thumbnail) {
     $small.Save($out, $jpeg, $quality)
     return [Convert]::ToBase64String($out.ToArray())
   } finally {
+    $small.Dispose()
+  }
+}
+
+# The art twice: small for the pane's plate, larger for its card, and the size it came in.
+function Art($thumbnail) {
+  if ($null -eq $thumbnail) { return $null }
+  $stream = Await ($thumbnail.OpenReadAsync()) $streamType
+  if ($stream.Size -gt 8MB) { return $null }
+  $image = $null
+  try {
+    $source = $asStream.Invoke($null, @($stream))
+    $buffer = New-Object System.IO.MemoryStream
+    $source.CopyTo($buffer)
+    $source.Dispose()
+    $buffer.Position = 0
+    $image = [System.Drawing.Image]::FromStream($buffer)
+    return @{ small = (Shrunk $image ${ART_EDGE}); large = (Shrunk $image ${LARGE_ART_EDGE}); width = $image.Width; height = $image.Height }
+  } finally {
     if ($image) { $image.Dispose() }
-    if ($small) { $small.Dispose() }
   }
 }
 
@@ -103,6 +113,7 @@ function Reading {
       end = $line.EndTime.TotalSeconds
       at = $line.LastUpdatedTime.ToUnixTimeMilliseconds()
       playPause = $c.IsPlayPauseToggleEnabled; next = $c.IsNextEnabled; previous = $c.IsPreviousEnabled
+      seek = $c.IsPlaybackPositionEnabled
       others = $found.count - 1
     }
   }
@@ -115,13 +126,18 @@ function Reading {
   return $reading
 }
 
-function Press($action) {
+function Press($action, $argument) {
   $s = (Session).session
   if ($null -eq $s) { return $false }
   $op = switch ($action) {
     'playPause' { $s.TryTogglePlayPauseAsync() }
     'next' { $s.TrySkipNextAsync() }
     'previous' { $s.TrySkipPreviousAsync() }
+    'seek' {
+      # Seconds from the track's start, as ticks on the player's timeline.
+      $to = [double]::Parse($argument, [Globalization.CultureInfo]::InvariantCulture)
+      $s.TryChangePlaybackPositionAsync([long]($s.GetTimelineProperties().StartTime.Ticks + $to * 10000000))
+    }
   }
   if ($null -eq $op) { return $false }
   return [bool](Await $op ([bool]))
@@ -132,7 +148,8 @@ while ($true) {
   if ($null -eq $request) { break }
   try {
     $done = $null
-    if ($request -ne 'read') { $done = Press $request }
+    $words = $request.Split(' ')
+    if ($words[0] -ne 'read') { $done = Press $words[0] $words[1] }
     $out = Reading
     if ($null -ne $done) { $out.done = $done }
   } catch {
@@ -155,6 +172,16 @@ interface Waiting {
   timer: ReturnType<typeof setTimeout>
 }
 
+/** The art the reader made, or null; its images are checked again by main (`artUrl`). */
+function readerArt(value: unknown): ReaderArt | null {
+  if (typeof value !== 'object' || value === null) return null
+  const art = value as Record<string, unknown>
+  if (typeof art.small !== 'string' || typeof art.large !== 'string') return null
+  const width = typeof art.width === 'number' ? art.width : 0
+  const height = typeof art.height === 'number' ? art.height : 0
+  return { small: art.small, large: art.large, width, height }
+}
+
 /** One line of the reader's output, as a reading; an error line throws. */
 export function parseReaderLine(line: string): NowPlayingReading {
   const parsed = JSON.parse(line) as Record<string, unknown>
@@ -162,7 +189,7 @@ export function parseReaderLine(line: string): NowPlayingReading {
     throw new Error(`the media session could not be read (${parsed.error.slice(0, 160)})`)
   return {
     session: parsed.session ?? null,
-    ...('art' in parsed ? { art: typeof parsed.art === 'string' ? parsed.art : null } : {}),
+    ...('art' in parsed ? { art: readerArt(parsed.art) } : {}),
     ...(typeof parsed.done === 'boolean' ? { done: parsed.done } : {}),
   }
 }
@@ -257,6 +284,8 @@ export function windowsNowPlayingBackend(): NowPlayingBackend {
   return {
     read: () => ask('read'),
     control: (action: NowPlayingAction) => ask(action),
+    // A number printed by JavaScript: the script reads it with the invariant culture.
+    seek: (seconds: number) => ask(`seek ${seconds.toFixed(3)}`),
     close: () => {
       const proc = child
       child = null

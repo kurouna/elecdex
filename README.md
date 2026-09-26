@@ -732,7 +732,10 @@ weather and calendar.
   playing"). The media session Windows calls current - Spotify, a browser playing YouTube, Media
   Player, any player that tells the system what it plays - with its art, title, artist, album and
   application, where the track is (counted on each second between the player's own reports), and
-  previous, play/pause and next, each offered only when the player offers it. Read twice a second
+  previous, play/pause and next, each offered only when the player offers it. Where the player
+  takes a new position, the bar has a head to drag (or ← → and Home / End); where it does not,
+  the bar is a plain meter. Resting the pointer on the art opens a card with it large, and the
+  whole title, artist and album. Read twice a second
   through one long-lived PowerShell, and only while the pane is on screen: behind another tab, with
   the window minimised or put away, nothing is read. Nothing is written to disk or logged, and no
   plugin can reach it. Windows only for now; on macOS and Linux the pane says so.

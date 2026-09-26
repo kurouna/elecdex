@@ -5,12 +5,45 @@
  * as the pane's own. The art is a data URL main made from what the player gave
  * (a JPEG it shrank), never an address the page would fetch.
  */
-const { art, playing }: { art: string | null; playing: boolean } = $props()
+interface Props {
+  art: string | null
+  playing: boolean
+  /**
+   * The pointer came to the plate (its box, and the pointer's x; null for the
+   * keyboard), or left it (null): the pane opens the track's card. Without it,
+   * the plate has no card - there is no track.
+   */
+  onhover?: ((event: { plate: DOMRect; x: number | null } | null) => void) | undefined
+}
+
+const { art, playing, onhover }: Props = $props()
+
+let element = $state<HTMLDivElement | null>(null)
+
+function enter(x: number | null): void {
+  if (element !== null) onhover?.({ plate: element.getBoundingClientRect(), x })
+}
 
 const TICKS = Array.from({ length: 24 }, (_, i) => (i * 360) / 24)
 </script>
 
-<div class="plate" class:playing data-testid="np-art" data-art={art === null ? 'none' : 'image'}>
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div
+  class="plate"
+  class:playing
+  bind:this={element}
+  tabindex={onhover ? 0 : undefined}
+  role={onhover ? 'img' : undefined}
+  aria-label={onhover ? 'the track: its art and details' : undefined}
+  onpointerenter={(event) => enter(event.clientX)}
+  onpointerleave={() => onhover?.(null)}
+  onfocus={(event) => {
+    if ((event.currentTarget as HTMLElement).matches(':focus-visible')) enter(null)
+  }}
+  onblur={() => onhover?.(null)}
+  data-testid="np-art"
+  data-art={art === null ? 'none' : 'image'}
+>
   <div class="face">
     {#if art !== null}
       <img src={art} alt="" draggable="false" />
@@ -37,6 +70,7 @@ const TICKS = Array.from({ length: 24 }, (_, i) => (i * 360) / 24)
   aspect-ratio: 1;
   padding: 1px;
   background: var(--panel-border);
+  outline: none;
   clip-path: polygon(
     var(--cut) 0,
     100% 0,
@@ -49,6 +83,10 @@ const TICKS = Array.from({ length: 24 }, (_, i) => (i * 360) / 24)
 
 .plate.playing {
   background: var(--accent);
+}
+
+.plate:focus-visible {
+  background: var(--accent-strong);
 }
 
 .face {

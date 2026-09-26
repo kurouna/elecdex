@@ -141,8 +141,10 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   PowerShell - on the wall clock's half seconds, only while a pane is subscribed; the reader lingers
   unread for a while after the last pane, then closes. It is main's, not a metric source, and no
   plugin API reaches it; nothing of it is logged or written. The page may press only
-  previous, play/pause and next (never the volume: the mixer's), and only while subscribed. The
-  art is made small in the reader and passed as a checked JPEG data URL. The decisions are pure
+  previous, play/pause and next, and seek where the player takes a position (never the volume:
+  the mixer's), and only while subscribed; a bar the player cannot seek does not look draggable.
+  The art is made small in the reader and passed as a checked JPEG data URL; the card's larger
+  copy stays in main until a card opens. The decisions are pure
   (`readSession`, `positionNow`, `appLabel`); tests set `ELECDEX_NOWPLAYING_STUB=1` and change the
   track through `globalThis.__elecdexNowPlaying`.
 - **No location prompts.** Chromium permission requests are denied except clipboard
@@ -462,7 +464,7 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   every variable (`themeVariables`), so switching never leaves one stale.
 - **Detail cards** (architecture.md §7.4): the whole of something shown while the pointer rests on
   it - a commit or a changed file, an agent's session, a clipboard entry, a Wi-Fi figure, a
-  satellite - is drawn by
+  satellite, the track playing - is drawn by
   `widgets/common/HoverCard.svelte` and placed and timed by `lib/hover-card.ts` (`cardPlacement`,
   `anchorOf`, `HoverRest`), never by a card of a widget's own. It keeps inside its pane, opens
   after a rest (at once for the keyboard or when moving on from an open card), and powers on and

@@ -118,6 +118,8 @@ export const CH = {
     /** main -> renderer: a NowPlaying. */
     update: 'now-playing:update',
     control: 'now-playing:control',
+    seek: 'now-playing:seek',
+    art: 'now-playing:art',
     watching: 'now-playing:watching',
   },
   /** The AI AGENT pane (shared/agents.ts): one board, from the sources settings turn on. */
