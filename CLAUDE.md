@@ -552,7 +552,7 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   come from the built app itself (scripts/preset-shots.mjs), never written out in the script.
   What would show someone else's pages or this machine is made up: the web panes show stand-in
   pages (never YouTube's or X's own), the feed, the socket table (`ELECDEX_SOCKETS_STUB=demo`),
-  the Wi-Fi link (`ELECDEX_WIFI_STUB=demo`),
+  the Wi-Fi link (`ELECDEX_WIFI_STUB=demo`), the clipboard history (`ELECDEX_CLIPBOARD_STUB=demo`),
   the sound (`ELECDEX_AUDIO_STUB=demo`), notes and tasks, a Claude Code folder and a demo
   repository by a made-up author. Web panes are native views the page's screenshot cannot see,
   so the script lays main's pictures of them over it. Name shots to take only those. Regenerate

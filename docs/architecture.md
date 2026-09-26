@@ -1415,6 +1415,7 @@ elecdex/
 │  │  ├─ pty/              # PtyManager、OscParser、shell-integration、screen-mirror、start-directory
 │  │  ├─ metrics/          # broker と購読（collector は services/）
 │  │  ├─ fs/ launcher/ weather/ markets/ feeds/ quakes/ updates/
+│  │  ├─ clipboard/        # 見えている間だけ読む監視（watcher）、Electron の読み書き、テスト用の代役（§5.14）
 │  │  ├─ ai/               # 会話ストア、キー保管、チャットサービス、方言ごとのアダプタ（openai / anthropic）（§5.7）
 │  │  ├─ reminders/        # 次の1件だけを待つスケジューラ（タスクとアラーム）
 │  │  ├─ audio/            # 隠しキャプチャウィンドウ、parec、OS ごとのミキサー
@@ -1431,9 +1432,9 @@ elecdex/
 │     ├─ layout/           # Workspace、LayoutNodeView、SplitHost、TabsHost、PaneHost、PaneCorner（右上の ⤢ / ×）、
 │     │                    # TabStrip、PanePicker、LayoutsDialog、pane-drag / pane-close / pane-zoom / layout-switch
 │     ├─ plugins/          # PluginHost（Worker）、PluginPane、ブロック描画、設定欄
-│     ├─ widgets/          # registry.ts、builtins.ts、common/（StreamChart、Digits、SegmentMeter…）、
+│     ├─ widgets/          # registry.ts、builtins.ts、common/（StreamChart、Digits、SegmentMeter、HoverCard・CardRows（§7.4）…）、
 │     │                    # ウィジェットごとのフォルダ（monitor/ は監視系をまとめて持つ）
-│     ├─ lib/              # frame-loop、crt-transitions、sfx、webgl、time-series、markdown（AI チャットの木）…
+│     ├─ lib/              # frame-loop、crt-transitions、sfx、webgl、time-series、markdown（AI チャットの木）、hover-card（§7.4）…
 │     ├─ stores/           # layout、appearance、sessions、metrics、ui、web、background …（runes）
 │     └─ styles/           # reset / tokens / frames / effects / crt / motion
 ├─ tests/
