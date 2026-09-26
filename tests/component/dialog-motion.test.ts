@@ -21,6 +21,7 @@ beforeEach(() => {
   ui.closePanePicker()
   ui.closeSettings()
   ui.closeLocationPicker()
+  ui.closePopup()
   ui.closedAt = Number.NEGATIVE_INFINITY
 })
 
@@ -67,6 +68,42 @@ describe('ui.closedAt', () => {
     expect(ui.closedAt).toBe(Number.NEGATIVE_INFINITY)
     ui.closeLocationPicker()
     expect(ui.closedAt).toBe(1700)
+  })
+})
+
+describe('ui.popup', () => {
+  it('is a dialog: it covers the workspace, and any other dialog puts it away', () => {
+    ui.openPopup('launcher')
+    expect(ui.dialogOpen).toBe(true)
+    now = 1800
+    ui.openSettings()
+    expect(ui.popup).toBeNull()
+    expect(ui.closedAt).toBe(1800)
+    now = 1900
+    ui.openPopup('mixer')
+    expect(ui.settingsOpen).toBe(false)
+    expect(ui.closedAt).toBe(1900)
+    ui.openPanePicker()
+    expect(ui.popup).toBeNull()
+    ui.closePanePicker()
+  })
+
+  it('answers a layout switch still asking with no, as the other dialogs do', async () => {
+    const answer = ui.askLayoutSwitch({ name: 'desk', shells: 1 })
+    ui.openPopup('launcher')
+    await expect(answer).resolves.toBe(false)
+    expect(ui.popup).toBe('launcher')
+  })
+
+  it('takes a widget in place of another without a close, and notes its own close', () => {
+    ui.openPopup('launcher')
+    now = 2000
+    ui.openPopup('mixer')
+    expect(ui.popup).toBe('mixer')
+    expect(ui.closedAt).toBe(Number.NEGATIVE_INFINITY)
+    ui.closePopup()
+    expect(ui.dialogOpen).toBe(false)
+    expect(ui.closedAt).toBe(2000)
   })
 })
 

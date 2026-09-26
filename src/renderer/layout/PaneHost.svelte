@@ -1,19 +1,17 @@
 <script lang="ts">
-import { isMetricSourceId, type MetricSourceId } from '@shared/metrics'
 import type { PaneNode } from '@shared/schemas/layout'
 import { untrack } from 'svelte'
 import PluginPane from '../plugins/PluginPane.svelte'
 import { appearance } from '../stores/appearance.svelte.ts'
 import { boot, CRT_ADDED_MS, CRT_MODULE_MS, CRT_SHELL_MS } from '../stores/boot.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
-import { metrics } from '../stores/metrics.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
-import { seen } from '../stores/window-state.svelte.ts'
 import { resolveWidget, zoomModeOf } from '../widgets/registry.ts'
 import PaneCorner from './PaneCorner.svelte'
 import { CRT_CLOSE_MS, insetStyle } from './pane-close.ts'
 import { dragHandle } from './pane-drag.svelte.ts'
 import TabStrip from './TabStrip.svelte'
+import { holdWidgetMetrics } from './widget-metrics.svelte.ts'
 import ZoomFrame from './ZoomFrame.svelte'
 
 interface Props {
@@ -102,26 +100,11 @@ const paneStyle = $derived(
     undefined,
 )
 
-// Subscribe to the sources the widget declares: those it keeps while hidden for
-// as long as the pane exists, the rest only while it is visible - a tab behind
-// another is display:none, and a process list nobody sees is not worth polling.
-// Two effects, so that showing or hiding a tab never releases and retains a kept
-// source in one go (which would restart its polling and blank its sample).
-// Unknown ids (a plugin naming a source this build lacks) are ignored rather
-// than sent to main, which would reject them anyway.
-const declared = $derived((definition?.metrics ?? []).filter(isMetricSourceId))
-const kept = $derived(new Set(definition?.keepWhileHidden ?? []))
-
-function retainAll(ids: readonly MetricSourceId[]): () => void {
-  const releases = ids.map((id) => metrics.retain(id))
-  return () => {
-    for (const release of releases) release()
-  }
-}
-
-$effect(() => retainAll(declared.filter((id) => kept.has(id))))
-// Nor while the window is minimised or put away: nobody sees the pane then either.
-$effect(() => (seen(visible) ? retainAll(declared.filter((id) => !kept.has(id))) : undefined))
+// The sources the widget declares: kept ones for as long as the pane exists, the rest while it is seen.
+holdWidgetMetrics(
+  () => definition,
+  () => visible,
+)
 
 // Clean up the pane's published metadata when it goes away, so a recycled id
 // cannot inherit a previous pane's cwd.

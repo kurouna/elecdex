@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -103,6 +103,12 @@ const UNREACHABLE_WEB =
  * moment after the app exits (EPERM); retry, and leave a stubborn temp folder
  * behind rather than fail a test that passed.
  */
+/** The live layout as main last wrote it, or null before its first save. */
+export function savedLayout(userData: string): string | null {
+  const file = path.join(userData, 'layout.json')
+  return existsSync(file) ? readFileSync(file, 'utf8') : null
+}
+
 export function removeDir(dir: string): void {
   try {
     rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })

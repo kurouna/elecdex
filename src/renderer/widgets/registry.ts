@@ -56,6 +56,15 @@ export interface WidgetDefinition {
    * shortcut. Saying nothing is saying no.
    */
   zoom?: ZoomMode
+  /**
+   * Whether the widget can be popped up over the workspace, outside the layout
+   * (layout/popup.ts). Only for one that keeps nothing in pane state and belongs
+   * to no other pane - a popped-up widget has no node for `patchPaneState` to
+   * change, no session the reaper would count as claimed and no web view main
+   * would keep - since it would silently fail there. A unit test holds the
+   * widgets that say so to it.
+   */
+  popup?: boolean
   /** True when several instances in one layout make sense. */
   multiple?: boolean
   /** Provided by a plugin (docs/plugins.md): marked as such in the picker. */
@@ -85,6 +94,12 @@ export interface WidgetProps {
   transitioning?: boolean
   /** The registry id the pane was resolved from, e.g. `plugin:pomodoro`. */
   widget?: string
+  /**
+   * Called when the widget has done what it was called up for (the launcher
+   * started an application): a pane popped up for it closes. A pane in the
+   * layout is given none, and stays.
+   */
+  ondone?: () => void
 }
 
 const builtins = new Map<string, WidgetDefinition>()

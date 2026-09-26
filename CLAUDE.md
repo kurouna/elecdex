@@ -366,6 +366,14 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   because panes move between columns); the shell's TERMINAL header stays, as the group's drag
   handle and the path. Pane moves are covered at three levels — unit (layout-ops, including seeded
   random moves), component (pane-drag gesture) and e2e (pane-move) — so extend those.
+- **A pane popped up is never in the layout** (architecture.md §5.13, layout/popup.ts): one
+  widget over the workspace in a frame with only a ×, held in `ui.popup` as one of the dialogs
+  (opening any dialog puts it away, and it counts in `dialogOpen`), drawn by PopupPane.svelte.
+  The layout store knows nothing of it, and it is not saved. Only a widget whose registry entry
+  says `popup: true` is offered, and only one that keeps nothing in pane state and belongs to no
+  other pane may say so - there is no node to patch, a shell would be reaped, a web view closed
+  (a unit test reads the sources). The launcher's shortcut pops one up when the layout has none,
+  rather than adding a pane; a widget ends its popup through `ondone`, never by knowing it is in one.
 - **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state
   or in main (a shell reattaches to its session).
 - **Terminal sizing.** Never fit a hidden pane or send transient sizes to the PTY: ConPTY rewraps

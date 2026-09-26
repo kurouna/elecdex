@@ -246,7 +246,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+G | 已保存布局：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9 | 应用前九个已保存布局，顺序与对话框中的列表一致 |
 | Ctrl+Shift+F1 … F6 | 切换到预设：standard、network、earth、dev、media、desk |
-| Ctrl+Shift+L | 搜索启动器（若没有启动器窗格则添加一个） |
+| Ctrl+Shift+L | 搜索启动器（若布局中没有，则在工作区上方弹出一个） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
 | Ctrl+Shift+F | 在 shell 的回滚缓冲区中查找（Enter / Shift+Enter 下一个和上一个，Escape 关闭） |
 | Ctrl+Shift+. | 设置 |
@@ -330,6 +330,11 @@ Ctrl+Shift+1 到 6；已有的列表不会被追加。
 Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+Shift+A 或状态栏的添加按钮），在选择
 组件前先选 **⧉ new tab**。之后点击标签即可切换；后台标签页中的 shell 会继续运行，切回来时
 会话和屏幕内容都还在。组不能嵌套：一个标签页只容纳一个窗格。
+
+*unreleased:* 在同一个选择器中选 **▣ pop up**，组件会以只带 × 的框显示在工作区上方，而不放进
+布局：布局保持不变，也不会保存；按 Escape、点 × 或点框外即可关闭。可以弹出的是启动器、混音器和
+地震列表（在窗格中保存自身设置的组件、shell 和网页不行）。布局中没有启动器时，Ctrl+Shift+L 也会
+这样打开它，启动器在启动了程序之后自动关闭。
 
 ## Panes
 

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { expect, test } from '@playwright/test'
-import { atDesignSize, launch } from './support.js'
+import { atDesignSize, launch, savedLayout } from './support.js'
 
 /**
  * The CPU bar view, the application launcher and the market board.
@@ -131,14 +131,15 @@ test('the launcher lists user entries first and reports a launch that fails', as
   }
 })
 
+// Node itself, exiting at once: a program that really starts, on every platform.
+// The comment in the script keeps entries' ids apart.
+const quick = (name: string) => ({
+  name,
+  target: process.execPath,
+  args: ['-e', `// ${name}`],
+})
+
 test('the launcher counts launches and lists the most used first', async () => {
-  // Node itself, exiting at once: a program that really starts, on every platform.
-  // The comment in the script keeps the two entries' ids apart.
-  const quick = (name: string) => ({
-    name,
-    target: process.execPath,
-    args: ['-e', `// ${name}`],
-  })
   let launched = await launch(undefined, {
     layout: single('launcher'),
     settings: {
@@ -172,16 +173,32 @@ test('the launcher counts launches and lists the most used first', async () => {
   }
 })
 
-test('a shortcut puts the cursor in the launcher search, adding the pane when there is none', async () => {
+test('a shortcut puts the cursor in the launcher pane search, over and over', async () => {
   const { page, close } = await launch(undefined, {
-    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
-    settings: { sound: { enabled: false }, launcher: { showSystem: false, items: [] } },
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [0.5, 0.5],
+        children: [
+          { kind: 'pane', id: 't', widget: 'terminal' },
+          { kind: 'pane', id: 'l', widget: 'launcher' },
+        ],
+      },
+    },
+    settings: { launcher: { showSystem: false, items: [] } },
   })
   try {
-    await expect(page.getByTestId('launcher-filter')).toHaveCount(0)
-    await page.keyboard.press('Control+Shift+KeyL')
     const filter = page.getByTestId('launcher-filter')
+    await page.locator('[data-testid=pane][data-widget=terminal]').dispatchEvent('pointerdown')
+    await page.locator('.xterm-helper-textarea').first().focus()
+    await page.keyboard.press('Control+Shift+KeyL')
     await expect(filter).toBeFocused()
+    // The pane in the layout, not one popped up over it.
+    await expect(page.getByTestId('popup-pane')).toHaveCount(0)
+    await expect(page.locator('[data-testid=pane][data-widget=launcher]')).toHaveClass(/focused/)
 
     await page.keyboard.type('abc')
     await page.locator('[data-testid=pane][data-widget=terminal]').dispatchEvent('pointerdown')
@@ -193,6 +210,104 @@ test('a shortcut puts the cursor in the launcher search, adding the pane when th
     await expect(filter).toHaveValue('x')
   } finally {
     await close()
+  }
+})
+
+test('with no launcher in the layout, the shortcut pops one up and leaves the layout as it is', async () => {
+  const layout = { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } }
+  const { page, userData, close } = await launch(undefined, {
+    layout,
+    settings: { launcher: { showSystem: false, items: [quick('Alpha')] } },
+  })
+  try {
+    // What is on disk once the start has settled (a save of the tree as loaded may land first).
+    await page.waitForTimeout(1000)
+    const before = savedLayout(userData)
+    const shell = page.locator('.xterm-helper-textarea').first()
+    await shell.focus()
+
+    await page.keyboard.press('Control+Shift+KeyL')
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup).toBeVisible()
+    await expect(popup).toHaveAttribute('data-widget', 'launcher')
+    const filter = popup.getByTestId('launcher-filter')
+    await expect(filter).toBeFocused()
+    // Nothing was added to the layout: one pane, and no save on its way.
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+
+    // Pressed again over it, the search takes the keyboard back, the query selected.
+    await page.keyboard.type('abc')
+    await popup.getByTestId('popup-close').focus()
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(filter).toBeFocused()
+    await page.keyboard.type('x')
+    await expect(filter).toHaveValue('x')
+    await expect(popup).toHaveCount(1)
+
+    // The layout's own shortcuts stand down behind it: closing a pane closes nothing.
+    await page.keyboard.press('Control+Shift+KeyW')
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+
+    // Escape puts it away, and the keyboard goes back to the shell.
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+    await expect(shell).toBeFocused()
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+
+    // Twice the save's debounce: had anything changed the tree, it would be on disk by now.
+    await page.waitForTimeout(1000)
+    expect(savedLayout(userData)).toBe(before)
+
+    // The × puts it away as well.
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(popup).toBeVisible()
+    await popup.getByTestId('popup-close').click()
+    await expect(popup).toHaveCount(0)
+
+    // Popped up from the picker, it takes the keyboard in its search as well.
+    await page.keyboard.press('Control+Shift+KeyA')
+    const picker = page.getByTestId('pane-picker')
+    await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
+    await picker.locator('[data-testid=pane-picker-item][data-widget=launcher]').click()
+    await expect(filter).toBeFocused()
+    await page.keyboard.type('al')
+    await expect(filter).toHaveValue('al')
+  } finally {
+    await close()
+  }
+})
+
+test('a launcher popped up goes once it has started something; a launcher pane stays', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
+    settings: { launcher: { showSystem: false, items: [quick('Alpha')] } },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+KeyL')
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup.getByTestId('launcher-entry')).toHaveCount(1)
+    await page.keyboard.type('alpha')
+    await page.keyboard.press('Enter')
+    // The start is seen - the tile blinks - and then the popup goes.
+    await expect(popup.getByTestId('launcher-entry')).toHaveClass(/blinking/)
+    await expect(popup).toHaveCount(0)
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+
+  const { page: other, close: closeOther } = await launch(undefined, {
+    layout: single('launcher'),
+    settings: { launcher: { showSystem: false, items: [quick('Alpha')] } },
+  })
+  try {
+    const entry = other.getByTestId('launcher-entry')
+    await entry.click()
+    await expect(other.getByTestId('launcher-status')).toContainText(/started alpha/i)
+    await expect(entry).toHaveAttribute('data-launches', '1')
+    await expect(other.locator('[data-testid=pane][data-widget=launcher]')).toHaveCount(1)
+  } finally {
+    await closeOther()
   }
 })
 

@@ -3,13 +3,16 @@ import ConfirmButton from '../ConfirmButton.svelte'
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
 import { revealSelected } from '../lib/list-selection.ts'
 import { plugins } from '../plugins/plugins.svelte.ts'
-import { layout, type PanePlacement } from '../stores/layout.svelte.ts'
+import { layout } from '../stores/layout.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
 import { listWidgets, type WidgetDefinition } from '../widgets/registry.ts'
+import { type PickerPlacement, pickerChoice, pickerRowState } from './popup.ts'
 
 /**
- * The add-pane picker: every widget, filterable, placed beside the focused pane.
+ * The add-pane picker: every widget, filterable, placed beside the focused pane -
+ * or popped up over the workspace, outside the layout (popup.ts), for a widget
+ * that can be.
  *
  * eDEX-UI had a fixed set of modules - nothing could be removed, so nothing
  * needed adding back. Here any pane can be closed, so any widget can be brought
@@ -21,15 +24,16 @@ import { listWidgets, type WidgetDefinition } from '../widgets/registry.ts'
  *   Esc      close
  */
 
-const PLACEMENTS: Array<{ id: PanePlacement; label: string }> = [
+const PLACEMENTS: Array<{ id: PickerPlacement; label: string }> = [
   { id: 'right', label: '→ right' },
   { id: 'down', label: '↓ below' },
   { id: 'tab', label: '⧉ new tab' },
+  { id: 'popup', label: '▣ pop up' },
 ]
 
 let filter = $state('')
 let selected = $state(0)
-let placement = $state<PanePlacement>('right')
+let placement = $state<PickerPlacement>('right')
 let input = $state<HTMLInputElement | null>(null)
 let list = $state<HTMLUListElement | null>(null)
 let returnFocus: HTMLElement | null = null
@@ -77,15 +81,15 @@ $effect(() => {
 
 function choose(w: WidgetDefinition | undefined): void {
   if (!w) return
-  const already = existing(w)
-  ui.closePanePicker()
-  if (already !== null) {
-    returnFocus = null
-    layout.focus(already)
-    return
-  }
+  const choice = pickerChoice(w, placement, existing(w))
+  // A widget that cannot pop up stays in the list, marked so; choosing it does nothing.
+  if (choice.kind === 'none') return
+  // The keyboard goes where the choice put the focus, not back where it was.
   returnFocus = null
-  layout.addPane(w.id, placement)
+  ui.closePanePicker()
+  if (choice.kind === 'focus') layout.focus(choice.paneId)
+  else if (choice.kind === 'add') layout.addPane(w.id, choice.placement)
+  else ui.openPopup(w.id)
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -166,13 +170,14 @@ function onKeydown(event: KeyboardEvent): void {
              selection straight back. -->
         <ul class="list" role="listbox" aria-label="Widgets" bind:this={list}>
           {#each widgets as w, i (w.id)}
-            {@const present = existing(w)}
+            {@const choice = pickerChoice(w, placement, existing(w))}
             <li>
               <button
                 type="button"
                 role="option"
                 aria-selected={i === selected}
                 class:selected={i === selected}
+                class:unavailable={choice.kind === 'none'}
                 onpointermove={() => (selected = i)}
                 onclick={() => choose(w)}
                 data-testid="pane-picker-item"
@@ -180,7 +185,7 @@ function onKeydown(event: KeyboardEvent): void {
               >
                 <span class="title">{w.pickerTitle ?? w.title}{#if w.plugin}<em class="plugin-tag">plugin</em>{/if}</span>
                 <span class="description">{w.description ?? ''}</span>
-                <span class="state">{present !== null ? 'on screen · focus' : w.multiple ? 'add another' : 'add'}</span>
+                <span class="state">{pickerRowState(choice, w.multiple)}</span>
               </button>
             </li>
           {:else}
@@ -313,6 +318,12 @@ function onKeydown(event: KeyboardEvent): void {
 .list button.selected {
   border-left-color: var(--accent);
   background: var(--accent-faint);
+}
+
+/* Not offered where the placement asks for it (a widget that cannot pop up): readable, but set back. */
+.list button.unavailable {
+  color: var(--text-muted);
+  cursor: default;
 }
 
 .title {

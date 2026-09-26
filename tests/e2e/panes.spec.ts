@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { launch, selectedRow, showStatusBar, terminalPane } from './support.js'
+import { launch, savedLayout, selectedRow, showStatusBar, terminalPane } from './support.js'
 
 /**
  * Closing any pane and bringing it back. eDEX-UI's modules were fixed; here a
@@ -56,9 +56,65 @@ test('placement puts the new pane right, below or in a tab', async () => {
     await page.keyboard.press('Control+Shift+KeyA')
     await expect(picker.locator('[aria-checked=true]')).toHaveAttribute('data-placement', 'tab')
     await page.keyboard.press('Tab')
+    await expect(picker.locator('[aria-checked=true]')).toHaveAttribute('data-placement', 'popup')
+    await page.keyboard.press('Tab')
     await expect(picker.locator('[aria-checked=true]')).toHaveAttribute('data-placement', 'right')
     await page.keyboard.press('Escape')
     await expect(picker).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('a widget popped up from the picker stays out of the layout', async () => {
+  const { page, userData, close } = await launch()
+  try {
+    // What is on disk once the start has settled (a save of the tree as loaded may land first).
+    await page.waitForTimeout(1000)
+    const before = savedLayout(userData)
+    const panes = await page.getByTestId('pane').count()
+
+    await page.keyboard.press('Control+Shift+KeyA')
+    const picker = page.getByTestId('pane-picker')
+    await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
+    // A widget that cannot pop up says so, and choosing it does nothing.
+    const terminal = picker.locator('[data-testid=pane-picker-item][data-widget=terminal]')
+    await expect(terminal).toContainText(/pane only/i)
+    await terminal.click()
+    await expect(picker).toBeVisible()
+    // One already in the layout is focused there, as from any placement.
+    await expect(
+      picker.locator('[data-testid=pane-picker-item][data-widget=memory]'),
+    ).toContainText(/on screen/i)
+
+    const mixer = picker.locator('[data-testid=pane-picker-item][data-widget=mixer]')
+    await expect(mixer).toContainText(/pop up/i)
+    await mixer.click()
+    await expect(picker).toHaveCount(0)
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup).toHaveAttribute('data-widget', 'mixer')
+    await expect(popup.getByTestId('mixer')).toBeVisible()
+    await expect(page.getByTestId('pane')).toHaveCount(panes)
+    // With no field to type in, the keyboard is on the frame: not on a pane behind it.
+    await expect(popup).toBeFocused()
+
+    await popup.getByTestId('popup-close').click()
+    await expect(popup).toHaveCount(0)
+
+    // Another dialog takes the screen from it, as dialogs do from each other: here
+    // the one the quakes list opens for its alerts. (The app's shortcuts stand down
+    // behind a popup, as behind any dialog.)
+    await page.keyboard.press('Control+Shift+KeyA')
+    await picker.locator('[data-testid=pane-picker-item][data-widget=quakes]').click()
+    await expect(popup).toHaveAttribute('data-widget', 'quakes')
+    await popup.getByTestId('quakes-settings-toggle').click()
+    await expect(page.getByTestId('settings-dialog')).toBeVisible()
+    await expect(popup).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('settings-dialog')).toHaveCount(0)
+
+    await page.waitForTimeout(1000)
+    expect(savedLayout(userData)).toBe(before)
   } finally {
     await close()
   }

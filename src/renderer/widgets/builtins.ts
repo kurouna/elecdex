@@ -212,6 +212,7 @@ registerBuiltin({
   component: LauncherWidget,
   minSize: { w: 200, h: 120 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -299,6 +300,7 @@ registerBuiltin({
   component: QuakesWidget,
   minSize: { w: 220, h: 120 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -328,6 +330,7 @@ registerBuiltin({
   component: MixerWidget,
   minSize: { w: 160, h: 160 },
   zoom: 'panel',
+  popup: true,
 })
 
 registerBuiltin({

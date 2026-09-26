@@ -202,11 +202,20 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'window.toggle': () => false,
 }
 
-/** Focuses the launcher's search box, or adds a launcher pane first when there is none. */
+/**
+ * Focuses the launcher's search box: the launcher pane's, or with none in the
+ * layout, one popped up over it (layout/popup.ts) - starting an application
+ * should not rearrange the screen. Pressed again over it, the box takes the
+ * keyboard again.
+ */
 function focusLauncher(): void {
   const pane = layout.paneWith('launcher')
-  if (pane === null) layout.addPane('launcher', 'right')
-  else layout.focus(pane)
+  if (pane === null) ui.openPopup('launcher')
+  else {
+    // Another widget popped up goes, as it would for the launcher's.
+    ui.closePopup()
+    layout.focus(pane)
+  }
   ui.focusLauncher()
 }
 
@@ -255,13 +264,22 @@ function cycleShell(delta: number): boolean {
 
 /** Shortcuts that still work with a dialog open. */
 const THROUGH_DIALOGS = new Set<KeybindingAction>(['app.quit', 'window.fullscreen'])
+/**
+ * And those that also work over a pane popped up, which is a dialog of its own:
+ * the launcher's, which calls up the launcher in its place. A popup is only ever
+ * up alone (ui.svelte.ts), so no other dialog is let through by this.
+ */
+const THROUGH_POPUP = new Set<KeybindingAction>(['launcher.focus'])
 
 /** Runs a shortcut's action; false when it did not apply. */
 function run(action: KeybindingAction): boolean {
   // A dialog over the workspace: nothing behind it should change unseen.
-  if (ui.dialogOpen && !THROUGH_DIALOGS.has(action)) return false
+  if (ui.dialogOpen && !throughDialog(action)) return false
   return ACTIONS[action]() !== false
 }
+
+const throughDialog = (action: KeybindingAction): boolean =>
+  THROUGH_DIALOGS.has(action) || (ui.popup !== null && THROUGH_POPUP.has(action))
 
 function onKeydown(event: KeyboardEvent): void {
   // While a shortcut is being recorded in the settings, every key goes there.

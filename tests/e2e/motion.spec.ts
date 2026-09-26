@@ -678,9 +678,10 @@ const keysThen = (page: Page, keys: Key[], selector: string) =>
     { keys, selector },
   )
 
-test('a dialog powers off as it closes: the pane picker, the settings, the layouts and the weather location', async () => {
+test('a dialog powers off as it closes: the pane picker, the settings, the layouts, the weather location and a pane popped up', async () => {
   const { page, close } = await launch(undefined, {
     layout: { version: 1, root: paneNode('w', 'weather') },
+    settings: { launcher: { showSystem: false, items: [] } },
   })
   try {
     const dialogs = [
@@ -697,6 +698,8 @@ test('a dialog powers off as it closes: the pane picker, the settings, the layou
           await weather.getByTestId('weather-location').click()
         },
       },
+      // With no launcher in the layout, its shortcut pops one up.
+      { testid: 'popup-pane', open: () => page.keyboard.press('Control+Shift+KeyL') },
     ]
     for (const { testid, open } of dialogs) {
       await open()

@@ -271,7 +271,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
 | Ctrl+Shift+F1 … F6 | go to a preset: standard, network, earth, dev, media, desk |
-| Ctrl+Shift+L | search the launcher (adds a launcher pane if there is none) |
+| Ctrl+Shift+L | search the launcher (pops one up over the workspace if the layout has none) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
 | Ctrl+Shift+. | settings |
@@ -374,6 +374,13 @@ group, open the picker (Ctrl+Shift+A or the status bar's add button) and choose 
 before the widget. Clicking the tabs then switches between them; a shell in a background tab keeps
 running, and its session and screen are there when you switch back. Groups do not nest: a tab
 holds one pane.
+
+*Unreleased:* **▣ pop up** in the same picker shows a widget over the workspace instead, framed
+with only a ×, and leaves the layout as it was - it is not saved, and Escape, the × or a click
+beside it puts it away. The launcher, the mixer and the quakes list can be popped up (a widget
+that keeps settings of its own in its pane, or a shell or a web page, cannot). Ctrl+Shift+L does
+the same for the launcher when the layout has none, and the launcher goes once it has started
+something.
 
 ## Panes
 

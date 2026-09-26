@@ -13,6 +13,13 @@ export interface LocationRequest {
   choose: (location: WeatherLocation) => void
 }
 
+/** The overlays over the workspace, of which one at most is showing. */
+type Overlay = 'picker' | 'layouts' | 'switch' | 'settings' | 'location' | 'popup'
+
+/** Those the user closes; a layout switch is answered instead. */
+const CLOSABLE = ['picker', 'layouts', 'settings', 'location', 'popup'] as const
+type Closable = (typeof CLOSABLE)[number]
+
 /**
  * Transient UI state that belongs to no widget: which overlay is open.
  * Not persisted.
@@ -32,12 +39,56 @@ class UiStore {
     if (open) this.closedAt = performance.now()
   }
 
+  /**
+   * Clears the screen for `opening`: every other overlay goes, noting the close
+   * when one was showing, and a layout switch still asking is answered no -
+   * rather than left on screen behind the new one, and rather than leaving the
+   * switch that asked waiting for a promise that would never settle.
+   */
+  private clearFor(opening: Overlay): void {
+    if (opening !== 'switch') this.answerLayoutSwitch(false)
+    const others = CLOSABLE.filter((overlay) => overlay !== opening)
+    this.closing(others.some((overlay) => this.showing(overlay)))
+    for (const overlay of others) this.hide(overlay)
+  }
+
+  private showing(overlay: Closable): boolean {
+    switch (overlay) {
+      case 'picker':
+        return this.panePickerOpen
+      case 'layouts':
+        return this.layoutsOpen
+      case 'settings':
+        return this.settingsOpen
+      case 'location':
+        return this.locationRequest !== null
+      case 'popup':
+        return this.popup !== null
+    }
+  }
+
+  private hide(overlay: Closable): void {
+    switch (overlay) {
+      case 'picker':
+        this.panePickerOpen = false
+        return
+      case 'layouts':
+        this.layoutsOpen = false
+        return
+      case 'settings':
+        this.settingsOpen = false
+        return
+      case 'location':
+        this.locationRequest = null
+        return
+      case 'popup':
+        this.popup = null
+        return
+    }
+  }
+
   openPanePicker(): void {
-    this.answerLayoutSwitch(false)
-    this.closing(this.settingsOpen || this.locationRequest !== null || this.layoutsOpen)
-    this.settingsOpen = false
-    this.locationRequest = null
-    this.layoutsOpen = false
+    this.clearFor('picker')
     this.panePickerOpen = true
   }
 
@@ -50,11 +101,7 @@ class UiStore {
   layoutsOpen = $state(false)
 
   openLayouts(): void {
-    this.answerLayoutSwitch(false)
-    this.closing(this.panePickerOpen || this.settingsOpen || this.locationRequest !== null)
-    this.panePickerOpen = false
-    this.settingsOpen = false
-    this.locationRequest = null
+    this.clearFor('layouts')
     this.layoutsOpen = true
   }
 
@@ -72,20 +119,11 @@ class UiStore {
    */
   layoutSwitch = $state.raw<LayoutSwitchRequest | null>(null)
 
-  /**
-   * Asks, and resolves with the answer.
-   *
-   * Every other dialog answers a question still open with no, rather than
-   * leaving it on screen behind itself - and rather than leaving the switch
-   * that asked it waiting for a promise that would never settle.
-   */
+  /** Asks, and resolves with the answer; every other dialog answers it no (`clearFor`). */
   askLayoutSwitch(question: { name: string; shells: number }): Promise<boolean> {
     // Only one at a time: the one already on screen is the one being answered.
     if (this.layoutSwitch !== null) return Promise.resolve(false)
-    this.closing(this.panePickerOpen || this.settingsOpen || this.layoutsOpen)
-    this.panePickerOpen = false
-    this.settingsOpen = false
-    this.layoutsOpen = false
+    this.clearFor('switch')
     return new Promise<boolean>((resolve) => {
       this.layoutSwitch = { ...question, answer: resolve }
     })
@@ -139,11 +177,7 @@ class UiStore {
   settingsSection = $state<string | null>(null)
 
   openSettings(section: string | null = null): void {
-    this.answerLayoutSwitch(false)
-    this.closing(this.panePickerOpen || this.locationRequest !== null || this.layoutsOpen)
-    this.panePickerOpen = false
-    this.locationRequest = null
-    this.layoutsOpen = false
+    this.clearFor('settings')
     this.settingsSection = section
     this.settingsOpen = true
   }
@@ -155,7 +189,8 @@ class UiStore {
       this.settingsOpen ||
       this.locationRequest !== null ||
       this.layoutsOpen ||
-      this.layoutSwitch !== null
+      this.layoutSwitch !== null ||
+      this.popup !== null
     )
   }
 
@@ -170,11 +205,7 @@ class UiStore {
    */
   pickLocation(request: LocationRequest): () => void {
     // Another pane's request takes over the picker showing, which stays open.
-    this.answerLayoutSwitch(false)
-    this.closing(this.panePickerOpen || this.settingsOpen || this.layoutsOpen)
-    this.panePickerOpen = false
-    this.settingsOpen = false
-    this.layoutsOpen = false
+    this.clearFor('location')
     this.locationRequest = request
     return () => {
       // Only while it is still this pane's picker: another pane may have taken
@@ -186,6 +217,23 @@ class UiStore {
   closeLocationPicker(): void {
     this.closing(this.locationRequest !== null)
     this.locationRequest = null
+  }
+
+  /**
+   * The widget popped up over the workspace (layout/popup.ts), outside the
+   * layout. A dialog like the others: opening any of them puts it away.
+   */
+  popup = $state.raw<string | null>(null)
+
+  /** Pops up `widget`, in place of one that is up; the same one stays as it is. */
+  openPopup(widget: string): void {
+    this.clearFor('popup')
+    this.popup = widget
+  }
+
+  closePopup(): void {
+    this.closing(this.popup !== null)
+    this.popup = null
   }
 
   closeSettings(): void {

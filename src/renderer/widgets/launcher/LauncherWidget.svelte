@@ -20,7 +20,7 @@ import type { WidgetProps } from '../registry.ts'
  * original colours come back on hover, and always in a theme with iconTint off. All of it is static CSS - nothing is
  * recomputed per frame, and a theme switch is a plain repaint.
  */
-const { paneId }: WidgetProps = $props()
+const { paneId, ondone }: WidgetProps = $props()
 
 let entries = $state.raw<LauncherEntry[]>([])
 let loading = $state(true)
@@ -117,8 +117,13 @@ let blinking = $state<string | null>(null)
 let blinkTimer: ReturnType<typeof setTimeout> | undefined
 /** Ends the blink in progress; waiters for it (a re-order) run at once. */
 let endBlink: (() => void) | null = null
+/** Unmounted: a blink ended by that is not a launch seen through, and says nothing is done. */
+let gone = false
 
-$effect(() => () => endBlink?.())
+$effect(() => () => {
+  gone = true
+  endBlink?.()
+})
 
 function blink(id: string): Promise<void> {
   endBlink?.()
@@ -144,7 +149,13 @@ async function launch(entry: LauncherEntry | undefined): Promise<void> {
   status = result.ok
     ? { text: `started ${entry.name}`, error: false }
     : { text: `${entry.name}: ${result.error}`, error: true }
-  if (result.ok) void blinkDone.then(() => (launched += 1))
+  // Done once the blink is seen: a launcher popped up for this goes then - unless
+  // it has gone already, when `ondone` could close what was popped up since.
+  if (result.ok)
+    void blinkDone.then(() => {
+      launched += 1
+      if (!gone) ondone?.()
+    })
   else sfx.play('alarm')
   setTimeout(() => {
     status = null

@@ -7,6 +7,7 @@ import ConfirmButton from './ConfirmButton.svelte'
 import LocationPicker from './LocationPicker.svelte'
 import LayoutsDialog from './layout/LayoutsDialog.svelte'
 import PanePicker from './layout/PanePicker.svelte'
+import PopupPane from './layout/PopupPane.svelte'
 import SwitchLayoutDialog from './layout/SwitchLayoutDialog.svelte'
 import Workspace from './layout/Workspace.svelte'
 import { EdgeReveal } from './lib/edge-reveal.svelte.ts'
@@ -209,6 +210,7 @@ function toggleSound(): void {
 
 <BootScreen />
 <PanePicker />
+<PopupPane />
 <LayoutsDialog />
 <SwitchLayoutDialog />
 <LocationPicker />
