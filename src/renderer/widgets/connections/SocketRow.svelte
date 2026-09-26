@@ -94,7 +94,7 @@ const listening = $derived(socket.state === 'listen')
 
 .state {
   color: var(--text-muted);
-  font-size: 0.85em;
+  font-size: var(--step--2);
   letter-spacing: 0.06em;
 }
 
@@ -171,14 +171,14 @@ const listening = $derived(socket.state === 'listen')
 }
 
 .service {
-  font-size: 0.85em;
+  font-size: var(--step--2);
   letter-spacing: 0.04em;
   color: var(--accent-dim);
 }
 
 .country {
   text-align: right;
-  font-size: 0.85em;
+  font-size: var(--step--2);
   letter-spacing: 0.06em;
   color: var(--accent-strong);
 }

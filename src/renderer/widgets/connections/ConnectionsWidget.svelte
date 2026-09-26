@@ -375,7 +375,7 @@ function asStrings(value: unknown): string[] {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 0.85em;
+  font-size: var(--step--2);
   color: var(--accent-dim);
 }
 
@@ -384,7 +384,7 @@ function asStrings(value: unknown): string[] {
 .out,
 .where {
   font-family: var(--font-mono);
-  font-size: 0.85em;
+  font-size: var(--step--2);
   color: var(--text-muted);
 }
 

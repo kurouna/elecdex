@@ -35,4 +35,25 @@ describe('the type scale', () => {
     }
     expect(unknown).toEqual([])
   })
+
+  it('is followed in em only where the parent is a size of its own choosing', () => {
+    // Each of these sits in text whose size varies: a clock's or a readout's digits, a plugin
+    // block's clamp, code in prose, the ELEC stage's plates. Under a fixed parent a size is a
+    // step of the scale instead: the connections pane's 0.85em of --step--1 was --step--2 by
+    // another name, and nothing stopped it going below the floor.
+    const allowed = new Set([
+      'plugins/Blocks.svelte',
+      'widgets/aichat/Markdown.svelte',
+      'widgets/common/DiffView.svelte',
+      'widgets/common/Readout.svelte',
+      'widgets/elec/Stage.svelte',
+      'widgets/monitor/ClockWidget.svelte',
+      'widgets/weather/WeatherWidget.svelte',
+    ])
+    const relative = files(RENDERER)
+      .filter((file) => /font-size:\s*[\d.]+em\b/.test(readFileSync(file, 'utf8')))
+      .map((file) => path.relative(RENDERER, file).split(path.sep).join('/'))
+      .filter((file) => !allowed.has(file))
+    expect(relative).toEqual([])
+  })
 })
