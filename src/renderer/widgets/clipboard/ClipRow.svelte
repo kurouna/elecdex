@@ -1,9 +1,9 @@
 <script lang="ts">
 import {
-  CLIP_KIND_TAGS,
   type ClipEntryView,
   clipAge,
   clipSize,
+  clipTag,
   maskedPreview,
   previewLines,
 } from '@shared/clipboard'
@@ -30,6 +30,7 @@ interface Props {
 const { entry, current, masked, lines, now, copied, onrestore, onremove }: Props = $props()
 
 const shown = $derived(masked ? [maskedPreview(entry)] : previewLines(entry.preview, lines))
+const label = $derived(clipTag(entry))
 const more = $derived(!masked && entry.lines > shown.length)
 </script>
 
@@ -43,13 +44,13 @@ const more = $derived(!masked && entry.lines > shown.length)
     onclick={onrestore}
     data-testid="clip-entry"
   >
-    <span class="tag">{CLIP_KIND_TAGS[entry.kind]}</span>
+    <span class="tag" class:none={label.tag === null} data-testid="clip-tag">{label.tag ?? ''}</span>
     <span class="body">
       <span class="text" class:masked data-testid="clip-text">
         {#each shown as line, i (i)}<span class="line">{#if i === 0 && entry.kind === 'color' && !masked}<i class="swatch" style:background-color={entry.preview.trim()}></i>{/if}{line === '' ? ' ' : line}{#if more && i === shown.length - 1}<span class="ellipsis"> …</span>{/if}</span>{/each}
       </span>
       <span class="meta">
-        {clipSize(entry)}{#if entry.rich}<span class="flag">RICH</span>{/if}{#if entry.copies > 1}<span class="flag">×{entry.copies}</span>{/if}{#if !entry.kept}<span class="flag warn">NOT KEPT</span>{/if}{#if current}<span class="flag on" data-testid="clip-current">ON CLIPBOARD</span>{/if}
+        {clipSize(entry)}{#if label.richInMeta}<span class="flag">RICH</span>{/if}{#if entry.copies > 1}<span class="flag">×{entry.copies}</span>{/if}{#if !entry.kept}<span class="flag warn">NOT KEPT</span>{/if}{#if current}<span class="flag on" data-testid="clip-current">ON CLIPBOARD</span>{/if}
       </span>
     </span>
     <span class="age" class:copied data-testid="clip-age">{copied ? 'COPIED' : clipAge(entry.at, now)}</span>
@@ -128,7 +129,11 @@ const more = $derived(!masked && entry.lines > shown.length)
   text-align: center;
 }
 
-.current .tag {
+.tag.none {
+  border-color: transparent;
+}
+
+.current .tag:not(.none) {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--app-bg);

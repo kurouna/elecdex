@@ -6,6 +6,7 @@ import {
   CLIP_MAX_CHARS,
   CLIP_MAX_ENTRIES,
   CLIP_MAX_HTML_CHARS,
+  CLIP_MAX_RTF_CHARS,
   CLIP_PREVIEW_CHARS,
   type ClipHistory,
   type ClipRead,
@@ -13,6 +14,7 @@ import {
   cleared,
   clipAge,
   clipSize,
+  clipTag,
   emptyHistory,
   filterEntries,
   historyFlagSaysPrivate,
@@ -205,6 +207,30 @@ describe('recordRead', () => {
     expect(entry?.kept).toBe(true)
   })
 
+  it('keeps the RTF beside the text, up to its limit, and only with a text kept whole', () => {
+    const rtf = '{\\rtf1 {\\b bold}}'
+    const [entry] = history([{ kind: 'text', text: 'bold', html: null, rtf }]).entries
+    expect(entry?.rtf).toBe(rtf)
+    const big = history([
+      { kind: 'text', text: 'b', html: null, rtf: 'x'.repeat(CLIP_MAX_RTF_CHARS + 1) },
+    ])
+    expect(big.entries[0]?.rtf).toBeNull()
+    const long = history([{ kind: 'text', text: 'z'.repeat(CLIP_MAX_CHARS + 1), html: null, rtf }])
+    expect(long.entries[0]?.rtf).toBeNull()
+  })
+
+  it('takes the formatting of the latest copy of a text that had any, and keeps it otherwise', () => {
+    const rtf = '{\\rtf1 one}'
+    const h = history([
+      text('one', '<b>one</b>'),
+      text('two'),
+      { kind: 'text', text: 'one', html: null, rtf },
+    ])
+    expect(h.entries[0]).toMatchObject({ text: 'one', html: null, rtf })
+    const plain = history([text('one', '<b>one</b>'), text('two'), text('one')])
+    expect(plain.entries[0]).toMatchObject({ html: '<b>one</b>', rtf: null })
+  })
+
   it('counts a private copy once, never reading or listing it', () => {
     const h = history([text('one'), { kind: 'private' }, { kind: 'private' }])
     expect(h.entries).toHaveLength(1)
@@ -255,13 +281,20 @@ describe('putting back, removing, clearing', () => {
 })
 
 describe('what the page is given', () => {
-  it('is a preview and flags, never the whole text or the HTML', () => {
+  it('is a preview and flags, never the whole text, the HTML or the RTF', () => {
     const long = `${'a'.repeat(CLIP_PREVIEW_CHARS)}SECRET-TAIL`
-    const board = boardOf(history([text(long, '<i>html</i>')]), true, false)
+    const read: ClipRead = {
+      kind: 'text',
+      text: long,
+      html: '<i>html</i>',
+      rtf: '{\\rtf1 RTF-BODY}',
+    }
+    const board = boardOf(history([read]), true, false)
     const [entry] = board.entries
     expect(entry?.preview).toHaveLength(CLIP_PREVIEW_CHARS)
     expect(JSON.stringify(board)).not.toContain('SECRET-TAIL')
     expect(JSON.stringify(board)).not.toContain('<i>')
+    expect(JSON.stringify(board)).not.toContain('RTF-BODY')
     expect(entry?.rich).toBe(true)
     expect(board).toMatchObject({ watching: true, paused: false, skipped: 0 })
   })
@@ -279,6 +312,15 @@ describe('rows', () => {
   it('shows the first lines, tabs as spaces, blank ends trimmed', () => {
     expect(previewLines('\n\n a\tb\r\nc\nd\n\n', 2)).toEqual([' a  b', 'c'])
     expect(previewLines('', 3)).toEqual([''])
+  })
+
+  it('tags a kind, or RICH for formatted text, and nothing for plain text', () => {
+    expect(clipTag({ kind: 'text', rich: false })).toEqual({ tag: null, richInMeta: false })
+    expect(clipTag({ kind: 'text', rich: true })).toEqual({ tag: 'RICH', richInMeta: false })
+    expect(clipTag({ kind: 'url', rich: false })).toEqual({ tag: 'URL', richInMeta: false })
+    // A link copied from a page has HTML too: the kind is the tag, RICH goes below.
+    expect(clipTag({ kind: 'url', rich: true })).toEqual({ tag: 'URL', richInMeta: true })
+    expect(clipTag({ kind: 'color', rich: false }).tag).toBe('CLR')
   })
 
   it('masks a preview to its shape only', () => {

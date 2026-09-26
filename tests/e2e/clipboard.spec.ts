@@ -7,18 +7,19 @@ import { launch } from './support.js'
  * is put on its clipboard. Copies are made through globalThis.__elecdexClipboard.
  */
 
+interface Formats {
+  html?: string
+  rtf?: string
+}
+
 interface Hooks {
-  copy(text: string, options?: { html?: string; private?: boolean }): void
+  copy(text: string, options?: Formats & { private?: boolean }): void
   copyOther(): void
-  current(): { text: string; html: string | null } | null
+  current(): { text: string; html: string | null; rtf: string | null } | null
   reads(): number
 }
 
-const copy = (
-  app: ElectronApplication,
-  text: string,
-  options?: { html?: string; private?: boolean },
-) =>
+const copy = (app: ElectronApplication, text: string, options?: Formats & { private?: boolean }) =>
   app.evaluate(
     (_electron, [value, extra]) => {
       const bound = (globalThis as unknown as { __elecdexClipboard: Hooks }).__elecdexClipboard
@@ -43,8 +44,8 @@ const texts = (page: Page) => page.getByTestId('clip-text').allInnerTexts()
  * Copies, and waits for the pane to list it: main looks four times a second, and
  * two copies inside one quarter are one copy to it, as they would be for real.
  */
-async function copied(app: ElectronApplication, page: Page, text: string, html?: string) {
-  await copy(app, text, html === undefined ? undefined : { html })
+async function copied(app: ElectronApplication, page: Page, text: string, formats?: Formats) {
+  await copy(app, text, formats)
   await expect.poll(async () => (await texts(page))[0]).toBe(text)
 }
 
@@ -67,7 +68,7 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
   try {
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await expect(page.getByTestId('clip-empty')).toBeVisible()
-    await copied(app, page, 'first copy', '<b>first</b> copy')
+    await copied(app, page, 'first copy', { html: '<b>first</b> copy' })
     await copied(app, page, 'https://example.test/second')
     await copied(app, page, '#3fd2ff')
     expect(await texts(page)).toEqual(['#3fd2ff', 'https://example.test/second', 'first copy'])
@@ -75,12 +76,14 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
     // The newest is what the clipboard holds.
     await expect(page.getByTestId('clip-row').first().getByTestId('clip-current')).toBeVisible()
     await expect(page.getByTestId('clip-row').first()).toHaveAttribute('data-kind', 'color')
-    await expect(page.getByTestId('clip-row').nth(2)).toContainText('RICH')
+    // Formatted text says RICH where a kind would be; a kind keeps its tag.
+    const tags = page.getByTestId('clip-tag')
+    await expect(tags).toHaveText(['CLR', 'URL', 'RICH'])
 
     // Put back: the text and its HTML, the row marked, and nothing moves.
     await page.getByTestId('clip-entry').nth(2).click()
     await expect(page.getByTestId('clip-age').nth(2)).toHaveText('COPIED')
-    expect(await held(app)).toEqual({ text: 'first copy', html: '<b>first</b> copy' })
+    expect(await held(app)).toEqual({ text: 'first copy', html: '<b>first</b> copy', rtf: null })
     await expect(page.getByTestId('clip-row').nth(2).getByTestId('clip-current')).toBeVisible()
     await page.waitForTimeout(800)
     expect(await texts(page)).toEqual(['#3fd2ff', 'https://example.test/second', 'first copy'])
@@ -112,6 +115,22 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
     // The clipboard's content is not taken for a new copy afterwards.
     await page.waitForTimeout(800)
     await expect(page.getByTestId('clip-row')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('keeps what WordPad copies - RTF alone - and puts it back; plain text has no tag', async () => {
+  const { app, page, close } = await launch(undefined, { layout: beside('clock') })
+  try {
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    const rtf = '{\\rtf1\\ansi {\\b bold} words}'
+    await copied(app, page, 'bold words', { rtf })
+    await copied(app, page, 'plain words')
+    await expect(page.getByTestId('clip-tag')).toHaveText(['', 'RICH'])
+    await page.getByTestId('clip-entry').nth(1).click()
+    await expect(page.getByTestId('clip-age').nth(1)).toHaveText('COPIED')
+    expect(await held(app)).toEqual({ text: 'bold words', html: null, rtf })
   } finally {
     await close()
   }

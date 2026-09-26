@@ -17,8 +17,12 @@ export const CLIP_MAX_ENTRIES = 50
  * beginning, but cannot be put back: half of it would be worse than none.
  */
 export const CLIP_MAX_CHARS = 200_000
-/** The longest HTML kept beside a text; a longer one is dropped and the text kept. */
+/**
+ * The longest HTML, or RTF, kept beside a text; a longer one is dropped and the
+ * text kept. Word's RTF carries its pictures, and can run to megabytes.
+ */
 export const CLIP_MAX_HTML_CHARS = 400_000
+export const CLIP_MAX_RTF_CHARS = 400_000
 /** How much of an entry the page is given to show. */
 export const CLIP_PREVIEW_CHARS = 600
 /**
@@ -88,7 +92,8 @@ export function historyFlagSaysPrivate(bytes: Uint8Array): boolean {
 
 /** What main found on the clipboard at one look. */
 export type ClipRead =
-  | { kind: 'text'; text: string; html: string | null }
+  /** `rtf` is what Word, Outlook and WordPad copy besides HTML (WordPad only it). */
+  | { kind: 'text'; text: string; html: string | null; rtf?: string | null }
   /** Marked private by the application that copied it: not kept, not even looked at. */
   | { kind: 'private' }
   /** Nothing, or nothing this pane keeps (an image, files). */
@@ -102,8 +107,9 @@ export interface ClipEntry {
   id: string
   /** The whole text, or its beginning when it was too long to keep (`kept` false). */
   text: string
-  /** The HTML copied with it, put back with the text. */
+  /** The HTML and RTF copied with it, put back with the text. */
   html: string | null
+  rtf: string | null
   /** Whether it can be put back as it was copied. */
   kept: boolean
   /** Its length as copied, in characters. */
@@ -124,6 +130,7 @@ export interface ClipEntryView {
   chars: number
   lines: number
   kind: ClipKind
+  /** It was copied with its formatting (HTML or RTF), and is put back with it. */
   rich: boolean
   kept: boolean
   firstAt: number
@@ -184,12 +191,18 @@ function countLines(text: string): number {
   return text.endsWith('\n') && lines > 1 ? lines - 1 : lines
 }
 
-function makeEntry(id: string, text: string, html: string | null, now: number): ClipEntry {
+/** A format kept beside the text: only with a text kept whole, and only up to its limit. */
+const beside = (kept: boolean, value: string | null | undefined, max: number): string | null =>
+  kept && value != null && value.length <= max ? value : null
+
+function makeEntry(id: string, read: Extract<ClipRead, { kind: 'text' }>, now: number): ClipEntry {
+  const { text } = read
   const kept = text.length <= CLIP_MAX_CHARS
   return {
     id,
     text: kept ? text : text.slice(0, CLIP_PREVIEW_CHARS),
-    html: kept && html !== null && html.length <= CLIP_MAX_HTML_CHARS ? html : null,
+    html: beside(kept, read.html, CLIP_MAX_HTML_CHARS),
+    rtf: beside(kept, read.rtf, CLIP_MAX_RTF_CHARS),
     kept,
     chars: text.length,
     lines: countLines(text),
@@ -244,7 +257,7 @@ export function recordRead(
       ? history
       : { ...history, last: null, current: null }
   }
-  const { text, html } = read
+  const { text } = read
   if (text === '') return recordRead(history, { kind: 'other' }, now, makeId)
   if (text === history.last) return history
   const at = history.entries.findIndex((entry) => entry.kept && entry.text === text)
@@ -252,17 +265,25 @@ export function recordRead(
   let id: string
   if (at >= 0) {
     const found = history.entries[at] as ClipEntry
-    const moved = { ...found, at: now, copies: found.copies + 1, html: html ?? found.html }
+    // Copied again from somewhere with formatting, it takes that formatting.
+    const again = makeEntry(found.id, read, now)
+    const formatted = again.html !== null || again.rtf !== null
+    const moved = {
+      ...found,
+      at: now,
+      copies: found.copies + 1,
+      ...(formatted ? { html: again.html, rtf: again.rtf } : {}),
+    }
     entries = [moved, ...history.entries.filter((_, i) => i !== at)]
     id = found.id
   } else if (absorbs(history.entries[0], text, now, lookedBefore)) {
     const newest = history.entries[0] as ClipEntry
-    const grown = makeEntry(newest.id, text, html, newest.firstAt)
+    const grown = makeEntry(newest.id, read, newest.firstAt)
     entries = [{ ...grown, at: now }, ...history.entries.slice(1)]
     id = newest.id
   } else {
     id = makeId()
-    entries = [makeEntry(id, text, html, now), ...history.entries].slice(0, CLIP_MAX_ENTRIES)
+    entries = [makeEntry(id, read, now), ...history.entries].slice(0, CLIP_MAX_ENTRIES)
   }
   return { ...history, entries, last: text, current: id }
 }
@@ -301,7 +322,7 @@ export function entryView(entry: ClipEntry): ClipEntryView {
     chars: entry.chars,
     lines: entry.lines,
     kind: entry.kind,
-    rich: entry.html !== null,
+    rich: entry.html !== null || entry.rtf !== null,
     kept: entry.kept,
     firstAt: entry.firstAt,
     at: entry.at,
@@ -338,8 +359,23 @@ export function isClipId(value: unknown): value is string {
 // What a row shows (the page)
 // ---------------------------------------------------------------------------
 
-export const CLIP_KIND_TAGS: Record<ClipKind, string> = {
-  text: 'TXT',
+/**
+ * What a row's tag says, and whether RICH goes on its second line instead. Plain
+ * text has no tag: nearly everything copied is text, and a tag on every row says
+ * nothing. A kind (a link, a path, a number, a colour) is worth saying first; a
+ * text copied with its formatting says RICH, since it is put back with it.
+ */
+export function clipTag(entry: Pick<ClipEntryView, 'kind' | 'rich'>): {
+  tag: string | null
+  richInMeta: boolean
+} {
+  const kind = KIND_TAGS[entry.kind]
+  if (kind !== null) return { tag: kind, richInMeta: entry.rich }
+  return { tag: entry.rich ? 'RICH' : null, richInMeta: false }
+}
+
+const KIND_TAGS: Record<ClipKind, string | null> = {
+  text: null,
   url: 'URL',
   path: 'PATH',
   color: 'CLR',

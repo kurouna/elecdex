@@ -22,30 +22,37 @@ export interface StubClipboard {
 interface Held {
   text: string
   html: string | null
+  rtf: string | null
   private: boolean
 }
 
 export interface ClipboardHooks {
-  copy(text: string, options?: { html?: string; private?: boolean }): void
+  copy(text: string, options?: { html?: string; rtf?: string; private?: boolean }): void
   /** Something the pane does not keep, an image say. */
   copyOther(): void
-  current(): { text: string; html: string | null } | null
+  current(): { text: string; html: string | null; rtf: string | null } | null
   /** How many times the clipboard has been looked at. */
   reads(): number
 }
 
 /** `holding`: the text on the stand-in clipboard to begin with (the screenshots' last copy). */
 export function stubClipboard(holding: string | null = null): StubClipboard {
-  let held: Held | null = holding === null ? null : { text: holding, html: null, private: false }
+  let held: Held | null =
+    holding === null ? null : { text: holding, html: null, rtf: null, private: false }
   let reads = 0
   const hooks: ClipboardHooks = {
     copy: (text, options) => {
-      held = { text, html: options?.html ?? null, private: options?.private === true }
+      held = {
+        text,
+        html: options?.html ?? null,
+        rtf: options?.rtf ?? null,
+        private: options?.private === true,
+      }
     },
     copyOther: () => {
       held = null
     },
-    current: () => (held === null ? null : { text: held.text, html: held.html }),
+    current: () => (held === null ? null : { text: held.text, html: held.html, rtf: held.rtf }),
     reads: () => reads,
   }
   ;(globalThis as { __elecdexClipboard?: ClipboardHooks }).__elecdexClipboard = hooks
@@ -54,10 +61,10 @@ export function stubClipboard(holding: string | null = null): StubClipboard {
       reads += 1
       if (held === null) return { kind: 'other' }
       if (held.private) return { kind: 'private' }
-      return { kind: 'text', text: held.text, html: held.html }
+      return { kind: 'text', text: held.text, html: held.html, rtf: held.rtf }
     },
     write: async (entry) => {
-      held = { text: entry.text, html: entry.html, private: false }
+      held = { text: entry.text, html: entry.html, rtf: entry.rtf, private: false }
     },
   }
 }
