@@ -112,7 +112,7 @@ p {
   flex-wrap: wrap;
   gap: 0 0.7rem;
   color: var(--text-muted);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
 }
 
 .hash {

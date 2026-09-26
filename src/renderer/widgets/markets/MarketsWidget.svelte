@@ -824,7 +824,7 @@ const signed = (percent: number): string =>
 .change {
   max-width: 100%;
   overflow: hidden;
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   white-space: nowrap;
   text-overflow: ellipsis;
 }

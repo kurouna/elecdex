@@ -260,7 +260,7 @@ const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   text-align: left;
   cursor: pointer;
 }

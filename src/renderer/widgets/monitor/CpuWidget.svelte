@@ -206,7 +206,7 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
 }
 
 .avg {
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
 
@@ -272,14 +272,14 @@ const temperatureAvailable = $derived(temperature !== null && temperature.main !
 
 .pct {
   font-family: var(--font-display);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 
 .index {
   font-family: var(--font-ui);
-  font-size: calc(var(--step--2) * 0.85);
+  font-size: var(--step--2);
   color: var(--text-muted);
   line-height: 1;
 }

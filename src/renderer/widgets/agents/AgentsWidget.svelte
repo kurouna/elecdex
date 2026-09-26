@@ -452,7 +452,7 @@ function toggle(session: AgentSession): void {
 .status {
   flex-shrink: 0;
   width: 4.6em;
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: 0.14em;
   color: var(--text-muted);
 }
@@ -528,7 +528,7 @@ function toggle(session: AgentSession): void {
   margin: 0;
   padding: 0.05rem var(--space-2) 0.25rem calc(var(--space-2) + 1rem);
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: 0.1em;
   color: var(--text-muted);
 }
@@ -630,7 +630,7 @@ function toggle(session: AgentSession): void {
 .running {
   flex-shrink: 0;
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: 0.12em;
   color: var(--ok);
 }
@@ -652,10 +652,14 @@ function toggle(session: AgentSession): void {
   color: var(--text-muted);
 }
 
-.kind,
-.task-state {
+.kind {
   font-family: var(--font-ui);
   font-size: var(--step--2);
+  letter-spacing: 0.1em;
+}
+.task-state {
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
   letter-spacing: 0.1em;
 }
 
@@ -683,7 +687,7 @@ function toggle(session: AgentSession): void {
 }
 
 .task-when {
-  font-size: var(--step--2);
+  font-size: var(--step--1);
 }
 
 .step {

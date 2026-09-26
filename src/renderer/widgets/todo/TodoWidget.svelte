@@ -969,7 +969,7 @@ $effect(() => {
 .edit.when {
   flex: 0 1 14rem;
   min-width: 6rem;
-  font-size: var(--step--2);
+  font-size: var(--step--1);
 }
 
 .repeat {
@@ -978,7 +978,7 @@ $effect(() => {
 
 .when {
   color: var(--row-tone);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   white-space: nowrap;
   border: 0;
   background: transparent;

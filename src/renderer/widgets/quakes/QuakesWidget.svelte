@@ -385,7 +385,7 @@ function meta(quake: Quake): string {
 }
 
 .meta {
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -397,7 +397,7 @@ function meta(quake: Quake): string {
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 0.5rem;
+  font-size: var(--step--2);
   text-align: left;
   white-space: nowrap;
   overflow: hidden;

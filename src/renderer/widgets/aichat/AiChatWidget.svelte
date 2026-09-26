@@ -770,7 +770,7 @@ select:focus {
   gap: var(--space-1);
   padding: 0.1rem var(--space-1);
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
 }
 
 /* What can be done to an entry shows when it is pointed at, or reached by keyboard. */
@@ -1165,7 +1165,7 @@ summary.cut::-webkit-details-marker {
   align-items: baseline;
   gap: var(--space-2);
   margin: 0;
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
 

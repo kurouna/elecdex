@@ -428,6 +428,10 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   (Business (Light)) sets `data-mode="light"`, which darkens status colours in tokens.css and turns
   on xterm's minimum contrast, so check a colour change in both Business themes. Every theme sets
   every variable (`themeVariables`), so switching never leaves one stale.
+- **Type sizes by role** (architecture.md §7): what people read - a list's rows, a state word, a
+  figure, a time, an error - is `--step--1` or larger; `--step--2` is for legends, credits, labels
+  and chrome, and nothing goes below it. Name only the steps tokens.css defines: an unknown one
+  falls back to the parent's size (a unit test checks).
 
 ### Running in the background
 

@@ -283,7 +283,7 @@ const fullPath = (file: GitFile): string =>
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }

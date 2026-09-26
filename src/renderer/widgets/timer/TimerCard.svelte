@@ -253,7 +253,7 @@ function setCustom(): void {
 .set,
 .state {
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--text-muted);

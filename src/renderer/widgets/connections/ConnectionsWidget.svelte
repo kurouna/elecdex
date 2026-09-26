@@ -406,7 +406,7 @@ function asStrings(value: unknown): string[] {
   padding: 0.15rem var(--space-2);
   border-top: 1px solid var(--panel-rule);
   font-family: var(--font-ui);
-  font-size: var(--step--3);
+  font-size: var(--step--2);
   line-height: 1.3;
   color: var(--text-muted);
 }
