@@ -469,6 +469,13 @@ function onPointer(event: PointerEvent): void {
   updateTip(Date.now())
 }
 
+/** A card's anchor: the pointer, with room kept around it so the card never covers the mark. */
+const tipAnchor = (t: Tip) => ({
+  x: t.x + POINTER_OFFSET,
+  top: t.y - POINTER_OFFSET,
+  bottom: t.y + POINTER_OFFSET,
+})
+
 function onLeave(): void {
   pointer = null
   tip = null
@@ -569,16 +576,20 @@ const TOGGLES = [
       onpointermove={onPointer}
       onpointerleave={onLeave}
       data-testid="orbit-map" aria-label="World map with the stations' ground tracks"></canvas>
-    {#if tip !== null && size !== null}
-      <!-- Every detail card's frame (architecture.md §7.4), but at once and following
-           the pointer across the map, without the tube's power-on: it is explored, not read. -->
-      <HoverCard
-        anchor={{ x: tip.x + POINTER_OFFSET, top: tip.y - POINTER_OFFSET, bottom: tip.y + POINTER_OFFSET }}
-        bounds={size}
-        power={false}
-        testid="orbit-tip"
-      >
-        <p class="tip-title" class:station={tip.station}>{tip.title}</p>
+    <!-- Every detail card's frame (architecture.md §7.4), at once and following the
+         pointer across the map: it is explored, not read. A station's card powers on and
+         off as every other card does; one of Starlink's thousands of dots comes and goes
+         bare, as fast as the pointer sweeps them. Two blocks, so each kind always opens its
+         own way, whichever came first. -->
+    {#if tip !== null && tip.station && size !== null}
+      <HoverCard anchor={tipAnchor(tip)} bounds={size} testid="orbit-tip" data-kind="station">
+        <p class="tip-title station">{tip.title}</p>
+        {#each tip.lines as line (line)}<p class="tip-line">{line}</p>{/each}
+      </HoverCard>
+    {/if}
+    {#if tip !== null && !tip.station && size !== null}
+      <HoverCard anchor={tipAnchor(tip)} bounds={size} power={false} testid="orbit-tip" data-kind="starlink">
+        <p class="tip-title">{tip.title}</p>
         {#each tip.lines as line (line)}<p class="tip-line">{line}</p>{/each}
       </HoverCard>
     {/if}

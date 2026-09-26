@@ -78,6 +78,9 @@ test('draws the stations from one download, and asks for Starlink only when show
     await expect(page.getByTestId('orbit-tip')).toContainText('International Space Station')
     await expect(page.getByTestId('orbit-tip')).toContainText('NORAD 25544')
     await expect(page.getByTestId('orbit-tip')).toContainText('PERIOD')
+    // A station's card powers on and off like every detail card; a Starlink dot's does not.
+    await expect(page.getByTestId('orbit-tip')).toHaveAttribute('data-kind', 'station')
+    await expect(page.getByTestId('orbit-tip')).toHaveClass(/crt-on/)
     await page.mouse.move(2, 2)
     await expect(page.getByTestId('orbit-tip')).toHaveCount(0)
 
