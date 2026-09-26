@@ -2,6 +2,7 @@
 import { ago } from '@shared/ai'
 import { type GitGraphCommit, type GitLog, type GitLogScope, LOG_MAX, LOG_PAGE } from '@shared/git'
 import { type GraphEdge, graphRows } from '@shared/git-graph'
+import { HoverRest } from '../../lib/hover-card.ts'
 import { landIn } from './motion.ts'
 
 /**
@@ -87,28 +88,31 @@ function path(edge: GraphEdge, half: 'top' | 'bottom'): string {
   return `M${x0} ${y0}C${x0} ${mid} ${x1} ${mid} ${x1} ${y1}`
 }
 
-let timer: ReturnType<typeof setTimeout> | null = null
+// A moment's rest before the card, so passing over the rows does not flash one per row
+// (HoverRest, the same for every detail card).
+const resting = new HoverRest<string>(() => onhover(null))
+
 function rest(commit: GitGraphCommit, event: PointerEvent | FocusEvent): void {
-  if (timer !== null) clearTimeout(timer)
   const target = event.currentTarget as HTMLElement
   const pointer = 'clientX' in event ? event.clientX : null
-  // A moment's rest before the card, so passing over the rows does not flash one per row.
-  timer = setTimeout(() => {
-    timer = null
-    const row = target.getBoundingClientRect()
-    onhover({ commit, row, x: pointer ?? row.left + width + 24 })
-  }, 350)
+  // The keyboard's focus opens it at once; the focus a click leaves behind opens nothing.
+  if (pointer === null && !target.matches(':focus-visible')) return
+  resting.enter(
+    commit.oid,
+    () => {
+      const row = target.getBoundingClientRect()
+      // From the keyboard, past the lanes, so the card does not cover the graph.
+      onhover({ commit, row, x: pointer ?? row.left + width + 10 })
+    },
+    pointer === null,
+  )
 }
 
-function leave(): void {
-  if (timer !== null) clearTimeout(timer)
-  timer = null
-  onhover(null)
+function leave(commit: GitGraphCommit): void {
+  resting.leave(commit.oid)
 }
 
-$effect(() => () => {
-  if (timer !== null) clearTimeout(timer)
-})
+$effect(() => () => resting.dispose())
 
 const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
 </script>
@@ -132,7 +136,7 @@ const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
     >
   </div>
 </div>
-<div class="rows" onscroll={leave} data-testid="git-graph">
+<div class="rows" onscroll={() => resting.leave()} data-testid="git-graph">
   {#each rows as row, i (row.oid)}
     {@const commit = log?.commits[i] as GitGraphCommit}
     <button
@@ -143,9 +147,9 @@ const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
       data-oid={row.oid}
       onclick={() => onselect(row.oid)}
       onpointerenter={(event) => rest(commit, event)}
-      onpointerleave={leave}
+      onpointerleave={() => leave(commit)}
       onfocus={(event) => rest(commit, event)}
-      onblur={leave}
+      onblur={() => leave(commit)}
       in:landIn={{ still }}
     >
       <svg class="lanes" {width} height={ROW} viewBox="0 0 {width} {ROW}" aria-hidden="true">

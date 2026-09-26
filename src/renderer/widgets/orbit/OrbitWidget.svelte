@@ -5,11 +5,13 @@ import type { CityRow } from '@shared/weather-places'
 import { untrack } from 'svelte'
 import { type CanvasSize, observeCanvas } from '../../lib/canvas.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { POINTER_OFFSET } from '../../lib/hover-card.ts'
 import type { SatRec } from '../../lib/sgp4.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
+import HoverCard from '../common/HoverCard.svelte'
 import type { WidgetProps } from '../registry.ts'
 import {
   compass,
@@ -567,18 +569,18 @@ const TOGGLES = [
       onpointermove={onPointer}
       onpointerleave={onLeave}
       data-testid="orbit-map" aria-label="World map with the stations' ground tracks"></canvas>
-    {#if tip !== null}
-      <div
-        class="tip"
-        class:station={tip.station}
-        class:flip={tip.x > (size?.width ?? 0) - 280}
-        style:left="{tip.x}px"
-        style:top="{tip.y}px"
-        data-testid="orbit-tip"
+    {#if tip !== null && size !== null}
+      <!-- Every detail card's frame (architecture.md §7.4), but at once and following
+           the pointer across the map, without the tube's power-on: it is explored, not read. -->
+      <HoverCard
+        anchor={{ x: tip.x + POINTER_OFFSET, top: tip.y - POINTER_OFFSET, bottom: tip.y + POINTER_OFFSET }}
+        bounds={size}
+        power={false}
+        testid="orbit-tip"
       >
-        <p class="tip-title">{tip.title}</p>
-        {#each tip.lines as line (line)}<p>{line}</p>{/each}
-      </div>
+        <p class="tip-title" class:station={tip.station}>{tip.title}</p>
+        {#each tip.lines as line (line)}<p class="tip-line">{line}</p>{/each}
+      </HoverCard>
     {/if}
     {#if choosing}
       <div class="picker" data-testid="orbit-picker">
@@ -771,41 +773,21 @@ canvas {
  * The tooltip: a small readout pinned beside the mark, flipped to its left near the
  * right edge. It takes no pointer, so moving onto it never loses the mark beneath.
  */
-.tip {
-  position: absolute;
-  z-index: 1;
-  min-width: 13rem;
-  max-width: 18rem;
-  padding: 0.3rem 0.55rem;
-  border: 1px solid var(--accent-dim);
-  border-left: 2px solid var(--info);
-  background: color-mix(in srgb, var(--panel-bg-raised) 92%, transparent);
-  font-family: var(--font-mono);
-  font-size: var(--step--2);
-  line-height: 1.45;
-  color: var(--text);
-  pointer-events: none;
-  transform: translate(0.9rem, 0.9rem);
-}
-
-.tip.station {
-  border-left-color: var(--accent-strong);
-}
-
-.tip.flip {
-  transform: translate(calc(-100% - 0.9rem), 0.9rem);
-}
-
-.tip p {
+.tip-line {
   margin: 0;
   white-space: nowrap;
 }
 
-.tip .tip-title {
-  margin-bottom: 0.15rem;
+.tip-title {
+  margin: 0 0 0.15rem;
   font-family: var(--font-display);
   font-size: var(--step--1);
   letter-spacing: 0.06em;
+  color: var(--info);
+}
+
+/* A station, rather than one of Starlink's: in the accent, as its mark is. */
+.tip-title.station {
   color: var(--accent-strong);
 }
 

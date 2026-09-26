@@ -7,37 +7,26 @@ import {
   clipSize,
   clipTags,
 } from '@shared/clipboard'
-import { crtPower } from '../../lib/crt-transitions.ts'
+import type { CardAnchor, CardSize } from '../../lib/hover-card.ts'
+import HoverCard from '../common/HoverCard.svelte'
 
 /**
  * An entry of the clipboard history as a whole, shown while the pointer rests on
  * its row (or the keyboard is on it): what it says, as far as the page has it,
- * what came with it, and when. Drawn like the git pane's commit card, and like it
- * laid over the pane beside the row and kept inside the pane. What was copied is
- * someone's text: it is drawn as text.
+ * what came with it, and when. The frame and its place are every detail card's
+ * (HoverCard, architecture.md §7.4). What was copied is someone's text: it is
+ * drawn as text.
  */
 interface Props {
   entry: ClipEntryView
   current: boolean
   now: number
-  /** Where to put it, in the pane's own pixels; it keeps inside `bounds`. */
-  at: { x: number; top: number; bottom: number }
-  bounds: { width: number; height: number }
+  /** Its row, in the pane's own pixels; it keeps inside `bounds`. */
+  anchor: CardAnchor
+  bounds: CardSize
 }
 
-const { entry, current, now, at, bounds }: Props = $props()
-
-let cardWidth = $state(0)
-let cardHeight = $state(0)
-const GAP = 6
-
-// Below the row, or above it where there is no room below; never past the pane's edges.
-const left = $derived(Math.max(GAP, Math.min(at.x + 14, bounds.width - cardWidth - GAP)))
-const top = $derived(
-  at.bottom + GAP + cardHeight <= bounds.height
-    ? at.bottom + GAP
-    : Math.max(GAP, at.top - GAP - cardHeight),
-)
+const { entry, current, now, anchor, bounds }: Props = $props()
 
 const time = (at: number): string =>
   new Date(at).toLocaleString(undefined, {
@@ -50,16 +39,7 @@ const time = (at: number): string =>
 const cut = $derived(entry.chars > CLIP_PREVIEW_CHARS)
 </script>
 
-<div
-  class="card crt-on"
-  role="tooltip"
-  data-testid="clip-card"
-  style:left="{left}px"
-  style:top="{top}px"
-  bind:clientWidth={cardWidth}
-  bind:clientHeight={cardHeight}
-  transition:crtPower
->
+<HoverCard {anchor} {bounds} testid="clip-card">
   <p class="meta">
     {#each clipTags(entry) as tag (tag)}<span class="tag" class:rich={tag === 'RICH'}>{tag}</span>{/each}
     <span>{clipSize(entry)}</span>
@@ -81,26 +61,9 @@ const cut = $derived(entry.chars > CLIP_PREVIEW_CHARS)
       <span class="warn">too long to have been kept whole: cannot be put back</span>
     {/if}
   </p>
-</div>
+</HoverCard>
 
 <style>
-.card {
-  position: absolute;
-  z-index: 5;
-  width: max-content;
-  max-width: min(32rem, calc(100% - 12px));
-  max-height: calc(100% - 12px);
-  overflow: hidden;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--accent);
-  background: var(--panel-bg-raised);
-  box-shadow: 0 0 0.8rem color-mix(in srgb, var(--accent) 25%, transparent);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  pointer-events: none;
-}
-
 p {
   margin: 0;
 }

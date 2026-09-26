@@ -3,6 +3,7 @@ import { CLIP_MAX_ENTRIES, type ClipBoard, filterEntries } from '@shared/clipboa
 import { flip } from 'svelte/animate'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
+import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -151,31 +152,24 @@ const STATE_WORDS = { watching: 'WATCHING', paused: 'PAUSED', idle: 'STANDBY' } 
  * would say what the mask hides.
  */
 let rootEl = $state<HTMLElement | null>(null)
-let hover = $state.raw<{
-  id: string
-  at: { x: number; top: number; bottom: number }
-  bounds: { width: number; height: number }
-} | null>(null)
-let restTimer: ReturnType<typeof setTimeout> | undefined
+let hover = $state.raw<{ id: string; anchor: CardAnchor; bounds: CardSize } | null>(null)
+const resting = new HoverRest<string>(() => (hover = null))
 
 function onhover(id: string, event: { row: DOMRect; x: number | null } | null): void {
-  clearTimeout(restTimer)
   if (event === null) {
-    if (hover?.id === id) hover = null
+    resting.leave(id)
     return
   }
   const show = (): void => {
     if (rootEl === null) return
     const box = rootEl.getBoundingClientRect()
-    const x = event.x ?? event.row.left + 48
     hover = {
       id,
-      at: { x: x - box.left, top: event.row.top - box.top, bottom: event.row.bottom - box.top },
+      anchor: anchorOf(box, event.row, event.x),
       bounds: { width: box.width, height: box.height },
     }
   }
-  if (event.x === null) show()
-  else restTimer = setTimeout(show, 350)
+  resting.enter(id, show, event.x === null)
 }
 
 const hovered = $derived(
@@ -184,9 +178,9 @@ const hovered = $derived(
 
 // Put away, the card goes with the pane's other moving parts.
 $effect(() => {
-  if (!visible) hover = null
+  if (!visible) resting.leave()
 })
-$effect(() => () => clearTimeout(restTimer))
+$effect(() => () => resting.dispose())
 
 /** Rows show fewer lines when the pane is short. */
 let height = $state(0)
@@ -259,7 +253,7 @@ const lines = $derived(height > 0 && height < 260 ? 1 : 3)
     <div class="empty"><b>NOTHING MATCHES</b></div>
   {:else}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <ul class="list" onkeydown={onListKey} onscroll={() => (hover = null)} data-testid="clip-list">
+    <ul class="list" onkeydown={onListKey} onscroll={() => resting.leave()} data-testid="clip-list">
       {#each shown as entry (entry.id)}
         <li
           class:fx-fresh={fresh.has(entry.id)}
@@ -287,7 +281,7 @@ const lines = $derived(height > 0 && height < 260 ? 1 : 3)
       entry={hovered}
       current={board?.current === hovered.id}
       {now}
-      at={hover.at}
+      anchor={hover.anchor}
       bounds={hover.bounds}
     />
   {/if}

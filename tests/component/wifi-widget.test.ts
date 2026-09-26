@@ -37,6 +37,20 @@ let base = 0
 const clipboard = { writeText: vi.fn(async (_text: string) => {}) }
 
 beforeEach(() => {
+  // The hint card powers on and off like a tube: enough of Web Animations and
+  // matchMedia for that to run its length in jsdom.
+  Element.prototype.animate = function animate(_frames, options) {
+    const animation = { onfinish: null as (() => void) | null, cancel() {}, currentTime: 0 }
+    const length = typeof options === 'number' ? options : Number(options?.duration ?? 0)
+    setTimeout(() => animation.onfinish?.(), length)
+    return animation as unknown as Animation
+  }
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: false,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }))
   deliver.clear()
   wifiHistory.reset()
   clipboard.writeText.mockClear()
@@ -75,6 +89,7 @@ beforeEach(() => {
 })
 
 afterEach(async () => {
+  Reflect.deleteProperty(Element.prototype, 'animate')
   cleanup()
   for (const release of releases.splice(0)) release()
   vi.useRealTimers()
@@ -263,6 +278,9 @@ describe('WifiWidget', () => {
     expect(screen.getByTestId('wifi-hint').dataset.key).toBe('station-internet')
     expect(screen.getByTestId('wifi-hint-now').textContent).toContain('median 18 ms')
     await fireEvent.pointerLeave(screen.getByTestId('wifi'))
+    // It closes once the moment is over (the pointer may be moving on to another
+    // figure), and powers off like every detail card.
+    await vi.advanceTimersByTimeAsync(1000)
     await settle()
     expect(screen.queryByTestId('wifi-hint')).toBeNull()
   })

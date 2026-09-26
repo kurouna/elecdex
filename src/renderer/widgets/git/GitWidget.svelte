@@ -12,6 +12,7 @@ import {
 } from '@shared/git'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { anchorOf, type CardAnchor, type CardSize } from '../../lib/hover-card.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
@@ -257,8 +258,8 @@ $effect(() => {
  */
 let hover = $state.raw<{
   commit: GitGraphCommit
-  at: { x: number; top: number; bottom: number }
-  bounds: { width: number; height: number }
+  anchor: CardAnchor
+  bounds: CardSize
 } | null>(null)
 let hoverFiles = $state.raw<GitFile[] | null>(null)
 const filesOf = new Map<string, GitFile[]>()
@@ -271,7 +272,7 @@ function onhover(next: { commit: GitGraphCommit; row: DOMRect; x: number } | nul
   const box = rootEl.getBoundingClientRect()
   hover = {
     commit: next.commit,
-    at: { x: next.x - box.left, top: next.row.top - box.top, bottom: next.row.bottom - box.top },
+    anchor: anchorOf(box, next.row, next.x),
     bounds: { width: box.width, height: box.height },
   }
   const oid = next.commit.oid
@@ -460,7 +461,7 @@ const counts = $derived.by(() => {
       </div>
     </div>
     {#if hover !== null}
-      <GitCommitCard commit={hover.commit} files={hoverFiles} at={hover.at} bounds={hover.bounds} />
+      <GitCommitCard commit={hover.commit} files={hoverFiles} anchor={hover.anchor} bounds={hover.bounds} />
     {/if}
   {/if}
 </div>

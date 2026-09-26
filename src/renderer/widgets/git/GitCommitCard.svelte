@@ -1,37 +1,25 @@
 <script lang="ts">
 import type { GitFile, GitGraphCommit } from '@shared/git'
-import { crtPower } from '../../lib/crt-transitions.ts'
+import type { CardAnchor, CardSize } from '../../lib/hover-card.ts'
+import HoverCard from '../common/HoverCard.svelte'
 
 /**
  * The whole of a commit, shown while the pointer rests on its row in the graph:
  * its message, who wrote it and when, the names on it, its parents, and what it
  * changed. The message is the repository's text, drawn as text.
  *
- * It is laid over the pane, beside the row, and kept inside the pane, so it
- * never reaches over another pane (a web pane's native view would cover it).
+ * The frame and its place are every detail card's (HoverCard, architecture.md §7.4).
  */
 interface Props {
   commit: GitGraphCommit
   /** The files it changed, or null while they are read. */
   files: GitFile[] | null
-  /** Where to put it, in the pane's own pixels; it keeps inside `bounds`. */
-  at: { x: number; top: number; bottom: number }
-  bounds: { width: number; height: number }
+  /** Its row, in the pane's own pixels; it keeps inside `bounds`. */
+  anchor: CardAnchor
+  bounds: CardSize
 }
 
-const { commit, files, at, bounds }: Props = $props()
-
-let cardWidth = $state(0)
-let cardHeight = $state(0)
-const GAP = 6
-
-// Below the row, or above it where there is no room below; never past the pane's edges.
-const left = $derived(Math.max(GAP, Math.min(at.x + 14, bounds.width - cardWidth - GAP)))
-const top = $derived(
-  at.bottom + GAP + cardHeight <= bounds.height
-    ? at.bottom + GAP
-    : Math.max(GAP, at.top - GAP - cardHeight),
-)
+const { commit, files, anchor, bounds }: Props = $props()
 
 const summary = $derived.by(() => {
   if (files === null) return 'reading the files…'
@@ -49,16 +37,7 @@ const when = $derived(new Date(commit.time * 1000).toLocaleString())
 const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
 </script>
 
-<div
-  class="card crt-on"
-  role="tooltip"
-  data-testid="git-card"
-  style:left="{left}px"
-  style:top="{top}px"
-  bind:clientWidth={cardWidth}
-  bind:clientHeight={cardHeight}
-  transition:crtPower
->
+<HoverCard {anchor} {bounds} testid="git-card">
   <p class="meta">
     <span class="hash">{commit.short}</span>
     <span class="author">{commit.author}</span>
@@ -83,26 +62,9 @@ const REF_MARK = { head: '', branch: '⎇ ', remote: '', tag: '◆ ' }
       <span>the first commit</span>
     {/if}
   </p>
-</div>
+</HoverCard>
 
 <style>
-.card {
-  position: absolute;
-  z-index: 5;
-  width: max-content;
-  max-width: min(32rem, calc(100% - 12px));
-  max-height: calc(100% - 12px);
-  overflow: hidden;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--accent);
-  background: var(--panel-bg-raised);
-  box-shadow: 0 0 0.8rem color-mix(in srgb, var(--accent) 25%, transparent);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  pointer-events: none;
-}
-
 p {
   margin: 0;
 }
