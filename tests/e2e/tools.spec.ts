@@ -44,6 +44,59 @@ test('the CPU pane switches to a bar per core, and remembers it', async () => {
   }
 })
 
+test("the launcher names its tiles at the filesystem's size, two lines of it", async () => {
+  const { page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [50, 50],
+        children: [
+          { kind: 'pane', id: 'l', widget: 'launcher' },
+          { kind: 'pane', id: 'f', widget: 'filesystem' },
+        ],
+      },
+    },
+    settings: {
+      launcher: {
+        showSystem: false,
+        items: [
+          { name: 'Short', target: '/not/here/a' },
+          { name: 'A rather long application name that wraps', target: '/not/here/b' },
+        ],
+      },
+    },
+  })
+  try {
+    await expect(page.getByTestId('launcher-entry')).toHaveCount(2)
+    await expect(page.locator('[data-widget=filesystem] .tile .name').first()).toBeVisible({
+      timeout: 20_000,
+    })
+    const sizes = await page.evaluate(() => {
+      const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+      const rem = (selector: string) => {
+        const el = document.querySelector(selector)
+        return el === null ? null : Number.parseFloat(getComputedStyle(el).fontSize) / root
+      }
+      const tile = document.querySelectorAll('[data-testid=launcher-entry]')[1] as HTMLElement
+      return {
+        launcher: rem('[data-testid=launcher-entry] .name'),
+        filesystem: rem('[data-widget=filesystem] .tile .name'),
+        // A long name wraps inside its tile rather than spilling out of it.
+        spills: tile.scrollHeight > tile.clientHeight + 1,
+      }
+    })
+    // --step--1: a tile's name is what the pane is read by, in both panes alike.
+    expect(sizes.launcher).toBeCloseTo(0.75, 2)
+    expect(sizes.filesystem).toBeCloseTo(0.75, 2)
+    expect(sizes.spills).toBe(false)
+  } finally {
+    await close()
+  }
+})
+
 test('the launcher lists user entries first and reports a launch that fails', async () => {
   const { page, close } = await launch(undefined, {
     layout: single('launcher'),

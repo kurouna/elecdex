@@ -427,7 +427,7 @@ const initial = (name: string) =>
   -webkit-box-orient: vertical;
   text-align: center;
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   line-height: 1.15;
   word-break: break-word;
 }
