@@ -424,7 +424,7 @@ async function copy(): Promise<void> {
 }
 
 .seal {
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
 

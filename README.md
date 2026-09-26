@@ -749,7 +749,7 @@ weather and calendar.
     stays on), for good or for 30 minutes to 4 hours, with +30M to add. It is asked of the system
     through Electron's power-save blocker, so no program is started; closing the lid or choosing
     sleep still sleeps. The hold goes on with the pane closed and is taken up again after a
-    restart until you turn it off or its time runs out: the status bar says so (its bottom-edge
+    restart until you turn it off or its time runs out (while elecdex is not running, nothing holds): the status bar says so (its bottom-edge
     tick lights up), as does the tray's tooltip, and the boot log names it.
   - **QR** makes a code for a text, an address or a Wi-Fi network (the format a phone joins by
     pointing its camera), at error correction L to H, in the theme's colours - always dark on

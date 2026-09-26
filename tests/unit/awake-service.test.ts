@@ -218,8 +218,13 @@ describe('a sealed secret', () => {
 
   it('opens again as it was', () => {
     const sealed = seal(stubCodec, 'pa;ss "word"')
-    expect(sealed).toMatch(/^v1:/)
+    expect(sealed).toMatch(/^v2:/)
     expect(unseal(stubCodec, sealed)).toBe('pa;ss "word"')
+  })
+
+  it('never opens another secret main sealed with the same system (an AI key)', () => {
+    const aiKey = stubCodec.encrypt('sk-ant-secret').toString('base64')
+    expect(unseal(stubCodec, `v2:${aiKey}`)).toBeNull()
   })
 
   it('is not made where the system cannot encrypt', () => {

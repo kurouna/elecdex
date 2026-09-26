@@ -99,8 +99,8 @@ const detail = $derived.by(() => {
 </script>
 
 <div class="awake" data-testid="awake" data-level={hold.level} data-lamp={lamp}>
-  <div class="dial" aria-hidden="true">
-    <svg viewBox="0 0 100 100">
+  <div class="dial">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
       {#each TICKS as i (i)}
         <line
           class="tick"
@@ -182,8 +182,8 @@ const detail = $derived.by(() => {
       <p class="battery" data-testid="awake-battery">on battery: the hold keeps the machine awake all the same</p>
     {/if}
     <p class="note">
-      the lid and the sleep button still put it to sleep · the hold goes on with this pane closed,
-      and after a restart, until turned off
+      the lid and the sleep button still put it to sleep · the hold goes on with this pane closed;
+      while elecdex is not running nothing holds, and it is taken up again at the next start
     </p>
   </div>
 </div>

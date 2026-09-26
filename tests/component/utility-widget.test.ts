@@ -28,7 +28,7 @@ const set = vi.fn(async (request: AwakeRequest): Promise<AwakeState> => {
     onBattery: false,
   }
 })
-const seal = vi.fn(async (secret: string) => `v1:${btoa(secret)}` as string | null)
+const seal = vi.fn(async (secret: string) => `v2:${btoa(secret)}` as string | null)
 const unseal = vi.fn(async (_sealed: string) => 'correct horse' as string | null)
 const copy = vi.fn(async (_what: unknown) => true)
 
@@ -120,7 +120,7 @@ describe('AWAKE', () => {
 })
 
 describe('QR', () => {
-  const wifi = { module: 'qr', qrKind: 'wifi', wifiSsid: 'lab', wifiSealed: 'v1:c2VjcmV0' }
+  const wifi = { module: 'qr', qrKind: 'wifi', wifiSsid: 'lab', wifiSealed: 'v2:c2VjcmV0' }
 
   it('opens a sealed password only while its Wi-Fi code is on screen, and veils the code', async () => {
     const view = await mount(wifi, false)
@@ -132,6 +132,12 @@ describe('QR', () => {
     expect(screen.getByTestId('qr-reveal')).toBeTruthy()
     // The field never holds the saved password: it is a placeholder's dots.
     expect((screen.getByTestId('qr-password') as HTMLInputElement).value).toBe('')
+  })
+
+  it('drops a password sealed in the first, unscoped format rather than asking main to open it', async () => {
+    await mount({ ...wifi, wifiSealed: 'v1:c2VjcmV0' })
+    expect(unseal).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('qr-seal')).toBeNull()
   })
 
   it('says when a sealed password was sealed on another machine', async () => {
@@ -150,7 +156,7 @@ describe('QR', () => {
     vi.advanceTimersByTime(400)
     expect(seal).toHaveBeenCalledWith('pw')
     await fireEvent.click(screen.getByTestId('qr-forget'))
-    finish('v1:cHc=')
+    finish('v2:cHc=')
     await settle()
     expect(screen.queryByTestId('qr-seal')).toBeNull()
     expect(screen.queryByTestId('qr-reveal')).toBeNull()

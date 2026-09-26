@@ -183,8 +183,9 @@ export function readJwt(input: string, now: number): CodecResult {
   if (header === null || payload === null) return fail('not a JWT: a part is not Base64URL JSON')
   const times = TIME_CLAIMS.flatMap((claim) => {
     const value = payload[claim]
-    if (typeof value !== 'number') return []
-    const at = value * 1000
+    const at = typeof value === 'number' ? value * 1000 : Number.NaN
+    // Beyond what a date can hold (a claim that is no time at all): the JSON above shows it.
+    if (!Number.isFinite(at) || Math.abs(at) > 8.64e15) return []
     const late = claim === 'exp' && at <= now ? ' (expired)' : ''
     return [`${claim.padEnd(6)}${new Date(at).toISOString()}${late}`]
   })
@@ -206,6 +207,15 @@ const HASHES = { sha1: 'SHA-1', sha256: 'SHA-256', sha512: 'SHA-512' } as const
  * input as, and JWT tells expiry by.
  */
 export async function runCodec(op: CodecOp, input: string, now: number): Promise<CodecResult> {
+  try {
+    return await answer(op, input, now)
+  } catch {
+    // What a text cannot be turned into is an answer too, never an error thrown at the pane.
+    return fail(op === 'url' ? 'not text a URL can carry: a broken character' : 'could not be done')
+  }
+}
+
+async function answer(op: CodecOp, input: string, now: number): Promise<CodecResult> {
   switch (op) {
     case 'b64':
       return ok(toBase64(encoder.encode(input)))

@@ -160,7 +160,8 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - What they copy goes through main (`utility.copy`), so the clipboard stub catches it.
   - A Wi-Fi password is kept in pane state only sealed (`utility.seal`, `safeStorage` as the AI
     keys, main/secrets/), unsealed only while the Wi-Fi code is shown, and never written in
-    plain where the system cannot encrypt. CODEC's input is never written to disk.
+    plain where the system cannot encrypt. A seal carries its purpose and `unseal` checks it,
+    so no other secret main encrypts (an AI key) can be opened through it. CODEC's input is never written to disk.
   - A QR code is always dark modules on a light ground, in the theme's colours when their
     contrast holds (`qrColours`); a test reads every theme's code back.
   - Tests set `ELECDEX_AWAKE_STUB=1` and read the hold through `globalThis.__elecdexAwake`.

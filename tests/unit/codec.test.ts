@@ -148,6 +148,20 @@ describe('UUID', () => {
   })
 })
 
+describe('what cannot be done', () => {
+  it('is an answer, never a thrown error', async () => {
+    // Half of a surrogate pair: what cutting a pasted text at the limit can leave.
+    expect(await run('url', 'a\uD83D')).toEqual({
+      ok: false,
+      error: 'not text a URL can carry: a broken character',
+    })
+    const part = (value: object): string => Buffer.from(JSON.stringify(value)).toString('base64url')
+    const far = await run('jwt', `${part({ alg: 'none' })}.${part({ exp: 1e20 })}.`)
+    expect(far.ok).toBe(true)
+    expect(far.ok && far.text).not.toContain('exp   ')
+  })
+})
+
 describe('the operations', () => {
   it('each belong to a group, and every group has one', () => {
     for (const group of CODEC_GROUPS) expect(CODEC_OPS.some((op) => op.group === group)).toBe(true)

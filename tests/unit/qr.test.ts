@@ -155,6 +155,28 @@ describe('the colours', () => {
     expect(qrColours(themeColours(light)).dark).toEqual(parseRgb('#1a1a1a'))
   })
 
+  it('scan through the scanlines and the vignette a theme lays over the screen', () => {
+    for (const theme of BUILTIN_THEMES) {
+      const colours = qrColours(themeColours(theme))
+      const built = qrBuild('WIFI:T:WPA;S:lab;P:secret;;', 'M')
+      if (built.kind !== 'code') throw new Error('no code')
+      const { width, data } = qrPixels(built.code, colours, 4)
+      // effects.css: a dark line every third pixel at 22%, and the edges darkened by up to 35%.
+      for (let y = 0; y < width; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const edge = Math.hypot(x / width - 0.5, y / width - 0.5) / Math.SQRT1_2
+          const keep = (y % 3 === 0 ? 0.78 : 1) * (1 - 0.35 * Math.max(0, (edge - 0.6) / 0.4))
+          for (let c = 0; c < 3; c += 1) {
+            const at = (y * width + x) * 4 + c
+            data[at] = (data[at] ?? 0) * keep
+          }
+        }
+      }
+      const found = jsQR(data, width, width, { inversionAttempts: 'dontInvert' })
+      expect(found?.data, theme.id).toBe('WIFI:T:WPA;S:lab;P:secret;;')
+    }
+  })
+
   it('fall back to black on white when a theme has no contrast to spare', () => {
     const grey: Rgb = [120, 120, 120]
     expect(qrColours({ accent: grey, ground: [110, 110, 110], text: grey })).toEqual(BLACK_ON_WHITE)

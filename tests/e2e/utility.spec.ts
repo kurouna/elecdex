@@ -178,7 +178,7 @@ test('QR draws a code, copies it as a PNG, and keeps a Wi-Fi password only seale
     await expect(page.getByTestId('qr-seal')).toHaveText('saved, sealed by the system')
     await expect
       .poll(() => savedLayout(dir) ?? '', { timeout: 10_000 })
-      .toMatch(/"wifiSealed":\s*"v1:/)
+      .toMatch(/"wifiSealed":\s*"v2:/)
     expect(savedLayout(dir)).not.toContain('correct horse')
     await page.getByTestId('qr-reveal').click({ delay: 20 })
     await expect(page.getByTestId('qr-reveal')).toHaveCount(0)

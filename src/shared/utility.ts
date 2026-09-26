@@ -173,8 +173,12 @@ export const UTILITY_LIMITS = {
   sealed: 1024,
 } as const
 
-/** What a sealed secret starts with: the page keeps it, only main can read it. */
-export const SEALED_PREFIX = 'v1:'
+/**
+ * What a sealed secret starts with: the page keeps it, only main can read it.
+ * v2 seals the secret with its purpose, so main never opens anything else it
+ * sealed with the same system (an AI key); v1 had no purpose and is not read.
+ */
+export const SEALED_PREFIX = 'v2:'
 
 export function isSealed(value: unknown): value is string {
   return (
