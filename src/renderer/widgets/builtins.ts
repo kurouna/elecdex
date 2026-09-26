@@ -6,6 +6,7 @@ import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
 import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
+import ClipboardWidget from './clipboard/ClipboardWidget.svelte'
 import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
 import ElecWidget from './elec/ElecWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
@@ -386,6 +387,18 @@ registerBuiltin({
   component: TodoWidget,
   minSize: { w: 240, h: 180 },
   multiple: true,
+  zoom: 'full',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'clipboard',
+  title: 'clipboard',
+  pickerTitle: 'clipboard history',
+  description:
+    'What you copied while this pane was on screen, to put back on the clipboard. Kept in memory only; copies a password manager marks private are left out.',
+  component: ClipboardWidget,
+  minSize: { w: 220, h: 140 },
   zoom: 'full',
   popup: true,
 })

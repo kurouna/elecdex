@@ -134,6 +134,7 @@ export async function openTake({ items, options, standIn, env = {} }) {
       ELECDEX_CLAUDE_DIR: claudeFolder(),
       ELECDEX_SOCKETS_STUB: 'demo',
       ELECDEX_WIFI_STUB: 'demo',
+      ELECDEX_CLIPBOARD_STUB: 'demo',
       ELECDEX_AUDIO_STUB: 'demo',
       ELECDEX_WEB_HOMES: standIn.homes,
       // No tray icon or system-wide shortcut from a recording run.

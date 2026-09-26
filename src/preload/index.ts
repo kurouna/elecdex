@@ -22,6 +22,7 @@ import type {
 import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
 import type { BackgroundState } from '@shared/background'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
+import type { ClipBoard, ClipRestoreResult } from '@shared/clipboard'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
@@ -262,6 +263,14 @@ const subscribeMarket = keyedSubscriptions<MarketUpdate>({
   keyOf: (update) => update.key,
 })
 
+/** The one clipboard history, shared by every pane showing it. */
+const subscribeClipboard = keyedSubscriptions<ClipBoard>({
+  subscribe: CH.clipboard.subscribe,
+  unsubscribe: CH.clipboard.unsubscribe,
+  event: CH.clipboard.update,
+  keyOf: () => 'board',
+})
+
 /** The one agents board: every handler shares one subscription, as a keyed one would. */
 const subscribeAgents = keyedSubscriptions<AgentBoard>({
   subscribe: CH.agents.subscribe,
@@ -488,6 +497,14 @@ const api: ElecdexApi = {
   feeds: {
     subscribe: (url, handler) => subscribeFeed(url, handler),
     watching: () => ipcRenderer.invoke(CH.feeds.watching) as Promise<string[]>,
+  },
+  clipboard: {
+    subscribe: (handler) => subscribeClipboard('board', handler),
+    restore: (id) => ipcRenderer.invoke(CH.clipboard.restore, id) as Promise<ClipRestoreResult>,
+    remove: (id) => ipcRenderer.send(CH.clipboard.remove, id),
+    clear: () => ipcRenderer.send(CH.clipboard.clear),
+    pause: (paused) => ipcRenderer.send(CH.clipboard.pause, paused),
+    watching: () => ipcRenderer.invoke(CH.clipboard.watching) as Promise<boolean>,
   },
   agents: {
     subscribe: (handler) => subscribeAgents('board', handler),

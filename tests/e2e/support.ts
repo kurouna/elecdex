@@ -213,6 +213,10 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       // addresses or where it has connected, and no ping leaves the machine
       // (src/services/metrics/wifi/stub.ts).
       ELECDEX_WIFI_STUB: '1',
+      // A stand-in clipboard: never what this machine has copied, and nothing put on
+      // its clipboard (src/main/clipboard/stub.ts). Specs copy through
+      // globalThis.__elecdexClipboard.
+      ELECDEX_CLIPBOARD_STUB: '1',
       // A reversible stand-in for the system's encryption: never the Keychain or a
       // keyring, and never the prompt either may show (src/main/ai/keys.ts).
       ELECDEX_AI_KEYS_STUB: '1',

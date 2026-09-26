@@ -249,6 +249,8 @@ test('Ctrl+Shift and a function key go to each preset, and each card names its k
     await page.keyboard.press('Control+Shift+F6')
     await settleLayout(page)
     await expect(widget(page, 'notes')).toHaveCount(1)
+    // On screen, not a tab: the clipboard pane reads only while it is seen.
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await page.keyboard.press('Control+Shift+F4')
     await settleLayout(page)
     await expect(widget(page, 'git')).toHaveCount(1)

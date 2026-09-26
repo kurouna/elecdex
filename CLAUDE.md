@@ -54,7 +54,7 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 
 ```
 src/main/        main process: window, ipc/ (handlers), store/ (json files), pty/, fs/, weather/,
-                 markets/, feeds/, quakes/, ai/, launcher/, audio/, plugins/, web/, background/,
+                 markets/, feeds/, quakes/, clipboard/, ai/, launcher/, audio/, plugins/, web/, background/,
                  reminders/, updates/, metrics/ (the broker between the collector and pages)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/)
 src/preload/     the single contextBridge API, window.elecdex
@@ -126,6 +126,16 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     shared/wifi.ts; the page only wires them. Every figure marked `data-hint` has a card in
     widgets/wifi/hints.ts that quotes `WIFI_LIMITS` rather than restating them (a unit test
     checks both).
+- **The clipboard pane reads only while it is seen** (architecture.md §5.14, shared/clipboard.ts,
+  main/clipboard/). Main reads the clipboard - Electron's asynchronous API, never the page - on
+  the wall clock's quarter seconds, only while a clipboard pane is subscribed (it subscribes while
+  `seen`) and not paused: what is copied unseen is never kept. The history is main's memory only,
+  never a file; the page gets previews and puts an entry back by id; no plugin API reaches it.
+  - A copy marked private (a password manager's formats, `privateMark`) is recognised from its
+    formats alone and its text is never read. Keep the list of those formats in one place.
+  - The decisions are pure (`recordRead`: dedupe, the dragged-selection absorption, limits); a
+    selection is absorbed only between looks in a row, never across a pause or a hidden spell.
+  - Tests set `ELECDEX_CLIPBOARD_STUB=1` and copy through `globalThis.__elecdexClipboard`.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or
@@ -484,6 +494,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
     sign-in entry, so no run touches the taskbar, keys or startup;
   - `ELECDEX_SOCKETS_STUB=1` for a made-up socket table (`=demo` for screenshots), so no run
     depends on — or records — where this machine has been;
+  - `ELECDEX_CLIPBOARD_STUB=1` for a stand-in clipboard in main's memory (`=demo` for
+    screenshots), so no run reads what this machine has copied or writes to its clipboard;
   - `ELECDEX_WIFI_STUB=1` for a made-up Wi-Fi link, echoes and log (`=train` for a trip with
     tunnels and changes of car, `=dual` for two adapters, `=demo` for screenshots), so no run
     reads the network or pings;

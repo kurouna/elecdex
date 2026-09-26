@@ -11,6 +11,7 @@ import type {
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
+import type { ClipBoard, ClipRestoreResult } from './clipboard.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
@@ -368,6 +369,27 @@ export interface FeedsApi {
 }
 
 /**
+ * The clipboard pane: what was copied while a pane was seen, kept in main's
+ * memory. The page gets previews and puts an entry back by its id.
+ */
+export interface ClipboardApi {
+  /**
+   * Keeps the history current while subscribed: at once, then after each
+   * change. Main reads the clipboard only while some page is subscribed.
+   */
+  subscribe(handler: (board: ClipBoard) => void): () => void
+  /** Puts an entry back on the clipboard, its HTML with it. */
+  restore(id: string): Promise<ClipRestoreResult>
+  /** Takes an entry out of the history; the clipboard itself is left as it is. */
+  remove(id: string): void
+  clear(): void
+  /** Stops reading the clipboard until resumed, with panes still open. */
+  pause(paused: boolean): void
+  /** Diagnostics: whether main is reading the clipboard now. */
+  watching(): Promise<boolean>
+}
+
+/**
  * The AI AGENT pane (experimental): coding agents at work on this machine, read
  * from their own local records by the layer in main (agents/hub.ts).
  */
@@ -653,6 +675,7 @@ export interface ElecdexApi {
   launcher: LauncherApi
   markets: MarketsApi
   feeds: FeedsApi
+  clipboard: ClipboardApi
   git: GitApi
   orbits: OrbitsApi
   agents: AgentsApi

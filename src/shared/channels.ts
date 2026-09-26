@@ -97,6 +97,19 @@ export const CH = {
     update: 'feeds:update',
     watching: 'feeds:watching',
   },
+  /** The clipboard pane (shared/clipboard.ts): one history, read only while a pane is seen. */
+  clipboard: {
+    /** renderer -> main, fire and forget: keep the history current. */
+    subscribe: 'clipboard:subscribe',
+    unsubscribe: 'clipboard:unsubscribe',
+    /** main -> renderer: a ClipBoard. */
+    update: 'clipboard:update',
+    restore: 'clipboard:restore',
+    remove: 'clipboard:remove',
+    clear: 'clipboard:clear',
+    pause: 'clipboard:pause',
+    watching: 'clipboard:watching',
+  },
   /** The AI AGENT pane (shared/agents.ts): one board, from the sources settings turn on. */
   agents: {
     /** renderer -> main, fire and forget: keep the board current. */

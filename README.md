@@ -124,7 +124,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
   deadlines are drawn as meters and announced whether or not their pane is open, and a timer with
   a stopwatch whose laps stack up like a spectrum, countdowns that run beside it, and alarms for
-  the times the day is built around.
+  the times the day is built around. *Unreleased:* a clipboard history, beside the calendar, of
+  what you copy while it is on screen, to put back with a click.
 
 ### Talking to models
 
@@ -356,7 +357,7 @@ Six **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT), **media**
 (YouTube (TV) with the spectrum and mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks and the calendar). Every one keeps the system column on the left, so a switch
+the calculator, tasks and the calendar, and - *unreleased* - the clipboard). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
@@ -663,6 +664,20 @@ weather and calendar.
   a card that waits to be answered and (when elecdex is not in front) a system notification. A
   one-off switches itself off once it has rung; `07:30`, `7`, `19.5` and `１９：３０` are all read as
   times.
+- **Clipboard** *(unreleased)* — in the desk preset, or add it from the picker ("clipboard
+  history"). What you copy while the pane is on screen, newest first: each entry tagged with what
+  it is (TXT, URL, PATH, NUM, and CLR with a swatch), its size and how long ago. Click one (or
+  Enter) to put it back on the clipboard, with the formatting it was copied with, and paste it
+  wherever you like; ↑ ↓ move between entries and Delete or × takes one out. The same text copied
+  again moves up rather than appearing twice, and a selection dragged in a shell - which copies at
+  every step - is one entry. The clipboard is read four times a second, and only while a
+  clipboard pane is on screen: behind another tab, with the window minimised or put away, or with
+  **PAUSE** pressed, nothing is read, and what is copied then is not kept. A copy marked private the
+  way password managers mark theirs (Windows' `ExcludeClipboardContentFromMonitorProcessing` and
+  clipboard-history flags, macOS's concealed type, KDE's password hint) is never read, only
+  counted. Up to 50 entries are kept in memory and are gone when elecdex quits - nothing is written
+  to disk, and no plugin can reach them. **MASK** hides what they say, **CLEAR** (pressed twice)
+  empties the list. Text only: an image or files on the clipboard are not kept.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
   sweep in the way it moved. Given room - a wide pane, or the pane brought forward with
   Ctrl+Shift+Z - the month before and the month after join it either side, dimmed, and the arrows

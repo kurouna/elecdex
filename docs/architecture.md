@@ -129,8 +129,9 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 
 以下は最初の設計時のスケッチで、考え方（名前空間ごとの型付き API、購読は解除関数を返す）を示す。
 **現在の正確な形は `src/shared/api.ts`** にあり、名前空間は `system` / `background` / `pty` / `layout` /
-`metrics` / `fs` / `weather` / `settings` / `themes` / `launcher` / `markets` / `feeds` / `quakes` /
-`ai` / `notes` / `tasks` / `alarms` / `updates` / `audio` / `plugins` / `web` の21個。
+`metrics` / `fs` / `weather` / `settings` / `themes` / `launcher` / `markets` / `feeds` / `clipboard` /
+`git` / `orbits` / `agents` / `ai` / `elec` / `quakes` / `notes` / `tasks` / `alarms` / `updates` / `audio` /
+`plugins` / `web` の 26 個。
 
 ```ts
 interface ElecdexApi {
@@ -488,7 +489,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 **プリセット**（`shared/layout-presets.ts`、2026-09-24）: 用途別の配置を組み込みで持つ。standard（既定
 レイアウトそのもの）/ network（地球儀・connections を 3:2・シェル）/ earth（ORBIT・地球儀・地震・天気・シェル）/
 dev（AI AGENT・シェル・GIT）/ media（YouTube (TV)・spectrum・mixer、X と RSS のタブ）/ desk（notes・timer・
-calculator・tasks・calendar。シェルなし）の 6 つ。どれも既定の左カラム（システム列）を同じ幅・同じ高さで
+calculator・tasks・calendar・clipboard。シェルなし。clipboard は見えている間だけ読むのでタブに重ねず、カレンダーの横。§5.14）の 6 つ。どれも既定の左カラム（システム列）を同じ幅・同じ高さで
 左端に持つので、切り替えると計器盤はそのままで右の舞台だけが替わって見える。名前は ORBIT ペインと重ならない
 ように earth にした（利用者の判断）。
 
@@ -1197,6 +1198,21 @@ Web ペイン（ビューが `reapOrphanSessions` に閉じられ、ポップア
 
 **テスト**: 単体（`popup.test.ts`: 選択・行の表示・出せるウィジェットの条件、`layout-ops.test.ts`）、コンポーネント（`dialog-motion.test.ts`: 排他、`closedAt`、レイアウト切り替えの問いへの no、地点選択が上に開くこと、`widget-state.test.ts`: 振り分けとマージ）、e2e（`tools.spec.ts`: ショートカットでポップアップ・layout.json 不変・押し直し・Ctrl+Shift+W が効かない・Escape でシェルへ戻る・起動で閉じペインは残る、`panes.spec.ts`: ピッカーの配置と pane only と設定ダイアログによる排他・出せる全ウィジェットが開いて閉じ、ページのエラーが無く layout.json も変わらないこと・選択が次に開いたときに残ること・天気の地点選択、`motion.spec.ts`: 電源オフ）。
 
+### 5.14 クリップボードペイン（履歴）
+
+直近にコピーしたものを並べ、選んでクリップボードへ戻す（2026-09-26、利用者の依頼。利用者が別の AI と作った設計案を参考に、elecdex の規則と実測に合わせて作り直した）。ピッカー名は "clipboard history"、見出しは CLIPBOARD。既定のレイアウトには入れず、desk プリセットに入れる。貼り付けの代行（キー送信）はしない。OS のクリップボード履歴（Win+V など）とは同期しない。
+
+- **読む場所は main**: Electron の `clipboard` は main（とページ）にしかなく、utilityProcess には無い。サンドボックスのページには読ませない（ページが読めるのは右クリック貼り付けの `navigator.clipboard` だけで、履歴は main のもの）。Electron 44 のクリップボード API は非同期（`read()` / `readText()` / `write(ClipboardItem[])`、同期の `readHTML` / `readImage` / `availableFormats` は無くなった）。実測（i5-1335U）: 1 回の `read()` と `getType('text/plain')` は壁時計で 0.2〜0.5 ms、そのうち main のスレッドを止めるのは 10 µs 前後。1920×1080 の PNG の `getType` は 8.4 ms（同期部分 21 µs）
+- **いつ読むか**: 見えているクリップボードペインが 1 つ以上あり、PAUSE でないときだけ。ペインは `seen` の間だけ購読し（裏のタブ、最小化、格納中は解除）、main は購読者がいる間だけ読む（`ClipboardWatcher.sync`）。見えていない間にコピーされたものは残らない。読み始めに 1 回読むので、表示した瞬間にクリップボードにあるものは一覧に入る（それ以前のコピーは入らない）。`keepWhileHidden` の対象外で、hidden-panes の e2e が裏のタブと最小化で `clipboard.watching()` が false になることを確かめる
+- **間隔**: 壁時計の 250 ms 境界（`nextTick`）。タイマーは 1 本で、見るたびに次の境界へ張り直す（`setInterval` は使わない）。前の読み取りがまだ終わっていなければその境界は飛ばす（重ねない）。100 万文字以上のテキストが載っている間は 2 秒に 1 回（読むたびに全体を複製するため、`shouldReadText`）。Windows で変化を通知で受けるには `AddClipboardFormatListener` とウィンドウハンドルが要り、Electron は出していないので、ポーリングにした。main の CPU はペインありとなし（時計）で 20 秒平均 0.78% と 0.78%、差は測れなかった（実機のクリップボード、約 11 kB のテキスト）
+- **非公開の印**: パスワードマネージャーはコピーに「履歴に残すな」という形式を添える。Windows の `ExcludeClipboardContentFromMonitorProcessing`・`Clipboard Viewer Ignore`・`CanIncludeInClipboardHistory`（DWORD、0 なら除外）、macOS の `org.nspasteboard.ConcealedType` / `TransientType`、KDE の `x-kde-passwordManagerHint`。Electron の `read()` は OS の生の形式を `electron application/osclipboard;format="名前"` として列挙する（Windows で KeePass と同じ形でコピーして確かめた）ので、形式の一覧だけで判定し（`privateMark`）、中身は読まない。一覧には載せず「N private copies left out」と数だけ出す。中身を読まないので、続けて 2 つの非公開コピーは区別できず 1 と数える
+- **履歴への積み方**（`recordRead`、純粋関数）: 前回と同じテキストは何もしない。一覧にあるテキストは二重にせず先頭へ移して回数を足す。**選択のドラッグの吸収**: シェルは選択が変わるたびにコピーする（`onSelectionChange`）ので、ドラッグ中の "npm"・"npm ins"・"npm install" が 3 件になる。直前の読み取りから続けて見ていて（250 ms × 4 以内）、先頭の項目が 1.5 秒以内に変わったもので、互いに含む関係なら、先頭を置き換える。間に一時停止や非表示があれば吸収しない（見ていない間のコピーが先頭に吸われて消えた不具合を e2e が見つけた）。最大 50 件
+- **持つもの**: テキストは 20 万文字まで戻せる形で持ち、それを超えたものは先頭だけを持って「NOT KEPT」（半分だけ戻すよりは戻さない）。HTML は 40 万文字まで添えて、戻すときに `text/plain` と `text/html` を 1 つの `ClipboardItem` で書く。画像とファイルは持たない: 画像が同じ形式のまま差し替わった（スクリーンショットを 2 回撮った）ことを知るには毎回 PNG を読むしかなく（上の 8.4 ms を 1 秒に 4 回）、見送った
+- **ページに渡すもの**: 先頭 600 文字のプレビュー、文字数・行数・種類・HTML の有無・回数・時刻だけ。全文と HTML は main に残り、ページは id で戻す・消す。永続化はしない（プロセスのメモリだけ。ペインを閉じても残り、終了で消える）。プラグイン API にクリップボードは無い
+- **戻したとき**: その項目を「クリップボードにあるもの」とし（左の縦線と ON CLIPBOARD）、並びは動かさない（押した行が指の下から逃げないように）。次の読み取りで新しいコピーとは見なさない（`restored`）。CLEAR も同じで、クリップボードに残っている内容が次の読み取りで再び一覧に入ることはない
+- **画面**: 見出し行（状態のランプ WATCHING / PAUSED / STANDBY、件数、PAUSE・MASK・CLEAR）、絞り込み欄（MASK 中は出さない。当たる推測が伏せた内容を明かすため）、一覧、脚注。各行は種類のタグ（TXT・URL・PATH・NUM・CLR。CLR は色見本付き、`classifyClip`）、プレビュー（最大 3 行、高さ 260px 未満で 1 行）、大きさ・RICH・×回数、何分前か。クリックか Enter で戻し、↑ ↓ で行を移り、Delete か × で消す。CLEAR は 2 度押し（3 秒で解除）。新しい行は RSS と同じ `fx-fresh`、並べ替えは `flip`
+- **テスト**: 単体（`clipboard.test.ts`: 境界・非公開の判定・分類・積み方・吸収と間の途切れ・上限・戻す・消す・ページに全文が渡らないこと、`clipboard-watcher.test.ts`: 購読の有無と一時停止で読まない・壁時計の境界・重ねない・長文の間引き・失敗しても止まらない）、コンポーネント（`clipboard-widget.test.ts`）、e2e（`clipboard.spec.ts`、`hidden-panes.spec.ts`、`layout-presets.spec.ts`）。e2e は `ELECDEX_CLIPBOARD_STUB=1` で main のメモリ上の代役を読み、実機のクリップボードを読まず書かない（コピーは `globalThis.__elecdexClipboard` から）。スクリーンショットは `demo`（作り物の午前の履歴）
+
 ## 6. ターミナル設計
 
 ### 6.1 構成
@@ -1719,6 +1735,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | マーケットのティッカーと接続一覧の em（2026-09-26） | 提案 2 点を実装を確認して判断した。**マーケットの `.symbol` は据え置き**: ティッカーを出すか隠すかは幅ではなく高さで決まる（`boardLayout`。行が 2.4rem で収まらないと詰めて隠す）。出ている行では `--step--1` にしても収まるが、行は名前（`--step--1` 太字）・価格・騰落で読むもので、`^N225` のようなコードを名前と同じ大きさにすると階層が崩れる。**接続一覧の `0.85em` はトークンに**: 親は常に `--step--1` で、相対にする理由がなく、実質 `--step--2` の別名だった（0.6375rem → 0.625rem、差は約 0.2px）。`type-scale.test.ts` に、`em` の文字サイズは親の大きさが変わる場所（時計や読み値の数字、プラグインのブロック、本文中のコード、ELEC の舞台）の許可リストだけに許すテストを加えた |
 | レイアウトに載せないポップアップ（2026-09-26） | 利用者の提案（Ctrl+Shift+L がランチャーを常設で追加し、起動したいだけで分割が変わる）を、次の点を変えて実装した（§5.13）。**状態は別ストアでなく `ui.popup`**: ダイアログの排他と相互参照になるため。**汎用だが opt-in**: 提案は任意のウィジェットを出せる形だったが、ツリーに無いペインでは `patchPaneState` が黙って効かず、シェルは刈られ、Web ビューは閉じられるので、登録の `popup: true`（ランチャー・ミキサー・地震）に限り、単体テストで条件を守らせる。**起動で閉じる**は `WidgetProps.ondone` で渡す（イベントバスより細く、ウィジェットは出し方を知らない）。**Escape はポップアップが先に取る**ので、ランチャーの Escape（検索欄を空にする）はポップアップでは閉じる動作になる。ダイアログと同じ振る舞いを優先した |
 | ポップアップを大半のウィジェットに（2026-09-26） | 利用者の指摘（Add pane で POP UP を選べないペインが大半）。提案 A（状態を持たない読み取り表示 8 種に宣言を付けるだけ）と B（状態の書き先を振り分ける `widgetState`）を採用し、C（シェルの Quake 風ポップアップ、Web ペイン）は見送った。B は各ウィジェットの `layout.patchPaneState` 呼び出し（18 ファイル）を `widgetState.patch` に置き換えるだけで、レイアウトのストアは変えていない。ポップアップの状態はセッション中だけ覚える（閉じて開き直すと前のまま）。タイマーは出さない: カウントダウンの終わりをマウント中のウィジェットが知らせるため、閉じると黙って終わる。天気の地点選択はポップアップの上に開くようにした（そうしないとポップアップが閉じて、選んだ地点を受け取るウィジェットがいなくなる）。3 → 27 種（§5.13） |
+| クリップボードペイン（2026-09-26） | 設計は §5.14。利用者の依頼と、別の AI と作った設計案を参考にした。案から変えたもの: **読む場所は collector でなく main**（utilityProcess に `clipboard` が無い。Electron 44 の API は非同期で main をほぼ止めない）。したがってメトリクスのソースにはせず、`PRIVATE_METRIC_SOURCE_IDS` にも入れない（プラグインが届く経路が最初から無い）。**画像は持たない**（変化を知るのに毎回 PNG を読む必要があり 8.4 ms × 4/秒）。**パスワードマネージャーの非公開の印を尊重**（案に無かった）。**ドラッグ中の選択を 1 件にまとめる**（シェルが選択の変化ごとにコピーするため。案に無かった）。**PAUSE を足した**（非公開の印を付けないアプリからパスワードをコピーするときのため）。設定項目は作らなかった（件数は 50 固定、画像は対象外）。desk プリセットでは右列の下段をカレンダーとクリップボードの横並びにした（タブに重ねると見えず、読まないため） | ペインが見えている間だけ読むことと、実測で差が出ない負荷の両立 |
 
 ## 17. 既知の問題
 

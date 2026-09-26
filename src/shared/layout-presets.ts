@@ -124,11 +124,13 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
   },
   {
     // Stationery: a notebook open on the left, with a timer and a calculator
-    // below it; the list of things to do and the calendar on the right. No
-    // shell - the one preset for writing, counting and keeping time.
+    // below it; the list of things to do on the right, and under it the
+    // calendar beside what was copied lately. No shell - the one preset for
+    // writing, counting and keeping time. The clipboard pane is on screen here,
+    // not a tab: it reads the clipboard only while it is seen.
     id: 'desk',
     name: 'desk',
-    description: 'notes, tasks, a calendar, a timer and a calculator',
+    description: 'notes, tasks, a calendar, a timer, a calculator and what you copied',
     build: () =>
       withSystemColumn(
         [
@@ -137,7 +139,11 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
             [pane('notes'), split('row', [pane('timer'), pane('calc')])],
             [0.64, 0.36],
           ),
-          split('column', [pane('todo'), pane('calendar')], [0.58, 0.42]),
+          split(
+            'column',
+            [pane('todo'), split('row', [pane('calendar'), pane('clipboard')])],
+            [0.55, 0.45],
+          ),
         ],
         [0.49, 0.51],
       ),
