@@ -11,9 +11,9 @@ import {
   type WeatherUpdate,
 } from '@shared/weather-report'
 import { forecastPageUrl, SOURCES } from '@shared/weather-sources'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -103,7 +103,7 @@ $effect(() => {
 })
 
 function save(change: Record<string, unknown>): void {
-  layout.patchPaneState(paneId, { office: undefined, area: undefined, ...change })
+  widgetState.patch(paneId, { office: undefined, area: undefined, ...change })
 }
 
 function chooseLocation(next: WeatherLocation): void {
@@ -215,7 +215,7 @@ const openPage = (): void => void window.elecdex.system.openExternal(page)
         <input
           type="checkbox"
           checked={showWeek}
-          onchange={(e) => layout.patchPaneState(paneId, { week: e.currentTarget.checked })}
+          onchange={(e) => widgetState.patch(paneId, { week: e.currentTarget.checked })}
           data-testid="weather-week-toggle"
         />
       </label>

@@ -58,11 +58,12 @@ export interface WidgetDefinition {
   zoom?: ZoomMode
   /**
    * Whether the widget can be popped up over the workspace, outside the layout
-   * (layout/popup.ts). Only for one that keeps nothing in pane state and belongs
-   * to no other pane - a popped-up widget has no node for `patchPaneState` to
-   * change, no session the reaper would count as claimed and no web view main
-   * would keep - since it would silently fail there. A unit test holds the
-   * widgets that say so to it.
+   * (layout/popup.ts). A popped-up widget has no node in the tree: it keeps its
+   * choices through `widgetState`, as every widget does, but nothing of the
+   * layout reaches it - no session the reaper would count as claimed, no web
+   * view main would keep, no pane of the layout to follow or focus - and it
+   * goes when put away, so nothing it does unseen (a countdown's landing) would
+   * happen. A unit test holds the widgets that say so to it.
    */
   popup?: boolean
   /** True when several instances in one layout make sense. */

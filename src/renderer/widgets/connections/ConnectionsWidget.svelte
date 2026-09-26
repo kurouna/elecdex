@@ -4,9 +4,9 @@ import { groupByProcess, inView, matches, type SocketView, socketKey } from '@sh
 import { untrack } from 'svelte'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { GhostTracker } from '../../lib/ghosts.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import CountryBus from './CountryBus.svelte'
 import SocketRow from './SocketRow.svelte'
@@ -40,7 +40,7 @@ let query = $state('')
 let hovered = $state<string | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.patchPaneState(paneId, patch)
+  widgetState.patch(paneId, patch)
 }
 
 const tracker = new FreshTracker()

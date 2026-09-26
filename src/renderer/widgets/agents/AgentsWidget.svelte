@@ -5,8 +5,8 @@ import type { GitDiff } from '@shared/git'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import DiffView from '../common/DiffView.svelte'
 import Splitter from '../common/Splitter.svelte'
@@ -49,7 +49,7 @@ const listHeight = $derived(draggedHeight ?? share(paneState?.listHeight, LIST_H
 let workEl = $state<HTMLElement | null>(null)
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.patchPaneState(paneId, patch)
+  widgetState.patch(paneId, patch)
 }
 
 let board = $state.raw<AgentBoard | null>(null)

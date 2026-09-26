@@ -348,3 +348,85 @@ test('a resting pointer does not steal the keyboard selection as the list scroll
     await close()
   }
 })
+
+test('every widget that can pop up comes up, and keeps its choices for the next time', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
+    settings: { launcher: { showSystem: false, items: [] } },
+  })
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.waitForTimeout(1000)
+    const before = savedLayout(userData)
+    const picker = page.getByTestId('pane-picker')
+    const popup = page.getByTestId('popup-pane')
+
+    await page.keyboard.press('Control+Shift+KeyA')
+    await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
+    const offered = picker.locator('[data-testid=pane-picker-item]', { hasText: /pop up/i })
+    const ids = await offered.evaluateAll((rows) => rows.map((row) => row.dataset.widget ?? ''))
+    // All but the shell, the timer, the file browser and the web pages.
+    expect(ids.length).toBeGreaterThanOrEqual(27)
+    await page.keyboard.press('Escape')
+
+    for (const id of ids) {
+      await page.keyboard.press('Control+Shift+KeyA')
+      await picker.locator(`[data-testid=pane-picker-item][data-widget="${id}"]`).click()
+      await expect(popup, id).toHaveAttribute('data-widget', id)
+      await expect(popup.getByTestId('pane-missing'), id).toHaveCount(0)
+      await page.keyboard.press('Escape')
+      await expect(popup, id).toHaveCount(0)
+    }
+
+    // A choice made in a popup is there when the widget is popped up again.
+    await page.keyboard.press('Control+Shift+KeyA')
+    await picker.locator('[data-testid=pane-picker-item][data-widget=cpu]').click()
+    await expect(popup.getByTestId('cpu')).toHaveAttribute('data-view', 'line')
+    await popup.getByTestId('cpu-view').locator('[data-view=bars]').click()
+    await expect(popup.getByTestId('cpu')).toHaveAttribute('data-view', 'bars')
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Control+Shift+KeyA')
+    await picker.locator('[data-testid=pane-picker-item][data-widget=cpu]').click()
+    await expect(popup.getByTestId('cpu')).toHaveAttribute('data-view', 'bars')
+    await page.keyboard.press('Escape')
+
+    // None of it reached the layout.
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+    await page.waitForTimeout(1000)
+    expect(savedLayout(userData)).toBe(before)
+    expect(errors).toEqual([])
+  } finally {
+    await close()
+  }
+})
+
+test('the weather place picker opens over its popup, and Escape closes one at a time', async () => {
+  const { page, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
+  })
+  try {
+    await page.keyboard.press('Control+Shift+KeyA')
+    const picker = page.getByTestId('pane-picker')
+    await picker.locator('[data-testid=pane-picker-placement][data-placement=popup]').click()
+    await picker.locator('[data-testid=pane-picker-item][data-widget=weather]').click()
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup).toHaveAttribute('data-widget', 'weather')
+
+    if (!(await popup.getByTestId('weather-location').isVisible())) {
+      await popup.getByTestId('weather-settings-toggle').click()
+    }
+    await popup.getByTestId('weather-location').click()
+    const places = page.getByTestId('location-picker')
+    await expect(places).toBeVisible()
+    await expect(popup).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(places).toHaveCount(0)
+    await expect(popup).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

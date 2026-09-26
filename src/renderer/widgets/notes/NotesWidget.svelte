@@ -1,11 +1,11 @@
 <script lang="ts">
 import { evaluateAt } from '@shared/calc'
 import { type Note, noteTitle } from '@shared/notes'
-import { layout } from '../../stores/layout.svelte.ts'
 import { notes } from '../../stores/notes.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 
@@ -82,7 +82,7 @@ $effect(() => {
     draft = ''
     return
   }
-  layout.patchPaneState(paneId, { noteId: id })
+  widgetState.patch(paneId, { noteId: id })
 })
 
 /** Takes the note's text when it changes underneath: a switch, or another pane's edit. */
@@ -119,7 +119,7 @@ function select(id: string): void {
   dirtyAt = null
   elsewhere = false
   switcherOpen = false
-  layout.patchPaneState(paneId, { noteId: id })
+  widgetState.patch(paneId, { noteId: id })
   sfx.play('folder')
 }
 
@@ -323,7 +323,7 @@ $effect(() => {
         <input
           type="checkbox"
           checked={wrap}
-          onchange={(e) => layout.patchPaneState(paneId, { wrap: e.currentTarget.checked })}
+          onchange={(e) => widgetState.patch(paneId, { wrap: e.currentTarget.checked })}
           data-testid="notes-wrap"
         />
         <span>wrap lines</span>
@@ -334,7 +334,7 @@ $effect(() => {
           <button
             type="button"
             class:on={zoom === step}
-            onclick={() => layout.patchPaneState(paneId, { zoom: step })}
+            onclick={() => widgetState.patch(paneId, { zoom: step })}
             data-testid="notes-zoom"
             data-step={step}
           >

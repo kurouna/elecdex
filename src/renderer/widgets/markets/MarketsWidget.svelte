@@ -21,8 +21,8 @@ import {
   type WatchSymbol,
 } from '@shared/markets'
 import { untrack } from 'svelte'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import Digits from '../common/Digits.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
@@ -279,28 +279,28 @@ $effect(() => {
 function setView(next: ChartView): void {
   // A list made by this change of view has not come back from anywhere.
   cameBack = false
-  layout.patchPaneState(paneId, { view: next })
+  widgetState.patch(paneId, { view: next })
 }
 
 function setDetailView(next: ChartView): void {
-  if (next !== 'bars') layout.patchPaneState(paneId, { detailView: next })
+  if (next !== 'bars') widgetState.patch(paneId, { detailView: next })
 }
 
 function openDetail(symbol: string): void {
-  layout.patchPaneState(paneId, { focus: symbol })
+  widgetState.patch(paneId, { focus: symbol })
 }
 
 function closeDetail(): void {
   cameBack = true
-  layout.patchPaneState(paneId, { focus: undefined })
+  widgetState.patch(paneId, { focus: undefined })
 }
 
 function toggleSort(): void {
-  layout.patchPaneState(paneId, { sort: sorted ? undefined : 'change' })
+  widgetState.patch(paneId, { sort: sorted ? undefined : 'change' })
 }
 
 function setRange(next: ChartRange): void {
-  layout.patchPaneState(paneId, { range: next })
+  widgetState.patch(paneId, { range: next })
 }
 
 function toggleSettings(): void {
@@ -310,7 +310,7 @@ function toggleSettings(): void {
 
 function saveDraft(): void {
   const parsed = parseWatchlist(draft)
-  layout.patchPaneState(paneId, { symbols: parsed.length ? parsed : [...DEFAULT_WATCHLIST] })
+  widgetState.patch(paneId, { symbols: parsed.length ? parsed : [...DEFAULT_WATCHLIST] })
   settingsOpen = false
 }
 

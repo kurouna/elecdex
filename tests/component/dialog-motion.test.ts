@@ -95,6 +95,25 @@ describe('ui.popup', () => {
     expect(ui.popup).toBe('launcher')
   })
 
+  it('stays under the place picker its widget asked for, and has the keys again after', () => {
+    ui.openPopup('weather')
+    expect(ui.popupOnTop).toBe(true)
+    now = 2100
+    ui.pickLocation(location)
+    expect(ui.popup).toBe('weather')
+    expect(ui.popupOnTop).toBe(false)
+    // Nothing closed: the picker opened over the popup, not in its place.
+    expect(ui.closedAt).toBe(Number.NEGATIVE_INFINITY)
+    ui.closeLocationPicker()
+    expect(ui.popup).toBe('weather')
+    expect(ui.popupOnTop).toBe(true)
+    // Any other dialog still takes the screen from both.
+    ui.pickLocation(location)
+    ui.openSettings()
+    expect(ui.popup).toBeNull()
+    expect(ui.locationRequest).toBeNull()
+  })
+
   it('takes a widget in place of another without a close, and notes its own close', () => {
     ui.openPopup('launcher')
     now = 2000

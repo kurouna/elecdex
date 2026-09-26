@@ -13,12 +13,20 @@ export interface LocationRequest {
   choose: (location: WeatherLocation) => void
 }
 
-/** The overlays over the workspace, of which one at most is showing. */
+/** The overlays over the workspace, of which one at most is showing - but for `OVER`. */
 type Overlay = 'picker' | 'layouts' | 'switch' | 'settings' | 'location' | 'popup'
 
 /** Those the user closes; a layout switch is answered instead. */
 const CLOSABLE = ['picker', 'layouts', 'settings', 'location', 'popup'] as const
 type Closable = (typeof CLOSABLE)[number]
+
+/**
+ * An overlay that opens over another rather than in its place. The weather
+ * location picker is a pane's question for itself, and with a popup up, only
+ * the widget popped up can have asked it: it opens over that popup, which is
+ * there again once it is answered.
+ */
+const OVER: Partial<Record<Overlay, Closable>> = { location: 'popup' }
 
 /**
  * Transient UI state that belongs to no widget: which overlay is open.
@@ -47,7 +55,7 @@ class UiStore {
    */
   private clearFor(opening: Overlay): void {
     if (opening !== 'switch') this.answerLayoutSwitch(false)
-    const others = CLOSABLE.filter((overlay) => overlay !== opening)
+    const others = CLOSABLE.filter((overlay) => overlay !== opening && overlay !== OVER[opening])
     this.closing(others.some((overlay) => this.showing(overlay)))
     for (const overlay of others) this.hide(overlay)
   }
@@ -229,6 +237,11 @@ class UiStore {
   openPopup(widget: string): void {
     this.clearFor('popup')
     this.popup = widget
+  }
+
+  /** A popup is up with nothing over it: the keys meant for it are its own. */
+  get popupOnTop(): boolean {
+    return this.popup !== null && this.locationRequest === null
   }
 
   closePopup(): void {

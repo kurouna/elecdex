@@ -461,7 +461,20 @@ export function patchPaneState(
 ): LayoutTree {
   const node = findNode(tree.root, paneId)
   if (node === null || node.kind !== 'pane') return tree
-  const before = node.state ?? {}
+  const state = mergePaneState(node.state, patch)
+  // Nothing new: the same tree, so no save and no new round for what reads it.
+  return state === null ? tree : setPaneState(tree, paneId, state)
+}
+
+/**
+ * A pane's state with `patch` merged in, a key set to undefined removed; null
+ * when nothing changes, so the caller can keep what it has. Values are compared
+ * by identity: a new object is a change, even if it holds the same values.
+ */
+export function mergePaneState(
+  before: Record<string, unknown> | undefined,
+  patch: Record<string, unknown>,
+): Record<string, unknown> | null {
   const state: Record<string, unknown> = { ...before }
   let changed = false
   for (const [key, value] of Object.entries(patch)) {
@@ -469,13 +482,11 @@ export function patchPaneState(
       if (key in state) changed = true
       delete state[key]
     } else {
-      // By identity: a new object is a change, even if it holds the same values.
       if (!Object.is(state[key], value)) changed = true
       state[key] = value
     }
   }
-  // Nothing new: the same tree, so no save and no new round for what reads it.
-  return changed ? setPaneState(tree, paneId, state) : tree
+  return changed ? state : null
 }
 
 /** The pane that should have focus: the active tab of its group, or the pane. */

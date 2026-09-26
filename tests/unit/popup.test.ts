@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { pickerChoice, pickerRowState, popupPaneId } from '../../src/renderer/layout/popup.js'
+import {
+  isPopupPaneId,
+  pickerChoice,
+  pickerRowState,
+  popupPaneId,
+} from '../../src/renderer/layout/popup.js'
 
 /**
  * A pane popped up over the workspace, outside the layout (layout/popup.ts):
@@ -50,41 +55,69 @@ describe('popupPaneId', () => {
 })
 
 /**
- * A popped-up widget has no node in the tree: `patchPaneState` would change
- * nothing, a shell would be reaped as unclaimed and a web view closed. So only a
- * widget that needs none of it may say `popup: true`. The registry imports
- * Svelte components, which a unit test cannot load, so the files are read as text.
+ * A popped-up widget has no node in the tree. It keeps its choices through
+ * `widgetState`, but nothing of the layout may reach it: a shell would be reaped
+ * as unclaimed, a web view closed, a pane of the layout followed or focused from
+ * behind the popup. And it goes when put away, so nothing may depend on it
+ * staying: a countdown is announced by the timer on screen. The registry imports
+ * Svelte components, which a unit test cannot load, so the files are read as text,
+ * each widget with the files of its own it imports.
  */
 describe('the widgets that pop up', () => {
-  const read = (file: string): string => readFileSync(new URL(file, import.meta.url), 'utf8')
-  const builtins = read('../../src/renderer/widgets/builtins.ts')
+  const WIDGETS = new URL('../../src/renderer/widgets/', import.meta.url)
+  const read = (url: URL): string => readFileSync(url, 'utf8')
+  const builtins = read(new URL('builtins.ts', WIDGETS))
   const imports = new Map(
     [...builtins.matchAll(/^import (\w+) from '\.\/([^']+\.svelte)'$/gm)].map((m) => [m[1], m[2]]),
   )
-  const popups = builtins
-    .split('registerBuiltin({')
+  const blocks = builtins.split('registerBuiltin({').slice(1)
+  const idOf = (block: string) => /^ {2}id: '([^']+)',$/m.exec(block)?.[1] ?? ''
+  const popups = blocks
     .filter((block) => /^ {2}popup: true,$/m.test(block))
     .map((block) => ({
-      id: /^ {2}id: '([^']+)',$/m.exec(block)?.[1],
+      id: idOf(block),
       component: /^ {2}component: (\w+),$/m.exec(block)?.[1] ?? '',
     }))
 
-  it('include the launcher, and no shell, page or plugin', () => {
-    const ids = popups.map((p) => p.id)
-    expect(ids).toContain('launcher')
-    expect(ids).not.toContain('terminal')
-    expect(ids.filter((id) => id?.startsWith('web') || id?.startsWith('plugin:'))).toEqual([])
+  /** A widget's source and every file under widgets/ it imports, however deep. */
+  function sources(entry: URL): Map<string, string> {
+    const found = new Map<string, string>()
+    const visit = (url: URL): void => {
+      if (found.has(url.href) || !url.href.startsWith(WIDGETS.href)) return
+      const text = read(url)
+      found.set(url.href, text)
+      for (const [, path] of text.matchAll(/from '(\.{1,2}\/[^']+\.(?:svelte|ts))'/g)) {
+        visit(new URL(path ?? '', url))
+      }
+    }
+    visit(entry)
+    return found
+  }
+
+  it('are every built-in but the shell, the timer and the file browser', () => {
+    const never = ['terminal', 'timer', 'filesystem']
+    // The web presets are registered in a loop, with no written id: never popped up
+    // (one marked so would appear here with an empty id, and fail the test).
+    const all = blocks.map(idOf).filter((id) => id !== '')
+    expect(popups.map((p) => p.id).sort()).toEqual(all.filter((id) => !never.includes(id)).sort())
   })
 
-  it('keep nothing in pane state and reach for no other pane', () => {
+  it('reach nothing of the layout, and write their choices through widgetState', () => {
     for (const { id, component } of popups) {
       const file = imports.get(component)
       expect(file, `${id}: component file`).toBeDefined()
-      const source = read(`../../src/renderer/widgets/${file}`)
-      expect(source, id).not.toMatch(/patchPaneState|setPaneState/)
-      // Neither the pane's state nor the layout it is not in.
-      expect(source, id).not.toMatch(/\bstate\b[^:]*}: WidgetProps/)
-      expect(source, id).not.toMatch(/stores\/layout\.svelte/)
+      for (const [href, text] of sources(new URL(file ?? '', WIDGETS))) {
+        const where = `${id}: ${href.slice(WIDGETS.href.length)}`
+        expect(text, where).not.toMatch(/stores\/layout\.svelte/)
+        expect(text, where).not.toMatch(/patchPaneState|setPaneState/)
+      }
     }
+  })
+})
+
+describe('isPopupPaneId', () => {
+  it('tells a popped-up widget from a layout pane', () => {
+    expect(isPopupPaneId(popupPaneId('calc'))).toBe(true)
+    expect(isPopupPaneId('p1-abc')).toBe(false)
   })
 })

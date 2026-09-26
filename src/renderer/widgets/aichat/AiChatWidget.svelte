@@ -20,10 +20,10 @@ import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import Markdown from './Markdown.svelte'
@@ -51,7 +51,7 @@ const providers = $derived(appearance.settings.ai.providers)
 $effect(() => ai.use())
 
 function save(change: Record<string, unknown>): void {
-  layout.patchPaneState(paneId, change)
+  widgetState.patch(paneId, change)
 }
 
 let view = $state.raw<ChatView>(EMPTY_VIEW)

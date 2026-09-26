@@ -8,6 +8,7 @@ import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import { web } from '../../stores/web.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -96,7 +97,7 @@ $effect(() => {
 })
 
 function toggleTint(): void {
-  layout.patchPaneState(paneId, { tint: !tinted })
+  widgetState.patch(paneId, { tint: !tinted })
 }
 
 // Where the page is now, for a restart to open it again.
@@ -107,7 +108,7 @@ $effect(() => {
   // Untracked: writing the tree must not make this effect depend on the tree.
   untrack(() => {
     const current = paneState
-    if (current?.url !== url) layout.patchPaneState(id, { url })
+    if (current?.url !== url) widgetState.patch(id, { url })
   })
 })
 

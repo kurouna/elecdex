@@ -16,8 +16,8 @@ import {
 } from '@shared/audio'
 import { untrack } from 'svelte'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import { type Palette, SpectrumPainter } from './spectrum-draw.ts'
@@ -145,7 +145,7 @@ $effect(() => {
 })
 
 function save(change: Partial<SpectrumPrefs>): void {
-  layout.patchPaneState(paneId, change)
+  widgetState.patch(paneId, change)
 }
 
 const problem = $derived(status === 'failed' || status === 'unsupported' || status === 'muted')

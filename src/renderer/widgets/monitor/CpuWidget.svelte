@@ -3,9 +3,9 @@ import { untrack } from 'svelte'
 import { formatPercent } from '../../lib/format.ts'
 import { CHART_WINDOW_MS } from '../../lib/frame-loop.ts'
 import { TimeSeries } from '../../lib/time-series.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import StreamChart from '../common/StreamChart.svelte'
 import ViewToggle, { type ChartView } from '../common/ViewToggle.svelte'
@@ -27,7 +27,7 @@ const visible = $derived(seen(inTab))
 const view = $derived<ChartView>(paneState?.view === 'bars' ? 'bars' : 'line')
 
 function setView(next: ChartView): void {
-  layout.patchPaneState(paneId, { view: next })
+  widgetState.patch(paneId, { view: next })
 }
 
 /** Above this, a core's bar is drawn in the warning colour. */

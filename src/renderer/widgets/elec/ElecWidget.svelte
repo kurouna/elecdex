@@ -26,10 +26,10 @@ import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { elec } from '../../stores/elec.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import Markdown from '../aichat/Markdown.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
@@ -61,7 +61,7 @@ const settings = $derived(appearance.settings.elec)
 $effect(() => elec.use())
 
 function save(change: Record<string, unknown>): void {
-  layout.patchPaneState(paneId, change)
+  widgetState.patch(paneId, change)
 }
 
 let view = $state.raw<ElecView>(EMPTY_ELEC_VIEW)

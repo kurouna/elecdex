@@ -266,8 +266,8 @@ function cycleShell(delta: number): boolean {
 const THROUGH_DIALOGS = new Set<KeybindingAction>(['app.quit', 'window.fullscreen'])
 /**
  * And those that also work over a pane popped up, which is a dialog of its own:
- * the launcher's, which calls up the launcher in its place. A popup is only ever
- * up alone (ui.svelte.ts), so no other dialog is let through by this.
+ * the launcher's, which calls up the launcher in its place. Only while nothing
+ * is over the popup (ui.svelte.ts), so no other dialog is let through by this.
  */
 const THROUGH_POPUP = new Set<KeybindingAction>(['launcher.focus'])
 
@@ -279,7 +279,7 @@ function run(action: KeybindingAction): boolean {
 }
 
 const throughDialog = (action: KeybindingAction): boolean =>
-  THROUGH_DIALOGS.has(action) || (ui.popup !== null && THROUGH_POPUP.has(action))
+  THROUGH_DIALOGS.has(action) || (ui.popupOnTop && THROUGH_POPUP.has(action))
 
 function onKeydown(event: KeyboardEvent): void {
   // While a shortcut is being recorded in the settings, every key goes there.

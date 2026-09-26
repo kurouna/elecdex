@@ -7,8 +7,8 @@ import { type CanvasSize, observeCanvas } from '../../lib/canvas.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import type { SatRec } from '../../lib/sgp4.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import {
@@ -84,7 +84,7 @@ const show = $derived({
 })
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.patchPaneState(paneId, patch)
+  widgetState.patch(paneId, patch)
 }
 
 let stations = $state.raw<OrbitUpdate | null>(null)

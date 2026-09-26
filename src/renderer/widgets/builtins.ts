@@ -69,6 +69,7 @@ registerBuiltin({
   component: ClockWidget,
   minSize: { w: 120, h: 40 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -80,6 +81,7 @@ registerBuiltin({
   metrics: sources('os.uptime', 'os.info', 'power.battery', 'hardware.system'),
   keepWhileHidden: sources('os.info', 'hardware.system'),
   minSize: { w: 160, h: 60 },
+  popup: true,
 })
 
 registerBuiltin({
@@ -92,6 +94,7 @@ registerBuiltin({
   keepWhileHidden: sources('cpu.info', 'cpu.load'),
   minSize: { w: 160, h: 100 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -104,6 +107,7 @@ registerBuiltin({
   keepWhileHidden: sources('mem.usage', 'mem.swap'),
   minSize: { w: 160, h: 80 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -114,6 +118,7 @@ registerBuiltin({
   metrics: sources('disk.volumes', 'disk.io'),
   minSize: { w: 160, h: 80 },
   zoom: 'panel',
+  popup: true,
 })
 
 registerBuiltin({
@@ -124,6 +129,7 @@ registerBuiltin({
   metrics: sources('proc.list'),
   minSize: { w: 160, h: 80 },
   zoom: 'panel',
+  popup: true,
 })
 
 registerBuiltin({
@@ -133,6 +139,7 @@ registerBuiltin({
   component: NetstatWidget,
   metrics: sources('net.interface', 'net.ping'),
   minSize: { w: 160, h: 50 },
+  popup: true,
 })
 
 registerBuiltin({
@@ -146,6 +153,7 @@ registerBuiltin({
   minSize: { w: 200, h: 120 },
   zoom: 'full',
   multiple: true,
+  popup: true,
 })
 
 registerBuiltin({
@@ -161,6 +169,7 @@ registerBuiltin({
   // time away as a gap; the OS's log still has the drops.
   minSize: { w: 300, h: 220 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -172,6 +181,7 @@ registerBuiltin({
   keepWhileHidden: sources('net.throughput'),
   minSize: { w: 160, h: 100 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -191,6 +201,7 @@ registerBuiltin({
   minSize: { w: 200, h: 120 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -202,6 +213,7 @@ registerBuiltin({
   metrics: sources('net.connections', 'net.ping'),
   minSize: { w: 160, h: 160 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -224,6 +236,7 @@ registerBuiltin({
   minSize: { w: 240, h: 160 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -235,6 +248,7 @@ registerBuiltin({
   minSize: { w: 260, h: 200 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -246,6 +260,7 @@ registerBuiltin({
   minSize: { w: 300, h: 260 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -258,6 +273,7 @@ registerBuiltin({
   minSize: { w: 260, h: 160 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -268,6 +284,7 @@ registerBuiltin({
   component: AgentsWidget,
   minSize: { w: 280, h: 160 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -279,6 +296,7 @@ registerBuiltin({
   minSize: { w: 320, h: 200 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -290,6 +308,7 @@ registerBuiltin({
   minSize: { w: 220, h: 120 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -311,6 +330,7 @@ registerBuiltin({
   component: CalendarWidget,
   minSize: { w: 180, h: 140 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -321,6 +341,7 @@ registerBuiltin({
   component: SpectrumWidget,
   minSize: { w: 200, h: 120 },
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -342,6 +363,7 @@ registerBuiltin({
   minSize: { w: 200, h: 160 },
   multiple: true,
   zoom: 'panel',
+  popup: true,
 })
 
 registerBuiltin({
@@ -353,6 +375,7 @@ registerBuiltin({
   minSize: { w: 200, h: 140 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({
@@ -364,6 +387,7 @@ registerBuiltin({
   minSize: { w: 240, h: 180 },
   multiple: true,
   zoom: 'full',
+  popup: true,
 })
 
 registerBuiltin({

@@ -21,10 +21,10 @@ import {
 import { untrack } from 'svelte'
 import { onBoundary, onFrame } from '../../lib/frame-loop.ts'
 import { alarms } from '../../stores/alarms.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { Bar } from '../common/bars.ts'
 import LevelBars from '../common/LevelBars.svelte'
 import Readout from '../common/Readout.svelte'
@@ -124,14 +124,14 @@ $effect(() => {
       typeof paneState?.mode === 'string' &&
       typeof paneState.stopwatch === 'object' &&
       Array.isArray(paneState.timers)
-    if (!whole) layout.patchPaneState(paneId, { ...chrono })
+    if (!whole) widgetState.patch(paneId, { ...chrono })
   })
 })
 
 function save(change: Partial<ChronoPane>): void {
   // Only what changed: the rest of `chrono` is the state as it was given, which a save made
   // just before this one may already have moved on.
-  layout.patchPaneState(paneId, change)
+  widgetState.patch(paneId, change)
 }
 
 function setTimers(next: TimerEntry[]): void {

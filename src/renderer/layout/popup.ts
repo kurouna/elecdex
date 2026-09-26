@@ -23,7 +23,12 @@ type LayoutPlacement = Exclude<PickerPlacement, 'popup'>
  * The id a popped-up widget is given as its pane id. Outside the layout's own
  * ids, and one per widget, so a widget replaced by another is mounted afresh.
  */
-export const popupPaneId = (widget: string): string => `popup:${widget}`
+export const popupPaneId = (widget: string): string => `${POPUP_PREFIX}${widget}`
+
+/** Whether a pane id is a popped-up widget's rather than a layout pane's. */
+export const isPopupPaneId = (paneId: string): boolean => paneId.startsWith(POPUP_PREFIX)
+
+const POPUP_PREFIX = 'popup:'
 
 /** What choosing a widget in the picker does. */
 export type PickerChoice =

@@ -21,9 +21,9 @@ import {
 } from '@shared/wifi'
 import { untrack } from 'svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { metrics } from '../../stores/metrics.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import Detail from './Detail.svelte'
 import EventLog from './EventLog.svelte'
@@ -68,7 +68,7 @@ type View = (typeof VIEWS)[number]
 const asked = $derived<View>(VIEWS.find((v) => v === paneState?.view) ?? 'timeline')
 
 const setState = (patch: Record<string, unknown>): void => {
-  layout.patchPaneState(paneId, patch)
+  widgetState.patch(paneId, patch)
 }
 
 $effect(() => {

@@ -377,8 +377,9 @@ holds one pane.
 
 *Unreleased:* **▣ pop up** in the same picker shows a widget over the workspace instead, framed
 with only a ×, and leaves the layout as it was - it is not saved, and Escape, the × or a click
-beside it puts it away. The launcher, the mixer and the quakes list can be popped up (a widget
-that keeps settings of its own in its pane, or a shell or a web page, cannot). Ctrl+Shift+L does
+beside it puts it away. Every built-in pane can be popped up but the shell, the timer (a
+countdown put away could not ring) and the file browser, and no web page or plugin; what you
+choose in a popped-up pane is there when you pop it up again, until the app quits. Ctrl+Shift+L does
 the same for the launcher when the layout has none, and the launcher goes once it has started
 something.
 

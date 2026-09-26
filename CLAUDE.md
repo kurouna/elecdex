@@ -358,8 +358,10 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
 
 - **Layout state** is a persisted tree (src/shared/layout-ops.ts, pure and unit-tested); every
   tree change goes through a pure op there. Widgets keep per-pane choices in pane state, changed
-  with `layout.patchPaneState(paneId, change)` (undefined removes a key) - never by spreading the
-  `state` prop into `setPaneState`, which lost a change made in the same moment. A tabbed pane is split, moved beside or dropped on through its group,
+  with `widgetState.patch(paneId, change)` (stores/widget-state.svelte.ts; undefined removes a
+  key), which writes a layout pane's into its node and a popped-up widget's into memory - never
+  `layout.patchPaneState` from a widget, and never by spreading the `state` prop into
+  `setPaneState`, which lost a change made in the same moment. A tabbed pane is split, moved beside or dropped on through its group,
   and a group only ever holds panes — of any widget (Ctrl-drag, or the picker's "new tab").
   Nested groups were designed and deliberately postponed (user decision 2026-09-17): do not add
   them without asking. Splits carry no header (eDEX-UI's PANEL / SYSTEM labels were dropped
@@ -369,11 +371,14 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
 - **A pane popped up is never in the layout** (architecture.md §5.13, layout/popup.ts): one
   widget over the workspace in a frame with only a ×, held in `ui.popup` as one of the dialogs
   (opening any dialog puts it away, and it counts in `dialogOpen`), drawn by PopupPane.svelte.
-  The layout store knows nothing of it, and it is not saved. Only a widget whose registry entry
-  says `popup: true` is offered, and only one that keeps nothing in pane state and belongs to no
-  other pane may say so - there is no node to patch, a shell would be reaped, a web view closed
-  (a unit test reads the sources). The launcher's shortcut pops one up when the layout has none,
-  rather than adding a pane; a widget ends its popup through `ondone`, never by knowing it is in one.
+  The layout store knows nothing of it, and neither it nor its choices (`widgetState`, kept for
+  the session) are saved. Only a widget whose registry entry says `popup: true` is offered: every
+  built-in but the shell (it would be reaped), the timer (a countdown lands only while it is
+  mounted) and the file browser (it follows a pane), and no web page or plugin. Such a widget
+  must reach nothing of the layout store (a unit test reads its sources). The weather place
+  picker is the one dialog that opens over a popup (`OVER` in ui.svelte.ts). The launcher's
+  shortcut pops one up when the layout has none, rather than adding a pane; a widget ends its
+  popup through `ondone`, never by knowing it is in one.
 - **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state
   or in main (a shell reattaches to its session).
 - **Terminal sizing.** Never fit a hidden pane or send transient sizes to the PTY: ConPTY rewraps

@@ -11,11 +11,11 @@ import {
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { tasks } from '../../stores/tasks.svelte.ts'
 import { toasts } from '../../stores/toasts.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import Readout from '../common/Readout.svelte'
 import SegmentMeter from '../common/SegmentMeter.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
@@ -156,7 +156,7 @@ const grouped = $derived.by(() => {
 })
 
 function save(change: Record<string, unknown>): void {
-  layout.patchPaneState(paneId, change)
+  widgetState.patch(paneId, change)
 }
 
 function add(): void {

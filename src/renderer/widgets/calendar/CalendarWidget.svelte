@@ -11,8 +11,8 @@ import {
   waveStep,
   waveTowards,
 } from '../../lib/calendar.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 
@@ -45,7 +45,7 @@ let settingsOpen = $state(false)
 
 function setCountry(id: string, on: boolean): void {
   const next = on ? [...countries, id] : countries.filter((c) => c !== id)
-  layout.patchPaneState(paneId, { holidays: next })
+  widgetState.patch(paneId, { holidays: next })
 }
 
 let today = $state(new Date())

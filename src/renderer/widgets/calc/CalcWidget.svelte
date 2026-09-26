@@ -8,9 +8,9 @@ import {
   evaluateLine,
   tally,
 } from '@shared/calc'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { Bar } from '../common/bars.ts'
 import LevelBars from '../common/LevelBars.svelte'
 import Readout from '../common/Readout.svelte'
@@ -100,7 +100,7 @@ const shown = $derived(preview === null ? null : grouped ? preview.grouped : pre
 const nibbles = $derived(showHex && preview !== null ? bitNibbles(preview.value) : null)
 
 function save(change: Record<string, unknown>): void {
-  layout.patchPaneState(paneId, change)
+  widgetState.patch(paneId, change)
 }
 
 function submit(): void {

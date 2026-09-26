@@ -2,6 +2,7 @@
 import { backdropShade, crtPower, dialogDelay } from '../lib/crt-transitions.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { ui } from '../stores/ui.svelte.ts'
+import { widgetState } from '../stores/widget-state.svelte.ts'
 import { resolveWidget } from '../widgets/registry.ts'
 import { popupPaneId } from './popup.ts'
 import { holdWidgetMetrics } from './widget-metrics.svelte.ts'
@@ -12,7 +13,8 @@ import { holdWidgetMetrics } from './widget-metrics.svelte.ts'
  * no corner zoom, no drag handle and no tabs; closing it - ×, Escape, the
  * backdrop, or the widget saying it is done - leaves the layout as it was.
  *
- * The widget gets the props a pane would, with a pane id of its own, and is
+ * The widget gets the props a pane would, with a pane id of its own and the
+ * choices it made when last popped up (stores/widget-state.svelte.ts), and is
  * always the visible, active one while it is up.
  */
 
@@ -63,7 +65,8 @@ $effect(() => {
 })
 
 function onKeydown(event: KeyboardEvent): void {
-  if (widget === null || event.key !== 'Escape') return
+  // A dialog the popped-up widget opened over it (a place to choose) has the key first.
+  if (!ui.popupOnTop || event.key !== 'Escape') return
   event.preventDefault()
   event.stopPropagation()
   ui.closePopup()
@@ -108,7 +111,7 @@ function onKeydown(event: KeyboardEvent): void {
             {paneId}
             title={definition.title}
             props={undefined}
-            state={undefined}
+            state={widgetState.popup(paneId)}
             active={true}
             visible={true}
             transitioning={false}

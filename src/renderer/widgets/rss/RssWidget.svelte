@@ -13,8 +13,8 @@ import { flip } from 'svelte/animate'
 import { carryFresh, FreshTracker } from '../../lib/fresh.ts'
 import { NewAbove } from '../../lib/new-above.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import NewPill from '../common/NewPill.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
@@ -168,7 +168,7 @@ function saveDraft(): void {
     problem = `up to ${FEED_MAX_URLS} feeds`
     return
   }
-  layout.patchPaneState(paneId, { feeds: urls })
+  widgetState.patch(paneId, { feeds: urls })
   editing = false
 }
 </script>
