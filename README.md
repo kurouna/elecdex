@@ -679,7 +679,9 @@ weather and calendar.
   clipboard-history flags, macOS's concealed type, KDE's password hint) is never read, only
   counted. Up to 50 entries are kept in memory and are gone when elecdex quits - nothing is written
   to disk, and no plugin can reach them. **MASK** hides what they say, **CLEAR** (pressed twice)
-  empties the list. Text only: an image or files on the clipboard are not kept.
+  empties the list and the clipboard with it. Text only: an image or files on the clipboard are
+  not kept. The pane learns of a copy by seeing the clipboard's text change, so the same text
+  copied twice with nothing in between is one copy.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
   sweep in the way it moved. Given room - a wide pane, or the pane brought forward with
   Ctrl+Shift+Z - the month before and the month after join it either side, dimmed, and the arrows

@@ -177,7 +177,7 @@ describe('ClipboardWidget', () => {
     await push(board([entry('c1', 'one')]))
     await fireEvent.click(screen.getByTestId('clip-clear'))
     expect(clear).not.toHaveBeenCalled()
-    expect(screen.getByTestId('clip-clear').textContent).toBe('CLEAR 1?')
+    expect(screen.getByTestId('clip-clear').textContent).toBe('CLEAR 1 + CLIPBOARD?')
     await fireEvent.click(screen.getByTestId('clip-clear'))
     expect(clear).toHaveBeenCalledTimes(1)
   })

@@ -114,13 +114,17 @@ test('lists copies newest first, puts one back with its HTML, removes and clears
 
     // Clearing asks once more.
     await page.getByTestId('clip-clear').click()
-    await expect(page.getByTestId('clip-clear')).toHaveText('CLEAR 2?')
+    await expect(page.getByTestId('clip-clear')).toHaveText('CLEAR 2 + CLIPBOARD?')
     await expect(page.getByTestId('clip-row')).toHaveCount(2)
     await page.getByTestId('clip-clear').click()
     await expect(page.getByTestId('clip-empty')).toBeVisible()
-    // The clipboard's content is not taken for a new copy afterwards.
+    // The clipboard is emptied with it, so nothing comes back at the next looks...
+    expect(await held(app)).toBeNull()
     await page.waitForTimeout(800)
     await expect(page.getByTestId('clip-row')).toHaveCount(0)
+    // ...and the text that was on it, copied again, is a copy (it was not listed before).
+    await copied(app, page, 'https://example.test/second')
+    await expect(page.getByTestId('clip-row')).toHaveCount(1)
   } finally {
     await close()
   }

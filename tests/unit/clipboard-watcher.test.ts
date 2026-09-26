@@ -14,6 +14,7 @@ function rig(start = 10_000) {
   const written: string[] = []
   let reads = 0
   let failWrite = false
+  let cleared = 0
   const watcher = new ClipboardWatcher({
     read: async () => {
       reads += 1
@@ -23,6 +24,10 @@ function rig(start = 10_000) {
       if (failWrite) throw new Error('busy')
       written.push(entry.text)
       held = { kind: 'text', text: entry.text, html: entry.html }
+    },
+    clear: async () => {
+      cleared += 1
+      held = { kind: 'other' }
     },
     now: () => now,
     setTimer: (fn, ms) => {
@@ -46,6 +51,7 @@ function rig(start = 10_000) {
       held = read
     },
     reads: () => reads,
+    cleared: () => cleared,
     timers,
     failWrites: () => {
       failWrite = true
@@ -159,6 +165,7 @@ describe('ClipboardWatcher', () => {
         })
       },
       write: async () => {},
+      clear: async () => {},
       now: () => now,
       setTimer: (fn, ms) => timers.push({ at: now + ms, fn }),
       clearTimer: () => {},
@@ -218,6 +225,109 @@ describe('ClipboardWatcher', () => {
     expect(await r.watcher.restore(r.watcher.board().entries[0]?.id ?? '')).toBe('failed')
   })
 
+  it('empties the clipboard with CLEAR, and lists the same text copied again after it', async () => {
+    const r = rig()
+    r.watcher.sync(true)
+    r.copy(text('https://example.test'))
+    await r.advance(300)
+    await r.watcher.clear()
+    expect(r.cleared()).toBe(1)
+    await r.advance(300)
+    expect(r.watcher.board().entries).toEqual([])
+    r.copy(text('https://example.test'))
+    await r.advance(300)
+    expect(r.watcher.board().entries.map((e) => e.preview)).toEqual(['https://example.test'])
+  })
+
+  it('drops a look that was reading while an entry was put back or the list cleared', async () => {
+    let now = 0
+    let pending: ((read: ClipRead) => void) | null = null
+    let held: ClipRead = { kind: 'other' }
+    const watcher = new ClipboardWatcher({
+      read: () =>
+        new Promise((resolve) => {
+          pending = resolve
+        }),
+      write: async (entry) => {
+        held = { kind: 'text', text: entry.text, html: null }
+      },
+      clear: async () => {},
+      now: () => now,
+      setTimer: () => 0,
+      clearTimer: () => {},
+      publish: () => {},
+    })
+    const answer = async (read: ClipRead) => {
+      ;(pending as unknown as (r: ClipRead) => void)(read)
+      pending = null
+      for (let i = 0; i < 5; i++) await Promise.resolve()
+    }
+    watcher.sync(true)
+    await answer(text('one'))
+    watcher.setPaused(true)
+    watcher.setPaused(false)
+    await answer(text('two'))
+    // A look begins, reading 'two'; meanwhile 'one' is put back.
+    watcher.setPaused(true)
+    watcher.setPaused(false)
+    now = 1000
+    const one = watcher.board().entries.find((e) => e.preview === 'one')?.id ?? ''
+    expect(await watcher.restore(one)).toBe('ok')
+    await answer(text('two'))
+    const board = watcher.board()
+    expect(board.current).toBe(one)
+    expect(board.entries.map((e) => [e.preview, e.copies])).toEqual([
+      ['two', 1],
+      ['one', 1],
+    ])
+    void held
+  })
+
+  it('drops a look begun while an entry was being written back', async () => {
+    let finishWrite: (() => void) | null = null
+    let pending: ((read: ClipRead) => void) | null = null
+    const watcher = new ClipboardWatcher({
+      read: () =>
+        new Promise((resolve) => {
+          pending = resolve
+        }),
+      write: () =>
+        new Promise((resolve) => {
+          finishWrite = resolve
+        }),
+      clear: async () => {},
+      now: () => 0,
+      setTimer: () => 0,
+      clearTimer: () => {},
+      publish: () => {},
+    })
+    const settle = async () => {
+      for (let i = 0; i < 5; i++) await Promise.resolve()
+    }
+    watcher.sync(true)
+    ;(pending as unknown as (r: ClipRead) => void)(text('one'))
+    await settle()
+    watcher.setPaused(true)
+    watcher.setPaused(false)
+    ;(pending as unknown as (r: ClipRead) => void)(text('two'))
+    await settle()
+    const one = watcher.board().entries.find((e) => e.preview === 'one')?.id ?? ''
+    const restoring = watcher.restore(one)
+    // A look starts while the write is under way, and reads what it wrote.
+    watcher.setPaused(true)
+    watcher.setPaused(false)
+    ;(pending as unknown as (r: ClipRead) => void)(text('one'))
+    await settle()
+    ;(finishWrite as unknown as () => void)()
+    expect(await restoring).toBe('ok')
+    const board = watcher.board()
+    expect(board.current).toBe(one)
+    expect(board.entries.map((e) => [e.preview, e.copies])).toEqual([
+      ['two', 1],
+      ['one', 1],
+    ])
+  })
+
   it('removes and clears only its own list', async () => {
     const r = rig()
     r.watcher.sync(true)
@@ -227,7 +337,7 @@ describe('ClipboardWatcher', () => {
     await r.advance(300)
     r.watcher.remove(r.watcher.board().entries[0]?.id ?? '')
     expect(r.watcher.board().entries.map((e) => e.preview)).toEqual(['one'])
-    r.watcher.clear()
+    await r.watcher.clear()
     expect(r.watcher.board().entries).toEqual([])
     expect(r.written).toEqual([])
   })
@@ -243,6 +353,7 @@ describe('ClipboardWatcher', () => {
         return text('later')
       },
       write: async () => {},
+      clear: async () => {},
       now: () => now,
       setTimer: (fn) => {
         timer = fn
@@ -265,6 +376,7 @@ describe('the stand-in and its demo', () => {
     const board = new ClipboardWatcher({
       read: async () => ({ kind: 'other' }),
       write: async () => {},
+      clear: async () => {},
       now: () => 0,
       setTimer: () => 0,
       clearTimer: () => {},

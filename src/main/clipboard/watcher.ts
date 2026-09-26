@@ -22,6 +22,8 @@ export interface ClipboardDeps {
   read(last: string | null): Promise<ClipRead>
   /** Puts an entry on the clipboard, its HTML with it. */
   write(entry: ClipEntry): Promise<void>
+  /** Empties the clipboard (CLEAR). */
+  clear(): Promise<void>
   now(): number
   setTimer(fn: () => void, ms: number): unknown
   clearTimer(handle: unknown): void
@@ -54,6 +56,14 @@ export class ClipboardWatcher {
   #lastReadAt = 0
   /** When the last look was, while looks are in a row; null after a stop. */
   #lookedAt: number | null = null
+  /**
+   * What the pane does to the clipboard itself (puts an entry back, empties it):
+   * how many are under way, and a count of them begun. A look that overlapped one
+   * read either what was there before or what was written before the list knew
+   * it, and is dropped rather than taken for a new copy.
+   */
+  #writing = 0
+  #epoch = 0
 
   constructor(deps: ClipboardDeps) {
     this.#deps = deps
@@ -89,10 +99,13 @@ export class ClipboardWatcher {
     const entry = this.#history.entries.find((e) => e.id === id)
     if (entry === undefined) return 'missing'
     if (!entry.kept) return 'not-kept'
+    const done = this.#writes()
     try {
       await this.#deps.write(entry)
     } catch {
       return 'failed'
+    } finally {
+      done()
     }
     this.#set(restored(this.#history, id))
     return 'ok'
@@ -102,8 +115,27 @@ export class ClipboardWatcher {
     this.#set(withoutEntry(this.#history, id))
   }
 
-  clear(): void {
+  /** Empties the history and the clipboard with it (see `cleared`). */
+  async clear(): Promise<void> {
+    this.#lookedAt = null
+    const done = this.#writes()
+    try {
+      await this.#deps.clear()
+    } catch {
+      // The clipboard held by another program: the list is emptied all the same.
+    } finally {
+      done()
+    }
     this.#set(cleared(this.#history))
+  }
+
+  /** Marks a write to the clipboard as under way; the returned function ends it. */
+  #writes(): () => void {
+    this.#writing += 1
+    this.#epoch += 1
+    return () => {
+      this.#writing -= 1
+    }
   }
 
   dispose(): void {
@@ -143,10 +175,13 @@ export class ClipboardWatcher {
     const now = this.#deps.now()
     if (this.#busy || !shouldReadText(this.#lastChars, this.#lastReadAt, now)) return
     this.#busy = true
+    const epoch = this.#epoch
     try {
       const read = await this.#deps.read(this.#history.last)
       // Paused, or the last pane gone, while it was reading: what it read is not kept.
       if (!this.active) return
+      // The pane wrote to the clipboard while it was reading: not a copy of anyone's.
+      if (epoch !== this.#epoch || this.#writing > 0) return
       this.#lastChars = read.kind === 'text' ? read.text.length : 0
       this.#lastReadAt = now
       const before = this.#lookedAt

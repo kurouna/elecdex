@@ -17,6 +17,7 @@ import {
 export interface StubClipboard {
   read(last: string | null): Promise<ClipRead>
   write(entry: ClipEntry): Promise<void>
+  clear(): Promise<void>
 }
 
 interface Held {
@@ -65,6 +66,9 @@ export function stubClipboard(holding: string | null = null): StubClipboard {
     },
     write: async (entry) => {
       held = { text: entry.text, html: entry.html, rtf: entry.rtf, private: false }
+    },
+    clear: async () => {
+      held = null
     },
   }
 }

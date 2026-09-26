@@ -40,6 +40,10 @@ async function besides(item: ClipboardItem, type: string): Promise<string | null
   return ((await item.getType(type)) as Blob).text()
 }
 
+export async function clearSystemClipboard(): Promise<void> {
+  clipboard.clear()
+}
+
 export async function writeSystemClipboard(entry: ClipEntry): Promise<void> {
   const data: Record<string, string> = { 'text/plain': entry.text }
   if (entry.html !== null) data['text/html'] = entry.html

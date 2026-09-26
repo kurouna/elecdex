@@ -3,7 +3,11 @@ import type { ClipBoard } from '@shared/clipboard'
 import { isClipId } from '@shared/clipboard'
 import { ipcMain, type WebContents } from 'electron'
 import { DEMO_HOLDING, demoHistory, stubClipboard } from '../clipboard/stub.js'
-import { readSystemClipboard, writeSystemClipboard } from '../clipboard/system.js'
+import {
+  clearSystemClipboard,
+  readSystemClipboard,
+  writeSystemClipboard,
+} from '../clipboard/system.js'
 import { ClipboardWatcher } from '../clipboard/watcher.js'
 import { whenPageGoes } from './page-gone.js'
 
@@ -24,6 +28,7 @@ export function registerClipboardIpc(): { dispose: () => void } {
   const watcher = new ClipboardWatcher({
     read: stand?.read ?? readSystemClipboard,
     write: stand?.write ?? writeSystemClipboard,
+    clear: stand?.clear ?? clearSystemClipboard,
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
@@ -53,7 +58,7 @@ export function registerClipboardIpc(): { dispose: () => void } {
   ipcMain.on(CH.clipboard.remove, (_event, id: unknown) => {
     if (isClipId(id)) watcher.remove(id)
   })
-  ipcMain.on(CH.clipboard.clear, () => watcher.clear())
+  ipcMain.on(CH.clipboard.clear, () => void watcher.clear())
   ipcMain.on(CH.clipboard.pause, (_event, paused: unknown) => {
     if (typeof paused === 'boolean') watcher.setPaused(paused)
   })

@@ -105,6 +105,10 @@ describe('classifyClip', () => {
     expect(classifyClip('hello world')).toBe('text')
     expect(classifyClip('https://a.test\nhttps://b.test')).toBe('text')
     expect(classifyClip('#ggg')).toBe('text')
+    // A comment or a command that starts with a slash is not a path.
+    expect(classifyClip('// TODO fix this')).toBe('text')
+    expect(classifyClip('/help me')).toBe('text')
+    expect(classifyClip('C:\\Program Files\\elecdex')).toBe('path')
   })
 })
 
@@ -173,6 +177,28 @@ describe('recordRead', () => {
     expect(late.entries).toHaveLength(1)
     const skipped = recordRead(history([[text('a'), 0]]), text('ab'), 1250, () => 'cx', 0)
     expect(skipped.entries).toHaveLength(2)
+  })
+
+  it('never absorbs into the newest entry once another has been put back', () => {
+    const h = history([
+      [text('x'), 0],
+      [text('abc'), 5000],
+    ])
+    // 'x' is put back, and at the next look something containing 'abc' is copied:
+    // 'abc' is no longer on the clipboard, so this is no selection being dragged.
+    const back = restored(h, 'c1')
+    const next = recordRead(back, text('abcd'), 5250, () => 'c9', 5000)
+    expect(next.entries.map((e) => e.text)).toEqual(['abcd', 'abc', 'x'])
+  })
+
+  it('lists a text too long to keep once, however often it is copied', () => {
+    const long = 'q'.repeat(CLIP_MAX_CHARS + 10)
+    const h = history([text(long), text('between'), text(long)])
+    expect(h.entries).toHaveLength(2)
+    expect(h.entries[0]).toMatchObject({ kept: false, copies: 2 })
+    // One that only begins the same is another text.
+    const other = history([text(`${long}!`)], h)
+    expect(other.entries).toHaveLength(3)
   })
 
   it('never absorbs into an entry copied more than once', () => {
@@ -274,10 +300,16 @@ describe('putting back, removing, clearing', () => {
     expect(withoutEntry(h, 'nope')).toBe(h)
   })
 
-  it('clears the list, and the text on the clipboard is not taken for a new copy', () => {
+  it('clears the list and forgets the text, since the clipboard is emptied with it', () => {
     const empty = cleared(h)
     expect(empty.entries).toEqual([])
-    expect(recordRead(empty, text('three'), 99_000, () => 'x')).toBe(empty)
+    expect(empty.current).toBeNull()
+    // Emptied, the clipboard reads as nothing; the same text copied again is a copy.
+    const nothing = recordRead(empty, { kind: 'other' }, 99_000, () => 'x')
+    expect(nothing.entries).toEqual([])
+    expect(recordRead(nothing, text('three'), 99_250, () => 'c9').entries[0]?.text).toBe('three')
+    // Even straight after the clear, with no look between.
+    expect(recordRead(empty, text('three'), 99_000, () => 'c9').entries).toHaveLength(1)
   })
 })
 

@@ -174,7 +174,11 @@ export const emptyHistory = (): ClipHistory => ({
 })
 
 const URL_PATTERN = /^https?:\/\/\S+$/i
-const PATH_PATTERN = /^(?:[a-z]:[\\/]|\\\\[^\\\s]+\\|~?\/)\S/i
+/**
+ * A Windows path may hold spaces (C:\Program Files); a Unix one is taken only
+ * without them, so a comment (// TODO) or a command (/help me) is not a path.
+ */
+const PATH_PATTERN = /^(?:[a-z]:[\\/]|\\\\[^\\\s]+\\|~?\/[^/\s]\S*$)/i
 const COLOR_PATTERN = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i
 const NUMBER_PATTERN = /^[-+]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?%?$/
 
@@ -218,6 +222,13 @@ function makeEntry(id: string, read: Extract<ClipRead, { kind: 'text' }>, now: n
   }
 }
 
+/** Whether an entry is this text: whole, or for one too long to keep, its length and beginning. */
+function sameText(entry: ClipEntry, text: string): boolean {
+  return entry.kept
+    ? entry.text === text
+    : entry.chars === text.length && text.startsWith(entry.text)
+}
+
 /** Stands for private content in `last`; a copied text never starts with a NUL. */
 const PRIVATE_MARK = '\u0000private'
 
@@ -226,12 +237,15 @@ const IN_A_ROW_MS = CLIP_PERIOD_MS * 4
 
 /** Whether a copy is the newest entry's selection still being dragged. */
 function absorbs(
+  history: ClipHistory,
   newest: ClipEntry | undefined,
   text: string,
   now: number,
   lookedBefore: number | null,
 ): newest is ClipEntry {
   if (newest === undefined || !newest.kept || newest.copies > 1) return false
+  // What is being dragged is what the clipboard holds; one put back since is not.
+  if (history.current !== newest.id) return false
   if (lookedBefore === null || now - lookedBefore > IN_A_ROW_MS) return false
   if (now - newest.at > CLIP_ABSORB_MS) return false
   return text.includes(newest.text) || newest.text.includes(text)
@@ -265,7 +279,7 @@ export function recordRead(
   const { text } = read
   if (text === '') return recordRead(history, { kind: 'other' }, now, makeId)
   if (text === history.last) return history
-  const at = history.entries.findIndex((entry) => entry.kept && entry.text === text)
+  const at = history.entries.findIndex((entry) => sameText(entry, text))
   let entries: ClipEntry[]
   let id: string
   if (at >= 0) {
@@ -281,7 +295,7 @@ export function recordRead(
     }
     entries = [moved, ...history.entries.filter((_, i) => i !== at)]
     id = found.id
-  } else if (absorbs(history.entries[0], text, now, lookedBefore)) {
+  } else if (absorbs(history, history.entries[0], text, now, lookedBefore)) {
     const newest = history.entries[0] as ClipEntry
     const grown = makeEntry(newest.id, read, newest.firstAt)
     entries = [{ ...grown, at: now }, ...history.entries.slice(1)]
@@ -314,9 +328,14 @@ export function withoutEntry(history: ClipHistory, id: string): ClipHistory {
   }
 }
 
-/** The history emptied. The clipboard's content is still known, so it is not taken for a new copy. */
+/**
+ * The history emptied, with the clipboard emptied beside it (the watcher does
+ * that): nothing is known to be on it, so whatever is copied next - the same
+ * text as before included - is a copy. Were the clipboard kept, a text copied
+ * again could not be told from the one left on it, and would not be listed.
+ */
 export function cleared(history: ClipHistory): ClipHistory {
-  return { ...history, entries: [], current: null }
+  return { ...history, entries: [], current: null, last: null }
 }
 
 /** An entry as the page is given it. */

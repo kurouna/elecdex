@@ -87,7 +87,11 @@ function remove(id: string): void {
   window.elecdex.clipboard.remove(id)
 }
 
-/** CLEAR asks once more: the first press arms it for a few seconds. */
+/**
+ * CLEAR asks once more: the first press arms it for a few seconds, and says that
+ * the clipboard is emptied too (without that, a text copied again after the
+ * clear could not be told from the one left on it, and would not be listed).
+ */
 let armed = $state(false)
 let armTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -224,10 +228,10 @@ const lines = $derived(height > 0 && height < 260 ? 1 : 3)
         class="tool"
         class:armed
         disabled={entries.length === 0}
-        title="empty the history; the clipboard keeps what it holds"
+        title="empty the history, and the clipboard with it"
         onclick={clearPressed}
         onblur={() => (armed = false)}
-        data-testid="clip-clear">{armed ? `CLEAR ${entries.length}?` : 'CLEAR'}</button
+        data-testid="clip-clear">{armed ? `CLEAR ${entries.length} + CLIPBOARD?` : 'CLEAR'}</button
       >
     </span>
   </header>
@@ -317,7 +321,9 @@ const lines = $derived(height > 0 && height < 260 ? 1 : 3)
 
 .top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  row-gap: 0.3rem;
   gap: 0.7rem;
   min-width: 0;
 }
