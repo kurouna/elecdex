@@ -215,7 +215,7 @@ li {
   align-items: baseline;
   padding: 0.05rem 0.2rem;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text);
 }
 

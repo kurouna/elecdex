@@ -404,7 +404,7 @@ const hintContext = $derived({
   align-items: center;
   gap: 0.3rem;
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: var(--tracking-wide);
   color: var(--tone);
 }
@@ -476,7 +476,7 @@ const hintContext = $derived({
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: 0.1em;
   cursor: pointer;
 }
@@ -522,7 +522,7 @@ const hintContext = $derived({
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: var(--tracking-wide);
   cursor: pointer;
 }
@@ -533,6 +533,7 @@ const hintContext = $derived({
 }
 
 .tabs .n {
+  font-size: var(--step--2);
   margin-left: 0.35em;
   font-family: var(--font-mono);
   color: var(--text-muted);
@@ -585,7 +586,7 @@ const hintContext = $derived({
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   cursor: pointer;
   clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
 }

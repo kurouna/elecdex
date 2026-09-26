@@ -262,7 +262,7 @@ header {
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-ui);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   letter-spacing: 0.08em;
   cursor: pointer;
 }
@@ -308,7 +308,7 @@ canvas {
   border: 1px solid var(--accent-dim);
   background: color-mix(in srgb, var(--app-bg) 88%, transparent);
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text);
   white-space: nowrap;
   pointer-events: none;

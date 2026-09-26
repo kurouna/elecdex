@@ -297,7 +297,7 @@ $effect(() => {
 
 .sub {
   min-height: 1.2em;
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -425,7 +425,7 @@ $effect(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text);
 }
 
@@ -480,17 +480,19 @@ canvas {
   height: 100%;
 }
 
+/* A narrow path keeps its figures' size and gives up room instead: the plates narrow, and a
+   long figure is cut rather than shrunk. */
 @container (max-width: 26rem) {
   .node {
     min-width: 3.4rem;
+    padding: 0 0.3rem;
   }
 
-  .name {
-    font-size: var(--step--2);
-  }
-
-  .main {
-    font-size: var(--step--2);
+  .main,
+  .sub {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 </style>

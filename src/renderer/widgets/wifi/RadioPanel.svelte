@@ -291,21 +291,21 @@ const notes = $derived(
 .unit,
 .grade {
   font-family: var(--font-ui);
-  font-size: 9px;
+  font-size: var(--step--2);
   letter-spacing: 0.15em;
   text-anchor: middle;
   fill: var(--text-muted);
 }
 
 .grade {
-  font-size: 10px;
+  font-size: var(--step--2);
   fill: var(--tone);
 }
 
 .quality {
   margin: -0.2rem 0 0;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
 
@@ -327,7 +327,7 @@ const notes = $derived(
 
 .band {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--step--2);
   dominant-baseline: middle;
   fill: var(--text-muted);
 }
@@ -364,7 +364,7 @@ const notes = $derived(
 .chan {
   margin: 0.1rem 0 0;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
 
@@ -422,7 +422,7 @@ const notes = $derived(
   align-items: center;
   gap: 0.3rem;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--text-muted);
 }
 
@@ -450,7 +450,7 @@ const notes = $derived(
   padding: 0;
   list-style: none;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
   color: var(--warn);
 }
 

@@ -164,3 +164,52 @@ test('a figure the pointer rests on explains itself, with what it reads now', as
     await close()
   }
 })
+
+test('what is read is at the body size, and labels a step below, however narrow the pane', async () => {
+  // A pane under 26rem wide: the width at which the stations once dropped a size.
+  const withLog = (share: number) => ({
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [share, 100 - share],
+      children: [
+        { kind: 'pane', id: 'w', widget: 'wifi', state: { view: 'log' } },
+        { kind: 'pane', id: 'c', widget: 'clock' },
+      ],
+    },
+  })
+  for (const layout of [withLog(60), withLog(22)]) {
+    const { page, close } = await launch(undefined, { layout })
+    try {
+      await expect(page.getByTestId('wifi-ssid')).toHaveText('ELECDEX-LAB', { timeout: 20_000 })
+      await expect(page.getByTestId('wifi-event').first()).toBeVisible()
+      const rems = await page.evaluate(() => {
+        const root = Number.parseFloat(getComputedStyle(document.documentElement).fontSize)
+        const rem = (selector: string) => {
+          const el = document.querySelector(selector)
+          return el === null ? null : Number.parseFloat(getComputedStyle(el).fontSize) / root
+        }
+        return {
+          name: rem('[data-testid=wifi-station] .name'),
+          main: rem('[data-testid=wifi-station] .main'),
+          sub: rem('[data-testid=wifi-station] .sub'),
+          evidence: rem('[data-testid=wifi-verdict] .evidence'),
+          state: rem('[data-testid=wifi-state]'),
+          event: rem('[data-testid=wifi-event]'),
+          legend: rem('[data-testid=wifi-legend]'),
+          mosLabel: rem('[data-testid=wifi-mos] .k'),
+        }
+      })
+      // --step--1 is 0.75rem (12 px on a 1080p screen); --step--2, 0.625rem, is for labels.
+      for (const read of ['name', 'main', 'sub', 'evidence', 'state', 'event'] as const) {
+        expect(rems[read], read).toBeCloseTo(0.75, 2)
+      }
+      expect(rems.legend).toBeCloseTo(0.625, 2)
+      expect(rems.mosLabel).toBeCloseTo(0.625, 2)
+    } finally {
+      await close()
+    }
+  }
+})

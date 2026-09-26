@@ -125,7 +125,7 @@ const rows = $derived<[string, string][]>([
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   gap: 0.6rem;
   font-family: var(--font-mono);
-  font-size: var(--step--2);
+  font-size: var(--step--1);
 }
 
 .facts {
@@ -136,6 +136,7 @@ const rows = $derived<[string, string][]>([
 }
 
 dt {
+  font-size: var(--step--2);
   font-family: var(--font-ui);
   letter-spacing: 0.06em;
   color: var(--text-muted);
@@ -155,6 +156,7 @@ dd {
 }
 
 th {
+  font-size: var(--step--2);
   font-family: var(--font-ui);
   font-weight: 400;
   letter-spacing: 0.06em;
@@ -164,6 +166,7 @@ th {
 
 th:first-child,
 td:first-child {
+  font-size: var(--step--2);
   text-align: left;
 }
 
