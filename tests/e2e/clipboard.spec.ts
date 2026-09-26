@@ -1,5 +1,5 @@
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { launch } from './support.js'
+import { launch, settleLayout } from './support.js'
 
 /**
  * The clipboard pane, on main's stand-in clipboard (support.ts sets
@@ -243,6 +243,44 @@ test('behind another tab or closed, nothing is read; shown again, it takes up', 
     const after = await reads(app)
     await page.waitForTimeout(1000)
     expect(await reads(app)).toBe(after)
+  } finally {
+    await close()
+  }
+})
+
+test('switched away from the desk layout, nothing is read; switched back, it takes up', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } },
+    // The dev layout has shells: no question on the way back to the desk.
+    settings: { layout: { confirmSwitch: false } },
+  })
+  const watching = () => page.evaluate(() => window.elecdex.clipboard.watching())
+  const pane = page.locator('[data-testid=pane][data-widget=clipboard]')
+  try {
+    // The desk preset (Ctrl+Shift+F6) has the clipboard pane on screen: it reads.
+    await page.keyboard.press('Control+Shift+F6')
+    await settleLayout(page)
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    await copied(app, page, 'copied at the desk')
+
+    // The dev preset has no clipboard pane: the pane goes, and so does the reading.
+    await page.keyboard.press('Control+Shift+F4')
+    await settleLayout(page)
+    await expect(pane).toHaveCount(0)
+    await expect.poll(watching).toBe(false)
+    const before = await reads(app)
+    await copy(app, 'copied in dev')
+    await copy(app, 'copied in dev, later')
+    await page.waitForTimeout(1200)
+    expect(await reads(app)).toBe(before)
+
+    // Back at the desk: the history kept in main is there, with only what the
+    // clipboard holds now added - nothing copied while away.
+    await page.keyboard.press('Control+Shift+F6')
+    await settleLayout(page)
+    await expect.poll(watching).toBe(true)
+    await expect.poll(() => texts(page)).toEqual(['copied in dev, later', 'copied at the desk'])
+    await copied(app, page, 'copied back at the desk')
   } finally {
     await close()
   }
