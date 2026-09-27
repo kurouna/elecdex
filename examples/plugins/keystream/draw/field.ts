@@ -1,5 +1,5 @@
-import type { Chart, PlayNote } from '../chart'
-import { isBlack, KEYS, keyOf, NOTE_KEYS } from '../keyboard'
+import { type Chart, firstAt, type PlayNote } from '../chart'
+import { isBlack, KEYS, keyOf, labelOf, NOTE_KEYS } from '../keyboard'
 import type { NoteState } from '../session'
 import type { Layout } from './layout'
 import { alpha, clamp, font, type Paint, write } from './paint'
@@ -84,8 +84,8 @@ const yOf = (l: Layout, at: number, time: number, lead: number): number =>
 
 function beatLines(p: Paint, l: Layout, chart: Chart, time: number, lead: number): void {
   const g = p.g
-  for (const beat of chart.beats) {
-    if (beat.time < time - 50) continue
+  for (let i = firstAt(chart.beats, time - 50); i < chart.beats.length; i++) {
+    const beat = chart.beats[i] as Chart['beats'][number]
     if (beat.time > time + lead) break
     const y = yOf(l, beat.time, time, lead)
     g.fillStyle = alpha(p.c.rule, beat.bar ? 0.75 : 0.28)
@@ -124,18 +124,6 @@ function line(p: Paint, l: Layout, chart: Chart | null, time: number): void {
   g.fillRect(l.field.x + l.field.w + 1, l.line - 3, 3, 6)
 }
 
-/** The first note at or after a time, by bisection: the notes are in order. */
-function firstFrom(list: readonly PlayNote[], time: number): number {
-  let lo = 0
-  let hi = list.length
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if ((list[mid]?.time ?? 0) < time) lo = mid + 1
-    else hi = mid
-  }
-  return lo
-}
-
 function notes(p: Paint, l: Layout, view: FieldView): void {
   const list = view.chart?.notes ?? []
   const ahead = view.time + view.lead
@@ -145,7 +133,7 @@ function notes(p: Paint, l: Layout, view: FieldView): void {
   g.beginPath()
   g.rect(l.field.x - l.unit, l.field.y, l.field.w + l.unit * 2, l.line - l.field.y + l.unit * 0.3)
   g.clip()
-  for (let i = firstFrom(list, view.time - 600); i < list.length; i++) {
+  for (let i = firstAt(list, view.time - 600); i < list.length; i++) {
     const note = list[i] as PlayNote
     if (note.time > ahead) break
     const state = view.state(i)
@@ -175,7 +163,7 @@ function chip(
   if (near > 0.55 && !p.reduced) halo(p, x, y, w, h, (near - 0.55) / 0.45)
   if (black) blackChip(p, x, y, w, h, lit)
   else whiteChip(p, x, y, w, h, lit)
-  write(p, labels[note.code] ?? key.char.toUpperCase(), x, y + 0.5, {
+  write(p, labelOf(labels, note.code), x, y + 0.5, {
     font: font(700, h * 0.7, p.fonts.mono),
     color: alpha(black ? p.c.accent : p.c.accentStrong, 0.55 + 0.45 * lit),
     align: 'center',

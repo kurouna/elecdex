@@ -1,7 +1,7 @@
 import type { KeyNote, KeyPress, ViewContext, Voice } from '../elecdex-plugin'
 import type { Settings } from './app'
 import type { Chart } from './chart'
-import { keyOf, NOTE_KEYS, noteName } from './keyboard'
+import { keyOf, labelOf, NOTE_KEYS, noteName } from './keyboard'
 import { loopBetween, nextWindow } from './schedule'
 
 /**
@@ -188,7 +188,7 @@ export class FreePlay {
     const trail = { code, pitch: pitch + 12 * this.octave, start: at, end: null }
     this.held.set(code, trail)
     this.trails.push(trail)
-    const label = this.ctx.keys.labels[code] ?? code
+    const label = labelOf(this.ctx.keys.labels, code)
     this.played = [...this.played.slice(1 - PLAYED_KEPT), { label, name: noteName(trail.pitch) }]
   }
 

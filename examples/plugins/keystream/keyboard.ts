@@ -68,6 +68,14 @@ const byChar = new Map(NOTE_KEYS.map((k) => [k.char, k]))
 export const keyOf = (code: string): KeyDef | undefined => byCode.get(code)
 export const keyOfChar = (char: string): KeyDef | undefined => byChar.get(char)
 
+/**
+ * What a key prints on this keyboard, from the host's layout map; where the map has no
+ * entry (a punctuation key on some layouts), the US letter rather than the code itself.
+ */
+export function labelOf(labels: Readonly<Record<string, string>>, code: string): string {
+  return labels[code] ?? keyOf(code)?.char.toUpperCase() ?? code
+}
+
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 /** 'C4' for 60. */

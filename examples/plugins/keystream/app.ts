@@ -1,5 +1,5 @@
 import type { KeyPress, Note, SettingValues, ViewContext, Voice } from '../elecdex-plugin'
-import { buildChart, type Chart, COUNT_IN_BEATS, LEVELS, type Level, openingBars } from './chart'
+import { buildChart, type Chart, LEVELS, type Level, openingBars } from './chart'
 import { drawLanes, drawNotes, type FieldView, leadTime } from './draw/field'
 import { drawFree } from './draw/free'
 import { Effects } from './draw/fx'
@@ -7,14 +7,14 @@ import { drawHud } from './draw/hud'
 import { drawKeyboard } from './draw/keys'
 import { type Layout, layoutOf } from './draw/layout'
 import { drawMenu } from './draw/menu'
-import { drawConnect, drawCount, drawLoading, drawPause, LOAD_MS } from './draw/overlays'
+import { countWord, drawConnect, drawCount, drawLoading, drawPause, LOAD_MS } from './draw/overlays'
 import { type Paint, paintOf } from './draw/paint'
 import { drawPanels, type LogLine } from './draw/panels'
 import { drawResult, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
 import { fanfare } from './fanfare'
 import { FreePlay, type FreeSaved } from './free'
 import { rankOf, scoreOf } from './judge'
-import { keyOf, NOTE_KEYS } from './keyboard'
+import { keyOf, labelOf, NOTE_KEYS } from './keyboard'
 import { readSong, type Score } from './notation'
 import { bestOf, submit } from './records'
 import { loopLength, nextWindow, notesBetween } from './schedule'
@@ -276,8 +276,7 @@ class Game {
   private begin(now: number): void {
     const chart = this.chart
     if (chart === null) return
-    const countIn = -chart.clock.time(-COUNT_IN_BEATS)
-    this.session = new Session(chart, now + countIn + 120, this.ctx.settings.offset)
+    this.session = new Session(chart, now - chart.start, this.ctx.settings.offset)
     this.phase = 'play'
     // The keyboard left, or the pane went out of sight, while the track loaded: it waits,
     // paused before its count, rather than playing to no one.
@@ -319,8 +318,13 @@ class Game {
   private resume(now: number): void {
     const session = this.session
     if (session === null || !this.ctx.keys.focused) return
-    const from = session.resume(now, RESUME_MS)
-    this.resumeAt = now
+    // Paused before the song began: the count-in is the countdown, taken from its start
+    // again, rather than a count before a count.
+    const before = session.songTime(now) < 0
+    const from = before
+      ? session.resume(now, 0, session.chart.start)
+      : session.resume(now, RESUME_MS)
+    this.resumeAt = before ? null : now
     this.schedule(from)
   }
 
@@ -397,7 +401,7 @@ class Game {
 
   private remember(outcome: Outcome): void {
     const code = outcome.kind === 'stray' ? outcome.code : outcome.note.code
-    const label = this.ctx.keys.labels[code] ?? keyOf(code)?.char.toUpperCase() ?? '?'
+    const label = labelOf(this.ctx.keys.labels, code)
     const line: LogLine =
       outcome.kind === 'hit'
         ? { label, grade: outcome.grade, delta: outcome.delta }
@@ -463,7 +467,7 @@ class Game {
     const labels = this.ctx.keys.labels
     const chosen = rows[this.selected]?.chart
     const opening = chosen
-      ? openingBars(chosen, 4).map((bar) => bar.map((code) => labels[code] ?? code))
+      ? openingBars(chosen, 4).map((bar) => bar.map((code) => labelOf(labels, code)))
       : []
     drawMenu(p, l, {
       rows,
@@ -471,6 +475,7 @@ class Game {
       level: this.level,
       speed: this.speed,
       note: wordsFor(this.ctx.locale).layout,
+      levelNote: wordsFor(this.ctx.locale).levels[this.level],
       opening,
       free: wordsFor(this.ctx.locale).free,
     })
@@ -512,7 +517,7 @@ class Game {
     if (chart === null) return
     const session = this.session
     drawHud(p, l, { chart, index: this.selected, tally: session?.tally ?? null, speed: this.speed })
-    const time = session?.shownTime(now) ?? chart.clock.time(-COUNT_IN_BEATS)
+    const time = session?.shownTime(now) ?? chart.start
     const labels = this.ctx.keys.labels
     const field: FieldView = {
       chart,
@@ -525,11 +530,11 @@ class Game {
     drawLanes(p, l, field)
     drawPanels(p, l, {
       log: this.log,
-      queue: (session?.next(24) ?? chart.notes.slice(0, 24)).map((n) => labels[n.code] ?? n.code),
+      queue: (session?.next(24) ?? chart.notes.slice(0, 24)).map((n) => labelOf(labels, n.code)),
       time,
       duration: chart.duration,
       bar: barAt(chart, time),
-      bars: chart.beats.filter((b) => b.bar && b.time >= 0).length - 1,
+      bars: chart.bars,
     })
     // The words stand behind the notes, which must never be hidden; while paused, neither moves.
     if (!session?.paused) this.fx.drawWords(p, l, now, session?.tally.chain ?? 0)
@@ -547,11 +552,8 @@ class Game {
       drawCount(p, l, String(Math.ceil(left / 500)), 500 - (left % 500))
       return
     }
-    const time = session.songTime(now)
-    if (time >= 0) return
-    const beat = -chart.clock.time(-1)
-    const left = Math.ceil(-time / beat)
-    drawCount(p, l, left <= 1 ? 'LINK' : String(left - 1), time + left * beat)
+    const count = countWord(session.songTime(now), -chart.clock.time(-1))
+    if (count !== null) drawCount(p, l, count.word, count.age)
   }
 
   /*

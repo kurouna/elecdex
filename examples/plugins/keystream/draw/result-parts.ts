@@ -123,7 +123,8 @@ function trackLine(p: Paint, y: number, w: number, view: ResultView): void {
       spacing: '0.14em',
     }) + 14
   const style = { font: font(500, 12, p.fonts.ui), color: p.c.muted, spacing: '0.16em' }
-  const rest = `${view.chart.song.credit}  //  ${view.chart.level.toUpperCase()}  //  ${bpmText(view.chart)}`
+  const { song, level } = view.chart
+  const rest = `${song.style}  //  ${song.credit}  //  ${level.toUpperCase()}  //  ${bpmText(view.chart)}`
   write(p, fitted(p, rest, w - x, style), x, y, style)
 }
 

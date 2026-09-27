@@ -50,6 +50,8 @@ export interface Band {
   form: string
   /** The voice of the chord hits; an electric piano when left out. */
   comp?: Voice
+  /** The voice of the arpeggio; a pluck when left out. */
+  arp?: Voice
   /** The tune again, `bars` later, as a round: the band sings it after the player. */
   round?: { bars: number; voice: Voice; level: number }
   /** What the tom is tuned to, as a MIDI note. */
@@ -140,7 +142,7 @@ export function arrange(score: Score): Part[] {
     drums(plan, at.start, band.tom ?? 45, parts)
     bass(plan.section.bass, at, parts)
     comp(plan.section.comp, band.comp ?? 'epiano', at, parts)
-    arpeggio(plan.section.arp, at, parts)
+    arpeggio(plan.section.arp, band.arp ?? 'pluck', at, parts)
     if (plan.section.pad) pad(at, parts)
   })
   if (band.round) round(score, band.round, parts)
@@ -232,7 +234,7 @@ function comp(line: string | undefined, voice: Voice, at: BarAt, parts: Part[]):
 }
 
 /** An arpeggio above the tune, quiet: the chord's notes one after another, going up. */
-function arpeggio(line: string | undefined, at: BarAt, parts: Part[]): void {
+function arpeggio(line: string | undefined, voice: Voice, at: BarAt, parts: Part[]): void {
   if (line === undefined) return
   let n = 0
   for (let step = 0; step < STEPS; step++) {
@@ -241,7 +243,7 @@ function arpeggio(line: string | undefined, at: BarAt, parts: Part[]): void {
     if (chord === null) continue
     const tones = [...voicing(chord, 76), lift(chord.root, 76) + 12]
     parts.push({
-      voice: 'pluck',
+      voice,
       pitch: tones[n % tones.length] ?? 76,
       beat: at.start + step * STEP,
       beats: heldFor(line, step) * STEP * 0.9,

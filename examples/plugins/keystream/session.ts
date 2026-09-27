@@ -144,9 +144,11 @@ export class Session {
     if (this.pausedAt === null) this.pausedAt = this.shownTime(now)
   }
 
-  /** Goes on from where it stopped after `countdown` milliseconds. Returns that song time. */
-  resume(now: number, countdown: number): number {
-    const from = this.pausedAt ?? this.songTime(now)
+  /**
+   * Goes on from where it stopped - or from `from`, a song time the caller names - after
+   * `countdown` milliseconds. Returns the song time it goes on from.
+   */
+  resume(now: number, countdown: number, from = this.pausedAt ?? this.songTime(now)): number {
     this.pausedAt = null
     this.startAt = now + countdown - from
     this.holdAt = from

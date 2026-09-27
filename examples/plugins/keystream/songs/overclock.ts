@@ -60,6 +60,7 @@ export const song: SongSource = {
   id: 'overclock',
   title: 'OVERCLOCK',
   credit: 'elecdex',
+  style: 'DRUM & BASS',
   tempo: [{ bar: 0, bpm: 172 }],
   grid: 2,
   melody: [INTRO, ...VERSE, ...CHORUS, BREAK, ...VERSE, ...CHORUS, ...CHORUS, OUTRO],

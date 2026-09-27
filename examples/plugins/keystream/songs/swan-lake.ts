@@ -59,6 +59,7 @@ export const song: SongSource = {
   id: 'swan-lake',
   title: 'SWAN LAKE',
   credit: 'P. I. Tchaikovsky, arr. elecdex',
+  style: 'TRANCE',
   tempo: [{ bar: 0, bpm: 132 }],
   grid: 2,
   melody: [INTRO, ...THEME, MIDDLE, ...THEME, MIDDLE, ...THEME, OUTRO],

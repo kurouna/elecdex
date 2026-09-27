@@ -1,4 +1,4 @@
-import { isBlack, KEYS, type KeyDef, noteName } from '../keyboard'
+import { isBlack, KEYS, type KeyDef, labelOf, noteName } from '../keyboard'
 import type { Layout } from './layout'
 import { alpha, font, type Paint, write } from './paint'
 
@@ -24,7 +24,7 @@ export function drawKeyboard(
   shift = 0,
 ): void {
   for (const key of KEYS) {
-    drawCap(p, l, key, labels[key.code] ?? key.char.toUpperCase(), light(key.code), shift)
+    drawCap(p, l, key, labelOf(labels, key.code), light(key.code), shift)
   }
 }
 

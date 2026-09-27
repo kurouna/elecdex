@@ -63,6 +63,7 @@ export const song: SongSource = {
   id: 'twinkle',
   title: 'TWINKLE',
   credit: 'French folk tune, arr. elecdex',
+  style: 'POP',
   tempo: [{ bar: 0, bpm: 112 }],
   grid: 2,
   melody: [INTRO, ...TUNE, ...TUNE, OUTRO],

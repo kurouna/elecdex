@@ -63,6 +63,7 @@ export const song: SongSource = {
   id: 'ode-to-joy',
   title: 'ODE TO JOY',
   credit: 'L. v. Beethoven, arr. elecdex',
+  style: 'HOUSE',
   tempo: [{ bar: 0, bpm: 124 }],
   grid: 2,
   melody: [INTRO, ...THEME, ...THEME, OUTRO],

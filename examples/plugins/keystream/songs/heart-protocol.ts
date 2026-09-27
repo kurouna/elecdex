@@ -83,6 +83,7 @@ export const song: SongSource = {
   id: 'heart-protocol',
   title: 'HEART PROTOCOL',
   credit: 'elecdex',
+  style: 'K-POP',
   tempo: [{ bar: 0, bpm: 124 }],
   grid: 4,
   melody: [INTRO, ...VERSE, ...PRE, ...CHORUS, BREAK, ...CHORUS, OUTRO],

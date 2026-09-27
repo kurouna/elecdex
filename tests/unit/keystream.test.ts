@@ -3,6 +3,7 @@ import { arrange, readForm } from '../../examples/plugins/keystream/arrange'
 import { buildChart, COUNT_IN_BEATS } from '../../examples/plugins/keystream/chart'
 import { leadTime } from '../../examples/plugins/keystream/draw/field'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
+import { countWord } from '../../examples/plugins/keystream/draw/overlays'
 import { alpha } from '../../examples/plugins/keystream/draw/paint'
 import { parseChord, voicing } from '../../examples/plugins/keystream/harmony'
 import plugin from '../../examples/plugins/keystream/index'
@@ -19,6 +20,7 @@ import {
   isBlack,
   KEYS,
   keyOf,
+  labelOf,
   NOTE_KEYS,
   noteName,
 } from '../../examples/plugins/keystream/keyboard'
@@ -50,6 +52,7 @@ const tiny: SongSource = {
   id: 'tiny',
   title: 'TINY',
   credit: 'test',
+  style: 'TEST',
   tempo: [{ bar: 0, bpm: 120 }],
   grid: 2,
   melody: ['a.s.d-f-|g.......'],
@@ -86,6 +89,13 @@ describe('the keyboard as a piano', () => {
     }
     expect(KEYS).toHaveLength(23)
     expect(noteName(61)).toBe('C#4')
+  })
+
+  it('labels a key as this keyboard prints it, else as US does, never by its code', () => {
+    expect(labelOf({ KeyA: 'Q' }, 'KeyA')).toBe('Q')
+    expect(labelOf({}, 'KeyA')).toBe('A')
+    expect(labelOf({}, 'Quote')).toBe("'")
+    expect(labelOf({}, 'Enter')).toBe('Enter')
   })
 })
 
@@ -146,6 +156,8 @@ describe('the songs', () => {
         for (const chord of chords)
           expect(parseChord(chord), `${source.id} ${chord}`).not.toBeNull()
       }
+      // A word for the menu to pick by, in the menu's capitals.
+      expect(source.style, source.id).toMatch(/^[A-Z][A-Z0-9 &-]*$/)
     }
   })
 
@@ -263,6 +275,27 @@ describe('the chart', () => {
     expect(chart.notes[2]?.length).toBe(500)
     expect(chart.beats[0]).toEqual({ time: -2000, bar: true })
     expect(chart.bpm).toEqual({ from: 120, to: 120 })
+    expect(chart.bars).toBe(2)
+    // A play begins a moment before the count-in's first click.
+    expect(chart.start).toBe(-2120)
+  })
+
+  it('arranges the band once for a song, whatever the level', () => {
+    const score = readSong(tiny)
+    expect(buildChart(score, 'easy').band).toBe(buildChart(score, 'hard').band)
+    expect(buildChart(readSong(tiny), 'easy').band).not.toBe(buildChart(score, 'easy').band)
+  })
+})
+
+describe('the count-in', () => {
+  it('counts 3, 2, 1, LINK on its beats, and nothing in the moment before it', () => {
+    expect(countWord(-2120, 500)).toBeNull()
+    expect(countWord(-2000, 500)).toEqual({ word: '3', age: 0 })
+    expect(countWord(-1600, 500)).toEqual({ word: '3', age: 400 })
+    expect(countWord(-1500, 500)).toEqual({ word: '2', age: 0 })
+    expect(countWord(-900, 500)).toEqual({ word: '1', age: 100 })
+    expect(countWord(-400, 500)).toEqual({ word: 'LINK', age: 100 })
+    expect(countWord(0, 500)).toBeNull()
   })
 })
 
@@ -350,6 +383,15 @@ describe('a play', () => {
     session.pause(5700)
     expect(session.songTime(9000)).toBe(700)
     expect(session.resume(9000, 1500)).toBe(700)
+  })
+
+  it('can go on from a song time it is told, at once: the count-in taken again', () => {
+    const session = new Session(chart, 0, 0)
+    session.pause(-1200)
+    expect(session.resume(5000, 0, chart.start)).toBe(chart.start)
+    expect(session.songTime(5000)).toBe(chart.start)
+    expect(session.running(5000)).toBe(true)
+    expect(session.heardAt(0)).toBe(5000 - chart.start)
   })
 
   it('gives a late key the note it was late for, not the next one on the same key', () => {

@@ -52,6 +52,7 @@ export const song: SongSource = {
   id: 'boot-sequence',
   title: 'BOOT SEQUENCE',
   credit: 'elecdex',
+  style: 'SYNTHWAVE',
   tempo: [{ bar: 0, bpm: 118 }],
   grid: 2,
   melody: [INTRO, ...VERSE, ...CHORUS, ...VERSE, ...CHORUS, OUTRO],

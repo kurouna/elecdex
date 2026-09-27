@@ -1,4 +1,4 @@
-import type { Chart } from '../chart'
+import { type Chart, COUNT_IN_BEATS } from '../chart'
 import type { Layout } from './layout'
 import { hints } from './menu'
 import { alpha, clamp, font, type Paint, write } from './paint'
@@ -39,6 +39,18 @@ export function drawLoading(p: Paint, l: Layout, chart: Chart, index: number, ag
     }
     y += size * 1.9
   })
+}
+
+/**
+ * The count-in's word at a song time, `beat` milliseconds a beat: 3, 2, 1 and then LINK on
+ * its last beat, each with how long it has stood; null before the count and once the song
+ * is on. The play begins a moment before the count (Chart.start), which shows nothing.
+ */
+export function countWord(time: number, beat: number): { word: string; age: number } | null {
+  if (time >= 0) return null
+  const left = Math.ceil(-time / beat)
+  if (left > COUNT_IN_BEATS) return null
+  return { word: left <= 1 ? 'LINK' : String(left - 1), age: time + left * beat }
 }
 
 /** A count over the field: 3, 2, 1 and the word to go, each popping in on its beat. */

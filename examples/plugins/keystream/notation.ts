@@ -27,6 +27,8 @@ export interface SongSource {
   title: string
   /** Who wrote it: shown on the menu and the result. */
   credit: string
+  /** What kind of track it is (HOUSE, J-POP, CHIPTUNE): a word on the menu, to pick by. */
+  style: string
   tempo: readonly TempoPoint[]
   /** Melody steps per beat: 2 for eighths, 4 for sixteenths. */
   grid: 2 | 4

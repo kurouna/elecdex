@@ -44,6 +44,10 @@ export interface Chart {
   band: Cue[]
   /** Every beat from the count-in to the end, for the lines across the field. */
   beats: { time: number; bar: boolean }[]
+  /** How many bars the song has. */
+  bars: number
+  /** The song time a play begins at: a moment's silence, then the count-in. */
+  start: number
   /** When the last note has sounded out. */
   duration: number
   clock: Clock
@@ -54,6 +58,20 @@ export interface Chart {
 }
 
 export const COUNT_IN_BEATS = 4
+/** The silence before the count-in, so its first click is not the first thing heard. */
+const LEAD_IN_MS = 120
+
+/** The first index whose time is at or after `time`: the list must be in order. */
+export function firstAt(list: readonly { time: number }[], time: number): number {
+  let lo = 0
+  let hi = list.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if ((list[mid]?.time ?? 0) < time) lo = mid + 1
+    else hi = mid
+  }
+  return lo
+}
 
 /** The player's first notes, bar by bar, as key codes: the first `count` bars that have any. */
 export function openingBars(chart: Chart, count: number): string[][] {
@@ -66,6 +84,22 @@ export function openingBars(chart: Chart, count: number): string[][] {
     groups.set(bar, [...(groups.get(bar) ?? []), note.code])
   }
   return [...groups.values()]
+}
+
+/**
+ * The band is the same at every level, and arranging it is the cost of building a chart:
+ * arranged once per song, and shared by its charts.
+ */
+const BANDS = new WeakMap<Score, Cue[]>()
+
+function bandOf(score: Score): Cue[] {
+  let band = BANDS.get(score)
+  if (band === undefined) {
+    band = [...countIn(score.clock), ...arrange(score).map((p) => cue(p, score.clock))]
+    band.sort((a, b) => a.time - b.time)
+    BANDS.set(score, band)
+  }
+  return band
 }
 
 export function buildChart(score: Score, level: Level): Chart {
@@ -85,7 +119,6 @@ export function buildChart(score: Score, level: Level): Chart {
     else auto.push(played)
   })
   const beatsInSong = score.bars * BEATS_PER_BAR
-  const band: Cue[] = [...countIn(clock), ...arrange(score).map((p) => cue(p, clock))]
   const beats = []
   for (let b = -COUNT_IN_BEATS; b <= beatsInSong; b++) {
     beats.push({ time: at(b), bar: b % BEATS_PER_BAR === 0 })
@@ -96,8 +129,10 @@ export function buildChart(score: Score, level: Level): Chart {
     level,
     notes: player,
     auto,
-    band: band.sort((a, b) => a.time - b.time),
+    band: bandOf(score),
     beats,
+    bars: score.bars,
+    start: at(-COUNT_IN_BEATS) - LEAD_IN_MS,
     duration: Math.max(at(beatsInSong), lastNote) + 600,
     clock,
     bpm: { from: Math.round(clock.bpm(0.5)), to: Math.round(clock.bpm(beatsInSong - 0.5)) },

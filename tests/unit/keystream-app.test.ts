@@ -100,6 +100,37 @@ describe('the view', () => {
     expect(asked.played.length).toBeGreaterThan(first)
   })
 
+  it('goes on from the count-in when paused before the song, and counts down when paused in it', () => {
+    // Found in play: a pause during the count-in was followed by 3, 2, 1 and then the count
+    // again - a count before a count.
+    const { asked, press, frame } = stand()
+    const loudHats = (batch: readonly Note[]) =>
+      batch.filter((n) => n.voice === 'hat' && (n.level ?? 0) > 0.5).length
+    press('Enter', 0)
+    frame(1200)
+    expect(asked.played.at(-1)).toSatisfy((b: Note[]) => loudHats(b) === 4)
+    // Paused in the count, and resumed: the count-in whole again, from now, and no 3-2-1.
+    press('Escape', 1300)
+    const stops = asked.stops
+    press('Escape', 2000)
+    const again = asked.played.at(-1) ?? []
+    expect(asked.stops).toBe(stops)
+    expect(loudHats(again)).toBe(4)
+    // The first click comes a moment after the key, not after a 1.5 s countdown.
+    const first = Math.min(...again.map((n) => n.at ?? 0))
+    expect(first).toBeGreaterThanOrEqual(2000)
+    expect(first).toBeLessThan(2000 + 500)
+    // Paused in the song: what comes next is sent after the countdown, and no count-in.
+    frame(2000)
+    frame(9000)
+    press('Escape', 9000)
+    press('Escape', 9500)
+    const later = asked.played.at(-1) ?? []
+    expect(later.length).toBeGreaterThan(0)
+    expect(loudHats(later)).toBe(0)
+    expect(Math.min(...later.map((n) => n.at ?? 0))).toBeGreaterThanOrEqual(9500 + 1500)
+  })
+
   it('ends a track on its result: the rank lands with its chord, and a new record blips', () => {
     const { asked, press, frame } = stand()
     press('Enter', 0)

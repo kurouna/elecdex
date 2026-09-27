@@ -61,6 +61,7 @@ export const song: SongSource = {
   id: 'afterglow',
   title: 'AFTERGLOW',
   credit: 'elecdex',
+  style: 'DISCO HOUSE',
   tempo: [{ bar: 0, bpm: 124 }],
   grid: 2,
   melody: [INTRO, ...VERSE, ...CHORUS, BREAK, ...VERSE, ...CHORUS, OUTRO],

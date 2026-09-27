@@ -1,5 +1,5 @@
 import type { Note, Voice } from '../elecdex-plugin'
-import type { Chart } from './chart'
+import { type Chart, firstAt } from './chart'
 
 /**
  * What the game plays itself - the band, EASY's share of the melody, the guide - handed to
@@ -18,18 +18,6 @@ export interface Sending {
   guide: boolean
   /** When, on the view's clock, a song time is heard. */
   heardAt: (songTime: number) => number
-}
-
-/** The first index whose time is at or after `time`: the lists are in order. */
-function firstAt(list: readonly { time: number }[], time: number): number {
-  let lo = 0
-  let hi = list.length
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    if ((list[mid]?.time ?? 0) < time) lo = mid + 1
-    else hi = mid
-  }
-  return lo
 }
 
 function* between<T extends { time: number }>(list: readonly T[], from: number, to: number) {
