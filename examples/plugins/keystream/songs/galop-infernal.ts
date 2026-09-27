@@ -1,0 +1,39 @@
+import type { SongSource } from '../notation'
+
+/**
+ * GALOP INFERNAL - Jacques Offenbach (1819-1880), from Orpheus in the Underworld (1858):
+ * the can-can. In the public domain; this arrangement is elecdex's own, made from the tune
+ * itself, and is GPL-3.0 as the rest of this repository.
+ *
+ * Set in F major so the tune's whole range - down to its last low note - fits the keyboard.
+ * The theme three times, with a bridge of elecdex's own between the second and the third.
+ */
+
+const INTRO = '........|........'
+
+const THEME = ["f---guhg|k-k-klhu|g-g-guhg|f';lkuhg", 'f---guhg|k-k-klhu|g-g-guhg|faghf---']
+
+const BRIDGE = ["u-l-'-lu|h-k-'---|g-k-;-k-|f-h-k---", "u-l-'-lu|'-;-l-k-|l-j-g-u-|h-g-f---"]
+
+const OUTRO = 'f-f-f---|........'
+
+const THEME_CHORDS = 'F | F | C7 | F C7 | F | F | C7 | C7 F'
+
+export const song: SongSource = {
+  id: 'galop-infernal',
+  title: 'GALOP INFERNAL',
+  credit: 'J. Offenbach, arr. elecdex',
+  tempo: [{ bar: 0, bpm: 150 }],
+  grid: 2,
+  melody: [INTRO, ...THEME, ...THEME, ...BRIDGE, ...THEME, OUTRO],
+  chords: [
+    'F | C7',
+    THEME_CHORDS,
+    THEME_CHORDS,
+    'Bb | F | C7 | F | Bb | F | G7 C7 | F',
+    THEME_CHORDS,
+    'F | F',
+  ],
+  energy: '12 22222222 33333333 22222222 33333333 31',
+  style: 'galop',
+}

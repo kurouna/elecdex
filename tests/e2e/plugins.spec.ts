@@ -302,3 +302,77 @@ test('a sign-in session is the plugin’s own, closes its window once it works, 
     removeDir(dir)
   }
 })
+
+/** A plugin that shows what reaches it of canvas, keys and focus (apiVersion 2). */
+const deviceProbe = (version: string) => `export default {
+  apiVersion: 2, id: 'device-probe', title: 'device probe',
+  permissions: { keys: true, sound: true },
+  view(ctx) {
+    const lines = []
+    const show = () =>
+      ctx.render([{ t: 'canvas', id: 'c', height: 80 }, ...lines.slice(-10).map((text) => ({ t: 'text', text }))])
+    ctx.on('surface', (s) => {
+      s.g.fillStyle = ctx.theme.colors.accent
+      s.g.fillRect(0, 0, s.w, s.h)
+      lines.push('${version} surface ' + (s.w > 0 && s.h === 80))
+      show()
+    })
+    ctx.on('focus', () => { lines.push('focus ' + ctx.keys.focused); show() })
+    ctx.on('key', (k) => {
+      lines.push((k.down ? 'down ' : 'up ') + k.code + (k.shift ? ' shift' : '') + ' ' + (Math.abs(performance.now() - k.at) < 2000))
+      show()
+    })
+    ctx.keys.play({ KeyA: { voice: 'piano', pitch: 60, level: 0 } })
+    show()
+  },
+}`
+
+test('a plugin draws on its canvas, and has the keys of its pane only while it is focused', async () => {
+  const dir = withPlugins({ 'device-probe.js': deviceProbe('v1') })
+  const app = await launch(dir, { layout: single('plugin:device-probe') })
+  const { page } = app
+  const pane = pluginPane(page)
+  const lines = pane.locator('p')
+  try {
+    // Turning it on says plainly what it asks for.
+    await page.keyboard.press('Control+Shift+Period')
+    await page.locator('[data-testid=settings-section][data-section=plugins]').click()
+    const entry = page.locator('[data-testid=settings-plugin][data-plugin="device-probe"]')
+    await entry.getByTestId('plugin-enabled').click()
+    await expect(entry.getByTestId('plugin-consent')).toContainText('receive the keys you press')
+    await expect(entry.getByTestId('plugin-consent')).toContainText('play music and sounds')
+    await entry.getByTestId('plugin-agree').click()
+    await page.getByTestId('settings-close').click()
+
+    await expect(pane.getByText('v1 surface true')).toBeVisible()
+    await expect(pane.getByTestId('plugin-keys')).toHaveCount(0)
+    await pane.getByTestId('plugin-canvas').click()
+    await expect(pane.getByText('focus true')).toBeVisible()
+    await expect(pane.getByTestId('plugin-keys')).toBeVisible()
+
+    // Keys arrive down and up, on the worker's own clock; a bound one sounds in the host.
+    await page.keyboard.press('a')
+    await expect(pane.getByText('down KeyA true')).toBeVisible()
+    await expect(pane.getByText('up KeyA true')).toBeVisible()
+    await expect(pane).toHaveAttribute('data-notes', '1')
+    await page.keyboard.press('Shift+B')
+    await expect(pane.getByText('down KeyB shift true')).toBeVisible()
+    // A chord with Ctrl stays the app's, and Tab still moves the keyboard on.
+    await page.keyboard.press('Control+KeyJ')
+    await expect(pane.getByText(/KeyJ/)).toHaveCount(0)
+
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await expect(pane.getByText('focus false')).toBeVisible()
+    await expect(pane.getByTestId('plugin-keys')).toHaveCount(0)
+    await page.keyboard.press('e')
+    await expect(pane.getByText(/KeyE/)).toHaveCount(0)
+    expect(await lines.count()).toBeGreaterThan(0)
+
+    // An edit starts a new worker: it is handed a canvas of its own to draw on.
+    writeFileSync(path.join(dir, 'plugins', 'device-probe.js'), deviceProbe('v2'))
+    await expect(pane.getByText('v2 surface true')).toBeVisible()
+  } finally {
+    await app.close()
+    removeDir(dir)
+  }
+})

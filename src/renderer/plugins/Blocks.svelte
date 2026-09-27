@@ -2,6 +2,7 @@
 import type { Block } from '@shared/plugin-api'
 import Digits from '../widgets/common/Digits.svelte'
 import ButtonIcon from './ButtonIcon.svelte'
+import CanvasBlock from './CanvasBlock.svelte'
 import ChartBlock from './ChartBlock.svelte'
 import TimeBlock from './TimeBlock.svelte'
 
@@ -19,14 +20,28 @@ interface Props {
   onaction: (action: string, item?: string) => void
   onsignin: (host: string) => void
   onlink: (href: string) => void
+  /** Hands a canvas block's element to the plugin; returns what lets go of it. */
+  onsurface?: (id: string, element: HTMLCanvasElement) => () => void
+  /** The view's mount in its worker: canvases are made anew for each (CanvasBlock). */
+  epoch?: number
 }
 
-const { blocks, onaction, onsignin, onlink }: Props = $props()
+const {
+  blocks,
+  onaction,
+  onsignin,
+  onlink,
+  onsurface = () => () => {},
+  epoch = 0,
+}: Props = $props()
+
+/** A canvas with no height takes the rest of the pane, so the blocks fill it. */
+const fills = $derived(blocks.some((b) => b.t === 'canvas' && b.height === undefined))
 
 const lit = (value: number, segments: number) => Math.round(value * segments)
 </script>
 
-<div class="blocks" data-testid="plugin-blocks">
+<div class="blocks" class:fills data-testid="plugin-blocks">
   {#each blocks as block, index (index)}
     {#if block.t === 'heading'}
       <h4 class="heading">{block.text}</h4>
@@ -156,6 +171,8 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
       <p class="notice tone-{block.tone ?? 'dim'}">{block.text}</p>
     {:else if block.t === 'divider'}
       <hr class="hud-dashed" />
+    {:else if block.t === 'canvas'}
+      <CanvasBlock id={block.id} height={block.height} {epoch} {onsurface} />
     {/if}
   {/each}
 </div>
@@ -172,6 +189,10 @@ const lit = (value: number, segments: number) => Math.round(value * segments)
   font-family: var(--font-ui);
   font-size: var(--step-0);
   color: var(--text);
+}
+
+.blocks.fills {
+  height: 100%;
 }
 
 .blocks :global(.tone-ok) {

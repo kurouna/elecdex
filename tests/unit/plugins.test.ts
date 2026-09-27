@@ -73,7 +73,7 @@ describe('plugin descriptors', () => {
   })
 
   it('say a plugin needs a newer elecdex rather than that it is broken', () => {
-    const parsed = parseDescriptor(descriptor({ apiVersion: 2 }))
+    const parsed = parseDescriptor(descriptor({ apiVersion: 3 }))
     expect(parsed).toMatchObject({ ok: false, newer: true })
   })
 

@@ -19,6 +19,9 @@ export interface RuntimeScope {
   clearInterval(handle: unknown): void
   onmessage: ((event: { data: unknown }) => void) | null
   addEventListener?(type: string, fn: (event: unknown) => void): void
+  /** A worker's own frame clock (Chromium has it in workers); a timer stands in without it. */
+  requestAnimationFrame?(fn: (now: number) => void): unknown
+  cancelAnimationFrame?(handle: unknown): void
 }
 
 export type ModuleFunction = (
@@ -73,7 +76,23 @@ export function pluginRuntime(
   entry: string,
 ): void {
   type Fn = (...args: never[]) => unknown
+  type FontFaceData = { family: string; data: unknown; weight: string; style: string }
+  type FaceConstructor = new (
+    family: string,
+    data: unknown,
+    descriptors: { weight: string; style: string },
+  ) => { load(): Promise<unknown> }
   type Listeners = Map<string, Set<Fn>>
+  interface Canvas {
+    width: number
+    height: number
+    getContext(kind: '2d'): { setTransform(...m: number[]): void } | null
+  }
+  interface SurfaceRecord {
+    canvas: Canvas
+    context: { setTransform(...m: number[]): void } | null
+    surface: { id: string; g: unknown; w: number; h: number; dpr: number } | null
+  }
   interface View {
     pane: string
     size: { w: number; h: number }
@@ -83,9 +102,13 @@ export function pluginRuntime(
     data: Set<(model: unknown) => void>
     timers: Set<{ stop: () => void; skipped: boolean; fn: () => unknown }>
     cleanup: unknown
+    surfaces: Map<string, SurfaceRecord>
+    focused: boolean
+    frames: Set<(now: number) => void>
+    frame: unknown
   }
   interface Plugin {
-    permissions?: { metrics?: unknown; notify?: unknown }
+    permissions?: { metrics?: unknown; notify?: unknown; keys?: unknown; sound?: unknown }
     service?: (ctx: unknown) => unknown
     view?: (ctx: unknown) => unknown
   }
@@ -100,6 +123,11 @@ export function pluginRuntime(
   }
   const STATE_BYTES = 64 * 1024
   const STORAGE_BYTES = 1024 * 1024
+  const NOTES_PER_CALL = 4096
+  const SURFACE_SIDE = 8192
+  // Times cross between page and worker as epoch milliseconds: each has its own time origin.
+  const clock = typeof performance === 'object' ? performance : { timeOrigin: 0, now: Date.now }
+  const origin = clock.timeOrigin
 
   const post = (message: unknown): void => scope.postMessage(message)
   const describe = (error: unknown): string => {
@@ -202,6 +230,38 @@ export function pluginRuntime(
   let serviceCleanup: unknown
   const views = new Map<string, View>()
   const metricHandlers = new Map<string, Set<(value: unknown) => void>>()
+  // What the host says about the page. Until it does, the look of the default theme.
+  const env = {
+    theme: {
+      mode: 'dark',
+      reducedMotion: false,
+      colors: {
+        ground: '#05080d',
+        raised: '#0b1118',
+        text: 'hsl(183 22% 74%)',
+        muted: 'hsl(183 22% 74% / 0.5)',
+        inverse: '#05080d',
+        accent: 'hsl(183 22% 74%)',
+        accentStrong: 'hsl(183 22% 86%)',
+        accentDim: 'hsl(183 22% 74% / 0.35)',
+        accentFaint: 'hsl(183 22% 74% / 0.12)',
+        border: 'hsl(183 22% 74% / 0.5)',
+        rule: 'hsl(183 22% 74% / 0.3)',
+        ok: 'hsl(130 60% 52%)',
+        warn: 'hsl(45 85% 58%)',
+        danger: 'hsl(0 80% 60%)',
+        info: 'hsl(212 85% 66%)',
+      },
+      fonts: {
+        display: '"Chakra Petch", system-ui, sans-serif',
+        ui: '"Saira Condensed", system-ui, sans-serif',
+        mono: '"JetBrains Mono Variable", ui-monospace, monospace',
+      },
+    } as unknown,
+    onScreen: true,
+    labels: {} as Record<string, string>,
+    latency: 0,
+  }
   const fetches = new Map<number, { resolve: (r: unknown) => void; reject: (e: Error) => void }>()
   let nextFetch = 0
 
@@ -239,6 +299,71 @@ export function pluginRuntime(
         .map((a) => (typeof a === 'string' ? a : (JSON.stringify(a) ?? String(a))))
         .join(' '),
     })
+
+  // Frames: one request per view at a time, and none while it cannot be seen.
+  const requestFrame = (fn: (now: number) => void): unknown =>
+    typeof scope.requestAnimationFrame === 'function'
+      ? scope.requestAnimationFrame(fn)
+      : setTimeout(() => fn(clock.now()), 16)
+  const cancelFrame = (handle: unknown): void => {
+    if (typeof scope.cancelAnimationFrame === 'function') scope.cancelAnimationFrame(handle)
+    else clearTimeout(handle as ReturnType<typeof setTimeout>)
+  }
+  const drawing = (view: View): boolean =>
+    views.get(view.pane) === view && view.visible && env.onScreen && view.frames.size > 0
+  const scheduleFrame = (view: View): void => {
+    if (view.frame !== null || !drawing(view)) return
+    view.frame = requestFrame((now) => {
+      view.frame = null
+      if (!drawing(view)) return
+      for (const fn of [...view.frames]) call(view.pane, fn, now)
+      scheduleFrame(view)
+    })
+  }
+  const stopFrames = (view: View): void => {
+    view.frames.clear()
+    if (view.frame !== null) cancelFrame(view.frame)
+    view.frame = null
+  }
+
+  /** Sizes a canvas for its CSS size and pixel ratio, and scales its context to CSS pixels. */
+  const sizeSurface = (
+    id: string,
+    record: SurfaceRecord,
+    size: { w: number; h: number; dpr: number; pw?: number; ph?: number },
+  ): void => {
+    const w = Math.max(0, Number(size.w) || 0)
+    const h = Math.max(0, Number(size.h) || 0)
+    const dpr = Math.min(4, Math.max(0.5, Number(size.dpr) || 1))
+    // The device pixels the browser gave the canvas when it said, else the CSS size scaled.
+    const side = (css: number, device: unknown) =>
+      Math.min(
+        SURFACE_SIDE,
+        Math.max(1, Math.round(typeof device === 'number' && device > 0 ? device : css * dpr)),
+      )
+    record.canvas.width = side(w, size.pw)
+    record.canvas.height = side(h, size.ph)
+    record.context ??= record.canvas.getContext('2d')
+    record.context?.setTransform(
+      w > 0 ? record.canvas.width / w : dpr,
+      0,
+      0,
+      h > 0 ? record.canvas.height / h : dpr,
+      0,
+      0,
+    )
+    record.surface = Object.freeze({ id, g: record.context, w, h, dpr })
+  }
+
+  const needs = (p: Plugin, what: 'keys' | 'sound'): void => {
+    if (p.permissions?.[what] !== true) throw new Error(`ctx.${what} needs permissions.${what}`)
+  }
+  /** A note's time goes to the host as epoch milliseconds. */
+  const outgoing = (note: unknown): unknown => {
+    if (typeof note !== 'object' || note === null) return note
+    const at = (note as { at?: unknown }).at
+    return typeof at === 'number' ? { ...note, at: at + origin } : note
+  }
 
   const serviceContext = (p: Plugin) => ({
     get settings() {
@@ -322,7 +447,33 @@ export function pluginRuntime(
     if (!stopping) emit(serviceListeners, null, 'views')
   }
 
-  const viewContext = (view: View) => ({
+  const keysOf = (p: Plugin, view: View) => ({
+    get focused() {
+      return view.focused
+    },
+    get labels() {
+      return env.labels
+    },
+    play(map: Record<string, unknown> | null): void {
+      needs(p, 'sound')
+      post({ t: 'keymap', pane: view.pane, map })
+    },
+  })
+  const soundOf = (view: View) => ({
+    play(notes: readonly unknown[]): void {
+      if (!Array.isArray(notes)) throw new TypeError('sound.play() takes an array of notes')
+      if (notes.length > NOTES_PER_CALL) {
+        throw new RangeError(`sound.play() takes at most ${NOTES_PER_CALL} notes at a time`)
+      }
+      post({ t: 'sound', pane: view.pane, notes: notes.map(outgoing) })
+    },
+    stop: () => post({ t: 'sound-stop', pane: view.pane }),
+    get latency() {
+      return env.latency
+    },
+  })
+
+  const viewContext = (p: Plugin, view: View) => ({
     get settings() {
       return settings
     },
@@ -362,10 +513,32 @@ export function pluginRuntime(
     badge: (text: string | null, tone?: string) =>
       post({ t: 'badge', pane: view.pane, text: text === null ? null : String(text), tone }),
     on: (event: string, fn: Fn) => on(view.listeners, event, fn),
+    surface: (id: string) => view.surfaces.get(String(id))?.surface ?? null,
+    animate(fn: (now: number) => void): () => void {
+      if (typeof fn !== 'function') throw new TypeError('animate() needs a function')
+      view.frames.add(fn)
+      scheduleFrame(view)
+      return () => {
+        view.frames.delete(fn)
+      }
+    },
+    get theme() {
+      return env.theme
+    },
+    get keys() {
+      needs(p, 'keys')
+      return keysOf(p, view)
+    },
+    get sound() {
+      needs(p, 'sound')
+      return soundOf(view)
+    },
   })
 
   const unmount = (view: View): void => {
     for (const timer of [...view.timers]) timer.stop()
+    stopFrames(view)
+    view.surfaces.clear()
     views.delete(view.pane)
     if (typeof view.cleanup === 'function') call(view.pane, view.cleanup as Fn)
     viewsChanged()
@@ -407,10 +580,14 @@ export function pluginRuntime(
         data: new Set(),
         timers: new Set(),
         cleanup: undefined,
+        surfaces: new Map(),
+        focused: false,
+        frames: new Set(),
+        frame: null,
       }
       views.set(pane, view)
       if (typeof p.view !== 'function') throw new Error('the plugin has no view()')
-      view.cleanup = call(pane, p.view as Fn, viewContext(view))
+      view.cleanup = call(pane, p.view as Fn, viewContext(p, view))
       viewsChanged()
     },
     unmount(m) {
@@ -430,6 +607,7 @@ export function pluginRuntime(
       emit(view.listeners, view.pane, 'visibility')
       viewsChanged()
       if (!view.visible) return
+      scheduleFrame(view)
       for (const timer of view.timers) {
         if (!timer.skipped) continue
         timer.skipped = false
@@ -477,6 +655,65 @@ export function pluginRuntime(
     },
     ping(m) {
       post({ t: 'pong', n: m.n })
+    },
+    surface(m) {
+      const view = views.get(String(m.pane))
+      if (!view || typeof m.canvas !== 'object' || m.canvas === null) return
+      const id = String(m.id)
+      const record: SurfaceRecord = { canvas: m.canvas as Canvas, context: null, surface: null }
+      sizeSurface(id, record, m.size as { w: number; h: number; dpr: number })
+      view.surfaces.set(id, record)
+      emit(view.listeners, view.pane, 'surface', record.surface)
+    },
+    'surface-size'(m) {
+      const view = views.get(String(m.pane))
+      const id = String(m.id)
+      const record = view?.surfaces.get(id)
+      if (!view || !record) return
+      sizeSurface(id, record, m.size as { w: number; h: number; dpr: number })
+      emit(view.listeners, view.pane, 'surface', record.surface)
+    },
+    'surface-gone'(m) {
+      views.get(String(m.pane))?.surfaces.delete(String(m.id))
+    },
+    key(m) {
+      const view = views.get(String(m.pane))
+      if (!view || loadPlugin().permissions?.keys !== true) return
+      emit(view.listeners, view.pane, 'key', {
+        code: String(m.code),
+        down: m.down === true,
+        shift: m.shift === true,
+        at: Number(m.at) - origin,
+      })
+    },
+    focus(m) {
+      const view = views.get(String(m.pane))
+      if (!view || view.focused === (m.focused === true)) return
+      view.focused = m.focused === true
+      emit(view.listeners, view.pane, 'focus')
+    },
+    env(m) {
+      const next = (m.env ?? {}) as Partial<typeof env>
+      Object.assign(env, next)
+      for (const view of views.values()) {
+        if (next.theme !== undefined) emit(view.listeners, view.pane, 'theme')
+        scheduleFrame(view)
+      }
+    },
+    fonts(m) {
+      const faces = (Array.isArray(m.faces) ? m.faces : []) as FontFaceData[]
+      const set = (scope as { fonts?: { add(face: unknown): void } }).fonts
+      const Face = (globalThis as { FontFace?: FaceConstructor }).FontFace
+      if (set === undefined || Face === undefined) return
+      const loads = faces.map((f) => {
+        const face = new Face(f.family, f.data, { weight: f.weight, style: f.style })
+        set.add(face)
+        return face.load()
+      })
+      // The faces are ready: a canvas drawn with a stand-in font draws again.
+      void Promise.allSettled(loads).then(() => {
+        for (const view of views.values()) emit(view.listeners, view.pane, 'theme')
+      })
     },
     stop() {
       stopping = true

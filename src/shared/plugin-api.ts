@@ -1,5 +1,5 @@
 /**
- * elecdex plugin API, version 1.
+ * elecdex plugin API, version 2 (a version 1 plugin is read as it always was).
  *
  * AUTO-GENERATED in the plugins folder as elecdex-plugin.d.ts from the elecdex build that
  * wrote it. Do not edit that copy: it is overwritten whenever it differs from the running
@@ -44,6 +44,13 @@ export interface PluginPermissions {
   background?: boolean
   /** Sound and system notifications through ctx.notify. */
   notify?: boolean
+  /**
+   * The keys pressed while one of its panes has the keyboard (ctx.keys). Needs apiVersion 2.
+   * Only keys without Ctrl, Alt or the system key, and only while the pane is focused.
+   */
+  keys?: boolean
+  /** Music and sound through elecdex's synthesiser (ctx.sound). Needs apiVersion 2. */
+  sound?: boolean
 }
 
 interface SettingBase {
@@ -154,6 +161,12 @@ export type Block =
   | { t: 'signin'; host: string; text?: string }
   | { t: 'notice'; text: string; tone?: Tone }
   | { t: 'divider' }
+  /**
+   * A surface the view draws on itself through ctx.surface(id) (apiVersion 2): `height` in
+   * CSS pixels (40 to 2000), or the rest of the pane when left out. At most 4 in a pane.
+   * id: /^[a-z0-9][a-z0-9-]{0,39}$/.
+   */
+  | { t: 'canvas'; id: string; height?: number }
 
 /** Icons the host can draw on a button. */
 export type ButtonIcon =
@@ -182,6 +195,183 @@ export interface PluginResponse {
   text(): string
   /** Throws when the body is not JSON. */
   json(): unknown
+}
+
+/*
+ * Drawing, keys and sound (apiVersion 2). Times are on the view's clock: performance.now()
+ * in the plugin's worker, in milliseconds - the clock animate() is called with.
+ */
+
+/** A gradient made by a Canvas2D. */
+export interface CanvasGradient2D {
+  addColorStop(offset: number, color: string): void
+}
+
+/**
+ * The 2D drawing context of a canvas block: the parts of the browser's
+ * OffscreenCanvasRenderingContext2D a plugin can rely on, written out here so that this file
+ * needs no DOM types. It is scaled so that one unit is one CSS pixel.
+ */
+export interface Canvas2D {
+  fillStyle: string | CanvasGradient2D
+  strokeStyle: string | CanvasGradient2D
+  lineWidth: number
+  lineCap: 'butt' | 'round' | 'square'
+  lineJoin: 'round' | 'bevel' | 'miter'
+  lineDashOffset: number
+  globalAlpha: number
+  /** 'source-over', 'lighter', 'multiply', 'screen' and the rest of the canvas's modes. */
+  globalCompositeOperation: string
+  /** A CSS font, e.g. `600 14px ${theme.fonts.mono}`. */
+  font: string
+  textAlign: 'left' | 'right' | 'center' | 'start' | 'end'
+  textBaseline: 'top' | 'hanging' | 'middle' | 'alphabetic' | 'ideographic' | 'bottom'
+  /** CSS length, e.g. '0.1em'. */
+  letterSpacing: string
+  shadowBlur: number
+  shadowColor: string
+  shadowOffsetX: number
+  shadowOffsetY: number
+  save(): void
+  restore(): void
+  translate(x: number, y: number): void
+  scale(x: number, y: number): void
+  rotate(angle: number): void
+  clearRect(x: number, y: number, w: number, h: number): void
+  fillRect(x: number, y: number, w: number, h: number): void
+  strokeRect(x: number, y: number, w: number, h: number): void
+  beginPath(): void
+  closePath(): void
+  moveTo(x: number, y: number): void
+  lineTo(x: number, y: number): void
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void
+  bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void
+  arc(x: number, y: number, r: number, start: number, end: number, ccw?: boolean): void
+  rect(x: number, y: number, w: number, h: number): void
+  roundRect(x: number, y: number, w: number, h: number, radii?: number | number[]): void
+  fill(rule?: 'nonzero' | 'evenodd'): void
+  stroke(): void
+  clip(rule?: 'nonzero' | 'evenodd'): void
+  setLineDash(segments: number[]): void
+  fillText(text: string, x: number, y: number, maxWidth?: number): void
+  strokeText(text: string, x: number, y: number, maxWidth?: number): void
+  measureText(text: string): {
+    width: number
+    actualBoundingBoxAscent: number
+    actualBoundingBoxDescent: number
+  }
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient2D
+  createRadialGradient(
+    x0: number,
+    y0: number,
+    r0: number,
+    x1: number,
+    y1: number,
+    r1: number,
+  ): CanvasGradient2D
+}
+
+/** A canvas block, ready to draw on. */
+export interface Surface {
+  readonly id: string
+  readonly g: Canvas2D
+  /** Size in CSS pixels. */
+  readonly w: number
+  readonly h: number
+  /** Device pixels per CSS pixel. */
+  readonly dpr: number
+}
+
+/** The theme's colours, each a CSS colour a canvas takes as it is. */
+export type ThemeColor =
+  | 'ground'
+  | 'raised'
+  | 'text'
+  | 'muted'
+  | 'inverse'
+  | 'accent'
+  | 'accentStrong'
+  | 'accentDim'
+  | 'accentFaint'
+  | 'border'
+  | 'rule'
+  | 'ok'
+  | 'warn'
+  | 'danger'
+  | 'info'
+
+/** How the app looks now: a canvas follows it by redrawing on the 'theme' event. */
+export interface Theme {
+  /** A light theme wants dark marks on a light ground, and glows that do not add light. */
+  readonly mode: 'dark' | 'light'
+  /** Motion reduced, by the setting or the system: keep what carries meaning, drop the rest. */
+  readonly reducedMotion: boolean
+  readonly colors: Readonly<Record<ThemeColor, string>>
+  /** CSS font families. The app's own faces are available to a canvas. */
+  readonly fonts: { readonly display: string; readonly ui: string; readonly mono: string }
+}
+
+/** A key going down or up in a focused pane. Held keys do not repeat. */
+export interface KeyPress {
+  /** KeyboardEvent.code: the key's place on the keyboard, whatever it prints ('KeyA'). */
+  readonly code: string
+  readonly down: boolean
+  readonly shift: boolean
+  /** When it happened, on the view's clock. */
+  readonly at: number
+}
+
+/** The voices of elecdex's synthesiser. Drums take `pitch` only to tune (tom). */
+export type Voice =
+  | 'piano'
+  | 'epiano'
+  | 'lead'
+  | 'chip'
+  | 'bass'
+  | 'pluck'
+  | 'pad'
+  | 'kick'
+  | 'snare'
+  | 'clap'
+  | 'hat'
+  | 'openhat'
+  | 'crash'
+  | 'tom'
+
+export interface Note {
+  voice: Voice
+  /** MIDI note number: 60 is middle C. 60 when left out. */
+  pitch?: number
+  /** When it is to be heard, on the view's clock; at once when left out or past. */
+  at?: number
+  /** Milliseconds before the note is let go; the voice's own when left out. */
+  length?: number
+  /** 0 to 1; 0.8 when left out. */
+  level?: number
+  /** -1 (left) to 1 (right). */
+  pan?: number
+}
+
+export interface Keys {
+  /** Whether the pane has the keyboard. The 'focus' event says when it changes. */
+  readonly focused: boolean
+  /** What each key prints on this keyboard, by code: 'KeyQ' is 'A' on AZERTY. */
+  readonly labels: Readonly<Record<string, string>>
+  /**
+   * Notes elecdex plays itself the moment a key goes down, before the key reaches the view,
+   * so an instrument answers without a round trip to the worker (needs permissions.sound).
+   * `at` is ignored. null plays nothing.
+   */
+  play(map: Readonly<Record<string, Note>> | null): void
+}
+
+export interface Sound {
+  /** Schedules notes: at most 4096 in a call, up to ten minutes ahead. */
+  play(notes: readonly Note[]): void
+  /** Silences this pane: what sounds is let go, and what is still to come is dropped. */
+  stop(): void
+  /** Milliseconds between a note starting and it being heard, as the output reports it. */
+  readonly latency: number
 }
 
 export interface CommonContext<S extends SettingValues> {
@@ -247,13 +437,36 @@ export interface ViewContext<S extends SettingValues, M> extends CommonContext<S
   state: { get<T = unknown>(): T | undefined; set(value: unknown): void }
   subtitle(text: string | null): void
   badge(text: string | null, tone?: Tone): void
-  on(event: 'settings' | 'resize' | 'visibility', fn: () => void): () => void
+  /** The canvas block with this id, once elecdex has made it; null before, and after it went. */
+  surface(id: string): Surface | null
+  /**
+   * Calls fn once per display frame, with the frame's time on the view's clock, while the
+   * pane is on screen and the window is not put away. Stop it when nothing moves: an
+   * animation that runs on costs a share of a core. Returns a function that stops it.
+   */
+  animate(fn: (now: number) => void): () => void
+  /** The app's look: colours, fonts, light or dark, motion. */
+  readonly theme: Theme
+  /** Needs permissions.keys. */
+  readonly keys: Keys
+  /** Needs permissions.sound. */
+  readonly sound: Sound
+  /**
+   * theme: the look changed (or the app's faces arrived): redraw. focus: the pane took or
+   * lost the keyboard.
+   */
+  on(event: 'settings' | 'resize' | 'visibility' | 'theme' | 'focus', fn: () => void): () => void
   /** Clicks in this pane. The service hears them too. */
   on(event: 'action', fn: (action: PluginAction) => void): () => void
+  /** A canvas block was made, or changed size (which clears it): draw it again. */
+  on(event: 'surface', fn: (surface: Surface) => void): () => void
+  /** A key went down or up while the pane had the keyboard (needs permissions.keys). */
+  on(event: 'key', fn: (key: KeyPress) => void): () => void
 }
 
 export interface ElecdexPlugin<S extends SettingValues = SettingValues, M = unknown> {
-  apiVersion: 1
+  /** 1, or 2 for canvas blocks, keys and sound (an older elecdex then says it is too old). */
+  apiVersion: 1 | 2
   /** /^[a-z0-9][a-z0-9-]{0,39}$/; unique among the user's plugins. */
   id: string
   title: string

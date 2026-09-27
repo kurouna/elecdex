@@ -1,7 +1,9 @@
-# elecdex プラグイン仕様（v0.0.5: widget プラグイン）
+# elecdex プラグイン仕様（v0.0.5: widget プラグイン、apiVersion 2: canvas・keys・sound）
 
 > 状態: **v0.0.5 で実装済み**。範囲は **widget プラグイン**（ペインを足す）。端末に書き込む command プラグインは §11 のとおり後続版。
-> 同梱サンプルは `examples/plugins/pomodoro/`（ポモドーロタイマー）。
+> **apiVersion 2**（canvas ブロック・キー入力・音）は §13（2026-09-27 実装、未リリース）。
+> 同梱サンプルは `examples/plugins/pomodoro/`（ポモドーロタイマー、新しい plugins フォルダに書かれる）と、
+> apiVersion 2 の見本 `examples/plugins/keystream/`（リズムゲーム、フォルダから入れる）。
 
 ---
 
@@ -86,7 +88,7 @@ export default {
   **省略するとボタンも出ず、ショートカットも効かない**（数値がいくつか並ぶだけのペインはこれが正しい）
 - `view` は必須、`service` は任意
 - 値の import はフォルダ内の相対パスだけ。`require`・パッケージ名・フォルダ外は実行時に throw
-- `apiVersion` がこのビルドより新しいものは読まずに「新しい elecdex が必要」と表示
+- `apiVersion` がこのビルドより新しいものは読まずに「新しい elecdex が必要」と表示。canvas・keys・sound を使うなら 2（§13）
 
 ---
 
@@ -226,6 +228,7 @@ type Block =
   | { t: 'signin'; host: string; text?: string }         // session のホストにログインするボタン
   | { t: 'notice'; text: string; tone?: Tone }           // エラー・出典・「非公式」表示
   | { t: 'divider' }
+  | { t: 'canvas'; id: string; height?: number }          // apiVersion 2。Worker が自分で描く面（§13）
 ```
 
 - `chart` の `fill` は、各位置の線から基線へ、線の色が透明へ消えるグラデーションで塗る（本体の CPU・メモリ・通信のグラフと同じ）
@@ -288,6 +291,7 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
   - 求められるのは `PLUGIN_METRIC_SOURCE_IDS`（`shared/metrics.ts`）にあるソースだけ。接続一覧ペインの `net.sockets`（どのプログラムがどこと通信しているか）は `PRIVATE_METRIC_SOURCE_IDS` にあり、**どのプラグインにも許可できない**。新しいソースは必ずどちらかに入れる（単体テストが確かめる）
   - `session`: 「このサイトにあなたとしてアクセスします」
   - `background`: 「ペインを閉じても動き続けます」
+  - `keys`: 「ペインにフォーカスがある間に押したキーを受け取ります（Ctrl や Alt との組み合わせは渡しません）」、`sound`: 「音楽と音を鳴らします」（§13）
 - **ファイルを編集しても、権限が広がらなければ同意は保つ**（開発中の保存のたびに聞かない）。広がったら動かさず「要同意」
 - 同意は id と**ファイル名（またはフォルダ名）**の組に結びつける（`settings.plugins[id].key`）。別のファイルが同じ id を名乗っても権限は引き継がず、「x.ts が y.ts に同意した id を使っている」と示して聞き直す
 - 個人情報に当たるメトリクス（プロセス名、接続先、ネットワークアドレス、機種、OS とマシン名）と通信先を同時に求めるプラグインには、同意画面で「それらを通信先へ送れる」と明記する
@@ -342,7 +346,7 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 ## 11. 後続版に回すもの
 
 - **command プラグイン**（アクティブ端末の可視テキスト・cwd・直前コマンドの終了コードを受け、書き込みを返す）。キーバインド割り当てかコマンドパレットかを決めてから
-- `canvas` ブロック（自由描画）、`columns` による横並び、ペインごとの設定フォーム
+- `columns` による横並び、ペインごとの設定フォーム（`canvas` ブロックは apiVersion 2 で実装した。§13）
 - POST 等の GET 以外
 
 ---
@@ -355,3 +359,97 @@ renderer の `PluginHost` が Worker の `ctx.fetch` を中継し、**Worker を
 4. `PluginPane.svelte` とブロック
 5. 設定ダイアログ・ピッカー・レイアウトの欠落表示
 6. ポモドーロ、e2e、README、architecture.md §16
+
+---
+
+## 13. canvas・keys・sound（apiVersion 2）
+
+> 状態: 実装済み（2026-09-27、未リリース）。見本は `examples/plugins/keystream/`（リズムゲーム KEYSTREAM）。
+> ブロックでは描けないもの——表示レートで動く絵、押したキーへの即座の反応、音楽——のための 3 つの汎用の機能。
+> どれもゲーム専用ではなく、メトロノーム・可視化・別のゲームにもそのまま使える。
+
+### 13.1 方針
+
+| 決定 | 内容 | 理由 |
+|---|---|---|
+| 版 | 使うプラグインは `apiVersion: 2` を宣言する。`permissions.keys` / `sound` は 2 でしか宣言できない（記述子の検証で断る） | 古い elecdex はこの権限を黙って捨てて動かしてしまう。2 と宣言すれば「新しい elecdex が必要」と言う。1 のプラグインはこれまでどおり読む |
+| 描画 | `canvas` ブロック。ホストが `<canvas>` を作り `transferControlToOffscreen()` で Worker に**渡し切る**。2D のみ | Worker の中で描けば、ページにコードを持ち込まずに自由な絵が描ける。WebGL は GPU コンテキストの予算（CLAUDE.md）を食うので出さない |
+| フレーム | `ctx.animate(fn)`。Worker の `requestAnimationFrame` を、ペインが見えていてウィンドウが画面にある間だけ回す | 10 fps のフレームループでは落ちてくるノーツが読めない（ELEC と同じ判断）。見えない間は 1 フレームも描かない |
+| キー | `permissions.keys`。**ペイン自身にフォーカスがある間**だけ、Ctrl・Alt・システムキーを含まないキーを `code` で渡す。ペインの隅にホストが **KEYS** のランプを出す | シェルやアプリのショートカットを奪わない。キーを取っている間を、プラグインが描けない場所で必ず見せる（偽の入力欄への誘導を防ぐ） |
+| 音 | `permissions.sound`。ホストの合成音源（Web Audio。サンプルは使わない）に、音色と時刻を指定した音符を渡す | Worker には Web Audio が無い。音色を固定の一覧にすれば、音量と同時発音数をホストが抑えられる |
+| 時計 | 時刻はすべて Worker の `performance.now()`（ミリ秒）。ページと Worker の間は `timeOrigin` を足したエポックミリ秒で渡す | ページと Worker は時間原点が違う。キーの時刻、フレームの時刻、音の時刻が 1 本の時計にそろえば、判定も表示も音もずれない |
+
+### 13.2 `canvas` ブロックと `ctx.surface`
+
+```ts
+{ t: 'canvas', id: 'screen' }             // 高さを省くとペインの残りを埋める
+{ t: 'canvas', id: 'meter', height: 120 } // CSS px、40〜2000
+```
+
+- id は `/^[a-z0-9][a-z0-9-]{0,39}$/`。1 ペインに 4 つまで、同じ id は 2 つ目から落とす（`readBlocks`）
+- 描けるようになると view に `surface` イベント。`ctx.surface(id)` で今のものを取れる。`g` は CSS px 単位に拡大済みの 2D コンテキスト（`Canvas2D`、plugin-api.ts に DOM 型なしで書き出した部分集合）、`w`・`h` は CSS px、`dpr` は画素比
+- 大きさが変わる（ペインのリサイズ、画素比の違う画面への移動）と、キャンバスは消えて `surface` がもう一度来る。描き直す
+- 大きさ 0（タブの裏）は伝えない。消した絵を誰にも見せないために描き直させることはしない。キャンバスを Worker に渡すのは ResizeObserver の最初の報告のとき（デバイス画素の大きさが分かってから）。先に渡すと、ペインが現れるときに 2 度大きさを決め直す（1 度消える）
+- 大きさは CSS px の実数と、ブラウザーが言うデバイス画素（`devicePixelContentBoxSize`）で伝え、キャンバスはデバイス画素ちょうどの大きさにする。丸めで 1 px ずれると、拡大縮小されてにじむ
+- **キャンバスは 1 つの Worker にしか渡せない**。プラグインの再起動（編集・restart）ではペインの「epoch」が上がり、ホストが canvas 要素ごと作り直して新しい Worker に渡す
+- `ctx.theme`: テーマの色（`ground`・`text`・`accent` など 15 色、ページが計算した `rgb()`）・フォント・明暗・モーション低減。テーマが変わると `theme` イベント
+- アプリのフォント（Chakra Petch・Saira Condensed・JetBrains Mono）は、最初の canvas のときにホストがバイト列で Worker に渡し、Worker が `FontFace` にする。ページの `@font-face` は Worker に届かず、file:// のページからは Worker が取りにも行けない（CSP の `font-src 'self'`）ため。フォントのモジュールは遅延読み込みで、canvas を使うプラグインが無ければ読まない。読み終わると `theme` イベントで描き直させる
+
+### 13.3 `ctx.animate`
+
+- `ctx.animate(fn)` は解除関数を返す。`fn(now)` は表示のフレームごと、ペインが見えていて（`visible`）ウィンドウが最小化・格納されていない間だけ呼ばれる
+- **動くものが無くなったら止める**のはプラグインの責任。KEYSTREAM はメニューで静止し、エフェクトが消えたところで止める（メニューで止まっている間は、KEYSTREAM 1 ペインだけのアプリ全体で約 2%）
+- 実測（2026-09-27、Windows 開発機、1920×1080、KEYSTREAM 1 ペインのアプリ全体、1 コア比）: 演奏中 約 65%。内訳は、ペイン全面のキャンバスを毎フレーム出すだけで約 33%、合成音の伴奏が約 6%、描画が約 26%。ELEC ペイン（§5.8）と同じく、滑らかさを取った
+
+### 13.4 `ctx.keys`
+
+```ts
+permissions: { keys: true }
+ctx.on('key', (k) => { k.code; k.down; k.shift; k.at })   // at は Worker の時計
+ctx.on('focus', () => ctx.keys.focused)
+ctx.keys.labels.KeyQ                                        // この配列で印字されている文字（AZERTY なら 'A'）
+```
+
+- 渡すのは `PLUGIN_KEY_CODES`（英字・数字・記号・Space・Enter・Escape・Backspace・矢印）だけ。**Ctrl / Alt / システムキーとの組み合わせ、Tab、ファンクションキー、IME の変換中は渡さない**（`keyFate`、shared/plugin-keys.ts）。押しっぱなしのリピートはページから取り上げるが渡さない
+- ペインは `tabindex=0`・`role="application"` になり、クリックでフォーカスを取る。ボタンなどペインの中の部品にフォーカスがあるときは渡さない
+- フォーカスかウィンドウのフォーカスが離れると、押されたままのキーを「離した」として渡し、`focus` イベント
+- Escape は、ペインが前面表示（Ctrl+Shift+Z）のときはワークスペースが先に取って戻す（既存の規則）
+- `labels` は `navigator.keyboard.getLayoutMap()` から。取れなければ US 配列の表記
+
+### 13.5 `ctx.sound` と `ctx.keys.play`
+
+```ts
+permissions: { sound: true }
+ctx.sound.play([{ voice: 'epiano', pitch: 64, at: now + 500, length: 300, level: 0.8, pan: 0 }])
+ctx.sound.stop()                                  // このペインの音を止め、予約を捨てる
+ctx.keys.play({ KeyA: { voice: 'epiano', pitch: 60 } })   // キーを押した瞬間にホストが鳴らす
+```
+
+- 音色: `piano`・`epiano`・`lead`・`chip`・`bass`・`pluck`・`pad`・`kick`・`snare`・`clap`・`hat`・`openhat`・`crash`・`tom`（renderer/plugins/voices.ts。インターフェース音と同じく合成で、ファイルもライセンスも無い）
+- `at` は「聞こえる時刻」。ホストは出力のタイムスタンプ（`getOutputTimestamp`）でコンテキストの時刻に直すので、出力の遅延を含めて合う。過去の時刻と省略はすぐ鳴らす
+- 1 回に 4096 音まで、10 分先まで、1 ペインの予約は 16384 音まで。音高 0〜127、長さ 30 秒まで、音量 0〜1、定位 −1〜1 に丸める（`readNote`、shared/plugin-sound.ts）。遠い音符はキューで待ち、鳴る 250 ms 前にノードになる（曲を丸ごと渡してもノードは数個ずつ）
+- 同時発音は 64 まで（古いものから切る）。最後にリミッターを通す
+- **`keys.play` の音はホストがキーを受けた場で鳴らし、それから Worker にキーを渡す**。楽器が Worker の往復を待たない
+- インターフェース音のオン・オフとは別（プラグインの音量はプラグインの設定で持つ）。ペインが閉じる・Worker が止まると、そのペインの音は止まる。見えなくなったときに止めるかはプラグインが決める（KEYSTREAM は一時停止する）
+- 何も鳴らなくなって 4 秒で AudioContext を suspend する（待機中に音声スレッドを回さない）
+- テストでは音量 0 のまま鳴らし、ペインの `data-notes`（合成音源が受け取った音符の数）で確かめる
+
+### 13.6 同意と検査
+
+- 同意画面の文言: keys「ペインにフォーカスがある間に押したキーを受け取る（Ctrl や Alt との組み合わせは渡さない）」、sound「音楽と音を鳴らす」
+- keys・sound は main を通らない（ページのホストが持つ）。メトリクスの中継と同じく、ホストが settings.json の同意（`grant.keys` / `grant.sound`）を見てから渡す・鳴らす。Worker 内のランタイムも、宣言していない `ctx.keys` / `ctx.sound` は例外にする
+- 検査: Worker から来る `sound`・`sound-stop`・`keymap` は `WorkerMessageSchema` で形を、`readNotes` / `readKeymap` で中身を確かめる
+
+### 13.7 見本: KEYSTREAM（`examples/plugins/keystream/`）
+
+落ちてくる文字を判定線で打つと主旋律が鳴り、伴奏はゲームが鳴らすリズムゲーム。インストールは設定の「install from a folder」でこのフォルダを選ぶ（新しい plugins フォルダには書かない。keys と sound の同意が要るため）。
+
+- **鍵盤**: ホーム段（A〜'）が白鍵、その上の段が黒鍵。QWERTY の段のずれが鍵盤の黒鍵の並びにそのまま重なる（R と I の位置は E–F、B–C の間で、鍵盤にも黒鍵が無い）。18 キーで C4〜F5、どの曲でも同じキーは同じ音（keyboard.ts）
+- **譜面**: 旋律を「打つキーの文字」で書く（`'h.k.;-lk|h--.fghk'`、notation.ts）。伴奏はコード進行・小節ごとのエネルギー・スタイルから組み立てる（arrange.ts、styles.ts）
+- **曲**: BOOT SEQUENCE（118 BPM）と PACKET STORM（150 BPM）は elecdex のオリジナル。GALOP INFERNAL（オッフェンバック「天国と地獄」）と MOUNTAIN KING（グリーグ「山の魔王の宮殿にて」、96→176 BPM）はパブリックドメインの曲を原曲の旋律から編曲したもの。どれも GPL-3.0
+- **難易度**: EASY は拍頭の音だけを打ち、残りはゲームが弾く。NORMAL は全部。HARD は判定幅を 3/4 にし、SIGNAL が尽きると NO CARRIER で終わる
+- **判定**: SYNC ±40 ms、LOCK ±80、ACK ±120、打てなかった音は DROP で鳴らない。どの音にも当たらないキーは STRAY と数えるが罰しない
+- **画面**: ヘッダー（スコア・チェイン・精度・SIGNAL ゲージ）、ピアノロール状のレーン、判定線、eDEX-UI のオンスクリーンキーボード。幅があれば左に打鍵のログ（TX）、右にこれから打つ文字の列（RX）と曲の位置。メニューはディレクトリの一覧風、読み込みは起動ログ風、結果は TRANSMISSION COMPLETE
+- **操作**: ↑↓ 曲、←→ 難易度、Enter 開始、Esc / Space 一時停止（R やり直し、Q メニュー）、演奏中の ↑↓ は落下速度。フォーカスが外れる・ペインが見えなくなると一時停止
+- **記録**: service が `ctx.storage` に曲×難易度の最高記録を持つ。service と view は同じ Worker で動くので、view は records.ts を通して直接読み書きする
+- 設定: 主旋律の音色（E.PIANO / PIANO / SYNTH LEAD / CHIP）、音量、タイミングの補正（ms）、ガイド（自分のパートを小さく鳴らす）

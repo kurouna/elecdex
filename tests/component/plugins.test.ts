@@ -710,3 +710,79 @@ describe('the plugin host', () => {
     failed.mockRestore()
   })
 })
+
+const KEYS = `export default {
+  apiVersion: 2, id: 'keys', title: 'keys', permissions: { keys: true },
+  view(ctx) {
+    const lines = []
+    const show = () => ctx.render(lines.map((text) => ({ t: 'text', text })))
+    ctx.on('focus', () => { lines.push('focus ' + ctx.keys.focused + ' ' + (ctx.keys.labels.KeyQ ?? 'none')); show() })
+    ctx.on('key', (k) => { lines.push(k.code + ' ' + k.down); show() })
+    show()
+  },
+}`
+
+describe('keys for a plugin pane (apiVersion 2)', () => {
+  const keysGranted = () => ({
+    keys: {
+      enabled: true,
+      key: 'keys.ts',
+      granted: grantFor({ ...NO_PERMISSIONS, keys: true }),
+      values: {},
+    },
+  })
+
+  it('gives keys only while the pane itself has the focus, never a chord, and says so', async () => {
+    await startHost([source('keys.ts', KEYS)], keysGranted())
+    pane('keys')
+    await settle()
+    window.dispatchEvent(new Event('focus'))
+    const element = screen.getByTestId('plugin-pane')
+    expect(element.getAttribute('tabindex')).toBe('0')
+    expect(screen.queryByTestId('plugin-keys')).toBeNull()
+    // Not focused yet: a key goes nowhere.
+    await fireEvent.keyDown(element, { code: 'KeyZ' })
+    element.focus()
+    await settle()
+    expect(screen.getByTestId('plugin-keys')).toBeTruthy()
+    await fireEvent.keyDown(element, { code: 'KeyA' })
+    await fireEvent.keyDown(element, { code: 'KeyB', ctrlKey: true })
+    await fireEvent.keyDown(element, { code: 'KeyC', altKey: true })
+    await fireEvent.keyDown(element, { code: 'Tab' })
+    await fireEvent.keyDown(element, { code: 'KeyA', repeat: true })
+    // A key held while the keyboard leaves goes up, as no key-up will come.
+    await fireEvent.keyDown(element, { code: 'KeyD' })
+    await fireEvent.keyUp(element, { code: 'KeyA' })
+    element.blur()
+    await settle()
+    await fireEvent.keyDown(element, { code: 'KeyE' })
+    await settle()
+    const lines = [...element.querySelectorAll('p')].map((p) => p.textContent)
+    expect(lines).toEqual([
+      'focus true Q',
+      'KeyA true',
+      'KeyD true',
+      'KeyA false',
+      'KeyD false',
+      'focus false Q',
+    ])
+    expect(screen.queryByTestId('plugin-keys')).toBeNull()
+  })
+
+  it('does not take the keys of a pane whose plugin was not given them', async () => {
+    await startHost([source('counter.ts', COUNTER)], {
+      counter: {
+        enabled: true,
+        key: 'counter.ts',
+        granted: grantFor({ ...NO_PERMISSIONS, notify: true }),
+        values: {},
+      },
+    })
+    pane('counter')
+    await settle()
+    const element = screen.getByTestId('plugin-pane')
+    expect(element.getAttribute('tabindex')).toBeNull()
+    // Nor is it told what the keyboard prints: that says which layout it is.
+    expect(plugins.envFor('counter', { labels: { KeyQ: 'A' }, latency: 5 })).toEqual({ latency: 5 })
+  })
+})

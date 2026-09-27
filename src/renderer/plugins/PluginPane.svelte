@@ -1,4 +1,5 @@
 <script lang="ts">
+import { keyFate } from '@shared/plugin-keys'
 import { untrack } from 'svelte'
 import { ui } from '../stores/ui.svelte.ts'
 import type { WidgetProps } from '../widgets/registry.ts'
@@ -21,6 +22,63 @@ const title = $derived(entry?.descriptor?.title ?? id)
 
 let element = $state<HTMLDivElement | null>(null)
 let glowing = $state(false)
+
+/*
+ * Keys (docs/plugins.md section 13). A plugin granted them is given the keys pressed while
+ * its pane itself has the focus and the window has the keyboard - never with Ctrl, Alt or
+ * the system key, which stay the app's - and the pane says so with a lamp the plugin
+ * cannot draw, so no pane can take keys unseen. A key held down is given once.
+ */
+const keysOn = $derived(
+  ready && entry?.descriptor?.permissions.keys === true && plugins.grant(id).keys,
+)
+let paneFocused = $state(false)
+let windowFocused = $state(document.hasFocus())
+const listening = $derived(keysOn && paneFocused && windowFocused)
+/** Keys given down and not yet up: they are let go when the keyboard leaves. */
+const held = new Set<string>()
+
+$effect(() => {
+  const on = listening
+  untrack(() => {
+    // The keyboard left (or the grant went): what is held goes up, as no key-up will come.
+    if (!on) letGo()
+    plugins.focus(id, paneId, on)
+  })
+})
+
+function onkeydown(event: KeyboardEvent): void {
+  if (!listening || event.target !== element) return
+  const fate = keyFate(event)
+  if (fate === 'pass') return
+  event.preventDefault()
+  if (fate === 'swallow') return
+  held.add(event.code)
+  plugins.key(id, paneId, {
+    code: event.code,
+    down: true,
+    shift: event.shiftKey,
+    at: performance.timeOrigin + event.timeStamp,
+  })
+}
+
+function onkeyup(event: KeyboardEvent): void {
+  if (!held.delete(event.code)) return
+  event.preventDefault()
+  plugins.key(id, paneId, {
+    code: event.code,
+    down: false,
+    shift: event.shiftKey,
+    at: performance.timeOrigin + event.timeStamp,
+  })
+}
+
+/** The keyboard left: every key still down goes up now, as no key-up will come. */
+function letGo(): void {
+  const at = performance.timeOrigin + performance.now()
+  for (const code of held) plugins.key(id, paneId, { code, down: false, shift: false, at })
+  held.clear()
+}
 
 $effect(() => {
   const el = element
@@ -60,14 +118,41 @@ $effect(() => {
 const openSettings = () => ui.openSettings('plugins')
 </script>
 
+<svelte:window
+  onblur={() => {
+    windowFocused = false
+    letGo()
+  }}
+  onfocus={() => (windowFocused = true)}
+/>
+
+<!-- A pane that takes keys is one control, as a game's field is: role application (the
+     check cannot see through the role being given only then). -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="plugin-pane"
   class:glowing
+  class:listening
   bind:this={element}
+  tabindex={keysOn ? 0 : undefined}
+  role={keysOn ? 'application' : undefined}
+  aria-label={keysOn ? `${title}: takes the keys you press while it has the focus` : undefined}
+  onfocus={() => (paneFocused = true)}
+  onblur={() => {
+    paneFocused = false
+    letGo()
+  }}
+  {onkeydown}
+  {onkeyup}
   data-testid="plugin-pane"
   data-plugin={id}
   data-status={entry?.status ?? 'missing'}
+  data-notes={plugins.sounded.get(paneId) ?? 0}
 >
+  {#if listening}
+    <!-- Anchored to the top of the view, not of the content: a scrolled pane still shows it. -->
+    <div class="lamp-anchor"><span class="keys-lamp" data-testid="plugin-keys" aria-hidden="true">KEYS</span></div>
+  {/if}
   {#if entry === null}
     <div class="state">
       <p>plugin <code>{id}</code> is not in the plugins folder.</p>
@@ -102,6 +187,8 @@ const openSettings = () => ui.openSettings('plugins')
     {:else}
       <Blocks
         blocks={view?.blocks ?? []}
+        epoch={view?.epoch ?? 0}
+        onsurface={(block, canvas) => plugins.surface(id, paneId, block, canvas)}
         onaction={(action, item) => plugins.action(id, paneId, action, item)}
         onsignin={(host) => void window.elecdex.plugins.signIn(id, host)}
         onlink={(href) => void window.elecdex.system.openExternal(href)}
@@ -121,6 +208,48 @@ const openSettings = () => ui.openSettings('plugins')
   min-height: 0;
   overflow: auto;
   transition: box-shadow var(--dur-panel) var(--ease-out);
+}
+
+.plugin-pane:focus {
+  outline: none;
+}
+
+/* The pane has the keyboard: a hairline round it, and the lamp in its corner. */
+.plugin-pane.listening {
+  box-shadow: inset 0 0 0 1px var(--accent-dim);
+}
+
+.lamp-anchor {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: 0;
+}
+
+.keys-lamp {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0 0.4em;
+  border: 1px solid var(--accent-dim);
+  background: var(--app-bg);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: var(--tracking-wide);
+  color: var(--accent-strong);
+  pointer-events: none;
+}
+
+.keys-lamp::before {
+  content: '';
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: 0 0 0.4em var(--accent);
 }
 
 /* A notification lights the pane's edge for a moment. */

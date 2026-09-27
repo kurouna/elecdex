@@ -765,13 +765,24 @@ TypeScript または JavaScript のファイル、あるいは `index.ts` を持
 集中セッション、短い休憩、数ラウンドごとの長い休憩を VFD 風のメーターで表示し、フェーズが終わると
 チャイムと通知で知らせます。再起動しても続きから動きます。
 
+**KEYSTREAM**（`examples/plugins/keystream`、*未リリース*。フォルダーから入れます）は、プラグイン API
+第 2 版の見本になるリズムゲームです。文字が、その文字を打つキーの上に立つレーンを落ちてきます。
+判定線で打つと主旋律が鳴り、伴奏はゲームが鳴らします。ホーム段が白鍵、その上の段が黒鍵で、
+キーボードの段のずれがそのままピアノの鍵盤の並びになるので、どのキーもいつも同じ音を鳴らします。
+曲は 4 つ（elecdex のオリジナル 2 曲と、オッフェンバックの「天国と地獄」、グリーグの
+「山の魔王の宮殿にて」を elecdex が編曲したもの）、難易度は 3 つ。判定線には eDEX-UI の
+オンスクリーンキーボードが戻ってきます。
+
 プラグインは *Settings → Plugins* で有効にするまで動きません。この画面には各プラグインに許される
 ことが一覧され（メトリクスのソースを読む、指定されたホストにアクセスする（リクエストはすべてアプリが
 行い、その一覧と照合します）、サイト用に自分専用のサインインセッションを使う、ペインを開いていない
 ときも動き続ける、通知する）、初回の実行前と、後でプラグインがより多くの権限を求めたときに確認を
 求めます。プラグインはそれぞれ専用の Web Worker で動き、ページ、ファイル、ネットワークには
 アクセスできません。描画はアプリがテーマに合わせて表示するブロック（テキスト、数値、メーター、
-チャート、表、リスト、ボタン）を通してのみ行います。応答しなくなったプラグインは、アプリを
+チャート、表、リスト、ボタン）を通してのみ行います。API 第 2 版からは、Worker の中で自分の
+キャンバスに描くこともできます。第 2 版では、ペインにフォーカスがある間に押したキー（Ctrl や Alt
+との組み合わせは渡しません。受け取っている間は KEYS のランプが点きます）と、elecdex の
+シンセサイザーで鳴らす音も求められます。応答しなくなったプラグインは、アプリを
 止めることなく停止されます。API とルールは [docs/plugins.md](docs/plugins.md) にあります。
 
 ## テーマと設定
@@ -894,7 +905,7 @@ src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feed
 src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, the plugin host, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
-examples/       the sample plugin (pomodoro)
+examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design and the decision log, in Japanese), plugins.md,

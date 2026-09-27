@@ -1,16 +1,22 @@
 import { isMetricSourceId } from '@shared/metrics'
 import type { Block, SelectOption, Tone } from '@shared/plugin-api'
+import { keyLabels } from '@shared/plugin-keys'
+import { readKeymap, readNotes, type SoundNote } from '@shared/plugin-sound'
 import {
   type Grant,
+  type HostMessage,
   isCovered,
   NO_PERMISSIONS,
   PLUGIN_LIMITS,
   type PluginCatalog,
   type PluginDescriptor,
+  type PluginEnv,
+  type PluginFontFace,
   type PluginSettings,
   type PluginSource,
   parseDescriptor,
   readBlocks,
+  type SurfaceSize,
   settingValues,
   type WorkerMessage,
   WorkerMessageSchema,
@@ -21,8 +27,11 @@ import { appearance } from '../stores/appearance.svelte.ts'
 import { layout } from '../stores/layout.svelte.ts'
 import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
+import { windowState } from '../stores/window-state.svelte.ts'
 import { registerDynamic, unregisterDynamic } from '../widgets/registry.ts'
 import PluginPane from './PluginPane.svelte'
+import { readLabels, readTheme } from './plugin-env.ts'
+import { Synth } from './synth.ts'
 import { createWorker, type PluginWorker, type WorkerFactory } from './worker.ts'
 
 /**
@@ -78,6 +87,11 @@ export interface PaneView {
   /** Set when the worker stopped answering or failed to start. */
   stopped: 'unresponsive' | 'failed' | null
   glowAt: number
+  /**
+   * Counts the view's mounts in a worker. A canvas is handed to one worker for good, so a
+   * canvas block is made anew for each: a restarted plugin gets canvases it can draw on.
+   */
+  epoch: number
 }
 
 const emptyView = (): PaneView => ({
@@ -86,7 +100,16 @@ const emptyView = (): PaneView => ({
   error: null,
   stopped: null,
   glowAt: 0,
+  epoch: 0,
 })
+
+/** A key as a plugin pane passes it on; `at` in epoch milliseconds. */
+export interface PaneKey {
+  code: string
+  down: boolean
+  shift: boolean
+  at: number
+}
 
 interface Attached {
   size: { w: number; h: number }
@@ -104,6 +127,9 @@ class Runner {
   private descriptor: PluginDescriptor
   readonly panes = new Map<string, Attached>()
   private readonly metricReleases = new Map<string, () => void>()
+  /** The notes each pane's keys play, by code (ctx.keys.play). */
+  private readonly keymaps = new Map<string, Map<string, SoundNote>>()
+  private fontsSent = false
   private pinger: ReturnType<typeof setInterval> | null = null
   private lastPong = 0
   private ping = 0
@@ -155,6 +181,7 @@ class Runner {
       storage,
       service: this.descriptor.hasService,
     })
+    worker.post({ t: 'env', env: this.host.envFor(this.id, this.host.env) })
     this.started = true
     for (const [pane, attached] of this.panes) this.mount(pane, attached)
     this.lastPong = Date.now()
@@ -171,6 +198,9 @@ class Runner {
     this.pinger = null
     for (const release of this.metricReleases.values()) release()
     this.metricReleases.clear()
+    for (const pane of this.panes.keys()) this.host.silence(pane)
+    this.keymaps.clear()
+    this.fontsSent = false
     worker.post({ t: 'stop' })
     setTimeout(() => worker.terminate(), STOP_GRACE_MS)
   }
@@ -214,6 +244,7 @@ class Runner {
       visible: attached.visible,
       state: attached.state,
     })
+    this.host.renew(pane)
   }
 
   /** Sends the plugin's settings when they differ from what it last had. */
@@ -226,6 +257,8 @@ class Runner {
 
   detach(pane: string): void {
     if (!this.panes.delete(pane)) return
+    this.host.silence(pane)
+    this.keymaps.delete(pane)
     this.worker?.post({ t: 'unmount', pane })
   }
 
@@ -243,8 +276,30 @@ class Runner {
     this.worker?.post({ t: 'visible', pane, visible })
   }
 
-  post(message: Parameters<PluginWorker['post']>[0]): void {
-    this.worker?.post(message)
+  post(message: HostMessage, transfer?: Transferable[]): void {
+    this.worker?.post(message, transfer)
+  }
+
+  /** The note a pane's key plays, if the plugin bound one and may sound. */
+  keyNote(pane: string, code: string): SoundNote | null {
+    if (!this.panes.has(pane) || !this.host.grant(this.id).sound) return null
+    return this.keymaps.get(pane)?.get(code) ?? null
+  }
+
+  /** The app's faces, the first time the worker shows a canvas. */
+  sendFonts(): void {
+    if (this.fontsSent || this.worker === null) return
+    this.fontsSent = true
+    const worker = this.worker
+    this.host.faces().then(
+      (faces) => {
+        if (this.worker === worker) worker.post({ t: 'fonts', faces })
+      },
+      () => {
+        // Asked again with the next canvas.
+        this.fontsSent = false
+      },
+    )
   }
 
   private receive(worker: PluginWorker, data: unknown): void {
@@ -296,9 +351,29 @@ class Runner {
       case 'signin-close':
         window.elecdex.plugins.closeSignIn(this.id)
         return
+      case 'sound':
+      case 'sound-stop':
+      case 'keymap':
+        this.sound(m)
+        return
       case 'descriptor':
         return
     }
+  }
+
+  /** What a pane asks of the synthesiser, when the plugin was granted sound. */
+  private sound(m: Extract<WorkerMessage, { t: 'sound' | 'sound-stop' | 'keymap' }>): void {
+    if (!this.panes.has(m.pane) || !this.host.grant(this.id).sound) return
+    if (m.t === 'sound-stop') {
+      this.host.silence(m.pane)
+      return
+    }
+    const origin = performance.timeOrigin
+    if (m.t === 'keymap') {
+      this.keymaps.set(m.pane, readKeymap(m.map, origin, performance.now()))
+      return
+    }
+    this.host.sound(m.pane, readNotes(m.notes, origin, performance.now()))
   }
 
   /**
@@ -385,6 +460,24 @@ class Runner {
 }
 
 /**
+ * A canvas's size: its CSS size, fractions and all, and the device pixels the browser gives
+ * it (where it says), so the drawing is neither stretched nor blurred.
+ */
+function surfaceSize(element: HTMLElement, entry: ResizeObserverEntry | undefined): SurfaceSize {
+  const rect = entry?.contentRect ?? element.getBoundingClientRect()
+  const device = entry?.devicePixelContentBoxSize?.[0]
+  return {
+    w: rect.width,
+    h: rect.height,
+    dpr: window.devicePixelRatio || 1,
+    ...(device ? { pw: device.inlineSize, ph: device.blockSize } : {}),
+  }
+}
+
+const sameSize = (a: SurfaceSize, b: SurfaceSize): boolean =>
+  a.w === b.w && a.h === b.h && a.dpr === b.dpr && a.pw === b.pw && a.ph === b.ph
+
+/**
  * Off, on, or waiting for the user: a plugin runs only as the file that was agreed to, and
  * only while it asks for no more than was agreed to.
  */
@@ -413,6 +506,39 @@ function probeResult(data: unknown): ProbeResult | null {
 
 export class PluginHost {
   readonly factory: WorkerFactory
+  private readonly synth: Synth
+  /** What the page tells every worker (section 13); kept whole for workers yet to start. */
+  env: PluginEnv = {
+    theme: {
+      mode: 'dark',
+      reducedMotion: false,
+      colors: {
+        ground: '#05080d',
+        raised: '#0b1118',
+        text: '#adc9cb',
+        muted: '#adc9cb80',
+        inverse: '#05080d',
+        accent: '#adc9cb',
+        accentStrong: '#d0e3e4',
+        accentDim: '#adc9cb59',
+        accentFaint: '#adc9cb1f',
+        border: '#adc9cb80',
+        rule: '#adc9cb4d',
+        ok: '#3cc752',
+        warn: '#f1c232',
+        danger: '#eb4747',
+        info: '#5ea6f2',
+      },
+      fonts: { display: 'system-ui', ui: 'system-ui', mono: 'monospace' },
+    },
+    onScreen: true,
+    labels: keyLabels(null),
+    latency: 0,
+  }
+  /** Notes each pane has played: what the tests read of a sound nobody should hear. */
+  readonly sounded = new SvelteMap<string, number>()
+  /** Mounts so far, across every pane: an epoch is never given twice. */
+  private epochs = 0
   catalog = $state.raw<PluginCatalog | null>(null)
   readonly entries = new SvelteMap<string, PluginEntry>()
   readonly views = new SvelteMap<string, PaneView>()
@@ -424,8 +550,9 @@ export class PluginHost {
   /** The catalog being applied: the next waits for it, so an older one never lands last. */
   private applying: Promise<void> = Promise.resolve()
 
-  constructor(factory: WorkerFactory = createWorker) {
+  constructor(factory: WorkerFactory = createWorker, synth: Synth = new Synth()) {
     this.factory = factory
+    this.synth = synth
   }
 
   /** Loads the catalog and follows the folder, the settings and sign-in changes. */
@@ -439,8 +566,36 @@ export class PluginHost {
         const plugins = appearance.settings.plugins
         queueMicrotask(() => this.sync(plugins))
       })
+      // The look, read again whenever the theme puts something new on the page.
+      $effect(() => {
+        void appearance.revision
+        const reduced = appearance.reducedMotion
+        queueMicrotask(() => this.setEnv({ theme: readTheme(reduced) }))
+      })
+      $effect(() => {
+        windowState.follow()
+        const onScreen = windowState.onScreen
+        queueMicrotask(() => this.setEnv({ onScreen }))
+      })
     })
+    void readLabels().then((labels) => this.setEnv({ labels }))
     await this.apply(await window.elecdex.plugins.catalog())
+  }
+
+  /** Changes what the page tells workers, and tells the running ones. */
+  private setEnv(change: Partial<PluginEnv>): void {
+    this.env = { ...this.env, ...change }
+    for (const [id, runner] of this.runners) runner.post({ t: 'env', env: this.envFor(id, change) })
+  }
+
+  /**
+   * What a plugin is told of the page. The keyboard's labels say which layout it is, which a
+   * plugin that was not given the keys has no use for.
+   */
+  envFor(id: string, env: Partial<PluginEnv>): Partial<PluginEnv> {
+    if (env.labels === undefined || this.grant(id).keys) return env
+    const { labels: _withheld, ...rest } = env
+    return rest
   }
 
   /** The usable entry for a plugin id. */
@@ -658,6 +813,7 @@ export class PluginHost {
 
   detach(id: string, pane: string): void {
     this.views.delete(pane)
+    this.sounded.delete(pane)
     this.pendingRenders.delete(pane)
     const runner = this.runners.get(id)
     if (!runner) return
@@ -707,6 +863,82 @@ export class PluginHost {
       }
       this.pendingRenders.clear()
     })
+  }
+
+  /**
+   * Hands a canvas block's canvas to the plugin's worker, and follows its size. Returns what
+   * lets go of it when the block goes. A size of nothing (the pane put behind a tab) is not
+   * passed on: resizing would clear what the plugin drew, for no one to see.
+   */
+  surface(id: string, pane: string, block: string, element: HTMLCanvasElement): () => void {
+    const runner = this.runners.get(id)
+    if (!runner?.running) return () => {}
+    let canvas: OffscreenCanvas
+    try {
+      canvas = element.transferControlToOffscreen()
+    } catch {
+      this.paneError(pane, 'this page cannot give the plugin a canvas')
+      return () => {}
+    }
+    // The canvas goes to the worker with the observer's first report, which has its device
+    // pixels: sent before, it would be sized twice (and cleared once) as the pane appears.
+    let last: SurfaceSize | null = null
+    const observer = new ResizeObserver(([entry]) => {
+      const next = surfaceSize(element, entry)
+      if (next.w === 0 || next.h === 0 || (last !== null && sameSize(next, last))) return
+      const first = last === null
+      last = next
+      if (!first) {
+        runner.post({ t: 'surface-size', pane, id: block, size: next })
+        return
+      }
+      runner.post({ t: 'surface', pane, id: block, canvas, size: next }, [canvas])
+      runner.sendFonts()
+    })
+    // Device pixels, so a move to a screen of another pixel ratio is seen too.
+    observer.observe(element, { box: 'device-pixel-content-box' })
+    return () => {
+      observer.disconnect()
+      if (last !== null) runner.post({ t: 'surface-gone', pane, id: block })
+    }
+  }
+
+  /**
+   * A key in a plugin pane that has the keyboard. The note bound to it sounds first, here,
+   * and only then does the key go to the worker: an instrument must not wait on a round trip.
+   */
+  key(id: string, pane: string, key: PaneKey): void {
+    const runner = this.runners.get(id)
+    if (runner === undefined || !this.grant(id).keys) return
+    const note = key.down ? runner.keyNote(pane, key.code) : null
+    if (note !== null) this.sound(pane, [note])
+    runner.post({ t: 'key', pane, ...key })
+  }
+
+  focus(id: string, pane: string, focused: boolean): void {
+    this.runners.get(id)?.post({ t: 'focus', pane, focused })
+  }
+
+  sound(pane: string, notes: readonly SoundNote[]): void {
+    const played = this.synth.play(pane, notes)
+    if (played > 0) this.sounded.set(pane, (this.sounded.get(pane) ?? 0) + played)
+    const latency = this.synth.latency()
+    if (latency !== this.env.latency) this.setEnv({ latency })
+  }
+
+  silence(pane: string): void {
+    this.synth.stop(pane)
+  }
+
+  /** A pane's view was mounted in a worker again: its canvases are made anew. */
+  renew(pane: string): void {
+    const view = this.views.get(pane)
+    this.epochs += 1
+    if (view) this.views.set(pane, { ...view, epoch: this.epochs })
+  }
+
+  faces(): Promise<readonly PluginFontFace[]> {
+    return import('./plugin-fonts.ts').then((m) => m.appFaces())
   }
 
   paneError(pane: string, message: string): void {

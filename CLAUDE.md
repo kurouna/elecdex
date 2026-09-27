@@ -65,7 +65,8 @@ src/shared/      types, zod schemas (schemas/), channel names and pure logic use
                  calc/ (vendor/ is elecxzy's evaluator, the wrapper beside it is ours)
 src/renderer/    Svelte UI: layout/ (panes, tabs, splits, picker), widgets/ (builtins.ts is the
                  registry), plugins/ (host, plugin pane, blocks), stores/, styles/, lib/
-examples/        plugins/pomodoro: the sample plugin written into a new plugins folder
+examples/        plugins/pomodoro: the sample plugin written into a new plugins folder;
+                 plugins/keystream: the API 2 sample (canvas, keys, sound), a rhythm game
 tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _electron; support.ts)
 scripts/         asset generators, sync-calc, fix-node-pty
 docs/            architecture.md, plugins.md (the plugin API and its rules), weather-providers.md,
@@ -242,9 +243,18 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     neither copied nor judged. Walking that graph is also the check that the plugin compiles and
     its imports resolve; the resolution mirrors the worker's (shared/plugin-runtime.ts), so change
     one and change the other.
+  - **API 2** (docs/plugins.md section 13): a `canvas` block is an OffscreenCanvas handed to the
+    worker for good (2D only: the GPU budget), made anew for each mount (`epoch`); `ctx.animate`
+    runs the worker's frames only while the pane is visible and the window on screen. Keys go to a
+    plugin only while its pane itself has the focus, never with Ctrl, Alt or the system key, never
+    Tab or a function key (`keyFate`, shared/plugin-keys.ts), and the pane shows the host's KEYS
+    lamp meanwhile. Sound is the page's synthesiser (plugins/synth.ts, voices from a fixed list,
+    notes read by `readNotes`); a key's bound note is played by the host before the key reaches
+    the worker. Keys and sound are checked against the grant in the host, as metrics are, and
+    need `apiVersion: 2`. Times cross between page and worker as epoch milliseconds.
   - Plugins that use unofficial APIs or are personal (such as claude-usage) live in a separate
     private repository, cloned beside this one and deployed with its `npm run deploy` — never
-    here. The committed sample is the pomodoro timer.
+    here. The committed samples are the pomodoro timer and KEYSTREAM (installed from its folder).
 - **The AI chat pane** (architecture.md §5.7, shared/ai.ts, main/ai/). A provider is an address
   and a dialect: OpenAI-compatible `chat/completions` (plain fetch + SSE, which covers Ollama,
   LM Studio, llama.cpp and most hosted services) or Anthropic's Messages API (the official SDK,

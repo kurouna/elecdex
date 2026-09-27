@@ -808,12 +808,23 @@ folder comes with a **pomodoro timer** (`examples/plugins/pomodoro` in this repo
 sessions, short breaks and a long break every few rounds, with a VFD meter, a chime and a
 notification when a phase ends, carrying on across restarts.
 
+**KEYSTREAM** (`examples/plugins/keystream`, *unreleased*; install it from its folder) is a rhythm
+game and the sample for the plugin API's second version: letters fall down lanes that stand over
+the keys that play them, and typing each as it reaches the line plays the melody while the game
+plays the band. The home row is the white keys and the row above the black ones - the keyboard's
+stagger is a piano's - so every key always plays the same note. Four tracks (two of elecdex's own,
+and Offenbach's can-can and Grieg's *In the Hall of the Mountain King* in elecdex's arrangements),
+three levels, and the eDEX-UI on-screen keyboard back as the judgement line.
+
 Plugins are off until turned on in *Settings → Plugins*, which lists what each may do - read
 metric sources, reach named hosts (each request made by the app and checked against that list),
 use its own sign-in session for a site, keep running with no pane open, notify - and asks before
 the first run and again if a plugin later asks for more. A plugin runs in a Web Worker of its own,
 with no access to the page, your files or the network, and draws only through blocks the app
-renders in the theme (text, numbers, meters, charts, tables, lists, buttons). A plugin that stops
+renders in the theme (text, numbers, meters, charts, tables, lists, buttons) - or, from API version
+2, on a canvas of its own in the worker. Version 2 may also ask for the keys pressed while its pane
+has the focus (never with Ctrl or Alt, and a KEYS lamp shows when it has them) and for sound through
+elecdex's synthesiser. A plugin that stops
 answering is stopped without holding up the app. The API and the rules are in
 [docs/plugins.md](docs/plugins.md).
 
@@ -935,7 +946,7 @@ src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feed
 src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, the plugin host, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
-examples/       the sample plugin (pomodoro)
+examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design and the decision log, in Japanese), plugins.md,

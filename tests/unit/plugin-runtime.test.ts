@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 type Message = Record<string, unknown> & { t: string }
 
-function run(files: Record<string, string>, entry = 'index.ts') {
+function run(files: Record<string, string>, entry = 'index.ts', extra: object = {}) {
   const code = bundle(Object.entries(files).map(([path, source]) => ({ path, source })))
   const posted: Message[] = []
   const scope = {
@@ -20,6 +20,7 @@ function run(files: Record<string, string>, entry = 'index.ts') {
     clearInterval: (h: unknown) => clearInterval(h as NodeJS.Timeout),
     onmessage: null as ((event: { data: unknown }) => void) | null,
     addEventListener: () => {},
+    ...extra,
   }
   const script = `(${stripGlobals.toString()})(self);\n(${pluginRuntime.toString()})(self, ${code}, ${JSON.stringify(entry)});`
   new Function('self', script)(scope)
@@ -333,5 +334,168 @@ describe('stripping the worker global', () => {
     expect(() => {
       scope.fetch = () => 'again'
     }).toThrow()
+  })
+})
+
+describe('canvas, keys and sound (apiVersion 2)', () => {
+  /** A frame clock the test turns by hand. */
+  function frames() {
+    const waiting: ((now: number) => void)[] = []
+    return {
+      scope: {
+        requestAnimationFrame: (fn: (now: number) => void) => waiting.push(fn),
+        cancelAnimationFrame: () => {},
+      },
+      /** Runs the frames waiting now; returns how many there were. */
+      turn(now: number): number {
+        const due = waiting.splice(0)
+        for (const fn of due) fn(now)
+        return due.length
+      },
+    }
+  }
+  const texts = (p: ReturnType<typeof run>) =>
+    p.of('render').map((m) => (m.blocks as { text?: string }[])[0]?.text ?? '')
+
+  it('hands a view its canvas, sized for the pixel ratio and scaled to CSS pixels', () => {
+    const p = run({
+      'index.ts': `export default { apiVersion: 2, id: 'c', title: 'c', view(ctx: any) {
+        ctx.on('surface', (s: any) => ctx.render([{ t: 'text', text: s.id + ' ' + s.w + 'x' + s.h + '@' + s.dpr + ' ' + (ctx.surface('c') === s) }]))
+      } }`,
+    })
+    const transforms: number[][] = []
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({ setTransform: (...m: number[]) => transforms.push(m) }),
+    }
+    p.send(start())
+    p.send(mount('p1'))
+    p.send({ t: 'surface', pane: 'p1', id: 'c', canvas, size: { w: 300, h: 100, dpr: 2 } })
+    expect(texts(p).at(-1)).toBe('c 300x100@2 true')
+    expect([canvas.width, canvas.height]).toEqual([600, 200])
+    expect(transforms.at(-1)).toEqual([2, 0, 0, 2, 0, 0])
+    p.send({ t: 'surface-size', pane: 'p1', id: 'c', size: { w: 150, h: 50, dpr: 1.5 } })
+    expect(texts(p).at(-1)).toBe('c 150x50@1.5 true')
+    expect([canvas.width, canvas.height]).toEqual([225, 75])
+    // The device pixels the browser gave the canvas, when it says, rather than a rounding.
+    p.send({
+      t: 'surface-size',
+      pane: 'p1',
+      id: 'c',
+      size: { w: 150.4, h: 50.4, dpr: 1.25, pw: 188, ph: 63 },
+    })
+    expect([canvas.width, canvas.height]).toEqual([188, 63])
+    p.send({ t: 'surface-gone', pane: 'p1', id: 'c' })
+    p.send({ t: 'surface-size', pane: 'p1', id: 'c', size: { w: 10, h: 10, dpr: 1 } })
+    expect(texts(p).at(-1)).toBe('c 150.4x50.4@1.25 true')
+  })
+
+  it('animates only while the pane is on screen and the window is not put away', () => {
+    const clock = frames()
+    const p = run(
+      {
+        'index.ts': `export default { apiVersion: 2, id: 'a', title: 'a', view(ctx: any) {
+          ctx.animate((now: number) => ctx.log('frame ' + now))
+        } }`,
+      },
+      'index.ts',
+      clock.scope,
+    )
+    const drawn = () => p.of('log').map((m) => m.text)
+    p.send(start())
+    p.send(mount('p1', false))
+    expect(clock.turn(1)).toBe(0)
+    p.send({ t: 'visible', pane: 'p1', visible: true })
+    expect(clock.turn(16)).toBe(1)
+    expect(clock.turn(32)).toBe(1)
+    expect(drawn()).toEqual(['frame 16', 'frame 32'])
+    // Put behind a tab: the frame already asked for draws nothing and asks for no other.
+    p.send({ t: 'visible', pane: 'p1', visible: false })
+    expect(clock.turn(48)).toBe(1)
+    expect(clock.turn(64)).toBe(0)
+    p.send({ t: 'visible', pane: 'p1', visible: true })
+    p.send({ t: 'env', env: { onScreen: false } })
+    clock.turn(80)
+    expect(clock.turn(96)).toBe(0)
+    p.send({ t: 'env', env: { onScreen: true } })
+    expect(clock.turn(112)).toBe(1)
+    expect(drawn()).toEqual(['frame 16', 'frame 32', 'frame 112'])
+  })
+
+  it("gives keys on the worker's own clock, and only to a plugin that asked for them", () => {
+    const view = `view(ctx: any) {
+      ctx.on('key', (k: any) => ctx.render([{ t: 'text', text: k.code + ' ' + k.down + ' ' + Math.round(k.at) }]))
+      ctx.on('focus', () => ctx.render([{ t: 'text', text: 'focus ' + ctx.keys.focused + ' ' + ctx.keys.labels.KeyQ }]))
+    }`
+    const asked = run({
+      'index.ts': `export default { apiVersion: 2, id: 'k', title: 'k', permissions: { keys: true }, ${view} }`,
+    })
+    asked.send(start())
+    asked.send({ t: 'env', env: { labels: { KeyQ: 'A' } } })
+    asked.send(mount('p1'))
+    asked.send({ t: 'focus', pane: 'p1', focused: true })
+    expect(texts(asked).at(-1)).toBe('focus true A')
+    asked.send({
+      t: 'key',
+      pane: 'p1',
+      code: 'KeyA',
+      down: true,
+      shift: false,
+      at: performance.timeOrigin + 1000,
+    })
+    expect(texts(asked).at(-1)).toBe('KeyA true 1000')
+
+    const not = run({
+      'index.ts': `export default { apiVersion: 2, id: 'k', title: 'k', ${view} }`,
+    })
+    not.send(start())
+    not.send(mount('p1'))
+    not.send({ t: 'key', pane: 'p1', code: 'KeyA', down: true, shift: false, at: 0 })
+    expect(texts(not)).toEqual([])
+    not.send({ t: 'focus', pane: 'p1', focused: true })
+    expect(not.of('error')[0]?.message).toMatch(/ctx.keys needs permissions.keys/)
+  })
+
+  it('posts notes with their time on the shared clock, within the limit', () => {
+    const p = run({
+      'index.ts': `export default { apiVersion: 2, id: 's', title: 's', permissions: { keys: true, sound: true },
+        view(ctx: any) {
+          ctx.sound.play([{ voice: 'piano', pitch: 64, at: 500 }, { voice: 'kick' }])
+          ctx.keys.play({ KeyA: { voice: 'epiano', pitch: 60 } })
+          ctx.on('action', () => ctx.sound.play(new Array(4097).fill({ voice: 'hat' })))
+          ctx.on('settings', () => ctx.sound.stop())
+        } }`,
+    })
+    p.send(start())
+    p.send(mount('p1'))
+    expect(p.of('sound')[0]?.notes).toEqual([
+      { voice: 'piano', pitch: 64, at: 500 + performance.timeOrigin },
+      { voice: 'kick' },
+    ])
+    expect(p.of('keymap')[0]).toMatchObject({
+      pane: 'p1',
+      map: { KeyA: { voice: 'epiano', pitch: 60 } },
+    })
+    p.send({ t: 'action', pane: 'p1', action: 'x' })
+    expect(p.of('error')[0]?.message).toMatch(/at most 4096/)
+    p.send({ t: 'settings', settings: {} })
+    expect(p.of('sound-stop')).toEqual([{ t: 'sound-stop', pane: 'p1' }])
+  })
+
+  it('refuses sound to a plugin that did not ask for it, and tells views the look changed', () => {
+    const p = run({
+      'index.ts': `export default { apiVersion: 2, id: 'q', title: 'q', permissions: { keys: true },
+        view(ctx: any) {
+          ctx.on('theme', () => ctx.render([{ t: 'text', text: ctx.theme.colors.accent }]))
+          ctx.keys.play({ KeyA: { voice: 'piano' } })
+        } }`,
+    })
+    p.send(start())
+    p.send(mount('p1'))
+    expect(p.of('error')[0]?.message).toMatch(/ctx.sound needs permissions.sound/)
+    expect(p.of('keymap')).toEqual([])
+    p.send({ t: 'env', env: { theme: { colors: { accent: 'rgb(1, 2, 3)' } } as never } })
+    expect(texts(p).at(-1)).toBe('rgb(1, 2, 3)')
   })
 })

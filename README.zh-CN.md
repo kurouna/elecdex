@@ -657,11 +657,20 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
 `examples/plugins/pomodoro`）：专注时段、短休息，每隔几轮一次长休息，带 VFD 仪表、提示音和
 阶段结束时的通知，重启后继续。
 
+**KEYSTREAM**（`examples/plugins/keystream`，*尚未发布*；从其文件夹安装）是一款节奏游戏，也是
+插件 API 第 2 版的示例：字母沿着立在对应按键上方的轨道落下，在判定线处按下就会奏出主旋律，
+伴奏由游戏演奏。主键行是白键，上一行是黑键——键盘各行的错位正好就是钢琴键的排列——所以每个键
+总是奏出同一个音。共 4 首曲目（两首 elecdex 原创，以及由 elecdex 编曲的奥芬巴赫《天堂与地狱》
+康康舞曲和格里格《在山魔王的宫殿里》），3 个难度，eDEX-UI 的屏幕键盘作为判定线回来了。
+
 插件在 *Settings → Plugins* 中开启之前一直处于关闭状态。该页面列出每个插件可以做什么——读取
 指标来源、访问指定的主机（每个请求都由应用发出并对照该列表检查）、为某个网站使用自己的登录会话、
 在没有打开窗格时继续运行、发送通知——并在首次运行前询问，插件之后请求更多权限时也会再次询问。
 每个插件运行在自己的 Web Worker 中，无法访问页面、你的文件或网络，只能通过应用按主题渲染的
-区块来绘制（文本、数字、仪表、图表、表格、列表、按钮）。停止响应的插件会被终止，不会拖住应用。
+区块来绘制（文本、数字、仪表、图表、表格、列表、按钮）；从 API 第 2 版起，也可以在 Worker 中
+在自己的画布上绘制。第 2 版还可以请求在其窗格获得焦点时按下的按键（绝不包含与 Ctrl 或 Alt 的
+组合，接收期间会亮起 KEYS 指示灯），以及通过 elecdex 的合成器发出声音。停止响应的插件会被终止，
+不会拖住应用。
 API 和规则见 [docs/plugins.md](docs/plugins.md)。
 
 ## 主题与设置
@@ -776,7 +785,7 @@ src/main/       app lifecycle, window, IPC handlers, pty, weather, markets, feed
 src/preload/    the one and only contextBridge surface
 src/renderer/   Svelte 5 UI: layout tree, widgets, the plugin host, dialogs, design tokens
 src/services/   utilityProcess: the metrics collector
-examples/       the sample plugin (pomodoro)
+examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design and the decision log, in Japanese), plugins.md,

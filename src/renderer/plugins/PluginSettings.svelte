@@ -74,6 +74,10 @@ function describe(p: Permissions): string[] {
     ...p.session.map((h) => `use ${h} signed in as you - it sees what that site shows you`),
     ...(p.background ? ['keep running while none of its panes is open'] : []),
     ...(p.notify ? ['play a sound and show system notifications'] : []),
+    ...(p.keys
+      ? ['receive the keys you press while its pane has the focus (never with Ctrl or Alt)']
+      : []),
+    ...(p.sound ? ['play music and sounds'] : []),
   ]
 }
 

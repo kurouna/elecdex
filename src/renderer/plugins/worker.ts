@@ -11,7 +11,8 @@ import type { HostMessage, PluginSource } from '@shared/plugins'
 
 /** What the host needs of a worker; the component tests put a stand-in behind it. */
 export interface PluginWorker {
-  post(message: HostMessage): void
+  /** `transfer` hands objects over rather than copying them: a canvas block's OffscreenCanvas. */
+  post(message: HostMessage, transfer?: Transferable[]): void
   onMessage(handler: (data: unknown) => void): void
   terminate(): void
 }
@@ -29,7 +30,7 @@ export const createWorker: WorkerFactory = (source) => {
   )
   const worker = new Worker(url, { name: `plugin ${source.key}` })
   return {
-    post: (message) => worker.postMessage(message),
+    post: (message, transfer) => worker.postMessage(message, transfer ?? []),
     onMessage: (handler) => {
       worker.onmessage = (event: MessageEvent) => handler(event.data)
       worker.onerror = (event: ErrorEvent) => {

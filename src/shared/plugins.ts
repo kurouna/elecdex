@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { PLUGIN_METRIC_SOURCE_IDS } from './metrics.js'
-import type { Block, ButtonIcon, SettingValue } from './plugin-api.js'
+import type { Block, ButtonIcon, SettingValue, Theme } from './plugin-api.js'
 import { SLUG_ID } from './validate.js'
 
 /**
@@ -11,7 +11,11 @@ import { SLUG_ID } from './validate.js'
  * host acts on it. The author-facing types live in plugin-api.ts.
  */
 
-export const PLUGIN_API_VERSION = 1
+/**
+ * The newest plugin API this build reads. Version 2 added canvas blocks, keys and sound
+ * (section 13); a version 1 plugin is read as it always was.
+ */
+export const PLUGIN_API_VERSION = 2
 
 /** A plugin id, also its storage file name and session partition: no path characters. */
 export const PLUGIN_ID = SLUG_ID
@@ -51,6 +55,16 @@ export const PLUGIN_LIMITS = {
   fetchBurst: 5,
   fetchPerMinute: 30,
   notifyPerMinute: 6,
+  /** Canvas blocks in one pane. */
+  surfaces: 4,
+  /** A canvas's side in device pixels. */
+  surfaceSide: 8192,
+  /** Notes in one ctx.sound.play, and waiting for one pane at a time. */
+  notesPerCall: 4096,
+  notesQueued: 16384,
+  /** How far ahead a note may be scheduled, and how long it may be held. */
+  noteAheadMs: 10 * 60_000,
+  noteLengthMs: 30_000,
 } as const
 
 /** What main hands the renderer for one plugin found in the folder. */
@@ -126,6 +140,8 @@ export const PermissionsSchema = z
     session: z.array(HostSchema).max(4).refine(unique, 'session hosts repeat').default([]),
     background: z.boolean().default(false),
     notify: z.boolean().default(false),
+    keys: z.boolean().default(false),
+    sound: z.boolean().default(false),
   })
   .refine((p) => p.session.every((h) => p.hosts.includes(h)), 'a session host must be in hosts')
 export type Permissions = z.infer<typeof PermissionsSchema>
@@ -136,6 +152,8 @@ export const NO_PERMISSIONS: Permissions = {
   session: [],
   background: false,
   notify: false,
+  keys: false,
+  sound: false,
 }
 
 const label = z.string().min(1).max(80)
@@ -174,24 +192,33 @@ export const SettingSchema = z.discriminatedUnion('type', [
 
 export type SettingDef = z.infer<typeof SettingSchema>
 
-export const DescriptorSchema = z.object({
-  apiVersion: z.literal(PLUGIN_API_VERSION),
-  id: z.string().regex(PLUGIN_ID),
-  title: z.string().min(1).max(40),
-  description: z.string().max(300).default(''),
-  permissions: PermissionsSchema.default(NO_PERMISSIONS),
-  settings: z
-    .array(SettingSchema)
-    .max(32)
-    .refine((list) => unique(list.map((s) => s.key)), 'setting keys repeat')
-    .default([]),
-  minSize: z.object({ w: z.number().min(0).max(4000), h: z.number().min(0).max(4000) }).optional(),
-  // How the pane is brought to the front of the workspace, if at all: a plugin
-  // that says nothing is not offered the button, as a built-in widget is not.
-  zoom: z.enum(['full', 'panel']).optional(),
-  multiple: z.boolean().default(false),
-  hasService: z.boolean(),
-})
+export const DescriptorSchema = z
+  .object({
+    apiVersion: z.union([z.literal(1), z.literal(2)]),
+    id: z.string().regex(PLUGIN_ID),
+    title: z.string().min(1).max(40),
+    description: z.string().max(300).default(''),
+    permissions: PermissionsSchema.default(NO_PERMISSIONS),
+    settings: z
+      .array(SettingSchema)
+      .max(32)
+      .refine((list) => unique(list.map((s) => s.key)), 'setting keys repeat')
+      .default([]),
+    minSize: z
+      .object({ w: z.number().min(0).max(4000), h: z.number().min(0).max(4000) })
+      .optional(),
+    // How the pane is brought to the front of the workspace, if at all: a plugin
+    // that says nothing is not offered the button, as a built-in widget is not.
+    zoom: z.enum(['full', 'panel']).optional(),
+    multiple: z.boolean().default(false),
+    hasService: z.boolean(),
+  })
+  // An elecdex older than version 2 would drop these permissions unread and run the plugin
+  // without them; declaring version 2 makes it say that it is too old instead.
+  .refine(
+    (d) => d.apiVersion >= 2 || (!d.permissions.keys && !d.permissions.sound),
+    'keys and sound need apiVersion 2',
+  )
 export type PluginDescriptor = z.infer<typeof DescriptorSchema>
 
 /** Reads what a worker reported about its plugin, or says in one line why it cannot be used. */
@@ -225,6 +252,8 @@ export const GrantSchema = z.object({
   session: z.array(z.string().max(253)).max(8).default([]),
   background: z.boolean().default(false),
   notify: z.boolean().default(false),
+  keys: z.boolean().default(false),
+  sound: z.boolean().default(false),
 })
 export type Grant = z.infer<typeof GrantSchema>
 
@@ -255,7 +284,9 @@ export function isCovered(requested: Permissions, granted: Grant): boolean {
     within(requested.hosts, granted.hosts) &&
     within(requested.session, granted.session) &&
     (!requested.background || granted.background) &&
-    (!requested.notify || granted.notify)
+    (!requested.notify || granted.notify) &&
+    (!requested.keys || granted.keys) &&
+    (!requested.sound || granted.sound)
   )
 }
 
@@ -266,6 +297,8 @@ export const grantFor = (requested: Permissions): Grant => ({
   session: [...requested.session],
   background: requested.background,
   notify: requested.notify,
+  keys: requested.keys,
+  sound: requested.sound,
 })
 
 /** A setting's stored value if it suits the definition, otherwise its default. */
@@ -331,6 +364,9 @@ export const BUTTON_ICONS = [
   'settings',
   'open',
 ] as const satisfies readonly ButtonIcon[]
+
+/** A canvas block's id: it names the surface the view draws on. */
+const SURFACE_ID = /^[a-z0-9][a-z0-9-]{0,39}$/
 
 const ToneSchema = z.enum(['ok', 'warn', 'danger', 'dim', 'accent'])
 const tone = ToneSchema.optional()
@@ -439,6 +475,11 @@ const BlockSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('signin'), host: HostSchema, text: short.optional() }),
   z.object({ t: z.literal('notice'), text, tone }),
   z.object({ t: z.literal('divider') }),
+  z.object({
+    t: z.literal('canvas'),
+    id: z.string().regex(SURFACE_ID),
+    height: z.number().min(40).max(2000).optional(),
+  }),
 ])
 
 /** The host a link's text names, when the text looks like an address; otherwise null. */
@@ -460,12 +501,29 @@ export function readBlocks(raw: unknown): { blocks: Block[]; problems: string[] 
     problems.push(`only the first ${PLUGIN_LIMITS.blocks} of ${raw.length} blocks are shown`)
   }
   const blocks: Block[] = []
+  const surfaces = new Set<string>()
   raw.slice(0, PLUGIN_LIMITS.blocks).forEach((item, index) => {
     const parsed = BlockSchema.safeParse(item)
-    if (parsed.success) blocks.push(parsed.data as Block)
-    else if (problems.length < 5) problems.push(`block ${index}: ${issues(parsed.error)}`)
+    if (!parsed.success) {
+      if (problems.length < 5) problems.push(`block ${index}: ${issues(parsed.error)}`)
+      return
+    }
+    const block = parsed.data as Block
+    const refused = block.t === 'canvas' ? surfaceRefused(block.id, surfaces) : null
+    if (refused === null) blocks.push(block)
+    else if (problems.length < 5) problems.push(`block ${index}: ${refused}`)
   })
   return { blocks, problems }
+}
+
+/** Why a canvas block cannot be drawn: its id is taken, or the pane has its share already. */
+function surfaceRefused(id: string, seen: Set<string>): string | null {
+  if (seen.has(id)) return `canvas "${id}" is already in the pane`
+  if (seen.size >= PLUGIN_LIMITS.surfaces) {
+    return `a pane has at most ${PLUGIN_LIMITS.surfaces} canvas blocks`
+  }
+  seen.add(id)
+  return null
 }
 
 /*
@@ -509,6 +567,21 @@ export const WorkerMessageSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('error'), pane: pane.nullable(), message: text, fatal: z.boolean() }),
   z.object({ t: z.literal('pong'), n: z.int() }),
   z.object({ t: z.literal('signin-close') }),
+  // Notes are read one by one by readNotes (plugin-sound.ts), which holds each to its range.
+  z.object({
+    t: z.literal('sound'),
+    pane,
+    notes: z.array(z.unknown()).max(PLUGIN_LIMITS.notesPerCall),
+  }),
+  z.object({ t: z.literal('sound-stop'), pane }),
+  z.object({
+    t: z.literal('keymap'),
+    pane,
+    map: z
+      .record(z.string().max(32), z.unknown())
+      .refine((m) => Object.keys(m).length <= 128, 'too many keys')
+      .nullable(),
+  }),
 ])
 export type WorkerMessage = z.infer<typeof WorkerMessageSchema>
 
@@ -544,6 +617,44 @@ export type HostMessage =
   | { t: 'session' }
   | { t: 'ping'; n: number }
   | { t: 'stop' }
+  /** A canvas block's OffscreenCanvas, transferred to the worker, and its size. */
+  | { t: 'surface'; pane: string; id: string; canvas: unknown; size: SurfaceSize }
+  | { t: 'surface-size'; pane: string; id: string; size: SurfaceSize }
+  | { t: 'surface-gone'; pane: string; id: string }
+  /** `at` is epoch milliseconds (timeOrigin + now), the one clock page and worker share. */
+  | { t: 'key'; pane: string; code: string; down: boolean; shift: boolean; at: number }
+  | { t: 'focus'; pane: string; focused: boolean }
+  | { t: 'env'; env: Partial<PluginEnv> }
+  | { t: 'fonts'; faces: readonly PluginFontFace[] }
+
+export interface SurfaceSize {
+  /** CSS pixels. */
+  w: number
+  h: number
+  dpr: number
+  /** Device pixels, when the browser has said: the canvas is made exactly this size. */
+  pw?: number
+  ph?: number
+}
+
+/** What the host tells every worker about the page, whether or not it draws. */
+export interface PluginEnv {
+  theme: Theme
+  /** False while the window is minimised or put away: animations stop. */
+  onScreen: boolean
+  /** What each plugin key prints on this keyboard. */
+  labels: Record<string, string>
+  /** The sound output's latency, in milliseconds. */
+  latency: number
+}
+
+/** One of the app's own faces, given to a worker so its canvases can use the app's type. */
+export interface PluginFontFace {
+  family: string
+  weight: string
+  style: string
+  data: ArrayBuffer
+}
 
 /*
  * Network.
