@@ -193,7 +193,7 @@ describe('the menu', () => {
   it('shows the tabs with their counts, and a tab’s tracks under their own numbers', () => {
     const { texts } = menu(index('loopback'), { w: 1600, h: 1000 }, STILL, 'pop')
     expect(texts).toContain('POP 3')
-    expect(texts).toContain('ALL 18')
+    expect(texts).toContain(`ALL ${SONGS.length}`)
     const titles = texts.filter((t) => SONGS.some((s) => s.title === t))
     expect(titles).toEqual(onShelf(genres, 'pop').map((i) => SONGS[i]?.title))
     expect(texts).toContain(String(index('loopback') + 1).padStart(2, '0'))

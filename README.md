@@ -812,9 +812,9 @@ notification when a phase ends, carrying on across restarts.
 game and the sample for the plugin API's second version: letters fall down lanes that stand over
 the keys that play them, and typing each as it reaches the line plays the melody while the game
 plays the band. The home row is the white keys and the row above the black ones - the keyboard's
-stagger is a piano's - so every key always plays the same note. Eighteen tracks, filed under four
+stagger is a piano's - so every key always plays the same note. Nineteen tracks, filed under four
 genre tabs with stars for how hard each is and a preview of the one under the cursor, each with a band written for it and a style word to
-pick by: ten of elecdex's own (among them a J-pop, a K-pop, an
+pick by: eleven of elecdex's own (among them a J-pop, a K-pop, an
 EDM, a city pop and a chiptune one) and eight
 tunes in the public domain in elecdex's arrangements (*Twinkle, Twinkle*, the frog round, *Ode to
 Joy*, *Swan Lake*, Offenbach's can-can, Mozart's Symphony No. 40 and *Turkish March*, and *In the
