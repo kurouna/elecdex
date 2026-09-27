@@ -340,6 +340,8 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
       ELECDEX_NOWPLAYING_STUB: 'demo',
       // A made-up Docker engine (the dev layout): never this machine's containers.
       ELECDEX_DOCKER_STUB: 'demo',
+      // A stand-in power-save blocker: a shot never keeps this machine awake.
+      ELECDEX_AWAKE_STUB: '1',
       ...env,
     },
   })
@@ -389,8 +391,10 @@ const preset = (id) => {
 // Each preset in a theme of its own, so the README shows every theme at work: standard is
 // the default layout, which a profile without layout.json opens with.
 await shoot('tron', 'elecdex-tron')
+// The Wi-Fi timeline on its one-minute span: a shot is taken half a minute after the start, and
+// five minutes of timeline would be mostly the time before it (NOT WATCHED).
 await shoot('amber', 'elecdex-network', {
-  layout: preset('network'),
+  layout: withState(preset('network'), { wifi: { window: '1m' } }),
   env: { ELECDEX_SOCKETS_STUB: 'demo' },
 })
 await shoot('tron', 'elecdex-earth', {
@@ -429,7 +433,13 @@ if (only.length === 0 || only.includes('elecdex-media')) {
   })
   standIn.server.close()
 }
-await shoot('business-light', 'elecdex-desk', { layout: preset('desk'), prepare: deskFiles })
+// The utility pane with a QR code for the project's page: the most to see of its three tools.
+await shoot('business-light', 'elecdex-desk', {
+  layout: withState(preset('desk'), {
+    utility: { module: 'qr', qrKind: 'url', qrUrl: 'https://github.com/kurouna/elecdex' },
+  }),
+  prepare: deskFiles,
+})
 // The layouts dialog on a first start: every preset on the shelf and on the number keys.
 await shoot('tron', 'elecdex-layouts', {
   env: { ELECDEX_SEED_LAYOUTS: '1' },

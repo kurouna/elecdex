@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.16 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.17 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -60,7 +60,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### network — who this machine talks to
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-network.jpg" alt="The network preset in the Amber theme: the system column on the left, the world view globe in amber with arcs to where connections go, the connections pane beside it listing sockets by program - firefox, code, elecdex, thunderbird, curl, ssh, syncthing - and a wide shell below">
+  <img src="./docs/screenshots/elecdex-network.jpg" alt="The network preset in the Amber theme: the system column on the left, the world view globe in amber with arcs to where connections go and a wide shell under it; on the right the Wi-Fi pane on a made-up link, every segment from the PC to the internet clear, with its one-minute timeline, and the connections pane listing sockets by program - firefox, code, elecdex, thunderbird, curl, ssh, syncthing">
   <br><sub>network · Amber</sub>
 </p>
 
@@ -85,10 +85,10 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   intensity or magnitude you choose (off by default), tsunami warnings kept in sight while in
   effect, a quakes pane listing recent earthquakes, and their epicentres marked on the globe.
 
-### dev — agents at work, and the repository they change
+### dev — agents at work, the containers they run, and the repository they change
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; two shell tabs under it; a GIT pane on the right with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
+  <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use; two shell tabs below; a GIT pane on the right with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
   <br><sub>dev · Phosphor</sub>
 </p>
 
@@ -98,14 +98,14 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Git** — a repository you choose, read only: the files changed, the diff of
   each with its syntax coloured, and the commit graph with its branches and tags, kept current as
   they change - watch an AI agent work in the next pane. One pane per repository.
-- **Docker** *(unreleased)* — the containers of the Docker engine on your computer, by Compose
+- **Docker** — the containers of the Docker engine on your computer, by Compose
   project: up or down, healthy or not, their published ports (a click opens one in the browser)
   and what each uses; start, stop, restart and pause from the row.
 
 ### media — watch, scroll, and see the sound
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-media.jpg" alt="The media preset in the White theme: a YouTube (TV) pane and an X pane, each showing a stand-in page made for the screenshot in the manner of a television video home and a social timeline, with made-up channels and accounts, and an RSS tab behind X; under the television a 16-band spectrum in fluorescent cyan and a mixer with master, Music Player and Web Browser strips">
+  <img src="./docs/screenshots/elecdex-media.jpg" alt="The media preset in the White theme: a YouTube (TV) pane and an X pane, each showing a stand-in page made for the screenshot in the manner of a television video home and a social timeline, with made-up channels, accounts and pictures, and an RSS tab behind X; under the television a now playing pane with a made-up track and a cover drawn for it, a 16-band spectrum in fluorescent cyan and a mixer with master, Music Player and Web Browser strips">
   <br><sub>media · White — the web panes show stand-in pages made for the picture</sub>
 </p>
 
@@ -114,7 +114,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Spectrum and mixer** — a spectrum analyser of what the computer is playing, drawn like a
   1990s car stereo's display (fluorescent cyan or amber, LED, or the theme's colour), and a mixer
   for the system volume and each app playing sound.
-- **Now playing** *(unreleased)* — what a player is playing, as Windows' own media overlay knows
+- **Now playing** — what a player is playing, as Windows' own media overlay knows
   it: the art, the title, artist and album, where the track is, and previous, play/pause and next.
   **Windows only: macOS and Linux are not supported yet.**
 - **RSS** — headlines from the RSS and Atom feeds you list, newest first.
@@ -122,7 +122,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### desk — writing, counting and keeping time
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk preset in the Business (Light) theme: a notes pane with a release checklist, a timer and a calculator under it, a tasks pane with deadlines drawn as meters under today, tomorrow and later, and a three-month calendar">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="The desk preset in the Business (Light) theme: a notes pane with a release checklist, a timer and a calculator under it; a tasks pane with deadlines drawn as meters over a clipboard history of made-up copies; a month's calendar over the utility pane showing a QR code for the project's address">
   <br><sub>desk · Business (Light)</sub>
 </p>
 
@@ -130,7 +130,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
   deadlines are drawn as meters and announced whether or not their pane is open, and a timer with
   a stopwatch whose laps stack up like a spectrum, countdowns that run beside it, and alarms for
-  the times the day is built around. *Unreleased:* a clipboard history, under the tasks, of
+  the times the day is built around. A clipboard history, under the tasks, of
   what you copy while it is on screen, to put back with a click, and under the calendar the
   utility pane (keep the machine awake, QR codes, encoding and hashes).
 
@@ -197,7 +197,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   login item cannot start hidden, and on Linux the tray and the shortcut depend on the desktop —
   a session that has neither says so instead of showing a switch that does nothing. All off until
   turned on in *Settings → Window*.
-- **Utility** *(unreleased)* — small tools in one pane: keep the machine awake while you say so,
+- **Utility** — small tools in one pane: keep the machine awake while you say so,
   make a QR code (a text, an address or a Wi-Fi network), and encode, decode, hash or read a time.
 
 ## Install
@@ -282,7 +282,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
 | Ctrl+Shift+F1 … F6 | go to a preset: standard, network, earth, dev, media, desk |
 | Ctrl+Shift+L | search the launcher (pops one up over the workspace if the layout has none) |
-| Ctrl+Shift+U | *unreleased:* the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
+| Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
 | Ctrl+Shift+. | settings |
@@ -365,9 +365,9 @@ reduced.
 
 Six **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
-(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT - and, *unreleased*, Docker), **media**
-(YouTube (TV) with the spectrum and mixer beneath - and, *unreleased*, what is playing - X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks and the calendar, and - *unreleased* - the clipboard and the utility pane). Every one keeps the system column on the left, so a switch
+(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, Docker, shells and GIT), **media**
+(YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
+the calculator, tasks, the calendar, the clipboard and the utility pane). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
@@ -386,7 +386,7 @@ before the widget. Clicking the tabs then switches between them; a shell in a ba
 running, and its session and screen are there when you switch back. Groups do not nest: a tab
 holds one pane.
 
-*Unreleased:* **▣ pop up** in the same picker shows a widget over the workspace instead, framed
+**▣ pop up** in the same picker shows a widget over the workspace instead, framed
 with only a ×, and leaves the layout as it was - it is not saved, and Escape, the × or a click
 beside it puts it away. Every built-in pane can be popped up but the shell, the timer (a
 countdown put away could not ring) and the file browser, and no web page or plugin; what you
@@ -500,7 +500,7 @@ weather and calendar.
   commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
   in `settings.json` (`{file}` and `{line}` are filled in, e.g. `code -g "{file}:{line}"`),
   or with the system's own application when it is empty. git must be on PATH.
-- **Docker** *(unreleased)* — in the dev preset, or add it from the picker ("docker
+- **Docker** — in the dev preset, or add it from the picker ("docker
   containers"). The containers of the local Docker engine - Docker Desktop, the Linux daemon,
   rootless Docker, colima or OrbStack, found as the `docker` command finds it (`DOCKER_HOST`, then
   the current context, then the usual socket) but without running it - grouped by Compose project
@@ -690,7 +690,7 @@ weather and calendar.
   a card that waits to be answered and (when elecdex is not in front) a system notification. A
   one-off switches itself off once it has rung; `07:30`, `7`, `19.5` and `１９：３０` are all read as
   times.
-- **Clipboard** *(unreleased)* — in the desk preset, or add it from the picker ("clipboard
+- **Clipboard** — in the desk preset, or add it from the picker ("clipboard
   history"). What you copy while the pane is on screen, newest first, with its size and how long
   ago, each tagged with what it is - TXT, URL, PATH, NUM, or CLR with a swatch - and RICH under
   that when it was copied with its formatting (HTML, or the RTF that Word and WordPad copy).
@@ -752,7 +752,7 @@ weather and calendar.
   Windows through one long-lived PowerShell, on macOS with AppleScript and on Linux with
   pactl (PulseAudio or PipeWire; pactl from PulseAudio 16 or later), or WirePlumber's wpctl for
   the master volume where pactl is missing.
-- **Now playing** *(unreleased)* — in the media preset, or add it from the picker ("now
+- **Now playing** — in the media preset, or add it from the picker ("now
   playing"). The media session Windows calls current - Spotify, a browser playing YouTube, Media
   Player, any player that tells the system what it plays - with its art, title, artist, album and
   application, where the track is (counted on each second between the player's own reports), and
@@ -764,7 +764,7 @@ weather and calendar.
   the window minimised or put away, nothing is read. Nothing is written to disk or logged, and no
   plugin can reach it. **Windows only: macOS and Linux are not supported yet** - there the pane
   shows UNSUPPORTED.
-- **Utility** *(unreleased)* — in the desk preset, or add it from the picker ("utility"). Small tools behind a switch,
+- **Utility** — in the desk preset, or add it from the picker ("utility"). Small tools behind a switch,
   one at a time, and the pane can be popped up:
   - **AWAKE** keeps the machine from sleeping: SYSTEM (the screen may go dark) or DISPLAY (it
     stays on), for good or for 30 minutes to 4 hours, with +30M to add. It is asked of the system

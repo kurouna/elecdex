@@ -19,7 +19,7 @@
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器，中间是三个 shell 标签页以及启动器和文件浏览器，右侧是世界视图、行情、天气和日历">
 </p>
 
-> **v0.0.16 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.17 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -54,7 +54,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### network — 这台机器在和谁通信
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-network.jpg" alt="Amber 主题下的 network 预设：左侧是系统栏，琥珀色的世界视图地球上有弧线连向各连接的去处，旁边的连接窗格按程序列出套接字——firefox、code、elecdex、thunderbird、curl、ssh、syncthing——下方是一个宽 shell">
+  <img src="./docs/screenshots/elecdex-network.jpg" alt="Amber 主题下的 network 预设：左侧是系统栏，琥珀色的世界视图地球上有弧线连向各连接的去处，下方是一个宽 shell；右侧是 Wi-Fi 窗格，显示一条虚构的链路，从电脑到互联网各段都正常，带一分钟的时间线，以及按程序列出套接字的连接窗格——firefox、code、elecdex、thunderbird、curl、ssh、syncthing">
   <br><sub>network · Amber</sub>
 </p>
 
@@ -76,10 +76,10 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 - **地震与海啸** — 针对日本（JMA）或全球（USGS 和 NOAA）：按你选择的震度或震级发出警报
   （默认关闭）；海啸警报在生效期间始终可见；地震窗格列出近期地震，并在地球上标出震中。
 
-### dev — 工作中的 AI 代理，以及它们修改的仓库
+### dev — 工作中的 AI 代理、它们运行的容器，以及它们修改的仓库
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是两个 shell 标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的信息卡">
+  <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是 DOCKER 窗格，按 Compose 项目（ledger 和 shop）列出虚构的容器及其健康状态、端口和占用；再下面是两个 shell 标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的卡片">
   <br><sub>dev · Phosphor</sub>
 </p>
 
@@ -88,13 +88,13 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   Claude Code 自己的记录。
 - **Git** — 你选择的仓库，只读：改动的文件、每个文件带语法高亮的 diff，以及带分支和标签的
   提交图，随改动实时更新——可以在旁边的窗格里看着 AI 代理干活。每个仓库一个窗格。
-- **Docker** *(unreleased)* — 你电脑上 Docker 引擎的容器，按 Compose 项目分组：运行与否、
+- **Docker** — 你电脑上 Docker 引擎的容器，按 Compose 项目分组：运行与否、
   健康与否、公开的端口（点击在浏览器中打开）以及各自的资源占用；在行上即可启动、停止、重启和暂停。
 
 ### media — 看视频、刷信息流、看见声音
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-media.jpg" alt="White 主题下的 media 预设：YouTube (TV) 窗格和 X 窗格，各自显示为截图制作的替身页面——仿电视视频首页和社交时间线的样式，频道和账号均为虚构——X 后面还有一个 RSS 标签页；电视下方是荧光青色的 16 段频谱，以及带主音量、Music Player 和 Web Browser 推子的混音器">
+  <img src="./docs/screenshots/elecdex-media.jpg" alt="White 主题下的 media 预设：YouTube (TV) 窗格和 X 窗格，各自显示为截图制作的替身页面——仿电视视频首页和社交时间线的样式，频道、账号和图片均为虚构——X 后面还有一个 RSS 标签页；电视下方是正在播放窗格（虚构的曲目和为它画的封面）、荧光青色的 16 段频谱，以及带主音量、Music Player 和 Web Browser 通道的混音器">
   <br><sub>media · White — 网页窗格显示的是为截图制作的替身页面</sub>
 </p>
 
@@ -102,7 +102,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   保留网站自己的配色），每个网站共用一处登录。
 - **频谱与混音器** — 一个显示电脑正在播放的声音的频谱分析仪，画成 1990 年代汽车音响显示屏
   的样子（荧光青、荧光琥珀、LED 或主题色），以及一个调节系统音量和各个发声应用的混音器。
-- **正在播放** *(unreleased)* — 播放器正在播放的内容，与 Windows 自带的媒体浮层所知的一致：封面、
+- **正在播放** — 播放器正在播放的内容，与 Windows 自带的媒体浮层所知的一致：封面、
   标题、艺术家和专辑、播放到哪里，以及上一首、播放／暂停和下一首。
   **仅支持 Windows，暂不支持 macOS 和 Linux。**
 - **RSS** — 你所列 RSS 和 Atom 订阅源的标题，最新的在前。
@@ -110,14 +110,14 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### desk — 写字、计算和掌握时间
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) 主题下的 desk 预设：记事窗格里是一份发布检查清单，下面是计时器和计算器；任务窗格把截止时间画成仪表，分为今天、明天和以后；还有一个三个月的日历">
+  <img src="./docs/screenshots/elecdex-desk.jpg" alt="Business (Light) 主题下的 desk 预设：记事窗格里是一份发布检查清单，下面是计时器和计算器；任务窗格把截止时间画成仪表，下面是虚构复制内容的剪贴板历史；一个月的日历，下面的实用工具窗格显示项目地址的二维码">
   <br><sub>desk · Business (Light)</sub>
 </p>
 
 - **桌面窗格** — 一个直接输入的计算器（全角数字和 3百万 这样的写法按原样识别，带纸带记录，
   还能对粘贴进来的一列数字做统计）；会自动保存的纯文本记事；截止时间画成仪表、无论窗格是否
   打开都会提醒的任务；以及一个计时器：秒表的分段像频谱一样堆叠，倒计时在旁边同时运行，
-  还有围绕一天作息的闹钟。*unreleased:* 任务下方是剪贴板历史：列出它显示在屏幕上时你复制的内容，
+  还有围绕一天作息的闹钟。任务下方是剪贴板历史：列出它显示在屏幕上时你复制的内容，
   点一下即可放回剪贴板；日历下方是实用工具窗格（阻止休眠、二维码、编码与哈希）。
 
 ### 与模型对话
@@ -174,7 +174,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   通知区域；macOS 把这些交给 Dock（关闭窗口本来就会让 elecdex 继续运行），其登录项也无法以
   隐藏方式启动；Linux 上托盘和快捷键取决于桌面环境——两者都不支持的会话会直接说明，而不是
   显示一个毫无作用的开关。全部默认关闭，需在 *Settings → Window* 中开启。
-- **实用工具** *(unreleased)* — 把小工具放在一个窗格里：在你指定的时间内阻止休眠、生成二维码
+- **实用工具** — 把小工具放在一个窗格里：在你指定的时间内阻止休眠、生成二维码
   （文本、地址或 Wi-Fi）、编码、解码、哈希和时间转换。
 
 ## 安装
@@ -255,7 +255,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+1 … 9 | 应用前九个已保存布局，顺序与对话框中的列表一致 |
 | Ctrl+Shift+F1 … F6 | 切换到预设：standard、network、earth、dev、media、desk |
 | Ctrl+Shift+L | 搜索启动器（若布局中没有，则在工作区上方弹出一个） |
-| Ctrl+Shift+U | *unreleased:* 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭（Linux 上 IBus 可能占用此键用于 Unicode 输入，请改绑） |
+| Ctrl+Shift+U | 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭（Linux 上 IBus 可能占用此键用于 Unicode 输入，请改绑） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
 | Ctrl+Shift+F | 在 shell 的回滚缓冲区中查找（Enter / Shift+Enter 下一个和上一个，Escape 关闭） |
 | Ctrl+Shift+. | 设置 |
@@ -323,8 +323,8 @@ elecdex 在前台时按下它会把 elecdex 收起；在其他地方按下则把
 
 列表下方有六个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
 **network**（地球和 shell，旁边是 Wi-Fi 和连接）、**earth**（ORBIT、地球、地震和天气）、**dev**（AI AGENT、
-shell 和 GIT，以及 *unreleased* 的 Docker）、**media**（YouTube (TV)，下方是频谱和混音器以及 *unreleased* 的正在播放，X 和 RSS 作为标签页）以及
-**desk**（记事、计时器、计算器、任务和日历，以及 *unreleased* 的剪贴板和实用工具）。每个预设都把系统栏留在左侧，所以切换时换的是
+Docker、shell 和 GIT）、**media**（YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页）以及
+**desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）。每个预设都把系统栏留在左侧，所以切换时换的是
 舞台，仪表仍在原处。选择一个预设会用它新建一个布局并切换过去——此后它就是你的布局之一，
 跟随你的工作——再次选择它会回到那个布局，而不会再新建一个；↺ 把它恢复为预设原样。每个预设
 都有自己的按键 Ctrl+Shift+F1 到 F6，在任何地方都能做同样的事。全新安装时，这六个预设会占据
@@ -340,7 +340,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
 组件前先选 **⧉ new tab**。之后点击标签即可切换；后台标签页中的 shell 会继续运行，切回来时
 会话和屏幕内容都还在。组不能嵌套：一个标签页只容纳一个窗格。
 
-*unreleased:* 在同一个选择器中选 **▣ pop up**，组件会以只带 × 的框显示在工作区上方，而不放进
+在同一个选择器中选 **▣ pop up**，组件会以只带 × 的框显示在工作区上方，而不放进
 布局：布局保持不变，也不会保存；按 Escape、点 × 或点框外即可关闭。除 shell、计时器（关闭后倒计时无法
 响铃）和文件浏览器外，所有内置窗格都可以弹出（网页和插件不行）；在弹出窗格中所做的选择，
 在应用退出前再次弹出时仍会保留。布局中没有启动器时，Ctrl+Shift+L 也会
@@ -430,7 +430,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   完整信息：提交说明、作者、日期和改动内容。它只读取：暂存和提交请在终端中进行。双击会打开文件——
   使用 `settings.json` 中 `git.openCommand` 的命令（会填入 `{file}` 和 `{line}`，例如
   `code -g "{file}:{line}"`），为空时使用系统默认的应用。git 必须在 PATH 中。
-- **Docker** *(unreleased)* — 在 dev 预设中，或从选择器添加（"docker containers"）。显示本机
+- **Docker** — 在 dev 预设中，或从选择器添加（"docker containers"）。显示本机
   Docker 引擎（Docker Desktop、Linux 守护进程、rootless Docker、colima 或 OrbStack）的容器。引擎的
   查找顺序与 `docker` 命令相同（`DOCKER_HOST`、当前上下文、常用的套接字），但不会运行该命令。
   按 Compose 项目分组（点击项目可折叠），显示状态及持续时间、镜像带有健康检查时的结果、失败容器的
@@ -572,7 +572,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   设置——起床、午饭开始。闹钟保存在 `alarms.json` 中并由应用调度，所以即使窗格已关闭或从未打开，
   它也会响起：以一张等待你处理的卡片呈现，elecdex 不在前台时还会弹出系统通知。一次性闹钟响过后
   会自动关闭；`07:30`、`7`、`19.5` 和 `１９：３０` 都会被识别为时间。
-- **剪贴板** *(unreleased)* — 在 desk 预设中，也可以从选择器（"clipboard history"）添加。按从新到旧
+- **剪贴板** — 在 desk 预设中，也可以从选择器（"clipboard history"）添加。按从新到旧
   列出窗格显示在屏幕上时你复制的内容，并注明大小和多久以前。每一项都带有类型标签（TXT、URL、PATH、NUM，
   以及带色块的 CLR）；带格式复制的内容（HTML，或 Word 和写字板复制的 RTF）在其下方再标 RICH。把指针停在
   某一项上（或用键盘移到它），会像 GIT 窗格的提交那样弹出卡片，显示完整内容、随之复制的格式和复制时间。点击某一项（或按 Enter）即可连同复制时的格式放回剪贴板，再粘贴到任何地方；↑ ↓
@@ -616,7 +616,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   屏幕上时读取：Windows 上通过一个常驻的 PowerShell，macOS 上用 AppleScript，Linux 上用 pactl
   （PulseAudio 或 PipeWire；需要 PulseAudio 16 或更高版本的 pactl），缺少 pactl 时用 WirePlumber
   的 wpctl 控制主音量。
-- **正在播放** *(unreleased)* — 在 media 预设中，也可从选择器添加（"now playing"）。显示 Windows
+- **正在播放** — 在 media 预设中，也可从选择器添加（"now playing"）。显示 Windows
   视为当前的媒体会话——Spotify、正在播放 YouTube 的浏览器、媒体播放器，以及任何把播放内容告诉系统的
   播放器——包括封面、标题、艺术家、专辑和应用名、曲目播放到哪里（在播放器自己的两次报告之间每秒往前数），
   以及上一首、播放／暂停和下一首按钮，只在播放器接受时才可用。播放器接受改变播放位置时，进度条带有
@@ -624,7 +624,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   一张卡片，放大显示封面，以及完整的标题、艺术家和专辑。通过一个常驻的 PowerShell 每秒读取两次，
   且只在窗格显示在屏幕上时读取：在其他标签页后面、窗口最小化或收起时什么都不读。不写入磁盘或日志，
   插件也无法访问。**仅支持 Windows，暂不支持 macOS 和 Linux**（窗格会显示 UNSUPPORTED）。
-- **实用工具** *(unreleased)* — 在 desk 预设中，也可从选择器（"utility"）添加。用切换按钮一次显示一个小工具，也可以弹出显示。
+- **实用工具** — 在 desk 预设中，也可从选择器（"utility"）添加。用切换按钮一次显示一个小工具，也可以弹出显示。
   - **AWAKE** 阻止休眠：SYSTEM（屏幕可以关闭）或 DISPLAY（屏幕也保持开启），一直保持或 30 分钟到 4 小时
     （+30M 延长）。通过 Electron 的节能阻止器向系统请求，不启动任何程序；合上盖子或选择睡眠仍会休眠。
     在关闭或时间到之前，即使关闭窗格或重新启动也会继续（elecdex 未运行期间不会阻止休眠）：此期间状态栏（底边的标记会亮起）和通知区域的

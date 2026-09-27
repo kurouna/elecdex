@@ -51,6 +51,34 @@ background-image:linear-gradient(#0f3 1px,transparent 1px),linear-gradient(90deg
 </style>${[5, 18, 31, 44, 57, 70, 83].map((x, i) => `<div class="t" style="left:${x}%;border-bottom:${50 + (i % 3) * 14}vh solid ${i % 2 ? '#1f5a44' : '#2d7a5a'}"></div>`).join('')}`,
 }
 
+/*
+ * The timeline's pictures are its own, never one of the television's: two panes side by side
+ * showing the same picture read as one page copied into both (user report, 2026-09-27).
+ */
+Object.assign(SCENES, {
+  neon: `<style>html,body{margin:0;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 50%,#2a0a3d,#07020f 70%)}
+.r{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:2vh;border:.5vh solid}
+</style>${[92, 74, 58, 44, 32, 22, 14]
+    .map(
+      (size, i) =>
+        `<div class="r" style="width:${size}%;height:${size * 0.9}%;border-color:${i % 2 ? '#27e0ff' : '#ff3dd4'};box-shadow:0 0 2vh ${i % 2 ? '#27e0ff' : '#ff3dd4'};opacity:${1 - i * 0.11}"></div>`,
+    )
+    .join('')}`,
+  peaks: `<style>html,body{margin:0;height:100%;overflow:hidden;background:linear-gradient(#9fc6f0,#f3c1c9 70%,#fbe3d0)}
+.m{position:absolute;bottom:0;width:0;height:0;border-left:solid transparent;border-right:solid transparent}
+.s{position:absolute;bottom:0;left:0;right:0;height:14%;background:#e9eef5}
+</style>${[
+    [-8, 60, 70, '#5b6f8f'],
+    [22, 70, 86, '#44587a'],
+    [55, 58, 66, '#5b6f8f'],
+  ]
+    .map(
+      ([x, w, h, c]) =>
+        `<div class="m" style="left:${x}%;border-left-width:${w / 2}vw;border-right-width:${w / 2}vw;border-bottom:${h}vh solid ${c}"></div>`,
+    )
+    .join('')}<div class="s"></div>`,
+})
+
 const scene = (name) =>
   `<!doctype html><html><head><meta charset="utf-8"><title>${name}</title></head><body>${SCENES[name]}</body></html>`
 
@@ -112,7 +140,7 @@ const POSTS = [
     '@neonhours',
     '2m',
     "Tonight's set is live - three hours of synthwave for the drive home.",
-    'sunset',
+    'neon',
     [24, 118, 1.2],
   ],
   [
@@ -141,8 +169,8 @@ const POSTS = [
     'Quiet Hours',
     '@quiethours',
     '3h',
-    'Three hours of rain in a pine forest. Headphones recommended.',
-    'forest',
+    'First light on the ridge, from the hut at 2,800 m.',
+    'peaks',
     [5, 40, 2.1],
   ],
 ]
