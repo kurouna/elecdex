@@ -1,6 +1,7 @@
 import type { Voice } from '../elecdex-plugin'
 import { arrange } from './arrange'
-import { BEATS_PER_BAR, type Clock, type Score, type SongSource } from './notation'
+import { BEATS_PER_BAR } from './meter'
+import type { Clock, Score, SongSource } from './notation'
 
 /**
  * A song made playable at a level: the notes the player types, in milliseconds from the

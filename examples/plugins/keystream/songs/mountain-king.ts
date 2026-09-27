@@ -1,5 +1,5 @@
 import type { Band } from '../arrange'
-import type { SongSource } from '../notation'
+import { barsIn, type SongSource } from '../notation'
 import {
   BASS_4,
   BASS_8,
@@ -76,6 +76,7 @@ export const song: SongSource = {
   credit: 'E. Grieg, arr. elecdex',
   style: 'ROCK',
   genre: 'classics',
+  preview: barsIn(INTRO, ...STATEMENT, ...STATEMENT, ...STATEMENT),
   tempo: [
     { bar: 0, bpm: 96, ramp: true },
     { bar: 34, bpm: 176 },

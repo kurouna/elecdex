@@ -6,12 +6,16 @@ import type { Layout, Rect } from './layout'
 import {
   blinkLit,
   type Drawn,
+  decoded,
   type MenuFrame,
   MOTION,
   rowIn,
   slideRect,
   starsLit,
+  streak,
+  sweep,
   tabPower,
+  typed,
 } from './menu-motion'
 import {
   alpha,
@@ -62,6 +66,8 @@ export interface MenuView {
   opening: readonly (readonly string[])[]
   /** What FREE PLAY is, beside its row. */
   free: string
+  /** The chosen track is being heard. */
+  previewing: boolean
 }
 
 /** m:ss */
@@ -114,8 +120,10 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView, f: MenuFrame): Dra
   }
   const levels = drawLevels(p, x, y, width, view, f)
   y += 22
-  details(p, x, y + 14, width, chosen, view.speed)
-  if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening)
+  // The chosen track's details, typed out again as the choice changes.
+  const age = f.choice ?? Number.POSITIVE_INFINITY
+  details(p, x, y + 14, width, chosen, view, age)
+  if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening, age)
   footer(p, l, view)
   return { tabs, levels, cursor }
 }
@@ -264,23 +272,39 @@ function drawRows(p: Paint, box: ListBox, list: MenuList, free: string, f: MenuF
   const count = Math.min(box.fit, total)
   const first = clamp(list.selected - Math.floor(count / 2), 0, total - count)
   const top = box.y + (list.selected - first) * box.rowH
-  const glide = f.cursor ? Math.min(1, f.cursor.age / MOTION.glide) : 1
-  const at = f.cursor ? f.cursor.from + (top - f.cursor.from) * (1 - (1 - glide) ** 3) : top
   const lit = f.blink !== null && blinkLit(f.blink)
-  // The cursor comes in with its row.
   g.globalAlpha = f.rows === null ? 1 : rowIn(f.rows, list.selected - first)
-  cursorBar(p, box, at, lit)
+  drawCursor(p, box, top, lit, f)
   for (let i = first; i < first + count; i++) {
     const y = box.y + (i - first) * box.rowH
     g.globalAlpha = f.rows === null ? 1 : rowIn(f.rows, i - first)
     const state = { selected: i === list.selected, inverse: i === list.selected && lit }
     const row = list.rows[i]
-    if (row) trackRow(p, box, y, row, state, i === list.selected ? f.stars : null)
+    if (row) trackRow(p, box, y, row, state, i === list.selected ? f.choice : null)
     else freeRow(p, box, y, free, state)
   }
   g.globalAlpha = 1
   emptySlots(p, box, count)
   return { cursor: top, first, count, total }
+}
+
+/** The cursor at its row, or sweeping to it with a streak behind it. */
+function drawCursor(p: Paint, box: ListBox, top: number, lit: boolean, f: MenuFrame): void {
+  const g = p.g
+  if (f.cursor === null) {
+    cursorBar(p, box, top, lit)
+    return
+  }
+  const glide = Math.min(1, f.cursor.age / MOTION.glide)
+  const at = f.cursor.from + (top - f.cursor.from) * sweep(glide)
+  const alphaNow = g.globalAlpha
+  for (const ghost of streak(f.cursor.from, at, glide)) {
+    g.globalAlpha = alphaNow * ghost.alpha
+    g.fillStyle = p.c.accent
+    g.fillRect(box.x, ghost.y + 2, box.width, box.rowH - 4)
+  }
+  g.globalAlpha = alphaNow
+  cursorBar(p, box, at, lit)
 }
 
 /** The room a short tab leaves, marked as empty slots, so the list stays one panel. */
@@ -369,7 +393,8 @@ function trackRow(
   y: number,
   row: MenuRow,
   state: RowState,
-  starsAge: number | null,
+  /** Since this row became the choice; null for any other row, or when still. */
+  choiceAge: number | null,
 ): void {
   const { x, width } = box
   const h = box.rowH
@@ -382,13 +407,17 @@ function trackRow(
     color: quiet,
     baseline: 'middle',
   })
-  stars(p, x + 46, mid, row.stars, starsAge, box.compact, state.inverse ? p.c.inverse : null)
-  const titleWidth = write(p, row.chart.song.title, titleX(box), mid, {
+  stars(p, x + 46, mid, row.stars, choiceAge, box.compact, state.inverse ? p.c.inverse : null)
+  const titleStyle = {
     font: font(600, clamp(h * 0.46, 12, 18), p.fonts.display),
     color: ink,
-    baseline: 'middle',
+    baseline: 'middle' as const,
     spacing: '0.12em',
-  })
+  }
+  // The chosen title decodes; what follows it stands where the settled title ends.
+  const title = row.chart.song.title
+  write(p, choiceAge === null ? title : decoded(title, choiceAge), titleX(box), mid, titleStyle)
+  const titleWidth = measure(p, title, titleStyle)
   const right = x + width - 12
   const figures = { font: mono, color: quiet, align: 'right' as const, baseline: 'middle' as const }
   const creditStyle = {
@@ -526,7 +555,15 @@ function title(p: Paint, l: Layout, x: number, width: number): number {
 }
 
 /** The chosen track's figures on one line; in a narrow pane the speed keys' note goes first. */
-function details(p: Paint, x: number, y: number, width: number, row: MenuRow, speed: number): void {
+function details(
+  p: Paint,
+  x: number,
+  y: number,
+  width: number,
+  row: MenuRow,
+  view: MenuView,
+  age: number,
+): void {
   const style = {
     font: font(500, 12, p.fonts.ui),
     color: p.c.muted,
@@ -540,11 +577,28 @@ function details(p: Paint, x: number, y: number, width: number, row: MenuRow, sp
     best
       ? `BEST ${best.rank} ${figure(best.score)}  CHAIN ${best.maxChain}${best.fullChain ? '  FULL CHAIN' : ''}`
       : 'NO RECORD',
-    `SPEED ${speed}`,
+    `SPEED ${view.speed}`,
   ].join('    ')
   const full = `${bits}  (↑↓ WHILE PLAYING)`
   const room = width - 28
-  write(p, measure(p, full, style) <= room ? full : fitted(p, bits, room, style), x + 14, y, style)
+  const line = measure(p, full, style) <= room ? full : fitted(p, bits, room, style)
+  write(p, line.slice(0, typed(line.length, age)), x + 14, y, style)
+  if (view.previewing) previewTag(p, x + width - 14, y + 7)
+}
+
+/** What the chosen track's preview says while it plays: a tag at the end of its details. */
+function previewTag(p: Paint, right: number, y: number): void {
+  const style = {
+    font: font(600, 10, p.fonts.display),
+    color: p.c.accentStrong,
+    spacing: '0.24em',
+    baseline: 'middle' as const,
+  }
+  const w = measure(p, '▶ PREVIEW', style) + 14
+  p.g.strokeStyle = alpha(p.c.accentStrong, 0.7)
+  p.g.lineWidth = 1
+  p.g.strokeRect(right - w + 0.5, y - 8.5, w - 1, 17)
+  write(p, '▶ PREVIEW', right - w + 7, y + 0.5, style)
 }
 
 /** The opening of the track as it will be typed: letters, bar by bar. */
@@ -554,7 +608,13 @@ function opening(
   y: number,
   width: number,
   bars: readonly (readonly string[])[],
+  age: number,
 ): void {
+  // Typed out with the details: as many letters as the moment allows.
+  let left = typed(
+    bars.reduce((n, bar) => n + bar.length, 0),
+    age,
+  )
   write(p, 'FIRST LINE', x + 14, y, {
     font: font(500, 10, p.fonts.ui),
     color: p.c.muted,
@@ -570,7 +630,8 @@ function opening(
     if (b > 0 && at + measure(p, '|', bar) + 12 > end) return
     if (b > 0) at += write(p, '|', at, top, bar) + 12
     for (const letter of keys) {
-      if (at > end) return
+      if (at > end || left <= 0) return
+      left -= 1
       at += write(p, letter, at, top, { font: mono, color: p.c.accentStrong }) + 10
     }
     at += 2
@@ -583,20 +644,28 @@ export function hints(
   l: Layout,
   list: readonly (readonly [string, string])[],
   y: number,
+  /** The key just pressed, blinking: its cap lit on the accent on the blink's lit beats. */
+  pressed: { index: number; lit: boolean } | null = null,
 ): void {
   const g = p.g
   const capFont = font(600, 10, p.fonts.mono)
   const wordFont = font(500, 10, p.fonts.ui)
   let x = l.field.x + 4
-  for (const [key, word] of list) {
+  list.forEach(([key, word], i) => {
+    const on = pressed?.index === i
+    const lit = on && pressed?.lit === true
     g.font = capFont
     const w = g.measureText(key).width + 10
-    g.strokeStyle = alpha(p.c.border, 0.7)
+    if (lit) {
+      g.fillStyle = p.c.accent
+      g.fillRect(x, y - 13, w + 1, 17)
+    }
+    g.strokeStyle = on ? p.c.accentStrong : alpha(p.c.border, 0.7)
     g.lineWidth = 1
     g.strokeRect(x + 0.5, y - 12.5, w, 16)
     write(p, key, x + w / 2 + 0.5, y - 4, {
       font: capFont,
-      color: p.c.text,
+      color: lit ? p.c.inverse : p.c.text,
       align: 'center',
       baseline: 'middle',
     })
@@ -604,9 +673,9 @@ export function hints(
     x +=
       write(p, word, x, y - 4, {
         font: wordFont,
-        color: p.c.muted,
+        color: on ? p.c.accentStrong : p.c.muted,
         baseline: 'middle',
         spacing: '0.2em',
       }) + 18
-  }
+  })
 }

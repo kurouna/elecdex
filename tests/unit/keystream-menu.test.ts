@@ -44,7 +44,7 @@ const STILL: MenuFrame = {
   level: null,
   cursor: null,
   rows: null,
-  stars: null,
+  choice: null,
   blink: null,
 }
 
@@ -76,6 +76,7 @@ function menu(
     levelNote: 'LEVEL NOTE',
     opening: chart ? openingBars(chart, 4).map((bar) => bar.map((c) => labelOf({}, c))) : [],
     free: 'FREE',
+    previewing: false,
   }
   const { g, texts, writes, fills } = recorder()
   const drawn = drawMenu(paint(g, size.w, size.h), layoutOf(size.w, size.h), view, frame)

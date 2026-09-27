@@ -5,7 +5,8 @@ import type { Rect } from './layout'
  * How the menu moves, in elecdex's own manners. A tab changed is the tube: the list pressed
  * into a line and the new one opening from it, as a pane powers off and on. The rows then
  * come in one after another, as the launcher's tiles do; the light behind a chosen tab or
- * level slides to it, and the cursor glides to its row; the chosen track's stars light one
+ * level slides to it, and the cursor sweeps to its row with a streak behind it; the chosen
+ * track's title decodes, its details are typed out again and its stars light one
  * by one. A track started blinks first, as a launched tile does. Nothing here draws: this
  * is the timing, and the menu's drawing asks it where things stand. With motion reduced the
  * menu is simply still.
@@ -17,8 +18,12 @@ export const MOTION = {
   tabOn: 190,
   /** The light behind a chip moving to the chosen one. */
   slide: 160,
-  /** The cursor moving to its row. */
-  glide: 110,
+  /** The cursor sweeping to its row, a streak behind it. */
+  glide: 150,
+  /** The chosen title's letters settling, left to right. */
+  decode: 240,
+  /** The chosen track's details typed out again. */
+  type: 320,
   /** Each row coming in, and the delay from one row to the next. */
   rowIn: 180,
   rowStep: 24,
@@ -51,6 +56,37 @@ export const rowIn = (age: number, i: number): number =>
 
 /** Whether a blinking row is lit at `age`: on and off each 50 ms of the beat. */
 export const blinkLit = (age: number): boolean => Math.floor(age / (MOTION.blinkBeat / 2)) % 2 === 0
+
+/** Where the sweeping cursor is, 0 to 1: quick off the mark, easing in at its row. */
+export const sweep = (t: number): number => (t >= 1 ? 1 : 1 - 2 ** (-10 * Math.max(0, t)))
+
+/**
+ * The streak the cursor leaves as it sweeps from `from` to where it is (`at`), `t` into the
+ * sweep: a few fading copies of its bar back along the way it came.
+ */
+export function streak(from: number, at: number, t: number): { y: number; alpha: number }[] {
+  if (t >= 1 || from === at) return []
+  return [0.2, 0.45, 0.7].map((k) => ({ y: at + (from - at) * k, alpha: 0.28 * (1 - t) * (1 - k) }))
+}
+
+const GLYPHS = 'ABCDEFGHJKLMNPRSTUVWXYZ0123456789#%&$'
+
+/** A title as it decodes `age` into the choice: letters settling from the left, the rest in flux. */
+export function decoded(text: string, age: number): string {
+  if (age >= MOTION.decode) return text
+  const settled = Math.floor((Math.max(0, age) / MOTION.decode) * text.length)
+  const tick = Math.floor(Math.max(0, age) / 40)
+  return [...text]
+    .map((char, i) => {
+      if (i < settled || char === ' ') return char
+      return GLYPHS[(i * 7 + tick * 13 + char.charCodeAt(0)) % GLYPHS.length] ?? char
+    })
+    .join('')
+}
+
+/** How many of `total` characters are typed `age` into the choice. */
+export const typed = (total: number, age: number): number =>
+  age >= MOTION.type ? total : Math.max(0, Math.ceil((total * age) / MOTION.type))
 
 /** How many of `stars` are lit at `age`, and how far the last lit one has popped in. */
 export function starsLit(age: number, stars: number): { lit: number; pop: number } {
@@ -85,14 +121,15 @@ export interface MenuFrame {
   cursor: { age: number; from: number } | null
   /** Since the rows began to come in. */
   rows: number | null
-  /** Since the chosen track's stars began to light. */
-  stars: number | null
+  /** Since the choice changed: its stars light, its title decodes, its details are typed. */
+  choice: number | null
   /** Since the chosen row began to blink. */
   blink: number | null
 }
 
 const NEVER = Number.NEGATIVE_INFINITY
 const ROWS_MS = MOTION.rowIn + MOTION.rowStep * 12
+const CHOICE_MS = Math.max(MOTION.star * 6, MOTION.decode, MOTION.type)
 
 /** The menu's movements under way, started by what the view does and read by each frame. */
 export class MenuMotion {
@@ -166,7 +203,7 @@ export class MenuMotion {
       cursor:
         cursor === null || this.cursorFrom === null ? null : { age: cursor, from: this.cursorFrom },
       rows: now < this.rowsAt && !reduced ? 0 : rows,
-      stars: since(this.starsAt, MOTION.star * 6),
+      choice: since(this.starsAt, CHOICE_MS),
       blink: since(this.blinkAt, MOTION.blink),
     }
   }
@@ -180,7 +217,7 @@ export class MenuMotion {
       f.level !== null ||
       f.cursor !== null ||
       f.rows !== null ||
-      f.stars !== null ||
+      f.choice !== null ||
       f.blink !== null ||
       now < this.rowsAt ||
       now < this.starsAt

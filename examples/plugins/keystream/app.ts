@@ -12,7 +12,7 @@ import { MenuMotion } from './draw/menu-motion'
 import { countWord, drawConnect, drawCount, drawLoading, drawPause, LOAD_MS } from './draw/overlays'
 import { type Paint, paintOf } from './draw/paint'
 import { drawPanels, type LogLine } from './draw/panels'
-import { drawResult, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
+import { drawResult, EXIT_MS, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
 import { fanfare } from './fanfare'
 import { FreePlay, type FreeSaved } from './free'
 import {
@@ -28,6 +28,7 @@ import {
 import { rankOf, scoreOf } from './judge'
 import { keyOf, labelOf, NOTE_KEYS } from './keyboard'
 import { readSong, type Score } from './notation'
+import { PreviewPlayer } from './preview'
 import { bestOf, submit } from './records'
 import { loopLength, nextWindow, notesBetween } from './schedule'
 import { type Outcome, Session } from './session'
@@ -89,7 +90,8 @@ function shelfFor(code: string, shelf: Shelf): Shelf | null {
 
 /** The menu's small sounds, at a volume: a tick, a blip, and two rising for a start. */
 const CUES: Readonly<Record<'move' | 'switch' | 'choose', (v: number, now: number) => Note[]>> = {
-  move: (v) => [{ voice: 'hat', level: 0.12 * v }],
+  // A short breath of noise: the cursor sweeping past, not a click.
+  move: (v) => [{ voice: 'openhat', length: 70, level: 0.08 * v }],
   switch: (v) => [{ voice: 'chip', pitch: 84, length: 45, level: 0.14 * v }],
   choose: (v, now) => [
     { voice: 'chip', pitch: 84, length: 50, level: 0.18 * v },
@@ -129,6 +131,10 @@ class Game {
   /** A row was chosen and blinks before it starts. */
   private starting = false
   private readonly stars = new WeakMap<Chart, number>()
+  /** The track under the cursor, heard once it rests there. */
+  private readonly preview: PreviewPlayer
+  /** A key pressed on the result: its hint blinks and the screen closes before it acts. */
+  private leaving: { to: 'menu' | 'retry'; at: number } | null = null
 
   constructor(ctx: ViewContext<Settings, unknown>) {
     this.ctx = ctx
@@ -137,6 +143,10 @@ class Game {
       return score.problems.length === 0
     })
     this.free = new FreePlay(ctx, (index) => this.chartOf(index, 'normal'), this.scores.length)
+    this.preview = new PreviewPlayer({
+      play: (notes) => ctx.sound.play(notes),
+      stop: () => ctx.sound.stop(),
+    })
     const saved = ctx.state.get<Saved>() ?? {}
     this.free.restore(saved.free)
     this.selected =
@@ -163,7 +173,10 @@ class Game {
         if (ctx.visible) return
         this.pause(performance.now())
         this.free.stopBacking()
+        this.preview.stop()
       }),
+      // The preview is sent a few seconds ahead; this keeps it going without drawing.
+      ctx.every(1000, () => this.previewTick(performance.now())),
       ctx.on('settings', () => {
         this.bindKeys()
         this.wake()
@@ -172,6 +185,7 @@ class Game {
     ]
     this.bindKeys()
     this.motion.shown(performance.now())
+    this.preview.rest(performance.now())
     return () => {
       for (const off of offs) off()
       this.stopFrames?.()
@@ -206,8 +220,8 @@ class Game {
         else this.playKey(key)
         return
       case 'result':
-        if (key.code === 'Enter' || key.code === 'Escape') this.toMenu()
-        else if (key.code === 'KeyR') this.load(key.at)
+        if (key.code === 'Enter' || key.code === 'Escape') this.leave('menu', key.at)
+        else if (key.code === 'KeyR') this.leave('retry', key.at)
         return
       case 'free': {
         const done = this.free.key(key)
@@ -243,17 +257,20 @@ class Game {
     this.beforeSelected = this.selected
     this.shelf = shelf
     this.selected = settle(this.shelfRows(shelf), this.selected)
+    this.preview.rest(at)
     this.cue('switch')
   }
 
   private moveRow(by: 1 | -1, at: number): void {
     this.selected = stepRow(this.shelfRows(this.shelf), this.selected, by)
     this.motion.moved(at)
+    this.preview.rest(at)
     this.cue('move')
   }
 
   /** A row chosen: it blinks, and then the track loads or FREE PLAY opens (frame). */
   private choose(at: number): void {
+    this.preview.stop()
     this.cue('choose')
     if (this.ctx.theme.reducedMotion) {
       this.startChosen(at)
@@ -274,6 +291,33 @@ class Game {
     const v = this.volume
     if (v === 0) return
     this.ctx.sound.play(CUES[kind](v, performance.now()))
+  }
+
+  /** A key on the result: its hint blinks and the screen closes, then it acts (frame). */
+  private leave(to: 'menu' | 'retry', at: number): void {
+    if (this.leaving !== null) return
+    this.cue('choose')
+    if (this.ctx.theme.reducedMotion) {
+      this.left(to, at)
+      return
+    }
+    this.leaving = { to, at }
+  }
+
+  private left(to: 'menu' | 'retry', now: number): void {
+    this.leaving = null
+    if (to === 'menu') this.toMenu()
+    else this.load(now)
+  }
+
+  /** The chosen track, heard on the menu while the pane has the keys and sound is on. */
+  private previewTick(now: number): void {
+    const track = this.selected < this.scores.length ? this.selected : null
+    const listening =
+      this.phase === 'menu' && !this.starting && this.ctx.keys.focused && this.volume > 0
+    const chart = listening && track !== null ? this.chartOf(track, 'normal') : null
+    const chosen = chart === null || track === null ? null : { index: track, chart }
+    this.preview.tick(now, chosen, { lead: this.lead, volume: this.volume })
   }
 
   private enterFree(): void {
@@ -316,7 +360,8 @@ class Game {
       this.pause(performance.now())
       // The band stops with the keyboard gone: nobody is playing over it.
       this.free.stopBacking()
-    }
+      this.preview.stop()
+    } else this.preview.rest(performance.now())
     this.wake()
   }
 
@@ -347,6 +392,7 @@ class Game {
     this.ctx.sound.stop()
     this.session = null
     this.result = null
+    this.leaving = null
     this.resumeAt = null
     this.fx.clear()
     this.log = []
@@ -424,7 +470,9 @@ class Game {
     this.session = null
     this.phase = 'menu'
     this.starting = false
+    this.leaving = null
     this.motion.shown(performance.now())
+    this.preview.rest(performance.now())
     this.fx.clear()
     this.bindKeys()
   }
@@ -512,6 +560,10 @@ class Game {
   private frame(now: number): void {
     if (this.phase === 'loading' && now - this.phaseAt >= LOAD_MS) this.begin(now)
     if (this.phase === 'menu' && this.starting && this.motion.blinked(now)) this.startChosen(now)
+    if (this.phase === 'menu') this.previewTick(now)
+    const leaving = this.leaving
+    if (this.phase === 'result' && leaving && now - leaving.at >= EXIT_MS)
+      this.left(leaving.to, now)
     if (this.phase === 'free') this.free.frame(now)
     const session = this.session
     if (this.phase === 'play' && session !== null) {
@@ -528,7 +580,7 @@ class Game {
   private moving(now: number): boolean {
     if (this.phase === 'loading') return true
     if (this.phase === 'play') return !(this.session?.paused ?? true) || this.fx.alive(now)
-    if (this.phase === 'result' && now - this.phaseAt < REVEAL_MS) return true
+    if (this.phase === 'result' && (now - this.phaseAt < REVEAL_MS || this.leaving)) return true
     if (this.phase === 'free' && this.free.moving()) return true
     if (this.phase === 'menu' && this.menuMoving(now)) return true
     return this.fx.alive(now)
@@ -545,7 +597,7 @@ class Game {
     if (this.phase === 'menu') this.drawMenu(p, l, now)
     else if (this.phase === 'free') this.drawFree(p, l, now)
     else if (this.phase === 'result' && this.result !== null)
-      drawResult(p, l, this.result, now - this.phaseAt, labels)
+      drawResult(p, l, this.result, now - this.phaseAt, labels, this.exitOf(now))
     else this.drawPlay(p, l, now)
     const shift = this.phase === 'free' ? this.free.octave * 12 : 0
     drawKeyboard(p, l, labels, (code) => this.fx.light(code, now), shift)
@@ -554,7 +606,18 @@ class Game {
   }
 
   private menuMoving(now: number): boolean {
-    return this.starting || this.motion.alive(now, this.ctx.theme.reducedMotion)
+    const track = this.selected < this.scores.length ? this.selected : null
+    return (
+      this.starting ||
+      this.motion.alive(now, this.ctx.theme.reducedMotion) ||
+      this.preview.waiting(now, track)
+    )
+  }
+
+  /** The result's way out, as far as it has gone: which hint blinks, and since when. */
+  private exitOf(now: number): { key: 0 | 1; age: number } | null {
+    const leaving = this.leaving
+    return leaving ? { key: leaving.to === 'menu' ? 0 : 1, age: now - leaving.at } : null
   }
 
   private starsOf(chart: Chart): number {
@@ -601,6 +664,7 @@ class Game {
         levelNote: words.levels[this.level],
         opening,
         free: words.free,
+        previewing: this.preview.index !== null && this.preview.index === this.selected,
       },
       frame,
     )

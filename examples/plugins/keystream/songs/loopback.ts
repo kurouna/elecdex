@@ -1,5 +1,5 @@
 import type { Band } from '../arrange'
-import type { SongSource } from '../notation'
+import { barsIn, type SongSource } from '../notation'
 import { ARP_EIGHTHS, BASS_LAST, COMP_LAST, ONE, SIXTEENTHS, SNARE_24, times } from './parts'
 
 /**
@@ -78,6 +78,7 @@ export const song: SongSource = {
   credit: 'elecdex',
   style: 'CITY POP',
   genre: 'pop',
+  preview: barsIn(INTRO, ...VERSE_1),
   tempo: [{ bar: 0, bpm: 112 }],
   grid: 4,
   melody: [INTRO, ...VERSE_1, ...CHORUS, ...VERSE_2, ...CHORUS, OUTRO],

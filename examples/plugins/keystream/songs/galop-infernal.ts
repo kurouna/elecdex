@@ -1,5 +1,5 @@
 import type { Band } from '../arrange'
-import type { SongSource } from '../notation'
+import { barsIn, type SongSource } from '../notation'
 import {
   BASS_OOM,
   COMP_OFFBEATS,
@@ -63,6 +63,7 @@ export const song: SongSource = {
   credit: 'J. Offenbach, arr. elecdex',
   style: 'GALOP',
   genre: 'classics',
+  preview: barsIn(INTRO),
   tempo: [{ bar: 0, bpm: 150 }],
   grid: 2,
   melody: [INTRO, ...THEME, ...THEME, ...BRIDGE, ...THEME, OUTRO],

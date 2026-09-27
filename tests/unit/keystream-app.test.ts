@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyNote, Note } from '../../examples/plugins/elecdex-plugin'
 import { startGame } from '../../examples/plugins/keystream/app'
+import { EXIT_MS } from '../../examples/plugins/keystream/draw/result'
+import { PREVIEW } from '../../examples/plugins/keystream/preview'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
 
 /**
@@ -195,5 +197,51 @@ describe('the view', () => {
     expect(asked.played.length).toBe(before + 2)
     expect(asked.played.at(-1)?.every((n) => n.voice === 'hat')).toBe(true)
     expect((asked.saved.at(-1) as { song: string }).song).toBe(SONGS[0]?.id)
+  })
+
+  it('plays the track under the cursor once it rests there, and stops it as the cursor moves', () => {
+    // The view's clock is the worker's: the menu came on at performance.now().
+    const t0 = performance.now()
+    const { asked, press, frame } = stand({ reduced: false })
+    // A key that does nothing on the menu, to wake the view's frames as a surface would.
+    press('KeyZ', t0)
+    frame(t0)
+    frame(t0 + 200)
+    const quiet = asked.played.length
+    // After the rest, the first track is heard.
+    frame(t0 + PREVIEW.restMs + 50)
+    expect(asked.played.length).toBe(quiet + 1)
+    expect(asked.played.at(-1)?.some((n) => n.voice === 'epiano')).toBe(true)
+    const stops = asked.stops
+    press('ArrowDown', t0 + 1000)
+    expect(asked.stops).toBe(stops + 1)
+    frame(t0 + 1100)
+    const moved = asked.played.length
+    frame(t0 + 1000 + PREVIEW.restMs + 20)
+    expect(asked.played.length).toBe(moved + 1)
+    // Chosen: the preview stops before the row blinks.
+    press('Enter', t0 + 2000)
+    expect(asked.stops).toBe(stops + 2)
+  })
+
+  it('leaves the result after the pressed key’s blink and the screen’s close', () => {
+    const { asked, press, frame } = stand({ reduced: false })
+    frame(0)
+    press('Enter', 10)
+    let now = 10
+    const isFanfare = (batch: readonly Note[]) =>
+      batch.some((n) => n.voice === 'pluck') && batch.some((n) => n.voice === 'crash')
+    while (now < 120_000 && !asked.played.some(isFanfare)) {
+      now += 50
+      frame(now)
+    }
+    const saves = asked.saved.length
+    press('Escape', now + 3000)
+    frame(now + 3000 + EXIT_MS - 20)
+    // Still on the result: back on the menu, the pane would save its choice.
+    expect(asked.saved.length).toBe(saves)
+    frame(now + 3000 + EXIT_MS + 20)
+    press('ArrowDown', now + 3200 + EXIT_MS)
+    expect(asked.saved.length).toBe(saves + 1)
   })
 })

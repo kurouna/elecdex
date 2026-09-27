@@ -2,7 +2,7 @@ import type { Chart } from '../chart'
 import { lampOf, type Rank, type Tally } from '../judge'
 import type { Layout } from './layout'
 import { hints } from './menu'
-import { clamp, type Paint } from './paint'
+import { alpha, clamp, type Paint } from './paint'
 import {
   analysis,
   type Emblem,
@@ -14,6 +14,8 @@ import {
   scoreBlock,
   summary,
   sweep,
+  TUBE,
+  tube,
 } from './result-parts'
 
 /**
@@ -37,6 +39,8 @@ export interface ResultView {
 
 /** How long the reveal runs: the view draws every frame until then, and then stops. */
 export const REVEAL_MS = REVEAL.done
+/** How long a key pressed on the result takes to act: its hint's blink, and the close. */
+export const EXIT_MS = TUBE.blink + TUBE.close
 /** When the rank lands and the new record shows, for the sounds that go with them. */
 export const RANK_AT = REVEAL.rank
 export const RECORD_AT = REVEAL.record
@@ -75,6 +79,8 @@ export function drawResult(
   view: ResultView,
   age: number,
   labels: Readonly<Record<string, string>>,
+  /** A key pressed to leave: which hint (0 MENU, 1 RETRY), and how long ago. */
+  exit: { key: 0 | 1; age: number } | null = null,
 ): void {
   const reveal: Reveal = (start, ms) =>
     p.reduced ? 1 : easeOut(clamp((age - start) / Math.max(1, ms), 0, 1))
@@ -83,8 +89,14 @@ export function drawResult(
   // Laid out in design units, then scaled and centred in the room above the keyboard.
   const s = clamp(Math.min(room.w / a.w, (room.bottom - room.top) / a.h), 0.5, 1.55)
   const g = p.g
+  const power = p.reduced ? { open: 1, line: 0 } : tube(age, exit?.age ?? null)
+  const mid = (room.top + room.bottom) / 2
   g.save()
-  g.translate(l.w / 2 - (a.w * s) / 2, (room.top + room.bottom) / 2 - (a.h * s) / 2)
+  // The screen opens from a line of light, and closes back into it.
+  g.translate(0, mid)
+  g.scale(1, Math.max(0.01, power.open))
+  g.translate(0, -mid)
+  g.translate(l.w / 2 - (a.w * s) / 2, mid - (a.h * s) / 2)
   g.scale(s, s)
   sweep(p, a.w, a.h, age)
   header(p, a.w, view, lampOf(view.tally), age, reveal)
@@ -94,7 +106,9 @@ export function drawResult(
   if (a.side) analysis(p, a.side.x, a.side.w, view.tally, reveal)
   else summary(p, a.mid.x, 382, view.tally, reveal)
   g.restore()
-  if (p.reduced || age >= REVEAL.hints) {
+  if (power.line > 0) tubeLine(p, l.pad, l.w - l.pad * 2, mid, power.line)
+  if (p.reduced || age >= REVEAL.hints || exit) {
+    const lit = exit !== null && exit.age < TUBE.blink && Math.floor(exit.age / 50) % 2 === 0
     hints(
       p,
       l,
@@ -103,6 +117,20 @@ export function drawResult(
         [labels.KeyR ?? 'R', 'RETRY'],
       ],
       l.line - 10,
+      exit ? { index: exit.key, lit } : null,
     )
   }
+}
+
+/** The line of light the result opens from and closes into. */
+function tubeLine(p: Paint, x: number, w: number, y: number, strength: number): void {
+  const g = p.g
+  const glow = g.createLinearGradient(0, y - 14, 0, y + 14)
+  glow.addColorStop(0, alpha(p.c.accent, 0))
+  glow.addColorStop(0.5, alpha(p.c.accent, (p.light ? 0.12 : 0.24) * strength))
+  glow.addColorStop(1, alpha(p.c.accent, 0))
+  g.fillStyle = glow
+  g.fillRect(x, y - 14, w, 28)
+  g.fillStyle = alpha(p.c.accentStrong, 0.9 * strength)
+  g.fillRect(x, y - 0.75, w, 1.5)
 }

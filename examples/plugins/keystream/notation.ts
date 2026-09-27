@@ -1,6 +1,7 @@
 import { type Band, readForm } from './arrange'
 import { GENRES, type Genre } from './genres'
 import { keyOfChar } from './keyboard'
+import { BEATS_PER_BAR } from './meter'
 
 /**
  * How a song is written down: the melody as the keys that play it, one character per step,
@@ -32,6 +33,8 @@ export interface SongSource {
   style: string
   /** The menu's tab it is filed under (genres.ts): broader than its style. */
   genre: Genre
+  /** The bar the menu's preview starts at, from 0 (`barsIn` the lines before it); the melody's start when left out. */
+  preview?: number
   tempo: readonly TempoPoint[]
   /** Melody steps per beat: 2 for eighths, 4 for sixteenths. */
   grid: 2 | 4
@@ -39,8 +42,6 @@ export interface SongSource {
   chords: readonly string[]
   band: Band
 }
-
-export const BEATS_PER_BAR = 4
 
 export interface MelodyNote {
   code: string
@@ -77,6 +78,9 @@ const bars = (lines: readonly string[]): string[] =>
     .split('|')
     .map((b) => b.trim())
     .filter((b) => b !== '')
+
+/** How many bars melody lines hold: where the part after them starts. */
+export const barsIn = (...lines: readonly string[]): number => bars(lines).length
 
 /** The melody's notes, and what is wrong with it. */
 export function parseMelody(

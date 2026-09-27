@@ -1,5 +1,5 @@
 import type { Band } from '../arrange'
-import type { SongSource } from '../notation'
+import { barsIn, type SongSource } from '../notation'
 import {
   ARP_EIGHTHS,
   BASS_8,
@@ -90,6 +90,7 @@ export const song: SongSource = {
   credit: 'elecdex',
   style: 'CHIPTUNE',
   genre: 'electro',
+  preview: barsIn(INTRO, ...VERSE_1),
   tempo: [{ bar: 0, bpm: 160 }],
   grid: 4,
   melody: [INTRO, ...VERSE_1, ...CHORUS, ...VERSE_2, ...CHORUS, ...BRIDGE, ...CHORUS, OUTRO],

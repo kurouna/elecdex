@@ -1,6 +1,7 @@
 import type { Voice } from '../elecdex-plugin'
 import { type Chord, lift, parseChord, voicing } from './harmony'
-import { BEATS_PER_BAR, type Score } from './notation'
+import { BEATS_PER_BAR } from './meter'
+import type { Score } from './notation'
 
 /**
  * The band: everything under the melody, written for each song. A song's `band` has a few

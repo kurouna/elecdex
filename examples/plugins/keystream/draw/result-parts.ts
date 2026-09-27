@@ -34,6 +34,24 @@ export const REVEAL = {
   done: 2500,
 } as const
 
+/**
+ * The result's way in and out, as a pane's: it opens from a line of light; a key pressed on
+ * it blinks its hint, 100 ms a beat as a chosen row does, and the screen presses back into
+ * the line before the key acts.
+ */
+export const TUBE = { open: 260, blink: 400, close: 180 } as const
+
+/** How open the screen is, 0 a line and 1 open, and how bright the line across it. */
+export function tube(age: number, exit: number | null): { open: number; line: number } {
+  if (exit !== null && exit >= TUBE.blink) {
+    const t = Math.min(1, (exit - TUBE.blink) / TUBE.close)
+    return { open: 1 - t * t, line: t }
+  }
+  if (age >= TUBE.open) return { open: 1, line: 0 }
+  const t = Math.max(0, age) / TUBE.open
+  return { open: 1 - (1 - t) ** 3, line: 1 - t }
+}
+
 /** How far a part has come, eased from 0 to 1 over `ms` from `start`; 1 with motion reduced. */
 export type Reveal = (start: number, ms: number) => number
 
@@ -364,6 +382,11 @@ export function judgements(p: Paint, x: number, w: number, tally: Tally, reveal:
   const g = p.g
   GRADES.forEach((grade, i) => {
     const t = reveal(REVEAL.bars + i * 90, 650)
+    // Each row comes in from the left, one after another, as the launcher's tiles do.
+    const come = reveal(REVEAL.bars + i * 90, 220)
+    g.save()
+    g.globalAlpha = come
+    g.translate(-16 * (1 - come), 0)
     const y = 230 + i * 30
     const color = gradeColor(p, grade)
     write(p, grade, x, y, {
@@ -386,6 +409,7 @@ export function judgements(p: Paint, x: number, w: number, tally: Tally, reveal:
       align: 'right',
       baseline: 'middle',
     })
+    g.restore()
   })
   const t = reveal(REVEAL.bars + 380, 400)
   if (t <= 0) return
