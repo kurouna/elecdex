@@ -77,6 +77,7 @@ export const song: SongSource = {
   title: 'PACKET STORM',
   credit: 'elecdex',
   style: 'EUROBEAT',
+  genre: 'dance',
   tempo: [{ bar: 0, bpm: 150 }],
   grid: 4,
   melody: [INTRO, ...VERSE, ...CHORUS, BREAK, ...VERSE, ...CHORUS, ...CHORUS, OUTRO],

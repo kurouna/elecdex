@@ -81,6 +81,7 @@ export const song: SongSource = {
   title: 'ZERO GRAVITY',
   credit: 'elecdex',
   style: 'EDM',
+  genre: 'dance',
   tempo: [{ bar: 0, bpm: 128 }],
   grid: 4,
   melody: [INTRO, ...BREAKDOWN, BUILD, RISE, ...DROP, BREATHER, RISE, ...DROP, OUTRO],

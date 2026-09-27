@@ -71,6 +71,7 @@ export const song: SongSource = {
   title: 'SAKURA SIGNAL',
   credit: 'elecdex',
   style: 'J-POP',
+  genre: 'pop',
   tempo: [{ bar: 0, bpm: 140 }],
   grid: 2,
   melody: [INTRO, ...VERSE, ...PRE, ...CHORUS, ...CHORUS, OUTRO],

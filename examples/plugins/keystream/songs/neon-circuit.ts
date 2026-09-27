@@ -64,6 +64,7 @@ export const song: SongSource = {
   title: 'NEON CIRCUIT',
   credit: 'elecdex',
   style: 'HOUSE',
+  genre: 'dance',
   tempo: [{ bar: 0, bpm: 120 }],
   grid: 4,
   melody: [INTRO, ...VERSE, ...CHORUS, ...VERSE, ...CHORUS, OUTRO],

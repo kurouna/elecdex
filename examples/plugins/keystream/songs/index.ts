@@ -19,27 +19,29 @@ import { song as twinkle } from './twinkle'
 import { song as zeroGravity } from './zero-gravity'
 
 /**
- * The tracks, easiest first. Ten are elecdex's own; eight are tunes in the public domain in
- * arrangements of elecdex's own. A new song is a file here and a line in this list; its band
+ * The tracks, easiest first: in order of their stars on NORMAL (difficulty.ts, which a unit
+ * test holds the list to), and within a star as they were placed. Ten are elecdex's own;
+ * eight are tunes in the public domain in arrangements of elecdex's own. A new song is a
+ * file here and a line in this list, with its genre (genres.ts) for the menu's tabs; its band
  * is written with it (arrange.ts), from the bars in parts.ts.
  */
 export const SONGS: readonly SongSource[] = [
   twinkle,
+  afterglow,
   frogChorus,
   odeToJoy,
   bootSequence,
   sakuraSignal,
   swanLake,
-  galopInfernal,
+  overclock,
   neonCircuit,
-  afterglow,
   loopback,
   heartProtocol,
   symphony40,
+  galopInfernal,
   zeroGravity,
-  mountainKing,
   packetStorm,
+  mountainKing,
   turkishMarch,
   pixelRush,
-  overclock,
 ]

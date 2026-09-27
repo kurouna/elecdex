@@ -62,6 +62,7 @@ export const song: SongSource = {
   title: 'GALOP INFERNAL',
   credit: 'J. Offenbach, arr. elecdex',
   style: 'GALOP',
+  genre: 'classics',
   tempo: [{ bar: 0, bpm: 150 }],
   grid: 2,
   melody: [INTRO, ...THEME, ...THEME, ...BRIDGE, ...THEME, OUTRO],

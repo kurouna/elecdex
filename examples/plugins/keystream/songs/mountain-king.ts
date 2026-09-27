@@ -75,6 +75,7 @@ export const song: SongSource = {
   title: 'MOUNTAIN KING',
   credit: 'E. Grieg, arr. elecdex',
   style: 'ROCK',
+  genre: 'classics',
   tempo: [
     { bar: 0, bpm: 96, ramp: true },
     { bar: 34, bpm: 176 },

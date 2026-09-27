@@ -65,6 +65,7 @@ export const song: SongSource = {
   title: 'SYMPHONY 40',
   credit: 'W. A. Mozart, arr. elecdex',
   style: 'EUROBEAT',
+  genre: 'classics',
   tempo: [{ bar: 0, bpm: 140 }],
   grid: 2,
   melody: [

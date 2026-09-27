@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyNote, Note } from '../../examples/plugins/elecdex-plugin'
 import { startGame } from '../../examples/plugins/keystream/app'
+import { SONGS } from '../../examples/plugins/keystream/songs/index'
 
 /**
  * KEYSTREAM's view as a whole (examples/plugins/keystream/app.ts), driven through a stand-in
@@ -8,13 +9,14 @@ import { startGame } from '../../examples/plugins/keystream/app'
  * is recorded. The canvas is never there, so nothing is drawn.
  */
 
-function stand() {
+function stand(options: { reduced?: boolean; saved?: unknown } = {}) {
   const listeners = new Map<string, Set<(arg?: unknown) => void>>()
   const asked = {
     keymaps: [] as Record<string, KeyNote>[],
     sustain: [] as boolean[],
     played: [] as Note[][],
     stops: 0,
+    saved: [] as unknown[],
   }
   let frame: ((now: number) => void) | null = null
   const ctx = {
@@ -22,7 +24,7 @@ function stand() {
     locale: 'en',
     visible: true,
     size: { w: 800, h: 600 },
-    theme: { mode: 'dark', reducedMotion: true, colors: {}, fonts: {} },
+    theme: { mode: 'dark', reducedMotion: options.reduced ?? true, colors: {}, fonts: {} },
     keys: {
       focused: true,
       labels: {},
@@ -36,7 +38,7 @@ function stand() {
       },
       latency: 0,
     },
-    state: { get: () => undefined, set: () => {} },
+    state: { get: () => options.saved, set: (value: unknown) => asked.saved.push(value) },
     render: () => {},
     surface: () => null,
     animate: (fn: (now: number) => void) => {
@@ -136,14 +138,62 @@ describe('the view', () => {
     press('Enter', 0)
     // Nothing typed: every note is dropped, and the track plays out to a D.
     let now = 0
-    while (now < 120_000 && !asked.played.some((batch) => batch.some((n) => n.voice === 'chip'))) {
+    // The fanfare: a chord with its cymbal (the menu's own cues are chips alone).
+    const isFanfare = (batch: readonly Note[]) =>
+      batch.some((n) => n.voice === 'pluck') && batch.some((n) => n.voice === 'crash')
+    while (now < 120_000 && !asked.played.some(isFanfare)) {
       now += 50
       frame(now)
     }
-    const fanfare = asked.played.find((batch) => batch.some((n) => n.voice === 'chip')) ?? []
+    const fanfare = asked.played.find(isFanfare) ?? []
     const rankAt = fanfare.find((n) => n.voice === 'kick')?.at ?? 0
     expect(rankAt).toBeGreaterThan(now)
     expect(fanfare.filter((n) => n.voice === 'pluck').map((n) => n.pitch)).toEqual([57, 60, 63])
     expect(fanfare.filter((n) => n.voice === 'chip').every((n) => (n.at ?? 0) > rankAt)).toBe(true)
+  })
+
+  it('changes tab with < > and the digits, keeping the choice where the tab shows it', () => {
+    const { asked, press } = stand({ saved: { song: 'sakura-signal' } })
+    const shelfOf = () => (asked.saved.at(-1) as { shelf?: string; song?: string }) ?? {}
+    press('Digit2')
+    expect(shelfOf()).toMatchObject({ shelf: 'pop', song: 'sakura-signal' })
+    // A tab without it: its first track.
+    press('Period')
+    expect(shelfOf().shelf).toBe('dance')
+    expect(SONGS.find((song) => song.id === shelfOf().song)?.genre).toBe('dance')
+    press('Digit0')
+    press('Comma')
+    expect(shelfOf().shelf).toBe('electro')
+    // Up from the first row goes round to FREE PLAY, and down from it to the tab's first.
+    press('ArrowUp')
+    expect(shelfOf().song).toBe('free')
+    press('ArrowDown')
+    expect(SONGS.find((song) => song.id === shelfOf().song)?.genre).toBe('electro')
+  })
+
+  it('comes back on the tab it was left on', () => {
+    const { asked, press } = stand({ saved: { song: 'loopback', shelf: 'pop' } })
+    press('ArrowDown')
+    const saved = asked.saved.at(-1) as { shelf: string; song: string }
+    expect(saved.shelf).toBe('pop')
+    expect(SONGS.find((song) => song.id === saved.song)?.genre).toBe('pop')
+  })
+
+  it('blinks a chosen track before it loads, and takes no other key meanwhile', () => {
+    const { asked, press, frame } = stand({ reduced: false })
+    frame(0)
+    const before = asked.played.length
+    press('Enter', 100)
+    // The start's two blips, and nothing of the track yet.
+    expect(asked.played.length).toBe(before + 1)
+    frame(300)
+    press('ArrowDown', 350)
+    frame(500)
+    expect(asked.played.length).toBe(before + 1)
+    // The blink done: the boot log's ticks, for the track that was chosen.
+    frame(700)
+    expect(asked.played.length).toBe(before + 2)
+    expect(asked.played.at(-1)?.every((n) => n.voice === 'hat')).toBe(true)
+    expect((asked.saved.at(-1) as { song: string }).song).toBe(SONGS[0]?.id)
   })
 })

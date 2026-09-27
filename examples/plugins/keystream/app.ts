@@ -1,18 +1,30 @@
 import type { KeyPress, Note, SettingValues, ViewContext, Voice } from '../elecdex-plugin'
 import { buildChart, type Chart, LEVELS, type Level, openingBars } from './chart'
+import { starsOf } from './difficulty'
 import { drawLanes, drawNotes, type FieldView, leadTime } from './draw/field'
 import { drawFree } from './draw/free'
 import { Effects } from './draw/fx'
 import { drawHud } from './draw/hud'
 import { drawKeyboard } from './draw/keys'
 import { type Layout, layoutOf } from './draw/layout'
-import { drawMenu } from './draw/menu'
+import { drawMenu, type MenuList } from './draw/menu'
+import { MenuMotion } from './draw/menu-motion'
 import { countWord, drawConnect, drawCount, drawLoading, drawPause, LOAD_MS } from './draw/overlays'
 import { type Paint, paintOf } from './draw/paint'
 import { drawPanels, type LogLine } from './draw/panels'
 import { drawResult, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
 import { fanfare } from './fanfare'
 import { FreePlay, type FreeSaved } from './free'
+import {
+  isShelf,
+  onShelf,
+  SHELVES,
+  type Shelf,
+  settle,
+  shelfOfKey,
+  stepRow,
+  stepShelf,
+} from './genres'
 import { rankOf, scoreOf } from './judge'
 import { keyOf, labelOf, NOTE_KEYS } from './keyboard'
 import { readSong, type Score } from './notation'
@@ -46,6 +58,8 @@ interface Saved {
   song?: string
   level?: Level
   speed?: number
+  /** The menu's tab. */
+  shelf?: Shelf
   free?: FreeSaved
 }
 
@@ -64,6 +78,23 @@ function barAt(chart: Chart, time: number): number {
     if (beat.bar && beat.time >= 0) bar += 1
   }
   return bar
+}
+
+/** The tab a key asks for: a digit for one, < and > for the one before or after. */
+function shelfFor(code: string, shelf: Shelf): Shelf | null {
+  if (code === 'Comma') return stepShelf(shelf, -1)
+  if (code === 'Period') return stepShelf(shelf, 1)
+  return shelfOfKey(code)
+}
+
+/** The menu's small sounds, at a volume: a tick, a blip, and two rising for a start. */
+const CUES: Readonly<Record<'move' | 'switch' | 'choose', (v: number, now: number) => Note[]>> = {
+  move: (v) => [{ voice: 'hat', level: 0.12 * v }],
+  switch: (v) => [{ voice: 'chip', pitch: 84, length: 45, level: 0.14 * v }],
+  choose: (v, now) => [
+    { voice: 'chip', pitch: 84, length: 50, level: 0.18 * v },
+    { voice: 'chip', pitch: 96, at: now + 70, length: 110, level: 0.18 * v },
+  ],
 }
 
 export function startGame(ctx: ViewContext<Settings, unknown>): () => void {
@@ -91,6 +122,13 @@ class Game {
   /** The song time up to which what the game plays has been sent to the host. */
   private sentTo = Number.NEGATIVE_INFINITY
   private readonly free: FreePlay
+  /** The menu's tab, and the choice it had before the last change of tab. */
+  private shelf: Shelf = 'all'
+  private beforeSelected = 0
+  private readonly motion = new MenuMotion()
+  /** A row was chosen and blinks before it starts. */
+  private starting = false
+  private readonly stars = new WeakMap<Chart, number>()
 
   constructor(ctx: ViewContext<Settings, unknown>) {
     this.ctx = ctx
@@ -110,6 +148,8 @@ class Game {
           )
     if (saved.level !== undefined && LEVELS.includes(saved.level)) this.level = saved.level
     if (typeof saved.speed === 'number') this.speed = Math.min(10, Math.max(1, saved.speed))
+    if (isShelf(saved.shelf)) this.shelf = saved.shelf
+    this.selected = settle(this.shelfRows(this.shelf), this.selected)
   }
 
   start(): () => void {
@@ -131,6 +171,7 @@ class Game {
       ctx.on('key', (key) => this.onKey(key)),
     ]
     this.bindKeys()
+    this.motion.shown(performance.now())
     return () => {
       for (const off of offs) off()
       this.stopFrames?.()
@@ -177,16 +218,62 @@ class Game {
   }
 
   private menuKey(code: string, at: number): void {
-    // The tracks, then FREE PLAY.
-    const count = this.scores.length + 1
-    if (code === 'ArrowUp') this.selected = (this.selected + count - 1) % count
-    else if (code === 'ArrowDown') this.selected = (this.selected + 1) % count
+    // A chosen row blinks before it starts; nothing else is taken meanwhile.
+    if (this.starting) return
+    const shelf = shelfFor(code, this.shelf)
+    if (shelf !== null) this.toShelf(shelf, at)
+    else if (code === 'ArrowUp' || code === 'ArrowDown')
+      this.moveRow(code === 'ArrowUp' ? -1 : 1, at)
     else if (code === 'ArrowLeft' || code === 'ArrowRight')
-      this.shiftLevel(code === 'ArrowLeft' ? -1 : 1)
-    else if (code === 'Enter' && this.selected === this.scores.length) this.enterFree()
-    else if (code === 'Enter') this.load(at)
+      this.shiftLevel(code === 'ArrowLeft' ? -1 : 1, at)
+    else if (code === 'Enter') this.choose(at)
     else return
     this.save()
+  }
+
+  /** The rows a tab shows: its tracks, by their place in the list, then FREE PLAY. */
+  private shelfRows(shelf: Shelf): number[] {
+    const genres = this.scores.map((score) => score.source.genre)
+    return [...onShelf(genres, shelf), this.scores.length]
+  }
+
+  private toShelf(shelf: Shelf, at: number): void {
+    if (shelf === this.shelf) return
+    this.motion.tab(at, SHELVES.indexOf(this.shelf), this.shelf)
+    this.beforeSelected = this.selected
+    this.shelf = shelf
+    this.selected = settle(this.shelfRows(shelf), this.selected)
+    this.cue('switch')
+  }
+
+  private moveRow(by: 1 | -1, at: number): void {
+    this.selected = stepRow(this.shelfRows(this.shelf), this.selected, by)
+    this.motion.moved(at)
+    this.cue('move')
+  }
+
+  /** A row chosen: it blinks, and then the track loads or FREE PLAY opens (frame). */
+  private choose(at: number): void {
+    this.cue('choose')
+    if (this.ctx.theme.reducedMotion) {
+      this.startChosen(at)
+      return
+    }
+    this.starting = true
+    this.motion.chosen(at)
+  }
+
+  private startChosen(now: number): void {
+    this.starting = false
+    if (this.selected === this.scores.length) this.enterFree()
+    else this.load(now)
+  }
+
+  /** The menu's small sounds: a tick for a row, a blip for a tab or a level, two for a start. */
+  private cue(kind: 'move' | 'switch' | 'choose'): void {
+    const v = this.volume
+    if (v === 0) return
+    this.ctx.sound.play(CUES[kind](v, performance.now()))
   }
 
   private enterFree(): void {
@@ -197,9 +284,12 @@ class Game {
     this.free.enter()
   }
 
-  private shiftLevel(by: number): void {
-    const index = LEVELS.indexOf(this.level) + by
-    this.level = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, index))] ?? this.level
+  private shiftLevel(by: number, at: number): void {
+    const from = LEVELS.indexOf(this.level)
+    this.level = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, from + by))] ?? this.level
+    if (LEVELS.indexOf(this.level) === from) return
+    this.motion.level(at, from)
+    this.cue('switch')
   }
 
   private playKey(key: KeyPress): void {
@@ -333,6 +423,8 @@ class Game {
     this.ctx.sound.stop()
     this.session = null
     this.phase = 'menu'
+    this.starting = false
+    this.motion.shown(performance.now())
     this.fx.clear()
     this.bindKeys()
   }
@@ -419,6 +511,7 @@ class Game {
 
   private frame(now: number): void {
     if (this.phase === 'loading' && now - this.phaseAt >= LOAD_MS) this.begin(now)
+    if (this.phase === 'menu' && this.starting && this.motion.blinked(now)) this.startChosen(now)
     if (this.phase === 'free') this.free.frame(now)
     const session = this.session
     if (this.phase === 'play' && session !== null) {
@@ -437,6 +530,7 @@ class Game {
     if (this.phase === 'play') return !(this.session?.paused ?? true) || this.fx.alive(now)
     if (this.phase === 'result' && now - this.phaseAt < REVEAL_MS) return true
     if (this.phase === 'free' && this.free.moving()) return true
+    if (this.phase === 'menu' && this.menuMoving(now)) return true
     return this.fx.alive(now)
   }
 
@@ -448,7 +542,7 @@ class Game {
     this.layout = l
     p.g.clearRect(0, 0, p.w, p.h)
     const labels = this.ctx.keys.labels
-    if (this.phase === 'menu') this.drawMenu(p, l)
+    if (this.phase === 'menu') this.drawMenu(p, l, now)
     else if (this.phase === 'free') this.drawFree(p, l, now)
     else if (this.phase === 'result' && this.result !== null)
       drawResult(p, l, this.result, now - this.phaseAt, labels)
@@ -459,26 +553,58 @@ class Game {
     if (!this.ctx.keys.focused && !playing) drawConnect(p, l, wordsFor(this.ctx.locale).connect)
   }
 
-  private drawMenu(p: Paint, l: Layout): void {
-    const rows = this.scores.flatMap((score, i) => {
+  private menuMoving(now: number): boolean {
+    return this.starting || this.motion.alive(now, this.ctx.theme.reducedMotion)
+  }
+
+  private starsOf(chart: Chart): number {
+    let stars = this.stars.get(chart)
+    if (stars === undefined) {
+      stars = starsOf(chart.notes.map((note) => note.time))
+      this.stars.set(chart, stars)
+    }
+    return stars
+  }
+
+  /** A tab's rows as the menu draws them, with `chosen` - a place in the whole list - picked. */
+  private menuList(shelf: Shelf, chosen: number): MenuList {
+    const places = this.shelfRows(shelf).slice(0, -1)
+    const rows = places.flatMap((i) => {
       const chart = this.chartOf(i, this.level)
-      return chart === null ? [] : [{ chart, best: bestOf(score.source.id, this.level) }]
+      if (chart === null) return []
+      const best = bestOf(chart.song.id, this.level)
+      return [{ chart, best, number: i + 1, stars: this.starsOf(chart) }]
     })
+    const selected = chosen === this.scores.length ? rows.length : places.indexOf(chosen)
+    return { rows, selected: Math.max(0, selected) }
+  }
+
+  private drawMenu(p: Paint, l: Layout, now: number): void {
     const labels = this.ctx.keys.labels
-    const chosen = rows[this.selected]?.chart
+    const chosen = this.chartOf(this.selected, this.level)
     const opening = chosen
       ? openingBars(chosen, 4).map((bar) => bar.map((code) => labelOf(labels, code)))
       : []
-    drawMenu(p, l, {
-      rows,
-      selected: this.selected,
-      level: this.level,
-      speed: this.speed,
-      note: wordsFor(this.ctx.locale).layout,
-      levelNote: wordsFor(this.ctx.locale).levels[this.level],
-      opening,
-      free: wordsFor(this.ctx.locale).free,
-    })
+    const words = wordsFor(this.ctx.locale)
+    const frame = this.motion.frame(now, this.ctx.theme.reducedMotion)
+    const drawn = drawMenu(
+      p,
+      l,
+      {
+        list: this.menuList(this.shelf, this.selected),
+        before: frame.tab ? this.menuList(this.motion.before, this.beforeSelected) : null,
+        tabs: SHELVES.map((s) => ({ name: s.toUpperCase(), count: this.shelfRows(s).length - 1 })),
+        tab: SHELVES.indexOf(this.shelf),
+        level: this.level,
+        speed: this.speed,
+        note: words.layout,
+        levelNote: words.levels[this.level],
+        opening,
+        free: words.free,
+      },
+      frame,
+    )
+    this.motion.remember(drawn)
   }
 
   private drawFree(p: Paint, l: Layout, now: number): void {
@@ -591,6 +717,12 @@ class Game {
 
   private save(): void {
     const song = this.scores[this.selected]?.source.id ?? 'free'
-    this.ctx.state.set({ song, level: this.level, speed: this.speed, free: this.free.saved() })
+    this.ctx.state.set({
+      song,
+      level: this.level,
+      speed: this.speed,
+      shelf: this.shelf,
+      free: this.free.saved(),
+    })
   }
 }

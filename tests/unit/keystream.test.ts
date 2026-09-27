@@ -53,6 +53,7 @@ const tiny: SongSource = {
   title: 'TINY',
   credit: 'test',
   style: 'TEST',
+  genre: 'pop',
   tempo: [{ bar: 0, bpm: 120 }],
   grid: 2,
   melody: ['a.s.d-f-|g.......'],

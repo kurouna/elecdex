@@ -54,6 +54,7 @@ export const song: SongSource = {
   title: 'FROG CHORUS',
   credit: 'German folk song, arr. elecdex',
   style: 'ROUND',
+  genre: 'classics',
   tempo: [{ bar: 0, bpm: 120 }],
   grid: 2,
   melody: [INTRO, ...TUNE, ...TUNE, ...TUNE, OUTRO],

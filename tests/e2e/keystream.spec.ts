@@ -1,8 +1,9 @@
-import { cpSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
+import { SONGS } from '../../examples/plugins/keystream/songs/index'
 import { launch, removeDir } from './support.js'
 
 /**
@@ -14,13 +15,14 @@ import { launch, removeDir } from './support.js'
 
 const SOURCE = fileURLToPath(new URL('../../examples/plugins/keystream', import.meta.url))
 
-function withKeystream(): string {
+function withKeystream(settings: Record<string, unknown> = {}): string {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
   cpSync(SOURCE, path.join(dir, 'plugins', 'keystream'), { recursive: true })
   writeFileSync(
     path.join(dir, 'settings.json'),
     JSON.stringify({
       sound: { enabled: false },
+      ...settings,
       plugins: {
         keystream: {
           enabled: true,
@@ -101,7 +103,9 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
 })
 
 test('FREE mode holds the keys, and plays a track’s band underneath until told to stop', async () => {
-  const dir = withKeystream()
+  // Motion reduced, so FREE PLAY opens at once rather than after its row's blink: the keys
+  // below must reach FREE mode, not the menu (the blink takes no keys).
+  const dir = withKeystream({ motion: 'reduced' })
   const app = await launch(dir, { layout: LAYOUT })
   const { page } = app
   const pane = page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
@@ -174,6 +178,39 @@ test('a pane that saved where it was comes back after a restart, and plays', asy
     await app.page.keyboard.press('a')
     await expect.poll(notes).toBeGreaterThan(before)
     expect(errors).toEqual([])
+  } finally {
+    await app.quit()
+    removeDir(dir)
+  }
+})
+
+test('a genre tab chosen with a digit is where the pane comes back to', async () => {
+  const dir = withKeystream()
+  let app = await launch(dir, { layout: LAYOUT })
+  const pane = () => app.page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
+  // What the pane saved, as the layout holds it.
+  const saved = () => {
+    const tree = JSON.parse(readFileSync(path.join(dir, 'layout.json'), 'utf8'))
+    return (tree.root.state?.plugin ?? {}) as { shelf?: string; song?: string }
+  }
+  try {
+    await expect(pane()).toHaveAttribute('data-status', 'ready')
+    await pane().getByTestId('plugin-canvas').click()
+    await expect(pane().getByTestId('plugin-keys')).toBeVisible()
+    await app.page.keyboard.press('3')
+    await expect.poll(() => saved().shelf).toBe('dance')
+    expect(SONGS.find((song) => song.id === saved().song)?.genre).toBe('dance')
+
+    app = await app.relaunch()
+    await expect(pane()).toHaveAttribute('data-status', 'ready')
+    await pane().getByTestId('plugin-canvas').click()
+    await expect(pane().getByTestId('plugin-keys')).toBeVisible()
+    // Down the tab it came back on: still a dance track.
+    const before = saved().song
+    await app.page.keyboard.press('ArrowDown')
+    await expect.poll(() => saved().song).not.toBe(before)
+    expect(saved().shelf).toBe('dance')
+    expect(SONGS.find((song) => song.id === saved().song)?.genre).toBe('dance')
   } finally {
     await app.quit()
     removeDir(dir)

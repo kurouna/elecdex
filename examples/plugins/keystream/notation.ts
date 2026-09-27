@@ -1,4 +1,5 @@
 import { type Band, readForm } from './arrange'
+import { GENRES, type Genre } from './genres'
 import { keyOfChar } from './keyboard'
 
 /**
@@ -29,6 +30,8 @@ export interface SongSource {
   credit: string
   /** What kind of track it is (HOUSE, J-POP, CHIPTUNE): a word on the menu, to pick by. */
   style: string
+  /** The menu's tab it is filed under (genres.ts): broader than its style. */
+  genre: Genre
   tempo: readonly TempoPoint[]
   /** Melody steps per beat: 2 for eighths, 4 for sixteenths. */
   grid: 2 | 4
@@ -175,6 +178,7 @@ export function readSong(source: SongSource): Score {
   if (form.bars.length !== melody.bars) {
     problems.push(`${form.bars.length} bars of band for ${melody.bars} of melody`)
   }
+  if (!GENRES.includes(source.genre)) problems.push(`"${source.genre}" is not a genre`)
   return {
     source,
     bars: melody.bars,

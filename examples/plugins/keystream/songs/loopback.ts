@@ -77,6 +77,7 @@ export const song: SongSource = {
   title: 'LOOPBACK',
   credit: 'elecdex',
   style: 'CITY POP',
+  genre: 'pop',
   tempo: [{ bar: 0, bpm: 112 }],
   grid: 4,
   melody: [INTRO, ...VERSE_1, ...CHORUS, ...VERSE_2, ...CHORUS, OUTRO],

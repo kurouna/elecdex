@@ -65,6 +65,7 @@ export const song: SongSource = {
   title: 'TURKISH MARCH',
   credit: 'W. A. Mozart, arr. elecdex',
   style: 'MARCH',
+  genre: 'classics',
   tempo: [{ bar: 0, bpm: 116 }],
   grid: 4,
   melody: [INTRO, PERIOD, PERIOD_END, MIDDLE, PERIOD, PERIOD_END, OUTRO],

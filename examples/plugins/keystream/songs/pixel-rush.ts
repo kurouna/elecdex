@@ -89,6 +89,7 @@ export const song: SongSource = {
   title: 'PIXEL RUSH',
   credit: 'elecdex',
   style: 'CHIPTUNE',
+  genre: 'electro',
   tempo: [{ bar: 0, bpm: 160 }],
   grid: 4,
   melody: [INTRO, ...VERSE_1, ...CHORUS, ...VERSE_2, ...CHORUS, ...BRIDGE, ...CHORUS, OUTRO],
