@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync } from 'svelte'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PluginWorker } from '../../src/renderer/plugins/worker.ts'
+import { deepState } from './deep-state.svelte.ts'
 
 /**
  * Plugin panes and the plugin settings, with the host's worker replaced: by the real
@@ -78,6 +79,14 @@ const COUNTER = `export default {
       { t: 'buttons', items: [{ action: 'add', text: 'add' }] },
       ...(n > 1 ? [{ t: 'bar', value: 'broken' }] : []),
     ]))
+  },
+}`
+
+const REMEMBERS = `export default {
+  apiVersion: 1, id: 'remembers', title: 'remembers',
+  view(ctx) {
+    const saved = ctx.state.get()
+    ctx.render([{ t: 'text', text: 'saved: ' + (saved ? saved.words.join(' ') : 'nothing') }])
   },
 }`
 
@@ -565,6 +574,30 @@ describe('a plugin pane', () => {
     await settle()
     expect(screen.getByTestId('plugin-pane').dataset.status).toBe('missing')
     expect(screen.getByText(/not in the plugins folder/)).toBeTruthy()
+  })
+
+  it('gives a plugin the state its pane saved, which the layout holds as live state', async () => {
+    await startHost([source('remembers.ts', REMEMBERS)], {
+      remembers: {
+        enabled: true,
+        key: 'remembers.ts',
+        granted: grantFor(NO_PERMISSIONS),
+        values: {},
+      },
+    })
+    // As a restored layout hands it over: a proxy, which a worker message cannot carry.
+    render(PluginPane, {
+      props: {
+        paneId: 'pane-1',
+        title: 'remembers',
+        props: undefined,
+        state: deepState({ plugin: { words: ['left', 'here'] } }),
+        active: true,
+        widget: 'plugin:remembers',
+      },
+    })
+    await settle()
+    expect(screen.getByText('saved: left here')).toBeTruthy()
   })
 })
 

@@ -238,6 +238,48 @@ test('editing a plugin reloads its panes, and a broken edit says why', async () 
   }
 })
 
+test('a plugin pane gets the state it saved back after a restart', async () => {
+  // Found as a pane that stayed empty after a restart: the saved state came back from the
+  // layout as live state, which the message mounting the view could not carry.
+  const dir = withPlugins({
+    'tally.js': `export default {
+      apiVersion: 1, id: 'tally', title: 'tally',
+      view(ctx) {
+        let n = ctx.state.get()?.n ?? 0
+        const draw = () => ctx.render([
+          { t: 'text', text: 'tally ' + n },
+          { t: 'buttons', items: [{ action: 'add', text: 'add' }] },
+        ])
+        ctx.on('action', (a) => {
+          if (a.action !== 'add') return
+          n += 1
+          ctx.state.set({ n })
+          draw()
+        })
+        draw()
+      },
+    }`,
+  })
+  let app = await launch(dir, { layout: single('plugin:tally') })
+  try {
+    await turnOn(app.page, 'tally')
+    await pluginPane(app.page).getByTestId('plugin-button').click()
+    await pluginPane(app.page).getByTestId('plugin-button').click()
+    await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
+    // Past the layout's save debounce.
+    await app.page.waitForTimeout(1500)
+    app = await app.relaunch()
+    const errors: string[] = []
+    app.page.on('pageerror', (error) => errors.push(error.message))
+    await expect(pluginPane(app.page)).toHaveAttribute('data-status', 'ready')
+    await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
+    expect(errors).toEqual([])
+  } finally {
+    await app.close()
+    removeDir(dir)
+  }
+})
+
 test('a sign-in session is the plugin’s own, closes its window once it works, and lasts', async () => {
   const dir = withPlugins({
     'account.js': `export default {

@@ -824,7 +824,9 @@ export class PluginHost {
     this.views.set(pane, this.views.get(pane) ?? emptyView())
     this.run(entry.source, entry.descriptor, true)
     const runner = this.runners.get(id)
-    runner?.attach(pane, attached)
+    // The layout holds a pane's saved state as live state, a proxy no message to a worker can
+    // carry: posted as it is, the mount failed and a restored pane stayed empty.
+    runner?.attach(pane, { ...attached, state: $state.snapshot(attached.state) })
     if (runner && !runner.running && runner.stopped === null) void runner.start()
     this.refresh(id)
   }
