@@ -58,7 +58,8 @@
     "demo:shorts": "node scripts/demo-shorts.mjs",
     "demo:wifi": "node scripts/demo-wifi.mjs",
     "demo:panes": "node scripts/demo-panes.mjs",
-    "demo:tour": "node scripts/demo-tour.mjs"
+    "demo:tour": "node scripts/demo-tour.mjs",
+    "demo:tour-shorts": "node scripts/demo-tour-shorts.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
