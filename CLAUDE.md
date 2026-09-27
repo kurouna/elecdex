@@ -36,6 +36,7 @@ npm run demo:presets   # the layouts dialog stepping through every preset, for a
 npm run demo:shorts    # the same in a tall 9:16 window, layouts in 2 or 3 tiers (--tiers=2|3; Windows; build first)
 npm run demo:wifi      # the Wi-Fi pane on the train stub, 9:16, cards opening on the way (Windows; build first)
 npm run demo:panes     # DOCKER, CLIPBOARD, NOW PLAYING and UTILITY at work, 16:9, under 30 s (Windows; build first)
+npm run demo:tour      # the introduction video: boot, presets, ORBIT, agents, Docker, media, ELEC, themes (Windows; build first)
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 ```
 
@@ -614,6 +615,13 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   so the script lays main's pictures of them over it. Name shots to take only those. Regenerate
   after a visible change to a theme, a preset or the default layout; a new theme or preset gets a
   shot and a place in the three READMEs.
+- **The introduction demo** (`scripts/demo-tour.mjs`, `npm run demo:tour`) is the video that
+  introduces elecdex, and it is updated with every release (user decision 2026-09-27): when a
+  version adds a pane or a feature that is central, characteristic or good to look at, it gets a
+  beat in the tour, and a beat that no longer shows the app as it is goes. Keep it about two
+  minutes, the boot first and the themes last, and on stand-ins only, like the screenshots
+  (demo-take.mjs: nothing of this machine read, pressed or kept awake, no one's pages or
+  artwork, no model or key). Check the take with `--shots` before calling it done.
 - **Attribution** stays visible. JMA forecasts and the quakes pane show
   「出典：気象庁ホームページ（URL）を加工して作成」; earthquake and tsunami alerts name their source
   (JMA, USGS, NOAA) and say they are not an early warning (tsunami cards: follow local

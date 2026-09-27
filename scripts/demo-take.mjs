@@ -88,7 +88,14 @@ export function withDemoState(tree, standIn) {
  * them. Resolves with what a take drives it by. `env` is laid over the take's environment: a
  * take of its own stub (the Wi-Fi demo's train) says so there.
  */
-export async function openTake({ items, options, standIn, env = {} }) {
+export async function openTake({
+  items,
+  options,
+  standIn,
+  env = {},
+  settings = {},
+  intro = false,
+}) {
   const profile = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-'))
   writeFileSync(path.join(profile, 'layout.json'), JSON.stringify(items[0].tree))
   writeFileSync(
@@ -116,6 +123,7 @@ export async function openTake({ items, options, standIn, env = {} }) {
       },
       // Every switch would end the shells: a take is about the layouts, not the question.
       layout: { confirmSwitch: false },
+      ...settings,
     }),
   )
   gitRepos(profile)
@@ -123,7 +131,14 @@ export async function openTake({ items, options, standIn, env = {} }) {
   deskFiles(profile)
 
   const app = await electron.launch({
-    args: [MAIN, '--windowed', '--no-intro', `--user-data-dir=${profile}`, '--lang=en-US'],
+    // `intro`: the boot sequence plays as the window opens, welcoming a made-up user.
+    args: [
+      MAIN,
+      '--windowed',
+      ...(intro ? [] : ['--no-intro']),
+      `--user-data-dir=${profile}`,
+      '--lang=en-US',
+    ],
     // Run from the demo home: PowerShell writes a module cache relative to it.
     cwd: HOME,
     env: {
@@ -142,6 +157,8 @@ export async function openTake({ items, options, standIn, env = {} }) {
       ELECDEX_WEB_HOMES: standIn.homes,
       // No tray icon or system-wide shortcut from a recording run.
       ELECDEX_BACKGROUND_STUB: '1',
+      ELECDEX_DEMO_USER: 'taro',
+      ELECDEX_DEMO_HOST: 'ELECDEX-DEMO',
       ...env,
     },
   })
@@ -230,6 +247,12 @@ export async function openTake({ items, options, standIn, env = {} }) {
     keepShots(options.shots)
     say(`window up - the take starts in ${options.lead} s`)
     await wait((options.lead * 1000) / pace)
+    // The boot plays out: a click on it would skip it.
+    if (intro)
+      await page
+        .getByTestId('boot-screen')
+        .waitFor({ state: 'detached', timeout: 60_000 })
+        .catch(() => {})
     // The typing is the take's opening, and the first switch follows it at once.
     say('shell: types')
     await shellAtWork()
