@@ -39,6 +39,7 @@ import type { PluginCatalog, PluginInstalled } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
 import type { Settings } from '@shared/settings'
+import type { SnippetAdded, SnippetDraft, SnippetView } from '@shared/snippets'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from '@shared/tasks'
 import type { UpdateStatus } from '@shared/updates'
 import type { AwakeState } from '@shared/utility'
@@ -524,6 +525,18 @@ const api: ElecdexApi = {
     clear: () => ipcRenderer.send(CH.clipboard.clear),
     pause: (paused) => ipcRenderer.send(CH.clipboard.pause, paused),
     watching: () => ipcRenderer.invoke(CH.clipboard.watching) as Promise<boolean>,
+  },
+  snippets: {
+    list: () => ipcRenderer.invoke(CH.snippets.list) as Promise<SnippetView[]>,
+    fromClip: (clipId) => ipcRenderer.invoke(CH.snippets.fromClip, clipId) as Promise<SnippetAdded>,
+    create: (name, text) =>
+      ipcRenderer.invoke(CH.snippets.create, name, text) as Promise<SnippetAdded>,
+    read: (id) => ipcRenderer.invoke(CH.snippets.read, id) as Promise<SnippetDraft | null>,
+    update: (id, change) => ipcRenderer.invoke(CH.snippets.update, id, change) as Promise<boolean>,
+    move: (id, index) => ipcRenderer.invoke(CH.snippets.move, id, index) as Promise<boolean>,
+    remove: (id) => ipcRenderer.invoke(CH.snippets.remove, id) as Promise<boolean>,
+    copy: (id) => ipcRenderer.invoke(CH.snippets.copy, id) as Promise<'ok' | 'missing' | 'failed'>,
+    onChange: (handler) => listen<SnippetView[]>(CH.snippets.changed, handler),
   },
   nowPlaying: {
     subscribe: (handler) => subscribeNowPlaying('session', handler),

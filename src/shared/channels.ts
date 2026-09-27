@@ -110,6 +110,24 @@ export const CH = {
     pause: 'clipboard:pause',
     watching: 'clipboard:watching',
   },
+  /** The clipboard pane's snippets (shared/snippets.ts): snippets.json, kept by main. */
+  snippets: {
+    /** The previews, in their order. */
+    list: 'snippets:list',
+    /** Keeps a history entry, by its id. */
+    fromClip: 'snippets:from-clip',
+    /** Keeps a text written by hand. */
+    create: 'snippets:create',
+    /** A snippet's name and whole text, for the editor. */
+    read: 'snippets:read',
+    update: 'snippets:update',
+    move: 'snippets:move',
+    remove: 'snippets:remove',
+    /** Puts a snippet on the clipboard, its formatting with it. */
+    copy: 'snippets:copy',
+    /** main -> renderer: the previews after any change, including a hand edit. */
+    changed: 'snippets:changed',
+  },
   /** The NOW PLAYING pane (shared/now-playing.ts): one session, read only while a pane is seen. */
   nowPlaying: {
     /** renderer -> main, fire and forget: keep the session current. */

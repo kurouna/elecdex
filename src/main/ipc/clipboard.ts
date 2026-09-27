@@ -11,6 +11,7 @@ import {
 } from '../clipboard/system.js'
 import { ClipboardWatcher } from '../clipboard/watcher.js'
 import { whenPageGoes } from './page-gone.js'
+import { broadcastSnippets, openSnippetShelf, registerSnippetsIpc } from './snippets.js'
 
 /**
  * Clipboard IPC: the clipboard pane subscribes while it is seen, and main reads
@@ -34,6 +35,12 @@ export function registerClipboardIpc(): { dispose: () => void; writer: Clipboard
   const stand =
     stub === '1' || stub === 'demo' ? stubClipboard(stub === 'demo' ? DEMO_HOLDING : null) : null
 
+  // The snippets change the history's marks (which rows are kept, which snippet is on the clipboard).
+  const snippets = openSnippetShelf(() => {
+    broadcastSnippets(snippets.shelf.views())
+    watcher.republish()
+  })
+
   const watcher = new ClipboardWatcher({
     read: stand?.read ?? readSystemClipboard,
     write: stand?.write ?? writeSystemClipboard,
@@ -46,7 +53,9 @@ export function registerClipboardIpc(): { dispose: () => void; writer: Clipboard
         if (!sender.isDestroyed()) sender.send(CH.clipboard.update, board)
     },
     ...(stub === 'demo' ? { initial: demoHistory(Date.now()) } : {}),
+    snipOf: (text) => snippets.shelf.idOf(text),
   })
+  const snippetsIpc = registerSnippetsIpc(snippets.shelf, watcher)
 
   const drop = (sender: WebContents): void => {
     if (subscribers.delete(sender)) watcher.sync(subscribers.size > 0)
@@ -85,6 +94,8 @@ export function registerClipboardIpc(): { dispose: () => void; writer: Clipboard
     writer,
     dispose: () => {
       watcher.dispose()
+      snippetsIpc.dispose()
+      snippets.close()
       for (const channel of [
         CH.clipboard.subscribe,
         CH.clipboard.unsubscribe,

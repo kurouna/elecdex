@@ -285,3 +285,139 @@ test('switched away from the desk layout, nothing is read; switched back, it tak
     await close()
   }
 })
+
+const snipTexts = (page: Page) => page.getByTestId('snip-text').allInnerTexts()
+
+test('keeps a copy as a snippet with its formatting, puts it back without listing it, and keeps it', async () => {
+  let launched = await launch(undefined, { layout: beside('clock') })
+  try {
+    const { app, page } = launched
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    await copied(app, page, 'first copy', { html: '<b>first</b> copy' })
+    await copied(app, page, 'ssh deploy@example.test')
+
+    // SNIP keeps a row; the switch counts it, and the row carries a star from then on.
+    await page.getByTestId('clip-row').nth(1).hover()
+    await page.getByTestId('clip-snip').nth(1).click()
+    await expect(page.getByTestId('clip-snippet-count')).toHaveText('1')
+    await expect(page.getByTestId('clip-snip').nth(1)).toHaveText('★')
+    await page.getByTestId('clip-row').first().hover()
+    await page.getByTestId('clip-snip').first().click()
+    await expect(page.getByTestId('clip-snippet-count')).toHaveText('2')
+
+    // Behind the switch, in the order they were kept; the one the clipboard holds is marked.
+    await page.getByTestId('clip-view-snippets').click()
+    await expect.poll(() => snipTexts(page)).toEqual(['first copy', 'ssh deploy@example.test'])
+    await expect(page.getByTestId('snip-row').nth(1).getByTestId('snip-current')).toBeVisible()
+    await expect(page.getByTestId('snip-tag')).toHaveText(['TXT', 'RICH', 'TXT'])
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+
+    // COPY puts the text back with its HTML, and the history does not count it as a copy.
+    await page.getByTestId('snip-copy').first().click()
+    await expect(page.getByTestId('snip-copy').first()).toHaveText('COPIED')
+    expect(await held(app)).toEqual({ text: 'first copy', html: '<b>first</b> copy', rtf: null })
+    await expect(page.getByTestId('snip-row').first().getByTestId('snip-current')).toBeVisible()
+    await page.getByTestId('clip-view-history').click()
+    await page.waitForTimeout(800)
+    expect(await texts(page)).toEqual(['ssh deploy@example.test', 'first copy'])
+    await expect(page.getByTestId('clip-row').nth(1).getByTestId('clip-current')).toBeVisible()
+
+    // Gone from the history, a snippet put on the clipboard is still not listed.
+    await page.getByTestId('clip-row').nth(1).hover()
+    await page.getByTestId('clip-remove').nth(1).click()
+    await page.getByTestId('clip-view-snippets').click()
+    await page.getByTestId('snip-copy').first().click()
+    await page.getByTestId('clip-view-history').click()
+    await page.waitForTimeout(800)
+    expect(await texts(page)).toEqual(['ssh deploy@example.test'])
+    await expect(page.getByTestId('clip-current')).toHaveCount(0)
+
+    // A star goes to its snippet.
+    await page.getByTestId('clip-snip').first().click()
+    await expect(page.getByTestId('snip-list')).toBeVisible()
+
+    // The snippets are main's file, and the view the pane's: both survive a restart.
+    await page.waitForTimeout(1500) // let the layout save
+    launched = await launched.relaunch()
+    await expect
+      .poll(() => snipTexts(launched.page))
+      .toEqual(['first copy', 'ssh deploy@example.test'])
+    await launched.page.getByTestId('snip-row').first().hover()
+    await expect(launched.page.getByTestId('snip-card-formats')).toHaveText('text + HTML')
+    await expect(launched.page.getByTestId('snip-card-used')).toContainText('copied 2 times')
+  } finally {
+    await launched.close()
+  }
+})
+
+test('writes, moves, edits and deletes snippets', async () => {
+  const layout = beside('clock')
+  const pane = layout.root.children[0] as Record<string, unknown>
+  pane.state = { view: 'snippets' }
+  const { page, close } = await launch(undefined, { layout })
+  try {
+    await expect(page.getByTestId('snip-empty')).toBeVisible()
+    for (const [name, text] of [
+      ['', 'alpha'],
+      ['second', 'beta'],
+      ['', 'gamma'],
+    ] as const) {
+      await page.getByTestId('snip-new').click()
+      await page.getByTestId('snip-editor-name').fill(name)
+      await page.getByTestId('snip-editor-text').fill(text)
+      await page.keyboard.press('Control+Enter')
+      await expect(page.getByTestId('snip-editor')).toHaveCount(0)
+    }
+    await expect.poll(() => snipTexts(page)).toEqual(['alpha', 'beta', 'gamma'])
+    await expect(page.getByTestId('snip-name')).toHaveText(['second'])
+    await expect(page.getByTestId('snip-count')).toHaveText('3/100')
+
+    // The same text again is not kept twice: the editor says which slot has it.
+    await page.getByTestId('snip-new').click()
+    await page.getByTestId('snip-editor-text').fill('beta')
+    await page.getByTestId('snip-editor-save').click()
+    await expect(page.getByTestId('snip-editor-problem')).toHaveText('already kept as 02')
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('snip-editor')).toHaveCount(0)
+
+    // Dragged by its slot number, below the last.
+    const handle = page.getByTestId('snip-handle').first()
+    const last = await page.getByTestId('snip-row').nth(2).boundingBox()
+    const from = await handle.boundingBox()
+    if (last === null || from === null) throw new Error('no rows')
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(from.x + from.width / 2, last.y + last.height * 0.8, { steps: 8 })
+    await page.mouse.up()
+    await expect.poll(() => snipTexts(page)).toEqual(['beta', 'gamma', 'alpha'])
+
+    // Alt+Up moves the focused one a place up.
+    await page.getByTestId('snip-copy').nth(2).focus()
+    await page.keyboard.press('Alt+ArrowUp')
+    await expect.poll(() => snipTexts(page)).toEqual(['beta', 'alpha', 'gamma'])
+    const kept = () =>
+      page.evaluate(async () => (await window.elecdex.snippets.list()).map((s) => s.preview))
+    await expect.poll(kept).toEqual(['beta', 'alpha', 'gamma'])
+
+    // F2 edits the focused one.
+    await page.keyboard.press('F2')
+    await expect(page.getByTestId('snip-editor-text')).toHaveValue('alpha')
+    await page.getByTestId('snip-editor-text').fill('alpha, edited')
+    await page.getByTestId('snip-editor-save').click()
+    await expect.poll(() => snipTexts(page)).toEqual(['beta', 'alpha, edited', 'gamma'])
+
+    // × asks once more.
+    await page.getByTestId('snip-row').first().hover()
+    await page.getByTestId('snip-remove').first().click()
+    await expect(page.getByTestId('snip-remove').first()).toHaveText('DELETE?')
+    await expect(page.getByTestId('snip-row')).toHaveCount(3)
+    await page.getByTestId('snip-remove').first().click()
+    await expect.poll(() => snipTexts(page)).toEqual(['alpha, edited', 'gamma'])
+
+    // The order and the edit are main's: a reload finds them.
+    await page.reload()
+    await expect.poll(() => snipTexts(page)).toEqual(['alpha, edited', 'gamma'])
+  } finally {
+    await close()
+  }
+})

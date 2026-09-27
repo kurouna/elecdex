@@ -36,6 +36,7 @@ import type { PluginCatalog, PluginInstalled } from './plugins.js'
 import type { QuakeAlert, QuakeState } from './quakes.js'
 import type { LayoutTree } from './schemas/layout.js'
 import type { Settings, SettingsPatch } from './settings.js'
+import type { SnippetAdded, SnippetDraft, SnippetView } from './snippets.js'
 import type { NewTask, Task, TaskList, TaskPatch, TaskReminder, TasksFile } from './tasks.js'
 import type { Theme, ThemeProblem } from './theme.js'
 import type { UpdateStatus } from './updates.js'
@@ -393,6 +394,29 @@ export interface ClipboardApi {
 }
 
 /**
+ * The clipboard pane's snippets: kept by main in snippets.json. The page gets
+ * previews, names a snippet by its id, and is given its whole text only to edit it.
+ */
+export interface SnippetsApi {
+  list(): Promise<SnippetView[]>
+  /** Keeps a history entry, its formatting with it; one already kept answers its id. */
+  fromClip(clipId: string): Promise<SnippetAdded>
+  /** Keeps a text written by hand. */
+  create(name: string, text: string): Promise<SnippetAdded>
+  /** Its name and whole text, for the editor. */
+  read(id: string): Promise<SnippetDraft | null>
+  /** Renames or rewrites one; a new text drops the formatting it was copied with. */
+  update(id: string, change: { name?: string; text?: string }): Promise<boolean>
+  /** Moves one to a place in the list. */
+  move(id: string, index: number): Promise<boolean>
+  remove(id: string): Promise<boolean>
+  /** Puts one on the clipboard, its formatting with it. */
+  copy(id: string): Promise<'ok' | 'missing' | 'failed'>
+  /** Every change, however it was made - another pane, or a hand edit of snippets.json. */
+  onChange(handler: (snippets: SnippetView[]) => void): () => void
+}
+
+/**
  * The NOW PLAYING pane: the media session the system calls current, read by
  * main while a pane is seen, and its player's three buttons.
  */
@@ -736,6 +760,7 @@ export interface ElecdexApi {
   markets: MarketsApi
   feeds: FeedsApi
   clipboard: ClipboardApi
+  snippets: SnippetsApi
   nowPlaying: NowPlayingApi
   docker: DockerApi
   utility: UtilityApi

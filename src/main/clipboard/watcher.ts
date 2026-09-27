@@ -8,8 +8,10 @@ import {
   cleared,
   emptyHistory,
   nextTick,
+  putOn,
   recordRead,
   restored,
+  type SnipOf,
   shouldReadText,
   withoutEntry,
 } from '@shared/clipboard'
@@ -20,8 +22,8 @@ export interface ClipboardDeps {
    * clipboard still holds it, the HTML beside it need not be read again.
    */
   read(last: string | null): Promise<ClipRead>
-  /** Puts an entry on the clipboard, its HTML with it. */
-  write(entry: ClipEntry): Promise<void>
+  /** Puts an entry (or a snippet) on the clipboard, its HTML and RTF with it. */
+  write(entry: Pick<ClipEntry, 'text' | 'html' | 'rtf'>): Promise<void>
   /** Empties the clipboard (CLEAR). */
   clear(): Promise<void>
   now(): number
@@ -30,6 +32,8 @@ export interface ClipboardDeps {
   publish(board: ClipBoard): void
   /** A history to start from: the screenshots' made-up one. */
   initial?: ClipHistory
+  /** Which snippet holds a text (main's snippets.json), for the rows' marks. */
+  snipOf?: SnipOf
 }
 
 /**
@@ -76,7 +80,17 @@ export class ClipboardWatcher {
   }
 
   board(): ClipBoard {
-    return boardOf(this.#history, this.active, this.#paused)
+    return boardOf(this.#history, this.active, this.#paused, this.#deps.snipOf)
+  }
+
+  /** An entry as kept, whole: what a snippet is made from. */
+  entry(id: string): ClipEntry | undefined {
+    return this.#history.entries.find((e) => e.id === id)
+  }
+
+  /** Tells the panes again, for a change the history does not see (the snippets changed). */
+  republish(): void {
+    this.#publish()
   }
 
   /** Whether any pane wants the history kept current. */
@@ -108,6 +122,24 @@ export class ClipboardWatcher {
       done()
     }
     this.#set(restored(this.#history, id))
+    return 'ok'
+  }
+
+  /**
+   * Puts something of the pane's own on the clipboard - a snippet - without
+   * taking it for a copy (`putOn`), with the same guard against a look that
+   * overlapped the write as putting an entry back has.
+   */
+  async put(content: Pick<ClipEntry, 'text' | 'html' | 'rtf'>): Promise<'ok' | 'failed'> {
+    const done = this.#writes()
+    try {
+      await this.#deps.write(content)
+    } catch {
+      return 'failed'
+    } finally {
+      done()
+    }
+    this.#set(putOn(this.#history, content.text))
     return 'ok'
   }
 

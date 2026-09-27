@@ -10,8 +10,9 @@ import {
 
 /**
  * One entry of the clipboard history: its tags, a few lines of it, its size, and
- * how long ago. Pressing it puts it back on the clipboard; the × beside it takes
- * it out of the history. Resting on it (or the keyboard on it) asks for the card
+ * how long ago. Pressing it puts it back on the clipboard; SNIP beside it keeps
+ * it as a snippet (★ once it is one, which goes to it), and × takes it out of
+ * the history. Resting on it (or the keyboard on it) asks for the card
  * with the whole of it, which the pane draws (ClipCard.svelte).
  */
 interface Props {
@@ -25,12 +26,14 @@ interface Props {
   /** Just put back: says so for a moment in place of its age. */
   copied: boolean
   onrestore: () => void
+  onsnip: () => void
   onremove: () => void
   /** The row came under the pointer (with where it is) or the keyboard; null when it left. */
   onhover: (event: { row: DOMRect; x: number | null } | null) => void
 }
 
-const { entry, current, masked, lines, now, copied, onrestore, onremove, onhover }: Props = $props()
+const { entry, current, masked, lines, now, copied, onrestore, onsnip, onremove, onhover }: Props =
+  $props()
 
 let rowEl = $state<HTMLElement | null>(null)
 const hovered = (x: number | null): void => {
@@ -80,6 +83,16 @@ const more = $derived(!masked && entry.lines > shown.length)
     </span>
     <span class="age" class:copied data-testid="clip-age">{copied ? 'COPIED' : clipAge(entry.at, now)}</span>
   </button>
+  <button
+    type="button"
+    class="snip"
+    class:kept={entry.snipped}
+    disabled={!entry.kept}
+    aria-label={entry.snipped ? 'kept as a snippet: show it' : 'keep as a snippet'}
+    title={entry.snipped ? 'kept as a snippet: show it' : 'keep as a snippet'}
+    onclick={onsnip}
+    data-testid="clip-snip">{entry.snipped ? '★' : 'SNIP'}</button
+  >
   <button
     type="button"
     class="drop"
@@ -246,6 +259,45 @@ const more = $derived(!masked && entry.lines > shown.length)
   color: var(--accent);
   font-family: var(--font-ui);
   letter-spacing: 0.1em;
+}
+
+/* SNIP shows with the ×; a ★ (kept as a snippet) stays. */
+.snip {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 0.3rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--accent-dim);
+  background: transparent;
+  color: var(--accent-strong);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.snip.kept {
+  border-color: transparent;
+  color: var(--accent);
+  font-size: var(--step--1);
+  opacity: 1;
+}
+
+.snip:disabled {
+  display: none;
+}
+
+.row:hover .snip,
+.row:focus-within .snip {
+  opacity: 1;
+}
+
+.snip:not(.kept):hover,
+.snip:not(.kept):focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-faint);
+  outline: none;
 }
 
 /* The × shows on the row under the pointer or the keyboard. */

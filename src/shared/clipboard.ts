@@ -141,6 +141,8 @@ export interface ClipEntryView {
   firstAt: number
   at: number
   copies: number
+  /** Its text is kept as a snippet too. */
+  snipped: boolean
 }
 
 /** The pane's whole picture, sent on every change. */
@@ -148,6 +150,8 @@ export interface ClipBoard {
   entries: ClipEntryView[]
   /** The entry that is on the clipboard now, or null when it holds something else. */
   current: string | null
+  /** The snippet whose text is on the clipboard now, or null. */
+  snippet: string | null
   /** Whether main is reading the clipboard: a pane is seen and it is not paused. */
   watching: boolean
   paused: boolean
@@ -193,7 +197,7 @@ export function classifyClip(text: string): ClipKind {
   return 'text'
 }
 
-function countLines(text: string): number {
+export function countLines(text: string): number {
   let lines = 1
   for (let i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) lines += 1
   // A final line break ends the last line; it does not start another.
@@ -318,6 +322,18 @@ export function restored(history: ClipHistory, id: string): ClipHistory {
   return { ...history, last: entry.text, current: id }
 }
 
+/**
+ * The history once something of the pane's own - a snippet - has been put on the
+ * clipboard. It is not a copy: an entry with the same text is what the clipboard
+ * holds, as if it had been put back, and otherwise nothing is added, and the next
+ * look knows the text and adds nothing either (user decision 2026-09-27).
+ */
+export function putOn(history: ClipHistory, text: string): ClipHistory {
+  const found = history.entries.find((entry) => entry.kept && entry.text === text)
+  if (found !== undefined) return restored(history, found.id)
+  return { ...history, last: text, current: null }
+}
+
 /** The history without one entry. What is on the clipboard is left alone. */
 export function withoutEntry(history: ClipHistory, id: string): ClipHistory {
   if (!history.entries.some((e) => e.id === id)) return history
@@ -338,8 +354,13 @@ export function cleared(history: ClipHistory): ClipHistory {
   return { ...history, entries: [], current: null, last: null }
 }
 
+/** The snippet holding a text, by its id, or null: main's index of snippets.json. */
+export type SnipOf = (text: string) => string | null
+
+const noSnippets: SnipOf = () => null
+
 /** An entry as the page is given it. */
-export function entryView(entry: ClipEntry): ClipEntryView {
+export function entryView(entry: ClipEntry, snipOf: SnipOf = noSnippets): ClipEntryView {
   return {
     id: entry.id,
     preview: entry.text.slice(0, CLIP_PREVIEW_CHARS),
@@ -355,13 +376,21 @@ export function entryView(entry: ClipEntry): ClipEntryView {
     firstAt: entry.firstAt,
     at: entry.at,
     copies: entry.copies,
+    snipped: entry.kept && snipOf(entry.text) !== null,
   }
 }
 
-export function boardOf(history: ClipHistory, watching: boolean, paused: boolean): ClipBoard {
+export function boardOf(
+  history: ClipHistory,
+  watching: boolean,
+  paused: boolean,
+  snipOf: SnipOf = noSnippets,
+): ClipBoard {
   return {
-    entries: history.entries.map(entryView),
+    entries: history.entries.map((entry) => entryView(entry, snipOf)),
     current: history.current,
+    // `last` is a text only once one has been read or put on; a private copy's mark is no snippet.
+    snippet: history.last === null ? null : snipOf(history.last),
     watching,
     paused,
     skipped: history.skipped,

@@ -708,6 +708,13 @@ weather and calendar.
   empties the list and the clipboard with it. Text only: an image or files on the clipboard are
   not kept. The pane learns of a copy by seeing the clipboard's text change, so the same text
   copied twice with nothing in between is one copy.
+  *Unreleased:* behind the pane's **snippets** switch are the texts you chose to keep: **SNIP** on an entry
+  keeps it, formatting and all (a ★ marks it from then on), and **+ NEW** writes one by hand, with
+  an optional name. **COPY** puts a snippet on the clipboard without adding it to the history.
+  Drag a snippet by its number (or Alt+↑ ↓) to move it, **EDIT** or F2 to change it - a new text
+  drops the formatting it was copied with - and × pressed twice deletes it. Up to 100 snippets
+  are kept in `snippets.json` beside the settings: unlike the history, they are written to disk,
+  but only what you kept. MASK hides them too.
 - **Calendar** — the month with today marked; ‹ › or the mouse wheel change month, and the dates
   sweep in the way it moved. Given room - a wide pane, or the pane brought forward with
   Ctrl+Shift+Z - the month before and the month after join it either side, dimmed, and the arrows

@@ -138,6 +138,11 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     formats alone and its text is never read. Keep the list of those formats in one place.
   - The decisions are pure (`recordRead`: dedupe, the dragged-selection absorption, limits); a
     selection is absorbed only between looks in a row, never across a pause or a hidden spell.
+  - Its snippets (shared/snippets.ts, behind the pane's switch) are the one thing it writes:
+    main's `snippets.json`, only what the user kept. A history entry becomes one by id, so its
+    text and formatting never pass through the page; the editor asks for one text by id. COPY
+    goes through the watcher (`put`) and is not a copy to the history (user decision 2026-09-27);
+    which rows are kept and which snippet is on the clipboard are main's to say.
   - Tests set `ELECDEX_CLIPBOARD_STUB=1` and copy through `globalThis.__elecdexClipboard`.
 - **The NOW PLAYING pane reads only while it is seen** (architecture.md §5.15, shared/now-playing.ts,
   main/media/). Main reads the system's media session - on Windows, SMTC through one long-lived

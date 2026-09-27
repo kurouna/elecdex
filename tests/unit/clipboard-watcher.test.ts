@@ -5,7 +5,7 @@ import { demoHistory } from '../../src/main/clipboard/stub.js'
 import { ClipboardWatcher } from '../../src/main/clipboard/watcher.js'
 
 /** A watcher on a fake clock and a fake clipboard, whose timers are run by hand. */
-function rig(start = 10_000) {
+function rig(start = 10_000, snipOf: (text: string) => string | null = () => null) {
   let now = start
   let held: ClipRead = { kind: 'other' }
   const timers = new Map<number, { at: number; fn: () => void }>()
@@ -39,6 +39,7 @@ function rig(start = 10_000) {
       timers.delete(id as number)
     },
     publish: (board) => boards.push(board),
+    snipOf,
   })
   const flush = async () => {
     for (let i = 0; i < 5; i++) await Promise.resolve()
@@ -223,6 +224,62 @@ describe('ClipboardWatcher', () => {
     await r.advance(300)
     r.failWrites()
     expect(await r.watcher.restore(r.watcher.board().entries[0]?.id ?? '')).toBe('failed')
+  })
+
+  it('puts a snippet on the clipboard without listing it, or marks its entry current', async () => {
+    const r = rig()
+    r.watcher.sync(true)
+    r.copy(text('one'))
+    await r.advance(300)
+    r.copy(text('two'))
+    await r.advance(300)
+    // A text the history has: that entry is what the clipboard holds, where it is.
+    expect(await r.watcher.put({ text: 'one', html: '<b>one</b>', rtf: null })).toBe('ok')
+    await r.advance(1000)
+    const one = r.watcher.board().entries.find((e) => e.preview === 'one')?.id
+    expect(r.watcher.board().current).toBe(one)
+    // A text it has not: nothing is added, then or at the looks after.
+    expect(await r.watcher.put({ text: 'snippet', html: null, rtf: null })).toBe('ok')
+    await r.advance(1000)
+    expect(r.watcher.board().entries.map((e) => e.preview)).toEqual(['two', 'one'])
+    expect(r.watcher.board().current).toBeNull()
+    expect(r.written).toEqual(['one', 'snippet'])
+    // A copy after it is listed as ever, and the snippet's text copied again after that too.
+    r.copy(text('three'))
+    await r.advance(300)
+    r.copy(text('snippet'))
+    await r.advance(300)
+    expect(r.watcher.board().entries.map((e) => e.preview)).toEqual([
+      'snippet',
+      'three',
+      'two',
+      'one',
+    ])
+    r.failWrites()
+    expect(await r.watcher.put({ text: 'x', html: null, rtf: null })).toBe('failed')
+  })
+
+  it('marks the rows kept as snippets, and the snippet the clipboard holds', async () => {
+    const kept = new Map([['one', 'sone']])
+    const r = rig(10_000, (value) => kept.get(value) ?? null)
+    r.watcher.sync(true)
+    r.copy(text('one'))
+    await r.advance(300)
+    r.copy(text('two'))
+    await r.advance(300)
+    expect(r.watcher.board().entries.map((e) => [e.preview, e.snipped])).toEqual([
+      ['two', false],
+      ['one', true],
+    ])
+    expect(r.watcher.board().snippet).toBeNull()
+    await r.watcher.put({ text: 'one', html: null, rtf: null })
+    expect(r.last()?.snippet).toBe('sone')
+    // A change of the snippets alone is told again.
+    kept.set('two', 'stwo')
+    const told = r.boards.length
+    r.watcher.republish()
+    expect(r.boards.length).toBe(told + 1)
+    expect(r.last()?.entries.every((e) => e.snipped)).toBe(true)
   })
 
   it('empties the clipboard with CLEAR, and lists the same text copied again after it', async () => {
