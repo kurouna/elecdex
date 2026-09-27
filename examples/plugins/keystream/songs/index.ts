@@ -37,9 +37,9 @@ export const SONGS: readonly SongSource[] = [
   heartProtocol,
   symphony40,
   zeroGravity,
-  pixelRush,
   mountainKing,
   packetStorm,
   turkishMarch,
+  pixelRush,
   overclock,
 ]

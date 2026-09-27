@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildChart } from '../../examples/plugins/keystream/chart'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
-import type { Paint } from '../../examples/plugins/keystream/draw/paint'
 import {
   drawResult,
   RANK_AT,
@@ -22,6 +21,7 @@ import {
 } from '../../examples/plugins/keystream/judge'
 import { readSong } from '../../examples/plugins/keystream/notation'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
+import { paint, recorder } from './keystream-canvas'
 
 /**
  * KEYSTREAM's result screen (examples/plugins/keystream/draw/result.ts): how a play ended,
@@ -85,38 +85,6 @@ describe('the fanfare', () => {
     expect(fanfare('A', true, when, 0).every((n) => n.level === 0)).toBe(true)
   })
 })
-
-/** A canvas that writes nothing but remembers the words and figures it was asked to. */
-function recorder(): { g: Paint['g']; texts: string[] } {
-  const texts: string[] = []
-  const gradient = { addColorStop() {} }
-  const g = new Proxy(
-    {
-      fillText: (text: string) => texts.push(text),
-      measureText: (text: string) => ({
-        width: text.length * 8,
-        actualBoundingBoxAscent: 8,
-        actualBoundingBoxDescent: 2,
-      }),
-      createLinearGradient: () => gradient,
-      createRadialGradient: () => gradient,
-    } as Record<string | symbol, unknown>,
-    {
-      get: (target, key) => (key in target ? target[key] : () => {}),
-      set: (target, key, value) => {
-        target[key] = value
-        return true
-      },
-    },
-  ) as unknown as Paint['g']
-  return { g, texts }
-}
-
-function paint(g: Paint['g'], w: number, h: number, reduced = false): Paint {
-  const colour = 'rgb(120, 200, 220)'
-  const c = new Proxy({}, { get: () => colour }) as Paint['c']
-  return { g, w, h, c, fonts: { display: 'x', ui: 'x', mono: 'x' }, light: false, reduced }
-}
 
 function viewOf(tally: Tally, extra: Partial<ResultView> = {}): ResultView {
   const score = scoreOf(tally)

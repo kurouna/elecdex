@@ -3,7 +3,17 @@ import { LEVELS } from '../chart'
 import type { Best } from '../records'
 import { bpmText } from './hud'
 import type { Layout } from './layout'
-import { alpha, clamp, fitted, font, measure, type Paint, rule, write } from './paint'
+import {
+  alpha,
+  clamp,
+  fitted,
+  font,
+  measure,
+  type Paint,
+  rule,
+  type TextStyle,
+  write,
+} from './paint'
 
 /**
  * The menu, as a directory listing: the tracks one to a row, the level, what the chosen
@@ -38,14 +48,23 @@ export const timeText = (ms: number): string => {
 
 export const figure = (n: number): string => n.toLocaleString('en-US')
 
+/** The height the first line takes under the details. */
+const OPENING_ROOM = 64
+/** The fewest rows the list keeps to make room for the first line. */
+const MIN_ROWS = 8
+
 export function drawMenu(p: Paint, l: Layout, view: MenuView): void {
   const width = Math.min(l.w - l.pad * 2, 980)
   const x = (l.w - width) / 2
   let y = title(p, l, x, width)
   const rowH = clamp(l.unit * 0.62, 24, 40)
-  // The tracks and FREE PLAY after them, as many as fit, the chosen one always among them.
+  // The tracks and FREE PLAY after them, as many as fit, the chosen one always among them -
+  // leaving room for the chosen track's first line where the list still shows enough rows.
   const total = view.rows.length + 1
-  const fit = Math.max(3, Math.min(total, Math.floor((l.line - 170 - y) / rowH)))
+  const room = l.line - 170 - y
+  const withOpening = Math.floor((room - OPENING_ROOM) / rowH)
+  const shown = withOpening >= Math.min(MIN_ROWS, total) ? withOpening : Math.floor(room / rowH)
+  const fit = clamp(shown, 3, total)
   const first = clamp(view.selected - Math.floor(fit / 2), 0, total - fit)
   for (let i = first; i < first + fit; i++) {
     const row = view.rows[i]
@@ -203,8 +222,6 @@ function trackRow(
     align: 'right' as const,
     baseline: 'middle' as const,
   }
-  // The style and the credit take what room the title and the tempo leave, and no more.
-  const bpmLeft = right - 220 - measure(p, bpmText(row.chart), figures)
   const creditStyle = {
     font: font(500, 11, p.fonts.ui),
     color: p.c.muted,
@@ -212,8 +229,12 @@ function trackRow(
     spacing: '0.08em',
   }
   const creditX = x + 52 + titleWidth + 14
-  const room = bpmLeft - 14 - creditX
   const { style, credit } = row.chart.song
+  // A tempo that changes gives up its unit before the style is cut.
+  const styleEnd = creditX + measure(p, style, creditStyle) + 14
+  const tempo = tempoText(p, row.chart, right - 220 - styleEnd, figures)
+  // The style and the credit take what room the title and the tempo leave, and no more.
+  const room = right - 220 - measure(p, tempo, figures) - 14 - creditX
   // In a narrow pane the style alone, whole, rather than both cut short.
   const both = `${style}  //  ${credit}`
   const line = measure(p, both, creditStyle) <= room ? both : fitted(p, style, room, creditStyle)
@@ -225,7 +246,17 @@ function trackRow(
     baseline: 'middle',
   })
   write(p, timeText(row.chart.duration), right - 150, mid, figures)
-  write(p, bpmText(row.chart), right - 220, mid, figures)
+  write(p, tempo, right - 220, mid, figures)
+}
+
+/**
+ * The tempo in the room it has: whole, or for one that changes (96→176 BPM) without its
+ * unit - the column keeps a steady tempo's width, so a steady one is never cut.
+ */
+function tempoText(p: Paint, chart: Chart, room: number, style: TextStyle): string {
+  const whole = bpmText(chart)
+  if (chart.bpm.from === chart.bpm.to || measure(p, whole, style) <= room) return whole
+  return `${chart.bpm.from}→${chart.bpm.to}`
 }
 
 /** The level chips, and beside them what the chosen level asks. Answers the line's bottom. */
@@ -307,10 +338,14 @@ function opening(
   const mono = font(600, 20, p.fonts.mono)
   let at = x + 14
   const top = y + 30
-  for (const [b, bar] of bars.entries()) {
-    if (b > 0) at += write(p, '|', at, top, { font: mono, color: alpha(p.c.rule, 0.9) }) + 12
-    for (const letter of bar) {
-      if (at > x + width - 30) return
+  const end = x + width - 30
+  const bar = { font: mono, color: alpha(p.c.rule, 0.9) }
+  for (const [b, keys] of bars.entries()) {
+    // A bar's rule only where its first letter still fits after it: never a rule to nothing.
+    if (b > 0 && at + measure(p, '|', bar) + 12 > end) return
+    if (b > 0) at += write(p, '|', at, top, bar) + 12
+    for (const letter of keys) {
+      if (at > end) return
       at += write(p, letter, at, top, { font: mono, color: p.c.accentStrong }) + 10
     }
     at += 2
