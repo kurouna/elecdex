@@ -26,8 +26,10 @@ import {
  * project), its image, its published ports, what it uses, and its state and
  * age. The name copies itself when pressed; a published port opens in the
  * browser. The presses its state takes show on the row under the pointer or
- * the keyboard; stop, restart and pause ask a second time. Resting on it (or
- * the keyboard on its name) asks for the card, which the pane draws.
+ * the keyboard; stop, restart and pause ask a second time. Resting on its
+ * name (or the keyboard on it) asks for the card, which the pane draws - only
+ * the name: a card opened by the whole row came up over the presses of the rows
+ * below as the pointer went to them (user report, 2026-09-27).
  */
 interface Props {
   container: DockerContainer
@@ -71,15 +73,14 @@ const running = $derived(container.state === 'running')
   data-name={container.name}
   role="presentation"
   bind:this={rowEl}
-  onpointerenter={(event) => hovered(event.clientX)}
-  onpointerleave={() => onhover(null)}
 >
   <i class="lamp" aria-hidden="true"></i>
   <button
     type="button"
     class="name"
-    title="copy the name"
     onclick={() => oncopy('name')}
+    onpointerenter={(event) => hovered(event.clientX)}
+    onpointerleave={() => onhover(null)}
     onfocus={(event) => {
       // The keyboard's focus, not the one a click leaves behind: the pointer has its own rest.
       if (event.currentTarget.matches(':focus-visible')) hovered(null)

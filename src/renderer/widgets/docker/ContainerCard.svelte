@@ -6,8 +6,8 @@ import HoverCard from '../common/HoverCard.svelte'
 import { containerRows, stateTone, stateWord } from './docker-view.ts'
 
 /**
- * A container as a whole, shown while the pointer rests on its row (or the
- * keyboard is on its name): its full name, and what the row has no room for -
+ * A container as a whole, shown while the pointer rests on its name (or the
+ * keyboard is on it): its full name, and what the row has no room for -
  * the image in full, the Compose project and its folder, the engine's own
  * words for its state, every port with its address, what it uses against its
  * limit, when it was made and its id. The frame and its place are every detail

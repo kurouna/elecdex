@@ -316,11 +316,25 @@ describe('DockerWidget', () => {
     expect(screen.getByTestId('docker-empty').textContent).toContain('NOTHING RUNNING')
   })
 
-  it('opens the card on a row with what the row has no room for', async () => {
+  it('opens the card from the name only, never from the rest of the row or its presses', async () => {
     vi.useFakeTimers()
     await mount()
     await push(board())
-    await fireEvent.pointerEnter(row('shop-api-1'), { clientX: 40 })
+    // A card opened by the whole row covered the presses of the rows below (user report).
+    for (const part of ['docker-image', 'docker-ports', 'docker-state', 'docker-actions']) {
+      await fireEvent.pointerEnter(row('shop-api-1'), { clientX: 400 })
+      await fireEvent.pointerEnter(within(row('shop-api-1'), part), { clientX: 400 })
+      vi.advanceTimersByTime(400)
+      await settle()
+      expect(screen.queryByTestId('docker-card'), part).toBeNull()
+    }
+  })
+
+  it('opens the card on a name with what the row has no room for', async () => {
+    vi.useFakeTimers()
+    await mount()
+    await push(board())
+    await fireEvent.pointerEnter(within(row('shop-api-1'), 'docker-name'), { clientX: 40 })
     vi.advanceTimersByTime(400)
     await settle()
     const card = screen.getByTestId('docker-card')

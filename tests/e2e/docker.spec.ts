@@ -107,9 +107,20 @@ test('lists the containers by project, follows the engine, and presses one', asy
     await page.getByTestId('docker-filter-all').click({ delay: 20 })
     await expect(page.getByTestId('docker-row')).toHaveCount(4)
 
-    // Resting on a row opens its card.
+    // Resting on a name opens its card; the rest of the row opens none, so the card never comes
+    // up over the presses of the rows below on the way to them (user report, 2026-09-27).
     await row(page, 'shop-db-1').getByTestId('docker-image').hover()
+    await page.waitForTimeout(700)
+    await expect(page.getByTestId('docker-card')).toHaveCount(0)
+    await row(page, 'shop-api-1').getByTestId('docker-name').hover()
     await expect(page.getByTestId('docker-card')).toContainText('/home/dev/shop')
+    await row(page, 'shop-db-1').hover()
+    await row(page, 'shop-db-1').getByTestId('docker-restart').hover()
+    await expect(page.getByTestId('docker-card')).toHaveCount(0)
+    await page.waitForTimeout(700)
+    await expect(page.getByTestId('docker-card')).toHaveCount(0)
+    await row(page, 'shop-db-1').getByTestId('docker-restart').click({ delay: 20 })
+    await expect(row(page, 'shop-db-1').getByTestId('docker-restart')).toHaveText('RESTART?')
 
     // The engine gone: the pane says so, and lists again when it is back.
     await linkTo(app, 'down')
