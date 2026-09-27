@@ -21,6 +21,8 @@ export interface StubTrack {
   at: number
   /** Base64 of a JPEG, or null: the stand-in sends it as both the plate's and the card's. */
   art: string | null
+  /** The card's larger copy, when it differs from the plate's. */
+  artLarge?: string | null
   next: boolean
   previous: boolean
   /** Whether it takes a new position. */
@@ -81,8 +83,27 @@ const TEST: Omit<StubTrack, 'at'> = {
   seek: true,
 }
 
-export function stubNowPlaying(demo: boolean, now: () => number = Date.now): NowPlayingBackend {
-  const list = demo ? DEMO : [TEST, { ...TEST, title: 'Second Track', position: 0 }]
+/** A demo track's cover, as base64 JPEGs at the plate's size and the card's. */
+export interface StubCover {
+  small: string
+  large: string
+}
+
+/**
+ * `covers`: the demo tracks' art, in their order (made in main/media/demo-art.ts), so a
+ * screenshot or a recorded take shows a cover; without them the plate shows its disc.
+ */
+export function stubNowPlaying(
+  demo: boolean,
+  now: () => number = Date.now,
+  covers: readonly (StubCover | null)[] = [],
+): NowPlayingBackend {
+  const list = demo
+    ? DEMO.map((track, i) => {
+        const cover = covers[i] ?? null
+        return { ...track, art: cover?.small ?? null, artLarge: cover?.large ?? null }
+      })
+    : [TEST, { ...TEST, title: 'Second Track', position: 0 }]
   let index = 0
   let track: StubTrack | null = { ...(list[0] ?? TEST), at: now() }
   /** The art already sent for this track, as the real reader sends it once. */
@@ -130,7 +151,8 @@ export function stubNowPlaying(demo: boolean, now: () => number = Date.now): Now
     artSent = art
     return {
       session,
-      art: art === null ? null : { small: art, large: art, width: 640, height: 640 },
+      art:
+        art === null ? null : { small: art, large: track.artLarge ?? art, width: 640, height: 640 },
     }
   }
 

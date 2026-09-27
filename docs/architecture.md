@@ -1227,7 +1227,7 @@ Web ペイン（ビューが `reapOrphanSessions` に閉じられ、ポップア
 - **画面**: 横長ならアートが左、縦長なら上（コンテナクエリ）。アートの枠は角を切ったプレートで、アートが無いときは線で描いた円盤。ランプ（PLAYING 緑 / PAUSED アクセント / NO SESSION・STANDBY 淡色 / UNSUPPORTED・エラー 警告色）とアプリ名、曲名（`--step-1`、2 行まで）、アーティスト（`--step-0`）、アルバム（`--step--1`）、バーと時刻（`--step--1`）、中央に寄せたボタン 3 つ（利用者の指摘で左寄せから変更）。バーは 1 秒ごとの段で、CSS のアニメーションは使わない
 - **カード**（`ArtCard.svelte`、詳細カードの共通部品、§7.4）: アートにポインタを留める（またはキーボードで移る）と、大きいアート（元の縦横比。main から届くまではプレートの画像）、曲名の全文、アーティスト・アルバムの全文、プレーヤー（表示名と Windows の id）、長さ、アートの元の画素数、ほかのプレーヤーの数（`nowPlayingRows`）を出す。ペインがプレートの右に 300 px 以上空いていればプレートの横、そうでなければ上下に置く
 - **macOS / Linux**: 今は読まない（ペインが「Windows only」と言う）。macOS の MediaRemote は非公開 API で、15.4 から Apple の署名の無いプロセスには答えない。Linux は MPRIS（D-Bus）で読める見込み（Phase 2）
-- **テスト**: 単体（`now-playing.test.ts`: 正規化・切り詰め・アプリ名・アートの検査・位置の補間・リーダーの行・スクリプトが押すのは 3 つだけでスクリプトを環境変数で渡すこと・監視の境界・重ねない・読まない間・余韻と閉じ方・失敗しても止まらない・押下の可否）、コンポーネント（`now-playing-widget.test.ts`）、e2e（`now-playing.spec.ts`、`hidden-panes.spec.ts`）。e2e は `ELECDEX_NOWPLAYING_STUB=1` で main の代役を読み、実機のプレーヤーを読まず押さない（曲は `globalThis.__elecdexNowPlaying` から変える）。スクリーンショットは `demo`（架空の曲）。実機の SMTC は、音量 0 の `Windows.Media.Playback.MediaPlayer` に表示用の曲情報とサムネイルを載せた PowerShell で確かめた（日本語の曲名、アート、一時停止）
+- **テスト**: 単体（`now-playing.test.ts`: 正規化・切り詰め・アプリ名・アートの検査・位置の補間・リーダーの行・スクリプトが押すのは 3 つだけでスクリプトを環境変数で渡すこと・監視の境界・重ねない・読まない間・余韻と閉じ方・失敗しても止まらない・押下の可否）、コンポーネント（`now-playing-widget.test.ts`）、e2e（`now-playing.spec.ts`、`hidden-panes.spec.ts`）。e2e は `ELECDEX_NOWPLAYING_STUB=1` で main の代役を読み、実機のプレーヤーを読まず押さない（曲は `globalThis.__elecdexNowPlaying` から変える）。スクリーンショットとデモは `demo`（架空の曲と、`main/media/demo-art.ts` が画素から描いたジャケット。誰の作品も写さない）。実機の SMTC は、音量 0 の `Windows.Media.Playback.MediaPlayer` に表示用の曲情報とサムネイルを載せた PowerShell で確かめた（日本語の曲名、アート、一時停止）
 
 ### 5.16 UTILITY ペイン（AWAKE・QR・CODEC）
 

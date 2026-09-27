@@ -1,7 +1,8 @@
 import { CH } from '@shared/channels'
-import { isNowPlayingAction, type NowPlaying } from '@shared/now-playing'
-import { ipcMain, type WebContents } from 'electron'
-import { stubNowPlaying } from '../media/stub.js'
+import { ART_EDGE, isNowPlayingAction, LARGE_ART_EDGE, type NowPlaying } from '@shared/now-playing'
+import { ipcMain, nativeImage, type WebContents } from 'electron'
+import { type DemoCover, demoCoverPixels } from '../media/demo-art.js'
+import { type StubCover, stubNowPlaying } from '../media/stub.js'
 import { NowPlayingWatcher } from '../media/watcher.js'
 import { windowsNowPlayingBackend } from '../media/windows.js'
 import { whenPageGoes } from './page-gone.js'
@@ -15,12 +16,25 @@ import { whenPageGoes } from './page-gone.js'
  * logged or written, and no plugin can reach it: plugin-api.ts has no media.
  * Only Windows is read for now; elsewhere the pane says it cannot be.
  */
+/** The demo tracks' covers, drawn and made JPEGs at the reader's two sizes (the screenshots, the demos). */
+function demoCovers(): StubCover[] {
+  const jpeg = (cover: DemoCover, size: number): string =>
+    nativeImage
+      .createFromBitmap(Buffer.from(demoCoverPixels(cover, size)), { width: size, height: size })
+      .toJPEG(82)
+      .toString('base64')
+  return (['sunset', 'orbit'] as const).map((cover) => ({
+    small: jpeg(cover, ART_EDGE),
+    large: jpeg(cover, LARGE_ART_EDGE),
+  }))
+}
+
 export function registerNowPlayingIpc(): { dispose: () => void } {
   const subscribers = new Set<WebContents>()
   const stub = process.env.ELECDEX_NOWPLAYING_STUB
   const backend =
     stub === '1' || stub === 'demo'
-      ? stubNowPlaying(stub === 'demo')
+      ? stubNowPlaying(stub === 'demo', Date.now, stub === 'demo' ? demoCovers() : [])
       : process.platform === 'win32'
         ? windowsNowPlayingBackend()
         : null

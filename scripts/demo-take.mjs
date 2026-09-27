@@ -209,7 +209,8 @@ export async function openTake({ items, options, standIn, env = {} }) {
       const name = String(shot++).padStart(3, '0')
       const png = await app
         .evaluate(async ({ BrowserWindow }) => {
-          const win = BrowserWindow.getAllWindows()[0]
+          // The visible one: a spectrum pane opens a hidden capture window of its own.
+          const win = BrowserWindow.getAllWindows().find((w) => w.isVisible())
           return win === undefined ? null : (await win.capturePage()).toPNG().toString('base64')
         })
         .catch(() => null)

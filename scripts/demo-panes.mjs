@@ -7,12 +7,12 @@
  *   DOCKER      a container turns healthy, a name's card opens, a stopped one starts, a running
  *               one stops (asked twice), RUN and back to ALL
  *   CLIPBOARD   three copies land (an address, a colour, a command), a card opens, one goes back
- *   NOW PLAYING the next track, a seek with the keyboard, pause and play
+ *   NOW PLAYING the next track and its cover, a seek with the keyboard, the spectrum dancing
  *   UTILITY     AWAKE held with the display on for an hour, a QR code typed, a SHA-256 typed
  *
- * Everything shown is made up: the stand-in engine (ELECDEX_DOCKER_STUB=demo), clipboard and
- * media session, and a stand-in power-save blocker, so the recording machine is neither read
- * nor kept awake. The window is 1280x720 at a zoom of 1, a 16:9 frame; record the window. The
+ * Everything shown is made up: the stand-in engine (ELECDEX_DOCKER_STUB=demo), clipboard, sound
+ * and media session (its covers drawn in main/media/demo-art.ts), and a stand-in power-save
+ * blocker, so the recording machine is neither read nor kept awake. The window is 1280x720 at a zoom of 1, a 16:9 frame; record the window. The
  * take starts after the lead (`--lead`, 6 s) and ends by itself; close the window to end, or
  * pass `--exit` to close it when the take is over. Windows only, like the screenshots. Run
  * `npm run build` first, then `npm run demo:panes`. The options are demo-take.mjs's
@@ -23,7 +23,7 @@ import { openTake, prepareData, say, takeOptions } from './demo-take.mjs'
 const options = takeOptions({ width: 1280, height: 720, zoom: 1, lead: 6 })
 const exit = process.argv.includes('--exit')
 
-/** DOCKER and CLIPBOARD down the left, NOW PLAYING over UTILITY on the right. */
+/** DOCKER and CLIPBOARD down the left; NOW PLAYING, the spectrum and UTILITY down the right. */
 const tree = {
   version: 1,
   root: {
@@ -46,9 +46,11 @@ const tree = {
         kind: 'split',
         id: 's-right',
         direction: 'column',
-        sizes: [0.42, 0.58],
+        sizes: [0.34, 0.24, 0.42],
         children: [
           { kind: 'pane', id: 'p-np', widget: 'nowplaying' },
+          // The music the track plays, so the take looks as if it were heard.
+          { kind: 'pane', id: 'p-spectrum', widget: 'spectrum', state: { bands: 16 } },
           { kind: 'pane', id: 'p-util', widget: 'utility', state: { module: 'awake' } },
         ],
       },
@@ -126,11 +128,8 @@ async function nowPlaying() {
     await page.keyboard.press('ArrowRight')
     await wait(110)
   }
-  await wait(500)
-  await press(page.getByTestId('np-play'))
+  // No pause: the stand-in sound the spectrum shows plays on, and would not stop with it.
   await wait(900)
-  await press(page.getByTestId('np-play'))
-  await wait(500)
 }
 
 async function utility() {
