@@ -817,7 +817,9 @@ written for it: eight of elecdex's own (among them a J-pop, a K-pop and an EDM o
 tunes in the public domain in elecdex's arrangements (*Twinkle, Twinkle*, the frog round, *Ode to
 Joy*, *Swan Lake*, Offenbach's can-can, Mozart's Symphony No. 40 and *Turkish March*, and *In the
 Hall of the Mountain King*), three levels, and the eDEX-UI on-screen keyboard back as the
-judgement line. **FREE PLAY** makes the keyboard an instrument: keys sound
+judgement line. A play ends as a game ends a stage: the score counts up, the rank is slammed into
+its diamond and a lamp says how it went (CLEAR, FULL CHAIN, ALL SYNC or NO CARRIER), beside the
+best before it and how early or late the keys landed. **FREE PLAY** makes the keyboard an instrument: keys sound
 while held, Space is the sustain pedal, the arrows change the octave and the tone, any track's band
 can go round underneath to play over, and the chord under your fingers is named as you hold it.
 
@@ -827,7 +829,7 @@ use its own sign-in session for a site, keep running with no pane open, notify -
 the first run and again if a plugin later asks for more. A plugin runs in a Web Worker of its own,
 with no access to the page, your files or the network, and draws only through blocks the app
 renders in the theme (text, numbers, meters, charts, tables, lists, buttons) - or, from API version
-2, on a canvas of its own in the worker. Version 2 may also ask for the keys pressed while its pane
+2 (*unreleased*), on a canvas of its own in the worker. Version 2 may also ask for the keys pressed while its pane
 has the focus (never with Ctrl or Alt, and a KEYS lamp shows when it has them) and for sound through
 elecdex's synthesiser. A plugin that stops
 answering is stopped without holding up the app. The API and the rules are in

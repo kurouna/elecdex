@@ -672,7 +672,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `erasableSyntaxOnly`
   (no constructor parameter properties, no enums).
 - Biome for lint and format (no ESLint/Prettier). Cognitive complexity ≤ 15: split functions.
-- Svelte 5 runes. `$state.snapshot` before sending state over IPC (Proxies do not clone).
+- Svelte 5 runes. `$state.snapshot` before sending state over IPC or to a worker (Proxies do not
+  clone: a plugin pane's saved state, posted as the layout holds it, failed its mount and left the
+  pane empty after a restart).
 - Comments explain *why*, in full sentences; match the density of the surrounding code.
 - Library versions are pinned to the latest release; when the latest cannot be used, the reason
   is recorded in architecture.md (e.g. Vite 7 because Vite 8's Rolldown cannot parse Svelte 5.57).
