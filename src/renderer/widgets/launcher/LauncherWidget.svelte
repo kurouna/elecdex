@@ -1,9 +1,9 @@
 <script lang="ts">
 import type { LauncherEntry } from '@shared/launcher'
+import { onSummoned } from '../../lib/summoned.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
-import { ui } from '../../stores/ui.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 
 /**
@@ -30,20 +30,15 @@ let icons = $state.raw<Record<string, string | null>>({})
 let grid = $state<HTMLUListElement | null>(null)
 let filterInput = $state<HTMLInputElement | null>(null)
 
-// The shortcut: take focus, with the old query selected so typing replaces it.
-// A request made just before this pane mounted (the shortcut added the pane) is
-// honoured too; an old one is not, or a layout reset would steal the focus.
-let focusSeen = Date.now() - ui.launcherFocusAt < 2000 ? -1 : ui.launcherFocus
-$effect(() => {
-  const request = ui.launcherFocus
-  const input = filterInput
-  if (request === focusSeen || input === null) return
-  focusSeen = request
-  queueMicrotask(() => {
-    input.focus()
-    input.select()
-  })
-})
+// The shortcut (layout/summon.ts): take focus, with the old query selected so
+// typing replaces it - also when called up again while already up.
+onSummoned(
+  () => paneId,
+  () => {
+    filterInput?.focus()
+    filterInput?.select()
+  },
+)
 
 // Reload when settings change (the user may have added entries by hand), after
 // each launch, which changes the order, and when main's background rescan found

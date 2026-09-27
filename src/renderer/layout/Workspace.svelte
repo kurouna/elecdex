@@ -18,6 +18,7 @@ import PaneDropOverlay from './PaneDropOverlay.svelte'
 import { frameOfPane, measureFrames } from './pane-close.ts'
 import { goToPreset } from './presets.ts'
 import { sessionsToReap } from './reap.ts'
+import { isSummonAction, summonActions, summonChoice } from './summon.ts'
 
 /**
  * Renders the workspace and owns the layout-level keyboard shortcuts.
@@ -183,7 +184,8 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.preset.dev': () => void goToPreset('dev'),
   'layout.preset.media': () => void goToPreset('media'),
   'layout.preset.desk': () => void goToPreset('desk'),
-  'launcher.focus': () => focusLauncher(),
+  // The shortcuts that call up a pane: one each in SUMMONS (layout/summon.ts).
+  ...summonActions((widget) => summon(widget)),
   'shell.focus': () => focusShell(),
   // Searches the shell that has the keyboard, or the one the keys would go to.
   'shell.find': () => findInShell(),
@@ -203,20 +205,18 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
 }
 
 /**
- * Focuses the launcher's search box: the launcher pane's, or with none in the
- * layout, one popped up over it (layout/popup.ts) - starting an application
- * should not rearrange the screen. Pressed again over it, the box takes the
- * keyboard again.
+ * Calls up a widget by its shortcut (layout/summon.ts): its pane in the layout,
+ * or it popped up over the workspace - calling something up should not
+ * rearrange the screen. The pane is told, and does what being called means to it.
  */
-function focusLauncher(): void {
-  const pane = layout.paneWith('launcher')
-  if (pane === null) ui.openPopup('launcher')
-  else {
-    // Another widget popped up goes, as it would for the launcher's.
+function summon(widget: string): void {
+  const choice = summonChoice(widget, layout.panes, layout.focusedPaneId, ui.popup)
+  if (choice.kind === 'focus') {
+    // Another widget popped up goes, as it would for this one's.
     ui.closePopup()
-    layout.focus(pane)
-  }
-  ui.focusLauncher()
+    layout.focus(choice.paneId)
+  } else if (choice.kind === 'popup') ui.openPopup(widget)
+  ui.summon(choice.paneId, choice.kind === 'again')
 }
 
 /** Focuses the shell in its selected tab, or adds a shell pane first when there is none. */
@@ -264,13 +264,6 @@ function cycleShell(delta: number): boolean {
 
 /** Shortcuts that still work with a dialog open. */
 const THROUGH_DIALOGS = new Set<KeybindingAction>(['app.quit', 'window.fullscreen'])
-/**
- * And those that also work over a pane popped up, which is a dialog of its own:
- * the launcher's, which calls up the launcher in its place. Only while nothing
- * is over the popup (ui.svelte.ts), so no other dialog is let through by this.
- */
-const THROUGH_POPUP = new Set<KeybindingAction>(['launcher.focus'])
-
 /** Runs a shortcut's action; false when it did not apply. */
 function run(action: KeybindingAction): boolean {
   // A dialog over the workspace: nothing behind it should change unseen.
@@ -278,8 +271,13 @@ function run(action: KeybindingAction): boolean {
   return ACTIONS[action]() !== false
 }
 
+/**
+ * And over a pane popped up, which is a dialog of its own, the shortcuts that
+ * call up a pane (layout/summon.ts), which put theirs in its place. Only while
+ * nothing is over the popup (ui.svelte.ts), so no other dialog is let through.
+ */
 const throughDialog = (action: KeybindingAction): boolean =>
-  THROUGH_DIALOGS.has(action) || (ui.popupOnTop && THROUGH_POPUP.has(action))
+  THROUGH_DIALOGS.has(action) || (ui.popupOnTop && isSummonAction(action))
 
 function onKeydown(event: KeyboardEvent): void {
   // While a shortcut is being recorded in the settings, every key goes there.

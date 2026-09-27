@@ -225,3 +225,81 @@ test('CODEC works as the input changes, copies through main, and writes no input
     await close()
   }
 })
+
+test('Ctrl+Shift+U pops the pane up and puts it away, or walks through the panes in the layout', async () => {
+  const { page, userData, close } = await launch(undefined, {
+    layout: { version: 1, root: { kind: 'pane', id: 't', widget: 'terminal' } },
+  })
+  try {
+    await page.waitForTimeout(1000)
+    const before = savedLayout(userData)
+    const shell = page.locator('.xterm-helper-textarea').first()
+    await shell.focus()
+
+    // None in the layout: popped up, with the keyboard, on the tool it showed last.
+    await page.keyboard.press('Control+Shift+KeyU')
+    const popup = page.getByTestId('popup-pane')
+    await expect(popup).toHaveAttribute('data-widget', 'utility')
+    await expect(popup.getByTestId('utility')).toBeFocused()
+    await popup.locator('[data-testid=utility-mode][data-module=codec]').click({ delay: 20 })
+    // Pressed again over it: put away, the keyboard back to the shell.
+    await page.keyboard.press('Control+Shift+KeyU')
+    await expect(popup).toHaveCount(0)
+    await expect(shell).toBeFocused()
+    await page.keyboard.press('Control+Shift+KeyU')
+    await expect(popup.getByTestId('utility')).toHaveAttribute('data-module', 'codec')
+    // Over another widget popped up, it takes that one's place.
+    await page.keyboard.press('Control+Shift+KeyL')
+    await expect(popup).toHaveAttribute('data-widget', 'launcher')
+    await page.keyboard.press('Control+Shift+KeyU')
+    await expect(popup).toHaveAttribute('data-widget', 'utility')
+    await page.keyboard.press('Escape')
+    await expect(popup).toHaveCount(0)
+    await expect(page.getByTestId('pane')).toHaveCount(1)
+    await page.waitForTimeout(1000)
+    expect(savedLayout(userData)).toBe(before)
+  } finally {
+    await close()
+  }
+})
+
+test('Ctrl+Shift+U brings a pane behind a tab forward, and walks on to the next', async () => {
+  const layout = {
+    version: 1,
+    root: {
+      kind: 'split',
+      id: 's',
+      direction: 'row',
+      sizes: [50, 50],
+      children: [
+        {
+          kind: 'tabs',
+          id: 'g',
+          activeIndex: 0,
+          children: [
+            { kind: 'pane', id: 'c', widget: 'clock' },
+            { kind: 'pane', id: 'u1', widget: 'utility' },
+          ],
+        },
+        { kind: 'pane', id: 'u2', widget: 'utility', state: { module: 'codec' } },
+      ],
+    },
+  }
+  const { page, close } = await launch(undefined, { layout })
+  try {
+    const first = page.locator('[data-testid=pane][data-pane-id=u1]')
+    const second = page.locator('[data-testid=pane][data-pane-id=u2]')
+    await page.keyboard.press('Control+Shift+KeyU')
+    await expect(first).toHaveClass(/focused/)
+    await expect(first.getByTestId('utility')).toBeVisible()
+    await expect(first.getByTestId('utility')).toBeFocused()
+    await page.keyboard.press('Control+Shift+KeyU')
+    await expect(second).toHaveClass(/focused/)
+    await expect(second.getByTestId('utility')).toBeFocused()
+    await page.keyboard.press('Control+Shift+KeyU')
+    await expect(first).toHaveClass(/focused/)
+    await expect(page.getByTestId('popup-pane')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

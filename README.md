@@ -278,6 +278,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
 | Ctrl+Shift+F1 … F6 | go to a preset: standard, network, earth, dev, media, desk |
 | Ctrl+Shift+L | search the launcher (pops one up over the workspace if the layout has none) |
+| Ctrl+Shift+U | *unreleased:* the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
 | Ctrl+Shift+F | find in the shell's scrollback (Enter / Shift+Enter for next and previous, Escape closes) |
 | Ctrl+Shift+. | settings |

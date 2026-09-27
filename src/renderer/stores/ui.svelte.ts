@@ -147,19 +147,18 @@ class UiStore {
   }
 
   /**
-   * Bumped to ask the launcher pane to take keyboard focus in its search box.
-   * A counter rather than a flag, so the same request twice still arrives.
+   * The last pane called up by its shortcut (layout/summon.ts), for the pane to
+   * answer (lib/summoned.svelte.ts). Numbered, so the same call twice still
+   * arrives, and timed, so a pane mounting in answer can tell a fresh call
+   * from an old one.
    */
-  launcherFocus = $state(0)
-  /** When it was last asked, so a pane mounting in answer can tell a fresh request from an old one. */
-  launcherFocusAt = 0
+  summoned = $state.raw<{ paneId: string; again: boolean; seq: number; at: number } | null>(null)
 
-  focusLauncher(): void {
-    this.launcherFocusAt = Date.now()
-    this.launcherFocus += 1
+  summon(paneId: string, again: boolean): void {
+    this.summoned = { paneId, again, seq: (this.summoned?.seq ?? 0) + 1, at: Date.now() }
   }
 
-  /** Bumped to ask the focused shell to take keyboard focus again, like launcherFocus. */
+  /** Bumped to ask the focused shell to take keyboard focus again: a counter, so twice arrives twice. */
   shellFocus = $state(0)
 
   focusShell(): void {

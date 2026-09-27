@@ -45,6 +45,9 @@ export const KEYBINDING_ACTIONS = [
   { id: 'layout.preset.media', label: 'Go to the media preset', chord: 'Ctrl+Shift+F5' },
   { id: 'layout.preset.desk', label: 'Go to the desk preset', chord: 'Ctrl+Shift+F6' },
   { id: 'launcher.focus', label: 'Search the launcher', chord: 'Ctrl+Shift+KeyL' },
+  // IBus on a Linux desktop may keep Ctrl+Shift+U for typing a character by its
+  // code, so there the key can be taken before elecdex sees it: rebind it.
+  { id: 'utility.focus', label: 'Open the utility pane', chord: 'Ctrl+Shift+KeyU' },
   { id: 'shell.focus', label: 'Focus the shell', chord: 'Ctrl+Shift+KeyS' },
   { id: 'shell.find', label: 'Search the shell', chord: 'Ctrl+Shift+KeyF' },
   { id: 'tab.next', label: 'Next tab', chord: 'Ctrl+Shift+ArrowRight' },

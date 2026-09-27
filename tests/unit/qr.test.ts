@@ -134,6 +134,18 @@ function themeColours(theme: Theme): { accent: Rgb; ground: Rgb; text: Rgb } {
   return { accent, ground, text }
 }
 
+/** effects.css over a picture: a dark line every third pixel at 22%, and the edges darkened by up to 35%. */
+function throughTheScreen(data: Uint8ClampedArray, width: number): void {
+  for (let y = 0; y < width; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const edge = Math.hypot(x / width - 0.5, y / width - 0.5) / Math.SQRT1_2
+      const keep = (y % 3 === 0 ? 0.78 : 1) * (1 - 0.35 * Math.max(0, (edge - 0.6) / 0.4))
+      const at = (y * width + x) * 4
+      for (let c = at; c < at + 3; c += 1) data[c] = (data[c] ?? 0) * keep
+    }
+  }
+}
+
 describe('the colours', () => {
   it('are the theme’s own, dark on light, and scan, for every built-in theme', () => {
     for (const theme of BUILTIN_THEMES) {
@@ -161,17 +173,7 @@ describe('the colours', () => {
       const built = qrBuild('WIFI:T:WPA;S:lab;P:secret;;', 'M')
       if (built.kind !== 'code') throw new Error('no code')
       const { width, data } = qrPixels(built.code, colours, 4)
-      // effects.css: a dark line every third pixel at 22%, and the edges darkened by up to 35%.
-      for (let y = 0; y < width; y += 1) {
-        for (let x = 0; x < width; x += 1) {
-          const edge = Math.hypot(x / width - 0.5, y / width - 0.5) / Math.SQRT1_2
-          const keep = (y % 3 === 0 ? 0.78 : 1) * (1 - 0.35 * Math.max(0, (edge - 0.6) / 0.4))
-          for (let c = 0; c < 3; c += 1) {
-            const at = (y * width + x) * 4 + c
-            data[at] = (data[at] ?? 0) * keep
-          }
-        }
-      }
+      throughTheScreen(data, width)
       const found = jsQR(data, width, width, { inversionAttempts: 'dontInvert' })
       expect(found?.data, theme.id).toBe('WIFI:T:WPA;S:lab;P:secret;;')
     }

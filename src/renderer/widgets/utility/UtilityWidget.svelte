@@ -1,5 +1,6 @@
 <script lang="ts">
 import { awakeLine, readUtilityPane, UTILITY_MODULES, type UtilityModule } from '@shared/utility'
+import { onSummoned } from '../../lib/summoned.svelte.ts'
 import { awake } from '../../stores/awake.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -19,7 +20,7 @@ import QrModule from './QrModule.svelte'
  * switch, and in its header's badge, which a tab behind another still shows -
  * since the hold is the one thing here that goes on out of sight.
  */
-const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
+const { paneId, state: paneState, visible: inTab = true, ondone }: WidgetProps = $props()
 const visible = $derived(seen(inTab))
 const pane = $derived(readUtilityPane(paneState))
 
@@ -30,6 +31,20 @@ function show(module: UtilityModule): void {
   widgetState.patch(paneId, { module: module === 'awake' ? undefined : module })
   sfx.play('panel')
 }
+
+/**
+ * Its shortcut (Ctrl+Shift+U, layout/summon.ts): the keyboard comes here, and
+ * called up again while it is popped up, it goes - a toggle. A pane in the
+ * layout is given no `ondone`, and a second call walks on to the next one.
+ */
+let root = $state<HTMLElement | null>(null)
+onSummoned(
+  () => paneId,
+  (again) => {
+    if (again) ondone?.()
+    else root?.focus()
+  },
+)
 
 /** The hold in words, beside the switch: a clock time, so it never has to count. */
 const holdWords = $derived(awakeLine(awake.state, Date.now()))
@@ -42,7 +57,7 @@ $effect(() => {
 })
 </script>
 
-<div class="utility" data-testid="utility" data-module={pane.module}>
+<div class="utility" data-testid="utility" data-module={pane.module} tabindex="-1" bind:this={root}>
   <div class="modes">
     {#each UTILITY_MODULES as module (module)}
       <button
@@ -79,6 +94,7 @@ $effect(() => {
 <style>
 .utility {
   display: flex;
+  outline: none;
   flex-direction: column;
   gap: var(--space-2);
   height: 100%;

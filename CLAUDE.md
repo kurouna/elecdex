@@ -417,7 +417,10 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   must reach nothing of the layout store (a unit test reads its sources). The weather place
   picker is the one dialog that opens over a popup (`OVER` in ui.svelte.ts). The launcher's
   shortcut pops one up when the layout has none, rather than adding a pane; a widget ends its
-  popup through `ondone`, never by knowing it is in one.
+  popup through `ondone`, never by knowing it is in one. A shortcut that calls up a pane (the
+  launcher's, the utility pane's) is a line in `SUMMONS` (layout/summon.ts) with its chord in
+  keybindings.ts: `summonChoice` decides where it goes, and the widget answers through
+  `onSummoned` - never a branch for one widget in the shared part, nor a flag of its own in `ui`.
 - **Remounts happen.** Moving a pane remounts its widget, so keep what must survive in pane state
   or in main (a shell reattaches to its session).
 - **Terminal sizing.** Never fit a hidden pane or send transient sizes to the PTY: ConPTY rewraps

@@ -253,6 +253,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+1 … 9 | 应用前九个已保存布局，顺序与对话框中的列表一致 |
 | Ctrl+Shift+F1 … F6 | 切换到预设：standard、network、earth、dev、media、desk |
 | Ctrl+Shift+L | 搜索启动器（若布局中没有，则在工作区上方弹出一个） |
+| Ctrl+Shift+U | *unreleased:* 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭（Linux 上 IBus 可能占用此键用于 Unicode 输入，请改绑） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
 | Ctrl+Shift+F | 在 shell 的回滚缓冲区中查找（Enter / Shift+Enter 下一个和上一个，Escape 关闭） |
 | Ctrl+Shift+. | 设置 |

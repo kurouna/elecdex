@@ -276,6 +276,7 @@ elecdex はフルスクリーンで起動します。**F11** でフルスクリ�
 | Ctrl+Shift+1 … 9 | 保存したレイアウトのうち、ダイアログに並ぶ順で最初の九つを適用 |
 | Ctrl+Shift+F1 … F6 | プリセットへ切り替え: standard、network、earth、dev、media、desk |
 | Ctrl+Shift+L | ランチャーを検索（レイアウトになければワークスペースの上にポップアップ） |
+| Ctrl+Shift+U | *unreleased:* Utility ペインへ（複数あれば押すたびに次へ）。レイアウトになければポップアップし、もう一度押すと閉じる（Linux の IBus がこのキーを Unicode 入力に使う環境では、割り当てを変えてください） |
 | Ctrl+Shift+S | 選択中のタブのシェルにフォーカス（シェルペインがなければ追加） |
 | Ctrl+Shift+F | シェルのスクロールバックを検索（Enter / Shift+Enter で次と前、Escape で閉じる） |
 | Ctrl+Shift+. | 設定 |
