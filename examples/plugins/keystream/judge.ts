@@ -19,6 +19,13 @@ const SIGNAL: Readonly<Record<Grade, number>> = {
   DROP: -0.05,
 }
 const HARD_DROP = -0.09
+/** Where the signal gauge starts a play. */
+export const SIGNAL_START = 0.6
+/**
+ * HARD only: the signal at which the link is lost. The play ends there (Session.over), and
+ * the result says NO CARRIER; on EASY and NORMAL the gauge only shows how it goes.
+ */
+export const SIGNAL_LOST = 0
 
 /** How far from its note a key still counts, in milliseconds, at a level. */
 export function windowOf(level: Level, grade: Exclude<Grade, 'DROP'> = 'ACK'): number {
@@ -61,7 +68,7 @@ export function newTally(level: Level, total: number): Tally {
     chain: 0,
     maxChain: 0,
     points: 0,
-    signal: 0.6,
+    signal: SIGNAL_START,
     failed: false,
     deltas: [],
   }
@@ -79,7 +86,7 @@ export function record(tally: Tally, grade: Grade, delta: number | null): Tally 
     maxChain: Math.max(tally.maxChain, chain),
     points: tally.points + WEIGHT[grade],
     signal,
-    failed: tally.failed || (tally.level === 'hard' && signal <= 0),
+    failed: tally.failed || (tally.level === 'hard' && signal <= SIGNAL_LOST),
     deltas: delta === null ? tally.deltas : [...tally.deltas, delta],
   }
 }

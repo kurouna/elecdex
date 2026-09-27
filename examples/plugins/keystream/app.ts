@@ -14,6 +14,7 @@ import { rankOf, scoreOf } from './judge'
 import { keyOf, NOTE_KEYS } from './keyboard'
 import { readSong, type Score } from './notation'
 import { bestOf, submit } from './records'
+import { nextWindow, notesBetween } from './schedule'
 import { type Outcome, Session } from './session'
 import { SONGS } from './songs/index'
 import { wordsFor } from './text'
@@ -46,7 +47,7 @@ const SURFACE = 'screen'
 const LEADS: readonly Voice[] = ['epiano', 'piano', 'lead', 'chip']
 const RESUME_MS = 1500
 const MENU_KEY_LENGTH = 520
-/** Notes to a sound.play: under the host's limit of 4096. */
+/** Notes to a sound.play: under the host's limit of 4096, which a window stays well within. */
 const CHUNK = 4000
 
 /** Milliseconds a note takes down the field at a speed from 1 to 10. */
@@ -84,6 +85,8 @@ class Game {
   private stopFrames: (() => void) | null = null
   /** What was typed this play, for the log beside the field. */
   private log: LogLine[] = []
+  /** The song time up to which what the game plays has been sent to the host. */
+  private sentTo = Number.NEGATIVE_INFINITY
 
   constructor(ctx: ViewContext<Settings, unknown>) {
     this.ctx = ctx
@@ -247,42 +250,28 @@ class Game {
     // The keyboard left, or the pane went out of sight, while the track loaded: it waits,
     // paused before its count, rather than playing to no one.
     if (!this.ctx.keys.focused || !this.ctx.visible) this.session.pause(now)
-    else this.schedule(Number.NEGATIVE_INFINITY)
+    else this.schedule(this.session.songTime(now))
   }
 
-  /** Everything the game plays from a song time on: the band, EASY's melody, the guide. */
+  /** Sends what the game plays from a song time on, a window at a time (schedule.ts). */
   private schedule(from: number): void {
+    this.sentTo = from
+    this.topUp(from)
+  }
+
+  /** Sends the next window once the song has come near the end of what was sent. */
+  private topUp(time: number): void {
     const session = this.session
-    if (session === null) return
-    const { chart } = session
-    const volume = this.volume
-    const lead = this.lead
-    const notes: Note[] = []
-    for (const cue of chart.band) {
-      if (cue.time < from) continue
-      notes.push({
-        voice: cue.voice,
-        pitch: cue.pitch,
-        at: session.heardAt(cue.time),
-        ...(cue.length === null ? {} : { length: cue.length }),
-        level: cue.level * volume,
-        pan: cue.pan,
-      })
-    }
-    const melody = (list: typeof chart.auto, level: number) => {
-      for (const note of list) {
-        if (note.time < from) continue
-        notes.push({
-          voice: lead,
-          pitch: note.pitch,
-          at: session.heardAt(note.time),
-          length: note.length * 0.95,
-          level,
-        })
-      }
-    }
-    melody(chart.auto, 0.8 * volume)
-    if (this.ctx.settings.guide) melody(chart.notes, 0.16 * volume)
+    if (session === null || session.paused) return
+    const to = nextWindow(time, this.sentTo)
+    if (to === null) return
+    const notes = notesBetween(session.chart, this.sentTo, to, {
+      lead: this.lead,
+      volume: this.volume,
+      guide: this.ctx.settings.guide,
+      heardAt: (songTime) => session.heardAt(songTime),
+    })
+    this.sentTo = to
     for (let i = 0; i < notes.length; i += CHUNK) this.ctx.sound.play(notes.slice(i, i + CHUNK))
   }
 
@@ -389,6 +378,7 @@ class Game {
     if (this.phase === 'loading' && now - this.phaseAt >= LOAD_MS) this.begin(now)
     const session = this.session
     if (this.phase === 'play' && session !== null) {
+      this.topUp(session.shownTime(now))
       for (const outcome of session.advance(now)) this.show(outcome, now)
       if (session.over(now)) this.finish(now)
     }
@@ -432,7 +422,14 @@ class Game {
     const opening = chosen
       ? openingBars(chosen, 4).map((bar) => bar.map((code) => labels[code] ?? code))
       : []
-    drawMenu(p, l, { rows, selected: this.selected, level: this.level, speed: this.speed, opening })
+    drawMenu(p, l, {
+      rows,
+      selected: this.selected,
+      level: this.level,
+      speed: this.speed,
+      note: wordsFor(this.ctx.locale).layout,
+      opening,
+    })
   }
 
   private drawPlay(p: Paint, l: Layout, now: number): void {
@@ -495,7 +492,12 @@ class Game {
     return LEADS.includes(chosen) ? chosen : 'epiano'
   }
 
-  /** Every key's note, played by the host the instant the key goes down. */
+  /**
+   * Every key's note, played by the host the instant the key goes down. The keyboard stays
+   * an instrument on every screen - the menu, a pause, the result - on purpose: it is how the
+   * notes are learnt, and a key there is never judged (the pause's own keys, R and Q, play
+   * nothing). Only the moment it is bound in differs: a track's notes ring for about a beat.
+   */
   private bindKeys(length = this.session?.chart.keyLength ?? MENU_KEY_LENGTH): void {
     const note = (pitch: number): Note => ({
       voice: this.lead,

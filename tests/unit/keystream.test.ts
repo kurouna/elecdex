@@ -28,6 +28,7 @@ import {
   type SongSource,
 } from '../../examples/plugins/keystream/notation'
 import { bestOf, bindRecords, submit } from '../../examples/plugins/keystream/records'
+import { AHEAD_MS, nextWindow, notesBetween } from '../../examples/plugins/keystream/schedule'
 import { Session } from '../../examples/plugins/keystream/session'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
 import { parseDescriptor } from '../../src/shared/plugins'
@@ -308,6 +309,44 @@ describe('a play', () => {
     const session = new Session(chart, 0, 0)
     expect(session.over(chart.duration - 1)).toBe(false)
     expect(session.over(chart.duration + 1)).toBe(true)
+  })
+})
+
+describe('sending what the game plays', () => {
+  const chart = buildChart(readSong(SONGS[3] as SongSource), 'easy')
+  const how = { lead: 'epiano' as const, volume: 1, guide: true, heardAt: (t: number) => t + 1000 }
+  const order = (notes: readonly object[]) => notes.map((n) => JSON.stringify(n)).sort()
+
+  it('sends every note once, a window at a time, however the frames fall', () => {
+    const whole = notesBetween(chart, Number.NEGATIVE_INFINITY, Number.POSITIVE_INFINITY, how)
+    expect(whole).toHaveLength(chart.band.length + chart.auto.length + chart.notes.length)
+    let sentTo = chart.clock.time(-COUNT_IN_BEATS) - 120
+    const sent: object[] = []
+    let windows = 0
+    for (let time = sentTo; time < chart.duration + AHEAD_MS; time += 16.7) {
+      const to = nextWindow(time, sentTo)
+      if (to === null) continue
+      sent.push(...notesBetween(chart, sentTo, to, how))
+      sentTo = to
+      windows += 1
+    }
+    expect(order(sent)).toEqual(order(whole))
+    // A window at a time: dozens of small sends, never the song at once.
+    expect(windows).toBeGreaterThan(20)
+  })
+
+  it('keeps a few seconds ahead of the song and no more', () => {
+    expect(nextWindow(0, 5000)).toBeNull()
+    expect(nextWindow(2500, 5000)).toBe(2500 + AHEAD_MS)
+    const window = notesBetween(chart, 10_000, 15_000, how)
+    expect(window.length).toBeGreaterThan(0)
+    for (const note of window) {
+      expect(note.at).toBeGreaterThanOrEqual(11_000)
+      expect(note.at).toBeLessThan(16_000)
+    }
+    expect(notesBetween(chart, 10_000, 15_000, { ...how, guide: false }).length).toBeLessThan(
+      window.length,
+    )
   })
 })
 

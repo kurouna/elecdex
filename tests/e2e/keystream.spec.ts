@@ -59,10 +59,13 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
     await page.keyboard.press('a')
     await expect.poll(notes).toBeGreaterThan(before)
 
-    // Enter starts the first track: the boot log's ticks, then the whole band scheduled.
+    // Enter starts the first track: the boot log's ticks, then the band a few seconds ahead
+    // at a time - more goes to the host while the track plays, never the song at once.
     const idle = await notes()
     await page.keyboard.press('Enter')
-    await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(idle + 100)
+    await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(idle + 20)
+    const first = await notes()
+    await expect.poll(notes, { timeout: 10_000 }).toBeGreaterThan(first + 20)
 
     // Pausing and quitting to the menu raise nothing.
     await page.keyboard.press('Escape')
@@ -80,7 +83,7 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
     await canvas.click()
     await expect(pane.getByTestId('plugin-keys')).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(loading + 100)
+    await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(loading + 20)
     await page.keyboard.press('Escape')
     await page.keyboard.press('q')
 

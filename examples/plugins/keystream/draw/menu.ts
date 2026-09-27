@@ -20,6 +20,8 @@ export interface MenuView {
   selected: number
   level: Level
   speed: number
+  /** A line under the list: that keys play by their place on the keyboard. */
+  note: string
   /** The first bars of the chosen track as the keys that play them, bar by bar. */
   opening: readonly (readonly string[])[]
 }
@@ -46,6 +48,11 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView): void {
   const chosen = view.rows[view.selected]
   if (chosen) details(p, x, y + 14, chosen, view.speed)
   if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening)
+  write(p, view.note, l.field.x + 4, l.line - 40, {
+    font: font(500, 10, p.fonts.ui),
+    color: p.c.muted,
+    spacing: '0.16em',
+  })
   hints(
     p,
     l,
