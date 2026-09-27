@@ -458,6 +458,10 @@ export function pluginRuntime(
       needs(p, 'sound')
       post({ t: 'keymap', pane: view.pane, map })
     },
+    sustain(on: boolean): void {
+      needs(p, 'sound')
+      post({ t: 'sustain', pane: view.pane, on: on === true })
+    },
   })
   const soundOf = (view: View) => ({
     play(notes: readonly unknown[]): void {

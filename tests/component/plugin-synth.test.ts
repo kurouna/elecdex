@@ -1,6 +1,7 @@
 import type { Voice } from '@shared/plugin-api'
 import { PLUGIN_VOICES, type SoundNote } from '@shared/plugin-sound'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HeldNotes } from '../../src/renderer/plugins/held.ts'
 import { Synth } from '../../src/renderer/plugins/synth.ts'
 import { VOICES } from '../../src/renderer/plugins/voices.ts'
 
@@ -190,5 +191,54 @@ describe('the synthesiser', () => {
     expect(ac.state).toBe('running')
     synth.play('p1', [note('hat')])
     expect(ac.resume).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('notes held by keys', () => {
+  it('sound while a key is down, and ring on under the pedal until it is lifted', () => {
+    const letGo: string[] = []
+    const held = new HeldNotes<string, string>(
+      (pane, note) => `${pane}:${note}`,
+      (h) => letGo.push(h),
+    )
+    held.down('p1', 'KeyA', 'C')
+    held.up('p1', 'KeyA')
+    expect(letGo).toEqual(['p1:C'])
+    // Under the pedal a lifted key rings on; lifting the pedal lets it go.
+    held.sustain('p1', true)
+    held.down('p1', 'KeyA', 'C')
+    held.down('p1', 'KeyD', 'E')
+    held.up('p1', 'KeyA')
+    held.up('p1', 'KeyD')
+    expect(letGo).toEqual(['p1:C'])
+    // Striking a ringing key again damps the note it left, as a piano's would.
+    held.down('p1', 'KeyA', 'C again')
+    expect(letGo).toEqual(['p1:C', 'p1:C'])
+    held.sustain('p1', false)
+    expect(letGo).toEqual(['p1:C', 'p1:C', 'p1:E'])
+    // The key still down is not let go by the pedal, only by its own key.
+    held.up('p1', 'KeyA')
+    expect(letGo.at(-1)).toBe('p1:C again')
+    // Panes are apart, and a note that could not start is not let go later.
+    const none = new HeldNotes<string, string>(
+      () => null,
+      (h) => letGo.push(h),
+    )
+    expect(none.down('p2', 'KeyA', 'C')).toBe(false)
+    none.up('p2', 'KeyA')
+    expect(letGo).toHaveLength(4)
+  })
+
+  it('are started for as long as a note may be, and let go over the voice release', () => {
+    const { ac, sources } = fakeContext()
+    const synth = new Synth(() => ac as unknown as AudioContext)
+    const played = synth.start('p1', note('lead'))
+    expect(played).not.toBeNull()
+    expect(Math.max(...sources.map((s) => s.stopped))).toBeGreaterThan(10 + 29)
+    ac.currentTime = 12
+    if (played) synth.release(played)
+    // Let go at 12 s: silent a few of its release times later, not at 40 s.
+    expect(Math.max(...sources.map((s) => s.stopped))).toBeLessThan(13)
+    expect(played?.end).toBeLessThan(13)
   })
 })

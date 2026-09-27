@@ -423,6 +423,8 @@ permissions: { sound: true }
 ctx.sound.play([{ voice: 'epiano', pitch: 64, at: now + 500, length: 300, level: 0.8, pan: 0 }])
 ctx.sound.stop()                                  // このペインの音を止め、予約を捨てる
 ctx.keys.play({ KeyA: { voice: 'epiano', pitch: 60 } })   // キーを押した瞬間にホストが鳴らす
+ctx.keys.play({ KeyA: { voice: 'lead', pitch: 60, hold: true } })   // 押している間だけ鳴る
+ctx.keys.sustain(true)                            // サステインペダル: 離したキーの音も鳴り続ける
 ```
 
 - 音色: `piano`・`epiano`・`lead`・`chip`・`bass`・`pluck`・`pad`・`kick`・`snare`・`clap`・`hat`・`openhat`・`crash`・`tom`（renderer/plugins/voices.ts。インターフェース音と同じく合成で、ファイルもライセンスも無い）
@@ -430,6 +432,8 @@ ctx.keys.play({ KeyA: { voice: 'epiano', pitch: 60 } })   // キーを押した�
 - 1 回に 4096 音まで、10 分先まで、1 ペインの予約は 16384 音まで。曲を丸ごと渡すと長い曲や密な曲はこの上限に当たるので、数秒先までずつ渡すのがよい（KEYSTREAM は 5 秒先まで、残りが 3 秒を切ったら次を渡す。schedule.ts）。音高 0〜127、長さ 30 秒まで、音量 0〜1、定位 −1〜1 に丸める（`readNote`、shared/plugin-sound.ts）。遠い音符はキューで待ち、鳴る 250 ms 前にノードになる（曲を丸ごと渡してもノードは数個ずつ）
 - 同時発音は 64 まで（古いものから切る）。最後にリミッターを通す
 - **`keys.play` の音はホストがキーを受けた場で鳴らし、それから Worker にキーを渡す**。楽器が Worker の往復を待たない
+- `hold` の付いた音はキーを押している間（30 秒まで）鳴り、キーが上がると音色ごとのリリースで消える（`Played.release`）。`keys.sustain(true)` の間は、キーが上がっても鳴り続け、`sustain(false)` で上がっているキーの音をすべて離す。鳴り続けているキーをもう一度打つと、前の音は止めてから鳴らし直す（ピアノのダンパーと同じ）。この規則は renderer/plugins/held.ts（`HeldNotes`）にまとめ、合成音源とは関数 2 つでつなぐ
+- `sound.stop()` はペインの音をすべて止めるので、押さえている音とペダルの状態もホストから消える。ペダルを踏んだままにしたいプラグインは、止めたあとに `sustain(true)` を送り直す（KEYSTREAM の FREE モードがそうしている）
 - インターフェース音のオン・オフとは別（プラグインの音量はプラグインの設定で持つ）。ペインが閉じる・Worker が止まると、そのペインの音は止まる。見えなくなったときに止めるかはプラグインが決める（KEYSTREAM は一時停止する）
 - 何も鳴らなくなって 4 秒で AudioContext を suspend する（待機中に音声スレッドを回さない）
 - テストでは音量 0 のまま鳴らし、ペインの `data-notes`（合成音源が受け取った音符の数）で確かめる
@@ -446,10 +450,11 @@ ctx.keys.play({ KeyA: { voice: 'epiano', pitch: 60 } })   // キーを押した�
 
 - **鍵盤**: ホーム段（A〜'）が白鍵、その上の段が黒鍵。QWERTY の段のずれが鍵盤の黒鍵の並びにそのまま重なる（R と I の位置は E–F、B–C の間で、鍵盤にも黒鍵が無い）。18 キーで C4〜F5、どの曲でも同じキーは同じ音（keyboard.ts）
 - **譜面**: 旋律を「打つキーの文字」で書く（`'h.k.;-lk|h--.fghk'`、notation.ts）。伴奏はコード進行・小節ごとのエネルギー・スタイルから組み立てる（arrange.ts、styles.ts）
-- **曲**: BOOT SEQUENCE（118 BPM）と PACKET STORM（150 BPM）は elecdex のオリジナル。GALOP INFERNAL（オッフェンバック「天国と地獄」）と MOUNTAIN KING（グリーグ「山の魔王の宮殿にて」、96→176 BPM）はパブリックドメインの曲を原曲の旋律から編曲したもの。どれも GPL-3.0
+- **曲**: 8 曲、やさしい順。BOOT SEQUENCE（118 BPM、シンセウェイブ）・NEON CIRCUIT（120 BPM、ハウス、16 分のシンコペーション）・PACKET STORM（150 BPM、ユーロビート）・OVERCLOCK（172 BPM、ドラムンベース）は elecdex のオリジナル。ODE TO JOY（ベートーヴェン「歓喜の歌」、4 分音符だけの入門曲）・GALOP INFERNAL（オッフェンバック「天国と地獄」）・SYMPHONY 40（モーツァルト「交響曲第 40 番」冒頭、橋渡しは elecdex）・MOUNTAIN KING（グリーグ「山の魔王の宮殿にて」、96→176 BPM）はパブリックドメインの曲を原曲の旋律から編曲したもの。どれも GPL-3.0。伴奏のスタイルは synthwave・eurobeat・galop・dark・house・dnb の 6 つ（styles.ts）
 - **難易度**: EASY は拍頭の音だけを打ち、残りはゲームが弾く。NORMAL は全部。HARD は判定幅を 3/4 にし、SIGNAL が尽きると NO CARRIER で終わる
 - **判定**: SYNC ±40 ms、LOCK ±80、ACK ±120、打てなかった音は DROP で鳴らない。どの音にも当たらないキーは STRAY と数えるが罰しない
 - **画面**: ヘッダー（スコア・チェイン・精度・SIGNAL ゲージ）、ピアノロール状のレーン、判定線、eDEX-UI のオンスクリーンキーボード。幅があれば左に打鍵のログ（TX）、右にこれから打つ文字の列（RX）と曲の位置。メニューはディレクトリの一覧風、読み込みは起動ログ風、結果は TRANSMISSION COMPLETE
 - **操作**: ↑↓ 曲、←→ 難易度、Enter 開始、Esc / Space 一時停止（R やり直し、Q メニュー）、演奏中の ↑↓ は落下速度。フォーカスが外れる・ペインが見えなくなると一時停止（読み込み中なら、カウントの前で止まって待つ）。鍵盤はメニュー・一時停止・結果の画面でも楽器として鳴る（判定はしない。音を覚えるため。一時停止の R と Q は音の無いキー）。音はキーの文字でなく位置で決まることをメニューに書く
 - **記録**: service が `ctx.storage` に曲×難易度の最高記録を持つ。service と view は同じ Worker で動くので、view は records.ts を通して直接読み書きする
 - 設定: 主旋律の音色（E.PIANO / PIANO / SYNTH LEAD / CHIP）、音量、タイミングの補正（ms）、ガイド（自分のパートを小さく鳴らす）
+- **FREE モード**（free.ts、draw/free.ts）: メニューの曲の後ろにある FREE PLAY。何も落ちてこず、判定もしない。キーは押している間だけ鳴り（`hold`）、Space がサステインペダル、←→ でキー全体を 1 オクターブずつ ±2 まで、↑↓ で音色（E.PIANO / PIANO / SYNTH LEAD / CHIP / PLUCK / PAD / BASS）を変える。1〜8 でその曲の伴奏（メロディなし、カウントなし）をループで鳴らし、0 で止める（Enter は入れる・切る）。伴奏も数秒先までずつ渡す（`loopBetween`）。弾いた音は鍵盤から上へ伸びる帯になって昇っていき、押さえている音はコード名で示す（chord-name.ts）。フォーカスが外れる・ペインが見えなくなると伴奏は止まる。音色とオクターブはペインの状態に残す

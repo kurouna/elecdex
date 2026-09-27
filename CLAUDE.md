@@ -250,7 +250,8 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     Tab or a function key (`keyFate`, shared/plugin-keys.ts), and the pane shows the host's KEYS
     lamp meanwhile. Sound is the page's synthesiser (plugins/synth.ts, voices from a fixed list,
     notes read by `readNotes`); a key's bound note is played by the host before the key reaches
-    the worker. Keys and sound are checked against the grant in the host, as metrics are, and
+    the worker, and a `hold` note and the sustain pedal are the host's too (plugins/held.ts), so
+    letting go never waits on the worker either. Keys and sound are checked against the grant in the host, as metrics are, and
     need `apiVersion: 2`. Times cross between page and worker as epoch milliseconds.
   - Plugins that use unofficial APIs or are personal (such as claude-usage) live in a separate
     private repository, cloned beside this one and deployed with its `npm run deploy` — never

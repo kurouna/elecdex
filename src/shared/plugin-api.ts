@@ -352,6 +352,11 @@ export interface Note {
   pan?: number
 }
 
+/** A note a key plays: with `hold`, it sounds while the key is down (up to 30 s). */
+export interface KeyNote extends Note {
+  hold?: boolean
+}
+
 export interface Keys {
   /** Whether the pane has the keyboard. The 'focus' event says when it changes. */
   readonly focused: boolean
@@ -360,9 +365,15 @@ export interface Keys {
   /**
    * Notes elecdex plays itself the moment a key goes down, before the key reaches the view,
    * so an instrument answers without a round trip to the worker (needs permissions.sound).
-   * `at` is ignored. null plays nothing.
+   * `at` is ignored. A note with `hold` is let go when its key comes up; one without rings
+   * for its `length`. null plays nothing.
    */
-  play(map: Readonly<Record<string, Note>> | null): void
+  play(map: Readonly<Record<string, KeyNote>> | null): void
+  /**
+   * A sustain pedal for held notes: while on, a key coming up leaves its note ringing, and
+   * turning it off lets go of every note whose key is up.
+   */
+  sustain(on: boolean): void
 }
 
 export interface Sound {

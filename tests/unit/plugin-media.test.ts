@@ -122,6 +122,9 @@ describe('notes for the synthesiser', () => {
     )
     expect([...map.keys()]).toEqual(['KeyA'])
     expect(map.get('KeyA')?.at).toBeNull()
+    expect(map.get('KeyA')?.hold).toBe(false)
+    const held = readKeymap({ KeyA: { voice: 'lead', hold: true } }, origin, now)
+    expect(held.get('KeyA')?.hold).toBe(true)
     expect(readKeymap(null, origin, now).size).toBe(0)
   })
 

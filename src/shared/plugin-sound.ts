@@ -76,15 +76,21 @@ export function readNotes(raw: readonly unknown[], origin: number, now: number):
 }
 
 /** The notes a pane's keys play, by code: only plugin keys, each note read as above. */
+/** A key's note: played at once, and held while the key is down when `hold` is set. */
+export interface KeySoundNote extends SoundNote {
+  hold: boolean
+}
+
 export function readKeymap(
   raw: Readonly<Record<string, unknown>> | null,
   origin: number,
   now: number,
-): Map<string, SoundNote> {
-  const map = new Map<string, SoundNote>()
+): Map<string, KeySoundNote> {
+  const map = new Map<string, KeySoundNote>()
   for (const [code, value] of Object.entries(raw ?? {})) {
     const note = isPluginKey(code) ? readNote(value, origin, now) : null
-    if (note !== null) map.set(code, { ...note, at: null })
+    const hold = (value as { hold?: unknown } | null)?.hold === true
+    if (note !== null) map.set(code, { ...note, at: null, hold })
   }
   return map
 }

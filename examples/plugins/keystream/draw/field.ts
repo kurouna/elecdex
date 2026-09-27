@@ -20,6 +20,8 @@ export interface FieldView {
   state: (index: number) => NoteState
   droppedAt: (index: number) => number | undefined
   labels: Readonly<Record<string, string>>
+  /** Whether the beat and bar lines fall; FREE mode keeps only the line's pulse. */
+  lines?: boolean
 }
 
 const HOME = KEYS.filter((k) => k.row === 1)
@@ -40,7 +42,7 @@ export const CHIP_HEIGHT = 0.38
 /** The lanes, the beat and bar lines and the judgement line: what the notes fall over. */
 export function drawLanes(p: Paint, l: Layout, view: FieldView): void {
   lanes(p, l)
-  if (view.chart !== null) beatLines(p, l, view.chart, view.time, view.lead)
+  if (view.chart !== null && view.lines !== false) beatLines(p, l, view.chart, view.time, view.lead)
   line(p, l, view.chart, view.time)
 }
 

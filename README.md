@@ -812,9 +812,12 @@ notification when a phase ends, carrying on across restarts.
 game and the sample for the plugin API's second version: letters fall down lanes that stand over
 the keys that play them, and typing each as it reaches the line plays the melody while the game
 plays the band. The home row is the white keys and the row above the black ones - the keyboard's
-stagger is a piano's - so every key always plays the same note. Four tracks (two of elecdex's own,
-and Offenbach's can-can and Grieg's *In the Hall of the Mountain King* in elecdex's arrangements),
-three levels, and the eDEX-UI on-screen keyboard back as the judgement line.
+stagger is a piano's - so every key always plays the same note. Eight tracks (four of elecdex's
+own, and Beethoven's *Ode to Joy*, Offenbach's can-can, Mozart's Symphony No. 40 and Grieg's *In
+the Hall of the Mountain King* in elecdex's arrangements), three levels, and the eDEX-UI on-screen
+keyboard back as the judgement line. **FREE PLAY** makes the keyboard an instrument: keys sound
+while held, Space is the sustain pedal, the arrows change the octave and the tone, any track's band
+can go round underneath to play over, and the chord under your fingers is named as you hold it.
 
 Plugins are off until turned on in *Settings → Plugins*, which lists what each may do - read
 metric sources, reach named hosts (each request made by the app and checked against that list),

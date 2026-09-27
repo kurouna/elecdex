@@ -574,6 +574,7 @@ export const WorkerMessageSchema = z.discriminatedUnion('t', [
     notes: z.array(z.unknown()).max(PLUGIN_LIMITS.notesPerCall),
   }),
   z.object({ t: z.literal('sound-stop'), pane }),
+  z.object({ t: z.literal('sustain'), pane, on: z.boolean() }),
   z.object({
     t: z.literal('keymap'),
     pane,

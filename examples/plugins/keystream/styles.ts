@@ -9,7 +9,7 @@ import type { Voice } from '../elecdex-plugin'
  * '-' holds on, '.' rests.
  */
 
-export type StyleName = 'synthwave' | 'eurobeat' | 'galop' | 'dark'
+export type StyleName = 'synthwave' | 'eurobeat' | 'galop' | 'dark' | 'house' | 'dnb'
 
 type ByEnergy = readonly [one: string | null, two: string | null, three: string | null]
 
@@ -91,5 +91,34 @@ export const STYLES: Readonly<Record<StyleName, Style>> = {
     stab: [null, null, '....x.......x...'],
     stabVoice: 'pluck',
     tom: 43,
+  },
+  // House: four on the floor, the bass on the off-beat, piano chords when it lifts.
+  house: {
+    drums: {
+      kick: ['x...x...x...x...', 'x...x...x...x...', 'x...x...x...x...'],
+      clap: [null, '....x.......x...', '....x.......x...'],
+      hat: ['..x...x...x...x.', '.x.x.x.x.x.x.x.x', '.x.x.x.x.x.x.x.x'],
+      openhat: [null, '..x...x...x...x.', '..x...x...x...x.'],
+    },
+    bass: ['..r...r...r...r.', '..r...r...r...r.', '..r.o.r...r.o.r.'],
+    arp: null,
+    pad: 1,
+    stab: [null, null, 'x..x..x...x..x..'],
+    stabVoice: 'epiano',
+    tom: 45,
+  },
+  // Drum and bass: a broken beat at speed over a long, low bass, the tune at half the pace.
+  dnb: {
+    drums: {
+      kick: ['x.........x.....', 'x.........x.....', 'x.........x..x..'],
+      snare: [null, '....x.......x...', '....x.......x..o'],
+      hat: ['..x...x...x...x.', 'x.x.x.x.x.x.x.x.', 'xoxoxoxoxoxoxoxo'],
+    },
+    bass: ['r-------r-------', 'r-------r---o---', 'r-----r-r---o-r-'],
+    arp: { every: [0, 2, 2], order: 'updown' },
+    pad: 1,
+    stab: null,
+    stabVoice: 'pluck',
+    tom: 45,
   },
 }

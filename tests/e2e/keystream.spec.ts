@@ -99,3 +99,45 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
     removeDir(dir)
   }
 })
+
+test('FREE mode holds the keys, and plays a track’s band underneath until told to stop', async () => {
+  const dir = withKeystream()
+  const app = await launch(dir, { layout: LAYOUT })
+  const { page } = app
+  const pane = page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
+  const notes = async () => Number(await pane.getAttribute('data-notes'))
+  try {
+    await expect(pane).toHaveAttribute('data-status', 'ready')
+    await pane.getByTestId('plugin-canvas').click()
+    await expect(pane.getByTestId('plugin-keys')).toBeVisible()
+    // FREE PLAY comes after the tracks: up from the first goes round to it.
+    await page.keyboard.press('ArrowUp')
+    await page.keyboard.press('Enter')
+
+    // A key held sounds once, however long it is held; a chord is three.
+    const before = await notes()
+    await page.keyboard.down('a')
+    await page.keyboard.down('d')
+    await page.keyboard.down('g')
+    await expect.poll(notes).toBe(before + 3)
+    await page.waitForTimeout(400)
+    expect(await notes()).toBe(before + 3)
+    for (const key of ['a', 'd', 'g']) await page.keyboard.up(key)
+
+    // A band underneath, a few seconds at a time; 0 stops it.
+    const quiet = await notes()
+    await page.keyboard.press('3')
+    await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(quiet + 10)
+    await page.keyboard.press('0')
+    await page.waitForTimeout(500)
+    const stopped = await notes()
+    await page.waitForTimeout(4000)
+    expect(await notes()).toBe(stopped)
+
+    await page.keyboard.press('Escape')
+    await expect(pane.getByTestId('plugin-error')).toHaveCount(0)
+  } finally {
+    await app.quit()
+    removeDir(dir)
+  }
+})

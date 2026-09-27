@@ -76,3 +76,35 @@ export function notesBetween(chart: Chart, from: number, to: number, how: Sendin
 export function nextWindow(time: number, sentTo: number): number | null {
   return time + REFILL_MS < sentTo ? null : time + AHEAD_MS
 }
+
+/** How long a track's band runs before it goes round again: its last beat. */
+export const loopLength = (chart: Chart): number => chart.beats.at(-1)?.time ?? 0
+
+/**
+ * A track's band going round and round, for FREE mode: the notes heard from `from` up to
+ * `to`, in milliseconds since the loop began - the count-in left out, and no melody.
+ */
+export function loopBetween(
+  chart: Chart,
+  from: number,
+  to: number,
+  how: Pick<Sending, 'volume' | 'heardAt'>,
+): Note[] {
+  const length = loopLength(chart)
+  const notes: Note[] = []
+  if (length <= 0 || to <= from) return notes
+  for (let cycle = Math.max(0, Math.floor(from / length)); cycle * length < to; cycle++) {
+    const base = cycle * length
+    for (const cue of between(chart.band, Math.max(0, from - base), Math.min(length, to - base))) {
+      notes.push({
+        voice: cue.voice,
+        pitch: cue.pitch,
+        at: how.heardAt(base + cue.time),
+        ...(cue.length === null ? {} : { length: cue.length }),
+        level: cue.level * how.volume,
+        pan: cue.pan,
+      })
+    }
+  }
+  return notes
+}

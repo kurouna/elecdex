@@ -52,7 +52,7 @@ export function drawPanels(p: Paint, l: Layout, view: PanelView): void {
 }
 
 /** A panel's frame: a title over a rule, and the corners marked as eDEX marked its panels. */
-function frame(p: Paint, r: Rect, title: string): void {
+export function frame(p: Paint, r: Rect, title: string): void {
   const g = p.g
   write(p, title, r.x, r.y + 10, {
     font: font(500, 10, p.fonts.ui),

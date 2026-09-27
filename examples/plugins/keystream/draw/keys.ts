@@ -20,12 +20,22 @@ export function drawKeyboard(
   l: Layout,
   labels: Readonly<Record<string, string>>,
   light: (code: string) => KeyLight | null,
+  /** Semitones the keys are shifted by (FREE mode's octaves): the note names follow. */
+  shift = 0,
 ): void {
-  for (const key of KEYS)
-    drawCap(p, l, key, labels[key.code] ?? key.char.toUpperCase(), light(key.code))
+  for (const key of KEYS) {
+    drawCap(p, l, key, labels[key.code] ?? key.char.toUpperCase(), light(key.code), shift)
+  }
 }
 
-function drawCap(p: Paint, l: Layout, key: KeyDef, label: string, lit: KeyLight | null): void {
+function drawCap(
+  p: Paint,
+  l: Layout,
+  key: KeyDef,
+  label: string,
+  lit: KeyLight | null,
+  shift: number,
+): void {
   const x = l.keyX(key) - l.cap / 2
   const y = l.keyTop(key)
   const level = lit?.level ?? 0
@@ -43,7 +53,7 @@ function drawCap(p: Paint, l: Layout, key: KeyDef, label: string, lit: KeyLight 
     baseline: 'middle',
   })
   if (key.pitch === null) return
-  write(p, noteName(key.pitch), x + l.cap / 2, y + l.cap * 0.86, {
+  write(p, noteName(key.pitch + shift), x + l.cap / 2, y + l.cap * 0.86, {
     font: font(500, Math.max(8, l.cap * 0.19), p.fonts.ui),
     color: p.c.muted,
     align: 'center',

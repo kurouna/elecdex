@@ -17,10 +17,12 @@ export interface VoiceNote {
 }
 
 export interface Played {
-  /** When it is silent, in AudioContext seconds. */
+  /** When it is silent, in AudioContext seconds; sooner once it is let go or cut. */
   end: number
   /** Cuts it off quickly from `at`. */
   stop(at: number): void
+  /** Lets it go from `at` as a released key does, over the voice's own release. */
+  release(at: number): void
 }
 
 export interface Kit {
@@ -102,22 +104,33 @@ class Build {
    * The handle: silent at `end`. The graph is let go when the source that stops last ends -
    * never an earlier one (a hammer's tick, a tine), which would cut the note off with it.
    */
-  done(end: number): Played {
+  done(end: number, tau = 0.03): Played {
     const last = this.last?.source
     if (last) last.onended = () => this.amp.disconnect()
-    return {
+    const played: Played = {
       end,
       stop: (at) => {
         this.amp.gain.cancelScheduledValues(at)
         this.amp.gain.setTargetAtTime(0, at, 0.008)
-        for (const source of this.sources) {
-          try {
-            source.stop(at + 0.06)
-          } catch {
-            // Already stopped: nothing more to cut.
-          }
-        }
+        this.stopAll(at + 0.06)
+        played.end = Math.min(played.end, at + 0.06)
       },
+      release: (at) => {
+        release(this.amp.gain, at, tau)
+        this.stopAll(at + tau * 8)
+        played.end = Math.min(played.end, at + tau * 8)
+      },
+    }
+    return played
+  }
+
+  private stopAll(at: number): void {
+    for (const source of this.sources) {
+      try {
+        source.stop(at)
+      } catch {
+        // Already stopped: nothing more to cut.
+      }
     }
   }
 }
@@ -152,7 +165,7 @@ const piano: VoiceFn = (kit, n) => {
     .connect(b.filter('bandpass', 2800, 1.2))
     .connect(hit)
     .connect(b.amp)
-  return b.done(end + 0.5)
+  return b.done(end + 0.5, 0.07)
 }
 
 /** A tine and a bar: two-operator FM, the bell of the attack fading into a round tone. */
@@ -177,7 +190,7 @@ const epiano: VoiceFn = (kit, n) => {
   b.osc('sine', n.freq * 14, t, t + 0.3)
     .connect(tine)
     .connect(carrier.frequency)
-  return b.done(end + 0.5)
+  return b.done(end + 0.5, 0.09)
 }
 
 /** A synth lead: two saws apart, a resonant filter closing, vibrato once it is held. */
@@ -202,7 +215,7 @@ const lead: VoiceFn = (kit, n) => {
     vibrato.connect(osc.detune)
     osc.connect(tone)
   }
-  return b.done(end + 0.3)
+  return b.done(end + 0.3, 0.05)
 }
 
 /** A square wave, as an old console's sound chip made it. */
@@ -216,7 +229,7 @@ const chip: VoiceFn = (kit, n) => {
   g.setTargetAtTime(b.level * 0.7, t + 0.002, 0.2)
   release(g, end, 0.02)
   b.osc('square', n.freq, t, end + 0.15).connect(b.amp)
-  return b.done(end + 0.15)
+  return b.done(end + 0.15, 0.02)
 }
 
 /** A bass: a saw over a sine an octave down, the filter snapping shut. */
@@ -237,7 +250,7 @@ const bass: VoiceFn = (kit, n) => {
   b.osc('sine', n.freq / 2, t, end + 0.25)
     .connect(sub)
     .connect(b.amp)
-  return b.done(end + 0.25)
+  return b.done(end + 0.25, 0.04)
 }
 
 /** A pluck for arpeggios: bright, then gone. */
@@ -254,7 +267,7 @@ const pluck: VoiceFn = (kit, n) => {
   tone.frequency.setTargetAtTime(n.freq * 1.3 + 200, t, 0.06)
   tone.connect(b.amp)
   b.osc('sawtooth', n.freq, t, end + 0.2).connect(tone)
-  return b.done(end + 0.2)
+  return b.done(end + 0.2, 0.04)
 }
 
 /** A pad: three saws spread apart, slow to rise and slow to leave. */
@@ -269,7 +282,7 @@ const pad: VoiceFn = (kit, n) => {
   const tone = b.filter('lowpass', 1500, 0.7)
   tone.connect(b.amp)
   for (const detune of [-13, 0, 13]) b.osc('sawtooth', n.freq, t, end + 1.6, detune).connect(tone)
-  return b.done(end + 1.6)
+  return b.done(end + 1.6, 0.35)
 }
 
 /** A struck drum: a tone falling in pitch, with a click of noise on top. */

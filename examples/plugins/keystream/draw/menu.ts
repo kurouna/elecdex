@@ -24,6 +24,8 @@ export interface MenuView {
   note: string
   /** The first bars of the chosen track as the keys that play them, bar by bar. */
   opening: readonly (readonly string[])[]
+  /** What FREE PLAY is, beside its row. */
+  free: string
 }
 
 /** m:ss */
@@ -39,15 +41,93 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView): void {
   const x = (l.w - width) / 2
   let y = title(p, l, x, width)
   const rowH = clamp(l.unit * 0.62, 24, 40)
-  view.rows.forEach((row, i) => {
-    trackRow(p, x, y, width, rowH, i, row, i === view.selected)
+  // The tracks and FREE PLAY after them, as many as fit, the chosen one always among them.
+  const total = view.rows.length + 1
+  const fit = Math.max(3, Math.min(total, Math.floor((l.line - 170 - y) / rowH)))
+  const first = clamp(view.selected - Math.floor(fit / 2), 0, total - fit)
+  for (let i = first; i < first + fit; i++) {
+    const row = view.rows[i]
+    if (row) trackRow(p, x, y, width, rowH, i, row, i === view.selected)
+    else freeRow(p, x, y, width, rowH, view.free, i === view.selected)
     y += rowH
-  })
+  }
+  more(p, x + width, y - fit * rowH, first > 0, y, first + fit < total)
   y += rowH * 0.6
-  y = levels(p, x, y, view.level)
   const chosen = view.rows[view.selected]
-  if (chosen) details(p, x, y + 14, chosen, view.speed)
+  if (chosen === undefined) {
+    freeDetails(p, x, y + 4)
+    footer(p, l, view)
+    return
+  }
+  y = levels(p, x, y, view.level)
+  details(p, x, y + 14, chosen, view.speed)
   if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening)
+  footer(p, l, view)
+}
+
+/** Marks that the list goes on above or below what is shown. */
+function more(
+  p: Paint,
+  right: number,
+  top: number,
+  above: boolean,
+  bottom: number,
+  below: boolean,
+): void {
+  const style = { font: font(600, 10, p.fonts.ui), color: p.c.muted, align: 'right' as const }
+  if (above) write(p, '▲ MORE', right - 4, top - 4, style)
+  if (below) write(p, '▼ MORE', right - 4, bottom + 12, style)
+}
+
+/** FREE PLAY in the list: no track, the keyboard alone. */
+function freeRow(
+  p: Paint,
+  x: number,
+  y: number,
+  width: number,
+  h: number,
+  words: string,
+  selected: boolean,
+): void {
+  const g = p.g
+  g.fillStyle = alpha(p.c.rule, 0.5)
+  g.fillRect(x + 14, y + 1, width - 28, 1)
+  if (selected) {
+    g.fillStyle = alpha(p.c.accent, p.light ? 0.12 : 0.1)
+    g.fillRect(x, y + 2, width, h - 4)
+    g.fillStyle = p.c.accentStrong
+    g.fillRect(x, y + 2, 3, h - 4)
+  }
+  const mid = y + h / 2
+  write(p, '∞', x + 14, mid, {
+    font: font(600, clamp(h * 0.5, 12, 18), p.fonts.mono),
+    color: p.c.muted,
+    baseline: 'middle',
+  })
+  const titleWidth = write(p, 'FREE PLAY', x + 52, mid, {
+    font: font(600, clamp(h * 0.46, 12, 18), p.fonts.display),
+    color: selected ? p.c.accentStrong : p.c.text,
+    baseline: 'middle',
+    spacing: '0.12em',
+  })
+  write(p, words, x + 52 + titleWidth + 14, mid + 1, {
+    font: font(500, 11, p.fonts.ui),
+    color: p.c.muted,
+    baseline: 'middle',
+    spacing: '0.08em',
+  })
+}
+
+function freeDetails(p: Paint, x: number, y: number): void {
+  write(p, "SPACE PEDAL    ←→ OCTAVE    ↑↓ TONE    1-8 A TRACK'S BAND    ESC MENU", x + 14, y, {
+    font: font(500, 12, p.fonts.ui),
+    color: p.c.muted,
+    spacing: '0.14em',
+    baseline: 'top',
+  })
+}
+
+function footer(p: Paint, l: Layout, view: MenuView): void {
   write(p, view.note, l.field.x + 4, l.line - 40, {
     font: font(500, 10, p.fonts.ui),
     color: p.c.muted,

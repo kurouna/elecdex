@@ -1,7 +1,7 @@
 import { isMetricSourceId } from '@shared/metrics'
 import type { Block, SelectOption, Tone } from '@shared/plugin-api'
 import { keyLabels } from '@shared/plugin-keys'
-import { readKeymap, readNotes, type SoundNote } from '@shared/plugin-sound'
+import { type KeySoundNote, readKeymap, readNotes, type SoundNote } from '@shared/plugin-sound'
 import {
   type Grant,
   type HostMessage,
@@ -29,9 +29,11 @@ import { paneMeta } from '../stores/pane-meta.svelte.ts'
 import { sfx } from '../stores/sound.svelte.ts'
 import { windowState } from '../stores/window-state.svelte.ts'
 import { registerDynamic, unregisterDynamic } from '../widgets/registry.ts'
+import { HeldNotes } from './held.ts'
 import PluginPane from './PluginPane.svelte'
 import { readLabels, readTheme } from './plugin-env.ts'
 import { Synth } from './synth.ts'
+import type { Played } from './voices.ts'
 import { createWorker, type PluginWorker, type WorkerFactory } from './worker.ts'
 
 /**
@@ -128,7 +130,7 @@ class Runner {
   readonly panes = new Map<string, Attached>()
   private readonly metricReleases = new Map<string, () => void>()
   /** The notes each pane's keys play, by code (ctx.keys.play). */
-  private readonly keymaps = new Map<string, Map<string, SoundNote>>()
+  private readonly keymaps = new Map<string, Map<string, KeySoundNote>>()
   private fontsSent = false
   private pinger: ReturnType<typeof setInterval> | null = null
   private lastPong = 0
@@ -281,7 +283,7 @@ class Runner {
   }
 
   /** The note a pane's key plays, if the plugin bound one and may sound. */
-  keyNote(pane: string, code: string): SoundNote | null {
+  keyNote(pane: string, code: string): KeySoundNote | null {
     if (!this.panes.has(pane) || !this.host.grant(this.id).sound) return null
     return this.keymaps.get(pane)?.get(code) ?? null
   }
@@ -353,6 +355,7 @@ class Runner {
         return
       case 'sound':
       case 'sound-stop':
+      case 'sustain':
       case 'keymap':
         this.sound(m)
         return
@@ -362,10 +365,16 @@ class Runner {
   }
 
   /** What a pane asks of the synthesiser, when the plugin was granted sound. */
-  private sound(m: Extract<WorkerMessage, { t: 'sound' | 'sound-stop' | 'keymap' }>): void {
+  private sound(
+    m: Extract<WorkerMessage, { t: 'sound' | 'sound-stop' | 'sustain' | 'keymap' }>,
+  ): void {
     if (!this.panes.has(m.pane) || !this.host.grant(this.id).sound) return
     if (m.t === 'sound-stop') {
       this.host.silence(m.pane)
+      return
+    }
+    if (m.t === 'sustain') {
+      this.host.sustain(m.pane, m.on)
       return
     }
     const origin = performance.timeOrigin
@@ -539,6 +548,15 @@ export class PluginHost {
   readonly sounded = new SvelteMap<string, number>()
   /** Mounts so far, across every pane: an epoch is never given twice. */
   private epochs = 0
+  /** Notes held by keys bound with `hold`, and the pedal that keeps them ringing. */
+  private readonly held = new HeldNotes<KeySoundNote, Played>(
+    (pane, note) => {
+      const played = this.synth.start(pane, note)
+      if (played !== null) this.sounded.set(pane, (this.sounded.get(pane) ?? 0) + 1)
+      return played
+    },
+    (played) => this.synth.release(played),
+  )
   catalog = $state.raw<PluginCatalog | null>(null)
   readonly entries = new SvelteMap<string, PluginEntry>()
   readonly views = new SvelteMap<string, PaneView>()
@@ -911,7 +929,9 @@ export class PluginHost {
     const runner = this.runners.get(id)
     if (runner === undefined || !this.grant(id).keys) return
     const note = key.down ? runner.keyNote(pane, key.code) : null
-    if (note !== null) this.sound(pane, [note])
+    if (note?.hold) this.held.down(pane, key.code, note)
+    else if (note !== null) this.sound(pane, [note])
+    if (!key.down) this.held.up(pane, key.code)
     runner.post({ t: 'key', pane, ...key })
   }
 
@@ -928,6 +948,12 @@ export class PluginHost {
 
   silence(pane: string): void {
     this.synth.stop(pane)
+    this.held.clear(pane)
+  }
+
+  /** The pane's sustain pedal, for the notes its keys hold. */
+  sustain(pane: string, on: boolean): void {
+    this.held.sustain(pane, on)
   }
 
   /** A pane's view was mounted in a worker again: its canvases are made anew. */

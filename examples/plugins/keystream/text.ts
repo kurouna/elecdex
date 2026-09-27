@@ -8,17 +8,21 @@ export interface Words {
   connect: string
   /** Keys play by where they are, whatever the keyboard prints on them. */
   layout: string
+  /** What FREE PLAY is, beside its row in the menu. */
+  free: string
 }
 
 const EN: Words = {
   connect: 'CLICK HERE TO CONNECT THE KEYBOARD',
   layout:
     'A KEY PLAYS BY ITS PLACE, NOT ITS LETTER: THE HOME ROW IS THE WHITE KEYS, THE ROW ABOVE THE BLACK',
+  free: "THE KEYBOARD ALONE, OR OVER ANY TRACK'S BAND",
 }
 
 const JA: Words = {
   connect: 'クリックしてキーボードを接続',
   layout: '音はキーの文字でなく位置で決まる：ホーム段が白鍵、その上の段が黒鍵',
+  free: 'キーボードだけで、または好きな曲の伴奏に合わせて',
 }
 
 export const wordsFor = (locale: string): Words => (locale.startsWith('ja') ? JA : EN)

@@ -92,6 +92,23 @@ export class Synth {
     return played
   }
 
+  /**
+   * Starts a note that sounds until it is let go (a key held down, up to the longest a note
+   * may be), within the owner's budget. Returns it, to let go of with `release`.
+   */
+  start(owner: string, note: SoundNote): Played | null {
+    const ac = this.context()
+    if (ac === null) return null
+    const o = this.owner(ac, owner)
+    if (!o.budget.take(performance.now())) return null
+    return this.sound(ac, owner, o, { ...note, at: null, length: PLUGIN_LIMITS.noteLengthMs })
+  }
+
+  /** Lets go of a note from `start`, over its voice's own release. */
+  release(played: Played): void {
+    if (this.ac !== null) played.release(this.ac.currentTime)
+  }
+
   /** Silences an owner: what sounds is cut short, what waits is dropped. */
   stop(owner: string): void {
     const o = this.owners.get(owner)
@@ -158,9 +175,9 @@ export class Synth {
     return o
   }
 
-  private sound(ac: AudioContext, owner: string, o: Owner, note: SoundNote): void {
+  private sound(ac: AudioContext, owner: string, o: Owner, note: SoundNote): Played | null {
     const kit = this.kit
-    if (kit === null) return
+    if (kit === null) return null
     // A stamp from before the context slept still says where the output was then: after a
     // sleep it would put a note as far in the future as the context slept.
     const stamp = ac.state === 'running' ? ac.getOutputTimestamp?.() : undefined
@@ -192,6 +209,7 @@ export class Synth {
       },
     )
     this.sounding.push({ owner, played })
+    return played
   }
 
   /** Forgets voices that have ended, and cuts the oldest when too many still sound. */

@@ -1,6 +1,7 @@
 import type { KeyPress, Note, SettingValues, ViewContext, Voice } from '../elecdex-plugin'
 import { buildChart, type Chart, COUNT_IN_BEATS, LEVELS, type Level, openingBars } from './chart'
 import { drawLanes, drawNotes, type FieldView, leadTime } from './draw/field'
+import { drawFree } from './draw/free'
 import { Effects } from './draw/fx'
 import { drawHud } from './draw/hud'
 import { drawKeyboard } from './draw/keys'
@@ -10,17 +11,19 @@ import { drawConnect, drawCount, drawLoading, drawPause, LOAD_MS } from './draw/
 import { type Paint, paintOf } from './draw/paint'
 import { drawPanels, type LogLine } from './draw/panels'
 import { drawResult, REVEAL_MS, type ResultView } from './draw/result'
+import { FreePlay, type FreeSaved } from './free'
 import { rankOf, scoreOf } from './judge'
 import { keyOf, NOTE_KEYS } from './keyboard'
 import { readSong, type Score } from './notation'
 import { bestOf, submit } from './records'
-import { nextWindow, notesBetween } from './schedule'
+import { loopLength, nextWindow, notesBetween } from './schedule'
 import { type Outcome, Session } from './session'
 import { SONGS } from './songs/index'
 import { wordsFor } from './text'
 
 /**
- * One pane of the game: the menu, a track loading, playing and paused, and its result.
+ * One pane of the game: the menu, a track loading, playing and paused, and its result - and
+ * FREE mode (free.ts), the keyboard as an instrument, which the menu lists after the tracks.
  *
  * Everything is drawn on one canvas block. The view draws only while something moves - a
  * track playing, a word fading, a key's light going out - and stops the moment nothing
@@ -35,12 +38,14 @@ export interface Settings extends SettingValues {
   guide: boolean
 }
 
-type Phase = 'menu' | 'loading' | 'play' | 'result'
+type Phase = 'menu' | 'loading' | 'play' | 'result' | 'free'
 
 interface Saved {
+  /** A track's id, or 'free' for FREE PLAY. */
   song?: string
   level?: Level
   speed?: number
+  free?: FreeSaved
 }
 
 const SURFACE = 'screen'
@@ -84,6 +89,7 @@ class Game {
   private log: LogLine[] = []
   /** The song time up to which what the game plays has been sent to the host. */
   private sentTo = Number.NEGATIVE_INFINITY
+  private readonly free: FreePlay
 
   constructor(ctx: ViewContext<Settings, unknown>) {
     this.ctx = ctx
@@ -91,11 +97,16 @@ class Game {
       if (score.problems.length > 0) ctx.log(`${score.source.id}: ${score.problems.join('; ')}`)
       return score.problems.length === 0
     })
+    this.free = new FreePlay(ctx, (index) => this.chartOf(index, 'normal'), this.scores.length)
     const saved = ctx.state.get<Saved>() ?? {}
-    this.selected = Math.max(
-      0,
-      this.scores.findIndex((s) => s.source.id === saved.song),
-    )
+    this.free.restore(saved.free)
+    this.selected =
+      saved.song === 'free'
+        ? this.scores.length
+        : Math.max(
+            0,
+            this.scores.findIndex((s) => s.source.id === saved.song),
+          )
     if (saved.level !== undefined && LEVELS.includes(saved.level)) this.level = saved.level
     if (typeof saved.speed === 'number') this.speed = Math.min(10, Math.max(1, saved.speed))
   }
@@ -108,7 +119,9 @@ class Game {
       ctx.on('theme', () => this.wake()),
       ctx.on('focus', () => this.onFocus()),
       ctx.on('visibility', () => {
-        if (!ctx.visible) this.pause(performance.now())
+        if (ctx.visible) return
+        this.pause(performance.now())
+        this.free.stopBacking()
       }),
       ctx.on('settings', () => {
         this.bindKeys()
@@ -133,7 +146,8 @@ class Game {
       if (key.down) this.fx.press(key.code, key.at)
       else this.fx.release(key.code, key.at)
     }
-    if (key.down) this.act(key)
+    // FREE mode plays keys as held, so it hears them come up too; elsewhere only a press acts.
+    if (key.down || this.phase === 'free') this.act(key)
     this.wake()
   }
 
@@ -152,18 +166,34 @@ class Game {
       case 'result':
         if (key.code === 'Enter' || key.code === 'Escape') this.toMenu()
         else if (key.code === 'KeyR') this.load(key.at)
+        return
+      case 'free': {
+        const done = this.free.key(key)
+        if (done === 'leave') this.toMenu()
+        else if (done === 'changed') this.save()
+      }
     }
   }
 
   private menuKey(code: string, at: number): void {
-    const count = this.scores.length
+    // The tracks, then FREE PLAY.
+    const count = this.scores.length + 1
     if (code === 'ArrowUp') this.selected = (this.selected + count - 1) % count
     else if (code === 'ArrowDown') this.selected = (this.selected + 1) % count
     else if (code === 'ArrowLeft' || code === 'ArrowRight')
       this.shiftLevel(code === 'ArrowLeft' ? -1 : 1)
+    else if (code === 'Enter' && this.selected === this.scores.length) this.enterFree()
     else if (code === 'Enter') this.load(at)
     else return
     this.save()
+  }
+
+  private enterFree(): void {
+    this.ctx.sound.stop()
+    this.session = null
+    this.fx.clear()
+    this.phase = 'free'
+    this.free.enter()
   }
 
   private shiftLevel(by: number): void {
@@ -191,7 +221,11 @@ class Game {
   }
 
   private onFocus(): void {
-    if (!this.ctx.keys.focused) this.pause(performance.now())
+    if (!this.ctx.keys.focused) {
+      this.pause(performance.now())
+      // The band stops with the keyboard gone: nobody is playing over it.
+      this.free.stopBacking()
+    }
     this.wake()
   }
 
@@ -290,6 +324,7 @@ class Game {
   }
 
   private toMenu(): void {
+    if (this.phase === 'free') this.free.leave()
     this.ctx.sound.stop()
     this.session = null
     this.phase = 'menu'
@@ -373,6 +408,7 @@ class Game {
 
   private frame(now: number): void {
     if (this.phase === 'loading' && now - this.phaseAt >= LOAD_MS) this.begin(now)
+    if (this.phase === 'free') this.free.frame(now)
     const session = this.session
     if (this.phase === 'play' && session !== null) {
       this.topUp(session.shownTime(now))
@@ -389,6 +425,7 @@ class Game {
     if (this.phase === 'loading') return true
     if (this.phase === 'play') return !(this.session?.paused ?? true) || this.fx.alive(now)
     if (this.phase === 'result' && now - this.phaseAt < REVEAL_MS) return true
+    if (this.phase === 'free' && this.free.moving()) return true
     return this.fx.alive(now)
   }
 
@@ -401,10 +438,12 @@ class Game {
     p.g.clearRect(0, 0, p.w, p.h)
     const labels = this.ctx.keys.labels
     if (this.phase === 'menu') this.drawMenu(p, l)
+    else if (this.phase === 'free') this.drawFree(p, l, now)
     else if (this.phase === 'result' && this.result !== null)
       drawResult(p, l, this.result, now - this.phaseAt, labels)
     else this.drawPlay(p, l, now)
-    drawKeyboard(p, l, labels, (code) => this.fx.light(code, now))
+    const shift = this.phase === 'free' ? this.free.octave * 12 : 0
+    drawKeyboard(p, l, labels, (code) => this.fx.light(code, now), shift)
     const playing = this.phase === 'play' && !(this.session?.paused ?? true)
     if (!this.ctx.keys.focused && !playing) drawConnect(p, l, wordsFor(this.ctx.locale).connect)
   }
@@ -426,7 +465,39 @@ class Game {
       speed: this.speed,
       note: wordsFor(this.ctx.locale).layout,
       opening,
+      free: wordsFor(this.ctx.locale).free,
     })
+  }
+
+  private drawFree(p: Paint, l: Layout, now: number): void {
+    const free = this.free
+    const chart = free.backing?.chart ?? null
+    const loop = free.loopTime(now)
+    // The line pulses with the band's beat when one plays; nothing falls in this mode.
+    drawLanes(p, l, {
+      chart,
+      time: chart === null || loop === null ? 0 : loop % Math.max(1, loopLength(chart)),
+      lead: leadTime(this.speed),
+      state: () => 'live',
+      droppedAt: () => undefined,
+      labels: this.ctx.keys.labels,
+      lines: false,
+    })
+    drawFree(
+      p,
+      l,
+      {
+        tone: free.toneName,
+        octave: free.octave,
+        pedal: free.pedal,
+        backing: free.backing?.index ?? null,
+        tracks: this.scores.map((s) => s.source.title),
+        trails: free.trails,
+        holding: free.holding,
+        played: free.played,
+      },
+      now,
+    )
   }
 
   private drawPlay(p: Paint, l: Layout, now: number): void {
@@ -496,6 +567,10 @@ class Game {
    * nothing). Only the moment it is bound in differs: a track's notes ring for about a beat.
    */
   private bindKeys(length = this.session?.chart.keyLength ?? MENU_KEY_LENGTH): void {
+    if (this.phase === 'free') {
+      this.free.bind()
+      return
+    }
     const note = (pitch: number): Note => ({
       voice: this.lead,
       pitch,
@@ -506,11 +581,7 @@ class Game {
   }
 
   private save(): void {
-    const song = this.scores[this.selected]?.source.id
-    this.ctx.state.set({
-      ...(song === undefined ? {} : { song }),
-      level: this.level,
-      speed: this.speed,
-    })
+    const song = this.scores[this.selected]?.source.id ?? 'free'
+    this.ctx.state.set({ song, level: this.level, speed: this.speed, free: this.free.saved() })
   }
 }

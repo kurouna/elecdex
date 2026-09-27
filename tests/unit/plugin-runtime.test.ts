@@ -465,6 +465,7 @@ describe('canvas, keys and sound (apiVersion 2)', () => {
           ctx.keys.play({ KeyA: { voice: 'epiano', pitch: 60 } })
           ctx.on('action', () => ctx.sound.play(new Array(4097).fill({ voice: 'hat' })))
           ctx.on('settings', () => ctx.sound.stop())
+          ctx.on('focus', () => ctx.keys.sustain(ctx.keys.focused))
         } }`,
     })
     p.send(start())
@@ -481,6 +482,8 @@ describe('canvas, keys and sound (apiVersion 2)', () => {
     expect(p.of('error')[0]?.message).toMatch(/at most 4096/)
     p.send({ t: 'settings', settings: {} })
     expect(p.of('sound-stop')).toEqual([{ t: 'sound-stop', pane: 'p1' }])
+    p.send({ t: 'focus', pane: 'p1', focused: true })
+    expect(p.of('sustain')).toEqual([{ t: 'sustain', pane: 'p1', on: true }])
   })
 
   it('refuses sound to a plugin that did not ask for it, and tells views the look changed', () => {
