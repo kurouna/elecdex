@@ -10,7 +10,8 @@ import { drawMenu } from './draw/menu'
 import { drawConnect, drawCount, drawLoading, drawPause, LOAD_MS } from './draw/overlays'
 import { type Paint, paintOf } from './draw/paint'
 import { drawPanels, type LogLine } from './draw/panels'
-import { drawResult, REVEAL_MS, type ResultView } from './draw/result'
+import { drawResult, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
+import { fanfare } from './fanfare'
 import { FreePlay, type FreeSaved } from './free'
 import { rankOf, scoreOf } from './judge'
 import { keyOf, NOTE_KEYS } from './keyboard'
@@ -338,6 +339,7 @@ class Game {
     const tally = session.tally
     const score = scoreOf(tally)
     const rank = rankOf(score)
+    const previous = bestOf(session.chart.song.id, session.chart.level)?.score ?? null
     const newRecord =
       !tally.failed &&
       submit(session.chart.song.id, session.chart.level, {
@@ -354,10 +356,15 @@ class Game {
       rank,
       newRecord,
       failed: tally.failed,
+      previous,
     }
     this.phase = 'result'
     this.phaseAt = now
-    if (!tally.failed) return
+    if (!tally.failed) {
+      const when = { rank: now + RANK_AT, record: now + RECORD_AT }
+      this.ctx.sound.play(fanfare(rank, newRecord, when, this.volume))
+      return
+    }
     // The link goes down: the band stops, a cymbal and a low drum.
     this.ctx.sound.stop()
     this.ctx.sound.play([

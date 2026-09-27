@@ -117,3 +117,28 @@ export function rankOf(score: number): Rank {
 /** The mean of the hits' timing, milliseconds: negative is early. */
 export const meanDelta = (tally: Tally): number =>
   tally.deltas.length === 0 ? 0 : tally.deltas.reduce((a, b) => a + b, 0) / tally.deltas.length
+
+/**
+ * How a play ended, as the result's lamp says it: the link lost (HARD only), every note in
+ * SYNC, none dropped, or simply played out.
+ */
+export type Lamp = 'NO CARRIER' | 'ALL SYNC' | 'FULL CHAIN' | 'CLEAR'
+
+export function lampOf(tally: Tally): Lamp {
+  if (tally.failed) return 'NO CARRIER'
+  if (tally.total > 0 && tally.counts.SYNC === tally.total) return 'ALL SYNC'
+  if (tally.total > 0 && tally.counts.DROP === 0) return 'FULL CHAIN'
+  return 'CLEAR'
+}
+
+/** The hits outside SYNC, early and late: which way the player leans. */
+export function fastSlow(tally: Tally): { fast: number; slow: number } {
+  const edge = windowOf(tally.level, 'SYNC')
+  let fast = 0
+  let slow = 0
+  for (const d of tally.deltas) {
+    if (d < -edge) fast += 1
+    else if (d > edge) slow += 1
+  }
+  return { fast, slow }
+}

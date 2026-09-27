@@ -99,4 +99,20 @@ describe('the view', () => {
     frame(6000)
     expect(asked.played.length).toBeGreaterThan(first)
   })
+
+  it('ends a track on its result: the rank lands with its chord, and a new record blips', () => {
+    const { asked, press, frame } = stand()
+    press('Enter', 0)
+    // Nothing typed: every note is dropped, and the track plays out to a D.
+    let now = 0
+    while (now < 120_000 && !asked.played.some((batch) => batch.some((n) => n.voice === 'chip'))) {
+      now += 50
+      frame(now)
+    }
+    const fanfare = asked.played.find((batch) => batch.some((n) => n.voice === 'chip')) ?? []
+    const rankAt = fanfare.find((n) => n.voice === 'kick')?.at ?? 0
+    expect(rankAt).toBeGreaterThan(now)
+    expect(fanfare.filter((n) => n.voice === 'pluck').map((n) => n.pitch)).toEqual([57, 60, 63])
+    expect(fanfare.filter((n) => n.voice === 'chip').every((n) => (n.at ?? 0) > rankAt)).toBe(true)
+  })
 })
