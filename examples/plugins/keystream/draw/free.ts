@@ -37,7 +37,7 @@ export function drawFree(p: Paint, l: Layout, view: FreeView, now: number): void
   }
   frame(p, rects.left, 'TX  //  PLAYED')
   playedLog(p, rects.left, view.played)
-  frame(p, rects.right, 'BAND  //  1-8')
+  frame(p, rects.right, 'BAND  //  1-9  < >')
   bandList(p, rects.right, view)
 }
 
@@ -49,7 +49,8 @@ const KEYS: readonly (readonly [string, string])[] = [
   ['←→', 'OCTAVE'],
   ['↑↓', 'TONE'],
   ['ENTER', 'BAND'],
-  ['1-8', 'WHICH BAND'],
+  ['1-9', 'WHICH BAND'],
+  ['< >', 'BAND BEFORE / AFTER'],
   ['ESC', 'MENU'],
 ]
 
@@ -190,35 +191,56 @@ function playedLog(p: Paint, r: Rect, played: readonly PlayedNote[]): void {
   })
 }
 
-/** The bands to play over, by number, and the keys of the mode. */
+/** Rows of the band list, and the room under them for the keys of the mode. */
+const ROW_H = 22
+const KEY_ROW_H = 22
+
+/**
+ * The bands to play over, by number, and the keys of the mode. A list longer than the
+ * panel has room for scrolls with the band chosen, as the menu's does.
+ */
 function bandList(p: Paint, r: Rect, view: FreeView): void {
-  const g = p.g
-  const rowH = 22
   const rows = ['OFF', ...view.tracks]
-  rows.forEach((title, i) => {
-    const y = r.y + 40 + i * rowH
-    const on = i === 0 ? view.backing === null : view.backing === i - 1
-    if (on) {
-      g.fillStyle = alpha(p.c.accent, p.light ? 0.12 : 0.1)
-      g.fillRect(r.x, y - rowH / 2 + 1, r.w, rowH - 2)
-      g.fillStyle = p.c.accentStrong
-      g.fillRect(r.x, y - rowH / 2 + 1, 3, rowH - 2)
-    }
-    write(p, String(i), r.x + 12, y, {
-      font: font(600, 13, p.fonts.mono),
-      color: p.c.muted,
-      baseline: 'middle',
-    })
-    write(p, title, r.x + 36, y, {
-      font: font(600, 12, p.fonts.display),
-      color: on ? p.c.accentStrong : p.c.text,
-      baseline: 'middle',
-      spacing: '0.12em',
-    })
+  const chosen = view.backing === null ? 0 : view.backing + 1
+  const room = r.h - 40 - 18 - KEYS.length * KEY_ROW_H
+  const shown = clamp(Math.floor(room / ROW_H), 3, rows.length)
+  const first = clamp(chosen - Math.floor(shown / 2), 0, rows.length - shown)
+  for (let i = first; i < first + shown; i++) {
+    bandRow(p, r, rows[i] ?? '', i, r.y + 40 + (i - first) * ROW_H, i === chosen)
+  }
+  const more = { font: font(500, 10, p.fonts.ui), color: p.c.muted, align: 'right' as const }
+  if (first > 0) write(p, '▲', r.x + r.w - 4, r.y + 40 - ROW_H / 2, more)
+  if (first + shown < rows.length) {
+    write(p, '▼ MORE', r.x + r.w - 4, r.y + 40 + shown * ROW_H - 6, more)
+  }
+  keyList(p, r, r.y + 40 + shown * ROW_H + 18)
+}
+
+function bandRow(p: Paint, r: Rect, title: string, i: number, y: number, on: boolean): void {
+  const g = p.g
+  if (on) {
+    g.fillStyle = alpha(p.c.accent, p.light ? 0.12 : 0.1)
+    g.fillRect(r.x, y - ROW_H / 2 + 1, r.w, ROW_H - 2)
+    g.fillStyle = p.c.accentStrong
+    g.fillRect(r.x, y - ROW_H / 2 + 1, 3, ROW_H - 2)
+  }
+  write(p, String(i), r.x + 12, y, {
+    font: font(600, 13, p.fonts.mono),
+    color: p.c.muted,
+    baseline: 'middle',
   })
-  const top = r.y + 40 + rows.length * rowH + 18
+  write(p, title, r.x + 40, y, {
+    font: font(600, 12, p.fonts.display),
+    color: on ? p.c.accentStrong : p.c.text,
+    baseline: 'middle',
+    spacing: '0.12em',
+  })
+}
+
+function keyList(p: Paint, r: Rect, top: number): void {
+  const g = p.g
   KEYS.forEach(([key, word], i) => {
-    const y = top + i * 22
+    const y = top + i * KEY_ROW_H
     if (y > r.y + r.h - 8) return
     const capFont = font(600, 10, p.fonts.mono)
     g.font = capFont

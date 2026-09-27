@@ -1,4 +1,19 @@
+import type { Band } from '../arrange'
 import type { SongSource } from '../notation'
+import {
+  BASS_8,
+  BASS_LAST,
+  BASS_OCTAVES,
+  COMP_LAST,
+  COMP_OFFBEATS,
+  COMP_PUSH,
+  KICK_4,
+  OFFBEATS,
+  ONE,
+  SIXTEENTHS,
+  SNARE_24,
+  times,
+} from './parts'
 
 /**
  * NEON CIRCUIT - written for elecdex (GPL-3.0, as the rest of this repository).
@@ -24,6 +39,26 @@ const OUTRO = 'd...............|................'
 const VERSE_CHORDS = 'Em | C | G | D | Em | C | G | D'
 const CHORUS_CHORDS = 'C | D | Bm | Em | C | D | B7 | Em'
 
+/** House: four on the floor, the chords pushing ahead of the beat in the chorus as the tune does. */
+const BAND: Band = {
+  sections: {
+    I: { kick: KICK_4, hat: OFFBEATS, bass: BASS_8 },
+    V: { kick: KICK_4, clap: SNARE_24, hat: OFFBEATS, bass: BASS_8, comp: COMP_OFFBEATS },
+    C: {
+      kick: KICK_4,
+      clap: SNARE_24,
+      hat: SIXTEENTHS,
+      openhat: OFFBEATS,
+      bass: BASS_OCTAVES,
+      comp: COMP_PUSH,
+      pad: true,
+    },
+    O: { kick: ONE, bass: BASS_LAST, comp: COMP_LAST },
+    E: {},
+  },
+  form: `I I! | ${times('V', 7)} V! | C* ${times('C', 7)} | ${times('V', 7)} V! | C* ${times('C', 7)} | O* E`,
+}
+
 export const song: SongSource = {
   id: 'neon-circuit',
   title: 'NEON CIRCUIT',
@@ -32,6 +67,5 @@ export const song: SongSource = {
   grid: 4,
   melody: [INTRO, ...VERSE, ...CHORUS, ...VERSE, ...CHORUS, OUTRO],
   chords: ['Em | Em', VERSE_CHORDS, CHORUS_CHORDS, VERSE_CHORDS, CHORUS_CHORDS, 'Em | Em'],
-  energy: '11 22222222 33333333 22222222 33333333 31',
-  style: 'house',
+  band: BAND,
 }

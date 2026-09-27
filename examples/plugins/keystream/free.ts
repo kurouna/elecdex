@@ -158,16 +158,30 @@ export class FreePlay {
     return 'changed'
   }
 
-  /** Enter starts or stops the band; a digit picks a track's band, 0 stops it. */
+  /**
+   * Enter starts or stops the band; a digit picks one of the first nine tracks' bands, 0
+   * stops it; comma and period (< and >) step to the track before or after, round the list.
+   */
   private band(code: string, at: number): void {
     if (code === 'Enter') {
       if (this.backing === null) this.startBacking(0, at)
       else this.stopBacking()
       return
     }
+    if (code === 'Comma' || code === 'Period') {
+      this.stepBacking(code === 'Period' ? 1 : -1, at)
+      return
+    }
     const digit = /^Digit(\d)$/.exec(code)?.[1]
     if (digit === '0') this.stopBacking()
     else if (digit !== undefined) this.startBacking(Number(digit) - 1, at)
+  }
+
+  /** The next or the previous track's band; with none playing, the first or the last. */
+  private stepBacking(by: 1 | -1, at: number): void {
+    if (this.tracks === 0) return
+    const from = this.backing?.index ?? (by === 1 ? -1 : this.tracks)
+    this.startBacking((from + by + this.tracks) % this.tracks, at)
   }
 
   private press(code: string, pitch: number, at: number): void {

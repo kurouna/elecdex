@@ -1,4 +1,19 @@
+import type { Band } from '../arrange'
 import type { SongSource } from '../notation'
+import {
+  BASS_8,
+  BASS_LAST,
+  BASS_LONG,
+  BASS_OCTAVES,
+  COMP_OFFBEATS,
+  EIGHTHS,
+  KICK_4,
+  OFFBEATS,
+  ONE,
+  SIXTEENTHS,
+  SNARE_24,
+  times,
+} from './parts'
 
 /**
  * PACKET STORM - written for elecdex (GPL-3.0, as the rest of this repository).
@@ -27,6 +42,36 @@ const OUTRO = 'l...............|................'
 const VERSE_CHORDS = 'Dm | C | Bb | A | Dm | C | Bb | A'
 const CHORUS_CHORDS = 'Dm | Bb | C | Dm | Gm | C | F | A7'
 
+/** Eurobeat at 150: open hats on the 'and', the octave bass, the break still on the kick. */
+const BAND: Band = {
+  sections: {
+    I: { kick: KICK_4, hat: OFFBEATS, bass: BASS_8 },
+    V: {
+      kick: KICK_4,
+      snare: SNARE_24,
+      hat: KICK_4,
+      openhat: OFFBEATS,
+      bass: BASS_OCTAVES,
+      comp: COMP_OFFBEATS,
+    },
+    C: {
+      kick: KICK_4,
+      snare: SNARE_24,
+      clap: SNARE_24,
+      hat: SIXTEENTHS,
+      openhat: OFFBEATS,
+      bass: BASS_OCTAVES,
+      arp: EIGHTHS,
+      pad: true,
+    },
+    K: { kick: KICK_4, hat: OFFBEATS, bass: BASS_LONG, pad: true },
+    O: { kick: ONE, bass: BASS_LAST, pad: true },
+    E: {},
+  },
+  form: `${times('I', 3)} I! | ${times('V', 7)} V! | C* ${times('C', 7)} | K* K K K! | ${times('V', 7)} V! | C* ${times('C', 7)} | C* ${times('C', 7)} | O* E`,
+  comp: 'pluck',
+}
+
 export const song: SongSource = {
   id: 'packet-storm',
   title: 'PACKET STORM',
@@ -44,6 +89,5 @@ export const song: SongSource = {
     CHORUS_CHORDS,
     'Dm | Dm',
   ],
-  energy: '1122 22222222 33333333 1111 22222222 33333333 33333333 21',
-  style: 'eurobeat',
+  band: BAND,
 }

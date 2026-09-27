@@ -156,11 +156,18 @@ describe('FREE mode', () => {
     expect(free.backing).toBeNull()
     expect(asked.stops).toBe(2)
     expect(asked.sustain).toEqual([true, true, true])
-    // Enter starts the first band; a number past the list does nothing.
+    // Enter starts the first band; comma and period step round the whole list, past what
+    // the digits reach.
     key('Enter', true, 7000)
     expect(free.backing?.index).toBe(0)
-    key('Digit9', true, 7100)
+    key('Comma', true, 7100)
+    expect(free.backing?.index).toBe(SONGS.length - 1)
+    key('Period', true, 7200)
     expect(free.backing?.index).toBe(0)
+    key('Digit9', true, 7300)
+    expect(free.backing?.index).toBe(8)
+    for (let i = 0; i < SONGS.length - 9; i++) key('Period', true, 7400 + i)
+    expect(free.backing?.index).toBe(SONGS.length - 1)
     expect(key('Escape', true)).toBe('leave')
     free.leave()
     expect(free.backing).toBeNull()

@@ -127,14 +127,14 @@ function cue(
   }
 }
 
-/** A bar of clicks before the song, the first one marked. */
+/** A bar of counts before the song: a kick and a click on every beat, the first the loudest. */
 function countIn(clock: Clock): Cue[] {
   const cues: Cue[] = []
   for (let b = -COUNT_IN_BEATS; b < 0; b++) {
     const time = clock.time(b)
+    const first = b === -COUNT_IN_BEATS
     cues.push({ voice: 'hat', pitch: 60, time, length: null, level: 0.9, pan: 0 })
-    if (b === -COUNT_IN_BEATS)
-      cues.push({ voice: 'kick', pitch: 60, time, length: null, level: 0.5, pan: 0 })
+    cues.push({ voice: 'kick', pitch: 60, time, length: null, level: first ? 0.7 : 0.45, pan: 0 })
   }
   return cues
 }

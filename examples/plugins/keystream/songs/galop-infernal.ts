@@ -1,4 +1,16 @@
+import type { Band } from '../arrange'
 import type { SongSource } from '../notation'
+import {
+  BASS_OOM,
+  COMP_OFFBEATS,
+  EIGHTHS,
+  EIGHTHS_SOFT,
+  KICK_4,
+  OFFBEATS,
+  OFFBEATS_SOFT,
+  SIXTEENTHS,
+  times,
+} from './parts'
 
 /**
  * GALOP INFERNAL - Jacques Offenbach (1819-1880), from Orpheus in the Underworld (1858):
@@ -19,6 +31,32 @@ const OUTRO = 'f-f-f---|........'
 
 const THEME_CHORDS = 'F | F | C7 | F C7 | F | F | C7 | C7 F'
 
+/** Oom-pah at a gallop: the bass on every beat, the chord and the snare on every 'and'. */
+const BAND: Band = {
+  sections: {
+    I: { kick: KICK_4, hat: EIGHTHS_SOFT, bass: BASS_OOM, comp: COMP_OFFBEATS },
+    A: { kick: KICK_4, snare: OFFBEATS_SOFT, hat: EIGHTHS, bass: BASS_OOM, comp: COMP_OFFBEATS },
+    L: {
+      kick: KICK_4,
+      snare: OFFBEATS,
+      hat: SIXTEENTHS,
+      bass: BASS_OOM,
+      comp: COMP_OFFBEATS,
+      pad: true,
+    },
+    // The last three chords, with the tune's three last notes.
+    O: {
+      kick: 'x...x...x.......',
+      snare: 'x...x...x.......',
+      bass: 'r...r...r-------',
+      comp: 'x...x...x-------',
+    },
+    E: {},
+  },
+  form: `I I! | ${times('A', 7)} A! | L* ${times('L', 7)} | ${times('A', 7)} A! | L* ${times('L', 7)} | O* E`,
+  comp: 'pluck',
+}
+
 export const song: SongSource = {
   id: 'galop-infernal',
   title: 'GALOP INFERNAL',
@@ -34,6 +72,5 @@ export const song: SongSource = {
     THEME_CHORDS,
     'F | F',
   ],
-  energy: '12 22222222 33333333 22222222 33333333 31',
-  style: 'galop',
+  band: BAND,
 }

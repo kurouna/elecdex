@@ -1,4 +1,19 @@
+import type { Band } from '../arrange'
 import type { SongSource } from '../notation'
+import {
+  BASS_8,
+  BASS_LAST,
+  BASS_OCTAVES,
+  COMP_LAST,
+  COMP_OFFBEATS,
+  EIGHTHS,
+  KICK_4,
+  OFFBEATS,
+  ONE,
+  SIXTEENTHS,
+  SNARE_24,
+  times,
+} from './parts'
 
 /**
  * SYMPHONY 40 - Wolfgang Amadeus Mozart (1756-1791), the opening of the Symphony No. 40 in
@@ -21,6 +36,29 @@ const BRIDGE = ['k-l-k-h-|g-h-k---|l-;-l-h-|o-;-o---', "k-l-'-k-|;-l-k-g-|u-k-l-
 const OUTRO = 'l-------|........'
 
 const THEME_CHORDS = 'Dm | Dm | Gm | A7 | A7 | A7 | A7 | Dm'
+
+/** Eurobeat: the octave bass and a pluck on every 'and', the bridge on a pad alone. */
+const BAND: Band = {
+  sections: {
+    I: { kick: KICK_4, hat: OFFBEATS, bass: BASS_8 },
+    A: { kick: KICK_4, snare: SNARE_24, hat: EIGHTHS, bass: BASS_OCTAVES, comp: COMP_OFFBEATS },
+    L: {
+      kick: KICK_4,
+      snare: SNARE_24,
+      clap: SNARE_24,
+      hat: SIXTEENTHS,
+      openhat: OFFBEATS,
+      bass: BASS_OCTAVES,
+      comp: COMP_OFFBEATS,
+      pad: true,
+    },
+    B: { kick: KICK_4, snare: SNARE_24, hat: EIGHTHS, bass: BASS_8, pad: true },
+    O: { kick: ONE, bass: BASS_LAST, comp: COMP_LAST },
+    E: {},
+  },
+  form: `I I I! | ${times('A', 7)} A! | L* ${times('L', 7)} | ${times('B', 7)} B! | L* ${times('L', 7)} | O* E`,
+  comp: 'pluck',
+}
 
 export const song: SongSource = {
   id: 'symphony-40',
@@ -50,6 +88,5 @@ export const song: SongSource = {
     THEME_CHORDS,
     'Dm | Dm',
   ],
-  energy: '112 22222222 33333333 22222222 33333333 31',
-  style: 'eurobeat',
+  band: BAND,
 }

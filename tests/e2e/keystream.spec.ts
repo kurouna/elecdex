@@ -134,8 +134,46 @@ test('FREE mode holds the keys, and plays a track’s band underneath until told
     await page.waitForTimeout(4000)
     expect(await notes()).toBe(stopped)
 
+    // Comma steps back round the list to the last track's band, past what the digits reach.
+    await page.keyboard.press(',')
+    await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(stopped + 10)
+    await page.keyboard.press('0')
+
     await page.keyboard.press('Escape')
     await expect(pane.getByTestId('plugin-error')).toHaveCount(0)
+  } finally {
+    await app.quit()
+    removeDir(dir)
+  }
+})
+
+test('a pane that saved where it was comes back after a restart, and plays', async () => {
+  // Found as a pane left black after a restart: its saved state could not reach the worker.
+  const dir = withKeystream()
+  let app = await launch(dir, { layout: LAYOUT })
+  const pane = () => app.page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
+  const notes = async () => Number(await pane().getAttribute('data-notes'))
+  try {
+    await expect(pane()).toHaveAttribute('data-status', 'ready')
+    await pane().getByTestId('plugin-canvas').click()
+    await expect(pane().getByTestId('plugin-keys')).toBeVisible()
+    // Choosing a track saves it in the pane's state.
+    await app.page.keyboard.press('ArrowDown')
+    await app.page.keyboard.press('ArrowDown')
+    // Past the layout's save debounce.
+    await app.page.waitForTimeout(1500)
+
+    app = await app.relaunch()
+    const errors: string[] = []
+    app.page.on('pageerror', (error) => errors.push(error.message))
+    await expect(pane()).toHaveAttribute('data-status', 'ready')
+    await pane().getByTestId('plugin-canvas').click()
+    await expect(pane().getByTestId('plugin-keys')).toBeVisible()
+    // The view is running in the worker: it bound the keys' notes again.
+    const before = await notes()
+    await app.page.keyboard.press('a')
+    await expect.poll(notes).toBeGreaterThan(before)
+    expect(errors).toEqual([])
   } finally {
     await app.quit()
     removeDir(dir)

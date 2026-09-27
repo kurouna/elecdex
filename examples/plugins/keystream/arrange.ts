@@ -1,12 +1,60 @@
 import type { Voice } from '../elecdex-plugin'
 import { type Chord, lift, parseChord, voicing } from './harmony'
 import { BEATS_PER_BAR, type Score } from './notation'
-import { type DrumVoice, STYLES, type Style } from './styles'
 
 /**
- * The band: everything under the melody, made from the song's chords, the energy of each
- * bar and its style. Written once per song; the chart turns beats into milliseconds.
+ * The band: everything under the melody, written for each song. A song's `band` has a few
+ * sections - a bar of drums, a bass line and chord hits, each sixteen sixteenths - and a
+ * form that says which section every bar plays. The pitched parts follow the bar's chords.
+ *
+ * Written by hand for each song rather than made from a style, so the band leans on the
+ * beats the tune leans on: a player finds the beat in it rather than fighting it.
  */
+
+export type DrumVoice = 'kick' | 'snare' | 'clap' | 'hat' | 'openhat' | 'tom' | 'crash'
+const DRUM_VOICES: readonly DrumVoice[] = [
+  'kick',
+  'snare',
+  'clap',
+  'hat',
+  'openhat',
+  'tom',
+  'crash',
+]
+
+export interface Section {
+  /** Drums: 'x' a hit, 'o' a softer one, '.' nothing; sixteen to a bar. */
+  kick?: string
+  snare?: string
+  clap?: string
+  hat?: string
+  openhat?: string
+  tom?: string
+  crash?: string
+  /** The bass: 'r' the chord's bass, 'o' an octave up, '5' its fifth, '3' its third, '-' holds, '.' rests. */
+  bass?: string
+  /** Chord hits: 'x' strikes the chord, 'o' softer, '-' holds, '.' rests. */
+  comp?: string
+  /** An arpeggio: each 'x' the chord's next note going up, '-' holds, '.' rests. */
+  arp?: string
+  /** The chord held under the whole bar. */
+  pad?: boolean
+}
+
+export interface Band {
+  sections: Readonly<Record<string, Section>>
+  /**
+   * The section each bar plays, one name a bar ('|' only for reading). A name followed by
+   * '*' opens with a cymbal; by '!', its last beat is a snare roll into the next bar.
+   */
+  form: string
+  /** The voice of the chord hits; an electric piano when left out. */
+  comp?: Voice
+  /** The tune again, `bars` later, as a round: the band sings it after the player. */
+  round?: { bars: number; voice: Voice; level: number }
+  /** What the tom is tuned to, as a MIDI note. */
+  tom?: number
+}
 
 export interface Part {
   voice: Voice
@@ -18,6 +66,12 @@ export interface Part {
   pan: number
 }
 
+interface BarPlan {
+  section: Section
+  crash: boolean
+  roll: boolean
+}
+
 const STEPS = 16
 const STEP = BEATS_PER_BAR / STEPS
 
@@ -25,9 +79,10 @@ const DRUM_LEVEL: Readonly<Record<DrumVoice, number>> = {
   kick: 0.95,
   snare: 0.7,
   clap: 0.5,
-  hat: 0.42,
-  openhat: 0.36,
+  hat: 0.4,
+  openhat: 0.34,
   tom: 0.7,
+  crash: 0.5,
 }
 const DRUM_PAN: Readonly<Record<DrumVoice, number>> = {
   kick: 0,
@@ -36,12 +91,31 @@ const DRUM_PAN: Readonly<Record<DrumVoice, number>> = {
   hat: 0.25,
   openhat: -0.25,
   tom: -0.1,
+  crash: 0.2,
 }
 
 const hitLevel = (char: string | undefined): number => (char === 'x' ? 1 : char === 'o' ? 0.55 : 0)
 
-const pattern = (byEnergy: readonly (string | null)[] | null, energy: number): string | null =>
-  energy < 1 ? null : (byEnergy?.[energy - 1] ?? null)
+/** The form read into a plan per bar, and what in it does not add up. */
+export function readForm(band: Band): { bars: BarPlan[]; problems: string[] } {
+  const problems: string[] = []
+  for (const [name, section] of Object.entries(band.sections)) {
+    for (const [part, line] of Object.entries(section)) {
+      if (typeof line === 'string' && line.length !== STEPS) {
+        problems.push(`section ${name}: ${part} has ${line.length} steps, not ${STEPS}`)
+      }
+    }
+  }
+  const bars: BarPlan[] = []
+  for (const token of band.form.replace(/\|/g, ' ').split(/\s+/)) {
+    if (token === '') continue
+    const [, name = '', marks = ''] = /^([^*!]+)([*!]*)$/.exec(token) ?? []
+    const section = band.sections[name]
+    if (section === undefined) problems.push(`the form names "${token}", which is not a section`)
+    bars.push({ section: section ?? {}, crash: marks.includes('*'), roll: marks.includes('!') })
+  }
+  return { bars, problems }
+}
 
 /** The chord sounding at a step of a bar: a bar holds one chord, or one per half. */
 function chordAt(symbols: readonly string[], step: number): Chord | null {
@@ -49,42 +123,39 @@ function chordAt(symbols: readonly string[], step: number): Chord | null {
   return parseChord(symbols[index] ?? '')
 }
 
+/** How many steps a note struck at `step` lasts: itself and the '-' after it. */
+function heldFor(line: string, step: number): number {
+  let length = 1
+  while (line[step + length] === '-') length += 1
+  return length
+}
+
 export function arrange(score: Score): Part[] {
-  const style = STYLES[score.source.style]
+  const band = score.source.band
+  const { bars } = readForm(band)
   const parts: Part[] = []
-  for (let bar = 0; bar < score.bars; bar++) {
-    const energy = score.energy[bar] ?? 0
-    const rising = (score.energy[bar + 1] ?? 0) > energy && energy > 0
-    const lifted = bar > 0 && energy > (score.energy[bar - 1] ?? 0) && energy >= 2
-    const at = { bar, energy, chords: score.chords[bar] ?? [] }
-    drums(style, at, rising, parts)
-    // A cymbal where the band lifts into a louder part.
-    if (lifted) {
-      parts.push({
-        voice: 'crash',
-        pitch: 60,
-        beat: bar * BEATS_PER_BAR,
-        beats: null,
-        level: 0.55,
-        pan: 0.2,
-      })
-    }
-    bass(style, at, parts)
-    harmony(style, at, parts)
-  }
+  bars.forEach((plan, bar) => {
+    if (bar >= score.bars) return
+    const at = { start: bar * BEATS_PER_BAR, chords: score.chords[bar] ?? [] }
+    drums(plan, at.start, band.tom ?? 45, parts)
+    bass(plan.section.bass, at, parts)
+    comp(plan.section.comp, band.comp ?? 'epiano', at, parts)
+    arpeggio(plan.section.arp, at, parts)
+    if (plan.section.pad) pad(at, parts)
+  })
+  if (band.round) round(score, band.round, parts)
   return parts.sort((a, b) => a.beat - b.beat)
 }
 
 interface BarAt {
-  bar: number
-  energy: number
+  start: number
   chords: readonly string[]
 }
 
-function drumHit(voice: DrumVoice, beat: number, strength: number): Part {
+function drumHit(voice: DrumVoice, beat: number, strength: number, pitch = 60): Part {
   return {
     voice,
-    pitch: 60,
+    pitch,
     beat,
     beats: null,
     level: DRUM_LEVEL[voice] * strength,
@@ -92,130 +163,126 @@ function drumHit(voice: DrumVoice, beat: number, strength: number): Part {
   }
 }
 
-/** The drums of a bar; its last beat a snare roll when the next bar lifts. */
-function drums(style: Style, at: BarAt, rising: boolean, parts: Part[]): void {
-  const start = at.bar * BEATS_PER_BAR
-  for (const [voice, byEnergy] of Object.entries(style.drums) as [DrumVoice, ByEnergyOf][]) {
-    const bar = pattern(byEnergy, at.energy)
-    // Under a roll, only the kick keeps its last beat.
-    const steps = rising && voice !== 'kick' ? 12 : STEPS
-    if (bar !== null) drumLine(voice, bar, steps, start, style.tom, parts)
-  }
-  if (!rising) return
-  for (let step = 12; step < STEPS; step++) {
-    parts.push(drumHit('snare', start + step * STEP, 0.45 + (step - 12) * 0.18))
+/** Where a roll starts: the last beat of the bar. */
+const ROLL_FROM = 12
+
+/** A bar's drums: its lines, a cymbal to open it, a roll to close it. */
+function drums(plan: BarPlan, start: number, tom: number, parts: Part[]): void {
+  for (const voice of DRUM_VOICES) drumLine(voice, plan, start, voice === 'tom' ? tom : 60, parts)
+  if (plan.crash) parts.push(drumHit('crash', start, 1))
+  if (!plan.roll) return
+  for (let step = ROLL_FROM; step < STEPS; step++) {
+    parts.push(drumHit('snare', start + step * STEP, 0.45 + (step - ROLL_FROM) * 0.18))
   }
 }
 
-type ByEnergyOf = readonly (string | null)[]
-
-function drumLine(
-  voice: DrumVoice,
-  bar: string,
-  steps: number,
-  start: number,
-  tom: number,
-  parts: Part[],
-): void {
+function drumLine(voice: DrumVoice, plan: BarPlan, start: number, pitch: number, parts: Part[]) {
+  const line = plan.section[voice]
+  if (line === undefined) return
+  // Under a roll, only the kick keeps the last beat.
+  const steps = plan.roll && voice !== 'kick' ? ROLL_FROM : STEPS
   for (let step = 0; step < steps; step++) {
-    const strength = hitLevel(bar[step])
-    if (strength === 0) continue
-    const hit = drumHit(voice, start + step * STEP, strength)
-    parts.push(voice === 'tom' ? { ...hit, pitch: tom } : hit)
+    const strength = hitLevel(line[step])
+    if (strength > 0) parts.push(drumHit(voice, start + step * STEP, strength, pitch))
   }
 }
 
-/** The bass line: each character a note of the chord under it, held by '-'. */
-function bass(style: Style, at: BarAt, parts: Part[]): void {
-  const line = pattern(style.bass, at.energy)
-  if (line === null) return
-  const start = at.bar * BEATS_PER_BAR
+function bass(line: string | undefined, at: BarAt, parts: Part[]): void {
+  if (line === undefined) return
   for (let step = 0; step < STEPS; step++) {
-    const char = line[step]
+    const char = line[step] ?? '.'
     const chord = chordAt(at.chords, step)
-    if (chord === null || char === undefined || !'ro5'.includes(char)) continue
-    let length = 1
-    while (line[step + length] === '-') length += 1
-    const root = lift(chord.bass, 36)
-    const pitch = char === 'o' ? root + 12 : char === '5' ? lift((chord.root + 7) % 12, 36) : root
+    if (chord === null || !'ro53'.includes(char)) continue
     parts.push({
       voice: 'bass',
-      pitch,
-      beat: start + step * STEP,
-      beats: length * STEP * 0.85,
+      pitch: bassPitch(chord, char),
+      beat: at.start + step * STEP,
+      beats: heldFor(line, step) * STEP * 0.85,
       level: 0.72,
       pan: 0,
     })
   }
 }
 
-/** Pad, arpeggio and stabs: the chord itself. */
-function harmony(style: Style, at: BarAt, parts: Part[]): void {
-  const start = at.bar * BEATS_PER_BAR
-  if (style.pad !== null && at.energy >= style.pad) pad(at, start, parts)
-  const every = style.arp && at.energy >= 1 ? style.arp.every[at.energy - 1] : 0
-  if (style.arp && every !== undefined && every > 0)
-    arpeggio(at, start, every, style.arp.order, parts)
-  const stabs = pattern(style.stab, at.energy)
-  if (stabs !== null) stab(style.stabVoice, at, start, stabs, parts)
+function bassPitch(chord: Chord, char: string): number {
+  const root = lift(chord.bass, 36)
+  if (char === 'o') return root + 12
+  const interval = char === '5' ? 7 : char === '3' ? (chord.tones[1] ?? 4) : 0
+  return interval === 0 ? root : lift((chord.root + interval) % 12, 36)
 }
 
-function pad(at: BarAt, start: number, parts: Part[]): void {
+/** Chord hits under the tune, below it, so the tune stands clear. */
+function comp(line: string | undefined, voice: Voice, at: BarAt, parts: Part[]): void {
+  if (line === undefined) return
+  for (let step = 0; step < STEPS; step++) {
+    const strength = hitLevel(line[step])
+    const chord = strength > 0 ? chordAt(at.chords, step) : null
+    if (chord === null) continue
+    for (const pitch of voicing(chord, 50)) {
+      parts.push({
+        voice,
+        pitch,
+        beat: at.start + step * STEP,
+        beats: heldFor(line, step) * STEP * 0.9,
+        level: 0.3 * strength,
+        pan: 0.15,
+      })
+    }
+  }
+}
+
+/** An arpeggio above the tune, quiet: the chord's notes one after another, going up. */
+function arpeggio(line: string | undefined, at: BarAt, parts: Part[]): void {
+  if (line === undefined) return
+  let n = 0
+  for (let step = 0; step < STEPS; step++) {
+    if (line[step] !== 'x') continue
+    const chord = chordAt(at.chords, step)
+    if (chord === null) continue
+    const tones = [...voicing(chord, 76), lift(chord.root, 76) + 12]
+    parts.push({
+      voice: 'pluck',
+      pitch: tones[n % tones.length] ?? 76,
+      beat: at.start + step * STEP,
+      beats: heldFor(line, step) * STEP * 0.9,
+      level: 0.24,
+      pan: n % 2 === 0 ? -0.3 : 0.3,
+    })
+    n += 1
+  }
+}
+
+function pad(at: BarAt, parts: Part[]): void {
   const span = BEATS_PER_BAR / Math.max(1, at.chords.length)
   at.chords.forEach((symbol, i) => {
     const chord = parseChord(symbol)
     if (chord === null) return
-    for (const pitch of voicing(chord, 53)) {
+    for (const pitch of voicing(chord, 48)) {
       parts.push({
         voice: 'pad',
         pitch,
-        beat: start + i * span,
+        beat: at.start + i * span,
         beats: span * 0.96,
-        level: 0.5,
+        level: 0.45,
         pan: 0,
       })
     }
   })
 }
 
-function arpeggio(
-  at: BarAt,
-  start: number,
-  every: number,
-  order: 'up' | 'updown',
-  parts: Part[],
-): void {
-  for (let step = 0; step < STEPS; step += every) {
-    const chord = chordAt(at.chords, step)
-    if (chord === null) continue
-    const tones = [...voicing(chord, 72), lift(chord.root, 72) + 12]
-    const cycle = order === 'up' ? tones : [...tones, ...tones.slice(1, -1).reverse()]
-    const n = step / every
+/** The tune again, `bars` later, in another voice: a round, as FROG CHORUS is sung. */
+function round(score: Score, echo: NonNullable<Band['round']>, parts: Part[]): void {
+  const shift = echo.bars * BEATS_PER_BAR
+  const end = score.bars * BEATS_PER_BAR
+  for (const note of score.notes) {
+    if (note.beat + shift >= end) continue
     parts.push({
-      voice: 'pluck',
-      pitch: cycle[n % cycle.length] ?? 72,
-      beat: start + step * STEP,
-      beats: every * STEP * 0.9,
-      level: 0.32,
-      pan: n % 2 === 0 ? -0.3 : 0.3,
+      voice: echo.voice,
+      pitch: note.pitch,
+      beat: note.beat + shift,
+      beats: note.beats * 0.9,
+      level: echo.level,
+      pan: -0.2,
     })
-  }
-}
-
-function stab(voice: Voice, at: BarAt, start: number, line: string, parts: Part[]): void {
-  for (let step = 0; step < STEPS; step++) {
-    const strength = hitLevel(line[step])
-    const chord = strength > 0 ? chordAt(at.chords, step) : null
-    if (chord === null) continue
-    for (const pitch of voicing(chord, 55)) {
-      parts.push({
-        voice,
-        pitch,
-        beat: start + step * STEP,
-        beats: STEP * 1.6,
-        level: 0.3 * strength,
-        pan: 0.15,
-      })
-    }
   }
 }

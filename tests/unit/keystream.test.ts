@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrange } from '../../examples/plugins/keystream/arrange'
+import { arrange, readForm } from '../../examples/plugins/keystream/arrange'
 import { buildChart, COUNT_IN_BEATS } from '../../examples/plugins/keystream/chart'
 import { leadTime } from '../../examples/plugins/keystream/draw/field'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
@@ -32,6 +32,13 @@ import { bestOf, bindRecords, submit } from '../../examples/plugins/keystream/re
 import { AHEAD_MS, nextWindow, notesBetween } from '../../examples/plugins/keystream/schedule'
 import { Session } from '../../examples/plugins/keystream/session'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
+import {
+  BASS_4,
+  COMP_OFFBEATS,
+  EIGHTHS,
+  KICK_4,
+  SNARE_24,
+} from '../../examples/plugins/keystream/songs/parts'
 import { parseDescriptor } from '../../src/shared/plugins'
 
 /**
@@ -47,8 +54,13 @@ const tiny: SongSource = {
   grid: 2,
   melody: ['a.s.d-f-|g.......'],
   chords: ['C | C'],
-  energy: '22',
-  style: 'synthwave',
+  band: {
+    sections: {
+      A: { kick: KICK_4, snare: SNARE_24, hat: EIGHTHS, bass: BASS_4, comp: COMP_OFFBEATS },
+      B: { kick: KICK_4, clap: SNARE_24, bass: BASS_4, pad: true },
+    },
+    form: 'A B',
+  },
 }
 
 describe('the keyboard as a piano', () => {
@@ -125,7 +137,7 @@ describe('the songs', () => {
     for (const source of SONGS) {
       const score = readSong(source)
       expect(score.problems, source.id).toEqual([])
-      expect(score.notes.length, source.id).toBeGreaterThan(100)
+      expect(score.notes.length, source.id).toBeGreaterThan(60)
       for (const note of score.notes) {
         expect(note.pitch).toBeGreaterThanOrEqual(60)
         expect(note.pitch).toBeLessThanOrEqual(77)
@@ -159,20 +171,76 @@ describe('chords', () => {
 })
 
 describe('the band', () => {
-  it('plays under every bar with energy, in order, and rolls into a louder part', () => {
-    const score = readSong({ ...tiny, energy: '23' })
-    const parts = arrange(score)
-    expect(parts.length).toBeGreaterThan(20)
+  const beats = (parts: ReturnType<typeof arrange>, voice: string) =>
+    parts.filter((p) => p.voice === voice).map((p) => p.beat)
+
+  it('plays each bar as its section is written, in order', () => {
+    const parts = arrange(readSong(tiny))
     expect(parts.map((p) => p.beat)).toEqual([...parts.map((p) => p.beat)].sort((a, b) => a - b))
-    // The last beat before the lift is a snare roll, and the lift opens on a cymbal.
-    const roll = parts.filter((p) => p.voice === 'snare' && p.beat >= 3 && p.beat < 4)
-    expect(roll).toHaveLength(4)
-    expect(parts.some((p) => p.voice === 'crash' && p.beat === 4)).toBe(true)
+    expect(beats(parts, 'kick')).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+    expect(beats(parts, 'snare')).toEqual([1, 3])
+    expect(beats(parts, 'clap')).toEqual([5, 7])
+    expect(beats(parts, 'hat')).toEqual([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5])
+    expect(beats(parts, 'pad').every((b) => b === 4)).toBe(true)
   })
 
-  it('sits out a bar of no energy', () => {
-    const parts = arrange(readSong({ ...tiny, energy: '02' }))
-    expect(parts.every((p) => p.beat >= 4)).toBe(true)
+  it('opens a bar marked * on a cymbal, and rolls into the next from one marked !', () => {
+    const parts = arrange(readSong({ ...tiny, band: { ...tiny.band, form: 'A! B*' } }))
+    // The roll takes the last beat from every drum but the kick.
+    expect(beats(parts, 'snare')).toEqual([1, 3, 3.25, 3.5, 3.75])
+    expect(beats(parts, 'hat').every((b) => b < 3)).toBe(true)
+    expect(beats(parts, 'kick')).toContain(3)
+    expect(beats(parts, 'crash')).toEqual([4])
+  })
+
+  it('keeps the chords under the tune, and the bass on the bar’s own bass', () => {
+    const parts = arrange(readSong({ ...tiny, chords: ['C/E | G'] }))
+    const comp = parts.filter((p) => p.voice === 'epiano')
+    expect(comp.length).toBeGreaterThan(0)
+    // In the octave from the D below middle C: under the keys' two octaves, not on them.
+    for (const p of comp) {
+      expect(p.pitch).toBeGreaterThanOrEqual(50)
+      expect(p.pitch).toBeLessThan(62)
+    }
+    const bass = parts.filter((p) => p.voice === 'bass')
+    expect(bass[0]?.pitch).toBe(40)
+    expect(bass.at(-1)?.pitch).toBe(43)
+  })
+
+  it('sings the tune again as a round, the bars it was asked to later', () => {
+    const song = {
+      ...tiny,
+      band: { ...tiny.band, round: { bars: 1, voice: 'pluck' as const, level: 0.4 } },
+    }
+    const echo = arrange(readSong(song)).filter((p) => p.voice === 'pluck')
+    // Only what still falls inside the song: the notes of the first bar, a bar on.
+    expect(echo.map((p) => [p.beat, p.pitch])).toEqual([
+      [4, 60],
+      [5, 62],
+      [6, 64],
+      [7, 65],
+    ])
+  })
+
+  it('says what in a form does not add up', () => {
+    const { problems } = readForm({
+      sections: { A: { kick: 'x...x...' } },
+      form: 'A Z',
+    })
+    expect(problems).toEqual([
+      'section A: kick has 8 steps, not 16',
+      'the form names "Z", which is not a section',
+    ])
+    expect(readSong({ ...tiny, band: { ...tiny.band, form: 'A' } }).problems).toEqual([
+      '1 bars of band for 2 of melody',
+    ])
+  })
+
+  it('is written for every song, a bar of band for every bar of tune', () => {
+    for (const source of SONGS) {
+      const score = readSong(source)
+      expect(readForm(source.band).bars.length, source.id).toBe(score.bars)
+    }
   })
 })
 

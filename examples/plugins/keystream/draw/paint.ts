@@ -80,6 +80,26 @@ export function write(p: Paint, text: string, x: number, y: number, style: TextS
   return width
 }
 
+/** How wide a line would be written. */
+export function measure(p: Paint, text: string, style: TextStyle): number {
+  const g = p.g
+  g.font = style.font
+  g.letterSpacing = style.spacing ?? '0px'
+  const width = g.measureText(text).width
+  g.letterSpacing = '0px'
+  return width
+}
+
+/** A line cut short with an ellipsis to fit `room`; empty when not even that fits. */
+export function fitted(p: Paint, text: string, room: number, style: TextStyle): string {
+  if (measure(p, text, style) <= room) return text
+  for (let n = text.length - 1; n > 0; n--) {
+    const cut = `${text.slice(0, n).trimEnd()}…`
+    if (measure(p, cut, style) <= room) return cut
+  }
+  return ''
+}
+
 /** eDEX's rule: a hairline with a short tick standing at each end. */
 export function rule(p: Paint, x: number, y: number, w: number, color: string): void {
   const g = p.g

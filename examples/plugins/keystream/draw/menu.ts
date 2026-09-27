@@ -3,7 +3,7 @@ import { LEVELS } from '../chart'
 import type { Best } from '../records'
 import { bpmText } from './hud'
 import type { Layout } from './layout'
-import { alpha, clamp, font, type Paint, rule, write } from './paint'
+import { alpha, clamp, fitted, font, measure, type Paint, rule, write } from './paint'
 
 /**
  * The menu, as a directory listing: the tracks one to a row, the level, what the chosen
@@ -60,7 +60,7 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView): void {
     return
   }
   y = levels(p, x, y, view.level)
-  details(p, x, y + 14, chosen, view.speed)
+  details(p, x, y + 14, width, chosen, view.speed)
   if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening)
   footer(p, l, view)
 }
@@ -194,31 +194,32 @@ function trackRow(
     baseline: 'middle',
     spacing: '0.12em',
   })
-  write(p, row.chart.song.credit, x + 52 + titleWidth + 14, mid + 1, {
+  const right = x + width - 12
+  const figures = {
+    font: mono,
+    color: p.c.muted,
+    align: 'right' as const,
+    baseline: 'middle' as const,
+  }
+  // The credit takes what room the title and the tempo leave it, and no more.
+  const bpmLeft = right - 220 - measure(p, bpmText(row.chart), figures)
+  const creditStyle = {
     font: font(500, 11, p.fonts.ui),
     color: p.c.muted,
-    baseline: 'middle',
+    baseline: 'middle' as const,
     spacing: '0.08em',
-  })
-  const right = x + width - 12
+  }
+  const creditX = x + 52 + titleWidth + 14
+  const credit = fitted(p, row.chart.song.credit, bpmLeft - 14 - creditX, creditStyle)
+  write(p, credit, creditX, mid + 1, creditStyle)
   write(p, row.best ? `${row.best.rank}  ${figure(row.best.score)}` : '—', right, mid, {
     font: mono,
     color: row.best ? ink : p.c.muted,
     align: 'right',
     baseline: 'middle',
   })
-  write(p, timeText(row.chart.duration), right - 150, mid, {
-    font: mono,
-    color: p.c.muted,
-    align: 'right',
-    baseline: 'middle',
-  })
-  write(p, bpmText(row.chart), right - 220, mid, {
-    font: mono,
-    color: p.c.muted,
-    align: 'right',
-    baseline: 'middle',
-  })
+  write(p, timeText(row.chart.duration), right - 150, mid, figures)
+  write(p, bpmText(row.chart), right - 220, mid, figures)
 }
 
 function levels(p: Paint, x: number, y: number, level: Level): number {
@@ -254,7 +255,8 @@ function levels(p: Paint, x: number, y: number, level: Level): number {
   return y + 22
 }
 
-function details(p: Paint, x: number, y: number, row: MenuRow, speed: number): void {
+/** The chosen track's figures on one line; in a narrow pane the speed keys' note goes first. */
+function details(p: Paint, x: number, y: number, width: number, row: MenuRow, speed: number): void {
   const style = {
     font: font(500, 12, p.fonts.ui),
     color: p.c.muted,
@@ -268,9 +270,11 @@ function details(p: Paint, x: number, y: number, row: MenuRow, speed: number): v
     best
       ? `BEST ${best.rank} ${figure(best.score)}  CHAIN ${best.maxChain}${best.fullChain ? '  FULL CHAIN' : ''}`
       : 'NO RECORD',
-    `SPEED ${speed}  (↑↓ WHILE PLAYING)`,
-  ]
-  write(p, bits.join('    '), x + 14, y, style)
+    `SPEED ${speed}`,
+  ].join('    ')
+  const full = `${bits}  (↑↓ WHILE PLAYING)`
+  const room = width - 28
+  write(p, measure(p, full, style) <= room ? full : fitted(p, bits, room, style), x + 14, y, style)
 }
 
 /** The opening of the track as it will be typed: letters, bar by bar. */

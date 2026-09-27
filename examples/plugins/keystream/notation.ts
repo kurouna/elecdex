@@ -1,5 +1,5 @@
+import { type Band, readForm } from './arrange'
 import { keyOfChar } from './keyboard'
-import type { StyleName } from './styles'
 
 /**
  * How a song is written down: the melody as the keys that play it, one character per step,
@@ -10,8 +10,8 @@ import type { StyleName } from './styles'
  * Each character is one step of the grid (an eighth or a sixteenth): a key character starts
  * a note on that key (keyboard.ts), '-' holds the note before it one step longer, '.' is a
  * rest. '|' ends a bar and spaces are ignored. Chords are written one bar at a time, two
- * to a bar when a bar changes half way ('F C7'), and the energy of each bar - how much of
- * the band plays - is one digit a bar, 0 to 3.
+ * to a bar when a bar changes half way ('F C7'). The band is written for each song too
+ * (arrange.ts): its sections, and the one each bar plays.
  */
 
 export interface TempoPoint {
@@ -32,8 +32,7 @@ export interface SongSource {
   grid: 2 | 4
   melody: readonly string[]
   chords: readonly string[]
-  energy: string
-  style: StyleName
+  band: Band
 }
 
 export const BEATS_PER_BAR = 4
@@ -61,7 +60,6 @@ export interface Score {
   notes: MelodyNote[]
   /** Chord symbols, by bar. */
   chords: string[][]
-  energy: number[]
   clock: Clock
   /** Anything that does not add up: a song with problems is not offered. */
   problems: string[]
@@ -167,21 +165,19 @@ export function makeClock(points: readonly TempoPoint[], totalBeats: number): Cl
 export function readSong(source: SongSource): Score {
   const melody = parseMelody(source.melody, source.grid)
   const chords = parseChords(source.chords)
-  const energy = [...source.energy.replace(/\s+/g, '')].map(Number)
-  const problems = [...melody.problems]
+  const form = readForm(source.band)
+  const problems = [...melody.problems, ...form.problems]
   if (chords.length !== melody.bars) {
     problems.push(`${chords.length} bars of chords for ${melody.bars} of melody`)
   }
-  if (energy.length !== melody.bars) {
-    problems.push(`${energy.length} bars of energy for ${melody.bars} of melody`)
+  if (form.bars.length !== melody.bars) {
+    problems.push(`${form.bars.length} bars of band for ${melody.bars} of melody`)
   }
-  if (energy.some((e) => !(e >= 0 && e <= 3))) problems.push('energy is a digit from 0 to 3')
   return {
     source,
     bars: melody.bars,
     notes: melody.notes,
     chords,
-    energy,
     clock: makeClock(source.tempo, melody.bars * BEATS_PER_BAR),
     problems,
   }
