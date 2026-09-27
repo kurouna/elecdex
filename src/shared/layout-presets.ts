@@ -131,29 +131,29 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
       ),
   },
   {
-    // Stationery: a notebook open on the left, with a timer and a calculator
-    // below it; the list of things to do on the right, and under it the
-    // calendar beside what was copied lately. No shell - the one preset for
-    // writing, counting and keeping time. The clipboard pane is on screen here,
-    // not a tab: it reads the clipboard only while it is seen.
+    // Stationery in three columns (reworked 2026-09-27 for the utility pane): a
+    // notebook open on the left with a timer and a calculator below it; the
+    // list of things to do over what was copied lately; the calendar over the
+    // utility pane, whose QR code wants a square and whose AWAKE hold should be
+    // in sight. No shell - the one preset for writing, counting and keeping
+    // time. The clipboard pane is on screen here, not a tab: it reads the
+    // clipboard only while it is seen.
     id: 'desk',
     name: 'desk',
-    description: 'notes, tasks, a calendar, a timer, a calculator and what you copied',
+    description:
+      'notes, tasks, a calendar, a timer, a calculator, what you copied and the utilities',
     build: () =>
       withSystemColumn(
         [
           split(
             'column',
             [pane('notes'), split('row', [pane('timer'), pane('calc')])],
-            [0.64, 0.36],
+            [0.62, 0.38],
           ),
-          split(
-            'column',
-            [pane('todo'), split('row', [pane('calendar'), pane('clipboard')])],
-            [0.55, 0.45],
-          ),
+          split('column', [pane('todo'), pane('clipboard')], [0.55, 0.45]),
+          split('column', [pane('calendar'), pane('utility')], [0.42, 0.58]),
         ],
-        [0.49, 0.51],
+        [0.38, 0.31, 0.31],
       ),
   },
 ]

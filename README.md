@@ -127,8 +127,9 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   tape and a tally for a pasted column of numbers), plain notes that save themselves, tasks whose
   deadlines are drawn as meters and announced whether or not their pane is open, and a timer with
   a stopwatch whose laps stack up like a spectrum, countdowns that run beside it, and alarms for
-  the times the day is built around. *Unreleased:* a clipboard history, beside the calendar, of
-  what you copy while it is on screen, to put back with a click.
+  the times the day is built around. *Unreleased:* a clipboard history, under the tasks, of
+  what you copy while it is on screen, to put back with a click, and under the calendar the
+  utility pane (keep the machine awake, QR codes, encoding and hashes).
 
 ### Talking to models
 
@@ -363,7 +364,7 @@ Six **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT), **media**
 (YouTube (TV) with the spectrum and mixer beneath - and, *unreleased*, what is playing - X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks and the calendar, and - *unreleased* - the clipboard). Every one keeps the system column on the left, so a switch
+the calculator, tasks and the calendar, and - *unreleased* - the clipboard and the utility pane). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
@@ -744,7 +745,7 @@ weather and calendar.
   the window minimised or put away, nothing is read. Nothing is written to disk or logged, and no
   plugin can reach it. **Windows only: macOS and Linux are not supported yet** - there the pane
   shows UNSUPPORTED.
-- **Utility** *(unreleased)* — add it from the picker ("utility"). Small tools behind a switch,
+- **Utility** *(unreleased)* — in the desk preset, or add it from the picker ("utility"). Small tools behind a switch,
   one at a time, and the pane can be popped up:
   - **AWAKE** keeps the machine from sleeping: SYSTEM (the screen may go dark) or DISPLAY (it
     stays on), for good or for 30 minutes to 4 hours, with +30M to add. It is asked of the system
