@@ -1,6 +1,6 @@
 import type { KeyPress, Note, SettingValues, ViewContext, Voice } from '../elecdex-plugin'
 import { buildChart, type Chart, COUNT_IN_BEATS, LEVELS, type Level, openingBars } from './chart'
-import { drawLanes, drawNotes, type FieldView } from './draw/field'
+import { drawLanes, drawNotes, type FieldView, leadTime } from './draw/field'
 import { Effects } from './draw/fx'
 import { drawHud } from './draw/hud'
 import { drawKeyboard } from './draw/keys'
@@ -49,9 +49,6 @@ const RESUME_MS = 1500
 const MENU_KEY_LENGTH = 520
 /** Notes to a sound.play: under the host's limit of 4096, which a window stays well within. */
 const CHUNK = 4000
-
-/** Milliseconds a note takes down the field at a speed from 1 to 10. */
-export const leadTime = (speed: number): number => 3200 / (1 + 0.3 * (speed - 1))
 
 /** The bar a song time is in, from 1. */
 function barAt(chart: Chart, time: number): number {

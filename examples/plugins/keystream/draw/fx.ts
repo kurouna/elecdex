@@ -1,4 +1,5 @@
 import type { Grade } from '../judge'
+import { CHIP_HEIGHT } from './field'
 import type { KeyLight } from './keys'
 import type { Layout } from './layout'
 import { alpha, clamp, font, type Paint, write } from './paint'
@@ -106,7 +107,7 @@ export class Effects {
     if (reduced) return
     const w = l.unit * 0.8
     this.items.push({ kind: 'beam', x, w, at: now, grade })
-    this.items.push({ kind: 'ring', x, y, w, h: l.unit * 0.46, at: now, grade })
+    this.items.push({ kind: 'ring', x, y, w, h: l.unit * CHIP_HEIGHT, at: now, grade })
     const count = grade === 'SYNC' ? 14 : grade === 'LOCK' ? 10 : 6
     const parts = Array.from({ length: count }, () => {
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.4

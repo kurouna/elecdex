@@ -24,6 +24,19 @@ export interface FieldView {
 
 const HOME = KEYS.filter((k) => k.row === 1)
 
+/**
+ * Milliseconds a note takes from the top of the field to the line, by scroll speed 1 to 10.
+ * Slow enough by default (5) that notes a sixteenth apart sit close rather than fly past:
+ * reading ahead matters more here than in a game of lanes, since every lane is a key to find.
+ */
+const LEAD_MS = [5000, 4200, 3500, 3000, 2600, 2250, 1950, 1700, 1450, 1250] as const
+
+export const leadTime = (speed: number): number =>
+  LEAD_MS[Math.min(LEAD_MS.length, Math.max(1, Math.round(speed))) - 1] ?? 2600
+
+/** A falling note's height, in keys: low, so notes packed close still stand apart. */
+export const CHIP_HEIGHT = 0.38
+
 /** The lanes, the beat and bar lines and the judgement line: what the notes fall over. */
 export function drawLanes(p: Paint, l: Layout, view: FieldView): void {
   lanes(p, l)
@@ -154,14 +167,14 @@ function chip(
   if (key === undefined) return
   const black = isBlack(key)
   const w = l.unit * (black ? 0.62 : 0.8)
-  const h = l.unit * 0.46
+  const h = l.unit * CHIP_HEIGHT
   const x = l.keyX(key)
   const lit = 0.35 + 0.65 * clamp(near, 0, 1) ** 1.5
   if (near > 0.55 && !p.reduced) halo(p, x, y, w, h, (near - 0.55) / 0.45)
   if (black) blackChip(p, x, y, w, h, lit)
   else whiteChip(p, x, y, w, h, lit)
   write(p, labels[note.code] ?? key.char.toUpperCase(), x, y + 0.5, {
-    font: font(700, h * 0.6, p.fonts.mono),
+    font: font(700, h * 0.7, p.fonts.mono),
     color: alpha(black ? p.c.accent : p.c.accentStrong, 0.55 + 0.45 * lit),
     align: 'center',
     baseline: 'middle',
@@ -219,7 +232,7 @@ function dropped(p: Paint, l: Layout, note: PlayNote, y: number, since: number):
   if (key === undefined || since > 500) return
   const g = p.g
   const w = l.unit * (isBlack(key) ? 0.62 : 0.8)
-  const h = l.unit * 0.46
+  const h = l.unit * CHIP_HEIGHT
   g.beginPath()
   g.roundRect(l.keyX(key) - w / 2, y - h / 2, w, h, h * 0.22)
   g.strokeStyle = alpha(p.c.danger, 1 - since / 500)

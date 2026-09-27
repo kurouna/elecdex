@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { arrange } from '../../examples/plugins/keystream/arrange'
 import { buildChart, COUNT_IN_BEATS } from '../../examples/plugins/keystream/chart'
+import { leadTime } from '../../examples/plugins/keystream/draw/field'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
 import { alpha } from '../../examples/plugins/keystream/draw/paint'
 import { parseChord, voicing } from '../../examples/plugins/keystream/harmony'
@@ -393,6 +394,18 @@ describe('drawing helpers', () => {
       expect(l.keyX(quote) + l.unit / 2).toBeLessThanOrEqual(w)
       expect(l.field.x + l.field.w / 2).toBeCloseTo(w / 2)
     }
+  })
+})
+
+describe('the scroll speed', () => {
+  it('slows the notes, gets quicker step by step, and holds out of range to its ends', () => {
+    const leads = Array.from({ length: 10 }, (_, i) => leadTime(i + 1))
+    expect(leads).toEqual([...leads].sort((a, b) => b - a))
+    expect(new Set(leads).size).toBe(10)
+    // The default takes 2.6 s down the field: a sixteenth at 150 BPM is a twenty-sixth of it.
+    expect(leadTime(5)).toBe(2600)
+    expect(leadTime(0)).toBe(leadTime(1))
+    expect(leadTime(42)).toBe(leadTime(10))
   })
 })
 
