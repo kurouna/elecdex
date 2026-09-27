@@ -8,6 +8,7 @@ import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
 import ClipboardWidget from './clipboard/ClipboardWidget.svelte'
 import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
+import DockerWidget from './docker/DockerWidget.svelte'
 import ElecWidget from './elec/ElecWidget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GitWidget from './git/GitWidget.svelte'
@@ -286,6 +287,18 @@ registerBuiltin({
     'Experimental. AI coding agents at work on this machine, so far Claude Code sessions: what each is doing, how much it carries, and a diff of every file it changed. Read from Claude Code’s own undocumented local records, so a new version may change what can be shown.',
   component: AgentsWidget,
   minSize: { w: 280, h: 160 },
+  zoom: 'full',
+  popup: true,
+})
+
+registerBuiltin({
+  id: 'docker',
+  title: 'docker',
+  pickerTitle: 'docker containers',
+  description:
+    "The local Docker engine's containers by Compose project, with their ports, health and use; start, stop, restart, pause. Linked only while it shows.",
+  component: DockerWidget,
+  minSize: { w: 260, h: 140 },
   zoom: 'full',
   popup: true,
 })

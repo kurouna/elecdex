@@ -55,7 +55,7 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 ```
 src/main/        main process: window, ipc/ (handlers), store/ (json files), pty/, fs/, weather/,
                  markets/, feeds/, quakes/, clipboard/, media/, ai/, launcher/, audio/, plugins/, web/, background/,
-                 reminders/, updates/, awake/, metrics/ (the broker between the collector and pages)
+                 reminders/, updates/, awake/, docker/, metrics/ (the broker between the collector and pages)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas (schemas/), channel names and pure logic used by both sides;
@@ -165,6 +165,21 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - A QR code is always dark modules on a light ground, in the theme's colours when their
     contrast holds (`qrColours`); a test reads every theme's code back.
   - Tests set `ELECDEX_AWAKE_STUB=1` and read the hold through `globalThis.__elecdexAwake`.
+- **The DOCKER pane talks to the engine only while it is seen** (architecture.md §5.17,
+  shared/docker.ts, main/docker/). Main speaks the Engine API with node's `http` over the socket,
+  the named pipe or loopback TCP - never the `docker` CLI, never a client library - found as the
+  CLI finds it (`DOCKER_HOST`, the current context, the usual socket) by reading files; an engine
+  on another machine, over TLS or ssh is not used, and the page cannot name one.
+  - While a pane is subscribed: one event stream, the list read at the next quarter second after
+    an event and on the wall clock's ten seconds (user decision 2026-09-27: not a poll a second),
+    what running containers use on the five; one timer each, re-armed for its boundary. The last
+    pane gone, the stream is closed and every timer stopped. Nothing is written or logged.
+  - The page knows a container by its short id and is given only what the row and card show: of
+    the labels only Compose's project, service and folder; never the command, mounts or env.
+  - Presses are start, stop, restart, pause and unpause only - never remove, kill or prune - on a
+    container of the last listing, in a state that takes it, from a page that shows the list.
+  - It is main's, not a metric source, and no plugin API reaches it. Rows never move by state.
+  - Tests set `ELECDEX_DOCKER_STUB=1` and change the engine through `globalThis.__elecdexDocker`.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or
@@ -542,6 +557,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   - `ELECDEX_WIFI_STUB=1` for a made-up Wi-Fi link, echoes and log (`=train` for a trip with
     tunnels and changes of car, `=dual` for two adapters, `=demo` for screenshots), so no run
     reads the network or pings;
+  - `ELECDEX_DOCKER_STUB=1` for a stand-in Docker engine (`=demo` for screenshots, `=down` and
+    `=denied` for an engine that is not there or not ours), so no run reads or presses this
+    machine's containers;
   - `ELECDEX_AWAKE_STUB=1` for a stand-in power-save blocker and power source, so no run keeps
     this machine awake;
   - `ELECDEX_AI_KEYS_STUB=1` for a reversible stand-in for `safeStorage` (the AI keys and the
@@ -589,7 +607,7 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   What would show someone else's pages or this machine is made up: the web panes show stand-in
   pages (never YouTube's or X's own), the feed, the socket table (`ELECDEX_SOCKETS_STUB=demo`),
   the Wi-Fi link (`ELECDEX_WIFI_STUB=demo`), the clipboard history (`ELECDEX_CLIPBOARD_STUB=demo`),
-  what is playing (`ELECDEX_NOWPLAYING_STUB=demo`),
+  what is playing (`ELECDEX_NOWPLAYING_STUB=demo`), the containers (`ELECDEX_DOCKER_STUB=demo`),
   the sound (`ELECDEX_AUDIO_STUB=demo`), notes and tasks, a Claude Code folder and a demo
   repository by a made-up author. Web panes are native views the page's screenshot cannot see,
   so the script lays main's pictures of them over it. Name shots to take only those. Regenerate

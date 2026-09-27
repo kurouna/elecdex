@@ -98,6 +98,9 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Git** — a repository you choose, read only: the files changed, the diff of
   each with its syntax coloured, and the commit graph with its branches and tags, kept current as
   they change - watch an AI agent work in the next pane. One pane per repository.
+- **Docker** *(unreleased)* — the containers of the Docker engine on your computer, by Compose
+  project: up or down, healthy or not, their published ports (a click opens one in the browser)
+  and what each uses; start, stop, restart and pause from the row.
 
 ### media — watch, scroll, and see the sound
 
@@ -362,7 +365,7 @@ reduced.
 
 Six **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
-(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT), **media**
+(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, shells and GIT - and, *unreleased*, Docker), **media**
 (YouTube (TV) with the spectrum and mixer beneath - and, *unreleased*, what is playing - X and RSS as tabs) and **desk** (notes, a timer,
 the calculator, tasks and the calendar, and - *unreleased* - the clipboard and the utility pane). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
@@ -497,6 +500,22 @@ weather and calendar.
   commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
   in `settings.json` (`{file}` and `{line}` are filled in, e.g. `code -g "{file}:{line}"`),
   or with the system's own application when it is empty. git must be on PATH.
+- **Docker** *(unreleased)* — in the dev preset, or add it from the picker ("docker
+  containers"). The containers of the local Docker engine - Docker Desktop, the Linux daemon,
+  rootless Docker, colima or OrbStack, found as the `docker` command finds it (`DOCKER_HOST`, then
+  the current context, then the usual socket) but without running it - grouped by Compose project
+  (a click on a project folds it), with the state and how long, the health where the image has a
+  check, the exit code of one that failed, the published ports and, for those running, CPU and
+  memory. **ALL** or **RUN** only. A click on a name copies it; a published port opens in the
+  browser; `›_` copies `docker exec -it <name> sh` for a shell. The row under the pointer offers
+  what its state takes - ▶ start, ■ stop, ↻ restart, ❚❚ pause, ▶ resume - and stop, restart and
+  pause ask a second time. Nothing removes or kills a container, and a row never moves when its
+  container stops. The pane follows the engine's events and reads the list again after each one
+  and every ten seconds, and what running containers use every five - only while the pane is on
+  screen: behind another tab, with the window minimised or put away, the engine is not asked.
+  Nothing is written to disk or logged, and no plugin can reach it. An engine on another machine,
+  over TLS or ssh is not used. **NO DAEMON** says nothing answers (start Docker Desktop, or the
+  service), **DENIED** that this user may not open the socket (on Linux, the docker group).
 - **Markets** — indices, currencies and anything Yahoo Finance quotes, about once a minute, as
   sparklines, candlesticks or bars of the change (in the list's order, or sorted by it). The rows
   share the pane: two columns when it is wide, one line each when it is short, and candles across

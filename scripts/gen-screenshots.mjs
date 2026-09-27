@@ -338,6 +338,8 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
       // A made-up clipboard history (the desk shot): never what this machine has copied.
       ELECDEX_CLIPBOARD_STUB: 'demo',
       ELECDEX_NOWPLAYING_STUB: 'demo',
+      // A made-up Docker engine (the dev layout): never this machine's containers.
+      ELECDEX_DOCKER_STUB: 'demo',
       ...env,
     },
   })

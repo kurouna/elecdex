@@ -93,13 +93,18 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
   },
   {
     // The git pane has the full height, which its diff needs; the shells are where
-    // the agents the pane above them reads are run.
+    // the agents the pane above them reads are run. The containers what is being
+    // written runs in sit between the two (2026-09-27): on screen, not a tab,
+    // since the engine is followed only while the pane is seen.
     id: 'dev',
     name: 'dev',
-    description: 'coding agents at work, and the repository they change',
+    description: 'coding agents at work, the containers they run, and the repository they change',
     build: () =>
       withSystemColumn(
-        [split('column', [pane('agents'), shells(2)], [0.56, 0.44]), pane('git')],
+        [
+          split('column', [pane('agents'), pane('docker'), shells(2)], [0.42, 0.28, 0.3]),
+          pane('git'),
+        ],
         [0.415, 0.585],
       ),
   },

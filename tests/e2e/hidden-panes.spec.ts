@@ -189,6 +189,7 @@ const WIDGETS = [
   'timer',
   'clipboard',
   'nowplaying',
+  'docker',
   'utility',
 ]
 
@@ -242,6 +243,7 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       agents: await window.elecdex.agents.watching(),
       clipboard: await window.elecdex.clipboard.watching(),
       nowPlaying: await window.elecdex.nowPlaying.watching(),
+      docker: await window.elecdex.docker.watching(),
     }))
   try {
     await expect(page.getByTestId('pane')).toHaveCount(WIDGETS.length + 1)
@@ -256,6 +258,7 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       agents: false,
       clipboard: false,
       nowPlaying: false,
+      docker: false,
     })
     // Once the start is over (a shell's first prompt, the launcher's catalog, the one-off readings),
     // the page writes nothing into any of them: no figure, no clock, no pulse. The one-off readings
@@ -322,6 +325,7 @@ const FOR_THE_EYE = [
   'wifi',
   'clipboard',
   'nowplaying',
+  'docker',
 ]
 const FEED = 'http://127.0.0.1:9/feed.xml'
 
@@ -358,6 +362,7 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       agents: await window.elecdex.agents.watching(),
       clipboard: await window.elecdex.clipboard.watching(),
       nowPlaying: await window.elecdex.nowPlaying.watching(),
+      docker: await window.elecdex.docker.watching(),
     }))
   const atWork = async () => {
     const now = await main()
@@ -371,7 +376,8 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       now.git === 1 &&
       now.agents &&
       now.clipboard &&
-      now.nowPlaying
+      now.nowPlaying &&
+      now.docker
     )
   }
   const windowTo = (how: 'minimize' | 'restore') =>
@@ -399,6 +405,7 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       agents: false,
       clipboard: false,
       nowPlaying: false,
+      docker: false,
     })
     const writes = await page.evaluate(async (widgets) => {
       let count = 0

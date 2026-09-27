@@ -428,6 +428,8 @@ const app = await electron.launch({
     ELECDEX_WIFI_STUB: 'demo',
     ELECDEX_CLIPBOARD_STUB: 'demo',
     ELECDEX_NOWPLAYING_STUB: 'demo',
+    // A made-up Docker engine (the dev layout): never this machine's containers.
+    ELECDEX_DOCKER_STUB: 'demo',
     // No tray icon or system-wide shortcut from a recording run.
     ELECDEX_BACKGROUND_STUB: '1',
   },

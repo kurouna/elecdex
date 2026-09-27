@@ -122,6 +122,16 @@ export const CH = {
     art: 'now-playing:art',
     watching: 'now-playing:watching',
   },
+  /** The DOCKER pane (shared/docker.ts): one engine, followed only while a pane is seen. */
+  docker: {
+    /** renderer -> main, fire and forget: keep the list current. */
+    subscribe: 'docker:subscribe',
+    unsubscribe: 'docker:unsubscribe',
+    /** main -> renderer: a DockerBoard. */
+    update: 'docker:update',
+    control: 'docker:control',
+    watching: 'docker:watching',
+  },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {
     awakeState: 'utility:awake-state',

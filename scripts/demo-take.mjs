@@ -136,6 +136,8 @@ export async function openTake({ items, options, standIn, env = {} }) {
       ELECDEX_WIFI_STUB: 'demo',
       ELECDEX_CLIPBOARD_STUB: 'demo',
       ELECDEX_NOWPLAYING_STUB: 'demo',
+      // A made-up Docker engine (the dev layout): never this machine's containers.
+      ELECDEX_DOCKER_STUB: 'demo',
       ELECDEX_AUDIO_STUB: 'demo',
       ELECDEX_WEB_HOMES: standIn.homes,
       // No tray icon or system-wide shortcut from a recording run.

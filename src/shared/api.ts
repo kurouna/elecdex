@@ -12,6 +12,7 @@ import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarm
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
 import type { ClipBoard, ClipRestoreResult } from './clipboard.js'
+import type { DockerAction, DockerBoard, DockerControlResult } from './docker.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
@@ -412,6 +413,22 @@ export interface NowPlayingApi {
 }
 
 /**
+ * The DOCKER pane: the local engine's containers, followed by main while a pane
+ * is seen, and five presses on one of them.
+ */
+export interface DockerApi {
+  /**
+   * Keeps the list current while subscribed: at once, then after each change.
+   * Main talks to the engine only while some page is subscribed.
+   */
+  subscribe(handler: (board: DockerBoard) => void): () => void
+  /** Presses on a container of the list shown, by its short id: never a removal or a kill. */
+  control(id: string, action: DockerAction): Promise<DockerControlResult>
+  /** Diagnostics: whether main is following the engine now. */
+  watching(): Promise<boolean>
+}
+
+/**
  * The UTILITY pane (docs/architecture.md section 5.16). AWAKE's hold is main's -
  * one for the machine, kept whether or not a pane shows it - and the page is
  * told of every change. Sealed secrets and copies go through main too.
@@ -720,6 +737,7 @@ export interface ElecdexApi {
   feeds: FeedsApi
   clipboard: ClipboardApi
   nowPlaying: NowPlayingApi
+  docker: DockerApi
   utility: UtilityApi
   git: GitApi
   orbits: OrbitsApi

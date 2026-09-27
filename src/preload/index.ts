@@ -23,6 +23,7 @@ import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
 import type { BackgroundState } from '@shared/background'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import type { ClipBoard, ClipRestoreResult } from '@shared/clipboard'
+import type { DockerBoard, DockerControlResult } from '@shared/docker'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
@@ -281,6 +282,14 @@ const subscribeNowPlaying = keyedSubscriptions<NowPlaying>({
   keyOf: () => 'session',
 })
 
+/** The one Docker engine's list, shared by every pane showing it. */
+const subscribeDocker = keyedSubscriptions<DockerBoard>({
+  subscribe: CH.docker.subscribe,
+  unsubscribe: CH.docker.unsubscribe,
+  event: CH.docker.update,
+  keyOf: () => 'board',
+})
+
 /** The one agents board: every handler shares one subscription, as a keyed one would. */
 const subscribeAgents = keyedSubscriptions<AgentBoard>({
   subscribe: CH.agents.subscribe,
@@ -524,6 +533,12 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.nowPlaying.seek, seconds) as Promise<NowPlayingControlResult>,
     art: () => ipcRenderer.invoke(CH.nowPlaying.art) as Promise<string | null>,
     watching: () => ipcRenderer.invoke(CH.nowPlaying.watching) as Promise<boolean>,
+  },
+  docker: {
+    subscribe: (handler) => subscribeDocker('board', handler),
+    control: (id, action) =>
+      ipcRenderer.invoke(CH.docker.control, id, action) as Promise<DockerControlResult>,
+    watching: () => ipcRenderer.invoke(CH.docker.watching) as Promise<boolean>,
   },
   utility: {
     awake: {

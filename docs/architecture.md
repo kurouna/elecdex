@@ -488,7 +488,7 @@ Web ページをペインに表示する。**汎用の Web ウィジェット 1 
 
 **プリセット**（`shared/layout-presets.ts`、2026-09-24）: 用途別の配置を組み込みで持つ。standard（既定
 レイアウトそのもの）/ network（地球儀・connections を 3:2・シェル）/ earth（ORBIT・地球儀・地震・天気・シェル）/
-dev（AI AGENT・シェル・GIT）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）の 6 つ。どれも既定の左カラム（システム列）を同じ幅・同じ高さで
+dev（AI AGENT・Docker・シェルを縦に、右に GIT。docker は見えている間だけエンジンに問い合わせるのでタブに重ねない。§5.17）/ media（YouTube (TV)、その下に now playing・spectrum・mixer、X と RSS のタブ。§5.15）/ desk（3 列: notes の下に timer と calculator、tasks の下に clipboard、calendar の下に utility。シェルなし。clipboard は見えている間だけ読むのでタブに重ねない。§5.14。2026-09-27 に utility を入れるため 2 列から組み直した。§5.16）の 6 つ。どれも既定の左カラム（システム列）を同じ幅・同じ高さで
 左端に持つので、切り替えると計器盤はそのままで右の舞台だけが替わって見える。名前は ORBIT ペインと重ならない
 ように earth にした（利用者の判断）。
 
@@ -1269,6 +1269,22 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 
 単体（`utility.test.ts`: ペイン状態の読み取り・ホールドの遷移と復元・blocker の種類と掛け替えの順序・期限とスリープ明け・文、`qr.test.ts`: WI-FI のエスケープ・URL・容量・色・jsQR での読み戻し、`codec.test.ts`: 各操作と誤り、`awake-service.test.ts`: main のサービスと、封と開封の形式）、コンポーネント（`utility-widget.test.ts`: 封の途中で忘れたパスワードが保存されないことも）、e2e（`utility.spec.ts`: ホールドがペインを閉じても続き、再起動で戻り、期限を過ぎていれば OFF、ステータスバーとポップアップ、QR のコピーと Wi-Fi の封、CODEC のコピーと入力が保存されないこと。`hidden-panes.spec.ts`）
 
+### 5.17 DOCKER ペイン（コンテナの一覧と操作）
+
+ローカルの Docker エンジンのコンテナを Compose のプロジェクトごとに並べ、状態・ヘルス・公開ポート・使用量を出し、起動・停止・再起動・一時停止・再開を送る（2026-09-27、利用者の案と、設計の相談で決めたこと）。ピッカー名は "docker containers"、見出しは DOCKER。既定のレイアウトには入れず、dev プリセットの AI AGENT とシェルのあいだに入れる。
+
+- **main のサービス**（`main/docker/`）。案ではメトリクスのソース（`dev.docker`、`PRIVATE_METRIC_SOURCE_IDS`）だったが、NOW PLAYING（§5.15）と同じく押下を送る経路が要り、collector の購読は読み取り専用なので、main のサービスにした。メトリクスのソースではないのでどちらの一覧にも入れない。プラグイン API には最初から無い（届く経路が無い。単体テストが plugin-api.ts に docker が無いことを確かめる）
+- **エンジンへの経路**: Docker Engine API を node の `http` で、Unix ソケット・Windows の名前付きパイプ（`socketPath` に `\\.\pipe\docker_engine` を渡せる）・この機械の TCP で話す。**CLI は起動しない**（読み取りのたびのプロセス起動を避け、テキストの出力に依らない）。クライアントのライブラリも使わない（使う要求は 5 種類で、dockerode は依存が増えるだけ）。単体テストが engine.ts などに `child_process` が無いことを確かめる。応答は 4 MB、読み取りは 2 秒、押下は 35 秒（stop は既定の猶予 10 秒を待つ）で打ち切る。API の版は `/_ping` の `Api-Version` と、知っている最新（1.47）の低いほう。1.24 未満は UNSUPPORTED
+- **エンジンの場所**（`findEndpoint`、判断は `parseDockerHost` などの純粋関数）: `docker` コマンドと同じ順に、`DOCKER_HOST`、現在のコンテキスト（`DOCKER_CONTEXT` か `~/.docker/config.json` の `currentContext`。アドレスは `contexts/meta/<名前の sha256>/meta.json`）、いつもの場所（Windows は `docker_engine` のパイプ、macOS は `~/.docker/run/docker.sock` と `/var/run/docker.sock`、Linux は `/var/run/docker.sock`・rootless の `$XDG_RUNTIME_DIR/docker.sock`・Docker Desktop の `~/.docker/desktop/docker.sock` のうち在るもの）。これで colima・OrbStack・Linux の Docker Desktop・rootless Docker・Podman の互換ソケットに、コードを足さずに届く。**使わないもの**: 別の機械の TCP（誰かのサーバー）、TLS（証明書を扱わない）、ssh（プロセスを起動する）、`fd://`。ページからアドレスは変えられない（プロセスの環境と利用者のファイルに従うだけ）。リンクのたびに探し直すので、コンテキストを切り替えれば次のリンクで従う
+- **いつ問い合わせるか**: 見えている DOCKER ペインが 1 つ以上あるときだけ（ペインは `seen` の間だけ購読し、裏のタブ・最小化・格納中は解除。`keepWhileHidden` の対象外）。その間、イベントのストリーム（`GET /events`、コンテナの、一覧を変える種類だけにエンジン側で絞る。ヘルスチェックの exec は数秒ごとに来るので除く）を 1 本つなぎ、イベントの次の 250 ms 境界で一覧を 1 回読む（stop と die、Compose の十数個がまとめて 1 回になる）。加えて壁時計の 10 秒境界で読み直す（"Up 2 minutes" の進み、つなぎ直し）。**利用者の決定（2026-09-27）: 案の「1 秒ごとの一覧」でなくイベントと 10 秒**。Docker Desktop はデーモンを VM で動かすので、毎秒の問い合わせは VM を起こし続ける。動いているコンテナの使用量は 5 秒境界で（`stats?stream=false&one-shot=true`、最大 24 個、同時に 4 つ。CPU はこちらの前回の読み取りとの差で、`docker stats` と同じ式。メモリは使用量からファイルキャッシュを引く）。どれもタイマー 1 本を次の境界へ張り直し（`shared/wall-clock.ts` の `nextBoundary`）、`setInterval` は使わず、前の読み取りと重ねない。最後のペインが消えたらストリームを閉じてタイマーを止め、直前の一覧はメモリにだけ残して、ペインが戻った瞬間に出す。ディスクにもログにも書かない
+- **リンクの状態**（`DockerLink`）: STANDBY（見えていない）、LINKING、LINKED、NO DAEMON（接続できない、または Docker Desktop のパイプが 500 を返す＝エンジンが止まっている）、DENIED（EACCES: Linux で docker グループに入っていない）、UNSUPPORTED、LINK ERROR（応答が遅い）。NO DAEMON / DENIED / UNSUPPORTED では一覧を空にし、LINK ERROR では直前の一覧を残す（遅いだけでコンテナが消えたわけではない）。ストリームが切れたらすぐつなぎ直す（開いて 1 秒以内に切れ続けるなら 10 秒境界で）
+- **ページに渡すもの**（`readContainer`）: 短い ID（12 桁）・名前・イメージ・状態・エンジンの Status の文・ヘルス（Status の `(healthy)` などから）・終了コード・公開ポート（IPv4 と IPv6 で 2 度並ぶものは 1 つに）・Compose のプロジェクト・サービス・作業フォルダ・作成時刻・使用量だけ。**ラベルはこの 3 つしか読まず、コマンドとマウントは読まない**（秘密を含みうる）。フル ID は main が持ち、ページは短い ID で指す。上限は 100 件（超えたら動いているもの、次に新しいものを残し、`truncated`）
+- **押下**（`control`）: start / stop / restart / pause / unpause だけ（`DOCKER_ACTIONS`）。**remove・kill・prune は無い**。main は、見えているページからの、直前の一覧にあるコンテナで、その状態が受け付けるもの（`actionsFor`）だけを送る。stop と restart は猶予 10 秒（`?t=10`）。304（すでにそうなっている）は ok。ページは stop・restart・pause を 2 度押しにする（3 秒で解除、クリップボードの CLEAR と同じ）。送っている間は行の状態が STOPPING… などになり、結果は次のイベントの一覧で追いつく（楽観更新はしない）。断られたら理由を脚注に出す
+- **画面**: 見出し行（リンクのランプと語、UP / DOWN の数、ALL | RUN）、列の見出し（NAME・IMAGE・PORTS・CPU・MEM・STATE）、プロジェクトごとのまとまり（見出しを押すと畳む。畳んだものと絞り込みはペインの状態。プロジェクトが 1 つも無ければ見出しは出さない）、脚注（エンジンの版・API・OS・場所、または問題）。**行は状態で並べ替えない**（プロジェクト、サービス、名前の順）: 止めた行がポインタの下から逃げないように（クリップボードペインと同じ原則）。状態の語は UP / HEALTHY / UNHEALTHY / STARTING / PAUSED / RESTARTING / EXITED（0 以外ならコード付き）/ CREATED / DEAD と、エンジンの Status から取った長さ（`statusAge`: 2h、5m、<1s）。色は ok（動いている）、info（一時停止・ヘルス確認中）、warn（unhealthy・再開中・0 以外で終了）、danger（dead）、淡色（止まっている）。ランプは動いているものだけ塗る。名前を押すと名前をコピー、公開 TCP ポートを押すと既定のブラウザーで開く（`portUrl`: この機械のアドレスだけ、既存の `system.openExternal`）、`›_` は `docker exec -it <name> sh` をコピー（名前がシェルの読み替えない文字だけのとき。コピーは UTILITY と同じ `utility.copy` で main を通す）。操作ボタンはポインタかキーボードのある行だけに、使用量の列の上に重ねて出す（状態の語は隠さない）。列は幅に応じて IMAGE → CPU・MEM → PORTS の順に畳む（コンテナクエリ。列の定義はペインが持ち、行と見出しが同じ変数を読む）。新しいコンテナは `fx-fresh`、並びの変化は `flip`。**最初の一覧を「新着」と数えない**: まだ一覧を読んでいないボード（`sampledAt` 0）は既知の一覧に入れない（入れていたので、開くたびに全行が光り、その終わりが最小化中に DOM を書き換えて hidden-panes の e2e が見つけた）
+- **カード**（`ContainerCard.svelte`、§7.4）: 行に留まるか名前へキーボードで移ると、フルネームと状態、行に入らないもの（イメージ全体、Compose のプロジェクトとサービス、フォルダ、エンジンの Status の文、アドレス付きの全ポート、CPU、メモリと上限、作成時刻、ID）と、名前と `›_` で何がコピーされるか
+- **見送り**: ログ（秘密を含みうるので、出すなら MASK の設計から）、イメージ・ボリューム・ネットワークの一覧、Kubernetes、ペイン内のシェル、別の機械のエンジン
+- **テスト**: 単体（`docker.test.ts`: 読み取り・ラベルとコマンドを渡さないこと・ヘルスと終了コード・長さ・ポート・上限・まとめ方・押下の可否・使用量の計算・エンジンの場所・版・イベントの行、`docker-watcher.test.ts`: 見えるまで問い合わせない・250 ms の境界でまとめる・10 秒と 5 秒の境界・止めたらストリームもタイマーも止まる・NO DAEMON からの復帰・DENIED・遅いだけなら一覧を残す・重ねない・押下の可否、`docker-engine.test.ts`: 本物の名前付きパイプ／Unix ソケットに立てた偽の Engine API で、要求の形・イベント・押下・応答の上限・タイムアウト・止まったエンジン・古いエンジン）、コンポーネント（`docker-widget.test.ts`）、e2e（`docker.spec.ts`、`hidden-panes.spec.ts`、`layout-presets.spec.ts`）。e2e は `ELECDEX_DOCKER_STUB=1` で main の代役を読み、実機の Docker に触れない（`globalThis.__elecdexDocker` で変え、`down` / `denied` でエンジンが無い・開けない場合）。スクリーンショットは `demo`（架空の 2 つのプロジェクト）
+
 ## 6. ターミナル設計
 
 ### 6.1 構成
@@ -1473,6 +1489,7 @@ elecdex/
 │  │  ├─ fs/ launcher/ weather/ markets/ feeds/ quakes/ updates/
 │  │  ├─ clipboard/        # 見えている間だけ読む監視（watcher）、Electron の読み書き、テスト用の代役（§5.14）
 │  │  ├─ media/            # NOW PLAYING: 見えている間だけ読む監視（watcher）、Windows の SMTC リーダー、代役（§5.15）
+│  │  ├─ docker/           # DOCKER: エンジンの場所（endpoint）、Engine API のクライアント（engine）、見えている間だけの監視（watcher）、代役（§5.17）
 │  │  ├─ awake/            # UTILITY の AWAKE: ホールドのサービス、powerSaveBlocker、代役（§5.16）
 │  │  ├─ ai/               # 会話ストア、キー保管、チャットサービス、方言ごとのアダプタ（openai / anthropic）（§5.7）
 │  │  ├─ reminders/        # 次の1件だけを待つスケジューラ（タスクとアラーム）
@@ -1813,6 +1830,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | desk プリセットの組み直し（2026-09-27） | 利用者の依頼で utility を入れ、全面的に見直してよいとのことだった。2 列（notes の下に timer・calculator ／ tasks の下に calendar・clipboard）を 3 列（0.38 : 0.31 : 0.31）にした: notes の下に timer と calculator、tasks の下に clipboard（0.55 : 0.45）、calendar の下に utility（0.42 : 0.58） | QR は正方形を、AWAKE のホールドは目に入る場所を欲しがる。1920×1080 で utility は約 490×600 px、calendar は 490×430 px で月の表が崩れず、clipboard は画面に出たまま（タブにすると読まない）。notes は狭くなったが幅 600 px ある |
 | ペインを呼び出すショートカットの共通化（2026-09-27） | 設計は §5.13。Ctrl+Shift+U で UTILITY を呼ぶのに合わせ、ランチャー専用の `focusLauncher` と `ui.launcherFocus` を、`SUMMONS`・`summonChoice`・`ui.summon`・`onSummoned` に置き換えた。利用者の決定: ランチャーと同じ挙動を共通部にし、ウィジェットごとの違い（UTILITY の押し直しで閉じる）はウィジェットの中で完結させる | ショートカットごとに分岐を書き足すと Workspace が枝分かれで膨らむ。行き先の決定を純粋関数に、呼ばれた後のことを各ウィジェットに分けると、新しいペインは 1 行とキーの定義だけで足せる |
 | UTILITY ペイン（2026-09-27） | 設計は §5.16。issue #12（AWAKE の案）を相談して広げた。利用者の決定: 名前は UTILITY、Phase 1 は AWAKE・QR・CODEC を切り替えボタンで、ホールドはペインを閉じても続け、前回の状態を戻す、Wi-Fi のパスワードは暗号化して保存する、QR の色はテーマに合わせる。案から変えたもの: **OS ごとの API でなく `powerSaveBlocker`**（外部プロセスも叩き直しも要らず、プロセスの終わりで OS が解く）。**DISPLAY だけは無い**（画面の抑止はシステムも起こしておく）ので 3 段。**metrics のソースや `keepWhileHidden` ではなく main のサービス**。**期限は `setTimeout` 1 本とスリープ明けの確認**。**ホールドの保存先はペイン状態でなく `awake.json`**（保存レイアウトは持ち運ばれ、ペインが複数ありうる）。**ペインの外にも出す**（ステータスバー、目印の線、ツールチップ）。**CODEC の入力はディスクに書かない**（秘密であることが多い）。**コピーは main 経由**（クリップボードの代役がテストで効く） | ホールドはこの PC に 1 つの状態で、ペインは見る窓でしかない。見えない場所で続く副作用なので、見える場所を増やし、保存先を持ち運ばれないところにした |
+| DOCKER ペイン（2026-09-27） | 設計は §5.17。利用者の案から相談して決めた。利用者の決定: 操作（start / stop / restart）を Phase 1 に入れ、入れられるものは一緒に入れる、一覧は 1 秒ごとのポーリングでなくイベントと 10 秒、dev プリセットに入れる（場所は任せる）、絞り込みの既定は ALL。案から変えたもの: **メトリクスのソースでなく main のサービス**（押下を送るため。NOW PLAYING と同じ）、**イベントのストリーム**（Docker Desktop の VM を毎秒起こさない）、**CLI もクライアントライブラリも使わず node の http**、**コンテキストに従う**（colima・OrbStack・rootless）、**行を状態で並べ替えない**。一緒に入れたもの: pause / unpause、Compose のまとまりと畳み、ヘルスと終了コード、使用量（5 秒）、ポートをブラウザーで開く、名前と `docker exec` のコピー、詳細カード。dev プリセットは左の列を AI AGENT・Docker・シェル（0.42 : 0.28 : 0.3）にした | 1920×1080 で Docker ペインは約 600×290 px（8 行ほど）、1366×768 で約 450×200 px で、最小の 260×140 を満たす。GIT は差分のため全高のまま。見えている間だけ問い合わせるので、タブに重ねない |
 
 ## 17. 既知の問題
 

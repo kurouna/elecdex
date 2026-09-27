@@ -221,6 +221,9 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
       // button pressed (src/main/media/stub.ts). Specs change the track through
       // globalThis.__elecdexNowPlaying.
       ELECDEX_NOWPLAYING_STUB: '1',
+      // A stand-in Docker engine: never this machine's containers, and none started or
+      // stopped (src/main/docker/stub.ts). Specs change it through globalThis.__elecdexDocker.
+      ELECDEX_DOCKER_STUB: '1',
       // A stand-in power-save blocker and power source: no run keeps this machine awake
       // (src/main/awake/stub.ts). Specs read the hold through globalThis.__elecdexAwake.
       ELECDEX_AWAKE_STUB: '1',
