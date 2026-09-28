@@ -63,6 +63,8 @@ interface Saved {
   shelf?: Shelf
   /** The instrument the keys play, by its voice. */
   instrument?: string
+  /** Whether the menu plays the chosen track; on unless Space turned it off. */
+  preview?: boolean
   free?: FreeSaved
 }
 
@@ -149,6 +151,7 @@ class Game {
   /** The instrument the keys play, by its place in INSTRUMENTS, and when it was last picked. */
   private instrument = 0
   private instrumentAt = Number.NEGATIVE_INFINITY
+  private previewOn = true
 
   constructor(ctx: ViewContext<Settings, unknown>) {
     this.ctx = ctx
@@ -181,6 +184,7 @@ class Game {
     if (saved.level !== undefined && LEVELS.includes(saved.level)) this.level = saved.level
     if (typeof saved.speed === 'number') this.speed = Math.min(10, Math.max(1, saved.speed))
     if (isShelf(saved.shelf)) this.shelf = saved.shelf
+    if (saved.preview === false) this.previewOn = false
     this.selected = settle(this.shelfRows(this.shelf), this.selected)
     if (saved.instrument !== this.lead) this.save()
   }
@@ -288,9 +292,18 @@ class Game {
   private menuKey(code: string, at: number): void {
     // A chosen row blinks before it starts; nothing else is taken meanwhile.
     if (this.starting) return
-    if (this.stage === 'levels') this.levelsKey(code, at)
+    if (code === 'Space') this.togglePreview(at)
+    else if (this.stage === 'levels') this.levelsKey(code, at)
     else this.tracksKey(code, at)
     this.save()
+  }
+
+  /** Space on the menu, on either stage: the chosen track heard, or not; kept in the pane. */
+  private togglePreview(at: number): void {
+    this.previewOn = !this.previewOn
+    if (this.previewOn) this.preview.rest(at)
+    else this.preview.stop()
+    this.cue('switch')
   }
 
   /** Choosing a track: up and down the rows, left and right the tabs, Enter its levels. */
@@ -395,7 +408,11 @@ class Game {
   private previewTick(now: number): void {
     const track = this.selected < this.scores.length ? this.selected : null
     const listening =
-      this.phase === 'menu' && !this.starting && this.ctx.keys.focused && this.volume > 0
+      this.phase === 'menu' &&
+      this.previewOn &&
+      !this.starting &&
+      this.ctx.keys.focused &&
+      this.volume > 0
     const chart = listening && track !== null ? this.chartOf(track, 'normal') : null
     const chosen = chart === null || track === null ? null : { index: track, chart }
     this.preview.tick(now, chosen, { lead: this.lead, volume: this.volume })
@@ -413,7 +430,7 @@ class Game {
     const from = LEVELS.indexOf(this.level)
     this.level = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, from + by))] ?? this.level
     if (LEVELS.indexOf(this.level) === from) return
-    this.motion.level(at, from)
+    this.motion.level(at)
     this.motion.panelLevel(at, from)
     this.cue('switch')
   }
@@ -700,7 +717,7 @@ class Game {
     return (
       this.starting ||
       this.motion.alive(now, this.ctx.theme.reducedMotion) ||
-      this.preview.waiting(now, track)
+      (this.previewOn && this.preview.waiting(now, track))
     )
   }
 
@@ -778,10 +795,10 @@ class Game {
         level: this.level,
         speed: this.speed,
         note: words.layout,
-        levelNote: words.levels[this.level],
         opening,
         free: words.free,
         previewing: this.preview.index !== null && this.preview.index === this.selected,
+        preview: this.previewOn,
       },
       frame,
     )
@@ -914,6 +931,7 @@ class Game {
       speed: this.speed,
       shelf: this.shelf,
       instrument: this.lead,
+      preview: this.previewOn,
       free: this.free.saved(),
     })
   }

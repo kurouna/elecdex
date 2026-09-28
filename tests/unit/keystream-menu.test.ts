@@ -41,7 +41,6 @@ const starsFor = (chart: Chart) => starsOf(chart.notes.map((n) => n.time))
 
 const STILL: MenuFrame = {
   tab: null,
-  level: null,
   cursor: null,
   rows: null,
   choice: null,
@@ -67,6 +66,7 @@ function menu(
   shelf: Shelf = 'all',
   before: MenuList | null = null,
   stage: MenuView['stage'] = 'tracks',
+  change: Partial<MenuView> = {},
 ) {
   const chart = charts[chosen]
   const view: MenuView = {
@@ -88,10 +88,11 @@ function menu(
     level: 'normal',
     speed: 5,
     note: 'NOTE',
-    levelNote: 'LEVEL NOTE',
     opening: chart ? openingBars(chart, 4).map((bar) => bar.map((c) => labelOf({}, c))) : [],
     free: 'FREE',
     previewing: false,
+    preview: true,
+    ...change,
   }
   const { g, texts, writes, fills } = recorder()
   const drawn = drawMenu(paint(g, size.w, size.h), layoutOf(size.w, size.h), view, frame)
@@ -214,7 +215,8 @@ describe('the menu', () => {
 
   it('keeps what is under the list where it is, whichever tab is shown', () => {
     const levelY = (shelf: Shelf, chosen: number) =>
-      menu(chosen, { w: 1600, h: 1000 }, STILL, shelf).writes.find((w) => w.text === 'LEVEL')?.y
+      menu(chosen, { w: 1600, h: 1000 }, STILL, shelf).writes.find((w) => w.text === 'INSTRUMENT')
+        ?.y
     const all = levelY('all', index('loopback'))
     expect(all).toBeDefined()
     expect(levelY('pop', index('loopback'))).toBe(all)
@@ -241,10 +243,30 @@ describe('the menu', () => {
     expect(lit.fills.some((f) => f.color === colour('accent') && f.w > 500)).toBe(true)
   })
 
-  it('remembers where its tabs, levels and cursor were drawn, to move from', () => {
+  it('chooses no level under the list, only names the one its figures are, and the instrument', () => {
+    const { texts } = menu(mountain, { w: 1600, h: 1000 })
+    expect(texts).not.toContain('LEVEL')
+    for (const chip of ['EASY', 'HARD']) expect(texts).not.toContain(chip)
+    expect(texts).toContain('INSTRUMENT')
+    expect(texts).toContain('GUITAR')
+    expect(texts.some((t) => t.startsWith('NORMAL') && t.includes('NOTES'))).toBe(true)
+    expect(texts).toContain('SPACE')
+    expect(texts).toContain('PREVIEW')
+  })
+
+  it('tags the details while the preview plays, and while Space has it off', () => {
+    const tags = (view: Partial<MenuView>) =>
+      menu(mountain, { w: 1600, h: 1000 }, STILL, 'all', null, 'tracks', view).texts.filter(
+        (t) => t.includes('PREVIEW') && t !== 'PREVIEW',
+      )
+    expect(tags({})).toEqual([])
+    expect(tags({ previewing: true })).toEqual(['▶ PREVIEW'])
+    expect(tags({ preview: false })).toEqual(['PREVIEW OFF'])
+  })
+
+  it('remembers where its tabs and cursor were drawn, to move from', () => {
     const { drawn } = menu(mountain, { w: 1600, h: 1000 })
     expect(drawn.tabs).toHaveLength(SHELVES.length)
-    expect(drawn.levels).toHaveLength(3)
     expect(drawn.cursor).toBeGreaterThan(0)
   })
 

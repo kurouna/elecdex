@@ -238,6 +238,42 @@ describe('the view', () => {
     expect(asked.stops).toBe(stops + 2)
   })
 
+  it('turns the preview off and on with Space, on either stage, and keeps the choice', () => {
+    const t0 = performance.now()
+    const { asked, press, frame } = stand({ reduced: false })
+    press('KeyZ', t0)
+    frame(t0 + PREVIEW.restMs + 50)
+    const heard = asked.played.length
+    const stops = asked.stops
+    // Off: what plays stops at once, and nothing more is sent however long the cursor rests.
+    press('Space', t0 + 1000)
+    expect(asked.stops).toBe(stops + 1)
+    expect(asked.saved.at(-1)).toMatchObject({ preview: false })
+    const cue = asked.played.length
+    expect(cue).toBe(heard + 1)
+    frame(t0 + 1000 + PREVIEW.restMs * 3)
+    press('ArrowDown', t0 + 1100)
+    frame(t0 + 1100 + PREVIEW.restMs * 3)
+    expect(asked.played.length).toBe(cue + 1)
+    // On again from the levels' panel: the chosen track is heard after the rest.
+    press('Enter', t0 + 5000)
+    press('Space', t0 + 5100)
+    expect(asked.saved.at(-1)).toMatchObject({ preview: true })
+    const on = asked.played.length
+    frame(t0 + 5100 + PREVIEW.restMs + 50)
+    expect(asked.played.length).toBe(on + 1)
+    expect(asked.played.at(-1)?.some((n) => n.voice === 'epiano')).toBe(true)
+  })
+
+  it('stays quiet on the menu when the preview was left off', () => {
+    const t0 = performance.now()
+    const { asked, press, frame } = stand({ reduced: false, saved: { preview: false } })
+    press('KeyZ', t0)
+    frame(t0 + PREVIEW.restMs * 3)
+    expect(asked.played).toHaveLength(0)
+    expect(asked.saved.at(-1)).toMatchObject({ preview: false })
+  })
+
   it('leaves the result after the pressed key’s blink and the screen’s close', () => {
     const { asked, press, start, frame } = stand({ reduced: false })
     frame(0)

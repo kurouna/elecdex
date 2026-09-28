@@ -1,5 +1,4 @@
 import type { Chart, Level } from '../chart'
-import { LEVELS } from '../chart'
 import type { Best } from '../records'
 import { bpmText } from './hud'
 import type { Layout, Rect } from './layout'
@@ -32,7 +31,7 @@ import {
 
 /**
  * The menu, as a directory listing: the genre tabs, the tracks one to a row with their
- * stars, the level and the instrument, what the chosen track holds and the best result on
+ * stars, the instrument, what the chosen track holds and the best result on
  * it, and the keys that drive it all. A track is chosen first and its level after, as the
  * dance and beat games have it: Enter opens the track's levels on a panel over the list.
  * How it moves is menu-motion.ts; this draws a frame of it.
@@ -79,14 +78,14 @@ export interface MenuView {
   speed: number
   /** A line under the list: that keys play by their place on the keyboard. */
   note: string
-  /** What the chosen level asks, beside its chip. */
-  levelNote: string
   /** The first bars of the chosen track as the keys that play them, bar by bar. */
   opening: readonly (readonly string[])[]
   /** What FREE PLAY is, beside its row. */
   free: string
   /** The chosen track is being heard. */
   previewing: boolean
+  /** Whether the chosen track is heard at all (Space turns it off and on). */
+  preview: boolean
 }
 
 /** m:ss */
@@ -138,20 +137,20 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView, f: MenuFrame): Dra
   if (chosen === undefined) {
     freeDetails(p, x, y + 4)
     footer(p, l, view)
-    return { tabs, levels: [], panel: drawPanel(p, box, panelH, view, f), cursor }
+    return { tabs, panel: drawPanel(p, box, panelH, view, f), cursor }
   }
-  const levels = drawLevels(p, x, y, width, view, f)
+  drawInstrumentRow(p, x, y, width, view)
   y += 22
   // The chosen track's details, typed out again as the choice changes.
   const age = f.choice ?? Number.POSITIVE_INFINITY
   details(p, x, y + 14, width, chosen, view, age)
   if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening, age)
   footer(p, l, view)
-  return { tabs, levels, panel: drawPanel(p, box, panelH, view, f), cursor }
+  return { tabs, panel: drawPanel(p, box, panelH, view, f), cursor }
 }
 
 /*
- * Chips: the genre tabs and the levels. The chosen one's light slides to it.
+ * Chips: the genre tabs. The chosen one's light slides to it.
  */
 
 interface ChipSet {
@@ -215,34 +214,18 @@ function drawTabs(p: Paint, x: number, y: number, width: number, view: MenuView,
   return rects
 }
 
-/** The level chips, beside them what the chosen level asks, and at the end the instrument. */
-function drawLevels(p: Paint, x: number, y: number, width: number, view: MenuView, f: MenuFrame) {
-  const at =
-    x +
-    14 +
-    write(p, 'LEVEL', x + 14, y + 11, {
-      font: font(500, 10, p.fonts.ui),
-      color: p.c.muted,
-      spacing: '0.3em',
-    }) +
-    18
-  const rects = chips(p, at, y, {
-    labels: LEVELS.map((l) => l.toUpperCase()),
-    active: LEVELS.indexOf(view.level),
-    from: f.level?.from ?? null,
-    slide: f.level ? f.level.age / MOTION.slide : 1,
-  })
-  const end = rects.at(-1)
-  const noteX = (end ? end.x + end.w : at) + 10
-  const style = {
-    font: font(500, 11, p.fonts.ui),
+/**
+ * The instrument the keys play, under the list as on the levels' panel. The level is not
+ * chosen here: it is chosen on the panel, once a track is (user decision 2026-09-28).
+ */
+function drawInstrumentRow(p: Paint, x: number, y: number, width: number, view: MenuView): void {
+  write(p, 'INSTRUMENT', x + 14, y + 12, {
+    font: font(500, 10, p.fonts.ui),
     color: p.c.muted,
-    baseline: 'middle' as const,
-    spacing: '0.1em',
-  }
-  const instrumentX = instrument(p, x + width - 14, y + 12, view.instrument)
-  write(p, fitted(p, view.levelNote, instrumentX - 18 - noteX, style), noteX, y + 12, style)
-  return rects
+    spacing: '0.3em',
+    baseline: 'middle',
+  })
+  instrument(p, x + width - 14, y + 12, view.instrument)
 }
 
 /**
@@ -594,12 +577,14 @@ function footer(p: Paint, l: Layout, view: MenuView): void {
           ['ENTER', 'START'],
           ['ESC', 'BACK'],
           ['1-0 -', 'INSTRUMENT'],
+          ['SPACE', 'PREVIEW'],
         ]
       : [
           ['↑↓', 'TRACK'],
           ['←→', 'GENRE'],
           ['ENTER', 'SELECT'],
           ['1-0 -', 'INSTRUMENT'],
+          ['SPACE', 'PREVIEW'],
         ]
   hints(p, l, keys, l.line - 10)
 }
@@ -804,7 +789,9 @@ function details(
     baseline: 'top' as const,
   }
   const best = row.best
+  // The figures are the level the panel opens on - the last one chosen - so it is named.
   const bits = [
+    view.level.toUpperCase(),
     `NOTES ${row.chart.notes.length}`,
     `LENGTH ${timeText(row.chart.duration)}`,
     best
@@ -816,22 +803,26 @@ function details(
   const room = width - 28
   const line = measure(p, full, style) <= room ? full : fitted(p, bits, room, style)
   write(p, line.slice(0, typed(line.length, age)), x + 14, y, style)
-  if (view.previewing) previewTag(p, x + width - 14, y + 7)
+  if (view.previewing) previewTag(p, x + width - 14, y + 7, '▶ PREVIEW', p.c.accentStrong)
+  else if (!view.preview) previewTag(p, x + width - 14, y + 7, 'PREVIEW OFF', p.c.muted)
 }
 
-/** What the chosen track's preview says while it plays: a tag at the end of its details. */
-function previewTag(p: Paint, right: number, y: number): void {
+/**
+ * The preview's state at the end of the chosen track's details: a lit tag while it plays, a
+ * quiet one while Space has it off, nothing while it waits for the cursor to rest.
+ */
+function previewTag(p: Paint, right: number, y: number, text: string, ink: string): void {
   const style = {
     font: font(600, 10, p.fonts.display),
-    color: p.c.accentStrong,
+    color: ink,
     spacing: '0.24em',
     baseline: 'middle' as const,
   }
-  const w = measure(p, '▶ PREVIEW', style) + 14
-  p.g.strokeStyle = alpha(p.c.accentStrong, 0.7)
+  const w = measure(p, text, style) + 14
+  p.g.strokeStyle = alpha(ink, 0.7)
   p.g.lineWidth = 1
   p.g.strokeRect(right - w + 0.5, y - 8.5, w - 1, 17)
-  write(p, '▶ PREVIEW', right - w + 7, y + 0.5, style)
+  write(p, text, right - w + 7, y + 0.5, style)
 }
 
 /** The opening of the track as it will be typed: letters, bar by bar. */
