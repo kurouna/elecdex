@@ -1,15 +1,15 @@
 import type { Band } from '../arrange'
 import { barsIn, type SongSource } from '../notation'
 import {
+  BASS_4,
   BASS_LAST,
   BASS_LONG,
-  BASS_OFFBEATS,
   EIGHTHS,
+  EIGHTHS_SOFT,
   KICK_4,
   OFFBEATS,
   ONE,
   QUARTERS,
-  SIXTEENTHS,
   SNARE_24,
   times,
 } from './parts'
@@ -18,8 +18,8 @@ import {
  * REDLINE - written for elecdex (GPL-3.0, as the rest of this repository).
  *
  * J-core at 200 in A minor, the fastest of them, and made to be hammered: the drop is one
- * key struck in a three-three-two rhythm, a key a chord (E, F, D, E: ; ' L ;, side by side),
- * the way a trance riff repeats its note. The verse keeps every beat on A (H) with the tune
+ * key struck in a riff's rhythm - one, two and its 'and', the 'and' of three, four - a key a
+ * chord (E, F, D, E: ; ' L ;, side by side), the way a trance riff repeats its note. The verse keeps every beat on A (H) with the tune
  * on the 'and's, and the build strikes one key in quarters, then eighths. So EASY, which
  * plays only the beats, is one key in time throughout; the last drop fills all four beats.
  */
@@ -30,7 +30,7 @@ const VERSE = ['h.h;h.hl|h.hkh.h.|h.hlh.hj|h.h.y-j-', "h.h;h.hl|h.hkh.h'|h.hjh.h
 
 const BUILD = 'l.l.l.l.|l.l.llll|j.j.jjjj|jjjj;---'
 
-/** Three, three and two on one key a bar: the beats one, two and four for EASY. */
+/** The riff on one key a bar: the beats one, two and four for EASY. */
 const DROP = [";.;;.;;.|'.''.''.|l.ll.ll.|;.;;.;;;", ";.;;.;;.|'.''.''.|l.ll.ll.|j.jjy.;."]
 
 /** The last drop, pushed: every beat struck. */
@@ -42,35 +42,70 @@ const LOOP = 'Am | F | G | E | Am | F | G | E'
 /** The verse's A held over E as a suspension, resolving to G sharp (Y) on the third beat. */
 const VERSE_CHORDS = 'Am | F | G | Esus4 E | Am | F | G | Esus4 E'
 
-/** The drop's arpeggio, in sixteenths: at 200, a shimmer over the kick. */
-const ARP_16 = 'xxxxxxxxxxxxxxxx'
+/*
+ * The band plays the tune's own rhythm: the stabs and the bass strike where the melody does,
+ * so the riff a player types is the riff they hear. The verse's stabs and bass are on the
+ * beats, which its A falls on, and the kick is on every beat a player taps on EASY. Nothing is finer than the melody's eighths but a soft hat.
+ */
+
+/** The last drop: one, two and its 'and', three, four and its 'and'. */
+const VERSE_HITS = 'x...x.x.x...x.x.'
+/** The drop's riff: one, two and its 'and', the 'and' of three, four. */
+const RIFF = 'x...x.x...x.x...'
+/** A drop's last bar, turning back: one, two and its 'and', three, four. */
+const TURN = 'x...x.x.x...x...'
+/** The build: quarters, then eighths from the third beat, then eighths into a held note. */
+const RUN_IN = 'x...x...x.x.x.x.'
+const RUSH = 'x.x.x.x.x-------'
+
+const bassOf = (hits: string): string => hits.replace(/x/g, 'r')
 
 /**
- * Hardcore's engine: four to the floor with the bass on every 'and' between the kicks, an
- * open hat over it, and a build whose snare goes from quarters to eighths to sixteenths.
+ * Hardcore's four to the floor with the clap on two and four; the stabs are a pluck, the
+ * bass the synthesiser's, both on the riff, and the build's snare steps up with the tune.
  */
 const BAND: Band = {
   sections: {
     I: { kick: KICK_4, hat: OFFBEATS, bass: BASS_LONG, pad: true },
-    V: { kick: KICK_4, snare: SNARE_24, hat: EIGHTHS, bass: BASS_OFFBEATS, pad: true },
-    B: { kick: KICK_4, snare: QUARTERS, bass: BASS_LONG, pad: true },
-    U: { kick: KICK_4, snare: EIGHTHS, bass: BASS_LONG, pad: true },
-    R: { kick: KICK_4, snare: SIXTEENTHS, bass: BASS_LONG, pad: true },
+    V: {
+      kick: KICK_4,
+      clap: SNARE_24,
+      hat: EIGHTHS_SOFT,
+      bass: BASS_4,
+      comp: QUARTERS,
+    },
+    B: { kick: KICK_4, snare: QUARTERS, bass: bassOf(QUARTERS), comp: QUARTERS, pad: true },
+    U: { kick: KICK_4, snare: RUN_IN, bass: bassOf(RUN_IN), comp: RUN_IN, pad: true },
+    R: { kick: KICK_4, snare: 'x.x.x.x.x.......', bass: bassOf(RUSH), comp: RUSH },
     D: {
       kick: KICK_4,
-      snare: SNARE_24,
       clap: SNARE_24,
-      hat: SIXTEENTHS,
-      openhat: OFFBEATS,
-      bass: BASS_OFFBEATS,
-      arp: ARP_16,
+      hat: EIGHTHS,
+      bass: bassOf(RIFF),
+      comp: RIFF,
+      pad: true,
+    },
+    F: {
+      kick: KICK_4,
+      clap: SNARE_24,
+      hat: EIGHTHS,
+      bass: bassOf(VERSE_HITS),
+      comp: VERSE_HITS,
+      pad: true,
+    },
+    X: {
+      kick: KICK_4,
+      clap: SNARE_24,
+      hat: EIGHTHS,
+      bass: bassOf(TURN),
+      comp: TURN,
       pad: true,
     },
     O: { kick: ONE, bass: BASS_LAST, pad: true },
     E: {},
   },
-  form: `${times('I', 3)} I! | ${times('V', 7)} V! | B U R R! | D* ${times('D', 7)} | ${times('V', 7)} V! | B U R R! | D* ${times('D', 7)} | D* ${times('D', 7)} | O* E`,
-  arp: 'lead',
+  form: `${times('I', 3)} I! | ${times('V', 7)} V! | B U U R! | D* ${times('D', 6)} X | ${times('V', 7)} V! | B U U R! | D* ${times('D', 6)} X | F* ${times('F', 6)} X | O* E`,
+  comp: 'pluck',
 }
 
 export const song: SongSource = {

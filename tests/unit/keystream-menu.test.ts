@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildChart, type Chart, openingBars } from '../../examples/plugins/keystream/chart'
-import { busyness, starsOf } from '../../examples/plugins/keystream/difficulty'
+import { busyness, REPEAT_WEIGHT, starsOf } from '../../examples/plugins/keystream/difficulty'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
 import { drawMenu, type MenuList, type MenuView } from '../../examples/plugins/keystream/draw/menu'
 import {
@@ -37,7 +37,7 @@ import { colour, paint, recorder } from './keystream-canvas'
 const charts = SONGS.map((song) => buildChart(readSong(song), 'normal'))
 const genres = SONGS.map((song) => song.genre)
 const index = (id: string) => SONGS.findIndex((song) => song.id === id)
-const starsFor = (chart: Chart) => starsOf(chart.notes.map((n) => n.time))
+const starsFor = (chart: Chart) => starsOf(chart.notes)
 
 const STILL: MenuFrame = {
   tab: null,
@@ -134,13 +134,33 @@ describe('the genre tabs', () => {
 })
 
 describe('the stars', () => {
+  // Two keys in turn: every note moves the hand.
+  const moving = (count: number, every: number) =>
+    Array.from({ length: count }, (_, i) => ({ time: i * every, code: i % 2 ? 'KeyH' : 'KeyJ' }))
+  const oneKey = (count: number, every: number) =>
+    Array.from({ length: count }, (_, i) => ({ time: i * every, code: 'KeyH' }))
+
   it('count how busy the notes are: the average and the busiest four seconds', () => {
-    const even = Array.from({ length: 40 }, (_, i) => i * 1000)
+    const even = moving(40, 1000)
     expect(busyness(even)).toBeCloseTo((1 + 1.25) / 2, 1)
     expect(starsOf(even)).toBe(1)
-    const rush = Array.from({ length: 400 }, (_, i) => i * 150)
-    expect(starsOf(rush)).toBe(5)
+    expect(starsOf(moving(400, 150))).toBe(5)
     expect(starsOf([])).toBe(1)
+  })
+
+  it('count a key struck again for less than one that sends the hand elsewhere', () => {
+    // One key a little over three a second, which would be three stars moving.
+    expect(starsOf(moving(200, 320))).toBe(3)
+    expect(starsOf(oneKey(200, 320))).toBeLessThan(3)
+    expect(busyness(oneKey(200, 320)) / busyness(moving(200, 320))).toBeCloseTo(REPEAT_WEIGHT, 1)
+  })
+
+  it('rate the tracks written as one key in time on EASY at two stars at most', () => {
+    for (const id of ['fever-call', 'redline']) {
+      const song = SONGS.find((s) => s.id === id)
+      expect(song, id).toBeDefined()
+      if (song) expect(starsFor(buildChart(readSong(song), 'easy')), id).toBeLessThanOrEqual(2)
+    }
   })
 
   it('run from 1 to 5 over the tracks, which are listed easiest first', () => {

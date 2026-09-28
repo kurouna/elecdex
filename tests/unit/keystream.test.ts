@@ -197,6 +197,32 @@ describe('the band', () => {
     expect(beats(parts, 'pad').every((b) => b === 4)).toBe(true)
   })
 
+  it('strikes its bass and chords only with the tune in the tracks written to be tapped along to', () => {
+    // FEVER CALL and REDLINE put every beat on one key for EASY: a band that strikes where
+    // the tune rests, or pushes ahead of it, pulls a player off the rhythm they are typing.
+    for (const id of ['fever-call', 'redline']) {
+      const source = SONGS.find((s) => s.id === id)
+      expect(source, id).toBeDefined()
+      if (source === undefined) continue
+      const score = readSong(source)
+      const voices = [source.band.bass ?? 'bass', source.band.comp ?? 'epiano']
+      const sounding = (beat: number) =>
+        score.notes.some((n) => n.beat <= beat + 1e-9 && beat < n.beat + n.beats - 1e-9)
+      // A bar with no tune (the intro) is the band's own.
+      const tuneless = (beat: number) =>
+        !score.notes.some((n) => Math.floor(n.beat / 4) === Math.floor(beat / 4))
+      const stray = arrange(score)
+        .filter(
+          (part) => voices.includes(part.voice) && !sounding(part.beat) && !tuneless(part.beat),
+        )
+        .map(
+          (part) =>
+            `${part.voice} at bar ${Math.floor(part.beat / 4) + 1} beat ${(part.beat % 4) + 1}`,
+        )
+      expect([...new Set(stray)], id).toEqual([])
+    }
+  })
+
   it('opens a bar marked * on a cymbal, and rolls into the next from one marked !', () => {
     const parts = arrange(readSong({ ...tiny, band: { ...tiny.band, form: 'A! B*' } }))
     // The roll takes the last beat from every drum but the kick.

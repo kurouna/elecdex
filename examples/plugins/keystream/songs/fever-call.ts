@@ -1,23 +1,15 @@
 import type { Band } from '../arrange'
 import { barsIn, type SongSource } from '../notation'
 import {
-  BASS_8,
+  BASS_4,
   BASS_LAST,
-  BASS_OCTAVES,
-  CLAP_3,
   COMP_LAST,
-  COMP_OFFBEATS,
-  COMP_PUSH,
   EIGHTHS,
   EIGHTHS_SOFT,
   KICK_4,
-  KICK_13,
-  KICK_ROCK,
   OFFBEATS,
   ONE,
   QUARTERS,
-  RIFF_332,
-  SIXTEENTHS,
   SNARE_24,
   times,
 } from './parts'
@@ -49,36 +41,76 @@ const VERSE_CHORDS = 'C | G | Am | Em | F | C | Dm | G'
 const PRE_CHORDS = 'Dm | Em | F | G'
 const CHORUS_CHORDS = 'Fmaj7 | G | Em | Am | Fmaj7 | G | C | C'
 
-/** The break's bass, on the crowd's three, three and two. */
-const BASS_332 = 'r..r..r.r..r..r.'
+/*
+ * The band plays the tune's own rhythm: its chords and its bass strike where the melody
+ * does, so what a player hears is what they are to type, and the kick is on every beat they
+ * tap on EASY. Nothing is finer than the melody's eighths but a soft hat.
+ */
+
+/** The verse and the pre-chorus: a note on every beat, the last bar's 'and' of four too. */
+const ON_BEATS_AND_4 = 'x...x...x...x.x.'
+/** The chorus: one, two and its 'and', three, four and its 'and'. */
+const CHORUS_HITS = 'x...x.x.x...x.x.'
+/** The chorus's fourth bar: three beats, the third held. */
+const HELD_3 = 'x...x...x-------'
+/** Its last: the one note, held. */
+const HELD_1 = 'x---------------'
+/** A bar that runs into the next in eighths from its third beat. */
+const RUN_IN = 'x...x...x.x.x.x.'
+/** The break's call, three, three and two eighths: one, the 'and' of two, four. */
+const CALL_332 = 'x.....x.....x...'
+
+const bassOf = (hits: string): string => hits.replace(/x/g, 'r')
 
 /**
- * Idol pop at a run: an eight-beat verse, a pre-chorus whose snare doubles up as it climbs,
- * and a chorus on four to the floor with the octave bass - the piano's chords pushed ahead
- * of the beat, as the genre's own records do.
+ * Idol pop at a run, four to the floor with the clap on two and four throughout. The piano
+ * strikes the chord with every note of the tune, the bass with it.
  */
 const BAND: Band = {
   sections: {
-    I: { kick: KICK_13, hat: EIGHTHS_SOFT, bass: BASS_8, pad: true },
-    V: { kick: KICK_ROCK, snare: SNARE_24, hat: EIGHTHS, bass: BASS_8, comp: COMP_OFFBEATS },
-    P: { kick: KICK_4, snare: QUARTERS, hat: EIGHTHS, bass: BASS_8, pad: true },
-    Q: { kick: KICK_4, snare: EIGHTHS, hat: EIGHTHS, bass: BASS_8, pad: true },
+    I: { kick: KICK_4, hat: OFFBEATS, bass: BASS_4, pad: true },
+    V: { kick: KICK_4, clap: SNARE_24, hat: EIGHTHS_SOFT, bass: BASS_4, comp: QUARTERS },
+    P: {
+      kick: KICK_4,
+      snare: QUARTERS,
+      hat: EIGHTHS_SOFT,
+      bass: bassOf(ON_BEATS_AND_4),
+      comp: ON_BEATS_AND_4,
+      pad: true,
+    },
+    Q: { kick: KICK_4, snare: RUN_IN, bass: bassOf(RUN_IN), comp: RUN_IN, pad: true },
     C: {
       kick: KICK_4,
       snare: SNARE_24,
       clap: SNARE_24,
-      hat: SIXTEENTHS,
-      openhat: OFFBEATS,
-      bass: BASS_OCTAVES,
-      comp: COMP_PUSH,
-      arp: EIGHTHS,
+      hat: EIGHTHS,
+      bass: bassOf(CHORUS_HITS),
+      comp: CHORUS_HITS,
       pad: true,
     },
-    K: { kick: RIFF_332, clap: CLAP_3, hat: EIGHTHS, bass: BASS_332 },
+    H: {
+      kick: KICK_4,
+      clap: SNARE_24,
+      hat: EIGHTHS,
+      bass: bassOf(HELD_3),
+      comp: HELD_3,
+      pad: true,
+    },
+    W: { kick: KICK_4, clap: SNARE_24, hat: EIGHTHS, bass: BASS_4, comp: QUARTERS, pad: true },
+    Z: {
+      kick: KICK_4,
+      clap: SNARE_24,
+      hat: EIGHTHS,
+      bass: bassOf(HELD_1),
+      comp: HELD_1,
+      pad: true,
+    },
+    K: { kick: CALL_332, clap: CALL_332, hat: QUARTERS, bass: bassOf(CALL_332), comp: CALL_332 },
+    L: { kick: KICK_4, snare: RUN_IN, bass: bassOf(RUN_IN), comp: RUN_IN },
     O: { kick: ONE, bass: BASS_LAST, comp: COMP_LAST },
     E: {},
   },
-  form: `${times('I', 3)} I! | ${times('V', 7)} V! | P P Q Q! | C* ${times('C', 7)} | ${times('V', 7)} V! | P P Q Q! | C* ${times('C', 7)} | K* K K K! | C* ${times('C', 7)} | O* E`,
+  form: `${times('I', 3)} I! | ${times('V', 7)} V! | P P P Q! | C* C C H C C W Z | ${times('V', 7)} V! | P P P Q! | C* C C H C C W Z | K* K K L! | C* C C H C C W Z | O* E`,
   comp: 'piano',
 }
 

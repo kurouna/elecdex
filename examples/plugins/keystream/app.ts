@@ -730,7 +730,7 @@ class Game {
   private starsOf(chart: Chart): number {
     let stars = this.stars.get(chart)
     if (stars === undefined) {
-      stars = starsOf(chart.notes.map((note) => note.time))
+      stars = starsOf(chart.notes)
       this.stars.set(chart, stars)
     }
     return stars
