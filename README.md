@@ -824,6 +824,10 @@ its diamond and a lamp says how it went (CLEAR, FULL CHAIN, ALL SYNC or NO CARRI
 best before it and how early or late the keys landed. **FREE PLAY** makes the keyboard an instrument: keys sound
 while held, Space is the sustain pedal, the arrows change the octave and the tone, any track's band
 can go round underneath to play over, and the chord under your fingers is named as you hold it.
+Its piano is a physical model, not a recording: stiff, stretched strings in pairs and threes that
+beat and die away in two stages, a felt hammer that plays brighter the harder it lands, the clang
+of a hard blow in the bass, a soundboard and a room - and, with the pedal down, the strings nobody
+struck ringing along. It is worked out on the audio thread as it plays.
 
 Plugins are off until turned on in *Settings → Plugins*, which lists what each may do - read
 metric sources, reach named hosts (each request made by the app and checked against that list),

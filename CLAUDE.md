@@ -39,6 +39,7 @@ npm run demo:panes     # DOCKER, CLIPBOARD, NOW PLAYING and UTILITY at work, 16:
 npm run demo:tour      # the introduction video: boot, presets, ORBIT, agents, Docker, media, ELEC, themes (Windows; build first)
 npm run demo:tour-shorts # the same tour, 9:16 in two tiers, under 2 min, for Shorts (Windows; build first)
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
+node scripts/piano-wav.mjs [dir]      # the plugins' physical piano to WAV files, to listen to
 ```
 
 Single tests: `npx vitest run tests/unit/<file>.test.ts`,
@@ -253,6 +254,11 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     the worker, and a `hold` note and the sustain pedal are the host's too (plugins/held.ts), so
     letting go never waits on the worker either. Keys and sound are checked against the grant in the host, as metrics are, and
     need `apiVersion: 2`. Times cross between page and worker as epoch milliseconds.
+  - The `piano` voice is a physical model of strings, hammer and soundboard (plugins/piano/,
+    docs/plugins.md section 13.8) run on an AudioWorklet, with the recipe in voices.ts as its
+    fallback. Its figures are physics and textbook curves: never a recording, a sample or a table
+    measured from one. The physics is pure (the worklet, the tests and scripts/piano-wav.mjs run
+    the same code); listen through `node scripts/piano-wav.mjs` after changing it.
   - Plugins that use unofficial APIs or are personal (such as claude-usage) live in a separate
     private repository, cloned beside this one and deployed with its `npm run deploy` — never
     here. The committed samples are the pomodoro timer and KEYSTREAM (installed from its folder).

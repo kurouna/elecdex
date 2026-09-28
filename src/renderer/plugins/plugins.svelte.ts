@@ -546,6 +546,8 @@ export class PluginHost {
   }
   /** Notes each pane has played: what the tests read of a sound nobody should hear. */
   readonly sounded = new SvelteMap<string, number>()
+  /** Of those, the piano notes its physical strings played: that the worklet loaded. */
+  readonly strung = new SvelteMap<string, number>()
   /** Mounts so far, across every pane: an epoch is never given twice. */
   private epochs = 0
   /** Notes held by keys bound with `hold`, and the pedal that keeps them ringing. */
@@ -553,6 +555,7 @@ export class PluginHost {
     (pane, note) => {
       const played = this.synth.start(pane, note)
       if (played !== null) this.sounded.set(pane, (this.sounded.get(pane) ?? 0) + 1)
+      this.strung.set(pane, this.synth.strungNotes(pane))
       return played
     },
     (played) => this.synth.release(played),
@@ -944,6 +947,7 @@ export class PluginHost {
   sound(pane: string, notes: readonly SoundNote[]): void {
     const played = this.synth.play(pane, notes)
     if (played > 0) this.sounded.set(pane, (this.sounded.get(pane) ?? 0) + played)
+    this.strung.set(pane, this.synth.strungNotes(pane))
     const latency = this.synth.latency()
     if (latency !== this.env.latency) this.setEnv({ latency })
   }
@@ -956,6 +960,7 @@ export class PluginHost {
   /** The pane's sustain pedal, for the notes its keys hold. */
   sustain(pane: string, on: boolean): void {
     this.held.sustain(pane, on)
+    this.synth.pedal(pane, on)
   }
 
   /** A pane's view was mounted in a worker again: its canvases are made anew. */

@@ -148,6 +148,7 @@ const openSettings = () => ui.openSettings('plugins')
   data-plugin={id}
   data-status={entry?.status ?? 'missing'}
   data-notes={plugins.sounded.get(paneId) ?? 0}
+  data-strings={plugins.strung.get(paneId) ?? 0}
 >
   {#if listening}
     <!-- Anchored to the top of the view, not of the content: a scrolled pane still shows it. -->

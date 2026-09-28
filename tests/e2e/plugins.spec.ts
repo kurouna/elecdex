@@ -397,6 +397,14 @@ test('a plugin draws on its canvas, and has the keys of its pane only while it i
     await expect(pane.getByText('down KeyA true')).toBeVisible()
     await expect(pane.getByText('up KeyA true')).toBeVisible()
     await expect(pane).toHaveAttribute('data-notes', '1')
+    // The piano is its physical strings once the audio thread has loaded them, which the
+    // page's CSP must allow; until then the recipe plays it.
+    await expect
+      .poll(async () => {
+        await page.keyboard.press('a')
+        return Number(await pane.getAttribute('data-strings'))
+      })
+      .toBeGreaterThan(0)
     await page.keyboard.press('Shift+B')
     await expect(pane.getByText('down KeyB shift true')).toBeVisible()
     // A chord with Ctrl stays the app's, and Tab still moves the keyboard on.

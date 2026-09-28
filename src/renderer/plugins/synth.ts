@@ -1,6 +1,8 @@
 import { contextTimeFor, midiToHz, type SoundNote } from '@shared/plugin-sound'
 import { PLUGIN_LIMITS, TokenBucket } from '@shared/plugins'
-import { type Kit, noiseBuffer, type Played, pianoWave, VOICES } from './voices.ts'
+import { PianoHall, type PianoStrings } from './piano/strings.ts'
+import pianoWorklet from './piano/worklet.ts?worker&url'
+import { type Kit, noiseBuffer, type Played, pianoWave, VOICES, type VoiceNote } from './voices.ts'
 
 /**
  * The plugins' synthesiser (docs/plugins.md section 13): what a plugin's ctx.sound plays,
@@ -12,6 +14,10 @@ import { type Kit, noiseBuffer, type Played, pianoWave, VOICES } from './voices.
  * queue is looked at on a short timer that runs only while something waits in it; a
  * sequencer needs the audio clock's precision, which the frame loop cannot give. The
  * context sleeps once nothing has played for a while, so a quiet game costs nothing.
+ *
+ * The piano is the one voice not built of nodes per note: it is a physical model of strings
+ * on the audio thread (piano/, section 13.8), one instrument per pane, played through the
+ * recipe in voices.ts only until the worklet has loaded, or where it cannot.
  */
 
 const LOOKAHEAD_MS = 250
@@ -29,6 +35,8 @@ interface Owner {
   gain: GainNode
   queue: SoundNote[]
   budget: TokenBucket
+  /** The pane's piano strings, made on its first piano note once the hall is ready. */
+  strings: PianoStrings | null
 }
 
 interface Sounding {
@@ -53,9 +61,19 @@ export class Synth {
    */
   private awake = false
   private readonly create: () => AudioContext
+  private readonly pianoModule: string | null
+  private hall: PianoHall | null = null
+  /** Owners whose sustain pedal is down, kept apart from their sound, which may not exist yet. */
+  private readonly pedals = new Set<string>()
+  /** Piano notes each owner's strings have played, rather than the recipe: for the tests. */
+  private readonly strung = new Map<string, number>()
 
-  constructor(create: () => AudioContext = () => new AudioContext({ latencyHint: 'interactive' })) {
+  constructor(
+    create: () => AudioContext = () => new AudioContext({ latencyHint: 'interactive' }),
+    pianoModule: string | null = pianoWorklet,
+  ) {
     this.create = create
+    this.pianoModule = pianoModule
   }
 
   /** Plays an owner's notes: those due soon at once, the rest when due. Returns how many. */
@@ -109,8 +127,19 @@ export class Synth {
     if (this.ac !== null) played.release(this.ac.currentTime)
   }
 
+  /** An owner's sustain pedal, as the piano's strings hear it. */
+  pedal(owner: string, on: boolean): void {
+    if (this.pedals.has(owner) === on) return
+    if (on) this.pedals.add(owner)
+    else this.pedals.delete(owner)
+    const strings = this.owners.get(owner)?.strings
+    if (strings && this.ac !== null) strings.pedal(on, this.ac.currentTime)
+  }
+
   /** Silences an owner: what sounds is cut short, what waits is dropped. */
   stop(owner: string): void {
+    // As the host's held notes forget the pedal (held.ts), so do the strings.
+    this.pedals.delete(owner)
     const o = this.owners.get(owner)
     const ac = this.ac
     if (o === undefined || ac === null) return
@@ -118,8 +147,14 @@ export class Synth {
     const at = ac.currentTime
     o.gain.gain.setTargetAtTime(0, at, 0.01)
     for (const s of this.sounding) if (s.owner === owner) s.played.stop(at)
+    o.strings?.silence()
     this.sounding = this.sounding.filter((s) => s.owner !== owner)
     setTimeout(() => o.gain.disconnect(), 250)
+  }
+
+  /** Piano notes an owner's strings have played (the rest went to the recipe). */
+  strungNotes(owner: string): number {
+    return this.strung.get(owner) ?? 0
   }
 
   /** Milliseconds from a note starting to it being heard; 0 before anything has played. */
@@ -147,6 +182,9 @@ export class Synth {
         this.ac = ac
         this.master = master
         this.kit = { ac, noise: noiseBuffer(ac), piano: pianoWave(ac) }
+        if (this.pianoModule !== null && ac.audioWorklet !== undefined) {
+          this.hall = new PianoHall(ac, this.pianoModule)
+        }
       } catch {
         this.failed = true
         return null
@@ -169,6 +207,7 @@ export class Synth {
         gain,
         queue: [],
         budget: new TokenBucket(VOICE_BURST, VOICES_PER_SECOND * 60, performance.now()),
+        strings: null,
       }
       this.owners.set(id, o)
     }
@@ -190,26 +229,38 @@ export class Synth {
           ? { contextTime: stamp.contextTime, performanceTime: stamp.performanceTime }
           : null,
     })
-    let out: AudioNode = o.gain
-    if (note.pan !== 0) {
-      const panner = ac.createStereoPanner()
-      panner.pan.value = note.pan
-      panner.connect(o.gain)
-      out = panner
-    }
     this.makeRoom(ac.currentTime)
-    const played = VOICES[note.voice](
-      { ...kit, out },
-      {
-        freq: midiToHz(note.pitch),
-        pitch: note.pitch,
-        start,
-        end: note.length === null ? null : start + note.length / 1000,
-        level: note.level,
-      },
-    )
+    const voiced: VoiceNote = {
+      freq: midiToHz(note.pitch),
+      pitch: note.pitch,
+      start,
+      end: note.length === null ? null : start + note.length / 1000,
+      level: note.level,
+    }
+    const strings = note.voice === 'piano' ? this.strings(owner, o) : null
+    if (strings !== null) this.strung.set(owner, (this.strung.get(owner) ?? 0) + 1)
+    const played =
+      strings !== null
+        ? strings.play(voiced, note.pan)
+        : VOICES[note.voice]({ ...kit, out: this.panned(ac, o, note.pan) }, voiced)
     this.sounding.push({ owner, played })
     return played
+  }
+
+  private panned(ac: AudioContext, o: Owner, pan: number): AudioNode {
+    if (pan === 0) return o.gain
+    const panner = ac.createStereoPanner()
+    panner.pan.value = pan
+    panner.connect(o.gain)
+    return panner
+  }
+
+  private strings(owner: string, o: Owner): PianoStrings | null {
+    if (o.strings === null && this.hall?.ready) {
+      o.strings = this.hall.instrument(o.gain)
+      if (this.pedals.has(owner) && this.ac !== null) o.strings?.pedal(true, this.ac.currentTime)
+    }
+    return o.strings
   }
 
   /** Forgets voices that have ended, and cuts the oldest when too many still sound. */
