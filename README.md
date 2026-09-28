@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.17 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.18 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -708,7 +708,7 @@ weather and calendar.
   empties the list and the clipboard with it. Text only: an image or files on the clipboard are
   not kept. The pane learns of a copy by seeing the clipboard's text change, so the same text
   copied twice with nothing in between is one copy.
-  *Unreleased:* behind the pane's **snippets** switch are the texts you chose to keep: **SNIP** on an entry
+  Behind the pane's **snippets** switch are the texts you chose to keep: **SNIP** on an entry
   keeps it, formatting and all (a ★ marks it from then on), and **+ NEW** writes one by hand, with
   an optional name. **COPY** puts a snippet on the clipboard without adding it to the history.
   Drag a snippet by its number (or Alt+↑ ↓) to move it, **EDIT** or F2 to change it - a new text
@@ -808,7 +808,7 @@ folder comes with a **pomodoro timer** (`examples/plugins/pomodoro` in this repo
 sessions, short breaks and a long break every few rounds, with a VFD meter, a chime and a
 notification when a phase ends, carrying on across restarts.
 
-**KEYSTREAM** (`examples/plugins/keystream`, *unreleased*; install it from its folder) is a rhythm
+**KEYSTREAM** (`examples/plugins/keystream`; install it from its folder) is a rhythm
 game and the sample for the plugin API's second version: letters fall down lanes that stand over
 the keys that play them, and typing each as it reaches the line plays the melody while the game
 plays the band. The home row is the white keys and the row above the black ones - the keyboard's
@@ -850,7 +850,7 @@ use its own sign-in session for a site, keep running with no pane open, notify -
 the first run and again if a plugin later asks for more. A plugin runs in a Web Worker of its own,
 with no access to the page, your files or the network, and draws only through blocks the app
 renders in the theme (text, numbers, meters, charts, tables, lists, buttons) - or, from API version
-2 (*unreleased*), on a canvas of its own in the worker. Version 2 may also ask for the keys pressed while its pane
+2, on a canvas of its own in the worker. Version 2 may also ask for the keys pressed while its pane
 has the focus (never with Ctrl or Alt, and a KEYS lamp shows when it has them) and for sound through
 elecdex's synthesiser. A plugin that stops
 answering is stopped without holding up the app. The API and the rules are in
