@@ -1,45 +1,27 @@
 import type { KeyPress, Note, SettingValues, ViewContext, Voice } from '../elecdex-plugin'
-import { barAt, buildChart, type Chart, LEVELS, type Level, openingBars } from './chart'
-import { starsOf } from './difficulty'
-import { drawLanes, drawNotes, type FieldView, leadTime } from './draw/field'
+import { drawLanes, leadTime } from './draw/field'
 import { drawFree } from './draw/free'
 import { Effects } from './draw/fx'
-import { drawHud } from './draw/hud'
 import { drawKeyboard } from './draw/keys'
 import { type Layout, layoutOf } from './draw/layout'
-import { drawMenu, type LevelRow, type MenuList } from './draw/menu'
-import { MenuMotion } from './draw/menu-motion'
-import {
-  countWord,
-  drawConnect,
-  drawCount,
-  drawInstrument,
-  drawLoading,
-  drawPause,
-  INSTRUMENT_MS,
-  LOAD_MS,
-} from './draw/overlays'
+import { drawConnect, drawInstrument, INSTRUMENT_MS } from './draw/overlays'
 import { type Paint, paintOf } from './draw/paint'
-import { drawPanels, type LogLine } from './draw/panels'
-import { drawResult, EXIT_MS, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
-import { fanfare } from './fanfare'
+import { drawResult, EXIT_MS, REVEAL_MS, type ResultView } from './draw/result'
 import { FrameLead } from './frame-lead'
 import { FreePlay, type FreeSaved, STRENGTHS } from './free'
-import { isShelf, onShelf, SHELVES, type Shelf, settle, stepRow, stepShelf } from './genres'
 import { INSTRUMENTS, instrumentOfKey, instrumentOfVoice, validInstrument } from './instruments'
-import { rankOf, scoreOf } from './judge'
-import { keyOf, labelOf, NOTE_KEYS } from './keyboard'
-import { readSong, type Score } from './notation'
-import { PreviewPlayer } from './preview'
-import { bestOf, submit } from './records'
-import { loopLength, nextWindow, notesBetween } from './schedule'
-import { type Outcome, Session } from './session'
-import { SONGS } from './songs/index'
+import { keyOf, NOTE_KEYS } from './keyboard'
+import { MenuController, type MenuSaved, playCue } from './menu-controller'
+import { PlayController } from './play-controller'
+import { loopLength } from './schedule'
 import { wordsFor } from './text'
+import { Tracks } from './tracks'
 
 /**
- * One pane of the game: the menu, a track loading, playing and paused, and its result - and
- * FREE mode (free.ts), the keyboard as an instrument, which the menu lists after the tracks.
+ * One pane of the game: the menu (menu-controller.ts), a track loading, playing and paused
+ * (play-controller.ts), and its result - and FREE mode (free.ts), the keyboard as an
+ * instrument, which the menu lists after the tracks. This holds which screen is up, sends
+ * the keys to it, and draws it.
  *
  * Everything is drawn on one canvas block. The view draws only while something moves - a
  * track playing, a word fading, a key's light going out - and stops the moment nothing
@@ -53,140 +35,67 @@ export interface Settings extends SettingValues {
   guide: boolean
 }
 
-type Phase = 'menu' | 'loading' | 'play' | 'result' | 'free'
+/** A track loading and playing are one screen: PlayController tells the two apart. */
+type Phase = 'menu' | 'play' | 'result' | 'free'
 
-interface Saved {
-  /** A track's id, or 'free' for FREE PLAY. */
-  song?: string
-  level?: Level
+interface Saved extends MenuSaved {
   speed?: number
-  /** The menu's tab. */
-  shelf?: Shelf
   /** The instrument the keys play, by its voice. */
   instrument?: string
-  /** Whether the menu plays the chosen track; on unless Space turned it off. */
-  preview?: boolean
   free?: FreeSaved
 }
 
 const SURFACE = 'screen'
-const RESUME_MS = 1500
 const MENU_KEY_LENGTH = 520
-/** Notes to a sound.play: under the host's limit of 4096, which a window stays well within. */
-const CHUNK = 4000
-
-/** The tab a key asks for: the left arrow or < for the one before, the right or > after. */
-function shelfFor(code: string, shelf: Shelf): Shelf | null {
-  if (code === 'Comma' || code === 'ArrowLeft') return stepShelf(shelf, -1)
-  if (code === 'Period' || code === 'ArrowRight') return stepShelf(shelf, 1)
-  return null
-}
-
-/** The level a key moves to on the levels' panel: up or left easier, down or right harder. */
-const LEVEL_STEP: Readonly<Record<string, 1 | -1>> = {
-  ArrowUp: -1,
-  ArrowLeft: -1,
-  ArrowDown: 1,
-  ArrowRight: 1,
-}
-
-/** The menu's small sounds, at a volume: a tick, a blip, and two rising for a start. */
-const CUES: Readonly<Record<'move' | 'switch' | 'choose', (v: number, now: number) => Note[]>> = {
-  // A short breath of noise: the cursor sweeping past, not a click.
-  move: (v) => [{ voice: 'openhat', length: 70, level: 0.08 * v }],
-  switch: (v) => [{ voice: 'chip', pitch: 84, length: 45, level: 0.14 * v }],
-  choose: (v, now) => [
-    { voice: 'chip', pitch: 84, length: 50, level: 0.18 * v },
-    { voice: 'chip', pitch: 96, at: now + 70, length: 110, level: 0.18 * v },
-  ],
-}
 
 export function startGame(ctx: ViewContext<Settings, unknown>): () => void {
   return new Game(ctx).start()
 }
 
 class Game {
-  private readonly ctx: ViewContext<Settings, unknown>
-  private readonly scores: Score[]
-  private readonly charts = new Map<string, Chart>()
-  private readonly fx = new Effects()
+  readonly ctx: ViewContext<Settings, unknown>
+  readonly tracks: Tracks
+  readonly fx = new Effects()
+  private readonly menu: MenuController
+  private readonly play: PlayController
+  private readonly free: FreePlay
   private phase: Phase = 'menu'
-  private selected = 0
-  private level: Level = 'normal'
-  private speed = 5
-  private session: Session | null = null
-  /** When the phase began: the boot log and the result reveal run from it. */
-  private phaseAt = 0
-  private resumeAt: number | null = null
+  /** When the result came up: its reveal runs from it. */
+  private resultAt = 0
   private result: ResultView | null = null
-  private layout: Layout | null = null
   private stopFrames: (() => void) | null = null
   /** How far ahead of a frame's time what moves is drawn: the frame is shown that much later. */
   private readonly frames = new FrameLead()
-  /** What was typed this play, for the log beside the field. */
-  private log: LogLine[] = []
-  /** The song time up to which what the game plays has been sent to the host. */
-  private sentTo = Number.NEGATIVE_INFINITY
-  private readonly free: FreePlay
-  /** Each tab's rows - its tracks by their place in the list, then FREE PLAY - and the tabs. */
-  private readonly shelves: ReadonlyMap<Shelf, readonly number[]>
-  private readonly tabs: readonly { name: string; count: number }[]
-  /** The menu's tab, and the choice it had before the last change of tab. */
-  private shelf: Shelf = 'all'
-  private beforeSelected = 0
-  private readonly motion = new MenuMotion()
-  /** A row was chosen and blinks before it starts. */
-  private starting = false
-  private readonly stars = new WeakMap<Chart, number>()
-  /** The track under the cursor, heard once it rests there. */
-  private readonly preview: PreviewPlayer
   /** A key pressed on the result: its hint blinks and the screen closes before it acts. */
   private leaving: { to: 'menu' | 'retry'; at: number } | null = null
-  /** Choosing a track, or its level on the panel opened over the list. */
-  private stage: 'tracks' | 'levels' = 'tracks'
   /** The instrument the keys play, by its place in INSTRUMENTS, and when it was last picked. */
   private instrument = 0
   private instrumentAt = Number.NEGATIVE_INFINITY
-  private previewOn = true
 
   constructor(ctx: ViewContext<Settings, unknown>) {
     this.ctx = ctx
-    this.scores = SONGS.map(readSong).filter((score) => {
-      if (score.problems.length > 0) ctx.log(`${score.source.id}: ${score.problems.join('; ')}`)
-      return score.problems.length === 0
-    })
-    const genres = this.scores.map((score) => score.source.genre)
-    this.shelves = new Map(
-      SHELVES.map((shelf) => [shelf, [...onShelf(genres, shelf), this.scores.length]]),
-    )
-    this.tabs = SHELVES.map((s) => ({ name: s.toUpperCase(), count: this.shelfRows(s).length - 1 }))
+    this.tracks = new Tracks((line) => ctx.log(line))
+    const host = {
+      ctx,
+      tracks: this.tracks,
+      fx: this.fx,
+      volume: () => this.volume,
+      lead: () => this.lead,
+      start: (now: number) => this.startChosen(now),
+    }
+    const saved = ctx.state.get<Saved>() ?? {}
+    this.menu = new MenuController(host, saved)
+    this.play = new PlayController(host, saved.speed)
     this.free = new FreePlay(
       ctx,
-      (index) => this.chartOf(index, 'normal'),
-      this.scores.length,
+      (index) => this.tracks.chartOf(index, 'normal'),
+      this.tracks.count,
       () => this.lead,
     )
-    this.preview = new PreviewPlayer({
-      play: (notes) => ctx.sound.play(notes),
-      stop: () => ctx.sound.stop(),
-    })
-    const saved = ctx.state.get<Saved>() ?? {}
     this.free.restore(saved.free)
     // Kept in the pane (before it was, FREE PLAY had one of its own); key 1's when nothing
-    // valid is kept - written back below, once the rest is in place.
+    // valid is kept - written back at once, leaving the rest of what was kept.
     this.instrument = instrumentOfVoice(saved.instrument ?? saved.free?.tone)
-    this.selected =
-      saved.song === 'free'
-        ? this.scores.length
-        : Math.max(
-            0,
-            this.scores.findIndex((s) => s.source.id === saved.song),
-          )
-    if (saved.level !== undefined && LEVELS.includes(saved.level)) this.level = saved.level
-    if (typeof saved.speed === 'number') this.speed = Math.min(10, Math.max(1, saved.speed))
-    if (isShelf(saved.shelf)) this.shelf = saved.shelf
-    if (saved.preview === false) this.previewOn = false
-    this.selected = settle(this.shelfRows(this.shelf), this.selected)
     if (saved.instrument !== this.lead) this.save()
   }
 
@@ -201,10 +110,10 @@ class Game {
         if (ctx.visible) return
         this.pause(performance.now())
         this.free.stopBacking()
-        this.preview.stop()
+        this.menu.silence()
       }),
       // The preview is sent a few seconds ahead; this keeps it going without drawing.
-      ctx.every(1000, () => this.previewTick(performance.now())),
+      ctx.every(1000, () => this.menu.previewTick(performance.now(), this.phase === 'menu')),
       ctx.on('settings', () => {
         this.bindKeys()
         this.wake()
@@ -212,8 +121,7 @@ class Game {
       ctx.on('key', (key) => this.onKey(key)),
     ]
     this.bindKeys()
-    this.motion.shown(performance.now())
-    this.preview.rest(performance.now())
+    this.menu.shown(performance.now())
     // Which instrument the keys play, shown as the keyboard comes to the game (onFocus).
     if (ctx.keys.focused) this.instrumentAt = performance.now()
     return () => {
@@ -233,7 +141,8 @@ class Game {
       else this.fx.release(key.code, key.at)
     }
     // The number row picks the instrument on every screen but the loading one.
-    const instrument = key.down && this.phase !== 'loading' ? instrumentOfKey(key.code) : null
+    const loading = this.phase === 'play' && this.play.loading
+    const instrument = key.down && !loading ? instrumentOfKey(key.code) : null
     if (instrument !== null) this.pick(instrument, key.at)
     // FREE mode plays keys as held, so it hears them come up too; elsewhere only a press acts.
     else if (key.down || this.phase === 'free') this.act(key)
@@ -242,41 +151,23 @@ class Game {
 
   /**
    * An instrument picked: the keys play it at once, the band's next window plays the melody's
-   * guide on it, its name shows over the keyboard, and on the menu it is heard - a rising
-   * chord - with the preview starting over on it a moment later.
+   * guide on it, its name shows over the keyboard, and on the menu it is heard.
    */
   private pick(index: number, at: number): void {
     this.instrument = validInstrument(index)
     this.instrumentAt = at
     this.bindKeys()
     this.save()
-    if (this.phase !== 'menu' || this.starting) return
-    this.preview.rest(at)
-    const v = this.volume
-    if (v === 0) return
-    const voice = this.lead
-    this.ctx.sound.play(
-      [60, 64, 67, 72].map((pitch, i) => ({
-        voice,
-        pitch,
-        at: at + i * 90,
-        length: 280,
-        level: 0.55 * v,
-      })),
-    )
+    if (this.phase === 'menu') this.menu.picked(at)
   }
 
   private act(key: KeyPress): void {
     switch (this.phase) {
       case 'menu':
-        this.menuKey(key.code, key.at)
-        return
-      case 'loading':
-        if (key.code === 'Escape') this.toMenu()
+        if (this.menu.key(key.code, key.at)) this.save()
         return
       case 'play':
-        if (this.session?.paused) this.pausedKey(key.code, key.at)
-        else this.playKey(key)
+        this.playKey(key)
         return
       case 'result':
         if (key.code === 'Enter' || key.code === 'Escape') this.leave('menu', key.at)
@@ -290,121 +181,78 @@ class Game {
     }
   }
 
-  /**
-   * A key on the menu. What it changes is kept in the pane; a key the menu has no use for
-   * (a note played on the keyboard) writes nothing.
+  private playKey(key: KeyPress): void {
+    const ask = this.play.key(key)
+    if (ask === 'menu') this.toMenu()
+    else if (ask === 'retry') this.load(key.at)
+    else if (ask === 'changed') this.save()
+  }
+
+  private onFocus(): void {
+    const now = performance.now()
+    if (!this.ctx.keys.focused) {
+      this.pause(now)
+      // The band stops with the keyboard gone: nobody is playing over it.
+      this.free.stopBacking()
+      this.menu.silence()
+    } else {
+      this.menu.focused(now)
+      this.instrumentAt = now
+    }
+    this.wake()
+  }
+
+  /*
+   * Screens.
    */
-  private menuKey(code: string, at: number): void {
-    // A chosen row blinks before it starts; nothing else is taken meanwhile.
-    if (this.starting) return
-    const changed =
-      code === 'Space'
-        ? this.togglePreview(at)
-        : this.stage === 'levels'
-          ? this.levelsKey(code, at)
-          : this.tracksKey(code, at)
-    if (changed) this.save()
-  }
 
-  /** Space on the menu, on either stage: the chosen track heard, or not; kept in the pane. */
-  private togglePreview(at: number): true {
-    this.previewOn = !this.previewOn
-    if (this.previewOn) this.preview.rest(at)
-    else this.preview.stop()
-    this.cue('switch')
-    return true
-  }
-
-  /** Choosing a track: up and down the rows, left and right the tabs, Enter its levels. */
-  private tracksKey(code: string, at: number): boolean {
-    const shelf = shelfFor(code, this.shelf)
-    if (shelf !== null) return this.toShelf(shelf, at)
-    if (code === 'ArrowUp' || code === 'ArrowDown') {
-      this.moveRow(code === 'ArrowUp' ? -1 : 1, at)
-      return true
-    }
-    if (code !== 'Enter') return false
-    // FREE PLAY has no levels: it starts at once.
-    if (this.selected === this.scores.length) this.choose(at)
-    else this.openLevels(at)
-    return true
-  }
-
-  /** Choosing its level: the arrows the level, Enter to start, Escape back to the tracks. */
-  private levelsKey(code: string, at: number): boolean {
-    const by = LEVEL_STEP[code]
-    if (by !== undefined) return this.shiftLevel(by, at)
-    if (code === 'Enter') this.choose(at)
-    else if (code === 'Escape' || code === 'Backspace') this.closeLevels(at)
-    else return false
-    return true
-  }
-
-  private openLevels(at: number): void {
-    this.stage = 'levels'
-    this.motion.opened(at)
-    this.cue('switch')
-  }
-
-  private closeLevels(at: number): void {
-    this.stage = 'tracks'
-    this.motion.closed(at)
-    this.cue('switch')
-  }
-
-  /** The rows a tab shows: its tracks, by their place in the list, then FREE PLAY. */
-  private shelfRows(shelf: Shelf): readonly number[] {
-    return this.shelves.get(shelf) ?? [this.scores.length]
-  }
-
-  /** Answers whether the tab changed. */
-  private toShelf(shelf: Shelf, at: number): boolean {
-    if (shelf === this.shelf) return false
-    this.motion.tab(at, SHELVES.indexOf(this.shelf), this.shelf)
-    this.beforeSelected = this.selected
-    this.shelf = shelf
-    this.selected = settle(this.shelfRows(shelf), this.selected)
-    this.preview.rest(at)
-    this.cue('switch')
-    return true
-  }
-
-  private moveRow(by: 1 | -1, at: number): void {
-    this.selected = stepRow(this.shelfRows(this.shelf), this.selected, by)
-    this.motion.moved(at)
-    this.preview.rest(at)
-    this.cue('move')
-  }
-
-  /** A row chosen: it blinks, and then the track loads or FREE PLAY opens (frame). */
-  private choose(at: number): void {
-    this.preview.stop()
-    this.cue('choose')
-    if (this.ctx.theme.reducedMotion) {
-      this.startChosen(at)
-      return
-    }
-    this.starting = true
-    this.motion.chosen(at)
-  }
-
+  /** The chosen row's blink is over: the track loads, or FREE PLAY opens. */
   private startChosen(now: number): void {
-    this.starting = false
-    if (this.selected === this.scores.length) this.enterFree()
+    if (this.menu.free) this.enterFree()
     else this.load(now)
   }
 
-  /** The menu's small sounds: a tick for a row, a blip for a tab or a level, two for a start. */
-  private cue(kind: 'move' | 'switch' | 'choose'): void {
-    const v = this.volume
-    if (v === 0) return
-    this.ctx.sound.play(CUES[kind](v, performance.now()))
+  /** The chosen track, at the chosen level: its boot log runs, then the count, then the song. */
+  private load(now: number): void {
+    const chart = this.tracks.chartOf(this.menu.selected, this.menu.level)
+    if (chart === null) return
+    this.result = null
+    this.leaving = null
+    this.fx.clear()
+    this.phase = 'play'
+    this.play.load(this.menu.selected, chart, now)
+    this.bindKeys()
+  }
+
+  private enterFree(): void {
+    this.ctx.sound.stop()
+    this.play.clear()
+    this.fx.clear()
+    this.phase = 'free'
+    this.free.enter()
+  }
+
+  private toMenu(): void {
+    if (this.phase === 'free') this.free.leave()
+    this.ctx.sound.stop()
+    this.play.clear()
+    this.phase = 'menu'
+    this.leaving = null
+    this.menu.shown(performance.now())
+    this.fx.clear()
+    this.bindKeys()
+  }
+
+  private pause(now: number): void {
+    if (this.phase !== 'play') return
+    this.play.pause(now)
+    this.wake()
   }
 
   /** A key on the result: its hint blinks and the screen closes, then it acts (frame). */
   private leave(to: 'menu' | 'retry', at: number): void {
     if (this.leaving !== null) return
-    this.cue('choose')
+    playCue(this.ctx, 'choose', this.volume)
     if (this.ctx.theme.reducedMotion) {
       this.left(to, at)
       return
@@ -418,258 +266,6 @@ class Game {
     else this.load(now)
   }
 
-  /** The chosen track, heard on the menu while the pane has the keys and sound is on. */
-  private previewTick(now: number): void {
-    const track = this.selected < this.scores.length ? this.selected : null
-    const listening =
-      this.phase === 'menu' &&
-      this.previewOn &&
-      !this.starting &&
-      this.ctx.keys.focused &&
-      this.volume > 0
-    const chart = listening && track !== null ? this.chartOf(track, 'normal') : null
-    const chosen = chart === null || track === null ? null : { index: track, chart }
-    this.preview.tick(now, chosen, { lead: this.lead, volume: this.volume })
-  }
-
-  private enterFree(): void {
-    this.ctx.sound.stop()
-    this.session = null
-    this.fx.clear()
-    this.phase = 'free'
-    this.free.enter()
-  }
-
-  /** Answers whether the level changed: at either end, a step further changes nothing. */
-  private shiftLevel(by: number, at: number): boolean {
-    const from = LEVELS.indexOf(this.level)
-    this.level = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, from + by))] ?? this.level
-    if (LEVELS.indexOf(this.level) === from) return false
-    this.motion.level(at)
-    this.motion.panelLevel(at, from)
-    this.cue('switch')
-    return true
-  }
-
-  private playKey(key: KeyPress): void {
-    const session = this.session
-    if (session === null) return
-    if (key.code === 'Escape' || key.code === 'Space') this.pause(key.at)
-    else if (key.code === 'ArrowUp' || key.code === 'ArrowDown') {
-      this.speed = Math.min(10, Math.max(1, this.speed + (key.code === 'ArrowUp' ? 1 : -1)))
-      this.save()
-    } else if (keyOf(key.code)?.pitch != null) {
-      const outcome = session.press(key.code, key.at)
-      if (outcome !== null) this.show(outcome, key.at)
-    }
-  }
-
-  private pausedKey(code: string, at: number): void {
-    if (code === 'Escape' || code === 'Space' || code === 'Enter') this.resume(at)
-    else if (code === 'KeyR') this.load(at)
-    else if (code === 'KeyQ') this.toMenu()
-  }
-
-  private onFocus(): void {
-    if (!this.ctx.keys.focused) {
-      this.pause(performance.now())
-      // The band stops with the keyboard gone: nobody is playing over it.
-      this.free.stopBacking()
-      this.preview.stop()
-    } else {
-      this.preview.rest(performance.now())
-      this.instrumentAt = performance.now()
-    }
-    this.wake()
-  }
-
-  /*
-   * Play.
-   */
-
-  private chartOf(index: number, level: Level): Chart | null {
-    const score = this.scores[index]
-    if (score === undefined) return null
-    const key = `${score.source.id}:${level}`
-    let chart = this.charts.get(key)
-    if (chart === undefined) {
-      chart = buildChart(score, level)
-      this.charts.set(key, chart)
-    }
-    return chart
-  }
-
-  private get chart(): Chart | null {
-    return this.session?.chart ?? this.chartOf(this.selected, this.level)
-  }
-
-  /** A track chosen: the boot log runs, then the count, then the song. */
-  private load(now: number): void {
-    const chart = this.chartOf(this.selected, this.level)
-    if (chart === null) return
-    this.ctx.sound.stop()
-    this.session = null
-    this.result = null
-    this.leaving = null
-    this.resumeAt = null
-    this.fx.clear()
-    this.log = []
-    this.phase = 'loading'
-    this.phaseAt = now
-    this.bindKeys(chart.keyLength)
-    // A tick for each line of the boot log.
-    this.ctx.sound.play(
-      [0, 1, 2, 3].map((i) => ({
-        voice: 'hat',
-        at: now + 180 + i * 230,
-        level: 0.35 * this.volume,
-      })),
-    )
-  }
-
-  private begin(now: number): void {
-    const chart = this.chart
-    if (chart === null) return
-    this.session = new Session(chart, now - chart.start, this.ctx.settings.offset)
-    this.phase = 'play'
-    // The keyboard left, or the pane went out of sight, while the track loaded: it waits,
-    // paused before its count, rather than playing to no one.
-    if (!this.ctx.keys.focused || !this.ctx.visible) this.session.pause(now)
-    else this.schedule(this.session.songTime(now))
-  }
-
-  /** Sends what the game plays from a song time on, a window at a time (schedule.ts). */
-  private schedule(from: number): void {
-    this.sentTo = from
-    this.topUp(from)
-  }
-
-  /** Sends the next window once the song has come near the end of what was sent. */
-  private topUp(time: number): void {
-    const session = this.session
-    if (session === null || session.paused) return
-    const to = nextWindow(time, this.sentTo)
-    if (to === null) return
-    const notes = notesBetween(session.chart, this.sentTo, to, {
-      lead: this.lead,
-      volume: this.volume,
-      guide: this.ctx.settings.guide,
-      heardAt: (songTime) => session.heardAt(songTime),
-    })
-    this.sentTo = to
-    for (let i = 0; i < notes.length; i += CHUNK) this.ctx.sound.play(notes.slice(i, i + CHUNK))
-  }
-
-  private pause(now: number): void {
-    const session = this.session
-    if (this.phase !== 'play' || session === null || session.paused) return
-    session.pause(now)
-    this.resumeAt = null
-    this.ctx.sound.stop()
-    this.wake()
-  }
-
-  private resume(now: number): void {
-    const session = this.session
-    if (session === null || !this.ctx.keys.focused) return
-    // Paused before the song began: the count-in is the countdown, taken from its start
-    // again, rather than a count before a count.
-    const before = session.songTime(now) < 0
-    const from = before
-      ? session.resume(now, 0, session.chart.start)
-      : session.resume(now, RESUME_MS)
-    this.resumeAt = before ? null : now
-    this.schedule(from)
-  }
-
-  private toMenu(): void {
-    if (this.phase === 'free') this.free.leave()
-    this.ctx.sound.stop()
-    this.session = null
-    this.phase = 'menu'
-    this.starting = false
-    this.leaving = null
-    // Back from a track, the list: the next track is chosen before its level, as at first.
-    this.stage = 'tracks'
-    this.motion.shown(performance.now())
-    this.preview.rest(performance.now())
-    this.fx.clear()
-    this.bindKeys()
-  }
-
-  private finish(now: number): void {
-    const session = this.session
-    if (session === null) return
-    const tally = session.tally
-    const score = scoreOf(tally)
-    const rank = rankOf(score)
-    const previous = bestOf(session.chart.song.id, session.chart.level)?.score ?? null
-    const newRecord =
-      !tally.failed &&
-      submit(session.chart.song.id, session.chart.level, {
-        score,
-        rank,
-        maxChain: tally.maxChain,
-        fullChain: tally.counts.DROP === 0,
-      })
-    this.result = {
-      chart: session.chart,
-      index: this.selected,
-      tally,
-      score,
-      rank,
-      newRecord,
-      failed: tally.failed,
-      previous,
-      offset: this.ctx.settings.offset,
-    }
-    this.phase = 'result'
-    this.phaseAt = now
-    if (!tally.failed) {
-      const when = { rank: now + RANK_AT, record: now + RECORD_AT }
-      this.ctx.sound.play(fanfare(rank, newRecord, when, this.volume))
-      return
-    }
-    // The link goes down: the band stops, a cymbal and a low drum.
-    this.ctx.sound.stop()
-    this.ctx.sound.play([
-      { voice: 'crash', level: 0.5 * this.volume },
-      { voice: 'tom', pitch: 31, level: 0.8 * this.volume },
-    ])
-  }
-
-  /** What a key or the passing song did, lit where it happened. */
-  private show(outcome: Outcome, now: number): void {
-    this.remember(outcome)
-    const l = this.layout
-    const reduced = this.ctx.theme.reducedMotion
-    if (outcome.kind === 'stray') {
-      this.fx.mark(outcome.code, 'stray', now)
-      return
-    }
-    const key = keyOf(outcome.note.code)
-    if (key === undefined || l === null) return
-    if (outcome.kind === 'drop') {
-      this.fx.drop(l.keyX(key), now, l, reduced)
-      this.fx.mark(key.code, 'drop', now)
-      return
-    }
-    this.fx.hit(l.keyX(key), l.line, outcome.grade, outcome.delta, now, l, reduced)
-    this.fx.mark(key.code, 'hit', now)
-    const chain = this.session?.tally.chain ?? 0
-    if (chain > 0 && chain % 50 === 0) this.fx.milestone(now, reduced)
-  }
-
-  private remember(outcome: Outcome): void {
-    const code = outcome.kind === 'stray' ? outcome.code : outcome.note.code
-    const label = labelOf(this.ctx.keys.labels, code)
-    const line: LogLine =
-      outcome.kind === 'hit'
-        ? { label, grade: outcome.grade, delta: outcome.delta }
-        : { label, grade: outcome.kind === 'drop' ? 'DROP' : 'STRAY', delta: null }
-    this.log = [...this.log.slice(-59), line]
-  }
-
   /*
    * Frames.
    */
@@ -679,19 +275,19 @@ class Game {
   }
 
   private frame(now: number): void {
-    if (this.phase === 'loading' && now - this.phaseAt >= LOAD_MS) this.begin(now)
-    if (this.phase === 'menu' && this.starting && this.motion.blinked(now)) this.startChosen(now)
-    if (this.phase === 'menu') this.previewTick(now)
+    if (this.phase === 'play') {
+      const result = this.play.frame(now)
+      if (result !== null) {
+        this.result = result
+        this.phase = 'result'
+        this.resultAt = now
+      }
+    }
+    if (this.phase === 'menu') this.menu.frame(now)
     const leaving = this.leaving
     if (this.phase === 'result' && leaving && now - leaving.at >= EXIT_MS)
       this.left(leaving.to, now)
     if (this.phase === 'free') this.free.frame(now)
-    const session = this.session
-    if (this.phase === 'play' && session !== null) {
-      this.topUp(session.shownTime(now))
-      for (const outcome of session.advance(now)) this.show(outcome, now)
-      if (session.over(now)) this.finish(now)
-    }
     this.draw(now, this.frames.tick(now))
     if (this.moving(now)) return
     this.stopFrames?.()
@@ -699,11 +295,10 @@ class Game {
   }
 
   private moving(now: number): boolean {
-    if (this.phase === 'loading') return true
-    if (this.phase === 'play') return !(this.session?.paused ?? true) || this.fx.alive(now)
-    if (this.phase === 'result' && (now - this.phaseAt < REVEAL_MS || this.leaving)) return true
+    if (this.phase === 'play' && this.play.moving()) return true
+    if (this.phase === 'result' && (now - this.resultAt < REVEAL_MS || this.leaving)) return true
     if (this.phase === 'free' && this.free.moving()) return true
-    if (this.phase === 'menu' && this.menuMoving(now)) return true
+    if (this.phase === 'menu' && this.menu.moving(now)) return true
     if (now - this.instrumentAt < INSTRUMENT_MS) return true
     return this.fx.alive(now)
   }
@@ -718,29 +313,20 @@ class Game {
     if (surface === null) return
     const p = paintOf(surface, this.ctx.theme)
     const l = layoutOf(surface.w, surface.h)
-    this.layout = l
     p.g.clearRect(0, 0, p.w, p.h)
     const labels = this.ctx.keys.labels
-    if (this.phase === 'menu') this.drawMenu(p, l, now)
+    const instrument = this.instrumentShown
+    if (this.phase === 'menu') this.menu.draw(p, l, now, { instrument, speed: this.play.speed })
     else if (this.phase === 'free') this.drawFree(p, l, now, now + lead)
     else if (this.phase === 'result' && this.result !== null)
-      drawResult(p, l, this.result, now - this.phaseAt, labels, this.exitOf(now))
-    else this.drawPlay(p, l, now, now + lead)
+      drawResult(p, l, this.result, now - this.resultAt, labels, this.exitOf(now))
+    else this.play.draw(p, l, now, now + lead, instrument.name)
     const shift = this.phase === 'free' ? this.free.octave * 12 : 0
     drawKeyboard(p, l, labels, (code) => this.fx.light(code, now), shift)
     const picked = now - this.instrumentAt
-    if (picked < INSTRUMENT_MS) drawInstrument(p, l, this.instrumentShown, picked)
-    const playing = this.phase === 'play' && !(this.session?.paused ?? true)
+    if (picked < INSTRUMENT_MS) drawInstrument(p, l, instrument, picked)
+    const playing = this.phase === 'play' && this.play.running
     if (!this.ctx.keys.focused && !playing) drawConnect(p, l, wordsFor(this.ctx.locale).connect)
-  }
-
-  private menuMoving(now: number): boolean {
-    const track = this.selected < this.scores.length ? this.selected : null
-    return (
-      this.starting ||
-      this.motion.alive(now, this.ctx.theme.reducedMotion) ||
-      (this.previewOn && this.preview.waiting(now, track))
-    )
   }
 
   /** The result's way out, as far as it has gone: which hint blinks, and since when. */
@@ -749,82 +335,9 @@ class Game {
     return leaving ? { key: leaving.to === 'menu' ? 0 : 1, age: now - leaving.at } : null
   }
 
-  private starsOf(chart: Chart): number {
-    let stars = this.stars.get(chart)
-    if (stars === undefined) {
-      stars = starsOf(chart.notes)
-      this.stars.set(chart, stars)
-    }
-    return stars
-  }
-
-  /** A tab's rows as the menu draws them, with `chosen` - a place in the whole list - picked. */
-  private menuList(shelf: Shelf, chosen: number): MenuList {
-    const places = this.shelfRows(shelf).slice(0, -1)
-    const rows = places.flatMap((i) => {
-      const chart = this.chartOf(i, this.level)
-      if (chart === null) return []
-      const best = bestOf(chart.song.id, this.level)
-      return [{ chart, best, number: i + 1, stars: this.starsOf(chart) }]
-    })
-    const selected = chosen === this.scores.length ? rows.length : places.indexOf(chosen)
-    return { rows, selected: Math.max(0, selected) }
-  }
-
-  /** The chosen track's levels, as its panel lists them; null on FREE PLAY. */
-  private levelRows(): LevelRow[] | null {
-    if (this.selected >= this.scores.length) return null
-    const words = wordsFor(this.ctx.locale)
-    return LEVELS.flatMap((level) => {
-      const chart = this.chartOf(this.selected, level)
-      if (chart === null) return []
-      return [
-        {
-          level,
-          stars: this.starsOf(chart),
-          notes: chart.notes.length,
-          best: bestOf(chart.song.id, level),
-          note: words.levels[level],
-        },
-      ]
-    })
-  }
-
   private get instrumentShown(): { name: string; key: string } {
     const chosen = INSTRUMENTS[validInstrument(this.instrument)] ?? INSTRUMENTS[0]
     return { name: chosen?.name ?? '', key: chosen?.key ?? '' }
-  }
-
-  private drawMenu(p: Paint, l: Layout, now: number): void {
-    const labels = this.ctx.keys.labels
-    const chosen = this.chartOf(this.selected, this.level)
-    const opening = chosen
-      ? openingBars(chosen, 4).map((bar) => bar.map((code) => labelOf(labels, code)))
-      : []
-    const words = wordsFor(this.ctx.locale)
-    const frame = this.motion.frame(now, this.ctx.theme.reducedMotion)
-    const drawn = drawMenu(
-      p,
-      l,
-      {
-        stage: this.stage,
-        levels: this.levelRows(),
-        instrument: this.instrumentShown,
-        list: this.menuList(this.shelf, this.selected),
-        before: frame.tab ? this.menuList(this.motion.before, this.beforeSelected) : null,
-        tabs: this.tabs,
-        tab: SHELVES.indexOf(this.shelf),
-        level: this.level,
-        speed: this.speed,
-        note: words.layout,
-        opening,
-        free: words.free,
-        previewing: this.preview.index !== null && this.preview.index === this.selected,
-        preview: this.previewOn,
-      },
-      frame,
-    )
-    this.motion.remember(drawn)
   }
 
   /** `shown` is the moment the frame is seen, for the band's pulse; `now` for the rest. */
@@ -836,7 +349,7 @@ class Game {
     drawLanes(p, l, {
       chart,
       time: chart === null || loop === null ? 0 : loop % Math.max(1, loopLength(chart)),
-      lead: leadTime(this.speed),
+      lead: leadTime(this.play.speed),
       state: () => 'live',
       droppedAt: () => undefined,
       labels: this.ctx.keys.labels,
@@ -854,64 +367,13 @@ class Game {
         pedal: free.pedal,
         backing: free.backing?.index ?? null,
         cursor: free.cursor,
-        tracks: this.scores.map((s) => s.source.title),
+        tracks: this.tracks.scores.map((s) => s.source.title),
         trails: free.trails,
         holding: free.holding,
         played: free.played,
       },
       now,
     )
-  }
-
-  /** `shown` is the moment the frame is seen: the field stands where the song is then. */
-  private drawPlay(p: Paint, l: Layout, now: number, shown: number): void {
-    const chart = this.chart
-    if (chart === null) return
-    const session = this.session
-    drawHud(p, l, {
-      chart,
-      index: this.selected,
-      tally: session?.tally ?? null,
-      speed: this.speed,
-      instrument: this.instrumentShown.name,
-    })
-    const time = session?.shownTime(shown) ?? chart.start
-    const labels = this.ctx.keys.labels
-    const field: FieldView = {
-      chart,
-      time,
-      lead: leadTime(this.speed),
-      state: (i) => session?.stateOf(i) ?? 'live',
-      droppedAt: (i) => session?.droppedAt(i),
-      labels,
-    }
-    drawLanes(p, l, field)
-    drawPanels(p, l, {
-      log: this.log,
-      queue: (session?.next(24) ?? chart.notes.slice(0, 24)).map((n) => labelOf(labels, n.code)),
-      time,
-      duration: chart.duration,
-      bar: barAt(chart, time),
-      bars: chart.bars,
-    })
-    // The words stand behind the notes, which must never be hidden; while paused, neither moves.
-    if (!session?.paused) this.fx.drawWords(p, l, now, session?.tally.chain ?? 0)
-    drawNotes(p, l, field)
-    if (!session?.paused) this.fx.draw(p, l, now)
-    if (this.phase === 'loading') drawLoading(p, l, chart, this.selected, now - this.phaseAt)
-    else if (session?.paused) drawPause(p, l, this.ctx.keys.labels)
-    else if (session !== null) this.drawCounts(p, l, shown, session, chart)
-  }
-
-  /** The count-in before the song, and the count before a paused song goes on. */
-  private drawCounts(p: Paint, l: Layout, shown: number, session: Session, chart: Chart): void {
-    if (this.resumeAt !== null && shown - this.resumeAt < RESUME_MS) {
-      const left = RESUME_MS - (shown - this.resumeAt)
-      drawCount(p, l, String(Math.ceil(left / 500)), 500 - (left % 500))
-      return
-    }
-    const count = countWord(session.songTime(shown), -chart.clock.time(-1))
-    if (count !== null) drawCount(p, l, count.word, count.age)
   }
 
   /*
@@ -933,11 +395,12 @@ class Game {
    * notes are learnt, and a key there is never judged (the pause's own keys, R and Q, play
    * nothing). Only the moment it is bound in differs: a track's notes ring for about a beat.
    */
-  private bindKeys(length = this.session?.chart.keyLength ?? MENU_KEY_LENGTH): void {
+  private bindKeys(): void {
     if (this.phase === 'free') {
       this.free.bind()
       return
     }
+    const length = this.play.keyLength ?? MENU_KEY_LENGTH
     const note = (pitch: number): Note => ({
       voice: this.lead,
       pitch,
@@ -948,15 +411,12 @@ class Game {
   }
 
   private save(): void {
-    const song = this.scores[this.selected]?.source.id ?? 'free'
-    this.ctx.state.set({
-      song,
-      level: this.level,
-      speed: this.speed,
-      shelf: this.shelf,
+    const saved: Saved = {
+      ...this.menu.saved(),
+      speed: this.play.speed,
       instrument: this.lead,
-      preview: this.previewOn,
       free: this.free.saved(),
-    })
+    }
+    this.ctx.state.set(saved)
   }
 }

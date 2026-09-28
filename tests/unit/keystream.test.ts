@@ -30,7 +30,7 @@ import {
   readSong,
   type SongSource,
 } from '../../examples/plugins/keystream/notation'
-import { bestOf, bindRecords, submit } from '../../examples/plugins/keystream/records'
+import { bestOf, bestsOf, bindRecords, submit } from '../../examples/plugins/keystream/records'
 import { AHEAD_MS, nextWindow, notesBetween } from '../../examples/plugins/keystream/schedule'
 import { Session } from '../../examples/plugins/keystream/session'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
@@ -569,6 +569,13 @@ describe('records', () => {
     expect(bestOf('tiny', 'normal')).toEqual({ ...best, maxChain: 90 })
     expect(bestOf('tiny', 'hard')).toBeNull()
     expect(stored.get('records')).toMatchObject({ 'tiny:normal': { score: 900_000 } })
+    // Every level's at once, as the menu's row shows them.
+    submit('tiny', 'easy', { ...best, score: 990_000, rank: 'S' })
+    expect(bestsOf('tiny')).toEqual({
+      easy: { ...best, score: 990_000, rank: 'S' },
+      normal: { ...best, maxChain: 90 },
+      hard: null,
+    })
   })
 })
 

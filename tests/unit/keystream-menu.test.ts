@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { buildChart, type Chart, openingBars } from '../../examples/plugins/keystream/chart'
 import { busyness, REPEAT_WEIGHT, starsOf } from '../../examples/plugins/keystream/difficulty'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
-import { drawMenu, type MenuList, type MenuView } from '../../examples/plugins/keystream/draw/menu'
+import {
+  drawMenu,
+  type MenuList,
+  type MenuRow,
+  type MenuView,
+} from '../../examples/plugins/keystream/draw/menu'
 import {
   blinkLit,
   type MenuFrame,
@@ -50,11 +55,13 @@ const STILL: MenuFrame = {
   panelChoice: null,
 }
 
-function listOf(shelf: Shelf, chosen: number): MenuList {
+const NO_BESTS = { easy: null, normal: null, hard: null }
+
+function listOf(shelf: Shelf, chosen: number, bests: MenuRow['bests'] = NO_BESTS): MenuList {
   const places = onShelf(genres, shelf)
   const rows = places.flatMap((i) => {
     const chart = charts[i]
-    return chart ? [{ chart, best: null, number: i + 1, stars: starsFor(chart) }] : []
+    return chart ? [{ chart, bests, number: i + 1, stars: starsFor(chart) }] : []
   })
   return { rows, selected: chosen === SONGS.length ? rows.length : places.indexOf(chosen) }
 }
@@ -275,9 +282,13 @@ describe('the menu', () => {
   })
 
   it('chooses no level under the list, only names the one its figures are, and the instrument', () => {
-    const { texts } = menu(mountain, { w: 1600, h: 1000 })
+    const { texts, writes } = menu(mountain, { w: 1600, h: 1000 })
     expect(texts).not.toContain('LEVEL')
-    for (const chip of ['EASY', 'HARD']) expect(texts).not.toContain(chip)
+    // The levels are named only over the bests' columns, above the list.
+    const firstRow = writes.find((w) => SONGS.some((s) => s.title === w.text))?.y ?? 0
+    for (const chip of ['EASY', 'HARD']) {
+      expect(writes.filter((w) => w.text === chip).every((w) => w.y < firstRow - 10)).toBe(true)
+    }
     expect(texts).toContain('INSTRUMENT')
     expect(texts).toContain('GUITAR')
     expect(texts.some((t) => t.startsWith('NORMAL') && t.includes('NOTES'))).toBe(true)
@@ -306,7 +317,8 @@ describe('the menu', () => {
     for (let w = 480; w <= 1200; w += 4) {
       const texts = menu(mountain, { w, h: 1000 }).texts
       const at = texts.indexOf('MOUNTAIN KING')
-      const [style, , , tempo] = texts.slice(at + 1, at + 5)
+      // After the title: its three bests, its style, its length and its tempo.
+      const [style, , tempo] = texts.slice(at + 4, at + 7)
       shown.add(tempo ?? '')
       expect(['96→176 BPM', '96→176'], `${w}`).toContain(tempo)
       // With its unit, the style is whole; without it, the style is whole or all there is room for.
@@ -316,6 +328,64 @@ describe('the menu', () => {
     expect(shown).toEqual(new Set(['96→176 BPM', '96→176']))
     // A steady tempo keeps its unit, however narrow.
     expect(menu(index('overclock'), { w: 480, h: 1000 }).texts).toContain('172 BPM')
+  })
+
+  it('shows a track’s best on every level at once, in columns headed by the levels', () => {
+    // Found in use: with the level chosen after the track, one best on the row did not say
+    // which level it was.
+    const best = (score: number, rank: 'S' | 'A') => ({
+      score,
+      rank,
+      maxChain: 9,
+      fullChain: false,
+    })
+    const bests = { easy: best(981_200, 'S'), normal: null, hard: best(712_050, 'A') }
+    const drawn = (w: number, stage: MenuView['stage'] = 'tracks') =>
+      menu(mountain, { w, h: 1000 }, STILL, 'all', null, stage, {
+        list: listOf('all', mountain, bests),
+      }).writes
+    const row = (w: number) => {
+      const writes = drawn(w)
+      const at = writes.findIndex((x) => x.text === 'MOUNTAIN KING')
+      return writes.slice(at + 1, at + 4)
+    }
+    const heading = (w: number, names: string[]) =>
+      names.map((name) => drawn(w).find((x) => x.text === name))
+    const wide = row(1600)
+    expect(wide.map((x) => x.text)).toEqual(['S 981,200', '—', 'A 712,050'])
+    // Each best stands under its level's name: both right-aligned at the column's end.
+    expect(heading(1600, ['EASY', 'NORMAL', 'HARD']).map((x) => x?.x)).toEqual(wide.map((x) => x.x))
+    // Too narrow a pane for three scores: the ranks alone, under the levels' initials.
+    const narrow = row(700)
+    expect(narrow.map((x) => x.text)).toEqual(['S', '—', 'A'])
+    expect(heading(700, ['E', 'N', 'H']).map((x) => x?.x)).toEqual(narrow.map((x) => x.x))
+    // The levels' panel names its own levels: the heading goes while it is up.
+    expect(drawn(1600, 'levels').filter((x) => x.text === 'NORMAL')).toHaveLength(1)
+    // The details under the list name the level their best is on.
+    const details = (level: 'easy' | 'normal') =>
+      menu(mountain, { w: 1600, h: 1000 }, STILL, 'all', null, 'tracks', {
+        list: listOf('all', mountain, bests),
+        level,
+      }).texts.find((t) => t.includes('NOTES') && t.includes('LENGTH'))
+    expect(details('easy')).toMatch(/^EASY .*BEST S 981,200/)
+    expect(details('normal')).toMatch(/^NORMAL .*NO RECORD/)
+  })
+
+  it('keeps a row’s bests clear of its tempo and length, at every width', () => {
+    for (let w = 480; w <= 1200; w += 4) {
+      const { writes } = menu(mountain, { w, h: 1000 }, STILL, 'all', null, 'tracks', {
+        list: listOf('all', mountain, {
+          easy: { score: 1_000_000, rank: 'S', maxChain: 1, fullChain: true },
+          normal: null,
+          hard: null,
+        }),
+      })
+      const at = writes.findIndex((x) => x.text === 'MOUNTAIN KING')
+      const [easy, , , , length, tempo] = writes.slice(at + 1, at + 7)
+      // All three are right-aligned: they end at their x, and a text is 8 px a character here.
+      expect(length?.x, `${w}`).toBeLessThan((easy?.x ?? 0) - (easy?.text.length ?? 0) * 8)
+      expect(tempo?.x, `${w}`).toBeLessThan((length?.x ?? 0) - (length?.text.length ?? 0) * 8)
+    }
   })
 
   it('keeps room for the chosen track’s first line under a long list', () => {
