@@ -23,6 +23,7 @@ import { type Paint, paintOf } from './draw/paint'
 import { drawPanels, type LogLine } from './draw/panels'
 import { drawResult, EXIT_MS, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
 import { fanfare } from './fanfare'
+import { FrameLead } from './frame-lead'
 import { FreePlay, type FreeSaved, STRENGTHS } from './free'
 import { isShelf, onShelf, SHELVES, type Shelf, settle, stepRow, stepShelf } from './genres'
 import { INSTRUMENTS, instrumentOfKey, instrumentOfVoice, validInstrument } from './instruments'
@@ -120,6 +121,8 @@ class Game {
   private result: ResultView | null = null
   private layout: Layout | null = null
   private stopFrames: (() => void) | null = null
+  /** How far ahead of a frame's time what moves is drawn: the frame is shown that much later. */
+  private readonly frames = new FrameLead()
   /** What was typed this play, for the log beside the field. */
   private log: LogLine[] = []
   /** The song time up to which what the game plays has been sent to the host. */
@@ -688,7 +691,7 @@ class Game {
       for (const outcome of session.advance(now)) this.show(outcome, now)
       if (session.over(now)) this.finish(now)
     }
-    this.draw(now)
+    this.draw(now, this.frames.tick(now))
     if (this.moving(now)) return
     this.stopFrames?.()
     this.stopFrames = null
@@ -704,7 +707,12 @@ class Game {
     return this.fx.alive(now)
   }
 
-  private draw(now: number): void {
+  /**
+   * Draws the frame. What keeps time with the song - the field, the count, the band's
+   * pulse - is drawn `lead` ahead of `now`, where it will stand when the frame is shown
+   * (frame-lead.ts); the effects and the reveals run on `now` itself.
+   */
+  private draw(now: number, lead: number): void {
     const surface = this.ctx.surface(SURFACE)
     if (surface === null) return
     const p = paintOf(surface, this.ctx.theme)
@@ -713,10 +721,10 @@ class Game {
     p.g.clearRect(0, 0, p.w, p.h)
     const labels = this.ctx.keys.labels
     if (this.phase === 'menu') this.drawMenu(p, l, now)
-    else if (this.phase === 'free') this.drawFree(p, l, now)
+    else if (this.phase === 'free') this.drawFree(p, l, now, now + lead)
     else if (this.phase === 'result' && this.result !== null)
       drawResult(p, l, this.result, now - this.phaseAt, labels, this.exitOf(now))
-    else this.drawPlay(p, l, now)
+    else this.drawPlay(p, l, now, now + lead)
     const shift = this.phase === 'free' ? this.free.octave * 12 : 0
     drawKeyboard(p, l, labels, (code) => this.fx.light(code, now), shift)
     const picked = now - this.instrumentAt
@@ -818,10 +826,11 @@ class Game {
     this.motion.remember(drawn)
   }
 
-  private drawFree(p: Paint, l: Layout, now: number): void {
+  /** `shown` is the moment the frame is seen, for the band's pulse; `now` for the rest. */
+  private drawFree(p: Paint, l: Layout, now: number, shown: number): void {
     const free = this.free
     const chart = free.backing?.chart ?? null
-    const loop = free.loopTime(now)
+    const loop = free.loopTime(shown)
     // The line pulses with the band's beat when one plays; nothing falls in this mode.
     drawLanes(p, l, {
       chart,
@@ -853,7 +862,8 @@ class Game {
     )
   }
 
-  private drawPlay(p: Paint, l: Layout, now: number): void {
+  /** `shown` is the moment the frame is seen: the field stands where the song is then. */
+  private drawPlay(p: Paint, l: Layout, now: number, shown: number): void {
     const chart = this.chart
     if (chart === null) return
     const session = this.session
@@ -864,7 +874,7 @@ class Game {
       speed: this.speed,
       instrument: this.instrumentShown.name,
     })
-    const time = session?.shownTime(now) ?? chart.start
+    const time = session?.shownTime(shown) ?? chart.start
     const labels = this.ctx.keys.labels
     const field: FieldView = {
       chart,
@@ -889,17 +899,17 @@ class Game {
     if (!session?.paused) this.fx.draw(p, l, now)
     if (this.phase === 'loading') drawLoading(p, l, chart, this.selected, now - this.phaseAt)
     else if (session?.paused) drawPause(p, l, this.ctx.keys.labels)
-    else if (session !== null) this.drawCounts(p, l, now, session, chart)
+    else if (session !== null) this.drawCounts(p, l, shown, session, chart)
   }
 
   /** The count-in before the song, and the count before a paused song goes on. */
-  private drawCounts(p: Paint, l: Layout, now: number, session: Session, chart: Chart): void {
-    if (this.resumeAt !== null && now - this.resumeAt < RESUME_MS) {
-      const left = RESUME_MS - (now - this.resumeAt)
+  private drawCounts(p: Paint, l: Layout, shown: number, session: Session, chart: Chart): void {
+    if (this.resumeAt !== null && shown - this.resumeAt < RESUME_MS) {
+      const left = RESUME_MS - (shown - this.resumeAt)
       drawCount(p, l, String(Math.ceil(left / 500)), 500 - (left % 500))
       return
     }
-    const count = countWord(session.songTime(now), -chart.clock.time(-1))
+    const count = countWord(session.songTime(shown), -chart.clock.time(-1))
     if (count !== null) drawCount(p, l, count.word, count.age)
   }
 

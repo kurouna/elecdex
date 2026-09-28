@@ -356,6 +356,30 @@ describe('the chart', () => {
   })
 })
 
+describe('the frame lead', () => {
+  it('draws a frame interval ahead, measured from the frames, and a 60 Hz one until then', async () => {
+    const { FrameLead, LEAD } = await import('../../examples/plugins/keystream/frame-lead')
+    const lead = new FrameLead()
+    let now = 0
+    const frame = (after: number) => {
+      now += after
+      return lead.tick(now)
+    }
+    expect(frame(0)).toBeCloseTo(LEAD.fallback)
+    // 120 Hz frames: half the lead once a few have been seen.
+    for (let i = 0; i < 6; i++) frame(8.3)
+    expect(lead.lead).toBeCloseTo(8.3)
+    // A pause between frames (the view stopped, then woke) is not an interval.
+    frame(5000)
+    expect(lead.lead).toBeCloseTo(8.3)
+    // The median: one slow frame among many quick ones does not move it.
+    frame(33)
+    expect(lead.lead).toBeCloseTo(8.3)
+    for (let i = 0; i < LEAD.kept; i++) frame(16.7)
+    expect(lead.lead).toBeCloseTo(16.7)
+  })
+})
+
 describe('the count-in', () => {
   it('counts 3, 2, 1, LINK on its beats, and nothing in the moment before it', () => {
     expect(countWord(-2120, 500)).toBeNull()
