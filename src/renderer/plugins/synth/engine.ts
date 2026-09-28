@@ -350,15 +350,9 @@ export class AnalogEngine implements Instrument {
     for (let k = 0; k < frames; k++) {
       this.lfo += this.dt
       this.lfos()
-      let l = 0
-      let r = 0
-      for (const v of this.voices) {
-        if (!v.on) continue
-        const x = this.voiceSample(v, from + k, glide)
-        l += x * v.left
-        r += x * v.right
-        if (v.ampStage === 3 && v.amp < 1e-5) v.on = false
-      }
+      this.voicesAt(from + k, glide)
+      let l = this.wetL
+      let r = this.wetR
       if (spec.chorus) {
         this.chorus(l, r)
         l = this.wetL
@@ -368,6 +362,21 @@ export class AnalogEngine implements Instrument {
       right[offset + k] = (right[offset + k] as number) + r * spec.output
       this.quiet = Math.abs(l) + Math.abs(r) > 1e-6 ? 0 : this.quiet + 1
     }
+  }
+
+  /** Every sounding voice's sample, placed: left in wetL and right in wetR. */
+  private voicesAt(now: number, glide: number): void {
+    let l = 0
+    let r = 0
+    for (const v of this.voices) {
+      if (!v.on) continue
+      const x = this.voiceSample(v, now, glide)
+      l += x * v.left
+      r += x * v.right
+      if (v.ampStage === 3 && v.amp < 1e-5) v.on = false
+    }
+    this.wetL = l
+    this.wetR = r
   }
 
   private voiceSample(v: Voice, now: number, glide: number): number {

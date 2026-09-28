@@ -48,6 +48,13 @@ interface Channel {
   started: number
 }
 
+interface Sums {
+  pulses: number
+  triangle: number
+  l: number
+  r: number
+}
+
 type Event =
   | { at: number; kind: 'strike'; id: number; pitch: number; level: number; pan: number }
   | { at: number; kind: 'release' | 'stop'; id: number }
@@ -103,6 +110,7 @@ export class ChipEngine implements Instrument {
   /** Samples to the next video frame, when every envelope takes its step. */
   private toFrame = 0
   private quiet = Number.POSITIVE_INFINITY
+  private readonly sums: Sums = { pulses: 0, triangle: 0, l: 0, r: 0 }
 
   constructor(sampleRate: number) {
     this.rate = sampleRate
@@ -177,19 +185,31 @@ export class ChipEngine implements Instrument {
 
   /** Each channel's envelope takes its frame's step. */
   private step(): void {
-    for (const c of this.channels) {
-      if (!c.on) continue
-      c.frames++
-      if (c.triangle) {
-        // The triangle has no volume: it sounds until let go, then stops at once.
-        if (!c.held) c.on = false
-        continue
-      }
-      const floor = c.held ? Math.round(c.top * SUSTAIN) : 0
-      const every = c.held ? 2 : 1
-      if (c.volume > floor && c.frames % every === 0) c.volume--
-      if (c.volume <= 0) c.on = false
+    for (const c of this.channels) if (c.on) this.stepChannel(c)
+  }
+
+  private stepChannel(c: Channel): void {
+    c.frames++
+    if (c.triangle) {
+      // The triangle has no volume: it sounds until let go, then stops at once.
+      if (!c.held) c.on = false
+      return
     }
+    const floor = c.held ? Math.round(c.top * SUSTAIN) : 0
+    const every = c.held ? 2 : 1
+    if (c.volume > floor && c.frames % every === 0) c.volume--
+    if (c.volume <= 0) c.on = false
+  }
+
+  /** A channel's next sample, 0-15: the triangle's step, or the pulse's level, smoothed at its edges. */
+  private channelSample(c: Channel): number {
+    c.phase += c.step
+    if (c.phase >= 1) c.phase -= 1
+    if (c.triangle) return TRIANGLE[Math.floor(c.phase * 32) % 32] as number
+    // High for the first quarter of the period, with its two edges smoothed.
+    const high = c.phase < DUTY ? 1 : 0
+    const smooth = high + blep(c.phase, c.step) * 0.5 - blep((c.phase - DUTY + 1) % 1, c.step) * 0.5
+    return smooth * c.volume
   }
 
   private span(left: Float32Array, right: Float32Array, offset: number, frames: number): void {
@@ -199,39 +219,39 @@ export class ChipEngine implements Instrument {
         this.toFrame += this.frame
         this.step()
       }
-      let pulses = 0
-      let triangle = 0
-      let l = 0
-      let r = 0
-      for (const c of this.channels) {
-        if (!c.on) continue
-        c.phase += c.step
-        if (c.phase >= 1) c.phase -= 1
-        let v: number
-        if (c.triangle) {
-          v = TRIANGLE[Math.floor(c.phase * 32) % 32] as number
-          triangle += v
-        } else {
-          // High for the first quarter of the period, with its two edges smoothed.
-          const high = c.phase < DUTY ? 1 : 0
-          const smooth =
-            high + blep(c.phase, c.step) * 0.5 - blep((c.phase - DUTY + 1) % 1, c.step) * 0.5
-          v = smooth * c.volume
-          pulses += v
-        }
-        l += v * c.left
-        r += v * c.right
-      }
-      // The DAC's curve on the whole, then the console's output stage; placed by each channel's share.
-      let out = this.mix(pulses, triangle)
-      for (const f of this.output) out = f.tick(out)
+      const { pulses, triangle, l, r } = this.sampleAll(this.sums)
+      const out = this.stage(pulses, triangle)
       const total = pulses + triangle
       const gainL = total > 0 ? (l / total) * Math.SQRT2 : Math.SQRT1_2
       const gainR = total > 0 ? (r / total) * Math.SQRT2 : Math.SQRT1_2
-      left[offset + k] = (left[offset + k] as number) + out * OUTPUT * gainL
-      right[offset + k] = (right[offset + k] as number) + out * OUTPUT * gainR
-      this.quiet = Math.abs(out) > 1e-5 ? 0 : this.quiet + 1
+      left[offset + k] = (left[offset + k] as number) + out * gainL
+      right[offset + k] = (right[offset + k] as number) + out * gainR
     }
+  }
+
+  /** Every channel's sample, summed by kind and placed, into `sums` (kept, not made anew). */
+  private sampleAll(sums: Sums): Sums {
+    sums.pulses = 0
+    sums.triangle = 0
+    sums.l = 0
+    sums.r = 0
+    for (const c of this.channels) {
+      if (!c.on) continue
+      const v = this.channelSample(c)
+      if (c.triangle) sums.triangle += v
+      else sums.pulses += v
+      sums.l += v * c.left
+      sums.r += v * c.right
+    }
+    return sums
+  }
+
+  /** The DAC's curve on the whole, then the console's output stage, at the voice's level. */
+  private stage(pulses: number, triangle: number): number {
+    let out = this.mix(pulses, triangle)
+    for (const f of this.output) out = f.tick(out)
+    this.quiet = Math.abs(out) > 1e-5 ? 0 : this.quiet + 1
+    return out * OUTPUT
   }
 
   /** The chip's DAC: the pulses and the triangle, each through its own nonlinear mix. */

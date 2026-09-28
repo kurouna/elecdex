@@ -39,6 +39,7 @@ const DRUM_SWING = 0.00012
 const HORN_SWELL = 0.35
 const DRUM_SWELL = 0.18
 const DRIVE = 1.6
+const TURN = 2 * Math.PI
 const OUTPUT = 0.64
 
 interface Key {
@@ -113,12 +114,12 @@ export class OrganEngine implements Instrument {
     this.click = new Biquad('bandpass', 2500, 0.8, sampleRate)
     // The crossover: fourth-order (two second-order stages) each side.
     this.lowSplit = [
-      new Biquad('lowpass', 800, 0.707, sampleRate),
-      new Biquad('lowpass', 800, 0.707, sampleRate),
+      new Biquad('lowpass', 800, Math.SQRT1_2, sampleRate),
+      new Biquad('lowpass', 800, Math.SQRT1_2, sampleRate),
     ]
     this.highSplit = [
-      new Biquad('highpass', 800, 0.707, sampleRate),
-      new Biquad('highpass', 800, 0.707, sampleRate),
+      new Biquad('highpass', 800, Math.SQRT1_2, sampleRate),
+      new Biquad('highpass', 800, Math.SQRT1_2, sampleRate),
     ]
   }
 
@@ -212,27 +213,32 @@ export class OrganEngine implements Instrument {
       let click = 0
       for (const key of this.keys) {
         if (!key.on) continue
-        key.gate = key.held ? Math.min(1, key.gate + ramp) : Math.max(0, key.gate - ramp)
-        if (!key.held && key.gate <= 0) {
-          key.on = false
-          continue
-        }
-        key.percussionNow *= this.percussionFall
-        key.clickNow *= this.clickFall
-        key.gains[FOOTAGES.length] = key.percussionNow
-        let wheels = 0
-        for (let i = 0; i < FOOTAGES.length + 1; i++) {
-          const phase = (key.phases[i] as number) + (key.steps[i] as number)
-          key.phases[i] = phase > 6.283185307179586 ? phase - 6.283185307179586 : phase
-          const gain = key.gains[i] as number
-          if (gain > 1e-4) wheels += gain * Math.sin(phase)
-        }
-        organ += wheels * key.gate * key.level
+        organ += this.wheels(key, ramp)
         click += key.clickNow
       }
       organ = organ * 0.25 + this.click.tick(this.noise.next()) * click * CLICK.level
       this.rotate(organ, left, right, offset + k)
     }
+  }
+
+  /** One key's wheels for a sample, through its contacts; a key let go closes and stops. */
+  private wheels(key: Key, ramp: number): number {
+    key.gate = key.held ? Math.min(1, key.gate + ramp) : Math.max(0, key.gate - ramp)
+    if (!key.held && key.gate <= 0) {
+      key.on = false
+      return 0
+    }
+    key.percussionNow *= this.percussionFall
+    key.clickNow *= this.clickFall
+    key.gains[FOOTAGES.length] = key.percussionNow
+    let sum = 0
+    for (let i = 0; i < FOOTAGES.length + 1; i++) {
+      const phase = (key.phases[i] as number) + (key.steps[i] as number)
+      key.phases[i] = phase > TURN ? phase - TURN : phase
+      const gain = key.gains[i] as number
+      if (gain > 1e-4) sum += gain * Math.sin(phase)
+    }
+    return sum * key.gate * key.level
   }
 
   /** The preamp's valves, the crossover, and the two rotors heard by a microphone each side. */
