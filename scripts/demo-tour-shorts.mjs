@@ -11,6 +11,7 @@
  *   docker      a container stopped (asked twice), copies landing in the clipboard history
  *   media       the television (a stand-in) over the track with its cover and the spectrum
  *   utility     a QR code typed, over the tasks
+ *   keystream   the sample plugin over the processor's chart: a track typed on time
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, on the shells
  *
@@ -23,7 +24,8 @@
  * (`--lead`, 10 s), plays the boot and the tour follows; close it to end, or pass `--exit`.
  * `--no-intro` skips the boot. The other options are demo-take.mjs's (`takeOptions`).
  */
-import { beats, startCouncil } from './demo-beats.mjs'
+import { beats, KEYSTREAM_VOLUME, startCouncil } from './demo-beats.mjs'
+import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
 import { openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 
 const options = takeOptions({ width: 540, height: 960, zoom: 0.75, lead: 10 })
@@ -78,6 +80,7 @@ const LAYOUTS = [
       ),
   ],
   ['utility', () => stack(pane('utility', { module: 'qr', qrKind: 'url' }), pane('todo'), 0.6)],
+  ['keystream', () => stack(keystreamPane(`v${nextId++}`), pane('cpu'), 0.74)],
   ['council', () => stack(pane('elec'), pane('globe'), 0.74)],
 ]
 const slot = (name) => LAYOUTS.findIndex(([n]) => n === name) + 1
@@ -100,7 +103,8 @@ const { app, page, wait, settled, run } = await openTake({
   standIn,
   intro,
   env: { ELECDEX_AWAKE_STUB: '1' },
-  settings: council.settings,
+  settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
+  prepare: copyKeystream,
 })
 const beat = beats({ app, page, wait, settled, theme: options.theme })
 
@@ -128,6 +132,10 @@ await run(async () => {
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
   await beat.qrCode(2000)
+  await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
+    previews: [],
+    play: 12_000,
+  })
   await beat.toLayout(slot('council'), 'council')
   await wait(800)
   await beat.councilSits(4500)

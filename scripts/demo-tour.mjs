@@ -10,13 +10,14 @@
  *   media       the television and the timeline (stand-ins), the next track with its cover, the
  *               spectrum dancing
  *   desk        copies landing in the clipboard history, a QR code typed
+ *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, back to Tron
  *
  * Everything shown is made up or a stand-in (demo-take.mjs): the home, the repository, the Claude
  * Code folder, the sockets, the Wi-Fi link, the sound, the clipboard, the media session and its
  * covers, the Docker engine, the web pages, and the council's answers, served from here with no
- * model and no key. Only the orbital elements, the weather, the markets and the earthquakes are
+ * model and no key; KEYSTREAM is copied into the profile from examples/ and typed by the take. Only the orbital elements, the weather, the markets and the earthquakes are
  * real, fetched as the panes would. Nothing of this machine is read, pressed or kept awake.
  *
  * Windows only, like the screenshots. Run `npm run build` first, then `npm run demo:tour`. The
@@ -25,7 +26,8 @@
  * `--no-intro` skips the boot. The other options are demo-take.mjs's (`takeOptions`): 1600x900
  * unless told otherwise, `--pace` on every pause, `--shots=<dir>` to look the take over.
  */
-import { beats, startCouncil } from './demo-beats.mjs'
+import { beats, KEYSTREAM_VOLUME, startCouncil } from './demo-beats.mjs'
+import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
 import { MAIN, openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 import { presetTrees, withState } from './preset-shots.mjs'
 
@@ -38,7 +40,7 @@ const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
 
 const council = await startCouncil()
 
-/* ---- The saved layouts: the six presets, then the council ---- */
+/* ---- The saved layouts: the six presets, the council, then KEYSTREAM ---- */
 
 let nextId = 0
 const pane = (widget) => ({ kind: 'pane', id: `t${nextId++}`, widget })
@@ -71,6 +73,12 @@ const councilTree = {
   ),
 }
 
+/** The system column as the council has it, and the game beside it. */
+const keystreamTree = {
+  version: 1,
+  root: split('row', [councilTree.root.children[0], keystreamPane('tkeystream')], [0.18, 0.82]),
+}
+
 const { standIn } = await prepareData()
 const trees = await presetTrees(MAIN)
 const items = ORDER.map((id, i) => {
@@ -86,6 +94,7 @@ const items = ORDER.map((id, i) => {
   }
 })
 items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
+items.push({ id: 'tourkeystream', name: 'keystream', tree: keystreamTree })
 
 if (!options.probe) {
   say(`the window opens in ${options.lead} s - start the recorder`)
@@ -97,7 +106,8 @@ const { app, page, wait, settled, run } = await openTake({
   standIn,
   intro,
   env: { ELECDEX_AWAKE_STUB: '1' },
-  settings: council.settings,
+  settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
+  prepare: copyKeystream,
 })
 
 const beat = beats({ app, page, wait, settled, theme: options.theme })
@@ -148,6 +158,7 @@ await run(async () => {
   await wait(1200)
   await beat.copies()
   await beat.qrCode()
+  await beat.keystream(() => beat.toLayout(8, 'keystream'))
   await beat.toLayout(7, 'council')
   await wait(800)
   await beat.councilSits()

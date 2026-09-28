@@ -1,12 +1,14 @@
 /**
  * What the introduction tours share (demo-tour.mjs, landscape; demo-tour-shorts.mjs, vertical):
  * the council's stand-in model, and the beats themselves - the ISS's card, a container stopped,
- * copies landing, a QR code typed, a motion put to the council, the themes in turn. A tour lays
+ * copies landing, a QR code typed, KEYSTREAM played, a motion put to the council, the themes in
+ * turn. A tour lays
  * out its own layouts and chooses its beats; the beats do not care which frame they are in, so
  * a release that changes a pane changes its beat here, once, for both.
  */
 import { createServer } from 'node:http'
 import { PROJECT } from './demo-fixtures.mjs'
+import { autoplay, KEYS, keystreamMenu, trackPlan } from './demo-keystream-kit.mjs'
 import { say } from './demo-take.mjs'
 
 /* ---- The council's stand-in: answers as a local model streams them, no model and no key ---- */
@@ -57,6 +59,19 @@ export async function startCouncil() {
   }
   return { settings: { ai: { providers: [provider] } }, close: () => server.close() }
 }
+
+/* ---- KEYSTREAM: the sample plugin, installed in the take's profile and played ---- */
+
+/** The plugin's volume in the tours; the guide's notes are told apart by it. */
+export const KEYSTREAM_VOLUME = 80
+/** The track the tours play, on NORMAL, and the instrument it is played in (the number row's). */
+const TRACK = trackPlan({
+  song: 'boot-sequence',
+  level: 'normal',
+  volume: KEYSTREAM_VOLUME,
+  jitter: 8,
+})
+const TRACK_INSTRUMENT = '2'
 
 /* ---- The beats ---- */
 
@@ -190,6 +205,35 @@ export function beats({ app, page, wait, settled, theme }) {
     await wait(hold)
   }
 
+  /**
+   * KEYSTREAM: the catch laid before `arrive` brings its pane (the worker is made as it mounts),
+   * the menu previewing a track or two (`previews`), then the first stretch of a track typed on
+   * time (`play` ms). The catch is disarmed at the end: what the game plays after is the band's.
+   */
+  async function keystream(arrive, { previews = ['pixel-rush'], play = 14_000 } = {}) {
+    await page.evaluate(autoplay, KEYS)
+    await arrive()
+    const pane = page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
+    await pane.and(page.locator('[data-status=ready]')).waitFor({ timeout: 20_000 })
+    say('keystream: the pane takes the keys')
+    await press(pane.getByTestId('plugin-canvas'))
+    await wait(1800)
+    const menu = keystreamMenu(page, wait)
+    for (const id of previews) {
+      say(`keystream: ${id}`)
+      await menu.toTrack(id)
+      await wait(2600)
+    }
+    await menu.toTrack('boot-sequence')
+    await wait(900)
+    say('keystream: plays')
+    await menu.start('normal', TRACK_INSTRUMENT, TRACK.plan)
+    await wait(play)
+    await page.evaluate(() => {
+      window.__keystreamDemo.armed = false
+    })
+  }
+
   /** A motion put to the council, the vote, and the resolution held on screen. */
   async function councilSits(hold = 5000) {
     say('council: a motion')
@@ -234,6 +278,7 @@ export function beats({ app, page, wait, settled, theme }) {
     copies,
     nextTrack,
     qrCode,
+    keystream,
     councilSits,
     themes,
   }
