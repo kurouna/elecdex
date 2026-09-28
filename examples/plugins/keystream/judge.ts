@@ -118,6 +118,25 @@ export function rankOf(score: number): Rank {
 export const meanDelta = (tally: Tally): number =>
   tally.deltas.length === 0 ? 0 : tally.deltas.reduce((a, b) => a + b, 0) / tally.deltas.length
 
+/** The setting's step and reach, as the descriptor declares them (index.ts). */
+export const OFFSET_STEP = 5
+export const OFFSET_LIMIT = 150
+/** Fewer hits than this say nothing about a player's lag. */
+const OFFSET_HITS = 10
+
+/**
+ * The timing offset a play says the player should set: the one they played at, plus how
+ * late their hits ran on average, on the setting's step - or null when a play was too short
+ * to tell, or already had it right. The deltas are measured with the offset taken off, so
+ * the mean is what is still left over.
+ */
+export function suggestedOffset(tally: Tally, offset: number): number | null {
+  if (tally.deltas.length < OFFSET_HITS) return null
+  const raw = Math.round((offset + meanDelta(tally)) / OFFSET_STEP) * OFFSET_STEP
+  const suggested = Math.min(OFFSET_LIMIT, Math.max(-OFFSET_LIMIT, raw))
+  return suggested === offset ? null : suggested
+}
+
 /**
  * How a play ended, as the result's lamp says it: the link lost (HARD only), every note in
  * SYNC, none dropped, or simply played out.

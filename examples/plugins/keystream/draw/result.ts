@@ -35,6 +35,8 @@ export interface ResultView {
   failed: boolean
   /** The best score before this play, to set this one against; null on a first play. */
   previous: number | null
+  /** The timing offset the play was judged with, for the one the play suggests. */
+  offset: number
 }
 
 /** How long the reveal runs: the view draws every frame until then, and then stops. */
@@ -103,8 +105,8 @@ export function drawResult(
   rankEmblem(p, a.emblem, view, age, reveal)
   scoreBlock(p, a.mid.x, a.mid.w, view, age, reveal)
   judgements(p, a.mid.x, a.mid.w, view.tally, reveal)
-  if (a.side) analysis(p, a.side.x, a.side.w, view.tally, reveal)
-  else summary(p, a.mid.x, 382, view.tally, reveal)
+  if (a.side) analysis(p, a.side.x, a.side.w, view, reveal)
+  else summary(p, a.mid.x, 382, view, reveal)
   g.restore()
   if (power.line > 0) tubeLine(p, l.pad, l.w - l.pad * 2, mid, power.line)
   if (p.reduced || age >= REVEAL.hints || exit) {

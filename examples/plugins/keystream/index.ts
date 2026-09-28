@@ -26,7 +26,8 @@ export default {
       key: 'offset',
       type: 'number',
       label: 'Timing offset (ms)',
-      description: 'Positive when your keys land late, negative when early.',
+      description:
+        'Positive when your keys land late, negative when early. Play a track to the sound: the result says the value to set (SET OFFSET) when yours is off.',
       default: 0,
       min: -150,
       max: 150,

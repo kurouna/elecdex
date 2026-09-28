@@ -621,6 +621,7 @@ class Game {
       newRecord,
       failed: tally.failed,
       previous,
+      offset: this.ctx.settings.offset,
     }
     this.phase = 'result'
     this.phaseAt = now

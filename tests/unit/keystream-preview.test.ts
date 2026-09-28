@@ -146,6 +146,7 @@ describe('the result’s way in and out', () => {
       newRecord: false,
       failed: false,
       previous: null,
+      offset: 0,
     }
     const draw = (exit: { key: 0 | 1; age: number } | null) => {
       const { g, writes } = recorder()

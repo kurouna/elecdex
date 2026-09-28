@@ -5,6 +5,7 @@ import {
   type Lamp,
   meanDelta,
   type Rank,
+  suggestedOffset,
   type Tally,
   windowOf,
 } from '../judge'
@@ -427,8 +428,17 @@ export function judgements(p: Paint, x: number, w: number, tally: Tally, reveal:
   g.globalAlpha = 1
 }
 
+const signed = (n: number): string => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n)}`
+
+/** What the setting should be, as the play says it: 'SET OFFSET +20', or nothing to say. */
+const offsetAdvice = (view: ResultView): string | null => {
+  const suggested = suggestedOffset(view.tally, view.offset)
+  return suggested === null ? null : `SET OFFSET ${signed(suggested)}`
+}
+
 /** Accuracy, the longest chain and the timing, in a panel beside the figures. */
-export function analysis(p: Paint, x: number, w: number, tally: Tally, reveal: Reveal): void {
+export function analysis(p: Paint, x: number, w: number, view: ResultView, reveal: Reveal): void {
+  const { tally } = view
   const g = p.g
   g.globalAlpha = reveal(REVEAL.frames + 120, 420)
   frame(p, { x, y: 94, w, h: 272 }, 'SIGNAL  //  ANALYSIS')
@@ -447,27 +457,45 @@ export function analysis(p: Paint, x: number, w: number, tally: Tally, reveal: R
     color: p.c.muted,
   })
   label(p, 'AVG OFFSET', at, 216)
-  const mean = Math.round(meanDelta(tally))
-  write(p, `${mean > 0 ? '+' : mean < 0 ? '−' : '±'}${Math.abs(mean)} MS`, at, 240, {
+  write(p, `${signed(Math.round(meanDelta(tally)))} MS`, at, 240, {
     font: font(600, 16, p.fonts.mono),
     color: p.c.text,
   })
+  // The hits ran late or early on the whole: the setting that would centre them.
+  const advice = offsetAdvice(view)
+  if (advice !== null) {
+    write(p, advice, at, 260, {
+      font: font(600, 9.5, p.fonts.display),
+      color: p.c.accent,
+      spacing: '0.2em',
+    })
+  }
   g.globalAlpha = 1
   histogram(p, x, 280, w, 50, tally, reveal(REVEAL.bars + 150, 700))
 }
 
 /** The same figures on one line, where the pane has no room for the panel. */
-export function summary(p: Paint, x: number, y: number, tally: Tally, reveal: Reveal): void {
+export function summary(p: Paint, x: number, y: number, view: ResultView, reveal: Reveal): void {
+  const { tally } = view
   const g = p.g
   g.globalAlpha = reveal(REVEAL.bars + 380, 400)
   const mono = font(600, 13, p.fonts.mono)
   let at = x + label(p, 'ACC', x, y) + 8
   at += write(p, `${accuracyOf(tally).toFixed(2)}%`, at, y, { font: mono, color: p.c.text }) + 24
   at += label(p, 'MAX CHAIN', at, y) + 8
-  write(p, `${figure(tally.maxChain)} / ${figure(tally.total)}`, at, y, {
-    font: mono,
-    color: p.c.text,
-  })
+  at +=
+    write(p, `${figure(tally.maxChain)} / ${figure(tally.total)}`, at, y, {
+      font: mono,
+      color: p.c.text,
+    }) + 24
+  const advice = offsetAdvice(view)
+  if (advice !== null) {
+    write(p, advice, at, y, {
+      font: font(600, 10.5, p.fonts.display),
+      color: p.c.accent,
+      spacing: '0.2em',
+    })
+  }
   g.globalAlpha = 1
 }
 

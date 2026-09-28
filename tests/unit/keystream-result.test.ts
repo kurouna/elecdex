@@ -17,6 +17,7 @@ import {
   rankOf,
   record,
   scoreOf,
+  suggestedOffset,
   type Tally,
 } from '../../examples/plugins/keystream/judge'
 import { readSong } from '../../examples/plugins/keystream/notation'
@@ -97,6 +98,7 @@ function viewOf(tally: Tally, extra: Partial<ResultView> = {}): ResultView {
     newRecord: true,
     failed: tally.failed,
     previous: null,
+    offset: 0,
     ...extra,
   }
 }
@@ -110,6 +112,28 @@ function drawn(view: ResultView, age: number, size = { w: 1600, h: 900 }, reduce
 
 describe('the result screen', () => {
   const played = viewOf(tallyOf('normal', { SYNC: 90, LOCK: 8, ACK: 2 }))
+
+  it('says the timing offset to set when the hits ran late or early on the whole', () => {
+    // 18 ms late on average at an offset of 0: 20 is the step nearest. The deltas are what
+    // is left after the offset, so the same lateness at 20 asks for 40; 2 ms left asks nothing.
+    const late = tallyOf('normal', { SYNC: 40, LOCK: 10 }, 18)
+    const centred = tallyOf('normal', { SYNC: 30 }, 2)
+    expect(suggestedOffset(late, 0)).toBe(20)
+    expect(suggestedOffset(late, 20)).toBe(40)
+    expect(suggestedOffset(centred, 20)).toBeNull()
+    expect(suggestedOffset(tallyOf('normal', { LOCK: 30 }, -62), 10)).toBe(-50)
+    expect(suggestedOffset(tallyOf('normal', { LOCK: 30 }, 200), 0)).toBe(150)
+    // Too few hits to tell.
+    expect(suggestedOffset(tallyOf('normal', { LOCK: 5 }, 60), 0)).toBeNull()
+    for (const size of [
+      { w: 1600, h: 900 },
+      { w: 560, h: 500 },
+    ]) {
+      expect(drawn(viewOf(late), REVEAL_MS, size)).toContain('SET OFFSET +20')
+      const texts = drawn(viewOf(centred, { offset: 20 }), REVEAL_MS, size)
+      expect(texts.some((t) => t.startsWith('SET OFFSET'))).toBe(false)
+    }
+  })
 
   it('holds the rank and the lamp back until the figures have counted up', () => {
     const early = drawn(played, RANK_AT - 200)
