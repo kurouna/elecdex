@@ -4,8 +4,8 @@ import type { Rect } from './layout'
 /**
  * How the menu moves, in elecdex's own manners. A tab changed is the tube: the list pressed
  * into a line and the new one opening from it, as a pane powers off and on. The rows then
- * come in one after another, as the launcher's tiles do; the light behind a chosen tab
- * slides to it, and the cursor sweeps to its row with a streak behind it; the chosen
+ * come in one after another, as the launcher's tiles do; the light behind a chosen tab or
+ * level slides to it, and the cursor sweeps to its row with a streak behind it; the chosen
  * track's title decodes, its details are typed out again and its stars light one
  * by one. A track chosen opens its levels on a panel over the list, as a pane powers on - a
  * line opening out - and closes back into a line when it is left; the light behind the
@@ -126,6 +126,8 @@ export function slideRect(from: Rect, to: Rect, t: number): Rect {
 /** Where the menu's movable parts were drawn last, to move from when they change. */
 export interface Drawn {
   tabs: Rect[]
+  /** The level chips under the list; none on FREE PLAY. */
+  levels: Rect[]
   /** The levels' rows on their panel, when it is open. */
   panel: Rect[]
   /** The top of the cursor's row, or null when no row had it. */
@@ -135,6 +137,8 @@ export interface Drawn {
 /** What moves in this frame; null where nothing does. */
 export interface MenuFrame {
   tab: { age: number; from: Rect | null } | null
+  /** The light under the list moving to another level's chip. */
+  level: { age: number; from: Rect | null } | null
   cursor: { age: number; from: number } | null
   /** Since the rows began to come in. */
   rows: number | null
@@ -158,9 +162,11 @@ const CHOICE_MS = Math.max(MOTION.star * 6, MOTION.decode, MOTION.type)
 export class MenuMotion {
   /** The shelf a tab change came from: its list is what powers off. */
   before: Shelf = 'all'
-  private drawn: Drawn = { tabs: [], panel: [], cursor: null }
+  private drawn: Drawn = { tabs: [], levels: [], panel: [], cursor: null }
   private tabAt = NEVER
   private tabFrom: Rect | null = null
+  private levelAt = NEVER
+  private levelFrom: Rect | null = null
   private cursorAt = NEVER
   private cursorFrom: number | null = null
   private rowsAt = NEVER
@@ -181,8 +187,13 @@ export class MenuMotion {
     this.cursorAt = NEVER
   }
 
-  /** The level changed: the list's stars are the new level's, and light again. */
-  level(now: number): void {
+  /**
+   * The level changed from the one at `index`: its chip's light slides, and the stars are the
+   * new level's.
+   */
+  level(now: number, index: number): void {
+    this.levelFrom = this.drawn.levels[index] ?? null
+    this.levelAt = now
     this.starsAt = now
   }
 
@@ -236,6 +247,7 @@ export class MenuMotion {
   frame(now: number, reduced: boolean): MenuFrame {
     const since = (at: number, ms: number) => (!reduced && now - at < ms ? now - at : null)
     const tab = since(this.tabAt, MOTION.tabOff + MOTION.tabOn)
+    const level = since(this.levelAt, MOTION.slide)
     const cursor = since(this.cursorAt, MOTION.glide)
     const rows = since(this.rowsAt, ROWS_MS)
     const panel = since(this.panelAt, this.panelClosing ? MOTION.tabOff : MOTION.tabOn)
@@ -245,6 +257,7 @@ export class MenuMotion {
       panelLevel: panelLevel === null ? null : { age: panelLevel, from: this.panelFrom },
       panelChoice: this.panelClosing ? null : since(this.panelAt, CHOICE_MS),
       tab: tab === null ? null : { age: tab, from: this.tabFrom },
+      level: level === null ? null : { age: level, from: this.levelFrom },
       cursor:
         cursor === null || this.cursorFrom === null ? null : { age: cursor, from: this.cursorFrom },
       // Before the rows begin to come in (a tab's list still powering off) nothing is on its
@@ -261,6 +274,7 @@ export class MenuMotion {
     const f = this.frame(now, false)
     return (
       f.tab !== null ||
+      f.level !== null ||
       f.cursor !== null ||
       f.rows !== null ||
       f.choice !== null ||

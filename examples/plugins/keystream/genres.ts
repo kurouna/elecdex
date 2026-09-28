@@ -7,9 +7,9 @@
 export const GENRES = ['classics', 'pop', 'dance', 'electro'] as const
 export type Genre = (typeof GENRES)[number]
 
-/** A tab of the menu: every track, or one genre's. */
-export type Shelf = 'all' | Genre
-export const SHELVES: readonly Shelf[] = ['all', ...GENRES]
+/** A tab of the menu: every track, one genre's, or FREE PLAY on a tab of its own. */
+export type Shelf = 'all' | Genre | 'free'
+export const SHELVES: readonly Shelf[] = ['all', ...GENRES, 'free']
 
 export const isShelf = (value: unknown): value is Shelf => SHELVES.includes(value as Shelf)
 
@@ -23,6 +23,19 @@ export function stepShelf(shelf: Shelf, by: 1 | -1): Shelf {
 export function onShelf(genres: readonly Genre[], shelf: Shelf): number[] {
   return genres.flatMap((genre, i) => (shelf === 'all' || genre === shelf ? [i] : []))
 }
+
+/**
+ * The rows a shelf shows: its tracks, then FREE PLAY - `free`, its place after the tracks -
+ * on ALL and on its own tab only, not on a genre's (user decision 2026-09-28).
+ */
+export function rowsOf(genres: readonly Genre[], shelf: Shelf, free: number): number[] {
+  const tracks = onShelf(genres, shelf)
+  return shelf === 'all' || shelf === 'free' ? [...tracks, free] : tracks
+}
+
+/** A tab's name: the genre's, or FREE PLAY's. */
+export const shelfName = (shelf: Shelf): string =>
+  shelf === 'free' ? 'FREE PLAY' : shelf.toUpperCase()
 
 /**
  * The next row up or down a shelf, round it. `rows` is what the shelf shows - its tracks,

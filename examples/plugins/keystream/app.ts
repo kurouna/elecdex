@@ -20,8 +20,8 @@ import { Tracks } from './tracks'
 /**
  * One pane of the game: the menu (menu-controller.ts), a track loading, playing and paused
  * (play-controller.ts), and its result - and FREE mode (free.ts), the keyboard as an
- * instrument, which the menu lists after the tracks. This holds which screen is up, sends
- * the keys to it, and draws it.
+ * instrument, which the menu lists at the end of ALL and on a tab of its own. This holds
+ * which screen is up, sends the keys to it, and draws it.
  *
  * Everything is drawn on one canvas block. The view draws only while something moves - a
  * track playing, a word fading, a key's light going out - and stops the moment nothing

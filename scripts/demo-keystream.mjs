@@ -71,7 +71,7 @@ const load = (file) => import(pathToFileURL(path.join(PLUGIN, file)).href)
 const { SONGS } = await load('songs/index.ts')
 const { readSong } = await load('notation.ts')
 const { barTimes, buildChart, LEVELS } = await load('chart.ts')
-const { onShelf, settle, SHELVES, stepShelf } = await load('genres.ts')
+const { rowsOf, settle, SHELVES, stepShelf } = await load('genres.ts')
 const { INSTRUMENTS } = await load('instruments.ts')
 const { NOTE_KEYS } = await load('keyboard.ts')
 const { SYSTEM_COLUMN_WIDTH, systemColumn } = await import(
@@ -262,13 +262,12 @@ await page
 
 /** Where the menu stands, followed as the game moves it (genres.ts: the same decisions). */
 const menu = { shelf: 'all', selected: 0 }
-const rowsOf = (shelf) => [
-  ...onShelf(
+const shelfRows = (shelf) =>
+  rowsOf(
     scores.map((s) => s.source.genre),
     shelf,
-  ),
-  scores.length,
-]
+    scores.length,
+  )
 
 const key = async (code, pause = 0) => {
   await page.keyboard.press(code)
@@ -283,7 +282,7 @@ async function toShelf(shelf) {
   for (let i = 0; i < (by === 1 ? steps : SHELVES.length - steps); i++) {
     await key(by === 1 ? 'ArrowRight' : 'ArrowLeft', 420)
     menu.shelf = stepShelf(menu.shelf, by)
-    menu.selected = settle(rowsOf(menu.shelf), menu.selected)
+    menu.selected = settle(shelfRows(menu.shelf), menu.selected)
   }
 }
 
@@ -291,7 +290,7 @@ async function toShelf(shelf) {
 async function toTrack(id) {
   const place = placeOf(id)
   await toShelf(scores[place].source.genre)
-  const rows = rowsOf(menu.shelf)
+  const rows = shelfRows(menu.shelf)
   const down = (rows.indexOf(place) - rows.indexOf(menu.selected) + rows.length) % rows.length
   const up = rows.length - down
   for (let i = 0; i < Math.min(down, up); i++) await key(down <= up ? 'ArrowDown' : 'ArrowUp', 170)

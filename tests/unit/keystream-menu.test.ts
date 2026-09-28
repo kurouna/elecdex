@@ -22,9 +22,11 @@ import {
   GENRES,
   isShelf,
   onShelf,
+  rowsOf,
   SHELVES,
   type Shelf,
   settle,
+  shelfName,
   stepRow,
   stepShelf,
 } from '../../examples/plugins/keystream/genres'
@@ -46,6 +48,7 @@ const starsFor = (chart: Chart) => starsOf(chart.notes)
 
 const STILL: MenuFrame = {
   tab: null,
+  level: null,
   cursor: null,
   rows: null,
   choice: null,
@@ -55,15 +58,14 @@ const STILL: MenuFrame = {
   panelChoice: null,
 }
 
-const NO_BESTS = { easy: null, normal: null, hard: null }
-
-function listOf(shelf: Shelf, chosen: number, bests: MenuRow['bests'] = NO_BESTS): MenuList {
+function listOf(shelf: Shelf, chosen: number, best: MenuRow['best'] = null): MenuList {
   const places = onShelf(genres, shelf)
   const rows = places.flatMap((i) => {
     const chart = charts[i]
-    return chart ? [{ chart, bests, number: i + 1, stars: starsFor(chart) }] : []
+    return chart ? [{ chart, best, number: i + 1, stars: starsFor(chart) }] : []
   })
-  return { rows, selected: chosen === SONGS.length ? rows.length : places.indexOf(chosen) }
+  const free = rowsOf(genres, shelf, SONGS.length).includes(SONGS.length)
+  return { rows, free, selected: chosen === SONGS.length ? rows.length : places.indexOf(chosen) }
 }
 
 function menu(
@@ -90,11 +92,15 @@ function menu(
     instrument: { name: 'GUITAR', key: '3' },
     list: listOf(shelf, chosen),
     before,
-    tabs: SHELVES.map((s) => ({ name: s.toUpperCase(), count: onShelf(genres, s).length })),
+    tabs: SHELVES.map((s) => ({
+      name: shelfName(s),
+      count: s === 'free' ? null : onShelf(genres, s).length,
+    })),
     tab: SHELVES.indexOf(shelf),
     level: 'normal',
     speed: 5,
     note: 'NOTE',
+    levelNote: 'LEVEL NOTE',
     opening: chart ? openingBars(chart, 4).map((bar) => bar.map((c) => labelOf({}, c))) : [],
     free: 'FREE',
     previewing: false,
@@ -115,20 +121,33 @@ describe('the genre tabs', () => {
     expect(onShelf(genres, 'all')).toHaveLength(SONGS.length)
   })
 
-  it('are stepped round, by the left and right arrows or < and >', () => {
-    expect(stepShelf('all', -1)).toBe('electro')
-    expect(stepShelf('electro', 1)).toBe('all')
+  it('are stepped round by the left and right arrows, FREE PLAY’s after ELECTRO', () => {
+    expect(stepShelf('all', -1)).toBe('free')
+    expect(stepShelf('electro', 1)).toBe('free')
+    expect(stepShelf('free', 1)).toBe('all')
     expect(isShelf('pop')).toBe(true)
+    expect(isShelf('free')).toBe(true)
     expect(isShelf('jazz')).toBe(false)
+    expect(shelfName('free')).toBe('FREE PLAY')
+  })
+
+  it('list FREE PLAY on ALL and on its own tab, and on no genre’s', () => {
+    const free = SONGS.length
+    expect(rowsOf(genres, 'all', free)).toEqual([...onShelf(genres, 'all'), free])
+    expect(rowsOf(genres, 'free', free)).toEqual([free])
+    for (const genre of GENRES) {
+      expect(rowsOf(genres, genre, free), genre).toEqual(onShelf(genres, genre))
+    }
   })
 
   it('keep the choice when the new tab shows it, and else take its first row', () => {
-    const pop = [...onShelf(genres, 'pop'), SONGS.length]
+    const pop = rowsOf(genres, 'pop', SONGS.length)
     const sakura = index('sakura-signal')
     expect(settle(pop, sakura)).toBe(sakura)
     expect(settle(pop, index('twinkle'))).toBe(pop[0])
-    // FREE PLAY is on every tab.
-    expect(settle(pop, SONGS.length)).toBe(SONGS.length)
+    // FREE PLAY is not on a genre's tab: its first track.
+    expect(settle(pop, SONGS.length)).toBe(pop[0])
+    expect(settle(rowsOf(genres, 'free', SONGS.length), sakura)).toBe(SONGS.length)
   })
 
   it('move the cursor round the tab’s own rows only', () => {
@@ -237,7 +256,23 @@ describe('the menu', () => {
     const titles = texts.filter((t) => SONGS.some((s) => s.title === t))
     expect(titles).toEqual(onShelf(genres, 'pop').map((i) => SONGS[i]?.title))
     expect(texts).toContain(String(index('loopback') + 1).padStart(2, '0'))
-    expect(texts).toContain('FREE PLAY')
+    // FREE PLAY is a tab, and not a row on a genre's.
+    expect(texts.filter((t) => t === 'FREE PLAY')).toHaveLength(1)
+    expect(menu(index('loopback'), { w: 1600, h: 1000 }).texts).toContain('FREE PLAY')
+  })
+
+  it('shows FREE PLAY alone on its own tab', () => {
+    const { texts } = menu(SONGS.length, { w: 1600, h: 1000 }, STILL, 'free')
+    expect(texts.filter((t) => SONGS.some((s) => s.title === t))).toEqual([])
+    // The tab and the row.
+    expect(texts.filter((t) => t === 'FREE PLAY')).toHaveLength(2)
+    expect(texts).toContain('FREE')
+    // No level to change: neither chips nor the key for them.
+    const free = menu(SONGS.length, { w: 1600, h: 1000 }, STILL, 'free', null, 'tracks', {
+      levels: null,
+    }).texts
+    expect(free).not.toContain('< >')
+    expect(free).not.toContain('EASY')
   })
 
   it('keeps what is under the list where it is, whichever tab is shown', () => {
@@ -281,19 +316,26 @@ describe('the menu', () => {
     expect(lit.fills.some((f) => f.color === colour('accent') && f.w > 500)).toBe(true)
   })
 
-  it('chooses no level under the list, only names the one its figures are, and the instrument', () => {
-    const { texts, writes } = menu(mountain, { w: 1600, h: 1000 })
-    expect(texts).not.toContain('LEVEL')
-    // The levels are named only over the bests' columns, above the list.
-    const firstRow = writes.find((w) => SONGS.some((s) => s.title === w.text))?.y ?? 0
-    for (const chip of ['EASY', 'HARD']) {
-      expect(writes.filter((w) => w.text === chip).every((w) => w.y < firstRow - 10)).toBe(true)
-    }
+  it('shows the level chips under the list, with what the level asks, and the instrument', () => {
+    const { texts } = menu(mountain, { w: 1600, h: 1000 })
+    expect(texts).toContain('LEVEL')
+    for (const chip of ['EASY', 'NORMAL', 'HARD']) expect(texts).toContain(chip)
+    expect(texts).toContain('LEVEL NOTE')
     expect(texts).toContain('INSTRUMENT')
     expect(texts).toContain('GUITAR')
-    expect(texts.some((t) => t.startsWith('NORMAL') && t.includes('NOTES'))).toBe(true)
+    // The keys at the foot say < and > change it.
+    expect(texts).toContain('< >')
     expect(texts).toContain('SPACE')
     expect(texts).toContain('PREVIEW')
+  })
+
+  it('shows the best at the level chosen, on the row and in the details', () => {
+    const best = { score: 981_200, rank: 'S' as const, maxChain: 9, fullChain: false }
+    const { texts } = menu(mountain, { w: 1600, h: 1000 }, STILL, 'all', null, 'tracks', {
+      list: listOf('all', mountain, best),
+    })
+    expect(texts).toContain('S  981,200')
+    expect(texts.some((t) => t.includes('BEST S 981,200'))).toBe(true)
   })
 
   it('tags the details while the preview plays, and while Space has it off', () => {
@@ -317,8 +359,7 @@ describe('the menu', () => {
     for (let w = 480; w <= 1200; w += 4) {
       const texts = menu(mountain, { w, h: 1000 }).texts
       const at = texts.indexOf('MOUNTAIN KING')
-      // After the title: its three bests, its style, its length and its tempo.
-      const [style, , tempo] = texts.slice(at + 4, at + 7)
+      const [style, , , tempo] = texts.slice(at + 1, at + 5)
       shown.add(tempo ?? '')
       expect(['96→176 BPM', '96→176'], `${w}`).toContain(tempo)
       // With its unit, the style is whole; without it, the style is whole or all there is room for.
@@ -328,64 +369,6 @@ describe('the menu', () => {
     expect(shown).toEqual(new Set(['96→176 BPM', '96→176']))
     // A steady tempo keeps its unit, however narrow.
     expect(menu(index('overclock'), { w: 480, h: 1000 }).texts).toContain('172 BPM')
-  })
-
-  it('shows a track’s best on every level at once, in columns headed by the levels', () => {
-    // Found in use: with the level chosen after the track, one best on the row did not say
-    // which level it was.
-    const best = (score: number, rank: 'S' | 'A') => ({
-      score,
-      rank,
-      maxChain: 9,
-      fullChain: false,
-    })
-    const bests = { easy: best(981_200, 'S'), normal: null, hard: best(712_050, 'A') }
-    const drawn = (w: number, stage: MenuView['stage'] = 'tracks') =>
-      menu(mountain, { w, h: 1000 }, STILL, 'all', null, stage, {
-        list: listOf('all', mountain, bests),
-      }).writes
-    const row = (w: number) => {
-      const writes = drawn(w)
-      const at = writes.findIndex((x) => x.text === 'MOUNTAIN KING')
-      return writes.slice(at + 1, at + 4)
-    }
-    const heading = (w: number, names: string[]) =>
-      names.map((name) => drawn(w).find((x) => x.text === name))
-    const wide = row(1600)
-    expect(wide.map((x) => x.text)).toEqual(['S 981,200', '—', 'A 712,050'])
-    // Each best stands under its level's name: both right-aligned at the column's end.
-    expect(heading(1600, ['EASY', 'NORMAL', 'HARD']).map((x) => x?.x)).toEqual(wide.map((x) => x.x))
-    // Too narrow a pane for three scores: the ranks alone, under the levels' initials.
-    const narrow = row(700)
-    expect(narrow.map((x) => x.text)).toEqual(['S', '—', 'A'])
-    expect(heading(700, ['E', 'N', 'H']).map((x) => x?.x)).toEqual(narrow.map((x) => x.x))
-    // The levels' panel names its own levels: the heading goes while it is up.
-    expect(drawn(1600, 'levels').filter((x) => x.text === 'NORMAL')).toHaveLength(1)
-    // The details under the list name the level their best is on.
-    const details = (level: 'easy' | 'normal') =>
-      menu(mountain, { w: 1600, h: 1000 }, STILL, 'all', null, 'tracks', {
-        list: listOf('all', mountain, bests),
-        level,
-      }).texts.find((t) => t.includes('NOTES') && t.includes('LENGTH'))
-    expect(details('easy')).toMatch(/^EASY .*BEST S 981,200/)
-    expect(details('normal')).toMatch(/^NORMAL .*NO RECORD/)
-  })
-
-  it('keeps a row’s bests clear of its tempo and length, at every width', () => {
-    for (let w = 480; w <= 1200; w += 4) {
-      const { writes } = menu(mountain, { w, h: 1000 }, STILL, 'all', null, 'tracks', {
-        list: listOf('all', mountain, {
-          easy: { score: 1_000_000, rank: 'S', maxChain: 1, fullChain: true },
-          normal: null,
-          hard: null,
-        }),
-      })
-      const at = writes.findIndex((x) => x.text === 'MOUNTAIN KING')
-      const [easy, , , , length, tempo] = writes.slice(at + 1, at + 7)
-      // All three are right-aligned: they end at their x, and a text is 8 px a character here.
-      expect(length?.x, `${w}`).toBeLessThan((easy?.x ?? 0) - (easy?.text.length ?? 0) * 8)
-      expect(tempo?.x, `${w}`).toBeLessThan((length?.x ?? 0) - (length?.text.length ?? 0) * 8)
-    }
   })
 
   it('keeps room for the chosen track’s first line under a long list', () => {

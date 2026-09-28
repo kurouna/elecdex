@@ -30,20 +30,18 @@ import {
 } from './paint'
 
 /**
- * The menu, as a directory listing: the genre tabs, the tracks one to a row with their
- * stars, the instrument, what the chosen track holds and the best result on
- * it, and the keys that drive it all. A track is chosen first and its level after, as the
- * dance and beat games have it: Enter opens the track's levels on a panel over the list.
+ * The menu, as a directory listing: the genre tabs (and FREE PLAY's), the tracks one to a row
+ * with their stars and best at the level chosen, the level and the instrument, what the
+ * chosen track holds, and the keys that drive it all. The level is changed on the list with
+ * < and >, and once more on a panel over the list that Enter opens for the chosen track, as
+ * the dance and beat games have it (user decision 2026-09-28).
  * How it moves is menu-motion.ts; this draws a frame of it.
  */
 
 export interface MenuRow {
   chart: Chart
-  /**
-   * The best on each level, all three shown on the row: the level is chosen after the track,
-   * so a single best would not say which level it was.
-   */
-  bests: Readonly<Record<Level, Best | null>>
+  /** The best at the level chosen. */
+  best: Best | null
   /** The track's place in the whole list, from 1: the same on every tab. */
   number: number
   /** 1 to 5, at the chosen level (difficulty.ts). */
@@ -52,7 +50,9 @@ export interface MenuRow {
 
 export interface MenuList {
   rows: MenuRow[]
-  /** The chosen row; `rows.length` is FREE PLAY, after the tracks. */
+  /** Whether FREE PLAY is a row, after the tracks: on ALL and its own tab only. */
+  free: boolean
+  /** The chosen row; `rows.length` is FREE PLAY. */
   selected: number
 }
 
@@ -76,12 +76,15 @@ export interface MenuView {
   list: MenuList
   /** The list a tab change left, shown while it powers off. */
   before: MenuList | null
-  tabs: readonly { name: string; count: number }[]
+  /** Each tab, and how many tracks it holds (null for FREE PLAY's). */
+  tabs: readonly { name: string; count: number | null }[]
   tab: number
   level: Level
   speed: number
   /** A line under the list: that keys play by their place on the keyboard. */
   note: string
+  /** What the chosen level asks, beside its chip. */
+  levelNote: string
   /** The first bars of the chosen track as the keys that play them, bar by bar. */
   opening: readonly (readonly string[])[]
   /** What FREE PLAY is, beside its row. */
@@ -106,10 +109,6 @@ const OPENING_ROOM = 64
 const MIN_ROWS = 8
 /** Narrower than this, a row's stars are one star and a figure. */
 const COMPACT_WIDTH = 720
-/** Narrower than this, a row's three bests are their ranks alone, without the scores. */
-const SCORES_WIDTH = 820
-/** The widest a best's score can be, which each of the row's three is given. */
-const WIDEST_SCORE = 'S 1,000,000'
 
 interface ListBox {
   x: number
@@ -130,7 +129,7 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView, f: MenuFrame): Dra
   // The tracks and FREE PLAY after them, as many as fit, the chosen one always among them -
   // leaving room for the chosen track's first line where the list still shows enough rows.
   // The room is the longest tab's, so what is under the list stays put as the tabs change.
-  const total = Math.max(view.list.rows.length, ...view.tabs.map((t) => t.count)) + 1
+  const total = Math.max(rowCount(view.list), ...view.tabs.map((t) => (t.count ?? 0) + 1))
   const room = l.line - 170 - y
   const withOpening = Math.floor((room - OPENING_ROOM) / rowH)
   const shown = withOpening >= Math.min(MIN_ROWS, total) ? withOpening : Math.floor(room / rowH)
@@ -145,20 +144,23 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView, f: MenuFrame): Dra
   if (chosen === undefined) {
     freeDetails(p, x, y + 4)
     footer(p, l, view)
-    return { tabs, panel: drawPanel(p, box, panelH, view, f), cursor }
+    return { tabs, levels: [], panel: drawPanel(p, box, panelH, view, f), cursor }
   }
-  drawInstrumentRow(p, x, y, width, view)
+  const levels = drawLevels(p, x, y, width, view, f)
   y += 22
   // The chosen track's details, typed out again as the choice changes.
   const age = f.choice ?? Number.POSITIVE_INFINITY
   details(p, x, y + 14, width, chosen, view, age)
   if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening, age)
   footer(p, l, view)
-  return { tabs, panel: drawPanel(p, box, panelH, view, f), cursor }
+  return { tabs, levels, panel: drawPanel(p, box, panelH, view, f), cursor }
 }
 
+/** A list's rows: its tracks, and FREE PLAY where it is one. */
+const rowCount = (list: MenuList) => list.rows.length + (list.free ? 1 : 0)
+
 /*
- * Chips: the genre tabs. The chosen one's light slides to it.
+ * Chips: the genre tabs and the levels. The chosen one's light slides to it.
  */
 
 interface ChipSet {
@@ -201,18 +203,18 @@ function chips(p: Paint, x: number, y: number, set: ChipSet): Rect[] {
   return rects
 }
 
-/** The genre tabs, each with how many tracks it holds; the left and right arrows change them. */
+/** The tabs, each genre's with how many tracks it holds; the left and right arrows change them. */
 function drawTabs(p: Paint, x: number, y: number, width: number, view: MenuView, f: MenuFrame) {
   const counted = width >= 600
   const rects = chips(p, x + 14, y, {
-    labels: view.tabs.map((t) => (counted ? `${t.name} ${t.count}` : t.name)),
+    labels: view.tabs.map((t) => (counted && t.count !== null ? `${t.name} ${t.count}` : t.name)),
     active: view.tab,
     from: f.tab?.from ?? null,
     slide: f.tab ? f.tab.age / MOTION.slide : 1,
   })
   const end = rects.at(-1)
   if (end && end.x + end.w + 90 < x + width) {
-    write(p, '←→  < >', x + width - 14, y + 12, {
+    write(p, '←→', x + width - 14, y + 12, {
       font: font(600, 11, p.fonts.mono),
       color: p.c.muted,
       align: 'right',
@@ -223,17 +225,36 @@ function drawTabs(p: Paint, x: number, y: number, width: number, view: MenuView,
 }
 
 /**
- * The instrument the keys play, under the list as on the levels' panel. The level is not
- * chosen here: it is chosen on the panel, once a track is (user decision 2026-09-28).
+ * The level chips under the list - < and > change them - beside them what the chosen level
+ * asks, and at the end the instrument. Answers the chips, for the light to move from.
  */
-function drawInstrumentRow(p: Paint, x: number, y: number, width: number, view: MenuView): void {
-  write(p, 'INSTRUMENT', x + 14, y + 12, {
-    font: font(500, 10, p.fonts.ui),
-    color: p.c.muted,
-    spacing: '0.3em',
-    baseline: 'middle',
+function drawLevels(p: Paint, x: number, y: number, width: number, view: MenuView, f: MenuFrame) {
+  const at =
+    x +
+    14 +
+    write(p, 'LEVEL', x + 14, y + 11, {
+      font: font(500, 10, p.fonts.ui),
+      color: p.c.muted,
+      spacing: '0.3em',
+    }) +
+    18
+  const rects = chips(p, at, y, {
+    labels: LEVELS.map((level) => level.toUpperCase()),
+    active: LEVELS.indexOf(view.level),
+    from: f.level?.from ?? null,
+    slide: f.level ? f.level.age / MOTION.slide : 1,
   })
-  instrument(p, x + width - 14, y + 12, view.instrument)
+  const end = rects.at(-1)
+  const noteX = (end ? end.x + end.w : at) + 10
+  const style = {
+    font: font(500, 11, p.fonts.ui),
+    color: p.c.muted,
+    baseline: 'middle' as const,
+    spacing: '0.1em',
+  }
+  const instrumentX = instrument(p, x + width - 14, y + 12, view.instrument)
+  write(p, fitted(p, view.levelNote, instrumentX - 18 - noteX, style), noteX, y + 12, style)
+  return rects
 }
 
 /**
@@ -302,10 +323,8 @@ function drawShelf(p: Paint, box: ListBox, view: MenuView, f: MenuFrame): number
   const end = box.y + shown.count * box.rowH
   // The list's marks for more above and below belong to the list, not to the panel over it.
   if ((!power || power.open > 0.98) && view.stage === 'tracks') {
-    more(p, box.x + 14, box.y, shown.first > 0, end, shown.first + shown.count < shown.total)
+    more(p, box.x + box.width, box.y, shown.first > 0, end, shown.first + shown.count < shown.total)
   }
-  // The bests' heading too, which the panel's own levels stand in for while it is up.
-  if (view.stage === 'tracks' && f.panel === null) bestsHeading(p, box)
   return list === view.list ? shown.cursor : box.y
 }
 
@@ -325,7 +344,7 @@ function powerLine(p: Paint, box: ListBox, y: number, strength: number): void {
 /** Draws a list's rows; answers where the cursor's row is and which rows were shown. */
 function drawRows(p: Paint, box: ListBox, list: MenuList, free: string, f: MenuFrame) {
   const g = p.g
-  const total = list.rows.length + 1
+  const total = rowCount(list)
   const count = Math.min(box.fit, total)
   const first = clamp(list.selected - Math.floor(count / 2), 0, total - count)
   const top = box.y + (list.selected - first) * box.rowH
@@ -390,18 +409,18 @@ function cursorBar(p: Paint, box: ListBox, y: number, lit: boolean): void {
   g.fillRect(box.x, y + 2, 3, box.rowH - 4)
 }
 
-/** Marks that the list goes on above or below what is shown, at its left: the bests' heading is at its right. */
+/** Marks that the list goes on above or below what is shown. */
 function more(
   p: Paint,
-  left: number,
+  right: number,
   top: number,
   above: boolean,
   bottom: number,
   below: boolean,
 ): void {
-  const style = { font: font(600, 10, p.fonts.ui), color: p.c.muted }
-  if (above) write(p, '▲ MORE', left, top - 4, style)
-  if (below) write(p, '▼ MORE', left, bottom + 12, style)
+  const style = { font: font(600, 10, p.fonts.ui), color: p.c.muted, align: 'right' as const }
+  if (above) write(p, '▲ MORE', right - 4, top - 4, style)
+  if (below) write(p, '▼ MORE', right - 4, bottom + 12, style)
 }
 
 interface RowState {
@@ -453,7 +472,7 @@ function trackRow(
   /** Since this row became the choice; null for any other row, or when still. */
   choiceAge: number | null,
 ): void {
-  const { x } = box
+  const { x, width } = box
   const h = box.rowH
   const mid = y + h / 2
   const ink = state.inverse ? p.c.inverse : state.selected ? p.c.accentStrong : p.c.text
@@ -475,6 +494,7 @@ function trackRow(
   const title = row.chart.song.title
   write(p, choiceAge === null ? title : decoded(title, choiceAge), titleX(box), mid, titleStyle)
   const titleWidth = measure(p, title, titleStyle)
+  const right = x + width - 12
   const figures = { font: mono, color: quiet, align: 'right' as const, baseline: 'middle' as const }
   const creditStyle = {
     font: font(500, 11, p.fonts.ui),
@@ -484,93 +504,23 @@ function trackRow(
   }
   const creditX = titleX(box) + titleWidth + 14
   const { style, credit } = row.chart.song
-  const columns = bestColumns(p, box)
-  bestCells(p, mid, row.bests, columns, { ink, quiet })
-  const timeRight = columns.left - 24
-  const tempoRight = timeRight - 70
   // A tempo that changes gives up its unit before the style is cut.
   const styleEnd = creditX + measure(p, style, creditStyle) + 14
-  const tempo = tempoText(p, row.chart, tempoRight - styleEnd, figures)
+  const tempo = tempoText(p, row.chart, right - 220 - styleEnd, figures)
   // The style and the credit take what room the title and the tempo leave, and no more.
-  const room = tempoRight - measure(p, tempo, figures) - 14 - creditX
+  const room = right - 220 - measure(p, tempo, figures) - 14 - creditX
   // In a narrow pane the style alone, whole, rather than both cut short.
   const both = `${style}  //  ${credit}`
   const line = measure(p, both, creditStyle) <= room ? both : fitted(p, style, room, creditStyle)
   write(p, line, creditX, mid + 1, creditStyle)
-  write(p, timeText(row.chart.duration), timeRight, mid, figures)
-  write(p, tempo, tempoRight, mid, figures)
-}
-
-/*
- * The bests: one column a level, EASY to HARD, at the end of every row, under a heading over
- * the list. The level is chosen after the track, so the row shows all three rather than one
- * whose level it could not name.
- */
-
-interface BestColumns {
-  /** Where each level's column ends: its figures and its heading stand right-aligned there. */
-  rights: readonly number[]
-  /** Where the first column begins. */
-  left: number
-  /** Wide enough for the scores; else the ranks alone, headed by the levels' initials. */
-  scores: boolean
-}
-
-const bestFigures = (p: Paint) => ({
-  font: font(600, 13, p.fonts.mono),
-  baseline: 'middle' as const,
-  align: 'right' as const,
-})
-
-const bestHeading = (p: Paint) => ({
-  font: font(500, 10, p.fonts.ui),
-  color: p.c.muted,
-  spacing: '0.2em',
-  align: 'right' as const,
-})
-
-const headingOf = (level: Level, scores: boolean) =>
-  scores ? level.toUpperCase() : level.slice(0, 1).toUpperCase()
-
-/** The columns as the list's width has room for them: the same on every row. */
-function bestColumns(p: Paint, box: ListBox): BestColumns {
-  const scores = box.width >= SCORES_WIDTH
-  const value = measure(p, scores ? WIDEST_SCORE : 'S', { ...bestFigures(p), color: p.c.text })
-  const width = Math.max(
-    value,
-    ...LEVELS.map((level) => measure(p, headingOf(level, scores), bestHeading(p))),
-  )
-  const gap = scores ? 18 : 12
-  const end = box.x + box.width - 12
-  const rights = LEVELS.map((_, i) => end - (LEVELS.length - 1 - i) * (width + gap))
-  return { rights, left: end - LEVELS.length * width - (LEVELS.length - 1) * gap, scores }
-}
-
-/** A row's bests in their columns: the rank and the score, the rank alone, or a dash. */
-function bestCells(
-  p: Paint,
-  mid: number,
-  bests: MenuRow['bests'],
-  columns: BestColumns,
-  ink: { ink: string; quiet: string },
-): void {
-  LEVELS.forEach((level, i) => {
-    const best = bests[level]
-    const text =
-      best === null ? '—' : columns.scores ? `${best.rank} ${figure(best.score)}` : best.rank
-    write(p, text, columns.rights[i] ?? 0, mid, {
-      ...bestFigures(p),
-      color: best === null ? ink.quiet : ink.ink,
-    })
+  write(p, row.best ? `${row.best.rank}  ${figure(row.best.score)}` : '—', right, mid, {
+    font: mono,
+    color: row.best ? ink : quiet,
+    align: 'right',
+    baseline: 'middle',
   })
-}
-
-/** The columns' heading, in the gap between the tabs and the list. */
-function bestsHeading(p: Paint, box: ListBox): void {
-  const columns = bestColumns(p, box)
-  LEVELS.forEach((level, i) => {
-    write(p, headingOf(level, columns.scores), columns.rights[i] ?? 0, box.y - 4, bestHeading(p))
-  })
+  write(p, timeText(row.chart.duration), right - 150, mid, figures)
+  write(p, tempo, right - 220, mid, figures)
 }
 
 /**
@@ -663,6 +613,8 @@ function footer(p: Paint, l: Layout, view: MenuView): void {
       : [
           ['↑↓', 'TRACK'],
           ['←→', 'GENRE'],
+          // FREE PLAY has no level to change.
+          ...(view.levels === null ? [] : [['< >', 'LEVEL'] as const]),
           ['ENTER', 'SELECT'],
           ['1-0 -', 'INSTRUMENT'],
           ['SPACE', 'PREVIEW'],
@@ -869,10 +821,9 @@ function details(
     spacing: '0.14em',
     baseline: 'top' as const,
   }
-  const best = row.bests[view.level]
-  // The figures are the level the panel opens on - the last one chosen - so it is named.
+  const best = row.best
+  // The figures are the level chosen, whose chip is lit just above.
   const bits = [
-    view.level.toUpperCase(),
     `NOTES ${row.chart.notes.length}`,
     `LENGTH ${timeText(row.chart.duration)}`,
     best

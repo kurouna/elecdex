@@ -159,29 +159,63 @@ describe('the view', () => {
     expect(fanfare.filter((n) => n.voice === 'chip').every((n) => (n.at ?? 0) > rankAt)).toBe(true)
   })
 
-  it('changes tab with the left and right arrows or < >, keeping the choice where it can', () => {
+  it('changes tab with the left and right arrows, keeping the choice where it can', () => {
     const { asked, press } = stand({ saved: { song: 'sakura-signal' } })
     const shelfOf = () => (asked.saved.at(-1) as { shelf?: string; song?: string }) ?? {}
     press('ArrowRight')
     press('ArrowRight')
     expect(shelfOf()).toMatchObject({ shelf: 'pop', song: 'sakura-signal' })
     // A tab without it: its first track.
-    press('Period')
+    press('ArrowRight')
     expect(shelfOf().shelf).toBe('dance')
     expect(SONGS.find((song) => song.id === shelfOf().song)?.genre).toBe('dance')
-    // The digits are the instruments now: they leave the tab where it is.
+    // The digits are the instruments, and < > the level: they leave the tab where it is.
     press('Digit2')
+    press('Period')
     expect(shelfOf().shelf).toBe('dance')
-    press('Comma')
+    press('ArrowLeft')
     expect(shelfOf().shelf).toBe('pop')
     press('ArrowRight')
     press('ArrowRight')
     expect(shelfOf().shelf).toBe('electro')
-    // Up from the first row goes round to FREE PLAY, and down from it to the tab's first.
+    // A genre's tab goes round its own tracks: FREE PLAY is not among them.
     press('ArrowUp')
-    expect(shelfOf().song).toBe('free')
-    press('ArrowDown')
     expect(SONGS.find((song) => song.id === shelfOf().song)?.genre).toBe('electro')
+    // FREE PLAY's own tab, after ELECTRO, holds it alone; ALL comes after it.
+    press('ArrowRight')
+    expect(shelfOf()).toMatchObject({ shelf: 'free', song: 'free' })
+    press('ArrowDown')
+    expect(shelfOf().song).toBe('free')
+    press('ArrowRight')
+    expect(shelfOf().shelf).toBe('all')
+  })
+
+  it('changes the level on the list with < and >, and the track starts at it', () => {
+    const { asked, press, frame } = stand({ saved: { song: 'twinkle', level: 'normal' } })
+    const levelOf = () => (asked.saved.at(-1) as { level?: string }).level
+    press('Period')
+    expect(levelOf()).toBe('hard')
+    // At either end, a step further changes nothing and writes nothing.
+    const saves = asked.saved.length
+    press('Period')
+    expect(asked.saved).toHaveLength(saves)
+    press('Comma')
+    press('Comma')
+    expect(levelOf()).toBe('easy')
+    // Enter opens the panel on the level chosen; Enter there starts it.
+    press('Enter', 100)
+    press('Enter', 110)
+    frame(1300)
+    expect(levelOf()).toBe('easy')
+    expect(asked.played.some((batch) => batch.some((n) => n.voice === 'kick'))).toBe(true)
+  })
+
+  it('leaves the level alone on FREE PLAY, which has none', () => {
+    const { asked, press } = stand({ saved: { song: 'free', shelf: 'free', level: 'normal' } })
+    const saves = asked.saved.length
+    press('Period')
+    press('Comma')
+    expect(asked.saved).toHaveLength(saves)
   })
 
   it('writes the pane only for a key that changed something', () => {

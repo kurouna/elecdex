@@ -5,10 +5,19 @@ import type { Layout } from './draw/layout'
 import { drawMenu, type LevelRow, type MenuList } from './draw/menu'
 import { MenuMotion } from './draw/menu-motion'
 import type { Paint } from './draw/paint'
-import { isShelf, onShelf, SHELVES, type Shelf, settle, stepRow, stepShelf } from './genres'
+import {
+  isShelf,
+  rowsOf,
+  SHELVES,
+  type Shelf,
+  settle,
+  shelfName,
+  stepRow,
+  stepShelf,
+} from './genres'
 import { labelOf } from './keyboard'
 import { PreviewPlayer } from './preview'
-import { bestOf, bestsOf } from './records'
+import { bestOf } from './records'
 import { wordsFor } from './text'
 import type { Tracks } from './tracks'
 
@@ -48,15 +57,22 @@ export function playCue(ctx: ViewContext<Settings, unknown>, kind: Cue, volume: 
   ctx.sound.play(CUES[kind](volume, performance.now()))
 }
 
-/** The tab a key asks for: the left arrow or < for the one before, the right or > after. */
+/** The tab a key asks for: the left arrow for the one before, the right after. */
 function shelfFor(code: string, shelf: Shelf): Shelf | null {
-  if (code === 'Comma' || code === 'ArrowLeft') return stepShelf(shelf, -1)
-  if (code === 'Period' || code === 'ArrowRight') return stepShelf(shelf, 1)
+  if (code === 'ArrowLeft') return stepShelf(shelf, -1)
+  if (code === 'ArrowRight') return stepShelf(shelf, 1)
   return null
 }
 
+/**
+ * The level < and > move to, on the list and on the levels' panel alike (user decision
+ * 2026-09-28).
+ */
+const LEVEL_KEYS: Readonly<Record<string, 1 | -1>> = { Comma: -1, Period: 1 }
+
 /** The level a key moves to on the levels' panel: up or left easier, down or right harder. */
 const LEVEL_STEP: Readonly<Record<string, 1 | -1>> = {
+  ...LEVEL_KEYS,
   ArrowUp: -1,
   ArrowLeft: -1,
   ArrowDown: 1,
@@ -88,7 +104,7 @@ export class MenuController {
   private readonly host: MenuHost
   /** Each tab's rows - its tracks by their place in the list, then FREE PLAY - and the tabs. */
   private readonly shelves: ReadonlyMap<Shelf, readonly number[]>
-  private readonly tabs: readonly { name: string; count: number }[]
+  private readonly tabs: readonly { name: string; count: number | null }[]
   /** The menu's tab, and the choice it had before the last change of tab. */
   private shelf: Shelf = 'all'
   private beforeSelected = 0
@@ -105,10 +121,12 @@ export class MenuController {
     this.host = host
     const { tracks, ctx } = host
     const genres = tracks.scores.map((score) => score.source.genre)
-    this.shelves = new Map(
-      SHELVES.map((shelf) => [shelf, [...onShelf(genres, shelf), tracks.count]]),
-    )
-    this.tabs = SHELVES.map((s) => ({ name: s.toUpperCase(), count: this.shelfRows(s).length - 1 }))
+    this.shelves = new Map(SHELVES.map((shelf) => [shelf, rowsOf(genres, shelf, tracks.count)]))
+    // FREE PLAY's tab holds no tracks to count.
+    this.tabs = SHELVES.map((s) => ({
+      name: shelfName(s),
+      count: s === 'free' ? null : this.shelfRows(s).filter((i) => i < tracks.count).length,
+    }))
     this.preview = new PreviewPlayer({
       play: (notes) => ctx.sound.play(notes),
       stop: () => ctx.sound.stop(),
@@ -193,10 +211,16 @@ export class MenuController {
     return true
   }
 
-  /** Choosing a track: up and down the rows, left and right the tabs, Enter its levels. */
+  /**
+   * Choosing a track: up and down the rows, left and right the tabs, < > its level, Enter its
+   * levels.
+   */
   private tracksKey(code: string, at: number): boolean {
     const shelf = shelfFor(code, this.shelf)
     if (shelf !== null) return this.toShelf(shelf, at)
+    const by = LEVEL_KEYS[code]
+    // FREE PLAY has no levels, and shows none to change.
+    if (by !== undefined) return !this.free && this.shiftLevel(by, at)
     if (code === 'ArrowUp' || code === 'ArrowDown') {
       this.moveRow(code === 'ArrowUp' ? -1 : 1, at)
       return true
@@ -230,7 +254,7 @@ export class MenuController {
     this.cue('switch')
   }
 
-  /** The rows a tab shows: its tracks, by their place in the list, then FREE PLAY. */
+  /** The rows a tab shows: its tracks, by their place in the list, then FREE PLAY where it is. */
   private shelfRows(shelf: Shelf): readonly number[] {
     return this.shelves.get(shelf) ?? [this.host.tracks.count]
   }
@@ -259,7 +283,7 @@ export class MenuController {
     const from = LEVELS.indexOf(this.level)
     this.level = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, from + by))] ?? this.level
     if (LEVELS.indexOf(this.level) === from) return false
-    this.motion.level(at)
+    this.motion.level(at, from)
     this.motion.panelLevel(at, from)
     this.cue('switch')
     return true
@@ -335,6 +359,7 @@ export class MenuController {
         level: this.level,
         speed: extras.speed,
         note: words.layout,
+        levelNote: words.levels[this.level],
         opening,
         free: words.free,
         previewing: this.preview.index !== null && this.preview.index === this.selected,
@@ -348,15 +373,16 @@ export class MenuController {
   /** A tab's rows as the menu draws them, with `chosen` - a place in the whole list - picked. */
   private menuList(shelf: Shelf, chosen: number): MenuList {
     const { tracks } = this.host
-    const places = this.shelfRows(shelf).slice(0, -1)
+    const places = this.shelfRows(shelf).filter((i) => i < tracks.count)
     const rows = places.flatMap((i) => {
       const chart = tracks.chartOf(i, this.level)
       if (chart === null) return []
-      const bests = bestsOf(chart.song.id)
-      return [{ chart, bests, number: i + 1, stars: tracks.starsOf(chart) }]
+      const best = bestOf(chart.song.id, this.level)
+      return [{ chart, best, number: i + 1, stars: tracks.starsOf(chart) }]
     })
+    const free = this.shelfRows(shelf).includes(tracks.count)
     const selected = chosen === tracks.count ? rows.length : places.indexOf(chosen)
-    return { rows, selected: Math.max(0, selected) }
+    return { rows, free, selected: Math.max(0, selected) }
   }
 
   /** The chosen track's levels, as its panel lists them; null on FREE PLAY. */

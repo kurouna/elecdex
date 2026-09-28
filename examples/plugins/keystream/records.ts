@@ -36,11 +36,6 @@ export function bestOf(song: string, level: Level): Best | null {
   return records[keyOf(song, level)] ?? null
 }
 
-/** The best on every level of a song, as the menu's row shows them side by side. */
-export function bestsOf(song: string): Record<Level, Best | null> {
-  return { easy: bestOf(song, 'easy'), normal: bestOf(song, 'normal'), hard: bestOf(song, 'hard') }
-}
-
 /** Keeps a result if it beats the best; answers whether it did. */
 export function submit(song: string, level: Level, result: Best): boolean {
   const best = bestOf(song, level)
