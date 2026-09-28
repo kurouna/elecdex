@@ -79,14 +79,19 @@ function changesOf(chart, codes) {
   })
 }
 
+/** A track's chart on a level (chart.ts): its notes, band and beats, in song time (ms). */
+export function trackChart(song, level) {
+  if (!LEVELS.includes(level)) throw new Error(`the level is one of ${LEVELS.join(', ')}`)
+  return buildChart(scores[placeOf(song)], level)
+}
+
 /**
  * A track typed on a level: its chart, and the plan the page's catch follows. `changes` are the
  * instrument keys pressed on the way; `volume` is the plugin's setting, by which the guide's
  * notes are told apart (a share of it).
  */
 export function trackPlan({ song, level, changes = [], volume, jitter }) {
-  if (!LEVELS.includes(level)) throw new Error(`the level is one of ${LEVELS.join(', ')}`)
-  const chart = buildChart(scores[placeOf(song)], level)
+  const chart = trackChart(song, level)
   return {
     chart,
     plan: {

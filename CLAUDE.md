@@ -198,8 +198,9 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   similar on Windows.
 - **Audio capture stays out of the workspace.** The spectrum's system audio comes through screen
   capture with loopback audio, granted only in the hidden capture window
-  (main/audio/capture-window.ts: its own session, its own two-function preload, a page with no
-  network); only spectrum levels leave that window. On Linux, where Electron has no loopback, main
+  (main/audio/capture-window.ts: its own session, its own preload that can only report - and,
+  under the `tracks` stand-in alone, be handed the WAV main chose - a page with no network); only
+  spectrum levels leave that window. On Linux, where Electron has no loopback, main
   runs `parec` on `@DEFAULT_MONITOR@` (main/audio/pulse-capture.ts) — never the default input.
   Linux audio goes through the pulse protocol (parec, pactl), which PulseAudio and PipeWire both
   serve; WirePlumber's wpctl is only a fallback, never required (main/audio/mixer-linux.ts).
@@ -572,7 +573,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
     `ELECDEX_NOAA_BASE_URL`, `ELECDEX_CELESTRAK_BASE_URL`, `ELECDEX_MARKETS_STUB_URL`, `ELECDEX_UPDATES_URL` and
     `ELECDEX_WEB_HOMES` (the web presets' homes); specs that need data run a local stub server;
   - `ELECDEX_AUDIO_STUB=1` (a steady tone and a made-up mixer, never the machine's sound or
-    volume), with sound off;
+    volume), with sound off (`=tracks` plays the WAV files `ELECDEX_AUDIO_TRACKS` names, only
+    when `globalThis.__elecdexAudio` says which, and aloud only when it says so: the tours);
   - `ELECDEX_BACKGROUND_STUB=1` for the notification-area icon, the system-wide shortcut and the
     sign-in entry, so no run touches the taskbar, keys or startup;
   - `ELECDEX_SOCKETS_STUB=1` for a made-up socket table (`=demo` for screenshots), so no run
@@ -647,7 +649,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   beat in the tour, and a beat that no longer shows the app as it is goes. Keep it about two
   minutes, the boot first and the themes last, and on stand-ins only, like the screenshots
   (demo-take.mjs: nothing of this machine read, pressed or kept awake, no one's pages or
-  artwork, no model or key). The beats live once in `scripts/demo-beats.mjs` and both cuts use
+  artwork, no model or key; the music is KEYSTREAM's own tracks, rendered by
+  scripts/keystream-wav.mjs and played by the spectrum's `tracks` stand-in, so the spectrum
+  moves with what is heard). The beats live once in `scripts/demo-beats.mjs` and both cuts use
   them, so a pane that changes is changed there. Check each take with `--shots` before calling
   it done.
 - **Attribution** stays visible. JMA forecasts and the quakes pane show

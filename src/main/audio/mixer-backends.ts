@@ -26,7 +26,7 @@ const POLL_MS = 2000
 const RUN_TIMEOUT_MS = 4000
 
 export function mixerBackend(stub: AudioStub | null): MixerBackend {
-  if (stub) return stubMixerBackend(stub === 'demo' ? 'Speakers' : 'Test Speakers')
+  if (stub) return stubMixerBackend(stub === 'tone' ? 'Test Speakers' : 'Speakers')
   if (process.platform === 'win32') return windowsMixerBackend()
   if (process.platform === 'darwin') return pollingBackend(readMac, applyMac)
   const linux = linuxMixer(output)

@@ -79,7 +79,8 @@ describe('stand-in sound', () => {
   it('is chosen only by the values the tests and screenshots set', () => {
     expect(audioStubFrom('1')).toBe('tone')
     expect(audioStubFrom('demo')).toBe('demo')
-    for (const value of [undefined, '', '0', 'true', 'DEMO'])
+    expect(audioStubFrom('tracks')).toBe('tracks')
+    for (const value of [undefined, '', '0', 'true', 'DEMO', 'TRACKS', 'track'])
       expect(audioStubFrom(value)).toBeNull()
   })
 
@@ -272,6 +273,7 @@ describe('the capture preload', () => {
     )
     expect(source).toContain(`frame: '${CH.audioCapture.frame}'`)
     expect(source).toContain(`status: '${CH.audioCapture.status}'`)
+    expect(source).toContain(`track: '${CH.audioCapture.track}'`)
     // It must stay a single file: no import but electron.
     expect(source.match(/^import .* from '(.*)'$/gm)).toEqual([
       "import { contextBridge, ipcRenderer } from 'electron'",

@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { launch } from './support.js'
@@ -95,6 +98,73 @@ test('a spectrum pane captures while shown, lights the tone band, and keeps its 
     await expect.poll(() => windowCount(launched.app)).toBe(1)
   } finally {
     await launched.close()
+  }
+})
+
+/** A WAV file of a steady tone: 16-bit mono, as the tracks stand-in plays (the recorded demos). */
+function toneWav(hz: number, seconds: number): string {
+  const rate = 44_100
+  const frames = rate * seconds
+  const bytes = Buffer.alloc(44 + frames * 2)
+  bytes.write('RIFF', 0)
+  bytes.writeUInt32LE(36 + frames * 2, 4)
+  bytes.write('WAVEfmt ', 8)
+  bytes.writeUInt32LE(16, 16)
+  bytes.writeUInt16LE(1, 20)
+  bytes.writeUInt16LE(1, 22)
+  bytes.writeUInt32LE(rate, 24)
+  bytes.writeUInt32LE(rate * 2, 28)
+  bytes.writeUInt16LE(2, 32)
+  bytes.writeUInt16LE(16, 34)
+  bytes.write('data', 36)
+  bytes.writeUInt32LE(frames * 2, 40)
+  for (let i = 0; i < frames; i++)
+    bytes.writeInt16LE(Math.round(Math.sin((2 * Math.PI * hz * i) / rate) * 16_000), 44 + i * 2)
+  const file = path.join(mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-track-')), 'tone.wav')
+  writeFileSync(file, bytes)
+  return file
+}
+
+/** The tracks stand-in's hooks, in main (main/audio/stub-tracks.ts). */
+const playTrack = (app: ElectronApplication, index: number | null) =>
+  app.evaluate((_electron, i) => {
+    ;(globalThis as { __elecdexAudio?: { play(i: number | null): void } }).__elecdexAudio?.play(i)
+  }, index)
+
+test('the tracks stand-in plays only the track main says, into the analyser a capture uses', async () => {
+  const { app, page, close } = await launch(undefined, {
+    env: { ELECDEX_AUDIO_STUB: 'tracks', ELECDEX_AUDIO_TRACKS: toneWav(1000, 30) },
+    layout: {
+      version: 1,
+      root: {
+        kind: 'tabs',
+        id: 'g',
+        activeIndex: 0,
+        children: [
+          { kind: 'pane', id: 'clock', widget: 'clock' },
+          { kind: 'pane', id: 'spec', widget: 'spectrum' },
+        ],
+      },
+    },
+  })
+  const lit = async () => (await litBands(page)).flatMap((v, i) => (v > 0 ? [i] : []))
+  try {
+    // Chosen before any spectrum shows: the capture window is handed it as its page comes up.
+    await expect(page.getByTestId('clock')).toBeVisible()
+    await playTrack(app, 0)
+    await page.locator('[data-testid=tab][data-pane-id=spec]').click()
+    const spectrum = page.getByTestId('spectrum')
+    await expect(spectrum).toHaveAttribute('data-status', 'running', { timeout: 20_000 })
+    // 1 kHz is the sixth of ten bands, as with the tests' own tone - read off the samples.
+    await expect.poll(lit, { timeout: 10_000 }).toEqual([5])
+
+    // Silence when told, and the track again from its start.
+    await playTrack(app, null)
+    await expect.poll(lit, { timeout: 10_000 }).toEqual([])
+    await playTrack(app, 0)
+    await expect.poll(lit, { timeout: 10_000 }).toEqual([5])
+  } finally {
+    await close()
   }
 })
 

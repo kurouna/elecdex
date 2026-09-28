@@ -19,12 +19,14 @@ import {
  *
  * `?stub=tone` plays a steady 1 kHz tone into the spectrum instead, so tests never
  * capture the real system and need no permission; `?stub=demo` moves like music,
- * for the README screenshots.
+ * for the README screenshots; `?stub=tracks` plays the WAV main hands over through
+ * the same analyser as a capture, and aloud only when main says so (the recorded demos).
  */
 
 interface CaptureBridge {
   frame(bins: number[]): void
   status(status: 'running' | 'failed', message: string | null): void
+  track(listener: (track: { wav: Uint8Array; heard: boolean } | null) => void): void
 }
 
 declare global {
@@ -39,6 +41,21 @@ const pump = (read: () => number[]): void => {
   pumpSpectrum(read, (bins) => bridge.frame(bins))
 }
 
+/** An analyser set as the spectrum reads one, and a way to read it as bins. */
+function analyserOf(context: AudioContext): { analyser: AnalyserNode; read: () => number[] } {
+  const analyser = context.createAnalyser()
+  analyser.fftSize = SPECTRUM_FFT_SIZE
+  analyser.smoothingTimeConstant = SPECTRUM_SMOOTHING
+  const fft = new Float32Array(analyser.frequencyBinCount)
+  return {
+    analyser,
+    read: () => {
+      analyser.getFloatFrequencyData(fft)
+      return binsFromFft(fft, context.sampleRate)
+    },
+  }
+}
+
 async function capture(): Promise<void> {
   // The window's display-media handler grants the screen with loopback audio;
   // Electron will not grant audio alone.
@@ -50,17 +67,44 @@ async function capture(): Promise<void> {
     return
   }
   const context = new AudioContext()
-  const analyser = context.createAnalyser()
-  analyser.fftSize = SPECTRUM_FFT_SIZE
-  analyser.smoothingTimeConstant = SPECTRUM_SMOOTHING
+  const { analyser, read } = analyserOf(context)
   context.createMediaStreamSource(new MediaStream([audio])).connect(analyser)
   audio.addEventListener('ended', () => bridge.status('failed', 'system audio capture ended'))
-  const fft = new Float32Array(analyser.frequencyBinCount)
   bridge.status('running', null)
-  pump(() => {
-    analyser.getFloatFrequencyData(fft)
-    return binsFromFft(fft, context.sampleRate)
+  pump(read)
+}
+
+/**
+ * The `tracks` stand-in: each WAV main hands over, from its start, into the analyser (and
+ * to the speakers when it is to be heard); silence when handed nothing. A track handed over
+ * while the one before is still being decoded wins.
+ */
+function tracks(): void {
+  const context = new AudioContext()
+  const { analyser, read } = analyserOf(context)
+  let source: AudioBufferSourceNode | null = null
+  let latest = 0
+  bridge.track((track) => {
+    const turn = ++latest
+    source?.stop()
+    source?.disconnect()
+    source = null
+    if (track === null) return
+    const bytes = track.wav.slice().buffer
+    context
+      .decodeAudioData(bytes)
+      .then((buffer) => {
+        if (turn !== latest) return
+        source = context.createBufferSource()
+        source.buffer = buffer
+        source.connect(analyser)
+        if (track.heard) source.connect(context.destination)
+        source.start()
+      })
+      .catch((error: unknown) => bridge.status('failed', `track: ${String(error)}`))
   })
+  bridge.status('running', null)
+  pump(read)
 }
 
 function tone(): void {
@@ -81,6 +125,8 @@ if (stub === 'tone') {
   tone()
 } else if (stub === 'demo') {
   demo()
+} else if (stub === 'tracks') {
+  tracks()
 } else {
   capture().catch((error: unknown) => {
     bridge.status(

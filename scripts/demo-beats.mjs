@@ -2,14 +2,19 @@
  * What the introduction tours share (demo-tour.mjs, landscape; demo-tour-shorts.mjs, vertical):
  * the council's stand-in model, and the beats themselves - the ISS's card, a container stopped,
  * copies landing, a QR code typed, KEYSTREAM played, a motion put to the council, the themes in
- * turn. A tour lays
+ * turn - and the music the media beat plays: two of KEYSTREAM's own tracks, rendered to WAV
+ * files (keystream-wav.mjs) and played by the spectrum's stand-in, so the spectrum moves with
+ * what is heard and nothing of this machine's sound is captured. A tour lays
  * out its own layouts and chooses its beats; the beats do not care which frame they are in, so
  * a release that changes a pane changes its beat here, once, for both.
  */
+import { statSync } from 'node:fs'
 import { createServer } from 'node:http'
+import path from 'node:path'
 import { PROJECT } from './demo-fixtures.mjs'
 import { autoplay, KEYS, keystreamMenu, trackPlan } from './demo-keystream-kit.mjs'
 import { say } from './demo-take.mjs'
+import { cachedTrackWav } from './keystream-wav.mjs'
 
 /* ---- The council's stand-in: answers as a local model streams them, no model and no key ---- */
 
@@ -73,13 +78,44 @@ const TRACK = trackPlan({
 })
 const TRACK_INSTRUMENT = '2'
 
+/* ---- The media beat's music: KEYSTREAM's originals, as a player would list them ---- */
+
+/** The tracks, in the order next steps through them, and the voice each melody is played in. */
+const MUSIC = [
+  { id: 'boot-sequence', title: 'BOOT SEQUENCE', lead: 'lead' },
+  { id: 'fever-call', title: 'FEVER CALL', lead: 'lead' },
+]
+
+/**
+ * The music rendered (once; kept in the temp folder), and what a take needs for it: the
+ * environment that makes the spectrum's stand-in play those files, and the tracks as the
+ * media session's stand-in lists them - Windows' Media Player playing KEYSTREAM's tracks.
+ */
+export function prepareMusic() {
+  const files = MUSIC.map((track) => cachedTrackWav(track.id, track.lead))
+  return {
+    env: { ELECDEX_AUDIO_STUB: 'tracks', ELECDEX_AUDIO_TRACKS: files.join(path.delimiter) },
+    tracks: MUSIC.map((track, i) => ({
+      app: 'Microsoft.ZuneMusic_8wekyb3d8bbwe!Microsoft.ZuneMusic',
+      title: track.title,
+      artist: 'elecdex',
+      album: 'KEYSTREAM',
+      // A WAV's length: 16-bit stereo at 48 kHz after its 44-byte header.
+      end: Math.floor((statSync(files[i]).size - 44) / 4 / 48000),
+    })),
+  }
+}
+
 /* ---- The beats ---- */
 
 /** The built-in themes the tours end on, in turn, before the one they began in. */
 const THEMES = ['tron', 'amber', 'phosphor', 'white', 'business-dark', 'business-light']
 
-/** The beats on an open take (demo-take.mjs `openTake`); `theme` is the one it began in. */
-export function beats({ app, page, wait, settled, theme }) {
+/**
+ * The beats on an open take (demo-take.mjs `openTake`); `theme` is the one it began in, and
+ * `music` what `prepareMusic` gave, when the take plays it.
+ */
+export function beats({ app, page, wait, settled, theme, music = null }) {
   /** The page's own size in CSS pixels, which a zoomed window makes larger than the window. */
   const size = () => page.evaluate(() => ({ width: innerWidth, height: innerHeight }))
   const paneOf = (widget) => page.locator(`[data-testid=pane][data-widget=${widget}]`)
@@ -189,10 +225,25 @@ export function beats({ app, page, wait, settled, theme }) {
     }
   }
 
-  /** The next track, with its cover. */
+  /**
+   * The music on, from the first track's start: the media session lists KEYSTREAM's tracks
+   * and the spectrum's stand-in plays the first aloud. Called as the media layout arrives,
+   * which opens the spectrum's capture window.
+   */
+  async function musicPlays() {
+    if (music === null) return
+    say('music: BOOT SEQUENCE')
+    await app.evaluate((_electron, tracks) => {
+      globalThis.__elecdexNowPlaying.playlist(tracks)
+      globalThis.__elecdexAudio.play(0, true)
+    }, music.tracks)
+  }
+
+  /** The next track, with its cover, and its music. */
   async function nextTrack(hold = 3000) {
     say('now playing: the next track')
     await press(page.getByTestId('np-next'))
+    if (music !== null) await app.evaluate(() => globalThis.__elecdexAudio.play(1, true))
     await wait(hold)
   }
 
@@ -276,6 +327,7 @@ export function beats({ app, page, wait, settled, theme }) {
     stopContainer,
     commitCard,
     copies,
+    musicPlays,
     nextTrack,
     qrCode,
     keystream,

@@ -33,7 +33,7 @@ const { cabinetResponse, ECHO } = await import(`${plugins}/guitar/cabinet.ts`)
 export const RATE = 48000
 const BLOCK = 128
 
-/** A note: when (s), which key, how hard (0-1), and how long it is held (s; null: its own). */
+/** A note: when (s), which key, how hard (0-1), how long it is held (s; null: its own); `pan` may follow. */
 export const n = (t, pitch, level, length, voice) => ({ t, pitch, level, length, voice })
 const chord = (t, pitches, level, length, voice) =>
   pitches.map((p) => n(t, p, level, length, voice))
@@ -412,7 +412,7 @@ export function render(notes) {
       id: i + 1,
       pitch: x.pitch,
       level: x.level,
-      pan: 0,
+      pan: x.pan ?? 0,
       at: x.t,
     })
     const lift = x.length ?? 1.4

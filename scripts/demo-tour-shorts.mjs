@@ -9,7 +9,8 @@
  *   earth       ORBIT with the pointer resting on the ISS, over the quakes
  *   dev         coding agents at work over the repository, a commit's card
  *   docker      a container stopped (asked twice), copies landing in the clipboard history
- *   media       the television (a stand-in) over the track with its cover and the spectrum
+ *   media       the television (a stand-in) over KEYSTREAM's tracks playing, the next one
+ *               from the button, and the spectrum moving with them
  *   utility     a QR code typed, over the tasks
  *   keystream   the sample plugin over the processor's chart: a track typed on time
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
@@ -24,7 +25,7 @@
  * (`--lead`, 10 s), plays the boot and the tour follows; close it to end, or pass `--exit`.
  * `--no-intro` skips the boot. The other options are demo-take.mjs's (`takeOptions`).
  */
-import { beats, KEYSTREAM_VOLUME, startCouncil } from './demo-beats.mjs'
+import { beats, KEYSTREAM_VOLUME, prepareMusic, startCouncil } from './demo-beats.mjs'
 import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
 import { openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 
@@ -86,6 +87,7 @@ const LAYOUTS = [
 const slot = (name) => LAYOUTS.findIndex(([n]) => n === name) + 1
 
 const council = await startCouncil()
+const music = prepareMusic()
 const { standIn } = await prepareData()
 const items = LAYOUTS.map(([name, build], i) => ({
   id: `vtour${i}${name}`,
@@ -102,11 +104,11 @@ const { app, page, wait, settled, run } = await openTake({
   options: { ...options, lead: 0 },
   standIn,
   intro,
-  env: { ELECDEX_AWAKE_STUB: '1' },
+  env: { ELECDEX_AWAKE_STUB: '1', ...music.env },
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: copyKeystream,
 })
-const beat = beats({ app, page, wait, settled, theme: options.theme })
+const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 
 await run(async () => {
   const started = Date.now()
@@ -127,8 +129,9 @@ await run(async () => {
   await beat.copies()
   await wait(600)
   await beat.toLayout(slot('media'), 'media')
-  await wait(2000)
-  await beat.nextTrack(3000)
+  await beat.musicPlays()
+  await wait(2500)
+  await beat.nextTrack(3500)
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
   await beat.qrCode(2000)

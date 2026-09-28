@@ -283,6 +283,8 @@ export const CH = {
   audioCapture: {
     frame: 'audio-capture:frame',
     status: 'audio-capture:status',
+    /** main -> the capture window, with the `tracks` stand-in only: the WAV to play, or null. */
+    track: 'audio-capture:track',
   },
   plugins: {
     /** The plugins folder and every plugin found in it (PluginCatalog). */

@@ -3,6 +3,7 @@ import { type AudioStub, SPECTRUM_BINS, type SpectrumUpdate } from '@shared/audi
 import { CH } from '@shared/channels'
 import { BrowserWindow, desktopCapturer, type IpcMainEvent, ipcMain, session } from 'electron'
 import { markHelperWindow } from '../app-windows.js'
+import type { StubTracks } from './stub-tracks.js'
 
 /**
  * The hidden window that captures the system's sound for the spectrum panes.
@@ -15,7 +16,8 @@ import { markHelperWindow } from '../app-windows.js'
  *    window alone - the workspace's session still refuses every permission but
  *    the clipboard;
  *  - its own preload (preload/audio-capture.ts), which can only report frames and
- *    a status - no shell, file or setting is reachable from it;
+ *    a status - no shell, file or setting is reachable from it - and, with the
+ *    `tracks` stand-in only, be handed the WAV main chose to play;
  *  - a page with no network, no styles and no navigation, which stops the video
  *    track unread and sends on only spectrum levels, checked here.
  *
@@ -69,6 +71,8 @@ export function validBins(raw: unknown): number[] | null {
 
 export function openCaptureWindow(options: {
   stub: AudioStub | null
+  /** The `tracks` stand-in's files: the page is handed the one playing, and each change. */
+  tracks?: StubTracks | null
   onUpdate: (update: SpectrumUpdate) => void
 }): CaptureWindow {
   const win = new BrowserWindow({
@@ -122,6 +126,15 @@ export function openCaptureWindow(options: {
     })
   })
 
+  // The `tracks` stand-in: the track playing once the page is up, then every change.
+  const tracks = options.stub === 'tracks' ? (options.tracks ?? null) : null
+  const handOver = (): void => {
+    if (tracks !== null && !contents.isDestroyed())
+      contents.send(CH.audioCapture.track, tracks.current())
+  }
+  if (tracks !== null) contents.on('did-finish-load', handOver)
+  const stopHanding = tracks?.onChange(handOver) ?? (() => {})
+
   const query = options.stub ? { stub: options.stub } : undefined
   const devServerUrl = process.env.ELECTRON_RENDERER_URL
   if (devServerUrl) {
@@ -135,6 +148,7 @@ export function openCaptureWindow(options: {
     close: () => {
       if (closed) return
       closed = true
+      stopHanding()
       ipcMain.removeListener(CH.audioCapture.frame, onFrame)
       ipcMain.removeListener(CH.audioCapture.status, onStatus)
       if (!win.isDestroyed()) win.destroy()

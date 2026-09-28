@@ -6,7 +6,9 @@ import type { NowPlayingBackend, NowPlayingReading } from './watcher.js'
  * presses its player's buttons.
  *
  * The end-to-end tests change the track through `globalThis.__elecdexNowPlaying`,
- * and read back what was pressed and how often the session was read.
+ * and read back what was pressed and how often the session was read; a recorded demo
+ * puts its own tracks in the list there (`playlist`), so next and previous step
+ * through what it plays.
  */
 export interface StubTrack {
   app: string
@@ -32,6 +34,11 @@ export interface StubTrack {
 export interface NowPlayingHooks {
   /** Puts a track on (merged over the current one), or takes the session away (null). */
   set(track: Partial<StubTrack> | null): void
+  /**
+   * Makes these the list next and previous step through, each merged over the list's track
+   * in its place (keeping, say, its cover), and puts the first on from its start.
+   */
+  playlist(tracks: readonly Partial<StubTrack>[]): void
   /** The presses the pane passed on, in order; a seek as `seek <seconds>`. */
   presses(): string[]
   /** How many times the session has been read. */
@@ -98,7 +105,7 @@ export function stubNowPlaying(
   now: () => number = Date.now,
   covers: readonly (StubCover | null)[] = [],
 ): NowPlayingBackend {
-  const list = demo
+  let list = demo
     ? DEMO.map((track, i) => {
         const cover = covers[i] ?? null
         return { ...track, art: cover?.small ?? null, artLarge: cover?.large ?? null }
@@ -115,6 +122,12 @@ export function stubNowPlaying(
   const hooks: NowPlayingHooks = {
     set: (next) => {
       track = next === null ? null : { ...(track ?? TEST), at: now(), ...next }
+    },
+    playlist: (tracks) => {
+      if (tracks.length === 0) return
+      list = tracks.map((given, i) => ({ ...(list[i] ?? list[0] ?? TEST), ...given }))
+      index = 0
+      track = { ...(list[0] ?? TEST), position: 0, at: now() }
     },
     presses: () => [...presses],
     reads: () => reads,

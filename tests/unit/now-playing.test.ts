@@ -582,4 +582,31 @@ describe('the stand-in', () => {
     expect((next.session as { title: string }).title).toBe('Second Track')
     expect(sameSession(null, null)).toBe(true)
   })
+
+  it("takes a demo's own list: the first put on from its start, keeping each place's cover", async () => {
+    let now = 5000
+    const covers = [
+      { small: 'SUNSET', large: 'SUNSET-L' },
+      { small: 'ORBIT', large: 'ORBIT-L' },
+    ]
+    const stub = stubNowPlaying(true, () => now, covers)
+    const hooks = (globalThis as { __elecdexNowPlaying?: { playlist(t: unknown[]): void } })
+      .__elecdexNowPlaying
+    now = 9000
+    hooks?.playlist([
+      { title: 'BOOT SEQUENCE', artist: 'elecdex', end: 75 },
+      { title: 'FEVER CALL', artist: 'elecdex', end: 80 },
+    ])
+    const first = await stub.read()
+    expect(first.session).toMatchObject({ title: 'BOOT SEQUENCE', position: 0, at: 9000, end: 75 })
+    expect(first.art?.small).toBe('SUNSET')
+    const next = await stub.control('next')
+    expect(next.session).toMatchObject({ title: 'FEVER CALL', position: 0, end: 80 })
+    expect(next.art?.small).toBe('ORBIT')
+    // Next goes round the demo's list, not the stand-in's own.
+    expect((await stub.control('next')).session).toMatchObject({ title: 'BOOT SEQUENCE' })
+    // An empty list changes nothing.
+    hooks?.playlist([])
+    expect((await stub.read()).session).toMatchObject({ title: 'BOOT SEQUENCE' })
+  })
 })

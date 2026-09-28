@@ -7,18 +7,20 @@
  *   network     through the layouts dialog: the Wi-Fi link segment by segment, the connections
  *   earth       ORBIT with the pointer resting on the ISS, the quakes, the weather
  *   dev         coding agents at work, a container stopped (asked twice), a commit's card
- *   media       the television and the timeline (stand-ins), the next track with its cover, the
- *               spectrum dancing
+ *   media       the television and the timeline (stand-ins); KEYSTREAM's BOOT SEQUENCE playing,
+ *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, back to Tron
  *
  * Everything shown is made up or a stand-in (demo-take.mjs): the home, the repository, the Claude
- * Code folder, the sockets, the Wi-Fi link, the sound, the clipboard, the media session and its
- * covers, the Docker engine, the web pages, and the council's answers, served from here with no
- * model and no key; KEYSTREAM is copied into the profile from examples/ and typed by the take. Only the orbital elements, the weather, the markets and the earthquakes are
- * real, fetched as the panes would. Nothing of this machine is read, pressed or kept awake.
+ * Code folder, the sockets, the Wi-Fi link, the clipboard, the media session and its covers, the
+ * music (KEYSTREAM's own tracks, rendered here and played by the spectrum's stand-in), the Docker
+ * engine, the web pages, and the council's answers, served from here with no model and no key;
+ * KEYSTREAM is copied into the profile from examples/ and typed by the take. Only the orbital
+ * elements, the weather, the markets and the earthquakes are real, fetched as the panes would.
+ * Nothing of this machine is read, pressed or kept awake.
  *
  * Windows only, like the screenshots. Run `npm run build` first, then `npm run demo:tour`. The
  * window opens after the lead (`--lead`, 10 s: start the recorder on the region the --probe
@@ -26,7 +28,7 @@
  * `--no-intro` skips the boot. The other options are demo-take.mjs's (`takeOptions`): 1600x900
  * unless told otherwise, `--pace` on every pause, `--shots=<dir>` to look the take over.
  */
-import { beats, KEYSTREAM_VOLUME, startCouncil } from './demo-beats.mjs'
+import { beats, KEYSTREAM_VOLUME, prepareMusic, startCouncil } from './demo-beats.mjs'
 import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
 import { MAIN, openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 import { presetTrees, withState } from './preset-shots.mjs'
@@ -39,6 +41,7 @@ const exit = process.argv.includes('--exit')
 const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
 
 const council = await startCouncil()
+const music = prepareMusic()
 
 /* ---- The saved layouts: the six presets, the council, then KEYSTREAM ---- */
 
@@ -105,12 +108,12 @@ const { app, page, wait, settled, run } = await openTake({
   options: { ...options, lead: 0 },
   standIn,
   intro,
-  env: { ELECDEX_AWAKE_STUB: '1' },
+  env: { ELECDEX_AWAKE_STUB: '1', ...music.env },
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: copyKeystream,
 })
 
-const beat = beats({ app, page, wait, settled, theme: options.theme })
+const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 
 /** A switch by a preset's own key, then the arrangement's power-on. */
 async function toPreset(id) {
@@ -152,8 +155,9 @@ await run(async () => {
   await beat.stopContainer()
   await beat.commitCard()
   await toPreset('media')
-  await wait(2500)
-  await beat.nextTrack(3500)
+  await beat.musicPlays()
+  await wait(4000)
+  await beat.nextTrack(4500)
   await toPreset('desk')
   await wait(1200)
   await beat.copies()

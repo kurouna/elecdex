@@ -7,6 +7,7 @@ import { MixerService } from '../audio/mixer-service.js'
 import { openPulseCapture } from '../audio/pulse-capture.js'
 import { readMonitorLevel, restoreMonitor } from '../audio/pulse-monitor.js'
 import { SpectrumCapture } from '../audio/spectrum-capture.js'
+import { StubTracks, trackFiles } from '../audio/stub-tracks.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
 
@@ -22,7 +23,8 @@ import { whenPageGoes } from './page-gone.js'
  * `ELECDEX_AUDIO_STUB=1` swaps both for stand-ins - a steady tone, a mixer with
  * two made-up apps - so the end-to-end tests never capture the machine's sound
  * nor change its volume. `ELECDEX_AUDIO_STUB=demo` plays music-like movement
- * instead of the tone, for the README screenshots.
+ * instead of the tone, for the README screenshots, and `=tracks` the WAV files
+ * `ELECDEX_AUDIO_TRACKS` names, as a recorded demo says (audio/stub-tracks.ts).
  */
 const SPECTRUM = 'spectrum'
 const MIXER = 'mixer'
@@ -30,6 +32,9 @@ const MIXER = 'mixer'
 export function registerAudioIpc(): { dispose: () => void } {
   const stub = audioStubFrom(process.env.ELECDEX_AUDIO_STUB)
   const registry = new SubscriptionRegistry<WebContents>()
+  const tracks =
+    stub === 'tracks' ? new StubTracks(trackFiles(process.env.ELECDEX_AUDIO_TRACKS)) : null
+  tracks?.hooks()
 
   const send = (source: string, channel: string, update: unknown): void => {
     for (const contents of registry.subscribers(source)) {
@@ -44,7 +49,7 @@ export function registerAudioIpc(): { dispose: () => void } {
     open: (onUpdate) =>
       pulse
         ? openPulseCapture(onUpdate, { readMonitor: () => readMonitorLevel(output) })
-        : openCaptureWindow({ stub, onUpdate }),
+        : openCaptureWindow({ stub, tracks, onUpdate }),
     publish: (update) => send(SPECTRUM, CH.audio.spectrum, update),
   })
   const syncSpectrum = (): void => capture.subscribers(registry.subscribers(SPECTRUM).size)

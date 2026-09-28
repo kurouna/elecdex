@@ -109,14 +109,15 @@ export function pumpSpectrum(read: () => number[], send: (bins: number[]) => voi
 
 /**
  * What the capture window can play instead of the system's sound: `tone`, a steady
- * 1 kHz tone for the tests, or `demo`, music-like movement for screenshots. Neither
- * captures anything.
+ * 1 kHz tone for the tests, `demo`, music-like movement for screenshots, or `tracks`,
+ * the WAV files `ELECDEX_AUDIO_TRACKS` names, played when main says which (the recorded
+ * demos: the spectrum moves with the music heard). None captures anything.
  */
-export type AudioStub = 'tone' | 'demo'
+export type AudioStub = 'tone' | 'demo' | 'tracks'
 
-/** `ELECDEX_AUDIO_STUB`: `1` for the tests' tone, `demo` for screenshots, else none. */
+/** `ELECDEX_AUDIO_STUB`: `1` for the tests' tone, `demo` or `tracks`, else none. */
 export const audioStubFrom = (value: string | undefined): AudioStub | null =>
-  value === '1' ? 'tone' : value === 'demo' ? 'demo' : null
+  value === '1' ? 'tone' : value === 'demo' || value === 'tracks' ? value : null
 
 /** The demo's tempo: a beat every half second. */
 const DEMO_BEAT_MS = 500
