@@ -12,6 +12,7 @@ export const PLUGIN_VOICES = [
   'piano',
   'epiano',
   'lead',
+  'guitar',
   'chip',
   'bass',
   'pluck',

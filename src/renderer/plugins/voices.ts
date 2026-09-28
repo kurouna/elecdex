@@ -221,6 +221,34 @@ const lead: VoiceFn = (kit, n) => {
   return b.done(end + 0.3, 0.05)
 }
 
+/** A soft clipper's curve, made once: the recipe guitar's distortion. */
+const CLIP = Float32Array.from({ length: 1025 }, (_, i) => Math.tanh(((i - 512) / 512) * 3))
+
+/**
+ * The guitar until its strings have loaded (guitar/, section 13.9): two saws a little apart
+ * into a clipper, through a speaker's top.
+ */
+const guitar: VoiceFn = (kit, n) => {
+  const b = new Build(kit, n.level * 0.22)
+  const t = n.start
+  const end = n.end ?? t + 1
+  const g = b.amp.gain
+  g.setValueAtTime(0, t)
+  g.linearRampToValueAtTime(b.level, t + 0.004)
+  g.setTargetAtTime(b.level * 0.6, t + 0.004, 0.4)
+  release(g, end, 0.06)
+  const shaper = kit.ac.createWaveShaper()
+  shaper.curve = CLIP
+  shaper.oversample = '4x'
+  const drive = b.gain(2.5)
+  drive
+    .connect(shaper)
+    .connect(b.filter('lowpass', 4500, 1.2))
+    .connect(b.amp)
+  for (const detune of [-6, 6]) b.osc('sawtooth', n.freq, t, end + 0.3, detune).connect(drive)
+  return b.done(end + 0.3, 0.06)
+}
+
 /** A square wave, as an old console's sound chip made it. */
 const chip: VoiceFn = (kit, n) => {
   const b = new Build(kit, n.level * 0.2)
@@ -393,6 +421,7 @@ export const VOICES: Readonly<Record<Voice, VoiceFn>> = {
   piano,
   epiano,
   lead,
+  guitar,
   chip,
   bass,
   pluck,

@@ -29,6 +29,7 @@ export default {
       options: [
         { value: 'epiano', label: 'E.PIANO' },
         { value: 'piano', label: 'PIANO' },
+        { value: 'guitar', label: 'GUITAR' },
         { value: 'lead', label: 'SYNTH LEAD' },
         { value: 'chip', label: 'CHIP' },
       ],

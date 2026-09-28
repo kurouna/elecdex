@@ -65,7 +65,7 @@ interface Saved {
 }
 
 const SURFACE = 'screen'
-const LEADS: readonly Voice[] = ['epiano', 'piano', 'lead', 'chip']
+const LEADS: readonly Voice[] = ['epiano', 'piano', 'guitar', 'lead', 'chip']
 const RESUME_MS = 1500
 const MENU_KEY_LENGTH = 520
 /** Notes to a sound.play: under the host's limit of 4096, which a window stays well within. */

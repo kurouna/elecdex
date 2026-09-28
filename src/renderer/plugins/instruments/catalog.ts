@@ -1,6 +1,10 @@
 import type { Voice } from '@shared/plugin-api'
 import { afterDecay, damperTime, hasDamper } from '../piano/model.js'
 
+/** The guitar's delay echoes on after its note, and the longest a held note may be (30 s). */
+const GUITAR_ECHO = 1.8
+const LONGEST = 31
+
 /**
  * What the page and the audio thread both know of each voice (docs/plugins.md section 13.8):
  * which are instruments on the audio thread rather than a recipe of nodes, which output of
@@ -42,6 +46,13 @@ export const INSTRUMENTS: Partial<Record<Voice, VoiceTraits>> = {
     settle: (pitch) =>
       hasDamper(pitch) ? damperTime(pitch) * 1.6 : Math.min(40, afterDecay(pitch)),
   },
+  guitar: {
+    bus: 'guitar',
+    ownLength: 1,
+    // A held note feeds back and sustains for as long as it is held.
+    ring: () => LONGEST,
+    settle: () => 0.5 + GUITAR_ECHO,
+  },
 }
 
 /**
@@ -52,6 +63,7 @@ export const ROOM_SEND: Readonly<Record<Voice, number>> = {
   piano: 0.2,
   epiano: 0.18,
   lead: 0.16,
+  guitar: 0.14,
   chip: 0.05,
   bass: 0.03,
   pluck: 0.2,

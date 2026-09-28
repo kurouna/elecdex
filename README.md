@@ -827,7 +827,10 @@ can go round underneath to play over, and the chord under your fingers is named 
 Its piano is a physical model, not a recording: stiff, stretched strings in pairs and threes that
 beat and die away in two stages, a felt hammer that plays brighter the harder it lands, the clang
 of a hard blow in the bass, a soundboard and a room - and, with the pedal down, the strings nobody
-struck ringing along. It is worked out on the audio thread as it plays.
+struck ringing along. Its lead guitar is played on the string and fret a player would use, through
+a pickup, an overdriven amplifier worked out at four times the sample rate and a speaker cabinet:
+held into the next note it hammers on or slides, held on it bends into vibrato and feeds back. Both
+are worked out on the audio thread as they play.
 
 Plugins are off until turned on in *Settings → Plugins*, which lists what each may do - read
 metric sources, reach named hosts (each request made by the app and checked against that list),

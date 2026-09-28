@@ -28,6 +28,7 @@ const { roomResponse, soundboardResponse } = await import(`${plugins}/piano/body
 const { InstrumentHost } = await import(`${plugins}/instruments/host.ts`)
 const { MAKERS } = await import(`${plugins}/instruments/makers.ts`)
 const { BUSES, OUTPUTS, ROOM_SEND } = await import(`${plugins}/instruments/catalog.ts`)
+const { cabinetResponse, ECHO } = await import(`${plugins}/guitar/cabinet.ts`)
 
 export const RATE = 48000
 const BLOCK = 128
@@ -144,6 +145,44 @@ export const TAKES = {
     },
     ode: () => ode('piano'),
   },
+  guitar: {
+    // A minor pentatonic lead: picked, then hammered and slid (each note held into the next),
+    // a long held note that bends into vibrato and feeds back, and a fast run.
+    lead: () => {
+      const g = (t, pitch, length, level = 0.7) => n(t, pitch, level, length, 'guitar')
+      return [
+        g(0.2, 69, 0.3),
+        g(0.55, 72, 0.3),
+        g(0.9, 74, 0.25),
+        g(1.1, 76, 0.45),
+        // Legato: each held into the next.
+        g(1.7, 74, 0.25),
+        g(1.9, 76, 0.25),
+        g(2.1, 79, 0.25),
+        g(2.3, 81, 3.2, 0.8),
+        g(5.8, 79, 0.2),
+        g(6.0, 76, 0.2),
+        g(6.2, 74, 0.2),
+        g(6.4, 72, 0.2),
+        g(6.6, 69, 1.6),
+        ...Array.from({ length: 12 }, (_, i) =>
+          g(8.6 + i * 0.11, [69, 72, 74, 76, 79, 81][i % 6] + (i >= 6 ? 12 : 0) - 12, 0.1, 0.65),
+        ),
+        g(10.1, 69, 2.5, 0.85),
+      ]
+    },
+    // Power chords, each string a little after the last, as a pick strums down.
+    chords: () =>
+      [
+        [40, 47, 52],
+        [45, 52, 57],
+        [43, 50, 55],
+        [38, 45, 50],
+      ].flatMap((c, i) => c.map((p, k) => n(0.2 + i * 1.2 + k * 0.012, p, 0.75, 1.05, 'guitar'))),
+    dynamics: () =>
+      [0.15, 0.35, 0.55, 0.75, 0.95].map((l, i) => n(0.2 + i * 1.2, 64, l, 0.9, 'guitar')),
+    sustain: () => [n(0.2, 76, 0.8, 7, 'guitar')],
+  },
 }
 
 /** Renders notes through the host: the processor's outputs, whole. */
@@ -243,32 +282,60 @@ function fft(re, im, inverse) {
 
 const silent = (x) => x.every((v) => v === 0)
 
-/** The outputs as the page hears them: the soundboard, the rest, and the room of it all. */
+/** A feedback delay with a darkening loop: the page's echo, sample by sample. */
+function echo(input, seconds) {
+  const d = Math.round(seconds * RATE)
+  const out = new Float32Array(input.length)
+  const line = new Float32Array(d)
+  const a = 1 - Math.exp((-2 * Math.PI * ECHO.cutoff) / RATE)
+  let low = 0
+  for (let i = 0; i < input.length; i++) {
+    const delayed = line[i % d]
+    low += a * (delayed - low)
+    out[i] = low
+    line[i % d] = input[i] * ECHO.wet + low * ECHO.feedback
+  }
+  return out
+}
+
+/** The outputs as the page hears them: the soundboard, the cabinet, the rest, and the room. */
 export function hear(buses) {
   const frames = buses[0][0].length
   const out = [new Float32Array(frames), new Float32Array(frames)]
   const room = [Float32Array.from(buses[BUSES.room][0]), Float32Array.from(buses[BUSES.room][1])]
-  const piano = buses[BUSES.piano]
-  if (!silent(piano[0])) {
-    const board = soundboardResponse(RATE)
-    for (let c = 0; c < 2; c++) {
-      const heard = convolve(piano[c], board[c])
-      for (let i = 0; i < frames; i++) {
-        out[c][i] += heard[i]
-        room[c][i] += heard[i] * ROOM_SEND.piano
-      }
-    }
+  const add = (into, from, share = 1) => {
+    for (let i = 0; i < frames; i++) into[i] += from[i] * share
   }
-  for (const bus of [BUSES.guitar, BUSES.plain]) {
-    for (let c = 0; c < 2; c++) for (let i = 0; i < frames; i++) out[c][i] += buses[bus][c][i]
+  for (let c = 0; c < 2; c++) add(out[c], buses[BUSES.plain][c])
+  for (const [l, r, send] of [piano(buses[BUSES.piano]), guitar(buses[BUSES.guitar])]) {
+    add(out[0], l)
+    add(out[1], r)
+    add(room[0], l, send)
+    add(room[1], r, send)
   }
   const hall = roomResponse(RATE)
-  for (let c = 0; c < 2; c++) {
-    if (silent(room[c])) continue
-    const wet = convolve(room[c], hall[c])
-    for (let i = 0; i < frames; i++) out[c][i] += wet[i]
-  }
+  for (let c = 0; c < 2; c++) if (!silent(room[c])) add(out[c], convolve(room[c], hall[c]))
   return out
+}
+
+/** The piano's strings through the soundboard, with the soundboard's share of the room. */
+function piano([l, r]) {
+  if (silent(l)) return [l, r, 0]
+  const board = soundboardResponse(RATE)
+  return [convolve(l, board[0]), convolve(r, board[1]), ROOM_SEND.piano]
+}
+
+/** The amplifier through the cabinet, and its echoes placed well to their sides. */
+function guitar([l, r]) {
+  if (silent(l)) return [l, r, 0]
+  const cabinet = cabinetResponse(RATE)
+  const heard = [convolve(l, cabinet[0]), convolve(r, cabinet[1])]
+  const [el, er] = [echo(heard[0], ECHO.left), echo(heard[1], ECHO.right)]
+  for (let i = 0; i < heard[0].length; i++) {
+    heard[0][i] += el[i] * 0.85 + er[i] * 0.15
+    heard[1][i] += er[i] * 0.85 + el[i] * 0.15
+  }
+  return [heard[0], heard[1], ROOM_SEND.guitar]
 }
 
 export function wav(channels) {

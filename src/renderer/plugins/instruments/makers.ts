@@ -1,4 +1,5 @@
 import type { Voice } from '@shared/plugin-api'
+import { GuitarEngine } from '../guitar/engine.js'
 import { PianoEngine } from '../piano/engine.js'
 import type { InstrumentMaker } from './host.js'
 
@@ -8,4 +9,5 @@ import type { InstrumentMaker } from './host.js'
  */
 export const MAKERS: Partial<Record<Voice, InstrumentMaker>> = {
   piano: (rate) => new PianoEngine(rate),
+  guitar: (rate) => new GuitarEngine(rate),
 }

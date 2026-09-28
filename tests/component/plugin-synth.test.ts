@@ -75,6 +75,8 @@ function fakeContext() {
     createBiquadFilter: () =>
       Object.assign(new Node(), { type: '', frequency: new Param(), Q: new Param() }),
     createStereoPanner: () => Object.assign(new Node(), { pan: new Param() }),
+    createWaveShaper: () => Object.assign(new Node(), { curve: null, oversample: 'none' }),
+    createDelay: () => Object.assign(new Node(), { delayTime: new Param() }),
     createDynamicsCompressor: () =>
       Object.assign(new Node(), {
         threshold: new Param(),

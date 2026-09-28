@@ -326,6 +326,7 @@ export type Voice =
   | 'piano'
   | 'epiano'
   | 'lead'
+  | 'guitar'
   | 'chip'
   | 'bass'
   | 'pluck'

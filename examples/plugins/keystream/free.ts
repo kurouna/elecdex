@@ -16,6 +16,7 @@ import { loopBetween, nextWindow } from './schedule'
 export const TONES: readonly { voice: Voice; name: string }[] = [
   { voice: 'epiano', name: 'E.PIANO' },
   { voice: 'piano', name: 'PIANO' },
+  { voice: 'guitar', name: 'GUITAR' },
   { voice: 'lead', name: 'SYNTH LEAD' },
   { voice: 'chip', name: 'CHIP' },
   { voice: 'pluck', name: 'PLUCK' },
