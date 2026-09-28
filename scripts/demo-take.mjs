@@ -86,7 +86,8 @@ export function withDemoState(tree, standIn) {
 /**
  * The window, on a profile whose saved layouts are `items` and whose workspace is the first of
  * them. Resolves with what a take drives it by. `env` is laid over the take's environment: a
- * take of its own stub (the Wi-Fi demo's train) says so there.
+ * take of its own stub (the Wi-Fi demo's train) says so there. `prepare` is given the profile
+ * folder before the app starts, for what a take needs in it (a plugin's folder).
  */
 export async function openTake({
   items,
@@ -95,6 +96,7 @@ export async function openTake({
   env = {},
   settings = {},
   intro = false,
+  prepare = () => {},
 }) {
   const profile = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-'))
   writeFileSync(path.join(profile, 'layout.json'), JSON.stringify(items[0].tree))
@@ -129,6 +131,7 @@ export async function openTake({
   gitRepos(profile)
   seedOrbits(profile)
   deskFiles(profile)
+  prepare(profile)
 
   const app = await electron.launch({
     // `intro`: the boot sequence plays as the window opens, welcoming a made-up user.

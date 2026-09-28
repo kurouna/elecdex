@@ -38,6 +38,7 @@ npm run demo:wifi      # the Wi-Fi pane on the train stub, 9:16, cards opening o
 npm run demo:panes     # DOCKER, CLIPBOARD, NOW PLAYING and UTILITY at work, 16:9, under 30 s (Windows; build first)
 npm run demo:tour      # the introduction video: boot, presets, ORBIT, agents, Docker, media, ELEC, themes (Windows; build first)
 npm run demo:tour-shorts # the same tour, 9:16 in two tiers, under 2 min, for Shorts (Windows; build first)
+npm run demo:keystream # KEYSTREAM: menu previews, a track typed on time through instrument changes, its result (Windows; build first)
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
 ```
