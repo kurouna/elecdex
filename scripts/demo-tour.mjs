@@ -172,6 +172,8 @@ await run(async () => {
   await beat.themes()
   await wait(2500)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)
-  council.close()
   if (exit) await app.close().catch(() => {})
 })
+// Closed here, not in the take: a take the window ended early would leave the stand-in
+// listening, and Node running with nothing to do.
+council.close()
