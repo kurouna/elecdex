@@ -7,7 +7,10 @@ import type { Rect } from './layout'
  * come in one after another, as the launcher's tiles do; the light behind a chosen tab or
  * level slides to it, and the cursor sweeps to its row with a streak behind it; the chosen
  * track's title decodes, its details are typed out again and its stars light one
- * by one. A track started blinks first, as a launched tile does. Nothing here draws: this
+ * by one. A track chosen opens its levels on a panel over the list, as a pane powers on - a
+ * line opening out - and closes back into a line when it is left; the light behind the
+ * chosen level sweeps to it as the cursor does to a row. A track started blinks first, as a
+ * launched tile does. Nothing here draws: this
  * is the timing, and the menu's drawing asks it where things stand. With motion reduced the
  * menu is simply still.
  */
@@ -48,6 +51,20 @@ export function tabPower(age: number): { showing: 'before' | 'after'; open: numb
   const t = (age - MOTION.tabOff) / MOTION.tabOn
   if (t >= 1) return { showing: 'after', open: 1, line: 0 }
   return { showing: 'after', open: easeOut(t), line: 1 - t }
+}
+
+/**
+ * The levels' panel `age` into its opening or its closing: how far open it is (0 a line, 1
+ * open) and how bright the line across it is. It opens as a tab's list does, and closes as
+ * that list is pressed away.
+ */
+export function panelPower(age: number, closing: boolean): { open: number; line: number } {
+  if (closing) {
+    const t = Math.min(1, age / MOTION.tabOff)
+    return { open: 1 - t * t, line: t < 1 ? t : 0 }
+  }
+  const t = Math.min(1, age / MOTION.tabOn)
+  return { open: easeOut(t), line: t < 1 ? 1 - t : 0 }
 }
 
 /** How far row `i` has come in, `age` after the rows began to: 0 to 1. */
@@ -110,6 +127,8 @@ export function slideRect(from: Rect, to: Rect, t: number): Rect {
 export interface Drawn {
   tabs: Rect[]
   levels: Rect[]
+  /** The levels' rows on their panel, when it is open. */
+  panel: Rect[]
   /** The top of the cursor's row, or null when no row had it. */
   cursor: number | null
 }
@@ -125,6 +144,12 @@ export interface MenuFrame {
   choice: number | null
   /** Since the chosen row began to blink. */
   blink: number | null
+  /** The levels' panel opening or closing; null when it is still (open or away). */
+  panel: { age: number; closing: boolean } | null
+  /** The light on the panel moving to another level. */
+  panelLevel: { age: number; from: Rect | null } | null
+  /** Since the panel opened: its stars light and its lines are typed. */
+  panelChoice: number | null
 }
 
 const NEVER = Number.NEGATIVE_INFINITY
@@ -135,7 +160,7 @@ const CHOICE_MS = Math.max(MOTION.star * 6, MOTION.decode, MOTION.type)
 export class MenuMotion {
   /** The shelf a tab change came from: its list is what powers off. */
   before: Shelf = 'all'
-  private drawn: Drawn = { tabs: [], levels: [], cursor: null }
+  private drawn: Drawn = { tabs: [], levels: [], panel: [], cursor: null }
   private tabAt = NEVER
   private tabFrom: Rect | null = null
   private levelAt = NEVER
@@ -145,6 +170,10 @@ export class MenuMotion {
   private rowsAt = NEVER
   private starsAt = NEVER
   private blinkAt = NEVER
+  private panelAt = NEVER
+  private panelClosing = false
+  private panelLevelAt = NEVER
+  private panelFrom: Rect | null = null
 
   /** The tabs changed from the one at `index`, showing `shelf`. */
   tab(now: number, index: number, shelf: Shelf): void {
@@ -168,6 +197,25 @@ export class MenuMotion {
     this.cursorFrom = this.drawn.cursor
     this.cursorAt = now
     this.starsAt = now
+  }
+
+  /** A track's levels opened on their panel. */
+  opened(now: number): void {
+    this.panelAt = now
+    this.panelClosing = false
+    this.panelLevelAt = NEVER
+  }
+
+  /** The levels' panel closed, back to the list. */
+  closed(now: number): void {
+    this.panelAt = now
+    this.panelClosing = true
+  }
+
+  /** The level changed on the panel, from the one at `index`. */
+  panelLevel(now: number, index: number): void {
+    this.panelFrom = this.drawn.panel[index] ?? null
+    this.panelLevelAt = now
   }
 
   /** The menu came on: its rows come in. */
@@ -197,7 +245,12 @@ export class MenuMotion {
     const level = since(this.levelAt, MOTION.slide)
     const cursor = since(this.cursorAt, MOTION.glide)
     const rows = since(this.rowsAt, ROWS_MS)
+    const panel = since(this.panelAt, this.panelClosing ? MOTION.tabOff : MOTION.tabOn)
+    const panelLevel = since(this.panelLevelAt, MOTION.glide)
     return {
+      panel: panel === null ? null : { age: panel, closing: this.panelClosing },
+      panelLevel: panelLevel === null ? null : { age: panelLevel, from: this.panelFrom },
+      panelChoice: this.panelClosing ? null : since(this.panelAt, CHOICE_MS),
       tab: tab === null ? null : { age: tab, from: this.tabFrom },
       level: level === null ? null : { age: level, from: this.levelFrom },
       cursor:
@@ -219,6 +272,9 @@ export class MenuMotion {
       f.rows !== null ||
       f.choice !== null ||
       f.blink !== null ||
+      f.panel !== null ||
+      f.panelLevel !== null ||
+      f.panelChoice !== null ||
       now < this.rowsAt ||
       now < this.starsAt
     )

@@ -9,6 +9,7 @@ import {
   decoded,
   type MenuFrame,
   MOTION,
+  panelPower,
   rowIn,
   slideRect,
   starsLit,
@@ -31,8 +32,10 @@ import {
 
 /**
  * The menu, as a directory listing: the genre tabs, the tracks one to a row with their
- * stars, the level, what the chosen track holds and the best result on it, and the keys
- * that drive it all. How it moves is menu-motion.ts; this draws a frame of it.
+ * stars, the level and the instrument, what the chosen track holds and the best result on
+ * it, and the keys that drive it all. A track is chosen first and its level after, as the
+ * dance and beat games have it: Enter opens the track's levels on a panel over the list.
+ * How it moves is menu-motion.ts; this draws a frame of it.
  */
 
 export interface MenuRow {
@@ -50,7 +53,23 @@ export interface MenuList {
   selected: number
 }
 
+/** A level of the chosen track, as its panel lists it. */
+export interface LevelRow {
+  level: Level
+  stars: number
+  notes: number
+  best: Best | null
+  /** What the level asks. */
+  note: string
+}
+
 export interface MenuView {
+  /** Choosing a track, or its level on the panel. */
+  stage: 'tracks' | 'levels'
+  /** The chosen track's levels; null on FREE PLAY. */
+  levels: readonly LevelRow[] | null
+  /** The instrument the keys play, and the key that picked it. */
+  instrument: { name: string; key: string }
   list: MenuList
   /** The list a tab change left, shown while it powers off. */
   before: MenuList | null
@@ -111,12 +130,15 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView, f: MenuFrame): Dra
   const fit = clamp(shown, 3, total)
   const box = { x, y, width, rowH, fit, compact: width < COMPACT_WIDTH }
   const cursor = drawShelf(p, box, view, f)
+  // The panel takes the list's room, or what it needs over the details under a short list:
+  // drawn last, over them.
+  const panelH = Math.min(Math.max(fit * rowH, PANEL_MIN), l.line - 70 - y)
   y += fit * rowH + rowH * 0.6
   const chosen = view.list.rows[view.list.selected]
   if (chosen === undefined) {
     freeDetails(p, x, y + 4)
     footer(p, l, view)
-    return { tabs, levels: [], cursor }
+    return { tabs, levels: [], panel: drawPanel(p, box, panelH, view, f), cursor }
   }
   const levels = drawLevels(p, x, y, width, view, f)
   y += 22
@@ -125,7 +147,7 @@ export function drawMenu(p: Paint, l: Layout, view: MenuView, f: MenuFrame): Dra
   details(p, x, y + 14, width, chosen, view, age)
   if (y + 110 < l.line - 60) opening(p, x, y + 64, width, view.opening, age)
   footer(p, l, view)
-  return { tabs, levels, cursor }
+  return { tabs, levels, panel: drawPanel(p, box, panelH, view, f), cursor }
 }
 
 /*
@@ -172,7 +194,7 @@ function chips(p: Paint, x: number, y: number, set: ChipSet): Rect[] {
   return rects
 }
 
-/** The genre tabs, each with how many tracks it holds; < > and 0-4 change them. */
+/** The genre tabs, each with how many tracks it holds; the left and right arrows change them. */
 function drawTabs(p: Paint, x: number, y: number, width: number, view: MenuView, f: MenuFrame) {
   const counted = width >= 600
   const rects = chips(p, x + 14, y, {
@@ -183,7 +205,7 @@ function drawTabs(p: Paint, x: number, y: number, width: number, view: MenuView,
   })
   const end = rects.at(-1)
   if (end && end.x + end.w + 90 < x + width) {
-    write(p, '< >  0-4', x + width - 14, y + 12, {
+    write(p, '←→  < >', x + width - 14, y + 12, {
       font: font(600, 11, p.fonts.mono),
       color: p.c.muted,
       align: 'right',
@@ -193,7 +215,7 @@ function drawTabs(p: Paint, x: number, y: number, width: number, view: MenuView,
   return rects
 }
 
-/** The level chips, and beside them what the chosen level asks. */
+/** The level chips, beside them what the chosen level asks, and at the end the instrument. */
 function drawLevels(p: Paint, x: number, y: number, width: number, view: MenuView, f: MenuFrame) {
   const at =
     x +
@@ -218,8 +240,36 @@ function drawLevels(p: Paint, x: number, y: number, width: number, view: MenuVie
     baseline: 'middle' as const,
     spacing: '0.1em',
   }
-  write(p, fitted(p, view.levelNote, x + width - 14 - noteX, style), noteX, y + 12, style)
+  const instrumentX = instrument(p, x + width - 14, y + 12, view.instrument)
+  write(p, fitted(p, view.levelNote, instrumentX - 18 - noteX, style), noteX, y + 12, style)
   return rects
+}
+
+/** The instrument the keys play, ending at `right`: its key in a cap, then its name. Answers its left. */
+function instrument(p: Paint, right: number, y: number, chosen: MenuView['instrument']): number {
+  const nameStyle = {
+    font: font(600, 11, p.fonts.display),
+    color: p.c.accentStrong,
+    baseline: 'middle' as const,
+    spacing: '0.18em',
+    align: 'right' as const,
+  }
+  const nameW = measure(p, chosen.name, nameStyle)
+  write(p, chosen.name, right, y + 0.5, nameStyle)
+  const capFont = font(600, 10, p.fonts.mono)
+  p.g.font = capFont
+  const w = p.g.measureText(chosen.key).width + 10
+  const capX = right - nameW - 8 - w
+  p.g.strokeStyle = alpha(p.c.border, 0.8)
+  p.g.lineWidth = 1
+  p.g.strokeRect(capX + 0.5, y - 7.5, w, 16)
+  write(p, chosen.key, capX + w / 2 + 0.5, y + 0.5, {
+    font: capFont,
+    color: p.c.text,
+    align: 'center',
+    baseline: 'middle',
+  })
+  return capX
 }
 
 /*
@@ -242,11 +292,19 @@ function drawShelf(p: Paint, box: ListBox, view: MenuView, f: MenuFrame): number
     g.scale(1, Math.max(0.02, power.open))
     g.translate(0, -mid)
   }
-  const shown = drawRows(p, box, list, view.free, f)
+  // The row blinks for FREE PLAY; a track's start blinks its level on the panel instead.
+  const shown = drawRows(
+    p,
+    box,
+    list,
+    view.free,
+    view.stage === 'tracks' ? f : { ...f, blink: null },
+  )
   g.restore()
   if (power && power.line > 0) powerLine(p, box, mid, power.line)
   const end = box.y + shown.count * box.rowH
-  if (!power || power.open > 0.98) {
+  // The list's marks for more above and below belong to the list, not to the panel over it.
+  if ((!power || power.open > 0.98) && view.stage === 'tracks') {
     more(p, box.x + box.width, box.y, shown.first > 0, end, shown.first + shown.count < shown.total)
   }
   return list === view.list ? shown.cursor : box.y
@@ -509,7 +567,9 @@ function stars(
 }
 
 function freeDetails(p: Paint, x: number, y: number): void {
-  write(p, "SPACE PEDAL    ←→ OCTAVE    ↑↓ TONE    1-9 < > A TRACK'S BAND    ESC MENU", x + 14, y, {
+  const keys =
+    "1-0 INSTRUMENT    Z X OCTAVE    C V STRENGTH    SPACE PEDAL    ↑↓ ENTER A TRACK'S BAND"
+  write(p, keys, x + 14, y, {
     font: font(500, 12, p.fonts.ui),
     color: p.c.muted,
     spacing: '0.14em',
@@ -523,18 +583,187 @@ function footer(p: Paint, l: Layout, view: MenuView): void {
     color: p.c.muted,
     spacing: '0.16em',
   })
-  hints(
-    p,
-    l,
-    [
-      ['↑↓', 'TRACK'],
-      ['< >', 'GENRE'],
-      ['←→', 'LEVEL'],
-      ['ENTER', 'START'],
-      ['ESC', 'PAUSE'],
-    ],
-    l.line - 10,
-  )
+  const keys: readonly (readonly [string, string])[] =
+    view.stage === 'levels'
+      ? [
+          ['↑↓', 'LEVEL'],
+          ['ENTER', 'START'],
+          ['ESC', 'BACK'],
+          ['1-0 -', 'INSTRUMENT'],
+        ]
+      : [
+          ['↑↓', 'TRACK'],
+          ['←→', 'GENRE'],
+          ['ENTER', 'SELECT'],
+          ['1-0 -', 'INSTRUMENT'],
+        ]
+  hints(p, l, keys, l.line - 10)
+}
+
+/*
+ * The levels' panel: a track chosen, its levels over the list, as a pane powers on.
+ */
+
+/** The least height the levels' panel needs: its title, three one-line levels, the instrument. */
+const PANEL_MIN = 212
+
+/** The panel as this frame has it; answers its level rows, for the light to move from. */
+function drawPanel(p: Paint, box: ListBox, h: number, view: MenuView, f: MenuFrame): Rect[] {
+  const levels = view.levels
+  if (levels === null) return []
+  const power = f.panel
+    ? panelPower(f.panel.age, f.panel.closing)
+    : { open: view.stage === 'levels' ? 1 : 0, line: 0 }
+  if (power.open <= 0 && power.line <= 0) return []
+  const g = p.g
+  const mid = box.y + h / 2
+  g.save()
+  g.beginPath()
+  g.rect(box.x - 6, box.y - 2, box.width + 12, h + 4)
+  g.clip()
+  g.translate(0, mid)
+  g.scale(1, Math.max(0.02, power.open))
+  g.translate(0, -mid)
+  g.fillStyle = p.c.ground
+  g.fillRect(box.x - 6, box.y - 2, box.width + 12, h + 4)
+  g.fillStyle = alpha(p.c.raised, 0.9)
+  g.fillRect(box.x, box.y, box.width, h)
+  g.strokeStyle = alpha(p.c.accentStrong, 0.8)
+  g.lineWidth = 1
+  g.strokeRect(box.x + 0.5, box.y + 0.5, box.width - 1, h - 1)
+  const rects = panelBody(p, box, h, view, levels, f)
+  g.restore()
+  if (power.line > 0) powerLine(p, box, mid, power.line)
+  return rects
+}
+
+function panelBody(
+  p: Paint,
+  box: ListBox,
+  h: number,
+  view: MenuView,
+  levels: readonly LevelRow[],
+  f: MenuFrame,
+): Rect[] {
+  const chosen = view.list.rows[view.list.selected]
+  const { x, width } = box
+  write(p, 'SELECT LEVEL', x + 18, box.y + 22, {
+    font: font(500, 10, p.fonts.ui),
+    color: p.c.muted,
+    spacing: '0.3em',
+  })
+  if (chosen) {
+    write(p, chosen.chart.song.title, x + 18, box.y + 50, {
+      font: font(700, clamp(box.rowH * 0.7, 16, 26), p.fonts.display),
+      color: p.c.accentStrong,
+      spacing: '0.14em',
+    })
+    write(
+      p,
+      `${chosen.chart.song.style}  //  ${bpmText(chosen.chart)}  //  ${timeText(chosen.chart.duration)}`,
+      x + width - 18,
+      box.y + 50,
+      {
+        font: font(500, 11, p.fonts.ui),
+        color: p.c.muted,
+        align: 'right',
+        spacing: '0.12em',
+      },
+    )
+  }
+  // The levels share what is left between the title and the instrument's line, in its middle.
+  const space = h - 66 - 40
+  const rowH = clamp(space / levels.length, 30, 84)
+  const top = box.y + 66 + (space - rowH * levels.length) / 2
+  const rects = levels.map((_, i) => ({
+    x: x + 12,
+    y: top + i * rowH + 2,
+    w: width - 24,
+    h: rowH - 4,
+  }))
+  panelCursor(p, rects, levels, view, f)
+  const lit = f.blink !== null && blinkLit(f.blink)
+  levels.forEach((row, i) => {
+    const r = rects[i] as Rect
+    levelRow(p, r, row, row.level === view.level && lit, f.panelChoice)
+  })
+  const bottom = box.y + h - 16
+  write(p, 'INSTRUMENT', x + 18, bottom, {
+    font: font(500, 10, p.fonts.ui),
+    color: p.c.muted,
+    spacing: '0.3em',
+    baseline: 'middle',
+  })
+  instrument(p, x + width - 18, bottom, view.instrument)
+  return rects
+}
+
+/** The light behind the chosen level, sweeping to it from the one before. */
+function panelCursor(
+  p: Paint,
+  rects: Rect[],
+  levels: readonly LevelRow[],
+  view: MenuView,
+  f: MenuFrame,
+): void {
+  const target = rects[levels.findIndex((row) => row.level === view.level)]
+  if (target === undefined) return
+  const g = p.g
+  const from = f.panelLevel?.from ?? null
+  const t = f.panelLevel ? Math.min(1, f.panelLevel.age / MOTION.glide) : 1
+  const at = from && t < 1 ? slideRect(from, target, sweep(t)) : target
+  if (from && t < 1) {
+    for (const ghost of streak(from.y, at.y, t)) {
+      g.fillStyle = alpha(p.c.accent, ghost.alpha)
+      g.fillRect(at.x, ghost.y, at.w, at.h)
+    }
+  }
+  g.fillStyle = alpha(p.c.accent, p.light ? 0.14 : 0.12)
+  g.fillRect(at.x, at.y, at.w, at.h)
+  g.fillStyle = p.c.accentStrong
+  g.fillRect(at.x, at.y, 3, at.h)
+}
+
+/** One level: its name, its stars, its notes and the best on it, and what it asks under them. */
+function levelRow(p: Paint, r: Rect, row: LevelRow, inverse: boolean, age: number | null): void {
+  const g = p.g
+  if (inverse) {
+    g.fillStyle = p.c.accent
+    g.fillRect(r.x, r.y, r.w, r.h)
+  }
+  const ink = inverse ? p.c.inverse : p.c.text
+  const quiet = inverse ? p.c.inverse : p.c.muted
+  const mid = r.y + r.h * 0.4
+  write(p, row.level.toUpperCase(), r.x + 16, mid, {
+    font: font(700, clamp(r.h * 0.34, 12, 18), p.fonts.display),
+    color: inverse ? p.c.inverse : p.c.accentStrong,
+    baseline: 'middle',
+    spacing: '0.2em',
+  })
+  stars(p, r.x + 130, mid, row.stars, age, false, inverse ? p.c.inverse : null)
+  const mono = font(600, 13, p.fonts.mono)
+  const right = r.x + r.w - 14
+  write(p, row.best ? `${row.best.rank}  ${figure(row.best.score)}` : 'NO RECORD', right, mid, {
+    font: mono,
+    color: row.best ? ink : quiet,
+    align: 'right',
+    baseline: 'middle',
+  })
+  write(p, `NOTES ${row.notes}`, right - 170, mid, {
+    font: mono,
+    color: quiet,
+    align: 'right',
+    baseline: 'middle',
+  })
+  if (r.h >= 40) {
+    const style = {
+      font: font(500, 11, p.fonts.ui),
+      color: quiet,
+      spacing: '0.1em',
+      baseline: 'middle' as const,
+    }
+    write(p, fitted(p, row.note, r.w - 150, style), r.x + 130, r.y + r.h * 0.78, style)
+  }
 }
 
 function title(p: Paint, l: Layout, x: number, width: number): number {

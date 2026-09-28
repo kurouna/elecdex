@@ -8,17 +8,24 @@ import { alpha, clamp, font, type Paint, rule, write } from './paint'
 import { frame, panelRects } from './panels'
 
 /**
- * FREE mode's screen: the header says the tone, the octave, the pedal and the band; what is
- * played rises from the keys as trails and is named as a chord in the middle of the field;
- * beside it, what was played and what the keys do.
+ * FREE mode's screen: the header says the instrument, the octave, the strength, the pedal and
+ * the band; what is played rises from the keys as trails and is named as a chord in the
+ * middle of the field; beside it, what was played, the bands and what the keys do.
  */
 
 export interface FreeView {
-  tone: string
+  /** The instrument's name, and the key that picked it. */
+  instrument: string
+  instrumentKey: string
   octave: number
+  /** How hard the keys play: which of how many steps. */
+  strength: number
+  strengths: number
   pedal: boolean
   /** The band going round underneath, by its place in the list. */
   backing: number | null
+  /** The band the arrows are on. */
+  cursor: number
   tracks: readonly string[]
   trails: readonly Trail[]
   holding: readonly number[]
@@ -37,7 +44,7 @@ export function drawFree(p: Paint, l: Layout, view: FreeView, now: number): void
   }
   frame(p, rects.left, 'TX  //  PLAYED')
   playedLog(p, rects.left, view.played)
-  frame(p, rects.right, 'BAND  //  1-9  < >')
+  frame(p, rects.right, 'BAND  //  ↑↓  ENTER')
   bandList(p, rects.right, view)
 }
 
@@ -45,12 +52,12 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n))
 
 /** What the keys do in the mode. */
 const KEYS: readonly (readonly [string, string])[] = [
+  ['1-0 -', 'INSTRUMENT'],
+  ['Z X', 'OCTAVE'],
+  ['C V', 'STRENGTH'],
   ['SPACE', 'PEDAL'],
-  ['←→', 'OCTAVE'],
-  ['↑↓', 'TONE'],
-  ['ENTER', 'BAND'],
-  ['1-9', 'WHICH BAND'],
-  ['< >', 'BAND BEFORE / AFTER'],
+  ['↑↓', 'WHICH BAND'],
+  ['ENTER', 'BAND ON / OFF'],
   ['ESC', 'MENU'],
 ]
 
@@ -72,10 +79,19 @@ function header(p: Paint, l: Layout, view: FreeView): void {
   })
   x += write(p, '  //  ', x, y, muted)
   x += write(p, 'FREE PLAY', x, y, { ...muted, color: p.c.text })
-  write(p, `  //  TONE ${view.tone}  //  OCTAVE ${signed(view.octave)}`, x, y, muted)
+  const strength = `${'▮'.repeat(view.strength + 1)}${'▯'.repeat(view.strengths - view.strength - 1)}`
+  write(
+    p,
+    `  //  ${view.instrumentKey} ${view.instrument}  //  OCTAVE ${signed(view.octave)}  //  STRENGTH ${strength}`,
+    x,
+    y,
+    muted,
+  )
   lamp(p, 'PEDAL', l.w - l.pad - LAMP_ROOM, y, view.pedal, s)
   const band =
-    view.backing === null ? 'OFF' : `${view.backing + 1}  ${view.tracks[view.backing] ?? ''}`
+    view.backing === null
+      ? `OFF   ↑↓ ${view.cursor + 1}  ${view.tracks[view.cursor] ?? ''}`
+      : `▶ ${view.backing + 1}  ${view.tracks[view.backing] ?? ''}`
   const line2 = l.header.h * 0.79
   const at =
     l.header.x +
@@ -200,13 +216,14 @@ const KEY_ROW_H = 22
  * panel has room for scrolls with the band chosen, as the menu's does.
  */
 function bandList(p: Paint, r: Rect, view: FreeView): void {
-  const rows = ['OFF', ...view.tracks]
-  const chosen = view.backing === null ? 0 : view.backing + 1
+  const rows = view.tracks
+  const chosen = view.cursor
   const room = r.h - 40 - 18 - KEYS.length * KEY_ROW_H
   const shown = clamp(Math.floor(room / ROW_H), 3, rows.length)
   const first = clamp(chosen - Math.floor(shown / 2), 0, rows.length - shown)
   for (let i = first; i < first + shown; i++) {
-    bandRow(p, r, rows[i] ?? '', i, r.y + 40 + (i - first) * ROW_H, i === chosen)
+    const y = r.y + 40 + (i - first) * ROW_H
+    bandRow(p, r, rows[i] ?? '', i, y, { chosen: i === chosen, playing: i === view.backing })
   }
   const more = { font: font(500, 10, p.fonts.ui), color: p.c.muted, align: 'right' as const }
   if (first > 0) write(p, '▲', r.x + r.w - 4, r.y + 40 - ROW_H / 2, more)
@@ -216,17 +233,25 @@ function bandList(p: Paint, r: Rect, view: FreeView): void {
   keyList(p, r, r.y + 40 + shown * ROW_H + 18)
 }
 
-function bandRow(p: Paint, r: Rect, title: string, i: number, y: number, on: boolean): void {
+function bandRow(
+  p: Paint,
+  r: Rect,
+  title: string,
+  i: number,
+  y: number,
+  state: { chosen: boolean; playing: boolean },
+): void {
   const g = p.g
+  const on = state.chosen
   if (on) {
     g.fillStyle = alpha(p.c.accent, p.light ? 0.12 : 0.1)
     g.fillRect(r.x, y - ROW_H / 2 + 1, r.w, ROW_H - 2)
     g.fillStyle = p.c.accentStrong
     g.fillRect(r.x, y - ROW_H / 2 + 1, 3, ROW_H - 2)
   }
-  write(p, String(i), r.x + 12, y, {
+  write(p, state.playing ? '▶' : String(i + 1), r.x + 12, y, {
     font: font(600, 13, p.fonts.mono),
-    color: p.c.muted,
+    color: state.playing ? p.c.accentStrong : p.c.muted,
     baseline: 'middle',
   })
   write(p, title, r.x + 40, y, {

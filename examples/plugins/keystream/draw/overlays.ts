@@ -12,6 +12,56 @@ import { alpha, clamp, font, type Paint, write } from './paint'
 export const LOAD_MS = 1100
 const LINE_MS = 230
 
+/** How long a picked instrument's name stands over the keyboard. */
+export const INSTRUMENT_MS = 1100
+
+/**
+ * The instrument just picked, over the keyboard: its key and its name in a lit box that
+ * powers on from a line (as a pane does) and fades as it goes.
+ */
+export function drawInstrument(
+  p: Paint,
+  l: Layout,
+  chosen: { name: string; key: string },
+  age: number,
+): void {
+  const g = p.g
+  const text = `${chosen.key}  ${chosen.name}`
+  const style = {
+    font: font(700, clamp(l.unit * 0.3, 13, 20), p.fonts.display),
+    color: p.c.inverse,
+    align: 'center' as const,
+    baseline: 'middle' as const,
+    spacing: '0.24em',
+  }
+  const w = measureText(p, text, style) + 40
+  const h = clamp(l.unit * 0.55, 26, 40)
+  const cx = l.field.x + l.field.w / 2
+  const cy = l.line - l.unit * 0.9
+  const open = p.reduced ? 1 : clamp(age / 90, 0.04, 1)
+  const fade = clamp((INSTRUMENT_MS - age) / 260, 0, 1)
+  g.save()
+  g.globalAlpha = fade
+  g.translate(cx, cy)
+  g.scale(1, open)
+  g.fillStyle = p.c.accent
+  g.fillRect(-w / 2, -h / 2, w, h)
+  g.restore()
+  if (open < 1) return
+  g.save()
+  g.globalAlpha = fade
+  write(p, text, cx, cy + 1, style)
+  g.restore()
+}
+
+function measureText(p: Paint, text: string, style: { font: string; spacing: string }): number {
+  p.g.font = style.font
+  p.g.letterSpacing = style.spacing
+  const w = p.g.measureText(text).width
+  p.g.letterSpacing = '0px'
+  return w
+}
+
 /** The track loading, as a boot log: each line typed out, then OK. */
 export function drawLoading(p: Paint, l: Layout, chart: Chart, index: number, age: number): void {
   const lines = [

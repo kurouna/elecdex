@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { KeyNote, Note } from '../../examples/plugins/elecdex-plugin'
+import type { KeyNote, Note, Voice } from '../../examples/plugins/elecdex-plugin'
 import { buildChart } from '../../examples/plugins/keystream/chart'
 import { chordName } from '../../examples/plugins/keystream/chord-name'
-import { FreePlay, OCTAVES, RISE_MS, TONES } from '../../examples/plugins/keystream/free'
+import { FreePlay, OCTAVES, RISE_MS, STRENGTHS } from '../../examples/plugins/keystream/free'
 import { readSong } from '../../examples/plugins/keystream/notation'
 import { loopBetween, loopLength } from '../../examples/plugins/keystream/schedule'
 import { SONGS } from '../../examples/plugins/keystream/songs/index'
@@ -68,7 +68,7 @@ function stand() {
     stops: 0,
   }
   const ctx = {
-    settings: { lead: 'piano', volume: 50, offset: 0, guide: false },
+    settings: { volume: 50, offset: 0, guide: false },
     keys: {
       focused: true,
       labels: { KeyA: 'A' } as Record<string, string>,
@@ -84,27 +84,48 @@ function stand() {
     },
   }
   const charts = SONGS.map((s) => buildChart(readSong(s), 'normal'))
-  const free = new FreePlay(ctx as never, (i) => charts[i] ?? null, charts.length)
+  let voice: Voice = 'piano'
+  const free = new FreePlay(
+    ctx as never,
+    (i) => charts[i] ?? null,
+    charts.length,
+    () => voice,
+  )
+  const pick = (next: Voice) => {
+    voice = next
+    free.bind()
+  }
   const key = (code: string, down: boolean, at = 0) => free.key({ code, down, shift: false, at })
-  return { free, asked, key }
+  return { free, asked, key, pick }
 }
 
 describe('FREE mode', () => {
-  it('holds every key while it is down, in the chosen tone and octave', () => {
-    const { free, asked, key } = stand()
+  it('holds every key while it is down, on the instrument, octave and strength chosen', () => {
+    const { free, asked, key, pick } = stand()
     free.enter()
     const bound = asked.keymaps.at(-1) ?? {}
     expect(Object.keys(bound)).toHaveLength(18)
     expect(bound.KeyA).toEqual({ voice: 'piano', pitch: 60, level: 0.425, hold: true })
-    // Left moves the keys an octave down, as far as it goes; up and down change the tone.
-    for (let i = 0; i < 5; i++) expect(key('ArrowLeft', true)).toBe('changed')
+    // Z and X move the keys an octave, as far as it goes, as a DAW's musical typing does.
+    for (let i = 0; i < 5; i++) expect(key('KeyZ', true)).toBe('changed')
     expect(free.octave).toBe(-OCTAVES)
     expect(asked.keymaps.at(-1)?.KeyA?.pitch).toBe(60 - 12 * OCTAVES)
+    key('KeyX', true)
+    expect(asked.keymaps.at(-1)?.KeyA?.pitch).toBe(60 - 12 * (OCTAVES - 1))
+    // C and V play softer and harder, step by step, within the steps there are.
+    for (let i = 0; i < 9; i++) key('KeyC', true)
+    expect(asked.keymaps.at(-1)?.KeyA?.level).toBeCloseTo((STRENGTHS[0] ?? 0) * 0.5, 6)
+    for (let i = 0; i < 9; i++) key('KeyV', true)
+    expect(asked.keymaps.at(-1)?.KeyA?.level).toBeCloseTo((STRENGTHS.at(-1) ?? 0) * 0.5, 6)
+    // The instrument is the game's (the number row's); the arrows no longer change it.
+    pick('organ')
+    expect(asked.keymaps.at(-1)?.KeyA?.voice).toBe('organ')
     key('ArrowDown', true)
-    expect(asked.keymaps.at(-1)?.KeyA?.voice).toBe(TONES[2]?.voice)
-    for (let i = 0; i < TONES.length; i++) key('ArrowUp', true)
-    expect(asked.keymaps.at(-1)?.KeyA?.voice).toBe(TONES[2]?.voice)
-    expect(free.saved()).toEqual({ tone: TONES[2]?.voice, octave: -OCTAVES })
+    expect(asked.keymaps.at(-1)?.KeyA?.voice).toBe('organ')
+    expect(free.saved()).toEqual({ octave: 1 - OCTAVES, strength: STRENGTHS.length - 1 })
+    // Kept strengths out of range come back within it.
+    free.restore({ octave: 9, strength: 99 })
+    expect(free.saved()).toEqual({ octave: OCTAVES, strength: STRENGTHS.length - 1 })
   })
 
   it('traces what is played, names what is held, and lets trails rise away', () => {
@@ -140,7 +161,12 @@ describe('FREE mode', () => {
     const { free, asked, key } = stand()
     free.enter()
     key('Space', true)
-    key('Digit3', true, 1000)
+    // The arrows move along the bands with none playing; Enter starts the one chosen.
+    key('ArrowDown', true, 900)
+    key('ArrowDown', true, 950)
+    expect(free.backing).toBeNull()
+    expect(free.cursor).toBe(2)
+    key('Enter', true, 1000)
     expect(free.backing?.index).toBe(2)
     free.frame(1000)
     expect(asked.played.at(-1)?.length).toBeGreaterThan(10)
@@ -149,25 +175,25 @@ describe('FREE mode', () => {
     expect(asked.played).toHaveLength(first)
     free.frame(4000)
     expect(asked.played.length).toBeGreaterThan(first)
-    // Another track replaces it; 0 stops it, and the pedal the stop let go is put back.
-    key('Digit1', true, 5000)
-    expect(free.backing?.index).toBe(0)
-    key('Digit0', true, 6000)
+    // Moving on while it plays changes the band; Enter stops it, and the pedal the stop let
+    // go is put back.
+    key('ArrowUp', true, 5000)
+    expect(free.backing?.index).toBe(1)
+    key('Enter', true, 6000)
     expect(free.backing).toBeNull()
     expect(asked.stops).toBe(2)
     expect(asked.sustain).toEqual([true, true, true])
-    // Enter starts the first band; comma and period step round the whole list, past what
-    // the digits reach.
+    // Comma and period do as the arrows do, round the whole list.
     key('Enter', true, 7000)
-    expect(free.backing?.index).toBe(0)
+    expect(free.backing?.index).toBe(1)
     key('Comma', true, 7100)
+    key('Comma', true, 7150)
     expect(free.backing?.index).toBe(SONGS.length - 1)
     key('Period', true, 7200)
     expect(free.backing?.index).toBe(0)
-    key('Digit9', true, 7300)
-    expect(free.backing?.index).toBe(8)
-    for (let i = 0; i < SONGS.length - 9; i++) key('Period', true, 7400 + i)
-    expect(free.backing?.index).toBe(SONGS.length - 1)
+    // The digits are the instruments', not the bands': they change nothing here.
+    key('Digit3', true, 7300)
+    expect(free.backing?.index).toBe(0)
     expect(key('Escape', true)).toBe('leave')
     free.leave()
     expect(free.backing).toBeNull()

@@ -21,21 +21,6 @@ export default {
     'A rhythm game: type the falling letters to play the melody, while the band plays the rest.',
   permissions: { keys: true, sound: true },
   settings: [
-    {
-      key: 'lead',
-      type: 'select',
-      label: 'Lead tone',
-      default: 'epiano',
-      options: [
-        { value: 'epiano', label: 'E.PIANO' },
-        { value: 'piano', label: 'PIANO' },
-        { value: 'guitar', label: 'GUITAR' },
-        { value: 'lead', label: 'SYNTH LEAD' },
-        { value: 'chip', label: 'CHIP' },
-        { value: 'organ', label: 'ORGAN' },
-        { value: 'marimba', label: 'MARIMBA' },
-      ],
-    },
     { key: 'volume', type: 'number', label: 'Volume (%)', default: 80, min: 0, max: 100, step: 5 },
     {
       key: 'offset',

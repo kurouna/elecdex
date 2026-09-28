@@ -14,6 +14,8 @@ export interface HudView {
   index: number
   tally: Tally | null
   speed: number
+  /** The instrument the keys play, changed with the number row. */
+  instrument: string
 }
 
 const SEGMENTS = 20
@@ -50,7 +52,9 @@ function titleLine(p: Paint, l: Layout, view: HudView, y: number): void {
     ...muted,
     color: p.c.text,
   })
-  write(p, `  //  ${view.chart.level.toUpperCase()}  //  ${bpmText(view.chart)}`, x, y, muted)
+  const rest = `  //  ${view.chart.level.toUpperCase()}  //  ${bpmText(view.chart)}  //  `
+  x += write(p, rest, x, y, muted)
+  write(p, view.instrument, x, y, { ...muted, color: p.c.accentStrong })
   write(p, `SPEED ${view.speed}`, l.w - l.pad - LAMP_ROOM, y, { ...muted, align: 'right' })
 }
 

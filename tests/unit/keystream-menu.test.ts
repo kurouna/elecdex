@@ -8,6 +8,7 @@ import {
   type MenuFrame,
   MenuMotion,
   MOTION,
+  panelPower,
   rowIn,
   starsLit,
   tabPower,
@@ -19,7 +20,6 @@ import {
   SHELVES,
   type Shelf,
   settle,
-  shelfOfKey,
   stepRow,
   stepShelf,
 } from '../../examples/plugins/keystream/genres'
@@ -46,6 +46,9 @@ const STILL: MenuFrame = {
   rows: null,
   choice: null,
   blink: null,
+  panel: null,
+  panelLevel: null,
+  panelChoice: null,
 }
 
 function listOf(shelf: Shelf, chosen: number): MenuList {
@@ -63,9 +66,21 @@ function menu(
   frame: MenuFrame = STILL,
   shelf: Shelf = 'all',
   before: MenuList | null = null,
+  stage: MenuView['stage'] = 'tracks',
 ) {
   const chart = charts[chosen]
   const view: MenuView = {
+    stage,
+    levels: chart
+      ? (['easy', 'normal', 'hard'] as const).map((level) => ({
+          level,
+          stars: starsFor(chart),
+          notes: chart.notes.length,
+          best: null,
+          note: `${level} note`,
+        }))
+      : null,
+    instrument: { name: 'GUITAR', key: '3' },
     list: listOf(shelf, chosen),
     before,
     tabs: SHELVES.map((s) => ({ name: s.toUpperCase(), count: onShelf(genres, s).length })),
@@ -92,10 +107,7 @@ describe('the genre tabs', () => {
     expect(onShelf(genres, 'all')).toHaveLength(SONGS.length)
   })
 
-  it('are picked by 0 to 4 and stepped round by < and >', () => {
-    expect(SHELVES.map((_, i) => shelfOfKey(`Digit${i}`))).toEqual([...SHELVES])
-    expect(shelfOfKey('Digit5')).toBeNull()
-    expect(shelfOfKey('KeyA')).toBeNull()
+  it('are stepped round, by the left and right arrows or < and >', () => {
     expect(stepShelf('all', -1)).toBe('electro')
     expect(stepShelf('electro', 1)).toBe('all')
     expect(isShelf('pop')).toBe(true)
@@ -271,5 +283,49 @@ describe('the menu', () => {
       expect(line.length, `${w}`).toBeGreaterThan(0)
       expect(line.at(-1)?.text, `${w}`).not.toBe('|')
     }
+  })
+})
+
+describe('the levels’ panel', () => {
+  it('opens from a line as a pane does, and closes back into one', () => {
+    expect(panelPower(0, false).open).toBeLessThan(0.1)
+    expect(panelPower(0, false).line).toBe(1)
+    expect(panelPower(MOTION.tabOn, false)).toEqual({ open: 1, line: 0 })
+    expect(panelPower(0, true).open).toBe(1)
+    expect(panelPower(MOTION.tabOff, true).open).toBe(0)
+    const motion = new MenuMotion()
+    motion.opened(1000)
+    expect(motion.frame(1050, false).panel).toEqual({ age: 50, closing: false })
+    expect(motion.frame(1050, true).panel).toBeNull()
+    motion.closed(2000)
+    expect(motion.frame(2050, false).panel).toEqual({ age: 50, closing: true })
+    expect(motion.alive(2050, false)).toBe(true)
+  })
+
+  it('shows the chosen track’s levels over the list, and the instrument, once a track is chosen', () => {
+    const chosen = index('twinkle')
+    const tracks = menu(chosen, { w: 1600, h: 1000 })
+    expect(tracks.texts).not.toContain('SELECT LEVEL')
+    expect(tracks.texts).toContain('GUITAR')
+    expect(tracks.drawn.panel).toEqual([])
+    const levels = menu(chosen, { w: 1600, h: 1000 }, STILL, 'all', null, 'levels')
+    expect(levels.texts).toContain('SELECT LEVEL')
+    for (const name of ['EASY', 'NORMAL', 'HARD']) expect(levels.texts).toContain(name)
+    expect(levels.texts).toContain('INSTRUMENT')
+    expect(levels.drawn.panel).toHaveLength(3)
+    // The keys at the foot say what they do on the panel.
+    expect(levels.texts).toContain('BACK')
+    expect(tracks.texts).toContain('SELECT')
+  })
+
+  it('blinks the chosen level, not the list, when a track starts from its panel', () => {
+    const chosen = index('twinkle')
+    const lit = { ...STILL, blink: 0 }
+    const { fills } = menu(chosen, { w: 1600, h: 1000 }, lit, 'all', null, 'levels')
+    const accent = colour('accent')
+    // The panel's NORMAL row is lit whole (inset from the list's width); the list's bar is not.
+    const width = Math.max(...fills.map((f) => f.w).filter((w) => w < 1500))
+    expect(fills.filter((f) => f.color === accent && f.w > 900 && f.w < width - 12)).toHaveLength(1)
+    expect(fills.filter((f) => f.color === accent && f.w >= width - 12)).toHaveLength(0)
   })
 })

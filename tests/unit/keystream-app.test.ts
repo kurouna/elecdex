@@ -11,7 +11,7 @@ import { SONGS } from '../../examples/plugins/keystream/songs/index'
  * is recorded. The canvas is never there, so nothing is drawn.
  */
 
-function stand(options: { reduced?: boolean; saved?: unknown } = {}) {
+function stand(options: { reduced?: boolean; saved?: unknown; settings?: object } = {}) {
   const listeners = new Map<string, Set<(arg?: unknown) => void>>()
   const asked = {
     keymaps: [] as Record<string, KeyNote>[],
@@ -22,7 +22,7 @@ function stand(options: { reduced?: boolean; saved?: unknown } = {}) {
   }
   let frame: ((now: number) => void) | null = null
   const ctx = {
-    settings: { lead: 'epiano', volume: 80, offset: 0, guide: false },
+    settings: { volume: 80, offset: 0, guide: false, ...options.settings },
     locale: 'en',
     visible: true,
     size: { w: 800, h: 600 },
@@ -68,7 +68,12 @@ function stand(options: { reduced?: boolean; saved?: unknown } = {}) {
     key(code, true, at)
     key(code, false, at + 30)
   }
-  return { asked, key, press, stop, frame: (now: number) => frame?.(now) }
+  /** A track started as a player does: chosen, then its level (NORMAL, as it is kept). */
+  const start = (at = 0) => {
+    press('Enter', at)
+    press('Enter', at + 1)
+  }
+  return { asked, key, press, start, stop, frame: (now: number) => frame?.(now) }
 }
 
 describe('the view', () => {
@@ -93,8 +98,8 @@ describe('the view', () => {
   })
 
   it('starts a track, and sends its band a window at a time as the frames come', () => {
-    const { asked, press, frame } = stand()
-    press('Enter', 0)
+    const { asked, start, frame } = stand()
+    start(0)
     frame(1200)
     const first = asked.played.length
     expect(first).toBeGreaterThan(1)
@@ -107,10 +112,10 @@ describe('the view', () => {
   it('goes on from the count-in when paused before the song, and counts down when paused in it', () => {
     // Found in play: a pause during the count-in was followed by 3, 2, 1 and then the count
     // again - a count before a count.
-    const { asked, press, frame } = stand()
+    const { asked, press, start, frame } = stand()
     const loudHats = (batch: readonly Note[]) =>
       batch.filter((n) => n.voice === 'hat' && (n.level ?? 0) > 0.5).length
-    press('Enter', 0)
+    start(0)
     frame(1200)
     expect(asked.played.at(-1)).toSatisfy((b: Note[]) => loudHats(b) === 4)
     // Paused in the count, and resumed: the count-in whole again, from now, and no 3-2-1.
@@ -136,8 +141,8 @@ describe('the view', () => {
   })
 
   it('ends a track on its result: the rank lands with its chord, and a new record blips', () => {
-    const { asked, press, frame } = stand()
-    press('Enter', 0)
+    const { asked, start, frame } = stand()
+    start(0)
     // Nothing typed: every note is dropped, and the track plays out to a D.
     let now = 0
     // The fanfare: a chord with its cymbal (the menu's own cues are chips alone).
@@ -154,17 +159,23 @@ describe('the view', () => {
     expect(fanfare.filter((n) => n.voice === 'chip').every((n) => (n.at ?? 0) > rankAt)).toBe(true)
   })
 
-  it('changes tab with < > and the digits, keeping the choice where the tab shows it', () => {
+  it('changes tab with the left and right arrows or < >, keeping the choice where it can', () => {
     const { asked, press } = stand({ saved: { song: 'sakura-signal' } })
     const shelfOf = () => (asked.saved.at(-1) as { shelf?: string; song?: string }) ?? {}
-    press('Digit2')
+    press('ArrowRight')
+    press('ArrowRight')
     expect(shelfOf()).toMatchObject({ shelf: 'pop', song: 'sakura-signal' })
     // A tab without it: its first track.
     press('Period')
     expect(shelfOf().shelf).toBe('dance')
     expect(SONGS.find((song) => song.id === shelfOf().song)?.genre).toBe('dance')
-    press('Digit0')
+    // The digits are the instruments now: they leave the tab where it is.
+    press('Digit2')
+    expect(shelfOf().shelf).toBe('dance')
     press('Comma')
+    expect(shelfOf().shelf).toBe('pop')
+    press('ArrowRight')
+    press('ArrowRight')
     expect(shelfOf().shelf).toBe('electro')
     // Up from the first row goes round to FREE PLAY, and down from it to the tab's first.
     press('ArrowUp')
@@ -185,16 +196,17 @@ describe('the view', () => {
     const { asked, press, frame } = stand({ reduced: false })
     frame(0)
     const before = asked.played.length
+    // The track chosen: its levels open (a blip); the level chosen: the start's two blips.
+    press('Enter', 90)
     press('Enter', 100)
-    // The start's two blips, and nothing of the track yet.
-    expect(asked.played.length).toBe(before + 1)
+    expect(asked.played.length).toBe(before + 2)
     frame(300)
     press('ArrowDown', 350)
     frame(500)
-    expect(asked.played.length).toBe(before + 1)
+    expect(asked.played.length).toBe(before + 2)
     // The blink done: the boot log's ticks, for the track that was chosen.
     frame(700)
-    expect(asked.played.length).toBe(before + 2)
+    expect(asked.played.length).toBe(before + 3)
     expect(asked.played.at(-1)?.every((n) => n.voice === 'hat')).toBe(true)
     expect((asked.saved.at(-1) as { song: string }).song).toBe(SONGS[0]?.id)
   })
@@ -219,16 +231,18 @@ describe('the view', () => {
     const moved = asked.played.length
     frame(t0 + 1000 + PREVIEW.restMs + 20)
     expect(asked.played.length).toBe(moved + 1)
-    // Chosen: the preview stops before the row blinks.
+    // Its levels open and it plays on; the level chosen, it stops before the row blinks.
     press('Enter', t0 + 2000)
+    expect(asked.stops).toBe(stops + 1)
+    press('Enter', t0 + 2100)
     expect(asked.stops).toBe(stops + 2)
   })
 
   it('leaves the result after the pressed key’s blink and the screen’s close', () => {
-    const { asked, press, frame } = stand({ reduced: false })
+    const { asked, press, start, frame } = stand({ reduced: false })
     frame(0)
-    press('Enter', 10)
-    let now = 10
+    start(10)
+    let now = 20
     const isFanfare = (batch: readonly Note[]) =>
       batch.some((n) => n.voice === 'pluck') && batch.some((n) => n.voice === 'crash')
     while (now < 120_000 && !asked.played.some(isFanfare)) {
@@ -243,5 +257,80 @@ describe('the view', () => {
     frame(now + 3000 + EXIT_MS + 20)
     press('ArrowDown', now + 3200 + EXIT_MS)
     expect(asked.saved.length).toBe(saves + 1)
+  })
+})
+
+describe('the instruments', () => {
+  const voiceOf = (asked: { keymaps: Record<string, KeyNote>[] }) =>
+    asked.keymaps.at(-1)?.KeyA?.voice
+
+  it('are picked on the number row, on the menu, in a track and in FREE PLAY alike', () => {
+    const { asked, press, start, frame } = stand()
+    press('Digit3')
+    expect(voiceOf(asked)).toBe('guitar')
+    // Heard on the menu at once: a rising chord on it.
+    expect(asked.played.at(-1)?.every((n) => n.voice === 'guitar')).toBe(true)
+    expect(asked.saved.at(-1)).toMatchObject({ instrument: 'guitar' })
+    press('Minus')
+    expect(voiceOf(asked)).toBe('bass')
+    // In a track, the keys change at once, and nothing else is played for it.
+    start(0)
+    frame(1300)
+    const played = asked.played.length
+    press('Digit6', 1400)
+    expect(voiceOf(asked)).toBe('organ')
+    expect(asked.played).toHaveLength(played)
+  })
+
+  it('are the one FREE PLAY holds its keys on', () => {
+    const { asked, press } = stand({ saved: { song: 'free' } })
+    press('Enter')
+    expect(asked.keymaps.at(-1)?.KeyA).toMatchObject({ voice: 'epiano', hold: true })
+    press('Digit7')
+    expect(asked.keymaps.at(-1)?.KeyA).toMatchObject({ voice: 'marimba', hold: true })
+  })
+
+  it('come back as they were kept, or as the old setting and FREE PLAY had them', () => {
+    expect(voiceOf(stand({ saved: { instrument: 'organ' } }).asked)).toBe('organ')
+    expect(voiceOf(stand({ saved: { free: { tone: 'pad' } } }).asked)).toBe('pad')
+    expect(voiceOf(stand({ settings: { lead: 'chip' } }).asked)).toBe('chip')
+    expect(voiceOf(stand({ saved: { instrument: 'kazoo' } }).asked)).toBe('epiano')
+  })
+})
+
+describe('choosing a level', () => {
+  const savedOf = (asked: { saved: unknown[] }) =>
+    (asked.saved.at(-1) as { level?: string; shelf?: string; song?: string }) ?? {}
+
+  it('comes after the track: Enter opens its levels, the arrows move on them, Escape goes back', () => {
+    const { asked, press, frame } = stand()
+    press('Enter')
+    // The panel is open: the arrows are the levels', not the list's or the tabs'.
+    press('ArrowDown')
+    expect(savedOf(asked)).toMatchObject({ level: 'hard', song: SONGS[0]?.id, shelf: 'all' })
+    press('ArrowLeft')
+    press('ArrowLeft')
+    expect(savedOf(asked).level).toBe('easy')
+    press('ArrowUp')
+    expect(savedOf(asked).level).toBe('easy')
+    // Back to the list: the arrows move rows and tabs again.
+    press('Escape')
+    press('ArrowRight')
+    expect(savedOf(asked).shelf).toBe('classics')
+    press('Enter')
+    press('Backspace')
+    press('ArrowDown')
+    expect(savedOf(asked).song).not.toBe(SONGS[0]?.id)
+    // And from the panel, Enter starts it at the level chosen.
+    press('Enter', 100)
+    press('Enter', 110)
+    frame(1300)
+    expect(asked.played.some((batch) => batch.some((n) => n.voice === 'kick'))).toBe(true)
+  })
+
+  it('starts FREE PLAY at once, with no levels to choose', () => {
+    const { asked, press } = stand({ saved: { song: 'free' } })
+    press('Enter')
+    expect(asked.keymaps.at(-1)?.KeyA).toMatchObject({ hold: true })
   })
 })

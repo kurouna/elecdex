@@ -13,12 +13,6 @@ export const SHELVES: readonly Shelf[] = ['all', ...GENRES]
 
 export const isShelf = (value: unknown): value is Shelf => SHELVES.includes(value as Shelf)
 
-/** The shelf a key picks: 0 for every track, 1 to 4 for a genre; null for any other key. */
-export function shelfOfKey(code: string): Shelf | null {
-  const digit = /^Digit(\d)$/.exec(code)?.[1]
-  return digit === undefined ? null : (SHELVES[Number(digit)] ?? null)
-}
-
 /** The shelf before or after, round the tabs. */
 export function stepShelf(shelf: Shelf, by: 1 | -1): Shelf {
   const at = SHELVES.indexOf(shelf)

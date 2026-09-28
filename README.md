@@ -822,7 +822,8 @@ Hall of the Mountain King*), three levels, and the eDEX-UI on-screen keyboard ba
 judgement line. A play ends as a game ends a stage: the score counts up, the rank is slammed into
 its diamond and a lamp says how it went (CLEAR, FULL CHAIN, ALL SYNC or NO CARRIER), beside the
 best before it and how early or late the keys landed. **FREE PLAY** makes the keyboard an instrument: keys sound
-while held, Space is the sustain pedal, the arrows change the octave and the tone, any track's band
+while held, Space is the sustain pedal, Z X and C V change the octave and the strength as in a DAW's
+musical typing, the number row changes the instrument (on every screen, mid-song too), any track's band
 can go round underneath to play over, and the chord under your fingers is named as you hold it.
 Its piano is a physical model, not a recording: stiff, stretched strings in pairs and threes that
 beat and die away in two stages, a felt hammer that plays brighter the harder it lands, the clang

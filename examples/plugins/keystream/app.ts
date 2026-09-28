@@ -7,24 +7,25 @@ import { Effects } from './draw/fx'
 import { drawHud } from './draw/hud'
 import { drawKeyboard } from './draw/keys'
 import { type Layout, layoutOf } from './draw/layout'
-import { drawMenu, type MenuList } from './draw/menu'
+import { drawMenu, type LevelRow, type MenuList } from './draw/menu'
 import { MenuMotion } from './draw/menu-motion'
-import { countWord, drawConnect, drawCount, drawLoading, drawPause, LOAD_MS } from './draw/overlays'
+import {
+  countWord,
+  drawConnect,
+  drawCount,
+  drawInstrument,
+  drawLoading,
+  drawPause,
+  INSTRUMENT_MS,
+  LOAD_MS,
+} from './draw/overlays'
 import { type Paint, paintOf } from './draw/paint'
 import { drawPanels, type LogLine } from './draw/panels'
 import { drawResult, EXIT_MS, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } from './draw/result'
 import { fanfare } from './fanfare'
-import { FreePlay, type FreeSaved } from './free'
-import {
-  isShelf,
-  onShelf,
-  SHELVES,
-  type Shelf,
-  settle,
-  shelfOfKey,
-  stepRow,
-  stepShelf,
-} from './genres'
+import { FreePlay, type FreeSaved, STRENGTHS } from './free'
+import { isShelf, onShelf, SHELVES, type Shelf, settle, stepRow, stepShelf } from './genres'
+import { INSTRUMENTS, instrumentOfKey, instrumentOfVoice } from './instruments'
 import { rankOf, scoreOf } from './judge'
 import { keyOf, labelOf, NOTE_KEYS } from './keyboard'
 import { readSong, type Score } from './notation'
@@ -46,7 +47,6 @@ import { wordsFor } from './text'
  */
 
 export interface Settings extends SettingValues {
-  lead: string
   volume: number
   offset: number
   guide: boolean
@@ -61,11 +61,12 @@ interface Saved {
   speed?: number
   /** The menu's tab. */
   shelf?: Shelf
+  /** The instrument the keys play, by its voice. */
+  instrument?: string
   free?: FreeSaved
 }
 
 const SURFACE = 'screen'
-const LEADS: readonly Voice[] = ['epiano', 'piano', 'guitar', 'lead', 'chip', 'organ', 'marimba']
 const RESUME_MS = 1500
 const MENU_KEY_LENGTH = 520
 /** Notes to a sound.play: under the host's limit of 4096, which a window stays well within. */
@@ -81,11 +82,19 @@ function barAt(chart: Chart, time: number): number {
   return bar
 }
 
-/** The tab a key asks for: a digit for one, < and > for the one before or after. */
+/** The tab a key asks for: the left arrow or < for the one before, the right or > after. */
 function shelfFor(code: string, shelf: Shelf): Shelf | null {
-  if (code === 'Comma') return stepShelf(shelf, -1)
-  if (code === 'Period') return stepShelf(shelf, 1)
-  return shelfOfKey(code)
+  if (code === 'Comma' || code === 'ArrowLeft') return stepShelf(shelf, -1)
+  if (code === 'Period' || code === 'ArrowRight') return stepShelf(shelf, 1)
+  return null
+}
+
+/** The level a key moves to on the levels' panel: up or left easier, down or right harder. */
+const LEVEL_STEP: Readonly<Record<string, 1 | -1>> = {
+  ArrowUp: -1,
+  ArrowLeft: -1,
+  ArrowDown: 1,
+  ArrowRight: 1,
 }
 
 /** The menu's small sounds, at a volume: a tick, a blip, and two rising for a start. */
@@ -135,6 +144,11 @@ class Game {
   private readonly preview: PreviewPlayer
   /** A key pressed on the result: its hint blinks and the screen closes before it acts. */
   private leaving: { to: 'menu' | 'retry'; at: number } | null = null
+  /** Choosing a track, or its level on the panel opened over the list. */
+  private stage: 'tracks' | 'levels' = 'tracks'
+  /** The instrument the keys play, by its place in INSTRUMENTS, and when it was last picked. */
+  private instrument = 0
+  private instrumentAt = Number.NEGATIVE_INFINITY
 
   constructor(ctx: ViewContext<Settings, unknown>) {
     this.ctx = ctx
@@ -142,13 +156,21 @@ class Game {
       if (score.problems.length > 0) ctx.log(`${score.source.id}: ${score.problems.join('; ')}`)
       return score.problems.length === 0
     })
-    this.free = new FreePlay(ctx, (index) => this.chartOf(index, 'normal'), this.scores.length)
+    this.free = new FreePlay(
+      ctx,
+      (index) => this.chartOf(index, 'normal'),
+      this.scores.length,
+      () => this.lead,
+    )
     this.preview = new PreviewPlayer({
       play: (notes) => ctx.sound.play(notes),
       stop: () => ctx.sound.stop(),
     })
     const saved = ctx.state.get<Saved>() ?? {}
     this.free.restore(saved.free)
+    // Kept in the pane; before it was, the setting and FREE PLAY each had one of their own.
+    const legacy = (ctx.settings as SettingValues).lead
+    this.instrument = instrumentOfVoice(saved.instrument ?? saved.free?.tone ?? legacy)
     this.selected =
       saved.song === 'free'
         ? this.scores.length
@@ -202,9 +224,38 @@ class Game {
       if (key.down) this.fx.press(key.code, key.at)
       else this.fx.release(key.code, key.at)
     }
+    // The number row picks the instrument on every screen but the loading one.
+    const instrument = key.down && this.phase !== 'loading' ? instrumentOfKey(key.code) : null
+    if (instrument !== null) this.pick(instrument, key.at)
     // FREE mode plays keys as held, so it hears them come up too; elsewhere only a press acts.
-    if (key.down || this.phase === 'free') this.act(key)
+    else if (key.down || this.phase === 'free') this.act(key)
     this.wake()
+  }
+
+  /**
+   * An instrument picked: the keys play it at once, the band's next window plays the melody's
+   * guide on it, its name shows over the keyboard, and on the menu it is heard - a rising
+   * chord - with the preview starting over on it a moment later.
+   */
+  private pick(index: number, at: number): void {
+    this.instrument = index
+    this.instrumentAt = at
+    this.bindKeys()
+    this.save()
+    if (this.phase !== 'menu' || this.starting) return
+    this.preview.rest(at)
+    const v = this.volume
+    if (v === 0) return
+    const voice = this.lead
+    this.ctx.sound.play(
+      [60, 64, 67, 72].map((pitch, i) => ({
+        voice,
+        pitch,
+        at: performance.now() + i * 90,
+        length: 280,
+        level: 0.55 * v,
+      })),
+    )
   }
 
   private act(key: KeyPress): void {
@@ -234,15 +285,42 @@ class Game {
   private menuKey(code: string, at: number): void {
     // A chosen row blinks before it starts; nothing else is taken meanwhile.
     if (this.starting) return
+    if (this.stage === 'levels') this.levelsKey(code, at)
+    else this.tracksKey(code, at)
+    this.save()
+  }
+
+  /** Choosing a track: up and down the rows, left and right the tabs, Enter its levels. */
+  private tracksKey(code: string, at: number): void {
     const shelf = shelfFor(code, this.shelf)
     if (shelf !== null) this.toShelf(shelf, at)
     else if (code === 'ArrowUp' || code === 'ArrowDown')
       this.moveRow(code === 'ArrowUp' ? -1 : 1, at)
-    else if (code === 'ArrowLeft' || code === 'ArrowRight')
-      this.shiftLevel(code === 'ArrowLeft' ? -1 : 1, at)
+    else if (code === 'Enter') {
+      // FREE PLAY has no levels: it starts at once.
+      if (this.selected === this.scores.length) this.choose(at)
+      else this.openLevels(at)
+    }
+  }
+
+  /** Choosing its level: the arrows the level, Enter to start, Escape back to the tracks. */
+  private levelsKey(code: string, at: number): void {
+    const by = LEVEL_STEP[code]
+    if (by !== undefined) this.shiftLevel(by, at)
     else if (code === 'Enter') this.choose(at)
-    else return
-    this.save()
+    else if (code === 'Escape' || code === 'Backspace') this.closeLevels(at)
+  }
+
+  private openLevels(at: number): void {
+    this.stage = 'levels'
+    this.motion.opened(at)
+    this.cue('switch')
+  }
+
+  private closeLevels(at: number): void {
+    this.stage = 'tracks'
+    this.motion.closed(at)
+    this.cue('switch')
   }
 
   /** The rows a tab shows: its tracks, by their place in the list, then FREE PLAY. */
@@ -333,6 +411,7 @@ class Game {
     this.level = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, from + by))] ?? this.level
     if (LEVELS.indexOf(this.level) === from) return
     this.motion.level(at, from)
+    this.motion.panelLevel(at, from)
     this.cue('switch')
   }
 
@@ -471,6 +550,8 @@ class Game {
     this.phase = 'menu'
     this.starting = false
     this.leaving = null
+    // Back from a track, the list: the next track is chosen before its level, as at first.
+    this.stage = 'tracks'
     this.motion.shown(performance.now())
     this.preview.rest(performance.now())
     this.fx.clear()
@@ -583,6 +664,7 @@ class Game {
     if (this.phase === 'result' && (now - this.phaseAt < REVEAL_MS || this.leaving)) return true
     if (this.phase === 'free' && this.free.moving()) return true
     if (this.phase === 'menu' && this.menuMoving(now)) return true
+    if (now - this.instrumentAt < INSTRUMENT_MS) return true
     return this.fx.alive(now)
   }
 
@@ -601,6 +683,8 @@ class Game {
     else this.drawPlay(p, l, now)
     const shift = this.phase === 'free' ? this.free.octave * 12 : 0
     drawKeyboard(p, l, labels, (code) => this.fx.light(code, now), shift)
+    const picked = now - this.instrumentAt
+    if (picked < INSTRUMENT_MS) drawInstrument(p, l, this.instrumentShown, picked)
     const playing = this.phase === 'play' && !(this.session?.paused ?? true)
     if (!this.ctx.keys.focused && !playing) drawConnect(p, l, wordsFor(this.ctx.locale).connect)
   }
@@ -642,6 +726,30 @@ class Game {
     return { rows, selected: Math.max(0, selected) }
   }
 
+  /** The chosen track's levels, as its panel lists them; null on FREE PLAY. */
+  private levelRows(): LevelRow[] | null {
+    if (this.selected >= this.scores.length) return null
+    const words = wordsFor(this.ctx.locale)
+    return LEVELS.flatMap((level) => {
+      const chart = this.chartOf(this.selected, level)
+      if (chart === null) return []
+      return [
+        {
+          level,
+          stars: this.starsOf(chart),
+          notes: chart.notes.length,
+          best: bestOf(chart.song.id, level),
+          note: words.levels[level],
+        },
+      ]
+    })
+  }
+
+  private get instrumentShown(): { name: string; key: string } {
+    const chosen = INSTRUMENTS[this.instrument] ?? INSTRUMENTS[0]
+    return { name: chosen?.name ?? '', key: chosen?.key ?? '' }
+  }
+
   private drawMenu(p: Paint, l: Layout, now: number): void {
     const labels = this.ctx.keys.labels
     const chosen = this.chartOf(this.selected, this.level)
@@ -654,6 +762,9 @@ class Game {
       p,
       l,
       {
+        stage: this.stage,
+        levels: this.levelRows(),
+        instrument: this.instrumentShown,
         list: this.menuList(this.shelf, this.selected),
         before: frame.tab ? this.menuList(this.motion.before, this.beforeSelected) : null,
         tabs: SHELVES.map((s) => ({ name: s.toUpperCase(), count: this.shelfRows(s).length - 1 })),
@@ -689,10 +800,14 @@ class Game {
       p,
       l,
       {
-        tone: free.toneName,
+        instrument: this.instrumentShown.name,
+        instrumentKey: this.instrumentShown.key,
         octave: free.octave,
+        strength: free.strength,
+        strengths: STRENGTHS.length,
         pedal: free.pedal,
         backing: free.backing?.index ?? null,
+        cursor: free.cursor,
         tracks: this.scores.map((s) => s.source.title),
         trails: free.trails,
         holding: free.holding,
@@ -706,7 +821,13 @@ class Game {
     const chart = this.chart
     if (chart === null) return
     const session = this.session
-    drawHud(p, l, { chart, index: this.selected, tally: session?.tally ?? null, speed: this.speed })
+    drawHud(p, l, {
+      chart,
+      index: this.selected,
+      tally: session?.tally ?? null,
+      speed: this.speed,
+      instrument: this.instrumentShown.name,
+    })
     const time = session?.shownTime(now) ?? chart.start
     const labels = this.ctx.keys.labels
     const field: FieldView = {
@@ -754,9 +875,9 @@ class Game {
     return Math.min(1, Math.max(0, this.ctx.settings.volume / 100))
   }
 
+  /** The voice the keys, the guide and the preview play: the instrument picked. */
   private get lead(): Voice {
-    const chosen = this.ctx.settings.lead as Voice
-    return LEADS.includes(chosen) ? chosen : 'epiano'
+    return INSTRUMENTS[this.instrument]?.voice ?? 'epiano'
   }
 
   /**
@@ -786,6 +907,7 @@ class Game {
       level: this.level,
       speed: this.speed,
       shelf: this.shelf,
+      instrument: this.lead,
       free: this.free.saved(),
     })
   }

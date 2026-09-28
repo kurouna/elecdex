@@ -6,26 +6,18 @@ import { loopBetween, nextWindow } from './schedule'
 
 /**
  * FREE mode: the keyboard as an instrument, nothing falling and nothing judged. A key sounds
- * while it is held, Space is the sustain pedal, the arrows move the keys an octave and change
- * the tone, and any track's band can play underneath, going round, to play over.
+ * while it is held and Space is the sustain pedal. The row under the letters is a DAW's
+ * musical typing: Z and X move the keys an octave, C and V play softer and harder. The
+ * instrument is the number row's, as everywhere (instruments.ts). Any track's band can play
+ * underneath, going round, to play over: the arrows (or < >) pick one, Enter starts and stops it.
  *
  * What is played rises from the keys as trails and is named as a chord where it makes one;
  * the drawing is draw/free.ts, and this holds only the state and what the keys do to it.
  */
 
-export const TONES: readonly { voice: Voice; name: string }[] = [
-  { voice: 'epiano', name: 'E.PIANO' },
-  { voice: 'piano', name: 'PIANO' },
-  { voice: 'guitar', name: 'GUITAR' },
-  { voice: 'lead', name: 'SYNTH LEAD' },
-  { voice: 'chip', name: 'CHIP' },
-  { voice: 'pluck', name: 'PLUCK' },
-  { voice: 'pad', name: 'PAD' },
-  { voice: 'bass', name: 'BASS' },
-  { voice: 'organ', name: 'ORGAN' },
-  { voice: 'marimba', name: 'MARIMBA' },
-  { voice: 'ebass', name: 'E.BASS' },
-]
+/** How hard a key plays, softest to hardest: C and V step through them, as a DAW's do. */
+export const STRENGTHS = [0.4, 0.55, 0.7, 0.85, 1] as const
+const STRENGTH_AT_FIRST = 3
 
 /** How many octaves the keys move each way. */
 export const OCTAVES = 2
@@ -56,13 +48,18 @@ interface Backing {
 }
 
 export interface FreeSaved {
+  /** The instrument FREE PLAY once had of its own (before it became the whole game's). */
   tone?: string
   octave?: number
+  strength?: number
 }
 
 export class FreePlay {
-  tone = 0
   octave = 0
+  /** Which of STRENGTHS the keys play at. */
+  strength = STRENGTH_AT_FIRST
+  /** The band the arrows are on: the one playing, or the one Enter will start. */
+  cursor = 0
   pedal = false
   backing: Backing | null = null
   trails: Trail[] = []
@@ -71,31 +68,29 @@ export class FreePlay {
   private readonly ctx: ViewContext<Settings, unknown>
   private readonly chartOf: (index: number) => Chart | null
   private readonly tracks: number
+  private readonly voice: () => Voice
 
   constructor(
     ctx: ViewContext<Settings, unknown>,
     chartOf: (index: number) => Chart | null,
     tracks: number,
+    voice: () => Voice,
   ) {
     this.ctx = ctx
     this.chartOf = chartOf
     this.tracks = tracks
-    const lead = TONES.findIndex((t) => t.voice === ctx.settings.lead)
-    this.tone = Math.max(0, lead)
+    this.voice = voice
   }
 
   restore(saved: FreeSaved | undefined): void {
-    const tone = TONES.findIndex((t) => t.voice === saved?.tone)
-    if (tone >= 0) this.tone = tone
     if (typeof saved?.octave === 'number') this.octave = clampOctave(saved.octave)
+    if (typeof saved?.strength === 'number') {
+      this.strength = Math.min(STRENGTHS.length - 1, Math.max(0, Math.round(saved.strength)))
+    }
   }
 
   saved(): FreeSaved {
-    return { tone: TONES[this.tone]?.voice ?? 'epiano', octave: this.octave }
-  }
-
-  get toneName(): string {
-    return TONES[this.tone]?.name ?? ''
+    return { octave: this.octave, strength: this.strength }
   }
 
   /** The pitches held down now, lowest first. */
@@ -115,14 +110,15 @@ export class FreePlay {
     this.trails = []
   }
 
-  /** Every key held while down, in the chosen tone and octave. */
+  /** Every key held while down, on the instrument, in the octave and at the strength chosen. */
   bind(): void {
     const volume = Math.min(1, Math.max(0, this.ctx.settings.volume / 100))
-    const voice = TONES[this.tone]?.voice ?? 'epiano'
+    const voice = this.voice()
+    const level = (STRENGTHS[this.strength] ?? 0.85) * volume
     const note = (pitch: number): KeyNote => ({
       voice,
       pitch: pitch + 12 * this.octave,
-      level: 0.85 * volume,
+      level,
       hold: true,
     })
     this.ctx.keys.play(Object.fromEntries(NOTE_KEYS.map((k) => [k.code, note(k.pitch ?? 60)])))
@@ -145,47 +141,41 @@ export class FreePlay {
 
   private command(code: string, at: number): 'leave' | 'changed' | null {
     if (code === 'Escape') return 'leave'
-    if (code.startsWith('Arrow')) return this.shift(code)
+    const touch = TOUCH[code]
+    if (touch !== undefined) return this.play(touch)
     this.band(code, at)
     return null
   }
 
-  /** The arrows: left and right move the keys an octave, up and down change the tone. */
-  private shift(code: string): 'changed' | null {
-    if (code === 'ArrowLeft' || code === 'ArrowRight') {
-      this.octave = clampOctave(this.octave + (code === 'ArrowLeft' ? -1 : 1))
-    } else {
-      const by = code === 'ArrowUp' ? -1 : 1
-      this.tone = (this.tone + by + TONES.length) % TONES.length
+  /** The row under the letters, as a DAW has it: the octave, and how hard the keys play. */
+  private play(touch: Touch): 'changed' {
+    if (touch.octave) this.octave = clampOctave(this.octave + touch.octave)
+    if (touch.strength) {
+      this.strength = Math.min(STRENGTHS.length - 1, Math.max(0, this.strength + touch.strength))
     }
     this.bind()
     return 'changed'
   }
 
   /**
-   * Enter starts or stops the band; a digit picks one of the first nine tracks' bands, 0
-   * stops it; comma and period (< and >) step to the track before or after, round the list.
+   * The band: up and down (or < and >) move along the tracks, and change the band on the
+   * way if one is playing; Enter starts the one chosen, or stops it.
    */
   private band(code: string, at: number): void {
     if (code === 'Enter') {
-      if (this.backing === null) this.startBacking(0, at)
+      if (this.backing === null) this.startBacking(this.cursor, at)
       else this.stopBacking()
       return
     }
-    if (code === 'Comma' || code === 'Period') {
-      this.stepBacking(code === 'Period' ? 1 : -1, at)
-      return
-    }
-    const digit = /^Digit(\d)$/.exec(code)?.[1]
-    if (digit === '0') this.stopBacking()
-    else if (digit !== undefined) this.startBacking(Number(digit) - 1, at)
+    const by = STEP[code]
+    if (by !== undefined) this.stepBacking(by, at)
   }
 
-  /** The next or the previous track's band; with none playing, the first or the last. */
+  /** The next or the previous track, round the list; its band plays if one was playing. */
   private stepBacking(by: 1 | -1, at: number): void {
     if (this.tracks === 0) return
-    const from = this.backing?.index ?? (by === 1 ? -1 : this.tracks)
-    this.startBacking((from + by + this.tracks) % this.tracks, at)
+    this.cursor = (this.cursor + by + this.tracks) % this.tracks
+    if (this.backing !== null) this.startBacking(this.cursor, at)
   }
 
   private press(code: string, pitch: number, at: number): void {
@@ -213,6 +203,7 @@ export class FreePlay {
   startBacking(index: number, now: number): void {
     const chart = index < this.tracks ? this.chartOf(index) : null
     if (chart === null) return
+    this.cursor = index
     this.stopBacking()
     this.backing = { index, chart, startAt: now + 150, sentTo: 0 }
   }
@@ -250,6 +241,27 @@ export class FreePlay {
   moving(): boolean {
     return this.backing !== null || this.held.size > 0 || this.trails.length > 0
   }
+}
+
+interface Touch {
+  octave?: 1 | -1
+  strength?: 1 | -1
+}
+
+/** What the row under the letters does: Z and X the octave, C and V the strength. */
+const TOUCH: Readonly<Record<string, Touch>> = {
+  KeyZ: { octave: -1 },
+  KeyX: { octave: 1 },
+  KeyC: { strength: -1 },
+  KeyV: { strength: 1 },
+}
+
+/** The keys that move along the bands. */
+const STEP: Readonly<Record<string, 1 | -1>> = {
+  ArrowUp: -1,
+  ArrowDown: 1,
+  Comma: -1,
+  Period: 1,
 }
 
 const clampOctave = (octave: number): number =>

@@ -61,9 +61,11 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
     await page.keyboard.press('a')
     await expect.poll(notes).toBeGreaterThan(before)
 
-    // Enter starts the first track: the boot log's ticks, then the band a few seconds ahead
-    // at a time - more goes to the host while the track plays, never the song at once.
+    // Enter chooses the first track and Enter again its level: the boot log's ticks, then the
+    // band a few seconds ahead at a time - more goes to the host while the track plays,
+    // never the song at once.
     const idle = await notes()
+    await page.keyboard.press('Enter')
     await page.keyboard.press('Enter')
     await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(idle + 20)
     const first = await notes()
@@ -78,6 +80,9 @@ test('the sample draws on its canvas, takes the keys only while focused, and pla
     // nothing but the boot log's ticks - and goes on from the count once the pane is back.
     const loading = await notes()
     await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
+    // Past the chosen level's blink, so the track is loading when the keyboard goes.
+    await page.waitForTimeout(700)
     await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
     await expect(pane.getByTestId('plugin-keys')).toHaveCount(0)
     await page.waitForTimeout(2500)
@@ -128,20 +133,30 @@ test('FREE mode holds the keys, and plays a track’s band underneath until told
     expect(await notes()).toBe(before + 3)
     for (const key of ['a', 'd', 'g']) await page.keyboard.up(key)
 
-    // A band underneath, a few seconds at a time; 0 stops it.
+    // A band underneath, a few seconds at a time: the arrows choose it, Enter starts and stops it.
     const quiet = await notes()
-    await page.keyboard.press('3')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await page.waitForTimeout(300)
+    expect(await notes()).toBe(quiet)
+    await page.keyboard.press('Enter')
     await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(quiet + 10)
-    await page.keyboard.press('0')
+    await page.keyboard.press('Enter')
     await page.waitForTimeout(500)
     const stopped = await notes()
     await page.waitForTimeout(4000)
     expect(await notes()).toBe(stopped)
 
-    // Comma steps back round the list to the last track's band, past what the digits reach.
+    // Comma steps back round the list; a digit is an instrument and starts no band.
+    await page.keyboard.press('3')
     await page.keyboard.press(',')
+    await page.keyboard.press(',')
+    await page.keyboard.press(',')
+    await page.waitForTimeout(500)
+    expect(await notes()).toBe(stopped)
+    await page.keyboard.press('Enter')
     await expect.poll(notes, { timeout: 8000 }).toBeGreaterThan(stopped + 10)
-    await page.keyboard.press('0')
+    await page.keyboard.press('Enter')
 
     await page.keyboard.press('Escape')
     await expect(pane.getByTestId('plugin-error')).toHaveCount(0)
@@ -184,22 +199,24 @@ test('a pane that saved where it was comes back after a restart, and plays', asy
   }
 })
 
-test('a genre tab chosen with a digit is where the pane comes back to', async () => {
+test('a genre tab and an instrument chosen are where the pane comes back to', async () => {
   const dir = withKeystream()
   let app = await launch(dir, { layout: LAYOUT })
   const pane = () => app.page.locator('[data-testid=plugin-pane][data-plugin=keystream]')
   // What the pane saved, as the layout holds it.
   const saved = () => {
     const tree = JSON.parse(readFileSync(path.join(dir, 'layout.json'), 'utf8'))
-    return (tree.root.state?.plugin ?? {}) as { shelf?: string; song?: string }
+    return (tree.root.state?.plugin ?? {}) as { shelf?: string; song?: string; instrument?: string }
   }
   try {
     await expect(pane()).toHaveAttribute('data-status', 'ready')
     await pane().getByTestId('plugin-canvas').click()
     await expect(pane().getByTestId('plugin-keys')).toBeVisible()
-    await app.page.keyboard.press('3')
+    for (let i = 0; i < 3; i++) await app.page.keyboard.press('ArrowRight')
     await expect.poll(() => saved().shelf).toBe('dance')
     expect(SONGS.find((song) => song.id === saved().song)?.genre).toBe('dance')
+    await app.page.keyboard.press('3')
+    await expect.poll(() => saved().instrument).toBe('guitar')
 
     app = await app.relaunch()
     await expect(pane()).toHaveAttribute('data-status', 'ready')
@@ -211,6 +228,7 @@ test('a genre tab chosen with a digit is where the pane comes back to', async ()
     await expect.poll(() => saved().song).not.toBe(before)
     expect(saved().shelf).toBe('dance')
     expect(SONGS.find((song) => song.id === saved().song)?.genre).toBe('dance')
+    expect(saved().instrument).toBe('guitar')
   } finally {
     await app.quit()
     removeDir(dir)
