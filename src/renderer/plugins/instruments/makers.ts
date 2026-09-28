@@ -1,4 +1,5 @@
 import type { Voice } from '@shared/plugin-api'
+import { ChipEngine } from '../chip/engine.js'
 import { drumMakers } from '../drums/machine.js'
 import { EPianoEngine } from '../epiano/engine.js'
 import { GuitarEngine } from '../guitar/engine.js'
@@ -15,6 +16,7 @@ export function makers(): Partial<Record<Voice, InstrumentMaker>> {
     piano: (rate) => new PianoEngine(rate),
     guitar: (rate) => new GuitarEngine(rate),
     epiano: (rate) => new EPianoEngine(rate),
+    chip: (rate) => new ChipEngine(rate),
     ...drumMakers(),
   }
 }

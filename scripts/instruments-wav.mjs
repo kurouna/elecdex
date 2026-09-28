@@ -236,6 +236,34 @@ export const TAKES = {
       [0.15, 0.35, 0.55, 0.75, 0.95].map((l, i) => n(0.2 + i * 1.3, 57, l, 1, 'epiano')),
     ode: () => ode('epiano'),
   },
+  chip: {
+    // A melody on a pulse, sixteenth arpeggios on another, and the bass on the triangle.
+    tune: () => {
+      const step = 60 / 150 / 4
+      const c = (i, pitch, length, level = 0.7) =>
+        n(0.2 + i * step, pitch, level, length * step * 0.9, 'chip')
+      const melody = [
+        76, 0, 79, 0, 83, 81, 79, 76, 74, 0, 76, 79, 76, 0, 0, 0, 72, 0, 76, 0, 79, 77, 76, 72, 71,
+        0, 72, 74, 72, 0, 0, 0,
+      ]
+      const chords = [
+        [64, 67, 71],
+        [64, 67, 71],
+        [60, 64, 67],
+        [60, 64, 67],
+      ]
+      const bass = [40, 40, 52, 40, 40, 52, 40, 52, 36, 36, 48, 36, 36, 48, 36, 48]
+      return [
+        ...melody.flatMap((pitch, i) => (pitch ? [c(i, pitch, 1)] : [])),
+        ...Array.from({ length: 32 }, (_, i) =>
+          c(i, (chords[Math.floor(i / 8)] ?? [])[i % 3] ?? 64, 1, 0.35),
+        ),
+        ...bass.flatMap((pitch, i) => [c(i * 2, pitch, 1.6, 0.9)]),
+      ]
+    },
+    // The same key soft and hard: sixteen volume steps, at sixty a second.
+    steps: () => [0.2, 0.5, 1].map((l, i) => n(0.2 + i * 0.8, 69, l, 0.5, 'chip')),
+  },
   drums: {
     groove,
     // Each drum alone, soft then hard.

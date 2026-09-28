@@ -60,6 +60,8 @@ export const INSTRUMENTS: Partial<Record<Voice, VoiceTraits>> = {
     ring: (pitch) => ringOf(pitch) * 1.2,
     settle: () => 0.35,
   },
+  // Held at its sustain step until let go, then down a step a frame: a quarter second.
+  chip: { bus: 'plain', ownLength: 0.3, ring: () => LONGEST, settle: () => 0.3 },
   kick: drum(0.9),
   snare: drum(0.5),
   clap: drum(0.6),
