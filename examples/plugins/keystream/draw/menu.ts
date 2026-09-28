@@ -245,31 +245,35 @@ function drawLevels(p: Paint, x: number, y: number, width: number, view: MenuVie
   return rects
 }
 
-/** The instrument the keys play, ending at `right`: its key in a cap, then its name. Answers its left. */
+/**
+ * The instrument the keys play, ending at `right`: a lit chip - its key, then its name - as a
+ * chosen level's is, so it reads as the one chosen. Answers its left.
+ */
 function instrument(p: Paint, right: number, y: number, chosen: MenuView['instrument']): number {
+  const g = p.g
   const nameStyle = {
     font: font(600, 11, p.fonts.display),
-    color: p.c.accentStrong,
+    color: p.c.inverse,
     baseline: 'middle' as const,
     spacing: '0.18em',
-    align: 'right' as const,
   }
+  const keyStyle = {
+    font: font(700, 11, p.fonts.mono),
+    color: p.c.inverse,
+    baseline: 'middle' as const,
+  }
+  const keyW = measure(p, chosen.key, keyStyle)
   const nameW = measure(p, chosen.name, nameStyle)
-  write(p, chosen.name, right, y + 0.5, nameStyle)
-  const capFont = font(600, 10, p.fonts.mono)
-  p.g.font = capFont
-  const w = p.g.measureText(chosen.key).width + 10
-  const capX = right - nameW - 8 - w
-  p.g.strokeStyle = alpha(p.c.border, 0.8)
-  p.g.lineWidth = 1
-  p.g.strokeRect(capX + 0.5, y - 7.5, w, 16)
-  write(p, chosen.key, capX + w / 2 + 0.5, y + 0.5, {
-    font: capFont,
-    color: p.c.text,
-    align: 'center',
-    baseline: 'middle',
-  })
-  return capX
+  const w = 10 + keyW + 10 + nameW + 10
+  const x = right - w
+  g.fillStyle = p.c.accent
+  g.fillRect(x, y - 11, w, 22)
+  // The key set off from the name by a rule, as a key cap on the chip.
+  g.fillStyle = alpha(p.c.inverse, 0.5)
+  g.fillRect(x + 10 + keyW + 4.5, y - 7, 1, 14)
+  write(p, chosen.key, x + 10, y + 0.5, keyStyle)
+  write(p, chosen.name, x + 10 + keyW + 10, y + 0.5, nameStyle)
+  return x
 }
 
 /*

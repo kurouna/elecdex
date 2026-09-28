@@ -37,10 +37,23 @@ export function instrumentOfKey(code: string): number | null {
   return at < 0 ? null : at
 }
 
-/** An instrument's place by its voice (a saved choice), or the first. */
+/**
+ * An instrument's place by its voice (a saved choice); the first - key 1 - for anything that
+ * names none of them: nothing saved, an old or misspelt voice, a value of another kind.
+ */
 export function instrumentOfVoice(voice: unknown): number {
   return Math.max(
     0,
     INSTRUMENTS.findIndex((i) => i.voice === voice),
   )
+}
+
+/** A place in the list as it may be used: a whole number within it, or the first. */
+export function validInstrument(index: unknown): number {
+  return typeof index === 'number' &&
+    Number.isInteger(index) &&
+    index >= 0 &&
+    index < INSTRUMENTS.length
+    ? index
+    : 0
 }

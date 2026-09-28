@@ -25,7 +25,7 @@ import { drawResult, EXIT_MS, RANK_AT, RECORD_AT, REVEAL_MS, type ResultView } f
 import { fanfare } from './fanfare'
 import { FreePlay, type FreeSaved, STRENGTHS } from './free'
 import { isShelf, onShelf, SHELVES, type Shelf, settle, stepRow, stepShelf } from './genres'
-import { INSTRUMENTS, instrumentOfKey, instrumentOfVoice } from './instruments'
+import { INSTRUMENTS, instrumentOfKey, instrumentOfVoice, validInstrument } from './instruments'
 import { rankOf, scoreOf } from './judge'
 import { keyOf, labelOf, NOTE_KEYS } from './keyboard'
 import { readSong, type Score } from './notation'
@@ -168,9 +168,9 @@ class Game {
     })
     const saved = ctx.state.get<Saved>() ?? {}
     this.free.restore(saved.free)
-    // Kept in the pane; before it was, the setting and FREE PLAY each had one of their own.
-    const legacy = (ctx.settings as SettingValues).lead
-    this.instrument = instrumentOfVoice(saved.instrument ?? saved.free?.tone ?? legacy)
+    // Kept in the pane (before it was, FREE PLAY had one of its own); key 1's when nothing
+    // valid is kept - written back below, once the rest is in place.
+    this.instrument = instrumentOfVoice(saved.instrument ?? saved.free?.tone)
     this.selected =
       saved.song === 'free'
         ? this.scores.length
@@ -182,6 +182,7 @@ class Game {
     if (typeof saved.speed === 'number') this.speed = Math.min(10, Math.max(1, saved.speed))
     if (isShelf(saved.shelf)) this.shelf = saved.shelf
     this.selected = settle(this.shelfRows(this.shelf), this.selected)
+    if (saved.instrument !== this.lead) this.save()
   }
 
   start(): () => void {
@@ -208,6 +209,8 @@ class Game {
     this.bindKeys()
     this.motion.shown(performance.now())
     this.preview.rest(performance.now())
+    // Which instrument the keys play, shown as the keyboard comes to the game (onFocus).
+    if (ctx.keys.focused) this.instrumentAt = performance.now()
     return () => {
       for (const off of offs) off()
       this.stopFrames?.()
@@ -238,7 +241,7 @@ class Game {
    * chord - with the preview starting over on it a moment later.
    */
   private pick(index: number, at: number): void {
-    this.instrument = index
+    this.instrument = validInstrument(index)
     this.instrumentAt = at
     this.bindKeys()
     this.save()
@@ -440,7 +443,10 @@ class Game {
       // The band stops with the keyboard gone: nobody is playing over it.
       this.free.stopBacking()
       this.preview.stop()
-    } else this.preview.rest(performance.now())
+    } else {
+      this.preview.rest(performance.now())
+      this.instrumentAt = performance.now()
+    }
     this.wake()
   }
 
@@ -746,7 +752,7 @@ class Game {
   }
 
   private get instrumentShown(): { name: string; key: string } {
-    const chosen = INSTRUMENTS[this.instrument] ?? INSTRUMENTS[0]
+    const chosen = INSTRUMENTS[validInstrument(this.instrument)] ?? INSTRUMENTS[0]
     return { name: chosen?.name ?? '', key: chosen?.key ?? '' }
   }
 
@@ -875,9 +881,9 @@ class Game {
     return Math.min(1, Math.max(0, this.ctx.settings.volume / 100))
   }
 
-  /** The voice the keys, the guide and the preview play: the instrument picked. */
+  /** The voice the keys, the guide and the preview play: the instrument picked, or key 1's. */
   private get lead(): Voice {
-    return INSTRUMENTS[this.instrument]?.voice ?? 'epiano'
+    return INSTRUMENTS[validInstrument(this.instrument)]?.voice ?? 'epiano'
   }
 
   /**

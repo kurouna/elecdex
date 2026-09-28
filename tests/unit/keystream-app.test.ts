@@ -290,11 +290,25 @@ describe('the instruments', () => {
     expect(asked.keymaps.at(-1)?.KeyA).toMatchObject({ voice: 'marimba', hold: true })
   })
 
-  it('come back as they were kept, or as the old setting and FREE PLAY had them', () => {
+  it('come back as they were kept, or as FREE PLAY had one, and else as key 1’s', () => {
     expect(voiceOf(stand({ saved: { instrument: 'organ' } }).asked)).toBe('organ')
     expect(voiceOf(stand({ saved: { free: { tone: 'pad' } } }).asked)).toBe('pad')
-    expect(voiceOf(stand({ settings: { lead: 'chip' } }).asked)).toBe('chip')
-    expect(voiceOf(stand({ saved: { instrument: 'kazoo' } }).asked)).toBe('epiano')
+    // Nothing valid kept: the first instrument, whatever was there.
+    for (const kept of [undefined, 'kazoo', 3, null, { voice: 'guitar' }]) {
+      expect(voiceOf(stand({ saved: { instrument: kept } }).asked), String(kept)).toBe('epiano')
+    }
+  })
+
+  it('writes a fallen-back choice back at once, leaving the rest of what was kept', () => {
+    // Found in use: after an update the instrument chosen in the old setting was not there.
+    const { asked } = stand({ saved: { song: 'loopback', level: 'hard', instrument: 'kazoo' } })
+    expect(asked.saved.at(-1)).toMatchObject({
+      song: 'loopback',
+      level: 'hard',
+      instrument: 'epiano',
+    })
+    const kept = stand({ saved: { song: 'loopback', instrument: 'organ' } })
+    expect(kept.asked.saved).toHaveLength(0)
   })
 })
 

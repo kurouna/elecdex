@@ -329,3 +329,18 @@ describe('the levels’ panel', () => {
     expect(fills.filter((f) => f.color === accent && f.w >= width - 12)).toHaveLength(0)
   })
 })
+
+describe('the instruments’ list', () => {
+  it('falls back to key 1’s for anything that is not a place in it', async () => {
+    const { validInstrument, instrumentOfVoice, INSTRUMENTS } = await import(
+      '../../examples/plugins/keystream/instruments'
+    )
+    expect(validInstrument(2)).toBe(2)
+    for (const bad of [-1, INSTRUMENTS.length, 1.5, Number.NaN, '2', null, undefined]) {
+      expect(validInstrument(bad), String(bad)).toBe(0)
+    }
+    expect(instrumentOfVoice('marimba')).toBe(6)
+    expect(instrumentOfVoice('kazoo')).toBe(0)
+    expect(INSTRUMENTS[0]?.key).toBe('1')
+  })
+})
