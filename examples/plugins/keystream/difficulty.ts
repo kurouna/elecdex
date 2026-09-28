@@ -1,8 +1,12 @@
+import type { Level } from './chart'
+
 /**
  * How hard a chart is, in stars from 1 to 5, worked out from its notes rather than written
  * by hand: how many a second on average, and how many in its busiest four seconds, half and
- * half - a track that is easy but for one run is harder than its average says. The window
- * of judgement is not counted: HARD has the notes of NORMAL, and its stars are the same.
+ * half - a track that is easy but for one run is harder than its average says. HARD has
+ * the notes of NORMAL and a narrower window of judgement, which the notes cannot show: it
+ * is rated a star above NORMAL, at most five (`levelStars`; user decision 2026-09-28, for now
+ * - to be looked at again).
  *
  * A note on the key the one before it was on counts for less than a note that sends the hand
  * somewhere else: striking one key again asks only for the timing, not for finding the key.
@@ -49,8 +53,13 @@ export function busyness(notes: readonly Struck[]): number {
   return (average + busiest / (BUSIEST_MS / 1000)) / 2
 }
 
-/** 1 to 5. */
+/** 1 to 5, by the notes alone. */
 export function starsOf(notes: readonly Struck[]): number {
   const value = busyness(notes)
   return 1 + STEPS.filter((step) => value >= step).length
+}
+
+/** A level's stars, 1 to 5: its notes', and one more on HARD for its narrower window. */
+export function levelStars(notes: readonly Struck[], level: Level): number {
+  return Math.min(5, starsOf(notes) + (level === 'hard' ? 1 : 0))
 }

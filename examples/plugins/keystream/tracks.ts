@@ -1,5 +1,5 @@
 import { buildChart, type Chart, type Level } from './chart'
-import { starsOf } from './difficulty'
+import { levelStars } from './difficulty'
 import { readSong, type Score } from './notation'
 import { SONGS } from './songs/index'
 
@@ -55,7 +55,7 @@ export class Tracks {
   starsOf(chart: Chart): number {
     let stars = this.stars.get(chart)
     if (stars === undefined) {
-      stars = starsOf(chart.notes)
+      stars = levelStars(chart.notes, chart.level)
       this.stars.set(chart, stars)
     }
     return stars

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { buildChart, type Chart, openingBars } from '../../examples/plugins/keystream/chart'
-import { busyness, REPEAT_WEIGHT, starsOf } from '../../examples/plugins/keystream/difficulty'
+import {
+  busyness,
+  levelStars,
+  REPEAT_WEIGHT,
+  starsOf,
+} from '../../examples/plugins/keystream/difficulty'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
 import {
   drawMenu,
@@ -194,6 +199,17 @@ describe('the stars', () => {
     expect(stars).toEqual([...stars].sort((a, b) => a - b))
     expect(stars[0]).toBe(1)
     expect(stars.at(-1)).toBe(5)
+  })
+
+  it('rate HARD a star above NORMAL, at most five: its notes are NORMAL’s, its window narrower', () => {
+    for (const song of SONGS) {
+      const score = readSong(song)
+      const normal = buildChart(score, 'normal')
+      const hard = buildChart(score, 'hard')
+      expect(levelStars(hard.notes, 'hard'), song.id).toBe(Math.min(5, starsFor(normal) + 1))
+      expect(levelStars(normal.notes, 'normal'), song.id).toBe(starsFor(normal))
+    }
+    expect(levelStars(moving(400, 150), 'hard')).toBe(5)
   })
 
   it('are no more on EASY than on NORMAL', () => {
