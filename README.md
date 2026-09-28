@@ -819,8 +819,10 @@ EDM, a city pop and a chiptune one, and an idol pop at 180 BPM and a J-core at 2
 falls on one key, so EASY is one key tapped in time) and eight
 tunes in the public domain in elecdex's arrangements (*Twinkle, Twinkle*, the frog round, *Ode to
 Joy*, *Swan Lake*, Offenbach's can-can, Mozart's Symphony No. 40 and *Turkish March*, and *In the
-Hall of the Mountain King*), three levels, and the eDEX-UI on-screen keyboard back as the
-judgement line. A play ends as a game ends a stage: the score counts up, the rank is slammed into
+Hall of the Mountain King*). Enter opens the chosen track's three levels on a panel over the list
+(EASY types only the notes on the beat and the game plays the rest; HARD narrows the windows and
+ends the play when the signal runs out), Space turns the preview off and on, and the eDEX-UI
+on-screen keyboard is back as the judgement line. A play ends as a game ends a stage: the score counts up, the rank is slammed into
 its diamond and a lamp says how it went (CLEAR, FULL CHAIN, ALL SYNC or NO CARRIER), beside the
 best before it and how early or late the keys landed. **FREE PLAY** makes the keyboard an instrument: keys sound
 while held, Space is the sustain pedal, Z X and C V change the octave and the strength as in a DAW's
