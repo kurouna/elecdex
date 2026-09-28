@@ -47,6 +47,8 @@ export interface Hammer {
   exponent: number
   /** Hunt-Crossley loss, s/m: the felt gives back less than it takes. */
   loss: number
+  /** Seconds a mezzo-forte blow would touch a rigid string: how finely the contact is stepped. */
+  contact: number
 }
 
 /**
@@ -253,19 +255,33 @@ export function hammerOf(pitch: number): Hammer {
   const compression = (contact * REFERENCE_BLOW) / (2 * contactIntegral(exponent))
   const stiffness =
     ((exponent + 1) * mass * REFERENCE_BLOW ** 2) / (2 * compression ** (exponent + 1))
-  return { mass, stiffness, exponent, loss: 0.25 }
+  return { mass, stiffness, exponent, loss: 0.25, contact }
 }
 
-/** The integral from 0 to 1 of du / sqrt(1 - u^(p+1)), by the midpoint rule after u = 1 - s^2. */
-function contactIntegral(exponent: number): number {
-  const steps = 4000
-  let sum = 0
-  for (let i = 0; i < steps; i++) {
-    const s = (i + 0.5) / steps
-    const u = 1 - s * s
-    sum += (2 * s) / Math.sqrt(1 - u ** (exponent + 1))
-  }
-  return sum / steps
+/**
+ * The integral from 0 to 1 of du / sqrt(1 - u^q), q = p + 1: a Beta function,
+ * sqrt(pi) * Gamma(1 + 1/q) / Gamma(1/2 + 1/q).
+ */
+export function contactIntegral(exponent: number): number {
+  const q = exponent + 1
+  return Math.sqrt(Math.PI) * Math.exp(logGamma(1 + 1 / q) - logGamma(0.5 + 1 / q))
+}
+
+const LANCZOS = [
+  676.5203681218851, -1259.1392167224028, 771.3234287776531, -176.6150291621406, 12.507343278686905,
+  -0.13857109526572012, 9.984369578019572e-6, 1.5056327351493116e-7,
+]
+
+/** ln Gamma(x) for x > 0 (Lanczos, g = 7): good to about fifteen digits. */
+function logGamma(x: number): number {
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x)
+  const z = x - 1
+  let a = 0.9999999999998099
+  LANCZOS.forEach((c, i) => {
+    a += c / (z + i + 1)
+  })
+  const t = z + 7.5
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(a)
 }
 
 /** The hammer's speed for a note's level: a level is heard as loudness, so exponential. */
@@ -330,33 +346,8 @@ export function coupledModes(poles: readonly C[], eta: C): { lambda: C; vector: 
     poles.reduce((s, p) => s + p[1], 0) / n,
   ]
   const d = poles.map((p) => sub(p, centre))
-  // det(D - eta*J - lambda) / (-1)^n: prod(lambda - d_i) + eta * sum_i prod_{k != i}(lambda - d_k).
-  const f = (x: C): C => {
-    let prod: C = [1, 0]
-    let sum: C = [0, 0]
-    for (let i = 0; i < n; i++) {
-      let others: C = [1, 0]
-      for (let k = 0; k < n; k++) if (k !== i) others = mul(others, sub(x, d[k] as C))
-      sum = add(sum, others)
-      prod = mul(prod, sub(x, d[i] as C))
-    }
-    return add(prod, mul(eta, sum))
-  }
   const scale = Math.max(Math.hypot(eta[0], eta[1]), ...d.map((x) => Math.hypot(x[0], x[1])), 1e-9)
-  let roots: C[] = d.map((x, i) =>
-    add(x, [scale * 0.3 * Math.cos(i + 0.4), scale * 0.3 * Math.sin(i + 0.4)]),
-  )
-  for (let iter = 0; iter < 200; iter++) {
-    let moved = 0
-    roots = roots.map((r, j) => {
-      let den: C = [1, 0]
-      for (let k = 0; k < n; k++) if (k !== j) den = mul(den, sub(r, roots[k] as C))
-      const step = div(f(r), den)
-      moved = Math.max(moved, Math.hypot(step[0], step[1]))
-      return sub(r, step)
-    })
-    if (moved < scale * 1e-13) break
-  }
+  const roots = durandKerner(d, eta, scale)
   return roots.map((lam) => {
     let v = d.map((di) => {
       const gap = sub(di, lam)
@@ -382,7 +373,95 @@ const POLARISATIONS = [
   { vertical: false, excited: 0.3, coupling: 0.08, radiates: 0.45 },
 ] as const
 
+/**
+ * The roots of det(D - eta*J - lambda) / (-1)^n = prod(lambda - d_i) + eta * sum_i
+ * prod_{k != i}(lambda - d_k), all at once (Durand-Kerner), in plain numbers: a key's model is
+ * built on the audio thread, where a few hundred of these must not allocate their way into a
+ * dropout.
+ */
+function durandKerner(d: readonly C[], eta: C, scale: number): C[] {
+  const n = d.length
+  const dr = Float64Array.from(d, (x) => x[0])
+  const di = Float64Array.from(d, (x) => x[1])
+  const rr = new Float64Array(n)
+  const ri = new Float64Array(n)
+  for (let j = 0; j < n; j++) {
+    rr[j] = (dr[j] as number) + scale * 0.3 * Math.cos(j + 0.4)
+    ri[j] = (di[j] as number) + scale * 0.3 * Math.sin(j + 0.4)
+  }
+  const f = new Float64Array(2)
+  const q = new Float64Array(2)
+  for (let iter = 0; iter < 100; iter++) {
+    let moved = 0
+    for (let j = 0; j < n; j++) {
+      const xr = rr[j] as number
+      const xi = ri[j] as number
+      characteristic(dr, di, eta, xr, xi, f)
+      // The product of the gaps from this root to the others.
+      productOf(rr, ri, j, xr, xi, q)
+      const [fr, fi, qr, qi] = [f[0] as number, f[1] as number, q[0] as number, q[1] as number]
+      const size = qr * qr + qi * qi
+      const stepR = (fr * qr + fi * qi) / size
+      const stepI = (fi * qr - fr * qi) / size
+      rr[j] = xr - stepR
+      ri[j] = xi - stepI
+      moved = Math.max(moved, Math.abs(stepR) + Math.abs(stepI))
+    }
+    if (moved < scale * 1e-12) break
+  }
+  return Array.from({ length: n }, (_, j): C => [rr[j] as number, ri[j] as number])
+}
+
+/** Writes into `out` the product of (x - a_k) over every k but `skip` (-1 skips none). */
+function productOf(
+  ar: Float64Array,
+  ai: Float64Array,
+  skip: number,
+  xr: number,
+  xi: number,
+  out: Float64Array,
+): void {
+  let pr = 1
+  let pi = 0
+  for (let k = 0; k < ar.length; k++) {
+    if (k === skip) continue
+    const gr = xr - (ar[k] as number)
+    const gi = xi - (ai[k] as number)
+    const t = pr * gr - pi * gi
+    pi = pr * gi + pi * gr
+    pr = t
+  }
+  out[0] = pr
+  out[1] = pi
+}
+
+const leftOut = new Float64Array(2)
+
+/** Writes into `out` prod(x - d_i) + eta * sum_i prod_{k != i}(x - d_k). */
+function characteristic(
+  dr: Float64Array,
+  di: Float64Array,
+  eta: C,
+  xr: number,
+  xi: number,
+  out: Float64Array,
+): void {
+  let sr = 0
+  let si = 0
+  for (let i = 0; i < dr.length; i++) {
+    productOf(dr, di, i, xr, xi, leftOut)
+    sr += leftOut[0] as number
+    si += leftOut[1] as number
+  }
+  productOf(dr, di, -1, xr, xi, out)
+  out[0] = (out[0] as number) + eta[0] * sr - eta[1] * si
+  out[1] = (out[1] as number) + eta[0] * si + eta[1] * sr
+}
+
 const cache = new Map<string, KeyModel>()
+
+/** Whether a key's model at a sample rate has been made already. */
+export const modelMade = (pitch: number, sampleRate: number) => cache.has(`${pitch}:${sampleRate}`)
 
 /** A key's model at a sample rate (partials near Nyquist are left out). Cached. */
 export function keyModel(pitch: number, sampleRate: number): KeyModel {

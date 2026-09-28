@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { roomResponse, soundboardResponse } from '../../src/renderer/plugins/piano/body.js'
-import { MODE_BUDGET, PianoEngine, receive } from '../../src/renderer/plugins/piano/engine.js'
 import {
+  contactSteps,
+  MODE_BUDGET,
+  PianoEngine,
+  receive,
+} from '../../src/renderer/plugins/piano/engine.js'
+import {
+  contactIntegral,
   coupledModes,
   FIRST_UNDAMPED,
   fundamental,
   keyModel,
   longitudinalOf,
+  modelMade,
   stringsOf,
   unisonCents,
 } from '../../src/renderer/plugins/piano/model.js'
@@ -204,7 +211,8 @@ describe('the engine', () => {
     // The first note is not cut: the sound runs unbroken into the second blow.
     expect(level(twice.out, 0.24, 0.25)).toBeCloseTo(level(once.out, 0.24, 0.25), 3)
     expect(level(twice.out, 0.25, 0.26)).toBeGreaterThan(level(twice.out, 0.24, 0.25) - 3)
-    expect(twice.modes).toBeLessThanOrEqual(once.modes)
+    // One key's strings, not two notes' worth.
+    expect(twice.modes).toBeLessThanOrEqual(keyModel(60, RATE).count)
   })
 
   it('ignores a late release of a key that has been struck again', () => {
@@ -292,6 +300,49 @@ describe('the engine', () => {
     receive(engine, { t: 'silence' })
     render({ seconds: 0.3, engine })
     expect(engine.modes).toBe(0)
+  })
+})
+
+describe('the audio thread', () => {
+  it('lets the hammer go as soon as it rebounds, not a fixed window later', () => {
+    // Found in review (2026-09-28): the hammer was stepped four times a sample for 12 ms after
+    // every blow, which made a chord's first blocks cost eight times the strings alone.
+    for (const pitch of [36, 60, 96]) {
+      const engine = new PianoEngine(RATE)
+      engine.strike(1, pitch, 0.6, 0, 0)
+      render({ seconds: 0.006, engine })
+      expect(engine.hammers, `key ${pitch}`).toBe(0)
+    }
+  })
+
+  it('steps the contact finely only where it is short', () => {
+    expect(contactSteps(keyModel(21, RATE), RATE)).toBe(1)
+    expect(contactSteps(keyModel(60, RATE), RATE)).toBe(2)
+    expect(contactSteps(keyModel(108, RATE), RATE)).toBe(4)
+  })
+
+  it('makes every key ready ahead of time while it is quiet', () => {
+    // Found in review: a key's model was made when it was first struck, a millisecond or two
+    // each on the audio thread - a chord of new keys overran the block.
+    const rate = 44_000
+    const engine = new PianoEngine(rate)
+    const left = new Float32Array(BLOCK)
+    const right = new Float32Array(BLOCK)
+    for (let f = 0; f < 100 * BLOCK; f += BLOCK) engine.render(left, right, BLOCK, f)
+    for (let pitch = 21; pitch <= 108; pitch++)
+      expect(modelMade(pitch, rate), `key ${pitch}`).toBe(true)
+  })
+
+  it('calibrates the felt by the closed form of the contact integral', () => {
+    for (const p of [2.3, 2.8, 3.4]) {
+      let sum = 0
+      const steps = 20000
+      for (let i = 0; i < steps; i++) {
+        const s = (i + 0.5) / steps
+        sum += (2 * s) / Math.sqrt(1 - (1 - s * s) ** (p + 1))
+      }
+      expect(contactIntegral(p)).toBeCloseTo(sum / steps, 5)
+    }
   })
 })
 

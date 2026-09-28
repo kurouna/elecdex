@@ -18,8 +18,18 @@ import { Sympathy } from './sympathy.js'
  * Plain JS on typed arrays, loops innermost over samples, and nothing allocated per block.
  */
 
-/** Steps of the hammer's contact per sample: the felt is stiff, the treble's contact short. */
-const CONTACT_STEPS = 4
+/**
+ * Steps of the hammer's contact across a mezzo-forte blow, at the least: one step a sample
+ * in the bass, whose felt touches for milliseconds, up to four in the treble, whose barely does.
+ */
+const CONTACT_RESOLUTION = 64
+const MAX_CONTACT_STEPS = 4
+
+/** Steps a sample for a key's contact at a sample rate. */
+export function contactSteps(model: KeyModel, sampleRate: number): number {
+  const samples = model.hammer.contact * sampleRate
+  return Math.min(MAX_CONTACT_STEPS, Math.max(1, Math.ceil(CONTACT_RESOLUTION / samples)))
+}
 /** How long the hammer stays by the strings after a strike, in seconds; it may touch twice. */
 const HAMMER_WINDOW = 0.012
 /** Modes fallen this far below the note's loudest are dropped (-90 dB). */
@@ -39,6 +49,15 @@ const STRETCH_ABOVE = 30
 /** Seconds a longitudinal mode rings, and how far it stands above the push that rings it. */
 const STRETCH_RING = 0.25
 const STRETCH_PEAK = 1.5
+
+/**
+ * The keys in the order their models are made ahead of time: out from middle C, where most
+ * music is. A key's model takes a fraction of a millisecond to a couple (the long bass), which
+ * the audio thread can spare in a quiet block but not in one that strikes a chord of new keys.
+ */
+const WARM_ORDER = Array.from({ length: HIGH_KEY - LOW_KEY + 1 }, (_, i) => i + LOW_KEY).sort(
+  (a, b) => Math.abs(a - 60.5) - Math.abs(b - 60.5),
+)
 
 /** Where a key sits between the speakers, as left and right gains, before a note's own pan. */
 export function keyPan(pitch: number, pan = 0): [number, number] {
@@ -69,6 +88,8 @@ export function receive(engine: PianoEngine, message: unknown): void {
 
 interface Hammer {
   on: boolean
+  /** Whether the felt has touched the strings in this blow. */
+  struck: boolean
   x: number
   v: number
   force: number
@@ -101,6 +122,8 @@ interface Voice {
   rotIm: Float64Array
   subRe: Float64Array
   subIm: Float64Array
+  /** Contact steps a sample for this key. */
+  steps: number
   gainRe: Float64Array
   gainIm: Float64Array
   hammerWeight: Float64Array
@@ -132,10 +155,15 @@ export class PianoEngine {
   private readonly byId = new Map<number, number>()
   private events: PianoEvent[] = []
   private mix = new Float64Array(128)
+  /** A restruck key's modes, by the model's order, while they are put back in place. */
+  private scratchRe = new Float64Array(0)
+  private scratchIm = new Float64Array(0)
   /** The force every sounding string puts on the bridge, which rings the free ones. */
   private drive = new Float64Array(128)
   private readonly sympathy: Sympathy
   private readonly highPass: number
+  /** Keys whose models have been made ahead of time (warm), in WARM_ORDER. */
+  private warmed = 0
 
   constructor(sampleRate: number) {
     this.sampleRate = sampleRate
@@ -176,6 +204,13 @@ export class PianoEngine {
     return this.voices.size > 0 || this.events.length > 0 || this.sympathy.ringing
   }
 
+  /** Hammers still at the strings, for the tests. */
+  get hammers(): number {
+    let sum = 0
+    for (const voice of this.voices.values()) if (voice.hammer.on) sum++
+    return sum
+  }
+
   /** Modes turning now, for the budget and the tests. */
   get modes(): number {
     let sum = 0
@@ -197,6 +232,15 @@ export class PianoEngine {
       done += run
     }
     this.cull()
+    this.warm()
+  }
+
+  /** Makes one more key's model while no hammer is at work, until every key has one. */
+  private warm(): void {
+    if (this.warmed >= WARM_ORDER.length) return
+    for (const voice of this.voices.values()) if (voice.hammer.on) return
+    keyModel(WARM_ORDER[this.warmed] as number, this.sampleRate)
+    this.warmed++
   }
 
   private queue(event: PianoEvent): void {
@@ -247,12 +291,14 @@ export class PianoEngine {
     h.force = 0
     h.squeeze = 0
     h.time = 0
+    h.struck = false
     this.voices.set(pitch, voice)
     this.setRotation(voice)
   }
 
   /** A voice with every mode of the key, carrying over what still rings of the strings. */
   private freshVoice(model: KeyModel, before: Voice | undefined): Voice {
+    if (before) return this.restring(before)
     const n = model.count
     const voice: Voice = {
       model,
@@ -266,26 +312,56 @@ export class PianoEngine {
       rotIm: new Float64Array(n),
       subRe: new Float64Array(n),
       subIm: new Float64Array(n),
+      steps: contactSteps(model, this.sampleRate),
       gainRe: model.gainRe.slice(),
       gainIm: model.gainIm.slice(),
       hammerWeight: model.hammerWeight.slice(),
       bridgeWeight: model.bridgeWeight.slice(),
-      hammer: { on: false, x: 0, v: 0, force: 0, squeeze: 0, time: 0 },
+      hammer: { on: false, struck: false, x: 0, v: 0, force: 0, squeeze: 0, time: 0 },
       damped: false,
       cut: false,
       left: 0,
       right: 0,
-      peak: before?.peak ?? 0,
+      peak: 0,
       struck: 0,
     }
     for (let i = 0; i < n; i++) voice.index[i] = i
-    if (before && !before.cut) {
-      for (let s = 0; s < before.count; s++) {
-        const i = before.index[s] as number
-        voice.yRe[i] = before.yRe[s] as number
-        voice.yIm[i] = before.yIm[s] as number
+    return voice
+  }
+
+  /**
+   * A ringing key struck again: the same voice, every mode of the key back in its slot, each
+   * where the strings left it (nothing, if they were cut). Nothing is allocated: a fast
+   * repeated note must not make garbage on the audio thread.
+   */
+  private restring(voice: Voice): Voice {
+    const { model } = voice
+    const n = model.count
+    if (this.scratchRe.length < n) {
+      this.scratchRe = new Float64Array(n)
+      this.scratchIm = new Float64Array(n)
+    }
+    const { scratchRe, scratchIm } = this
+    scratchRe.fill(0, 0, n)
+    scratchIm.fill(0, 0, n)
+    if (!voice.cut) {
+      for (let s = 0; s < voice.count; s++) {
+        const i = voice.index[s] as number
+        scratchRe[i] = voice.yRe[s] as number
+        scratchIm[i] = voice.yIm[s] as number
       }
     }
+    voice.yRe.set(scratchRe.subarray(0, n))
+    voice.yIm.set(scratchIm.subarray(0, n))
+    voice.gainRe.set(model.gainRe)
+    voice.gainIm.set(model.gainIm)
+    voice.hammerWeight.set(model.hammerWeight)
+    voice.bridgeWeight.set(model.bridgeWeight)
+    for (let i = 0; i < n; i++) voice.index[i] = i
+    voice.count = n
+    if (voice.cut) voice.stretch = this.stretchOf(model, undefined)
+    voice.cut = false
+    voice.damped = false
     return voice
   }
 
@@ -341,7 +417,7 @@ export class PianoEngine {
       const r = Math.exp(decay * this.dt)
       voice.rotRe[s] = r * Math.cos(omega * this.dt)
       voice.rotIm[s] = r * Math.sin(omega * this.dt)
-      const step = this.dt / CONTACT_STEPS
+      const step = this.dt / voice.steps
       const rs = Math.exp(decay * step)
       voice.subRe[s] = rs * Math.cos(omega * step)
       voice.subIm[s] = rs * Math.sin(omega * step)
@@ -427,9 +503,9 @@ export class PianoEngine {
   private contactSample(voice: Voice): number {
     const h = voice.hammer
     const { mass, stiffness, exponent, loss } = voice.model.hammer
-    const step = this.dt / CONTACT_STEPS
+    const step = this.dt / voice.steps
     const { yRe, yIm, subRe, subIm, gainRe, gainIm, hammerWeight, count } = voice
-    for (let k = 0; k < CONTACT_STEPS; k++) {
+    for (let k = 0; k < voice.steps; k++) {
       const push = h.force * step
       let under = 0
       for (let s = 0; s < count; s++) {
@@ -446,13 +522,16 @@ export class PianoEngine {
       h.x += h.v * step
       const squeeze = h.x - under
       if (squeeze > 0) {
+        h.struck = true
         const rate = (squeeze - h.squeeze) / step
         h.force = Math.max(0, stiffness * squeeze ** exponent * (1 + loss * rate))
       } else h.force = 0
       h.squeeze = squeeze
     }
     h.time += this.dt
-    if (h.time > HAMMER_WINDOW && h.force === 0) h.on = false
+    // Once it has struck and is on its way back it has escaped: the strings are left alone
+    // (and the costly steps end, two or three milliseconds in rather than the whole window).
+    if (h.force === 0 && ((h.struck && h.v < 0) || h.time > HAMMER_WINDOW)) h.on = false
     // The blow's reaction reaches the board through the action and the frame: the knock.
     let out = h.force * KNOCK
     for (let s = 0; s < count; s++) out += (voice.bridgeWeight[s] as number) * (yIm[s] as number)
