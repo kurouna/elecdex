@@ -830,7 +830,10 @@ of a hard blow in the bass, a soundboard and a room - and, with the pedal down, 
 struck ringing along. Its lead guitar is played on the string and fret a player would use, through
 a pickup, an overdriven amplifier worked out at four times the sample rate and a speaker cabinet:
 held into the next note it hammers on or slides, held on it bends into vibrato and feeds back. Both
-are worked out on the audio thread as they play.
+are worked out on the audio thread as they play, as is every other voice: an electric piano whose
+pickup makes a hard note bark, drums as the classic drum machines' circuits make them, an old
+console's sound chip, analogue synthesisers with a transistor-ladder filter, a tonewheel organ into
+a rotating speaker (the sustain pedal is its speed switch), a marimba and a fingered electric bass.
 
 Plugins are off until turned on in *Settings → Plugins*, which lists what each may do - read
 metric sources, reach named hosts (each request made by the app and checked against that list),

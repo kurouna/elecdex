@@ -1,5 +1,6 @@
 import type { Voice } from '@shared/plugin-api'
 import { ringOf } from '../epiano/engine.js'
+import { barRing } from '../marimba/engine.js'
 import { afterDecay, damperTime, hasDamper } from '../piano/model.js'
 
 /** The guitar's delay echoes on after its note, and the longest a held note may be (30 s). */
@@ -67,6 +68,16 @@ export const INSTRUMENTS: Partial<Record<Voice, VoiceTraits>> = {
   bass: { bus: 'plain', ownLength: 0.25, ring: () => LONGEST, settle: () => 0.2 },
   pad: { bus: 'plain', ownLength: 2, ring: () => LONGEST, settle: () => 1.6 },
   pluck: { bus: 'plain', ownLength: 0.4, ring: () => 1.6, settle: () => 0.4 },
+  // An organ sounds while a key is held and stops when it is let go; the rotor's tail is short.
+  organ: { bus: 'plain', ownLength: 1, ring: () => LONGEST, settle: () => 0.2 },
+  // A marimba has no dampers: its bar rings its own length, let go or not.
+  marimba: {
+    bus: 'plain',
+    ownLength: 0.5,
+    ring: (pitch) => barRing(pitch) * 1.4,
+    settle: (pitch) => barRing(pitch) * 1.4,
+  },
+  ebass: { bus: 'plain', ownLength: 0.4, ring: () => 12, settle: () => 0.25 },
   kick: drum(0.9),
   snare: drum(0.5),
   clap: drum(0.6),
@@ -94,6 +105,9 @@ export const ROOM_SEND: Readonly<Record<Voice, number>> = {
   bass: 0.03,
   pluck: 0.2,
   pad: 0.32,
+  organ: 0.18,
+  marimba: 0.22,
+  ebass: 0.03,
   kick: 0.03,
   snare: 0.12,
   clap: 0.14,

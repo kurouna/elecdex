@@ -306,6 +306,80 @@ export const TAKES = {
       ]
     },
   },
+  organ: {
+    // Gospel chords on the slow rotor; the pedal speeds it up, then lets it coast down.
+    comp: () => {
+      const beat = 60 / 96
+      const o = (t, pitches, length) => chord(0.2 + t * beat, pitches, 0.75, length * beat, 'organ')
+      return [
+        ...o(0, [48, 55, 60, 64], 1.9),
+        ...o(2, [53, 57, 60, 65], 1.9),
+        ...o(4, [55, 59, 62, 67], 3.9),
+        { t: 0.2 + 4 * beat, pedal: true },
+        ...o(8, [48, 55, 60, 64], 1.9),
+        ...o(10, [53, 57, 60, 65], 1.9),
+        { t: 0.2 + 12 * beat, pedal: false },
+        ...o(12, [48, 55, 60, 64, 67], 5),
+      ]
+    },
+    // A legato line: the percussion strikes only its first note.
+    line: () =>
+      [67, 69, 71, 72, 74, 72, 71, 69, 67].map((p, i) => n(0.2 + i * 0.25, p, 0.7, 0.3, 'organ')),
+  },
+  marimba: {
+    arpeggios: () =>
+      [
+        [57, 60, 64, 69],
+        [53, 57, 60, 65],
+        [55, 59, 62, 67],
+        [52, 55, 59, 64],
+      ].flatMap((c, i) =>
+        Array.from({ length: 8 }, (_, k) =>
+          n(
+            0.2 + i * 1.6 + k * 0.2,
+            (c[k % 4] ?? 60) + (k >= 4 ? 12 : 0),
+            0.5 + 0.2 * (k % 2),
+            0.15,
+            'marimba',
+          ),
+        ),
+      ),
+    dynamics: () => [0.15, 0.4, 0.7, 1].map((l, i) => n(0.2 + i * 1.2, 60, l, 0.1, 'marimba')),
+  },
+  ebass: {
+    // A city-pop line under Fmaj7, E7, Am7, Gm7 C7: the root, its octave, a passing note.
+    line: () => {
+      const e = 60 / 112 / 4
+      const b = (i, pitch, length, level = 0.75) =>
+        n(0.2 + i * e, pitch, level, length * e, 'ebass')
+      return [
+        b(0, 29, 3),
+        b(3, 29, 1),
+        b(6, 41, 1.5),
+        b(8, 36, 2),
+        b(10, 29, 2),
+        b(14, 31, 2),
+        b(16, 28, 3),
+        b(19, 28, 1),
+        b(22, 40, 1.5),
+        b(24, 35, 2),
+        b(26, 32, 2),
+        b(30, 28, 2),
+        b(32, 33, 3),
+        b(35, 33, 1),
+        b(38, 45, 1.5),
+        b(40, 40, 2),
+        b(42, 36, 2),
+        b(46, 33, 2),
+        b(48, 31, 3),
+        b(51, 31, 1),
+        b(54, 36, 3),
+        b(57, 36, 1),
+        b(60, 40, 2),
+        b(62, 36, 2),
+      ]
+    },
+  },
   drums: {
     groove,
     // Each drum alone, soft then hard.

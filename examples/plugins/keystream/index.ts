@@ -32,6 +32,8 @@ export default {
         { value: 'guitar', label: 'GUITAR' },
         { value: 'lead', label: 'SYNTH LEAD' },
         { value: 'chip', label: 'CHIP' },
+        { value: 'organ', label: 'ORGAN' },
+        { value: 'marimba', label: 'MARIMBA' },
       ],
     },
     { key: 'volume', type: 'number', label: 'Volume (%)', default: 80, min: 0, max: 100, step: 5 },

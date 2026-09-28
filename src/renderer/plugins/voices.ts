@@ -316,6 +316,54 @@ const pad: VoiceFn = (kit, n) => {
   return b.done(end + 1.6, 0.35)
 }
 
+/** The organ until its wheels have loaded: three drawbars' sines, on while held. */
+const organ: VoiceFn = (kit, n) => {
+  const b = new Build(kit, n.level * 0.18)
+  const t = n.start
+  const end = n.end ?? t + 1
+  const g = b.amp.gain
+  g.setValueAtTime(0, t)
+  g.linearRampToValueAtTime(b.level, t + 0.004)
+  release(g, end, 0.01)
+  for (const ratio of [0.5, 1, 1.5]) b.osc('sine', n.freq * ratio, t, end + 0.1).connect(b.amp)
+  return b.done(end + 0.1, 0.01)
+}
+
+/** The marimba until its bars have loaded: the note and its two-octave overtone, dying. */
+const marimba: VoiceFn = (kit, n) => {
+  const b = new Build(kit, n.level * 0.4)
+  const t = n.start
+  const ring = Math.min(3, Math.max(0.35, 1.3 * 2 ** (-(n.pitch - 60) / 16)))
+  const g = b.amp.gain
+  g.setValueAtTime(0, t)
+  g.linearRampToValueAtTime(b.level, t + 0.002)
+  g.setTargetAtTime(0, t + 0.002, ring / 5)
+  b.osc('sine', n.freq, t, t + ring).connect(b.amp)
+  const over = b.gain(0.3)
+  over.gain.setTargetAtTime(0, t, ring / 20)
+  b.osc('sine', n.freq * 3.98, t, t + ring)
+    .connect(over)
+    .connect(b.amp)
+  return b.done(t + ring)
+}
+
+/** The electric bass until its strings have loaded: a triangle through a closing filter. */
+const ebass: VoiceFn = (kit, n) => {
+  const b = new Build(kit, n.level * 0.6)
+  const t = n.start
+  const end = n.end ?? t + 0.4
+  const g = b.amp.gain
+  g.setValueAtTime(0, t)
+  g.linearRampToValueAtTime(b.level, t + 0.004)
+  g.setTargetAtTime(b.level * 0.5, t + 0.004, 0.4)
+  release(g, end, 0.03)
+  const tone = b.filter('lowpass', n.freq * 6 + 200, 0.8)
+  tone.frequency.setTargetAtTime(n.freq * 2 + 150, t, 0.15)
+  tone.connect(b.amp)
+  b.osc('triangle', n.freq, t, end + 0.2).connect(tone)
+  return b.done(end + 0.2, 0.03)
+}
+
 /** A struck drum: a tone falling in pitch, with a click of noise on top. */
 function drum(
   kit: Kit,
@@ -426,6 +474,9 @@ export const VOICES: Readonly<Record<Voice, VoiceFn>> = {
   bass,
   pluck,
   pad,
+  organ,
+  marimba,
+  ebass,
   kick,
   snare,
   clap,

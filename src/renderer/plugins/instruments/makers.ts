@@ -1,8 +1,11 @@
 import type { Voice } from '@shared/plugin-api'
 import { ChipEngine } from '../chip/engine.js'
 import { drumMakers } from '../drums/machine.js'
+import { BassEngine } from '../ebass/engine.js'
 import { EPianoEngine } from '../epiano/engine.js'
 import { GuitarEngine } from '../guitar/engine.js'
+import { MarimbaEngine } from '../marimba/engine.js'
+import { OrganEngine } from '../organ/engine.js'
 import { PianoEngine } from '../piano/engine.js'
 import { AnalogEngine } from '../synth/engine.js'
 import type { InstrumentMaker } from './host.js'
@@ -22,6 +25,9 @@ export function makers(): Partial<Record<Voice, InstrumentMaker>> {
     bass: (rate) => new AnalogEngine(rate, 'bass'),
     pad: (rate) => new AnalogEngine(rate, 'pad'),
     pluck: (rate) => new AnalogEngine(rate, 'pluck'),
+    organ: (rate) => new OrganEngine(rate),
+    marimba: (rate) => new MarimbaEngine(rate),
+    ebass: (rate) => new BassEngine(rate),
     ...drumMakers(),
   }
 }

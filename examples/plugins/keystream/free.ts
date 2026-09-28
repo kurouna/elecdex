@@ -22,6 +22,9 @@ export const TONES: readonly { voice: Voice; name: string }[] = [
   { voice: 'pluck', name: 'PLUCK' },
   { voice: 'pad', name: 'PAD' },
   { voice: 'bass', name: 'BASS' },
+  { voice: 'organ', name: 'ORGAN' },
+  { voice: 'marimba', name: 'MARIMBA' },
+  { voice: 'ebass', name: 'E.BASS' },
 ]
 
 /** How many octaves the keys move each way. */
