@@ -27,7 +27,7 @@
  * is over. Windows only, like the other takes. Run `npm run build` first, then
  * `npm run demo:keystream`. demo-take.mjs has the other options: `--probe`, `--theme`,
  * `--pace`, `--shots=<dir>` to look the take over; `--volume` is the plugin's (80), `--jitter` how
- * far from each note a key may land (8 ms; HARD counts 30 as SYNC).
+ * far from each note a key may land (8 ms; SYNC is 40, 30 on HARD).
  */
 import { cpSync } from 'node:fs'
 import { registerHooks } from 'node:module'
@@ -38,8 +38,8 @@ import { openTake, prepareData, say, takeOptions } from './demo-take.mjs'
 const options = takeOptions({ width: 1280, height: 720, zoom: 1, lead: 6 })
 const option = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
 const exit = process.argv.includes('--exit')
-const SONG = option('song') ?? 'turkish-march'
-const LEVEL = option('level') ?? 'hard'
+const SONG = option('song') ?? 'boot-sequence'
+const LEVEL = option('level') ?? 'normal'
 const PREVIEWS = (option('previews') ?? 'sakura-signal,zero-gravity,pixel-rush').split(',')
 const INSTRUMENT_KEYS = (option('instruments') ?? '2,3,5,6,7,4,2').split(',')
 const LISTEN_S = Number(option('listen') ?? 6)
