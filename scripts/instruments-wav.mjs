@@ -26,7 +26,7 @@ registerHooks({
 const plugins = '../src/renderer/plugins'
 const { roomResponse, soundboardResponse } = await import(`${plugins}/piano/body.ts`)
 const { InstrumentHost } = await import(`${plugins}/instruments/host.ts`)
-const { MAKERS } = await import(`${plugins}/instruments/makers.ts`)
+const { makers } = await import(`${plugins}/instruments/makers.ts`)
 const { BUSES, OUTPUTS, ROOM_SEND } = await import(`${plugins}/instruments/catalog.ts`)
 const { cabinetResponse, ECHO } = await import(`${plugins}/guitar/cabinet.ts`)
 
@@ -95,6 +95,28 @@ function ode(voice) {
   })
   notes.push(...chord(0.2 + 8 * 4 * beat, [36, 48, 55, 64], 0.45, 3.5, voice))
   return notes
+}
+
+/** A house groove at 124 BPM: four bars, a tom fill, and the crash on the one. */
+function groove() {
+  const step = 60 / 124 / 4
+  const hits = []
+  const d = (i, voice, level = 0.8, pitch = 60) =>
+    hits.push(n(0.2 + i * step, pitch, level, 0.1, voice))
+  d(0, 'crash', 0.8)
+  for (let bar = 0; bar < 4; bar++) {
+    for (let k = 0; k < 16; k++) {
+      const i = bar * 16 + k
+      if (k % 4 === 0) d(i, 'kick', 0.9)
+      if (k === 4 || k === 12) d(i, bar % 2 ? 'clap' : 'snare', 0.8)
+      if (k % 4 === 2) d(i, 'openhat', 0.6)
+      else if (bar < 3 || k < 12) d(i, 'hat', k % 2 ? 0.45 : 0.6)
+    }
+  }
+  ;[52, 50, 47, 45].forEach((pitch, k) => d(60 + k, 'tom', 0.8, pitch))
+  d(64, 'crash', 0.85)
+  d(64, 'kick', 0.9)
+  return hits
 }
 
 /** The takes, by voice: each a function giving its notes (and pedal changes). */
@@ -183,11 +205,21 @@ export const TAKES = {
       [0.15, 0.35, 0.55, 0.75, 0.95].map((l, i) => n(0.2 + i * 1.2, 64, l, 0.9, 'guitar')),
     sustain: () => [n(0.2, 76, 0.8, 7, 'guitar')],
   },
+  drums: {
+    groove,
+    // Each drum alone, soft then hard.
+    kit: () =>
+      ['kick', 'snare', 'clap', 'hat', 'openhat', 'crash', 'tom'].flatMap((voice, i) =>
+        [0.4, 0.9].map((level, k) =>
+          n(0.2 + i * 1.6 + k * 0.7, voice === 'tom' ? 48 : 60, level, 0.1, voice),
+        ),
+      ),
+  },
 }
 
 /** Renders notes through the host: the processor's outputs, whole. */
 export function render(notes) {
-  const host = new InstrumentHost(RATE, MAKERS)
+  const host = new InstrumentHost(RATE, makers())
   const end = Math.max(...notes.map((x) => x.t + (x.length ?? 3))) + 3
   const frames = Math.ceil((end * RATE) / BLOCK) * BLOCK
   const buses = Array.from({ length: OUTPUTS }, () => [

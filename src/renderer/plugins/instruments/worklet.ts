@@ -1,6 +1,6 @@
 import { OUTPUTS } from './catalog.js'
 import { InstrumentHost } from './host.js'
-import { MAKERS } from './makers.js'
+import { makers } from './makers.js'
 
 /**
  * The instruments on the audio thread (docs/plugins.md section 13.8): one processor per pane
@@ -21,7 +21,7 @@ declare function registerProcessor(name: string, processor: new () => AudioWorkl
 type Pair = [Float32Array, Float32Array]
 
 class InstrumentProcessor extends AudioWorkletProcessor {
-  private readonly host = new InstrumentHost(sampleRate, MAKERS)
+  private readonly host = new InstrumentHost(sampleRate, makers())
   /** Silenced for good: the processor ends once its instruments are still, and the node can go. */
   private closed = false
   /** The outputs as pairs of channels, kept from block to block rather than made anew. */

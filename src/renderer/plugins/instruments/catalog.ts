@@ -53,6 +53,18 @@ export const INSTRUMENTS: Partial<Record<Voice, VoiceTraits>> = {
     ring: () => LONGEST,
     settle: () => 0.5 + GUITAR_ECHO,
   },
+  kick: drum(0.9),
+  snare: drum(0.5),
+  clap: drum(0.6),
+  hat: drum(0.12),
+  openhat: drum(1.2),
+  crash: drum(2.6),
+  tom: drum(0.9),
+}
+
+/** A drum rings for its own length, let go or not (drums/machine.ts). */
+function drum(length: number): VoiceTraits {
+  return { bus: 'plain', ownLength: length, ring: () => length, settle: () => length }
 }
 
 /**
