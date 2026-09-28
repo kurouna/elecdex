@@ -761,7 +761,7 @@ eDEX-UI 被归档时，用其作者的话说，代码库"极需一次彻底的�
 
 ## 开发
 
-技术栈：Electron 44 · TypeScript 7 (native) · electron-vite 5 / Vite 7 · Svelte 5 (runes) ·
+技术栈：Electron 44 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
 `@xterm/xterm` 6 · node-pty 1.1 · systeminformation · three · zod 4 · Biome 2 · Vitest 5 ·
 Playwright · electron-builder 26
 

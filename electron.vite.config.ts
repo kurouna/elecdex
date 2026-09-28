@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig } from 'electron-vite'
 // Records what each build bundled, for THIRD_PARTY_NOTICES.txt (scripts/gen-notices.mjs).
 import { bundledPackages } from './scripts/third-party-notices.mjs'
 
@@ -16,7 +16,7 @@ const define = { __APP_VERSION__: JSON.stringify(pkg.version) }
 export default defineConfig({
   main: {
     define,
-    plugins: [externalizeDepsPlugin(), bundledPackages('main')],
+    plugins: [bundledPackages('main')],
     resolve: {
       alias: {
         '@shared': r('src/shared'),
@@ -27,7 +27,7 @@ export default defineConfig({
       },
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           index: r('src/main/index.ts'),
           // Forked as an Electron utilityProcess by the metrics broker.
@@ -38,7 +38,7 @@ export default defineConfig({
   },
 
   preload: {
-    plugins: [externalizeDepsPlugin(), bundledPackages('preload')],
+    plugins: [bundledPackages('preload')],
     resolve: {
       alias: {
         '@shared': r('src/shared'),
@@ -46,7 +46,7 @@ export default defineConfig({
       },
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           index: r('src/preload/index.ts'),
           // The hidden audio capture window's own, narrower bridge.
@@ -63,8 +63,6 @@ export default defineConfig({
 
   renderer: {
     root: r('src/renderer'),
-    // Minified, the licence comments the bundle keeps go to the end of the file, not away.
-    esbuild: { legalComments: 'eof' },
     // The renderer root is not the project root, so point the plugin at the
     // shared svelte.config.js explicitly instead of letting it fall back.
     plugins: [svelte({ configFile: r('svelte.config.js') }), bundledPackages('renderer')],
@@ -79,19 +77,22 @@ export default defineConfig({
       target: 'chrome140',
       // The page is parsed and compiled whole at every start; electron-vite leaves it
       // unminified by default (3.4 MB, 77,000 lines). Measured in architecture.md §16.
-      minify: 'esbuild',
+      minify: 'oxc',
       // Never inline fonts. Vite base64-inlines small assets by default, and a
       // `data:` @font-face URL is blocked by our `font-src 'self'` CSP - so the
       // choice is between loosening the CSP and emitting real files. We emit
       // files. Other small assets may still inline.
       assetsInlineLimit: (filePath) =>
         /\.(woff2?|ttf|otf|eot)$/i.test(filePath) ? false : undefined,
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           index: r('src/renderer/index.html'),
           // Loaded only in the hidden audio capture window (main/audio/capture-window.ts).
           'audio-capture': r('src/renderer/audio-capture.html'),
         },
+        // Minified, the licence comments the bundle keeps stay where they are, not away: Vite
+        // drops them when it minifies. Rolldown cannot gather them at the end as esbuild did.
+        output: { comments: { legal: true } },
       },
     },
   },

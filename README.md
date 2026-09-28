@@ -934,7 +934,7 @@ refactoring". elecdex keeps the idea and drops the implementation:
 
 ## Develop
 
-Stack: Electron 44 · TypeScript 7 (native) · electron-vite 5 / Vite 7 · Svelte 5 (runes) ·
+Stack: Electron 44 · TypeScript 7 (native) · electron-vite 6 / Vite 8 · Svelte 5 (runes) ·
 `@xterm/xterm` 6 · node-pty 1.1 · systeminformation · three · zod 4 · Biome 2 · Vitest 5 ·
 Playwright · electron-builder 26
 

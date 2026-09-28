@@ -43,7 +43,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 |---|---|---|---|
 | シェル | Electron | 44.x | Chromium 最新系。`sandbox: true` + `contextIsolation: true` |
 | 言語 | TypeScript | **7.0.2**（native）+ 6.0.3（JS API） | `typescript@6.0.3` を JS Compiler API 用に、`@typescript/native@npm:typescript@7.0.2` をネイティブコンパイラとして併置。`svelte-check --tsgo` で Svelte も TS7 で型検査する（elecxzy と同じ TS7 運用）|
-| ビルド | electron-vite | 5.x (Vite 7.3.6) | main / preload / renderer の3ターゲット + HMR<br>**Vite 8 は採用不可**: Rolldown が Svelte 5.57 の内部 ESM をパースできずビルドが失敗する（実測済み）|
+| ビルド | electron-vite | 6.0.0-beta.3 (Vite 8.3.1、Rolldown + Oxc) | main / preload / renderer の3ターゲット + HMR。Vite 8 を受け付ける electron-vite は 6 のベータだけなので、それを使う（§16） |
 | UI | Svelte | 5.x (runes) | VDOM なし。常駐する UI の更新コストが小さい（動きは共有の 10 fps フレームループに載せる。§16） |
 | スタイル | 素のCSS + CSS変数デザイントークン + Svelte scoped CSS | — | Tailwind 不採用（clip-path/SVG装飾主体のため） |
 | 端末 | `@xterm/xterm` | 6.x | addon: fit 0.11 / webgl 0.19 / unicode11 0.9 / search 0.16 / web-links 0.12 / serialize 0.14 / clipboard 0.2 |
@@ -114,7 +114,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 | タブ5固定（ポート事前確保 + if連鎖） | タブ/ペイン無制限。レイアウトは木構造 |
 | `document.querySelector("head").innerHTML +=` でテーマCSS注入 | CSS変数を `style.setProperty` で差し替え。`injectCSS` の生注入は廃止 |
 | 起動毎に内蔵テーマを userData へ上書きコピー（ユーザー編集が消える） | 内蔵は asar から読み、userData は**オーバーレイ**。上書きしない |
-| バンドラなし、terser/clean-css の後処理のみ | electron-vite（Rollup/esbuild） |
+| バンドラなし、terser/clean-css の後処理のみ | electron-vite（Vite 8: Rolldown/Oxc） |
 
 ---
 
@@ -1619,7 +1619,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | GeoIP | `@ip-location-db/geo-whois-asn-country-mmdb`（統合版 7.8MB のみ同梱、IPv4/IPv6 別ファイルは electron-builder で除外）+ 国重心テーブル | ユーザー操作ゼロが要件。GeoLite2 はアカウント必須、DB-IP City は 134MB。ルックアップは端末外に出ない。**訂正（Phase 6）**: 当初「CC0 で帰属表示不要」と記録したが、npm の license 欄が CC0-1.0 なだけで、同梱の NRO_LICENSE ではデータは CC BY 4.0（NRO）であり帰属表示が必要。地球儀ペインに「GeoIP: NRO, CC BY 4.0」、README に出典を表示する |
 | フォント | Chakra Petch (display) / Saira Condensed (ui) / JetBrains Mono Variable (mono)、すべて OFL 1.1 | 原版の United Sans は商用。Saira Condensed が最も素性が近く9ウェイト。Chakra Petch が SF の角切り感を担う |
 | TypeScript | 7.0.2 (native) + 6.0.3 (JS API) を併置、`svelte-check --tsgo` | 7.0 単体では JS Compiler API が無く svelte-check が動かないが、6 と併置して `--tsgo` を渡せば Svelte も TS7 で検査できる。TS7 移行で `baseUrl` 廃止と `composite`+`noEmit` 非対応の対応が必要だった |
-| Vite | 7.3.6 + `@sveltejs/vite-plugin-svelte` 6.x | electron-vite 6.0.0-beta.1 は Vite 8 を受け付けるが、**Vite 8 の Rolldown が Svelte 5.57 をパースできずビルドが失敗する**（実測）。Rolldown 側の対応待ち。2026-09-24 に Vite 8.3.0・vite-plugin-svelte 7.3.1・electron-vite 6.0.0-beta.1・Svelte 5.57.1 で試し直したが、同じく Rolldown が svelte の内部モジュールと自前の TS を読めず（Expected token }）失敗した |
+| Vite | 8.3.1 + `@sveltejs/vite-plugin-svelte` 7.3.1 + electron-vite 6.0.0-beta.3（v0.0.18 の後、2026-09-28） | 以前は 7.3.6 に留めていた: Vite 8 の Rolldown が Svelte 5.57 の内部モジュールと自前の TS を読めず（Expected token }）ビルドが失敗した（2026-09-24 に 8.3.0・vite-plugin-svelte 7.3.1・electron-vite 6.0.0-beta.1 で再確認）。8.3.1（Rolldown 1.2.11）と electron-vite 6.0.0-beta.3 ではこれが解消し、main・preload・renderer とも通った。Vite 8 を受け付ける electron-vite は 6 のベータしかないので、正式版が出たら上げる。移行で変えたこと: `build.minify` を `esbuild` から `oxc` に（esbuild は Vite 8 では別途入れないと動かない）、`rollupOptions` を `rolldownOptions` に、`externalizeDepsPlugin()` を外す（electron-vite 6 では `build.externalizeDeps` が既定で有効。外に出るのは従来どおり dependencies と Node の組み込みだけで、devDependencies の yahoo-finance2 は main に同梱されたまま）。ライセンスコメントは esbuild の `legalComments: 'eof'` の代わりに `output.comments.legal`: Vite は最小化するときに消すので明示して残す。Rolldown は末尾に集められず元の位置に残る（`@license` を含むことは bundle.spec が確かめる）。画面側のバンドルは 2,230 kB → 2,223 kB でほぼ同じ、main のビルドは約 1 秒 → 0.16 秒 |
 | @types/node | 24.x（最新の 24 系） | Electron 44 に入っている Node は 24 系なので、型も 24 系に合わせる（26 系の型は Electron の main で使えない API を許してしまう）。Electron の Node が上がったら上げる |
 | アプリ名/バージョンの解決 | `app.setName()` + ビルド時 `define` で `__APP_VERSION__` を注入 | `out/` に package.json が無いため、未パッケージ実行では `app.getName()` が "Electron"、`app.getVersion()` が Electron のバージョンを返し、`userData` も Electron の設定ディレクトリを指してしまう（E2E で回帰を固定） |
 | アイコン | 手で編集する原本は `build/icon.svg` のみ。elec シリーズ（elecxzy / elecxterm / elecxmail）共通の構図に従い、アプリ固有のモチーフ（角切り HUD フレームの暗い画面・プロンプト・ワイヤーフレームの地球儀と接続ピン・CPU の波形）の上に、左下へシリーズ共通の「E」バッジ（#0ea5e9 の円・白フチ・3本の角丸バー）を重ねる。`npm run gen:icon`（@resvg/resvg-js）が build/icon.png（1024px、ico/icns/Linux 用は electron-builder が派生）と resources/icons/icon.png（256px、実行時のウィンドウ/タスクバー）を生成 | シリーズで統一した見た目にし、ベクターの原本から全サイズを作る |
