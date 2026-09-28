@@ -1,10 +1,11 @@
+import type { Instrument } from '../instruments/host.js'
 import { blowSpeed, damperDecay, HIGH_KEY, type KeyModel, keyModel, LOW_KEY } from './model.js'
 import { Sympathy } from './sympathy.js'
 
 /**
- * The piano's strings sounding (docs/plugins.md section 13.8): one engine per pane, running on
- * the audio thread (worklet.ts) or in a script. Each key is a set of decaying phasors, one per
- * mode of its unison (model.ts); a strike runs the hammer against them sample by sample, four
+ * The piano's strings sounding (docs/plugins.md section 13.8): one engine per pane, an
+ * instrument of the audio thread's host (instruments/host.ts) or of a script. Each key is a
+ * set of decaying phasors, one per mode of its unison (model.ts); a strike runs the hammer against them sample by sample, four
  * steps to a sample while the felt touches the strings, and after that each mode only turns.
  *
  * A key is its strings, not a note: striking a key that still rings strikes the same strings
@@ -64,26 +65,6 @@ export function keyPan(pitch: number, pan = 0): [number, number] {
   const key = Math.min(HIGH_KEY, Math.max(LOW_KEY, pitch))
   const p = Math.min(1, Math.max(-1, pan + ((key - 64.5) / 43.5) * KEY_SPREAD))
   return [Math.cos(((p + 1) * Math.PI) / 4), Math.sin(((p + 1) * Math.PI) / 4)]
-}
-
-/** What the page posts to the audio thread; times are the AudioContext's seconds. */
-export type PianoMessage =
-  | { t: 'strike'; id: number; pitch: number; level: number; pan: number; at: number }
-  | { t: 'release' | 'stop'; id: number; at: number }
-  | { t: 'pedal'; on: boolean; at: number }
-  | { t: 'silence' }
-
-/** Carries out a message from the page, whatever the page sent: the thread must not throw. */
-export function receive(engine: PianoEngine, message: unknown): void {
-  if (typeof message !== 'object' || message === null) return
-  const m = message as Record<string, unknown>
-  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
-  const at = Math.round(num(m.at) * engine.sampleRate)
-  if (m.t === 'strike') engine.strike(num(m.id), num(m.pitch), num(m.level), num(m.pan), at)
-  else if (m.t === 'release') engine.release(num(m.id), at)
-  else if (m.t === 'stop') engine.stop(num(m.id), at)
-  else if (m.t === 'pedal') engine.pedal(m.on === true, at)
-  else if (m.t === 'silence') engine.stopAll()
 }
 
 interface Hammer {
@@ -148,7 +129,7 @@ interface PianoEvent {
   pan: number
 }
 
-export class PianoEngine {
+export class PianoEngine implements Instrument {
   readonly sampleRate: number
   private readonly dt: number
   private readonly voices = new Map<number, Voice>()

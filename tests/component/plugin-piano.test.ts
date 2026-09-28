@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Synth } from '../../src/renderer/plugins/synth.ts'
 
 /**
- * The physical piano's page side (renderer/plugins/piano/strings.ts, synth.ts): which notes go
- * to the strings on the audio thread and what is posted to them, on a stand-in AudioContext
+ * The instruments' page side (renderer/plugins/instruments/hall.ts, synth.ts), by the piano:
+ * which notes go to the audio thread and what is posted to it, on a stand-in AudioContext
  * with a stand-in worklet. The strings themselves are tested in tests/unit/piano.test.ts.
  */
 
@@ -139,7 +139,15 @@ describe('the piano', () => {
     expect(synth.strungNotes('p1')).toBe(1)
     const [strings] = FakeWorklet.made
     expect(strings?.posted).toEqual([
-      { t: 'strike', id: 1, pitch: 64, level: 0.5, pan: 0.5, at: expect.any(Number) },
+      {
+        t: 'strike',
+        voice: 'piano',
+        id: 1,
+        pitch: 64,
+        level: 0.5,
+        pan: 0.5,
+        at: expect.any(Number),
+      },
       { t: 'release', id: 1, at: expect.any(Number) },
     ])
     const [strike, release] = strings?.posted ?? []

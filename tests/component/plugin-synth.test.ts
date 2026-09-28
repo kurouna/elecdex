@@ -84,8 +84,10 @@ function fakeContext() {
         release: new Param(),
       }),
     createPeriodicWave: () => ({}),
+    createConvolver: () => Object.assign(new Node(), { normalize: true, buffer: null }),
     createBuffer: (_channels: number, length: number) => ({
       getChannelData: () => new Float32Array(length),
+      copyToChannel: () => {},
     }),
   }
   return { ac, sources }
@@ -118,6 +120,7 @@ describe('the voices', () => {
       const kit = {
         ac: ac as unknown as BaseAudioContext,
         out: new Node() as unknown as AudioNode,
+        room: new Node() as unknown as AudioNode,
         noise: {} as AudioBuffer,
         piano: {} as PeriodicWave,
       }

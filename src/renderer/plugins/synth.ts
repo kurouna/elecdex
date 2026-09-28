@@ -1,7 +1,10 @@
+import type { Voice } from '@shared/plugin-api'
 import { contextTimeFor, midiToHz, type SoundNote } from '@shared/plugin-sound'
 import { PLUGIN_LIMITS, TokenBucket } from '@shared/plugins'
-import { PianoHall, type PianoStrings } from './piano/strings.ts'
-import pianoWorklet from './piano/worklet.ts?worker&url'
+import { isInstrument, ROOM_SEND } from './instruments/catalog.ts'
+import { type Band, InstrumentHall, stereo } from './instruments/hall.ts'
+import instrumentsWorklet from './instruments/worklet.ts?worker&url'
+import { roomResponse } from './piano/body.ts'
 import { type Kit, noiseBuffer, type Played, pianoWave, VOICES, type VoiceNote } from './voices.ts'
 
 /**
@@ -15,9 +18,10 @@ import { type Kit, noiseBuffer, type Played, pianoWave, VOICES, type VoiceNote }
  * sequencer needs the audio clock's precision, which the frame loop cannot give. The
  * context sleeps once nothing has played for a while, so a quiet game costs nothing.
  *
- * The piano is the one voice not built of nodes per note: it is a physical model of strings
- * on the audio thread (piano/, section 13.8), one instrument per pane, played through the
- * recipe in voices.ts only until the worklet has loaded, or where it cannot.
+ * Some voices are not built of nodes per note but are instruments on the audio thread - the
+ * piano's physical strings among them (instruments/, piano/, section 13.8) - one band of them
+ * per pane, played by the recipes in voices.ts only until the worklet has loaded, or where it
+ * cannot. Every voice sends its share to one room (instruments/catalog.ts).
  */
 
 const LOOKAHEAD_MS = 250
@@ -33,10 +37,14 @@ const VOICES_PER_SECOND = 500
 
 interface Owner {
   gain: GainNode
+  /** The pane's way into the room, faded with its gain when it stops. */
+  room: GainNode
+  /** Each recipe voice's share of the room, made on its first note. */
+  sends: Map<Voice, GainNode>
   queue: SoundNote[]
   budget: TokenBucket
-  /** The pane's piano strings, made on its first piano note once the hall is ready. */
-  strings: PianoStrings | null
+  /** The pane's instruments on the audio thread, made on the first note for one. */
+  band: Band | null
 }
 
 interface Sounding {
@@ -48,8 +56,10 @@ const byTime = (a: SoundNote, b: SoundNote) => (a.at ?? 0) - (b.at ?? 0)
 
 export class Synth {
   private ac: AudioContext | null = null
-  private kit: Omit<Kit, 'out'> | null = null
+  private kit: Omit<Kit, 'out' | 'room'> | null = null
   private master: GainNode | null = null
+  /** The room every voice is heard in, a little. */
+  private room: ConvolverNode | null = null
   private failed = false
   private readonly owners = new Map<string, Owner>()
   private sounding: Sounding[] = []
@@ -61,19 +71,19 @@ export class Synth {
    */
   private awake = false
   private readonly create: () => AudioContext
-  private readonly pianoModule: string | null
-  private hall: PianoHall | null = null
+  private readonly instrumentsModule: string | null
+  private hall: InstrumentHall | null = null
   /** Owners whose sustain pedal is down, kept apart from their sound, which may not exist yet. */
   private readonly pedals = new Set<string>()
-  /** Piano notes each owner's strings have played, rather than the recipe: for the tests. */
+  /** Notes each owner's instruments on the audio thread have played, rather than a recipe. */
   private readonly strung = new Map<string, number>()
 
   constructor(
     create: () => AudioContext = () => new AudioContext({ latencyHint: 'interactive' }),
-    pianoModule: string | null = pianoWorklet,
+    instrumentsModule: string | null = instrumentsWorklet,
   ) {
     this.create = create
-    this.pianoModule = pianoModule
+    this.instrumentsModule = instrumentsModule
   }
 
   /** Plays an owner's notes: those due soon at once, the rest when due. Returns how many. */
@@ -127,13 +137,13 @@ export class Synth {
     if (this.ac !== null) played.release(this.ac.currentTime)
   }
 
-  /** An owner's sustain pedal, as the piano's strings hear it. */
+  /** An owner's sustain pedal, as the instruments on the audio thread hear it. */
   pedal(owner: string, on: boolean): void {
     if (this.pedals.has(owner) === on) return
     if (on) this.pedals.add(owner)
     else this.pedals.delete(owner)
-    const strings = this.owners.get(owner)?.strings
-    if (strings && this.ac !== null) strings.pedal(on, this.ac.currentTime)
+    const band = this.owners.get(owner)?.band
+    if (band && this.ac !== null) band.pedal(on, this.ac.currentTime)
   }
 
   /** Silences an owner: what sounds is cut short, what waits is dropped. */
@@ -146,13 +156,17 @@ export class Synth {
     this.owners.delete(owner)
     const at = ac.currentTime
     o.gain.gain.setTargetAtTime(0, at, 0.01)
+    o.room.gain.setTargetAtTime(0, at, 0.01)
     for (const s of this.sounding) if (s.owner === owner) s.played.stop(at)
-    o.strings?.silence()
+    o.band?.silence()
     this.sounding = this.sounding.filter((s) => s.owner !== owner)
-    setTimeout(() => o.gain.disconnect(), 250)
+    setTimeout(() => {
+      o.gain.disconnect()
+      o.room.disconnect()
+    }, 250)
   }
 
-  /** Piano notes an owner's strings have played (the rest went to the recipe). */
+  /** Notes an owner's instruments on the audio thread have played (the rest were recipes). */
   strungNotes(owner: string): number {
     return this.strung.get(owner) ?? 0
   }
@@ -179,11 +193,16 @@ export class Synth {
         limit.attack.value = 0.002
         limit.release.value = 0.12
         master.connect(limit).connect(ac.destination)
+        const room = ac.createConvolver()
+        room.normalize = false
+        room.buffer = stereo(ac, roomResponse(ac.sampleRate))
+        room.connect(master)
         this.ac = ac
         this.master = master
+        this.room = room
         this.kit = { ac, noise: noiseBuffer(ac), piano: pianoWave(ac) }
-        if (this.pianoModule !== null && ac.audioWorklet !== undefined) {
-          this.hall = new PianoHall(ac, this.pianoModule)
+        if (this.instrumentsModule !== null && ac.audioWorklet !== undefined) {
+          this.hall = new InstrumentHall(ac, this.instrumentsModule)
         }
       } catch {
         this.failed = true
@@ -203,11 +222,15 @@ export class Synth {
     if (o === undefined) {
       const gain = ac.createGain()
       gain.connect(this.master as GainNode)
+      const room = ac.createGain()
+      room.connect(this.room as ConvolverNode)
       o = {
         gain,
+        room,
+        sends: new Map(),
         queue: [],
         budget: new TokenBucket(VOICE_BURST, VOICES_PER_SECOND * 60, performance.now()),
-        strings: null,
+        band: null,
       }
       this.owners.set(id, o)
     }
@@ -237,14 +260,29 @@ export class Synth {
       end: note.length === null ? null : start + note.length / 1000,
       level: note.level,
     }
-    const strings = note.voice === 'piano' ? this.strings(owner, o) : null
-    if (strings !== null) this.strung.set(owner, (this.strung.get(owner) ?? 0) + 1)
+    const band = isInstrument(note.voice) ? this.bandOf(owner, o) : null
+    if (band !== null) this.strung.set(owner, (this.strung.get(owner) ?? 0) + 1)
     const played =
-      strings !== null
-        ? strings.play(voiced, note.pan)
-        : VOICES[note.voice]({ ...kit, out: this.panned(ac, o, note.pan) }, voiced)
+      band !== null
+        ? band.play(note.voice, voiced, note.pan)
+        : VOICES[note.voice](
+            { ...kit, out: this.panned(ac, o, note.pan), room: this.send(ac, o, note.voice) },
+            voiced,
+          )
     this.sounding.push({ owner, played })
     return played
+  }
+
+  /** A recipe voice's way into the room: its share, one node per voice and pane. */
+  private send(ac: AudioContext, o: Owner, voice: Voice): AudioNode {
+    let send = o.sends.get(voice)
+    if (send === undefined) {
+      send = ac.createGain()
+      send.gain.value = ROOM_SEND[voice]
+      send.connect(o.room)
+      o.sends.set(voice, send)
+    }
+    return send
   }
 
   private panned(ac: AudioContext, o: Owner, pan: number): AudioNode {
@@ -255,12 +293,12 @@ export class Synth {
     return panner
   }
 
-  private strings(owner: string, o: Owner): PianoStrings | null {
-    if (o.strings === null && this.hall?.ready) {
-      o.strings = this.hall.instrument(o.gain)
-      if (this.pedals.has(owner) && this.ac !== null) o.strings?.pedal(true, this.ac.currentTime)
+  private bandOf(owner: string, o: Owner): Band | null {
+    if (o.band === null && this.hall?.ready) {
+      o.band = this.hall.band(o.gain, o.room)
+      if (this.pedals.has(owner) && this.ac !== null) o.band?.pedal(true, this.ac.currentTime)
     }
-    return o.strings
+    return o.band
   }
 
   /** Forgets voices that have ended, and cuts the oldest when too many still sound. */

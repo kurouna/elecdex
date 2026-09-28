@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { roomResponse, soundboardResponse } from '../../src/renderer/plugins/piano/body.js'
-import {
-  contactSteps,
-  MODE_BUDGET,
-  PianoEngine,
-  receive,
-} from '../../src/renderer/plugins/piano/engine.js'
+import { contactSteps, MODE_BUDGET, PianoEngine } from '../../src/renderer/plugins/piano/engine.js'
 import {
   contactIntegral,
   coupledModes,
@@ -286,20 +281,6 @@ describe('the engine', () => {
     expect(level(halo, 0.5, 2)).toBeLessThan(level(dry.out, 0.5, 2) - 15)
     // Without the pedal only the top keys, which have no dampers, answer - and they do.
     expect(dry.engine.busy).toBe(true)
-  })
-
-  it('carries out what the page posts, and nothing it should not', () => {
-    const engine = new PianoEngine(RATE)
-    for (const junk of [null, 3, 'strike', { t: 'strike', pitch: Number.NaN }, { t: 'nope' }]) {
-      expect(() => receive(engine, junk)).not.toThrow()
-    }
-    receive(engine, { t: 'strike', id: 1, pitch: 60, level: 0.5, pan: 0, at: 0 })
-    receive(engine, { t: 'pedal', on: true, at: 0 })
-    const { out } = render({ seconds: 0.1, engine })
-    expect(level(out, 0, 0.1)).toBeGreaterThan(-60)
-    receive(engine, { t: 'silence' })
-    render({ seconds: 0.3, engine })
-    expect(engine.modes).toBe(0)
   })
 })
 

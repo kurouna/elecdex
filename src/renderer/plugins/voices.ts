@@ -29,6 +29,8 @@ export interface Kit {
   ac: BaseAudioContext
   /** Where the voice goes: the owner's panner. */
   out: AudioNode
+  /** Its share of the room (instruments/catalog.ts). */
+  room: AudioNode
   noise: AudioBuffer
   piano: PeriodicWave
 }
@@ -51,6 +53,7 @@ class Build {
     this.amp = kit.ac.createGain()
     this.amp.gain.value = 0
     this.amp.connect(kit.out)
+    this.amp.connect(kit.room)
   }
 
   osc(
