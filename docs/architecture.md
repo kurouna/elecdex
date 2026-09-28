@@ -57,7 +57,7 @@ elecdex は原版 eDEX-UI と同じ **GPL-3.0** で公開する。原版のソ�
 | RSS / Atom | `fast-xml-parser` | 5.x | main でのみ使用。RSS ペインができるまで import しない |
 | プラグインの変換 | `sucrase` | 3.35 | TypeScript を剥がすだけ。main は変換するだけで実行しない |
 | 相場 | `yahoo-finance2` | 4.x | Node 専用（ブラウザでは CORS と cookie で動かない）。main にバンドル |
-| AI チャット | `@anthropic-ai/sdk` | 0.127 | Anthropic の Messages API 用。main でのみ使い、anthropic 種別のプロバイダに最初に問い合わせるまで import しない。OpenAI 互換側は依存を足さず素の fetch + SSE（§5.7） |
+| AI チャット | `@anthropic-ai/sdk` | 0.128 | Anthropic の Messages API 用。main でのみ使い、anthropic 種別のプロバイダに最初に問い合わせるまで import しない。OpenAI 互換側は依存を足さず素の fetch + SSE（§5.7） |
 | Lint/Format | Biome | 2.x | ESLint + Prettier を置換 |
 | テスト | Vitest 5 / Playwright 1.63 (`_electron`) | — | unit + component + E2E |
 | パッケージング | electron-builder | 26.x | nsis / dmg / AppImage + deb |
