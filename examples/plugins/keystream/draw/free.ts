@@ -4,7 +4,7 @@ import { isBlack, keyOf, noteName } from '../keyboard'
 import { CHIP_HEIGHT } from './field'
 import { LAMP_ROOM, type Layout, type Rect } from './layout'
 import { hints } from './menu'
-import { alpha, clamp, font, type Paint, rule, write } from './paint'
+import { alpha, clamp, font, measure, type Paint, rule, write } from './paint'
 import { frame, panelRects } from './panels'
 
 /**
@@ -110,23 +110,21 @@ function header(p: Paint, l: Layout, view: FreeView): void {
 /** A small lit box: on while the thing it names is. */
 function lamp(p: Paint, text: string, right: number, y: number, on: boolean, s: number): void {
   const g = p.g
-  g.font = font(600, 11 * s, p.fonts.ui)
-  g.letterSpacing = '0.25em'
-  const w = g.measureText(text).width + 16
-  g.letterSpacing = '0px'
+  const style = {
+    font: font(600, 11 * s, p.fonts.ui),
+    color: on ? p.c.inverse : p.c.muted,
+    align: 'center' as const,
+    baseline: 'middle' as const,
+    spacing: '0.25em',
+  }
+  const w = measure(p, text, style) + 16
   const h = 18 * s
   g.fillStyle = on ? p.c.accent : 'rgba(0, 0, 0, 0)'
   g.fillRect(right - w, y - h / 2, w, h)
   g.strokeStyle = alpha(p.c.border, on ? 1 : 0.6)
   g.lineWidth = 1
   g.strokeRect(right - w + 0.5, y - h / 2 + 0.5, w - 1, h - 1)
-  write(p, text, right - w / 2 + 2, y + 0.5, {
-    font: font(600, 11 * s, p.fonts.ui),
-    color: on ? p.c.inverse : p.c.muted,
-    align: 'center',
-    baseline: 'middle',
-    spacing: '0.25em',
-  })
+  write(p, text, right - w / 2 + 2, y + 0.5, style)
 }
 
 /** What is played, rising from its key: bright at the key while held, fading as it goes. */
@@ -268,8 +266,7 @@ function keyList(p: Paint, r: Rect, top: number): void {
     const y = top + i * KEY_ROW_H
     if (y > r.y + r.h - 8) return
     const capFont = font(600, 10, p.fonts.mono)
-    g.font = capFont
-    const w = g.measureText(key).width + 10
+    const w = measure(p, key, { font: capFont, color: p.c.text }) + 10
     g.strokeStyle = alpha(p.c.border, 0.7)
     g.lineWidth = 1
     g.strokeRect(r.x + 0.5, y - 8.5, w, 16)

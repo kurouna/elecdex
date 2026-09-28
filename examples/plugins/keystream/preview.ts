@@ -1,5 +1,5 @@
 import type { Note, Voice } from '../elecdex-plugin'
-import { type Chart, firstAt } from './chart'
+import { barAt, barTimes, type Chart, firstAt } from './chart'
 import { nextWindow } from './schedule'
 
 /**
@@ -30,18 +30,12 @@ export interface Span {
 /** The bar the part starts at: the song's own choice, or the bar its melody starts in. */
 function startBar(chart: Chart): number {
   if (chart.song.preview !== undefined) return chart.song.preview
-  const first = chart.notes[0]?.time ?? 0
-  let bar = 0
-  for (const beat of chart.beats) {
-    if (beat.time > first) break
-    if (beat.bar && beat.time >= 0) bar += 1
-  }
-  return Math.max(0, bar - 1)
+  return Math.max(0, barAt(chart, chart.notes[0]?.time ?? 0) - 1)
 }
 
 /** Whole bars from the start, until the part lasts `spanMs`, and never past the song. */
 export function previewSpan(chart: Chart): Span {
-  const bars = chart.beats.filter((b) => b.bar && b.time >= 0).map((b) => b.time)
+  const bars = barTimes(chart)
   const first = Math.min(startBar(chart), Math.max(0, bars.length - 2))
   const from = bars[first] ?? 0
   const to = bars.find((time) => time - from >= PREVIEW.spanMs) ?? bars.at(-1) ?? from

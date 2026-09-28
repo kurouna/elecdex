@@ -1,7 +1,7 @@
 import { type Chart, COUNT_IN_BEATS } from '../chart'
 import type { Layout } from './layout'
 import { hints } from './menu'
-import { alpha, clamp, font, type Paint, write } from './paint'
+import { alpha, clamp, font, measure, type Paint, write } from './paint'
 
 /**
  * What stands over the field for a moment: the boot log while a track loads, the count
@@ -34,7 +34,7 @@ export function drawInstrument(
     baseline: 'middle' as const,
     spacing: '0.24em',
   }
-  const w = measureText(p, text, style) + 40
+  const w = measure(p, text, style) + 40
   const h = clamp(l.unit * 0.55, 26, 40)
   const cx = l.field.x + l.field.w / 2
   const cy = l.line - l.unit * 0.9
@@ -52,14 +52,6 @@ export function drawInstrument(
   g.globalAlpha = fade
   write(p, text, cx, cy + 1, style)
   g.restore()
-}
-
-function measureText(p: Paint, text: string, style: { font: string; spacing: string }): number {
-  p.g.font = style.font
-  p.g.letterSpacing = style.spacing
-  const w = p.g.measureText(text).width
-  p.g.letterSpacing = '0px'
-  return w
 }
 
 /** The track loading, as a boot log: each line typed out, then OK. */
@@ -158,11 +150,14 @@ export function drawPause(p: Paint, l: Layout, labels: Readonly<Record<string, s
 /** The keyboard is not the pane's yet: say how to give it, over the field. */
 export function drawConnect(p: Paint, l: Layout, words: string): void {
   const g = p.g
-  const size = 12
-  g.font = font(600, size, p.fonts.ui)
-  g.letterSpacing = '0.22em'
-  const w = g.measureText(words).width + 36
-  g.letterSpacing = '0px'
+  const style = {
+    font: font(600, 12, p.fonts.ui),
+    color: p.c.accentStrong,
+    align: 'center' as const,
+    baseline: 'middle' as const,
+    spacing: '0.22em',
+  }
+  const w = measure(p, words, style) + 36
   const x = l.w / 2 - w / 2
   const y = l.line - 92
   g.fillStyle = alpha(p.c.ground, 0.92)
@@ -170,11 +165,5 @@ export function drawConnect(p: Paint, l: Layout, words: string): void {
   g.strokeStyle = p.c.accent
   g.lineWidth = 1
   g.strokeRect(x + 0.5, y + 0.5, w - 1, 27)
-  write(p, words, l.w / 2 + 2, y + 14.5, {
-    font: font(600, size, p.fonts.ui),
-    color: p.c.accentStrong,
-    align: 'center',
-    baseline: 'middle',
-    spacing: '0.22em',
-  })
+  write(p, words, l.w / 2 + 2, y + 14.5, style)
 }

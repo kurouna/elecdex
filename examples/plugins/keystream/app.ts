@@ -1,5 +1,5 @@
 import type { KeyPress, Note, SettingValues, ViewContext, Voice } from '../elecdex-plugin'
-import { buildChart, type Chart, LEVELS, type Level, openingBars } from './chart'
+import { barAt, buildChart, type Chart, LEVELS, type Level, openingBars } from './chart'
 import { starsOf } from './difficulty'
 import { drawLanes, drawNotes, type FieldView, leadTime } from './draw/field'
 import { drawFree } from './draw/free'
@@ -74,16 +74,6 @@ const MENU_KEY_LENGTH = 520
 /** Notes to a sound.play: under the host's limit of 4096, which a window stays well within. */
 const CHUNK = 4000
 
-/** The bar a song time is in, from 1. */
-function barAt(chart: Chart, time: number): number {
-  let bar = 0
-  for (const beat of chart.beats) {
-    if (beat.time > time) break
-    if (beat.bar && beat.time >= 0) bar += 1
-  }
-  return bar
-}
-
 /** The tab a key asks for: the left arrow or < for the one before, the right or > after. */
 function shelfFor(code: string, shelf: Shelf): Shelf | null {
   if (code === 'Comma' || code === 'ArrowLeft') return stepShelf(shelf, -1)
@@ -135,6 +125,9 @@ class Game {
   /** The song time up to which what the game plays has been sent to the host. */
   private sentTo = Number.NEGATIVE_INFINITY
   private readonly free: FreePlay
+  /** Each tab's rows - its tracks by their place in the list, then FREE PLAY - and the tabs. */
+  private readonly shelves: ReadonlyMap<Shelf, readonly number[]>
+  private readonly tabs: readonly { name: string; count: number }[]
   /** The menu's tab, and the choice it had before the last change of tab. */
   private shelf: Shelf = 'all'
   private beforeSelected = 0
@@ -159,6 +152,11 @@ class Game {
       if (score.problems.length > 0) ctx.log(`${score.source.id}: ${score.problems.join('; ')}`)
       return score.problems.length === 0
     })
+    const genres = this.scores.map((score) => score.source.genre)
+    this.shelves = new Map(
+      SHELVES.map((shelf) => [shelf, [...onShelf(genres, shelf), this.scores.length]]),
+    )
+    this.tabs = SHELVES.map((s) => ({ name: s.toUpperCase(), count: this.shelfRows(s).length - 1 }))
     this.free = new FreePlay(
       ctx,
       (index) => this.chartOf(index, 'normal'),
@@ -258,7 +256,7 @@ class Game {
       [60, 64, 67, 72].map((pitch, i) => ({
         voice,
         pitch,
-        at: performance.now() + i * 90,
+        at: at + i * 90,
         length: 280,
         level: 0.55 * v,
       })),
@@ -289,42 +287,54 @@ class Game {
     }
   }
 
+  /**
+   * A key on the menu. What it changes is kept in the pane; a key the menu has no use for
+   * (a note played on the keyboard) writes nothing.
+   */
   private menuKey(code: string, at: number): void {
     // A chosen row blinks before it starts; nothing else is taken meanwhile.
     if (this.starting) return
-    if (code === 'Space') this.togglePreview(at)
-    else if (this.stage === 'levels') this.levelsKey(code, at)
-    else this.tracksKey(code, at)
-    this.save()
+    const changed =
+      code === 'Space'
+        ? this.togglePreview(at)
+        : this.stage === 'levels'
+          ? this.levelsKey(code, at)
+          : this.tracksKey(code, at)
+    if (changed) this.save()
   }
 
   /** Space on the menu, on either stage: the chosen track heard, or not; kept in the pane. */
-  private togglePreview(at: number): void {
+  private togglePreview(at: number): true {
     this.previewOn = !this.previewOn
     if (this.previewOn) this.preview.rest(at)
     else this.preview.stop()
     this.cue('switch')
+    return true
   }
 
   /** Choosing a track: up and down the rows, left and right the tabs, Enter its levels. */
-  private tracksKey(code: string, at: number): void {
+  private tracksKey(code: string, at: number): boolean {
     const shelf = shelfFor(code, this.shelf)
-    if (shelf !== null) this.toShelf(shelf, at)
-    else if (code === 'ArrowUp' || code === 'ArrowDown')
+    if (shelf !== null) return this.toShelf(shelf, at)
+    if (code === 'ArrowUp' || code === 'ArrowDown') {
       this.moveRow(code === 'ArrowUp' ? -1 : 1, at)
-    else if (code === 'Enter') {
-      // FREE PLAY has no levels: it starts at once.
-      if (this.selected === this.scores.length) this.choose(at)
-      else this.openLevels(at)
+      return true
     }
+    if (code !== 'Enter') return false
+    // FREE PLAY has no levels: it starts at once.
+    if (this.selected === this.scores.length) this.choose(at)
+    else this.openLevels(at)
+    return true
   }
 
   /** Choosing its level: the arrows the level, Enter to start, Escape back to the tracks. */
-  private levelsKey(code: string, at: number): void {
+  private levelsKey(code: string, at: number): boolean {
     const by = LEVEL_STEP[code]
-    if (by !== undefined) this.shiftLevel(by, at)
-    else if (code === 'Enter') this.choose(at)
+    if (by !== undefined) return this.shiftLevel(by, at)
+    if (code === 'Enter') this.choose(at)
     else if (code === 'Escape' || code === 'Backspace') this.closeLevels(at)
+    else return false
+    return true
   }
 
   private openLevels(at: number): void {
@@ -340,19 +350,20 @@ class Game {
   }
 
   /** The rows a tab shows: its tracks, by their place in the list, then FREE PLAY. */
-  private shelfRows(shelf: Shelf): number[] {
-    const genres = this.scores.map((score) => score.source.genre)
-    return [...onShelf(genres, shelf), this.scores.length]
+  private shelfRows(shelf: Shelf): readonly number[] {
+    return this.shelves.get(shelf) ?? [this.scores.length]
   }
 
-  private toShelf(shelf: Shelf, at: number): void {
-    if (shelf === this.shelf) return
+  /** Answers whether the tab changed. */
+  private toShelf(shelf: Shelf, at: number): boolean {
+    if (shelf === this.shelf) return false
     this.motion.tab(at, SHELVES.indexOf(this.shelf), this.shelf)
     this.beforeSelected = this.selected
     this.shelf = shelf
     this.selected = settle(this.shelfRows(shelf), this.selected)
     this.preview.rest(at)
     this.cue('switch')
+    return true
   }
 
   private moveRow(by: 1 | -1, at: number): void {
@@ -426,13 +437,15 @@ class Game {
     this.free.enter()
   }
 
-  private shiftLevel(by: number, at: number): void {
+  /** Answers whether the level changed: at either end, a step further changes nothing. */
+  private shiftLevel(by: number, at: number): boolean {
     const from = LEVELS.indexOf(this.level)
     this.level = LEVELS[Math.min(LEVELS.length - 1, Math.max(0, from + by))] ?? this.level
-    if (LEVELS.indexOf(this.level) === from) return
+    if (LEVELS.indexOf(this.level) === from) return false
     this.motion.level(at)
     this.motion.panelLevel(at, from)
     this.cue('switch')
+    return true
   }
 
   private playKey(key: KeyPress): void {
@@ -790,7 +803,7 @@ class Game {
         instrument: this.instrumentShown,
         list: this.menuList(this.shelf, this.selected),
         before: frame.tab ? this.menuList(this.motion.before, this.beforeSelected) : null,
-        tabs: SHELVES.map((s) => ({ name: s.toUpperCase(), count: this.shelfRows(s).length - 1 })),
+        tabs: this.tabs,
         tab: SHELVES.indexOf(this.shelf),
         level: this.level,
         speed: this.speed,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { arrange, readForm } from '../../examples/plugins/keystream/arrange'
-import { buildChart, COUNT_IN_BEATS } from '../../examples/plugins/keystream/chart'
+import { barAt, barTimes, buildChart, COUNT_IN_BEATS } from '../../examples/plugins/keystream/chart'
 import { leadTime } from '../../examples/plugins/keystream/draw/field'
 import { layoutOf } from '../../examples/plugins/keystream/draw/layout'
 import { countWord } from '../../examples/plugins/keystream/draw/overlays'
@@ -336,6 +336,17 @@ describe('the chart', () => {
     expect(chart.bars).toBe(2)
     // A play begins a moment before the count-in's first click.
     expect(chart.start).toBe(-2120)
+  })
+
+  it('knows which bar a song time is in, and where the bars begin', () => {
+    const chart = buildChart(readSong(tiny), 'normal')
+    expect(barTimes(chart)).toEqual([0, 2000, 4000])
+    expect(barAt(chart, -100)).toBe(0)
+    expect(barAt(chart, 0)).toBe(1)
+    expect(barAt(chart, 1999)).toBe(1)
+    expect(barAt(chart, 2000)).toBe(2)
+    // Past the end, still the last bar.
+    expect(barAt(chart, 9000)).toBe(2)
   })
 
   it('arranges the band once for a song, whatever the level', () => {

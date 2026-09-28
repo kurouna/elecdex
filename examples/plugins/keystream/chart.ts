@@ -74,9 +74,23 @@ export function firstAt(list: readonly { time: number }[], time: number): number
   return lo
 }
 
+/** When each bar of the song begins, the first at 0: the song's bars, and the beat after its last. */
+export const barTimes = (chart: Chart): number[] =>
+  chart.beats.filter((b) => b.bar && b.time >= 0).map((b) => b.time)
+
+/** The bar a song time is in, from 1; 0 before the song, and the last bar past its end. */
+export function barAt(chart: Chart, time: number): number {
+  if (time < 0) return 0
+  // The beats are one per beat from the count-in: the one at or before `time` is the last
+  // not after it, and its number from the song's start tells the bar.
+  const next = firstAt(chart.beats, time)
+  const at = chart.beats[next]?.time === time ? next : next - 1
+  return Math.min(chart.bars, Math.floor((at - COUNT_IN_BEATS) / BEATS_PER_BAR) + 1)
+}
+
 /** The player's first notes, bar by bar, as key codes: the first `count` bars that have any. */
 export function openingBars(chart: Chart, count: number): string[][] {
-  const bars = chart.beats.filter((b) => b.bar && b.time >= 0).map((b) => b.time)
+  const bars = barTimes(chart)
   const groups = new Map<number, string[]>()
   for (const note of chart.notes) {
     let bar = 0

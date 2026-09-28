@@ -279,14 +279,16 @@ function drawShelf(p: Paint, box: ListBox, view: MenuView, f: MenuFrame): number
     g.scale(1, Math.max(0.02, power.open))
     g.translate(0, -mid)
   }
-  // The row blinks for FREE PLAY; a track's start blinks its level on the panel instead.
-  const shown = drawRows(
-    p,
-    box,
-    list,
-    view.free,
-    view.stage === 'tracks' ? f : { ...f, blink: null },
-  )
+  // The list that left is drawn as it stood while it is pressed away: no row coming in, no
+  // choice decoding, no blink. The row blinks for FREE PLAY; a track's start blinks its level
+  // on the panel instead.
+  const rowsFrame =
+    list !== view.list
+      ? { ...f, rows: null, choice: null, blink: null }
+      : view.stage === 'tracks'
+        ? f
+        : { ...f, blink: null }
+  const shown = drawRows(p, box, list, view.free, rowsFrame)
   g.restore()
   if (power && power.line > 0) powerLine(p, box, mid, power.line)
   const end = box.y + shown.count * box.rowH
@@ -878,8 +880,7 @@ export function hints(
   list.forEach(([key, word], i) => {
     const on = pressed?.index === i
     const lit = on && pressed?.lit === true
-    g.font = capFont
-    const w = g.measureText(key).width + 10
+    const w = measure(p, key, { font: capFont, color: p.c.text }) + 10
     if (lit) {
       g.fillStyle = p.c.accent
       g.fillRect(x, y - 13, w + 1, 17)

@@ -245,9 +245,20 @@ describe('the menu', () => {
 
   it('draws the list the tab left while it powers off, and the new one after', () => {
     const before = listOf('all', mountain)
-    const age = (ms: number): MenuFrame => ({ ...STILL, tab: { age: ms, from: null } })
-    const going = menu(index('sakura-signal'), { w: 1600, h: 1000 }, age(20), 'pop', before).texts
-    expect(going).toContain('MOUNTAIN KING')
+    // As the view has it while the old list is pressed away: its rows not on their way, the
+    // choice pending (menu-motion.ts counts both from the moment the new list opens).
+    const age = (ms: number): MenuFrame => ({
+      ...STILL,
+      tab: { age: ms, from: null },
+      rows: ms < MOTION.tabOff ? null : ms - MOTION.tabOff,
+      choice: ms < MOTION.tabOff ? ms - MOTION.tabOff - MOTION.tabOn : null,
+    })
+    const going = menu(index('sakura-signal'), { w: 1600, h: 1000 }, age(20), 'pop', before)
+    expect(going.texts).toContain('MOUNTAIN KING')
+    // Drawn as it stood: whole, and its chosen title not decoding.
+    const title = going.writes.find((w) => w.text === 'MOUNTAIN KING')
+    expect(title?.alpha).toBe(1)
+    expect(going.writes.filter((w) => w.alpha === 0)).toEqual([])
     const coming = menu(index('sakura-signal'), { w: 1600, h: 1000 }, age(200), 'pop', before)
     expect(coming.texts).not.toContain('MOUNTAIN KING')
     expect(coming.texts).toContain('SAKURA SIGNAL')

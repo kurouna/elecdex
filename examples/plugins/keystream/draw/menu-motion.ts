@@ -247,7 +247,9 @@ export class MenuMotion {
       tab: tab === null ? null : { age: tab, from: this.tabFrom },
       cursor:
         cursor === null || this.cursorFrom === null ? null : { age: cursor, from: this.cursorFrom },
-      rows: now < this.rowsAt && !reduced ? 0 : rows,
+      // Before the rows begin to come in (a tab's list still powering off) nothing is on its
+      // way: the list on the tube then is the one that left, drawn as it stood.
+      rows: now < this.rowsAt ? null : rows,
       choice: since(this.starsAt, CHOICE_MS),
       blink: since(this.blinkAt, MOTION.blink),
     }

@@ -184,6 +184,21 @@ describe('the view', () => {
     expect(SONGS.find((song) => song.id === shelfOf().song)?.genre).toBe('electro')
   })
 
+  it('writes the pane only for a key that changed something', () => {
+    const { asked, press } = stand({ saved: { song: 'loopback', shelf: 'all' } })
+    const saves = asked.saved.length
+    // The keyboard played on the menu, and keys the menu has no use for.
+    for (const code of ['KeyA', 'KeyJ', 'KeyZ', 'Backspace']) press(code)
+    expect(asked.saved.length).toBe(saves)
+    press('Enter')
+    expect(asked.saved.length).toBe(saves + 1)
+    // On the levels' panel, past its ends.
+    press('ArrowDown')
+    press('ArrowDown')
+    press('ArrowDown')
+    expect(asked.saved.length).toBe(saves + 2)
+  })
+
   it('comes back on the tab it was left on', () => {
     const { asked, press } = stand({ saved: { song: 'loopback', shelf: 'pop' } })
     press('ArrowDown')

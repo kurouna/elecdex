@@ -8,19 +8,34 @@ import type { Paint } from '../../examples/plugins/keystream/draw/paint'
 export function recorder(): {
   g: Paint['g']
   texts: string[]
-  writes: { text: string; font: string; color: string; x: number; y: number }[]
+  writes: { text: string; font: string; color: string; x: number; y: number; alpha: number }[]
   fills: { x: number; y: number; w: number; h: number; color: string }[]
 } {
   const texts: string[] = []
-  const writes: { text: string; font: string; color: string; x: number; y: number }[] = []
+  const writes: {
+    text: string
+    font: string
+    color: string
+    x: number
+    y: number
+    alpha: number
+  }[] = []
   const fills: { x: number; y: number; w: number; h: number; color: string }[] = []
   const gradient = { addColorStop() {} }
   const target: Record<string | symbol, unknown> = {
     font: '',
     fillStyle: '',
+    globalAlpha: 1,
     fillText: (text: string, x: number, y: number) => {
       texts.push(text)
-      writes.push({ text, font: String(target.font), color: String(target.fillStyle), x, y })
+      writes.push({
+        text,
+        font: String(target.font),
+        color: String(target.fillStyle),
+        x,
+        y,
+        alpha: Number(target.globalAlpha),
+      })
     },
     fillRect: (x: number, y: number, w: number, h: number) => {
       fills.push({ x, y, w, h, color: String(target.fillStyle) })
