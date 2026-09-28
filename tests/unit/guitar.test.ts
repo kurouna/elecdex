@@ -176,6 +176,26 @@ describe('the strings', () => {
     expect(far.strings[at(0.35)]).toBe(2)
   })
 
+  it('pick a string again once it has died down, so a melody of ringing keys never fades out', () => {
+    // A rhythm game's keys: each rings for a beat, into the next note - found as a guitar that
+    // fell silent in the middle of a track, every note a slide on the one fading string.
+    const tune = [69, 72, 76, 72, 67, 64, 67, 72, 76, 81, 76, 72, 69, 65, 69, 72, 76, 72, 69, 64]
+    const notes = tune.map((pitch, k) => ({
+      at: 0.1 + k * 0.5,
+      pitch,
+      release: 0.1 + k * 0.5 + 0.56,
+    }))
+    const { out } = render({ notes, seconds: 0.1 + tune.length * 0.5 })
+    const peak = (from: number) => {
+      let most = 0
+      for (let i = Math.round(from * RATE); i < Math.round((from + 0.1) * RATE); i++)
+        most = Math.max(most, Math.abs(out[i] as number))
+      return most
+    }
+    const first = peak(0.1)
+    for (const note of notes) expect(peak(note.at), `note at ${note.at}`).toBeGreaterThan(first / 4)
+  })
+
   it('mute when let go, and fall idle once still', () => {
     const { out, engine } = render({ notes: [{ at: 0, pitch: 64, release: 0.5 }], seconds: 1.2 })
     expect(level(out, 0.9, 1.1)).toBeLessThan(level(out, 0.3, 0.5) - 40)

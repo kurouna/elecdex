@@ -13,8 +13,11 @@ import { frettingsFor, type GuitarModes, modesOf, STRINGS } from './model.js'
  *   plays one note at a time: a second note on a ringing string stops the first, as it does.
  * - A new note while one is still held, and not struck with it as a chord, is played legato:
  *   within two frets a hammer-on or a pull-off (the pitch moves at once, the finger adds a
- *   little energy), further a slide (the pitch glides, nothing is picked). Letting a key go
- *   mutes the string with the fretting hand.
+ *   little energy), further a slide (the pitch glides, nothing is picked). Only while the
+ *   string still rings, though: one that has died down is picked again, as a player would -
+ *   a melody whose keys each ring into the next (a rhythm game's) otherwise slid on and on
+ *   along one fading string, and fell silent. Letting a key go mutes the string with the
+ *   fretting hand.
  * - A held note gets a bend vibrato after a moment - up from the note and back, never below
  *   it, as a bent string can only rise - and then the amplifier's feedback: its sound reaches
  *   the strings a few milliseconds later and keeps them going, so a held note sustains and
@@ -28,6 +31,12 @@ import { frettingsFor, type GuitarModes, modesOf, STRINGS } from './model.js'
 const CHORD_WINDOW = 0.035
 /** Legato only within an octave; further, the new note is picked. */
 const LEGATO_WITHIN = 12
+/**
+ * Legato only while the held string is still this loud against its pick (-8 dB); below, the
+ * new note is picked. A hammer-on adds a third of a pick and a slide nothing, so a run of them
+ * on a fading string would reach the amplifier ever quieter.
+ */
+const LEGATO_WHILE = 0.4
 /** Seconds the pitch takes to move: a hammer-on or pull-off, and a slide per fret. */
 const HAMMER_TIME = 0.006
 const SLIDE_TIME = 0.03
@@ -82,6 +91,8 @@ interface StringVoice {
   struck: number
   held: boolean
   cut: boolean
+  /** How loud the string is (as the cull measures it), and the most since it was picked. */
+  loud: number
   peak: number
   pan: number
 }
@@ -186,6 +197,7 @@ export class GuitarEngine implements Instrument {
     if (
       lone !== undefined &&
       now - lone.since > CHORD_WINDOW * this.rate &&
+      lone.loud >= lone.peak * LEGATO_WHILE &&
       event.pitch !== lone.pitch &&
       Math.abs(event.pitch - lone.pitch) <= LEGATO_WITHIN
     ) {
@@ -235,6 +247,7 @@ export class GuitarEngine implements Instrument {
       s.yRe[k] = again ? 0.15 * (s.yRe[k] as number) : 0
       s.yIm[k] = a + (again ? 0.15 * (s.yIm[k] as number) : 0)
     }
+    s.loud = 0
     s.peak = 0
     this.retune(s, now, true)
   }
@@ -389,6 +402,7 @@ export class GuitarEngine implements Instrument {
       let loud = 0
       for (let k = 0; k < s.count; k++)
         loud += Math.abs(s.pickup[k] as number) * Math.hypot(s.yRe[k] as number, s.yIm[k] as number)
+      s.loud = loud
       s.peak = Math.max(s.peak, loud)
       if (loud < s.peak * CULL_BELOW || loud === 0) s.modes = null
     }
@@ -419,6 +433,7 @@ function stringVoice(): StringVoice {
     struck: 0,
     held: false,
     cut: false,
+    loud: 0,
     peak: 0,
     pan: 0,
   }
