@@ -97,26 +97,34 @@ function ode(voice) {
   return notes
 }
 
-/** A house groove at 124 BPM: four bars, a tom fill, and the crash on the one. */
+/** A house groove at 124 BPM: four bars written as step patterns, a tom fill, the crash on the one. */
+const GROOVE = [
+  ['kick', 'x...x...x...x...', 0.9],
+  ['snare', '....x.......x...', 0.8],
+  ['openhat', '..x...x...x...x.', 0.6],
+  ['hat', 'xx.xxx.xxx.xxx.x', 0.5],
+]
+
+/** One bar of the groove: the odd bars clap instead, and the last leaves its end to the fill. */
+function grooveBar(bar, d) {
+  return GROOVE.flatMap(([voice, pattern, level]) => {
+    const played = voice === 'snare' && bar % 2 ? 'clap' : voice
+    const steps = bar === 3 && voice === 'hat' ? pattern.slice(0, 12) : pattern
+    return [...steps].flatMap((x, k) => (x === 'x' ? [d(bar * 16 + k, played, level)] : []))
+  })
+}
+
 function groove() {
   const step = 60 / 124 / 4
-  const hits = []
-  const d = (i, voice, level = 0.8, pitch = 60) =>
-    hits.push(n(0.2 + i * step, pitch, level, 0.1, voice))
-  d(0, 'crash', 0.8)
-  for (let bar = 0; bar < 4; bar++) {
-    for (let k = 0; k < 16; k++) {
-      const i = bar * 16 + k
-      if (k % 4 === 0) d(i, 'kick', 0.9)
-      if (k === 4 || k === 12) d(i, bar % 2 ? 'clap' : 'snare', 0.8)
-      if (k % 4 === 2) d(i, 'openhat', 0.6)
-      else if (bar < 3 || k < 12) d(i, 'hat', k % 2 ? 0.45 : 0.6)
-    }
-  }
-  ;[52, 50, 47, 45].forEach((pitch, k) => d(60 + k, 'tom', 0.8, pitch))
-  d(64, 'crash', 0.85)
-  d(64, 'kick', 0.9)
-  return hits
+  const d = (i, voice, level = 0.8, pitch = 60) => n(0.2 + i * step, pitch, level, 0.1, voice)
+  const fill = [52, 50, 47, 45].map((pitch, k) => d(60 + k, 'tom', 0.8, pitch))
+  return [
+    d(0, 'crash'),
+    ...[0, 1, 2, 3].flatMap((bar) => grooveBar(bar, d)),
+    ...fill,
+    d(64, 'crash', 0.85),
+    d(64, 'kick', 0.9),
+  ]
 }
 
 /** The takes, by voice: each a function giving its notes (and pedal changes). */
@@ -204,6 +212,29 @@ export const TAKES = {
     dynamics: () =>
       [0.15, 0.35, 0.55, 0.75, 0.95].map((l, i) => n(0.2 + i * 1.2, 64, l, 0.9, 'guitar')),
     sustain: () => [n(0.2, 76, 0.8, 7, 'guitar')],
+  },
+  epiano: {
+    // A city-pop turn: Fmaj7, E7, Am7, Gm7 C7, the chords laid back a little, then the pedal.
+    comp: () => {
+      const e = (t, pitches, level, length) => chord(t, pitches, level, length, 'epiano')
+      const beat = 60 / 112
+      return [
+        ...e(0.2, [53, 57, 60, 64], 0.55, beat * 1.8),
+        ...e(0.2 + beat * 2, [52, 56, 59, 62], 0.5, beat * 1.8),
+        ...e(0.2 + beat * 4, [57, 60, 64, 67], 0.6, beat * 1.8),
+        ...e(0.2 + beat * 6, [55, 58, 62, 65], 0.5, beat * 0.9),
+        ...e(0.2 + beat * 7, [52, 55, 58, 60], 0.65, beat * 0.9),
+        { t: 0.2 + beat * 8, pedal: true },
+        ...[65, 69, 72, 76, 79, 76, 72, 69].map((pitch, i) =>
+          n(0.2 + beat * (8 + i * 0.5), pitch, 0.5, 0.2, 'epiano'),
+        ),
+        { t: 0.2 + beat * 13, pedal: false },
+      ]
+    },
+    // Soft to hard on one key: round, then the bark.
+    dynamics: () =>
+      [0.15, 0.35, 0.55, 0.75, 0.95].map((l, i) => n(0.2 + i * 1.3, 57, l, 1, 'epiano')),
+    ode: () => ode('epiano'),
   },
   drums: {
     groove,

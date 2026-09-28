@@ -160,7 +160,7 @@ describe('the piano', () => {
     const [, , second, secondRelease] = strings?.posted ?? []
     expect((secondRelease?.at as number) - (second?.at as number)).toBeCloseTo(1.4, 6)
     // The other voices are still the recipe's.
-    synth.play('p1', [note('epiano')])
+    synth.play('p1', [note('lead')])
     expect(sources.length).toBeGreaterThan(before)
     expect(FakeWorklet.made).toHaveLength(1)
   })

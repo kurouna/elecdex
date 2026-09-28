@@ -1,5 +1,6 @@
 import type { Voice } from '@shared/plugin-api'
 import { drumMakers } from '../drums/machine.js'
+import { EPianoEngine } from '../epiano/engine.js'
 import { GuitarEngine } from '../guitar/engine.js'
 import { PianoEngine } from '../piano/engine.js'
 import type { InstrumentMaker } from './host.js'
@@ -13,6 +14,7 @@ export function makers(): Partial<Record<Voice, InstrumentMaker>> {
   return {
     piano: (rate) => new PianoEngine(rate),
     guitar: (rate) => new GuitarEngine(rate),
+    epiano: (rate) => new EPianoEngine(rate),
     ...drumMakers(),
   }
 }

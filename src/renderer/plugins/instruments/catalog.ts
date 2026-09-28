@@ -1,4 +1,5 @@
 import type { Voice } from '@shared/plugin-api'
+import { ringOf } from '../epiano/engine.js'
 import { afterDecay, damperTime, hasDamper } from '../piano/model.js'
 
 /** The guitar's delay echoes on after its note, and the longest a held note may be (30 s). */
@@ -52,6 +53,12 @@ export const INSTRUMENTS: Partial<Record<Voice, VoiceTraits>> = {
     // A held note feeds back and sustains for as long as it is held.
     ring: () => LONGEST,
     settle: () => 0.5 + GUITAR_ECHO,
+  },
+  epiano: {
+    bus: 'plain',
+    ownLength: 1.4,
+    ring: (pitch) => ringOf(pitch) * 1.2,
+    settle: () => 0.35,
   },
   kick: drum(0.9),
   snare: drum(0.5),
