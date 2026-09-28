@@ -20,9 +20,11 @@
  * plays them and the game judges them. The track itself is read here, from the plugin's own
  * files, for the menu's route and the bars where the instrument changes.
  *
- * The window is 1280x720, a 16:9 frame, holding the one pane; record the window, and leave it
+ * The window is 1600x900, a 16:9 frame (the tour's): the default layout's system column on the
+ * left, as every preset has it, and the game beside it; record the window, and leave it
  * in front: the game pauses when the window loses the keyboard. Nothing of this machine is
- * shown (the profile is new, the plugin copied into it from examples/). The take starts after
+ * shown beyond what the tour's system column shows (the profile is new, the user and host made
+ * up, the plugin copied into it from examples/). The take starts after
  * the lead (`--lead`, 6 s); close the window to end, or pass `--exit` to close it when the take
  * is over. Windows only, like the other takes. Run `npm run build` first, then
  * `npm run demo:keystream`. demo-take.mjs has the other options: `--probe`, `--theme`,
@@ -35,7 +37,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { openTake, prepareData, say, takeOptions } from './demo-take.mjs'
 
-const options = takeOptions({ width: 1280, height: 720, zoom: 1, lead: 6 })
+const options = takeOptions({ width: 1600, height: 900, zoom: 1, lead: 6 })
 const option = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
 const exit = process.argv.includes('--exit')
 const SONG = option('song') ?? 'boot-sequence'
@@ -49,8 +51,9 @@ const JITTER_MS = Number(option('jitter') ?? 8)
 const VOLUME = Number(option('volume') ?? 80)
 
 /*
- * The plugin's own modules, read as Node reads TypeScript (its syntax is erasable only): the
- * imports name no extension, as the worker's resolution allows, so one is tried.
+ * The plugin's own modules and the app's default layout, read as Node reads TypeScript (the
+ * syntax is erasable only): the plugin's imports name no extension, as the worker's resolution
+ * allows, and the app's name .js for the .ts beside it, as Vite resolves them.
  */
 registerHooks({
   resolve(specifier, context, next) {
@@ -58,7 +61,8 @@ registerHooks({
       return next(specifier, context)
     } catch (error) {
       if (!specifier.startsWith('.')) throw error
-      return next(`${specifier}.ts`, context)
+      const stem = specifier.endsWith('.js') ? specifier.slice(0, -3) : specifier
+      return next(`${stem}.ts`, context)
     }
   },
 })
@@ -70,6 +74,9 @@ const { barTimes, buildChart, LEVELS } = await load('chart.ts')
 const { onShelf, settle, SHELVES, stepShelf } = await load('genres.ts')
 const { INSTRUMENTS } = await load('instruments.ts')
 const { NOTE_KEYS } = await load('keyboard.ts')
+const { SYSTEM_COLUMN_WIDTH, systemColumn } = await import(
+  pathToFileURL(path.resolve('src/shared/default-layout.ts')).href
+)
 
 /** The tracks as the menu lists them: the ones that read without a problem, in order. */
 const scores = SONGS.map(readSong).filter((score) => score.problems.length === 0)
@@ -205,14 +212,24 @@ function autoplay(keys) {
   })
 }
 
+/** The default layout's system column on the left, as every preset keeps it; the game beside it. */
 const tree = {
   version: 1,
   root: {
-    kind: 'pane',
-    id: 'p-keystream',
-    widget: 'plugin:keystream',
-    // A first start: every track, the list's first, NORMAL, E.PIANO.
-    state: { plugin: { shelf: 'all', level: 'normal', speed: 5, instrument: 'epiano' } },
+    kind: 'split',
+    id: 's-root',
+    direction: 'row',
+    sizes: [SYSTEM_COLUMN_WIDTH, 1 - SYSTEM_COLUMN_WIDTH],
+    children: [
+      systemColumn(),
+      {
+        kind: 'pane',
+        id: 'p-keystream',
+        widget: 'plugin:keystream',
+        // A first start: every track, the list's first, NORMAL, E.PIANO.
+        state: { plugin: { shelf: 'all', level: 'normal', speed: 5, instrument: 'epiano' } },
+      },
+    ],
   },
 }
 
