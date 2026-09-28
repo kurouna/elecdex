@@ -8,6 +8,7 @@ import {
   ROOM_SEND,
 } from '../../src/renderer/plugins/instruments/catalog.js'
 import { type Instrument, InstrumentHost } from '../../src/renderer/plugins/instruments/host.js'
+import { makers } from '../../src/renderer/plugins/instruments/makers.js'
 
 /**
  * The instruments' host on the audio thread (renderer/plugins/instruments/host.ts): what it
@@ -136,5 +137,13 @@ describe('the catalog', () => {
       expect(ROOM_SEND[voice], voice).toBeLessThan(0.5)
     }
     for (const traits of Object.values(INSTRUMENTS)) expect(BUSES[traits.bus]).toBeLessThan(OUTPUTS)
+  })
+
+  it('has an instrument on the audio thread for every voice, and the traits the page needs', () => {
+    const made = makers()
+    for (const voice of PLUGIN_VOICES) {
+      expect(made[voice], voice).toBeDefined()
+      expect(INSTRUMENTS[voice], voice).toBeDefined()
+    }
   })
 })

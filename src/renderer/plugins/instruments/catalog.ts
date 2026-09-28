@@ -62,6 +62,11 @@ export const INSTRUMENTS: Partial<Record<Voice, VoiceTraits>> = {
   },
   // Held at its sustain step until let go, then down a step a frame: a quarter second.
   chip: { bus: 'plain', ownLength: 0.3, ring: () => LONGEST, settle: () => 0.3 },
+  // The analogue patches (synth/engine.ts): held as long as a key is, then their release.
+  lead: { bus: 'plain', ownLength: 0.5, ring: () => LONGEST, settle: () => 0.3 },
+  bass: { bus: 'plain', ownLength: 0.25, ring: () => LONGEST, settle: () => 0.2 },
+  pad: { bus: 'plain', ownLength: 2, ring: () => LONGEST, settle: () => 1.6 },
+  pluck: { bus: 'plain', ownLength: 0.4, ring: () => 1.6, settle: () => 0.4 },
   kick: drum(0.9),
   snare: drum(0.5),
   clap: drum(0.6),

@@ -264,6 +264,48 @@ export const TAKES = {
     // The same key soft and hard: sixteen volume steps, at sixty a second.
     steps: () => [0.2, 0.5, 1].map((l, i) => n(0.2 + i * 0.8, 69, l, 0.5, 'chip')),
   },
+  synth: {
+    // A synthwave bar: pad chords, a pluck arpeggio, a bass line, and a lead that glides.
+    band: () => {
+      const beat = 60 / 110
+      const s = (t, pitch, level, length, voice) =>
+        n(0.2 + t * beat, pitch, level, length * beat, voice)
+      const chords = [
+        [57, 60, 64],
+        [53, 57, 60],
+        [55, 59, 62],
+        [52, 55, 59],
+      ]
+      const roots = [45, 41, 43, 40]
+      const lead = [
+        [0, 76, 1.5],
+        [1.5, 74, 0.5],
+        [2, 72, 2.2],
+        [4, 71, 1],
+        [5, 72, 1],
+        [6, 74, 2.2],
+        [8, 76, 1.8],
+        [10, 79, 0.6],
+        [10.5, 81, 3.6],
+        [14, 79, 2],
+      ]
+      return [
+        ...chords.flatMap((c, i) => c.map((p) => s(i * 4, p, 0.6, 3.9, 'pad'))),
+        ...roots.flatMap((r, i) =>
+          Array.from({ length: 8 }, (_, k) =>
+            s(i * 4 + k * 0.5, r + (k % 2 ? 12 : 0), 0.75, 0.4, 'bass'),
+          ),
+        ),
+        ...chords.flatMap((c, i) =>
+          Array.from({ length: 16 }, (_, k) =>
+            s(i * 4 + k * 0.25, (c[k % 3] ?? 60) + 12, 0.45, 0.2, 'pluck'),
+          ),
+        ),
+        // Each held a little into the next: the monophonic lead glides.
+        ...lead.map(([t, p, l]) => s(t, p, 0.75, l + 0.1, 'lead')),
+      ]
+    },
+  },
   drums: {
     groove,
     // Each drum alone, soft then hard.

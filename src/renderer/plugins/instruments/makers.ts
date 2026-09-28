@@ -4,6 +4,7 @@ import { drumMakers } from '../drums/machine.js'
 import { EPianoEngine } from '../epiano/engine.js'
 import { GuitarEngine } from '../guitar/engine.js'
 import { PianoEngine } from '../piano/engine.js'
+import { AnalogEngine } from '../synth/engine.js'
 import type { InstrumentMaker } from './host.js'
 
 /**
@@ -17,6 +18,10 @@ export function makers(): Partial<Record<Voice, InstrumentMaker>> {
     guitar: (rate) => new GuitarEngine(rate),
     epiano: (rate) => new EPianoEngine(rate),
     chip: (rate) => new ChipEngine(rate),
+    lead: (rate) => new AnalogEngine(rate, 'lead'),
+    bass: (rate) => new AnalogEngine(rate, 'bass'),
+    pad: (rate) => new AnalogEngine(rate, 'pad'),
+    pluck: (rate) => new AnalogEngine(rate, 'pluck'),
     ...drumMakers(),
   }
 }

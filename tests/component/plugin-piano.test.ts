@@ -1,5 +1,5 @@
 import type { Voice } from '@shared/plugin-api'
-import type { SoundNote } from '@shared/plugin-sound'
+import { PLUGIN_VOICES, type SoundNote } from '@shared/plugin-sound'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Synth } from '../../src/renderer/plugins/synth.ts'
 
@@ -159,10 +159,14 @@ describe('the piano', () => {
     synth.play('p1', [note('piano')])
     const [, , second, secondRelease] = strings?.posted ?? []
     expect((secondRelease?.at as number) - (second?.at as number)).toBeCloseTo(1.4, 6)
-    // The other voices are still the recipe's.
-    synth.play('p1', [note('lead')])
-    expect(sources.length).toBeGreaterThan(before)
+    // Every voice is an instrument on the audio thread now: none is built of nodes, and the
+    // pane keeps its one band.
+    for (const voice of PLUGIN_VOICES) synth.play('p1', [note(voice)])
+    expect(sources).toHaveLength(before)
     expect(FakeWorklet.made).toHaveLength(1)
+    expect(strings?.posted.filter((m) => m.t === 'strike').map((m) => m.voice)).toEqual(
+      expect.arrayContaining([...PLUGIN_VOICES]),
+    )
   })
 
   it('lets a held key go when it comes up, and cuts it short when the voices run out', async () => {
