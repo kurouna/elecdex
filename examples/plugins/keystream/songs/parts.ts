@@ -50,8 +50,6 @@ export const COMP_24 = '....x.......x...'
 export const COMP_HALVES = 'x-------x-------'
 export const COMP_EIGHTHS = 'x.x.x.x.x.x.x.x.'
 export const ARP_EIGHTHS = 'x.x.x.x.x.x.x.x.'
-/** Chord pushes, a sixteenth ahead of the beat: house and funk. */
-export const COMP_PUSH = 'x..x..x...x..x..'
 export const COMP_LAST = 'x-------........'
 
 /** A section name `count` times, for a form. */

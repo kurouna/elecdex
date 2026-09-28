@@ -68,11 +68,21 @@ const BAND: Band = {
       comp: RIFF_332,
       pad: true,
     },
+    /** A drop's last bar: its one long note, and the band with it, not on round the riff. */
+    T: {
+      kick: KICK_4,
+      clap: SNARE_24,
+      hat: SIXTEENTHS,
+      openhat: OFFBEATS,
+      bass: BASS_LAST,
+      comp: COMP_LAST,
+      pad: true,
+    },
     R: { kick: KICK_13_SOFT, bass: BASS_LONG, arp: ARP_EIGHTHS, pad: true },
     O: { kick: ONE, bass: BASS_LAST, comp: COMP_LAST },
     E: {},
   },
-  form: `I I | ${times('K', 8)} | ${times('B', 4)} | S S S S! | D* ${times('D', 7)} | R* R R R | S S S S! | D* ${times('D', 7)} | O* E`,
+  form: `I I | ${times('K', 8)} | ${times('B', 4)} | S S S S! | D* ${times('D', 6)} T | R* R R R | S S S S! | D* ${times('D', 6)} T | O* E`,
   comp: 'pluck',
 }
 

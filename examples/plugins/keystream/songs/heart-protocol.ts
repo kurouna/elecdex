@@ -7,7 +7,7 @@ import {
   BASS_OCTAVES,
   CLAP_3,
   COMP_LAST,
-  COMP_PUSH,
+  COMP_OFFBEATS,
   EIGHTHS,
   EIGHTHS_SOFT,
   KICK_4,
@@ -53,13 +53,16 @@ const OUTRO = 'h---------------|................'
 
 const CHORUS_CHORDS = 'Am | F | C | G | Am | F | G | Am'
 
+/** The verse's chords, struck with the 808 kick. */
+const COMP_808 = KICK_SYNC
+
 /** The dance break's bass, on its hits. */
 const BASS_332 = 'r..r..r.r..r..r.'
 
 const BAND: Band = {
   sections: {
     I: { kick: KICK_13, hat: EIGHTHS_SOFT, bass: BASS_LONG, pad: true },
-    V: { kick: KICK_SYNC, clap: SNARE_24, hat: EIGHTHS, bass: BASS_808, comp: COMP_PUSH },
+    V: { kick: KICK_SYNC, clap: SNARE_24, hat: EIGHTHS, bass: BASS_808, comp: COMP_808 },
     P: { kick: KICK_13, clap: CLAP_3, hat: QUARTERS, bass: BASS_LONG, pad: true },
     C: {
       kick: KICK_4,
@@ -68,7 +71,7 @@ const BAND: Band = {
       hat: SIXTEENTHS,
       openhat: OFFBEATS,
       bass: BASS_OCTAVES,
-      comp: COMP_PUSH,
+      comp: COMP_OFFBEATS,
       pad: true,
     },
     D: { kick: RIFF_332, clap: SNARE_24, hat: SIXTEENTHS, bass: BASS_332 },

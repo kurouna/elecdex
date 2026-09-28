@@ -223,6 +223,28 @@ describe('the band', () => {
     }
   })
 
+  it('never strikes between the eighths on its own: only with a note the tune plays or holds', () => {
+    // A push a sixteenth ahead of the beat, under a tune that moves in eighths, beats a
+    // rhythm of its own against the one the player is typing. The hats and the arpeggio are
+    // a texture, not a strike.
+    const struck = ['kick', 'snare', 'clap', 'tom', 'bass', 'comp'] as const
+    for (const source of SONGS) {
+      const score = readSong(source)
+      const sounding = (beat: number) =>
+        score.notes.some((n) => n.beat <= beat + 1e-9 && beat < n.beat + n.beats - 1e-9)
+      const stray = readForm(source.band).bars.flatMap((bar, b) =>
+        struck.flatMap((part) =>
+          [...(bar.section[part] ?? '')].flatMap((char, step) =>
+            step % 2 === 1 && /[^.-]/.test(char) && !sounding(b * 4 + step / 4)
+              ? [`${part} at bar ${b + 1}`]
+              : [],
+          ),
+        ),
+      )
+      expect([...new Set(stray)], source.id).toEqual([])
+    }
+  })
+
   it('opens a bar marked * on a cymbal, and rolls into the next from one marked !', () => {
     const parts = arrange(readSong({ ...tiny, band: { ...tiny.band, form: 'A! B*' } }))
     // The roll takes the last beat from every drum but the kick.

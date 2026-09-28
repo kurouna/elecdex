@@ -8,7 +8,7 @@ import { ARP_EIGHTHS, BASS_LAST, COMP_LAST, ONE, SIXTEENTHS, SNARE_24, times } f
  * City pop at 112 in C, written in sixteenths for its funk: the verse goes round the
  * progression the city's night songs lean on - Fmaj7, E7, Am7, Gm7 to C7 - with G sharp (Y)
  * on the E7 and B flat (U) on the Gm7; the chorus lifts to long notes over Dm7, G7 and an
- * A7 that reaches C sharp (O). A Rhodes pushes ahead of the beat, a slapped bass answers
+ * A7 that reaches C sharp (O). A Rhodes syncopates on the eighths, a slapped bass answers
  * the kick, the hats run in sixteenths.
  */
 
@@ -34,15 +34,18 @@ const OUTRO = 'k-------........|................'
 const VERSE_CHORDS = 'Fmaj7 | E7 | Am7 | Gm7 C7 | Fmaj7 | E7 | Am7 | Gm7 C7'
 const CHORUS_CHORDS = 'Dm7 | G7 | Cmaj7 | A7 | Dm7 | G7 | Em7 A7 | Dm7 G7'
 
-/** Funk: the kick on one, the 'a' of one and the 'and' of three, ghost notes on the snare. */
-const KICK_FUNK = 'x..x....x.x.....'
-const SNARE_GHOST = '....x..o....x..o'
+/**
+ * The kick on one, three and the 'and' of three, the snare on two and four with a ghost on
+ * their 'and's: the funk kept on the eighths the tune moves on, so it never pulls against it.
+ */
+const KICK_FUNK = 'x.......x.x.....'
+const SNARE_GHOST = '....x.o.....x.o.'
 /** An open hat on the last 'and', lifting the bar into the next. */
 const OPEN_LAST = '..............x.'
 /** A slapped bass: the root, again on the 'and' of two, the octave on three, the fifth to close. */
 const BASS_SLAP = 'r.....r.o...r.5.'
-/** The Rhodes, pushed a sixteenth ahead of two and four, and soft in between. */
-const COMP_FUNK = 'x..o..o...x..o..'
+/** The Rhodes on one and the 'and' of three, soft on two, its 'and' and four. */
+const COMP_FUNK = 'x...o.o...x.o...'
 
 const BAND: Band = {
   sections: {
