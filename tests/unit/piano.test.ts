@@ -284,6 +284,17 @@ describe('the engine', () => {
   })
 })
 
+describe('the voicing', () => {
+  it('evens the scale: the treble, which the soundboard favours, is voiced down, the bass up', () => {
+    // Found in review (2026-09-28): a mezzo-forte C7 was 9 dB louder than C4 once heard
+    // through the soundboard, so a hard treble note reached the limiter.
+    const dry = (pitch: number) =>
+      level(render({ strikes: [{ at: 0, pitch, level: 0.5 }], seconds: 0.4 }).out, 0.05, 0.35)
+    expect(dry(96)).toBeLessThan(dry(60) - 8)
+    expect(Math.abs(dry(36) - dry(60))).toBeLessThan(3)
+  })
+})
+
 describe('the audio thread', () => {
   it('lets the hammer go as soon as it rebounds, not a fixed window later', () => {
     // Found in review (2026-09-28): the hammer was stepped four times a sample for 12 ms after

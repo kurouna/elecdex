@@ -54,7 +54,8 @@ const BAND: Band = {
     E: {},
   },
   form: `I I! | ${times('A', 7)} A! | L* ${times('L', 7)} | ${times('A', 7)} A! | L* ${times('L', 7)} | O* E`,
-  comp: 'pluck',
+  // The can-can's oom-pah on a fairground's organ.
+  comp: 'organ',
 }
 
 export const song: SongSource = {

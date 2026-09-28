@@ -8,6 +8,7 @@ import {
   ROOM_SEND,
 } from '../../src/renderer/plugins/instruments/catalog.js'
 import { type Instrument, InstrumentHost } from '../../src/renderer/plugins/instruments/host.js'
+import { PeakLimiter } from '../../src/renderer/plugins/instruments/limiter.js'
 import { makers } from '../../src/renderer/plugins/instruments/makers.js'
 
 /**
@@ -99,12 +100,13 @@ describe('the instruments host', () => {
   })
 
   it('writes each instrument to its bus, and a plain one to the room by its share too', () => {
-    const piano = new Probe(1)
+    const piano = new Probe(0.5)
     const host = hostWith({ piano })
     host.receive({ t: 'strike', voice: 'piano', id: 1, pitch: 60, level: 1, pan: 0, at: 0 })
     const out = outputs()
     host.render(out, 4, 0)
-    expect([...(out[BUSES.piano]?.[0] ?? [])]).toEqual([1, 1, 1, 1])
+    // Every output is late by the limiters' look-ahead (two samples at this rate), in step.
+    expect([...(out[BUSES.piano]?.[0] ?? [])]).toEqual([0, 0, 0.5, 0.5])
     expect([...(out[BUSES.plain]?.[0] ?? [])]).toEqual([0, 0, 0, 0])
     // The piano's share of the room is taken after its soundboard, on the page.
     expect([...(out[BUSES.room]?.[0] ?? [])]).toEqual([0, 0, 0, 0])
@@ -145,5 +147,36 @@ describe('the catalog', () => {
       expect(made[voice], voice).toBeDefined()
       expect(INSTRUMENTS[voice], voice).toBeDefined()
     }
+  })
+})
+
+describe('the limiter on each output', () => {
+  const RATE = 48000
+  const run = (x: Float32Array, ceiling = 0.9) => {
+    const limiter = new PeakLimiter(RATE, ceiling)
+    const l = Float32Array.from(x)
+    const r = Float32Array.from(x)
+    for (let f = 0; f < l.length; f += 128)
+      limiter.process(l.subarray(f, f + 128), r.subarray(f, f + 128), 128)
+    return { out: l, delay: limiter.delay }
+  }
+
+  it('passes what stays under its ceiling untouched, only late by its look-ahead', () => {
+    const x = Float32Array.from({ length: 4096 }, (_, i) => 0.7 * Math.sin(i / 7))
+    const { out, delay } = run(x)
+    expect(delay).toBe(72)
+    for (let i = delay; i < x.length; i++) expect(out[i]).toBeCloseTo(x[i - delay] as number, 6)
+  })
+
+  it('brings a spike down to its ceiling before it leaves, and lets go after', () => {
+    // A quiet tone, a two-millisecond spike three times the ceiling, the quiet tone again.
+    const x = Float32Array.from(
+      { length: RATE },
+      (_, i) => (i >= 10000 && i < 10096 ? 2.7 : 0.3) * Math.sin(i / 5),
+    )
+    const { out, delay } = run(x)
+    expect(Math.max(...out.map(Math.abs))).toBeLessThanOrEqual(0.9 + 1e-6)
+    // Half a second on, the quiet tone is back at its own level.
+    for (let i = 40000; i < 40100; i++) expect(out[i]).toBeCloseTo(x[i - delay] as number, 3)
   })
 })

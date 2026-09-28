@@ -30,7 +30,7 @@ const SWING = 0.85
 /** The damper's decay per second, and a stop's. */
 const DAMPER = 6.9078 / 0.14
 const CUT = 250
-const OUTPUT = 55
+const OUTPUT = 42.7
 /** The pickup coil's inductance and the cable roll the top off above this, Hz. */
 const COIL = 5500
 /** Below this, a quiet key is let go, as a share of its loudest. */
@@ -62,6 +62,33 @@ type Event =
   | { at: number; kind: 'strike'; id: number; pitch: number; level: number; pan: number }
   | { at: number; kind: 'release' | 'stop'; id: number }
   | { at: number; kind: 'pedal'; on: boolean }
+
+/**
+ * The voicing: a technician sets each tine's pickup nearer or further until the keyboard is
+ * even, since the long bass tines barely move the air past a pickup set like the middle's, and
+ * the stiff treble tines hardly swing. A gain per key, measured so a mezzo-forte scale is even
+ * within a couple of decibels, a little softer at the ends.
+ */
+const EVEN = [
+  [28, 3.39],
+  [36, 2.63],
+  [48, 1.365],
+  [60, 1],
+  [72, 1],
+  [84, 1.05],
+  [96, 1.9],
+  [100, 2.6],
+] as const
+
+export function voicingOf(pitch: number): number {
+  const key = Math.min(100, Math.max(28, pitch))
+  for (let i = 1; i < EVEN.length; i++) {
+    const [k1, g1] = EVEN[i] as readonly [number, number]
+    const [k0, g0] = EVEN[i - 1] as readonly [number, number]
+    if (key <= k1) return g0 * (g1 / g0) ** ((key - k0) / (k1 - k0))
+  }
+  return EVEN[EVEN.length - 1]?.[1] ?? 1
+}
 
 /** Seconds the fundamental rings: long in the bass, short in the treble. */
 export function ringOf(pitch: number): number {
@@ -191,8 +218,8 @@ export class EPianoEngine implements Instrument {
     key.letGo = false
     key.cut = false
     const p = Math.min(1, Math.max(-1, event.pan + ((event.pitch - 64) / 36) * 0.25))
-    key.left = Math.cos(((p + 1) * Math.PI) / 4)
-    key.right = Math.sin(((p + 1) * Math.PI) / 4)
+    key.left = Math.cos(((p + 1) * Math.PI) / 4) * voicingOf(event.pitch)
+    key.right = Math.sin(((p + 1) * Math.PI) / 4) * voicingOf(event.pitch)
     this.retune(key, 0)
   }
 

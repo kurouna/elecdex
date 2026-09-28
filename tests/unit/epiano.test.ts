@@ -90,6 +90,15 @@ describe('the electric piano', () => {
     expect(lifted.engine.busy).toBe(false)
   })
 
+  it('is voiced even across the keyboard, a little softer at its ends', () => {
+    // Found in review (2026-09-28): the bass and the top were ten decibels under the middle.
+    const at = (pitch: number) => level(play([{ at: 0, pitch, level: 0.5 }], 0.4).out, 0.05, 0.35)
+    const middle = at(60)
+    for (const pitch of [36, 48, 72, 84])
+      expect(Math.abs(at(pitch) - middle), `key ${pitch}`).toBeLessThan(4)
+    expect(at(96)).toBeGreaterThan(middle - 8)
+  })
+
   it('renders every key at every blow, finite and bounded', () => {
     for (let pitch = 20; pitch <= 110; pitch += 6) {
       for (const lvl of [0, 0.5, 1]) {

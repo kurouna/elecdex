@@ -220,6 +220,15 @@ describe('the band', () => {
     expect(bass.at(-1)?.pitch).toBe(43)
   })
 
+  it('plays the bass line on the voice a song names, the synthesiser’s when it names none', () => {
+    const played = (band: typeof tiny.band) =>
+      arrange(readSong({ ...tiny, band })).filter((p) => p.voice === 'bass' || p.voice === 'ebass')
+    expect(played(tiny.band).every((p) => p.voice === 'bass')).toBe(true)
+    const electric = played({ ...tiny.band, bass: 'ebass' })
+    expect(electric.length).toBe(played(tiny.band).length)
+    expect(electric.every((p) => p.voice === 'ebass')).toBe(true)
+  })
+
   it('sings the tune again as a round, the bars it was asked to later', () => {
     const song = {
       ...tiny,

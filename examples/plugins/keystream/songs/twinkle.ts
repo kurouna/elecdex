@@ -57,6 +57,8 @@ const BAND: Band = {
     E: {},
   },
   form: `I I! | ${times('A', 11)} A! | B* ${times('B', 11)} | O* E`,
+  // A nursery rhyme's chords on the marimba.
+  comp: 'marimba',
 }
 
 export const song: SongSource = {

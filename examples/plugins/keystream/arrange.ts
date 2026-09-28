@@ -49,6 +49,8 @@ export interface Band {
    * '*' opens with a cymbal; by '!', its last beat is a snare roll into the next bar.
    */
   form: string
+  /** The voice of the bass line; the synthesiser's bass when left out. */
+  bass?: Voice
   /** The voice of the chord hits; an electric piano when left out. */
   comp?: Voice
   /** The voice of the arpeggio; a pluck when left out. */
@@ -141,7 +143,7 @@ export function arrange(score: Score): Part[] {
     if (bar >= score.bars) return
     const at = { start: bar * BEATS_PER_BAR, chords: score.chords[bar] ?? [] }
     drums(plan, at.start, band.tom ?? 45, parts)
-    bass(plan.section.bass, at, parts)
+    bass(plan.section.bass, band.bass ?? 'bass', at, parts)
     comp(plan.section.comp, band.comp ?? 'epiano', at, parts)
     arpeggio(plan.section.arp, band.arp ?? 'pluck', at, parts)
     if (plan.section.pad) pad(at, parts)
@@ -190,14 +192,14 @@ function drumLine(voice: DrumVoice, plan: BarPlan, start: number, pitch: number,
   }
 }
 
-function bass(line: string | undefined, at: BarAt, parts: Part[]): void {
+function bass(line: string | undefined, voice: Voice, at: BarAt, parts: Part[]): void {
   if (line === undefined) return
   for (let step = 0; step < STEPS; step++) {
     const char = line[step] ?? '.'
     const chord = chordAt(at.chords, step)
     if (chord === null || !'ro53'.includes(char)) continue
     parts.push({
-      voice: 'bass',
+      voice,
       pitch: bassPitch(chord, char),
       beat: at.start + step * STEP,
       beats: heldFor(line, step) * STEP * 0.85,

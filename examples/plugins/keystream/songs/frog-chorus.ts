@@ -46,7 +46,8 @@ const BAND: Band = {
     },
   },
   form: `I I! | ${times('A', 7)} A! | B* ${times('B', 7)} | B* ${times('B', 7)} | A A`,
-  round: { bars: 2, voice: 'pluck', level: 0.4 },
+  // The round answered on a marimba, as a school's music room would.
+  round: { bars: 2, voice: 'marimba', level: 0.45 },
 }
 
 export const song: SongSource = {

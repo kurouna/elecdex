@@ -1,5 +1,6 @@
 import type { Voice } from '@shared/plugin-api'
-import { BUSES, INSTRUMENTS, ROOM_SEND } from './catalog.js'
+import { BUSES, INSTRUMENTS, OUTPUTS, ROOM_SEND } from './catalog.js'
+import { PeakLimiter } from './limiter.js'
 
 /**
  * The instruments of one pane on the audio thread (docs/plugins.md section 13.8): a physical
@@ -34,6 +35,12 @@ export type InstrumentMessage =
   | { t: 'pedal'; on: boolean; at: number }
   | { t: 'silence' }
 
+/**
+ * Each output's ceiling: the piano's lower, as its soundboard can raise a spike a little
+ * after the processor has limited it. The rest leave room for the room and the other panes.
+ */
+const CEILINGS = [0.8, 0.9, 0.9, 0.9] as const
+
 /** Strikes remembered for their release: far more than can sound at once. */
 const REMEMBERED = 4096
 
@@ -48,10 +55,16 @@ export class InstrumentHost {
   private pedalDown = false
   private scratchL = new Float32Array(128)
   private scratchR = new Float32Array(128)
+  /** A look-ahead limiter on each output, all with the same delay, so they stay in time. */
+  private readonly limiters: PeakLimiter[]
 
   constructor(sampleRate: number, makers: Partial<Record<Voice, InstrumentMaker>>) {
     this.sampleRate = sampleRate
     this.makers = makers
+    this.limiters = Array.from(
+      { length: OUTPUTS },
+      (_, i) => new PeakLimiter(sampleRate, CEILINGS[i] ?? 0.9),
+    )
   }
 
   /** Carries out a message from the page, whatever the page sent: the thread must not throw. */
@@ -112,6 +125,9 @@ export class InstrumentHost {
         room[1][k] = (room[1][k] as number) + (r[k] as number) * send
       }
     }
+    outputs.forEach(([l, r], i) => {
+      this.limiters[i]?.process(l, r, frames)
+    })
   }
 
   /** Makes one more voice's instrument, ahead of its first note: a quiet block's work. */

@@ -63,6 +63,7 @@ const BAND: Band = {
     E: {},
   },
   form: `${times('I', 3)} I! | ${times('A', 7)} A! | ${times('B', 7)} B! | C* ${times('C', 7)} | C* ${times('C', 7)} | O* E`,
+  bass: 'ebass',
   comp: 'piano',
 }
 

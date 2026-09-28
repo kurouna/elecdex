@@ -70,6 +70,7 @@ const BAND: Band = {
   },
   // intro 2 | verse 8 | chorus 8 | verse 8 | chorus 8 | outro 2
   form: `I I! | ${times('V', 7)} V! | C* ${times('C', 7)} | ${times('V', 7)} V! | C* ${times('C', 7)} | O* E`,
+  bass: 'ebass',
   comp: 'epiano',
   arp: 'pluck',
 }

@@ -211,6 +211,27 @@ export function partialLoss(freq: number): number {
   return 9e-7 * freq * freq + 1.4e-3 * freq
 }
 
+/**
+ * The voicing: a piano technician needles or hardens each hammer's felt until the scale is
+ * even, since the physics alone leaves the short treble strings loud on the bridge (and our
+ * soundboard radiating them the most) and the long bass ones soft. A gain per key, measured
+ * so a mezzo-forte scale heard through the soundboard is even within a couple of decibels,
+ * a little softer at both ends.
+ */
+export function voicing(pitch: number): number {
+  return logCurve(clampKey(pitch), [
+    [21, 2.11],
+    [24, 2.04],
+    [36, 1.24],
+    [48, 1.135],
+    [60, 1],
+    [72, 1.12],
+    [84, 0.496],
+    [96, 0.3],
+    [108, 0.93],
+  ])
+}
+
 /** Seconds for the damper to silence a key: slower on the long, heavy bass strings. */
 export function damperTime(pitch: number): number {
   return logCurve(clampKey(pitch), [

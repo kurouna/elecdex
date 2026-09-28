@@ -55,6 +55,7 @@ const BAND: Band = {
     E: {},
   },
   form: `${times('I', 3)} I! | ${times('V', 7)} V! | C* ${times('C', 7)} | K* K K K! | ${times('V', 7)} V! | C* ${times('C', 7)} | O* E`,
+  bass: 'ebass',
 }
 
 export const song: SongSource = {

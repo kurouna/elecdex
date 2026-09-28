@@ -1,5 +1,13 @@
 import type { Instrument } from '../instruments/host.js'
-import { blowSpeed, damperDecay, HIGH_KEY, type KeyModel, keyModel, LOW_KEY } from './model.js'
+import {
+  blowSpeed,
+  damperDecay,
+  HIGH_KEY,
+  type KeyModel,
+  keyModel,
+  LOW_KEY,
+  voicing,
+} from './model.js'
 import { Sympathy } from './sympathy.js'
 
 /**
@@ -261,8 +269,8 @@ export class PianoEngine implements Instrument {
     voice.struck = now
     this.byId.set(event.id, pitch)
     const [left, right] = keyPan(pitch, event.pan)
-    voice.left = left
-    voice.right = right
+    voice.left = left * voicing(pitch)
+    voice.right = right * voicing(pitch)
     // The hammer arrives at the strings where they are, at the speed of the blow.
     const speed = blowSpeed(event.level)
     const h = voice.hammer
