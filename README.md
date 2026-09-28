@@ -824,7 +824,12 @@ Hall of the Mountain King*). Enter opens the chosen track's three levels on a pa
 ends the play when the signal runs out), Space turns the preview off and on, and the eDEX-UI
 on-screen keyboard is back as the judgement line. A play ends as a game ends a stage: the score counts up, the rank is slammed into
 its diamond and a lamp says how it went (CLEAR, FULL CHAIN, ALL SYNC or NO CARRIER), beside the
-best before it and how early or late the keys landed. **FREE PLAY** makes the keyboard an instrument: keys sound
+best before it and how early or late the keys landed. The timing is one clock end to end: a key
+is judged by the moment the system received it, the band is scheduled to the moment it is heard,
+and the field is drawn a frame ahead, where it will stand when the frame is on screen - so a note
+reaches the line as it sounds. What is left is the player and their keyboard, and the result says
+what to do about it: when the hits ran late or early on the whole, it names the *Timing offset* to
+set (SET OFFSET +20), which the plugin's settings take. **FREE PLAY** makes the keyboard an instrument: keys sound
 while held, Space is the sustain pedal, Z X and C V change the octave and the strength as in a DAW's
 musical typing, the number row changes the instrument (on every screen, mid-song too), any track's band
 can go round underneath to play over, and the chord under your fingers is named as you hold it.
