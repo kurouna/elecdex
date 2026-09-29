@@ -4,7 +4,7 @@
  * each build bundled (out/.notices/*.json, recorded by the bundledPackages
  * plugin in electron.vite.config.ts), the production dependencies shipped in
  * app.asar, the packages whose data the app's data files were made from, and
- * the vendored calculator. See scripts/third-party-notices.mjs.
+ * the vendored calculator and the CHIP-8 fonts. See scripts/third-party-notices.mjs.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -42,15 +42,23 @@ for (const dir of [...roots].sort()) {
   if (!seen.has(key)) seen.set(key, pkg)
 }
 
-const vendor = path.join(root, 'src', 'shared', 'calc', 'vendor', 'LICENSE.md')
-const extra = existsSync(vendor)
-  ? [
-      {
-        title: 'elecxzy calculator (src/shared/calc/vendor)',
-        text: readFileSync(vendor, 'utf8').trim(),
-      },
-    ]
-  : []
+/** Licence texts of code copied into the source rather than installed as a package. */
+const COPIED = [
+  {
+    title: 'elecxzy calculator (src/shared/calc/vendor)',
+    file: 'src/shared/calc/vendor/LICENSE.md',
+  },
+  {
+    title: 'Octo, the CHIP-8 fonts (src/shared/chip8/fonts.ts)',
+    file: 'src/shared/chip8/LICENSE-octo.txt',
+  },
+]
+const extra = COPIED.filter(({ file }) => existsSync(path.join(root, file))).map(
+  ({ title, file }) => ({
+    title,
+    text: readFileSync(path.join(root, file), 'utf8').trim(),
+  }),
+)
 
 const out = path.join(root, 'out', 'THIRD_PARTY_NOTICES.txt')
 writeFileSync(out, renderNotices(withBorrowedTexts([...seen.values()]), extra))

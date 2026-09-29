@@ -1294,6 +1294,26 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 - **見送り**: ログ（秘密を含みうるので、出すなら MASK の設計から）、イメージ・ボリューム・ネットワークの一覧、Kubernetes、ペイン内のシェル、別の機械のエンジン
 - **テスト**: 単体（`docker.test.ts`: 読み取り・ラベルとコマンドを渡さないこと・ヘルスと終了コード・長さ・ポート・上限・まとめ方・押下の可否・使用量の計算・エンジンの場所・版・イベントの行、`docker-watcher.test.ts`: 見えるまで問い合わせない・250 ms の境界でまとめる・10 秒と 5 秒の境界・止めたらストリームもタイマーも止まる・NO DAEMON からの復帰・DENIED・遅いだけなら一覧を残す・重ねない・押下の可否、`docker-engine.test.ts`: 本物の名前付きパイプ／Unix ソケットに立てた偽の Engine API で、要求の形・イベント・押下・応答の上限・タイムアウト・止まったエンジン・古いエンジン）、コンポーネント（`docker-widget.test.ts`）、e2e（`docker.spec.ts`、`hidden-panes.spec.ts`、`layout-presets.spec.ts`）。e2e は `ELECDEX_DOCKER_STUB=1` で main の代役を読み、実機の Docker に触れない（`globalThis.__elecdexDocker` で変え、`down` / `denied` でエンジンが無い・開けない場合）。スクリーンショットは `demo`（架空の 2 つのプロジェクト）
 
+### 5.18 CHIP-8 ペイン（CHIP-8・SUPER-CHIP・XO-CHIP を遊ぶ）
+
+組み込みペイン `chip8`。CHIP-8、SUPER-CHIP、XO-CHIP のプログラムをペインの中で動かし、遊べるようにする（2026-09-29、利用者の設計案を参考に仕様を決め直し、画面のモックを見てもらってから着手）。同梱するのは chip8Archive（CC0、104 本）と chip8-test-suite（GPL-3.0、DIAG として）だけで、ほかは利用者が IMPORT で持ち込む。ネットワークは使わない。**段階 1（コア）まで作った**。画面は段階 2 以降。
+
+- **構成（疎結合）**: 機種に依らない部分を `shared/emu/`（`clock.ts` の `framesDue`、`fit.ts` の `fitScreen`）、CHIP-8 の機械を `shared/chip8/` に置く。`shared/chip8` は自分と `shared/emu` しか import せず、`shared/emu` は何も import しない。DOM・Node・タイマー・時計・`Math.random` にも触れない（`chip8-boundary.test.ts` が守る）。だからページ（段階 2）、main（取り込んだ ROM の見本づくり、段階 3）、vitest が同じコードをそのまま動かす。ページ側のつなぎは `renderer/widgets/chip8/`、目録とセーブは `main/chip8/` に置く予定。**今後のエミュレータ系のペイン（Linux など）も同じ形にする**: 純粋な機械 + ページの小さな runner + main が持つ保存。`shared/emu` を共有し、別の機械のフォルダは import しない
+- **機械の形**: 状態はただのデータ（`state.ts` の `Chip8State`）、振る舞いは状態に作用する関数（`exec.ts` は命令の上位 4 ビットごとの小さな関数の表、`display.ts` はスプライト・消去・スクロール・解像度）、ページが持つのは `Chip8` クラス 1 つ（`machine.ts`: `load`・`restore`・`frame`・`step`・`press`・`release`・`releaseAll`・`tune`・`snapshot`）。時間は持たない。1 フレームは最大 `ipf` 命令と 60 Hz のタイマーを 1 回進めることで、いつ何回呼ぶかは呼ぶ側（`framesDue`）が決める。乱数は xorshift32 で、状態に持つ（スナップショットから同じ列が続く）
+- **互換性の基準は Octo**: chip8Archive の作品は Octo で書かれている。そのため Octo と同じく**どの機種でもすべての命令を実行する**（CHIP-8 と書かれた作品に、実行時に SUPER-CHIP を調べるものがある）。機種が決めるのはメモリ（4 KB / XO-CHIP は 64 KB）と互換モードの既定だけ。0000 は終了（空のメモリに入った）、FX0A は待っている間に押して離したキーを渡す（前から押していたキーは取らない。待っている間もタイマーは進む）、`displayWait` では DXYN でそのフレームの命令を打ち切る、呼び出しは 16 段。どの機種にもない命令（0NNN、末尾が 0 でない 5XY/9XY、知らない 8XY・EX・FX）では止まり、場所と命令を `halt` に残す（HALT の表示に使う）
+- **互換モード**（`quirks.ts`）: `vfReset`・`memIncrement`・`shiftVx`・`jumpVx`・`clip`・`displayWait`・`vfOrder`。名前は「オンのとき機械が何をするか」に揃えた。プロファイルは chip8-test-suite の quirks テストが機種ごとに期待する値（CHIP-8 = COSMAC VIP、SCHIP = Octo の "modern"、XO-CHIP = Octo）。chip8Archive の Octo 名のフラグは `quirksFromOcto` で読む（`loadStoreQuirks` はオンで I を進めないので向きが逆）
+- **フォント**（`fonts.ts`）: Octo の 6 種（octo・vip・dream6800・eti660・schip・fish）。小さい 16 字を 0 番地、大きい 16 字をその後ろ（0x50）に置く。表は Octo（MIT）から写したもので、THIRD_PARTY_NOTICES に載せる
+- **テストスイート**（`resources/chip8/test-suite/`）: Timendus の chip8-test-suite の `bin/` を、各 `.ch8` の元の Octo ソース（`.8o`、GPL が求める対応するソース）と LICENSE ごと置く。取った commit は同じフォルダの README に書く。単体テスト（`chip8-suite.test.ts`）は全 8 本を走らせ、画面を ASCII のフィクスチャ（`tests/unit/fixtures/chip8/`）と比べる。フィクスチャは README の画像と目で照らし合わせ、すべてのチェックに印が付くことを確かめてから置いた（quirks は 3 機種、flags は 2 機種、scrolling は 4 通り、FX0A は押して離す）。quirks と scrolling は 0x1FF に選択肢を書いてメニューを飛ばす（スイートの README が認める方法）
+- **スナップショット**（`snapshot.ts`）: 先頭にマジック `C8SN` と版を置いたバイト列。機種・フォント・互換モード・IPF・レジスタ・スタック・画面・XO の音・SCHIP のフラグ・メモリを持つ（最大は XO-CHIP の約 74 KB、`SNAPSHOT_MAX_SIZE`）。押されているキーは持たない（戻したときはすべて離れている）。読むときは長さ・マジック・版・値の範囲をすべて確かめ、合わなければ null（新しく始める）。main は大きさだけを確かめ、中身はこのコアが確かめる
+- **機種の推定**（`platform.ts`、IMPORT 用）: 3584 バイトを超えれば XO-CHIP。それ以外は、**0x200 から制御の流れ（ジャンプ・コール・スキップの両側・F000 の 2 語）をたどり、命令として届く語だけ**を見て、XO-CHIP の命令があれば XO-CHIP、SUPER-CHIP の命令があれば SUPER-CHIP、なければ CHIP-8。バイト列をそのまま数える方式は、IBM ロゴのスプライトデータに含まれる `00FF` を hires と読んで誤った。BNNN の先はたどれないので、その先にしかない命令は見落とす（そのときはより素朴な機種になり、利用者が変えられる）
+- **キー**（`keys.ts`）: COSMAC VIP の 4×4 を `1234 / QWER / ASDF / ZXCV` に位置（`event.code`）で割り当てる。**矢印（5・7・8・9）と Space（6）も Octo と同じく押す**。chip8Archive の作品は Octo のキー配置で作られ、説明に「矢印と Space」と書くものが多いため。そのためペイン自身のキーは **P（一時停止）** と、一時停止中の **Enter（1 フレーム進める）**。Ctrl・Alt・システムキーとの組み合わせ、Tab、Esc（前面表示を戻すのはアプリの Esc）、F キーは受け取らない。押しっぱなしの繰り返しは飲み込む
+- **画面**（段階 2）: `fitScreen` は**デバイスピクセル**で倍率を決める（125% 表示でもドットの幅が揃う）。INTEGER（既定）は hires の 1 ドットを単位にした整数倍で、lores はその 2 倍にして、解像度が切り替わっても絵の大きさが変わらない。FIT は縦横比を保って領域いっぱい。1 ドットも取れない狭さでは FIT。90°・270° の回転（chip8Archive の `screenRotation`）では縦横を入れ替えて測る。大きさは ResizeObserver の entry から読む。canvas は論理解像度で、CSS で拡大する（`image-rendering: pixelated`）。色は THEME（既定）と ORIGINAL（作者の配色、同梱分）。THEME の XO の 4 色は**アクセントの濃淡**（地・アクセント・地に寄せたアクセント・明るいアクセント）で、モックで `--info` を混ぜたら AMBER などで色がぶつかった。蛍光体の残光（PHOSPHOR、既定 ON、尾は 2〜3 ドット）、ドットの格子（DOTS、倍率 4 以上）。描き直すのは `screenRevision` が動いたときと残光が消えていく間だけ
+- **elecdex の作法**（段階 2 以降で守ること）: ボタンと行の押下はランチャーのタイルと同じ 100 ms の点滅で、画面を切り替える押下は LayoutsDialog と同じく 3 拍点滅してから実行する。画面が現れる・消えるもの（LIBRARY ⇄ RUN、IMPORT のシート、PAUSED / HALT の表示、詳細カード）は crt.css の電源の入り切り（`crt-on` と `crtPower`）。ライブラリのタブの切り替えは KEYSTREAM と同じく一覧の電源を落として入れ直し、行はタイルのように入る。操作音（`sfx`）は LOAD・戻る・HALT に。ランプの点滅は `lib/pulse.svelte.ts` で、CSS アニメーションにしない。バッジは小文字の語（`running`、`paused`、`halted`）。行の詳細カードは HoverCard。CORE・MEM は 10 fps のフレームループで描く。LOAD のときは CORE にブートログのような 1 行（`LOAD 0x200 · 3584 B · VIP`）を打つ。長く続くアニメーションは `--ambient-play-state` を付ける。文字の大きさは読むものが `--step--1`、ラベルが `--step--2`
+- **周期**（段階 2）: 実行中で、かつペインが `seen` の間だけ、ペイン専用の rAF を回す（10 fps のフレームループの例外。ゲームは 60 Hz でないと遊べない。利用者承認）。`framesDue` の取り戻しは最大 3 フレーム。見えなくなったら一時停止して AUTO に保存し、戻っても自動では再開しない。CPU の使用率は metrics.spec で測って §16 に載せる
+- **main**（段階 3〜4）: 目録（同梱 + 取り込み、`chip8.list()`）、ROM は id で渡す（`chip8.rom(id)`、パスを受け取る API は作らない）、IMPORT は main の picker（大きさを確かめ、`userData/chip8/imported/<sha256>.ch8` に置く。見本の絵と SENSED のキーは main がコアを数百フレーム動かして作る）、プログラムごとの調整（IPF・互換モード・★）は `chip8-library.json`、セーブは AUTO と 3 枠を `userData/chip8/saves/<id>/` に `replaceFile` で書く。ペイン状態は表示の選択だけ（レイアウトと一緒に他の PC へ持ち運ばれるため）。ペインを移動したときは、ページのメモリに預けた機械を引き取る（引き取られないまま 10 秒たったら破棄。レイアウトストアは見ない）
+- **段階**: 1 コアと単体テスト（済み）、2 実行画面（同梱 1 本・キー・ブザー・`fitScreen`・前面表示・`seen`）、3 ライブラリ・目録・見本・ATTRACT・詳細カード・DIAG、4 セーブ・AUTO・IMPORT、5 XO の音・ORIGINAL・回転・CORE と STEP、6 MEM、7 e2e・負荷の測定・README・紹介ツアー
+- **見送り**: 巻き戻し、ファイルのドラッグ＆ドロップでの IMPORT、Octo のソース（.8o）やカートリッジ（.gif）の読み込み、ポップアップ表示（ダイアログを開くたびに閉じてゲームが止まるため）、矢印キーの割り当てをプログラムごとに変える設定（Octo と同じ固定の割り当てにしたので不要）
+
 ## 6. ターミナル設計
 
 ### 6.1 構成
@@ -1472,6 +1492,7 @@ elecdex/
 ├─ public/                 # README のバナー（elecdex_repo_card.svg）
 ├─ resources/
 │  ├─ icons/               # アプリと通知領域のアイコン
+│  ├─ chip8/test-suite/    # chip8-test-suite の ROM と Octo ソース（GPL-3.0、§5.18）
 │  └─ shell-integration/   # bash / zsh / fish / pwsh の注入スクリプト
 ├─ scripts/                # gen-icon / gen-repo-card / gen-geo / gen-cities / gen-screenshots、
 │                          # sync-calc（vendor の電卓を上書き同期）、fix-node-pty（postinstall）
@@ -1488,6 +1509,8 @@ elecdex/
 │  │  ├─ plugin-api.ts / plugin-runtime.ts / plugins.ts   # プラグインの公開型・Worker の実行時・検証
 │  │  ├─ plugin-keys.ts / plugin-sound.ts                # プラグインに渡すキー、プラグインが鳴らす音符の検査（純粋）
 │  │  ├─ calc/             # vendor/（elecxzy の評価器を無改変で）+ elecdex 側のラッパー + types/
+│  │  ├─ emu/              # エミュレータ共通の純粋関数: 時計（framesDue）、拡大率（fitScreen）（§5.18）
+│  │  ├─ chip8/            # CHIP-8 の機械: 状態・命令・画面・互換モード・フォント・スナップショット・逆アセンブル・推定・キー（§5.18）
 │  │  ├─ geo/              # 生成データ: 都市、国の重心、タイムゾーン → 国
 │  │  ├─ ai.ts             # AI チャット: プロバイダ、会話、main とページの間のイベント（§5.7）
 │  │  └─ weather*.ts / quakes*.ts / tsunami.ts / markets.ts / feeds.ts / notes.ts / tasks.ts / ...
@@ -1867,6 +1890,8 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | KEYSTREAM の一覧で難易度をまた選べるように、FREE PLAY をタブに（2026-09-28） | 利用者の決定。全難易度の最高記録を並べる形（前の行）をやめ、一覧の下に難易度のチップを戻して < > で替える（←→ はタブだけ。以前 < > はタブにも効いていた）。一覧の星と最高記録は選んでいる難易度のもの。Enter で開く難易度のパネルはそのまま残し、パネルでも < > が効く。FREE PLAY はどのタブにも最後の行として出ていたが、ELECTRO の後に FREE PLAY のタブを足し、FREE PLAY は ALL とそのタブにだけ出す（`rowsOf`、genres.ts）。FREE PLAY を選んでいる間は < > は何もせず、足元のキーの案内からも LEVEL を外す | 単体テスト: `rowsOf`（ALL と FREE PLAY のタブにだけ出る）、タブの一巡、一覧で < > が難易度を替えてその難易度で始まる、端より先と FREE PLAY では書かない、チップと < > の案内、選んでいる難易度の最高記録 |
 | KEYSTREAM の HARD の星は NORMAL + 1（2026-09-28） | 利用者の指摘（HARD と NORMAL で星が変わらない）。星は音符の密度だけから出すので、NORMAL と同じ音符の HARD は同じ星だった。HARD の難しさ（判定幅 3/4、SIGNAL が尽きると NO CARRIER）は音符に現れない。案は 3 つ: NORMAL + 1（上限 5）、判定幅の分だけ密度に掛ける、HARD の音符を増やす。当面は NORMAL + 1（`levelStars`）とし、後で見直す（利用者の決定）。音符を増やす案は、今でも HARD が難しいので採らない。★5 の曲は HARD でも ★5 のまま | 単体テスト: 全曲で HARD の星が min(5, NORMAL + 1)、NORMAL は音符から出したまま |
 | 紹介デモの音楽（v0.0.18 の後、2026-09-29） | 紹介ツアー（横版・縦版）の media の場面で、KEYSTREAM のオリジナル曲 BOOT SEQUENCE を流し、NOW PLAYING の次へで 180 BPM の FEVER CALL に替える。曲は `scripts/keystream-wav.mjs` がプラグインと同じ楽器のコード（instruments-wav.mjs の render と hear）で、伴奏とメロディ全部を最初の小節から WAV に書き出す（カウントインなし、メロディは SYNTH LEAD、ページと同じ -10 dB・12:1 のリミッターを通してピーク 0.89 に）。BOOT SEQUENCE 75 秒が約 8 秒で書ける（実時間の 13 倍）ので、ツアーの開始時に作り、プラグインと楽器のソースのハッシュを鍵に一時フォルダーに置く。流すのはスペアナの新しい代役 `ELECDEX_AUDIO_STUB=tracks`: `ELECDEX_AUDIO_TRACKS` の WAV のうち main が選んだもの（`globalThis.__elecdexAudio.play(i, heard)`）を隠しキャプチャウィンドウに渡し、ページが実際の取り込みと同じ設定のアナライザーに通す（`heard` のときだけスピーカーにも出す）。NOW PLAYING の代役には曲目を差し替える `playlist` を足し、Windows の Media Player が KEYSTREAM の曲を再生している体にした（ジャケットは代役の夕日と惑星のまま） | 利用者の提案（2026-09-29）: ダミーの動きではなく、流れている音楽でスペアナを動かす。音声の代役を外して本物の出力を拾う形は採らなかった: この PC の音（通知音も）を読み、ミキサーにも本物のアプリと音量が出て、デモの「この PC のものは何も読まない」に反するため。KEYSTREAM そのものを鳴らす形も、ペインがレイアウトにないと音を出さないので使えない。音とバーが同じサンプルから出るので、ずれない。代役は既定で無音（テストが使っても PC から音が出ない）、何も選ばれるまで鳴らさない。キャプチャウィンドウのプリロードに受け取りの関数を 1 つ足したが、main が送るのはこの代役のときだけで、ページから main に呼び返す口は増えていない（e2e: audio.spec の tracks、unit: stub-tracks、now-playing の playlist） |
+| CHIP-8 ペイン、段階 1（2026-09-29） | 設計は §5.18。利用者の設計案を参考に仕様を決め直し、画面のモックを見てもらってから着手した。利用者の決定: 60 Hz の rAF を例外として認める、見本の絵はビルド時に作る、レジスタ表示は既定で出して設定で切れる、FIT も用意する、ボタンの押下と画面の出入りは elecdex の他の部分と同じ演出にする、疎結合でベストプラクティスに従う（今後 Linux ペインなども作るため）。案から変えたもの: **コアを `shared/chip8` の純粋なモジュールに閉じ、機種に依らない時計と拡大率を `shared/emu` に分けた**（境界は単体テストが守る）、**Octo と同じく命令を機種で制限しない**、**機種の推定は制御の流れをたどる**、**倍率はデバイスピクセルで**、**XO の 4 色はアクセントの濃淡**、**WASM も eval も使わない**（CSP はそのまま） | chip8-test-suite の全 8 本が 3 機種で期待どおり（quirks の検出値を含む）。バイト列を数える推定は IBM ロゴのスプライト（`00FF` を含む）を SUPER-CHIP と誤った |
+| CHIP-8 のキーは Octo と同じ、一時停止は P（2026-09-29） | 矢印は 5・7・8・9、Space は 6 を押す。一時停止は Space から P に、一時停止中の 1 フレーム送りは Enter。Esc はアプリのもの（前面表示を戻す） | 最初の案では Space を一時停止にし、利用者も一度承認した。しかし Octo の実装を読んで、chip8Archive の作品が Octo のキー配置（矢印と Space）を前提にしていると分かったため、作品の操作を優先した。利用者に確認を求めている |
 
 ## 17. 既知の問題
 

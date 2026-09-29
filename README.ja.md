@@ -988,6 +988,8 @@ docs/           architecture.md (the design and the decision log, in Japanese), 
 | 軌道の伝播計算（SGP4） | [satellite.js](https://github.com/shashwatak/satellite-js) | MIT |
 | git ペインの差分のシンタックスカラー | [highlight.js](https://highlightjs.org/) | BSD-3-Clause |
 | 電卓の式評価器 | [elecxzy](https://github.com/kurouna/elecxzy) の `src/utils/calc` を無修正で `src/shared/calc/vendor` にコピー | MIT |
+| CHIP-8 のフォント | [Octo](https://github.com/JohnEarnest/Octo) の `js/emulator.js` から `src/shared/chip8/fonts.ts` にコピー | MIT |
+| CHIP-8 のテスト用プログラム（DIAG） | Timendus の [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)。`resources/chip8/test-suite` に Octo のソースとともに同梱 | GPL-3.0 |
 
 ジオロケーションのデータベースは同梱されているため、アカウントも API キーも初回起動時の
 ダウンロードも不要で、IP の検索がマシンの外に出ることはありません。

@@ -192,6 +192,25 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     container of the last listing, in a state that takes it, from a page that shows the list.
   - It is main's, not a metric source, and no plugin API reaches it. Rows never move by state.
   - Tests set `ELECDEX_DOCKER_STUB=1` and change the engine through `globalThis.__elecdexDocker`.
+- **The CHIP-8 pane** (architecture.md §5.18; being built in phases, the core first) runs
+  CHIP-8, SUPER-CHIP and XO-CHIP programs with a machine of our own in TypeScript - never WASM
+  or eval, so the page CSP stays as it is - drawn on 2D canvas.
+  - The machine is `shared/chip8`, and what any emulated machine needs (the frame clock, the
+    screen's scale in device pixels) is `shared/emu`. Both are pure: `shared/chip8` imports
+    only itself and `shared/emu`, `shared/emu` nothing, and neither touches the DOM, Node, a
+    timer, the clock or `Math.random` (a unit test holds them to it). A pane wraps them; it
+    never reaches in. A later emulator pane (Linux, ...) takes the same shape and shares
+    `shared/emu`, never another machine's folder.
+  - Octo is the reference, because chip8Archive's programs were written in it: every
+    platform runs every instruction, the platform decides only memory and quirks, and the
+    keys are Octo's (arrows and Space are pads 5 7 8 9 and 6). Timendus's chip8-test-suite
+    (resources/chip8/test-suite, GPL-3.0, shipped with its Octo sources) must pass on all
+    three platforms (chip8-suite.test.ts); a change to the core that moves a fixture is a
+    change to check against the suite's README, not a fixture to update.
+  - Its screens follow the app's manners: presses blink like the launcher's tiles, anything
+    that appears or goes powers on and off (`crt-on`, `crtPower`), lamps step with `pulse`.
+    The game's own frame loop is the one exception to the 10 fps loop, and runs only while
+    the program runs and the pane is `seen`.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or

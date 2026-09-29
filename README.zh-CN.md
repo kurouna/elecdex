@@ -855,6 +855,8 @@ docs/           architecture.md (the design and the decision log, in Japanese), 
 | 轨道外推（SGP4） | [satellite.js](https://github.com/shashwatak/satellite-js) | MIT |
 | git 窗格 diff 的语法高亮 | [highlight.js](https://highlightjs.org/) | BSD-3-Clause |
 | 计算器的表达式求值器 | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`，原样复制到 `src/shared/calc/vendor` | MIT |
+| CHIP-8 字体 | [Octo](https://github.com/JohnEarnest/Octo) 的 `js/emulator.js`，复制到 `src/shared/chip8/fonts.ts` | MIT |
+| CHIP-8 测试程序（DIAG） | Timendus 的 [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)，连同其 Octo 源码内置于 `resources/chip8/test-suite` | GPL-3.0 |
 
 地理定位数据库是内置的，因此不需要账号、API 密钥或首次运行时下载，IP 查询也永远不会离开本机。
 

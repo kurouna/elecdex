@@ -176,6 +176,19 @@ export const DATA_SOURCES = [
     licence: 'MIT',
     credit: 'https://github.com/kurouna/elecxzy',
   },
+  {
+    name: 'Octo',
+    use: "the CHIP-8 pane's hex fonts, copied from Octo's js/emulator.js into src/shared/chip8/fonts.ts (its licence is below)",
+    licence: 'MIT',
+    credit: 'Copyright (c) 2015, John Earnest. https://github.com/JohnEarnest/Octo',
+  },
+  {
+    name: 'chip8-test-suite',
+    use: "the CHIP-8 pane's DIAG programs (resources/chip8/test-suite), shipped with the Octo sources they are built from",
+    licence:
+      'GNU General Public License version 3, the licence of elecdex itself (LICENSE beside the executable, and resources/chip8/test-suite/LICENSE)',
+    credit: 'By Timendus and contributors. https://github.com/Timendus/chip8-test-suite',
+  },
 ]
 
 /** Packages whose data, not code, is in the app: made into the data files at build time. */
