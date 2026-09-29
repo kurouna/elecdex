@@ -62,7 +62,8 @@ export const browserHost = (sound: (tone: Tone | null) => void): RunnerHost => (
 export class Chip8Runner {
   status = $state<RunStatus>('empty')
   pausedBy = $state<PauseReason | null>(null)
-  program = $state<Chip8Program | null>(null)
+  /** Raw: replaced whole, and read in the machine's hot paths (see library.svelte.ts). */
+  program = $state.raw<Chip8Program | null>(null)
   /** The pads held down, from the keyboard or the on-screen keypad (one bit each). */
   keys = $state(0)
   /** The pads the program has asked about. */
@@ -70,7 +71,7 @@ export class Chip8Runner {
   sounding = $state(false)
   /** SUPER-CHIP's high resolution is on. */
   hires = $state(false)
-  /** Counts steps taken by hand, so a view of the registers redraws after each. */
+  /** Counts changes made by hand (a step, a reset), so a view of the registers reads again. */
   stepped = $state(0)
 
   readonly #host: RunnerHost
@@ -143,7 +144,10 @@ export class Chip8Runner {
     this.#emit()
   }
 
-  /** Starts the program again from its first instruction, with its tuning kept. */
+  /**
+   * Starts the program again from its first instruction, with its tuning kept. Paused, it
+   * stays paused at the start, where CORE's STEP can walk it from the first instruction.
+   */
   reset(seed: number): void {
     const machine = this.#machine
     const program = this.program
@@ -152,7 +156,8 @@ export class Chip8Runner {
     this.#stopLoop()
     this.#host.sound(null)
     this.#machine = Chip8.load(this.#rom, config, seed)
-    this.pausedBy = null
+    if (this.pausedBy === 'hidden') this.pausedBy = 'player'
+    this.stepped++
     this.#settle()
     this.#emit()
   }

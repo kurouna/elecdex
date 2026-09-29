@@ -793,8 +793,12 @@ weather and calendar.
   Everything runs on this machine with no network, and no plugin can reach any of it.
 - **CHIP-8** *(unreleased)* — add it from the picker ("chip-8"). A CHIP-8, SUPER-CHIP and
   XO-CHIP machine written for elecdex, which passes Timendus's chip8-test-suite on all three.
-  For now the library holds that suite's eight programs (the DIAG tab); the games of
-  chip8Archive come next. The screen is drawn at a whole number of screen pixels a dot, with a
+  The library holds the 104 programs of chip8Archive (CC0) - games, visual novels, rhythm games,
+  toys and the Octojam title cards, each with its authors - and that suite's eight (DIAG), in
+  tabs by kind with a search and the three machines to show or hide. Every row has a frame of
+  its screen, made when the library is built by running it on the same machine; resting on one
+  opens its card, and the one chosen plays by itself beside its details while you are at the
+  library (it rests after half a minute). The screen is drawn at a whole number of screen pixels a dot, with a
   phosphor afterglow and the gaps between dots (both can be turned off, and FIT fills the room
   instead), and grows when the pane is brought forward. The keypad is 1234 / QWER / ASDF / ZXCV
   by position, with the arrows and Space pressing 5 7 8 9 and 6 as in Octo; the pane takes keys
@@ -1047,6 +1051,7 @@ touch - are in [CLAUDE.md](CLAUDE.md).
 | Syntax colours in the git pane's diffs | [highlight.js](https://highlightjs.org/) | BSD-3-Clause |
 | Calculator's expression evaluator | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`, copied unmodified into `src/shared/calc/vendor` | MIT |
 | CHIP-8 fonts | [Octo](https://github.com/JohnEarnest/Octo) `js/emulator.js`, copied into `src/shared/chip8/fonts.ts` | MIT |
+| CHIP-8 programs | [chip8Archive](https://github.com/JohnEarnest/chip8Archive), by their authors, in `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/); credited in the pane |
 | CHIP-8 test programs (DIAG) | [chip8-test-suite](https://github.com/Timendus/chip8-test-suite) by Timendus, in `resources/chip8/test-suite` with their Octo sources | GPL-3.0 |
 
 The geolocation database is bundled, so there is no account, no API key and no first-run

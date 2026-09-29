@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod'
+import type { Preview } from './chip8/preview.js'
 import { quirksFor, quirksFromOcto } from './chip8/quirks.js'
 import {
   FONT_STYLES,
@@ -28,8 +29,21 @@ export const CHIP8_PROGRAM_ID = /^(diag|archive|imported)\/[a-z0-9][a-z0-9._+-]{
 export const isChip8ProgramId = (id: unknown): id is string =>
   typeof id === 'string' && CHIP8_PROGRAM_ID.test(id)
 
-/** The library's tabs, in their order. */
-export const CHIP8_GENRES = ['action', 'puzzle', 'showcase', 'toys', 'diag', 'imported'] as const
+/**
+ * The library's tabs, in their order. STORY holds the visual novels, adventures and RPGs,
+ * MUSIC the rhythm games and the tracker, TOYS what is played with rather than won (a
+ * paint program, an aquarium, three language interpreters), SHOWCASE the jams' title cards.
+ */
+export const CHIP8_GENRES = [
+  'action',
+  'puzzle',
+  'story',
+  'music',
+  'toys',
+  'showcase',
+  'diag',
+  'imported',
+] as const
 export type Chip8Genre = (typeof CHIP8_GENRES)[number]
 
 export const CHIP8_LICENCES = ['CC0-1.0', 'GPL-3.0', 'unknown'] as const
@@ -66,9 +80,24 @@ export interface Chip8Program {
   rotation: Rotation
   colours?: Chip8Colours
   licence: Chip8Licence
+  /** A frame of its screen for the list (shared/chip8/preview.ts), when it drew anything. */
+  preview?: Preview
+  /** The keys it asked about in its first seconds, one bit each: the keypad lights them. */
+  keys: number
 }
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i)
+
+/** A preview's bits: at most two planes of 128 x 64, in base64. */
+const PreviewSchema = z.object({
+  w: z.union([z.literal(64), z.literal(128)]),
+  h: z.union([z.literal(32), z.literal(64)]),
+  planes: z.union([z.literal(1), z.literal(2)]),
+  data: z
+    .string()
+    .max(2800)
+    .regex(/^[A-Za-z0-9+/]*={0,2}$/),
+})
 
 /** An entry of programs.json, in chip8Archive's terms, with the file its bytes are in. */
 export const Chip8CatalogEntrySchema = z.object({
@@ -92,6 +121,8 @@ export const Chip8CatalogEntrySchema = z.object({
     .object({ ground: hex, plane1: hex, plane2: hex, both: hex, buzz: hex.optional() })
     .optional(),
   licence: z.enum(CHIP8_LICENCES),
+  preview: PreviewSchema.optional(),
+  keys: z.number().int().min(0).max(0xffff).default(0),
   /** Beside programs.json: a folder and a .ch8 file, nothing that climbs out. */
   file: z.string().regex(/^[a-z0-9-]+\/[a-z0-9][a-z0-9._+-]{0,80}\.ch8$/i),
 })
@@ -124,6 +155,8 @@ export function programFromEntry(entry: Chip8CatalogEntry): Chip8Program {
     rotation: entry.screenRotation ?? 0,
     ...(entry.colours !== undefined ? { colours: entry.colours } : {}),
     licence: entry.licence,
+    ...(entry.preview !== undefined ? { preview: entry.preview } : {}),
+    keys: entry.keys,
   }
 }
 

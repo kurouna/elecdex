@@ -54,6 +54,7 @@ const PROGRAM: Chip8Program = {
   font: 'octo',
   rotation: 0,
   licence: 'unknown',
+  keys: 0,
 }
 
 /** v0 += 1 forever; with `draw`, a sprite XORed each time round too. */
@@ -159,7 +160,7 @@ describe('the runner', () => {
     expect(runner.machine?.state.keys).toBe(0)
   })
 
-  it('resets the program with its tuning kept', () => {
+  it('resets the program with its tuning kept, running or paused as it was', () => {
     const { runner, vsync } = loaded()
     runner.tune({ ipf: 4 })
     vsync()
@@ -167,6 +168,10 @@ describe('the runner', () => {
     expect(runner.machine?.state.cycles).toBe(0)
     expect(runner.machine?.state.config.ipf).toBe(4)
     expect(runner.status).toBe('running')
+    runner.pause()
+    runner.reset(3)
+    expect(runner.status).toBe('paused')
+    expect(runner.machine?.state.cycles).toBe(0)
   })
 
   it('hands its machine over without stopping it for good', () => {

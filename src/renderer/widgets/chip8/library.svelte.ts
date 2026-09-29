@@ -7,7 +7,11 @@ import type { Chip8Program } from '@shared/chip8-library'
  * pane does not ask again.
  */
 class Chip8Library {
-  programs = $state<Chip8Program[]>([])
+  /**
+   * Raw, not deep state: the list is only ever replaced whole, and a program's quirks are
+   * read by the machine on every instruction - through a proxy that cost a paint 4 ms.
+   */
+  programs = $state.raw<Chip8Program[]>([])
   loaded = $state(false)
   #loading: Promise<void> | null = null
   readonly #roms = new Map<string, Promise<Uint8Array | null>>()

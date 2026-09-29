@@ -275,6 +275,7 @@ describe('the catalog', () => {
       octo: { shiftQuirks: true, vBlankQuirks: false },
       fontStyle: 'vip',
       screenRotation: 90,
+      keys: 0,
     })
     expect(program.ipf).toBe(DEFAULT_IPF.chip8)
     expect(program.quirks).toEqual({ ...quirksFor('chip8'), shiftVx: true, displayWait: false })

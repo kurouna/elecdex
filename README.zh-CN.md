@@ -644,8 +644,11 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
     生成 UUID。输入的内容不会写入磁盘。
   全部在本机运行，不使用网络，插件也无法访问。
 - **CHIP-8** *(unreleased)* — 从选择器（"chip-8"）添加。这是为 elecdex 编写的 CHIP-8、SUPER-CHIP
-  和 XO-CHIP 虚拟机，在三种机型上都通过了 Timendus 的 chip8-test-suite。目前程序库收录该测试集的
-  8 个程序（DIAG 标签页），chip8Archive 的游戏将随后加入。屏幕以整数个屏幕像素绘制每个点，带有荧光
+  和 XO-CHIP 虚拟机，在三种机型上都通过了 Timendus 的 chip8-test-suite。程序库收录 chip8Archive（CC0）
+  的 104 个程序（游戏、视觉小说、节奏游戏、小玩具以及 Octojam 的标题画面，均注明作者）和该测试集的
+  8 个程序（DIAG），按种类分标签页，可搜索，也可显示或隐藏三种机型。每一行都带有屏幕预览，是在构建程序
+  库时用同一台虚拟机运行生成的；指针停留在行上会打开详情卡片，选中的程序会在详情旁自动演示（仅在你操作
+  程序库时，30 秒无操作即停止）。屏幕以整数个屏幕像素绘制每个点，带有荧光
   余辉和点与点之间的网格（两者都可关闭，FIT 可让画面填满窗格），窗格置于前面时画面随之放大。键盘按
   位置对应 1234 / QWER / ASDF / ZXCV，与 Octo 一样，方向键和空格键也会按下 5 7 8 9 和 6；只有窗格
   获得焦点时才接收按键，且不接收与 Ctrl 或 Alt 组合的按键。**P** 暂停，暂停时 **Enter** 前进一帧；
@@ -866,6 +869,7 @@ docs/           architecture.md (the design and the decision log, in Japanese), 
 | git 窗格 diff 的语法高亮 | [highlight.js](https://highlightjs.org/) | BSD-3-Clause |
 | 计算器的表达式求值器 | [elecxzy](https://github.com/kurouna/elecxzy) `src/utils/calc`，原样复制到 `src/shared/calc/vendor` | MIT |
 | CHIP-8 字体 | [Octo](https://github.com/JohnEarnest/Octo) 的 `js/emulator.js`，复制到 `src/shared/chip8/fonts.ts` | MIT |
+| CHIP-8 程序 | [chip8Archive](https://github.com/JohnEarnest/chip8Archive)，作者各异，内置于 `resources/chip8/archive` | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)；在窗格中署名 |
 | CHIP-8 测试程序（DIAG） | Timendus 的 [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)，连同其 Octo 源码内置于 `resources/chip8/test-suite` | GPL-3.0 |
 
 地理定位数据库是内置的，因此不需要账号、API 密钥或首次运行时下载，IP 查询也永远不会离开本机。

@@ -183,6 +183,13 @@ export const DATA_SOURCES = [
     credit: 'Copyright (c) 2015, John Earnest. https://github.com/JohnEarnest/Octo',
   },
   {
+    name: 'chip8Archive',
+    use: "the CHIP-8 pane's library of programs (resources/chip8/archive), each by the authors named beside it",
+    licence:
+      'Creative Commons Zero 1.0 (CC0 1.0), https://creativecommons.org/publicdomain/zero/1.0/',
+    credit: 'https://github.com/JohnEarnest/chip8Archive',
+  },
+  {
     name: 'chip8-test-suite',
     use: "the CHIP-8 pane's DIAG programs (resources/chip8/test-suite), shipped with the Octo sources they are built from",
     licence:

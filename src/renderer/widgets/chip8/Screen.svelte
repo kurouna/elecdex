@@ -61,6 +61,30 @@ const turned = $derived(rotation === 90 || rotation === 270)
 const css = $derived({ w: fit.width / room.ratio, h: fit.height / room.ratio })
 /** The grid between the dots: only where a dot is whole and big enough to show a gap. */
 const grid = $derived(dots && fit.whole && fit.scale >= 4)
+let gridCanvas = $state<HTMLCanvasElement | null>(null)
+
+/**
+ * The grid is a canvas of the picture's own device pixels with a one-pixel line in the
+ * ground's colour between the dots, drawn when the size or the ground changes and never
+ * again. Drawn by CSS gradients instead, the small screen canvas under it (which Chromium
+ * paints in software) had the gradients rasterised afresh on every frame it changed - with
+ * the afterglow fading, every frame: about a tenth of a core for the grid alone, measured.
+ */
+$effect(() => {
+  const el = gridCanvas
+  const ctx = el?.getContext('2d') ?? null
+  if (el === null || ctx === null) return
+  const width = Math.round(fit.width)
+  const height = Math.round(fit.height)
+  const step = fit.scale
+  const [r, g, b] = palette[0]
+  el.width = width
+  el.height = height
+  ctx.clearRect(0, 0, width, height)
+  ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.55)`
+  for (let x = 0; x < width; x += step) ctx.fillRect(x, 0, 1, height)
+  for (let y = 0; y < height; y += step) ctx.fillRect(0, y, width, 1)
+})
 
 $effect(() => {
   scale = fit.scale
@@ -101,7 +125,11 @@ function draw(force: boolean): void {
     image = ctx.createImageData(w, h)
     painter.reset()
   }
-  painter.paint({ width: w, height: h, pixels: s.pixels }, palette, image, glow)
+  // A new machine (a reset, a moved pane) is not the old one's picture fading out.
+  if (machine !== drawnMachine) painter.reset()
+  // Stopped or stepped by hand, no frames come to finish a fade: the picture is exact.
+  const glowing = glow && runner.status === 'running'
+  painter.paint({ width: w, height: h, pixels: s.pixels }, palette, image, glowing)
   ctx.putImageData(image, 0, 0)
   drawnMachine = machine
   drawnRevision = s.screenRevision
@@ -109,6 +137,11 @@ function draw(force: boolean): void {
 
 // Every frame the machine runs, or a step by hand.
 $effect(() => runner.onFrame(() => draw(false)))
+
+// Paused or stopped: drawn once more, exact, so no half-faded trail is left standing.
+$effect(() => {
+  if (runner.status !== 'running') draw(true)
+})
 
 // A new palette, the glow switched, or a new machine: draw at once, from scratch.
 $effect(() => {
@@ -129,7 +162,12 @@ $effect(() => {
     style:height="{turned ? css.w : css.h}px"
     data-testid="chip8-bezel"
   >
-    <div class="turn" style:width="{css.w}px" style:height="{css.h}px" style:transform="rotate({rotation}deg)">
+    <div
+      class="turn"
+      style:width="{css.w}px"
+      style:height="{css.h}px"
+      style:transform="translate(-50%, -50%) rotate({rotation}deg)"
+    >
       <canvas
         bind:this={canvas}
         width="64"
@@ -140,12 +178,7 @@ $effect(() => {
         data-hires={runner.hires}
       ></canvas>
       {#if grid}
-        <div
-          class="grid"
-          style:--dot="{fit.scale / room.ratio}px"
-          style:--line="{1 / room.ratio}px"
-          aria-hidden="true"
-        ></div>
+        <canvas class="grid" bind:this={gridCanvas} aria-hidden="true"></canvas>
       {/if}
     </div>
   </div>
@@ -200,9 +233,12 @@ $effect(() => {
   box-shadow: 0 0 0 4px var(--accent-faint);
 }
 
+/* Centred on the bezel whatever its turn: a picture turned a quarter is wider, before it
+   turns, than the box it lands in, and laid out by the grid it would start at the left. */
 .turn {
-  position: relative;
-  flex: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
 }
 
 canvas {
@@ -212,18 +248,11 @@ canvas {
   image-rendering: pixelated;
 }
 
-/* The gaps between dots, one device pixel wide, in the ground's colour: drawn once, never animated. */
+/* The gaps between dots, over the picture: a bitmap drawn once for the size. */
 .grid {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(90deg, var(--grid-ground) var(--line), transparent var(--line)) 0 0 / var(--dot) var(--dot),
-    linear-gradient(var(--grid-ground) var(--line), transparent var(--line)) 0 0 / var(--dot) var(--dot);
-  --grid-ground: color-mix(in srgb, var(--surface-0) 55%, transparent);
-}
-
-:global([data-mode='light']) .grid {
-  --grid-ground: color-mix(in srgb, #ffffff 60%, transparent);
+  image-rendering: pixelated;
 }
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { profileOf, quirksFor } from '@shared/chip8/quirks'
-import { PLATFORMS, type Platform, QUIRK_NAMES, type Quirks } from '@shared/chip8/types'
+import { PLATFORMS, QUIRK_NAMES, type Quirks } from '@shared/chip8/types'
+import { PROFILE_NAMES, QUIRK_LABELS } from './labels.ts'
 import type { Chip8Pane } from './pane-state.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
 
@@ -20,16 +21,6 @@ interface Props {
 const { runner, pane, hasOriginal, onchange }: Props = $props()
 
 const SPEEDS = [7, 15, 30, 100, 200, 500, 1000, 10000]
-const PROFILE_NAMES: Record<Platform, string> = { chip8: 'VIP', schip: 'SCHIP', xochip: 'XO' }
-const QUIRK_LABELS: Record<keyof Quirks, string> = {
-  vfReset: 'vf reset',
-  memIncrement: 'i increment',
-  shiftVx: 'shift vx',
-  jumpVx: 'jump vx',
-  clip: 'clip',
-  displayWait: 'display wait',
-  vfOrder: 'vf order',
-}
 
 let revision = $state(0)
 const config = $derived.by(() => {

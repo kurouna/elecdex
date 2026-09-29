@@ -747,8 +747,12 @@ Ctrl+Shift+1 から 6 に並んだ状態で始まり、すでにある一覧に�
     半角の変換（と NFKC）、UUID の生成をします。入力はディスクに書きません。
   どれもこの PC の中で動き、ネットワークは使わず、プラグインからは届きません。
 - **CHIP-8** *(unreleased)* — ピッカー（"chip-8"）から追加します。elecdex のために書いた CHIP-8・
-  SUPER-CHIP・XO-CHIP の機械で、Timendus の chip8-test-suite を 3 機種すべてで通ります。今のライブラリは
-  そのスイートの 8 本（DIAG タブ）で、chip8Archive のゲームは次に入ります。画面はドット 1 つを画面の
+  SUPER-CHIP・XO-CHIP の機械で、Timendus の chip8-test-suite を 3 機種すべてで通ります。ライブラリには
+  chip8Archive（CC0）の 104 本（ゲーム、ビジュアルノベル、リズムゲーム、おもちゃ、Octojam のタイトル
+  カード。作者名つき）とそのスイートの 8 本（DIAG）が入り、種類ごとのタブ、検索、3 機種の表示の切り替え
+  があります。どの行にも画面の見本が付き、ライブラリを作るときに同じ機械で動かして作ります。行に
+  ポインタを留めると詳細カードが開き、選んだプログラムは詳細の横で勝手に動きます（ライブラリを触って
+  いるあいだだけで、30 秒触らないと止まります）。画面はドット 1 つを画面の
   整数ピクセルで描き、蛍光体の残光とドットの間の格子を付けます（どちらも切れ、FIT で領域いっぱいにも
   できます）。ペインを前面に出すと大きくなります。キーパッドは位置で 1234 / QWER / ASDF / ZXCV、
   Octo と同じく矢印と Space も 5 7 8 9 と 6 を押します。キーを受け取るのはペインにフォーカスがある
@@ -1001,6 +1005,7 @@ docs/           architecture.md (the design and the decision log, in Japanese), 
 | git ペインの差分のシンタックスカラー | [highlight.js](https://highlightjs.org/) | BSD-3-Clause |
 | 電卓の式評価器 | [elecxzy](https://github.com/kurouna/elecxzy) の `src/utils/calc` を無修正で `src/shared/calc/vendor` にコピー | MIT |
 | CHIP-8 のフォント | [Octo](https://github.com/JohnEarnest/Octo) の `js/emulator.js` から `src/shared/chip8/fonts.ts` にコピー | MIT |
+| CHIP-8 のプログラム | [chip8Archive](https://github.com/JohnEarnest/chip8Archive)（作者はそれぞれ）。`resources/chip8/archive` に同梱 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)。ペインに表示 |
 | CHIP-8 のテスト用プログラム（DIAG） | Timendus の [chip8-test-suite](https://github.com/Timendus/chip8-test-suite)。`resources/chip8/test-suite` に Octo のソースとともに同梱 | GPL-3.0 |
 
 ジオロケーションのデータベースは同梱されているため、アカウントも API キーも初回起動時の

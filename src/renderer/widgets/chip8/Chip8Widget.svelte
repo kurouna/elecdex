@@ -1,5 +1,6 @@
 <script lang="ts">
 import { keyFate, padOf } from '@shared/chip8/keys'
+import type { Chip8Program } from '@shared/chip8-library'
 import { parseRgb } from '@shared/qr'
 import { onDestroy, untrack } from 'svelte'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
@@ -160,7 +161,9 @@ function onpointerup(event: PointerEvent): void {
 }
 
 // The screen's colours: the theme's, read again when it changes, or the author's.
-let themeColours = $state<Partial<{ ground: Rgb; accent: Rgb; strong: Rgb }>>({})
+// Raw: the palette is read for every dot of every frame, and a deep state's proxy made each
+// read a trap (4 ms a paint of 64 x 32, measured).
+let themeColours = $state.raw<Partial<{ ground: Rgb; accent: Rgb; strong: Rgb }>>({})
 $effect(() => {
   void appearance.revision
   const el = root
@@ -184,10 +187,11 @@ $effect(() => {
     ...(strong !== undefined ? { strong } : {}),
   }
 })
-const palette = $derived<Palette>(
-  (pane.palette === 'original' ? originalPalette(program?.colours) : null) ??
-    themePalette(themeColours),
-)
+const themed = $derived(themePalette(themeColours))
+/** A program's colours: its author's where the pane says so and it has them, else the theme's. */
+const paletteOf = (of: Chip8Program | null): Palette =>
+  (pane.palette === 'original' ? originalPalette(of?.colours) : null) ?? themed
+const palette = $derived(paletteOf(program))
 
 $effect(() => {
   const status = runner.status
@@ -268,6 +272,10 @@ onDestroy(() => {
         loaded={chip8Library.loaded}
         filter={pane.filter}
         selected={pane.program}
+        {paletteOf}
+        glow={pane.phosphor}
+        dots={pane.dots}
+        seen={visible}
         onfilter={(filter) => change({ filter })}
         onselect={(id) => change({ program: id })}
         onload={load}

@@ -28,7 +28,7 @@ npm run gen:card       # README banner: public/elecdex_repo_card.svg
 npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
 npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
-npm run gen:chip8      # CHIP-8 library: resources/chip8/programs.json (for now chip8-test-suite)
+npm run gen:chip8      # CHIP-8 library + previews: resources/chip8/programs.json (--archive <dir> to update chip8Archive)
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
 npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
@@ -556,7 +556,7 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   every variable (`themeVariables`), so switching never leaves one stale.
 - **Detail cards** (architecture.md §7.4): the whole of something shown while the pointer rests on
   it - a commit or a changed file, an agent's session, a clipboard entry, a Wi-Fi figure, a
-  satellite, the track playing - is drawn by
+  satellite, the track playing, a CHIP-8 program - is drawn by
   `widgets/common/HoverCard.svelte` and placed and timed by `lib/hover-card.ts` (`cardPlacement`,
   `anchorOf`, `HoverRest`), never by a card of a widget's own. It keeps inside its pane, opens
   after a rest (at once for the keyboard or when moving on from an open card), and powers on and

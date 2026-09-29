@@ -1296,7 +1296,7 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 
 ### 5.18 CHIP-8 ペイン（CHIP-8・SUPER-CHIP・XO-CHIP を遊ぶ）
 
-組み込みペイン `chip8`。CHIP-8、SUPER-CHIP、XO-CHIP のプログラムをペインの中で動かし、遊べるようにする（2026-09-29、利用者の設計案を参考に仕様を決め直し、画面のモックを見てもらってから着手）。同梱するのは chip8Archive（CC0、104 本）と chip8-test-suite（GPL-3.0、DIAG として）だけで、ほかは利用者が IMPORT で持ち込む。ネットワークは使わない。**段階 2（実行画面）まで作った**。ライブラリは今は DIAG の 8 本で、chip8Archive・見本の絵・ATTRACT・詳細カードは段階 3。
+組み込みペイン `chip8`。CHIP-8、SUPER-CHIP、XO-CHIP のプログラムをペインの中で動かし、遊べるようにする（2026-09-29、利用者の設計案を参考に仕様を決め直し、画面のモックを見てもらってから着手）。同梱するのは chip8Archive（CC0、104 本）と chip8-test-suite（GPL-3.0、DIAG として）だけで、ほかは利用者が IMPORT で持ち込む。ネットワークは使わない。**段階 3（ライブラリ）まで作った**。セーブ・AUTO・IMPORT は段階 4。
 
 - **構成（疎結合）**: 機種に依らない部分を `shared/emu/`（`clock.ts` の `framesDue`、`fit.ts` の `fitScreen`）、CHIP-8 の機械を `shared/chip8/` に置く。`shared/chip8` は自分と `shared/emu` しか import せず、`shared/emu` は何も import しない。DOM・Node・タイマー・時計・`Math.random` にも触れない（`chip8-boundary.test.ts` が守る）。だからページ（段階 2）、main（取り込んだ ROM の見本づくり、段階 3）、vitest が同じコードをそのまま動かす。ページ側のつなぎは `renderer/widgets/chip8/`、目録とセーブは `main/chip8/` に置く予定。**今後のエミュレータ系のペイン（Linux など）も同じ形にする**: 純粋な機械 + ページの小さな runner + main が持つ保存。`shared/emu` を共有し、別の機械のフォルダは import しない
 - **機械の形**: 状態はただのデータ（`state.ts` の `Chip8State`）、振る舞いは状態に作用する関数（`exec.ts` は命令の上位 4 ビットごとの小さな関数の表、`display.ts` はスプライト・消去・スクロール・解像度）、ページが持つのは `Chip8` クラス 1 つ（`machine.ts`: `load`・`restore`・`frame`・`step`・`press`・`release`・`releaseAll`・`tune`・`snapshot`）。時間は持たない。1 フレームは最大 `ipf` 命令と 60 Hz のタイマーを 1 回進めることで、いつ何回呼ぶかは呼ぶ側（`framesDue`）が決める。乱数は xorshift32 で、状態に持つ（スナップショットから同じ列が続く）
@@ -1314,7 +1314,11 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 - **main**（段階 2）: `chip8.list()` と `chip8.rom(id)` だけ（`main/chip8/catalog.ts`、`main/ipc/chip8.ts`）。`resources/chip8/programs.json` は `npm run gen:chip8`（`scripts/gen-chip8.mjs`）が書き、chip8Archive の言葉（Octo の互換フラグ名、`tickrate`、`fontStyle`、`screenRotation`）のまま持つ。`programFromEntry` がコアのプロファイルを通して機械の設定に直すので、プロファイルは 1 か所にしかない。ファイル名は 1 段のフォルダと .ch8 だけを許し（外へ出られない）、壊れた項目は 1 つずつ捨てる
 - **設定**（段階 2）: `chip8.core`（新しいペインで CORE を出すか、既定 ON。ペインごとに PANEL で変えられる）と `chip8.volume`（操作音とは別、既定 0.5、操作音が OFF なら鳴らない）
 - **main**（段階 3〜4）: 目録（同梱 + 取り込み、`chip8.list()`）、ROM は id で渡す（`chip8.rom(id)`、パスを受け取る API は作らない）、IMPORT は main の picker（大きさを確かめ、`userData/chip8/imported/<sha256>.ch8` に置く。見本の絵と SENSED のキーは main がコアを数百フレーム動かして作る）、プログラムごとの調整（IPF・互換モード・★）は `chip8-library.json`、セーブは AUTO と 3 枠を `userData/chip8/saves/<id>/` に `replaceFile` で書く。ペイン状態は表示の選択だけ（レイアウトと一緒に他の PC へ持ち運ばれるため）。ペインを移動したときは、ページのメモリに預けた機械を引き取る（引き取られないまま 10 秒たったら破棄。レイアウトストアは見ない）
-- **段階**: 1 コアと単体テスト（済み）、2 実行画面（済み: DIAG 8 本・キー・ブザー・`fitScreen`・前面表示・`seen`・CORE・TUNE・基本のライブラリ）、3 ライブラリ・目録・見本・ATTRACT・詳細カード・DIAG、4 セーブ・AUTO・IMPORT、5 XO の音・ORIGINAL・回転・CORE と STEP、6 MEM、7 e2e・負荷の測定・README・紹介ツアー
+- **ライブラリ**（段階 3）: chip8Archive の 104 本（CC0、`resources/chip8/archive` に ROM と元の `programs.json` を `source.json` として、取った commit は同じフォルダの README）とテストスイートの 8 本。タブは ACTION・PUZZLE・STORY（ビジュアルノベル・アドベンチャー・RPG）・MUSIC（リズムゲームとトラッカー）・TOYS（遊ぶもの: ペイント・水槽・言語処理系）・SHOWCASE（Octojam のタイトル）・DIAG・IMPORTED で、振り分けは gen-chip8 の表（全 104 本を割り当てていることを確かめる）。chip8Archive の色名（`hotpink` など）、3 桁、`#` なしの色は #rrggbb に直し、書かれていない色は Octo の既定色で埋める
+- **見本の絵**（`shared/chip8/preview.ts`）: `npm run gen:chip8` がどのプログラムもペインと同じコアで 10 秒分（600 フレーム、固定の種）キーを押さずに動かし、10 フレームごとの画面から `pickPreview`（点いたドットが最も多いもの。ほぼ全部点いた画面は除く）が選んだ 1 枚を、面ごとに 1 ビットで詰めて base64 にして programs.json に入れる（112 本で 200 KB）。そのとき調べたキー（SENSED）も入れ、キーパッドの図に光らせる。ページはテーマか作者の色で描く（PNG にしないのはそのため）。単体テストが、programs.json の見本とキーが今のコアが描くものと一致することを確かめる（コアを変えたら gen:chip8 をやり直す）。gen-chip8 は Node のフックで `.js` を `.ts` に解決して TypeScript のコアをそのまま読む（Node 23.6 以降は型を外して動かす）
+- **ATTRACT**（`Attract.svelte`）: 選んだプログラムを詳細の横で、キーも音もなく、ゲームと同じ runner で 10 秒ずつ繰り返し動かす。動くのはライブラリが見えていて、**30 秒以内にポインタかキーか検索の入力があった間だけ**。誰も触らなければ止まって、その画のまま待つ。動き続けると 1 コアの 2 割ほどかかった。動きを減らす設定では見本の静止画
+- **行と詳細カード**: 行は見本の絵・題名・作者と催し・機種・年。留まると `ProgramCard`（HoverCard）が説明の全文、機種と画面、速さ、互換モード（プロファイル名か、機種の既定からの差）、キー、日付、回転、ライセンスを出す（行にある題名・作者・催し・年は繰り返さない。`programRows`）。検索と並べ替えで行が消えたときは、leave が来ないのでカードを閉じる（見つけた不具合）。検索はタブに関係なくライブラリ全体から探し、その間タブは淡くなる
+- **段階**: 1 コアと単体テスト（済み）、2 実行画面（済み）、3 ライブラリ・目録・見本・ATTRACT・詳細カード・DIAG（済み）、4 セーブ・AUTO・IMPORT、5 XO の音・ORIGINAL・回転・CORE と STEP、6 MEM、7 e2e・負荷の測定・README・紹介ツアー
 - **見送り**: 巻き戻し、ファイルのドラッグ＆ドロップでの IMPORT、Octo のソース（.8o）やカートリッジ（.gif）の読み込み、ポップアップ表示（ダイアログを開くたびに閉じてゲームが止まるため）、矢印キーの割り当てをプログラムごとに変える設定（Octo と同じ固定の割り当てにしたので不要）
 
 ## 6. ターミナル設計
@@ -1495,7 +1499,7 @@ elecdex/
 ├─ public/                 # README のバナー（elecdex_repo_card.svg）
 ├─ resources/
 │  ├─ icons/               # アプリと通知領域のアイコン
-│  ├─ chip8/test-suite/    # chip8-test-suite の ROM と Octo ソース（GPL-3.0、§5.18）
+│  ├─ chip8/               # programs.json（gen:chip8）、archive/（chip8Archive、CC0）、test-suite/（GPL-3.0、Octo ソース付き）（§5.18）
 │  └─ shell-integration/   # bash / zsh / fish / pwsh の注入スクリプト
 ├─ scripts/                # gen-icon / gen-repo-card / gen-geo / gen-cities / gen-screenshots、
 │                          # sync-calc（vendor の電卓を上書き同期）、fix-node-pty（postinstall）
@@ -1897,6 +1901,7 @@ Phase 2.5（任意・後続）: ドラッグによるペイン分割/移動UI、
 | CHIP-8 のキーは Octo と同じ、一時停止は P（2026-09-29） | 矢印は 5・7・8・9、Space は 6 を押す。一時停止は Space から P に、一時停止中の 1 フレーム送りは Enter。Esc はアプリのもの（前面表示を戻す） | 最初の案では Space を一時停止にし、利用者も一度承認した。しかし Octo の実装を読んで、chip8Archive の作品が Octo のキー配置（矢印と Space）を前提にしていると分かったため、作品の操作を優先した。利用者に確認を求めている |
 | CHIP-8 ペイン、段階 2（2026-09-29） | 設計は §5.18。実行画面、キー、音、CORE・TUNE、基本のライブラリ、前面表示、見えない間の一時停止、ペインを動かしても続く機械、再起動で一時停止のまま戻る。**ループは画面が動く間だけ rAF、止まって半秒でタイマー**。**音は AudioWorklet**（案では AudioBufferSource のループだったが、XO の音楽は毎フレーム高さと模様が変わるので、位相を保って Octo と同じ質で鳴らすため）。**一覧の行は scrollIntoView で見せない**。見つけて直したもの: 見えない間に ResizeObserver が 0 を返し右の列が畳まれていた（e2e で再現、0 は無視） | 1920×1080 で時計の横 65% のペイン、Corax+（1000 命令/フレーム、描き終えて空回り）: ライブラリ 7.8%、実行中 15.8%、一時停止 10.2%（1 コア比、アプリ全体）。最初は実行中 27.1%。何もしない rAF だけで +5.5% かかり、JS は 2% だった（プロファイル）。タイマーへの切り替えで 20.8%、CORE で命令数を出さないで 15.8% |
 | ワークスペースの `<main>` は `overflow: clip`（2026-09-30） | 隠れているステータスバーは `transform` で `<main>` の下へ押し出してあり、その分が `<main>` のスクロールできる範囲になっていた。`overflow: hidden` はスクリプトからのスクロールを許すので、フォーカスや `scrollIntoView`（テストのクリックも）で全ペインがバーの高さ（約 20px）だけ上にずれ、そのまま残った。`clip` はスクロールの箱にならない。chrome.spec が、スクリプトからのスクロールでも位置が動かず、バーは今までどおり出入りすることを確かめる | CHIP-8 ペインのスクリーンショットで、Playwright のクリックの後に画面が 20px ずれていたことから見つけた。どのレイアウトでも `scrollHeight` が `clientHeight` より 20px 大きかった |
+| CHIP-8 ペイン、段階 3（2026-09-30） | 設計は §5.18。chip8Archive の 104 本、ビルド時の見本の絵、ATTRACT、詳細カード、検索と機種の切り替え、タブを STORY と MUSIC を足した 8 つに。直したこと: **ライブラリの一覧・テーマの色・runner の program を `$state.raw` に**（深い `$state` のプロキシ越しに、描画のドットごとの色と、命令ごとの互換モードを読んでいた）、**ドットの格子を CSS のグラデーションから一度描く canvas に**、**ATTRACT は 30 秒触らなければ休む**、描画の関数をドットごとに作らない、名前の表を 1 か所に（`labels.ts`）。**一時停止中の RESET は一時停止のまま**始めに戻す（CORE の STEP で最初から追える）。**止まっている間は残光を付けずに正確に描く**（フレームが来ないので消えかけの尾が残っていた。新しい機械は古い画の残光から始めない）。**回した画面は枠の中央に絶対配置**（90°・270° の画は回す前は枠より広く、グリッドが左から並べていた）。命令ごとの `Op` の割り当ては測って残した（10000 命令/フレームで 0.119 ms） | ライブラリ（時計の横、1920×1080、1 コア比）: ATTRACT が動いて 43.5% → プロキシをやめて 29.7% → 格子を canvas にして ATTRACT 中 29.6%（格子の分はほぼ 0、残光の分が約 10%）、休んだ後 7.5%。描画は 64×32 で 1 回 4 ms → 0.027 ms。実行中 9.3%、一時停止 5.4% |
 
 ## 17. 既知の問題
 

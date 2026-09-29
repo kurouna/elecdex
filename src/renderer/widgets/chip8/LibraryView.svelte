@@ -1,48 +1,105 @@
 <script lang="ts">
-import { CHIP8_GENRES, type Chip8Genre, type Chip8Program } from '@shared/chip8-library'
+import { PLATFORMS, type Platform } from '@shared/chip8/types'
+import { CHIP8_GENRES, type Chip8Program } from '@shared/chip8-library'
 import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
+import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import Attract from './Attract.svelte'
+import { GENRE_LABELS, keyWords, PLATFORM_CHIPS, screenWords } from './labels.ts'
+import ProgramCard from './ProgramCard.svelte'
+import type { Palette } from './palette.ts'
 import type { LibraryFilter } from './pane-state.ts'
+import Thumb from './Thumb.svelte'
 
 /**
- * The CHIP-8 library (docs/architecture.md section 5.18): tabs by kind, the programs, and
- * the chosen one's details with LOAD. A tab change powers the list off and on, rows come in
- * like tiles, and the program chosen blinks, the launcher's way, before it loads.
+ * The CHIP-8 library (docs/architecture.md section 5.18): tabs by kind, a search and the
+ * three machines to show or hide, the programs with their previews, and the chosen one
+ * playing by itself beside its details and LOAD. A tab change powers the list off and on,
+ * rows come in like tiles, and the program chosen blinks, the launcher's way, before it
+ * loads. A row rested on opens its detail card.
  *
- * Keys, while the pane has them: up and down choose, Enter loads, left and right change tab.
+ * Keys, while the pane has them: up and down choose, Enter loads, left and right change
+ * tab; in the search, up, down and Enter do the same.
  */
 interface Props {
   programs: Chip8Program[]
   loaded: boolean
   filter: LibraryFilter
   selected: string | null
+  /** The colours a program is drawn in: the theme's, or its author's where the pane says so. */
+  paletteOf: (program: Chip8Program) => Palette
+  glow: boolean
+  dots: boolean
+  /** The library is seen: its attract mode plays only then. */
+  seen: boolean
   onfilter: (filter: LibraryFilter) => void
   onselect: (id: string) => void
   onload: (id: string) => void
 }
 
-const { programs, loaded, filter, selected, onfilter, onselect, onload }: Props = $props()
+const {
+  programs,
+  loaded,
+  filter,
+  selected,
+  paletteOf,
+  glow,
+  dots,
+  seen,
+  onfilter,
+  onselect,
+  onload,
+}: Props = $props()
 
-const GENRE_LABELS: Record<Chip8Genre, string> = {
-  action: 'action',
-  puzzle: 'puzzle',
-  showcase: 'showcase',
-  toys: 'toys',
-  diag: 'diag',
-  imported: 'imported',
+/**
+ * The attract mode plays while someone is at the library: the pointer moving over it, a
+ * key, a search. Half a minute without, it rests on its frame - a demo running on and on
+ * for nobody cost a fifth of a core.
+ */
+const ATTRACT_AWAKE_MS = 30_000
+let awake = $state(true)
+let dozing: ReturnType<typeof setTimeout> | null = null
+
+function stir(): void {
+  if (!awake) awake = true
+  if (dozing !== null) clearTimeout(dozing)
+  dozing = setTimeout(() => {
+    dozing = null
+    awake = false
+  }, ATTRACT_AWAKE_MS)
 }
-const PLATFORM_CHIPS = { chip8: 'C8', schip: 'SC', xochip: 'XO' } as const
+stir()
+$effect(() => () => {
+  if (dozing !== null) clearTimeout(dozing)
+})
+
+let query = $state('')
+let hidden = $state.raw<Platform[]>([])
+
+const matches = (program: Chip8Program, words: string): boolean =>
+  words === '' ||
+  [program.title, ...program.authors, program.event ?? '', program.description]
+    .join(' ')
+    .toLowerCase()
+    .includes(words)
 
 /** The tabs that have something in them, after ALL. */
 const tabs = $derived<LibraryFilter[]>([
   'all',
   ...CHIP8_GENRES.filter((g) => programs.some((p) => p.genre === g)),
 ])
-const shown = $derived(filter === 'all' ? programs : programs.filter((p) => p.genre === filter))
+/** Searching looks through the whole library, whichever tab is open. */
+const searching = $derived(query.trim() !== '')
+const shown = $derived.by(() => {
+  const words = query.trim().toLowerCase()
+  const inTab = (p: Chip8Program) => searching || filter === 'all' || p.genre === filter
+  return programs.filter((p) => inTab(p) && !hidden.includes(p.platform) && matches(p, words))
+})
 const chosen = $derived(shown.find((p) => p.id === selected) ?? shown[0] ?? null)
 
+let root = $state<HTMLElement | null>(null)
 let list = $state<HTMLDivElement | null>(null)
 
 function rowOf(id: string): HTMLElement | null {
@@ -51,7 +108,7 @@ function rowOf(id: string): HTMLElement | null {
 
 /**
  * Scrolls the list, and only the list, to show a row: scrollIntoView would move every
- * scrolling ancestor too, the workspace among them.
+ * scrolling ancestor too.
  */
 function keepInView(row: HTMLElement | null): void {
   const box = list
@@ -79,14 +136,19 @@ function setFilter(next: LibraryFilter): void {
   onfilter(next)
 }
 
+function toggle(platform: Platform): void {
+  hidden = hidden.includes(platform) ? hidden.filter((p) => p !== platform) : [...hidden, platform]
+}
+
 /** A key pressed while the pane has the keyboard and the library shows; true when it was ours. */
 export function key(event: KeyboardEvent): boolean {
+  stir()
   const at = shown.findIndex((p) => p.id === chosen?.id)
   switch (event.code) {
     case 'ArrowDown':
     case 'ArrowUp': {
-      const next =
-        shown[Math.max(0, Math.min(shown.length - 1, at + (event.code === 'ArrowDown' ? 1 : -1)))]
+      const step = event.code === 'ArrowDown' ? 1 : -1
+      const next = shown[Math.max(0, Math.min(shown.length - 1, at + step))]
       if (next !== undefined) choose(next.id)
       return true
     }
@@ -105,10 +167,60 @@ export function key(event: KeyboardEvent): boolean {
   }
 }
 
+/** In the search, the list is still walked and loaded from; left and right move the caret. */
+function searchKey(event: KeyboardEvent): void {
+  if (event.ctrlKey || event.altKey || event.metaKey) return
+  const walk = event.code === 'ArrowDown' || event.code === 'ArrowUp' || event.code === 'Enter'
+  if (walk && key(event)) event.preventDefault()
+}
+
+/** The program whose card is up, and where its row is, in the library's own pixels. */
+let hover = $state.raw<{ id: string; anchor: CardAnchor; bounds: CardSize } | null>(null)
+const resting = new HoverRest<string>(() => (hover = null))
+
+function rest(id: string, event: PointerEvent): void {
+  const row = event.currentTarget as HTMLElement
+  const x = event.clientX
+  resting.enter(id, () => {
+    if (root === null) return
+    const box = root.getBoundingClientRect()
+    hover = {
+      id,
+      anchor: anchorOf(box, row.getBoundingClientRect(), x),
+      bounds: { width: box.width, height: box.height },
+    }
+  })
+}
+
+const hovered = $derived(hover === null ? null : (shown.find((p) => p.id === hover?.id) ?? null))
+
+// A row that goes from under the pointer (a search, a tab) sends no leave: its card goes here.
+$effect(() => {
+  const id = hover?.id
+  if (id !== undefined && !shown.some((p) => p.id === id)) resting.leave()
+})
+
+// Out of sight, the card goes with the rest of what moves.
+$effect(() => {
+  if (!seen) resting.leave()
+})
+$effect(() => () => resting.dispose())
+
 const year = (released: string | undefined): string => released?.slice(0, 4) ?? ''
+/** The pads in the keypad's own order, row by row. */
+const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0xa, 0x0, 0xb, 0xf]
 </script>
 
-<div class="library" data-testid="chip8-library">
+<div
+  class="library"
+  role="region"
+  aria-label="library"
+  bind:this={root}
+  onpointermove={stir}
+  oninput={stir}
+  data-testid="chip8-library"
+  data-awake={awake}
+>
   <div class="tabs" role="tablist" aria-label="kinds">
     {#each tabs as tab (tab)}
       <button
@@ -116,6 +228,7 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
         class="tab"
         role="tab"
         aria-selected={filter === tab}
+        class:dim={searching}
         onclick={() => setFilter(tab)}
         data-testid="chip8-filter"
         data-filter={tab}
@@ -124,6 +237,31 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
         <small>{tab === 'all' ? programs.length : programs.filter((p) => p.genre === tab).length}</small>
       </button>
     {/each}
+  </div>
+
+  <div class="bar">
+    <input
+      class="search"
+      type="search"
+      spellcheck="false"
+      placeholder="search title, author, jam"
+      aria-label="search the library"
+      bind:value={query}
+      onkeydown={searchKey}
+      data-testid="chip8-search"
+    />
+    <span class="machines" role="group" aria-label="machines">
+      {#each PLATFORMS as platform (platform)}
+        <button
+          type="button"
+          class="c8-chip"
+          aria-pressed={!hidden.includes(platform)}
+          onclick={() => toggle(platform)}
+          data-testid="chip8-machine"
+          data-platform={platform}>{PLATFORM_CHIPS[platform]}</button
+        >
+      {/each}
+    </span>
   </div>
 
   <div class="main">
@@ -147,9 +285,18 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
             style:--delay="{Math.min(i, 12) * 22}ms"
             onclick={() => choose(program.id)}
             ondblclick={() => load(program.id)}
+            onpointerenter={(e) => rest(program.id, e)}
+            onpointerleave={() => resting.leave(program.id)}
             data-testid="chip8-program"
             data-program={program.id}
           >
+            <Thumb
+              preview={program.preview}
+              palette={paletteOf(program)}
+              rotation={program.rotation}
+              width={64}
+              height={32}
+            />
             <span class="name">
               <b>{program.title}</b>
               <span>{program.authors.join(', ')}{program.event ? ` · ${program.event}` : ''}</span>
@@ -158,13 +305,14 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
             <span class="year">{year(program.released)}</span>
           </button>
         {:else}
-          <p class="empty">{loaded ? 'No programs here.' : 'Reading the library…'}</p>
+          <p class="empty">{loaded ? 'Nothing here matches.' : 'Reading the library…'}</p>
         {/each}
       </div>
     {/key}
 
     {#if chosen !== null}
       <div class="detail" data-testid="chip8-detail" data-program={chosen.id}>
+        <Attract program={chosen} palette={paletteOf(chosen)} {glow} {dots} seen={seen && awake} />
         <div class="title">{chosen.title}</div>
         <div class="meta">
           {[chosen.authors.join(', '), chosen.event, chosen.released].filter(Boolean).join(' · ')}
@@ -174,12 +322,20 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
           <dt>machine</dt>
           <dd>
             <span class="c8-chip plain">{PLATFORM_CHIPS[chosen.platform]}</span>
-            {chosen.platform === 'chip8' ? '64 × 32' : '64 × 32 / 128 × 64'}{chosen.platform === 'xochip' ? ' · 4 colours' : ''}
+            {screenWords(chosen.platform)}
           </dd>
           <dt>speed</dt>
-          <dd>{chosen.ipf} a frame</dd>
-          <dt>licence</dt>
-          <dd>{chosen.licence}</dd>
+          <dd>{chosen.ipf.toLocaleString('en-US')} a frame</dd>
+          <dt>keys</dt>
+          <dd
+            class="keys"
+            aria-label={chosen.keys === 0 ? 'none seen' : keyWords(chosen.keys)}
+            data-testid="chip8-detail-keys"
+          >
+            {#each KEY_ORDER as pad (pad)}
+              <i class:on={(chosen.keys & (1 << pad)) !== 0}>{pad.toString(16).toUpperCase()}</i>
+            {/each}
+          </dd>
         </dl>
         <div class="actions">
           <button
@@ -194,12 +350,18 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
   </div>
 
   <div class="credits">
+    <span>programs · chip8Archive · CC0 1.0 · by their authors</span>
     <span>diag · chip8-test-suite (Timendus) · GPL-3.0</span>
   </div>
+
+  {#if hovered !== null && hover !== null}
+    <ProgramCard program={hovered} anchor={hover.anchor} bounds={hover.bounds} />
+  {/if}
 </div>
 
 <style>
 .library {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -226,6 +388,11 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
   cursor: pointer;
 }
 
+/* While a search looks through them all, the tabs step back. */
+.tab.dim {
+  opacity: 0.45;
+}
+
 .tab small {
   margin-left: 0.3em;
   font-family: var(--font-mono);
@@ -245,6 +412,38 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
   bottom: -1px;
   height: 2px;
   background: var(--accent);
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.search {
+  flex: 1;
+  min-width: 6rem;
+  border: 0;
+  border-bottom: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  padding: 1px var(--space-1);
+  outline: none;
+}
+
+.search::placeholder {
+  color: var(--text-muted);
+}
+
+.search:focus {
+  border-bottom-color: var(--accent);
+}
+
+.machines {
+  display: inline-flex;
+  gap: 2px;
 }
 
 .main {
@@ -273,7 +472,7 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
   font: inherit;
   text-align: left;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 3.2em;
+  grid-template-columns: auto minmax(0, 1fr) auto 3.2em;
   align-items: center;
   gap: var(--space-2);
   padding: 3px var(--space-1);
@@ -398,7 +597,32 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
   gap: var(--space-2);
 }
 
+.keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1.1rem);
+  gap: 2px;
+}
+
+.keys i {
+  font-style: normal;
+  text-align: center;
+  font-size: var(--step--2);
+  line-height: 1.4;
+  border: 1px solid var(--panel-rule);
+  color: var(--text-muted);
+}
+
+.keys i.on {
+  color: var(--text-inverse);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
 .credits {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
   border-top: 1px solid var(--panel-rule);
   padding-top: 2px;
   font-family: var(--font-ui);
@@ -409,7 +633,39 @@ const year = (released: string | undefined): string => released?.slice(0, 4) ?? 
 
 /* A narrow pane: the list alone, the chosen one loads with Enter or a double click. */
 @container chip8 (max-width: 520px) {
-  .main {
+  .bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.search {
+  flex: 1;
+  min-width: 6rem;
+  border: 0;
+  border-bottom: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  padding: 1px var(--space-1);
+  outline: none;
+}
+
+.search::placeholder {
+  color: var(--text-muted);
+}
+
+.search:focus {
+  border-bottom-color: var(--accent);
+}
+
+.machines {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.main {
     grid-template-columns: minmax(0, 1fr);
   }
 

@@ -31,6 +31,23 @@ export interface Frame {
   pixels: Uint8Array
 }
 
+/** How far a colour is from the ground, in summed channel units. */
+const fromGround = (r: number, g: number, b: number, ground: Rgb): number =>
+  Math.abs(r - ground[0]) + Math.abs(g - ground[1]) + Math.abs(b - ground[2])
+
+/** A still frame at once, with no glow: a preview in the library's list. */
+export function paintStill(frame: Frame, palette: Palette, out: Pixels): void {
+  const size = frame.width * frame.height
+  for (let k = 0; k < size; k++) {
+    const c = palette[(frame.pixels[k] ?? 0) & 3] ?? palette[0]
+    const o = k * 4
+    out.data[o] = c[0]
+    out.data[o + 1] = c[1]
+    out.data[o + 2] = c[2]
+    out.data[o + 3] = 255
+  }
+}
+
 export class Painter {
   #colour = new Float32Array(0)
   #width = 0
@@ -80,12 +97,10 @@ export class Painter {
 
   /** A dot lighting up, or turning to a colour further from the ground: no glow, at once. */
   #brighter(at: number, target: Rgb, ground: Rgb): boolean {
-    const distance = (r: number, g: number, b: number) =>
-      Math.abs(r - ground[0]) + Math.abs(g - ground[1]) + Math.abs(b - ground[2])
     const c = this.#colour
     return (
-      distance(target[0], target[1], target[2]) >=
-      distance(c[at] ?? 0, c[at + 1] ?? 0, c[at + 2] ?? 0)
+      fromGround(target[0], target[1], target[2], ground) >=
+      fromGround(c[at] ?? 0, c[at + 1] ?? 0, c[at + 2] ?? 0, ground)
     )
   }
 

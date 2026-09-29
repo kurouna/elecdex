@@ -6,6 +6,7 @@ import { sfx } from '../../stores/sound.svelte.ts'
 import CoreView from './CoreView.svelte'
 import { haltLines } from './core.ts'
 import Keypad from './Keypad.svelte'
+import { PLATFORM_CHIPS } from './labels.ts'
 import type { Palette } from './palette.ts'
 import { CHIP8_TABS, type Chip8Pane, type Chip8Tab, PANEL_WIDTH, panelShown } from './pane-state.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
@@ -34,7 +35,6 @@ interface Props {
 const { runner, program, pane, panelWanted, palette, listening, onback, onreset, onchange }: Props =
   $props()
 
-const PLATFORM_CHIPS = { chip8: 'C8', schip: 'SC', xochip: 'XO' } as const
 const TAB_LABELS: Record<Chip8Tab, string> = { core: 'core', tune: 'tune' }
 
 let scale = $state(0)
