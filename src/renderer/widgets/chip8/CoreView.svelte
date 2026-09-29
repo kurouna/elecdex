@@ -71,7 +71,9 @@ $effect(() => {
   const loads = runner.loads
   if (loads === loadsSeen) return
   loadsSeen = loads
-  if (appearance.reducedMotion) return
+  // Read once, not followed: a change of the setting mid-line must not end the typing
+  // halfway (the effect's cleanup would stop it and leave the caret).
+  if (untrack(() => appearance.reducedMotion)) return
   typed = 0
   const stop = onFrame(() => {
     typed += BOOT_CHARS_A_FRAME

@@ -149,7 +149,7 @@ export type Chip8ImportChange = z.infer<typeof Chip8ImportChangeSchema>
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i)
 
 /** A preview's bits: at most two planes of 128 x 64, in base64. */
-const PreviewSchema = z.object({
+export const PreviewSchema = z.object({
   w: z.union([z.literal(64), z.literal(128)]),
   h: z.union([z.literal(32), z.literal(64)]),
   planes: z.union([z.literal(1), z.literal(2)]),

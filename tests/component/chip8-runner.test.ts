@@ -259,6 +259,58 @@ describe('the runner with kept machines', () => {
   })
 })
 
+describe('found in review (2026-09-30)', () => {
+  it("leaves the game as it is when a slot's machine cannot be taken up", () => {
+    const { runner, vsync } = loaded()
+    vsync()
+    const machine = runner.machine
+    const other = { ...PROGRAM, platform: 'schip' as const, quirks: quirksFor('schip') }
+    const kept = new Chip8Runner(fakeHost().host)
+    kept.load(other, counting(), 1)
+    const wrong = kept.snapshot()
+    expect(runner.load(PROGRAM, counting(), 2, { snapshot: wrong, strict: true })).toBe(false)
+    expect(runner.load(PROGRAM, counting(), 2, { snapshot: null, strict: true })).toBe(false)
+    expect(runner.machine).toBe(machine)
+    expect(runner.machine?.state.cycles).toBe(10)
+    expect(runner.status).toBe('running')
+  })
+
+  it('loads nothing once disposed: a start that lands after its pane went', () => {
+    const { host, frames, timers } = fakeHost()
+    const runner = new Chip8Runner(host)
+    runner.dispose()
+    expect(runner.load(PROGRAM, counting(), 1)).toBe(false)
+    expect(runner.status).toBe('empty')
+    expect(frames.size + timers.size).toBe(0)
+  })
+
+  it('never runs a program loaded or taken up out of sight, nor goes on by itself when seen', () => {
+    const { host, frames, timers } = fakeHost()
+    const runner = new Chip8Runner(host)
+    runner.setSeen(false)
+    runner.load(PROGRAM, counting(), 1)
+    expect(runner.status).toBe('paused')
+    expect(runner.pausedBy).toBe('hidden')
+    expect(frames.size + timers.size).toBe(0)
+    runner.setSeen(true)
+    expect(runner.status).toBe('paused')
+    const other = new Chip8Runner(fakeHost().host)
+    other.setSeen(false)
+    const machine = runner.detach() as Chip8
+    other.adopt(PROGRAM, counting(), machine, false)
+    expect(other.status).toBe('paused')
+  })
+
+  it('lets every key go when the machine is handed to another mount', () => {
+    const { runner } = loaded()
+    runner.press(5)
+    expect(runner.machine?.state.keys).not.toBe(0)
+    const machine = runner.detach() as Chip8
+    expect(machine.state.keys).toBe(0)
+    expect(runner.keys).toBe(0)
+  })
+})
+
 describe('parking', () => {
   afterEach(() => vi.useRealTimers())
 

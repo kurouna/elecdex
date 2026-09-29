@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto'
-import { copyFileSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { guessPlatform } from '@shared/chip8/platform'
-import { previewRun } from '@shared/chip8/preview'
+import { type PreviewRun, previewRun } from '@shared/chip8/preview'
 import { quirksFor } from '@shared/chip8/quirks'
 import { maxProgramSize, PLATFORMS, type Platform } from '@shared/chip8/types'
 import {
@@ -13,9 +13,11 @@ import {
   Chip8TuningSchema,
   DEFAULT_IPF,
   isChip8ProgramId,
+  PreviewSchema,
 } from '@shared/chip8-library'
 import { z } from 'zod'
 import { JsonStore } from '../store/json-store.js'
+import { replaceFile } from '../store/replace-file.js'
 import type { Chip8Catalog } from './catalog.js'
 
 /**
@@ -28,8 +30,21 @@ import type { Chip8Catalog } from './catalog.js'
  * never hands over a path; the file's size is checked before it is read, its bytes are
  * copied under their hash (the same file twice is one program), the machine is guessed from
  * the instructions it reaches (shared/chip8/platform.ts), and its preview is made by running
- * it on the core, as gen-chip8 does for the bundled ones.
+ * it on the core, as gen-chip8 does for the bundled ones - once, at the import or a change of
+ * machine, given a moment of main's time (`PREVIEW_BUDGET_MS`: a program clearing the screen
+ * a thousand times a frame took seconds, and the window draws nothing meanwhile), and kept
+ * in library.json with the entry.
  */
+
+/** How long main may spend on one imported program's preview. */
+export const PREVIEW_BUDGET_MS = 300
+
+/** A preview kept with its entry, for the machine it was made on. */
+const LookSchema = z.object({
+  platform: z.enum(PLATFORMS),
+  preview: PreviewSchema.nullable(),
+  keys: z.number().int().min(0).max(0xffff),
+})
 
 const ImportedSchema = z.object({
   id: z.string().regex(/^imported\/[0-9a-f]{16}$/),
@@ -41,6 +56,7 @@ const ImportedSchema = z.object({
   name: z.string().max(260),
   size: z.number().int().min(1),
   at: z.number(),
+  look: LookSchema.optional(),
 })
 type Imported = z.infer<typeof ImportedSchema>
 
@@ -84,11 +100,19 @@ export class Chip8Store {
   readonly #dir: string
   readonly #file: JsonStore<LibraryFile>
   readonly #now: () => number
+  /** A clock for the preview's budget: a test's can say the time is up at once. */
+  readonly #clock: () => number
 
-  constructor(catalog: Chip8Catalog, dir: string, now: () => number = Date.now) {
+  constructor(
+    catalog: Chip8Catalog,
+    dir: string,
+    now: () => number = Date.now,
+    clock: () => number = () => performance.now(),
+  ) {
     this.#catalog = catalog
     this.#dir = dir
     this.#now = now
+    this.#clock = clock
     this.#file = new JsonStore({
       file: path.join(dir, 'library.json'),
       schema: LibraryFileSchema as unknown as z.ZodType<LibraryFile>,
@@ -102,7 +126,7 @@ export class Chip8Store {
 
   /** Every program, bundled then imported, with the user's tuning and stars. */
   async programs(): Promise<Chip8Program[]> {
-    const file = this.#file.read()
+    const file = this.#lookedAt(this.#file.read())
     const bundled = await this.#catalog.programs()
     const all = [...bundled, ...file.imported.flatMap((entry) => this.#program(entry) ?? [])]
     const starred = new Set(file.favourites)
@@ -117,6 +141,14 @@ export class Chip8Store {
     if (!isChip8ProgramId(id)) return false
     if (id.startsWith('imported/')) return this.#file.read().imported.some((e) => e.id === id)
     return (await this.#catalog.programs()).some((p) => p.id === id)
+  }
+
+  /** The machine a program in the library runs as, or null for one that is not in it. */
+  async platformOf(id: unknown): Promise<Platform | null> {
+    if (!isChip8ProgramId(id)) return null
+    if (id.startsWith('imported/'))
+      return this.#file.read().imported.find((e) => e.id === id)?.platform ?? null
+    return (await this.#catalog.programs()).find((p) => p.id === id)?.platform ?? null
   }
 
   /** A program's bytes, bundled or imported; null for an id that is neither. */
@@ -152,41 +184,50 @@ export class Chip8Store {
     return true
   }
 
-  /** Takes a file the user picked into the library. */
+  /**
+   * Takes a file the user picked into the library. Its size is checked before it is read and
+   * again on what was read (the file may change between), and the bytes read - never the file
+   * again - are what is kept, through a temp file, under their own hash.
+   */
   async importFile(from: string): Promise<Chip8ImportResult> {
-    let size: number
-    try {
-      const stat = statSync(from)
-      if (!stat.isFile()) return { ok: false, problem: 'That is not a file.' }
-      size = stat.size
-    } catch {
-      return { ok: false, problem: 'That file could not be read.' }
-    }
-    if (size === 0) return { ok: false, problem: 'That file is empty.' }
-    if (size > MAX_IMPORT) return { ok: false, problem: tooBig(size) }
-    const bytes = new Uint8Array(readFileSync(from))
+    const read = readPicked(from)
+    if (!(read instanceof Uint8Array)) return { ok: false, problem: read }
+    const bytes = read
     const hash = createHash('sha256').update(bytes).digest('hex')
     const id = `imported/${hash.slice(0, 16)}`
     const guess = guessPlatform(bytes)
     const file = this.#file.read()
     const known = file.imported.find((e) => e.id === id)
+    try {
+      // Written again when the kept copy has gone: otherwise the same file could never
+      // come back, and its entry could not be seen to be removed.
+      if (known === undefined || this.#bytes(known) === null) this.#keep(`${hash}.ch8`, bytes)
+    } catch {
+      return { ok: false, problem: 'That file could not be kept.' }
+    }
     if (known === undefined) {
-      mkdirSync(this.#importedDir, { recursive: true })
-      copyFileSync(from, path.join(this.#importedDir, `${hash}.ch8`))
       const entry: Imported = {
         id,
         title: titleOfFile(from),
         platform: guess.platform,
         file: `${hash}.ch8`,
         name: path.basename(from).slice(0, 260),
-        size,
+        size: bytes.length,
         at: this.#now(),
       }
-      this.#file.write({ ...file, imported: [...file.imported, entry] })
+      this.#file.write({ ...file, imported: [...file.imported, this.#looked(entry, bytes)] })
     }
     const program = (await this.programs()).find((p) => p.id === id)
     if (program === undefined) return { ok: false, problem: 'That file could not be kept.' }
     return { ok: true, program, guess: guess.reason, already: known !== undefined }
+  }
+
+  #keep(name: string, bytes: Uint8Array): void {
+    mkdirSync(this.#importedDir, { recursive: true })
+    const target = path.join(this.#importedDir, name)
+    const temp = `${target}.tmp`
+    writeFileSync(temp, bytes)
+    replaceFile(temp, target)
   }
 
   /**
@@ -200,10 +241,13 @@ export class Chip8Store {
     const at = file.imported.findIndex((e) => e.id === id)
     const entry = file.imported[at]
     if (entry === undefined) return null
-    const next = applyChange(entry, change.data)
+    const changed = applyChange(entry, change.data)
     // A program too big for the machine asked for stays on its own.
-    if (!bytesFit(next.size, next.platform)) return null
-    const machine = next.platform !== entry.platform
+    if (!bytesFit(changed.size, changed.platform)) return null
+    const machine = changed.platform !== entry.platform
+    // Another machine draws another picture: its preview is made again, once.
+    const bytes = machine ? this.#bytes(changed) : null
+    const next = bytes === null ? changed : this.#looked(changed, bytes)
     const imported = file.imported.with(at, next)
     const { [id]: _old, ...rest } = file.tuning
     this.#file.write({ ...file, imported, tuning: machine ? rest : file.tuning })
@@ -223,7 +267,11 @@ export class Chip8Store {
       tuning,
       favourites: file.favourites.filter((f) => f !== id),
     })
-    rmSync(path.join(this.#importedDir, entry.file), { force: true })
+    try {
+      rmSync(path.join(this.#importedDir, entry.file), { force: true })
+    } catch {
+      // Held open by a scanner a moment: the entry is gone, and an orphan file costs nothing.
+    }
     return true
   }
 
@@ -236,13 +284,14 @@ export class Chip8Store {
     }
   }
 
-  /** An imported entry as a program, its preview made on the core; null when its file is gone. */
+  /** An imported entry as a program, with the preview kept for it; null when its file is gone. */
   #program(entry: Imported): Chip8Program | null {
-    const bytes = this.#bytes(entry)
-    if (bytes === null) return null
+    if (this.#bytes(entry) === null) return null
     const quirks = quirksFor(entry.platform)
     const ipf = DEFAULT_IPF[entry.platform]
-    const { preview, sensed } = this.#preview(entry, bytes, quirks, ipf)
+    const look = entry.look?.platform === entry.platform ? entry.look : null
+    const preview = look?.preview ?? null
+    const sensed = look?.keys ?? 0
     return {
       id: entry.id,
       title: entry.title,
@@ -262,22 +311,51 @@ export class Chip8Store {
     }
   }
 
-  /** Previews, made once per file and machine: ten seconds of the core each is not free. */
-  readonly #previews = new Map<string, ReturnType<typeof previewRun>>()
+  /** An entry with its preview made for its machine, within main's budget for it. */
+  #looked(entry: Imported, bytes: Uint8Array): Imported {
+    const { platform } = entry
+    const until = this.#clock() + PREVIEW_BUDGET_MS
+    const run: PreviewRun = previewRun(
+      bytes,
+      { platform, quirks: quirksFor(platform), ipf: DEFAULT_IPF[platform], font: 'octo' },
+      () => this.#clock() >= until,
+    )
+    // encodePreview makes only the sizes the schema names.
+    const preview = run.preview as z.infer<typeof PreviewSchema> | null
+    return { ...entry, look: { platform, preview, keys: run.sensed } }
+  }
 
-  #preview(
-    entry: Imported,
-    bytes: Uint8Array,
-    quirks: Chip8Program['quirks'],
-    ipf: number,
-  ): ReturnType<typeof previewRun> {
-    const key = `${entry.file}:${entry.platform}`
-    let run = this.#previews.get(key)
-    if (run === undefined) {
-      run = previewRun(bytes, { platform: entry.platform, quirks, ipf, font: 'octo' })
-      this.#previews.set(key, run)
-    }
-    return run
+  /**
+   * The file with every imported entry's preview made for its machine: an entry written
+   * before previews were kept, or edited by hand, gets its own once, and it is written back.
+   */
+  #lookedAt(file: LibraryFile): LibraryFile {
+    const stale = file.imported.some((e) => e.look?.platform !== e.platform && this.#bytes(e))
+    if (!stale) return file
+    const imported = file.imported.map((entry) => {
+      if (entry.look?.platform === entry.platform) return entry
+      const bytes = this.#bytes(entry)
+      return bytes === null ? entry : this.#looked(entry, bytes)
+    })
+    const next = { ...file, imported }
+    this.#file.write(next)
+    return next
+  }
+}
+
+/** A picked file's bytes, or why not: not a file, empty, too big, unreadable. */
+function readPicked(from: string): Uint8Array | string {
+  try {
+    const stat = statSync(from)
+    if (!stat.isFile()) return 'That is not a file.'
+    if (stat.size === 0) return 'That file is empty.'
+    if (stat.size > MAX_IMPORT) return tooBig(stat.size)
+    const bytes = new Uint8Array(readFileSync(from))
+    if (bytes.length === 0) return 'That file is empty.'
+    if (bytes.length > MAX_IMPORT) return tooBig(bytes.length)
+    return bytes
+  } catch {
+    return 'That file could not be read.'
   }
 }
 

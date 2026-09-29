@@ -67,7 +67,8 @@ export function registerChip8Ipc(
     const file = picked.canceled ? undefined : picked.filePaths[0]
     if (file === undefined) return null
     const result = await store.importFile(file)
-    if (result.ok && !result.already) void changed()
+    // Told even when it was there already: a copy that had gone is back in the list.
+    if (result.ok) void changed()
     return result
   })
 
@@ -83,7 +84,10 @@ export function registerChip8Ipc(
     return telling(done)
   })
 
-  ipcMain.handle(CH.chip8.slots, (_event, id: unknown): Chip8SlotInfo[] => saves.slots(id))
+  ipcMain.handle(CH.chip8.slots, async (_event, id: unknown): Promise<Chip8SlotInfo[]> => {
+    const platform = await store.platformOf(id)
+    return platform === null ? [] : saves.slots(id, platform)
+  })
   ipcMain.handle(
     CH.chip8.save,
     async (_event, id: unknown, slot: unknown, bytes: unknown): Promise<Chip8SlotInfo | null> =>

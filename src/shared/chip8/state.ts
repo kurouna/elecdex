@@ -45,7 +45,7 @@ export interface Chip8State {
   pitch: number
   /** Whether the program has loaded a pattern (F002); until then the buzzer is a square wave. */
   patternSet: boolean
-  /** SUPER-CHIP's persistent flags (FX75, FX85). Kept with the machine, never on disk. */
+  /** SUPER-CHIP's persistent flags (FX75, FX85). Kept with the machine and in its snapshots. */
   readonly flags: Uint8Array
   /** The keys held down, one bit each. */
   keys: number

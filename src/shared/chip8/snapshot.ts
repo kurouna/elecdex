@@ -197,14 +197,14 @@ function readRegisters(r: Reader, s: Chip8State): boolean {
   const haltPc = r.u16()
   const haltOp = r.u16()
   s.halt = halt ? { reason: halt, pc: haltPc, op: haltOp } : null
-  const memoryEnd = s.memory.length
   return (
     halt !== undefined &&
     s.sp <= STACK_DEPTH &&
     s.plane <= 3 &&
     s.waitReg >= -1 &&
     s.waitReg < KEY_COUNT &&
-    s.pc < memoryEnd &&
+    // Any address: the program counter runs on past the end of memory and wraps when read.
+    s.pc <= 0xffff &&
     Number.isFinite(s.cycles) &&
     s.cycles >= 0
   )

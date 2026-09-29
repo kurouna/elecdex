@@ -138,3 +138,20 @@ describe('the words for a program', () => {
     }
   })
 })
+
+describe('a preview run given a moment', () => {
+  it('stops when told it has had enough, keeping the frame it reached', () => {
+    // Draws the font's 0 and loops for ever.
+    const program = new Uint8Array([0xa0, 0x00, 0xd0, 0x05, 0x12, 0x04])
+    let asked = 0
+    const run = previewRun(
+      program,
+      { platform: 'chip8', quirks: quirksFor('chip8'), ipf: 15, font: 'octo' },
+      () => ++asked >= 3,
+    )
+    expect(asked).toBe(3)
+    expect(run.preview).not.toBeUndefined()
+    const frame = run.preview === null ? null : decodePreview(run.preview)
+    expect(frame === null ? 0 : litDots(frame)).toBeGreaterThan(0)
+  })
+})

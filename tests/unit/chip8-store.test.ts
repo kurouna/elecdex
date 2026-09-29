@@ -299,3 +299,57 @@ function existsIn(folder: string): string[] {
     return []
   }
 }
+
+describe('found in review (2026-09-30)', () => {
+  it('takes the same file again when its kept copy has gone', async () => {
+    const lib = store()
+    const first = await lib.importFile(picked('logo.ch8', readFileSync(LOGO)))
+    if (!first.ok) throw new Error(first.problem)
+    for (const name of existsIn(path.join(dir, 'chip8', 'imported')))
+      rmSync(path.join(dir, 'chip8', 'imported', name))
+    expect((await lib.programs()).some((p) => p.id === first.program.id)).toBe(false)
+    const again = await lib.importFile(picked('logo.ch8', readFileSync(LOGO)))
+    expect(again.ok).toBe(true)
+    expect(await lib.rom(first.program.id)).toEqual(new Uint8Array(readFileSync(LOGO)))
+  })
+
+  it("keeps a preview with its entry, made once, within main's budget", async () => {
+    // Hires, then scroll down for ever on XO-CHIP at 1000 a frame: seconds of work unbudgeted.
+    let now = 0
+    const slow = new Chip8Store(
+      catalog,
+      path.join(dir, 'chip8'),
+      () => clock,
+      () => (now += 50),
+    )
+    const bytes = new Uint8Array([0x00, 0xff, 0x00, 0xc1, 0x12, 0x02, ...new Array(3600).fill(0)])
+    const started = performance.now()
+    const result = await slow.importFile(picked('scroller.xo8', bytes))
+    expect(performance.now() - started).toBeLessThan(2000)
+    expect(result.ok && result.program.platform).toBe('xochip')
+    const written = JSON.parse(readFileSync(path.join(dir, 'chip8', 'library.json'), 'utf8'))
+    expect(written.imported[0].look.platform).toBe('xochip')
+    // A new store (the next start) reads it back rather than running the program again.
+    let asked = 0
+    const next = new Chip8Store(
+      catalog,
+      path.join(dir, 'chip8'),
+      () => clock,
+      () => ++asked,
+    )
+    await next.programs()
+    expect(asked).toBe(0)
+  })
+
+  it('lists only the saved machines of the machine a program runs as', () => {
+    const s = new Chip8Saves(path.join(dir, 'saves'), () => clock)
+    s.save('imported/0123456789abcdef', '1', machine('chip8'))
+    expect(s.slots('imported/0123456789abcdef', 'chip8')).toHaveLength(1)
+    expect(s.slots('imported/0123456789abcdef', 'xochip')).toEqual([])
+  })
+
+  it('says why when the picked file cannot be read, rather than nothing', async () => {
+    const result = await store().importFile(path.join(outside, 'nowhere', 'x.ch8'))
+    expect(result).toEqual({ ok: false, problem: 'That file could not be read.' })
+  })
+})

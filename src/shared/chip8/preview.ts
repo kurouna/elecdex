@@ -143,8 +143,16 @@ export interface PreviewRun {
  * Runs a program with no key pressed for ten seconds of its time and keeps the frame that
  * shows it best, and which keys it looked at. A program that stops early is shown as it
  * stopped. A fixed seed, so the same bytes always give the same preview.
+ *
+ * `enough`, asked after each frame, ends the run early: main runs an imported program's
+ * preview on its own thread and gives it a moment, not the seconds a program clearing the
+ * screen a thousand times a frame would take (the core keeps no clock, so the caller does).
  */
-export function previewRun(program: Uint8Array, config: MachineConfig): PreviewRun {
+export function previewRun(
+  program: Uint8Array,
+  config: MachineConfig,
+  enough: () => boolean = () => false,
+): PreviewRun {
   const machine = Chip8.load(program, config, 0x5eed)
   const frames: ScreenFrame[] = []
   const take = (): void => {
@@ -156,6 +164,10 @@ export function previewRun(program: Uint8Array, config: MachineConfig): PreviewR
   for (let k = 1; k <= PREVIEW_FRAMES && machine.running; k++) {
     machine.frame()
     if (k % PREVIEW_EVERY === 0) take()
+    if (enough()) {
+      take()
+      break
+    }
   }
   if (!machine.running) take()
   const best = pickPreview(frames)

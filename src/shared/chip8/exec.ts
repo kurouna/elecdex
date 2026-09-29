@@ -48,9 +48,11 @@ function skip(s: Chip8State): void {
   s.pc = (s.pc + (word(s, s.pc) === 0xf000 ? 4 : 2)) & 0xffff
 }
 
+/** Whether a key is held; a value past F names no key, and is up (as in Octo). */
 function sense(s: Chip8State, key: number): boolean {
-  s.sensed |= 1 << (key & 0xf)
-  return (s.keys & (1 << (key & 0xf))) !== 0
+  if (key > 0xf) return false
+  s.sensed |= 1 << key
+  return (s.keys & (1 << key)) !== 0
 }
 
 /* ---------------- 0: the machine's own calls ---------------- */
@@ -75,8 +77,9 @@ function ret(s: Chip8State, o: Op): void {
 /** The 00Cx, 00Dx and 00Fx family: SUPER-CHIP's screen calls and XO-CHIP's scroll up. */
 function superCall(s: Chip8State, o: Op): boolean {
   const { op, n } = o
-  if ((op & 0xfff0) === 0x00c0 && n > 0) scroll(s, 0, n)
-  else if ((op & 0xfff0) === 0x00d0 && n > 0) scroll(s, 0, -n)
+  // A scroll of nothing (00C0, 00D0) is a scroll all the same, as in Octo: no move.
+  if ((op & 0xfff0) === 0x00c0) scroll(s, 0, n)
+  else if ((op & 0xfff0) === 0x00d0) scroll(s, 0, -n)
   else if (op === 0x00fb) scroll(s, 4, 0)
   else if (op === 0x00fc) scroll(s, -4, 0)
   else if (op === 0x00fd) stop(s, 'exit', o)

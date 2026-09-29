@@ -16,16 +16,19 @@ declare class AudioWorkletProcessor {
 }
 declare function registerProcessor(name: string, processor: new () => AudioWorkletProcessor): void
 
-/** What the page posts: a frame's tone, or null to stop at once. */
-export type BuzzerMessage = Tone | null
+/** What the page posts: a frame's tone, null to stop at once, or 'dispose' when its pane goes. */
+export type BuzzerMessage = Tone | null | 'dispose'
 
 class Chip8Buzzer extends AudioWorkletProcessor {
   readonly #voice = new PatternVoice(sampleRate)
+  /** False once the pane has gone: `process` says so, and the audio thread lets it go. */
+  #alive = true
 
   constructor() {
     super()
     this.port.onmessage = (event: MessageEvent<BuzzerMessage>) => {
-      if (event.data === null) this.#voice.stop()
+      if (event.data === 'dispose') this.#alive = false
+      else if (event.data === null) this.#voice.stop()
       else this.#voice.set(event.data)
     }
   }
@@ -37,7 +40,9 @@ class Chip8Buzzer extends AudioWorkletProcessor {
       this.#voice.render(first)
       for (let c = 1; c < channels.length; c++) channels[c]?.set(first)
     }
-    return true
+    // A disconnected node whose processor answers true runs on the audio thread for as long
+    // as the shared context is awake: one per pane that ever sounded.
+    return this.#alive
   }
 }
 

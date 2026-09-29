@@ -311,3 +311,67 @@ describe('stopping', () => {
     expect([m.state.v[0], m.state.v[1]]).toEqual([7, 9])
   })
 })
+
+describe('found in review (2026-09-30)', () => {
+  it('takes a key value past F as a key that is up, as Octo does', () => {
+    // v0 := 0x1F; if v0 -key then (skip when not pressed): pad F held must not count.
+    const m = machine([0x601f, 0xe0a1, 0x6101, 0x6202])
+    m.press(0xf)
+    steps(m, 3)
+    expect(m.state.v[1]).toBe(0)
+    expect(m.state.sensed & (1 << 0xf)).toBe(0)
+  })
+
+  it('runs a scroll of nothing (00C0, 00D0) as no move, not a halt', () => {
+    const m = machine([0x00c0, 0x00d0, 0x6001], 'xochip')
+    steps(m, 3)
+    expect(m.state.halt).toBeNull()
+    expect(m.state.v[0]).toBe(1)
+  })
+
+  it('scrolls in place the same as by a copy, every way and on one plane only', () => {
+    const naive = (
+      pixels: Uint8Array,
+      w: number,
+      h: number,
+      dx: number,
+      dy: number,
+      mask: number,
+    ) => {
+      const out = pixels.slice()
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++) {
+          const fx = x - dx
+          const fy = y - dy
+          const inside = fx >= 0 && fx < w && fy >= 0 && fy < h
+          const value = inside ? (pixels[fy * w + fx] ?? 0) & mask : 0
+          out[y * w + x] = ((pixels[y * w + x] ?? 0) & ~mask) | value
+        }
+      return out
+    }
+    for (const [op, dx, dy] of [
+      [0x00c3, 0, 3],
+      [0x00d2, 0, -2],
+      [0x00fb, 4, 0],
+      [0x00fc, -4, 0],
+    ] as const) {
+      // Hires, plane 1 selected; a noisy picture on both planes.
+      const m = machine([0x00ff, 0xf101, op], 'xochip')
+      steps(m, 2)
+      const s = m.state
+      for (let k = 0; k < 128 * 64; k++) s.pixels[k] = (k * 7 + (k >> 5)) & 3
+      const expected = naive(s.pixels.slice(0, 128 * 64), 128, 64, dx, dy, 1)
+      steps(m, 1)
+      expect(Array.from(s.pixels.subarray(0, 128 * 64))).toEqual(Array.from(expected))
+    }
+  })
+
+  it('keeps a machine whose program counter ran past the end of memory', () => {
+    // jump0 with v0 = 0xFF from 0xF10 lands past 4 KB: the machine still runs, and restores.
+    const m = machine([0x60ff, 0xbf10])
+    steps(m, 2)
+    expect(m.state.pc).toBeGreaterThanOrEqual(0x1000)
+    const again = Chip8.restore(m.snapshot())
+    expect(again?.state.pc).toBe(m.state.pc)
+  })
+})

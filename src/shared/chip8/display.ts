@@ -36,16 +36,21 @@ export function scroll(s: Chip8State, dx: number, dy: number): void {
   const w = screenWidth(s)
   const h = screenHeight(s)
   const mask = s.plane & 3
-  const moved = new Uint8Array(w * h)
-  for (let y = 0; y < h; y++) {
+  const px = s.pixels
+  // In place, walking against the move so every dot is read before it is written over: a
+  // copy of the screen per scroll cost an 8 KB allocation each time, and a program scrolling
+  // in a loop spent seconds on it (a preview run in main, measured).
+  for (let j = 0; j < h; j++) {
+    const y = dy > 0 ? h - 1 - j : j
     const from = y - dy
-    if (from < 0 || from >= h) continue
-    for (let x = 0; x < w; x++) {
+    for (let i = 0; i < w; i++) {
+      const x = dx > 0 ? w - 1 - i : i
       const fx = x - dx
-      if (fx >= 0 && fx < w) moved[y * w + x] = (s.pixels[from * w + fx] ?? 0) & mask
+      const inside = from >= 0 && from < h && fx >= 0 && fx < w
+      const value = inside ? (px[from * w + fx] ?? 0) & mask : 0
+      px[y * w + x] = ((px[y * w + x] ?? 0) & ~mask) | value
     }
   }
-  for (let k = 0; k < w * h; k++) s.pixels[k] = ((s.pixels[k] ?? 0) & ~mask) | (moved[k] ?? 0)
   s.screenRevision++
 }
 

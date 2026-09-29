@@ -781,3 +781,51 @@ test('MEM shows the memory round PC or I, the wheel frees it, and the bytes at I
     await close()
   }
 })
+
+test('a slot that cannot be read leaves the game as it was, and says so', async () => {
+  const launched = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = launched
+  try {
+    await designSize(app, page)
+    await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
+    await loadProgram(page, 'diag/3-corax+')
+    await expect.poll(() => cycles(page)).toBeGreaterThan(5_000)
+    await page.keyboard.press('KeyP')
+    await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
+    const at = await cycles(page)
+    await tab(page, 'save').click()
+    await slot(page, '1').getByTestId('chip8-slot-save').click()
+    await expect(slot(page, '1')).toHaveAttribute('data-filled', 'true')
+    // The file spoilt after it was listed (SAVE lists only what reads back).
+    writeFileSync(
+      path.join(launched.userData, 'chip8', 'saves', 'diag--3-corax+', '1.c8s'),
+      'not a machine',
+    )
+    await slot(page, '1').getByTestId('chip8-slot-load').click()
+    await expect(page.getByTestId('chip8-save-problem')).toHaveText(
+      'That machine could not be read.',
+    )
+    await tab(page, 'core').click()
+    expect(await cycles(page)).toBe(at)
+    await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
+  } finally {
+    await close()
+  }
+})
+
+test('with motion reduced the library shows a still frame, and runs nothing behind it', async () => {
+  const { app, page, close } = await launch(undefined, {
+    layout: BESIDE_CLOCK,
+    settings: { sound: { enabled: false }, motion: 'reduced' },
+  })
+  try {
+    await designSize(app, page)
+    const attract = page.getByTestId('chip8-attract')
+    await expect(attract).toBeVisible()
+    await page.waitForTimeout(800)
+    await expect(attract).toHaveAttribute('data-status', /^(paused|empty)$/)
+    await expect(attract.getByTestId('chip8-screen')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

@@ -47,9 +47,11 @@ $effect(() => {
   }
 })
 
+// With motion reduced the preview is a still frame: nothing runs behind it unseen.
 $effect(() => {
-  runner.setSeen(seen)
-  if (seen && runner.status === 'paused') {
+  const shown = seen && !appearance.reducedMotion
+  runner.setSeen(shown)
+  if (shown && runner.status === 'paused') {
     lastAt = performance.now()
     runner.resume()
   }
@@ -71,7 +73,7 @@ $effect(() =>
 $effect(() => () => runner.dispose())
 </script>
 
-<div class="attract" data-testid="chip8-attract" data-program={program.id}>
+<div class="attract" data-testid="chip8-attract" data-program={program.id} data-status={runner.status}>
   {#if appearance.reducedMotion}
     <Thumb preview={program.preview} {palette} rotation={program.rotation} width={256} height={128} />
   {:else}

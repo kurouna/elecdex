@@ -93,6 +93,11 @@ describe('the palette', () => {
     expect(p[3]).toEqual([150, 250, 150])
   })
 
+  it("gives the same author's colours the same palette, so nothing restarts for a new one", () => {
+    const colours = { ground: '#000000', plane1: '#ffffff', plane2: '#ff0000', both: '#00ff00' }
+    expect(originalPalette(colours)).toBe(originalPalette(colours))
+  })
+
   it("takes the author's colours only when all four are there", () => {
     expect(
       originalPalette({ ground: '#000000', plane1: '#ff0000', plane2: '#00ff00', both: '#0000ff' }),

@@ -79,26 +79,34 @@ let starts = 0
 /** Where a start goes on from: AUTO or a slot when it holds a machine, or the beginning. */
 type From = Chip8Slot | 'fresh'
 
+/** How a start came out: went on from the kept machine, began afresh, came to nothing, or was overtaken. */
+type Started = 'resumed' | 'fresh' | 'failed' | 'stale'
+
 /**
  * Starts a program - from the beginning, or from a kept machine when there is one - running,
  * or (coming back after a restart) paused where a player finds it. One that cannot be read
- * sends the pane back to the library, which says so. True when it went on from the machine.
+ * sends the pane back to the library, which says so. A slot's machine is that or nothing:
+ * one that cannot be read leaves the game as it was. A start overtaken by another - or by
+ * the pane going (onDestroy counts one) - loads nothing.
  */
-async function start(id: string, from: From, paused: boolean): Promise<boolean> {
+async function start(id: string, from: From, paused: boolean): Promise<Started> {
   const mine = ++starts
   const found = chip8Library.find(id)
   const [rom, snapshot] = await Promise.all([
     found === null ? null : chip8Library.rom(id),
     from === 'fresh' ? null : window.elecdex.chip8.load(id, from).catch(() => null),
   ])
-  if (mine !== starts) return false
+  if (mine !== starts) return 'stale'
   if (found === null || rom === null) {
-    missing = id
+    missing = found?.title ?? id
     change({ view: 'library' })
-    return false
+    return 'failed'
   }
   missing = null
-  return runner.load(found, rom, Date.now(), { snapshot, paused })
+  const strict = from !== 'fresh' && from !== 'auto'
+  const resumed = runner.load(found, rom, Date.now(), { snapshot, paused, strict })
+  if (resumed) return 'resumed'
+  return strict ? 'failed' : 'fresh'
 }
 
 /** The changes AUTO last kept, so a machine that has not moved since is not written again. */
@@ -156,6 +164,16 @@ $effect(() => {
   })
 })
 
+// An imported program changed to another machine (EDIT, here or in another pane) while it
+// runs: its machine was the old one's, so it starts again as the new one, paused.
+$effect(() => {
+  const current = runner.program
+  if (!chip8Library.loaded || current === null) return
+  const now = chip8Library.find(current.id)
+  if (now === null || now.platform === current.platform) return
+  untrack(() => void start(current.id, 'fresh', true))
+})
+
 /**
  * Loads a program from the library: going on from where it was left (the machine still
  * here, else AUTO), or from the beginning when asked (`fresh`) or when nothing was kept.
@@ -164,7 +182,10 @@ function load(id: string, fresh: boolean): void {
   sfx.play('granted')
   change({ view: 'run', program: id })
   const going = runner.status === 'paused' || runner.status === 'running'
-  if (!fresh && runner.program?.id === id && going) {
+  // The machine still here, if it is the machine the program now runs as (EDIT may have
+  // changed it).
+  const same = runner.machine?.state.config.platform === chip8Library.find(id)?.platform
+  if (!fresh && runner.program?.id === id && going && same) {
     runner.resume()
     root?.focus({ preventScroll: true })
     return
@@ -185,14 +206,17 @@ function reset(): void {
   root?.focus({ preventScroll: true })
 }
 
-/** Goes on from a kept machine (SAVE's LOAD), paused if the machine now is. */
+/**
+ * Goes on from a kept machine (SAVE's LOAD), paused if the machine now is; false only when
+ * that machine could not be read (the game goes on as it was).
+ */
 async function fromSlot(slot: Chip8Slot): Promise<boolean> {
   const current = runner.program
   if (current === null) return false
   const paused = runner.status === 'paused'
   const done = await start(current.id, slot, paused)
   root?.focus({ preventScroll: true })
-  return done
+  return done !== 'failed'
 }
 
 function onkeydown(event: KeyboardEvent): void {
@@ -277,6 +301,8 @@ $effect(() => {
 })
 
 onDestroy(() => {
+  // A start still waiting on its bytes is overtaken: it must not load into a runner that is gone.
+  starts++
   void keepAuto()
   const paused = runner.status !== 'running'
   const current = runner.program

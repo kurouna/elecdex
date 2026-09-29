@@ -51,6 +51,18 @@ export function themePalette(colours: Partial<ThemeColours>): Palette {
 /** The author's colours; null where the program has none (the theme's are used). */
 export function originalPalette(colours: Chip8Colours | undefined): Palette | null {
   if (colours === undefined) return null
+  // The same colours give the same palette: a new one each time the pane's state changed
+  // restarted the screen's afterglow and repainted every thumbnail.
+  const known = madeFrom.get(colours)
+  if (known !== undefined) return known
+  const made = makeOriginal(colours)
+  madeFrom.set(colours, made)
+  return made
+}
+
+const madeFrom = new WeakMap<Chip8Colours, Palette | null>()
+
+function makeOriginal(colours: Chip8Colours): Palette | null {
   const ground = hexRgb(colours.ground)
   const one = hexRgb(colours.plane1)
   const two = hexRgb(colours.plane2)

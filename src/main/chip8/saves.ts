@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:f
 import path from 'node:path'
 import { encodePreview } from '@shared/chip8/preview'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/chip8/snapshot'
-import { HIRES, LORES } from '@shared/chip8/types'
+import { HIRES, LORES, type Platform } from '@shared/chip8/types'
 import {
   CHIP8_SLOTS,
   type Chip8Slot,
@@ -58,15 +58,19 @@ export class Chip8Saves {
     return bytes !== null && decodeSnapshot(bytes) !== null ? bytes : null
   }
 
-  /** What each slot holds, with its screen, for the SAVE view and the library. */
-  slots(id: unknown): Chip8SlotInfo[] {
+  /**
+   * What each slot holds, with its screen, for the SAVE view and the library - only machines
+   * of `platform` when it is given: one kept for the machine a program ran as before is not
+   * one it can go on from.
+   */
+  slots(id: unknown, platform?: Platform): Chip8SlotInfo[] {
     if (!isChip8ProgramId(id)) return []
     const infos: Chip8SlotInfo[] = []
     for (const slot of CHIP8_SLOTS) {
       const file = this.#file(id, slot)
       const bytes = this.#read(file)
       if (bytes === null) continue
-      const info = this.#info(slot, bytes, statSync(file).mtimeMs)
+      const info = this.#info(slot, bytes, statSync(file).mtimeMs, platform)
       if (info !== null) infos.push(info)
     }
     return infos
@@ -75,7 +79,11 @@ export class Chip8Saves {
   /** Forgets every slot of a program (an imported one removed). */
   forget(id: string): void {
     if (!isChip8ProgramId(id)) return
-    rmSync(path.join(this.#dir, folderOf(id)), { recursive: true, force: true })
+    try {
+      rmSync(path.join(this.#dir, folderOf(id)), { recursive: true, force: true })
+    } catch {
+      // A file held open a moment (a scanner): what is left is not listed for another machine.
+    }
   }
 
   #read(file: string): Uint8Array | null {
@@ -87,9 +95,10 @@ export class Chip8Saves {
     }
   }
 
-  #info(slot: Chip8Slot, bytes: Uint8Array, at: number): Chip8SlotInfo | null {
+  #info(slot: Chip8Slot, bytes: Uint8Array, at: number, platform?: Platform): Chip8SlotInfo | null {
     const state = decodeSnapshot(bytes)
     if (state === null) return null
+    if (platform !== undefined && state.config.platform !== platform) return null
     const size = state.hires ? HIRES : LORES
     const planes = state.config.platform === 'xochip' ? 2 : 1
     const preview = encodePreview(

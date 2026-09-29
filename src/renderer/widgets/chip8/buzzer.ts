@@ -1,4 +1,5 @@
 import type { Tone } from '@shared/chip8/audio'
+import type { BuzzerMessage } from './buzzer-worklet.ts'
 import buzzerWorklet from './buzzer-worklet.ts?worker&url'
 
 /**
@@ -132,6 +133,7 @@ export class Buzzer {
   dispose(): void {
     this.silence()
     this.#gone = true
+    this.#node?.port.postMessage('dispose' satisfies BuzzerMessage)
     this.#node?.disconnect()
     this.#gain?.disconnect()
     this.#node = null

@@ -92,6 +92,7 @@ export class Chip8Runner {
   #last = 0
   #carry = 0
   #changes = 0
+  #disposed = false
   readonly #listeners = new Set<() => void>()
 
   constructor(host: RunnerHost) {
@@ -120,18 +121,28 @@ export class Chip8Runner {
    * which is main's per program (a snapshot kept before the tuning changed runs as tuned
    * now). A snapshot of another machine - an imported program since run as another - is
    * not taken up. It runs at once unless asked to wait `paused`.
+   *
+   * `strict` asks for the snapshot or nothing: a slot's LOAD that cannot be read must leave
+   * the game being played as it is, not start the program again over it. A runner already
+   * disposed (a start that finished after its pane went) loads nothing.
    */
   load(
     program: Chip8Program,
     rom: Uint8Array,
     seed: number,
-    { snapshot, paused = false }: { snapshot?: Uint8Array | null; paused?: boolean } = {},
+    {
+      snapshot,
+      paused = false,
+      strict = false,
+    }: { snapshot?: Uint8Array | null; paused?: boolean; strict?: boolean } = {},
   ): boolean {
-    this.#stopLoop()
-    this.#host.sound(null)
+    if (this.#disposed) return false
     const { ipf, quirks } = tunedConfig(program)
     const restored = snapshot != null ? Chip8.restore(snapshot) : null
     const fits = restored !== null && restored.state.config.platform === program.platform
+    if (strict && !fits) return false
+    this.#stopLoop()
+    this.#host.sound(null)
     if (fits) restored.tune({ ipf, quirks })
     this.#machine = fits
       ? restored
@@ -164,7 +175,11 @@ export class Chip8Runner {
 
   /** Takes over a machine another mount of this pane was running (a moved pane). */
   adopt(program: Chip8Program, rom: Uint8Array, machine: Chip8, paused: boolean): void {
+    if (this.#disposed) return
     this.#stopLoop()
+    // Keys held as the pane moved: the new mount never hears them go up.
+    machine.releaseAll()
+    this.keys = 0
     this.#machine = machine
     this.#rom = rom
     this.program = program
@@ -254,6 +269,7 @@ export class Chip8Runner {
   }
 
   dispose(): void {
+    this.#disposed = true
     this.#stopLoop()
     this.#host.sound(null)
     this.#listeners.clear()
@@ -277,6 +293,8 @@ export class Chip8Runner {
   detach(): Chip8 | null {
     this.#stopLoop()
     this.#host.sound(null)
+    this.#machine?.releaseAll()
+    this.keys = 0
     return this.#machine
   }
 
@@ -290,6 +308,10 @@ export class Chip8Runner {
   /** Brings status, sound and the loop in line with the machine, the pause and being seen. */
   #settle(): void {
     const machine = this.#machine
+    // Loaded or taken up while out of sight (a start that landed after the pane was hidden):
+    // paused for being hidden, as if it had been running when it went, so it never runs
+    // unseen nor goes on by itself when seen.
+    if (machine?.running && this.pausedBy === null && !this.#seen) this.pausedBy = 'hidden'
     const status = statusOf(machine, this.pausedBy)
     if (this.status !== status) this.status = status
     const sensed = machine?.state.sensed ?? 0
