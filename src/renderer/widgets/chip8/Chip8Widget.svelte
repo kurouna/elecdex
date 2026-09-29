@@ -1,6 +1,6 @@
 <script lang="ts">
 import { keyFate, padOf } from '@shared/chip8/keys'
-import type { Chip8Program } from '@shared/chip8-library'
+import type { Chip8Program, Chip8Slot } from '@shared/chip8-library'
 import { parseRgb } from '@shared/qr'
 import { onDestroy, untrack } from 'svelte'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
@@ -76,27 +76,59 @@ function change(next: Partial<Chip8Pane>): void {
 /** Counts starts, so a program whose bytes arrive after another was chosen is not loaded. */
 let starts = 0
 
+/** Where a start goes on from: AUTO or a slot when it holds a machine, or the beginning. */
+type From = Chip8Slot | 'fresh'
+
 /**
- * Starts a program from the start, or (coming back after a restart) paused where a player
- * finds it. One that cannot be read sends the pane back to the library, which says so.
+ * Starts a program - from the beginning, or from a kept machine when there is one - running,
+ * or (coming back after a restart) paused where a player finds it. One that cannot be read
+ * sends the pane back to the library, which says so. True when it went on from the machine.
  */
-async function start(id: string, paused: boolean): Promise<void> {
+async function start(id: string, from: From, paused: boolean): Promise<boolean> {
   const mine = ++starts
   const found = chip8Library.find(id)
-  const rom = found === null ? null : await chip8Library.rom(id)
-  if (mine !== starts) return
+  const [rom, snapshot] = await Promise.all([
+    found === null ? null : chip8Library.rom(id),
+    from === 'fresh' ? null : window.elecdex.chip8.load(id, from).catch(() => null),
+  ])
+  if (mine !== starts) return false
   if (found === null || rom === null) {
     missing = id
     change({ view: 'library' })
-    return
+    return false
   }
   missing = null
-  runner.load(found, rom, Date.now())
-  if (paused) runner.pause('player')
+  return runner.load(found, rom, Date.now(), { snapshot, paused })
 }
 
+/** The changes AUTO last kept, so a machine that has not moved since is not written again. */
+let kept = -1
+
+/**
+ * Keeps the machine in AUTO: on going back to the library, out of sight, away (a move, a
+ * layout switch, a closed pane) and with the page (a reload, the app quitting). A machine
+ * that has halted is not kept - AUTO keeps the last one worth going on from.
+ */
+function keepAuto(): Promise<unknown> {
+  const current = runner.program
+  const going = runner.status === 'running' || runner.status === 'paused'
+  if (current === null || !going || runner.changes === kept) return Promise.resolve()
+  const bytes = runner.snapshot()
+  if (bytes === null) return Promise.resolve()
+  kept = runner.changes
+  return window.elecdex.chip8.save(current.id, 'auto', bytes).catch(() => null)
+}
+
+// Out of sight, the runner pauses (runner.setSeen): what it paused at is kept.
+let wasVisible = true
+$effect(() => {
+  const now = visible
+  if (wasVisible && !now) untrack(() => void keepAuto())
+  wasVisible = now
+})
+
 // On mount, and once the library is known: take up the machine a moved pane left behind,
-// or bring back what the pane was running, paused.
+// or bring back what the pane was running, from AUTO, paused.
 let restored = false
 $effect(() => {
   if (restored || !chip8Library.loaded) return
@@ -106,27 +138,61 @@ $effect(() => {
     if (parked !== null && parked.program.id === pane.program) {
       runner.adopt(parked.program, parked.rom, parked.machine, parked.paused)
     } else if (pane.view === 'run' && pane.program !== null) {
-      void start(pane.program, true)
+      void start(pane.program, 'auto', true)
     }
   })
 })
 
-function load(id: string): void {
+// A program taken out of the library (an import removed, here or in another pane) while it
+// runs: its machine is put away and the pane goes back to the library, saying so.
+$effect(() => {
+  const current = runner.program
+  if (!chip8Library.loaded || current === null) return
+  if (chip8Library.programs.some((p) => p.id === current.id)) return
+  untrack(() => {
+    runner.unload()
+    missing = current.title
+    change({ view: 'library' })
+  })
+})
+
+/**
+ * Loads a program from the library: going on from where it was left (the machine still
+ * here, else AUTO), or from the beginning when asked (`fresh`) or when nothing was kept.
+ */
+function load(id: string, fresh: boolean): void {
   sfx.play('granted')
   change({ view: 'run', program: id })
-  void start(id, false).then(() => root?.focus({ preventScroll: true }))
+  const going = runner.status === 'paused' || runner.status === 'running'
+  if (!fresh && runner.program?.id === id && going) {
+    runner.resume()
+    root?.focus({ preventScroll: true })
+    return
+  }
+  void start(id, fresh ? 'fresh' : 'auto', false).then(() => root?.focus({ preventScroll: true }))
 }
 
 function back(): void {
   runner.pause('player')
   sfx.play('panel')
-  change({ view: 'library' })
+  // Kept before the library shows, so it offers to go on from here.
+  void keepAuto().then(() => change({ view: 'library' }))
   root?.focus({ preventScroll: true })
 }
 
 function reset(): void {
   runner.reset(Date.now())
   root?.focus({ preventScroll: true })
+}
+
+/** Goes on from a kept machine (SAVE's LOAD), paused if the machine now is. */
+async function fromSlot(slot: Chip8Slot): Promise<boolean> {
+  const current = runner.program
+  if (current === null) return false
+  const paused = runner.status === 'paused'
+  const done = await start(current.id, slot, paused)
+  root?.focus({ preventScroll: true })
+  return done
 }
 
 function onkeydown(event: KeyboardEvent): void {
@@ -211,6 +277,7 @@ $effect(() => {
 })
 
 onDestroy(() => {
+  void keepAuto()
   const paused = runner.status !== 'running'
   const current = runner.program
   const rom = runner.rom
@@ -229,6 +296,7 @@ onDestroy(() => {
     windowFocused = false
   }}
   onfocus={() => (windowFocused = true)}
+  onpagehide={() => void keepAuto()}
 />
 
 <!-- The pane takes keys while it has the focus, as a game's field does: role application. -->
@@ -262,6 +330,7 @@ onDestroy(() => {
         onback={back}
         onreset={reset}
         onchange={change}
+        onslot={fromSlot}
       />
     </div>
   {:else}
@@ -281,7 +350,7 @@ onDestroy(() => {
         onload={load}
       />
       {#if missing !== null}
-        <p class="missing" data-testid="chip8-missing">{missing} could not be read.</p>
+        <p class="missing" data-testid="chip8-missing">{missing} is not in the library.</p>
       {/if}
     </div>
   {/if}

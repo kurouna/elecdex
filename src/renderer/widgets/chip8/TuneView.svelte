@@ -1,24 +1,28 @@
 <script lang="ts">
 import { profileOf, quirksFor } from '@shared/chip8/quirks'
 import { PLATFORMS, QUIRK_NAMES, type Quirks } from '@shared/chip8/types'
-import { PROFILE_NAMES, QUIRK_LABELS } from './labels.ts'
+import type { Chip8Program } from '@shared/chip8-library'
+import { sfx } from '../../stores/sound.svelte.ts'
+import { PROFILE_NAMES, QUIRK_LABELS, tuningFrom } from './labels.ts'
 import type { Chip8Pane } from './pane-state.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
 
 /**
  * TUNE (docs/architecture.md section 5.18): how fast and with which quirks the machine
- * runs, and how the screen is drawn. Speed and quirks act on the machine at once; the
- * drawing choices are the pane's.
+ * runs, and how the screen is drawn. Speed and quirks act on the machine at once and are
+ * kept by main for the program (what differs from its own, `tuningFrom`), so it runs so
+ * next time and in every pane; OWN puts its own back. The drawing choices are the pane's.
  */
 interface Props {
   runner: Chip8Runner
+  program: Chip8Program
   pane: Chip8Pane
   /** Whether the program brings colours of its own (ORIGINAL). */
   hasOriginal: boolean
   onchange: (change: Partial<Chip8Pane>) => void
 }
 
-const { runner, pane, hasOriginal, onchange }: Props = $props()
+const { runner, program, pane, hasOriginal, onchange }: Props = $props()
 
 const SPEEDS = [7, 15, 30, 100, 200, 500, 1000, 10000]
 
@@ -33,6 +37,16 @@ const profile = $derived(config === null ? null : profileOf(config.quirks))
 function tune(change: Parameters<Chip8Runner['tune']>[0]): void {
   runner.tune(change)
   revision++
+  const now = runner.machine?.state.config
+  if (now !== undefined) void window.elecdex.chip8.tune(program.id, tuningFrom(program, now))
+}
+
+/** Differs from the program's own speed or quirks. */
+const tuned = $derived(config !== null && tuningFrom(program, config) !== null)
+
+function own(): void {
+  sfx.play('collapse')
+  tune({ ipf: program.ipf, quirks: program.quirks })
 }
 
 function setQuirk(name: keyof Quirks, on: boolean): void {
@@ -43,7 +57,17 @@ function setQuirk(name: keyof Quirks, on: boolean): void {
 </script>
 
 {#if config !== null}
-  <div class="tune" data-testid="chip8-tune">
+  <div class="tune" data-testid="chip8-tune" data-tuned={tuned}>
+    <span class="label">tuning</span>
+    <div class="chips">
+      <span class="c8-chip plain" class:yours={tuned} data-testid="chip8-tuning"
+        >{tuned ? 'yours' : "program's own"}</span
+      >
+      <button type="button" class="c8-chip" disabled={!tuned} onclick={own} data-testid="chip8-own"
+        >own</button
+      >
+    </div>
+
     <span class="label">speed</span>
     <div class="chips" role="radiogroup" aria-label="instructions a frame">
       {#each SPEEDS as speed (speed)}
@@ -146,6 +170,11 @@ function setQuirk(name: keyof Quirks, on: boolean): void {
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.yours {
+  color: var(--warn);
+  border-color: var(--warn);
 }
 
 .chips {

@@ -10,10 +10,11 @@
 
 import { CHIP8_GENRES, type Chip8Genre, isChip8ProgramId } from '@shared/chip8-library'
 
-export const CHIP8_TABS = ['core', 'tune'] as const
+export const CHIP8_TABS = ['core', 'tune', 'save'] as const
 export type Chip8Tab = (typeof CHIP8_TABS)[number]
 
-export type LibraryFilter = 'all' | Chip8Genre
+/** A library tab: everything, the starred ones, or one kind. */
+export type LibraryFilter = 'all' | 'starred' | Chip8Genre
 
 export interface Chip8Pane {
   view: 'library' | 'run'
@@ -46,7 +47,7 @@ export function readChip8Pane(state: Record<string, unknown> | undefined): Chip8
     // A pane with nothing chosen opens on the library, whatever it says.
     view: program === null ? 'library' : oneOf(s.view, ['library', 'run'], 'library'),
     program,
-    filter: oneOf<LibraryFilter>(s.filter, ['all', ...CHIP8_GENRES], 'all'),
+    filter: oneOf<LibraryFilter>(s.filter, ['all', 'starred', ...CHIP8_GENRES], 'all'),
     // Null: the settings say (chip8.core).
     panel: typeof s.panel === 'boolean' ? s.panel : null,
     tab: oneOf(s.tab, CHIP8_TABS, 'core'),

@@ -2,9 +2,11 @@ import type { Chip8Program } from '@shared/chip8-library'
 
 /**
  * The CHIP-8 library as the page knows it (docs/architecture.md section 5.18): the
- * programs main lists, asked for once when the first CHIP-8 pane mounts, and the bytes of
- * those loaded since, kept for the session (a few kilobytes each) so a reset or a second
- * pane does not ask again.
+ * programs main lists - bundled and imported, with the user's tuning and stars - asked for
+ * once when the first CHIP-8 pane mounts and replaced whole whenever main says the library
+ * changed (another pane's import, star or tuning), and the bytes of those loaded since,
+ * kept for the session (a few kilobytes each) so a reset or a second pane does not ask
+ * again. The list is main's: a change goes there and comes back, never made here first.
  */
 class Chip8Library {
   /**
@@ -17,18 +19,29 @@ class Chip8Library {
   readonly #roms = new Map<string, Promise<Uint8Array | null>>()
 
   load(): Promise<void> {
-    this.#loading ??= window.elecdex.chip8
-      .list()
-      .then((programs) => {
-        this.programs = programs
-      })
-      .catch(() => {
-        this.programs = []
-      })
-      .finally(() => {
-        this.loaded = true
-      })
+    this.#loading ??= this.#start()
     return this.#loading
+  }
+
+  async #start(): Promise<void> {
+    // Listening first, so a change made while the list is on its way is not missed; the
+    // page lives as long as the listener, as the library does.
+    window.elecdex.chip8.onChange((programs) => this.#take(programs))
+    try {
+      this.#take(await window.elecdex.chip8.list())
+    } catch {
+      this.programs = []
+    } finally {
+      this.loaded = true
+    }
+  }
+
+  #take(programs: Chip8Program[]): void {
+    // A program gone (an imported one removed) takes its bytes with it.
+    for (const id of this.#roms.keys()) {
+      if (!programs.some((p) => p.id === id)) this.#roms.delete(id)
+    }
+    this.programs = programs
   }
 
   find(id: string | null): Chip8Program | null {

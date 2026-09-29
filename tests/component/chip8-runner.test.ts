@@ -55,6 +55,7 @@ const PROGRAM: Chip8Program = {
   rotation: 0,
   licence: 'unknown',
   keys: 0,
+  favourite: false,
 }
 
 /** v0 += 1 forever; with `draw`, a sprite XORed each time round too. */
@@ -102,6 +103,7 @@ describe('the runner', () => {
 
   it('steps a frame, or an instruction, only while paused', () => {
     const { runner } = loaded()
+    const stepped = runner.stepped
     runner.stepFrame()
     expect(runner.machine?.state.cycles).toBe(0)
     runner.pause()
@@ -109,7 +111,7 @@ describe('the runner', () => {
     expect(runner.machine?.state.cycles).toBe(10)
     runner.stepInstruction()
     expect(runner.machine?.state.cycles).toBe(11)
-    expect(runner.stepped).toBe(2)
+    expect(runner.stepped).toBe(stepped + 2)
   })
 
   it('drops to a timer once the screen stands still, and back to frames when it moves', () => {
@@ -185,6 +187,75 @@ describe('the runner', () => {
     next.vsync()
     next.vsync()
     expect(other.machine?.state.cycles).toBe(30)
+  })
+})
+
+describe('the runner with kept machines', () => {
+  it('goes on from a snapshot, running or paused as asked', () => {
+    const { runner, vsync } = loaded()
+    vsync()
+    vsync()
+    const kept = runner.snapshot()
+    expect(kept).not.toBeNull()
+    const next = fakeHost()
+    const other = new Chip8Runner(next.host)
+    expect(other.load(PROGRAM, counting(), 9, { snapshot: kept, paused: true })).toBe(true)
+    expect(other.machine?.state.cycles).toBe(20)
+    expect(other.status).toBe('paused')
+    expect(next.frames.size + next.timers.size).toBe(0)
+  })
+
+  it('starts from the beginning when the snapshot is not good or of another machine', () => {
+    const { runner, vsync } = loaded()
+    vsync()
+    const kept = runner.snapshot() as Uint8Array
+    const fresh = new Chip8Runner(fakeHost().host)
+    expect(fresh.load(PROGRAM, counting(), 1, { snapshot: new Uint8Array([1, 2, 3]) })).toBe(false)
+    expect(fresh.machine?.state.cycles).toBe(0)
+    // An imported program since run as SUPER-CHIP: the CHIP-8 machine kept is not taken up.
+    const other = { ...PROGRAM, platform: 'schip' as const, quirks: quirksFor('schip') }
+    expect(fresh.load(other, counting(), 1, { snapshot: kept })).toBe(false)
+    expect(fresh.machine?.state.config.platform).toBe('schip')
+    expect(fresh.status).toBe('running')
+  })
+
+  it("runs with the user's tuning, from the beginning and from a snapshot", () => {
+    const tuned = { ...PROGRAM, tuning: { ipf: 3, quirks: { ...quirksFor('chip8'), clip: false } } }
+    const { host, vsync } = fakeHost()
+    const runner = new Chip8Runner(host)
+    runner.load(tuned, counting(), 1)
+    expect(runner.machine?.state.config.ipf).toBe(3)
+    expect(runner.machine?.state.config.quirks.clip).toBe(false)
+    vsync()
+    const kept = runner.snapshot() as Uint8Array
+    // Kept before the tuning went back to the program's own: it goes on as tuned now.
+    runner.load(PROGRAM, counting(), 1, { snapshot: kept })
+    expect(runner.machine?.state.cycles).toBe(3)
+    expect(runner.machine?.state.config.ipf).toBe(10)
+    expect(runner.machine?.state.config.quirks.clip).toBe(true)
+  })
+
+  it('counts what changed the machine, so a still one is not kept again', () => {
+    const { runner, vsync } = loaded()
+    const at = runner.changes
+    vsync()
+    expect(runner.changes).toBeGreaterThan(at)
+    runner.pause()
+    const paused = runner.changes
+    vsync()
+    expect(runner.changes).toBe(paused)
+    runner.stepFrame()
+    expect(runner.changes).toBeGreaterThan(paused)
+  })
+
+  it('puts its machine away when its program leaves the library', () => {
+    const { runner, frames, tones } = loaded()
+    runner.unload()
+    expect(runner.status).toBe('empty')
+    expect(runner.program).toBeNull()
+    expect(runner.snapshot()).toBeNull()
+    expect(frames.size).toBe(0)
+    expect(tones.at(-1)).toBeNull()
   })
 })
 

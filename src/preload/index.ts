@@ -22,7 +22,7 @@ import type {
 import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
 import type { BackgroundState } from '@shared/background'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
-import type { Chip8Program } from '@shared/chip8-library'
+import type { Chip8ImportResult, Chip8Program, Chip8SlotInfo } from '@shared/chip8-library'
 import type { ClipBoard, ClipRestoreResult } from '@shared/clipboard'
 import type { DockerBoard, DockerControlResult } from '@shared/docker'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
@@ -557,6 +557,16 @@ const api: ElecdexApi = {
   chip8: {
     list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,
     rom: (id) => ipcRenderer.invoke(CH.chip8.rom, id) as Promise<Uint8Array | null>,
+    tune: (id, tuning) => ipcRenderer.invoke(CH.chip8.tune, id, tuning) as Promise<boolean>,
+    favourite: (id, on) => ipcRenderer.invoke(CH.chip8.favourite, id, on) as Promise<boolean>,
+    import: () => ipcRenderer.invoke(CH.chip8.import) as Promise<Chip8ImportResult | null>,
+    update: (id, change) => ipcRenderer.invoke(CH.chip8.update, id, change) as Promise<boolean>,
+    remove: (id) => ipcRenderer.invoke(CH.chip8.remove, id) as Promise<boolean>,
+    slots: (id) => ipcRenderer.invoke(CH.chip8.slots, id) as Promise<Chip8SlotInfo[]>,
+    save: (id, slot, snapshot) =>
+      ipcRenderer.invoke(CH.chip8.save, id, slot, snapshot) as Promise<Chip8SlotInfo | null>,
+    load: (id, slot) => ipcRenderer.invoke(CH.chip8.load, id, slot) as Promise<Uint8Array | null>,
+    onChange: (handler) => listen<Chip8Program[]>(CH.chip8.changed, handler),
   },
   utility: {
     awake: {

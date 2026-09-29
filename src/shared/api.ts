@@ -11,7 +11,14 @@ import type {
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
-import type { Chip8Program } from './chip8-library.js'
+import type {
+  Chip8ImportChange,
+  Chip8ImportResult,
+  Chip8Program,
+  Chip8Slot,
+  Chip8SlotInfo,
+  Chip8Tuning,
+} from './chip8-library.js'
 import type { ClipBoard, ClipRestoreResult } from './clipboard.js'
 import type { DockerAction, DockerBoard, DockerControlResult } from './docker.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
@@ -443,10 +450,26 @@ export interface NowPlayingApi {
  */
 /** The CHIP-8 pane (docs/architecture.md section 5.18): read-only, by id. */
 export interface Chip8Api {
-  /** Every program the pane can load. */
+  /** Every program the pane can load, with the user's tuning and stars. */
   list(): Promise<Chip8Program[]>
   /** A program's bytes, or null for an id that is not in the list. */
   rom(id: string): Promise<Uint8Array | null>
+  /** Keeps the user's speed and quirks for a program; null goes back to its own. */
+  tune(id: string, tuning: Chip8Tuning | null): Promise<boolean>
+  favourite(id: string, on: boolean): Promise<boolean>
+  /** Opens main's picker; null when nothing was picked. */
+  import(): Promise<Chip8ImportResult | null>
+  /** Renames an imported program or changes its machine (which forgets its saves). */
+  update(id: string, change: Chip8ImportChange): Promise<boolean>
+  /** Takes an imported program out, with its saves. */
+  remove(id: string): Promise<boolean>
+  /** The slots that hold a machine of a program. */
+  slots(id: string): Promise<Chip8SlotInfo[]>
+  /** Keeps a machine (a snapshot, shared/chip8/snapshot.ts) in a slot. */
+  save(id: string, slot: Chip8Slot, snapshot: Uint8Array): Promise<Chip8SlotInfo | null>
+  load(id: string, slot: Chip8Slot): Promise<Uint8Array | null>
+  /** The library after every change, from any pane. */
+  onChange(handler: (programs: Chip8Program[]) => void): () => void
 }
 
 export interface DockerApi {

@@ -1,13 +1,20 @@
 <script lang="ts">
+import type { GuessReason } from '@shared/chip8/platform'
 import { PLATFORMS, type Platform } from '@shared/chip8/types'
-import { CHIP8_GENRES, type Chip8Program } from '@shared/chip8-library'
+import {
+  CHIP8_GENRES,
+  type Chip8Program,
+  type Chip8SlotInfo,
+  tunedConfig,
+} from '@shared/chip8-library'
 import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import Attract from './Attract.svelte'
-import { GENRE_LABELS, keyWords, PLATFORM_CHIPS, screenWords } from './labels.ts'
+import ImportSheet from './ImportSheet.svelte'
+import { GENRE_LABELS, keyWords, PLATFORM_CHIPS, screenWords, whenWords } from './labels.ts'
 import ProgramCard from './ProgramCard.svelte'
 import type { Palette } from './palette.ts'
 import type { LibraryFilter } from './pane-state.ts'
@@ -16,12 +23,14 @@ import Thumb from './Thumb.svelte'
 /**
  * The CHIP-8 library (docs/architecture.md section 5.18): tabs by kind, a search and the
  * three machines to show or hide, the programs with their previews, and the chosen one
- * playing by itself beside its details and LOAD. A tab change powers the list off and on,
- * rows come in like tiles, and the program chosen blinks, the launcher's way, before it
- * loads. A row rested on opens its detail card.
+ * playing by itself beside its details and LOAD - CONTINUE and NEW when AUTO holds where it
+ * was left. A tab change powers the list off and on, rows come in like tiles, and the
+ * program chosen blinks, the launcher's way, before it loads. A row rested on opens its
+ * detail card. A star marks a program (the starred tab); IMPORT takes a file in through
+ * main's picker and opens its sheet, as EDIT does for one imported before.
  *
- * Keys, while the pane has them: up and down choose, Enter loads, left and right change
- * tab; in the search, up, down and Enter do the same.
+ * Keys, while the pane has them: up and down choose, Enter loads (going on from AUTO),
+ * left and right change tab; in the search, up, down and Enter do the same.
  */
 interface Props {
   programs: Chip8Program[]
@@ -36,7 +45,8 @@ interface Props {
   seen: boolean
   onfilter: (filter: LibraryFilter) => void
   onselect: (id: string) => void
-  onload: (id: string) => void
+  /** Loads a program: from where it was left, or from the beginning (`fresh`). */
+  onload: (id: string, fresh: boolean) => void
 }
 
 const {
@@ -85,16 +95,21 @@ const matches = (program: Chip8Program, words: string): boolean =>
     .toLowerCase()
     .includes(words)
 
-/** The tabs that have something in them, after ALL. */
+/** The tabs that have something in them, after ALL and STARRED (kept while it is open). */
 const tabs = $derived<LibraryFilter[]>([
   'all',
+  ...(filter === 'starred' || programs.some((p) => p.favourite) ? ['starred' as const] : []),
   ...CHIP8_GENRES.filter((g) => programs.some((p) => p.genre === g)),
 ])
+const inFilter = (p: Chip8Program, tab: LibraryFilter): boolean =>
+  tab === 'all' || (tab === 'starred' ? p.favourite : p.genre === tab)
+const tabLabel = (tab: LibraryFilter): string =>
+  tab === 'all' ? 'all' : tab === 'starred' ? '★' : GENRE_LABELS[tab]
 /** Searching looks through the whole library, whichever tab is open. */
 const searching = $derived(query.trim() !== '')
 const shown = $derived.by(() => {
   const words = query.trim().toLowerCase()
-  const inTab = (p: Chip8Program) => searching || filter === 'all' || p.genre === filter
+  const inTab = (p: Chip8Program) => searching || inFilter(p, filter)
   return programs.filter((p) => inTab(p) && !hidden.includes(p.platform) && matches(p, words))
 })
 const chosen = $derived(shown.find((p) => p.id === selected) ?? shown[0] ?? null)
@@ -127,7 +142,67 @@ function choose(id: string): void {
 }
 
 function load(id: string): void {
-  afterBlink(rowOf(id), () => onload(id))
+  afterBlink(rowOf(id), () => onload(id, false))
+}
+
+/**
+ * What AUTO holds of the program chosen, asked once the choice has settled. Keyed by the id:
+ * the program itself is a new object whenever main's list changes (a star, a tuning), and
+ * asking again then made CONTINUE blink back to LOAD.
+ */
+let auto = $state.raw<Chip8SlotInfo | null>(null)
+const chosenId = $derived(chosen?.id)
+$effect(() => {
+  const id = chosenId
+  auto = null
+  if (id === undefined) return
+  const timer = setTimeout(() => {
+    void window.elecdex.chip8
+      .slots(id)
+      .catch(() => [])
+      .then((slots) => {
+        if (chosenId === id) auto = slots.find((s) => s.slot === 'auto') ?? null
+      })
+  }, 120)
+  return () => clearTimeout(timer)
+})
+
+function star(program: Chip8Program): void {
+  sfx.play(program.favourite ? 'collapse' : 'expand')
+  void window.elecdex.chip8.favourite(program.id, !program.favourite)
+}
+
+/** The imported program whose sheet is open, and what main said of it when it came in. */
+let sheet = $state.raw<{
+  program: Chip8Program
+  guess: GuessReason | null
+  already: boolean
+} | null>(null)
+/** The sheet's program as the library has it now (renamed, another machine). */
+const sheetProgram = $derived(
+  sheet === null ? null : (programs.find((p) => p.id === sheet?.program.id) ?? sheet.program),
+)
+let importProblem = $state<string | null>(null)
+
+async function importFile(): Promise<void> {
+  const result = await window.elecdex.chip8.import().catch(() => null)
+  if (result === null) return
+  if (!result.ok) {
+    importProblem = result.problem
+    sfx.play('glitch')
+    return
+  }
+  importProblem = null
+  sfx.play('granted')
+  query = ''
+  onfilter('imported')
+  onselect(result.program.id)
+  sheet = { program: result.program, guess: result.guess, already: result.already }
+}
+
+function closeSheet(): void {
+  sheet = null
+  root?.closest<HTMLElement>('[tabindex="0"]')?.focus({ preventScroll: true })
 }
 
 function setFilter(next: LibraryFilter): void {
@@ -233,8 +308,8 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
         data-testid="chip8-filter"
         data-filter={tab}
       >
-        {tab === 'all' ? 'all' : GENRE_LABELS[tab]}
-        <small>{tab === 'all' ? programs.length : programs.filter((p) => p.genre === tab).length}</small>
+        {tabLabel(tab)}
+        <small>{programs.filter((p) => inFilter(p, tab)).length}</small>
       </button>
     {/each}
   </div>
@@ -262,7 +337,17 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
         >
       {/each}
     </span>
+    <button
+      type="button"
+      class="c8-btn"
+      title="take a program file into the library"
+      onclick={(e) => afterBlink(e.currentTarget, () => void importFile())}
+      data-testid="chip8-import">+ import</button
+    >
   </div>
+  {#if importProblem !== null}
+    <p class="problem" data-testid="chip8-import-problem">{importProblem}</p>
+  {/if}
 
   <div class="main">
     {#key filter}
@@ -302,7 +387,11 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
               <span>{program.authors.join(', ')}{program.event ? ` · ${program.event}` : ''}</span>
             </span>
             <span class="c8-chip plain">{PLATFORM_CHIPS[program.platform]}</span>
-            <span class="year">{year(program.released)}</span>
+            <span class="year"
+              >{#if program.favourite}<i class="starred" aria-label="starred">★</i>{/if}{year(
+                program.released,
+              )}</span
+            >
           </button>
         {:else}
           <p class="empty">{loaded ? 'Nothing here matches.' : 'Reading the library…'}</p>
@@ -325,7 +414,11 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
             {screenWords(chosen.platform)}
           </dd>
           <dt>speed</dt>
-          <dd>{chosen.ipf.toLocaleString('en-US')} a frame</dd>
+          <dd>
+            {tunedConfig(chosen).ipf.toLocaleString('en-US')} a frame{chosen.tuning !== undefined
+              ? ' · tuned'
+              : ''}
+          </dd>
           <dt>keys</dt>
           <dd
             class="keys"
@@ -338,13 +431,48 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
           </dd>
         </dl>
         <div class="actions">
+          {#if auto !== null}
+            <button
+              type="button"
+              class="c8-btn primary"
+              onclick={(e) => afterBlink(e.currentTarget, () => onload(chosen.id, false))}
+              data-testid="chip8-load">continue ▸</button
+            >
+            <button
+              type="button"
+              class="c8-btn"
+              title="from the beginning"
+              onclick={(e) => afterBlink(e.currentTarget, () => onload(chosen.id, true))}
+              data-testid="chip8-new">new</button
+            >
+          {:else}
+            <button
+              type="button"
+              class="c8-btn primary"
+              onclick={(e) => afterBlink(e.currentTarget, () => onload(chosen.id, true))}
+              data-testid="chip8-load">load ▸</button
+            >
+          {/if}
           <button
             type="button"
-            class="c8-btn primary"
-            onclick={(e) => afterBlink(e.currentTarget, () => onload(chosen.id))}
-            data-testid="chip8-load">load ▸</button
+            class="c8-btn star"
+            aria-pressed={chosen.favourite}
+            aria-label={chosen.favourite ? 'unstar' : 'star'}
+            onclick={() => star(chosen)}
+            data-testid="chip8-star">{chosen.favourite ? '★' : '☆'}</button
           >
+          {#if chosen.source !== undefined}
+            <button
+              type="button"
+              class="c8-btn"
+              onclick={() => (sheet = { program: chosen, guess: null, already: false })}
+              data-testid="chip8-edit">edit</button
+            >
+          {/if}
         </div>
+        {#if auto !== null}
+          <div class="left" data-testid="chip8-auto">left at {whenWords(auto.at, Date.now())}</div>
+        {/if}
       </div>
     {/if}
   </div>
@@ -354,8 +482,18 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
     <span>diag · chip8-test-suite (Timendus) · GPL-3.0</span>
   </div>
 
-  {#if hovered !== null && hover !== null}
+  {#if hovered !== null && hover !== null && sheet === null}
     <ProgramCard program={hovered} anchor={hover.anchor} bounds={hover.bounds} />
+  {/if}
+
+  {#if sheet !== null && sheetProgram !== null}
+    <ImportSheet
+      program={sheetProgram}
+      guess={sheet.guess}
+      already={sheet.already}
+      palette={paletteOf(sheetProgram)}
+      onclose={closeSheet}
+    />
   {/if}
 </div>
 
@@ -594,7 +732,30 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
 .actions {
   margin-top: auto;
   display: flex;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+
+.star[aria-pressed='true'] {
+  color: var(--warn);
+}
+
+.left {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-muted);
+}
+
+.starred {
+  font-style: normal;
+  color: var(--warn);
+  margin-right: 0.3em;
+}
+
+.problem {
+  margin: 0;
+  font-size: var(--step--1);
+  color: var(--warn);
 }
 
 .keys {
@@ -633,39 +794,7 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
 
 /* A narrow pane: the list alone, the chosen one loads with Enter or a double click. */
 @container chip8 (max-width: 520px) {
-  .bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.search {
-  flex: 1;
-  min-width: 6rem;
-  border: 0;
-  border-bottom: 1px solid var(--panel-rule);
-  background: transparent;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-  padding: 1px var(--space-1);
-  outline: none;
-}
-
-.search::placeholder {
-  color: var(--text-muted);
-}
-
-.search:focus {
-  border-bottom-color: var(--accent);
-}
-
-.machines {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.main {
+  .main {
     grid-template-columns: minmax(0, 1fr);
   }
 

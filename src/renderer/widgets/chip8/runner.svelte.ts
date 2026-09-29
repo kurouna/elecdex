@@ -1,7 +1,7 @@
 import type { Tone } from '@shared/chip8/audio'
 import { Chip8 } from '@shared/chip8/machine'
 import type { Quirks } from '@shared/chip8/types'
-import type { Chip8Program } from '@shared/chip8-library'
+import { type Chip8Program, tunedConfig } from '@shared/chip8-library'
 import { framesDue } from '@shared/emu/clock'
 
 /**
@@ -87,6 +87,7 @@ export class Chip8Runner {
   #ticking = false
   #last = 0
   #carry = 0
+  #changes = 0
   readonly #listeners = new Set<() => void>()
 
   constructor(host: RunnerHost) {
@@ -109,28 +110,50 @@ export class Chip8Runner {
     return () => this.#listeners.delete(listener)
   }
 
-  /** Starts `program` from its bytes, or from a snapshot of it when one is given and good. */
-  load(program: Chip8Program, rom: Uint8Array, seed: number, snapshot?: Uint8Array): void {
+  /**
+   * Starts `program` from its bytes, or from a snapshot of it when one is given and good;
+   * true when it went on from the snapshot. Either way it runs with the program's tuning,
+   * which is main's per program (a snapshot kept before the tuning changed runs as tuned
+   * now). A snapshot of another machine - an imported program since run as another - is
+   * not taken up. It runs at once unless asked to wait `paused`.
+   */
+  load(
+    program: Chip8Program,
+    rom: Uint8Array,
+    seed: number,
+    { snapshot, paused = false }: { snapshot?: Uint8Array | null; paused?: boolean } = {},
+  ): boolean {
     this.#stopLoop()
-    const restored = snapshot !== undefined ? Chip8.restore(snapshot) : null
-    this.#machine =
-      restored ??
-      Chip8.load(
-        rom,
-        {
-          platform: program.platform,
-          quirks: program.quirks,
-          ipf: program.ipf,
-          font: program.font,
-        },
-        seed,
-      )
+    this.#host.sound(null)
+    const { ipf, quirks } = tunedConfig(program)
+    const restored = snapshot != null ? Chip8.restore(snapshot) : null
+    const fits = restored !== null && restored.state.config.platform === program.platform
+    if (fits) restored.tune({ ipf, quirks })
+    this.#machine = fits
+      ? restored
+      : Chip8.load(rom, { platform: program.platform, quirks, ipf, font: program.font }, seed)
     this.#rom = rom
     this.program = program
     this.keys = 0
-    this.pausedBy = null
+    this.pausedBy = paused ? 'player' : null
+    this.#changes++
+    this.stepped++
     this.#settle()
     this.#emit()
+    return fits
+  }
+
+  /** The machine as it is, to keep (a save slot, AUTO), or null with none. */
+  snapshot(): Uint8Array | null {
+    return this.#machine?.snapshot() ?? null
+  }
+
+  /**
+   * Counts what changed the machine - frames run, steps, loads and resets - so AUTO is
+   * written only when there is something new to keep. Not state: nothing shows it.
+   */
+  get changes(): number {
+    return this.#changes
   }
 
   /** Takes over a machine another mount of this pane was running (a moved pane). */
@@ -140,6 +163,7 @@ export class Chip8Runner {
     this.#rom = rom
     this.program = program
     this.pausedBy = paused ? 'player' : null
+    this.#changes++
     this.#settle()
     this.#emit()
   }
@@ -157,6 +181,7 @@ export class Chip8Runner {
     this.#host.sound(null)
     this.#machine = Chip8.load(this.#rom, config, seed)
     if (this.pausedBy === 'hidden') this.pausedBy = 'player'
+    this.#changes++
     this.stepped++
     this.#settle()
     this.#emit()
@@ -228,6 +253,20 @@ export class Chip8Runner {
     this.#listeners.clear()
   }
 
+  /** Puts the machine away: its program is gone from the library (an import removed). */
+  unload(): void {
+    this.#stopLoop()
+    this.#host.sound(null)
+    this.#machine = null
+    this.#rom = null
+    this.program = null
+    this.keys = 0
+    this.pausedBy = null
+    this.#changes++
+    this.#settle()
+    this.#emit()
+  }
+
   /** Lets go of the machine for another mount to take up: the loop stops, the machine stays. */
   detach(): Chip8 | null {
     this.#stopLoop()
@@ -236,6 +275,7 @@ export class Chip8Runner {
   }
 
   #afterHand(): void {
+    this.#changes++
     this.stepped++
     this.#settle()
     this.#emit()
@@ -299,6 +339,7 @@ export class Chip8Runner {
     this.#carry = due.carryMs
     const before = machine.state.screenRevision
     for (let k = 0; k < due.frames && machine.running; k++) machine.frame()
+    if (due.frames > 0) this.#changes++
     if (machine.state.screenRevision !== before) this.#still = 0
     else this.#still += due.frames
     if (due.frames > 0) {

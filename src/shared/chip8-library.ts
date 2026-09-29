@@ -11,6 +11,7 @@
  */
 
 import { z } from 'zod'
+import type { GuessReason } from './chip8/platform.js'
 import type { Preview } from './chip8/preview.js'
 import { quirksFor, quirksFromOcto } from './chip8/quirks.js'
 import {
@@ -84,7 +85,66 @@ export interface Chip8Program {
   preview?: Preview
   /** The keys it asked about in its first seconds, one bit each: the keypad lights them. */
   keys: number
+  /** The user's own speed and quirks for it, kept by main; its own are `ipf` and `quirks`. */
+  tuning?: Chip8Tuning
+  /** Starred in the library. */
+  favourite: boolean
+  /** For a program imported: the file it came from and when. */
+  source?: { name: string; size: number; at: number }
 }
+
+/** The speed and quirks a program runs with: its own, under the user's tuning. */
+export function tunedConfig(program: Chip8Program): {
+  ipf: number
+  quirks: Quirks
+} {
+  return {
+    ipf: program.tuning?.ipf ?? program.ipf,
+    quirks: program.tuning?.quirks ?? program.quirks,
+  }
+}
+
+const QuirksSchema = z.object({
+  vfReset: z.boolean(),
+  memIncrement: z.boolean(),
+  shiftVx: z.boolean(),
+  jumpVx: z.boolean(),
+  clip: z.boolean(),
+  displayWait: z.boolean(),
+  vfOrder: z.boolean(),
+}) satisfies z.ZodType<Quirks>
+
+/** A program's tuning: either part may be left to the program's own. */
+export const Chip8TuningSchema = z.object({
+  ipf: z.number().int().min(IPF_MIN).max(IPF_MAX).optional(),
+  quirks: QuirksSchema.optional(),
+})
+export type Chip8Tuning = z.infer<typeof Chip8TuningSchema>
+
+/** A program's save slots: the one written by itself, and three the player writes. */
+export const CHIP8_SLOTS = ['auto', '1', '2', '3'] as const
+export type Chip8Slot = (typeof CHIP8_SLOTS)[number]
+export const isChip8Slot = (slot: unknown): slot is Chip8Slot =>
+  typeof slot === 'string' && (CHIP8_SLOTS as readonly string[]).includes(slot)
+
+/** A slot that holds a machine: when it was saved, and its screen then. */
+export interface Chip8SlotInfo {
+  slot: Chip8Slot
+  at: number
+  preview?: Preview
+}
+
+/** What an IMPORT came to: the program added (or found already there), or why not. */
+export type Chip8ImportResult =
+  | { ok: true; program: Chip8Program; guess: GuessReason; already: boolean }
+  | { ok: false; problem: string }
+
+/** What of an imported program the user may change. */
+export const Chip8ImportChangeSchema = z.object({
+  title: z.string().trim().min(1).max(80).optional(),
+  platform: z.enum(PLATFORMS).optional(),
+})
+export type Chip8ImportChange = z.infer<typeof Chip8ImportChangeSchema>
 
 const hex = z.string().regex(/^#[0-9a-f]{6}$/i)
 
@@ -157,6 +217,7 @@ export function programFromEntry(entry: Chip8CatalogEntry): Chip8Program {
     licence: entry.licence,
     ...(entry.preview !== undefined ? { preview: entry.preview } : {}),
     keys: entry.keys,
+    favourite: false,
   }
 }
 

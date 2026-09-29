@@ -219,6 +219,14 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - Keys go to the machine only while the pane itself has the focus (a press on its buttons
     hands the focus back); a program's bytes come from main by id (`chip8.list`,
     `chip8.rom`), and programs.json is written by `npm run gen:chip8`, never by hand.
+  - What the user keeps is main's, never pane state: imported programs, tuning and stars in
+    `chip8/library.json` (main/chip8/store.ts), saved machines as files (main/chip8/saves.ts),
+    both only for a program in the library, a snapshot checked with the core's own decoder.
+    An import goes through main's picker (the page never names a path), its size checked
+    before it is read. AUTO is written when the machine stops being played (back to the
+    library, out of sight, the pane gone, `pagehide`), never on a timer, and only when it
+    moved. A snapshot is taken up only for the machine it was made on, with today's tuning.
+    Every change is broadcast (`chip8:changed`) and the page's library replaced whole.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or

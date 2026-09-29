@@ -1,3 +1,6 @@
+import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { atDesignSize, launch, removeDir, settleLayout, zoomSettled } from './support.js'
 
@@ -215,9 +218,16 @@ test('a pane split beside it keeps its machine going, and a restart brings the p
     await expect(page.getByTestId('chip8-run')).toBeVisible()
     expect(await cycles(page)).toBeGreaterThanOrEqual(before)
 
+    await page.getByTestId('chip8-panel-toggle').click()
+    const kept = await cycles(page)
     launched = await launched.relaunch()
     await expect(launched.page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
     await expect(launched.page.getByTestId('chip8-run')).toContainText('Corax+')
+    // From AUTO, written as the app went: where it was, not the first instruction. The
+    // registers are CORE's, in the panel the half pane has folded away.
+    await designSize(launched.app, launched.page)
+    await launched.page.getByTestId('chip8-panel-toggle').click()
+    expect(await cycles(launched.page)).toBeGreaterThanOrEqual(kept)
   } finally {
     await launched.close()
     removeDir(profile)
@@ -442,5 +452,247 @@ test('a program whose screen is turned is drawn turned, in the middle of its fra
     expect(Math.abs(screen.y + screen.height / 2 - (bezel.y + bezel.height / 2))).toBeLessThan(2)
   } finally {
     await close()
+  }
+})
+
+const tab = (page: Page, name: string) => page.locator(`[data-testid=chip8-tab][data-tab=${name}]`)
+const slot = (page: Page, name: string) =>
+  page.locator(`[data-testid=chip8-slot][data-slot="${name}"]`)
+const OWN = "program's own"
+
+test('LOAD goes on from where the program was left, NEW starts it again', async () => {
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await designSize(app, page)
+    await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
+    await row(page, 'diag/3-corax+').click()
+    // Nothing kept yet: LOAD, and no NEW.
+    await expect(page.getByTestId('chip8-load')).toHaveText(/load/)
+    await expect(page.getByTestId('chip8-new')).toHaveCount(0)
+    await loadProgram(page, 'diag/3-corax+')
+    await expect.poll(() => cycles(page)).toBeGreaterThan(20_000)
+    await page.getByTestId('chip8-back').click()
+    await expect(page.getByTestId('chip8-auto')).toContainText('left at')
+    await expect(page.getByTestId('chip8-load')).toHaveText(/continue/)
+
+    // A reload loses the machine in the page: CONTINUE takes it up from AUTO.
+    await page.reload()
+    await expect(page.getByTestId('chip8-library')).toBeVisible()
+    await expect(page.getByTestId('chip8-load')).toHaveText(/continue/)
+    await page.getByTestId('chip8-load').click()
+    await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'running')
+    expect(await cycles(page)).toBeGreaterThan(20_000)
+
+    await page.getByTestId('chip8-back').click()
+    await page.getByTestId('chip8-new').click()
+    await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'running')
+    expect(await cycles(page)).toBeLessThan(20_000)
+  } finally {
+    await close()
+  }
+})
+
+test('SAVE keeps a machine in a slot and LOAD goes back to it; writing over asks once more', async () => {
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await designSize(app, page)
+    await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
+    await loadProgram(page, 'diag/3-corax+')
+    await expect.poll(() => cycles(page)).toBeGreaterThan(5_000)
+    await page.keyboard.press('KeyP')
+    await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
+    const at = await cycles(page)
+
+    await tab(page, 'save').click()
+    await expect(slot(page, '1')).toHaveAttribute('data-filled', 'false')
+    await slot(page, '1').getByTestId('chip8-slot-save').click()
+    await expect(slot(page, '1')).toHaveAttribute('data-filled', 'true')
+    // Its screen is the machine's.
+    await expect(slot(page, '1').locator('canvas')).toHaveCount(1)
+
+    // A few frames on, then back to the slot: where it was, still paused.
+    for (let k = 0; k < 5; k++) await page.keyboard.press('Enter')
+    await tab(page, 'core').click()
+    await expect.poll(() => cycles(page)).toBeGreaterThan(at)
+    await tab(page, 'save').click()
+    await slot(page, '1').getByTestId('chip8-slot-load').click()
+    await tab(page, 'core').click()
+    await expect.poll(() => cycles(page)).toBe(at)
+    await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
+
+    // Over a filled slot SAVE arms first.
+    await tab(page, 'save').click()
+    const save = slot(page, '1').getByTestId('chip8-slot-save')
+    await save.click()
+    await expect(save).toHaveText('over?')
+    await save.click()
+    await expect(save).toHaveText('save')
+    // AUTO is only read here: no SAVE of its own.
+    await expect(slot(page, 'auto').getByTestId('chip8-slot-save')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('TUNE is kept for the program, in the library and next time, and OWN puts its own back', async () => {
+  const launched = await launch(undefined, { layout: BESIDE_CLOCK })
+  let current = launched
+  try {
+    await designSize(launched.app, launched.page)
+    const { page } = launched
+    await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
+    await loadProgram(page, 'diag/3-corax+')
+    await tab(page, 'tune').click()
+    await expect(page.getByTestId('chip8-tuning')).toHaveText(OWN)
+    await page.locator('[data-testid=chip8-ipf][data-ipf="100"]').click()
+    await expect(page.getByTestId('chip8-tuning')).toHaveText('yours')
+    await page.getByTestId('chip8-back').click()
+    await expect(page.getByTestId('chip8-detail')).toContainText('100 a frame · tuned')
+
+    current = await launched.relaunch()
+    const again = current.page
+    await expect(again.getByTestId('chip8-detail')).toContainText('100 a frame · tuned')
+    await again.getByTestId('chip8-new').click()
+    await tab(again, 'tune').click()
+    await expect(again.locator('[data-testid=chip8-ipf][data-ipf="100"]')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await again.getByTestId('chip8-own').click()
+    await expect(again.getByTestId('chip8-tuning')).toHaveText(OWN)
+    await again.getByTestId('chip8-back').click()
+    await expect(again.getByTestId('chip8-detail')).not.toContainText('tuned')
+  } finally {
+    await current.close()
+    removeDir(launched.userData)
+  }
+})
+
+test('a star puts a program in the starred tab, and taking it off leaves the tab empty', async () => {
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await designSize(app, page)
+    const starred = page.locator('[data-testid=chip8-filter][data-filter=starred]')
+    const listed = page.locator('[role=listbox]:not([inert]) [data-testid=chip8-program]')
+    await expect(starred).toHaveCount(0)
+    await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
+    await row(page, 'diag/2-ibm-logo').click()
+    await page.getByTestId('chip8-star').click()
+    await expect(page.getByTestId('chip8-star')).toHaveAttribute('aria-pressed', 'true')
+    await expect(starred).toHaveText(/1/)
+    await starred.click()
+    await expect(listed).toHaveCount(1)
+    await page.getByTestId('chip8-star').click()
+    // The tab stays while it is open, with nothing in it.
+    await expect(starred).toHaveText(/0/)
+    await expect(listed).toHaveCount(0)
+
+    // Starring a program left somewhere keeps CONTINUE as it is: the list changing is not a
+    // new choice (it went back to LOAD for a moment, and asked main again).
+    await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
+    await loadProgram(page, 'diag/3-corax+')
+    await page.getByTestId('chip8-back').click()
+    await expect(page.getByTestId('chip8-load')).toHaveText(/continue/)
+    await page.evaluate(() => {
+      const w = window as unknown as { loadFlickered: boolean }
+      w.loadFlickered = false
+      new MutationObserver(() => {
+        const text = document.querySelector('[data-testid=chip8-load]')?.textContent ?? ''
+        if (!text.includes('continue')) w.loadFlickered = true
+      }).observe(document.body, { subtree: true, childList: true, characterData: true })
+    })
+    await page.getByTestId('chip8-star').click()
+    await expect(page.getByTestId('chip8-star')).toHaveAttribute('aria-pressed', 'true')
+    await page.waitForTimeout(500)
+    expect(
+      await page.evaluate(() => (window as unknown as { loadFlickered: boolean }).loadFlickered),
+    ).toBe(false)
+  } finally {
+    await close()
+  }
+})
+
+const TWO_PANES = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'row',
+    sizes: [50, 50],
+    children: [
+      { kind: 'pane', id: 'a', widget: 'chip8' },
+      { kind: 'pane', id: 'b', widget: 'chip8' },
+    ],
+  },
+}
+
+/** Replaces main's file picker with one that answers `file`. */
+async function pickerAnswers(app: ElectronApplication, file: string): Promise<void> {
+  await app.evaluate(({ dialog }, answer) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
+  }, file)
+}
+
+test('IMPORT takes a picked file in, to rename, run as another machine and remove', async () => {
+  const { app, page, close } = await launch(undefined, { layout: TWO_PANES })
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-chip8-pick-'))
+  try {
+    await designSize(app, page)
+    const a = page.locator('[data-testid=pane][data-pane-id=a]')
+    const b = page.locator('[data-testid=pane][data-pane-id=b]')
+    // Nothing to take: an empty file is refused, saying why.
+    const empty = path.join(outside, 'empty.ch8')
+    writeFileSync(empty, '')
+    await pickerAnswers(app, empty)
+    await a.getByTestId('chip8-import').click()
+    await expect(a.getByTestId('chip8-import-problem')).toHaveText('That file is empty.')
+
+    const file = path.join(outside, 'ibm_logo.ch8')
+    copyFileSync(path.join('resources', 'chip8', 'test-suite', '2-ibm-logo.ch8'), file)
+    await pickerAnswers(app, file)
+    await a.getByTestId('chip8-import').click()
+    const sheet = a.getByTestId('chip8-import-sheet')
+    await expect(sheet).toContainText('imported')
+    await expect(sheet.getByTestId('chip8-import-guess')).toContainText('only CHIP-8 instructions')
+    await expect(sheet.getByTestId('chip8-import-title')).toHaveValue('ibm logo')
+    await sheet.getByTestId('chip8-import-title').fill('Big Blue')
+    await sheet.locator('[data-testid=chip8-import-machine][data-platform=schip]').click()
+    await sheet.getByTestId('chip8-import-done').click()
+    await expect(sheet).toHaveCount(0)
+    // In both panes' libraries, under its new name and machine.
+    const importedTab = (pane: typeof a) =>
+      pane.locator('[data-testid=chip8-filter][data-filter=imported]')
+    await expect(importedTab(a)).toHaveText(/1/)
+    await expect(importedTab(b)).toHaveText(/1/)
+    const imported = a.locator('[role=listbox]:not([inert]) [data-testid=chip8-program]')
+    await expect(imported).toHaveCount(1)
+    await expect(imported).toContainText('Big Blue')
+    await expect(imported).toContainText('SC')
+
+    // It runs, in the other pane too; removed from here, that pane goes back to its library.
+    const id = await imported.getAttribute('data-program')
+    await importedTab(b).click()
+    await b.locator(`[role=listbox]:not([inert]) [data-program="${id}"]`).click()
+    await b.getByTestId('chip8-load').click()
+    await expect(b.getByTestId('chip8-run')).toHaveAttribute('data-status', 'running')
+    await expect
+      .poll(() => litDots(page, b.getByTestId('chip8-run').getByTestId('chip8-screen')))
+      .toBeGreaterThan(50)
+
+    // The same file again is the same program.
+    await pickerAnswers(app, file)
+    await a.getByTestId('chip8-import').click()
+    await expect(sheet).toContainText('already in the library')
+    const remove = sheet.getByTestId('chip8-import-remove')
+    await remove.click()
+    await expect(remove).toHaveText('remove?')
+    await remove.click()
+    await expect(sheet).toHaveCount(0)
+    await expect(importedTab(a)).toHaveCount(0)
+    await expect(b.getByTestId('chip8-library')).toBeVisible()
+    await expect(b.getByTestId('chip8-missing')).toContainText('Big Blue')
+  } finally {
+    await close()
+    removeDir(outside)
   }
 })

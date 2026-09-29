@@ -150,10 +150,20 @@ export const CH = {
     control: 'docker:control',
     watching: 'docker:watching',
   },
-  /** The CHIP-8 pane (shared/chip8-library.ts): the library, and a program's bytes by id. */
+  /** The CHIP-8 pane (shared/chip8-library.ts): the library, a program's bytes, its saves. */
   chip8: {
     list: 'chip8:list',
     rom: 'chip8:rom',
+    tune: 'chip8:tune',
+    favourite: 'chip8:favourite',
+    import: 'chip8:import',
+    update: 'chip8:update',
+    remove: 'chip8:remove',
+    slots: 'chip8:slots',
+    save: 'chip8:save',
+    load: 'chip8:load',
+    /** main -> renderer: the library after a change (Chip8Program[]). */
+    changed: 'chip8:changed',
   },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {

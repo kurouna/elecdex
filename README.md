@@ -200,7 +200,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Utility** — small tools in one pane: keep the machine awake while you say so,
   make a QR code (a text, an address or a Wi-Fi network), and encode, decode, hash or read a time.
 - **CHIP-8** *(unreleased)* — CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of elecdex's
-  own, with its registers and the code it runs beside the screen.
+  own, with its registers and the code it runs beside the screen, saves, and programs of your own.
 
 ## Install
 
@@ -805,8 +805,12 @@ weather and calendar.
   only while it has the focus, and never with Ctrl or Alt. **P** pauses, **Enter** runs one frame
   while paused, and CORE shows the registers, the stack and the code round the program counter,
   with STEP for one instruction. TUNE sets the speed and the quirks (VIP, SCHIP, XO, or each one
-  by hand). Out of sight it pauses, and waits for you when you come back; moved in the layout it
-  goes on where it was.
+  by hand), and keeps them for that program. Out of sight it pauses, and waits for you when you
+  come back; moved in the layout it goes on where it was. Where you left a program is kept (AUTO),
+  so LOAD becomes CONTINUE - or NEW to start again - even after a restart, and SAVE keeps three
+  more machines per program, each with its screen. **+ IMPORT** takes in a program file of your
+  own: the machine is guessed from the instructions it uses, its preview made the same way, and
+  its name and machine can be changed. A star puts a program in the starred tab.
 
 ## Plugins
 

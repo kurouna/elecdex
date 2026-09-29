@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Chip8Program } from '@shared/chip8-library'
+import type { Chip8Program, Chip8Slot } from '@shared/chip8-library'
 import { afterBlink } from '../../lib/blink.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -10,6 +10,7 @@ import { PLATFORM_CHIPS } from './labels.ts'
 import type { Palette } from './palette.ts'
 import { CHIP8_TABS, type Chip8Pane, type Chip8Tab, PANEL_WIDTH, panelShown } from './pane-state.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
+import SaveView from './SaveView.svelte'
 import Screen from './Screen.svelte'
 import TuneView from './TuneView.svelte'
 
@@ -30,12 +31,24 @@ interface Props {
   onback: () => void
   onreset: () => void
   onchange: (change: Partial<Chip8Pane>) => void
+  /** Goes on from a kept machine; false when it could not be read. */
+  onslot: (slot: Chip8Slot) => Promise<boolean>
 }
 
-const { runner, program, pane, panelWanted, palette, listening, onback, onreset, onchange }: Props =
-  $props()
+const {
+  runner,
+  program,
+  pane,
+  panelWanted,
+  palette,
+  listening,
+  onback,
+  onreset,
+  onchange,
+  onslot,
+}: Props = $props()
 
-const TAB_LABELS: Record<Chip8Tab, string> = { core: 'core', tune: 'tune' }
+const TAB_LABELS: Record<Chip8Tab, string> = { core: 'core', tune: 'tune', save: 'save' }
 
 let scale = $state(0)
 let body = $state<HTMLDivElement | null>(null)
@@ -169,8 +182,10 @@ const scaleWords = $derived(
         <div class="pane-body">
           {#if pane.tab === 'core'}
             <CoreView {runner} />
+          {:else if pane.tab === 'tune'}
+            <TuneView {runner} {program} {pane} hasOriginal={program.colours !== undefined} {onchange} />
           {:else}
-            <TuneView {runner} {pane} hasOriginal={program.colours !== undefined} {onchange} />
+            <SaveView {runner} {program} {palette} onload={onslot} />
           {/if}
         </div>
       </aside>
