@@ -206,3 +206,42 @@ test('Ctrl+Shift+M minimizes the window, even with a shell focused', async () =>
     await close()
   }
 })
+
+test('nothing scrolls the workspace: the hidden status bar below it is not room to scroll to', async () => {
+  // The status bar waits below the workspace, moved out by a transform; <main> clipped it
+  // with overflow: hidden, which still lets a script scroll, and anything brought into view
+  // (a focus, scrollIntoView, a test's click) moved every pane up by the bar's height.
+  const { page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'column',
+        sizes: [50, 50],
+        children: [
+          { kind: 'pane', id: 'top', widget: 'clock' },
+          { kind: 'pane', id: 'bottom', widget: 'clock' },
+        ],
+      },
+    },
+  })
+  try {
+    const main = page.getByTestId('app')
+    const scrolled = () => main.evaluate((el) => el.scrollTop)
+    await page.locator('[data-testid=pane][data-pane-id=bottom]').evaluate((el) => {
+      el.scrollIntoView({ block: 'end' })
+    })
+    expect(await scrolled()).toBe(0)
+    await main.evaluate((el) => {
+      el.scrollTop = 40
+    })
+    expect(await scrolled()).toBe(0)
+    // The bar still slides in and out as before.
+    await showStatusBar(page)
+    await expect(page.getByTestId('status-bar')).toBeInViewport()
+    expect(await scrolled()).toBe(0)
+  } finally {
+    await close()
+  }
+})

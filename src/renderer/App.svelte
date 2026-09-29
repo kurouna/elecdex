@@ -271,7 +271,10 @@ main {
   flex: 1;
   padding: var(--space-2);
   min-height: 0;
-  overflow: hidden;
+  /* Clip, not hidden: the status bar waits below, moved out by a transform, and a box that
+     hides its overflow can still be scrolled by a script - anything brought into view (a
+     focus, scrollIntoView) moved every pane up by the bar's height. A clip is no scroller. */
+  overflow: clip;
 }
 
 footer {
