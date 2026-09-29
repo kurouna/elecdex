@@ -1,6 +1,9 @@
 import { disassemble } from '@shared/chip8/disasm'
+import { profileOf } from '@shared/chip8/quirks'
 import { type Chip8State, word } from '@shared/chip8/state'
 import type { Halt } from '@shared/chip8/types'
+import { PROGRAM_START, type Quirks } from '@shared/chip8/types'
+import { PROFILE_NAMES } from './labels.js'
 
 /**
  * What the CORE view shows of a machine (docs/architecture.md section 5.18): its
@@ -99,3 +102,22 @@ export function haltLines(halt: Halt): { title: string; detail: string; fault: b
     fault,
   }
 }
+
+/**
+ * The line CORE types when a program is loaded, as a boot log would: where it went in, how
+ * big it is and which quirks it runs with - or, gone on from a kept machine, where it goes on.
+ */
+export function bootLine(load: {
+  size: number
+  quirks: Quirks
+  resumed: boolean
+  pc: number
+}): string {
+  const profile = profileOf(load.quirks)
+  const quirks = profile === null ? 'CUSTOM' : PROFILE_NAMES[profile]
+  const where = load.resumed ? `RESUME ${hex(load.pc, 3)}` : `LOAD ${hex(PROGRAM_START, 3)}`
+  return `${where} · ${load.size.toLocaleString('en-US')} B · ${quirks}`
+}
+
+/** Characters of the boot line typed a frame of the 10 fps loop. */
+export const BOOT_CHARS_A_FRAME = 4

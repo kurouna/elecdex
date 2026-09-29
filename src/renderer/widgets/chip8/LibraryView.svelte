@@ -12,12 +12,13 @@ import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import Splitter from '../common/Splitter.svelte'
 import Attract from './Attract.svelte'
 import ImportSheet from './ImportSheet.svelte'
 import { GENRE_LABELS, keyWords, PLATFORM_CHIPS, screenWords, whenWords } from './labels.ts'
 import ProgramCard from './ProgramCard.svelte'
 import type { Palette } from './palette.ts'
-import type { LibraryFilter } from './pane-state.ts'
+import { LIST_SHARE, type LibraryFilter } from './pane-state.ts'
 import Thumb from './Thumb.svelte'
 
 /**
@@ -26,7 +27,8 @@ import Thumb from './Thumb.svelte'
  * playing by itself beside its details and LOAD - CONTINUE and NEW when AUTO holds where it
  * was left. A tab change powers the list off and on, rows come in like tiles, and the
  * program chosen blinks, the launcher's way, before it loads. A row rested on opens its
- * detail card. A star marks a program (the starred tab); IMPORT takes a file in through
+ * detail card. The line between the list and the details can be dragged (kept in pane state,
+ * written once a drag ends). A star marks a program (the starred tab); IMPORT takes a file in through
  * main's picker and opens its sheet, as EDIT does for one imported before.
  *
  * Keys, while the pane has them: up and down choose, Enter loads (going on from AUTO),
@@ -43,6 +45,9 @@ interface Props {
   dots: boolean
   /** The library is seen: its attract mode plays only then. */
   seen: boolean
+  /** The list's share of the width beside the details. */
+  listShare: number
+  onlistshare: (share: number) => void
   onfilter: (filter: LibraryFilter) => void
   onselect: (id: string) => void
   /** Loads a program: from where it was left, or from the beginning (`fresh`). */
@@ -58,6 +63,8 @@ const {
   glow,
   dots,
   seen,
+  listShare,
+  onlistshare,
   onfilter,
   onselect,
   onload,
@@ -116,6 +123,10 @@ const chosen = $derived(shown.find((p) => p.id === selected) ?? shown[0] ?? null
 
 let root = $state<HTMLElement | null>(null)
 let list = $state<HTMLDivElement | null>(null)
+let main = $state<HTMLDivElement | null>(null)
+/** The share while the line is dragged: drawn at once, kept only when the drag ends. */
+let dragged = $state<number | null>(null)
+const share = $derived(dragged ?? listShare)
 
 function rowOf(id: string): HTMLElement | null {
   return list?.querySelector<HTMLElement>(`[data-program="${CSS.escape(id)}"]`) ?? null
@@ -349,7 +360,7 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
     <p class="problem" data-testid="chip8-import-problem">{importProblem}</p>
   {/if}
 
-  <div class="main">
+  <div class="main" bind:this={main} style:--list-fr="{share}fr" style:--detail-fr="{1 - share}fr">
     {#key filter}
       <!-- A tab's list powers on once the one it replaces has powered off. -->
       <div
@@ -401,6 +412,22 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
 
     {#if chosen !== null}
       <div class="detail" data-testid="chip8-detail" data-program={chosen.id}>
+        <Splitter
+          axis="x"
+          edge="start"
+          value={share}
+          min={LIST_SHARE.min}
+          max={LIST_SHARE.max}
+          reset={LIST_SHARE.reset}
+          label="Width of the program list"
+          testid="chip8-split"
+          within={() => main}
+          onmove={(next) => (dragged = next)}
+          ondone={(next) => {
+            dragged = null
+            onlistshare(next)
+          }}
+        />
         <Attract program={chosen} palette={paletteOf(chosen)} {glow} {dots} seen={seen && awake} />
         <div class="title">{chosen.title}</div>
         <div class="meta">
@@ -587,7 +614,7 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
 .main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, var(--list-fr)) minmax(0, var(--detail-fr));
   gap: var(--space-3);
   min-height: 0;
 }
@@ -677,6 +704,7 @@ const KEY_ORDER = [0x1, 0x2, 0x3, 0xc, 0x4, 0x5, 0x6, 0xd, 0x7, 0x8, 0x9, 0xe, 0
 }
 
 .detail {
+  position: relative;
   grid-column: 2;
   display: flex;
   flex-direction: column;

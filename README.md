@@ -798,13 +798,13 @@ weather and calendar.
   tabs by kind with a search and the three machines to show or hide. Every row has a frame of
   its screen, made when the library is built by running it on the same machine; resting on one
   opens its card, and the one chosen plays by itself beside its details while you are at the
-  library (it rests after half a minute). The screen is drawn at a whole number of screen pixels a dot, with a
+  library (it rests after half a minute); the line between the list and the details can be dragged. The screen is drawn at a whole number of screen pixels a dot, with a
   phosphor afterglow and the gaps between dots (both can be turned off, and FIT fills the room
   instead), and grows when the pane is brought forward. The keypad is 1234 / QWER / ASDF / ZXCV
   by position, with the arrows and Space pressing 5 7 8 9 and 6 as in Octo; the pane takes keys
   only while it has the focus, and never with Ctrl or Alt. **P** pauses, **Enter** runs one frame
   while paused, and CORE shows the registers, the stack and the code round the program counter,
-  with STEP for one instruction. TUNE sets the speed and the quirks (VIP, SCHIP, XO, or each one
+  with STEP for one instruction and FRAME for one frame. TUNE sets the speed and the quirks (VIP, SCHIP, XO, or each one
   by hand), and keeps them for that program. Out of sight it pauses, and waits for you when you
   come back; moved in the layout it goes on where it was. Where you left a program is kept (AUTO),
   so LOAD becomes CONTINUE - or NEW to start again - even after a restart, and SAVE keeps three

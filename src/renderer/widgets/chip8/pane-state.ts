@@ -30,7 +30,18 @@ export interface Chip8Pane {
   scale: 'integer' | 'fit'
   palette: 'theme' | 'original'
   muted: boolean
+  /** The library list's share of the width beside the chosen program's details. */
+  listShare: number
 }
+
+/** How far the line between the library's list and its details may go, and where it starts. */
+export const LIST_SHARE = { min: 0.3, max: 0.75, reset: 0.5 } as const
+
+/** A share held to its range; anything else is the default. */
+export const listShareOf = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(LIST_SHARE.max, Math.max(LIST_SHARE.min, value))
+    : LIST_SHARE.reset
 
 const oneOf = <T extends string>(value: unknown, options: readonly T[], fallback: T): T =>
   typeof value === 'string' && (options as readonly string[]).includes(value)
@@ -56,6 +67,7 @@ export function readChip8Pane(state: Record<string, unknown> | undefined): Chip8
     scale: oneOf(s.scale, ['integer', 'fit'], 'integer'),
     palette: oneOf(s.palette, ['theme', 'original'], 'theme'),
     muted: flag(s.muted, false),
+    listShare: listShareOf(s.listShare),
   }
 }
 

@@ -7,6 +7,7 @@ import { DEFAULT_IPF, programFromEntry, readCatalog } from '@shared/chip8-librar
 import { applySettingsPatch, defaultSettings } from '@shared/settings'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  bootLine,
   changedRegisters,
   codeAround,
   haltLines,
@@ -19,6 +20,7 @@ import {
   themePalette,
 } from '../../src/renderer/widgets/chip8/palette.js'
 import {
+  LIST_SHARE,
   PANEL_WIDTH,
   panelShown,
   readChip8Pane,
@@ -44,11 +46,12 @@ describe('the pane state', () => {
       program: '../../etc/passwd',
       view: 'wat',
       filter: 'games',
-      tab: 'mem',
+      tab: 'regs',
       phosphor: 'yes',
       scale: 'huge',
       palette: 'rainbow',
       panel: 1,
+      listShare: 'wide',
     })
     expect(pane).toEqual({
       view: 'library',
@@ -61,7 +64,15 @@ describe('the pane state', () => {
       scale: 'integer',
       palette: 'theme',
       muted: false,
+      listShare: 0.5,
     })
+  })
+
+  it("holds the library list's share of the width to its range", () => {
+    expect(readChip8Pane({ listShare: 0.62 }).listShare).toBe(0.62)
+    expect(readChip8Pane({ listShare: 0.01 }).listShare).toBe(LIST_SHARE.min)
+    expect(readChip8Pane({ listShare: 5 }).listShare).toBe(LIST_SHARE.max)
+    expect(readChip8Pane({ listShare: Number.NaN }).listShare).toBe(LIST_SHARE.reset)
   })
 
   it('shows the panel only where the screen keeps three pixels a hires dot beside it', () => {
@@ -192,6 +203,17 @@ describe('the buzzer', () => {
 })
 
 describe('the CORE reading', () => {
+  it('types where a program went in, its size and its quirks, or where it goes on', () => {
+    expect(bootLine({ size: 3584, quirks: quirksFor('chip8'), resumed: false, pc: 0x200 })).toBe(
+      'LOAD 200 · 3,584 B · VIP',
+    )
+    expect(bootLine({ size: 246, quirks: quirksFor('xochip'), resumed: true, pc: 0x2a4 })).toBe(
+      'RESUME 2A4 · 246 B · XO',
+    )
+    const custom = { ...quirksFor('schip'), clip: false }
+    expect(bootLine({ size: 1, quirks: custom, resumed: false, pc: 0 })).toContain('CUSTOM')
+  })
+
   it('shows the code round the program counter and the stack innermost first', () => {
     const m = Chip8.load(
       new Uint8Array([0x22, 0x04, 0x00, 0x00, 0x22, 0x08, 0x00, 0x00, 0x60, 0x07]),

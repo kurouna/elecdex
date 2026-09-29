@@ -345,6 +345,8 @@ onDestroy(() => {
         glow={pane.phosphor}
         dots={pane.dots}
         seen={visible}
+        listShare={pane.listShare}
+        onlistshare={(listShare) => change({ listShare })}
         onfilter={(filter) => change({ filter })}
         onselect={(id) => change({ program: id })}
         onload={load}

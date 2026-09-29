@@ -482,11 +482,21 @@ test('LOAD goes on from where the program was left, NEW starts it again', async 
     await page.getByTestId('chip8-load').click()
     await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'running')
     expect(await cycles(page)).toBeGreaterThan(20_000)
+    // CORE types where it goes on from, and then the line is whole.
+    const boot = page.getByTestId('chip8-boot')
+    await expect(boot).toHaveAttribute('data-line', /^RESUME [0-9A-F]{3} · 761 B · VIP$/)
+    await expect(boot).toHaveText(/^RESUME .* VIP$/)
 
     await page.getByTestId('chip8-back').click()
     await page.getByTestId('chip8-new').click()
     await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'running')
     expect(await cycles(page)).toBeLessThan(20_000)
+    await expect(boot).toHaveText(/^LOAD 200 · .* VIP$/)
+    // Paused, FRAME runs one frame, as Enter does.
+    await page.keyboard.press('KeyP')
+    const at = await cycles(page)
+    await page.getByTestId('chip8-frame').click()
+    await expect.poll(() => cycles(page)).toBeGreaterThan(at)
   } finally {
     await close()
   }
@@ -694,5 +704,41 @@ test('IMPORT takes a picked file in, to rename, run as another machine and remov
   } finally {
     await close()
     removeDir(outside)
+  }
+})
+
+test('the line between the library list and the details is dragged, kept, and put back', async () => {
+  let launched = await launch(undefined, { layout: BESIDE_CLOCK })
+  const profile = launched.userData
+  try {
+    await designSize(launched.app, launched.page)
+    const width = async (page: Page) =>
+      (await page.locator('[role=listbox]:not([inert])').boundingBox())?.width ?? 0
+    const page = launched.page
+    await expect(page.getByTestId('chip8-split')).toBeVisible()
+    // Measured once the list has powered on (it opens from a line).
+    await expect.poll(() => width(page)).toBeGreaterThan(300)
+    const before = await width(page)
+    const box = await page.getByTestId('chip8-split').boundingBox()
+    if (box === null) throw new Error('no splitter')
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + 60, y)
+    await page.mouse.move(x + 120, y)
+    await page.mouse.up()
+    const after = await width(page)
+    expect(after).toBeGreaterThan(before + 100)
+
+    launched = await launched.relaunch()
+    await designSize(launched.app, launched.page)
+    await expect.poll(async () => Math.abs((await width(launched.page)) - after)).toBeLessThan(4)
+    // A double-click puts it back at half.
+    await launched.page.getByTestId('chip8-split').dblclick()
+    await expect.poll(async () => Math.abs((await width(launched.page)) - before)).toBeLessThan(4)
+  } finally {
+    await launched.close()
+    removeDir(profile)
   }
 })

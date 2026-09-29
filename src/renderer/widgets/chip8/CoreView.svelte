@@ -1,13 +1,25 @@
 <script lang="ts">
+import { untrack } from 'svelte'
 import { onFrame } from '../../lib/frame-loop.ts'
-import { type CoreReading, changedRegisters, hex, readCore } from './core.ts'
+import { appearance } from '../../stores/appearance.svelte.ts'
+import {
+  BOOT_CHARS_A_FRAME,
+  bootLine,
+  type CoreReading,
+  changedRegisters,
+  hex,
+  readCore,
+} from './core.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
 
 /**
  * CORE (docs/architecture.md section 5.18): the machine's registers, stack and the code
  * round the program counter. It reads the machine on the shared 10 fps loop while the
  * program runs - never at the game's 60 - and after each step by hand; a register that
- * just changed is marked for a beat. Paused, STEP runs one instruction.
+ * just changed is marked for a beat. Paused, STEP runs one instruction and FRAME a frame.
+ *
+ * Above them, the boot line: typed on the same loop when a program is loaded while CORE is
+ * open, and shown whole when CORE opens on one already running (a remount types nothing).
  */
 const { runner }: { runner: Chip8Runner } = $props()
 
@@ -37,10 +49,46 @@ $effect(() => {
 })
 
 const REGISTERS = Array.from({ length: 16 }, (_, k) => k)
+
+const boot = $derived.by(() => {
+  void runner.loads
+  const machine = runner.machine
+  const rom = runner.rom
+  if (machine === null || rom === null) return ''
+  return untrack(() =>
+    bootLine({
+      size: rom.length,
+      quirks: machine.state.config.quirks,
+      resumed: runner.resumed,
+      pc: machine.state.pc,
+    }),
+  )
+})
+/** How much of the boot line shows; whole unless a load is being typed. */
+let typed = $state(Number.POSITIVE_INFINITY)
+let loadsSeen = untrack(() => runner.loads)
+$effect(() => {
+  const loads = runner.loads
+  if (loads === loadsSeen) return
+  loadsSeen = loads
+  if (appearance.reducedMotion) return
+  typed = 0
+  const stop = onFrame(() => {
+    typed += BOOT_CHARS_A_FRAME
+    if (typed >= boot.length) {
+      typed = Number.POSITIVE_INFINITY
+      stop()
+    }
+  })
+  return stop
+})
 </script>
 
 {#if reading !== null}
   <div class="core" data-testid="chip8-core">
+    <div class="boot" data-testid="chip8-boot" data-line={boot}>
+      {boot.slice(0, typed)}{#if typed < boot.length}<span class="caret">▌</span>{/if}
+    </div>
     <div class="registers">
       {#each REGISTERS as k (k)}
         <span class="name">V{k.toString(16).toUpperCase()}</span>
@@ -79,9 +127,18 @@ const REGISTERS = Array.from({ length: 16 }, (_, k) => k)
           : `${reading.cycles.toLocaleString('en-US')} cycles`}</span
       >
       {#if runner.status === 'paused'}
-        <button type="button" class="c8-btn" onclick={() => runner.stepInstruction()} data-testid="chip8-step"
-          >step ▸</button
-        >
+        <span class="steps">
+          <button type="button" class="c8-btn" onclick={() => runner.stepInstruction()} data-testid="chip8-step"
+            >step ▸</button
+          >
+          <button
+            type="button"
+            class="c8-btn"
+            title="one frame (Enter)"
+            onclick={() => runner.stepFrame()}
+            data-testid="chip8-frame">frame ▸▸</button
+          >
+        </span>
       {/if}
     </div>
   </div>
@@ -96,6 +153,24 @@ const REGISTERS = Array.from({ length: 16 }, (_, k) => k)
   font-family: var(--font-mono);
   font-size: var(--step--1);
   line-height: 1.45;
+}
+
+.boot {
+  min-height: 1.45em;
+  color: var(--accent-strong);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.caret {
+  color: var(--accent);
+}
+
+.steps {
+  display: flex;
+  gap: 2px;
 }
 
 .registers {

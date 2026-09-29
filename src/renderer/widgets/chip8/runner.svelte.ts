@@ -71,6 +71,10 @@ export class Chip8Runner {
   sounding = $state(false)
   /** SUPER-CHIP's high resolution is on. */
   hires = $state(false)
+  /** Counts loads (a start, a kept machine taken up), so CORE types its boot line again. */
+  loads = $state(0)
+  /** The last load went on from a kept machine. */
+  resumed = $state(false)
   /** Counts changes made by hand (a step, a reset), so a view of the registers reads again. */
   stepped = $state(0)
 
@@ -136,6 +140,8 @@ export class Chip8Runner {
     this.program = program
     this.keys = 0
     this.pausedBy = paused ? 'player' : null
+    this.resumed = fits
+    this.loads++
     this.#changes++
     this.stepped++
     this.#settle()
