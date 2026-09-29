@@ -7,6 +7,7 @@ import CoreView from './CoreView.svelte'
 import { haltLines } from './core.ts'
 import Keypad from './Keypad.svelte'
 import { PLATFORM_CHIPS } from './labels.ts'
+import MemView from './MemView.svelte'
 import type { Palette } from './palette.ts'
 import { CHIP8_TABS, type Chip8Pane, type Chip8Tab, PANEL_WIDTH, panelShown } from './pane-state.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
@@ -16,7 +17,7 @@ import TuneView from './TuneView.svelte'
 
 /**
  * The CHIP-8 pane running a program (docs/architecture.md section 5.18): a strip of what
- * runs and its lamps, the screen, and the side panel - the keypad over CORE or TUNE - which
+ * runs and its lamps, the screen, and the side panel - the keypad over CORE, MEM, TUNE or SAVE - which
  * folds away when the pane is too narrow to leave the screen a fair size.
  */
 interface Props {
@@ -48,7 +49,12 @@ const {
   onslot,
 }: Props = $props()
 
-const TAB_LABELS: Record<Chip8Tab, string> = { core: 'core', tune: 'tune', save: 'save' }
+const TAB_LABELS: Record<Chip8Tab, string> = {
+  core: 'core',
+  mem: 'mem',
+  tune: 'tune',
+  save: 'save',
+}
 
 let scale = $state(0)
 let body = $state<HTMLDivElement | null>(null)
@@ -182,6 +188,8 @@ const scaleWords = $derived(
         <div class="pane-body">
           {#if pane.tab === 'core'}
             <CoreView {runner} />
+          {:else if pane.tab === 'mem'}
+            <MemView {runner} />
           {:else if pane.tab === 'tune'}
             <TuneView {runner} {program} {pane} hasOriginal={program.colours !== undefined} {onchange} />
           {:else}

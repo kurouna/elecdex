@@ -804,7 +804,8 @@ weather and calendar.
   by position, with the arrows and Space pressing 5 7 8 9 and 6 as in Octo; the pane takes keys
   only while it has the focus, and never with Ctrl or Alt. **P** pauses, **Enter** runs one frame
   while paused, and CORE shows the registers, the stack and the code round the program counter,
-  with STEP for one instruction and FRAME for one frame. TUNE sets the speed and the quirks (VIP, SCHIP, XO, or each one
+  with STEP for one instruction and FRAME for one frame; MEM shows the memory round the program
+  counter or I, and the bytes at I drawn as a sprite. TUNE sets the speed and the quirks (VIP, SCHIP, XO, or each one
   by hand), and keeps them for that program. Out of sight it pauses, and waits for you when you
   come back; moved in the layout it goes on where it was. Where you left a program is kept (AUTO),
   so LOAD becomes CONTINUE - or NEW to start again - even after a restart, and SAVE keeps three

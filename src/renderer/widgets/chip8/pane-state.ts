@@ -10,7 +10,7 @@
 
 import { CHIP8_GENRES, type Chip8Genre, isChip8ProgramId } from '@shared/chip8-library'
 
-export const CHIP8_TABS = ['core', 'tune', 'save'] as const
+export const CHIP8_TABS = ['core', 'mem', 'tune', 'save'] as const
 export type Chip8Tab = (typeof CHIP8_TABS)[number]
 
 /** A library tab: everything, the starred ones, or one kind. */

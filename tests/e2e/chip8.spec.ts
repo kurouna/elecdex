@@ -742,3 +742,42 @@ test('the line between the library list and the details is dragged, kept, and pu
     removeDir(profile)
   }
 })
+
+test('MEM shows the memory round PC or I, the wheel frees it, and the bytes at I as a sprite', async () => {
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await designSize(app, page)
+    await page.locator('[data-testid=chip8-filter][data-filter=diag]').click()
+    await loadProgram(page, 'diag/2-ibm-logo')
+    await page.keyboard.press('KeyP')
+    await expect(page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
+    await tab(page, 'mem').click()
+    const grid = page.getByTestId('chip8-mem-grid')
+    await expect(grid).toBeVisible()
+    // Following PC: the instruction about to run is in the window, marked.
+    const pc = Number.parseInt(
+      (await page.getByTestId('chip8').locator('.key.pc').textContent())?.slice(3) ?? '',
+      16,
+    )
+    const start = Number(await grid.getAttribute('data-start'))
+    expect(pc).toBeGreaterThanOrEqual(start)
+    expect(pc).toBeLessThan(start + 128)
+    await expect(grid.locator('.byte.pc')).toHaveCount(2)
+    // The IBM logo draws from I: its sprite has lit dots.
+    await expect(page.getByTestId('chip8-sprite').locator('i.on').first()).toBeVisible()
+    await page.locator('[data-testid=chip8-mem-follow][data-follow=i]').click()
+    await expect(grid.locator('.byte.at-i')).toHaveCount(1)
+
+    // The wheel moves the window by rows and lets go of what it followed.
+    const before = Number(await grid.getAttribute('data-start'))
+    await grid.hover()
+    await page.mouse.wheel(0, 200)
+    await expect(page.locator('[data-testid=chip8-mem-follow][data-follow=free]')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await expect.poll(async () => Number(await grid.getAttribute('data-start'))).toBe(before + 16)
+  } finally {
+    await close()
+  }
+})
