@@ -193,7 +193,7 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     container of the last listing, in a state that takes it, from a page that shows the list.
   - It is main's, not a metric source, and no plugin API reaches it. Rows never move by state.
   - Tests set `ELECDEX_DOCKER_STUB=1` and change the engine through `globalThis.__elecdexDocker`.
-- **The CHIP-8 pane** (architecture.md §5.18; being built in phases, the core first) runs
+- **The CHIP-8 pane** (architecture.md §5.18) runs
   CHIP-8, SUPER-CHIP and XO-CHIP programs with a machine of our own in TypeScript - never WASM
   or eval, so the page CSP stays as it is - drawn on 2D canvas.
   - The machine is `shared/chip8`, and what any emulated machine needs (the frame clock, the
@@ -667,7 +667,8 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
   `npm run gen:screenshots`, which uses a demo home and curated launcher entries. The README's
   Features are grouped by layout preset, one shot per preset, each in a different theme (so every
   built-in theme is shown once), plus the layouts dialog, the settings dialog, the AI chat pane
-  (talking to a stand-in the script serves: no model, no key) and the ELEC pane. The preset trees
+  (talking to a stand-in the script serves: no model, no key), the ELEC pane and the CHIP-8
+  pane (T8NKS, from chip8Archive). The preset trees
   come from the built app itself (scripts/preset-shots.mjs), never written out in the script.
   What would show someone else's pages or this machine is made up: the web panes show stand-in
   pages (never YouTube's or X's own), the feed, the socket table (`ELECDEX_SOCKETS_STUB=demo`),

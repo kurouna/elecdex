@@ -157,6 +157,17 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   by majority or unanimity. The seats use the providers of the AI chat - the same model in all
   three will do.
 
+### Playing
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-chip8.jpg" alt="The Amber theme with a CHIP-8 pane filling the middle column: the title screen of T8NKS, two tanks facing each other drawn in four shades of amber, with the keypad, the registers and the code round the program counter beside it">
+  <br><sub>CHIP-8 · Amber</sub>
+</p>
+
+- **CHIP-8** *(unreleased)* — CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of elecdex's
+  own: the 104 games, visual novels and toys of chip8Archive, each with a frame of its screen,
+  your own program files, saves, and the registers, memory and code beside the screen.
+
 ### Layouts, looks and the rest
 
 <p align="center">
@@ -199,8 +210,6 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   turned on in *Settings → Window*.
 - **Utility** — small tools in one pane: keep the machine awake while you say so,
   make a QR code (a text, an address or a Wi-Fi network), and encode, decode, hash or read a time.
-- **CHIP-8** *(unreleased)* — CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of elecdex's
-  own, with its registers and the code it runs beside the screen, saves, and programs of your own.
 
 ## Install
 

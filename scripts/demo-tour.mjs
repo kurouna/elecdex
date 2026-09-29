@@ -11,6 +11,7 @@
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
+ *   chip8       the CHIP-8 library playing T8NKS by itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, back to Tron
  *
@@ -43,7 +44,7 @@ const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
 const council = await startCouncil()
 const music = prepareMusic()
 
-/* ---- The saved layouts: the six presets, the council, then KEYSTREAM ---- */
+/* ---- The saved layouts: the six presets, the council, KEYSTREAM, then CHIP-8 ---- */
 
 let nextId = 0
 const pane = (widget) => ({ kind: 'pane', id: `t${nextId++}`, widget })
@@ -82,6 +83,22 @@ const keystreamTree = {
   root: split('row', [councilTree.root.children[0], keystreamPane('tkeystream')], [0.18, 0.82]),
 }
 
+/** The system column again, and the CHIP-8 library open on T8NKS (chip8Archive, CC0). */
+const chip8Tree = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      councilTree.root.children[0],
+      {
+        ...pane('chip8'),
+        state: { view: 'library', filter: 'action', program: 'archive/t8nks', panel: true },
+      },
+    ],
+    [0.18, 0.82],
+  ),
+}
+
 const { standIn } = await prepareData()
 const trees = await presetTrees(MAIN)
 const items = ORDER.map((id, i) => {
@@ -98,6 +115,7 @@ const items = ORDER.map((id, i) => {
 })
 items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
 items.push({ id: 'tourkeystream', name: 'keystream', tree: keystreamTree })
+items.push({ id: 'tourchip8', name: 'chip8', tree: chip8Tree })
 
 if (!options.probe) {
   say(`the window opens in ${options.lead} s - start the recorder`)
@@ -162,10 +180,12 @@ await run(async () => {
   await wait(1200)
   await beat.copies()
   await beat.qrCode()
-  await beat.keystream(() => beat.toLayout(8, 'keystream'))
+  await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 12_000 })
+  await beat.toLayout(9, 'chip8')
+  await beat.chip8()
   await beat.toLayout(7, 'council')
   await wait(800)
-  await beat.councilSits()
+  await beat.councilSits(4000)
   await toPreset('standard')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()

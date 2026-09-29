@@ -13,6 +13,8 @@
  *               from the button, and the spectrum moving with them
  *   utility     a QR code typed, over the tasks
  *   keystream   the sample plugin over the processor's chart: a track typed on time
+ *   chip8       the CHIP-8 library playing T8NKS by itself over the calendar, loaded across the
+ *               width (no panel), then paused
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, on the shells
  *
@@ -82,6 +84,22 @@ const LAYOUTS = [
   ],
   ['utility', () => stack(pane('utility', { module: 'qr', qrKind: 'url' }), pane('todo'), 0.6)],
   ['keystream', () => stack(keystreamPane(`v${nextId++}`), pane('cpu'), 0.74)],
+  [
+    'chip8',
+    () =>
+      stack(
+        pane('chip8', {
+          view: 'library',
+          filter: 'action',
+          program: 'archive/t8nks',
+          panel: false,
+          listShare: 0.42,
+        }),
+        pane('calendar'),
+        0.74,
+      ),
+  ],
+  // The tenth: past the number keys, reached through the layouts dialog, one row down.
   ['council', () => stack(pane('elec'), pane('globe'), 0.74)],
 ]
 const slot = (name) => LAYOUTS.findIndex(([n]) => n === name) + 1
@@ -137,11 +155,13 @@ await run(async () => {
   await beat.qrCode(2000)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
     previews: [],
-    play: 12_000,
+    play: 10_000,
   })
-  await beat.toLayout(slot('council'), 'council')
+  await beat.toLayout(slot('chip8'), 'chip8')
+  await beat.chip8(2600, { mem: false })
+  await beat.throughTheDialog('council')
   await wait(800)
-  await beat.councilSits(4500)
+  await beat.councilSits(4000)
   await beat.toLayout(slot('shell'), 'shell')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()

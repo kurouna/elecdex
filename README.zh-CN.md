@@ -141,6 +141,17 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   REJECT 或 ABSTAIN，窗格按多数决或全体一致作出决议。席位使用 AI 聊天的提供方——三个席位都用
   同一个模型也可以。
 
+### 游玩
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-chip8.jpg" alt="Amber 主题，CHIP-8 窗格占满中间一栏：T8NKS 的标题画面（两辆相对的坦克，用琥珀色的四级深浅绘制），旁边是键盘、寄存器以及程序计数器前后的代码">
+  <br><sub>CHIP-8 · Amber</sub>
+</p>
+
+- **CHIP-8** *(unreleased)* — 用 elecdex 自己的虚拟机运行 CHIP-8、SUPER-CHIP 和 XO-CHIP 程序：
+  chip8Archive 的 104 个游戏、视觉小说和小玩具（每个都带屏幕预览）、你自己的程序文件、存档，
+  以及屏幕旁的寄存器、内存和代码。
+
 ### 布局、外观及其他
 
 <p align="center">
@@ -176,8 +187,6 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   显示一个毫无作用的开关。全部默认关闭，需在 *Settings → Window* 中开启。
 - **实用工具** — 把小工具放在一个窗格里：在你指定的时间内阻止休眠、生成二维码
   （文本、地址或 Wi-Fi）、编码、解码、哈希和时间转换。
-- **CHIP-8** *(unreleased)* — 用 elecdex 自己的虚拟机运行 CHIP-8、SUPER-CHIP 和 XO-CHIP 程序，
-  屏幕旁边显示寄存器和正在执行的代码，还可以存档并导入你自己的程序。
 
 ## 安装
 

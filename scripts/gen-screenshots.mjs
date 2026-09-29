@@ -189,6 +189,40 @@ const elecLayout = {
   ),
 }
 
+/*
+ * The CHIP-8 pane in the middle column, running T8NKS from chip8Archive (CC0): an XO-CHIP
+ * title screen in four shades of the theme's accent, with the keypad and CORE beside it.
+ */
+const chip8Layout = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      split(
+        'column',
+        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
+        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+      ),
+      { ...pane('chip8'), state: { view: 'run', program: 'archive/t8nks' } },
+      split(
+        'column',
+        ['globe', 'markets', 'weather', 'calendar'].map(pane),
+        [0.3, 0.25, 0.22, 0.23],
+      ),
+    ],
+    [0.18, 0.64, 0.18],
+  ),
+}
+
+/** A program brought back after a start waits paused: P runs it, for its title screen to draw. */
+async function playing(page) {
+  await page.getByTestId('chip8-run').waitFor()
+  await page.getByTestId('chip8').focus()
+  await page.keyboard.press('KeyP')
+  await page.waitForTimeout(7000)
+  await page.mouse.move(W / 2, H / 3)
+}
+
 const MOTION = 'Should we move the team to a four-day working week next quarter?'
 const VOTES = {
   'UNIT-1':
@@ -488,6 +522,7 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
   })
   standIn.close()
 }
+await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [
   ['social-elec-sitting', sitting, 110],

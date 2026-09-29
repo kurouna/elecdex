@@ -1,7 +1,7 @@
 /**
  * What the introduction tours share (demo-tour.mjs, landscape; demo-tour-shorts.mjs, vertical):
  * the council's stand-in model, and the beats themselves - the ISS's card, a container stopped,
- * copies landing, a QR code typed, KEYSTREAM played, a motion put to the council, the themes in
+ * copies landing, a QR code typed, KEYSTREAM played, a CHIP-8 program loaded, a motion put to the council, the themes in
  * turn - and the music the media beat plays: two of KEYSTREAM's own tracks, rendered to WAV
  * files (keystream-wav.mjs) and played by the spectrum's stand-in, so the spectrum moves with
  * what is heard and nothing of this machine's sound is captured. A tour lays
@@ -285,6 +285,28 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     })
   }
 
+  /**
+   * CHIP-8: the library with its chosen program playing by itself, LOAD (the row's blink, the
+   * view powering over), a moment of the program running, then paused - on MEM when the
+   * panel is there (`mem`).
+   */
+  async function chip8(hold = 2600, { mem = true } = {}) {
+    const pane = paneOf('chip8')
+    say('chip8: the library')
+    await pane.getByTestId('chip8-detail').waitFor({ timeout: 20_000 })
+    await wait(2200)
+    say('chip8: load')
+    await press(pane.getByTestId('chip8-load'))
+    await pane.getByTestId('chip8-run').waitFor()
+    await away()
+    await wait(hold)
+    say(mem ? 'chip8: paused on MEM' : 'chip8: paused')
+    await page.keyboard.press('KeyP')
+    if (mem) await press(pane.locator('[data-testid=chip8-tab][data-tab=mem]'))
+    await away()
+    await wait(2200)
+  }
+
   /** A motion put to the council, the vote, and the resolution held on screen. */
   async function councilSits(hold = 5000) {
     say('council: a motion')
@@ -331,6 +353,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     nextTrack,
     qrCode,
     keystream,
+    chip8,
     councilSits,
     themes,
   }
