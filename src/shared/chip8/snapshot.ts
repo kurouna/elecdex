@@ -9,10 +9,10 @@
  * Keys held when it was taken are not kept: a machine comes back with every key up.
  */
 
-import { FONT_STYLES } from './fonts.js'
 import { quirksFor } from './quirks.js'
 import { type Chip8State, createState, STACK_DEPTH } from './state.js'
 import {
+  FONT_STYLES,
   type FontStyle,
   type HaltReason,
   HIRES,
@@ -138,7 +138,7 @@ export function encodeSnapshot(s: Chip8State): Uint8Array {
   w.u8(s.sp)
   w.u8(s.dt)
   w.u8(s.st)
-  w.u8(s.hires ? 1 : 0)
+  w.u8((s.hires ? 1 : 0) | (s.patternSet ? 2 : 0))
   w.u8(s.plane)
   w.u8(s.pitch)
   w.i8(s.waitReg)
@@ -184,7 +184,9 @@ function readRegisters(r: Reader, s: Chip8State): boolean {
   s.sp = r.u8()
   s.dt = r.u8()
   s.st = r.u8()
-  s.hires = r.u8() === 1
+  const bits = r.u8()
+  s.hires = (bits & 1) !== 0
+  s.patternSet = (bits & 2) !== 0
   s.plane = r.u8()
   s.pitch = r.u8()
   s.waitReg = r.i8()

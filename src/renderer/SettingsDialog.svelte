@@ -497,6 +497,37 @@ function describeUpdate(status: UpdateStatus): string {
             </section>
 
             <section>
+              <h3>chip-8</h3>
+              <label class="row">
+                <span>show the core</span>
+                <input
+                  type="checkbox"
+                  checked={settings.chip8.core}
+                  onchange={(e) => patch({ chip8: { core: e.currentTarget.checked } })}
+                  data-testid="settings-chip8-core"
+                />
+              </label>
+              <label class="row">
+                <span>buzzer volume</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={Math.round(settings.chip8.volume * 100)}
+                  disabled={!settings.sound.enabled}
+                  onchange={(e) => patch({ chip8: { volume: Number(e.currentTarget.value) / 100 } })}
+                  data-testid="settings-chip8-volume"
+                />
+                <output>{Math.round(settings.chip8.volume * 100)}%</output>
+              </label>
+              <p class="note">
+                The core is the machine's registers and the code it runs, beside the screen; a pane can
+                still show or hide it. The buzzer is silent while interface sounds are off.
+              </p>
+            </section>
+
+            <section>
               <h3>layouts</h3>
               <label class="row">
                 <span>ask before switching layout</span>

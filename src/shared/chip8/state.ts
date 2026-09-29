@@ -43,6 +43,8 @@ export interface Chip8State {
   /** XO-CHIP's audio: a 128-bit pattern played at a rate set by the pitch. */
   readonly pattern: Uint8Array
   pitch: number
+  /** Whether the program has loaded a pattern (F002); until then the buzzer is a square wave. */
+  patternSet: boolean
   /** SUPER-CHIP's persistent flags (FX75, FX85). Kept with the machine, never on disk. */
   readonly flags: Uint8Array
   /** The keys held down, one bit each. */
@@ -88,6 +90,7 @@ export function createState(program: Uint8Array, config: MachineConfig, seed: nu
     pixels: new Uint8Array(HIRES.w * HIRES.h),
     pattern: new Uint8Array(16),
     pitch: 64,
+    patternSet: false,
     flags: new Uint8Array(KEY_COUNT),
     keys: 0,
     waitReg: -1,
@@ -101,7 +104,7 @@ export function createState(program: Uint8Array, config: MachineConfig, seed: nu
 }
 
 /** The byte at an address, wrapping at the end of memory. */
-export const peek = (s: Chip8State, address: number): number =>
+export const peek = (s: Readonly<Chip8State>, address: number): number =>
   s.memory[address & (s.memory.length - 1)] ?? 0
 
 export function poke(s: Chip8State, address: number, value: number): void {
@@ -109,7 +112,7 @@ export function poke(s: Chip8State, address: number, value: number): void {
 }
 
 /** The two-byte word at an address. */
-export const word = (s: Chip8State, address: number): number =>
+export const word = (s: Readonly<Chip8State>, address: number): number =>
   (peek(s, address) << 8) | peek(s, address + 1)
 
 /** The next random byte (xorshift32). */

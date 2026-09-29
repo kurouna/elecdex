@@ -28,6 +28,7 @@ npm run gen:card       # README banner: public/elecdex_repo_card.svg
 npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
 npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
+npm run gen:chip8      # CHIP-8 library: resources/chip8/programs.json (for now chip8-test-suite)
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
 npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
@@ -207,10 +208,17 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     (resources/chip8/test-suite, GPL-3.0, shipped with its Octo sources) must pass on all
     three platforms (chip8-suite.test.ts); a change to the core that moves a fixture is a
     change to check against the suite's README, not a fixture to update.
-  - Its screens follow the app's manners: presses blink like the launcher's tiles, anything
-    that appears or goes powers on and off (`crt-on`, `crtPower`), lamps step with `pulse`.
-    The game's own frame loop is the one exception to the 10 fps loop, and runs only while
-    the program runs and the pane is `seen`.
+  - Its screens follow the app's manners: presses blink like the launcher's tiles
+    (lib/blink.ts), anything that appears or goes powers on and off (`crt-on`, `crtPower`),
+    lamps step with `pulse`.
+  - The game's own loop (widgets/chip8/runner.svelte.ts) is the one exception to the 10 fps
+    loop, and runs only while the program runs and the pane is `seen`: animation frames while
+    the screen moves, a plain 60 Hz timer once it has stood still for half a second (an
+    animation frame asked for costs a rendering pass every vsync - measured, most of what an
+    idle program cost). Out of sight it pauses and stays paused.
+  - Keys go to the machine only while the pane itself has the focus (a press on its buttons
+    hands the focus back); a program's bytes come from main by id (`chip8.list`,
+    `chip8.rom`), and programs.json is written by `npm run gen:chip8`, never by hand.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (src/main/window.ts). Windows shows a location prompt for `netsh wlan`, which
   systeminformation's network functions run — do not call `si.networkInterfaces`, `si.wifi*` or
@@ -475,7 +483,8 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   The layout store knows nothing of it, and neither it nor its choices (`widgetState`, kept for
   the session) are saved. Only a widget whose registry entry says `popup: true` is offered: every
   built-in but the shell (it would be reaped), the timer (a countdown lands only while it is
-  mounted) and the file browser (it follows a pane), and no web page or plugin. Such a widget
+  mounted), the file browser (it follows a pane) and CHIP-8 (every dialog would put the game
+  away), and no web page or plugin. Such a widget
   must reach nothing of the layout store (a unit test reads its sources). The weather place
   picker is the one dialog that opens over a popup (`OVER` in ui.svelte.ts). The launcher's
   shortcut pops one up when the layout has none, rather than adding a pane; a widget ends its

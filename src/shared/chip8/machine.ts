@@ -7,6 +7,7 @@
  * test, a preview in main and the pane all run the same program the same way.
  */
 
+import { type Tone, toneOf } from './audio.js'
 import { execute } from './exec.js'
 import { decodeSnapshot, encodeSnapshot } from './snapshot.js'
 import { type Chip8State, createState, word } from './state.js'
@@ -47,6 +48,12 @@ export class Chip8 {
   /** Whether the buzzer sounds now. */
   get sounding(): boolean {
     return this.#s.halt === null && this.#s.st > 0
+  }
+
+  /** What the buzzer should play now: nothing once the machine has stopped. */
+  get tone(): Tone {
+    const s = this.#s
+    return toneOf(s.halt === null ? s.st : 0, s.pattern, s.pitch, s.patternSet)
   }
 
   /** Waiting for a key (FX0A): its instructions stop until one is pressed and let go. */

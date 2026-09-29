@@ -184,15 +184,6 @@ const STYLES: Readonly<Record<FontStyle, { small: Small; big: Big | null }>> = {
   fish: { small: 'fish', big: 'fish' },
 }
 
-export const FONT_STYLES: readonly FontStyle[] = [
-  'octo',
-  'vip',
-  'dream6800',
-  'eti660',
-  'schip',
-  'fish',
-]
-
 /** The bytes to place at SMALL_FONT_AT: the small font and then the big one. */
 export function fontBytes(style: FontStyle): Uint8Array {
   const { small, big } = STYLES[style]

@@ -7,6 +7,7 @@ import { registerAgentsIpc } from './ipc/agents.js'
 import { registerAiIpc } from './ipc/ai.js'
 import { registerAlarmsIpc } from './ipc/alarms.js'
 import { registerAudioIpc } from './ipc/audio.js'
+import { registerChip8Ipc } from './ipc/chip8.js'
 import { registerClipboardIpc } from './ipc/clipboard.js'
 import { registerDockerIpc } from './ipc/docker.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
@@ -87,6 +88,7 @@ let feedsIpc: { dispose: () => void } | null = null
 let clipboardIpc: ReturnType<typeof registerClipboardIpc> | null = null
 let nowPlayingIpc: { dispose: () => void } | null = null
 let dockerIpc: { dispose: () => void } | null = null
+let chip8Ipc: { dispose: () => void } | null = null
 let utilityIpc: UtilityIpc | null = null
 let gitIpc: { dispose: () => void } | null = null
 let orbitsIpc: { dispose: () => void } | null = null
@@ -117,6 +119,7 @@ app.whenReady().then(() => {
   clipboardIpc = registerClipboardIpc()
   nowPlayingIpc = registerNowPlayingIpc()
   dockerIpc = registerDockerIpc()
+  chip8Ipc = registerChip8Ipc()
   // Before the window: AWAKE's hold from last time is taken up at once.
   utilityIpc = registerUtilityIpc(clipboardIpc.writer)
   gitIpc = registerGitIpc(settings)
@@ -194,6 +197,8 @@ app.on('will-quit', () => {
   nowPlayingIpc = null
   dockerIpc?.dispose()
   dockerIpc = null
+  chip8Ipc?.dispose()
+  chip8Ipc = null
   utilityIpc?.dispose()
   utilityIpc = null
   gitIpc?.dispose()

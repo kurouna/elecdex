@@ -150,6 +150,11 @@ export const CH = {
     control: 'docker:control',
     watching: 'docker:watching',
   },
+  /** The CHIP-8 pane (shared/chip8-library.ts): the library, and a program's bytes by id. */
+  chip8: {
+    list: 'chip8:list',
+    rom: 'chip8:rom',
+  },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {
     awakeState: 'utility:awake-state',

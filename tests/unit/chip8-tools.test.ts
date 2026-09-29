@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { disassemble } from '@shared/chip8/disasm'
-import { FONT_STYLES, fontBytes } from '@shared/chip8/fonts'
+import { fontBytes } from '@shared/chip8/fonts'
 import { KEYPAD_CODES, KEYPAD_LAYOUT, type KeyLike, keyFate, padOf } from '@shared/chip8/keys'
 import { guessPlatform } from '@shared/chip8/platform'
 import { profileOf, QUIRK_PROFILES, quirksFor, quirksFromOcto } from '@shared/chip8/quirks'
-import { maxProgramSize, PLATFORMS } from '@shared/chip8/types'
+import { FONT_STYLES, maxProgramSize, PLATFORMS } from '@shared/chip8/types'
 import { describe, expect, it } from 'vitest'
 
 describe('disassembly', () => {

@@ -22,6 +22,7 @@ import type {
 import type { MixerUpdate, SpectrumUpdate } from '@shared/audio'
 import type { BackgroundState } from '@shared/background'
 import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
+import type { Chip8Program } from '@shared/chip8-library'
 import type { ClipBoard, ClipRestoreResult } from '@shared/clipboard'
 import type { DockerBoard, DockerControlResult } from '@shared/docker'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
@@ -552,6 +553,10 @@ const api: ElecdexApi = {
     control: (id, action) =>
       ipcRenderer.invoke(CH.docker.control, id, action) as Promise<DockerControlResult>,
     watching: () => ipcRenderer.invoke(CH.docker.watching) as Promise<boolean>,
+  },
+  chip8: {
+    list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,
+    rom: (id) => ipcRenderer.invoke(CH.chip8.rom, id) as Promise<Uint8Array | null>,
   },
   utility: {
     awake: {

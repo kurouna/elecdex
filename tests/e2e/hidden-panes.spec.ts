@@ -191,6 +191,7 @@ const WIDGETS = [
   'nowplaying',
   'docker',
   'utility',
+  'chip8',
 ]
 
 /** The sources a pane behind a tab keeps (builtins.ts `keepWhileHidden`): charts, and once-only readings. */

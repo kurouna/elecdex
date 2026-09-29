@@ -299,6 +299,7 @@ function opFXo(s: Chip8State, o: Op): boolean {
     s.plane = o.x & 3
   } else if (o.op === 0xf002) {
     for (let k = 0; k < 16; k++) s.pattern[k] = peek(s, s.i + k)
+    s.patternSet = true
   } else if (o.nn === 0x3a) {
     s.pitch = s.v[o.x] ?? 0
   } else {

@@ -199,6 +199,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   turned on in *Settings → Window*.
 - **Utility** — small tools in one pane: keep the machine awake while you say so,
   make a QR code (a text, an address or a Wi-Fi network), and encode, decode, hash or read a time.
+- **CHIP-8** *(unreleased)* — CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of elecdex's
+  own, with its registers and the code it runs beside the screen.
 
 ## Install
 
@@ -789,6 +791,18 @@ weather and calendar.
     date both ways, turns full-width ASCII half-width and back (and NFKC), and makes UUIDs. What
     you type into it is never written to disk.
   Everything runs on this machine with no network, and no plugin can reach any of it.
+- **CHIP-8** *(unreleased)* — add it from the picker ("chip-8"). A CHIP-8, SUPER-CHIP and
+  XO-CHIP machine written for elecdex, which passes Timendus's chip8-test-suite on all three.
+  For now the library holds that suite's eight programs (the DIAG tab); the games of
+  chip8Archive come next. The screen is drawn at a whole number of screen pixels a dot, with a
+  phosphor afterglow and the gaps between dots (both can be turned off, and FIT fills the room
+  instead), and grows when the pane is brought forward. The keypad is 1234 / QWER / ASDF / ZXCV
+  by position, with the arrows and Space pressing 5 7 8 9 and 6 as in Octo; the pane takes keys
+  only while it has the focus, and never with Ctrl or Alt. **P** pauses, **Enter** runs one frame
+  while paused, and CORE shows the registers, the stack and the code round the program counter,
+  with STEP for one instruction. TUNE sets the speed and the quirks (VIP, SCHIP, XO, or each one
+  by hand). Out of sight it pauses, and waits for you when you come back; moved in the layout it
+  goes on where it was.
 
 ## Plugins
 

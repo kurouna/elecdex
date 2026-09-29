@@ -228,6 +228,15 @@ export const SettingsSchema = z.object({
       openCommand: z.string().max(1000).catch('').default(''),
     })
     .default({ openCommand: '' }),
+  /** The CHIP-8 pane (docs/architecture.md section 5.18). */
+  chip8: z
+    .object({
+      /** Whether a new CHIP-8 pane shows its CORE view (registers and code) beside the screen. */
+      core: z.boolean().catch(true).default(true),
+      /** The buzzer and XO-CHIP's sound, 0 to 1: apart from the interface sounds' level. */
+      volume: z.number().min(0).max(1).catch(0.5).default(0.5),
+    })
+    .default({ core: true, volume: 0.5 }),
   /**
    * The ELEC system pane (shared/elec.ts): which provider and model sits in each of the
    * three seats, their standpoints, and how the council decides. The providers are the
@@ -268,6 +277,7 @@ export interface SettingsPatch {
   ai?: Partial<Settings['ai']>
   /** `seats` and `personas` replace the whole list. */
   elec?: Partial<Settings['elec']>
+  chip8?: Partial<Settings['chip8']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
 }
@@ -304,6 +314,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     reminders: merge(current.reminders, p.reminders),
     ai: merge(current.ai, p.ai),
     elec: merge(current.elec, p.elec),
+    chip8: merge(current.chip8, p.chip8),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),
     // Only showSystem: the launcher's own entries are edited in settings.json.

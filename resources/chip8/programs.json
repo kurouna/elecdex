@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "programs": [
+    {
+      "id": "diag/1-chip8-logo",
+      "title": "CHIP-8 Logo",
+      "authors": ["Timendus"],
+      "platform": "chip8",
+      "genre": "diag",
+      "description": "Draws the CHIP-8 logo with the six simplest instructions: the first check that the screen works.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/1-chip8-logo.ch8"
+    },
+    {
+      "id": "diag/2-ibm-logo",
+      "title": "IBM Logo",
+      "authors": ["Timendus"],
+      "platform": "chip8",
+      "genre": "diag",
+      "description": "The classic first program: clear, load, draw and jump.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/2-ibm-logo.ch8"
+    },
+    {
+      "id": "diag/3-corax+",
+      "title": "Corax+",
+      "authors": ["Timendus"],
+      "platform": "chip8",
+      "genre": "diag",
+      "description": "Runs every arithmetic, logic and branch instruction and ticks each one off on screen.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/3-corax+.ch8"
+    },
+    {
+      "id": "diag/4-flags",
+      "title": "Flags",
+      "authors": ["Timendus"],
+      "platform": "chip8",
+      "genre": "diag",
+      "description": "Checks VF after every carry, borrow and shift, in both orders.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/4-flags.ch8"
+    },
+    {
+      "id": "diag/5-quirks",
+      "title": "Quirks",
+      "authors": ["Timendus"],
+      "platform": "chip8",
+      "genre": "diag",
+      "description": "Finds which quirks the interpreter has, for CHIP-8, SUPER-CHIP or XO-CHIP chosen with keys 1 to 3, and says whether they match. Change them in TUNE.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/5-quirks.ch8"
+    },
+    {
+      "id": "diag/6-keypad",
+      "title": "Keypad",
+      "authors": ["Timendus"],
+      "platform": "chip8",
+      "genre": "diag",
+      "description": "Tests the three key instructions, EX9E, EXA1 and FX0A, one key at a time. Choose with keys 1 to 3.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/6-keypad.ch8"
+    },
+    {
+      "id": "diag/7-beep",
+      "title": "Beep",
+      "authors": ["Timendus"],
+      "platform": "chip8",
+      "genre": "diag",
+      "description": "Beeps SOS in morse and flashes a speaker; hold B to beep by hand.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/7-beep.ch8"
+    },
+    {
+      "id": "diag/8-scrolling",
+      "title": "Scrolling",
+      "authors": ["Timendus"],
+      "platform": "schip",
+      "genre": "diag",
+      "description": "Scrolls down, left and right in both resolutions: every arrow should land in its box.",
+      "released": "2025",
+      "tickrate": 1000,
+      "licence": "GPL-3.0",
+      "file": "test-suite/8-scrolling.ch8"
+    }
+  ]
+}

@@ -170,6 +170,7 @@ describe('settings', () => {
       web: { tint: false },
       agents: { sources: ['claude-code'] },
       git: { openCommand: '' },
+      chip8: { core: true, volume: 0.5 },
       quakes: {
         source: 'auto',
         notify: false,

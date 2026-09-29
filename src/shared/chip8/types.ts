@@ -8,9 +8,8 @@
  */
 
 /** The three machines, named as chip8Archive names them. */
-export type Platform = 'chip8' | 'schip' | 'xochip'
-
-export const PLATFORMS: readonly Platform[] = ['chip8', 'schip', 'xochip']
+export const PLATFORMS = ['chip8', 'schip', 'xochip'] as const
+export type Platform = (typeof PLATFORMS)[number]
 
 /**
  * Where interpreters disagree. Each is named for what the machine does when it is on;
@@ -44,7 +43,8 @@ export const QUIRK_NAMES: readonly (keyof Quirks)[] = [
 ]
 
 /** The hex font a program finds at address 0 (Octo's font styles). */
-export type FontStyle = 'octo' | 'vip' | 'dream6800' | 'eti660' | 'schip' | 'fish'
+export const FONT_STYLES = ['octo', 'vip', 'dream6800', 'eti660', 'schip', 'fish'] as const
+export type FontStyle = (typeof FONT_STYLES)[number]
 
 export interface MachineConfig {
   platform: Platform

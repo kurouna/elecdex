@@ -11,6 +11,7 @@ import type {
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
+import type { Chip8Program } from './chip8-library.js'
 import type { ClipBoard, ClipRestoreResult } from './clipboard.js'
 import type { DockerAction, DockerBoard, DockerControlResult } from './docker.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
@@ -440,6 +441,14 @@ export interface NowPlayingApi {
  * The DOCKER pane: the local engine's containers, followed by main while a pane
  * is seen, and five presses on one of them.
  */
+/** The CHIP-8 pane (docs/architecture.md section 5.18): read-only, by id. */
+export interface Chip8Api {
+  /** Every program the pane can load. */
+  list(): Promise<Chip8Program[]>
+  /** A program's bytes, or null for an id that is not in the list. */
+  rom(id: string): Promise<Uint8Array | null>
+}
+
 export interface DockerApi {
   /**
    * Keeps the list current while subscribed: at once, then after each change.
@@ -764,6 +773,7 @@ export interface ElecdexApi {
   nowPlaying: NowPlayingApi
   docker: DockerApi
   utility: UtilityApi
+  chip8: Chip8Api
   git: GitApi
   orbits: OrbitsApi
   agents: AgentsApi

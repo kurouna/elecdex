@@ -6,6 +6,7 @@ import MixerWidget from './audio/MixerWidget.svelte'
 import SpectrumWidget from './audio/SpectrumWidget.svelte'
 import CalcWidget from './calc/CalcWidget.svelte'
 import CalendarWidget from './calendar/CalendarWidget.svelte'
+import Chip8Widget from './chip8/Chip8Widget.svelte'
 import ClipboardWidget from './clipboard/ClipboardWidget.svelte'
 import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
 import DockerWidget from './docker/DockerWidget.svelte'
@@ -391,6 +392,18 @@ registerBuiltin({
   multiple: true,
   zoom: 'panel',
   popup: true,
+})
+
+registerBuiltin({
+  id: 'chip8',
+  title: 'chip-8',
+  pickerTitle: 'chip-8',
+  description:
+    'Plays CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of its own, with its registers and code beside the screen. Paused while out of sight.',
+  component: Chip8Widget,
+  minSize: { w: 300, h: 200 },
+  multiple: true,
+  zoom: 'full',
 })
 
 registerBuiltin({
