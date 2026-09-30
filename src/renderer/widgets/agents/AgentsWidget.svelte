@@ -14,6 +14,7 @@ import Splitter from '../common/Splitter.svelte'
 import type { WidgetProps } from '../registry.ts'
 import AgentCard, { type AgentDetail } from './AgentCard.svelte'
 import { span } from './cards.ts'
+import { openFolds, taskTree, toggleFold } from './task-tree.ts'
 
 /**
  * AGENT (experimental): the coding agents at work on this machine - one card
@@ -32,6 +33,8 @@ const visible = $derived(seen(inTab))
 const open = $derived(typeof paneState?.open === 'string' ? paneState.open : null)
 const fileKey = $derived(typeof paneState?.file === 'string' ? paneState.file : null)
 const split = $derived(paneState?.split === true)
+/** The sessions whose finished tasks are unfolded. */
+const folds = $derived(openFolds(paneState?.finished))
 
 /**
  * The line between the sessions and the diff, as the git pane has it: across
@@ -215,7 +218,33 @@ $effect(() => () => resting.dispose())
 function toggle(session: AgentSession): void {
   setState(open === session.id ? { open: null, file: null } : { open: session.id, file: null })
 }
+
+function toggleFinished(session: AgentSession): void {
+  const present = board?.sessions.map((s) => s.id) ?? []
+  setState({ finished: toggleFold(folds, session.id, present) })
+}
 </script>
+
+{#snippet taskRow(session: AgentSession, task: AgentTask)}
+  <li
+    class="node task"
+    data-state={task.state}
+    data-testid="agent-task"
+    onpointerenter={(event) => point({ kind: 'task', session: session.id, task: task.id }, event)}
+    onpointerleave={() => unpoint({ kind: 'task', session: session.id, task: task.id })}
+  >
+    <span class="kind">{task.kind === 'agent' ? 'AGENT' : 'SHELL'}</span>
+    <span class="task-state" data-testid="agent-task-state">{TASK_LABEL[task.state]}</span>
+    <span class="task-title">{task.title}</span>
+    <span class="task-when">{lasted(task)}</span>
+    {#if task.state === 'running' && task.activity}
+      <span class="step" data-testid="agent-task-step"
+        ><span class="tool">{task.activity.tool.toUpperCase()}</span>
+        {task.activity.detail}</span
+      >
+    {/if}
+  </li>
+{/snippet}
 
 <div class="agents" data-testid="agents" data-pane-id={paneId} bind:this={rootEl}>
   {#if board === null}
@@ -288,28 +317,41 @@ function toggle(session: AgentSession): void {
               >{/if}
           </p>
           {#if session.tasks.length > 0}
-            <ul class="tasks" data-testid="agent-tasks">
-              {#each session.tasks as task (task.id)}
-                <li
-                  class="task"
-                  data-state={task.state}
-                  data-testid="agent-task"
-                  onpointerenter={(event) =>
-                    point({ kind: 'task', session: session.id, task: task.id }, event)}
-                  onpointerleave={() => unpoint({ kind: 'task', session: session.id, task: task.id })}
-                >
-                  <span class="kind">{task.kind === 'agent' ? 'AGENT' : 'SHELL'}</span>
-                  <span class="task-state" data-testid="agent-task-state">{TASK_LABEL[task.state]}</span>
-                  <span class="task-title">{task.title}</span>
-                  <span class="task-when">{lasted(task)}</span>
-                  {#if task.state === 'running' && task.activity}
-                    <span class="step" data-testid="agent-task-step"
-                      ><span class="tool">{task.activity.tool.toUpperCase()}</span>
-                      {task.activity.detail}</span
-                    >
+            {@const tree = taskTree(session.tasks)}
+            {@const unfolded = folds.includes(session.id)}
+            <!-- The session's tasks as branches of it: the running ones always in
+                 sight, the finished ones folded into one row that says how they
+                 ended. -->
+            <ul class="tasks tree" data-testid="agent-tasks">
+              {#each tree.running as task (task.id)}
+                {@render taskRow(session, task)}
+              {/each}
+              {#if tree.finished.length > 0}
+                <li class="node">
+                  <button
+                    type="button"
+                    class="fold"
+                    aria-expanded={unfolded}
+                    onclick={() => toggleFinished(session)}
+                    data-testid="agent-finished"
+                  >
+                    <span class="caret" aria-hidden="true">{unfolded ? '▾' : '▸'}</span>
+                    <span class="count">{tree.finished.length} FINISHED</span>
+                    <span class="tally">
+                      {#each tree.tally as entry (entry.state)}
+                        <span data-state={entry.state}>{entry.count} {TASK_LABEL[entry.state]}</span>
+                      {/each}
+                    </span>
+                  </button>
+                  {#if unfolded}
+                    <ul class="tree">
+                      {#each tree.finished as task (task.id)}
+                        {@render taskRow(session, task)}
+                      {/each}
+                    </ul>
                   {/if}
                 </li>
-              {/each}
+              {/if}
             </ul>
           {/if}
           {#if isOpen}
@@ -471,9 +513,13 @@ function toggle(session: AgentSession): void {
   color: var(--text);
 }
 
-/* A session as a module in a rack: a rule down the left ties its rows to its head. */
+/*
+ * A session as a module in a rack: a rule down the left ties its rows to its
+ * head, the head is a lit band, and a gap stands between one module and the
+ * next - where one session ends is read at a glance, however many tasks it has.
+ */
 .card {
-  margin: 0 var(--space-1) var(--space-1);
+  margin: 0 var(--space-1) var(--space-2);
   border-left: 2px solid var(--panel-rule);
 }
 
@@ -486,7 +532,7 @@ function toggle(session: AgentSession): void {
 }
 
 .card.open {
-  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
 }
 
 .head {
@@ -496,7 +542,7 @@ function toggle(session: AgentSession): void {
   width: 100%;
   padding: 0.15rem var(--space-2);
   border: none;
-  background: transparent;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
   color: var(--text);
   font-family: var(--font-ui);
   text-align: left;
@@ -504,7 +550,7 @@ function toggle(session: AgentSession): void {
 }
 
 .head:hover {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
 }
 
 .lamp {
@@ -715,13 +761,56 @@ function toggle(session: AgentSession): void {
   color: var(--ok);
 }
 
-/* A task a line: what it is, how it stands, what it is called, how long; a running subagent's step below. */
-.tasks {
+/*
+ * The tasks hang from the session as a tree: each a branch off one line down
+ * from the session's rows, the last branch ending the line. The finished ones
+ * hang from their folded row the same way, one step further in.
+ */
+.tree {
   margin: 0;
-  padding: 0 var(--space-2) 0.25rem calc(var(--space-2) + 1rem);
+  padding: 0;
   list-style: none;
 }
 
+.tasks {
+  /* The trunk stands just inside the session's rows, so every branch is a step further in. */
+  padding: 0 var(--space-2) 0.25rem calc(var(--space-2) + 0.85rem);
+  font-size: var(--step--1);
+}
+
+.node {
+  position: relative;
+  padding-left: 1.3rem;
+}
+
+.node::before,
+.node::after {
+  content: '';
+  position: absolute;
+  left: 0.4rem;
+  border-color: var(--panel-border);
+  border-style: solid;
+  border-width: 0;
+}
+
+.node::before {
+  top: 0;
+  bottom: 0;
+  border-left-width: 1px;
+}
+
+.node:last-child::before {
+  bottom: auto;
+  height: 0.6lh;
+}
+
+.node::after {
+  top: 0.6lh;
+  width: 0.65rem;
+  border-top-width: 1px;
+}
+
+/* A task a line: what it is, how it stands, what it is called, how long; a running subagent's step below. */
 .task {
   display: grid;
   grid-template-columns: 3.4em 2.8em minmax(0, 1fr) auto;
@@ -773,6 +862,45 @@ function toggle(session: AgentSession): void {
 .step {
   grid-column: 3 / -1;
   color: var(--text);
+}
+
+.fold {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: var(--step--1);
+  letter-spacing: 0.1em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fold:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text);
+}
+
+.caret {
+  width: 0.8em;
+  color: var(--accent-strong);
+}
+
+.tally {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.tally [data-state='failed'] {
+  color: var(--danger);
+}
+
+.tally [data-state='stopped'] {
+  color: var(--warn);
 }
 
 .credit {

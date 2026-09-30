@@ -248,12 +248,25 @@ test('shows the subagents and background commands a session runs, until they end
       record,
       `${[notice('toolu_sub', 'completed'), notice('toolu_sh', 'failed')].join('\n')}\n`,
     )
+    // Finished, they fold into one row under the session that says how they ended.
+    const finished = page.getByTestId('agent-finished')
+    await expect(finished).toContainText('2 FINISHED', { timeout: 10_000 })
+    await expect(finished).toContainText('1 DONE')
+    await expect(finished).toContainText('1 FAIL')
+    await expect(finished).toHaveAttribute('aria-expanded', 'false')
+    await expect(tasks).toHaveCount(0)
+    await expect(page.getByTestId('agent-running')).toHaveCount(0)
+
+    // Opened, each is there with its ending; the fold is the pane's, kept in its state.
+    await finished.click()
+    await expect(finished).toHaveAttribute('aria-expanded', 'true')
     const state = (title: string) =>
       tasks.filter({ hasText: title }).getByTestId('agent-task-state')
-    await expect(state('Hunt the orbit bugs')).toHaveText('DONE', { timeout: 10_000 })
+    await expect(state('Hunt the orbit bugs')).toHaveText('DONE')
     await expect(state('Run the whole suite')).toHaveText('FAIL')
-    await expect(page.getByTestId('agent-running')).toHaveCount(0)
     await expect(page.getByTestId('agent-task-step')).toHaveCount(0)
+    await finished.click()
+    await expect(tasks).toHaveCount(0)
   } finally {
     await close()
     removeDir(dir)

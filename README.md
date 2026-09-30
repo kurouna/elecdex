@@ -482,7 +482,8 @@ weather and calendar.
   folder, whether it is busy, the last thing it did (the tool, and what on), the model, the tokens
   in its view and written, and its answers. Below them, the subagents it started and the commands
   it left running in the background: running, done, failed or stopped, with a running subagent's
-  own last step; a finished one stays ten minutes. Open a card for the tools it has used and the files it
+  own last step, hung from the session as a tree. The finished ones fold into one row that says
+  how they ended (click it to see them) and stay ten minutes. Open a card for the tools it has used and the files it
   has changed; a file opens as a diff against the copy Claude Code kept before the session first
   touched it (what a subagent changed is marked SUB, and has no such copy). Read from Claude Code's own folder (`~/.claude`, or `CLAUDE_CONFIG_DIR`) only
   while the pane is open, and only the part of a record written since the last look - a long record
