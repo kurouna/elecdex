@@ -95,9 +95,9 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **AI Agent** *(experimental)* — the Claude Code sessions at work on your computer: what
   each is doing this moment, how much it carries, its subagents and background tasks, and a diff
   of every file it changed, read from Claude Code's own records on this machine.
-- **Git** — a repository you choose, read only: the files changed, the diff of
-  each with its syntax coloured, and the commit graph with its branches and tags, kept current as
-  they change - watch an AI agent work in the next pane. One pane per repository.
+- **Git** — a repository you choose: the files changed, the diff of each with its syntax
+  coloured, and the commit graph with its branches and tags, kept current as they change - watch an
+  AI agent work in the next pane. FETCH, and PULL fast-forward only. One pane per repository.
 - **Docker** — the containers of the Docker engine on your computer, by Compose
   project: up or down, healthy or not, their published ports (a click opens one in the browser)
   and what each uses; start, stop, restart and pause from the row.
@@ -508,8 +508,10 @@ weather and calendar.
   lit; the commit graph - the lines of the branches, the names on each commit (the branch checked
   out, other branches, remotes, tags), this branch with its upstream or **ALL** of them, a hundred
   commits at a time with **MORE** - where a click opens a commit's files and diff and a rest on one
-  shows the whole of it: its message, author, date and what it changed. It only reads: stage and
-  commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
+  shows the whole of it: its message, author, date and what it changed. **FETCH** and **PULL**
+  (each pressed twice) bring the branch up to date: a pull is a fast-forward only - when both sides
+  have moved on it says DIVERGED and leaves the merge or rebase to the terminal - and runs none of
+  the repository's hooks. Nothing else is written: stage and commit in the terminal. A double-click opens the file - with the command in `git.openCommand`
   in `settings.json` (`{file}` and `{line}` are filled in, e.g. `code -g "{file}:{line}"`),
   or with the system's own application when it is empty. git must be on PATH.
 - **Docker** — in the dev preset, or add it from the picker ("docker

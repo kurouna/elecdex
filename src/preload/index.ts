@@ -29,6 +29,7 @@ import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { GitDiff, GitFile, GitLog, GitRepoRef, GitState } from '@shared/git'
+import type { GitSyncResult } from '@shared/git-sync'
 import type { LauncherEntry, LaunchResult } from '@shared/launcher'
 import type { SavedLayoutSummary } from '@shared/layouts'
 import { chartKey, type MarketUpdate } from '@shared/markets'
@@ -602,6 +603,8 @@ const api: ElecdexApi = {
         { ok: true } | { ok: false; message: string }
       >,
     reveal: (repoId, path) => ipcRenderer.invoke(CH.git.reveal, repoId, path) as Promise<boolean>,
+    sync: (repoId, action) =>
+      ipcRenderer.invoke(CH.git.sync, repoId, action) as Promise<GitSyncResult | null>,
     watching: () => ipcRenderer.invoke(CH.git.watching) as Promise<string[]>,
   },
   ai: {

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, realpathSync, statSync, watch } from 'node:fs'
+import { existsSync, mkdirSync, realpathSync, statSync, watch } from 'node:fs'
 import { open as openFile, readFile as readFileBytes } from 'node:fs/promises'
 import path from 'node:path'
 import { CH } from '@shared/channels'
@@ -13,11 +13,13 @@ import {
   parseDiffRequest,
   parseLogRequest,
 } from '@shared/git'
+import { isSyncAction } from '@shared/git-sync'
 import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from 'electron'
 import { launchPlan, resolveOnPath, runsWhenOpened } from '../git/open.js'
 import { RepoCatalog } from '../git/repos.js'
 import { gitBytes, gitError, runGit } from '../git/run.js'
 import { GitService, type Watch } from '../git/service.js'
+import { GitSync } from '../git/sync.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
@@ -69,6 +71,18 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
     publish,
+  })
+
+  const writer = new GitSync({
+    run: runGit,
+    target: (id) => service.target(id),
+    moved: (id) => service.moved(id),
+    hooksDir: () => {
+      // An empty folder of main's own: pointed at as `core.hooksPath`, it runs no hook.
+      const dir = path.join(app.getPath('userData'), 'git-no-hooks')
+      mkdirSync(dir, { recursive: true })
+      return dir
+    },
   })
 
   const sync = (): void => {
@@ -158,6 +172,13 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
 
   ipcMain.handle(CH.git.watching, () => service.watching())
 
+  // FETCH and PULL: only for a repository this very page shows, and only as main last read it.
+  ipcMain.handle(CH.git.sync, async (event, repoId: unknown, action: unknown) => {
+    if (!isRepoId(repoId) || !isSyncAction(action)) return null
+    if (!registry.subscribers(repoId).has(event.sender)) return null
+    return writer.run(repoId, action)
+  })
+
   return {
     dispose: () => {
       service.dispose()
@@ -172,6 +193,7 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
         CH.git.open,
         CH.git.reveal,
         CH.git.watching,
+        CH.git.sync,
       ]) {
         ipcMain.removeHandler(channel)
       }

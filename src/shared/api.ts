@@ -33,6 +33,7 @@ import type {
   GitRepoRef,
   GitState,
 } from './git.js'
+import type { GitSyncAction, GitSyncResult } from './git-sync.js'
 import type { LauncherEntry, LaunchResult } from './launcher.js'
 import type { SavedLayoutSummary } from './layouts.js'
 import type { ChartRange, MarketUpdate } from './markets.js'
@@ -529,7 +530,10 @@ export interface OrbitsApi {
   watching(): Promise<OrbitSet[]>
 }
 
-/** The git pane: it only reads. Repositories are known to the page by id. */
+/**
+ * The git pane: it reads, and fetches or pulls (fast-forward only) when the user
+ * presses. Repositories are known to the page by id.
+ */
 export interface GitApi {
   /**
    * Keeps a repository's state current while subscribed: main watches its
@@ -563,6 +567,11 @@ export interface GitApi {
   ): Promise<{ ok: true } | { ok: false; message: string }>
   /** Shows the file in the system's file manager. */
   reveal(repoId: string, path: string): Promise<boolean>
+  /**
+   * Fetches, or pulls fast-forward only, a repository this page shows. Null when
+   * the page does not show it.
+   */
+  sync(repoId: string, action: GitSyncAction): Promise<GitSyncResult | null>
   /** Diagnostics: the repositories main is watching. */
   watching(): Promise<string[]>
 }

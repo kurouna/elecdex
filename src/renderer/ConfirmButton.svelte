@@ -14,10 +14,12 @@ interface Props {
   action: string
   title?: string
   testid: string
+  /** Cannot be pressed now (the title says why); an armed one disarms. */
+  disabled?: boolean
   onconfirm: () => void
 }
 
-const { label, action, title, testid, onconfirm }: Props = $props()
+const { label, action, title, testid, disabled = false, onconfirm }: Props = $props()
 
 const CONFIRM_MS = 3000
 
@@ -43,9 +45,12 @@ function disarm(): void {
 }
 
 $effect(() => disarm)
+$effect(() => {
+  if (disabled) disarm()
+})
 </script>
 
-<button type="button" class="confirm" class:armed {title} {onclick} data-testid={testid}>
+<button type="button" class="confirm" class:armed {title} {disabled} {onclick} data-testid={testid}>
   {armed ? `click again to ${action}` : label}
 </button>
 
@@ -62,7 +67,12 @@ $effect(() => disarm)
   cursor: pointer;
 }
 
-.confirm:hover,
+.confirm:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.confirm:not(:disabled):hover,
 .confirm:focus-visible {
   color: var(--accent);
   border-color: var(--accent);

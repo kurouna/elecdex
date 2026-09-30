@@ -164,6 +164,29 @@ export class GitService {
     return [...this.watched.keys()].sort()
   }
 
+  /**
+   * What a fetch or pull needs of a repository a pane shows: its folder, the
+   * `-c` pairs that empty its own filters, and main's last reading of it. Null
+   * for one that is not shown, or not yet read as a repository.
+   */
+  target(id: string): { path: string; guard: readonly string[]; state: GitState } | null {
+    const entry = this.watched.get(id)
+    if (entry === undefined || entry.gitDir === null) return null
+    return { path: entry.ref.path, guard: entry.guard, state: entry.state }
+  }
+
+  /**
+   * Reads a repository again after main itself has written to it (a fetch, a
+   * pull), history included, rather than leaving it to the watcher to notice.
+   */
+  moved(id: string): void {
+    const entry = this.watched.get(id)
+    if (entry === undefined) return
+    entry.refsMoved = true
+    entry.touched = 'all'
+    this.changed(entry)
+  }
+
   watch(id: string): void {
     if (this.watched.has(id)) return
     const ref = this.deps.repo(id)

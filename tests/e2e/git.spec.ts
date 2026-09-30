@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
@@ -554,5 +555,99 @@ test('puts two wide images one above the other in a tall, narrow diff, and side 
   } finally {
     await close()
     removeDir(repo)
+  }
+})
+
+test('fetches and pulls fast-forward only on two presses, running none of the repository hooks', async () => {
+  // A remote, a clone the pane shows, and another clone that moves the remote on.
+  const source = makeRepo()
+  const root = mkdtempSync(path.join(tmpdir(), 'elecdex-git-remote-'))
+  const origin = path.join(root, 'origin.git')
+  const work = path.join(root, 'work')
+  const other = path.join(root, 'other')
+  git(root, 'clone', '-q', '--bare', source, origin)
+  for (const dir of [work, other]) {
+    // Set as it is cloned, so the checkout itself does not follow a global autocrlf.
+    git(root, 'clone', '-q', '-c', 'core.autocrlf=false', origin, dir)
+    git(dir, 'config', 'user.email', 'test@example.test')
+    git(dir, 'config', 'user.name', 'Test')
+  }
+  const push = (subject: string) => {
+    writeFileSync(path.join(other, `${subject.replaceAll(' ', '-')}.txt`), `${subject}\n`)
+    git(other, 'add', '.')
+    git(other, 'commit', '-q', '-m', subject)
+    git(other, 'push', '-q', 'origin', 'main')
+  }
+  push('second commit')
+
+  // Hooks where husky keeps them, in the working tree, so a pulled commit could
+  // rewrite them: a fetch runs reference-transaction, a pull post-merge as well.
+  const marker = path.join(root, 'hook-ran')
+  const hooks = path.join(work, '.husky')
+  mkdirSync(hooks)
+  for (const hook of ['reference-transaction', 'post-merge']) {
+    const log = marker.replaceAll('\\', '/')
+    writeFileSync(path.join(hooks, hook), `#!/bin/sh\necho ${hook} >> "${log}"\n`, {
+      mode: 0o755,
+    })
+  }
+  git(work, 'config', 'core.hooksPath', '.husky')
+  // The trap is armed: git left to itself runs them.
+  git(work, 'update-ref', 'refs/heads/armed', 'HEAD')
+  expect(existsSync(marker)).toBe(true)
+  rmSync(marker)
+
+  const { app, page, close } = await launch(undefined, { layout: single })
+  try {
+    await watchRepo(page, app, work)
+    await expect(page.getByTestId('git-commit').first()).toContainText('first commit')
+    const toast = page.getByTestId('toast')
+
+    // One press arms, the second runs.
+    const fetch = page.getByTestId('git-fetch')
+    await fetch.click()
+    await expect(fetch).toContainText('click again to fetch')
+    await fetch.click()
+    await expect(toast.last()).toContainText('FETCHED · 1 COMMIT BEHIND', { timeout: 30_000 })
+    // Fetched, not merged: the graph shows the upstream ahead, HEAD stays where it was.
+    await expect(page.getByTestId('git-head')).toContainText('↓1', { timeout: 10_000 })
+    await expect(page.getByTestId('git-head')).toContainText('first commit')
+    await expect(page.getByTestId('git-commit').first()).toContainText('second commit')
+
+    const pull = page.getByTestId('git-pull')
+    await pull.click()
+    await pull.click()
+    await expect(toast.last()).toContainText('PULLED 1 COMMIT', { timeout: 30_000 })
+    await expect(page.getByTestId('git-head')).toContainText('second commit', { timeout: 10_000 })
+    await expect(page.getByTestId('git-head')).toContainText('↓0')
+
+    // Both sides move on: a fast-forward cannot join them, and nothing is merged.
+    writeFileSync(path.join(work, 'local.txt'), 'local\n')
+    git(work, 'add', 'local.txt')
+    // The test's own commit runs no hook either, so the marker speaks only of the app.
+    git(
+      work,
+      '-c',
+      `core.hooksPath=${path.join(root, 'none')}`,
+      'commit',
+      '-q',
+      '-m',
+      'local commit',
+    )
+    push('third commit')
+    await expect(page.getByTestId('git-head')).toContainText('local commit', { timeout: 10_000 })
+    await pull.click()
+    await pull.click()
+    await expect(toast.last()).toContainText('DIVERGED', { timeout: 30_000 })
+    await expect(toast.last()).toContainText('merge or rebase in the terminal')
+    expect(git(work, 'log', '-1', '--format=%s').toString().trim()).toBe('local commit')
+    // Now known to have diverged, the pull is not offered until the terminal has dealt with it.
+    await expect(pull).toBeDisabled({ timeout: 10_000 })
+
+    expect(existsSync(marker) ? readFileSync(marker, 'utf8') : '').toBe('')
+  } finally {
+    await close()
+    removeDir(root)
+    removeDir(source)
   }
 })

@@ -195,7 +195,7 @@ export const CH = {
     update: 'orbits:update',
     watching: 'orbits:watching',
   },
-  /** The git pane (shared/git.ts): read only, by repository id. */
+  /** The git pane (shared/git.ts): reads, and fetches or pulls on a press, by repository id. */
   git: {
     /** renderer -> main, fire and forget: keep a repository's state current. */
     subscribe: 'git:subscribe',
@@ -211,6 +211,8 @@ export const CH = {
     open: 'git:open',
     reveal: 'git:reveal',
     watching: 'git:watching',
+    /** A fetch or a fast-forward pull (shared/git-sync.ts). */
+    sync: 'git:sync',
   },
   /** The AI chat pane (shared/ai.ts). A key goes to main and never comes back. */
   ai: {

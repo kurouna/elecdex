@@ -1,7 +1,8 @@
 import { execFile } from 'node:child_process'
 
 /**
- * Runs git for the git pane, and only ever to read.
+ * Runs git for the git pane: to read, and for the two writes the user presses
+ * (sync.ts: fetch and a fast-forward pull), which add their own guards.
  *
  * A repository's own config can name programs for git to run - a file system
  * monitor (`core.fsmonitor`), an external diff, a text converter - so a
@@ -9,8 +10,8 @@ import { execFile } from 'node:child_process'
  * it. Every call therefore turns the monitor off and signature checks (which
  * run `gpg.program`) off, and asks for no external diff and no conversion (the
  * diff commands add those); clean filters the repository itself defines are
- * emptied per repository (GitService), and none of the commands used here runs
- * a hook.
+ * emptied per repository (GitService). None of the reading commands runs a
+ * hook; the writes point `core.hooksPath` at an empty folder (sync.ts).
  *
  * `--no-optional-locks` keeps `git status` from writing the index to refresh
  * it: the write would take index.lock, which could fail the user's own git
@@ -50,11 +51,17 @@ export interface GitResult {
   missing: boolean
   /** The output passed MAX_OUTPUT. */
   tooLarge: boolean
+  /** Stopped for taking longer than its time. */
+  timedOut?: boolean
 }
 
-export type RunGit = (cwd: string, args: readonly string[]) => Promise<GitResult>
+export type RunGit = (
+  cwd: string,
+  args: readonly string[],
+  options?: { timeoutMs?: number },
+) => Promise<GitResult>
 
-export const runGit: RunGit = (cwd, args) =>
+export const runGit: RunGit = (cwd, args, options) =>
   new Promise((resolve) => {
     execFile(
       'git',
@@ -63,7 +70,7 @@ export const runGit: RunGit = (cwd, args) =>
         cwd,
         encoding: 'utf8',
         maxBuffer: MAX_OUTPUT,
-        timeout: TIMEOUT_MS,
+        timeout: options?.timeoutMs ?? TIMEOUT_MS,
         windowsHide: true,
         // Never stop to ask for a password or an editor: there is nobody to answer.
         env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_EDITOR: 'true', GIT_PAGER: 'cat' },
@@ -76,6 +83,7 @@ export const runGit: RunGit = (cwd, args) =>
           stderr: String(stderr ?? ''),
           missing: code === 'ENOENT',
           tooLarge: code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER',
+          timedOut: (error as { killed?: boolean } | null)?.killed === true,
         })
       },
     )

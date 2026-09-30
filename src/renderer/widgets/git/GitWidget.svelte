@@ -10,7 +10,15 @@ import {
   isCommitId,
   isRepoId,
 } from '@shared/git'
+import {
+  GIT_SYNC_ACTIONS,
+  type GitSyncAction,
+  SYNC_DONE,
+  syncBlocked,
+  syncHeadline,
+} from '@shared/git-sync'
 import { untrack } from 'svelte'
+import ConfirmButton from '../../ConfirmButton.svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { anchorOf, type CardAnchor, type CardSize } from '../../lib/hover-card.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
@@ -232,6 +240,42 @@ function useRepo(id: string): void {
   setState({ repo: id, chosen: null, commit: null })
 }
 
+/** The fetch or pull under way from this pane; its button steps with the shared pulse meanwhile. */
+let syncing = $state<GitSyncAction | null>(null)
+$effect(() => (syncing !== null ? pulse.use() : undefined))
+
+const SYNC_BUSY: Record<GitSyncAction, string> = { fetch: 'FETCHING', pull: 'PULLING' }
+
+function syncTitle(action: GitSyncAction): string {
+  const blocked = syncBlocked(repoState, action)
+  if (blocked !== null) return `Cannot ${action}: ${blocked}`
+  const upstream = repoState?.branch.upstream ?? ''
+  return action === 'pull'
+    ? `Pull ${upstream} into this branch, fast-forward only (no merge, no rebase, no hooks)`
+    : `Fetch from the remote of ${upstream}, leaving the working tree as it is`
+}
+
+/**
+ * Runs a fetch or a fast-forward pull in main and says how it ended: the short
+ * code first, git's own words beside it. The new state arrives by the usual way.
+ */
+async function syncRepo(action: GitSyncAction): Promise<void> {
+  if (repoId === null || syncing !== null) return
+  const where = [repoState?.repo?.name, repoState?.branch.head].filter(Boolean).join(' · ')
+  syncing = action
+  try {
+    const result = await window.elecdex.git.sync(repoId, action)
+    if (result === null) return
+    toasts.show({
+      title: syncHeadline(result),
+      body: [where, result.message].filter(Boolean).join(' — '),
+      tone: SYNC_DONE.has(result.code) ? 'ok' : result.code === 'diverged' ? 'warn' : 'danger',
+    })
+  } finally {
+    syncing = null
+  }
+}
+
 async function open(file: GitFile, line: number | null): Promise<void> {
   if (repoId === null) return
   const result = await window.elecdex.git.open(repoId, file.path, line)
@@ -376,6 +420,24 @@ const counts = $derived.by(() => {
       {/key}
       <span class="subject">{repoState?.head?.subject ?? ''}</span>
       {#if (repoState?.stash ?? 0) > 0}<span class="ab">stash {repoState?.stash}</span>{/if}
+      <span class="sync">
+        {#each GIT_SYNC_ACTIONS as action (action)}
+          {#if syncing === action}
+            <span class="busy" data-phase={pulse.phase} data-testid="git-{action}-busy"
+              >{SYNC_BUSY[action]}</span
+            >
+          {:else}
+            <ConfirmButton
+              label={action.toUpperCase()}
+              {action}
+              title={syncTitle(action)}
+              testid="git-{action}"
+              disabled={syncing !== null || syncBlocked(repoState, action) !== null}
+              onconfirm={() => void syncRepo(action)}
+            />
+          {/if}
+        {/each}
+      </span>
       <button
         type="button"
         class="switch"
@@ -679,8 +741,28 @@ const counts = $derived.by(() => {
   white-space: nowrap;
 }
 
-.switch {
+/* FETCH and PULL: two presses each, like every write the app makes on a click. */
+.sync {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.3rem;
   margin-left: auto;
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.12em;
+}
+
+.busy {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--accent);
+  color: var(--accent-strong);
+}
+
+.busy[data-phase='2'] {
+  opacity: 0.45;
+}
+
+.switch {
   flex-shrink: 0;
   padding: 0 0.4rem;
   border-color: var(--panel-rule);

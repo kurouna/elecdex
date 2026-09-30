@@ -344,9 +344,17 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
   - No tools, no MCP, no images, no branching, no named prompt profiles: left out on purpose
     (user decisions 2026-09-20 and 2026-09-21). A model that can start processes or read files
     needs a consent design like the plugins' first. Do not add any of them without asking.
-- **The git pane** (architecture.md §5.9, shared/git.ts, main/git/) only reads: it never stages,
-  commits or checks out. A repository is chosen through main's folder picker and known to the page
+- **The git pane** (architecture.md §5.9, shared/git.ts, main/git/) reads, and writes only what the
+  user presses FETCH or PULL for (two presses each): it never stages, commits, checks out, merges or
+  rebases. A repository is chosen through main's folder picker and known to the page
   by an id (`git-repos.json`), so a layout carries no path; a pane is tied to no other pane.
+  - FETCH and PULL are main/git/sync.ts, apart from the reading GitService, and are where a later
+    write (a push) goes. A pull is `--ff-only` and nothing else (user decision 2026-09-30): no merge,
+    no rebase, no autostash, no signature check, no submodules; diverged, it refuses and says to use
+    the terminal. No hook ever runs: `core.hooksPath` points at an empty folder of main's, since a
+    repository can point it into its own working tree (husky). Main checks `syncBlocked`
+    (shared/git-sync.ts) against its own reading, runs one at a time per repository, and only for a
+    page that shows it.
   - git runs with `GIT_FLAGS` (main/git/run.ts) and the diff flags, always: a repository's own
     config can name programs (`core.fsmonitor`, external diff, textconv, `gpg.program` through
     `log.showSignature`, a clean filter), and the pane must never run one by looking. The filters
