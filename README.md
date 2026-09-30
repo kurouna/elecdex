@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.18 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.19 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -136,7 +136,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   what you copy while it is on screen, to put back with a click, and under the calendar the
   utility pane (keep the machine awake, QR codes, encoding and hashes).
 
-### ai — two conversations and a council *(unreleased)*
+### ai — two conversations and a council
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai preset in the Business (Dark) theme, every answer written by a stand-in made for the picture: two AI chat panes one over the other - the top one on Ollama with a question about watching a folder in Node.js answered with a code block, and a second answer arriving, its heading reading RX with the seconds and characters so far; the bottom one on LM Studio, answering what git pull --ff-only refuses to do - and on the right an ELEC system pane, LOGOS and PATHOS lit green with APPROVE, ETHOS outvoted with REJECT, the resolution strip reading APPROVED 2-1-0-0">
@@ -147,7 +147,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   that speaks the OpenAI chat API) or to a service you have an API key for (Anthropic, OpenAI,
   Gemini, OpenRouter). Answers stream in with their reasoning folded away, keys are encrypted by
   the operating system and never reach the page, and conversations stay on your computer.
-  *(unreleased)* Text files, images and PDFs go with a question - picked with **+**, dropped on
+  Text files, images and PDFs go with a question - picked with **+**, dropped on
   the pane or pasted as a picture; an image is made small and drawn again before it is sent, so
   what a camera wrote into the file (where a photo was taken) never leaves.
 
@@ -169,7 +169,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   <br><sub>CHIP-8 · Amber</sub>
 </p>
 
-- **CHIP-8** *(unreleased)* — CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of elecdex's
+- **CHIP-8** — CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of elecdex's
   own: the 104 games, visual novels and toys of chip8Archive, each with a frame of its screen,
   your own program files, saves, and the registers, memory and code beside the screen.
 
@@ -566,7 +566,7 @@ weather and calendar.
   folded under **reasoning**. While an answer is written its heading counts the seconds and the
   characters; once it lands it shows the tokens read and written and the tokens a second, where
   the provider reports them. Hover a message to **copy** it, **edit** an earlier question (which
-  replaces it and what followed) or ask **again**. *(unreleased)* **Files go with a question**:
+  replaces it and what followed) or ask **again**. **Files go with a question**:
   press **+** at the start of the line, drop files on the pane, or paste a picture (a paste that
   carries text stays text). They wait as chips above the line - **PAYLOAD** with their count, size
   and estimated tokens - and a chip's card, when the pointer rests on it, says the rest: the whole
@@ -820,7 +820,7 @@ weather and calendar.
     date both ways, turns full-width ASCII half-width and back (and NFKC), and makes UUIDs. What
     you type into it is never written to disk.
   Everything runs on this machine with no network, and no plugin can reach any of it.
-- **CHIP-8** *(unreleased)* — add it from the picker ("chip-8"). A CHIP-8, SUPER-CHIP and
+- **CHIP-8** — add it from the picker ("chip-8"). A CHIP-8, SUPER-CHIP and
   XO-CHIP machine written for elecdex, which passes Timendus's chip8-test-suite on all three.
   The library holds the 104 programs of chip8Archive (CC0) - games, visual novels, rhythm games,
   toys and the Octojam title cards, each with its authors - and that suite's eight (DIAG), in

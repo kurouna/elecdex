@@ -19,7 +19,7 @@
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器，中间是三个 shell 标签页以及启动器和文件浏览器，右侧是世界视图、行情、天气和日历">
 </p>
 
-> **v0.0.18 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.19 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -122,7 +122,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   还有围绕一天作息的闹钟。任务下方是剪贴板历史：列出它显示在屏幕上时你复制的内容，
   点一下即可放回剪贴板；日历下方是实用工具窗格（阻止休眠、二维码、编码与哈希）。
 
-### ai — 两段对话与一个评议会 *(unreleased)*
+### ai — 两段对话与一个评议会
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设（所有回答都来自为截图准备的替身）：上下排列的两个 AI 聊天窗格。上面的连接 Ollama，关于在 Node.js 中监视文件夹的提问得到了带代码块的回答，第二个回答正在到达，其标题显示 RX 以及到目前为止的秒数和字符数；下面的连接 LM Studio，回答 git pull --ff-only 会拒绝做什么。右侧是 ELEC system 窗格：LOGOS 和 PATHOS 以绿色亮起并显示 APPROVE，投了 REJECT 的 ETHOS 被多数否决，决议条显示 APPROVED 2-1-0-0">
@@ -132,7 +132,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 - **AI 聊天** — 与你自己运行的语言模型对话（Ollama、LM Studio、llama.cpp——任何支持 OpenAI
   chat API 的服务），或与你持有 API 密钥的服务对话（Anthropic、OpenAI、Gemini、OpenRouter）。
   回答以流式到达，推理过程默认折叠；密钥由操作系统加密，永远不会传到页面；对话保存在你的电脑上。
-  *(unreleased)* 提问时可以附上文本文件、图片和 PDF：用 **+** 选择、拖放到窗格上，或粘贴图片。图片在发送前
+  提问时可以附上文本文件、图片和 PDF：用 **+** 选择、拖放到窗格上，或粘贴图片。图片在发送前
   会被缩小并重新绘制，所以相机写入文件的信息（例如拍摄地点）不会被发送出去。
 
 <p align="center">
@@ -152,7 +152,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   <br><sub>CHIP-8 · Amber</sub>
 </p>
 
-- **CHIP-8** *(unreleased)* — 用 elecdex 自己的虚拟机运行 CHIP-8、SUPER-CHIP 和 XO-CHIP 程序：
+- **CHIP-8** — 用 elecdex 自己的虚拟机运行 CHIP-8、SUPER-CHIP 和 XO-CHIP 程序：
   chip8Archive 的 104 个游戏、视觉小说和小玩具（每个都带屏幕预览）、你自己的程序文件、存档，
   以及屏幕旁的寄存器、内存和代码。
 
@@ -483,7 +483,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   提供的情况下：Claude 的摘要式思考、`reasoning_content` 或内联的 `<think>`）折叠在
   **reasoning** 下。回答生成过程中，其标题会计数秒数和字符数；完成后显示读入和写出的 token 数
   以及每秒 token 数（在提供方报告这些数据的情况下）。悬停在消息上可以 **copy** 复制、**edit**
-  编辑之前的提问（会替换它及其后的内容），或 **again** 重新提问。*(unreleased)*
+  编辑之前的提问（会替换它及其后的内容），或 **again** 重新提问。
   **提问可以附带文件**：按输入行开头的 **+**、把文件拖放到窗格上，或粘贴图片（带文本的粘贴仍作为文本）。文件以芯片的
   形式排在输入行上方（**PAYLOAD**，显示数量、大小和估算的 token 数），鼠标停在芯片上时，卡片会说明其余信息：完整的
   文件名、精确的大小、图片的像素以及缩小前的尺寸。每个提问最多 5 个文件、共 15 MB：文本文件最多 256 KB，完整地放在
@@ -666,7 +666,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
     计算 SHA-1、SHA-256、SHA-512 哈希，Unix 时间与日期互相转换，全角英数与半角互转（以及 NFKC），
     生成 UUID。输入的内容不会写入磁盘。
   全部在本机运行，不使用网络，插件也无法访问。
-- **CHIP-8** *(unreleased)* — 从选择器（"chip-8"）添加。这是为 elecdex 编写的 CHIP-8、SUPER-CHIP
+- **CHIP-8** — 从选择器（"chip-8"）添加。这是为 elecdex 编写的 CHIP-8、SUPER-CHIP
   和 XO-CHIP 虚拟机，在三种机型上都通过了 Timendus 的 chip8-test-suite。程序库收录 chip8Archive（CC0）
   的 104 个程序（游戏、视觉小说、节奏游戏、小玩具以及 Octojam 的标题画面，均注明作者）和该测试集的
   8 个程序（DIAG），按种类分标签页，可搜索，也可显示或隐藏三种机型。每一行都带有屏幕预览，是在构建程序
