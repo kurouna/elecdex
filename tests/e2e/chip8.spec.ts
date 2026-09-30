@@ -184,8 +184,27 @@ test('out of sight it pauses, and stays paused when seen again', async () => {
   }
 })
 
+/**
+ * Under the clock, not beside it: a pane the whole height of the window gains only width when
+ * it is brought forward, and where the screen is short (the macOS runner) its dots are bound by
+ * the height either way - they did not grow there.
+ */
+const UNDER_CLOCK = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'column',
+    sizes: [50, 50],
+    children: [
+      { kind: 'pane', id: 'clock', widget: 'clock' },
+      { kind: 'pane', id: 'c8', widget: 'chip8' },
+    ],
+  },
+}
+
 test('brought forward the dots grow, and put back they are as they were', async () => {
-  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = await launch(undefined, { layout: UNDER_CLOCK })
   try {
     await designSize(app, page)
     await loadProgram(page, 'diag/2-ibm-logo')
@@ -566,6 +585,9 @@ test('TUNE is kept for the program, in the library and next time, and OWN puts i
 
     current = await launched.relaunch()
     const again = current.page
+    // A new window comes up at its own size: on a small screen (the CI runners') the pane is too
+    // narrow for the panel's tabs until it is brought to the size the test is laid out for.
+    await designSize(current.app, again)
     await expect(again.getByTestId('chip8-detail')).toContainText('100 a frame · tuned')
     await again.getByTestId('chip8-new').click()
     await tab(again, 'tune').click()
