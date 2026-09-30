@@ -85,9 +85,12 @@ const LibraryFileSchema = z.object({
 })
 type LibraryFile = z.infer<typeof LibraryFileSchema>
 
-/** A title from a file's name: its extension gone, dashes and underscores spaces. */
+/**
+ * A title from a file's name: its extension gone, dashes and underscores spaces. Either separator
+ * ends a folder: `path.basename` on Linux and macOS keeps a Windows path whole.
+ */
 export function titleOfFile(name: string): string {
-  const stem = path.basename(name).replace(/\.[^.]*$/, '')
+  const stem = (name.split(/[\\/]/).pop() ?? '').replace(/\.[^.]*$/, '')
   const title = stem.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80)
   return title === '' ? 'Untitled' : title
 }
