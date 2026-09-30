@@ -247,8 +247,10 @@ describe('the engine', () => {
       seconds: 1,
     })
     expect(modes).toBeLessThanOrEqual(MODE_BUDGET)
-    const later = render({ seconds: 3, engine })
-    expect(later.modes).toBeLessThan(modes * 0.8)
+    // Half a second on is enough to see them go (about 2,100 left of a peak near 4,500);
+    // three seconds cost two more of rendering and past vitest's 5 s under a full run.
+    const later = render({ seconds: 0.5, engine })
+    expect(later.engine.modes).toBeLessThan(modes * 0.8)
   })
 
   it('stretches the strings in proportion to the square of a blow: heard in a hard one only', () => {

@@ -92,8 +92,11 @@ describe('the bundled library', () => {
     }
   })
 
-  it('holds the previews and keys the core draws now (run npm run gen:chip8 after changing it)', () => {
-    for (const entry of catalog.entries) {
+  // One test a program: all 112 run for their preview's 600 frames took about 2 s as one
+  // test, and past vitest's 5 s once the whole suite ran beside it.
+  it.each(catalog.entries.map((entry) => [entry.id, entry] as const))(
+    'holds the preview and keys the core draws now for %s (run npm run gen:chip8 after changing it)',
+    (_id, entry) => {
       const program = programFromEntry(entry)
       const run = previewRun(rom(entry.file), {
         platform: program.platform,
@@ -101,10 +104,10 @@ describe('the bundled library', () => {
         ipf: program.ipf,
         font: program.font,
       })
-      expect(entry.preview, entry.id).toEqual(run.preview ?? undefined)
-      expect(entry.keys, entry.id).toBe(run.sensed)
-    }
-  })
+      expect(entry.preview).toEqual(run.preview ?? undefined)
+      expect(entry.keys).toBe(run.sensed)
+    },
+  )
 })
 
 describe('the words for a program', () => {
