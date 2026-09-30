@@ -251,7 +251,7 @@ test('behind another tab or closed, nothing is read; shown again, it takes up', 
 test('switched away from the desk layout, nothing is read; switched back, it takes up', async () => {
   const { app, page, close } = await launch(undefined, {
     layout: { version: 1, root: { kind: 'pane', id: 'c', widget: 'clock' } },
-    // The dev layout has shells: no question on the way back to the desk.
+    // A layout with shells asks before it is left: no question on the way back to the desk.
     settings: { layout: { confirmSwitch: false } },
   })
   const watching = () => page.evaluate(() => window.elecdex.clipboard.watching())
@@ -263,14 +263,15 @@ test('switched away from the desk layout, nothing is read; switched back, it tak
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
     await copied(app, page, 'copied at the desk')
 
-    // The dev preset has no clipboard pane: the pane goes, and so does the reading.
-    await page.keyboard.press('Control+Shift+F4')
+    // The media preset has no clipboard pane (dev has one, in a tab, since 2026-10-01): the
+    // pane goes, and so does the reading.
+    await page.keyboard.press('Control+Shift+F5')
     await settleLayout(page)
     await expect(pane).toHaveCount(0)
     await expect.poll(watching).toBe(false)
     const before = await reads(app)
-    await copy(app, 'copied in dev')
-    await copy(app, 'copied in dev, later')
+    await copy(app, 'copied away')
+    await copy(app, 'copied away, later')
     await page.waitForTimeout(1200)
     expect(await reads(app)).toBe(before)
 
@@ -279,7 +280,7 @@ test('switched away from the desk layout, nothing is read; switched back, it tak
     await page.keyboard.press('Control+Shift+F6')
     await settleLayout(page)
     await expect.poll(watching).toBe(true)
-    await expect.poll(() => texts(page)).toEqual(['copied in dev, later', 'copied at the desk'])
+    await expect.poll(() => texts(page)).toEqual(['copied away, later', 'copied at the desk'])
     await copied(app, page, 'copied back at the desk')
   } finally {
     await close()
