@@ -66,6 +66,17 @@ const litDots = (page: Page, screen = runScreen(page)) =>
 
 const cycles = async (page: Page) =>
   Number(await page.getByTestId('chip8-cycles').getAttribute('data-cycles'))
+/**
+ * Opens the run screen's panel if a narrow pane folded it: CORE's registers, the cycle count
+ * among them, are in it. Whether a half pane folds it depends on the screen's size and scaling,
+ * so a test that reads them opens it rather than toggling blind.
+ */
+async function openPanel(page: Page): Promise<void> {
+  const toggle = page.getByTestId('chip8-panel-toggle')
+  if ((await toggle.textContent())?.includes('▸')) await toggle.click()
+  await expect(toggle).toContainText('◂')
+}
+
 const scale = async (page: Page) => Number(await runScreen(page).getAttribute('data-scale'))
 
 async function designSize(app: ElectronApplication, page: Page): Promise<void> {
@@ -235,9 +246,9 @@ test('a pane split beside it keeps its machine going, and a restart brings the p
     await page.keyboard.press('Control+Shift+KeyE')
     await expect(page.getByTestId('pane')).toHaveCount(3)
     await expect(page.getByTestId('chip8-run')).toBeVisible()
+    await openPanel(page)
     expect(await cycles(page)).toBeGreaterThanOrEqual(before)
 
-    await page.getByTestId('chip8-panel-toggle').click()
     const kept = await cycles(page)
     launched = await launched.relaunch()
     await expect(launched.page.getByTestId('chip8-run')).toHaveAttribute('data-status', 'paused')
@@ -245,7 +256,7 @@ test('a pane split beside it keeps its machine going, and a restart brings the p
     // From AUTO, written as the app went: where it was, not the first instruction. The
     // registers are CORE's, in the panel the half pane has folded away.
     await designSize(launched.app, launched.page)
-    await launched.page.getByTestId('chip8-panel-toggle').click()
+    await openPanel(launched.page)
     expect(await cycles(launched.page)).toBeGreaterThanOrEqual(kept)
   } finally {
     await launched.close()
