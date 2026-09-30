@@ -106,6 +106,16 @@ describe('parseTimeOfDay', () => {
     expect(parseTimeOfDay('１９：３０')).toEqual({ hour: 19, minute: 30 })
   })
 
+  it('reads three or four digits as a clock face writes them', () => {
+    expect(parseTimeOfDay('1700')).toEqual({ hour: 17, minute: 0 })
+    expect(parseTimeOfDay('0730')).toEqual({ hour: 7, minute: 30 })
+    expect(parseTimeOfDay('730')).toEqual({ hour: 7, minute: 30 })
+    expect(parseTimeOfDay('１７００')).toEqual({ hour: 17, minute: 0 })
+    expect(parseTimeOfDay('2400')).toBeNull()
+    expect(parseTimeOfDay('1760')).toBeNull()
+    expect(parseTimeOfDay('17000')).toBeNull()
+  })
+
   it('refuses what is not a time rather than inventing one', () => {
     expect(parseTimeOfDay('')).toBeNull()
     expect(parseTimeOfDay('25:00')).toBeNull()

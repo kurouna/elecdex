@@ -492,7 +492,8 @@ test('an alarm is set, switched off and removed from the pane', async () => {
     await page.getByTestId('timer-mode-alarm').click()
     await expect(page.getByTestId('alarm-next')).toContainText('nothing set')
 
-    await page.getByTestId('alarm-time-input').fill('07:30')
+    // Typed as a clock face writes it, with no colon.
+    await page.getByTestId('alarm-time-input').fill('0730')
     await page.getByTestId('alarm-label-input').fill('wake up')
     await page.getByTestId('alarm-add-button').click()
 

@@ -39,8 +39,13 @@ class ToastStore {
 
   private nextId = 1
   private timers = new Map<number, ReturnType<typeof setTimeout>>()
-  /** Set while the pointer is over the stack: nothing times out under the cursor. */
-  private held = false
+  /**
+   * When each timed toast goes, pushed back by every hold. Kept apart from the
+   * toast itself so a hold does not replace the list the stack draws.
+   */
+  private deadlines = new Map<number, number>()
+  /** Since when the pointer has been over the stack, or null: nothing times out under the cursor. */
+  private heldAt: number | null = null
 
   show(toast: {
     title: string
@@ -59,19 +64,19 @@ class ToastStore {
       timeoutMs: toast.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       raisedAt: Date.now(),
     }
-    // The oldest goes first: the newest is the one the user is looking for.
-    const items = [...this.items, item]
-    for (const gone of items.splice(0, Math.max(0, items.length - MAX_TOASTS))) {
-      this.clearTimer(gone.id)
-    }
-    this.items = items
+    if (item.timeoutMs > 0) this.deadlines.set(id, item.raisedAt + item.timeoutMs)
+    this.items = this.evict([...this.items, item])
     this.arm(item)
     return id
   }
 
   dismiss(id: number): void {
-    this.clearTimer(id)
+    this.forget(id)
     this.items = this.items.filter((item) => item.id !== id)
+    // The stack goes with its last card, and an element taken from under the
+    // pointer hears no pointerleave: without this the next toast would be held
+    // open for good by a pointer that is no longer there.
+    if (this.items.length === 0) this.heldAt = null
   }
 
   run(id: number, action: ToastAction): void {
@@ -85,27 +90,66 @@ class ToastStore {
    * that stays too long: the action it offered is gone and cannot be found again.
    */
   hold(held: boolean): void {
-    this.held = held
     if (held) {
-      for (const id of this.timers.keys()) this.clearTimer(id)
+      this.heldAt ??= Date.now()
+      for (const id of [...this.timers.keys()]) this.clearTimer(id)
       return
     }
-    for (const item of this.items) this.arm(item)
+    const heldAt = this.heldAt
+    if (heldAt === null) return
+    this.heldAt = null
+    // A pause, not a stay of execution: each fuse goes on from where the hold
+    // stopped it, as the stack draws it. Taking the held time off the clock
+    // instead - letting every toast whose moment passed under the pointer go the
+    // instant the pointer left - swept the whole stack away with the one card
+    // the user had just answered, since answering one is how the pointer leaves.
+    const now = Date.now()
+    for (const item of this.items) {
+      const deadline = this.deadlines.get(item.id)
+      if (deadline === undefined) continue
+      this.deadlines.set(item.id, deadline + now - Math.max(heldAt, item.raisedAt))
+      this.arm(item)
+    }
   }
 
   /** For teardown in tests and on unmount. */
   clear(): void {
     for (const id of [...this.timers.keys()]) this.clearTimer(id)
+    this.deadlines.clear()
+    this.heldAt = null
     this.items = []
   }
 
+  /**
+   * Keeps the stack to `MAX_TOASTS`, the oldest going first - never the newest,
+   * the one the user is looking for - but a timed toast before one that waits to
+   * be answered: an alarm's card must not be pushed out by a notice that would
+   * have gone of its own accord.
+   */
+  private evict(items: Toast[]): Toast[] {
+    let kept = items
+    while (kept.length > MAX_TOASTS) {
+      const timed = kept.slice(0, -1).findIndex((item) => item.timeoutMs > 0)
+      const gone = kept[timed === -1 ? 0 : timed]
+      if (gone === undefined) break
+      this.forget(gone.id)
+      kept = kept.filter((item) => item !== gone)
+    }
+    return kept
+  }
+
   private arm(item: Toast): void {
-    if (item.timeoutMs <= 0 || this.held || this.timers.has(item.id)) return
-    const left = Math.max(0, item.raisedAt + item.timeoutMs - Date.now())
+    const deadline = this.deadlines.get(item.id)
+    if (deadline === undefined || this.heldAt !== null || this.timers.has(item.id)) return
     this.timers.set(
       item.id,
-      setTimeout(() => this.dismiss(item.id), left),
+      setTimeout(() => this.dismiss(item.id), Math.max(0, deadline - Date.now())),
     )
+  }
+
+  private forget(id: number): void {
+    this.clearTimer(id)
+    this.deadlines.delete(id)
   }
 
   private clearTimer(id: number): void {

@@ -138,14 +138,16 @@ export const sortAlarms = (alarms: readonly Alarm[]): Alarm[] =>
 /** Whether a one-off alarm has now had its moment, and should switch itself off. */
 export const isSpent = (alarm: Alarm): boolean => alarm.days.length === 0
 
-/** Parses "7", "07:30", "7:5", "１９：３０" into a time of day, or null. */
+/** Parses "7", "07:30", "7:5", "1700", "730", "１９：３０" into a time of day, or null. */
 export function parseTimeOfDay(input: string): { hour: number; minute: number } | null {
   // Full-width digits and colon come from a Japanese keyboard; read them too.
   const text = input
     .trim()
     .replace(/[０-９]/g, (d) => String.fromCharCode(d.charCodeAt(0) - 0xfee0))
     .replace(/[：.]/g, ':')
-  const match = /^(\d{1,2})(?::(\d{1,2}))?$/.exec(text)
+  // Three or four digits with no colon are a time as a clock face writes it,
+  // "1700" or "730": the last two are the minutes. One or two are the hour.
+  const match = /^(\d{1,2})(?::(\d{1,2}))?$/.exec(text) ?? /^(\d{1,2})(\d{2})$/.exec(text)
   if (match === null) return null
   const hour = Number(match[1])
   const minute = match[2] === undefined ? 0 : Number(match[2])

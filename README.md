@@ -699,8 +699,8 @@ weather and calendar.
   from a list rather than made again each time - waking up, the start of lunch. They are kept in
   `alarms.json` and scheduled by the app, so one goes off with the pane closed or never opened, as
   a card that waits to be answered and (when elecdex is not in front) a system notification. A
-  one-off switches itself off once it has rung; `07:30`, `7`, `19.5` and `１９：３０` are all read as
-  times.
+  one-off switches itself off once it has rung; `07:30`, `1730`, `7`, `19.5` and `１９：３０` are all read
+  as times.
 - **Clipboard** — in the desk preset, or add it from the picker ("clipboard
   history"). What you copy while the pane is on screen, newest first, with its size and how long
   ago, each tagged with what it is - TXT, URL, PATH, NUM, or CLR with a swatch - and RICH under
