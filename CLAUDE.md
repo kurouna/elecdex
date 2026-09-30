@@ -674,9 +674,9 @@ show/hide shortcut and the sign-in entry; every option is off until the user tur
 - **README screenshots** must not show personal data: regenerate them with
   `npm run gen:screenshots`, which uses a demo home and curated launcher entries. The README's
   Features are grouped by layout preset, one shot per preset, each in a different theme (so every
-  built-in theme is shown once), plus the layouts dialog, the settings dialog, the AI chat pane
-  (talking to a stand-in the script serves: no model, no key), the ELEC pane and the CHIP-8
-  pane (T8NKS, from chip8Archive). The preset trees
+  built-in theme is shown once), plus the layouts dialog, the settings dialog, the ELEC pane and
+  the CHIP-8 pane (T8NKS, from chip8Archive). The chats and the council (the ai preset, the ELEC
+  shot) talk to a stand-in the script serves: no model, no key. The preset trees
   come from the built app itself (scripts/preset-shots.mjs), never written out in the script.
   What would show someone else's pages or this machine is made up: the web panes show stand-in
   pages (never YouTube's or X's own), the feed, the socket table (`ELECDEX_SOCKETS_STUB=demo`),

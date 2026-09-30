@@ -25,7 +25,15 @@ import { LAYOUT_VERSION, type LayoutNode, type LayoutTree } from './schemas/layo
  * Everything here is pure: main and the page both call it, and the tests do.
  */
 
-export const LAYOUT_PRESET_IDS = ['standard', 'network', 'earth', 'dev', 'media', 'desk'] as const
+export const LAYOUT_PRESET_IDS = [
+  'standard',
+  'network',
+  'earth',
+  'dev',
+  'media',
+  'desk',
+  'ai',
+] as const
 export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number]
 
 export interface LayoutPreset {
@@ -92,18 +100,29 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
       ),
   },
   {
-    // The git pane has the full height, which its diff needs; the shells are where
-    // the agents the pane above them reads are run. The containers what is being
-    // written runs in sit between the two (2026-09-27): on screen, not a tab,
-    // since the engine is followed only while the pane is seen.
+    // The git pane has the full height, which its diff needs, with a chat behind
+    // it for a question on the side; the shells are where the agents the pane
+    // above them reads are run. Under the agents the containers what is being
+    // written runs in, with a shell behind them, and at the foot what was copied
+    // lately, a timer and one more shell (user decision 2026-10-01). The panes in
+    // front are the ones that read only while seen - the engine, the clipboard -
+    // so a fresh dev layout shows them working.
     id: 'dev',
     name: 'dev',
     description: 'coding agents at work, the containers they run, and the repository they change',
     build: () =>
       withSystemColumn(
         [
-          split('column', [pane('agents'), pane('docker'), shells(2)], [0.42, 0.28, 0.3]),
-          pane('git'),
+          split(
+            'column',
+            [
+              pane('agents'),
+              tabs([pane('docker'), pane('terminal')]),
+              tabs([pane('clipboard'), pane('timer'), pane('terminal')]),
+            ],
+            [0.42, 0.28, 0.3],
+          ),
+          tabs([pane('git'), pane('aichat')]),
         ],
         [0.415, 0.585],
       ),
@@ -159,6 +178,20 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
           split('column', [pane('calendar'), pane('utility')], [0.42, 0.58]),
         ],
         [0.38, 0.31, 0.31],
+      ),
+  },
+  {
+    // Two conversations one over the other, and the council on the right with
+    // the most room, which its three plates are drawn for (user decision
+    // 2026-10-01). Both kinds of pane ask a provider only when the user sends,
+    // so the preset costs nothing until then.
+    id: 'ai',
+    name: 'ai',
+    description: 'two conversations with models, and a council of three to put a motion to',
+    build: () =>
+      withSystemColumn(
+        [split('column', [pane('aichat'), pane('aichat')], [0.5, 0.5]), pane('elec')],
+        [0.45, 0.55],
       ),
   },
 ]

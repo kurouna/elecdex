@@ -184,6 +184,7 @@ const ACTIONS: Record<KeybindingAction, () => boolean | void> = {
   'layout.preset.dev': () => void goToPreset('dev'),
   'layout.preset.media': () => void goToPreset('media'),
   'layout.preset.desk': () => void goToPreset('desk'),
+  'layout.preset.ai': () => void goToPreset('ai'),
   // The shortcuts that call up a pane: one each in SUMMONS (layout/summon.ts).
   ...summonActions((widget) => summon(widget)),
   'shell.focus': () => focusShell(),

@@ -32,8 +32,8 @@ for Windows, macOS and Linux.
 
 ## Features
 
-The panes are arranged by what you are doing: six **layout presets** put the right ones on
-screen at a key each - **Ctrl+Shift+F1** to **F6** - and every one keeps the system column on the
+The panes are arranged by what you are doing: seven **layout presets** put the right ones on
+screen at a key each - **Ctrl+Shift+F1** to **F7** - and every one keeps the system column on the
 left, so a switch changes the stage and leaves the instruments where they were. The
 features below are grouped by the preset that shows them, and each picture is that preset in a
 different theme.
@@ -88,7 +88,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### dev — agents at work, the containers they run, and the repository they change
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use; two shell tabs below; a GIT pane on the right with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
+  <img src="./docs/screenshots/elecdex-dev.jpg" alt="The dev preset in the Phosphor theme: an AI AGENT pane with two Claude Code sessions, one busy with a subagent at work and the tests running in the background, and its changed files; under it a DOCKER pane with made-up containers grouped by Compose project - ledger and shop - with their health, ports and use, a shell tab behind it; below that a clipboard history of made-up copies, with a timer and a shell in the tabs behind; a GIT pane on the right, an AI chat tab behind it, with the same checkout, the diff of passes.ts, and the commit graph with the card of a commit the pointer rests on">
   <br><sub>dev · Phosphor</sub>
 </p>
 
@@ -101,6 +101,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 - **Docker** — the containers of the Docker engine on your computer, by Compose
   project: up or down, healthy or not, their published ports (a click opens one in the browser)
   and what each uses; start, stop, restart and pause from the row.
+- Tabs keep the rest at hand: a shell behind Docker, the clipboard history with a timer and one
+  more shell at the foot, and an AI chat behind GIT for a question on the side.
 
 ### media — watch, scroll, and see the sound
 
@@ -134,11 +136,11 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   what you copy while it is on screen, to put back with a click, and under the calendar the
   utility pane (keep the machine awake, QR codes, encoding and hashes).
 
-### Talking to models
+### ai — two conversations and a council *(unreleased)*
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-aichat.jpg" alt="The Business (Dark) theme with an AI chat pane under the terminal: a question about watching a folder in Node.js answered with a code block and its token counts, and a second answer arriving, its heading reading RX with the seconds and characters so far">
-  <br><sub>AI chat · Business (Dark)</sub>
+  <img src="./docs/screenshots/elecdex-ai.jpg" alt="The ai preset in the Business (Dark) theme, every answer written by a stand-in made for the picture: two AI chat panes one over the other - the top one on Ollama with a question about watching a folder in Node.js answered with a code block, and a second answer arriving, its heading reading RX with the seconds and characters so far; the bottom one on LM Studio, answering what git pull --ff-only refuses to do - and on the right an ELEC system pane, LOGOS and PATHOS lit green with APPROVE, ETHOS outvoted with REJECT, the resolution strip reading APPROVED 2-1-0-0">
+  <br><sub>ai · Business (Dark) — the answers are a stand-in's, made for the picture</sub>
 </p>
 
 - **AI chat** — talk to a language model you run yourself (Ollama, LM Studio, llama.cpp - anything
@@ -171,13 +173,13 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### Layouts, looks and the rest
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the six presets as saved layouts numbered 1 to 6, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F6">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the seven presets as saved layouts numbered 1 to 7, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F7">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
-  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the six
+  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the seven
   presets.
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
@@ -291,7 +293,7 @@ starts in a window and `--no-intro` skips the boot sequence.
 | Ctrl+Shift+Backspace | reset to the default layout |
 | Ctrl+Shift+G | saved layouts: keep this arrangement by name, or go back to one |
 | Ctrl+Shift+1 … 9 | apply the first nine saved layouts, in the order the dialog lists them |
-| Ctrl+Shift+F1 … F6 | go to a preset: standard, network, earth, dev, media, desk |
+| Ctrl+Shift+F1 … F7 | go to a preset: standard, network, earth, dev, media, desk, ai |
 | Ctrl+Shift+L | search the launcher (pops one up over the workspace if the layout has none) |
 | Ctrl+Shift+U | the utility pane: the next one in the layout, or popped up if the layout has none - pressed again, put away (on Linux, IBus may keep these keys for typing by code: rebind it) |
 | Ctrl+Shift+S | focus the shell in its selected tab (adds a shell pane if there is none) |
@@ -374,16 +376,16 @@ way to stop asking (*Settings → General → Layouts*). The old arrangement pow
 off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
 reduced.
 
-Six **presets** sit under the list, each drawn as a small map of its panes:
+Seven **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
-(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT, Docker, shells and GIT), **media**
+(ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT and an AI chat - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks, the calendar, the clipboard and the utility pane). Every one keeps the system column on the left, so a switch
+the calculator, tasks, the calendar, the clipboard and the utility pane) and **ai** (two AI chats one over the other, and the ELEC system). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
-preset has a key of its own, Ctrl+Shift+F1 to F6, which does the same from anywhere. A new
-install starts with all six on Ctrl+Shift+1 to 6; an existing list is never added to.
+preset has a key of its own, Ctrl+Shift+F1 to F7, which does the same from anywhere. A new
+install starts with all seven on Ctrl+Shift+1 to 7; an existing list is never added to.
 
 They are kept in one file that holds nothing belonging to this machine: **copy `layouts.json` to
 another computer and your arrangements come with you.** The dialog's *layouts.json* button shows it
@@ -548,8 +550,8 @@ weather and calendar.
   the week forecast on or off, per pane; the default is New York City. A click on the forecast
   opens the source's own page for the place in the browser - JMA's forecast page, the NWS point
   forecast or yr.no.
-- **AI chat** — not in the default layout: add it from the picker (Ctrl+Shift+A), as many as you
-  like. First list a provider in *Settings -> AI*: pick a preset (Ollama, LM Studio, llama.cpp,
+- **AI chat** — two in the ai preset and one behind GIT in dev, or add it from the picker
+  (Ctrl+Shift+A), as many as you like. First list a provider in *Settings -> AI*: pick a preset (Ollama, LM Studio, llama.cpp,
   Anthropic, OpenAI, Gemini, OpenRouter, or a custom address), adjust the address, and - for a
   hosted service - paste its API key (kept as you leave the field, like every other setting;
   **show** lets you look at what you typed before that, and a key that is held reads as dots -
@@ -586,7 +588,7 @@ weather and calendar.
   Nothing is sent anywhere until you send a message (or press **test**, or open the model list);
   an optional system prompt in the settings goes ahead of every conversation. There are no tools:
   the model cannot read your files, run commands or browse.
-- **ELEC system** — not in the default layout: add it from the picker. It asks the
+- **ELEC system** — in the ai preset, or add it from the picker. It asks the
   providers of *Settings -> AI*, so list one there first. **seats** chooses the provider and model
   of each unit - LOGOS, ETHOS, PATHOS - and **all** puts one seat's choice in all three; the same
   model in every seat is fine, since each unit is told its own standpoint (edit them under
@@ -704,7 +706,7 @@ weather and calendar.
   a card that waits to be answered and (when elecdex is not in front) a system notification. A
   one-off switches itself off once it has rung; `07:30`, `1730`, `7`, `19.5` and `１９：３０` are all read
   as times.
-- **Clipboard** — in the desk preset, or add it from the picker ("clipboard
+- **Clipboard** — in the desk and dev presets, or add it from the picker ("clipboard
   history"). What you copy while the pane is on screen, newest first, with its size and how long
   ago, each tagged with what it is - TXT, URL, PATH, NUM, or CLR with a swatch - and RICH under
   that when it was copied with its formatting (HTML, or the RTF that Word and WordPad copy).

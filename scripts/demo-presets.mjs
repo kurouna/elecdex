@@ -19,7 +19,7 @@ import { presetTrees } from './preset-shots.mjs'
 const options = takeOptions({ width: 1600, height: 900 })
 
 /** The presets in the order the dialog lists them. */
-const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
+const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai']
 
 const { standIn } = await prepareData()
 const trees = await presetTrees(MAIN)

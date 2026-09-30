@@ -30,8 +30,8 @@
 
 ## 功能
 
-窗格按你正在做的事来编排：六个**布局预设**各用一个按键就能把合适的窗格摆上屏幕——
-**Ctrl+Shift+F1** 到 **F6**——而且每个预设都把系统栏留在左侧，所以切换时换的是舞台，
+窗格按你正在做的事来编排：七个**布局预设**各用一个按键就能把合适的窗格摆上屏幕——
+**Ctrl+Shift+F1** 到 **F7**——而且每个预设都把系统栏留在左侧，所以切换时换的是舞台，
 仪表仍在原处。下面的功能按展示它们的预设分组，每张图都是该预设配上不同的主题。
 
 ### standard — 这台机器、它的 shell，以及外面的世界
@@ -79,7 +79,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### dev — 工作中的 AI 代理、它们运行的容器，以及它们修改的仓库
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是 DOCKER 窗格，按 Compose 项目（ledger 和 shop）列出虚构的容器及其健康状态、端口和占用；再下面是两个 shell 标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的卡片">
+  <img src="./docs/screenshots/elecdex-dev.jpg" alt="Phosphor 主题下的 dev 预设：AI AGENT 窗格显示两个 Claude Code 会话，其中一个正忙，有子代理在工作、测试在后台运行，并列出它修改的文件；下面是 DOCKER 窗格，按 Compose 项目（ledger 和 shop）列出虚构的容器及其健康状态、端口和占用；其后是一个 shell 标签页；再下面是虚构复制内容的剪贴板历史，其后是计时器和 shell 的标签页；右侧的 GIT 窗格打开同一个检出，显示 passes.ts 的 diff，以及提交图和鼠标悬停处某个提交的卡片，其后是一个 AI 聊天标签页">
   <br><sub>dev · Phosphor</sub>
 </p>
 
@@ -90,6 +90,8 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   提交图，随改动实时更新——可以在旁边的窗格里看着 AI 代理干活。可以 FETCH，以及仅快进的 PULL。每个仓库一个窗格。
 - **Docker** — 你电脑上 Docker 引擎的容器，按 Compose 项目分组：运行与否、
   健康与否、公开的端口（点击在浏览器中打开）以及各自的资源占用；在行上即可启动、停止、重启和暂停。
+- 其余的以标签页放在手边：Docker 后面是一个 shell，底部是剪贴板历史、计时器和另一个 shell，
+  GIT 后面是一个 AI 聊天，方便顺手问个问题。
 
 ### media — 看视频、刷信息流、看见声音
 
@@ -120,11 +122,11 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   还有围绕一天作息的闹钟。任务下方是剪贴板历史：列出它显示在屏幕上时你复制的内容，
   点一下即可放回剪贴板；日历下方是实用工具窗格（阻止休眠、二维码、编码与哈希）。
 
-### 与模型对话
+### ai — 两段对话与一个评议会 *(unreleased)*
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-aichat.jpg" alt="Business (Dark) 主题，终端下方有一个 AI 聊天窗格：关于在 Node.js 中监视文件夹的提问，得到了带代码块和 token 计数的回答，第二个回答正在到达，其标题显示 RX 以及到目前为止的秒数和字符数">
-  <br><sub>AI 聊天 · Business (Dark)</sub>
+  <img src="./docs/screenshots/elecdex-ai.jpg" alt="Business (Dark) 主题下的 ai 预设（所有回答都来自为截图准备的替身）：上下排列的两个 AI 聊天窗格。上面的连接 Ollama，关于在 Node.js 中监视文件夹的提问得到了带代码块的回答，第二个回答正在到达，其标题显示 RX 以及到目前为止的秒数和字符数；下面的连接 LM Studio，回答 git pull --ff-only 会拒绝做什么。右侧是 ELEC system 窗格：LOGOS 和 PATHOS 以绿色亮起并显示 APPROVE，投了 REJECT 的 ETHOS 被多数否决，决议条显示 APPROVED 2-1-0-0">
+  <br><sub>ai · Business (Dark) — 回答来自为截图准备的替身</sub>
 </p>
 
 - **AI 聊天** — 与你自己运行的语言模型对话（Ollama、LM Studio、llama.cpp——任何支持 OpenAI
@@ -155,13 +157,13 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 ### 布局、外观及其他
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：六个预设作为已保存布局编号为 1 到 6，每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F6">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="Tron 主题下 standard 布局之上的布局对话框：七个预设作为已保存布局编号为 1 到 7，每个都有其排布的缩略图；下方是预设的架子，列出各预设的缩略图、所在位置以及对应按键 Ctrl+Shift+F1 到 F7">
   <br><sub>布局 (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 - **布局** — 每个窗格都可以拖动标题来移动，也可以关闭、分屏、放入标签页、调整大小并恢复；
   布局会被保存，也可以重置。一种排布可以命名保存以便日后回到它（Ctrl+Shift+G，或状态栏中的
-  *layouts*），也可以从六个预设之一开始。
+  *layouts*），也可以从七个预设之一开始。
 - **外观与体验** — 六种可实时切换的主题：用于 HUD 风格的 Tron、Amber、Phosphor 和 White，
   以及采用 Windows 11 配色、系统字体和全彩图标、适合日常办公的 Business (Dark) 和
   Business (Light)——上面的截图里每一种都出现过。先是一段展示本机真实信息的 Linux 风格启动日志，
@@ -264,7 +266,7 @@ elecdex 以全屏启动。**F11** 退出全屏，**Ctrl+Shift+Q** 退出程序�
 | Ctrl+Shift+Backspace | 重置为默认布局 |
 | Ctrl+Shift+G | 已保存布局：给当前排布命名保存，或回到某个布局 |
 | Ctrl+Shift+1 … 9 | 应用前九个已保存布局，顺序与对话框中的列表一致 |
-| Ctrl+Shift+F1 … F6 | 切换到预设：standard、network、earth、dev、media、desk |
+| Ctrl+Shift+F1 … F7 | 切换到预设：standard、network、earth、dev、media、desk、ai |
 | Ctrl+Shift+L | 搜索启动器（若布局中没有，则在工作区上方弹出一个） |
 | Ctrl+Shift+U | 实用工具窗格（有多个时每按一次切换到下一个）；布局中没有时弹出，再按一次关闭（Linux 上 IBus 可能占用此键用于 Unicode 输入，请改绑） |
 | Ctrl+Shift+S | 聚焦到所选标签页中的 shell（若没有 shell 窗格则添加一个） |
@@ -332,14 +334,14 @@ elecdex 在前台时按下它会把 elecdex 收起；在其他地方按下则把
 打开时会先询问你，询问中也提供了不再询问的方法（*Settings → General → Layouts*）。旧的排布
 像显像管一样断电，新的排布逐个窗格点亮，和启动时一样——减少动效时则完全没有动画。
 
-列表下方有六个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
-**network**（地球和 shell，旁边是 Wi-Fi 和连接）、**earth**（ORBIT、地球、地震和天气）、**dev**（AI AGENT、
-Docker、shell 和 GIT）、**media**（YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页）以及
-**desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）。每个预设都把系统栏留在左侧，所以切换时换的是
+列表下方有七个**预设**，每个都画成其窗格的小地图：**standard**（默认布局）、
+**network**（地球和 shell，旁边是 Wi-Fi 和连接）、**earth**（ORBIT、地球、地震和天气）、**dev**（AI AGENT；
+Docker 和 shell；剪贴板、计时器和 shell；GIT 和 AI 聊天——每组都是标签页）、**media**（YouTube (TV)，下方是正在播放、频谱和混音器，X 和 RSS 作为标签页）、
+**desk**（记事、计时器、计算器、任务、日历、剪贴板和实用工具）以及 **ai**（上下两个 AI 聊天和 ELEC system）。每个预设都把系统栏留在左侧，所以切换时换的是
 舞台，仪表仍在原处。选择一个预设会用它新建一个布局并切换过去——此后它就是你的布局之一，
 跟随你的工作——再次选择它会回到那个布局，而不会再新建一个；↺ 把它恢复为预设原样。每个预设
-都有自己的按键 Ctrl+Shift+F1 到 F6，在任何地方都能做同样的事。全新安装时，这六个预设会占据
-Ctrl+Shift+1 到 6；已有的列表不会被追加。
+都有自己的按键 Ctrl+Shift+F1 到 F7，在任何地方都能做同样的事。全新安装时，这七个预设会占据
+Ctrl+Shift+1 到 7；已有的列表不会被追加。
 
 它们保存在一个不含任何本机专属信息的文件里：**把 `layouts.json` 复制到另一台电脑，你的排布
 就跟着过去了。** 对话框中的 *layouts.json* 按钮会在文件管理器中显示它（详见
@@ -469,7 +471,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   其他地区使用 MET Norway。每个窗格可以单独选择 °C 或 °F，以及是否显示一周预报；默认地点是
   纽约市。点击预报会在浏览器中打开数据源自己对应该地点的页面——JMA 的预报页、NWS 的定点预报
   或 yr.no。
-- **AI 聊天** — 不在默认布局中：从选择器（Ctrl+Shift+A）添加，想加多少都行。先在
+- **AI 聊天** — ai 预设中有两个，dev 预设的 GIT 后面有一个，也可以从选择器（Ctrl+Shift+A）添加，想加多少都行。先在
   *Settings -> AI* 中添加一个提供方：选一个预设（Ollama、LM Studio、llama.cpp、Anthropic、
   OpenAI、Gemini、OpenRouter，或自定义地址），调整地址，如果是托管服务，再粘贴它的 API 密钥
   （和其他设置一样，离开输入框时即保存；在此之前可以用 **show** 查看你输入的内容，已保存的密钥
@@ -499,7 +501,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   中断回答，关闭窗格则会停止请求。在你发送消息（或按 **test**、打开模型列表）之前不会向任何地方
   发送任何东西；设置中可选的系统提示词会放在每段对话的最前面。没有工具调用：模型无法读取你的
   文件、运行命令或上网浏览。
-- **ELEC system** — 不在默认布局中：从选择器添加。它使用 *Settings -> AI* 中的提供方，所以请先在
+- **ELEC system** — 在 ai 预设中，也可以从选择器添加。它使用 *Settings -> AI* 中的提供方，所以请先在
   那里添加一个。**seats** 为每个单元——LOGOS、ETHOS、PATHOS——选择提供方和模型，**all** 把一个
   席位的选择应用到全部三个；三个席位用同一个模型也没问题，因为每个单元都会被告知它自己的立场
   （在 *Settings -> AI -> elec system · standpoints* 中编辑）。输入一个可以用是或否回答的议案，
@@ -585,7 +587,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   设置——起床、午饭开始。闹钟保存在 `alarms.json` 中并由应用调度，所以即使窗格已关闭或从未打开，
   它也会响起：以一张等待你处理的卡片呈现，elecdex 不在前台时还会弹出系统通知。一次性闹钟响过后
   会自动关闭；`07:30`、`1730`、`7`、`19.5` 和 `１９：３０` 都会被识别为时间。
-- **剪贴板** — 在 desk 预设中，也可以从选择器（"clipboard history"）添加。按从新到旧
+- **剪贴板** — 在 desk 和 dev 预设中，也可以从选择器（"clipboard history"）添加。按从新到旧
   列出窗格显示在屏幕上时你复制的内容，并注明大小和多久以前。每一项都带有类型标签（TXT、URL、PATH、NUM，
   以及带色块的 CLR）；带格式复制的内容（HTML，或 Word 和写字板复制的 RTF）在其下方再标 RICH。把指针停在
   某一项上（或用键盘移到它），会像 GIT 窗格的提交那样弹出卡片，显示完整内容、随之复制的格式和复制时间。点击某一项（或按 Enter）即可连同复制时的格式放回剪贴板，再粘贴到任何地方；↑ ↓

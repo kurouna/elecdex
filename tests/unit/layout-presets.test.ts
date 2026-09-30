@@ -28,6 +28,7 @@ import {
   SavedLayoutsFileSchema,
   summarize,
 } from '../../src/shared/layouts.js'
+import type { LayoutNode } from '../../src/shared/schemas/layout.js'
 import { WEB_PRESETS } from '../../src/shared/web.js'
 
 /**
@@ -152,6 +153,60 @@ describe('LAYOUT_PRESETS', () => {
   it('puts X in front of the feeds in media, as tabs', () => {
     const media = layoutShape(presetTree(presetById('media') as LayoutPreset))
     expect(media.find((r) => r.tabs === 2)?.widget).toBe('web.x')
+  })
+
+  /** Each place in a preset, left to right and top to bottom, as the widgets of its tabs. */
+  function places(id: string): string[][] {
+    const out: string[][] = []
+    const walk = (node: LayoutNode): void => {
+      if (node.kind === 'pane') out.push([node.widget])
+      else if (node.kind === 'tabs') out.push(node.children.map((child) => child.widget))
+      else for (const child of node.children) walk(child)
+    }
+    walk((presetById(id) as LayoutPreset).build())
+    return out.filter((widgets) => !widgets.every((w) => LEFT_COLUMN.includes(w)))
+  }
+
+  it('tabs dev as the user asked, the panes that read only while seen in front', () => {
+    expect(places('dev')).toEqual([
+      ['agents'],
+      ['docker', 'terminal'],
+      ['clipboard', 'timer', 'terminal'],
+      ['git', 'aichat'],
+    ])
+    const shown = layoutShape(presetTree(presetById('dev') as LayoutPreset))
+    expect(shown.filter((r) => r.tabs > 1).map((r) => r.widget)).toEqual([
+      'docker',
+      'clipboard',
+      'git',
+    ])
+  })
+
+  it('stacks two chats beside the council in ai, the council with the wider column', () => {
+    expect(places('ai')).toEqual([['aichat'], ['aichat'], ['elec']])
+    const shape = layoutShape(presetTree(presetById('ai') as LayoutPreset))
+    const width = (widget: string) => shape.find((r) => r.widget === widget)?.w ?? 0
+    expect(width('elec')).toBeGreaterThan(width('aichat'))
+  })
+
+  /** Each pane behind a tab, with the room its tab group is given. */
+  function behindTabs(preset: LayoutPreset): { widget: string; w: number; h: number }[] {
+    const groups = places(preset.id).filter((widgets) => widgets.length > 1)
+    return layoutShape(preset.build()).flatMap((rect) => {
+      const group = rect.tabs > 1 ? groups.find((widgets) => widgets[0] === rect.widget) : undefined
+      return (group ?? []).map((widget) => ({ widget, w: rect.w, h: rect.h }))
+    })
+  }
+
+  it('gives a pane behind a tab its minimum size too, at 1366x768', () => {
+    for (const preset of LAYOUT_PRESETS) {
+      for (const { widget, w, h } of behindTabs(preset)) {
+        const min = WIDGETS.get(widget)
+        expect(w * 1366, `${preset.id}: ${widget}`).toBeGreaterThanOrEqual(min?.w ?? 0)
+        expect(h * 718, `${preset.id}: ${widget}`).toBeGreaterThanOrEqual(min?.h ?? 0)
+      }
+    }
+    expect(behindTabs(presetById('dev') as LayoutPreset)).toHaveLength(7)
   })
 
   it('builds a fresh tree every time, with ids of its own', () => {

@@ -15,7 +15,7 @@ import { launch, SINGLE_TERMINAL, settleLayout, showStatusBar, terminalPane } fr
 
 const SEED = { ELECDEX_SEED_LAYOUTS: '1' }
 const NO_SWITCH_PROMPT = { layout: { confirmSwitch: false } } as const
-const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
+const PRESETS = ['standard', 'network', 'earth', 'dev', 'media', 'desk', 'ai']
 
 const widget = (page: Page, id: string) => page.locator(`[data-testid=pane][data-widget="${id}"]`)
 const card = (page: Page, id: string) =>
@@ -75,11 +75,12 @@ test('a first start has every preset on the number keys, and only a first start'
     await expect(card(first.page, 'desk').getByTestId('layouts-preset-badge')).toHaveText('on 6')
 
     // One forgotten, and the app started again: nothing comes back.
-    const remove = first.page.getByTestId('layouts-remove').nth(5)
+    await expect(card(first.page, 'ai').getByTestId('layouts-preset-badge')).toHaveText('on 7')
+    const remove = first.page.getByTestId('layouts-remove').nth(PRESETS.length - 1)
     await remove.click()
     await remove.click()
     await expect(first.page.getByTestId('layouts-item')).toHaveCount(PRESETS.length - 1)
-    await expect(card(first.page, 'desk').getByTestId('layouts-preset-badge')).toHaveText('+ add')
+    await expect(card(first.page, 'ai').getByTestId('layouts-preset-badge')).toHaveText('+ add')
     await first.page.keyboard.press('Escape')
 
     launched = await first.relaunch()
@@ -242,6 +243,7 @@ test('Ctrl+Shift and a function key go to each preset, and each card names its k
       'Ctrl+Shift+F1',
     )
     await expect(card(page, 'desk').getByTestId('layouts-preset-chord')).toHaveText('Ctrl+Shift+F6')
+    await expect(card(page, 'ai').getByTestId('layouts-preset-chord')).toHaveText('Ctrl+Shift+F7')
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('layouts-dialog')).toHaveCount(0)
 
@@ -251,14 +253,26 @@ test('Ctrl+Shift and a function key go to each preset, and each card names its k
     await expect(widget(page, 'notes')).toHaveCount(1)
     // On screen, not a tab: the clipboard pane reads only while it is seen.
     await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    // In dev the panes that read only while seen are the tabs in front: the containers, what
+    // was copied, and the repository before the chat behind it.
     await page.keyboard.press('Control+Shift+F4')
     await settleLayout(page)
-    await expect(widget(page, 'git')).toHaveCount(1)
+    await expect(widget(page, 'git')).toBeVisible()
+    await expect(widget(page, 'aichat')).toBeHidden()
+    await expect(widget(page, 'docker')).toBeVisible()
+    await expect(widget(page, 'timer')).toBeHidden()
+    await expect(page.getByTestId('clip-state')).toHaveText('WATCHING')
+    await expect(widget(page, 'terminal')).toHaveCount(2)
+    // Two chats one over the other, the council beside them.
+    await page.keyboard.press('Control+Shift+F7')
+    await settleLayout(page)
+    await expect(widget(page, 'aichat')).toHaveCount(2)
+    await expect(widget(page, 'elec')).toBeVisible()
     // Already among them: the key goes back to it rather than adding another.
     await page.keyboard.press('Control+Shift+F6')
     await settleLayout(page)
     await expect(widget(page, 'notes')).toHaveCount(1)
-    expect(savedFile(userData).items.map((l) => l.preset)).toEqual(['desk', 'dev'])
+    expect(savedFile(userData).items.map((l) => l.preset)).toEqual(['desk', 'dev', 'ai'])
   } finally {
     await close()
   }
@@ -275,7 +289,7 @@ test('the preset shelf scrolls sideways when it does not fit, by wheel and by ke
     const shelf = page.getByTestId('layouts-shelf')
     const scroll = () => shelf.evaluate((el) => el.scrollLeft)
     // One row, wider than the dialog: the dialog does not grow for it. (The type
-    // scales with the window, so at 620 pixels all six still fit.)
+    // scales with the window, so a wider one fits them all.)
     await expect.poll(() => shelf.evaluate((el) => el.scrollWidth > el.clientWidth + 20)).toBe(true)
     expect(await scroll()).toBe(0)
 
@@ -289,9 +303,9 @@ test('the preset shelf scrolls sideways when it does not fit, by wheel and by ke
 
     // Along the shelf by keys: the card with the keyboard is brought into view.
     await card(page, 'standard').focus()
-    for (let i = 0; i < 5; i += 1) await page.keyboard.press('ArrowRight')
-    await expect(card(page, 'desk')).toBeFocused()
-    await expect(card(page, 'desk')).toBeInViewport({ ratio: 0.9 })
+    for (let i = 1; i < PRESETS.length; i += 1) await page.keyboard.press('ArrowRight')
+    await expect(card(page, 'ai')).toBeFocused()
+    await expect(card(page, 'ai')).toBeInViewport({ ratio: 0.9 })
     expect(await scroll()).toBeGreaterThan(0)
   } finally {
     await close()

@@ -71,32 +71,12 @@ const split = (direction, children, sizes) => ({
 })
 
 /*
- * The AI chat pane, talking to a stand-in served from this machine: no model, no key and no
- * service is involved, and what is "said" is written here. It speaks the OpenAI dialect the way
- * Ollama does - the first answer whole, with its token counts; the second slowly, so the shot
- * catches it arriving.
+ * The ai preset: two AI chat panes and the council, all talking to one stand-in served from this
+ * machine: no model, no key and no service is involved, and what is "said" is written here. It
+ * speaks the OpenAI dialect the way Ollama does. A unit of the council is told by the name in its
+ * system prompt; a chat answers by the question asked, the top pane's second answer slowly, so
+ * the shot catches it arriving.
  */
-const chatLayout = {
-  version: 1,
-  root: split(
-    'row',
-    [
-      split(
-        'column',
-        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
-        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
-      ),
-      split('column', [pane('terminal'), pane('aichat')], [0.34, 0.66]),
-      split(
-        'column',
-        ['globe', 'markets', 'weather', 'calendar'].map(pane),
-        [0.3, 0.25, 0.22, 0.23],
-      ),
-    ],
-    [0.18, 0.64, 0.18],
-  ),
-}
-
 const CHAT = [
   {
     ask: 'How do I watch a folder for changes in Node.js?',
@@ -134,26 +114,57 @@ const CHAT = [
   },
 ]
 
-function chatStandIn() {
-  let asked = 0
+/** The bottom pane's conversation: one question, answered whole. */
+const ASIDE = {
+  ask: 'What does git pull --ff-only refuse to do?',
+  answer: [
+    'It refuses to make a merge commit. If your branch and its upstream have both moved on, the pull stops and leaves everything as it was:',
+    '',
+    '```sh',
+    'git pull --ff-only',
+    '# fatal: Not possible to fast-forward, aborting.',
+    '```',
+    '',
+    'Then choose yourself: `git rebase` onto the upstream, or `git merge` it.',
+  ].join('\n'),
+}
+
+/** The text of a request's last user message. */
+function lastAsk(body) {
+  const messages = body.messages ?? []
+  const last = messages.filter((m) => m.role === 'user').at(-1)?.content
+  return typeof last === 'string' ? last : ''
+}
+
+function aiStandIn(pace = 25) {
   const server = createServer((req, res) => {
-    req.resume()
+    let raw = ''
+    req.on('data', (piece) => {
+      raw += piece
+    })
     req.on('end', () => {
-      const { answer } = CHAT[Math.min(asked, CHAT.length - 1)]
-      const slow = asked > 0
-      asked += 1
+      const body = JSON.parse(raw)
+      const system = String(body.messages?.[0]?.content ?? '')
+      const unit = /UNIT-\d/.exec(system)?.[0]
+      const ask = lastAsk(body)
+      const chat = [...CHAT, ASIDE].find((turn) => turn.ask === ask) ?? CHAT[0]
+      const answer = unit !== undefined ? VOTES[unit] : chat.answer
+      const wait = unit === undefined && chat === CHAT[1] ? 110 : pace
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       const pieces = answer.match(/.{1,12}/gs) ?? []
       const step = () => {
         const piece = pieces.shift()
         if (piece === undefined) {
-          const usage = { prompt_tokens: 38, completion_tokens: 212 }
+          const usage =
+            unit !== undefined
+              ? { prompt_tokens: 214, completion_tokens: 71 }
+              : { prompt_tokens: 38, completion_tokens: 212 }
           res.write(`data: ${JSON.stringify({ choices: [], usage })}\n\n`)
           res.end('data: [DONE]\n\n')
           return
         }
         res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: piece } }] })}\n\n`)
-        setTimeout(step, slow ? 110 : 45)
+        setTimeout(step, wait)
       }
       step()
     })
@@ -161,6 +172,18 @@ function chatStandIn() {
   return new Promise((resolve) => {
     server.listen(0, '127.0.0.1', () => resolve(server))
   })
+}
+
+/** The ai preset's two chats, each on a provider of its own, top first. */
+function chatsOn(tree, providers) {
+  let at = 0
+  const visit = (node) => {
+    if (node.kind !== 'pane') return { ...node, children: node.children.map(visit) }
+    if (node.widget !== 'aichat') return node
+    const provider = providers[Math.min(at++, providers.length - 1)]
+    return { ...node, state: { ...node.state, provider } }
+  }
+  return { ...tree, root: visit(tree.root) }
 }
 
 /*
@@ -283,16 +306,27 @@ async function sitting(page) {
   await page.waitForTimeout(600)
 }
 
-async function chatting(page) {
-  const chat = page.locator('[data-testid=pane][data-widget=aichat]')
+/** Asks a question in one chat pane and waits for the answer to be whole. */
+async function ask(chat, question) {
   const input = chat.getByTestId('aichat-input')
-  await input.fill(CHAT[0].ask)
+  await input.fill(question)
   await input.press('Enter')
-  await chat.getByTestId('aichat-usage').waitFor()
+  await chat.getByTestId('aichat-usage').last().waitFor()
+}
+
+/** The council decided, the bottom chat answered, and the top one's second answer arriving. */
+async function conversing(page) {
+  const chats = page.locator('[data-testid=pane][data-widget=aichat]')
+  await deliberating(page)
+  await ask(chats.nth(1), ASIDE.ask)
+  await ask(chats.nth(0), CHAT[0].ask)
+  const input = chats.nth(0).getByTestId('aichat-input')
   await input.fill(CHAT[1].ask)
   await input.press('Enter')
   // Far enough into the second answer for its code to be on screen, not so far that it is over.
   await page.waitForTimeout(3000)
+  // Over the title strip: a pointer resting on a pane would show its buttons.
+  await page.mouse.move(W / 2, 4)
 }
 
 /**
@@ -490,19 +524,18 @@ await shoot('tron', 'elecdex-settings', {
     await page.waitForTimeout(600)
   },
 })
-if (only.length === 0 || only.includes('elecdex-aichat')) {
-  const standIn = await chatStandIn()
-  const provider = {
-    id: 'ollama',
-    name: 'Ollama',
-    kind: 'openai',
-    baseUrl: `http://127.0.0.1:${standIn.address().port}/v1`,
-    model: 'qwen3:8b',
-  }
-  await shoot('business-dark', 'elecdex-aichat', {
-    layout: chatLayout,
-    settings: { ai: { providers: [provider] } },
-    extra: chatting,
+// The ai preset: two chats on two local servers, and the council, all answered by a stand-in.
+if (only.length === 0 || only.includes('elecdex-ai')) {
+  const standIn = await aiStandIn()
+  const baseUrl = `http://127.0.0.1:${standIn.address().port}/v1`
+  const providers = [
+    { id: 'ollama', name: 'Ollama', kind: 'openai', baseUrl, model: 'qwen3:14b' },
+    { id: 'lmstudio', name: 'LM Studio', kind: 'openai', baseUrl, model: 'gemma-3-12b' },
+  ]
+  await shoot('business-dark', 'elecdex-ai', {
+    layout: chatsOn(preset('ai'), ['ollama', 'lmstudio']),
+    settings: { ai: { providers } },
+    extra: conversing,
   })
   standIn.close()
 }
