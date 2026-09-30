@@ -22,6 +22,9 @@ export function setResolution(s: Chip8State, hires: boolean): void {
 
 /** 00E0: the selected planes go dark. */
 export function clearPlanes(s: Chip8State): void {
+  // No plane selected (FN01 with 0): no dot can change, and the revision must not move - it
+  // is what makes the screen redraw and keeps the game's loop on animation frames.
+  if ((s.plane & 3) === 0) return
   const keep = ~s.plane & 3
   const size = screenWidth(s) * screenHeight(s)
   for (let k = 0; k < size; k++) s.pixels[k] = (s.pixels[k] ?? 0) & keep
@@ -36,6 +39,8 @@ export function scroll(s: Chip8State, dx: number, dy: number): void {
   const w = screenWidth(s)
   const h = screenHeight(s)
   const mask = s.plane & 3
+  // A scroll of nothing (00C0, 00D0) or of no plane moves no dot: no new revision either.
+  if ((dx === 0 && dy === 0) || mask === 0) return
   const px = s.pixels
   // In place, walking against the move so every dot is read before it is written over: a
   // copy of the screen per scroll cost an 8 KB allocation each time, and a program scrolling

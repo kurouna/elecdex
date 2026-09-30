@@ -322,6 +322,16 @@ describe('found in review (2026-09-30)', () => {
     expect(m.state.sensed & (1 << 0xf)).toBe(0)
   })
 
+  it('moves the screen revision only when a dot may change', () => {
+    // 00C0 and 00D0 scroll nothing; with no plane selected (F001 with 0) 00C1 and 00E0 touch nothing.
+    const m = machine([0x00c0, 0x00d0, 0xf001, 0x00c1, 0x00e0, 0xf101, 0x00c1], 'xochip')
+    const at = m.state.screenRevision
+    steps(m, 5)
+    expect(m.state.screenRevision).toBe(at)
+    steps(m, 2)
+    expect(m.state.screenRevision).toBe(at + 1)
+  })
+
   it('runs a scroll of nothing (00C0, 00D0) as no move, not a halt', () => {
     const m = machine([0x00c0, 0x00d0, 0x6001], 'xochip')
     steps(m, 3)

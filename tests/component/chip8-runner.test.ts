@@ -301,6 +301,15 @@ describe('found in review (2026-09-30)', () => {
     expect(other.status).toBe('paused')
   })
 
+  it('drops to the timer for a program that only scrolls by nothing', () => {
+    // 00C0 in a loop: nothing on screen moves, so the loop must not stay on animation frames.
+    const { runner, vsync, frames, timers } = loaded(new Uint8Array([0x00, 0xc0, 0x12, 0x00]))
+    for (let k = 0; k <= STILL_FRAMES; k++) vsync()
+    expect(runner.status).toBe('running')
+    expect(timers.size).toBe(1)
+    expect(frames.size).toBe(0)
+  })
+
   it('lets every key go when the machine is handed to another mount', () => {
     const { runner } = loaded()
     runner.press(5)
