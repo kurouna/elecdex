@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { ElectronApplication, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { atDesignSize, type Launched, launch } from './support.js'
+import { atDesignSize, type Launched, launch, powerNote } from './support.js'
 
 /**
  * Metrics and monitoring widgets, end to end.
@@ -362,8 +362,9 @@ test('the full monitoring layout stays cheap when idle', async () => {
     const end = await appUsage(app)
 
     const percentOfOneCore = ((end.cpuSeconds - start.cpuSeconds) / (WINDOW_MS / 1000)) * 100
+    const power = await powerNote(app, page)
     console.log(
-      `idle: ${percentOfOneCore.toFixed(1)}% of one core, ${end.workingSetMb.toFixed(0)} MB working set`,
+      `idle: ${percentOfOneCore.toFixed(1)}% of one core, ${end.workingSetMb.toFixed(0)} MB working set, ${power}`,
     )
     // CI runners have no GPU (the globe renders in software) and share their
     // cores, so the number there says more about the runner than about elecdex:
@@ -373,8 +374,8 @@ test('the full monitoring layout stays cheap when idle', async () => {
     // check, and it hid the real failures in the same suite. On CI this now only
     // catches a runaway loop or a leak, which would be far past these; the real
     // budget is the local one, where the default layout measures ~12% and ~600MB.
-    expect(percentOfOneCore).toBeLessThan(process.env.CI ? 300 : 40)
-    expect(end.workingSetMb).toBeLessThan(process.env.CI ? 1500 : 1200)
+    expect(percentOfOneCore, `% of one core, ${power}`).toBeLessThan(process.env.CI ? 300 : 40)
+    expect(end.workingSetMb, `MB working set, ${power}`).toBeLessThan(process.env.CI ? 1500 : 1200)
   } finally {
     await close()
   }
@@ -412,10 +413,11 @@ test('put away in the notification area, the full layout stops drawing', async (
     await workspace('close')
     await page.waitForTimeout(3000)
     const hidden = await measure()
+    const power = await powerNote(app, page)
     console.log(
-      `on screen ${(shown * 100).toFixed(1)}%, put away ${(hidden * 100).toFixed(1)}% of one core`,
+      `on screen ${(shown * 100).toFixed(1)}%, put away ${(hidden * 100).toFixed(1)}% of one core, ${power}`,
     )
-    expect(hidden).toBeLessThan(shown * 0.5)
+    expect(hidden, `put away against on screen, ${power}`).toBeLessThan(shown * 0.5)
   } finally {
     await close()
   }

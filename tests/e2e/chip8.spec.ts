@@ -2,7 +2,7 @@ import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { atDesignSize, launch, removeDir, settleLayout, zoomSettled } from './support.js'
+import { atDesignSize, launch, powerNote, removeDir, settleLayout, zoomSettled } from './support.js'
 
 /**
  * The CHIP-8 pane (docs/architecture.md section 5.18): the library, a program running on
@@ -269,12 +269,17 @@ test('a program running costs little more than the pane standing still', async (
     await page.waitForTimeout(1000)
     const paused = await measure()
     const pct = (n: number) => `${(n * 100).toFixed(1)}%`
+    const power = await powerNote(app, page)
     console.log(
-      `chip8: library attract ${pct(attract)}, resting ${pct(resting)}, running ${pct(running)}, paused ${pct(paused)} of one core`,
+      `chip8: library attract ${pct(attract)}, resting ${pct(resting)}, running ${pct(running)}, paused ${pct(paused)} of one core, ${power}`,
     )
-    expect(running - resting).toBeLessThan(process.env.CI ? 1.5 : 0.15)
-    expect(attract - resting).toBeLessThan(process.env.CI ? 1.5 : 0.35)
-    expect(paused).toBeLessThan(running)
+    expect(running - resting, `running over resting, ${power}`).toBeLessThan(
+      process.env.CI ? 1.5 : 0.15,
+    )
+    expect(attract - resting, `attract over resting, ${power}`).toBeLessThan(
+      process.env.CI ? 1.5 : 0.35,
+    )
+    expect(paused, `paused against running, ${power}`).toBeLessThan(running)
   } finally {
     await close()
   }

@@ -405,6 +405,33 @@ export async function atDesignSize(app: ElectronApplication, page: Page): Promis
     .toBeGreaterThanOrEqual(0.99)
 }
 
+/**
+ * Where the machine's power comes from and how full its battery is, in words, for a
+ * test that measures CPU time to print beside its figures and its failure.
+ *
+ * On battery, and below 20% in particular, Windows moves work to the efficiency cores
+ * and the same work costs more CPU seconds: on 2026-10-01 the idle default layout
+ * measured 50% of one core on battery at 17%, and 24% on AC power at 47% - the same
+ * build, the budget 40. The source is main's (`powerMonitor`); the level is the page's
+ * Battery Status API, which main has no counterpart of. A machine without a battery
+ * reads as a full one, charging.
+ */
+export async function powerNote(app: ElectronApplication, page: Page): Promise<string> {
+  const onBattery = await app.evaluate(({ powerMonitor }) => powerMonitor.isOnBatteryPower())
+  const battery = await page.evaluate(async () => {
+    const nav = navigator as Navigator & {
+      getBattery?: () => Promise<{ level: number; charging: boolean }>
+    }
+    if (nav.getBattery === undefined) return null
+    const { level, charging } = await nav.getBattery()
+    return { level, charging }
+  })
+  const source = onBattery ? 'on battery' : 'on AC power'
+  if (battery === null) return `${source}, battery level unknown`
+  const state = battery.charging ? 'charging' : 'discharging'
+  return `${source}, battery ${Math.round(battery.level * 100)}% (${state})`
+}
+
 /** Brings the window back from {@link putWindowAway} and waits for the page to hear of it. */
 export async function bringWindowBack(app: ElectronApplication, page: Page): Promise<void> {
   await app.evaluate(({ BrowserWindow }) =>
