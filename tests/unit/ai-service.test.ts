@@ -10,6 +10,7 @@ import {
   type StreamResult,
   type StreamSink,
 } from '../../src/main/ai/adapter.js'
+import { ChatFiles } from '../../src/main/ai/files.js'
 import { emptyKeyFile, type KeyFile, KeyVault, stubCodec } from '../../src/main/ai/keys.js'
 import { AiChatService } from '../../src/main/ai/service.js'
 import { ChatStore } from '../../src/main/ai/store.js'
@@ -56,6 +57,10 @@ function harness(dir: string, keys: Record<string, string> = {}) {
 
   const service = new AiChatService({
     store: new ChatStore(dir),
+    files: new ChatFiles(dir, () => {
+      ids += 1
+      return `file-${ids}`
+    }),
     providers: () => [LOCAL, REMOTE_HTTP, BROKEN],
     systemPrompt: () => 'be brief',
     compact: () => false,

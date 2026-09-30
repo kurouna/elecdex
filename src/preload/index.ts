@@ -7,6 +7,7 @@ import type {
   ChatSendResult,
   ChatSummary,
 } from '@shared/ai'
+import type { AttachmentView, AttachResult } from '@shared/ai-attach'
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from '@shared/alarms'
 import type {
   AppInfo,
@@ -624,6 +625,13 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.ai.send, chatId, request) as Promise<ChatSendResult>,
     stop: (chatId) => ipcRenderer.send(CH.ai.stop, chatId),
     active: () => ipcRenderer.invoke(CH.ai.active) as Promise<string[]>,
+    attach: (draftId, upload) =>
+      ipcRenderer.invoke(CH.ai.attach, draftId, upload) as Promise<AttachResult>,
+    pending: (draftId) => ipcRenderer.invoke(CH.ai.pending, draftId) as Promise<AttachmentView[]>,
+    detach: (draftId, attachmentId) =>
+      ipcRenderer.invoke(CH.ai.detach, draftId, attachmentId) as Promise<AttachmentView[]>,
+    discard: (draftId) => ipcRenderer.invoke(CH.ai.discard, draftId) as Promise<void>,
+    thumbs: (chatId) => ipcRenderer.invoke(CH.ai.thumbs, chatId) as Promise<Record<string, string>>,
   },
   elec: {
     sessions: () => ipcRenderer.invoke(CH.elec.sessions) as Promise<SessionSummary[]>,

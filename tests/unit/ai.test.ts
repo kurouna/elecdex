@@ -235,16 +235,27 @@ describe('what a pane may ask', () => {
 
 describe('pane state', () => {
   it('is read defensively: layout.json may be edited by hand', () => {
-    expect(paneAiChat(undefined)).toEqual({ chat: null, provider: null, model: null })
-    expect(paneAiChat({ chat: '../../etc', provider: 'UPPER', model: 7 })).toEqual({
+    expect(paneAiChat(undefined)).toEqual({
       chat: null,
       provider: null,
       model: null,
+      filesDraft: null,
     })
-    expect(paneAiChat({ chat: CHAT_ID, provider: 'ollama', model: 'qwen3:8b' })).toEqual({
+    expect(paneAiChat({ chat: '../../etc', provider: 'UPPER', model: 7, filesDraft: 'x' })).toEqual(
+      {
+        chat: null,
+        provider: null,
+        model: null,
+        filesDraft: null,
+      },
+    )
+    expect(
+      paneAiChat({ chat: CHAT_ID, provider: 'ollama', model: 'qwen3:8b', filesDraft: CHAT_ID }),
+    ).toEqual({
       chat: CHAT_ID,
       provider: 'ollama',
       model: 'qwen3:8b',
+      filesDraft: CHAT_ID,
     })
   })
 })

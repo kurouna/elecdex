@@ -25,6 +25,7 @@ import type {
   StreamResult,
   StreamSink,
 } from '../../src/main/ai/adapter.js'
+import { ChatFiles } from '../../src/main/ai/files.js'
 import { AiChatService } from '../../src/main/ai/service.js'
 import { ChatStore } from '../../src/main/ai/store.js'
 
@@ -196,6 +197,10 @@ function harness(dir: string, compacts = false) {
   const store = new ChatStore(dir)
   const service = new AiChatService({
     store,
+    files: new ChatFiles(dir, () => {
+      ids += 1
+      return `file-${ids}`
+    }),
     providers: () => [SMALL, ROOMY, HOSTED],
     systemPrompt: () => '',
     compact: () => flags.compacts,

@@ -1,22 +1,28 @@
 <script lang="ts">
 import {
   type AiModel,
+  ATTACH_LIMITS,
   ago,
   aiBaseUrl,
   applyChatEvent,
+  type ChatAttachment,
   type ChatMessage,
   type ChatView,
   compactCount,
   EMPTY_VIEW,
   FAILED_STOPS,
+  fileSize,
   paneAiChat,
   STOP_CODES,
+  takesPdf,
   tokensPerSecond,
 } from '@shared/ai'
 import { tick } from 'svelte'
 import ConfirmButton from '../../ConfirmButton.svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
+import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { anchorOf, type CardAnchor, type CardSize, HoverRest } from '../../lib/hover-card.ts'
 import { pulse } from '../../lib/pulse.svelte.ts'
 import { ai } from '../../stores/ai.svelte.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
@@ -26,8 +32,11 @@ import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
+import { ChatDraft } from './draft.svelte.ts'
+import FileCard from './FileCard.svelte'
 import Markdown from './Markdown.svelte'
 import ModelField from './ModelField.svelte'
+import Payload from './Payload.svelte'
 
 /**
  * A conversation with a language model: a local server or a hosted service the
@@ -42,6 +51,9 @@ import ModelField from './ModelField.svelte'
  *
  *   Enter        send          Shift+Enter  a new line
  *   Esc          stop the answer, or leave the edit
+ *
+ * Files go with a question when the user picks them (+), drops them on the pane or pastes a
+ * picture: read here as bytes, never a path, and judged by main (shared/ai-attach.ts).
  */
 const { paneId, state: paneState }: WidgetProps = $props()
 
@@ -197,7 +209,28 @@ let draft = $state('')
 let editing = $state<string | null>(null)
 let composer = $state<HTMLTextAreaElement | null>(null)
 
-async function ask(text: string | undefined, replaceFrom?: string): Promise<boolean> {
+/** The files for the next question: waiting in main under the draft id kept in pane state. */
+const files = new ChatDraft(() => {
+  const id = crypto.randomUUID()
+  save({ filesDraft: id })
+  return id
+})
+$effect(() => {
+  void files.use(choice.filesDraft)
+})
+
+/** What goes with a question besides its text: the draft's files, and those an edit keeps. */
+interface Carried {
+  draft?: string
+  files?: string[]
+  keep?: string[]
+}
+
+async function ask(
+  text: string | undefined,
+  replaceFrom?: string,
+  carried: Carried = {},
+): Promise<boolean> {
   if (provider === null || model === '' || busy) return false
   problem = null
   const request = {
@@ -205,6 +238,7 @@ async function ask(text: string | undefined, replaceFrom?: string): Promise<bool
     model,
     ...(text === undefined ? {} : { text }),
     ...(replaceFrom === undefined ? {} : { replaceFrom }),
+    ...carried,
   }
   const fresh = choice.chat === null
   const chatId = choice.chat ?? (await window.elecdex.ai.create())
@@ -220,6 +254,8 @@ async function ask(text: string | undefined, replaceFrom?: string): Promise<bool
     return true
   }
   problem = result.error
+  // Refused, perhaps for a file main let go: the chips show again what it really holds.
+  if (carried.draft !== undefined) void files.refresh()
   // A conversation made for a message that was never taken is not one.
   if (fresh) void window.elecdex.ai.remove(chatId)
   return false
@@ -227,21 +263,44 @@ async function ask(text: string | undefined, replaceFrom?: string): Promise<bool
 
 async function send(): Promise<void> {
   const text = draft.trim()
-  if (text === '') return
+  if (!sendable) return
   const replaced = editing
-  if (await ask(text, replaced ?? undefined)) {
+  const carried: Carried = {
+    // The draft's files are named, so a file main no longer holds stops the question instead of
+    // leaving it without a word.
+    ...(files.files.length > 0 && files.id !== null
+      ? { draft: files.id, files: files.files.map((file) => file.id) }
+      : {}),
+    // An edited question keeps only what is listed; none listed, it keeps none.
+    ...(replaced === null || files.kept.length === 0
+      ? {}
+      : { keep: files.kept.map((file) => file.id) }),
+  }
+  if (await ask(text, replaced ?? undefined, carried)) {
     draft = ''
     editing = null
+    files.sent()
+    // The chips go; their files, now the question's, keep their ids - the card goes by hand.
+    resting.leave()
+    hover = null
   }
 }
 
 function edit(message: ChatMessage): void {
   editing = message.id
   draft = message.text
+  // The composer carries the question as it was: its text, and its files to keep or leave out.
+  files.edit(message.attachments ?? [])
   composer?.focus()
 }
 
+/**
+ * Leaves the composer empty. The files waiting for the next question stay - through a change of
+ * conversation and an edit left as it was: picking them again would be the cost. Only an edited
+ * question's own files go back to it.
+ */
 function leaveEdit(): void {
+  files.unedit()
   editing = null
   draft = ''
 }
@@ -345,10 +404,191 @@ const phase = $derived.by(() => {
 
 /** Why nothing can be sent, when that is so: a button that is merely dark says nothing. */
 const blocked = $derived(
-  model === '' && (messages.length > 0 || draft.trim() !== '')
+  model === '' && (messages.length > 0 || draft.trim() !== '' || files.count > 0)
     ? 'no model is chosen - pick one in the bar above'
     : null,
 )
+
+/** The PDFs the chosen provider is not sent, by id: marked on their chips, and said. */
+const unsentPdfs = $derived(
+  new Set(
+    provider === null || takesPdf(provider)
+      ? []
+      : [...files.all, ...messages.flatMap((m) => m.attachments ?? [])]
+          .filter((file) => file.kind === 'pdf')
+          .map((file) => file.id),
+  ),
+)
+const pdfWhy = $derived(
+  provider === null
+    ? ''
+    : `${provider.name} is not sent PDF files - Anthropic's API, OpenAI and OpenRouter are`,
+)
+/** A question carrying a PDF this provider is not sent does not go: said before it is tried. */
+const pdfBlocked = $derived(files.all.some((file) => unsentPdfs.has(file.id)))
+
+/**
+ * More than a question takes: possible only while an edit carries its own files beside the ones
+ * waiting. Said before sending, not left to main to refuse.
+ */
+const overfull = $derived.by(() => {
+  const all = files.all
+  if (all.length > ATTACH_LIMITS.perMessage) {
+    return `a question takes up to ${ATTACH_LIMITS.perMessage} files - leave ${all.length - ATTACH_LIMITS.perMessage} out`
+  }
+  const bytes = all.reduce((sum, file) => sum + file.bytes, 0)
+  return bytes > ATTACH_LIMITS.message
+    ? `a question takes up to ${fileSize(ATTACH_LIMITS.message)} of files - leave some out`
+    : null
+})
+
+/** A question can go: something to ask, a model to ask it of, and every file read. */
+const sendable = $derived(
+  (draft.trim() !== '' || files.all.length > 0) &&
+    model !== '' &&
+    files.reading.length === 0 &&
+    !pdfBlocked &&
+    overfull === null,
+)
+
+/*
+ * The small pictures of the images this conversation was sent with: asked of main when the
+ * conversation, or which images it has, changes - not with every delta of an answer.
+ */
+let sentThumbs = $state.raw<Record<string, string>>({})
+const imageIds = $derived(
+  messages
+    .flatMap((m) => m.attachments ?? [])
+    .filter((file) => file.kind === 'image')
+    .map((file) => file.id)
+    .join(' '),
+)
+$effect(() => {
+  const chatId = choice.chat
+  if (chatId === null || imageIds === '') {
+    sentThumbs = {}
+    return
+  }
+  let live = true
+  void window.elecdex.ai.thumbs(chatId).then((found) => {
+    if (live) sentThumbs = found
+  })
+  return () => {
+    live = false
+  }
+})
+
+/*
+ * A file's detail card: which one, and where its chip is in the pane. The card waits for a
+ * moment's rest; the keyboard, or a click, brings it at once.
+ */
+let root = $state<HTMLDivElement | null>(null)
+let hover = $state.raw<{ file: ChatAttachment; anchor: CardAnchor; bounds: CardSize } | null>(null)
+const resting = new HoverRest<string>(() => (hover = null))
+$effect(() => () => resting.dispose())
+
+function onFileHover(file: ChatAttachment, event: { row: DOMRect; x: number | null } | null): void {
+  if (event === null) {
+    resting.leave(file.id)
+    return
+  }
+  resting.enter(
+    file.id,
+    () => {
+      if (root === null) return
+      const box = root.getBoundingClientRect()
+      hover = {
+        file,
+        anchor: anchorOf(box, event.row, event.x),
+        bounds: { width: box.width, height: box.height },
+      }
+    },
+    event.x === null,
+  )
+}
+
+/*
+ * A chip that goes while its card is up - sent, left out, another conversation opened - sends no
+ * pointerleave: the card goes with it.
+ */
+const shownFiles = $derived(
+  new Set([...files.all, ...messages.flatMap((m) => m.attachments ?? [])].map((file) => file.id)),
+)
+$effect(() => {
+  if (hover !== null && !shownFiles.has(hover.file.id)) {
+    resting.leave()
+    hover = null
+  }
+})
+
+const hoverThumb = $derived.by(() => {
+  if (hover === null) return undefined
+  const id = hover.file.id
+  return files.files.find((file) => file.id === id)?.thumb ?? sentThumbs[id]
+})
+
+/*
+ * Files come three ways, all of them the user's own act: the picker behind +, a drop on the
+ * pane, a picture pasted into the line. Each is read here as bytes; no path leaves the page.
+ */
+let picker = $state<HTMLInputElement | null>(null)
+
+function picked(event: Event): void {
+  const input = event.currentTarget as HTMLInputElement
+  const chosen = [...(input.files ?? [])]
+  // Emptied, so choosing the same file again is a change.
+  input.value = ''
+  if (chosen.length > 0) void files.add(chosen)
+  composer?.focus()
+}
+
+/** How many more files the question takes. */
+const room = $derived(Math.max(0, ATTACH_LIMITS.perMessage - files.count))
+
+/** Counts the drag's entries and leaves over the pane's children, so the sign stays up across them. */
+let dragDepth = 0
+let dropping = $state(false)
+const carriesFiles = (event: DragEvent): boolean =>
+  event.dataTransfer?.types.includes('Files') === true
+
+function dragEnter(event: DragEvent): void {
+  if (!carriesFiles(event) || provider === null) return
+  event.preventDefault()
+  dragDepth += 1
+  dropping = true
+}
+
+function dragOver(event: DragEvent): void {
+  if (!carriesFiles(event) || provider === null) return
+  event.preventDefault()
+  if (event.dataTransfer !== null) event.dataTransfer.dropEffect = 'copy'
+}
+
+function dragLeave(event: DragEvent): void {
+  if (!carriesFiles(event)) return
+  dragDepth = Math.max(0, dragDepth - 1)
+  if (dragDepth === 0) dropping = false
+}
+
+function dropped(event: DragEvent): void {
+  if (!carriesFiles(event)) return
+  event.preventDefault()
+  dragDepth = 0
+  dropping = false
+  // While an answer is written too: files wait for the next question, as a typed line does.
+  if (provider === null) return
+  const chosen = [...(event.dataTransfer?.files ?? [])]
+  if (chosen.length > 0) void files.add(chosen)
+  composer?.focus()
+}
+
+/** A picture pasted into the line is attached; text pasted is text, even with a picture beside it. */
+function pasted(event: ClipboardEvent): void {
+  const data = event.clipboardData
+  if (data === null || data.files.length === 0 || data.getData('text/plain') !== '') return
+  event.preventDefault()
+  void files.add([...data.files], true)
+}
 
 /** The sweep of a link sending: one of four marks lit, stepping with the shared pulse. */
 const SWEEP = ['▰▱▱▱', '▱▰▱▱', '▱▱▰▱', '▱▱▱▰'] as const
@@ -371,7 +611,18 @@ const host = $derived.by(() => {
 })
 </script>
 
-<div class="chat" data-testid="aichat" data-busy={busy} data-pulse={busy ? pulse.phase : undefined}>
+<div
+  class="chat"
+  data-testid="aichat"
+  data-busy={busy}
+  data-pulse={busy ? pulse.phase : undefined}
+  bind:this={root}
+  role="presentation"
+  ondragenter={dragEnter}
+  ondragover={dragOver}
+  ondragleave={dragLeave}
+  ondrop={dropped}
+>
   <SettingsButton
     open={false}
     label="ai settings"
@@ -525,7 +776,18 @@ const host = $derived.by(() => {
             </details>
           {/if}
           {#if message.role === 'user'}
-            <p class="said">{message.text}</p>
+            {#if message.attachments !== undefined && message.attachments.length > 0}
+              <Payload
+                files={message.attachments}
+                thumbs={sentThumbs}
+                unsent={unsentPdfs}
+                onhover={onFileHover}
+                testid="aichat-message-files"
+              />
+            {/if}
+            {#if message.text !== ''}
+              <p class="said">{message.text}</p>
+            {/if}
           {:else if message.text !== ''}
             <Markdown source={message.text} />
           {/if}
@@ -568,18 +830,47 @@ const host = $derived.by(() => {
 
     {#if problem !== null}
       <p class="problem" data-testid="aichat-problem"><span class="code">refused</span><span class="detail">{problem}</span></p>
+    {:else if files.problem !== null}
+      <p class="problem" data-testid="aichat-attach-problem"><span class="code">{files.problem.code}</span><span class="detail">{files.problem.detail}</span></p>
+    {:else if overfull !== null}
+      <p class="problem" data-testid="aichat-blocked"><span class="code">payload full</span><span class="detail">{overfull}</span></p>
+    {:else if pdfBlocked}
+      <p class="problem" data-testid="aichat-blocked"><span class="code">no document</span><span class="detail">{pdfWhy} - leave the PDF out, or choose another provider</span></p>
     {:else if blocked !== null}
       <p class="problem" data-testid="aichat-blocked"><span class="code">no model</span><span class="detail">{blocked}</span></p>
+    {/if}
+
+    {#if files.count > 0}
+      <Payload
+        files={[...files.kept, ...files.files]}
+        reading={files.reading}
+        thumbs={sentThumbs}
+        editable
+        unsent={unsentPdfs}
+        onremove={(id) => void files.remove(id)}
+        onhover={onFileHover}
+        testid="aichat-payload"
+      />
     {/if}
 
     <form
       class="composer"
       class:editing={editing !== null}
+      class:loaded={files.count > 0}
       onsubmit={(e) => {
         e.preventDefault()
         void send()
       }}
     >
+      <button
+        type="button"
+        class="attach"
+        onclick={() => picker?.click()}
+        aria-label="attach files"
+        title="attach text, images or PDF files - or drop them on the pane, or paste a picture"
+        data-testid="aichat-attach"
+      >+</button>
+      <input bind:this={picker} type="file" multiple hidden onchange={picked} data-testid="aichat-attach-input" />
       <span class="prompt" aria-hidden="true">{editing === null ? '>' : '±'}</span>
       <textarea
         bind:this={composer}
@@ -587,6 +878,7 @@ const host = $derived.by(() => {
         rows="1"
         placeholder={editing === null ? 'message · enter to send, shift+enter for a new line' : 'rewriting an earlier message · esc to leave it as it was'}
         onkeydown={onComposerKey}
+        onpaste={pasted}
         data-testid="aichat-input"
       ></textarea>
       {#if busy}
@@ -599,11 +891,31 @@ const host = $derived.by(() => {
           stop
         </button>
       {:else}
-        <button type="submit" class="cmd lit" disabled={draft.trim() === '' || model === ''} data-testid="aichat-send">
+        <button type="submit" class="cmd lit" disabled={!sendable} data-testid="aichat-send">
           {editing === null ? 'send' : 'resend'}
         </button>
       {/if}
     </form>
+
+    {#if dropping}
+      <!-- Over the pane while files are held over it: where they go, and what is taken. -->
+      <div class="drop-sign crt-on" transition:crtPower data-testid="aichat-drop">
+        <span class="drop-title">drop to attach</span>
+        <span class="drop-kinds"
+          >{room > 0 ? `text · images · pdf · room for ${room}` : `payload full · ${ATTACH_LIMITS.perMessage} files`}</span
+        >
+      </div>
+    {/if}
+
+    {#if hover !== null}
+      <FileCard
+        file={hover.file}
+        thumb={hoverThumb}
+        unsent={unsentPdfs.has(hover.file.id) ? pdfWhy : null}
+        anchor={hover.anchor}
+        bounds={hover.bounds}
+      />
+    {/if}
   {/if}
 </div>
 
@@ -1241,5 +1553,61 @@ textarea {
   display: flex;
   align-items: center;
   border-width: 0 0 0 1px;
+}
+
+/* With files loaded, the payload above and the line are one frame. */
+.composer.loaded {
+  margin-top: calc(-1 * var(--space-1));
+}
+
+/* +: files for the question, before the prompt that takes its words. */
+.attach {
+  flex: none;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-right: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--step-0);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attach:hover,
+.attach:focus-visible {
+  color: var(--accent);
+  background: var(--accent-faint);
+  outline: none;
+}
+
+
+/* Files held over the pane: the whole of it is where they may go. */
+.drop-sign {
+  position: absolute;
+  inset: var(--space-2);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--app-bg) 96%, transparent);
+  pointer-events: none;
+}
+
+.drop-title {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.drop-kinds {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  color: var(--text-muted);
 }
 </style>

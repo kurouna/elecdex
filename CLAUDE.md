@@ -341,9 +341,20 @@ docs/            architecture.md, plugins.md (the plugin API and its rules), wea
     read by both the mark's colour and the sound; add a new `ChatStop` there deliberately. The
     caret and the receive lamp step with `lib/pulse.svelte.ts`, not a CSS animation. The pane
     badge stays in words (`receiving`), like the other panes' badges.
-  - No tools, no MCP, no images, no branching, no named prompt profiles: left out on purpose
-    (user decisions 2026-09-20 and 2026-09-21). A model that can start processes or read files
-    needs a consent design like the plugins' first. Do not add any of them without asking.
+  - **Files the user attaches** (text, images, PDF; architecture.md §5.7, shared/ai-attach.ts,
+    main/ai/files.ts) reach main as bytes from a `File` the user picked, dropped or pasted - never
+    a path, and no channel takes one. Main judges a file by its first bytes. An image is decoded,
+    made small and encoded again in the page (never decoded in main; the camera's EXIF stays
+    behind); main reads only its header. Waiting, files are main's memory under the pane's
+    `filesDraft`; sent, they are written beside the conversation (`<chat>.files/<sha256>`) before it
+    is saved, and go with it. A text file too long is refused, never cut. A PDF goes to Anthropic's
+    dialect and to presets marked `pdf` (by address, `takesPdf`); elsewhere it is refused, or named
+    in its place in the history - never dropped unsaid. Files count in `chatWindow` (tokens and
+    `ATTACH_LIMITS.sent` bytes) and are cut with their message: never one old image a turn.
+  - No tools, no MCP, no branching, no named prompt profiles: left out on purpose (user decisions
+    2026-09-20 and 2026-09-21). A model that can start processes or read files needs a consent
+    design like the plugins' first; what the user attaches is theirs to choose, and the model
+    never reads a file of its own accord. Do not add any of them without asking.
 - **The git pane** (architecture.md §5.9, shared/git.ts, main/git/) reads, and writes only what the
   user presses FETCH or PULL for (two presses each): it never stages, commits, checks out, merges or
   rebases. A repository is chosen through main's folder picker and known to the page

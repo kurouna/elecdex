@@ -16,11 +16,26 @@ export interface AdapterTarget {
   signal: AbortSignal
 }
 
+/**
+ * An image or a document going with a question, as base64. Each dialect puts it in its own part
+ * (openai.ts, anthropic.ts); a text file is already part of the text (`composeText`).
+ */
+export type Media =
+  | { kind: 'image'; mime: 'image/png' | 'image/jpeg'; data: string }
+  | { kind: 'pdf'; name: string; data: string }
+
+export interface WireMessage {
+  role: 'user' | 'assistant'
+  text: string
+  /** Sent ahead of the text, as the services advise for images and documents. */
+  media?: readonly Media[]
+}
+
 export interface StreamRequest extends AdapterTarget {
   model: string
   /** Empty for none. */
   system: string
-  messages: ReadonlyArray<{ role: 'user' | 'assistant'; text: string }>
+  messages: readonly WireMessage[]
 }
 
 export interface StreamSink {

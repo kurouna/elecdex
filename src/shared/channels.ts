@@ -245,6 +245,16 @@ export const CH = {
     stop: 'ai:stop',
     /** Diagnostics: the conversations an answer is being written for. */
     active: 'ai:active',
+    /** A file's bytes into a draft (AttachResult): never a path. */
+    attach: 'ai:attach',
+    /** The files waiting in a draft (AttachmentView[]). */
+    pending: 'ai:pending',
+    /** Takes one file out of a draft; answers the rest. */
+    detach: 'ai:detach',
+    /** Empties a draft. */
+    discard: 'ai:discard',
+    /** The small pictures of a conversation's images, by attachment id. */
+    thumbs: 'ai:thumbs',
   },
   /** The ELEC system pane (shared/elec.ts): deliberations put to the providers of `ai`. */
   elec: {

@@ -3,12 +3,14 @@ import {
   type AdapterTarget,
   type FetchLike,
   isUnreachable,
+  type Media,
   type ProviderAdapter,
   ProviderError,
   type StreamRequest,
   type StreamResult,
   type StreamSink,
   statusFailure,
+  type WireMessage,
 } from './adapter.js'
 
 /**
@@ -217,6 +219,27 @@ function idleGuard(signal: AbortSignal): { signal: AbortSignal; touch(): void; d
   }
 }
 
+/**
+ * A file's part: an image as a data URL, as every server of this dialect that reads images takes
+ * it; a PDF as a `file` part, which only the services marked in AI_PRESETS read (`takesPdf`).
+ */
+const mediaPart = (media: Media) =>
+  media.kind === 'image'
+    ? { type: 'image_url', image_url: { url: `data:${media.mime};base64,${media.data}` } }
+    : {
+        type: 'file',
+        file: { filename: media.name, file_data: `data:application/pdf;base64,${media.data}` },
+      }
+
+/** A message's content: its text as it always was, or parts when files go with it. */
+export const contentOf = (message: WireMessage) =>
+  message.media === undefined || message.media.length === 0
+    ? message.text
+    : [
+        ...message.media.map(mediaPart),
+        ...(message.text === '' ? [] : [{ type: 'text', text: message.text }]),
+      ]
+
 const bodyFor = (request: StreamRequest): string =>
   JSON.stringify({
     model: request.model,
@@ -225,7 +248,7 @@ const bodyFor = (request: StreamRequest): string =>
     stream_options: { include_usage: true },
     messages: [
       ...(request.system === '' ? [] : [{ role: 'system', content: request.system }]),
-      ...request.messages.map((m) => ({ role: m.role, content: m.text })),
+      ...request.messages.map((m) => ({ role: m.role, content: contentOf(m) })),
     ],
   })
 

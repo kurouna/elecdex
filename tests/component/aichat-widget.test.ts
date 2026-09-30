@@ -1,4 +1,5 @@
 import type { Chat, ChatEvent, ChatRun } from '@shared/ai'
+import type { AttachmentView } from '@shared/ai-attach'
 import { defaultSettings } from '@shared/settings'
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte'
 import { flushSync, tick } from 'svelte'
@@ -663,6 +664,347 @@ describe('AiChatWidget', () => {
     expect(handlers).toHaveLength(1)
     unmount()
     expect(handlers).toHaveLength(0)
+  })
+})
+
+describe('AiChatWidget files', () => {
+  const DRAFT = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+  const image: AttachmentView = {
+    id: 'img',
+    kind: 'image',
+    name: 'a-rather-long-screenshot-name-from-the-desktop.png',
+    mime: 'image/png',
+    bytes: 245_760,
+    sha256: 'a'.repeat(64),
+    tokens: 1600,
+    width: 1280,
+    height: 720,
+    source: { width: 4032, height: 3024 },
+    thumb: 'data:image/jpeg;base64,AAAA',
+  }
+  const paper: AttachmentView = {
+    id: 'pdf',
+    kind: 'pdf',
+    name: 'paper.pdf',
+    mime: 'application/pdf',
+    bytes: 90_000,
+    sha256: 'b'.repeat(64),
+    tokens: 5000,
+    pages: 2,
+  }
+  const notes: AttachmentView = {
+    id: 'txt',
+    kind: 'text',
+    name: 'notes.md',
+    mime: 'text/plain',
+    bytes: 12,
+    sha256: 'c'.repeat(64),
+    tokens: 20,
+  }
+
+  beforeEach(() => {
+    // Chips and the card power on and off like a tube, which asks whether motion is reduced;
+    // the card measures itself, and jsdom has no observer.
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      },
+    )
+    ai.pending = vi.fn(async () => [])
+    ai.attach = vi.fn(async () => ({ ok: true, file: notes }))
+    ai.detach = vi.fn(async () => [])
+    ai.discard = vi.fn(async () => undefined)
+    ai.thumbs = vi.fn(async () => ({}))
+  })
+
+  it('shows the files waiting in its draft, and sends them with no words needed', async () => {
+    withProvider()
+    ai.pending = vi.fn(async () => [image, notes])
+    mount({ filesDraft: DRAFT })
+    await settle()
+    expect(ai.pending).toHaveBeenCalledWith(DRAFT)
+    const chips = screen.getAllByTestId('aichat-chip')
+    expect(chips.map((chip) => chip.dataset.kind)).toEqual(['image', 'text'])
+    expect(screen.getByTestId('aichat-payload-total').textContent).toBe(
+      '2 files · 240 KB · ~1.6k tok',
+    )
+    // A file is something to send.
+    const send = screen.getByTestId('aichat-send') as HTMLButtonElement
+    expect(send.disabled).toBe(false)
+    await fireEvent.click(send)
+    await settle()
+    expect(ai.send).toHaveBeenCalledWith(CHAT_ID, {
+      provider: 'local',
+      model: 'tiny',
+      text: '',
+      draft: DRAFT,
+      files: ['img', 'txt'],
+    })
+    expect(screen.queryByTestId('aichat-payload')).toBeNull()
+  })
+
+  it('leaves a file out with its ×', async () => {
+    withProvider()
+    ai.pending = vi.fn(async () => [image, notes])
+    ai.detach = vi.fn(async () => [notes])
+    mount({ filesDraft: DRAFT })
+    await settle()
+    await fireEvent.click(screen.getAllByTestId('aichat-chip-remove')[0] as HTMLElement)
+    await settle()
+    expect(ai.detach).toHaveBeenCalledWith(DRAFT, 'img')
+    expect(screen.getAllByTestId('aichat-chip')).toHaveLength(1)
+  })
+
+  it('says a PDF will not go to a provider that is not sent one, and does not try', async () => {
+    withProvider()
+    ai.pending = vi.fn(async () => [paper])
+    mount({ filesDraft: DRAFT })
+    await settle()
+    expect(screen.getByTestId('aichat-chip').classList.contains('unsent')).toBe(true)
+    expect(screen.getByTestId('aichat-blocked').textContent).toMatch(
+      /no document.*Local is not sent PDF files/,
+    )
+    expect((screen.getByTestId('aichat-send') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('a sent question shows its files, and no empty line where it had no words', async () => {
+    withProvider()
+    ai.thumbs = vi.fn(async () => ({ img: 'data:image/jpeg;base64,BBBB' }))
+    mount({ chat: CHAT_ID })
+    await settle()
+    const { thumb: _thumb, ...kept } = image
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      run: null,
+      chat: chat([{ id: 'q1', role: 'user', text: '', at: 1, attachments: [kept] }]),
+    })
+    await settle()
+    const shown = screen.getByTestId('aichat-message-files')
+    expect(shown.querySelector('img')?.getAttribute('src')).toBe('data:image/jpeg;base64,BBBB')
+    expect(shown.querySelector('[data-testid=aichat-chip-remove]')).toBeNull()
+    expect(screen.getByTestId('aichat-message').querySelector('.said')).toBeNull()
+  })
+
+  it('an edited question carries its files, and keeps only those left on it', async () => {
+    withProvider()
+    mount({ chat: CHAT_ID, filesDraft: DRAFT })
+    await settle()
+    const { thumb: _thumb, ...kept } = image
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      run: null,
+      chat: chat([{ id: 'q1', role: 'user', text: 'look', at: 1, attachments: [kept, notes] }]),
+    })
+    await fireEvent.click(screen.getByTestId('aichat-edit'))
+    await settle()
+    const payload = screen.getByTestId('aichat-payload')
+    expect(payload.querySelectorAll('[data-testid=aichat-chip]')).toHaveLength(2)
+    await fireEvent.click(
+      payload.querySelectorAll('[data-testid=aichat-chip-remove]')[1] as HTMLElement,
+    )
+    await settle()
+    await fireEvent.keyDown(screen.getByTestId('aichat-input'), { key: 'Enter' })
+    await settle()
+    expect(ai.send).toHaveBeenCalledWith(CHAT_ID, {
+      provider: 'local',
+      model: 'tiny',
+      text: 'look',
+      replaceFrom: 'q1',
+      keep: ['img'],
+    })
+  })
+
+  it('files waiting for the next question stay through an edit, and after it is left', async () => {
+    withProvider()
+    ai.pending = vi.fn(async () => [notes])
+    mount({ chat: CHAT_ID, filesDraft: DRAFT })
+    await settle()
+    const { thumb: _thumb, ...kept } = image
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      run: null,
+      chat: chat([{ id: 'q1', role: 'user', text: 'look', at: 1, attachments: [kept] }]),
+    })
+    await fireEvent.click(screen.getByTestId('aichat-edit'))
+    await settle()
+    const chips = () =>
+      [...screen.getByTestId('aichat-payload').querySelectorAll('[data-testid=aichat-chip]')].map(
+        (chip) => (chip as HTMLElement).dataset.kind,
+      )
+    expect(chips()).toEqual(['image', 'text'])
+    await fireEvent.keyDown(screen.getByTestId('aichat-input'), { key: 'Escape' })
+    await settle()
+    // The edit's own file goes back to it; the waiting one stays, and main was not told to drop it.
+    expect(chips()).toEqual(['text'])
+    expect(ai.discard).not.toHaveBeenCalled()
+  })
+
+  it('an edit that would carry more than a question takes says so before it is sent', async () => {
+    withProvider()
+    const waiting = [0, 1, 2].map((n) => ({ ...notes, id: `w${n}`, sha256: String(n).repeat(64) }))
+    ai.pending = vi.fn(async () => waiting)
+    mount({ chat: CHAT_ID, filesDraft: DRAFT })
+    await settle()
+    const own = [0, 1, 2].map((n) => ({ ...notes, id: `o${n}`, sha256: String(n + 5).repeat(64) }))
+    await emit({
+      type: 'snapshot',
+      chatId: CHAT_ID,
+      run: null,
+      chat: chat([{ id: 'q1', role: 'user', text: 'look', at: 1, attachments: own }]),
+    })
+    await fireEvent.click(screen.getByTestId('aichat-edit'))
+    await settle()
+    expect(screen.getByTestId('aichat-blocked').textContent).toMatch(
+      /payload full.*up to 5 files - leave 1 out/,
+    )
+    expect((screen.getByTestId('aichat-send') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('a card whose chip went goes with it', async () => {
+    withProvider()
+    ai.pending = vi.fn(async () => [image])
+    const { thumb: _thumb, ...sent } = image
+    // Main publishes the conversation with the question before it answers the send: the file,
+    // with the same id, is the sent question's by the time the chip goes.
+    ai.send = vi.fn(async () => {
+      for (const handler of [...handlers]) {
+        handler({
+          type: 'snapshot',
+          chatId: CHAT_ID,
+          run: null,
+          chat: chat([{ id: 'q1', role: 'user', text: '', at: 1, attachments: [sent] }]),
+        })
+      }
+      return { ok: true }
+    })
+    mount({ chat: CHAT_ID, filesDraft: DRAFT })
+    await settle()
+    const face = screen.getByTestId('aichat-chip').querySelector('.face') as HTMLElement
+    await fireEvent.focus(face)
+    await settle()
+    expect(screen.getByTestId('aichat-file-card')).toBeTruthy()
+    // Sent from the keyboard while the card is up: the chip goes, with no pointerleave.
+    await fireEvent.keyDown(screen.getByTestId('aichat-input'), { key: 'Enter' })
+    await settle()
+    expect(screen.queryByTestId('aichat-payload')).toBeNull()
+    await vi.waitFor(() => expect(screen.queryByTestId('aichat-file-card')).toBeNull())
+  })
+
+  it('a send refused for a file main let go shows again what main holds', async () => {
+    withProvider()
+    ai.pending = vi.fn(async () => [image])
+    ai.send = vi.fn(async () => ({
+      ok: false,
+      error: 'a file waiting here was let go - attach it again',
+    }))
+    mount({ filesDraft: DRAFT })
+    await settle()
+    ai.pending = vi.fn(async () => [])
+    await fireEvent.click(screen.getByTestId('aichat-send'))
+    await settle()
+    expect(screen.getByTestId('aichat-problem').textContent).toMatch(/was let go/)
+    expect(ai.pending).toHaveBeenCalledWith(DRAFT)
+    expect(screen.queryByTestId('aichat-payload')).toBeNull()
+  })
+
+  it('a picture pasted alone is attached; text pasted stays text', async () => {
+    withProvider()
+    mount()
+    await settle()
+    const input = screen.getByTestId('aichat-input')
+    const paste = (files: File[], text: string): Event => {
+      const event = new Event('paste', { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'clipboardData', {
+        value: { files, getData: () => text },
+      })
+      input.dispatchEvent(event)
+      return event
+    }
+    const file = new File(['# notes'], 'image.txt', { type: 'text/plain' })
+    expect(paste([file], 'cells as text').defaultPrevented).toBe(false)
+    expect(ai.attach).not.toHaveBeenCalled()
+    expect(paste([file], '').defaultPrevented).toBe(true)
+    await settle()
+    await vi.waitFor(() => expect(ai.attach).toHaveBeenCalledTimes(1))
+    const [draftId, upload] = (ai.attach?.mock.lastCall ?? []) as [string, { name: string }]
+    // A draft is made for it, and kept in the pane's state so a moved pane finds it again.
+    expect(draftId).toMatch(/^[0-9a-f-]{36}$/)
+    expect(patchPaneState).toHaveBeenCalledWith('p', { filesDraft: draftId })
+    expect(upload.name).toMatch(/^pasted-\d{8}-\d{6}\.txt$/)
+  })
+
+  it('says why a file was not taken, in its code and in words', async () => {
+    withProvider()
+    ai.attach = vi.fn(async () => ({
+      ok: false,
+      code: 'unreadable',
+      detail: 'only text, images and PDF files can be attached',
+    }))
+    mount()
+    await settle()
+    const input = screen.getByTestId('aichat-attach-input') as HTMLInputElement
+    Object.defineProperty(input, 'files', {
+      value: [new File([new Uint8Array([0, 1, 2])], 'tool.exe')],
+      configurable: true,
+    })
+    await fireEvent.change(input)
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('aichat-attach-problem').textContent).toMatch(
+        /unreadable.*tool\.exe: only text, images and PDF files/,
+      ),
+    )
+  })
+
+  it('shows where files may be dropped while they are held over the pane', async () => {
+    withProvider()
+    mount()
+    await settle()
+    const pane = screen.getByTestId('aichat')
+    const drag = (type: string, types: string[]): void => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'dataTransfer', { value: { types, files: [] } })
+      pane.dispatchEvent(event)
+    }
+    drag('dragenter', ['text/plain'])
+    await settle()
+    expect(screen.queryByTestId('aichat-drop')).toBeNull()
+    drag('dragenter', ['Files'])
+    await settle()
+    expect(screen.getByTestId('aichat-drop').textContent).toMatch(/drop to attach.*room for 5/)
+    drag('dragleave', ['Files'])
+    await settle()
+    expect(screen.queryByTestId('aichat-drop')).toBeNull()
+  })
+
+  it('a chip’s card says what the chip has no room for', async () => {
+    withProvider()
+    ai.pending = vi.fn(async () => [image])
+    mount({ filesDraft: DRAFT })
+    await settle()
+    const face = screen.getByTestId('aichat-chip').querySelector('.face') as HTMLElement
+    await fireEvent.focus(face)
+    await settle()
+    const card = screen.getByTestId('aichat-file-card')
+    expect(card.textContent).toContain(image.name)
+    expect(card.textContent).toMatch(/PNG\s·\s1280×720/)
+    expect(screen.getByTestId('aichat-file-card-source').textContent).toBe(
+      'made smaller from 4032×3024',
+    )
+    expect(card.textContent).toMatch(/245,760 bytes · ~1,600 tokens/)
+    await fireEvent.blur(face)
+    await vi.waitFor(() => expect(screen.queryByTestId('aichat-file-card')).toBeNull())
   })
 })
 

@@ -4,8 +4,10 @@ import {
   type AiModelsResult,
   type AiProvider,
   type AiProviderKind,
+  ATTACH_LIMITS,
   CHAT_VERSION,
   type Chat,
+  type ChatAttachment,
   type ChatEvent,
   type ChatMessage,
   type ChatRequest,
@@ -21,14 +23,19 @@ import {
   contextWindow,
   estimateTokens,
   summaryRoom,
+  takesPdf,
   withSummary,
 } from '@shared/ai'
+import { composeText, namedFiles, readText, roomFor, unsentNote } from '@shared/ai-attach'
 import {
   describeFailure,
   isUnreachable,
+  type Media,
   type ProviderAdapter,
   type StreamResult,
+  type WireMessage,
 } from './adapter.js'
+import type { ChatFiles, PendingFile } from './files.js'
 import type { ChatStore } from './store.js'
 import { type Target, targetFor } from './target.js'
 
@@ -67,6 +74,8 @@ const COMPACT_TRIES = 2
 
 export interface AiDeps {
   store: ChatStore
+  /** The questions' files: waiting in drafts, and kept beside their conversations. */
+  files: Pick<ChatFiles, 'take' | 'forget' | 'commit' | 'read' | 'removeChat' | 'prune'>
   providers(): readonly AiProvider[]
   systemPrompt(): string
   /** Whether what stays behind of a long conversation is summarised (settings: `ai.compact`). */
@@ -89,7 +98,8 @@ interface Outgoing {
   /** The system prompt as typed, and as sent: with the summary of what stays behind after it. */
   typed: string
   system: string
-  messages: { role: ChatMessage['role']; text: string }[]
+  /** What is sent, its files still named rather than read: they are read just before asking. */
+  messages: Pick<ChatMessage, 'role' | 'text' | 'attachments'>[]
   /** The id of the first message sent, when some stayed behind. */
   from: string | undefined
   /** The summary that still holds for this cut, if there is one. */
@@ -112,6 +122,106 @@ interface Running {
   sentThinking: number
   timer: unknown
   finished: boolean
+}
+
+/** A question's files: those a rewritten one kept, then the draft's - within what one may carry. */
+function questionFiles(
+  kept: readonly ChatAttachment[],
+  pending: readonly PendingFile[],
+): ChatAttachment[] | string {
+  const files = [...kept]
+  for (const { meta } of pending) {
+    const full = roomFor(files, meta.bytes)
+    if (full !== null) return full.detail
+    files.push(meta)
+  }
+  return files
+}
+
+/** Why a question cannot go to this provider: a PDF, to one that is not sent them. */
+function pdfRefusal(
+  provider: AiProvider,
+  question: Pick<ChatMessage, 'attachments'> | undefined,
+): string | null {
+  if (takesPdf(provider) || !question?.attachments?.some((file) => file.kind === 'pdf')) return null
+  return `${provider.name} is not sent PDF files - Anthropic's API, OpenAI and OpenRouter are`
+}
+
+/** A question's files as they go: text files into its text, notes for those that do not go. */
+interface Parts {
+  texts: { name: string; text: string }[]
+  notes: string[]
+  media: Media[]
+}
+
+/** Puts one file where it goes, read from its copy (null when that is gone). */
+function place(file: ChatAttachment, data: Buffer | null, parts: Parts): void {
+  if (data === null) {
+    parts.notes.push(unsentNote(file, 'its copy is missing'))
+  } else if (file.kind === 'text') {
+    parts.texts.push({ name: file.name, text: readText(data) ?? data.toString('utf8') })
+  } else if (file.kind === 'image') {
+    const mime = file.mime === 'image/png' ? 'image/png' : 'image/jpeg'
+    parts.media.push({ kind: 'image', mime, data: data.toString('base64') })
+  } else {
+    parts.media.push({ kind: 'pdf', name: file.name, data: data.toString('base64') })
+  }
+}
+
+/** The conversation with a question added: named, dated, and marked where what is sent begins. */
+function chatAfter(
+  stored: Chat,
+  messages: ChatMessage[],
+  outgoing: Pick<Outgoing, 'from' | 'summary'>,
+  now: number,
+): Chat {
+  const { context: previous, ...rest } = stored
+  const first = messages[0]
+  return {
+    ...rest,
+    // Named after the first question - also when that question is the one being rewritten, and
+    // after its first file when it is only files.
+    title:
+      stored.title === '' || messages.length === 1
+        ? chatTitle(first?.text || (first?.attachments?.[0]?.name ?? ''))
+        : stored.title,
+    updatedAt: now,
+    messages,
+    // What this question sends is what the pane shows as sent: a conversation that fits
+    // again (rewritten shorter, or asked of a model with more room) loses its line.
+    ...(outgoing.from === undefined
+      ? {}
+      : {
+          context: {
+            from: outgoing.from,
+            at: previous?.from === outgoing.from ? previous.at : now,
+            ...(outgoing.summary === undefined ? {} : { summary: outgoing.summary }),
+          },
+        }),
+  }
+}
+
+/**
+ * The messages as they weigh with this provider: a PDF it is not sent goes as a line naming it
+ * (`wireOne`), so it costs neither its pages' tokens nor its bytes.
+ */
+function asSent(messages: ChatMessage[], provider: AiProvider): ChatMessage[] {
+  if (takesPdf(provider)) return messages
+  return messages.map((m) =>
+    m.attachments === undefined
+      ? m
+      : { ...m, attachments: m.attachments.filter((file) => file.kind !== 'pdf') },
+  )
+}
+
+/** The files every message still names, by their content's hash. */
+const filesNamed = (messages: readonly ChatMessage[]): Set<string> =>
+  new Set(messages.flatMap((m) => (m.attachments ?? []).map((file) => file.sha256)))
+
+/** A message's text with its files named ahead of it. */
+function withFilesNamed(message: Pick<ChatMessage, 'text' | 'attachments'>): string {
+  const named = namedFiles(message.attachments)
+  return named === '' ? message.text : `${named}\n${message.text}`
 }
 
 export class AiChatService {
@@ -159,6 +269,7 @@ export class AiChatService {
       running.abort.abort()
     }
     if (!this.deps.store.remove(chatId)) return false
+    this.deps.files.removeChat(chatId)
     this.failed.delete(chatId)
     this.deps.publish({ type: 'snapshot', chatId, chat: null, run: null })
     this.deps.listChanged(this.list())
@@ -187,39 +298,47 @@ export class AiChatService {
     const target = this.targetFor(request.provider)
     if (typeof target === 'string') return { ok: false, error: target }
 
-    const messages = this.nextMessages(stored.messages, request)
+    // A question's files come from its draft; a regenerated answer's question already has its own.
+    const pending = this.pendingFor(request)
+    if (typeof pending === 'string') return { ok: false, error: pending }
+    const messages = this.nextMessages(stored.messages, request, pending)
     if (typeof messages === 'string') return { ok: false, error: messages }
+    const refused = request.text === undefined ? null : pdfRefusal(target.provider, messages.at(-1))
+    if (refused !== null) return { ok: false, error: refused }
 
     const outgoing = this.outgoingFor(chatId, messages, stored.context, target, request.model)
-    const now = this.deps.now()
-    const { context: previous, ...rest } = stored
-    const chat: Chat = {
-      ...rest,
-      // Named after the first question - also when that question is the one being rewritten.
-      title:
-        stored.title === '' || messages.length === 1
-          ? chatTitle(messages[0]?.text ?? '')
-          : stored.title,
-      updatedAt: now,
-      messages,
-      // What this question sends is what the pane shows as sent: a conversation that fits
-      // again (rewritten shorter, or asked of a model with more room) loses its line.
-      ...(outgoing.from === undefined
-        ? {}
-        : {
-            context: {
-              from: outgoing.from,
-              at: previous?.from === outgoing.from ? previous.at : now,
-              ...(outgoing.summary === undefined ? {} : { summary: outgoing.summary }),
-            },
-          }),
-    }
-    // The question is kept before the answer is asked for: a crash loses the answer, not the question.
-    if (!this.deps.store.save(chat))
-      return { ok: false, error: 'the conversation could not be saved' }
+    const chat = chatAfter(stored, messages, outgoing, this.deps.now())
+    const kept = this.keep(chat, request, pending)
+    if (kept !== null) return { ok: false, error: kept }
     this.deps.listChanged(this.list())
     this.start(chat, target, request.model, outgoing)
     return { ok: true }
+  }
+
+  /**
+   * The draft's files the page says the question carries: all of them, or the question does not
+   * go - main may have let a draft go (`ChatFiles`), and a question must not lose a file unsaid.
+   */
+  private pendingFor(request: ChatRequest): PendingFile[] | string {
+    if (request.draft === undefined || request.text === undefined) return []
+    const wanted = new Set(request.files ?? [])
+    const found = this.deps.files.take(request.draft).filter((file) => wanted.has(file.meta.id))
+    return found.length === wanted.size ? found : 'a file waiting here was let go - attach it again'
+  }
+
+  /**
+   * The question is kept before the answer is asked for: a crash loses the answer, not the
+   * question - and its files are kept before it, so it never names one that is not there.
+   */
+  private keep(chat: Chat, request: ChatRequest, pending: readonly PendingFile[]): string | null {
+    if (!this.deps.files.commit(chat.id, pending)) return 'the files could not be kept'
+    if (!this.deps.store.save(chat)) return 'the conversation could not be saved'
+    if (request.draft !== undefined && pending.length > 0) this.deps.files.forget(request.draft)
+    // A question rewritten may have left files that no message names any more.
+    if (request.replaceFrom !== undefined) {
+      this.deps.files.prune(chat.id, filesNamed(chat.messages))
+    }
+    return null
   }
 
   /** Ends the answer being written, keeping what there is of it. */
@@ -255,11 +374,16 @@ export class AiChatService {
   private nextMessages(
     current: readonly ChatMessage[],
     request: ChatRequest,
+    pending: readonly PendingFile[],
   ): ChatMessage[] | string {
     let messages = [...current]
+    let kept: ChatAttachment[] = []
     if (request.replaceFrom !== undefined) {
       const at = messages.findIndex((m) => m.id === request.replaceFrom)
       if (at === -1) return 'that message is no longer in the conversation'
+      // A rewritten question keeps the files the user left on it; they are already kept on disk.
+      const keep = new Set(request.keep ?? [])
+      kept = (messages[at]?.attachments ?? []).filter((file) => keep.has(file.id))
       messages = messages.slice(0, at)
     }
     if (request.text === undefined) {
@@ -271,10 +395,14 @@ export class AiChatService {
     if (messages.length + 2 > AI_LIMITS.messages) {
       return 'this conversation is full - start a new one'
     }
+    const files = questionFiles(kept, pending)
+    if (typeof files === 'string') return files
+    if (request.text.trim() === '' && files.length === 0) return 'there is nothing to send'
     messages.push({
       id: this.deps.newId(),
       role: 'user',
       text: request.text,
+      ...(files.length === 0 ? {} : { attachments: files }),
       at: this.deps.now(),
     })
     return messages
@@ -290,8 +418,9 @@ export class AiChatService {
   ): Outgoing {
     const typed = this.deps.systemPrompt()
     const compacts = this.deps.compact()
-    // An answer that failed outright said nothing: it is not part of the history.
-    const messages = all.filter((m) => m.text !== '')
+    // An answer that failed outright said nothing: it is not part of the history. A question that
+    // is only files said something.
+    const messages = all.filter((m) => m.text !== '' || (m.attachments?.length ?? 0) > 0)
     const measures = `${target.provider.id}\n${model}`
     const window = contextWindow(target.provider)
     const ratio = this.ratios.get(measures) ?? 1
@@ -301,11 +430,12 @@ export class AiChatService {
     // never by more than the room, which is well within what a cut leaves free).
     const kept = context?.summary
     const ahead = kept !== undefined ? estimateTokens(kept.text) : compacts ? room : 0
-    const cut = chatWindow(messages, {
+    const cut = chatWindow(asSent(messages, target.provider), {
       window,
       system: estimateTokens(typed) + ahead,
       ratio,
       from: context?.from,
+      media: ATTACH_LIMITS.sent,
     })
     const from = cut.from === 0 ? undefined : messages[cut.from]?.id
     // A summary speaks for what is before `before`: it holds while that is still behind the cut
@@ -317,13 +447,20 @@ export class AiChatService {
     return {
       typed,
       system: summary === undefined ? typed : withSummary(typed, summary.text),
-      messages: messages.slice(cut.from).map((m) => ({ role: m.role, text: m.text })),
+      messages: messages.slice(cut.from).map((m) => ({
+        role: m.role,
+        text: m.text,
+        ...(m.attachments === undefined ? {} : { attachments: m.attachments }),
+      })),
       from,
       summary,
       transcript: asks
         ? compactTranscript(
             summary?.text,
-            messages.slice(summary === undefined ? 0 : covered, cut.from),
+            // A summary is told what was attached, never shown it.
+            messages
+              .slice(summary === undefined ? 0 : covered, cut.from)
+              .map((m) => ({ role: m.role, text: withFilesNamed(m) })),
             (window * AI_CONTEXT.low) / ratio - estimateTokens(compactPrompt(room)),
           )
         : undefined,
@@ -438,13 +575,15 @@ export class AiChatService {
       const adapter = await this.deps.adapter(target.provider.kind)
       await this.compact(running, target, model, adapter)
       if (running.finished) return
+      const messages = await this.wire(running.chat.id, running.outgoing.messages, target.provider)
+      if (running.finished) return
       const result = await adapter.stream(
         {
           baseUrl: target.baseUrl,
           key: target.key,
           model,
           system: running.outgoing.system,
-          messages: running.outgoing.messages,
+          messages,
           signal: running.abort.signal,
         },
         {
@@ -458,6 +597,42 @@ export class AiChatService {
         stop: isUnreachable(error) ? 'unreachable' : 'error',
         note: describeFailure(error, target.baseUrl),
       })
+    }
+  }
+
+  /**
+   * The messages as the adapter sends them: each question's files read from where they are kept
+   * and put in - a text file into the text, an image or a document as a part of its own. A file
+   * that cannot go is named in its place, so the model knows there was one.
+   */
+  private wire(
+    chatId: string,
+    messages: Outgoing['messages'],
+    provider: AiProvider,
+  ): Promise<WireMessage[]> {
+    return Promise.all(messages.map((message) => this.wireOne(chatId, message, provider)))
+  }
+
+  private async wireOne(
+    chatId: string,
+    message: Outgoing['messages'][number],
+    provider: AiProvider,
+  ): Promise<WireMessage> {
+    const files = message.attachments ?? []
+    if (files.length === 0) return { role: message.role, text: message.text }
+    const parts: Parts = { texts: [], notes: [], media: [] }
+    for (const file of files) {
+      // Asked earlier of a provider that reads PDFs; this one is not sent them.
+      if (file.kind === 'pdf' && !takesPdf(provider)) {
+        parts.notes.push(unsentNote(file, `${provider.name} is not sent PDF files`))
+        continue
+      }
+      place(file, await this.deps.files.read(chatId, file.sha256), parts)
+    }
+    return {
+      role: message.role,
+      text: composeText(message.text, parts.texts, parts.notes),
+      ...(parts.media.length === 0 ? {} : { media: parts.media }),
     }
   }
 

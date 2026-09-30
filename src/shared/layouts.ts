@@ -112,9 +112,11 @@ export const summarize = (
  * again after a reload. Kept in a saved layout it is worse than useless: the
  * session is gone by the time the layout is applied, it changes every time a
  * shell is created - which would rewrite the file for nothing - and it is the
- * one thing in a layout that cannot mean anything on another machine.
+ * one thing in a layout that cannot mean anything on another machine. A chat
+ * pane's files waiting to be sent are the same: main holds them under the draft
+ * id in memory, for this run only.
  */
-const VOLATILE_PANE_STATE: readonly string[] = ['sessionId']
+const VOLATILE_PANE_STATE: readonly string[] = ['sessionId', 'filesDraft']
 
 /**
  * A tree fit to be saved and carried to another machine: the arrangement, with

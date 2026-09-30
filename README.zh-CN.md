@@ -132,6 +132,8 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 - **AI 聊天** — 与你自己运行的语言模型对话（Ollama、LM Studio、llama.cpp——任何支持 OpenAI
   chat API 的服务），或与你持有 API 密钥的服务对话（Anthropic、OpenAI、Gemini、OpenRouter）。
   回答以流式到达，推理过程默认折叠；密钥由操作系统加密，永远不会传到页面；对话保存在你的电脑上。
+  *(unreleased)* 提问时可以附上文本文件、图片和 PDF：用 **+** 选择、拖放到窗格上，或粘贴图片。图片在发送前
+  会被缩小并重新绘制，所以相机写入文件的信息（例如拍摄地点）不会被发送出去。
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-elec.jpg" alt="Tron 主题，ELEC system 窗格占满中间一栏：三块大小相同的面板呈三角形围绕一个六边形核心，LOGOS 和 PATHOS 以绿色亮起并显示 APPROVE，投了 REJECT 而被多数否决的 ETHOS 以暗红色退后，决议条显示 APPROVED 2-1-0-0，下方是三份陈述">
@@ -481,7 +483,15 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   提供的情况下：Claude 的摘要式思考、`reasoning_content` 或内联的 `<think>`）折叠在
   **reasoning** 下。回答生成过程中，其标题会计数秒数和字符数；完成后显示读入和写出的 token 数
   以及每秒 token 数（在提供方报告这些数据的情况下）。悬停在消息上可以 **copy** 复制、**edit**
-  编辑之前的提问（会替换它及其后的内容），或 **again** 重新提问。没有正常结束的回答会注明结束
+  编辑之前的提问（会替换它及其后的内容），或 **again** 重新提问。*(unreleased)*
+  **提问可以附带文件**：按输入行开头的 **+**、把文件拖放到窗格上，或粘贴图片（带文本的粘贴仍作为文本）。文件以芯片的
+  形式排在输入行上方（**PAYLOAD**，显示数量、大小和估算的 token 数），鼠标停在芯片上时，卡片会说明其余信息：完整的
+  文件名、精确的大小、图片的像素以及缩小前的尺寸。每个提问最多 5 个文件、共 15 MB：文本文件最多 256 KB，完整地放在
+  提问中发送（更长的会被拒绝，而不是截断）；图片在页面中被重新绘制为长边不超过 1568 像素并重新编码，相机的 EXIF
+  不会保留；PDF 最多 10 MB、100 页，只发送给 Anthropic 的 API、OpenAI 和 OpenRouter（其他提供方会显示
+  `NO DOCUMENT`）。不会从路径读取任何东西：页面读取你选择的内容，由 main 根据字节判断文件类型。提问可以只有文件。
+  发送后，文件保存在对话旁边（`chats/<id>.files/`），随对话一起删除；编辑提问时，留下的文件会被沿用。不接受图片的
+  模型会用它自己的话说明。没有正常结束的回答会注明结束
   方式——`STOPPED`、`TRUNCATED`、`DECLINED`、`LINK ERROR`，或在该地址无人应答时显示
   `NO CARRIER`——并在旁边附上提供方自己的原话。**+ new** 开始新对话，**log** 列出已有对话，
   最新的在前；指向某个对话可以将它导出为 markdown 或删除。重新打开的对话会继续使用当初回答它
@@ -861,7 +871,7 @@ docs/           architecture.md (the design and the decision log, in Japanese), 
 | 地震（全球） | [USGS](https://earthquake.usgs.gov/) 实时数据源 `summary/4.5_day.geojson` | 公有领域。只在地震窗格或警报使用全球数据源时获取：每分钟一次（按其 `max-age=60`），使用条件请求。 |
 | 海啸（全球） | [NOAA 海啸预警中心](https://www.tsunami.gov/)：太平洋（`PHEBAtom.xml`）和国家（`PAAQAtom.xml`）的 Atom 源 | 公有领域。每个源包含该中心的最新公报；计入警报、观察、注意报和威胁信息，信息声明不计入。与 USGS 数据源一起检查，使用条件请求。警报中会提示遵循当地政府的指示。 |
 | RSS 订阅源 | 你在 RSS 窗格中列出的订阅源 URL | 由应用获取，从不由页面获取，且只在有窗格列出它们时获取：每 15 分钟一次（或按订阅源的要求，至少每小时一次），使用条件请求（If-None-Match / If-Modified-Since），同时最多两个，每个最大 2 MB，不带 cookie，User-Agent 为 `elecdex/<version>`。标题以纯文本显示；每个订阅源最后的标题保存在应用数据文件夹的 `feeds-cache.json` 中。不会向任何其他网站发送任何东西。 |
-| AI 聊天 | 你在 *Settings -> AI* 中列出的提供方：你电脑或局域网中的服务器，或托管 API（Anthropic 通过其[官方 SDK](https://github.com/anthropics/anthropic-sdk-typescript)；其余通过 OpenAI 兼容的 `chat/completions`） | 由应用请求，从不由页面请求，且只在你发送消息、按 **test** 或打开窗格的模型列表时请求——放在布局中的聊天窗格不会调用任何服务。发送的内容是到目前为止的对话、你的系统提示词和模型名称，只发往你选择的地址，不发往别处；各提供方自己的条款和数据保留政策适用。不带 cookie，不跟随重定向。API 密钥由操作系统（DPAPI、Keychain、桌面环境的密钥环）加密后存入 `ai-keys.json`，与 `settings.json` 分开，且不会再显示出来；系统无法加密时，密钥只保存在内存中，直到 elecdex 退出。对于你的电脑和局域网之外的明文 http 地址，会拒绝使用密钥。没有自己的密钥时，Anthropic SDK 会在它惯常的位置查找（`ANTHROPIC_API_KEY`、`ant auth login` 配置）。在 Anthropic 自己的端点上，请求 `claude-opus-5` 和 `claude-fable-5-1` 时会启用服务端回退（`fallbacks: "default"`），这样被其安全分类器拒绝的请求会在同一次调用中改由另一个 Claude 模型重新运行；回答会注明写出它的模型。对话以文件形式保存在应用数据文件夹的 `chats/` 中。 |
+| AI 聊天 | 你在 *Settings -> AI* 中列出的提供方：你电脑或局域网中的服务器，或托管 API（Anthropic 通过其[官方 SDK](https://github.com/anthropics/anthropic-sdk-typescript)；其余通过 OpenAI 兼容的 `chat/completions`） | 由应用请求，从不由页面请求，且只在你发送消息、按 **test** 或打开窗格的模型列表时请求——放在布局中的聊天窗格不会调用任何服务。发送的内容是到目前为止的对话（包括你附上的文件）、你的系统提示词和模型名称，只发往你选择的地址，不发往别处；各提供方自己的条款和数据保留政策适用。不带 cookie，不跟随重定向。API 密钥由操作系统（DPAPI、Keychain、桌面环境的密钥环）加密后存入 `ai-keys.json`，与 `settings.json` 分开，且不会再显示出来；系统无法加密时，密钥只保存在内存中，直到 elecdex 退出。对于你的电脑和局域网之外的明文 http 地址，会拒绝使用密钥。没有自己的密钥时，Anthropic SDK 会在它惯常的位置查找（`ANTHROPIC_API_KEY`、`ant auth login` 配置）。在 Anthropic 自己的端点上，请求 `claude-opus-5` 和 `claude-fable-5-1` 时会启用服务端回退（`fallbacks: "default"`），这样被其安全分类器拒绝的请求会在同一次调用中改由另一个 Claude 模型重新运行；回答会注明写出它的模型。对话以文件形式保存在应用数据文件夹的 `chats/` 中。 |
 | ELEC system | 同样的提供方，按每个席位的指定 | 与 AI 聊天相同，且只在你提交议案（或打开模型列表）时请求：向每个单元发送它的立场、投票说明和议案——第二轮还会发送其他单元的第一轮陈述。每轮三个请求，共一轮或两轮。评议以文件形式保存在应用数据文件夹的 `elec/` 中。 |
 | 网页窗格 | 你在 Browser、YouTube 或 X 窗格中打开的网站 | 由应用的沙箱化浏览器视图像普通浏览器一样加载，且只在这类窗格存在时加载；elecdex 本身不向它们发送任何东西。Cookie 和网站数据保存在应用数据文件夹中（`Partitions/web`），直到执行 *sign out of all sites*。YouTube 和 X 依据其各自的条款使用。 |
 | 轨道根数 | [CelesTrak](https://celestrak.org/) GP 数据（来自第 18 和第 19 太空防御中队，经由 [Space-Track.org](https://www.space-track.org/)）：`GROUP=stations` 为 OMM JSON，`GROUP=starlink` 为 TLE | 位置在你的电脑上计算；只下载轨道根数。遵循 CelesTrak 的[使用政策](https://celestrak.org/usage-policy.php)：只在 ORBIT 窗格显示该组时获取，空间站最多每天两次，Starlink 最多每天一次（CelesTrak 每两小时更新一次），保存在磁盘上并跨重启保留，使用可识别的 User-Agent，收到非 200 的任何响应后一天内不再请求。在窗格中署名。 |

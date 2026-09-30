@@ -1,6 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingHttpHeaders, type Server, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Locator, type Page, test } from '@playwright/test'
 import { launch } from './support'
@@ -727,5 +728,151 @@ test('a key is refused for an address it would cross the internet to in the clea
     await expect(pane(page).getByTestId('aichat-input')).toHaveValue('hello')
   } finally {
     await close()
+  }
+})
+
+/** A part of a message's content, as a dialect that takes files sends it. */
+type Part = Record<string, unknown> & { type: string }
+
+/** An image part's data URL. */
+const imageUrl = (part: Part | undefined): string =>
+  (part?.image_url as { url?: string } | undefined)?.url ?? ''
+
+const lastContent = (entry: Seen | undefined): Part[] => {
+  const messages = entry?.body?.messages ?? []
+  return messages.at(-1)?.content as unknown as Part[]
+}
+
+/**
+ * A photograph with what a camera writes into one: an EXIF segment naming where it was taken,
+ * put in right after the JPEG's first marker.
+ */
+function photoWithPlace(): Buffer {
+  const photo = readFileSync(path.join('docs', 'screenshots', 'elecdex-ai.jpg'))
+  const exif = Buffer.from('Exif\0\0GPS-SECRET 35.6812N 139.7671E', 'latin1')
+  const segment = Buffer.alloc(4)
+  segment.writeUInt16BE(0xffe1, 0)
+  segment.writeUInt16BE(exif.length + 2, 2)
+  return Buffer.concat([photo.subarray(0, 2), segment, exif, photo.subarray(2)])
+}
+
+test('files go with a question: picked, dropped and pasted, as bytes, made small, and never by path', async () => {
+  const folder = mkdtempSync(path.join(tmpdir(), 'secret-folder-e2e-'))
+  const notes = path.join(folder, 'notes.md')
+  const photo = path.join(folder, 'photo.jpg')
+  writeFileSync(notes, '# Plan\n- ship it')
+  writeFileSync(photo, photoWithPlace())
+  const launched = await launch(undefined, { layout: single(), settings: withProviders() })
+  const { page, userData } = launched
+  try {
+    const chips = pane(page).getByTestId('aichat-payload').getByTestId('aichat-chip')
+    await pane(page).getByTestId('aichat-attach-input').setInputFiles([notes, photo])
+    await expect(chips).toHaveCount(2)
+
+    // Dropped on the pane, and a picture pasted into the line: the same way in.
+    await pane(page)
+      .getByTestId('aichat')
+      .evaluate((node) => {
+        const files = new DataTransfer()
+        files.items.add(new File(['dropped text'], 'dropped.txt', { type: 'text/plain' }))
+        node.dispatchEvent(new DragEvent('dragenter', { bubbles: true, dataTransfer: files }))
+        node.dispatchEvent(
+          new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: files }),
+        )
+      })
+    await expect(chips).toHaveCount(3)
+    await expect(pane(page).getByTestId('aichat-drop')).toHaveCount(0)
+    await pane(page)
+      .getByTestId('aichat-input')
+      .evaluate(async (input) => {
+        const canvas = new OffscreenCanvas(40, 30)
+        const context = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D
+        context.fillStyle = '#0f0'
+        context.fillRect(0, 0, 40, 30)
+        const blob = await canvas.convertToBlob({ type: 'image/png' })
+        const data = new DataTransfer()
+        data.items.add(new File([blob], 'image.png', { type: 'image/png' }))
+        input.dispatchEvent(
+          new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data }),
+        )
+      })
+    await expect(chips).toHaveCount(4)
+    await expect(chips.nth(3)).toContainText(/pasted-\d{8}-\d{6}\.png/)
+    await expect(pane(page).getByTestId('aichat-payload-total')).toContainText(/^4 files · /)
+
+    // The page knows each file by its name alone.
+    expect(await page.content()).not.toContain('secret-folder-e2e')
+
+    await say(page, 'What are these?')
+    const answer = pane(page).locator('[data-testid=aichat-message][data-role=assistant]')
+    await expect(answer).toContainText('That is all.')
+    await expect(pane(page).getByTestId('aichat-payload')).toHaveCount(0)
+    const question = pane(page).locator('[data-testid=aichat-message][data-role=user]')
+    await expect(question.getByTestId('aichat-chip')).toHaveCount(4)
+    await expect(question.locator('img')).toHaveCount(2)
+
+    const content = lastContent(seen.find((entry) => entry.path === '/v1/chat/completions'))
+    expect(content.map((part) => part.type)).toEqual(['image_url', 'image_url', 'text'])
+    const url = imageUrl(content[0])
+    expect(url).toMatch(/^data:image\/jpeg;base64,/)
+    const sent = Buffer.from(url.split(',')[1] ?? '', 'base64')
+    // Drawn again in the page: smaller than the 1920 pixels it came at, and with nothing of the
+    // camera's in it.
+    expect(sent.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]))
+    expect(sent.includes(Buffer.from('GPS-SECRET'))).toBe(false)
+    expect(sent.length).toBeLessThan(photoWithPlace().length)
+    expect(imageUrl(content[1])).toMatch(/^data:image\/png;base64,/)
+    expect(content[2]?.text).toBe(
+      '<file name="notes.md">\n# Plan\n- ship it\n</file>\n\n<file name="dropped.txt">\ndropped text\n</file>\n\nWhat are these?',
+    )
+
+    // Kept beside the conversation, named by their content; no path anywhere on disk either.
+    const chats = path.join(userData, 'chats')
+    const record = readdirSync(chats).find((name) => name.endsWith('.json')) as string
+    expect(readFileSync(path.join(chats, record), 'utf8')).not.toContain('secret-folder-e2e')
+    const kept = readdirSync(path.join(chats, record.replace(/\.json$/, '.files')))
+    expect(kept.filter((name) => !name.endsWith('.thumb'))).toHaveLength(4)
+    expect(kept.filter((name) => name.endsWith('.thumb'))).toHaveLength(2)
+  } finally {
+    await launched.close()
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+test('a PDF goes only to a provider that reads one, as a document', async () => {
+  const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-pdf-'))
+  const paper = path.join(folder, 'paper.pdf')
+  writeFileSync(paper, '%PDF-1.4\n<< /Type /Pages /Count 1 >>\n<< /Type /Page >>\n')
+  const { page, close } = await launch(undefined, { layout: single(), settings: withProviders() })
+  try {
+    await pane(page).getByTestId('aichat-attach-input').setInputFiles(paper)
+    const chip = pane(page).getByTestId('aichat-payload').getByTestId('aichat-chip')
+    await expect(chip).toHaveClass(/unsent/)
+    await expect(pane(page).getByTestId('aichat-blocked')).toContainText(
+      /no document.*Local is not sent PDF files/i,
+    )
+    await expect(pane(page).getByTestId('aichat-send')).toBeDisabled()
+
+    await page.evaluate(() => window.elecdex.ai.setKey('claude', 'sk-ant-e2e'))
+    await pane(page).getByTestId('aichat-provider').selectOption('claude')
+    await expect(chip).not.toHaveClass(/unsent/)
+    await say(page, 'Sum it up')
+    await expect(
+      pane(page).locator('[data-testid=aichat-message][data-role=assistant]'),
+    ).toContainText('Bonjour.')
+    const content = lastContent(seen.find((entry) => entry.path === '/claude/v1/messages'))
+    expect(content[0]).toEqual({
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: 'application/pdf',
+        data: readFileSync(paper).toString('base64'),
+      },
+      title: 'paper.pdf',
+    })
+    expect(content[1]).toEqual({ type: 'text', text: 'Sum it up' })
+  } finally {
+    await close()
+    rmSync(folder, { recursive: true, force: true })
   }
 })

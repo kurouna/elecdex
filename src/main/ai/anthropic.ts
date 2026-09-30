@@ -3,6 +3,7 @@ import { AI_LIMITS, type AiModel } from '@shared/ai'
 import {
   type AdapterTarget,
   type FetchLike,
+  type Media,
   type ProviderAdapter,
   ProviderError,
   type StreamRequest,
@@ -10,6 +11,7 @@ import {
   type StreamSink,
   statusFailure,
   UnreachableError,
+  type WireMessage,
 } from './adapter.js'
 
 /**
@@ -19,6 +21,9 @@ import {
  * name: whether it takes adaptive thinking, and how long an answer it may write.
  * A proxy that does not serve that endpoint still works - the request then
  * carries neither, which every model accepts.
+ *
+ * A question's images and documents go as base64 blocks ahead of its text, as the API's
+ * guidance puts them; never the Files API, which would leave copies with the service to manage.
  *
  * Only text is sent back as history. Thinking blocks are shown and kept, never
  * replayed: with no tools in play the API does not need them, and leaving them
@@ -72,8 +77,26 @@ const paramsFor = (request: StreamRequest, model: ModelFacts) => ({
   ...(model.adaptiveThinking
     ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } }
     : {}),
-  messages: request.messages.map((m) => ({ role: m.role, content: m.text })),
+  messages: request.messages.map((m) => ({ role: m.role, content: contentOf(m) })),
 })
+
+const mediaBlock = (media: Media): Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam =>
+  media.kind === 'image'
+    ? { type: 'image', source: { type: 'base64', media_type: media.mime, data: media.data } }
+    : {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: media.data },
+        title: media.name,
+      }
+
+/** A message's content: its text, or its images and documents first and then its text. */
+export const contentOf = (message: WireMessage): string | Anthropic.ContentBlockParam[] =>
+  message.media === undefined || message.media.length === 0
+    ? message.text
+    : [
+        ...message.media.map(mediaBlock),
+        ...(message.text === '' ? [] : [{ type: 'text' as const, text: message.text }]),
+      ]
 
 /** What the pane is told of a finished message. The stop reason is read before anything else. */
 function resultOf(

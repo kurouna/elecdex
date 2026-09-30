@@ -6,16 +6,26 @@ import {
   type AiModelsResult,
   type AiProviderKind,
   type AiProviderStatus,
+  ATTACH_LIMITS,
   CHAT_ID,
   type ChatEvent,
   type ChatSendResult,
   type ChatSummary,
   chatMarkdown,
   chatRequest,
+  DRAFT_ID,
+  fileSize,
 } from '@shared/ai'
+import {
+  type AttachmentView,
+  type AttachResult,
+  type AttachUpload,
+  refuse,
+} from '@shared/ai-attach'
 import { CH } from '@shared/channels'
 import { app, dialog, ipcMain, net, type WebContents } from 'electron'
 import type { FetchLike, ProviderAdapter } from '../ai/adapter.js'
+import { ChatFiles, notAFile } from '../ai/files.js'
 import { emptyKeyFile, KeyFileSchema, KeyVault } from '../ai/keys.js'
 import { AiChatService } from '../ai/service.js'
 import { ChatStore } from '../ai/store.js'
@@ -39,6 +49,39 @@ import type { SettingsHandle } from './settings.js'
  * Providers are the user's own addresses, so tests list a local server and need
  * no switch to stay offline; ELECDEX_AI_KEYS_STUB keeps them out of the Keychain.
  */
+
+/** The largest file of any kind: a PDF. Anything larger is refused before it is looked at. */
+const ATTACH_MAX_BYTES = Math.max(ATTACH_LIMITS.pdf, ATTACH_LIMITS.image, ATTACH_LIMITS.text)
+
+/** Bytes as IPC brings them: an ArrayBuffer, or a view of one. */
+function asBytes(raw: unknown): ArrayBuffer | undefined {
+  if (raw instanceof ArrayBuffer) return raw
+  if (!(raw instanceof Uint8Array)) return undefined
+  return raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength) as ArrayBuffer
+}
+
+/** An image's size before the page made it small; main checks it again (`ChatFiles`). */
+function asSize(raw: unknown): { width: number; height: number } | undefined {
+  if (typeof raw !== 'object' || raw === null) return undefined
+  const { width, height } = raw as Record<string, unknown>
+  return typeof width === 'number' && typeof height === 'number' ? { width, height } : undefined
+}
+
+/** What the page handed over for one file, checked field by field. */
+function asUpload(raw: unknown): AttachUpload | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const bytes = asBytes(r.bytes)
+  if (typeof r.name !== 'string' || r.name.length > 1024 || bytes === undefined) return null
+  const thumb = asBytes(r.thumb)
+  const source = asSize(r.source)
+  return {
+    name: r.name,
+    bytes,
+    ...(thumb === undefined ? {} : { thumb }),
+    ...(source === undefined ? {} : { source }),
+  }
+}
 
 /** An answer nobody is following is stopped after this long: a moved pane is back well within it. */
 const ORPHAN_GRACE_MS = 3000
@@ -82,10 +125,17 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
     return adapter
   }
 
+  let files: ChatFiles | null = null
+  const chatFiles = (): ChatFiles => {
+    files ??= new ChatFiles(path.join(app.getPath('userData'), 'chats'), () => crypto.randomUUID())
+    return files
+  }
+
   let service: AiChatService | null = null
   const chats = (): AiChatService => {
     service ??= new AiChatService({
       store: new ChatStore(path.join(app.getPath('userData'), 'chats')),
+      files: chatFiles(),
       providers: () => settings.current().ai.providers,
       systemPrompt: () => settings.current().ai.systemPrompt,
       compact: () => settings.current().ai.compact,
@@ -232,6 +282,47 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
 
   ipcMain.handle(CH.ai.active, (): string[] => service?.active() ?? [])
 
+  const asDraft = (raw: unknown): string | null =>
+    typeof raw === 'string' && DRAFT_ID.test(raw) ? raw : null
+
+  // A file comes as bytes the page read from what the user picked, dropped or pasted; there is
+  // no channel that takes a path. Its size is checked before anything else is done with it.
+  ipcMain.handle(CH.ai.attach, (_event, rawDraft: unknown, raw: unknown): AttachResult => {
+    const draftId = asDraft(rawDraft)
+    const upload = asUpload(raw)
+    if (draftId === null || upload === null) return notAFile()
+    if (upload.bytes.byteLength > ATTACH_MAX_BYTES) {
+      return refuse('too large', `a file is attached up to ${fileSize(ATTACH_MAX_BYTES)}`)
+    }
+    return chatFiles().add(draftId, upload)
+  })
+
+  ipcMain.handle(CH.ai.pending, (_event, raw: unknown): AttachmentView[] => {
+    const draftId = asDraft(raw)
+    return draftId === null ? [] : chatFiles().pending(draftId)
+  })
+
+  ipcMain.handle(CH.ai.detach, (_event, rawDraft: unknown, rawId: unknown): AttachmentView[] => {
+    const draftId = asDraft(rawDraft)
+    if (draftId === null || typeof rawId !== 'string') return []
+    return chatFiles().remove(draftId, rawId)
+  })
+
+  ipcMain.handle(CH.ai.discard, (_event, raw: unknown): void => {
+    const draftId = asDraft(raw)
+    if (draftId !== null) chatFiles().forget(draftId)
+  })
+
+  ipcMain.handle(CH.ai.thumbs, (_event, raw: unknown): Record<string, string> => {
+    const chatId = asChat(raw)
+    const chat = chatId === null ? null : chats().get(chatId)
+    if (chatId === null || chat === null) return {}
+    return chatFiles().thumbs(
+      chatId,
+      chat.messages.flatMap((m) => m.attachments ?? []),
+    )
+  })
+
   // The ELEC system asks the same providers, with the same keys and adapters.
   const elec = registerElecIpc(settings, { keyFor: (id) => vault.get(id), adapter: adapterFor })
 
@@ -255,6 +346,11 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
         CH.ai.snapshot,
         CH.ai.send,
         CH.ai.active,
+        CH.ai.attach,
+        CH.ai.pending,
+        CH.ai.detach,
+        CH.ai.discard,
+        CH.ai.thumbs,
       ]) {
         ipcMain.removeHandler(channel)
       }

@@ -37,6 +37,63 @@ export const AI_LIMITS = {
   summary: 4000,
 } as const
 
+/**
+ * What may be attached to a question (architecture.md §5.7, shared/ai-attach.ts). Sizes are of
+ * the bytes as kept, before base64 - which sends a third more.
+ */
+export const ATTACH_LIMITS = {
+  /** Files with one question. */
+  perMessage: 5,
+  /** A text file, whole: a longer one is refused rather than cut, since the model would not know. */
+  text: 256 * 1024,
+  /** An image as the page re-encoded it, and the longest edge and area it was brought within. */
+  image: 3_750_000,
+  imageEdge: 1568,
+  imageArea: 1_150_000,
+  /** An image as picked, before the page makes it small: a phone's photo, not a poster. */
+  imageSource: 40 * 1024 * 1024,
+  pdf: 10 * 1024 * 1024,
+  pdfPages: 100,
+  /** Everything attached to one question. */
+  message: 15 * 1024 * 1024,
+  /**
+   * The images and documents one request carries, the history's included: base64 of this is
+   * well under the 32 MB Anthropic's API takes. Past it, the history is cut (`chatWindow`).
+   */
+  sent: 20 * 1024 * 1024,
+  /** The small picture the page makes of an image for its chip, and its longest edge. */
+  thumb: 16 * 1024,
+  thumbEdge: 128,
+  name: 120,
+} as const
+
+export const ATTACHMENT_KINDS = ['text', 'image', 'pdf'] as const
+export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number]
+
+/**
+ * A file attached to a question, as the conversation keeps it: what it was and what it
+ * costs. Its bytes are main's, beside the conversation (main/ai/files.ts), named by `sha256`.
+ */
+export const ChatAttachmentSchema = z.object({
+  id: z.string().min(1).max(64),
+  kind: z.enum(ATTACHMENT_KINDS),
+  /** The file's own name, never its path. */
+  name: z.string().min(1).max(ATTACH_LIMITS.name),
+  mime: z.enum(['text/plain', 'image/png', 'image/jpeg', 'application/pdf']),
+  bytes: z.number().int().nonnegative(),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  /** Estimated tokens it costs the model (`attachmentTokens`). */
+  tokens: z.number().int().nonnegative(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  /** An image made smaller to be sent: how large it was. */
+  source: z
+    .object({ width: z.number().int().positive(), height: z.number().int().positive() })
+    .optional(),
+  pages: z.number().int().positive().optional(),
+})
+export type ChatAttachment = z.infer<typeof ChatAttachmentSchema>
+
 export const AI_PROVIDER_KINDS = ['openai', 'anthropic'] as const
 export type AiProviderKind = (typeof AI_PROVIDER_KINDS)[number]
 
@@ -75,6 +132,11 @@ export interface AiPreset {
   kind: AiProviderKind
   baseUrl: string
   model: string
+  /**
+   * An OpenAI-dialect service known to read a PDF sent as a `file` part. Anthropic's dialect
+   * always does; the rest of the OpenAI dialect (local servers, Gemini's) is not sent one.
+   */
+  pdf?: true
 }
 
 /** What "add a provider" offers. Every field can be edited afterwards. */
@@ -113,6 +175,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'https://api.openai.com/v1',
     model: '',
+    pdf: true,
   },
   {
     id: 'gemini',
@@ -127,6 +190,7 @@ export const AI_PRESETS: readonly AiPreset[] = [
     kind: 'openai',
     baseUrl: 'https://openrouter.ai/api/v1',
     model: '',
+    pdf: true,
   },
   {
     id: 'custom',
@@ -188,6 +252,17 @@ export function keyMayTravel(baseUrl: string): boolean {
   } catch {
     return false
   }
+}
+
+/**
+ * Whether a provider is sent a PDF: Anthropic's dialect always, the OpenAI dialect at the
+ * address of a preset that reads one - judged by the address, so a provider added before
+ * presets said so, or added as "custom" with that address, is judged the same.
+ */
+export function takesPdf(provider: Pick<AiProvider, 'kind' | 'baseUrl'>): boolean {
+  if (provider.kind === 'anthropic') return true
+  const at = aiBaseUrl(provider.baseUrl)
+  return at !== null && AI_PRESETS.some((p) => p.pdf === true && aiBaseUrl(p.baseUrl) === at)
 }
 
 /** On this computer or network, reached in the clear: the kind of server that asks for no key. */
@@ -262,6 +337,22 @@ export function clipToTokens(text: string, max: number): string {
 /** What a message costs beyond its text: its role and the template's marks around it. */
 const MESSAGE_OVERHEAD = 4
 
+type Weighed = Pick<ChatMessage, 'text' | 'attachments'> | undefined
+
+/** A message's estimated tokens: its text, and what is attached to it. */
+function messageTokens(message: Weighed): number {
+  let tokens = estimateTokens(message?.text ?? '')
+  for (const file of message?.attachments ?? []) tokens += file.tokens
+  return tokens
+}
+
+/** The bytes of images and documents a message carries - what base64 makes a third larger. */
+function mediaBytes(message: Weighed): number {
+  let bytes = 0
+  for (const file of message?.attachments ?? []) if (file.kind !== 'text') bytes += file.bytes
+  return bytes
+}
+
 /**
  * Where the history sent to a model begins: an index into `messages`, 0 for all
  * of it. The conversation itself is never touched - this only chooses what goes.
@@ -277,7 +368,7 @@ const MESSAGE_OVERHEAD = 4
  * The last question always goes, fitting or not: the provider says so if not.
  */
 export function chatWindow(
-  messages: readonly Pick<ChatMessage, 'id' | 'role' | 'text'>[],
+  messages: readonly Pick<ChatMessage, 'id' | 'role' | 'text' | 'attachments'>[],
   options: {
     /** The window in tokens; 0 for no limit. */
     window: number
@@ -287,18 +378,27 @@ export function chatWindow(
     ratio: number
     /** The id of the message the last cut was made at. */
     from?: string | undefined
+    /** The most bytes of images and documents one request may carry (`ATTACH_LIMITS.sent`). */
+    media?: number
   },
 ): { from: number; estimate: number } {
-  // after[i]: the estimate of messages i.. on their own.
+  // after[i]: the estimate of messages i.. on their own; bytes[i], the media they carry.
   const after = new Array<number>(messages.length + 1).fill(0)
+  const bytes = new Array<number>(messages.length + 1).fill(0)
   for (let i = messages.length - 1; i >= 0; i -= 1) {
-    after[i] = (after[i + 1] ?? 0) + estimateTokens(messages[i]?.text ?? '') + MESSAGE_OVERHEAD
+    const message = messages[i]
+    after[i] = (after[i + 1] ?? 0) + messageTokens(message) + MESSAGE_OVERHEAD
+    bytes[i] = (bytes[i + 1] ?? 0) + mediaBytes(message)
   }
+  const media = options.media ?? Number.POSITIVE_INFINITY
   const at = (from: number) => ({ from, estimate: options.system + (after[from] ?? 0) })
+  // A window of 0 limits no tokens; the bytes a request can carry are limited all the same - and
+  // by the same shares, so a cut made for bytes also leaves room and holds for many turns.
   const fits = (from: number, share: number): boolean =>
-    at(from).estimate * options.ratio <= options.window * share
+    (bytes[from] ?? 0) <= media * share &&
+    (options.window <= 0 || at(from).estimate * options.ratio <= options.window * share)
 
-  if (options.window <= 0 || fits(0, AI_CONTEXT.high)) return at(0)
+  if (fits(0, AI_CONTEXT.high)) return at(0)
   const kept = options.from === undefined ? -1 : messages.findIndex((m) => m.id === options.from)
   if (kept > 0 && messages[kept]?.role === 'user' && fits(kept, AI_CONTEXT.high)) return at(kept)
 
@@ -422,6 +522,8 @@ export const ChatMessageSchema = z.object({
   id: z.string().min(1).max(64),
   role: z.enum(['user', 'assistant']),
   text: z.string().max(AI_LIMITS.text),
+  /** A question's files, as they were when it was asked. */
+  attachments: z.array(ChatAttachmentSchema).max(ATTACH_LIMITS.perMessage).optional(),
   /** The model's reasoning, where the provider shows it. Shown folded; never sent back. */
   thinking: z.string().max(AI_LIMITS.text).optional(),
   /** Epoch milliseconds. */
@@ -540,30 +642,80 @@ export function applyChatEvent(view: ChatView, event: ChatEvent): ChatView | 're
 export interface ChatRequest {
   provider: string
   model: string
-  /** The user's message. Absent to answer the conversation as it stands again (regenerate). */
+  /**
+   * The user's message. Absent to answer the conversation as it stands again (regenerate);
+   * empty when the question is only its files.
+   */
   text?: string
   /**
    * Rewrites history from this message on: it and everything after it go before
    * the new text is added (editing an earlier question).
    */
   replaceFrom?: string
+  /** The draft (`ai.attach`) the question's new files wait in, and which of them it carries. */
+  draft?: string
+  files?: string[]
+  /** Of the rewritten question's files, the ones it keeps (by id). */
+  keep?: string[]
 }
 
 export type ChatSendResult = { ok: true } | { ok: false; error: string }
+
+/** A draft's id: made by the page, a name for the files it is gathering. */
+export const DRAFT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+
+const isIdList = (raw: unknown): raw is string[] =>
+  Array.isArray(raw) &&
+  raw.length <= ATTACH_LIMITS.perMessage &&
+  raw.every((id) => typeof id === 'string' && id !== '' && id.length <= 64)
+
+/** A request's files: a draft to take them from, and the ids an edited question keeps. */
+function requestFiles(
+  r: Record<string, unknown>,
+): Pick<ChatRequest, 'draft' | 'files' | 'keep'> | null {
+  if (r.draft !== undefined && (typeof r.draft !== 'string' || !DRAFT_ID.test(r.draft))) return null
+  // A draft's files are named with it: the page says which it shows, main sends those or none.
+  if ((r.draft === undefined) !== (r.files === undefined)) return null
+  if (r.files !== undefined && !isIdList(r.files)) return null
+  if (r.keep !== undefined && !isIdList(r.keep)) return null
+  return {
+    ...(typeof r.draft === 'string' ? { draft: r.draft } : {}),
+    ...(isIdList(r.files) ? { files: [...r.files] } : {}),
+    ...(isIdList(r.keep) ? { keep: [...r.keep] } : {}),
+  }
+}
 
 export function chatRequest(raw: unknown): ChatRequest | null {
   if (typeof raw !== 'object' || raw === null) return null
   const r = raw as Record<string, unknown>
   if (typeof r.provider !== 'string' || !AI_PROVIDER_ID.test(r.provider)) return null
   if (typeof r.model !== 'string' || r.model === '' || r.model.length > 120) return null
-  if (r.text !== undefined && (typeof r.text !== 'string' || r.text.trim() === '')) return null
+  const files = requestFiles(r)
+  if (files === null) return null
+  const text = requestText(r.text, files)
+  if (text === null) return null
   if (r.replaceFrom !== undefined && typeof r.replaceFrom !== 'string') return null
   return {
     provider: r.provider,
     model: r.model,
-    ...(typeof r.text === 'string' ? { text: r.text.slice(0, AI_LIMITS.text) } : {}),
+    ...(text === undefined ? {} : { text }),
     ...(typeof r.replaceFrom === 'string' ? { replaceFrom: r.replaceFrom } : {}),
+    ...files,
   }
+}
+
+/**
+ * A request's text: absent to answer again, null when it is not one. A question may be only its
+ * files, so an empty text goes with some; main refuses one that has neither (`AiChatService`).
+ */
+function requestText(
+  raw: unknown,
+  files: Pick<ChatRequest, 'files' | 'keep'>,
+): string | undefined | null {
+  if (raw === undefined) return undefined
+  if (typeof raw !== 'string') return null
+  const carries = (files.files?.length ?? 0) > 0 || (files.keep?.length ?? 0) > 0
+  return raw.trim() === '' && !carries ? null : raw.slice(0, AI_LIMITS.text)
 }
 
 /** A pane's own choices; the conversation itself is main's. */
@@ -571,6 +723,12 @@ export interface AiChatPaneState {
   chat: string | null
   provider: string | null
   model: string | null
+  /**
+   * The draft the files waiting to be sent are gathered under (main's memory): kept here so a
+   * moved pane, which remounts, finds them again. After a restart it names nothing, and a new
+   * one is made.
+   */
+  filesDraft: string | null
 }
 
 /** Pane state comes from layout.json, which may be edited by hand: nothing in it is trusted. */
@@ -581,6 +739,7 @@ export function paneAiChat(raw: Record<string, unknown> | undefined): AiChatPane
     chat: text(raw?.chat, CHAT_ID),
     provider: text(raw?.provider, AI_PROVIDER_ID),
     model: text(raw?.model, /^.{1,120}$/),
+    filesDraft: text(raw?.filesDraft, DRAFT_ID),
   }
 }
 
@@ -674,7 +833,34 @@ export function chatMarkdown(chat: Chat): string {
   const parts = [`# ${chat.title === '' ? 'untitled' : chat.title}`]
   for (const message of chat.messages) {
     const who = message.role === 'user' ? 'You' : (message.model ?? 'Assistant')
-    parts.push(`## ${who}\n\n${message.text}`)
+    // The files are named, not carried: an export is a document to read, not an archive.
+    const files = (message.attachments ?? []).map((file) => `- ${attachmentLabel(file)}`)
+    const body = [...(files.length === 0 ? [] : [files.join('\n')]), message.text]
+    parts.push(`## ${who}\n\n${body.filter((part) => part !== '').join('\n\n')}`)
   }
   return `${parts.join('\n\n')}\n`
+}
+
+/** 1536 -> "1.5 KB": a file's size as a chip and a card say it. */
+export function fileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB']
+  let value = bytes / 1024
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`
+}
+
+/** "shot.png (image, 1280×720, 240 KB)": a file as a line of text says it. */
+export function attachmentLabel(file: ChatAttachment): string {
+  const facts: string[] = [file.kind === 'pdf' ? 'PDF' : file.kind]
+  if (file.width !== undefined && file.height !== undefined) {
+    facts.push(`${file.width}×${file.height}`)
+  }
+  if (file.pages !== undefined) facts.push(`${file.pages} ${file.pages === 1 ? 'page' : 'pages'}`)
+  facts.push(fileSize(file.bytes))
+  return `${file.name} (${facts.join(', ')})`
 }

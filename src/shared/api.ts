@@ -8,6 +8,7 @@ import type {
   ChatSendResult,
   ChatSummary,
 } from './ai.js'
+import type { AttachmentView, AttachResult, AttachUpload } from './ai-attach.js'
 import type { Alarm, AlarmPatch, AlarmRing, AlarmsFile, NewAlarm } from './alarms.js'
 import type { MixerCommand, MixerUpdate, SpectrumUpdate } from './audio.js'
 import type { BackgroundState } from './background.js'
@@ -345,6 +346,16 @@ export interface AiApi {
   stop(chatId: string): void
   /** Diagnostics: the conversations an answer is being written for. */
   active(): Promise<string[]>
+  /**
+   * Hands main a file the user picked, dropped or pasted, as bytes - never a path - to wait in a
+   * draft until its question is sent (`ChatRequest.draft`). Main judges what it is.
+   */
+  attach(draftId: string, upload: AttachUpload): Promise<AttachResult>
+  pending(draftId: string): Promise<AttachmentView[]>
+  detach(draftId: string, attachmentId: string): Promise<AttachmentView[]>
+  discard(draftId: string): Promise<void>
+  /** The small pictures of a conversation's images, by attachment id. */
+  thumbs(chatId: string): Promise<Record<string, string>>
 }
 
 /**
