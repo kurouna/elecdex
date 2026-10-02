@@ -40,7 +40,11 @@ export class BoundaryTimer {
     this.#arm()
   }
 
-  /** Runs once, on the next boundary. Already waiting for one, nothing changes. */
+  /**
+   * Runs once, on the next boundary. Already waiting for one, nothing changes - and that includes
+   * a timer that is started: a run it already has coming is not added to. A one-off beside a
+   * repeating reading is a second timer (the Docker watcher's `#settle` beside `#reconcile`).
+   */
   once(): void {
     this.#arm()
   }

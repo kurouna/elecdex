@@ -7,6 +7,9 @@ import ConfirmButton from '../../ConfirmButton.svelte'
  * A session log - the AI chat's conversations, the ELEC council's deliberations: one line each,
  * its number, what was asked, how long ago, and what can be done to it (open, export, delete).
  * Both panes draw the same list, so it is drawn here once and cannot drift apart.
+ *
+ * Mount it only while the log is open (`{#if open}`), never hide it with CSS: the time it is
+ * made is when it was opened, and "how long ago" is counted from then.
  */
 interface Props {
   entries: readonly T[]
