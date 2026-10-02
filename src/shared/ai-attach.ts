@@ -153,6 +153,40 @@ function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
   return null
 }
 
+/** A page tree node's dictionary is a few lines; anything longer is not one. */
+const PDF_DICTIONARY_MAX = 64 * 1024
+
+/**
+ * The `/Count` of the last page tree root: for each `/Type /Pages`, the dictionary around it -
+ * the nearest `<<` before and `>>` after. Main runs this on a file the page sent, so it stays
+ * linear: the two are found by pointers that only move forward, and a dictionary is read once.
+ * Looking each one up from scratch took 23 s on a crafted 1 MB file of `/Type/Pages` with no
+ * `>>`, and a PDF may be ten.
+ */
+function pageTreeRoot(text: string): number | null {
+  let root: number | null = null
+  let opened = -1
+  let nextOpen = text.indexOf('<<')
+  let closed = -1
+  let read = -1
+  for (const match of text.matchAll(/\/Type\s*\/Pages\b/g)) {
+    const at = match.index
+    while (nextOpen !== -1 && nextOpen <= at) {
+      opened = nextOpen
+      nextOpen = text.indexOf('<<', nextOpen + 1)
+    }
+    if (closed < at) closed = text.indexOf('>>', at)
+    // No `>>` from here on: no dictionary closes after any later match either.
+    if (closed === -1) break
+    if (opened === -1 || opened === read || closed - opened > PDF_DICTIONARY_MAX) continue
+    read = opened
+    const dictionary = text.slice(opened, closed)
+    const count = /\/Count\s+(\d+)/.exec(dictionary)
+    if (count !== null && !dictionary.includes('/Parent')) root = Number(count[1])
+  }
+  return root
+}
+
 /**
  * How many pages a PDF has, as far as can be told without parsing it: the page tree's root -
  * the `/Pages` dictionary with no `/Parent` - and of those the last written, since a PDF edited
@@ -162,15 +196,7 @@ function jpegSize(bytes: Uint8Array): { width: number; height: number } | null {
  */
 export function pdfPages(bytes: Uint8Array): number | null {
   const text = new TextDecoder('latin1').decode(bytes)
-  let root: number | null = null
-  for (const match of text.matchAll(/\/Type\s*\/Pages\b/g)) {
-    const start = text.lastIndexOf('<<', match.index)
-    const end = text.indexOf('>>', match.index)
-    if (start === -1 || end === -1) continue
-    const dictionary = text.slice(start, end)
-    const count = /\/Count\s+(\d+)/.exec(dictionary)
-    if (count !== null && !dictionary.includes('/Parent')) root = Number(count[1])
-  }
+  const root = pageTreeRoot(text)
   if (root !== null && root > 0) return root
   const objects = text.match(/\/Type\s*\/Page(?![a-zA-Z])/g)?.length ?? 0
   return objects > 0 ? objects : null

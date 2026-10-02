@@ -10,6 +10,7 @@ import {
   type SessionSummary,
   sessionMarkdown,
 } from '@shared/elec'
+import { exportFileName } from '@shared/validate'
 import { app, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import { ElecService } from '../ai/elec.js'
@@ -121,7 +122,7 @@ export function registerElecIpc(
         if (session === null) return null
         // The renderer has no filesystem; the path comes from the user's own dialog.
         const result = await dialog.showSaveDialog({
-          defaultPath: `${(session.title === '' ? 'motion' : session.title).replace(/[\\/:*?"<>|]/g, '_').slice(0, 60)}.md`,
+          defaultPath: exportFileName(session.title, 'motion'),
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         })
         if (result.canceled || result.filePath === '') return null

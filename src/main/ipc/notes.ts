@@ -9,6 +9,7 @@ import {
   NotesFileSchema,
   noteTitle,
 } from '@shared/notes'
+import { exportFileName } from '@shared/validate'
 import { app, dialog } from 'electron'
 import { appWindows } from '../app-windows.js'
 import { JsonStore } from '../store/json-store.js'
@@ -110,9 +111,7 @@ export function registerNotesIpc(): { dispose: () => void } {
 
         // The renderer has no filesystem; the path comes from the user's own dialog.
         const result = await dialog.showSaveDialog({
-          defaultPath: `${noteTitle(note.body)
-            .replace(/[\\/:*?"<>|]/g, '_')
-            .slice(0, 60)}.md`,
+          defaultPath: exportFileName(noteTitle(note.body), 'note'),
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         })
         if (result.canceled || result.filePath === '') return null

@@ -23,6 +23,7 @@ import {
   refuse,
 } from '@shared/ai-attach'
 import { CH } from '@shared/channels'
+import { exportFileName } from '@shared/validate'
 import { app, dialog, net, type WebContents } from 'electron'
 import type { FetchLike, ProviderAdapter } from '../ai/adapter.js'
 import { ChatFiles, notAFile } from '../ai/files.js'
@@ -237,7 +238,7 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
         if (chat === null) return null
         // The renderer has no filesystem; the path comes from the user's own dialog.
         const result = await dialog.showSaveDialog({
-          defaultPath: `${(chat.title === '' ? 'chat' : chat.title).replace(/[/:*?"<>|]/g, '_').slice(0, 60)}.md`,
+          defaultPath: exportFileName(chat.title, 'chat'),
           filters: [{ name: 'Markdown', extensions: ['md'] }],
         })
         if (result.canceled || result.filePath === '') return null

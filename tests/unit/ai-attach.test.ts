@@ -156,6 +156,17 @@ describe('what a file is', () => {
     expect(hidden).not.toHaveProperty('pages')
   })
 
+  it('reads a crafted PDF of page-tree words in one pass, never once per word', () => {
+    // Main counts the pages, so a file the page sent must not hold it: each `/Type/Pages` looked
+    // back for its `<<` and on for its `>>` across the whole file, 23 s for one megabyte.
+    const words = '/Type/Pages '.repeat(ATTACH_LIMITS.pdf / 12 - 2)
+    const started = performance.now()
+    expect(pdfPages(encode(`%PDF-1.7\n${words}`))).toBeNull()
+    expect(pdfPages(encode(`%PDF-1.7\n<<${words}>>`))).toBeNull()
+    expect(pdfPages(encode(`%PDF-1.7\n<< /Count 7 ${words.slice(0, 600)}>>`))).toBe(7)
+    expect(performance.now() - started).toBeLessThan(2000)
+  })
+
   it('takes text that decodes, without its byte order mark, and nothing binary', () => {
     expect(readText(encode('\ufeffhéllo\n\tworld'))).toBe('héllo\n\tworld')
     expect(readText(new Uint8Array([0x68, 0x00, 0x69]))).toBeNull()
