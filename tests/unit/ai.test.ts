@@ -20,6 +20,7 @@ import {
   STOP_CODES,
   ThinkSplitter,
   tokensPerSecond,
+  usageText,
 } from '@shared/ai'
 import { applySettingsPatch, defaultSettings, SettingsSchema } from '@shared/settings'
 import { describe, expect, it } from 'vitest'
@@ -288,6 +289,7 @@ describe('readouts', () => {
     expect(compactCount(1234)).toBe('1.2k')
     expect(compactCount(9999)).toBe('10.0k')
     expect(compactCount(45_678)).toBe('46k')
+    expect(usageText({ input: 42, output: 1234 })).toBe('42 › 1.2k tok')
   })
 })
 

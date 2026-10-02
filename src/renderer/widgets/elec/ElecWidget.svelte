@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ago, compactCount, FAILED_STOPS, STOP_CODES } from '@shared/ai'
+import { compactCount, FAILED_STOPS, STOP_CODES, usageText } from '@shared/ai'
 import {
   applyElecEvent,
   type Ballot,
@@ -19,7 +19,6 @@ import {
   unitLabel,
 } from '@shared/elec'
 import { untrack } from 'svelte'
-import ConfirmButton from '../../ConfirmButton.svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
@@ -31,6 +30,8 @@ import { sfx } from '../../stores/sound.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import Markdown from '../aichat/Markdown.svelte'
+import CodeLine from '../common/CodeLine.svelte'
+import SessionLog from '../common/SessionLog.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import { HOLD_MS, steppedBack } from './light.ts'
@@ -424,7 +425,7 @@ const time = (at: number): string => new Date(at).toTimeString().slice(0, 5)
 function telemetry(ballot: Ballot): string | null {
   const parts: string[] = []
   if (ballot.usage !== undefined) {
-    parts.push(`${compactCount(ballot.usage.input)} › ${compactCount(ballot.usage.output)} tok`)
+    parts.push(usageText(ballot.usage))
   }
   if (ballot.ms !== undefined && ballot.text !== '') parts.push(seconds(ballot.ms))
   return parts.length === 0 ? null : parts.join(' · ')
@@ -509,30 +510,21 @@ function telemetry(ballot: Ballot): string | null {
     {/if}
 
     {#if historyOpen}
-      <ul class="history" data-testid="elec-log">
-        {#each elec.sessions as entry, n (entry.id)}
-          <li class="fx-rise" class:current={entry.id === choice.session} style:--fx-delay={`${Math.min(n, 12) * 22}ms`}>
-            <button type="button" class="open" onclick={() => openSession(entry.id)} data-testid="elec-log-item">
-              <span class="index">{String(n + 1).padStart(2, '0')}</span>
-              <span class="name">{entry.title === '' ? 'untitled' : entry.title}</span>
-              <span class="outcome" data-outcome={entry.outcome ?? 'interrupted'}>{entry.outcome === null ? '—' : OUTCOME_WORDS[entry.outcome]}</span>
-              <span class="when" title={new Date(entry.updatedAt).toLocaleString()}>{ago(entry.updatedAt, openedAt)}</span>
-            </button>
-            <button type="button" class="cmd tool" title="save as markdown" onclick={() => void window.elecdex.elec.export(entry.id)}>
-              export
-            </button>
-            <ConfirmButton
-              label="delete"
-              action="delete"
-              title="Delete this deliberation"
-              testid="elec-log-delete"
-              onconfirm={() => void removeSession(entry.id)}
-            />
-          </li>
-        {:else}
-          <li class="none">No deliberations yet.</li>
-        {/each}
-      </ul>
+      <SessionLog
+        entries={elec.sessions}
+        current={choice.session}
+        {openedAt}
+        empty="No deliberations yet."
+        deleteTitle="Delete this deliberation"
+        testids={{ list: 'elec-log', item: 'elec-log-item', delete: 'elec-log-delete' }}
+        onopen={openSession}
+        onexport={(id) => void window.elecdex.elec.export(id)}
+        ondelete={(id) => void removeSession(id)}
+      >
+        {#snippet badge(entry)}
+          <span class="outcome" data-outcome={entry.outcome ?? 'interrupted'}>{entry.outcome === null ? '—' : OUTCOME_WORDS[entry.outcome]}</span>
+        {/snippet}
+      </SessionLog>
     {/if}
 
     <!--
@@ -659,9 +651,15 @@ function telemetry(ballot: Ballot): string | null {
                   <Markdown source={readVote(ballot.text).statement} />
                 {/if}
                 {#if ballot.stop !== undefined || !countsAsVote(ballot)}
-                  <p class="stop" class:failed={FAILED_STOPS.has(ballot.stop) || ballot.verdict === null} data-testid="elec-ballot-stop">
-                    <span class="code">{voidCode(ballot)}</span>{#if ballot.error}<span class="detail">{ballot.error}</span>{:else if ballot.verdict === null && ballot.stop === undefined}<span class="detail">no VERDICT line could be read - the vote does not count</span>{/if}
-                  </p>
+                  <CodeLine
+                    code={voidCode(ballot)}
+                    detail={ballot.error ||
+                      (ballot.verdict === null && ballot.stop === undefined
+                        ? 'no VERDICT line could be read - the vote does not count'
+                        : undefined)}
+                    warn={FAILED_STOPS.has(ballot.stop) || ballot.verdict === null}
+                    testid="elec-ballot-stop"
+                  />
                 {/if}
               {:else if busy}
                 <p class="note">queued · asked when the unit before it on the same server has voted</p>
@@ -673,9 +671,9 @@ function telemetry(ballot: Ballot): string | null {
     </div>
 
     {#if problem !== null}
-      <p class="problem" data-testid="elec-problem"><span class="code">refused</span><span class="detail">{problem}</span></p>
+      <CodeLine code="refused" detail={problem} warn testid="elec-problem" />
     {:else if blocked !== null && draft.trim() !== ''}
-      <p class="problem" data-testid="elec-blocked"><span class="code">no model</span><span class="detail">{blocked}</span></p>
+      <CodeLine code="no model" detail={blocked} warn testid="elec-blocked" />
     {/if}
 
     <form
@@ -807,81 +805,6 @@ select:focus {
   background: var(--accent);
   color: var(--app-bg);
   outline: none;
-}
-
-.history {
-  flex: 0 0 auto;
-  max-height: 40%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-y: auto;
-  border: 1px solid var(--panel-border);
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-dim) transparent;
-}
-
-.history li {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-1);
-  padding: 0.1rem var(--space-1);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-}
-
-.history li > :global(:not(.open)) {
-  opacity: 0;
-}
-
-.history li:hover > :global(:not(.open)),
-.history li:focus-within > :global(:not(.open)) {
-  opacity: 1;
-}
-
-.history li + li {
-  border-top: 1px solid var(--panel-rule);
-}
-
-.history li.current .name {
-  color: var(--accent-strong);
-}
-
-.history .none {
-  color: var(--text-muted);
-}
-
-.index,
-.when {
-  flex: none;
-  color: var(--text-muted);
-}
-
-.open {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  gap: var(--space-2);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.open:hover .name,
-.open:focus-visible .name {
-  color: var(--accent);
-}
-
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .outcome {
@@ -1325,36 +1248,6 @@ header {
 .note {
   margin: 0;
   color: var(--text-muted);
-}
-
-.stop,
-.problem {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: 0;
-  font-size: var(--step--1);
-  color: var(--text-muted);
-}
-
-.stop.failed,
-.problem {
-  color: var(--warn);
-}
-
-.code {
-  flex: none;
-  padding: 0 0.35rem;
-  border: 1px solid currentcolor;
-  font-family: var(--font-mono);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-}
-
-.detail {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .standby {

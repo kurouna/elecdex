@@ -828,6 +828,14 @@ export function compactCount(n: number): string {
   return `${Math.round(n / 1000)}k`
 }
 
+/**
+ * "42 › 180 tok": what a provider counted, tokens read and written. The chat's messages and the
+ * council's ballots both say it, so it is said one way.
+ */
+export function usageText(usage: { input: number; output: number }): string {
+  return `${compactCount(usage.input)} › ${compactCount(usage.output)} tok`
+}
+
 /** A conversation as a markdown document, for "export". */
 export function chatMarkdown(chat: Chat): string {
   const parts = [`# ${chat.title === '' ? 'untitled' : chat.title}`]

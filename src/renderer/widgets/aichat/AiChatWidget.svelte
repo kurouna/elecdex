@@ -2,7 +2,6 @@
 import {
   type AiModel,
   ATTACH_LIMITS,
-  ago,
   aiBaseUrl,
   applyChatEvent,
   type ChatAttachment,
@@ -16,9 +15,9 @@ import {
   STOP_CODES,
   takesPdf,
   tokensPerSecond,
+  usageText,
 } from '@shared/ai'
 import { tick } from 'svelte'
-import ConfirmButton from '../../ConfirmButton.svelte'
 import { CopyFlag } from '../../lib/copied.svelte.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { onBoundary } from '../../lib/frame-loop.ts'
@@ -30,6 +29,8 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
+import CodeLine from '../common/CodeLine.svelte'
+import SessionLog from '../common/SessionLog.svelte'
 import SettingsButton from '../common/SettingsButton.svelte'
 import type { WidgetProps } from '../registry.ts'
 import { ChatDraft } from './draft.svelte.ts'
@@ -599,7 +600,7 @@ $effect(() => () => copied.dispose())
 /** "42 > 180 tok - 38 t/s": what the provider counted, and how fast it wrote. */
 function telemetry(message: ChatMessage): string | null {
   if (message.usage === undefined) return null
-  const counted = `${compactCount(message.usage.input)} › ${compactCount(message.usage.output)} tok`
+  const counted = usageText(message.usage)
   const speed = tokensPerSecond(message)
   return speed === null ? counted : `${counted} · ${speed} t/s`
 }
@@ -691,34 +692,18 @@ const host = $derived.by(() => {
     </div>
 
     {#if historyOpen}
-      <ul class="history" data-testid="aichat-history">
-        {#each ai.chats.filter((chat) => chat.messages > 0) as chat, n (chat.id)}
-          <li class="fx-rise" class:current={chat.id === choice.chat} style:--fx-delay={`${Math.min(n, 12) * 22}ms`}>
-            <button type="button" class="open" onclick={() => openChat(chat.id)} data-testid="aichat-history-item">
-              <span class="index">{String(n + 1).padStart(2, '0')}</span>
-              <span class="name">{chat.title === '' ? 'untitled' : chat.title}</span>
-              <span class="when" title={new Date(chat.updatedAt).toLocaleString()}>{ago(chat.updatedAt, openedAt)} · {chat.messages}</span>
-            </button>
-            <button
-              type="button"
-              class="cmd tool"
-              title="save as markdown"
-              onclick={() => void window.elecdex.ai.export(chat.id)}
-            >
-              export
-            </button>
-            <ConfirmButton
-              label="delete"
-              action="delete"
-              title="Delete this conversation"
-              testid="aichat-history-delete"
-              onconfirm={() => void removeChat(chat.id)}
-            />
-          </li>
-        {:else}
-          <li class="none">No conversations yet.</li>
-        {/each}
-      </ul>
+      <SessionLog
+        entries={ai.chats.filter((chat) => chat.messages > 0)}
+        current={choice.chat}
+        {openedAt}
+        empty="No conversations yet."
+        deleteTitle="Delete this conversation"
+        suffix={(chat) => String(chat.messages)}
+        testids={{ list: 'aichat-history', item: 'aichat-history-item', delete: 'aichat-history-delete' }}
+        onopen={openChat}
+        onexport={(id) => void window.elecdex.ai.export(id)}
+        ondelete={(id) => void removeChat(id)}
+      />
     {/if}
 
     <div class="messages" bind:this={list} onscroll={scrolled} data-testid="aichat-messages">
@@ -792,9 +777,12 @@ const host = $derived.by(() => {
             <Markdown source={message.text} />
           {/if}
           {#if message.stop}
-            <p class="stop" class:failed={FAILED_STOPS.has(message.stop)} data-testid="aichat-stop">
-              <span class="code">{STOP_CODES[message.stop]}</span>{#if message.error}<span class="detail">{message.error}</span>{/if}
-            </p>
+            <CodeLine
+              code={STOP_CODES[message.stop]}
+              detail={message.error}
+              warn={FAILED_STOPS.has(message.stop)}
+              testid="aichat-stop"
+            />
           {/if}
         </article>
       {/each}
@@ -829,15 +817,15 @@ const host = $derived.by(() => {
     </div>
 
     {#if problem !== null}
-      <p class="problem" data-testid="aichat-problem"><span class="code">refused</span><span class="detail">{problem}</span></p>
+      <CodeLine code="refused" detail={problem} warn testid="aichat-problem" />
     {:else if files.problem !== null}
-      <p class="problem" data-testid="aichat-attach-problem"><span class="code">{files.problem.code}</span><span class="detail">{files.problem.detail}</span></p>
+      <CodeLine code={files.problem.code} detail={files.problem.detail} warn testid="aichat-attach-problem" />
     {:else if overfull !== null}
-      <p class="problem" data-testid="aichat-blocked"><span class="code">payload full</span><span class="detail">{overfull}</span></p>
+      <CodeLine code="payload full" detail={overfull} warn testid="aichat-blocked" />
     {:else if pdfBlocked}
-      <p class="problem" data-testid="aichat-blocked"><span class="code">no document</span><span class="detail">{pdfWhy} - leave the PDF out, or choose another provider</span></p>
+      <CodeLine code="no document" detail={`${pdfWhy} - leave the PDF out, or choose another provider`} warn testid="aichat-blocked" />
     {:else if blocked !== null}
-      <p class="problem" data-testid="aichat-blocked"><span class="code">no model</span><span class="detail">{blocked}</span></p>
+      <CodeLine code="no model" detail={blocked} warn testid="aichat-blocked" />
     {/if}
 
     {#if files.count > 0}
@@ -1060,89 +1048,6 @@ select:focus {
 .sweep {
   margin-right: var(--space-1);
   letter-spacing: 0.05em;
-}
-
-.history {
-  /* As tall as its entries, up to two fifths of the pane; then it scrolls. */
-  flex: 0 0 auto;
-  max-height: 40%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-y: auto;
-  border: 1px solid var(--panel-border);
-  scrollbar-width: thin;
-  scrollbar-color: var(--accent-dim) transparent;
-}
-
-/* A session log: number, what was asked, how long ago, how many messages - one line each. */
-.history li {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-1);
-  padding: 0.1rem var(--space-1);
-  font-family: var(--font-mono);
-  font-size: var(--step--1);
-}
-
-/* What can be done to an entry shows when it is pointed at, or reached by keyboard. */
-.history li > :global(:not(.open)) {
-  opacity: 0;
-}
-
-.history li:hover > :global(:not(.open)),
-.history li:focus-within > :global(:not(.open)) {
-  opacity: 1;
-}
-
-.index {
-  flex: none;
-  color: var(--text-muted);
-}
-
-.history li + li {
-  border-top: 1px solid var(--panel-rule);
-}
-
-.history li.current .name {
-  color: var(--accent-strong);
-}
-
-.history .none {
-  color: var(--text-muted);
-}
-
-.open {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  gap: var(--space-2);
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.open:hover .name,
-.open:focus-visible .name {
-  color: var(--accent);
-}
-
-.name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.when {
-  flex: none;
-  color: var(--text-muted);
-  font-size: var(--step--2);
 }
 
 .messages {
@@ -1470,37 +1375,6 @@ summary.cut::-webkit-details-marker {
   color: var(--text-muted);
 }
 
-.stop,
-.problem {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin: 0;
-  font-size: var(--step--1);
-  color: var(--text-muted);
-}
-
-.stop.failed,
-.problem {
-  color: var(--warn);
-}
-
-/* The state, as a link reports it; what the provider said follows in its own words. */
-.code {
-  flex: none;
-  padding: 0 0.35rem;
-  border: 1px solid currentcolor;
-  font-family: var(--font-mono);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-}
-
-.detail {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 /* A command line: the prompt, what is typed, and the key that sends it. */
 .composer {
   display: flex;
@@ -1580,7 +1454,6 @@ textarea {
   background: var(--accent-faint);
   outline: none;
 }
-
 
 /* Files held over the pane: the whole of it is where they may go. */
 .drop-sign {
