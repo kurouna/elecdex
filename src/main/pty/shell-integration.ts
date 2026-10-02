@@ -156,7 +156,7 @@ export function buildInjection(shellPath: string, env: Record<string, string>): 
       // multi-line script through a command line. It used to be
       // -EncodedCommand, and Windows' scan of a new process held CreateProcess
       // for 1.4 s on that - in main, synchronously, so the window drew nothing
-      // just as the boot log should have begun (architecture.md section 16).
+      // just as the boot log should have begun (decisions.md).
       // The script takes the variable out of the environment first, so nothing
       // the shell starts inherits it.
       //

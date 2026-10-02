@@ -18,7 +18,7 @@ const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as
 
 /** Runtime packages main reaches without an import: the GeoIP database, found by require.resolve. */
 const RESOLVED_AT_RUNTIME = ['@ip-location-db/geo-whois-asn-country-mmdb']
-/** Runtime packages bundled into main on purpose, so their own dependencies are not shipped (§16). */
+/** Runtime packages bundled into main on purpose, so their own dependencies are not shipped (decisions.md). */
 const BUNDLED_INTO_MAIN = ['yahoo-finance2']
 
 function files(dir: string): string[] {

@@ -28,7 +28,7 @@ export const SPECTRUM_CEILING_DB = -18
 /**
  * The frames a second the capture page sends while there is sound. Each frame redraws
  * the pane, and the cost follows the rate, not the canvas size (measured in
- * docs/architecture.md §16); at 20 the falling bars and held peaks still look smooth.
+ * docs/decisions.md); at 20 the falling bars and held peaks still look smooth.
  */
 export const SPECTRUM_FPS = 20
 

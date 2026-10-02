@@ -6,7 +6,7 @@ import type { Settings } from './settings.js'
  * to it, the system-wide show/hide shortcut and launching at sign-in.
  *
  * The decisions are pure so they can be tested without a window; main's
- * background/ folder carries them out. See docs/architecture.md section 16.
+ * background/ folder carries them out. See docs/decisions.md.
  *
  * What each platform can actually do differs enough that it is a fact rather
  * than a flag: macOS keeps an app running with no window open and has no notion

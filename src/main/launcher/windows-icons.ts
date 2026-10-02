@@ -105,7 +105,7 @@ export const POWERSHELL_SCRIPT_ENV = 'ELECDEX_PS_SCRIPT'
  * and the command line only names it: Windows scans a new process's command
  * line while CreateProcess waits, and `spawn` waits with it, in main. With the
  * icon script on the command line that was 1.3 s in which the window drew
- * nothing - in the middle of the boot log (architecture.md section 16).
+ * nothing - in the middle of the boot log (decisions.md).
  */
 export function powerShellStart(
   script: string,

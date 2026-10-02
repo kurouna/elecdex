@@ -12,7 +12,7 @@ import { ClipboardItem, clipboard } from 'electron'
  * The system clipboard, through Electron's asynchronous API (Electron 44): a
  * look reads the list of formats, then the text, and holds main for
  * microseconds - the reading itself happens off its thread (measured,
- * architecture.md §16).
+ * decisions.md).
  *
  * A copy an application marked private (a password manager's) is recognised
  * from its formats alone: its text is never read.

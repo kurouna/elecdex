@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test'
 /**
  * The page's bundle, as built into out/: minified. The page parses and compiles
  * all of it at every start, with every pane in it, so its size is start-up
- * time (architecture.md §16 has the numbers).
+ * time (decisions.md has the numbers).
  */
 
 const ASSETS = path.join(process.cwd(), 'out', 'renderer', 'assets')

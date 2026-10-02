@@ -103,7 +103,7 @@ interface WeatherProvider {
 3. MET プロバイダー（集計・キャッシュ・`Expires` 準拠）とスタブを使う e2e。
 4. 都市一覧の生成スクリプトと設定パネル（検索・緯度経度・ソース選択）、既存レイアウトの移行。
 5. NWS プロバイダー。
-6. ドキュメント（README の Data sources、architecture.md §16）。
+6. ドキュメント（README の Data sources、decisions.md）。
 
 ## 8. 決定と、設計からの変更
 

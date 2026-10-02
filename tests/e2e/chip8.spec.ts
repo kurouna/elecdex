@@ -271,7 +271,7 @@ const cpuSeconds = (app: ElectronApplication) =>
   )
 
 test('a program running costs little more than the pane standing still', async () => {
-  // The game's own 60 fps loop is the one exception to the 10 fps loop (section 16):
+  // The game's own 60 fps loop is the one exception to the 10 fps loop (decisions.md):
   // measured here so a change that makes it expensive shows. The library's attract mode
   // plays while someone is at it and rests after half a minute; resting, the library costs
   // what a still pane does.
