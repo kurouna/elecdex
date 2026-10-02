@@ -29,7 +29,16 @@ import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { beats, startCouncil } from './demo-beats.mjs'
-import { claudeFolder, GIT_ENV, git, HOME, PROJECT, SESSION } from './demo-fixtures.mjs'
+import {
+  claudeFolder,
+  GIT_ENV,
+  git,
+  HOME,
+  PROJECT,
+  projectFolder,
+  SESSION,
+  taskNotice,
+} from './demo-fixtures.mjs'
 import { MAIN, openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 import { presetTrees } from './preset-shots.mjs'
 
@@ -45,11 +54,11 @@ const ANSWER = [
   "It's **elecdex** on its *earth* layout:",
   '',
   '- **ORBIT**: the ISS and Starlink over a dotted map, with the time zones',
-  '- **Earthquakes** listed beside it, newest first',
-  '- the **weather** and a **calendar** down the side',
+  '- a **globe** of connections, and the **earthquakes** beside it, newest first',
+  '- the **weather** below them',
   '',
-  'Your note matches: the ISS card is open on the map. The next pass is shown in UTC, though -',
-  'set the observer to show it in local time.',
+  'Half of your note matches: the next pass is shown in local time (Tokyo, 18:18).',
+  'The card open on the map is STARLINK-5952, though, not the ISS - click the ISS to pin its card.',
 ].join('\n')
 
 /* ---- The remote the git pane pulls from: two commits ahead of the demo checkout ---- */
@@ -91,20 +100,9 @@ function remoteAhead() {
 /* ---- The agent's record, which the take ends two tasks in ---- */
 
 const claude = claudeFolder()
-const record = path.join(
-  claude,
-  'projects',
-  PROJECT.replace(/[^A-Za-z0-9]/g, '-'),
-  `${SESSION}.jsonl`,
-)
+const record = path.join(projectFolder(claude, PROJECT), `${SESSION}.jsonl`)
 /** A task's end, as Claude Code queues it for the session. */
-const notice = (id, status) =>
-  JSON.stringify({
-    type: 'queue-operation',
-    operation: 'enqueue',
-    timestamp: new Date().toISOString(),
-    content: `<task-notification>\n<task-id>${id}</task-id>\n<tool-use-id>${id}</tool-use-id>\n<status>${status}</status>\n</task-notification>`,
-  })
+const notice = (id, status) => taskNotice({ task: id, status })
 
 /* ---- The saved layouts: CHIP-8 with the system column, then the ai and dev presets ---- */
 
@@ -144,7 +142,7 @@ const { app, page, wait, settled, run } = await openTake({
   items,
   options,
   standIn,
-  env: { ELECDEX_CLAUDE_DIR: claude, ELECDEX_AWAKE_STUB: '1' },
+  env: { ELECDEX_CLAUDE_DIR: claude },
   settings: council.settings,
 })
 const beat = beats({ app, page, wait, settled, theme: options.theme })
@@ -269,21 +267,25 @@ async function attach() {
   if (box !== null)
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 15 })
   const picture = readFileSync(PICTURE).toString('base64')
-  await chat.getByTestId('aichat').evaluate((node, bytes) => {
+  // The drag is held in a handle between its entering and its drop, not in a page global.
+  const dragged = await chat.getByTestId('aichat').evaluateHandle((node, bytes) => {
     const data = Uint8Array.from(atob(bytes), (c) => c.charCodeAt(0))
     const files = new DataTransfer()
     files.items.add(new File([data], 'elecdex-earth.jpg', { type: 'image/jpeg' }))
-    window.__demoDrop = files
     node.dispatchEvent(new DragEvent('dragenter', { bubbles: true, dataTransfer: files }))
+    return files
   }, picture)
   await wait(1300)
-  await chat.getByTestId('aichat').evaluate((node, note) => {
-    const files = window.__demoDrop
-    files.items.add(new File([note], 'todo.md', { type: 'text/markdown' }))
-    node.dispatchEvent(
-      new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: files }),
-    )
-  }, NOTE)
+  await chat.getByTestId('aichat').evaluate(
+    (node, [files, note]) => {
+      files.items.add(new File([note], 'todo.md', { type: 'text/markdown' }))
+      node.dispatchEvent(
+        new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: files }),
+      )
+    },
+    [dragged, NOTE],
+  )
+  await dragged.dispose()
   const chips = chat.getByTestId('aichat-chip')
   await chips.nth(1).waitFor()
   await wait(800)
@@ -365,3 +367,6 @@ await run(async () => {
 // listening, and Node running with nothing to do.
 council.close()
 rmSync(claude, { recursive: true, force: true })
+// The remote lives in the demo home (a temp folder's path would show the user's name), so it is
+// taken away again, folder and all: a later take or screenshot run starts from the home as it was.
+rmSync(path.dirname(REMOTE), { recursive: true, force: true })

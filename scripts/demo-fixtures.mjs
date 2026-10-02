@@ -220,11 +220,23 @@ export const REPO_ID = '0e1ec0de0e1ec0de'
 export const SESSION = '5e551011-0000-4000-8000-00000000a9e1'
 export const OTHER = '5e551011-0000-4000-8000-00000000b7c2'
 
+/** Where Claude Code keeps a folder's records: its path with everything but letters and digits a `-`. */
+export const projectFolder = (claude, cwd) =>
+  path.join(claude, 'projects', cwd.replace(/[^A-Za-z0-9]/g, '-'))
+
+/** Claude Code's notice that a background task ended, as it queues it for the session. */
+export const taskNotice = ({ task, call = task, status = 'completed', summary, at = new Date() }) =>
+  JSON.stringify({
+    type: 'queue-operation',
+    operation: 'enqueue',
+    timestamp: at.toISOString(),
+    content: `<task-notification>\n<task-id>${task}</task-id>\n<tool-use-id>${call}</tool-use-id>\n<status>${status}</status>\n${summary === undefined ? '' : `<summary>${summary}</summary>\n`}</task-notification>`,
+  })
+
 export function claudeFolder() {
   const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-claude-'))
   const now = Date.now()
   const at = (minutesAgo) => new Date(now - minutesAgo * 60_000).toISOString()
-  const folder = (cwd) => cwd.replace(/[^A-Za-z0-9]/g, '-')
   let n = 0
   const answer = (minutesAgo, content, extra = {}) =>
     JSON.stringify({
@@ -274,7 +286,7 @@ export function claudeFolder() {
     path.join(dir, 'file-history', SESSION, '9a1f03c2b4d5e6f7@v1'),
     DEMO_FILES['src/orbit/passes.ts'],
   )
-  write(path.join(dir, 'projects', folder(PROJECT), `${SESSION}.jsonl`), [
+  write(path.join(projectFolder(dir, PROJECT), `${SESSION}.jsonl`), [
     JSON.stringify({ type: 'custom-title', customTitle: 'Say whether a pass can be seen' }),
     answer(36, [tool('t1', 'Read', { file_path: file('src\\orbit\\passes.ts') })]),
     answer(31, [tool('t3', 'Grep', { pattern: 'nextPass' })]),
@@ -316,7 +328,7 @@ export function claudeFolder() {
     }),
   ])
   // The subagent still at work, with its own record, and the one the session waited for, done.
-  const subagents = path.join(dir, 'projects', folder(PROJECT), SESSION, 'subagents')
+  const subagents = path.join(projectFolder(dir, PROJECT), SESSION, 'subagents')
   write(path.join(subagents, 'agent-a1d2.meta.json'), [
     JSON.stringify({ agentType: 'Explore', toolUseId: 't2', requestShape: 'foreground' }),
   ])
@@ -335,7 +347,7 @@ export function claudeFolder() {
     ]),
   ])
 
-  write(path.join(dir, 'projects', folder(WEATHER), `${OTHER}.jsonl`), [
+  write(path.join(projectFolder(dir, WEATHER), `${OTHER}.jsonl`), [
     answer(70, [tool('w1', 'Read', { file_path: `${WEATHER}\\src\\settings.ts` })], {
       context: 42_300,
     }),

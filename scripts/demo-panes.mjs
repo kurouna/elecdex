@@ -63,7 +63,6 @@ const { app, page, wait, settled, run } = await openTake({
   items: [{ id: 'new-panes', name: 'new panes', tree }],
   options,
   standIn,
-  env: { ELECDEX_AWAKE_STUB: '1' },
 })
 
 /** A change the engine would announce: a container's state, as `docker` elsewhere made it. */

@@ -1,5 +1,5 @@
 /**
- * What the layout demos share (demo-presets.mjs, demo-shorts.mjs): the options, the README
+ * What every recorded take shares (the demo-*.mjs scripts): the options, the README
  * screenshots' made-up data, a profile holding the layouts a take steps through, and the
  * window, sized and placed for the recorder.
  *
@@ -149,7 +149,8 @@ export async function openTake({
       USERPROFILE: HOME,
       HOMEPATH: '\\Users\\Public\\Documents\\elecdex-demo',
       HOME,
-      ELECDEX_CLAUDE_DIR: claudeFolder(),
+      // A take that brings its own Claude folder makes none here to leave behind.
+      ...(env.ELECDEX_CLAUDE_DIR === undefined ? { ELECDEX_CLAUDE_DIR: claudeFolder() } : {}),
       ELECDEX_SOCKETS_STUB: 'demo',
       ELECDEX_WIFI_STUB: 'demo',
       ELECDEX_CLIPBOARD_STUB: 'demo',
@@ -158,8 +159,9 @@ export async function openTake({
       ELECDEX_DOCKER_STUB: 'demo',
       ELECDEX_AUDIO_STUB: 'demo',
       ELECDEX_WEB_HOMES: standIn.homes,
-      // No tray icon or system-wide shortcut from a recording run.
+      // No tray icon or system-wide shortcut from a recording run, and nothing kept awake.
       ELECDEX_BACKGROUND_STUB: '1',
+      ELECDEX_AWAKE_STUB: '1',
       ELECDEX_DEMO_USER: 'taro',
       ELECDEX_DEMO_HOST: 'ELECDEX-DEMO',
       ...env,

@@ -40,10 +40,12 @@ import {
   PASSES_NOW,
   PROJECT,
   prepareHome,
+  projectFolder,
   REPO_ID,
   SESSION,
   SHADOW,
   seedOrbits,
+  taskNotice,
 } from './demo-fixtures.mjs'
 
 const MAIN = path.resolve('out/main/index.js')
@@ -158,7 +160,7 @@ function moreHistory() {
 // ---------------------------------------------------------------------------
 
 const claude = mkdtempSync(path.join(tmpdir(), 'elecdex-demo-claude-'))
-const projectDir = (cwd) => path.join(claude, 'projects', cwd.replace(/[^A-Za-z0-9]/g, '-'))
+const projectDir = (cwd) => projectFolder(claude, cwd)
 const record = path.join(projectDir(PROJECT), `${SESSION}.jsonl`)
 const subDir = (cwd, id) => path.join(projectDir(cwd), id, 'subagents')
 const file = (name) => path.join(PROJECT, name.replaceAll('/', '\\'))
@@ -211,13 +213,7 @@ const result = (id, text) =>
     message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: text }] },
   })
 /** Claude Code's notice that a background task ended, queued for its session. */
-const notice = (call, task, summary, minutesAgo = 0) =>
-  JSON.stringify({
-    type: 'queue-operation',
-    operation: 'enqueue',
-    timestamp: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
-    content: `<task-notification>\n<task-id>${task}</task-id>\n<tool-use-id>${call}</tool-use-id>\n<status>completed</status>\n<summary>${summary}</summary>\n</task-notification>`,
-  })
+const notice = (call, task, summary) => taskNotice({ task, call, summary })
 function sessionFile(pid, id, cwd, name, status, startedMinutesAgo) {
   writeFileSync(
     path.join(claude, 'sessions', `${pid}.json`),

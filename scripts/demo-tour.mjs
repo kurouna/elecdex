@@ -126,7 +126,7 @@ const { app, page, wait, settled, run } = await openTake({
   options: { ...options, lead: 0 },
   standIn,
   intro,
-  env: { ELECDEX_AWAKE_STUB: '1', ...music.env },
+  env: music.env,
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
   prepare: copyKeystream,
 })
