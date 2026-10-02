@@ -28,16 +28,20 @@ const VOTES = {
     'People are tired. A long weekend is the kind of promise that makes a team want to stay - it feels right, and it would be felt.\nVERDICT: APPROVE\nCONFIDENCE: 85',
 }
 
-/** The stand-in, listening: `settings` names it as the AI provider the council sits on. */
-export async function startCouncil() {
+/**
+ * The stand-in, listening: `settings` names it as the AI provider the council sits on. A
+ * request that is not a unit's (an AI chat's) is given `chat`, when a take has one.
+ */
+export async function startCouncil({ chat } = {}) {
   const server = createServer((req, res) => {
     let raw = ''
     req.on('data', (piece) => {
       raw += piece
     })
     req.on('end', () => {
-      const system = JSON.parse(raw).messages?.[0]?.content ?? ''
-      const answer = VOTES[/UNIT-\d/.exec(system)?.[0] ?? 'UNIT-1']
+      const first = JSON.parse(raw).messages?.[0]?.content
+      const unit = /UNIT-\d/.exec(typeof first === 'string' ? first : '')?.[0]
+      const answer = unit === undefined && chat !== undefined ? chat : VOTES[unit ?? 'UNIT-1']
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       const pieces = answer.match(/.{1,10}/gs) ?? []
       const step = () => {

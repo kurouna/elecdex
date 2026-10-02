@@ -31,7 +31,7 @@ export function prepareHome() {
  * orbit tracker by a made-up author, and changes not yet committed. Built afresh on
  * every run, with the machine's own git configuration shut out (no name, no signing).
  */
-const GIT_ENV = {
+export const GIT_ENV = {
   ...process.env,
   GIT_CONFIG_GLOBAL: path.join(mkdtempSync(path.join(tmpdir(), 'elecdex-git-')), 'config'),
   GIT_CONFIG_NOSYSTEM: '1',

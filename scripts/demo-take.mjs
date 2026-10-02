@@ -225,7 +225,13 @@ export async function openTake({
     if (dir === undefined) return
     mkdirSync(dir, { recursive: true })
     let shot = 0
+    // Stopped with the window: a timer still set would keep Node running after the take.
+    let over = false
+    void closed.then(() => {
+      over = true
+    })
     const snap = async () => {
+      if (over) return
       const name = String(shot++).padStart(3, '0')
       const png = await app
         .evaluate(async ({ BrowserWindow }) => {

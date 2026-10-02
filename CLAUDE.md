@@ -41,6 +41,7 @@ npm run demo:tour      # the introduction video: boot, presets, ORBIT, agents, D
 npm run demo:tour-shorts # the same tour, 9:16 in two tiers, under 2 min, for Shorts (Windows; build first)
 npm run demo:keystream # KEYSTREAM: menu previews, a track typed on time through instrument changes, its result (Windows; build first)
 npm run demo:snippets  # the clipboard pane's snippets: kept, written, moved, pasted into the shell, 16:9, under 30 s (Windows; build first)
+npm run demo:whatsnew  # what v0.0.19-v0.0.20 added, most striking first: CHIP-8, files in the ai preset's chat, dev's agent tree and FETCH/PULL, 16:9 (Windows; build first)
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
 ```

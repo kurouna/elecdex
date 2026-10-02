@@ -62,7 +62,8 @@
     "demo:tour": "node scripts/demo-tour.mjs",
     "demo:tour-shorts": "node scripts/demo-tour-shorts.mjs",
     "demo:keystream": "node scripts/demo-keystream.mjs",
-    "demo:snippets": "node scripts/demo-snippets.mjs"
+    "demo:snippets": "node scripts/demo-snippets.mjs",
+    "demo:whatsnew": "node scripts/demo-whatsnew.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
