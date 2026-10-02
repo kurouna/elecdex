@@ -17,7 +17,7 @@ import {
   STATS_PARALLEL,
   type StatsSample,
 } from '@shared/docker'
-import { nextBoundary } from '@shared/wall-clock'
+import { BoundaryTimer } from '../boundary-timer.js'
 import { type DockerEngine, EngineError } from './engine.js'
 
 export interface DockerDeps {
@@ -67,9 +67,11 @@ export class DockerWatcher {
   #listing = false
   #listAgain = false
   #statsBusy = false
-  #reconcileTimer: unknown = null
-  #settleTimer: unknown = null
-  #statsTimer: unknown = null
+  /** The list read again on the ten seconds, and after an event at the next quarter second. */
+  readonly #reconcile: BoundaryTimer
+  readonly #settle: BoundaryTimer
+  /** What running containers use, on the five seconds. */
+  readonly #stats: BoundaryTimer
   /** Short id to full id, of the last listing. */
   #ids = new Map<string, string>()
   #samples = new Map<string, StatsSample>()
@@ -77,6 +79,12 @@ export class DockerWatcher {
 
   constructor(deps: DockerDeps) {
     this.#deps = deps
+    this.#reconcile = new BoundaryTimer(deps, DOCKER_RECONCILE_MS, () => {
+      if (this.#linked) void this.#list()
+      else void this.#connect()
+    })
+    this.#settle = new BoundaryTimer(deps, DOCKER_SETTLE_MS, () => void this.#list())
+    this.#stats = new BoundaryTimer(deps, DOCKER_STATS_MS, () => void this.#readStats())
   }
 
   get active(): boolean {
@@ -103,8 +111,8 @@ export class DockerWatcher {
         link: this.#board.link === 'standby' ? 'linking' : this.#board.link,
       })
       void this.#connect()
-      this.#armReconcile()
-      this.#armStats()
+      this.#reconcile.start()
+      this.#stats.start()
     } else {
       this.#drop()
       this.#stopTimers()
@@ -197,12 +205,7 @@ export class DockerWatcher {
   /* ---- The list ---- */
 
   #soon(): void {
-    if (this.#settleTimer !== null || !this.#wanted) return
-    const now = this.#deps.now()
-    this.#settleTimer = this.#deps.setTimer(() => {
-      this.#settleTimer = null
-      void this.#list()
-    }, nextBoundary(now, DOCKER_SETTLE_MS) - now)
+    if (this.#wanted) this.#settle.once()
   }
 
   async #list(): Promise<void> {
@@ -249,28 +252,7 @@ export class DockerWatcher {
     return usage === undefined ? container : { ...container, ...usage }
   }
 
-  #armReconcile(): void {
-    if (!this.#wanted || this.#reconcileTimer !== null) return
-    const now = this.#deps.now()
-    this.#reconcileTimer = this.#deps.setTimer(() => {
-      this.#reconcileTimer = null
-      this.#armReconcile()
-      if (this.#linked) void this.#list()
-      else void this.#connect()
-    }, nextBoundary(now, DOCKER_RECONCILE_MS) - now)
-  }
-
   /* ---- What running containers use ---- */
-
-  #armStats(): void {
-    if (!this.#wanted || this.#statsTimer !== null) return
-    const now = this.#deps.now()
-    this.#statsTimer = this.#deps.setTimer(() => {
-      this.#statsTimer = null
-      this.#armStats()
-      void this.#readStats()
-    }, nextBoundary(now, DOCKER_STATS_MS) - now)
-  }
 
   async #readStats(): Promise<void> {
     if (!this.#linked || this.#statsBusy) return
@@ -316,11 +298,9 @@ export class DockerWatcher {
   /* ---- Timers and publishing ---- */
 
   #stopTimers(): void {
-    for (const handle of [this.#reconcileTimer, this.#settleTimer, this.#statsTimer])
-      if (handle !== null) this.#deps.clearTimer(handle)
-    this.#reconcileTimer = null
-    this.#settleTimer = null
-    this.#statsTimer = null
+    this.#reconcile.stop()
+    this.#settle.stop()
+    this.#stats.stop()
   }
 
   /** Publishes the board when what a pane draws changed; `sampledAt` alone is no change. */

@@ -12,7 +12,6 @@ import {
   NOW_PLAYING_LINGER_MS,
   NOW_PLAYING_PERIOD_MS,
   type NowPlaying,
-  nextBoundary,
   positionNow,
   readSession,
   SEEK_HOLD_MS,
@@ -31,6 +30,7 @@ import {
 } from '../../src/main/media/watcher.js'
 import { NOW_PLAYING_SCRIPT, parseReaderLine } from '../../src/main/media/windows.js'
 import { nowPlayingRows } from '../../src/renderer/widgets/nowplaying/card.js'
+import { nextBoundary } from '../../src/shared/wall-clock'
 
 const JPEG = '/9j/4AAQSkZJRgABAQEAYABgAAD'
 const LARGE = '/9j/LARGEArtOfTheTrack'
@@ -346,7 +346,7 @@ describe('the watcher', () => {
     expect(r.last()?.session?.title).toBe('Track')
     expect(r.last()?.session?.art).toBe(`data:image/jpeg;base64,${JPEG}`)
     const [timer] = [...r.timers.values()]
-    expect(timer?.at).toBe(nextBoundary(r.now()))
+    expect(timer?.at).toBe(nextBoundary(r.now(), NOW_PLAYING_PERIOD_MS))
     expect((timer?.at ?? 0) % NOW_PLAYING_PERIOD_MS).toBe(0)
     await r.advance(2000)
     expect(reader.reads()).toBe(5)

@@ -1,5 +1,6 @@
 import {
   boardOf,
+  CLIP_PERIOD_MS,
   type ClipBoard,
   type ClipEntry,
   type ClipHistory,
@@ -7,7 +8,6 @@ import {
   type ClipRestoreResult,
   cleared,
   emptyHistory,
-  nextTick,
   putOn,
   recordRead,
   restored,
@@ -15,6 +15,7 @@ import {
   shouldReadText,
   withoutEntry,
 } from '@shared/clipboard'
+import { BoundaryTimer } from '../boundary-timer.js'
 
 export interface ClipboardDeps {
   /**
@@ -52,7 +53,7 @@ export class ClipboardWatcher {
   #history: ClipHistory
   #wanted = false
   #paused = false
-  #timer: unknown = null
+  readonly #timer: BoundaryTimer
   #busy = false
   #count = 0
   /** The length of the text last read, and when: a very long one is read less often. */
@@ -72,6 +73,7 @@ export class ClipboardWatcher {
   constructor(deps: ClipboardDeps) {
     this.#deps = deps
     this.#history = deps.initial ?? emptyHistory()
+    this.#timer = new BoundaryTimer(deps, CLIP_PERIOD_MS, () => void this.#look())
   }
 
   /** Whether the clipboard is being read now. */
@@ -180,27 +182,14 @@ export class ClipboardWatcher {
     if (this.active) {
       // A look at once, so a pane coming into view is told what is on the clipboard now.
       void this.#look()
-      this.#arm()
+      this.#timer.start()
     } else this.#stop()
     this.#publish()
   }
 
-  #arm(): void {
-    if (!this.active || this.#timer !== null) return
-    const now = this.#deps.now()
-    this.#timer = this.#deps.setTimer(() => {
-      this.#timer = null
-      // Armed before looking, so the next look stays on the grid however long this one takes.
-      this.#arm()
-      void this.#look()
-    }, nextTick(now) - now)
-  }
-
   #stop(): void {
     this.#lookedAt = null
-    if (this.#timer === null) return
-    this.#deps.clearTimer(this.#timer)
-    this.#timer = null
+    this.#timer.stop()
   }
 
   async #look(): Promise<void> {

@@ -356,6 +356,8 @@ user made; do not reverse one without asking.
 - Weigh a new animation by the area it repaints.
 - Other timed updates wake on wall-clock boundaries through `onBoundary(period, …)`, never a timer
   of their own or an unaligned `setInterval`. Assign `$state` only when the shown value changes.
+  In main, a reading on the grid is a `BoundaryTimer` (main/boundary-timer.ts), never a timer
+  armed by hand.
 - **GPU contexts are a budget** (Chromium keeps about 16 WebGL contexts): only the shell and the
   globe take one, and give it back on unmount (`forceContextLoss`, `releaseWebglContexts`).
   Everything else is plain 2D canvas. **No WebGPU** (user decision 2026-09-19).

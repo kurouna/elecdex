@@ -40,11 +40,6 @@ export const CLIP_ABSORB_MS = 1500
 export const CLIP_LARGE_CHARS = 1_000_000
 export const CLIP_LARGE_PERIOD_MS = 2000
 
-/** The next moment on the wall clock's grid of `period`, strictly after `now`. */
-export function nextTick(now: number, period: number = CLIP_PERIOD_MS): number {
-  return (Math.floor(now / period) + 1) * period
-}
-
 /**
  * Clipboard formats an application adds to say "do not keep this": password
  * managers put them beside a password they copy. Windows' own clipboard history

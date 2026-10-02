@@ -21,7 +21,6 @@ import {
   historyFlagSaysPrivate,
   isClipId,
   maskedPreview,
-  nextTick,
   previewLines,
   privateMark,
   rawFormatName,
@@ -52,15 +51,6 @@ function history(reads: (ClipRead | [ClipRead, number])[], from: ClipHistory = e
   }
   return h
 }
-
-describe('nextTick', () => {
-  it('is the next quarter second on the wall clock, never now', () => {
-    expect(nextTick(1000)).toBe(1250)
-    expect(nextTick(1001)).toBe(1250)
-    expect(nextTick(1249)).toBe(1250)
-    expect(nextTick(1250, 500)).toBe(1500)
-  })
-})
 
 describe('private marks', () => {
   const raw = (name: string) => rawFormatType(name)

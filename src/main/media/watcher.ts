@@ -3,16 +3,17 @@ import {
   EMPTY_NOW_PLAYING,
   MAX_LARGE_ART_BASE64,
   NOW_PLAYING_LINGER_MS,
+  NOW_PLAYING_PERIOD_MS,
   type NowPlaying,
   type NowPlayingAction,
   type NowPlayingControlResult,
   type NowPlayingSession,
-  nextBoundary,
   readSession,
   type SessionArt,
   sameSession,
   seekTarget,
 } from '@shared/now-playing'
+import { BoundaryTimer } from '../boundary-timer.js'
 
 /**
  * One answer from a platform's reader: the session it chose (the raw object,
@@ -70,7 +71,7 @@ export class NowPlayingWatcher {
   readonly #deps: NowPlayingDeps
   #state: NowPlaying
   #wanted = false
-  #timer: unknown = null
+  readonly #timer: BoundaryTimer
   #linger: unknown = null
   #busy = false
   /** The art of the session shown, kept apart: the reader sends it only when it changes. */
@@ -80,6 +81,7 @@ export class NowPlayingWatcher {
 
   constructor(deps: NowPlayingDeps) {
     this.#deps = deps
+    this.#timer = new BoundaryTimer(deps, NOW_PLAYING_PERIOD_MS, () => void this.#look())
     this.#state = { ...EMPTY_NOW_PLAYING, support: deps.backend === null ? 'none' : 'full' }
   }
 
@@ -98,9 +100,9 @@ export class NowPlayingWatcher {
     if (wanted) {
       this.#cancelLinger()
       void this.#look()
-      this.#arm()
+      this.#timer.start()
     } else {
-      this.#stop()
+      this.#timer.stop()
       this.#linger = this.#deps.setTimer(() => {
         this.#linger = null
         if (!this.#wanted) this.#deps.backend?.close()
@@ -146,26 +148,9 @@ export class NowPlayingWatcher {
 
   dispose(): void {
     this.#wanted = false
-    this.#stop()
+    this.#timer.stop()
     this.#cancelLinger()
     this.#deps.backend?.close()
-  }
-
-  #arm(): void {
-    if (!this.active || this.#timer !== null) return
-    const now = this.#deps.now()
-    this.#timer = this.#deps.setTimer(() => {
-      this.#timer = null
-      // Armed before looking, so the next look stays on the grid however long this one takes.
-      this.#arm()
-      void this.#look()
-    }, nextBoundary(now) - now)
-  }
-
-  #stop(): void {
-    if (this.#timer === null) return
-    this.#deps.clearTimer(this.#timer)
-    this.#timer = null
   }
 
   #cancelLinger(): void {

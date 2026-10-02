@@ -102,11 +102,6 @@ export const EMPTY_NOW_PLAYING: NowPlaying = {
   error: null,
 }
 
-/** The next boundary of `period` strictly after `now`. */
-export function nextBoundary(now: number, period: number = NOW_PLAYING_PERIOD_MS): number {
-  return (Math.floor(now / period) + 1) * period
-}
-
 export function isNowPlayingAction(value: unknown): value is NowPlayingAction {
   return typeof value === 'string' && (NOW_PLAYING_ACTIONS as readonly string[]).includes(value)
 }
