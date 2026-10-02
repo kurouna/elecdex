@@ -414,7 +414,9 @@ user made; do not reverse one without asking.
     `layout.settle()` first.
   - Layouts: `layout.leaving`, then pane by pane (layout/layout-switch.ts); last switch wins.
   - Zoom (`layout.zoom`, §5.5): `position: fixed` and a transform (`crt-zoom`), never growing;
-    the tree is untouched, nothing remounts, and every tree change lets go of it. Registry `zoom:
+    the tree is untouched, nothing remounts, and every tree change lets go of it. Forward, its
+    corner holds ⤡ alone, never a × beside it (user decision 2026-10-03); Ctrl+Shift+W closes
+    the pane that is forward. Registry `zoom:
     'full'` (fills its room), `'panel'` (a fixed size) or nothing (no button, no shortcut - the
     default); plugins declare it in their descriptor. A widget laying itself out by its size
     reads it from the `ResizeObserver` entry, never by measuring inside the callback.

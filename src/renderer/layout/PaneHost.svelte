@@ -198,7 +198,7 @@ $effect(() => () => paneMeta.clear(node.id))
       {:else}
         <header
           class="module-title pane-head drag-handle"
-          class:close-only={!zoomable}
+          class:one-button={!zoomable || zoomed}
           {@attach dragHandle(node.id, () => title)}
         >
           {@render headline(false)}

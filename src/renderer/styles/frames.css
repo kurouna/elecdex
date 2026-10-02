@@ -81,12 +81,15 @@
   min-width: var(--corner-room);
 }
 
-/* A module's readouts stay on the right, short of the corner's buttons. */
+/*
+ * A module's readouts stay on the right, short of the corner's buttons: one of them when it
+ * cannot come forward, or is forward (PaneCorner.svelte).
+ */
 .module-title.pane-head {
   padding-right: var(--corner-room);
 }
 
-.module-title.pane-head.close-only {
+.module-title.pane-head.one-button {
   padding-right: var(--corner-room-close);
 }
 

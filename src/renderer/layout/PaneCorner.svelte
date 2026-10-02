@@ -10,6 +10,11 @@
  * Out of the way until wanted: they show on hover, or while what they belong to
  * has keyboard focus. Rendered as direct children of the pane's element, whose
  * hover is what reveals them.
+ *
+ * Brought forward, the corner holds ⤡ alone, where the × was: over the workspace a
+ * corner's button reads as "leave this", as a dialog's × does, and the × beside the ⤡
+ * took the pane out of the layout when putting it back was meant (user decision
+ * 2026-10-03). Closing a pane that is forward stays with Ctrl+Shift+W.
  */
 interface Props {
   /** What the buttons act on, for their labels. */
@@ -31,6 +36,11 @@ interface Props {
 
 const { title, kind, zoomable, zoomed, count, onzoom, onclose, onaim }: Props = $props()
 
+// The × goes when the pane comes forward, and a button taken away tells no blur: let go of the aim.
+$effect(() => {
+  if (zoomed) onaim?.(false)
+})
+
 /** A group's × says it takes every tab; a pane's, the pane. */
 const closeLabel = $derived(kind === 'group' ? `close all ${count ?? 0} tabs` : `close ${title}`)
 const closeTitle = $derived(
@@ -44,6 +54,7 @@ const closeTitle = $derived(
   <button
     type="button"
     class="zoom"
+    class:alone={zoomed}
     aria-pressed={zoomed}
     aria-label={`${zoomed ? 'put back' : 'bring forward'} ${title}`}
     title={zoomed ? 'Put the pane back (Ctrl+Shift+Z)' : 'Bring the pane forward (Ctrl+Shift+Z)'}
@@ -54,6 +65,7 @@ const closeTitle = $derived(
     data-testid="{kind}-zoom">{zoomed ? '⤡' : '⤢'}</button
   >
 {/if}
+{#if !zoomed}
 <button
   type="button"
   class="close"
@@ -69,6 +81,7 @@ const closeTitle = $derived(
   onblur={() => onaim?.(false)}
   data-testid="{kind}-close">×</button
 >
+{/if}
 
 <style>
 .close,
@@ -94,6 +107,11 @@ const closeTitle = $derived(
 /* Beside the close, inside it: the pane is brought forward more often than closed. */
 .zoom {
   right: 1.3rem;
+}
+
+/* Forward, it is the only button, in the corner itself. */
+.zoom.alone {
+  right: 0;
 }
 
 /* Revealed by whatever holds them: a pane or a tab group, hovered or focused. */

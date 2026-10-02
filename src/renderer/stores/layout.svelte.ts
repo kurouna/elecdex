@@ -651,8 +651,13 @@ class LayoutStore {
     this.remove(id)
   }
 
+  /**
+   * Ctrl+Shift+W. A pane that is forward is the one meant - the rest are behind the backdrop -
+   * and since its corner has no × then (PaneCorner.svelte), this is how it is closed.
+   */
   closeFocused(): void {
-    if (this.focusedPaneId !== null) this.close(this.focusedPaneId)
+    const target = this.zoomedPaneId ?? this.focusedPaneId
+    if (target !== null) this.close(target)
   }
 
   resize(splitId: string, sizes: number[]): void {

@@ -307,12 +307,56 @@ test('a widget that follows its size sees the room the front gives it', async ()
   }
 })
 
+test('a pane that is forward has only the button that puts it back, in the corner', async () => {
+  const { page, close } = await launch()
+  try {
+    const clock = pane(page, 'clock')
+    await clock.hover()
+    await expect(clock.getByTestId('pane-close')).toHaveCount(1)
+    const corner = await clock.getByTestId('pane-close').boundingBox()
+    await zoomClock(page)
+    // The × that took the pane out of the layout when putting it back was meant is gone, and
+    // the ⤡ sits where it was: the corner's right edge.
+    await expect(clock.getByTestId('pane-close')).toHaveCount(0)
+    const back = clock.getByTestId('pane-zoom')
+    await expect(back).toBeVisible()
+    const frame = await clock.boundingBox()
+    const button = await back.boundingBox()
+    if (corner === null || frame === null || button === null) throw new Error('no box')
+    expect(Math.abs(frame.x + frame.width - (button.x + button.width))).toBeLessThan(
+      corner.width / 2 + 2,
+    )
+    await back.click()
+    await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+    await expect(clock).toHaveCount(1)
+    await clock.hover()
+    await expect(clock.getByTestId('pane-close')).toHaveCount(1)
+
+    // A tab group's × goes too, while its tabs keep their own.
+    const group = page.getByTestId('tabs-host').first()
+    await group.hover()
+    await group.getByTestId('group-zoom').click()
+    await zoomSettled(page)
+    await expect(group.getByTestId('group-close')).toHaveCount(0)
+    await expect(group.getByTestId('group-zoom')).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
+    await group.hover()
+    await expect(group.getByTestId('group-close')).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
 test('closing the pane that is forward, and a layout change, let go of it', async () => {
   const { page, close } = await launch()
   try {
+    // Another pane has the focus; the one forward is the one closed, by the keys alone.
+    await pane(page, 'cpu').click()
     await zoomClock(page)
-    await pane(page, 'clock').getByTestId('pane-close').click()
+    await page.keyboard.press('Control+Shift+KeyW')
     await expect(pane(page, 'clock')).toHaveCount(0)
+    await expect(pane(page, 'cpu')).toHaveCount(1)
     await expect(page.getByTestId('zoom-backdrop')).toHaveCount(0)
 
     // A pane added while another is forward settles the zoom rather than leaving
