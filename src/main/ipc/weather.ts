@@ -147,10 +147,8 @@ export function registerWeatherIpc(): { dispose: () => void } {
     },
     handle: {
       [CH.weather.offices]: () => jma.listOffices(),
-      [CH.weather.watching]: () => [
-        ...jma.watching().map((office) => `jma:${office}`),
-        ...points.watching(),
-      ],
+      [CH.weather.watching]: () =>
+        [...jma.watching().map((office) => `jma:${office}`), ...points.watching()].sort(),
     },
   })
 

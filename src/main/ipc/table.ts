@@ -19,16 +19,30 @@ export interface IpcTable {
   on?: Record<string, (event: IpcMainEvent, ...args: unknown[]) => void>
 }
 
-/** Registers every channel of `table`; the answer removes them all again. */
+/**
+ * Registers every channel of `table`; the answer removes them all again - its own listeners
+ * only, never another's on the same channel. A channel that cannot be registered (a second
+ * handler for it) takes back the ones before it and throws, so nothing is left half there.
+ */
 export function registerTable(table: IpcTable): () => void {
-  const handles = Object.entries(table.handle ?? {})
-  const ons = Object.entries(table.on ?? {})
-  for (const [channel, handler] of handles) ipcMain.handle(channel, handler)
-  for (const [channel, listener] of ons) ipcMain.on(channel, listener)
-  return () => {
-    for (const [channel] of handles) ipcMain.removeHandler(channel)
-    for (const [channel] of ons) ipcMain.removeAllListeners(channel)
+  const undo: (() => void)[] = []
+  const unregister = (): void => {
+    for (const step of undo.splice(0).reverse()) step()
   }
+  try {
+    for (const [channel, handler] of Object.entries(table.handle ?? {})) {
+      ipcMain.handle(channel, handler)
+      undo.push(() => ipcMain.removeHandler(channel))
+    }
+    for (const [channel, listener] of Object.entries(table.on ?? {})) {
+      ipcMain.on(channel, listener)
+      undo.push(() => ipcMain.off(channel, listener))
+    }
+  } catch (error) {
+    unregister()
+    throw error
+  }
+  return unregister
 }
 
 /**

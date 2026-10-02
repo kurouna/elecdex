@@ -29,7 +29,7 @@ vi.mock('electron', () => ({
     handle: (channel: string, handler: Handler) => handlers.set(channel, handler),
     removeHandler: (channel: string) => handlers.delete(channel),
     on: () => {},
-    removeAllListeners: () => {},
+    off: () => {},
   },
   BrowserWindow: { fromWebContents: () => null },
   dialog: {
