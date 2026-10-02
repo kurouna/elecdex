@@ -62,9 +62,11 @@ approved; none are needed on Windows/macOS, but Linux must approve node-pty to c
 ## Layout of the code
 
 ```
-src/main/        main process: window, ipc/ (handlers), store/ (json files), pty/, fs/, weather/,
-                 markets/, feeds/, quakes/, clipboard/, media/, ai/, launcher/, audio/, plugins/, web/, background/,
-                 reminders/, updates/, awake/, docker/, metrics/ (the broker between the collector and pages)
+src/main/        main process: window, ipc/ (handlers, table.ts), store/ (json files), pty/, fs/,
+                 weather/, markets/, feeds/, quakes/, orbits/, clipboard/, media/, ai/, agents/, git/,
+                 chip8/, launcher/, audio/, plugins/, web/, background/, reminders/, updates/, awake/,
+                 docker/, secrets/, metrics/ (the broker between the collector and pages),
+                 boundary-timer.ts (readings on the wall clock's grid)
 src/services/    utilityProcess: the metrics collector (metrics.worker.ts, metrics/: sockets/, wifi/)
 src/preload/     the single contextBridge API, window.elecdex
 src/shared/      types, zod schemas (schemas/), channel names and pure logic used by both sides;
@@ -271,7 +273,8 @@ user made; do not reverse one without asking.
     CSS animation. The badge stays in words.
   - **Attached files** (§5.7, shared/ai-attach.ts, main/ai/files.ts) reach main as bytes, never a
     path, and no channel takes one. Main judges by first bytes; images are decoded and re-encoded
-    in the page (never in main), which reads only their headers.
+    in the page, never in main, which reads only their headers. Main's judging stays linear in
+    the file's size (a crafted PDF or PNG once held it for seconds).
     Waiting files are main's memory under `filesDraft`; sent, they are written beside the chat
     (`<chat>.files/<sha256>`) first. Too-long text is refused, never cut. PDFs only to Anthropic
     and `pdf` presets (`takesPdf`), else refused or named in the history - never dropped unsaid.

@@ -26,7 +26,8 @@
 > 上跑过自动化端到端测试，还没有人长时间亲手使用过，因此 **macOS 和 Linux 尚未经过充分验证**。
 > 在这两个平台上可能会遇到不少粗糙之处，发现问题请[反馈](https://github.com/kurouna/elecdex/issues)。
 >
-> 设计说明以及每项决策及其理由：[docs/architecture.md](docs/architecture.md)。
+> 设计说明：[docs/architecture.md](docs/architecture.md)。每项决策及其理由：
+> [docs/decisions.md](docs/decisions.md)。
 
 ## 功能
 
@@ -841,8 +842,8 @@ src/services/   utilityProcess: the metrics collector
 examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
-docs/           architecture.md (the design and the decision log, in Japanese), plugins.md,
-                weather-providers.md
+docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
+                in Japanese), plugins.md, weather-providers.md
 ```
 
 改动必须遵守的规则——安全边界、网络在哪里运行、测试可以触碰什么——见 [CLAUDE.md](CLAUDE.md)。

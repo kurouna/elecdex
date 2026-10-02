@@ -28,7 +28,8 @@ SF 風のデスクトップ用ターミナルエミュレーター兼システ�
 > そのため **macOS と Linux は十分に検証されていません**。粗いところがあるはずなので、
 > 見つけたものはぜひ[報告](https://github.com/kurouna/elecdex/issues)してください。
 >
-> 設計メモと、すべての判断とその理由：[docs/architecture.md](docs/architecture.md)。
+> 設計メモ：[docs/architecture.md](docs/architecture.md)。すべての判断とその理由：
+> [docs/decisions.md](docs/decisions.md)。
 
 ## 機能
 
@@ -981,8 +982,8 @@ src/services/   utilityProcess: the metrics collector
 examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
-docs/           architecture.md (the design and the decision log, in Japanese), plugins.md,
-                weather-providers.md
+docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
+                in Japanese), plugins.md, weather-providers.md
 ```
 
 変更が守るべきルール（セキュリティ境界、ネットワークをどこで扱うか、テストが触れてよいもの）は

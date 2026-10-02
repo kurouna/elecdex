@@ -28,7 +28,8 @@ for Windows, macOS and Linux.
 > for any length of time, so **macOS and Linux are not sufficiently verified**. Expect rough edges
 > there, and please [report](https://github.com/kurouna/elecdex/issues) what you find.
 >
-> Design notes and every decision with its reason: [docs/architecture.md](docs/architecture.md).
+> Design notes: [docs/architecture.md](docs/architecture.md); every decision with its reason:
+> [docs/decisions.md](docs/decisions.md).
 
 ## Features
 
@@ -1029,8 +1030,8 @@ src/services/   utilityProcess: the metrics collector
 examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
-docs/           architecture.md (the design and the decision log, in Japanese), plugins.md,
-                weather-providers.md
+docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
+                in Japanese), plugins.md, weather-providers.md
 ```
 
 The rules a change must keep - the security boundary, where the network lives, what tests may
