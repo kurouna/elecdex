@@ -94,6 +94,19 @@ describe('what a file is', () => {
     })
   })
 
+  it('walks a PNG of a few hundred thousand empty chunks quickly, and finds text at its end', () => {
+    // Empty chunks are one every 12 bytes; naming each as a string took 360 ms a file in main.
+    const empty = png(10, 10, 3_600_000)
+    const chunk = [0, 0, 0, 3, 0x74, 0x45, 0x58, 0x74, 0x61, 0x62, 0x63, 0, 0, 0, 0]
+    const late = new Uint8Array(empty.length + chunk.length)
+    late.set(empty)
+    late.set(chunk, empty.length)
+    const started = performance.now()
+    expect(classify('a.png', empty)).toMatchObject({ kind: 'image' })
+    expect(classify('a.png', late)).toMatchObject({ ok: false, code: 'unreadable' })
+    expect(performance.now() - started).toBeLessThan(250)
+  })
+
   it('reads an image’s size from its header, a JPEG’s past the segments before its frame', () => {
     expect(classify('a.png', png(1280, 720))).toMatchObject({
       kind: 'image',

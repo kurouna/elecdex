@@ -70,26 +70,32 @@ export function sniff(bytes: Uint8Array): Sniffed {
 }
 
 /** A JPEG APP1 segment that says "Exif", a PNG chunk of camera data or text: what a camera wrote. */
-const PNG_WRITTEN = new Set(['eXIf', 'tEXt', 'iTXt', 'zTXt'])
+const PNG_WRITTEN = new Set(
+  ['eXIf', 'tEXt', 'iTXt', 'zTXt'].map((type) =>
+    [...type].reduce((code, char) => code * 256 + char.charCodeAt(0), 0),
+  ),
+)
 
 /**
  * Whether an image still carries what the file it came from said about itself. The page draws
  * every image again, which leaves all of it behind; one that still has it did not come that way.
  */
 export function carriesMetadata(bytes: Uint8Array, format: 'png' | 'jpeg'): boolean {
-  return format === 'png' ? pngChunks(bytes).some((type) => PNG_WRITTEN.has(type)) : jpegExif(bytes)
+  return format === 'png' ? pngWritten(bytes) : jpegExif(bytes)
 }
 
-/** The types of a PNG's chunks, in order. */
-function pngChunks(bytes: Uint8Array): string[] {
+/**
+ * Whether any of a PNG's chunks is one a camera or an editor wrote. Types are compared as numbers,
+ * never made into strings: main runs this, and a file of empty chunks is one every 12 bytes (a
+ * string each took 7 s over twenty 3.6 MB files).
+ */
+function pngWritten(bytes: Uint8Array): boolean {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  const types: string[] = []
   for (let at = 8; at + 8 <= bytes.length; ) {
-    const length = view.getUint32(at)
-    types.push(String.fromCharCode(...bytes.subarray(at + 4, at + 8)))
-    at += 12 + length
+    if (PNG_WRITTEN.has(view.getUint32(at + 4))) return true
+    at += 12 + view.getUint32(at)
   }
-  return types
+  return false
 }
 
 /** Whether a JPEG has an EXIF segment before its frame. */
