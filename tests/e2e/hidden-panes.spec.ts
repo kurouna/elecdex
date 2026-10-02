@@ -58,7 +58,7 @@ const watching = (page: Page) =>
     agents: await window.elecdex.agents.watching(),
   }))
 
-const IDLE = { git: [], orbits: [], agents: false }
+const IDLE = { git: [], orbits: [], agents: [] }
 
 /** Every change the page makes inside the three panes for `ms`, counted. */
 const mutationsIn = (page: Page, ms: number) =>
@@ -135,7 +135,7 @@ test('behind another tab, the three panes do nothing, and take up again when sho
       .toEqual(['starlink', 'stations'])
     await show('a')
     await expect(page.getByTestId('agent-card')).toHaveCount(1, { timeout: 10_000 })
-    expect((await watching(page)).agents).toBe(true)
+    expect((await watching(page)).agents).toEqual(['records'])
 
     // Behind the clock, all three stop: in main, and in the page.
     await show('c')
@@ -148,7 +148,7 @@ test('behind another tab, the three panes do nothing, and take up again when sho
     await expect.poll(async () => (await watching(page)).git).toHaveLength(1)
     await show('a')
     await expect(page.getByTestId('agent-card')).toHaveCount(1)
-    await expect.poll(async () => (await watching(page)).agents).toBe(true)
+    await expect.poll(async () => (await watching(page)).agents).toEqual(['records'])
   } finally {
     await close()
     removeDir(dir)
@@ -256,10 +256,10 @@ test('behind another tab, no built-in pane changes anything or has main fetch fo
       feeds: [],
       orbits: [],
       git: [],
-      agents: false,
-      clipboard: false,
-      nowPlaying: false,
-      docker: false,
+      agents: [],
+      clipboard: [],
+      nowPlaying: [],
+      docker: [],
     })
     // Once the start is over (a shell's first prompt, the launcher's catalog, the one-off readings),
     // the page writes nothing into any of them: no figure, no clock, no pulse. The one-off readings
@@ -375,10 +375,10 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       now.feeds.length === 1 &&
       now.orbits.length === 1 &&
       now.git === 1 &&
-      now.agents &&
-      now.clipboard &&
-      now.nowPlaying &&
-      now.docker
+      now.agents.length === 1 &&
+      now.clipboard.length === 1 &&
+      now.nowPlaying.length === 1 &&
+      now.docker.length === 1
     )
   }
   const windowTo = (how: 'minimize' | 'restore') =>
@@ -403,10 +403,10 @@ test('minimised, the panes stop what they do for the eye, and take it up again w
       feeds: [],
       orbits: [],
       git: 0,
-      agents: false,
-      clipboard: false,
-      nowPlaying: false,
-      docker: false,
+      agents: [],
+      clipboard: [],
+      nowPlaying: [],
+      docker: [],
     })
     const writes = await page.evaluate(async (widgets) => {
       let count = 0

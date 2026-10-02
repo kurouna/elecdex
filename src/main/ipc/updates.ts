@@ -1,10 +1,10 @@
 import { CH } from '@shared/channels'
 import { RELEASES_API, type UpdateStatus } from '@shared/updates'
-import { ipcMain } from 'electron'
 import { appWindows } from '../app-windows.js'
 import { APP_VERSION } from '../build-info.js'
 import { UpdateChecker } from '../updates/checker.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * The update check's IPC. Follows `updates.check` in settings, and broadcasts
@@ -43,14 +43,17 @@ export function registerUpdatesIpc(settings: SettingsHandle): { dispose: () => v
   checker.setEnabled(settings.current().updates.check)
   settings.onChange((next) => checker.setEnabled(next.updates.check))
 
-  ipcMain.handle(CH.updates.status, () => checker.status())
-  ipcMain.handle(CH.updates.check, () => checker.check())
+  const unregister = registerTable({
+    handle: {
+      [CH.updates.status]: () => checker.status(),
+      [CH.updates.check]: () => checker.check(),
+    },
+  })
 
   return {
     dispose: () => {
       checker.dispose()
-      ipcMain.removeHandler(CH.updates.status)
-      ipcMain.removeHandler(CH.updates.check)
+      unregister()
     },
   }
 }

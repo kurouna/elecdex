@@ -12,11 +12,11 @@ import {
   type WebState,
   withHomes,
 } from '@shared/web'
-import { ipcMain } from 'electron'
 import { z } from 'zod'
 import { clearWebData } from '../web/partition.js'
 import { WebViews } from '../web/views.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * The web panes' IPC (docs/architecture.md section 5.4). Every input is checked
@@ -39,84 +39,67 @@ export function registerWebIpc(settings: SettingsHandle): { dispose: () => void 
     },
   })
 
-  ipcMain.handle(
-    CH.web.open,
-    (
-      event,
-      rawPane: unknown,
-      rawClaim: unknown,
-      rawWidget: unknown,
-      rawUrl: unknown,
-    ): WebState | null => {
-      const paneId = WebPaneIdSchema.safeParse(rawPane)
-      const claim = WebClaimSchema.safeParse(rawClaim)
-      const url = UrlSchema.safeParse(rawUrl)
-      const preset = typeof rawWidget === 'string' ? presetOfWidget(rawWidget, presets) : null
-      if (!paneId.success || !claim.success || !url.success || preset === null) return null
-      return views.open(event.sender, paneId.data, claim.data, preset, url.data)
+  const unregister = registerTable({
+    handle: {
+      [CH.web.open]: (
+        event,
+        rawPane: unknown,
+        rawClaim: unknown,
+        rawWidget: unknown,
+        rawUrl: unknown,
+      ): WebState | null => {
+        const paneId = WebPaneIdSchema.safeParse(rawPane)
+        const claim = WebClaimSchema.safeParse(rawClaim)
+        const url = UrlSchema.safeParse(rawUrl)
+        const preset = typeof rawWidget === 'string' ? presetOfWidget(rawWidget, presets) : null
+        if (!paneId.success || !claim.success || !url.success || preset === null) return null
+        return views.open(event.sender, paneId.data, claim.data, preset, url.data)
+      },
+      [CH.web.hide]: (event, rawPane: unknown, rawClaim: unknown, snapshot: unknown) => {
+        const paneId = WebPaneIdSchema.safeParse(rawPane)
+        const claim = WebClaimSchema.safeParse(rawClaim)
+        if (!paneId.success || !claim.success) return null
+        return views.hide(event.sender, paneId.data, claim.data, snapshot === true)
+      },
+      [CH.web.list]: (event) => views.list(event.sender),
+      [CH.web.clearData]: () => clearWebData(),
     },
-  )
-
-  ipcMain.on(CH.web.show, (event, rawPane: unknown, rawClaim: unknown, rawRect: unknown) => {
-    const paneId = WebPaneIdSchema.safeParse(rawPane)
-    const claim = WebClaimSchema.safeParse(rawClaim)
-    const rect = WebRectSchema.safeParse(rawRect)
-    if (paneId.success && claim.success && rect.success) {
-      views.show(event.sender, paneId.data, claim.data, rect.data)
-    }
+    on: {
+      [CH.web.show]: (event, rawPane: unknown, rawClaim: unknown, rawRect: unknown) => {
+        const paneId = WebPaneIdSchema.safeParse(rawPane)
+        const claim = WebClaimSchema.safeParse(rawClaim)
+        const rect = WebRectSchema.safeParse(rawRect)
+        if (paneId.success && claim.success && rect.success) {
+          views.show(event.sender, paneId.data, claim.data, rect.data)
+        }
+      },
+      [CH.web.command]: (event, rawPane: unknown, rawCommand: unknown) => {
+        const paneId = WebPaneIdSchema.safeParse(rawPane)
+        const command = WebCommandSchema.safeParse(rawCommand)
+        if (paneId.success && command.success)
+          views.command(event.sender, paneId.data, command.data)
+      },
+      [CH.web.close]: (event, rawPane: unknown, rawClaim: unknown) => {
+        const paneId = WebPaneIdSchema.safeParse(rawPane)
+        const claim = WebClaimSchema.nullable().safeParse(rawClaim)
+        if (paneId.success && claim.success) views.close(event.sender, paneId.data, claim.data)
+      },
+      [CH.web.appearance]: (_event, raw: unknown) => {
+        const appearance = WebAppearanceSchema.safeParse(raw)
+        if (appearance.success) views.setAppearance(appearance.data)
+      },
+      [CH.web.focus]: (event, rawPane: unknown) => {
+        const paneId = WebPaneIdSchema.safeParse(rawPane)
+        if (paneId.success) views.focus(event.sender, paneId.data)
+      },
+      // Only ever the asking page itself.
+      [CH.web.focusWorkspace]: (event) => event.sender.focus(),
+    },
   })
-
-  ipcMain.handle(CH.web.hide, (event, rawPane: unknown, rawClaim: unknown, snapshot: unknown) => {
-    const paneId = WebPaneIdSchema.safeParse(rawPane)
-    const claim = WebClaimSchema.safeParse(rawClaim)
-    if (!paneId.success || !claim.success) return null
-    return views.hide(event.sender, paneId.data, claim.data, snapshot === true)
-  })
-
-  ipcMain.on(CH.web.command, (event, rawPane: unknown, rawCommand: unknown) => {
-    const paneId = WebPaneIdSchema.safeParse(rawPane)
-    const command = WebCommandSchema.safeParse(rawCommand)
-    if (paneId.success && command.success) views.command(event.sender, paneId.data, command.data)
-  })
-
-  ipcMain.on(CH.web.close, (event, rawPane: unknown, rawClaim: unknown) => {
-    const paneId = WebPaneIdSchema.safeParse(rawPane)
-    const claim = WebClaimSchema.nullable().safeParse(rawClaim)
-    if (paneId.success && claim.success) views.close(event.sender, paneId.data, claim.data)
-  })
-
-  ipcMain.handle(CH.web.list, (event) => views.list(event.sender))
-
-  ipcMain.on(CH.web.appearance, (_event, raw: unknown) => {
-    const appearance = WebAppearanceSchema.safeParse(raw)
-    if (appearance.success) views.setAppearance(appearance.data)
-  })
-
-  ipcMain.on(CH.web.focus, (event, rawPane: unknown) => {
-    const paneId = WebPaneIdSchema.safeParse(rawPane)
-    if (paneId.success) views.focus(event.sender, paneId.data)
-  })
-
-  // Only ever the asking page itself.
-  ipcMain.on(CH.web.focusWorkspace, (event) => event.sender.focus())
-
-  ipcMain.handle(CH.web.clearData, () => clearWebData())
 
   return {
     dispose: () => {
-      for (const channel of [CH.web.open, CH.web.hide, CH.web.list, CH.web.clearData]) {
-        ipcMain.removeHandler(channel)
-      }
-      for (const channel of [
-        CH.web.show,
-        CH.web.command,
-        CH.web.close,
-        CH.web.appearance,
-        CH.web.focus,
-        CH.web.focusWorkspace,
-      ]) {
-        ipcMain.removeAllListeners(channel)
-      }
+      unregister()
       views.dispose()
     },
   }

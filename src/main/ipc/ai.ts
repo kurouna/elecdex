@@ -23,7 +23,7 @@ import {
   refuse,
 } from '@shared/ai-attach'
 import { CH } from '@shared/channels'
-import { app, dialog, ipcMain, net, type WebContents } from 'electron'
+import { app, dialog, net, type WebContents } from 'electron'
 import type { FetchLike, ProviderAdapter } from '../ai/adapter.js'
 import { ChatFiles, notAFile } from '../ai/files.js'
 import { emptyKeyFile, KeyFileSchema, KeyVault } from '../ai/keys.js'
@@ -36,6 +36,7 @@ import { cacheFile } from '../store/cache-file.js'
 import { registerElecIpc } from './elec.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * The AI chat pane's IPC (shared/ai.ts, docs/architecture.md section 5.7), and
@@ -198,129 +199,119 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
   const asProvider = (raw: unknown): string | null =>
     typeof raw === 'string' && AI_PROVIDER_ID.test(raw) ? raw : null
 
-  ipcMain.handle(CH.ai.providers, (): AiProviderStatus[] => statuses())
-
-  ipcMain.handle(CH.ai.setKey, (_event, rawId: unknown, rawKey: unknown): AiKeyStorage => {
-    const id = asProvider(rawId)
-    if (id === null || typeof rawKey !== 'string') return null
-    // Only for a provider that is listed: a key with no address would be a key for anywhere.
-    if (!settings.current().ai.providers.some((p) => p.id === id)) return null
-    const storage = vault.set(id, rawKey)
-    broadcast(CH.ai.providersChanged, statuses())
-    return storage
-  })
-
-  ipcMain.handle(CH.ai.removeKey, (_event, rawId: unknown): void => {
-    const id = asProvider(rawId)
-    if (id === null) return
-    vault.remove(id)
-    broadcast(CH.ai.providersChanged, statuses())
-  })
-
-  ipcMain.handle(CH.ai.models, async (_event, rawId: unknown): Promise<AiModelsResult> => {
-    const id = asProvider(rawId)
-    if (id === null) return { models: [], error: 'no such provider' }
-    return chats().models(id, AbortSignal.timeout(MODELS_TIMEOUT_MS))
-  })
-
-  ipcMain.handle(CH.ai.chats, (): ChatSummary[] => chats().list())
-  ipcMain.handle(CH.ai.create, (): string | null => chats().create())
-  ipcMain.handle(CH.ai.remove, (_event, raw: unknown): boolean => {
-    const chatId = asChat(raw)
-    return chatId !== null && chats().remove(chatId)
-  })
-
-  ipcMain.handle(CH.ai.export, async (_event, raw: unknown): Promise<string | null> => {
-    const chatId = asChat(raw)
-    const chat = chatId === null ? null : chats().get(chatId)
-    if (chat === null) return null
-    // The renderer has no filesystem; the path comes from the user's own dialog.
-    const result = await dialog.showSaveDialog({
-      defaultPath: `${(chat.title === '' ? 'chat' : chat.title).replace(/[\\/:*?"<>|]/g, '_').slice(0, 60)}.md`,
-      filters: [{ name: 'Markdown', extensions: ['md'] }],
-    })
-    if (result.canceled || result.filePath === '') return null
-    await writeFile(result.filePath, chatMarkdown(chat), 'utf8')
-    return result.filePath
-  })
-
-  ipcMain.on(CH.ai.subscribe, (event, raw: unknown) => {
-    const chatId = asChat(raw)
-    if (chatId === null) return
-    track(event.sender)
-    registry.subscribe(event.sender, chatId)
-    clearTimeout(orphans.get(chatId))
-    orphans.delete(chatId)
-    if (!event.sender.isDestroyed()) event.sender.send(CH.ai.event, chats().snapshot(chatId))
-  })
-
-  ipcMain.on(CH.ai.unsubscribe, (event, raw: unknown) => {
-    const chatId = asChat(raw)
-    if (chatId !== null && registry.unsubscribe(event.sender, chatId)) orphaned(chatId)
-  })
-
-  ipcMain.handle(CH.ai.snapshot, (_event, raw: unknown): ChatEvent | null => {
-    const chatId = asChat(raw)
-    return chatId === null ? null : chats().snapshot(chatId)
-  })
-
-  ipcMain.handle(CH.ai.send, (_event, rawChat: unknown, rawRequest: unknown): ChatSendResult => {
-    const chatId = asChat(rawChat)
-    const request = chatRequest(rawRequest)
-    if (chatId === null || request === null) return { ok: false, error: 'not a valid request' }
-    const result = chats().send(chatId, request)
-    // A pane sends first and follows a moment later. One that never does - closed in
-    // between - must not leave an answer running that nobody will read.
-    if (result.ok && !registry.activeSources().includes(chatId)) orphaned(chatId)
-    return result
-  })
-
-  ipcMain.on(CH.ai.stop, (_event, raw: unknown) => {
-    const chatId = asChat(raw)
-    if (chatId !== null) service?.stop(chatId)
-  })
-
-  ipcMain.handle(CH.ai.active, (): string[] => service?.active() ?? [])
-
   const asDraft = (raw: unknown): string | null =>
     typeof raw === 'string' && DRAFT_ID.test(raw) ? raw : null
 
-  // A file comes as bytes the page read from what the user picked, dropped or pasted; there is
-  // no channel that takes a path. Its size is checked before anything else is done with it.
-  ipcMain.handle(CH.ai.attach, (_event, rawDraft: unknown, raw: unknown): AttachResult => {
-    const draftId = asDraft(rawDraft)
-    const upload = asUpload(raw)
-    if (draftId === null || upload === null) return notAFile()
-    if (upload.bytes.byteLength > ATTACH_MAX_BYTES) {
-      return refuse('too large', `a file is attached up to ${fileSize(ATTACH_MAX_BYTES)}`)
-    }
-    return chatFiles().add(draftId, upload)
-  })
-
-  ipcMain.handle(CH.ai.pending, (_event, raw: unknown): AttachmentView[] => {
-    const draftId = asDraft(raw)
-    return draftId === null ? [] : chatFiles().pending(draftId)
-  })
-
-  ipcMain.handle(CH.ai.detach, (_event, rawDraft: unknown, rawId: unknown): AttachmentView[] => {
-    const draftId = asDraft(rawDraft)
-    if (draftId === null || typeof rawId !== 'string') return []
-    return chatFiles().remove(draftId, rawId)
-  })
-
-  ipcMain.handle(CH.ai.discard, (_event, raw: unknown): void => {
-    const draftId = asDraft(raw)
-    if (draftId !== null) chatFiles().forget(draftId)
-  })
-
-  ipcMain.handle(CH.ai.thumbs, (_event, raw: unknown): Record<string, string> => {
-    const chatId = asChat(raw)
-    const chat = chatId === null ? null : chats().get(chatId)
-    if (chatId === null || chat === null) return {}
-    return chatFiles().thumbs(
-      chatId,
-      chat.messages.flatMap((m) => m.attachments ?? []),
-    )
+  const unregister = registerTable({
+    handle: {
+      [CH.ai.providers]: (): AiProviderStatus[] => statuses(),
+      [CH.ai.setKey]: (_event, rawId, rawKey): AiKeyStorage => {
+        const id = asProvider(rawId)
+        if (id === null || typeof rawKey !== 'string') return null
+        // Only for a provider that is listed: a key with no address would be a key for anywhere.
+        if (!settings.current().ai.providers.some((p) => p.id === id)) return null
+        const storage = vault.set(id, rawKey)
+        broadcast(CH.ai.providersChanged, statuses())
+        return storage
+      },
+      [CH.ai.removeKey]: (_event, rawId): void => {
+        const id = asProvider(rawId)
+        if (id === null) return
+        vault.remove(id)
+        broadcast(CH.ai.providersChanged, statuses())
+      },
+      [CH.ai.models]: async (_event, rawId): Promise<AiModelsResult> => {
+        const id = asProvider(rawId)
+        if (id === null) return { models: [], error: 'no such provider' }
+        return chats().models(id, AbortSignal.timeout(MODELS_TIMEOUT_MS))
+      },
+      [CH.ai.chats]: (): ChatSummary[] => chats().list(),
+      [CH.ai.create]: (): string | null => chats().create(),
+      [CH.ai.remove]: (_event, raw): boolean => {
+        const chatId = asChat(raw)
+        return chatId !== null && chats().remove(chatId)
+      },
+      [CH.ai.export]: async (_event, raw): Promise<string | null> => {
+        const chatId = asChat(raw)
+        const chat = chatId === null ? null : chats().get(chatId)
+        if (chat === null) return null
+        // The renderer has no filesystem; the path comes from the user's own dialog.
+        const result = await dialog.showSaveDialog({
+          defaultPath: `${(chat.title === '' ? 'chat' : chat.title).replace(/[/:*?"<>|]/g, '_').slice(0, 60)}.md`,
+          filters: [{ name: 'Markdown', extensions: ['md'] }],
+        })
+        if (result.canceled || result.filePath === '') return null
+        await writeFile(result.filePath, chatMarkdown(chat), 'utf8')
+        return result.filePath
+      },
+      [CH.ai.snapshot]: (_event, raw): ChatEvent | null => {
+        const chatId = asChat(raw)
+        return chatId === null ? null : chats().snapshot(chatId)
+      },
+      [CH.ai.send]: (_event, rawChat, rawRequest): ChatSendResult => {
+        const chatId = asChat(rawChat)
+        const request = chatRequest(rawRequest)
+        if (chatId === null || request === null) return { ok: false, error: 'not a valid request' }
+        const result = chats().send(chatId, request)
+        // A pane sends first and follows a moment later. One that never does - closed in
+        // between - must not leave an answer running that nobody will read.
+        if (result.ok && !registry.activeSources().includes(chatId)) orphaned(chatId)
+        return result
+      },
+      [CH.ai.active]: (): string[] => service?.active() ?? [],
+      // A file comes as bytes the page read from what the user picked, dropped or pasted; there is
+      // no channel that takes a path. Its size is checked before anything else is done with it.
+      [CH.ai.attach]: (_event, rawDraft, raw): AttachResult => {
+        const draftId = asDraft(rawDraft)
+        const upload = asUpload(raw)
+        if (draftId === null || upload === null) return notAFile()
+        if (upload.bytes.byteLength > ATTACH_MAX_BYTES) {
+          return refuse('too large', `a file is attached up to ${fileSize(ATTACH_MAX_BYTES)}`)
+        }
+        return chatFiles().add(draftId, upload)
+      },
+      [CH.ai.pending]: (_event, raw): AttachmentView[] => {
+        const draftId = asDraft(raw)
+        return draftId === null ? [] : chatFiles().pending(draftId)
+      },
+      [CH.ai.detach]: (_event, rawDraft, rawId): AttachmentView[] => {
+        const draftId = asDraft(rawDraft)
+        if (draftId === null || typeof rawId !== 'string') return []
+        return chatFiles().remove(draftId, rawId)
+      },
+      [CH.ai.discard]: (_event, raw): void => {
+        const draftId = asDraft(raw)
+        if (draftId !== null) chatFiles().forget(draftId)
+      },
+      [CH.ai.thumbs]: (_event, raw): Record<string, string> => {
+        const chatId = asChat(raw)
+        const chat = chatId === null ? null : chats().get(chatId)
+        if (chatId === null || chat === null) return {}
+        return chatFiles().thumbs(
+          chatId,
+          chat.messages.flatMap((m) => m.attachments ?? []),
+        )
+      },
+    },
+    on: {
+      [CH.ai.subscribe]: (event, raw) => {
+        const chatId = asChat(raw)
+        if (chatId === null) return
+        track(event.sender)
+        registry.subscribe(event.sender, chatId)
+        clearTimeout(orphans.get(chatId))
+        orphans.delete(chatId)
+        if (!event.sender.isDestroyed()) event.sender.send(CH.ai.event, chats().snapshot(chatId))
+      },
+      [CH.ai.unsubscribe]: (event, raw) => {
+        const chatId = asChat(raw)
+        if (chatId !== null && registry.unsubscribe(event.sender, chatId)) orphaned(chatId)
+      },
+      [CH.ai.stop]: (_event, raw) => {
+        const chatId = asChat(raw)
+        if (chatId !== null) service?.stop(chatId)
+      },
+    },
   })
 
   // The ELEC system asks the same providers, with the same keys and adapters.
@@ -331,29 +322,7 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
       elec.dispose()
       for (const timer of orphans.values()) clearTimeout(timer)
       service?.dispose()
-      for (const channel of [CH.ai.subscribe, CH.ai.unsubscribe, CH.ai.stop]) {
-        ipcMain.removeAllListeners(channel)
-      }
-      for (const channel of [
-        CH.ai.providers,
-        CH.ai.setKey,
-        CH.ai.removeKey,
-        CH.ai.models,
-        CH.ai.chats,
-        CH.ai.create,
-        CH.ai.remove,
-        CH.ai.export,
-        CH.ai.snapshot,
-        CH.ai.send,
-        CH.ai.active,
-        CH.ai.attach,
-        CH.ai.pending,
-        CH.ai.detach,
-        CH.ai.discard,
-        CH.ai.thumbs,
-      ]) {
-        ipcMain.removeHandler(channel)
-      }
+      unregister()
     },
   }
 }

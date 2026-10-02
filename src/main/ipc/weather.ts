@@ -3,13 +3,14 @@ import { CH } from '@shared/channels'
 import type { JmaUpdate } from '@shared/weather'
 import { parseLocationKey, type WeatherUpdate } from '@shared/weather-report'
 import { jmaReport } from '@shared/weather-sources'
-import { app, ipcMain, net, type WebContents } from 'electron'
+import { app, net, type WebContents } from 'electron'
 import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { cacheFile } from '../store/cache-file.js'
 import { PointCacheSchema, PointForecasts } from '../weather/point-forecasts.js'
 import { CachedForecastsSchema, type FetchResponse, WeatherService } from '../weather/service.js'
 import { whenPageGoes } from './page-gone.js'
+import { registerTable } from './table.js'
 
 /**
  * Weather IPC: pages subscribe to a location key; main fetches only what is
@@ -131,32 +132,33 @@ export function registerWeatherIpc(): { dispose: () => void } {
     whenPageGoes(sender, registry, drop)
   }
 
-  ipcMain.on(CH.weather.subscribe, (event, raw: unknown) => {
-    if (typeof raw !== 'string' || parseLocationKey(raw) === null) return
-    track(event.sender)
-    send(event.sender, snapshot(raw))
-    if (registry.subscribe(event.sender, raw)) sync()
+  const unregister = registerTable({
+    on: {
+      [CH.weather.subscribe]: (event, raw) => {
+        if (typeof raw !== 'string' || parseLocationKey(raw) === null) return
+        track(event.sender)
+        send(event.sender, snapshot(raw))
+        if (registry.subscribe(event.sender, raw)) sync()
+      },
+      [CH.weather.unsubscribe]: (event, raw) => {
+        if (typeof raw !== 'string' || parseLocationKey(raw) === null) return
+        if (registry.unsubscribe(event.sender, raw)) sync()
+      },
+    },
+    handle: {
+      [CH.weather.offices]: () => jma.listOffices(),
+      [CH.weather.watching]: () => [
+        ...jma.watching().map((office) => `jma:${office}`),
+        ...points.watching(),
+      ],
+    },
   })
-
-  ipcMain.on(CH.weather.unsubscribe, (event, raw: unknown) => {
-    if (typeof raw !== 'string' || parseLocationKey(raw) === null) return
-    if (registry.unsubscribe(event.sender, raw)) sync()
-  })
-
-  ipcMain.handle(CH.weather.offices, () => jma.listOffices())
-  ipcMain.handle(CH.weather.watching, () => [
-    ...jma.watching().map((office) => `jma:${office}`),
-    ...points.watching(),
-  ])
 
   return {
     dispose: () => {
       jma.dispose()
       points.dispose()
-      ipcMain.removeAllListeners(CH.weather.subscribe)
-      ipcMain.removeAllListeners(CH.weather.unsubscribe)
-      ipcMain.removeHandler(CH.weather.offices)
-      ipcMain.removeHandler(CH.weather.watching)
+      unregister()
     },
   }
 }

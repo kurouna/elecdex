@@ -164,7 +164,7 @@ test('behind another tab nothing is asked of the engine, and shown again it link
     await page.waitForTimeout(2000)
     expect(await ask(app, 'lists')).toBe(0)
     expect(await ask(app, 'streams')).toBe(0)
-    expect(await page.evaluate(() => window.elecdex.docker.watching())).toBe(false)
+    expect(await page.evaluate(() => window.elecdex.docker.watching())).toEqual([])
     // A page that does not show the list cannot press a container.
     expect(await page.evaluate(() => window.elecdex.docker.control('0123456789ab', 'stop'))).toBe(
       'unsupported',
@@ -175,7 +175,7 @@ test('behind another tab nothing is asked of the engine, and shown again it link
     expect(await ask(app, 'streams')).toBe(1)
 
     await page.locator('[data-testid=tab][data-pane-id=c]').click({ delay: 20 })
-    await expect.poll(() => page.evaluate(() => window.elecdex.docker.watching())).toBe(false)
+    await expect.poll(() => page.evaluate(() => window.elecdex.docker.watching())).toEqual([])
     expect(await ask(app, 'streams')).toBe(0)
     const lists = await ask(app, 'lists')
     const stats = await ask(app, 'statsReads')

@@ -110,18 +110,18 @@ test('behind another tab nothing is read or pressed, and shown again it reads at
     await expect(page.getByTestId('pane')).toHaveCount(2)
     await page.waitForTimeout(2000)
     expect(await reads(app)).toBe(0)
-    expect(await page.evaluate(() => window.elecdex.nowPlaying.watching())).toBe(false)
+    expect(await page.evaluate(() => window.elecdex.nowPlaying.watching())).toEqual([])
     // A page that does not show the session cannot press its player.
     expect(await page.evaluate(() => window.elecdex.nowPlaying.control('next'))).toBe('unsupported')
     expect(await presses(app)).toEqual([])
 
     await page.locator('[data-testid=tab][data-pane-id=np]').click({ delay: 20 })
     await expect(page.getByTestId('np-title')).toHaveText('Test Track')
-    expect(await page.evaluate(() => window.elecdex.nowPlaying.watching())).toBe(true)
+    expect(await page.evaluate(() => window.elecdex.nowPlaying.watching())).toEqual(['session'])
 
     // Put behind again, the reading stops (the reader is let go a little later).
     await page.locator('[data-testid=tab][data-pane-id=c]').click({ delay: 20 })
-    await expect.poll(() => page.evaluate(() => window.elecdex.nowPlaying.watching())).toBe(false)
+    await expect.poll(() => page.evaluate(() => window.elecdex.nowPlaying.watching())).toEqual([])
     const stopped = await reads(app)
     await page.waitForTimeout(1500)
     expect(await reads(app)).toBe(stopped)

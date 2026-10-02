@@ -188,7 +188,7 @@ test('paused, it reads nothing; resumed, it lists what the clipboard holds then'
     await page.getByTestId('clip-pause').click()
     await expect(page.getByTestId('clip-state')).toHaveText('PAUSED')
     await expect(page.locator('[data-testid=pane][data-widget=clipboard]')).toContainText('paused')
-    expect(await page.evaluate(() => window.elecdex.clipboard.watching())).toBe(false)
+    expect(await page.evaluate(() => window.elecdex.clipboard.watching())).toEqual([])
     const before = await reads(app)
     await copy(app, 'while paused')
     await page.waitForTimeout(1200)
@@ -224,7 +224,7 @@ test('behind another tab or closed, nothing is read; shown again, it takes up', 
     await expect.poll(() => texts(page)).toEqual(['seen'])
 
     await page.locator('[data-testid=tab][data-pane-id=c]').click()
-    await expect.poll(watching).toBe(false)
+    await expect.poll(watching).toEqual([])
     const before = await reads(app)
     await copy(app, 'copied unseen')
     await copy(app, 'copied unseen, twice')
@@ -233,13 +233,13 @@ test('behind another tab or closed, nothing is read; shown again, it takes up', 
 
     // Shown again: what was copied meanwhile is not there, only what the clipboard holds now.
     await page.locator('[data-testid=tab][data-pane-id=k]').click()
-    await expect.poll(watching).toBe(true)
+    await expect.poll(watching).toEqual(['clipboard'])
     await expect.poll(() => texts(page)).toEqual(['copied unseen, twice', 'seen'])
 
     // Closed, nothing reads; the history waits in main's memory.
     await page.locator('[data-testid=tab-close][data-pane-id=k]').click()
     await expect(page.getByTestId('clipboard')).toHaveCount(0)
-    await expect.poll(watching).toBe(false)
+    await expect.poll(watching).toEqual([])
     const after = await reads(app)
     await page.waitForTimeout(1000)
     expect(await reads(app)).toBe(after)
@@ -268,7 +268,7 @@ test('switched away from the desk layout, nothing is read; switched back, it tak
     await page.keyboard.press('Control+Shift+F5')
     await settleLayout(page)
     await expect(pane).toHaveCount(0)
-    await expect.poll(watching).toBe(false)
+    await expect.poll(watching).toEqual([])
     const before = await reads(app)
     await copy(app, 'copied away')
     await copy(app, 'copied away, later')
@@ -279,7 +279,7 @@ test('switched away from the desk layout, nothing is read; switched back, it tak
     // clipboard holds now added - nothing copied while away.
     await page.keyboard.press('Control+Shift+F6')
     await settleLayout(page)
-    await expect.poll(watching).toBe(true)
+    await expect.poll(watching).toEqual(['clipboard'])
     await expect.poll(() => texts(page)).toEqual(['copied away, later', 'copied at the desk'])
     await copied(app, page, 'copied back at the desk')
   } finally {

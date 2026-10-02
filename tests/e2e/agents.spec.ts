@@ -139,10 +139,10 @@ test('reads only the agents settings name, and nothing once the pane is gone', a
     )
     await expect(page.getByTestId('agent-card')).toBeVisible({ timeout: 15_000 })
 
-    expect(await page.evaluate(() => window.elecdex.agents.watching())).toBe(true)
+    expect(await page.evaluate(() => window.elecdex.agents.watching())).toEqual(['records'])
     await page.getByTestId('pane-close').first().click()
     await expect(page.getByTestId('agents')).toHaveCount(0)
-    await expect.poll(() => page.evaluate(() => window.elecdex.agents.watching())).toBe(false)
+    await expect.poll(() => page.evaluate(() => window.elecdex.agents.watching())).toEqual([])
   } finally {
     await close()
     removeDir(dir)

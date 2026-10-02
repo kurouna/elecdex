@@ -16,13 +16,14 @@ import {
   type TasksFile,
   TasksFileSchema,
 } from '@shared/tasks'
-import { app, ipcMain, Notification, powerMonitor } from 'electron'
+import { app, Notification, powerMonitor } from 'electron'
 import { appWindows } from '../app-windows.js'
 import { createScheduler } from '../reminders/scheduler.js'
 import { JsonStore } from '../store/json-store.js'
 import { watchUserFile } from '../store/watch-user-file.js'
 import { showMainWindow, windowInFront } from '../window-control.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * Tasks, and the reminders that are the reason main owns them.
@@ -129,80 +130,84 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
     scheduler.update(moments())
   })
 
-  ipcMain.handle(CH.tasks.list, (): TasksFile => tasks)
+  const unregister = registerTable({
+    handle: {
+      [CH.tasks.list]: (): TasksFile => tasks,
 
-  ipcMain.handle(CH.tasks.add, (_event, raw: unknown): Task | null => {
-    const parsed = NewTaskSchema.safeParse(raw)
-    if (!parsed.success) return null
-    if (tasks.tasks.length >= TASK_LIMITS.tasks) return null
-    const task = makeTask(parsed.data, tasks)
-    commit({ ...tasks, tasks: [...tasks.tasks, task] })
-    return task
-  })
+      [CH.tasks.add]: (_event, raw: unknown): Task | null => {
+        const parsed = NewTaskSchema.safeParse(raw)
+        if (!parsed.success) return null
+        if (tasks.tasks.length >= TASK_LIMITS.tasks) return null
+        const task = makeTask(parsed.data, tasks)
+        commit({ ...tasks, tasks: [...tasks.tasks, task] })
+        return task
+      },
 
-  ipcMain.handle(CH.tasks.update, (_event, id: unknown, raw: unknown): Task | null => {
-    if (typeof id !== 'string') return null
-    const parsed = TaskPatchSchema.safeParse(raw)
-    if (!parsed.success) return null
-    const current = tasks.tasks.find((task) => task.id === id)
-    if (current === undefined) return null
+      [CH.tasks.update]: (_event, id: unknown, raw: unknown): Task | null => {
+        if (typeof id !== 'string') return null
+        const parsed = TaskPatchSchema.safeParse(raw)
+        if (!parsed.success) return null
+        const current = tasks.tasks.find((task) => task.id === id)
+        if (current === undefined) return null
 
-    const next = applyPatch(current, parsed.data)
-    const repeated = repeatOf(current, next, tasks)
-    commit({
-      ...tasks,
-      tasks: [
-        ...tasks.tasks.map((task) => (task.id === id ? next : task)),
-        ...(repeated === null ? [] : [repeated]),
-      ],
-    })
-    return next
-  })
+        const next = applyPatch(current, parsed.data)
+        const repeated = repeatOf(current, next, tasks)
+        commit({
+          ...tasks,
+          tasks: [
+            ...tasks.tasks.map((task) => (task.id === id ? next : task)),
+            ...(repeated === null ? [] : [repeated]),
+          ],
+        })
+        return next
+      },
 
-  ipcMain.handle(CH.tasks.remove, (_event, id: unknown): boolean => {
-    if (typeof id !== 'string' || !tasks.tasks.some((task) => task.id === id)) return false
-    commit({ ...tasks, tasks: tasks.tasks.filter((task) => task.id !== id) })
-    return true
-  })
+      [CH.tasks.remove]: (_event, id: unknown): boolean => {
+        if (typeof id !== 'string' || !tasks.tasks.some((task) => task.id === id)) return false
+        commit({ ...tasks, tasks: tasks.tasks.filter((task) => task.id !== id) })
+        return true
+      },
 
-  ipcMain.handle(CH.tasks.clearCompleted, (_event, listId: unknown): number => {
-    if (typeof listId !== 'string') return 0
-    const keep = tasks.tasks.filter((task) => !(task.done && task.listId === listId))
-    const gone = tasks.tasks.length - keep.length
-    if (gone > 0) commit({ ...tasks, tasks: keep })
-    return gone
-  })
+      [CH.tasks.clearCompleted]: (_event, listId: unknown): number => {
+        if (typeof listId !== 'string') return 0
+        const keep = tasks.tasks.filter((task) => !(task.done && task.listId === listId))
+        const gone = tasks.tasks.length - keep.length
+        if (gone > 0) commit({ ...tasks, tasks: keep })
+        return gone
+      },
 
-  ipcMain.handle(CH.tasks.addList, (_event, name: unknown): TaskList | null => {
-    if (typeof name !== 'string') return null
-    const trimmed = name.trim().slice(0, TASK_LIMITS.listName)
-    if (trimmed === '' || tasks.lists.length >= TASK_LIMITS.lists) return null
-    const list: TaskList = { id: crypto.randomUUID(), name: trimmed }
-    commit({ ...tasks, lists: [...tasks.lists, list] })
-    return list
-  })
+      [CH.tasks.addList]: (_event, name: unknown): TaskList | null => {
+        if (typeof name !== 'string') return null
+        const trimmed = name.trim().slice(0, TASK_LIMITS.listName)
+        if (trimmed === '' || tasks.lists.length >= TASK_LIMITS.lists) return null
+        const list: TaskList = { id: crypto.randomUUID(), name: trimmed }
+        commit({ ...tasks, lists: [...tasks.lists, list] })
+        return list
+      },
 
-  ipcMain.handle(CH.tasks.renameList, (_event, id: unknown, name: unknown): boolean => {
-    if (typeof id !== 'string' || typeof name !== 'string') return false
-    const trimmed = name.trim().slice(0, TASK_LIMITS.listName)
-    if (trimmed === '' || !tasks.lists.some((list) => list.id === id)) return false
-    commit({
-      ...tasks,
-      lists: tasks.lists.map((list) => (list.id === id ? { ...list, name: trimmed } : list)),
-    })
-    return true
-  })
+      [CH.tasks.renameList]: (_event, id: unknown, name: unknown): boolean => {
+        if (typeof id !== 'string' || typeof name !== 'string') return false
+        const trimmed = name.trim().slice(0, TASK_LIMITS.listName)
+        if (trimmed === '' || !tasks.lists.some((list) => list.id === id)) return false
+        commit({
+          ...tasks,
+          lists: tasks.lists.map((list) => (list.id === id ? { ...list, name: trimmed } : list)),
+        })
+        return true
+      },
 
-  ipcMain.handle(CH.tasks.removeList, (_event, id: unknown): boolean => {
-    if (typeof id !== 'string') return false
-    // The last list never goes: a pane with no list to show has nothing to offer.
-    if (tasks.lists.length <= 1 || !tasks.lists.some((list) => list.id === id)) return false
-    commit({
-      ...tasks,
-      lists: tasks.lists.filter((list) => list.id !== id),
-      tasks: tasks.tasks.filter((task) => task.listId !== id),
-    })
-    return true
+      [CH.tasks.removeList]: (_event, id: unknown): boolean => {
+        if (typeof id !== 'string') return false
+        // The last list never goes: a pane with no list to show has nothing to offer.
+        if (tasks.lists.length <= 1 || !tasks.lists.some((list) => list.id === id)) return false
+        commit({
+          ...tasks,
+          lists: tasks.lists.filter((list) => list.id !== id),
+          tasks: tasks.tasks.filter((task) => task.listId !== id),
+        })
+        return true
+      },
+    },
   })
 
   scheduler.update(moments())
@@ -213,18 +218,7 @@ export function registerTasksIpc(settings: SettingsHandle): { dispose: () => voi
       powerMonitor.off('resume', onResume)
       scheduler.dispose()
       watcher.close()
-      for (const channel of [
-        CH.tasks.list,
-        CH.tasks.add,
-        CH.tasks.update,
-        CH.tasks.remove,
-        CH.tasks.clearCompleted,
-        CH.tasks.addList,
-        CH.tasks.renameList,
-        CH.tasks.removeList,
-      ]) {
-        ipcMain.removeHandler(channel)
-      }
+      unregister()
     },
   }
 }

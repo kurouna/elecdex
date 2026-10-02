@@ -409,8 +409,8 @@ export interface ClipboardApi {
   clear(): void
   /** Stops reading the clipboard until resumed, with panes still open. */
   pause(paused: boolean): void
-  /** Diagnostics: whether main is reading the clipboard now. */
-  watching(): Promise<boolean>
+  /** Diagnostics: `['clipboard']` while main reads the clipboard, else none. */
+  watching(): Promise<string[]>
 }
 
 /**
@@ -452,8 +452,8 @@ export interface NowPlayingApi {
   seek(seconds: number): Promise<NowPlayingControlResult>
   /** The art at the card's size (a JPEG data URL), asked for only when the card opens. */
   art(): Promise<string | null>
-  /** Diagnostics: whether main is reading the session now. */
-  watching(): Promise<boolean>
+  /** Diagnostics: `['session']` while main reads the media session, else none. */
+  watching(): Promise<string[]>
 }
 
 /**
@@ -492,8 +492,8 @@ export interface DockerApi {
   subscribe(handler: (board: DockerBoard) => void): () => void
   /** Presses on a container of the list shown, by its short id: never a removal or a kill. */
   control(id: string, action: DockerAction): Promise<DockerControlResult>
-  /** Diagnostics: whether main is following the engine now. */
-  watching(): Promise<boolean>
+  /** Diagnostics: `['engine']` while main follows the engine, else none. */
+  watching(): Promise<string[]>
 }
 
 /**
@@ -526,8 +526,8 @@ export interface AgentsApi {
   subscribe(handler: (board: AgentBoard) => void): () => void
   /** What a session did to one of its files, or null when that cannot be read. */
   diff(request: AgentDiffRequest): Promise<GitDiff | null>
-  /** Diagnostics: whether main is reading any agent's records. */
-  watching(): Promise<boolean>
+  /** Diagnostics: `['records']` while main reads agents' records, else none. */
+  watching(): Promise<string[]>
 }
 
 /** The ORBIT pane's orbital elements, downloaded by main under CelesTrak's rules. */
@@ -537,8 +537,8 @@ export interface OrbitsApi {
    * new download (the stations twice a day, Starlink once).
    */
   subscribe(set: OrbitSet, handler: (update: OrbitUpdate) => void): () => void
-  /** Diagnostics: the sets main is keeping. */
-  watching(): Promise<OrbitSet[]>
+  /** Diagnostics: the sets main is keeping, sorted. */
+  watching(): Promise<string[]>
 }
 
 /**

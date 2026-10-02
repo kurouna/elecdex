@@ -15,13 +15,14 @@ import {
   nextAlarmAt,
 } from '@shared/alarms'
 import { CH } from '@shared/channels'
-import { app, ipcMain, Notification, powerMonitor } from 'electron'
+import { app, Notification, powerMonitor } from 'electron'
 import { appWindows } from '../app-windows.js'
 import { createScheduler } from '../reminders/scheduler.js'
 import { JsonStore } from '../store/json-store.js'
 import { watchUserFile } from '../store/watch-user-file.js'
 import { showMainWindow, windowInFront } from '../window-control.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * Alarms: a time of day, announced whether or not the chrono pane is open.
@@ -123,33 +124,40 @@ export function registerAlarmsIpc(settings: SettingsHandle): { dispose: () => vo
     scheduler.update(moments())
   })
 
-  ipcMain.handle(CH.alarms.list, (): AlarmsFile => alarms)
+  const unregister = registerTable({
+    handle: {
+      [CH.alarms.list]: (): AlarmsFile => alarms,
 
-  ipcMain.handle(CH.alarms.add, (_event, raw: unknown): Alarm | null => {
-    const parsed = NewAlarmSchema.safeParse(raw)
-    if (!parsed.success) return null
-    if (alarms.alarms.length >= ALARM_LIMITS.alarms) return null
-    const alarm = makeAlarm(parsed.data)
-    commit({ ...alarms, alarms: [...alarms.alarms, alarm] })
-    return alarm
-  })
+      [CH.alarms.add]: (_event, raw: unknown): Alarm | null => {
+        const parsed = NewAlarmSchema.safeParse(raw)
+        if (!parsed.success) return null
+        if (alarms.alarms.length >= ALARM_LIMITS.alarms) return null
+        const alarm = makeAlarm(parsed.data)
+        commit({ ...alarms, alarms: [...alarms.alarms, alarm] })
+        return alarm
+      },
 
-  ipcMain.handle(CH.alarms.update, (_event, id: unknown, raw: unknown): Alarm | null => {
-    if (typeof id !== 'string') return null
-    const parsed = AlarmPatchSchema.safeParse(raw)
-    if (!parsed.success) return null
-    const current = alarms.alarms.find((alarm) => alarm.id === id)
-    if (current === undefined) return null
+      [CH.alarms.update]: (_event, id: unknown, raw: unknown): Alarm | null => {
+        if (typeof id !== 'string') return null
+        const parsed = AlarmPatchSchema.safeParse(raw)
+        if (!parsed.success) return null
+        const current = alarms.alarms.find((alarm) => alarm.id === id)
+        if (current === undefined) return null
 
-    const next = applyPatch(current, parsed.data)
-    commit({ ...alarms, alarms: alarms.alarms.map((alarm) => (alarm.id === id ? next : alarm)) })
-    return next
-  })
+        const next = applyPatch(current, parsed.data)
+        commit({
+          ...alarms,
+          alarms: alarms.alarms.map((alarm) => (alarm.id === id ? next : alarm)),
+        })
+        return next
+      },
 
-  ipcMain.handle(CH.alarms.remove, (_event, id: unknown): boolean => {
-    if (typeof id !== 'string' || !alarms.alarms.some((alarm) => alarm.id === id)) return false
-    commit({ ...alarms, alarms: alarms.alarms.filter((alarm) => alarm.id !== id) })
-    return true
+      [CH.alarms.remove]: (_event, id: unknown): boolean => {
+        if (typeof id !== 'string' || !alarms.alarms.some((alarm) => alarm.id === id)) return false
+        commit({ ...alarms, alarms: alarms.alarms.filter((alarm) => alarm.id !== id) })
+        return true
+      },
+    },
   })
 
   scheduler.update(moments())
@@ -160,9 +168,7 @@ export function registerAlarmsIpc(settings: SettingsHandle): { dispose: () => vo
       powerMonitor.off('resume', onResume)
       scheduler.dispose()
       watcher.close()
-      for (const channel of [CH.alarms.list, CH.alarms.add, CH.alarms.update, CH.alarms.remove]) {
-        ipcMain.removeHandler(channel)
-      }
+      unregister()
     },
   }
 }

@@ -12,13 +12,14 @@ import {
   SnippetsFileSchema,
   type SnippetView,
 } from '@shared/snippets'
-import { app, ipcMain } from 'electron'
+import { app } from 'electron'
 import { z } from 'zod'
 import { appWindows } from '../app-windows.js'
 import { SnippetShelf } from '../clipboard/snippets.js'
 import type { ClipboardWatcher } from '../clipboard/watcher.js'
 import { JsonStore } from '../store/json-store.js'
 import { watchUserFile } from '../store/watch-user-file.js'
+import { registerTable } from './table.js'
 
 /**
  * The clipboard pane's snippets: snippets.json, main's, like notes. Nothing is
@@ -68,75 +69,64 @@ export function registerSnippetsIpc(
   shelf: SnippetShelf,
   clipboard: ClipboardWatcher,
 ): { dispose: () => void } {
-  ipcMain.handle(CH.snippets.list, (): SnippetView[] => shelf.views())
+  const unregister = registerTable({
+    handle: {
+      [CH.snippets.list]: (): SnippetView[] => shelf.views(),
 
-  ipcMain.handle(CH.snippets.fromClip, (_event, id: unknown): SnippetAdded => {
-    if (!isClipId(id)) return { error: 'missing' }
-    const entry = clipboard.entry(id)
-    if (entry === undefined) return { error: 'missing' }
-    if (!entry.kept) return { error: 'not-kept' }
-    return shelf.add({ text: entry.text, html: entry.html, rtf: entry.rtf })
-  })
+      [CH.snippets.fromClip]: (_event, id: unknown): SnippetAdded => {
+        if (!isClipId(id)) return { error: 'missing' }
+        const entry = clipboard.entry(id)
+        if (entry === undefined) return { error: 'missing' }
+        if (!entry.kept) return { error: 'not-kept' }
+        return shelf.add({ text: entry.text, html: entry.html, rtf: entry.rtf })
+      },
 
-  ipcMain.handle(CH.snippets.create, (_event, name: unknown, text: unknown): SnippetAdded => {
-    const parsedName = NameSchema.safeParse(name)
-    const parsedText = TextSchema.safeParse(text)
-    if (!parsedName.success || !parsedText.success) return { error: 'invalid' }
-    return shelf.add({ text: parsedText.data, html: null, rtf: null }, parsedName.data)
-  })
+      [CH.snippets.create]: (_event, name: unknown, text: unknown): SnippetAdded => {
+        const parsedName = NameSchema.safeParse(name)
+        const parsedText = TextSchema.safeParse(text)
+        if (!parsedName.success || !parsedText.success) return { error: 'invalid' }
+        return shelf.add({ text: parsedText.data, html: null, rtf: null }, parsedName.data)
+      },
 
-  ipcMain.handle(CH.snippets.read, (_event, id: unknown): SnippetDraft | null => {
-    const snippet = isSnippetId(id) ? shelf.get(id) : undefined
-    if (snippet === undefined) return null
-    return {
-      name: snippet.name,
-      text: snippet.text,
-      rich: snippet.html !== null || snippet.rtf !== null,
-    }
-  })
+      [CH.snippets.read]: (_event, id: unknown): SnippetDraft | null => {
+        const snippet = isSnippetId(id) ? shelf.get(id) : undefined
+        if (snippet === undefined) return null
+        return {
+          name: snippet.name,
+          text: snippet.text,
+          rich: snippet.html !== null || snippet.rtf !== null,
+        }
+      },
 
-  ipcMain.handle(CH.snippets.update, (_event, id: unknown, change: unknown): boolean => {
-    const parsed = ChangeSchema.safeParse(change)
-    if (!isSnippetId(id) || !parsed.success) return false
-    const { name, text } = parsed.data
-    return shelf.edit(id, {
-      ...(name !== undefined ? { name } : {}),
-      ...(text !== undefined ? { text } : {}),
-    })
-  })
+      [CH.snippets.update]: (_event, id: unknown, change: unknown): boolean => {
+        const parsed = ChangeSchema.safeParse(change)
+        if (!isSnippetId(id) || !parsed.success) return false
+        const { name, text } = parsed.data
+        return shelf.edit(id, {
+          ...(name !== undefined ? { name } : {}),
+          ...(text !== undefined ? { text } : {}),
+        })
+      },
 
-  ipcMain.handle(CH.snippets.move, (_event, id: unknown, index: unknown): boolean =>
-    isSnippetId(id) && Number.isInteger(index) ? shelf.move(id, index as number) : false,
-  )
+      [CH.snippets.move]: (_event, id: unknown, index: unknown): boolean =>
+        isSnippetId(id) && Number.isInteger(index) ? shelf.move(id, index as number) : false,
 
-  ipcMain.handle(CH.snippets.remove, (_event, id: unknown): boolean =>
-    isSnippetId(id) ? shelf.remove(id) : false,
-  )
+      [CH.snippets.remove]: (_event, id: unknown): boolean =>
+        isSnippetId(id) ? shelf.remove(id) : false,
 
-  ipcMain.handle(
-    CH.snippets.copy,
-    async (_event, id: unknown): Promise<'ok' | 'missing' | 'failed'> => {
-      const snippet = isSnippetId(id) ? shelf.get(id) : undefined
-      if (snippet === undefined) return 'missing'
-      const result = await clipboard.put(snippet)
-      if (result === 'ok') shelf.used(snippet.id)
-      return result
+      [CH.snippets.copy]: async (_event, id: unknown): Promise<'ok' | 'missing' | 'failed'> => {
+        const snippet = isSnippetId(id) ? shelf.get(id) : undefined
+        if (snippet === undefined) return 'missing'
+        const result = await clipboard.put(snippet)
+        if (result === 'ok') shelf.used(snippet.id)
+        return result
+      },
     },
-  )
+  })
 
   return {
     dispose: () => {
-      for (const channel of [
-        CH.snippets.list,
-        CH.snippets.fromClip,
-        CH.snippets.create,
-        CH.snippets.read,
-        CH.snippets.update,
-        CH.snippets.move,
-        CH.snippets.remove,
-        CH.snippets.copy,
-      ])
-        ipcMain.removeHandler(channel)
+      unregister()
     },
   }
 }

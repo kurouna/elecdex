@@ -4,7 +4,6 @@ import { CH, type PtyPortMessage, type PtyPortRequest } from '@shared/channels'
 import {
   BrowserWindow,
   dialog,
-  ipcMain,
   MessageChannelMain,
   type MessagePortMain,
   type WebContents,
@@ -12,6 +11,7 @@ import {
 import { PtyManager } from '../pty/pty-manager.js'
 import { resolveStartDirectory } from '../pty/start-directory.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * Wires PtyManager to the renderer.
@@ -80,64 +80,63 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
     },
   })
 
-  ipcMain.handle(CH.pty.create, (_event, raw: unknown): PtySessionSummary => {
-    if (closing) throw new Error('elecdex is quitting')
-    const opts = validateCreateOptions(raw)
-    // A pane asks for no folder: it starts where the settings say.
-    opts.cwd ??= startDirectory().path
-    return manager.create(opts)
-  })
+  const unregister = registerTable({
+    handle: {
+      [CH.pty.create]: (_event, raw: unknown): PtySessionSummary => {
+        if (closing) throw new Error('elecdex is quitting')
+        const opts = validateCreateOptions(raw)
+        // A pane asks for no folder: it starts where the settings say.
+        opts.cwd ??= startDirectory().path
+        return manager.create(opts)
+      },
+      [CH.settings.startDirectory]: (): StartDirectory => startDirectory(),
+      [CH.settings.chooseStartDirectory]: async (event): Promise<string | null> => {
+        const owner = BrowserWindow.fromWebContents(event.sender)
+        const options: Electron.OpenDialogOptions = {
+          title: 'Start shells in',
+          defaultPath: startDirectory().path,
+          properties: ['openDirectory', 'createDirectory'],
+        }
+        const result = owner
+          ? await dialog.showOpenDialog(owner, options)
+          : await dialog.showOpenDialog(options)
+        return result.canceled ? null : (result.filePaths[0] ?? null)
+      },
+      [CH.pty.list]: (): PtySessionSummary[] => manager.list(),
+      [CH.pty.dispose]: (_event, raw: unknown) => {
+        const id = asSessionId(raw)
+        if (id !== null) manager.dispose(id)
+      },
+      [CH.pty.attach]: (event, raw: unknown): boolean => {
+        const id = asSessionId(raw)
+        if (id === null || !manager.has(id)) return false
 
-  ipcMain.handle(CH.settings.startDirectory, (): StartDirectory => startDirectory())
+        const { port1, port2 } = new MessageChannelMain()
 
-  ipcMain.handle(CH.settings.chooseStartDirectory, async (event): Promise<string | null> => {
-    const owner = BrowserWindow.fromWebContents(event.sender)
-    const options: Electron.OpenDialogOptions = {
-      title: 'Start shells in',
-      defaultPath: startDirectory().path,
-      properties: ['openDirectory', 'createDirectory'],
-    }
-    const result = owner
-      ? await dialog.showOpenDialog(owner, options)
-      : await dialog.showOpenDialog(options)
-    return result.canceled ? null : (result.filePaths[0] ?? null)
-  })
+        port1.on('message', (msg) => {
+          const request = validatePortRequest(msg.data)
+          if (request === null) return
+          if (request.t === 'write') manager.write(id, request.data)
+          else manager.resize(id, request.cols, request.rows)
+        })
+        const attached: Attached = { port: port1, backlog: [] }
+        port1.on('close', () => {
+          ports.get(id)?.delete(attached)
+        })
+        port1.start()
 
-  ipcMain.handle(CH.pty.list, (): PtySessionSummary[] => manager.list())
+        let set = ports.get(id)
+        if (!set) {
+          set = new Set()
+          ports.set(id, set)
+        }
+        set.add(attached)
 
-  ipcMain.handle(CH.pty.dispose, (_event, raw: unknown) => {
-    const id = asSessionId(raw)
-    if (id !== null) manager.dispose(id)
-  })
-
-  ipcMain.handle(CH.pty.attach, (event, raw: unknown): boolean => {
-    const id = asSessionId(raw)
-    if (id === null || !manager.has(id)) return false
-
-    const { port1, port2 } = new MessageChannelMain()
-
-    port1.on('message', (msg) => {
-      const request = validatePortRequest(msg.data)
-      if (request === null) return
-      if (request.t === 'write') manager.write(id, request.data)
-      else manager.resize(id, request.cols, request.rows)
-    })
-    const attached: Attached = { port: port1, backlog: [] }
-    port1.on('close', () => {
-      ports.get(id)?.delete(attached)
-    })
-    port1.start()
-
-    let set = ports.get(id)
-    if (!set) {
-      set = new Set()
-      ports.set(id, set)
-    }
-    set.add(attached)
-
-    sendPort(event.sender, id, port2)
-    void catchUp(manager, id, attached)
-    return true
+        sendPort(event.sender, id, port2)
+        void catchUp(manager, id, attached)
+        return true
+      },
+    },
   })
 
   const closeSessions = (): void => {
@@ -151,12 +150,7 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
     closeSessions,
     dispose: () => {
       closeSessions()
-      ipcMain.removeHandler(CH.pty.create)
-      ipcMain.removeHandler(CH.pty.list)
-      ipcMain.removeHandler(CH.pty.dispose)
-      ipcMain.removeHandler(CH.pty.attach)
-      ipcMain.removeHandler(CH.settings.startDirectory)
-      ipcMain.removeHandler(CH.settings.chooseStartDirectory)
+      unregister()
     },
   }
 }

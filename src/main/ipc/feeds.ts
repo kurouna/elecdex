@@ -1,12 +1,13 @@
 import path from 'node:path'
 import { CH } from '@shared/channels'
 import { type FeedUpdate, feedUrl } from '@shared/feeds'
-import { app, ipcMain, net, type WebContents } from 'electron'
+import { app, net, type WebContents } from 'electron'
 import { USER_AGENT } from '../build-info.js'
 import { FeedCacheSchema, FeedService, readLimited } from '../feeds/service.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { cacheFile } from '../store/cache-file.js'
 import { whenPageGoes } from './page-gone.js'
+import { registerTable } from './table.js'
 
 /**
  * Feeds IPC: pages subscribe to feed URLs; main fetches only what is watched.
@@ -81,28 +82,31 @@ export function registerFeedsIpc(): { dispose: () => void } {
   /** Only a URL already in canonical form is a key; anything else is not ours to fetch. */
   const asFeed = (raw: unknown): string | null => (feedUrl(raw) === raw ? (raw as string) : null)
 
-  ipcMain.on(CH.feeds.subscribe, (event, raw: unknown) => {
-    const url = asFeed(raw)
-    if (url === null) return
-    service ??= createService()
-    track(event.sender)
-    send(event.sender, service.snapshot(url))
-    if (registry.subscribe(event.sender, url)) sync(service)
+  const unregister = registerTable({
+    on: {
+      [CH.feeds.subscribe]: (event, raw) => {
+        const url = asFeed(raw)
+        if (url === null) return
+        service ??= createService()
+        track(event.sender)
+        send(event.sender, service.snapshot(url))
+        if (registry.subscribe(event.sender, url)) sync(service)
+      },
+      [CH.feeds.unsubscribe]: (event, raw) => {
+        const url = asFeed(raw)
+        if (url !== null && registry.unsubscribe(event.sender, url) && service !== null)
+          sync(service)
+      },
+    },
+    handle: {
+      [CH.feeds.watching]: () => service?.watching() ?? [],
+    },
   })
-
-  ipcMain.on(CH.feeds.unsubscribe, (event, raw: unknown) => {
-    const url = asFeed(raw)
-    if (url !== null && registry.unsubscribe(event.sender, url) && service !== null) sync(service)
-  })
-
-  ipcMain.handle(CH.feeds.watching, () => service?.watching() ?? [])
 
   return {
     dispose: () => {
       service?.dispose()
-      ipcMain.removeAllListeners(CH.feeds.subscribe)
-      ipcMain.removeAllListeners(CH.feeds.unsubscribe)
-      ipcMain.removeHandler(CH.feeds.watching)
+      unregister()
     },
   }
 }

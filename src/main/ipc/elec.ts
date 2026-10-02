@@ -10,7 +10,7 @@ import {
   type SessionSummary,
   sessionMarkdown,
 } from '@shared/elec'
-import { app, dialog, ipcMain, type WebContents } from 'electron'
+import { app, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import { ElecService } from '../ai/elec.js'
 import { SessionStore } from '../ai/store.js'
@@ -18,6 +18,7 @@ import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * The ELEC system pane's IPC (shared/elec.ts, docs/architecture.md section 5.8).
@@ -96,83 +97,70 @@ export function registerElecIpc(
   const asSession = (raw: unknown): string | null =>
     typeof raw === 'string' && SESSION_ID.test(raw) ? raw : null
 
-  ipcMain.handle(CH.elec.sessions, (): SessionSummary[] => council().list())
-
-  ipcMain.handle(CH.elec.submit, (_event, raw: unknown): ElecSubmitResult => {
-    const motion = elecMotion(raw)
-    if (motion === null) return { ok: false, error: 'there is no motion to put' }
-    const result = council().submit(motion)
-    // A pane submits first and follows a moment later. One that never does - closed in
-    // between - must not leave a deliberation running that nobody will read.
-    if (result.ok && !registry.activeSources().includes(result.sessionId)) {
-      orphaned(result.sessionId)
-    }
-    return result
+  const unregister = registerTable({
+    handle: {
+      [CH.elec.sessions]: (): SessionSummary[] => council().list(),
+      [CH.elec.submit]: (_event, raw): ElecSubmitResult => {
+        const motion = elecMotion(raw)
+        if (motion === null) return { ok: false, error: 'there is no motion to put' }
+        const result = council().submit(motion)
+        // A pane submits first and follows a moment later. One that never does - closed in
+        // between - must not leave a deliberation running that nobody will read.
+        if (result.ok && !registry.activeSources().includes(result.sessionId)) {
+          orphaned(result.sessionId)
+        }
+        return result
+      },
+      [CH.elec.remove]: (_event, raw): boolean => {
+        const sessionId = asSession(raw)
+        return sessionId !== null && council().remove(sessionId)
+      },
+      [CH.elec.export]: async (_event, raw): Promise<string | null> => {
+        const sessionId = asSession(raw)
+        const session = sessionId === null ? null : council().get(sessionId)
+        if (session === null) return null
+        // The renderer has no filesystem; the path comes from the user's own dialog.
+        const result = await dialog.showSaveDialog({
+          defaultPath: `${(session.title === '' ? 'motion' : session.title).replace(/[\\/:*?"<>|]/g, '_').slice(0, 60)}.md`,
+          filters: [{ name: 'Markdown', extensions: ['md'] }],
+        })
+        if (result.canceled || result.filePath === '') return null
+        await writeFile(result.filePath, sessionMarkdown(session), 'utf8')
+        return result.filePath
+      },
+      [CH.elec.snapshot]: (_event, raw): ElecEvent | null => {
+        const sessionId = asSession(raw)
+        return sessionId === null ? null : council().snapshot(sessionId)
+      },
+      [CH.elec.active]: (): string[] => service?.active() ?? [],
+    },
+    on: {
+      [CH.elec.subscribe]: (event, raw) => {
+        const sessionId = asSession(raw)
+        if (sessionId === null) return
+        track(event.sender)
+        registry.subscribe(event.sender, sessionId)
+        clearTimeout(orphans.get(sessionId))
+        orphans.delete(sessionId)
+        if (!event.sender.isDestroyed())
+          event.sender.send(CH.elec.event, council().snapshot(sessionId))
+      },
+      [CH.elec.unsubscribe]: (event, raw) => {
+        const sessionId = asSession(raw)
+        if (sessionId !== null && registry.unsubscribe(event.sender, sessionId)) orphaned(sessionId)
+      },
+      [CH.elec.stop]: (_event, raw) => {
+        const sessionId = asSession(raw)
+        if (sessionId !== null) service?.stop(sessionId)
+      },
+    },
   })
-
-  ipcMain.handle(CH.elec.remove, (_event, raw: unknown): boolean => {
-    const sessionId = asSession(raw)
-    return sessionId !== null && council().remove(sessionId)
-  })
-
-  ipcMain.handle(CH.elec.export, async (_event, raw: unknown): Promise<string | null> => {
-    const sessionId = asSession(raw)
-    const session = sessionId === null ? null : council().get(sessionId)
-    if (session === null) return null
-    // The renderer has no filesystem; the path comes from the user's own dialog.
-    const result = await dialog.showSaveDialog({
-      defaultPath: `${(session.title === '' ? 'motion' : session.title).replace(/[\\/:*?"<>|]/g, '_').slice(0, 60)}.md`,
-      filters: [{ name: 'Markdown', extensions: ['md'] }],
-    })
-    if (result.canceled || result.filePath === '') return null
-    await writeFile(result.filePath, sessionMarkdown(session), 'utf8')
-    return result.filePath
-  })
-
-  ipcMain.on(CH.elec.subscribe, (event, raw: unknown) => {
-    const sessionId = asSession(raw)
-    if (sessionId === null) return
-    track(event.sender)
-    registry.subscribe(event.sender, sessionId)
-    clearTimeout(orphans.get(sessionId))
-    orphans.delete(sessionId)
-    if (!event.sender.isDestroyed()) event.sender.send(CH.elec.event, council().snapshot(sessionId))
-  })
-
-  ipcMain.on(CH.elec.unsubscribe, (event, raw: unknown) => {
-    const sessionId = asSession(raw)
-    if (sessionId !== null && registry.unsubscribe(event.sender, sessionId)) orphaned(sessionId)
-  })
-
-  ipcMain.handle(CH.elec.snapshot, (_event, raw: unknown): ElecEvent | null => {
-    const sessionId = asSession(raw)
-    return sessionId === null ? null : council().snapshot(sessionId)
-  })
-
-  ipcMain.on(CH.elec.stop, (_event, raw: unknown) => {
-    const sessionId = asSession(raw)
-    if (sessionId !== null) service?.stop(sessionId)
-  })
-
-  ipcMain.handle(CH.elec.active, (): string[] => service?.active() ?? [])
 
   return {
     dispose: () => {
       for (const timer of orphans.values()) clearTimeout(timer)
       service?.dispose()
-      for (const channel of [CH.elec.subscribe, CH.elec.unsubscribe, CH.elec.stop]) {
-        ipcMain.removeAllListeners(channel)
-      }
-      for (const channel of [
-        CH.elec.sessions,
-        CH.elec.submit,
-        CH.elec.remove,
-        CH.elec.export,
-        CH.elec.snapshot,
-        CH.elec.active,
-      ]) {
-        ipcMain.removeHandler(channel)
-      }
+      unregister()
     },
   }
 }

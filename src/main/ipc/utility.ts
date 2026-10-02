@@ -9,7 +9,7 @@ import {
   isUtilityCopy,
   UTILITY_LIMITS,
 } from '@shared/utility'
-import { app, ipcMain } from 'electron'
+import { app } from 'electron'
 import { z } from 'zod'
 import { appWindows } from '../app-windows.js'
 import { systemBlocker, systemPower } from '../awake/power.js'
@@ -19,6 +19,7 @@ import { seal, unseal } from '../secrets/seal.js'
 import { secretCodec } from '../secrets/system.js'
 import { JsonStore } from '../store/json-store.js'
 import type { ClipboardWriter } from './clipboard.js'
+import { registerTable } from './table.js'
 
 /**
  * The UTILITY pane's IPC (docs/architecture.md section 5.16): AWAKE's hold,
@@ -88,28 +89,30 @@ export function registerUtilityIpc(clipboard: ClipboardWriter): UtilityIpc {
     () => service.check(),
   )
 
-  ipcMain.handle(CH.utility.awakeState, () => service.state())
-  ipcMain.handle(CH.utility.awakeSet, (_event, request: unknown) =>
-    isAwakeRequest(request) ? service.set(request) : service.state(),
-  )
-  ipcMain.handle(CH.utility.awakeExtend, () => service.extend(AWAKE_EXTEND_MS))
+  const unregister = registerTable({
+    handle: {
+      [CH.utility.awakeState]: () => service.state(),
+      [CH.utility.awakeSet]: (_event, request: unknown) =>
+        isAwakeRequest(request) ? service.set(request) : service.state(),
+      [CH.utility.awakeExtend]: () => service.extend(AWAKE_EXTEND_MS),
 
-  ipcMain.handle(CH.utility.seal, (_event, secret: unknown) =>
-    typeof secret === 'string' && secret !== '' && secret.length <= UTILITY_LIMITS.password
-      ? seal(secretCodec(), secret)
-      : null,
-  )
-  ipcMain.handle(CH.utility.unseal, (_event, sealed: unknown) => unseal(secretCodec(), sealed))
+      [CH.utility.seal]: (_event, secret: unknown) =>
+        typeof secret === 'string' && secret !== '' && secret.length <= UTILITY_LIMITS.password
+          ? seal(secretCodec(), secret)
+          : null,
+      [CH.utility.unseal]: (_event, sealed: unknown) => unseal(secretCodec(), sealed),
 
-  ipcMain.handle(CH.utility.copy, async (_event, what: unknown) => {
-    if (!isUtilityCopy(what)) return false
-    try {
-      if (what.kind === 'text') await clipboard.writeText(what.text)
-      else await clipboard.writeImage(what.data)
-      return true
-    } catch {
-      return false
-    }
+      [CH.utility.copy]: async (_event, what: unknown) => {
+        if (!isUtilityCopy(what)) return false
+        try {
+          if (what.kind === 'text') await clipboard.writeText(what.text)
+          else await clipboard.writeImage(what.data)
+          return true
+        } catch {
+          return false
+        }
+      },
+    },
   })
 
   return {
@@ -121,15 +124,7 @@ export function registerUtilityIpc(clipboard: ClipboardWriter): UtilityIpc {
       unwatch()
       service.dispose()
       lines.clear()
-      for (const channel of [
-        CH.utility.awakeState,
-        CH.utility.awakeSet,
-        CH.utility.awakeExtend,
-        CH.utility.seal,
-        CH.utility.unseal,
-        CH.utility.copy,
-      ])
-        ipcMain.removeHandler(channel)
+      unregister()
     },
   }
 }

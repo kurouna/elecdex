@@ -1,6 +1,6 @@
 import { audioStubFrom, type MixerUpdate } from '@shared/audio'
 import { CH } from '@shared/channels'
-import { ipcMain, type WebContents } from 'electron'
+import type { WebContents } from 'electron'
 import { openCaptureWindow } from '../audio/capture-window.js'
 import { mixerBackend, output } from '../audio/mixer-backends.js'
 import { MixerService } from '../audio/mixer-service.js'
@@ -10,6 +10,7 @@ import { SpectrumCapture } from '../audio/spectrum-capture.js'
 import { StubTracks, trackFiles } from '../audio/stub-tracks.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
+import { registerTable } from './table.js'
 
 /**
  * The audio panes' IPC: the spectrum of the system's output and the system mixer.
@@ -77,52 +78,48 @@ export function registerAudioIpc(): { dispose: () => void } {
     whenPageGoes(sender, registry, drop)
   }
 
-  ipcMain.on(CH.audio.spectrumSubscribe, (event) => {
-    track(event.sender)
-    if (registry.subscribe(event.sender, SPECTRUM)) syncSpectrum()
-    // The newcomer hears where capture stands at once (and a failed capture is retried).
-    event.sender.send(CH.audio.spectrum, capture.joined())
-  })
-  ipcMain.on(CH.audio.spectrumUnsubscribe, (event) => {
-    if (registry.unsubscribe(event.sender, SPECTRUM)) syncSpectrum()
-  })
-
-  ipcMain.on(CH.audio.restoreMonitor, (event) => {
-    // Only a page showing a spectrum may ask, and only where parec records a monitor.
-    if (!pulse || !registry.subscribers(SPECTRUM).has(event.sender)) return
-    restoreMonitor(output).catch((error: unknown) => {
-      console.warn('[elecdex] could not restore the audio monitor:', error)
-    })
-  })
-
-  ipcMain.on(CH.audio.mixerSubscribe, (event) => {
-    track(event.sender)
-    if (registry.subscribe(event.sender, MIXER)) syncMixer()
-    event.sender.send(CH.audio.mixer, { t: 'state', state: mixer.state() } satisfies MixerUpdate)
-  })
-  ipcMain.on(CH.audio.mixerUnsubscribe, (event) => {
-    if (registry.unsubscribe(event.sender, MIXER)) syncMixer()
-  })
-  ipcMain.on(CH.audio.mixerCommand, (event, raw: unknown) => {
-    // Only a page showing the mixer may change the volume.
-    if (!registry.subscribers(MIXER).has(event.sender)) return
-    mixer.command(raw)
+  const unregister = registerTable({
+    on: {
+      [CH.audio.spectrumSubscribe]: (event) => {
+        track(event.sender)
+        if (registry.subscribe(event.sender, SPECTRUM)) syncSpectrum()
+        // The newcomer hears where capture stands at once (and a failed capture is retried).
+        event.sender.send(CH.audio.spectrum, capture.joined())
+      },
+      [CH.audio.spectrumUnsubscribe]: (event) => {
+        if (registry.unsubscribe(event.sender, SPECTRUM)) syncSpectrum()
+      },
+      [CH.audio.restoreMonitor]: (event) => {
+        // Only a page showing a spectrum may ask, and only where parec records a monitor.
+        if (!pulse || !registry.subscribers(SPECTRUM).has(event.sender)) return
+        restoreMonitor(output).catch((error: unknown) => {
+          console.warn('[elecdex] could not restore the audio monitor:', error)
+        })
+      },
+      [CH.audio.mixerSubscribe]: (event) => {
+        track(event.sender)
+        if (registry.subscribe(event.sender, MIXER)) syncMixer()
+        event.sender.send(CH.audio.mixer, {
+          t: 'state',
+          state: mixer.state(),
+        } satisfies MixerUpdate)
+      },
+      [CH.audio.mixerUnsubscribe]: (event) => {
+        if (registry.unsubscribe(event.sender, MIXER)) syncMixer()
+      },
+      [CH.audio.mixerCommand]: (event, raw: unknown) => {
+        // Only a page showing the mixer may change the volume.
+        if (!registry.subscribers(MIXER).has(event.sender)) return
+        mixer.command(raw)
+      },
+    },
   })
 
   return {
     dispose: () => {
       capture.dispose()
       mixer.stop()
-      for (const channel of [
-        CH.audio.spectrumSubscribe,
-        CH.audio.spectrumUnsubscribe,
-        CH.audio.restoreMonitor,
-        CH.audio.mixerSubscribe,
-        CH.audio.mixerUnsubscribe,
-        CH.audio.mixerCommand,
-      ]) {
-        ipcMain.removeAllListeners(channel)
-      }
+      unregister()
     },
   }
 }

@@ -1,12 +1,13 @@
 import path from 'node:path'
 import { CH } from '@shared/channels'
 import { isOrbitSet, type OrbitSet, type OrbitUpdate } from '@shared/orbits'
-import { app, ipcMain, net, type WebContents } from 'electron'
+import { app, net, type WebContents } from 'electron'
 import { USER_AGENT } from '../build-info.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { type OrbitCache, OrbitCacheSchema, OrbitService } from '../orbits/service.js'
 import { cacheFile } from '../store/cache-file.js'
 import { whenPageGoes } from './page-gone.js'
+import { registerTable } from './table.js'
 
 /**
  * Orbits IPC: ORBIT panes subscribe to a set of elements; main keeps only those.
@@ -79,25 +80,27 @@ export function registerOrbitsIpc(): { dispose: () => void } {
     whenPageGoes(sender, registry, drop)
   }
 
-  ipcMain.on(CH.orbits.subscribe, (event, raw: unknown) => {
-    if (!isOrbitSet(raw)) return
-    track(event.sender)
-    send(event.sender, service.snapshot(raw))
-    if (registry.subscribe(event.sender, raw)) sync()
+  const unregister = registerTable({
+    on: {
+      [CH.orbits.subscribe]: (event, raw) => {
+        if (!isOrbitSet(raw)) return
+        track(event.sender)
+        send(event.sender, service.snapshot(raw))
+        if (registry.subscribe(event.sender, raw)) sync()
+      },
+      [CH.orbits.unsubscribe]: (event, raw) => {
+        if (isOrbitSet(raw) && registry.unsubscribe(event.sender, raw)) sync()
+      },
+    },
+    handle: {
+      [CH.orbits.watching]: () => service.watching().sort(),
+    },
   })
-
-  ipcMain.on(CH.orbits.unsubscribe, (event, raw: unknown) => {
-    if (isOrbitSet(raw) && registry.unsubscribe(event.sender, raw)) sync()
-  })
-
-  ipcMain.handle(CH.orbits.watching, () => service.watching())
 
   return {
     dispose: () => {
       service.dispose()
-      ipcMain.removeAllListeners(CH.orbits.subscribe)
-      ipcMain.removeAllListeners(CH.orbits.unsubscribe)
-      ipcMain.removeHandler(CH.orbits.watching)
+      unregister()
     },
   }
 }

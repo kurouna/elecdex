@@ -14,7 +14,7 @@ import {
   parseLogRequest,
 } from '@shared/git'
 import { isSyncAction } from '@shared/git-sync'
-import { app, BrowserWindow, dialog, ipcMain, shell, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, shell, type WebContents } from 'electron'
 import { launchPlan, resolveOnPath, runsWhenOpened } from '../git/open.js'
 import { RepoCatalog } from '../git/repos.js'
 import { gitBytes, gitError, runGit } from '../git/run.js'
@@ -23,6 +23,7 @@ import { GitSync } from '../git/sync.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * Git IPC: panes subscribe to a repository by id; main watches only those.
@@ -98,105 +99,83 @@ export function registerGitIpc(settings: SettingsHandle): { dispose: () => void 
     whenPageGoes(sender, registry, drop)
   }
 
-  ipcMain.on(CH.git.subscribe, (event, raw: unknown) => {
-    if (!isRepoId(raw)) return
-    track(event.sender)
-    const snapshot = service.snapshot(raw)
-    // Before the first reading the page still learns which repository it is.
-    event.sender.send(CH.git.update, { ...snapshot, repo: snapshot.repo ?? catalog.get(raw) })
-    if (registry.subscribe(event.sender, raw)) {
-      catalog.touch(raw, Date.now())
-      sync()
-    }
-  })
-
-  ipcMain.on(CH.git.unsubscribe, (event, raw: unknown) => {
-    if (isRepoId(raw) && registry.unsubscribe(event.sender, raw)) sync()
-  })
-
-  ipcMain.handle(CH.git.pick, async (event) => {
-    const owner = BrowserWindow.fromWebContents(event.sender)
-    const options: Electron.OpenDialogOptions = {
-      title: 'Watch a git repository',
-      properties: ['openDirectory'],
-      buttonLabel: 'Watch',
-    }
-    const picked = owner
-      ? await dialog.showOpenDialog(owner, options)
-      : await dialog.showOpenDialog(options)
-    const folder = picked.canceled ? undefined : picked.filePaths[0]
-    if (folder === undefined) return null
-    const top = await runGit(folder, ['rev-parse', '--show-toplevel'])
-    if (top.missing) return { problem: 'git was not found on PATH' }
-    if (!top.ok) return { problem: gitError(top) || 'that folder is not in a git repository' }
-    return { repo: catalog.add(top.stdout.trim(), Date.now()) satisfies GitRepoRef }
-  })
-
-  ipcMain.handle(CH.git.recent, () => catalog.recent())
-
-  ipcMain.handle(CH.git.diff, async (_event, raw: unknown) => {
-    const request = parseDiffRequest(raw)
-    // Null for what can never be a file of a repository; the page shows nothing for it.
-    return request === null ? null : service.diff(request)
-  })
-
-  ipcMain.handle(CH.git.commit, async (_event, repoId: unknown, oid: unknown) =>
-    isRepoId(repoId) && isCommitId(oid) ? service.commit(repoId, oid) : null,
-  )
-
-  ipcMain.handle(CH.git.log, async (_event, raw: unknown) => {
-    const request = parseLogRequest(raw)
-    return request === null ? null : service.log(request)
-  })
-
-  ipcMain.handle(
-    CH.git.open,
-    async (_event, repoId: unknown, file: unknown, line: unknown): Promise<OpenResult> => {
-      if (!isRepoId(repoId) || !isRepoPath(file))
-        return { ok: false, message: 'not a file of this repository' }
-      const found = service.locate(repoId, file)
-      if (found === null) return { ok: false, message: 'the file is not in the working tree' }
-      const at = typeof line === 'number' && Number.isInteger(line) && line > 0 ? line : null
-      const root = service.snapshot(repoId).repo?.path ?? path.dirname(found)
-      return openWith(settings.current().git.openCommand, found, at, root)
+  const unregister = registerTable({
+    on: {
+      [CH.git.subscribe]: (event, raw) => {
+        if (!isRepoId(raw)) return
+        track(event.sender)
+        const snapshot = service.snapshot(raw)
+        // Before the first reading the page still learns which repository it is.
+        event.sender.send(CH.git.update, { ...snapshot, repo: snapshot.repo ?? catalog.get(raw) })
+        if (registry.subscribe(event.sender, raw)) {
+          catalog.touch(raw, Date.now())
+          sync()
+        }
+      },
+      [CH.git.unsubscribe]: (event, raw) => {
+        if (isRepoId(raw) && registry.unsubscribe(event.sender, raw)) sync()
+      },
     },
-  )
-
-  ipcMain.handle(CH.git.reveal, (_event, repoId: unknown, file: unknown) => {
-    if (!isRepoId(repoId) || !isRepoPath(file)) return false
-    const found = service.locate(repoId, file)
-    if (found === null) return false
-    shell.showItemInFolder(found)
-    return true
-  })
-
-  ipcMain.handle(CH.git.watching, () => service.watching())
-
-  // FETCH and PULL: only for a repository this very page shows, and only as main last read it.
-  ipcMain.handle(CH.git.sync, async (event, repoId: unknown, action: unknown) => {
-    if (!isRepoId(repoId) || !isSyncAction(action)) return null
-    if (!registry.subscribers(repoId).has(event.sender)) return null
-    return writer.run(repoId, action)
+    handle: {
+      [CH.git.pick]: async (event) => {
+        const owner = BrowserWindow.fromWebContents(event.sender)
+        const options: Electron.OpenDialogOptions = {
+          title: 'Watch a git repository',
+          properties: ['openDirectory'],
+          buttonLabel: 'Watch',
+        }
+        const picked = owner
+          ? await dialog.showOpenDialog(owner, options)
+          : await dialog.showOpenDialog(options)
+        const folder = picked.canceled ? undefined : picked.filePaths[0]
+        if (folder === undefined) return null
+        const top = await runGit(folder, ['rev-parse', '--show-toplevel'])
+        if (top.missing) return { problem: 'git was not found on PATH' }
+        if (!top.ok) return { problem: gitError(top) || 'that folder is not in a git repository' }
+        return { repo: catalog.add(top.stdout.trim(), Date.now()) satisfies GitRepoRef }
+      },
+      [CH.git.recent]: () => catalog.recent(),
+      [CH.git.diff]: async (_event, raw) => {
+        const request = parseDiffRequest(raw)
+        // Null for what can never be a file of a repository; the page shows nothing for it.
+        return request === null ? null : service.diff(request)
+      },
+      [CH.git.commit]: async (_event, repoId, oid) =>
+        isRepoId(repoId) && isCommitId(oid) ? service.commit(repoId, oid) : null,
+      [CH.git.log]: async (_event, raw) => {
+        const request = parseLogRequest(raw)
+        return request === null ? null : service.log(request)
+      },
+      [CH.git.open]: async (_event, repoId, file, line): Promise<OpenResult> => {
+        if (!isRepoId(repoId) || !isRepoPath(file))
+          return { ok: false, message: 'not a file of this repository' }
+        const found = service.locate(repoId, file)
+        if (found === null) return { ok: false, message: 'the file is not in the working tree' }
+        const at = typeof line === 'number' && Number.isInteger(line) && line > 0 ? line : null
+        const root = service.snapshot(repoId).repo?.path ?? path.dirname(found)
+        return openWith(settings.current().git.openCommand, found, at, root)
+      },
+      [CH.git.reveal]: (_event, repoId, file) => {
+        if (!isRepoId(repoId) || !isRepoPath(file)) return false
+        const found = service.locate(repoId, file)
+        if (found === null) return false
+        shell.showItemInFolder(found)
+        return true
+      },
+      [CH.git.watching]: () => service.watching(),
+      // FETCH and PULL: only for a repository this very page shows, and only as main last read it.
+      [CH.git.sync]: async (event, repoId, action) => {
+        if (!isRepoId(repoId) || !isSyncAction(action)) return null
+        if (!registry.subscribers(repoId).has(event.sender)) return null
+        return writer.run(repoId, action)
+      },
+    },
   })
 
   return {
     dispose: () => {
       service.dispose()
-      for (const channel of [CH.git.subscribe, CH.git.unsubscribe])
-        ipcMain.removeAllListeners(channel)
-      for (const channel of [
-        CH.git.pick,
-        CH.git.recent,
-        CH.git.diff,
-        CH.git.commit,
-        CH.git.log,
-        CH.git.open,
-        CH.git.reveal,
-        CH.git.watching,
-        CH.git.sync,
-      ]) {
-        ipcMain.removeHandler(channel)
-      }
+      unregister()
     },
   }
 }

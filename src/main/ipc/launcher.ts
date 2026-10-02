@@ -8,7 +8,7 @@ import {
   rankByUse,
   recordLaunch,
 } from '@shared/launcher'
-import { app, ipcMain, shell } from 'electron'
+import { app, shell } from 'electron'
 import { z } from 'zod'
 import { appWindows } from '../app-windows.js'
 import {
@@ -23,6 +23,7 @@ import { IconBatcher } from '../launcher/windows-icons.js'
 import { JsonStore } from '../store/json-store.js'
 import { openExternalIfSafe } from '../window.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * The application launcher's IPC.
@@ -74,51 +75,53 @@ export function registerLauncherIpc(settings: SettingsHandle): { dispose: () => 
     return all
   }
 
-  ipcMain.handle(CH.launcher.list, async (): Promise<LauncherEntry[]> => {
-    const counts = usage.read()
-    return rankByUse(await catalog(), counts).map(({ id, name, group, source }) => ({
-      id,
-      name,
-      group,
-      source,
-      launches: counts[id]?.count ?? 0,
-    }))
-  })
+  const unregister = registerTable({
+    handle: {
+      [CH.launcher.list]: async (): Promise<LauncherEntry[]> => {
+        const counts = usage.read()
+        return rankByUse(await catalog(), counts).map(({ id, name, group, source }) => ({
+          id,
+          name,
+          group,
+          source,
+          launches: counts[id]?.count ?? 0,
+        }))
+      },
 
-  ipcMain.handle(CH.launcher.icon, async (_event, raw: unknown): Promise<string | null> => {
-    if (typeof raw !== 'string') return null
-    if (icons.has(raw)) return icons.get(raw) ?? null
-    const entry = byId.get(raw)
-    if (!entry || /^https?:/i.test(entry.target)) return null
-    const data =
-      (await shellIcons?.get(entry.target)) ??
-      (entry.target.startsWith(APPS_FOLDER) ? null : await electronIcon(entry.target))
-    if (icons.size < ICON_CACHE_LIMIT) icons.set(raw, data)
-    return data
-  })
+      [CH.launcher.icon]: async (_event, raw: unknown): Promise<string | null> => {
+        if (typeof raw !== 'string') return null
+        if (icons.has(raw)) return icons.get(raw) ?? null
+        const entry = byId.get(raw)
+        if (!entry || /^https?:/i.test(entry.target)) return null
+        const data =
+          (await shellIcons?.get(entry.target)) ??
+          (entry.target.startsWith(APPS_FOLDER) ? null : await electronIcon(entry.target))
+        if (icons.size < ICON_CACHE_LIMIT) icons.set(raw, data)
+        return data
+      },
 
-  ipcMain.handle(CH.launcher.launch, async (_event, raw: unknown): Promise<LaunchResult> => {
-    if (typeof raw !== 'string') return { ok: false, error: 'invalid id' }
-    if (!byId.has(raw)) await catalog() // the page may hold an id from before a settings edit
-    const entry = byId.get(raw)
-    if (!entry) return { ok: false, error: 'not in the launcher' }
-    const result = await launch(entry)
-    if (result.ok) {
-      try {
-        usage.write(recordLaunch(usage.read(), entry.id, Date.now()))
-      } catch (error) {
-        // A count that cannot be saved is not worth failing a launch that worked.
-        console.error('[elecdex] cannot save launcher usage', error)
-      }
-    }
-    return result
+      [CH.launcher.launch]: async (_event, raw: unknown): Promise<LaunchResult> => {
+        if (typeof raw !== 'string') return { ok: false, error: 'invalid id' }
+        if (!byId.has(raw)) await catalog() // the page may hold an id from before a settings edit
+        const entry = byId.get(raw)
+        if (!entry) return { ok: false, error: 'not in the launcher' }
+        const result = await launch(entry)
+        if (result.ok) {
+          try {
+            usage.write(recordLaunch(usage.read(), entry.id, Date.now()))
+          } catch (error) {
+            // A count that cannot be saved is not worth failing a launch that worked.
+            console.error('[elecdex] cannot save launcher usage', error)
+          }
+        }
+        return result
+      },
+    },
   })
 
   return {
     dispose: () => {
-      ipcMain.removeHandler(CH.launcher.list)
-      ipcMain.removeHandler(CH.launcher.icon)
-      ipcMain.removeHandler(CH.launcher.launch)
+      unregister()
     },
   }
 }

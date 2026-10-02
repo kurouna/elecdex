@@ -4,10 +4,11 @@ import type { AppInfo, HostFacts } from '@shared/api'
 import { HIDDEN_SWITCH } from '@shared/background'
 import { CH } from '@shared/channels'
 import { titleBarColors } from '@shared/title-bar'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, shell } from 'electron'
 import { APP_VERSION } from '../build-info.js'
 import { machineFacts } from '../machine-facts.js'
 import { openExternalIfSafe, setTitleBarColors, windowStateOf } from '../window.js'
+import { registerTable } from './table.js'
 
 /**
  * `--no-intro` skips the boot sequence; the end-to-end tests launch with it. So
@@ -47,80 +48,74 @@ function asString(value: unknown): string | null {
 }
 
 export function registerSystemIpc(): void {
-  ipcMain.handle(CH.system.info, (): AppInfo => {
-    return {
-      name: app.getName(),
-      version: APP_VERSION,
-      platform: process.platform,
-      arch: process.arch,
-      isPackaged: app.isPackaged,
-      versions: {
-        electron: process.versions.electron,
-        chrome: process.versions.chrome,
-        node: process.versions.node,
-        v8: process.versions.v8,
+  registerTable({
+    handle: {
+      [CH.system.info]: (): AppInfo => {
+        return {
+          name: app.getName(),
+          version: APP_VERSION,
+          platform: process.platform,
+          arch: process.arch,
+          isPackaged: app.isPackaged,
+          versions: {
+            electron: process.versions.electron,
+            chrome: process.versions.chrome,
+            node: process.versions.node,
+            v8: process.versions.v8,
+          },
+          intro: wantsIntro,
+          host: hostFacts(),
+        }
       },
-      intro: wantsIntro,
-      host: hostFacts(),
-    }
-  })
-
-  ipcMain.handle(CH.system.machine, () => machineFacts())
-
-  ipcMain.handle(CH.system.openExternal, async (_event, rawUrl: unknown) => {
-    const url = asString(rawUrl)
-    if (url === null) return
-    await openExternalIfSafe(url)
-  })
-
-  ipcMain.handle(CH.system.revealInFolder, (_event, rawPath: unknown) => {
-    const target = asString(rawPath)
-    if (target === null) return
-    shell.showItemInFolder(path.resolve(target))
-  })
-
-  ipcMain.on(CH.system.toggleDevTools, (event) => {
-    event.sender.toggleDevTools()
-  })
-
-  ipcMain.on(CH.system.toggleFullscreen, (event) => {
-    const win = BrowserWindow.fromWebContents(event.sender)
-    win?.setFullScreen(!win.isFullScreen())
-  })
-
-  // The window is frameless in fullscreen, so the app must offer its own way out.
-  ipcMain.on(CH.system.quit, () => {
-    app.quit()
-  })
-
-  // The fullscreen corner's close button. It goes through the window's own close,
-  // so what closing means - quit, or wait in the notification area - is decided
-  // in one place (main/background).
-  ipcMain.on(CH.system.closeWindow, (event) => {
-    BrowserWindow.fromWebContents(event.sender)?.close()
-  })
-
-  // Fullscreen has no title bar, so no native minimise button (WindowCorner, and
-  // the window.minimize shortcut). Not on macOS, which refuses to minimise a
-  // fullscreen window.
-  ipcMain.on(CH.system.minimize, (event) => {
-    if (process.platform === 'darwin') return
-    BrowserWindow.fromWebContents(event.sender)?.minimize()
-  })
-
-  ipcMain.handle(CH.system.windowState, (event) =>
-    windowStateOf(BrowserWindow.fromWebContents(event.sender)),
-  )
-
-  ipcMain.on(CH.system.setTitleBarColors, (event, raw: unknown) => {
-    const colors = titleBarColors(raw)
-    const win = BrowserWindow.fromWebContents(event.sender)
-    if (colors === null || !win) return
-    setTitleBarColors(win, colors)
-  })
-
-  ipcMain.on(CH.system.setFullscreen, (event, on: unknown) => {
-    if (typeof on !== 'boolean') return
-    BrowserWindow.fromWebContents(event.sender)?.setFullScreen(on)
+      [CH.system.machine]: () => machineFacts(),
+      [CH.system.openExternal]: async (_event, rawUrl: unknown) => {
+        const url = asString(rawUrl)
+        if (url === null) return
+        await openExternalIfSafe(url)
+      },
+      [CH.system.revealInFolder]: (_event, rawPath: unknown) => {
+        const target = asString(rawPath)
+        if (target === null) return
+        shell.showItemInFolder(path.resolve(target))
+      },
+      [CH.system.windowState]: (event) =>
+        windowStateOf(BrowserWindow.fromWebContents(event.sender)),
+    },
+    on: {
+      [CH.system.toggleDevTools]: (event) => {
+        event.sender.toggleDevTools()
+      },
+      [CH.system.toggleFullscreen]: (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender)
+        win?.setFullScreen(!win.isFullScreen())
+      },
+      // The window is frameless in fullscreen, so the app must offer its own way out.
+      [CH.system.quit]: () => {
+        app.quit()
+      },
+      // The fullscreen corner's close button. It goes through the window's own close,
+      // so what closing means - quit, or wait in the notification area - is decided
+      // in one place (main/background).
+      [CH.system.closeWindow]: (event) => {
+        BrowserWindow.fromWebContents(event.sender)?.close()
+      },
+      // Fullscreen has no title bar, so no native minimise button (WindowCorner, and
+      // the window.minimize shortcut). Not on macOS, which refuses to minimise a
+      // fullscreen window.
+      [CH.system.minimize]: (event) => {
+        if (process.platform === 'darwin') return
+        BrowserWindow.fromWebContents(event.sender)?.minimize()
+      },
+      [CH.system.setTitleBarColors]: (event, raw: unknown) => {
+        const colors = titleBarColors(raw)
+        const win = BrowserWindow.fromWebContents(event.sender)
+        if (colors === null || !win) return
+        setTitleBarColors(win, colors)
+      },
+      [CH.system.setFullscreen]: (event, on: unknown) => {
+        if (typeof on !== 'boolean') return
+        BrowserWindow.fromWebContents(event.sender)?.setFullScreen(on)
+      },
+    },
   })
 }

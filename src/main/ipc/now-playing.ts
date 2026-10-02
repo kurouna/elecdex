@@ -1,11 +1,11 @@
 import { CH } from '@shared/channels'
 import { ART_EDGE, isNowPlayingAction, LARGE_ART_EDGE, type NowPlaying } from '@shared/now-playing'
-import { ipcMain, nativeImage, type WebContents } from 'electron'
+import { nativeImage } from 'electron'
 import { type DemoCover, demoCoverPixels } from '../media/demo-art.js'
 import { type StubCover, stubNowPlaying } from '../media/stub.js'
 import { NowPlayingWatcher } from '../media/watcher.js'
 import { windowsNowPlayingBackend } from '../media/windows.js'
-import { whenPageGoes } from './page-gone.js'
+import { PageSubscribers, registerTable } from './table.js'
 
 /**
  * NOW PLAYING IPC: the pane subscribes while it is seen, and main reads the
@@ -30,7 +30,6 @@ function demoCovers(): StubCover[] {
 }
 
 export function registerNowPlayingIpc(): { dispose: () => void } {
-  const subscribers = new Set<WebContents>()
   const stub = process.env.ELECDEX_NOWPLAYING_STUB
   const backend =
     stub === '1' || stub === 'demo'
@@ -39,58 +38,42 @@ export function registerNowPlayingIpc(): { dispose: () => void } {
         ? windowsNowPlayingBackend()
         : null
 
+  const subscribers = new PageSubscribers((anyone) => watcher.sync(anyone))
   const watcher = new NowPlayingWatcher({
     backend,
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
-    publish: (state: NowPlaying) => {
-      for (const sender of subscribers)
-        if (!sender.isDestroyed()) sender.send(CH.nowPlaying.update, state)
+    publish: (state: NowPlaying) => subscribers.send(CH.nowPlaying.update, state),
+  })
+
+  const unregister = registerTable({
+    on: {
+      [CH.nowPlaying.subscribe]: (event) => {
+        event.sender.send(CH.nowPlaying.update, watcher.state())
+        subscribers.add(event.sender)
+      },
+      [CH.nowPlaying.unsubscribe]: (event) => subscribers.drop(event.sender),
+    },
+    handle: {
+      [CH.nowPlaying.control]: (event, action) =>
+        // A press counts only from a page that shows the session.
+        isNowPlayingAction(action) && subscribers.has(event.sender)
+          ? watcher.control(action)
+          : 'unsupported',
+      // The position is checked against the session shown (`seekTarget`).
+      [CH.nowPlaying.seek]: (event, seconds) =>
+        subscribers.has(event.sender) ? watcher.seek(seconds) : 'unsupported',
+      [CH.nowPlaying.art]: (event) => (subscribers.has(event.sender) ? watcher.largeArt() : null),
+      // Diagnostics: whether main is reading the session now.
+      [CH.nowPlaying.watching]: () => (watcher.active ? ['session'] : []),
     },
   })
-
-  const drop = (sender: WebContents): void => {
-    if (subscribers.delete(sender)) watcher.sync(subscribers.size > 0)
-  }
-
-  ipcMain.on(CH.nowPlaying.subscribe, (event) => {
-    whenPageGoes(event.sender, subscribers, () => drop(event.sender))
-    subscribers.add(event.sender)
-    event.sender.send(CH.nowPlaying.update, watcher.state())
-    watcher.sync(true)
-  })
-
-  ipcMain.on(CH.nowPlaying.unsubscribe, (event) => drop(event.sender))
-
-  ipcMain.handle(CH.nowPlaying.control, (event, action: unknown) =>
-    // A press counts only from a page that shows the session.
-    isNowPlayingAction(action) && subscribers.has(event.sender)
-      ? watcher.control(action)
-      : 'unsupported',
-  )
-
-  // The position is checked against the session shown (`seekTarget`).
-  ipcMain.handle(CH.nowPlaying.seek, (event, seconds: unknown) =>
-    subscribers.has(event.sender) ? watcher.seek(seconds) : 'unsupported',
-  )
-
-  ipcMain.handle(CH.nowPlaying.art, (event) =>
-    subscribers.has(event.sender) ? watcher.largeArt() : null,
-  )
-
-  // Diagnostics: whether main is reading the session now.
-  ipcMain.handle(CH.nowPlaying.watching, () => watcher.active)
 
   return {
     dispose: () => {
       watcher.dispose()
-      ipcMain.removeAllListeners(CH.nowPlaying.subscribe)
-      ipcMain.removeAllListeners(CH.nowPlaying.unsubscribe)
-      ipcMain.removeHandler(CH.nowPlaying.control)
-      ipcMain.removeHandler(CH.nowPlaying.seek)
-      ipcMain.removeHandler(CH.nowPlaying.art)
-      ipcMain.removeHandler(CH.nowPlaying.watching)
+      unregister()
     },
   }
 }

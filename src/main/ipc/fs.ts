@@ -1,9 +1,10 @@
 import { type FSWatcher, watch } from 'node:fs'
 import { CH } from '@shared/channels'
-import { ipcMain, type WebContents } from 'electron'
+import type { WebContents } from 'electron'
 import { listDrives, readDirectory, validatePath } from '../fs/listing.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { whenPageGoes } from './page-gone.js'
+import { registerTable } from './table.js'
 
 /**
  * Filesystem IPC: read-only listings, volume usage, drives, and directory watches.
@@ -66,34 +67,34 @@ export function registerFsIpc(): { dispose: () => void } {
     whenPageGoes(sender, registry, drop)
   }
 
-  ipcMain.handle(CH.fs.readDir, async (_event, raw: unknown) => {
-    const dir = validatePath(raw)
-    if (dir === null) return { ok: false, error: 'EINVAL' }
-    return readDirectory(dir)
-  })
-
-  ipcMain.handle(CH.fs.drives, () => listDrives())
-
-  ipcMain.on(CH.fs.watch, (event, raw: unknown) => {
-    const dir = validatePath(raw)
-    if (dir === null) return
-    track(event.sender)
-    if (registry.subscribe(event.sender, dir)) syncWatchers()
-  })
-
-  ipcMain.on(CH.fs.unwatch, (event, raw: unknown) => {
-    const dir = validatePath(raw)
-    if (dir === null) return
-    if (registry.unsubscribe(event.sender, dir)) syncWatchers()
+  const unregister = registerTable({
+    handle: {
+      [CH.fs.readDir]: async (_event, raw) => {
+        const dir = validatePath(raw)
+        if (dir === null) return { ok: false, error: 'EINVAL' }
+        return readDirectory(dir)
+      },
+      [CH.fs.drives]: () => listDrives(),
+    },
+    on: {
+      [CH.fs.watch]: (event, raw) => {
+        const dir = validatePath(raw)
+        if (dir === null) return
+        track(event.sender)
+        if (registry.subscribe(event.sender, dir)) syncWatchers()
+      },
+      [CH.fs.unwatch]: (event, raw) => {
+        const dir = validatePath(raw)
+        if (dir === null) return
+        if (registry.unsubscribe(event.sender, dir)) syncWatchers()
+      },
+    },
   })
 
   return {
     dispose: () => {
       for (const dir of [...watchers.keys()]) close(dir)
-      ipcMain.removeHandler(CH.fs.readDir)
-      ipcMain.removeHandler(CH.fs.drives)
-      ipcMain.removeAllListeners(CH.fs.watch)
-      ipcMain.removeAllListeners(CH.fs.unwatch)
+      unregister()
     },
   }
 }

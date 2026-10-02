@@ -1,7 +1,6 @@
 import { CH } from '@shared/channels'
 import type { ClipBoard } from '@shared/clipboard'
 import { isClipId } from '@shared/clipboard'
-import { ipcMain, type WebContents } from 'electron'
 import { DEMO_HOLDING, demoHistory, stubClipboard } from '../clipboard/stub.js'
 import {
   clearSystemClipboard,
@@ -10,8 +9,8 @@ import {
   writeSystemImage,
 } from '../clipboard/system.js'
 import { ClipboardWatcher } from '../clipboard/watcher.js'
-import { whenPageGoes } from './page-gone.js'
 import { broadcastSnippets, openSnippetShelf, registerSnippetsIpc } from './snippets.js'
+import { PageSubscribers, registerTable } from './table.js'
 
 /**
  * Clipboard IPC: the clipboard pane subscribes while it is seen, and main reads
@@ -30,7 +29,7 @@ export interface ClipboardWriter {
 }
 
 export function registerClipboardIpc(): { dispose: () => void; writer: ClipboardWriter } {
-  const subscribers = new Set<WebContents>()
+  const subscribers = new PageSubscribers((anyone) => watcher.sync(anyone))
   const stub = process.env.ELECDEX_CLIPBOARD_STUB
   const stand =
     stub === '1' || stub === 'demo' ? stubClipboard(stub === 'demo' ? DEMO_HOLDING : null) : null
@@ -48,41 +47,33 @@ export function registerClipboardIpc(): { dispose: () => void; writer: Clipboard
     now: () => Date.now(),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
-    publish: (board: ClipBoard) => {
-      for (const sender of subscribers)
-        if (!sender.isDestroyed()) sender.send(CH.clipboard.update, board)
-    },
+    publish: (board: ClipBoard) => subscribers.send(CH.clipboard.update, board),
     ...(stub === 'demo' ? { initial: demoHistory(Date.now()) } : {}),
     snipOf: (text) => snippets.shelf.idOf(text),
   })
   const snippetsIpc = registerSnippetsIpc(snippets.shelf, watcher)
 
-  const drop = (sender: WebContents): void => {
-    if (subscribers.delete(sender)) watcher.sync(subscribers.size > 0)
-  }
-
-  ipcMain.on(CH.clipboard.subscribe, (event) => {
-    whenPageGoes(event.sender, subscribers, () => drop(event.sender))
-    subscribers.add(event.sender)
-    event.sender.send(CH.clipboard.update, watcher.board())
-    watcher.sync(true)
+  const unregister = registerTable({
+    on: {
+      [CH.clipboard.subscribe]: (event) => {
+        event.sender.send(CH.clipboard.update, watcher.board())
+        subscribers.add(event.sender)
+      },
+      [CH.clipboard.unsubscribe]: (event) => subscribers.drop(event.sender),
+      [CH.clipboard.remove]: (_event, id) => {
+        if (isClipId(id)) watcher.remove(id)
+      },
+      [CH.clipboard.clear]: () => void watcher.clear(),
+      [CH.clipboard.pause]: (_event, paused) => {
+        if (typeof paused === 'boolean') watcher.setPaused(paused)
+      },
+    },
+    handle: {
+      [CH.clipboard.restore]: (_event, id) => (isClipId(id) ? watcher.restore(id) : 'missing'),
+      // Diagnostics: whether main is reading the clipboard now.
+      [CH.clipboard.watching]: () => (watcher.active ? ['clipboard'] : []),
+    },
   })
-
-  ipcMain.on(CH.clipboard.unsubscribe, (event) => drop(event.sender))
-
-  ipcMain.handle(CH.clipboard.restore, (_event, id: unknown) =>
-    isClipId(id) ? watcher.restore(id) : 'missing',
-  )
-  ipcMain.on(CH.clipboard.remove, (_event, id: unknown) => {
-    if (isClipId(id)) watcher.remove(id)
-  })
-  ipcMain.on(CH.clipboard.clear, () => void watcher.clear())
-  ipcMain.on(CH.clipboard.pause, (_event, paused: unknown) => {
-    if (typeof paused === 'boolean') watcher.setPaused(paused)
-  })
-
-  // Diagnostics: whether main is reading the clipboard now.
-  ipcMain.handle(CH.clipboard.watching, () => watcher.active)
 
   const write = stand?.write ?? writeSystemClipboard
   const writer: ClipboardWriter = {
@@ -96,16 +87,7 @@ export function registerClipboardIpc(): { dispose: () => void; writer: Clipboard
       watcher.dispose()
       snippetsIpc.dispose()
       snippets.close()
-      for (const channel of [
-        CH.clipboard.subscribe,
-        CH.clipboard.unsubscribe,
-        CH.clipboard.remove,
-        CH.clipboard.clear,
-        CH.clipboard.pause,
-      ])
-        ipcMain.removeAllListeners(channel)
-      ipcMain.removeHandler(CH.clipboard.restore)
-      ipcMain.removeHandler(CH.clipboard.watching)
+      unregister()
     },
   }
 }

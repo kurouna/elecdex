@@ -16,8 +16,9 @@ import {
   withSavedLayout,
 } from '@shared/layouts'
 import { type LayoutTree, LayoutTreeSchema, migrateLayout } from '@shared/schemas/layout'
-import { app, ipcMain } from 'electron'
+import { app } from 'electron'
 import { JsonStore } from '../store/json-store.js'
+import { registerTable } from './table.js'
 
 /**
  * Layout persistence.
@@ -93,151 +94,132 @@ export function registerLayoutIpc(): { dispose: () => void } {
     }
   }
 
-  ipcMain.handle(CH.layout.load, (): LayoutTree => {
-    // Read from disk on every load. A page loads its layout once, so this is
-    // cheap, and it is what makes a layout.json edited by hand while the app is
-    // running take effect on the next reload instead of being masked by a cache.
-    store.invalidate()
-    const tree = store.read(migrateLayout)
-    return normalizeTree({ ...tree, root: upgradeDefaultHeights(tree.root) }, fallbackNode())
-  })
+  const unregister = registerTable({
+    handle: {
+      [CH.layout.load]: (): LayoutTree => {
+        // Read from disk on every load. A page loads its layout once, so this is
+        // cheap, and it is what makes a layout.json edited by hand while the app is
+        // running take effect on the next reload instead of being masked by a cache.
+        store.invalidate()
+        const tree = store.read(migrateLayout)
+        return normalizeTree({ ...tree, root: upgradeDefaultHeights(tree.root) }, fallbackNode())
+      },
+      [CH.layout.save]: (_event, raw: unknown): LayoutTree => {
+        const parsed = LayoutTreeSchema.safeParse(raw)
+        if (!parsed.success) {
+          // The renderer sent something malformed. Keep what is on disk rather than
+          // replacing a good layout with a broken one.
+          return normalizeTree(store.read(migrateLayout), fallbackNode())
+        }
 
-  ipcMain.handle(CH.layout.save, (_event, raw: unknown): LayoutTree => {
-    const parsed = LayoutTreeSchema.safeParse(raw)
-    if (!parsed.success) {
-      // The renderer sent something malformed. Keep what is on disk rather than
-      // replacing a good layout with a broken one.
-      return normalizeTree(store.read(migrateLayout), fallbackNode())
-    }
+        const normalized = normalizeTree(parsed.data, fallbackNode())
+        store.write(normalized)
+        writeBack(normalized)
+        return normalized
+      },
+      [CH.layout.reset]: (): LayoutTree => {
+        const fresh = defaultLayout()
+        store.write(fresh)
+        // The default arrangement belongs to no saved layout: without this, a reset
+        // would be written back over whichever one was being worked in.
+        setActive(null)
+        return fresh
+      },
+      [CH.layout.revealFile]: () => store.path,
+      [CH.layout.savedList]: () => {
+        // From disk, as the live layout is read: the list is asked for when a page
+        // loads and when the dialog opens, so this is cheap - and it is what lets a
+        // layouts.json edited or replaced by hand (the file is made to be carried
+        // between machines) be seen without a restart, instead of being written
+        // over from a stale copy in memory.
+        saved.invalidate()
+        const current = readSaved()
+        return summarize(current.items, current.active)
+      },
+      [CH.layout.savedSave]: (_event, rawName: unknown, rawTree: unknown) => {
+        const current = readSaved()
+        const name = cleanLayoutName(rawName)
+        const parsed = LayoutTreeSchema.safeParse(rawTree)
+        // A name that is not one, or a tree the renderer mangled: keep the list as
+        // it is rather than saving something that cannot be shown or applied.
+        if (name === null || !parsed.success) return summarize(current.items, current.active)
 
-    const normalized = normalizeTree(parsed.data, fallbackNode())
-    store.write(normalized)
-    writeBack(normalized)
-    return normalized
-  })
-
-  ipcMain.handle(CH.layout.reset, (): LayoutTree => {
-    const fresh = defaultLayout()
-    store.write(fresh)
-    // The default arrangement belongs to no saved layout: without this, a reset
-    // would be written back over whichever one was being worked in.
-    setActive(null)
-    return fresh
-  })
-
-  ipcMain.handle(CH.layout.revealFile, () => store.path)
-
-  ipcMain.handle(CH.layout.savedList, () => {
-    // From disk, as the live layout is read: the list is asked for when a page
-    // loads and when the dialog opens, so this is cheap - and it is what lets a
-    // layouts.json edited or replaced by hand (the file is made to be carried
-    // between machines) be seen without a restart, instead of being written
-    // over from a stale copy in memory.
-    saved.invalidate()
-    const current = readSaved()
-    return summarize(current.items, current.active)
-  })
-
-  ipcMain.handle(CH.layout.savedSave, (_event, rawName: unknown, rawTree: unknown) => {
-    const current = readSaved()
-    const name = cleanLayoutName(rawName)
-    const parsed = LayoutTreeSchema.safeParse(rawTree)
-    // A name that is not one, or a tree the renderer mangled: keep the list as
-    // it is rather than saving something that cannot be shown or applied.
-    if (name === null || !parsed.success) return summarize(current.items, current.active)
-
-    const tree = portableTree(normalizeTree(parsed.data, fallbackNode()))
-    const next = withSavedLayout(current.items, { id: newLayoutId(current.items), name, tree })
-    if (next === null) return summarize(current.items, current.active)
-    // Saving the workspace under a name is also entering that layout: what
-    // happens to the arrangement next belongs to it.
-    const active = next.find((item) => item.name === name)?.id ?? current.active
-    saved.write({ ...current, items: next, active })
-    return summarize(next, active)
-  })
-
-  ipcMain.handle(CH.layout.savedApply, (_event, rawId: unknown): LayoutTree | null => {
-    const entry = readSaved().items.find((item) => item.id === rawId)
-    if (entry === undefined) return null
-    // Normalised again on the way out: the file may have been edited by hand
-    // since it was saved, and a live layout is never taken on trust.
-    // Migrated as well as normalised: a saved layout outlives the build that
-    // wrote it, so it goes through the same door as layout.json does.
-    const migrated = migrateLayout(entry.tree)
-    if (migrated === null) return null
-    const tree = normalizeTree(migrated, fallbackNode())
-    store.write(tree)
-    setActive(entry.id)
-    return tree
-  })
-
-  ipcMain.handle(CH.layout.savedFile, () => saved.path)
-
-  ipcMain.handle(CH.layout.savedAddPreset, (_event, rawPreset: unknown) => {
-    const current = readSaved()
-    const added = withPresetLayout(current.items, rawPreset, newLayoutId(current.items))
-    if (added === null) return { list: summarize(current.items, current.active), id: null }
-    // Written only when it is new: one already made from the preset is simply found.
-    if (added.items.length !== current.items.length) saved.write({ ...current, items: added.items })
-    return { list: summarize(added.items, current.active), id: added.id }
-  })
-
-  ipcMain.handle(CH.layout.savedRestorePreset, (_event, rawId: unknown) => {
-    const current = readSaved()
-    const items = withPresetRestored(current.items, rawId)
-    if (items === null) return summarize(current.items, current.active)
-    // Putting back the layout being worked in changes the workspace too, which the
-    // page does by applying it next - after it has flushed its own saves, so none
-    // still travelling is written back over what was just restored.
-    saved.write({ ...current, items })
-    return summarize(items, current.active)
-  })
-
-  ipcMain.handle(CH.layout.savedRename, (_event, rawId: unknown, rawName: unknown) => {
-    const current = readSaved()
-    const name = cleanLayoutName(rawName)
-    const items = name === null ? null : renameSavedLayout(current.items, String(rawId), name)
-    // A name that is not one, or that another layout already has: the list is
-    // returned unchanged, and the dialog puts the old name back.
-    if (items === null) return summarize(current.items, current.active)
-    saved.write({ ...current, items })
-    return summarize(items, current.active)
-  })
-
-  ipcMain.handle(CH.layout.savedMove, (_event, rawId: unknown, rawDelta: unknown) => {
-    const current = readSaved()
-    const delta = typeof rawDelta === 'number' ? rawDelta : 0
-    const items = moveSavedLayout(current.items, String(rawId), delta)
-    if (items === null) return summarize(current.items, current.active)
-    saved.write({ ...current, items })
-    return summarize(items, current.active)
-  })
-
-  ipcMain.handle(CH.layout.savedRemove, (_event, rawId: unknown) => {
-    const current = readSaved()
-    const items = current.items.filter((item) => item.id !== rawId)
-    // A workspace whose layout was forgotten belongs to none: it is not written
-    // back into the next layout that happens to take that id.
-    const active = current.active === rawId ? null : current.active
-    if (items.length !== current.items.length) saved.write({ ...current, items, active })
-    return summarize(items, active)
+        const tree = portableTree(normalizeTree(parsed.data, fallbackNode()))
+        const next = withSavedLayout(current.items, { id: newLayoutId(current.items), name, tree })
+        if (next === null) return summarize(current.items, current.active)
+        // Saving the workspace under a name is also entering that layout: what
+        // happens to the arrangement next belongs to it.
+        const active = next.find((item) => item.name === name)?.id ?? current.active
+        saved.write({ ...current, items: next, active })
+        return summarize(next, active)
+      },
+      [CH.layout.savedApply]: (_event, rawId: unknown): LayoutTree | null => {
+        const entry = readSaved().items.find((item) => item.id === rawId)
+        if (entry === undefined) return null
+        // Normalised again on the way out: the file may have been edited by hand
+        // since it was saved, and a live layout is never taken on trust.
+        // Migrated as well as normalised: a saved layout outlives the build that
+        // wrote it, so it goes through the same door as layout.json does.
+        const migrated = migrateLayout(entry.tree)
+        if (migrated === null) return null
+        const tree = normalizeTree(migrated, fallbackNode())
+        store.write(tree)
+        setActive(entry.id)
+        return tree
+      },
+      [CH.layout.savedFile]: () => saved.path,
+      [CH.layout.savedAddPreset]: (_event, rawPreset: unknown) => {
+        const current = readSaved()
+        const added = withPresetLayout(current.items, rawPreset, newLayoutId(current.items))
+        if (added === null) return { list: summarize(current.items, current.active), id: null }
+        // Written only when it is new: one already made from the preset is simply found.
+        if (added.items.length !== current.items.length)
+          saved.write({ ...current, items: added.items })
+        return { list: summarize(added.items, current.active), id: added.id }
+      },
+      [CH.layout.savedRestorePreset]: (_event, rawId: unknown) => {
+        const current = readSaved()
+        const items = withPresetRestored(current.items, rawId)
+        if (items === null) return summarize(current.items, current.active)
+        // Putting back the layout being worked in changes the workspace too, which the
+        // page does by applying it next - after it has flushed its own saves, so none
+        // still travelling is written back over what was just restored.
+        saved.write({ ...current, items })
+        return summarize(items, current.active)
+      },
+      [CH.layout.savedRename]: (_event, rawId: unknown, rawName: unknown) => {
+        const current = readSaved()
+        const name = cleanLayoutName(rawName)
+        const items = name === null ? null : renameSavedLayout(current.items, String(rawId), name)
+        // A name that is not one, or that another layout already has: the list is
+        // returned unchanged, and the dialog puts the old name back.
+        if (items === null) return summarize(current.items, current.active)
+        saved.write({ ...current, items })
+        return summarize(items, current.active)
+      },
+      [CH.layout.savedMove]: (_event, rawId: unknown, rawDelta: unknown) => {
+        const current = readSaved()
+        const delta = typeof rawDelta === 'number' ? rawDelta : 0
+        const items = moveSavedLayout(current.items, String(rawId), delta)
+        if (items === null) return summarize(current.items, current.active)
+        saved.write({ ...current, items })
+        return summarize(items, current.active)
+      },
+      [CH.layout.savedRemove]: (_event, rawId: unknown) => {
+        const current = readSaved()
+        const items = current.items.filter((item) => item.id !== rawId)
+        // A workspace whose layout was forgotten belongs to none: it is not written
+        // back into the next layout that happens to take that id.
+        const active = current.active === rawId ? null : current.active
+        if (items.length !== current.items.length) saved.write({ ...current, items, active })
+        return summarize(items, active)
+      },
+    },
   })
 
   return {
     dispose: () => {
-      ipcMain.removeHandler(CH.layout.load)
-      ipcMain.removeHandler(CH.layout.save)
-      ipcMain.removeHandler(CH.layout.reset)
-      ipcMain.removeHandler(CH.layout.revealFile)
-      ipcMain.removeHandler(CH.layout.savedList)
-      ipcMain.removeHandler(CH.layout.savedSave)
-      ipcMain.removeHandler(CH.layout.savedApply)
-      ipcMain.removeHandler(CH.layout.savedRemove)
-      ipcMain.removeHandler(CH.layout.savedRename)
-      ipcMain.removeHandler(CH.layout.savedMove)
-      ipcMain.removeHandler(CH.layout.savedFile)
-      ipcMain.removeHandler(CH.layout.savedAddPreset)
-      ipcMain.removeHandler(CH.layout.savedRestorePreset)
+      unregister()
     },
   }
 }

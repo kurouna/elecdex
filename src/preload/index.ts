@@ -37,7 +37,7 @@ import { chartKey, type MarketUpdate } from '@shared/markets'
 import type { MetricSample, MetricSourceId, MetricsStats } from '@shared/metrics'
 import type { Note, NotesFile } from '@shared/notes'
 import type { NowPlaying, NowPlayingControlResult } from '@shared/now-playing'
-import type { OrbitSet, OrbitUpdate } from '@shared/orbits'
+import type { OrbitUpdate } from '@shared/orbits'
 import type { PluginCatalog, PluginInstalled } from '@shared/plugins'
 import type { QuakeAlert, QuakeState } from '@shared/quakes'
 import type { LayoutTree } from '@shared/schemas/layout'
@@ -527,7 +527,7 @@ const api: ElecdexApi = {
     remove: (id) => ipcRenderer.send(CH.clipboard.remove, id),
     clear: () => ipcRenderer.send(CH.clipboard.clear),
     pause: (paused) => ipcRenderer.send(CH.clipboard.pause, paused),
-    watching: () => ipcRenderer.invoke(CH.clipboard.watching) as Promise<boolean>,
+    watching: () => ipcRenderer.invoke(CH.clipboard.watching) as Promise<string[]>,
   },
   snippets: {
     list: () => ipcRenderer.invoke(CH.snippets.list) as Promise<SnippetView[]>,
@@ -548,13 +548,13 @@ const api: ElecdexApi = {
     seek: (seconds) =>
       ipcRenderer.invoke(CH.nowPlaying.seek, seconds) as Promise<NowPlayingControlResult>,
     art: () => ipcRenderer.invoke(CH.nowPlaying.art) as Promise<string | null>,
-    watching: () => ipcRenderer.invoke(CH.nowPlaying.watching) as Promise<boolean>,
+    watching: () => ipcRenderer.invoke(CH.nowPlaying.watching) as Promise<string[]>,
   },
   docker: {
     subscribe: (handler) => subscribeDocker('board', handler),
     control: (id, action) =>
       ipcRenderer.invoke(CH.docker.control, id, action) as Promise<DockerControlResult>,
-    watching: () => ipcRenderer.invoke(CH.docker.watching) as Promise<boolean>,
+    watching: () => ipcRenderer.invoke(CH.docker.watching) as Promise<string[]>,
   },
   chip8: {
     list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,
@@ -584,11 +584,11 @@ const api: ElecdexApi = {
   agents: {
     subscribe: (handler) => subscribeAgents('board', handler),
     diff: (request) => ipcRenderer.invoke(CH.agents.diff, request) as Promise<GitDiff | null>,
-    watching: () => ipcRenderer.invoke(CH.agents.watching) as Promise<boolean>,
+    watching: () => ipcRenderer.invoke(CH.agents.watching) as Promise<string[]>,
   },
   orbits: {
     subscribe: (set, handler) => subscribeOrbits(set, handler),
-    watching: () => ipcRenderer.invoke(CH.orbits.watching) as Promise<OrbitSet[]>,
+    watching: () => ipcRenderer.invoke(CH.orbits.watching) as Promise<string[]>,
   },
   git: {
     subscribe: (repoId, handler) => subscribeGit(repoId, handler),

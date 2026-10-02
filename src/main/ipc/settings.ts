@@ -24,9 +24,10 @@ import {
   type ThemeProblem,
   ThemeSchema,
 } from '@shared/theme'
-import { app, ipcMain, shell } from 'electron'
+import { app, shell } from 'electron'
 import { appWindows } from '../app-windows.js'
 import { JsonStore } from '../store/json-store.js'
+import { registerTable } from './table.js'
 
 /**
  * Settings and themes.
@@ -146,25 +147,29 @@ export function registerSettingsIpc(): SettingsHandle {
     console.warn('[elecdex] settings will not reload live:', error)
   }
 
-  ipcMain.handle(CH.settings.get, () => settings)
+  const unregister = registerTable({
+    handle: {
+      [CH.settings.get]: () => settings,
 
-  ipcMain.handle(CH.settings.patch, (_event, raw: unknown): Settings => {
-    const next = applySettingsPatch(settings, raw)
-    if (next === null) return settings
-    settings = next
-    store.write(next)
-    broadcast(CH.settings.changed, settings)
-    notify()
-    return settings
-  })
+      [CH.settings.patch]: (_event, raw: unknown): Settings => {
+        const next = applySettingsPatch(settings, raw)
+        if (next === null) return settings
+        settings = next
+        store.write(next)
+        broadcast(CH.settings.changed, settings)
+        notify()
+        return settings
+      },
 
-  ipcMain.handle(CH.themes.list, (): ThemeCatalog => catalog)
-  ipcMain.handle(CH.themes.folder, () => themesDir)
-  // Opens settings.json in the user's editor, for things the UI does not edit yet.
-  ipcMain.handle(CH.settings.openFile, async () => {
-    if (!existsSync(settingsFile)) store.write(settings)
-    const error = await shell.openPath(settingsFile)
-    return error === '' ? null : error
+      [CH.themes.list]: (): ThemeCatalog => catalog,
+      [CH.themes.folder]: () => themesDir,
+      // Opens settings.json in the user's editor, for things the UI does not edit yet.
+      [CH.settings.openFile]: async () => {
+        if (!existsSync(settingsFile)) store.write(settings)
+        const error = await shell.openPath(settingsFile)
+        return error === '' ? null : error
+      },
+    },
   })
 
   return {
@@ -178,11 +183,7 @@ export function registerSettingsIpc(): SettingsHandle {
       unwatchFile(settingsFile)
       clearTimeout(retry)
       for (const timer of timers.values()) clearTimeout(timer)
-      ipcMain.removeHandler(CH.settings.get)
-      ipcMain.removeHandler(CH.settings.patch)
-      ipcMain.removeHandler(CH.themes.list)
-      ipcMain.removeHandler(CH.themes.folder)
-      ipcMain.removeHandler(CH.settings.openFile)
+      unregister()
     },
   }
 }

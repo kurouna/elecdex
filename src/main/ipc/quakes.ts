@@ -2,7 +2,7 @@ import path from 'node:path'
 import { CH } from '@shared/channels'
 import { notificationsFor } from '@shared/quake-notifications'
 import { type QuakeAlert, type QuakeState, quakeLanguage, resolveQuakeSource } from '@shared/quakes'
-import { app, ipcMain, Notification, net, type WebContents } from 'electron'
+import { app, Notification, net, type WebContents } from 'electron'
 import { z } from 'zod'
 import { appWindows } from '../app-windows.js'
 import { USER_AGENT } from '../build-info.js'
@@ -12,6 +12,7 @@ import { cacheFile } from '../store/cache-file.js'
 import { showMainWindow, windowInFront } from '../window-control.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * Earthquake and tsunami IPC.
@@ -106,21 +107,25 @@ export function registerQuakesIpc(settings: SettingsHandle): { dispose: () => vo
     whenPageGoes(sender, registry, drop)
   }
 
-  ipcMain.on(CH.quakes.subscribe, (event) => {
-    track(event.sender)
-    if (registry.subscribe(event.sender, SOURCE)) sync()
+  const unregister = registerTable({
+    on: {
+      [CH.quakes.subscribe]: (event) => {
+        track(event.sender)
+        if (registry.subscribe(event.sender, SOURCE)) sync()
+      },
+      [CH.quakes.unsubscribe]: (event) => {
+        if (registry.unsubscribe(event.sender, SOURCE)) sync()
+      },
+    },
+    handle: {
+      [CH.quakes.state]: () => service.state(),
+    },
   })
-  ipcMain.on(CH.quakes.unsubscribe, (event) => {
-    if (registry.unsubscribe(event.sender, SOURCE)) sync()
-  })
-  ipcMain.handle(CH.quakes.state, () => service.state())
 
   return {
     dispose: () => {
       service.dispose()
-      ipcMain.removeAllListeners(CH.quakes.subscribe)
-      ipcMain.removeAllListeners(CH.quakes.unsubscribe)
-      ipcMain.removeHandler(CH.quakes.state)
+      unregister()
     },
   }
 }

@@ -12,7 +12,7 @@ import {
   parseHostMap,
   TokenBucket,
 } from '@shared/plugins'
-import { app, BrowserWindow, dialog, ipcMain, Notification, shell } from 'electron'
+import { app, BrowserWindow, dialog, Notification, shell } from 'electron'
 import { appWindows } from '../app-windows.js'
 import { APP_VERSION } from '../build-info.js'
 import { PluginFolder } from '../plugins/folder.js'
@@ -23,6 +23,7 @@ import { PluginStorage } from '../plugins/storage.js'
 import { PLUGIN_SAMPLE, PLUGIN_TYPES } from '../plugins/templates.js'
 import { showMainWindow, windowInFront } from '../window-control.js'
 import type { SettingsHandle } from './settings.js'
+import { registerTable } from './table.js'
 
 /**
  * Plugins IPC (docs/plugins.md): the folder, and everything a plugin's worker asks main
@@ -93,130 +94,131 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
     }
   }
 
-  ipcMain.handle(CH.plugins.catalog, () => {
-    catalog ??= scan()
-    startWatching()
-    return catalog
-  })
-
-  ipcMain.handle(CH.plugins.openFolder, async () => {
-    catalog ??= scan()
-    await shell.openPath(folder.dir)
-  })
-
-  /**
-   * Installs a plugin from a folder the user picks.
-   *
-   * main opens the picker and does the copying: the page never says where to
-   * read from, which keeps the boundary where it is (there is no path-taking
-   * call in the API). A name already taken is asked about rather than
-   * overwritten, since replacing is how a plugin is updated and losing one to a
-   * mis-click is not.
-   */
-  ipcMain.handle(CH.plugins.install, async (event): Promise<PluginInstalled> => {
-    const owner = BrowserWindow.fromWebContents(event.sender)
-    const source = await pickPluginFolder(owner)
-    if (source === null) return { status: 'cancelled' }
-
-    // The folder may not exist yet on a first run.
-    catalog ??= scan()
-    const first = installFromFolder({ pluginsDir: folder.dir, source })
-    const result =
-      first.status === 'exists'
-        ? await replaceAfterAsking(owner, folder.dir, source, first.name)
-        : first
-    if (result.status === 'cancelled') return result
-    if (result.status !== 'installed') {
-      return { status: 'refused', reason: 'reason' in result ? result.reason : 'already there' }
-    }
-
-    // The watcher would find it on its own after its debounce; this puts it on
-    // screen with the answer, so the plugin is there when the note appears.
-    catalog = scan()
-    broadcast(CH.plugins.changed, catalog)
-    return { status: 'installed', name: result.name, files: result.files }
-  })
-
-  ipcMain.handle(CH.plugins.fetch, async (_event, id: unknown, url: unknown, headers: unknown) => {
-    if (typeof id !== 'string' || typeof url !== 'string' || url.length > 2048) {
-      return { ok: false, error: 'invalid request' }
-    }
-    const extra =
-      typeof headers === 'object' && headers !== null
-        ? Object.fromEntries(
-            Object.entries(headers).filter((e): e is [string, string] => typeof e[1] === 'string'),
-          )
-        : undefined
-    try {
-      return { ok: true, ...(await net.fetch(id, url, extra)) }
-    } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : String(error) }
-    }
-  })
-
-  ipcMain.handle(CH.plugins.storageLoad, (_event, id: unknown) =>
-    grant(id) === null ? {} : storage.load(id as string),
-  )
-
-  ipcMain.handle(
-    CH.plugins.storageSet,
-    (_event, id: unknown, key: unknown, value: unknown, remove: unknown) => {
-      if (grant(id) === null || !isStorageKey(key)) return false
-      return storage.set(id as string, key, value, remove === true)
-    },
-  )
-
-  ipcMain.handle(CH.plugins.signIn, async (_event, id: unknown, host: unknown) => {
-    const granted = grant(id)
-    if (granted === null || !isPluginHost(host) || !granted.session.includes(host)) return
-    const mapped = hostMap.get(host)
-    await openSignIn(
-      id as string,
-      mapped ? `http://${mapped}/` : `https://${host}/`,
-      appWindows()[0],
-      () => broadcast(CH.plugins.session, id),
-    )
-    broadcast(CH.plugins.session, id)
-  })
-
-  // The plugin says its requests work now: the user need not close the window by hand.
-  ipcMain.on(CH.plugins.closeSignIn, (_event, id: unknown) => {
-    if (typeof id === 'string' && PLUGIN_ID.test(id)) closeSignIn(id)
-  })
-
-  ipcMain.handle(CH.plugins.signOut, async (_event, id: unknown) => {
-    if (typeof id !== 'string' || !PLUGIN_ID.test(id)) return
-    await signOut(id)
-    broadcast(CH.plugins.session, id)
-  })
-
-  ipcMain.handle(CH.plugins.forget, async (_event, id: unknown) => {
-    if (typeof id !== 'string' || !PLUGIN_ID.test(id)) return
-    storage.clear(id)
-    net.forget(id)
-    await signOut(id)
-    broadcast(CH.plugins.session, id)
-  })
-
   const notices = new Map<string, TokenBucket>()
-  ipcMain.on(CH.plugins.notify, (_event, id: unknown, message: unknown) => {
-    const granted = grant(id)
-    if (granted === null || !granted.notify || !Notification.isSupported()) return
-    const { title, body } = (message ?? {}) as { title?: unknown; body?: unknown }
-    if (typeof title !== 'string') return
-    let bucket = notices.get(id as string)
-    if (bucket === undefined) {
-      bucket = new TokenBucket(2, PLUGIN_LIMITS.notifyPerMinute, Date.now())
-      notices.set(id as string, bucket)
-    }
-    if (!bucket.take(Date.now())) return
-    if (windowInFront()) return
-    const notification = new Notification({
-      title: title.slice(0, 200),
-      body: typeof body === 'string' ? body.slice(0, 500) : '',
-    })
-    notification.on('click', showMainWindow)
-    notification.show()
+
+  const unregister = registerTable({
+    handle: {
+      [CH.plugins.catalog]: () => {
+        catalog ??= scan()
+        startWatching()
+        return catalog
+      },
+      [CH.plugins.openFolder]: async () => {
+        catalog ??= scan()
+        await shell.openPath(folder.dir)
+      },
+      /**
+       * Installs a plugin from a folder the user picks.
+       *
+       * main opens the picker and does the copying: the page never says where to
+       * read from, which keeps the boundary where it is (there is no path-taking
+       * call in the API). A name already taken is asked about rather than
+       * overwritten, since replacing is how a plugin is updated and losing one to a
+       * mis-click is not.
+       */
+      [CH.plugins.install]: async (event): Promise<PluginInstalled> => {
+        const owner = BrowserWindow.fromWebContents(event.sender)
+        const source = await pickPluginFolder(owner)
+        if (source === null) return { status: 'cancelled' }
+
+        // The folder may not exist yet on a first run.
+        catalog ??= scan()
+        const first = installFromFolder({ pluginsDir: folder.dir, source })
+        const result =
+          first.status === 'exists'
+            ? await replaceAfterAsking(owner, folder.dir, source, first.name)
+            : first
+        if (result.status === 'cancelled') return result
+        if (result.status !== 'installed') {
+          return { status: 'refused', reason: 'reason' in result ? result.reason : 'already there' }
+        }
+
+        // The watcher would find it on its own after its debounce; this puts it on
+        // screen with the answer, so the plugin is there when the note appears.
+        catalog = scan()
+        broadcast(CH.plugins.changed, catalog)
+        return { status: 'installed', name: result.name, files: result.files }
+      },
+      [CH.plugins.fetch]: async (_event, id: unknown, url: unknown, headers: unknown) => {
+        if (typeof id !== 'string' || typeof url !== 'string' || url.length > 2048) {
+          return { ok: false, error: 'invalid request' }
+        }
+        const extra =
+          typeof headers === 'object' && headers !== null
+            ? Object.fromEntries(
+                Object.entries(headers).filter(
+                  (e): e is [string, string] => typeof e[1] === 'string',
+                ),
+              )
+            : undefined
+        try {
+          return { ok: true, ...(await net.fetch(id, url, extra)) }
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error) }
+        }
+      },
+      [CH.plugins.storageLoad]: (_event, id: unknown) =>
+        grant(id) === null ? {} : storage.load(id as string),
+      [CH.plugins.storageSet]: (
+        _event,
+        id: unknown,
+        key: unknown,
+        value: unknown,
+        remove: unknown,
+      ) => {
+        if (grant(id) === null || !isStorageKey(key)) return false
+        return storage.set(id as string, key, value, remove === true)
+      },
+      [CH.plugins.signIn]: async (_event, id: unknown, host: unknown) => {
+        const granted = grant(id)
+        if (granted === null || !isPluginHost(host) || !granted.session.includes(host)) return
+        const mapped = hostMap.get(host)
+        await openSignIn(
+          id as string,
+          mapped ? `http://${mapped}/` : `https://${host}/`,
+          appWindows()[0],
+          () => broadcast(CH.plugins.session, id),
+        )
+        broadcast(CH.plugins.session, id)
+      },
+      [CH.plugins.signOut]: async (_event, id: unknown) => {
+        if (typeof id !== 'string' || !PLUGIN_ID.test(id)) return
+        await signOut(id)
+        broadcast(CH.plugins.session, id)
+      },
+      [CH.plugins.forget]: async (_event, id: unknown) => {
+        if (typeof id !== 'string' || !PLUGIN_ID.test(id)) return
+        storage.clear(id)
+        net.forget(id)
+        await signOut(id)
+        broadcast(CH.plugins.session, id)
+      },
+    },
+    on: {
+      // The plugin says its requests work now: the user need not close the window by hand.
+      [CH.plugins.closeSignIn]: (_event, id: unknown) => {
+        if (typeof id === 'string' && PLUGIN_ID.test(id)) closeSignIn(id)
+      },
+      [CH.plugins.notify]: (_event, id: unknown, message: unknown) => {
+        const granted = grant(id)
+        if (granted === null || !granted.notify || !Notification.isSupported()) return
+        const { title, body } = (message ?? {}) as { title?: unknown; body?: unknown }
+        if (typeof title !== 'string') return
+        let bucket = notices.get(id as string)
+        if (bucket === undefined) {
+          bucket = new TokenBucket(2, PLUGIN_LIMITS.notifyPerMinute, Date.now())
+          notices.set(id as string, bucket)
+        }
+        if (!bucket.take(Date.now())) return
+        if (windowInFront()) return
+        const notification = new Notification({
+          title: title.slice(0, 200),
+          body: typeof body === 'string' ? body.slice(0, 500) : '',
+        })
+        notification.on('click', showMainWindow)
+        notification.show()
+      },
+    },
   })
 
   return {
@@ -224,21 +226,7 @@ export function registerPluginsIpc(settings: SettingsHandle): { dispose: () => v
       storage.flush()
       clearTimeout(timer)
       watcher?.close()
-      for (const channel of [
-        CH.plugins.catalog,
-        CH.plugins.openFolder,
-        CH.plugins.install,
-        CH.plugins.fetch,
-        CH.plugins.storageLoad,
-        CH.plugins.storageSet,
-        CH.plugins.signIn,
-        CH.plugins.signOut,
-        CH.plugins.forget,
-      ]) {
-        ipcMain.removeHandler(channel)
-      }
-      ipcMain.removeAllListeners(CH.plugins.notify)
-      ipcMain.removeAllListeners(CH.plugins.closeSignIn)
+      unregister()
     },
   }
 }

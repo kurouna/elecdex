@@ -6,9 +6,10 @@ import {
   type MetricSourceId,
   type MetricsStats,
 } from '@shared/metrics'
-import { ipcMain, type UtilityProcess, utilityProcess, type WebContents } from 'electron'
+import { type UtilityProcess, utilityProcess, type WebContents } from 'electron'
 import type { WorkerMessage, WorkerRequest } from '../../services/metrics.worker.js'
 import { whenPageGoes } from '../ipc/page-gone.js'
+import { registerTable } from '../ipc/table.js'
 import { SubscriptionRegistry } from './subscriptions.js'
 
 const WORKER = fileURLToPath(new URL('./metrics.worker.js', import.meta.url))
@@ -163,20 +164,24 @@ export class MetricsBroker {
 export function registerMetricsIpc(): { dispose: () => void } {
   const broker = new MetricsBroker()
 
-  ipcMain.on(CH.metrics.subscribe, (event, raw: unknown) => {
-    if (isMetricSourceId(raw)) broker.subscribe(event.sender, raw)
+  const unregister = registerTable({
+    on: {
+      [CH.metrics.subscribe]: (event, raw: unknown) => {
+        if (isMetricSourceId(raw)) broker.subscribe(event.sender, raw)
+      },
+      [CH.metrics.unsubscribe]: (event, raw: unknown) => {
+        if (isMetricSourceId(raw)) broker.unsubscribe(event.sender, raw)
+      },
+    },
+    handle: {
+      [CH.metrics.stats]: () => broker.stats(),
+    },
   })
-  ipcMain.on(CH.metrics.unsubscribe, (event, raw: unknown) => {
-    if (isMetricSourceId(raw)) broker.unsubscribe(event.sender, raw)
-  })
-  ipcMain.handle(CH.metrics.stats, () => broker.stats())
 
   return {
     dispose: () => {
       broker.dispose()
-      ipcMain.removeAllListeners(CH.metrics.subscribe)
-      ipcMain.removeAllListeners(CH.metrics.unsubscribe)
-      ipcMain.removeHandler(CH.metrics.stats)
+      unregister()
     },
   }
 }

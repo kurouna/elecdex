@@ -13,10 +13,11 @@ import {
 } from '@shared/background'
 import { CH } from '@shared/channels'
 import { effectiveBindings } from '@shared/keybindings'
-import { app, type BrowserWindow, ipcMain, Notification } from 'electron'
+import { app, type BrowserWindow, Notification } from 'electron'
 import { z } from 'zod'
 import { appWindows } from '../app-windows.js'
 import type { SettingsHandle } from '../ipc/settings.js'
+import { registerTable } from '../ipc/table.js'
 import { JsonStore } from '../store/json-store.js'
 import { mainWindow, showMainWindow } from '../window-control.js'
 import { createGlobalToggle, StubRegistry } from './global-shortcut.js'
@@ -203,22 +204,28 @@ export function registerBackground(settings: SettingsHandle): Background {
     if (changed) broadcast()
   })
 
-  ipcMain.handle(CH.background.state, state)
   // Handing the keys back is safe at any time, so anything that means the page
   // is no longer recording does it: the page saying so, a reload, a crash, the
   // window going away.
   const suspendShortcut = (on: boolean): void => toggle.suspend(on)
-  ipcMain.on(CH.background.suspendShortcut, (_event, on: unknown) => {
-    suspendShortcut(on === true)
-  })
 
-  ipcMain.handle(CH.background.setLaunchAtLogin, (_event, on: unknown) => {
-    if (capabilities.launchAtLogin && typeof on === 'boolean') {
-      loginItems.set(on, capabilities.launchHidden && options().startInBackground)
-    }
-    const next = state()
-    broadcast()
-    return next
+  const unregister = registerTable({
+    handle: {
+      [CH.background.state]: state,
+      [CH.background.setLaunchAtLogin]: (_event, on: unknown) => {
+        if (capabilities.launchAtLogin && typeof on === 'boolean') {
+          loginItems.set(on, capabilities.launchHidden && options().startInBackground)
+        }
+        const next = state()
+        broadcast()
+        return next
+      },
+    },
+    on: {
+      [CH.background.suspendShortcut]: (_event, on: unknown) => {
+        suspendShortcut(on === true)
+      },
+    },
   })
 
   if (stub) {
@@ -264,9 +271,7 @@ export function registerBackground(settings: SettingsHandle): Background {
       app.off('before-quit', onBeforeQuit)
       toggle.dispose()
       tray.dispose()
-      ipcMain.removeAllListeners(CH.background.suspendShortcut)
-      ipcMain.removeHandler(CH.background.state)
-      ipcMain.removeHandler(CH.background.setLaunchAtLogin)
+      unregister()
     },
   }
 }
