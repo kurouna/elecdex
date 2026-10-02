@@ -329,12 +329,9 @@ function newChat(): void {
 }
 
 let historyOpen = $state(false)
-/** When the log was opened: its "2h" are said from then, and do not tick. */
-let openedAt = $state(Date.now())
 
 function toggleHistory(): void {
   historyOpen = !historyOpen
-  if (historyOpen) openedAt = Date.now()
 }
 
 function openChat(id: string): void {
@@ -695,7 +692,6 @@ const host = $derived.by(() => {
       <SessionLog
         entries={ai.chats.filter((chat) => chat.messages > 0)}
         current={choice.chat}
-        {openedAt}
         empty="No conversations yet."
         deleteTitle="Delete this conversation"
         suffix={(chat) => String(chat.messages)}

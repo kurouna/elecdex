@@ -397,12 +397,9 @@ $effect(() => {
   motionOpen = false
 })
 let seatsOpen = $state(false)
-/** When the log was opened: its "2h" are said from then, and do not tick. */
-let openedAt = $state(Date.now())
 
 function toggleHistory(): void {
   historyOpen = !historyOpen
-  if (historyOpen) openedAt = Date.now()
 }
 
 function openSession(id: string): void {
@@ -513,7 +510,6 @@ function telemetry(ballot: Ballot): string | null {
       <SessionLog
         entries={elec.sessions}
         current={choice.session}
-        {openedAt}
         empty="No deliberations yet."
         deleteTitle="Delete this deliberation"
         testids={{ list: 'elec-log', item: 'elec-log-item', delete: 'elec-log-delete' }}

@@ -11,8 +11,6 @@ import ConfirmButton from '../../ConfirmButton.svelte'
 interface Props {
   entries: readonly T[]
   current: string | null
-  /** When the log was opened: "how long ago" is counted from there, not live. */
-  openedAt: number
   /** Said when there is nothing: "No conversations yet." */
   empty: string
   /** What deleting one is called: "Delete this conversation". */
@@ -30,7 +28,6 @@ interface Props {
 const {
   entries,
   current,
-  openedAt,
   empty,
   deleteTitle,
   suffix,
@@ -40,6 +37,12 @@ const {
   onexport,
   ondelete,
 }: Props = $props()
+
+/**
+ * When the log was opened: it is drawn only while open, so that is when it was made. Its "2h"
+ * are said from then, and do not tick.
+ */
+const openedAt = Date.now()
 
 function when(entry: T): string {
   const more = suffix?.(entry)
