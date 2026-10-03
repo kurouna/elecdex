@@ -97,6 +97,7 @@ import {
   T_ANS,
   T_AUTO,
   T_CALL,
+  T_CIRCLE,
   T_CLOSE,
   T_CLS,
   T_CONT,
@@ -1130,7 +1131,7 @@ function angleStatement(c: u16): void {
     return
   }
   // The rest are in the banks: the screen, the card, the editing commands, and the others.
-  if (c >= T_LOCATE && c <= T_GPRINT) screenStatement(c)
+  if ((c >= T_LOCATE && c <= T_GPRINT) || c === T_CIRCLE) screenStatement(c)
   else if ((c >= T_FILES && c <= T_KILL) || c === T_OPEN || c === T_CLOSE) fileStatement(c)
   else if (c >= T_AUTO && c <= T_TROFF) toolStatement(c)
   else dataStatement(c)

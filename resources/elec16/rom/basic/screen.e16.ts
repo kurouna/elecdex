@@ -1,11 +1,11 @@
-// ELEC-16 BASIC, ROM bank 1: the screen - LOCATE, CURSOR, PSET, PRESET, LINE, GPRINT and
-// POINT (docs/elec16.md section 6). A dot is a bit of the LCD's memory: a byte is a column of
+// ELEC-16 BASIC, ROM bank 1: the screen - LOCATE, CURSOR, PSET, PRESET, LINE, CIRCLE, GPRINT
+// and POINT (docs/elec16.md section 6). A dot is a bit of the LCD's memory: a byte is a column of
 // eight dots, bit 0 at the top, a text row one band of WIDTH bytes; a four-shade screen has a
 // second plane, and BASIC's dots are the darkest shade, as its text is.
 import {
   type bool,
   div,
-  type i16,
+  i16,
   peek,
   peek16,
   poke,
@@ -52,10 +52,16 @@ import {
   VRAM,
   WIDTH,
 } from './rom.e16'
-import { T_CURSOR, T_GPRINT, T_LINE, T_LOCATE, T_PRESET, T_PSET } from './text.e16'
+import { T_CIRCLE, T_CURSOR, T_GPRINT, T_LINE, T_LOCATE, T_PRESET, T_PSET } from './text.e16'
 
 const CH_B = 0x42
 const CH_F = 0x46
+const CH_X = 0x58
+
+/** What a dot becomes: cleared (PRESET), set (PSET), or turned over (PSET x, y, X). */
+const DOT_OFF = 0
+const DOT_ON = 1
+const DOT_FLIP = 2
 
 /** A whole number from an expression (taken off the stack). */
 function whole(): i16 {
@@ -92,16 +98,32 @@ function cell(x: i16, y: i16): u16 {
   return VRAM + (u16(y) >> 3) * width + u16(x)
 }
 
-/** A dot set or cleared, in every plane; one off the screen is nothing. */
-function dot(x: i16, y: i16, on: bool): void {
+/** A dot set, cleared or turned over, in every plane; one off the screen is nothing. */
+function dot(x: i16, y: i16, mode: u16): void {
   const at = cell(x, y)
   if (at === 0) return
   const bit: u16 = 1 << (u16(y) & 7)
   const plane = peek16(PLANE)
   for (let p: u16 = 0; p < peek16(DEPTH); p++) {
     const b = at + p * plane
-    poke(b, on ? peek(b) | bit : peek(b) & (0xff ^ bit))
+    const was = peek(b)
+    poke(b, mode === DOT_ON ? was | bit : mode === DOT_OFF ? was & (0xff ^ bit) : was ^ bit)
   }
+}
+
+/** Whether `c` follows a comma (a typed line is in capitals); both are passed over. */
+function option(c: u16): bool {
+  if (next() !== CH_COMMA) return false
+  step()
+  if (next() !== c) fail(E_SYNTAX)
+  step()
+  return true
+}
+
+/** PSET x, y[, X] and PRESET x, y: a dot set, turned over, or cleared. */
+function dotStatement(set: bool): void {
+  point()
+  dot(atX, atY, !set ? DOT_OFF : option(CH_X) ? DOT_FLIP : DOT_ON)
 }
 
 /** LOCATE x, y: the text cursor's column and row. */
@@ -123,10 +145,7 @@ function lineStatement(): void {
   point()
   expect(CH_RPAREN)
   let box: u16 = 0
-  if (next() === CH_COMMA) {
-    step()
-    if (next() !== CH_B) fail(E_SYNTAX)
-    step()
+  if (option(CH_B)) {
     box = 1
     if (next() === CH_F) {
       step()
@@ -166,7 +185,7 @@ function line(x1: i16, y1: i16, x2: i16, y2: i16): void {
   let x = x1
   let y = y1
   for (;;) {
-    dot(x, y, true)
+    dot(x, y, DOT_ON)
     if (x === x2 && y === y2) return
     const e2: i16 = err * 2
     if (e2 > -dy) {
@@ -178,6 +197,66 @@ function line(x1: i16, y1: i16, x2: i16, y2: i16): void {
       y += sy
     }
   }
+}
+
+/**
+ * CIRCLE (x, y), r[, F]: the circle round (x, y) of radius r, its edge or, with F, all of it
+ * (the midpoint algorithm: whole numbers only, each eighth drawn from the next by symmetry).
+ */
+function circleStatement(): void {
+  expect(CH_LPAREN)
+  point()
+  expect(CH_RPAREN)
+  expect(CH_COMMA)
+  const r = near(whole())
+  if (r < 0) fail(E_ARGUMENT)
+  const filled = option(CH_F)
+  const cx = atX
+  const cy = atY
+  let x: i16 = r
+  let y: i16 = 0
+  let err: i16 = 1 - r
+  while (x >= y) {
+    checkBreak()
+    if (filled) {
+      span(cx - x, cx + x, cy + y)
+      span(cx - x, cx + x, cy - y)
+      span(cx - y, cx + y, cy + x)
+      span(cx - y, cx + y, cy - x)
+    } else {
+      eight(cx, cy, x, y)
+    }
+    y++
+    if (err < 0) err += 2 * y + 1
+    else {
+      x--
+      err += 2 * (y - x) + 1
+    }
+  }
+}
+
+/** The eight dots (x, y) round a centre stands for, one in each eighth of the circle. */
+function eight(cx: i16, cy: i16, x: i16, y: i16): void {
+  dot(cx + x, cy + y, DOT_ON)
+  dot(cx - x, cy + y, DOT_ON)
+  dot(cx + x, cy - y, DOT_ON)
+  dot(cx - x, cy - y, DOT_ON)
+  dot(cx + y, cy + x, DOT_ON)
+  dot(cx - y, cy + x, DOT_ON)
+  dot(cx + y, cy - x, DOT_ON)
+  dot(cx - y, cy - x, DOT_ON)
+}
+
+/**
+ * The dots from x1 to x2 on row y, cut to the screen first: a filled circle far bigger than
+ * the screen costs what the screen does, not what the circle would.
+ */
+function span(x1: i16, x2: i16, y: i16): void {
+  if (y < 0 || u16(y) >= peek16(ROWS) * 8) return
+  const last = i16(peek16(WIDTH) - 1)
+  const from = x1 < 0 ? 0 : x1
+  const to = x2 > last ? last : x2
+  for (let x = from; x <= to; x++) dot(x, y, DOT_ON)
 }
 
 /**
@@ -240,10 +319,9 @@ export function pointFunction(): void {
 export function screenStatement(c: u16): void {
   if (c === T_LOCATE) locateStatement()
   else if (c === T_CURSOR) poke16(IO_CURMODE, u16(whole()) & 7)
-  else if (c === T_PSET || c === T_PRESET) {
-    point()
-    dot(atX, atY, c === T_PSET)
-  } else if (c === T_LINE) lineStatement()
+  else if (c === T_PSET || c === T_PRESET) dotStatement(c === T_PSET)
+  else if (c === T_LINE) lineStatement()
+  else if (c === T_CIRCLE) circleStatement()
   else if (c === T_GPRINT) gprintStatement()
   else fail(E_SYNTAX)
 }

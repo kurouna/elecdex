@@ -855,8 +855,8 @@ weather and calendar.
   computer designed for elecdex, not a copy of any real one: its CPU (E16, a RISC with 32- and
   16-bit instructions), ROM, font and BASIC are all its own. It starts in **BASIC** - type
   `3*4+SIN 30` for an answer, or numbered lines for a program (`LIST`, `RUN`, `AUTO`, `RENUM`),
-  with strings, arrays, `DATA`, sound (`BEEP`), dots and lines (`PSET`, `LINE`), the clock
-  (`TIME$`) and files on its memory card (`SAVE`, `LOAD`, `FILES`, `OPEN`). `MON` opens the
+  with strings, arrays, `DATA`, sound (`BEEP`), dots, lines and circles (`PSET`, `LINE`,
+  `CIRCLE`), the clock (`TIME$`) and files on its memory card (`SAVE`, `LOAD`, `FILES`, `OPEN`). `MON` opens the
   machine-code monitor (dump, write, run, disassemble, breakpoints). The LCD is 240×48 by
   default (also 240×32, 240×64 and a 160×144 four-shade one), drawn dot by dot with the shadow,
   the slow fade and the contrast of a real one; seven skins dress the case. The PC's keyboard

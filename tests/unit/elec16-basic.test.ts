@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { compileBasic } from '@shared/e16c/basic-rom'
 import { keyCode } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
+import { MODELS } from '@shared/elec16/map'
 import { buildRom } from '@shared/elec16/rom'
 import { describe, expect, it } from 'vitest'
 import {
@@ -425,6 +426,88 @@ describe('BASIC', () => {
     expect(say(m, 'PSET 3,60:PRESET 3,60:PRINT POINT(3,60)')).toEqual(['0'])
     // A dot off the screen is nothing, not an error.
     expect(say(m, 'PSET 999,999:PRINT POINT(-1,0)')).toEqual(['0'])
+    // X turns a dot over: set, then clear again.
+    expect(say(m, 'PSET 5,60,X:PRINT POINT(5,60);:PSET 5,60,x:PRINT POINT(5,60)')).toEqual(['1 0'])
+    expect(say(m, 'LINE (30,50)-(34,54),bf:PRINT POINT(32,52)')).toEqual(['1'])
+    expect(say(m, 'PSET 5,60,Y')).toEqual(['ERR:SYNTAX'])
+  })
+
+  it('draws circles, their edge or all of them', () => {
+    const m = switchOn('pocket-64')
+    // The edge: the ends of its axes and a dot between, nothing at the centre or past it.
+    expect(say(m, 'CIRCLE (100,48),10:PRINT POINT(110,48);POINT(90,48);POINT(100,38)')).toEqual([
+      '1 1 1',
+    ])
+    expect(say(m, 'CIRCLE (100,48),10:PRINT POINT(100,58);POINT(107,55);POINT(100,48)')).toEqual([
+      '1 1 0',
+    ])
+    expect(say(m, 'CIRCLE (100,48),10:PRINT POINT(111,48)')).toEqual(['0'])
+    // Filled: the centre and inside, still nothing past the edge.
+    expect(say(m, 'CIRCLE (100,48),10,F:PRINT POINT(100,48);POINT(105,53);POINT(111,48)')).toEqual([
+      '1 1 0',
+    ])
+    // Radius 0 is the centre's dot; a filled circle far off the screen draws what is on it.
+    expect(say(m, 'CIRCLE (70,48),0:PRINT POINT(70,48);POINT(71,48)')).toEqual(['1 0'])
+    expect(say(m, 'CIRCLE (-4000,48),4010,F:PRINT POINT(5,48);POINT(11,48)')).toEqual(['1 0'])
+    expect(say(m, 'CIRCLE (10,10),-1')).toEqual(['ERR:ARGUMENT'])
+    expect(say(m, 'CIRCLE (10,10),5000')).toEqual(['ERR:ARGUMENT'])
+    expect(say(m, 'CIRCLE (10,10),5,G')).toEqual(['ERR:SYNTAX'])
+    type(m, '10 circle (1,2),3,f\n')
+    expect(say(m, 'LIST 10')).toEqual(['10 CIRCLE (1,2),3,F'])
+  })
+
+  it('draws every dot of the edge the midpoint algorithm gives, and no other', () => {
+    const m = switchOn('pocket-64')
+    const { width } = MODELS['pocket-64']
+    // Below the typed line and right of the prompt, where only the circle draws.
+    const dotsOn = (): string[] => {
+      const on: string[] = []
+      for (let y = 16; y < 64; y++) {
+        for (let x = 30; x < width; x++) {
+          const byte = m.state.vram[(y >> 3) * width + x] ?? 0
+          if ((byte >> (y & 7)) & 1) on.push(`${x},${y}`)
+        }
+      }
+      return on.sort()
+    }
+    for (const r of [1, 2, 5, 13, 23]) {
+      press(m, keyCode('cls'))
+      type(m, `CIRCLE (90,40),${r}\n`)
+      const want = new Set<string>()
+      let x = r
+      let y = 0
+      let err = 1 - r
+      while (x >= y) {
+        for (const [dx, dy] of [
+          [x, y],
+          [y, x],
+        ]) {
+          for (const sx of [1, -1]) {
+            for (const sy of [1, -1]) want.add(`${90 + sx * (dx ?? 0)},${40 + sy * (dy ?? 0)}`)
+          }
+        }
+        y++
+        if (err < 0) err += 2 * y + 1
+        else {
+          x--
+          err += 2 * (y - x) + 1
+        }
+      }
+      expect(dotsOn(), `r ${r}`).toEqual([...want].sort())
+    }
+  })
+
+  it('turns a dot over in both planes of a four-shade screen', () => {
+    const m = switchOn('handheld-160')
+    const { width, height } = MODELS['handheld-160']
+    const plane = (width * height) / 8
+    const at = (100 >> 3) * width + 50
+    const bit = 1 << (100 & 7)
+    const planes = () => [(m.state.vram[at] ?? 0) & bit, (m.state.vram[at + plane] ?? 0) & bit]
+    say(m, 'PSET 50,100,X')
+    expect(planes()).toEqual([bit, bit])
+    say(m, 'PSET 50,100,X:PSET 50,100,X')
+    expect(planes()).toEqual([0, 0])
   })
 
   it('gives the buzzer a tone for BEEP, waits it out, and WAITs on the timer', () => {

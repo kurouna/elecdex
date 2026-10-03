@@ -357,12 +357,12 @@ TS の部分集合 (*.e16.ts)
 
 ### BASIC の後半（段階 4、ROM のバンク）
 
-- **置き場所**: 解釈器の中心（`basic.e16.ts`、式、変数、PRINT、FOR、行の編集）は固定 ROM。残りはバンクに置き、中心は far_call で呼ぶ: バンク 0 `strings.e16.ts`（配列と DIM、文字列の演算と関数、INPUT、READ と DATA、ON、CLEAR、WAIT、BEEP）、1 `screen.e16.ts`（LOCATE CURSOR PSET PRESET LINE GPRINT POINT）、2 `files.e16.ts`（カードと データファイル）、3 `tools.e16.ts`（AUTO RENUM DELETE TRON TROFF）。バンクの関数が中心の変数を変えるときは中心の小さな関数（`setTxt`、`step`、`setNsp` など）を通す（TypeScript では import した `let` に代入できないため）。e16c の名前は全部のファイルで 1 つなので、関数名と大域変数の名前は重ねない
+- **置き場所**: 解釈器の中心（`basic.e16.ts`、式、変数、PRINT、FOR、行の編集）は固定 ROM。残りはバンクに置き、中心は far_call で呼ぶ: バンク 0 `strings.e16.ts`（配列と DIM、文字列の演算と関数、INPUT、READ と DATA、ON、CLEAR、WAIT、BEEP）、1 `screen.e16.ts`（LOCATE CURSOR PSET PRESET LINE CIRCLE GPRINT POINT）、2 `files.e16.ts`（カードと データファイル）、3 `tools.e16.ts`（AUTO RENUM DELETE TRON TROFF）。バンクの関数が中心の変数を変えるときは中心の小さな関数（`setTxt`、`step`、`setNsp` など）を通す（TypeScript では import した `let` に代入できないため）。e16c の名前は全部のファイルで 1 つなので、関数名と大域変数の名前は重ねない
 - **変数**: プログラムの後ろの記録 [名前 2][種類][容量][大きさ u16][値]。種類はビット 0 文字列、1 配列、2 二次元。数は 8 バイト、文字列は [長さ][容量の文字]、配列は [d1][d2] と要素を (0,0) から。同じ名前でも数・文字列・配列は別の変数
 - **文字列**: 当時のポケコンと同じく、文字列変数は決まった容量を持つ（`A$` は 16 文字、`DIM A$*80` で 1〜255 文字。入りきらない分は切る）。だからガーベジコレクションはいらない。式の途中でできる文字列（`+`、STR$、CHR$、INKEY$、TIME$、DATE$）は 512 バイトの作業域に置き、文ごとに空にする（あふれれば TOO COMPLEX）。LEFT$、MID$、RIGHT$ と文字列の定数は元の文字を指すだけで写さない。式の値は 8 バイトの欄で、文字列は [0xFF][長さ][番地]。型は式が `strType` で持ち、数と文字列を混ぜると ERR:TYPE。比較は文字コードの辞書順
 - **配列**: `DIM A(10)`、`DIM B(3,4)`、`DIM C$(5)*20`。添字は 0 から。DIM せずに使うと 10（二次元なら 10, 10）で作る。範囲の外は ERR:INDEX、二度目の DIM は ERR:DIM
 - **関数**: LEN LEFT$ MID$ RIGHT$ CHR$ ASC STR$ VAL INKEY$ TIME$（`HH:MM:SS`）DATE$（`YYYY-MM-DD`）EOF LCDW LCDH POINT。複数の引数は括弧で（`LEFT$(A$,2)`）、一つなら括弧なしでもよい
-- **文**: `INPUT ["問";] v[, v...]`（コンマで区切って複数、文字列は引用符でも）、`DATA`（項目は打ったまま字句にしない。引用符の中のコンマは項目の中）、`READ`、`RESTORE [行]`、`ON n GOTO|GOSUB 行, 行...`（範囲の外は次の文へ）、`CLEAR`、`WAIT n`（64 分の 1 秒）、`BEEP 周波数[, ミリ秒]`（鳴り終わるまで待つ。既定 100 ms）、`OFF`、`LOCATE x, y`、`CURSOR n`（CURMODE の値）、`PSET x, y`、`PRESET x, y`、`LINE (x1, y1)-(x2, y2)[, B | BF]`、`GPRINT` に列のバイトを数か 16 進の文字列で（`GPRINT "7F08087F"`）、`AUTO [始め][, 刻み]`、`RENUM [新][, 元][, 刻み]`（GOTO、GOSUB、THEN、ELSE、RESTORE と ON の並びも直す）、`DELETE a`、`DELETE a-b`、`DELETE -b`、`DELETE a-`、`TRON`、`TROFF`
+- **文**: `INPUT ["問";] v[, v...]`（コンマで区切って複数、文字列は引用符でも）、`DATA`（項目は打ったまま字句にしない。引用符の中のコンマは項目の中）、`READ`、`RESTORE [行]`、`ON n GOTO|GOSUB 行, 行...`（範囲の外は次の文へ）、`CLEAR`、`WAIT n`（64 分の 1 秒）、`BEEP 周波数[, ミリ秒]`（鳴り終わるまで待つ。既定 100 ms）、`OFF`、`LOCATE x, y`、`CURSOR n`（CURMODE の値）、`PSET x, y[, X]`（X で点を反転）、`PRESET x, y`、`LINE (x1, y1)-(x2, y2)[, B | BF]`、`CIRCLE (x, y), r[, F]`（中点法、F で塗りつぶし。画面の外は切る）、`GPRINT` に列のバイトを数か 16 進の文字列で（`GPRINT "7F08087F"`）、`AUTO [始め][, 刻み]`、`RENUM [新][, 元][, 刻み]`（GOTO、GOSUB、THEN、ELSE、RESTORE と ON の並びも直す）、`DELETE a`、`DELETE a-b`、`DELETE -b`、`DELETE a-`、`TRON`、`TROFF`
 - **WAIT と BEEP の待ち**: タイマー（1,024 Hz）の比較を仕掛けて WFI で眠る。待ちの間は mie に TIMER を足し、終われば（BRK で止まっても）元に戻す。戻さないと、プロンプトで眠るたびにタイマーの線で起きてしまう
 - **カード**: `FILES`（16 ファイルまでと空きの KB）、`SAVE "名前"`（プログラムを**リストの文字**で。1 行 1 つの CR。PC でもそのまま読める。拡張子がなければ .BAS）、`LOAD "名前"`（読めてから今のプログラムを消すので、ない名前では何も失わない）、`SAVE "X.BIN", 番地, 長さ` と `LOAD "X.BIN"[, 番地]`（機械語。既定は 7000、プログラムの上と スタックの手前の間だけ）、`KILL "名前"`。データファイルは 2 つまで: `OPEN "名前" FOR INPUT|OUTPUT|APPEND AS #n`（拡張子がなければ .DAT）、`PRINT #n, ...`（項目の間はコンマ、行の終わりは CR）、`INPUT #n, v...`、`EOF(n)`、`CLOSE [#n]`。プログラムが止まると（END、誤り、BRK）開いているファイルは書き出して閉じる。カードの命令は WFI で答えを待つので、main は ROM の最初で mie に CARD も入れる。カードの WRITE の位置 FFFF は「ファイルの終わりに足す」
 - **表示の小さな直し**: 画面の幅ちょうどの行を出すと、文字が折り返したうえで改行してしまい空の行が入っていた。PRINT（何か出したうえで行の頭にいるなら改行しない）、LIST、行を打った後は、行の頭なら改行しない
@@ -410,7 +410,7 @@ TS の部分集合 (*.e16.ts)
 |---|---|
 | 命令 | RUN LIST NEW CONT AUTO RENUM DELETE TRON TROFF FILES LOAD SAVE KILL MON |
 | 文 | PRINT INPUT LET IF THEN ELSE FOR TO STEP NEXT GOTO GOSUB RETURN ON END STOP REM DIM DATA READ RESTORE CLEAR WAIT BEEP DEG RAD GRAD POKE CALL |
-| 画面 | CLS LOCATE CURSOR PSET PRESET LINE (,B / ,BF) GPRINT POINT |
+| 画面 | CLS LOCATE CURSOR PSET (,X) PRESET LINE (,B / ,BF) CIRCLE (,F) GPRINT POINT |
 | 関数 | SIN COS TAN ASIN ACOS ATAN SQR ABS INT SGN LOG LN EXP RND PI ANS PEEK POINT |
 | 文字列 | LEN LEFT$ MID$ RIGHT$ CHR$ ASC STR$ VAL INKEY$ TIME$ DATE$ |
 | データファイル | OPEN CLOSE PRINT# INPUT# EOF（カードの .DAT） |
