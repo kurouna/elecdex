@@ -87,6 +87,7 @@ export const BUILTINS = new Set([
   'peek16',
   'poke16',
   'div',
+  'idiv',
   'wrap16',
   'ecall',
   'memcpy',

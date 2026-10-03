@@ -8,6 +8,7 @@ import {
   div,
   i16,
   memcpy,
+  memset,
   peek,
   peek16,
   poke,
@@ -20,8 +21,10 @@ import {
   CURX,
   CURY,
   cls,
+  DEPTH,
   getkey,
   IO_CURMODE,
+  K_ANS,
   K_BRK,
   K_BS,
   K_CLS,
@@ -34,7 +37,11 @@ import {
   K_RIGHT,
   K_UP,
   locate,
+  PLANE,
   putc,
+  ROWS,
+  VRAM,
+  WIDTH,
 } from './rom.e16'
 
 /** What editLine gives instead of a length. */
@@ -70,7 +77,21 @@ function redraw(buf: u16, length: u16, from: u16, at: u16): void {
   // putc wraps after the last column, so the cursor stands on the cell after the blank.
   const now = peek16(CURY)
   if (now < expected) startY -= expected - now
+  // Past the blank, the rest of the line's last row: what a program left there would read as
+  // part of the line.
+  clearRest(cell % cols, startY + div(cell, cols))
   place(at)
+}
+
+/**
+ * The cells of `row` from column `col` to its end, cleared in every plane, straight in the
+ * LCD's memory - putc would wrap, and on the last row scroll, at the row's end.
+ */
+function clearRest(col: u16, row: u16): void {
+  if (col === 0 || col >= peek16(COLS) || row >= peek16(ROWS)) return
+  const width = peek16(WIDTH)
+  const at = VRAM + row * width + col * 6
+  for (let p: u16 = 0; p < peek16(DEPTH); p++) memset(at + p * peek16(PLANE), 0, width - col * 6)
 }
 
 /**
@@ -113,7 +134,16 @@ function editKey(buf: u16, max: u16, k: u16): void {
   if (k === K_LEFT || k === K_RIGHT) stepCursor(k === K_RIGHT)
   else if (k === K_BS || k === K_DEL) erase(buf, k === K_BS)
   else if (k === K_INS && n < max) n = openSpace(buf, n, at)
+  else if (k === K_ANS) typeAns(buf, max)
   else if (k >= CH_SPACE && (at < n || n < max)) write(buf, k)
+}
+
+/** The ANS key: the word ANS typed, all three letters or none (a cut word is another name). */
+function typeAns(buf: u16, max: u16): void {
+  if (at + 3 > max) return
+  write(buf, 0x41)
+  write(buf, 0x4e)
+  write(buf, 0x53)
 }
 
 /** The cursor a character along the line, never past either end. */

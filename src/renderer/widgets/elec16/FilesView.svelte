@@ -19,8 +19,8 @@ interface Props {
   seen: boolean
   /** Whether there is a machine on to type into. */
   canType: boolean
-  /** LOAD ▸: this line typed on the machine, ENTER after it. */
-  onload: (line: string) => void
+  /** LOAD ▸: this line typed on the machine, ENTER after it; why not, when it could not be. */
+  onload: (line: string) => Promise<string | null>
 }
 
 const { unit, seen, canType, onload }: Props = $props()
@@ -82,8 +82,11 @@ async function exportFile(): Promise<void> {
   if (done) said = { text: `Exported ${name}.`, bad: false }
 }
 
-function load(): void {
-  if (line !== null) onload(line)
+async function load(): Promise<void> {
+  if (line === null) return
+  said = null
+  const problem = await onload(line)
+  if (problem !== null) said = { text: problem, bad: true }
 }
 
 const size = (n: number): string => (n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`)

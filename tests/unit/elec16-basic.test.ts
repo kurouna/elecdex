@@ -667,3 +667,79 @@ describe('BASIC', () => {
     expect(screen(m)).toHaveLength(8)
   })
 })
+
+describe('what writing the manual found', () => {
+  it('types ANS where the ANS key is pressed at the prompt, and in a line being typed', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, '2+3')).toEqual([expect.stringMatching(/5$/)])
+    press(m, keyCode('cls'))
+    type(m, 'PRINT ')
+    press(m, keyCode('ans'))
+    type(m, '*2\n')
+    expect(shown(m).slice(-3)).toEqual(['>PRINT ANS*2', '10', '>'])
+    // Where there is no room for all three letters, none goes in.
+    press(m, keyCode('cls'))
+    type(m, 'X'.repeat(78))
+    press(m, keyCode('ans'))
+    expect(shown(m).join('')).not.toMatch(/A/)
+  })
+
+  it('has nothing to CONT after a RUN or GOTO that ran to its end', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 STOP:PRINT "OLD"\n')
+    type(m, '20 PRINT "NEW"\n')
+    expect(say(m, 'RUN')).toEqual(['STOP IN 10'])
+    expect(say(m, 'CONT')).toEqual(['OLD', 'NEW'])
+    expect(say(m, 'RUN')).toEqual(['STOP IN 10'])
+    expect(say(m, 'RUN 20')).toEqual(['NEW'])
+    expect(say(m, 'CONT')).toEqual(['ERR:CONT'])
+    expect(say(m, 'RUN')).toEqual(['STOP IN 10'])
+    expect(say(m, 'GOTO 20')).toEqual(['NEW'])
+    expect(say(m, 'CONT')).toEqual(['ERR:CONT'])
+  })
+
+  it('LISTs a range of lines, and goes on to what follows it on the line', () => {
+    const m = switchOn('pocket-64')
+    for (const n of [10, 20, 30]) type(m, `${n} REM ${n}\n`)
+    expect(say(m, 'LIST')).toEqual(['10 REM 10', '20 REM 20', '30 REM 30'])
+    expect(say(m, 'LIST 20')).toEqual(['20 REM 20', '30 REM 30'])
+    expect(say(m, 'LIST 10-20')).toEqual(['10 REM 10', '20 REM 20'])
+    expect(say(m, 'LIST -20')).toEqual(['10 REM 10', '20 REM 20'])
+    expect(say(m, 'LIST 20-')).toEqual(['20 REM 20', '30 REM 30'])
+    expect(say(m, 'LIST 15-25')).toEqual(['20 REM 20'])
+    expect(say(m, 'LIST 30-10')).toEqual(['ERR:ARGUMENT'])
+    expect(say(m, 'LIST 30:PRINT "X"')).toEqual(['30 REM 30', 'X'])
+  })
+
+  it('lights the sound mark while BEEP sounds, and puts it out after, or at BRK', () => {
+    const m = switchOn('pocket-64')
+    type(m, 'BEEP 440,500')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    m.run(200_000)
+    expect(annunciated(m)).toContain('SOUND')
+    settle(m)
+    expect(annunciated(m)).not.toContain('SOUND')
+    type(m, 'BEEP 440,5000')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    m.run(200_000)
+    expect(annunciated(m)).toContain('SOUND')
+    m.brk()
+    settle(m)
+    expect(annunciated(m)).not.toContain('SOUND')
+  })
+})
+
+describe('a line typed over what a program left on the screen', () => {
+  it('clears what was left on the rows the line takes, as it is typed', () => {
+    const m = switchOn('pocket-48')
+    // A program leaves text on rows 0 and 1 and the cursor back at the top.
+    type(m, `CLS:PRINT "${'X'.repeat(20)}":PRINT "${'Y'.repeat(20)}":LOCATE 0,0\n`)
+    type(m, 'AB')
+    expect(screen(m)[0]).toBe('>AB')
+    // On into the next row, whose old text goes too.
+    type(m, 'C'.repeat(40))
+    expect(screen(m).slice(0, 2)).toEqual([`>AB${'C'.repeat(37)}`, 'CCC'])
+  })
+})

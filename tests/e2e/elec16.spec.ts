@@ -643,3 +643,29 @@ test('CODE keeps what is typed after a RUN when the level is changed', async () 
     await close()
   }
 })
+
+test("FILES' LOAD stops a program waiting for a key first, rather than typing into it", async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    const soft = (name: string) =>
+      page.getByTestId('elec16-soft-file').and(page.locator(`[data-name="${name}"]`))
+    await soft('SINEWAVE.BAS').click()
+    await page.getByTestId('elec16-load').click()
+    await expect.poll(() => lcdLines(page)).toContain('>LOAD "SINEWAVE.BAS"')
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'run')
+    await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'sleep', {
+      timeout: 15_000,
+    })
+    // SINEWAVE waits for any key: the L of LOAD once ended it, and the rest was a SYNTAX error.
+    await soft('CLOCK.BAS').click()
+    await page.getByTestId('elec16-load').click()
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('>LOAD "CLOCK.BAS"')
+    expect((await lcdLines(page)).join('\n')).not.toMatch(/ERR/)
+  } finally {
+    await close()
+  }
+})

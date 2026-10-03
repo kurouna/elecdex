@@ -196,6 +196,8 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
   #drawnAt = Number.NEGATIVE_INFINITY
   /** What the sleeping machine waits for, or null while it is awake. */
   #asleep: Wake | null = null
+  /** wake() came from outside since the last run settled: its next sleep is told. */
+  #woken = false
   #last = 0
   /** Cycles owed to the next tick (the clock does not divide the tick evenly). */
   #owed = 0
@@ -254,6 +256,7 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
   /** A key went down, or something else the machine may wake for: run again now. */
   wake(): void {
     if (!this.#active || this.#asleep === null) return
+    this.#woken = true
     this.#clear()
     this.#schedule(0)
   }
@@ -315,7 +318,11 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
   #settleSleep(sleeping: Wake | null): void {
     const was = this.#asleep
     this.#asleep = sleeping
-    if ((was === null) !== (sleeping === null)) this.#onSleep(sleeping)
+    // Woken from outside (BRK, a key), it may sleep again within the run: a new sleep, which
+    // the owner hears though the one before it never ended for it (an INPUT, then the prompt).
+    const again = this.#woken && sleeping !== null
+    this.#woken = false
+    if ((was === null) !== (sleeping === null) || again) this.#onSleep(sleeping)
     if (!this.#active || !this.#owner.wanted()) return
     if (sleeping === null) this.#schedule(this.#policy.tickMs)
     else if (sleeping.timerMs !== null) this.#schedule(Math.max(0, sleeping.timerMs))

@@ -1,2 +1,2 @@
-Machine code. LOAD ▸ loads it and runs it at once (CALL 28672): the last text row fills with diamonds and a line of text appears.
+LOAD ▸ loads it and runs it at once (CALL 28672): the screen clears, the last text row fills with diamonds, and a line of text appears above BASIC's prompt.
 Read how it is done with U 7000 in the monitor (MON), or EXPORT it.

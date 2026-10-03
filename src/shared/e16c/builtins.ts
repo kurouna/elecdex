@@ -86,6 +86,17 @@ export function memset(to: u16, value: number, n: u16): void {
   for (let k = 0; k < n; k++) rt.memory[(to + k) & 0xffff] = value & 0xff
 }
 
+/**
+ * Signed division as the machine's DIV does it, for i16s: towards zero, -1 for a division by
+ * zero, and -32768 divided by -1 is itself. div by a value that may be 0 cannot say this:
+ * its 65535 is -1 on the machine read as an i16.
+ */
+export function idiv(a: number, b: number): number {
+  if (b === 0) return -1
+  if (a === -32768 && b === -1) return a
+  return Math.trunc(a / b)
+}
+
 /** A value held to 16 bits, where arithmetic may have left them. */
 export const wrap16 = (v: number): u16 => v & 0xffff
 

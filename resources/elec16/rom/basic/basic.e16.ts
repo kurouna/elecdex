@@ -1386,6 +1386,8 @@ function runStatement(): void {
     if (from === 0) fail(E_LINE)
   }
   clearVariables()
+  // A new run: where an old one stopped is no place to go on from.
+  contLine = 0
   if (peek16(from) === 0) {
     endProgram()
     return
@@ -1405,10 +1407,18 @@ function startRun(line: u16, text: u16): void {
   jump(line, text)
 }
 
+/** LIST [a][-[b]]: the lines from a (or the first) to b (or the last), then on along the line. */
 function listStatement(): void {
-  let at = PROG
-  if (isDigit(next())) at = findLine(readUnsigned(), false)
-  while (at !== 0 && peek16(at) !== 0) {
+  let from: u16 = 0
+  let to: u16 = 0xffff
+  if (isDigit(next())) from = readUnsigned()
+  if (next() === CH_MINUS) {
+    step()
+    if (isDigit(next())) to = readUnsigned()
+  }
+  if (to < from) fail(E_ARGUMENT)
+  let at = findLine(from, false)
+  while (at !== 0 && peek16(at) !== 0 && peek16(at) <= to) {
     checkBreak()
     fresh_line()
     printUnsigned(peek16(at))
@@ -1418,7 +1428,6 @@ function listStatement(): void {
     fresh_line()
     at += peek16(at + 2)
   }
-  toLineEnd()
 }
 
 /* ---------------- running ---------------- */
@@ -1433,6 +1442,8 @@ function run(): void {
     } else {
       const nextLine = curLine + peek16(curLine + 2)
       if (peek16(nextLine) === 0) {
+        // Run to its end: nothing is left to CONT.
+        contLine = 0
         running = false
         break
       }

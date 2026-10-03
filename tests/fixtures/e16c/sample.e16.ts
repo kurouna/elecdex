@@ -5,6 +5,7 @@ import {
   bytes,
   div,
   i16,
+  idiv,
   memcpy,
   memset,
   peek,
@@ -381,4 +382,13 @@ export function blockMoves(k: u16): u16 {
   let sum: u16 = 0
   for (let i: u16 = 0; i < 24; i++) sum = wrap16(sum * 3 + peek(at + i))
   return wrap16(sum + k)
+}
+
+/**
+ * A signed division by a value that may be 0 is idiv: -1 then in both runs (div's 65535 read
+ * as an i16 was -1 on the machine and 65535 in TypeScript).
+ */
+export function signedQuotient(a: i16, b: i16): u16 {
+  const q = idiv(a, b)
+  return q < 0 ? 1000 + u16(-q) : u16(q)
 }

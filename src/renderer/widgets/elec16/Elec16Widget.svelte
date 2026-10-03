@@ -1,9 +1,7 @@
 <script lang="ts">
-import { CODE_START } from '@shared/e16c/code-area'
 import { DEFAULT_MODEL, MODELS } from '@shared/elec16/map'
 import { pasteKeys } from '@shared/elec16/paste'
 import { romFromFile } from '@shared/elec16/rom'
-import { ANNUNCIATORS } from '@shared/elec16/state'
 import { parseRgb } from '@shared/qr'
 import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
@@ -19,6 +17,7 @@ import type { WidgetProps } from '../registry.ts'
 import { Elec16Buzzer } from './buzzer.ts'
 import CodeView from './CodeView.svelte'
 import CoreView from './CoreView.svelte'
+import { type CodeTaker, giveCode as giveTo, typeAtBasic } from './code/give.ts'
 import { labelsOf } from './core.ts'
 import Device from './Device.svelte'
 import FilesView from './FilesView.svelte'
@@ -142,26 +141,54 @@ $effect(() => {
 /** Whether there is a machine on for PASTE and LOAD ▸ to type into. */
 const canType = $derived(runner.status !== 'empty' && !runner.off)
 
-/** FILES' LOAD ▸: a line typed on the machine's keys, ENTER after it; the keyboard back to it. */
-function typeLine(line: string): void {
-  runner.paste(pasteKeys(`${line}\n`, pasteModes(runner.annunciators)).keys)
-  root?.focus({ preventScroll: true })
+/** The runner as code/give.ts types on it: PASTE's keys, in the machine's modes of the moment. */
+const taker: CodeTaker = {
+  get off() {
+    return runner.off
+  },
+  get asleep() {
+    return runner.asleep
+  },
+  get status() {
+    return runner.status
+  },
+  get annunciators() {
+    return runner.annunciators
+  },
+  brk: () => runner.brk(),
+  whenAsleep: (ms) => runner.whenAsleep(ms),
+  loadCode: (at, bytes) => runner.loadCode(at, bytes),
+  typeText: (text) => runner.paste(pasteKeys(text, pasteModes(runner.annunciators)).keys),
 }
 
 /**
- * CODE's RUN and LOAD: back to the machine, stopped at a prompt (BRK first when it was not),
- * the program put at the code area, and then what a person would type - CALL 28672 at BASIC's
- * prompt or G 7000 in the monitor to run it, U 7000 in the monitor to read it.
+ * FILES' LOAD ▸: the line typed at BASIC's prompt, the machine brought there first (code/
+ * give.ts); the keyboard back to it. What it says when it could not.
+ */
+async function typeLine(line: string): Promise<string | null> {
+  const problem = await typeAtBasic(taker, line)
+  if (problem === null) root?.focus({ preventScroll: true })
+  return problem
+}
+
+/** Why CODE's last RUN or LOAD did nothing, said in CODE, to which it goes back. */
+let codeNotice = $state<string | null>(null)
+
+/**
+ * CODE's RUN and LOAD: back to the machine, stopped at a prompt, the program put at the code
+ * area, and what a person would type (code/give.ts). When it could not, back to CODE, saying
+ * why.
  */
 async function giveCode(image: Uint8Array, how: 'run' | 'load'): Promise<void> {
+  codeNotice = null
   change({ view: 'machine' })
   await tick()
-  if (runner.off || !runner.asleep || runner.status === 'paused') runner.brk()
-  if (!(await runner.whenAsleep(3000)) || !runner.loadCode(CODE_START, image)) return
-  const monitor = (runner.annunciators & (1 << ANNUNCIATORS.indexOf('MON'))) !== 0
-  const typed =
-    how === 'run' ? (monitor ? 'G 7000\n' : 'CALL 28672\n') : monitor ? 'U 7000\n' : 'MON\nU 7000\n'
-  runner.paste(pasteKeys(typed, pasteModes(runner.annunciators)).keys)
+  const problem = await giveTo(taker, image, how)
+  if (problem !== null) {
+    codeNotice = problem
+    change({ view: 'code' })
+    return
+  }
   root?.focus({ preventScroll: true })
 }
 
@@ -402,6 +429,7 @@ onDestroy(() => {
         level={pane.codeLevel}
         onfile={(codeFile) => change({ codeFile })}
         onlevel={(codeLevel) => change({ codeLevel })}
+        notice={codeNotice}
         ongive={(image, how) => void giveCode(image, how)}
       />
     </div>

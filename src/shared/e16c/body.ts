@@ -1038,9 +1038,21 @@ export class FnCompiler {
         this.#args(e, 2)
         this.#emit({ k: 'store', byte: name === 'poke' })
         return null
-      case 'div': {
+      case 'div':
+      case 'idiv': {
         const [a, b] = this.#args(e, 2) as [Typed, Typed]
         const s = this.#signedness(a, b, e)
+        // TypeScript's div answers 65535 for a division by zero, which the machine reads as
+        // -1 where the answer is signed: a divisor that may be 0 is idiv's, which says -1.
+        if (name === 'div' && s && b.constant === undefined) {
+          throw new Refusal(
+            e.getStart(),
+            'a signed division by what may be 0 differs: use idiv(a, b)',
+          )
+        }
+        if (name === 'idiv' && !s) {
+          throw new Refusal(e.getStart(), 'idiv divides i16s: say which with i16()')
+        }
         this.#constantFits(a, b, s, e)
         this.#sameEverywhere(s ? 'div' : 'divu', b, e)
         this.#emit({ k: 'bin', op: s ? 'div' : 'divu' })

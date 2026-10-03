@@ -232,6 +232,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     const machine = this.machine
     if (machine === null) return
     machine.brk()
+    // Woken by BRK: asleep again only once it sleeps at a prompt, so whenAsleep waits for that
+    // rather than taking the sleep before it (a program at an INPUT) as the prompt.
+    this.asleep = false
     this.#shift = false
     this.stopPaste()
     if (this.pausedBy !== null && machine.running) this.pausedBy = null

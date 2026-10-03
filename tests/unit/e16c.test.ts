@@ -94,6 +94,10 @@ const CASES: [string, number[]][] = [
   ['elementsCut', [-5]],
   ['negativeLocal', [1]],
   ['blockMoves', [5]],
+  ['signedQuotient', [5, 0]],
+  ['signedQuotient', [-7, 2]],
+  ['signedQuotient', [-32768, -1]],
+  ['signedQuotient', [100, -7]],
 ]
 
 describe('e16c', () => {
@@ -404,6 +408,9 @@ describe('e16c', () => {
       ['export function bm(s: i16): void { memcpy(0x100, 0x200, s) }', /say which with u16/],
       ['const xs = bytes(4)\nexport function bn(): void { memset(xs, 0, 4) }', /is not a u16/],
       ['export function bo(): void { memset(0x100, 0) }', /takes 3 arguments/],
+      // A runtime divisor read signed may be 0: idiv says what the machine gives, -1.
+      ['export function dv(s: i16, t: i16): i16 { return div(s, t) }', /use idiv/],
+      ['export function dw(w: u16, v: u16): i16 { return idiv(w, v) }', /idiv divides i16s/],
     ]
     for (const [text, said] of differs) {
       expect(compile([{ name: 'bad.ts', text }], OPTIONS).errors[0]?.message, text).toMatch(said)

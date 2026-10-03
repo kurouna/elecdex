@@ -157,8 +157,18 @@ describe('the SOFT CARD', () => {
 
   it('runs ASMDEMO, machine code from the card', () => {
     const m = load('ASMDEMO.BIN')
+    // A screen full of what was typed before, as after a few LOADs.
+    for (const n of [1, 2, 3]) type(m, `PRINT ${n}${'0'.repeat(30)}\n`)
     type(m, 'CALL 28672\n')
-    expect(screen(m)[0]).toBe('DRAWN BY MACHINE CODE')
+    // On a cleared screen, the prompt under the words: nothing typed before is left to mix
+    // with what is typed next.
+    const rows = screen(m)
+    expect(rows.slice(0, -1)).toEqual([
+      'DRAWN BY MACHINE CODE',
+      '>',
+      ...rows.slice(2, -1).map(() => ''),
+    ])
+    expect(rows.at(-1)).toMatch(/^\?+$/)
     expect(errors(m)).toEqual([])
   })
 })

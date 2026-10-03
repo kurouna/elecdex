@@ -83,6 +83,7 @@ export const ANN_PRO = 0x20
 export const ANN_DEG = 0x80
 export const ANN_RAD = 0x100
 export const ANN_GRAD = 0x200
+export const ANN_SOUND = 0x400
 
 /** Where programs go: from here up to the code area (7000), variables after them. */
 export const PROG = 0x0800
@@ -94,6 +95,7 @@ export const K_BRK = 0x03
 export const K_BS = 0x08
 export const K_CLS = 0x0c
 export const K_INS = 0x0e
+export const K_ANS = 0x14
 export const K_DEL = 0x0f
 export const K_MODE = 0x10
 export const K_LEFT = 0x1c

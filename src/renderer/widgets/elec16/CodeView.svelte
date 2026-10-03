@@ -24,9 +24,11 @@ interface Props {
   onlevel: (level: 0 | 1 | 2) => void
   /** RUN or LOAD: the program, for the machine to take. */
   ongive: (image: Uint8Array, how: 'run' | 'load') => void
+  /** Why the last RUN or LOAD did nothing, when it did not (the pane comes back here). */
+  notice?: string | null
 }
 
-const { unit, rom, file, level, onfile, onlevel, ongive }: Props = $props()
+const { unit, rom, file, level, onfile, onlevel, ongive, notice = null }: Props = $props()
 
 const api = window.elecdex.elec16
 let source = $state('')
@@ -224,6 +226,8 @@ onDestroy(() => {
   </div>
   {#if said !== null}
     <p class="said" class:bad={said.bad} data-testid="elec16-code-said">{said.text}</p>
+  {:else if notice !== null}
+    <p class="said bad" data-testid="elec16-code-said">{notice}</p>
   {/if}
   <div class="sides">
     <textarea

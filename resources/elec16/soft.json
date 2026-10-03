@@ -3,8 +3,8 @@
     {
       "name": "ASMDEMO.BIN",
       "about": "machine code for the ELEC-16, assembled for the code area (7000).",
-      "help": "Machine code. LOAD ▸ loads it and runs it at once (CALL 28672): the last text row fills with diamonds and a line of text appears.\nRead how it is done with U 7000 in the monitor (MON), or EXPORT it.",
-      "data": "0QUIYgR4AHoDDoD8gwyI/B0y+ROPRLIAHwQAB48GJgAFFDUQD7yiAJ/0ggOGCYNkAgAPRCsABwAmAAkUk7Hy/wUIBQolECcAAAAfIoMDDRAnAAAAAFoEWAhCMQQCIRg8fjwYAERSQVdOIEJZIE1BQ0hJTkUgQ09ERQA="
+      "help": "LOAD ▸ loads it and runs it at once (CALL 28672): the screen clears, the last text row fills with diamonds, and a line of text appears above BASIC's prompt.\nRead how it is done with U 7000 in the monitor (MON), or EXPORT it.",
+      "data": "0QUIYgR4AHodECcAAAADDoD8gwyI/B0y+ROPRLIAHwQAB48GJgAFFDUQD7yiAJ90gwOGCYNkAgAPRCsABwAmAAkUk7Hy/wUIBQolECcAAAAfooMDDRAnAAAABQgNCiUQJwAAAABaBFgIQjEEAiEYPH48GABEUkFXTiBCWSBNQUNISU5FIENPREUA"
     },
     {
       "name": "BIORHYTH.BAS",

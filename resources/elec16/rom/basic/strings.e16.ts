@@ -82,6 +82,9 @@ import {
 } from './basic.e16'
 import { eofFunction, inputFromFile } from './files.e16'
 import {
+  ANN_SOUND,
+  ANNMODE,
+  annunciate,
   BRKFLAG,
   CH_0,
   CH_COLON,
@@ -691,8 +694,18 @@ function beepStatement(): void {
   }
   poke16(IO_FREQ, f)
   poke16(IO_DUR, ms)
+  // The note's mark while it sounds. BRK in the wait goes back to the prompt, whose marks
+  // are put up afresh, without it.
+  soundMark(true)
   // The timer's 1,024 ticks a second are a little more than the milliseconds: rounded up.
   waitTicks(ms + div(ms * 3 + 124, 125))
+  soundMark(false)
+}
+
+function soundMark(on: bool): void {
+  const marks = peek16(ANNMODE)
+  poke16(ANNMODE, on ? marks | ANN_SOUND : marks & (0xffff ^ ANN_SOUND))
+  annunciate()
 }
 
 /** A whole number from 0 to `max`, from an expression; ARGUMENT outside it. */

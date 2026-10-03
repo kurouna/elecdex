@@ -102,6 +102,22 @@ describe('the ELEC-16 runner', () => {
     expect(clock.timers.size).toBe(0)
   })
 
+  it('after BRK, waits for the prompt rather than the sleep it broke, at an INPUT or a WAIT', async () => {
+    for (const program of ['10 input a', '10 wait 640']) {
+      const { clock, runner, lines } = setUp(true)
+      typeLine(runner, program)
+      typeLine(runner, 'run')
+      clock.advance(200)
+      expect(runner.asleep).toBe(true)
+      runner.brk()
+      const back = runner.whenAsleep(3000)
+      clock.advance(200)
+      // Asleep at the INPUT, then at the prompt: one sleep after another, both reported.
+      expect(await back, program).toBe(true)
+      expect(lines().join('\n'), program).toMatch(/BREAK IN 10\n>/)
+    }
+  })
+
   it('wakes for a key, types it, and sleeps again', () => {
     const { clock, runner, lines } = setUp()
     runner.down(keyCode('h'), false)
