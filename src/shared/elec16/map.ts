@@ -5,7 +5,7 @@
 
 /** RAM: 0000-7FFF. Battery-backed, so it is what a unit keeps. */
 export const RAM_SIZE = 0x8000
-/** Machine code from CODE or a card goes here by default; BASIC's CLEAR moves the line. */
+/** Machine code from CODE or a card goes here: BASIC's program and variables stop below it. */
 export const CODE_AREA = 0x7000
 export const CODE_AREA_END = 0x7c00
 

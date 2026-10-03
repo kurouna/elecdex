@@ -70,32 +70,23 @@ fileBuf = 0x076a ; 128 bytes
 
 e16c_init:
   ; matchedLength = 0
-  li t0, 0
-  sw t0, 0x0100(zero)
+  sw zero, 0x0100(zero)
   ; inQuotes = 0
-  li t0, 0
-  sw t0, 0x0102(zero)
+  sw zero, 0x0102(zero)
   ; rawMode = 0
-  li t0, 0
-  sw t0, 0x0104(zero)
+  sw zero, 0x0104(zero)
   ; startX = 0
-  li t0, 0
-  sw t0, 0x0106(zero)
+  sw zero, 0x0106(zero)
   ; startY = 0
-  li t0, 0
-  sw t0, 0x0108(zero)
+  sw zero, 0x0108(zero)
   ; n = 0
-  li t0, 0
-  sw t0, 0x010a(zero)
+  sw zero, 0x010a(zero)
   ; at = 0
-  li t0, 0
-  sw t0, 0x010c(zero)
+  sw zero, 0x010c(zero)
   ; txt = 0
-  li t0, 0
-  sw t0, 0x010e(zero)
+  sw zero, 0x010e(zero)
   ; curLine = 0
-  li t0, 0
-  sw t0, 0x0110(zero)
+  sw zero, 0x0110(zero)
   ; progEnd = 2048
   li t0, 2048
   sw t0, 0x0112(zero)
@@ -103,119 +94,85 @@ e16c_init:
   li t0, 2050
   sw t0, 0x0114(zero)
   ; nsp = 0
-  li t0, 0
-  sw t0, 0x0116(zero)
+  sw zero, 0x0116(zero)
   ; strType = 0
-  li t0, 0
-  sw t0, 0x0118(zero)
+  sw zero, 0x0118(zero)
   ; varRoom = 0
-  li t0, 0
-  sw t0, 0x011a(zero)
+  sw zero, 0x011a(zero)
   ; outFile = 0
-  li t0, 0
-  sw t0, 0x011c(zero)
+  sw zero, 0x011c(zero)
   ; dataLine = 0
-  li t0, 0
-  sw t0, 0x011e(zero)
+  sw zero, 0x011e(zero)
   ; dataAt = 0
-  li t0, 0
-  sw t0, 0x0120(zero)
+  sw zero, 0x0120(zero)
   ; filesOpen = 0
-  li t0, 0
-  sw t0, 0x0122(zero)
+  sw zero, 0x0122(zero)
   ; tracing = 0
-  li t0, 0
-  sw t0, 0x0124(zero)
+  sw zero, 0x0124(zero)
   ; autoLine = 0
-  li t0, 0
-  sw t0, 0x0126(zero)
+  sw zero, 0x0126(zero)
   ; autoStep = 10
   li t0, 10
   sw t0, 0x0128(zero)
   ; fsp = 0
-  li t0, 0
-  sw t0, 0x012a(zero)
+  sw zero, 0x012a(zero)
   ; gsp = 0
-  li t0, 0
-  sw t0, 0x012c(zero)
+  sw zero, 0x012c(zero)
   ; running = 0
-  li t0, 0
-  sw t0, 0x012e(zero)
+  sw zero, 0x012e(zero)
   ; contLine = 0
-  li t0, 0
-  sw t0, 0x0130(zero)
+  sw zero, 0x0130(zero)
   ; contTxt = 0
-  li t0, 0
-  sw t0, 0x0132(zero)
+  sw zero, 0x0132(zero)
   ; jumping = 0
-  li t0, 0
-  sw t0, 0x0134(zero)
+  sw zero, 0x0134(zero)
   ; jumpLine = 0
-  li t0, 0
-  sw t0, 0x0136(zero)
+  sw zero, 0x0136(zero)
   ; jumpTxt = 0
-  li t0, 0
-  sw t0, 0x0138(zero)
+  sw zero, 0x0138(zero)
   ; proMode = 0
-  li t0, 0
-  sw t0, 0x013a(zero)
+  sw zero, 0x013a(zero)
   ; angleMarks = 128
   li t0, 128
   sw t0, 0x013c(zero)
   ; recallNo = 0
-  li t0, 0
-  sw t0, 0x013e(zero)
+  sw zero, 0x013e(zero)
   ; justStored = 0
-  li t0, 0
-  sw t0, 0x0140(zero)
+  sw zero, 0x0140(zero)
   ; lastLength = 0
-  li t0, 0
-  sw t0, 0x0142(zero)
+  sw zero, 0x0142(zero)
   ; strTop = 0
-  li t0, 0
-  sw t0, 0x0504(zero)
+  sw zero, 0x0504(zero)
   ; name0 = 0
-  li t0, 0
-  sw t0, 0x0616(zero)
+  sw zero, 0x0616(zero)
   ; name1 = 0
-  li t0, 0
-  sw t0, 0x0618(zero)
+  sw zero, 0x0618(zero)
   ; nameIsString = 0
-  li t0, 0
-  sw t0, 0x061a(zero)
+  sw zero, 0x061a(zero)
   ; printed = 0
-  li t0, 0
-  sw t0, 0x061c(zero)
+  sw zero, 0x061c(zero)
   ; atX = 0
-  li t0, 0
-  sw t0, 0x061e(zero)
+  sw zero, 0x061e(zero)
   ; atY = 0
-  li t0, 0
-  sw t0, 0x0620(zero)
+  sw zero, 0x0620(zero)
   ; newStart = 10
   li t0, 10
   sw t0, 0x07ea(zero)
   ; renumFrom = 0
-  li t0, 0
-  sw t0, 0x07ec(zero)
+  sw zero, 0x07ec(zero)
   ; renumStep = 10
   li t0, 10
   sw t0, 0x07ee(zero)
   ; rp = 0
-  li t0, 0
-  sw t0, 0x07f0(zero)
+  sw zero, 0x07f0(zero)
   ; ro = 0
-  li t0, 0
-  sw t0, 0x07f2(zero)
+  sw zero, 0x07f2(zero)
   ; rChanged = 0
-  li t0, 0
-  sw t0, 0x07f4(zero)
+  sw zero, 0x07f4(zero)
   ; rInside = 0
-  li t0, 0
-  sw t0, 0x07f6(zero)
+  sw zero, 0x07f6(zero)
   ; rWanting = 0
-  li t0, 0
-  sw t0, 0x07f8(zero)
+  sw zero, 0x07f8(zero)
   ; lineBuf: 80 bytes of 0
   li t0, 0x0144
   li t1, 0x0194

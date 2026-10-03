@@ -1,5 +1,6 @@
 ; The ELEC-16 ROM (docs/elec16.md section 6): reset, the trap handler and the ROM services.
-; Phase 2 holds the machine-code monitor; BASIC comes in the banks later.
+; BASIC (e16c, basic.s) starts it; the machine-code monitor is MON. BASIC's second half
+; and the monitor's U and B live in the ROM banks, reached through far_call.
 ;
 ; Labels are lower case - CORE and MEM name code by them - and constants upper case.
 ; Calls follow the usual E16 convention: arguments and results in a0-a3, t0-t3 and a0-a3

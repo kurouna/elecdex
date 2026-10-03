@@ -288,3 +288,30 @@ describe('images', () => {
     expect(() => ramImage(bytes('.org 0x8000\n.byte 1'), 0x7000)).toThrow(/not in RAM/)
   })
 })
+
+describe('the assembler on a crafted source', () => {
+  /** Assembled, with how long it took. */
+  const timed = (source: string) => {
+    const at = performance.now()
+    const out = assemble(source)
+    return { out, ms: performance.now() - at }
+  }
+
+  it('refuses more space than memory, and says an overlap once', () => {
+    expect(timed('.org 0x7000\n.space 100000').out.errors[0]?.message).toMatch(/more space/)
+    expect(timed('.org 0x7000\n.align 0x20000').out.errors[0]?.message).toMatch(/alignment/)
+    const { out, ms } = timed(`.org 0x7000\n${'nop\n'.repeat(100_000)}`)
+    expect(out.errors.filter((e) => /overlaps/.test(e.message))).toHaveLength(1)
+    expect(ms).toBeLessThan(3000)
+  })
+
+  it('stops macros that expand without end, and sources that make too many lines', () => {
+    const self = timed('.macro m\n m\n m\n.endm\nm')
+    expect(self.out.errors[0]?.message).toMatch(/nest deeper|expand more/)
+    const chain = ['.macro m0\n nop\n.endm']
+    for (let k = 1; k <= 20; k++) chain.push(`.macro m${k}\n m${k - 1}\n m${k - 1}\n.endm`)
+    const wide = timed(`.org 0x7000\n${chain.join('\n')}\nm20`)
+    expect(wide.out.errors.map((e) => e.message).join()).toMatch(/expand more|more than/)
+    expect(wide.ms).toBeLessThan(3000)
+  })
+})

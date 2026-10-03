@@ -1,7 +1,17 @@
 import ts from 'typescript'
 import { FnCompiler, readType } from './body.js'
 import type { Fn, Global, Program, RomString, StaticArray, Ty } from './ir.js'
-import { BUILTINS, type CompileError, hex, Refusal, type Sym, type TypeRef, U16 } from './types.js'
+import {
+  BUILTINS,
+  type CompileError,
+  hex,
+  I16,
+  Refusal,
+  rangeOf,
+  type Sym,
+  type TypeRef,
+  U16,
+} from './types.js'
 
 /**
  * e16c's front end (docs/elec16.md section 6, e16c): the source files parsed with
@@ -179,9 +189,15 @@ class ProgramBuilder {
       }
     }
     const value = init === undefined ? 0 : this.#constant(init, f)
-    const type = annotated ?? U16
+    // Unsaid, a negative constant is an i16 (EDIT_CLS = -1), anything else a word.
+    const type = annotated ?? (value < 0 ? I16 : U16)
     if (type.kind === 'array')
       throw new Refusal(d.getStart(), 'an array is made with bytes(n) or words(n)')
+    // As a local's: a value its type holds alike in TypeScript and on the machine.
+    const [lo, hi] = rangeOf(type.ty)
+    if (value < lo || value > hi) {
+      throw new Refusal(d.getStart(), `${value} does not fit a ${type.ty}: say which with i16()`)
+    }
     if (isConst) {
       if (init === undefined) throw new Refusal(d.getStart(), `${name} needs a value`)
       this.#define(name, { kind: 'const', value, type }, d)

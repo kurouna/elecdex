@@ -92,7 +92,10 @@ export interface Holder {
 
 interface Waiting {
   holder: Holder
+  /** The holder let the unit go. */
   done: () => void
+  /** A later MOVE HERE for the unit came: this one gives up. */
+  superseded: () => void
 }
 
 export class Elec16Units {
@@ -200,25 +203,44 @@ export class Elec16Units {
     if (unit === null) return { ok: false }
     const now = this.#holders.get(unit.id)
     if (now !== undefined && !same(now, holder)) {
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(() => {
-          this.#waiting.delete(unit.id)
-          resolve()
-        }, HAND_OVER_MS)
-        this.#waiting.get(unit.id)?.done()
-        this.#waiting.set(unit.id, {
-          holder,
-          done: () => {
-            clearTimeout(timer)
-            resolve()
-          },
-        })
-        ask(now)
-      })
-      this.#waiting.delete(unit.id)
+      const outcome = await this.#askBack(unit.id, now, holder, ask)
+      if (outcome === 'superseded') return { ok: false }
+      const waiting = this.#waiting.get(unit.id)
+      if (waiting !== undefined && same(waiting.holder, holder)) this.#waiting.delete(unit.id)
+      // Taken meanwhile by someone other than the pane asked: two must never run one unit.
+      const after = this.#holders.get(unit.id)
+      if (after !== undefined && !same(after, now)) return { ok: false }
       this.#holders.delete(unit.id)
     }
     return this.claim(unit.id, holder)
+  }
+
+  /**
+   * Asks the holder for the unit back and waits, at most HAND_OVER_MS: 'given' when it let
+   * go, 'late' when it did not answer, 'superseded' when another MOVE HERE came first.
+   */
+  #askBack(
+    unit: string,
+    from: Holder,
+    holder: Holder,
+    ask: (from: Holder) => void,
+  ): Promise<'given' | 'late' | 'superseded'> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve('late'), HAND_OVER_MS)
+      this.#waiting.get(unit)?.superseded()
+      this.#waiting.set(unit, {
+        holder,
+        done: () => {
+          clearTimeout(timer)
+          resolve('given')
+        },
+        superseded: () => {
+          clearTimeout(timer)
+          resolve('superseded')
+        },
+      })
+      ask(from)
+    })
   }
 
   /**

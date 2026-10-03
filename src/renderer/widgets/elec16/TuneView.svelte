@@ -29,6 +29,8 @@ interface Props {
   onswitch: (id: string) => void
   /** A new unit for this pane. */
   onnew: () => void
+  /** Another unit thrown away, with its RAM and card. */
+  onremove: (id: string) => void
   /** Keys PASTE has still to press (0: none under way). */
   pasting: number
   /** Characters the last PASTE had no key for. */
@@ -47,6 +49,7 @@ const {
   onunit,
   onswitch,
   onnew,
+  onremove,
   pasting,
   pasteSkipped,
   canPaste,
@@ -65,6 +68,28 @@ const BODY_WORDS: Record<BodyMode, string> = {
   compact: 'compact',
   lcd: 'lcd',
 }
+
+/**
+ * The unit DELETE is armed for: a second press within a few seconds throws it away (its RAM
+ * and its card go with it, so one press never does).
+ */
+let armed = $state<string | null>(null)
+let disarm: ReturnType<typeof setTimeout> | undefined
+
+function remove(id: string): void {
+  clearTimeout(disarm)
+  if (armed !== id) {
+    armed = id
+    disarm = setTimeout(() => {
+      armed = null
+    }, 3000)
+    return
+  }
+  armed = null
+  onremove(id)
+}
+
+$effect(() => () => clearTimeout(disarm))
 
 function pick<T>(now: T, next: T, apply: () => void): void {
   if (now === next) return
@@ -109,6 +134,21 @@ function pick<T>(now: T, next: T, apply: () => void): void {
       {/each}
       <button type="button" class="e16-chip" onclick={() => onnew()} data-testid="elec16-unit-new">+ new</button>
     </div>
+    {#if units.length > 1}
+      <div class="chips">
+        {#each units.filter((u) => u.id !== unit?.id) as u (u.id)}
+          <button
+            type="button"
+            class="e16-chip"
+            class:armed={armed === u.id}
+            aria-label={`delete ${u.name}, its RAM and card`}
+            onclick={() => remove(u.id)}
+            data-testid="elec16-unit-delete"
+            data-unit={u.id}>{armed === u.id ? `delete ${u.name}?` : `× ${u.name}`}</button
+          >
+        {/each}
+      </div>
+    {/if}
   </section>
   <section>
     <h3>clock</h3>
@@ -246,6 +286,11 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 2px;
+}
+
+.e16-chip.armed {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .note {

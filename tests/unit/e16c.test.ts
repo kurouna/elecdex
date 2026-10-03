@@ -85,6 +85,9 @@ const CASES: [string, number[]][] = [
   ['switchLoop', [12]],
   ['misc', [6]],
   ['callsInArguments', [4]],
+  ['pendingSums', [4]],
+  ['stepByIndex', []],
+  ['stringByCall', []],
 ]
 
 describe('e16c', () => {
@@ -278,6 +281,38 @@ describe('e16c', () => {
     ])
   })
 
+  it('answers with an error, never an exception, for what it cannot do', () => {
+    const deep = [
+      'function down(n: u16): u16 { if (n === 0) return 0; return down(n - 1) + 1 }',
+      'export function f(): u16 { return down(5000) }',
+    ].join('\n')
+    // -O2 tries the pure call and gives up on its depth: the call stays.
+    const o2 = compile([{ name: 'deep.ts', text: deep }], { ...OPTIONS, opt: 2 })
+    expect(o2.errors).toEqual([])
+    expect(o2.asm).toMatch(/call down/)
+    const parens = `export function g(): u16 { return ${'('.repeat(20_000)}1${')'.repeat(20_000)} }`
+    const nested = compile([{ name: 'parens.ts', text: parens }], OPTIONS)
+    expect(nested.errors[0]?.message).toMatch(/nests too deeply|too deep/)
+    const wide = `export function h(a: u16, f: bool): u16 { return a + (a + (a + (a + (a + (a + (a + (a + (f ? 1 : 2)))))))) }`
+    const many = compile([{ name: 'wide.ts', text: wide }], { ...OPTIONS, opt: 1 })
+    if (many.errors.length > 0) expect(many.errors[0]).toMatchObject({ file: 'wide.ts' })
+  })
+
+  it('multiplies by 0xFFFF with MUL: there is no shift by 16', () => {
+    const text = 'export function m(x: u16): u16 { return wrap16(x * 0xffff) }'
+    for (const opt of [1, 2] as const) {
+      const out = compile([{ name: 'm.ts', text }], { ...OPTIONS, opt })
+      expect(out.errors).toEqual([])
+      const asm = assemble(
+        ['.org 0x8000', 'li sp, 0x8000', 'li a0, 3', 'call m', 'ebreak', out.asm].join('\n'),
+      )
+      expect(asm.errors).toEqual([])
+      const m = Elec16.boot(romImage(asm))
+      m.run(10_000)
+      expect(m.state.regs[4]).toBe((3 * 0xffff) & 0xffff)
+    }
+  })
+
   it('says what is outside the subset, where', () => {
     const bad = [
       'export function f(a: u16): u16 { return a / 2 }',
@@ -304,6 +339,48 @@ describe('e16c', () => {
     expect(messages[7]).toMatch(/40000 is not a i16/)
     expect(messages[8]).toMatch(/is not a u8: take its low byte with u8/)
     expect(messages[9]).toMatch(/differs in TypeScript/)
+    // What TypeScript and the machine would read differently: refused, not compiled.
+    const differs: [string, RegExp][] = [
+      ['export function a(): u16 { let x: u16 = -1; return x }', /-1 does not fit a u16/],
+      ['let g: u8 = 300\nexport function b(): u16 { return g }', /300 does not fit a u8/],
+      ['let h: bool = 2\nexport function b2(): u16 { return 0 }', /2 does not fit a bool/],
+      [
+        'export function c(f: bool, s: i16, w: u16): u16 { return u16(f ? s : w) }',
+        /one answer is signed/,
+      ],
+      ['export function d(f: bool, w: u16): u8 { const b: u8 = f ? w : 1; return b }', /not a u8/],
+      ['export function e(w: u16): u16 { return w << 16 }', /a shift by 16/],
+      ['export function f(w: u16): u16 { return div(w, 0) }', /division by zero/],
+      ['export function g(w: u16): u16 { return w % 0 }', /division by zero/],
+      ['export function h(w: u16): u16 { return div(w, -1) }', /-1 is not a u16/],
+      [
+        'export function k(w: u16): u16 { switch (w) { case -1: return 1 } return 0 }',
+        /-1 is not a u16/,
+      ],
+      [
+        'export function m(f: bool): u16 { return f ? 1 : -1 }',
+        /an i16 is not a u16|i16 is not a u16/,
+      ],
+      [
+        'export function z(s: i16): u16 { const w: u16 = s; return w }',
+        /i16 is not a u16: say which with u16/,
+      ],
+      ['export function y(w: u16): i16 { return w }', /u16 is not a i16: say which with i16/],
+    ]
+    for (const [text, said] of differs) {
+      expect(compile([{ name: 'bad.ts', text }], OPTIONS).errors[0]?.message, text).toMatch(said)
+    }
+    // A negative constant with no type said is an i16, and a byte beside a word is a word.
+    const fine = compile(
+      [
+        {
+          name: 'fine.ts',
+          text: 'const LOW = -1\nexport function n(x: i16, f: bool, b: u8, w: u16): u16 { return u16(x === LOW ? 1 : 0) + (f ? b : w) }',
+        },
+      ],
+      OPTIONS,
+    )
+    expect(fine.errors).toEqual([])
     const placed = compile(
       [{ name: 'bad.ts', text: '\n\nexport function f(a: u16): u16 { return a / 2 }' }],
       OPTIONS,

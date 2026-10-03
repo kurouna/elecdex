@@ -423,6 +423,7 @@ onDestroy(() => {
               onunit={(c) => void session.change(c)}
               onswitch={(id) => void session.switchTo(id)}
               onnew={() => void session.newUnit()}
+              onremove={(id) => void session.remove(id)}
               pasting={runner.pasting}
               {pasteSkipped}
               canPaste={canType}

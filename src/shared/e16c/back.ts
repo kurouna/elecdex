@@ -1,6 +1,6 @@
 import { callLines, O1, REGISTER } from './back1.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
-import { hex } from './types.js'
+import { hex, NEAR } from './types.js'
 
 /**
  * e16c's back end (docs/elec16.md section 6, e16c): stack code to E16 assembly the ROM's
@@ -10,7 +10,8 @@ import { hex } from './types.js'
  *
  * The calling convention is the ROM's: arguments in a0-a3, the answer in a0, s0-s3 kept. A
  * function keeps its locals in a frame under fp (s0), saved with ra on entry. At -O0 the
- * expression stack is the machine's stack: every value pushed and popped through t0 and t1.
+ * expression stack is the machine's stack: every value pushed and popped through t0 and t1
+ * (t2 holds an address being worked out).
  */
 
 /** Each operation on t0 and t1 into t0: the -O1 table's, with its registers fixed. */
@@ -30,7 +31,6 @@ const UN: Record<'neg' | 'not' | 'lnot', string> = {
 const ARG_REGS = ['a0', 'a1', 'a2', 'a3']
 
 /** Addresses below this are reached as `x(zero)`, one instruction (a 14-bit offset). */
-const NEAR = 0x2000
 
 class Out {
   readonly lines: string[] = []
@@ -70,10 +70,6 @@ class Out {
     this.line(`li t2, ${hex(at)}`)
     this.line(`${op} ${reg}, 0(t2)`)
   }
-}
-
-export interface Assembly {
-  text: string
 }
 
 /**
@@ -123,8 +119,10 @@ function init(out: Out, program: Program): void {
   out.label('e16c_init')
   for (const g of program.globals) {
     out.comment(`${g.name} = ${g.init}`)
-    out.line(`li t0, ${g.init & 0xffff}`)
-    out.absolute(g.byte ? 'sb' : 'sw', 't0', g.at)
+    // Zero needs no register: the zero register is stored.
+    const from = (g.init & 0xffff) === 0 ? 'zero' : 't0'
+    if (from === 't0') out.line(`li t0, ${g.init & 0xffff}`)
+    out.absolute(g.byte ? 'sb' : 'sw', from, g.at)
   }
   for (const a of program.arrays) {
     out.comment(`${a.name}: ${a.bytes} bytes of 0`)

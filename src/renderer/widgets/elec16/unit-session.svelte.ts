@@ -106,6 +106,12 @@ export class UnitSession {
     await this.#claim(unit, (u) => this.#api.claim(u, this.#pane), null, false)
   }
 
+  /** TUNE: another unit thrown away, its RAM and card with it (main refuses one held). */
+  async remove(id: string): Promise<boolean> {
+    if (id === this.unit?.id) return false
+    return this.#api.remove(id)
+  }
+
   /** TUNE: the unit's name, clock or LCD. Another LCD restarts the machine, its RAM kept. */
   async change(change: Elec16UnitChange): Promise<void> {
     const unit = this.unit

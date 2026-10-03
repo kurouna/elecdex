@@ -24,6 +24,17 @@ export const BOOL = scalar('bool')
 
 export const isSigned = (t: TypeRef): boolean => t.kind === 'scalar' && t.ty === 'i16'
 
+/**
+ * The constants a type holds alike in TypeScript and on the machine: a u16 of -1 is -1 in
+ * one and 65535 in the other, a u8 of 300 is 300 and 44.
+ */
+export function rangeOf(ty: Exclude<Ty, 'void'>): [number, number] {
+  if (ty === 'i16') return [-32768, 32767]
+  if (ty === 'u8') return [0, 255]
+  if (ty === 'bool') return [0, 1]
+  return [0, 65535]
+}
+
 export const typeName = (t: TypeRef): string => (t.kind === 'array' ? `${t.elem}[]` : t.ty)
 
 /** A value held to 16 bits, as the machine holds it. */
@@ -34,6 +45,9 @@ export const hex = (n: number): string => `0x${word(n).toString(16).padStart(4, 
 
 /** A word read as signed. */
 export const signed = (v: number): number => (word(v) << 16) >> 16
+
+/** RAM below this is within reach of an instruction's 14-bit offset from zero. */
+export const NEAR = 0x2000
 
 export interface CompileError {
   file: string

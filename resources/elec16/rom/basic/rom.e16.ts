@@ -37,14 +37,12 @@ export const ROWS = 0x06
 export const WIDTH = 0x08
 export const PLANE = 0x0a
 export const DEPTH = 0x0c
-export const FLAGS = 0x0e
 export const ANNMODE = 0x1a
 export const INBASIC = 0x1c
 export const BRKFLAG = 0x1e
 
 /* ---------------- the machine ---------------- */
 
-export const IO_ANNUN = 0xff2e
 export const IO_POWER = 0xff06
 export const IO_KEY_COUNT = 0xff12
 export const IO_WIDTH = 0xff20
@@ -82,7 +80,6 @@ export const MATH_ANGLE = 0xff5c
 export const ANN_BUSY = 0x01
 export const ANN_RUN = 0x10
 export const ANN_PRO = 0x20
-export const ANN_MON = 0x40
 export const ANN_DEG = 0x80
 export const ANN_RAD = 0x100
 export const ANN_GRAD = 0x200

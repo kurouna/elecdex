@@ -22,6 +22,9 @@ export interface InterpOptions {
 
 export class OutOfBudget extends Error {}
 
+/** The deepest calls a run may make: the machine's 1 KB stack holds far fewer. */
+const MAX_DEPTH = 500
+
 /** What the interpreter cannot do: a run that needs the machine (assembly, a CSR, WFI). */
 export class NeedsMachine extends Error {}
 
@@ -100,8 +103,21 @@ export class Interp {
     for (const a of this.#program.arrays) this.memory.fill(0, a.at, a.at + a.bytes + (a.bytes & 1))
   }
 
+  /** How deep the calls go now: past MAX_DEPTH a run is out of budget, not out of JS stack. */
+  #depth = 0
+
   /** Calls a function; its answer (0 for one that gives none). */
   call(name: string, args: number[] = []): number {
+    if (this.#depth >= MAX_DEPTH) throw new OutOfBudget(`${name} calls itself too deep`)
+    this.#depth++
+    try {
+      return this.#callNow(name, args)
+    } finally {
+      this.#depth--
+    }
+  }
+
+  #callNow(name: string, args: number[]): number {
     const found = this.#fns.get(name)
     if (found === undefined) {
       const extern = this.#options.extern

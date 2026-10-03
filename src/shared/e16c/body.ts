@@ -7,6 +7,7 @@ import {
   I16,
   isSigned,
   Refusal,
+  rangeOf,
   type Sym,
   scalar,
   type Typed,
@@ -351,6 +352,13 @@ export class FnCompiler {
   #assign(e: ts.BinaryExpression): void {
     const op = e.operatorToken.kind
     const compound = COMPOUND[op]
+    if (compound !== undefined && ts.isElementAccessExpression(e.left)) {
+      const target = e.left
+      this.#updateElement(target, (old) =>
+        this.#binaryTyped(old, compound, () => this.expr(e.right), target),
+      )
+      return
+    }
     const value =
       compound === undefined
         ? () => this.expr(e.right)
@@ -367,7 +375,23 @@ export class FnCompiler {
       this.#emit({ k: 'push', v: 1 })
       return { type: U16, constant: 1 }
     }
+    if (ts.isElementAccessExpression(e.operand)) {
+      this.#updateElement(e.operand, (old) => this.#binaryTyped(old, kind, one, e))
+      return
+    }
     this.#assignTo(e.operand, () => this.#binaryTyped(this.expr(e.operand), kind, one, e))
+  }
+
+  /**
+   * `a[i] op= v` and `a[i]++`: the element's address worked out once, kept for the store, as
+   * TypeScript evaluates the index once (twice would run a call in it twice).
+   */
+  #updateElement(target: ts.ElementAccessExpression, combine: (old: Typed) => Typed): void {
+    const elem = this.#element(target)
+    this.#emit({ k: 'dup' })
+    this.#emit({ k: 'load', byte: elem === 'u8' })
+    this.#assignable(scalar(elem), combine({ type: scalar(elem) }), target, true)
+    this.#emit({ k: 'store', byte: elem === 'u8' })
   }
 
   /** Stores what `value` leaves into a variable or an element. */
@@ -420,11 +444,27 @@ export class FnCompiler {
         `a ${typeName(value.type)} is not a u8: take its low byte with u8()`,
       )
     }
+    if (
+      to.kind === 'scalar' &&
+      value.type.kind === 'scalar' &&
+      value.constant === undefined &&
+      to.ty !== 'bool' &&
+      value.type.ty !== 'bool' &&
+      isSigned(to) !== isSigned(value.type) &&
+      !(to.ty === 'i16' && value.type.ty === 'u8')
+    ) {
+      // TypeScript keeps -1 where the machine has 65535: a comparison after would differ.
+      const say = isSigned(to) ? 'i16()' : 'u16()'
+      throw new Refusal(
+        at.getStart(),
+        `a ${typeName(value.type)} is not a ${typeName(to)}: say which with ${say}`,
+      )
+    }
     if (to.kind === 'array' && value.type.kind === 'array' && to.elem !== value.type.elem) {
       throw new Refusal(at.getStart(), `a ${typeName(value.type)} is not a ${typeName(to)}`)
     }
     if (value.constant === undefined || to.kind !== 'scalar') return
-    const [lo, hi] = to.ty === 'i16' ? [-32768, 32767] : to.ty === 'u8' ? [0, 255] : [-32768, 65535]
+    const [lo, hi] = rangeOf(to.ty)
     if (value.constant < lo || value.constant > hi) {
       throw new Refusal(at.getStart(), `${value.constant} does not fit a ${to.ty}`)
     }
@@ -545,9 +585,9 @@ export class FnCompiler {
   #switch(node: ts.SwitchStatement): void {
     const end = this.#label()
     this.#scoped(() => {
-      const slot = this.#switchSlot(node.expression)
+      const { slot, type } = this.#switchSlot(node.expression)
       const clauses = node.caseBlock.clauses.map((c) => ({ clause: c, label: this.#label() }))
-      this.#emit({ k: 'jmp', to: this.#caseTests(slot, clauses, end) })
+      this.#emit({ k: 'jmp', to: this.#caseTests(slot, type, clauses, end) })
       this.#loops.push({ brk: end, cont: this.#loops[this.#loops.length - 1]?.cont ?? '' })
       try {
         for (const { clause, label } of clauses) {
@@ -562,20 +602,21 @@ export class FnCompiler {
   }
 
   /** The slot a switch compares: the local itself, or a new one holding the value. */
-  #switchSlot(e: ts.Expression): number {
+  #switchSlot(e: ts.Expression): { slot: number; type: TypeRef } {
     const inner = skipParens(e)
     const sym = ts.isIdentifier(inner) ? this.#find(inner.text) : undefined
-    if (sym?.kind === 'local') return sym.slot
+    if (sym?.kind === 'local') return { slot: sym.slot, type: sym.type }
     const value = this.expr(e)
     const slot = this.#declare(`switch${this.#labels}`, value.type, null)
     if (slot.kind !== 'local') throw new Refusal(e.getStart(), 'a switch needs a word')
     this.#emit({ k: 'st', slot: slot.slot })
-    return slot.slot
+    return { slot: slot.slot, type: value.type }
   }
 
   /** A test for each case, jumping to its body; where to go when none matched. */
   #caseTests(
     slot: number,
+    type: TypeRef,
     clauses: { clause: ts.CaseOrDefaultClause; label: string }[],
     end: string,
   ): string {
@@ -588,6 +629,10 @@ export class FnCompiler {
       const c = this.expr(clause.expression)
       if (c.constant === undefined)
         throw new Refusal(clause.getStart(), 'a case must be a constant')
+      // A case the switched value can never equal in TypeScript (-1 for a u16) may on the machine.
+      const [lo, hi] = rangeOf(type.kind === 'scalar' ? type.ty : 'u16')
+      if (c.constant < lo || c.constant > hi)
+        throw new Refusal(clause.getStart(), `${c.constant} is not a ${typeName(type)}`)
       this.ops.pop()
       this.#emit({ k: 'ld', slot })
       this.#emit({ k: 'push', v: word(c.constant) })
@@ -755,6 +800,7 @@ export class FnCompiler {
     const op = ops[signedness ? 1 : 0]
     const isCompare = COMPARE[kind] !== undefined
     if (SIGN_MATTERS.has(op)) this.#constantFits(a, b, signedness, at)
+    this.#sameEverywhere(op, b, at)
     const type = isCompare ? BOOL : signedness ? I16 : narrowAnd(op, a, b)
     const v =
       a.constant !== undefined && b.constant !== undefined ? fold(op, a.constant, b.constant) : null
@@ -798,6 +844,20 @@ export class FnCompiler {
     }
   }
 
+  /**
+   * A constant right operand the two runs read differently: a shift by 16 or more (the machine
+   * takes the amount's low four bits) and a division by zero (TypeScript gives 0 or NaN).
+   */
+  #sameEverywhere(op: BinOp, b: Typed, at: ts.Node): void {
+    if (b.constant === undefined) return
+    if ((op === 'shl' || op === 'shr' || op === 'sar') && (b.constant < 0 || b.constant > 15)) {
+      throw new Refusal(at.getStart(), `a shift by ${b.constant} differs on the machine: 0 to 15`)
+    }
+    if (DIVIDES.has(op) && b.constant === 0) {
+      throw new Refusal(at.getStart(), 'a division by zero differs on the machine')
+    }
+  }
+
   /** && and ||, stopping as soon as the answer is known; 0 or 1. */
   #logical(e: ts.BinaryExpression, and: boolean): Typed {
     const end = this.#label()
@@ -829,7 +889,27 @@ export class FnCompiler {
     this.#emit({ k: 'label', name: end })
     if (a.type.kind !== b.type.kind)
       throw new Refusal(e.getStart(), 'the two answers are of different kinds')
-    return { type: a.constant !== undefined ? b.type : a.type }
+    return { type: this.#eitherType(a, b, e) }
+  }
+
+  /**
+   * What a ?: gives: a constant answer takes the other's type (and must fit it); a signed and
+   * an unsigned answer must be told apart; a byte or a truth beside a word is a word.
+   */
+  #eitherType(a: Typed, b: Typed, e: ts.Node): TypeRef {
+    if (a.type.kind !== 'scalar' || b.type.kind !== 'scalar') return a.type
+    if (a.constant !== undefined && b.constant !== undefined)
+      return twoConstants(a.constant, b.constant, e)
+    if (a.constant !== undefined) return constantBeside(a.constant, b.type, e)
+    if (b.constant !== undefined) return constantBeside(b.constant, a.type, e)
+    if (a.type.ty === b.type.ty) return a.type
+    if (isSigned(a.type) !== isSigned(b.type)) {
+      throw new Refusal(
+        e.getStart(),
+        'one answer is signed and the other is not: say which with i16() or u16()',
+      )
+    }
+    return U16
   }
 
   /**
@@ -926,6 +1006,8 @@ export class FnCompiler {
       case 'div': {
         const [a, b] = this.#args(e, 2) as [Typed, Typed]
         const s = this.#signedness(a, b, e)
+        this.#constantFits(a, b, s, e)
+        this.#sameEverywhere(s ? 'div' : 'divu', b, e)
         this.#emit({ k: 'bin', op: s ? 'div' : 'divu' })
         return { type: s ? I16 : U16 }
       }
@@ -1014,4 +1096,19 @@ export function readType(node: ts.TypeNode): TypeRef {
     node.getStart(),
     `${node.getText()} is not a type of the subset (u16, i16, u8, bool, u8[], u16[])`,
   )
+}
+
+/** A ?: of two constants: a truth (0 or 1), signed when either is negative, else a word. */
+function twoConstants(a: number, b: number, e: ts.Node): TypeRef {
+  if ((a === 0 || a === 1) && (b === 0 || b === 1)) return BOOL
+  if (a >= 0 && b >= 0) return U16
+  if (a > 32767 || b > 32767) throw new Refusal(e.getStart(), 'the answers fit no one type')
+  return I16
+}
+
+/** A ?: whose one answer is a constant: the other's type, which the constant must fit. */
+function constantBeside(v: number, type: TypeRef, e: ts.Node): TypeRef {
+  const [lo, hi] = rangeOf(type.kind === 'scalar' ? type.ty : 'u16')
+  if (v < lo || v > hi) throw new Refusal(e.getStart(), `${v} does not fit a ${typeName(type)}`)
+  return type
 }

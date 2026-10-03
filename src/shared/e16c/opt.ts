@@ -1,5 +1,6 @@
 import { binary, Interp, NeedsMachine, OutOfBudget } from './interp.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
+import { word } from './types.js'
 
 /**
  * e16c's -O2 (docs/elec16.md section 6, e16c): passes over the stack code before the -O1
@@ -45,7 +46,13 @@ export function optimise(program: Program): Program {
 
 /* ---------------- purity ---------------- */
 
+/**
+ * What a function worked out at compile time may not do: touch memory, the machine, or name a
+ * label - the interpreter lays strings and arrays out where it likes, so an address it gives
+ * is not the one the linked ROM has.
+ */
 const IMPURE = new Set<Op['k']>([
+  'addr',
   'ldg',
   'stg',
   'load',
@@ -178,8 +185,6 @@ function relocated(op: Op, base: number, tag: string, end: string, keepValue: bo
 }
 
 /* ---------------- folding ---------------- */
-
-const word = (v: number): number => v & 0xffff
 
 /** Folds a window of operations: a constant operation, an identity, a jump on a constant. */
 function simplify(body: Op[]): Op[] {

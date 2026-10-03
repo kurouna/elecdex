@@ -395,12 +395,23 @@ function stripComment(text: string): string {
 /** A label at the start of a line, and the space after it. */
 const LABEL = /^([A-Za-z_.][\w.]*):\s*/
 
+/**
+ * The most a source may make: lines after expansion, and macro expansions. A source is a
+ * person's file (IMPORT, the CODE view): a macro calling itself twice would otherwise expand
+ * 2^32 times and hold whoever assembles it.
+ */
+const MAX_LINES = 200_000
+const MAX_EXPANSIONS = 100_000
+/** The most bytes `.space` and `.align` may lay down: all of memory, once. */
+const MAX_SPACE = 0x10000
+
 class Preprocessor {
   readonly lines: Source[] = []
   readonly errors: AsmError[] = []
   readonly #macros = new Map<string, Macro>()
   readonly #include: (name: string) => string | null
   #unique = 0
+  #expansions = 0
 
   constructor(include: (name: string) => string | null) {
     this.#include = include
@@ -456,6 +467,10 @@ class Preprocessor {
     const call = /^([A-Za-z_][\w.]*)(?:\s+(?!=)(.*))?$/.exec(text)
     const macro = call !== null ? this.#macros.get((call[1] ?? '').toLowerCase()) : undefined
     if (call === null || macro === undefined) {
+      if (this.lines.length >= MAX_LINES) {
+        this.#once(src, `the source makes more than ${MAX_LINES} lines`)
+        return
+      }
       this.lines.push(src)
       return
     }
@@ -485,6 +500,10 @@ class Preprocessor {
   }
 
   #expand(macro: Macro, args: string[], at: Source, depth: number): void {
+    if (++this.#expansions > MAX_EXPANSIONS) {
+      this.#once(at, `macros expand more than ${MAX_EXPANSIONS} times`)
+      return
+    }
     const unique = String(this.#unique++)
     for (const line of macro.body) {
       let text = line.text.replace(/\\@/g, unique)
@@ -645,6 +664,8 @@ class Layout {
   #emit = false
   /** Past the passes that may shrink: sizes only grow now, so the layout must end. */
   #growOnly = false
+  /** An overlap is said once (see #put). */
+  #overlapped = false
   /** Names defined in this pass, to find one defined twice. */
   readonly #defined = new Set<string>()
 
@@ -758,12 +779,20 @@ class Layout {
       }
       case 'align': {
         const n = this.#value(item.expr, item.scope)
+        if (n > MAX_SPACE) {
+          this.#error(item.src, `an alignment past ${hex(MAX_SPACE)}`)
+          return
+        }
         while (n > 0 && this.#address % n !== 0) this.#put(0, item.src, [])
         return
       }
       case 'space': {
         const size = this.#value(item.size, item.scope)
         const fill = this.#value(item.fill, item.scope)
+        if (size > MAX_SPACE) {
+          this.#error(item.src, `more space than memory has (${size} bytes)`)
+          return
+        }
         for (let k = 0; k < size; k++) this.#put(fill, item.src, [])
         return
       }
@@ -805,8 +834,12 @@ class Layout {
     const bank = inWindow(this.#address) ? this.#bank : null
     if (this.#emit) {
       const key = keyOf(this.#address, bank)
-      if (this.#bytes.has(key))
+      // The first overlap only: code run past the end of memory overlaps at every byte, and
+      // each error is looked for among the others.
+      if (this.#bytes.has(key) && !this.#overlapped) {
+        this.#overlapped = true
         this.#error(src, `overlaps what is already at ${hex(this.#address)}`)
+      }
       this.#bytes.set(key, byte & 0xff)
       out.push(byte & 0xff)
     }

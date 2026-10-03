@@ -272,3 +272,47 @@ function fill(k: u16): void {
 export function callsInArguments(x: u16): u16 {
   return sum4(pair(x, 2), pair(3, x), 1, pair(x, x))
 }
+
+/** A counter that a call moves: never inlined, and seen by the caller. */
+let cursor: u16 = 0
+
+function nextIndex(): u16 {
+  cursor++
+  return identity(cursor)
+}
+
+function counted(x: u16, y: u16): u16 {
+  calls += 1
+  return identity(x * 100 + y)
+}
+
+/**
+ * A sum left to add (a register and a constant) among a call's arguments and beside a
+ * comparison: the register it reads must not be taken for an argument first.
+ */
+export function pendingSums(k: u16): u16 {
+  cursor = 0
+  table[k] = 3
+  const a = counted(k, nextIndex() + 1)
+  const b = 7 + (table[k] + 1 > 3 ? k : 2)
+  return wrap16(a + b * 1000)
+}
+
+/** An element stepped and added to by index: the index is worked out once. */
+export function stepByIndex(): u16 {
+  cursor = 0
+  buffer[1] = 0
+  buffer[2] = 0
+  buffer[nextIndex()]++
+  buffer[nextIndex()] += 5
+  return cursor * 100 + buffer[1] * 10 + buffer[2]
+}
+
+/** A pure function giving a string's address: never worked out at compile time. */
+function labelOf(k: u16): u16 {
+  return k === 0 ? str('NO') : str('YES')
+}
+
+export function stringByCall(): u16 {
+  return peek(labelOf(1)) * 256 + peek(labelOf(0) + 1)
+}

@@ -26,7 +26,35 @@ export interface E16cResult {
   program: Program
 }
 
+/**
+ * Whatever goes wrong comes back as an error, never as an exception: a source too deep for
+ * the parser, or a function the back end cannot place (more values across a branch than it
+ * has registers). The CODE view hands it a person's text.
+ */
 export function compile(files: SourceFile[], options: E16cOptions): E16cResult {
+  try {
+    return compileNow(files, options)
+  } catch (e) {
+    const message = e instanceof Error ? e.message.replace(/^e16c: /, '') : String(e)
+    const file = files[0]?.name ?? ''
+    const deep = e instanceof RangeError ? 'the source nests too deeply' : message
+    return {
+      asm: '',
+      errors: [{ file: placeOf(files, message) ?? file, line: 0, column: 0, message: deep }],
+      program: { fns: [], globals: [], arrays: [], strings: [], externs: new Map() },
+    }
+  }
+}
+
+/** The file whose function a back end's message names, when one does. */
+function placeOf(files: SourceFile[], message: string): string | null {
+  const name = /\bin (\w+)/.exec(message)?.[1]
+  if (name === undefined) return null
+  const pattern = new RegExp(`function\\s+${name}\\b`)
+  return files.find((f) => pattern.test(f.text))?.name ?? null
+}
+
+function compileNow(files: SourceFile[], options: E16cOptions): E16cResult {
   const { program: parsed, errors } = front(files, options)
   if (errors.length > 0) return { asm: '', errors, program: parsed }
   const program = options.opt === 2 ? optimise(parsed) : parsed

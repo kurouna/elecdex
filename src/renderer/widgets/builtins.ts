@@ -412,7 +412,7 @@ registerBuiltin({
   title: 'elec-16',
   pickerTitle: 'elec-16',
   description:
-    'A 16-bit pocket computer of its own: an LCD, a keyboard and a machine-code monitor in ROM, with its registers and memory beside it. Sleeps at its prompt; paused while out of sight.',
+    'A 16-bit pocket computer of its own: an LCD, a keyboard, BASIC and a machine-code monitor in ROM, a memory card, with its registers and memory beside it. Sleeps at its prompt; paused while out of sight.',
   component: Elec16Widget,
   minSize: { w: 300, h: 200 },
   multiple: true,

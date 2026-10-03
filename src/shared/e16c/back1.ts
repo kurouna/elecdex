@@ -1,5 +1,5 @@
 import { type BinOp, type Fn, type Op, stackEffect } from './ir.js'
-import { hex } from './types.js'
+import { hex, NEAR, signed } from './types.js'
 
 /**
  * e16c's -O1 code for one function (docs/elec16.md section 6, e16c). The stack code is run
@@ -95,8 +95,6 @@ const NEGATE: Partial<Record<BinOp, BinOp>> = {
 }
 
 const fits14 = (v: number): boolean => v >= -8192 && v <= 8191
-const signed16 = (v: number): number => ((v & 0xffff) << 16) >> 16
-const NEAR = 0x2000
 
 export class O1 {
   readonly lines: string[] = []
@@ -325,12 +323,13 @@ export class O1 {
       const v = this.#stack[k] as Value
       const want = temps[k] as string
       if (v.kind === 'reg' && v.r === want) continue
-      // Whoever holds the wanted register moves out of the way first.
-      const holder = this.#stack.findIndex((w) => w.kind === 'reg' && w.r === want)
+      // Whoever holds the wanted register moves out of the way first - a sum not yet added
+      // reads it as much as a value in it does.
+      const holder = this.#stack.findIndex((w, j) => j !== k && held(w).has(want))
       if (holder >= 0) {
         const away = this.#temp(new Set(temps.slice(0, this.#stack.length)))
         this.#line(`mv ${away}, ${want}`)
-        this.#stack[holder] = { kind: 'reg', r: away }
+        this.#stack[holder] = movedTo(this.#stack[holder] as Value, away)
       }
       this.#move(want, v, new Set([want]))
       this.#stack[k] = { kind: 'reg', r: want }
@@ -396,7 +395,7 @@ export class O1 {
         this.#comment(`${op.file}:${op.line}  ${op.text}`)
         return
       case 'push':
-        this.#stack.push({ kind: 'const', v: signed16(op.v) })
+        this.#stack.push({ kind: 'const', v: signed(op.v) })
         return
       case 'addr':
         this.#stack.push({ kind: 'addr', label: op.label })
@@ -540,7 +539,7 @@ export class O1 {
     const base = this.#based(right !== null ? a : b)
     if (base === null || (base.label !== undefined && part.label !== undefined)) return null
     const label = base.label ?? part.label
-    const sum: Sum = { kind: 'sum', r: base.r, k: signed16(base.k + part.k) }
+    const sum: Sum = { kind: 'sum', r: base.r, k: signed(base.k + part.k) }
     if (label !== undefined) sum.label = label
     const value = (label === undefined ? 0 : (this.#near.get(label) ?? 0)) + sum.k
     return fits14(value) ? sum : null
@@ -555,7 +554,8 @@ export class O1 {
     const bits = [...Array(16).keys()].filter((b) => (u >> b) & 1)
     const [low, high] = bits
     const below = Math.log2(u + 1)
-    if (u === 0 || (bits.length > 2 && !Number.isInteger(below))) return false
+    // 0xFFFF would be a shift by 16, which the machine has not (MUL takes it).
+    if (u === 0 || (bits.length > 2 && (!Number.isInteger(below) || below > 15))) return false
     const ra = this.#inReg(a, new Set())
     if (bits.length === 1) {
       const d = this.#result([ra])
@@ -686,16 +686,17 @@ export class O1 {
     this.#unspill(values)
     const filled = new Set<string>()
     values.forEach((v, k) => {
-      // Registers the values not yet moved still hold: loading this one must not take them.
-      const holding = values.slice(k + 1).flatMap((w) => (w.kind === 'reg' ? [w.r] : []))
+      // Registers the values not yet moved still hold or read (a sum not yet added): loading
+      // this one must not take them.
+      const holding = values.slice(k + 1).flatMap((w) => [...held(w)])
       const want = targets[k] as string
-      // A register a later value still sits in is moved out of the way first.
-      const later = values.findIndex((w, j) => j > k && w.kind === 'reg' && w.r === want)
+      // A register a later value still sits in, or reads, is moved out of the way first.
+      const later = values.findIndex((w, j) => j > k && held(w).has(want))
       if (later >= 0) {
         // Not into a register another argument still waits in, either.
         const away = this.#temp(new Set([...targets, ...filled, ...this.#held(values)]))
         this.#line(`mv ${away}, ${want}`)
-        values[later] = { kind: 'reg', r: away }
+        values[later] = movedTo(values[later] as Value, away)
       }
       filled.add(want)
       this.#move(want, v, new Set([...filled, ...holding]))
@@ -851,6 +852,10 @@ export function labelDepths(body: Op[]): Map<string, number> {
 /** The register a value already holds, which loading another beside it must not take. */
 const held = (v: Value): Set<string> =>
   new Set(v.kind === 'reg' || (v.kind === 'sum' && v.r !== 'zero') ? [v.r] : [])
+
+/** A value whose register was copied to `r`: a sum keeps its offset. */
+const movedTo = (v: Value, r: string): Value =>
+  v.kind === 'sum' ? { ...v, r } : { kind: 'reg', r }
 
 /** A sum's offset as the assembler reads it: `buffer+1`, `-2`. */
 function offsetText(v: Sum): string {

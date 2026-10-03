@@ -181,6 +181,21 @@ describe('who runs a unit', () => {
     expect(u.release('u1', A, null)).toBe(false)
   })
 
+  it('never lets two MOVE HEREs for one unit both run it', async () => {
+    vi.useFakeTimers()
+    const u = units()
+    u.list()
+    u.claim('u1', A)
+    // B asks, then C asks before the holder answers: B gives up, C waits for A.
+    const first = u.moveHere('u1', B, () => {})
+    const second = u.moveHere('u1', OTHER_PAGE, () => {})
+    expect(await first).toEqual({ ok: false })
+    expect(u.holders().get('u1')).toEqual(A)
+    await vi.advanceTimersByTimeAsync(HAND_OVER_MS)
+    expect((await second).ok).toBe(true)
+    expect(u.holders().get('u1')).toEqual(OTHER_PAGE)
+  })
+
   it('frees what a page held when it goes', () => {
     const u = units()
     u.list()

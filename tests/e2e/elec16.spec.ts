@@ -442,3 +442,24 @@ test('CORE stops the machine at a breakpoint typed in, goes on from it, and step
     await close()
   }
 })
+
+test('TUNE throws another unit away on a second press, and never the one the pane runs', async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await page.getByTestId('elec16-unit-new').click()
+    await expect(page.getByTestId('elec16-unit')).toHaveCount(2)
+    const gone = page.getByTestId('elec16-unit-delete')
+    await expect(gone).toHaveCount(1)
+    await gone.click()
+    await expect(gone).toContainText('?')
+    await expect(page.getByTestId('elec16-unit')).toHaveCount(2)
+    await gone.click()
+    await expect(page.getByTestId('elec16-unit')).toHaveCount(1)
+    await expect(page.getByTestId('elec16-unit-delete')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
