@@ -59,6 +59,10 @@ void api.soft().then((list) => {
 })
 
 const used = $derived(files.reduce((n, f) => n + f.size, 0))
+/** The SOFT CARD program picked, whose help shows under the list. */
+const pickedSoft = $derived(
+  picked?.soft === true ? (soft.find((f) => f.name === picked?.name) ?? null) : null,
+)
 const line = $derived(picked === null ? null : loadLine(picked.name))
 
 async function importFile(): Promise<void> {
@@ -180,6 +184,16 @@ $effect(() => () => resting.dispose())
   {#if soft.length > 0}
     <h3>soft card</h3>
     {@render list(soft, true, 'programs on the SOFT CARD')}
+    {#if pickedSoft?.help}
+      <section class="help" aria-label="how to use {pickedSoft.name}" data-testid="elec16-soft-help">
+        <h4>{pickedSoft.name}</h4>
+        {#each pickedSoft.help.split('\n') as paragraph, k (k)}
+          <p>{paragraph}</p>
+        {/each}
+      </section>
+    {:else}
+      <p class="empty">Pick a program to see how to use it; LOAD ▸ types its LOAD.</p>
+    {/if}
   {/if}
   {#if hovered !== null && hover !== null}
     <CardFileCard file={hovered} soft={hover.soft} anchor={hover.anchor} bounds={hover.bounds} />
@@ -226,6 +240,27 @@ h3 {
 
 .said.bad {
   color: var(--danger);
+}
+
+/* How to use the program picked: read while it runs beside it, so plain text at reading size. */
+.help {
+  padding: var(--space-1);
+  border-left: 2px solid var(--accent);
+}
+
+.help h4 {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  font-weight: 400;
+  color: var(--accent-strong);
+}
+
+.help p {
+  margin: 0 0 var(--space-1);
+  font-size: var(--step--1);
+  line-height: 1.45;
+  color: var(--text);
 }
 
 ul {

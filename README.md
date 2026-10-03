@@ -871,8 +871,9 @@ weather and calendar.
   optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs
   it. A person's code runs only as the machine's code - never as JavaScript. While it waits at
   its prompt the CPU sleeps and the pane costs about what a paused one does. The manuals (in
-  Japanese): [BASIC](docs/elec16-basic.md), [E16 machine code and the monitor](docs/elec16-e16.md)
-  and [e16c, TypeScript for CODE](docs/elec16-e16c.md).
+  Japanese): [BASIC](docs/elec16-basic.md), [E16 machine code and the monitor](docs/elec16-e16.md),
+  [e16c, TypeScript for CODE](docs/elec16-e16c.md) and [the SOFT CARD's programs](docs/elec16-soft.md);
+  FILES also shows how to use the program picked.
 
 ## Plugins
 
@@ -1063,7 +1064,8 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md (the ELEC-16 manuals, in Japanese)
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (the ELEC-16 manuals,
+                in Japanese)
 ```
 
 The rules a change must keep - the security boundary, where the network lives, what tests may

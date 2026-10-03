@@ -1,0 +1,2 @@
+LOAD ▸, then RUN. The machine picks three different digits; guess them.
+Type three digits and ENTER: a HIT is a right digit in the right place, a BLOW a right digit in another place. Three hits wins, and it says in how many tries.

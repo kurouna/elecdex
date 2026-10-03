@@ -820,7 +820,8 @@ Ctrl+Shift+1 から 7 に並んだ状態で始まり、すでにある一覧に�
   大きさとサイクル数を並べて見せます。RUN でそのまま機械に入れて動かします。利用者のコードは機械語
   としてだけ動き、JavaScript として動くことはありません。プロンプトで待つ間は CPU が眠り、ペインの
   負荷は一時停止したものとほぼ同じです。説明書: [BASIC](docs/elec16-basic.md)、
-  [E16 の機械語とモニタ](docs/elec16-e16.md)、[e16c（CODE の TypeScript）](docs/elec16-e16c.md)。
+  [E16 の機械語とモニタ](docs/elec16-e16.md)、[e16c（CODE の TypeScript）](docs/elec16-e16c.md)、
+  [SOFT CARD のプログラム](docs/elec16-soft.md)。FILES でプログラムを選ぶと、その使い方も出ます。
 
 ## プラグイン
 
@@ -1012,7 +1013,8 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md (the ELEC-16 manuals, in Japanese)
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (the ELEC-16 manuals,
+                in Japanese)
 ```
 
 変更が守るべきルール（セキュリティ境界、ネットワークをどこで扱うか、テストが触れてよいもの）は

@@ -53,14 +53,26 @@ const softDir = path.join(root, 'resources', 'elec16', 'soft')
 const soft = buildSoftCard(
   readdirSync(softDir)
     .filter((name) => /\.(bas|asm)$/i.test(name))
-    .map((name) => ({ name, text: readFileSync(path.join(softDir, name), 'utf8') })),
+    .map((name) => {
+      const help = path.join(softDir, name.replace(/\.\w+$/, '.help'))
+      return {
+        name,
+        text: readFileSync(path.join(softDir, name), 'utf8'),
+        help: existsSync(help) ? readFileSync(help, 'utf8') : '',
+      }
+    }),
 )
 if (soft.errors.length > 0) {
   for (const e of soft.errors) console.error(e)
   process.exit(1)
 }
 const softFile = {
-  files: soft.files.map((f) => ({ name: f.name, about: f.about, data: toBase64(f.data) })),
+  files: soft.files.map((f) => ({
+    name: f.name,
+    about: f.about,
+    help: f.help,
+    data: toBase64(f.data),
+  })),
 }
 writeFileSync(
   path.join(root, 'resources', 'elec16', 'soft.json'),

@@ -412,7 +412,14 @@ test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, a
     await primes.hover()
     await expect(page.getByTestId('elec16-file-card')).toContainText('THE PRIMES UP TO A NUMBER')
     await expect(page.getByTestId('elec16-file-card')).toContainText('LOAD "PRIMES.BAS"')
+    // Nothing picked: how to see a program's help. Picked: how to use it, under the list.
+    await expect(page.getByTestId('elec16-soft-help')).toHaveCount(0)
+    await expect(page.getByTestId('elec16-files')).toContainText(
+      'Pick a program to see how to use it',
+    )
     await primes.click()
+    await expect(page.getByTestId('elec16-soft-help')).toContainText('PRIMES.BAS')
+    await expect(page.getByTestId('elec16-soft-help')).toContainText('every prime up to it')
     await page.getByTestId('elec16-load').click()
     await expect.poll(() => lcdLines(page)).toContain('>LOAD "PRIMES.BAS"')
     // The clipboard is the page's stand-in, never this machine's.

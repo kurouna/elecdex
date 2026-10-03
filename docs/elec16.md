@@ -422,7 +422,7 @@ TS の部分集合 (*.e16.ts)
 
 ### 同梱ソフト（SOFT CARD、読み出し専用）
 
-自作し、GPL で同梱します: SINEWAVE（グラフ）、BOUNCE、PRIMES、CLOCK、HIT&BLOW、LANDER（月着陸）、MAZE、BIORHYTHM、UNITS（単位換算）、ASM DEMO（ECALL で液晶に描く機械語の例）。10 本です（段階 5）。
+自作し、GPL で同梱します: SINEWAVE（グラフ）、BOUNCE、PRIMES、CLOCK、HIT&BLOW、LANDER（月着陸）、MAZE、BIORHYTHM、UNITS（単位換算）、ASM DEMO（ECALL で液晶に描く機械語の例）。10 本です（段階 5）。各プログラムの横の `.help`（英語）に使い方を書き、`gen:elec16` が soft.json に入れ（ないものは断る）、FILES で選んだプログラムの使い方を一覧の下に出す。日本語の遊び方は docs/elec16-soft.md（2026-10-04、利用者の要望）。
 
 - 源は `resources/elec16/soft/*.bas` と `*.asm`。`npm run gen:elec16` が `shared/elec16/soft-card.ts`（純粋）で `resources/elec16/soft.json` にする: .bas は IMPORT と同じく機械の文字に、.asm はコード領域（7000）向けにアセンブルして .BIN に。1 行目の REM（コメント）が FILES の詳細カードの説明になる。`elec16-soft.test.ts` がファイルを源に照らし、全部のプログラムを ROM の上で動かす（入力を与え、キーで終わるものはキーで終わらせ、エラーが出ないこと）
 - main は起動時に soft.json を読み（`readSoftCard`、壊れていれば無し）、どのユニットのカードにも重ねる: `cardOp` の READ はカードにない名前を SOFT CARD から読み、`DIR` の名前が `SOFT` なら SOFT CARD を並べる（ほかの名前は NO FILE）。書くことはない。同じ名前のファイルをカードに SAVE すれば、そちらが読まれる

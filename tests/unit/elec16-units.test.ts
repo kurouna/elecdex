@@ -236,6 +236,7 @@ describe('the card', () => {
       size: expect.any(Number),
       modified: 0,
       about: 'THE PRIMES UP TO A NUMBER',
+      help: expect.stringMatching(/^LOAD ▸, then RUN\. Type a number/),
     })
     expect(fromMachineText(u.card('u1', A, read('PRIMES.BAS')).data ?? new Uint8Array())).toMatch(
       /^10 REM PRIMES/,

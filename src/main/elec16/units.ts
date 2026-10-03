@@ -9,7 +9,7 @@ import {
   isCardName,
 } from '@shared/elec16/card'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
-import type { SoftFile } from '@shared/elec16/soft-card'
+import { SOFT_HELP_MAX, type SoftFile } from '@shared/elec16/soft-card'
 import {
   CardRequestSchema,
   type Elec16Claim,
@@ -369,6 +369,7 @@ export class Elec16Units {
       size: f.data.length,
       modified: f.modified,
       about: f.about,
+      help: f.help,
     }))
   }
 
@@ -417,6 +418,7 @@ const SoftFileSchema = z.object({
       name: z.string().refine(isCardName),
       data: z.string(),
       about: z.string().max(80).default(''),
+      help: z.string().max(SOFT_HELP_MAX).default(''),
     }),
   ),
 })
@@ -431,7 +433,9 @@ export function readSoftCard(dir: string | null): SoftFile[] {
     if (!parsed.success) return []
     return parsed.data.files.flatMap((f) => {
       const data = fromBase64(f.data)
-      return data === null ? [] : [{ name: f.name, data, modified: 0, about: f.about }]
+      return data === null
+        ? []
+        : [{ name: f.name, data, modified: 0, about: f.about, help: f.help }]
     })
   } catch {
     return []

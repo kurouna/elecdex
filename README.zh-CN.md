@@ -705,7 +705,8 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   程序以三级优化编译成机器码，并排显示各自的字节数和周期数；RUN 直接把它放进机器运行。用户的代码只作为
   机器码运行，绝不会作为 JavaScript 运行。在提示符处等待时 CPU 休眠，窗格的负担与暂停的窗格相当。说明书（日文）：
   [BASIC](docs/elec16-basic.md)、[E16 机器码与监视器](docs/elec16-e16.md)、
-  [e16c（CODE 的 TypeScript）](docs/elec16-e16c.md)。
+  [e16c（CODE 的 TypeScript）](docs/elec16-e16c.md)、
+  [SOFT CARD 的程序](docs/elec16-soft.md)。在 FILES 中选中程序，也会显示其用法。
 
 ## 插件
 
@@ -868,7 +869,8 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md (the ELEC-16 manuals, in Japanese)
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (the ELEC-16 manuals,
+                in Japanese)
 ```
 
 改动必须遵守的规则——安全边界、网络在哪里运行、测试可以触碰什么——见 [CLAUDE.md](CLAUDE.md)。

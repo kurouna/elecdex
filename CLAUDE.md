@@ -80,7 +80,7 @@ tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _ele
 scripts/         asset generators, sync-calc, fix-node-pty
 docs/            architecture.md, decisions.md, plugins.md (the plugin API), weather-providers.md,
                  emu.md (the emulators' shared base), elec16.md (the ELEC-16 pane),
-                 elec16-basic.md, elec16-e16.md, elec16-e16c.md (its user manuals),
+                 elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (its manuals),
                  screenshots/ (README images)
 ```
 
@@ -206,8 +206,10 @@ user made; do not reverse one without asking.
 - **The ELEC-16 pane** (§5.19, docs/elec16.md) is designed and built phase by phase: read
   elec16.md before working on it.
   - Its user manuals, in Japanese, are docs/elec16-basic.md (BASIC), docs/elec16-e16.md (the
-    ISA, the assembler, the monitor, ROM services) and docs/elec16-e16c.md (e16c and CODE),
-    linked from all three READMEs. A change a user can see in BASIC, the instruction set, the
+    ISA, the assembler, the monitor, ROM services), docs/elec16-e16c.md (e16c and CODE) and
+    docs/elec16-soft.md (the SOFT CARD's programs), linked from all three READMEs. A SOFT CARD
+    program has a .help beside it (English, what FILES shows when it is picked; gen:elec16
+    refuses one without). A change a user can see in BASIC, the instruction set, the
     assembler, the monitor or e16c updates its manual in the same commit, as elec16.md; every
     example in a manual runs (check it on the core). An original machine only: no third-party ROM, font, BASIC
   dialect, trade dress or real model name in what is published (user decision 2026-10-03).

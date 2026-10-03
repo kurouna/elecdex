@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { cardOp } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
 import type { Elec16 } from '@shared/elec16/machine'
@@ -16,7 +16,14 @@ import { card, press, screen, settle, shown, switchOn, type } from './elec16-hel
 const DIR = 'resources/elec16/soft/'
 const sources = readdirSync(DIR)
   .filter((name) => /\.(bas|asm)$/i.test(name))
-  .map((name) => ({ name, text: readFileSync(`${DIR}${name}`, 'utf8') }))
+  .map((name) => {
+    const help = `${DIR}${name.replace(/[.][a-z]+$/i, '.help')}`
+    return {
+      name,
+      text: readFileSync(`${DIR}${name}`, 'utf8'),
+      help: existsSync(help) ? readFileSync(help, 'utf8') : '',
+    }
+  })
 const built = buildSoftCard(sources)
 
 beforeAll(() => {
@@ -67,13 +74,23 @@ describe('the SOFT CARD', () => {
       'UNITS.BAS',
     ])
     const file = JSON.parse(readFileSync('resources/elec16/soft.json', 'utf8')) as {
-      files: { name: string; about: string; data: string }[]
+      files: { name: string; about: string; help: string; data: string }[]
     }
-    expect(
-      file.files.map((f) => ({ name: f.name, about: f.about, data: fromBase64(f.data) })),
-    ).toEqual(built.files.map((f) => ({ name: f.name, about: f.about, data: f.data })))
+    expect(file.files.map((f) => ({ ...f, data: fromBase64(f.data) }))).toEqual(
+      built.files.map((f) => ({ name: f.name, about: f.about, help: f.help, data: f.data })),
+    )
+    // Every program says how to use it, which FILES shows when it is picked.
+    for (const f of built.files) expect(f.help, f.name).toMatch(/\S/)
     expect(built.files.find((f) => f.name === 'PRIMES.BAS')?.about).toBe(
       'THE PRIMES UP TO A NUMBER',
+    )
+  })
+
+  it('refuses a program with no help beside it, or too long a one', () => {
+    const text = '10 PRINT 1'
+    expect(buildSoftCard([{ name: 'a.bas', text, help: '' }]).errors[0]).toMatch(/no .help/)
+    expect(buildSoftCard([{ name: 'b.bas', text, help: 'x'.repeat(401) }]).errors[0]).toMatch(
+      /over 400/,
     )
   })
 

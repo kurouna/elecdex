@@ -114,6 +114,8 @@ export interface Elec16FileInfo {
   modified: number
   /** A SOFT CARD program's line of what it is (its first REM or comment). */
   about?: string
+  /** A SOFT CARD program's help: how to start it, its keys, how it ends. */
+  help?: string
 }
 
 /** What IMPORT gives: the name the file got on the card, or why it did not go there. */
