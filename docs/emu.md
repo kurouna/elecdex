@@ -32,6 +32,7 @@
 | `shared/emu/fit.ts` | `fitScreen`: 部屋に画面を収める倍率。デバイスピクセルの整数倍（INTEGER）か、縦横比を保って全体（FIT）。90°・270° の回転 | CHIP-8 |
 | `shared/emu/bytes.ts` | `ByteWriter` / `ByteReader`: スナップショットを 1 欄ずつ書いて読む（リトルエンディアン）。短い入力でも例外を投げず、`overrun` で「まるごとではない」と知らせる。**読み終えたら機種のデコーダが `overrun` か長さを確かめる**（CHIP-8 は長さを先に確かめ、最後に `overrun` も見る）。マジックと版と中身の検査は機種のもの | CHIP-8 |
 | `shared/emu/random.ts` | `seedOf`、`xorshift32`: 状態に持つ乱数。スナップショットから同じ列が続き、決まった種のテストは毎回同じになる | CHIP-8 |
+| `shared/emu/base64.ts` | `toBase64`、`fromBase64`: バイト列を文字に（コアには Node の Buffer も DOM の btoa もない）。段階 2 で CHIP-8 のプレビューから移した | CHIP-8 / ELEC-16 |
 | `shared/emu/mem-window.ts` | MEM の窓: 行の並べ方（`windowStart`、`scrollWindow`）、行（`memoryRows`）、変わったバイト（`changedBytes`、`byteMap`）。メモリは配列か、副作用のない読み出し関数（`ByteSource`。I/O を持つ機械が FIFO を読んで減らさないように） | CHIP-8 |
 | `widgets/emu/runner.svelte.ts` | `EmuRunner`: 一時停止、見えているか、状態（`empty` / `running` / `paused` / `halted`）、変更の数（AUTO を書くか決める）、描く人への通知。ループは機種が渡す（§4） | CHIP-8 |
 | `widgets/emu/loops.ts` | ループ: `FrameLoop`（フレーム単位、画面が動く間は rAF、止まればタイマー）と `TimedLoop`（タイマーでサイクルを回し、画面が変わったときだけ rAF で描き、眠れば止まる） | CHIP-8 / ELEC-16 |

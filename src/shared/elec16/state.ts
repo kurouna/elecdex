@@ -38,6 +38,8 @@ export interface Elec16State {
   halt: Halt | null
   /** Switched off by a program (POWER): it sleeps until BRK/ON, with its RAM kept. */
   off: boolean
+  /** BRK was pressed and its line not yet taken (it waits only while a handler runs). */
+  brk: boolean
   /** Cycles and instructions since the machine started; doubles, so they never wrap. */
   cycles: number
   instret: number
@@ -77,8 +79,27 @@ export const CSR_NAMES = {
 export const MIE = 1 << 3
 export const MPIE = 1 << 7
 
-/** Interrupt lines, as bits of mie and mip. */
-export const IRQ = { timer: 0, key: 1, card: 2, math: 3 } as const
+/**
+ * Interrupt lines, as bits of mie and mip. BRK is wired apart: it is taken even with
+ * interrupts off or not enabled in mie (only a handler already running holds it back), so
+ * the key always gets the machine back, as on the pocket computers it follows.
+ */
+export const IRQ = { timer: 0, key: 1, card: 2, math: 3, brk: 15 } as const
+
+/** The LCD's annunciators, as bits of ANNUN: the marks above the dots. */
+export const ANNUNCIATORS = [
+  'BUSY',
+  'SHIFT',
+  'CAPS',
+  'KANA',
+  'RUN',
+  'PRO',
+  'MON',
+  'DEG',
+  'RAD',
+  'GRAD',
+  'SOUND',
+] as const
 
 /** mcause for exceptions (interrupts set the top bit and give their line). */
 export const CAUSE = {
@@ -105,6 +126,7 @@ export function createState(model: ModelId): Elec16State {
     sleeping: false,
     halt: null,
     off: false,
+    brk: false,
     cycles: 0,
     instret: 0,
     ram: new Uint8Array(RAM_SIZE),

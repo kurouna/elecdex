@@ -199,11 +199,21 @@ export class Elec16 implements Core {
     s.sleeping = false
     s.halt = null
     s.off = false
+    s.brk = false
     s.bank = 0
     s.keys.fifo.length = 0
     s.timer.pending = false
     s.timer.enabled = false
     this.#code.fill(undefined)
+  }
+
+  /**
+   * BRK/ON. A machine off, or stopped by a fault, starts again (reset, its RAM kept); one
+   * running or asleep has its BRK line raised, which the ROM takes even with interrupts off.
+   */
+  brk(): void {
+    if (this.s.off || this.s.halt !== null) this.reset()
+    else this.s.brk = true
   }
 
   /** The screen as one value a dot (0..3), row by row, for whoever draws it. */
@@ -320,8 +330,8 @@ export class Elec16 implements Core {
   #step(): number {
     const s = this.s
     if (s.halt !== null || s.off) return 0
-    // Most of the time nothing is enabled and nothing sleeps: no lines to look at.
-    if (s.csr.mie !== 0 || s.sleeping) {
+    // Most of the time nothing is enabled, nothing sleeps and BRK is up: no lines to look at.
+    if (s.csr.mie !== 0 || s.sleeping || s.brk) {
       const taken = this.#interrupt()
       if (taken >= 0) return taken
     }
@@ -345,6 +355,7 @@ export class Elec16 implements Core {
    */
   #interrupt(): number {
     const s = this.s
+    if (s.brk && !s.inTrap) return this.#takeBrk()
     const ready = this.#pending() & s.csr.mie
     if (s.sleeping) {
       if (ready === 0) return 0
@@ -358,6 +369,21 @@ export class Elec16 implements Core {
     }
     const line = 31 - Math.clz32(ready & -ready)
     this.#enterTrap(INTERRUPT | line, 0, s.pc)
+    s.pc = this.next
+    s.cycles += TRAP_CYCLES
+    return TRAP_CYCLES
+  }
+
+  /** The BRK line, taken whatever mstatus and mie say; with no handler it stops the machine. */
+  #takeBrk(): number {
+    const s = this.s
+    s.brk = false
+    s.sleeping = false
+    if (s.csr.mtvec === 0) {
+      s.halt = { cause: 'break', pc: s.pc }
+      return 0
+    }
+    this.#enterTrap(INTERRUPT | IRQ.brk, 0, s.pc)
     s.pc = this.next
     s.cycles += TRAP_CYCLES
     return TRAP_CYCLES
@@ -382,7 +408,8 @@ export class Elec16 implements Core {
   /** What a sleeping machine waits for: only lines it has enabled. */
   #wake(): Wake {
     const s = this.s
-    if (s.off) return { key: true, timerMs: null }
+    // Off, only BRK/ON wakes it, and that is the page's call (brk), not a key in the FIFO.
+    if (s.off) return { key: false, timerMs: null }
     const t = s.timer
     const timerOn = (s.csr.mie & (1 << IRQ.timer)) !== 0 && t.enabled && !t.pending
     const ticks = ((t.compare - t.count) & 0xffff || 0x10000) - t.fraction

@@ -30,6 +30,7 @@ npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
 npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
 npm run gen:chip8      # CHIP-8 library + previews: resources/chip8/programs.json (--archive <dir> to update chip8Archive)
+npm run gen:elec16     # ELEC-16 ROM: resources/elec16/rom/*.s -> src/renderer/widgets/elec16/rom.json
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
 npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)

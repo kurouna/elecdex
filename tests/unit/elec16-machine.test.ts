@@ -446,6 +446,59 @@ describe('traps, CSRs and sleeping', () => {
     expect(m.run(1000).halted?.cause).toBe('interrupt with no handler')
   })
 
+  it('takes BRK with interrupts off, and from WFI with nothing enabled', () => {
+    const m = boot(`
+      ${handler}
+    spin:
+      j spin
+    trap:
+      csrr a0, mcause
+      csrr s0, mepc
+      csrw mtvec, zero
+      ebreak`)
+    m.run(1000)
+    m.brk()
+    const r = finish(m)
+    expect(r.a0).toBe(0x8000 | 15)
+    expect(r.s0).toBeGreaterThan(0x8000)
+    const asleep = boot(`
+      ${handler}
+      wfi
+    trap:
+      csrr a0, mcause
+      csrw mtvec, zero
+      ebreak`)
+    expect(asleep.run(1000).sleeping).toEqual({ key: false, timerMs: null })
+    asleep.brk()
+    expect(finish(asleep).a0).toBe(0x8000 | 15)
+  })
+
+  it('stops on BRK with no handler; BRK then starts it again, as it does a machine off', () => {
+    const m = boot(`
+      li t0, 0x100
+      lw a0, 0(t0)
+      addi a0, a0, 1
+      sw a0, 0(t0)
+      li t0, ${REG.power}
+      sw zero, 0(t0)
+    spin:
+      j spin`)
+    m.run(1000)
+    expect(m.running).toBe(false)
+    expect(m.run(1000).sleeping).toEqual({ key: false, timerMs: null })
+    m.brk()
+    expect(m.running).toBe(true)
+    m.run(1000)
+    // Started again from the reset vector with its RAM: the count went on.
+    expect(m.state.ram[0x100]).toBe(2)
+    const spinning = boot('spin:\nj spin')
+    spinning.run(100)
+    spinning.brk()
+    expect(spinning.run(100).halted?.cause).toBe('break')
+    spinning.brk()
+    expect([spinning.running, spinning.state.pc]).toEqual([true, 0x8000])
+  })
+
   it('takes the lowest line first when two are up', () => {
     const m = boot(`
       ${handler}

@@ -1,0 +1,129 @@
+; The ELEC-16 ROM (docs/elec16.md section 6): reset, the trap handler and the ROM services.
+; Phase 2 holds the machine-code monitor; BASIC comes in the banks later.
+;
+; Labels are lower case - CORE and MEM name code by them - and constants upper case.
+; Calls follow the usual E16 convention: arguments and results in a0-a3, t0-t3 and a0-a3
+; may change, s0-s3, sp and gp are kept, ra is the return address.
+
+  .include "io.inc"
+  .include "ram.inc"
+
+  .macro enter3 r1, r2
+  addi sp, sp, -6
+  sw ra, 4(sp)
+  sw \r1, 2(sp)
+  sw \r2, 0(sp)
+  .endm
+
+  .macro leave3 r1, r2
+  lw \r2, 0(sp)
+  lw \r1, 2(sp)
+  lw ra, 4(sp)
+  addi sp, sp, 6
+  .endm
+
+  .org 0x8000
+reset:
+  .option nocompress
+  j start
+
+; The ROM services at fixed addresses, four bytes apart, for a program to call: also what
+; ECALL n reaches, with n in t0 (an ECALL keeps every register but a0-a3 and t0-t3).
+  .org 0x8010
+services:
+  j putc          ; 0  a0: a character (CR a new line, BS back, CLS clear)
+  j puts          ; 1  a0: the address of text ended by a zero
+  j getkey        ; 2  -> a0: the next key's character, waiting for one
+  j cls           ; 3  clears the screen
+  j locate        ; 4  a0: column, a1: row
+  j puthex        ; 5  a0: a word, as four hex digits
+  j newline       ; 6
+  j readline      ; 7  a0: buffer, a1: most characters -> a0: how many
+SERVICES = 8
+  .option compress
+
+start:
+  li sp, STACK_TOP
+  la t0, trap
+  csrw mtvec, t0
+  li t0, F_CAPS
+  sw t0, FLAGS(zero)
+  call lcd_init
+  call annunciate
+  ; Keys wake the CPU from WFI; it takes no interrupts (getkey waits in WFI).
+  csrwi mie, 1 << IRQ_KEY
+  j monitor
+
+; ---------------- traps ----------------
+
+; A break, a fault or an ECALL. An ECALL runs its service outside the handler, so BRK can
+; still stop a program waiting in it; anything else keeps every register for R and goes
+; to the monitor.
+trap:
+  csrw mscratch, t0
+  csrr t0, mcause
+  addi t0, t0, -11
+  beqz t0, ecall_entry
+save_all:
+  sw ra, REGS + 2(zero)
+  sw sp, REGS + 4(zero)
+  sw gp, REGS + 6(zero)
+  sw a0, REGS + 8(zero)
+  sw a1, REGS + 10(zero)
+  sw a2, REGS + 12(zero)
+  sw a3, REGS + 14(zero)
+  csrr t0, mscratch
+  sw t0, REGS + 16(zero)
+  sw t1, REGS + 18(zero)
+  sw t2, REGS + 20(zero)
+  sw t3, REGS + 22(zero)
+  sw s0, REGS + 24(zero)
+  sw s1, REGS + 26(zero)
+  sw s2, REGS + 28(zero)
+  sw s3, REGS + 30(zero)
+  csrr t0, mepc
+  sw t0, REGS(zero)
+  csrr t0, mcause
+  sw t0, CAUSE(zero)
+  ; Out of the handler, into the monitor.
+  la t0, broken
+  csrw mepc, t0
+  mret
+
+ecall_entry:
+  csrr t0, mepc
+  addi t0, t0, 4
+  sw t0, RETPC(zero)
+  sw ra, ERA(zero)
+  csrr t0, mscratch
+  sltiu ra, t0, SERVICES
+  beqz ra, .unknown
+  slli t0, t0, 2
+  la ra, services
+  add t0, t0, ra
+  csrw mepc, t0
+  la ra, ecall_return
+  csrr t0, mscratch
+  mret
+.unknown:
+  lw ra, ERA(zero)
+  j save_all
+
+; Where a service returns, outside the handler: back past the ECALL with the caller's ra.
+ecall_return:
+  lw ra, ERA(zero)
+  lw t3, RETPC(zero)
+  jr t3
+
+  .include "lcd.s"
+  .include "keys.s"
+  .include "monitor.s"
+
+  .align 2
+font:
+  .include "font.inc"
+keytab:
+  .include "keys.inc"
+
+; Where the fixed ROM's contents end, for gen:elec16 to say how much is used.
+rom_end:
