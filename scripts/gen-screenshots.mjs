@@ -600,7 +600,7 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
   standIn.close()
 }
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
-await shoot('phosphor', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
+await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [
   ['social-elec-sitting', sitting, 110],
