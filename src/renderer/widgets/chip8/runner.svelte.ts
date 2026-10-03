@@ -2,14 +2,8 @@ import type { Tone } from '@shared/chip8/audio'
 import { Chip8 } from '@shared/chip8/machine'
 import type { Quirks } from '@shared/chip8/types'
 import { type Chip8Program, tunedConfig } from '@shared/chip8-library'
-import {
-  browserLoop,
-  EmuRunner,
-  type LoopHost,
-  type LoopPolicy,
-  type PauseReason,
-  type RunStatus,
-} from '../emu/runner.svelte.ts'
+import { FrameLoop, type FramePolicy, type LoopHost } from '../emu/loops.ts'
+import { browserLoop, EmuRunner, type PauseReason, type RunStatus } from '../emu/runner.svelte.ts'
 
 /**
  * Plays one CHIP-8 machine for a pane (docs/architecture.md section 5.18), on the emulators'
@@ -29,7 +23,7 @@ export interface RunnerHost extends LoopHost {
 /** Machine frames with the screen unchanged before the loop drops to the timer. */
 export const STILL_FRAMES = 30
 
-const POLICY: LoopPolicy = { frameMs: 1000 / 60, maxCatchUp: 3, stillFrames: STILL_FRAMES }
+const POLICY: FramePolicy = { frameMs: 1000 / 60, maxCatchUp: 3, stillFrames: STILL_FRAMES }
 
 export const browserHost = (sound: (tone: Tone | null) => void): RunnerHost => ({
   ...browserLoop,
@@ -57,7 +51,7 @@ export class Chip8Runner extends EmuRunner<Chip8> {
   #rom: Uint8Array | null = null
 
   constructor(host: RunnerHost) {
-    super(host, POLICY)
+    super((owner) => new FrameLoop(host, owner, POLICY))
     this.#sound = host.sound
   }
 

@@ -33,7 +33,8 @@
 | `shared/emu/bytes.ts` | `ByteWriter` / `ByteReader`: スナップショットを 1 欄ずつ書いて読む（リトルエンディアン）。短い入力でも例外を投げず、`overrun` で「まるごとではない」と知らせる。**読み終えたら機種のデコーダが `overrun` か長さを確かめる**（CHIP-8 は長さを先に確かめ、最後に `overrun` も見る）。マジックと版と中身の検査は機種のもの | CHIP-8 |
 | `shared/emu/random.ts` | `seedOf`、`xorshift32`: 状態に持つ乱数。スナップショットから同じ列が続き、決まった種のテストは毎回同じになる | CHIP-8 |
 | `shared/emu/mem-window.ts` | MEM の窓: 行の並べ方（`windowStart`、`scrollWindow`）、行（`memoryRows`）、変わったバイト（`changedBytes`、`byteMap`）。メモリは配列か、副作用のない読み出し関数（`ByteSource`。I/O を持つ機械が FIFO を読んで減らさないように） | CHIP-8 |
-| `widgets/emu/runner.svelte.ts` | `EmuRunner`: ループ、一時停止、見えているか、状態（`empty` / `running` / `paused` / `halted`）、変更の数（AUTO を書くか決める）、描く人への通知（§4） | CHIP-8 |
+| `widgets/emu/runner.svelte.ts` | `EmuRunner`: 一時停止、見えているか、状態（`empty` / `running` / `paused` / `halted`）、変更の数（AUTO を書くか決める）、描く人への通知。ループは機種が渡す（§4） | CHIP-8 |
+| `widgets/emu/loops.ts` | ループ: `FrameLoop`（フレーム単位、画面が動く間は rAF、止まればタイマー）と `TimedLoop`（タイマーでサイクルを回し、画面が変わったときだけ rAF で描き、眠れば止まる） | CHIP-8 / ELEC-16 |
 | `widgets/emu/painter.ts` | `Painter` / `paintStill`: 画面を画素にする。消えるドットはゆっくり、点くドットはすぐ。消える速さは機械が渡す（CRT の蛍光体、液晶の応答） | CHIP-8 |
 | `widgets/emu/park.ts` | `createPark`: ペインの移動で再マウントする間、機械を 10 秒預かる場所。機種ごとに 1 つ（別の機種の機械を取り違えない） | CHIP-8 |
 | `widgets/emu/audio.ts` | `SharedAudio` / `emuAudio`: エミュレータのペイン全体で 1 つの AudioContext。要るまで作らず、4 秒鳴らなければ眠らせる。機種の声（AudioWorklet のモジュール）は初めて頼まれたときに 1 度だけ足す | CHIP-8 |
@@ -41,24 +42,22 @@
 
 ## 4. EmuRunner
 
-ページで、共有の 10 fps ループのほかに自分のループを持つのはエミュレータだけ（利用者の決定。2026-09-21 に CHIP-8 で認め、2026-10-03 にエミュレータ全体へ広げた）。ループは `EmuRunner` 1 つにまとめ、機械ごとに書かない。
+ページで、共有の 10 fps ループのほかに自分のループを持つのはエミュレータだけ（利用者の決定。2026-09-21 に CHIP-8 で認め、2026-10-03 にエミュレータ全体へ広げた）。状態と一時停止は `EmuRunner` 1 つにまとめ、ループは `loops.ts` の部品を機種が選ぶ（下の「2 つのループ」）。機械ごとにループを書かない。
 
 - **回すのは、機械が動いていて、かつペインが見えている間だけ**。隠れたら一時停止（`hidden`）し、見えても自分からは再開しない。見えない間に読み込まれた機械も、隠れた一時停止で始まる
-- **いつ回すかは機械の方針**（`LoopPolicy`）: 1 フレームの長さ（`frameMs`）、止まりの後に取り戻す上限（`maxCatchUp`）、画面が動かないまま何フレームでタイマーに落とすか（`stillFrames`）。何も描かない rAF でも vsync ごとに描画の流れが起き、CHIP-8 では 1 コアの 5.5% かかったため、止まった画面は rAF ではなくタイマーで回す
-- 機械が runner に約束すること（今の `EmuMachine`）: `running`、`screenRevision`、`frame()`
+- **いつ回すかは機械の方針**: CHIP-8 の `FramePolicy` は 1 フレームの長さ（`frameMs`）、止まりの後に取り戻す上限（`maxCatchUp`）、画面が動かないまま何フレームでタイマーに落とすか（`stillFrames`）。何も描かない rAF でも vsync ごとに描画の流れが起き、CHIP-8 では 1 コアの 5.5% かかったため、止まった画面は rAF ではなくタイマーで回す
+- 機械が runner に約束すること（`EmuMachine`）: `running` だけ。ほかはループの約束（下）
 - 機械の runner が足すこと: 読み込み、キー、音、画面の表示に要る状態。足し口は `settled`（状態を表示に合わせる）、`afterFrames`（1 回の tick の後。音）、`silence` と `quiet`（ループが止まったとき）。機械を入れるのは `setMachine`、変更を数えるのは `countChange`
 - **CHIP-8 の方針**: 60 Hz、取り戻しは 3 フレームまで、30 フレーム止まればタイマー（`chip8-runner.test.ts` が固定している）
 
-### ELEC-16 で足すもの（段階 2）
+### 2 つのループ（段階 2 で作り直した）
 
-ELEC-16 は CHIP-8 と回り方が違う。その分は ELEC-16 が加わるときに `EmuRunner` に足す（今は CHIP-8 に要るものだけを持つ）。
+段階 0 では、ループは `EmuRunner` の中の private なフレーム単位のものだった。段階 2 の初めに、ループを `loops.ts` の部品に分け、機種の runner が `EmuRunner` に渡す形にした（`super((owner) => new FrameLoop(host, owner, POLICY))`）。`EmuRunner` は状態と一時停止だけを持ち、ループが走らせ、描かせ、状態を合わせるときは `LoopOwner`（`ran`・`draw`・`settle`・`wanted`）を通す。CHIP-8 の振る舞いは変わらない（`chip8-runner.test.ts` は変えずに通る）。
 
-- **眠り**: CPU が WFI で眠ったら、機械は「何で起きるか」（キー、次のタイマー一致の時刻、カードの完了）を返し、runner はループを止めてそれだけを待つ（キーか、`setTimeout` 1 つ）。プロンプトで待つ ELEC-16 の費用をほぼ 0 にするため
-- **サイクルで小分けに回す**: ELEC-16 のコアは時計を読まないので、runner がサイクル数を区切って回し、その間に `host.now()` で 1 フレーム 8 ms の予算を見る（MAX のとき）
-- **描画を分ける**: 実行は 60 Hz のタイマー、描画は VRAM が動いたフレームだけ rAF を 1 回
-- このため機械の約束は `advance(now)`・`run(cycles)`・`RunResult`（眠り、止まり、音、外への依頼）の形に広がる見込み（[elec16.md](elec16.md) §9）。CHIP-8 は今の振る舞いのまま、その形に合わせる薄い包みを持つ
-- **今の `EmuRunner` のループ（`#tick`・`#schedule`）は private で、フレーム単位の形をしている**。上のどれも `LoopPolicy` の 3 つの数と足し口では表せないので、段階 2 では基底のループそのものを書き換える（方針を数から振る舞いに替え、`pausedBy` の横に眠りの状態を足す）。CHIP-8 の部品は書き換えずに済むよう、CHIP-8 の方針は今の振る舞いをそのまま写す
-- 重い機械（Linux 系ペイン）は、機械を Web Worker で動かす。`shared/emu` とコアは DOM を持たないので、そのまま Worker で動く。ただし**今の約束は同期で、画面の部品は `runner.machine.state` を直接読む**ので、そのままでは Worker に載らない。Worker の機械には、状態を写しで受け取る別の約束を作る
+- **`FrameLoop`**（CHIP-8）: 上の CHIP-8 の方針そのもの
+- **`TimedLoop`**（ELEC-16）: 60 Hz のタイマーで回す。1 回ごとに、経った時間をすべて `advance` で機械に渡し（タイマーと時計は時間どおりに進む）、走らせるサイクルは「クロック × 経った時間」（取り戻しは 50 ms まで）。サイクルは小分けにして回し、1 回 8 ms の予算を超えたら残りは捨てる（MAX、遅い PC）。画面の版が動いたときだけ、rAF を 1 つ頼んで描く。**機械が WFI で眠ったら、タイマーを止める**。起こすのはキー（runner が `wake()` を呼ぶ）か、機械が言う「起きる時刻」の `setTimeout` 1 つ。眠り始めと起きたときに runner に知らせる（ランプの `asleep`）。テストは `tests/unit/emu-loops.test.ts`
+- 機械の約束はループごと: `FrameMachine`（`running`・`screenRevision`・`frame()`）と `TimedMachine`（`running`・`screenRevision`・`hz`・`advance(ms)`・`run(cycles)`）。ELEC-16 の `Elec16` は後者をそのまま満たす
+- 重い機械（Linux 系ペイン）は、機械を Web Worker で動かす。`shared/emu` とコアは DOM を持たないので、そのまま Worker で動く。ただし**今の約束は同期で、画面の部品は `runner.machine.state` を直接読む**ので、そのままでは Worker に載らない。Worker の機械には、状態を写しで受け取る別のループと約束を作る
 
 ## 5. 段階 0（2026-10-03）で切り出したもの、残したもの
 
