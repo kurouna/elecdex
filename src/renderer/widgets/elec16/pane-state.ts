@@ -13,6 +13,7 @@ import {
   MODEL_IDS,
   type ModelId,
 } from '@shared/elec16/map'
+import { oneOf } from '../emu/format.js'
 import { isSkinId, type SkinId } from './skins.js'
 
 export const ELEC16_TABS = ['core', 'mem', 'tune'] as const
@@ -39,9 +40,6 @@ export interface Elec16Pane {
   /** Added to the contrast the machine sets, -7 to 7. */
   contrast: number
 }
-
-const oneOf = <T extends string | number>(value: unknown, options: readonly T[], fallback: T): T =>
-  (options as readonly unknown[]).includes(value) ? (value as T) : fallback
 
 export function readElec16Pane(state: Record<string, unknown> | undefined): Elec16Pane {
   const s = state ?? {}

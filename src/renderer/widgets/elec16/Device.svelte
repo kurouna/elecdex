@@ -1,5 +1,6 @@
 <script lang="ts">
 import { MODELS } from '@shared/elec16/map'
+import { watchRoom } from '../emu/screen.ts'
 import Keyboard from './Keyboard.svelte'
 import Lcd from './Lcd.svelte'
 import { type Body, bodyFor } from './layout.ts'
@@ -26,26 +27,20 @@ interface Props {
 const { runner, skin, lcdColours, mode, ghost, contrast, seen }: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
-let room = $state({ w: 0, h: 0 })
+let room = $state({ w: 0, h: 0, ratio: 1 })
 
+// The ratio is read with the size: a window moved to another display changes both.
 $effect(() => {
   const el = host
   if (el === null) return
-  const observer = new ResizeObserver((entries) => {
-    const box = entries[entries.length - 1]?.contentRect
-    // Behind a tab it measures nothing: kept as it was.
-    if (box === undefined || box.width === 0 || box.height === 0) return
-    if (box.width !== room.w || box.height !== room.h) room = { w: box.width, h: box.height }
+  return watchRoom(el, (next) => {
+    const ratio = window.devicePixelRatio || 1
+    if (next.w !== room.w || next.h !== room.h || ratio !== room.ratio) room = { ...next, ratio }
   })
-  observer.observe(el)
-  return () => observer.disconnect()
 })
 
-const model = $derived.by(() => {
-  void runner.stepped
-  return MODELS[runner.machine?.state.model ?? 'pocket-48']
-})
-const ratio = typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1
+const model = $derived(MODELS[runner.model])
+const ratio = $derived(room.ratio)
 const body = $derived<Body>(
   mode === 'auto'
     ? bodyFor(room, { w: (model.width * 2) / ratio, h: (model.height * 2) / ratio })

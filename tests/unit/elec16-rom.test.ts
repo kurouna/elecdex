@@ -188,6 +188,57 @@ describe('the ROM', () => {
     expect(screen(m)).toEqual(['*', '', '', '', '', ''])
   })
 
+  it('says where BRK stopped a program even while it waits for a key in a ROM service', () => {
+    const m = boot()
+    enter(m, 'li t0, 2\necall\nret')
+    type(m, 'G 7000\n')
+    expect(m.run(1000).sleeping?.key).toBe(true)
+    m.brk()
+    settle(m)
+    expect(shown(m).slice(-2)).toEqual([expect.stringMatching(/^BREAK AT 8[0-9A-F]{3}$/), '*'])
+  })
+
+  it('stops at an ECALL with no such service, and says so', () => {
+    const m = boot()
+    enter(m, 'li t0, 99\necall\nret')
+    type(m, 'G 7000\n')
+    expect(shown(m).slice(-2)).toEqual([expect.stringMatching(/^FAULT 000B AT 7004$/), '*'])
+  })
+
+  it('keeps SHIFT across CAPS, and lets it go with BRK', () => {
+    const m = boot()
+    press(m, keyCode('shift'))
+    press(m, keyCode('caps'))
+    press(m, keyCode('1'))
+    expect(shown(m).at(-1)).toBe('*!')
+    press(m, keyCode('shift'))
+    m.brk()
+    settle(m)
+    expect(annunciated(m)).not.toContain('SHIFT')
+    press(m, keyCode('1'))
+    expect(shown(m).at(-1)).toBe('*1')
+  })
+
+  it('answers ? to a number that is not one, or a byte too big', () => {
+    const m = boot()
+    for (const line of ['E 7000 1234', 'E 7000 12 zz 34', 'D 7Q', 'G 70G0']) {
+      type(m, `${line}\n`)
+      expect(shown(m).slice(-2), line).toEqual(['?', '*'])
+    }
+    expect(m.state.ram[0x7000]).toBe(0)
+  })
+
+  it('rubs out back across a line that wrapped and scrolled', () => {
+    const m = boot()
+    for (let k = 0; k < 4; k++) type(m, `${k}\n`)
+    type(m, 'X'.repeat(41))
+    expect(shown(m).at(-1)).toBe('XX')
+    press(m, keyCode('bs'))
+    press(m, keyCode('bs'))
+    press(m, keyCode('bs'))
+    expect(shown(m).at(-1)).toBe(`*${'X'.repeat(38)}`)
+  })
+
   it('refuses to write the ROM', () => {
     const m = boot()
     type(m, 'E 8000 00\n')

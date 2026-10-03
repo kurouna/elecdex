@@ -10,14 +10,15 @@ import {
   VRAM,
   VRAM_WINDOW,
 } from '@shared/elec16/map'
+import { hex as hexDigits } from '../emu/format.js'
 
 /**
  * What CORE and MEM show of an ELEC-16 (docs/elec16.md section 7), read from the machine
  * without side effects (memory through the bus's peek, which never pops a key). Pure.
  */
 
-export const hex = (n: number, digits = 4): string =>
-  (n & 0xffff).toString(16).toUpperCase().padStart(digits, '0')
+/** A word in hex: four digits unless told fewer. */
+export const hex = (n: number, digits = 4): string => hexDigits(n & 0xffff, digits)
 
 export interface CodeLine {
   address: number

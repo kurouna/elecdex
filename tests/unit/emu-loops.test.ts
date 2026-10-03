@@ -270,17 +270,42 @@ describe('the timed loop', () => {
       { tickMs: 1000 / 60, maxCatchUpMs: 50, budgetMs: 8, slice: 1_000_000, drawMs: 50 },
       () => {},
     )
+    let drawn = -1
+    owner.draw = () => {
+      draws++
+      drawn = machine.screenRevision
+      return false
+    }
     loop.start()
     for (let k = 0; k < 60; k++) {
       clock.advance(1000 / 60)
       clock.flushFrames()
     }
+    // The screen stops changing: its last state is drawn, at most a draw interval later.
+    owner.ran = () => {}
+    clock.advance(100)
+    clock.flushFrames()
+    expect(drawn).toBe(machine.screenRevision)
     // A second of a screen changing every tick: about twenty draws (each waits for the next
     // frame after its 50 ms), not sixty.
     expect(draws).toBeGreaterThanOrEqual(15)
     expect(draws).toBeLessThanOrEqual(21)
     loop.stop()
     expect(clock.timers.size).toBe(0)
+  })
+
+  it('draws nothing once stopped, a fade cut short with it', () => {
+    const t = setUp()
+    t.loop.start()
+    t.machine.screenRevision++
+    t.clock.advance(20)
+    t.fade(5)
+    t.clock.flushFrames()
+    t.loop.stop()
+    const before = t.draws()
+    for (let k = 0; k < 5; k++) t.clock.flushFrames()
+    expect(t.draws()).toBe(before)
+    expect(t.clock.frames.size).toBe(0)
   })
 
   it('does nothing once stopped', () => {

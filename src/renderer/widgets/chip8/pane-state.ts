@@ -9,6 +9,7 @@
  */
 
 import { CHIP8_GENRES, type Chip8Genre, isChip8ProgramId } from '@shared/chip8-library'
+import { oneOf } from '../emu/format.js'
 
 export const CHIP8_TABS = ['core', 'mem', 'tune', 'save'] as const
 export type Chip8Tab = (typeof CHIP8_TABS)[number]
@@ -42,11 +43,6 @@ export const listShareOf = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value)
     ? Math.min(LIST_SHARE.max, Math.max(LIST_SHARE.min, value))
     : LIST_SHARE.reset
-
-const oneOf = <T extends string>(value: unknown, options: readonly T[], fallback: T): T =>
-  typeof value === 'string' && (options as readonly string[]).includes(value)
-    ? (value as T)
-    : fallback
 
 const flag = (value: unknown, fallback: boolean): boolean =>
   typeof value === 'boolean' ? value : fallback

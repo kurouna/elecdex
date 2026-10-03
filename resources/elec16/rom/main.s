@@ -8,20 +8,6 @@
   .include "io.inc"
   .include "ram.inc"
 
-  .macro enter3 r1, r2
-  addi sp, sp, -6
-  sw ra, 4(sp)
-  sw \r1, 2(sp)
-  sw \r2, 0(sp)
-  .endm
-
-  .macro leave3 r1, r2
-  lw \r2, 0(sp)
-  lw \r1, 2(sp)
-  lw ra, 4(sp)
-  addi sp, sp, 6
-  .endm
-
   .org 0x8000
 reset:
   .option nocompress

@@ -35,11 +35,12 @@
 | `shared/emu/base64.ts` | `toBase64`、`fromBase64`: バイト列を文字に（コアには Node の Buffer も DOM の btoa もない）。段階 2 で CHIP-8 のプレビューから移した | CHIP-8 / ELEC-16 |
 | `shared/emu/mem-window.ts` | MEM の窓: 行の並べ方（`windowStart`、`scrollWindow`）、行（`memoryRows`）、変わったバイト（`changedBytes`、`byteMap`）。メモリは配列か、副作用のない読み出し関数（`ByteSource`。I/O を持つ機械が FIFO を読んで減らさないように） | CHIP-8 |
 | `widgets/emu/runner.svelte.ts` | `EmuRunner`: 一時停止、見えているか、状態（`empty` / `running` / `paused` / `halted`）、変更の数（AUTO を書くか決める）、描く人への通知。ループは機種が渡す（§4） | CHIP-8 |
+| `widgets/emu/format.ts` | `hex`、`oneOf`: CORE と MEM の 16 進、ペイン状態の値の読み戻し（段階 2 のレビューで CHIP-8 と ELEC-16 から寄せた） | CHIP-8 / ELEC-16 |
 | `widgets/emu/loops.ts` | ループ: `FrameLoop`（フレーム単位、画面が動く間は rAF、止まればタイマー）と `TimedLoop`（タイマーでサイクルを回し、画面が変わったときだけ rAF で描き、眠れば止まる） | CHIP-8 / ELEC-16 |
 | `widgets/emu/painter.ts` | `Painter` / `paintStill`: 画面を画素にする。消えるドットはゆっくり、点くドットはすぐ。消える速さは機械が渡す（CRT の蛍光体、液晶の応答） | CHIP-8 |
 | `widgets/emu/park.ts` | `createPark`: ペインの移動で再マウントする間、機械を 10 秒預かる場所。機種ごとに 1 つ（別の機種の機械を取り違えない） | CHIP-8 |
 | `widgets/emu/audio.ts` | `SharedAudio` / `emuAudio`: エミュレータのペイン全体で 1 つの AudioContext。要るまで作らず、4 秒鳴らなければ眠らせる。機種の声（AudioWorklet のモジュール）は初めて頼まれたときに 1 度だけ足す | CHIP-8 |
-| `widgets/emu/screen.ts` | `deviceRoom`（ResizeObserver の entry からデバイスピクセルの部屋。0 は無視）、`drawDotGrid`（ドットの間の格子を 1 度だけ canvas に描く） | CHIP-8 |
+| `widgets/emu/screen.ts` | `deviceRoom`（ResizeObserver の entry からデバイスピクセルの部屋。0 は無視）、`watchRoom`（CSS ピクセルの部屋を entry から。0 は無視）、`drawDotGrid`（ドットの間の格子を 1 度だけ canvas に描く） | CHIP-8 / ELEC-16 |
 
 ## 4. EmuRunner
 
@@ -84,3 +85,5 @@
 | プラグイン API 3（エミュレータの受け皿） | プラグインが自分の機械を持ち込み、runner、画面、音、セーブはホストが出す | プラグインの作者の責任 | 中 | 要相談。同意の設計が要る |
 | テスト用の決定的な機械 | 同じ入力で必ず同じ画面になる機械を、e2e の負荷や CRT の遷移のテストに使う | 自前 | 小 | ついでに |
 | 市販のゲーム機やパソコン、実機のポケコン | — | ROM が著作物で、同梱も配布もできない | — | やらない |
+
+**段階 2 のレビューのあとに寄せたものと、寄せなかったもの**: 2 台目の機械ができたので、`hex`・`oneOf`（`format.ts`）と CSS ピクセルの部屋の監視（`watchRoom`）を `widgets/emu` に寄せた。CORE と MEM の部品は寄せていない。MEM の論理（窓、変わったバイト）は既に `shared/emu/mem-window.ts` で共有していて、残りは機種ごとの表示（CHIP-8 のスプライトの絵、ELEC-16 の番地の種類の色）が大半のため。3 台目の機械で同じ形が見えたら部品にする

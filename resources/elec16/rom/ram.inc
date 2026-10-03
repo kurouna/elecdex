@@ -13,6 +13,7 @@ DNEXT   = 0x10      ; where D goes on when given no address
 RETPC   = 0x12      ; where an ECALL service returns to
 ERA     = 0x14      ; the caller's ra while an ECALL service runs
 CAUSE   = 0x16      ; mcause of the last break or fault
+MONWAIT = 0x18      ; 1 while the monitor waits at its prompt for a line
 REGS    = 0x20      ; 16 words at the last break or fault: pc, then x1 to x15
 LINEBUF = 0x40      ; the line being typed, ended by a zero (64 bytes)
 

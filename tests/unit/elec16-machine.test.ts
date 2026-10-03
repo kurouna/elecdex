@@ -577,7 +577,7 @@ describe('traps, CSRs and sleeping', () => {
     ])
   })
 
-  it('steps one instruction at a time, runs a sixtieth of its clock a frame, and holds the clock in range', () => {
+  it('steps one instruction at a time, runs the cycles it is given, and holds the clock in range', () => {
     const m = boot(`
     loop:
       addi a0, a0, 1
@@ -589,7 +589,7 @@ describe('traps, CSRs and sleeping', () => {
     m.hz = 1
     expect(m.hz).toBe(1_000_000)
     const before = m.state.cycles
-    m.frame()
+    m.run(Math.round(m.hz / 60))
     expect(m.state.cycles - before).toBeGreaterThanOrEqual(1_000_000 / 60)
     expect(m.state.cycles - before).toBeLessThan(1_000_000 / 60 + 4)
   })

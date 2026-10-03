@@ -40,11 +40,7 @@ let gridCanvas = $state<HTMLCanvasElement | null>(null)
 let room = $state<Room>({ w: 0, h: 0, ratio: 1 })
 let text = $state('')
 
-// The machine is not state: a new one (another LCD fitted) is told by the count of changes.
-const model = $derived.by(() => {
-  void runner.stepped
-  return MODELS[runner.machine?.state.model ?? 'pocket-48']
-})
+const model = $derived(MODELS[runner.model])
 /** The glass round the dots, and the annunciators' line on it, in CSS pixels. */
 const PAD = 8
 const MARKS = 14
@@ -73,6 +69,8 @@ const rgb = ([r, g, b]: readonly number[]): string => `rgb(${r} ${g} ${b})`
 const painter = new LcdPainter()
 let dots: ImageData | null = null
 let shadows: ImageData | null = null
+let dotsCtx: CanvasRenderingContext2D | null = null
+let shadowCtx: CanvasRenderingContext2D | null = null
 let pixels = new Uint8Array(0)
 /** The cursor's half of a blink: shown, or not. */
 let blinkOn = true
@@ -98,9 +96,8 @@ $effect(() => {
 
 /** New colours for the size, colours and contrast; every dot is drawn on the next paint. */
 function remake(): void {
-  const machine = runner.machine
-  if (machine === null || dots === null || shadows === null) return
-  madeFor = machine.state.lcd.contrast
+  if (dots === null || shadows === null) return
+  madeFor = runner.machine?.state.lcd.contrast ?? 8
   painter.configure(dots, shadows, model.width, model.height, colours, madeFor + contrast)
 }
 
@@ -115,19 +112,19 @@ function cursorNow(): Cursor | null {
 /** Paints what changed; true while dots are still fading. */
 function draw(): boolean {
   const machine = runner.machine
-  const dotsCtx = dotsCanvas?.getContext('2d') ?? null
-  const shadowCtx = shadowCanvas?.getContext('2d') ?? null
-  if (machine === null || dotsCtx === null || shadowCtx === null) return false
-  if (dots === null || shadows === null) return false
+  if (machine === null || dotsCtx === null || dots === null || shadows === null) return false
   const s = machine.state
   if (s.lcd.contrast !== madeFor) remake()
   const shown = s.lcd.on && !s.off
   if (shown) machine.pixels(pixels)
   else pixels.fill(0)
-  const { dirty, fading } = painter.paint(pixels, model.depth, ghost, shown ? cursorNow() : null)
+  // Stopped, no frames come to finish a fade: the picture is drawn exact.
+  const fade = ghost && runner.status === 'running'
+  const { dirty, fading } = painter.paint(pixels, model.depth, fade, shown ? cursorNow() : null)
   if (dirty !== null) {
     dotsCtx.putImageData(dots, 0, 0, dirty.x, dirty.y, dirty.w, dirty.h)
-    shadowCtx.putImageData(shadows, 0, 0, dirty.x, dirty.y, dirty.w, dirty.h)
+    // Too small to fall past the gap, the shadow would lie under the dots: not drawn.
+    if (shadowAt > 0) shadowCtx?.putImageData(shadows, 0, 0, dirty.x, dirty.y, dirty.w, dirty.h)
   }
   return fading
 }
@@ -142,23 +139,24 @@ function readText(): void {
 }
 
 // A new size, model, colours or contrast: everything drawn again.
+// Only then: a new machine on the same LCD (BRK, a step) is drawn as the dots that differ.
 $effect(() => {
-  void runner.stepped
-  const machine = runner.machine
-  const els = [dotsCanvas, shadowCanvas]
+  const dotsEl = dotsCanvas
+  const shadowEl = shadowCanvas
   const w = model.width
   const h = model.height
   void colours
   void contrast
-  if (machine === null || els.some((el) => el === null)) return
+  if (dotsEl === null || shadowEl === null) return
   untrack(() => {
-    for (const el of els) {
-      if (el === null) continue
+    for (const el of [dotsEl, shadowEl]) {
       el.width = w
       el.height = h
     }
-    dots = dotsCanvas?.getContext('2d')?.createImageData(w, h) ?? null
-    shadows = shadowCanvas?.getContext('2d')?.createImageData(w, h) ?? null
+    dotsCtx = dotsEl.getContext('2d')
+    shadowCtx = shadowEl.getContext('2d')
+    dots = dotsCtx?.createImageData(w, h) ?? null
+    shadows = shadowCtx?.createImageData(w, h) ?? null
     pixels = new Uint8Array(w * h)
     remake()
     draw()
@@ -196,7 +194,9 @@ $effect(() => {
   if (!seen || runner.status === 'empty') return
   return onBoundary(500, () => {
     blinkOn = !blinkOn
-    if (((runner.machine?.state.lcd.cursorMode ?? 0) & 4) !== 0) draw()
+    const s = runner.machine?.state
+    if (s === undefined || s.off || !s.lcd.on) return
+    if ((s.lcd.cursorMode & 4) !== 0) draw()
     if (blinkOn) readText()
   })
 })

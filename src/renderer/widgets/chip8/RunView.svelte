@@ -3,6 +3,7 @@ import type { Chip8Program, Chip8Slot } from '@shared/chip8-library'
 import { afterBlink } from '../../lib/blink.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import { watchRoom } from '../emu/screen.ts'
 import CoreView from './CoreView.svelte'
 import { haltLines } from './core.ts'
 import Keypad from './Keypad.svelte'
@@ -64,14 +65,10 @@ let room = $state({ w: 0, h: 0 })
 $effect(() => {
   const el = body
   if (el === null) return
-  const observer = new ResizeObserver((entries) => {
-    const box = entries[entries.length - 1]?.contentRect
-    // Behind a tab the view measures nothing: kept as it was, so the panel does not fold away.
-    if (box === undefined || box.width === 0 || box.height === 0) return
-    if (box.width !== room.w || box.height !== room.h) room = { w: box.width, h: box.height }
+  // Behind a tab the view measures nothing: kept as it was, so the panel does not fold away.
+  return watchRoom(el, (next) => {
+    if (next.w !== room.w || next.h !== room.h) room = next
   })
-  observer.observe(el)
-  return () => observer.disconnect()
 })
 
 /** Opened by hand while it had folded away for want of room: shown anyway, for this mount. */

@@ -83,8 +83,9 @@ export function changedRegisters(
   return changed
 }
 
-export const hex = (value: number, digits: number): string =>
-  value.toString(16).toUpperCase().padStart(digits, '0')
+import { hex } from '../emu/format.js'
+
+export { hex }
 
 const HALT_WORDS: Readonly<Record<Halt['reason'], string>> = {
   exit: 'PROGRAM ENDED',

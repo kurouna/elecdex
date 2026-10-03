@@ -19,9 +19,12 @@ prompt:
   li a0, 0x2a           ; *
   call putc
   ; A line may be longer than the screen is wide: it goes on below.
+  li t0, 1
+  sw t0, MONWAIT(zero)
   li a0, LINEBUF
   li a1, LINE_MAX
   call readline
+  sw zero, MONWAIT(zero)
   bltz a0, prompt
   call newline
   li s0, LINEBUF
@@ -48,16 +51,20 @@ what:
   j prompt
 
 ; A break or a fault, out of the trap handler. BRK at the monitor's own prompt only gives
-; a fresh one; anywhere else it says where the machine was.
+; a fresh one; anywhere else - a program, even one waiting for a key in a ROM service - it
+; says where the machine was. A SHIFT pressed before it is let go.
 broken:
   li sp, STACK_TOP
+  lw t0, FLAGS(zero)
+  andi t0, t0, ~F_SHIFT
+  sw t0, FLAGS(zero)
+  call annunciate
   call fresh_line
   lw t0, CAUSE(zero)
   li t1, 0x800f         ; the BRK line
   bne t0, t1, .said
-  lw t1, REGS(zero)
-  li t2, 0x8000
-  bgeu t1, t2, prompt
+  lw t1, MONWAIT(zero)
+  bnez t1, prompt
 .said:
   li t1, 3              ; EBREAK
   beq t0, t1, .break
@@ -130,11 +137,22 @@ cmd_dump:
   sw s1, DNEXT(zero)
   j prompt
 
-; E addr bb bb ...: bytes into RAM or video memory (the ROM and I/O are refused).
+; E addr bb bb ...: bytes into RAM or video memory (the ROM and I/O are refused). The whole
+; line is read first, so one that is wrong anywhere writes nothing.
 cmd_enter:
   call hex_arg
   beqz a1, what
   mv s1, a0
+  mv s3, s0
+.check:
+  call hex_arg
+  beqz a1, .checked
+  ; A byte is two hex digits at most.
+  li t0, 0x100
+  bgeu a0, t0, what
+  j .check
+.checked:
+  mv s0, s3
   sw s1, DNEXT(zero)
 .next:
   call hex_arg
@@ -228,7 +246,8 @@ upcase:
   ret
 
 ; The hex number at s0 after any spaces: its value in a0, and in a1 how many digits it had
-; (0 when there was none). s0 moves past it.
+; (0 when there was none). s0 moves past it. A number not ended by a space or the line's
+; end is no number: the command is answered with ?.
 hex_arg:
   addi sp, sp, -2
   sw ra, 0(sp)
@@ -252,6 +271,11 @@ hex_arg:
   addi s0, s0, 1
   j .digit
 .done:
+  lbu t0, 0(s0)
+  beqz t0, .ended
+  li t1, 0x20
+  bne t0, t1, what
+.ended:
   mv a0, a2
   lw ra, 0(sp)
   addi sp, sp, 2

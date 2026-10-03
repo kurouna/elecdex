@@ -101,7 +101,9 @@ putc:
 
 ; Text ended by a zero, at a0.
 puts:
-  enter3 s0, s1
+  addi sp, sp, -4
+  sw ra, 2(sp)
+  sw s0, 0(sp)
   mv s0, a0
 .loop:
   lbu a0, 0(s0)
@@ -110,7 +112,9 @@ puts:
   addi s0, s0, 1
   j .loop
 .done:
-  leave3 s0, s1
+  lw s0, 0(sp)
+  lw ra, 2(sp)
+  addi sp, sp, 4
   ret
 
 ; To the start of the next line, scrolling the screen up when it is at the bottom.

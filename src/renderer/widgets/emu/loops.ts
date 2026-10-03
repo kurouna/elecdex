@@ -231,8 +231,10 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
     this.#active = true
     this.#last = this.#host.now()
     this.#owed = 0
-    // Started afresh - perhaps on another machine: whether it sleeps is told again.
+    // Started afresh - perhaps on another machine: whether it sleeps is told again, and its
+    // screen is drawn whatever count of changes it shows.
     this.#asleep = null
+    this.#drawn = -1
     this.#schedule(0)
   }
 
@@ -320,7 +322,7 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
    * `drawMs` has passed since the last draw (a timer holds it back till then).
    */
   #requestDraw(): void {
-    if (this.#frame !== null || this.#drawTimer !== null) return
+    if (!this.#active || this.#frame !== null || this.#drawTimer !== null) return
     const wait = (this.#policy.drawMs ?? 0) - (this.#host.now() - this.#drawnAt)
     if (wait > 1) {
       this.#drawTimer = this.#host.setTimer(() => {

@@ -11,6 +11,7 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
+import { watchRoom } from '../emu/screen.ts'
 import type { WidgetProps } from '../registry.ts'
 import CoreView from './CoreView.svelte'
 import { labelsOf } from './core.ts'
@@ -155,13 +156,9 @@ let room = $state({ w: 0, h: 0 })
 $effect(() => {
   const el = body
   if (el === null) return
-  const observer = new ResizeObserver((entries) => {
-    const box = entries[entries.length - 1]?.contentRect
-    if (box === undefined || box.width === 0 || box.height === 0) return
-    if (box.width !== room.w || box.height !== room.h) room = { w: box.width, h: box.height }
+  return watchRoom(el, (next) => {
+    if (next.w !== room.w || next.h !== room.h) room = next
   })
-  observer.observe(el)
-  return () => observer.disconnect()
 })
 /** Opened by hand while it had folded away for want of room: shown anyway, for this mount. */
 let forced = $state(false)
@@ -361,14 +358,6 @@ onDestroy(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
-}
-
-.title {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--step-0);
-  letter-spacing: var(--tracking-wide);
-  color: var(--text);
 }
 
 .lamps {

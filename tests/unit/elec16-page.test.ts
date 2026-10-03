@@ -133,6 +133,20 @@ describe('the LCD painter', () => {
     expect(at(dots, 6, 7)[3]).toBe(255)
   })
 
+  it('blinks the cursor whole with the fade on: its cell changes at once', () => {
+    const { dots, painter, pixels } = setUp(12, 8)
+    painter.paint(pixels, 1, true, { column: 1, row: 0, shape: 2 })
+    expect(at(dots, 6, 0)[3]).toBe(255)
+    // The half of the blink without it: out at once, nothing left fading.
+    expect(painter.paint(pixels, 1, true, null).fading).toBe(false)
+    expect(at(dots, 6, 0)[3]).toBe(0)
+    // A dot of the text still fades.
+    pixels[0] = 1
+    painter.paint(pixels, 1, true, null)
+    pixels[0] = 0
+    expect(painter.paint(pixels, 1, true, null).fading).toBe(true)
+  })
+
   it('shows four shades on the handheld screen, and holds contrast to its range', () => {
     const { dots, painter, pixels } = setUp()
     pixels.set([1, 2, 3])

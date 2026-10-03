@@ -149,6 +149,32 @@ describe('the ELEC-16 runner', () => {
     expect(lines()[0]).toBe('ELEC-16 MONITOR 0.1')
   })
 
+  it('hands its machine to the next mount of a moved pane, which goes on from it', () => {
+    const { clock, runner } = setUp()
+    runner.down(keyCode('d'), false)
+    clock.advance(50)
+    const machine = runner.detach()
+    expect(runner.status).toBe('empty')
+    expect(machine).not.toBeNull()
+    const next = new Elec16Runner(clock.host)
+    if (machine !== null) next.adopt(machine, 4_000_000, false)
+    next.down(keyCode('1'), false)
+    clock.advance(50)
+    const s = next.machine?.state
+    expect(s === undefined ? [] : screenText(s.vram, 240, 48)[1]?.trimEnd()).toBe('*D1')
+    expect(next.model).toBe('pocket-48')
+  })
+
+  it('stays paused when another LCD is fitted, and keeps its RAM', () => {
+    const { runner } = setUp()
+    runner.machine?.state.ram.set([0x5a], 0x100)
+    runner.pause()
+    runner.boot(ROM, 'pocket-64', 4_000_000, runner.machine?.state.ram.slice())
+    expect(runner.status).toBe('paused')
+    expect(runner.model).toBe('pocket-64')
+    expect(runner.machine?.state.ram[0x100]).toBe(0x5a)
+  })
+
   it('steps one instruction at a time while paused, and runs MAX on the budget', () => {
     const { clock, runner } = setUp()
     runner.pause()

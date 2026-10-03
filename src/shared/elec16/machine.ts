@@ -33,7 +33,6 @@ import {
   type Halt,
   INTERRUPT,
   IRQ,
-  KEY_ROWS,
   MIE,
   MISA,
   MPIE,
@@ -150,11 +149,6 @@ export class Elec16 implements Core {
   /** One instruction (CORE's STEP), or the interrupt taken before it. */
   step(): RunResult {
     return this.#result(this.#step())
-  }
-
-  /** A sixtieth of a second at the machine's clock: what an emulator's loop runs a frame. */
-  frame(): void {
-    this.run(Math.round(this.#hz / 60))
   }
 
   /** Host time passes: the timer counts, and may raise its interrupt. */
@@ -441,9 +435,6 @@ export class Elec16 implements Core {
     }
   }
 }
-
-/** The key matrix's size, for a page that maps its keys onto it. */
-export const KEY_COUNT = KEY_ROWS * 8
 
 /** An operation's number by name, for a test or a debugger. */
 export { OP }

@@ -3,7 +3,7 @@
  * Builds the ELEC-16's ROM from its E16 assembly (resources/elec16/rom, docs/elec16.md
  * section 6) with the pane's own assembler, and writes what the page loads:
  * src/renderer/widgets/elec16/rom.json, the image in base64 and the global labels. A unit
- * test (elec16-rom-file.test.ts) holds the file to what the sources build, so run this after
+ * test (elec16-tables.test.ts) holds the file to what the sources build, so run this after
  * changing a source, the font, the keys or the assembler.
  *
  *   npm run gen:elec16

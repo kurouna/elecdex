@@ -47,6 +47,8 @@ const rows = $derived.by((): MemRow[] | null => {
   void tick
   void runner.stepped
   void runner.status
+  // Falling asleep stops the ticks: what was written last is read then.
+  void runner.asleep
   const machine = runner.machine
   if (machine === null) return null
   const start = follow === 'free' ? scrollWindow(top, 0, SIZE) : windowStart(target(follow), SIZE)

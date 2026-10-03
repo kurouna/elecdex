@@ -112,6 +112,33 @@ test('pauses behind a tab, and comes back by itself when it was asleep at its pr
   }
 })
 
+test('a pane split beside it keeps its machine, RAM, screen and all', async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'e 7000 5a')
+    await page.keyboard.type('d 7', { delay: 15 })
+    // Splitting the pane remounts its widget (the new one beside it is a second ELEC-16): the
+    // machine is taken up where it was, the half-typed line with it.
+    await page.keyboard.press('Control+Shift+KeyE')
+    await expect(page.getByTestId('pane')).toHaveCount(3)
+    const original = page.locator('[data-testid=pane][data-pane-id=e16]')
+    const lines = async () =>
+      ((await original.getByTestId('elec16-text').textContent()) ?? '')
+        .split('\n')
+        .map((l) => l.trimEnd())
+    await expect.poll(lines).toContain('*D 7')
+    await original.getByTestId('elec16').focus()
+    await page.keyboard.type('000', { delay: 15 })
+    await page.keyboard.press('Enter')
+    await expect.poll(lines).toEqual(expect.arrayContaining([expect.stringMatching(/^7000: 5A/)]))
+  } finally {
+    await close()
+  }
+})
+
 test('TUNE fits another LCD, keeping the RAM, and changes the skin', async () => {
   const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
@@ -164,8 +191,10 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
     const paused = await measure()
     await page.getByTestId('elec16-pause').click()
     await root.focus()
-    // A loop that writes the screen every turn, and one that only spins.
-    await typeLine(page, 'e 7000 1f 04 00 07 09 12 07 00 26 00 f5 bf')
+    // A loop that writes the screen every turn - its last byte, away from the banner, so the
+    // window watched while the test runs does not seem to flicker where text is - and one that
+    // only spins.
+    await typeLine(page, 'e 7000 1f fc 2c 07 09 12 07 00 26 00 f5 bf')
     await typeLine(page, 'e 7100 01 a0')
     const run = async (clock: string, at: string) => {
       await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()

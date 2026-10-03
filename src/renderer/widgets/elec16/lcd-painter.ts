@@ -59,6 +59,7 @@ export class LcdPainter {
   #dot = new Uint32Array(FULL + 1)
   #shadow = new Uint32Array(FULL + 1)
   #dots: Uint32Array<ArrayBufferLike> = new Uint32Array(0)
+  #lastCursor: Cursor | null = null
   #shadows: Uint32Array<ArrayBufferLike> = new Uint32Array(0)
 
   /**
@@ -86,6 +87,7 @@ export class LcdPainter {
     }
     // Unknown levels: every dot is drawn on the next paint.
     this.#levels = new Uint8Array(width * height).fill(255)
+    this.#lastCursor = null
   }
 
   /**
@@ -102,12 +104,17 @@ export class LcdPainter {
     const { width, height } = this
     const shadeStep = depth === 2 ? FULL / 3 : FULL
     const box = new Box(width, height)
+    // The cursor is the page's mark, not the crystals': its cell, where it is now and where
+    // it was, changes at once, or a blink would only dim it.
+    const marked = [cursor, this.#lastCursor]
+    this.#lastCursor = cursor
     let fading = false
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const shade = Math.round((pixels[y * width + x] ?? 0) * shadeStep)
         const target = cursor === null ? shade : cursorLevel(shade, x, y, cursor)
-        const moved = this.#move(x, y, target, ghost)
+        const fade = ghost && !marked.some((c) => c !== null && inCell(x, y, c))
+        const moved = this.#move(x, y, target, fade)
         if (moved === null) continue
         if (moved) fading = true
         box.take(x, y)
@@ -136,11 +143,17 @@ export class LcdPainter {
 const words = (image: ImageData): Uint32Array<ArrayBufferLike> =>
   new Uint32Array(image.data.buffer, image.data.byteOffset, image.data.length / 4)
 
-/** The level a dot shows with the cursor over its cell: a block turns it over, a line lights it. */
-function cursorLevel(level: number, x: number, y: number, cursor: Cursor): number {
+/** Whether a dot is in the cursor's cell (its five columns and eight rows). */
+function inCell(x: number, y: number, cursor: Cursor): boolean {
   const cx = x - cursor.column * 6
   const cy = y - cursor.row * 8
-  if (cx < 0 || cx > 4 || cy < 0 || cy > 7) return level
+  return cx >= 0 && cx <= 4 && cy >= 0 && cy <= 7
+}
+
+/** The level a dot shows with the cursor over its cell: a block turns it over, a line lights it. */
+function cursorLevel(level: number, x: number, y: number, cursor: Cursor): number {
+  if (!inCell(x, y, cursor)) return level
+  const cy = y - cursor.row * 8
   if (cursor.shape === 2) return cy < 7 ? FULL - level : level
   return cursor.shape === 1 && cy === 7 ? FULL : level
 }

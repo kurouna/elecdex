@@ -1,6 +1,6 @@
 import { keyCode } from '@shared/elec16/keys'
 import { type ClockFields, Elec16 } from '@shared/elec16/machine'
-import type { ModelId } from '@shared/elec16/map'
+import { DEFAULT_MODEL, type ModelId } from '@shared/elec16/map'
 import { type LoopHost, TimedLoop, type TimedPolicy } from '../emu/loops.ts'
 import { browserLoop, EmuRunner, type PauseReason, type RunStatus } from '../emu/runner.svelte.ts'
 
@@ -40,6 +40,7 @@ export const browserElec16Host: Elec16Host = {
 }
 
 const SHIFT = keyCode('shift')
+const CAPS = keyCode('caps')
 
 export class Elec16Runner extends EmuRunner<Elec16> {
   /** Asleep in WFI: the lamp, and whether coming back into sight goes on by itself. */
@@ -50,6 +51,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   annunciators = $state(0)
   /** Counts changes by hand (a step, BRK, a reset), so CORE reads the registers again. */
   stepped = $state(0)
+  /** The LCD fitted: the machine itself is not state, so its model is kept here for the views. */
+  model = $state<ModelId>(DEFAULT_MODEL)
 
   readonly #host: Elec16Host
   /** MAX: as many cycles as the budget allows. Shared with the loop, built before `this`. */
@@ -78,8 +81,12 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     return this.loop as TimedLoop<Elec16>
   }
 
-  /** Switches a machine on with `rom` in it, on `model`; the RAM given is kept (a new LCD). */
+  /**
+   * Switches a machine on with `rom` in it, on `model`; the RAM given is kept (a new LCD), and
+   * a machine the player had paused stays paused.
+   */
   boot(rom: Uint8Array, model: ModelId, hz: number, ram?: Uint8Array): void {
+    const paused = this.pausedBy === 'player'
     if (this.disposed) return
     this.stopLoop()
     const machine = Elec16.boot(rom, model, ram)
@@ -87,8 +94,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.setMachine(machine)
     this.setHz(hz)
     this.#shift = false
-    this.pausedBy = null
+    this.pausedBy = paused ? 'player' : null
     this.asleep = false
+    this.model = model
     this.#changed()
   }
 
@@ -99,6 +107,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     // Keys held as the pane moved: the new mount never hears them go up.
     machine.releaseAll()
     this.setMachine(machine)
+    this.model = machine.state.model
     this.setHz(hz)
     this.#shift = false
     this.pausedBy = paused ? 'player' : null
@@ -110,6 +119,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     const machine = this.machine
     this.stopLoop()
     this.setMachine(null)
+    this.settle()
     return machine
   }
 
@@ -124,7 +134,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   press(code: number): void {
     const machine = this.machine
     if (machine === null) return
-    this.#shift = code === SHIFT ? !this.#shift : false
+    // As the ROM has it: SHIFT holds for the next key, and CAPS does not use it up.
+    if (code === SHIFT) this.#shift = !this.#shift
+    else if (code !== CAPS) this.#shift = false
     machine.press(code)
     this.#timed.wake()
   }

@@ -24,6 +24,27 @@ export function deviceRoom(entry: ResizeObserverEntry, ratio: number): Room | nu
   return w === 0 || h === 0 ? null : { w, h, ratio }
 }
 
+/** The room in CSS pixels. */
+export interface CssRoom {
+  w: number
+  h: number
+}
+
+/**
+ * Calls `seen` with the room `el` is given in CSS pixels whenever it changes size, read from
+ * the observer's entry; an empty box (behind a tab) is skipped, so a pane keeps its layout for
+ * when it is back. Gives the function that stops watching.
+ */
+export function watchRoom(el: Element, seen: (room: CssRoom) => void): () => void {
+  const observer = new ResizeObserver((entries) => {
+    const box = entries[entries.length - 1]?.contentRect
+    if (box === undefined || box.width === 0 || box.height === 0) return
+    seen({ w: box.width, h: box.height })
+  })
+  observer.observe(el)
+  return () => observer.disconnect()
+}
+
 /**
  * The gaps between dots: a one-pixel line in `colour` every `step` device pixels, on a canvas
  * the size of the picture, drawn when the size or the colour changes and never again. Drawn
