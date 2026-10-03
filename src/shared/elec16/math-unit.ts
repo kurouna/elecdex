@@ -53,6 +53,8 @@ export const MATH_OP = {
   pi: 0x20,
   fromInt: 0x30,
   toInt: 0x31,
+  /** A whole number from -32768 to 65535 as its 16 bits: an address, signed or not. */
+  toWord: 0x32,
   parse: 0x38,
   format: 0x39,
 } as const
@@ -117,6 +119,7 @@ const CYCLES: Record<Op, number> = {
   [MATH_OP.pi]: 16,
   [MATH_OP.fromInt]: 30,
   [MATH_OP.toInt]: 30,
+  [MATH_OP.toWord]: 30,
   [MATH_OP.parse]: 40,
   [MATH_OP.format]: 200,
 }
@@ -206,7 +209,10 @@ function performOther(s: Elec16State, op: Op): void {
       store(s, m.a, D.fromInt((m.arg << 16) >> 16))
       break
     case MATH_OP.toInt:
-      toInt(s)
+      toInt(s, 32767)
+      break
+    case MATH_OP.toWord:
+      toInt(s, 65535)
       break
     case MATH_OP.parse:
       parseText(s)
@@ -234,9 +240,10 @@ function store(s: Elec16State, address: number, d: D.Dec): void {
 }
 
 /** The whole part towards zero, into ARG as a signed word. */
-function toInt(s: Elec16State): void {
+/** A's whole part into ARG, from -32768 to `most`; OVERFLOW beyond. */
+function toInt(s: Elec16State, most: number): void {
   const whole = D.toBigInt(load(s, s.math.a))
-  if (whole < -32768n || whole > 32767n) throw new Refused(MATH_ERR.overflow)
+  if (whole < -32768n || whole > BigInt(most)) throw new Refused(MATH_ERR.overflow)
   s.math.arg = Number(whole) & 0xffff
 }
 

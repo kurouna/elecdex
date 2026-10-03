@@ -187,6 +187,34 @@ describe('the ELEC-16 runner', () => {
     expect([...clock.timers.values()].every((t) => t.at - now < 1000)).toBe(true)
   })
 
+  it('knows a machine woken by the first tick after a pause is awake: no auto-off, no going on by itself', () => {
+    const { clock, runner } = setUp()
+    let told = 0
+    runner.onAutoOff = () => told++
+    runner.autoOffMs = 60_000
+    // c.j 0 at 0x7000: a jump to itself, entered now and started by keys typed while paused.
+    typeLine(runner, 'e 7000 01 a0')
+    clock.advance(50)
+    expect(runner.asleep).toBe(true)
+    runner.pause()
+    typeLine(runner, 'g 7000')
+    runner.resume()
+    clock.advance(50)
+    expect(runner.machine?.state.sleeping).toBe(false)
+    expect(runner.asleep).toBe(false)
+    // A key to the running program arms nothing.
+    runner.down(keyCode('a'), false)
+    runner.release(keyCode('a'))
+    runner.setHz(1000)
+    clock.advance(61_000)
+    expect(runner.off).toBe(false)
+    expect(told).toBe(0)
+    // Hidden and seen again, a running program stays paused.
+    runner.setSeen(false)
+    runner.setSeen(true)
+    expect(runner.status).toBe('paused')
+  })
+
   it('pauses at a breakpoint, goes on from it, and keeps it for the next mount', () => {
     const { clock, runner } = setUp()
     runner.toggleBreakpoint(0x7000)

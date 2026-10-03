@@ -170,11 +170,9 @@ describe('the timed loop', () => {
     t.loop.stop()
     t.loop.start()
     t.clock.advance(20)
-    // A new machine put in while stopped sleeps too: the runner must hear it, not assume it.
-    expect(t.sleeps).toEqual([
-      { key: true, timerMs: null },
-      { key: true, timerMs: null },
-    ])
+    // Started again it is awake until a tick says otherwise, and the runner hears both: a new
+    // machine put in while stopped, or one woken meanwhile, must not be taken as asleep.
+    expect(t.sleeps).toEqual([{ key: true, timerMs: null }, null, { key: true, timerMs: null }])
   })
 
   it('waits for the time the machine says it will wake, on one timer', () => {

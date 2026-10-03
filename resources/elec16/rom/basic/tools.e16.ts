@@ -13,6 +13,8 @@ import {
 import {
   E_ARGUMENT,
   E_COMPLEX,
+  E_MEMORY,
+  E_SYNTAX,
   fail,
   findLine,
   isDigit,
@@ -23,10 +25,11 @@ import {
   readUnsigned,
   setAuto,
   setTracing,
+  statementEnds,
   step,
   storeLine,
 } from './basic.e16'
-import { CH_COMMA, CH_MINUS, CH_QUOTE, CH_SPACE, PROG } from './rom.e16'
+import { CH_COMMA, CH_MINUS, CH_QUOTE, CH_SPACE, LIMIT, PROG } from './rom.e16'
 import {
   T_AUTO,
   T_DELETE,
@@ -58,6 +61,8 @@ function autoStatement(): void {
 
 /** DELETE a, DELETE a-b, DELETE -b, DELETE a-: the lines in that range taken out. */
 function deleteStatement(): void {
+  // DELETE alone would take the whole program: NEW says so, DELETE says which lines.
+  if (statementEnds()) fail(E_SYNTAX)
   let from: u16 = 0
   let to: u16 = 0xffff
   if (isDigit(next())) {
@@ -113,6 +118,7 @@ function renumStatement(): void {
     renumStep = readUnsigned()
   }
   checkRoom()
+  checkRewrites()
   // References first, while every line still has its old number to be found by.
   let at = PROG
   while (peek16(at) !== 0) {
@@ -135,7 +141,7 @@ function renumStatement(): void {
 
 /** The new numbers must fit a word and come after the lines left as they are. */
 function checkRoom(): void {
-  if (renumStep === 0 || newStart === 0) fail(E_ARGUMENT)
+  if (renumStep === 0 || newStart === 0 || newStart > 65529) fail(E_ARGUMENT)
   let count: u16 = 0
   for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
     const n = peek16(at)
@@ -143,6 +149,20 @@ function checkRoom(): void {
     if (n >= renumFrom) count++
   }
   if (count > 0 && count - 1 > div(65529 - newStart, renumStep)) fail(E_ARGUMENT)
+}
+
+/**
+ * Every line's references rewritten once without keeping them: a line made too long, or a
+ * program grown past memory, stops RENUM before anything has changed.
+ */
+function checkRewrites(): void {
+  let grows: u16 = 0
+  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
+    const length = rewrite(at + 4)
+    const was = peek16(at + 2) - 4
+    if (length > was) grows += length - was
+  }
+  if (progEnd + 2 + grows > LIMIT) fail(E_MEMORY)
 }
 
 /** A token after which a line number may come. */

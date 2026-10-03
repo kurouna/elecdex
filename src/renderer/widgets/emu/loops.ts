@@ -232,8 +232,12 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
     this.#last = this.#host.now()
     this.#owed = 0
     // Started afresh - perhaps on another machine: whether it sleeps is told again, and its
-    // screen is drawn whatever count of changes it shows.
-    this.#asleep = null
+    // screen is drawn whatever count of changes it shows. The owner hears that it is awake
+    // now, or a machine that wakes in the first tick would still be told asleep.
+    if (this.#asleep !== null) {
+      this.#asleep = null
+      this.#onSleep(null)
+    }
     this.#drawn = -1
     this.#schedule(0)
   }

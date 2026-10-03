@@ -73,6 +73,10 @@ what:
 broken:
   li sp, STACK_TOP
   call breaks_out
+  ; The monitor has the machine now, even when BASIC had it: BRK must stop what G runs.
+  sw zero, INBASIC(zero)
+  li t0, ANN_MON
+  sw t0, ANNMODE(zero)
   lw t0, FLAGS(zero)
   andi t0, t0, ~F_SHIFT
   sw t0, FLAGS(zero)
@@ -301,7 +305,7 @@ upcase:
 
 ; The hex number at s0 after any spaces: its value in a0, and in a1 how many digits it had
 ; (0 when there was none). s0 moves past it. A number not ended by a space or the line's
-; end is no number: the command is answered with ?.
+; end, or of more than four digits (it would wrap), is no number: the command is answered ?.
 hex_arg:
   addi sp, sp, -2
   sw ra, 0(sp)
@@ -330,6 +334,8 @@ hex_arg:
   li t1, 0x20
   bne t0, t1, what
 .ended:
+  li t1, 5
+  bgeu a1, t1, what
   mv a0, a2
   lw ra, 0(sp)
   addi sp, sp, 2

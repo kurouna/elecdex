@@ -10,6 +10,7 @@ import {
   type u8,
   type u16,
 } from '../../../../src/shared/e16c/builtins'
+import { E_SYNTAX, fail } from './basic.e16'
 import {
   CH_0,
   CH_A,
@@ -219,6 +220,9 @@ export function tokenize(text: u16, out: u16): u16 {
     const c: u8 = peek(text + i)
     // A quote is its own upper case, so the one opening or closing text may go either way.
     const keep: bool = kept()
+    // A kana (any byte from 0x80) is a character only where text is kept as typed: elsewhere
+    // it would be stored as a keyword's token and LIST as one.
+    if (c >= 0x80 && !keep) fail(E_SYNTAX)
     const token: u16 = keep || !isLetter(c) ? 0 : keywordAt(text + i)
     if (token !== 0) {
       poke(out + o, token)

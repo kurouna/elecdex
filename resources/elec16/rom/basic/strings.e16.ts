@@ -97,12 +97,10 @@ import {
   CH_STAR,
   CSR_MIE,
   fresh_line,
-  getkey,
   IO_CLOCK,
   IO_DUR,
   IO_FREQ,
   IO_HEIGHT,
-  IO_KEY_COUNT,
   IO_TCMP,
   IO_TCOUNT,
   IO_TCTRL,
@@ -114,6 +112,7 @@ import {
   MATH_STATUS,
   MIE_TIMER,
   PROG,
+  pollkey,
   putc,
   readline,
 } from './rom.e16'
@@ -402,12 +401,14 @@ function count(): u16 {
 /** INKEY$ (a key waiting, or the empty string), TIME$ and DATE$ from the clock. */
 function noArgument(token: u16): void {
   if (token === T_INKEY) {
-    if (peek16(IO_KEY_COUNT) === 0) {
+    // Never waits: SHIFT, CAPS or KANA alone in the FIFO is no key yet (pollkey takes them).
+    const c = pollkey()
+    if (c === 0) {
       pushString(0, 0)
       return
     }
     const at = tempString(1)
-    poke(at, getkey())
+    poke(at, c)
     pushString(at, 1)
     return
   }
@@ -466,6 +467,8 @@ export function readNumber(e: u16, at: u16, max: u16): u16 {
 
 /** INPUT ["prompt";] v[, v...]: asks until every variable gets a value of its kind. */
 export function inputStatement(): void {
+  // The INPUT itself, just before the text: BRK while it asks makes CONT ask again.
+  const again = txt - 1
   if (next() === CH_HASH) {
     inputFromFile()
     return
@@ -483,6 +486,7 @@ export function inputStatement(): void {
     putc(CH_QUESTION)
     const n: i16 = readline(addr(lineBuf), 78)
     if (n === -2) {
+      setTxt(again)
       poke16(BRKFLAG, 1)
       checkBreak()
     }
@@ -537,6 +541,8 @@ function takeString(at: u16, room: u16, q: u16, data: bool): u16 {
     end = start
     while (peek(end) !== CH_QUOTE && peek(end) !== 0) end++
     after = peek(end) === CH_QUOTE ? end + 1 : end
+    // Spaces before the comma after it, as an unquoted item's are.
+    while (peek(after) === CH_SPACE) after++
   } else {
     while (!itemEnds(peek(end), data)) end++
     after = end
@@ -657,7 +663,9 @@ function waitTicks(ticks: u16): void {
     // The timer's line alone: a key waiting in the FIFO (for INKEY$ after) would wake WFI
     // at once, and the wait would spin through every cycle of it. BRK wakes it whatever.
     csrw(CSR_MIE, MIE_TIMER)
-    wfi()
+    // A tick of the page's loop between reading the count and turning the compare on may
+    // have passed it unseen: then there is nothing to wait for (else WFI till it wraps).
+    if (u16(peek16(IO_TCOUNT) - start) < ticks) wfi()
     poke16(IO_TCTRL, 0)
     csrw(CSR_MIE, lines)
     checkBreak()

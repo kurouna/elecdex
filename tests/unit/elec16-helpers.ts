@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { type CardFile, cardOp } from '@shared/elec16/card'
 import { screenText } from '@shared/elec16/font'
-import { keyCode, keyForChar } from '@shared/elec16/keys'
+import { keyCode, keyForChar, keyForKana } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
 import { MODELS, type ModelId } from '@shared/elec16/map'
 import { buildRom } from '@shared/elec16/rom'
@@ -72,6 +72,15 @@ export function type(m: Elec16, text: string): void {
   for (const ch of text) {
     if (ch === '\n') {
       press(m, keyCode('enter'))
+      continue
+    }
+    const kana = keyForKana(ch)
+    if (kana !== null) {
+      // KANA mode for the one character, then out again.
+      press(m, keyCode('kana'))
+      if (kana.shift) press(m, keyCode('shift'))
+      press(m, kana.code)
+      press(m, keyCode('kana'))
       continue
     }
     const key = keyForChar(ch)

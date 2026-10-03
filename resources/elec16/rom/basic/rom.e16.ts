@@ -11,6 +11,10 @@ export declare function newline(): void
 export declare function fresh_line(): void
 export declare function cls(): void
 export declare function getkey(): u16
+/** The machine stack's room left, in bytes, above the code area it would run into. */
+export declare function stack_room(): u16
+/** The next key's character, or 0 when none waits; it never waits (INKEY$). */
+export declare function pollkey(): u16
 /** A line into `buf`, at most `max` characters: its length; -1 CLS, -2 BRK, -3 MODE. */
 export declare function readline(buf: u16, max: u16): i16
 export declare function annunciate(): void

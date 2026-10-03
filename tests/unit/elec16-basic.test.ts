@@ -4,7 +4,17 @@ import { keyCode } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
 import { buildRom } from '@shared/elec16/rom'
 import { describe, expect, it } from 'vitest'
-import { annunciated, card, press, screen, settle, shown, switchOn, type } from './elec16-helpers'
+import {
+  annunciated,
+  built,
+  card,
+  press,
+  screen,
+  settle,
+  shown,
+  switchOn,
+  type,
+} from './elec16-helpers'
 
 /**
  * The ROM's BASIC (resources/elec16/rom/basic, docs/elec16.md section 6), typed at as a
@@ -13,6 +23,20 @@ import { annunciated, card, press, screen, settle, shown, switchOn, type } from 
 
 const DIR = 'resources/elec16/rom/'
 const read = (name: string): string => readFileSync(`${DIR}basic/${name}`, 'utf8')
+
+/**
+ * Runs an instruction at a time until the machine waits for a key, time passing as it sleeps
+ * on its timer; one tick of 16 ms more at the `tickAt`th instruction inside [from, to).
+ */
+function stepTickingOnce(m: Elec16, from: number, to: number, tickAt: number): void {
+  let inside = 0
+  for (let k = 0; k < 500_000; k++) {
+    const r = m.step()
+    if (m.state.pc >= from && m.state.pc < to && inside++ === tickAt) m.advance(16)
+    if (r.sleeping?.timerMs === null) return
+    if (r.sleeping !== null) m.advance(Math.max(1, r.sleeping.timerMs ?? 1))
+  }
+}
 
 /** The rows a line printed, between its own row and the next prompt. */
 function say(m: Elec16, line: string): string[] {
@@ -315,6 +339,83 @@ describe('BASIC', () => {
     expect(text('P2.BAS')).toBe('10 PRINT "SAVED";2\r')
   })
 
+  it('reads quoted items from a PC file and its CRLF end, and DATA with spaces round commas', () => {
+    card.files = [
+      { name: 'Q.DAT', data: new TextEncoder().encode('"A,B" , C\r\n"D"\r\n'), modified: 0 },
+    ]
+    const m = switchOn('pocket-64')
+    expect(
+      say(m, 'OPEN "Q" FOR INPUT AS #1:INPUT #1,X$,Y$,Z$:PRINT X$;"/";Y$;"/";Z$;EOF(1):CLOSE'),
+    ).toEqual(['A,B/C/D1'])
+    type(m, 'NEW\n10 DATA "A" , "B"\n')
+    expect(say(m, 'READ A$,B$:PRINT A$;B$')).toEqual(['AB'])
+  })
+
+  it('saves a line of the longest length whole, and reads it back', () => {
+    card.files = []
+    const m = switchOn('pocket-64')
+    const line = `10 REM ${'X'.repeat(71)}`
+    expect(line).toHaveLength(78)
+    type(m, `${line}\n`)
+    for (const step of ['SAVE "L"', 'NEW', 'LOAD "L"']) expect(say(m, step), step).toEqual([])
+    expect(say(m, 'LIST')).toEqual([line.slice(0, 40), line.slice(40)])
+  })
+
+  it('takes addresses from 32768 up, and as negative numbers, for PEEK, POKE and CALL', () => {
+    const m = switchOn('pocket-64')
+    // Video memory, beyond the screen's own bytes on this model's (E000 + 1000).
+    expect(say(m, 'POKE 58344,165:PRINT PEEK 58344;PEEK -7192')).toEqual(['165 165'])
+    expect(say(m, 'PRINT PEEK 32768=PEEK -32768')).toEqual(['1'])
+    expect(say(m, 'PRINT PEEK 65536')).toEqual(['ERR:OVERFLOW'])
+  })
+
+  it('lets go of the strings a calculation made, so the next ones have room', () => {
+    const m = switchOn('pocket-64')
+    const long = `"${'0123456789'.repeat(5)}"`
+    for (let k = 0; k < 14; k++) expect(say(m, `${long}+"!"`), `${k}`).toHaveLength(2)
+  })
+
+  it('refuses what would do the wrong thing: IF on a string, DELETE alone, a line past 65535, kana outside quotes', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 PRINT 1\n')
+    expect(say(m, 'IF "A" THEN PRINT 1')).toEqual(['ERR:TYPE'])
+    expect(say(m, 'DELETE')).toEqual(['ERR:SYNTAX'])
+    expect(say(m, 'LIST')).toEqual(['10 PRINT 1'])
+    expect(say(m, '65536 PRINT 2')).toEqual(['ERR:NO LINE'])
+    expect(say(m, '65535 PRINT 2')).toEqual([])
+    expect(say(m, 'LIST 65535')).toEqual(['65535 PRINT 2'])
+    // A kana typed outside quotes: KANA mode, the key at JIS ア (keypad 3), and back.
+    press(m, keyCode('cls'))
+    type(m, 'A=')
+    press(m, keyCode('kana'))
+    press(m, keyCode('3'))
+    press(m, keyCode('kana'))
+    type(m, '\n')
+    expect(shown(m).slice(-2)).toEqual(['ERR:SYNTAX', '>'])
+    expect(say(m, 'PRINT "ｱ"')).toEqual(['ｱ'])
+  })
+
+  it('asks again on CONT after BRK while INPUT asked', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 INPUT A:PRINT A*2\n')
+    press(m, keyCode('cls'))
+    type(m, 'RUN\n')
+    m.brk()
+    settle(m)
+    expect(shown(m).slice(-2)).toEqual(['BREAK IN 10', '>'])
+    type(m, 'CONT\n4\n')
+    expect(shown(m).slice(-3)).toEqual(['?4', '8', '>'])
+  })
+
+  it('leaves the program as it was when RENUM cannot finish', () => {
+    const m = switchOn('pocket-64')
+    type(m, '1 GOTO 2\n')
+    type(m, `2 ON X GOTO ${Array.from({ length: 30 }, () => '1').join(',')}\n`)
+    expect(say(m, 'RENUM 10000,1,10000')).toEqual(['ERR:TOO COMPLEX'])
+    expect(say(m, 'LIST 1')[0]).toBe('1 GOTO 2')
+    expect(say(m, 'RENUM 65530')).toEqual(['ERR:ARGUMENT'])
+  })
+
   it('draws dots, lines and boxes, and reads them back with POINT', () => {
     const m = switchOn('pocket-64')
     expect(say(m, 'PSET 3,60:PRINT POINT(3,60);POINT(4,60)')).toEqual(['1 0'])
@@ -337,6 +438,72 @@ describe('BASIC', () => {
     expect(m.state.time - waited).toBeGreaterThanOrEqual(500)
     // The timer is left as it was found: the prompt sleeps for keys alone.
     expect(m.run(1000).sleeping).toEqual({ key: true, timerMs: null })
+  })
+
+  it('ends a WAIT whose compare the clock passed before it was turned on', () => {
+    const symbols = Object.entries(built.symbols).sort((a, b) => a[1] - b[1])
+    const from = built.symbols.waitTicks ?? 0
+    const to = symbols.find(([, at]) => at > from)?.[1] ?? from
+    expect(to).toBeGreaterThan(from)
+    // The page's loop ticks once, at each instruction of waitTicks in turn: between reading
+    // the count and turning the compare on, the tick passes the compare unseen.
+    for (let tickAt = 0; tickAt < 40; tickAt++) {
+      const m = switchOn('pocket-64')
+      press(m, keyCode('cls'))
+      type(m, 'WAIT 1:PRINT "X"')
+      m.press(keyCode('enter'))
+      m.release(keyCode('enter'))
+      const started = m.state.time
+      stepTickingOnce(m, from, to, tickAt)
+      expect(m.state.time - started, `ticked at ${tickAt}`).toBeLessThan(2000)
+      expect(shown(m).slice(-2)).toEqual(['X', '>'])
+    }
+  })
+
+  it('says TOO COMPLEX before nesting runs the stack into the code area', () => {
+    const m = switchOn('pocket-64')
+    const code = () => Array.from(m.state.ram.subarray(0x7000, 0x7c00))
+    const before = code()
+    const deep = `A=${'('.repeat(37)}1${')'.repeat(37)}`
+    expect(say(m, deep)).toEqual(['ERR:TOO COMPLEX'])
+    expect(code()).toEqual(before)
+    expect(say(m, `PRINT ${'('.repeat(12)}2${')'.repeat(12)}*3`)).toEqual(['6'])
+  })
+
+  it('refuses a far coordinate rather than drawing a line that never ends', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'LINE (0,0)-(30000,1)')).toEqual(['ERR:ARGUMENT'])
+    expect(say(m, 'PSET -5000,0')).toEqual(['ERR:ARGUMENT'])
+    expect(say(m, 'LINE (-4096,62)-(4096,63),BF:PRINT "OK"')).toEqual(['OK'])
+  })
+
+  it('gives INKEY$ no key for SHIFT, CAPS or KANA alone, and goes on', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 WAIT 32:A$=INKEY$:PRINT LEN(A$);\n')
+    type(m, 'RUN')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    m.run(100_000)
+    m.press(keyCode('shift'))
+    m.release(keyCode('shift'))
+    settle(m)
+    expect(shown(m).slice(-2)).toEqual(['0', '>'])
+  })
+
+  it('lets BRK stop machine code after a fault in BASIC took it to the monitor', () => {
+    const m = switchOn('pocket-64')
+    type(m, 'POKE -32767,1\n')
+    expect(shown(m).join('\n')).toMatch(/FAULT/)
+    expect(annunciated(m)).toContain('MON')
+    // c.j 0 at 0x7000: a jump to itself.
+    type(m, 'E 7000 01 A0\n')
+    type(m, 'G 7000')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    m.run(100_000)
+    m.brk()
+    settle(m)
+    expect(shown(m).slice(-2)).toEqual(['BREAK AT 7000', '*'])
   })
 
   it('sleeps through WAIT with a key waiting for INKEY$, never spinning on it', () => {

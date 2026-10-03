@@ -3,24 +3,37 @@
 ; next one; CAPS stays until pressed again. A letter is upper case when CAPS or SHIFT is on
 ; but not both; with SHIFT, a key with a symbol on its face gives the symbol.
 
-; Waits for a key and gives its character in a0. SHIFT and CAPS are taken here.
+; Waits for a key and gives its character in a0. SHIFT, CAPS and KANA are taken in pollkey.
 getkey:
   addi sp, sp, -2
   sw ra, 0(sp)
 .wait:
   lw t0, BRKFLAG(zero)
   bnez t0, .brk
-  lw t0, IO_KEY_COUNT(zero)
-  bnez t0, .read
+  call pollkey
+  bnez a0, .got
+  ; Nothing waits: WFI, which a key arriving since pollkey looked wakes at once.
   wfi
   j .wait
 .brk:
   ; BRK while BASIC waited: taken here, given as a key.
   sw zero, BRKFLAG(zero)
   li a0, K_BRK
+.got:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
+
+; The next key's character in a0, or 0 when none waits: it never waits itself (INKEY$).
+; SHIFT, CAPS and KANA are taken here and change the mode; a key with no character is dropped.
+pollkey:
+  addi sp, sp, -2
+  sw ra, 0(sp)
+.wait:
+  lw t0, IO_KEY_COUNT(zero)
+  bnez t0, .read
+  li a0, 0
+  j .plain_out
 .read:
   lw t0, IO_KEY_DATA(zero)
   li t1, KEY_CODES
@@ -72,6 +85,7 @@ getkey:
   andi t2, t2, ~F_SHIFT
   sw t2, FLAGS(zero)
   call annunciate
+.plain_out:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret

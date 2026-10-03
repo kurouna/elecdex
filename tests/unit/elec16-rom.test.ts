@@ -199,7 +199,14 @@ describe('the ROM', () => {
 
   it('answers ? to a number that is not one, or a byte too big', () => {
     const m = boot()
-    for (const line of ['E 7000 1234', 'E 7000 12 zz 34', 'D 7Q', 'G 70G0']) {
+    for (const line of [
+      'E 7000 1234',
+      'E 7000 12 zz 34',
+      'D 7Q',
+      'G 70G0',
+      'E 7000 10000',
+      'D 17000',
+    ]) {
       type(m, `${line}\n`)
       expect(shown(m).slice(-2), line).toEqual(['?', '*'])
     }

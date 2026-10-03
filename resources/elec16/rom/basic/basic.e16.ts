@@ -78,6 +78,7 @@ import {
   PROG,
   putc,
   puts,
+  stack_room,
 } from './rom.e16'
 import { pointFunction, screenStatement } from './screen.e16'
 import {
@@ -160,6 +161,7 @@ const M_RND = 0x1f
 const M_PI = 0x20
 const M_FROMINT = 0x30
 const M_TOINT = 0x31
+const M_TOWORD = 0x32
 export const M_PARSE = 0x38
 const M_FORMAT = 0x39
 
@@ -174,6 +176,11 @@ export const E_NEXT = 6
 export const E_RETURN = 7
 export const E_MEMORY = 8
 export const E_COMPLEX = 9
+/**
+ * The stack an expression may leave: below it, TOO COMPLEX before the stack reaches the code
+ * area (each nesting takes about 37 bytes; the deepest ROM service under one about 100).
+ */
+const EXPR_STACK = 256
 const E_CONT = 10
 export const E_TYPE = 11
 export const E_NOFILE = 12
@@ -432,15 +439,16 @@ export function readUnsigned(): u16 {
   if (!isDigit(peek(txt))) fail(E_SYNTAX)
   let v: u16 = 0
   while (isDigit(peek(txt))) {
-    v = wrapMul10(v) + (peek(txt) - CH_0)
+    v = moreDigit(v, peek(txt) - CH_0)
     txt++
   }
   return v
 }
 
-function wrapMul10(v: u16): u16 {
-  if (v > 6553) fail(E_LINE)
-  return v * 10
+/** `v` with one more digit; NO LINE past 65535, never wrapped round to a small one. */
+function moreDigit(v: u16, d: u16): u16 {
+  if (v > 6553 || (v === 6553 && d > 5)) fail(E_LINE)
+  return v * 10 + d
 }
 
 /* ---------------- numbers ---------------- */
@@ -489,6 +497,12 @@ export function setInt(at: u16, v: i16): void {
 export function toInt(at: u16): i16 {
   math(M_TOINT, at, 0)
   return i16(peek16(MATH_ARG))
+}
+
+/** The number at `at` as an address: -32768 to 65535, a negative one counted from the top. */
+export function toWord(at: u16): u16 {
+  math(M_TOWORD, at, 0)
+  return peek16(MATH_ARG)
 }
 
 /** Applies a binary operation to the two top numbers, leaving one. */
@@ -654,6 +668,8 @@ export function clearVariables(): void {
 
 /** An expression onto the stack: OR, AND, NOT, comparison, + -, * /, ^, then the rest. */
 export function expr(): void {
+  // Every nesting comes back here: deep enough, the stack would run into the code area.
+  if (stack_room() < EXPR_STACK) fail(E_COMPLEX)
   andExpr()
   while (next() === T_OR) {
     needNumber()
@@ -859,7 +875,7 @@ function functionCall(token: u16): void {
   if (token === T_PEEK) {
     unary()
     needNumber()
-    setInt(top(), peek(u16(toInt(top()))))
+    setInt(top(), peek(toWord(top())))
     return
   }
   fail(E_SYNTAX)
@@ -1092,7 +1108,7 @@ function commandStatement(c: u16): void {
       return
     case T_CALL:
       expr()
-      call_at(u16(toInt(top())))
+      call_at(toWord(top()))
       nsp -= 8
       return
     case T_MON:
@@ -1230,6 +1246,7 @@ function separator(): bool {
 
 function ifStatement(): void {
   expr()
+  needNumber()
   const holds = !isZero(top())
   nsp -= 8
   if (next() === T_THEN) txt++
@@ -1347,7 +1364,7 @@ function nextStatement(): void {
 function pokeStatement(): void {
   expr()
   needNumber()
-  const a = u16(toInt(top()))
+  const a = toWord(top())
   nsp -= 8
   expect(CH_COMMA)
   expr()
@@ -1521,6 +1538,8 @@ function enter(): void {
     txt = save
   }
   if (isCalculation()) {
+    // The strings a calculation makes are done with when it is, as a statement's are.
+    strTop = 0
     calculate()
     return
   }

@@ -51,6 +51,7 @@ import {
   stringLength,
   toInt,
   top,
+  toWord,
   unary,
   varAt,
   varEnd,
@@ -190,9 +191,9 @@ function isMachineCode(): bool {
 function address(): u16 {
   expr()
   needNumber()
-  const v = toInt(top())
+  const v = toWord(top())
   setNsp(nsp - 8)
-  return u16(v)
+  return v
 }
 
 /* ---------------- FILES, SAVE, LOAD, KILL ---------------- */
@@ -258,7 +259,7 @@ function saveStatement(): void {
     const line = addr(lineBuf)
     const digits = unsignedText(peek16(at), line)
     poke(line + digits, CH_SPACE)
-    const length = digits + 1 + expand(at + 4, line + digits + 1, 76 - digits)
+    const length = digits + 1 + expand(at + 4, line + digits + 1, 77 - digits)
     poke(line + length, K_ENTER)
     if (n + length + 1 > 256) {
       cardMust(OP_WRITE, APPEND, addr(cardBuf), n)
@@ -436,15 +437,38 @@ function itemIn(n: u16): u16 {
   if (c === 0xffff) return 0xffff
   let k: u16 = 0
   const inQuote = c === CH_QUOTE
-  if (inQuote) c = fileByteIn(n)
-  while (c !== 0xffff && k < 78) {
+  // A quoted item keeps its quotes, so that a comma in it stays part of it when it is taken.
+  if (inQuote) {
+    poke(line, CH_QUOTE)
+    k = 1
+    c = fileByteIn(n)
+  }
+  while (c !== 0xffff && k < 77) {
     if (inQuote ? c === CH_QUOTE : c === CH_COMMA || c === K_ENTER || c === LF) break
     poke(line + k, c)
     k++
     c = fileByteIn(n)
   }
+  // Past a quoted item's closing quote: its spaces and the comma or line end after it, or
+  // the next item would start at that comma and be empty.
+  if (inQuote) {
+    poke(line + k, CH_QUOTE)
+    k++
+    c = fileByteIn(n)
+    while (c === CH_SPACE) c = fileByteIn(n)
+  }
   poke(line + k, 0)
   return k
+}
+
+/** Whether a file read has an item left: spaces and line ends before the end are none. */
+function itemLeft(f: u16): bool {
+  for (;;) {
+    if (filePos[f - 1] >= fileLen[f - 1] && !fill(f)) return false
+    const c = peek(addr(fileBuf) + (f - 1) * FILE_BUF + filePos[f - 1])
+    if (c !== CH_SPACE && c !== K_ENTER && c !== LF) return true
+    filePos[f - 1] = filePos[f - 1] + 1
+  }
 }
 
 /** EOF(n): 1 when a file read has nothing more, else 0. */
@@ -453,9 +477,7 @@ export function eofFunction(): void {
   needNumber()
   const n = toInt(top())
   if (n < 1 || n > 2 || peek(addr(fileMode) + u16(n) - 1) !== 1) fail(E_FILE)
-  const f = u16(n)
-  const more = filePos[f - 1] < fileLen[f - 1] || fill(f)
-  setInt(top(), more ? 0 : 1)
+  setInt(top(), itemLeft(u16(n)) ? 0 : 1)
   setStrType(false)
 }
 

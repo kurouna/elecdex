@@ -13,6 +13,7 @@ import {
   u16,
 } from '../../../../src/shared/e16c/builtins'
 import {
+  checkBreak,
   E_ARGUMENT,
   E_SYNTAX,
   expect,
@@ -65,13 +66,23 @@ function whole(): i16 {
   return v
 }
 
-/** x, y: two whole numbers and the comma between. */
+/**
+ * x, y: two whole numbers and the comma between, each within FAR of the screen. Farther, a
+ * line's lengths would overflow 16 bits and it would never end.
+ */
 let atX: i16 = 0
 let atY: i16 = 0
 function point(): void {
-  atX = whole()
+  atX = near(whole())
   expect(CH_COMMA)
-  atY = whole()
+  atY = near(whole())
+}
+
+const FAR = 4096
+
+function near(v: i16): i16 {
+  if (v < -FAR || v > FAR) fail(E_ARGUMENT)
+  return v
 }
 
 /** The byte of the LCD's memory holding dot (x, y), or 0 when the dot is off the screen. */
@@ -139,7 +150,10 @@ function rectangle(x1: i16, y1: i16, filled: bool): void {
   }
   const from = y1 < y2 ? y1 : y2
   const to = y1 < y2 ? y2 : y1
-  for (let y = from; y <= to; y++) line(x1, y, x2, y)
+  for (let y = from; y <= to; y++) {
+    checkBreak()
+    line(x1, y, x2, y)
+  }
 }
 
 /** The line from (x1, y1) to (x2, y2), every dot on it (Bresenham). */

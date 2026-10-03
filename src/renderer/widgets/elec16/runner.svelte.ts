@@ -172,7 +172,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.#timed.wake()
     // A key to a machine asleep for one starts auto power-off's count again (the loop tells
     // only of falling asleep, not of a key taken between two sleeps).
-    if (this.asleep) this.#armOff()
+    if (this.#asleepForKey()) this.#armOff()
   }
 
   release(code: number): void {
@@ -348,12 +348,18 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.#offTimer = this.#host.setTimer(() => {
       this.#offTimer = null
       const machine = this.machine
-      if (machine === null || machine.state.off || !this.asleep) return
+      if (machine === null || machine.state.off || !this.#asleepForKey()) return
       machine.powerOff()
       this.stopPaste()
       this.#changed()
       this.onAutoOff?.()
     }, this.autoOffMs)
+  }
+
+  /** Asleep in WFI for a key and nothing else: no timer, no running program. */
+  #asleepForKey(): boolean {
+    const wake = this.#timed.asleep
+    return this.status === 'running' && wake !== null && wake.key && wake.timerMs === null
   }
 
   #disarmOff(): void {
