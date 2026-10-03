@@ -3,7 +3,8 @@ import type { Chip8 } from '@shared/chip8/machine'
 import { HIRES } from '@shared/chip8/types'
 import type { Rotation } from '@shared/chip8-library'
 import { fitScreen } from '@shared/emu/fit'
-import { Painter } from './painter.ts'
+import { Painter } from '../emu/painter.ts'
+import { deviceRoom, drawDotGrid, type Room } from '../emu/screen.ts'
 import type { Palette } from './palette.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
 
@@ -34,7 +35,7 @@ let { runner, palette, glow, dots, mode, rotation, scale = $bindable(0) }: Props
 let host = $state<HTMLDivElement | null>(null)
 let canvas = $state<HTMLCanvasElement | null>(null)
 /** The room in device pixels, and the ratio it was measured at. */
-let room = $state({ w: 0, h: 0, ratio: 1 })
+let room = $state<Room>({ w: 0, h: 0, ratio: 1 })
 
 const painter = new Painter()
 let image: ImageData | null = null
@@ -63,27 +64,19 @@ const css = $derived({ w: fit.width / room.ratio, h: fit.height / room.ratio })
 const grid = $derived(dots && fit.whole && fit.scale >= 4)
 let gridCanvas = $state<HTMLCanvasElement | null>(null)
 
-/**
- * The grid is a canvas of the picture's own device pixels with a one-pixel line in the
- * ground's colour between the dots, drawn when the size or the ground changes and never
- * again. Drawn by CSS gradients instead, the small screen canvas under it (which Chromium
- * paints in software) had the gradients rasterised afresh on every frame it changed - with
- * the afterglow fading, every frame: about a tenth of a core for the grid alone, measured.
- */
+// The grid: a canvas of the picture's own device pixels, in the ground's colour, drawn when
+// the size or the ground changes and never again (widgets/emu/screen.ts says why).
 $effect(() => {
   const el = gridCanvas
-  const ctx = el?.getContext('2d') ?? null
-  if (el === null || ctx === null) return
-  const width = Math.round(fit.width)
-  const height = Math.round(fit.height)
-  const step = fit.scale
+  if (el === null) return
   const [r, g, b] = palette[0]
-  el.width = width
-  el.height = height
-  ctx.clearRect(0, 0, width, height)
-  ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.55)`
-  for (let x = 0; x < width; x += step) ctx.fillRect(x, 0, 1, height)
-  for (let y = 0; y < height; y += step) ctx.fillRect(0, y, width, 1)
+  drawDotGrid(
+    el,
+    Math.round(fit.width),
+    Math.round(fit.height),
+    fit.scale,
+    `rgba(${r}, ${g}, ${b}, 0.55)`,
+  )
 })
 
 $effect(() => {
@@ -96,14 +89,10 @@ $effect(() => {
   const observer = new ResizeObserver((entries) => {
     const entry = entries[entries.length - 1]
     if (entry === undefined) return
-    const ratio = window.devicePixelRatio || 1
-    const device = entry.devicePixelContentBoxSize?.[0]
-    const box = entry.contentBoxSize?.[0]
-    const w = device?.inlineSize ?? (box?.inlineSize ?? entry.contentRect.width) * ratio
-    const h = device?.blockSize ?? (box?.blockSize ?? entry.contentRect.height) * ratio
+    const next = deviceRoom(entry, window.devicePixelRatio || 1)
     // Behind a tab it measures nothing: the picture keeps its size for when it is back.
-    if (w === 0 || h === 0) return
-    if (w !== room.w || h !== room.h || ratio !== room.ratio) room = { w, h, ratio }
+    if (next === null) return
+    if (next.w !== room.w || next.h !== room.h || next.ratio !== room.ratio) room = next
   })
   observer.observe(el)
   return () => observer.disconnect()

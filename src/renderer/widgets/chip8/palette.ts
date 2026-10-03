@@ -11,8 +11,9 @@
  */
 
 import type { Chip8Colours } from '@shared/chip8-library'
+import type { Rgb } from '../emu/painter.ts'
 
-export type Rgb = readonly [number, number, number]
+export type { Rgb }
 export type Palette = readonly [Rgb, Rgb, Rgb, Rgb]
 
 export const mixRgb = (a: Rgb, b: Rgb, t: number): Rgb => [

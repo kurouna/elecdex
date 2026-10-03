@@ -1,17 +1,16 @@
 import { Chip8 } from '@shared/chip8/machine'
 import { quirksFor } from '@shared/chip8/quirks'
-import { describe, expect, it } from 'vitest'
 import {
-  byteKind,
   byteMap,
   changedBytes,
   MEM_COLUMNS,
   MEM_ROWS,
   memoryRows,
   scrollWindow,
-  spriteAt,
   windowStart,
-} from '../../src/renderer/widgets/chip8/mem.js'
+} from '@shared/emu/mem-window'
+import { describe, expect, it } from 'vitest'
+import { byteKind, spriteAt } from '../../src/renderer/widgets/chip8/mem.js'
 
 const machine = (program: number[], platform: 'chip8' | 'xochip' = 'chip8') =>
   Chip8.load(

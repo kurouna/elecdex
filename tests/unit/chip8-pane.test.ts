@@ -13,7 +13,6 @@ import {
   haltLines,
   readCore,
 } from '../../src/renderer/widgets/chip8/core.js'
-import { Painter } from '../../src/renderer/widgets/chip8/painter.js'
 import {
   originalPalette,
   type Palette,
@@ -25,6 +24,7 @@ import {
   panelShown,
   readChip8Pane,
 } from '../../src/renderer/widgets/chip8/pane-state.js'
+import { Painter } from '../../src/renderer/widgets/emu/painter.js'
 
 describe('the pane state', () => {
   it('opens on the library with nothing chosen, whatever the view says', () => {

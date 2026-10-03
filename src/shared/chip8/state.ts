@@ -5,6 +5,7 @@
  * snapshot is a copy of this and nothing else, and a test can set up any moment directly.
  */
 
+import { seedOf, xorshift32 } from '../emu/random.js'
 import { fontBytes, SMALL_FONT_AT } from './fonts.js'
 import {
   type Halt,
@@ -65,9 +66,6 @@ export interface Chip8State {
   cycles: number
 }
 
-/** A seed that xorshift can use: any 32-bit number but zero. */
-export const seedOf = (seed: number): number => seed >>> 0 || 0x9e3779b9
-
 export function createState(program: Uint8Array, config: MachineConfig, seed: number): Chip8State {
   if (program.length > maxProgramSize(config.platform)) {
     throw new RangeError(`program of ${program.length} bytes does not fit ${config.platform}`)
@@ -115,12 +113,8 @@ export function poke(s: Chip8State, address: number, value: number): void {
 export const word = (s: Readonly<Chip8State>, address: number): number =>
   (peek(s, address) << 8) | peek(s, address + 1)
 
-/** The next random byte (xorshift32). */
+/** The next random byte (xorshift32, shared/emu/random.ts). */
 export function randomByte(s: Chip8State): number {
-  let x = s.rng
-  x ^= x << 13
-  x ^= x >>> 17
-  x ^= x << 5
-  s.rng = x >>> 0
+  s.rng = xorshift32(s.rng)
   return (s.rng >>> 24) & 0xff
 }

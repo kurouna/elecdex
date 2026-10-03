@@ -9,6 +9,7 @@
  * Keys held when it was taken are not kept: a machine comes back with every key up.
  */
 
+import { ByteReader, ByteWriter } from '../emu/bytes.js'
 import { quirksFor } from './quirks.js'
 import { type Chip8State, createState, STACK_DEPTH } from './state.js'
 import {
@@ -46,74 +47,6 @@ export const snapshotSize = (platform: Platform): number => HEAD + ARRAYS + memo
 /** The longest snapshot there is, for whoever stores them to check against. */
 export const SNAPSHOT_MAX_SIZE = snapshotSize('xochip')
 
-class Writer {
-  readonly bytes: Uint8Array
-  readonly #view: DataView
-  #at = 0
-  constructor(size: number) {
-    this.bytes = new Uint8Array(size)
-    this.#view = new DataView(this.bytes.buffer)
-  }
-  u8(value: number): void {
-    this.#view.setUint8(this.#at++, value)
-  }
-  i8(value: number): void {
-    this.#view.setInt8(this.#at++, value)
-  }
-  u16(value: number): void {
-    this.#view.setUint16(this.#at, value, true)
-    this.#at += 2
-  }
-  u32(value: number): void {
-    this.#view.setUint32(this.#at, value, true)
-    this.#at += 4
-  }
-  f64(value: number): void {
-    this.#view.setFloat64(this.#at, value, true)
-    this.#at += 8
-  }
-  raw(values: ArrayLike<number>): void {
-    this.bytes.set(values, this.#at)
-    this.#at += values.length
-  }
-}
-
-class Reader {
-  readonly #bytes: Uint8Array
-  readonly #view: DataView
-  #at = 0
-  constructor(bytes: Uint8Array) {
-    this.#bytes = bytes
-    this.#view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-  }
-  u8(): number {
-    return this.#view.getUint8(this.#at++)
-  }
-  i8(): number {
-    return this.#view.getInt8(this.#at++)
-  }
-  u16(): number {
-    const value = this.#view.getUint16(this.#at, true)
-    this.#at += 2
-    return value
-  }
-  u32(): number {
-    const value = this.#view.getUint32(this.#at, true)
-    this.#at += 4
-    return value
-  }
-  f64(): number {
-    const value = this.#view.getFloat64(this.#at, true)
-    this.#at += 8
-    return value
-  }
-  raw(length: number): Uint8Array {
-    const part = this.#bytes.subarray(this.#at, this.#at + length)
-    this.#at += length
-    return part
-  }
-}
-
 const quirkBits = (quirks: Quirks): number =>
   QUIRK_NAMES.reduce((bits, name, k) => (quirks[name] ? bits | (1 << k) : bits), 0)
 
@@ -126,7 +59,7 @@ function quirksOf(bits: number): Quirks {
 }
 
 export function encodeSnapshot(s: Chip8State): Uint8Array {
-  const w = new Writer(snapshotSize(s.config.platform))
+  const w = new ByteWriter(snapshotSize(s.config.platform))
   w.raw(MAGIC)
   w.u8(SNAPSHOT_VERSION)
   w.u8(PLATFORMS.indexOf(s.config.platform))
@@ -165,7 +98,7 @@ interface Head {
 }
 
 /** The magic, version and machine; null when any of it is not ours. */
-function readHead(r: Reader, length: number): Head | null {
+function readHead(r: ByteReader, length: number): Head | null {
   const magic = r.raw(4)
   if (MAGIC.some((b, k) => magic[k] !== b) || r.u8() !== SNAPSHOT_VERSION) return null
   const platform = PLATFORMS[r.u8()]
@@ -178,7 +111,7 @@ function readHead(r: Reader, length: number): Head | null {
 }
 
 /** The registers and flags, checked; false when any is out of its range. */
-function readRegisters(r: Reader, s: Chip8State): boolean {
+function readRegisters(r: ByteReader, s: Chip8State): boolean {
   s.pc = r.u16()
   s.i = r.u16()
   s.sp = r.u8()
@@ -212,7 +145,7 @@ function readRegisters(r: Reader, s: Chip8State): boolean {
 
 export function decodeSnapshot(bytes: Uint8Array): Chip8State | null {
   if (!(bytes instanceof Uint8Array) || bytes.length < HEAD) return null
-  const r = new Reader(bytes)
+  const r = new ByteReader(bytes)
   const head = readHead(r, bytes.length)
   if (head === null) return null
   const s = createState(new Uint8Array(0), { ...head }, 1)

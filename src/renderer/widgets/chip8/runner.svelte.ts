@@ -2,66 +2,41 @@ import type { Tone } from '@shared/chip8/audio'
 import { Chip8 } from '@shared/chip8/machine'
 import type { Quirks } from '@shared/chip8/types'
 import { type Chip8Program, tunedConfig } from '@shared/chip8-library'
-import { framesDue } from '@shared/emu/clock'
+import {
+  browserLoop,
+  EmuRunner,
+  type LoopHost,
+  type LoopPolicy,
+  type PauseReason,
+  type RunStatus,
+} from '../emu/runner.svelte.ts'
 
 /**
- * Plays one CHIP-8 machine for a pane (docs/architecture.md section 5.18).
- *
- * The one place in the page with a frame loop of its own: a game is played at 60 frames a
- * second or not at all, so the 10 fps loop cannot carry it (a decision recorded in section
- * 16). It runs only while the program runs *and* the pane is seen - not paused, not halted,
- * not behind a tab, not in a window put away - and each animation frame runs as many
- * machine frames as time says (`framesDue`, three at most, so a long stall is dropped, not
- * raced through). Seen no more, it pauses and stays paused until the player goes on.
- *
- * An animation frame asked for costs a pass of the browser's rendering every vsync even when
- * nothing is drawn - measured, most of what a running program cost. So once the screen has
- * stood still for half a second (a menu waiting for a key, a test that has finished), the
- * machine is run from a 60 Hz timer instead, which asks the compositor for nothing; the
- * first change to the screen brings the animation frames back for smooth motion.
- *
- * Reactive state changes only when what it shows changes; the picture itself is not state
- * but a call to whoever draws (`onFrame`), up to sixty a second.
+ * Plays one CHIP-8 machine for a pane (docs/architecture.md section 5.18), on the emulators'
+ * runner (widgets/emu/runner.svelte.ts, docs/emu.md), which keeps the loop, the pause and
+ * being seen. Here is what is CHIP-8's: loading a program with its tuning, the keypad, the
+ * buzzer, and its policy - sixty frames a second on animation frames while the screen
+ * moves, a timer once it has stood still for half a second.
  */
 
-export type RunStatus = 'empty' | 'running' | 'paused' | 'halted'
+export type { PauseReason, RunStatus }
 
-/** Why it is paused: the player's own choice, or the pane going out of sight. */
-export type PauseReason = 'player' | 'hidden'
-
-export interface RunnerHost {
-  requestFrame(callback: (now: number) => void): number
-  cancelFrame(handle: number): void
-  setTimer(callback: () => void, ms: number): number
-  clearTimer(handle: number): void
-  now(): number
-  /** Called after the frames of each animation frame, with the tone to sound, or null for silence. */
+export interface RunnerHost extends LoopHost {
+  /** Called after the frames of each tick, with the tone to sound, or null for silence. */
   sound(tone: Tone | null): void
 }
 
-const FRAME_MS = 1000 / 60
-const MAX_CATCH_UP = 3
 /** Machine frames with the screen unchanged before the loop drops to the timer. */
 export const STILL_FRAMES = 30
 
-function statusOf(machine: Chip8 | null, pausedBy: PauseReason | null): RunStatus {
-  if (machine === null) return 'empty'
-  if (!machine.running) return 'halted'
-  return pausedBy !== null ? 'paused' : 'running'
-}
+const POLICY: LoopPolicy = { frameMs: 1000 / 60, maxCatchUp: 3, stillFrames: STILL_FRAMES }
 
 export const browserHost = (sound: (tone: Tone | null) => void): RunnerHost => ({
-  requestFrame: (callback) => requestAnimationFrame(callback),
-  cancelFrame: (handle) => cancelAnimationFrame(handle),
-  setTimer: (callback, ms) => window.setTimeout(callback, ms),
-  clearTimer: (handle) => window.clearTimeout(handle),
-  now: () => performance.now(),
+  ...browserLoop,
   sound,
 })
 
-export class Chip8Runner {
-  status = $state<RunStatus>('empty')
-  pausedBy = $state<PauseReason | null>(null)
+export class Chip8Runner extends EmuRunner<Chip8> {
   /** Raw: replaced whole, and read in the machine's hot paths (see library.svelte.ts). */
   program = $state.raw<Chip8Program | null>(null)
   /** The pads held down, from the keyboard or the on-screen keypad (one bit each). */
@@ -79,40 +54,16 @@ export class Chip8Runner {
   stepped = $state(0)
 
   readonly #host: RunnerHost
-  #machine: Chip8 | null = null
   #rom: Uint8Array | null = null
-  #seen = true
-  #frame: number | null = null
-  /** The timer standing in for animation frames while the screen is still. */
-  #timer: number | null = null
-  /** Machine frames in a row that left the screen as it was. */
-  #still = 0
-  /** Inside a tick, which schedules the next one itself. */
-  #ticking = false
-  #last = 0
-  #carry = 0
-  #changes = 0
-  #disposed = false
-  readonly #listeners = new Set<() => void>()
 
   constructor(host: RunnerHost) {
+    super(host, POLICY)
     this.#host = host
   }
 
   /** The program's bytes, as loaded: kept for a reset, and for a moved pane to take up. */
   get rom(): Uint8Array | null {
     return this.#rom
-  }
-
-  /** The machine, to read (a view of its registers, the screen). */
-  get machine(): Chip8 | null {
-    return this.#machine
-  }
-
-  /** Called after every animation frame that ran the machine, and when it changes by hand. */
-  onFrame(listener: () => void): () => void {
-    this.#listeners.add(listener)
-    return () => this.#listeners.delete(listener)
   }
 
   /**
@@ -136,57 +87,51 @@ export class Chip8Runner {
       strict = false,
     }: { snapshot?: Uint8Array | null; paused?: boolean; strict?: boolean } = {},
   ): boolean {
-    if (this.#disposed) return false
+    if (this.disposed) return false
     const { ipf, quirks } = tunedConfig(program)
     const restored = snapshot != null ? Chip8.restore(snapshot) : null
     const fits = restored !== null && restored.state.config.platform === program.platform
     if (strict && !fits) return false
-    this.#stopLoop()
-    this.#host.sound(null)
+    this.stopLoop()
+    this.silence()
     if (fits) restored.tune({ ipf, quirks })
-    this.#machine = fits
-      ? restored
-      : Chip8.load(rom, { platform: program.platform, quirks, ipf, font: program.font }, seed)
+    this.setMachine(
+      fits
+        ? restored
+        : Chip8.load(rom, { platform: program.platform, quirks, ipf, font: program.font }, seed),
+    )
     this.#rom = rom
     this.program = program
     this.keys = 0
     this.pausedBy = paused ? 'player' : null
     this.resumed = fits
     this.loads++
-    this.#changes++
+    this.countChange()
     this.stepped++
-    this.#settle()
-    this.#emit()
+    this.settle()
+    this.emit()
     return fits
   }
 
   /** The machine as it is, to keep (a save slot, AUTO), or null with none. */
   snapshot(): Uint8Array | null {
-    return this.#machine?.snapshot() ?? null
-  }
-
-  /**
-   * Counts what changed the machine - frames run, steps, loads and resets - so AUTO is
-   * written only when there is something new to keep. Not state: nothing shows it.
-   */
-  get changes(): number {
-    return this.#changes
+    return this.machine?.snapshot() ?? null
   }
 
   /** Takes over a machine another mount of this pane was running (a moved pane). */
   adopt(program: Chip8Program, rom: Uint8Array, machine: Chip8, paused: boolean): void {
-    if (this.#disposed) return
-    this.#stopLoop()
+    if (this.disposed) return
+    this.stopLoop()
     // Keys held as the pane moved: the new mount never hears them go up.
     machine.releaseAll()
     this.keys = 0
-    this.#machine = machine
+    this.setMachine(machine)
     this.#rom = rom
     this.program = program
     this.pausedBy = paused ? 'player' : null
-    this.#changes++
-    this.#settle()
-    this.#emit()
+    this.countChange()
+    this.settle()
+    this.emit()
   }
 
   /**
@@ -194,196 +139,105 @@ export class Chip8Runner {
    * stays paused at the start, where CORE's STEP can walk it from the first instruction.
    */
   reset(seed: number): void {
-    const machine = this.#machine
+    const machine = this.machine
     const program = this.program
     if (machine === null || program === null || this.#rom === null) return
     const { config } = machine.state
-    this.#stopLoop()
-    this.#host.sound(null)
-    this.#machine = Chip8.load(this.#rom, config, seed)
+    this.stopLoop()
+    this.silence()
+    this.setMachine(Chip8.load(this.#rom, config, seed))
     if (this.pausedBy === 'hidden') this.pausedBy = 'player'
-    this.#changes++
+    this.countChange()
     this.stepped++
-    this.#settle()
-    this.#emit()
-  }
-
-  /** Whether the pane is seen. Going out of sight pauses; coming back does not resume. */
-  setSeen(seen: boolean): void {
-    if (seen === this.#seen) return
-    this.#seen = seen
-    if (!seen && this.status === 'running') this.pause('hidden')
-    else this.#settle()
-  }
-
-  pause(reason: PauseReason = 'player'): void {
-    if (this.#machine === null || !this.#machine.running) return
-    this.pausedBy = reason
-    this.#settle()
-  }
-
-  resume(): void {
-    if (this.#machine === null || !this.#machine.running) return
-    this.pausedBy = null
-    this.#settle()
-  }
-
-  togglePause(): void {
-    if (this.pausedBy === null) this.pause()
-    else this.resume()
+    this.settle()
+    this.emit()
   }
 
   /** One whole frame while paused (the pane's Enter). */
   stepFrame(): void {
-    if (this.#machine === null || this.pausedBy === null) return
-    this.#machine.frame()
+    if (this.machine === null || this.pausedBy === null) return
+    this.machine.frame()
     this.#afterHand()
   }
 
   /** One instruction while paused (CORE's STEP). */
   stepInstruction(): void {
-    if (this.#machine === null || this.pausedBy === null) return
-    this.#machine.step()
+    if (this.machine === null || this.pausedBy === null) return
+    this.machine.step()
     this.#afterHand()
   }
 
   press(key: number): void {
-    this.#machine?.press(key)
+    this.machine?.press(key)
     this.keys |= 1 << key
   }
 
   release(key: number): void {
-    this.#machine?.release(key)
+    this.machine?.release(key)
     this.keys &= ~(1 << key)
   }
 
   /** The pane lost the keyboard: every pad goes up, and none is delivered. */
   releaseAll(): void {
-    this.#machine?.releaseAll()
+    this.machine?.releaseAll()
     this.keys = 0
   }
 
   tune(change: { ipf?: number; quirks?: Partial<Quirks> }): void {
-    this.#machine?.tune(change)
-    this.#emit()
-  }
-
-  dispose(): void {
-    this.#disposed = true
-    this.#stopLoop()
-    this.#host.sound(null)
-    this.#listeners.clear()
+    this.machine?.tune(change)
+    this.emit()
   }
 
   /** Puts the machine away: its program is gone from the library (an import removed). */
   unload(): void {
-    this.#stopLoop()
-    this.#host.sound(null)
-    this.#machine = null
+    this.stopLoop()
+    this.silence()
+    this.setMachine(null)
     this.#rom = null
     this.program = null
     this.keys = 0
     this.pausedBy = null
-    this.#changes++
-    this.#settle()
-    this.#emit()
+    this.countChange()
+    this.settle()
+    this.emit()
   }
 
   /** Lets go of the machine for another mount to take up: the loop stops, the machine stays. */
   detach(): Chip8 | null {
-    this.#stopLoop()
-    this.#host.sound(null)
-    this.#machine?.releaseAll()
+    this.stopLoop()
+    this.silence()
+    this.machine?.releaseAll()
     this.keys = 0
-    return this.#machine
+    return this.machine
   }
 
-  #afterHand(): void {
-    this.#changes++
-    this.stepped++
-    this.#settle()
-    this.#emit()
-  }
-
-  /** Brings status, sound and the loop in line with the machine, the pause and being seen. */
-  #settle(): void {
-    const machine = this.#machine
-    // Loaded or taken up while out of sight (a start that landed after the pane was hidden):
-    // paused for being hidden, as if it had been running when it went, so it never runs
-    // unseen nor goes on by itself when seen.
-    if (machine?.running && this.pausedBy === null && !this.#seen) this.pausedBy = 'hidden'
-    const status = statusOf(machine, this.pausedBy)
-    if (this.status !== status) this.status = status
+  protected override settled(machine: Chip8 | null): void {
     const sensed = machine?.state.sensed ?? 0
     if (this.sensed !== sensed) this.sensed = sensed
     const hires = machine?.state.hires ?? false
     if (this.hires !== hires) this.hires = hires
-    const wantLoop = status === 'running' && this.#seen
-    if (wantLoop && !this.#looping && !this.#ticking) this.#startLoop()
-    if (!wantLoop) {
-      this.#stopLoop()
-      this.#host.sound(null)
-      if (this.sounding) this.sounding = false
-    }
   }
 
-  get #looping(): boolean {
-    return this.#frame !== null || this.#timer !== null
+  protected override afterFrames(machine: Chip8): void {
+    const tone = machine.tone
+    this.#host.sound(tone)
+    const sounding = tone.seconds > 0
+    if (this.sounding !== sounding) this.sounding = sounding
   }
 
-  #startLoop(): void {
-    this.#last = this.#host.now()
-    this.#carry = 0
-    this.#still = 0
-    this.#schedule()
+  protected override silence(): void {
+    this.#host.sound(null)
   }
 
-  /** The next tick: on an animation frame while the screen moves, on the timer once it is still. */
-  #schedule(): void {
-    if (this.#still >= STILL_FRAMES) {
-      this.#timer = this.#host.setTimer(() => {
-        this.#timer = null
-        this.#tick(this.#host.now())
-      }, FRAME_MS)
-    } else {
-      this.#frame = this.#host.requestFrame(this.#tick)
-    }
+  protected override quiet(): void {
+    this.silence()
+    if (this.sounding) this.sounding = false
   }
 
-  #stopLoop(): void {
-    if (this.#frame !== null) this.#host.cancelFrame(this.#frame)
-    if (this.#timer !== null) this.#host.clearTimer(this.#timer)
-    this.#frame = null
-    this.#timer = null
-  }
-
-  readonly #tick = (now: number): void => {
-    this.#frame = null
-    const machine = this.#machine
-    if (machine === null) return
-    this.#ticking = true
-    const due = framesDue(now - this.#last, this.#carry, FRAME_MS, MAX_CATCH_UP)
-    this.#last = now
-    this.#carry = due.carryMs
-    const before = machine.state.screenRevision
-    for (let k = 0; k < due.frames && machine.running; k++) machine.frame()
-    if (due.frames > 0) this.#changes++
-    if (machine.state.screenRevision !== before) this.#still = 0
-    else this.#still += due.frames
-    if (due.frames > 0) {
-      const tone = machine.tone
-      this.#host.sound(tone)
-      const sounding = tone.seconds > 0
-      if (this.sounding !== sounding) this.sounding = sounding
-    }
-    this.#emit()
-    this.#settle()
-    this.#ticking = false
-    // Still running and seen: the next tick, keeping the time owed.
-    if (this.status === 'running' && this.#seen && !this.#looping) this.#schedule()
-  }
-
-  #emit(): void {
-    for (const listener of this.#listeners) listener()
+  #afterHand(): void {
+    this.countChange()
+    this.stepped++
+    this.settle()
+    this.emit()
   }
 }

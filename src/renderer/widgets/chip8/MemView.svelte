@@ -1,19 +1,16 @@
 <script lang="ts">
-import { onFrame } from '../../lib/frame-loop.ts'
-import { hex } from './core.ts'
 import {
-  byteKind,
   byteMap,
   changedBytes,
   MEM_COLUMNS,
-  type MemFollow,
   type MemRow,
   memoryRows,
-  SPRITE_ROWS,
   scrollWindow,
-  spriteAt,
   windowStart,
-} from './mem.ts'
+} from '@shared/emu/mem-window'
+import { onFrame } from '../../lib/frame-loop.ts'
+import { hex } from './core.ts'
+import { byteKind, type MemFollow, SPRITE_ROWS, spriteAt } from './mem.ts'
 import type { Chip8Runner } from './runner.svelte.ts'
 
 /**

@@ -45,6 +45,11 @@ export class Chip8 {
     return this.#s.halt === null
   }
 
+  /** Counts every change to the screen (what an emulator's loop watches, docs/emu.md). */
+  get screenRevision(): number {
+    return this.#s.screenRevision
+  }
+
   /** Whether the buzzer sounds now. */
   get sounding(): boolean {
     return this.#s.halt === null && this.#s.st > 0

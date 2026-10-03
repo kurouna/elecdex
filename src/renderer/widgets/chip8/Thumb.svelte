@@ -1,7 +1,7 @@
 <script lang="ts">
 import { decodePreview, type Preview } from '@shared/chip8/preview'
 import type { Rotation } from '@shared/chip8-library'
-import { paintStill } from './painter.ts'
+import { paintStill } from '../emu/painter.ts'
 import type { Palette } from './palette.ts'
 
 /**

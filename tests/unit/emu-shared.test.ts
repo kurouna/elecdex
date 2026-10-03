@@ -1,0 +1,172 @@
+import { ByteReader, ByteWriter } from '@shared/emu/bytes'
+import { memoryRows, windowStart } from '@shared/emu/mem-window'
+import { seedOf, xorshift32 } from '@shared/emu/random'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SharedAudio } from '../../src/renderer/widgets/emu/audio.js'
+import { Painter } from '../../src/renderer/widgets/emu/painter.js'
+import { createPark, PARK_MS } from '../../src/renderer/widgets/emu/park.js'
+
+/** The parts every emulator shares (docs/emu.md), apart from any one machine. */
+
+describe('ByteWriter and ByteReader', () => {
+  it('read back what was written, little-endian', () => {
+    const w = new ByteWriter(17)
+    w.u8(0xab)
+    w.i8(-2)
+    w.u16(0x1234)
+    w.u32(0xdeadbeef)
+    w.f64(1.5)
+    w.raw([7])
+    expect(w.at).toBe(17)
+    expect(Array.from(w.bytes.subarray(2, 4))).toEqual([0x34, 0x12])
+    const r = new ByteReader(w.bytes)
+    expect([r.u8(), r.i8(), r.u16(), r.u32(), r.f64()]).toEqual([0xab, -2, 0x1234, 0xdeadbeef, 1.5])
+    expect(Array.from(r.raw(1))).toEqual([7])
+    expect(r.overrun).toBe(false)
+  })
+
+  it('reads a view into the middle of a larger buffer from its own start', () => {
+    const big = new Uint8Array([9, 9, 0x01, 0x02, 9])
+    expect(new ByteReader(big.subarray(2, 4)).u16()).toBe(0x0201)
+  })
+
+  it('says a cut input is not whole instead of throwing', () => {
+    const r = new ByteReader(new Uint8Array([1, 2, 3]))
+    expect(r.u16()).toBe(0x0201)
+    expect(r.u32()).toBe(0)
+    expect(r.overrun).toBe(true)
+    expect(r.raw(4).length).toBe(0)
+    expect(r.u8()).toBe(0)
+  })
+})
+
+describe('xorshift32', () => {
+  it('never gives zero from a seed, and repeats from the same state', () => {
+    expect(seedOf(0)).not.toBe(0)
+    let a = seedOf(42)
+    let b = seedOf(42)
+    for (let k = 0; k < 1000; k++) {
+      a = xorshift32(a)
+      b = xorshift32(b)
+      expect(a).not.toBe(0)
+    }
+    expect(a).toBe(b)
+  })
+
+  it('is the classic sequence', () => {
+    // Marsaglia's xorshift32 (13, 17, 5) from 1.
+    expect(xorshift32(1)).toBe(270369)
+  })
+})
+
+describe('the memory window', () => {
+  it('reads a machine whose memory is a reader, not an array', () => {
+    const reads: number[] = []
+    const source = {
+      size: 0x10000,
+      read: (address: number) => {
+        reads.push(address)
+        return address & 0xff
+      },
+    }
+    const rows = memoryRows(source, 0xfff8, 4)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]?.bytes).toEqual([0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff])
+    expect(reads).toHaveLength(8)
+    expect(windowStart(0x7000, 0x10000)).toBe(0x7000 - 4 * 8)
+  })
+})
+
+describe('the parking place', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('keeps one place per kind of machine, so one kind never takes up another', () => {
+    const a = createPark<string>()
+    const b = createPark<string>()
+    a.park('pane-1', 'chip8 machine')
+    expect(b.claim('pane-1')).toBeNull()
+    expect(a.claim('pane-1')).toBe('chip8 machine')
+    expect(a.claim('pane-1')).toBeNull()
+  })
+
+  it('lets a machine nobody takes go', () => {
+    vi.useFakeTimers()
+    const place = createPark<string>()
+    place.park('pane-1', 'machine')
+    vi.advanceTimersByTime(PARK_MS + 1)
+    expect(place.claim('pane-1')).toBeNull()
+  })
+})
+
+describe('the painter', () => {
+  const frame = (value: number) => ({ width: 1, height: 1, pixels: new Uint8Array([value]) })
+  const out = () => ({ width: 1, height: 1, data: new Uint8ClampedArray(4) })
+  const colours = [
+    [0, 0, 0],
+    [200, 200, 200],
+  ] as const
+
+  it('fades as slowly as its machine asks', () => {
+    const fast = new Painter()
+    const slow = new Painter({ fade: 0.2 })
+    for (const painter of [fast, slow]) {
+      painter.paint(frame(1), colours, out(), true)
+    }
+    const a = out()
+    const b = out()
+    fast.paint(frame(0), colours, a, true)
+    slow.paint(frame(0), colours, b, true)
+    // One frame after going dark, the slower glass still shows more of the dot.
+    expect(b.data[0]).toBeGreaterThan(a.data[0] ?? 0)
+    expect(slow.fading).toBe(true)
+  })
+
+  it('draws a dot value its colours do not name as the ground', () => {
+    const painter = new Painter()
+    const pixels = out()
+    painter.paint(frame(7), colours, pixels, false)
+    expect(Array.from(pixels.data)).toEqual([0, 0, 0, 255])
+  })
+})
+
+describe('the shared audio context', () => {
+  /** A stand-in context that records the worklet modules it is asked to load. */
+  function fakeContext(failing: string[] = []) {
+    const added: string[] = []
+    const ac = {
+      state: 'running',
+      audioWorklet: {
+        addModule: (url: string) => {
+          added.push(url)
+          return failing.includes(url) ? Promise.reject(new Error('no')) : Promise.resolve()
+        },
+      },
+      resume: () => Promise.resolve(),
+      suspend: () => Promise.resolve(),
+    }
+    return { ac: ac as unknown as AudioContext, added }
+  }
+
+  it('makes one context and adds each machine voice once', async () => {
+    const { ac, added } = fakeContext()
+    let made = 0
+    const audio = new SharedAudio(() => {
+      made++
+      return ac
+    })
+    await Promise.all([audio.get('chip8.js'), audio.get('chip8.js'), audio.get('elec16.js')])
+    expect(made).toBe(1)
+    expect(added).toEqual(['chip8.js', 'elec16.js'])
+  })
+
+  it('answers null where a context cannot be made, or a voice will not load', async () => {
+    const none = new SharedAudio(() => {
+      throw new Error('no audio')
+    })
+    expect(await none.get('chip8.js')).toBeNull()
+    const { ac } = fakeContext(['broken.js'])
+    const audio = new SharedAudio(() => ac)
+    expect(await audio.get('broken.js')).toBeNull()
+    expect(await audio.get('chip8.js')).toBe(ac)
+  })
+})
