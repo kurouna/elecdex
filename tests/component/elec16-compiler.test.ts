@@ -64,6 +64,24 @@ describe('the CODE compiler', () => {
     }
   })
 
+  it('ends a build still waiting when the last CODE view lets the compiler go', async () => {
+    const release = holdCompiler()
+    const build = compileCode(ROM, 'MAIN.TS', 'x')
+    await vi.waitFor(() => expect(FakeWorker.made[0]?.posted.length).toBe(2))
+    release()
+    // Once left waiting for ever, for a caller that awaits it to hang on.
+    await expect(build).rejects.toThrow(/let go/)
+    expect(FakeWorker.made[0]?.terminated).toBe(true)
+  })
+
+  it('ends the worker that was still starting when the compiler was let go', async () => {
+    const release = holdCompiler()
+    const build = compileCode(ROM, 'MAIN.TS', 'x')
+    release()
+    await expect(build).rejects.toThrow(/let go/)
+    expect(FakeWorker.made.every((w) => w.terminated)).toBe(true)
+  })
+
   it('says a failure with no words of its own as the compiler stopping', async () => {
     const release = holdCompiler()
     try {

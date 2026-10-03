@@ -44,13 +44,8 @@ async function start(rom: Uint8Array): Promise<Worker> {
   return w
 }
 
-const use = refCounted(() => () => {
-  worker?.terminate()
-  worker = null
-  starting = null
-  // Builds asked of a worker that has gone get no answer: their views have gone too.
-  waiting.clear()
-})
+// The last view gone: a build still waiting is ended too, never left to wait for ever.
+const use = refCounted(() => () => failAll(new Error('the compiler was let go')))
 
 /** Holds the compiler while a CODE view is open; the release ends it after the last. */
 export function holdCompiler(): () => void {
@@ -64,14 +59,21 @@ export async function compileCode(
   source: string,
 ): Promise<LevelResult[]> {
   starting ??= start(rom)
+  const asked = starting
+  let w: Worker
   try {
-    worker = await starting
+    w = await asked
   } catch (error) {
-    starting = null
+    if (starting === asked) starting = null
     throw error
   }
+  // Let go while it started: the worker is ended, not kept for no one.
+  if (starting !== asked) {
+    w.terminate()
+    throw new Error('the compiler was let go')
+  }
+  worker = w
   const id = next++
-  const w = worker
   return new Promise((resolve, reject) => {
     waiting.set(id, { resolve, reject })
     const request: CodeRequest = { kind: 'build', id, file, source }

@@ -23,7 +23,15 @@ export async function makeCompileWorker(): Promise<Worker> {
       '})',
     ].join('\n')
     const blob = new Blob([text], { type: 'text/javascript' })
-    return new Worker(URL.createObjectURL(blob), { type: 'module', name: NAME })
+    const blobUrl = URL.createObjectURL(blob)
+    const worker = new Worker(blobUrl, { type: 'module', name: NAME })
+    // Its URL goes with it: a CODE view opened and closed should leave no blob behind.
+    const terminate = worker.terminate.bind(worker)
+    worker.terminate = () => {
+      terminate()
+      URL.revokeObjectURL(blobUrl)
+    }
+    return worker
   }
   const { default: CompileWorker } = await import('./compile.worker.ts?worker&inline')
   return new CompileWorker({ name: NAME })
