@@ -703,7 +703,9 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   显示寄存器和代码（可设断点、STEP）、内存、存储卡（`.bas`、`.asm` 和二进制文件的 IMPORT 与
   EXPORT）以及 TUNE（1 至 32 MHz 的时钟、液晶、外观、自动关机）。**CODE** 把用 TypeScript 子集写的
   程序以三级优化编译成机器码，并排显示各自的字节数和周期数；RUN 直接把它放进机器运行。用户的代码只作为
-  机器码运行，绝不会作为 JavaScript 运行。在提示符处等待时 CPU 休眠，窗格的负担与暂停的窗格相当。
+  机器码运行，绝不会作为 JavaScript 运行。在提示符处等待时 CPU 休眠，窗格的负担与暂停的窗格相当。说明书（日文）：
+  [BASIC](docs/elec16-basic.md)、[E16 机器码与监视器](docs/elec16-e16.md)、
+  [e16c（CODE 的 TypeScript）](docs/elec16-e16c.md)。
 
 ## 插件
 
@@ -865,7 +867,8 @@ examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
-                in Japanese), plugins.md, weather-providers.md
+                in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md (the ELEC-16 manuals, in Japanese)
 ```
 
 改动必须遵守的规则——安全边界、网络在哪里运行、测试可以触碰什么——见 [CLAUDE.md](CLAUDE.md)。

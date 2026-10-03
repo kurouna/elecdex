@@ -80,6 +80,7 @@ tests/           unit/ (vitest, node), component/ (jsdom), e2e/ (Playwright _ele
 scripts/         asset generators, sync-calc, fix-node-pty
 docs/            architecture.md, decisions.md, plugins.md (the plugin API), weather-providers.md,
                  emu.md (the emulators' shared base), elec16.md (the ELEC-16 pane),
+                 elec16-basic.md, elec16-e16.md, elec16-e16c.md (its user manuals),
                  screenshots/ (README images)
 ```
 
@@ -203,11 +204,19 @@ user made; do not reverse one without asking.
     checked first. AUTO is written when play stops (never on a timer, only if it moved). Changes
     broadcast `chip8:changed`; the page's library is replaced whole.
 - **The ELEC-16 pane** (§5.19, docs/elec16.md) is designed and built phase by phase: read
-  elec16.md before working on it. An original machine only: no third-party ROM, font, BASIC
+  elec16.md before working on it.
+  - Its user manuals, in Japanese, are docs/elec16-basic.md (BASIC), docs/elec16-e16.md (the
+    ISA, the assembler, the monitor, ROM services) and docs/elec16-e16c.md (e16c and CODE),
+    linked from all three READMEs. A change a user can see in BASIC, the instruction set, the
+    assembler, the monitor or e16c updates its manual in the same commit, as elec16.md; every
+    example in a manual runs (check it on the core). An original machine only: no third-party ROM, font, BASIC
   dialect, trade dress or real model name in what is published (user decision 2026-10-03).
   - The encoding lives once, in shared/elec16/isa.ts; the assembler, disassembler and CPU read
     it, and a test round-trips every instruction (every 16-bit encoding). One encoding, one
     meaning: a do-nothing form is illegal, not a second spelling.
+  - MCPY and MSET (block copy and fill) move at most `BLOCK_STEP` bytes and run again from the
+    same address with their registers moved on, so an interrupt or BRK is never held up by a
+    long block; e16c's `memcpy` and `memset` are one instruction each.
   - The ROM is hand-written E16 assembly (resources/elec16/rom); its font, key table and I/O
     addresses come from shared/elec16 (font.ts, keys.ts, bus.ts) through rom.ts, never copied
     into the assembly. `npm run gen:elec16` writes rom.json; a test holds it to the sources.

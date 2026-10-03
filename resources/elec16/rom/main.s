@@ -143,15 +143,15 @@ basic_abort:
 call_at:
   jr a0
 
-; A call into a ROM bank (e16c's code for a function in another bank): t0 the function, t1
-; its bank, the arguments in a0-a3 and the answer in a0 as for any call. The caller's bank
-; goes back in the window afterwards, so it can call from banked code into another bank.
 ; a0: the stack's room left, in bytes, above the code area it grows down towards (7C00).
 stack_room:
   li t0, CODE_AREA_END
   sub a0, sp, t0
   ret
 
+; A call into a ROM bank (e16c's code for a function in another bank): t0 the function, t1
+; its bank, the arguments in a0-a3 and the answer in a0 as for any call. The caller's bank
+; goes back in the window afterwards, so it can call from banked code into another bank.
 far_call:
   addi sp, sp, -4
   sw ra, 2(sp)

@@ -819,7 +819,8 @@ Ctrl+Shift+1 から 7 に並んだ状態で始まり、すでにある一覧に�
   **CODE** は TypeScript の部分集合で書いたプログラムを、3 段階の最適化で機械語にコンパイルし、
   大きさとサイクル数を並べて見せます。RUN でそのまま機械に入れて動かします。利用者のコードは機械語
   としてだけ動き、JavaScript として動くことはありません。プロンプトで待つ間は CPU が眠り、ペインの
-  負荷は一時停止したものとほぼ同じです。
+  負荷は一時停止したものとほぼ同じです。説明書: [BASIC](docs/elec16-basic.md)、
+  [E16 の機械語とモニタ](docs/elec16-e16.md)、[e16c（CODE の TypeScript）](docs/elec16-e16c.md)。
 
 ## プラグイン
 
@@ -1010,7 +1011,8 @@ examples/       the sample plugins (pomodoro, and KEYSTREAM for API version 2)
 tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _electron)
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
-                in Japanese), plugins.md, weather-providers.md
+                in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md (the ELEC-16 manuals, in Japanese)
 ```
 
 変更が守るべきルール（セキュリティ境界、ネットワークをどこで扱うか、テストが触れてよいもの）は
