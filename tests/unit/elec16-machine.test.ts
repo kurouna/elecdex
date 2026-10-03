@@ -32,7 +32,6 @@ function bytesAt(line: string): Uint8Array {
   expect(out.errors).toEqual([])
   return out.chunks[0]?.bytes ?? new Uint8Array()
 }
-const s16 = (v: number) => (v << 16) >> 16
 
 describe('arithmetic', () => {
   it('wraps at 16 bits and keeps x0 at zero', () => {
@@ -48,98 +47,7 @@ describe('arithmetic', () => {
     expect([r.a0, r.a1, r.zero, r.a2]).toEqual([0, 0x8000, 0, 0x8000])
   })
 
-  it('compares signed and unsigned', () => {
-    const r = run(`
-      li t0, -1
-      li t1, 1
-      slt a0, t0, t1
-      sltu a1, t0, t1
-      slti a2, t0, 0
-      sltiu a3, t1, -1
-      ebreak`)
-    expect([r.a0, r.a1, r.a2, r.a3]).toEqual([1, 0, 1, 1])
-  })
-
-  it('shifts logically and arithmetically by the low four bits', () => {
-    const r = run(`
-      li t0, 0x8001
-      li t1, 17
-      sll a0, t0, t1
-      srl a1, t0, t1
-      sra a2, t0, t1
-      srai a3, t0, 15
-      ebreak`)
-    expect([r.a0, r.a1, r.a2, r.a3]).toEqual([0x0002, 0x4000, 0xc000, 0xffff])
-  })
-})
-
-describe('multiply and divide', () => {
-  it('gives the low and the high halves of a product', () => {
-    const r = run(`
-      li t0, -3
-      li t1, 1000
-      mul a0, t0, t1
-      mulh a1, t0, t1
-      mulhu a2, t0, t1
-      mulhsu a3, t0, t1
-      ebreak`)
-    expect(s16(r.a0 ?? 0)).toBe(-3000)
-    expect(s16(r.a1 ?? 0)).toBe(-1)
-    expect(r.a2).toBe(Math.floor((0xfffd * 1000) / 65536))
-    expect(s16(r.a3 ?? 0)).toBe(-1)
-  })
-
-  it('never traps: by zero, and -32768 by -1', () => {
-    const r = run(`
-      li t0, -7
-      li t1, 2
-      div a0, t0, t1
-      rem a1, t0, t1
-      div a2, t0, zero
-      rem a3, t0, zero
-      li t2, 0x8000
-      li t3, -1
-      div s0, t2, t3
-      rem s1, t2, t3
-      divu s2, t0, t1
-      remu s3, t0, zero
-      ebreak`)
-    expect([s16(r.a0 ?? 0), s16(r.a1 ?? 0), r.a2, s16(r.a3 ?? 0)]).toEqual([-3, -1, 0xffff, -7])
-    expect([r.s0, r.s1, r.s2, r.s3]).toEqual([0x8000, 0, Math.floor(0xfff9 / 2), 0xfff9])
-  })
-})
-
-describe('bit manipulation', () => {
-  it('counts, swaps, rotates and sets bits', () => {
-    const r = run(`
-      li t0, 0x00f0
-      clz a0, t0
-      ctz a1, t0
-      cpop a2, t0
-      rev8 a3, t0
-      li t1, 4
-      rol s0, t0, t1
-      rori s1, t0, 8
-      sext.b s2, t0
-      bseti s3, zero, 15
-      ebreak`)
-    expect([r.a0, r.a1, r.a2, r.a3]).toEqual([8, 4, 4, 0xf000])
-    expect([r.s0, r.s1, r.s2, r.s3]).toEqual([0x0f00, 0xf000, 0xfff0, 0x8000])
-  })
-
-  it('counts sixteen zeros in zero, and takes min and max either way', () => {
-    const r = run(`
-      clz a0, zero
-      ctz a1, zero
-      li t0, -1
-      li t1, 1
-      min a2, t0, t1
-      minu a3, t0, t1
-      bext s0, t0, t1
-      andn s1, t0, t1
-      ebreak`)
-    expect([r.a0, r.a1, r.a2, r.a3, r.s0, r.s1]).toEqual([16, 16, 0xffff, 1, 1, 0xfffe])
-  })
+  // Every operation over the values at its edges: elec16-ops.test.ts.
 })
 
 describe('memory', () => {
