@@ -351,6 +351,11 @@ export class Elec16 implements Core {
       s.sleeping = false
     }
     if (ready === 0 || (s.csr.mstatus & MIE) === 0 || s.inTrap) return -1
+    if (s.csr.mtvec === 0) {
+      // Interrupts let in with nowhere to go: stopped, as an exception would be.
+      s.halt = { cause: 'interrupt with no handler', pc: s.pc }
+      return 0
+    }
     const line = 31 - Math.clz32(ready & -ready)
     this.#enterTrap(INTERRUPT | line, 0, s.pc)
     s.pc = this.next
@@ -363,7 +368,8 @@ export class Elec16 implements Core {
     const lo = this.bus.peek(pc) | (this.bus.peek(pc + 1) << 8)
     const hi = (lo & 3) === 3 ? this.bus.peek(pc + 2) | (this.bus.peek(pc + 3) << 8) : 0
     const inst = decode(lo, hi)
-    if (pc < VRAM) this.#code[pc] = inst
+    // Kept only when every byte of it is below video memory, whose writes do not unkeep it.
+    if (pc + inst.size <= VRAM) this.#code[pc] = inst
     return inst
   }
 

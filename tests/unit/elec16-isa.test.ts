@@ -116,10 +116,29 @@ describe('the 32-bit encodings', () => {
     }
   })
 
+  it('a word that decodes is the one encoding of what it decodes to (no aliases)', () => {
+    // Every other word is illegal, so nothing can come to mean something by accident.
+    let state = seedOf(32)
+    const next = () => (state = xorshift32(state))
+    const check = (word: number) => {
+      const inst = decode(word & 0xffff, word >>> 16)
+      if (inst.op === 0) return 0
+      const name = OPS[inst.op] as OpName
+      expect(encode32(name, inst), `${word.toString(16)} ${name}`).toBe(word >>> 0)
+      return 1
+    }
+    let legal = 0
+    for (let k = 0; k < 400_000; k++) legal += check((next() | 3) >>> 0)
+    expect(legal).toBeGreaterThan(10_000)
+    // Every kind field of ECALL and its kin (once, 0x80 read as ECALL).
+    for (let kind = 0; kind < 0x4000; kind++) check(((kind << 18) | (9 << 2) | 3) >>> 0)
+  })
+
   it('refuses operands that do not fit their field', () => {
     expect(() => encode32('addi', { rd: 1, rs1: 1, rs2: 0, imm: 8192 })).toThrow(/immediate/)
     expect(() => encode32('beq', { rd: 0, rs1: 1, rs2: 1, imm: 3 })).toThrow(/even/)
     expect(() => encode32('slli', { rd: 1, rs1: 1, rs2: 0, imm: 16 })).toThrow(/shift/)
+    expect(() => encode32('jal', { rd: 1, rs1: 0, rs2: 0, imm: 0x10000 })).toThrow(/64 KB/)
   })
 })
 
@@ -139,6 +158,35 @@ describe('the 16-bit forms', () => {
     }
     expect([...seen].sort()).toEqual([...C_OPS].sort())
     expect(legal).toBeGreaterThan(20000)
+  })
+
+  it('has no form that leaves everything as it was, but c.nop', () => {
+    const q1 = (sel: number, r: number, imm: number) =>
+      ((sel >> 1) << 13) | (r << 9) | ((imm & 63) << 3) | ((sel & 1) << 2) | 1
+    const q2 = (f4: number, rd: number, rs2: number, f2: number) =>
+      (f4 << 12) | (rd << 8) | (rs2 << 4) | (f2 << 2) | 2
+    const a0 = 4
+    const idle = {
+      'c.addi a0, 0': q1(0, a0, 0),
+      'c.slli a0, 0': q1(2, a0, 0),
+      'c.srli a0, 0': q1(3, a0, 0),
+      'c.srai a0, 0': q1(4, a0, 0),
+      'c.andi a0, -1': q1(5, a0, -1),
+      'c.mv a0, a0': q2(0, a0, a0, 0),
+      'c.add a0, zero': q2(0, a0, 0, 1),
+      'c.sub a0, zero': q2(0, a0, 0, 2),
+      'c.xor a0, zero': q2(0, a0, 0, 3),
+      'c.or a0, zero': q2(1, a0, 0, 1),
+    }
+    for (const [text, half] of Object.entries(idle)) expect(decode(half, 0).op, text).toBe(0)
+    // What they would write is assembled long, or not shortened at all.
+    expect(bytesOf('slli a0, a0, 0', true)).toHaveLength(4)
+    expect(bytesOf('add a0, a0, zero', true)).toHaveLength(4)
+    expect(bytesOf('mv a0, a0', true)).toHaveLength(4)
+    expect(bytesOf('andi a0, a0, -1', true)).toHaveLength(4)
+    // Clearing with AND, or moving zero in, still changes the register.
+    expect(decode(q2(1, a0, 0, 0), 0).op).toBe(OP.and)
+    expect(decode(q2(0, a0, 0, 0), 0).op).toBe(OP.add)
   })
 
   it('all zeros is illegal, so running into cleared memory stops at once', () => {

@@ -16,6 +16,7 @@
 
 import type { Inst } from './isa.js'
 import {
+  BANK_COUNT,
   BANK_SIZE,
   BANK_WINDOW,
   IO,
@@ -165,7 +166,8 @@ export class Bus {
     if (a >= REG.keyMatrix && a < REG.keyMatrix + KEY_ROWS) {
       return this.#s.keys.held[a - REG.keyMatrix] ?? 0
     }
-    const word = this.#io(a & 0xfffe, peek)
+    // Only the low byte of a register is its read: the high one never takes a key.
+    const word = this.#io(a & 0xfffe, peek || (a & 1) === 1)
     return (a & 1) === 0 ? word & 0xff : word >>> 8
   }
 
@@ -221,9 +223,11 @@ export class Bus {
     const s = this.#s
     switch (a) {
       case REG.bank:
-        if (s.bank !== value) {
+        // A bank the ROM cannot have is not taken: the window stays as it was.
+        if (s.bank !== value && value < BANK_COUNT) {
           s.bank = value
-          this.#code.fill(undefined, BANK_WINDOW, BANK_WINDOW + BANK_SIZE)
+          // From two bytes before the window: a 32-bit instruction there reaches into it.
+          this.#code.fill(undefined, BANK_WINDOW - 2, BANK_WINDOW + BANK_SIZE)
         }
         return
       case REG.power:

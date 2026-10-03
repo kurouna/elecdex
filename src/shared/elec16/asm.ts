@@ -22,7 +22,15 @@ import {
   type OpName,
   REG_NAMES,
 } from './isa.js'
-import { BANK_SIZE, BANK_WINDOW, ROM_FIXED, ROM_FIXED_SIZE, ROM_MAX, VRAM } from './map.js'
+import {
+  BANK_COUNT,
+  BANK_SIZE,
+  BANK_WINDOW,
+  ROM_FIXED,
+  ROM_FIXED_SIZE,
+  ROM_MAX,
+  VRAM,
+} from './map.js'
 import { CSR_NAMES } from './state.js'
 
 export interface AsmOptions {
@@ -80,6 +88,8 @@ interface Plan {
   relative: boolean
   /** A c.* mnemonic: it must take that 16-bit form. */
   form: COpName | null
+  /** The value a csr...i instruction writes, still as text: it goes in the rs1 field. */
+  uimm: string | null
 }
 
 type Item =
@@ -160,6 +170,7 @@ const plan = (op: OpName, fields: Partial<Omit<Plan, 'op'>> = {}): Plan => ({
   imm: '0',
   relative: false,
   form: null,
+  uimm: null,
   ...fields,
 })
 
@@ -244,10 +255,7 @@ function planOther(op: OpName, a: string[]): Plan {
     return plan(op)
   }
   count(a, 3, op)
-  const value =
-    format === 'Icsri'
-      ? { rs1: evaluate(a[2] ?? '0', () => undefined, 0) }
-      : { rs1: register(a[2] ?? '') }
+  const value = format === 'Icsri' ? { uimm: a[2] ?? '0' } : { rs1: register(a[2] ?? '') }
   return plan(op, { rd: register(a[0] ?? ''), imm: csrNumber(a[1] ?? ''), ...value })
 }
 
@@ -308,8 +316,8 @@ const swapped = (op: OpName, a: string[]): Plan =>
   plan(op, { rs1: reg(a, 1), rs2: reg(a, 0), imm: arg(a, 2), relative: true })
 
 function csrPseudo(op: OpName, a: string[], immediate: boolean): Plan {
-  const value = immediate ? evaluate(arg(a, 1), () => undefined, 0) : reg(a, 1)
-  return plan(op, { imm: csrNumber(a[0] ?? ''), rs1: value })
+  const value = immediate ? { uimm: arg(a, 1) } : { rs1: reg(a, 1) }
+  return plan(op, { imm: csrNumber(a[0] ?? ''), ...value })
 }
 
 /** The compressed mnemonics, in the syntax the disassembler writes them. */
@@ -384,6 +392,9 @@ function stripComment(text: string): string {
   return at < 0 ? text : text.slice(0, at)
 }
 
+/** A label at the start of a line, and the space after it. */
+const LABEL = /^([A-Za-z_.][\w.]*):\s*/
+
 class Preprocessor {
   readonly lines: Source[] = []
   readonly errors: AsmError[] = []
@@ -419,6 +430,11 @@ class Preprocessor {
     if (k >= raw.length)
       this.errors.push({ file, line: start + 1, message: '.macro without .endm' })
     const params = operands(head[2] ?? '').filter((p) => p !== '')
+    // A parameter is a name: it goes into a pattern, and `\name` must find only it.
+    const bad = params.find((p) => !/^[A-Za-z_]\w*$/.test(p))
+    if (bad !== undefined) {
+      this.errors.push({ file, line: start + 1, message: `"${bad}" is not a name` })
+    }
     this.#macros.set((head[1] ?? '').toLowerCase(), { params, body })
     return k
   }
@@ -426,19 +442,46 @@ class Preprocessor {
   #line(src: Source, depth: number): void {
     const inc = /^\.include\s+"([^"]+)"$/i.exec(src.text)
     if (inc !== null) {
-      const text = depth < 16 ? this.#include(inc[1] ?? '') : null
-      if (text === null) this.errors.push({ ...src, message: `cannot include ${inc[1]}` })
-      else this.read(text, inc[1] ?? '', depth + 1)
+      this.#includeFile(src, inc[1] ?? '', depth)
       return
     }
-    const call = /^(?:([A-Za-z_.][\w.]*):\s*)?([A-Za-z_][\w.]*)\b\s*(.*)$/.exec(src.text)
-    const macro = call !== null ? this.#macros.get((call[2] ?? '').toLowerCase()) : undefined
-    if (call === null || macro === undefined || depth > 32) {
+    // Labels first, as the parser takes them, so `push:` is a label even where push is a macro.
+    let text = src.text
+    const labels: string[] = []
+    for (let label = LABEL.exec(text); label !== null; label = LABEL.exec(text)) {
+      labels.push(label[1] ?? '')
+      text = text.slice(label[0].length)
+    }
+    // A name then its arguments; `name = value` is not a call.
+    const call = /^([A-Za-z_][\w.]*)(?:\s+(?!=)(.*))?$/.exec(text)
+    const macro = call !== null ? this.#macros.get((call[1] ?? '').toLowerCase()) : undefined
+    if (call === null || macro === undefined) {
       this.lines.push(src)
       return
     }
-    if (call[1] !== undefined) this.lines.push({ ...src, text: `${call[1]}:` })
-    this.#expand(macro, operands(call[3] ?? ''), src, depth)
+    if (depth > 32) {
+      this.#once(src, 'macros nest deeper than 32')
+      return
+    }
+    if (labels.length > 0) this.lines.push({ ...src, text: labels.map((l) => `${l}:`).join(' ') })
+    this.#expand(macro, operands(call[2] ?? ''), src, depth)
+  }
+
+  #includeFile(src: Source, name: string, depth: number): void {
+    if (depth >= 16) {
+      this.#once(src, 'includes nest deeper than 16')
+      return
+    }
+    const text = this.#include(name)
+    if (text === null) this.errors.push({ ...src, message: `cannot include ${name}` })
+    else this.read(text, name, depth + 1)
+  }
+
+  /** An error said once for its line, however many times a loop of expansions meets it. */
+  #once(src: Source, message: string): void {
+    if (!this.errors.some((e) => e.message === message && e.line === src.line)) {
+      this.errors.push({ file: src.file, line: src.line, message })
+    }
   }
 
   #expand(macro: Macro, args: string[], at: Source, depth: number): void {
@@ -485,11 +528,9 @@ class Parser {
 
   #parseLine(src: Source): void {
     let text = src.text
-    for (;;) {
-      const label = /^([A-Za-z_.][\w.]*):/.exec(text)
-      if (label === null) break
+    for (let label = LABEL.exec(text); label !== null; label = LABEL.exec(text)) {
       this.#label(src, label[1] ?? '')
-      text = text.slice(label[0].length).trim()
+      text = text.slice(label[0].length)
     }
     if (text === '') return
     const equ = /^([A-Za-z_][\w.]*)\s*=\s*(.+)$/.exec(text)
@@ -573,6 +614,24 @@ const keyOf = (address: number, bank: number | null): number =>
 const inWindow = (address: number): boolean =>
   address >= BANK_WINDOW && address < BANK_WINDOW + BANK_SIZE
 
+/** Passes in which a size may shrink; after them sizes only grow, up to the last pass. */
+const SHRINK_PASSES = 16
+const MAX_PASSES = 400
+
+function sameSymbols(a: Map<string, number>, b: Map<string, number>): boolean {
+  if (a.size !== b.size) return false
+  for (const [name, value] of a) if (b.get(name) !== value) return false
+  return true
+}
+
+/** A data value fits its width, signed or not. */
+function fits(n: number, width: 1 | 2, directive: string): void {
+  const bits = width * 8
+  if (!(n >= -(2 ** (bits - 1)) && n < 2 ** bits)) {
+    throw new Error(`${directive} takes ${-(2 ** (bits - 1))} to ${2 ** bits - 1}`)
+  }
+}
+
 class Layout {
   readonly symbols = new Map<string, number>()
   readonly errors: AsmError[] = []
@@ -584,19 +643,35 @@ class Layout {
   #bank = 0
   #compress = true
   #emit = false
+  /** Past the passes that may shrink: sizes only grow now, so the layout must end. */
+  #growOnly = false
+  /** Names defined in this pass, to find one defined twice. */
+  readonly #defined = new Set<string>()
 
   constructor(items: Item[], compressDefault: boolean) {
     this.#items = items
     this.#compressDefault = compressDefault
   }
 
-  /** Passes until no instruction gets shorter, then one that writes. */
+  /**
+   * Passes until one changes no instruction's size and no symbol - nothing then moves - and
+   * one that writes. A size is chosen afresh each pass, so one that shrank can grow back when
+   * what shrank before it moved its target out of reach; after SHRINK_PASSES sizes only grow,
+   * which ends (each instruction grows once).
+   */
   run(): void {
-    for (let pass = 0; pass < 24; pass++) {
-      if (!this.#pass()) break
+    let settled = false
+    for (let pass = 0; pass < MAX_PASSES && !settled; pass++) {
+      this.#growOnly = pass >= SHRINK_PASSES
+      const before = new Map(this.symbols)
+      settled = !this.#pass() && sameSymbols(before, this.symbols)
     }
     this.#emit = true
     this.#pass()
+    if (!settled) {
+      const src = this.#items[0]?.src ?? { file: 'source', line: 1, text: '' }
+      this.#error(src, 'the layout does not settle')
+    }
   }
 
   get bytes(): Map<number, number> {
@@ -613,21 +688,22 @@ class Layout {
     }
   }
 
-  /** One pass over the items; true when an instruction got shorter. */
+  /** One pass over the items; true when an instruction changed size. */
   #pass(): boolean {
     this.#address = 0
     this.#bank = 0
     this.#compress = this.#compressDefault
-    let shrunk = false
+    this.#defined.clear()
+    let resized = false
     for (const item of this.#items) {
       try {
-        if (this.#item(item)) shrunk = true
+        if (this.#item(item)) resized = true
       } catch (e) {
         // Only the pass that writes reports: an earlier one sees addresses still moving.
         if (this.#emit) this.#error(item.src, (e as Error).message)
       }
     }
-    return shrunk
+    return resized
   }
 
   #error(src: Source, message: string): void {
@@ -645,10 +721,10 @@ class Layout {
   #item(item: Item): boolean {
     switch (item.kind) {
       case 'label':
-        this.symbols.set(item.name, this.#address)
+        this.#define(item.name, this.#address)
         return false
       case 'equ':
-        this.symbols.set(item.name, this.#value(item.expr, item.scope))
+        this.#define(item.name, this.#value(item.expr, item.scope))
         return false
       case 'option':
         this.#compress = item.compress
@@ -661,14 +737,25 @@ class Layout {
     }
   }
 
+  #define(name: string, value: number): void {
+    if (this.#defined.has(name)) throw new Error(`${name} is defined twice`)
+    this.#defined.add(name)
+    this.symbols.set(name, value)
+  }
+
   #placement(item: Exclude<Item, { kind: 'label' | 'equ' | 'option' | 'inst' }>): void {
     switch (item.kind) {
       case 'org':
         this.#address = this.#value(item.expr, item.scope) & 0xffff
         return
-      case 'bank':
-        this.#bank = this.#value(item.expr, item.scope)
+      case 'bank': {
+        const bank = this.#value(item.expr, item.scope)
+        if (!(bank >= 0 && bank < BANK_COUNT)) {
+          throw new Error(`.bank takes 0 to ${BANK_COUNT - 1}`)
+        }
+        this.#bank = bank
         return
+      }
       case 'align': {
         const n = this.#value(item.expr, item.scope)
         while (n > 0 && this.#address % n !== 0) this.#put(0, item.src, [])
@@ -691,13 +778,17 @@ class Layout {
     for (const v of item.values) {
       if (v.startsWith('"')) {
         for (const b of stringBytes(v)) this.#put(b, item.src, out)
-      } else {
-        const n = this.#emit ? this.#value(v, item.scope) : this.#tryValue(v, item.scope)
-        this.#put(n & 0xff, item.src, out)
-        if (item.width === 2) this.#put((n >> 8) & 0xff, item.src, out)
-      }
+      } else this.#number(v, item, out)
     }
     this.#list(start, out, item.src)
+  }
+
+  /** One value of .byte or .word, little-endian; checked against its width when writing. */
+  #number(v: string, item: Extract<Item, { kind: 'data' }>, out: number[]): void {
+    const n = this.#emit ? this.#value(v, item.scope) : this.#tryValue(v, item.scope)
+    if (this.#emit) fits(n, item.width, item.width === 1 ? '.byte' : '.word')
+    this.#put(n & 0xff, item.src, out)
+    if (item.width === 2) this.#put((n >> 8) & 0xff, item.src, out)
   }
 
   /** A value before every symbol is known: 0 stands in for one defined later. */
@@ -728,37 +819,56 @@ class Layout {
     this.listing.push({ address, bank, bytes, file: src.file, line: src.line, text: src.text })
   }
 
+  /** Places (and when writing, writes) an instruction; true when its size changed. */
   #instruction(item: Extract<Item, { kind: 'inst' }>): boolean {
-    if ((this.#address & 1) !== 0)
-      throw new Error(`an instruction at an odd address ${hex(this.#address)}`)
-    const p = item.plan
-    const imm = this.#immediate(p, item.scope)
-    const fields: Fields | null = imm === null ? null : { rd: p.rd, rs1: p.rs1, rs2: p.rs2, imm }
-    const short = fields === null ? null : shortForm(p, fields)
-    let shrunk = false
-    const wantShort = p.form !== null || (this.#compress && short !== null)
-    if (wantShort && item.size === 4) {
-      item.size = 2
-      shrunk = true
+    const start = this.#address
+    try {
+      if ((start & 1) !== 0) throw new Error(`an instruction at an odd address ${hex(start)}`)
+      const fields = this.#fields(item.plan, item.scope)
+      const short = fields === null ? null : shortForm(item.plan, fields)
+      const size = this.#size(item, fields, short)
+      const resized = size !== item.size
+      item.size = size
+      // Writing, every symbol is known: #fields throws rather than give null.
+      if (this.#emit && fields !== null) this.#write(item, fields, short)
+      return resized
+    } finally {
+      // Even when it is wrong, it takes its room, so what follows stays where it was.
+      this.#address = (start + item.size) & 0xffff
     }
-    // Writing, every symbol is known: #immediate throws rather than give null.
-    if (this.#emit && fields !== null) this.#write(item, fields, short)
-    else this.#address = (this.#address + item.size) & 0xffff
-    return shrunk
   }
 
-  /** The immediate as the field holds it; null while a symbol is not known yet. */
-  #immediate(p: Plan, scope: string): number | null {
-    let v: number
+  /**
+   * The size this pass gives an instruction: a c.* form's is 2; otherwise short when it fits
+   * and compression is on. Unknown yet, or writing, it keeps the size it has.
+   */
+  #size(item: Extract<Item, { kind: 'inst' }>, fields: Fields | null, short: number | null) {
+    if (item.plan.form !== null) return 2
+    if (fields === null || this.#emit) return item.size
+    const size = this.#compress && short !== null ? 2 : 4
+    return this.#growOnly && size < item.size ? item.size : size
+  }
+
+  /** The fields as the encoding holds them; null while a symbol is not known yet. */
+  #fields(p: Plan, scope: string): Fields | null {
+    const v = this.#known(p.imm, scope)
+    const rs1 = p.uimm === null ? p.rs1 : this.#known(p.uimm, scope)
+    if (v === null || rs1 === null) return null
+    if (ENCODINGS[p.op]?.format === 'U' && !(v >= -0x8000 && v <= 0xffff)) {
+      throw new Error(`${p.op} takes a value from -32768 to 65535`)
+    }
+    // A target: the distance to it, wrapping round the 64 KB address space.
+    const imm = p.relative ? ((((v - this.#address) & 0xffff) + 0x8000) & 0xffff) - 0x8000 : v
+    return { rd: p.rd, rs1, rs2: p.rs2, imm }
+  }
+
+  #known(expr: string, scope: string): number | null {
     try {
-      v = this.#value(p.imm, scope)
+      return this.#value(expr, scope)
     } catch (e) {
       if (e instanceof Unresolved && !this.#emit) return null
       throw e
     }
-    if (!p.relative) return v
-    // A target: the distance to it, wrapping round the 64 KB address space.
-    return ((((v - this.#address) & 0xffff) + 0x8000) & 0xffff) - 0x8000
   }
 
   #write(item: Extract<Item, { kind: 'inst' }>, fields: Fields, short: number | null): void {

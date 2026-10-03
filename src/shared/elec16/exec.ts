@@ -76,12 +76,18 @@ function store(c: Core, i: Inst, word: boolean): void {
   if (!ok) c.trap(CAUSE.storeFault, a)
 }
 
+/** An instruction's first half-word, which mtval holds for an illegal one. */
+function firstHalf(c: Core, pc: number): number {
+  return c.bus.peek(pc) | (c.bus.peek(pc + 1) << 8)
+}
+
 /** CSRRW, CSRRS and CSRRC, from a register or (the I forms) a 4-bit immediate in rs1. */
 function csr(kind: 'w' | 's' | 'c', immediate: boolean): Handler {
-  return (c, i) => {
+  return (c, i, pc) => {
     const old = c.csrRead(i.imm)
     if (old === null) {
-      c.trap(CAUSE.illegal, i.imm)
+      // As for any illegal instruction: its first half-word, not the CSR's number.
+      c.trap(CAUSE.illegal, firstHalf(c, pc))
       return
     }
     const v = immediate ? i.rs1 : x(c.r, i.rs1)
@@ -101,7 +107,7 @@ function jump(c: Core, i: Inst, pc: number): void {
 // Each handler writes rd only when it is not x0, which stays zero.
 const HANDLERS: Record<OpName, Handler> = {
   // mtval holds the instruction's first half-word, so a handler can see what it was.
-  illegal: (c, _i, pc) => c.trap(CAUSE.illegal, c.bus.peek(pc) | (c.bus.peek(pc + 1) << 8)),
+  illegal: (c, _i, pc) => c.trap(CAUSE.illegal, firstHalf(c, pc)),
   add: (c, i) => {
     if (i.rd !== 0) c.r[i.rd] = x(c.r, i.rs1) + x(c.r, i.rs2)
   },

@@ -1,6 +1,6 @@
 import { assemble, ramImage, romImage } from '@shared/elec16/asm'
 import { REG } from '@shared/elec16/bus'
-import { REG_NAMES } from '@shared/elec16/isa'
+import { encode32, REG_NAMES } from '@shared/elec16/isa'
 import { Elec16 } from '@shared/elec16/machine'
 import type { ModelId } from '@shared/elec16/map'
 import { describe, expect, it } from 'vitest'
@@ -25,6 +25,13 @@ function finish(m: Elec16, cycles = 1_000_000): Record<string, number> {
 }
 
 const run = (src: string) => finish(boot(src))
+
+/** One instruction's bytes, as the assembler writes it (no shortening). */
+function bytesAt(line: string): Uint8Array {
+  const out = assemble(`.org 0x8000\n.option nocompress\n${line}`)
+  expect(out.errors).toEqual([])
+  return out.chunks[0]?.bytes ?? new Uint8Array()
+}
 const s16 = (v: number) => (v << 16) >> 16
 
 describe('arithmetic', () => {
@@ -167,6 +174,8 @@ describe('memory', () => {
   it('shows the bank the program chose in the window, and runs code from it', () => {
     const out = assemble(`
       .org 0x8000
+      call 0xc000
+      mv s0, a0
       li t0, ${REG.bank}
       li t1, 1
       sw t1, 0(t0)
@@ -182,7 +191,77 @@ describe('memory', () => {
       ret`)
     expect(out.errors).toEqual([])
     const m = Elec16.boot(romImage(out))
-    expect(finish(m).a0).toBe(200)
+    const r = finish(m)
+    // The same address again, after the switch: what the bank holds now, not what ran before.
+    expect([r.s0, r.a0]).toEqual([100, 200])
+  })
+
+  it('keeps the bank it had when told to show one the ROM cannot have', () => {
+    const r = run(`
+      li t0, ${REG.bank}
+      li t1, 2
+      sw t1, 0(t0)
+      li t1, 12
+      sw t1, 0(t0)
+      lw a0, 0(t0)
+      li t1, 0xffff
+      sw t1, 0(t0)
+      lw a1, 0(t0)
+      ebreak`)
+    expect([r.a0, r.a1]).toEqual([2, 2])
+  })
+
+  it('runs a 32-bit instruction across the edge of the bank window as the bank has it now', () => {
+    // LI's low half sits in the fixed ROM at 0xBFFE, its high half in the window at 0xC000.
+    const low = (imm: number) => encode32('li', { rd: 4, rs1: 0, rs2: 0, imm }) & 0xffff
+    const high = (imm: number) => encode32('li', { rd: 4, rs1: 0, rs2: 0, imm }) >>> 16
+    expect(low(0x100)).toBe(low(0x200))
+    const out = assemble(`
+      .org 0x8000
+      call 0xbffe
+      mv s0, a0
+      li t0, ${REG.bank}
+      li t1, 1
+      sw t1, 0(t0)
+      call 0xbffe
+      ebreak
+      .org 0xbffe
+      .word ${low(0x100)}
+      .bank 0
+      .org 0xc000
+      .word ${high(0x100)}
+      ret
+      .bank 1
+      .org 0xc000
+      .word ${high(0x200)}
+      ret`)
+    expect(out.errors).toEqual([])
+    const r = finish(Elec16.boot(romImage(out)))
+    expect([r.s0, r.a0]).toEqual([0x100, 0x200])
+  })
+
+  it('runs a 32-bit instruction whose high half is in video memory as that memory is now', () => {
+    const word = (imm: number) => encode32('li', { rd: 4, rs1: 0, rs2: 0, imm })
+    const ret = ramImage(assemble('.org 0x7000\nc.jr ra'), 0x7000)
+    const out = assemble(`
+      .org 0x8000
+      li t0, 0xe000
+      li t1, ${word(0x100) >>> 16}
+      sw t1, 0(t0)
+      li t1, ${(ret[0] ?? 0) | ((ret[1] ?? 0) << 8)}
+      sw t1, 2(t0)
+      call 0xdffe
+      mv s0, a0
+      li t1, ${word(0x200) >>> 16}
+      sw t1, 0(t0)
+      call 0xdffe
+      ebreak
+      .bank 0
+      .org 0xdffe
+      .word ${word(0x100) & 0xffff}`)
+    expect(out.errors).toEqual([])
+    const r = finish(Elec16.boot(romImage(out)))
+    expect([r.s0, r.a0]).toEqual([0x100, 0x200])
   })
 
   it('runs code written into RAM, and again after the code there changes', () => {
@@ -336,6 +415,148 @@ describe('traps, CSRs and sleeping', () => {
     expect(m.run(10_000).sleeping).not.toBeNull()
     m.advance(2)
     expect(finish(m).a0).toBe(0x8000)
+  })
+
+  it('an unknown CSR and an unknown word leave the first half-word of the instruction in mtval', () => {
+    const csr = bytesAt('csrr a0, 0x123')
+    const r = run(`
+      ${handler}
+      csrr a0, 0x123
+      mv s0, a1
+      .word 0x007f, 0
+      csrw mtvec, zero
+      ebreak
+    trap:
+      csrr a1, mtval
+      csrr t1, mepc
+      addi t1, t1, 4
+      csrw mepc, t1
+      mret`)
+    expect([r.s0, r.a1]).toEqual([(csr[0] ?? 0) | ((csr[1] ?? 0) << 8), 0x007f])
+  })
+
+  it('stops when an interrupt is let in with no handler to go to', () => {
+    const m = boot(`
+      csrsi mie, 2
+      csrsi mstatus, 8
+    spin:
+      j spin`)
+    expect(m.run(1000).halted).toBeNull()
+    m.press(5)
+    expect(m.run(1000).halted?.cause).toBe('interrupt with no handler')
+  })
+
+  it('takes the lowest line first when two are up', () => {
+    const m = boot(`
+      ${handler}
+      li t0, ${REG.timerCompare}
+      li t1, 1
+      sw t1, 0(t0)
+      li t0, ${REG.timerCtrl}
+      sw t1, 0(t0)
+      csrsi mie, 3
+      wfi
+      csrsi mstatus, 8
+      nop
+    trap:
+      csrr a0, mcause
+      csrw mtvec, zero
+      ebreak`)
+    expect(m.run(10_000).sleeping).not.toBeNull()
+    m.press(4)
+    m.advance(5)
+    expect(finish(m).a0).toBe(0x8000)
+  })
+
+  it('counts the timer round 16 bits, and a compare equal to the count is a whole turn away', () => {
+    const m = boot('ebreak')
+    const t = m.state.timer
+    t.enabled = true
+    t.count = 0xfffe
+    t.compare = 1
+    m.advance(2 / 1.024)
+    expect([t.count, t.pending]).toEqual([0, false])
+    m.advance(1 / 1.024 + 0.001)
+    expect([t.count, t.pending]).toEqual([1, true])
+    t.pending = false
+    t.compare = t.count
+    m.advance(65_535 / 1.024)
+    expect(t.pending).toBe(false)
+    m.advance(1 / 1.024 + 0.001)
+    expect(t.pending).toBe(true)
+  })
+
+  it('keeps the first sixteen keys when more come than the program reads', () => {
+    const m = boot(`
+      li t0, ${REG.keyData}
+      lbu a2, 1(t0)
+      lw a0, 0(t0)
+      lw a1, 2(t0)
+      ebreak`)
+    for (let k = 0; k < 20; k++) m.press(k)
+    const r = finish(m)
+    // A byte read of the high half does not take a key.
+    expect([r.a2, r.a0, r.a1]).toEqual([0, 0, 15])
+  })
+
+  it('resets to the vector with the CSRs cleared, the RAM kept and bank 0 shown', () => {
+    const m = boot(`
+      li t0, 0x100
+      li t1, 77
+      sw t1, 0(t0)
+      li t0, ${REG.bank}
+      li t1, 3
+      sw t1, 0(t0)
+      li t0, 0x2000
+      csrw mtvec, t0
+      li a0, 5
+      ebreak`)
+    m.run(1000)
+    m.reset()
+    const s = m.state
+    expect([s.pc, s.halt, s.csr.mtvec, s.bank, s.regs[4], s.ram[0x100]]).toEqual([
+      0x8000,
+      null,
+      0,
+      0,
+      0,
+      77,
+    ])
+  })
+
+  it('steps one instruction at a time, runs a sixtieth of its clock a frame, and holds the clock in range', () => {
+    const m = boot(`
+    loop:
+      addi a0, a0, 1
+      j loop`)
+    expect(m.step().cycles).toBe(1)
+    expect(m.state.regs[4]).toBe(1)
+    m.hz = 600_000_000
+    expect(m.hz).toBe(32_000_000)
+    m.hz = 1
+    expect(m.hz).toBe(1_000_000)
+    const before = m.state.cycles
+    m.frame()
+    expect(m.state.cycles - before).toBeGreaterThanOrEqual(1_000_000 / 60)
+    expect(m.state.cycles - before).toBeLessThan(1_000_000 / 60 + 4)
+  })
+
+  it('runs a 32-bit instruction in RAM again after one byte of its high half changes', () => {
+    const word = (imm: number) => encode32('li', { rd: 4, rs1: 0, rs2: 0, imm })
+    const m = boot(`
+      call 0x7000
+      mv s0, a0
+      li t0, 0x7003
+      li t1, ${word(0x4000) >>> 24}
+      sb t1, 0(t0)
+      call 0x7000
+      ebreak`)
+    const ret = ramImage(assemble('.org 0x7000\nc.jr ra'), 0x7000)
+    const w = word(0x2000)
+    m.state.ram.set([w & 0xff, (w >>> 8) & 0xff, (w >>> 16) & 0xff, w >>> 24, ...ret], 0x7000)
+    expect(word(0x2000) & 0xffffff).toBe(word(0x4000) & 0xffffff)
+    const r = finish(m)
+    expect([r.s0, r.a0]).toEqual([0x2000, 0x4000])
   })
 })
 

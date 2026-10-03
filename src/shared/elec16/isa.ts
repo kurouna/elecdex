@@ -334,7 +334,7 @@ function encodeAs(e: Encoding, name: string, i: Omit<Inst, 'op' | 'size' | 'c'>)
       need(fitsUnsigned(i.imm & 0xffff, 16), name, 'a 16-bit value')
       return base(e) | rd | ((i.imm & 0xffff) << 11)
     case 'J':
-      need((i.imm & 1) === 0, name, 'an even offset')
+      need(fitsSigned(i.imm, 17) && (i.imm & 1) === 0, name, 'an even offset within 64 KB')
       return base(e) | rd | (((i.imm >> 1) & 0xffff) << 11)
   }
 }
@@ -448,7 +448,8 @@ function decodeUpper(w: number, major: number, rd: number): Inst {
 function decodeSystem(w: number, rd: number, f3: number, rs1: number): Inst {
   const imm14 = (w >>> 18) & 0x3fff
   if (f3 === 0) {
-    const op = I_TABLE.get((MAJOR.system << 8) | 0x80 | imm14)
+    // The kind is the whole field: a larger one would land on another key of the table.
+    const op = imm14 < 0x80 ? I_TABLE.get((MAJOR.system << 8) | 0x80 | imm14) : undefined
     // The other fields of ECALL and its kind must be zero.
     if (op === undefined || rd !== 0 || rs1 !== 0) return ILLEGAL(4)
     return { op, rd: 0, rs1: 0, rs2: 0, imm: 0, size: 4, c: -1 }
@@ -531,15 +532,16 @@ function decodeQ1(h: number): Inst {
     case 4:
       return shiftC('c.srai', 'srai', r, raw6)
     case 5:
-      return r === 0 ? ILLEGAL(2) : C('c.andi', 'andi', r, r, 0, imm6)
+      // AND with all ones changes nothing.
+      return r === 0 || imm6 === -1 ? ILLEGAL(2) : C('c.andi', 'andi', r, r, 0, imm6)
     default:
       return decodeQ1Jumps(h, f3, r)
   }
 }
 
-/** A shift by 0 to 15: the amount's top two bits must be clear. */
+/** A shift by 1 to 15: the amount's top two bits must be clear, and a shift by 0 does nothing. */
 const shiftC = (c: COpName, op: OpName, r: number, amount: number): Inst =>
-  amount > 15 || r === 0 ? ILLEGAL(2) : C(c, op, r, r, 0, amount)
+  amount > 15 || amount === 0 || r === 0 ? ILLEGAL(2) : C(c, op, r, r, 0, amount)
 
 function decodeQ1Jumps(h: number, f3: number, r: number): Inst {
   const off8 = signed(((h >>> 2) & 0x7f) << 1, 8)
@@ -575,6 +577,17 @@ const Q2: Record<number, { c: COpName; op: OpName; kind: 'rr' | 'mv' | 'jump' | 
   10: { c: 'c.ebreak', op: 'ebreak', kind: 'none' },
 }
 
+/** Adding, taking, or XOR or OR with x0 leaves the register as it was (AND with it clears it). */
+const doesNothing = (c: COpName, rs2: number): boolean => rs2 === 0 && c !== 'c.and'
+
+/** A register-to-register form: it must write a register, and change it. */
+function pairQ2(c: COpName, op: OpName, kind: 'mv' | 'rr', rd: number, rs2: number): Inst {
+  if (rd === 0) return ILLEGAL(2)
+  // A register moved onto itself does nothing.
+  if (kind === 'mv') return rd === rs2 ? ILLEGAL(2) : C(c, op, rd, 0, rs2, 0)
+  return doesNothing(c, rs2) ? ILLEGAL(2) : C(c, op, rd, rd, rs2, 0)
+}
+
 /** Quadrant 2: register to register, and jumps through a register. */
 function decodeQ2(h: number): Inst {
   const rd = (h >>> 8) & 15
@@ -583,9 +596,8 @@ function decodeQ2(h: number): Inst {
   if (form === undefined) return ILLEGAL(2)
   switch (form.kind) {
     case 'mv':
-      return rd === 0 ? ILLEGAL(2) : C(form.c, form.op, rd, 0, rs2, 0)
     case 'rr':
-      return rd === 0 ? ILLEGAL(2) : C(form.c, form.op, rd, rd, rs2, 0)
+      return pairQ2(form.c, form.op, form.kind, rd, rs2)
     case 'jump':
       if (rd === 0 || rs2 !== 0) return ILLEGAL(2)
       return C(form.c, form.op, form.c === 'c.jr' ? 0 : RA, rd, 0, 0)
@@ -621,10 +633,10 @@ function stackShort(f3: 2 | 3, reg: number, i: Operands): number | null {
 }
 
 const shiftShort = (sel: number) => (i: Operands) =>
-  inPlace(i) && fitsUnsigned(i.imm, 4) ? quad1(sel, i.rd, i.imm) : null
+  inPlace(i) && i.imm !== 0 && fitsUnsigned(i.imm, 4) ? quad1(sel, i.rd, i.imm) : null
 
-const pairShort = (f4: number, f2: number) => (i: Operands) =>
-  inPlace(i) ? quad2(f4, i.rd, i.rs2, f2) : null
+const pairShort = (c: COpName, f4: number, f2: number) => (i: Operands) =>
+  inPlace(i) && !doesNothing(c, i.rs2) ? quad2(f4, i.rd, i.rs2, f2) : null
 
 function branchShort(f3: 3 | 4, i: Operands): number | null {
   if (i.rs2 !== 0 || !fitsSigned(i.imm, 8) || !isEven(i.imm)) return null
@@ -657,17 +669,18 @@ const FORMS: Record<COpName, (i: Operands) => number | null> = {
   'c.slli': shiftShort(2),
   'c.srli': shiftShort(3),
   'c.srai': shiftShort(4),
-  'c.andi': (i) => (inPlace(i) && fitsSigned(i.imm, 6) ? quad1(5, i.rd, i.imm) : null),
+  'c.andi': (i) =>
+    inPlace(i) && i.imm !== -1 && fitsSigned(i.imm, 6) ? quad1(5, i.rd, i.imm) : null,
   'c.beqz': (i) => branchShort(3, i),
   'c.bnez': (i) => branchShort(4, i),
   'c.j': (i) => jumpShort(0, i),
   'c.jal': (i) => jumpShort(1, i),
-  'c.mv': (i) => (i.rd !== 0 && i.rs1 === 0 ? quad2(0, i.rd, i.rs2, 0) : null),
-  'c.add': pairShort(0, 1),
-  'c.sub': pairShort(0, 2),
-  'c.xor': pairShort(0, 3),
-  'c.and': pairShort(1, 0),
-  'c.or': pairShort(1, 1),
+  'c.mv': (i) => (i.rd !== 0 && i.rs1 === 0 && i.rd !== i.rs2 ? quad2(0, i.rd, i.rs2, 0) : null),
+  'c.add': pairShort('c.add', 0, 1),
+  'c.sub': pairShort('c.sub', 0, 2),
+  'c.xor': pairShort('c.xor', 0, 3),
+  'c.and': pairShort('c.and', 1, 0),
+  'c.or': pairShort('c.or', 1, 1),
   'c.jr': (i) => (i.rd === 0 && i.rs1 !== 0 && i.imm === 0 ? quad2(2, i.rs1, 0, 0) : null),
   'c.jalr': (i) => (i.rd === RA && i.rs1 !== 0 && i.imm === 0 ? quad2(2, i.rs1, 0, 1) : null),
   'c.ebreak': () => quad2(2, 0, 0, 2),

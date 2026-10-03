@@ -156,9 +156,115 @@ describe('the assembler', () => {
     expect(out.errors[0]?.message).toMatch(/c.addi does not fit 16 bits/)
   })
 
-  it('refuses two things at one address', () => {
+  it('refuses two things at one address, in the same bank but not in two', () => {
     const out = assemble('.org 0x8000\nnop\n.org 0x8000\nnop')
     expect(out.errors[0]?.message).toMatch(/overlaps/)
+    bytes('.bank 0\n.org 0xc000\n.byte 1\n.bank 1\n.org 0xc000\n.byte 2')
+    const twice = assemble('.bank 1\n.org 0xc000\n.byte 1\n.org 0xc000\n.byte 2')
+    expect(twice.errors[0]?.message).toMatch(/overlaps/)
+  })
+
+  it('never decides a size while a placement is still unknown', () => {
+    // In the first pass `.org base` is unknown, so the branch looks two bytes from its target.
+    const out = bytes(`
+      .org 0x8000
+    target:
+      nop
+      .org base
+      beqz a0, target
+      ebreak
+    base = 0x9000`)
+    const branch = out.listing.find((l) => l.text.startsWith('beqz'))
+    expect([branch?.address, branch?.bytes.length]).toEqual([0x9000, 4])
+  })
+
+  it('settles when a shorter instruction moves a target out of reach of another', () => {
+    // The jump fits 16 bits until the branch before it shrinks, which moves it away from a
+    // target held in place by .org: it has to grow back.
+    const out = bytes(`
+      .org 0x8000
+      beqz a1, done
+      .space 120
+      j far
+    done:
+      ebreak
+      .org 0x887a
+    far:
+      ebreak`)
+    const size = (text: string) => out.listing.find((l) => l.text === text)?.bytes.length
+    expect([size('beqz a1, done'), size('j far')]).toEqual([2, 4])
+  })
+
+  it('takes li and la values from -32768 to 65535 only', () => {
+    bytes('.org 0x8000\nli a0, -32768\nli a0, 0xffff\nla a0, 0x8000')
+    for (const v of ['-32769', '0x10000', '100000']) {
+      expect(assemble(`.org 0x8000\nli a0, ${v}`).errors[0]?.message, v).toMatch(/li takes/)
+    }
+  })
+
+  it('refuses a label or a name defined twice', () => {
+    expect(assemble('.org 0x8000\na: nop\na: nop').errors[0]?.message).toMatch(/a is defined twice/)
+    expect(assemble('x = 1\nx = 2').errors[0]?.message).toMatch(/x is defined twice/)
+    expect(assemble('.org 0x8000\nf:\n.x: nop\ng:\n.x: nop').errors).toEqual([])
+  })
+
+  it('refuses data that does not fit its width, and a bank the ROM cannot have', () => {
+    bytes('.org 0x8000\n.byte 255, -128\n.word 0xffff, -32768')
+    expect(assemble('.org 0x8000\n.byte 300').errors[0]?.message).toMatch(/\.byte takes/)
+    expect(assemble('.org 0x8000\n.word 0x10000').errors[0]?.message).toMatch(/\.word takes/)
+    for (const b of ['-1', '12']) {
+      expect(assemble(`.bank ${b}\n.org 0xc000\nnop`).errors[0]?.message, b).toMatch(
+        /\.bank takes 0 to 11/,
+      )
+    }
+  })
+
+  it('takes a symbol as the value a csr…i instruction writes', () => {
+    const out = bytes('IE = 8\n.org 0x8000\ncsrsi mstatus, IE\ncsrrwi a0, mie, IE / 4')
+    const plain = bytes('.org 0x8000\ncsrsi mstatus, 8\ncsrrwi a0, mie, 2')
+    expect(out.chunks).toEqual(plain.chunks)
+  })
+
+  it('jumps to itself with $', () => {
+    const out = bytes('.org 0x8000\n.option nocompress\nj $')
+    const self = bytes('.org 0x8000\n.option nocompress\nhere: j here')
+    expect(out.chunks).toEqual(self.chunks)
+  })
+})
+
+describe('macros and includes', () => {
+  it('tells a label named like a macro from a call, and keeps every label before a call', () => {
+    const out = bytes(`
+      .macro push reg
+      addi sp, sp, -2
+      sw \\reg, 0(sp)
+      .endm
+      .org 0x8000
+    push:
+      nop
+    a: b: push a0
+      j push`)
+    expect(out.symbols.get('push')).toBe(0x8000)
+    expect(out.symbols.get('a')).toBe(0x8002)
+    expect(out.symbols.get('b')).toBe(0x8002)
+    expect(out.listing.map((l) => l.text)).toEqual([
+      'nop',
+      'addi sp, sp, -2',
+      'sw a0, 0(sp)',
+      'j push',
+    ])
+  })
+
+  it('says when a macro calls itself without end, or a file includes itself', () => {
+    const loop = assemble('.macro again\nagain\n.endm\n.org 0x8000\nagain')
+    expect(loop.errors.map((e) => e.message)).toEqual(['macros nest deeper than 32'])
+    const self = assemble('.include "self.s"', { include: () => '.include "self.s"' })
+    expect(self.errors.map((e) => e.message)).toEqual(['includes nest deeper than 16'])
+  })
+
+  it('refuses a macro parameter that is not a name', () => {
+    const out = assemble('.macro m a+b\nnop\n.endm')
+    expect(out.errors[0]?.message).toMatch(/"a\+b" is not a name/)
   })
 })
 

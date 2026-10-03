@@ -52,7 +52,8 @@ export class Chip8Runner extends EmuRunner<Chip8> {
 
   constructor(host: RunnerHost) {
     super((owner) => new FrameLoop(host, owner, POLICY))
-    this.#sound = host.sound
+    // Through the host, so a host whose sound is a method keeps its `this`.
+    this.#sound = (tone) => host.sound(tone)
   }
 
   /** The program's bytes, as loaded: kept for a reset, and for a moved pane to take up. */
