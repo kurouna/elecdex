@@ -401,7 +401,8 @@ describe('speed', () => {
     const mips = m.state.instret / ms / 1000
     const mhz = m.state.cycles / ms / 1000
     console.log(`elec16: ${mips.toFixed(1)} M instructions/s, ${mhz.toFixed(1)} MHz of cycles`)
-    // A floor far below what was measured, to catch a slowdown of an order of magnitude.
+    // vitest's transforms make this slower than plain Node (docs/elec16.md section 4 has both);
+    // the floor is far below either, to catch a slowdown of an order of magnitude.
     expect(mhz).toBeGreaterThan(5)
   })
 })

@@ -6,15 +6,14 @@
  *
  * Decoded instructions are kept per address below the LCD's memory and dropped when the RAM
  * under them is written or the bank window changes, so the CPU decodes each instruction once
- * however many times it runs.
+ * however many times it runs. The step checks for interrupts only when some are enabled, and
+ * looks its cycles up in a table built once (docs/elec16.md section 4 has what was measured).
  */
 
 import { Bus, pressKey, releaseKey } from './bus.js'
 import { type Core, EXEC } from './exec.js'
 import { cyclesOf, decode, type Inst, OP, OPS } from './isa.js'
 import {
-  BANK_SIZE,
-  BANK_WINDOW,
   DEFAULT_HZ,
   DEFAULT_MODEL,
   MAX_HZ,
@@ -70,9 +69,10 @@ const TIMER_HZ = 1024
 /** What taking an interrupt costs, in cycles. */
 const TRAP_CYCLES = 2
 
-/** Each operation's cycles, and a taken branch's extra one. */
-const BASE_CYCLES = OPS.map((_, op) => cyclesOf(op, false))
-const BRANCH_EXTRA = OPS.map((_, op) => cyclesOf(op, true) - cyclesOf(op, false))
+/** Each operation's cycles, not taken and taken (only branches differ). */
+const CYCLES = Uint8Array.from(OPS, (_, op) => cyclesOf(op, false))
+const TAKEN_CYCLES = Uint8Array.from(OPS, (_, op) => cyclesOf(op, true))
+type Handler = (typeof EXEC)[number]
 
 const HALT_NAMES: Record<number, string> = {
   [CAUSE.illegal]: 'illegal instruction',
@@ -85,27 +85,23 @@ const HALT_NAMES: Record<number, string> = {
 
 export class Elec16 implements Core {
   readonly s: Elec16State
+  readonly r: Uint16Array
   readonly bus: Bus
   readonly model: Model
   next = 0
   taken = false
   /** Cycles a frame (60 a second) runs at this clock. */
   #hz = DEFAULT_HZ
-  readonly #code: (Inst | undefined)[] = new Array(VRAM)
+  // Filled, not sized: reading a hole in a sparse array goes up the prototype chain.
+  readonly #code: (Inst | undefined)[] = Array.from({ length: VRAM }, () => undefined)
 
   private constructor(rom: Uint8Array, s: Elec16State) {
     if (rom.length > ROM_MAX) throw new RangeError(`a ROM of ${rom.length} bytes is too long`)
     this.s = s
+    this.r = s.regs
     this.model = MODELS[s.model]
-    this.bus = new Bus(s, rom, this.model, {
-      codeWritten: (a) => {
-        // An instruction starting here, or a 32-bit one starting two bytes before.
-        const even = a & 0xfffe
-        this.#code[even] = undefined
-        if (even >= 2) this.#code[even - 2] = undefined
-      },
-      bankChanged: () => this.#code.fill(undefined, BANK_WINDOW, BANK_WINDOW + BANK_SIZE),
-    })
+    // The bus drops decoded code when RAM under it is written or the bank window changes.
+    this.bus = new Bus(s, rom, this.model, this.#code)
   }
 
   /** A machine switched on with `rom` in it: RAM clear, the CPU at the reset vector. */
@@ -324,36 +320,46 @@ export class Elec16 implements Core {
   #step(): number {
     const s = this.s
     if (s.halt !== null || s.off) return 0
-    const ready = this.#pending() & s.csr.mie
-    if (s.sleeping) {
-      if (ready === 0) return 0
-      s.sleeping = false
-    }
-    if (ready !== 0 && s.csr.mstatus & MIE && !s.inTrap) {
-      const line = 31 - Math.clz32(ready & -ready)
-      this.#enterTrap(INTERRUPT | line, 0, s.pc)
-      s.pc = this.next
-      s.cycles += TRAP_CYCLES
-      return TRAP_CYCLES
+    // Most of the time nothing is enabled and nothing sleeps: no lines to look at.
+    if (s.csr.mie !== 0 || s.sleeping) {
+      const taken = this.#interrupt()
+      if (taken >= 0) return taken
     }
     const pc = s.pc
-    const inst = this.#fetch(pc)
+    const inst = (pc < VRAM ? this.#code[pc] : undefined) ?? this.#fetch(pc)
     this.next = (pc + inst.size) & 0xffff
     this.taken = false
-    EXEC[inst.op]?.(this, inst, pc)
+    ;(EXEC[inst.op] as Handler)(this, inst, pc)
     if (s.halt !== null) return 0
     s.pc = this.next
-    const cycles = (BASE_CYCLES[inst.op] ?? 1) + (this.taken ? (BRANCH_EXTRA[inst.op] ?? 0) : 0)
+    const cycles = (this.taken ? TAKEN_CYCLES[inst.op] : CYCLES[inst.op]) as number
     s.cycles += cycles
     s.instret++
     return cycles
   }
 
-  #fetch(pc: number): Inst {
-    if (pc < VRAM) {
-      const kept = this.#code[pc]
-      if (kept !== undefined) return kept
+  /**
+   * Before an instruction: wakes a sleeping machine when an enabled line is up, and takes the
+   * lowest such line when interrupts are on. The cycles the interrupt took, 0 when the
+   * machine sleeps on, or -1 to run the instruction.
+   */
+  #interrupt(): number {
+    const s = this.s
+    const ready = this.#pending() & s.csr.mie
+    if (s.sleeping) {
+      if (ready === 0) return 0
+      s.sleeping = false
     }
+    if (ready === 0 || (s.csr.mstatus & MIE) === 0 || s.inTrap) return -1
+    const line = 31 - Math.clz32(ready & -ready)
+    this.#enterTrap(INTERRUPT | line, 0, s.pc)
+    s.pc = this.next
+    s.cycles += TRAP_CYCLES
+    return TRAP_CYCLES
+  }
+
+  /** Decodes the instruction at `pc` and keeps it, where code is kept. */
+  #fetch(pc: number): Inst {
     const lo = this.bus.peek(pc) | (this.bus.peek(pc + 1) << 8)
     const hi = (lo & 3) === 3 ? this.bus.peek(pc + 2) | (this.bus.peek(pc + 3) << 8) : 0
     const inst = decode(lo, hi)

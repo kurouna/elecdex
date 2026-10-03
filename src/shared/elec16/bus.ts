@@ -7,8 +7,14 @@
  * I/O registers are 16 bits at even addresses. A byte read gives the half it addresses; a
  * byte write to an even address writes the register with the high byte zero, and one to an
  * odd address is ignored. The key matrix is the exception: it is ten bytes, read as bytes.
+ *
+ * RAM is what programs touch most, so every access tries it first, directly, before the
+ * other regions; a write to it drops the decoded instructions it may have changed from the
+ * machine's code cache, which the bus is given (measured: about twice the speed of going
+ * through the general path for loads, stores and calls).
  */
 
+import type { Inst } from './isa.js'
 import {
   BANK_SIZE,
   BANK_WINDOW,
@@ -51,32 +57,30 @@ export const REG = {
   buzzerGate: 0xff44,
 } as const
 
-/** What the bus tells the machine about a write it cannot see otherwise. */
-export interface BusEvents {
-  /** RAM changed at an address: decoded code there is stale. */
-  codeWritten(address: number): void
-  /** The bank window shows another bank: decoded code in it is stale. */
-  bankChanged(): void
-}
+/** The machine's decoded instructions by address: what a write to RAM must make stale. */
+export type CodeCache = (Inst | undefined)[]
 
 export class Bus {
   readonly #s: Elec16State
+  readonly #ram: Uint8Array
   readonly #rom: Uint8Array
   readonly #model: Model
-  readonly #events: BusEvents
+  readonly #code: CodeCache
   readonly #vramUsed: number
 
-  constructor(s: Elec16State, rom: Uint8Array, model: Model, events: BusEvents) {
+  constructor(s: Elec16State, rom: Uint8Array, model: Model, code: CodeCache) {
     this.#s = s
+    this.#ram = s.ram
     this.#rom = rom
     this.#model = model
-    this.#events = events
+    this.#code = code
     this.#vramUsed = vramSize(model)
   }
 
   /** A byte, as the CPU reads it: an I/O read may have an effect (the key FIFO). */
   read8(address: number): number {
     const a = address & 0xffff
+    if (a < RAM_SIZE) return this.#ram[a] as number
     if (a >= IO) return this.#ioByte(a, false)
     return this.peek(a)
   }
@@ -84,6 +88,7 @@ export class Bus {
   /** A 16-bit word at an even address, little-endian. */
   read16(address: number): number {
     const a = address & 0xfffe
+    if (a < RAM_SIZE) return (this.#ram[a] as number) | ((this.#ram[a + 1] as number) << 8)
     if (a >= IO) return this.#io(a, false)
     return this.peek(a) | (this.peek(a + 1) << 8)
   }
@@ -104,6 +109,11 @@ export class Bus {
   /** Writes a byte; false where nothing can be written (the ROM). */
   write8(address: number, value: number): boolean {
     const a = address & 0xffff
+    if (a < RAM_SIZE) {
+      this.#ram[a] = value
+      this.#stale(a & 0xfffe)
+      return true
+    }
     if (a >= IO) {
       if ((a & 1) === 0) this.#ioWrite(a, value & 0xff)
       return true
@@ -114,6 +124,12 @@ export class Bus {
   /** Writes a 16-bit word at an even address; false for the ROM. */
   write16(address: number, value: number): boolean {
     const a = address & 0xfffe
+    if (a < RAM_SIZE) {
+      this.#ram[a] = value
+      this.#ram[a + 1] = value >>> 8
+      this.#stale(a)
+      return true
+    }
     if (a >= IO) {
       this.#ioWrite(a, value & 0xffff)
       return true
@@ -121,13 +137,19 @@ export class Bus {
     return this.#memWrite(a, value & 0xff) && this.#memWrite(a + 1, (value >>> 8) & 0xff)
   }
 
+  /**
+   * The half-word at `even` changed: an instruction decoded there, or a 32-bit one decoded
+   * two bytes before it, is stale. Most writes are to data, where nothing was decoded.
+   */
+  #stale(even: number): void {
+    const code = this.#code
+    if (code[even] !== undefined) code[even] = undefined
+    if (even >= 2 && code[even - 2] !== undefined) code[even - 2] = undefined
+  }
+
+  /** A write above RAM: the ROM refuses it, the LCD takes what its screen shows. */
   #memWrite(a: number, value: number): boolean {
     const s = this.#s
-    if (a < RAM_SIZE) {
-      s.ram[a] = value
-      this.#events.codeWritten(a)
-      return true
-    }
     if (a < VRAM) return false
     if (a < VRAM + VRAM_WINDOW && a - VRAM < this.#vramUsed) {
       if (s.vram[a - VRAM] !== value) {
@@ -201,7 +223,7 @@ export class Bus {
       case REG.bank:
         if (s.bank !== value) {
           s.bank = value
-          this.#events.bankChanged()
+          this.#code.fill(undefined, BANK_WINDOW, BANK_WINDOW + BANK_SIZE)
         }
         return
       case REG.power:
