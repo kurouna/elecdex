@@ -97,6 +97,9 @@ function cursorNow(): Cursor | null {
   return { column: lcd.cursor & 0xff, row: lcd.cursor >> 8, shape: lcd.cursorMode & 3 }
 }
 
+/** Whether the last paint left dots on their way: the beat below finishes them, if no frame does. */
+let fadingLeft = false
+
 /** Paints what changed; true while dots are still fading. */
 function draw(): boolean {
   const machine = runner.machine
@@ -109,6 +112,7 @@ function draw(): boolean {
   // Stopped, no frames come to finish a fade: the picture is drawn exact.
   const fade = ghost && runner.status === 'running'
   const { dirty, fading } = painter.paint(pixels, model.depth, fade, shown ? cursorNow() : null)
+  fadingLeft = fading
   if (dirty !== null) {
     dotsCtx.putImageData(dots, 0, 0, dirty.x, dirty.y, dirty.w, dirty.h)
     // Too small to fall past the gap, the shadow would lie under the dots: not drawn.
@@ -184,7 +188,9 @@ $effect(() => {
     blinkOn = !blinkOn
     const s = runner.machine?.state
     if (s === undefined || s.off || !s.lcd.on) return
-    if ((s.lcd.cursorMode & 4) !== 0) draw()
+    // A fade the loop's frames did not finish (frames held back while the window is covered)
+    // goes on here too, so no dot is left part-way.
+    if ((s.lcd.cursorMode & 4) !== 0 || fadingLeft) draw()
     if (blinkOn) readText()
   })
 })

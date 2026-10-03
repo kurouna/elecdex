@@ -200,7 +200,8 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       sheen: 'rgb(255 255 255 / 0.06)',
       plate: '#ded9cc',
       print: '#8f8b82',
-      led: '#e0603a',
+      // Green, as every skin's: a red lamp reads as one gone off.
+      led: '#5ccf72',
       key: '#3a3d43',
       keyText: '#ece9e1',
       keyEdge: '#141518',

@@ -352,8 +352,9 @@ textarea,
   background: transparent;
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: var(--step--1);
-  line-height: 1.4;
+  /* Code is read line by line and written: the body size, not the panel's small one. */
+  font-size: var(--step-0);
+  line-height: 1.45;
   overflow: auto;
   resize: none;
   tab-size: 2;

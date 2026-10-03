@@ -397,3 +397,28 @@ describe('CORE and MEM', () => {
     ])
   })
 })
+
+describe('the POWER lamp', () => {
+  /** A colour's hue in degrees, from #rrggbb. */
+  const hue = (hex: string): number => {
+    const [r, g, b] = [1, 3, 5].map((k) => Number.parseInt(hex.slice(k, k + 2), 16) / 255) as [
+      number,
+      number,
+      number,
+    ]
+    const max = Math.max(r, g, b)
+    const d = max - Math.min(r, g, b)
+    if (d === 0) return 0
+    const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+    return (h * 60 + 360) % 360
+  }
+
+  it('lit, reads as on in every skin: green to blue, never the red of a lamp gone off', () => {
+    for (const skin of Object.values(SKINS)) {
+      const led = skin.body.led
+      if (led.startsWith('var(')) continue
+      expect(hue(led), skin.id).toBeGreaterThanOrEqual(90)
+      expect(hue(led), skin.id).toBeLessThanOrEqual(220)
+    }
+  })
+})
