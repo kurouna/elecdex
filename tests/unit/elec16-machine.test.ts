@@ -660,6 +660,40 @@ describe('the screen', () => {
 })
 
 describe('speed', () => {
+  it('reads and writes its devices, and runs with a line enabled, about as fast as RAM', () => {
+    // The same loop with a different load or store: a register of a device must not cost an
+    // allocation or a string a time (the timer's count was 47 times slower than RAM), and a
+    // line enabled in mie, as the ROM leaves KEY, must not slow every instruction.
+    const loop = (setup: string, access: string) =>
+      boot(`
+      ${setup}
+      li t0, 0x7000
+      li t1, ${REG.timerCount - 0x10000}
+      li t2, ${REG.cursor - 0x10000}
+    loop:
+      ${access}
+      addi a0, a0, 1
+      j loop`)
+    const time = (m: Elec16) => {
+      let best = Number.POSITIVE_INFINITY
+      for (let k = 0; k < 3; k++) {
+        const started = performance.now()
+        m.run(2_000_000)
+        best = Math.min(best, performance.now() - started)
+      }
+      return best
+    }
+    const ram = time(loop('', 'lw a1, 0(t0)'))
+    const timer = time(loop('', 'lw a1, 0(t1)'))
+    const cursor = time(loop('', 'sw a0, 0(t2)'))
+    const enabled = time(loop('li a2, 2\n      csrw mie, a2', 'lw a1, 0(t0)'))
+    const ratios = [timer, cursor, enabled].map((t) => t / ram)
+    console.log(
+      `elec16: timer ${ratios[0]?.toFixed(2)}x, cursor ${ratios[1]?.toFixed(2)}x, mie ${ratios[2]?.toFixed(2)}x of RAM`,
+    )
+    for (const r of ratios) expect(r).toBeLessThan(2.5)
+  })
+
   it('runs a tight loop well past real time at 32 MHz (measured, logged)', () => {
     const m = boot(`
     loop:

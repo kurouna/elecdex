@@ -341,8 +341,10 @@ export class Elec16 implements Core {
   #step(): number {
     const s = this.s
     if (s.halt !== null || s.off) return 0
-    // Most of the time nothing is enabled, nothing sleeps and BRK is up: no lines to look at.
-    if (s.csr.mie !== 0 || s.sleeping || s.brk) {
+    // Awake, with no BRK, a line can only be taken with interrupts on and one enabled; the
+    // ROM leaves KEY enabled with interrupts off (it wakes WFI), so that is the common case.
+    const c = s.csr
+    if (s.sleeping || s.brk || ((c.mstatus & MIE) !== 0 && c.mie !== 0 && !s.inTrap)) {
       const taken = this.#interrupt()
       if (taken >= 0) return taken
     }

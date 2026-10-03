@@ -202,23 +202,44 @@ export class Bus {
     if (a >= REG.clock && a < REG.clock + 8) {
       return (s.clock[a - REG.clock] ?? 0) | ((s.clock[a - REG.clock + 1] ?? 0) << 8)
     }
-    const values: Record<number, number> = {
-      [REG.width]: this.#model.width,
-      [REG.height]: this.#model.height,
-      [REG.depth]: this.#model.depth,
-      [REG.lcdCtrl]: s.lcd.on ? 1 : 0,
-      [REG.contrast]: s.lcd.contrast,
-      [REG.cursor]: s.lcd.cursor,
-      [REG.cursorMode]: s.lcd.cursorMode,
-      [REG.annunciators]: s.lcd.annunciators,
-      [REG.timerCount]: s.timer.count,
-      [REG.timerCompare]: s.timer.compare,
-      [REG.timerCtrl]: (s.timer.enabled ? 1 : 0) | (s.timer.pending ? 2 : 0),
-      [REG.buzzerFreq]: s.buzzer.freq,
-      [REG.buzzerDuration]: s.buzzer.duration,
-      [REG.buzzerGate]: s.buzzer.gate ? 1 : 0,
+    return this.#deviceRead(a)
+  }
+
+  /** The screen's, the timer's and the buzzer's registers: read in loops, so a switch. */
+  #deviceRead(a: number): number {
+    const s = this.#s
+    switch (a) {
+      case REG.width:
+        return this.#model.width
+      case REG.height:
+        return this.#model.height
+      case REG.depth:
+        return this.#model.depth
+      case REG.lcdCtrl:
+        return s.lcd.on ? 1 : 0
+      case REG.contrast:
+        return s.lcd.contrast
+      case REG.cursor:
+        return s.lcd.cursor
+      case REG.cursorMode:
+        return s.lcd.cursorMode
+      case REG.annunciators:
+        return s.lcd.annunciators
+      case REG.timerCount:
+        return s.timer.count
+      case REG.timerCompare:
+        return s.timer.compare
+      case REG.timerCtrl:
+        return (s.timer.enabled ? 1 : 0) | (s.timer.pending ? 2 : 0)
+      case REG.buzzerFreq:
+        return s.buzzer.freq
+      case REG.buzzerDuration:
+        return s.buzzer.duration
+      case REG.buzzerGate:
+        return s.buzzer.gate ? 1 : 0
+      default:
+        return 0
     }
-    return values[a] ?? 0
   }
 
   #ioWrite(a: number, value: number): void {
@@ -256,20 +277,48 @@ export class Bus {
     }
   }
 
-  /** The LCD's registers and the buzzer's others: anything shown changes the screen's count. */
+  /**
+   * The LCD's registers and the buzzer's others: a change to what is shown moves the screen's
+   * count. Each write changes one field, so that field alone is compared (putc writes the
+   * cursor a character).
+   */
   #lcdWrite(a: number, value: number): void {
     const s = this.#s
     const lcd = s.lcd
-    const before = `${lcd.on}${lcd.contrast}${lcd.cursor}${lcd.cursorMode}${lcd.annunciators}`
-    if (a === REG.lcdCtrl) lcd.on = (value & 1) !== 0
-    else if (a === REG.contrast) lcd.contrast = value & 15
-    else if (a === REG.cursor) lcd.cursor = value
-    else if (a === REG.cursorMode) lcd.cursorMode = value & 7
-    else if (a === REG.annunciators) lcd.annunciators = value
-    else if (a === REG.buzzerFreq) s.buzzer.freq = value
-    else if (a === REG.buzzerGate) s.buzzer.gate = (value & 1) !== 0
-    const after = `${lcd.on}${lcd.contrast}${lcd.cursor}${lcd.cursorMode}${lcd.annunciators}`
-    if (before !== after) s.screenRevision++
+    let shown: boolean
+    switch (a) {
+      case REG.lcdCtrl: {
+        const on = (value & 1) !== 0
+        shown = lcd.on !== on
+        lcd.on = on
+        break
+      }
+      case REG.contrast:
+        shown = lcd.contrast !== (value & 15)
+        lcd.contrast = value & 15
+        break
+      case REG.cursor:
+        shown = lcd.cursor !== value
+        lcd.cursor = value
+        break
+      case REG.cursorMode:
+        shown = lcd.cursorMode !== (value & 7)
+        lcd.cursorMode = value & 7
+        break
+      case REG.annunciators:
+        shown = lcd.annunciators !== value
+        lcd.annunciators = value
+        break
+      case REG.buzzerFreq:
+        s.buzzer.freq = value
+        return
+      case REG.buzzerGate:
+        s.buzzer.gate = (value & 1) !== 0
+        return
+      default:
+        return
+    }
+    if (shown) s.screenRevision++
   }
 }
 
