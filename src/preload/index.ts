@@ -27,6 +27,14 @@ import type { Chip8ImportResult, Chip8Program, Chip8SlotInfo } from '@shared/chi
 import type { ClipBoard, ClipRestoreResult } from '@shared/clipboard'
 import type { DockerBoard, DockerControlResult } from '@shared/docker'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
+import type { CardAnswer } from '@shared/elec16/card'
+import type {
+  Elec16Board,
+  Elec16Claim,
+  Elec16FileInfo,
+  Elec16ImportResult,
+  Elec16Unit,
+} from '@shared/elec16-units'
 import type { FeedUpdate } from '@shared/feeds'
 import type { DirResult, DriveInfo } from '@shared/fs'
 import type { GitDiff, GitFile, GitLog, GitRepoRef, GitState } from '@shared/git'
@@ -555,6 +563,29 @@ const api: ElecdexApi = {
     control: (id, action) =>
       ipcRenderer.invoke(CH.docker.control, id, action) as Promise<DockerControlResult>,
     watching: () => ipcRenderer.invoke(CH.docker.watching) as Promise<string[]>,
+  },
+  elec16: {
+    board: (seed) => ipcRenderer.invoke(CH.elec16.board, seed) as Promise<Elec16Board>,
+    create: (seed) => ipcRenderer.invoke(CH.elec16.create, seed) as Promise<Elec16Unit>,
+    update: (unit, change) =>
+      ipcRenderer.invoke(CH.elec16.update, unit, change) as Promise<Elec16Unit | null>,
+    remove: (unit) => ipcRenderer.invoke(CH.elec16.remove, unit) as Promise<boolean>,
+    claim: (unit, pane) => ipcRenderer.invoke(CH.elec16.claim, unit, pane) as Promise<Elec16Claim>,
+    moveHere: (unit, pane) =>
+      ipcRenderer.invoke(CH.elec16.moveHere, unit, pane) as Promise<Elec16Claim>,
+    release: (unit, pane, snapshot) =>
+      ipcRenderer.invoke(CH.elec16.release, unit, pane, snapshot) as Promise<boolean>,
+    save: (unit, pane, snapshot) =>
+      ipcRenderer.invoke(CH.elec16.save, unit, pane, snapshot) as Promise<boolean>,
+    card: (unit, pane, request) =>
+      ipcRenderer.invoke(CH.elec16.card, unit, pane, request) as Promise<CardAnswer>,
+    files: (unit) => ipcRenderer.invoke(CH.elec16.files, unit) as Promise<Elec16FileInfo[]>,
+    import: (unit) =>
+      ipcRenderer.invoke(CH.elec16.import, unit) as Promise<Elec16ImportResult | null>,
+    export: (unit, name) => ipcRenderer.invoke(CH.elec16.export, unit, name) as Promise<boolean>,
+    onChange: (handler) => listen<Elec16Board>(CH.elec16.changed, handler),
+    onFilesChange: (handler) => listen<string>(CH.elec16.filesChanged, handler),
+    onGiveBack: (handler) => listen<string>(CH.elec16.giveBack, handler),
   },
   chip8: {
     list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,

@@ -23,6 +23,16 @@ import type {
 import type { ClipBoard, ClipRestoreResult } from './clipboard.js'
 import type { DockerAction, DockerBoard, DockerControlResult } from './docker.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
+import type { CardAnswer, CardRequest } from './elec16/card.js'
+import type {
+  Elec16Board,
+  Elec16Claim,
+  Elec16FileInfo,
+  Elec16ImportResult,
+  Elec16Unit,
+  Elec16UnitChange,
+  Elec16UnitSeed,
+} from './elec16-units.js'
 import type { FeedUpdate } from './feeds.js'
 import type { DirResult, DriveInfo } from './fs.js'
 import type {
@@ -484,6 +494,38 @@ export interface Chip8Api {
   onChange(handler: (programs: Chip8Program[]) => void): () => void
 }
 
+/**
+ * The ELEC-16 pane's units (docs/elec16.md section 8): main keeps each unit's battery backup
+ * and memory card, and lets one pane at a time run a unit, by (page, pane id).
+ */
+export interface Elec16Api {
+  /** Every unit and who holds it; the first unit is made, from `seed`, when there is none. */
+  board(seed?: Elec16UnitSeed): Promise<Elec16Board>
+  create(seed?: Elec16UnitSeed): Promise<Elec16Unit>
+  update(unit: string, change: Elec16UnitChange): Promise<Elec16Unit | null>
+  /** Throws a unit away with its RAM and card: not one a pane holds, nor the last. */
+  remove(unit: string): Promise<boolean>
+  /** The unit for this pane, with its battery backup; no while another pane holds it. */
+  claim(unit: string, pane: string): Promise<Elec16Claim>
+  /** The unit for this pane even though another holds it: that one is asked to give it back. */
+  moveHere(unit: string, pane: string): Promise<Elec16Claim>
+  /** Lets the unit go, with its machine as it is (null: as last saved). */
+  release(unit: string, pane: string, snapshot: Uint8Array | null): Promise<boolean>
+  /** Writes the battery backup; only the pane that holds the unit can. */
+  save(unit: string, pane: string, snapshot: Uint8Array): Promise<boolean>
+  /** A card command the machine gave (shared/elec16/card.ts), done on the unit's card. */
+  card(unit: string, pane: string, request: CardRequest): Promise<CardAnswer>
+  files(unit: string): Promise<Elec16FileInfo[]>
+  /** Opens main's picker and puts the file on the unit's card; null when nothing was picked. */
+  import(unit: string): Promise<Elec16ImportResult | null>
+  /** Saves a card file where the user picks; false when nothing was saved. */
+  export(unit: string, name: string): Promise<boolean>
+  onChange(handler: (board: Elec16Board) => void): () => void
+  onFilesChange(handler: (unit: string) => void): () => void
+  /** main asks for a unit back (MOVE HERE in another pane): release it, with its machine. */
+  onGiveBack(handler: (unit: string) => void): () => void
+}
+
 export interface DockerApi {
   /**
    * Keeps the list current while subscribed: at once, then after each change.
@@ -817,6 +859,7 @@ export interface ElecdexApi {
   docker: DockerApi
   utility: UtilityApi
   chip8: Chip8Api
+  elec16: Elec16Api
   git: GitApi
   orbits: OrbitsApi
   agents: AgentsApi

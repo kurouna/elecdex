@@ -1,0 +1,104 @@
+/**
+ * ELEC-16 units as main keeps them and the page sees them (docs/elec16.md section 8): a unit
+ * is one machine - its name, clock and LCD, its battery-backed RAM and its memory card - held
+ * by at most one pane at a time. Types and the checks of what a page sends; the machine is
+ * shared/elec16.
+ */
+
+import { z } from 'zod'
+import { CARD_FILE_MAX, CARD_OP, type CardRequest } from './elec16/card.js'
+import { DEFAULT_MODEL, MODEL_IDS, type ModelId } from './elec16/map.js'
+
+/** The clocks a unit may run at, in MHz, and MAX: as fast as the page's budget allows. */
+export const ELEC16_CLOCKS = [1, 2, 4, 8, 16, 32, 'max'] as const
+export type Elec16Clock = (typeof ELEC16_CLOCKS)[number]
+export const DEFAULT_CLOCK: Elec16Clock = 4
+
+export const UNIT_ID = /^u[1-9][0-9]{0,3}$/
+export const isUnitId = (id: unknown): id is string => typeof id === 'string' && UNIT_ID.test(id)
+
+/** A unit's name: what its card and the sheet call it, printable and short. */
+export const UnitNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(16)
+  .regex(/^[\x20-\x7e]+$/)
+
+export const Elec16UnitSchema = z.object({
+  id: z.string().regex(UNIT_ID),
+  name: UnitNameSchema,
+  clock: z.union([
+    z.literal('max'),
+    z.literal(1),
+    z.literal(2),
+    z.literal(4),
+    z.literal(8),
+    z.literal(16),
+    z.literal(32),
+  ]),
+  model: z.enum(MODEL_IDS),
+  created: z.number(),
+})
+export type Elec16Unit = z.infer<typeof Elec16UnitSchema>
+
+/** What TUNE may change about a unit. */
+export const Elec16UnitChangeSchema = z
+  .object({
+    name: UnitNameSchema,
+    clock: Elec16UnitSchema.shape.clock,
+    model: z.enum(MODEL_IDS),
+  })
+  .partial()
+export type Elec16UnitChange = z.infer<typeof Elec16UnitChangeSchema>
+
+/** Where a new unit starts: a pane made before units seeds it with what it had. */
+export interface Elec16UnitSeed {
+  clock?: Elec16Clock
+  model?: ModelId
+}
+
+export const unitDefaults = (
+  seed: Elec16UnitSeed = {},
+): { clock: Elec16Clock; model: ModelId } => ({
+  clock: seed.clock ?? DEFAULT_CLOCK,
+  model: seed.model ?? DEFAULT_MODEL,
+})
+
+/** Who holds a unit, as one page sees it: one of its own panes, or another page (null). */
+export interface Elec16Holding {
+  unit: string
+  pane: string | null
+}
+
+/** Everything the panes need of the units, sent to every window on any change. */
+export interface Elec16Board {
+  units: Elec16Unit[]
+  held: Elec16Holding[]
+}
+
+/** A pane's claim on a unit: its battery backup (null: switch it on afresh), or no. */
+export type Elec16Claim = { ok: true; snapshot: Uint8Array | null } | { ok: false }
+
+export interface Elec16FileInfo {
+  name: string
+  size: number
+  modified: number
+}
+
+/** What IMPORT gives: the name the file got on the card, or why it did not go there. */
+export type Elec16ImportResult = { ok: true; name: string } | { ok: false; problem: string }
+
+/** A card command as the page passes it on: checked again by main, never trusted. */
+export const CardRequestSchema = z.object({
+  op: z.enum(Object.keys(CARD_OP) as [keyof typeof CARD_OP, ...(keyof typeof CARD_OP)[]]),
+  name: z.string().max(12),
+  newName: z.string().max(12),
+  offset: z.number().int().min(0).max(0xffff),
+  length: z.number().int().min(0).max(0xffff),
+  data: z
+    .instanceof(Uint8Array)
+    .refine((d) => d.length <= CARD_FILE_MAX)
+    .nullable(),
+  address: z.number().int().min(0).max(0xffff),
+}) satisfies z.ZodType<CardRequest>

@@ -165,6 +165,27 @@ export const CH = {
     /** main -> renderer: the library after a change (Chip8Program[]). */
     changed: 'chip8:changed',
   },
+  /** The ELEC-16 pane (shared/elec16-units.ts): units, who runs them, battery and card. */
+  elec16: {
+    board: 'elec16:board',
+    create: 'elec16:create',
+    update: 'elec16:update',
+    remove: 'elec16:remove',
+    claim: 'elec16:claim',
+    moveHere: 'elec16:move-here',
+    release: 'elec16:release',
+    save: 'elec16:save',
+    card: 'elec16:card',
+    files: 'elec16:files',
+    import: 'elec16:import',
+    export: 'elec16:export',
+    /** main -> renderer: the units and who holds them, after any change (Elec16Board). */
+    changed: 'elec16:changed',
+    /** main -> renderer: a unit's card changed (its id). */
+    filesChanged: 'elec16:files-changed',
+    /** main -> renderer: give this unit back, with its machine (MOVE HERE elsewhere). */
+    giveBack: 'elec16:give-back',
+  },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {
     awakeState: 'utility:awake-state',

@@ -1,0 +1,360 @@
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import {
+  CARD_STATUS,
+  type CardAnswer,
+  type CardFile,
+  type CardRequest,
+  cardOp,
+  isCardName,
+} from '@shared/elec16/card'
+import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
+import {
+  CardRequestSchema,
+  type Elec16Claim,
+  type Elec16FileInfo,
+  type Elec16Unit,
+  Elec16UnitChangeSchema,
+  Elec16UnitSchema,
+  type Elec16UnitSeed,
+  isUnitId,
+  unitDefaults,
+} from '@shared/elec16-units'
+import { fromBase64, toBase64 } from '@shared/emu/base64'
+import { z } from 'zod'
+import { JsonStore } from '../store/json-store.js'
+import { replaceFile } from '../store/replace-file.js'
+
+/**
+ * The ELEC-16 units (docs/elec16.md section 8), in userData/elec16: units.json, and for each
+ * unit a folder units/<id> with its battery backup (ram.e16s, a snapshot) and its memory card
+ * (card.json). A unit's id is the folder's name and nothing a page says ever is.
+ *
+ * A unit runs in one pane at a time: the pane claims it, by (page, pane id), and gets its
+ * backup; another pane is told no, or with MOVE HERE asks for it, and the holder is asked to
+ * give it back with its machine as it is (`ask`), or after a moment it is taken anyway. The
+ * writes are synchronous, one IPC message at a time, so a claim after a release always reads
+ * what that release wrote - never the RAM before it.
+ */
+
+/** How long MOVE HERE waits for the pane that holds the unit to give it back. */
+export const HAND_OVER_MS = 3000
+
+const FileSchema = z.object({
+  name: z.string().refine(isCardName),
+  modified: z.number(),
+  data: z.string().max(Math.ceil((32 * 1024 * 4) / 3) + 4),
+})
+
+const CardFileSchema = z.object({
+  version: z.literal(1).default(1),
+  files: z
+    .array(z.unknown())
+    .default([])
+    // One broken file costs only itself.
+    .transform((list) =>
+      list.flatMap((raw) => {
+        const file = FileSchema.safeParse(raw).data
+        return file === undefined || fromBase64(file.data) === null ? [] : [file]
+      }),
+    ),
+})
+/** card.json: each file's bytes in base64. */
+type CardOnDisk = { version: 1; files: z.infer<typeof FileSchema>[] }
+
+const fromDisk = (card: CardOnDisk): CardFile[] =>
+  card.files.map((f) => ({
+    name: f.name,
+    modified: f.modified,
+    data: fromBase64(f.data) ?? new Uint8Array(),
+  }))
+
+const toDisk = (files: readonly CardFile[]): CardOnDisk => ({
+  version: 1,
+  files: files.map((f) => ({ name: f.name, modified: f.modified, data: toBase64(f.data) })),
+})
+
+const UnitsFileSchema = z.object({
+  version: z.literal(1).default(1),
+  units: z
+    .array(z.unknown())
+    .default([])
+    .transform((list) => list.flatMap((raw) => Elec16UnitSchema.safeParse(raw).data ?? [])),
+})
+type UnitsFile = z.infer<typeof UnitsFileSchema>
+
+/** Who holds a unit: a page (its WebContents id) and its pane. */
+export interface Holder {
+  page: number
+  pane: string
+}
+
+interface Waiting {
+  holder: Holder
+  done: () => void
+}
+
+export class Elec16Units {
+  readonly #dir: string
+  readonly #now: () => number
+  readonly #units: JsonStore<UnitsFile>
+  readonly #cards = new Map<string, JsonStore<CardOnDisk>>()
+  readonly #holders = new Map<string, Holder>()
+  /** A pane waiting for a unit another holds (MOVE HERE), by unit. */
+  readonly #waiting = new Map<string, Waiting>()
+
+  constructor(dir: string, now: () => number = Date.now) {
+    this.#dir = dir
+    this.#now = now
+    this.#units = new JsonStore({
+      file: path.join(dir, 'units.json'),
+      schema: UnitsFileSchema as unknown as z.ZodType<UnitsFile>,
+      makeDefault: () => UnitsFileSchema.parse({}),
+    })
+  }
+
+  /** Every unit; the first is made when there is none, as a new pane needs one. */
+  list(seed?: Elec16UnitSeed): Elec16Unit[] {
+    const file = this.#units.read()
+    if (file.units.length > 0) return file.units
+    return [this.create(seed)]
+  }
+
+  /** A new unit, UNIT n after the highest, its clock and LCD from `seed`. */
+  create(seed?: Elec16UnitSeed): Elec16Unit {
+    const file = this.#units.read()
+    const n = Math.max(0, ...file.units.map((u) => Number(u.id.slice(1)))) + 1
+    const unit: Elec16Unit = {
+      id: `u${n}`,
+      name: `UNIT ${n}`,
+      ...unitDefaults(seed),
+      created: this.#now(),
+    }
+    this.#units.write({ ...file, units: [...file.units, unit] })
+    return unit
+  }
+
+  unit(id: unknown): Elec16Unit | null {
+    if (!isUnitId(id)) return null
+    return this.#units.read().units.find((u) => u.id === id) ?? null
+  }
+
+  /** TUNE's changes to a unit; null when there is no such unit or the change is not one. */
+  update(id: unknown, raw: unknown): Elec16Unit | null {
+    const change = Elec16UnitChangeSchema.safeParse(raw)
+    const unit = this.unit(id)
+    if (unit === null || !change.success) return null
+    const c = change.data
+    const next: Elec16Unit = {
+      ...unit,
+      ...(c.name !== undefined ? { name: c.name } : {}),
+      ...(c.clock !== undefined ? { clock: c.clock } : {}),
+      ...(c.model !== undefined ? { model: c.model } : {}),
+    }
+    const file = this.#units.read()
+    this.#units.write({ ...file, units: file.units.map((u) => (u.id === unit.id ? next : u)) })
+    return next
+  }
+
+  /** Throws a unit away, its RAM and card with it: only one no pane holds, and never the last. */
+  remove(id: unknown): boolean {
+    const unit = this.unit(id)
+    const file = this.#units.read()
+    if (unit === null || this.#holders.has(unit.id) || file.units.length < 2) return false
+    this.#units.write({ ...file, units: file.units.filter((u) => u.id !== unit.id) })
+    this.#cards.delete(unit.id)
+    rmSync(this.#unitDir(unit.id), { recursive: true, force: true })
+    return true
+  }
+
+  /* ---------------- who runs a unit ---------------- */
+
+  /** Every unit held, and by whom. */
+  holders(): Map<string, Holder> {
+    return new Map(this.#holders)
+  }
+
+  /** A pane takes a unit no other holds (or that it holds already): its battery backup. */
+  claim(id: unknown, holder: Holder): Elec16Claim {
+    const unit = this.unit(id)
+    if (unit === null) return { ok: false }
+    const now = this.#holders.get(unit.id)
+    if (now !== undefined && !same(now, holder)) return { ok: false }
+    this.#holders.set(unit.id, holder)
+    return { ok: true, snapshot: this.#backup(unit.id) }
+  }
+
+  /**
+   * MOVE HERE: the unit for this pane even though another holds it. The holder is asked to
+   * give it back (`ask`), which its release does with its machine as it is; a holder that
+   * does not answer within HAND_OVER_MS loses it anyway, with what it last saved.
+   */
+  async moveHere(id: unknown, holder: Holder, ask: (from: Holder) => void): Promise<Elec16Claim> {
+    const unit = this.unit(id)
+    if (unit === null) return { ok: false }
+    const now = this.#holders.get(unit.id)
+    if (now !== undefined && !same(now, holder)) {
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          this.#waiting.delete(unit.id)
+          resolve()
+        }, HAND_OVER_MS)
+        this.#waiting.get(unit.id)?.done()
+        this.#waiting.set(unit.id, {
+          holder,
+          done: () => {
+            clearTimeout(timer)
+            resolve()
+          },
+        })
+        ask(now)
+      })
+      this.#waiting.delete(unit.id)
+      this.#holders.delete(unit.id)
+    }
+    return this.claim(unit.id, holder)
+  }
+
+  /**
+   * A pane lets a unit go, with its machine as it is (null: as last saved). Only the holder
+   * can; a waiting MOVE HERE goes on at once.
+   */
+  release(id: unknown, holder: Holder, snapshot: unknown): boolean {
+    const unit = this.unit(id)
+    if (unit === null || !this.#holds(unit.id, holder)) return false
+    if (snapshot !== null) this.#writeBackup(unit.id, snapshot)
+    this.#holders.delete(unit.id)
+    this.#waiting.get(unit.id)?.done()
+    return true
+  }
+
+  /** A page went (closed, reloaded): its units are free, as last saved. */
+  dropPage(page: number): string[] {
+    const freed: string[] = []
+    for (const [unit, holder] of this.#holders) {
+      if (holder.page !== page) continue
+      this.#holders.delete(unit)
+      this.#waiting.get(unit)?.done()
+      freed.push(unit)
+    }
+    return freed
+  }
+
+  /** The battery backup, written by the pane that holds the unit; false for anyone else. */
+  save(id: unknown, holder: Holder, snapshot: unknown): boolean {
+    const unit = this.unit(id)
+    if (unit === null || !this.#holds(unit.id, holder)) return false
+    return this.#writeBackup(unit.id, snapshot)
+  }
+
+  #holds(id: string, holder: Holder): boolean {
+    const now = this.#holders.get(id)
+    return now !== undefined && same(now, holder)
+  }
+
+  #unitDir(id: string): string {
+    return path.join(this.#dir, 'units', id)
+  }
+
+  /** The backup, checked as the core decodes it; null when there is none or it is not one. */
+  #backup(id: string): Uint8Array | null {
+    const file = path.join(this.#unitDir(id), 'ram.e16s')
+    try {
+      if (statSync(file).size > SNAPSHOT_MAX_SIZE) return null
+      const bytes = new Uint8Array(readFileSync(file))
+      return decodeSnapshot(bytes) === null ? null : bytes
+    } catch {
+      return null
+    }
+  }
+
+  #writeBackup(id: string, snapshot: unknown): boolean {
+    if (!(snapshot instanceof Uint8Array) || snapshot.length > SNAPSHOT_MAX_SIZE) return false
+    if (decodeSnapshot(snapshot) === null) return false
+    this.#write(path.join(this.#unitDir(id), 'ram.e16s'), snapshot)
+    return true
+  }
+
+  #write(file: string, bytes: Uint8Array | string): void {
+    mkdirSync(path.dirname(file), { recursive: true })
+    const temp = `${file}.tmp`
+    writeFileSync(temp, bytes)
+    replaceFile(temp, file)
+  }
+
+  /* ---------------- the memory card ---------------- */
+
+  #card(id: string): JsonStore<CardOnDisk> {
+    let store = this.#cards.get(id)
+    if (store === undefined) {
+      store = new JsonStore({
+        file: path.join(this.#unitDir(id), 'card.json'),
+        schema: CardFileSchema as unknown as z.ZodType<CardOnDisk>,
+        makeDefault: () => ({ version: 1 as const, files: [] }),
+      })
+      this.#cards.set(id, store)
+    }
+    return store
+  }
+
+  #files(id: string): CardFile[] {
+    return fromDisk(this.#card(id).read())
+  }
+
+  /** A card command from the pane that holds the unit; NO CARD for anyone else. */
+  card(id: unknown, holder: Holder, raw: unknown): CardAnswer {
+    const unit = this.unit(id)
+    const request = CardRequestSchema.safeParse(raw)
+    if (unit === null || !this.#holds(unit.id, holder) || !request.success) {
+      return { status: CARD_STATUS.noCard }
+    }
+    return this.#do(unit.id, request.data)
+  }
+
+  #do(id: string, request: CardRequest): CardAnswer {
+    // The core checked the names; a page is not trusted to have.
+    const named = request.op === 'dir' || request.op === 'free' || isCardName(request.name)
+    if (!named || (request.op === 'rename' && !isCardName(request.newName))) {
+      return { status: CARD_STATUS.badName }
+    }
+    const files = this.#files(id)
+    const done = cardOp(files, request, this.#now())
+    if (done.files !== files) this.#card(id).write(toDisk(done.files))
+    return done.answer
+  }
+
+  /** The card's files, for FILES. */
+  files(id: unknown): Elec16FileInfo[] {
+    const unit = this.unit(id)
+    if (unit === null) return []
+    return this.#files(unit.id).map((f) => ({
+      name: f.name,
+      size: f.data.length,
+      modified: f.modified,
+    }))
+  }
+
+  /** A file's bytes, for EXPORT. */
+  fileData(id: unknown, name: unknown): Uint8Array | null {
+    const unit = this.unit(id)
+    if (unit === null || typeof name !== 'string') return null
+    return this.#files(unit.id).find((f) => f.name === name)?.data ?? null
+  }
+
+  /** IMPORT's bytes as a file on the card (written over one of the name): its status. */
+  addFile(id: unknown, name: string, data: Uint8Array): number {
+    const unit = this.unit(id)
+    if (unit === null) return CARD_STATUS.noCard
+    return this.#do(unit.id, {
+      op: 'write',
+      name,
+      newName: '',
+      offset: 0,
+      length: data.length,
+      data,
+      address: 0,
+    }).status
+  }
+}
+
+const same = (a: Holder, b: Holder): boolean => a.page === b.page && a.pane === b.pane
