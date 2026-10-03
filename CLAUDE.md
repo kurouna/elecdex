@@ -222,8 +222,9 @@ user made; do not reverse one without asking.
     claim. Its battery backup is the core's snapshot, written only when the pane is hidden or
     closed, the machine is switched off or the page goes - never on a timer. The core never
     touches the card: it makes a request, the page passes it on, main does it (`cardOp`).
-  - BASIC's second half lives in ROM banks 0-3 (`BASIC_SOURCES`); a bank's strings are read
-    only in that bank. String variables have a fixed room: no garbage collector.
+  - BASIC's second half lives in ROM banks 0-3, the monitor's U and B in 4 (`BASIC_SOURCES`);
+    a bank's strings are read only in that bank. String variables have a fixed room: no
+    garbage collector. B writes C.EBREAK into RAM code only while G runs it.
   - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
     once - never at device pixels - and at most thirty times a second (`drawMs`; measured).
   - The SOFT CARD (resources/elec16/soft) is written into soft.json only by `npm run gen:elec16`

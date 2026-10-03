@@ -3,10 +3,14 @@
 ;   D [addr]          dump memory, a screenful; D alone goes on from the last
 ;   E addr bb bb ...  write bytes into RAM or video memory
 ;   G addr            call machine code; it returns here with RET
+;   U [addr]          the code as text, a screenful; U alone goes on from the last
+;   B [addr]          a breakpoint in RAM, or none there any more; B alone lists them
 ;   R                 the registers at the last break or fault
 ;   H or ?            the commands
 ;   Q                 back to BASIC, its program and variables as they were
 ; BRK stops a program and comes back here; so does EBREAK, or a fault, which say where.
+; U and B are e16c's, in ROM bank 4 (basic/monitor.e16.ts): G writes the breakpoints into the
+; code as C.EBREAK, and every way back here takes them out again.
 
 ; Into the monitor from BASIC (MON): BRK is the monitor's again.
 monitor:
@@ -48,6 +52,10 @@ prompt:
   beq a0, t0, cmd_go
   li t0, 0x52           ; R
   beq a0, t0, cmd_regs
+  li t0, 0x55           ; U
+  beq a0, t0, cmd_unassemble
+  li t0, 0x42           ; B
+  beq a0, t0, cmd_break
   li t0, 0x48           ; H
   beq a0, t0, cmd_help
   li t0, 0x3f           ; ?
@@ -64,6 +72,7 @@ what:
 ; says where the machine was. A SHIFT pressed before it is let go.
 broken:
   li sp, STACK_TOP
+  call breaks_out
   lw t0, FLAGS(zero)
   andi t0, t0, ~F_SHIFT
   sw t0, FLAGS(zero)
@@ -181,11 +190,47 @@ cmd_enter:
   call puts
   j prompt
 
-; G addr: calls machine code, which comes back with RET.
+; G addr: calls machine code, which comes back with RET; the breakpoints are in it meanwhile.
 cmd_go:
   call hex_arg
   beqz a1, what
-  jalr ra, 0(a0)
+  mv s1, a0
+  la t0, armBreaks
+  li t1, 4
+  call far_call
+  mv a0, s1
+  jalr ra, 0(s1)
+  call breaks_out
+  j prompt
+
+; The breakpoints out of the code again (a return, a break or a fault).
+breaks_out:
+  addi sp, sp, -2
+  sw ra, 0(sp)
+  la t0, disarmBreaks
+  li t1, 4
+  call far_call
+  lw ra, 0(sp)
+  addi sp, sp, 2
+  ret
+
+; U [addr]: a screenful of code as text.
+cmd_unassemble:
+  call hex_arg
+  sltu a1, zero, a1
+  la t0, unassemble
+  li t1, 4
+  call far_call
+  j prompt
+
+; B [addr]: a breakpoint there, or none any more; and the list. ? when B cannot.
+cmd_break:
+  call hex_arg
+  sltu a1, zero, a1
+  la t0, breakCommand
+  li t1, 4
+  call far_call
+  bnez a0, what
   j prompt
 
 ; R: the registers kept at the last break or fault, four to a line (three on a narrow
@@ -343,7 +388,7 @@ at:
 readonly:
   .asciz "?READ ONLY\n"
 help:
-  .asciz "D [ADDR]  E ADDR BB..  G ADDR  R\n"
+  .asciz "D [ADDR]  E ADDR BB..  G ADDR  R\nU [ADDR]  B [ADDR]  Q\n"
 reg_names:
   .ascii "PCRASPGPA0A1A2A3T0T1T2T3S0S1S2S3"
   .align 2

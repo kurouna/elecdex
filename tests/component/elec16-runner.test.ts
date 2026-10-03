@@ -187,6 +187,32 @@ describe('the ELEC-16 runner', () => {
     expect([...clock.timers.values()].every((t) => t.at - now < 1000)).toBe(true)
   })
 
+  it('pauses at a breakpoint, goes on from it, and keeps it for the next mount', () => {
+    const { clock, runner } = setUp()
+    runner.toggleBreakpoint(0x7000)
+    expect(runner.breakpoints).toEqual([0x7000])
+    runForever(runner, clock.advance)
+    expect(runner.status).toBe('paused')
+    expect(runner.breakAt).toBe(0x7000)
+    // GO runs the instruction there (j $), which comes back to it.
+    runner.resume()
+    clock.advance(50)
+    expect(runner.status).toBe('paused')
+    expect(runner.breakAt).toBe(0x7000)
+    expect(runner.machine?.state.instret).toBeGreaterThan(0)
+    // Without it, it runs on; a moved pane's runner takes the machine's breakpoints.
+    runner.toggleBreakpoint(0x7000)
+    runner.toggleBreakpoint(0x7100)
+    runner.resume()
+    clock.advance(50)
+    expect(runner.status).toBe('running')
+    const next = new Elec16Runner(clock.host)
+    const machine = runner.detach()
+    if (machine === null) throw new Error('no machine')
+    next.adopt(machine, 4_000_000, false)
+    expect(next.breakpoints).toEqual([0x7100])
+  })
+
   it('pauses out of sight, and comes back by itself when it was asleep at its prompt', () => {
     const { clock, runner } = setUp()
     runner.setSeen(false)

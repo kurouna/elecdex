@@ -386,7 +386,9 @@ test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, a
     await settleLayout(page)
     await booted(page)
     await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
-    const primes = page.getByTestId('elec16-soft-file').and(page.locator('[data-name="PRIMES.BAS"]'))
+    const primes = page
+      .getByTestId('elec16-soft-file')
+      .and(page.locator('[data-name="PRIMES.BAS"]'))
     await primes.hover()
     await expect(page.getByTestId('elec16-file-card')).toContainText('THE PRIMES UP TO A NUMBER')
     await expect(page.getByTestId('elec16-file-card')).toContainText('LOAD "PRIMES.BAS"')
@@ -404,6 +406,38 @@ test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, a
     await page.getByTestId('elec16-paste').click()
     await expect.poll(() => lcdLines(page)).toContain('2 3 5 7 11 13 17 19 23 29')
     await expect(page.getByTestId('elec16-paste')).toHaveText('paste')
+  } finally {
+    await close()
+  }
+})
+
+test('CORE stops the machine at a breakpoint typed in, goes on from it, and steps', async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=core]')).click()
+    await page.getByTestId('elec16-break-input').fill('7000')
+    await page.getByTestId('elec16-break-input').press('Enter')
+    await expect(page.getByTestId('elec16-breakpoint')).toHaveAttribute('data-address', '7000')
+    await page.getByTestId('elec16').focus()
+    // c.j 0 at 0x7000: a jump to itself, stopped before it every time round.
+    await typeLine(page, 'e 7000 01 a0')
+    await typeLine(page, 'g 7000')
+    await expect(page.getByTestId('elec16-instret')).toContainText('stopped at 7000')
+    await expect(page.getByTestId('elec16-pc')).toHaveText('7000')
+    await page.getByTestId('elec16-step').click()
+    await expect(page.getByTestId('elec16-pc')).toHaveText('7000')
+    await page.getByTestId('elec16-go').click()
+    await expect(page.getByTestId('elec16-instret')).toContainText('stopped at 7000')
+    // Without it, the machine runs on until BRK.
+    await page.getByTestId('elec16-breakpoint').click()
+    await expect(page.getByTestId('elec16-breakpoint')).toHaveCount(0)
+    await page.getByTestId('elec16-go').click()
+    await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'run')
+    await page.getByTestId('elec16-brk').click()
+    await expect.poll(() => lcdLines(page)).toContain('BREAK AT 7000')
   } finally {
     await close()
   }

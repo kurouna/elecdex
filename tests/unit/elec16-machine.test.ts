@@ -714,3 +714,56 @@ describe('speed', () => {
     expect(mhz).toBeGreaterThan(5)
   })
 })
+
+describe("CORE's breakpoints", () => {
+  const LOOP = `
+  li t0, 0
+loop:
+  addi t0, t0, 1
+  li t1, 5
+  bltu t0, t1, loop
+  ebreak`
+
+  /** The address of a label in LOOP. */
+  const at = (label: string): number => {
+    const out = assemble(`.org 0x8000\n${LOOP}`)
+    return out.symbols.get(label) ?? -1
+  }
+
+  it('stop before the instruction, stay stopped, and go on from it, stopping at it again', () => {
+    const m = boot(LOOP)
+    const loop = at('loop')
+    m.breakpoints.add(loop)
+    const first = m.run(1000)
+    expect(m.breakAt).toBe(loop)
+    expect(m.state.pc).toBe(loop)
+    expect(m.state.regs[REG_NAMES.indexOf('t0')]).toBe(0)
+    expect(first.halted).toBeNull()
+    // Stopped, a run runs nothing until it goes on.
+    expect(m.run(1000).cycles).toBe(0)
+    for (let k = 1; k < 5; k++) {
+      m.goOn()
+      m.run(1000)
+      expect(m.breakAt).toBe(loop)
+      expect(m.state.regs[REG_NAMES.indexOf('t0')]).toBe(k)
+    }
+    m.breakpoints.clear()
+    m.goOn()
+    expect(finish(m).t0).toBe(5)
+  })
+
+  it('are passed by a step, cleared by BRK, and cost nothing when there are none', () => {
+    const m = boot(LOOP)
+    m.breakpoints.add(at('loop'))
+    m.run(1000)
+    m.step()
+    expect(m.breakAt).toBeNull()
+    expect(m.state.regs[REG_NAMES.indexOf('t0')]).toBe(1)
+    m.run(1000)
+    expect(m.breakAt).toBe(at('loop'))
+    m.brk()
+    expect(m.breakAt).toBeNull()
+    const bare = boot(LOOP)
+    expect(finish(bare).t0).toBe(5)
+  })
+})

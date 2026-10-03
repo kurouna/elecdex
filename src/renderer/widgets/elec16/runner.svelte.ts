@@ -57,6 +57,10 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   annunciators = $state(0)
   /** Counts changes by hand (a step, BRK, a reset), so CORE reads the registers again. */
   stepped = $state(0)
+  /** CORE's breakpoints, in address order: kept across another LCD and a move, not a restart. */
+  breakpoints = $state<readonly number[]>([])
+  /** Where the machine stopped at one of them; null when it did not. */
+  breakAt = $state<number | null>(null)
   /** Keys PASTE has still to press: TUNE shows them, and pressing PASTE again stops it. */
   pasting = $state(0)
   /** The LCD fitted: the machine itself is not state, so its model is kept here for the views. */
@@ -113,6 +117,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     const machine = Elec16.boot(rom, model, ram)
     machine.setClock(this.#host.clock())
     this.setMachine(machine)
+    this.#armBreakpoints(machine)
     this.setHz(hz)
     this.#shift = false
     this.stopPaste()
@@ -129,6 +134,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     // Keys held as the pane moved: the new mount never hears them go up.
     machine.releaseAll()
     this.setMachine(machine)
+    // The machine brings its breakpoints with it.
+    this.breakpoints = [...machine.breakpoints].sort((x, y) => x - y)
     this.model = machine.state.model
     this.setHz(hz)
     this.#shift = false
@@ -243,6 +250,27 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.#changed()
   }
 
+  /** CORE: a breakpoint at `address`, or none there any more. */
+  toggleBreakpoint(address: number): void {
+    const at = address & 0xffff
+    const now = new Set(this.breakpoints)
+    if (!now.delete(at)) now.add(at)
+    this.breakpoints = [...now].sort((a, b) => a - b)
+    const machine = this.machine
+    if (machine !== null) this.#armBreakpoints(machine)
+  }
+
+  /** Paused at a breakpoint, it goes on from the instruction there. */
+  override resume(): void {
+    this.machine?.goOn()
+    super.resume()
+  }
+
+  #armBreakpoints(machine: Elec16): void {
+    machine.breakpoints.clear()
+    for (const at of this.breakpoints) machine.breakpoints.add(at)
+  }
+
   /** One instruction, by hand (CORE's STEP), while paused. */
   step(): void {
     const machine = this.machine
@@ -270,9 +298,16 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     if (this.off !== off) this.off = off
     const marks = machine?.state.lcd.annunciators ?? 0
     if (this.annunciators !== marks) this.annunciators = marks
+    const at = machine?.breakAt ?? null
+    if (this.breakAt !== at) this.breakAt = at
   }
 
   protected override afterFrames(machine: Elec16): void {
+    // Stopped at a breakpoint: paused as by the player, for CORE to look and STEP or go on.
+    if (machine.breakAt !== null && this.pausedBy === null) {
+      this.pause('player')
+      this.stepped++
+    }
     machine.setClock(this.#host.clock())
     const b = machine.state.buzzer
     const left = b.gate ? Number.POSITIVE_INFINITY : b.duration - (machine.state.time - b.started)

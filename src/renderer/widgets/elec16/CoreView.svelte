@@ -8,7 +8,8 @@ import type { Elec16Runner } from './runner.svelte.ts'
  * and the code from the program counter, named by the ROM's labels. Read on the shared
  * 10 fps loop while the machine runs awake - never at its own rate, and not at all while it
  * sleeps - and after anything done by hand; a register that just changed is marked.
- * Paused, STEP runs one instruction.
+ * HALT pauses, GO goes on, and paused, STEP runs one instruction. A breakpoint is set on a
+ * line of code (its mark) or at an address typed in; the run stops before it and CORE says so.
  */
 const { runner, labels }: { runner: Elec16Runner; labels: ReadonlyMap<number, string> } = $props()
 
@@ -29,6 +30,19 @@ const reading = $derived.by((): CoreReading | null => {
   const machine = runner.machine
   return machine === null ? null : readCore(machine, labels)
 })
+
+/** The address typed for a breakpoint; one that is not an address is said so. */
+let typed = $state('')
+const typedAddress = $derived(
+  /^[0-9a-f]{1,4}$/i.test(typed.trim()) ? Number.parseInt(typed.trim(), 16) : null,
+)
+
+function addTyped(event: SubmitEvent): void {
+  event.preventDefault()
+  if (typedAddress === null) return
+  if (!runner.breakpoints.includes(typedAddress)) runner.toggleBreakpoint(typedAddress)
+  typed = ''
+}
 
 let changed = $state(new Set<number>())
 $effect(() => {
@@ -63,24 +77,65 @@ $effect(() => {
         {#if line.label !== null}
           <li class="label">{line.label}:</li>
         {/if}
-        <li class:current={line.current}>
-          <span class="mark" aria-hidden="true">{line.current ? '▸' : ''}</span>
+        <li class:current={line.current} class:stop={runner.breakpoints.includes(line.address)}>
+          <button
+            type="button"
+            class="mark"
+            aria-label={`breakpoint at ${hex(line.address)}`}
+            aria-pressed={runner.breakpoints.includes(line.address)}
+            onclick={() => runner.toggleBreakpoint(line.address)}
+            data-testid="elec16-break-mark"
+            data-address={hex(line.address)}>{line.current ? '▸' : runner.breakpoints.includes(line.address) ? '●' : ''}</button
+          >
           <span class="address">{hex(line.address)}</span>
           <span class="bytes">{line.bytes}</span>
           <span class="text">{line.text}</span>
         </li>
       {/each}
     </ol>
+    <form class="breaks" onsubmit={addTyped}>
+      <label>
+        <span class="name">break at</span>
+        <input
+          size="5"
+          maxlength="4"
+          spellcheck="false"
+          bind:value={typed}
+          aria-invalid={typed.trim() !== '' && typedAddress === null}
+          data-testid="elec16-break-input"
+        />
+      </label>
+      {#each runner.breakpoints as at (at)}
+        <button
+          type="button"
+          class="e16-chip"
+          class:hit={runner.breakAt === at}
+          aria-label={`remove the breakpoint at ${hex(at)}`}
+          onclick={() => runner.toggleBreakpoint(at)}
+          data-testid="elec16-breakpoint"
+          data-address={hex(at)}>{hex(at)} ×</button
+        >
+      {/each}
+    </form>
     <div class="foot">
       <!-- The counts move every look while it runs: shown when it stands still. -->
       <span class="count" data-testid="elec16-instret">
-        {runner.status === 'running' && !runner.asleep
-          ? 'running'
-          : `${reading.instret.toLocaleString('en-US')} instructions`}
+        {#if runner.breakAt !== null}
+          stopped at {hex(runner.breakAt)} · {reading.instret.toLocaleString('en-US')} instructions
+        {:else if runner.status === 'running' && !runner.asleep}
+          running
+        {:else}
+          {reading.instret.toLocaleString('en-US')} instructions
+        {/if}
       </span>
-      {#if runner.status === 'paused'}
-        <button type="button" class="e16-btn" onclick={() => runner.step()} data-testid="elec16-step">step ▸</button>
-      {/if}
+      <span class="buttons">
+        {#if runner.status === 'running'}
+          <button type="button" class="e16-btn" onclick={() => runner.pause()} data-testid="elec16-halt">halt ■</button>
+        {:else if runner.status === 'paused'}
+          <button type="button" class="e16-btn" onclick={() => runner.resume()} data-testid="elec16-go">go ▸▸</button>
+          <button type="button" class="e16-btn" onclick={() => runner.step()} data-testid="elec16-step">step ▸</button>
+        {/if}
+      </span>
     </div>
   </div>
 {/if}
@@ -138,6 +193,70 @@ $effect(() => {
 
 .code li.current {
   color: var(--accent-strong);
+}
+
+.code li.stop .address {
+  color: var(--danger);
+}
+
+.mark {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.code li.current .mark {
+  color: var(--accent-strong);
+}
+
+.mark:hover,
+.mark:focus-visible {
+  outline: 1px solid var(--accent-faint);
+}
+
+.breaks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-1);
+}
+
+.breaks label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.breaks input {
+  width: 6ch;
+  border: 0;
+  border-bottom: 1px solid var(--panel-rule);
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  padding: 1px var(--space-1);
+  outline: none;
+}
+
+.breaks input:focus-visible {
+  border-bottom-color: var(--accent);
+}
+
+.breaks input[aria-invalid='true'] {
+  color: var(--danger);
+}
+
+.e16-chip.hit {
+  color: var(--danger);
+}
+
+.buttons {
+  display: flex;
+  gap: var(--space-1);
 }
 
 .text {

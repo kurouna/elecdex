@@ -97,8 +97,17 @@ export class Elec16 implements Core {
   readonly model: Model
   next = 0
   taken = false
+  /**
+   * CORE's breakpoints: a run stops before the instruction at one of them, and goes on from
+   * it only by `goOn` or a step. The page's, not the machine's: no snapshot keeps them.
+   */
+  readonly breakpoints = new Set<number>()
+  /** Where a run stopped at a breakpoint; null while it may run. */
+  breakAt: number | null = null
   /** Cycles a frame (60 a second) runs at this clock. */
   #hz = DEFAULT_HZ
+  /** The breakpoint `goOn` passes, once. */
+  #passing = -1
   // Filled, not sized: reading a hole in a sparse array goes up the prototype chain.
   readonly #code: (Inst | undefined)[] = Array.from({ length: VRAM }, () => undefined)
 
@@ -157,7 +166,10 @@ export class Elec16 implements Core {
   /** Runs up to `cycles` cycles; stops early when the machine sleeps, halts or goes off. */
   run(cycles: number): RunResult {
     let used = 0
+    if (this.breakAt !== null) return this.#result(0)
+    const stops = this.breakpoints
     while (used < cycles) {
+      if (stops.size !== 0 && this.#stopsHere()) break
       const spent = this.#step()
       if (spent === 0) break
       used += spent
@@ -165,9 +177,34 @@ export class Elec16 implements Core {
     return this.#result(used)
   }
 
-  /** One instruction (CORE's STEP), or the interrupt taken before it. */
+  /** One instruction (CORE's STEP), or the interrupt taken before it; past a breakpoint. */
   step(): RunResult {
+    this.breakAt = null
+    this.#passing = -1
     return this.#result(this.#step())
+  }
+
+  /** Stopped at a breakpoint: runs on from it, the instruction there first. */
+  goOn(): void {
+    if (this.breakAt === null) return
+    this.#passing = this.breakAt
+    this.breakAt = null
+  }
+
+  /**
+   * Whether the run stops before the instruction at the PC. Asleep it does not: the machine
+   * is not about to run anything (an instruction just after a WFI runs on waking, unstopped).
+   */
+  #stopsHere(): boolean {
+    const pc = this.s.pc
+    if (pc === this.#passing) {
+      this.#passing = -1
+      return false
+    }
+    this.#passing = -1
+    if (this.s.sleeping || !this.breakpoints.has(pc)) return false
+    this.breakAt = pc
+    return true
   }
 
   /** Host time passes: the timer counts, and may raise its interrupt. */
@@ -234,6 +271,7 @@ export class Elec16 implements Core {
    * running or asleep has its BRK line raised, which the ROM takes even with interrupts off.
    */
   brk(): void {
+    this.breakAt = null
     if (this.s.off || this.s.halt !== null) this.reset()
     else this.s.brk = true
   }
