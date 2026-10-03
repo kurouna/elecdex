@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { tidyJumps } from '@shared/e16c/back1'
 import { e16cMemory } from '@shared/e16c/builtins'
 import { compile, type E16cOptions } from '@shared/e16c/compile'
 import { Interp, OutOfBudget } from '@shared/e16c/interp'
@@ -72,6 +73,18 @@ const CASES: [string, number[]][] = [
   ['deepExpression', [3, 4]],
   ['readings', [0x8123]],
   ['readings', [0x0456]],
+  ['conditions', [0, 5, 0]],
+  ['conditions', [2, 2, 3]],
+  ['conditions', [2, 0, 0]],
+  ['conditions', [5, 1, 9]],
+  ['offsets', [3]],
+  ['leafMany', [1, 2, 3, 4]],
+  ['leafMany', [40, 2, 300, 7]],
+  ['constants', [1234, -1234]],
+  ['constants', [0xfedc, 777]],
+  ['switchLoop', [12]],
+  ['misc', [6]],
+  ['callsInArguments', [4]],
 ]
 
 describe('e16c', () => {
@@ -99,7 +112,7 @@ describe('e16c', () => {
   it('at -O2 works out pure calls, inlines small leaves and drops what nothing reaches', () => {
     const text = [
       'function square(x: u16): u16 { return x * x }',
-      'function cube(x: u16): u16 { return square(x) * x }',
+      'function cube(x: u16): u16 { return x * x * x }',
       'function unused(): u16 { return 7 }',
       'export function table(): u16 { return cube(3) + square(4) }',
       'export function twice(n: u16): u16 { return square(n) + 1 }',
@@ -107,12 +120,12 @@ describe('e16c', () => {
     const out = compile([{ name: 'o2.ts', text }], { ...OPTIONS, opt: 2 })
     expect(out.errors).toEqual([])
     const table = out.program.fns.find((f) => f.name === 'table')
-    // cube(3) + square(4), all known: one constant.
+    // cube(3) + square(4), all known: one constant (27 + 16).
     expect(table?.body.filter((op) => op.k !== 'line')).toEqual([
       { k: 'push', v: 43 },
       { k: 'ret', value: true },
     ])
-    // square is inlined into twice; unused, square and cube are gone.
+    // square, called once that is left, is inlined into twice; unused, square and cube go.
     expect(out.program.fns.map((f) => f.name).sort()).toEqual(['table', 'twice'])
     expect(out.asm).not.toMatch(/call square/)
   })
@@ -129,6 +142,22 @@ describe('e16c', () => {
     expect(out.asm.match(/call mix/g)).toHaveLength(2)
     expect(out.asm).not.toMatch(/call once|^once:/m)
     expect(out.program.fns.map((f) => f.name).sort()).toEqual(['f', 'mix'])
+  })
+
+  it('at -O1 drops what follows a jump up to a label, and a jump to the label that comes next', () => {
+    const lines = [
+      'f:',
+      '  j .L1',
+      '  li a0, 0',
+      '  ; a comment',
+      '.L1:',
+      '  j .return',
+      '.L2:',
+      '.return:',
+      '  ret',
+      '  j f',
+    ]
+    expect(tidyJumps(lines)).toEqual(['f:', '  ; a comment', '.L1:', '.L2:', '.return:', '  ret'])
   })
 
   it('at -O2 leaves a pure call it cannot finish within its budget as a call', () => {

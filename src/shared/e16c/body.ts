@@ -100,6 +100,11 @@ function narrowAnd(op: BinOp, a: Typed, b: Typed): TypeRef {
   return op === 'and' && k !== undefined && k >= 0 && k <= 0xff ? scalar('u8') : U16
 }
 
+/** An expression without the brackets round it. */
+function skipParens(e: ts.Expression): ts.Expression {
+  return ts.isParenthesizedExpression(e) ? skipParens(e.expression) : e
+}
+
 /** `a op= b` as `a = a op b`. */
 const COMPOUND: Partial<Record<ts.SyntaxKind, ts.SyntaxKind>> = {
   [ts.SyntaxKind.PlusEqualsToken]: ts.SyntaxKind.PlusToken,
@@ -455,8 +460,7 @@ export class FnCompiler {
 
   #if(node: ts.IfStatement): void {
     const otherwise = this.#label()
-    this.#condition(node.expression)
-    this.#emit({ k: 'jz', to: otherwise })
+    this.#jumpIf(node.expression, otherwise, false)
     this.#scoped(() => this.statement(node.thenStatement))
     if (node.elseStatement === undefined) {
       this.#emit({ k: 'label', name: otherwise })
@@ -479,15 +483,28 @@ export class FnCompiler {
     }
   }
 
-  #while(node: ts.WhileStatement): void {
+  /**
+   * A loop tested at its foot (`j test; top: body; cont: step; test: if c goto top`): one
+   * branch a turn instead of a branch and a jump. Without a condition it runs until a break.
+   */
+  #testedLoop(condition: ts.Expression | undefined, body: () => void, step?: () => void): void {
     const top = this.#label()
+    const cont = this.#label()
+    const test = this.#label()
     const end = this.#label()
+    if (condition !== undefined) this.#emit({ k: 'jmp', to: test })
     this.#emit({ k: 'label', name: top })
-    this.#condition(node.expression)
-    this.#emit({ k: 'jz', to: end })
-    this.#loop(end, top, () => this.statement(node.statement))
-    this.#emit({ k: 'jmp', to: top })
+    this.#loop(end, cont, body)
+    this.#emit({ k: 'label', name: cont })
+    step?.()
+    this.#emit({ k: 'label', name: test })
+    if (condition === undefined) this.#emit({ k: 'jmp', to: top })
+    else this.#jumpIf(condition, top, true)
     this.#emit({ k: 'label', name: end })
+  }
+
+  #while(node: ts.WhileStatement): void {
+    this.#testedLoop(node.expression, () => this.statement(node.statement))
   }
 
   #do(node: ts.DoStatement): void {
@@ -497,8 +514,7 @@ export class FnCompiler {
     this.#emit({ k: 'label', name: top })
     this.#loop(end, cont, () => this.statement(node.statement))
     this.#emit({ k: 'label', name: cont })
-    this.#condition(node.expression)
-    this.#emit({ k: 'jnz', to: top })
+    this.#jumpIf(node.expression, top, true)
     this.#emit({ k: 'label', name: end })
   }
 
@@ -509,19 +525,12 @@ export class FnCompiler {
         if (ts.isVariableDeclarationList(init)) this.#variables(init)
         else this.#effect(init)
       }
-      const top = this.#label()
-      const cont = this.#label()
-      const end = this.#label()
-      this.#emit({ k: 'label', name: top })
-      if (node.condition !== undefined) {
-        this.#condition(node.condition)
-        this.#emit({ k: 'jz', to: end })
-      }
-      this.#loop(end, cont, () => this.statement(node.statement))
-      this.#emit({ k: 'label', name: cont })
-      if (node.incrementor !== undefined) this.#effect(node.incrementor)
-      this.#emit({ k: 'jmp', to: top })
-      this.#emit({ k: 'label', name: end })
+      const step = node.incrementor
+      this.#testedLoop(
+        node.condition,
+        () => this.statement(node.statement),
+        step === undefined ? undefined : () => this.#effect(step),
+      )
     })
   }
 
@@ -546,16 +555,16 @@ export class FnCompiler {
     this.#emit({ k: 'ret', value: true })
   }
 
-  /** A switch on a word: the value kept in a slot, compared with each case's constant. */
+  /**
+   * A switch on a word: compared with each case's constant before any case runs, so a local
+   * is compared where it is, and anything else is kept in a slot of its own first.
+   */
   #switch(node: ts.SwitchStatement): void {
     const end = this.#label()
     this.#scoped(() => {
-      const value = this.expr(node.expression)
-      const slot = this.#declare(`switch${this.#labels}`, value.type, null)
-      if (slot.kind !== 'local') return
-      this.#emit({ k: 'st', slot: slot.slot })
+      const slot = this.#switchSlot(node.expression)
       const clauses = node.caseBlock.clauses.map((c) => ({ clause: c, label: this.#label() }))
-      this.#emit({ k: 'jmp', to: this.#caseTests(slot.slot, clauses, end) })
+      this.#emit({ k: 'jmp', to: this.#caseTests(slot, clauses, end) })
       this.#loops.push({ brk: end, cont: this.#loops[this.#loops.length - 1]?.cont ?? '' })
       try {
         for (const { clause, label } of clauses) {
@@ -567,6 +576,18 @@ export class FnCompiler {
       }
     })
     this.#emit({ k: 'label', name: end })
+  }
+
+  /** The slot a switch compares: the local itself, or a new one holding the value. */
+  #switchSlot(e: ts.Expression): number {
+    const inner = skipParens(e)
+    const sym = ts.isIdentifier(inner) ? this.#find(inner.text) : undefined
+    if (sym?.kind === 'local') return sym.slot
+    const value = this.expr(e)
+    const slot = this.#declare(`switch${this.#labels}`, value.type, null)
+    if (slot.kind !== 'local') throw new Refusal(e.getStart(), 'a switch needs a word')
+    this.#emit({ k: 'st', slot: slot.slot })
+    return slot.slot
   }
 
   /** A test for each case, jumping to its body; where to go when none matched. */
@@ -594,9 +615,49 @@ export class FnCompiler {
   }
 
   /** A condition: any word, true when not 0. */
-  #condition(e: ts.Expression): void {
+  #condition(e: ts.Expression): Typed {
     const t = this.expr(e)
     if (t.type.kind !== 'scalar') throw new Refusal(e.getStart(), 'an array is not a condition')
+    return t
+  }
+
+  /**
+   * A condition as jumps, never as a value: to `to` when it is `onTrue`, on otherwise, with
+   * nothing left on the stack. && and || become branches past each other, ! swaps the sense,
+   * a comparison becomes one branch (the back end fuses it), a known one a jump or nothing.
+   */
+  #jumpIf(e: ts.Expression, to: string, onTrue: boolean): void {
+    const inner = skipParens(e)
+    if (ts.isPrefixUnaryExpression(inner) && inner.operator === ts.SyntaxKind.ExclamationToken) {
+      this.#jumpIf(inner.operand, to, !onTrue)
+      return
+    }
+    const kind = ts.isBinaryExpression(inner) ? inner.operatorToken.kind : undefined
+    if (
+      ts.isBinaryExpression(inner) &&
+      (kind === ts.SyntaxKind.AmpersandAmpersandToken || kind === ts.SyntaxKind.BarBarToken)
+    ) {
+      // a && b jumps when true only if both are; when false as soon as one is not. || mirrors.
+      const and = kind === ts.SyntaxKind.AmpersandAmpersandToken
+      if (and === onTrue) {
+        const past = this.#label()
+        this.#jumpIf(inner.left, past, !onTrue)
+        this.#jumpIf(inner.right, to, onTrue)
+        this.#emit({ k: 'label', name: past })
+      } else {
+        this.#jumpIf(inner.left, to, onTrue)
+        this.#jumpIf(inner.right, to, onTrue)
+      }
+      return
+    }
+    const mark = this.ops.length
+    const t = this.#condition(inner)
+    if (t.constant === undefined) {
+      this.#emit({ k: onTrue ? 'jnz' : 'jz', to })
+      return
+    }
+    this.ops.length = mark
+    if ((t.constant !== 0) === onTrue) this.#emit({ k: 'jmp', to })
   }
 
   /* ---------------- expressions ---------------- */
@@ -773,8 +834,7 @@ export class FnCompiler {
   #conditional(e: ts.ConditionalExpression): Typed {
     const otherwise = this.#label()
     const end = this.#label()
-    this.#condition(e.condition)
-    this.#emit({ k: 'jz', to: otherwise })
+    this.#jumpIf(e.condition, otherwise, false)
     const a = this.expr(e.whenTrue)
     this.#emit({ k: 'jmp', to: end })
     this.#emit({ k: 'label', name: otherwise })

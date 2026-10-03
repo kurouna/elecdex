@@ -6,7 +6,8 @@ import { type BinOp, type Fn, type Op, stackEffect } from './ir.js'
  * a constant, a local, an address - until an instruction needs them, so `x + 1` is one
  * `addi` and `if (a < b)` one branch. Locals live in s0-s3 where they fit (the busiest
  * first), the rest in a frame under fp. Values that cross a label sit in fixed registers by
- * their depth; a call keeps what lies below its arguments on the machine's stack.
+ * their depth; a call keeps what lies below its arguments on the machine's stack. A sum of a
+ * register and a constant or a RAM array waits too, so `buffer[i + 1]` is `lbu t0, buffer+1(s1)`.
  */
 
 type Value =
@@ -14,8 +15,15 @@ type Value =
   | { kind: 'addr'; label: string }
   | { kind: 'local'; slot: number }
   | { kind: 'reg'; r: string }
+  /**
+   * `r + label + k`, not yet added: a load or store takes it as its base and offset. A
+   * temporary `r` is the sum's own; a local's home is only read (a write to it adds first).
+   */
+  | { kind: 'sum'; r: string; k: number; label?: string }
   /** On the machine's stack: always below every other entry. */
   | { kind: 'spilled' }
+
+type Sum = Extract<Value, { kind: 'sum' }>
 
 /** Registers for the stack's values, in the order a depth takes them at a label. */
 const TEMPS = ['t0', 't1', 't2', 't3', 'a1', 'a2', 'a3']
@@ -103,15 +111,23 @@ export class O1 {
   readonly #depths: Map<string, number>
   /** After a jump or a return: what follows runs only from a label. */
   #dead = false
+  /** The RAM arrays whose addresses fit an offset, by label. */
+  readonly #near: Map<string, number>
+  /** The registers for the stack's values: TEMPS less any a leaf keeps its locals in. */
+  readonly #temps: string[]
 
-  constructor(fn: Fn) {
+  constructor(fn: Fn, near: Map<string, number> = new Map()) {
     this.#fn = fn
+    this.#near = near
     this.#calls = fn.body.some((op) => op.k === 'call' || op.k === 'ecall' || op.k === 'asm')
     this.#depths = labelDepths(fn.body)
-    const plan = homes(fn)
+    // A fused compare-and-branch holds its two operands above the depth at its label.
+    const deepest = Math.max(0, ...this.#depths.values()) + 2
+    const plan = homes(fn, !this.#calls, deepest)
     this.#home = plan.home
     this.#saved = plan.saved
     this.#frame = plan.frame
+    this.#temps = plan.temps
   }
 
   /* ---------------- output ---------------- */
@@ -153,7 +169,7 @@ export class O1 {
     this.lines.push('.return:')
     this.#epilogue()
     this.lines.push('')
-    return this.lines
+    return tidyJumps(this.lines)
   }
 
   #saveArea(): string[] {
@@ -190,17 +206,18 @@ export class O1 {
 
   #used(): Set<string> {
     const used = new Set<string>()
-    for (const v of this.#stack) if (v.kind === 'reg') used.add(v.r)
+    for (const v of this.#stack) if (v.kind === 'reg' || v.kind === 'sum') used.add(v.r)
     return used
   }
 
   /** A free temporary; when none is, the deepest value in a register goes to the machine's stack. */
   #temp(also: Set<string> = new Set()): string {
     const used = this.#used()
-    const free = TEMPS.find((r) => !used.has(r) && !also.has(r))
+    const free = this.#temps.find((r) => !used.has(r) && !also.has(r))
     if (free !== undefined) return free
-    const deepest = this.#stack.findIndex((v) => v.kind === 'reg')
-    const v = this.#stack[deepest] as { kind: 'reg'; r: string }
+    // The deepest value in a temporary (a call's answer in a0 goes along with it).
+    const deepest = this.#stack.findIndex((v) => this.#owns(v) && this.#temps.includes(v.r))
+    const v = this.#stack[deepest] as { r: string }
     this.#spillAt(deepest)
     return v.r
   }
@@ -213,7 +230,9 @@ export class O1 {
   #spillAt(index: number): void {
     for (let k = 0; k <= index; k++) {
       const v = this.#stack[k] as Value
-      if (v.kind !== 'reg') continue
+      if (!this.#owns(v)) continue
+      // A sum in its own temporary is added up there first.
+      if (v.kind === 'sum') this.#add(v.r, v)
       this.#line('addi sp, sp, -2')
       this.#line(`sw ${v.r}, 0(sp)`)
       this.#stack[k] = { kind: 'spilled' }
@@ -222,7 +241,13 @@ export class O1 {
 
   /** The registers the picture's values hold. */
   #held(values: Value[] = this.#stack): Set<string> {
-    return new Set(values.flatMap((v) => (v.kind === 'reg' ? [v.r] : [])))
+    return new Set(values.flatMap((v) => [...held(v)]))
+  }
+
+  /** A sum added up into `to`. */
+  #add(to: string, v: Sum): void {
+    if (v.r === 'zero') this.#line(`li ${to}, ${offsetText(v)}`)
+    else this.#line(`addi ${to}, ${v.r}, ${offsetText(v)}`)
   }
 
   /** Spilled values back into temporaries, the topmost first, as the machine's stack has them. */
@@ -265,6 +290,11 @@ export class O1 {
         this.#line('addi sp, sp, 2')
         return r
       }
+      case 'sum': {
+        const r = this.#temps.includes(v.r) ? v.r : this.#temp(avoid)
+        this.#add(r, v)
+        return r
+      }
     }
   }
 
@@ -276,20 +306,21 @@ export class O1 {
 
   /** Every entry in the register its depth takes at a label (deeper than the temporaries: spilled). */
   #canonical(): void {
-    if (this.#stack.length > TEMPS.length) {
+    const temps = this.#temps
+    if (this.#stack.length > temps.length) {
       throw new Error(
-        `e16c: an expression in ${this.#fn.name} keeps more than ${TEMPS.length} values across a branch`,
+        `e16c: an expression in ${this.#fn.name} keeps more than ${temps.length} values across a branch`,
       )
     }
     this.#unspill(this.#stack)
     for (let k = 0; k < this.#stack.length; k++) {
       const v = this.#stack[k] as Value
-      const want = TEMPS[k] as string
+      const want = temps[k] as string
       if (v.kind === 'reg' && v.r === want) continue
       // Whoever holds the wanted register moves out of the way first.
       const holder = this.#stack.findIndex((w) => w.kind === 'reg' && w.r === want)
       if (holder >= 0) {
-        const away = this.#temp(new Set(TEMPS.slice(0, this.#stack.length)))
+        const away = this.#temp(new Set(temps.slice(0, this.#stack.length)))
         this.#line(`mv ${away}, ${want}`)
         this.#stack[holder] = { kind: 'reg', r: away }
       }
@@ -300,21 +331,26 @@ export class O1 {
 
   /** The picture after a label: every entry in its depth's register. */
   #atLabel(depth: number): void {
-    this.#stack = Array.from({ length: depth }, (_, k) => ({ kind: 'reg', r: TEMPS[k] as string }))
+    this.#stack = Array.from({ length: depth }, (_, k) => ({
+      kind: 'reg',
+      r: this.#temps[k] as string,
+    }))
   }
 
   /** A local about to be written: any entry still reading it takes a copy first. */
   #protect(slot: number, avoid: Set<string>): void {
+    const home = this.#home[slot]
     this.#stack.forEach((v, k) => {
-      if (v.kind !== 'local' || v.slot !== slot) return
+      const reads = v.kind === 'local' ? v.slot === slot : v.kind === 'sum' && v.r === home
+      if (!reads) return
       // Statements store with nothing spilled above; a copy below a spilled value would break
       // the machine stack's order.
       if (this.#stack.slice(k + 1).some((w) => w.kind === 'spilled')) {
         throw new Error(`e16c: a local is written under a spilled value in ${this.#fn.name}`)
       }
       const r = this.#temp(avoid)
-      const home = this.#home[slot]
-      if (typeof home === 'string') this.#line(`mv ${r}, ${home}`)
+      if (v.kind === 'sum') this.#add(r, v)
+      else if (typeof home === 'string') this.#line(`mv ${r}, ${home}`)
       else this.#line(`lw ${r}, ${home}(fp)`)
       this.#stack[k] = { kind: 'reg', r }
     })
@@ -335,7 +371,7 @@ export class O1 {
    * computed it writes the home instead (`addi t0, s1, 1` then `mv s1, t0` is `addi s1, s1, 1`).
    */
   #retarget(from: string, home: string): boolean {
-    if (!TEMPS.includes(from)) return false
+    if (!this.#temps.includes(from)) return false
     const last = this.lines[this.lines.length - 1] ?? ''
     const m = /^ {2}([a-z.]+) ([a-z0-9]+), (.*)$/.exec(last)
     if (m === null || m[2] !== from || /^(s[bw]|b|j|call)/.test(m[1] ?? '')) return false
@@ -428,15 +464,17 @@ export class O1 {
     }
   }
 
-  /** An address's base and offset: a near constant needs no register. */
-  #address(v: Value, avoid: Set<string>): [string, number] {
+  /** An address's base and offset: a near constant needs no register, nor a sum's offset. */
+  #address(v: Value, avoid: Set<string>): [string, string | number] {
     if (v.kind === 'const' && (v.v & 0xffff) < NEAR) return ['zero', v.v & 0xffff]
+    if (v.kind === 'addr' && this.#near.has(v.label)) return ['zero', v.label]
+    if (v.kind === 'sum') return [v.r, offsetText(v)]
     return [this.#inReg(v, avoid), 0]
   }
 
   #load(byte: boolean): void {
     const [base, offset] = this.#address(this.#pop(), new Set())
-    const r = this.#temp(new Set([base]))
+    const r = this.#result([base])
     this.#line(`${byte ? 'lbu' : 'lw'} ${r}, ${offset}(${base})`)
     this.#stack.push({ kind: 'reg', r })
   }
@@ -452,6 +490,11 @@ export class O1 {
   #binary(op: BinOp): void {
     const b = this.#pop()
     const a = this.#pop()
+    const sum = op === 'add' || op === 'sub' ? this.#sum(op, a, b) : null
+    if (sum !== null) {
+      this.#stack.push(sum)
+      return
+    }
     if (b.kind === 'const' && this.#immediate(op, a, b.v)) return
     const rb = this.#inReg(b, held(a))
     const ra = this.#inReg(a, new Set([rb]))
@@ -461,10 +504,90 @@ export class O1 {
     this.#stack.push({ kind: 'reg', r: d })
   }
 
+  /** A constant or a near array as a sum's offset (`- k` for the right of a subtraction). */
+  #known(v: Value, negate: boolean): { k: number; label?: string } | null {
+    if (v.kind === 'const') return { k: negate ? -v.v : v.v }
+    if (v.kind === 'addr' && !negate && this.#near.has(v.label)) return { k: 0, label: v.label }
+    return null
+  }
+
+  /** A value as the register side of a sum; null for what has no register to offset from. */
+  #based(v: Value): Sum | null {
+    if (v.kind === 'sum') return v
+    const known = this.#known(v, false)
+    if (known !== null) return { kind: 'sum', r: 'zero', ...known }
+    if (v.kind === 'spilled' || v.kind === 'addr') return null
+    return { kind: 'sum', r: this.#inReg(v, new Set()), k: 0 }
+  }
+
+  /**
+   * `a + b` or `a - k` left as a sum where one side is a constant or a near array and the
+   * whole offset fits an instruction: null where it does not.
+   */
+  #sum(op: 'add' | 'sub', a: Value, b: Value): Sum | null {
+    const right = this.#known(b, op === 'sub')
+    const left = op === 'add' && right === null ? this.#known(a, false) : null
+    const part = right ?? left
+    if (part === null) return null
+    const base = this.#based(right !== null ? a : b)
+    if (base === null || (base.label !== undefined && part.label !== undefined)) return null
+    const label = base.label ?? part.label
+    const sum: Sum = { kind: 'sum', r: base.r, k: signed16(base.k + part.k) }
+    if (label !== undefined) sum.label = label
+    const value = (label === undefined ? 0 : (this.#near.get(label) ?? 0)) + sum.k
+    return fits14(value) ? sum : null
+  }
+
+  /**
+   * `a * k` as shifts where k has one or two bits set, or is one less than a power of two
+   * (MUL is 4 cycles and needs k in a register; a shift is 1): false for any other k.
+   */
+  #multiply(a: Value, k: number): boolean {
+    const u = k & 0xffff
+    const bits = [...Array(16).keys()].filter((b) => (u >> b) & 1)
+    const [low, high] = bits
+    const below = Math.log2(u + 1)
+    if (u === 0 || (bits.length > 2 && !Number.isInteger(below))) return false
+    const ra = this.#inReg(a, new Set())
+    if (bits.length === 1) {
+      const d = this.#result([ra])
+      this.#line(`slli ${d}, ${ra}, ${low}`)
+      this.#stack.push({ kind: 'reg', r: d })
+      return true
+    }
+    const d = this.#result([ra])
+    const t = this.#temp(new Set([ra, d]))
+    if (bits.length > 2) {
+      this.#line(`slli ${t}, ${ra}, ${below}`)
+      this.#line(`sub ${d}, ${t}, ${ra}`)
+    } else {
+      this.#line(`slli ${t}, ${ra}, ${high}`)
+      if (low === 0) this.#line(`add ${d}, ${t}, ${ra}`)
+      else {
+        this.#line(`slli ${d}, ${ra}, ${low}`)
+        this.#line(`add ${d}, ${d}, ${t}`)
+      }
+    }
+    this.#stack.push({ kind: 'reg', r: d })
+    return true
+  }
+
   /** `a op k` in one instruction where the machine has a form for it; false where it has none. */
   #immediate(op: BinOp, a: Value, k: number): boolean {
+    if (op === 'mul') return this.#multiply(a, k)
     let mnemonic = IMMEDIATE[op]
     let imm = k
+    // Unsigned division and remainder by a power of two are a shift and a mask.
+    const u = k & 0xffff
+    const power = u !== 0 && (u & (u - 1)) === 0
+    if (power && op === 'divu') {
+      mnemonic = 'srli'
+      imm = Math.log2(u)
+    }
+    if (power && op === 'remu') {
+      mnemonic = 'andi'
+      imm = u - 1
+    }
     if (op === 'sub' && fits14(-k)) {
       mnemonic = 'addi'
       imm = -k
@@ -484,7 +607,7 @@ export class O1 {
 
   /** Where a result goes: an operand's temporary when it has one (it is used up), else a fresh one. */
   #result(operands: string[]): string {
-    const temp = operands.find((r) => TEMPS.includes(r) && !this.#used().has(r))
+    const temp = operands.find((r) => this.#temps.includes(r) && !this.#used().has(r))
     return temp ?? this.#temp(new Set(operands))
   }
 
@@ -561,7 +684,8 @@ export class O1 {
       // A register a later value still sits in is moved out of the way first.
       const later = values.findIndex((w, j) => j > k && w.kind === 'reg' && w.r === want)
       if (later >= 0) {
-        const away = this.#temp(new Set([...targets, ...filled]))
+        // Not into a register another argument still waits in, either.
+        const away = this.#temp(new Set([...targets, ...filled, ...this.#held(values)]))
         this.#line(`mv ${away}, ${want}`)
         values[later] = { kind: 'reg', r: away }
       }
@@ -574,7 +698,9 @@ export class O1 {
     const home = v.kind === 'local' ? this.#home[v.slot] : undefined
     if (v.kind === 'const') this.#line(`li ${to}, ${v.v & 0xffff}`)
     else if (v.kind === 'addr') this.#line(`la ${to}, ${v.label}`)
+    else if (v.kind === 'sum') this.#add(to, v)
     else if (typeof home === 'number') this.#line(`lw ${to}, ${home}(fp)`)
+    else if (v.kind === 'reg' && this.#retarget(v.r, to)) return
     else {
       const r = this.#inReg(v, new Set([...avoid, to]))
       if (r !== to) this.#line(r === 'zero' ? `li ${to}, 0` : `mv ${to}, ${r}`)
@@ -604,11 +730,20 @@ export class O1 {
     }
   }
 
-  /** The answer in a0, moved to a temporary before anything else can use a0. */
+  /**
+   * The answer, left in a0: no temporary hands it out, the next call's arguments move it out
+   * of the way or put it below them, and a store or return takes it from there.
+   */
   #result0(): void {
-    const r = this.#temp(new Set(ARGS))
-    this.#line(`mv ${r}, a0`)
-    this.#stack.push({ kind: 'reg', r })
+    this.#stack.push({ kind: 'reg', r: 'a0' })
+  }
+
+  /**
+   * Whether a value sits in a register of its own: one it holds, or a sum in a temporary or
+   * in a0 (a call's answer) - not a sum on a local's home, which only reads it.
+   */
+  #owns(v: Value): v is Extract<Value, { r: string }> {
+    return v.kind === 'reg' || (v.kind === 'sum' && (this.#temps.includes(v.r) || v.r === 'a0'))
   }
 
   #rest(op: Op): void {
@@ -648,7 +783,9 @@ export class O1 {
 
   #dup(): void {
     const v = this.#stack[this.#stack.length - 1] as Value
-    if (v.kind === 'const' || v.kind === 'addr' || v.kind === 'local') {
+    // A sum on a local's home only reads it; one in its own temporary is added up to copy.
+    const shared = v.kind === 'sum' && !this.#owns(v)
+    if (v.kind === 'const' || v.kind === 'addr' || v.kind === 'local' || shared) {
       this.#stack.push({ ...v })
       return
     }
@@ -686,20 +823,41 @@ export function labelDepths(body: Op[]): Map<string, number> {
 }
 
 /** The register a value already holds, which loading another beside it must not take. */
-const held = (v: Value): Set<string> => new Set(v.kind === 'reg' ? [v.r] : [])
+const held = (v: Value): Set<string> =>
+  new Set(v.kind === 'reg' || (v.kind === 'sum' && v.r !== 'zero') ? [v.r] : [])
 
-/** Where each slot lives: the busiest in saved registers, the rest in a frame. */
-function homes(fn: Fn): { home: (string | number)[]; saved: string[]; frame: number } {
+/** A sum's offset as the assembler reads it: `buffer+1`, `-2`. */
+function offsetText(v: Sum): string {
+  if (v.label === undefined) return String(v.k)
+  return v.k === 0 ? v.label : `${v.label}${v.k > 0 ? '+' : ''}${v.k}`
+}
+
+interface Homes {
+  home: (string | number)[]
+  saved: string[]
+  frame: number
+  temps: string[]
+}
+
+/**
+ * Where each slot lives. A leaf (it calls nothing) keeps its parameters in the registers they
+ * came in and other locals in the argument registers left over, as long as `deepest` values
+ * (at least four) still have temporaries: nothing to save or move. The rest go to saved
+ * registers, the busiest first, then to a frame.
+ */
+function homes(fn: Fn, leaf: boolean, deepest: number): Homes {
   const uses = fn.slots.map(() => 0)
   for (const op of fn.body)
     if (op.k === 'ld' || op.k === 'st') uses[op.slot] = (uses[op.slot] ?? 0) + 1
   for (let k = 0; k < fn.params; k++) uses[k] = (uses[k] ?? 0) + 1
-  const order = fn.slots.map((_, k) => k).sort((x, y) => (uses[y] ?? 0) - (uses[x] ?? 0))
-  // With a frame, s0 is fp; without one, all four saved registers hold locals.
-  const registers = fn.slots.length <= 4 ? SAVED : SAVED.slice(0, 3)
   const home: (string | number)[] = []
+  const temps = [...TEMPS]
+  if (leaf) leafHomes(fn, byUse(fn, uses), Math.max(4, deepest), home, temps)
+  const rest = byUse(fn, uses).filter((slot) => home[slot] === undefined)
+  // With a frame, s0 is fp; without one, all four saved registers hold locals.
+  const registers = rest.length <= 4 ? SAVED : SAVED.slice(0, 3)
   let frame = 0
-  order.forEach((slot, rank) => {
+  rest.forEach((slot, rank) => {
     const r = registers[rank]
     if (r !== undefined) home[slot] = r
     else {
@@ -707,6 +865,68 @@ function homes(fn: Fn): { home: (string | number)[]; saved: string[]; frame: num
       frame += 2
     }
   })
-  const saved = [...new Set(home.filter((h): h is string => typeof h === 'string'))]
-  return { home, saved, frame }
+  const saved = [
+    ...new Set(home.filter((h): h is string => typeof h === 'string' && SAVED.includes(h))),
+  ]
+  return { home, saved, frame, temps }
+}
+
+/**
+ * A leaf's parameters in the registers they came in, then its busiest other locals in the
+ * argument registers left over, each only while `keep` temporaries remain (a0 is none).
+ */
+function leafHomes(
+  fn: Fn,
+  order: number[],
+  keep: number,
+  home: (string | number)[],
+  temps: string[],
+): void {
+  const take = (slot: number, r: string): boolean => {
+    if (temps.includes(r)) {
+      if (temps.length <= keep) return false
+      temps.splice(temps.indexOf(r), 1)
+    }
+    home[slot] = r
+    return true
+  }
+  for (let slot = 0; slot < Math.min(fn.params, ARGS.length); slot++)
+    take(slot, ARGS[slot] as string)
+  const spare = ARGS.slice(fn.params)
+  for (const slot of order) {
+    const r = spare[0]
+    if (slot < fn.params || r === undefined) continue
+    if (take(slot, r)) spare.shift()
+  }
+}
+
+/** The slots, the busiest first. */
+function byUse(fn: Fn, uses: number[]): number[] {
+  return fn.slots.map((_, k) => k).sort((x, y) => (uses[y] ?? 0) - (uses[x] ?? 0))
+}
+
+/**
+ * Jumps tidied in the finished lines: what follows a jump up to the next label is never run,
+ * and a jump to a label that comes next (labels and comments between) goes.
+ */
+export function tidyJumps(lines: string[]): string[] {
+  const out: string[] = []
+  let dead = false
+  for (const line of lines) {
+    const isLabel = /^[.\w]+:/.test(line)
+    if (isLabel) dead = false
+    if (dead && !line.startsWith('  ;') && line !== '') continue
+    out.push(line)
+    if (/^ {2}(j|jr|ret)\b/.test(line)) dead = true
+  }
+  return out.filter((line, k) => {
+    const jump = /^ {2}j ([.\w]+)$/.exec(line)
+    if (jump === null) return true
+    for (let n = k + 1; n < out.length; n++) {
+      const next = out[n] as string
+      if (next === `${jump[1]}:`) return false
+      if (!/^[.\w]+:/.test(next) && !next.startsWith('  ;')) return true
+    }
+    return true
+  })
 }

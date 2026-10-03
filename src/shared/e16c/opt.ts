@@ -21,11 +21,13 @@ import type { BinOp, Fn, Op, Program } from './ir.js'
  */
 const INLINE_LIMIT = 24
 /**
- * Operations a function may have and still be inlined wherever it is called. Larger ones
- * stay calls: inlining BASIC's `next` (17 operations) at its 35 calls made the ROM 1.3 KB
- * larger for 10% of its speed, and the ROM is the scarcer (docs/decisions.md).
+ * Operations a function may have and still be inlined wherever it is called: about what the
+ * call itself takes. Larger ones stay calls, cheap now that a leaf keeps its arguments where
+ * they arrive. Inlining BASIC's `next` (17 operations) at its 35 calls once made the ROM
+ * 1.3 KB larger for 10% of its speed; 8 operations, 166 bytes for 1%. The ROM is the scarcer
+ * (docs/decisions.md).
  */
-const INLINE_TINY = 8
+const INLINE_TINY = 4
 /** Operations a compile-time call may take. */
 const EVAL_BUDGET = 100_000
 

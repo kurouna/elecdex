@@ -102,9 +102,13 @@ export function assembly(program: Program, sources: string[], level: 0 | 1 = 0):
   out.raw('')
   data(out, program)
   init(out, program)
+  // RAM arrays low enough for an instruction's offset: -O1 adds an index to them there.
+  const near = new Map(
+    program.arrays.filter((a) => a.at + a.bytes < 0x2000).map((a) => [a.name, a.at]),
+  )
   for (const fn of program.fns) {
     if (level === 0) func(out, fn)
-    else for (const line of new O1(fn).emit()) out.raw(line)
+    else for (const line of new O1(fn, near).emit()) out.raw(line)
   }
   strings(out, program)
   return `${out.lines.join('\n')}\n`

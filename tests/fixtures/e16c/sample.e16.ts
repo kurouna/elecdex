@@ -175,3 +175,100 @@ export function readings(x: u16): u16 {
   r += u16(s) & 0x0f
   return r + (x & 0xff)
 }
+
+/** Conditions as branches: !, && and || mixed and nested, and ones known while compiling. */
+export function conditions(a: u16, b: u16, c: u16): u16 {
+  let r: u16 = (a > 1 && (b > 1 || c > 1)) || (a === 0 && c === 0) ? 7 : 9
+  if (!(a > 1 || !(b === 2))) r += 100
+  // biome-ignore lint/correctness/noConstantCondition: one known while compiling, on purpose
+  if (false) r += 1000
+  while (true) {
+    if (r > 50 || !(c !== 3)) break
+    r += 10
+  }
+  let n: u16 = 0
+  do n++
+  while (!(n >= 3 && b !== n))
+  return r + n
+}
+
+/** An index plus or minus a constant, read and written, across calls and in a loop. */
+export function offsets(k: u16): u16 {
+  for (let i: u16 = 0; i < 8; i++) buffer[i + 2] = wrap16(i * 3 + k)
+  buffer[identity(2)] += identity(3)
+  let s: u16 = buffer[k + 1] + buffer[k - 1 + 4]
+  let p: u16 = 7
+  table[p - 3] = buffer[p]
+  p = 1
+  s += table[4] + buffer[p + 1] + buffer[identity(p) + 2]
+  for (let i: u16 = 9; i > 2; i--) s += buffer[i - 1]
+  return s
+}
+
+/** A leaf with four parameters and more locals than spare registers, a ?: deep inside. */
+export function leafMany(a: u16, b: u16, c: u16, d: u16): u16 {
+  const e: u16 = a + b
+  const f: u16 = c ^ d
+  const g: u16 = e - f
+  const h: u16 = wrap16(g * 5)
+  return wrap16(a + (b + (c + (d + (e > f ? g : h)))) + f)
+}
+
+/** Multiplying, dividing and taking the remainder by constants that become shifts. */
+export function constants(x: u16, s: i16): u16 {
+  let r: u16 = wrap16(x * 2 + x * 3 + x * 7 + x * 10 + x * 12 + x * 1 + x * 0x8000)
+  r = wrap16(r + (x % 8) + div(x, 16) + (x % 10) + div(x, 3))
+  return wrap16(r + u16(wrap16(s * 4)) + u16(div(s, 4)) + u16(s % 4))
+}
+
+/** A switch on a local that a case changes, inside a loop with continue and shared cases. */
+export function switchLoop(n: u16): u16 {
+  let r: u16 = 0
+  for (let i: u16 = 0; i < n; i++) {
+    let c: u16 = i % 5
+    switch (c) {
+      case 0:
+        c = 3
+        r += c
+        break
+      case 4:
+      case 1:
+        r += c
+        break
+      case 2:
+        continue
+      default:
+        r += 100
+        break
+    }
+    r += 1000
+  }
+  return r
+}
+
+/** Shifts by a variable, recursion writing an array, and locals kept across calls in a loop. */
+export function misc(n: u16): u16 {
+  let a: u16 = 1
+  let b: u16 = 2
+  const c: u16 = 3
+  const d: u16 = 4
+  let e: u16 = 5
+  for (let i: u16 = 0; i < n; i++) {
+    a = identity(a + b)
+    b = identity(c ^ d) + e
+    e = wrap16((e << (i & 3)) + (a >> (b & 7)))
+  }
+  fill(5)
+  return wrap16(a + b + c + d + e + table[0] + table[5])
+}
+
+function fill(k: u16): void {
+  if (k === 0) return
+  table[k] = k * k
+  fill(k - 1)
+}
+
+/** Calls that stay calls at every level, several inside one argument list. */
+export function callsInArguments(x: u16): u16 {
+  return sum4(pair(x, 2), pair(3, x), 1, pair(x, x))
+}
