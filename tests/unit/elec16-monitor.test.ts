@@ -118,6 +118,9 @@ describe('U and B on the ROM', () => {
     expect(shown(m).at(-2)).toBe('7004')
     type(m, 'B 8000\n')
     expect(shown(m).at(-2)).toBe('?')
+    // An odd address is inside an instruction: C.EBREAK there would split it.
+    type(m, 'B 7005\n')
+    expect(shown(m).at(-2)).toBe('?')
     const before = Array.from(m.state.ram.subarray(0x7000, 0x7010))
     type(m, 'G 7000\n')
     expect(shown(m).at(-2)).toBe('BREAK AT 7004')

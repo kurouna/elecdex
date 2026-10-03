@@ -1102,7 +1102,12 @@ function commandStatement(c: u16): void {
       return
     case T_CALL:
       expr()
+      // Machine code is not BASIC: BRK, which BASIC only notes between statements, takes it
+      // to the monitor as G does - it may never look at a key. Back, BASIC has BRK again.
+      poke16(INBASIC, 0)
       call_at(toWord(top()))
+      poke16(INBASIC, 1)
+      poke16(BRKFLAG, 0)
       nsp -= 8
       return
     case T_MON:

@@ -355,6 +355,11 @@ describe('IMPORT and the character set', () => {
     expect(importFile(at('low.asm', '.org 0x100\n  ret\n'))).toMatchObject({
       problem: expect.stringMatching(/not all in RAM/),
     })
+    // Past 7BFF it was taken, and LOAD then dropped the rest unsaid: the code area is 3 KB.
+    expect(importFile(at('long.asm', '.org 0x7bfe\n  ret\n  ret\n'))).toMatchObject({
+      problem: expect.stringMatching(/code area/),
+    })
+    expect(importFile(at('fits.asm', '.org 0x7bfe\n  ret\n'))).toMatchObject({ name: 'FITS.BIN' })
     expect(importFile(at('big.bin', new Uint8Array(40_000)))).toMatchObject({
       problem: expect.stringMatching(/at most/),
     })

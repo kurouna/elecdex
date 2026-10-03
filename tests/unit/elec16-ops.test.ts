@@ -310,6 +310,15 @@ describe('block transfer', () => {
     }
   })
 
+  it('MCPY goes from the end only while its destination lies in what is left of the source', () => {
+    // Ten bytes three ahead: eight from the end, then the first two, which no longer overlap
+    // anything left, forwards - rd and rs1 moved on by those two.
+    const { m, cycles } = blockRun('mcpy a0, a1, a2', 0x2003, 0x2000, 10)
+    expect(Array.from(m.state.ram)).toEqual(Array.from(moved(patterned(), 0x2003, 0x2000, 10)))
+    expect(cycles).toEqual([17, 5])
+    expect(regs(m)).toEqual([0x2005, 0x2002, 0])
+  })
+
   it('MSET fills with the low byte of its value, eight bytes a step, a write a byte', () => {
     for (const [value, n] of [
       [0, 20],

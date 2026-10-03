@@ -49,6 +49,12 @@ export function buildCode(file: string, source: string, level: Level): CodeBuild
       { file, line: 1, column: 1, message: 'there is no main: export function main(): void' },
     ])
   }
+  // Unexported, -O2 drops main as nothing calls it: said at every level, not at one.
+  if (!/\bexport\s+function\s+main\s*\(/.test(source)) {
+    return failed([
+      { file, line: 1, column: 1, message: 'main is not exported: export function main(): void' },
+    ])
+  }
   const out = compile(
     [
       { name: LIBRARY_FILE, text: LIBRARY },

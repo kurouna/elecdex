@@ -589,6 +589,32 @@ describe('BASIC', () => {
     expect(shown(m).slice(-2)).toEqual(['BREAK AT 7000', '*'])
   })
 
+  it('lets BRK stop machine code CALLed from BASIC, into the monitor as G does, and back', () => {
+    const m = switchOn('pocket-64')
+    // c.j 0 at 0x7000 (28672): a jump to itself, which never looks at a key or BASIC's flag.
+    type(m, 'POKE 28672,1:POKE 28673,160\n')
+    type(m, 'CALL 28672')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    m.run(100_000)
+    m.brk()
+    settle(m)
+    expect(shown(m).slice(-2)).toEqual(['BREAK AT 7000', '*'])
+    // A CALL that returns leaves BRK to BASIC again: it stops a program between statements.
+    type(m, 'Q\n')
+    // c.jr ra: straight back.
+    type(m, 'POKE 28672,2:POKE 28673,33\n')
+    expect(say(m, 'CALL 28672:PRINT "BACK"')).toEqual(['BACK'])
+    type(m, '10 GOTO 10\n')
+    type(m, 'RUN')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    m.run(100_000)
+    m.brk()
+    settle(m)
+    expect(shown(m).slice(-2)).toEqual(['BREAK IN 10', '>'])
+  })
+
   it('sleeps through WAIT with a key waiting for INKEY$, never spinning on it', () => {
     const m = switchOn('pocket-64')
     type(m, '10 WAIT 64:PRINT INKEY$\n')

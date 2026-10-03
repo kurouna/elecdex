@@ -740,7 +740,8 @@ export function breakCommand(at: u16, given: bool): u16 {
 
 /** A breakpoint at `at`, or none there any more: false when there is no room or no RAM. */
 function toggleBreak(at: u16): bool {
-  if (at >= 0x8000 || at < 0x0800) return false
+  // Instructions sit on even addresses: C.EBREAK at an odd one would split one.
+  if (at >= 0x8000 || at < 0x0800 || (at & 1) !== 0) return false
   let free: u16 = 4
   for (let k: u16 = 0; k < 4; k++) {
     if (breakAt(k) === at) {

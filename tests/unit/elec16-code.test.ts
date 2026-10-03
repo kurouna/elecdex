@@ -44,6 +44,12 @@ describe("CODE's programs", () => {
     expect(buildCode('MAIN.TS', 'export function go(): void {}', 1).errors[0]?.message).toMatch(
       /no main/,
     )
+    // An unexported main built at -O0 and -O1 and vanished at -O2: refused alike at each.
+    for (const level of [0, 1, 2] as const) {
+      expect(buildCode('MAIN.TS', 'function main(): void {}', level).errors[0]?.message).toMatch(
+        /main is not exported/,
+      )
+    }
     const lines = Array.from({ length: 400 }, (_, k) => `  poke(0x6000 + ${k}, ${k & 0xff})`)
     const big = buildCode('MAIN.TS', `export function main(): void {\n${lines.join('\n')}\n}`, 0)
     expect(big.errors[0]?.message).toMatch(

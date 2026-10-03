@@ -857,7 +857,10 @@ export class FnCompiler {
     if (sa === sb) return sa
     if (sa && b.constant !== undefined) return true
     if (sb && a.constant !== undefined) return true
-    throw new Refusal(at.getStart(), 'this mixes i16 and an unsigned value: say which with `as`')
+    throw new Refusal(
+      at.getStart(),
+      'this mixes i16 and an unsigned value: say which with i16() or u16()',
+    )
   }
 
   /**

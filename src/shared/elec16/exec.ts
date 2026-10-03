@@ -107,8 +107,9 @@ export const BLOCK_STEP = 8
 
 /**
  * MCPY rd, rs1, rs2: rs2 bytes from rs1 to rd, as memmove copies them - from the end when rd
- * lies inside the source, so an overlap is copied whole. A step forward moves rd and rs1 on
- * and rs2 down; one from the end only takes rs2 down. Each byte costs a read and a write.
+ * lies inside what is left of the source, so an overlap is copied whole. A step forward moves
+ * rd and rs1 on and rs2 down; one from the end only takes rs2 down. Each step decides afresh,
+ * so the last of an overlapping copy may go forwards. Each byte costs a read and a write.
  */
 function blockCopy(c: Core, i: Inst, pc: number): void {
   const r = c.r

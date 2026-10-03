@@ -5,7 +5,7 @@ import { CH } from '@shared/channels'
 import { assemble, ramImage } from '@shared/elec16/asm'
 import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer, isCardName } from '@shared/elec16/card'
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
-import { CODE_AREA, MODEL_IDS } from '@shared/elec16/map'
+import { CODE_AREA, CODE_AREA_END, MODEL_IDS } from '@shared/elec16/map'
 import {
   ELEC16_CLOCKS,
   type Elec16Board,
@@ -243,7 +243,14 @@ function assembled(
   const first = out.errors[0]
   if (first !== undefined) return { problem: `Line ${first.line - 1}: ${first.message}` }
   try {
-    return sized(cardNameOf(file, 'BIN'), ramImage(out, CODE_AREA))
+    const image = ramImage(out, CODE_AREA)
+    // LOAD reads a .BIN only into the code area: what lies past it would be dropped unsaid.
+    if (image.length > CODE_AREA_END - CODE_AREA) {
+      return {
+        problem: `It ends at ${(CODE_AREA + image.length).toString(16).toUpperCase()}: the code area is ${CODE_AREA.toString(16).toUpperCase()}–${(CODE_AREA_END - 1).toString(16).toUpperCase()}.`,
+      }
+    }
+    return sized(cardNameOf(file, 'BIN'), image)
   } catch {
     return {
       problem: `It is not all in RAM from ${CODE_AREA.toString(16).toUpperCase()}, where a .BIN loads.`,

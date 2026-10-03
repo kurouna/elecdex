@@ -4151,7 +4151,7 @@ commandStatement:
   j .return
 .L3:
   ; basic/basic.e16.ts:1068  offStatement()
-  ; basic/basic.e16.ts:1372  poke16(IO_POWER, 0)
+  ; basic/basic.e16.ts:1377  poke16(IO_POWER, 0)
   li t0, 65286
   sw zero, 0(t0)
   ; basic/basic.e16.ts:1069  return
@@ -4221,35 +4221,42 @@ commandStatement:
 .L12:
   ; basic/basic.e16.ts:1104  expr()
   call expr
-  ; basic/basic.e16.ts:1105  call_at(toWord(top()))
+  ; basic/basic.e16.ts:1107  poke16(INBASIC, 0)
+  sw zero, 28(zero)
+  ; basic/basic.e16.ts:1108  call_at(toWord(top()))
   call top
   call toWord
   call call_at
-  ; basic/basic.e16.ts:1106  nsp -= 8
+  ; basic/basic.e16.ts:1109  poke16(INBASIC, 1)
+  li t0, 1
+  sw t0, 28(zero)
+  ; basic/basic.e16.ts:1110  poke16(BRKFLAG, 0)
+  sw zero, 30(zero)
+  ; basic/basic.e16.ts:1111  nsp -= 8
   lw t0, 0x0116(zero)
   addi t0, t0, -8
   sw t0, 0x0116(zero)
-  ; basic/basic.e16.ts:1107  return
+  ; basic/basic.e16.ts:1112  return
   j .return
 .L13:
-  ; basic/basic.e16.ts:1109  poke16(INBASIC, 0)
+  ; basic/basic.e16.ts:1114  poke16(INBASIC, 0)
   sw zero, 28(zero)
-  ; basic/basic.e16.ts:1110  monitor()
+  ; basic/basic.e16.ts:1115  monitor()
   call monitor
-  ; basic/basic.e16.ts:1111  return
+  ; basic/basic.e16.ts:1116  return
   j .return
 .L14:
-  ; basic/basic.e16.ts:1113  angleStatement(c)
+  ; basic/basic.e16.ts:1118  angleStatement(c)
   mv a0, s1
   call angleStatement
-  ; basic/basic.e16.ts:1114  return
+  ; basic/basic.e16.ts:1119  return
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1118 angleStatement(c) at -O1
+; basic/basic.e16.ts:1123 angleStatement(c) at -O1
 ;   c in s1
 ;   unit in s2
 angleStatement:
@@ -4258,7 +4265,7 @@ angleStatement:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; c
-  ; basic/basic.e16.ts:1119  if (c === T_DEG || c === T_RAD || c === T_GRAD) {
+  ; basic/basic.e16.ts:1124  if (c === T_DEG || c === T_RAD || c === T_GRAD) {
   li t0, 150
   beq s1, t0, .L2
   li t0, 151
@@ -4266,12 +4273,12 @@ angleStatement:
   li t0, 152
   bne s1, t0, .L1
 .L2:
-  ; basic/basic.e16.ts:1120  const unit: u16 = c - T_DEG
+  ; basic/basic.e16.ts:1125  const unit: u16 = c - T_DEG
   addi s2, s1, -150
-  ; basic/basic.e16.ts:1121  poke16(MATH_ANGLE, unit)
+  ; basic/basic.e16.ts:1126  poke16(MATH_ANGLE, unit)
   li t0, 65372
   sw s2, 0(t0)
-  ; basic/basic.e16.ts:1122  angleMarks = unit === 0 ? ANN_DEG : unit === 1 ? ANN_RAD : ANN_GRAD
+  ; basic/basic.e16.ts:1127  angleMarks = unit === 0 ? ANN_DEG : unit === 1 ? ANN_RAD : ANN_GRAD
   bne s2, zero, .L3
   li t0, 128
   j .L4
@@ -4285,12 +4292,12 @@ angleStatement:
 .L6:
 .L4:
   sw t0, 0x013c(zero)
-  ; basic/basic.e16.ts:1123  marks()
+  ; basic/basic.e16.ts:1128  marks()
   call marks
-  ; basic/basic.e16.ts:1124  return
+  ; basic/basic.e16.ts:1129  return
   j .return
 .L1:
-  ; basic/basic.e16.ts:1127  if ((c >= T_LOCATE && c <= T_GPRINT) || c === T_CIRCLE) screenStatement(c)
+  ; basic/basic.e16.ts:1132  if ((c >= T_LOCATE && c <= T_GPRINT) || c === T_CIRCLE) screenStatement(c)
   li t0, 172
   bltu s1, t0, .L9
   li t0, 177
@@ -4299,14 +4306,14 @@ angleStatement:
   li t0, 219
   bne s1, t0, .L7
 .L8:
-  ; basic/basic.e16.ts:1127  screenStatement(c)
+  ; basic/basic.e16.ts:1132  screenStatement(c)
   mv a0, s1
   la t0, screenStatement
   li t1, 1
   call far_call
   j .L10
 .L7:
-  ; basic/basic.e16.ts:1128  if ((c >= T_FILES && c <= T_KILL) || c === T_OPEN || c === T_CLOSE) fileStatement(c)
+  ; basic/basic.e16.ts:1133  if ((c >= T_FILES && c <= T_KILL) || c === T_OPEN || c === T_CLOSE) fileStatement(c)
   li t0, 168
   bltu s1, t0, .L13
   li t0, 171
@@ -4317,26 +4324,26 @@ angleStatement:
   li t0, 179
   bne s1, t0, .L11
 .L12:
-  ; basic/basic.e16.ts:1128  fileStatement(c)
+  ; basic/basic.e16.ts:1133  fileStatement(c)
   mv a0, s1
   la t0, fileStatement
   li t1, 2
   call far_call
   j .L14
 .L11:
-  ; basic/basic.e16.ts:1129  if (c >= T_AUTO && c <= T_TROFF) toolStatement(c)
+  ; basic/basic.e16.ts:1134  if (c >= T_AUTO && c <= T_TROFF) toolStatement(c)
   li t0, 163
   bltu s1, t0, .L15
   li t0, 167
   bltu t0, s1, .L15
-  ; basic/basic.e16.ts:1129  toolStatement(c)
+  ; basic/basic.e16.ts:1134  toolStatement(c)
   mv a0, s1
   la t0, toolStatement
   li t1, 3
   call far_call
   j .L16
 .L15:
-  ; basic/basic.e16.ts:1130  dataStatement(c)
+  ; basic/basic.e16.ts:1135  dataStatement(c)
   mv a0, s1
   la t0, dataStatement
   li t1, 0
@@ -4351,12 +4358,12 @@ angleStatement:
   addi sp, sp, 6
   ret
 
-; basic/basic.e16.ts:1133 toLineEnd() at -O1
+; basic/basic.e16.ts:1138 toLineEnd() at -O1
 toLineEnd:
-  ; basic/basic.e16.ts:1134  while (peek(txt) !== 0) txt++
+  ; basic/basic.e16.ts:1139  while (peek(txt) !== 0) txt++
   j .L3
 .L1:
-  ; basic/basic.e16.ts:1134  txt++
+  ; basic/basic.e16.ts:1139  txt++
   lw t0, 0x010e(zero)
   addi t0, t0, 1
   sw t0, 0x010e(zero)
@@ -4367,20 +4374,20 @@ toLineEnd:
 .return:
   ret
 
-; basic/basic.e16.ts:1137 endProgram() at -O1
+; basic/basic.e16.ts:1142 endProgram() at -O1
 endProgram:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/basic.e16.ts:1138  running = false
+  ; basic/basic.e16.ts:1143  running = false
   sw zero, 0x012e(zero)
-  ; basic/basic.e16.ts:1139  toLineEnd()
+  ; basic/basic.e16.ts:1144  toLineEnd()
   call toLineEnd
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; basic/basic.e16.ts:1142 assignment() at -O1
+; basic/basic.e16.ts:1147 assignment() at -O1
 ;   at in s1
 ;   strings in s2
 ;   room in s3
@@ -4390,40 +4397,40 @@ assignment:
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  ; basic/basic.e16.ts:1143  const at = varAt(true)
+  ; basic/basic.e16.ts:1148  const at = varAt(true)
   li a0, 1
   call varAt
   mv s1, a0 ; at
-  ; basic/basic.e16.ts:1144  const strings = strType
+  ; basic/basic.e16.ts:1149  const strings = strType
   lw s2, 0x0118(zero)
-  ; basic/basic.e16.ts:1145  const room = varRoom
+  ; basic/basic.e16.ts:1150  const room = varRoom
   lw s3, 0x011a(zero)
-  ; basic/basic.e16.ts:1146  expect(CH_EQ)
+  ; basic/basic.e16.ts:1151  expect(CH_EQ)
   li a0, 61
   call expect
-  ; basic/basic.e16.ts:1147  expr()
+  ; basic/basic.e16.ts:1152  expr()
   call expr
-  ; basic/basic.e16.ts:1148  if (strType !== strings) fail(E_TYPE)
+  ; basic/basic.e16.ts:1153  if (strType !== strings) fail(E_TYPE)
   lw t0, 0x0118(zero)
   beq t0, s2, .L1
-  ; basic/basic.e16.ts:1148  fail(E_TYPE)
+  ; basic/basic.e16.ts:1153  fail(E_TYPE)
   li a0, 11
   call fail
 .L1:
-  ; basic/basic.e16.ts:1149  if (strings) storeString(at, room)
+  ; basic/basic.e16.ts:1154  if (strings) storeString(at, room)
   beqz s2, .L2
-  ; basic/basic.e16.ts:1149  storeString(at, room)
+  ; basic/basic.e16.ts:1154  storeString(at, room)
   mv a0, s1
   mv a1, s3
   call storeString
   j .L3
 .L2:
-  ; basic/basic.e16.ts:1150  copy8(top(), at)
+  ; basic/basic.e16.ts:1155  copy8(top(), at)
   call top
   mv a1, s1
   call copy8
 .L3:
-  ; basic/basic.e16.ts:1151  nsp -= 8
+  ; basic/basic.e16.ts:1156  nsp -= 8
   lw t0, 0x0116(zero)
   addi t0, t0, -8
   sw t0, 0x0116(zero)
@@ -4435,21 +4442,21 @@ assignment:
   addi sp, sp, 8
   ret
 
-; basic/basic.e16.ts:1155 printStatement() at -O1
+; basic/basic.e16.ts:1160 printStatement() at -O1
 printStatement:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/basic.e16.ts:1156  if (next() === CH_HASH) printToFile()
+  ; basic/basic.e16.ts:1161  if (next() === CH_HASH) printToFile()
   call next
   li t0, 35
   bne a0, t0, .L1
-  ; basic/basic.e16.ts:1156  printToFile()
+  ; basic/basic.e16.ts:1161  printToFile()
   la t0, printToFile
   li t1, 2
   call far_call
   j .L2
 .L1:
-  ; basic/basic.e16.ts:1157  printItems()
+  ; basic/basic.e16.ts:1162  printItems()
   call printItems
 .L2:
 .return:
@@ -4457,57 +4464,57 @@ printStatement:
   addi sp, sp, 2
   ret
 
-; basic/basic.e16.ts:1164 printItems() at -O1
+; basic/basic.e16.ts:1169 printItems() at -O1
 ;   joined in s1
 printItems:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1165  let joined = false
+  ; basic/basic.e16.ts:1170  let joined = false
   li s1, 0 ; joined
-  ; basic/basic.e16.ts:1166  printed = false
+  ; basic/basic.e16.ts:1171  printed = false
   sw zero, 0x061c(zero)
-  ; basic/basic.e16.ts:1167  while (!statementEnds()) {
+  ; basic/basic.e16.ts:1172  while (!statementEnds()) {
   j .L3
 .L1:
-  ; basic/basic.e16.ts:1168  printItem()
+  ; basic/basic.e16.ts:1173  printItem()
   call printItem
-  ; basic/basic.e16.ts:1169  joined = separator()
+  ; basic/basic.e16.ts:1174  joined = separator()
   call separator
   mv s1, a0 ; joined
-  ; basic/basic.e16.ts:1170  if (!joined && !statementEnds()) fail(E_SYNTAX)
+  ; basic/basic.e16.ts:1175  if (!joined && !statementEnds()) fail(E_SYNTAX)
   bnez s1, .L5
   call statementEnds
   bnez a0, .L5
-  ; basic/basic.e16.ts:1170  fail(E_SYNTAX)
+  ; basic/basic.e16.ts:1175  fail(E_SYNTAX)
   li a0, 1
   call fail
 .L5:
 .L3:
   call statementEnds
   beqz a0, .L1
-  ; basic/basic.e16.ts:1172  if (joined) return
+  ; basic/basic.e16.ts:1177  if (joined) return
   beqz s1, .L6
-  ; basic/basic.e16.ts:1172  return
+  ; basic/basic.e16.ts:1177  return
   j .return
 .L6:
-  ; basic/basic.e16.ts:1173  if (outFile !== 0) fileByte(K_ENTER)
+  ; basic/basic.e16.ts:1178  if (outFile !== 0) fileByte(K_ENTER)
   lw t0, 0x011c(zero)
   beq t0, zero, .L7
-  ; basic/basic.e16.ts:1173  fileByte(K_ENTER)
+  ; basic/basic.e16.ts:1178  fileByte(K_ENTER)
   li a0, 13
   la t0, fileByte
   li t1, 2
   call far_call
   j .L8
 .L7:
-  ; basic/basic.e16.ts:1175  if (!printed || peek16(CURX) !== 0) newline()
+  ; basic/basic.e16.ts:1180  if (!printed || peek16(CURX) !== 0) newline()
   lw t0, 0x061c(zero)
   beqz t0, .L10
   lw t0, 0(zero)
   beq t0, zero, .L9
 .L10:
-  ; basic/basic.e16.ts:1175  newline()
+  ; basic/basic.e16.ts:1180  newline()
   call newline
 .L9:
 .L8:
@@ -4517,45 +4524,45 @@ printItems:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1179 printItem() at -O1
+; basic/basic.e16.ts:1184 printItem() at -O1
 ;   p in s1
 printItem:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1180  expr()
+  ; basic/basic.e16.ts:1185  expr()
   call expr
-  ; basic/basic.e16.ts:1181  if (strType) outString(top())
+  ; basic/basic.e16.ts:1186  if (strType) outString(top())
   lw t0, 0x0118(zero)
   beqz t0, .L1
-  ; basic/basic.e16.ts:1181  outString(top())
+  ; basic/basic.e16.ts:1186  outString(top())
   call top
   call outString
   j .L2
 .L1:
-  ; basic/basic.e16.ts:1183  formatTop()
+  ; basic/basic.e16.ts:1188  formatTop()
   call formatTop
-  ; basic/basic.e16.ts:1184  for (let p = addr(textOut); peek(p) !== 0; p++) out(peek(p))
+  ; basic/basic.e16.ts:1189  for (let p = addr(textOut); peek(p) !== 0; p++) out(peek(p))
   la s1, textOut
   j .L5
 .L3:
-  ; basic/basic.e16.ts:1184  out(peek(p))
+  ; basic/basic.e16.ts:1189  out(peek(p))
   lbu a0, 0(s1)
   call out
   addi s1, s1, 1
 .L5:
   lbu t0, 0(s1)
   bne t0, zero, .L3
-  ; basic/basic.e16.ts:1185  if (next() === CH_SEMI) out(CH_SPACE)
+  ; basic/basic.e16.ts:1190  if (next() === CH_SEMI) out(CH_SPACE)
   call next
   li t0, 59
   bne a0, t0, .L7
-  ; basic/basic.e16.ts:1185  out(CH_SPACE)
+  ; basic/basic.e16.ts:1190  out(CH_SPACE)
   li a0, 32
   call out
 .L7:
 .L2:
-  ; basic/basic.e16.ts:1187  nsp -= 8
+  ; basic/basic.e16.ts:1192  nsp -= 8
   lw t0, 0x0116(zero)
   addi t0, t0, -8
   sw t0, 0x0116(zero)
@@ -4565,25 +4572,25 @@ printItem:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1194 out(c) at -O1
+; basic/basic.e16.ts:1199 out(c) at -O1
 ;   c in s1
 out:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; c
-  ; basic/basic.e16.ts:1195  printed = true
+  ; basic/basic.e16.ts:1200  printed = true
   li t0, 1
   sw t0, 0x061c(zero)
-  ; basic/basic.e16.ts:1196  if (outFile === 0) putc(c)
+  ; basic/basic.e16.ts:1201  if (outFile === 0) putc(c)
   lw t0, 0x011c(zero)
   bne t0, zero, .L1
-  ; basic/basic.e16.ts:1196  putc(c)
+  ; basic/basic.e16.ts:1201  putc(c)
   mv a0, s1
   call putc
   j .L2
 .L1:
-  ; basic/basic.e16.ts:1197  fileByte(c)
+  ; basic/basic.e16.ts:1202  fileByte(c)
   mv a0, s1
   la t0, fileByte
   li t1, 2
@@ -4595,7 +4602,7 @@ out:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1201 outString(e) at -O1
+; basic/basic.e16.ts:1206 outString(e) at -O1
 ;   e in s2
 ;   at in s3
 ;   n in s0
@@ -4608,19 +4615,19 @@ outString:
   sw s0, 6(sp)
   sw s1, 8(sp)
   mv s2, a0 ; e
-  ; basic/basic.e16.ts:1202  const at = stringAt(e)
+  ; basic/basic.e16.ts:1207  const at = stringAt(e)
   mv a0, s2
   call stringAt
   mv s3, a0 ; at
-  ; basic/basic.e16.ts:1203  const n = stringLength(e)
+  ; basic/basic.e16.ts:1208  const n = stringLength(e)
   mv a0, s2
   call stringLength
   mv s0, a0 ; n
-  ; basic/basic.e16.ts:1204  for (let k: u16 = 0; k < n; k++) out(peek(at + k))
+  ; basic/basic.e16.ts:1209  for (let k: u16 = 0; k < n; k++) out(peek(at + k))
   li s1, 0 ; k
   j .L3
 .L1:
-  ; basic/basic.e16.ts:1204  out(peek(at + k))
+  ; basic/basic.e16.ts:1209  out(peek(at + k))
   add t0, s3, s1
   lbu a0, 0(t0)
   call out
@@ -4636,16 +4643,16 @@ outString:
   addi sp, sp, 10
   ret
 
-; basic/basic.e16.ts:1208 statementEnds() at -O1
+; basic/basic.e16.ts:1213 statementEnds() at -O1
 ;   c in s1
 statementEnds:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1209  const c = next()
+  ; basic/basic.e16.ts:1214  const c = next()
   call next
   mv s1, a0 ; c
-  ; basic/basic.e16.ts:1210  return c === 0 || c === CH_COLON || c === T_ELSE
+  ; basic/basic.e16.ts:1215  return c === 0 || c === CH_COLON || c === T_ELSE
   sub t0, s1, zero
   seqz t0, t0
   mv t1, t0
@@ -4667,7 +4674,7 @@ statementEnds:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1214 quoted(p, show) at -O1
+; basic/basic.e16.ts:1219 quoted(p, show) at -O1
 ;   p in s2
 ;   show in s3
 ;   q in s1
@@ -4679,18 +4686,18 @@ quoted:
   sw s1, 6(sp)
   mv s2, a0 ; p
   mv s3, a1 ; show
-  ; basic/basic.e16.ts:1215  let q = p
+  ; basic/basic.e16.ts:1220  let q = p
   mv s1, s2 ; q
-  ; basic/basic.e16.ts:1216  while (peek(q) !== CH_QUOTE && peek(q) !== 0) {
+  ; basic/basic.e16.ts:1221  while (peek(q) !== CH_QUOTE && peek(q) !== 0) {
   j .L3
 .L1:
-  ; basic/basic.e16.ts:1217  if (show) putc(peek(q))
+  ; basic/basic.e16.ts:1222  if (show) putc(peek(q))
   beqz s3, .L5
-  ; basic/basic.e16.ts:1217  putc(peek(q))
+  ; basic/basic.e16.ts:1222  putc(peek(q))
   lbu a0, 0(s1)
   call putc
 .L5:
-  ; basic/basic.e16.ts:1218  q++
+  ; basic/basic.e16.ts:1223  q++
   addi s1, s1, 1
 .L3:
   lbu t0, 0(s1)
@@ -4699,7 +4706,7 @@ quoted:
   lbu t0, 0(s1)
   bne t0, zero, .L1
 .L6:
-  ; basic/basic.e16.ts:1220  return peek(q) === CH_QUOTE ? q + 1 : q
+  ; basic/basic.e16.ts:1225  return peek(q) === CH_QUOTE ? q + 1 : q
   lbu t0, 0(s1)
   li t1, 34
   bne t0, t1, .L7
@@ -4717,56 +4724,56 @@ quoted:
   addi sp, sp, 8
   ret
 
-; basic/basic.e16.ts:1224 separator() at -O1
+; basic/basic.e16.ts:1229 separator() at -O1
 ;   c in s1
 separator:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1225  const c = next()
+  ; basic/basic.e16.ts:1230  const c = next()
   call next
   mv s1, a0 ; c
-  ; basic/basic.e16.ts:1226  if (c === CH_SEMI) {
+  ; basic/basic.e16.ts:1231  if (c === CH_SEMI) {
   li t0, 59
   bne s1, t0, .L1
-  ; basic/basic.e16.ts:1227  txt++
+  ; basic/basic.e16.ts:1232  txt++
   lw t0, 0x010e(zero)
   addi t0, t0, 1
   sw t0, 0x010e(zero)
-  ; basic/basic.e16.ts:1228  return true
+  ; basic/basic.e16.ts:1233  return true
   li a0, 1
   j .return
 .L1:
-  ; basic/basic.e16.ts:1230  if (c !== CH_COMMA) return false
+  ; basic/basic.e16.ts:1235  if (c !== CH_COMMA) return false
   li t0, 44
   beq s1, t0, .L2
-  ; basic/basic.e16.ts:1230  return false
+  ; basic/basic.e16.ts:1235  return false
   li a0, 0
   j .return
 .L2:
-  ; basic/basic.e16.ts:1231  txt++
+  ; basic/basic.e16.ts:1236  txt++
   lw t0, 0x010e(zero)
   addi t0, t0, 1
   sw t0, 0x010e(zero)
-  ; basic/basic.e16.ts:1232  if (outFile !== 0) {
+  ; basic/basic.e16.ts:1237  if (outFile !== 0) {
   lw t0, 0x011c(zero)
   beq t0, zero, .L3
-  ; basic/basic.e16.ts:1233  fileByte(CH_COMMA)
+  ; basic/basic.e16.ts:1238  fileByte(CH_COMMA)
   li a0, 44
   la t0, fileByte
   li t1, 2
   call far_call
-  ; basic/basic.e16.ts:1234  return true
+  ; basic/basic.e16.ts:1239  return true
   li a0, 1
   j .return
 .L3:
-  ; basic/basic.e16.ts:1236  putc(CH_SPACE)
+  ; basic/basic.e16.ts:1241  putc(CH_SPACE)
   li a0, 32
   call putc
-  ; basic/basic.e16.ts:1237  while (peek16(CURX) % 10 !== 0 && peek16(CURX) !== 0) putc(CH_SPACE)
+  ; basic/basic.e16.ts:1242  while (peek16(CURX) % 10 !== 0 && peek16(CURX) !== 0) putc(CH_SPACE)
   j .L6
 .L4:
-  ; basic/basic.e16.ts:1237  putc(CH_SPACE)
+  ; basic/basic.e16.ts:1242  putc(CH_SPACE)
   li a0, 32
   call putc
 .L6:
@@ -4777,7 +4784,7 @@ separator:
   lw t0, 0(zero)
   bne t0, zero, .L4
 .L8:
-  ; basic/basic.e16.ts:1238  return true
+  ; basic/basic.e16.ts:1243  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -4785,49 +4792,49 @@ separator:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1241 ifStatement() at -O1
+; basic/basic.e16.ts:1246 ifStatement() at -O1
 ;   holds in s1
 ifStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1242  expr()
+  ; basic/basic.e16.ts:1247  expr()
   call expr
-  ; basic/basic.e16.ts:1243  needNumber()
+  ; basic/basic.e16.ts:1248  needNumber()
   call needNumber
-  ; basic/basic.e16.ts:1244  const holds = !isZero(top())
+  ; basic/basic.e16.ts:1249  const holds = !isZero(top())
   call top
   call isZero
   seqz s1, a0
-  ; basic/basic.e16.ts:1245  nsp -= 8
+  ; basic/basic.e16.ts:1250  nsp -= 8
   lw t0, 0x0116(zero)
   addi t0, t0, -8
   sw t0, 0x0116(zero)
-  ; basic/basic.e16.ts:1246  if (next() === T_THEN) txt++
+  ; basic/basic.e16.ts:1251  if (next() === T_THEN) txt++
   call next
   li t0, 136
   bne a0, t0, .L1
-  ; basic/basic.e16.ts:1246  txt++
+  ; basic/basic.e16.ts:1251  txt++
   lw t0, 0x010e(zero)
   addi t0, t0, 1
   sw t0, 0x010e(zero)
 .L1:
-  ; basic/basic.e16.ts:1247  if (!holds && !skipToElse()) return
+  ; basic/basic.e16.ts:1252  if (!holds && !skipToElse()) return
   bnez s1, .L2
   call skipToElse
   bnez a0, .L2
-  ; basic/basic.e16.ts:1247  return
+  ; basic/basic.e16.ts:1252  return
   j .return
 .L2:
-  ; basic/basic.e16.ts:1250  if (isDigit(next())) gotoStatement()
+  ; basic/basic.e16.ts:1255  if (isDigit(next())) gotoStatement()
   call next
   call isDigit
   beqz a0, .L3
-  ; basic/basic.e16.ts:1250  gotoStatement()
+  ; basic/basic.e16.ts:1255  gotoStatement()
   call gotoStatement
   j .L4
 .L3:
-  ; basic/basic.e16.ts:1251  statements()
+  ; basic/basic.e16.ts:1256  statements()
   call statements
 .L4:
 .return:
@@ -4836,33 +4843,33 @@ ifStatement:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1255 skipToElse() at -O1
+; basic/basic.e16.ts:1260 skipToElse() at -O1
 ;   quoted in a0
 ;   c in a1
 skipToElse:
-  ; basic/basic.e16.ts:1256  let quoted = false
+  ; basic/basic.e16.ts:1261  let quoted = false
   li a0, 0 ; quoted
-  ; basic/basic.e16.ts:1257  while (peek(txt) !== 0) {
+  ; basic/basic.e16.ts:1262  while (peek(txt) !== 0) {
   j .L3
 .L1:
-  ; basic/basic.e16.ts:1258  const c = peek(txt)
+  ; basic/basic.e16.ts:1263  const c = peek(txt)
   lw t0, 0x010e(zero)
   lbu a1, 0(t0)
-  ; basic/basic.e16.ts:1259  txt++
+  ; basic/basic.e16.ts:1264  txt++
   lw t0, 0x010e(zero)
   addi t0, t0, 1
   sw t0, 0x010e(zero)
-  ; basic/basic.e16.ts:1260  if (c === CH_QUOTE) quoted = !quoted
+  ; basic/basic.e16.ts:1265  if (c === CH_QUOTE) quoted = !quoted
   li t0, 34
   bne a1, t0, .L5
-  ; basic/basic.e16.ts:1260  quoted = !quoted
+  ; basic/basic.e16.ts:1265  quoted = !quoted
   seqz a0, a0
 .L5:
-  ; basic/basic.e16.ts:1261  if (c === T_ELSE && !quoted) return true
+  ; basic/basic.e16.ts:1266  if (c === T_ELSE && !quoted) return true
   li t0, 137
   bne a1, t0, .L6
   bnez a0, .L6
-  ; basic/basic.e16.ts:1261  return true
+  ; basic/basic.e16.ts:1266  return true
   li a0, 1
   ret
 .L6:
@@ -4870,29 +4877,29 @@ skipToElse:
   lw t0, 0x010e(zero)
   lbu t0, 0(t0)
   bne t0, zero, .L1
-  ; basic/basic.e16.ts:1263  return false
+  ; basic/basic.e16.ts:1268  return false
   li a0, 0
 .return:
   ret
 
-; basic/basic.e16.ts:1266 gotoStatement() at -O1
+; basic/basic.e16.ts:1271 gotoStatement() at -O1
 ;   line in s1
 gotoStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1267  const line = findLine(readUnsigned(), true)
+  ; basic/basic.e16.ts:1272  const line = findLine(readUnsigned(), true)
   call readUnsigned
   li a1, 1
   call findLine
   mv s1, a0 ; line
-  ; basic/basic.e16.ts:1268  if (line === 0) fail(E_LINE)
+  ; basic/basic.e16.ts:1273  if (line === 0) fail(E_LINE)
   bne s1, zero, .L1
-  ; basic/basic.e16.ts:1268  fail(E_LINE)
+  ; basic/basic.e16.ts:1273  fail(E_LINE)
   li a0, 5
   call fail
 .L1:
-  ; basic/basic.e16.ts:1269  jump(line, line + 4)
+  ; basic/basic.e16.ts:1274  jump(line, line + 4)
   mv a0, s1
   addi a1, s1, 4
   call jump
@@ -4902,24 +4909,24 @@ gotoStatement:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1272 gosubStatement() at -O1
+; basic/basic.e16.ts:1277 gosubStatement() at -O1
 ;   line in s1
 gosubStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1273  const line = findLine(readUnsigned(), true)
+  ; basic/basic.e16.ts:1278  const line = findLine(readUnsigned(), true)
   call readUnsigned
   li a1, 1
   call findLine
   mv s1, a0 ; line
-  ; basic/basic.e16.ts:1274  if (line === 0) fail(E_LINE)
+  ; basic/basic.e16.ts:1279  if (line === 0) fail(E_LINE)
   bne s1, zero, .L1
-  ; basic/basic.e16.ts:1274  fail(E_LINE)
+  ; basic/basic.e16.ts:1279  fail(E_LINE)
   li a0, 5
   call fail
 .L1:
-  ; basic/basic.e16.ts:1275  gosubTo(line)
+  ; basic/basic.e16.ts:1280  gosubTo(line)
   mv a0, s1
   call gosubTo
 .return:
@@ -4928,39 +4935,39 @@ gosubStatement:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1279 gosubTo(line) at -O1
+; basic/basic.e16.ts:1284 gosubTo(line) at -O1
 ;   line in s1
 gosubTo:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; line
-  ; basic/basic.e16.ts:1280  if (gsp >= GOSUB_DEPTH) fail(E_COMPLEX)
+  ; basic/basic.e16.ts:1285  if (gsp >= GOSUB_DEPTH) fail(E_COMPLEX)
   lw t0, 0x012c(zero)
   li t1, 16
   bltu t0, t1, .L1
-  ; basic/basic.e16.ts:1280  fail(E_COMPLEX)
+  ; basic/basic.e16.ts:1285  fail(E_COMPLEX)
   li a0, 9
   call fail
 .L1:
-  ; basic/basic.e16.ts:1281  gosubStack[gsp * 2] = curLine
+  ; basic/basic.e16.ts:1286  gosubStack[gsp * 2] = curLine
   lw t0, 0x012c(zero)
   slli t0, t0, 1
   slli t0, t0, 1
   lw t1, 0x0110(zero)
   sw t1, gosubStack(t0)
-  ; basic/basic.e16.ts:1282  gosubStack[gsp * 2 + 1] = txt
+  ; basic/basic.e16.ts:1287  gosubStack[gsp * 2 + 1] = txt
   lw t0, 0x012c(zero)
   slli t0, t0, 1
   addi t0, t0, 1
   slli t0, t0, 1
   lw t1, 0x010e(zero)
   sw t1, gosubStack(t0)
-  ; basic/basic.e16.ts:1283  gsp++
+  ; basic/basic.e16.ts:1288  gsp++
   lw t0, 0x012c(zero)
   addi t0, t0, 1
   sw t0, 0x012c(zero)
-  ; basic/basic.e16.ts:1284  jump(line, line + 4)
+  ; basic/basic.e16.ts:1289  jump(line, line + 4)
   mv a0, s1
   addi a1, s1, 4
   call jump
@@ -4970,22 +4977,22 @@ gosubTo:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1287 returnStatement() at -O1
+; basic/basic.e16.ts:1292 returnStatement() at -O1
 returnStatement:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/basic.e16.ts:1288  if (gsp === 0) fail(E_RETURN)
+  ; basic/basic.e16.ts:1293  if (gsp === 0) fail(E_RETURN)
   lw t0, 0x012c(zero)
   bne t0, zero, .L1
-  ; basic/basic.e16.ts:1288  fail(E_RETURN)
+  ; basic/basic.e16.ts:1293  fail(E_RETURN)
   li a0, 7
   call fail
 .L1:
-  ; basic/basic.e16.ts:1289  gsp--
+  ; basic/basic.e16.ts:1294  gsp--
   lw t0, 0x012c(zero)
   addi t0, t0, -1
   sw t0, 0x012c(zero)
-  ; basic/basic.e16.ts:1290  jump(gosubStack[gsp * 2], gosubStack[gsp * 2 + 1])
+  ; basic/basic.e16.ts:1295  jump(gosubStack[gsp * 2], gosubStack[gsp * 2 + 1])
   lw t0, 0x012c(zero)
   slli t0, t0, 1
   slli t0, t0, 1
@@ -5003,7 +5010,7 @@ returnStatement:
   addi sp, sp, 2
   ret
 
-; basic/basic.e16.ts:1294 forStatement() at -O1
+; basic/basic.e16.ts:1299 forStatement() at -O1
 ;   at in s3
 ;   limit in 0(fp)
 ;   step in 2(fp)
@@ -5017,48 +5024,33 @@ forStatement:
   sw s2, 10(sp)
   sw s0, 12(sp)
   mv fp, sp
-  ; basic/basic.e16.ts:1295  const at = varAt(true)
+  ; basic/basic.e16.ts:1300  const at = varAt(true)
   li a0, 1
   call varAt
   mv s3, a0 ; at
-  ; basic/basic.e16.ts:1296  needNumber()
+  ; basic/basic.e16.ts:1301  needNumber()
   call needNumber
-  ; basic/basic.e16.ts:1297  expect(CH_EQ)
+  ; basic/basic.e16.ts:1302  expect(CH_EQ)
   li a0, 61
   call expect
-  ; basic/basic.e16.ts:1298  expr()
+  ; basic/basic.e16.ts:1303  expr()
   call expr
-  ; basic/basic.e16.ts:1299  copy8(top(), at)
+  ; basic/basic.e16.ts:1304  copy8(top(), at)
   call top
   mv a1, s3
   call copy8
-  ; basic/basic.e16.ts:1300  nsp -= 8
+  ; basic/basic.e16.ts:1305  nsp -= 8
   lw t0, 0x0116(zero)
   addi t0, t0, -8
   sw t0, 0x0116(zero)
-  ; basic/basic.e16.ts:1301  if (next() !== T_TO) fail(E_SYNTAX)
+  ; basic/basic.e16.ts:1306  if (next() !== T_TO) fail(E_SYNTAX)
   call next
   li t0, 139
   beq a0, t0, .L1
-  ; basic/basic.e16.ts:1301  fail(E_SYNTAX)
+  ; basic/basic.e16.ts:1306  fail(E_SYNTAX)
   li a0, 1
   call fail
 .L1:
-  ; basic/basic.e16.ts:1302  txt++
-  lw t0, 0x010e(zero)
-  addi t0, t0, 1
-  sw t0, 0x010e(zero)
-  ; basic/basic.e16.ts:1303  expr()
-  call expr
-  ; basic/basic.e16.ts:1304  needNumber()
-  call needNumber
-  ; basic/basic.e16.ts:1305  const limit = top()
-  call top
-  sw a0, 0(fp) ; limit
-  ; basic/basic.e16.ts:1306  if (next() === T_STEP) {
-  call next
-  li t0, 140
-  bne a0, t0, .L2
   ; basic/basic.e16.ts:1307  txt++
   lw t0, 0x010e(zero)
   addi t0, t0, 1
@@ -5067,22 +5059,37 @@ forStatement:
   call expr
   ; basic/basic.e16.ts:1309  needNumber()
   call needNumber
+  ; basic/basic.e16.ts:1310  const limit = top()
+  call top
+  sw a0, 0(fp) ; limit
+  ; basic/basic.e16.ts:1311  if (next() === T_STEP) {
+  call next
+  li t0, 140
+  bne a0, t0, .L2
+  ; basic/basic.e16.ts:1312  txt++
+  lw t0, 0x010e(zero)
+  addi t0, t0, 1
+  sw t0, 0x010e(zero)
+  ; basic/basic.e16.ts:1313  expr()
+  call expr
+  ; basic/basic.e16.ts:1314  needNumber()
+  call needNumber
   j .L3
 .L2:
-  ; basic/basic.e16.ts:1310  setInt(push(), 1)
+  ; basic/basic.e16.ts:1315  setInt(push(), 1)
   call push
   li a1, 1
   call setInt
 .L3:
-  ; basic/basic.e16.ts:1311  const step = top()
+  ; basic/basic.e16.ts:1316  const step = top()
   call top
   sw a0, 2(fp) ; step
-  ; basic/basic.e16.ts:1313  let k: u16 = 0
+  ; basic/basic.e16.ts:1318  let k: u16 = 0
   li s1, 0 ; k
-  ; basic/basic.e16.ts:1314  while (k < fsp && peek16(forEntry(k)) !== at) k++
+  ; basic/basic.e16.ts:1319  while (k < fsp && peek16(forEntry(k)) !== at) k++
   j .L6
 .L4:
-  ; basic/basic.e16.ts:1314  k++
+  ; basic/basic.e16.ts:1319  k++
   addi s1, s1, 1
 .L6:
   lw t0, 0x012a(zero)
@@ -5092,40 +5099,40 @@ forStatement:
   lw t0, 0(a0)
   bne t0, s3, .L4
 .L8:
-  ; basic/basic.e16.ts:1315  fsp = k
+  ; basic/basic.e16.ts:1320  fsp = k
   sw s1, 0x012a(zero)
-  ; basic/basic.e16.ts:1316  if (fsp >= FOR_DEPTH) fail(E_COMPLEX)
+  ; basic/basic.e16.ts:1321  if (fsp >= FOR_DEPTH) fail(E_COMPLEX)
   li t0, 8
   bltu s1, t0, .L9
-  ; basic/basic.e16.ts:1316  fail(E_COMPLEX)
+  ; basic/basic.e16.ts:1321  fail(E_COMPLEX)
   li a0, 9
   call fail
 .L9:
-  ; basic/basic.e16.ts:1317  const e = forEntry(fsp)
+  ; basic/basic.e16.ts:1322  const e = forEntry(fsp)
   lw a0, 0x012a(zero)
   call forEntry
   mv s2, a0 ; e
-  ; basic/basic.e16.ts:1318  poke16(e, at)
+  ; basic/basic.e16.ts:1323  poke16(e, at)
   sw s3, 0(s2)
-  ; basic/basic.e16.ts:1319  copy8(limit, e + 2)
+  ; basic/basic.e16.ts:1324  copy8(limit, e + 2)
   lw a0, 0(fp)
   addi a1, s2, 2
   call copy8
-  ; basic/basic.e16.ts:1320  copy8(step, e + 10)
+  ; basic/basic.e16.ts:1325  copy8(step, e + 10)
   lw a0, 2(fp)
   addi a1, s2, 10
   call copy8
-  ; basic/basic.e16.ts:1321  poke16(e + 18, curLine)
+  ; basic/basic.e16.ts:1326  poke16(e + 18, curLine)
   lw t0, 0x0110(zero)
   sw t0, 18(s2)
-  ; basic/basic.e16.ts:1322  poke16(e + 20, txt)
+  ; basic/basic.e16.ts:1327  poke16(e + 20, txt)
   lw t0, 0x010e(zero)
   sw t0, 20(s2)
-  ; basic/basic.e16.ts:1323  fsp++
+  ; basic/basic.e16.ts:1328  fsp++
   lw t0, 0x012a(zero)
   addi t0, t0, 1
   sw t0, 0x012a(zero)
-  ; basic/basic.e16.ts:1324  nsp -= 16
+  ; basic/basic.e16.ts:1329  nsp -= 16
   lw t0, 0x0116(zero)
   addi t0, t0, -16
   sw t0, 0x0116(zero)
@@ -5139,17 +5146,17 @@ forStatement:
   addi sp, sp, 14
   ret
 
-; basic/basic.e16.ts:1327 forEntry(k) at -O1
+; basic/basic.e16.ts:1332 forEntry(k) at -O1
 ;   k in a0
 forEntry:
-  ; basic/basic.e16.ts:1328  return addr(forStack) + k * FOR_SIZE
+  ; basic/basic.e16.ts:1333  return addr(forStack) + k * FOR_SIZE
   li t0, 22
   mul t0, a0, t0
   addi a0, t0, forStack
 .return:
   ret
 
-; basic/basic.e16.ts:1332 nextStatement() at -O1
+; basic/basic.e16.ts:1337 nextStatement() at -O1
 ;   k in s2
 ;   at/e in s1
 ;   at in s3
@@ -5164,34 +5171,34 @@ nextStatement:
   sw s3, 12(sp)
   sw s0, 14(sp)
   mv fp, sp
-  ; basic/basic.e16.ts:1333  if (fsp === 0) fail(E_NEXT)
+  ; basic/basic.e16.ts:1338  if (fsp === 0) fail(E_NEXT)
   lw t0, 0x012a(zero)
   bne t0, zero, .L1
-  ; basic/basic.e16.ts:1333  fail(E_NEXT)
-  li a0, 6
-  call fail
-.L1:
-  ; basic/basic.e16.ts:1334  let k = fsp - 1
-  lw t0, 0x012a(zero)
-  addi s2, t0, -1
-  ; basic/basic.e16.ts:1335  if (isLetter(next())) {
-  call next
-  call isLetter
-  beqz a0, .L2
-  ; basic/basic.e16.ts:1336  const at = varAt(false)
-  li a0, 0
-  call varAt
-  mv s1, a0 ; at/e
-  ; basic/basic.e16.ts:1337  while (peek16(forEntry(k)) !== at) {
-  j .L5
-.L3:
-  ; basic/basic.e16.ts:1338  if (k === 0) fail(E_NEXT)
-  bne s2, zero, .L7
   ; basic/basic.e16.ts:1338  fail(E_NEXT)
   li a0, 6
   call fail
+.L1:
+  ; basic/basic.e16.ts:1339  let k = fsp - 1
+  lw t0, 0x012a(zero)
+  addi s2, t0, -1
+  ; basic/basic.e16.ts:1340  if (isLetter(next())) {
+  call next
+  call isLetter
+  beqz a0, .L2
+  ; basic/basic.e16.ts:1341  const at = varAt(false)
+  li a0, 0
+  call varAt
+  mv s1, a0 ; at/e
+  ; basic/basic.e16.ts:1342  while (peek16(forEntry(k)) !== at) {
+  j .L5
+.L3:
+  ; basic/basic.e16.ts:1343  if (k === 0) fail(E_NEXT)
+  bne s2, zero, .L7
+  ; basic/basic.e16.ts:1343  fail(E_NEXT)
+  li a0, 6
+  call fail
 .L7:
-  ; basic/basic.e16.ts:1339  k--
+  ; basic/basic.e16.ts:1344  k--
   addi s2, s2, -1
 .L5:
   mv a0, s2
@@ -5199,33 +5206,33 @@ nextStatement:
   lw t0, 0(a0)
   bne t0, s1, .L3
 .L2:
-  ; basic/basic.e16.ts:1342  const e = forEntry(k)
+  ; basic/basic.e16.ts:1347  const e = forEntry(k)
   mv a0, s2
   call forEntry
   mv s1, a0 ; at/e
-  ; basic/basic.e16.ts:1343  const at = peek16(e)
+  ; basic/basic.e16.ts:1348  const at = peek16(e)
   lw s3, 0(s1)
-  ; basic/basic.e16.ts:1344  math(M_ADD, at, e + 10)
+  ; basic/basic.e16.ts:1349  math(M_ADD, at, e + 10)
   li a0, 1
   mv a1, s3
   addi a2, s1, 10
   call math
-  ; basic/basic.e16.ts:1345  math(M_CMP, at, e + 2)
+  ; basic/basic.e16.ts:1350  math(M_CMP, at, e + 2)
   li a0, 6
   mv a1, s3
   addi a2, s1, 2
   call math
-  ; basic/basic.e16.ts:1346  const r = peek16(MATH_RESULT)
+  ; basic/basic.e16.ts:1351  const r = peek16(MATH_RESULT)
   li t0, 65370
   lw t0, 0(t0)
   sw t0, 0(fp) ; r
-  ; basic/basic.e16.ts:1348  const up = (peek(e + 10) & 0x80) === 0
+  ; basic/basic.e16.ts:1353  const up = (peek(e + 10) & 0x80) === 0
   lbu t0, 10(s1)
   andi t0, t0, 128
   sub t0, t0, zero
   seqz t0, t0
   sw t0, 2(fp) ; up
-  ; basic/basic.e16.ts:1349  const past = up ? r === 1 : r === 0xffff
+  ; basic/basic.e16.ts:1354  const past = up ? r === 1 : r === 0xffff
   lw t0, 2(fp) ; up
   beqz t0, .L8
   li t0, 1
@@ -5240,18 +5247,18 @@ nextStatement:
   seqz t0, t1
 .L9:
   sw t0, 4(fp) ; past
-  ; basic/basic.e16.ts:1350  if (past) {
+  ; basic/basic.e16.ts:1355  if (past) {
   lw t0, 4(fp) ; past
   beqz t0, .L10
-  ; basic/basic.e16.ts:1351  fsp = k
+  ; basic/basic.e16.ts:1356  fsp = k
   sw s2, 0x012a(zero)
-  ; basic/basic.e16.ts:1352  return
+  ; basic/basic.e16.ts:1357  return
   j .return
 .L10:
-  ; basic/basic.e16.ts:1354  fsp = k + 1
+  ; basic/basic.e16.ts:1359  fsp = k + 1
   addi t0, s2, 1
   sw t0, 0x012a(zero)
-  ; basic/basic.e16.ts:1355  jump(peek16(e + 18), peek16(e + 20))
+  ; basic/basic.e16.ts:1360  jump(peek16(e + 18), peek16(e + 20))
   lw t0, 18(s1)
   lw t1, 20(s1)
   mv a0, t0
@@ -5267,36 +5274,36 @@ nextStatement:
   addi sp, sp, 16
   ret
 
-; basic/basic.e16.ts:1358 pokeStatement() at -O1
+; basic/basic.e16.ts:1363 pokeStatement() at -O1
 ;   a in s1
 pokeStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1359  expr()
-  call expr
-  ; basic/basic.e16.ts:1360  needNumber()
-  call needNumber
-  ; basic/basic.e16.ts:1361  const a = toWord(top())
-  call top
-  call toWord
-  mv s1, a0 ; a
-  ; basic/basic.e16.ts:1362  nsp -= 8
-  lw t0, 0x0116(zero)
-  addi t0, t0, -8
-  sw t0, 0x0116(zero)
-  ; basic/basic.e16.ts:1363  expect(CH_COMMA)
-  li a0, 44
-  call expect
   ; basic/basic.e16.ts:1364  expr()
   call expr
   ; basic/basic.e16.ts:1365  needNumber()
   call needNumber
-  ; basic/basic.e16.ts:1366  poke(a, u16(toInt(top())))
+  ; basic/basic.e16.ts:1366  const a = toWord(top())
+  call top
+  call toWord
+  mv s1, a0 ; a
+  ; basic/basic.e16.ts:1367  nsp -= 8
+  lw t0, 0x0116(zero)
+  addi t0, t0, -8
+  sw t0, 0x0116(zero)
+  ; basic/basic.e16.ts:1368  expect(CH_COMMA)
+  li a0, 44
+  call expect
+  ; basic/basic.e16.ts:1369  expr()
+  call expr
+  ; basic/basic.e16.ts:1370  needNumber()
+  call needNumber
+  ; basic/basic.e16.ts:1371  poke(a, u16(toInt(top())))
   call top
   call toInt
   sb a0, 0(s1)
-  ; basic/basic.e16.ts:1367  nsp -= 8
+  ; basic/basic.e16.ts:1372  nsp -= 8
   lw t0, 0x0116(zero)
   addi t0, t0, -8
   sw t0, 0x0116(zero)
@@ -5306,41 +5313,41 @@ pokeStatement:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1377 runStatement() at -O1
+; basic/basic.e16.ts:1382 runStatement() at -O1
 ;   from in s1
 runStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1378  let from = PROG
+  ; basic/basic.e16.ts:1383  let from = PROG
   li s1, 2048 ; from
-  ; basic/basic.e16.ts:1379  if (isDigit(next())) {
+  ; basic/basic.e16.ts:1384  if (isDigit(next())) {
   call next
   call isDigit
   beqz a0, .L1
-  ; basic/basic.e16.ts:1380  from = findLine(readUnsigned(), true)
+  ; basic/basic.e16.ts:1385  from = findLine(readUnsigned(), true)
   call readUnsigned
   li a1, 1
   call findLine
   mv s1, a0 ; from
-  ; basic/basic.e16.ts:1381  if (from === 0) fail(E_LINE)
+  ; basic/basic.e16.ts:1386  if (from === 0) fail(E_LINE)
   bne s1, zero, .L2
-  ; basic/basic.e16.ts:1381  fail(E_LINE)
+  ; basic/basic.e16.ts:1386  fail(E_LINE)
   li a0, 5
   call fail
 .L2:
 .L1:
-  ; basic/basic.e16.ts:1383  clearVariables()
+  ; basic/basic.e16.ts:1388  clearVariables()
   call clearVariables
-  ; basic/basic.e16.ts:1384  if (peek16(from) === 0) {
+  ; basic/basic.e16.ts:1389  if (peek16(from) === 0) {
   lw t0, 0(s1)
   bne t0, zero, .L3
-  ; basic/basic.e16.ts:1385  endProgram()
+  ; basic/basic.e16.ts:1390  endProgram()
   call endProgram
-  ; basic/basic.e16.ts:1386  return
+  ; basic/basic.e16.ts:1391  return
   j .return
 .L3:
-  ; basic/basic.e16.ts:1388  startRun(from, from + 4)
+  ; basic/basic.e16.ts:1393  startRun(from, from + 4)
   mv a0, s1
   addi a1, s1, 4
   call startRun
@@ -5350,18 +5357,18 @@ runStatement:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1391 contStatement() at -O1
+; basic/basic.e16.ts:1396 contStatement() at -O1
 contStatement:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/basic.e16.ts:1392  if (contLine === 0) fail(E_CONT)
+  ; basic/basic.e16.ts:1397  if (contLine === 0) fail(E_CONT)
   lw t0, 0x0130(zero)
   bne t0, zero, .L1
-  ; basic/basic.e16.ts:1392  fail(E_CONT)
+  ; basic/basic.e16.ts:1397  fail(E_CONT)
   li a0, 10
   call fail
 .L1:
-  ; basic/basic.e16.ts:1393  startRun(contLine, contTxt)
+  ; basic/basic.e16.ts:1398  startRun(contLine, contTxt)
   lw t0, 0x0130(zero)
   lw t1, 0x0132(zero)
   mv a0, t0
@@ -5372,7 +5379,7 @@ contStatement:
   addi sp, sp, 2
   ret
 
-; basic/basic.e16.ts:1397 startRun(line, text) at -O1
+; basic/basic.e16.ts:1402 startRun(line, text) at -O1
 ;   line in s1
 ;   text in s2
 startRun:
@@ -5382,12 +5389,12 @@ startRun:
   sw s2, 4(sp)
   mv s1, a0 ; line
   mv s2, a1 ; text
-  ; basic/basic.e16.ts:1398  running = true
+  ; basic/basic.e16.ts:1403  running = true
   li t0, 1
   sw t0, 0x012e(zero)
-  ; basic/basic.e16.ts:1399  marks()
+  ; basic/basic.e16.ts:1404  marks()
   call marks
-  ; basic/basic.e16.ts:1400  jump(line, text)
+  ; basic/basic.e16.ts:1405  jump(line, text)
   mv a0, s1
   mv a1, s2
   call jump
@@ -5398,44 +5405,44 @@ startRun:
   addi sp, sp, 6
   ret
 
-; basic/basic.e16.ts:1403 listStatement() at -O1
+; basic/basic.e16.ts:1408 listStatement() at -O1
 ;   at in s1
 listStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1404  let at = PROG
+  ; basic/basic.e16.ts:1409  let at = PROG
   li s1, 2048 ; at
-  ; basic/basic.e16.ts:1405  if (isDigit(next())) at = findLine(readUnsigned(), false)
+  ; basic/basic.e16.ts:1410  if (isDigit(next())) at = findLine(readUnsigned(), false)
   call next
   call isDigit
   beqz a0, .L4
-  ; basic/basic.e16.ts:1405  at = findLine(readUnsigned(), false)
+  ; basic/basic.e16.ts:1410  at = findLine(readUnsigned(), false)
   call readUnsigned
   li a1, 0
   call findLine
   mv s1, a0 ; at
-  ; basic/basic.e16.ts:1406  while (at !== 0 && peek16(at) !== 0) {
+  ; basic/basic.e16.ts:1411  while (at !== 0 && peek16(at) !== 0) {
   j .L4
 .L2:
-  ; basic/basic.e16.ts:1407  checkBreak()
+  ; basic/basic.e16.ts:1412  checkBreak()
   call checkBreak
-  ; basic/basic.e16.ts:1408  fresh_line()
+  ; basic/basic.e16.ts:1413  fresh_line()
   call fresh_line
-  ; basic/basic.e16.ts:1409  printUnsigned(peek16(at))
+  ; basic/basic.e16.ts:1414  printUnsigned(peek16(at))
   lw a0, 0(s1)
   call printUnsigned
-  ; basic/basic.e16.ts:1410  putc(CH_SPACE)
+  ; basic/basic.e16.ts:1415  putc(CH_SPACE)
   li a0, 32
   call putc
-  ; basic/basic.e16.ts:1411  expand(at + 4, 0, 0)
+  ; basic/basic.e16.ts:1416  expand(at + 4, 0, 0)
   addi a0, s1, 4
   li a1, 0
   li a2, 0
   call expand
-  ; basic/basic.e16.ts:1413  fresh_line()
+  ; basic/basic.e16.ts:1418  fresh_line()
   call fresh_line
-  ; basic/basic.e16.ts:1414  at += peek16(at + 2)
+  ; basic/basic.e16.ts:1419  at += peek16(at + 2)
   lw t0, 2(s1)
   add s1, s1, t0
 .L4:
@@ -5443,7 +5450,7 @@ listStatement:
   lw t0, 0(s1)
   bne t0, zero, .L2
 .L6:
-  ; basic/basic.e16.ts:1416  toLineEnd()
+  ; basic/basic.e16.ts:1421  toLineEnd()
   call toLineEnd
 .return:
   lw ra, 0(sp)
@@ -5451,84 +5458,84 @@ listStatement:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1422 run() at -O1
+; basic/basic.e16.ts:1427 run() at -O1
 ;   nextLine in s1
 run:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1423  while (running) {
+  ; basic/basic.e16.ts:1428  while (running) {
   j .L3
 .L1:
-  ; basic/basic.e16.ts:1424  if (jumping) {
+  ; basic/basic.e16.ts:1429  if (jumping) {
   lw t0, 0x0134(zero)
   beqz t0, .L5
-  ; basic/basic.e16.ts:1425  jumping = false
+  ; basic/basic.e16.ts:1430  jumping = false
   sw zero, 0x0134(zero)
-  ; basic/basic.e16.ts:1426  curLine = jumpLine
+  ; basic/basic.e16.ts:1431  curLine = jumpLine
   lw t0, 0x0136(zero)
   sw t0, 0x0110(zero)
-  ; basic/basic.e16.ts:1427  txt = jumpTxt
+  ; basic/basic.e16.ts:1432  txt = jumpTxt
   lw t0, 0x0138(zero)
   sw t0, 0x010e(zero)
   j .L6
 .L5:
-  ; basic/basic.e16.ts:1429  const nextLine = curLine + peek16(curLine + 2)
+  ; basic/basic.e16.ts:1434  const nextLine = curLine + peek16(curLine + 2)
   lw t0, 0x0110(zero)
   lw t1, 0x0110(zero)
   lw t1, 2(t1)
   add s1, t0, t1
-  ; basic/basic.e16.ts:1430  if (peek16(nextLine) === 0) {
+  ; basic/basic.e16.ts:1435  if (peek16(nextLine) === 0) {
   lw t0, 0(s1)
   bne t0, zero, .L7
-  ; basic/basic.e16.ts:1431  running = false
+  ; basic/basic.e16.ts:1436  running = false
   sw zero, 0x012e(zero)
-  ; basic/basic.e16.ts:1432  break
+  ; basic/basic.e16.ts:1437  break
   j .L4
 .L7:
-  ; basic/basic.e16.ts:1434  curLine = nextLine
+  ; basic/basic.e16.ts:1439  curLine = nextLine
   sw s1, 0x0110(zero)
-  ; basic/basic.e16.ts:1435  txt = curLine + 4
+  ; basic/basic.e16.ts:1440  txt = curLine + 4
   addi t0, s1, 4
   sw t0, 0x010e(zero)
 .L6:
-  ; basic/basic.e16.ts:1437  if (tracing && curLine !== 0) {
+  ; basic/basic.e16.ts:1442  if (tracing && curLine !== 0) {
   lw t0, 0x0124(zero)
   beqz t0, .L8
   lw t0, 0x0110(zero)
   beq t0, zero, .L8
-  ; basic/basic.e16.ts:1438  putc(CH_LBRACKET)
+  ; basic/basic.e16.ts:1443  putc(CH_LBRACKET)
   li a0, 91
   call putc
-  ; basic/basic.e16.ts:1439  printUnsigned(peek16(curLine))
+  ; basic/basic.e16.ts:1444  printUnsigned(peek16(curLine))
   lw t0, 0x0110(zero)
   lw a0, 0(t0)
   call printUnsigned
-  ; basic/basic.e16.ts:1440  putc(CH_RBRACKET)
+  ; basic/basic.e16.ts:1445  putc(CH_RBRACKET)
   li a0, 93
   call putc
 .L8:
-  ; basic/basic.e16.ts:1443  if (curLine === 0) {
+  ; basic/basic.e16.ts:1448  if (curLine === 0) {
   lw t0, 0x0110(zero)
   bne t0, zero, .L9
-  ; basic/basic.e16.ts:1444  statements()
+  ; basic/basic.e16.ts:1449  statements()
   call statements
-  ; basic/basic.e16.ts:1445  if (!jumping) running = false
+  ; basic/basic.e16.ts:1450  if (!jumping) running = false
   lw t0, 0x0134(zero)
   bnez t0, .L2
-  ; basic/basic.e16.ts:1445  running = false
+  ; basic/basic.e16.ts:1450  running = false
   sw zero, 0x012e(zero)
-  ; basic/basic.e16.ts:1446  continue
+  ; basic/basic.e16.ts:1451  continue
   j .L2
 .L9:
-  ; basic/basic.e16.ts:1448  statements()
+  ; basic/basic.e16.ts:1453  statements()
   call statements
 .L2:
 .L3:
   lw t0, 0x012e(zero)
   bnez t0, .L1
 .L4:
-  ; basic/basic.e16.ts:1450  stopRunning()
+  ; basic/basic.e16.ts:1455  stopRunning()
   call stopRunning
 .return:
   lw ra, 0(sp)
@@ -5536,7 +5543,7 @@ run:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1454 isCalculation() at -O1
+; basic/basic.e16.ts:1459 isCalculation() at -O1
 ;   c in s2
 ;   save in s0
 ;   depth/assigns in s1
@@ -5548,13 +5555,13 @@ isCalculation:
   sw s0, 4(sp)
   sw s1, 6(sp)
   sw s3, 8(sp)
-  ; basic/basic.e16.ts:1455  const c = next()
+  ; basic/basic.e16.ts:1460  const c = next()
   call next
   mv s2, a0 ; c
-  ; basic/basic.e16.ts:1456  if (c >= 0x80) return c >= T_SIN && c <= T_LCDH
+  ; basic/basic.e16.ts:1461  if (c >= 0x80) return c >= T_SIN && c <= T_LCDH
   li t0, 128
   bltu s2, t0, .L1
-  ; basic/basic.e16.ts:1456  return c >= T_SIN && c <= T_LCDH
+  ; basic/basic.e16.ts:1461  return c >= T_SIN && c <= T_LCDH
   li t0, 180
   sltu t0, s2, t0
   xori t0, t0, 1
@@ -5567,66 +5574,66 @@ isCalculation:
   mv a0, t0
   j .return
 .L1:
-  ; basic/basic.e16.ts:1457  if (!isLetter(c)) return c !== 0
+  ; basic/basic.e16.ts:1462  if (!isLetter(c)) return c !== 0
   mv a0, s2
   call isLetter
   bnez a0, .L3
-  ; basic/basic.e16.ts:1457  return c !== 0
+  ; basic/basic.e16.ts:1462  return c !== 0
   sub t0, s2, zero
   snez a0, t0
   j .return
 .L3:
-  ; basic/basic.e16.ts:1458  const save = txt
+  ; basic/basic.e16.ts:1463  const save = txt
   lw s0, 0x010e(zero)
-  ; basic/basic.e16.ts:1459  readName()
+  ; basic/basic.e16.ts:1464  readName()
   call readName
-  ; basic/basic.e16.ts:1461  if (next() === CH_LPAREN) {
+  ; basic/basic.e16.ts:1466  if (next() === CH_LPAREN) {
   call next
   li t0, 40
   bne a0, t0, .L4
-  ; basic/basic.e16.ts:1462  let depth: u16 = 0
+  ; basic/basic.e16.ts:1467  let depth: u16 = 0
   li s1, 0 ; depth/assigns
-  ; basic/basic.e16.ts:1463  do {
+  ; basic/basic.e16.ts:1468  do {
 .L5:
-  ; basic/basic.e16.ts:1464  const d = peek(txt)
+  ; basic/basic.e16.ts:1469  const d = peek(txt)
   lw t0, 0x010e(zero)
   lbu s3, 0(t0)
-  ; basic/basic.e16.ts:1465  if (d === CH_LPAREN) depth++
+  ; basic/basic.e16.ts:1470  if (d === CH_LPAREN) depth++
   li t0, 40
   bne s3, t0, .L8
-  ; basic/basic.e16.ts:1465  depth++
+  ; basic/basic.e16.ts:1470  depth++
   addi s1, s1, 1
   j .L9
 .L8:
-  ; basic/basic.e16.ts:1466  if (d === CH_RPAREN) depth--
+  ; basic/basic.e16.ts:1471  if (d === CH_RPAREN) depth--
   li t0, 41
   bne s3, t0, .L10
-  ; basic/basic.e16.ts:1466  depth--
+  ; basic/basic.e16.ts:1471  depth--
   addi s1, s1, -1
   j .L11
 .L10:
-  ; basic/basic.e16.ts:1467  if (d === 0) break
+  ; basic/basic.e16.ts:1472  if (d === 0) break
   bne s3, zero, .L12
-  ; basic/basic.e16.ts:1467  break
+  ; basic/basic.e16.ts:1472  break
   j .L7
 .L12:
 .L11:
 .L9:
-  ; basic/basic.e16.ts:1468  txt++
+  ; basic/basic.e16.ts:1473  txt++
   lw t0, 0x010e(zero)
   addi t0, t0, 1
   sw t0, 0x010e(zero)
   bltu zero, s1, .L5
 .L7:
 .L4:
-  ; basic/basic.e16.ts:1471  const assigns = next() === CH_EQ
+  ; basic/basic.e16.ts:1476  const assigns = next() === CH_EQ
   call next
   li t0, 61
   sub t0, a0, t0
   seqz s1, t0
-  ; basic/basic.e16.ts:1472  txt = save
+  ; basic/basic.e16.ts:1477  txt = save
   sw s0, 0x010e(zero)
-  ; basic/basic.e16.ts:1473  return !assigns
+  ; basic/basic.e16.ts:1478  return !assigns
   seqz a0, s1
 .return:
   lw ra, 0(sp)
@@ -5637,7 +5644,7 @@ isCalculation:
   addi sp, sp, 10
   ret
 
-; basic/basic.e16.ts:1477 calculate() at -O1
+; basic/basic.e16.ts:1482 calculate() at -O1
 ;   n in s2
 ;   cols in s3
 ;   pad in s1
@@ -5647,16 +5654,16 @@ calculate:
   sw s2, 2(sp)
   sw s3, 4(sp)
   sw s1, 6(sp)
-  ; basic/basic.e16.ts:1478  expr()
+  ; basic/basic.e16.ts:1483  expr()
   call expr
-  ; basic/basic.e16.ts:1479  if (next() !== 0) fail(E_SYNTAX)
+  ; basic/basic.e16.ts:1484  if (next() !== 0) fail(E_SYNTAX)
   call next
   beq a0, zero, .L1
-  ; basic/basic.e16.ts:1479  fail(E_SYNTAX)
+  ; basic/basic.e16.ts:1484  fail(E_SYNTAX)
   li a0, 1
   call fail
 .L1:
-  ; basic/basic.e16.ts:1481  const n = strType ? stringLength(top()) : formatTop()
+  ; basic/basic.e16.ts:1486  const n = strType ? stringLength(top()) : formatTop()
   lw t0, 0x0118(zero)
   beqz t0, .L2
   call top
@@ -5668,46 +5675,46 @@ calculate:
   mv t0, a0
 .L3:
   mv s2, t0 ; n
-  ; basic/basic.e16.ts:1482  if (!strType) copy8(top(), addr(ans))
+  ; basic/basic.e16.ts:1487  if (!strType) copy8(top(), addr(ans))
   lw t0, 0x0118(zero)
   bnez t0, .L4
-  ; basic/basic.e16.ts:1482  copy8(top(), addr(ans))
+  ; basic/basic.e16.ts:1487  copy8(top(), addr(ans))
   call top
   la a1, ans
   call copy8
 .L4:
-  ; basic/basic.e16.ts:1483  const cols = peek16(COLS)
+  ; basic/basic.e16.ts:1488  const cols = peek16(COLS)
   lw s3, 4(zero)
-  ; basic/basic.e16.ts:1484  fresh_line()
+  ; basic/basic.e16.ts:1489  fresh_line()
   call fresh_line
-  ; basic/basic.e16.ts:1485  let pad: i16 = i16(cols - n - 1)
+  ; basic/basic.e16.ts:1490  let pad: i16 = i16(cols - n - 1)
   sub t0, s3, s2
   addi s1, t0, -1
-  ; basic/basic.e16.ts:1486  while (pad > 0) {
+  ; basic/basic.e16.ts:1491  while (pad > 0) {
   j .L7
 .L5:
-  ; basic/basic.e16.ts:1487  putc(CH_SPACE)
+  ; basic/basic.e16.ts:1492  putc(CH_SPACE)
   li a0, 32
   call putc
-  ; basic/basic.e16.ts:1488  pad--
+  ; basic/basic.e16.ts:1493  pad--
   addi s1, s1, -1
 .L7:
   blt zero, s1, .L5
-  ; basic/basic.e16.ts:1490  if (strType) outString(top())
+  ; basic/basic.e16.ts:1495  if (strType) outString(top())
   lw t0, 0x0118(zero)
   beqz t0, .L9
-  ; basic/basic.e16.ts:1490  outString(top())
+  ; basic/basic.e16.ts:1495  outString(top())
   call top
   call outString
   j .L10
 .L9:
-  ; basic/basic.e16.ts:1491  puts(addr(textOut))
+  ; basic/basic.e16.ts:1496  puts(addr(textOut))
   la a0, textOut
   call puts
 .L10:
-  ; basic/basic.e16.ts:1492  newline()
+  ; basic/basic.e16.ts:1497  newline()
   call newline
-  ; basic/basic.e16.ts:1493  nsp -= 8
+  ; basic/basic.e16.ts:1498  nsp -= 8
   lw t0, 0x0116(zero)
   addi t0, t0, -8
   sw t0, 0x0116(zero)
@@ -5719,7 +5726,7 @@ calculate:
   addi sp, sp, 8
   ret
 
-; basic/basic.e16.ts:1500 storeTypedLine() at -O1
+; basic/basic.e16.ts:1505 storeTypedLine() at -O1
 ;   length in s2
 ;   n in s1
 storeTypedLine:
@@ -5727,35 +5734,35 @@ storeTypedLine:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; basic/basic.e16.ts:1501  const length = tokenize(addr(lineBuf), addr(tokens))
+  ; basic/basic.e16.ts:1506  const length = tokenize(addr(lineBuf), addr(tokens))
   la a0, lineBuf
   la a1, tokens
   call tokenize
   mv s2, a0 ; length
-  ; basic/basic.e16.ts:1502  txt = addr(tokens)
+  ; basic/basic.e16.ts:1507  txt = addr(tokens)
   la t0, tokens
   sw t0, 0x010e(zero)
-  ; basic/basic.e16.ts:1503  if (!isDigit(next())) return false
+  ; basic/basic.e16.ts:1508  if (!isDigit(next())) return false
   call next
   call isDigit
   bnez a0, .L1
-  ; basic/basic.e16.ts:1503  return false
+  ; basic/basic.e16.ts:1508  return false
   li a0, 0
   j .return
 .L1:
-  ; basic/basic.e16.ts:1504  const n = readUnsigned()
+  ; basic/basic.e16.ts:1509  const n = readUnsigned()
   call readUnsigned
   mv s1, a0 ; n
-  ; basic/basic.e16.ts:1505  if (n === 0 || next() === 0) return false
+  ; basic/basic.e16.ts:1510  if (n === 0 || next() === 0) return false
   beq s1, zero, .L3
   call next
   bne a0, zero, .L2
 .L3:
-  ; basic/basic.e16.ts:1505  return false
+  ; basic/basic.e16.ts:1510  return false
   li a0, 0
   j .return
 .L2:
-  ; basic/basic.e16.ts:1506  storeLine(n, txt, length - (txt - addr(tokens)))
+  ; basic/basic.e16.ts:1511  storeLine(n, txt, length - (txt - addr(tokens)))
   lw t0, 0x010e(zero)
   lw t1, 0x010e(zero)
   la t2, tokens
@@ -5765,7 +5772,7 @@ storeTypedLine:
   mv a1, t0
   mv a2, t1
   call storeLine
-  ; basic/basic.e16.ts:1507  return true
+  ; basic/basic.e16.ts:1512  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -5774,7 +5781,7 @@ storeTypedLine:
   addi sp, sp, 6
   ret
 
-; basic/basic.e16.ts:1511 enter() at -O1
+; basic/basic.e16.ts:1516 enter() at -O1
 ;   length in s3
 ;   save in s0
 ;   n in s1
@@ -5786,38 +5793,38 @@ enter:
   sw s0, 4(sp)
   sw s1, 6(sp)
   sw s2, 8(sp)
-  ; basic/basic.e16.ts:1512  const length = tokenize(addr(lineBuf), addr(tokens))
+  ; basic/basic.e16.ts:1517  const length = tokenize(addr(lineBuf), addr(tokens))
   la a0, lineBuf
   la a1, tokens
   call tokenize
   mv s3, a0 ; length
-  ; basic/basic.e16.ts:1513  txt = addr(tokens)
+  ; basic/basic.e16.ts:1518  txt = addr(tokens)
   la t0, tokens
   sw t0, 0x010e(zero)
-  ; basic/basic.e16.ts:1514  curLine = 0
+  ; basic/basic.e16.ts:1519  curLine = 0
   sw zero, 0x0110(zero)
-  ; basic/basic.e16.ts:1515  if (isDigit(next())) {
+  ; basic/basic.e16.ts:1520  if (isDigit(next())) {
   call next
   call isDigit
   beqz a0, .L1
-  ; basic/basic.e16.ts:1516  const save = txt
+  ; basic/basic.e16.ts:1521  const save = txt
   lw s0, 0x010e(zero)
-  ; basic/basic.e16.ts:1517  const n = readUnsigned()
+  ; basic/basic.e16.ts:1522  const n = readUnsigned()
   call readUnsigned
   mv s1, a0 ; n
-  ; basic/basic.e16.ts:1518  const c = next()
+  ; basic/basic.e16.ts:1523  const c = next()
   call next
   mv s2, a0 ; c
-  ; basic/basic.e16.ts:1520  if (autoLine !== 0 && c === 0) {
+  ; basic/basic.e16.ts:1525  if (autoLine !== 0 && c === 0) {
   lw t0, 0x0126(zero)
   beq t0, zero, .L2
   bne s2, zero, .L2
-  ; basic/basic.e16.ts:1521  autoLine = 0
+  ; basic/basic.e16.ts:1526  autoLine = 0
   sw zero, 0x0126(zero)
-  ; basic/basic.e16.ts:1522  return
+  ; basic/basic.e16.ts:1527  return
   j .return
 .L2:
-  ; basic/basic.e16.ts:1525  if (n !== 0 && (isLetter(c) || c >= 0x80 || (c === 0 && proMode))) {
+  ; basic/basic.e16.ts:1530  if (n !== 0 && (isLetter(c) || c >= 0x80 || (c === 0 && proMode))) {
   beq s1, zero, .L3
   mv a0, s2
   call isLetter
@@ -5828,7 +5835,7 @@ enter:
   lw t0, 0x013a(zero)
   beqz t0, .L3
 .L4:
-  ; basic/basic.e16.ts:1526  storeLine(n, txt, length - (txt - addr(tokens)))
+  ; basic/basic.e16.ts:1531  storeLine(n, txt, length - (txt - addr(tokens)))
   lw t0, 0x010e(zero)
   lw t1, 0x010e(zero)
   la t2, tokens
@@ -5838,50 +5845,50 @@ enter:
   mv a1, t0
   mv a2, t1
   call storeLine
-  ; basic/basic.e16.ts:1527  recallNo = n
+  ; basic/basic.e16.ts:1532  recallNo = n
   sw s1, 0x013e(zero)
-  ; basic/basic.e16.ts:1528  justStored = true
+  ; basic/basic.e16.ts:1533  justStored = true
   li t0, 1
   sw t0, 0x0140(zero)
-  ; basic/basic.e16.ts:1529  if (autoLine !== 0) autoLine = n + autoStep
+  ; basic/basic.e16.ts:1534  if (autoLine !== 0) autoLine = n + autoStep
   lw t0, 0x0126(zero)
   beq t0, zero, .L5
-  ; basic/basic.e16.ts:1529  autoLine = n + autoStep
+  ; basic/basic.e16.ts:1534  autoLine = n + autoStep
   lw t0, 0x0128(zero)
   add t0, s1, t0
   sw t0, 0x0126(zero)
 .L5:
-  ; basic/basic.e16.ts:1530  return
+  ; basic/basic.e16.ts:1535  return
   j .return
 .L3:
-  ; basic/basic.e16.ts:1532  txt = save
+  ; basic/basic.e16.ts:1537  txt = save
   sw s0, 0x010e(zero)
 .L1:
-  ; basic/basic.e16.ts:1534  if (isCalculation()) {
+  ; basic/basic.e16.ts:1539  if (isCalculation()) {
   call isCalculation
   beqz a0, .L6
-  ; basic/basic.e16.ts:1536  strTop = 0
+  ; basic/basic.e16.ts:1541  strTop = 0
   sw zero, 0x0504(zero)
-  ; basic/basic.e16.ts:1537  calculate()
+  ; basic/basic.e16.ts:1542  calculate()
   call calculate
-  ; basic/basic.e16.ts:1538  return
+  ; basic/basic.e16.ts:1543  return
   j .return
 .L6:
-  ; basic/basic.e16.ts:1540  jumping = false
+  ; basic/basic.e16.ts:1545  jumping = false
   sw zero, 0x0134(zero)
-  ; basic/basic.e16.ts:1541  running = false
+  ; basic/basic.e16.ts:1546  running = false
   sw zero, 0x012e(zero)
-  ; basic/basic.e16.ts:1542  statements()
+  ; basic/basic.e16.ts:1547  statements()
   call statements
-  ; basic/basic.e16.ts:1543  if (jumping) {
+  ; basic/basic.e16.ts:1548  if (jumping) {
   lw t0, 0x0134(zero)
   beqz t0, .L7
-  ; basic/basic.e16.ts:1544  running = true
+  ; basic/basic.e16.ts:1549  running = true
   li t0, 1
   sw t0, 0x012e(zero)
-  ; basic/basic.e16.ts:1545  marks()
+  ; basic/basic.e16.ts:1550  marks()
   call marks
-  ; basic/basic.e16.ts:1546  run()
+  ; basic/basic.e16.ts:1551  run()
   call run
 .L7:
 .return:
@@ -5893,7 +5900,7 @@ enter:
   addi sp, sp, 10
   ret
 
-; basic/basic.e16.ts:1551 basicLoop() at -O1
+; basic/basic.e16.ts:1556 basicLoop() at -O1
 ;   length in s1
 ;   prompt in s3
 ;   n in s2
@@ -5903,61 +5910,61 @@ basicLoop:
   sw s1, 2(sp)
   sw s3, 4(sp)
   sw s2, 6(sp)
-  ; basic/basic.e16.ts:1552  nsp = addr(nums)
+  ; basic/basic.e16.ts:1557  nsp = addr(nums)
   la t0, nums
   sw t0, 0x0116(zero)
-  ; basic/basic.e16.ts:1553  running = false
+  ; basic/basic.e16.ts:1558  running = false
   sw zero, 0x012e(zero)
-  ; basic/basic.e16.ts:1554  marks()
+  ; basic/basic.e16.ts:1559  marks()
   call marks
-  ; basic/basic.e16.ts:1556  let length: u16 = 0
+  ; basic/basic.e16.ts:1561  let length: u16 = 0
   li s1, 0 ; length
-  ; basic/basic.e16.ts:1557  let prompt = true
+  ; basic/basic.e16.ts:1562  let prompt = true
   li s3, 1 ; prompt
-  ; basic/basic.e16.ts:1558  for (;;) {
+  ; basic/basic.e16.ts:1563  for (;;) {
 .L1:
-  ; basic/basic.e16.ts:1559  if (prompt) {
+  ; basic/basic.e16.ts:1564  if (prompt) {
   beqz s3, .L5
-  ; basic/basic.e16.ts:1560  fresh_line()
+  ; basic/basic.e16.ts:1565  fresh_line()
   call fresh_line
-  ; basic/basic.e16.ts:1561  putc(CH_GT)
+  ; basic/basic.e16.ts:1566  putc(CH_GT)
   li a0, 62
   call putc
 .L5:
-  ; basic/basic.e16.ts:1563  prompt = true
+  ; basic/basic.e16.ts:1568  prompt = true
   li s3, 1 ; prompt
-  ; basic/basic.e16.ts:1564  if (length === 0) length = autoPrefix()
+  ; basic/basic.e16.ts:1569  if (length === 0) length = autoPrefix()
   bne s1, zero, .L6
-  ; basic/basic.e16.ts:1564  length = autoPrefix()
+  ; basic/basic.e16.ts:1569  length = autoPrefix()
   call autoPrefix
   mv s1, a0 ; length
 .L6:
-  ; basic/basic.e16.ts:1565  const n: i16 = editLine(addr(lineBuf), LINE_MAX, length)
+  ; basic/basic.e16.ts:1570  const n: i16 = editLine(addr(lineBuf), LINE_MAX, length)
   la a0, lineBuf
   li a1, 78
   mv a2, s1
   call editLine
   mv s2, a0 ; n
-  ; basic/basic.e16.ts:1566  length = 0
+  ; basic/basic.e16.ts:1571  length = 0
   li s1, 0 ; length
-  ; basic/basic.e16.ts:1567  if (n === EDIT_UP || n === EDIT_DOWN) {
+  ; basic/basic.e16.ts:1572  if (n === EDIT_UP || n === EDIT_DOWN) {
   li t0, 65532
   beq s2, t0, .L8
   li t0, 65531
   bne s2, t0, .L7
 .L8:
-  ; basic/basic.e16.ts:1568  length = recall(n === EDIT_UP)
+  ; basic/basic.e16.ts:1573  length = recall(n === EDIT_UP)
   li t0, 65532
   sub t0, s2, t0
   seqz a0, t0
   call recall
   mv s1, a0 ; length
-  ; basic/basic.e16.ts:1569  prompt = false
+  ; basic/basic.e16.ts:1574  prompt = false
   li s3, 0 ; prompt
-  ; basic/basic.e16.ts:1570  continue
+  ; basic/basic.e16.ts:1575  continue
   j .L1
 .L7:
-  ; basic/basic.e16.ts:1572  edited(n)
+  ; basic/basic.e16.ts:1577  edited(n)
   mv a0, s2
   call edited
   j .L1
@@ -5969,28 +5976,28 @@ basicLoop:
   addi sp, sp, 8
   ret
 
-; basic/basic.e16.ts:1577 autoPrefix() at -O1
+; basic/basic.e16.ts:1582 autoPrefix() at -O1
 ;   n in s1
 autoPrefix:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/basic.e16.ts:1578  if (autoLine === 0) return 0
+  ; basic/basic.e16.ts:1583  if (autoLine === 0) return 0
   lw t0, 0x0126(zero)
   bne t0, zero, .L1
-  ; basic/basic.e16.ts:1578  return 0
+  ; basic/basic.e16.ts:1583  return 0
   li a0, 0
   j .return
 .L1:
-  ; basic/basic.e16.ts:1579  const n = unsignedText(autoLine, addr(lineBuf))
+  ; basic/basic.e16.ts:1584  const n = unsignedText(autoLine, addr(lineBuf))
   lw a0, 0x0126(zero)
   la a1, lineBuf
   call unsignedText
   mv s1, a0 ; n
-  ; basic/basic.e16.ts:1580  poke(addr(lineBuf) + n, CH_SPACE)
+  ; basic/basic.e16.ts:1585  poke(addr(lineBuf) + n, CH_SPACE)
   li t0, 32
   sb t0, lineBuf(s1)
-  ; basic/basic.e16.ts:1581  return n + 1
+  ; basic/basic.e16.ts:1586  return n + 1
   addi a0, s1, 1
 .return:
   lw ra, 0(sp)
@@ -5998,50 +6005,50 @@ autoPrefix:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1585 edited(n) at -O1
+; basic/basic.e16.ts:1590 edited(n) at -O1
 ;   n in s1
 edited:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n
-  ; basic/basic.e16.ts:1586  if (n < 0) autoLine = 0
+  ; basic/basic.e16.ts:1591  if (n < 0) autoLine = 0
   bge s1, zero, .L1
-  ; basic/basic.e16.ts:1586  autoLine = 0
+  ; basic/basic.e16.ts:1591  autoLine = 0
   sw zero, 0x0126(zero)
 .L1:
-  ; basic/basic.e16.ts:1587  if (n === EDIT_MODE) {
+  ; basic/basic.e16.ts:1592  if (n === EDIT_MODE) {
   li t0, 65533
   bne s1, t0, .L2
-  ; basic/basic.e16.ts:1588  proMode = !proMode
+  ; basic/basic.e16.ts:1593  proMode = !proMode
   lw t0, 0x013a(zero)
   seqz t0, t0
   sw t0, 0x013a(zero)
-  ; basic/basic.e16.ts:1589  marks()
+  ; basic/basic.e16.ts:1594  marks()
   call marks
-  ; basic/basic.e16.ts:1590  return
+  ; basic/basic.e16.ts:1595  return
   j .return
 .L2:
-  ; basic/basic.e16.ts:1593  if (n < 0) return
+  ; basic/basic.e16.ts:1598  if (n < 0) return
   bge s1, zero, .L3
-  ; basic/basic.e16.ts:1593  return
+  ; basic/basic.e16.ts:1598  return
   j .return
 .L3:
-  ; basic/basic.e16.ts:1595  fresh_line()
+  ; basic/basic.e16.ts:1600  fresh_line()
   call fresh_line
-  ; basic/basic.e16.ts:1596  if (n === 0) return
+  ; basic/basic.e16.ts:1601  if (n === 0) return
   bne s1, zero, .L4
-  ; basic/basic.e16.ts:1596  return
+  ; basic/basic.e16.ts:1601  return
   j .return
 .L4:
-  ; basic/basic.e16.ts:1597  move(addr(lineBuf), addr(lastLine), u16(n))
+  ; basic/basic.e16.ts:1602  move(addr(lineBuf), addr(lastLine), u16(n))
   la a0, lineBuf
   la a1, lastLine
   mv a2, s1
   call move
-  ; basic/basic.e16.ts:1598  lastLength = u16(n)
+  ; basic/basic.e16.ts:1603  lastLength = u16(n)
   sw s1, 0x0142(zero)
-  ; basic/basic.e16.ts:1599  enter()
+  ; basic/basic.e16.ts:1604  enter()
   call enter
 .return:
   lw ra, 0(sp)
@@ -6049,7 +6056,7 @@ edited:
   addi sp, sp, 4
   ret
 
-; basic/basic.e16.ts:1607 recall(up) at -O1
+; basic/basic.e16.ts:1612 recall(up) at -O1
 ;   up in s3
 ;   at in s1
 ;   digits in s2
@@ -6060,72 +6067,72 @@ recall:
   sw s1, 4(sp)
   sw s2, 6(sp)
   mv s3, a0 ; up
-  ; basic/basic.e16.ts:1608  if (!proMode) {
+  ; basic/basic.e16.ts:1613  if (!proMode) {
   lw t0, 0x013a(zero)
   bnez t0, .L1
-  ; basic/basic.e16.ts:1609  if (!up) return 0
+  ; basic/basic.e16.ts:1614  if (!up) return 0
   bnez s3, .L2
-  ; basic/basic.e16.ts:1609  return 0
+  ; basic/basic.e16.ts:1614  return 0
   li a0, 0
   j .return
 .L2:
-  ; basic/basic.e16.ts:1610  move(addr(lastLine), addr(lineBuf), lastLength)
+  ; basic/basic.e16.ts:1615  move(addr(lastLine), addr(lineBuf), lastLength)
   lw t0, 0x0142(zero)
   la a0, lastLine
   la a1, lineBuf
   mv a2, t0
   call move
-  ; basic/basic.e16.ts:1611  return lastLength
+  ; basic/basic.e16.ts:1616  return lastLength
   lw a0, 0x0142(zero)
   j .return
 .L1:
-  ; basic/basic.e16.ts:1613  let at: u16 = 0
+  ; basic/basic.e16.ts:1618  let at: u16 = 0
   li s1, 0 ; at
-  ; basic/basic.e16.ts:1614  if (up && justStored) at = findLine(recallNo, true)
+  ; basic/basic.e16.ts:1619  if (up && justStored) at = findLine(recallNo, true)
   beqz s3, .L3
   lw t0, 0x0140(zero)
   beqz t0, .L3
-  ; basic/basic.e16.ts:1614  at = findLine(recallNo, true)
+  ; basic/basic.e16.ts:1619  at = findLine(recallNo, true)
   lw a0, 0x013e(zero)
   li a1, 1
   call findLine
   mv s1, a0 ; at
 .L3:
-  ; basic/basic.e16.ts:1615  justStored = false
+  ; basic/basic.e16.ts:1620  justStored = false
   sw zero, 0x0140(zero)
-  ; basic/basic.e16.ts:1616  if (at === 0) at = neighbour(up)
+  ; basic/basic.e16.ts:1621  if (at === 0) at = neighbour(up)
   bne s1, zero, .L4
-  ; basic/basic.e16.ts:1616  at = neighbour(up)
+  ; basic/basic.e16.ts:1621  at = neighbour(up)
   mv a0, s3
   call neighbour
   mv s1, a0 ; at
 .L4:
-  ; basic/basic.e16.ts:1617  if (at === 0) at = findLine(recallNo, true)
+  ; basic/basic.e16.ts:1622  if (at === 0) at = findLine(recallNo, true)
   bne s1, zero, .L5
-  ; basic/basic.e16.ts:1617  at = findLine(recallNo, true)
+  ; basic/basic.e16.ts:1622  at = findLine(recallNo, true)
   lw a0, 0x013e(zero)
   li a1, 1
   call findLine
   mv s1, a0 ; at
 .L5:
-  ; basic/basic.e16.ts:1618  if (at === 0) return 0
+  ; basic/basic.e16.ts:1623  if (at === 0) return 0
   bne s1, zero, .L6
-  ; basic/basic.e16.ts:1618  return 0
+  ; basic/basic.e16.ts:1623  return 0
   li a0, 0
   j .return
 .L6:
-  ; basic/basic.e16.ts:1619  recallNo = peek16(at)
+  ; basic/basic.e16.ts:1624  recallNo = peek16(at)
   lw t0, 0(s1)
   sw t0, 0x013e(zero)
-  ; basic/basic.e16.ts:1620  const digits = unsignedText(recallNo, addr(lineBuf))
+  ; basic/basic.e16.ts:1625  const digits = unsignedText(recallNo, addr(lineBuf))
   mv a0, t0
   la a1, lineBuf
   call unsignedText
   mv s2, a0 ; digits
-  ; basic/basic.e16.ts:1621  poke(addr(lineBuf) + digits, CH_SPACE)
+  ; basic/basic.e16.ts:1626  poke(addr(lineBuf) + digits, CH_SPACE)
   li t0, 32
   sb t0, lineBuf(s2)
-  ; basic/basic.e16.ts:1622  return digits + 1 + expand(at + 4, addr(lineBuf) + digits + 1, LINE_MAX - digits - 1)
+  ; basic/basic.e16.ts:1627  return digits + 1 + expand(at + 4, addr(lineBuf) + digits + 1, LINE_MAX - digits - 1)
   li t0, 78
   sub t0, t0, s2
   addi a0, s1, 4
@@ -6142,115 +6149,115 @@ recall:
   addi sp, sp, 8
   ret
 
-; basic/basic.e16.ts:1626 neighbour(up) at -O1
+; basic/basic.e16.ts:1631 neighbour(up) at -O1
 ;   up in a0
 ;   at in a1
 ;   found in a2
 ;   n in a3
 neighbour:
-  ; basic/basic.e16.ts:1627  let at = PROG
+  ; basic/basic.e16.ts:1632  let at = PROG
   li a1, 2048 ; at
-  ; basic/basic.e16.ts:1628  let found: u16 = 0
+  ; basic/basic.e16.ts:1633  let found: u16 = 0
   li a2, 0 ; found
-  ; basic/basic.e16.ts:1629  while (peek16(at) !== 0) {
+  ; basic/basic.e16.ts:1634  while (peek16(at) !== 0) {
   j .L3
 .L1:
-  ; basic/basic.e16.ts:1630  const n = peek16(at)
+  ; basic/basic.e16.ts:1635  const n = peek16(at)
   lw a3, 0(a1)
-  ; basic/basic.e16.ts:1631  if (!up && n > recallNo) return at
+  ; basic/basic.e16.ts:1636  if (!up && n > recallNo) return at
   bnez a0, .L5
   lw t0, 0x013e(zero)
   bgeu t0, a3, .L5
-  ; basic/basic.e16.ts:1631  return at
+  ; basic/basic.e16.ts:1636  return at
   mv a0, a1
   ret
 .L5:
-  ; basic/basic.e16.ts:1632  if (up && (recallNo === 0 || n < recallNo)) found = at
+  ; basic/basic.e16.ts:1637  if (up && (recallNo === 0 || n < recallNo)) found = at
   beqz a0, .L6
   lw t0, 0x013e(zero)
   beq t0, zero, .L7
   lw t0, 0x013e(zero)
   bgeu a3, t0, .L6
 .L7:
-  ; basic/basic.e16.ts:1632  found = at
+  ; basic/basic.e16.ts:1637  found = at
   mv a2, a1 ; found
 .L6:
-  ; basic/basic.e16.ts:1633  at += peek16(at + 2)
+  ; basic/basic.e16.ts:1638  at += peek16(at + 2)
   lw t0, 2(a1)
   add a1, a1, t0
 .L3:
   lw t0, 0(a1)
   bne t0, zero, .L1
-  ; basic/basic.e16.ts:1635  return found
+  ; basic/basic.e16.ts:1640  return found
   mv a0, a2
 .return:
   ret
 
-; basic/basic.e16.ts:1638 showBanner() at -O1
+; basic/basic.e16.ts:1643 showBanner() at -O1
 showBanner:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/basic.e16.ts:1639  puts(str('ELEC-16 BASIC 1.0'))
+  ; basic/basic.e16.ts:1644  puts(str('ELEC-16 BASIC 1.0'))
   la a0, str_23
   call puts
-  ; basic/basic.e16.ts:1640  newline()
+  ; basic/basic.e16.ts:1645  newline()
   call newline
-  ; basic/basic.e16.ts:1641  printUnsigned(LIMIT - varEnd)
+  ; basic/basic.e16.ts:1646  printUnsigned(LIMIT - varEnd)
   lw t0, 0x0114(zero)
   li t1, 28672
   sub a0, t1, t0
   call printUnsigned
-  ; basic/basic.e16.ts:1642  puts(str(' BYTES FREE'))
+  ; basic/basic.e16.ts:1647  puts(str(' BYTES FREE'))
   la a0, str_24
   call puts
-  ; basic/basic.e16.ts:1643  newline()
+  ; basic/basic.e16.ts:1648  newline()
   call newline
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; basic/basic.e16.ts:1647 basicCold() at -O1
+; basic/basic.e16.ts:1652 basicCold() at -O1
 basicCold:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/basic.e16.ts:1648  poke16(INBASIC, 1)
+  ; basic/basic.e16.ts:1653  poke16(INBASIC, 1)
   li t0, 1
   sw t0, 28(zero)
-  ; basic/basic.e16.ts:1649  poke16(BRKFLAG, 0)
+  ; basic/basic.e16.ts:1654  poke16(BRKFLAG, 0)
   sw zero, 30(zero)
-  ; basic/basic.e16.ts:1651  keepProgramTo(keptProgramEnd())
+  ; basic/basic.e16.ts:1656  keepProgramTo(keptProgramEnd())
   call keptProgramEnd
   call keepProgramTo
-  ; basic/basic.e16.ts:1652  poke16(MATH_ANGLE, 0)
+  ; basic/basic.e16.ts:1657  poke16(MATH_ANGLE, 0)
   li t0, 65372
   sw zero, 0(t0)
-  ; basic/basic.e16.ts:1653  angleMarks = ANN_DEG
+  ; basic/basic.e16.ts:1658  angleMarks = ANN_DEG
   li t0, 128
   sw t0, 0x013c(zero)
-  ; basic/basic.e16.ts:1654  proMode = false
+  ; basic/basic.e16.ts:1659  proMode = false
   sw zero, 0x013a(zero)
-  ; basic/basic.e16.ts:1655  fresh_line()
+  ; basic/basic.e16.ts:1660  fresh_line()
   call fresh_line
-  ; basic/basic.e16.ts:1656  showBanner()
+  ; basic/basic.e16.ts:1661  showBanner()
   call showBanner
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; basic/basic.e16.ts:1660 basicWarm() at -O1
+; basic/basic.e16.ts:1665 basicWarm() at -O1
 basicWarm:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/basic.e16.ts:1661  poke16(INBASIC, 1)
+  ; basic/basic.e16.ts:1666  poke16(INBASIC, 1)
   li t0, 1
   sw t0, 28(zero)
-  ; basic/basic.e16.ts:1662  poke16(BRKFLAG, 0)
+  ; basic/basic.e16.ts:1667  poke16(BRKFLAG, 0)
   sw zero, 30(zero)
-  ; basic/basic.e16.ts:1663  fresh_line()
+  ; basic/basic.e16.ts:1668  fresh_line()
   call fresh_line
-  ; basic/basic.e16.ts:1664  showBanner()
+  ; basic/basic.e16.ts:1669  showBanner()
   call showBanner
 .return:
   lw ra, 0(sp)
@@ -15080,57 +15087,59 @@ toggleBreak:
   sw s3, 4(sp)
   sw s1, 6(sp)
   mv s2, a0 ; at
-  ; basic/monitor.e16.ts:743  if (at >= 0x8000 || at < 0x0800) return false
+  ; basic/monitor.e16.ts:744  if (at >= 0x8000 || at < 0x0800 || (at & 1) !== 0) return false
   li t0, 32768
   bgeu s2, t0, .L2
   li t0, 2048
-  bgeu s2, t0, .L1
+  bltu s2, t0, .L2
+  andi t0, s2, 1
+  beq t0, zero, .L1
 .L2:
-  ; basic/monitor.e16.ts:743  return false
+  ; basic/monitor.e16.ts:744  return false
   li a0, 0
   j .return
 .L1:
-  ; basic/monitor.e16.ts:744  let free: u16 = 4
+  ; basic/monitor.e16.ts:745  let free: u16 = 4
   li s3, 4 ; free
-  ; basic/monitor.e16.ts:745  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:746  for (let k: u16 = 0; k < 4; k++) {
   li s1, 0 ; k
   j .L5
 .L3:
-  ; basic/monitor.e16.ts:746  if (breakAt(k) === at) {
+  ; basic/monitor.e16.ts:747  if (breakAt(k) === at) {
   mv a0, s1
   call breakAt
   bne a0, s2, .L7
-  ; basic/monitor.e16.ts:747  poke16(BREAKS + k * 2, 0)
+  ; basic/monitor.e16.ts:748  poke16(BREAKS + k * 2, 0)
   slli t0, s1, 1
   sw zero, 150(t0)
-  ; basic/monitor.e16.ts:748  return true
+  ; basic/monitor.e16.ts:749  return true
   li a0, 1
   j .return
 .L7:
-  ; basic/monitor.e16.ts:750  if (breakAt(k) === 0 && free === 4) free = k
+  ; basic/monitor.e16.ts:751  if (breakAt(k) === 0 && free === 4) free = k
   mv a0, s1
   call breakAt
   bne a0, zero, .L8
   li t0, 4
   bne s3, t0, .L8
-  ; basic/monitor.e16.ts:750  free = k
+  ; basic/monitor.e16.ts:751  free = k
   mv s3, s1 ; free
 .L8:
   addi s1, s1, 1
 .L5:
   li t0, 4
   bltu s1, t0, .L3
-  ; basic/monitor.e16.ts:752  if (free === 4) return false
+  ; basic/monitor.e16.ts:753  if (free === 4) return false
   li t0, 4
   bne s3, t0, .L9
-  ; basic/monitor.e16.ts:752  return false
+  ; basic/monitor.e16.ts:753  return false
   li a0, 0
   j .return
 .L9:
-  ; basic/monitor.e16.ts:753  poke16(BREAKS + free * 2, at)
+  ; basic/monitor.e16.ts:754  poke16(BREAKS + free * 2, at)
   slli t0, s3, 1
   sw s2, 150(t0)
-  ; basic/monitor.e16.ts:754  return true
+  ; basic/monitor.e16.ts:755  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -15140,7 +15149,7 @@ toggleBreak:
   addi sp, sp, 8
   ret
 
-; basic/monitor.e16.ts:757 listBreaks() at -O1
+; basic/monitor.e16.ts:758 listBreaks() at -O1
 ;   any in s2
 ;   k in s1
 listBreaks:
@@ -15148,49 +15157,49 @@ listBreaks:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; basic/monitor.e16.ts:758  poke16(OUT_AT, LINEBUF)
+  ; basic/monitor.e16.ts:759  poke16(OUT_AT, LINEBUF)
   li t0, 64
   sw t0, 130(zero)
-  ; basic/monitor.e16.ts:759  let any = false
+  ; basic/monitor.e16.ts:760  let any = false
   li s2, 0 ; any
-  ; basic/monitor.e16.ts:760  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:761  for (let k: u16 = 0; k < 4; k++) {
   li s1, 0 ; k
   j .L3
 .L1:
-  ; basic/monitor.e16.ts:761  if (breakAt(k) !== 0) {
+  ; basic/monitor.e16.ts:762  if (breakAt(k) !== 0) {
   mv a0, s1
   call breakAt
   beq a0, zero, .L5
-  ; basic/monitor.e16.ts:762  if (any) emit(0x20)
+  ; basic/monitor.e16.ts:763  if (any) emit(0x20)
   beqz s2, .L6
-  ; basic/monitor.e16.ts:762  emit(0x20)
+  ; basic/monitor.e16.ts:763  emit(0x20)
   li a0, 32
   call emit
 .L6:
-  ; basic/monitor.e16.ts:763  emitHex4(breakAt(k))
+  ; basic/monitor.e16.ts:764  emitHex4(breakAt(k))
   mv a0, s1
   call breakAt
   call emitHex4
-  ; basic/monitor.e16.ts:764  any = true
+  ; basic/monitor.e16.ts:765  any = true
   li s2, 1 ; any
 .L5:
   addi s1, s1, 1
 .L3:
   li t0, 4
   bltu s1, t0, .L1
-  ; basic/monitor.e16.ts:767  if (!any) emitStr(str('NO BREAKPOINTS'))
+  ; basic/monitor.e16.ts:768  if (!any) emitStr(str('NO BREAKPOINTS'))
   bnez s2, .L7
-  ; basic/monitor.e16.ts:767  emitStr(str('NO BREAKPOINTS'))
+  ; basic/monitor.e16.ts:768  emitStr(str('NO BREAKPOINTS'))
   la a0, str_148
   call emitStr
 .L7:
-  ; basic/monitor.e16.ts:768  emit(0)
+  ; basic/monitor.e16.ts:769  emit(0)
   li a0, 0
   call emit
-  ; basic/monitor.e16.ts:769  puts(LINEBUF)
+  ; basic/monitor.e16.ts:770  puts(LINEBUF)
   li a0, 64
   call puts
-  ; basic/monitor.e16.ts:770  newline()
+  ; basic/monitor.e16.ts:771  newline()
   call newline
 .return:
   lw ra, 0(sp)
@@ -15199,7 +15208,7 @@ listBreaks:
   addi sp, sp, 6
   ret
 
-; basic/monitor.e16.ts:774 armBreaks(start) at -O1
+; basic/monitor.e16.ts:775 armBreaks(start) at -O1
 ;   start in s3
 ;   k in s2
 ;   at in s1
@@ -15210,30 +15219,30 @@ armBreaks:
   sw s2, 4(sp)
   sw s1, 6(sp)
   mv s3, a0 ; start
-  ; basic/monitor.e16.ts:775  disarmBreaks()
+  ; basic/monitor.e16.ts:776  disarmBreaks()
   call disarmBreaks
-  ; basic/monitor.e16.ts:776  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:777  for (let k: u16 = 0; k < 4; k++) {
   li s2, 0 ; k
   j .L3
 .L1:
-  ; basic/monitor.e16.ts:777  const at = breakAt(k)
+  ; basic/monitor.e16.ts:778  const at = breakAt(k)
   mv a0, s2
   call breakAt
   mv s1, a0 ; at
-  ; basic/monitor.e16.ts:778  if (at !== 0 && at !== start) {
+  ; basic/monitor.e16.ts:779  if (at !== 0 && at !== start) {
   beq s1, zero, .L5
   beq s1, s3, .L5
-  ; basic/monitor.e16.ts:779  poke16(SAVED + k * 2, peek(at) | (peek(at + 1) << 8))
+  ; basic/monitor.e16.ts:780  poke16(SAVED + k * 2, peek(at) | (peek(at + 1) << 8))
   slli t0, s2, 1
   lbu t1, 0(s1)
   lbu t2, 1(s1)
   slli t2, t2, 8
   or t1, t1, t2
   sw t1, 158(t0)
-  ; basic/monitor.e16.ts:780  poke(at, C_EBREAK & 0xff)
+  ; basic/monitor.e16.ts:781  poke(at, C_EBREAK & 0xff)
   li t0, 10
   sb t0, 0(s1)
-  ; basic/monitor.e16.ts:781  poke(at + 1, C_EBREAK >> 8)
+  ; basic/monitor.e16.ts:782  poke(at + 1, C_EBREAK >> 8)
   li t0, 32
   sb t0, 1(s1)
 .L5:
@@ -15241,7 +15250,7 @@ armBreaks:
 .L3:
   li t0, 4
   bltu s2, t0, .L1
-  ; basic/monitor.e16.ts:784  poke16(ARMED, 1)
+  ; basic/monitor.e16.ts:785  poke16(ARMED, 1)
   li t0, 1
   sw t0, 148(zero)
 .return:
@@ -15252,7 +15261,7 @@ armBreaks:
   addi sp, sp, 8
   ret
 
-; basic/monitor.e16.ts:788 disarmBreaks() at -O1
+; basic/monitor.e16.ts:789 disarmBreaks() at -O1
 ;   k in s1
 ;   at in s2
 ;   was in s3
@@ -15262,21 +15271,21 @@ disarmBreaks:
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  ; basic/monitor.e16.ts:789  if (peek16(ARMED) === 0) return
+  ; basic/monitor.e16.ts:790  if (peek16(ARMED) === 0) return
   lw t0, 148(zero)
   bne t0, zero, .L1
-  ; basic/monitor.e16.ts:789  return
+  ; basic/monitor.e16.ts:790  return
   j .return
 .L1:
-  ; basic/monitor.e16.ts:790  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:791  for (let k: u16 = 0; k < 4; k++) {
   li s1, 0 ; k
   j .L4
 .L2:
-  ; basic/monitor.e16.ts:791  const at = breakAt(k)
+  ; basic/monitor.e16.ts:792  const at = breakAt(k)
   mv a0, s1
   call breakAt
   mv s2, a0 ; at
-  ; basic/monitor.e16.ts:792  if (at !== 0 && peek(at) === (C_EBREAK & 0xff) && peek(at + 1) === C_EBREAK >> 8) {
+  ; basic/monitor.e16.ts:793  if (at !== 0 && peek(at) === (C_EBREAK & 0xff) && peek(at + 1) === C_EBREAK >> 8) {
   beq s2, zero, .L6
   lbu t0, 0(s2)
   li t1, 10
@@ -15284,13 +15293,13 @@ disarmBreaks:
   lbu t0, 1(s2)
   li t1, 32
   bne t0, t1, .L6
-  ; basic/monitor.e16.ts:793  const was = peek16(SAVED + k * 2)
+  ; basic/monitor.e16.ts:794  const was = peek16(SAVED + k * 2)
   slli t0, s1, 1
   lw s3, 158(t0)
-  ; basic/monitor.e16.ts:794  poke(at, was & 0xff)
+  ; basic/monitor.e16.ts:795  poke(at, was & 0xff)
   andi t0, s3, 255
   sb t0, 0(s2)
-  ; basic/monitor.e16.ts:795  poke(at + 1, was >> 8)
+  ; basic/monitor.e16.ts:796  poke(at + 1, was >> 8)
   srli t0, s3, 8
   sb t0, 1(s2)
 .L6:
@@ -15298,7 +15307,7 @@ disarmBreaks:
 .L4:
   li t0, 4
   bltu s1, t0, .L2
-  ; basic/monitor.e16.ts:798  poke16(ARMED, 0)
+  ; basic/monitor.e16.ts:799  poke16(ARMED, 0)
   sw zero, 148(zero)
 .return:
   lw ra, 0(sp)

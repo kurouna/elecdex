@@ -80,7 +80,7 @@ export type Sym =
   | { kind: 'fn'; params: TypeRef[]; ret: Ty; extern: boolean; bank: number | null }
   | { kind: 'local'; slot: number; type: TypeRef }
 
-/** The functions every program has without declaring them (prelude.ts says them to TypeScript). */
+/** The functions every program has without declaring them (builtins.ts gives them to TypeScript). */
 export const BUILTINS = new Set([
   'peek',
   'poke',
