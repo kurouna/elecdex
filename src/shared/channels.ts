@@ -180,6 +180,9 @@ export const CH = {
     soft: 'elec16:soft',
     import: 'elec16:import',
     export: 'elec16:export',
+    /** CODE: a card file's bytes, and a .TS or .BIN written to the card. */
+    readFile: 'elec16:read-file',
+    writeFile: 'elec16:write-file',
     /** main -> renderer: the units and who holds them, after any change (Elec16Board). */
     changed: 'elec16:changed',
     /** main -> renderer: a unit's card changed (its id). */

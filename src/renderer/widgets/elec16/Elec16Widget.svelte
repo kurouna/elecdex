@@ -1,9 +1,11 @@
 <script lang="ts">
+import { CODE_START } from '@shared/e16c/code-area'
 import { DEFAULT_MODEL, MODELS } from '@shared/elec16/map'
 import { pasteKeys } from '@shared/elec16/paste'
 import { romFromFile } from '@shared/elec16/rom'
+import { ANNUNCIATORS } from '@shared/elec16/state'
 import { parseRgb } from '@shared/qr'
-import { onDestroy, untrack } from 'svelte'
+import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
@@ -15,6 +17,7 @@ import { seen } from '../../stores/window-state.svelte.ts'
 import { watchRoom } from '../emu/screen.ts'
 import type { WidgetProps } from '../registry.ts'
 import { Elec16Buzzer } from './buzzer.ts'
+import CodeView from './CodeView.svelte'
 import CoreView from './CoreView.svelte'
 import { labelsOf } from './core.ts'
 import Device from './Device.svelte'
@@ -63,11 +66,16 @@ const runner = new Elec16Runner({
   hush: () => buzzer.silence(),
 })
 // A pane's id is its mount's for good (a moved pane is mounted again): the session takes it once.
-const session = new UnitSession(window.elecdex.elec16, untrack(() => paneId), runner, {
-  keep: (unit) => {
-    if (unit !== pane.unit) change({ unit })
+const session = new UnitSession(
+  window.elecdex.elec16,
+  untrack(() => paneId),
+  runner,
+  {
+    keep: (unit) => {
+      if (unit !== pane.unit) change({ unit })
+    },
   },
-})
+)
 const model = $derived(session.unit?.model ?? DEFAULT_MODEL)
 // Auto power-off is the unit's; switched off by it, the battery backup is written as for the
 // switch.
@@ -83,7 +91,9 @@ let rom = $state.raw<Uint8Array | null>(null)
 let labels = $state.raw<ReadonlyMap<number, string>>(new Map())
 let failed = $state(false)
 
-const listening = $derived(paneFocused && windowFocused && runner.status !== 'empty')
+const listening = $derived(
+  paneFocused && windowFocused && runner.status !== 'empty' && pane.view === 'machine',
+)
 
 function change(next: Partial<Elec16Pane>): void {
   widgetState.patch(paneId, next)
@@ -121,10 +131,12 @@ $effect(() => {
   })
 })
 
+// CODE covers the machine: it is out of sight then, and pauses as behind a tab.
+const machineSeen = $derived(visible && pane.view === 'machine')
 $effect(() => {
-  runner.setSeen(visible)
+  runner.setSeen(machineSeen)
   // Out of sight is one of the times the battery backup is written.
-  if (!visible) untrack(() => session.save())
+  if (!machineSeen) untrack(() => session.save())
 })
 
 /** Whether there is a machine on for PASTE and LOAD ▸ to type into. */
@@ -133,6 +145,23 @@ const canType = $derived(runner.status !== 'empty' && !runner.off)
 /** FILES' LOAD ▸: a line typed on the machine's keys, ENTER after it; the keyboard back to it. */
 function typeLine(line: string): void {
   runner.paste(pasteKeys(`${line}\n`, pasteModes(runner.annunciators)).keys)
+  root?.focus({ preventScroll: true })
+}
+
+/**
+ * CODE's RUN and LOAD: back to the machine, stopped at a prompt (BRK first when it was not),
+ * the program put at the code area, and then what a person would type - CALL 28672 at BASIC's
+ * prompt or G 7000 in the monitor to run it, U 7000 in the monitor to read it.
+ */
+async function giveCode(image: Uint8Array, how: 'run' | 'load'): Promise<void> {
+  change({ view: 'machine' })
+  await tick()
+  if (runner.off || !runner.asleep || runner.status === 'paused') runner.brk()
+  if (!(await runner.whenAsleep(3000)) || !runner.loadCode(CODE_START, image)) return
+  const monitor = (runner.annunciators & (1 << ANNUNCIATORS.indexOf('MON'))) !== 0
+  const typed =
+    how === 'run' ? (monitor ? 'G 7000\n' : 'CALL 28672\n') : monitor ? 'U 7000\n' : 'MON\nU 7000\n'
+  runner.paste(pasteKeys(typed, pasteModes(runner.annunciators)).keys)
   root?.focus({ preventScroll: true })
 }
 
@@ -341,12 +370,43 @@ onDestroy(() => {
       onclick={(e) => afterBlink(e.currentTarget, power)}
       data-testid="elec16-power">power</button
     >
+    <button
+      type="button"
+      class="e16-btn"
+      disabled={runner.status === 'empty'}
+      onclick={(e) => afterBlink(e.currentTarget, () => runner.reset())}
+      data-testid="elec16-reset">reset</button
+    >
     <button type="button" class="e16-btn" aria-expanded={panelOpen} onclick={togglePanel} data-testid="elec16-panel-toggle"
       >{panelOpen ? 'panel ◂' : '▸ panel'}</button
     >
+    <button
+      type="button"
+      class="e16-btn"
+      aria-pressed={pane.view === 'code'}
+      disabled={rom === null || session.unit === null}
+      onclick={() => {
+        sfx.play('panel')
+        change({ view: pane.view === 'code' ? 'machine' : 'code' })
+      }}
+      data-testid="elec16-view-toggle">{pane.view === 'code' ? 'machine' : 'code'}</button
+    >
   </div>
 
-  <div class="body" bind:this={body}>
+  {#if pane.view === 'code' && rom !== null}
+    <div class="code-view crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower>
+      <CodeView
+        unit={session.phase === 'running' ? (session.unit?.id ?? null) : null}
+        {rom}
+        file={pane.codeFile}
+        level={pane.codeLevel}
+        onfile={(codeFile) => change({ codeFile })}
+        onlevel={(codeLevel) => change({ codeLevel })}
+        ongive={(image, how) => void giveCode(image, how)}
+      />
+    </div>
+  {/if}
+  <div class="body" bind:this={body} class:hidden={pane.view === 'code'}>
     <div class="device">
       {#if failed}
         <p class="failed" data-testid="elec16-failed">The ROM could not be read.</p>
@@ -509,6 +569,17 @@ onDestroy(() => {
   flex: 1;
   display: flex;
   gap: var(--space-2);
+  min-height: 0;
+}
+
+/* Under CODE the machine stays mounted, out of sight (its device reads a size of 0 and keeps
+   the last). */
+.body.hidden {
+  display: none;
+}
+
+.code-view {
+  flex: 1;
   min-height: 0;
 }
 

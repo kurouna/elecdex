@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CH } from '@shared/channels'
 import { assemble, ramImage } from '@shared/elec16/asm'
-import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer } from '@shared/elec16/card'
+import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer, isCardName } from '@shared/elec16/card'
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
 import { CODE_AREA, MODEL_IDS } from '@shared/elec16/map'
 import {
@@ -150,12 +150,23 @@ export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec
         filesChanged(unit)
         return { ok: true, name: made.name }
       },
+      [CH.elec16.readFile]: (_event, unit: unknown, name: unknown): Uint8Array | null =>
+        typeof name === 'string' && isCardName(name) ? units.fileData(unit, name) : null,
+      [CH.elec16.writeFile]: (_event, unit: unknown, name: unknown, bytes: unknown): number => {
+        // CODE writes only its own kinds of file, and no bigger than a card file may be.
+        if (typeof unit !== 'string' || typeof name !== 'string') return CARD_STATUS.badName
+        if (!isCardName(name) || !/\.(TS|BIN)$/.test(name)) return CARD_STATUS.badName
+        if (!(bytes instanceof Uint8Array) || bytes.length > CARD_FILE_MAX) return CARD_STATUS.full
+        const status = units.addFile(unit, name, bytes)
+        if (status === CARD_STATUS.ok) filesChanged(unit)
+        return status
+      },
       [CH.elec16.export]: async (event, unit: unknown, name: unknown): Promise<boolean> => {
         const bytes = units.fileData(unit, name)
         if (bytes === null || typeof name !== 'string') return false
         const target = await pickSave(event.sender, name)
         if (target === undefined) return false
-        const text = name.endsWith('.BAS')
+        const text = name.endsWith('.BAS') || name.endsWith('.TS')
         writeFileSync(target, text ? fromMachineText(bytes) : bytes)
         return true
       },

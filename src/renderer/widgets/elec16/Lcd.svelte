@@ -5,6 +5,7 @@ import { ANNUNCIATORS } from '@shared/elec16/state'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { deviceRoom, drawDotGrid, type Room } from '../emu/screen.ts'
+import { GLASS } from './layout.ts'
 import { type Cursor, type LcdColours, LcdPainter } from './lcd-painter.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
 
@@ -29,9 +30,11 @@ interface Props {
   contrast: number
   /** The pane is seen: the cursor blinks only then. */
   seen: boolean
+  /** Device pixels a dot: the device fits the whole body (layout.ts, deviceFit). */
+  scale: number
 }
 
-const { runner, colours, ghost, contrast, seen }: Props = $props()
+const { runner, colours, ghost, contrast, seen, scale }: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
 let dotsCanvas = $state<HTMLCanvasElement | null>(null)
@@ -41,21 +44,6 @@ let room = $state<Room>({ w: 0, h: 0, ratio: 1 })
 let text = $state('')
 
 const model = $derived(MODELS[runner.model])
-/** The glass round the dots, and the annunciators' line on it, in CSS pixels. */
-const PAD = 8
-const MARKS = 14
-/** Device pixels a dot: as many whole ones as the room less the glass takes, at least one. */
-const scale = $derived(
-  Math.max(
-    1,
-    Math.floor(
-      Math.min(
-        (room.w - 2 * PAD * room.ratio) / model.width,
-        (room.h - (2 * PAD + MARKS + 4) * room.ratio) / model.height,
-      ),
-    ),
-  ),
-)
 const css = $derived({
   w: (model.width * scale) / room.ratio,
   h: (model.height * scale) / room.ratio,
@@ -211,11 +199,13 @@ const marks = $derived(
     <!-- The glass: the LCD's ground round the dots, the annunciators printed on it. -->
     <div
       class="glass"
-      style:padding="{PAD}px"
+      style:padding="{GLASS.pad}px"
+      style:gap="{GLASS.gap}px"
+      style:border-width="{GLASS.bezel}px"
       style:background={rgb(colours.ground)}
       style:color={rgb(colours.dot)}
     >
-      <div class="marks" style:height="{MARKS}px" aria-hidden="true">
+      <div class="marks" style:height="{GLASS.marks}px" aria-hidden="true">
         {#each marks as mark (mark.name)}
           <span class="mark" class:on={mark.on && !runner.off} data-mark={mark.name}
             >{mark.name === 'KANA' ? 'カナ' : mark.name === 'SOUND' ? '♪' : mark.name}</span
@@ -257,12 +247,16 @@ const marks = $derived(
   overflow: hidden;
 }
 
+/* The glass in its bezel, sunk into the case. */
 .glass {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  border: 1px solid var(--e16-edge);
-  border-radius: var(--e16-radius);
+  border-style: solid;
+  border-color: var(--e16-bezel);
+  border-radius: calc(var(--e16-radius) * 1.5);
+  box-shadow:
+    inset 0 0 0 1px rgb(0 0 0 / 0.12),
+    inset 0 3px 8px rgb(0 0 0 / 0.18);
 }
 
 .marks {
@@ -275,8 +269,9 @@ const marks = $derived(
   line-height: 1.2;
 }
 
+/* Printed on the glass: faint when off, as an LCD's marks are. */
 .mark {
-  opacity: 0;
+  opacity: 0.16;
 }
 
 .mark.on {

@@ -522,6 +522,10 @@ export interface Elec16Api {
   import(unit: string): Promise<Elec16ImportResult | null>
   /** Saves a card file where the user picks; false when nothing was saved. */
   export(unit: string, name: string): Promise<boolean>
+  /** CODE: a card file's bytes (the SOFT CARD's too); null when there is no such file. */
+  readFile(unit: string, name: string): Promise<Uint8Array | null>
+  /** CODE: a .TS source or a .BIN program written to the card: the card's status (0 ok). */
+  writeFile(unit: string, name: string, bytes: Uint8Array): Promise<number>
   onChange(handler: (board: Elec16Board) => void): () => void
   onFilesChange(handler: (unit: string) => void): () => void
   /** main asks for a unit back (MOVE HERE in another pane): release it, with its machine. */

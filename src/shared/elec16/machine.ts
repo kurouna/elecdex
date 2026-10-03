@@ -28,6 +28,7 @@ import {
   MODELS,
   type Model,
   type ModelId,
+  RAM_SIZE,
   RESET_VECTOR,
   ROM_MAX,
   VRAM,
@@ -184,6 +185,32 @@ export class Elec16 implements Core {
     return this.#result(this.#step())
   }
 
+  /**
+   * Machine code put into RAM (CODE's RUN and LOAD), through the bus so any code decoded
+   * there goes stale. False, writing nothing, when any of it would leave RAM.
+   */
+  loadCode(at: number, bytes: Uint8Array): boolean {
+    if (at < 0 || at + bytes.length > RAM_SIZE) return false
+    bytes.forEach((b, k) => {
+      this.bus.write8(at + k, b)
+    })
+    return true
+  }
+
+  /**
+   * A call to `pc` that comes back to `ra`, from where the machine is: woken, out of any trap,
+   * past any breakpoint stop (CODE's measuring runs a program this way).
+   */
+  callAt(pc: number, ra: number): void {
+    const s = this.s
+    s.regs[1] = ra & 0xffff
+    s.pc = pc & 0xffff
+    s.sleeping = false
+    s.inTrap = false
+    this.breakAt = null
+    this.#passing = -1
+  }
+
   /** Stopped at a breakpoint: runs on from it, the instruction there first. */
   goOn(): void {
     if (this.breakAt === null) return
@@ -264,6 +291,8 @@ export class Elec16 implements Core {
     // A command out belonged to the program that is gone: its answer is not waited for.
     Object.assign(s.card, createCardState())
     this.#code.fill(undefined)
+    this.breakAt = null
+    this.#passing = -1
   }
 
   /**

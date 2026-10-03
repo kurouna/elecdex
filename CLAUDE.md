@@ -227,6 +227,11 @@ user made; do not reverse one without asking.
     garbage collector. B writes C.EBREAK into RAM code only while G runs it.
   - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
     once - never at device pixels - and at most thirty times a second (`drawMs`; measured).
+  - CODE compiles in a blob worker (`?worker&inline`, CSP unchanged); a person's code runs only
+    as E16 code on the core, never as JavaScript. Only the worker and tests import
+    shared/e16c/program.ts (it pulls in TypeScript's parser); the page reads code-area.ts.
+  - The body follows the agreed mock (name plate but on Business, key layout, key tops) and
+    is never stretched: `deviceFit` sizes it, the pane's room goes round it.
   - The SOFT CARD (resources/elec16/soft) is written into soft.json only by `npm run gen:elec16`
     (a test holds it and runs every program); main lays it read-only over every unit's card
     and never writes it. PASTE and LOAD ▸ type through the key FIFO (`pasteKeys`), never

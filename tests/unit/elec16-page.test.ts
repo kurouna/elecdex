@@ -1,14 +1,22 @@
 import { assemble, romImage } from '@shared/elec16/asm'
-import { KANA_KEYS, keyCode } from '@shared/elec16/keys'
+import { KANA_KEYS, keyCode, MACHINE_KEYS } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
 import { ANNUNCIATORS } from '@shared/elec16/state'
 import { hzOfClock } from '@shared/elec16-units'
 import { describe, expect, it } from 'vitest'
 import { byteKind, labelsOf, readCore } from '../../src/renderer/widgets/elec16/core.js'
-import { bodyFor } from '../../src/renderer/widgets/elec16/layout.js'
+import {
+  bodyFor,
+  CASE,
+  COMPACT_ROW,
+  deviceFit,
+  FULL_ROWS,
+  KEY_GAP,
+} from '../../src/renderer/widgets/elec16/layout.js'
 import { FULL, LcdPainter, strength } from '../../src/renderer/widgets/elec16/lcd-painter.js'
 import { panelShown, readElec16Pane } from '../../src/renderer/widgets/elec16/pane-state.js'
 import { kanaLit, type PcKey, pcKeyFate } from '../../src/renderer/widgets/elec16/pc-keys.js'
+import { SKIN_IDS, SKINS } from '../../src/renderer/widgets/elec16/skins.js'
 
 /** The ELEC-16 pane's pure parts (docs/elec16.md section 7). */
 
@@ -209,6 +217,68 @@ describe('the body and the pane', () => {
     expect(bodyFor({ w: 900, h: 120 }, lcd)).toBe('lcd')
   })
 
+  it('keeps the case one body in a tall pane: its parts fit, the room left over and not stretched', () => {
+    const screen = { width: 240, height: 48 }
+    const short = deviceFit({ w: 900, h: 420, ratio: 1 }, screen, 'full', true)
+    const tall = deviceFit({ w: 900, h: 1400, ratio: 1 }, screen, 'full', true)
+    // The width decides once the height is plenty: a taller pane gives the same body.
+    expect(tall).toEqual(deviceFit({ w: 900, h: 2000, ratio: 1 }, screen, 'full', true))
+    expect(tall.scale).toBeGreaterThanOrEqual(short.scale)
+    const caseHeight =
+      CASE.padTop +
+      CASE.padBottom +
+      CASE.plate +
+      2 * CASE.gap +
+      tall.glass.h +
+      5 * tall.keyRow +
+      4 * KEY_GAP
+    expect(caseHeight).toBeLessThan(1400)
+    // Never more than the room, and the dots never below one device pixel.
+    expect(caseHeight - tall.glass.h + short.glass.h).toBeLessThanOrEqual(420 + 2)
+    expect(
+      deviceFit({ w: 300, h: 100, ratio: 2 }, screen, 'lcd', false).scale,
+    ).toBeGreaterThanOrEqual(1)
+    expect(tall.keyRow).toBeLessThanOrEqual(36)
+  })
+
+  it("lays the keys out as the mock did, every one of the machine's once, each row full", () => {
+    const placed = FULL_ROWS.flatMap((row) => [...row.left, ...row.right].map((k) => k.id))
+    expect(placed.filter((id) => id !== 'brk').sort()).toEqual(MACHINE_KEYS.map((k) => k.id).sort())
+    for (const row of FULL_ROWS) {
+      expect(row.left.reduce((n, k) => n + k.span, 0)).toBe(20)
+      expect(row.right.reduce((n, k) => n + k.span, 0)).toBe(10)
+    }
+    expect(FULL_ROWS[0]?.left.map((k) => k.id)).toEqual([
+      'brk',
+      'mode',
+      'cls',
+      'ans',
+      'kana',
+      'ins',
+      'del',
+      'bs',
+    ])
+    expect(FULL_ROWS[4]?.left.map((k) => k.id)).toEqual(['shift', 'caps', ' ', 'enter'])
+    expect(COMPACT_ROW).toEqual([
+      'brk',
+      'mode',
+      'cls',
+      'shift',
+      'left',
+      'up',
+      'down',
+      'right',
+      'enter',
+    ])
+  })
+
+  it('gives every skin but the Business ones the name plate', () => {
+    expect(SKIN_IDS.filter((id) => !SKINS[id].body.plateShown)).toEqual([
+      'business-light',
+      'business-dark',
+    ])
+  })
+
   it('reads its state with a default for anything strange', () => {
     expect(readElec16Pane(undefined)).toEqual({
       skin: 'elec',
@@ -219,6 +289,20 @@ describe('the body and the pane', () => {
       tab: 'core',
       ghost: true,
       contrast: 0,
+      view: 'machine',
+      codeFile: 'MAIN.TS',
+      codeLevel: 2,
+    })
+    // CODE's file is a .TS card name, its level 0 to 2.
+    expect(readElec16Pane({ view: 'code', codeFile: 'GAME.TS', codeLevel: 0 })).toMatchObject({
+      view: 'code',
+      codeFile: 'GAME.TS',
+      codeLevel: 0,
+    })
+    expect(readElec16Pane({ view: 'x', codeFile: '../A.TS', codeLevel: 3 })).toMatchObject({
+      view: 'machine',
+      codeFile: 'MAIN.TS',
+      codeLevel: 2,
     })
     const odd = readElec16Pane({
       skin: 'gold',

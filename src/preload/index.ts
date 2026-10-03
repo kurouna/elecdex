@@ -570,6 +570,10 @@ const api: ElecdexApi = {
     update: (unit, change) =>
       ipcRenderer.invoke(CH.elec16.update, unit, change) as Promise<Elec16Unit | null>,
     remove: (unit) => ipcRenderer.invoke(CH.elec16.remove, unit) as Promise<boolean>,
+    readFile: (unit, name) =>
+      ipcRenderer.invoke(CH.elec16.readFile, unit, name) as Promise<Uint8Array | null>,
+    writeFile: (unit, name, bytes) =>
+      ipcRenderer.invoke(CH.elec16.writeFile, unit, name, bytes) as Promise<number>,
     claim: (unit, pane) => ipcRenderer.invoke(CH.elec16.claim, unit, pane) as Promise<Elec16Claim>,
     moveHere: (unit, pane) =>
       ipcRenderer.invoke(CH.elec16.moveHere, unit, pane) as Promise<Elec16Claim>,

@@ -38,6 +38,31 @@ export function toMachineText(text: string): { bytes: Uint8Array } | { problem: 
   return { bytes: new Uint8Array(out) }
 }
 
+/**
+ * A source CODE keeps on the card (.TS): every line as it is, blank ones too, each ended by a
+ * CR, in the machine's characters (a tab as a space); or the first character it has none for.
+ */
+export function sourceToMachine(text: string): { bytes: Uint8Array } | { problem: string } {
+  const out: number[] = []
+  const lines = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n')
+  for (let n = 0; n < lines.length; n++) {
+    for (const ch of lines[n] ?? '') {
+      const b = byteOf(ch.codePointAt(0) ?? 0)
+      if (b === null) {
+        const shown = ch.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')
+        return { problem: `Line ${n + 1} has "${ch}" (U+${shown}), which the ELEC-16 cannot keep.` }
+      }
+      out.push(b)
+    }
+    out.push(CR)
+  }
+  return { bytes: new Uint8Array(out) }
+}
+
+/** A .TS source from the card as the editor's text: a line a LF. */
+export const sourceFromMachine = (bytes: Uint8Array): string =>
+  fromMachineText(bytes).replace(/\r\n/g, '\n')
+
 /** The machine's text as a PC's: a line a CRLF, kana as half-width kana, other bytes dropped. */
 export function fromMachineText(bytes: Uint8Array): string {
   let out = ''

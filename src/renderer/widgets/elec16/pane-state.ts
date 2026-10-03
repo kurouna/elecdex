@@ -5,6 +5,7 @@
  * own settings (clock, LCD): a layout travels, and a unit is main's (unit-session.svelte.ts).
  */
 
+import { isCardName } from '@shared/elec16/card'
 import { MODEL_IDS } from '@shared/elec16/map'
 import { ELEC16_CLOCKS, type Elec16UnitSeed, isUnitId } from '@shared/elec16-units'
 import { oneOf } from '../emu/format.js'
@@ -12,6 +13,13 @@ import { isSkinId, type SkinId } from './skins.js'
 
 export const ELEC16_TABS = ['core', 'mem', 'files', 'tune'] as const
 export type Elec16Tab = (typeof ELEC16_TABS)[number]
+
+/** What the pane shows: the machine, or CODE (TypeScript compiled for it). */
+export const ELEC16_VIEWS = ['machine', 'code'] as const
+export type Elec16View = (typeof ELEC16_VIEWS)[number]
+
+/** The .TS file CODE edits when the pane names none. */
+export const CODE_FILE = 'MAIN.TS'
 
 /** How the device is drawn: the whole body, the LCD and a row of keys, or the LCD alone. */
 export const BODY_MODES = ['auto', 'full', 'compact', 'lcd'] as const
@@ -31,6 +39,11 @@ export interface Elec16Pane {
   ghost: boolean
   /** Added to the contrast the machine sets, -7 to 7. */
   contrast: number
+  view: Elec16View
+  /** The .TS source on the unit's card CODE edits. */
+  codeFile: string
+  /** The optimisation level whose code CODE shows, runs and saves. */
+  codeLevel: 0 | 1 | 2
 }
 
 /** `skin` is a new pane's: the setting's, until the pane is given its own. */
@@ -51,6 +64,12 @@ export function readElec16Pane(
     tab: oneOf(s.tab, ELEC16_TABS, 'core'),
     ghost: typeof s.ghost === 'boolean' ? s.ghost : true,
     contrast: Math.max(-7, Math.min(7, contrast)),
+    view: oneOf(s.view, ELEC16_VIEWS, 'machine'),
+    codeFile:
+      typeof s.codeFile === 'string' && isCardName(s.codeFile) && s.codeFile.endsWith('.TS')
+        ? s.codeFile
+        : CODE_FILE,
+    codeLevel: s.codeLevel === 0 || s.codeLevel === 1 ? s.codeLevel : 2,
   }
 }
 

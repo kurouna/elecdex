@@ -463,3 +463,87 @@ test('TUNE throws another unit away on a second press, and never the one the pan
     await close()
   }
 })
+
+test('CODE compiles TypeScript at every level, keeps it on the card, and RUN runs it on the machine', async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-view-toggle').click()
+    const source = page.getByTestId('elec16-source')
+    await expect(source).toHaveValue(/export function main\(\): void/)
+    await source.fill(
+      [
+        "const WORDS = str('MADE IN TS')",
+        'export function main(): void {',
+        '  cls()',
+        '  puts(WORDS)',
+        '  newline()',
+        '  putnum(6 * 7)',
+        '  newline()',
+        '}',
+      ].join('\n'),
+    )
+    await page.getByTestId('elec16-compile').click()
+    const rows = page.getByTestId('elec16-levels').locator('tbody tr')
+    await expect(rows).toHaveCount(3, { timeout: 60_000 })
+    for (const level of [0, 1, 2]) {
+      await expect(rows.nth(level).getByTestId('elec16-level-bytes')).toHaveText(/^\d[\d,]*$/)
+      await expect(rows.nth(level).getByTestId('elec16-level-cycles')).toHaveText(/^\d[\d,]*$/)
+    }
+    await expect(page.getByTestId('elec16-asm')).toContainText('main:')
+    // An error says where.
+    await source.fill('export function main(): void { return 1 / 2 }')
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-code-errors')).toContainText('MAIN.TS:1:')
+    await source.fill(
+      [
+        "const WORDS = str('MADE IN TS')",
+        'export function main(): void {',
+        '  puts(WORDS)',
+        '}',
+      ].join('\n'),
+    )
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 60_000 })
+    await page.getByTestId('elec16-run').click()
+    await expect(page.getByTestId('elec16-code-view')).toHaveCount(0)
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('>CALL 28672')
+    await expect.poll(async () => (await lcdLines(page)).join('\n')).toMatch(/MADE IN TS/)
+    // The source is a file on the unit's card.
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await expect(
+      page.getByTestId('elec16-file').and(page.locator('[data-name="MAIN.TS"]')),
+    ).toHaveCount(1)
+  } finally {
+    await close()
+  }
+})
+
+test('RESET starts the machine again with its program kept, and the plate lamp follows POWER', async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await expect(page.getByTestId('elec16-plate')).toContainText('16-BIT POCKET COMPUTER')
+    const lamp = page.getByTestId('elec16-power-lamp')
+    await expect(lamp).toHaveClass(/\bon\b/)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, '10 print 6*7')
+    await page.getByTestId('elec16-reset').click()
+    // Started again, the program's ten bytes still used, and asleep at the prompt.
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('26612 BYTES FREE')
+    await expect(page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'run')
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    await page.getByTestId('elec16-power').click()
+    await expect(lamp).not.toHaveClass(/\bon\b/)
+    // The Business skins have no plate, as their themes have no ornament.
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await page.locator('[data-testid=elec16-skin][data-skin="business-dark"]').click()
+    await expect(page.getByTestId('elec16-plate')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})

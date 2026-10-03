@@ -84,6 +84,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #paste: number[] = []
   /** Auto power-off's one timer, while the machine sleeps for a key and nothing else. */
   #offTimer: number | null = null
+  /** Who waits for the machine to fall asleep at its prompt (CODE's RUN and LOAD). */
+  #sleepers: (() => void)[] = []
 
   constructor(host: Elec16Host) {
     const speed = { max: false }
@@ -237,6 +239,23 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.#changed()
   }
 
+  /**
+   * RESET: the CPU starts again from the reset vector, as a pocket computer's reset button
+   * does - the RAM, battery-backed, is kept (BASIC finds its program there), the screen and
+   * the keys waiting are not. Switched off, it comes on.
+   */
+  reset(): void {
+    const machine = this.machine
+    if (machine === null) return
+    this.stopPaste()
+    machine.reset()
+    machine.releaseAll()
+    this.#shift = false
+    if (this.pausedBy === 'player') this.pausedBy = null
+    this.#timed.wake()
+    this.#changed()
+  }
+
   /** The power switch: off, the machine keeps its RAM and waits for ON. */
   power(): void {
     const machine = this.machine
@@ -248,6 +267,35 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     machine.powerOff()
     this.stopPaste()
     this.#changed()
+  }
+
+  /**
+   * CODE: machine code put into RAM, the machine asleep at its prompt or stopped; false when
+   * it could not go there.
+   */
+  loadCode(at: number, bytes: Uint8Array): boolean {
+    const done = this.machine?.loadCode(at, bytes) ?? false
+    if (done) this.#changed()
+    return done
+  }
+
+  /**
+   * True once the machine sleeps for a key (at a prompt), at once if it does; false after
+   * `ms` without. One timer on the host, none while it already sleeps.
+   */
+  whenAsleep(ms: number): Promise<boolean> {
+    if (this.asleep && !this.off) return Promise.resolve(true)
+    return new Promise((resolve) => {
+      let timer: number | null = null
+      const done = (asleep: boolean) => {
+        if (timer !== null) this.#host.clearTimer(timer)
+        this.#sleepers = this.#sleepers.filter((s) => s !== wake)
+        resolve(asleep)
+      }
+      const wake = () => done(true)
+      this.#sleepers.push(wake)
+      timer = this.#host.setTimer(() => done(false), ms)
+    })
   }
 
   /** CORE: a breakpoint at `address`, or none there any more. */
@@ -332,6 +380,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #slept(wake: Wake | null): void {
     const asleep = wake !== null
     if (this.asleep !== asleep) this.asleep = asleep
+    if (wake?.key === true && this.#sleepers.length > 0) {
+      for (const sleeper of [...this.#sleepers]) sleeper()
+    }
     if (wake?.key === true && wake.timerMs === null) this.#armOff()
     else this.#disarmOff()
     // Asleep waiting for a key: PASTE's next ones wake it - those given after the frames too,

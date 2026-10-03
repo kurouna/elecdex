@@ -384,6 +384,14 @@ TS の部分集合 (*.e16.ts)
 - e16c はページの Web Worker で動かし、CODE を初めて開いたときにだけ読み込みます（TypeScript のコンパイラ API は数 MB あるため）。**利用者のコードを JavaScript として実行することはありません**。コンパイル時の実行は e16c の中間表現を解釈する小さな実行器で、手数に上限があります。CSP（`unsafe-eval` なし）はそのまま
 - できた機械語は ELEC-16 の中だけで動きます。カードの読み書きも ECALL の ROM サービス経由で、機械の外には出ません
 - CODE で使える部分集合は、ROM を書くのと同じものです（組み込み関数の `ecall` と `SVC` の表で、文字の表示、液晶、キー、音を使う）
+- **作ったもの（段階 6）**:
+  - 組み立てと計測は純粋な `shared/e16c/program.ts`（`buildCode`、`measuringMachine`、`measure`）。定数と見本とライブラリは `code-area.ts` に分け、ページはこちらだけを読む（program.ts を読むと TypeScript のパーサーが入口のチャンクに入り 5.9 MB になった）
+  - 機械語と文字列は 7000–77FF（2 KB）、大域変数と配列は 7800–7BEF。7000 の入口が `e16c_init` を呼んでから `main()` を呼び、RET で戻る（`CALL 28672` も `G 7000` も同じ）。`main` がなければ、また領域に収まらなければ、そう言って書かない
+  - ライブラリ（`LIBRARY`、ファイル名 `ELEC16`）は putc puts getkey cls locate puthex newline putnum keyWaiting beep pset。ROM サービスを ECALL で呼ぶ。export しないので -O2 は使わないものを落とす
+  - Worker（`code/compile.worker.ts`、`?worker&inline` で blob。CSP の `worker-src blob:` のまま）は最初の CODE で読み込み、最後の CODE が閉じると終える（`holdCompiler`）。1 回の COMPILE で -O0〜-O2 を全部作り、同じ ROM の機械（プロンプトで眠った状態のスナップショット）で `main` を呼んでサイクル数を測る。キーを待てば「waits for a key」、2,000 万サイクルを越えれば打ち切り
+  - ソースはユニットのカードの `.TS`（既定 `MAIN.TS`、空行も残す `sourceToMachine`）。COMPILE の前と CODE を離れるときに書く。SAVE は選んだ段階の `.BIN` も書く。main の口は `elec16.readFile` と `elec16.writeFile`（書けるのは `.TS` と `.BIN` だけ、32 KB まで）
+  - RUN ▸ / LOAD ▸: MACHINE に戻し、眠っていなければ BRK、プロンプトで眠るのを待って（`whenAsleep`）コアの `loadCode` で書き、BASIC なら `CALL 28672`、モニタなら `G 7000`（LOAD は `U 7000`、BASIC なら `MON` の後に）を PASTE と同じ仕組みで打つ
+  - CODE が出ている間、機械は隠れたときと同じく一時停止する（プロンプトで眠っていたなら戻ると続く）
 
 ### 起動とモード
 
@@ -423,7 +431,9 @@ TS の部分集合 (*.e16.ts)
 - **液晶はデバイスピクセルの整数倍**（`fitScreen`、単位はモデルの解像度。既定 240×48）。ドットの描き方は機種の差し込みです。反射型の地、ドットの影（地へ少しずらした薄い影）、応答の遅さ（点くのは速く、消えるのはゆっくり）、コントラスト。描き直すのは VRAM の版が動いたときと、残像が消えていく間だけです
 - **スキン**は本体の色と形、キーの色、液晶の地とドットの色を持つデータです（テーマと同じく CSS 変数）。初めは 7 つ: **ELEC**（今のテーマに従う HUD 風、角の括弧、液晶はアクセントの濃淡）、**TRON**（elecdex の TRON テーマの色で固定、縁が光る）、**BUSINESS LIGHT** と **BUSINESS DARK**（elecdex の 2 つの Business テーマ。Windows 11 の色と Segoe UI、角の丸いキー）、**CLASSIC**（黒い本体と黄緑の反射型液晶）、**IVORY**（ベージュの本体と灰色の液晶）、**NIGHT**（紺の本体と青い透過型液晶）。実在の製品の配色は写しません。既定はペインごとで、新しいペインには設定 `elec16.skin` を使います
 - 右の **PANEL**（CHIP-8 と同じく畳める）: CORE（16 本のレジスタと ABI 名、pc、CSR、命令数、眠りの表示、逆アセンブル、STEP / HALT / ブレークポイント）、MEM（共通の MemView: PC / SP / VRAM / FREE を追い、ROM / RAM / VRAM / I/O で色分け）、FILES（カードのファイルと SOFT CARD。**LOAD ▸** は機械に `LOAD "名前"` を打ち込む。.BIN は `LOAD "名前":CALL 28672`、データファイルには出さない。行の詳細カード `CardFileCard` は種類、バイト数、保存した時刻か SOFT CARD であること、LOAD が打つ行、SOFT CARD ならその説明）、TUNE（PASTE、クロック、自動電源 OFF、液晶の大きさ、本体の描き方、コントラスト、残像、スキン）
-- 帯: ユニット名、CPU ランプ（`running` / `asleep` / `off`）、SND、KEYS（フォーカス）、POWER、PANEL
+- 帯: ユニット名、CPU ランプ（`running` / `asleep` / `off`）、SND、KEYS（フォーカス）、一時停止、BRK、POWER、**RESET**（CPU をリセット番地から始め直す。RAM は電池で残るので、BASIC はプログラムを持ったまま起動する）、PANEL、CODE
+- **本体はモックのとおり**（2026-10-03 に見直した）: 上に名前板（大きな `ELEC-16`、`16-BIT POCKET COMPUTER`、POWER の LED。電源が入っていると LED がスキンの色で光る）、ベゼルに入った液晶（表示記号は消えているときも薄く印刷されて見える）、キーボード。**Business の 2 つは名前板を持たない**（テーマに飾りがないため）。キーの並びもモックのとおり: 上の段に BRK MODE CLS ANS カナ INS DEL BS、下の段に SHIFT CAPS SPACE ENTER、テンキーの上に矢印、下に 0 . =。BRK は赤、ENTER は強調の色、SHIFT 面の刻印はスキンの色。キートップは 3 種類: CLASSIC・IVORY・NIGHT は立体（押すと沈む）、ELEC と TRON は平らなタイル（押している間は点滅）、Business は角の丸い平らなキー（押すと暗くなる）
+- **本体は一体のまま**: 部品の高さは `deviceFit`（layout.ts）が部屋から決め、本体は中身の高さで、伸ばさない。ペインが高ければ上下に、広ければ左右に余白を取って真ん中に置く（本体の幅は 960px まで）
 - CHIP-8 と同じ作法: ボタンはタイルの点滅、画面の出入りは `crt-on` と `crtPower`、ランプは `lib/pulse.svelte.ts`、ファイルの行の詳細は HoverCard（`detail-cards.test.ts` の一覧に足す。開いているカードから隣の行へは待たずに）、文字は読むものが `--step--1` 以上
 - **本体の文字も大きさの規則に従います**。キーの刻印と表示記号は `--step--2` を下回らない。FULL を選ぶのは刻印がその大きさで収まるときだけで、狭ければ COMPACT か LCD にする。キーの左上の小さな SHIFT 面の刻印は、収まるときだけ出す
 - 液晶の中身は、画面読み上げ用に文字として出す（VRAM をフォントで読み戻したもの。見えない要素で、変わったときだけ書き換える）
@@ -521,8 +531,8 @@ TS の部分集合 (*.e16.ts)
 | 2 | ペイン: 液晶、スキン 7 つ、キーボード、runner（眠り）、クロック、モニタ ROM（手書きのアセンブリ）、CORE と MEM（**済み**。設定の `elec16.skin` と音量、ユニットと電池バックアップは段階 4 に回した。ペインの機械は再読み込みで消え、起動し直す） | 機械語のモニタで遊べる |
 | 3 | **e16c**（TS の部分集合 → バイトコード → E16 アセンブリ）と二つの実行のテスト。BASIC ROM 前半: 行の編集、RUN / PRO、電卓、数値演算ユニット、基本の文（**済み**） | 電卓と簡単なプログラム |
 | 4 | BASIC 後半: 文字列、配列、画面、音、データ、カード、電池バックアップ、ユニット、IMPORT / EXPORT（**済み**） | ポケコンとしてひととおり |
-| 5 | FILES と TUNE の仕上げ、ブレークポイント、同梱ソフト、詳細カード、カナ、PASTE | 同梱ソフト |
-| 6 | **CODE 画面**: e16c をページの Worker で動かし、TypeScript からアセンブリ、カードへ。-O0〜-O2 の比較 | TypeScript で書いて機械語で動かす |
+| 5 | FILES と TUNE の仕上げ、ブレークポイント、同梱ソフト、詳細カード、カナ、PASTE（**済み**） | 同梱ソフト |
+| 6 | **CODE 画面**: e16c をページの Worker で動かし、TypeScript からアセンブリ、カードへ。-O0〜-O2 の比較（**済み**） | TypeScript で書いて機械語で動かす |
 | 7 | 負荷の測定、README の画像（3 か国語の README を同じコミットで。状態の行も）、紹介ツアーのビート、decisions.md、CLAUDE.md の規則（ループの例外、ELEC-16 の境界） | 公開 |
 
 規模は CHIP-8 ペイン（7 段階、本体約 7,400 行とテスト）より大きくなります。一番重いのは BASIC の ROM です。手で書けば 1 万行を超える見込みのところを、e16c で TS の部分集合から作り、速さの要るところだけ手で書きます（§6）。
