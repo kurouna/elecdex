@@ -226,6 +226,7 @@ ALU は 1、ロード・ストアは 2、分岐が成立したときとジャン
 | FF5A | RESULT | CMP の答え（-1 / 0 / 1） |
 | FF5C | ANGLE | 0 DEG、1 RAD、2 GRAD |
 
+- elecdex の電卓（`src/shared/calc`）は使わず、10 進の数を新しく書いた（`decimal.ts`）。電卓は JavaScript の倍精度で計算するので 0.1 + 0.2 が 0.30000000000000004 になり、12 桁の 10 進を正確に扱うユニットにならない。電卓の本体は elecxzy の写しで手を入れられず、`shared/elec16` は自分と `shared/emu` しか import しない（`emu-boundary.test.ts`）ことも理由（2026-10-03、利用者の提案を受けて確かめた）
 - 数は 8 バイト: 符号のバイト（ビット 7。ほかのビットは 0）、指数（符号付き、-99〜99）、BCD の 12 桁（先頭は 0 でない。0 は全部 0）。値は d1.d2…d12 × 10^指数
 - 演算: ADD SUB MUL DIV POW CMP MOVE、NEG ABS INT FRAC SGN SQR SIN COS TAN ASN ACS ATN LN LOG EXP RND PI、FROMINT TOINT、PARSE FORMAT。四則と平方根は BigInt の 10 進で正確に計算して 1 回だけ丸める（四捨五入）ので、0.1 + 0.2 は 0.3、1 / 3 × 3 は 1。三角・対数・指数は倍精度で計算して 12 桁に丸める。度とグラードは 1 周に正確に戻してから計算し、丸めの誤差だけの値は 0 にする（COS 90 は 0）
 - サイクルは演算を始めた命令に足す（SIN は 2,000、DIV は 250、ADD は 60 など。`stall`）。演算はその場で終わり、MATH の線が上がる。機械が眠っている間にサイクルは進まないので、終わりを待つ仕組みにはしなかった
