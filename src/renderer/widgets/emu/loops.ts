@@ -31,8 +31,12 @@ export interface LoopOwner<M> {
   readonly machine: M | null
   /** The loop ran the machine: count it, and sound it. */
   ran(): void
-  /** Draw now: the screen changed (or a frame passed, for a frame machine). */
-  draw(): void
+  /**
+   * Draw now: the screen changed (or a frame passed, for a frame machine). True while the
+   * picture still changes by itself - an LCD's dots fading out - asking a timed loop for
+   * one more frame; a frame loop draws every frame anyway.
+   */
+  draw(): boolean
   /** Brings the status and the loop in line with the machine (it may stop the loop). */
   settle(): void
   /** Whether the loop should go on: running, and seen. */
@@ -169,6 +173,14 @@ export interface TimedPolicy {
   budgetMs: number
   /** Cycles run between looks at the time, against the budget. */
   slice: number
+  /** Cycles a second to run, when not the machine's own clock: Infinity is MAX (the budget). */
+  rate?: () => number
+  /**
+   * The least time between two draws, in milliseconds: a screen slower than the display (an
+   * LCD) need not be drawn at its rate, and every frame drawn costs the compositor and the
+   * GPU about a fifth of a core here (measured).
+   */
+  drawMs?: number
 }
 
 export class TimedLoop<M extends TimedMachine> implements Loop {
@@ -179,6 +191,9 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
   #ticking = false
   #timer: number | null = null
   #frame: number | null = null
+  /** The timer holding back a draw until `drawMs` has passed since the last. */
+  #drawTimer: number | null = null
+  #drawnAt = Number.NEGATIVE_INFINITY
   /** What the sleeping machine waits for, or null while it is awake. */
   #asleep: Wake | null = null
   #last = 0
@@ -216,6 +231,8 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
     this.#active = true
     this.#last = this.#host.now()
     this.#owed = 0
+    // Started afresh - perhaps on another machine: whether it sleeps is told again.
+    this.#asleep = null
     this.#schedule(0)
   }
 
@@ -223,7 +240,9 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
     this.#active = false
     this.#clear()
     if (this.#frame !== null) this.#host.cancelFrame(this.#frame)
+    if (this.#drawTimer !== null) this.#host.clearTimer(this.#drawTimer)
     this.#frame = null
+    this.#drawTimer = null
   }
 
   /** A key went down, or something else the machine may wake for: run again now. */
@@ -256,7 +275,8 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
     // Time always passes in full for the machine's timer and clock; only the cycles it may
     // run for it are capped, so a stall is dropped rather than raced through.
     machine.advance(elapsed)
-    const wanted = (machine.hz * Math.min(elapsed, this.#policy.maxCatchUpMs)) / 1000 + this.#owed
+    const hz = this.#policy.rate?.() ?? machine.hz
+    const wanted = (hz * Math.min(elapsed, this.#policy.maxCatchUpMs)) / 1000 + this.#owed
     const sleeping = this.#runFor(machine, wanted, now)
     this.#owner.ran()
     if (machine.screenRevision !== this.#drawn) this.#requestDraw()
@@ -267,8 +287,9 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
 
   /** Runs `cycles` in slices, stopping at the budget; what it sleeps for, if it fell asleep. */
   #runFor(machine: M, cycles: number, started: number): Wake | null {
-    let left = Math.floor(cycles)
-    this.#owed = cycles - left
+    // MAX asks for every cycle the budget allows: nothing is owed after it.
+    let left = Number.isFinite(cycles) ? Math.floor(cycles) : Number.POSITIVE_INFINITY
+    this.#owed = Number.isFinite(cycles) ? cycles - left : 0
     while (left > 0) {
       const result = machine.run(Math.min(left, this.#policy.slice))
       left -= result.cycles
@@ -294,13 +315,26 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
     else if (sleeping.timerMs !== null) this.#schedule(Math.max(0, sleeping.timerMs))
   }
 
-  /** One animation frame to draw what changed; never more than one waiting. */
+  /**
+   * One animation frame to draw what changed, never more than one waiting, and not before
+   * `drawMs` has passed since the last draw (a timer holds it back till then).
+   */
   #requestDraw(): void {
-    if (this.#frame !== null) return
+    if (this.#frame !== null || this.#drawTimer !== null) return
+    const wait = (this.#policy.drawMs ?? 0) - (this.#host.now() - this.#drawnAt)
+    if (wait > 1) {
+      this.#drawTimer = this.#host.setTimer(() => {
+        this.#drawTimer = null
+        this.#requestDraw()
+      }, wait)
+      return
+    }
     this.#frame = this.#host.requestFrame(() => {
       this.#frame = null
+      this.#drawnAt = this.#host.now()
       this.#drawn = this.#owner.machine?.screenRevision ?? -1
-      this.#owner.draw()
+      // Still fading: one more frame, until the picture rests.
+      if (this.#owner.draw()) this.#requestDraw()
     })
   }
 }

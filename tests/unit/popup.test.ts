@@ -94,9 +94,10 @@ describe('the widgets that pop up', () => {
     return found
   }
 
-  it('are every built-in but the shell, the timer, the file browser and CHIP-8', () => {
-    // CHIP-8: a game would be put away, and paused, by every dialog that opens.
-    const never = ['terminal', 'timer', 'filesystem', 'chip8']
+  it('are every built-in but the shell, the timer, the file browser, CHIP-8 and ELEC-16', () => {
+    // CHIP-8 and ELEC-16: a running machine would be put away, and paused, by every dialog
+    // that opens.
+    const never = ['terminal', 'timer', 'filesystem', 'chip8', 'elec16']
     // The web presets are registered in a loop, with no written id: never popped up
     // (one marked so would appear here with an empty id, and fail the test).
     const all = blocks.map(idOf).filter((id) => id !== '')

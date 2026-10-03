@@ -208,6 +208,12 @@ user made; do not reverse one without asking.
   - The encoding lives once, in shared/elec16/isa.ts; the assembler, disassembler and CPU read
     it, and a test round-trips every instruction (every 16-bit encoding). One encoding, one
     meaning: a do-nothing form is illegal, not a second spelling.
+  - The ROM is hand-written E16 assembly (resources/elec16/rom); its font, key table and I/O
+    addresses come from shared/elec16 (font.ts, keys.ts, bus.ts) through rom.ts, never copied
+    into the assembly. `npm run gen:elec16` writes rom.json; a test holds it to the sources.
+  - BRK is a line of its own (IRQ 15), not a key in the FIFO: it always gets the machine back.
+  - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
+    once - never at device pixels - and at most thirty times a second (`drawMs`; measured).
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).

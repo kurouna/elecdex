@@ -82,12 +82,14 @@ function setUp() {
   const machine = fakeMachine()
   let draws = 0
   let settles = 0
+  let fading = 0
   const sleeps: (Wake | null)[] = []
   const owner: LoopOwner<TimedMachine> = {
     machine,
     ran: () => {},
     draw: () => {
       draws++
+      return fading-- > 0
     },
     settle: () => {
       settles++
@@ -100,7 +102,17 @@ function setUp() {
     { tickMs: 1000 / 60, maxCatchUpMs: 50, budgetMs: 8, slice: 1_000_000 },
     (w) => sleeps.push(w),
   )
-  return { clock, machine, loop, sleeps, draws: () => draws, settles: () => settles }
+  return {
+    clock,
+    machine,
+    loop,
+    sleeps,
+    draws: () => draws,
+    settles: () => settles,
+    fade: (frames: number) => {
+      fading = frames
+    },
+  }
 }
 
 describe('the timed loop', () => {
@@ -150,6 +162,21 @@ describe('the timed loop', () => {
     expect(t.machine.advanced).toBeCloseTo(5100)
   })
 
+  it('tells again that the machine sleeps after being stopped and started', () => {
+    const t = setUp()
+    t.loop.start()
+    t.machine.sleepWith = { key: true, timerMs: null }
+    t.clock.advance(20)
+    t.loop.stop()
+    t.loop.start()
+    t.clock.advance(20)
+    // A new machine put in while stopped sleeps too: the runner must hear it, not assume it.
+    expect(t.sleeps).toEqual([
+      { key: true, timerMs: null },
+      { key: true, timerMs: null },
+    ])
+  })
+
   it('waits for the time the machine says it will wake, on one timer', () => {
     const t = setUp()
     t.loop.start()
@@ -175,6 +202,85 @@ describe('the timed loop', () => {
     t.clock.advance(17)
     // Slices of a million cycles, five milliseconds each: the 8 ms budget stops it after two.
     expect(t.machine.ran).toBeLessThanOrEqual(3_000_000)
+  })
+
+  it('draws on while the picture fades, then rests, even asleep', () => {
+    const t = setUp()
+    t.loop.start()
+    t.machine.sleepWith = { key: true, timerMs: null }
+    t.machine.screenRevision++
+    t.clock.advance(20)
+    expect(t.loop.asleep).not.toBeNull()
+    t.fade(3)
+    for (let k = 0; k < 6; k++) t.clock.flushFrames()
+    // The change, then three frames of fading, then nothing more asked.
+    expect(t.draws()).toBe(4)
+    expect(t.clock.frames.size).toBe(0)
+  })
+
+  it('runs as fast as the budget allows at MAX, owing nothing after', () => {
+    const clock = fakeHost()
+    const machine = fakeMachine()
+    const owner: LoopOwner<TimedMachine> = {
+      machine,
+      ran: () => {},
+      draw: () => false,
+      settle: () => {},
+      wanted: () => true,
+    }
+    let spent = 0
+    machine.run = (cycles: number) => {
+      spent++
+      clock.advance(1)
+      machine.ran += cycles
+      return { cycles, sleeping: null }
+    }
+    const loop = new TimedLoop(
+      clock.host,
+      owner,
+      { tickMs: 1000 / 60, maxCatchUpMs: 50, budgetMs: 8, slice: 1000, rate: () => Infinity },
+      () => {},
+    )
+    loop.start()
+    clock.advance(1)
+    // Slices of a thousand until the 8 ms budget is gone, then the next tick.
+    expect(spent).toBeGreaterThanOrEqual(8)
+    expect(Number.isFinite(machine.ran)).toBe(true)
+  })
+
+  it('draws no more often than its policy says, the last change always drawn', () => {
+    const clock = fakeHost()
+    const machine = fakeMachine()
+    let draws = 0
+    const owner: LoopOwner<TimedMachine> = {
+      machine,
+      ran: () => {
+        machine.screenRevision++
+      },
+      draw: () => {
+        draws++
+        return false
+      },
+      settle: () => {},
+      wanted: () => true,
+    }
+    const loop = new TimedLoop(
+      clock.host,
+      owner,
+      { tickMs: 1000 / 60, maxCatchUpMs: 50, budgetMs: 8, slice: 1_000_000, drawMs: 50 },
+      () => {},
+    )
+    loop.start()
+    for (let k = 0; k < 60; k++) {
+      clock.advance(1000 / 60)
+      clock.flushFrames()
+    }
+    // A second of a screen changing every tick: about twenty draws (each waits for the next
+    // frame after its 50 ms), not sixty.
+    expect(draws).toBeGreaterThanOrEqual(15)
+    expect(draws).toBeLessThanOrEqual(21)
+    loop.stop()
+    expect(clock.timers.size).toBe(0)
   })
 
   it('does nothing once stopped', () => {

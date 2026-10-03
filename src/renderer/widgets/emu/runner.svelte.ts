@@ -51,7 +51,7 @@ export class EmuRunner<M extends EmuMachine> {
   #seen = true
   #changes = 0
   #disposed = false
-  readonly #listeners = new Set<() => void>()
+  readonly #listeners = new Set<() => unknown>()
 
   /** `makeLoop` builds the machine's loop round the owner this runner gives it. */
   constructor(makeLoop: (owner: LoopOwner<M>) => Loop) {
@@ -102,8 +102,11 @@ export class EmuRunner<M extends EmuMachine> {
     this.#changes++
   }
 
-  /** Called after every tick that ran the machine, and when it changes by hand. */
-  onFrame(listener: () => void): () => void {
+  /**
+   * Called after every tick that ran the machine, and when it changes by hand. A listener
+   * answers true while its picture still changes by itself (a fade), for another frame.
+   */
+  onFrame(listener: () => unknown): () => void {
     this.#listeners.add(listener)
     return () => this.#listeners.delete(listener)
   }
@@ -176,7 +179,10 @@ export class EmuRunner<M extends EmuMachine> {
     }
   }
 
-  protected emit(): void {
-    for (const listener of this.#listeners) listener()
+  /** Tells whoever draws; true when one still wants frames. */
+  protected emit(): boolean {
+    let more = false
+    for (const listener of this.#listeners) if (listener() === true) more = true
+    return more
   }
 }

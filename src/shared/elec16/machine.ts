@@ -104,9 +104,14 @@ export class Elec16 implements Core {
     this.bus = new Bus(s, rom, this.model, this.#code)
   }
 
-  /** A machine switched on with `rom` in it: RAM clear, the CPU at the reset vector. */
-  static boot(rom: Uint8Array, model: ModelId = DEFAULT_MODEL): Elec16 {
-    return new Elec16(rom, createState(model))
+  /**
+   * A machine switched on with `rom` in it, the CPU at the reset vector: RAM clear, or the
+   * RAM given (another LCD fitted to the same unit keeps what it held; its VRAM starts empty).
+   */
+  static boot(rom: Uint8Array, model: ModelId = DEFAULT_MODEL, ram?: Uint8Array): Elec16 {
+    const s = createState(model)
+    if (ram !== undefined) s.ram.set(ram.subarray(0, s.ram.length))
+    return new Elec16(rom, s)
   }
 
   get state(): Readonly<Elec16State> {
@@ -214,6 +219,12 @@ export class Elec16 implements Core {
   brk(): void {
     if (this.s.off || this.s.halt !== null) this.reset()
     else this.s.brk = true
+  }
+
+  /** The power switch: off as a program's POWER write leaves it, RAM kept; BRK/ON is on. */
+  powerOff(): void {
+    this.s.off = true
+    this.s.sleeping = false
   }
 
   /** The screen as one value a dot (0..3), row by row, for whoever draws it. */

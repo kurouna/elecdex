@@ -11,6 +11,7 @@ import ClipboardWidget from './clipboard/ClipboardWidget.svelte'
 import ConnectionsWidget from './connections/ConnectionsWidget.svelte'
 import DockerWidget from './docker/DockerWidget.svelte'
 import ElecWidget from './elec/ElecWidget.svelte'
+import Elec16Widget from './elec16/Elec16Widget.svelte'
 import FilesystemWidget from './filesystem/FilesystemWidget.svelte'
 import GitWidget from './git/GitWidget.svelte'
 import GlobeWidget from './globe/GlobeWidget.svelte'
@@ -401,6 +402,18 @@ registerBuiltin({
   description:
     'Plays CHIP-8, SUPER-CHIP and XO-CHIP programs on a machine of its own, with its registers and code beside the screen. Paused while out of sight.',
   component: Chip8Widget,
+  minSize: { w: 300, h: 200 },
+  multiple: true,
+  zoom: 'full',
+})
+
+registerBuiltin({
+  id: 'elec16',
+  title: 'elec-16',
+  pickerTitle: 'elec-16',
+  description:
+    'A 16-bit pocket computer of its own: an LCD, a keyboard and a machine-code monitor in ROM, with its registers and memory beside it. Sleeps at its prompt; paused while out of sight.',
+  component: Elec16Widget,
   minSize: { w: 300, h: 200 },
   multiple: true,
   zoom: 'full',
