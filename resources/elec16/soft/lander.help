@@ -1,2 +1,2 @@
-LOAD ▸, then RUN. Land on the moon from 500 m, falling at 50 m/s, with 150 units of fuel.
+LOAD ▸, then RUN. Land on the moon from 500 m, falling at 50 m/s, with 250 units of fuel.
 Each second, type a burn from 0 to 30 and ENTER (T time, H height, V speed down, F fuel). A burn of 10 holds the speed; touch down under 5 m/s to land safely.

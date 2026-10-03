@@ -128,6 +128,11 @@ describe('the SOFT CARD', () => {
     type(m, 'RUN\n')
     for (let k = 0; k < 40 && shown(m).at(-1) !== '>'; k++) type(m, '20\n')
     expect(screen(m).join('\n')).toMatch(/LANDED SAFELY|CRASHED AT/)
+    // A landing there is: with 150 units no burn could ever slow it enough in time.
+    const won = load('LANDER')
+    type(won, 'RUN\n')
+    for (const burn of [10, 10, 10, 10, 10, 10, 10, 15, 25, 30, 30, 30, 25]) type(won, `${burn}\n`)
+    expect(shown(won).slice(-2)).toEqual(['LANDED SAFELY IN 13 SECONDS', '>'])
     const h = load('HITBLOW')
     type(h, 'RUN\n012\n')
     expect(shown(h).slice(-2)).toEqual([expect.stringMatching(/^\d HIT \d BLOW$/), 'GUESS?'])
