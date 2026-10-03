@@ -1,10 +1,15 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { CARD_STATUS, type CardRequest } from '@shared/elec16/card'
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Elec16Units, HAND_OVER_MS } from '../../src/main/elec16/units.js'
+import {
+  Elec16Units,
+  findElec16Dir,
+  HAND_OVER_MS,
+  readSoftCard,
+} from '../../src/main/elec16/units.js'
 import { built, switchOn, type } from './elec16-helpers'
 
 vi.mock('electron', () => ({
@@ -58,7 +63,7 @@ describe('the units', () => {
   it('makes the first unit when there is none, from the seed, and numbers the next', () => {
     const u = units()
     expect(u.list({ clock: 8, model: 'pocket-64' })).toEqual([
-      { id: 'u1', name: 'UNIT 1', clock: 8, model: 'pocket-64', created: 1234 },
+      { id: 'u1', name: 'UNIT 1', clock: 8, model: 'pocket-64', autoOff: 10, created: 1234 },
     ])
     expect(u.create().id).toBe('u2')
     expect(
@@ -76,10 +81,24 @@ describe('the units', () => {
       clock: 'max',
       model: 'handheld-160',
     })
+    expect(u.update('u1', { autoOff: 0 })?.autoOff).toBe(0)
     expect(u.update('u1', { clock: 5 })).toBeNull()
+    expect(u.update('u1', { autoOff: 5 })).toBeNull()
     expect(u.update('u1', { name: '\u3042' })).toBeNull()
     expect(u.update('../u1', { name: 'X' })).toBeNull()
     expect(u.update('u9', { name: 'X' })).toBeNull()
+  })
+
+  it('gives a unit saved before auto power-off the ten minutes a new one has', () => {
+    const file = path.join(dir, 'elec16', 'units.json')
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        units: [{ id: 'u1', name: 'OLD', clock: 4, model: 'pocket-48', created: 1 }],
+      }),
+    )
+    expect(units().list()[0]?.autoOff).toBe(10)
   })
 
   it('drops a broken unit alone, never the file', () => {
@@ -189,6 +208,51 @@ describe('the card', () => {
       readFileSync(path.join(dir, 'elec16', 'units', 'u1', 'card.json'), 'utf8'),
     )
     expect(disk.files[0]).toEqual({ name: 'A.DAT', modified: 1234, data: 'aGk=' })
+  })
+
+  it('reads the SOFT CARD where the card has no such file, and never writes it', () => {
+    const soft = readSoftCard(findElec16Dir(process.cwd()))
+    expect(soft.map((f) => f.name)).toContain('PRIMES.BAS')
+    const u = new Elec16Units(path.join(dir, 'elec16'), () => 1234, soft)
+    u.list()
+    u.claim('u1', A)
+    expect(u.softFiles()).toContainEqual({
+      name: 'PRIMES.BAS',
+      size: expect.any(Number),
+      modified: 0,
+      about: 'THE PRIMES UP TO A NUMBER',
+    })
+    expect(fromMachineText(u.card('u1', A, read('PRIMES.BAS')).data ?? new Uint8Array())).toMatch(
+      /^10 REM PRIMES/,
+    )
+    expect(u.fileData('u1', 'PRIMES.BAS')).not.toBeNull()
+    // A file of the same name on the card is the one read; the SOFT CARD is left as it was.
+    expect(u.card('u1', A, write('PRIMES.BAS', 'mine')).status).toBe(CARD_STATUS.ok)
+    expect(u.card('u1', A, read('PRIMES.BAS')).data).toEqual(new TextEncoder().encode('mine'))
+    expect(u.files('u1').map((f) => f.name)).toEqual(['PRIMES.BAS'])
+    expect(u.softFiles().find((f) => f.name === 'PRIMES.BAS')?.size).toBeGreaterThan(4)
+    const dirOf = (name: string): CardRequest => ({
+      ...read(name),
+      op: 'dir',
+      address: 0x7000,
+      length: 256,
+    })
+    expect(u.card('u1', A, dirOf('SOFT')).entries?.length).toBe(soft.length)
+    expect(u.card('u1', A, dirOf('')).entries).toEqual([{ name: 'PRIMES.BAS', size: 4 }])
+    expect(u.card('u1', A, dirOf('OTHER')).status).toBe(CARD_STATUS.noFile)
+  })
+
+  it('has no SOFT CARD when soft.json is missing or not one', () => {
+    expect(readSoftCard(null)).toEqual([])
+    const elec16 = path.join(dir, 'resources', 'elec16')
+    rmSync(elec16, { recursive: true, force: true })
+    expect(findElec16Dir(dir)).toBeNull()
+    mkdirSync(elec16, { recursive: true })
+    writeFileSync(path.join(elec16, 'soft.json'), '{"files":[{"name":"../X","data":""}]}')
+    expect(findElec16Dir(path.join(dir, 'a', 'b'))).toBe(elec16)
+    expect(readSoftCard(elec16)).toEqual([])
+    writeFileSync(path.join(elec16, 'soft.json'), 'not json')
+    expect(readSoftCard(elec16)).toEqual([])
   })
 
   it('checks a request again and its names, whatever the page says', () => {

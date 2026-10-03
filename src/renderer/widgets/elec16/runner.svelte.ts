@@ -2,7 +2,8 @@ import { CARD_STATUS, type CardAnswer, type CardRequest } from '@shared/elec16/c
 import { keyCode } from '@shared/elec16/keys'
 import { type ClockFields, Elec16 } from '@shared/elec16/machine'
 import { DEFAULT_MODEL, type ModelId } from '@shared/elec16/map'
-import { type LoopHost, TimedLoop, type TimedPolicy } from '../emu/loops.ts'
+import { KEY_FIFO_SIZE } from '@shared/elec16/state'
+import { type LoopHost, TimedLoop, type TimedPolicy, type Wake } from '../emu/loops.ts'
 import { browserLoop, EmuRunner, type PauseReason, type RunStatus } from '../emu/runner.svelte.ts'
 
 /**
@@ -22,6 +23,10 @@ export type { PauseReason, RunStatus }
 export interface Elec16Host extends LoopHost {
   /** The time and date for the machine's CLOCK. */
   clock(): ClockFields
+  /** The buzzer: `freq` Hz for `ms` more (Infinity while gated), `mark` one tone's; 0 silence. */
+  buzz?(freq: number, ms: number, mark: string): void
+  /** The buzzer quiet at once. */
+  hush?(): void
 }
 
 export const browserElec16Host: Elec16Host = {
@@ -52,6 +57,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   annunciators = $state(0)
   /** Counts changes by hand (a step, BRK, a reset), so CORE reads the registers again. */
   stepped = $state(0)
+  /** Keys PASTE has still to press: TUNE shows them, and pressing PASTE again stops it. */
+  pasting = $state(0)
   /** The LCD fitted: the machine itself is not state, so its model is kept here for the views. */
   model = $state<ModelId>(DEFAULT_MODEL)
   /**
@@ -59,28 +66,36 @@ export class Elec16Runner extends EmuRunner<Elec16> {
    * card is not there, and the command is answered so.
    */
   onCard: ((request: CardRequest) => Promise<CardAnswer>) | null = null
+  /** Auto power-off: how long asleep waiting for a key switches it off; 0 never. */
+  autoOffMs = 0
+  /** Switched off by auto power-off (the pane keeps the battery backup, as for the switch). */
+  onAutoOff: (() => void) | null = null
 
   readonly #host: Elec16Host
   /** MAX: as many cycles as the budget allows. Shared with the loop, built before `this`. */
   readonly #speed: { max: boolean }
   /** Whether the machine's SHIFT is on, as the page has pressed it. */
   #shift = false
+  /** PASTE's keys, pressed as the key FIFO has room (`pasteKeys`). */
+  #paste: number[] = []
+  /** Auto power-off's one timer, while the machine sleeps for a key and nothing else. */
+  #offTimer: number | null = null
 
   constructor(host: Elec16Host) {
     const speed = { max: false }
-    const sleeps: { to: (asleep: boolean) => void } = { to: () => {} }
+    const sleeps: { to: (wake: Wake | null) => void } = { to: () => {} }
     super(
       (owner) =>
         new TimedLoop(
           host,
           owner,
           policy(() => (speed.max ? Number.POSITIVE_INFINITY : (owner.machine?.hz ?? 0))),
-          (wake) => sleeps.to(wake !== null),
+          (wake) => sleeps.to(wake),
         ),
     )
     this.#host = host
     this.#speed = speed
-    sleeps.to = (asleep) => this.#slept(asleep)
+    sleeps.to = (wake) => this.#slept(wake)
   }
 
   get #timed(): TimedLoop<Elec16> {
@@ -100,6 +115,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.setMachine(machine)
     this.setHz(hz)
     this.#shift = false
+    this.stopPaste()
     this.pausedBy = paused ? 'player' : null
     this.asleep = false
     this.model = model
@@ -116,6 +132,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.model = machine.state.model
     this.setHz(hz)
     this.#shift = false
+    this.stopPaste()
     this.pausedBy = paused ? 'player' : null
     this.#changed()
   }
@@ -124,6 +141,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   detach(): Elec16 | null {
     const machine = this.machine
     this.stopLoop()
+    this.stopPaste()
     this.setMachine(null)
     this.settle()
     return machine
@@ -145,6 +163,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     else if (code !== CAPS) this.#shift = false
     machine.press(code)
     this.#timed.wake()
+    // A key to a machine asleep for one starts auto power-off's count again (the loop tells
+    // only of falling asleep, not of a key taken between two sleeps).
+    if (this.asleep) this.#armOff()
   }
 
   release(code: number): void {
@@ -168,12 +189,42 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.press(code)
   }
 
+  /**
+   * PASTE: these keys pressed one after another, a few at a time as the machine takes them
+   * from its FIFO, so none is lost; a paste under way is replaced.
+   */
+  paste(keys: readonly number[]): void {
+    if (this.machine === null || this.machine.state.off) return
+    this.#paste = [...keys]
+    this.#feed(this.machine)
+  }
+
+  /** PASTE stops where it is. */
+  stopPaste(): void {
+    this.#paste = []
+    if (this.pasting !== 0) this.pasting = 0
+  }
+
+  /** As many of PASTE's keys as the FIFO has room for, one place kept for the person's own. */
+  #feed(machine: Elec16): void {
+    if (this.#paste.length === 0) return
+    let room = KEY_FIFO_SIZE - 1 - machine.state.keys.fifo.length
+    while (room > 0 && this.#paste.length > 0) {
+      const code = this.#paste.shift() ?? 0
+      this.press(code)
+      this.release(code)
+      room--
+    }
+    if (this.pasting !== this.#paste.length) this.pasting = this.#paste.length
+  }
+
   /** BRK/ON: stops what runs and gets the prompt back; starts a machine off or stopped. */
   brk(): void {
     const machine = this.machine
     if (machine === null) return
     machine.brk()
     this.#shift = false
+    this.stopPaste()
     if (this.pausedBy !== null && machine.running) this.pausedBy = null
     this.#timed.wake()
     this.#changed()
@@ -188,6 +239,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
       return
     }
     machine.powerOff()
+    this.stopPaste()
     this.#changed()
   }
 
@@ -197,6 +249,12 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     if (machine === null || this.status !== 'paused') return
     machine.step()
     this.#changed()
+  }
+
+  /** Paused, out of sight, stopped: the buzzer too, and auto power-off waits no more. */
+  protected override silence(): void {
+    this.#host.hush?.()
+    this.#disarmOff()
   }
 
   /** Coming back into sight, a machine that was asleep at its prompt goes on by itself. */
@@ -216,8 +274,12 @@ export class Elec16Runner extends EmuRunner<Elec16> {
 
   protected override afterFrames(machine: Elec16): void {
     machine.setClock(this.#host.clock())
+    const b = machine.state.buzzer
+    const left = b.gate ? Number.POSITIVE_INFINITY : b.duration - (machine.state.time - b.started)
+    this.#host.buzz?.(b.freq, left, `${b.freq}:${b.gate}:${b.started}`)
     const request = machine.takeCardRequest()
     if (request !== null) void this.#relay(machine, request)
+    this.#feed(machine)
   }
 
   /** A card command to main and its answer back, waking the machine that waits for it. */
@@ -232,8 +294,36 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     if (this.machine === machine) this.#timed.wake()
   }
 
-  #slept(asleep: boolean): void {
+  #slept(wake: Wake | null): void {
+    const asleep = wake !== null
     if (this.asleep !== asleep) this.asleep = asleep
+    if (wake?.key === true && wake.timerMs === null) this.#armOff()
+    else this.#disarmOff()
+    // Asleep waiting for a key: PASTE's next ones wake it - those given after the frames too,
+    // which came while the loop still had it awake, when a key does not wake it.
+    const machine = this.machine
+    if (!asleep || machine === null) return
+    this.#feed(machine)
+    if (machine.state.keys.fifo.length > 0) this.#timed.wake()
+  }
+
+  #armOff(): void {
+    this.#disarmOff()
+    if (this.autoOffMs <= 0) return
+    this.#offTimer = this.#host.setTimer(() => {
+      this.#offTimer = null
+      const machine = this.machine
+      if (machine === null || machine.state.off || !this.asleep) return
+      machine.powerOff()
+      this.stopPaste()
+      this.#changed()
+      this.onAutoOff?.()
+    }, this.autoOffMs)
+  }
+
+  #disarmOff(): void {
+    if (this.#offTimer !== null) this.#host.clearTimer(this.#offTimer)
+    this.#offTimer = null
   }
 
   #changed(): void {

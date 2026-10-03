@@ -1,7 +1,9 @@
 import { assemble, ramImage } from '@shared/elec16/asm'
 import { screenText } from '@shared/elec16/font'
 import { keyCode } from '@shared/elec16/keys'
+import { pasteKeys } from '@shared/elec16/paste'
 import { romFromFile } from '@shared/elec16/rom'
+import { ANNUNCIATORS } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
 import romJson from '../../src/renderer/widgets/elec16/rom.json'
 import { type Elec16Host, Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
@@ -123,6 +125,66 @@ describe('the ELEC-16 runner', () => {
     runner.down(keyCode('a'), true)
     clock.advance(50)
     expect(lines()[0]).toBe('*!1a')
+  })
+
+  it('pastes more keys than the FIFO holds, a few at a time, none lost, and stops with BRK', () => {
+    const { clock, runner, lines } = setUp(true)
+    runner.press(keyCode('cls'))
+    runner.release(keyCode('cls'))
+    const text = '10 PRINT "がっこう";\n20 FOR I=1 TO 3:PRINT I;:NEXT\nRUN\n'
+    const { keys, skipped } = pasteKeys(text, { caps: true, kana: false })
+    expect(skipped).toBe(0)
+    expect(keys.length).toBeGreaterThan(32)
+    runner.paste(keys)
+    expect(runner.pasting).toBeGreaterThan(0)
+    clock.advance(1000)
+    expect(runner.pasting).toBe(0)
+    expect(lines().slice(0, 4)).toEqual([
+      '>10 PRINT "ｶﾞｯｺｳ";',
+      '>20 FOR I=1 TO 3:PRINT I;:NEXT',
+      '>RUN',
+      'ｶﾞｯｺｳ1 2 3',
+    ])
+    // KANA is put back as it was.
+    expect(runner.annunciators & (1 << ANNUNCIATORS.indexOf('KANA'))).toBe(0)
+    // BRK ends a paste under way.
+    runner.paste(pasteKeys('PRINT 1\n'.repeat(20), { caps: true, kana: false }).keys)
+    expect(runner.pasting).toBeGreaterThan(0)
+    runner.brk()
+    expect(runner.pasting).toBe(0)
+  })
+
+  it('switches itself off after the auto power-off time asleep for a key, counted from the last', () => {
+    const { clock, runner } = setUp()
+    let told = 0
+    runner.onAutoOff = () => told++
+    runner.autoOffMs = 600_000
+    // Armed the next time it falls asleep for a key.
+    runner.down(keyCode('a'), false)
+    runner.release(keyCode('a'))
+    clock.advance(599_000)
+    runner.down(keyCode('b'), false)
+    runner.release(keyCode('b'))
+    clock.advance(599_000)
+    expect(runner.off).toBe(false)
+    clock.advance(2_000)
+    expect(runner.off).toBe(true)
+    expect(told).toBe(1)
+    // ON again; out of sight it waits for nothing, and nothing is left to fire.
+    runner.brk()
+    clock.advance(500)
+    expect(runner.off).toBe(false)
+    typeLine(runner, 'mon')
+    clock.advance(50)
+    runner.setSeen(false)
+    expect(clock.timers.size).toBe(0)
+    runner.setSeen(true)
+    clock.advance(50)
+    // A program running is never switched off.
+    runForever(runner, clock.advance)
+    expect(runner.asleep).toBe(false)
+    const now = clock.host.now()
+    expect([...clock.timers.values()].every((t) => t.at - now < 1000)).toBe(true)
   })
 
   it('pauses out of sight, and comes back by itself when it was asleep at its prompt', () => {

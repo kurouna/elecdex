@@ -109,14 +109,14 @@ let at: u16 = 0
 
 /** A key that edits: a move, a deletion, a space opened, or a character written. */
 function editKey(buf: u16, max: u16, k: u16): void {
-  if (k === K_LEFT || k === K_RIGHT) step(k === K_RIGHT)
+  if (k === K_LEFT || k === K_RIGHT) stepCursor(k === K_RIGHT)
   else if (k === K_BS || k === K_DEL) erase(buf, k === K_BS)
   else if (k === K_INS && n < max) n = openSpace(buf, n, at)
   else if (k >= CH_SPACE && (at < n || n < max)) write(buf, k)
 }
 
 /** The cursor a character along the line, never past either end. */
-function step(right: bool): void {
+function stepCursor(right: bool): void {
   if (right && at < n) at++
   if (!right && at > 0) at--
   place(at)

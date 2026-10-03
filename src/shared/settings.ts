@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { isAgentSource } from './agents.js'
 import { AI_LIMITS, AiProviderSchema } from './ai.js'
 import { defaultElecSettings, ElecSettingsSchema } from './elec.js'
+import { ELEC16_SKINS } from './elec16-units.js'
 import { PLUGIN_ID, type PluginSettings, PluginSettingsSchema } from './plugins.js'
 import { INTENSITIES, MAGNITUDES } from './quakes.js'
 import { DEFAULT_THEME_ID } from './theme.js'
@@ -237,6 +238,15 @@ export const SettingsSchema = z.object({
       volume: z.number().min(0).max(1).catch(0.5).default(0.5),
     })
     .default({ core: true, volume: 0.5 }),
+  /** The ELEC-16 pane (docs/elec16.md section 8). */
+  elec16: z
+    .object({
+      /** The buzzer (BEEP), 0 to 1: apart from the interface sounds' level. */
+      volume: z.number().min(0).max(1).catch(0.5).default(0.5),
+      /** The skin a new ELEC-16 pane is drawn in. */
+      skin: z.enum(ELEC16_SKINS).catch('elec').default('elec'),
+    })
+    .default({ volume: 0.5, skin: 'elec' }),
   /**
    * The ELEC system pane (shared/elec.ts): which provider and model sits in each of the
    * three seats, their standpoints, and how the council decides. The providers are the
@@ -278,6 +288,7 @@ export interface SettingsPatch {
   /** `seats` and `personas` replace the whole list. */
   elec?: Partial<Settings['elec']>
   chip8?: Partial<Settings['chip8']>
+  elec16?: Partial<Settings['elec16']>
   /** Per plugin id: fields to change (values and granted are replaced whole), or null to forget it. */
   plugins?: Record<string, Partial<PluginSettings> | null>
 }
@@ -315,6 +326,7 @@ export function applySettingsPatch(current: Settings, patch: unknown): Settings 
     ai: merge(current.ai, p.ai),
     elec: merge(current.elec, p.elec),
     chip8: merge(current.chip8, p.chip8),
+    elec16: merge(current.elec16, p.elec16),
     terminal: merge(current.terminal, p.terminal),
     plugins: mergePlugins(current.plugins, p.plugins),
     // Only showSystem: the launcher's own entries are edited in settings.json.

@@ -143,6 +143,86 @@ export function keyForChar(ch: string): { code: number; shift: boolean } | null 
   return null
 }
 
+/**
+ * KANA mode's characters, by key: the JIS kana layout's, where the machine has the PC's key
+ * (the letters, ; , . /), the keypad's digits standing for the number row, and the keypad's
+ * other keys for the kana the PC has right of it (ホ ヘ ー ゛ ゜ ケ ム ロ). The second is
+ * with SHIFT: a small kana or a mark; none means the same kana. Half-width kana, U+FF61 on.
+ */
+export const KANA_KEYS: Readonly<Record<string, readonly [string, string?]>> = {
+  q: ['ﾀ'],
+  w: ['ﾃ'],
+  e: ['ｲ', 'ｨ'],
+  r: ['ｽ'],
+  t: ['ｶ'],
+  y: ['ﾝ'],
+  u: ['ﾅ'],
+  i: ['ﾆ'],
+  o: ['ﾗ'],
+  p: ['ｾ'],
+  a: ['ﾁ'],
+  s: ['ﾄ'],
+  d: ['ｼ'],
+  f: ['ﾊ'],
+  g: ['ｷ'],
+  h: ['ｸ'],
+  j: ['ﾏ'],
+  k: ['ﾉ'],
+  l: ['ﾘ'],
+  ';': ['ﾚ'],
+  z: ['ﾂ', 'ｯ'],
+  x: ['ｻ'],
+  c: ['ｿ'],
+  v: ['ﾋ'],
+  b: ['ｺ'],
+  n: ['ﾐ'],
+  m: ['ﾓ'],
+  ',': ['ﾈ', '､'],
+  '.': ['ﾙ', '｡'],
+  '/': ['ﾒ', '･'],
+  '1': ['ﾇ'],
+  '2': ['ﾌ'],
+  '3': ['ｱ', 'ｧ'],
+  '4': ['ｳ', 'ｩ'],
+  '5': ['ｴ', 'ｪ'],
+  '6': ['ｵ', 'ｫ'],
+  '7': ['ﾔ', 'ｬ'],
+  '8': ['ﾕ', 'ｭ'],
+  '9': ['ﾖ', 'ｮ'],
+  '0': ['ﾜ', 'ｦ'],
+  '-': ['ﾎ'],
+  '=': ['ﾍ'],
+  '*': ['ｰ'],
+  '(': ['ﾞ'],
+  ')': ['ﾟ', '｢'],
+  '+': ['ｹ'],
+  'kp/': ['ﾑ', '｣'],
+  'kp.': ['ﾛ'],
+}
+
+/** A half-width kana as the machine's byte (A1 to DF). */
+const kanaByte = (ch: string): number => (ch.charCodeAt(0) - 0xff61 + 0xa1) & 0xff
+
+/** The ROM's kana table: two bytes a code (its kana, and with SHIFT), 0 for a key with none. */
+export function kanaTable(size = 80): Uint8Array {
+  const table = new Uint8Array(size * 2)
+  for (const [id, [kana, shifted]] of Object.entries(KANA_KEYS)) {
+    const code = keyCode(id)
+    table[code * 2] = kanaByte(kana)
+    table[code * 2 + 1] = kanaByte(shifted ?? kana)
+  }
+  return table
+}
+
+/** For a half-width kana, the key that types it in KANA mode and whether SHIFT goes first. */
+export function keyForKana(ch: string): { code: number; shift: boolean } | null {
+  for (const [id, [kana, shifted]] of Object.entries(KANA_KEYS)) {
+    if (kana === ch) return { code: keyCode(id), shift: false }
+    if (shifted === ch) return { code: keyCode(id), shift: true }
+  }
+  return null
+}
+
 /** The ROM's key table: two bytes a code (its character, and with SHIFT), 0 for no key. */
 export function keyTable(size = 80): Uint8Array {
   const table = new Uint8Array(size * 2)

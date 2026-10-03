@@ -10,7 +10,7 @@ import { fromBase64, toBase64 } from '../emu/base64.js'
 import { type AsmError, assemble, romImage } from './asm.js'
 import { REG } from './bus.js'
 import { fontTable } from './font.js'
-import { CONTROL, keyTable } from './keys.js'
+import { CONTROL, kanaTable, keyTable } from './keys.js'
 import { CODE_AREA, CODE_AREA_END, ROM_FIXED_SIZE, VRAM } from './map.js'
 import { ANNUNCIATORS, IRQ, KEY_ROWS } from './state.js'
 
@@ -59,6 +59,7 @@ export function generatedIncludes(): Record<string, string> {
     'io.inc': ioInclude(),
     'font.inc': `; Made by src/shared/elec16/rom.ts from font.ts: do not edit.\n${byteLines(fontTable())}`,
     'keys.inc': `; Made by src/shared/elec16/rom.ts from keys.ts: do not edit.\n${byteLines(keyTable(KEY_ROWS * 8))}`,
+    'kana.inc': `; Made by src/shared/elec16/rom.ts from keys.ts: do not edit.\n${byteLines(kanaTable(KEY_ROWS * 8))}`,
   }
 }
 

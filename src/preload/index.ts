@@ -580,6 +580,7 @@ const api: ElecdexApi = {
     card: (unit, pane, request) =>
       ipcRenderer.invoke(CH.elec16.card, unit, pane, request) as Promise<CardAnswer>,
     files: (unit) => ipcRenderer.invoke(CH.elec16.files, unit) as Promise<Elec16FileInfo[]>,
+    soft: () => ipcRenderer.invoke(CH.elec16.soft) as Promise<Elec16FileInfo[]>,
     import: (unit) =>
       ipcRenderer.invoke(CH.elec16.import, unit) as Promise<Elec16ImportResult | null>,
     export: (unit, name) => ipcRenderer.invoke(CH.elec16.export, unit, name) as Promise<boolean>,

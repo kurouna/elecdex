@@ -23,8 +23,11 @@ export class SharedAudio {
     this.#create = create
   }
 
-  /** The context with `module` (a worklet script's URL) loaded; null where that cannot be. */
-  async get(module: string): Promise<AudioContext | null> {
+  /**
+   * The context with `module` (a worklet script's URL) loaded - none for a voice made of the
+   * context's own nodes; null where that cannot be.
+   */
+  async get(module?: string): Promise<AudioContext | null> {
     this.#context ??= Promise.resolve().then(() => {
       try {
         this.#ac = this.#create()
@@ -34,7 +37,7 @@ export class SharedAudio {
       }
     })
     const ac = await this.#context
-    if (ac === null) return null
+    if (ac === null || module === undefined) return ac
     let added = this.#modules.get(module)
     if (added === undefined) {
       added = ac.audioWorklet.addModule(module).then(

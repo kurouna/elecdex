@@ -23,6 +23,7 @@ BASIC_SP = 0x80     ; BASIC's stack at its prompt, where an error goes back to
 
 F_SHIFT = 1
 F_CAPS  = 2
+F_KANA  = 4
 
 STACK_TOP = 0x8000  ; the stack grows down from the top of RAM, above the code area
 LINE_MAX  = 62

@@ -8,6 +8,7 @@ import {
   span,
   taskRows,
 } from '../../src/renderer/widgets/agents/cards.js'
+import { fileRows as cardFileRows, loadLine } from '../../src/renderer/widgets/elec16/file-card.js'
 import { fileRows, repoFilePath } from '../../src/renderer/widgets/git/file-card.js'
 
 /**
@@ -165,5 +166,26 @@ describe('the git file card', () => {
     expect(
       value(fileRows(file({ code: '?', area: 'untracked', added: null }), '/r', false), 'LINES'),
     ).toBeUndefined()
+  })
+})
+
+describe('the ELEC-16 file card', () => {
+  const info = (name: string, modified = 0) => ({ name, size: 1234, modified })
+
+  it('says the kind, the size to the byte and what LOAD types, never the row again', () => {
+    const rows = cardFileRows(info('GAME.BAS', new Date(2026, 9, 3, 9, 5).getTime()), false)
+    expect(value(rows, 'kind')).toBe('BASIC program')
+    expect(value(rows, 'size')).toBe('1,234 bytes')
+    expect(value(rows, 'saved')).toBe('2026-10-03 09:05')
+    expect(value(rows, 'load ▸')).toBe('LOAD "GAME.BAS"')
+    expect(rows.some((row) => row.value === 'GAME.BAS')).toBe(false)
+  })
+
+  it('calls machine code by its CALL, a data file not LOAD-able, and a SOFT CARD file read only', () => {
+    expect(value(cardFileRows(info('DEMO.BIN'), true), 'load ▸')).toBe('LOAD "DEMO.BIN":CALL 28672')
+    expect(value(cardFileRows(info('DEMO.BIN'), true), 'card')).toMatch(/^SOFT CARD · read only/)
+    expect(value(cardFileRows(info('DEMO.BIN'), true), 'saved')).toBeUndefined()
+    expect(value(cardFileRows(info('SCORES.DAT'), false), 'load ▸')).toBeUndefined()
+    expect(loadLine('SCORES.DAT')).toBeNull()
   })
 })

@@ -1,6 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fontTable, glyphColumns, screenText } from '@shared/elec16/font'
-import { CONTROL, KEY_BY_ID, keyForChar, keyTable, MACHINE_KEYS } from '@shared/elec16/keys'
+import {
+  CONTROL,
+  KEY_BY_ID,
+  kanaTable,
+  keyForChar,
+  keyForKana,
+  keyTable,
+  MACHINE_KEYS,
+} from '@shared/elec16/keys'
 import { buildRom, romFile, romFromFile } from '@shared/elec16/rom'
 import { KEY_ROWS } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
@@ -45,6 +53,22 @@ describe('the font', () => {
     expect(fontTable()).toHaveLength(224 * 5)
   })
 
+  it('draws every kana apart from every other character, but the long vowel mark as -', () => {
+    const ascii = new Set(Array.from({ length: 0x60 }, (_, k) => glyphColumns(0x20 + k).join()))
+    const kana = new Set<string>()
+    for (let code = 0xa1; code <= 0xdf; code++) {
+      const key = glyphColumns(code).join()
+      expect(kana.has(key), code.toString(16)).toBe(false)
+      kana.add(key)
+      expect(ascii.has(key), code.toString(16)).toBe(code === 0xb0)
+    }
+    const vram = new Uint8Array(24)
+    ;[0xb1, 0xb0, 0xdd, 0xdf].forEach((code, k) => {
+      vram.set(glyphColumns(code), k * 6)
+    })
+    expect(screenText(vram, 24, 8)).toEqual(['ｱ-ﾝﾟ'])
+  })
+
   it('reads a screen back into its text, a cell that is no character as ?', () => {
     const width = 24
     const vram = new Uint8Array(width * 2)
@@ -57,6 +81,23 @@ describe('the font', () => {
 })
 
 describe('the keys', () => {
+  it('type every half-width kana in KANA mode, each from one key and face', () => {
+    const table = kanaTable(KEY_ROWS * 8)
+    const typed = new Set<number>()
+    for (let k = 0; k < 63; k++) {
+      const ch = String.fromCharCode(0xff61 + k)
+      const key = keyForKana(ch)
+      expect(key, ch).not.toBeNull()
+      if (key === null) continue
+      const byte = table[key.code * 2 + (key.shift ? 1 : 0)]
+      expect(byte, ch).toBe(0xa1 + k)
+      typed.add(key.code * 2 + (key.shift ? 1 : 0))
+    }
+    // A key with no small form gives its kana with SHIFT too, so that face types nothing new.
+    expect(typed.size).toBe(63)
+    expect([...table].every((b) => b === 0 || (b >= 0xa1 && b <= 0xdf))).toBe(true)
+  })
+
   it('each have their own code within the matrix, and their own id', () => {
     const codes = MACHINE_KEYS.map((k) => k.code)
     expect(new Set(codes).size).toBe(codes.length)

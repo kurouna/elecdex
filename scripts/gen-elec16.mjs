@@ -9,7 +9,7 @@
  *
  *   npm run gen:elec16
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { registerHooks } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -46,6 +46,27 @@ const read = (name) => {
   const file = path.join(sources, name)
   return existsSync(file) ? readFileSync(file, 'utf8') : null
 }
+// The SOFT CARD: the bundled programs, as main reads them (soft.json).
+const { buildSoftCard } = await shared('elec16/soft-card.ts')
+const { toBase64 } = await shared('emu/base64.ts')
+const softDir = path.join(root, 'resources', 'elec16', 'soft')
+const soft = buildSoftCard(
+  readdirSync(softDir)
+    .filter((name) => /\.(bas|asm)$/i.test(name))
+    .map((name) => ({ name, text: readFileSync(path.join(softDir, name), 'utf8') })),
+)
+if (soft.errors.length > 0) {
+  for (const e of soft.errors) console.error(e)
+  process.exit(1)
+}
+const softFile = {
+  files: soft.files.map((f) => ({ name: f.name, about: f.about, data: toBase64(f.data) })),
+}
+writeFileSync(
+  path.join(root, 'resources', 'elec16', 'soft.json'),
+  `${JSON.stringify(softFile, null, 2)}\n`,
+)
+
 const built = buildRom(read)
 if (built.errors.length > 0) {
   for (const e of built.errors) console.error(`${e.file}:${e.line}: ${e.message}`)

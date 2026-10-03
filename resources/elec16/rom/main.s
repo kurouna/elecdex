@@ -36,7 +36,8 @@ start:
   sw t0, FLAGS(zero)
   call lcd_init
   ; Keys wake the CPU from WFI; it takes no interrupts (getkey waits in WFI).
-  csrwi mie, 1 << IRQ_KEY
+  ; WFI wakes for a key, and for the card's answer (BASIC's card commands wait for it).
+  csrwi mie, (1 << IRQ_KEY) | (1 << IRQ_CARD)
   j basic_cold
 
 ; ---------------- traps ----------------
@@ -162,6 +163,8 @@ font:
   .include "font.inc"
 keytab:
   .include "keys.inc"
+kanatab:
+  .include "kana.inc"
 
 ; Where the hand-written ROM ends.
 rom_end:

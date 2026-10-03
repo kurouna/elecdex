@@ -28,9 +28,11 @@ function enter(m: Elec16, source: string): void {
 }
 
 describe('the ROM', () => {
-  it('is built from its sources into the fixed 16 KB, with its labels', () => {
+  it('is built from its sources into the fixed 16 KB and the banks of BASIC, with its labels', () => {
     expect(built.errors).toEqual([])
-    expect(built.image).toHaveLength(0x4000)
+    // The fixed ROM, then the 8 KB banks BASIC's second half takes (0 to 3).
+    expect(built.image).toHaveLength(0x4000 + 4 * 0x2000)
+    expect(built.symbols.e16c_fixed_end).toBeLessThan(0xc000)
     expect(built.symbols.start).toBeGreaterThanOrEqual(0x8000)
     expect(built.symbols.services).toBe(0x8010)
     expect(built.symbols.font).toBeLessThan(0xc000)
@@ -133,6 +135,24 @@ describe('the ROM', () => {
     type(m, '!{~')
     expect(annunciated(m)).toEqual(['MON'])
     expect(shown(m).at(-1)).toBe('*abC!{~')
+  })
+
+  it('types kana by the JIS layout in KANA mode, small ones with SHIFT, and the rest as before', () => {
+    const m = boot()
+    press(m, keyCode('kana'))
+    expect(annunciated(m)).toEqual(['CAPS', 'KANA', 'MON'])
+    for (const id of ['k', 'a', 'n', 'a', '*']) press(m, keyCode(id))
+    press(m, keyCode('shift'))
+    press(m, keyCode('z'))
+    press(m, keyCode('shift'))
+    press(m, keyCode('3'))
+    // ENTER, SPACE and the arrows have no kana and keep their own.
+    type(m, ' ')
+    press(m, keyCode('kana'))
+    expect(annunciated(m)).toEqual(['CAPS', 'MON'])
+    type(m, 'a')
+    // The long vowel mark is drawn as - is, and reads back as it.
+    expect(shown(m).at(-1)).toBe('*ﾉﾁﾐﾁ-ｯｧ A')
   })
 
   it('rubs out with BS, clears with CLS, and says ? to what it does not know', () => {

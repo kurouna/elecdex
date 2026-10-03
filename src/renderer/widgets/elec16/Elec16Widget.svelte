@@ -1,5 +1,6 @@
 <script lang="ts">
 import { DEFAULT_MODEL, MODELS } from '@shared/elec16/map'
+import { pasteKeys } from '@shared/elec16/paste'
 import { romFromFile } from '@shared/elec16/rom'
 import { parseRgb } from '@shared/qr'
 import { onDestroy, untrack } from 'svelte'
@@ -13,6 +14,7 @@ import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import { watchRoom } from '../emu/screen.ts'
 import type { WidgetProps } from '../registry.ts'
+import { Elec16Buzzer } from './buzzer.ts'
 import CoreView from './CoreView.svelte'
 import { labelsOf } from './core.ts'
 import Device from './Device.svelte'
@@ -27,7 +29,7 @@ import {
   readElec16Pane,
 } from './pane-state.ts'
 import { claim, park } from './park.ts'
-import { pcKeyFate } from './pc-keys.ts'
+import { kanaLit, pasteModes, pcKeyFate } from './pc-keys.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
@@ -48,16 +50,30 @@ import { UnitSession } from './unit-session.svelte.ts'
  */
 const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
 const visible = $derived(seen(inTab))
-const pane = $derived(readElec16Pane(paneState))
+const pane = $derived(readElec16Pane(paneState, appearance.settings.elec16.skin))
 const skin = $derived(SKINS[pane.skin])
 
-const runner = new Elec16Runner(browserElec16Host)
+const buzzer = new Elec16Buzzer({
+  enabled: () => appearance.settings.sound.enabled,
+  volume: () => appearance.settings.elec16.volume,
+})
+const runner = new Elec16Runner({
+  ...browserElec16Host,
+  buzz: (freq, ms, mark) => buzzer.play(freq, ms, mark),
+  hush: () => buzzer.silence(),
+})
 const session = new UnitSession(window.elecdex.elec16, paneId, runner, {
   keep: (unit) => {
     if (unit !== pane.unit) change({ unit })
   },
 })
 const model = $derived(session.unit?.model ?? DEFAULT_MODEL)
+// Auto power-off is the unit's; switched off by it, the battery backup is written as for the
+// switch.
+runner.onAutoOff = () => session.save()
+$effect(() => {
+  runner.autoOffMs = (session.unit?.autoOff ?? 0) * 60_000
+})
 
 let root = $state<HTMLDivElement | null>(null)
 let paneFocused = $state(false)
@@ -110,6 +126,35 @@ $effect(() => {
   if (!visible) untrack(() => session.save())
 })
 
+/** Whether there is a machine on for PASTE and LOAD ▸ to type into. */
+const canType = $derived(runner.status !== 'empty' && !runner.off)
+
+/** FILES' LOAD ▸: a line typed on the machine's keys, ENTER after it; the keyboard back to it. */
+function typeLine(line: string): void {
+  runner.paste(pasteKeys(`${line}\n`, pasteModes(runner.annunciators)).keys)
+  root?.focus({ preventScroll: true })
+}
+
+/** Characters the last PASTE had no key for, said in TUNE until the next. */
+let pasteSkipped = $state(0)
+
+/** PASTE: the clipboard's text typed as the machine's keys; pressed while it types, it stops. */
+async function paste(): Promise<void> {
+  if (runner.pasting > 0) {
+    runner.stopPaste()
+    return
+  }
+  let text: string
+  try {
+    text = await navigator.clipboard.readText()
+  } catch {
+    return
+  }
+  const planned = pasteKeys(text, pasteModes(runner.annunciators))
+  pasteSkipped = planned.skipped
+  runner.paste(planned.keys)
+}
+
 function power(): void {
   runner.power()
   if (runner.off) session.save()
@@ -129,7 +174,7 @@ $effect(() => {
 
 function onkeydown(event: KeyboardEvent): void {
   if (event.target !== root || !listening) return
-  const fate = pcKeyFate(event)
+  const fate = pcKeyFate(event, kanaLit(runner.annunciators))
   if (fate.kind === 'pass') return
   event.preventDefault()
   if (fate.kind === 'brk') {
@@ -239,6 +284,7 @@ onDestroy(() => {
     )
   }
   runner.dispose()
+  buzzer.dispose()
 })
 </script>
 
@@ -362,7 +408,12 @@ onDestroy(() => {
           {:else if pane.tab === 'mem'}
             <MemView {runner} />
           {:else if pane.tab === 'files'}
-            <FilesView unit={session.phase === 'running' ? (session.unit?.id ?? null) : null} />
+            <FilesView
+              unit={session.phase === 'running' ? (session.unit?.id ?? null) : null}
+              seen={visible}
+              canType={canType}
+              onload={typeLine}
+            />
           {:else}
             <TuneView
               {pane}
@@ -372,6 +423,10 @@ onDestroy(() => {
               onunit={(c) => void session.change(c)}
               onswitch={(id) => void session.switchTo(id)}
               onnew={() => void session.newUnit()}
+              pasting={runner.pasting}
+              {pasteSkipped}
+              canPaste={canType}
+              onpaste={() => void paste()}
             />
           {/if}
         </div>

@@ -33,13 +33,17 @@ export interface Elec16Pane {
   contrast: number
 }
 
-export function readElec16Pane(state: Record<string, unknown> | undefined): Elec16Pane {
+/** `skin` is a new pane's: the setting's, until the pane is given its own. */
+export function readElec16Pane(
+  state: Record<string, unknown> | undefined,
+  skin: SkinId = 'elec',
+): Elec16Pane {
   const s = state ?? {}
   const contrast = typeof s.contrast === 'number' && Number.isInteger(s.contrast) ? s.contrast : 0
   const clock = ELEC16_CLOCKS.find((c) => c === s.clock)
   const model = MODEL_IDS.find((m) => m === s.model)
   return {
-    skin: isSkinId(s.skin) ? s.skin : 'elec',
+    skin: isSkinId(s.skin) ? s.skin : skin,
     unit: isUnitId(s.unit) ? s.unit : undefined,
     seed: { ...(clock !== undefined ? { clock } : {}), ...(model !== undefined ? { model } : {}) },
     body: oneOf(s.body, BODY_MODES, 'auto'),

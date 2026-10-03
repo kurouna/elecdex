@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   CARD_STATUS,
@@ -9,6 +9,7 @@ import {
   isCardName,
 } from '@shared/elec16/card'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
+import type { SoftFile } from '@shared/elec16/soft-card'
 import {
   CardRequestSchema,
   type Elec16Claim,
@@ -103,9 +104,13 @@ export class Elec16Units {
   /** A pane waiting for a unit another holds (MOVE HERE), by unit. */
   readonly #waiting = new Map<string, Waiting>()
 
-  constructor(dir: string, now: () => number = Date.now) {
+  /** The SOFT CARD: elecdex's own programs, read by every unit, written by none. */
+  readonly #soft: readonly SoftFile[]
+
+  constructor(dir: string, now: () => number = Date.now, soft: readonly SoftFile[] = []) {
     this.#dir = dir
     this.#now = now
+    this.#soft = soft
     this.#units = new JsonStore({
       file: path.join(dir, 'units.json'),
       schema: UnitsFileSchema as unknown as z.ZodType<UnitsFile>,
@@ -150,6 +155,7 @@ export class Elec16Units {
       ...(c.name !== undefined ? { name: c.name } : {}),
       ...(c.clock !== undefined ? { clock: c.clock } : {}),
       ...(c.model !== undefined ? { model: c.model } : {}),
+      ...(c.autoOff !== undefined ? { autoOff: c.autoOff } : {}),
     }
     const file = this.#units.read()
     this.#units.write({ ...file, units: file.units.map((u) => (u.id === unit.id ? next : u)) })
@@ -318,7 +324,7 @@ export class Elec16Units {
       return { status: CARD_STATUS.badName }
     }
     const files = this.#files(id)
-    const done = cardOp(files, request, this.#now())
+    const done = cardOp(files, request, this.#now(), this.#soft)
     if (done.files !== files) this.#card(id).write(toDisk(done.files))
     return done.answer
   }
@@ -334,11 +340,22 @@ export class Elec16Units {
     }))
   }
 
-  /** A file's bytes, for EXPORT. */
+  /** The SOFT CARD's files, for FILES. */
+  softFiles(): Elec16FileInfo[] {
+    return this.#soft.map((f) => ({
+      name: f.name,
+      size: f.data.length,
+      modified: f.modified,
+      about: f.about,
+    }))
+  }
+
+  /** A file's bytes, for EXPORT: the unit's own, or the SOFT CARD's. */
   fileData(id: unknown, name: unknown): Uint8Array | null {
     const unit = this.unit(id)
     if (unit === null || typeof name !== 'string') return null
-    return this.#files(unit.id).find((f) => f.name === name)?.data ?? null
+    const own = this.#files(unit.id).find((f) => f.name === name)
+    return own?.data ?? this.#soft.find((f) => f.name === name)?.data ?? null
   }
 
   /** IMPORT's bytes as a file on the card (written over one of the name): its status. */
@@ -358,3 +375,43 @@ export class Elec16Units {
 }
 
 const same = (a: Holder, b: Holder): boolean => a.page === b.page && a.pane === b.pane
+
+/** The folder of resources/elec16 (soft.json), from where this file is, packaged or not. */
+export function findElec16Dir(from: string): string | null {
+  let dir = from
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, 'resources', 'elec16')
+    if (existsSync(path.join(candidate, 'soft.json'))) return candidate
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
+}
+
+const SoftFileSchema = z.object({
+  files: z.array(
+    z.object({
+      name: z.string().refine(isCardName),
+      data: z.string(),
+      about: z.string().max(80).default(''),
+    }),
+  ),
+})
+
+/** The SOFT CARD from soft.json; none when it cannot be read. */
+export function readSoftCard(dir: string | null): SoftFile[] {
+  if (dir === null) return []
+  try {
+    const parsed = SoftFileSchema.safeParse(
+      JSON.parse(readFileSync(path.join(dir, 'soft.json'), 'utf8')),
+    )
+    if (!parsed.success) return []
+    return parsed.data.files.flatMap((f) => {
+      const data = fromBase64(f.data)
+      return data === null ? [] : [{ name: f.name, data, modified: 0, about: f.about }]
+    })
+  } catch {
+    return []
+  }
+}

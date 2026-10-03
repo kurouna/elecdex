@@ -8,6 +8,7 @@ import {
   signInName,
   trayName,
 } from '@shared/background'
+import { ELEC16_SKINS, type Elec16SkinId } from '@shared/elec16-units'
 import {
   availableOn,
   chordFromEvent,
@@ -525,6 +526,37 @@ function describeUpdate(status: UpdateStatus): string {
                 The core is the machine's registers and the code it runs, beside the screen; a pane can
                 still show or hide it. The buzzer is silent while interface sounds are off.
               </p>
+            </section>
+
+            <section>
+              <h3>elec-16</h3>
+              <label class="row">
+                <span>buzzer volume</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={Math.round(settings.elec16.volume * 100)}
+                  disabled={!settings.sound.enabled}
+                  onchange={(e) => patch({ elec16: { volume: Number(e.currentTarget.value) / 100 } })}
+                  data-testid="settings-elec16-volume"
+                />
+                <output>{Math.round(settings.elec16.volume * 100)}%</output>
+              </label>
+              <label class="row">
+                <span>skin of a new pane</span>
+                <select
+                  value={settings.elec16.skin}
+                  onchange={(e) => patch({ elec16: { skin: e.currentTarget.value as Elec16SkinId } })}
+                  data-testid="settings-elec16-skin"
+                >
+                  {#each ELEC16_SKINS as id (id)}
+                    <option value={id}>{id}</option>
+                  {/each}
+                </select>
+              </label>
+              <p class="note">BEEP is silent while interface sounds are off. A pane keeps the skin it was given.</p>
             </section>
 
             <section>

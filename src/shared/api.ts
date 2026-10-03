@@ -516,6 +516,8 @@ export interface Elec16Api {
   /** A card command the machine gave (shared/elec16/card.ts), done on the unit's card. */
   card(unit: string, pane: string, request: CardRequest): Promise<CardAnswer>
   files(unit: string): Promise<Elec16FileInfo[]>
+  /** The SOFT CARD's programs: elecdex's own, read by every unit. */
+  soft(): Promise<Elec16FileInfo[]>
   /** Opens main's picker and puts the file on the unit's card; null when nothing was picked. */
   import(unit: string): Promise<Elec16ImportResult | null>
   /** Saves a card file where the user picks; false when nothing was saved. */

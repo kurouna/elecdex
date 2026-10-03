@@ -1,13 +1,14 @@
 import { assemble, romImage } from '@shared/elec16/asm'
-import { keyCode } from '@shared/elec16/keys'
+import { KANA_KEYS, keyCode } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
+import { ANNUNCIATORS } from '@shared/elec16/state'
 import { hzOfClock } from '@shared/elec16-units'
 import { describe, expect, it } from 'vitest'
 import { byteKind, labelsOf, readCore } from '../../src/renderer/widgets/elec16/core.js'
 import { bodyFor } from '../../src/renderer/widgets/elec16/layout.js'
 import { FULL, LcdPainter, strength } from '../../src/renderer/widgets/elec16/lcd-painter.js'
 import { panelShown, readElec16Pane } from '../../src/renderer/widgets/elec16/pane-state.js'
-import { type PcKey, pcKeyFate } from '../../src/renderer/widgets/elec16/pc-keys.js'
+import { kanaLit, type PcKey, pcKeyFate } from '../../src/renderer/widgets/elec16/pc-keys.js'
 
 /** The ELEC-16 pane's pure parts (docs/elec16.md section 7). */
 
@@ -44,6 +45,45 @@ describe('the PC keyboard', () => {
     })
     expect(pcKeyFate(pc('Digit1', '1'))).toEqual({ kind: 'key', code: keyCode('1'), shift: false })
     expect(pcKeyFate(pc('Space', ' '))).toEqual({ kind: 'key', code: keyCode(' '), shift: false })
+  })
+
+  it('in KANA mode, presses the key at the place of the JIS kana layout, whatever the IME says', () => {
+    const kanaOf = (event: PcKey): string | undefined => {
+      const fate = pcKeyFate(event, true)
+      if (fate.kind !== 'key') return undefined
+      const pair = Object.entries(KANA_KEYS).find(([id]) => keyCode(id) === fate.code)?.[1]
+      return fate.shift ? (pair?.[1] ?? pair?.[0]) : pair?.[0]
+    }
+    // The IME sends Process or a kana for the key; its place is what counts.
+    expect(kanaOf(pc('KeyK', 'Process'))).toBe('ﾉ')
+    expect(kanaOf(pc('Digit3', 'ぁ', { shiftKey: true }))).toBe('ｧ')
+    // The JIS layout's own places right of the letters and below the digits.
+    const places: [string, string][] = [
+      ['Minus', 'ﾎ'],
+      ['Equal', 'ﾍ'],
+      ['IntlYen', 'ｰ'],
+      ['BracketLeft', 'ﾞ'],
+      ['BracketRight', 'ﾟ'],
+      ['Semicolon', 'ﾚ'],
+      ['Quote', 'ｹ'],
+      ['Backslash', 'ﾑ'],
+      ['Comma', 'ﾈ'],
+      ['Period', 'ﾙ'],
+      ['Slash', 'ﾒ'],
+      ['IntlRo', 'ﾛ'],
+      ['Digit0', 'ﾜ'],
+    ]
+    for (const [code, kana] of places) expect(kanaOf(pc(code, 'Process')), code).toBe(kana)
+    expect(kanaOf(pc('Digit0', '0', { shiftKey: true }))).toBe('ｦ')
+    // ENTER, SPACE and shortcuts are as ever.
+    expect(pcKeyFate(pc('Space', ' '), true)).toEqual({
+      kind: 'key',
+      code: keyCode(' '),
+      shift: false,
+    })
+    expect(pcKeyFate(pc('KeyC', 'c', { ctrlKey: true }), true)).toEqual({ kind: 'pass' })
+    expect(kanaLit(1 << ANNUNCIATORS.indexOf('KANA'))).toBe(true)
+    expect(kanaLit(1 << ANNUNCIATORS.indexOf('CAPS'))).toBe(false)
   })
 
   it('names the keys that type no character, and takes Pause as BRK', () => {

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
+import { type CardFile, cardOp } from '@shared/elec16/card'
 import { screenText } from '@shared/elec16/font'
 import { keyCode, keyForChar } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
@@ -16,11 +17,31 @@ export const built = buildRom((name) =>
   existsSync(DIR + name) ? readFileSync(DIR + name, 'utf8') : null,
 )
 
-/** Runs until the machine waits for a key (or stops). */
+/** The memory card the machines of a test share, as main keeps one (cardOp), and the SOFT CARD. */
+export const card: { files: readonly CardFile[]; soft: readonly CardFile[] } = {
+  files: [],
+  soft: [],
+}
+
+/**
+ * Runs until the machine waits for a key (or stops), doing what the page and main would on
+ * the way: card commands served from `card`, and time passed while it sleeps on its timer.
+ */
 export function settle(m: Elec16): void {
-  for (let k = 0; k < 400; k++) {
+  for (let k = 0; k < 4000; k++) {
     const r = m.run(200_000)
-    if (r.sleeping !== null || r.halted !== null) return
+    const request = m.takeCardRequest()
+    if (request !== null) {
+      const done = cardOp(card.files, request, 0, card.soft)
+      card.files = done.files
+      m.answerCard(request, done.answer)
+      continue
+    }
+    if (r.halted !== null) return
+    if (r.sleeping !== null) {
+      if (r.sleeping.timerMs === null) return
+      m.advance(Math.max(1, r.sleeping.timerMs))
+    }
   }
   throw new Error('the ROM never waited for a key')
 }

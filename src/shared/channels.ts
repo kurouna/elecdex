@@ -177,6 +177,7 @@ export const CH = {
     save: 'elec16:save',
     card: 'elec16:card',
     files: 'elec16:files',
+    soft: 'elec16:soft',
     import: 'elec16:import',
     export: 'elec16:export',
     /** main -> renderer: the units and who holds them, after any change (Elec16Board). */

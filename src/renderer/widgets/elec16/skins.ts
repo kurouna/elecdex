@@ -7,16 +7,10 @@
  * RGB for the canvas (any CSS colour, a theme variable included).
  */
 
-export const SKIN_IDS = [
-  'elec',
-  'tron',
-  'business-light',
-  'business-dark',
-  'classic',
-  'ivory',
-  'night',
-] as const
-export type SkinId = (typeof SKIN_IDS)[number]
+import { ELEC16_SKINS, type Elec16SkinId } from '@shared/elec16-units'
+
+export const SKIN_IDS = ELEC16_SKINS
+export type SkinId = Elec16SkinId
 
 export interface Skin {
   id: SkinId

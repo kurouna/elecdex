@@ -9,10 +9,30 @@ import { z } from 'zod'
 import { CARD_FILE_MAX, CARD_OP, type CardRequest } from './elec16/card.js'
 import { DEFAULT_MODEL, MODEL_IDS, type ModelId } from './elec16/map.js'
 
+/** The skins a pane may draw its unit in (widgets/elec16/skins.ts has what each looks like). */
+export const ELEC16_SKINS = [
+  'elec',
+  'tron',
+  'business-light',
+  'business-dark',
+  'classic',
+  'ivory',
+  'night',
+] as const
+export type Elec16SkinId = (typeof ELEC16_SKINS)[number]
+
 /** The clocks a unit may run at, in MHz, and MAX: as fast as the page's budget allows. */
 export const ELEC16_CLOCKS = [1, 2, 4, 8, 16, 32, 'max'] as const
 export type Elec16Clock = (typeof ELEC16_CLOCKS)[number]
 export const DEFAULT_CLOCK: Elec16Clock = 4
+
+/**
+ * Auto power-off, in minutes: the unit switches itself off after this long asleep waiting
+ * for a key with nothing else to wake it (docs/elec16.md section 9); 0 never.
+ */
+export const ELEC16_AUTO_OFF = [10, 30, 0] as const
+export type Elec16AutoOff = (typeof ELEC16_AUTO_OFF)[number]
+const AutoOffSchema = z.union([z.literal(10), z.literal(30), z.literal(0)])
 
 /** Cycles a second at a clock, or Infinity for MAX. */
 export const hzOfClock = (clock: Elec16Clock): number =>
@@ -42,6 +62,8 @@ export const Elec16UnitSchema = z.object({
     z.literal(32),
   ]),
   model: z.enum(MODEL_IDS),
+  // Units made before it had one switch off as a new one does.
+  autoOff: AutoOffSchema.default(10),
   created: z.number(),
 })
 export type Elec16Unit = z.infer<typeof Elec16UnitSchema>
@@ -52,6 +74,7 @@ export const Elec16UnitChangeSchema = z
     name: UnitNameSchema,
     clock: Elec16UnitSchema.shape.clock,
     model: z.enum(MODEL_IDS),
+    autoOff: AutoOffSchema,
   })
   .partial()
 export type Elec16UnitChange = z.infer<typeof Elec16UnitChangeSchema>
@@ -64,9 +87,10 @@ export interface Elec16UnitSeed {
 
 export const unitDefaults = (
   seed: Elec16UnitSeed = {},
-): { clock: Elec16Clock; model: ModelId } => ({
+): { clock: Elec16Clock; model: ModelId; autoOff: Elec16AutoOff } => ({
   clock: seed.clock ?? DEFAULT_CLOCK,
   model: seed.model ?? DEFAULT_MODEL,
+  autoOff: 10,
 })
 
 /** Who holds a unit, as one page sees it: one of its own panes, or another page (null). */
@@ -88,6 +112,8 @@ export interface Elec16FileInfo {
   name: string
   size: number
   modified: number
+  /** A SOFT CARD program's line of what it is (its first REM or comment). */
+  about?: string
 }
 
 /** What IMPORT gives: the name the file got on the card, or why it did not go there. */

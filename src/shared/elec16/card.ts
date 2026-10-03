@@ -46,6 +46,8 @@ export const CARD_BLOCK_SIZE = 32
 /** A card holds this much, every file's bytes together; a file at most FILE_MAX. */
 export const CARD_CAPACITY = 256 * 1024
 export const CARD_FILE_MAX = 32 * 1024
+/** WRITE's offset that means the file's end: what is written is added to it. */
+export const CARD_APPEND = 0xffff
 /** A DIR entry in RAM: the name [12], its size [2], 2 bytes spare. */
 export const DIR_ENTRY_SIZE = 16
 
@@ -216,32 +218,43 @@ export function cardWrite(s: Elec16State, address: number, value: number): void 
 
 const used = (files: readonly CardFile[]): number => files.reduce((n, f) => n + f.data.length, 0)
 
+/** DIR of this name lists the SOFT CARD instead of the unit's own. */
+export const SOFT_CARD = 'SOFT'
+
 /**
  * A request done on a card's files: the files after it (the same array when nothing
- * changed) and the answer. Pure, so main and the tests run the same thing.
+ * changed) and the answer. `soft` is the SOFT CARD, read-only: a READ of a name the card does
+ * not have reads it there, and DIR "SOFT" lists it (DIR of another name has no such card);
+ * nothing ever writes it, and a file of the same name on the card is the one read. Pure, so
+ * main and the tests run the same thing.
  */
 export function cardOp(
   files: readonly CardFile[],
   request: CardRequest,
   now: number,
+  soft: readonly CardFile[] = [],
 ): { files: readonly CardFile[]; answer: CardAnswer } {
   const at = files.findIndex((f) => f.name === request.name)
   const found = files[at]
   const no = (status: number) => ({ files, answer: { status } })
   switch (request.op) {
-    case 'dir':
+    case 'dir': {
+      if (request.name !== '' && request.name !== SOFT_CARD) return no(CARD_STATUS.noFile)
+      const listed = request.name === SOFT_CARD ? soft : files
       return {
         files,
         answer: {
           status: CARD_STATUS.ok,
-          entries: files.map((f) => ({ name: f.name, size: f.data.length })),
+          entries: listed.map((f) => ({ name: f.name, size: f.data.length })),
         },
       }
+    }
     case 'free':
       return { files, answer: { status: CARD_STATUS.ok, result: CARD_CAPACITY - used(files) } }
     case 'read': {
-      if (found === undefined) return no(CARD_STATUS.noFile)
-      const data = found.data.slice(request.offset, request.offset + request.length)
+      const file = found ?? soft.find((f) => f.name === request.name)
+      if (file === undefined) return no(CARD_STATUS.noFile)
+      const data = file.data.slice(request.offset, request.offset + request.length)
       return { files, answer: { status: CARD_STATUS.ok, data, result: data.length } }
     }
     case 'delete':
@@ -264,7 +277,7 @@ export function cardOp(
 /**
  * WRITE: the bytes at the offset of the file (made when there is none). An offset of 0 starts
  * the file afresh with them; a later one writes over and past what is there, but may not
- * leave a gap. FULL when the file or the card would overflow.
+ * leave a gap; CARD_APPEND adds them at the end. FULL when the file or the card would overflow.
  */
 function writeFile(
   files: readonly CardFile[],
@@ -274,15 +287,16 @@ function writeFile(
 ): { files: readonly CardFile[]; answer: CardAnswer } {
   const data = request.data ?? new Uint8Array()
   const old = request.offset === 0 ? new Uint8Array() : (files[at]?.data ?? new Uint8Array())
-  if (request.offset > old.length) return { files, answer: { status: CARD_STATUS.badAddress } }
-  const size = Math.max(old.length, request.offset + data.length)
+  const offset = request.offset === CARD_APPEND ? old.length : request.offset
+  if (offset > old.length) return { files, answer: { status: CARD_STATUS.badAddress } }
+  const size = Math.max(old.length, offset + data.length)
   const before = files[at]?.data.length ?? 0
   if (size > CARD_FILE_MAX || used(files) - before + size > CARD_CAPACITY) {
     return { files, answer: { status: CARD_STATUS.full } }
   }
   const next = new Uint8Array(size)
   next.set(old)
-  next.set(data, request.offset)
+  next.set(data, offset)
   const file: CardFile = { name: request.name, data: next, modified: now }
   const list = at < 0 ? [...files, file] : files.map((f, k) => (k === at ? file : f))
   return { files: list, answer: { status: CARD_STATUS.ok, result: data.length } }

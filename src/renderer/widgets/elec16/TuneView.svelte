@@ -1,7 +1,9 @@
 <script lang="ts">
 import { MODEL_IDS, MODELS, type ModelId } from '@shared/elec16/map'
 import {
+  ELEC16_AUTO_OFF,
   ELEC16_CLOCKS,
+  type Elec16AutoOff,
   type Elec16Clock,
   type Elec16Unit,
   type Elec16UnitChange,
@@ -11,10 +13,10 @@ import { BODY_MODES, type BodyMode, type Elec16Pane } from './pane-state.ts'
 import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
 
 /**
- * TUNE (docs/elec16.md section 7): which unit the pane runs (or a new one), the unit's clock
- * and its LCD (fitting another one restarts the machine, its RAM kept and the screen empty) -
- * the unit's own, kept by main - then this pane's: how the body is drawn, the skin, the LCD's
- * slow fade and its contrast.
+ * TUNE (docs/elec16.md section 7): PASTE, which unit the pane runs (or a new one), the unit's
+ * clock, auto power-off and its LCD (fitting another one restarts the machine, its RAM kept
+ * and the screen empty) - the unit's own, kept by main - then this pane's: how the body is
+ * drawn, the skin, the LCD's slow fade and its contrast.
  */
 interface Props {
   pane: Elec16Pane
@@ -27,15 +29,36 @@ interface Props {
   onswitch: (id: string) => void
   /** A new unit for this pane. */
   onnew: () => void
+  /** Keys PASTE has still to press (0: none under way). */
+  pasting: number
+  /** Characters the last PASTE had no key for. */
+  pasteSkipped: number
+  /** Whether there is a machine on to type into. */
+  canPaste: boolean
+  /** PASTE, or its stop while it types. */
+  onpaste: () => void
 }
 
-const { pane, unit, units, onchange, onunit, onswitch, onnew }: Props = $props()
+const {
+  pane,
+  unit,
+  units,
+  onchange,
+  onunit,
+  onswitch,
+  onnew,
+  pasting,
+  pasteSkipped,
+  canPaste,
+  onpaste,
+}: Props = $props()
 
 const clockWords = (c: Elec16Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
 const modelWords = (id: ModelId): string => {
   const m = MODELS[id]
   return `${m.width}×${m.height}${m.depth === 2 ? ' ·4' : ''}`
 }
+const offWords = (m: Elec16AutoOff): string => (m === 0 ? 'never' : `${m} min`)
 const BODY_WORDS: Record<BodyMode, string> = {
   auto: 'auto',
   full: 'full',
@@ -51,6 +74,25 @@ function pick<T>(now: T, next: T, apply: () => void): void {
 </script>
 
 <div class="tune" data-testid="elec16-tune">
+  <section>
+    <h3>keys</h3>
+    <div class="chips">
+      <button
+        type="button"
+        class="e16-chip"
+        disabled={!canPaste && pasting === 0}
+        aria-pressed={pasting > 0}
+        onclick={() => onpaste()}
+        data-testid="elec16-paste">{pasting > 0 ? `stop paste · ${pasting}` : 'paste'}</button
+      >
+    </div>
+    <p class="note">
+      PASTE types the clipboard's text on the machine's keys, kana in KANA mode{#if pasteSkipped > 0}<span
+          data-testid="elec16-paste-skipped"
+        >; {pasteSkipped} {pasteSkipped === 1 ? 'character' : 'characters'} it has no key for left out</span
+        >{/if}.
+    </p>
+  </section>
   <section>
     <h3>unit</h3>
     <div class="chips" role="radiogroup" aria-label="unit">
@@ -81,6 +123,23 @@ function pick<T>(now: T, next: T, apply: () => void): void {
           onclick={() => pick(unit?.clock, c, () => onunit({ clock: c }))}
           data-testid="elec16-clock"
           data-clock={c}>{clockWords(c)}</button
+        >
+      {/each}
+    </div>
+  </section>
+  <section>
+    <h3>auto off</h3>
+    <div class="chips" role="radiogroup" aria-label="auto power-off">
+      {#each ELEC16_AUTO_OFF as m (m)}
+        <button
+          type="button"
+          class="e16-chip"
+          role="radio"
+          disabled={unit === null}
+          aria-checked={unit?.autoOff === m}
+          onclick={() => pick(unit?.autoOff, m, () => onunit({ autoOff: m }))}
+          data-testid="elec16-auto-off"
+          data-minutes={m}>{offWords(m)}</button
         >
       {/each}
     </div>

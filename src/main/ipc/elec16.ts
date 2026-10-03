@@ -1,5 +1,6 @@
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { CH } from '@shared/channels'
 import { assemble, ramImage } from '@shared/elec16/asm'
 import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer } from '@shared/elec16/card'
@@ -16,7 +17,7 @@ import {
 } from '@shared/elec16-units'
 import { app, BrowserWindow, dialog, type WebContents } from 'electron'
 import { appWindows } from '../app-windows.js'
-import { Elec16Units, type Holder } from '../elec16/units.js'
+import { Elec16Units, findElec16Dir, type Holder, readSoftCard } from '../elec16/units.js'
 import { whenPageGoes } from './page-gone.js'
 import { registerTable } from './table.js'
 
@@ -44,7 +45,11 @@ function seedOf(raw: unknown): Elec16UnitSeed {
 export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec16')): {
   dispose: () => void
 } {
-  const units = new Elec16Units(dir)
+  const units = new Elec16Units(
+    dir,
+    Date.now,
+    readSoftCard(findElec16Dir(path.dirname(fileURLToPath(import.meta.url)))),
+  )
   const owner = {}
 
   const boardFor = (page: WebContents, seed?: Elec16UnitSeed): Elec16Board => ({
@@ -133,6 +138,7 @@ export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec
         return answer
       },
       [CH.elec16.files]: (_event, unit: unknown): Elec16FileInfo[] => units.files(unit),
+      [CH.elec16.soft]: (): Elec16FileInfo[] => units.softFiles(),
       [CH.elec16.import]: async (event, unit: unknown): Promise<Elec16ImportResult | null> => {
         if (units.unit(unit) === null || typeof unit !== 'string') return null
         const file = await pickOpen(event.sender)

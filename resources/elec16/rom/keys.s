@@ -36,6 +36,24 @@ getkey:
   beq a0, t1, .shift
   li t1, K_CAPS
   beq a0, t1, .caps
+  li t1, K_KANA
+  beq a0, t1, .kanakey
+  ; KANA: a key with a kana gives it (with SHIFT, its small form or mark), before all else.
+  andi t3, t2, F_KANA
+  beqz t3, .roman
+  la t1, keytab
+  sub t3, t0, t1
+  la t1, kanatab
+  add t3, t3, t1
+  andi t1, t2, F_SHIFT
+  beqz t1, .kana
+  addi t3, t3, 1
+.kana:
+  lbu t1, 0(t3)
+  beqz t1, .roman
+  mv a0, t1
+  j .plain
+.roman:
   andi t3, t2, F_SHIFT
   beqz t3, .letter
   beqz a1, .letter
@@ -62,12 +80,15 @@ getkey:
   j .flags
 .caps:
   xori t2, t2, F_CAPS
+  j .flags
+.kanakey:
+  xori t2, t2, F_KANA
 .flags:
   sw t2, FLAGS(zero)
   call annunciate
   j .wait
 
-; Shows SHIFT and CAPS above the dots, with MON.
+; Shows SHIFT, CAPS and KANA above the dots, with the mode's own.
 annunciate:
   lw t0, FLAGS(zero)
   lw t1, ANNMODE(zero)
@@ -76,8 +97,12 @@ annunciate:
   ori t1, t1, ANN_SHIFT
 .caps:
   andi t2, t0, F_CAPS
-  beqz t2, .show
+  beqz t2, .kana
   ori t1, t1, ANN_CAPS
+.kana:
+  andi t2, t0, F_KANA
+  beqz t2, .show
+  ori t1, t1, ANN_KANA
 .show:
   sw t1, IO_ANNUNCIATORS(zero)
   ret

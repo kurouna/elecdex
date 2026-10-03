@@ -29,6 +29,10 @@ export const CURX = 0x00
 export const CURY = 0x02
 export const COLS = 0x04
 export const ROWS = 0x06
+/** The screen's width in dots, the bytes in one plane, and 1 or 2 bits a dot. */
+export const WIDTH = 0x08
+export const PLANE = 0x0a
+export const DEPTH = 0x0c
 export const FLAGS = 0x0e
 export const ANNMODE = 0x1a
 export const INBASIC = 0x1c
@@ -37,6 +41,29 @@ export const BRKFLAG = 0x1e
 /* ---------------- the machine ---------------- */
 
 export const IO_ANNUN = 0xff2e
+export const IO_POWER = 0xff06
+export const IO_KEY_COUNT = 0xff12
+export const IO_WIDTH = 0xff20
+export const IO_HEIGHT = 0xff22
+export const IO_TCOUNT = 0xff30
+export const IO_TCMP = 0xff32
+export const IO_TCTRL = 0xff34
+/** The clock: second, minute, hour, day, month, year - 2000, weekday (bytes). */
+export const IO_CLOCK = 0xff38
+export const IO_FREQ = 0xff40
+export const IO_DUR = 0xff42
+export const CARD_CMD = 0xff60
+export const CARD_BLOCK = 0xff62
+export const CARD_STATUS = 0xff64
+export const CARD_RESULT = 0xff66
+export const CARD_RESULT_HIGH = 0xff68
+/** The CSR that enables the lines WFI wakes for, and the timer's bit in it. */
+export const CSR_MIE = 0x304
+export const MIE_TIMER = 1
+/** The screen's memory, and where machine code from the card loads unless told. */
+export const VRAM = 0xe000
+export const CODE_AREA = 0x7000
+export const CODE_AREA_END = 0x7c00
 /** The cursor's look: 6 a blinking block, 0 none. */
 export const IO_CURMODE = 0xff2c
 export const MATH_OP = 0xff50
@@ -74,6 +101,7 @@ export const K_UP = 0x1e
 export const K_DOWN = 0x1f
 export const CH_SPACE = 0x20
 export const CH_QUOTE = 0x22
+export const CH_HASH = 0x23
 export const CH_DOLLAR = 0x24
 export const CH_LPAREN = 0x28
 export const CH_RPAREN = 0x29
@@ -93,6 +121,8 @@ export const CH_GT = 0x3e
 export const CH_QUESTION = 0x3f
 export const CH_A = 0x41
 export const CH_Z = 0x5a
+export const CH_LBRACKET = 0x5b
+export const CH_RBRACKET = 0x5d
 export const CH_CARET = 0x5e
 export const CH_LOWER_A = 0x61
 export const CH_LOWER_Z = 0x7a

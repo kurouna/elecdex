@@ -360,3 +360,51 @@ test('IMPORT puts a picked listing on the card and EXPORT gives it back as text'
     rmSync(outside, { recursive: true, force: true })
   }
 })
+
+test("SAVE and LOAD go through main to the unit's card, and FILES lists what is there", async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, '10 print 5*7')
+    await typeLine(page, 'save "calc"')
+    await typeLine(page, 'new')
+    await typeLine(page, 'load "calc"')
+    await typeLine(page, 'run')
+    await expect.poll(() => lcdLines(page)).toContain('35')
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await expect(page.getByTestId('elec16-file')).toHaveAttribute('data-name', 'CALC.BAS')
+  } finally {
+    await close()
+  }
+})
+
+test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, and PASTE types the clipboard", async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    const primes = page.getByTestId('elec16-soft-file').and(page.locator('[data-name="PRIMES.BAS"]'))
+    await primes.hover()
+    await expect(page.getByTestId('elec16-file-card')).toContainText('THE PRIMES UP TO A NUMBER')
+    await expect(page.getByTestId('elec16-file-card')).toContainText('LOAD "PRIMES.BAS"')
+    await primes.click()
+    await page.getByTestId('elec16-load').click()
+    await expect.poll(() => lcdLines(page)).toContain('>LOAD "PRIMES.BAS"')
+    // The clipboard is the page's stand-in, never this machine's.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => 'RUN\n30\n',
+        configurable: true,
+      })
+    })
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await page.getByTestId('elec16-paste').click()
+    await expect.poll(() => lcdLines(page)).toContain('2 3 5 7 11 13 17 19 23 29')
+    await expect(page.getByTestId('elec16-paste')).toHaveText('paste')
+  } finally {
+    await close()
+  }
+})

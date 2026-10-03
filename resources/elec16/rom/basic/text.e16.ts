@@ -10,14 +10,24 @@ import {
   type u8,
   type u16,
 } from '../../../../src/shared/e16c/builtins'
-import { CH_0, CH_A, CH_LOWER_A, CH_LOWER_Z, CH_QUOTE, CH_SPACE, CH_Z, putc } from './rom.e16'
+import {
+  CH_0,
+  CH_A,
+  CH_COLON,
+  CH_LOWER_A,
+  CH_LOWER_Z,
+  CH_QUOTE,
+  CH_SPACE,
+  CH_Z,
+  putc,
+} from './rom.e16'
 
 /**
  * Every keyword, its token 0x80 plus its place here. The order is fixed: a program keeps the
  * tokens, so a new keyword only ever goes at the end.
  */
 export const KEYWORDS = str(
-  'RUN LIST NEW CONT PRINT INPUT LET IF THEN ELSE FOR TO STEP NEXT GOTO GOSUB RETURN END STOP REM MON CLS DEG RAD GRAD POKE CALL WAIT BEEP DIM DATA READ RESTORE ON CLEAR AUTO RENUM DELETE TRON TROFF FILES LOAD SAVE KILL LOCATE CURSOR PSET PRESET LINE GPRINT OPEN CLOSE SIN COS TAN ASIN ACOS ATAN SQR ABS INT SGN LOG LN EXP RND PI ANS PEEK POINT NOT AND OR',
+  'RUN LIST NEW CONT PRINT INPUT LET IF THEN ELSE FOR TO STEP NEXT GOTO GOSUB RETURN END STOP REM MON CLS DEG RAD GRAD POKE CALL WAIT BEEP DIM DATA READ RESTORE ON CLEAR AUTO RENUM DELETE TRON TROFF FILES LOAD SAVE KILL LOCATE CURSOR PSET PRESET LINE GPRINT OPEN CLOSE SIN COS TAN ASIN ACOS ATAN SQR ABS INT SGN LOG LN EXP RND PI ANS PEEK POINT NOT AND OR LEN LEFT$ MID$ RIGHT$ CHR$ ASC STR$ VAL INKEY$ TIME$ DATE$ EOF LCDW LCDH OFF AS OUTPUT APPEND',
 )
 
 export const T_RUN = 0x80
@@ -68,6 +78,49 @@ export const T_POINT = 0xc5
 export const T_NOT = 0xc6
 export const T_AND = 0xc7
 export const T_OR = 0xc8
+export const T_LEN = 0xc9
+export const T_LEFT = 0xca
+export const T_MID = 0xcb
+export const T_RIGHT = 0xcc
+export const T_CHR = 0xcd
+export const T_ASC = 0xce
+export const T_STR = 0xcf
+export const T_VAL = 0xd0
+export const T_INKEY = 0xd1
+export const T_TIME = 0xd2
+export const T_DATE = 0xd3
+export const T_EOF = 0xd4
+export const T_LCDW = 0xd5
+export const T_LCDH = 0xd6
+export const T_OFF = 0xd7
+export const T_AS = 0xd8
+export const T_OUTPUT = 0xd9
+export const T_APPEND = 0xda
+export const T_WAIT = 0x9b
+export const T_BEEP = 0x9c
+export const T_DIM = 0x9d
+export const T_DATA = 0x9e
+export const T_READ = 0x9f
+export const T_RESTORE = 0xa0
+export const T_ON = 0xa1
+export const T_CLEAR = 0xa2
+export const T_AUTO = 0xa3
+export const T_RENUM = 0xa4
+export const T_DELETE = 0xa5
+export const T_TRON = 0xa6
+export const T_TROFF = 0xa7
+export const T_FILES = 0xa8
+export const T_LOAD = 0xa9
+export const T_SAVE = 0xaa
+export const T_KILL = 0xab
+export const T_LOCATE = 0xac
+export const T_CURSOR = 0xad
+export const T_PSET = 0xae
+export const T_PRESET = 0xaf
+export const T_LINE = 0xb0
+export const T_GPRINT = 0xb1
+export const T_OPEN = 0xb2
+export const T_CLOSE = 0xb3
 
 export function isLetter(c: u16): bool {
   return (c >= CH_A && c <= CH_Z) || (c >= CH_LOWER_A && c <= CH_LOWER_Z)
@@ -123,28 +176,57 @@ function keywordAt(text: u16): u16 {
   return best
 }
 
+/* Text kept as typed: inside quotes, after REM to the line's end, and a DATA's items up to
+   a colon (DATA ON,OFF reads two words, not two keywords). tokenize and expand share it. */
+let inQuotes = false
+const RAW_NONE = 0
+const RAW_REM = 1
+const RAW_DATA = 2
+let rawMode: u16 = RAW_NONE
+
+function rawFrom(): void {
+  inQuotes = false
+  rawMode = RAW_NONE
+}
+
+/** Whether the character here is kept as it is, not read as a keyword. */
+function kept(): bool {
+  return inQuotes || rawMode !== RAW_NONE
+}
+
+/** A keyword passed: REM and DATA keep what follows. */
+function afterToken(token: u16): void {
+  if (token === T_REM) rawMode = RAW_REM
+  else if (token === T_DATA) rawMode = RAW_DATA
+}
+
+/** A character passed: a quote opens or closes text, a colon ends a DATA's items. */
+function afterChar(c: u16): void {
+  if (c === CH_QUOTE) inQuotes = !inQuotes
+  else if (c === CH_COLON && rawMode === RAW_DATA && !inQuotes) rawMode = RAW_NONE
+}
+
 /**
  * The line typed (from `text`, ended by a zero) into tokens at `out`, ended by a zero: its
- * length with the zero. Keywords are found outside quotes and before REM; letters elsewhere
- * are made upper case (names are), and text in quotes or after REM is kept as it is.
+ * length with the zero. Keywords are found outside what is kept as typed; letters elsewhere
+ * are made upper case (names are).
  */
 export function tokenize(text: u16, out: u16): u16 {
   let i: u16 = 0
   let o: u16 = 0
-  let quoted = false
-  let rest = false
+  rawFrom()
   while (peek(text + i) !== 0) {
     const c: u8 = peek(text + i)
     // A quote is its own upper case, so the one opening or closing text may go either way.
-    const kept: bool = quoted || rest
-    const token: u16 = kept || !isLetter(c) ? 0 : keywordAt(text + i)
+    const keep: bool = kept()
+    const token: u16 = keep || !isLetter(c) ? 0 : keywordAt(text + i)
     if (token !== 0) {
       poke(out + o, token)
       i += matchedLength
-      rest = token === T_REM
+      afterToken(token)
     } else {
-      if (c === CH_QUOTE) quoted = !quoted
-      poke(out + o, kept ? c : upper(c))
+      afterChar(c)
+      poke(out + o, keep ? c : upper(c))
       i++
     }
     o++
@@ -161,19 +243,18 @@ export function tokenize(text: u16, out: u16): u16 {
 export function expand(at: u16, out: u16, max: u16): u16 {
   let p = at
   let n: u16 = 0
-  let quoted = false
-  let raw = false
+  rawFrom()
   while (peek(p) !== 0) {
     const c: u8 = peek(p)
-    if (c >= 0x80 && !quoted && !raw) {
+    if (c >= 0x80 && !kept()) {
       let w = keywordText(c)
       while (w !== 0 && peek(w) !== CH_SPACE && peek(w) !== 0) {
         n = give(out, n, max, peek(w))
         w++
       }
-      raw = c === T_REM
+      afterToken(c)
     } else {
-      if (c === CH_QUOTE) quoted = !quoted
+      afterChar(c)
       n = give(out, n, max, c)
     }
     p++

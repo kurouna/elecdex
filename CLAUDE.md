@@ -30,7 +30,7 @@ npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
 npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
 npm run gen:chip8      # CHIP-8 library + previews: resources/chip8/programs.json (--archive <dir> to update chip8Archive)
-npm run gen:elec16     # ELEC-16 ROM: BASIC (e16c) -> basic.s, then rom/*.s -> src/renderer/widgets/elec16/rom.json
+npm run gen:elec16     # ELEC-16 ROM: BASIC (e16c) -> basic.s, rom/*.s -> rom.json; soft/ -> soft.json
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
 npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
@@ -218,8 +218,18 @@ user made; do not reverse one without asking.
     reading is `u8()`, `u16()` or `i16()`. A miscompile gets a function in
     tests/fixtures/e16c/sample.e16.ts that shows it.
   - BRK is a line of its own (IRQ 15), not a key in the FIFO: it always gets the machine back.
+  - A unit (its RAM and card) is main's (main/elec16/units.ts); one pane runs it at a time, by
+    claim. Its battery backup is the core's snapshot, written only when the pane is hidden or
+    closed, the machine is switched off or the page goes - never on a timer. The core never
+    touches the card: it makes a request, the page passes it on, main does it (`cardOp`).
+  - BASIC's second half lives in ROM banks 0-3 (`BASIC_SOURCES`); a bank's strings are read
+    only in that bank. String variables have a fixed room: no garbage collector.
   - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
     once - never at device pixels - and at most thirty times a second (`drawMs`; measured).
+  - The SOFT CARD (resources/elec16/soft) is written into soft.json only by `npm run gen:elec16`
+    (a test holds it and runs every program); main lays it read-only over every unit's card
+    and never writes it. PASTE and LOAD ▸ type through the key FIFO (`pasteKeys`), never
+    into RAM.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).
