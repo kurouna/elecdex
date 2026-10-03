@@ -13,8 +13,8 @@
  *               from the button, and the spectrum moving with them
  *   utility     a QR code typed, over the tasks
  *   keystream   the sample plugin over the processor's chart: a track typed on time
- *   chip8       the CHIP-8 library playing T8NKS by itself over the calendar, loaded across the
- *               width (no panel), then paused
+ *   chip8       the CHIP-8 library playing T8NKS by itself over the ELEC-16, loaded across the
+ *               width (no panel), then paused; then the ELEC-16 runs SINEWAVE from its SOFT CARD
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, on the shells
  *
@@ -95,8 +95,8 @@ const LAYOUTS = [
           panel: false,
           listShare: 0.42,
         }),
-        pane('calendar'),
-        0.74,
+        pane('elec16', { skin: 'classic', panel: false }),
+        0.5,
       ),
   ],
   // The tenth: past the number keys, reached through the layouts dialog, one row down.
@@ -158,7 +158,8 @@ await run(async () => {
     play: 10_000,
   })
   await beat.toLayout(slot('chip8'), 'chip8')
-  await beat.chip8(2600, { mem: false })
+  await beat.chip8(2200, { mem: false })
+  await beat.elec16(3500)
   await beat.throughTheDialog('council')
   await wait(800)
   await beat.councilSits(4000)

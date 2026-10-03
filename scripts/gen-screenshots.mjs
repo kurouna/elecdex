@@ -237,6 +237,50 @@ const chip8Layout = {
   ),
 }
 
+/*
+ * The ELEC-16 pane in the middle column in the CLASSIC skin, with CORE beside it: SINEWAVE
+ * from its SOFT CARD (the machine's own program), typed in as a person would.
+ */
+const elec16Layout = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      split(
+        'column',
+        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
+        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+      ),
+      { ...pane('elec16'), state: { skin: 'classic', tab: 'core' } },
+      split(
+        'column',
+        ['globe', 'markets', 'weather', 'calendar'].map(pane),
+        [0.3, 0.25, 0.22, 0.23],
+      ),
+    ],
+    [0.18, 0.64, 0.18],
+  ),
+}
+
+/** Switched on and asleep at BASIC's prompt, SINEWAVE loaded and run, a still frame of it. */
+async function sinewave(page) {
+  const device = page.getByTestId('elec16')
+  await device.waitFor()
+  await page.waitForFunction(
+    () => document.querySelector('[data-testid=elec16]')?.getAttribute('data-asleep') === 'true',
+    null,
+    { timeout: 20_000 },
+  )
+  await device.focus()
+  await page.keyboard.type('load "sinewave"', { delay: 30 })
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(800)
+  await page.keyboard.type('run', { delay: 30 })
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(4000)
+  await page.mouse.move(W / 2, H / 6)
+}
+
 /** A program brought back after a start waits paused: P runs it, for its title screen to draw. */
 async function playing(page) {
   await page.getByTestId('chip8-run').waitFor()
@@ -556,6 +600,7 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
   standIn.close()
 }
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
+await shoot('phosphor', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [
   ['social-elec-sitting', sitting, 110],

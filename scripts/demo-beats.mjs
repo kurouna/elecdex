@@ -311,6 +311,27 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await wait(2200)
   }
 
+  /**
+   * ELEC-16: asleep at BASIC's prompt, SINEWAVE from its SOFT CARD typed in as a person would
+   * (LOAD, then RUN), the waves drawn and held on screen; BRK puts it back at the prompt.
+   */
+  async function elec16(hold = 4500) {
+    const pane = paneOf('elec16')
+    const machine = pane.getByTestId('elec16')
+    await machine.and(page.locator('[data-asleep=true]')).waitFor({ timeout: 20_000 })
+    say('elec16: LOAD "SINEWAVE", RUN')
+    await press(machine)
+    await page.keyboard.type('load "sinewave"', { delay: 45 })
+    await page.keyboard.press('Enter')
+    await wait(700)
+    await page.keyboard.type('run', { delay: 45 })
+    await page.keyboard.press('Enter')
+    await away()
+    await wait(hold)
+    await page.keyboard.press('Pause')
+    await wait(600)
+  }
+
   /** A motion put to the council, the vote, and the resolution held on screen. */
   async function councilSits(hold = 5000) {
     say('council: a motion')
@@ -358,6 +379,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     qrCode,
     keystream,
     chip8,
+    elec16,
     councilSits,
     themes,
   }

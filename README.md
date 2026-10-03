@@ -174,6 +174,15 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   own: the 104 games, visual novels and toys of chip8Archive, each with a frame of its screen,
   your own program files, saves, and the registers, memory and code beside the screen.
 
+<p align="center">
+  <img src="./docs/screenshots/elecdex-elec16.jpg" alt="An ELEC-16 pane in the middle column in the CLASSIC skin: a dark pocket computer with ELEC-16 and 16-BIT POCKET COMPUTER on its name plate, a green-grey LCD drawing a sine wave, the keyboard with a red BRK key, and CORE beside it showing the registers and the code">
+  <br><sub>ELEC-16 · CLASSIC skin</sub>
+</p>
+
+- **ELEC-16** *(unreleased)* — a 16-bit pocket computer of elecdex's own design: its own
+  RISC CPU, BASIC and machine-code monitor in ROM, an LCD and a keyboard, a memory card, and
+  a CODE view that compiles TypeScript into its machine code.
+
 ### Layouts, looks and the rest
 
 <p align="center">
@@ -842,6 +851,26 @@ weather and calendar.
   more machines per program, each with its screen. **+ IMPORT** takes in a program file of your
   own: the machine is guessed from the instructions it uses, its preview made the same way, and
   its name and machine can be changed. A star puts a program in the starred tab.
+- **ELEC-16** *(unreleased)* — add it from the picker ("elec-16"). A 16-bit pocket
+  computer designed for elecdex, not a copy of any real one: its CPU (E16, a RISC with 32- and
+  16-bit instructions), ROM, font and BASIC are all its own. It starts in **BASIC** - type
+  `3*4+SIN 30` for an answer, or numbered lines for a program (`LIST`, `RUN`, `AUTO`, `RENUM`),
+  with strings, arrays, `DATA`, sound (`BEEP`), dots and lines (`PSET`, `LINE`), the clock
+  (`TIME$`) and files on its memory card (`SAVE`, `LOAD`, `FILES`, `OPEN`). `MON` opens the
+  machine-code monitor (dump, write, run, disassemble, breakpoints). The LCD is 240×48 by
+  default (also 240×32, 240×64 and a 160×144 four-shade one), drawn dot by dot with the shadow,
+  the slow fade and the contrast of a real one; seven skins dress the case. The PC's keyboard
+  types into it while the pane has the focus (kana by the JIS layout in KANA mode), and PASTE
+  types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
+  across restarts, its card holds files - and one pane runs it at a time (MOVE HERE takes it
+  over). The SOFT CARD brings ten programs (games, a sine wave, a clock, a biorhythm, and a
+  machine-code demo). The panel beside it shows the registers and the code (with breakpoints
+  and STEP), the memory, the card (IMPORT and EXPORT of `.bas`, `.asm` and binary files) and
+  TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off). **CODE** compiles a
+  program written in a subset of TypeScript into the machine's code at three levels of
+  optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs
+  it. A person's code runs only as the machine's code - never as JavaScript. While it waits at
+  its prompt the CPU sleeps and the pane costs about what a paused one does.
 
 ## Plugins
 

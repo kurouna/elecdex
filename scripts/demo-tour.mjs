@@ -11,7 +11,8 @@
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
- *   chip8       the CHIP-8 library playing T8NKS by itself, loaded, then paused on MEM
+ *   chip8       the CHIP-8 library playing T8NKS by itself, loaded, then paused on MEM; under
+ *               it the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT CARD and run
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, back to Tron
  *
@@ -83,17 +84,27 @@ const keystreamTree = {
   root: split('row', [councilTree.root.children[0], keystreamPane('tkeystream')], [0.18, 0.82]),
 }
 
-/** The system column again, and the CHIP-8 library open on T8NKS (chip8Archive, CC0). */
+/**
+ * The system column again, the CHIP-8 library open on T8NKS (chip8Archive, CC0), and the
+ * ELEC-16 under it in the CLASSIC skin, its panel folded.
+ */
 const chip8Tree = {
   version: 1,
   root: split(
     'row',
     [
       councilTree.root.children[0],
-      {
-        ...pane('chip8'),
-        state: { view: 'library', filter: 'action', program: 'archive/t8nks', panel: true },
-      },
+      split(
+        'column',
+        [
+          {
+            ...pane('chip8'),
+            state: { view: 'library', filter: 'action', program: 'archive/t8nks', panel: true },
+          },
+          { ...pane('elec16'), state: { skin: 'classic', panel: false } },
+        ],
+        [0.48, 0.52],
+      ),
     ],
     [0.18, 0.82],
   ),
@@ -182,7 +193,8 @@ await run(async () => {
   await beat.qrCode()
   await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 12_000 })
   await beat.toLayout(9, 'chip8')
-  await beat.chip8()
+  await beat.chip8(2200)
+  await beat.elec16()
   await beat.toLayout(7, 'council')
   await wait(800)
   await beat.councilSits(4000)
