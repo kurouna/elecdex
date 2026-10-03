@@ -243,6 +243,8 @@ class ProgramBuilder {
     const label = `str_${this.#strings.length}`
     const bytes = Array.from(text, (c) => {
       const code = c.charCodeAt(0)
+      // Half-width kana are the machine's A1 to DF, as IMPORT reads them.
+      if (code >= 0xff61 && code <= 0xff9f) return code - 0xff61 + 0xa1
       if (code > 0xff) throw new Refusal(0, `"${c}" is not in the machine's character set`)
       return code
     })

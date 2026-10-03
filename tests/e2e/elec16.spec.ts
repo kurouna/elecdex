@@ -39,8 +39,9 @@ const BEHIND_A_TAB = {
 const lcdLines = async (page: Page): Promise<string[]> =>
   ((await page.getByTestId('elec16-text').textContent()) ?? '').split('\n').map((l) => l.trimEnd())
 
+/** Switched on: BASIC's banner, asleep at its prompt. */
 async function booted(page: Page): Promise<void> {
-  await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('ELEC-16 MONITOR 0.1')
+  await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('ELEC-16 BASIC 1.0')
   await expect(page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
 }
 
@@ -50,7 +51,16 @@ async function typeLine(page: Page, line: string): Promise<void> {
   await page.keyboard.press('Enter')
 }
 
-test('boots to the monitor, sleeps at its prompt, and takes keys only while it has the focus', async () => {
+/** From BASIC's prompt to the monitor's (MON), on a cleared screen (CLS is Home). */
+async function toMonitor(page: Page): Promise<void> {
+  await page.getByTestId('elec16').focus()
+  await typeLine(page, 'mon')
+  await expect.poll(() => lcdLines(page)).toContain('ELEC-16 MONITOR 0.1')
+  await page.keyboard.press('Home')
+  await expect.poll(async () => (await lcdLines(page))[0]).toBe('*')
+}
+
+test('boots to BASIC, sleeps at its prompt, takes keys only while it has the focus, and MON reaches the monitor', async () => {
   const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
     await settleLayout(page)
@@ -58,9 +68,12 @@ test('boots to the monitor, sleeps at its prompt, and takes keys only while it h
     await expect(page.getByTestId('elec16-lamp-cpu')).toHaveAttribute('data-lamp', 'sleep')
     // Not focused: the keys go elsewhere.
     await page.keyboard.type('d')
-    await expect.poll(() => lcdLines(page)).toContain('*')
+    await expect.poll(() => lcdLines(page)).toContain('>')
     await page.getByTestId('elec16').focus()
     await expect(page.getByTestId('elec16-lamp-keys')).toHaveText('keys')
+    await typeLine(page, 'print 6*7')
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    await toMonitor(page)
     await typeLine(page, 'd 0')
     await expect
       .poll(() => lcdLines(page))
@@ -79,6 +92,7 @@ test("the screen's keys type, and BRK gets a program that never ends back", asyn
   try {
     await settleLayout(page)
     await booted(page)
+    await toMonitor(page)
     const keys = page.getByTestId('elec16-keys')
     // Wide enough for the whole keyboard, or else at least the row a compact body keeps.
     await expect(keys).toBeVisible()
@@ -117,7 +131,7 @@ test('a pane split beside it keeps its machine, RAM, screen and all', async () =
   try {
     await settleLayout(page)
     await booted(page)
-    await page.getByTestId('elec16').focus()
+    await toMonitor(page)
     await typeLine(page, 'e 7000 5a')
     await page.keyboard.type('d 7', { delay: 15 })
     // Splitting the pane remounts its widget (the new one beside it is a second ELEC-16): the
@@ -144,17 +158,18 @@ test('TUNE fits another LCD, keeping the RAM, and changes the skin', async () =>
   try {
     await settleLayout(page)
     await booted(page)
-    await page.getByTestId('elec16').focus()
-    await typeLine(page, 'e 100 5a')
+    await toMonitor(page)
+    // Above BASIC's room for a program, where switching on writes nothing.
+    await typeLine(page, 'e 7000 5a')
     await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
     await page.locator('[data-testid=elec16-model][data-model=pocket-64]').click()
     await expect.poll(async () => (await lcdLines(page)).length).toBe(8)
     await booted(page)
-    await page.getByTestId('elec16').focus()
-    await typeLine(page, 'd 100')
+    await toMonitor(page)
+    await typeLine(page, 'd 7000')
     await expect
       .poll(() => lcdLines(page))
-      .toEqual(expect.arrayContaining([expect.stringMatching(/^0100: 5A/)]))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/^7000: 5A/)]))
     await page.locator('[data-testid=elec16-skin][data-skin=night]').click()
     await expect(page.getByTestId('elec16-device')).toHaveAttribute('data-skin', 'night')
   } finally {
@@ -177,6 +192,7 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
     await atDesignSize(app, page)
     await settleLayout(page)
     await booted(page)
+    await toMonitor(page)
     const WINDOW_MS = 8_000
     const measure = async () => {
       const start = await cpuSeconds(app)

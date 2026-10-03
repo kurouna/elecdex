@@ -104,9 +104,10 @@ export function buildRom(read: (name: string) => string | null): BuiltRom {
   const out = assemble(source, { include, file: ROM_ENTRY })
   if (out.errors.length > 0) return { image: new Uint8Array(), symbols: {}, errors: out.errors }
   const symbols: Record<string, number> = {}
-  // Global labels only: local ones (`loop.next`) and constants would crowd the views.
+  // Global labels only - the hand-written ROM's and BASIC's functions (camelCase, e16c) -
+  // not local ones (`loop.next`), constants (upper case) or e16c's strings (`str_12`).
   for (const [name, value] of out.symbols) {
-    if (!name.includes('.') && /^[a-z_][a-z0-9_]*$/.test(name)) symbols[name] = value
+    if (/^[a-z_][A-Za-z0-9_]*$/.test(name) && !/^str_\d+$/.test(name)) symbols[name] = value
   }
   return { image: romImage(out), symbols, errors: [] }
 }

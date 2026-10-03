@@ -68,6 +68,38 @@ function foldUnary(op: 'neg' | 'not' | 'lnot', v: number): number {
   return v === 0 ? 1 : 0
 }
 
+/** Operations whose answer depends on reading the words as signed or not. */
+const SIGN_MATTERS = new Set<BinOp>([
+  'div',
+  'divu',
+  'rem',
+  'remu',
+  'shr',
+  'sar',
+  'lt',
+  'ltu',
+  'le',
+  'leu',
+  'gt',
+  'gtu',
+  'ge',
+  'geu',
+  'eq',
+  'ne',
+])
+
+/** Whether `as` may read `from` as `to`: the same type, or a widening. */
+function widens(from: TypeRef, to: TypeRef): boolean {
+  if (from.kind === 'array' || to.kind === 'array') return typeName(from) === typeName(to)
+  return from.ty === to.ty || (to.ty === 'u16' && (from.ty === 'u8' || from.ty === 'bool'))
+}
+
+/** `x & k` with k a byte is a u8: the way to say a value fits one. */
+function narrowAnd(op: BinOp, a: Typed, b: Typed): TypeRef {
+  const k = a.constant ?? b.constant
+  return op === 'and' && k !== undefined && k >= 0 && k <= 0xff ? scalar('u8') : U16
+}
+
 /** `a op= b` as `a = a op b`. */
 const COMPOUND: Partial<Record<ts.SyntaxKind, ts.SyntaxKind>> = {
   [ts.SyntaxKind.PlusEqualsToken]: ts.SyntaxKind.PlusToken,
@@ -372,16 +404,33 @@ export class FnCompiler {
     }
     if (ts.isElementAccessExpression(target)) {
       const elem = this.#element(target)
-      this.#assignable(scalar(elem), value(), target)
+      this.#assignable(scalar(elem), value(), target, true)
       this.#emit({ k: 'store', byte: elem === 'u8' })
       return
     }
     throw new Refusal(target.getStart(), 'only a variable or an element can be assigned')
   }
 
-  #assignable(to: TypeRef, value: Typed, at: ts.Node): void {
+  /**
+   * Whether a value may go where `to` is. A u8 variable takes only a u8 (TypeScript would keep
+   * a larger number, the machine its low byte); a u8 element takes any word, as both cut it.
+   */
+  #assignable(to: TypeRef, value: Typed, at: ts.Node, element = false): void {
     if (to.kind !== value.type.kind) {
       throw new Refusal(at.getStart(), `a ${typeName(value.type)} is not a ${typeName(to)}`)
+    }
+    const narrow =
+      to.kind === 'scalar' && to.ty === 'u8' && !element && value.constant === undefined
+    if (
+      narrow &&
+      value.type.kind === 'scalar' &&
+      value.type.ty !== 'u8' &&
+      value.type.ty !== 'bool'
+    ) {
+      throw new Refusal(
+        at.getStart(),
+        `a ${typeName(value.type)} is not a u8: take its low byte with u8()`,
+      )
     }
     if (to.kind === 'array' && value.type.kind === 'array' && to.elem !== value.type.elem) {
       throw new Refusal(at.getStart(), `a ${typeName(value.type)} is not a ${typeName(to)}`)
@@ -572,7 +621,7 @@ export class FnCompiler {
   }
 
   #literal(e: ts.NumericLiteral): Typed {
-    const v = Number(e.text)
+    const v = Number(e.text.replace(/_/g, ''))
     if (!Number.isInteger(v) || v > 0xffff)
       throw new Refusal(e.getStart(), `${e.text} is not a word`)
     this.#emit({ k: 'push', v: word(v) })
@@ -655,7 +704,8 @@ export class FnCompiler {
     const signedness = this.#signedness(a, b, at)
     const op = ops[signedness ? 1 : 0]
     const isCompare = COMPARE[kind] !== undefined
-    const type = isCompare ? BOOL : signedness ? I16 : U16
+    if (SIGN_MATTERS.has(op)) this.#constantFits(a, b, signedness, at)
+    const type = isCompare ? BOOL : signedness ? I16 : narrowAnd(op, a, b)
     const v =
       a.constant !== undefined && b.constant !== undefined
         ? fold(op, a.constant, b.constant, signedness)
@@ -682,6 +732,22 @@ export class FnCompiler {
     if (sa && b.constant !== undefined) return true
     if (sb && a.constant !== undefined) return true
     throw new Refusal(at.getStart(), 'this mixes i16 and an unsigned value: say which with `as`')
+  }
+
+  /**
+   * A constant beside a value, where the reading decides the answer (a comparison, a division,
+   * a shift right), must be one that reading has: -1 is no u16, 40000 no i16. TypeScript would
+   * compare the number itself, the machine its sixteen bits.
+   */
+  #constantFits(a: Typed, b: Typed, signedness: boolean, at: ts.Node): void {
+    const [lo, hi] = signedness ? [-32768, 32767] : [0, 65535]
+    for (const t of [a, b]) {
+      if (t.constant === undefined || (t.constant >= lo && t.constant <= hi)) continue
+      throw new Refusal(
+        at.getStart(),
+        `${t.constant} is not a ${signedness ? 'i16' : 'u16'} here: say which with i16() or u16()`,
+      )
+    }
   }
 
   /** && and ||, stopping as soon as the answer is known; 0 or 1. */
@@ -719,16 +785,21 @@ export class FnCompiler {
     return { type: a.constant !== undefined ? b.type : a.type }
   }
 
+  /**
+   * `as` only where TypeScript and the machine read the value alike: a widening (u8 or bool
+   * to u16) or the same type. A change of reading is u8(), u16() or i16(), which do the same
+   * in both.
+   */
   #cast(e: ts.AsExpression | ts.TypeAssertion): Typed {
     const to = readType(e.type)
     const t = this.expr(e.expression)
-    if (to.kind !== t.type.kind)
-      throw new Refusal(e.getStart(), `a ${typeName(t.type)} cannot be read as a ${typeName(to)}`)
-    if (to.kind === 'scalar' && to.ty === 'u8') {
-      this.#emit({ k: 'push', v: 0xff })
-      this.#emit({ k: 'bin', op: 'and' })
+    if (to.kind !== t.type.kind || !widens(t.type, to)) {
+      throw new Refusal(
+        e.getStart(),
+        `a ${typeName(t.type)} read as a ${typeName(to)} differs in TypeScript: use u8(), u16() or i16()`,
+      )
     }
-    return { type: to }
+    return t.constant === undefined ? { type: to } : { type: to, constant: t.constant }
   }
 
   /** The address of an element, left on the stack; the element's type. */
@@ -812,8 +883,17 @@ export class FnCompiler {
         return { type: s ? I16 : U16 }
       }
       case 'wrap16':
+      case 'u16':
         this.#args(e, 1)
         return { type: U16 }
+      case 'i16':
+        this.#args(e, 1)
+        return { type: I16 }
+      case 'u8':
+        this.#args(e, 1)
+        this.#emit({ k: 'push', v: 0xff })
+        this.#emit({ k: 'bin', op: 'and' })
+        return { type: scalar('u8') }
       case 'ecall':
         return this.#ecall(e)
       case 'csrr':

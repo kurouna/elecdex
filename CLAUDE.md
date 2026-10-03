@@ -30,7 +30,7 @@ npm run gen:geo        # globe land points, country centroids, time zone table
 npm run gen:cities     # weather picker city list (GeoNames)
 npm run gen:orbit-map  # ORBIT map: land dots, and time zone lines (timezone-boundary-builder, ODbL)
 npm run gen:chip8      # CHIP-8 library + previews: resources/chip8/programs.json (--archive <dir> to update chip8Archive)
-npm run gen:elec16     # ELEC-16 ROM: resources/elec16/rom/*.s -> src/renderer/widgets/elec16/rom.json
+npm run gen:elec16     # ELEC-16 ROM: BASIC (e16c) -> basic.s, then rom/*.s -> src/renderer/widgets/elec16/rom.json
 npm run gen:screenshots # README screenshots in a demo profile (Windows; build first)
 npm run demo:elec      # drives the ELEC pane for a screen recording (Windows; build first; --alone)
 npm run demo:full      # the whole app for a screen recording, windowed (Windows; build first; --probe)
@@ -211,6 +211,12 @@ user made; do not reverse one without asking.
   - The ROM is hand-written E16 assembly (resources/elec16/rom); its font, key table and I/O
     addresses come from shared/elec16 (font.ts, keys.ts, bus.ts) through rom.ts, never copied
     into the assembly. `npm run gen:elec16` writes rom.json; a test holds it to the sources.
+  - BASIC is e16c TypeScript (rom/basic/*.e16.ts); basic.s is e16c's -O2 output
+    (`compileBasic`), written only by `npm run gen:elec16`, never by hand. Its function names
+    share the ROM's labels. A function only assembly calls is exported (-O2 drops the rest).
+  - e16c code runs alike as TypeScript and on the machine: `as` only widens; a change of
+    reading is `u8()`, `u16()` or `i16()`. A miscompile gets a function in
+    tests/fixtures/e16c/sample.e16.ts that shows it.
   - BRK is a line of its own (IRQ 15), not a key in the FIFO: it always gets the machine back.
   - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
     once - never at device pixels - and at most thirty times a second (`drawMs`; measured).

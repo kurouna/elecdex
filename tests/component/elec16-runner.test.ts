@@ -51,7 +51,7 @@ function fakeHost() {
   return { host, advance, timers }
 }
 
-/** Types a line at the monitor, a key at a time, then lets the machine take it. */
+/** Types a line, a key at a time, then lets the machine take it. */
 function typeLine(runner: Elec16Runner, line: string): void {
   for (const ch of line) {
     runner.down(keyCode(ch.toLowerCase()), false)
@@ -72,11 +72,18 @@ function runForever(runner: Elec16Runner, advance: (ms: number) => void): void {
   advance(50)
 }
 
-function setUp() {
+/** Switched on and, unless `basic`, taken to the monitor on a cleared screen. */
+function setUp(basic = false) {
   const clock = fakeHost()
   const runner = new Elec16Runner(clock.host)
   runner.boot(ROM, 'pocket-48', 4_000_000)
   clock.advance(500)
+  if (!basic) {
+    typeLine(runner, 'mon')
+    runner.press(keyCode('cls'))
+    runner.release(keyCode('cls'))
+    clock.advance(50)
+  }
   const lines = () => {
     const s = runner.machine?.state
     return s === undefined ? [] : screenText(s.vram, 240, 48).map((l) => l.trimEnd())
@@ -86,8 +93,8 @@ function setUp() {
 
 describe('the ELEC-16 runner', () => {
   it('boots to the prompt and sleeps there with nothing scheduled', () => {
-    const { clock, runner, lines } = setUp()
-    expect(lines().slice(0, 2)).toEqual(['ELEC-16 MONITOR 0.1', '*'])
+    const { clock, runner, lines } = setUp(true)
+    expect(lines().slice(0, 3)).toEqual(['ELEC-16 BASIC 1.0', '27646 BYTES FREE', '>'])
     expect(runner.asleep).toBe(true)
     expect(runner.status).toBe('running')
     expect(clock.timers.size).toBe(0)
@@ -99,7 +106,7 @@ describe('the ELEC-16 runner', () => {
     runner.release(keyCode('h'))
     expect(runner.asleep).toBe(true)
     clock.advance(50)
-    expect(lines()[1]).toBe('*H')
+    expect(lines()[0]).toBe('*H')
     expect(runner.asleep).toBe(true)
     expect(clock.timers.size).toBe(0)
   })
@@ -115,7 +122,7 @@ describe('the ELEC-16 runner', () => {
     runner.release(keyCode('1'))
     runner.down(keyCode('a'), true)
     clock.advance(50)
-    expect(lines()[1]).toBe('*!1a')
+    expect(lines()[0]).toBe('*!1a')
   })
 
   it('pauses out of sight, and comes back by itself when it was asleep at its prompt', () => {
@@ -146,7 +153,7 @@ describe('the ELEC-16 runner', () => {
     runner.power()
     clock.advance(50)
     expect(runner.off).toBe(false)
-    expect(lines()[0]).toBe('ELEC-16 MONITOR 0.1')
+    expect(lines()[0]).toBe('ELEC-16 BASIC 1.0')
   })
 
   it('hands its machine to the next mount of a moved pane, which goes on from it', () => {
@@ -161,7 +168,7 @@ describe('the ELEC-16 runner', () => {
     next.down(keyCode('1'), false)
     clock.advance(50)
     const s = next.machine?.state
-    expect(s === undefined ? [] : screenText(s.vram, 240, 48)[1]?.trimEnd()).toBe('*D1')
+    expect(s === undefined ? [] : screenText(s.vram, 240, 48)[0]?.trimEnd()).toBe('*D1')
     expect(next.model).toBe('pocket-48')
   })
 

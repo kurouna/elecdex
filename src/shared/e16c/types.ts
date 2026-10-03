@@ -75,4 +75,7 @@ export const BUILTINS = new Set([
   'words',
   'str',
   'addr',
+  'u8',
+  'u16',
+  'i16',
 ])

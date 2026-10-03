@@ -8,10 +8,19 @@ getkey:
   addi sp, sp, -2
   sw ra, 0(sp)
 .wait:
+  lw t0, BRKFLAG(zero)
+  bnez t0, .brk
   lw t0, IO_KEY_COUNT(zero)
   bnez t0, .read
   wfi
   j .wait
+.brk:
+  ; BRK while BASIC waited: taken here, given as a key.
+  sw zero, BRKFLAG(zero)
+  li a0, K_BRK
+  lw ra, 0(sp)
+  addi sp, sp, 2
+  ret
 .read:
   lw t0, IO_KEY_DATA(zero)
   li t1, KEY_CODES
@@ -61,7 +70,7 @@ getkey:
 ; Shows SHIFT and CAPS above the dots, with MON.
 annunciate:
   lw t0, FLAGS(zero)
-  li t1, ANN_MON
+  lw t1, ANNMODE(zero)
   andi t2, t0, F_SHIFT
   beqz t2, .caps
   ori t1, t1, ANN_SHIFT
@@ -75,7 +84,8 @@ annunciate:
 
 ; Reads a line into the buffer at a0, at most a1 characters, echoing it; BS rubs out.
 ; Gives the length in a0, the text ended by a zero; -1 when CLS was pressed (the screen is
-; cleared and the line given up).
+; cleared and the line given up), -2 when BRK was (in BASIC), -3 when MODE was (the line
+; given up, the screen left as it is).
 readline:
   addi sp, sp, -8
   sw ra, 6(sp)
@@ -95,6 +105,10 @@ readline:
   beq a0, t0, .back
   li t0, K_CLS
   beq a0, t0, .clear
+  li t0, K_BRK
+  beq a0, t0, .stop
+  li t0, K_MODE
+  beq a0, t0, .mode
   li t0, 0x20
   bltu a0, t0, .loop
   bgeu s2, s1, .loop
@@ -111,6 +125,13 @@ readline:
 .clear:
   call cls
   li s2, -1
+  j .done
+.mode:
+  li s2, -3
+  j .done
+.stop:
+  ; BRK: the line is given up, the screen left as it is.
+  li s2, -2
 .done:
   sw zero, IO_CURSOR_MODE(zero)
   bltz s2, .out

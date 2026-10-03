@@ -5,9 +5,16 @@
 ;   G addr            call machine code; it returns here with RET
 ;   R                 the registers at the last break or fault
 ;   H or ?            the commands
+;   Q                 back to BASIC, its program and variables as they were
 ; BRK stops a program and comes back here; so does EBREAK, or a fault, which say where.
 
+; Into the monitor from BASIC (MON): BRK is the monitor's again.
 monitor:
+  sw zero, INBASIC(zero)
+  li t0, ANN_MON
+  sw t0, ANNMODE(zero)
+  call annunciate
+  call fresh_line
   la a0, banner
   call puts
   call newline
@@ -45,6 +52,8 @@ prompt:
   beq a0, t0, cmd_help
   li t0, 0x3f           ; ?
   beq a0, t0, cmd_help
+  li t0, 0x51           ; Q
+  beq a0, t0, basic_warm
 what:
   la a0, huh
   call puts

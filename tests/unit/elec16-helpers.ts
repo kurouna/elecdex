@@ -1,0 +1,72 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { screenText } from '@shared/elec16/font'
+import { keyCode, keyForChar } from '@shared/elec16/keys'
+import { Elec16 } from '@shared/elec16/machine'
+import { MODELS, type ModelId } from '@shared/elec16/map'
+import { buildRom } from '@shared/elec16/rom'
+import { ANNUNCIATORS } from '@shared/elec16/state'
+
+/**
+ * The ROM (resources/elec16/rom, docs/elec16.md section 6) run in the machine as the pane
+ * runs it: keys pressed one at a time, the screen read back through the font.
+ */
+
+const DIR = 'resources/elec16/rom/'
+export const built = buildRom((name) =>
+  existsSync(DIR + name) ? readFileSync(DIR + name, 'utf8') : null,
+)
+
+/** Runs until the machine waits for a key (or stops). */
+export function settle(m: Elec16): void {
+  for (let k = 0; k < 400; k++) {
+    const r = m.run(200_000)
+    if (r.sleeping !== null || r.halted !== null) return
+  }
+  throw new Error('the ROM never waited for a key')
+}
+
+/** Switched on: at BASIC's prompt. */
+export function switchOn(model?: ModelId): Elec16 {
+  const m = Elec16.boot(built.image, model)
+  settle(m)
+  return m
+}
+
+/** Switched on and taken to the monitor (MON), its screen cleared (CLS). */
+export function boot(model?: ModelId): Elec16 {
+  const m = switchOn(model)
+  type(m, 'MON\n')
+  press(m, keyCode('cls'))
+  return m
+}
+
+export function press(m: Elec16, code: number): void {
+  m.press(code)
+  m.release(code)
+  settle(m)
+}
+
+/** Types text as the page does: a symbol on a key's shifted face takes SHIFT first. */
+export function type(m: Elec16, text: string): void {
+  for (const ch of text) {
+    if (ch === '\n') {
+      press(m, keyCode('enter'))
+      continue
+    }
+    const key = keyForChar(ch)
+    if (key === null) throw new Error(`no key types ${ch}`)
+    if (key.shift) press(m, keyCode('shift'))
+    press(m, key.code)
+  }
+}
+
+export const screen = (m: Elec16): string[] => {
+  const { width, height } = MODELS[m.state.model]
+  return screenText(m.state.vram, width, height).map((line) => line.trimEnd())
+}
+
+/** The screen's rows down to the cursor's: the last is the line being typed. */
+export const shown = (m: Elec16): string[] => screen(m).slice(0, (m.state.lcd.cursor >> 8) + 1)
+
+export const annunciated = (m: Elec16): string[] =>
+  ANNUNCIATORS.filter((_, bit) => (m.state.lcd.annunciators & (1 << bit)) !== 0)

@@ -1,4 +1,4 @@
-import type { BinOp, Fn, Op } from './ir.js'
+import { type BinOp, type Fn, type Op, stackEffect } from './ir.js'
 
 /**
  * e16c's -O1 code for one function (docs/elec16.md section 6, e16c). The stack code is run
@@ -99,10 +99,15 @@ export class O1 {
   readonly #saved: string[]
   readonly #frame: number
   readonly #calls: boolean
+  /** Each label's stack depth, from the jumps to it. */
+  readonly #depths: Map<string, number>
+  /** After a jump or a return: what follows runs only from a label. */
+  #dead = false
 
   constructor(fn: Fn) {
     this.#fn = fn
     this.#calls = fn.body.some((op) => op.k === 'call' || op.k === 'ecall' || op.k === 'asm')
+    this.#depths = labelDepths(fn.body)
     const plan = homes(fn)
     this.#home = plan.home
     this.#saved = plan.saved
@@ -200,15 +205,34 @@ export class O1 {
     return v.r
   }
 
-  /** Puts the entry at `index` (and anything in a register below it) on the machine's stack. */
+  /**
+   * Puts every value held in a temporary at `index` or below on the machine's stack, deepest
+   * first, so the spilled ones lie there in the picture's order. Constants, addresses and
+   * locals stay as they are: nothing a call or a branch does changes them.
+   */
   #spillAt(index: number): void {
     for (let k = 0; k <= index; k++) {
       const v = this.#stack[k] as Value
-      if (v.kind === 'spilled') continue
-      const r = this.#inReg(v, new Set())
+      if (v.kind !== 'reg') continue
       this.#line('addi sp, sp, -2')
-      this.#line(`sw ${r}, 0(sp)`)
+      this.#line(`sw ${v.r}, 0(sp)`)
       this.#stack[k] = { kind: 'spilled' }
+    }
+  }
+
+  /** The registers the picture's values hold. */
+  #held(values: Value[] = this.#stack): Set<string> {
+    return new Set(values.flatMap((v) => (v.kind === 'reg' ? [v.r] : [])))
+  }
+
+  /** Spilled values back into temporaries, the topmost first, as the machine's stack has them. */
+  #unspill(values: Value[]): void {
+    for (let k = values.length - 1; k >= 0; k--) {
+      if (values[k]?.kind !== 'spilled') continue
+      const r = this.#temp(this.#held(values))
+      this.#line(`lw ${r}, 0(sp)`)
+      this.#line('addi sp, sp, 2')
+      values[k] = { kind: 'reg', r }
     }
   }
 
@@ -252,13 +276,16 @@ export class O1 {
 
   /** Every entry in the register its depth takes at a label (deeper than the temporaries: spilled). */
   #canonical(): void {
-    this.#stack.forEach((v, k) => {
-      if (k >= TEMPS.length && v.kind !== 'spilled') this.#spillAt(k)
-    })
+    if (this.#stack.length > TEMPS.length) {
+      throw new Error(
+        `e16c: an expression in ${this.#fn.name} keeps more than ${TEMPS.length} values across a branch`,
+      )
+    }
+    this.#unspill(this.#stack)
     for (let k = 0; k < this.#stack.length; k++) {
       const v = this.#stack[k] as Value
       const want = TEMPS[k] as string
-      if (v.kind === 'spilled' || (v.kind === 'reg' && v.r === want)) continue
+      if (v.kind === 'reg' && v.r === want) continue
       // Whoever holds the wanted register moves out of the way first.
       const holder = this.#stack.findIndex((w) => w.kind === 'reg' && w.r === want)
       if (holder >= 0) {
@@ -266,25 +293,26 @@ export class O1 {
         this.#line(`mv ${away}, ${want}`)
         this.#stack[holder] = { kind: 'reg', r: away }
       }
-      const r = this.#inReg(v, new Set([want]))
-      if (r === 'zero') this.#line(`li ${want}, 0`)
-      else this.#line(`mv ${want}, ${r}`)
+      this.#move(want, v, new Set([want]))
       this.#stack[k] = { kind: 'reg', r: want }
     }
   }
 
   /** The picture after a label: every entry in its depth's register. */
   #atLabel(depth: number): void {
-    this.#stack = Array.from({ length: depth }, (_, k) =>
-      k < TEMPS.length ? { kind: 'reg', r: TEMPS[k] as string } : { kind: 'spilled' },
-    )
+    this.#stack = Array.from({ length: depth }, (_, k) => ({ kind: 'reg', r: TEMPS[k] as string }))
   }
 
   /** A local about to be written: any entry still reading it takes a copy first. */
-  #protect(slot: number): void {
+  #protect(slot: number, avoid: Set<string>): void {
     this.#stack.forEach((v, k) => {
       if (v.kind !== 'local' || v.slot !== slot) return
-      const r = this.#temp()
+      // Statements store with nothing spilled above; a copy below a spilled value would break
+      // the machine stack's order.
+      if (this.#stack.slice(k + 1).some((w) => w.kind === 'spilled')) {
+        throw new Error(`e16c: a local is written under a spilled value in ${this.#fn.name}`)
+      }
+      const r = this.#temp(avoid)
       const home = this.#home[slot]
       if (typeof home === 'string') this.#line(`mv ${r}, ${home}`)
       else this.#line(`lw ${r}, ${home}(fp)`)
@@ -349,7 +377,7 @@ export class O1 {
 
   #store(slot: number): void {
     const v = this.#pop()
-    this.#protect(slot)
+    this.#protect(slot, held(v))
     const home = this.#home[slot]
     // A constant straight into a register home.
     if (v.kind === 'const' && typeof home === 'string') {
@@ -488,15 +516,19 @@ export class O1 {
   #flow(op: Op): void {
     switch (op.k) {
       case 'label': {
-        this.#canonical()
-        const depth = this.#stack.length
+        // Reached by falling through: the picture is put in its label registers. After a
+        // jump or a return nothing falls through, and the depth is the jumps' to it.
+        if (!this.#dead) this.#canonical()
+        const depth = this.#dead ? (this.#depths.get(op.name) ?? 0) : this.#stack.length
         this.lines.push(`${op.name}:`)
         this.#atLabel(depth)
+        this.#dead = false
         return
       }
       case 'jmp':
         this.#canonical()
         this.#line(`j ${op.to}`)
+        this.#dead = true
         return
       case 'jz':
       case 'jnz': {
@@ -519,8 +551,12 @@ export class O1 {
     const below = this.#stack.length - targets.length
     if (below > 0) this.#spillAt(below - 1)
     const values = this.#stack.splice(below)
+    // Arguments a call inside them put on the machine's stack come back first, topmost first.
+    this.#unspill(values)
     const filled = new Set<string>()
     values.forEach((v, k) => {
+      // Registers the values not yet moved still hold: loading this one must not take them.
+      const holding = values.slice(k + 1).flatMap((w) => (w.kind === 'reg' ? [w.r] : []))
       const want = targets[k] as string
       // A register a later value still sits in is moved out of the way first.
       const later = values.findIndex((w, j) => j > k && w.kind === 'reg' && w.r === want)
@@ -530,13 +566,15 @@ export class O1 {
         values[later] = { kind: 'reg', r: away }
       }
       filled.add(want)
-      this.#move(want, v, filled)
+      this.#move(want, v, new Set([...filled, ...holding]))
     })
   }
 
   #move(to: string, v: Value, avoid: Set<string>): void {
+    const home = v.kind === 'local' ? this.#home[v.slot] : undefined
     if (v.kind === 'const') this.#line(`li ${to}, ${v.v & 0xffff}`)
     else if (v.kind === 'addr') this.#line(`la ${to}, ${v.label}`)
+    else if (typeof home === 'number') this.#line(`lw ${to}, ${home}(fp)`)
     else {
       const r = this.#inReg(v, new Set([...avoid, to]))
       if (r !== to) this.#line(r === 'zero' ? `li ${to}, 0` : `mv ${to}, ${r}`)
@@ -558,6 +596,7 @@ export class O1 {
       case 'ret':
         if (op.value) this.#move('a0', this.#pop(), new Set())
         this.#line('j .return')
+        this.#dead = true
         return
       default:
         this.#rest(op)
@@ -618,6 +657,32 @@ export class O1 {
     this.#line(`mv ${copy}, ${r}`)
     this.#stack.push({ kind: 'reg', r }, { kind: 'reg', r: copy })
   }
+}
+
+/**
+ * The stack's depth at each label: what the jumps to it leave (a conditional jump after
+ * taking its value). After a jump or a return the code is dead until a label, whose depth
+ * is then the jumps' - never what dead code before it would have left.
+ */
+export function labelDepths(body: Op[]): Map<string, number> {
+  const depths = new Map<string, number>()
+  const first = (label: string, depth: number) => {
+    if (!depths.has(label)) depths.set(label, depth)
+  }
+  let depth = 0
+  let dead = false
+  for (const op of body) {
+    if (op.k === 'label') {
+      if (dead) depth = depths.get(op.name) ?? 0
+      else first(op.name, depth)
+      dead = false
+    } else if (!dead) {
+      depth += stackEffect(op)
+      if (op.k === 'jmp' || op.k === 'jz' || op.k === 'jnz') first(op.to, depth)
+      dead = op.k === 'jmp' || op.k === 'ret'
+    }
+  }
+  return depths
 }
 
 /** The register a value already holds, which loading another beside it must not take. */

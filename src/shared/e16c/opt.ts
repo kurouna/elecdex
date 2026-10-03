@@ -7,15 +7,25 @@ import type { BinOp, Fn, Op, Program } from './ir.js'
  *
  * - a pure function called with constants is run here, in the interpreter, and the call
  *   becomes its answer (a budget stops one that would not end; it is then left a call);
- * - a small function that calls nothing is inlined where it is called;
+ * - a function that calls nothing is inlined where it is called, when it is tiny or is
+ *   called only once;
  * - constants are folded and the identities dropped (x + 0, x * 1, a jump on a constant);
  * - a jump to a jump goes straight on, a jump to the next operation goes, and what no jump
  *   reaches after a jump or a return goes;
  * - a function nothing calls and nothing outside can (not exported) goes.
  */
 
-/** Operations a function may have and still be inlined. */
+/**
+ * Operations a function may have and still be inlined where it is called only once (the
+ * function then goes, so the program shrinks).
+ */
 const INLINE_LIMIT = 24
+/**
+ * Operations a function may have and still be inlined wherever it is called. Larger ones
+ * stay calls: inlining BASIC's `next` (17 operations) at its 35 calls made the ROM 1.3 KB
+ * larger for 10% of its speed, and the ROM is the scarcer (docs/decisions.md).
+ */
+const INLINE_TINY = 8
 /** Operations a compile-time call may take. */
 const EVAL_BUDGET = 100_000
 
@@ -23,7 +33,8 @@ export function optimise(program: Program): Program {
   let fns = program.fns
   const pure = purity(fns)
   fns = fns.map((fn) => ({ ...fn, body: evaluateCalls(fn.body, program, pure) }))
-  const inlinable = new Map(fns.filter(canInline).map((fn) => [fn.name, fn]))
+  const sites = callSites(fns)
+  const inlinable = new Map(fns.filter((fn) => canInline(fn, sites)).map((fn) => [fn.name, fn]))
   fns = fns.map((fn) => inlineCalls(fn, inlinable))
   for (let pass = 0; pass < 4; pass++)
     fns = fns.map((fn) => ({ ...fn, body: tidy(simplify(fn.body)) }))
@@ -98,9 +109,20 @@ function runNow(program: Program, fn: string, args: number[]): number | null {
 
 /* ---------------- inlining ---------------- */
 
-function canInline(fn: Fn): boolean {
-  const ops = fn.body.filter((op) => op.k !== 'line')
-  return ops.length <= INLINE_LIMIT && !fn.body.some((op) => op.k === 'call' || op.k === 'asm')
+function canInline(fn: Fn, sites: Map<string, number>): boolean {
+  if (fn.body.some((op) => op.k === 'call' || op.k === 'asm')) return false
+  const size = fn.body.filter((op) => op.k !== 'line').length
+  const once = sites.get(fn.name) === 1 && !fn.exported
+  return size <= INLINE_TINY || (once && size <= INLINE_LIMIT)
+}
+
+/** How many calls each function has in the program. */
+function callSites(fns: Fn[]): Map<string, number> {
+  const sites = new Map<string, number>()
+  for (const fn of fns) {
+    for (const op of fn.body) if (op.k === 'call') sites.set(op.fn, (sites.get(op.fn) ?? 0) + 1)
+  }
+  return sites
 }
 
 /** Every call to a small leaf function replaced by its body, its slots and labels its own. */

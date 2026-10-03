@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Builds the ELEC-16's ROM from its E16 assembly (resources/elec16/rom, docs/elec16.md
- * section 6) with the pane's own assembler, and writes what the page loads:
+ * Builds the ELEC-16's ROM (resources/elec16/rom, docs/elec16.md section 6): BASIC compiled
+ * from its TypeScript by e16c into basic.s, then everything assembled with the pane's own
+ * assembler, and writes what the page loads:
  * src/renderer/widgets/elec16/rom.json, the image in base64 and the global labels. A unit
  * test (elec16-tables.test.ts) holds the file to what the sources build, so run this after
  * changing a source, the font, the keys or the assembler.
@@ -31,6 +32,15 @@ registerHooks({
 })
 const shared = (file) => import(pathToFileURL(path.join(root, 'src', 'shared', file)).href)
 const { buildRom, romFile } = await shared('elec16/rom.ts')
+const { compileBasic } = await shared('e16c/basic-rom.ts')
+
+// BASIC first: e16c compiles its TypeScript into basic.s, which the ROM includes.
+const basic = compileBasic((name) => readFileSync(path.join(sources, 'basic', name), 'utf8'))
+if (basic.errors.length > 0) {
+  for (const e of basic.errors) console.error(`${e.file}:${e.line}:${e.column}: ${e.message}`)
+  process.exit(1)
+}
+writeFileSync(path.join(sources, 'basic.s'), basic.asm)
 
 const read = (name) => {
   const file = path.join(sources, name)

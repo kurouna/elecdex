@@ -63,6 +63,15 @@ const CASES: [string, number[]][] = [
   ['logic', [0, 9]],
   ['bufferAt', []],
   ['breaks', []],
+  ['choiceThenCall', [0]],
+  ['choiceThenCall', [5]],
+  ['nestedArguments', [7]],
+  ['pick', [1, 7, 9]],
+  ['pick', [9, 7, 9]],
+  ['nestedCalls', []],
+  ['deepExpression', [3, 4]],
+  ['readings', [0x8123]],
+  ['readings', [0x0456]],
 ]
 
 describe('e16c', () => {
@@ -108,6 +117,20 @@ describe('e16c', () => {
     expect(out.asm).not.toMatch(/call square/)
   })
 
+  it('at -O2 inlines a larger leaf only where it is the one call, so the program shrinks', () => {
+    const body = 'let s: u16 = a; s = s * 3 + b; s = s ^ (s >> 2); s = s + 9; return s & 255'
+    const text = [
+      `function mix(a: u16, b: u16): u16 { ${body} }`,
+      `function once(a: u16, b: u16): u16 { ${body} }`,
+      'export function f(x: u16): u16 { return mix(x, 1) + mix(x, 2) + once(x, 3) }',
+    ].join(String.fromCharCode(10))
+    const out = compile([{ name: 'size.ts', text }], { ...OPTIONS, opt: 2 })
+    expect(out.errors).toEqual([])
+    expect(out.asm.match(/call mix/g)).toHaveLength(2)
+    expect(out.asm).not.toMatch(/call once|^once:/m)
+    expect(out.program.fns.map((f) => f.name).sort()).toEqual(['f', 'mix'])
+  })
+
   it('at -O2 leaves a pure call it cannot finish within its budget as a call', () => {
     const text = [
       'function spin(n: u16): u16 { let i: u16 = 0; while (i !== n) i++; return i }',
@@ -140,6 +163,10 @@ describe('e16c', () => {
       'export function k(): u16 { const o = { a: 1 }; return 0 }',
       'export function m(a: u16): u16 { let s = a; s = a = 2; return s }',
       'class C {}',
+      'export function n(x: u16): bool { return x < -1 }',
+      'export function p(s: i16): bool { return s < 40000 }',
+      'export function q(x: u16): u16 { const b: u8 = x; return b }',
+      'export function r(x: u16): i16 { return x as i16 }',
     ]
     const messages = bad.map(
       (text) => compile([{ name: 'bad.ts', text }], OPTIONS).errors[0]?.message ?? '',
@@ -150,6 +177,10 @@ describe('e16c', () => {
     expect(messages[3]).toMatch(/not in the subset/)
     expect(messages[4]).toMatch(/statement here/)
     expect(messages[5]).toMatch(/not in the subset at the top level/)
+    expect(messages[6]).toMatch(/-1 is not a u16/)
+    expect(messages[7]).toMatch(/40000 is not a i16/)
+    expect(messages[8]).toMatch(/is not a u8: take its low byte with u8/)
+    expect(messages[9]).toMatch(/differs in TypeScript/)
     const placed = compile(
       [{ name: 'bad.ts', text: '\n\nexport function f(a: u16): u16 { return a / 2 }' }],
       OPTIONS,

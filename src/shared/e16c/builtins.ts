@@ -60,11 +60,27 @@ export function poke16(a: u16, v: u16): void {
   rt.memory[(a + 1) & 0xffff] = (v >> 8) & 0xff
 }
 
-/** Division as the machine does it, towards zero. */
-export const div = (a: number, b: number): number => Math.trunc(a / b)
+/**
+ * Division as the machine does it: towards zero, all ones for a division by zero, and -32768
+ * divided by -1 is itself.
+ */
+export function div(a: number, b: number): number {
+  if (b === 0) return a < 0 ? -1 : 0xffff
+  if (a === -32768 && b === -1) return a
+  return Math.trunc(a / b)
+}
 
 /** A value held to 16 bits, where arithmetic may have left them. */
 export const wrap16 = (v: number): u16 => v & 0xffff
+
+/** A word read unsigned, 0 to 65535 (the machine changes nothing). */
+export const u16 = (v: number): u16 => v & 0xffff
+
+/** A word read signed, -32768 to 32767 (the machine changes nothing). */
+export const i16 = (v: number): i16 => (v << 16) >> 16
+
+/** A word's low byte (the machine masks it too). */
+export const u8 = (v: number): u8 => v & 0xff
 
 export const ecall = (service: u16, ...args: u16[]): u16 => rt.ecall(service, args) & 0xffff
 

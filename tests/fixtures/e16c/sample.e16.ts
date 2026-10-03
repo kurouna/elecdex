@@ -4,12 +4,12 @@ import {
   addr,
   bytes,
   div,
-  type i16,
+  i16,
   peek,
   poke,
   str,
-  type u8,
-  type u16,
+  u8,
+  u16,
   words,
   wrap16,
 } from '../../../src/shared/e16c/builtins'
@@ -125,4 +125,53 @@ export function breaks(): u16 {
     n++
   } while (n < 70)
   return n
+}
+
+function identity(x: u16): u16 {
+  return x
+}
+
+/** A ?: and then a call: the call must find the stack as deep as the source says. */
+export function choiceThenCall(flag: u16): u16 {
+  let m: u16 = flag !== 0 ? 16 : 32
+  m |= 1
+  return identity(m) + identity(flag > 2 ? 100 : 200)
+}
+
+function pair(x: u16, y: u16): u16 {
+  return x * 100 + y
+}
+
+/** A call among another call's arguments: what was worked out before it must survive it. */
+export function nestedArguments(a: u16): u16 {
+  return pair(a + 1, identity(a) * 2) + pair(identity(a), a + 3)
+}
+
+/** ?: whose answers are not constants. */
+export function pick(c: u16, x: u16, y: u16): u16 {
+  return (c !== 0 ? x : y) + (c > 5 ? y : x)
+}
+
+function sum4(a: u16, b: u16, c: u16, d: u16): u16 {
+  return wrap16(a * 1000 + b * 100 + c * 10 + d)
+}
+
+/** Every argument a call, but the last: they must arrive in their order. */
+export function nestedCalls(): u16 {
+  return sum4(identity(1), identity(2), identity(3), 4) + sum4(identity(5) + 1, 0, identity(0), 1)
+}
+
+/** A constant under many values at once, more than there are temporaries. */
+export function deepExpression(a: u16, b: u16): u16 {
+  return wrap16(1 + (a + 1 + (b + 1 + (a + 2 + (b + 2 + (a + 3 + (b + 3 + (a + 4 + (b + 4)))))))))
+}
+
+/** Readings changed on purpose, alike in TypeScript and on the machine. */
+export function readings(x: u16): u16 {
+  const low: u8 = u8(x)
+  const s: i16 = i16(x)
+  let r: u16 = low
+  if (s < 0) r += 1000
+  r += u16(s) & 0x0f
+  return r + (x & 0xff)
 }

@@ -35,10 +35,9 @@ start:
   li t0, F_CAPS
   sw t0, FLAGS(zero)
   call lcd_init
-  call annunciate
   ; Keys wake the CPU from WFI; it takes no interrupts (getkey waits in WFI).
   csrwi mie, 1 << IRQ_KEY
-  j monitor
+  j basic_cold
 
 ; ---------------- traps ----------------
 
@@ -50,6 +49,18 @@ trap:
   csrr t0, mcause
   addi t0, t0, -11
   beqz t0, ecall_entry
+  ; BRK while BASIC has the machine: a flag BASIC takes between statements, and back.
+  ; mcause 0x800F less 15 is 0x8000, which one shift left makes 0 (no exception is 15).
+  csrr t0, mcause
+  addi t0, t0, -15
+  slli t0, t0, 1
+  bnez t0, save_all
+  lw t0, INBASIC(zero)
+  beqz t0, save_all
+  li t0, 1
+  sw t0, BRKFLAG(zero)
+  csrr t0, mscratch
+  mret
 save_all:
   sw ra, REGS + 2(zero)
   sw sp, REGS + 4(zero)
@@ -104,6 +115,33 @@ ecall_return:
   .include "lcd.s"
   .include "keys.s"
   .include "monitor.s"
+
+; ---------------- BASIC ----------------
+; BASIC is written in e16c's TypeScript (basic/*.e16.ts) and compiled into basic.s by
+; npm run gen:elec16. Its prompt loop never returns: an error or BREAK comes back to it
+; afresh, the stack as it was at the prompt (BASIC_SP).
+
+basic_cold:
+  li sp, STACK_TOP
+  sw sp, BASIC_SP(zero)
+  call e16c_init
+  call basicCold
+  j basic_abort
+
+basic_warm:
+  li sp, STACK_TOP
+  sw sp, BASIC_SP(zero)
+  call basicWarm
+basic_abort:
+  lw sp, BASIC_SP(zero)
+  call basicLoop
+  j basic_abort
+
+; CALL: machine code at a0, which comes back with RET.
+call_at:
+  jr a0
+
+  .include "basic.s"
 
   .align 2
 font:

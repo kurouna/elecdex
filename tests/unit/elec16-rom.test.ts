@@ -1,63 +1,19 @@
-import { existsSync, readFileSync } from 'node:fs'
 import { assemble, ramImage } from '@shared/elec16/asm'
-import { screenText } from '@shared/elec16/font'
-import { keyCode, keyForChar } from '@shared/elec16/keys'
-import { Elec16 } from '@shared/elec16/machine'
-import { MODELS, type ModelId } from '@shared/elec16/map'
-import { buildRom } from '@shared/elec16/rom'
-import { ANNUNCIATORS } from '@shared/elec16/state'
+import { keyCode } from '@shared/elec16/keys'
+import type { Elec16 } from '@shared/elec16/machine'
+import { MODELS } from '@shared/elec16/map'
 import { describe, expect, it } from 'vitest'
-
-/**
- * The ROM (resources/elec16/rom, docs/elec16.md section 6) run in the machine as the pane
- * runs it: keys pressed one at a time, the screen read back through the font.
- */
-
-const DIR = 'resources/elec16/rom/'
-const built = buildRom((name) => (existsSync(DIR + name) ? readFileSync(DIR + name, 'utf8') : null))
-
-/** Runs until the machine waits for a key (or stops). */
-function settle(m: Elec16): void {
-  for (let k = 0; k < 100; k++) {
-    const r = m.run(200_000)
-    if (r.sleeping !== null || r.halted !== null) return
-  }
-  throw new Error('the ROM never waited for a key')
-}
-
-function boot(model?: ModelId): Elec16 {
-  const m = Elec16.boot(built.image, model)
-  settle(m)
-  return m
-}
-
-function press(m: Elec16, code: number): void {
-  m.press(code)
-  m.release(code)
-  settle(m)
-}
-
-/** Types text as the page does: a symbol on a key's shifted face takes SHIFT first. */
-function type(m: Elec16, text: string): void {
-  for (const ch of text) {
-    if (ch === '\n') {
-      press(m, keyCode('enter'))
-      continue
-    }
-    const key = keyForChar(ch)
-    if (key === null) throw new Error(`no key types ${ch}`)
-    if (key.shift) press(m, keyCode('shift'))
-    press(m, key.code)
-  }
-}
-
-const screen = (m: Elec16): string[] => {
-  const { width, height } = MODELS[m.state.model]
-  return screenText(m.state.vram, width, height).map((line) => line.trimEnd())
-}
-
-/** The screen's rows down to the cursor's: the last is the line being typed. */
-const shown = (m: Elec16): string[] => screen(m).slice(0, (m.state.lcd.cursor >> 8) + 1)
+import {
+  annunciated,
+  boot,
+  built,
+  press,
+  screen,
+  settle,
+  shown,
+  switchOn,
+  type,
+} from './elec16-helpers'
 
 const hex = (n: number, digits = 4): string => n.toString(16).toUpperCase().padStart(digits, '0')
 
@@ -71,9 +27,6 @@ function enter(m: Elec16, source: string): void {
   }
 }
 
-const annunciated = (m: Elec16): string[] =>
-  ANNUNCIATORS.filter((_, bit) => (m.state.lcd.annunciators & (1 << bit)) !== 0)
-
 describe('the ROM', () => {
   it('is built from its sources into the fixed 16 KB, with its labels', () => {
     expect(built.errors).toEqual([])
@@ -83,12 +36,17 @@ describe('the ROM', () => {
     expect(built.symbols.font).toBeLessThan(0xc000)
   })
 
-  it('starts at the monitor, waiting for a key at its prompt', () => {
-    const m = boot()
-    expect(shown(m)).toEqual(['ELEC-16 MONITOR 0.1', '*'])
+  it('starts in BASIC, and MON takes it to the monitor, waiting for a key at its prompt', () => {
+    const m = switchOn()
+    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', expect.stringMatching(/^\d+ BYTES FREE$/), '>'])
     expect(m.run(1000).sleeping).toEqual({ key: true, timerMs: null })
+    expect(annunciated(m)).toEqual(expect.arrayContaining(['CAPS', 'RUN']))
+    type(m, 'MON\n')
+    expect(shown(m).slice(-3)).toEqual(['>MON', 'ELEC-16 MONITOR 0.1', '*'])
     expect(annunciated(m)).toEqual(['CAPS', 'MON'])
-    expect(m.state.lcd.cursor).toBe((1 << 8) | 1)
+    press(m, keyCode('cls'))
+    expect(shown(m)).toEqual(['*'])
+    expect(m.state.lcd.cursor).toBe(1)
     expect(m.state.lcd.cursorMode).toBe(6)
   })
 
@@ -254,7 +212,7 @@ describe('the ROM', () => {
     for (const model of ['pocket-32', 'pocket-64', 'handheld-160'] as const) {
       const other = boot(model)
       expect(screen(other), model).toHaveLength(MODELS[model].height / 8)
-      expect(shown(other), model).toEqual(['ELEC-16 MONITOR 0.1', '*'])
+      expect(shown(other), model).toEqual(['*'])
       type(other, 'd 0\n')
       // A narrow screen dumps four bytes a line.
       const second = model === 'handheld-160' ? '0004:' : '0008:'
