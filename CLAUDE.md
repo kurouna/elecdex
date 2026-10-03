@@ -228,7 +228,8 @@ user made; do not reverse one without asking.
     share the ROM's labels. A function only assembly calls is exported (-O2 drops the rest).
   - e16c code runs alike as TypeScript and on the machine: `as` only widens; a change of
     reading is `u8()`, `u16()` or `i16()`. A miscompile gets a function in
-    tests/fixtures/e16c/sample.e16.ts that shows it.
+    tests/fixtures/e16c/sample.e16.ts that shows it. tests/unit/e16c-fuzz.test.ts runs seeded programs five ways (TypeScript,
+    the interpreter, -O0, -O1, -O2); before changing e16c, run it with E16C_FUZZ_SEEDS=2000.
   - BRK is a line of its own (IRQ 15), not a key in the FIFO: it always gets the machine back.
   - A unit (its RAM and card) is main's (main/elec16/units.ts); one pane runs it at a time, by
     claim. Its battery backup is the core's snapshot, written only when the pane is hidden or
