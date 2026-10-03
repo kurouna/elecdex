@@ -43,11 +43,7 @@ $effect(() => {
 })
 
 const model = $derived(MODELS[runner.model])
-const body = $derived<Body>(
-  mode === 'auto'
-    ? bodyFor(room, { w: (model.width * 2) / room.ratio, h: (model.height * 2) / room.ratio })
-    : mode,
-)
+const body = $derived<Body>(mode === 'auto' ? bodyFor(room, model, skin.body.plateShown) : mode)
 const plate = $derived(skin.body.plateShown && body !== 'lcd')
 const fit = $derived(deviceFit(room, model, body, plate))
 /** The shifted faces' engravings, where a key is wide enough for both. */

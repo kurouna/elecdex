@@ -9,9 +9,9 @@ import {
   bodyFor,
   CASE,
   COMPACT_ROW,
+  caseHeight,
   deviceFit,
   FULL_ROWS,
-  KEY_GAP,
 } from '../../src/renderer/widgets/elec16/layout.js'
 import { FULL, LcdPainter, strength } from '../../src/renderer/widgets/elec16/lcd-painter.js'
 import { panelShown, readElec16Pane } from '../../src/renderer/widgets/elec16/pane-state.js'
@@ -209,12 +209,47 @@ describe('the LCD painter', () => {
 })
 
 describe('the body and the pane', () => {
-  const lcd = { w: 480, h: 96 }
+  const lcd = { width: 240, height: 48 }
   it('draws the whole keyboard only where it fits, else a row of keys, else the LCD', () => {
-    expect(bodyFor({ w: 900, h: 500 }, lcd)).toBe('full')
-    expect(bodyFor({ w: 400, h: 500 }, lcd)).toBe('compact')
-    expect(bodyFor({ w: 900, h: 180 }, lcd)).toBe('compact')
-    expect(bodyFor({ w: 900, h: 120 }, lcd)).toBe('lcd')
+    expect(bodyFor({ w: 900, h: 500, ratio: 1 }, lcd, true)).toBe('full')
+    expect(bodyFor({ w: 400, h: 500, ratio: 1 }, lcd, true)).toBe('compact')
+    expect(bodyFor({ w: 900, h: 220, ratio: 1 }, lcd, true)).toBe('compact')
+    expect(bodyFor({ w: 900, h: 180, ratio: 1 }, lcd, true)).toBe('lcd')
+    // The whole keyboard wants two device pixels a dot across: 500 is too narrow for them
+    // at one CSS pixel each, wide enough at two.
+    expect(bodyFor({ w: 500, h: 900, ratio: 1 }, lcd, true)).toBe('compact')
+    expect(bodyFor({ w: 500, h: 900, ratio: 2 }, lcd, true)).toBe('full')
+    // Under a dot a device pixel across, not even the LCD: it is shown as it can.
+    expect(bodyFor({ w: 250, h: 900, ratio: 1 }, lcd, true)).toBe('lcd')
+  })
+
+  it('picks only a body that fits its room, whatever the pane, the display and the LCD', () => {
+    // A pane 1300 by 322 once got the whole keyboard and lost its plate and its bottom row
+    // to the clip: the body was chosen by one reckoning and laid out by another.
+    const screens = [
+      { width: 240, height: 48 },
+      { width: 240, height: 32 },
+      { width: 240, height: 64 },
+      { width: 160, height: 144 },
+    ]
+    for (const screen of screens) {
+      for (const ratio of [1, 1.25, 1.5, 2]) {
+        for (let w = 200; w <= 1600; w += 70) {
+          for (let h = 120; h <= 900; h += 11) {
+            for (const plate of [true, false]) {
+              const room = { w, h, ratio }
+              const body = bodyFor(room, screen, plate)
+              if (body === 'lcd') continue
+              const fit = deviceFit(room, screen, body, plate)
+              const height = caseHeight(body, fit.keyRow, fit.glass.h, plate)
+              expect(height, JSON.stringify({ screen, room, plate, body })).toBeLessThanOrEqual(h)
+              expect(fit.glass.w + 2 * (CASE.padX + CASE.border)).toBeLessThanOrEqual(fit.width)
+              expect(fit.scale).toBeGreaterThanOrEqual(body === 'full' ? 2 : 1)
+            }
+          }
+        }
+      }
+    }
   })
 
   it('keeps the case one body in a tall pane: its parts fit, the room left over and not stretched', () => {
@@ -224,17 +259,9 @@ describe('the body and the pane', () => {
     // The width decides once the height is plenty: a taller pane gives the same body.
     expect(tall).toEqual(deviceFit({ w: 900, h: 2000, ratio: 1 }, screen, 'full', true))
     expect(tall.scale).toBeGreaterThanOrEqual(short.scale)
-    const caseHeight =
-      CASE.padTop +
-      CASE.padBottom +
-      CASE.plate +
-      2 * CASE.gap +
-      tall.glass.h +
-      5 * tall.keyRow +
-      4 * KEY_GAP
-    expect(caseHeight).toBeLessThan(1400)
+    expect(caseHeight('full', tall.keyRow, tall.glass.h, true)).toBeLessThan(1400)
     // Never more than the room, and the dots never below one device pixel.
-    expect(caseHeight - tall.glass.h + short.glass.h).toBeLessThanOrEqual(420 + 2)
+    expect(caseHeight('full', short.keyRow, short.glass.h, true)).toBeLessThanOrEqual(420)
     expect(
       deviceFit({ w: 300, h: 100, ratio: 2 }, screen, 'lcd', false).scale,
     ).toBeGreaterThanOrEqual(1)

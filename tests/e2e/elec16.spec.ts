@@ -25,6 +25,21 @@ const BESIDE_CLOCK = {
   },
 }
 
+/** A wide, short pane under the clock: the room the tour once gave it. */
+const UNDER_CLOCK = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'column',
+    sizes: [63, 37],
+    children: [
+      { kind: 'pane', id: 'clock', widget: 'clock' },
+      { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: false } },
+    ],
+  },
+}
+
 const BEHIND_A_TAB = {
   version: 1,
   root: {
@@ -543,6 +558,28 @@ test('RESET starts the machine again with its program kept, and the plate lamp f
     await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
     await page.locator('[data-testid=elec16-skin][data-skin="business-dark"]').click()
     await expect(page.getByTestId('elec16-plate')).toHaveCount(0)
+  } finally {
+    await close()
+  }
+})
+
+test('a short, wide pane gets a body that fits it, plate and keys whole, never clipped', async () => {
+  const { app, page, close } = await launch(undefined, { layout: UNDER_CLOCK })
+  try {
+    await atDesignSize(app, page)
+    await settleLayout(page)
+    await booted(page)
+    const device = page.getByTestId('elec16-device')
+    const room = page.locator('[data-testid=pane][data-pane-id=e16] .fit')
+    const inside = async () => {
+      const [d, r] = await Promise.all([device.boundingBox(), room.boundingBox()])
+      // An arriving pane powers on scaled from a line: measure it once it stands whole.
+      if (d === null || r === null || r.height < 100) return 'unmeasured'
+      return d.y >= r.y - 0.5 && d.y + d.height <= r.y + r.height + 0.5 ? 'inside' : 'clipped'
+    }
+    await expect.poll(inside).not.toBe('unmeasured')
+    await expect.poll(inside).toBe('inside')
+    await expect(page.getByTestId('elec16-plate')).toBeVisible()
   } finally {
     await close()
   }

@@ -66,20 +66,6 @@ export const HALF_COLUMNS = 20 + 1 + 10
 
 export type Body = 'full' | 'compact' | 'lcd'
 
-/**
- * The body for a room in CSS pixels: the whole keyboard only where its keys keep their
- * engravings at the smallest type size and the LCD still gets its least size (`lcd`, in CSS
- * pixels: two device pixels a dot); a row of keys where there is height for one under the
- * LCD; else the LCD alone.
- */
-export function bodyFor(room: { w: number; h: number }, lcd: { w: number; h: number }): Body {
-  const keyRow = 24
-  const lcdRoom = lcd.h + 40
-  if (room.w >= Math.max(15 * 30, lcd.w + 40) && room.h >= lcdRoom + 5 * keyRow + 40) return 'full'
-  if (room.h >= lcdRoom + keyRow + 16) return 'compact'
-  return 'lcd'
-}
-
 /** The LCD's glass round its dots, in CSS pixels: padding, the annunciators' line, the bezel. */
 export const GLASS = { pad: 8, marks: 14, gap: 4, bezel: 6 } as const
 /** The glass beyond its dots, across and down. */
@@ -108,10 +94,70 @@ export interface DeviceFit {
 }
 
 /**
+ * The fewest device pixels a dot gets beside each body's keys: the whole keyboard only with
+ * dots worth reading, a row of keys with any.
+ */
+const LEAST_SCALE: Record<Body, number> = { full: 2, compact: 1, lcd: 1 }
+/** The lowest a row of keys goes before the body gives up keys: the smallest type still fits. */
+const LEAST_KEY_ROW = 22
+/** The row a compact body's keys take. */
+const COMPACT_KEY_ROW = 28
+
+const KEY_ROWS: Record<Body, number> = { full: 5, compact: 1, lcd: 0 }
+
+/** The case's height, in CSS pixels, for its rows of keys, its glass and its name plate. */
+export function caseHeight(
+  body: Body,
+  keyRow: number,
+  glassHeight: number,
+  plate: boolean,
+): number {
+  const rows = KEY_ROWS[body]
+  const keys = rows > 0 ? rows * keyRow + (rows - 1) * KEY_GAP + CASE.gap : 0
+  return (
+    CASE.padTop +
+    CASE.padBottom +
+    2 * CASE.border +
+    (plate ? CASE.plate + CASE.gap : 0) +
+    glassHeight +
+    keys
+  )
+}
+
+/** The glass at a body's least dots, in CSS pixels. */
+function leastGlass(body: Body, screen: { width: number; height: number }, ratio: number) {
+  return {
+    w: (screen.width * LEAST_SCALE[body]) / ratio + GLASS_EXTRA.w,
+    h: (screen.height * LEAST_SCALE[body]) / ratio + GLASS_EXTRA.h,
+  }
+}
+
+/**
+ * The body for a room (CSS pixels, and the display's ratio), reckoned as deviceFit lays it
+ * out, so the case it picks always fits: the whole keyboard only where its keys keep their
+ * engravings and the LCD its least dots; a row of keys where there is height for one; else
+ * the LCD alone.
+ */
+export function bodyFor(
+  room: { w: number; h: number; ratio: number },
+  screen: { width: number; height: number },
+  plate: boolean,
+): Body {
+  const inner = Math.min(room.w, CASE_MAX_WIDTH) - 2 * (CASE.padX + CASE.border)
+  const fits = (body: Body, keyRow: number): boolean => {
+    const glass = leastGlass(body, screen, room.ratio)
+    return inner >= glass.w && room.h >= caseHeight(body, keyRow, glass.h, plate)
+  }
+  if (room.w >= 15 * 30 && fits('full', LEAST_KEY_ROW)) return 'full'
+  if (fits('compact', COMPACT_KEY_ROW)) return 'compact'
+  return 'lcd'
+}
+
+/**
  * How the parts fit a room (CSS pixels, and the display's ratio): keys as high as their width
- * suits a finger, the dots at the most whole device pixels the rest leaves, and the case as
- * high as its parts - never stretched, so in a tall pane it stays one body, the room left
- * over above and below it.
+ * suits a finger, lowered first where the height is short so the LCD keeps its least dots, the
+ * dots at the most whole device pixels the rest leaves, and the case as high as its parts -
+ * never stretched, so in a tall pane it stays one body, the room left over above and below.
  */
 export function deviceFit(
   room: { w: number; h: number; ratio: number },
@@ -121,23 +167,26 @@ export function deviceFit(
 ): DeviceFit {
   const width = Math.min(room.w, CASE_MAX_WIDTH)
   const inner = width - 2 * (CASE.padX + CASE.border)
-  const rows = body === 'full' ? 5 : body === 'compact' ? 1 : 0
-  const keyRow =
+  const rows = KEY_ROWS[body]
+  const byWidth =
     body === 'full'
-      ? Math.max(22, Math.min(36, Math.round((inner / HALF_COLUMNS) * 2 * 0.62)))
-      : body === 'compact'
-        ? 28
-        : 0
-  const keys = rows * keyRow + Math.max(0, rows - 1) * KEY_GAP
-  const fixed =
-    CASE.padTop +
-    CASE.padBottom +
-    2 * CASE.border +
-    (plate ? CASE.plate + CASE.gap : 0) +
-    (rows > 0 ? keys + CASE.gap : 0)
-  const byWidth = Math.floor(((inner - GLASS_EXTRA.w) * room.ratio) / screen.width)
-  const byHeight = Math.floor(((room.h - fixed - GLASS_EXTRA.h) * room.ratio) / screen.height)
-  const scale = Math.max(1, Math.min(byWidth, byHeight))
+      ? Math.max(LEAST_KEY_ROW, Math.min(36, Math.round((inner / HALF_COLUMNS) * 2 * 0.62)))
+      : COMPACT_KEY_ROW
+  const byRoom =
+    rows > 0
+      ? Math.floor(
+          (room.h - caseHeight(body, 0, leastGlass(body, screen, room.ratio).h, plate)) / rows,
+        )
+      : 0
+  const keyRow = rows > 0 ? Math.max(LEAST_KEY_ROW, Math.min(byWidth, byRoom)) : 0
+  const glassRoom = room.h - caseHeight(body, keyRow, GLASS_EXTRA.h, plate)
+  const scale = Math.max(
+    1,
+    Math.min(
+      Math.floor(((inner - GLASS_EXTRA.w) * room.ratio) / screen.width),
+      Math.floor((glassRoom * room.ratio) / screen.height),
+    ),
+  )
   return {
     width,
     scale,
