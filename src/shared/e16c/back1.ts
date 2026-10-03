@@ -1,4 +1,5 @@
 import { type BinOp, type Fn, type Op, stackEffect } from './ir.js'
+import { hex } from './types.js'
 
 /**
  * e16c's -O1 code for one function (docs/elec16.md section 6, e16c). The stack code is run
@@ -41,7 +42,7 @@ const IMMEDIATE: Partial<Record<BinOp, string>> = {
 }
 const SHIFT_IMMEDIATE: Partial<Record<BinOp, string>> = { shl: 'slli', shr: 'srli', sar: 'srai' }
 
-const REGISTER: Record<BinOp, string[]> = {
+export const REGISTER: Record<BinOp, string[]> = {
   add: ['add $d, $a, $b'],
   sub: ['sub $d, $a, $b'],
   mul: ['mul $d, $a, $b'],
@@ -96,7 +97,6 @@ const NEGATE: Partial<Record<BinOp, BinOp>> = {
 const fits14 = (v: number): boolean => v >= -8192 && v <= 8191
 const signed16 = (v: number): number => ((v & 0xffff) << 16) >> 16
 const NEAR = 0x2000
-const hex = (n: number): string => `0x${(n & 0xffff).toString(16).padStart(4, '0')}`
 
 export class O1 {
   readonly lines: string[] = []

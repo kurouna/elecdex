@@ -1,7 +1,7 @@
 import ts from 'typescript'
 import { FnCompiler, readType } from './body.js'
 import type { Fn, Global, Program, RomString, StaticArray, Ty } from './ir.js'
-import { BUILTINS, type CompileError, Refusal, type Sym, type TypeRef, U16 } from './types.js'
+import { BUILTINS, type CompileError, hex, Refusal, type Sym, type TypeRef, U16 } from './types.js'
 
 /**
  * e16c's front end (docs/elec16.md section 6, e16c): the source files parsed with
@@ -265,5 +265,3 @@ function returnType(s: ts.FunctionDeclaration): Ty {
 function hasModifier(s: ts.FunctionDeclaration, kind: ts.SyntaxKind): boolean {
   return (ts.getModifiers(s) ?? []).some((m) => m.kind === kind)
 }
-
-const hex = (n: number): string => n.toString(16).toUpperCase().padStart(4, '0')

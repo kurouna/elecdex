@@ -1,5 +1,6 @@
-import { O1 } from './back1.js'
+import { O1, REGISTER } from './back1.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
+import { hex } from './types.js'
 
 /**
  * e16c's back end (docs/elec16.md section 6, e16c): stack code to E16 assembly the ROM's
@@ -12,31 +13,13 @@ import type { BinOp, Fn, Op, Program } from './ir.js'
  * expression stack is the machine's stack: every value pushed and popped through t0 and t1.
  */
 
-const BIN: Record<BinOp, string[]> = {
-  add: ['add t0, t0, t1'],
-  sub: ['sub t0, t0, t1'],
-  mul: ['mul t0, t0, t1'],
-  div: ['div t0, t0, t1'],
-  divu: ['divu t0, t0, t1'],
-  rem: ['rem t0, t0, t1'],
-  remu: ['remu t0, t0, t1'],
-  and: ['and t0, t0, t1'],
-  or: ['or t0, t0, t1'],
-  xor: ['xor t0, t0, t1'],
-  shl: ['sll t0, t0, t1'],
-  shr: ['srl t0, t0, t1'],
-  sar: ['sra t0, t0, t1'],
-  eq: ['sub t0, t0, t1', 'seqz t0, t0'],
-  ne: ['sub t0, t0, t1', 'snez t0, t0'],
-  lt: ['slt t0, t0, t1'],
-  ltu: ['sltu t0, t0, t1'],
-  gt: ['slt t0, t1, t0'],
-  gtu: ['sltu t0, t1, t0'],
-  le: ['slt t0, t1, t0', 'xori t0, t0, 1'],
-  leu: ['sltu t0, t1, t0', 'xori t0, t0, 1'],
-  ge: ['slt t0, t0, t1', 'xori t0, t0, 1'],
-  geu: ['sltu t0, t0, t1', 'xori t0, t0, 1'],
-}
+/** Each operation on t0 and t1 into t0: the -O1 table's, with its registers fixed. */
+const BIN = Object.fromEntries(
+  Object.entries(REGISTER).map(([op, lines]) => [
+    op,
+    lines.map((l) => l.replace(/\$d|\$a/g, 't0').replace(/\$b/g, 't1')),
+  ]),
+) as Record<BinOp, string[]>
 
 const UN: Record<'neg' | 'not' | 'lnot', string> = {
   neg: 'neg t0, t0',
@@ -48,8 +31,6 @@ const ARG_REGS = ['a0', 'a1', 'a2', 'a3']
 
 /** Addresses below this are reached as `x(zero)`, one instruction (a 14-bit offset). */
 const NEAR = 0x2000
-
-const hex = (n: number): string => `0x${n.toString(16).padStart(4, '0')}`
 
 class Out {
   readonly lines: string[] = []

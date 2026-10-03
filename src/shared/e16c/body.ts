@@ -1,4 +1,5 @@
 import ts from 'typescript'
+import { binary } from './interp.js'
 import type { BinOp, Fn, Op, Ty } from './ir.js'
 import {
   BOOL,
@@ -120,37 +121,16 @@ const COMPOUND: Partial<Record<ts.SyntaxKind, ts.SyntaxKind>> = {
     ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
 }
 
-/** Folds two known words with an operator; null where the machine would trap or the result is not a word's. */
-function fold(op: BinOp, a: number, b: number, signedArgs: boolean): number | null {
-  const sa = signedArgs ? (word(a) << 16) >> 16 : word(a)
-  const sb = signedArgs ? (word(b) << 16) >> 16 : word(b)
-  const table: Record<BinOp, () => number | null> = {
-    add: () => a + b,
-    sub: () => a - b,
-    mul: () => word(a) * word(b),
-    div: () => (sb === 0 ? null : Math.trunc(sa / sb)),
-    divu: () => (sb === 0 ? null : Math.trunc(sa / sb)),
-    rem: () => (sb === 0 ? null : sa % sb),
-    remu: () => (sb === 0 ? null : sa % sb),
-    and: () => word(a) & word(b),
-    or: () => word(a) | word(b),
-    xor: () => word(a) ^ word(b),
-    shl: () => word(word(a) << (b & 15)),
-    shr: () => word(a) >>> (b & 15),
-    sar: () => sa >> (b & 15),
-    eq: () => (word(a) === word(b) ? 1 : 0),
-    ne: () => (word(a) !== word(b) ? 1 : 0),
-    lt: () => (sa < sb ? 1 : 0),
-    ltu: () => (sa < sb ? 1 : 0),
-    le: () => (sa <= sb ? 1 : 0),
-    leu: () => (sa <= sb ? 1 : 0),
-    gt: () => (sa > sb ? 1 : 0),
-    gtu: () => (sa > sb ? 1 : 0),
-    ge: () => (sa >= sb ? 1 : 0),
-    geu: () => (sa >= sb ? 1 : 0),
-  }
-  return table[op]()
+/**
+ * Folds two known words as the machine computes them (the interpreter's arithmetic, so the
+ * two cannot drift); null for a division by zero, left for the machine to do.
+ */
+function fold(op: BinOp, a: number, b: number): number | null {
+  if (DIVIDES.has(op) && word(b) === 0) return null
+  return binary(op, a, b)
 }
+
+const DIVIDES = new Set<BinOp>(['div', 'divu', 'rem', 'remu'])
 
 export class FnCompiler {
   readonly ops: Op[] = []
@@ -768,9 +748,7 @@ export class FnCompiler {
     if (SIGN_MATTERS.has(op)) this.#constantFits(a, b, signedness, at)
     const type = isCompare ? BOOL : signedness ? I16 : narrowAnd(op, a, b)
     const v =
-      a.constant !== undefined && b.constant !== undefined
-        ? fold(op, a.constant, b.constant, signedness)
-        : null
+      a.constant !== undefined && b.constant !== undefined ? fold(op, a.constant, b.constant) : null
     if (v === null) {
       this.#emit({ k: 'bin', op })
       return { type }

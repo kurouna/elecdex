@@ -1,7 +1,7 @@
 import { assemble, romImage } from '@shared/elec16/asm'
 import { decode, encode, format, parse } from '@shared/elec16/decimal'
 import { Elec16 } from '@shared/elec16/machine'
-import { MATH_ERR, MATH_OP, MATH_REG } from '@shared/elec16/math-unit'
+import { MATH_ERR, MATH_OP, MATH_REG, mathRead } from '@shared/elec16/math-unit'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -127,6 +127,28 @@ describe('the maths unit', () => {
     expect(i.state.math.arg).toBe(0xfff6)
     const big = run([MATH_OP.toInt], (mm) => put(mm, A, '40000'))
     expect(big.state.regs[4]).toBe(MATH_ERR.overflow)
+    // No text at all is no number: A is left alone and ARG says nothing was read.
+    const none = run([MATH_OP.parse], (mm) => put(mm, A, '7'))
+    expect([at(none, A), none.state.math.arg, none.state.regs[4]]).toEqual(['7', 0, 0])
+    // Rounded to the display, the largest number keeps its digits rather than read 1E100.
+    const top = run([MATH_OP.format], (mm) => put(mm, A, '9.99999999995E99'))
+    const text = String.fromCharCode(...top.state.ram.subarray(B, B + top.state.math.arg))
+    expect(text).toBe('9.99999999995E99')
+    expect(parse(text)?.value).toEqual(parse('9.99999999995E99')?.value)
+  })
+
+  it('leaves the MATH line up when STATUS is only looked at, and drops it when read', () => {
+    const m = run([MATH_OP.add], (mm) => {
+      put(mm, A, '1')
+      put(mm, B, '2')
+    })
+    // The program read STATUS: the line is down. Raised again, a look leaves it.
+    expect(m.state.math.pending).toBe(false)
+    m.state.math.pending = true
+    expect(mathRead(m.state, MATH_REG.status, true)).toBe(0)
+    expect(m.state.math.pending).toBe(true)
+    mathRead(m.state, MATH_REG.status, false)
+    expect(m.state.math.pending).toBe(false)
   })
 
   it('gives the same random numbers from the same start, all below 1', () => {

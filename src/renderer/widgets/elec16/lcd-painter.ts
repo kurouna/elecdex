@@ -106,14 +106,14 @@ export class LcdPainter {
     const box = new Box(width, height)
     // The cursor is the page's mark, not the crystals': its cell, where it is now and where
     // it was, changes at once, or a blink would only dim it.
-    const marked = [cursor, this.#lastCursor]
+    const last = this.#lastCursor
     this.#lastCursor = cursor
     let fading = false
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const shade = Math.round((pixels[y * width + x] ?? 0) * shadeStep)
         const target = cursor === null ? shade : cursorLevel(shade, x, y, cursor)
-        const fade = ghost && !marked.some((c) => c !== null && inCell(x, y, c))
+        const fade = ghost && !inEither(x, y, cursor, last)
         const moved = this.#move(x, y, target, fade)
         if (moved === null) continue
         if (moved) fading = true
@@ -148,6 +148,11 @@ function inCell(x: number, y: number, cursor: Cursor): boolean {
   const cx = x - cursor.column * 6
   const cy = y - cursor.row * 8
   return cx >= 0 && cx <= 4 && cy >= 0 && cy <= 7
+}
+
+/** Whether a dot is in either cursor's cell (none: null). */
+function inEither(x: number, y: number, a: Cursor | null, b: Cursor | null): boolean {
+  return (a !== null && inCell(x, y, a)) || (b !== null && inCell(x, y, b))
 }
 
 /** The level a dot shows with the cursor over its cell: a block turns it over, a line lights it. */

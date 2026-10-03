@@ -210,7 +210,7 @@ export function cos(a: Dec, angle: Angle): Dec {
 
 /**
  * The tangent. Its poles are decided on the exactly reduced angle, never on a cosine rounded
- * to 0, so 89.99999999999 degrees has a (large) value and 90 has none. A radian angle is
+ * to 0, so 89.9999999999 degrees has a (large) value and 90 has none. A radian angle is
  * never exactly at one.
  */
 export function tan(a: Dec, angle: Angle): Dec {
@@ -359,6 +359,8 @@ export function format(d: Dec, digits = 10): string {
   if (d.coeff % cut >= (cut + 1n) / 2n) coeff++
   let exp = d.exp
   if (coeff === 10n ** BigInt(digits)) {
+    // Rounded up past the largest exponent, it would read back as an overflow: all digits.
+    if (exp === 99) return format(d, DIGITS)
     coeff /= 10n
     exp++
   }

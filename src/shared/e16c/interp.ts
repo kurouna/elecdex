@@ -1,4 +1,5 @@
 import type { BinOp, Fn, Op, Program } from './ir.js'
+import { signed, word } from './types.js'
 
 /**
  * Runs e16c's stack code directly (docs/elec16.md section 6, e16c), with the machine's
@@ -23,9 +24,6 @@ export class OutOfBudget extends Error {}
 
 /** What the interpreter cannot do: a run that needs the machine (assembly, a CSR, WFI). */
 export class NeedsMachine extends Error {}
-
-const word = (v: number): number => v & 0xffff
-const signed = (v: number): number => ((v & 0xffff) << 16) >> 16
 
 function divide(a: number, b: number, isSigned: boolean, remainder: boolean): number {
   if (b === 0) return remainder ? a : 0xffff

@@ -27,7 +27,10 @@ export const isSigned = (t: TypeRef): boolean => t.kind === 'scalar' && t.ty ===
 export const typeName = (t: TypeRef): string => (t.kind === 'array' ? `${t.elem}[]` : t.ty)
 
 /** A value held to 16 bits, as the machine holds it. */
-export const word = (v: number): number => ((v % 0x10000) + 0x10000) % 0x10000
+export const word = (v: number): number => v & 0xffff
+
+/** A word as the assembly writes it: `0x0123`. */
+export const hex = (n: number): string => `0x${word(n).toString(16).padStart(4, '0')}`
 
 /** A word read as signed. */
 export const signed = (v: number): number => (word(v) << 16) >> 16
