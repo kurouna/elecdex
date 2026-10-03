@@ -209,6 +209,8 @@ export class Elec16 implements Core {
     s.keys.fifo.length = 0
     s.timer.pending = false
     s.timer.enabled = false
+    s.math.pending = false
+    s.stall = 0
     this.#code.fill(undefined)
   }
 
@@ -324,7 +326,11 @@ export class Elec16 implements Core {
   /** The interrupt lines raised now: the timer's compare, and a key waiting in the FIFO. */
   #pending(): number {
     const s = this.s
-    return (s.timer.pending ? 1 << IRQ.timer : 0) | (s.keys.fifo.length > 0 ? 1 << IRQ.key : 0)
+    return (
+      (s.timer.pending ? 1 << IRQ.timer : 0) |
+      (s.keys.fifo.length > 0 ? 1 << IRQ.key : 0) |
+      (s.math.pending ? 1 << IRQ.math : 0)
+    )
   }
 
   #enterTrap(cause: number, value: number, epc: number): void {
@@ -353,7 +359,12 @@ export class Elec16 implements Core {
     ;(EXEC[inst.op] as Handler)(this, inst, pc)
     if (s.halt !== null) return 0
     s.pc = this.next
-    const cycles = (this.taken ? TAKEN_CYCLES[inst.op] : CYCLES[inst.op]) as number
+    let cycles = (this.taken ? TAKEN_CYCLES[inst.op] : CYCLES[inst.op]) as number
+    // A device's work (the maths unit) is the instruction's that started it.
+    if (s.stall !== 0) {
+      cycles += s.stall
+      s.stall = 0
+    }
     s.cycles += cycles
     s.instret++
     return cycles

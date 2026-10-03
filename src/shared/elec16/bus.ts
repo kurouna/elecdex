@@ -30,6 +30,7 @@ import {
   VRAM_WINDOW,
   vramSize,
 } from './map.js'
+import { MATH_REG, mathRead, mathWrite } from './math-unit.js'
 import { type Elec16State, KEY_FIFO_SIZE, KEY_ROWS } from './state.js'
 
 /** The I/O registers, by address. */
@@ -174,6 +175,7 @@ export class Bus {
   /** A register's value; `peek` reads it without taking a key from the FIFO. */
   #io(a: number, peek: boolean): number {
     const s = this.#s
+    if (a >= MATH_REG.op && a < MATH_REG.op + 16) return mathRead(s, a, peek)
     switch (a) {
       case REG.id:
         return MACHINE_ID
@@ -221,6 +223,10 @@ export class Bus {
 
   #ioWrite(a: number, value: number): void {
     const s = this.#s
+    if (a >= MATH_REG.op && a < MATH_REG.op + 16) {
+      s.stall += mathWrite(s, a, value)
+      return
+    }
     switch (a) {
       case REG.bank:
         // A bank the ROM cannot have is not taken: the window stays as it was.

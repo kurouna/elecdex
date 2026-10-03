@@ -4,6 +4,7 @@
  */
 
 import { MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
+import { createMathState, type MathState } from './math-unit.js'
 
 /** The CSRs a program can read and write (section 4). */
 export interface Csrs {
@@ -57,6 +58,10 @@ export interface Elec16State {
   time: number
   /** Counts every change to what the screen shows, so a page draws only when it moved. */
   screenRevision: number
+  /** The maths unit's registers and generator (math-unit.ts). */
+  math: MathState
+  /** Cycles a device took on top of the instruction that started it (the maths unit). */
+  stall: number
 }
 
 export const CSR_NAMES = {
@@ -139,5 +144,7 @@ export function createState(model: ModelId): Elec16State {
     buzzer: { freq: 0, duration: 0, gate: false, started: 0 },
     time: 0,
     screenRevision: 0,
+    math: createMathState(),
+    stall: 0,
   }
 }
