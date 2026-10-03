@@ -204,6 +204,9 @@ user made; do not reverse one without asking.
 - **The ELEC-16 pane** (§5.19, docs/elec16.md) is designed and built phase by phase: read
   elec16.md before working on it. An original machine only: no third-party ROM, font, BASIC
   dialect, trade dress or real model name in what is published (user decision 2026-10-03).
+  - The encoding lives once, in shared/elec16/isa.ts; the assembler, disassembler and CPU read
+    it, and a test round-trips every instruction (every 16-bit encoding). One encoding, one
+    meaning: a do-nothing form is illegal, not a second spelling.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).

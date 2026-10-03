@@ -1,0 +1,121 @@
+/**
+ * Everything an ELEC-16 is, as plain data (docs/elec16.md): what a snapshot keeps and what a
+ * debugger reads. The ROM is not here - it is the same for every unit, and given at boot.
+ */
+
+import { MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
+
+/** The CSRs a program can read and write (section 4). */
+export interface Csrs {
+  mstatus: number
+  mie: number
+  mtvec: number
+  mscratch: number
+  mepc: number
+  mcause: number
+  mtval: number
+}
+
+/** Why the machine stopped by itself; it goes on only after a reset. */
+export interface Halt {
+  cause: string
+  pc: number
+}
+
+export const KEY_FIFO_SIZE = 16
+/** The key matrix: 10 rows of 8, a key's code being row * 8 + column. */
+export const KEY_ROWS = 10
+
+export interface Elec16State {
+  model: ModelId
+  regs: Uint16Array
+  pc: number
+  csr: Csrs
+  /** Inside a trap handler: an exception here is a double fault and halts the machine. */
+  inTrap: boolean
+  /** Asleep in WFI until an enabled interrupt is pending. */
+  sleeping: boolean
+  halt: Halt | null
+  /** Switched off by a program (POWER): it sleeps until BRK/ON, with its RAM kept. */
+  off: boolean
+  /** Cycles and instructions since the machine started; doubles, so they never wrap. */
+  cycles: number
+  instret: number
+  ram: Uint8Array
+  vram: Uint8Array
+  bank: number
+  keys: { fifo: number[]; held: Uint8Array }
+  lcd: { on: boolean; contrast: number; cursor: number; cursorMode: number; annunciators: number }
+  /** The 1,024 Hz timer: its count, the compare value, whether it interrupts, and what is owed. */
+  timer: { count: number; compare: number; enabled: boolean; pending: boolean; fraction: number }
+  /** The clock the page gives: second, minute, hour, day, month, year since 2000, weekday. */
+  clock: Uint8Array
+  buzzer: { freq: number; duration: number; gate: boolean; started: number }
+  /** Milliseconds of host time the machine has been given (advance), for the buzzer's length. */
+  time: number
+  /** Counts every change to what the screen shows, so a page draws only when it moved. */
+  screenRevision: number
+}
+
+export const CSR_NAMES = {
+  mstatus: 0x300,
+  misa: 0x301,
+  mie: 0x304,
+  mtvec: 0x305,
+  mscratch: 0x340,
+  mepc: 0x341,
+  mcause: 0x342,
+  mtval: 0x343,
+  mip: 0x344,
+  cycle: 0xc00,
+  instret: 0xc02,
+  cycleh: 0xc80,
+  instreth: 0xc82,
+} as const
+
+/** mstatus: interrupts on, and what they were before a trap. */
+export const MIE = 1 << 3
+export const MPIE = 1 << 7
+
+/** Interrupt lines, as bits of mie and mip. */
+export const IRQ = { timer: 0, key: 1, card: 2, math: 3 } as const
+
+/** mcause for exceptions (interrupts set the top bit and give their line). */
+export const CAUSE = {
+  illegal: 2,
+  breakpoint: 3,
+  loadMisaligned: 4,
+  storeMisaligned: 6,
+  storeFault: 7,
+  ecall: 11,
+} as const
+export const INTERRUPT = 0x8000
+
+/** misa: the extensions this machine has - M (bit 12), B (bit 1) and C (bit 2). */
+export const MISA = (1 << 12) | (1 << 1) | (1 << 2)
+
+export function createState(model: ModelId): Elec16State {
+  if (!(model in MODELS)) throw new RangeError(`no model ${model}`)
+  return {
+    model,
+    regs: new Uint16Array(16),
+    pc: RESET_VECTOR,
+    csr: { mstatus: 0, mie: 0, mtvec: 0, mscratch: 0, mepc: 0, mcause: 0, mtval: 0 },
+    inTrap: false,
+    sleeping: false,
+    halt: null,
+    off: false,
+    cycles: 0,
+    instret: 0,
+    ram: new Uint8Array(RAM_SIZE),
+    vram: new Uint8Array(VRAM_WINDOW),
+    bank: 0,
+    keys: { fifo: [], held: new Uint8Array(KEY_ROWS) },
+    lcd: { on: true, contrast: 8, cursor: 0, cursorMode: 0, annunciators: 0 },
+    timer: { count: 0, compare: 0, enabled: false, pending: false, fraction: 0 },
+    clock: new Uint8Array(7),
+    buzzer: { freq: 0, duration: 0, gate: false, started: 0 },
+    time: 0,
+    screenRevision: 0,
+  }
+}

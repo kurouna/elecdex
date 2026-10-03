@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
  */
 
 /** Every machine with a core under src/shared. A new emulator adds its folder here. */
-const MACHINES = ['chip8']
+const MACHINES = ['chip8', 'elec16']
 
 const shared = path.resolve(__dirname, '..', '..', 'src', 'shared')
 const widgets = path.resolve(__dirname, '..', '..', 'src', 'renderer', 'widgets')
