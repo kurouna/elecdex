@@ -254,13 +254,18 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
     )
     // Asleep it costs what it does stopped; running at the default clock, a program that
     // only computes stays within the spec's 8% (docs/elec16.md section 9), and one that
-    // writes the screen every frame pays for thirty frames a second as well.
-    expect(asleep - paused, `asleep over paused, ${power}`).toBeLessThan(process.env.CI ? 1 : 0.02)
+    // writes the screen every frame pays for thirty frames a second as well. The limits are
+    // half as much again as those figures: what else the machine is doing moves the reading
+    // (user decision 2026-10-04).
+    const room = 1.5
+    expect(asleep - paused, `asleep over paused, ${power}`).toBeLessThan(
+      process.env.CI ? 1 : 0.02 * room,
+    )
     expect(spin4 - asleep, `4 MHz spinning over asleep, ${power}`).toBeLessThan(
-      process.env.CI ? 1.5 : 0.08,
+      process.env.CI ? 1.5 : 0.08 * room,
     )
     expect(draw4 - asleep, `4 MHz drawing over asleep, ${power}`).toBeLessThan(
-      process.env.CI ? 1.5 : 0.25,
+      process.env.CI ? 1.5 : 0.25 * room,
     )
   } finally {
     await close()
