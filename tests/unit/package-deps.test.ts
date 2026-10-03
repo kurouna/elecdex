@@ -21,10 +21,17 @@ const RESOLVED_AT_RUNTIME = ['@ip-location-db/geo-whois-asn-country-mmdb']
 /** Runtime packages bundled into main on purpose, so their own dependencies are not shipped (decisions.md). */
 const BUNDLED_INTO_MAIN = ['yahoo-finance2']
 
-function files(dir: string): string[] {
+/**
+ * Shared code that only the build and the page run: e16c, the ELEC-16's compiler, which
+ * loads TypeScript's parser (a devDependency). A test below holds main to never importing it.
+ */
+const NOT_AT_RUNTIME = ['e16c']
+
+function files(dir: string, skip: string[] = []): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = path.join(dir, name)
-    if (statSync(full).isDirectory()) return name === 'vendor' ? [] : files(full)
+    if (statSync(full).isDirectory())
+      return name === 'vendor' || skip.includes(name) ? [] : files(full, skip)
     return /\.(ts|svelte)$/.test(name) ? [full] : []
   })
 }
@@ -47,9 +54,9 @@ function packagesIn(text: string): string[] {
 }
 
 /** The packages a tree loads. */
-function imported(dir: string): Set<string> {
+function imported(dir: string, skip: string[] = []): Set<string> {
   const found = new Set<string>()
-  for (const file of files(path.join(root, dir))) {
+  for (const file of files(path.join(root, dir), skip)) {
     for (const name of packagesIn(readFileSync(file, 'utf8'))) found.add(name)
   }
   return found
@@ -59,11 +66,18 @@ const runtime = new Set([
   ...imported('src/main'),
   ...imported('src/services'),
   ...imported('src/preload'),
-  ...imported('src/shared'),
+  ...imported('src/shared', NOT_AT_RUNTIME),
 ])
 const shipped = Object.keys(pkg.dependencies ?? {})
 
 describe('what the app ships', () => {
+  it('never loads the build-time shared code at runtime', () => {
+    const runtimeFiles = ['src/main', 'src/services', 'src/preload', 'src/shared']
+      .flatMap((dir) => files(path.join(root, dir), NOT_AT_RUNTIME))
+      .filter((file) => /from\s+'[^']*e16c\//.test(readFileSync(file, 'utf8')))
+    expect(runtimeFiles).toEqual([])
+  })
+
   it('sees every way a file loads a package', () => {
     const text = [
       "import a from 'pkg-a'",

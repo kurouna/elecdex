@@ -1,0 +1,16 @@
+{
+  // e16c's sources (*.e16.ts, docs/elec16.md section 6): TypeScript run two ways, as itself under
+  // the tests and compiled to E16. An array element is always a word there, so indexing is
+  // not checked for undefined; everything else is as strict as the rest.
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": false,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e16c.tsbuildinfo"
+  },
+  "include": [
+    "tests/fixtures/**/*.e16.ts",
+    "resources/elec16/**/*.e16.ts",
+    "src/shared/e16c/builtins.ts"
+  ],
+  "exclude": []
+}
