@@ -181,11 +181,20 @@ const TO_RADIANS: Record<Angle, number> = { 0: Math.PI / 180, 1: 1, 2: Math.PI /
 /** A turn in the angle's unit, for reducing a degree or grad angle exactly first. */
 const TURN: Record<Angle, Dec | null> = { 0: fromInt(360), 1: null, 2: fromInt(400) }
 
-/** An angle brought into one turn, exactly where the unit allows. */
-function reduce(a: Dec, angle: Angle): number {
+/** An angle brought into one turn, exactly; null in radians, where no turn is exact. */
+function reduced(a: Dec, angle: Angle): Dec | null {
   const turn = TURN[angle]
-  if (turn === null) return toNumber(a)
-  return toNumber(sub(a, mul(floor(div(a, turn)), turn)))
+  return turn === null ? null : sub(a, mul(floor(div(a, turn)), turn))
+}
+
+/** An angle brought into one turn, exactly where the unit allows. */
+const reduce = (a: Dec, angle: Angle): number => toNumber(reduced(a, angle) ?? a)
+
+/** Where the tangent has no value, a quarter and three quarters of a turn: degrees and grads. */
+const POLES: Record<Angle, Dec[]> = {
+  0: [fromInt(90), fromInt(270)],
+  1: [],
+  2: [fromInt(100), fromInt(300)],
 }
 
 /** What a sine or cosine too small to be anything but rounding comes to. */
@@ -199,10 +208,15 @@ export function cos(a: Dec, angle: Angle): Dec {
   return settle(Math.cos(reduce(a, angle) * TO_RADIANS[angle]))
 }
 
+/**
+ * The tangent. Its poles are decided on the exactly reduced angle, never on a cosine rounded
+ * to 0, so 89.99999999999 degrees has a (large) value and 90 has none. A radian angle is
+ * never exactly at one.
+ */
 export function tan(a: Dec, angle: Angle): Dec {
-  const c = cos(a, angle)
-  if (c.coeff === 0n) throw domain()
-  return settle(Math.tan(reduce(a, angle) * TO_RADIANS[angle]))
+  const r = reduced(a, angle)
+  if (r !== null && POLES[angle].some((pole) => compare(r, pole) === 0)) throw domain()
+  return settle(Math.tan(toNumber(r ?? a) * TO_RADIANS[angle]))
 }
 
 const inverse = (x: number, angle: Angle): Dec => fromNumber(x / TO_RADIANS[angle])
@@ -251,7 +265,7 @@ export function pow(a: Dec, b: Dec): Dec {
 
 function powInt(a: Dec, k: number): Dec {
   if (k === 0) return fromInt(1)
-  if (k < 0) return div(fromInt(1), powInt(a, -k))
+  if (k < 0) return reciprocalPower(a, -k)
   let result = fromInt(1)
   let base = a
   let n = k
@@ -261,6 +275,22 @@ function powInt(a: Dec, k: number): Dec {
     if (n > 0) base = mul(base, base)
   }
   return result
+}
+
+/**
+ * a ^ -k: a power too large to hold has a reciprocal too small to show (0, as any result
+ * under 1E-99 is), and one too small to show has a reciprocal too large.
+ */
+function reciprocalPower(a: Dec, k: number): Dec {
+  let p: Dec
+  try {
+    p = powInt(a, k)
+  } catch (e) {
+    if (e instanceof DecError && e.code === ERR.overflow) return ZERO
+    throw e
+  }
+  if (p.coeff === 0n && a.coeff !== 0n) throw overflow()
+  return div(fromInt(1), p)
 }
 
 /* ---------------- memory ---------------- */

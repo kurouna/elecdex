@@ -93,6 +93,12 @@ describe('functions', () => {
     expect(show(acos(n('0.5'), 0))).toBe('60')
     expect(show(atan(n('1'), 1))).toBe('0.7853981634')
     fails(() => tan(n('90'), 0), ERR.domain)
+    // The pole is the exact angle, not a cosine that rounds to 0 beside it.
+    fails(() => tan(n('270'), 0), ERR.domain)
+    fails(() => tan(n('-90'), 0), ERR.domain)
+    fails(() => tan(n('100'), 2), ERR.domain)
+    expect(show(tan(n('89.9999999999'), 0))).toMatch(/^5\.7\d+E11$/)
+    expect(show(tan(n('90.0000000001'), 0))).toMatch(/^-5\.7\d+E11$/)
     fails(() => asin(n('2'), 0), ERR.domain)
   })
 
@@ -104,6 +110,11 @@ describe('functions', () => {
     expect(show(pow(n('2'), n('0.5')))).toBe('1.414213562')
     expect(show(pow(n('-2'), n('3')))).toBe('-8')
     fails(() => pow(n('-2'), n('0.5')), ERR.domain)
+    // A reciprocal of a power too large to hold is too small to show, as 2^-1000 is.
+    expect(show(pow(n('2'), n('-999')))).toBe('0')
+    expect(show(pow(n('2'), n('-1000')))).toBe('0')
+    fails(() => pow(n('0.1'), n('-200')), ERR.overflow)
+    fails(() => pow(n('0'), n('-1')), ERR.divideByZero)
     fails(() => ln(n('0')), ERR.domain)
   })
 })
