@@ -62,7 +62,8 @@ const runner = new Elec16Runner({
   buzz: (freq, ms, mark) => buzzer.play(freq, ms, mark),
   hush: () => buzzer.silence(),
 })
-const session = new UnitSession(window.elecdex.elec16, paneId, runner, {
+// A pane's id is its mount's for good (a moved pane is mounted again): the session takes it once.
+const session = new UnitSession(window.elecdex.elec16, untrack(() => paneId), runner, {
   keep: (unit) => {
     if (unit !== pane.unit) change({ unit })
   },
