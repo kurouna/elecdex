@@ -669,3 +669,51 @@ test("FILES' LOAD stops a program waiting for a key first, rather than typing in
     await close()
   }
 })
+
+test("the dots' shadows follow the dots after the window was too small to draw them", async () => {
+  // Dots three device pixels and more have shadows; smaller, none is drawn - and when the
+  // window grew again, the shadows of what the screen showed before were still there.
+  const { app, page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: false } },
+    },
+  })
+  const size = (w: number, h: number) =>
+    app.evaluate(
+      ({ BrowserWindow }, [cw, ch]) => BrowserWindow.getAllWindows()[0]?.setContentSize(cw, ch),
+      [w, h] as const,
+    )
+  const scale = () => page.getByTestId('elec16-screen').getAttribute('data-scale')
+  try {
+    await size(1600, 900)
+    await settleLayout(page)
+    await booted(page)
+    await expect.poll(async () => Number(await scale())).toBeGreaterThanOrEqual(3)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'FOR I=1 TO 5:PRINT "GUESS?";I*111:NEXT')
+    await expect.poll(() => lcdLines(page)).toContain('GUESS?555')
+    await size(700, 500)
+    await expect.poll(async () => Number(await scale())).toBeLessThan(3)
+    await page.getByTestId('elec16').focus()
+    await typeLine(page, 'CLS:PRINT "HELLO"')
+    await expect.poll(() => lcdLines(page)).toContain('HELLO')
+    await size(1600, 900)
+    await expect.poll(async () => Number(await scale())).toBeGreaterThanOrEqual(3)
+    await page.waitForTimeout(1000)
+    // Every shadow is a lit dot's: none is left of what the screen showed before.
+    const stray = await page.locator('[data-testid=elec16-lcd] canvas').evaluateAll((els) => {
+      const [shadow, dots] = els.map((c) => {
+        const cv = c as HTMLCanvasElement
+        return cv.getContext('2d')?.getImageData(0, 0, cv.width, cv.height).data
+      })
+      if (shadow === undefined || dots === undefined) return -1
+      let n = 0
+      for (let k = 3; k < dots.length; k += 4) if ((shadow[k] ?? 0) > 0 && (dots[k] ?? 0) === 0) n++
+      return n
+    })
+    expect(stray).toBe(0)
+  } finally {
+    await close()
+  }
+})

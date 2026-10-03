@@ -115,8 +115,9 @@ function draw(): boolean {
   fadingLeft = fading
   if (dirty !== null) {
     dotsCtx.putImageData(dots, 0, 0, dirty.x, dirty.y, dirty.w, dirty.h)
-    // Too small to fall past the gap, the shadow would lie under the dots: not drawn.
-    if (shadowAt > 0) shadowCtx?.putImageData(shadows, 0, 0, dirty.x, dirty.y, dirty.w, dirty.h)
+    // Kept with the dots even while too small to show (the canvas is hidden then): left
+    // behind, a window grown again showed the shadows of what the screen held before.
+    shadowCtx?.putImageData(shadows, 0, 0, dirty.x, dirty.y, dirty.w, dirty.h)
   }
   return fading
 }
@@ -223,6 +224,7 @@ const marks = $derived(
           class="shadow"
           bind:this={shadowCanvas}
           style:transform="translate({shadowAt / room.ratio}px, {shadowAt / room.ratio}px)"
+          style:visibility={shadowAt > 0 ? 'visible' : 'hidden'}
           aria-hidden="true"
         ></canvas>
         <canvas bind:this={dotsCanvas} data-testid="elec16-screen" data-scale={scale}></canvas>

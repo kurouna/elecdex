@@ -110,6 +110,9 @@ describe('e16c', () => {
         expect(run(fn, args), `${fn}(${args})`).toBe(f(...args) & 0xffff)
       }
     },
+    // A program assembled and run for each of the sample's cases: -O0 takes about 1.5 s on
+    // its own and passed 5 s with every file running beside it.
+    20_000,
   )
 
   it('gives the same answers run as stack code in the interpreter', () => {
