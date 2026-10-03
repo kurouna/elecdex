@@ -53,12 +53,12 @@ export class Chip8Runner extends EmuRunner<Chip8> {
   /** Counts changes made by hand (a step, a reset), so a view of the registers reads again. */
   stepped = $state(0)
 
-  readonly #host: RunnerHost
+  readonly #sound: RunnerHost['sound']
   #rom: Uint8Array | null = null
 
   constructor(host: RunnerHost) {
     super(host, POLICY)
-    this.#host = host
+    this.#sound = host.sound
   }
 
   /** The program's bytes, as loaded: kept for a reset, and for a moved pane to take up. */
@@ -220,13 +220,13 @@ export class Chip8Runner extends EmuRunner<Chip8> {
 
   protected override afterFrames(machine: Chip8): void {
     const tone = machine.tone
-    this.#host.sound(tone)
+    this.#sound(tone)
     const sounding = tone.seconds > 0
     if (this.sounding !== sounding) this.sounding = sounding
   }
 
   protected override silence(): void {
-    this.#host.sound(null)
+    this.#sound(null)
   }
 
   protected override quiet(): void {

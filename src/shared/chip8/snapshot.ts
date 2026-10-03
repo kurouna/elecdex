@@ -155,7 +155,11 @@ export function decodeSnapshot(bytes: Uint8Array): Chip8State | null {
   s.pattern.set(r.raw(16))
   s.flags.set(r.raw(16))
   s.pixels.set(r.raw(HIRES.w * HIRES.h))
+  // A dot holds one bit per plane: anything above 3 was never drawn by a machine of ours.
+  if (s.pixels.some((p) => p > 3)) return null
   s.memory.set(r.raw(s.memory.length))
+  // The length was checked against the platform first, so nothing should have run short.
+  if (r.overrun) return null
   s.keys = 0
   s.waitKey = -1
   s.screenRevision = 1

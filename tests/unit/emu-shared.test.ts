@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SharedAudio } from '../../src/renderer/widgets/emu/audio.js'
 import { Painter } from '../../src/renderer/widgets/emu/painter.js'
 import { createPark, PARK_MS } from '../../src/renderer/widgets/emu/park.js'
+import { deviceRoom, drawDotGrid } from '../../src/renderer/widgets/emu/screen.js'
 
 /** The parts every emulator shares (docs/emu.md), apart from any one machine. */
 
@@ -28,6 +29,14 @@ describe('ByteWriter and ByteReader', () => {
   it('reads a view into the middle of a larger buffer from its own start', () => {
     const big = new Uint8Array([9, 9, 0x01, 0x02, 9])
     expect(new ByteReader(big.subarray(2, 4)).u16()).toBe(0x0201)
+  })
+
+  it('gives what is left of a cut field, and says so', () => {
+    const r = new ByteReader(new Uint8Array([1, 2, 3, 4, 5]))
+    r.u16()
+    expect(Array.from(r.raw(8))).toEqual([3, 4, 5])
+    expect(r.at).toBe(5)
+    expect(r.overrun).toBe(true)
   })
 
   it('says a cut input is not whole instead of throwing', () => {
@@ -129,6 +138,68 @@ describe('the painter', () => {
   })
 })
 
+describe('the screen', () => {
+  /** A ResizeObserver entry with only what the browser may give. */
+  const entry = (parts: {
+    device?: [number, number]
+    box?: [number, number]
+    rect: [number, number]
+  }): ResizeObserverEntry =>
+    ({
+      devicePixelContentBoxSize: parts.device
+        ? [{ inlineSize: parts.device[0], blockSize: parts.device[1] }]
+        : undefined,
+      contentBoxSize: parts.box
+        ? [{ inlineSize: parts.box[0], blockSize: parts.box[1] }]
+        : undefined,
+      contentRect: { width: parts.rect[0], height: parts.rect[1] },
+    }) as unknown as ResizeObserverEntry
+
+  it('reads the room in device pixels, from what the entry has', () => {
+    expect(deviceRoom(entry({ device: [1000, 500], box: [800, 400], rect: [1, 1] }), 1.25)).toEqual(
+      {
+        w: 1000,
+        h: 500,
+        ratio: 1.25,
+      },
+    )
+    expect(deviceRoom(entry({ box: [800, 400], rect: [1, 1] }), 1.25)).toEqual({
+      w: 1000,
+      h: 500,
+      ratio: 1.25,
+    })
+    expect(deviceRoom(entry({ rect: [800, 400] }), 2)).toEqual({ w: 1600, h: 800, ratio: 2 })
+  })
+
+  it('measures nothing behind a tab, so the picture keeps its size', () => {
+    expect(deviceRoom(entry({ device: [0, 500], rect: [0, 400] }), 1)).toBeNull()
+    expect(deviceRoom(entry({ rect: [800, 0] }), 1)).toBeNull()
+  })
+
+  it('draws a grid line every whole dot, and none for a step of nothing', () => {
+    const lines: number[][] = []
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        clearRect: () => {},
+        fillRect: (...rect: number[]) => lines.push(rect),
+        fillStyle: '',
+      }),
+    } as unknown as HTMLCanvasElement
+    drawDotGrid(canvas, 8, 4, 4, 'black')
+    expect([canvas.width, canvas.height]).toEqual([8, 4])
+    expect(lines).toEqual([
+      [0, 0, 1, 4],
+      [4, 0, 1, 4],
+      [0, 0, 8, 1],
+    ])
+    lines.length = 0
+    drawDotGrid(canvas, 8, 4, 0, 'black')
+    expect(lines).toEqual([])
+  })
+})
+
 describe('the shared audio context', () => {
   /** A stand-in context that records the worklet modules it is asked to load. */
   function fakeContext(failing: string[] = []) {
@@ -157,6 +228,36 @@ describe('the shared audio context', () => {
     await Promise.all([audio.get('chip8.js'), audio.get('chip8.js'), audio.get('elec16.js')])
     expect(made).toBe(1)
     expect(added).toEqual(['chip8.js', 'elec16.js'])
+  })
+
+  it('wakes the context while something sounds and puts it to sleep after a quiet while', async () => {
+    vi.useFakeTimers()
+    const { ac } = fakeContext()
+    const calls: string[] = []
+    const audio = new SharedAudio(() => ac)
+    // Nothing made yet: waking does nothing, and arms nothing.
+    audio.wake()
+    expect(vi.getTimerCount()).toBe(0)
+    await audio.get('chip8.js')
+    Object.assign(ac, {
+      state: 'suspended',
+      resume: () => {
+        calls.push('resume')
+        return Promise.resolve()
+      },
+      suspend: () => {
+        calls.push('suspend')
+        return Promise.resolve()
+      },
+    })
+    audio.wake()
+    vi.advanceTimersByTime(3000)
+    audio.wake()
+    vi.advanceTimersByTime(3999)
+    expect(calls).toEqual(['resume', 'resume'])
+    vi.advanceTimersByTime(1)
+    expect(calls).toEqual(['resume', 'resume', 'suspend'])
+    vi.useRealTimers()
   })
 
   it('answers null where a context cannot be made, or a voice will not load', async () => {

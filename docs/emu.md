@@ -30,7 +30,7 @@
 |---|---|---|
 | `shared/emu/clock.ts` | `framesDue`: 経った時間から、回す機械のフレーム数（取り戻しには上限。長い止まりは落とす） | CHIP-8 |
 | `shared/emu/fit.ts` | `fitScreen`: 部屋に画面を収める倍率。デバイスピクセルの整数倍（INTEGER）か、縦横比を保って全体（FIT）。90°・270° の回転 | CHIP-8 |
-| `shared/emu/bytes.ts` | `ByteWriter` / `ByteReader`: スナップショットを 1 欄ずつ書いて読む（リトルエンディアン）。短い入力でも例外を投げず、`overrun` で「まるごとではない」と知らせる。マジックと版と中身の検査は機種のもの | CHIP-8 |
+| `shared/emu/bytes.ts` | `ByteWriter` / `ByteReader`: スナップショットを 1 欄ずつ書いて読む（リトルエンディアン）。短い入力でも例外を投げず、`overrun` で「まるごとではない」と知らせる。**読み終えたら機種のデコーダが `overrun` か長さを確かめる**（CHIP-8 は長さを先に確かめ、最後に `overrun` も見る）。マジックと版と中身の検査は機種のもの | CHIP-8 |
 | `shared/emu/random.ts` | `seedOf`、`xorshift32`: 状態に持つ乱数。スナップショットから同じ列が続き、決まった種のテストは毎回同じになる | CHIP-8 |
 | `shared/emu/mem-window.ts` | MEM の窓: 行の並べ方（`windowStart`、`scrollWindow`）、行（`memoryRows`）、変わったバイト（`changedBytes`、`byteMap`）。メモリは配列か、副作用のない読み出し関数（`ByteSource`。I/O を持つ機械が FIFO を読んで減らさないように） | CHIP-8 |
 | `widgets/emu/runner.svelte.ts` | `EmuRunner`: ループ、一時停止、見えているか、状態（`empty` / `running` / `paused` / `halted`）、変更の数（AUTO を書くか決める）、描く人への通知（§4） | CHIP-8 |
@@ -57,7 +57,8 @@ ELEC-16 は CHIP-8 と回り方が違う。その分は ELEC-16 が加わると�
 - **サイクルで小分けに回す**: ELEC-16 のコアは時計を読まないので、runner がサイクル数を区切って回し、その間に `host.now()` で 1 フレーム 8 ms の予算を見る（MAX のとき）
 - **描画を分ける**: 実行は 60 Hz のタイマー、描画は VRAM が動いたフレームだけ rAF を 1 回
 - このため機械の約束は `advance(now)`・`run(cycles)`・`RunResult`（眠り、止まり、音、外への依頼）の形に広がる見込み（[elec16.md](elec16.md) §9）。CHIP-8 は今の振る舞いのまま、その形に合わせる薄い包みを持つ
-- 重い機械（Linux 系ペイン）は、機械を Web Worker で動かす。`shared/emu` とコアは DOM を持たないので、そのまま Worker で動く。runner と機械の間を約束（インターフェース）だけでつなぐのはそのため
+- **今の `EmuRunner` のループ（`#tick`・`#schedule`）は private で、フレーム単位の形をしている**。上のどれも `LoopPolicy` の 3 つの数と足し口では表せないので、段階 2 では基底のループそのものを書き換える（方針を数から振る舞いに替え、`pausedBy` の横に眠りの状態を足す）。CHIP-8 の部品は書き換えずに済むよう、CHIP-8 の方針は今の振る舞いをそのまま写す
+- 重い機械（Linux 系ペイン）は、機械を Web Worker で動かす。`shared/emu` とコアは DOM を持たないので、そのまま Worker で動く。ただし**今の約束は同期で、画面の部品は `runner.machine.state` を直接読む**ので、そのままでは Worker に載らない。Worker の機械には、状態を写しで受け取る別の約束を作る
 
 ## 5. 段階 0（2026-10-03）で切り出したもの、残したもの
 
@@ -65,6 +66,7 @@ ELEC-16 は CHIP-8 と回り方が違う。その分は ELEC-16 が加わると�
 
 - 切り出した: §3 の `bytes.ts`・`random.ts`・`mem-window.ts`（`shared/emu`）、`runner.svelte.ts`・`painter.ts`・`park.ts`・`audio.ts`・`screen.ts`（`widgets/emu`）。CHIP-8 の `runner.svelte.ts` は `EmuRunner` の上に、`park.ts` は `createPark` の上に建ち、`snapshot.ts` と `state.ts` は `shared/emu` を使う。境界のテストは `emu-boundary.test.ts` に名前を変え、`widgets/emu` がどの機械も知らないことも確かめる。新しい部品のテストは `emu-shared.test.ts`
 - テストで変えたのは import の道筋だけ: `chip8-mem.test.ts`（窓の関数は `@shared/emu/mem-window` から）、`chip8-pane.test.ts`（`Painter` は `widgets/emu` から）
+- 見直しで直したこと（Fable 5.1 のサブエージェントのレビュー）: 残光の部品は色の番号を `& 3` で丸めなくなったので、CHIP-8 のスナップショットは 0〜3 でない画素を受け取らないようにした（壊れたセーブの画素を、前は別の色、今は地として描くところだった。修正前に落ちるテストを足した）。デコーダは最後に `overrun` も確かめる。`deviceRoom`・`drawDotGrid`・`SharedAudio.wake` などにテストを足した
 - **残したもの**と理由: 2 台目の機械の形が見えてから切り出す（形を推測して共通にすると、間違った抽象が残る）
   - `MemView.svelte`・`CoreView.svelte`・`Screen.svelte`（Svelte の部品）: ELEC-16 の CORE（レジスタ 16 本、CSR、眠り）と MEM（I/O を持つメモリ）、液晶の描き方（隙間と影）が決まる段階 2 で、共通にできる形を切り出す
   - ブザーの声（`buzzer.ts`・`buzzer-worklet.ts`）: `Tone` と `PatternVoice` は CHIP-8 のもの。AudioContext だけを共通にした

@@ -1648,7 +1648,7 @@ elecdex/
 │  │  ├─ plugin-api.ts / plugin-runtime.ts / plugins.ts   # プラグインの公開型・Worker の実行時・検証
 │  │  ├─ plugin-keys.ts / plugin-sound.ts                # プラグインに渡すキー、プラグインが鳴らす音符の検査（純粋）
 │  │  ├─ calc/             # vendor/（elecxzy の評価器を無改変で）+ elecdex 側のラッパー + types/
-│  │  ├─ emu/              # エミュレータ共通の純粋関数: 時計、拡大率、バイト列、乱数、メモリの窓（emu.md）
+│  │  ├─ emu/              # エミュレータ共通の純粋関数: 時計、拡大率、バイト列、乱数、メモリの窓（emu.md）。ページ側の共通部品は renderer/widgets/emu/
 │  │  ├─ chip8/            # CHIP-8 の機械: 状態・命令・画面・互換モード・フォント・スナップショット・逆アセンブル・推定・キー（§5.18）
 │  │  ├─ geo/              # 生成データ: 都市、国の重心、タイムゾーン → 国
 │  │  ├─ ai.ts             # AI チャット: プロバイダ、会話、main とページの間のイベント（§5.7）
@@ -1681,7 +1681,7 @@ elecdex/
 │     │                    # TabStrip、PanePicker、LayoutsDialog、pane-drag / pane-close / pane-zoom / layout-switch
 │     ├─ plugins/          # PluginHost（Worker）、PluginPane、ブロック描画（CanvasBlock を含む）、合成音源（synth・voices・held）、Worker に渡す環境とフォント、設定欄
 │     ├─ widgets/          # registry.ts、builtins.ts、common/（StreamChart、Digits、SegmentMeter、HoverCard・CardRows（§7.4）…）、
-│     │                    # ウィジェットごとのフォルダ（monitor/ は監視系をまとめて持つ）
+│     │                    # ウィジェットごとのフォルダ（monitor/ は監視系をまとめて持つ）、emu/（エミュレータ共通の部品、emu.md）
 │     ├─ lib/              # frame-loop、crt-transitions、sfx、webgl、time-series、markdown（AI チャットの木）、hover-card（§7.4）…
 │     ├─ stores/           # layout、appearance、sessions、metrics、ui、web、background …（runes）
 │     └─ styles/           # reset / tokens / frames / effects / crt / motion

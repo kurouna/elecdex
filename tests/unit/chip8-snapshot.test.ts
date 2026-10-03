@@ -102,4 +102,14 @@ describe('snapshots', () => {
     ipf[9] = 0
     expect(Chip8.restore(ipf)).toBeNull()
   })
+
+  it('refuse a dot no plane can make, rather than draw it as something else', () => {
+    // A dot holds a bit per plane, 0 to 3; the painter draws anything else as the ground.
+    const good = corax().snapshot()
+    const pixels = good.length - 4096 - 128 * 64
+    expect(Chip8.restore(good)).not.toBeNull()
+    const stray = good.slice()
+    stray[pixels + 10] = 5
+    expect(Chip8.restore(stray)).toBeNull()
+  })
 })
