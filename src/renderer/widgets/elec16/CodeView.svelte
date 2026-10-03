@@ -3,6 +3,7 @@ import { CODE_END, CODE_START, MEASURE_LIMIT, SAMPLE } from '@shared/e16c/code-a
 import { sourceFromMachine, sourceToMachine } from '@shared/elec16/charset'
 import { onDestroy, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
+import { pulse } from '../../lib/pulse.svelte.ts'
 import { compileCode, holdCompiler } from './code/compiler.ts'
 import type { LevelResult } from './code/protocol.ts'
 import { CODE_FILE } from './pane-state.ts'
@@ -33,7 +34,9 @@ let source = $state('')
 let kept = ''
 let loaded = $state(false)
 let results = $state.raw<LevelResult[] | null>(null)
+/** A build under way: the button gives way to COMPILING, stepping with the shared pulse. */
 let compiling = $state(false)
+$effect(() => (compiling ? pulse.use() : undefined))
 let said = $state<{ text: string; bad: boolean } | null>(null)
 let sources = $state.raw<string[]>([])
 let editor = $state<HTMLTextAreaElement | null>(null)
@@ -88,6 +91,8 @@ async function compile(): Promise<void> {
   try {
     if (!(await keep())) return
     results = await compileCode(rom, file, source)
+  } catch (error) {
+    said = { text: `The compiler could not run: ${(error as Error).message}`, bad: true }
   } finally {
     compiling = false
   }
@@ -175,13 +180,17 @@ onDestroy(() => {
       data-testid="elec16-code-new"
     />
     <span class="gap"></span>
-    <button
-      type="button"
-      class="e16-btn"
-      disabled={unit === null || !loaded || compiling}
-      onclick={(e) => afterBlink(e.currentTarget, compile)}
-      data-testid="elec16-compile">{compiling ? 'compiling…' : 'compile'}</button
-    >
+    {#if compiling}
+      <span class="busy" data-phase={pulse.phase} data-testid="elec16-compile-busy">COMPILING</span>
+    {:else}
+      <button
+        type="button"
+        class="e16-btn"
+        disabled={unit === null || !loaded}
+        onclick={(e) => afterBlink(e.currentTarget, compile)}
+        data-testid="elec16-compile">compile</button
+      >
+    {/if}
     <div class="chips" role="radiogroup" aria-label="optimisation">
       {#each [0, 1, 2] as const as l (l)}
         <button
@@ -273,6 +282,20 @@ onDestroy(() => {
 
 .gap {
   flex: 1;
+}
+
+/* As the git pane's FETCHING: framed in the accent, stepping with the shared pulse. */
+.busy {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--accent);
+  color: var(--accent-strong);
+  font-family: var(--font-ui);
+  font-size: var(--step--2);
+  letter-spacing: 0.12em;
+}
+
+.busy[data-phase='2'] {
+  opacity: 0.45;
 }
 
 .chips {

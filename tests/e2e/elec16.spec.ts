@@ -589,3 +589,20 @@ test('a short, wide pane gets a body that fits it, plate and keys whole, never c
     await close()
   }
 })
+
+test('CODE compiles the sample it shows, as it is, and says so on every level', async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-view-toggle').click()
+    await expect(page.getByTestId('elec16-source')).toHaveValue(/HELLO FROM TYPESCRIPT/)
+    await page.getByTestId('elec16-compile').click()
+    const rows = page.getByTestId('elec16-levels').locator('tbody tr')
+    await expect(rows).toHaveCount(3, { timeout: 30_000 })
+    await expect(page.getByTestId('elec16-compile')).toBeEnabled()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled()
+  } finally {
+    await close()
+  }
+})
