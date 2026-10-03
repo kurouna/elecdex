@@ -3,6 +3,7 @@
  * debugger reads. The ROM is not here - it is the same for every unit, and given at boot.
  */
 
+import { type CardState, createCardState } from './card.js'
 import { MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
 import { createMathState, type MathState } from './math-unit.js'
 
@@ -62,6 +63,8 @@ export interface Elec16State {
   math: MathState
   /** Cycles a device took on top of the instruction that started it (the maths unit). */
   stall: number
+  /** The memory card's registers and the command out (card.ts). */
+  card: CardState
 }
 
 export const CSR_NAMES = {
@@ -146,5 +149,6 @@ export function createState(model: ModelId): Elec16State {
     screenRevision: 0,
     math: createMathState(),
     stall: 0,
+    card: createCardState(),
   }
 }

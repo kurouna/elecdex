@@ -14,6 +14,7 @@
  * through the general path for loads, stores and calls).
  */
 
+import { CARD_REG, cardRead, cardWrite } from './card.js'
 import type { Inst } from './isa.js'
 import {
   BANK_COUNT,
@@ -176,6 +177,7 @@ export class Bus {
   #io(a: number, peek: boolean): number {
     const s = this.#s
     if (a >= MATH_REG.op && a < MATH_REG.op + 16) return mathRead(s, a, peek)
+    if (a >= CARD_REG.cmd && a < CARD_REG.cmd + 16) return cardRead(s, a, peek)
     switch (a) {
       case REG.id:
         return MACHINE_ID
@@ -246,6 +248,10 @@ export class Bus {
     const s = this.#s
     if (a >= MATH_REG.op && a < MATH_REG.op + 16) {
       s.stall += mathWrite(s, a, value)
+      return
+    }
+    if (a >= CARD_REG.cmd && a < CARD_REG.cmd + 16) {
+      cardWrite(s, a, value)
       return
     }
     switch (a) {

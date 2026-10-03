@@ -11,6 +11,13 @@
  */
 
 import { Bus, pressKey, releaseKey } from './bus.js'
+import {
+  answerCard,
+  type CardAnswer,
+  type CardRequest,
+  createCardState,
+  takeCardRequest,
+} from './card.js'
 import { type Core, EXEC } from './exec.js'
 import { cyclesOf, decode, type Inst, OP, OPS } from './isa.js'
 import {
@@ -25,6 +32,7 @@ import {
   ROM_MAX,
   VRAM,
 } from './map.js'
+import { decodeSnapshot, encodeSnapshot } from './snapshot.js'
 import {
   CAUSE,
   CSR_NAMES,
@@ -111,6 +119,17 @@ export class Elec16 implements Core {
     const s = createState(model)
     if (ram !== undefined) s.ram.set(ram.subarray(0, s.ram.length))
     return new Elec16(rom, s)
+  }
+
+  /** A machine from its snapshot (snapshot.ts), as it was; null when the bytes are not one. */
+  static restore(rom: Uint8Array, bytes: Uint8Array): Elec16 | null {
+    const s = decodeSnapshot(bytes)
+    return s === null ? null : new Elec16(rom, s)
+  }
+
+  /** The machine as bytes: a unit's battery backup. */
+  snapshot(): Uint8Array {
+    return encodeSnapshot(this.s)
   }
 
   get state(): Readonly<Elec16State> {
@@ -205,6 +224,8 @@ export class Elec16 implements Core {
     s.timer.enabled = false
     s.math.pending = false
     s.stall = 0
+    // A command out belonged to the program that is gone: its answer is not waited for.
+    Object.assign(s.card, createCardState())
     this.#code.fill(undefined)
   }
 
@@ -215,6 +236,19 @@ export class Elec16 implements Core {
   brk(): void {
     if (this.s.off || this.s.halt !== null) this.reset()
     else this.s.brk = true
+  }
+
+  /** The card command out for the page to take (card.ts), once; null when there is none. */
+  takeCardRequest(): CardRequest | null {
+    return takeCardRequest(this.s)
+  }
+
+  /**
+   * main's answer to a card command: what was read goes to RAM and the CARD line goes up,
+   * waking a machine asleep for it.
+   */
+  answerCard(request: CardRequest, answer: CardAnswer): void {
+    answerCard(this.s, request, answer)
   }
 
   /** The power switch: off as a program's POWER write leaves it, RAM kept; BRK/ON is on. */
@@ -323,7 +357,8 @@ export class Elec16 implements Core {
     return (
       (s.timer.pending ? 1 << IRQ.timer : 0) |
       (s.keys.fifo.length > 0 ? 1 << IRQ.key : 0) |
-      (s.math.pending ? 1 << IRQ.math : 0)
+      (s.math.pending ? 1 << IRQ.math : 0) |
+      (s.card.pending ? 1 << IRQ.card : 0)
     )
   }
 

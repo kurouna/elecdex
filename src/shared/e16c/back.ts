@@ -236,12 +236,22 @@ function memoryOrFlow(out: Out, op: Op, fn: Fn, banks: Map<string, number | null
   }
 }
 
+/** The arguments off the stack into a0-a3, the call (across banks through far_call), the answer on. */
+function call(
+  out: Out,
+  op: Extract<Op, { k: 'call' }>,
+  fn: Fn,
+  banks: Map<string, number | null>,
+): void {
+  for (let k = op.argc - 1; k >= 0; k--) out.pop(ARG_REGS[k] as string)
+  for (const line of callLines(op.fn, fn.bank, banks)) out.line(line)
+  if (op.ret) out.push('a0')
+}
+
 function callsAndRest(out: Out, op: Op, fn: Fn, banks: Map<string, number | null>): void {
   switch (op.k) {
     case 'call':
-      for (let k = op.argc - 1; k >= 0; k--) out.pop(ARG_REGS[k] as string)
-      for (const line of callLines(op.fn, fn.bank, banks)) out.line(line)
-      if (op.ret) out.push('a0')
+      call(out, op, fn, banks)
       return
     case 'ret':
       if (op.value) out.pop('a0')
