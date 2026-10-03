@@ -98,9 +98,13 @@ async function compile(): Promise<void> {
   if (compiling) return
   compiling = true
   said = null
+  // What it is built for: another unit or file open by the time it comes back, it is not
+  // shown there - RUN would have run the other file's program.
+  const asked = `${unit}/${file}`
   try {
     if (!(await keep())) return
-    results = await compileCode(rom, file, source)
+    const built = await compileCode(rom, file, source)
+    if (`${unit}/${file}` === asked) results = built
   } catch (error) {
     said = { text: `The compiler could not run: ${(error as Error).message}`, bad: true }
   } finally {

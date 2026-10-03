@@ -74,6 +74,21 @@ describe('the CODE compiler', () => {
     expect(FakeWorker.made[0]?.terminated).toBe(true)
   })
 
+  it('goes on building for one CODE view when another closes', async () => {
+    const first = holdCompiler()
+    const second = holdCompiler()
+    try {
+      const build = compileCode(ROM, 'MAIN.TS', 'x')
+      await vi.waitFor(() => expect(FakeWorker.made[0]?.posted.length).toBe(2))
+      second()
+      expect(FakeWorker.made[0]?.terminated).toBe(false)
+      FakeWorker.made[0]?.answer(FakeWorker.made[0]?.posted[1]?.id ?? -1)
+      await expect(build).resolves.toEqual([])
+    } finally {
+      first()
+    }
+  })
+
   it('ends the worker that was still starting when the compiler was let go', async () => {
     const release = holdCompiler()
     const build = compileCode(ROM, 'MAIN.TS', 'x')
