@@ -1,11 +1,12 @@
 import { assemble, romImage } from '@shared/elec16/asm'
 import { keyCode } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
+import { hzOfClock } from '@shared/elec16-units'
 import { describe, expect, it } from 'vitest'
 import { byteKind, labelsOf, readCore } from '../../src/renderer/widgets/elec16/core.js'
 import { bodyFor } from '../../src/renderer/widgets/elec16/layout.js'
 import { FULL, LcdPainter, strength } from '../../src/renderer/widgets/elec16/lcd-painter.js'
-import { hzOf, panelShown, readElec16Pane } from '../../src/renderer/widgets/elec16/pane-state.js'
+import { panelShown, readElec16Pane } from '../../src/renderer/widgets/elec16/pane-state.js'
 import { type PcKey, pcKeyFate } from '../../src/renderer/widgets/elec16/pc-keys.js'
 
 /** The ELEC-16 pane's pure parts (docs/elec16.md section 7). */
@@ -171,8 +172,8 @@ describe('the body and the pane', () => {
   it('reads its state with a default for anything strange', () => {
     expect(readElec16Pane(undefined)).toEqual({
       skin: 'elec',
-      model: 'pocket-48',
-      clock: 4,
+      unit: undefined,
+      seed: {},
       body: 'auto',
       panel: true,
       tab: 'core',
@@ -186,24 +187,29 @@ describe('the body and the pane', () => {
       body: 1,
       contrast: 99,
       tab: 'x',
+      unit: '../u1',
     })
-    expect([odd.skin, odd.model, odd.clock, odd.body, odd.contrast, odd.tab]).toEqual([
+    expect([odd.skin, odd.unit, odd.seed, odd.body, odd.contrast, odd.tab]).toEqual([
       'elec',
-      'pocket-48',
-      4,
+      undefined,
+      {},
       'auto',
       7,
       'core',
     ])
-    expect(readElec16Pane({ clock: 'max', skin: 'night' })).toMatchObject({
-      clock: 'max',
+    // A pane from before units: its clock and LCD seed its first unit.
+    expect(
+      readElec16Pane({ clock: 'max', model: 'pocket-64', skin: 'night', unit: 'u2' }),
+    ).toMatchObject({
+      seed: { clock: 'max', model: 'pocket-64' },
+      unit: 'u2',
       skin: 'night',
     })
   })
 
   it('runs MAX as fast as the budget allows, and folds the panel where the LCD needs the room', () => {
-    expect(hzOf('max')).toBe(Number.POSITIVE_INFINITY)
-    expect(hzOf(32)).toBe(32_000_000)
+    expect(hzOfClock('max')).toBe(Number.POSITIVE_INFINITY)
+    expect(hzOfClock(32)).toBe(32_000_000)
     expect(panelShown(true, { w: 1000, h: 400 }, 240)).toBe(true)
     expect(panelShown(true, { w: 600, h: 400 }, 240)).toBe(false)
     expect(panelShown(false, { w: 2000, h: 400 }, 240)).toBe(false)

@@ -105,6 +105,19 @@ describe('the parking place', () => {
     vi.advanceTimersByTime(PARK_MS + 1)
     expect(place.claim('pane-1')).toBeNull()
   })
+
+  it('tells a machine nobody took that it went, and never one taken or parked again', () => {
+    vi.useFakeTimers()
+    const place = createPark<string>()
+    const gone: string[] = []
+    place.park('pane-1', 'closed', (e) => gone.push(e))
+    place.park('pane-2', 'moved', (e) => gone.push(e))
+    place.park('pane-3', 'first', (e) => gone.push(e))
+    place.park('pane-3', 'second', (e) => gone.push(e))
+    place.claim('pane-2')
+    vi.advanceTimersByTime(PARK_MS + 1)
+    expect(gone).toEqual(['closed', 'second'])
+  })
 })
 
 describe('the painter', () => {

@@ -11,8 +11,11 @@
 export const PARK_MS = 10_000
 
 export interface Park<T> {
-  /** Keeps `entry` for the pane's next mount, replacing anything kept for it before. */
-  park(paneId: string, entry: T): void
+  /**
+   * Keeps `entry` for the pane's next mount, replacing anything kept for it before. `expired`
+   * is told when nobody took it in time: the pane was closed, and what it held can go.
+   */
+  park(paneId: string, entry: T, expired?: (entry: T) => void): void
   /** What was kept for this pane, taken (it is no longer kept), or null. */
   claim(paneId: string): T | null
 }
@@ -27,9 +30,12 @@ export function createPark<T>(): Park<T> {
     parked.delete(paneId)
     return held.entry
   }
-  const park = (paneId: string, entry: T): void => {
+  const park = (paneId: string, entry: T, expired?: (entry: T) => void): void => {
     claim(paneId)
-    const timer = setTimeout(() => parked.delete(paneId), PARK_MS)
+    const timer = setTimeout(() => {
+      parked.delete(paneId)
+      expired?.(entry)
+    }, PARK_MS)
     parked.set(paneId, { entry, timer })
   }
   return { park, claim }

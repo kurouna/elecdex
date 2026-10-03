@@ -1,3 +1,4 @@
+import { CARD_STATUS, type CardAnswer, type CardRequest } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
 import { type ClockFields, Elec16 } from '@shared/elec16/machine'
 import { DEFAULT_MODEL, type ModelId } from '@shared/elec16/map'
@@ -53,6 +54,11 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   stepped = $state(0)
   /** The LCD fitted: the machine itself is not state, so its model is kept here for the views. */
   model = $state<ModelId>(DEFAULT_MODEL)
+  /**
+   * Where a card command the machine gives goes (the pane's unit, through main); none: the
+   * card is not there, and the command is answered so.
+   */
+  onCard: ((request: CardRequest) => Promise<CardAnswer>) | null = null
 
   readonly #host: Elec16Host
   /** MAX: as many cycles as the budget allows. Shared with the loop, built before `this`. */
@@ -210,6 +216,20 @@ export class Elec16Runner extends EmuRunner<Elec16> {
 
   protected override afterFrames(machine: Elec16): void {
     machine.setClock(this.#host.clock())
+    const request = machine.takeCardRequest()
+    if (request !== null) void this.#relay(machine, request)
+  }
+
+  /** A card command to main and its answer back, waking the machine that waits for it. */
+  async #relay(machine: Elec16, request: CardRequest): Promise<void> {
+    let answer: CardAnswer = { status: CARD_STATUS.noCard }
+    try {
+      if (this.onCard !== null) answer = await this.onCard(request)
+    } catch {
+      // main could not be asked: the card is as good as not there.
+    }
+    machine.answerCard(request, answer)
+    if (this.machine === machine) this.#timed.wake()
   }
 
   #slept(asleep: boolean): void {

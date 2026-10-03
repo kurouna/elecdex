@@ -1,24 +1,37 @@
 <script lang="ts">
 import { MODEL_IDS, MODELS, type ModelId } from '@shared/elec16/map'
+import {
+  ELEC16_CLOCKS,
+  type Elec16Clock,
+  type Elec16Unit,
+  type Elec16UnitChange,
+} from '@shared/elec16-units'
 import { sfx } from '../../stores/sound.svelte.ts'
-import { BODY_MODES, type BodyMode, CLOCKS, type Clock, type Elec16Pane } from './pane-state.ts'
+import { BODY_MODES, type BodyMode, type Elec16Pane } from './pane-state.ts'
 import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
 
 /**
- * TUNE (docs/elec16.md section 7): the unit's clock, its LCD (fitting another one restarts
- * the machine, its RAM kept and the screen empty), how the body is drawn, the skin, the
- * LCD's slow fade and its contrast.
+ * TUNE (docs/elec16.md section 7): which unit the pane runs (or a new one), the unit's clock
+ * and its LCD (fitting another one restarts the machine, its RAM kept and the screen empty) -
+ * the unit's own, kept by main - then this pane's: how the body is drawn, the skin, the LCD's
+ * slow fade and its contrast.
  */
 interface Props {
   pane: Elec16Pane
+  unit: Elec16Unit | null
+  units: readonly Elec16Unit[]
   onchange: (change: Partial<Elec16Pane>) => void
-  /** Another LCD fitted: the machine restarts on it. */
-  onmodel: (model: ModelId) => void
+  /** The unit's clock or LCD (another LCD restarts the machine). */
+  onunit: (change: Elec16UnitChange) => void
+  /** Another unit in this pane. */
+  onswitch: (id: string) => void
+  /** A new unit for this pane. */
+  onnew: () => void
 }
 
-const { pane, onchange, onmodel }: Props = $props()
+const { pane, unit, units, onchange, onunit, onswitch, onnew }: Props = $props()
 
-const clockWords = (c: Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
+const clockWords = (c: Elec16Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
 const modelWords = (id: ModelId): string => {
   const m = MODELS[id]
   return `${m.width}×${m.height}${m.depth === 2 ? ' ·4' : ''}`
@@ -39,15 +52,33 @@ function pick<T>(now: T, next: T, apply: () => void): void {
 
 <div class="tune" data-testid="elec16-tune">
   <section>
-    <h3>clock</h3>
-    <div class="chips" role="radiogroup" aria-label="clock">
-      {#each CLOCKS as c (c)}
+    <h3>unit</h3>
+    <div class="chips" role="radiogroup" aria-label="unit">
+      {#each units as u (u.id)}
         <button
           type="button"
           class="e16-chip"
           role="radio"
-          aria-checked={pane.clock === c}
-          onclick={() => pick(pane.clock, c, () => onchange({ clock: c }))}
+          aria-checked={unit?.id === u.id}
+          onclick={() => pick(unit?.id, u.id, () => onswitch(u.id))}
+          data-testid="elec16-unit"
+          data-unit={u.id}>{u.name}</button
+        >
+      {/each}
+      <button type="button" class="e16-chip" onclick={() => onnew()} data-testid="elec16-unit-new">+ new</button>
+    </div>
+  </section>
+  <section>
+    <h3>clock</h3>
+    <div class="chips" role="radiogroup" aria-label="clock">
+      {#each ELEC16_CLOCKS as c (c)}
+        <button
+          type="button"
+          class="e16-chip"
+          role="radio"
+          disabled={unit === null}
+          aria-checked={unit?.clock === c}
+          onclick={() => pick(unit?.clock, c, () => onunit({ clock: c }))}
           data-testid="elec16-clock"
           data-clock={c}>{clockWords(c)}</button
         >
@@ -62,8 +93,9 @@ function pick<T>(now: T, next: T, apply: () => void): void {
           type="button"
           class="e16-chip"
           role="radio"
-          aria-checked={pane.model === id}
-          onclick={() => pick(pane.model, id, () => onmodel(id))}
+          disabled={unit === null}
+          aria-checked={unit?.model === id}
+          onclick={() => pick(unit?.model, id, () => onunit({ model: id }))}
           data-testid="elec16-model"
           data-model={id}>{modelWords(id)}</button
         >

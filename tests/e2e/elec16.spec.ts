@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
 import { atDesignSize, launch, powerNote, settleLayout } from './support.js'
 
@@ -246,5 +249,114 @@ test('asleep at its prompt it costs what a paused pane does; running costs by it
     )
   } finally {
     await close()
+  }
+})
+
+const TWO_PANES = {
+  version: 1,
+  root: {
+    kind: 'split',
+    id: 's',
+    direction: 'row',
+    sizes: [50, 50],
+    children: [
+      { kind: 'pane', id: 'a', widget: 'elec16' },
+      { kind: 'pane', id: 'b', widget: 'elec16' },
+    ],
+  },
+}
+
+/** A pane's LCD text, by the pane's id. */
+const linesOf = (page: Page, id: string) => async (): Promise<string[]> =>
+  (
+    (await page
+      .locator(`[data-testid=pane][data-pane-id=${id}]`)
+      .getByTestId('elec16-text')
+      .textContent()) ?? ''
+  )
+    .split('\n')
+    .map((l) => l.trimEnd())
+
+test("keeps the program through a restart: the unit's battery backup", async () => {
+  const first = await launch(undefined, { layout: BESIDE_CLOCK })
+  let second: Awaited<ReturnType<typeof first.relaunch>> | null = null
+  try {
+    await settleLayout(first.page)
+    await booted(first.page)
+    await first.page.getByTestId('elec16').focus()
+    await typeLine(first.page, '10 PRINT "KEPT"')
+    await expect.poll(() => lcdLines(first.page)).toContain('>10 PRINT "KEPT"')
+    second = await first.relaunch()
+    await settleLayout(second.page)
+    await booted(second.page)
+    await second.page.getByTestId('elec16').focus()
+    await typeLine(second.page, 'run')
+    await expect.poll(() => lcdLines(second?.page as Page)).toContain('KEPT')
+  } finally {
+    await (second ?? first).close()
+  }
+})
+
+test('a second pane on the same unit is told so, and MOVE HERE takes the machine with its RAM', async () => {
+  const { page, close } = await launch(undefined, { layout: TWO_PANES })
+  try {
+    await settleLayout(page)
+    const a = page.locator('[data-testid=pane][data-pane-id=a]')
+    const b = page.locator('[data-testid=pane][data-pane-id=b]')
+    // Whichever pane started first runs UNIT 1; the other is told.
+    const sheet = page.getByTestId('elec16-sheet')
+    await expect(sheet).toHaveCount(1)
+    await expect(sheet).toHaveAttribute('data-phase', 'held')
+    const [runs, waits, waitsId] =
+      (await a.getByTestId('elec16-sheet').count()) === 0 ? [a, b, 'b'] : [b, a, 'a']
+    await runs.getByTestId('elec16').focus()
+    await typeLine(page, 'z=42')
+    await waits.getByTestId('elec16-move-here').click()
+    await expect(runs.getByTestId('elec16-sheet')).toHaveAttribute('data-phase', 'gone')
+    await expect(waits.getByTestId('elec16-sheet')).toHaveCount(0)
+    await waits.getByTestId('elec16').focus()
+    await typeLine(page, 'print z')
+    await expect.poll(linesOf(page, waitsId)).toContain('42')
+    // NEW UNIT in the pane that lost it: a unit of its own, afresh.
+    await runs.getByTestId('elec16-new-unit').click()
+    await expect(runs.getByTestId('elec16-sheet')).toHaveCount(0)
+    await runs.getByTestId('elec16').focus()
+    await typeLine(page, 'print z')
+    await expect.poll(linesOf(page, waitsId === 'a' ? 'b' : 'a')).toContain('0')
+  } finally {
+    await close()
+  }
+})
+
+test('IMPORT puts a picked listing on the card and EXPORT gives it back as text', async () => {
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-pick-'))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const listing = path.join(outside, 'hello.bas')
+    writeFileSync(listing, '10 PRINT "HI"\r\n20 END\r\n')
+    await app.evaluate(({ dialog }, answer) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
+    }, listing)
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=files]')).click()
+    await page.getByTestId('elec16-import').click()
+    await expect(page.getByTestId('elec16-files-said')).toHaveText('Imported as HELLO.BAS.')
+    await expect(page.getByTestId('elec16-file')).toHaveAttribute('data-name', 'HELLO.BAS')
+    // An unreadable character is refused, with its line.
+    writeFileSync(listing, '10 PRINT "\u3042"\n')
+    await page.getByTestId('elec16-import').click()
+    await expect(page.getByTestId('elec16-files-said')).toContainText('Line 1 has')
+    const target = path.join(outside, 'out.bas')
+    await app.evaluate(({ dialog }, answer) => {
+      dialog.showSaveDialog = (async () => ({ canceled: false, filePath: answer })) as never
+    }, target)
+    await page.getByTestId('elec16-file').click()
+    await page.getByTestId('elec16-export').click()
+    await expect(page.getByTestId('elec16-files-said')).toHaveText('Exported HELLO.BAS.')
+    expect(readFileSync(target, 'utf8')).toBe('10 PRINT "HI"\r\n20 END\r\n')
+  } finally {
+    await close()
+    rmSync(outside, { recursive: true, force: true })
   }
 })

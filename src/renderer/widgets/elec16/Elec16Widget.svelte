@@ -1,5 +1,5 @@
 <script lang="ts">
-import { MODELS, type ModelId } from '@shared/elec16/map'
+import { DEFAULT_MODEL, MODELS } from '@shared/elec16/map'
 import { romFromFile } from '@shared/elec16/rom'
 import { parseRgb } from '@shared/qr'
 import { onDestroy, untrack } from 'svelte'
@@ -16,12 +16,12 @@ import type { WidgetProps } from '../registry.ts'
 import CoreView from './CoreView.svelte'
 import { labelsOf } from './core.ts'
 import Device from './Device.svelte'
+import FilesView from './FilesView.svelte'
 import type { LcdColours, Rgb } from './lcd-painter.ts'
 import MemView from './MemView.svelte'
 import {
   ELEC16_TABS,
   type Elec16Pane,
-  hzOf,
   PANEL_WIDTH,
   panelShown,
   readElec16Pane,
@@ -31,6 +31,7 @@ import { pcKeyFate } from './pc-keys.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
+import { UnitSession } from './unit-session.svelte.ts'
 
 /**
  * The ELEC-16 pane (docs/elec16.md): a pocket computer of elecdex's own, its machine-code
@@ -41,8 +42,9 @@ import TuneView from './TuneView.svelte'
  * its buttons or keys hands the focus back - and never a key held with Ctrl, Alt or the
  * system key, nor Tab, Escape or a function key (pc-keys.ts). Moved in the layout, its
  * machine waits in park.ts for the new mount; out of sight, it pauses, and comes back by
- * itself when it was only waiting at its prompt. Its memory is kept across a reload only
- * from phase 4 (units and the battery backup are main's).
+ * itself when it was only waiting at its prompt. The machine is a unit's, which main keeps
+ * (unit-session.svelte.ts): its battery backup is written when the pane goes out of sight,
+ * the machine is switched off, the page is put away, or the pane lets the unit go.
  */
 const { paneId, state: paneState, visible: inTab = true }: WidgetProps = $props()
 const visible = $derived(seen(inTab))
@@ -50,6 +52,12 @@ const pane = $derived(readElec16Pane(paneState))
 const skin = $derived(SKINS[pane.skin])
 
 const runner = new Elec16Runner(browserElec16Host)
+const session = new UnitSession(window.elecdex.elec16, paneId, runner, {
+  keep: (unit) => {
+    if (unit !== pane.unit) change({ unit })
+  },
+})
+const model = $derived(session.unit?.model ?? DEFAULT_MODEL)
 
 let root = $state<HTMLDivElement | null>(null)
 let paneFocused = $state(false)
@@ -77,7 +85,8 @@ void import('./rom.json').then(
   },
 )
 
-// Once the ROM is here: take up the machine a moved pane left behind, or switch one on.
+// Once the ROM is here: the pane's unit, with the machine a moved pane left behind, or
+// from its battery backup.
 let started = false
 $effect(() => {
   const image = rom
@@ -85,21 +94,26 @@ $effect(() => {
   started = true
   untrack(() => {
     const parked = claim(paneId)
-    if (parked !== null && parked.machine.state.model === pane.model) {
-      runner.adopt(parked.machine, hzOf(pane.clock), parked.paused)
-    } else {
-      runner.boot(image, pane.model, hzOf(pane.clock))
-    }
+    void session.start(
+      image,
+      parked?.unit ?? pane.unit,
+      pane.seed,
+      parked?.machine ?? null,
+      parked?.paused ?? false,
+    )
   })
 })
 
 $effect(() => {
-  runner.setHz(hzOf(pane.clock))
+  runner.setSeen(visible)
+  // Out of sight is one of the times the battery backup is written.
+  if (!visible) untrack(() => session.save())
 })
 
-$effect(() => {
-  runner.setSeen(visible)
-})
+function power(): void {
+  runner.power()
+  if (runner.off) session.save()
+}
 
 /** PC keys held, by their code, with the machine key each pressed. */
 const held = new Map<string, number>()
@@ -142,15 +156,6 @@ function onpointerup(event: PointerEvent): void {
   queueMicrotask(() => root?.focus({ preventScroll: true }))
 }
 
-/** Another LCD: the machine restarts on it, its RAM kept. */
-function fitModel(model: ModelId): void {
-  change({ model })
-  const image = rom
-  if (image === null) return
-  const ram = runner.machine?.state.ram.slice()
-  runner.boot(image, model, hzOf(pane.clock), ram)
-}
-
 let body = $state<HTMLDivElement | null>(null)
 let room = $state({ w: 0, h: 0 })
 $effect(() => {
@@ -162,7 +167,7 @@ $effect(() => {
 })
 /** Opened by hand while it had folded away for want of room: shown anyway, for this mount. */
 let forced = $state(false)
-const panelOpen = $derived(forced || panelShown(pane.panel, room, MODELS[pane.model].width))
+const panelOpen = $derived(forced || panelShown(pane.panel, room, MODELS[model].width))
 
 function togglePanel(): void {
   const open = !panelOpen
@@ -213,7 +218,7 @@ $effect(() => {
   const status = runner.status
   const off = runner.off
   paneMeta.set(paneId, {
-    subtitle: MODELS[pane.model].id,
+    subtitle: session.unit === null ? model : `${session.unit.name} · ${model}`,
     ...(status === 'running' && !off ? { badge: 'on', badgeKind: 'ok' as const } : {}),
     ...(status === 'paused' ? { badge: 'paused', badgeKind: 'warn' as const } : {}),
     ...(status === 'halted' && !off ? { badge: 'halted', badgeKind: 'danger' as const } : {}),
@@ -222,9 +227,17 @@ $effect(() => {
 
 onDestroy(() => {
   const paused = runner.pausedBy === 'player'
+  const unit = session.unit?.id
+  const running = session.phase === 'running'
   const machine = runner.detach()
-  // Parked at once, before the new mount (a moved pane) looks for it.
-  if (machine !== null) park(paneId, { machine, paused })
+  session.dispose()
+  // Parked at once, before the new mount (a moved pane) looks for it; nobody taking it means
+  // the pane was closed, and the unit is let go with its machine.
+  if (machine !== null && unit !== undefined && running) {
+    park(paneId, { machine, paused, unit }, (left) =>
+      UnitSession.release(window.elecdex.elec16, left.unit, paneId, left.machine),
+    )
+  }
   runner.dispose()
 })
 </script>
@@ -234,6 +247,7 @@ onDestroy(() => {
     windowFocused = false
   }}
   onfocus={() => (windowFocused = true)}
+  onpagehide={() => session.save()}
 />
 
 <!-- The pane takes keys while it has the focus, as a game's field does: role application. -->
@@ -256,7 +270,7 @@ onDestroy(() => {
 >
   <div class="strip">
     <span class="e16-chip plain" data-testid="elec16-clock-chip"
-      >{pane.clock === 'max' ? 'MAX' : `${pane.clock} MHz`}</span
+      >{session.unit === null ? '' : session.unit.clock === 'max' ? 'MAX' : `${session.unit.clock} MHz`}</span
     >
     <div class="lamps">
       <span class="lamp {lamp.kind}" data-testid="elec16-lamp-cpu" data-lamp={lamp.word}>{lamp.word}</span>
@@ -277,7 +291,7 @@ onDestroy(() => {
       type="button"
       class="e16-btn"
       aria-pressed={!runner.off}
-      onclick={(e) => afterBlink(e.currentTarget, () => runner.power())}
+      onclick={(e) => afterBlink(e.currentTarget, power)}
       data-testid="elec16-power">power</button
     >
     <button type="button" class="e16-btn" aria-expanded={panelOpen} onclick={togglePanel} data-testid="elec16-panel-toggle"
@@ -289,6 +303,27 @@ onDestroy(() => {
     <div class="device">
       {#if failed}
         <p class="failed" data-testid="elec16-failed">The ROM could not be read.</p>
+      {:else if session.phase === 'held' || session.phase === 'gone'}
+        <div class="sheet crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower data-testid="elec16-sheet" data-phase={session.phase}>
+          <p>
+            {session.unit?.name ?? 'The unit'}
+            {session.phase === 'held' ? 'is running in another pane.' : 'moved to another pane.'}
+          </p>
+          <div class="sheet-actions">
+            <button
+              type="button"
+              class="e16-btn"
+              onclick={(e) => afterBlink(e.currentTarget, () => void session.moveHere())}
+              data-testid="elec16-move-here">{session.phase === 'held' ? 'move here' : 'take it back'}</button
+            >
+            <button
+              type="button"
+              class="e16-btn"
+              onclick={(e) => afterBlink(e.currentTarget, () => void session.newUnit())}
+              data-testid="elec16-new-unit">new unit</button
+            >
+          </div>
+        </div>
       {:else if runner.status !== 'empty'}
         <div class="view crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower>
           <Device
@@ -326,8 +361,18 @@ onDestroy(() => {
             <CoreView {runner} {labels} />
           {:else if pane.tab === 'mem'}
             <MemView {runner} />
+          {:else if pane.tab === 'files'}
+            <FilesView unit={session.phase === 'running' ? (session.unit?.id ?? null) : null} />
           {:else}
-            <TuneView {pane} onchange={change} onmodel={fitModel} />
+            <TuneView
+              {pane}
+              unit={session.unit}
+              units={session.board.units}
+              onchange={change}
+              onunit={(c) => void session.change(c)}
+              onswitch={(id) => void session.switchTo(id)}
+              onnew={() => void session.newUnit()}
+            />
           {/if}
         </div>
       </aside>
@@ -422,6 +467,26 @@ onDestroy(() => {
   grid-area: 1 / 1;
   min-width: 0;
   min-height: 0;
+}
+
+.sheet {
+  grid-area: 1 / 1;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--step--1);
+  color: var(--text);
+}
+
+.sheet p {
+  margin: 0;
+}
+
+.sheet-actions {
+  display: flex;
+  gap: var(--space-2);
 }
 
 .failed {

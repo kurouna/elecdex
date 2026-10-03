@@ -14,6 +14,10 @@ export const ELEC16_CLOCKS = [1, 2, 4, 8, 16, 32, 'max'] as const
 export type Elec16Clock = (typeof ELEC16_CLOCKS)[number]
 export const DEFAULT_CLOCK: Elec16Clock = 4
 
+/** Cycles a second at a clock, or Infinity for MAX. */
+export const hzOfClock = (clock: Elec16Clock): number =>
+  clock === 'max' ? Number.POSITIVE_INFINITY : clock * 1_000_000
+
 export const UNIT_ID = /^u[1-9][0-9]{0,3}$/
 export const isUnitId = (id: unknown): id is string => typeof id === 'string' && UNIT_ID.test(id)
 

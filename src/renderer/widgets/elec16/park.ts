@@ -9,6 +9,8 @@ export interface ParkedElec16 {
   machine: Elec16
   /** Paused by the player when it went (out of sight, it would pause anyway). */
   paused: boolean
+  /** The unit it is: the pane still holds it while it waits here. */
+  unit: string
 }
 
 export const { park, claim } = createPark<ParkedElec16>()

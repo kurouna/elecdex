@@ -1,36 +1,28 @@
 /**
  * What an ELEC-16 pane keeps in its pane state (docs/elec16.md section 8), read with a
  * default for anything missing or strange - layout.json may come from a person or an older
- * version. Only display choices and the machine's settings live here, never the machine:
- * a layout travels, and a unit's memory is main's (phase 4).
+ * version. Only display choices and which unit live here, never the machine nor the unit's
+ * own settings (clock, LCD): a layout travels, and a unit is main's (unit-session.svelte.ts).
  */
 
-import {
-  DEFAULT_HZ,
-  DEFAULT_MODEL,
-  MAX_HZ,
-  MIN_HZ,
-  MODEL_IDS,
-  type ModelId,
-} from '@shared/elec16/map'
+import { MODEL_IDS } from '@shared/elec16/map'
+import { ELEC16_CLOCKS, type Elec16UnitSeed, isUnitId } from '@shared/elec16-units'
 import { oneOf } from '../emu/format.js'
 import { isSkinId, type SkinId } from './skins.js'
 
-export const ELEC16_TABS = ['core', 'mem', 'tune'] as const
+export const ELEC16_TABS = ['core', 'mem', 'files', 'tune'] as const
 export type Elec16Tab = (typeof ELEC16_TABS)[number]
 
 /** How the device is drawn: the whole body, the LCD and a row of keys, or the LCD alone. */
 export const BODY_MODES = ['auto', 'full', 'compact', 'lcd'] as const
 export type BodyMode = (typeof BODY_MODES)[number]
 
-/** The clocks TUNE offers, in MHz, and MAX: as fast as the page's budget allows. */
-export const CLOCKS = [1, 2, 4, 8, 16, 32, 'max'] as const
-export type Clock = (typeof CLOCKS)[number]
-
 export interface Elec16Pane {
   skin: SkinId
-  model: ModelId
-  clock: Clock
+  /** The unit the pane runs, by id; none yet: the session picks one. */
+  unit: string | undefined
+  /** A pane from before units had its own clock and LCD: they seed its first unit. */
+  seed: Elec16UnitSeed
   body: BodyMode
   /** Whether the side panel is wanted; it still folds away when the pane is too narrow. */
   panel: boolean
@@ -44,22 +36,18 @@ export interface Elec16Pane {
 export function readElec16Pane(state: Record<string, unknown> | undefined): Elec16Pane {
   const s = state ?? {}
   const contrast = typeof s.contrast === 'number' && Number.isInteger(s.contrast) ? s.contrast : 0
+  const clock = ELEC16_CLOCKS.find((c) => c === s.clock)
+  const model = MODEL_IDS.find((m) => m === s.model)
   return {
     skin: isSkinId(s.skin) ? s.skin : 'elec',
-    model: oneOf(s.model, MODEL_IDS, DEFAULT_MODEL),
-    clock: oneOf<Clock>(s.clock, CLOCKS, (DEFAULT_HZ / 1_000_000) as Clock),
+    unit: isUnitId(s.unit) ? s.unit : undefined,
+    seed: { ...(clock !== undefined ? { clock } : {}), ...(model !== undefined ? { model } : {}) },
     body: oneOf(s.body, BODY_MODES, 'auto'),
     panel: typeof s.panel === 'boolean' ? s.panel : true,
     tab: oneOf(s.tab, ELEC16_TABS, 'core'),
     ghost: typeof s.ghost === 'boolean' ? s.ghost : true,
     contrast: Math.max(-7, Math.min(7, contrast)),
   }
-}
-
-/** Cycles a second for a clock, or Infinity for MAX. */
-export function hzOf(clock: Clock): number {
-  if (clock === 'max') return Number.POSITIVE_INFINITY
-  return Math.min(MAX_HZ, Math.max(MIN_HZ, clock * 1_000_000))
 }
 
 /** The side panel's width in CSS pixels. */
