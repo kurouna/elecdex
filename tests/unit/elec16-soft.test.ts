@@ -67,10 +67,13 @@ describe('the SOFT CARD', () => {
       'UNITS.BAS',
     ])
     const file = JSON.parse(readFileSync('resources/elec16/soft.json', 'utf8')) as {
-      files: { name: string; data: string }[]
+      files: { name: string; about: string; data: string }[]
     }
-    expect(file.files.map((f) => ({ name: f.name, data: fromBase64(f.data) }))).toEqual(
-      built.files.map((f) => ({ name: f.name, data: f.data })),
+    expect(
+      file.files.map((f) => ({ name: f.name, about: f.about, data: fromBase64(f.data) })),
+    ).toEqual(built.files.map((f) => ({ name: f.name, about: f.about, data: f.data })))
+    expect(built.files.find((f) => f.name === 'PRIMES.BAS')?.about).toBe(
+      'THE PRIMES UP TO A NUMBER',
     )
   })
 
