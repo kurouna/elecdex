@@ -340,7 +340,6 @@ upper:
   bltu t0, a0, .L1
   ; basic/text.e16.ts:131  return c - 0x20
   addi a0, a0, -32
-  j .return
 .L1:
   ; basic/text.e16.ts:132  return c
 .return:
@@ -373,7 +372,7 @@ keywordText:
   bne t0, zero, .L10
   ; basic/text.e16.ts:141  return 0
   li a0, 0
-  j .return
+  ret
 .L10:
   ; basic/text.e16.ts:142  at++
   addi a1, a1, 1
@@ -1345,42 +1344,42 @@ controlKey:
   bne a0, t0, .L1
   ; basic/edit.e16.ts:144  return 1
   li a0, 1
-  j .return
+  ret
 .L1:
   ; basic/edit.e16.ts:145  if (k === K_CLS) return EDIT_CLS
   li t0, 12
   bne a0, t0, .L2
   ; basic/edit.e16.ts:145  return EDIT_CLS
   li a0, 65535
-  j .return
+  ret
 .L2:
   ; basic/edit.e16.ts:146  if (k === K_BRK) return EDIT_BRK
   li t0, 3
   bne a0, t0, .L3
   ; basic/edit.e16.ts:146  return EDIT_BRK
   li a0, 65534
-  j .return
+  ret
 .L3:
   ; basic/edit.e16.ts:147  if (k === K_MODE) return EDIT_MODE
   li t0, 16
   bne a0, t0, .L4
   ; basic/edit.e16.ts:147  return EDIT_MODE
   li a0, 65533
-  j .return
+  ret
 .L4:
   ; basic/edit.e16.ts:148  if (k === K_UP) return EDIT_UP
   li t0, 30
   bne a0, t0, .L5
   ; basic/edit.e16.ts:148  return EDIT_UP
   li a0, 65532
-  j .return
+  ret
 .L5:
   ; basic/edit.e16.ts:149  if (k === K_DOWN) return EDIT_DOWN
   li t0, 31
   bne a0, t0, .L6
   ; basic/edit.e16.ts:149  return EDIT_DOWN
   li a0, 65531
-  j .return
+  ret
 .L6:
   ; basic/edit.e16.ts:150  return 0
   li a0, 0
@@ -1706,27 +1705,27 @@ moreErrorWord:
 .L2:
   ; basic/basic.e16.ts:353  return str('TYPE')
   la a0, str_12
-  j .return
+  ret
 .L3:
   ; basic/basic.e16.ts:355  return str('NO FILE')
   la a0, str_13
-  j .return
+  ret
 .L4:
   ; basic/basic.e16.ts:357  return str('CARD')
   la a0, str_14
-  j .return
+  ret
 .L5:
   ; basic/basic.e16.ts:359  return str('NO DATA')
   la a0, str_15
-  j .return
+  ret
 .L6:
   ; basic/basic.e16.ts:361  return str('INDEX')
   la a0, str_16
-  j .return
+  ret
 .L7:
   ; basic/basic.e16.ts:363  return str('DIM')
   la a0, str_17
-  j .return
+  ret
 .L8:
   ; basic/basic.e16.ts:365  return str('FILE')
   la a0, str_18
@@ -2240,9 +2239,8 @@ binary:
   sw t0, 0x0116(zero)
   ; basic/basic.e16.ts:512  math(op, top(), b)
   call top
-  mv t0, a0
+  mv a1, a0
   mv a0, s1
-  mv a1, t0
   mv a2, s2
   call math
 .return:
@@ -2421,9 +2419,8 @@ formatTop:
   sw zero, 0(t0)
   ; basic/basic.e16.ts:564  math(M_FORMAT, top(), addr(textOut))
   call top
-  mv t0, a0
+  mv a1, a0
   li a0, 57
-  mv a1, t0
   la a2, textOut
   call math
   ; basic/basic.e16.ts:565  const n = peek16(MATH_ARG)
@@ -2487,7 +2484,7 @@ readName:
   lbu t0, 0(t0)
   sw t0, 0x0616(zero)
   ; basic/basic.e16.ts:592  if (!isLetter(name0)) fail(E_SYNTAX)
-  lw a0, 0x0616(zero)
+  mv a0, t0
   call isLetter
   bnez a0, .L1
   ; basic/basic.e16.ts:592  fail(E_SYNTAX)
@@ -2499,11 +2496,10 @@ readName:
   addi t0, t0, 1
   sw t0, 0x010e(zero)
   ; basic/basic.e16.ts:594  name1 = peek(txt)
-  lw t0, 0x010e(zero)
   lbu t0, 0(t0)
   sw t0, 0x0618(zero)
   ; basic/basic.e16.ts:595  if (isLetter(name1) || isDigit(name1)) txt++
-  lw a0, 0x0618(zero)
+  mv a0, t0
   call isLetter
   bnez a0, .L3
   lw a0, 0x0618(zero)
@@ -2527,7 +2523,6 @@ readName:
   seqz t0, t0
   sw t0, 0x061a(zero)
   ; basic/basic.e16.ts:598  if (nameIsString) txt++
-  lw t0, 0x061a(zero)
   beqz t0, .L5
   ; basic/basic.e16.ts:598  txt++
   lw t0, 0x010e(zero)
@@ -2562,7 +2557,7 @@ findRecord:
   bne t0, t1, .L5
   ; basic/basic.e16.ts:605  return at
   mv a0, a1
-  j .return
+  ret
 .L5:
   ; basic/basic.e16.ts:606  at += peek16(at + 4)
   lw t0, 4(a1)
@@ -3020,10 +3015,8 @@ compare:
   mv s0, t0 ; got
   ; basic/basic.e16.ts:722  setInt(top(), (want & got) !== 0 ? 1 : 0)
   call top
-  and t0, s1, s0
-  mv t3, t0
+  and t1, s1, s0
   mv t0, a0
-  mv t1, t3
   li t2, 0
   beq t1, t2, .L9
   li t1, 1
@@ -3142,9 +3135,8 @@ compareNumbers:
   sw t0, 0x0116(zero)
   ; basic/basic.e16.ts:744  math(M_CMP, top(), b)
   call top
-  mv t0, a0
+  mv a1, a0
   li a0, 6
-  mv a1, t0
   mv a2, s1
   call math
   ; basic/basic.e16.ts:745  return peek16(MATH_RESULT)
@@ -3294,9 +3286,8 @@ unary:
   call needNumber
   ; basic/basic.e16.ts:785  math(M_NEG, top(), 0)
   call top
-  mv t0, a0
+  mv a1, a0
   li a0, 16
-  mv a1, t0
   li a2, 0
   call math
   ; basic/basic.e16.ts:786  return
@@ -3387,12 +3378,9 @@ primary:
   lw t0, 0x010e(zero)
   sub t0, t0, s2
   lw t1, 0x010e(zero)
-  lbu t1, -1(t1)
-  mv a1, t0
+  lbu t2, -1(t1)
+  mv t1, t0
   mv t0, s2
-  mv a2, t1
-  mv t1, a1
-  mv t2, a2
   li t3, 34
   bne t2, t3, .L4
   li t2, 1
@@ -3549,9 +3537,8 @@ functionCall:
   call top
   lw t0, 0(sp)
   addi sp, sp, 2
-  mv t1, a0
+  mv a1, a0
   mv a0, t0
-  mv a1, t1
   li a2, 0
   call math
   ; basic/basic.e16.ts:861  return
@@ -3562,9 +3549,8 @@ functionCall:
   bne s1, t0, .L4
   ; basic/basic.e16.ts:864  math(M_PI, push(), 0)
   call push
-  mv t0, a0
+  mv a1, a0
   li a0, 32
-  mv a1, t0
   li a2, 0
   call math
   ; basic/basic.e16.ts:865  return
@@ -3575,9 +3561,8 @@ functionCall:
   bne s1, t0, .L5
   ; basic/basic.e16.ts:868  copy8(addr(ans), push())
   call push
-  mv t0, a0
+  mv a1, a0
   la a0, ans
-  mv a1, t0
   call copy8
   ; basic/basic.e16.ts:869  return
   j .return
@@ -3734,7 +3719,7 @@ findLine:
   bne a3, a0, .L5
   ; basic/basic.e16.ts:916  return at
   mv a0, a2
-  j .return
+  ret
 .L5:
   ; basic/basic.e16.ts:917  if (here > n) return exact ? 0 : at
   bgeu a0, a3, .L6
@@ -3746,7 +3731,7 @@ findLine:
   mv t0, a2
 .L8:
   mv a0, t0
-  j .return
+  ret
 .L6:
   ; basic/basic.e16.ts:918  at += peek16(at + 2)
   lw t0, 2(a2)
@@ -3780,7 +3765,7 @@ move:
 .L4:
   bltu a3, a2, .L2
   ; basic/basic.e16.ts:927  return
-  j .return
+  ret
 .L1:
   ; basic/basic.e16.ts:929  let k = count
   mv a3, a2 ; k
@@ -3960,7 +3945,7 @@ keptProgramEnd:
 .L6:
   ; basic/basic.e16.ts:979  return PROG
   li a0, 2048
-  j .return
+  ret
 .L5:
   ; basic/basic.e16.ts:980  if (peek(at + size - 1) !== 0 && peek(at + size - 2) !== 0) return PROG
   add t0, a0, a1
@@ -3971,7 +3956,7 @@ keptProgramEnd:
   beq t0, zero, .L7
   ; basic/basic.e16.ts:980  return PROG
   li a0, 2048
-  j .return
+  ret
 .L7:
   ; basic/basic.e16.ts:981  last = n
   mv a2, a3 ; last
@@ -4951,7 +4936,7 @@ skipToElse:
   bnez a0, .L6
   ; basic/basic.e16.ts:1267  return true
   li a0, 1
-  j .return
+  ret
 .L6:
 .L3:
   lw t0, 0x010e(zero)
@@ -5182,9 +5167,8 @@ forStatement:
   ; basic/basic.e16.ts:1321  fsp = k
   sw s1, 0x012a(zero)
   ; basic/basic.e16.ts:1322  if (fsp >= FOR_DEPTH) fail(E_COMPLEX)
-  lw t0, 0x012a(zero)
-  li t1, 8
-  bltu t0, t1, .L9
+  li t0, 8
+  bltu s1, t0, .L9
   ; basic/basic.e16.ts:1322  fail(E_COMPLEX)
   li a0, 9
   call fail
@@ -5577,8 +5561,7 @@ run:
   ; basic/basic.e16.ts:1440  curLine = nextLine
   sw s1, 0x0110(zero)
   ; basic/basic.e16.ts:1441  txt = curLine + 4
-  lw t0, 0x0110(zero)
-  addi t0, t0, 4
+  addi t0, s1, 4
   sw t0, 0x010e(zero)
 .L6:
   ; basic/basic.e16.ts:1443  if (tracing && curLine !== 0) {
@@ -6207,7 +6190,7 @@ recall:
   lw t0, 0(s1)
   sw t0, 0x013e(zero)
   ; basic/basic.e16.ts:1626  const digits = unsignedText(recallNo, addr(lineBuf))
-  lw a0, 0x013e(zero)
+  mv a0, t0
   la a1, lineBuf
   call unsignedText
   mv s2, a0 ; digits
@@ -6252,7 +6235,7 @@ neighbour:
   bgeu t0, a3, .L5
   ; basic/basic.e16.ts:1637  return at
   mv a0, a1
-  j .return
+  ret
 .L5:
   ; basic/basic.e16.ts:1638  if (up && (recallNo === 0 || n < recallNo)) found = at
   beqz a0, .L6
@@ -6898,10 +6881,9 @@ dimString:
   ; basic/strings.e16.ts:259  newRecord(K_STRING, room, stringSize(room))
   mv a0, s1
   call stringSize
-  mv t0, a0
-  li a0, 1
   mv a1, s1
-  mv a2, t0
+  mv a2, a0
+  li a0, 1
   call newRecord
 .return:
   lw ra, 0(sp)
@@ -8362,14 +8344,14 @@ findData:
   bne a3, t0, .L7
   ; basic/strings.e16.ts:608  return 0
   li a0, 0
-  j .return
+  ret
 .L7:
   ; basic/strings.e16.ts:609  if (c === T_DATA) return p
   li t0, 158
   bne a3, t0, .L8
   ; basic/strings.e16.ts:609  return p
   mv a0, a1
-  j .return
+  ret
 .L8:
 .L2:
 .L3:
@@ -8861,7 +8843,7 @@ cell:
 .L2:
   ; basic/screen.e16.ts:91  return 0
   li a0, 0
-  j .return
+  ret
 .L1:
   ; basic/screen.e16.ts:92  return VRAM + (u16(y) >> 3) * width + u16(x)
   srli t0, a1, 3
@@ -11597,7 +11579,7 @@ renumbered:
   lw t0, 0x07ec(zero)
   bgeu a0, t0, .L1
   ; basic/tools.e16.ts:92  return old
-  j .return
+  ret
 .L1:
   ; basic/tools.e16.ts:93  let k: u16 = 0
   li a2, 0 ; k
@@ -11614,7 +11596,7 @@ renumbered:
   lw t1, 0x07ee(zero)
   mul t1, a2, t1
   add a0, t0, t1
-  j .return
+  ret
 .L6:
   ; basic/tools.e16.ts:97  if (n >= renumFrom) k++
   lw t0, 0x07ec(zero)
@@ -12023,10 +12005,8 @@ note:
   ; basic/tools.e16.ts:214  rWanting = takesLine(c) || (rWanting && c === CH_COMMA)
   mv a0, s1
   call takesLine
+  mv t1, a0
   mv t0, a0
-  mv t2, t0
-  mv t0, a0
-  mv t1, t2
   bnez t1, .L3
   lw t0, 0x07f8(zero)
   sub t0, t0, zero
@@ -12775,55 +12755,55 @@ bitName:
 .L2:
   ; basic/monitor.e16.ts:244  return str('rol')
   la a0, str_61
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:246  return str('xnor')
   la a0, str_62
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:248  return str('ror')
   la a0, str_63
-  j .return
+  ret
 .L5:
   ; basic/monitor.e16.ts:250  return str('orn')
   la a0, str_64
-  j .return
+  ret
 .L6:
   ; basic/monitor.e16.ts:252  return str('andn')
   la a0, str_65
-  j .return
+  ret
 .L7:
   ; basic/monitor.e16.ts:254  return str('min')
   la a0, str_66
-  j .return
+  ret
 .L8:
   ; basic/monitor.e16.ts:256  return str('minu')
   la a0, str_67
-  j .return
+  ret
 .L9:
   ; basic/monitor.e16.ts:258  return str('max')
   la a0, str_68
-  j .return
+  ret
 .L10:
   ; basic/monitor.e16.ts:260  return str('maxu')
   la a0, str_69
-  j .return
+  ret
 .L11:
   ; basic/monitor.e16.ts:262  return str('bset')
   la a0, str_70
-  j .return
+  ret
 .L12:
   ; basic/monitor.e16.ts:264  return str('bclr')
   la a0, str_71
-  j .return
+  ret
 .L13:
   ; basic/monitor.e16.ts:266  return str('binv')
   la a0, str_72
-  j .return
+  ret
 .L14:
   ; basic/monitor.e16.ts:268  return str('bext')
   la a0, str_73
-  j .return
+  ret
 .L15:
   ; basic/monitor.e16.ts:270  return 0
   li a0, 0
@@ -12841,32 +12821,32 @@ shiftName:
   bne a1, zero, .L2
   ; basic/monitor.e16.ts:277  return str('srli')
   la a0, str_74
-  j .return
+  ret
 .L2:
   ; basic/monitor.e16.ts:278  if (sel === 1) return str('srai')
   li t0, 1
   bne a1, t0, .L3
   ; basic/monitor.e16.ts:278  return str('srai')
   la a0, str_75
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:279  if (sel === 2) return str('rori')
   li t0, 2
   bne a1, t0, .L4
   ; basic/monitor.e16.ts:279  return str('rori')
   la a0, str_76
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:280  if (sel === 3) return str('bexti')
   li t0, 3
   bne a1, t0, .L5
   ; basic/monitor.e16.ts:280  return str('bexti')
   la a0, str_77
-  j .return
+  ret
 .L5:
   ; basic/monitor.e16.ts:281  return 0
   li a0, 0
-  j .return
+  ret
 .L1:
   ; basic/monitor.e16.ts:283  switch (sel) {
   beq a1, zero, .L7
@@ -12892,43 +12872,43 @@ shiftName:
 .L7:
   ; basic/monitor.e16.ts:285  return str('slli')
   la a0, str_78
-  j .return
+  ret
 .L8:
   ; basic/monitor.e16.ts:287  return str('bseti')
   la a0, str_79
-  j .return
+  ret
 .L9:
   ; basic/monitor.e16.ts:289  return str('bclri')
   la a0, str_80
-  j .return
+  ret
 .L10:
   ; basic/monitor.e16.ts:291  return str('binvi')
   la a0, str_81
-  j .return
+  ret
 .L11:
   ; basic/monitor.e16.ts:293  return str('clz')
   la a0, str_82
-  j .return
+  ret
 .L12:
   ; basic/monitor.e16.ts:295  return str('ctz')
   la a0, str_83
-  j .return
+  ret
 .L13:
   ; basic/monitor.e16.ts:297  return str('cpop')
   la a0, str_84
-  j .return
+  ret
 .L14:
   ; basic/monitor.e16.ts:299  return str('sext.b')
   la a0, str_85
-  j .return
+  ret
 .L15:
   ; basic/monitor.e16.ts:301  return str('zext.b')
   la a0, str_86
-  j .return
+  ret
 .L16:
   ; basic/monitor.e16.ts:303  return str('rev8')
   la a0, str_87
-  j .return
+  ret
 .L17:
   ; basic/monitor.e16.ts:305  return 0
   li a0, 0
@@ -12954,27 +12934,27 @@ immName:
 .L2:
   ; basic/monitor.e16.ts:312  return str('addi')
   la a0, str_88
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:314  return str('slti')
   la a0, str_89
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:316  return str('sltiu')
   la a0, str_90
-  j .return
+  ret
 .L5:
   ; basic/monitor.e16.ts:318  return str('xori')
   la a0, str_91
-  j .return
+  ret
 .L6:
   ; basic/monitor.e16.ts:320  return str('ori')
   la a0, str_92
-  j .return
+  ret
 .L7:
   ; basic/monitor.e16.ts:322  return str('andi')
   la a0, str_93
-  j .return
+  ret
 .L8:
   ; basic/monitor.e16.ts:324  return 0
   li a0, 0
@@ -13089,27 +13069,27 @@ loadOrJalr:
   li t0, 0
 .L3:
   mv a0, t0
-  j .return
+  ret
 .L1:
   ; basic/monitor.e16.ts:347  if (f3 === 0) return str('lb')
   bne a1, zero, .L4
   ; basic/monitor.e16.ts:347  return str('lb')
   la a0, str_95
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:348  if (f3 === 1) return str('lw')
   li t0, 1
   bne a1, t0, .L5
   ; basic/monitor.e16.ts:348  return str('lw')
   la a0, str_96
-  j .return
+  ret
 .L5:
   ; basic/monitor.e16.ts:349  if (f3 === 4) return str('lbu')
   li t0, 4
   bne a1, t0, .L6
   ; basic/monitor.e16.ts:349  return str('lbu')
   la a0, str_97
-  j .return
+  ret
 .L6:
   ; basic/monitor.e16.ts:350  return 0
   li a0, 0
@@ -13135,27 +13115,27 @@ branchName:
 .L2:
   ; basic/monitor.e16.ts:356  return str('beq')
   la a0, str_98
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:358  return str('bne')
   la a0, str_99
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:360  return str('blt')
   la a0, str_100
-  j .return
+  ret
 .L5:
   ; basic/monitor.e16.ts:362  return str('bge')
   la a0, str_101
-  j .return
+  ret
 .L6:
   ; basic/monitor.e16.ts:364  return str('bltu')
   la a0, str_102
-  j .return
+  ret
 .L7:
   ; basic/monitor.e16.ts:366  return str('bgeu')
   la a0, str_103
-  j .return
+  ret
 .L8:
   ; basic/monitor.e16.ts:368  return 0
   li a0, 0
@@ -13182,27 +13162,27 @@ csrName:
 .L2:
   ; basic/monitor.e16.ts:375  return str('csrrw')
   la a0, str_104
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:377  return str('csrrs')
   la a0, str_105
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:379  return str('csrrc')
   la a0, str_106
-  j .return
+  ret
 .L5:
   ; basic/monitor.e16.ts:381  return str('csrrwi')
   la a0, str_107
-  j .return
+  ret
 .L6:
   ; basic/monitor.e16.ts:383  return str('csrrsi')
   la a0, str_108
-  j .return
+  ret
 .L7:
   ; basic/monitor.e16.ts:385  return str('csrrci')
   la a0, str_109
-  j .return
+  ret
 .L8:
   ; basic/monitor.e16.ts:387  return 0
   li a0, 0
@@ -13216,28 +13196,28 @@ sysName:
   bne a0, zero, .L1
   ; basic/monitor.e16.ts:392  return str('ecall')
   la a0, str_110
-  j .return
+  ret
 .L1:
   ; basic/monitor.e16.ts:393  if (kind === 1) return str('ebreak')
   li t0, 1
   bne a0, t0, .L2
   ; basic/monitor.e16.ts:393  return str('ebreak')
   la a0, str_111
-  j .return
+  ret
 .L2:
   ; basic/monitor.e16.ts:394  if (kind === 2) return str('mret')
   li t0, 2
   bne a0, t0, .L3
   ; basic/monitor.e16.ts:394  return str('mret')
   la a0, str_112
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:395  if (kind === 3) return str('wfi')
   li t0, 3
   bne a0, t0, .L4
   ; basic/monitor.e16.ts:395  return str('wfi')
   la a0, str_113
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:396  return 0
   li a0, 0
@@ -14095,23 +14075,23 @@ pairName:
 .L2:
   ; basic/monitor.e16.ts:546  return str('c.mv')
   la a0, str_135
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:548  return str('c.add')
   la a0, str_136
-  j .return
+  ret
 .L4:
   ; basic/monitor.e16.ts:550  return str('c.sub')
   la a0, str_137
-  j .return
+  ret
 .L5:
   ; basic/monitor.e16.ts:552  return str('c.xor')
   la a0, str_138
-  j .return
+  ret
 .L6:
   ; basic/monitor.e16.ts:554  return str('c.and')
   la a0, str_139
-  j .return
+  ret
 .L7:
   ; basic/monitor.e16.ts:556  return str('c.or')
   la a0, str_140
@@ -14252,14 +14232,14 @@ pairChanges:
 .L2:
   ; basic/monitor.e16.ts:581  return false
   li a0, 0
-  j .return
+  ret
 .L1:
   ; basic/monitor.e16.ts:582  if (form === 0) return rd !== rs2
   bne a0, zero, .L3
   ; basic/monitor.e16.ts:582  return rd !== rs2
   sub t0, a1, a2
   snez a0, t0
-  j .return
+  ret
 .L3:
   ; basic/monitor.e16.ts:583  return form === 4 || rs2 !== 0
   li t0, 4

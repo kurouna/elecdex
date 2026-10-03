@@ -316,3 +316,50 @@ function labelOf(k: u16): u16 {
 export function stringByCall(): u16 {
   return peek(labelOf(1)) * 256 + peek(labelOf(0) + 1)
 }
+
+/**
+ * Five answers and a choice across a branch: the picture full, its registers a cycle that is
+ * undone with none to spare (-O1 once spilled under the picture and returned to garbage).
+ */
+export function fullPicture(x: u16): u16 {
+  return wrap16(
+    identity(1) +
+      (identity(2) + (identity(3) + (identity(4) + (identity(5) + (x !== 0 ? 10 : 20))))),
+  )
+}
+
+/**
+ * A constant condition whose other arm has labels of its own: all of it goes (-O2 once kept a
+ * piece that fell through into live code at another depth).
+ */
+export function deadArm(x: u16): u16 {
+  let r: u16 = 0
+  if (wrap16(1) !== 0) {
+    r = x + 1
+  } else {
+    r = (x > 3 ? (x > 5 ? 1 : 2) : 3) & (x !== 7 ? 9 : 8)
+  }
+  return r
+}
+
+const marks = bytes(4)
+const cells = words(4)
+
+/**
+ * Any word into an element, a constant or a signed value: both runs cut it to the element's
+ * width (e16c once refused -1 and 300 here, and an i16).
+ */
+export function elementsCut(s: i16): u16 {
+  marks[0] = -1
+  marks[1] = 300
+  cells[0] = -1
+  cells[1] = s
+  return wrap16(marks[0] * 256 + marks[1]) ^ cells[0] ^ cells[1]
+}
+
+/** A negative constant with no type said is an i16 in a function too, as at the top level. */
+export function negativeLocal(x: i16): u16 {
+  let k = -1
+  k = k * 3 + x
+  return u16(k)
+}

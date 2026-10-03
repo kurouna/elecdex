@@ -319,20 +319,38 @@ export class O1 {
       )
     }
     this.#unspill(this.#stack)
-    for (let k = 0; k < this.#stack.length; k++) {
-      const v = this.#stack[k] as Value
-      const want = temps[k] as string
-      if (v.kind === 'reg' && v.r === want) continue
-      // Whoever holds the wanted register moves out of the way first - a sum not yet added
-      // reads it as much as a value in it does.
-      const holder = this.#stack.findIndex((w, j) => j !== k && held(w).has(want))
-      if (holder >= 0) {
-        const away = this.#temp(new Set(temps.slice(0, this.#stack.length)))
-        this.#line(`mv ${away}, ${want}`)
-        this.#stack[holder] = movedTo(this.#stack[holder] as Value, away)
+    this.#parallelMove(this.#stack, temps.slice(0, this.#stack.length))
+  }
+
+  /**
+   * Every value into its target register at once, with no register to spare: a value whose
+   * target no other still holds (or reads, as a sum not yet added does) goes first; when every
+   * target left is held, the holders form a cycle of registers, and one is swapped into place
+   * without a third register (with the picture full there is none, and asking for one would
+   * spill a value under the picture). `values` ends as the registers.
+   */
+  #parallelMove(values: Value[], targets: string[]): void {
+    const placed = values.map(() => false)
+    const holder = (reg: string, except: number): number =>
+      values.findIndex((w, j) => j !== except && !placed[j] && held(w).has(reg))
+    for (let left = values.length; left > 0; left--) {
+      let k = values.findIndex((_, j) => !placed[j] && holder(targets[j] as string, j) < 0)
+      if (k < 0) {
+        k = values.findIndex((w, j) => !placed[j] && this.#owns(w))
+        const v = values[k] as Extract<Value, { r: string }>
+        const want = targets[k] as string
+        const other = holder(want, k)
+        this.#line(`xor ${want}, ${want}, ${v.r}`)
+        this.#line(`xor ${v.r}, ${v.r}, ${want}`)
+        this.#line(`xor ${want}, ${want}, ${v.r}`)
+        values[other] = movedTo(values[other] as Value, v.r)
+        values[k] = movedTo(v, want)
       }
-      this.#move(want, v, new Set([want]))
-      this.#stack[k] = { kind: 'reg', r: want }
+      const v = values[k] as Value
+      const want = targets[k] as string
+      if (!(v.kind === 'reg' && v.r === want)) this.#move(want, v, new Set(targets))
+      placed[k] = true
+      values[k] = { kind: 'reg', r: want }
     }
   }
 
@@ -390,6 +408,7 @@ export class O1 {
   /* ---------------- operations ---------------- */
 
   #op(op: Op): void {
+    if (op.k !== 'line' && op.k !== 'ldg' && op.k !== 'stg') this.#forward = null
     switch (op.k) {
       case 'line':
         this.#comment(`${op.file}:${op.line}  ${op.text}`)
@@ -430,15 +449,30 @@ export class O1 {
     this.#toHome(slot, this.#inReg(v, new Set()))
   }
 
+  /** A word global just stored, and what was stored: read right back, it needs no load. */
+  #forward: { at: number; v: Value } | null = null
+
   #loadGlobal(at: number, byte: boolean): void {
+    const forward = this.#forward
+    this.#forward = null
+    if (forward !== null && forward.at === at && !byte) {
+      this.#stack.push(forward.v)
+      return
+    }
     const r = this.#temp()
     this.#absolute(byte ? 'lbu' : 'lw', r, at)
     this.#stack.push({ kind: 'reg', r })
   }
 
   #storeGlobal(at: number, byte: boolean): void {
-    const r = this.#inReg(this.#pop(), new Set())
+    const v = this.#pop()
+    const r = this.#inReg(v, new Set())
     this.#absolute(byte ? 'sb' : 'sw', r, at, new Set([r]))
+    // A constant, an address or a local is read again as it was; anything else is in the
+    // register just stored from, free now that the value is gone from the picture.
+    const kept: Value =
+      v.kind === 'const' || v.kind === 'addr' || v.kind === 'local' ? v : { kind: 'reg', r }
+    if (!byte) this.#forward = { at, v: kept }
   }
 
   #absolute(op: string, r: string, at: number, avoid: Set<string> = new Set()): void {
@@ -633,6 +667,7 @@ export class O1 {
    * its label registers first, with the operands still on the stack so nothing moves them.
    */
   #compareAndBranch(op: BinOp, onTrue: boolean, to: string): void {
+    this.#forward = null
     if (this.#stack.length > 2) this.#canonical()
     const b = this.#pop()
     const a = this.#pop()
@@ -684,23 +719,7 @@ export class O1 {
     const values = this.#stack.splice(below)
     // Arguments a call inside them put on the machine's stack come back first, topmost first.
     this.#unspill(values)
-    const filled = new Set<string>()
-    values.forEach((v, k) => {
-      // Registers the values not yet moved still hold or read (a sum not yet added): loading
-      // this one must not take them.
-      const holding = values.slice(k + 1).flatMap((w) => [...held(w)])
-      const want = targets[k] as string
-      // A register a later value still sits in, or reads, is moved out of the way first.
-      const later = values.findIndex((w, j) => j > k && held(w).has(want))
-      if (later >= 0) {
-        // Not into a register another argument still waits in, either.
-        const away = this.#temp(new Set([...targets, ...filled, ...this.#held(values)]))
-        this.#line(`mv ${away}, ${want}`)
-        values[later] = movedTo(values[later] as Value, away)
-      }
-      filled.add(want)
-      this.#move(want, v, new Set([...filled, ...holding]))
-    })
+    this.#parallelMove(values, targets)
   }
 
   #move(to: string, v: Value, avoid: Set<string>): void {
@@ -731,7 +750,8 @@ export class O1 {
         return
       case 'ret':
         if (op.value) this.#move('a0', this.#pop(), new Set())
-        this.#line('j .return')
+        // With nothing to restore, the epilogue is `ret` itself: no jump to it.
+        this.#line(this.#saveArea().length === 0 && this.#frame === 0 ? 'ret' : 'j .return')
         this.#dead = true
         return
       default:
@@ -952,12 +972,18 @@ export function tidyJumps(lines: string[]): string[] {
   }
   return out.filter((line, k) => {
     const jump = /^ {2}j ([.\w]+)$/.exec(line)
-    if (jump === null) return true
-    for (let n = k + 1; n < out.length; n++) {
-      const next = out[n] as string
-      if (next === `${jump[1]}:`) return false
-      if (!/^[.\w]+:/.test(next) && !next.startsWith('  ;')) return true
-    }
-    return true
+    // A jump to the label that comes next, or a `ret` with the epilogue's `ret` next, goes.
+    if (jump !== null) return !comesNext(out, k, `${jump[1]}:`)
+    return line !== '  ret' || !comesNext(out, k, '  ret')
   })
+}
+
+/** Whether `wanted` is the next line after `k`, past labels and comments. */
+function comesNext(lines: string[], k: number, wanted: string): boolean {
+  for (let n = k + 1; n < lines.length; n++) {
+    const next = lines[n] as string
+    if (next === wanted) return true
+    if (!/^[.\w]+:/.test(next) && !next.startsWith('  ;')) return false
+  }
+  return false
 }

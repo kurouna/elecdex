@@ -294,16 +294,40 @@ function nextLabels(body: Op[], k: number): string[] {
   return labels
 }
 
-/** After a jump or a return, nothing runs until a label. */
+/**
+ * What runs: reached from the start by falling through or by a jump from what runs. A label
+ * only dead code jumps to is dead too (a branch folded away leaves its whole other arm,
+ * labels and all, which must go at once: cut only up to its first label, the rest would fall
+ * through into live code at another depth).
+ */
 function unreachableCut(body: Op[]): Op[] {
-  const out: Op[] = []
-  let live = true
-  for (const op of body) {
-    if (op.k === 'label') live = true
-    if (live || op.k === 'line') out.push(op)
-    if (op.k === 'jmp' || op.k === 'ret') live = false
+  const at = new Map<string, number>()
+  body.forEach((op, k) => {
+    if (op.k === 'label') at.set(op.name, k)
+  })
+  const live = body.map(() => false)
+  const work = [0]
+  while (work.length > 0) walkLive(body, work.pop() as number, live, at, work)
+  return body.filter((op, k) => live[k] || op.k === 'line')
+}
+
+/** Marks what runs from `k` on until a jump or a return; jump targets go on the worklist. */
+function walkLive(
+  body: Op[],
+  from: number,
+  live: boolean[],
+  at: Map<string, number>,
+  work: number[],
+): void {
+  for (let k = from; k < body.length && !live[k]; k++) {
+    live[k] = true
+    const op = body[k] as Op
+    if (op.k === 'jmp' || op.k === 'jz' || op.k === 'jnz') {
+      const target = at.get(op.to)
+      if (target !== undefined) work.push(target)
+    }
+    if (op.k === 'jmp' || op.k === 'ret') return
   }
-  return out
 }
 
 /** Exported functions and what they reach; the rest go. */

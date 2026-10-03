@@ -5,6 +5,7 @@ import {
   BOOL,
   BUILTINS,
   I16,
+  isBool,
   isSigned,
   Refusal,
   rangeOf,
@@ -96,6 +97,17 @@ const SIGN_MATTERS = new Set<BinOp>([
 function widens(from: TypeRef, to: TypeRef): boolean {
   if (from.kind === 'array' || to.kind === 'array') return typeName(from) === typeName(to)
   return from.ty === to.ty || (to.ty === 'u16' && (from.ty === 'u8' || from.ty === 'bool'))
+}
+
+/**
+ * A variable's type when none is said: a u8 value makes a word (the variable may grow), a
+ * negative constant an i16 (as at the top level: `let k = -1` is -1 in both runs).
+ */
+function inferred(value: Typed): TypeRef {
+  if (value.type.kind !== 'scalar') return value.type
+  if (value.type.ty === 'u8') return U16
+  if (value.type.ty === 'u16' && value.constant !== undefined && value.constant < 0) return I16
+  return value.type
 }
 
 /** `x & k` with k a byte is a u8: the way to say a value fits one. */
@@ -309,8 +321,7 @@ export class FnCompiler {
   #variable(name: string, annotated: TypeRef | null, init: ts.Expression, isConst: boolean): void {
     const mark = this.ops.length
     const value = this.expr(init)
-    const type =
-      annotated ?? (value.type.kind === 'scalar' && value.type.ty === 'u8' ? U16 : value.type)
+    const type = annotated ?? inferred(value)
     this.#assignable(type, value, init)
     // A constant that is a constant: no slot, its value used where it is named.
     if (isConst && value.constant !== undefined && type.kind === 'scalar') {
@@ -444,6 +455,9 @@ export class FnCompiler {
         `a ${typeName(value.type)} is not a u8: take its low byte with u8()`,
       )
     }
+    // An element keeps its own width of any word, alike in both runs: -1 into a u8 element is
+    // 255 read back in TypeScript and on the machine.
+    if (element) return
     if (
       to.kind === 'scalar' &&
       value.type.kind === 'scalar' &&
@@ -631,7 +645,7 @@ export class FnCompiler {
         throw new Refusal(clause.getStart(), 'a case must be a constant')
       // A case the switched value can never equal in TypeScript (-1 for a u16) may on the machine.
       const [lo, hi] = rangeOf(type.kind === 'scalar' ? type.ty : 'u16')
-      if (c.constant < lo || c.constant > hi)
+      if (c.constant < lo || c.constant > hi || isBool(type) !== isBool(c.type))
         throw new Refusal(clause.getStart(), `${c.constant} is not a ${typeName(type)}`)
       this.ops.pop()
       this.#emit({ k: 'ld', slot })
@@ -799,6 +813,7 @@ export class FnCompiler {
     const signedness = this.#signedness(a, b, at)
     const op = ops[signedness ? 1 : 0]
     const isCompare = COMPARE[kind] !== undefined
+    this.#readAlike(a, b, kind, at)
     if (SIGN_MATTERS.has(op)) this.#constantFits(a, b, signedness, at)
     this.#sameEverywhere(op, b, at)
     const type = isCompare ? BOOL : signedness ? I16 : narrowAnd(op, a, b)
@@ -812,6 +827,23 @@ export class FnCompiler {
     this.ops.length = mark - 1
     this.#emit({ k: 'push', v: word(v) })
     return { type, constant: signedness ? (word(v) << 16) >> 16 : isCompare ? v : word(v) }
+  }
+
+  /**
+   * Operations TypeScript reads otherwise whatever the values: >>> shifts an i16's 32 bits there
+   * (-1 >>> 1 is 2147483647), and a bool is true or false there, never equal to 1 or 0.
+   */
+  #readAlike(a: Typed, b: Typed, kind: ts.SyntaxKind, at: ts.Node): void {
+    if (kind === ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken && isSigned(a.type)) {
+      throw new Refusal(at.getStart(), '>>> on an i16 differs in TypeScript: use >> or u16()')
+    }
+    const op = COMPARE[kind]?.[0]
+    if ((op === 'eq' || op === 'ne') && isBool(a.type) !== isBool(b.type)) {
+      throw new Refusal(
+        at.getStart(),
+        'a bool is never 1 or 0 in TypeScript: compare it with a bool, or test it as it is',
+      )
+    }
   }
 
   /** Whether an operation on a and b is signed: both i16, or one i16 and the other a constant. */

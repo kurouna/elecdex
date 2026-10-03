@@ -88,6 +88,11 @@ const CASES: [string, number[]][] = [
   ['pendingSums', [4]],
   ['stepByIndex', []],
   ['stringByCall', []],
+  ['fullPicture', [0]],
+  ['fullPicture', [1]],
+  ['deadArm', [4]],
+  ['elementsCut', [-5]],
+  ['negativeLocal', [1]],
 ]
 
 describe('e16c', () => {
@@ -161,6 +166,14 @@ describe('e16c', () => {
       '  j f',
     ]
     expect(tidyJumps(lines)).toEqual(['f:', '  ; a comment', '.L1:', '.L2:', '.return:', '  ret'])
+    // A return with nothing to restore is `ret` itself; one just before the epilogue's goes.
+    expect(tidyJumps(['g:', '  beqz a0, .L1', '  ret', '.L1:', '.return:', '  ret'])).toEqual([
+      'g:',
+      '  beqz a0, .L1',
+      '.L1:',
+      '.return:',
+      '  ret',
+    ])
   })
 
   it('at -O2 leaves a pure call it cannot finish within its budget as a call', () => {
@@ -296,6 +309,15 @@ describe('e16c', () => {
     const wide = `export function h(a: u16, f: bool): u16 { return a + (a + (a + (a + (a + (a + (a + (a + (f ? 1 : 2)))))))) }`
     const many = compile([{ name: 'wide.ts', text: wide }], { ...OPTIONS, opt: 1 })
     if (many.errors.length > 0) expect(many.errors[0]).toMatchObject({ file: 'wide.ts' })
+    // Every ECALL register filled by a call's answer, none free to shuffle through: -O1 once
+    // threw from under its own picture.
+    const ecalls = [
+      'function id(x: u16): u16 { return x }',
+      'export function f(x: u16): u16 { return ecall(id(9), id(1), id(2), id(3), id(x)) }',
+    ].join('\n')
+    for (const opt of [0, 1, 2] as const) {
+      expect(compile([{ name: 'ecall.ts', text: ecalls }], { ...OPTIONS, opt }).errors).toEqual([])
+    }
   })
 
   it('multiplies by 0xFFFF with MUL: there is no shift by 16', () => {
@@ -366,6 +388,17 @@ describe('e16c', () => {
         /i16 is not a u16: say which with u16/,
       ],
       ['export function y(w: u16): i16 { return w }', /u16 is not a i16: say which with i16/],
+      // -1 >>> 1 is 2147483647 in TypeScript, 0x7FFF on the machine.
+      ['export function sh(s: i16): u16 { return u16(s >>> 1) }', />>> on an i16/],
+      // true === 1 is false in TypeScript; the machine's bool is 1.
+      [
+        'export function eq(x: u16): u16 { const b: bool = x > 2; return b === 1 ? 10 : 20 }',
+        /never 1 or 0/,
+      ],
+      [
+        'export function sw(b: bool): u16 { switch (b) { case 1: return 1 } return 0 }',
+        /1 is not a bool/,
+      ],
     ]
     for (const [text, said] of differs) {
       expect(compile([{ name: 'bad.ts', text }], OPTIONS).errors[0]?.message, text).toMatch(said)

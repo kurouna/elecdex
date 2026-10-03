@@ -23,6 +23,7 @@ export const I16 = scalar('i16')
 export const BOOL = scalar('bool')
 
 export const isSigned = (t: TypeRef): boolean => t.kind === 'scalar' && t.ty === 'i16'
+export const isBool = (t: TypeRef): boolean => t.kind === 'scalar' && t.ty === 'bool'
 
 /**
  * The constants a type holds alike in TypeScript and on the machine: a u16 of -1 is -1 in
