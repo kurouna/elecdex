@@ -184,6 +184,23 @@ describe('e16c', () => {
     expect(run('fib', [10])).toBe(55)
   })
 
+  it('says once that the data area is full, at the first that does not fit, and nothing at its uses', () => {
+    const text = [
+      'const big = bytes(700)',
+      'let a: u16 = 0',
+      'const more = bytes(100)',
+      'let b: u16 = 0',
+      'export function f(): u16 { a = 1; b = a; more[0] = 1; return b }',
+    ].join(String.fromCharCode(10))
+    const out = compile([{ name: 'full.ts', text }], {
+      ...OPTIONS,
+      data: { start: 0x100, end: 0x400 },
+    })
+    expect(out.errors).toEqual([
+      { file: 'full.ts', line: 3, column: 14, message: 'the data area (0x0100-0x0400) is full' },
+    ])
+  })
+
   it('says what is outside the subset, where', () => {
     const bad = [
       'export function f(a: u16): u16 { return a / 2 }',

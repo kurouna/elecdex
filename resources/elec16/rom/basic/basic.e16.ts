@@ -20,6 +20,7 @@ import {
   u16,
   words,
 } from '../../../../src/shared/e16c/builtins'
+import { EDIT_DOWN, EDIT_MODE, EDIT_UP, editLine } from './edit.e16'
 import {
   ANN_BUSY,
   ANN_DEG,
@@ -73,8 +74,8 @@ import {
   readline,
 } from './rom.e16'
 import {
+  expand,
   isLetter,
-  printTokens,
   printUnsigned,
   T_AND,
   T_ANS,
@@ -113,6 +114,7 @@ import {
   T_THEN,
   T_TO,
   tokenize,
+  unsignedText,
 } from './text.e16'
 
 /* ---------------- the maths unit's operations (shared/elec16/math-unit.ts) ---------------- */
@@ -170,8 +172,17 @@ let jumpLine: u16 = 0
 let jumpTxt: u16 = 0
 let proMode = false
 let angleMarks: u16 = ANN_DEG
+/** PRO: the number of the line last called up or stored, where up and down go on from; 0 none. */
+let recallNo: u16 = 0
+/** The line recallNo names was just typed: up calls it back first, to put right. */
+let justStored = false
+/** RUN: the length of the last line typed (kept in lastLine), for up to call back. */
+let lastLength: u16 = 0
 
+/** The longest line typed at the prompt. */
+const LINE_MAX = 78
 const lineBuf = bytes(80)
+const lastLine = bytes(80)
 const tokens = bytes(96)
 /** Twenty-four numbers of eight bytes. */
 const nums = bytes(192)
@@ -352,7 +363,8 @@ function binary(op: u16): void {
 /** The number written at the text, onto the stack. */
 function literal(): void {
   const at = push()
-  poke16(MATH_ARG, 40)
+  // As long as a number written in a line can be (the unit stops where the number does).
+  poke16(MATH_ARG, 255)
   math(M_PARSE, at, txt)
   const n = peek16(MATH_ARG)
   if (n === 0) fail(E_SYNTAX)
@@ -763,6 +775,7 @@ function commandStatement(c: u16): void {
       return
     case T_NEW:
       keepProgramTo(PROG)
+      recallNo = 0
       endProgram()
       return
     case T_CONT:
@@ -1066,7 +1079,7 @@ function listStatement(): void {
     fresh_line()
     printUnsigned(peek16(at))
     putc(CH_SPACE)
-    printTokens(at + 4)
+    expand(at + 4, 0, 0)
     newline()
     at += peek16(at + 2)
   }
@@ -1144,6 +1157,8 @@ function enter(): void {
     // A number is a line of the program when a statement follows it (or nothing, in PRO).
     if (n !== 0 && (isLetter(c) || c >= 0x80 || (c === 0 && proMode))) {
       storeLine(n, txt, length - (txt - addr(tokens)))
+      recallNo = n
+      justStored = true
       return
     }
     txt = save
@@ -1167,20 +1182,72 @@ export function basicLoop(): void {
   nsp = addr(nums)
   running = false
   marks()
+  // The text up or down called into the line, to edit before ENTER, in the same place.
+  let length: u16 = 0
+  let prompt = true
   for (;;) {
-    fresh_line()
-    putc(CH_GT)
-    const n: i16 = readline(addr(lineBuf), 78)
-    if (n === -3) {
+    if (prompt) {
+      fresh_line()
+      putc(CH_GT)
+    }
+    prompt = true
+    const n: i16 = editLine(addr(lineBuf), LINE_MAX, length)
+    length = 0
+    if (n === EDIT_MODE) {
       proMode = !proMode
       marks()
+      continue
+    }
+    if (n === EDIT_UP || n === EDIT_DOWN) {
+      length = recall(n === EDIT_UP)
+      prompt = false
       continue
     }
     // CLS cleared the screen; BRK gave the line up: a fresh prompt.
     if (n < 0) continue
     newline()
-    if (n > 0) enter()
+    if (n > 0) {
+      move(addr(lineBuf), addr(lastLine), u16(n))
+      lastLength = u16(n)
+      enter()
+    }
   }
+}
+
+/**
+ * Calls a line into lineBuf: in PRO the program line before or after the one last called up
+ * (the last or the first when there is none, and the same one at either end), or the line
+ * just typed, for up; in RUN the last line typed. Its length.
+ */
+function recall(up: bool): u16 {
+  if (!proMode) {
+    if (!up) return 0
+    move(addr(lastLine), addr(lineBuf), lastLength)
+    return lastLength
+  }
+  let at: u16 = 0
+  if (up && justStored) at = findLine(recallNo, true)
+  justStored = false
+  if (at === 0) at = neighbour(up)
+  if (at === 0) at = findLine(recallNo, true)
+  if (at === 0) return 0
+  recallNo = peek16(at)
+  const digits = unsignedText(recallNo, addr(lineBuf))
+  poke(addr(lineBuf) + digits, CH_SPACE)
+  return digits + 1 + expand(at + 4, addr(lineBuf) + digits + 1, LINE_MAX - digits - 1)
+}
+
+/** The program line just before recallNo (up) or just after it; the last or first when it is 0. */
+function neighbour(up: bool): u16 {
+  let at = PROG
+  let found: u16 = 0
+  while (peek16(at) !== 0) {
+    const n = peek16(at)
+    if (!up && n > recallNo) return at
+    if (up && (recallNo === 0 || n < recallNo)) found = at
+    at += peek16(at + 2)
+  }
+  return found
 }
 
 function showBanner(): void {

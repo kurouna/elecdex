@@ -243,7 +243,8 @@ function toInt(s: Elec16State): void {
 /** The number at B (at most ARG characters) into A; ARG says how many it took, 0 for none. */
 function parseText(s: Elec16State): void {
   const m = s.math
-  const length = Math.min(m.arg, 64)
+  // A line of BASIC is at most 78 characters, so a number in one is shorter than this.
+  const length = Math.min(m.arg, 255)
   inRam(m.b, length)
   const text = String.fromCharCode(...s.ram.subarray(m.b, m.b + length))
   const found = D.parse(text)

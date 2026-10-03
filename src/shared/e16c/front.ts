@@ -42,6 +42,8 @@ export function front(files: SourceFile[], options: FrontOptions): Front {
 class ProgramBuilder {
   readonly #symbols = new Map<string, Sym>()
   readonly #errors: CompileError[] = []
+  /** The declaration that did not fit the data area, until #each reports it. */
+  #full: ts.Node | null = null
   readonly #globals: Global[] = []
   readonly #arrays: StaticArray[] = []
   readonly #strings: RomString[] = []
@@ -77,6 +79,15 @@ class ProgramBuilder {
     for (const statement of f.source.statements) {
       try {
         visit(statement)
+        const full = this.#full
+        this.#full = null
+        if (full !== null) {
+          const { data } = this.#options
+          throw new Refusal(
+            full.getStart(),
+            `the data area (${hex(data.start)}-${hex(data.end)}) is full`,
+          )
+        }
       } catch (e) {
         if (!(e instanceof Refusal)) throw e
         const at = e.at > 0 ? e.at : statement.getStart(f.source)
@@ -189,15 +200,14 @@ class ProgramBuilder {
     }
   }
 
+  /**
+   * Room in the data area. When it is full the declaration is still made, so its uses raise
+   * no errors of their own: the one error, at the first that does not fit, is said by #each.
+   */
   #allocate(size: number, at: ts.Node): number {
     const start = this.#next
     this.#next += size + (size & 1)
-    if (this.#next > this.#options.data.end) {
-      throw new Refusal(
-        at.getStart(),
-        `the data area (${hex(this.#options.data.start)}-${hex(this.#options.data.end)}) is full`,
-      )
-    }
+    if (this.#next > this.#options.data.end && start <= this.#options.data.end) this.#full = at
     return start
   }
 

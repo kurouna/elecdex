@@ -72,7 +72,7 @@ const SESSION: [string, string[]][] = [
 describe('BASIC', () => {
   it('greets with the room left for a program, in RUN mode', () => {
     const m = switchOn()
-    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', '27646 BYTES FREE', '>'])
+    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', '26622 BYTES FREE', '>'])
     expect(annunciated(m)).toEqual(['CAPS', 'RUN', 'DEG'])
   })
 
@@ -125,15 +125,102 @@ describe('BASIC', () => {
     m.powerOff()
     m.brk()
     settle(m)
-    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', '27630 BYTES FREE', '>'])
+    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', '26606 BYTES FREE', '>'])
     expect(say(m, 'RUN')).toEqual(['KEPT0'])
     // A line whose size runs past the room is no program.
-    m.state.ram.set([0x0a, 0x00, 0xfe, 0x7f], 0x0400)
+    m.state.ram.set([0x0a, 0x00, 0xfe, 0x7f], 0x0800)
     m.powerOff()
     m.brk()
     settle(m)
     expect(say(m, 'LIST')).toEqual([])
-    expect(shown(switchOn())[1]).toBe('27646 BYTES FREE')
+    expect(shown(switchOn())[1]).toBe('26622 BYTES FREE')
+  })
+
+  it('edits the line being typed: arrows move, typing writes over, INS opens, DEL and BS take out', () => {
+    const m = switchOn('pocket-64')
+    press(m, keyCode('cls'))
+    type(m, 'PRINT 12')
+    for (const key of ['left', 'left'] as const) press(m, keyCode(key))
+    type(m, '3')
+    expect(shown(m)).toEqual(['>PRINT 32'])
+    expect(m.state.lcd.cursor & 0xff).toBe(8)
+    press(m, keyCode('ins'))
+    type(m, '1')
+    expect(shown(m)).toEqual(['>PRINT 312'])
+    press(m, keyCode('del'))
+    expect(shown(m)).toEqual(['>PRINT 31'])
+    press(m, keyCode('right'))
+    press(m, keyCode('bs'))
+    type(m, '4\n')
+    expect(shown(m)).toEqual(['>PRINT 34', '34', '>'])
+  })
+
+  it('wraps a long line and keeps editing it where it went, scrolling with it', () => {
+    const m = switchOn('pocket-32')
+    press(m, keyCode('cls'))
+    type(m, '\n\n\n')
+    type(m, `PRINT ${'1'.repeat(50)}`)
+    // The line ran past the screen's last row, which scrolled up under it.
+    expect(screen(m).slice(-2)).toEqual([`>PRINT ${'1'.repeat(33)}`, '1'.repeat(17)])
+    for (let k = 0; k < 45; k++) press(m, keyCode('left'))
+    expect(m.state.lcd.cursor).toBe((2 << 8) | 12)
+    press(m, keyCode('del'))
+    expect(screen(m).slice(-2)).toEqual([`>PRINT ${'1'.repeat(33)}`, '1'.repeat(16)])
+    type(m, '\n')
+    expect(screen(m).slice(-2)).toEqual(['1.111111111E48', '>'])
+  })
+
+  it('calls back the last line in RUN with up, to run again or change', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, '7*6').map((l) => l.trim())).toEqual(['42'])
+    press(m, keyCode('cls'))
+    press(m, keyCode('up'))
+    expect(shown(m)).toEqual(['>7*6'])
+    type(m, '+1\n')
+    expect(shown(m).map((l) => l.trim())).toEqual(['>7*6+1', '43', '>'])
+  })
+
+  it('in PRO calls program lines up and down to edit, the line just typed first', () => {
+    const m = switchOn('pocket-64')
+    press(m, keyCode('mode'))
+    type(m, '10 A=1\n20 PRINT "B";A\n30 END\n')
+    press(m, keyCode('cls'))
+    press(m, keyCode('up'))
+    expect(shown(m)).toEqual(['>30 END'])
+    press(m, keyCode('up'))
+    expect(shown(m).at(-1)).toBe('>20 PRINT "B";A')
+    press(m, keyCode('up'))
+    press(m, keyCode('up'))
+    expect(shown(m).at(-1)).toBe('>10 A=1')
+    press(m, keyCode('down'))
+    expect(shown(m).at(-1)).toBe('>20 PRINT "B";A')
+    // Changed and entered: line 20 is the new text.
+    press(m, keyCode('bs'))
+    type(m, 'A*2\n')
+    expect(say(m, 'RUN')).toEqual(['B2'])
+    // A changed number keeps both lines.
+    press(m, keyCode('cls'))
+    press(m, keyCode('up'))
+    for (let k = 0; k < 15; k++) press(m, keyCode('left'))
+    type(m, '5\n')
+    expect(say(m, 'LIST')).toEqual(['10 A=1', '20 PRINT "B";A*2', '25 PRINT "B";A*2', '30 END'])
+  })
+
+  it('lists text after REM and inside quotes as it is, never as keywords', () => {
+    const m = switchOn('pocket-64')
+    // A kana is a byte from A1 up, where the tokens are too.
+    // 10 REM, then 0xB4 0x8E; 20 PRINT "0x8E" - SIN and GOTO, were they read as tokens.
+    m.state.ram.set(
+      [10, 0, 8, 0, 0x93, 0xb4, 0x8e, 0, 20, 0, 10, 0, 0x84, 0x22, 0x8e, 0x22, 0, 0, 0, 0],
+      0x0800,
+    )
+    m.powerOff()
+    m.brk()
+    settle(m)
+    const listed = say(m, 'LIST')
+    expect(listed.map((l) => l.length)).toEqual([8, 11])
+    expect(listed.join(' ')).not.toMatch(/SIN|GOTO/)
+    expect(listed[1]?.startsWith('20 PRINT"')).toBe(true)
   })
 
   it('keeps the program through the monitor and back', () => {

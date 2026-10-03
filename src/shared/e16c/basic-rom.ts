@@ -7,10 +7,10 @@ import { compile, type E16cResult } from './compile.js'
  */
 
 /** The sources, in the order e16c reads them. */
-export const BASIC_SOURCES = ['rom.e16.ts', 'text.e16.ts', 'basic.e16.ts'] as const
+export const BASIC_SOURCES = ['rom.e16.ts', 'text.e16.ts', 'edit.e16.ts', 'basic.e16.ts'] as const
 
-/** BASIC's own RAM, above the monitor's work area and below the program (PROG, 0400). */
-export const BASIC_DATA = { start: 0x0100, end: 0x0400 }
+/** BASIC's own RAM, above the monitor's work area and below the program (PROG, 0800). */
+export const BASIC_DATA = { start: 0x0100, end: 0x0800 }
 
 /**
  * Compiles BASIC; `read` gives a source's text by its name in resources/elec16/rom/basic. The

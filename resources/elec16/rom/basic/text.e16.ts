@@ -153,20 +153,51 @@ export function tokenize(text: u16, out: u16): u16 {
   return o + 1
 }
 
-/** Prints tokenized text, a keyword as its word. */
-export function printTokens(at: u16): void {
+/**
+ * Tokenized text as it was typed: a keyword as its word, and everything inside quotes or after
+ * REM as it is (a kana there is a character, not a token). Printed when `out` is 0, else
+ * written at `out`, at most `max` bytes: the length.
+ */
+export function expand(at: u16, out: u16, max: u16): u16 {
   let p = at
+  let n: u16 = 0
+  let quoted = false
+  let raw = false
   while (peek(p) !== 0) {
     const c: u8 = peek(p)
-    if (c >= 0x80) {
+    if (c >= 0x80 && !quoted && !raw) {
       let w = keywordText(c)
       while (w !== 0 && peek(w) !== CH_SPACE && peek(w) !== 0) {
-        putc(peek(w))
+        n = give(out, n, max, peek(w))
         w++
       }
-    } else putc(c)
+      raw = c === T_REM
+    } else {
+      if (c === CH_QUOTE) quoted = !quoted
+      n = give(out, n, max, c)
+    }
     p++
   }
+  return n
+}
+
+/** One character of expand's: printed, or written while there is room. The new length. */
+function give(out: u16, n: u16, max: u16, c: u16): u16 {
+  if (out === 0) {
+    putc(c)
+    return n + 1
+  }
+  if (n >= max) return n
+  poke(out + n, c)
+  return n + 1
+}
+
+/** A number's decimal digits written at `out`: how many. */
+export function unsignedText(value: u16, out: u16): u16 {
+  let n: u16 = 0
+  if (value >= 10) n = unsignedText(div(value, 10), out)
+  poke(out + n, CH_0 + (value % 10))
+  return n + 1
 }
 
 /** Prints a number as decimal digits, no sign (a line number, a count). */

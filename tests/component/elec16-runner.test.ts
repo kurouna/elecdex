@@ -94,7 +94,7 @@ function setUp(basic = false) {
 describe('the ELEC-16 runner', () => {
   it('boots to the prompt and sleeps there with nothing scheduled', () => {
     const { clock, runner, lines } = setUp(true)
-    expect(lines().slice(0, 3)).toEqual(['ELEC-16 BASIC 1.0', '27646 BYTES FREE', '>'])
+    expect(lines().slice(0, 3)).toEqual(['ELEC-16 BASIC 1.0', '26622 BYTES FREE', '>'])
     expect(runner.asleep).toBe(true)
     expect(runner.status).toBe('running')
     expect(clock.timers.size).toBe(0)
