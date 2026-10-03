@@ -5,6 +5,8 @@ import {
   bytes,
   div,
   i16,
+  memcpy,
+  memset,
   peek,
   poke,
   str,
@@ -362,4 +364,21 @@ export function negativeLocal(x: i16): u16 {
   let k = -1
   k = k * 3 + x
   return u16(k)
+}
+
+const blocks = bytes(24)
+
+/**
+ * memset and memcpy, the second over itself both ways: MSET and MCPY, a step at a time, and
+ * k still k after them (their registers are a0-a2, where a leaf keeps its arguments).
+ */
+export function blockMoves(k: u16): u16 {
+  const at = addr(blocks)
+  memset(at, 0x1ab, 24)
+  for (let i: u16 = 0; i < 10; i++) poke(at + i, i + k)
+  memcpy(at + 3, at, 9)
+  memcpy(at + 12, at + 14, 6)
+  let sum: u16 = 0
+  for (let i: u16 = 0; i < 24; i++) sum = wrap16(sum * 3 + peek(at + i))
+  return wrap16(sum + k)
 }

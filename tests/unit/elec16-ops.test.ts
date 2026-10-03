@@ -253,3 +253,131 @@ describe('cycles, as section 4 has them', () => {
     expect(cycles('c.j next')).toBe(2)
   })
 })
+
+describe('block transfer', () => {
+  /** RAM with a pattern no two neighbours share, so a byte copied wrong shows. */
+  const patterned = (): Uint8Array =>
+    Uint8Array.from({ length: 0x8000 }, (_, k) => (k * 37 + 11) & 0xff)
+
+  /** memmove, worked out on a copy of the RAM. */
+  const moved = (ram: Uint8Array, to: number, from: number, n: number): Uint8Array => {
+    const out = ram.slice()
+    const block = ram.slice(from, from + n)
+    out.set(block, to)
+    return out
+  }
+
+  /** Runs one block instruction after setting a0-a2, a step at a time: the steps and cycles. */
+  function blockRun(line: string, a0: number, a1: number, a2: number) {
+    const out = assemble(
+      `.org 0x8000\nli a0, ${a0}\nli a1, ${a1}\nli a2, ${a2}\nblock:\n${line}\nebreak`,
+    )
+    expect(out.errors).toEqual([])
+    const m = Elec16.boot(romImage(out), undefined, patterned())
+    for (let k = 0; k < 3; k++) m.step()
+    const at = out.symbols.get('block') ?? 0
+    const cycles: number[] = []
+    while (m.state.pc === at) cycles.push(m.step().cycles)
+    return { m, cycles }
+  }
+
+  const regs = (m: Elec16) => [4, 5, 6].map((r) => m.state.regs[r])
+
+  it('MCPY copies as memmove does, eight bytes a step, a read and a write a byte', () => {
+    const cases: [number, number, number][] = [
+      [0x3000, 0x2000, 0],
+      [0x3000, 0x2000, 1],
+      [0x3000, 0x2000, 7],
+      [0x3000, 0x2000, 8],
+      [0x3000, 0x2000, 9],
+      [0x3000, 0x2000, 300],
+      // Overlapping: the destination ahead of the source is copied from the end.
+      [0x2003, 0x2000, 40],
+      [0x2000, 0x2003, 40],
+      [0x2007, 0x2000, 8],
+      [0x2001, 0x2000, 1],
+    ]
+    for (const [to, from, n] of cases) {
+      const { m, cycles } = blockRun('mcpy a0, a1, a2', to, from, n)
+      const what = `mcpy ${to.toString(16)} <- ${from.toString(16)} x${n}`
+      expect(Array.from(m.state.ram), what).toEqual(Array.from(moved(patterned(), to, from, n)))
+      const steps = Math.max(1, Math.ceil(n / 8))
+      expect(cycles, what).toEqual(
+        Array.from({ length: steps }, (_, k) => 1 + 2 * Math.min(8, Math.max(0, n - 8 * k))),
+      )
+      const back = to > from && to < from + n
+      expect(regs(m), what).toEqual(back ? [to, from, 0] : [w(to + n), w(from + n), 0])
+    }
+  })
+
+  it('MSET fills with the low byte of its value, eight bytes a step, a write a byte', () => {
+    for (const [value, n] of [
+      [0, 20],
+      [0x12ab, 9],
+      [0xff, 8],
+      [7, 0],
+    ] as const) {
+      const { m, cycles } = blockRun('mset a0, a1, a2', 0x2100, value, n)
+      const want = patterned()
+      want.fill(value & 0xff, 0x2100, 0x2100 + n)
+      expect(Array.from(m.state.ram)).toEqual(Array.from(want))
+      const steps = Math.max(1, Math.ceil(n / 8))
+      expect(cycles).toEqual(
+        Array.from({ length: steps }, (_, k) => 1 + Math.min(8, Math.max(0, n - 8 * k))),
+      )
+      expect(regs(m)).toEqual([0x2100 + n, value, 0])
+    }
+  })
+
+  it('stays at its own address between steps, its registers moved on, so it can be taken from', () => {
+    const out = assemble(
+      '.org 0x8000\nli a0, 0x3000\nli a1, 0x2000\nli a2, 20\nblock:\nmcpy a0, a1, a2\nebreak',
+    )
+    const m = Elec16.boot(romImage(out), undefined, patterned())
+    for (let k = 0; k < 4; k++) m.step()
+    expect(m.state.pc).toBe(out.symbols.get('block'))
+    expect(regs(m)).toEqual([0x3008, 0x2008, 12])
+    expect(Array.from(m.state.ram.subarray(0x3000, 0x3009))).toEqual([
+      ...patterned().subarray(0x2000, 0x2008),
+      patterned()[0x3008],
+    ])
+    expect(m.run(1000).halted?.cause).toBe('breakpoint')
+    expect(regs(m)).toEqual([0x3014, 0x2014, 0])
+  })
+
+  it('traps a write it cannot make, at that byte, with what was done kept in its registers', () => {
+    const out = assemble(
+      [
+        '.org 0x8000',
+        'la t0, handler',
+        'csrw mtvec, t0',
+        'li a0, 0x7ffc',
+        'li a1, 0x2000',
+        'li a2, 10',
+        'block:',
+        'mcpy a0, a1, a2',
+        'ebreak',
+        'handler:',
+        'csrr t1, mcause',
+        'csrr t2, mtval',
+        'csrr t3, mepc',
+        // With no handler, EBREAK stops the machine rather than trapping again.
+        'csrw mtvec, zero',
+        'ebreak',
+      ].join('\n'),
+    )
+    expect(out.errors).toEqual([])
+    const m = Elec16.boot(romImage(out), undefined, patterned())
+    expect(m.run(1000).halted?.cause).toBe('breakpoint')
+    // Four bytes into the last of RAM, then the ROM at 8000 refuses the fifth.
+    expect(regs(m)).toEqual([0x8000, 0x2004, 6])
+    expect([m.state.regs[9], m.state.regs[10], m.state.regs[11]]).toEqual([
+      7,
+      0x8000,
+      out.symbols.get('block'),
+    ])
+    expect(Array.from(m.state.ram.subarray(0x7ffc))).toEqual(
+      Array.from(patterned().subarray(0x2000, 0x2004)),
+    )
+  })
+})

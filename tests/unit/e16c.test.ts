@@ -93,6 +93,7 @@ const CASES: [string, number[]][] = [
   ['deadArm', [4]],
   ['elementsCut', [-5]],
   ['negativeLocal', [1]],
+  ['blockMoves', [5]],
 ]
 
 describe('e16c', () => {
@@ -399,6 +400,10 @@ describe('e16c', () => {
         'export function sw(b: bool): u16 { switch (b) { case 1: return 1 } return 0 }',
         /1 is not a bool/,
       ],
+      // A negative count or address is a huge one on the machine.
+      ['export function bm(s: i16): void { memcpy(0x100, 0x200, s) }', /say which with u16/],
+      ['const xs = bytes(4)\nexport function bn(): void { memset(xs, 0, 4) }', /is not a u16/],
+      ['export function bo(): void { memset(0x100, 0) }', /takes 3 arguments/],
     ]
     for (const [text, said] of differs) {
       expect(compile([{ name: 'bad.ts', text }], OPTIONS).errors[0]?.message, text).toMatch(said)

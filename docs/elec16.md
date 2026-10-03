@@ -84,7 +84,7 @@ RISC-V に倣った、今風の RISC です。ロード・ストア、3 オペ�
 
 16 本にしたのは、圧縮命令の 4 ビットの欄ですべてのレジスタを指せるようにするためです（RISC-V の圧縮命令は 8 本しか指せません）。
 
-### 命令の一覧（101）
+### 命令の一覧（103）
 
 | 群 | 命令 | 数 |
 |---|---|---|
@@ -94,6 +94,7 @@ RISC-V に倣った、今風の RISC です。ロード・ストア、3 オペ�
 | 分岐・ジャンプ | BEQ BNE BLT BGE BLTU BGEU JAL JALR | 8 |
 | 乗除算（M） | MUL MULH MULHU MULHSU DIV DIVU REM REMU | 8 |
 | ビット操作（B） | ANDN ORN XNOR CLZ CTZ CPOP MIN MAX MINU MAXU ROL ROR RORI REV8 SEXT.B ZEXT.B BSET BCLR BINV BEXT BSETI BCLRI BINVI BEXTI | 24 |
+| ブロック転送 | MCPY MSET | 2 |
 | システム | ECALL EBREAK WFI MRET CSRRW CSRRS CSRRC CSRRWI CSRRSI CSRRCI | 10 |
 | 圧縮（C、16 ビット） | C.LI C.ADDI C.ADDI2SPN C.MV C.ADD C.SUB C.AND C.OR C.XOR C.SLLI C.SRLI C.SRAI C.ANDI C.LW C.SW C.LWSP C.SWSP C.J C.JAL C.JR C.JALR C.BEQZ C.BNEZ C.NOP C.EBREAK | 25 |
 
@@ -103,6 +104,7 @@ RISC-V に倣った、今風の RISC です。ロード・ストア、3 オペ�
 - `WFI` は、`mie` で許可された割り込みが保留になるまで眠る。`mstatus.MIE` が 0 なら、起きたあと例外の入口へは飛ばずに次の命令へ進む（RISC-V と同じ）。**プロンプトで待つ ROM は WFI で眠るので、ページはその間ループを回さない**（§9）。コアは眠るときに「何で起きるか」（キー、タイマーの一致時刻、カードの完了）を返し、runner はそれだけを待つ。許可されていない割り込みでは起きない
 - 例外の処理中にもう一度例外が起きたら（二重の例外）、機械は止まる（`halted`）。CORE に原因と番地を出し、BRK/ON で再起動する。RAM は残る
 - `ECALL` は ROM サービスの呼び出し（a0 に番号）。機械語のプログラムから文字の表示、キー、液晶、数値演算、カードを使う入口
+- **ブロック転送**（2026-10-04 追加）: `MCPY rd, rs1, rs2` は rs1 番地から rd 番地へ rs2 バイトを写す。重なっても memmove と同じく全部正しく写る（rd が写し元の中にあれば後ろから）。`MSET rd, rs1, rs2` は rd 番地から rs2 バイトを rs1 の下位バイトで埋める。どちらも **1 回に 8 バイトまで**動かし、レジスタを進めて（前からなら rd と rs1 を足し、rs2 を引く。後ろからは rs2 だけ引く）、残りがあれば同じ番地のまま次の回へ。だから長い転送の途中でも割り込みや BRK が命令の間と同じに入り、戻ると続きから動く。サイクルは 1 回につき 1 と、MCPY は 1 バイト 2（読みと書き）、MSET は 1 バイト 1。書けない番地（ROM）に当たると、そこまでの進み具合をレジスタに残して store fault。3 つのレジスタは別々で、0 は使えない（MSET の値だけ zero でよい）。それ以外の組み合わせは不正な命令。ROM の CLS と画面の送り、e16c_init の配列の 0 埋め、BASIC の行の移動と行エディタの挿入・削除がこれを使う（CLS が約 2.2 倍、送りが約 1.9 倍速い）
 
 ### 符号化（段階 1 で確定、`src/shared/elec16/isa.ts`）
 
@@ -125,7 +127,7 @@ RISC-V に倣った、今風の RISC です。ロード・ストア、3 オペ�
 | 2 OP-IMM | ADDI SLTI SLTIU XORI ORI ANDI | f3 = 0 2 3 4 6 7 |
 | 2 OP-IMM（f3 = 1） | imm[13:4] で選ぶ: 0 SLLI、1 BSETI、2 BCLRI、3 BINVI（imm[3:0] が量）。0x10 CLZ、0x11 CTZ、0x12 CPOP、0x13 SEXT.B、0x14 ZEXT.B、0x15 REV8（imm[3:0] は 0） | |
 | 2 OP-IMM（f3 = 5） | imm[13:4]: 0 SRLI、1 SRAI、2 RORI、3 BEXTI | |
-| 3 OP | f10 = 0: ADD SLL SLT SLTU XOR SRL OR AND（f3 = 0〜7）。f10 = 1: SUB（0）、SRA（5）。f10 = 2: MUL MULH MULHSU MULHU DIV DIVU REM REMU。f10 = 3: ROL（1）XNOR（4）ROR（5）ORN（6）ANDN（7）。f10 = 4: MIN（4）MINU（5）MAX（6）MAXU（7）。f10 = 5: BSET BCLR BINV BEXT（0〜3） | |
+| 3 OP | f10 = 0: ADD SLL SLT SLTU XOR SRL OR AND（f3 = 0〜7）。f10 = 1: SUB（0）、SRA（5）。f10 = 2: MUL MULH MULHSU MULHU DIV DIVU REM REMU。f10 = 3: ROL（1）XNOR（4）ROR（5）ORN（6）ANDN（7）。f10 = 4: MIN（4）MINU（5）MAX（6）MAXU（7）。f10 = 5: BSET BCLR BINV BEXT（0〜3）。f10 = 6: MCPY（0）MSET（1）、レジスタの組が使えないものは不正 | |
 | 4 BRANCH | BEQ BNE BLT BGE BLTU BGEU | f3 = 0 1 4 5 6 7 |
 | 5 JAL / 6 JALR / 7 LI / 8 AUIPC | | JALR は f3 = 0 |
 | 9 SYSTEM | f3 = 0: imm で ECALL（0）EBREAK（1）MRET（2）WFI（3）、rd と rs1 は 0。f3 = 1〜3: CSRRW CSRRS CSRRC、5〜7: CSRRWI CSRRSI CSRRCI（imm が CSR 番号、I 形は rs1 の欄が 4 ビットの値） | |
@@ -171,7 +173,7 @@ RISC-V に倣った、今風の RISC です。ロード・ストア、3 オペ�
 
 ### サイクル
 
-ALU は 1、ロード・ストアは 2、分岐が成立したときとジャンプは 2、MUL は 4、DIV と REM は 18、CSR は 2、圧縮命令も同じ数です。BASIC は 4 MHz で毎秒 1,500 文ほどの見込みで、80 年代の実機より速く、それでも計算している様子が見えます（段階 3 で測って決めます）。クロックを上げるとその分速くなります。ゲーム機のモデルは 16〜32 MHz を見込みます。
+ALU は 1、ロード・ストアは 2、分岐が成立したときとジャンプは 2、MUL は 4、DIV と REM は 18、CSR は 2、圧縮命令も同じ数です。MCPY と MSET は 1 回（8 バイトまで）ごとに 1 と、1 バイトあたり MCPY 2、MSET 1。BASIC は 4 MHz で毎秒 1,500 文ほどの見込みで、80 年代の実機より速く、それでも計算している様子が見えます（段階 3 で測って決めます）。クロックを上げるとその分速くなります。ゲーム機のモデルは 16〜32 MHz を見込みます。
 
 **エミュレーションの費用（段階 1 で測り、早いうちに最適化した）**: 解読した命令を番地ごとに持ち（RAM に書かれた番地と、バンクの窓は捨てる）、命令ごとの関数の表で実行する。測り方: ALU だけ、メモリの読み書き、再帰の呼び出し（fib）の 3 つのプログラムを、素の Node で（Electron と同じ V8。vitest の中は変換の分だけ遅く、比べられない）。
 
@@ -388,6 +390,7 @@ TS の部分集合 (*.e16.ts)
   - 組み立てと計測は純粋な `shared/e16c/program.ts`（`buildCode`、`measuringMachine`、`measure`）。定数と見本とライブラリは `code-area.ts` に分け、ページはこちらだけを読む（program.ts を読むと TypeScript のパーサーが入口のチャンクに入り 5.9 MB になった）
   - 機械語と文字列は 7000–77FF（2 KB）、大域変数と配列は 7800–7BEF。7000 の入口が `e16c_init` を呼んでから `main()` を呼び、RET で戻る（`CALL 28672` も `G 7000` も同じ）。`main` がなければ、また領域に収まらなければ、そう言って書かない
   - ライブラリ（`LIBRARY`、ファイル名 `ELEC16`）は putc puts getkey cls locate puthex newline putnum keyWaiting beep pset。ROM サービスを ECALL で呼ぶ。export しないので -O2 は使わないものを落とす
+  - 組み込み関数 `memcpy(to, from, n)` と `memset(to, value, n)` は MCPY と MSET 1 命令になる（引数は a0–a2 に置く）。TypeScript として動かすときも memmove と同じに写す
   - Worker（`code/compile.worker.ts`、`?worker&inline` で blob。CSP の `worker-src blob:` のまま）は最初の CODE で読み込み、最後の CODE が閉じると終える（`holdCompiler`）。1 回の COMPILE で -O0〜-O2 を全部作り、同じ ROM の機械（プロンプトで眠った状態のスナップショット）で `main` を呼んでサイクル数を測る。キーを待てば「waits for a key」、2,000 万サイクルを越えれば打ち切り
   - ソースはユニットのカードの `.TS`（既定 `MAIN.TS`、空行も残す `sourceToMachine`）。COMPILE の前と CODE を離れるときに書く。SAVE は選んだ段階の `.BIN` も書く。main の口は `elec16.readFile` と `elec16.writeFile`（書けるのは `.TS` と `.BIN` だけ、32 KB まで）
   - RUN ▸ / LOAD ▸: MACHINE に戻し、眠っていなければ BRK、プロンプトで眠るのを待って（`whenAsleep`）コアの `loadCode` で書き、BASIC なら `CALL 28672`、モニタなら `G 7000`（LOAD は `U 7000`、BASIC なら `MON` の後に）を PASTE と同じ仕組みで打つ

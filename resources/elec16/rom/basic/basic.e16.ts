@@ -13,6 +13,7 @@ import {
   type bool,
   bytes,
   i16,
+  memcpy,
   peek,
   peek16,
   poke,
@@ -921,17 +922,9 @@ export function findLine(n: u16, exact: bool): u16 {
   return 0
 }
 
-/** Moves `count` bytes from `from` to `to`, overlapping either way. */
+/** Moves `count` bytes from `from` to `to`, overlapping either way (one MCPY). */
 export function move(from: u16, to: u16, count: u16): void {
-  if (to < from) {
-    for (let k: u16 = 0; k < count; k++) poke(to + k, peek(from + k))
-    return
-  }
-  let k = count
-  while (k > 0) {
-    k--
-    poke(to + k, peek(from + k))
-  }
+  memcpy(to, from, count)
 }
 
 /** Puts line `n` (tokens at `text`, `length` bytes with the zero) in the program, or takes it out. */

@@ -58,6 +58,7 @@ const IMPURE = new Set<Op['k']>([
   'load',
   'store',
   'ecall',
+  'block',
   'csrr',
   'csrw',
   'wfi',

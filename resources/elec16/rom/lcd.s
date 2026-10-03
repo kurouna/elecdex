@@ -28,15 +28,11 @@ lcd_init:
 
 ; Clears every plane and puts the cursor home.
 cls:
-  lw t0, PLANE(zero)
-  lw t1, DEPTH(zero)
-  mul t0, t0, t1
-  li t1, VRAM
-  add t0, t0, t1
-.loop:
-  addi t0, t0, -2
-  sw zero, 0(t0)
-  bne t0, t1, .loop
+  lw t1, PLANE(zero)
+  lw t2, DEPTH(zero)
+  mul t1, t1, t2        ; every plane's bytes
+  li t0, VRAM
+  mset t0, zero, t1
   sw zero, CURX(zero)
   sw zero, CURY(zero)
   j cursor_sync
@@ -171,20 +167,13 @@ scroll:
   lw a3, WIDTH(zero)    ; one text row
 .plane:
   lw t1, PLANE(zero)
-  add t1, t1, a2        ; this plane's end
-  add t0, a2, a3        ; from its second row
-.move:
-  lw t2, 0(t0)
-  sub a1, t0, a3
-  sw t2, 0(a1)
-  addi t0, t0, 2
-  bltu t0, t1, .move
-  sub t0, t1, a3        ; the bottom row, cleared
-.zero:
-  sw zero, 0(t0)
-  addi t0, t0, 2
-  bltu t0, t1, .zero
-  mv a2, t1             ; the next plane starts where this one ends
+  sub t2, t1, a3        ; every row but one
+  mv t0, a2
+  add a1, a2, a3        ; from its second row
+  mcpy t0, a1, t2       ; up one row: t0 ends at the bottom row
+  mv t2, a3
+  mset t0, zero, t2     ; the bottom row, cleared
+  add a2, a2, t1        ; the next plane starts where this one ends
   addi t3, t3, -1
   bnez t3, .plane
   ret

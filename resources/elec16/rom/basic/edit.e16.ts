@@ -7,6 +7,7 @@ import {
   type bool,
   div,
   i16,
+  memcpy,
   peek,
   peek16,
   poke,
@@ -159,14 +160,14 @@ function rubOut(n: u16): void {
 
 /** The character at `at` taken out, the rest moved down and shown: the new length. */
 function takeOut(buf: u16, n: u16, at: u16): u16 {
-  for (let k = at; k + 1 < n; k++) poke(buf + k, peek(buf + k + 1))
+  if (at + 1 < n) memcpy(buf + at, buf + at + 1, n - at - 1)
   redraw(buf, n - 1, at, at)
   return n - 1
 }
 
 /** A space opened at `at`, the rest moved up and shown: the new length. */
 function openSpace(buf: u16, n: u16, at: u16): u16 {
-  for (let k = n; k > at; k--) poke(buf + k, peek(buf + k - 1))
+  if (n > at) memcpy(buf + at + 1, buf + at, n - at)
   poke(buf + at, CH_SPACE)
   redraw(buf, n + 1, at, at)
   return n + 1

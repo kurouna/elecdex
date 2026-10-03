@@ -85,6 +85,9 @@ export const OPS = [
   'bclri',
   'binvi',
   'bexti',
+  // block transfer
+  'mcpy',
+  'mset',
   // system
   'ecall',
   'ebreak',
@@ -101,6 +104,8 @@ export type OpName = (typeof OPS)[number]
 
 /** An operation's number: its place in OPS. */
 export const OP = Object.fromEntries(OPS.map((name, k) => [name, k])) as Record<OpName, number>
+const OP_MCPY = OP.mcpy
+const OP_MSET = OP.mset
 
 /** The compressed forms, by the name the disassembler shows. */
 export const C_OPS = [
@@ -229,6 +234,9 @@ export const ENCODINGS: Partial<Record<OpName, Encoding>> = {
   bclr: R(1, 5),
   binv: R(2, 5),
   bext: R(3, 5),
+  // A block of bytes copied or filled, a few at a time (blockRegisters).
+  mcpy: R(0, 6),
+  mset: R(1, 6),
   addi: I(MAJOR.opImm, 0),
   slti: I(MAJOR.opImm, 2),
   sltiu: I(MAJOR.opImm, 3),
@@ -304,7 +312,23 @@ export function encode32(name: OpName, i: Omit<Inst, 'op' | 'size' | 'c'>): numb
   return encodeAs(e, name, i) >>> 0
 }
 
+/**
+ * Whether MCPY or MSET may name these registers: each instruction moves its addresses and
+ * count on as it goes, so they are three different registers, none of them zero (MSET's
+ * value may be zero: a fill with 0). Any other operation takes any registers.
+ */
+export function blockRegisters(op: number, rd: number, rs1: number, rs2: number): boolean {
+  if (op !== OP_MCPY && op !== OP_MSET) return true
+  if (rd === 0 || rs2 === 0 || rd === rs2 || rd === rs1 || rs1 === rs2) return false
+  return op === OP_MSET || rs1 !== 0
+}
+
 function encodeAs(e: Encoding, name: string, i: Omit<Inst, 'op' | 'size' | 'c'>): number {
+  need(
+    blockRegisters(OPS.indexOf(name as OpName), i.rd, i.rs1, i.rs2),
+    name,
+    'three different registers, none of them zero but the value of mset',
+  )
   const rd = i.rd << 7
   const rs1 = i.rs1 << 14
   const rs2 = i.rs2 << 18
@@ -391,7 +415,7 @@ function decode32(w: number): Inst {
   switch (major) {
     case MAJOR.op: {
       const op = R_TABLE.get((((w >>> 22) & 0x3ff) << 3) | f3)
-      return op === undefined ? ILLEGAL(4) : inst(op, 0)
+      return op === undefined || !blockRegisters(op, rd, rs1, rs2) ? ILLEGAL(4) : inst(op, 0)
     }
     case MAJOR.opImm:
       return decodeOpImm(w, rd, f3, rs1)

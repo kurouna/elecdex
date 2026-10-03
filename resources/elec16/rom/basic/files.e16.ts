@@ -7,6 +7,8 @@ import {
   addr,
   type bool,
   bytes,
+  memcpy,
+  memset,
   peek,
   peek16,
   poke,
@@ -155,7 +157,7 @@ function nameArg(ext: u16): void {
   const n = stringLength(top())
   setNsp(nsp - 8)
   const b = addr(cardBlock)
-  for (let k: u16 = 0; k < 24; k++) poke(b + k, 0)
+  memset(b, 0, 24)
   let dot = false
   for (let k: u16 = 0; k < n; k++) {
     if (k >= 12) fail(E_FILE)
@@ -265,7 +267,7 @@ function saveStatement(): void {
       cardMust(OP_WRITE, APPEND, addr(cardBuf), n)
       n = 0
     }
-    for (let k: u16 = 0; k <= length; k++) poke(addr(cardBuf) + n + k, peek(line + k))
+    memcpy(addr(cardBuf) + n, line, length + 1)
     n += length + 1
     at += peek16(at + 2)
   }
@@ -334,7 +336,7 @@ function fileNumber(): u16 {
 /** The data file's name into the block. */
 function fileToBlock(n: u16): void {
   const b = addr(cardBlock)
-  for (let k: u16 = 0; k < 12; k++) poke(b + k, peek(addr(fileName) + (n - 1) * 12 + k))
+  memcpy(b, addr(fileName) + (n - 1) * 12, 12)
 }
 
 /** OPEN "NAME" FOR INPUT | OUTPUT | APPEND AS #n (.DAT when no extension is given). */
@@ -351,8 +353,7 @@ function openStatement(): void {
   if (peek(addr(fileMode) + n - 1) !== 0) fail(E_FILE)
   if (how === T_INPUT) cardMust(OP_READ, 0, addr(cardBuf), 0)
   else cardMust(OP_WRITE, how === T_OUTPUT ? 0 : APPEND, addr(cardBuf), 0)
-  for (let k: u16 = 0; k < 12; k++)
-    poke(addr(fileName) + (n - 1) * 12 + k, peek(addr(cardBlock) + k))
+  memcpy(addr(fileName) + (n - 1) * 12, addr(cardBlock), 12)
   fileOffset[n - 1] = 0
   fileLen[n - 1] = 0
   filePos[n - 1] = 0

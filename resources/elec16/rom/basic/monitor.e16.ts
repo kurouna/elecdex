@@ -266,9 +266,23 @@ function bitName(key: u16): u16 {
       return str('binv')
     case 43:
       return str('bext')
+    case 48:
+      return str('mcpy')
+    case 49:
+      return str('mset')
     default:
       return 0
   }
+}
+
+/**
+ * Whether MCPY (48) or MSET (49) names registers it may: three different ones, none zero but
+ * MSET's value (isa.ts, blockRegisters). Any other operation takes any registers.
+ */
+function blockRegisters(key: u16, rd: u16, rs1: u16, rs2: u16): bool {
+  if (key !== 48 && key !== 49) return true
+  if (rd === 0 || rs2 === 0 || rd === rs2 || rd === rs1 || rs1 === rs2) return false
+  return key === 49 || rs1 !== 0
 }
 
 /** Shifts and single bits by an immediate (selector 0 to 3), and the one-register ones. */
@@ -433,7 +447,8 @@ function decode32(lo: u16, hi: u16): void {
   const imm14 = (hi >> 2) & 0x3fff
   setRs2((hi >> 2) & 15)
   if (major === 3) {
-    decoded(rName((f10 << 3) | f3), F_R, rd, rs1)
+    const key = (f10 << 3) | f3
+    decoded(blockRegisters(key, rd, rs1, (hi >> 2) & 15) ? rName(key) : 0, F_R, rd, rs1)
   } else if (major === 2) {
     opImm(f3, rd, rs1, imm14)
   } else if (major === 0 || major === 6) {

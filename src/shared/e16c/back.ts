@@ -127,11 +127,8 @@ function init(out: Out, program: Program): void {
   for (const a of program.arrays) {
     out.comment(`${a.name}: ${a.bytes} bytes of 0`)
     out.line(`li t0, ${hex(a.at)}`)
-    out.line(`li t1, ${hex(a.at + a.bytes + (a.bytes & 1))}`)
-    out.label(`.clear_${a.name}`)
-    out.line('sw zero, 0(t0)')
-    out.line('addi t0, t0, 2')
-    out.line(`bltu t0, t1, .clear_${a.name}`)
+    out.line(`li t1, ${a.bytes + (a.bytes & 1)}`)
+    out.line('mset t0, zero, t1')
   }
   out.line('ret')
   out.raw('')
@@ -254,6 +251,12 @@ function callsAndRest(out: Out, op: Op, fn: Fn, banks: Map<string, number | null
     case 'ret':
       if (op.value) out.pop('a0')
       out.line('j .return')
+      return
+    case 'block':
+      out.pop('a2')
+      out.pop('a1')
+      out.pop('a0')
+      out.line(`${op.fill ? 'mset' : 'mcpy'} a0, a1, a2`)
       return
     case 'ecall':
       for (let k = op.argc - 1; k >= 0; k--) out.pop(ARG_REGS[k] as string)

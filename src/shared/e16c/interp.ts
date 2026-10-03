@@ -232,6 +232,19 @@ export class Interp {
         if (op.ret) stack.push(answer)
         return null
       }
+      case 'block': {
+        const n = pop()
+        const from = pop()
+        const to = pop()
+        // As MCPY: every byte read before any is written, so an overlap is copied whole.
+        const bytes = Array.from({ length: n }, (_, k) =>
+          op.fill ? from & 0xff : (this.memory[(from + k) & 0xffff] ?? 0),
+        )
+        bytes.forEach((b, k) => {
+          this.memory[(to + k) & 0xffff] = b
+        })
+        return null
+      }
       case 'ecall': {
         const args = stack.splice(stack.length - op.argc)
         const service = pop()

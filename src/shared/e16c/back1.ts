@@ -125,7 +125,9 @@ export class O1 {
     this.#fn = fn
     this.#near = near
     this.#banks = banks
-    this.#calls = fn.body.some((op) => op.k === 'call' || op.k === 'ecall' || op.k === 'asm')
+    this.#calls = fn.body.some(
+      (op) => op.k === 'call' || op.k === 'ecall' || op.k === 'block' || op.k === 'asm',
+    )
     this.#depths = labelDepths(fn.body)
     // A fused compare-and-branch holds its two operands above the depth at its label.
     const deepest = Math.max(0, ...this.#depths.values()) + 2
@@ -742,6 +744,11 @@ export class O1 {
         // Through far_call into another bank: t0 and t1 are free, the arguments in place.
         for (const line of callLines(op.fn, this.#fn.bank, this.#banks)) this.#line(line)
         if (op.ret) this.#result0()
+        return
+      case 'block':
+        // The three into a0-a2, which it moves on as it goes: nothing kept in them is read again.
+        this.#arguments(ARGS.slice(0, 3))
+        this.#line(`${op.fill ? 'mset' : 'mcpy'} a0, a1, a2`)
         return
       case 'ecall':
         this.#arguments(['t0', ...ARGS.slice(0, op.argc)])

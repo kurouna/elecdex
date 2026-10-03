@@ -89,6 +89,8 @@ export const BUILTINS = new Set([
   'div',
   'wrap16',
   'ecall',
+  'memcpy',
+  'memset',
   'csrr',
   'csrw',
   'wfi',

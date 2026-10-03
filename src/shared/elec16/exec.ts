@@ -98,6 +98,60 @@ function csr(kind: 'w' | 's' | 'c', immediate: boolean): Handler {
   }
 }
 
+/**
+ * The bytes MCPY and MSET move in one step. A longer block takes several: the instruction
+ * runs again from the same address with its registers moved on, so an interrupt or BRK is
+ * taken between steps, as between any two instructions, and returns to finish it.
+ */
+export const BLOCK_STEP = 8
+
+/**
+ * MCPY rd, rs1, rs2: rs2 bytes from rs1 to rd, as memmove copies them - from the end when rd
+ * lies inside the source, so an overlap is copied whole. A step forward moves rd and rs1 on
+ * and rs2 down; one from the end only takes rs2 down. Each byte costs a read and a write.
+ */
+function blockCopy(c: Core, i: Inst, pc: number): void {
+  const r = c.r
+  const to = x(r, i.rd)
+  const from = x(r, i.rs1)
+  const left = x(r, i.rs2)
+  if (left === 0) return
+  const k = Math.min(left, BLOCK_STEP)
+  const ahead = (to - from) & 0xffff
+  const back = ahead !== 0 && ahead < left
+  let done = 0
+  for (; done < k; done++) {
+    const at = back ? left - 1 - done : done
+    const a = (to + at) & 0xffff
+    if (!c.bus.write8(a, c.bus.read8((from + at) & 0xffff))) break
+  }
+  if (!back) {
+    r[i.rd] = to + done
+    r[i.rs1] = from + done
+  }
+  r[i.rs2] = left - done
+  c.s.stall += 2 * done
+  if (done < k) c.trap(CAUSE.storeFault, (to + (back ? left - 1 - done : done)) & 0xffff)
+  else if (left > k) c.next = pc
+}
+
+/** MSET rd, rs1, rs2: rs2 bytes from rd set to rs1's low byte; a write a byte. */
+function blockFill(c: Core, i: Inst, pc: number): void {
+  const r = c.r
+  const to = x(r, i.rd)
+  const value = x(r, i.rs1) & 0xff
+  const left = x(r, i.rs2)
+  if (left === 0) return
+  const k = Math.min(left, BLOCK_STEP)
+  let done = 0
+  for (; done < k; done++) if (!c.bus.write8((to + done) & 0xffff, value)) break
+  r[i.rd] = to + done
+  r[i.rs2] = left - done
+  c.s.stall += done
+  if (done < k) c.trap(CAUSE.storeFault, (to + done) & 0xffff)
+  else if (left > k) c.next = pc
+}
+
 /** A branch taken: it goes `imm` bytes from the instruction. */
 function jump(c: Core, i: Inst, pc: number): void {
   c.next = (pc + i.imm) & 0xffff
@@ -317,6 +371,8 @@ const HANDLERS: Record<OpName, Handler> = {
   bexti: (c, i) => {
     if (i.rd !== 0) c.r[i.rd] = (x(c.r, i.rs1) >>> i.imm) & 1
   },
+  mcpy: blockCopy,
+  mset: blockFill,
   ecall: (c) => c.trap(CAUSE.ecall, 0),
   ebreak: (c, _i, pc) => c.trap(CAUSE.breakpoint, pc),
   wfi: (c) => c.waitForInterrupt(),

@@ -70,6 +70,22 @@ export function div(a: number, b: number): number {
   return Math.trunc(a / b)
 }
 
+/**
+ * MCPY: n bytes from `from` to `to`, as memmove copies them - an overlap is copied whole, as
+ * if every byte were read before any is written.
+ */
+export function memcpy(to: u16, from: u16, n: u16): void {
+  const bytes = Array.from({ length: n }, (_, k) => rt.memory[(from + k) & 0xffff] ?? 0)
+  bytes.forEach((b, k) => {
+    rt.memory[(to + k) & 0xffff] = b
+  })
+}
+
+/** MSET: n bytes from `to` set to the low byte of `value`. */
+export function memset(to: u16, value: number, n: u16): void {
+  for (let k = 0; k < n; k++) rt.memory[(to + k) & 0xffff] = value & 0xff
+}
+
 /** A value held to 16 bits, where arithmetic may have left them. */
 export const wrap16 = (v: number): u16 => v & 0xffff
 

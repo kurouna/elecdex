@@ -1057,6 +1057,10 @@ export class FnCompiler {
         return { type: scalar('u8') }
       case 'ecall':
         return this.#ecall(e)
+      case 'memcpy':
+      case 'memset':
+        this.#block(e, name === 'memset')
+        return null
       case 'csrr':
         this.#emit({ k: 'csrr', csr: this.#constantArg(e, 0) })
         return { type: U16 }
@@ -1080,6 +1084,23 @@ export class FnCompiler {
       default:
         throw new Refusal(e.getStart(), `${name} is only for a top-level const`)
     }
+  }
+
+  /**
+   * memcpy(to, from, n) and memset(to, value, n): one MCPY or MSET. The addresses and the
+   * count are words read unsigned (an i16 says so with u16()); a value is cut to its byte in
+   * both runs.
+   */
+  #block(e: ts.CallExpression, fill: boolean): void {
+    const [to, from, n] = this.#args(e, 3) as [Typed, Typed, Typed]
+    const args = e.arguments
+    this.#assignable(U16, to, args[0] as ts.Expression)
+    if (!fill) this.#assignable(U16, from, args[1] as ts.Expression)
+    else if (from.type.kind !== 'scalar') {
+      throw new Refusal(e.getStart(), 'an array is not a number: use addr(a) for its address')
+    }
+    this.#assignable(U16, n, args[2] as ts.Expression)
+    this.#emit({ k: 'block', fill })
   }
 
   #ecall(e: ts.CallExpression): Typed {

@@ -58,6 +58,8 @@ export type Op =
   | { k: 'ret'; value: boolean }
   /** The service number deepest, then up to four arguments; leaves a0. */
   | { k: 'ecall'; argc: number }
+  /** MCPY (fill false) or MSET: destination, source or value, and count off the stack. */
+  | { k: 'block'; fill: boolean }
   | { k: 'csrr'; csr: number }
   | { k: 'csrw'; csr: number }
   | { k: 'wfi' }
@@ -136,6 +138,8 @@ export function stackEffect(op: Op): number {
       return op.value ? -1 : 0
     case 'ecall':
       return -op.argc
+    case 'block':
+      return -3
     default:
       return 0
   }

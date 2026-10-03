@@ -30,6 +30,8 @@ function bytesOf(line: string, compressOn = false): number[] {
   return Array.from(out.chunks[0]?.bytes ?? [])
 }
 
+const halves = (word: number): [number, number] => [word & 0xffff, word >>> 16]
+
 const memory = (bytes: number[]) => (a: number) => bytes[a - AT] ?? 0
 
 /** Operands a format can take, drawn from a seeded sequence so a failure repeats. */
@@ -37,6 +39,14 @@ function operandsFor(name: OpName, next: () => number): Omit<Inst, 'op' | 'size'
   const reg = () => next() & 15
   const format = ENCODINGS[name]?.format
   const pick = (lo: number, hi: number) => lo + (next() % (hi - lo + 1))
+  if (name === 'mcpy' || name === 'mset') {
+    // Three different registers, none zero (blockRegisters): drawn from 1 to 15 in turn.
+    const rd = pick(1, 15)
+    const rs1 = ((rd + pick(0, 6)) % 15) + 1
+    let rs2 = ((rs1 + pick(0, 6)) % 15) + 1
+    while (rs2 === rd || rs2 === rs1) rs2 = (rs2 % 15) + 1
+    return { rd, rs1, rs2, imm: 0 }
+  }
   switch (format) {
     case 'I':
     case 'S':
@@ -91,11 +101,11 @@ function kept(name: OpName, f: Omit<Inst, 'op' | 'size' | 'c'>): Omit<Inst, 'siz
 const NAMES = OPS.filter((name) => name !== 'illegal')
 
 describe('the 32-bit encodings', () => {
-  it('has one for every operation, and 101 operations', () => {
-    expect(NAMES).toHaveLength(76)
+  it('has one for every operation, and 103 operations', () => {
+    expect(NAMES).toHaveLength(78)
     for (const name of NAMES) expect(ENCODINGS[name], name).toBeDefined()
-    // 76 operations in 32 bits and 25 compressed forms: the 101 of docs/elec16.md.
-    expect(NAMES.length + C_OPS.length).toBe(101)
+    // 78 operations in 32 bits and 25 compressed forms: the 103 of docs/elec16.md.
+    expect(NAMES.length + C_OPS.length).toBe(103)
   })
 
   it.each(NAMES)('%s decodes to what was encoded, and reads back as text', (name) => {
@@ -139,6 +149,33 @@ describe('the 32-bit encodings', () => {
     expect(() => encode32('beq', { rd: 0, rs1: 1, rs2: 1, imm: 3 })).toThrow(/even/)
     expect(() => encode32('slli', { rd: 1, rs1: 1, rs2: 0, imm: 16 })).toThrow(/shift/)
     expect(() => encode32('jal', { rd: 1, rs1: 0, rs2: 0, imm: 0x10000 })).toThrow(/64 KB/)
+  })
+
+  it('gives MCPY and MSET three different registers, none zero but the value of MSET', () => {
+    const regs = (rd: number, rs1: number, rs2: number) => ({ rd, rs1, rs2, imm: 0 })
+    for (const [name, f] of [
+      ['mcpy', regs(0, 5, 6)],
+      ['mcpy', regs(4, 0, 6)],
+      ['mcpy', regs(4, 5, 0)],
+      ['mcpy', regs(4, 4, 6)],
+      ['mcpy', regs(4, 5, 4)],
+      ['mcpy', regs(4, 5, 5)],
+      ['mset', regs(0, 5, 6)],
+      ['mset', regs(4, 5, 0)],
+      ['mset', regs(4, 4, 6)],
+      ['mset', regs(4, 6, 6)],
+    ] as const) {
+      expect(() => encode32(name, f), `${name} ${JSON.stringify(f)}`).toThrow(/three different/)
+      // The same word, put together by hand, is illegal.
+      const word =
+        (encode32(name, regs(4, 5, 6)) & ~((15 << 7) | (15 << 14) | (15 << 18))) |
+        (f.rd << 7) |
+        (f.rs1 << 14) |
+        (f.rs2 << 18)
+      expect(decode(word & 0xffff, word >>> 16).op, `${name} ${JSON.stringify(f)}`).toBe(0)
+    }
+    expect(decode(...halves(encode32('mset', regs(4, 0, 6)))).op).toBe(OP.mset)
+    expect(bytesOf('mset a0, zero, a2')).toHaveLength(4)
   })
 })
 
