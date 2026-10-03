@@ -28,6 +28,8 @@ export interface Context {
   /** A string literal's label in ROM. */
   romString(text: string): string
   file: string
+  /** The ROM bank this file's code goes in (null: the fixed ROM). */
+  bank: number | null
   source: ts.SourceFile
 }
 
@@ -170,6 +172,7 @@ export class FnCompiler {
       exported,
       file: this.#ctx.file,
       line,
+      bank: this.#ctx.bank,
     }
   }
 
@@ -686,6 +689,12 @@ export class FnCompiler {
         })
         return { type: sym.type }
       case 'static':
+        if (sym.bank !== null && sym.bank !== this.#ctx.bank) {
+          throw new Refusal(
+            e.getStart(),
+            `${e.text} is in ROM bank ${sym.bank}: only that bank's functions can read it`,
+          )
+        }
         this.#emit({ k: 'addr', label: sym.label })
         return { type: sym.type }
       case 'fn':

@@ -141,7 +141,21 @@ basic_abort:
 call_at:
   jr a0
 
-  .include "basic.s"
+; A call into a ROM bank (e16c's code for a function in another bank): t0 the function, t1
+; its bank, the arguments in a0-a3 and the answer in a0 as for any call. The caller's bank
+; goes back in the window afterwards, so it can call from banked code into another bank.
+far_call:
+  addi sp, sp, -4
+  sw ra, 2(sp)
+  lw t2, IO_BANK(zero)
+  sw t2, 0(sp)
+  sw t1, IO_BANK(zero)
+  jalr ra, 0(t0)
+  lw t2, 0(sp)
+  sw t2, IO_BANK(zero)
+  lw ra, 2(sp)
+  addi sp, sp, 4
+  ret
 
   .align 2
 font:
@@ -149,5 +163,9 @@ font:
 keytab:
   .include "keys.inc"
 
-; Where the fixed ROM's contents end, for gen:elec16 to say how much is used.
+; Where the hand-written ROM ends.
 rom_end:
+
+; BASIC last: its fixed part ends the fixed ROM (e16c_fixed_end), its banked parts follow in
+; their banks.
+  .include "basic.s"

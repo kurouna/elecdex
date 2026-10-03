@@ -77,6 +77,8 @@ export interface Fn {
   exported: boolean
   file: string
   line: number
+  /** The ROM bank the function's code goes in, or null for the fixed ROM. */
+  bank: number | null
 }
 
 export interface Global {
@@ -95,6 +97,8 @@ export interface StaticArray {
 export interface RomString {
   label: string
   bytes: number[]
+  /** The ROM bank it is kept in, with the functions that read it; null for the fixed ROM. */
+  bank: number | null
 }
 
 export interface Program {

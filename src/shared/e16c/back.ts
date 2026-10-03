@@ -1,4 +1,4 @@
-import { O1, REGISTER } from './back1.js'
+import { callLines, O1, REGISTER } from './back1.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
 import { hex } from './types.js'
 
@@ -76,7 +76,11 @@ export interface Assembly {
   text: string
 }
 
-/** The whole program as one assembly source, its functions at -O0 or -O1. */
+/**
+ * The whole program as one assembly source, its functions at -O0 or -O1: the fixed ROM's
+ * part, `e16c_fixed_end`, and then each bank a file goes in, at the window. So the file is
+ * the last thing the ROM includes.
+ */
 export function assembly(program: Program, sources: string[], level: 0 | 1 = 0): string {
   const out = new Out()
   out.raw(`; Made by e16c from ${sources.join(', ')}: do not edit.`)
@@ -87,11 +91,24 @@ export function assembly(program: Program, sources: string[], level: 0 | 1 = 0):
   const near = new Map(
     program.arrays.filter((a) => a.at + a.bytes < 0x2000).map((a) => [a.name, a.at]),
   )
-  for (const fn of program.fns) {
-    if (level === 0) func(out, fn)
-    else for (const line of new O1(fn, near).emit()) out.raw(line)
+  const banks = new Map(program.fns.map((f) => [f.name, f.bank]))
+  const section = (bank: number | null) => {
+    for (const fn of program.fns.filter((f) => f.bank === bank)) {
+      if (level === 0) func(out, fn, banks)
+      else for (const line of new O1(fn, near, banks).emit()) out.raw(line)
+    }
+    strings(out, program, bank)
   }
-  strings(out, program)
+  section(null)
+  const used = [...new Set([...program.fns, ...program.strings].map((x) => x.bank))]
+  const banked = used.filter((b): b is number => b !== null).sort((a, b) => a - b)
+  out.label('e16c_fixed_end')
+  for (const bank of banked) {
+    out.raw('')
+    out.line(`.bank ${bank}`)
+    out.line('.org 0xc000')
+    section(bank)
+  }
   return `${out.lines.join('\n')}\n`
 }
 
@@ -122,7 +139,7 @@ function init(out: Out, program: Program): void {
   out.raw('')
 }
 
-function func(out: Out, fn: Fn): void {
+function func(out: Out, fn: Fn, banks: Map<string, number | null>): void {
   const frame = fn.slots.length * 2
   out.raw(`; ${fn.file}:${fn.line} ${fn.name}(${fn.slots.slice(0, fn.params).join(', ')})`)
   fn.slots.forEach((name, k) => {
@@ -134,7 +151,7 @@ function func(out: Out, fn: Fn): void {
   out.line(`sw fp, ${frame}(sp)`)
   out.line('mv fp, sp')
   for (let k = 0; k < fn.params; k++) out.line(`sw ${ARG_REGS[k]}, ${k * 2}(fp)`)
-  for (const op of fn.body) operation(out, op, fn)
+  for (const op of fn.body) operation(out, op, fn, banks)
   out.label('.return')
   out.line('mv sp, fp')
   out.line(`lw fp, ${frame}(sp)`)
@@ -144,7 +161,7 @@ function func(out: Out, fn: Fn): void {
   out.raw('')
 }
 
-function operation(out: Out, op: Op, fn: Fn): void {
+function operation(out: Out, op: Op, fn: Fn, banks: Map<string, number | null>): void {
   switch (op.k) {
     case 'line':
       out.comment(`${op.file}:${op.line}  ${op.text}`)
@@ -174,12 +191,12 @@ function operation(out: Out, op: Op, fn: Fn): void {
       out.absolute(op.byte ? 'sb' : 'sw', 't0', op.at)
       return
     default:
-      memoryOrFlow(out, op)
+      memoryOrFlow(out, op, fn, banks)
       return
   }
 }
 
-function memoryOrFlow(out: Out, op: Op): void {
+function memoryOrFlow(out: Out, op: Op, fn: Fn, banks: Map<string, number | null>): void {
   switch (op.k) {
     case 'load':
       out.pop('t1')
@@ -214,16 +231,16 @@ function memoryOrFlow(out: Out, op: Op): void {
       out.line(`${op.k === 'jz' ? 'beqz' : 'bnez'} t0, ${op.to}`)
       return
     default:
-      callsAndRest(out, op)
+      callsAndRest(out, op, fn, banks)
       return
   }
 }
 
-function callsAndRest(out: Out, op: Op): void {
+function callsAndRest(out: Out, op: Op, fn: Fn, banks: Map<string, number | null>): void {
   switch (op.k) {
     case 'call':
       for (let k = op.argc - 1; k >= 0; k--) out.pop(ARG_REGS[k] as string)
-      out.line(`call ${op.fn}`)
+      for (const line of callLines(op.fn, fn.bank, banks)) out.line(line)
       if (op.ret) out.push('a0')
       return
     case 'ret':
@@ -262,8 +279,8 @@ function callsAndRest(out: Out, op: Op): void {
   }
 }
 
-function strings(out: Out, program: Program): void {
-  for (const s of program.strings) {
+function strings(out: Out, program: Program, bank: number | null): void {
+  for (const s of program.strings.filter((x) => x.bank === bank)) {
     out.label(s.label)
     out.line(`.byte ${[...s.bytes, 0].join(', ')}`)
   }

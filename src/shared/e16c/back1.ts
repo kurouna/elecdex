@@ -116,9 +116,17 @@ export class O1 {
   /** The registers for the stack's values: TEMPS less any a leaf keeps its locals in. */
   readonly #temps: string[]
 
-  constructor(fn: Fn, near: Map<string, number> = new Map()) {
+  /** Each function's bank, for calls across banks (callLines). */
+  readonly #banks: Map<string, number | null>
+
+  constructor(
+    fn: Fn,
+    near: Map<string, number> = new Map(),
+    banks: Map<string, number | null> = new Map(),
+  ) {
     this.#fn = fn
     this.#near = near
+    this.#banks = banks
     this.#calls = fn.body.some((op) => op.k === 'call' || op.k === 'ecall' || op.k === 'asm')
     this.#depths = labelDepths(fn.body)
     // A fused compare-and-branch holds its two operands above the depth at its label.
@@ -711,7 +719,8 @@ export class O1 {
     switch (op.k) {
       case 'call':
         this.#arguments(ARGS.slice(0, op.argc))
-        this.#line(`call ${op.fn}`)
+        // Through far_call into another bank: t0 and t1 are free, the arguments in place.
+        for (const line of callLines(op.fn, this.#fn.bank, this.#banks)) this.#line(line)
         if (op.ret) this.#result0()
         return
       case 'ecall':
@@ -794,6 +803,23 @@ export class O1 {
     this.#line(`mv ${copy}, ${r}`)
     this.#stack.push({ kind: 'reg', r }, { kind: 'reg', r: copy })
   }
+}
+
+/** The routine in the ROM that calls a function in another bank: t0 its address, t1 its bank. */
+export const FAR_CALL = 'far_call'
+
+/**
+ * How a function in bank `from` calls `name`: directly within a bank or into the fixed ROM,
+ * else through far_call, which maps the callee's bank and puts the caller's back.
+ */
+export function callLines(
+  name: string,
+  from: number | null,
+  banks: Map<string, number | null>,
+): string[] {
+  const bank = banks.get(name) ?? null
+  if (bank === null || bank === from) return [`call ${name}`]
+  return [`la t0, ${name}`, `li t1, ${bank}`, `call ${FAR_CALL}`]
 }
 
 /**

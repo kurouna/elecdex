@@ -184,6 +184,83 @@ describe('e16c', () => {
     expect(run('fib', [10])).toBe(55)
   })
 
+  it.each([0, 1, 2] as const)(
+    'at -O%i puts a file in a ROM bank and calls across banks through far_call',
+    (opt) => {
+      const nl = String.fromCharCode(10)
+      const files = [
+        {
+          name: 'fixed.ts',
+          text: [
+            'export function top(x: u16): u16 { return mid(x) + 1 }',
+            'export function back(x: u16): u16 { return x + 10 }',
+          ].join(nl),
+        },
+        {
+          name: 'one.ts',
+          bank: 1,
+          text: [
+            "const HELLO = str('HI')",
+            'export function mid(x: u16): u16 { return low(x) * 2 + peek(HELLO) + near(x) }',
+            'function near(x: u16): u16 { return x }',
+          ].join(nl),
+        },
+        {
+          name: 'two.ts',
+          bank: 2,
+          text: 'export function low(x: u16): u16 { return back(x) + 3 }',
+        },
+      ]
+      const out = compile(files, { ...OPTIONS, opt })
+      expect(out.errors).toEqual([])
+      // The same routine as the ROM's (main.s): t0 the address, t1 the bank.
+      const farCall = [
+        'far_call:',
+        '  addi sp, sp, -4',
+        '  sw ra, 2(sp)',
+        '  lw t2, -0xfc(zero)',
+        '  sw t2, 0(sp)',
+        '  sw t1, -0xfc(zero)',
+        '  jalr ra, 0(t0)',
+        '  lw t2, 0(sp)',
+        '  sw t2, -0xfc(zero)',
+        '  lw ra, 2(sp)',
+        '  addi sp, sp, 4',
+        '  ret',
+      ]
+      const harness = [
+        '.org 0x8000',
+        'li sp, 0x8000',
+        'call e16c_init',
+        'li a0, 5',
+        'call top',
+        'lw a1, -0xfc(zero)',
+        'ebreak',
+        ...farCall,
+        out.asm,
+      ].join(nl)
+      const asm = assemble(harness)
+      expect(asm.errors).toEqual([])
+      const m = Elec16.boot(romImage(asm))
+      expect(m.run(100_000).halted?.cause).toBe('breakpoint')
+      // back 15, low 18, mid 36 + 'H' + 5, top + 1; and the window shows bank 0 again.
+      expect([m.state.regs[4], m.state.regs[5]]).toEqual([36 + 72 + 5 + 1, 0])
+      expect(out.asm).toMatch(/\.bank 1\s+\.org 0xc000/)
+      if (opt === 2) expect(out.asm).not.toMatch(/call near/)
+    },
+  )
+
+  it('refuses a string of a ROM bank read from outside that bank', () => {
+    const files = [
+      { name: 'one.ts', bank: 1, text: "export const HELLO = str('HI')" },
+      { name: 'fixed.ts', text: 'export function f(): u16 { return peek(HELLO) }' },
+    ]
+    const out = compile(files, OPTIONS)
+    expect(out.errors.map((e) => e.message)).toEqual([
+      "HELLO is in ROM bank 1: only that bank's functions can read it",
+    ])
+  })
+
   it('says once that the data area is full, at the first that does not fit, and nothing at its uses', () => {
     const text = [
       'const big = bytes(700)',

@@ -56,9 +56,13 @@ export class Refusal extends Error {
 export type Sym =
   | { kind: 'const'; value: number; type: TypeRef }
   | { kind: 'global'; at: number; type: TypeRef }
-  /** A static array in RAM or a string in ROM: its address is a label. */
-  | { kind: 'static'; label: string; type: TypeRef }
-  | { kind: 'fn'; params: TypeRef[]; ret: Ty; extern: boolean }
+  /**
+   * A static array in RAM or a string in ROM: its address is a label. A string in a ROM bank
+   * (`bank`) is read only by functions in that bank: elsewhere the window may show another.
+   */
+  | { kind: 'static'; label: string; type: TypeRef; bank: number | null }
+  /** A function; `bank` the ROM bank its code is in (null: the fixed ROM, or assembly). */
+  | { kind: 'fn'; params: TypeRef[]; ret: Ty; extern: boolean; bank: number | null }
   | { kind: 'local'; slot: number; type: TypeRef }
 
 /** The functions every program has without declaring them (prelude.ts says them to TypeScript). */

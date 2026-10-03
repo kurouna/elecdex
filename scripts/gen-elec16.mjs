@@ -52,7 +52,8 @@ if (built.errors.length > 0) {
   process.exit(1)
 }
 writeFileSync(target, `${JSON.stringify(romFile(built), null, 2)}\n`)
-const used = built.symbols.rom_end ?? 0
+// The fixed ROM ends where BASIC's fixed part does, once it has banked parts.
+const used = built.symbols.e16c_fixed_end ?? built.symbols.rom_end ?? 0
 console.log(
-  `rom.json: ${built.image.length} bytes, ${Object.keys(built.symbols).length} labels, code and tables to ${used.toString(16)}`,
+  `rom.json: ${built.image.length} bytes, ${Object.keys(built.symbols).length} labels, fixed ROM to ${used.toString(16)}`,
 )

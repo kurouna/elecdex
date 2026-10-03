@@ -134,7 +134,13 @@ function inlineCalls(fn: Fn, inlinable: Map<string, Fn>): Fn {
   let copies = 0
   for (const op of fn.body) {
     const callee = op.k === 'call' ? inlinable.get(op.fn) : undefined
-    if (callee === undefined || callee.name === fn.name || op.k !== 'call') {
+    // Code is copied only within its bank: a banked body may read its bank's strings.
+    if (
+      callee === undefined ||
+      callee.name === fn.name ||
+      callee.bank !== fn.bank ||
+      op.k !== 'call'
+    ) {
       body.push(op)
       continue
     }

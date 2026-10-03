@@ -14,7 +14,15 @@ import { BUILTINS, type CompileError, hex, Refusal, type Sym, type TypeRef, U16 
 export interface SourceFile {
   name: string
   text: string
+  /**
+   * The ROM bank (0-11) this file's functions and strings go in; none for the fixed ROM. A
+   * call into another bank goes through the ROM's `far_call` (docs/elec16.md section 6).
+   */
+  bank?: number
 }
+
+/** The ROM banks there are (shared/elec16/map.ts BANK_COUNT). */
+const BANKS = 12
 
 export interface FrontOptions {
   /** Where globals and static arrays go in RAM: from `start`, up to but not including `end`. */
@@ -29,13 +37,20 @@ export interface Front {
 interface Parsed {
   name: string
   source: ts.SourceFile
+  bank: number | null
 }
 
 export function front(files: SourceFile[], options: FrontOptions): Front {
-  const parsed = files.map((f) => ({
-    name: f.name,
-    source: ts.createSourceFile(f.name, f.text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS),
-  }))
+  const parsed = files.map((f) => {
+    if (f.bank !== undefined && !(Number.isInteger(f.bank) && f.bank >= 0 && f.bank < BANKS)) {
+      throw new RangeError(`${f.name}: a bank is 0 to ${BANKS - 1}`)
+    }
+    return {
+      name: f.name,
+      source: ts.createSourceFile(f.name, f.text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS),
+      bank: f.bank ?? null,
+    }
+  })
   return new ProgramBuilder(options).build(parsed)
 }
 
@@ -60,7 +75,7 @@ class ProgramBuilder {
 
   build(files: Parsed[]): Front {
     // Functions first, from every file, so any may call any; then the rest in order.
-    for (const f of files) this.#each(f, (s) => this.#signature(s))
+    for (const f of files) this.#each(f, (s) => this.#signature(s, f))
     for (const f of files) this.#each(f, (s) => this.#topLevel(s, f))
     for (const f of files) this.#each(f, (s) => this.#body(s, f))
     return {
@@ -110,7 +125,7 @@ class ProgramBuilder {
 
   /* ---------------- pass 1: functions ---------------- */
 
-  #signature(s: ts.Statement): void {
+  #signature(s: ts.Statement, f: Parsed): void {
     if (!ts.isFunctionDeclaration(s) || s.name === undefined) return
     if (s.parameters.length > 4)
       throw new Refusal(s.getStart(), 'a function takes at most four arguments')
@@ -128,7 +143,8 @@ class ProgramBuilder {
         'a function without a body is `declare`d (written in assembly)',
       )
     }
-    this.#define(s.name.text, { kind: 'fn', params, ret, extern }, s)
+    const bank = extern ? null : f.bank
+    this.#define(s.name.text, { kind: 'fn', params, ret, extern, bank }, s)
     if (extern) this.#externs.set(s.name.text, { params: params.length, returns: ret !== 'void' })
   }
 
@@ -156,7 +172,7 @@ class ProgramBuilder {
     const init = d.initializer
     const annotated = d.type === undefined ? null : readType(d.type)
     if (init !== undefined && ts.isCallExpression(init) && ts.isIdentifier(init.expression)) {
-      const made = this.#allocation(name, init.expression.text, init)
+      const made = this.#allocation(name, init.expression.text, init, f.bank)
       if (made !== null) {
         this.#define(name, made, d)
         return
@@ -178,12 +194,12 @@ class ProgramBuilder {
   }
 
   /** bytes(n), words(n) or str("..."): a static array in RAM or a string in ROM. */
-  #allocation(name: string, fn: string, call: ts.CallExpression): Sym | null {
+  #allocation(name: string, fn: string, call: ts.CallExpression, bank: number | null): Sym | null {
     if (fn === 'str') {
       const arg = call.arguments[0]
       if (arg === undefined || !ts.isStringLiteral(arg))
         throw new Refusal(call.getStart(), 'str takes one string literal')
-      return { kind: 'static', label: this.romString(arg.text), type: U16 }
+      return { kind: 'static', label: this.romString(arg.text, bank), type: U16, bank }
     }
     if (fn !== 'bytes' && fn !== 'words') return null
     const arg = call.arguments[0]
@@ -197,6 +213,7 @@ class ProgramBuilder {
       kind: 'static',
       label: name,
       type: { kind: 'array', elem: fn === 'bytes' ? 'u8' : 'u16' },
+      bank: null,
     }
   }
 
@@ -240,15 +257,17 @@ class ProgramBuilder {
   #context(f: Parsed) {
     return {
       lookup: (name: string) => this.#symbols.get(name),
-      romString: (text: string) => this.romString(text),
+      romString: (text: string) => this.romString(text, f.bank),
       file: f.name,
+      bank: f.bank,
       source: f.source,
     }
   }
 
-  /** The label of a string in ROM, ended by a zero; the same text is stored once. */
-  romString(text: string): string {
-    const known = this.#stringLabels.get(text)
+  /** The label of a string in ROM, ended by a zero; the same text is stored once a bank. */
+  romString(text: string, bank: number | null): string {
+    const key = `${bank ?? '-'}:${text}`
+    const known = this.#stringLabels.get(key)
     if (known !== undefined) return known
     const label = `str_${this.#strings.length}`
     const bytes = Array.from(text, (c) => {
@@ -258,8 +277,8 @@ class ProgramBuilder {
       if (code > 0xff) throw new Refusal(0, `"${c}" is not in the machine's character set`)
       return code
     })
-    this.#strings.push({ label, bytes })
-    this.#stringLabels.set(text, label)
+    this.#strings.push({ label, bytes, bank })
+    this.#stringLabels.set(key, label)
     return label
   }
 }
