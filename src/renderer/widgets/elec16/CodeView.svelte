@@ -49,10 +49,18 @@ async function readSources(id: string): Promise<void> {
   sources = list.map((f) => f.name).filter((n) => n.endsWith('.TS'))
 }
 
+/**
+ * The unit and file the text was read for. The props are read again whenever the pane's state
+ * changes - a level chosen, say - with the same values: only another unit or file reads the
+ * card again, or what was typed and not yet kept would be lost.
+ */
+let readFor = ''
+
 $effect(() => {
   const id = unit
   const name = file
-  if (id === null) return
+  if (id === null || `${id}/${name}` === readFor) return
+  readFor = `${id}/${name}`
   untrack(() => {
     loaded = false
     results = null

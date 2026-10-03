@@ -606,3 +606,33 @@ test('CODE compiles the sample it shows, as it is, and says so on every level', 
     await close()
   }
 })
+
+test('CODE keeps what is typed after a RUN when the level is changed', async () => {
+  // The pane's state changing (a level chosen) read the card again over the text typed.
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-view-toggle').click()
+    const source = page.getByTestId('elec16-source')
+    await expect(source).toHaveValue(/HELLO FROM TYPESCRIPT/)
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 30_000 })
+    await page.getByTestId('elec16-run').click()
+    await expect(page.getByTestId('elec16-code-view')).toHaveCount(0)
+    await expect.poll(() => lcdLines(page), { timeout: 15_000 }).toContain('HELLO FROM TYPESCRIPT')
+    await page.getByTestId('elec16-view-toggle').click()
+    await expect(source).toHaveValue(/HELLO FROM TYPESCRIPT/)
+    const edited = (await source.inputValue()).replace('HELLO FROM TYPESCRIPT', 'EDITED AFTER RUN')
+    await source.fill(edited)
+    await page.getByTestId('elec16-level').and(page.locator('[data-level="1"]')).click()
+    await page.waitForTimeout(500)
+
+    await expect(source).toHaveValue(/EDITED AFTER RUN/)
+    await page.getByTestId('elec16-level').and(page.locator('[data-level="2"]')).click()
+    await page.waitForTimeout(500)
+    await expect(source).toHaveValue(/EDITED AFTER RUN/)
+  } finally {
+    await close()
+  }
+})
