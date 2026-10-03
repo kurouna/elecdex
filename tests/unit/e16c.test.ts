@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { e16cMemory } from '@shared/e16c/builtins'
 import { compile, type E16cOptions } from '@shared/e16c/compile'
+import { Interp, OutOfBudget } from '@shared/e16c/interp'
 import { assemble, romImage } from '@shared/elec16/asm'
 import { Elec16 } from '@shared/elec16/machine'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -65,7 +66,7 @@ const CASES: [string, number[]][] = [
 ]
 
 describe('e16c', () => {
-  it.each([0, 1] as const)(
+  it.each([0, 1, 2] as const)(
     'gives the same answers compiled at -O%i as the source run as TypeScript',
     (opt) => {
       const run = onMachine({ ...OPTIONS, opt })
@@ -75,6 +76,55 @@ describe('e16c', () => {
       }
     },
   )
+
+  it('gives the same answers run as stack code in the interpreter', () => {
+    const { program } = compile([{ name: SAMPLE, text: readFileSync(SAMPLE, 'utf8') }], OPTIONS)
+    for (const [fn, args] of CASES) {
+      const vm = new Interp(program)
+      vm.init()
+      const f = js[fn] as (...a: number[]) => number
+      expect(vm.call(fn, args), `${fn}(${args})`).toBe(f(...args) & 0xffff)
+    }
+  })
+
+  it('at -O2 works out pure calls, inlines small leaves and drops what nothing reaches', () => {
+    const text = [
+      'function square(x: u16): u16 { return x * x }',
+      'function cube(x: u16): u16 { return square(x) * x }',
+      'function unused(): u16 { return 7 }',
+      'export function table(): u16 { return cube(3) + square(4) }',
+      'export function twice(n: u16): u16 { return square(n) + 1 }',
+    ].join(String.fromCharCode(10))
+    const out = compile([{ name: 'o2.ts', text }], { ...OPTIONS, opt: 2 })
+    expect(out.errors).toEqual([])
+    const table = out.program.fns.find((f) => f.name === 'table')
+    // cube(3) + square(4), all known: one constant.
+    expect(table?.body.filter((op) => op.k !== 'line')).toEqual([
+      { k: 'push', v: 43 },
+      { k: 'ret', value: true },
+    ])
+    // square is inlined into twice; unused, square and cube are gone.
+    expect(out.program.fns.map((f) => f.name).sort()).toEqual(['table', 'twice'])
+    expect(out.asm).not.toMatch(/call square/)
+  })
+
+  it('at -O2 leaves a pure call it cannot finish within its budget as a call', () => {
+    const text = [
+      'function spin(n: u16): u16 { let i: u16 = 0; while (i !== n) i++; return i }',
+      'export function f(): u16 { return spin(65000) }',
+    ].join(String.fromCharCode(10))
+    const out = compile([{ name: 'spin.ts', text }], { ...OPTIONS, opt: 2 })
+    expect(out.asm).toMatch(/call spin|\.I1/)
+  })
+
+  it('stops a run past its budget in the interpreter', () => {
+    const { program } = compile(
+      [{ name: 'loop.ts', text: 'export function forever(): u16 { while (true) {} return 0 }' }],
+      OPTIONS,
+    )
+    const vm = new Interp(program, { budget: 1000 })
+    expect(() => vm.call('forever')).toThrow(OutOfBudget)
+  })
 
   it('keeps globals in RAM, set by e16c_init', () => {
     const run = onMachine(OPTIONS)

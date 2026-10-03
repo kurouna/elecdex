@@ -1,6 +1,7 @@
 import { assembly } from './back.js'
 import { type FrontOptions, front, type SourceFile } from './front.js'
 import type { Program } from './ir.js'
+import { optimise } from './opt.js'
 import type { CompileError } from './types.js'
 
 /**
@@ -11,7 +12,10 @@ import type { CompileError } from './types.js'
 export type { CompileError, SourceFile }
 
 export interface E16cOptions extends FrontOptions {
-  /** How hard it works: 0 a plain translation, 1 registers and peepholes, 2 more (later). */
+  /**
+   * How hard it works: 0 a plain translation, 1 registers and fused branches, 2 also inlining,
+   * folding, dead code and pure calls worked out while compiling (opt.ts).
+   */
   opt: 0 | 1 | 2
 }
 
@@ -23,8 +27,9 @@ export interface E16cResult {
 }
 
 export function compile(files: SourceFile[], options: E16cOptions): E16cResult {
-  const { program, errors } = front(files, options)
-  if (errors.length > 0) return { asm: '', errors, program }
+  const { program: parsed, errors } = front(files, options)
+  if (errors.length > 0) return { asm: '', errors, program: parsed }
+  const program = options.opt === 2 ? optimise(parsed) : parsed
   return {
     asm: assembly(
       program,
