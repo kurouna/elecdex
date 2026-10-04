@@ -24,6 +24,7 @@ import {
   words,
 } from '../../../../src/shared/e16c/builtins'
 import {
+  EDIT_BRK,
   EDIT_DOWN,
   EDIT_MODE,
   EDIT_RECALLS_DOWN,
@@ -1615,8 +1616,8 @@ export function basicLoop(): void {
       continue
     }
     edited(n)
-    // MODE gave the line up where it was typed: the same prompt takes the next one.
-    if (n === EDIT_MODE) prompt = false
+    // MODE and BRK gave the line up where it was typed: the same prompt takes the next one.
+    if (n === EDIT_MODE || n === EDIT_BRK) prompt = false
   }
 }
 

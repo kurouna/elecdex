@@ -185,6 +185,24 @@ describe('BASIC', () => {
     expect(annunciated(m)).toContain('RUN')
   })
 
+  it('gives the line up at BRK on the same prompt, as MODE does, not a new one each press', () => {
+    const m = switchOn()
+    type(m, 'ABC')
+    for (let k = 0; k < 3; k++) {
+      m.brk()
+      settle(m)
+    }
+    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', '26622 BYTES FREE', '>'])
+    // AUTO ends there too, its number rubbed out with the line.
+    type(m, 'AUTO\n')
+    expect(shown(m).at(-1)).toBe('>10')
+    m.brk()
+    settle(m)
+    expect(shown(m).at(-1)).toBe('>')
+    type(m, 'PRINT 4\n')
+    expect(shown(m).slice(-3)).toEqual(['>PRINT 4', '4', '>'])
+  })
+
   it('keeps the line being typed in RUN when there is nothing to call up', () => {
     const m = switchOn()
     // Down calls nothing up in RUN, nor up before a line was typed: once the line was lost.

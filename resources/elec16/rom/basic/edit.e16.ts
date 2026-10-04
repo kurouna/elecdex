@@ -100,9 +100,9 @@ function clearRest(col: u16, row: u16): void {
 /**
  * Edits the line at `buf`, of which `length` characters are already there (shown here), at
  * most `max`. Its length when ENTER is pressed (the text ended by a zero), or EDIT_CLS (the
- * screen was cleared), EDIT_BRK, EDIT_MODE, EDIT_UP or EDIT_DOWN, the line given up. Up, down
- * and MODE rub the line out and leave the cursor where it began, for the next one to take its
- * place - MODE's at the same prompt, not a new one down the screen at every press. Up and
+ * screen was cleared), EDIT_BRK, EDIT_MODE, EDIT_UP or EDIT_DOWN, the line given up. Up, down,
+ * MODE and BRK rub the line out and leave the cursor where it began, for the next one to take
+ * its place - MODE's and BRK's at the same prompt, not a new one down the screen at every press. Up and
  * down end the editing only where `recalls` says there is a line to call up (EDIT_RECALLS_UP,
  * EDIT_RECALLS_DOWN); where there is none they do nothing, and the line typed stays.
  */
@@ -124,7 +124,7 @@ export function editLine(buf: u16, max: u16, length: u16, recalls: u16): i16 {
     // Whatever comes next starts below the line, never inside it.
     place(n)
     if (control === EDIT_CLS) cls()
-    if (control === EDIT_UP || control === EDIT_DOWN || control === EDIT_MODE) rubOut(n)
+    if (control !== 1 && control !== EDIT_CLS) rubOut(n)
     if (control !== 1) return control
     poke(buf + n, 0)
     return i16(n)
