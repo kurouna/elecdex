@@ -12,7 +12,7 @@ import { oneOf } from '../emu/format.js'
 import { PLAY_BODY_MODES, PLAY_SKINS, type PlayBodyMode, type PlaySkin } from './play-body.js'
 import { isSkinId, type SkinId } from './skins.js'
 
-export const ELEC16_TABS = ['core', 'mem', 'files', 'tune'] as const
+export const ELEC16_TABS = ['core', 'mem', 'files', 'games', 'link', 'tune'] as const
 export type Elec16Tab = (typeof ELEC16_TABS)[number]
 
 /** What the pane shows: the machine, or CODE (TypeScript compiled for it). */

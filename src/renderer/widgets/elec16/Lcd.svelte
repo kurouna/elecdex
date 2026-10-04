@@ -33,7 +33,7 @@ interface Props {
   seen: boolean
   /** Device pixels a dot: the device fits the whole body (layout.ts, deviceFit). */
   scale: number
-  /** LINK is on in TUNE: its mark is lit, and blinks while a request is out. */
+  /** LINK and its AI are on in the LINK panel: its mark is lit, and blinks while a request is out. */
   link: boolean
   /** A plain screen (PLAIN): no gaps between the dots, no shadows, no glass sunk in a case. */
   flat: boolean

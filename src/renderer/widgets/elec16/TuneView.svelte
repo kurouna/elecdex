@@ -9,13 +9,12 @@ import {
   type Elec16UnitChange,
 } from '@shared/elec16-units'
 import { sfx } from '../../stores/sound.svelte.ts'
-import LinkTune from './LinkTune.svelte'
 import { BODY_MODES, type BodyMode, type Elec16Pane } from './pane-state.ts'
 import { PLAY_BODY_MODES, PLAY_SKINS } from './play-body.ts'
 import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
 
 /**
- * TUNE (docs/elec16.md section 7): PASTE, LINK (LinkTune.svelte), which unit the pane runs (or a new one), the unit's
+ * TUNE (docs/elec16.md section 7): PASTE, which unit the pane runs (or a new one), the unit's
  * clock, auto power-off (or on PLAY-320 its extended RAM) and its model (fitting another
  * restarts the machine, its RAM kept on the same ROM and the screen empty) - the unit's own,
  * kept by main - then this pane's: how the body is drawn, the skin, the LCD's slow fade and
@@ -42,9 +41,6 @@ interface Props {
   canPaste: boolean
   /** PASTE, or its stop while it types. */
   onpaste: () => void
-  /** LINK requests this pane sent, and why the last one failed (null: it did not). */
-  linkSent: number
-  linkNote: string | null
 }
 
 const {
@@ -60,8 +56,6 @@ const {
   pasteSkipped,
   canPaste,
   onpaste,
-  linkSent,
-  linkNote,
 }: Props = $props()
 
 const clockWords = (c: Elec16Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
@@ -132,7 +126,6 @@ function pick<T>(now: T, next: T, apply: () => void): void {
     </p>
   </section>
   {/if}
-  <LinkTune sent={linkSent} note={linkNote} />
   <section>
     <h3>unit</h3>
     <div class="chips" role="radiogroup" aria-label="unit">

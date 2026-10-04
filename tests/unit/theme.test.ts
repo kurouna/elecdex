@@ -171,7 +171,11 @@ describe('settings', () => {
       agents: { sources: ['claude-code'] },
       git: { openCommand: '' },
       chip8: { core: true, volume: 0.5 },
-      elec16: { volume: 0.5, skin: 'elec', link: { on: false, ai: { provider: '' } } },
+      elec16: {
+        volume: 0.5,
+        skin: 'elec',
+        link: { on: true, ai: { on: false, provider: '' }, cart: { on: true } },
+      },
       quakes: {
         source: 'auto',
         notify: false,

@@ -257,7 +257,8 @@ user made; do not reverse one without asking.
     of main's by number (the AI is 0; another is a `LinkService` in main/elec16/link and a line
     in link-services.ts, never code in the core, the page or the ROM). The core makes a request,
     the page passes it on, main answers - only for the page that holds the unit, nothing while
-    LINK is off (the default). A SEND goes only after a person's action since the last (HELD
+    LINK or that service is off in the panel's LINK (LINK on, the AI off, CART on by default;
+    an old single switch is the AI's, `linkSettings`). A SEND goes only after a person's action since the last (HELD
     otherwise: PASTE's keys do not count), one at a time a unit, the answer capped, 60 s. The
     AI uses the AI settings' providers and keys (a key never reaches the page or the machine;
     a provider with none may be chosen); its answer reaches the machine only as the LCD's
@@ -270,6 +271,14 @@ user made; do not reverse one without asking.
     (a test holds it and runs every program); main lays it read-only over every unit's card
     and never writes it. PASTE and LOAD ▸ type through the key FIFO (`pasteKeys`), never
     into RAM.
+  - PLAY-320 (docs/elec16-play.md) has what is new alone - extended RAM, video, the pad, the
+    cartridge slot - by model data (`xramMax`, `video`, `pad`, `cart`, `drawHz`, `rom`), and
+    tests hold every other model as it was. Its ROM is resources/elec16/play (no BASIC, no
+    monitor), sharing link.s with the pocket ROM. A cartridge's ROM never goes in a snapshot:
+    the page puts it back from main's shelf by hash. The game shelf is main's
+    (main/elec16/games.ts), apart from CHIP-8's in every file, channel and list; games.json is
+    written only by `npm run gen:elec16`. A press is a button PADHIT marks that was up at the
+    last look (a tapped key is often down and up between two).
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).

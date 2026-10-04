@@ -296,10 +296,10 @@ describe('the SOFT CARD', () => {
         // No answer: CHAT says why and goes on to the next question, not stopped.
         linkService.answer = () => ({ status: LINK_STATUS.failed })
         type(m, 'WHY\n')
-        expect(shown(m).slice(-2), model).toEqual(['NO ANSWER: SEE TUNE', '?'])
+        expect(shown(m).slice(-2), model).toEqual(['NO ANSWER: SEE LINK', '?'])
         linkService.answer = () => ({ status: LINK_STATUS.off })
         type(m, 'OFF\n')
-        expect(shown(m).join(' '), model).toContain('LINK OFF: TURN ON IN TUNE')
+        expect(shown(m).join(' '), model).toContain('LINK OFF: TURN ON IN LINK')
         expect(shown(m).at(-1), model).toBe('?')
         // Ended from the menu, it says so before the prompt.
         type(m, '\n3\n')

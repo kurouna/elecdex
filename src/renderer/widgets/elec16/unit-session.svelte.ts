@@ -168,6 +168,21 @@ export class UnitSession {
     )
   }
 
+  /**
+   * GAMES: a game put in PLAY-320's slot, or the one there taken out (null). main keeps which;
+   * the machine's slot is emptied and it starts again at the start screen, where START loads
+   * what is in now - a game being played stops, as a cartridge pulled out stops it.
+   */
+  async insertGame(id: string | null): Promise<void> {
+    const unit = this.unit
+    if (unit === null || this.phase !== 'running') return
+    const next = await this.#api.insertGame(unit.id, this.#pane, id)
+    if (next === null || this.#disposed) return
+    this.unit = next
+    this.#runner.machine?.ejectCart()
+    this.#runner.reset()
+  }
+
   /** The battery backup, written when the machine ran since the last; not without a unit. */
   save(): void {
     const machine = this.#runner.machine
@@ -218,7 +233,10 @@ export class UnitSession {
       this.phase = 'held'
       return
     }
-    this.#begin(unit, parked ?? this.#restored(claim.snapshot), paused)
+    const machine = parked ?? this.#restored(claim.snapshot)
+    if (machine !== null) await this.#reattach(unit, machine)
+    if (this.#disposed) return
+    this.#begin(unit, machine, paused)
     this.phase = 'running'
   }
 
@@ -228,6 +246,21 @@ export class UnitSession {
     const model = snapshot === null ? null : snapshotModel(snapshot)
     if (snapshot === null || roms === null || model === null) return null
     return Elec16.restore(roms[MODELS[model].rom], snapshot)
+  }
+
+  /**
+   * A machine restored while a cartridge was in its slot: its ROM from main, the same game
+   * by hash, before it runs again. When main has it no more (taken off the shelf, another game
+   * put in), the slot is emptied and the machine starts again at the start screen.
+   */
+  async #reattach(unit: Elec16Unit, machine: Elec16): Promise<void> {
+    const slot = machine.state.cart
+    if (slot === null || slot.rom !== null) return
+    const held = await this.#api.gameImage(unit.id, this.#pane)
+    if (held !== null && unit.cart === slot.id && machine.attachCartRom(held.image, held.digest))
+      return
+    machine.ejectCart()
+    machine.reset()
   }
 
   #begin(unit: Elec16Unit, machine: Elec16 | null, paused: boolean): void {

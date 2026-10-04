@@ -9,7 +9,7 @@ import { launch } from './support.js'
  * The ELEC-16's LINK (docs/elec16.md section 12) in the running app: off until TUNE turns it
  * on, a BASIC ASK put to the provider chosen there - a local stand-in speaking the OpenAI
  * dialect - and its answer on the LCD; BRK letting go of a question still out, which main
- * then stops asking; and a provider's refusal said in TUNE in its own words.
+ * then stops asking; and a provider's refusal said in the LINK panel in its own words.
  */
 
 interface Seen {
@@ -92,7 +92,7 @@ test.beforeEach(() => {
 
 const LAYOUT = {
   version: 1,
-  root: { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: true, tab: 'tune' } },
+  root: { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: true, tab: 'link' } },
 }
 
 const settingsWith = (model: string, link: object) => ({
@@ -122,27 +122,37 @@ async function typeLine(page: Page, line: string): Promise<void> {
 
 const linkMark = (page: Page) => page.locator('[data-mark=LINK]')
 
-test('ASK is refused while LINK is off; on in TUNE, the answer comes back to the LCD', async () => {
+test('ASK is refused while the AI is off; on in the LINK panel, the answer comes back to the LCD', async () => {
   const { page, userData, close } = await launch(undefined, {
     layout: LAYOUT,
+    // Settings from before LINK's services had switches: the one switch, off, was the AI's.
     settings: settingsWith('m1', { on: false, ai: { provider: '' } }),
   })
   try {
     await booted(page)
+    const link = page.getByTestId('elec16-link')
+    await expect(link.locator('[data-testid=elec16-link-on][data-on=true]')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await expect(
+      link.locator('[data-testid=elec16-link-service][data-service=ai][data-on=false]'),
+    ).toHaveAttribute('aria-checked', 'true')
     await expect(linkMark(page)).not.toHaveClass(/\bon\b/)
     await typeLine(page, 'DIM A$*60')
     await typeLine(page, 'ASK "WHAT IS A PULSAR?",A$')
     await expect.poll(() => lcdLines(page)).toContain('ERR:LINK OFF')
     expect(seen).toHaveLength(0)
 
-    const link = page.getByTestId('elec16-link')
-    await link.locator('[data-testid=elec16-link-on][data-on=true]').click()
+    await link.locator('[data-testid=elec16-link-service][data-service=ai][data-on=true]').click()
     await link.locator('[data-testid=elec16-link-provider][data-provider=local]').click()
     // Neither provider holds a key here: both may be chosen, and say so.
     await expect(link.locator('[data-provider=local]')).toContainText('no key')
     const settings = () =>
       JSON.parse(readFileSync(path.join(userData, 'settings.json'), 'utf8')).elec16.link
-    await expect.poll(settings).toEqual({ on: true, ai: { provider: 'local' } })
+    await expect
+      .poll(settings)
+      .toEqual({ on: true, ai: { on: true, provider: 'local' }, cart: { on: true } })
     await expect(linkMark(page)).toHaveClass(/\bon\b/)
 
     await typeLine(page, 'ASK "WHAT IS A PULSAR?",A$')
@@ -156,6 +166,14 @@ test('ASK is refused while LINK is off; on in TUNE, the answer comes back to the
     expect(seen[0]?.maxTokens).toBeLessThanOrEqual(2000)
     expect(seen[0]?.search).toBe(false)
     await expect(page.getByTestId('elec16-link-sent')).toHaveText('1 sent.')
+
+    // LINK off as a whole: the AI, though on, is not asked.
+    await link.locator('[data-testid=elec16-link-on][data-on=false]').click()
+    await expect.poll(settings).toMatchObject({ on: false, ai: { on: true } })
+    await expect(linkMark(page)).not.toHaveClass(/\bon\b/)
+    await typeLine(page, 'ASK "AGAIN?",A$')
+    await expect.poll(() => lcdLines(page)).toContain('ERR:LINK OFF')
+    expect(seen).toHaveLength(1)
   } finally {
     await close()
   }
@@ -185,7 +203,7 @@ test('WEATHER asks the provider to search; BRK lets go of a question still out',
   }
 })
 
-test("a provider's refusal stops the program with ERR:LINK, its words in TUNE", async () => {
+test("a provider's refusal stops the program with ERR:LINK, its words in the LINK panel", async () => {
   const { page, close } = await launch(undefined, {
     layout: LAYOUT,
     settings: settingsWith('m1', { on: true, ai: { provider: 'other' } }),

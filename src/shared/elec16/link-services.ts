@@ -53,7 +53,7 @@ export const LINK_STATUS = {
   /** The answer is at REPLY, LENGTH bytes. */
   ready: 0,
   busy: 1,
-  /** LINK, or this service, is off in TUNE. */
+  /** LINK, or this service, is off in the LINK panel. */
   off: 2,
   /** Nobody pressed anything since the last SEND. */
   held: 3,

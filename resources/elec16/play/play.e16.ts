@@ -7,6 +7,7 @@ import {
   addr,
   bytes,
   div,
+  type i16,
   memcpy,
   memset,
   peek,
@@ -21,6 +22,14 @@ import {
 
 /** The font: five column bytes a character from 0x20, bit 0 at the top. */
 export declare function font_base(): u16
+/**
+ * LINK's service 8 (link.s, shared with the pocket ROM): the question at `query` to service
+ * `type` >> 8 of its type & 0xff, the answer at `reply`, at most `max` bytes. Its length, or
+ * -STATUS when there is none.
+ */
+export declare function link(query: u16, reply: u16, max: u16, type: u16): i16
+/** Starts the game at `entry` with its first ROM bank in the window; it never comes back here. */
+export declare function start_game(entry: u16): void
 
 /* ---------------- the machine (shared/elec16/video.ts; a unit test holds them alike) ---------------- */
 
@@ -214,6 +223,75 @@ function centre(row: u16, at: u16, length: u16): void {
   puts(at)
 }
 
+/* ---------------- the cartridge (docs/elec16-play.md section 7) ---------------- */
+
+/** CART: LINK's service 1, INFO (the header) and LOAD (the header, and the game put in). */
+const CART_INFO = 0x0100
+const CART_LOAD = 0x0101
+const HEADER = 64
+/** Where in the header the entry and the name are. */
+const ENTRY_AT = 8
+const NAME_AT = 32
+/** LINK's statuses (link-services.ts), as link() gives them back negated. */
+const ST_OFF = 2
+const ST_HELD = 3
+/**
+ * The header CART answers, and the question LINK needs (any one byte) - in RAM, where LINK
+ * reads a question: a string of the ROM's would be refused as a bad request.
+ */
+const header = bytes(66)
+const question = bytes(2)
+
+/** The cartridge's header from CART, into `header`: its length, or -STATUS. */
+function cart(kind: u16): i16 {
+  poke(addr(question), 0x47)
+  return link(addr(question), addr(header), HEADER, kind)
+}
+
+/** The line under the cartridge's: what START will do, or why it cannot. */
+function cartLine(got: i16): u16 {
+  if (got >= HEADER) return str('PRESS START')
+  if (got === -ST_HELD) return str('PRESS START')
+  if (got === -ST_OFF) return str('LINK CART IS OFF')
+  return str('NO CARTRIDGE')
+}
+
+/** The cartridge's name and what START does, on rows 14 and 16. */
+function showCart(got: i16): void {
+  clearRow(14)
+  clearRow(16)
+  if (got >= HEADER) {
+    const name = addr(header) + NAME_AT
+    centre(14, name, length(name))
+  }
+  const line = cartLine(got)
+  centre(16, line, length(line))
+}
+
+/**
+ * START at the start screen: the game in the slot loaded through CART (the page puts it in
+ * the slot with the answer) and started; when there is none, or LINK or CART is off, the
+ * start screen says so and waits again.
+ */
+export function startPressed(): void {
+  const got = cart(CART_LOAD)
+  if (got < HEADER) {
+    showCart(got)
+    return
+  }
+  start_game(peek16(addr(header) + ENTRY_AT))
+}
+
+function length(at: u16): u16 {
+  let n: u16 = 0
+  while (peek(at + n) !== 0) n++
+  return n
+}
+
+function clearRow(row: u16): void {
+  videoFill(row * 8 * ROW_BYTES, 0, 8 * ROW_BYTES)
+}
+
 /* ---------------- the start screen ---------------- */
 
 const TITLE = str('ELEC-16 PLAY')
@@ -244,7 +322,7 @@ export function bootScreen(cause: u16, pc: u16): void {
   puts(str('RAM 32K  XRAM '))
   putDecimal(xramBanks() * 8)
   putc(0x4b)
-  centre(16, str('NO CARTRIDGE'), 12)
+  showCart(cart(CART_INFO))
   if (cause === 0) return
   locate(2, ROWS - 3)
   // BRK, and EBREAK - a breakpoint a program wrote - say where; anything else is a fault.

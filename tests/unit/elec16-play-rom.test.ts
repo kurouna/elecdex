@@ -1,9 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { compilePlay } from '@shared/e16c/play-rom'
+import { compilePlay, playRomFile } from '@shared/e16c/play-rom'
 import { assemble, ramImage } from '@shared/elec16/asm'
+import { buildGame } from '@shared/elec16/cart-build'
+import { CART_BANK, readCart } from '@shared/elec16/cartridge'
 import { REG_NAMES } from '@shared/elec16/isa'
+import { LINK_STATUS } from '@shared/elec16/link-services'
 import { Elec16 } from '@shared/elec16/machine'
 import { BANK_SIZE, IO, XRAM_BANK, XRAM_MAX } from '@shared/elec16/map'
+import { padBit } from '@shared/elec16/pad'
 import { buildRom, romFile, romFromFile } from '@shared/elec16/rom'
 import {
   BITMAP_HEIGHT,
@@ -14,7 +18,8 @@ import {
   VIDEO_PAGE_SIZE,
   VIDEO_REG,
 } from '@shared/elec16/video'
-import { describe, expect, it } from 'vitest'
+import { fromBase64 } from '@shared/emu/base64'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { playText } from '../../src/renderer/widgets/elec16/play-painter'
 import playJson from '../../src/renderer/widgets/elec16/play-rom.json'
 
@@ -26,7 +31,10 @@ import playJson from '../../src/renderer/widgets/elec16/play-rom.json'
 
 const DIR = 'resources/elec16/play/'
 const read = (name: string) => (existsSync(DIR + name) ? readFileSync(DIR + name, 'utf8') : null)
-const built = buildRom(read)
+const built = buildRom((name) => {
+  const file = `resources/elec16/${playRomFile(name)}`
+  return existsSync(file) ? readFileSync(file, 'utf8') : null
+})
 
 /** The screen's text, read back through the font as the pane does. */
 const screen = (m: Elec16): string[] => playText(m.state.video?.mem ?? new Uint8Array())
@@ -34,10 +42,43 @@ const screen = (m: Elec16): string[] => playText(m.state.video?.mem ?? new Uint8
 /** What is written on the screen, its blank rows left out. */
 const written = (m: Elec16) => screen(m).filter((row) => row !== '')
 
-/** Runs until it sleeps or stops. */
+/**
+ * What CART (main's LINK service 1) answers in these tests: the cartridge in the slot, none,
+ * or LINK switched off. Main's own CART is tested in elec16-games.test.ts.
+ */
+const slot: { image: Uint8Array | null; off: boolean; asked: number[] } = {
+  image: null,
+  off: false,
+  asked: [],
+}
+beforeEach(() => {
+  slot.image = null
+  slot.off = false
+  slot.asked = []
+})
+
+function answerCart(m: Elec16): boolean {
+  const request = m.takeLinkRequest()
+  if (request === null) return false
+  slot.asked.push(request.type)
+  const image = slot.image
+  if (slot.off) m.answerLink(request.serial, { status: LINK_STATUS.off })
+  else if (image === null) m.answerLink(request.serial, { status: LINK_STATUS.failed })
+  else {
+    m.answerLink(request.serial, {
+      status: LINK_STATUS.ready,
+      data: image.subarray(0, 64),
+      ...(request.type === 1 ? { cart: { image, digest: new Uint8Array(32) } } : {}),
+    })
+  }
+  return true
+}
+
+/** Runs until it sleeps or stops, answering LINK as CART would. */
 function settle(m: Elec16): void {
   for (let k = 0; k < 200; k++) {
     const r = m.run(2_000_000)
+    if (answerCart(m)) continue
     if (r.halted !== null || r.sleeping !== null) return
   }
   throw new Error('the ROM never slept')
@@ -107,7 +148,8 @@ describe('the start screen', () => {
       expect.stringMatching(/^ +ELEC-16 PLAY$/),
       expect.stringMatching(/^ +PLAY-320$/),
       expect.stringMatching(/^ +RAM 32K {2}XRAM 512K$/),
-      expect.stringMatching(/^ +NO CARTRIDGE$/),
+      // Switched on, nobody has pressed anything yet: CART is HELD, and START will ask.
+      expect.stringMatching(/^ +PRESS START$/),
     ])
     const r = m.run(1000)
     expect(r.sleeping).toEqual({ key: false, timerMs: null })
@@ -135,6 +177,9 @@ describe('the start screen', () => {
 
   it('draws itself again on BRK, saying nothing', () => {
     const m = switchOn()
+    // A BRK is a person's press: CART is asked from the first one on, as after this one.
+    m.brk()
+    settle(m)
     const before = written(m)
     m.brk()
     settle(m)
@@ -168,7 +213,7 @@ describe('a program the pane runs', () => {
     expect(written(m)[0]).toMatch(/ELEC-16 PLAY$/)
   })
 
-  it('answers -1 for what PLAY-320 has no part for: a key, a line, LINK', () => {
+  it('answers -1 for what PLAY-320 has no part for: a key and a line', () => {
     const m = switchOn()
     runCode(
       m,
@@ -179,12 +224,9 @@ describe('a program the pane runs', () => {
       li t0, 7
       ecall
       mv s1, a0
-      li t0, 8
-      ecall
-      mv s2, a0
       ret`,
     )
-    expect([reg(m, 's0'), reg(m, 's1'), reg(m, 's2')]).toEqual([0xffff, 0xffff, 0xffff])
+    expect([reg(m, 's0'), reg(m, 's1')]).toEqual([0xffff, 0xffff])
   })
 
   it('stops at BRK and at EBREAK saying where, and at a fault saying which', () => {
@@ -233,5 +275,153 @@ describe('a program the pane runs', () => {
     const m = switchOn()
     expect(IO).toBe(0xff00)
     expect(m.bus.read16(0xf000)).toBe(0)
+  })
+})
+
+/** What is written, each row trimmed: the start screen centres its words. */
+const lines = (m: Elec16) => written(m).map((row) => row.trim())
+
+/** The bundled demo, built from its source as gen:elec16 builds it. */
+function demo(): Uint8Array {
+  const at = 'resources/elec16/games/demo/'
+  const made = buildGame(
+    readFileSync(`${at}game.s`, 'utf8'),
+    JSON.parse(readFileSync(`${at}game.json`, 'utf8')),
+  )
+  if ('errors' in made) throw new Error(JSON.stringify(made.errors))
+  return made.image
+}
+
+/** A button pressed and let go, a frame apart. */
+function tap(m: Elec16, bit: number): void {
+  m.pad(bit)
+  settle(m)
+  m.advance(17)
+  settle(m)
+  m.pad(0)
+  m.advance(17)
+  settle(m)
+}
+
+describe('the cartridge on the start screen', () => {
+  it('names the game in the slot once someone pressed something, and says START', () => {
+    slot.image = demo()
+    const m = switchOn()
+    m.reset()
+    settle(m)
+    expect(lines(m)).toContain('ELEC-16 PLAY DEMO')
+    expect(lines(m).at(-1)).toBe('PRESS START')
+    expect(slot.asked).toEqual([0])
+  })
+
+  it('says when there is none, and when LINK or CART is off', () => {
+    const m = switchOn()
+    m.reset()
+    settle(m)
+    expect(lines(m).at(-1)).toBe('NO CARTRIDGE')
+    slot.off = true
+    m.reset()
+    settle(m)
+    expect(lines(m).at(-1)).toBe('LINK CART IS OFF')
+  })
+
+  it('loads the game with START and starts it; START in the game comes back', () => {
+    slot.image = demo()
+    const m = switchOn()
+    tap(m, padBit('start'))
+    expect(slot.asked).toEqual([1])
+    expect(m.state.cart?.id).toBe('DEMO')
+    expect(lines(m)[0]).toBe('ELEC-16 PLAY DEMO')
+    expect(m.state.bank).toBe(CART_BANK)
+    // Asleep for VBLANK each frame: a game, not the start screen.
+    expect(m.run(1000).sleeping?.timerMs).not.toBeNull()
+    tap(m, padBit('start'))
+    expect(lines(m)).toContain('ELEC-16 PLAY')
+    expect(lines(m)).toContain('PRESS START')
+  })
+
+  it('stays on the start screen saying why when START finds no cartridge', () => {
+    const m = switchOn()
+    tap(m, padBit('start'))
+    expect(slot.asked).toEqual([1])
+    expect(lines(m).at(-1)).toBe('NO CARTRIDGE')
+    expect(m.state.cart).toBeNull()
+    // And START again asks again.
+    slot.image = demo()
+    tap(m, padBit('start'))
+    expect(m.state.cart?.id).toBe('DEMO')
+  })
+
+  it('takes START pressed and let go before the ROM looked, as a key tapped on the PC is', () => {
+    slot.image = demo()
+    const m = switchOn()
+    m.pad(padBit('start'))
+    m.pad(0)
+    settle(m)
+    expect(slot.asked).toEqual([1])
+    expect(m.state.cart?.id).toBe('DEMO')
+  })
+
+  it('does not take START let go after it was held from before as a press', () => {
+    slot.image = demo()
+    const m = switchOn()
+    // Held while the start screen was drawn, then let go: no press.
+    m.pad(padBit('start'))
+    m.reset()
+    settle(m)
+    expect(slot.asked).toEqual([0])
+    m.pad(0)
+    settle(m)
+    expect(slot.asked).toEqual([0])
+  })
+
+  it('takes a button other than START at the start screen as nothing', () => {
+    slot.image = demo()
+    const m = switchOn()
+    for (const b of ['a', 'b', 'select', 'up'] as const) tap(m, padBit(b))
+    expect(slot.asked).toEqual([])
+    expect(lines(m)).toContain('PRESS START')
+  })
+})
+
+describe('the bundled demo', () => {
+  /** The colour of the dot at (x, y) of the bitmap. */
+  const dot = (m: Elec16, x: number, y: number) =>
+    ((m.state.video?.mem[y * 80 + (x >> 2)] ?? 0) >> (6 - (x & 3) * 2)) & 3
+
+  it('is what games.json holds (run npm run gen:elec16 after changing it)', () => {
+    const file = JSON.parse(readFileSync('resources/elec16/games/games.json', 'utf8')) as {
+      games: { data: string; about: string }[]
+    }
+    expect(file.games.map((g) => fromBase64(g.data))).toEqual([demo()])
+    expect(readCart(demo())).toMatchObject({ id: 'DEMO', name: 'ELEC-16 PLAY DEMO', saveBanks: 0 })
+  })
+
+  it('draws a square that the d-pad moves and A colours anew, and BRK stops it saying where', () => {
+    slot.image = demo()
+    const m = switchOn()
+    tap(m, padBit('start'))
+    expect(dot(m, 152, 140)).toBe(3)
+    m.pad(padBit('right'))
+    for (let k = 0; k < 4; k++) {
+      m.advance(17)
+      settle(m)
+    }
+    m.pad(0)
+    m.advance(17)
+    settle(m)
+    expect(dot(m, 152, 140)).toBe(0)
+    expect(dot(m, 168, 140)).toBe(3)
+    tap(m, padBit('a'))
+    expect(dot(m, 168, 140)).toBe(1)
+    // A tapped between two frames counts as well.
+    m.pad(padBit('a'))
+    m.pad(0)
+    m.advance(17)
+    settle(m)
+    expect(dot(m, 168, 140)).toBe(2)
+    m.brk()
+    settle(m)
+    expect(lines(m).at(-1) ?? '').toMatch(/^BREAK AT C[0-9A-F]{3}$/)
   })
 })

@@ -7,6 +7,7 @@
 
 import { z } from 'zod'
 import { CARD_FILE_MAX, CARD_OP, type CardRequest } from './elec16/card.js'
+import { CART_ID } from './elec16/cartridge.js'
 import {
   DEFAULT_MODEL,
   DEFAULT_XRAM_KB,
@@ -77,6 +78,8 @@ export const Elec16UnitSchema = z.object({
   autoOff: AutoOffSchema.default(10),
   // Units made before extended RAM take the most, as a new one does.
   xram: XramSchema.default(DEFAULT_XRAM_KB),
+  /** PLAY-320: the game in its slot, by id (docs/elec16-play.md section 7); none: empty. */
+  cart: z.string().regex(CART_ID).optional(),
   created: z.number(),
 })
 export type Elec16Unit = z.infer<typeof Elec16UnitSchema>
@@ -92,6 +95,20 @@ export const Elec16UnitChangeSchema = z
   })
   .partial()
 export type Elec16UnitChange = z.infer<typeof Elec16UnitChangeSchema>
+
+/** A game on ELEC-16 PLAY's shelf, as the page sees it (main keeps the image). */
+export interface Elec16Game {
+  id: string
+  name: string
+  banks: number
+  saveBanks: number
+  /** elecdex's own (resources/elec16/games), or one the user imported. */
+  bundled: boolean
+  /** A line about it: the bundled game's, or the name the imported file had. */
+  about: string
+}
+
+export type Elec16GameImport = { ok: true; id: string } | { ok: false; problem: string }
 
 /** Where a new unit starts: a pane made before units seeds it with what it had. */
 export interface Elec16UnitSeed {

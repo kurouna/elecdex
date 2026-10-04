@@ -191,6 +191,16 @@ export const CH = {
     filesChanged: 'elec16:files-changed',
     /** main -> renderer: give this unit back, with its machine (MOVE HERE elsewhere). */
     giveBack: 'elec16:give-back',
+    /** ELEC-16 PLAY's game shelf (docs/elec16-play.md section 7), apart from CHIP-8's. */
+    games: 'elec16:games',
+    gamesImport: 'elec16:games-import',
+    gamesRemove: 'elec16:games-remove',
+    /** A game put in the unit's slot, or taken out. */
+    gamesInsert: 'elec16:games-insert',
+    /** The image of the game in the unit's slot, for a machine restored mid-game. */
+    gamesImage: 'elec16:games-image',
+    /** main -> renderer: the shelf changed. */
+    gamesChanged: 'elec16:games-changed',
   },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {

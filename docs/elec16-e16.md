@@ -650,7 +650,7 @@ STATUS: 0 なし、1 あふれ、2 0 での割り算、3 関数の引数、4 数
 
 ### 4.8 LINK（AI に聞く）
 
-LINK は、elecdex の main が持つサービスを番号で呼ぶ口です。今あるのはサービス 0、**AI**（設定の AI のプロバイダが答える）だけです。機械は問いを RAM に置いて SEND し、答えは指定した RAM に届きます。ネットワークにつなぐのは elecdex で、機械とページは直接話しません。使う前に、PANEL の TUNE で LINK を ON にし、プロバイダを選びます（[BASIC 取扱説明書](elec16-basic.md) §15）。
+LINK は、elecdex の main が持つサービスを番号で呼ぶ口です。今あるのはサービス 0、**AI**（設定の AI のプロバイダが答える）と、サービス 1、**CART**（ゲーム機 PLAY-320 のカートリッジ。[elec16-play.md](elec16-play.md) §7）です。機械は問いを RAM に置いて SEND し、答えは指定した RAM に届きます。ネットワークにつなぐのは elecdex で、機械とページは直接話しません。AI を使う前に、PANEL の LINK で LINK と AI を ON にし、プロバイダを選びます（LINK 全体は既定で ON、AI は既定で OFF、CART は既定で ON）（[BASIC 取扱説明書](elec16-basic.md) §15）。
 
 | 番地 | オフセット | 名前 | 中身 |
 |---|---|---|---|

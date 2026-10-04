@@ -11,9 +11,12 @@ files:
   # What each build bundled, read to write THIRD_PARTY_NOTICES.txt; not part of the app.
   - '!out/.notices/**'
   - resources/**
-  # The ELEC-16's ROM and SOFT CARD sources: the app reads only what they are built into.
+  # The ELEC-16's ROMs and SOFT CARD sources: the app reads only what they are built into.
   - '!resources/elec16/rom/**'
   - '!resources/elec16/soft/**'
+  - '!resources/elec16/play/**'
+  # ELEC-16 PLAY's bundled games: only games.json is read.
+  - '!resources/elec16/games/*/**'
   - package.json
   # The GeoIP package ships the database three ways; only the combined file is read.
   - '!node_modules/@ip-location-db/geo-whois-asn-country-mmdb/geo-whois-asn-country-ipv4.mmdb'

@@ -8,6 +8,8 @@ import {
   cardOp,
   isCardName,
 } from '@shared/elec16/card'
+import { CART_ID, CART_MAX_SAVE_BANKS } from '@shared/elec16/cartridge'
+import { BANK_SIZE } from '@shared/elec16/map'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
 import { SOFT_HELP_MAX, type SoftFile } from '@shared/elec16/soft-card'
 import {
@@ -305,9 +307,44 @@ export class Elec16Units {
 
   #writeBackup(id: string, snapshot: unknown): boolean {
     if (!(snapshot instanceof Uint8Array) || snapshot.length > SNAPSHOT_MAX_SIZE) return false
-    if (decodeSnapshot(snapshot) === null) return false
+    const state = decodeSnapshot(snapshot)
+    if (state === null) return false
     this.#write(path.join(this.#unitDir(id), 'ram.e16s'), snapshot)
+    // The cartridge's save RAM is kept by the game's id too, for when it is put in again.
+    const cart = state.cart
+    if (cart !== null && cart.save.length > 0) this.#write(this.#saveFile(id, cart.id), cart.save)
     return true
+  }
+
+  #saveFile(unit: string, game: string): string {
+    return path.join(this.#unitDir(unit), 'saves', `${game}.sav`)
+  }
+
+  /** The save RAM a unit keeps for a game; none when it has none (or no such unit). */
+  saveOf(unit: unknown, game: string): Uint8Array | undefined {
+    if (this.unit(unit) === null || !CART_ID.test(game)) return undefined
+    try {
+      const file = this.#saveFile(unit as string, game)
+      if (statSync(file).size > CART_MAX_SAVE_BANKS * BANK_SIZE) return undefined
+      return new Uint8Array(readFileSync(file))
+    } catch {
+      return undefined
+    }
+  }
+
+  /**
+   * GAMES: a game put in the unit's slot, or taken out (null) - only by the pane that holds it,
+   * a game id as a header has one. The unit with its slot as it now is; null when refused.
+   */
+  setCart(id: unknown, holder: Holder, game: string | null): Elec16Unit | null {
+    const unit = this.unit(id)
+    if (unit === null || !this.#holds(unit.id, holder)) return null
+    if (game !== null && !CART_ID.test(game)) return null
+    const { cart: _was, ...rest } = unit
+    const next: Elec16Unit = game === null ? rest : { ...rest, cart: game }
+    const file = this.#units.read()
+    this.#units.write({ ...file, units: file.units.map((u) => (u.id === unit.id ? next : u)) })
+    return next
   }
 
   #write(file: string, bytes: Uint8Array | string): void {

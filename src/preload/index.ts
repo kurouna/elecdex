@@ -33,6 +33,8 @@ import type {
   Elec16Board,
   Elec16Claim,
   Elec16FileInfo,
+  Elec16Game,
+  Elec16GameImport,
   Elec16ImportResult,
   Elec16Unit,
 } from '@shared/elec16-units'
@@ -595,6 +597,17 @@ const api: ElecdexApi = {
     onChange: (handler) => listen<Elec16Board>(CH.elec16.changed, handler),
     onFilesChange: (handler) => listen<string>(CH.elec16.filesChanged, handler),
     onGiveBack: (handler) => listen<string>(CH.elec16.giveBack, handler),
+    games: () => ipcRenderer.invoke(CH.elec16.games) as Promise<Elec16Game[]>,
+    importGame: () => ipcRenderer.invoke(CH.elec16.gamesImport) as Promise<Elec16GameImport | null>,
+    removeGame: (id) => ipcRenderer.invoke(CH.elec16.gamesRemove, id) as Promise<boolean>,
+    insertGame: (unit, pane, id) =>
+      ipcRenderer.invoke(CH.elec16.gamesInsert, unit, pane, id) as Promise<Elec16Unit | null>,
+    onGamesChange: (handler) => listen<null>(CH.elec16.gamesChanged, () => handler()),
+    gameImage: (unit, pane) =>
+      ipcRenderer.invoke(CH.elec16.gamesImage, unit, pane) as Promise<{
+        image: Uint8Array
+        digest: Uint8Array
+      } | null>,
   },
   chip8: {
     list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,

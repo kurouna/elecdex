@@ -12,6 +12,13 @@ export const PLAY_SOURCES: readonly string[] = ['play.e16.ts']
 /** The PLAY ROM's own RAM: above the work area main.s keeps (0000-00FF). */
 export const PLAY_DATA = { start: 0x0100, end: 0x0200 }
 
+/**
+ * Where a source of the PLAY ROM is, under resources/elec16: its own folder, but for what it
+ * shares with the pocket ROM - LINK's service (link.s), one file for both.
+ */
+export const playRomFile = (name: string): string =>
+  name === 'link.s' ? `rom/${name}` : `play/${name}`
+
 /** Compiles it; `read` gives a source's text by its name in resources/elec16/play. */
 export function compilePlay(read: (name: string) => string, opt: 0 | 1 | 2 = 2): E16cResult {
   const files = PLAY_SOURCES.map((name) => ({ name: `play/${name}`, text: read(name) }))

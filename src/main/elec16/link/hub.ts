@@ -7,7 +7,8 @@ import { z } from 'zod'
  * by the page that runs it, given to the service it names. The hub knows no service: each is
  * a `LinkService` (the AI is ai.ts), and another is one more in the list. What the hub does is
  * the same for all - one request at a time a unit, a time limit, dropping one the machine let
- * go, and nothing at all while LINK is off in TUNE. Free of Electron, everything passed in.
+ * go, and nothing at all while LINK, or that service, is off in the LINK panel. Free of
+ * Electron, everything passed in.
  */
 
 /** What a service gets beside the request. */
@@ -27,8 +28,8 @@ export interface LinkService {
 
 export interface LinkHubDeps {
   services: readonly LinkService[]
-  /** LINK is on in TUNE. */
-  enabled(): boolean
+  /** LINK, and this service, are on (the LINK panel). */
+  enabled(service: number): boolean
   setTimer(fn: () => void, ms: number): unknown
   clearTimer(handle: unknown): void
 }
@@ -65,10 +66,13 @@ export class LinkHub {
     const checked = this.#check(raw)
     if ('status' in checked) return checked
     const { request, service } = checked
-    if (!this.#deps.enabled()) {
+    if (!this.#deps.enabled(request.service)) {
       // Off is a fresh start: what was said before is not taken up again when it comes on.
       for (const s of this.#deps.services) s.forget(unit)
-      return { status: LINK_STATUS.off, note: 'LINK is off: turn it on in TUNE' }
+      return {
+        status: LINK_STATUS.off,
+        note: 'LINK or this service is off: turn it on in the LINK panel',
+      }
     }
     this.#out.get(unit)?.abort.abort()
     const out: Out = { serial: request.serial, abort: new AbortController() }

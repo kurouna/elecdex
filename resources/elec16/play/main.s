@@ -13,6 +13,14 @@ RETPC    = 0x12     ; where an ECALL service returns to
 ERA      = 0x14     ; the caller's ra while an ECALL service runs
 CAUSE    = 0x16     ; mcause of the last break or fault
 REGS     = 0x20     ; 16 words at the last break or fault: pc, then x1 to x15
+LASTPAD  = 0x1c     ; the buttons held at the start screen's last look
+BRKFLAG  = 0x1e     ; BASIC's in the pocket ROM: always 0 here, for link.s
+
+; The pad (shared/elec16/pad.ts) and the cartridge (shared/elec16/cartridge.ts).
+IO_PAD      = -0x7f0   ; F810: the buttons held
+IO_PAD_HIT  = -0x7ee   ; F812: those that went down or up since cleared
+PAD_START   = 0x400
+CART_BANK   = 0x100
 
 STACK_TOP = 0x8000  ; the stack grows down from the top of RAM, above the code area
 
@@ -27,13 +35,13 @@ reset:
 services:
   j putc          ; 0  a0: a character (CR a new line, BS back, CLS clear)
   j puts          ; 1  a0: the address of text ended by a zero
-  j none          ; 2  getkey: no keyboard (the pad is G3)
+  j none          ; 2  getkey: no keyboard (the pad is read at F810)
   j cls           ; 3  clears the screen
   j locate        ; 4  a0: column, a1: row
   j puthex        ; 5  a0: a word, as four hex digits
   j newline       ; 6
   j none          ; 7  readline: no keyboard
-  j none          ; 8  LINK (G4)
+  j link          ; 8  LINK: as the pocket ROM's (link.s)
 SERVICES = 9
   .option compress
 
@@ -49,16 +57,52 @@ start:
   j boot
 
 ; The start screen, with what stopped the last program (a0: mcause, a1: its pc; 0 for none),
-; then asleep until BRK. Nothing but BRK wakes it: no line is enabled.
+; then asleep until START is pressed (the pad's line wakes it) or BRK. START loads the game in
+; the slot through LINK's CART and starts it (startPressed, play.e16.ts); when it cannot, the
+; start screen says why and waits again.
 boot:
   li sp, STACK_TOP
   call bootScreen
 idle:
-  csrwi mie, 0
+  li t0, 1 << IRQ_PAD
+  csrw mie, t0
+  li t1, IO_PAD
+  lw t0, 0(t1)
+  sw t0, LASTPAD(zero)
 idle_sleep:
   wfi
-  j idle_sleep
+  ; A press is a button marked in PADHIT that was up at the last look: one pressed and let go
+  ; before the ROM looked counts too (a key tapped on the PC is often both in one frame).
+  li t1, IO_PAD_HIT
+  lw t0, 0(t1)
+  sw t0, 0(t1)
+  lw t2, LASTPAD(zero)
+  xori t2, t2, -1
+  and t0, t0, t2
+  li t1, IO_PAD
+  lw t2, 0(t1)
+  sw t2, LASTPAD(zero)
+  li t2, PAD_START
+  and t0, t0, t2
+  beqz t0, idle_sleep
+  call startPressed
+  j idle
 idle_end:
+
+; A game started at a0, its entry, with its ROM's first bank in the window and a fresh stack;
+; it comes back to the start screen when it returns. No line is left enabled for it.
+start_game:
+  li sp, STACK_TOP
+  csrwi mie, 0
+  li t0, CART_BANK
+  sw t0, IO_BANK(zero)
+  la ra, game_return
+  jr a0
+
+game_return:
+  li a0, 0
+  li a1, 0
+  j boot
 
 ; Where a program the pane called (CODE's RUN) comes back: what it drew stays on the screen,
 ; and BRK brings the start screen back.
@@ -159,6 +203,8 @@ ecall_return:
   lw ra, ERA(zero)
   lw t3, RETPC(zero)
   jr t3
+
+  .include "link.s"
 
   .align 2
 font:

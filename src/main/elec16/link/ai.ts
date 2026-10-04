@@ -116,7 +116,7 @@ export class AiLinkService implements LinkService {
   #target(): { target: Target; model: string } | LinkAnswer {
     const providerId = this.#deps.provider()
     if (providerId === '') {
-      return { status: LINK_STATUS.off, note: 'no AI provider chosen: pick one in TUNE' }
+      return { status: LINK_STATUS.off, note: 'no AI provider chosen: pick one in the LINK panel' }
     }
     const target = targetFor(this.#deps.providers(), this.#deps.keyFor, providerId)
     if (typeof target === 'string') return { status: LINK_STATUS.failed, note: target }

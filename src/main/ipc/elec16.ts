@@ -7,13 +7,15 @@ import { assemble, ramImage } from '@shared/elec16/asm'
 import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer, isCardName } from '@shared/elec16/card'
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
 import type { LinkAnswer } from '@shared/elec16/link'
-import { LINK_STATUS } from '@shared/elec16/link-services'
-import { CODE_AREA, CODE_AREA_END, TUNE_MODEL_IDS } from '@shared/elec16/map'
+import { LINK_SERVICE, LINK_STATUS } from '@shared/elec16/link-services'
+import { CODE_AREA, CODE_AREA_END, MODELS, TUNE_MODEL_IDS } from '@shared/elec16/map'
 import {
   ELEC16_CLOCKS,
   type Elec16Board,
   type Elec16Claim,
   type Elec16FileInfo,
+  type Elec16Game,
+  type Elec16GameImport,
   type Elec16ImportResult,
   type Elec16Unit,
   type Elec16UnitSeed,
@@ -21,7 +23,9 @@ import {
 import { app, BrowserWindow, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import { appWindows } from '../app-windows.js'
+import { Elec16Games } from '../elec16/games.js'
 import { AiLinkService } from '../elec16/link/ai.js'
+import { CartLinkService } from '../elec16/link/cart.js'
 import { LinkHub } from '../elec16/link/hub.js'
 import { Elec16Units, findElec16Dir, type Holder, readSoftCard } from '../elec16/units.js'
 import { whenPageGoes } from './page-gone.js'
@@ -67,11 +71,9 @@ export function registerElec16Ipc(
 ): {
   dispose: () => void
 } {
-  const units = new Elec16Units(
-    dir,
-    Date.now,
-    readSoftCard(findElec16Dir(path.dirname(fileURLToPath(import.meta.url)))),
-  )
+  const resources = findElec16Dir(path.dirname(fileURLToPath(import.meta.url)))
+  const units = new Elec16Units(dir, Date.now, readSoftCard(resources))
+  const games = new Elec16Games(dir, resources)
   const owner = {}
   const hub = new LinkHub({
     services: [
@@ -86,8 +88,25 @@ export function registerElec16Ipc(
         },
         today: () => new Date().toLocaleDateString('sv-SE'),
       }),
+      new CartLinkService({
+        hasSlot: (unit) => {
+          const u = units.unit(unit)
+          return u === null ? null : MODELS[u.model].cart
+        },
+        inSlot: (unit) => units.unit(unit)?.cart ?? null,
+        image: (game) => games.image(game),
+        saveOf: (unit, game) => units.saveOf(unit, game),
+      }),
     ],
-    enabled: () => settings.current().elec16.link.on,
+    enabled: (service) => {
+      const link = settings.current().elec16.link
+      if (!link.on) return false
+      return service === LINK_SERVICE.ai
+        ? link.ai.on
+        : service === LINK_SERVICE.cart
+          ? link.cart.on
+          : false
+    },
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
   })
@@ -103,6 +122,11 @@ export function registerElec16Ipc(
     for (const win of appWindows()) {
       const page = win.webContents
       if (!page.isDestroyed()) page.send(CH.elec16.changed, boardFor(page))
+    }
+  }
+  const gamesChanged = (): void => {
+    for (const win of appWindows()) {
+      if (!win.webContents.isDestroyed()) win.webContents.send(CH.elec16.gamesChanged, null)
     }
   }
   const filesChanged = (unit: string): void => {
@@ -228,6 +252,38 @@ export function registerElec16Ipc(
         writeFileSync(target, text ? fromMachineText(bytes) : bytes)
         return true
       },
+      [CH.elec16.games]: (): Elec16Game[] => games.list(),
+      [CH.elec16.gamesImport]: async (event): Promise<Elec16GameImport | null> => {
+        const file = await pickGame(event.sender)
+        if (file === undefined) return null
+        const done = games.import(file)
+        if (done.ok) gamesChanged()
+        return done
+      },
+      [CH.elec16.gamesRemove]: (_event, id: unknown): boolean => {
+        const done = typeof id === 'string' && games.remove(id)
+        if (done) gamesChanged()
+        return done
+      },
+      [CH.elec16.gamesImage]: (event, unit: unknown, pane: unknown) => {
+        if (!isPane(pane) || typeof unit !== 'string') return null
+        if (!units.holds(unit, { page: event.sender.id, pane })) return null
+        const game = units.unit(unit)?.cart
+        return game === undefined ? null : games.image(game)
+      },
+      [CH.elec16.gamesInsert]: (
+        event,
+        unit: unknown,
+        pane: unknown,
+        id: unknown,
+      ): Elec16Unit | null => {
+        if (!isPane(pane)) return null
+        // Only a game on the shelf goes in; null takes the one there out.
+        if (id !== null && (typeof id !== 'string' || games.image(id) === null)) return null
+        const done = units.setCart(unit, { page: event.sender.id, pane }, id)
+        if (done !== null) changed()
+        return done
+      },
     },
     on: {
       [CH.elec16.linkDrop]: (event, unit: unknown, pane: unknown, serial: unknown) => {
@@ -253,6 +309,23 @@ async function pickOpen(page: WebContents): Promise<string | undefined> {
     buttonLabel: 'Import',
     filters: [
       { name: 'ELEC-16 files', extensions: ['bas', 'txt', 'bin', 'dat', 'asm', 's'] },
+      { name: 'All files', extensions: ['*'] },
+    ],
+  }
+  const picked = owner
+    ? await dialog.showOpenDialog(owner, options)
+    : await dialog.showOpenDialog(options)
+  return picked.canceled ? undefined : picked.filePaths[0]
+}
+
+async function pickGame(page: WebContents): Promise<string | undefined> {
+  const owner = BrowserWindow.fromWebContents(page)
+  const options: Electron.OpenDialogOptions = {
+    title: 'Put a game on the ELEC-16 PLAY shelf',
+    properties: ['openFile'],
+    buttonLabel: 'Import',
+    filters: [
+      { name: 'ELEC-16 PLAY cartridges', extensions: ['e16g'] },
       { name: 'All files', extensions: ['*'] },
     ],
   }

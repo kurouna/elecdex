@@ -101,8 +101,9 @@ if (play.errors.length > 0) {
   process.exit(1)
 }
 writeFileSync(path.join(playSources, 'play.s'), play.asm)
+const { playRomFile } = await shared('e16c/play-rom.ts')
 const playBuilt = buildRom((name) => {
-  const file = path.join(playSources, name)
+  const file = path.join(root, 'resources', 'elec16', playRomFile(name))
   return existsSync(file) ? readFileSync(file, 'utf8') : null
 })
 if (playBuilt.errors.length > 0) {
@@ -115,3 +116,23 @@ writeFileSync(
 )
 const playUsed = playBuilt.symbols.e16c_fixed_end ?? playBuilt.symbols.rom_end ?? 0
 console.log(`play-rom.json: ${playBuilt.image.length} bytes, fixed ROM to ${playUsed.toString(16)}`)
+
+// ELEC-16 PLAY's bundled games (resources/elec16/games/<name>/game.s and game.json), each built
+// into a .E16G for the shelf (main/elec16/games.ts) in games.json.
+const { buildGame } = await shared('elec16/cart-build.ts')
+const gamesDir = path.join(root, 'resources', 'elec16', 'games')
+const bundled = []
+for (const name of readdirSync(gamesDir, { withFileTypes: true })) {
+  if (!name.isDirectory()) continue
+  const at = path.join(gamesDir, name.name)
+  const meta = JSON.parse(readFileSync(path.join(at, 'game.json'), 'utf8'))
+  const made = buildGame(readFileSync(path.join(at, 'game.s'), 'utf8'), meta)
+  if ('errors' in made) {
+    for (const e of made.errors)
+      console.error(`games/${name.name}/${e.file}:${e.line}: ${e.message}`)
+    process.exit(1)
+  }
+  bundled.push({ data: toBase64(made.image), about: meta.about })
+}
+writeFileSync(path.join(gamesDir, 'games.json'), `${JSON.stringify({ games: bundled }, null, 2)}\n`)
+console.log(`games.json: ${bundled.length} games`)

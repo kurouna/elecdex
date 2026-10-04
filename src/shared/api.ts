@@ -29,6 +29,8 @@ import type {
   Elec16Board,
   Elec16Claim,
   Elec16FileInfo,
+  Elec16Game,
+  Elec16GameImport,
   Elec16ImportResult,
   Elec16Unit,
   Elec16UnitChange,
@@ -535,6 +537,20 @@ export interface Elec16Api {
   onFilesChange(handler: (unit: string) => void): () => void
   /** main asks for a unit back (MOVE HERE in another pane): release it, with its machine. */
   onGiveBack(handler: (unit: string) => void): () => void
+  /** ELEC-16 PLAY's game shelf: the bundled games and the imported ones (no images). */
+  games(): Promise<Elec16Game[]>
+  /** Opens main's picker and puts a .E16G on the shelf; null when nothing was picked. */
+  importGame(): Promise<Elec16GameImport | null>
+  /** An imported game taken off the shelf. */
+  removeGame(id: string): Promise<boolean>
+  /** GAMES: a game put in the unit's slot (null: taken out); only the pane that holds it. */
+  insertGame(unit: string, pane: string, id: string | null): Promise<Elec16Unit | null>
+  onGamesChange(handler: () => void): () => void
+  /**
+   * The image (and hash) of the game in the unit's slot, for a machine restored while it ran
+   * one: its ROM is not in the snapshot. Only the pane that holds the unit; null for none.
+   */
+  gameImage(unit: string, pane: string): Promise<{ image: Uint8Array; digest: Uint8Array } | null>
 }
 
 export interface DockerApi {

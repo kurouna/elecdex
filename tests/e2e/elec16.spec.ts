@@ -838,3 +838,66 @@ test("PLAY-320's body: its buttons pressed from the keys, the pointer and a prog
     await close()
   }
 })
+
+test("PLAY-320's cartridge: GAMES puts the demo in, START plays it, and it goes on after a restart", async () => {
+  // docs/elec16-play.md section 7, G4: the shelf, the slot, CART through LINK (on by default),
+  // the ROM put back after a restore, and the slot emptied by GAMES.
+  test.setTimeout(240_000)
+  const first = await launch(undefined, { layout: BESIDE_CLOCK })
+  let running: Awaited<ReturnType<typeof launch>> | null = first
+  try {
+    const { page } = first
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) =>
+      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await expect(tab('files')).toHaveCount(0)
+    await tab('games').click()
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('empty')
+    await page.locator('[data-testid=elec16-game][data-game=DEMO]').click()
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('ELEC-16 PLAY DEMO')
+    // Put in, the start screen names it (a person's press: CART is asked).
+    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY DEMO')
+    await expect.poll(() => playLines(page)).toContain('PRESS START')
+
+    await page.getByTestId('elec16').focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => playLines(page)).toContain('D-PAD MOVES  A COLOUR  START ENDS')
+
+    // A restart while it plays: the backup has no ROM, which the pane puts back from the shelf.
+    running = null
+    await first.quit()
+    const again = await launch(first.userData)
+    running = again
+    await settleLayout(again.page)
+    await expect
+      .poll(() => playLines(again.page), { timeout: 15_000 })
+      .toContain('D-PAD MOVES  A COLOUR  START ENDS')
+    await again.page.getByTestId('elec16').focus()
+    await again.page.keyboard.press('Enter')
+    await expect.poll(() => playLines(again.page)).toContain('PRESS START')
+
+    // Taken out: the start screen says so, and START finds nothing.
+    const tab2 = (name: string) =>
+      again.page.getByTestId('elec16-tab').and(again.page.locator(`[data-tab=${name}]`))
+    await tab2('games').click()
+    await again.page.getByTestId('elec16-game-eject').click()
+    await expect(again.page.getByTestId('elec16-game-slot')).toHaveText('empty')
+    await expect.poll(() => playLines(again.page)).toContain('NO CARTRIDGE')
+
+    // CART off in the LINK panel: the start screen says that instead.
+    await tab2('games').click()
+    await again.page.locator('[data-testid=elec16-game][data-game=DEMO]').click()
+    await tab2('link').click()
+    await again.page
+      .locator('[data-testid=elec16-link-service][data-service=cart][data-on=false]')
+      .click()
+    await again.page.getByTestId('elec16-reset').click()
+    await expect.poll(() => playLines(again.page)).toContain('LINK CART IS OFF')
+  } finally {
+    await running?.close()
+  }
+})

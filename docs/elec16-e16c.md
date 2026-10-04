@@ -616,7 +616,7 @@ SHIFT、CAPS、カナのキーは `getkey` の中でモードを変えるだけ�
 
 ### 7.5 AI に聞く（ask）
 
-`ask` は、ELEC-16 の LINK（[E16 マニュアル](elec16-e16.md) §4.8）で、elecdex の設定の AI に問いを渡します。使う前に PANEL の TUNE で LINK を ON にし、プロバイダを選んでおきます。
+`ask` は、ELEC-16 の LINK（[E16 マニュアル](elec16-e16.md) §4.8）で、elecdex の設定の AI に問いを渡します。使う前に PANEL の LINK で LINK と AI を ON にし、プロバイダを選んでおきます。
 
 ```ts
 // 打った問いを AI に聞いて、答えを出す。何も打たずに ENTER で終わる。

@@ -22,6 +22,8 @@ import { type CodeTaker, giveCode as giveTo, typeAtBasic } from './code/give.ts'
 import { labelsOf } from './core.ts'
 import Device from './Device.svelte'
 import FilesView from './FilesView.svelte'
+import GamesView from './GamesView.svelte'
+import LinkView from './LinkView.svelte'
 import type { LcdColours, Rgb } from './lcd-painter.ts'
 import MemView from './MemView.svelte'
 import PlayDevice from './PlayDevice.svelte'
@@ -102,8 +104,9 @@ let failed = $state(false)
 const play = $derived(MODELS[runner.model].rom === 'play')
 /** CORE names code by the labels of the ROM the machine runs. */
 const labels = $derived(labelsOf(symbols[MODELS[runner.model].rom]))
-const tabs = $derived(play ? ELEC16_TABS.filter((t) => t !== 'files') : ELEC16_TABS)
-const tab = $derived(play && pane.tab === 'files' ? 'tune' : pane.tab)
+/** FILES (the card and BASIC) on the pocket models, GAMES (the cartridge shelf) on PLAY-320. */
+const tabs = $derived(ELEC16_TABS.filter((t) => t !== (play ? 'files' : 'games')))
+const tab = $derived(tabs.includes(pane.tab) ? pane.tab : 'tune')
 
 const listening = $derived(
   paneFocused && windowFocused && runner.status !== 'empty' && pane.view === 'machine',
@@ -553,7 +556,7 @@ onDestroy(() => {
             ghost={pane.ghost}
             contrast={pane.contrast}
             seen={visible}
-            link={appearance.settings.elec16.link.on}
+            link={appearance.settings.elec16.link.on && appearance.settings.elec16.link.ai.on}
           />
           {/if}
         </div>
@@ -589,6 +592,14 @@ onDestroy(() => {
               canType={canType}
               onload={typeLine}
             />
+          {:else if tab === 'games'}
+            <GamesView
+              inSlot={session.unit?.cart}
+              running={session.phase === 'running'}
+              oninsert={(id) => void session.insertGame(id)}
+            />
+          {:else if tab === 'link'}
+            <LinkView sent={runner.linkSent} note={runner.linkNote} />
           {:else}
             <TuneView
               {pane}
@@ -603,8 +614,6 @@ onDestroy(() => {
               {pasteSkipped}
               canPaste={canType}
               onpaste={() => void paste()}
-              linkSent={runner.linkSent}
-              linkNote={runner.linkNote}
             />
           {/if}
         </div>
