@@ -19,7 +19,7 @@
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="Tron 主题下的 elecdex：左侧是系统监视器，中间是三个 shell 标签页以及启动器和文件浏览器，右侧是世界视图、行情、天气和日历">
 </p>
 
-> **v0.0.20 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
+> **v0.0.21 — 预发布版。** 下文所列功能目前均可使用；构建未经签名。标有 *unreleased* 的内容
 > 已在 `main` 上，将随下一个版本发布。
 >
 > **在 Windows 上开发和使用。** 每次发布都会构建 macOS 和 Linux 版本，但它们只在 GitHub Actions
@@ -167,7 +167,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
   <br><sub>ELEC-16 · CLASSIC 外观</sub>
 </p>
 
-- **ELEC-16** *(unreleased)* — elecdex 自行设计的 16 位袖珍电脑：自己的 RISC CPU、ROM 中的
+- **ELEC-16** — elecdex 自行设计的 16 位袖珍电脑：自己的 RISC CPU、ROM 中的
   BASIC 和机器码监视器、液晶和键盘、存储卡、把 TypeScript 编译成它的机器码的 CODE 画面，以及与 AI
   对话的 LINK。
 
@@ -696,7 +696,7 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   中移动后从原处继续。离开时的状态会保存为 AUTO，即使重启后 LOAD 也会变成 CONTINUE（NEW 则从头开始）；
   SAVE 可为每个程序再保存三个状态，各带屏幕预览。**+ IMPORT** 可导入你自己的程序文件：根据所用指令推断
   机型，同样生成预览，名称和机型之后都可以修改。加了 ★ 的程序会集中到 ★ 标签页。
-- **ELEC-16** *(unreleased)* — 从选择器（"elec-16"）添加。这是为 elecdex 设计的 16 位袖珍
+- **ELEC-16** — 从选择器（"elec-16"）添加。这是为 elecdex 设计的 16 位袖珍
   电脑，并非仿制任何真实机型：CPU（E16，混用 32 位和 16 位指令的 RISC）、ROM、字体和 BASIC 全部
   自行编写。开机进入 **BASIC**：输入 `3*4+SIN 30` 即得答案，加上行号就成为程序（`LIST`、`RUN`、
   `AUTO`、`RENUM`），支持字符串、数组、`DATA`、声音（`BEEP`）、点、线和圆（`PSET`、`LINE`、`CIRCLE`）、时钟

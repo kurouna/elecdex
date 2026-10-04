@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.20 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.21 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -184,7 +184,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   <br><sub>ELEC-16 · CLASSIC skin</sub>
 </p>
 
-- **ELEC-16** *(unreleased)* — a 16-bit pocket computer of elecdex's own design: its own
+- **ELEC-16** — a 16-bit pocket computer of elecdex's own design: its own
   RISC CPU, BASIC and machine-code monitor in ROM, an LCD and a keyboard, a memory card, and
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
 
@@ -856,7 +856,7 @@ weather and calendar.
   more machines per program, each with its screen. **+ IMPORT** takes in a program file of your
   own: the machine is guessed from the instructions it uses, its preview made the same way, and
   its name and machine can be changed. A star puts a program in the starred tab.
-- **ELEC-16** *(unreleased)* — add it from the picker ("elec-16"). A 16-bit pocket
+- **ELEC-16** — add it from the picker ("elec-16"). A 16-bit pocket
   computer designed for elecdex, not a copy of any real one: its CPU (E16, a RISC with 32- and
   16-bit instructions), ROM, font and BASIC are all its own. It starts in **BASIC** - type
   `3*4+SIN 30` for an answer, or numbered lines for a program (`LIST`, `RUN`, `AUTO`, `RENUM`),
