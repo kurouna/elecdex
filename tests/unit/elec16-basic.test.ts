@@ -185,6 +185,22 @@ describe('BASIC', () => {
     expect(annunciated(m)).toContain('RUN')
   })
 
+  it('keeps the line being typed in RUN when there is nothing to call up', () => {
+    const m = switchOn()
+    // Down calls nothing up in RUN, nor up before a line was typed: once the line was lost.
+    type(m, 'ABC')
+    press(m, keyCode('down'))
+    press(m, keyCode('up'))
+    type(m, 'D')
+    expect(shown(m).at(-1)).toBe('>ABCD')
+    // With a line typed before, up calls it up in the line's place, as the manual has it.
+    type(m, '\nPRINT 5\nXYZ')
+    press(m, keyCode('down'))
+    expect(shown(m).at(-1)).toBe('>XYZ')
+    press(m, keyCode('up'))
+    expect(shown(m).at(-1)).toBe('>PRINT 5')
+  })
+
   it('switches with MODE on the same line: the typed text rubbed out, no new prompt below', () => {
     const m = switchOn()
     for (let k = 0; k < 4; k++) press(m, keyCode('mode'))

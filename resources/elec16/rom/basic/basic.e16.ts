@@ -23,7 +23,14 @@ import {
   u16,
   words,
 } from '../../../../src/shared/e16c/builtins'
-import { EDIT_DOWN, EDIT_MODE, EDIT_UP, editLine } from './edit.e16'
+import {
+  EDIT_DOWN,
+  EDIT_MODE,
+  EDIT_RECALLS_DOWN,
+  EDIT_RECALLS_UP,
+  EDIT_UP,
+  editLine,
+} from './edit.e16'
 import { closeFiles, fileByte, fileStatement, printToFile } from './files.e16'
 import { askStatement } from './link.e16'
 import {
@@ -1596,7 +1603,11 @@ export function basicLoop(): void {
     }
     prompt = true
     if (length === 0) length = autoPrefix()
-    const n: i16 = editLine(addr(lineBuf), LINE_MAX, length)
+    // PRO calls the program's lines up and down; RUN only the line typed last, by up.
+    let recalls: u16 = 0
+    if (proMode) recalls = EDIT_RECALLS_UP | EDIT_RECALLS_DOWN
+    else if (lastLength > 0) recalls = EDIT_RECALLS_UP
+    const n: i16 = editLine(addr(lineBuf), LINE_MAX, length, recalls)
     length = 0
     if (n === EDIT_UP || n === EDIT_DOWN) {
       length = recall(n === EDIT_UP)

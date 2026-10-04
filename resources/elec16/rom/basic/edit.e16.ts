@@ -50,6 +50,9 @@ export const EDIT_BRK = -2
 export const EDIT_MODE = -3
 export const EDIT_UP = -4
 export const EDIT_DOWN = -5
+/** editLine's `recalls`: up, and down, call a line up (otherwise they do nothing). */
+export const EDIT_RECALLS_UP = 1
+export const EDIT_RECALLS_DOWN = 2
 
 /** The cell (column, then rows below) where the line began. */
 let startX: u16 = 0
@@ -99,9 +102,11 @@ function clearRest(col: u16, row: u16): void {
  * most `max`. Its length when ENTER is pressed (the text ended by a zero), or EDIT_CLS (the
  * screen was cleared), EDIT_BRK, EDIT_MODE, EDIT_UP or EDIT_DOWN, the line given up. Up, down
  * and MODE rub the line out and leave the cursor where it began, for the next one to take its
- * place - MODE's at the same prompt, not a new one down the screen at every press.
+ * place - MODE's at the same prompt, not a new one down the screen at every press. Up and
+ * down end the editing only where `recalls` says there is a line to call up (EDIT_RECALLS_UP,
+ * EDIT_RECALLS_DOWN); where there is none they do nothing, and the line typed stays.
  */
-export function editLine(buf: u16, max: u16, length: u16): i16 {
+export function editLine(buf: u16, max: u16, length: u16, recalls: u16): i16 {
   startX = peek16(CURX)
   startY = peek16(CURY)
   n = length
@@ -110,7 +115,7 @@ export function editLine(buf: u16, max: u16, length: u16): i16 {
   poke16(IO_CURMODE, 6)
   for (;;) {
     const k = getkey()
-    const control = controlKey(k)
+    const control = controlKey(k, recalls)
     if (control === 0) {
       editKey(buf, max, k)
       continue
@@ -172,13 +177,14 @@ function write(buf: u16, k: u16): void {
 }
 
 /** Keys that end the editing: 1 for ENTER, the EDIT_ answer for the others, 0 for the rest. */
-function controlKey(k: u16): i16 {
+function controlKey(k: u16, recalls: u16): i16 {
   if (k === K_ENTER) return 1
   if (k === K_CLS) return EDIT_CLS
   if (k === K_BRK) return EDIT_BRK
   if (k === K_MODE) return EDIT_MODE
-  if (k === K_UP) return EDIT_UP
-  if (k === K_DOWN) return EDIT_DOWN
+  // With nothing to call up, an arrow is a key that edits nothing (editKey passes it by).
+  if (k === K_UP) return (recalls & EDIT_RECALLS_UP) !== 0 ? EDIT_UP : 0
+  if (k === K_DOWN) return (recalls & EDIT_RECALLS_DOWN) !== 0 ? EDIT_DOWN : 0
   return 0
 }
 
