@@ -595,3 +595,44 @@ TS の部分集合 (*.e16.ts)
 - 実在の機種との互換（ROM、BASIC の方言、キーの刻印、本体のデザイン）
 - 巻き戻し、ROM の中のアセンブラ（アセンブラはページの .asm の IMPORT で使う）、利用者が作るスキン（JSON。v1 はデータとして 8 つだけ）、GAME モデル、プリンタ、カセットの音、シリアル
 - ユニット間の通信、ポップアップ表示。ネットワークは LINK（§12）だけで、main が行う
+
+## 15. 直すときの手順と落とし穴（2026-10-04 までに分かったこと）
+
+新しいセッションで ELEC-16 を直すときに、まずここを読む。規則そのものは CLAUDE.md、理由は decisions.md にある。
+
+**変更の流れ**
+
+- ROM（`resources/elec16/rom`、`rom/basic/*.e16.ts`）か SOFT CARD（`resources/elec16/soft`）を変えたら `npm run gen:elec16` を実行し、`basic.s`、`src/renderer/widgets/elec16/rom.json`、`resources/elec16/soft.json` を元のファイルと同じコミットに入れる。手で書き換えない
+- 固定 ROM の残りは少ない（2026-10-04 で BB90 ほどまで使い、上限は C000）。新しい文はバンクに置く（`BASIC_SOURCES`。バンク 5 が ASK）。gen の出力の「fixed ROM to …」で残りを見る
+- 新しいキーワードは `text.e16.ts` の `KEYWORDS` の末尾に足し、トークンの定数も末尾に足す（0xDD まで使っている。カナは文字列の中だけなので重ならない）。BASIC 取扱説明書の予約語の付録と文の表も直す
+- 機械が持つ状態（`state.ts`）を増やしたら、スナップショットの版を上げ、古い版も読む（`snapshot.ts` の `readLink` と版 1 の扱いが見本）。利用者の電池バックアップを捨てないため
+- 割り込みの線を足したら `IRQ`、`MIE_LINES`、`#pending()`、ROM の `io.inc`（rom.ts が作る）を揃える。ROM がその線を mie に足して待つなら、BRK でモニタへ落ちたとき（`save_all`）にも mie が戻ることを確かめる（戻らないと WFI が起き続けた）
+- 利用者に見える変化は説明書（BASIC、E16、e16c、SOFT CARD）を同じコミットで直す。説明書の例は、できるだけテストが説明書から読んで機械の上で動かす（`tests/unit/elec16-ask.test.ts` の「manual」のテストが見本）
+
+**テストの道具**（`tests/unit/elec16-helpers.ts`）
+
+- `switchOn(model)` でプロンプトまで、`type(m, 'RUN\n')` は人と同じくキーを押す（PASTE ではないので LINK の「人の操作」になる）、`press(m, keyCode('mode'))` は 1 キー、`settle(m)` はキー待ちまで動かす。BRK はキーではないので `m.brk(); settle(m)`
+- `settle` はカードの命令を `card` で、LINK の依頼を `linkService.answer` で答える。答えを `null` にすると依頼は出たまま（遅いサービス）。`linkService.asked` に依頼が残る
+- `settle` はタイマーで眠るプログラムでは時間を進めるが、キーを読み続けるプログラム（`INKEY$`）は終わらない。SOFT CARD のテストの `runFor` と `tap` を使う
+- 画面は `screen(m)`（全行）、`shown(m)`（カーソルの行まで）。行末の空白は落ちる（`'>10 '` は `'>10'`）。正の数の `PRINT` は前に空白を付けず、後ろに付ける
+- 機械語は `assemble` と `ramImage` で 7000 に置き、`type(m, 'CALL 28672\n')`（BASIC は 16 進の `&H` を読まない）。CODE の TypeScript は `buildCode` と `m.loadCode(CODE_START, …)`
+
+**e16c で書くときの落とし穴**
+
+- `u16()`、`i16()` を値として使うファイルは `import { u16 }` にする（`import { type u16 }` は型だけになり、typecheck:e16c が落ちる）
+- 入れ子の条件式 `f ? 1 | 2 : n > 0 ? 1 : 0` は「3 does not fit a bool」と断られる（内側が bool と読まれる e16c の不具合。直るまでは if 文で書く）
+- アセンブリからだけ呼ぶ関数は export する（-O2 が落とす）。関数名と大域変数の名前は全ファイルで 1 つ（ROM のラベルとも重ねない）
+- e16c の変更の前後に `E16C_FUZZ_SEEDS=2000` でファズを回す
+
+**ページと main**
+
+- 答えを main から待つ機械（LINK、カード）は KEY も許可して眠るので、runner はそれをプロンプトとは見なさない（`#waitsForMain`）。待ち方を足したらここにも入れる
+- LINK の新しいサービスは main の `LinkService` と `link-services.ts` の 1 行で足す。コア、ページ、ROM サービス 8 は変えない。AI の答えの上限は、考えるモデル（Gemini 2.5 など）が考える分も含む
+- 見た目の変更は 1920×1080 で画面写真を撮って確かめる。スキンは PLAIN（テーマに従う）と固定色のものの両方、テーマは暗いものと Business Light で見る
+- 録画用の台本: `npm run demo:elec16`（ELEC-16 だけ）、紹介ツアー（`scripts/demo-beats.mjs` の `elec16` と `toTab`。retro プリセットの並び）。見た目や操作を変えたら `--shots` で撮り直して見る
+
+**プロンプトのキーの約束**（BASIC 取扱説明書 §1.3、§2.3、§3.3。`tests/unit/elec16-basic.test.ts`）
+
+- MODE と BRK は打っていた行をその場で消し、同じ行の `>` のまま（押すたびに行を増やさない）
+- ↑↓ は呼び出す行があるときだけ働く（PRO は両方、RUN は打った行があるときの ↑）。なければ何もせず、打っている行を残す
+- ENTER だけとエラーの後は次の行に新しいプロンプト、CLS は画面を消して左上にプロンプト

@@ -205,7 +205,8 @@ user made; do not reverse one without asking.
     checked first. AUTO is written when play stops (never on a timer, only if it moved). Changes
     broadcast `chip8:changed`; the page's library is replaced whole.
 - **The ELEC-16 pane** (§5.19, docs/elec16.md) is designed and built phase by phase: read
-  elec16.md before working on it.
+  elec16.md before working on it, and its section 15 (how a change is made, the test helpers,
+  the traps met so far) before changing it.
   - Its user manuals, in Japanese, are docs/elec16-basic.md (BASIC), docs/elec16-e16.md (the
     ISA, the assembler, the monitor, ROM services), docs/elec16-e16c.md (e16c and CODE) and
     docs/elec16-soft.md (the SOFT CARD's programs), linked from all three READMEs. A SOFT CARD
@@ -237,14 +238,20 @@ user made; do not reverse one without asking.
     touches the card: it makes a request, the page passes it on, main does it (`cardOp`).
   - BASIC's second half lives in ROM banks 0-3, the monitor's U and B in 4, ASK in 5 (`BASIC_SOURCES`);
     a bank's strings are read only in that bank. String variables have a fixed room: no
-    garbage collector. B writes C.EBREAK into RAM code only while G runs it.
+    garbage collector. B writes C.EBREAK into RAM code only while G runs it. The fixed ROM is
+    nearly full: a new statement goes in a bank. A keyword is only ever added at the end of
+    `KEYWORDS` (a program keeps tokens) and becomes a reserved word (the BASIC manual's appendix).
+  - What a snapshot keeps is the unit's battery backup: a change to it bumps
+    `SNAPSHOT_VERSION` and still reads every older version (a unit comes back with its RAM, the
+    new part as a new machine's); a version's layout never changes once pushed.
   - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
     once - never at device pixels - and at most thirty times a second (`drawMs`; measured).
   - CODE compiles in a blob worker (`?worker&inline`, CSP unchanged); a person's code runs only
     as E16 code on the core, never as JavaScript. Only the worker and tests import
     shared/e16c/program.ts (it pulls in TypeScript's parser); the page reads code-area.ts.
-  - The body follows the agreed mock (name plate but on Business, key layout, key tops) and
-    is never stretched: `deviceFit` sizes it, the pane's room goes round it.
+  - The body follows the agreed mock (name plate but on Business and PLAIN, key layout, key
+    tops) and is never stretched: `deviceFit` sizes it, the pane's room goes round it. PLAIN
+    draws no case (`bare`) and a flat screen (`lcd.flat`), every colour the theme's.
   - LINK (FF70-FF7E, elec16.md section 12) is the machine's only way out: it names a service
     of main's by number (the AI is 0; another is a `LinkService` in main/elec16/link and a line
     in link-services.ts, never code in the core, the page or the ROM). The core makes a request,
@@ -254,7 +261,10 @@ user made; do not reverse one without asking.
     AI uses the AI settings' providers and keys (a key never reaches the page or the machine;
     a provider with none may be chosen); its answer reaches the machine only as the LCD's
     characters (`lcdReply`), and everything else - dictionary, translation, search, weather -
-    is the model's (search on the provider's side, user decision 2026-10-04).
+    is the model's (search on the provider's side, user decision 2026-10-04). A machine waiting
+    for main (LINK, the card) is not at its prompt: the runner neither counts auto power-off
+    nor tells CODE's RUN it is there. A device line enabled by the ROM is put back
+    (`MIE_LINES`, mie at the monitor's way in).
   - The SOFT CARD (resources/elec16/soft) is written into soft.json only by `npm run gen:elec16`
     (a test holds it and runs every program); main lays it read-only over every unit's card
     and never writes it. PASTE and LOAD ▸ type through the key FIFO (`pasteKeys`), never
@@ -463,7 +473,9 @@ user made; do not reverse one without asking.
     system column at its width and heights, every pane at its `minSize` (a unit test). Only a
     first start is given them; an existing list is never added to (user decision 2026-09-24).
     Decisions are pure (there and layout-shape.ts); only layout/presets.ts knows presets in the
-    page.
+    page. A new preset also needs its key (keybindings.ts, Workspace.svelte), the LAYOUTS
+    dialog wide enough for every card in one row, tests/e2e/layout-presets.spec.ts's `PRESETS`,
+    and a README shot (scripts/gen-screenshots.mjs) with the counts in all three READMEs.
 - **Shortcuts** are data (src/shared/keybindings.ts), handled in Workspace.svelte; never a key
   check elsewhere. A chord includes Ctrl/Alt or is a function key. `scope: 'global'` actions are
   main's OS registrations, out of the page keymap, the list and "reset all", and `conflicts`
