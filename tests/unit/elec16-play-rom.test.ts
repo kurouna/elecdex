@@ -422,9 +422,11 @@ describe('the bundled demo', () => {
     const file = JSON.parse(readFileSync('resources/elec16/games/games.json', 'utf8')) as {
       games: { data: string; about: string }[]
     }
-    // ELECLANCE, a kit game, between them: elec16-eleclance.test.ts holds it to its sources.
+    // The kit games between them each have a test that holds them to their sources
+    // (elec16-eleclance.test.ts and the others): these two are the assembly samples.
     const images = file.games.map((g) => fromBase64(g.data) ?? new Uint8Array())
-    expect(images.filter((i) => readCart(i)?.id !== 'ELECLANCE')).toEqual([demo(), game('scroll')])
+    const assembly = images.filter((i) => ['DEMO', 'SCROLL'].includes(readCart(i)?.id ?? ''))
+    expect(assembly).toEqual([demo(), game('scroll')])
     expect(readCart(demo())).toMatchObject({ id: 'DEMO', name: 'ELEC-16 PLAY DEMO', saveBanks: 0 })
   })
 

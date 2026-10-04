@@ -44,6 +44,11 @@ export interface KitSheet {
   palette: string
   count?: number
   tile?: number
+  /**
+   * Frames kept in the cartridge and loaded a few at a time: the sheet takes room in video
+   * memory for only this many frames from `tile` (a game `load`s the ones it shows).
+   */
+  stream?: number
 }
 
 export interface KitMap {
@@ -232,11 +237,15 @@ class Assets {
   #sheet(s: KitSheet): void {
     const sheet = readSheet(this.#picture(s.png), s.cell, this.#paletteOf(s.palette), s.count)
     const n = constName(s.name)
-    const place = this.layout.put(sheet.bytes)
-    this.#say(`${n}_TILE`, this.#tilesAt(s.tile, sheet.frames * sheet.tilesPerFrame, s.name))
+    // A sheet larger than a bank starts at one and runs on through the next, as a map does:
+    // frames a game loads one at a time (`load` crosses banks), the rest left in the cartridge.
+    const place = this.layout.put(sheet.bytes, sheet.bytes.length > BANK_SIZE)
+    const shown = Math.min(sheet.frames, s.stream ?? sheet.frames)
+    this.#say(`${n}_TILE`, this.#tilesAt(s.tile, shown * sheet.tilesPerFrame, s.name))
     this.#say(`${n}_BANK`, place.bank)
     this.#say(`${n}_AT`, place.at)
-    this.#say(`${n}_BYTES`, sheet.bytes.length)
+    // A streamed sheet's bytes are its room's (what one `load` copies): the whole may pass a word.
+    this.#say(`${n}_BYTES`, shown * sheet.tilesPerFrame * 32)
     this.#say(`${n}_FRAMES`, sheet.frames)
     this.#say(`${n}_STEP`, sheet.tilesPerFrame)
   }

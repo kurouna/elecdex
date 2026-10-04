@@ -1,0 +1,188 @@
+# ELECDRILL's music (docs/elec16-elecdrill.md section 7), for the game kit's MML
+# (docs/elec16-play.md section 10). Channels 0-11 are the music's; 12-15 the effects'.
+# Sharps are written with + (the compiler reads a hash as a comment).
+#
+# The band in the looping songs:
+#   C0 lead, C1 its echo, C2 harmony, C3 bass, C4 arpeggio, C5 kick, C6 snare, C7 hats
+
+# ----------------------------------------------------------------------------------------
+song main
+# 150 BPM, F major: a hop in the bass, a tune that skips about on the beat's back half.
+tempo 6
+inst lead  wave=sq50 vol=12 env=2/160/9/80 vib=2,6 pan=6
+inst harm  wave=sq25 vol=7  env=5/250/8/120 pan=10
+inst bass  wave=tri  vol=14 env=0/160/9/30
+inst arp   wave=sq12 vol=6  env=0/60/2/30 pan=9
+inst kick  wave=tri  vol=15 env=0/100/0/30 drop=2
+inst snare wave=noise vol=10 env=0/120/0/80 pan=7
+inst hat   wave=noise vol=4 env=0/20/0/20 pan=9
+
+define hop  = l8 [o2 c > c <]4
+define maj  = l16 [o4 c e g > c <]4
+define min  = l16 [o4 c e- g > c <]4
+define kick = o3 c8 r8 r8 c16 c16 c8 r8 r4
+define snr  = o7 r4 c4 r4 c4
+define fill = o7 r4 c4 c8 c16 c16 c16 c16 c16 c16
+define hats = o9 [c16 c16 c8]4
+
+# Two bars in: the drums and the hopping bass.
+C0: @lead v12 r1 r1
+C2: @harm v8 r1 r1
+C3: @bass k5 $hop $hop k0
+C4: @arp r1 r1
+C5: @kick $kick $kick
+C6: @snare r1 $fill
+C7: @hat $hats $hats
+
+# A: F C/E Dm Bb | F C Bb-C F
+C0: L o5 c8 f8 a8 f8 > c4 < a8 f8 | g8. e16 c8 e8 g4 r8 g16 a16 | a8 f8 d8 f8 a8 > d8 < a4 | b-8. a16 g8 f8 d4 r4
+C0: c8 f8 a8 > c8 < b-8 a8 g8 f8 | e8 g8 > c4 < b-8 a8 g8 e8 | d8 e8 f8 g8 a8 b-8 > c8 d8 < | > f4 c8 < a8 f4 r4
+C2: L o4 a2 > c2 < | g2 e2 | f2 a2 | f2 d2 | a2 > c2 < | g2 > c2 < | f2 g2 | a1
+C3: L k5 $hop k4 $hop k2 $hop k10 $hop k5 $hop k0 $hop k10 l8 o2 c > c < c > c < k0 o2 c > c < c > c < k5 $hop k0
+C4: L k5 $maj k0 $maj k2 $min k10 $maj k5 $maj k0 $maj k10 l16 [o4 c e g > c <]2 k0 [o4 c e g > c <]2 k5 $maj k0
+C5: L [$kick]8
+C6: L [$snr]7 $fill
+C7: L [$hats]8
+
+# B: Bb C Am Dm | Gm C F-Bb C7
+C0: o5 d4 f8 b-8 > d4 < b-8 f8 | e4 g8 > c8 e4 < g8 e8 | c8 e8 a8 > c8 < b8 a8 e8 c8 | d8 f8 a8 > d8 c8 < a8 f8 d8
+C0: b-8. a16 g8 d8 g8 a8 b-8 > d8 < | > c4. < b-8 a8 g8 e8 c8 | a8 > c8 < a8 f8 b-8 > d8 < b-8 f8 | g8 a8 b-8 > c8 d8 e8 < b-8 g8
+C2: o4 f2 d2 | e2 g2 | e2 a2 | f2 a2 | d2 g2 | e2 g2 | f2 f2 | e2 b-2
+C3: k10 $hop k0 $hop k9 $hop k2 $hop k7 $hop k0 $hop k5 l8 o2 c > c < c > c < k10 o2 c > c < c > c < k0 $hop
+C4: k10 $maj k0 $maj k9 $min k2 $min k7 $min k0 $maj k5 l16 [o4 c e g > c <]2 k10 [o4 c e g > c <]2 k0 l16 [o4 c e g b- <]4 o4
+C5: [$kick]8
+C6: [$snr]7 $fill
+C7: [$hats]8
+
+echo C1 = C0 delay 9 vol -5 pan 11
+
+# ----------------------------------------------------------------------------------------
+song lowair
+# AIR running low: the same hop, faster (180 BPM) and in F minor, an alarm in the arpeggio.
+tempo 5
+inst lead  wave=sq25 vol=12 env=0/120/8/60 vib=3,7 pan=6
+inst bass  wave=saw  vol=11 env=0/120/9/30
+inst arp   wave=sq12 vol=6  env=0/40/2/20 pan=10
+inst kick  wave=tri  vol=15 env=0/100/0/30 drop=2
+inst snare wave=noise vol=10 env=0/120/0/80 pan=7
+inst hat   wave=noise vol=4 env=0/20/0/20 pan=9
+
+define hop  = l8 [o2 c > c <]4
+define min  = l16 [o4 c e- g > c <]4
+define maj  = l16 [o4 c e g > c <]4
+define kick = o3 c8 c8 r8 c8 c8 r8 c8 r8
+define snr  = o7 r4 c4 r4 c4
+define hats = o9 [c16]16
+
+C0: @lead v12 L o5 f8 a-8 > c8 < a-8 f4 r8 e-16 f16 | g8 a-8 g8 f8 e-4 c4 | d-8 f8 a-8 f8 d-8 f8 a-8 > c8 < | c4 e8 g8 > c4 < r4
+C0: f8 a-8 > c8 < a-8 > f4 e-8 d-8 | c8 d-8 c8 < b-8 a-8 g8 f8 e-8 | d-4 f8 a-8 > d-8 c8 < a-8 f8 | e8 g8 b-8 > c8 e4 < r4
+C3: @bass L k5 $hop k1 $hop k10 $hop k0 $hop k5 $hop k3 $hop k1 $hop k0 $hop
+C4: @arp L k5 $min k1 $maj k10 $min k0 $maj k5 $min k3 $maj k1 $maj k0 $maj
+C5: @kick L [$kick]8
+C6: @snare L [$snr]8
+C7: @hat L [$hats]8
+echo C1 = C0 delay 6 vol -6 pan 11
+
+# ----------------------------------------------------------------------------------------
+song deep
+# The deep strata (300 m on): D minor, a driving bass, the tune higher and longer.
+tempo 6
+inst lead  wave=sq25 vol=12 env=4/250/10/140 vib=3,5 pan=5
+inst harm  wave=tri  vol=8  env=5/300/9/160 pan=10
+inst bass  wave=saw  vol=11 env=0/120/8/40
+inst arp   wave=sq12 vol=6  env=0/60/2/30 pan=11
+inst kick  wave=tri  vol=15 env=0/120/0/40 drop=2
+inst snare wave=noise vol=11 env=0/160/0/120 pan=7
+inst hat   wave=noise vol=5 env=0/20/0/20 pan=9
+
+define run  = l16 [o2 c c > c < c]4
+define min  = l16 [o4 c e- g > c <]4
+define maj  = l16 [o4 c e g > c <]4
+define kick = o3 c8 r8 r16 c16 r8 c8 r8 r16 c16 r8
+define snr  = o7 r4 c4 r4 c4
+define fill = o7 r4 c4 c16 c16 c8 c16 c16 c16 c16
+define hats = o9 [r8 c8]4
+
+C0: @lead v12 L o5 d4. e8 f4 a4 | g4. f8 e4 c4 | d4. e8 f4 g4 | a2. r4
+C0: b-4. a8 g4 f4 | e4. f8 g4 > c4 < | a4 > d4 c4 < b-8 g8 | a2 a4 r4
+C0: > d4. e8 f4 d4 | c4. < b-8 a4 f4 | g4. a8 b-4 > d4 | c+2. r4
+C0: d4 < a4 f4 a4 | b-4 g4 e4 g4 | f4 e4 d4 c+4 | d2. r4 <
+C2: @harm v8 L o4 a1 | g1 | f1 | e1 | d1 | c1 | d2 e2 | c+1 | f1 | e1 | d1 | e1 | f1 | g1 | a2 a2 | a1
+C3: @bass L k2 $run k0 $run k10 $run k9 $run k7 $run k0 $run k5 l16 [o2 c c > c < c]2 k10 [o2 c c > c < c]2 k9 $run
+C3: k2 $run k0 $run k10 $run k9 $run k2 $run k7 $run k9 $run k2 $run k0
+C4: @arp L k2 $min k0 $maj k10 $maj k9 $maj k7 $min k0 $maj k5 l16 [o4 c e g > c <]2 k10 [o4 c e g > c <]2 k9 $maj
+C4: k2 $min k0 $maj k10 $maj k9 $maj k2 $min k7 $min k9 $maj k2 $min k0
+C5: @kick L [$kick]16
+C6: @snare L [$snr]7 $fill [$snr]7 $fill
+C7: @hat L [$hats]16
+echo C1 = C0 delay 12 vol -6 pan 11
+
+# ----------------------------------------------------------------------------------------
+song title
+# 128 BPM, F major, light: a music box over a walking bass, a hop on the second time.
+tempo 7
+inst bell  wave=tri  vol=12 env=0/400/4/300 pan=6
+inst lead  wave=sq50 vol=10 env=4/200/8/120 vib=2,5 pan=9
+inst bass  wave=tri  vol=13 env=0/200/8/60
+inst kick  wave=tri  vol=13 env=0/100/0/30 drop=2
+inst hat   wave=noise vol=3 env=0/20/0/20 pan=9
+
+define bF = l16 [o5 f a > c < a]4
+define bC = l16 [o5 e g > c < g]4
+define bB = l16 [o5 d f b- f]4
+C0: @lead v11 L r1 r1 r1 r1 o5 c8 f8 a8 g8 f4 c4 | d8 f8 b-8 a8 g2 | a8 > c8 f8 e8 d4 c4 < | b-8 a8 g8 e8 f2
+C2: @bell v11 L $bF $bC $bB $bC $bF $bB $bC $bF
+C3: @bass L l4 o2 f a > c < a | e g > c < g | d f b- f | c e g e | f a > c < a | d f b- f | c e g e | f c < f r >
+C5: @kick L [o3 c4 r4 r4 r4]4 [o3 c8 r8 r8 c8 c4 r4]4
+C7: @hat L [r1]4 [o9 r8 c8 r8 c8 r8 c8 r8 c8]4
+
+# ----------------------------------------------------------------------------------------
+song stratum
+# A stratum passed: a fanfare up the F major chord, two bars, once.
+tempo 5
+inst brass wave=sq25 vol=13 env=2/200/10/200 vib=2,6 pan=6
+inst brass2 wave=sq50 vol=9 env=2/200/9/200 pan=10
+inst bass  wave=tri vol=14 env=0/200/10/100
+inst snare wave=noise vol=11 env=0/160/0/120
+C0: @brass o5 c16 f16 a16 > c16 < a16 > c16 f8 e8 f8 a4 r4
+C2: @brass2 o4 a16 > c16 f16 a16 f16 a16 > c8 < b-8 > c8 f4 r4
+C3: @bass o2 f8 r8 f8 r8 c8 c8 f4 r4
+C6: @snare o7 c16 c16 c16 c16 c8 r8 c8 c8 c4 r4
+
+# ----------------------------------------------------------------------------------------
+song goal
+# The core: the fanfare, then the title's tune made bright, round and round.
+tempo 6
+inst brass wave=sq25 vol=13 env=2/200/10/200 vib=2,6 pan=6
+inst harm  wave=sq50 vol=8  env=2/200/9/200 pan=10
+inst bass  wave=tri  vol=14 env=0/200/10/100
+inst arp   wave=sq12 vol=6  env=0/60/2/30 pan=9
+inst kick  wave=tri  vol=15 env=0/100/0/30 drop=2
+inst snare wave=noise vol=10 env=0/120/0/80 pan=7
+define maj = l16 [o4 c e g > c <]4
+C0: @brass v13 o5 c8 c8 c8 f4. a8 g8 | > c2. r4 < L c8 f8 a8 > c4 < a8 > c8 f8 | e4 c4 d4 e4 | f8 e8 d8 c8 < b-8 a8 g8 f8 | a2 g4 r4
+C2: @harm v8 o4 a8 a8 a8 > c4. f8 e8 | g2. r4 < L a2 > c2 | c2 < b-2 | a2 f2 | f2 e2
+C3: @bass o2 f8 f8 f8 f4. f8 c8 | f2. r4 L l8 [o2 f > f <]4 [o2 c > c <]4 [o2 b- > b- <]4 [o2 c > c <]4
+C4: @arp r1 r1 L k5 $maj k0 $maj k10 $maj k0 $maj k0
+C5: @kick r1 r1 L [o3 c8 r8 r8 c16 c16 c8 r8 r4]4
+C6: @snare o7 c16 c16 c16 c16 c4 r2 | c2 r2 L [r4 c4 r4 c4]4
+
+# ----------------------------------------------------------------------------------------
+song over
+# The game's end: down the scale to a low F, slowly, once.
+tempo 8
+inst lead wave=sq50 vol=11 env=2/300/8/400 vib=2,4 pan=8
+inst bass wave=tri vol=13 env=0/400/8/400
+C0: @lead o5 c8 < b-8 a8 g8 f8 e8 d8 c8 | d-4 c4 < f2
+C2: @bass o3 f2 e2 | d-2 < f2
+
+# ----------------------------------------------------------------------------------------
+song result
+# The tally and the name: an easy swing on F and B-flat, round and round.
+tempo 7
+inst bell wave=tri  vol=11 env=0/400/4/300 pan=7
+inst bass wave=tri  vol=12 env=0/200/8/60
+inst hat  wave=noise vol=3 env=0/20/0/20 pan=9
+C0: @bell L l8 o5 f a > c < a b- > d < b- g | a > c f c < b- g e g | f a > c < a b- > d < b- g | a g f e f4 r4
+C3: @bass L l4 o2 f c b- f | f c c < g > | f c b- f | c c f r
+C7: @hat L [o9 r8 c8]16

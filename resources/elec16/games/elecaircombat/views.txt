@@ -1,0 +1,3 @@
+# ELECAIRCOMBAT's views of the fighter (scripts/elecaircombat/plane.mjs): 17 directions to the
+# camera (x right, y up, z ahead, in 64ths), then each one's nearest of the first nine.
+0 22 -60 0 48 -43 0 -38 -52 49 0 -41 64 0 0 49 0 41 0 15 62 0 64 0 0 -64 0 36 43 -31 36 -43 -31 43 48 0 43 -48 0 38 41 32 38 -41 32 0 38 52 0 -38 52 0 1 2 3 4 5 6 7 8 1 2 7 8 5 5 6 6

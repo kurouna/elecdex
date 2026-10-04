@@ -193,7 +193,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   RISC CPU, BASIC and machine-code monitor in ROM, an LCD and a keyboard, a memory card, and
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
   Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
-  channels, with a vertical shooter of its own, ELECLANCE, and a kit to make games for it.
+  channels, with games of its own - ELECLANCE, ELECAIRCOMBAT and ELECDRILL - and a kit to
+  make games for it.
 
 ### Layouts, looks and the rest
 
@@ -895,7 +896,14 @@ weather and calendar.
   time a file is saved - no Node or repository needed
   ([the game developer's guide](docs/elec16-kit.md), in Japanese); the shelf comes
   with **ELECLANCE**, a vertical shooter with a lance, bombs, OVERDRIVE and two bosses
-  ([docs/elec16-eleclance.md](docs/elec16-eleclance.md)); how to play is
+  ([docs/elec16-eleclance.md](docs/elec16-eleclance.md)), **ELECAIRCOMBAT**, a one-on-one
+  dogfight seen from the cockpit - the sky and sea re-tiled every frame so the horizon rolls
+  and pitches, an enemy fighter of our own drawn from 17 views, 8 rotations and 7 sizes and
+  streamed from the cartridge, gun, lock-on missiles and flares against five aces
+  ([docs/elec16-elecaircombat.md](docs/elec16-elecaircombat.md)) - and **ELECDRILL**, a
+  block-digging puzzle: a colour's whole group goes at once, blocks left hanging wobble and
+  fall, four of a colour that land together vanish in chains, with AIR to mind through five
+  strata to the core at 500 m ([docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)); how to play is
   [the PLAY-320 manual](docs/elec16-play-manual.md), in Japanese. LINK is the panel's own tab, with a switch for each service.
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
   three levels of

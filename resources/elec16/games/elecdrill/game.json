@@ -1,0 +1,183 @@
+{
+  "id": "ELECDRILL",
+  "name": "ELECDRILL",
+  "saveBanks": 1,
+  "about": "a block-digging puzzle: drill down through the colours, mind the air and what falls",
+  "sources": [
+    "field.e16.ts",
+    "fall.e16.ts",
+    "hud.e16.ts",
+    "audio.e16.ts",
+    "drill.e16.ts",
+    {
+      "file": "scenes.e16.ts",
+      "bank": 1
+    },
+    {
+      "file": "best.e16.ts",
+      "bank": 1
+    },
+    {
+      "file": "player.e16.ts",
+      "bank": 2
+    },
+    {
+      "file": "fx.e16.ts",
+      "bank": 2
+    },
+    {
+      "file": "panel.e16.ts",
+      "bank": 2
+    }
+  ],
+  "palettes": {
+    "png": "art/palettes.png",
+    "names": [
+      "earth1",
+      "earth2",
+      "earth3",
+      "earth4",
+      "earth5",
+      "red",
+      "yellow",
+      "green",
+      "blue",
+      "flash",
+      "panel",
+      "driller",
+      "fx",
+      "logo"
+    ]
+  },
+  "sheets": [
+    {
+      "name": "font",
+      "png": "art/font.png",
+      "cell": 8,
+      "palette": "panel",
+      "count": 64
+    },
+    {
+      "name": "digits",
+      "png": "art/digits.png",
+      "cell": 8,
+      "palette": "panel",
+      "count": 60
+    },
+    {
+      "name": "tank",
+      "png": "art/tank.png",
+      "cell": 8,
+      "palette": "panel",
+      "count": 18
+    },
+    {
+      "name": "icons",
+      "png": "art/icons.png",
+      "cell": 8,
+      "palette": "panel",
+      "count": 5
+    },
+    {
+      "name": "band",
+      "png": "art/band.png",
+      "cell": 16,
+      "palette": "panel",
+      "count": 3
+    },
+    {
+      "name": "quarters",
+      "png": "art/quarters.png",
+      "cell": 8,
+      "palette": "red",
+      "count": 20
+    },
+    {
+      "name": "ground",
+      "png": "art/ground.png",
+      "cell": 8,
+      "palette": "earth1",
+      "count": 18
+    },
+    {
+      "name": "loose",
+      "png": "art/loose.png",
+      "cell": 16,
+      "palette": "red",
+      "count": 16
+    },
+    {
+      "name": "pop",
+      "png": "art/pop.png",
+      "cell": 16,
+      "palette": "red",
+      "count": 5
+    },
+    {
+      "name": "alloy",
+      "png": "art/alloy.png",
+      "cell": 16,
+      "palette": "panel",
+      "count": 5
+    },
+    {
+      "name": "capsule",
+      "png": "art/capsule.png",
+      "cell": 16,
+      "palette": "panel",
+      "count": 2
+    },
+    {
+      "name": "core",
+      "png": "art/core.png",
+      "cell": 16,
+      "palette": "flash",
+      "count": 1
+    },
+    {
+      "name": "driller",
+      "png": "art/driller.png",
+      "cell": 16,
+      "palette": "driller",
+      "count": 24
+    },
+    {
+      "name": "bit",
+      "png": "art/bit.png",
+      "cell": 16,
+      "palette": "fx",
+      "count": 6
+    },
+    {
+      "name": "fx",
+      "png": "art/fx.png",
+      "cell": 8,
+      "palette": "fx",
+      "count": 10
+    }
+  ],
+  "maps": [
+    {
+      "name": "panels",
+      "png": "art/panels.png",
+      "front": true,
+      "palettes": [
+        {
+          "palette": "panel",
+          "slot": 7
+        }
+      ]
+    },
+    {
+      "name": "logo",
+      "png": "art/logo.png",
+      "palettes": [
+        {
+          "palette": "logo",
+          "slot": 5
+        }
+      ]
+    }
+  ],
+  "music": ["music/songs.mml", "music/sfx.mml"]
+}

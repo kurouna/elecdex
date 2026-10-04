@@ -1,0 +1,84 @@
+# ELECDRILL's sound effects: each a short song on channels 12-15 only, so the music (0-11)
+# never stops for one. Tempo 2: a sixteenth is two frames, a thirty-second one.
+#   C12 the drill (a dig, ALLOY's clank, a clink off what will not give, a swing at nothing)
+#   C13 small things (a landing, a capsule, a rumble as blocks come loose, select)
+#   C14 vanishing and chains
+#   C15 big moments (crushed, out of air, the low-air alarm)
+
+song x_dig
+tempo 2
+inst crunch wave=noise vol=12 env=0/80/0/60 drop=2
+inst bite   wave=sq25 vol=8 env=0/40/0/30 drop=3
+C12: @crunch o7 l32 c c+ c
+C13: @bite o5 l32 g c
+
+song x_clank
+tempo 2
+inst clank wave=sq12 vol=11 env=0/120/0/120 vib=6,12
+inst ring  wave=tri vol=8 env=0/250/0/200
+C12: @clank o7 l32 c < c
+C13: @ring o7 l16 e
+
+song x_clink
+tempo 2
+inst clink wave=sq12 vol=7 env=0/40/0/40
+C12: @clink o8 l32 c e
+
+song x_swing
+tempo 2
+inst whoosh wave=noise vol=5 env=10/80/0/60 drop=1
+C12: @whoosh o9 l16 c
+
+song x_land
+tempo 2
+inst thud wave=tri vol=12 env=0/80/0/40 drop=3
+C13: @thud o3 l32 c c
+
+song x_pop
+tempo 2
+inst blip wave=sq25 vol=9 env=0/60/0/40
+C14: @blip o6 l32 c g > c
+
+song x_chain
+tempo 2
+inst chime wave=sq25 vol=11 env=0/120/6/120 vib=2,8
+C14: @chime o6 l32 c e g > c e g > c8
+
+song x_chain2
+tempo 2
+inst chime wave=sq25 vol=12 env=0/120/6/150 vib=2,8
+inst shine wave=tri vol=9 env=0/200/0/200
+C14: @chime o6 l32 d f+ a > d f+ a > d f+ a > d8
+C15: @shine r16 o7 l32 a > d f+ a > d8
+
+song x_capsule
+tempo 2
+inst bubble wave=tri vol=12 env=0/60/4/80 vib=4,12
+C13: @bubble o5 l32 c g > c e g > c e4
+
+song x_rumble
+tempo 2
+inst rumble wave=noise vol=7 env=20/300/0/200 vib=8,10
+C13: @rumble o4 l8 c c
+
+song x_select
+tempo 2
+inst sel wave=sq25 vol=10 env=0/80/4/60
+C13: @sel o6 l32 c g > c4
+
+song x_crush
+tempo 2
+inst boom wave=noise vol=15 env=0/600/0/400 drop=4
+inst fall wave=saw vol=11 env=0/600/0/300 slide=-100
+C14: @boom o6 c2
+C15: @fall o5 c2
+
+song x_gasp
+tempo 2
+inst deflate wave=saw vol=10 env=10/1200/0/600 slide=-60 vib=6,8
+C15: @deflate o5 c1^1
+
+song x_alarm
+tempo 2
+inst beep wave=sq50 vol=8 env=0/40/12/20 pan=8
+C15: @beep o6 a8 r8 a8

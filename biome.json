@@ -14,7 +14,8 @@
       "!**/node_modules",
       "!**/.svelte-check",
       "!**/*.code-workspace",
-      "!src/shared/calc/vendor"
+      "!src/shared/calc/vendor",
+      "!resources/elec16/games/games.json"
     ]
   },
   "formatter": {

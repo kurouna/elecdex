@@ -46,6 +46,8 @@ npm run demo:snippets  # the clipboard pane's snippets: kept, written, moved, pa
 npm run demo:whatsnew  # what v0.0.19-v0.0.20 added, most striking first: CHIP-8, files in the ai preset's chat, dev's agent tree and FETCH/PULL, 16:9 (Windows; build first)
 npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE, the skins (Windows; build first)
 node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
+node scripts/elecaircombat-art.mjs       # the same for ELECAIRCOMBAT
+node scripts/elecdrill-art.mjs           # the same for ELECDRILL
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
 ```
@@ -288,6 +290,8 @@ user made; do not reverse one without asking.
     colours; music is the kit's MML, effects on channels 12-15. ELECLANCE
     (docs/elec16-eleclance.md) is its sample: its PNGs and stage.txt are the source once
     scripts/eleclance-art.mjs drew them; a test holds every song's channels in step.
+    ELECAIRCOMBAT and ELECDRILL (docs/elec16-elecaircombat.md, elec16-elecdrill.md) are the
+    same kind of sample, each with its art script and test.
   - GAMES ▸ DEVELOP (elec16-play.md section 11, docs/elec16-kit.md, main/elec16/devgame.ts):
     main picks a game's folder, keeps it per page and reads only the files game.json names,
     inside it; the build runs in CODE's worker, never in main; main writes back only

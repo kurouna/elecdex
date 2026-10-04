@@ -1,0 +1,67 @@
+# ELECAIRCOMBAT's sound effects: each a short song on channels 12-15 only, so the music (0-11)
+# never stops for one. Tempo 2: a sixteenth is two frames, a thirty-second one.
+#   C12 the gun, C13 the seeker's tones and small things, C14 strikes and explosions,
+#   C15 warnings and big moments
+
+song x_gun
+tempo 2
+inst gun wave=noise vol=8 env=0/40/0/30 drop=2 pan=8
+C12: @gun o6 c32
+
+song x_missile
+tempo 2
+inst whoosh wave=noise vol=11 env=0/700/0/500 drop=6
+inst ignite wave=saw vol=8 env=0/300/0/200 slide=-80
+C13: @whoosh o7 c1
+C14: @ignite o4 g4
+
+song x_seek
+tempo 2
+inst tick wave=tri vol=6 env=0/30/0/20 pan=8
+C13: @tick o6 a32
+
+song x_lock
+tempo 2
+inst tone wave=sq50 vol=6 env=0/40/12/20 pan=8
+C13: @tone o7 a8
+
+song x_alert
+tempo 2
+inst beep wave=sq25 vol=10 env=0/40/12/30 pan=8
+C15: @beep o6 e16 r16 e16
+
+song x_hit
+tempo 2
+inst crack wave=noise vol=9 env=0/90/0/60 drop=3
+C14: @crack o8 c16
+
+song x_ouch
+tempo 2
+inst slam wave=noise vol=14 env=0/400/0/300 drop=4
+inst thud wave=tri vol=13 env=0/250/0/120 drop=2
+C14: @slam o7 c4
+C15: @thud o3 c8
+
+song x_boom
+tempo 2
+inst boom wave=noise vol=15 env=0/1600/0/1200 drop=5
+inst deep wave=tri vol=14 env=0/1000/0/800 slide=-90
+C14: @boom o7 c1^1
+C15: @deep o3 c1
+
+song x_flare
+tempo 2
+inst pop wave=noise vol=8 env=0/120/0/80
+inst fizz wave=sq12 vol=5 env=0/200/0/150 slide=60
+C13: @pop o8 c16
+C15: @fizz o6 c8
+
+song x_select
+tempo 2
+inst sel wave=sq25 vol=10 env=0/80/4/60
+C13: @sel o6 c32 g32 > c4
+
+song x_splash
+tempo 2
+inst ring wave=sq50 vol=9 env=0/300/0/300 pan=8
+C13: @ring o6 g16 > c16 e16 g4

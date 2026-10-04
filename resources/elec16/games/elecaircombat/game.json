@@ -1,0 +1,282 @@
+{
+  "id": "ELECAIRCOMBAT",
+  "name": "ELECAIRCOMBAT",
+  "saveBanks": 1,
+  "about": "a cockpit-view dogfight: one ace at a time, guns and missiles",
+  "sources": [
+    "math.e16.ts",
+    "sky.e16.ts",
+    "flight.e16.ts",
+    "bandit.e16.ts",
+    {
+      "file": "arms.e16.ts",
+      "bank": 5
+    },
+    {
+      "file": "fx.e16.ts",
+      "bank": 4
+    },
+    {
+      "file": "hud.e16.ts",
+      "bank": 3
+    },
+    "audio.e16.ts",
+    "game.e16.ts",
+    {
+      "file": "ai.e16.ts",
+      "bank": 1
+    },
+    {
+      "file": "scenes.e16.ts",
+      "bank": 2
+    },
+    {
+      "file": "best.e16.ts",
+      "bank": 2
+    }
+  ],
+  "palettes": {
+    "png": "art/palettes.png",
+    "names": [
+      "sky_day",
+      "sky_dawn",
+      "sky_storm",
+      "sky_dusk",
+      "sky_night",
+      "frame",
+      "screen",
+      "hud_text",
+      "amber_text",
+      "red_text",
+      "white_text",
+      "logo",
+      "hud",
+      "hud_red",
+      "fire",
+      "cloud",
+      "shot",
+      "flash",
+      "sun",
+      "ace_gannet",
+      "ace_mistral",
+      "ace_cinder",
+      "ace_oracle",
+      "ace_nocturne"
+    ]
+  },
+  "sheets": [
+    {
+      "name": "font",
+      "png": "art/font.png",
+      "cell": 8,
+      "palette": "hud_text",
+      "count": 64
+    },
+    {
+      "name": "horizon",
+      "png": "art/horizon.png",
+      "cell": 8,
+      "palette": "sky_day",
+      "count": 197
+    },
+    {
+      "name": "hud8",
+      "png": "art/hud8.png",
+      "cell": 8,
+      "palette": "hud",
+      "count": 24
+    },
+    {
+      "name": "hud16",
+      "png": "art/hud16.png",
+      "cell": 16,
+      "palette": "hud",
+      "count": 8
+    },
+    {
+      "name": "seeker",
+      "png": "art/seeker.png",
+      "cell": 32,
+      "palette": "hud",
+      "count": 1
+    },
+    {
+      "name": "shots",
+      "png": "art/shots.png",
+      "cell": 8,
+      "palette": "shot",
+      "count": 8
+    },
+    {
+      "name": "blast32",
+      "png": "art/blast32.png",
+      "cell": 32,
+      "palette": "fire",
+      "count": 8
+    },
+    {
+      "name": "blast16",
+      "png": "art/blast16.png",
+      "cell": 16,
+      "palette": "fire",
+      "count": 6
+    },
+    {
+      "name": "bits",
+      "png": "art/bits.png",
+      "cell": 8,
+      "palette": "fire",
+      "count": 6
+    },
+    {
+      "name": "smoke",
+      "png": "art/smoke.png",
+      "cell": 16,
+      "palette": "cloud",
+      "count": 4
+    },
+    {
+      "name": "cloud64",
+      "png": "art/cloud64.png",
+      "cell": 32,
+      "palette": "cloud",
+      "count": 4
+    },
+    {
+      "name": "cloud32",
+      "png": "art/cloud32.png",
+      "cell": 32,
+      "palette": "cloud",
+      "count": 2
+    },
+    {
+      "name": "cloud16",
+      "png": "art/cloud16.png",
+      "cell": 16,
+      "palette": "cloud",
+      "count": 2
+    },
+    {
+      "name": "cloud8",
+      "png": "art/cloud8.png",
+      "cell": 8,
+      "palette": "cloud",
+      "count": 2
+    },
+    {
+      "name": "sun",
+      "png": "art/sun.png",
+      "cell": 32,
+      "palette": "sun",
+      "count": 1
+    },
+    {
+      "name": "flare",
+      "png": "art/flare.png",
+      "cell": 16,
+      "palette": "sun",
+      "count": 3
+    },
+    {
+      "name": "bandit64",
+      "png": "art/bandit64.png",
+      "cell": 32,
+      "palette": "ace_gannet",
+      "stream": 4
+    },
+    {
+      "name": "bandit48",
+      "png": "art/bandit48.png",
+      "cell": 16,
+      "palette": "ace_gannet",
+      "stream": 9,
+      "tile": 649
+    },
+    {
+      "name": "bandit32",
+      "png": "art/bandit32.png",
+      "cell": 32,
+      "palette": "ace_gannet",
+      "stream": 1,
+      "tile": 649
+    },
+    {
+      "name": "bandit24",
+      "png": "art/bandit24.png",
+      "cell": 32,
+      "palette": "ace_gannet",
+      "stream": 1,
+      "tile": 649
+    },
+    {
+      "name": "bandit16",
+      "png": "art/bandit16.png",
+      "cell": 16,
+      "palette": "ace_gannet",
+      "stream": 1,
+      "tile": 649
+    },
+    {
+      "name": "bandit12",
+      "png": "art/bandit12.png",
+      "cell": 16,
+      "palette": "ace_gannet",
+      "stream": 1,
+      "tile": 649
+    },
+    {
+      "name": "bandit8",
+      "png": "art/bandit8.png",
+      "cell": 8,
+      "palette": "ace_gannet",
+      "stream": 1,
+      "tile": 649
+    }
+  ],
+  "maps": [
+    {
+      "name": "screens",
+      "png": "art/screens.png",
+      "palettes": [
+        {
+          "palette": "screen",
+          "slot": 2
+        }
+      ]
+    },
+    {
+      "name": "cockpit",
+      "png": "art/cockpit.png",
+      "front": true,
+      "palettes": [
+        {
+          "palette": "frame",
+          "slot": 1
+        }
+      ]
+    },
+    {
+      "name": "logo",
+      "png": "art/logo.png",
+      "tile": 763,
+      "front": true,
+      "palettes": [
+        {
+          "palette": "logo",
+          "slot": 6
+        }
+      ]
+    }
+  ],
+  "music": ["music/songs.mml", "music/sfx.mml"],
+  "tables": [
+    {
+      "name": "horizon_table",
+      "file": "horizon.txt"
+    },
+    {
+      "name": "view_table",
+      "file": "views.txt"
+    }
+  ]
+}

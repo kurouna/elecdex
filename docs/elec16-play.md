@@ -256,7 +256,7 @@ e16c でカートリッジのゲームを書くための道具。1 本のゲー�
 | `id`、`name`、`saveBanks`、`about` | 今までどおり |
 | `sources` | e16c のファイル。`{ "file": "boss.e16.ts", "bank": 1 }` でバンクに置く |
 | `palettes` | `{ "png": "art/palettes.png", "names": [...] }`。幅 16 点の絵で、1 行が 1 本のパレット（色 0 は透明）。定数 `PAL_名前` が行の番号 |
-| `sheets` | `{ "name", "png", "cell": 8/16/32, "palette", "count"?, "tile"? }`。同じ大きさのコマを左上から行ごとに。定数 `名前_TILE`（映像メモリのタイル番号）、`_BANK`、`_AT`、`_BYTES`、`_FRAMES`、`_STEP`（1 コアのタイル数） |
+| `sheets` | `{ "name", "png", "cell": 8/16/32, "palette", "count"?, "tile"?, "stream"? }`。8 KB を越えるシートはバンクの頭から次のバンクへ続けて置く（`load` はバンクをまたげる）。`stream` は映像メモリに取るコマの数で、全部はカートリッジに残し、見せるものだけ `load` する（`_BYTES` はその場所の大きさ。ELECAIRCOMBAT の敵機）。同じ大きさのコマを左上から行ごとに。定数 `名前_TILE`（映像メモリのタイル番号）、`_BANK`、`_AT`、`_BYTES`、`_FRAMES`、`_STEP`（1 コアのタイル数） |
 | `maps` | `{ "name", "png", "palettes": [{ "palette", "slot" }], "tile"?, "front"? }`。`front` で透明でないマスをスプライトより前に（計器の板）。8×8 のマスごとに、色がすべて入る最初のパレットを選び、同じ形（反転も）のタイルは共有する。全部透明のマスが最初のタイル。行は 64 マス（128 バイト）に揃え、1 バンク 64 行。定数 `名前_TILE`、`_TILES_BANK`、`_TILES_AT`、`_TILES_BYTES`、`_MAP_BANK`、`_W`、`_H`、`_ROWS_PER_BANK` |
 | `music` | 曲の MML ファイル（下）。定数 `SONG_名前_BANK`、`SONG_名前_AT` |
 | `tables` | `{ "name", "file" }`。数を並べたテキスト（ワード）。定数 `名前_BANK`、`_AT`、`_LEN` |
