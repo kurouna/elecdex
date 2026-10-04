@@ -270,29 +270,54 @@ const SENTENCE_END = new Set([0x2e, 0x21, 0x3f])
 const KUTEN = 0xa1
 const ELLIPSIS = [0x2e, 0x2e, 0x2e]
 
+/** Where the last whole sentence at or before `last` ends (one past it); 0 when none does. */
+function sentenceEnd(bytes: number[], last: number): number {
+  for (let k = Math.min(last, bytes.length - 1); k > 0; k--) {
+    const next = bytes[k + 1]
+    const b = bytes[k] ?? 0
+    if (b === KUTEN || (SENTENCE_END.has(b) && (next === 0x20 || next === undefined))) {
+      return k + 1
+    }
+  }
+  return 0
+}
+
+/** `...` at the end of what fits in `max`, at a space when there is one in its second half. */
+function marked(bytes: number[], max: number): number[] {
+  const room = Math.max(0, Math.min(max, bytes.length + ELLIPSIS.length) - ELLIPSIS.length)
+  const space = bytes.length > room ? bytes.lastIndexOf(0x20, room) : -1
+  const end = space > room / 2 ? space : room
+  return [...bytes.slice(0, end), ...ELLIPSIS].slice(0, max)
+}
+
 /**
  * At most `max` bytes: whole sentences when they fit, else cut at a space with `...`, else
  * cut where it must with `...`.
  */
 function cut(bytes: number[], max: number): number[] {
   if (bytes.length <= max) return bytes
-  for (let k = max - 1; k > 0; k--) {
-    const next = bytes[k + 1]
-    const b = bytes[k] ?? 0
-    if (b === KUTEN || (SENTENCE_END.has(b) && (next === 0x20 || next === undefined))) {
-      return bytes.slice(0, k + 1)
-    }
-  }
-  const room = Math.max(0, max - ELLIPSIS.length)
-  const space = bytes.lastIndexOf(0x20, room)
-  const end = space > room / 2 ? space : room
-  return [...bytes.slice(0, end), ...ELLIPSIS].slice(0, max)
+  const end = sentenceEnd(bytes, max - 1)
+  return end > 0 ? bytes.slice(0, end) : marked(bytes, max)
 }
 
-/** A model's answer as the bytes the machine shows: its characters, plain, at most `max`. */
-export function lcdReply(text: string, script: Script, max: number): Uint8Array {
+/**
+ * A model's answer as the bytes the machine shows: its characters, plain, at most `max`.
+ * `unfinished`: the model was stopped at its length limit, mid-sentence - the sentence it was
+ * in goes, or `...` marks the cut when it had not finished one.
+ */
+export function lcdReply(
+  text: string,
+  script: Script,
+  max: number,
+  unfinished = false,
+): Uint8Array {
   const bytes = toMachine(plain(text), script)
   let end = bytes.length
   while (end > 0 && bytes[end - 1] === 0x20) end--
-  return new Uint8Array(cut(bytes.slice(0, end), max))
+  let kept = bytes.slice(0, end)
+  if (unfinished && kept.length > 0) {
+    const whole = sentenceEnd(kept, kept.length - 1)
+    kept = whole > 0 ? kept.slice(0, whole) : marked(kept, kept.length + ELLIPSIS.length)
+  }
+  return new Uint8Array(cut(kept, max))
 }

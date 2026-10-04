@@ -42,9 +42,13 @@ export interface AiLinkDeps {
 
 /** Exchanges a conversation keeps. */
 export const AI_TURNS = 10
-/** The answer's cap in tokens: a few lines, with room for a search's words around them. */
-const ANSWER_TOKENS = 600
-const SEARCH_TOKENS = 1500
+/**
+ * The answer's cap in tokens: a few lines, and room for a model that reasons before it
+ * answers whatever it is asked (Gemini 2.5 spends its thinking from the same cap: at 600 it
+ * was cut off a line into its answer), and for a search's words around the answer.
+ */
+const ANSWER_TOKENS = 2000
+const SEARCH_TOKENS = 3000
 
 interface Talk {
   provider: string
@@ -93,11 +97,11 @@ export class AiLinkService implements LinkService {
       noThinking: true,
       ...(traits.search ? { webSearch: true } : {}),
     })
-    if (typeof said !== 'string') return said
-    if (traits.search && said.trim().toUpperCase().startsWith(NO_SEARCH)) {
+    if ('status' in said) return said
+    if (traits.search && said.text.trim().toUpperCase().startsWith(NO_SEARCH)) {
       return { status: LINK_STATUS.failed, note: `${NO_SEARCH}: this model cannot search the web` }
     }
-    const data = lcdReply(said, script, request.max)
+    const data = lcdReply(said.text, script, request.max, said.unfinished)
     if (data.length === 0) return { status: LINK_STATUS.failed, note: 'the answer was empty' }
     if (traits.remembers) {
       talk.turns.push({ question, answer: shownText(data) })
@@ -124,8 +128,14 @@ export class AiLinkService implements LinkService {
     return { target, model }
   }
 
-  /** The question put: the answer's text, or why there is none. A dropped request throws. */
-  async #put(target: Target, request: StreamRequest): Promise<string | LinkAnswer> {
+  /**
+   * The question put: the answer's text and whether the length limit stopped it, or why there
+   * is none. A dropped request throws.
+   */
+  async #put(
+    target: Target,
+    request: StreamRequest,
+  ): Promise<{ text: string; unfinished: boolean } | LinkAnswer> {
     let text = ''
     try {
       const adapter = await this.#deps.adapter(target.provider.kind)
@@ -141,7 +151,7 @@ export class AiLinkService implements LinkService {
           note: `refused${result.note ? `: ${result.note}` : ''}`,
         }
       }
-      return result.answer ?? text
+      return { text: result.answer ?? text, unfinished: result.stop === 'length' }
     } catch (error) {
       if (request.signal.aborted) throw error
       return { status: LINK_STATUS.failed, note: describeFailure(error, target.baseUrl) }

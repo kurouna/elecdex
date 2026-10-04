@@ -126,6 +126,18 @@ describe('an answer on the LCD', () => {
     expect(lcdReply('abc', 'english', 2).length).toBe(2)
   })
 
+  it('drops the sentence a model was cut off in, or marks the cut when there is no other', () => {
+    expect(shown(lcdReply('One done. Two is cut in the mid', 'english', 100, true))).toBe(
+      'One done.',
+    )
+    expect(shown(lcdReply('ひとつめ。ふたつめは とちゅうで', 'kana', 100, true))).toBe('ﾋﾄﾂﾒ｡')
+    expect(shown(lcdReply('no end at all here', 'english', 100, true))).toBe(
+      'no end at all here...',
+    )
+    // An answer that finished keeps its last words, with or without a full stop.
+    expect(shown(lcdReply('One done. Two not', 'english', 100))).toBe('One done. Two not')
+  })
+
   it('counts a voiced mark as a byte of its own', () => {
     const bytes = lcdReply('がが。がが。', 'kana', 5)
     expect(shown(bytes)).toBe('ｶﾞｶﾞ｡')

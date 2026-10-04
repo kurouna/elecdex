@@ -90,7 +90,7 @@ describe('the AI service', () => {
     expect(r?.key).toBeNull()
     expect(r?.noThinking).toBe(true)
     expect(r?.webSearch).toBeUndefined()
-    expect(r?.maxTokens).toBeLessThanOrEqual(1000)
+    expect(r?.maxTokens).toBeLessThanOrEqual(2000)
     expect(r?.system).toContain('only ASCII')
     expect(r?.messages).toEqual([{ role: 'user', text: 'WHAT IS A PULSAR?' }])
   })
@@ -181,6 +181,20 @@ describe('the AI service', () => {
     expect(bare.note).toContain('no model')
     const gone = await aiService(undefined, 'gone').service.ask(request('HI'), context())
     expect(gone.status).toBe(LINK_STATUS.failed)
+  })
+
+  it('leaves room for a model that thinks before it answers', async () => {
+    const { service, asked } = aiService()
+    await service.ask(request('HI'), context())
+    // Gemini 2.5 spends its reasoning from the same cap: 600 cut its answers at a line.
+    expect(asked[0]?.maxTokens).toBeGreaterThanOrEqual(2000)
+  })
+
+  it('drops the sentence an answer was cut off in at the length limit', async () => {
+    const { service } = aiService(() => ({ stop: 'length', answer: 'It is a star. It spins ve' }))
+    const answer = await service.ask(request('HI'), context())
+    expect(answer.status).toBe(LINK_STATUS.ready)
+    expect(text(answer.data)).toBe('It is a star.')
   })
 
   it('fails an empty answer, and does not remember it', async () => {
