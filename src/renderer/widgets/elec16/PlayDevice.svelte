@@ -158,7 +158,12 @@ $effect(() => () => {
       {#each PAD_BUTTONS.filter((b) => body.buttons[b].shape === 'round' || body.buttons[b].shape === 'pill') as b (b)}
         <div class="well {body.buttons[b].shape}" style={place(recess(body.buttons[b], WELL))}></div>
       {/each}
-      <div class="plate" style={place(cross)} style:--face={colours.dark[0]}></div>
+      <!-- The d-pad: one raised cross with a thickness under it, lit on its upper edges. -->
+      <div class="cross" style={place(cross)} style:--face={colours.dark[0]} style:--shade={colours.dark[1]}>
+        <i class="edge"></i>
+        <i class="plate"></i>
+        <i class="bevel"></i>
+      </div>
       <div class="hub" style={place(body.hub)} style:--face={colours.dark[0]}></div>
       {#each PAD_BUTTONS.filter((b) => body.buttons[b].shape !== 'shoulder') as b (b)}
         {@const r = body.buttons[b]}
@@ -321,8 +326,18 @@ $effect(() => () => {
   border-radius: calc(var(--p-unit) * 11);
 }
 
-/* The d-pad's plate: one raised cross, its arms the buttons over it. */
-.plate {
+/* The d-pad: a cross standing off the case - its thickness below, its face, the light on
+   its upper edges - casting a soft shadow on the dish. Its arms are the buttons over it. */
+.cross {
+  /* Lifted by half its 4-dot thickness: face and thickness together sit in the middle of the
+     dish, not low in it. */
+  transform: translateY(calc(var(--p-unit) * -2));
+  filter: drop-shadow(0 calc(var(--p-unit) * 5) calc(var(--p-unit) * 4) rgb(0 0 0 / 0.4));
+}
+
+.cross > i {
+  position: absolute;
+  inset: 0;
   clip-path: polygon(
     33% 0,
     67% 0,
@@ -337,12 +352,27 @@ $effect(() => () => {
     0 33%,
     33% 33%
   );
+}
+
+.edge {
+  transform: translateY(calc(var(--p-unit) * 4));
+  background: linear-gradient(var(--shade), color-mix(in srgb, var(--shade) 70%, black));
+}
+
+.plate {
   background: linear-gradient(
     160deg,
-    color-mix(in srgb, var(--face) 78%, white),
-    var(--face) 40%,
-    color-mix(in srgb, var(--face) 65%, black)
+    color-mix(in srgb, var(--face) 72%, white),
+    var(--face) 45%,
+    color-mix(in srgb, var(--face) 70%, black)
   );
+}
+
+.bevel {
+  background:
+    linear-gradient(rgb(255 255 255 / 0.28), transparent calc(var(--p-unit) * 3)),
+    linear-gradient(90deg, rgb(255 255 255 / 0.14), transparent calc(var(--p-unit) * 3)),
+    linear-gradient(0deg, rgb(0 0 0 / 0.3), transparent calc(var(--p-unit) * 3));
 }
 
 /* A shallow dimple in the middle of the cross. */
@@ -376,15 +406,18 @@ $effect(() => () => {
   );
   box-shadow:
     0 calc(var(--p-unit) * 3) 0 var(--shade),
-    0 calc(var(--p-unit) * 5) calc(var(--p-unit) * 5) rgb(0 0 0 / 0.35),
+    0 calc(var(--p-unit) * 4) calc(var(--p-unit) * 3) rgb(0 0 0 / 0.28),
     inset 0 calc(var(--p-unit) * 2) calc(var(--p-unit) * 1) rgb(255 255 255 / 0.3),
     inset 0 calc(var(--p-unit) * -2) calc(var(--p-unit) * 2) rgb(0 0 0 / 0.2);
   /* Moulded letters: a hair of light below, as if cut in. */
   text-shadow: 0 1px 0 rgb(255 255 255 / 0.25);
+  /* Lifted by half its 3-dot thickness (the shade below its face): the button as seen sits in
+     the middle of its well. */
+  transform: translateY(calc(var(--p-unit) * -1.5));
 }
 
 .pad.held {
-  transform: translateY(calc(var(--p-unit) * 2.5));
+  transform: translateY(calc(var(--p-unit) * 1));
   box-shadow:
     0 calc(var(--p-unit) * 0.5) 0 var(--shade),
     0 calc(var(--p-unit) * 1) calc(var(--p-unit) * 2) rgb(0 0 0 / 0.3),
@@ -406,11 +439,15 @@ $effect(() => () => {
   background: transparent;
   box-shadow: none;
   text-shadow: none;
+  /* With the cross it lies on. */
+  transform: translateY(calc(var(--p-unit) * -2));
 }
 
 .pad.arm.held {
-  transform: none;
-  background: linear-gradient(rgb(0 0 0 / 0.32), rgb(0 0 0 / 0.18));
+  transform: translateY(calc(var(--p-unit) * -2));
+  /* Pressed: that arm dips into the cross, in its own shade. */
+  background: linear-gradient(rgb(0 0 0 / 0.42), rgb(0 0 0 / 0.22));
+  box-shadow: inset 0 calc(var(--p-unit) * 2) calc(var(--p-unit) * 3) rgb(0 0 0 / 0.5);
 }
 
 .arrow {
@@ -457,7 +494,15 @@ $effect(() => () => {
   border-radius: 0 calc(var(--p-unit) * 5) calc(var(--p-unit) * 5) 0;
 }
 
-/* The shoulders: ribbed, rounded to the hand. */
+/* The shoulders: ribbed, rounded to the hand; in no well, they stand where they are. */
+.pad.shoulder {
+  transform: none;
+}
+
+.pad.shoulder.held {
+  transform: translateY(calc(var(--p-unit) * 2));
+}
+
 .shoulder {
   align-items: start;
   padding-top: calc(var(--p-unit) * 4);
