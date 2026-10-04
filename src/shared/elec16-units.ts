@@ -110,6 +110,17 @@ export interface Elec16Game {
 
 export type Elec16GameImport = { ok: true; id: string } | { ok: false; problem: string }
 
+/** A development folder opened (its name only: main keeps where it is), or why not. */
+export type Elec16DevOpen = { ok: true; name: string } | { ok: false; problem: string }
+
+/** A game's files for a build: game.json as written, the text files and the pictures by name. */
+export type Elec16DevFiles =
+  | {
+      ok: true
+      files: { meta: string; texts: Record<string, string>; pictures: Record<string, Uint8Array> }
+    }
+  | { ok: false; problem: string }
+
 /** Where a new unit starts: a pane made before units seeds it with what it had. */
 export interface Elec16UnitSeed {
   clock?: Elec16Clock

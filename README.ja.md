@@ -828,14 +828,14 @@ Ctrl+Shift+1 から 8 に並んだ状態で始まり、すでにある一覧に�
   TUNE ではユニットを、作っている途中のゲーム機 **PLAY-320** にもできます（*未リリース*、作業中。
   今は 320×288 のカラー画面、拡張 RAM、起動画面、12 個のボタンの縦長と横長の本体、PC のキーとゲームパッド、
   カートリッジ（GAMES で棚から差し、START で遊ぶ）、描画回路（スクロールする背景 2 枚、スプライト 128 個、
-  パレット 16 本、行の割り込み、DMA）、ステレオの音 16 チャンネル（エンベロープ、スライド、波形表）まで。CODE のプログラムを動かせます）。ゲームは、PNG の絵とテキストで書いた曲を取り込むゲームキットで e16c から作ります（[docs/elec16-play.md](docs/elec16-play.md#10-ゲームキットg7)）。棚には、LANCE、ボム、OVERDRIVE、2 体のボスの縦スクロールシューティング **ELECLANCE** が入っています（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)）。LINK はパネルの専用の
+  パレット 16 本、行の割り込み、DMA）、ステレオの音 16 チャンネル（エンベロープ、スライド、波形表）まで。CODE のプログラムを動かせます）。ゲームは、PNG の絵とテキストで書いた曲を取り込むゲームキットで e16c から作ります。GAMES の DEVELOP でゲームのフォルダを開く（または雛形から新しく作る）と、アプリの中でビルドしてユニットに差し、ファイルを保存するたびに作り直します。Node もリポジトリも要りません（[ゲーム開発の手引き](docs/elec16-kit.md)）。棚には、LANCE、ボム、OVERDRIVE、2 体のボスの縦スクロールシューティング **ELECLANCE** が入っています（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)）。LINK はパネルの専用の
   タブで、サービスごとに ON/OFF できます。
   **CODE** は TypeScript の部分集合で書いたプログラムを、3 段階の最適化で機械語にコンパイルし、
   大きさとサイクル数を並べて見せます。RUN でそのまま機械に入れて動かします。利用者のコードは機械語
   としてだけ動き、JavaScript として動くことはありません。プロンプトで待つ間は CPU が眠り、ペインの
   負荷は一時停止したものとほぼ同じです。説明書: [BASIC](docs/elec16-basic.md)、
   [E16 の機械語とモニタ](docs/elec16-e16.md)、[e16c（CODE の TypeScript）](docs/elec16-e16c.md)、
-  [SOFT CARD のプログラム](docs/elec16-soft.md)。FILES でプログラムを選ぶと、その使い方も出ます。
+  [SOFT CARD のプログラム](docs/elec16-soft.md)、[PLAY-320 のゲーム開発](docs/elec16-kit.md)。FILES でプログラムを選ぶと、その使い方も出ます。
 
 ## プラグイン
 
@@ -1027,7 +1027,7 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (the ELEC-16 manuals,
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-kit.md (the ELEC-16 manuals,
                 in Japanese)
 ```
 

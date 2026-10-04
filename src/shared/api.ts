@@ -28,6 +28,8 @@ import type { LinkAnswer, LinkRequest } from './elec16/link.js'
 import type {
   Elec16Board,
   Elec16Claim,
+  Elec16DevFiles,
+  Elec16DevOpen,
   Elec16FileInfo,
   Elec16Game,
   Elec16GameImport,
@@ -551,6 +553,23 @@ export interface Elec16Api {
    * one: its ROM is not in the snapshot. Only the pane that holds the unit; null for none.
    */
   gameImage(unit: string, pane: string): Promise<{ image: Uint8Array; digest: Uint8Array } | null>
+  /**
+   * A game's development folder (docs/elec16-play.md section 11), through main's picker: one
+   * a page at a time, known to the page by its name only. null when nothing was picked.
+   */
+  devOpen(): Promise<Elec16DevOpen | null>
+  /** An empty folder picked, the template written into it, and opened. */
+  devNew(): Promise<Elec16DevOpen | null>
+  /** The open folder's files that game.json names, for a build. */
+  devRead(): Promise<Elec16DevFiles>
+  /** The build's assets.e16.ts and compiled.s written into the folder. */
+  devWrite(assets: string, compiled: string): Promise<boolean>
+  /** A built cartridge onto the shelf, in place of an earlier build of the same id. */
+  devInstall(image: Uint8Array): Promise<Elec16GameImport>
+  devClose(): Promise<void>
+  /** Watches the open folder (true) or stops; a change is told by onDevChange. */
+  devWatch(on: boolean): void
+  onDevChange(handler: () => void): () => void
 }
 
 export interface DockerApi {

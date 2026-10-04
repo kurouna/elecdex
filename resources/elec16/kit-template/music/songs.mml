@@ -1,0 +1,14 @@
+# The game's music, in the game kit's MML (docs/elec16-kit.md). Channels 0-11 are music,
+# 12-15 sound effects (an effect never stops the music).
+
+song theme
+tempo 8
+inst lead wave=sq25 vol=10 env=5/300/9/200 vib=2,5 pan=6
+inst bass wave=tri vol=12 env=5/200/10/100
+C0: @lead L o5 l8 c e g e f a g4 | e g > c < g a f g4
+C3: @bass L o2 l4 c c f g | c c f g
+
+song beep
+tempo 2
+inst ping wave=sq50 vol=10 env=0/80/0/60
+C13: @ping o6 l32 c g > c

@@ -201,6 +201,18 @@ export const CH = {
     gamesImage: 'elec16:games-image',
     /** main -> renderer: the shelf changed. */
     gamesChanged: 'elec16:games-changed',
+    /** A game's development folder (docs/elec16-play.md section 11): opened, made from the template. */
+    devOpen: 'elec16:dev-open',
+    devNew: 'elec16:dev-new',
+    /** Its files for a build in the page; the build's two files back; the cartridge onto the shelf. */
+    devRead: 'elec16:dev-read',
+    devWrite: 'elec16:dev-write',
+    devInstall: 'elec16:dev-install',
+    devClose: 'elec16:dev-close',
+    /** renderer -> main: watch the folder (true) or stop. */
+    devWatch: 'elec16:dev-watch',
+    /** main -> renderer: the folder's files changed. */
+    devChanged: 'elec16:dev-changed',
   },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {

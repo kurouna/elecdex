@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
@@ -951,6 +951,98 @@ test("PLAY-320's game kit: ELECLANCE starts from GAMES, its title, then the stag
       .toBe(true)
   } finally {
     await close()
+  }
+})
+
+test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, mended", async () => {
+  // docs/elec16-play.md section 11: main writes the template into a picked folder, the page
+  // builds it in CODE's worker (its PNGs decoded there, to the bit), main writes back its two
+  // files and shelves it, the slot takes it; a save builds again, saying where it went wrong.
+  test.setTimeout(180_000)
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-dev-'))
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) =>
+      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await app.evaluate(({ dialog }, answer) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
+    }, folder)
+    await tab('games').click()
+    await page.getByTestId('elec16-dev-new').click()
+    const dev = page.getByTestId('elec16-dev')
+    await expect(dev).toHaveAttribute('data-status', 'built', { timeout: 60_000 })
+    await expect(page.getByTestId('elec16-dev-folder')).toHaveText(path.basename(folder))
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('MY GAME')
+    for (const name of [
+      'game.json',
+      'main.e16.ts',
+      'lib/kit.e16.ts',
+      'assets.e16.ts',
+      'compiled.s',
+    ]) {
+      expect(existsSync(path.join(folder, name)), name).toBe(true)
+    }
+    // A save that breaks it: built again, and the line said.
+    const main = path.join(folder, 'main.e16.ts')
+    const source = readFileSync(main, 'utf8')
+    writeFileSync(main, source.replace('x = x - 2', 'x = x - 2 + nothing'))
+    await expect(dev).toHaveAttribute('data-status', 'failed', { timeout: 30_000 })
+    await expect(page.getByTestId('elec16-dev-problem').first()).toContainText('main.e16.ts:')
+    // Mended: built again.
+    writeFileSync(main, source)
+    await expect(dev).toHaveAttribute('data-status', 'built', { timeout: 30_000 })
+    await expect(dev).toHaveAttribute('data-builds', '2')
+    await page.getByTestId('elec16-dev-close').click()
+    await expect(page.getByTestId('elec16-dev-open')).toBeVisible()
+  } finally {
+    await close()
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+test("PLAY-320's DEVELOP builds ELECLANCE's own folder exactly as npm run gen:elec16 does", async () => {
+  // The page's build (the worker, the browser's PNG decoding) and the build script's (Node)
+  // must agree to the byte: compared through compiled.s and assets.e16.ts. A copy with its own
+  // id, as a bundled game's id is never taken.
+  test.setTimeout(240_000)
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const folder = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-dev-'))
+  const from = path.join(process.cwd(), 'resources', 'elec16', 'games', 'eleclance')
+  try {
+    cpSync(from, folder, { recursive: true })
+    const meta = JSON.parse(readFileSync(path.join(folder, 'game.json'), 'utf8'))
+    writeFileSync(path.join(folder, 'game.json'), JSON.stringify({ ...meta, id: 'ELECLANCE-DEV' }))
+    rmSync(path.join(folder, 'compiled.s'))
+    rmSync(path.join(folder, 'assets.e16.ts'))
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) =>
+      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await app.evaluate(({ dialog }, answer) => {
+      dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
+    }, folder)
+    await tab('games').click()
+    await page.getByTestId('elec16-dev-open').click()
+    await expect(page.getByTestId('elec16-dev')).toHaveAttribute('data-status', 'built', {
+      timeout: 120_000,
+    })
+    // The same constants but for the id in the header comment, and the same assembly.
+    const same = (name: string) =>
+      readFileSync(path.join(folder, name), 'utf8').replaceAll('ELECLANCE-DEV', 'ELECLANCE')
+    expect(same('assets.e16.ts')).toBe(readFileSync(path.join(from, 'assets.e16.ts'), 'utf8'))
+    expect(same('compiled.s')).toBe(readFileSync(path.join(from, 'compiled.s'), 'utf8'))
+    await expect(page.getByTestId('elec16-game-slot')).toHaveText('ELECLANCE')
+  } finally {
+    await close()
+    rmSync(folder, { recursive: true, force: true })
   }
 })
 

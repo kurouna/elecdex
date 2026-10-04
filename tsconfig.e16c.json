@@ -12,5 +12,6 @@
     "resources/elec16/**/*.e16.ts",
     "src/shared/e16c/builtins.ts"
   ],
-  "exclude": []
+  // The game kit's template imports ./lib, which exists only once the app writes it out.
+  "exclude": ["resources/elec16/kit-template/**"]
 }

@@ -1,6 +1,13 @@
 import { refCounted } from '../../../lib/ref-counted.ts'
 import { makeCompileWorker } from './make-worker.ts'
-import type { CodeReply, CodeRequest, LevelResult } from './protocol.ts'
+import type {
+  CodeReply,
+  CodeRequest,
+  KitFiles,
+  KitOutcome,
+  KitReply,
+  LevelResult,
+} from './protocol.ts'
 
 /**
  * The page's one CODE compiler: a worker started for the first CODE view and ended after the
@@ -10,7 +17,7 @@ import type { CodeReply, CodeRequest, LevelResult } from './protocol.ts'
  */
 
 interface Waiting {
-  resolve: (levels: LevelResult[]) => void
+  resolve: (reply: CodeReply | KitReply) => void
   reject: (error: Error) => void
 }
 
@@ -18,6 +25,8 @@ let worker: Worker | null = null
 let starting: Promise<Worker> | null = null
 let next = 1
 const waiting = new Map<number, Waiting>()
+/** The ROM the worker measures CODE's builds on, as last sent. */
+let romSent: Uint8Array | null = null
 
 function failAll(error: Error): void {
   worker?.terminate()
@@ -27,27 +36,26 @@ function failAll(error: Error): void {
   waiting.clear()
 }
 
-async function start(rom: Uint8Array): Promise<Worker> {
+async function start(): Promise<Worker> {
   const w = await makeCompileWorker()
-  w.onmessage = (event: MessageEvent<CodeReply>) => {
+  romSent = null
+  w.onmessage = (event: MessageEvent<CodeReply | KitReply>) => {
     const done = waiting.get(event.data.id)
     waiting.delete(event.data.id)
-    done?.resolve(event.data.levels)
+    done?.resolve(event.data)
   }
   w.onerror = (event: ErrorEvent) => {
     event.preventDefault()
     failAll(new Error(event.message || 'the compiler stopped'))
   }
   w.onmessageerror = () => failAll(new Error('the compiler answered what could not be read'))
-  const first: CodeRequest = { kind: 'rom', rom: rom.slice() }
-  w.postMessage(first)
   return w
 }
 
 // The last view gone: a build still waiting is ended too, never left to wait for ever.
 const use = refCounted(() => () => failAll(new Error('the compiler was let go')))
 
-/** Holds the compiler while a CODE view is open; the release ends it after the last. */
+/** Holds the compiler while a CODE view (or a game's folder) is open; the last release ends it. */
 export function holdCompiler(): () => void {
   return use()
 }
@@ -58,7 +66,35 @@ export async function compileCode(
   file: string,
   source: string,
 ): Promise<LevelResult[]> {
-  starting ??= start(rom)
+  const w = await ready()
+  if (romSent !== rom) {
+    romSent = rom
+    const measureOn: CodeRequest = { kind: 'rom', rom: rom.slice() }
+    w.postMessage(measureOn)
+  }
+  const reply = await ask(w, (id) => ({ kind: 'build', id, file, source }))
+  return 'levels' in reply ? reply.levels : []
+}
+
+/** A game built from its folder's files with the game kit (docs/elec16-play.md section 11). */
+export async function buildKit(files: KitFiles, romTrap: number): Promise<KitOutcome> {
+  const w = await ready()
+  const reply = await ask(w, (id) => ({ kind: 'kit', id, files, romTrap }))
+  if ('kit' in reply) return reply.kit
+  return { ok: false, errors: [{ file: '', line: 0, message: 'the compiler did not build it' }] }
+}
+
+function ask(w: Worker, request: (id: number) => CodeRequest): Promise<CodeReply | KitReply> {
+  const id = next++
+  return new Promise((resolve, reject) => {
+    waiting.set(id, { resolve, reject })
+    w.postMessage(request(id))
+  })
+}
+
+/** The worker, started if need be; let go while it started, it is ended, not kept for no one. */
+async function ready(): Promise<Worker> {
+  starting ??= start()
   const asked = starting
   let w: Worker
   try {
@@ -67,16 +103,10 @@ export async function compileCode(
     if (starting === asked) starting = null
     throw error
   }
-  // Let go while it started: the worker is ended, not kept for no one.
   if (starting !== asked) {
     w.terminate()
     throw new Error('the compiler was let go')
   }
   worker = w
-  const id = next++
-  return new Promise((resolve, reject) => {
-    waiting.set(id, { resolve, reject })
-    const request: CodeRequest = { kind: 'build', id, file, source }
-    w.postMessage(request)
-  })
+  return w
 }

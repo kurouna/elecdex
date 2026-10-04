@@ -75,7 +75,9 @@ describe('what the app ships', () => {
   it('never loads the build-time shared code at runtime', () => {
     const runtimeFiles = ['src/main', 'src/services', 'src/preload', 'src/shared']
       .flatMap((dir) => files(path.join(root, dir), NOT_AT_RUNTIME))
-      .filter((file) => /from\s+'[^']*e16c\//.test(readFileSync(file, 'utf8')))
+      // A `?raw` import is the file's text bundled in (a new game's folder gets e16c's types),
+      // never its code loaded.
+      .filter((file) => /from\s+'[^']*e16c\/[^']*(?<!\?raw)'/.test(readFileSync(file, 'utf8')))
     expect(runtimeFiles).toEqual([])
   })
 

@@ -32,6 +32,8 @@ import type { LinkAnswer } from '@shared/elec16/link'
 import type {
   Elec16Board,
   Elec16Claim,
+  Elec16DevFiles,
+  Elec16DevOpen,
   Elec16FileInfo,
   Elec16Game,
   Elec16GameImport,
@@ -608,6 +610,16 @@ const api: ElecdexApi = {
         image: Uint8Array
         digest: Uint8Array
       } | null>,
+    devOpen: () => ipcRenderer.invoke(CH.elec16.devOpen) as Promise<Elec16DevOpen | null>,
+    devNew: () => ipcRenderer.invoke(CH.elec16.devNew) as Promise<Elec16DevOpen | null>,
+    devRead: () => ipcRenderer.invoke(CH.elec16.devRead) as Promise<Elec16DevFiles>,
+    devWrite: (assets, compiled) =>
+      ipcRenderer.invoke(CH.elec16.devWrite, assets, compiled) as Promise<boolean>,
+    devInstall: (image) =>
+      ipcRenderer.invoke(CH.elec16.devInstall, image) as Promise<Elec16GameImport>,
+    devClose: () => ipcRenderer.invoke(CH.elec16.devClose) as Promise<void>,
+    devWatch: (on) => ipcRenderer.send(CH.elec16.devWatch, on),
+    onDevChange: (handler) => listen<null>(CH.elec16.devChanged, () => handler()),
   },
   chip8: {
     list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,

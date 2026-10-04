@@ -711,12 +711,12 @@ Ctrl 拖到组上；或者聚焦组中的某个窗格，打开选择器（Ctrl+S
   中打开之前什么也不发送，只发送问题本身，而且在有人按键之前程序不能再次发送。旁边的面板
   显示寄存器和代码（可设断点、STEP）、内存、存储卡（`.bas`、`.asm` 和二进制文件的 IMPORT 与
   EXPORT）以及 TUNE（1 至 32 MHz 的时钟、液晶、外观、自动关机）。TUNE 还可以把一台机器变成正在制作的游戏机
-  **PLAY-320**（*未发布*，制作中：目前有 320×288 的彩色屏幕、扩展 RAM、启动画面、带 12 个按钮的竖式和横式机身、PC 键盘和游戏手柄，卡带（在 GAMES 中从架子上插入，按 START 开始玩），图块引擎（两层可滚动背景、128 个精灵、16 组调色板、行中断和 DMA），以及 16 个立体声声道（包络、滑音和波形表）；CODE 可以在上面运行程序。游戏用 e16c 编写，并通过可导入 PNG 图像和文本乐谱的游戏工具包制作（[docs/elec16-play.md](docs/elec16-play.md#10-ゲームキットg7)，日文）；架子上附带纵版射击游戏 **ELECLANCE**，有 LANCE 激光、炸弹、OVERDRIVE 和两个头目（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)，日文）。LINK 成为面板中单独的标签页，每项服务都可以单独开关）。**CODE** 把用 TypeScript 子集写的
+  **PLAY-320**（*未发布*，制作中：目前有 320×288 的彩色屏幕、扩展 RAM、启动画面、带 12 个按钮的竖式和横式机身、PC 键盘和游戏手柄，卡带（在 GAMES 中从架子上插入，按 START 开始玩），图块引擎（两层可滚动背景、128 个精灵、16 组调色板、行中断和 DMA），以及 16 个立体声声道（包络、滑音和波形表）；CODE 可以在上面运行程序。游戏用 e16c 编写，并通过可导入 PNG 图像和文本乐谱的游戏工具包制作：在 GAMES 的 DEVELOP 中打开游戏文件夹（或从模板新建），应用会在内部构建并插入卡槽，每次保存文件都会重新构建，不需要 Node 或代码仓库（[游戏开发指南](docs/elec16-kit.md)，日文）；架子上附带纵版射击游戏 **ELECLANCE**，有 LANCE 激光、炸弹、OVERDRIVE 和两个头目（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)，日文）。LINK 成为面板中单独的标签页，每项服务都可以单独开关）。**CODE** 把用 TypeScript 子集写的
   程序以三级优化编译成机器码，并排显示各自的字节数和周期数；RUN 直接把它放进机器运行。用户的代码只作为
   机器码运行，绝不会作为 JavaScript 运行。在提示符处等待时 CPU 休眠，窗格的负担与暂停的窗格相当。说明书（日文）：
   [BASIC](docs/elec16-basic.md)、[E16 机器码与监视器](docs/elec16-e16.md)、
   [e16c（CODE 的 TypeScript）](docs/elec16-e16c.md)、
-  [SOFT CARD 的程序](docs/elec16-soft.md)。在 FILES 中选中程序，也会显示其用法。
+  [SOFT CARD 的程序](docs/elec16-soft.md)、[PLAY-320 的游戏开发](docs/elec16-kit.md)。在 FILES 中选中程序，也会显示其用法。
 
 ## 插件
 
@@ -879,7 +879,7 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (the ELEC-16 manuals,
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-kit.md (the ELEC-16 manuals,
                 in Japanese)
 ```
 

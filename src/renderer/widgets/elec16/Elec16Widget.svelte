@@ -22,6 +22,7 @@ import CoreView from './CoreView.svelte'
 import { type CodeTaker, giveCode as giveTo, typeAtBasic } from './code/give.ts'
 import { labelsOf } from './core.ts'
 import Device from './Device.svelte'
+import { DevGame } from './dev-game.svelte.ts'
 import FilesView from './FilesView.svelte'
 import GamesView from './GamesView.svelte'
 import LinkView from './LinkView.svelte'
@@ -158,6 +159,17 @@ $effect(() => {
     )
   })
 })
+
+/**
+ * A game's development folder (docs/elec16-play.md section 11): each build goes on the shelf
+ * and into this unit's slot; the folder is watched while the pane is seen.
+ */
+const dev = new DevGame(
+  window.elecdex.elec16,
+  (id) => session.insertGame(id),
+  async () => (await import('./play-rom.json')).default.symbols.trap ?? 0,
+)
+$effect(() => dev.setSeen(visible))
 
 // CODE covers the machine: it is out of sight then, and pauses as behind a tab.
 const machineSeen = $derived(visible && pane.view === 'machine')
@@ -415,6 +427,7 @@ $effect(() => {
 })
 
 onDestroy(() => {
+  dev.dispose()
   const paused = runner.pausedBy === 'player'
   const unit = session.unit?.id
   const running = session.phase === 'running'
@@ -605,6 +618,7 @@ onDestroy(() => {
               inSlot={session.unit?.cart}
               running={session.phase === 'running'}
               oninsert={(id) => void session.insertGame(id)}
+              {dev}
             />
           {:else if tab === 'link'}
             <LinkView sent={runner.linkSent} note={runner.linkNote} />

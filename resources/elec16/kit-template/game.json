@@ -1,0 +1,10 @@
+{
+  "id": "MYGAME",
+  "name": "MY GAME",
+  "saveBanks": 0,
+  "about": "a ship that flies and shoots: the starting point of a game",
+  "sources": ["main.e16.ts"],
+  "palettes": { "png": "art/palettes.png", "names": ["ship", "space"] },
+  "sheets": [{ "name": "ship", "png": "art/ship.png", "cell": 16, "palette": "ship", "count": 2 }],
+  "music": ["music/songs.mml"]
+}

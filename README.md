@@ -883,8 +883,10 @@ weather and calendar.
   it - a tile engine with two scrolled backgrounds, 128 sprites, sixteen palettes, a line
   interrupt and DMA, and sixteen sound channels in stereo with envelopes, slides and wave
   tables; CODE runs a program on it). Its games are written in e16c with a game kit that
-  takes PNG pictures and music written as text
-  ([docs/elec16-play.md](docs/elec16-play.md#10-ゲームキットg7), in Japanese); the shelf comes
+  takes PNG pictures and music written as text: GAMES ▸ DEVELOP opens a game's folder (or
+  writes a new one from a template), builds it in the app and puts it in the slot again each
+  time a file is saved - no Node or repository needed
+  ([the game developer's guide](docs/elec16-kit.md), in Japanese); the shelf comes
   with **ELECLANCE**, a vertical shooter with a lance, bombs, OVERDRIVE and two bosses
   ([docs/elec16-eleclance.md](docs/elec16-eleclance.md)). LINK is the panel's own tab, with a switch for each service.
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
@@ -893,7 +895,8 @@ weather and calendar.
   it. A person's code runs only as the machine's code - never as JavaScript. While it waits at
   its prompt the CPU sleeps and the pane costs about what a paused one does. The manuals (in
   Japanese): [BASIC](docs/elec16-basic.md), [E16 machine code and the monitor](docs/elec16-e16.md),
-  [e16c, TypeScript for CODE](docs/elec16-e16c.md) and [the SOFT CARD's programs](docs/elec16-soft.md);
+  [e16c, TypeScript for CODE](docs/elec16-e16c.md), [the SOFT CARD's programs](docs/elec16-soft.md)
+  and [making PLAY-320 games](docs/elec16-kit.md);
   FILES also shows how to use the program picked.
 
 ## Plugins
@@ -1085,7 +1088,7 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (the ELEC-16 manuals,
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-kit.md (the ELEC-16 manuals,
                 in Japanese)
 ```
 

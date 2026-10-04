@@ -1,0 +1,13 @@
+{
+  // For your editor: the game's sources are TypeScript the editor can check. e16c, which
+  // builds them, reads its own subset (docs/elec16-kit.md); this only helps you write it.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": ["*.e16.ts", "lib/*.ts"]
+}

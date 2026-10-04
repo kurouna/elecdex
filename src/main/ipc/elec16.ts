@@ -13,6 +13,8 @@ import {
   ELEC16_CLOCKS,
   type Elec16Board,
   type Elec16Claim,
+  type Elec16DevFiles,
+  type Elec16DevOpen,
   type Elec16FileInfo,
   type Elec16Game,
   type Elec16GameImport,
@@ -23,7 +25,15 @@ import {
 import { app, BrowserWindow, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import { appWindows } from '../app-windows.js'
+import {
+  DevFolders,
+  readGameFolder,
+  templateFiles,
+  writeBack,
+  writeTemplate,
+} from '../elec16/devgame.js'
 import { Elec16Games } from '../elec16/games.js'
+import { kitLibFiles } from '../elec16/kit-lib.js'
 import { AiLinkService } from '../elec16/link/ai.js'
 import { CartLinkService } from '../elec16/link/cart.js'
 import { LinkHub } from '../elec16/link/hub.js'
@@ -74,6 +84,8 @@ export function registerElec16Ipc(
   const resources = findElec16Dir(path.dirname(fileURLToPath(import.meta.url)))
   const units = new Elec16Units(dir, Date.now, readSoftCard(resources))
   const games = new Elec16Games(dir, resources)
+  const dev = new DevFolders()
+  const devOwner = {}
   const owner = {}
   const hub = new LinkHub({
     services: [
@@ -142,6 +154,12 @@ export function registerElec16Ipc(
       if (freed.length > 0) changed()
     })
     return { page: page.id, pane }
+  }
+  /** A folder opened for this page; forgotten when the page goes. */
+  const devOpened = (page: WebContents, folder: string): Elec16DevOpen => {
+    dev.open(page.id, folder)
+    whenPageGoes(page, devOwner, () => dev.close(page.id))
+    return { ok: true, name: path.basename(folder) }
   }
   const askBack = (from: Holder): void => {
     const page = appWindows()
@@ -271,6 +289,43 @@ export function registerElec16Ipc(
         const game = units.unit(unit)?.cart
         return game === undefined ? null : games.image(game)
       },
+      [CH.elec16.devOpen]: async (event): Promise<Elec16DevOpen | null> => {
+        const folder = await pickFolder(event.sender, "Open a game's folder", false)
+        if (folder === undefined) return null
+        return devOpened(event.sender, folder)
+      },
+      [CH.elec16.devNew]: async (event): Promise<Elec16DevOpen | null> => {
+        const folder = await pickFolder(event.sender, 'A folder for a new game', true)
+        if (folder === undefined || resources === null) return null
+        const files = { ...templateFiles(path.join(resources, 'kit-template')), ...kitLibFiles() }
+        const problem = writeTemplate(folder, files)
+        if (problem !== null) return { ok: false, problem }
+        return devOpened(event.sender, folder)
+      },
+      [CH.elec16.devRead]: (event): Elec16DevFiles => {
+        const folder = dev.dirOf(event.sender.id)
+        if (folder === null) return { ok: false, problem: 'no folder is open' }
+        return readGameFolder(folder)
+      },
+      [CH.elec16.devWrite]: (event, assets: unknown, compiled: unknown): boolean => {
+        const folder = dev.dirOf(event.sender.id)
+        if (folder === null || typeof assets !== 'string' || typeof compiled !== 'string')
+          return false
+        if (assets.length > 1 << 20 || compiled.length > 8 << 20) return false
+        writeBack(folder, assets, compiled)
+        return true
+      },
+      [CH.elec16.devInstall]: (event, image: unknown): Elec16GameImport => {
+        const folder = dev.dirOf(event.sender.id)
+        if (folder === null) return { ok: false, problem: 'no folder is open' }
+        if (!(image instanceof Uint8Array)) return { ok: false, problem: 'not a cartridge' }
+        const done = games.importBuilt(image, path.basename(folder))
+        if (done.ok) gamesChanged()
+        return done
+      },
+      [CH.elec16.devClose]: (event): void => {
+        dev.close(event.sender.id)
+      },
       [CH.elec16.gamesInsert]: (
         event,
         unit: unknown,
@@ -286,6 +341,12 @@ export function registerElec16Ipc(
       },
     },
     on: {
+      [CH.elec16.devWatch]: (event, on: unknown) => {
+        const page = event.sender
+        dev.watch(page.id, on === true, () => {
+          if (!page.isDestroyed()) page.send(CH.elec16.devChanged, null)
+        })
+      },
       [CH.elec16.linkDrop]: (event, unit: unknown, pane: unknown, serial: unknown) => {
         if (!isPane(pane) || typeof unit !== 'string') return
         if (units.holds(unit, { page: event.sender.id, pane })) hub.drop(unit, serial)
@@ -295,6 +356,7 @@ export function registerElec16Ipc(
 
   return {
     dispose: () => {
+      for (const page of dev.pages()) dev.close(page)
       hub.dispose()
       unregister()
     },
@@ -328,6 +390,23 @@ async function pickGame(page: WebContents): Promise<string | undefined> {
       { name: 'ELEC-16 PLAY cartridges', extensions: ['e16g'] },
       { name: 'All files', extensions: ['*'] },
     ],
+  }
+  const picked = owner
+    ? await dialog.showOpenDialog(owner, options)
+    : await dialog.showOpenDialog(options)
+  return picked.canceled ? undefined : picked.filePaths[0]
+}
+
+/** A folder through main's picker: a game's to open, or one to make a new game in. */
+async function pickFolder(
+  page: WebContents,
+  title: string,
+  create: boolean,
+): Promise<string | undefined> {
+  const owner = BrowserWindow.fromWebContents(page)
+  const options: Electron.OpenDialogOptions = {
+    title,
+    properties: create ? ['openDirectory', 'createDirectory'] : ['openDirectory'],
   }
   const picked = owner
     ? await dialog.showOpenDialog(owner, options)

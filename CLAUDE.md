@@ -287,6 +287,12 @@ user made; do not reverse one without asking.
     colours; music is the kit's MML, effects on channels 12-15. ELECLANCE
     (docs/elec16-eleclance.md) is its sample: its PNGs and stage.txt are the source once
     scripts/eleclance-art.mjs drew them; a test holds every song's channels in step.
+  - GAMES ▸ DEVELOP (elec16-play.md section 11, docs/elec16-kit.md, main/elec16/devgame.ts):
+    main picks a game's folder, keeps it per page and reads only the files game.json names,
+    inside it; the build runs in CODE's worker, never in main; main writes back only
+    assets.e16.ts and compiled.s, and a new game's template (resources/elec16/kit-template, a
+    test builds it) only where no game.json is. A build replaces its own id on the shelf,
+    never a bundled one; no automatic START (CART needs a person's action).
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).

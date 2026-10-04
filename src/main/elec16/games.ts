@@ -95,12 +95,32 @@ export class Elec16Games {
     } catch {
       return { ok: false, problem: 'the file could not be read' }
     }
+    return this.#take(image, path.basename(file), false)
+  }
+
+  /**
+   * A game built from a folder (docs/elec16-play.md section 11) put on the shelf: the same
+   * checks as an import, and it takes the place of an earlier build of the same id - never of
+   * a bundled game.
+   */
+  importBuilt(image: Uint8Array, from: string): Elec16GameImport {
+    if (image.length > CART_MAX_SIZE) {
+      return { ok: false, problem: `${image.length} bytes is more than a cartridge holds` }
+    }
+    return this.#take(image, from, true)
+  }
+
+  #take(image: Uint8Array, from: string, replace: boolean): Elec16GameImport {
     const header = readCart(image)
     if (header === null)
       return { ok: false, problem: 'it is not an ELEC-16 PLAY cartridge (.E16G)' }
-    if (this.list().some((g) => g.id === header.id)) {
+    if (this.#bundled.some((h) => h.game.id === header.id)) {
+      return { ok: false, problem: `${header.id} is the id of a game that comes with the app` }
+    }
+    if (!replace && this.list().some((g) => g.id === header.id)) {
       return { ok: false, problem: `a game with the id ${header.id} is already on the shelf` }
     }
+    if (replace) this.remove(header.id)
     const hash = Buffer.from(digestOf(image)).toString('hex')
     const name = `${hash}.e16g`
     const target = path.join(this.#dir, name)
@@ -111,7 +131,7 @@ export class Elec16Games {
     const entry = {
       id: header.id,
       file: name,
-      from: path.basename(file).slice(0, 260),
+      from: from.slice(0, 260),
       at: this.#now(),
     }
     this.#library.write({ ...lib, games: [...lib.games, entry] })

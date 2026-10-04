@@ -1,6 +1,7 @@
 <script lang="ts">
 import type { Elec16Game } from '@shared/elec16-units'
 import { sfx } from '../../stores/sound.svelte.ts'
+import type { DevGame } from './dev-game.svelte.ts'
 
 /**
  * GAMES (docs/elec16-play.md section 7): ELEC-16 PLAY's shelf - the bundled games and the ones
@@ -15,9 +16,22 @@ interface Props {
   running: boolean
   /** A game put in the slot, or null to take the one there out. */
   oninsert: (id: string | null) => void
+  /** DEVELOP: a game's folder built into the slot (docs/elec16-play.md section 11). */
+  dev: DevGame
 }
 
-const { inSlot, running, oninsert }: Props = $props()
+const { inSlot, running, oninsert, dev }: Props = $props()
+
+function develop(how: 'open' | 'create' | 'build' | 'close'): void {
+  sfx.play('panel')
+  if (how === 'open') void dev.open()
+  else if (how === 'create') void dev.create()
+  else if (how === 'build') void dev.build()
+  else dev.close()
+}
+
+const where = (p: { file: string; line: number }): string =>
+  p.file === '' ? '' : p.line > 0 ? `${p.file}:${p.line}: ` : `${p.file}: `
 
 let games = $state<readonly Elec16Game[]>([])
 let problem = $state<string | null>(null)
@@ -122,6 +136,47 @@ const kb = (banks: number): string => `${banks * 8} KB`
     {#if problem !== null}
       <p class="note failed" data-testid="elec16-game-problem">{problem}</p>
     {/if}
+  </section>
+  <section data-testid="elec16-dev" data-status={dev.status} data-builds={dev.builds}>
+    <h3>develop</h3>
+    {#if dev.folder === null}
+      <div class="chips">
+        <button type="button" class="e16-chip" disabled={!running} onclick={() => develop('open')} data-testid="elec16-dev-open"
+          >open folder</button
+        >
+        <button type="button" class="e16-chip" disabled={!running} onclick={() => develop('create')} data-testid="elec16-dev-new"
+          >new game</button
+        >
+      </div>
+      <p class="note">
+        A game's folder is built here and put in the slot each time you save a file in it. NEW GAME
+        writes a working starting point into an empty folder.
+      </p>
+    {:else}
+      <div class="chips">
+        <span class="e16-chip plain" data-testid="elec16-dev-folder">{dev.folder}</span>
+        <button type="button" class="e16-chip" disabled={dev.status === 'building'} onclick={() => develop('build')} data-testid="elec16-dev-build"
+          >rebuild</button
+        >
+        <button type="button" class="e16-chip" onclick={() => develop('close')} data-testid="elec16-dev-close"
+          >close</button
+        >
+      </div>
+      <p class="note" data-testid="elec16-dev-state">
+        {#if dev.status === 'building'}
+          building…
+        {:else if dev.status === 'built' && dev.report !== null}
+          built: {kb(dev.report.banks)}, {dev.report.ramCode} bytes of code in RAM, {dev.report.tiles} tiles - press START
+        {:else if dev.status === 'failed'}
+          not built
+        {:else}
+          watching for changes
+        {/if}
+      </p>
+    {/if}
+    {#each dev.problems as p, k (k)}
+      <p class="note failed" data-testid="elec16-dev-problem">{where(p)}{p.message}</p>
+    {/each}
   </section>
 </div>
 

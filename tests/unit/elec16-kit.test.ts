@@ -276,3 +276,32 @@ describe('a kit game on the core', () => {
     expect([m.state.csr.mtvec, m.state.csr.mstatus & 8]).toEqual([ROM_TRAP, 0])
   })
 })
+
+describe("the kit's template for a new game", () => {
+  const meta = JSON.parse(readFileSync('resources/elec16/kit-template/game.json', 'utf8'))
+  const built = buildKit('resources/elec16/kit-template', meta)
+  if ('errors' in built) throw new Error(JSON.stringify(built.errors))
+
+  it('builds, runs, flies its ship and shoots, and goes back to the start screen on START', () => {
+    const m = startGame(built.image)
+    frames(m, 10, built.image)
+    expect(m.state.halt).toBeNull()
+    const v = m.state.video?.mem ?? new Uint8Array()
+    const word = (at: number) => (v[at] ?? 0) | ((v[at + 1] ?? 0) << 8)
+    // Sprite 0, the ship, at (144, 212); no shot yet.
+    expect([word(0xc000), word(0xc002), word(0xc006), word(0xc00e)]).toEqual([144, 212, 1, 3])
+    m.pad(padBit('right'))
+    frames(m, 10, built.image)
+    m.pad(padBit('a'))
+    frames(m, 2, built.image)
+    m.pad(0)
+    frames(m, 2, built.image)
+    expect(word(0xc000)).toBeGreaterThan(144)
+    // A shot: sprite 1 shown.
+    expect(word(0xc00e)).toBe(1)
+    tap(m, padBit('start'), built.image)
+    settle(m, built.image)
+    const lines = playText(m.state.video?.mem ?? []).map((l) => l.trim())
+    expect(lines).toContain('PRESS START')
+  })
+})
