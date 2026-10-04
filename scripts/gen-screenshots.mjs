@@ -281,6 +281,77 @@ async function sinewave(page) {
   await page.mouse.move(W / 2, H / 6)
 }
 
+/*
+ * ELEC-16 PLAY: a PLAY-320 unit with ELECLANCE in its slot, the tall body in coral, GAMES in
+ * the panel beside it; the game started and played for a while.
+ */
+const playLayout = {
+  version: 1,
+  root: split(
+    'row',
+    [
+      split(
+        'column',
+        ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
+        [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
+      ),
+      {
+        ...pane('elec16'),
+        state: { unit: 'u1', tab: 'games', playBody: 'tall', playSkin: 'coral' },
+      },
+      split(
+        'column',
+        ['globe', 'markets', 'weather', 'calendar'].map(pane),
+        [0.3, 0.25, 0.22, 0.23],
+      ),
+    ],
+    [0.18, 0.64, 0.18],
+  ),
+}
+
+/** The profile's unit: a PLAY-320 with the bundled ELECLANCE in its slot. */
+function playUnit(dir) {
+  mkdirSync(path.join(dir, 'elec16'), { recursive: true })
+  const unit = { id: 'u1', name: 'UNIT 1', clock: 4, model: 'play-320', autoOff: 10, xram: 512 }
+  writeFileSync(
+    path.join(dir, 'elec16', 'units.json'),
+    JSON.stringify({ version: 1, units: [{ ...unit, cart: 'ELECLANCE', created: 0 }] }),
+  )
+}
+
+/**
+ * START at the start screen (the game loads), START on its title once the word has landed,
+ * then a few seconds of play: the ship weaving, shooting in taps, then the lance held.
+ */
+async function eleclance(page) {
+  const device = page.getByTestId('elec16')
+  await device.waitFor()
+  await page.waitForTimeout(2000)
+  await device.focus()
+  // The machine looks at the pad once a frame: a key is held for a few frames, as a hand would.
+  const tap = async (key) => {
+    await page.keyboard.down(key)
+    await page.waitForTimeout(120)
+    await page.keyboard.up(key)
+  }
+  await tap('Enter')
+  // The title takes A as well as START; in the game A only shoots, where START would pause.
+  await page.waitForTimeout(1500)
+  await tap('KeyZ')
+  await page.waitForTimeout(4000)
+  for (let k = 0; k < 40; k++) {
+    const side = k % 8 < 4 ? 'ArrowLeft' : 'ArrowRight'
+    await page.keyboard.down(side)
+    await tap('KeyZ')
+    await page.waitForTimeout(100)
+    await page.keyboard.up(side)
+  }
+  await page.keyboard.down('KeyZ')
+  await page.waitForTimeout(1500)
+  await page.keyboard.up('KeyZ')
+  await page.mouse.move(W / 2, H / 6)
+}
+
 /** A program brought back after a start waits paused: P runs it, for its title screen to draw. */
 async function playing(page) {
   await page.getByTestId('chip8-run').waitFor()
@@ -608,6 +679,11 @@ await shoot('phosphor', 'elecdex-retro', {
 })
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
+await shoot('business-dark', 'elecdex-play', {
+  layout: playLayout,
+  prepare: playUnit,
+  extra: eleclance,
+})
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [
   ['social-elec-sitting', sitting, 110],

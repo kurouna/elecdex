@@ -420,7 +420,13 @@ function romOf(
   return rom
 }
 
-/** The bytes assembled for RAM, from IMAGE_AT; nothing may fall outside 2000-6FFF. */
+/** Past the window: where a bank's code runs on when it is more than the bank's 8 KB. */
+const WINDOW_END = 0xe000
+
+/**
+ * The bytes assembled for RAM, from IMAGE_AT; nothing may fall outside 2000-6FFF. Code that
+ * ran past E000 is a bank's, too long for it: the assembler leaves the window there.
+ */
 function ramImage(chunks: AsmChunk[]): Uint8Array {
   const ram = chunks.filter((c) => c.bank === null)
   let end = KIT_IMAGE_AT
@@ -428,6 +434,11 @@ function ramImage(chunks: AsmChunk[]): Uint8Array {
     const last = c.address + c.bytes.length
     if (c.address < KIT_IMAGE_AT || last > KIT_IMAGE_END) {
       const range = `0x${c.address.toString(16)}-0x${last.toString(16)}`
+      if (c.address >= WINDOW_END) {
+        throw new KitError(
+          `a bank's code runs past its 8 KB (to ${range}): move a file to a bank of its own`,
+        )
+      }
       throw new KitError(`code at ${range}, outside RAM's 2000-6FFF`)
     }
     end = Math.max(end, last)

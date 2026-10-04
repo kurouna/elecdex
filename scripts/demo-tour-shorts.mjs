@@ -14,7 +14,8 @@
  *   utility     a QR code typed, over the tasks
  *   keystream   the sample plugin over the processor's chart: a track typed on time
  *   retro       the ELEC-16 and the CHIP-8 behind one tab strip over the spectrum, as the retro
- *               preset has them: the ELEC-16 runs SINEWAVE from its SOFT CARD, then the CHIP-8
+ *               preset has them: the ELEC-16 runs SINEWAVE from its SOFT CARD, a PLAY-320 plays
+ *               ELECLANCE behind the next tab, then the CHIP-8
  *               library plays T8NKS by itself, loaded across the width (no panel), then paused
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, on the shells
@@ -28,7 +29,14 @@
  * (`--lead`, 10 s), plays the boot and the tour follows; close it to end, or pass `--exit`.
  * `--no-intro` skips the boot. The other options are demo-take.mjs's (`takeOptions`).
  */
-import { beats, KEYSTREAM_VOLUME, prepareMusic, startCouncil } from './demo-beats.mjs'
+import {
+  beats,
+  KEYSTREAM_VOLUME,
+  PLAY_PANE,
+  playUnits,
+  prepareMusic,
+  startCouncil,
+} from './demo-beats.mjs'
 import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
 import { openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 
@@ -92,7 +100,8 @@ const LAYOUTS = [
     () =>
       stack(
         tabs(
-          pane('elec16', { skin: 'classic', panel: false }),
+          pane('elec16', { unit: 'u1', skin: 'classic', panel: false }),
+          pane('elec16', PLAY_PANE),
           pane('chip8', {
             view: 'library',
             filter: 'action',
@@ -130,7 +139,10 @@ const { app, page, wait, settled, run } = await openTake({
   intro,
   env: music.env,
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
-  prepare: copyKeystream,
+  prepare: (profile) => {
+    copyKeystream(profile)
+    playUnits(profile)
+  },
 })
 const beat = beats({ app, page, wait, settled, theme: options.theme, music })
 
@@ -139,7 +151,7 @@ await run(async () => {
   await wait(1000)
   await beat.forward('globe', 2600)
   await beat.throughTheDialog('network')
-  await wait(3500)
+  await wait(2500)
   await beat.toLayout(slot('earth'), 'earth')
   await wait(1200)
   await beat.issCard(2400)
@@ -156,25 +168,27 @@ await run(async () => {
   await beat.musicPlays()
   await wait(2500)
   await beat.nextTrack(3500)
+  await beat.musicStops()
   await beat.toLayout(slot('utility'), 'utility')
   await wait(800)
   await beat.qrCode(2000)
   await beat.keystream(() => beat.toLayout(slot('keystream'), 'keystream'), {
     previews: [],
-    play: 10_000,
+    play: 7_000,
   })
   await beat.toLayout(slot('retro'), 'retro')
-  await beat.elec16(3500)
+  await beat.elec16(2500)
+  await beat.play(5000)
   await beat.toTab('CHIP-8')
   await beat.chip8(2200, { mem: false })
   await beat.throughTheDialog('council')
   await wait(800)
-  await beat.councilSits(4000)
+  await beat.councilSits(3000)
   await beat.toLayout(slot('shell'), 'shell')
   // The switch ended the shells: the new one is given something to show while the themes change.
   await beat.shellTypes()
-  await beat.themes(1600)
-  await wait(2000)
+  await beat.themes(1300)
+  await wait(1500)
   say(`tour: ${((Date.now() - started) / 1000).toFixed(0)} s after the boot`)
   if (exit) await app.close().catch(() => {})
 })

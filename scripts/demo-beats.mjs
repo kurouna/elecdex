@@ -1,20 +1,36 @@
 /**
  * What the introduction tours share (demo-tour.mjs, landscape; demo-tour-shorts.mjs, vertical):
  * the council's stand-in model, and the beats themselves - the ISS's card, a container stopped,
- * copies landing, a QR code typed, KEYSTREAM played, a CHIP-8 program loaded, a motion put to the council, the themes in
+ * copies landing, a QR code typed, KEYSTREAM played, ELECLANCE on a PLAY-320, a CHIP-8 program loaded, a motion put to the council, the themes in
  * turn - and the music the media beat plays: two of KEYSTREAM's own tracks, rendered to WAV
  * files (keystream-wav.mjs) and played by the spectrum's stand-in, so the spectrum moves with
  * what is heard and nothing of this machine's sound is captured. A tour lays
  * out its own layouts and chooses its beats; the beats do not care which frame they are in, so
  * a release that changes a pane changes its beat here, once, for both.
  */
-import { statSync } from 'node:fs'
+import { mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { PROJECT } from './demo-fixtures.mjs'
 import { autoplay, KEYS, keystreamMenu, trackPlan } from './demo-keystream-kit.mjs'
 import { say } from './demo-take.mjs'
 import { cachedTrackWav } from './keystream-wav.mjs'
+
+/* ---- The ELEC-16 units: the pocket computer, and a PLAY-320 with ELECLANCE in its slot ---- */
+
+/** The pane state of a PLAY-320's pane in a tour: the second unit, its coral body, no panel. */
+export const PLAY_PANE = { unit: 'u2', playBody: 'tall', playSkin: 'coral', panel: false }
+
+/** Written into the take's profile (`prepare`): the units the retro layout's two machines run. */
+export function playUnits(profile) {
+  mkdirSync(path.join(profile, 'elec16'), { recursive: true })
+  const unit = { clock: 4, autoOff: 10, created: 0 }
+  const units = [
+    { ...unit, id: 'u1', name: 'UNIT 1', model: 'pocket-48' },
+    { ...unit, id: 'u2', name: 'UNIT 2', model: 'play-320', xram: 512, cart: 'ELECLANCE' },
+  ]
+  writeFileSync(path.join(profile, 'elec16', 'units.json'), JSON.stringify({ version: 1, units }))
+}
 
 /* ---- The council's stand-in: answers as a local model streams them, no model and no key ---- */
 
@@ -260,6 +276,15 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await wait(hold)
   }
 
+  /**
+   * The music off as the media beat ends. The stand-in keeps the track it was told and plays
+   * it to every spectrum that opens: left on, FEVER CALL came back under the retro layout's
+   * spectrum, over the machines.
+   */
+  async function musicStops() {
+    if (music !== null) await app.evaluate(() => globalThis.__elecdexAudio.play(null))
+  }
+
   /** An address typed into the utility pane's QR module (open on URL). */
   async function qrCode(hold = 2200) {
     say('utility: a QR code')
@@ -325,7 +350,8 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
    * (LOAD, then RUN), the waves drawn and held on screen; BRK puts it back at the prompt.
    */
   async function elec16(hold = 4500) {
-    const pane = paneOf('elec16')
+    // The first: a tour may put a PLAY-320 behind the next tab (play).
+    const pane = paneOf('elec16').first()
     const machine = pane.getByTestId('elec16')
     await machine.and(page.locator('[data-asleep=true]')).waitFor({ timeout: 20_000 })
     say('elec16: LOAD "SINEWAVE", RUN')
@@ -339,6 +365,46 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await wait(hold)
     await page.keyboard.press('Pause')
     await wait(600)
+  }
+
+  /**
+   * The PLAY-320 behind the retro layout's second tab, ▶ pressed: START at the start screen loads
+   * ELECLANCE, A on its title, then the ship weaving and shooting in taps and the lance held.
+   * Keys are held for a few frames, as a hand would: the machine looks at the pad once a frame.
+   */
+  async function play(hold = 9000) {
+    say('play-320: ELECLANCE')
+    await press(page.getByTestId('tab').filter({ hasText: 'ELEC-16' }).nth(1))
+    await wait(300)
+    await settled()
+    const pane = paneOf('elec16').nth(1)
+    const machine = pane.getByTestId('elec16')
+    await machine.waitFor()
+    // Started behind its tab, it waits paused: coming into sight does not resume a machine.
+    const resume = pane.locator('[data-testid=elec16-pause][aria-label=resume]')
+    if (await resume.isVisible()) await press(resume)
+    await wait(1500)
+    await machine.focus()
+    const tap = async (key) => {
+      await page.keyboard.down(key)
+      await wait(120)
+      await page.keyboard.up(key)
+    }
+    await tap('Enter')
+    await wait(1800)
+    await tap('KeyZ')
+    const until = Date.now() + hold
+    for (let k = 0; Date.now() < until - 1500; k++) {
+      const side = k % 8 < 4 ? 'ArrowLeft' : 'ArrowRight'
+      await page.keyboard.down(side)
+      await tap('KeyZ')
+      await wait(100)
+      await page.keyboard.up(side)
+    }
+    await page.keyboard.down('KeyZ')
+    await wait(1500)
+    await page.keyboard.up('KeyZ')
+    await away()
   }
 
   /** A motion put to the council, the vote, and the resolution held on screen. */
@@ -386,10 +452,12 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     copies,
     musicPlays,
     nextTrack,
+    musicStops,
     qrCode,
     keystream,
     chip8,
     elec16,
+    play,
     councilSits,
     themes,
   }

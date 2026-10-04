@@ -225,6 +225,25 @@ describe('a kit game on the core', () => {
     expect(built.report.assets).toContain('export const SHIP_TILE = 0x28')
   })
 
+  it("says a bank's code is too long, not that it is outside RAM", () => {
+    const lines = Array.from({ length: 2000 }, (_, k) => `  poke16(0x300, ${k})`)
+    const far = [
+      'export function farAway(a: u16, b: u16): u16 {',
+      ...lines,
+      '  return a + b',
+      '}',
+    ].join('\n')
+    const long = buildKit(
+      'tests/fixtures/kit',
+      META,
+      { 'palettes.png': PALETTES, 'ship.png': ship },
+      {
+        'far.e16.ts': far,
+      },
+    )
+    expect(JSON.stringify(long)).toContain("a bank's code runs past its 8 KB")
+  })
+
   it('writes the constants its sources import, as the folder keeps them', () => {
     expect(readFileSync('tests/fixtures/kit/assets.e16.ts', 'utf8')).toBe(built.report.assets)
   })

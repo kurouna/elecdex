@@ -12,7 +12,8 @@
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
  *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
- *               CARD and run; then the CHIP-8 behind its tab, its library playing T8NKS by
+ *               CARD and run; a PLAY-320 behind the next tab playing ELECLANCE; then the
+ *               CHIP-8 behind its tab, its library playing T8NKS by
  *               itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, back to Tron
@@ -31,7 +32,14 @@
  * `--no-intro` skips the boot. The other options are demo-take.mjs's (`takeOptions`): 1600x900
  * unless told otherwise, `--pace` on every pause, `--shots=<dir>` to look the take over.
  */
-import { beats, KEYSTREAM_VOLUME, prepareMusic, startCouncil } from './demo-beats.mjs'
+import {
+  beats,
+  KEYSTREAM_VOLUME,
+  PLAY_PANE,
+  playUnits,
+  prepareMusic,
+  startCouncil,
+} from './demo-beats.mjs'
 import { copyKeystream, keystreamPane, keystreamSettings } from './demo-keystream-kit.mjs'
 import { MAIN, openTake, prepareData, say, takeOptions, withDemoState } from './demo-take.mjs'
 import { presetTrees, withState } from './preset-shots.mjs'
@@ -102,7 +110,8 @@ const items = ORDER.map((id, i) => {
 items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
 items.push({ id: 'tourkeystream', name: 'keystream', tree: keystreamTree })
 // The retro preset as it ships: the ELEC-16 in front in the CLASSIC skin, its panel folded, the
-// CHIP-8 behind its tab open on T8NKS (chip8Archive, CC0), the spectrum under them.
+// CHIP-8 behind its tab open on T8NKS (chip8Archive, CC0), the spectrum under them; a PLAY-320
+// with ELECLANCE goes between the two machines' tabs.
 const retro = trees.get('retro')
 if (retro === undefined) throw new Error('no preset retro in the built app')
 items.push({
@@ -110,10 +119,25 @@ items.push({
   name: 'retro',
   preset: 'retro',
   tree: withState(withDemoState(retro, standIn), {
-    elec16: { skin: 'classic', panel: false },
+    elec16: { unit: 'u1', skin: 'classic', panel: false },
     chip8: { view: 'library', filter: 'action', program: 'archive/t8nks', panel: true },
   }),
 })
+withPlay(items.at(-1).tree.root)
+
+/** The PLAY-320's pane put after the pocket computer in the retro layout's tab strip. */
+function withPlay(node) {
+  if (node.kind === 'split') return node.children.forEach(withPlay)
+  if (node.kind !== 'tabs') return
+  const at = node.children.findIndex((c) => c.widget === 'elec16')
+  if (at >= 0)
+    node.children.splice(at + 1, 0, {
+      kind: 'pane',
+      id: 'tplay',
+      widget: 'elec16',
+      state: PLAY_PANE,
+    })
+}
 
 if (!options.probe) {
   say(`the window opens in ${options.lead} s - start the recorder`)
@@ -126,7 +150,10 @@ const { app, page, wait, settled, run } = await openTake({
   intro,
   env: music.env,
   settings: { ...council.settings, plugins: keystreamSettings(KEYSTREAM_VOLUME) },
-  prepare: copyKeystream,
+  prepare: (profile) => {
+    copyKeystream(profile)
+    playUnits(profile)
+  },
 })
 
 const beat = beats({ app, page, wait, settled, theme: options.theme, music })
@@ -174,6 +201,7 @@ await run(async () => {
   await beat.musicPlays()
   await wait(4000)
   await beat.nextTrack(4500)
+  await beat.musicStops()
   await toPreset('desk')
   await wait(1200)
   await beat.copies()
@@ -181,6 +209,7 @@ await run(async () => {
   await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 12_000 })
   await beat.toLayout(9, 'retro')
   await beat.elec16()
+  await beat.play()
   await beat.toTab('CHIP-8')
   await beat.chip8(2200)
   await beat.toLayout(7, 'council')

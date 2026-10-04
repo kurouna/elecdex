@@ -29,10 +29,15 @@ export function pictureFile(file: string): Picture | null {
 }
 
 /** A kit game built from `dir`, with pictures from `pictures` before the folder's files. */
-export function buildKit(dir: string, meta: KitMeta, pictures: Record<string, Picture> = {}) {
+export function buildKit(
+  dir: string,
+  meta: KitMeta,
+  pictures: Record<string, Picture> = {},
+  texts: Record<string, string> = {},
+) {
   const input: KitInput = {
     meta,
-    read: (name) => text(`${dir}/${name}`),
+    read: (name) => texts[name] ?? text(`${dir}/${name}`),
     picture: (name) => pictures[name] ?? pictureFile(`${dir}/${name}`),
     lib: (name) => text(LIB + name),
     romTrap: ROM_TRAP,

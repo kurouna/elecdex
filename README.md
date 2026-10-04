@@ -184,9 +184,16 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   <br><sub>ELEC-16 · CLASSIC skin</sub>
 </p>
 
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play.jpg" alt="An ELEC-16 pane made a PLAY-320 in its coral body: ELECLANCE on its colour screen, the ship firing the lance up the middle between two side panels with the score, CHAIN, BOMB and VOLT, and GAMES beside it with ELECLANCE in the slot, the shelf and DEVELOP">
+  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECLANCE</sub>
+</p>
+
 - **ELEC-16** — a 16-bit pocket computer of elecdex's own design: its own
   RISC CPU, BASIC and machine-code monitor in ROM, an LCD and a keyboard, a memory card, and
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
+  Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
+  channels, with a vertical shooter of its own, ELECLANCE, and a kit to make games for it.
 
 ### Layouts, looks and the rest
 
@@ -877,8 +884,8 @@ weather and calendar.
   until a person has pressed a key. The panel beside it shows the registers and the code
   (with breakpoints and STEP), the memory, the card (IMPORT and EXPORT of `.bas`, `.asm` and
   binary files) and TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off).
-  TUNE can also make a unit **PLAY-320**, the game model being built (*unreleased*, in progress:
-  so far a 320×288 colour screen, its extended RAM, a start screen, a tall or wide body with twelve
+  TUNE can also make a unit **PLAY-320**, the game model (*unreleased*:
+  a 320×288 colour screen, its extended RAM, a start screen, a tall or wide body with twelve
   buttons, the PC's keys and a gamepad, cartridges - GAMES puts one from the shelf in, START plays
   it - a tile engine with two scrolled backgrounds, 128 sprites, sixteen palettes, a line
   interrupt and DMA, and sixteen sound channels in stereo with envelopes, slides and wave
@@ -888,15 +895,16 @@ weather and calendar.
   time a file is saved - no Node or repository needed
   ([the game developer's guide](docs/elec16-kit.md), in Japanese); the shelf comes
   with **ELECLANCE**, a vertical shooter with a lance, bombs, OVERDRIVE and two bosses
-  ([docs/elec16-eleclance.md](docs/elec16-eleclance.md)). LINK is the panel's own tab, with a switch for each service.
+  ([docs/elec16-eleclance.md](docs/elec16-eleclance.md)); how to play is
+  [the PLAY-320 manual](docs/elec16-play-manual.md), in Japanese. LINK is the panel's own tab, with a switch for each service.
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
   three levels of
   optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs
   it. A person's code runs only as the machine's code - never as JavaScript. While it waits at
   its prompt the CPU sleeps and the pane costs about what a paused one does. The manuals (in
   Japanese): [BASIC](docs/elec16-basic.md), [E16 machine code and the monitor](docs/elec16-e16.md),
-  [e16c, TypeScript for CODE](docs/elec16-e16c.md), [the SOFT CARD's programs](docs/elec16-soft.md)
-  and [making PLAY-320 games](docs/elec16-kit.md);
+  [e16c, TypeScript for CODE](docs/elec16-e16c.md), [the SOFT CARD's programs](docs/elec16-soft.md),
+  [the PLAY-320](docs/elec16-play-manual.md) and [making PLAY-320 games](docs/elec16-kit.md);
   FILES also shows how to use the program picked.
 
 ## Plugins
@@ -1088,7 +1096,7 @@ tests/          unit (vitest) · component (vitest + jsdom) · e2e (playwright _
 scripts/        asset generators (icon, banner, globe data, city list, README screenshots)
 docs/           architecture.md (the design, in Japanese), decisions.md (the decision log,
                 in Japanese), plugins.md, weather-providers.md, elec16.md (the ELEC-16 design),
-                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-kit.md (the ELEC-16 manuals,
+                elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md, elec16-play-manual.md, elec16-kit.md (the ELEC-16 manuals,
                 in Japanese)
 ```
 
