@@ -299,11 +299,22 @@ describe('the body and the pane', () => {
     ])
   })
 
-  it('gives every skin but the Business ones the name plate', () => {
+  it('gives every skin but PLAIN and the Business ones the name plate', () => {
     expect(SKIN_IDS.filter((id) => !SKINS[id].body.plateShown)).toEqual([
+      'plain',
       'business-light',
       'business-dark',
     ])
+  })
+
+  it("has PLAIN alone without a case, on a flat screen, in the theme's colours", () => {
+    expect(SKIN_IDS.filter((id) => SKINS[id].body.bare)).toEqual(['plain'])
+    expect(SKIN_IDS.filter((id) => SKINS[id].lcd.flat)).toEqual(['plain'])
+    // Every colour of it is the theme's, or none: it changes with the theme.
+    const colours = [...Object.values(SKINS.plain.body), ...Object.values(SKINS.plain.lcd)]
+    for (const c of colours.filter((v) => typeof v === 'string' && v.length > 6)) {
+      expect(c).toMatch(/^(var\(--|transparent$)/)
+    }
   })
 
   it('reads its state with a default for anything strange', () => {

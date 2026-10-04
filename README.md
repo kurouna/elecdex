@@ -33,8 +33,8 @@ for Windows, macOS and Linux.
 
 ## Features
 
-The panes are arranged by what you are doing: seven **layout presets** put the right ones on
-screen at a key each - **Ctrl+Shift+F1** to **F7** - and every one keeps the system column on the
+The panes are arranged by what you are doing: eight **layout presets** put the right ones on
+screen at a key each - **Ctrl+Shift+F1** to **F8** - and every one keeps the system column on the
 left, so a switch changes the stage and leaves the instruments where they were. The
 features below are grouped by the preset that shows them, and each picture is that preset in a
 different theme.
@@ -163,7 +163,12 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   by majority or unanimity. The seats use the providers of the AI chat - the same model in all
   three will do.
 
-### Playing
+### retro — two machines of elecdex's own, and the sound
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-retro.jpg" alt="The retro preset in the Phosphor theme: the system column on the left; on the right one pane with ELEC-16 and CHIP-8 as tabs, the ELEC-16 in front in its PLAIN skin - no case, a flat screen drawing three sine waves in green, the keys as the app's own flat buttons - with the registers and the code beside it; under it the spectrum at sixteen bands">
+  <br><sub>retro · Phosphor · the ELEC-16 in its PLAIN skin</sub>
+</p>
 
 <p align="center">
   <img src="./docs/screenshots/elecdex-chip8.jpg" alt="The Amber theme with a CHIP-8 pane filling the middle column: the title screen of T8NKS, two tanks facing each other drawn in four shades of amber, with the keypad, the registers and the code round the program counter beside it">
@@ -186,13 +191,13 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 ### Layouts, looks and the rest
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the seven presets as saved layouts numbered 1 to 7, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F7">
+  <img src="./docs/screenshots/elecdex-layouts.jpg" alt="The layouts dialog over the standard layout in the Tron theme: the eight presets as saved layouts numbered 1 to 8, each with a thumbnail of its arrangement, and below them the shelf of presets with their thumbnails, where each stands, and their keys Ctrl+Shift+F1 to F8">
   <br><sub>Layouts (Ctrl+Shift+G) · Tron</sub>
 </p>
 
 - **Layout** — every pane can be moved by dragging its title, closed, split, tabbed, resized and
   brought back; the layout is saved and can be reset. An arrangement can be kept by name and
-  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the seven
+  returned to later (Ctrl+Shift+G, or *layouts* in the status bar), or started from one of the eight
   presets.
 - **Look and feel** — six themes that switch live: Tron, Amber, Phosphor and White for the HUD,
   and Business (Dark) and Business (Light) in Windows 11 colours, system fonts and full-colour
@@ -389,16 +394,16 @@ way to stop asking (*Settings → General → Layouts*). The old arrangement pow
 off like a tube and the new one comes up pane by pane, as at boot — and not at all with motion
 reduced.
 
-Seven **presets** sit under the list, each drawn as a small map of its panes:
+Eight **presets** sit under the list, each drawn as a small map of its panes:
 **standard** (the default layout), **network** (the globe and shells, beside Wi-Fi and connections), **earth**
 (ORBIT, the globe, quakes and the weather), **dev** (AI AGENT; Docker and a shell; the clipboard, a timer and a shell; GIT and an AI chat - each group as tabs), **media**
 (YouTube (TV) with what is playing, the spectrum and the mixer beneath, X and RSS as tabs) and **desk** (notes, a timer,
-the calculator, tasks, the calendar, the clipboard and the utility pane) and **ai** (two AI chats one over the other, and the ELEC system). Every one keeps the system column on the left, so a switch
+the calculator, tasks, the calendar, the clipboard and the utility pane) **ai** (two AI chats one over the other, and the ELEC system) and **retro** (the ELEC-16 and the CHIP-8 as tabs of one pane, the spectrum at sixteen bands under them). Every one keeps the system column on the left, so a switch
 changes the stage and leaves the instruments where they were. Choosing a preset adds a layout made
 from it and goes there - from then on it is one of your layouts, following your work - and choosing
 it again goes back to that layout rather than adding another; ↺ puts it back to the preset. Each
-preset has a key of its own, Ctrl+Shift+F1 to F7, which does the same from anywhere. A new
-install starts with all seven on Ctrl+Shift+1 to 7; an existing list is never added to.
+preset has a key of its own, Ctrl+Shift+F1 to F8, which does the same from anywhere. A new
+install starts with all eight on Ctrl+Shift+1 to 8; an existing list is never added to.
 
 They are kept in one file that holds nothing belonging to this machine: **copy `layouts.json` to
 another computer and your arrangements come with you.** The dialog's *layouts.json* button shows it
@@ -859,7 +864,7 @@ weather and calendar.
   `CIRCLE`), the clock (`TIME$`) and files on its memory card (`SAVE`, `LOAD`, `FILES`, `OPEN`). `MON` opens the
   machine-code monitor (dump, write, run, disassemble, breakpoints). The LCD is 240×48 by
   default (also 240×32, 240×64 and a 160×144 four-shade one), drawn dot by dot with the shadow,
-  the slow fade and the contrast of a real one; seven skins dress the case. The PC's keyboard
+  the slow fade and the contrast of a real one; eight skins dress the case - or, in PLAIN, leave it out for the app's own flat look in its theme. The PC's keyboard
   types into it while the pane has the focus (kana by the JIS layout in KANA mode), and PASTE
   types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
   across restarts, its card holds files - and one pane runs it at a time (MOVE HERE takes it

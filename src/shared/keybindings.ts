@@ -45,6 +45,7 @@ export const KEYBINDING_ACTIONS = [
   { id: 'layout.preset.media', label: 'Go to the media preset', chord: 'Ctrl+Shift+F5' },
   { id: 'layout.preset.desk', label: 'Go to the desk preset', chord: 'Ctrl+Shift+F6' },
   { id: 'layout.preset.ai', label: 'Go to the ai preset', chord: 'Ctrl+Shift+F7' },
+  { id: 'layout.preset.retro', label: 'Go to the retro preset', chord: 'Ctrl+Shift+F8' },
   { id: 'launcher.focus', label: 'Search the launcher', chord: 'Ctrl+Shift+KeyL' },
   // IBus on a Linux desktop may keep Ctrl+Shift+U for typing a character by its
   // code, so there the key can be taken before elecdex sees it: rebind it.

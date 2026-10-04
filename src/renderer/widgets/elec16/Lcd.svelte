@@ -35,9 +35,11 @@ interface Props {
   scale: number
   /** LINK is on in TUNE: its mark is lit, and blinks while a request is out. */
   link: boolean
+  /** A plain screen (PLAIN): no gaps between the dots, no shadows, no glass sunk in a case. */
+  flat: boolean
 }
 
-const { runner, colours, ghost, contrast, seen, scale, link }: Props = $props()
+const { runner, colours, ghost, contrast, seen, scale, link, flat }: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
 let dotsCanvas = $state<HTMLCanvasElement | null>(null)
@@ -52,9 +54,9 @@ const css = $derived({
   h: (model.height * scale) / room.ratio,
 })
 /** The gaps show where a dot is three device pixels or more. */
-const grid = $derived(scale >= 3)
+const grid = $derived(scale >= 3 && !flat)
 /** How far the shadow falls, in device pixels: past the gap, onto the ground beside. */
-const shadowAt = $derived(scale >= 3 ? Math.max(2, Math.round(scale / 4) + 1) : 0)
+const shadowAt = $derived(scale >= 3 && !flat ? Math.max(2, Math.round(scale / 4) + 1) : 0)
 const rgb = ([r, g, b]: readonly number[]): string => `rgb(${r} ${g} ${b})`
 
 const painter = new LcdPainter()
@@ -217,6 +219,7 @@ const marks = $derived([
     <!-- The glass: the LCD's ground round the dots, the annunciators printed on it. -->
     <div
       class="glass"
+      class:flat
       style:padding="{GLASS.pad}px"
       style:gap="{GLASS.gap}px"
       style:border-width="{GLASS.bezel}px"
@@ -276,6 +279,11 @@ const marks = $derived([
   box-shadow:
     inset 0 0 0 1px rgb(0 0 0 / 0.12),
     inset 0 3px 8px rgb(0 0 0 / 0.18);
+}
+
+/* A plain screen: framed by the panels' rule, nothing sunk. */
+.glass.flat {
+  box-shadow: inset 0 0 0 1px var(--panel-rule);
 }
 
 .marks {

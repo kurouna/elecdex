@@ -12,6 +12,7 @@ import { DEFAULT_MODEL, MODEL_IDS, type ModelId } from './elec16/map.js'
 /** The skins a pane may draw its unit in (widgets/elec16/skins.ts has what each looks like). */
 export const ELEC16_SKINS = [
   'elec',
+  'plain',
   'tron',
   'business-light',
   'business-dark',

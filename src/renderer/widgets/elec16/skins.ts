@@ -1,7 +1,9 @@
 /**
  * The ELEC-16's skins (docs/elec16.md section 7): the body's colours and shape, its keys,
  * and the LCD's ground and dots - data, as themes are, with the colours the agreed mock gave
- * them. ELEC follows the app's theme; the others keep their own colours whatever the theme.
+ * them. ELEC and PLAIN follow the app's theme; the others keep their own colours whatever the
+ * theme. PLAIN is no pocket computer at all: no case, no plate, a flat screen without the dots'
+ * gaps and shadows, and the app's own flat buttons for keys.
  * None copies a real product's.
  *
  * The body's colours go to CSS as variables on the device; the LCD's are read once into
@@ -63,9 +65,14 @@ export interface Skin {
      * computer has; the Business skins, plain as their themes, have none.
      */
     plateShown: boolean
+    /** No case: the screen and the keys stand in the pane on its own ground (PLAIN). */
+    bare: boolean
   }
-  /** The LCD, as CSS colours: its ground, a dot that is on, and a dot's shadow on the ground. */
-  lcd: { ground: string; dot: string; shadow: string }
+  /**
+   * The LCD, as CSS colours: its ground, a dot that is on, and a dot's shadow on the ground;
+   * `flat` draws it as a plain screen - no gaps between the dots, no shadows, no sunk glass.
+   */
+  lcd: { ground: string; dot: string; shadow: string; flat: boolean }
 }
 
 const TRON = 'hsl(183 22% 74%)'
@@ -98,8 +105,50 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       glow: false,
       brackets: true,
       plateShown: true,
+      bare: false,
     },
-    lcd: { ground: 'var(--surface-0)', dot: 'var(--accent-strong)', shadow: 'var(--accent-faint)' },
+    lcd: {
+      ground: 'var(--surface-0)',
+      dot: 'var(--accent-strong)',
+      shadow: 'var(--accent-faint)',
+      flat: false,
+    },
+  },
+  plain: {
+    id: 'plain',
+    label: 'PLAIN',
+    body: {
+      face: 'transparent',
+      edge: 'transparent',
+      sheen: 'transparent',
+      plate: 'var(--accent)',
+      print: 'var(--text-muted)',
+      led: 'var(--ok)',
+      key: 'transparent',
+      keyText: 'var(--accent)',
+      keyEdge: 'var(--panel-rule)',
+      fnKey: 'transparent',
+      fnText: 'var(--text-muted)',
+      brk: 'transparent',
+      brkText: 'var(--danger)',
+      enter: 'var(--accent-faint)',
+      enterText: 'var(--accent-strong)',
+      legend: 'var(--text-muted)',
+      bezel: 'transparent',
+      radius: 0,
+      font: 'ui',
+      keys: 'flat',
+      glow: false,
+      brackets: false,
+      plateShown: false,
+      bare: true,
+    },
+    lcd: {
+      ground: 'var(--surface-1)',
+      dot: 'var(--accent)',
+      shadow: 'var(--surface-1)',
+      flat: true,
+    },
   },
   tron: {
     id: 'tron',
@@ -128,8 +177,9 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       glow: true,
       brackets: false,
       plateShown: true,
+      bare: false,
     },
-    lcd: { ground: '#02050a', dot: 'hsl(183 22% 86%)', shadow: 'hsl(183 30% 16%)' },
+    lcd: { ground: '#02050a', dot: 'hsl(183 22% 86%)', shadow: 'hsl(183 30% 16%)', flat: false },
   },
   'business-light': {
     id: 'business-light',
@@ -158,8 +208,9 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       glow: false,
       brackets: false,
       plateShown: false,
+      bare: false,
     },
-    lcd: { ground: '#e8ebe6', dot: '#1b1b1b', shadow: '#c3c5c1' },
+    lcd: { ground: '#e8ebe6', dot: '#1b1b1b', shadow: '#c3c5c1', flat: false },
   },
   'business-dark': {
     id: 'business-dark',
@@ -188,8 +239,9 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       glow: false,
       brackets: false,
       plateShown: false,
+      bare: false,
     },
-    lcd: { ground: '#202020', dot: '#f3f3f3', shadow: '#101010' },
+    lcd: { ground: '#202020', dot: '#f3f3f3', shadow: '#101010', flat: false },
   },
   classic: {
     id: 'classic',
@@ -219,8 +271,9 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       glow: false,
       brackets: false,
       plateShown: true,
+      bare: false,
     },
-    lcd: { ground: '#a9b49a', dot: '#1c2217', shadow: '#87917b' },
+    lcd: { ground: '#a9b49a', dot: '#1c2217', shadow: '#87917b', flat: false },
   },
   ivory: {
     id: 'ivory',
@@ -249,8 +302,9 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       glow: false,
       brackets: false,
       plateShown: true,
+      bare: false,
     },
-    lcd: { ground: '#c4c9b9', dot: '#23271e', shadow: '#a4a99a' },
+    lcd: { ground: '#c4c9b9', dot: '#23271e', shadow: '#a4a99a', flat: false },
   },
   night: {
     id: 'night',
@@ -279,8 +333,9 @@ export const SKINS: Readonly<Record<SkinId, Skin>> = {
       glow: false,
       brackets: false,
       plateShown: true,
+      bare: false,
     },
-    lcd: { ground: '#1c3d92', dot: '#eaf1ff', shadow: '#0e225d' },
+    lcd: { ground: '#1c3d92', dot: '#eaf1ff', shadow: '#0e225d', flat: false },
   },
 }
 

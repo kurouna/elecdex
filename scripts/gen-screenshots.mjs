@@ -599,6 +599,13 @@ if (only.length === 0 || only.includes('elecdex-elec')) {
   })
   standIn.close()
 }
+// retro: the ELEC-16 in front of the CHIP-8 in its PLAIN skin drawing a sine wave, the demo
+// sound on the spectrum's sixteen bands under them.
+await shoot('phosphor', 'elecdex-retro', {
+  layout: withState(preset('retro'), { elec16: { skin: 'plain' } }),
+  env: { ELECDEX_AUDIO_STUB: 'demo' },
+  extra: sinewave,
+})
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
 // For posting: the pane alone, the council sitting and the council decided. Only when named.

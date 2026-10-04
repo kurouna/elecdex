@@ -28,7 +28,7 @@ import {
   SavedLayoutsFileSchema,
   summarize,
 } from '../../src/shared/layouts.js'
-import type { LayoutNode } from '../../src/shared/schemas/layout.js'
+import type { LayoutNode, PaneNode } from '../../src/shared/schemas/layout.js'
 import { WEB_PRESETS } from '../../src/shared/web.js'
 
 /**
@@ -187,6 +187,22 @@ describe('LAYOUT_PRESETS', () => {
     const shape = layoutShape(presetTree(presetById('ai') as LayoutPreset))
     const width = (widget: string) => shape.find((r) => r.widget === widget)?.w ?? 0
     expect(width('elec')).toBeGreaterThan(width('aichat'))
+  })
+
+  it('puts both machines behind one tab strip in retro, the spectrum under them at 16 bands', () => {
+    expect(places('retro')).toEqual([['elec16', 'chip8'], ['spectrum']])
+    const tree = (presetById('retro') as LayoutPreset).build()
+    const panes: PaneNode[] = []
+    const walk = (node: LayoutNode): void => {
+      if (node.kind === 'pane') panes.push(node)
+      else for (const child of node.children) walk(child as LayoutNode)
+    }
+    walk(tree)
+    expect(panes.find((p) => p.widget === 'spectrum')?.state).toEqual({ bands: 16 })
+    const shape = layoutShape(presetTree(presetById('retro') as LayoutPreset))
+    const at = (widget: string) => shape.find((r) => r.widget === widget)
+    expect(at('elec16')?.h ?? 0).toBeGreaterThan(at('spectrum')?.h ?? 0)
+    expect(at('elec16')?.w).toBe(at('spectrum')?.w)
   })
 
   /** Each pane behind a tab, with the room its tab group is given. */

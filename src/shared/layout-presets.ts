@@ -33,6 +33,7 @@ export const LAYOUT_PRESET_IDS = [
   'media',
   'desk',
   'ai',
+  'retro',
 ] as const
 export type LayoutPresetId = (typeof LAYOUT_PRESET_IDS)[number]
 
@@ -192,6 +193,26 @@ export const LAYOUT_PRESETS: readonly LayoutPreset[] = [
       withSystemColumn(
         [split('column', [pane('aichat'), pane('aichat')], [0.5, 0.5]), pane('elec')],
         [0.45, 0.55],
+      ),
+  },
+  {
+    // The two machines elecdex runs in one pane, the ELEC-16 in front, and under them the
+    // spectrum at sixteen bands: the column the standard layout gives its stage, one pane
+    // for whichever machine is played and its sound beside nothing else (user's request
+    // 2026-10-04). Out of sight, the machine behind its tab is paused.
+    id: 'retro',
+    name: 'retro',
+    description: 'the ELEC-16 and the CHIP-8 behind one tab strip, and the sound as sixteen bands',
+    build: () =>
+      withSystemColumn(
+        [
+          split(
+            'column',
+            [tabs([pane('elec16'), pane('chip8')]), pane('spectrum', { state: { bands: 16 } })],
+            [0.74, 0.26],
+          ),
+        ],
+        [1],
       ),
   },
 ]

@@ -59,6 +59,7 @@ const FONTS = { ui: 'var(--font-ui)', display: 'var(--font-display)', mono: 'var
     class="device keys-{skin.body.keys}"
     class:glow={skin.body.glow}
     class:brackets={skin.body.brackets}
+    class:bare={skin.body.bare}
     class:off={runner.off}
     style:--e16-face={skin.body.face}
     style:--e16-edge={skin.body.edge}
@@ -95,7 +96,16 @@ const FONTS = { ui: 'var(--font-ui)', display: 'var(--font-display)', mono: 'var
       </div>
     {/if}
     <div class="window" style:height="{fit.glass.h}px">
-      <Lcd {runner} colours={lcdColours} scale={fit.scale} {ghost} {contrast} {seen} {link} />
+      <Lcd
+        {runner}
+        colours={lcdColours}
+        scale={fit.scale}
+        {ghost}
+        {contrast}
+        {seen}
+        {link}
+        flat={skin.lcd.flat}
+      />
     </div>
     {#if body !== 'lcd'}
       <Keyboard {runner} mode={body} {legends} rowHeight={fit.keyRow} big={fit.keyRow >= 32} />
@@ -145,6 +155,13 @@ const FONTS = { ui: 'var(--font-ui)', display: 'var(--font-display)', mono: 'var
     0 0 0 1px color-mix(in srgb, var(--e16-edge) 25%, transparent),
     0 0 18px color-mix(in srgb, var(--e16-edge) 18%, transparent),
     inset 0 0 22px color-mix(in srgb, var(--e16-edge) 6%, transparent);
+}
+
+/* No case at all (PLAIN): the screen and the keys stand on the pane's own ground. */
+.device.bare {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
 
 /* The HUD's corner brackets, as the pane's own frames have. */
