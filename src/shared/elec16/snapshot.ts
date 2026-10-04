@@ -17,10 +17,22 @@
  * Version 4 added PLAY-320's video (video.ts): after the count of banks, whether there is
  * video and, if so, its registers; after the banks, its 64 KB. Older ones are read without,
  * which only a model without video can be.
+ * Version 5 added PLAY-320's cartridge slot (cartridge.ts): after video's registers, whether
+ * a cartridge is in it and, if so, its id, hash and bank counts; after the video memory, its
+ * save RAM. Never its ROM: main has that on the shelf, and the page puts it back.
  */
 
 import { ByteReader, ByteWriter } from '../emu/bytes.js'
 import { CARD_STATUS } from './card.js'
+import {
+  CART_ID,
+  CART_ID_LENGTH,
+  CART_MAX_BANKS,
+  CART_MAX_SAVE_BANKS,
+  type CartSlot,
+  cartBankTaken,
+  DIGEST_LENGTH,
+} from './cartridge.js'
 import type { Angle } from './decimal.js'
 import { linkInterrupted } from './link.js'
 import { LINK_STATUS } from './link-services.js'
@@ -38,7 +50,7 @@ import { createState, type Elec16State, MIE_LINES, MIE_LINES_VIDEO } from './sta
 import { VCTRL_MASK, VIDEO_PAGES, VIDEO_SIZE } from './video.js'
 
 const MAGIC = [0x45, 0x31, 0x36, 0x53] // "E16S"
-export const SNAPSHOT_VERSION = 4
+export const SNAPSHOT_VERSION = 5
 
 /** A halt's cause is kept as text, at most this long. */
 const CAUSE_MAX = 64
@@ -92,22 +104,37 @@ const HEAD =
   1 + // card
   LINK_SIZE +
   1 + // extended RAM banks
-  1 // video or not
+  1 + // video or not
+  1 // a cartridge or not
 
 /** The longest snapshot there is, for whoever stores them to check against. */
 /** Video's registers: control, page, VBLANK, frame, fraction. */
 const VIDEO_HEAD = 1 + 1 + 1 + 2 + 8
 
 /** The longest snapshot there is, for whoever stores them to check against. */
+/** The slot: id, hash, ROM banks, save RAM banks. */
+const CART_SLOT_HEAD = CART_ID_LENGTH + DIGEST_LENGTH + 1 + 1
+
 export const SNAPSHOT_MAX_SIZE =
-  HEAD + CAUSE_MAX + RAM_SIZE + VRAM_WINDOW + XRAM_MAX + VIDEO_HEAD + VIDEO_SIZE
+  HEAD +
+  CAUSE_MAX +
+  RAM_SIZE +
+  VRAM_WINDOW +
+  XRAM_MAX +
+  VIDEO_HEAD +
+  VIDEO_SIZE +
+  CART_SLOT_HEAD +
+  CART_MAX_SAVE_BANKS * BANK_SIZE
 
 const FLAG = { inTrap: 1, sleeping: 2, off: 4, brk: 8, halted: 16 } as const
 
 export function encodeSnapshot(s: Elec16State): Uint8Array {
   const cause = (s.halt?.cause ?? '').slice(0, CAUSE_MAX)
   const video = s.video === null ? 0 : VIDEO_HEAD + VIDEO_SIZE
-  const w = new ByteWriter(HEAD + cause.length + RAM_SIZE + VRAM_WINDOW + s.xram.length + video)
+  const cart = s.cart === null ? 0 : CART_SLOT_HEAD + s.cart.save.length
+  const w = new ByteWriter(
+    HEAD + cause.length + RAM_SIZE + VRAM_WINDOW + s.xram.length + video + cart,
+  )
   w.raw(MAGIC)
   w.u8(SNAPSHOT_VERSION)
   w.u8(MODEL_IDS.indexOf(s.model))
@@ -130,20 +157,65 @@ export function encodeSnapshot(s: Elec16State): Uint8Array {
   writeDevices(w, s)
   w.u8(s.xram.length / BANK_SIZE)
   const v = s.video
-  w.u8(v === null ? 0 : 1)
-  if (v !== null) {
-    w.u8(v.ctrl)
-    w.u8(v.page)
-    w.u8(v.pending ? 1 : 0)
-    w.u16(v.frame)
-    w.f64(v.fraction)
-  }
+  writeVideo(w, v)
+  writeSlot(w, s.cart)
   w.raw(Array.from(cause, (ch) => ch.charCodeAt(0) & 0x7f))
   w.raw(s.ram)
   w.raw(s.vram)
   w.raw(s.xram)
   if (v !== null) w.raw(v.mem)
+  if (s.cart !== null) w.raw(s.cart.save)
   return w.bytes
+}
+
+/** Video's registers: whether there is video, and if so its control, page, VBLANK and frame. */
+function writeVideo(w: ByteWriter, v: Elec16State['video']): void {
+  w.u8(v === null ? 0 : 1)
+  if (v === null) return
+  w.u8(v.ctrl)
+  w.u8(v.page)
+  w.u8(v.pending ? 1 : 0)
+  w.u16(v.frame)
+  w.f64(v.fraction)
+}
+
+/** The slot's head: whether a cartridge is in it, and its id (padded), hash and bank counts. */
+function writeSlot(w: ByteWriter, slot: CartSlot | null): void {
+  w.u8(slot === null ? 0 : 1)
+  if (slot === null) return
+  const id = new Array(CART_ID_LENGTH).fill(0)
+  Array.from(slot.id).forEach((c, k) => {
+    id[k] = c.charCodeAt(0)
+  })
+  w.raw(id)
+  w.raw(slot.digest)
+  w.u8(slot.banks)
+  w.u8(slot.save.length / BANK_SIZE)
+}
+
+/** A game's id from its padded bytes: null when it is not one, or what follows it is not zero. */
+function idOf(bytes: Uint8Array): string | null {
+  const end = bytes.indexOf(0)
+  const id = String.fromCharCode(...bytes.slice(0, end < 0 ? bytes.length : end))
+  const padded = end < 0 || bytes.slice(end).every((b) => b === 0)
+  return padded && CART_ID.test(id) ? id : null
+}
+
+/**
+ * The slot, checked: a cartridge only on a model with a slot, with an id as a header has one
+ * and bank counts in range. Its ROM is not here: null until the page puts it back.
+ */
+function readSlot(r: ByteReader, s: Elec16State, version: number): boolean {
+  if (version < 5 || r.u8() === 0) return true
+  const idBytes = r.raw(CART_ID_LENGTH)
+  const digest = Uint8Array.from(r.raw(DIGEST_LENGTH))
+  const banks = r.u8()
+  const saveBanks = r.u8()
+  const id = idOf(idBytes)
+  if (!MODELS[s.model].cart || id === null) return false
+  if (banks < 1 || banks > CART_MAX_BANKS || saveBanks > CART_MAX_SAVE_BANKS) return false
+  s.cart = { id, digest, banks, save: new Uint8Array(saveBanks * BANK_SIZE), rom: null }
+  return true
 }
 
 function writeDevices(w: ByteWriter, s: Elec16State): void {
@@ -223,6 +295,21 @@ export function snapshotModel(bytes: Uint8Array): ModelId | null {
   return MODEL_IDS[bytes[5] ?? 0xff] ?? null
 }
 
+/** The memories, in the order they were written: RAM, VRAM, extended RAM, video, save RAM. */
+function readMemories(r: ByteReader, s: Elec16State): void {
+  s.ram.set(r.raw(RAM_SIZE))
+  s.vram.set(r.raw(VRAM_WINDOW))
+  s.xram.set(r.raw(s.xram.length))
+  s.video?.mem.set(r.raw(VIDEO_SIZE))
+  s.cart?.save.set(r.raw(s.cart.save.length))
+}
+
+/** The counts finite, and the bank one the machine has. */
+const sane = (s: Elec16State): boolean =>
+  finite(s.cycles) &&
+  finite(s.instret) &&
+  (bankTaken(s.bank, s.xram.length) || cartBankTaken(s.cart, s.bank))
+
 /** A snapshot read back into a state; null when it is not one of ours, whole and in range. */
 export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   const r = new ByteReader(bytes)
@@ -238,13 +325,9 @@ export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   if (!readDevices(r, s) || (version >= 2 && !readLink(r, s))) return null
   if (!readExtras(r, s, version)) return null
   const cause = String.fromCharCode(...r.raw(head.causeLength))
-  s.ram.set(r.raw(RAM_SIZE))
-  s.vram.set(r.raw(VRAM_WINDOW))
-  s.xram.set(r.raw(s.xram.length))
-  s.video?.mem.set(r.raw(VIDEO_SIZE))
+  readMemories(r, s)
   if (r.overrun || r.at !== bytes.length) return null
-  if (head.causeLength > CAUSE_MAX || !/^[ -~]*$/.test(cause)) return null
-  if (!finite(s.cycles) || !finite(s.instret) || !bankTaken(s.bank, s.xram.length)) return null
+  if (head.causeLength > CAUSE_MAX || !/^[ -~]*$/.test(cause) || !sane(s)) return null
   const flags = head.flags
   s.inTrap = (flags & FLAG.inTrap) !== 0
   s.sleeping = (flags & FLAG.sleeping) !== 0
@@ -261,7 +344,7 @@ function readExtras(r: ByteReader, s: Elec16State, version: number): boolean {
   const banks = version >= 3 ? r.u8() : 0
   if (banks * BANK_SIZE > MODELS[s.model].xramMax) return false
   s.xram = new Uint8Array(banks * BANK_SIZE)
-  return readVideo(r, s, version)
+  return readVideo(r, s, version) && readSlot(r, s, version)
 }
 
 /**

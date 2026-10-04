@@ -33,10 +33,17 @@ export const AI_TYPES = [
 ] as const
 export type AiType = (typeof AI_TYPES)[number]
 
-/** Services by their SERVICE number. */
-export const LINK_SERVICES: readonly LinkServiceInfo[] = [{ name: 'AI', types: AI_TYPES, max: 255 }]
+/** CART's types: the header of the cartridge in the slot, or that and the cartridge put in. */
+export const CART_TYPES = ['INFO', 'LOAD'] as const
 
-export const LINK_SERVICE = { ai: 0 } as const
+/** Services by their SERVICE number. */
+export const LINK_SERVICES: readonly LinkServiceInfo[] = [
+  { name: 'AI', types: AI_TYPES, max: 255 },
+  // PLAY-320's cartridge (docs/elec16-play.md section 7): its 64-byte header.
+  { name: 'CART', types: CART_TYPES, max: 64 },
+]
+
+export const LINK_SERVICE = { ai: 0, cart: 1 } as const
 
 /** A question is 1 to this many bytes, ended by a zero. */
 export const LINK_QUERY_MAX = 255

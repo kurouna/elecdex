@@ -4,6 +4,7 @@
  */
 
 import { type CardState, createCardState } from './card.js'
+import type { CartSlot } from './cartridge.js'
 import { createLinkState, type LinkState } from './link.js'
 import { BANK_SIZE, MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
 import { createMathState, type MathState } from './math-unit.js'
@@ -76,6 +77,8 @@ export interface Elec16State {
   video: VideoState | null
   /** PLAY-320's pad (pad.ts); null on a model without it. Never in a snapshot. */
   pad: PadState | null
+  /** The cartridge in PLAY-320's slot (cartridge.ts); null when none, and on other models. */
+  cart: CartSlot | null
 }
 
 export const CSR_NAMES = {
@@ -183,5 +186,6 @@ export function createState(model: ModelId, xram = 0): Elec16State {
     link: createLinkState(),
     video: MODELS[model].video ? createVideoState() : null,
     pad: MODELS[model].pad ? createPadState() : null,
+    cart: null,
   }
 }

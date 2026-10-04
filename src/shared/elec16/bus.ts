@@ -15,6 +15,7 @@
  */
 
 import { CARD_REG, cardRead, cardWrite } from './card.js'
+import { CART_BANK, cartBankTaken, SAVE_BANK } from './cartridge.js'
 import type { Inst } from './isa.js'
 import { linkLetGo, linkRead, linkWrite } from './link.js'
 import { LINK_REG } from './link-services.js'
@@ -113,12 +114,18 @@ export class Bus {
     return this.#ioByte(a, true)
   }
 
-  /** The bank window: a bank of the ROM, or of extended RAM. */
+  /**
+   * The bank window: a bank of the ROM, of extended RAM, or of the cartridge's save RAM or
+   * ROM (0xFF while no ROM is in the slot, as an empty one reads).
+   */
   #bankByte(a: number): number {
-    const bank = this.#s.bank
-    if (bank >= XRAM_BANK)
-      return this.#s.xram[(bank - XRAM_BANK) * BANK_SIZE + (a - BANK_WINDOW)] ?? 0
-    return this.#rom[ROM_FIXED_SIZE + bank * BANK_SIZE + (a - BANK_WINDOW)] ?? 0xff
+    const s = this.#s
+    const bank = s.bank
+    const at = a - BANK_WINDOW
+    if (bank >= CART_BANK) return s.cart?.rom?.[(bank - CART_BANK) * BANK_SIZE + at] ?? 0xff
+    if (bank >= SAVE_BANK) return s.cart?.save[(bank - SAVE_BANK) * BANK_SIZE + at] ?? 0xff
+    if (bank >= XRAM_BANK) return s.xram[(bank - XRAM_BANK) * BANK_SIZE + at] ?? 0
+    return this.#rom[ROM_FIXED_SIZE + bank * BANK_SIZE + at] ?? 0xff
   }
 
   /** Writes a byte; false where nothing can be written (the ROM). */
@@ -173,12 +180,7 @@ export class Bus {
    */
   #memWrite(a: number, value: number): boolean {
     const s = this.#s
-    if (a < VRAM) {
-      if (a < BANK_WINDOW || s.bank < XRAM_BANK) return false
-      s.xram[(s.bank - XRAM_BANK) * BANK_SIZE + (a - BANK_WINDOW)] = value
-      this.#stale(a & 0xfffe)
-      return true
-    }
+    if (a < VRAM) return this.#windowWrite(a, value)
     if (s.video !== null) {
       this.#videoWrite(a, value)
       return true
@@ -240,6 +242,26 @@ export class Bus {
     } else if (a >= VIDEO_IO && a < VIDEO_IO_END && (a & 1) === 0) {
       this.#gameIoWrite(a, value)
     }
+  }
+
+  /**
+   * A write in the bank window: extended RAM and the cartridge's save RAM take it (code may
+   * run there, so what was decoded under it goes stale); the ROMs refuse it.
+   */
+  #windowWrite(a: number, value: number): boolean {
+    const s = this.#s
+    const bank = s.bank
+    if (a < BANK_WINDOW || bank < XRAM_BANK || bank >= CART_BANK) return false
+    const at = a - BANK_WINDOW
+    if (bank >= SAVE_BANK) {
+      const save = s.cart?.save
+      if (save === undefined) return false
+      save[(bank - SAVE_BANK) * BANK_SIZE + at] = value
+    } else {
+      s.xram[(bank - XRAM_BANK) * BANK_SIZE + at] = value
+    }
+    this.#stale(a & 0xfffe)
+    return true
   }
 
   #ioByte(a: number, peek: boolean): number {
@@ -340,7 +362,7 @@ export class Bus {
     switch (a) {
       case REG.bank:
         // A bank the machine does not have is not taken: the window stays as it was.
-        if (s.bank !== value && bankTaken(value, s.xram.length)) {
+        if (s.bank !== value && (bankTaken(value, s.xram.length) || cartBankTaken(s.cart, value))) {
           s.bank = value
           // From two bytes before the window: a 32-bit instruction there reaches into it.
           this.#code.fill(undefined, BANK_WINDOW - 2, BANK_WINDOW + BANK_SIZE)

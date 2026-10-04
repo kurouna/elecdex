@@ -94,6 +94,8 @@ export interface Model {
   drawHz: 30 | 60
   /** It has the pad of twelve buttons (PLAY-320, docs/elec16-play.md section 6). */
   pad: boolean
+  /** It has a cartridge slot (PLAY-320, docs/elec16-play.md section 7). */
+  cart: boolean
 }
 
 export const MODELS: Readonly<Record<ModelId, Model>> = {
@@ -107,6 +109,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     rom: 'pocket',
     drawHz: 30,
     pad: false,
+    cart: false,
   },
   'pocket-48': {
     id: 'pocket-48',
@@ -118,6 +121,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     rom: 'pocket',
     drawHz: 30,
     pad: false,
+    cart: false,
   },
   'pocket-64': {
     id: 'pocket-64',
@@ -129,6 +133,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     rom: 'pocket',
     drawHz: 30,
     pad: false,
+    cart: false,
   },
   'handheld-160': {
     id: 'handheld-160',
@@ -140,6 +145,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     rom: 'pocket',
     drawHz: 30,
     pad: false,
+    cart: false,
   },
   'play-320': {
     id: 'play-320',
@@ -151,6 +157,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     rom: 'play',
     drawHz: 60,
     pad: true,
+    cart: true,
   },
 }
 

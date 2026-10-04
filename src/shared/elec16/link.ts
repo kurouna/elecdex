@@ -37,6 +37,11 @@ export interface LinkAnswer {
   data?: Uint8Array
   /** Why it failed, in the service's own words, for the pane to show (the machine never sees it). */
   note?: string
+  /**
+   * CART's LOAD (docs/elec16-play.md section 7): the cartridge for the slot - its image, the
+   * hash main worked out, and the save RAM main kept for its id. Only the machine takes it.
+   */
+  cart?: { image: Uint8Array; digest: Uint8Array; save?: Uint8Array }
 }
 
 export interface LinkState {

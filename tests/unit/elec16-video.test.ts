@@ -213,7 +213,8 @@ describe('a snapshot with video', () => {
     expect(decodeSnapshot(good)).not.toBeNull()
     // The video byte, then CTRL and PAGE, after the count of extended RAM banks.
     const cause = m.state.halt?.cause.length ?? 0
-    const at = good.length - (0x8000 + 0x1800 + 0x10000) - cause - 13 - 1
+    // (The cartridge byte follows video's registers.)
+    const at = good.length - (0x8000 + 0x1800 + 0x10000) - cause - 13 - 2
     expect([good[at], good[at - 1]]).toEqual([1, 0])
     const broken = (k: number, value: number) => {
       const b = good.slice()

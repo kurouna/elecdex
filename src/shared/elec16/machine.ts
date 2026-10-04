@@ -18,6 +18,7 @@ import {
   createCardState,
   takeCardRequest,
 } from './card.js'
+import { sameDigest, slotOf } from './cartridge.js'
 import { type Core, EXEC } from './exec.js'
 import { cyclesOf, decode, type Inst, OP, OPS } from './isa.js'
 import {
@@ -29,7 +30,10 @@ import {
   takeLinkRequest,
   vouchLink,
 } from './link.js'
+import { LINK_STATUS } from './link-services.js'
 import {
+  BANK_SIZE,
+  BANK_WINDOW,
   DEFAULT_HZ,
   DEFAULT_MODEL,
   MAX_HZ,
@@ -294,6 +298,45 @@ export class Elec16 implements Core {
   }
 
   /**
+   * A cartridge put in PLAY-320's slot (cartridge.ts): its image checked, its ROM shown from
+   * bank 0x100 and its save RAM - as main kept it - from 0x80. False, and nothing changed, for
+   * an image that is not one or a model without a slot. What ran in the window is stale.
+   */
+  insertCart(image: Uint8Array, digest: Uint8Array, save?: Uint8Array): boolean {
+    const slot = this.model.cart ? slotOf(image, digest, save) : null
+    if (slot === null) return false
+    this.s.cart = slot
+    this.#windowStale()
+    return true
+  }
+
+  /**
+   * After a restore, the slot's ROM put back - only an image of the same hash and id as the
+   * slot says it held. False when it is not that cartridge, or the slot needs none.
+   */
+  attachCartRom(image: Uint8Array, digest: Uint8Array): boolean {
+    const slot = this.s.cart
+    if (slot === null || slot.rom !== null || !sameDigest(slot.digest, digest)) return false
+    const fresh = slotOf(image, digest)
+    if (fresh === null || fresh.id !== slot.id || fresh.banks !== slot.banks) return false
+    slot.rom = fresh.rom
+    this.#windowStale()
+    return true
+  }
+
+  /** The cartridge taken out of the slot; its save RAM goes with it. */
+  ejectCart(): void {
+    if (this.s.cart === null) return
+    this.s.cart = null
+    this.#windowStale()
+  }
+
+  /** What was decoded in the bank window (and the two bytes before it) is stale. */
+  #windowStale(): void {
+    this.#code.fill(undefined, BANK_WINDOW - 2, BANK_WINDOW + BANK_SIZE)
+  }
+
+  /**
    * PLAY-320's buttons held now (pad.ts bits): each that went down or up is marked for the
    * program. A button pressed is a person's action, which lets LINK send again. Nothing on a
    * model without a pad.
@@ -373,6 +416,16 @@ export class Elec16 implements Core {
 
   /** main's answer to a LINK request: written at REPLY, the LINK line up, a sleeper woken. */
   answerLink(serial: number, answer: LinkAnswer): void {
+    // CART's LOAD brings the cartridge itself: in the slot before the program hears the answer.
+    const request = this.s.link
+    if (
+      answer.cart !== undefined &&
+      answer.status === LINK_STATUS.ready &&
+      request.busy &&
+      request.serial === serial
+    ) {
+      this.insertCart(answer.cart.image, answer.cart.digest, answer.cart.save)
+    }
     answerLink(this.s, serial, answer)
   }
 

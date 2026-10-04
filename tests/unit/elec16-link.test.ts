@@ -1,4 +1,4 @@
-import { LINK_CMD, LINK_REG, LINK_STATUS } from '@shared/elec16/link-services'
+import { LINK_CMD, LINK_REG, LINK_SERVICES, LINK_STATUS } from '@shared/elec16/link-services'
 import { Elec16 } from '@shared/elec16/machine'
 import { decodeSnapshot } from '@shared/elec16/snapshot'
 import { IRQ } from '@shared/elec16/state'
@@ -96,7 +96,11 @@ describe('LINK', () => {
   it('refuses a request it cannot make at once, raising the line', () => {
     const m = switchOn()
     const cases: [string, (b: Bus) => void, number][] = [
-      ['no such service', (b) => b.write16(LINK_REG.service, 1), LINK_STATUS.noService],
+      [
+        'no such service',
+        (b) => b.write16(LINK_REG.service, LINK_SERVICES.length),
+        LINK_STATUS.noService,
+      ],
       ['no such type', (b) => b.write16(LINK_REG.type, 11), LINK_STATUS.badRequest],
       ['MAX 0', (b) => b.write16(LINK_REG.max, 0), LINK_STATUS.badRequest],
       ['MAX past the service', (b) => b.write16(LINK_REG.max, 256), LINK_STATUS.badRequest],
@@ -311,8 +315,9 @@ describe('LINK', () => {
   it('refuses a snapshot whose LINK is out of range', () => {
     const m = switchOn()
     const bytes = m.snapshot()
-    // LINK is the last of the devices, before the count of extended RAM banks and the video byte.
-    const at = bytes.length - (m.state.ram.length + m.state.vram.length) - 2 - 14
+    // LINK is the last of the devices, before the count of extended RAM banks, the video byte
+    // and the cartridge byte.
+    const at = bytes.length - (m.state.ram.length + m.state.vram.length) - 3 - 14
     const broken = bytes.slice()
     // STATUS: past service, type, QUERY, REPLY and MAX.
     broken[at + 8] = 9
