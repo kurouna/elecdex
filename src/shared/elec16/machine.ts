@@ -310,6 +310,8 @@ export class Elec16 implements Core {
     // A command out belonged to the program that is gone: its answer is not waited for.
     Object.assign(s.card, createCardState())
     linkLetGo(s)
+    // RESET is a person's press (or BRK/ON's): the program it starts may use LINK once.
+    vouchLink(s)
     this.#code.fill(undefined)
     this.breakAt = null
     this.#passing = -1

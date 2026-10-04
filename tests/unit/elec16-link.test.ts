@@ -218,6 +218,60 @@ describe('LINK', () => {
     expect(status(m)).toBe(LINK_STATUS.busy)
   })
 
+  it('writes the answer where SEND checked it would go, whatever REPLY and MAX say later', () => {
+    const m = switchOn()
+    ready(m, 'Q', 4)
+    send(m)
+    const request = m.takeLinkRequest()
+    // Moved while it waits: once a RangeError past RAM, and the page's relay broken.
+    bus(m).write16(LINK_REG.reply, 0x7ff0)
+    bus(m).write16(LINK_REG.max, 255)
+    m.state.ram.fill(0xaa, R, R + 8)
+    expect(() =>
+      m.answerLink(request?.serial ?? -1, {
+        status: LINK_STATUS.ready,
+        data: new Uint8Array(40).fill(0x41),
+      }),
+    ).not.toThrow()
+    expect(text(m, R, 6)).toBe('AAAA\0\xaa')
+    expect(m.state.link.length).toBe(4)
+  })
+
+  it('takes the low byte of SERVICE and TYPE, as a snapshot keeps them', () => {
+    const m = switchOn()
+    bus(m).write16(LINK_REG.service, 0x100)
+    bus(m).write16(LINK_REG.type, 0x103)
+    expect(bus(m).read16(LINK_REG.service)).toBe(0)
+    expect(bus(m).read16(LINK_REG.type)).toBe(3)
+    const back = Elec16.restore(built.image, m.snapshot())
+    expect(back?.state.link).toMatchObject({ service: 0, type: 3 })
+  })
+
+  it('keeps NEW for the next SEND when the one that carried it was dropped', () => {
+    const m = switchOn()
+    ready(m)
+    send(m)
+    m.answerLink(m.takeLinkRequest()?.serial ?? -1, { status: LINK_STATUS.ready })
+    bus(m).write16(LINK_REG.cmd, LINK_CMD.fresh)
+    m.vouch()
+    send(m)
+    // BRK in the same frame: the page never took it, and main never heard of the NEW.
+    bus(m).write16(LINK_REG.cmd, LINK_CMD.cancel)
+    m.vouch()
+    send(m)
+    expect(m.takeLinkRequest()?.fresh).toBe(true)
+  })
+
+  it('counts RESET as a person, as the manuals say', () => {
+    const m = switchOn()
+    ready(m)
+    send(m)
+    m.answerLink(m.takeLinkRequest()?.serial ?? -1, { status: LINK_STATUS.ready })
+    m.reset()
+    send(m)
+    expect(status(m)).not.toBe(LINK_STATUS.held)
+  })
+
   it('reads its registers back, and nothing at the others of its block', () => {
     const m = switchOn()
     ready(m, 'Q', 99, 5)

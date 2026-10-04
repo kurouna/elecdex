@@ -172,6 +172,27 @@ describe('the AI service', () => {
     expect(answer.note).toContain('401')
   })
 
+  it('starts afresh on NEW even when that question fails before it is asked', async () => {
+    const providers = PROVIDERS.map((p) => ({ ...p }))
+    const { adapter, asked } = stand()
+    const service = new AiLinkService({
+      providers: () => providers,
+      provider: () => 'local',
+      keyFor: () => null,
+      adapter: async () => adapter,
+      today: () => 'x',
+    })
+    await service.ask(request('ONE'), context())
+    // NEW, refused before anything is asked (no model): the talk is forgotten all the same.
+    const local = providers[0] as AiProvider
+    local.model = ''
+    const refused = await service.ask(request('NEW', { fresh: true }), context())
+    expect(refused.status).toBe(LINK_STATUS.failed)
+    local.model = 'm1'
+    await service.ask(request('TWO'), context())
+    expect(asked.at(-1)?.messages).toEqual([{ role: 'user', text: 'TWO' }])
+  })
+
   it('is OFF with no provider chosen, and fails one with no model or not listed', async () => {
     expect((await aiService(undefined, '').service.ask(request('HI'), context())).status).toBe(
       LINK_STATUS.off,

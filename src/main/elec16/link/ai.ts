@@ -73,6 +73,8 @@ export class AiLinkService implements LinkService {
   }
 
   async ask(request: LinkRequest, context: LinkContext): Promise<LinkAnswer> {
+    // NEW holds whatever becomes of this question: one refused here is still a fresh start.
+    if (request.fresh) this.forget(context.unit)
     const found = this.#target()
     if ('status' in found) return found
     const { target, model } = found

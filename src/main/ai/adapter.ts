@@ -38,7 +38,12 @@ export interface StreamRequest extends AdapterTarget {
   messages: readonly WireMessage[]
   /** At most this many tokens of answer (LINK's short ones); unset: as much as the model gives. */
   maxTokens?: number
-  /** No reasoning, even from a model that has it (LINK: a short answer, soon, cheaply). */
+  /**
+   * No reasoning, where the dialect can say so for every model (LINK: a short answer, soon,
+   * cheaply). Anthropic's adapter leaves thinking off; the OpenAI-compatible one cannot - the
+   * values `reasoning_effort` takes differ by service, and a model without reasoning refuses
+   * it - so there a model that reasons spends it from `maxTokens`.
+   */
   noThinking?: boolean
   /**
    * Let the provider search the web on its own side (LINK's SEARCH and WEATHER). Nothing runs

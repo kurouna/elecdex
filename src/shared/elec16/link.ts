@@ -57,6 +57,15 @@ export interface LinkState {
   serial: number
   /** A request the page should tell main to drop (cancelled, or the machine reset). */
   dropped: number | null
+  /**
+   * Where the request out was checked to answer, and how much: REPLY and MAX as SEND found
+   * them - a program may write the registers while it waits. Not kept by a snapshot (a request
+   * out comes back INTERRUPTED).
+   */
+  outReply: number
+  outMax: number
+  /** The request out carried NEW: dropped unanswered, the next SEND carries it again. */
+  outFresh: boolean
   /** A person did something since the last SEND. */
   vouched: boolean
   /** The next SEND starts a new conversation. */
@@ -76,6 +85,9 @@ export const createLinkState = (): LinkState => ({
   request: null,
   serial: 0,
   dropped: null,
+  outReply: 0,
+  outMax: 0,
+  outFresh: false,
   vouched: false,
   fresh: true,
 })
@@ -123,6 +135,9 @@ function send(s: Elec16State): void {
   }
   link.request = made
   link.serial = made.serial
+  link.outReply = link.reply
+  link.outMax = link.max
+  link.outFresh = made.fresh
   link.busy = true
   link.vouched = false
   link.fresh = false
@@ -137,6 +152,8 @@ function drop(s: Elec16State, status: number): void {
   link.busy = false
   link.request = null
   link.dropped = link.serial
+  // main may never have heard of the NEW it carried (the page had not taken it): kept.
+  if (link.outFresh) link.fresh = true
   link.status = status
   link.length = 0
   link.pending = true
@@ -150,13 +167,14 @@ export function linkWrite(s: Elec16State, address: number, value: number): void 
       else if (value === LINK_CMD.fresh) link.fresh = true
       else if (value === LINK_CMD.cancel) drop(s, LINK_STATUS.cancelled)
       return
+    // A byte each, as ROM service 8 passes them (a3 = service * 256 + type).
     case LINK_REG.service:
-      if (link.service !== value) link.fresh = true
-      link.service = value
+      if (link.service !== (value & 0xff)) link.fresh = true
+      link.service = value & 0xff
       return
     case LINK_REG.type:
-      if (link.type !== value) link.fresh = true
-      link.type = value
+      if (link.type !== (value & 0xff)) link.fresh = true
+      link.type = value & 0xff
       return
     case LINK_REG.query:
       link.query = value
@@ -222,9 +240,9 @@ export function answerLink(s: Elec16State, serial: number, answer: LinkAnswer): 
   link.status = answer.status
   link.length = 0
   if (answer.status !== LINK_STATUS.ready) return
-  const bytes = (answer.data ?? new Uint8Array()).subarray(0, link.max)
-  s.ram.set(bytes, link.reply)
-  s.ram[link.reply + bytes.length] = 0
+  const bytes = (answer.data ?? new Uint8Array()).subarray(0, link.outMax)
+  s.ram.set(bytes, link.outReply)
+  s.ram[link.outReply + bytes.length] = 0
   link.length = bytes.length
 }
 

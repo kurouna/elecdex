@@ -655,15 +655,15 @@ LINK は、elecdex の main が持つサービスを番号で呼ぶ口です。�
 | 番地 | オフセット | 名前 | 中身 |
 |---|---|---|---|
 | FF70 | -0x90 | CMD | 書くと始める: 1 SEND（聞く）、2 NEW（次の SEND から新しい会話）、3 CANCEL（待っている依頼を取り消す） |
-| FF72 | -0x8E | SERVICE | サービスの番号。0 AI（ほかは NO SERVICE） |
-| FF74 | -0x8C | TYPE | サービスの中の種類。AI は答え方のタイプ 0〜10（BASIC 取扱説明書 §15.4 の表） |
+| FF72 | -0x8E | SERVICE | サービスの番号（下位 8 ビット）。0 AI（ほかは NO SERVICE） |
+| FF74 | -0x8C | TYPE | サービスの中の種類（下位 8 ビット）。AI は答え方のタイプ 0〜10（BASIC 取扱説明書 §15.4 の表） |
 | FF76 | -0x8A | QUERY | 問いの番地。0 で終わる 1〜255 バイト |
 | FF78 | -0x88 | REPLY | 答えを置く番地。MAX ＋ 1 バイト要る（答えの後に 0 が付く） |
 | FF7A | -0x86 | MAX | 答えの最大バイト数（1〜255） |
 | FF7C | -0x84 | STATUS | 0 READY、1 BUSY、2 OFF、3 HELD、4 FAILED、5 BAD REQUEST、6 INTERRUPTED、7 CANCELLED、8 NO SERVICE。読むと LINK の線が下りる |
 | FF7E | -0x82 | LENGTH | 答えのバイト数 |
 
-- SEND の時に、サービス、タイプ、MAX、番地の範囲、問いの終わりの 0 を確かめます。おかしければすぐに STATUS が誤り（BAD REQUEST、NO SERVICE）になり、LINK の線が上がります。通れば BUSY になり、答えが来ると READY（または誤り）になって線が上がります。BUSY の間の SEND は無視します
+- SEND の時に、サービス、タイプ、MAX、番地の範囲、問いの終わりの 0 を確かめます。おかしければすぐに STATUS が誤り（BAD REQUEST、NO SERVICE）になり、LINK の線が上がります。通れば BUSY になり、答えが来ると READY（または誤り）になって線が上がります。BUSY の間の SEND は無視します。答えは SEND の時の REPLY と MAX のとおりに書きます（待つ間に REPLY や MAX を書き換えても、確かめた範囲の外には書きません）
 - **HELD**: SEND は、前の SEND の後に人の操作（機械のキー、BRK/ON、RESET、PANEL の RUN ▸ と LOAD ▸）があったときだけ通ります。なければすぐに HELD です。プログラムが勝手に送り続けることはできません
 - 答えは液晶の文字（ASCII と半角カナ）だけで、制御文字は入りません。問いに半角カナの文字があればカナで、なければ英語で答えます（TRANS は逆）
 - **会話**: AI は直近 10 往復を覚えます。NEW、TYPE や SERVICE を変えたとき、RESET、電源 OFF で新しい会話になります
