@@ -8,7 +8,7 @@ import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer, isCardName } from '@shared
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
 import type { LinkAnswer } from '@shared/elec16/link'
 import { LINK_STATUS } from '@shared/elec16/link-services'
-import { CODE_AREA, CODE_AREA_END, MODEL_IDS } from '@shared/elec16/map'
+import { CODE_AREA, CODE_AREA_END, TUNE_MODEL_IDS } from '@shared/elec16/map'
 import {
   ELEC16_CLOCKS,
   type Elec16Board,
@@ -56,7 +56,7 @@ function seedOf(raw: unknown): Elec16UnitSeed {
   if (typeof raw !== 'object' || raw === null) return {}
   const r = raw as Record<string, unknown>
   const clock = ELEC16_CLOCKS.find((c) => c === r.clock)
-  const model = MODEL_IDS.find((m) => m === r.model)
+  const model = TUNE_MODEL_IDS.find((m) => m === r.model)
   return { ...(clock !== undefined ? { clock } : {}), ...(model !== undefined ? { model } : {}) }
 }
 

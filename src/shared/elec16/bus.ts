@@ -19,9 +19,9 @@ import type { Inst } from './isa.js'
 import { linkLetGo, linkRead, linkWrite } from './link.js'
 import { LINK_REG } from './link-services.js'
 import {
-  BANK_COUNT,
   BANK_SIZE,
   BANK_WINDOW,
+  bankTaken,
   IO,
   MACHINE_ID,
   MODEL_IDS,
@@ -32,6 +32,7 @@ import {
   VRAM,
   VRAM_WINDOW,
   vramSize,
+  XRAM_BANK,
 } from './map.js'
 import { MATH_REG, mathRead, mathWrite } from './math-unit.js'
 import { type Elec16State, KEY_FIFO_SIZE, KEY_ROWS } from './state.js'
@@ -104,7 +105,10 @@ export class Bus {
     if (a < RAM_SIZE) return this.#s.ram[a] ?? 0
     if (a < BANK_WINDOW) return this.#rom[a - ROM_FIXED] ?? 0xff
     if (a < VRAM) {
-      return this.#rom[ROM_FIXED_SIZE + this.#s.bank * BANK_SIZE + (a - BANK_WINDOW)] ?? 0xff
+      const bank = this.#s.bank
+      if (bank >= XRAM_BANK)
+        return this.#s.xram[(bank - XRAM_BANK) * BANK_SIZE + (a - BANK_WINDOW)] ?? 0
+      return this.#rom[ROM_FIXED_SIZE + bank * BANK_SIZE + (a - BANK_WINDOW)] ?? 0xff
     }
     if (a < VRAM + VRAM_WINDOW) return a - VRAM < this.#vramUsed ? (this.#s.vram[a - VRAM] ?? 0) : 0
     if (a < IO) return 0
@@ -152,10 +156,18 @@ export class Bus {
     if (even >= 2 && code[even - 2] !== undefined) code[even - 2] = undefined
   }
 
-  /** A write above RAM: the ROM refuses it, the LCD takes what its screen shows. */
+  /**
+   * A write above RAM: the ROM refuses it, extended RAM in the window takes it (code may run
+   * there, so what was decoded under it goes stale), the LCD takes what its screen shows.
+   */
   #memWrite(a: number, value: number): boolean {
     const s = this.#s
-    if (a < VRAM) return false
+    if (a < VRAM) {
+      if (a < BANK_WINDOW || s.bank < XRAM_BANK) return false
+      s.xram[(s.bank - XRAM_BANK) * BANK_SIZE + (a - BANK_WINDOW)] = value
+      this.#stale(a & 0xfffe)
+      return true
+    }
     if (a < VRAM + VRAM_WINDOW && a - VRAM < this.#vramUsed) {
       if (s.vram[a - VRAM] !== value) {
         s.vram[a - VRAM] = value
@@ -263,8 +275,8 @@ export class Bus {
     }
     switch (a) {
       case REG.bank:
-        // A bank the ROM cannot have is not taken: the window stays as it was.
-        if (s.bank !== value && value < BANK_COUNT) {
+        // A bank the machine does not have is not taken: the window stays as it was.
+        if (s.bank !== value && bankTaken(value, s.xram.length)) {
           s.bank = value
           // From two bytes before the window: a 32-bit instruction there reaches into it.
           this.#code.fill(undefined, BANK_WINDOW - 2, BANK_WINDOW + BANK_SIZE)

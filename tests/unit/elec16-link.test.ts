@@ -3,7 +3,7 @@ import { Elec16 } from '@shared/elec16/machine'
 import { decodeSnapshot } from '@shared/elec16/snapshot'
 import { IRQ } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
-import { built, switchOn } from './elec16-helpers'
+import { built, olderSnapshot, switchOn } from './elec16-helpers'
 
 /**
  * LINK, the device a program reaches main's services through (shared/elec16/link.ts, docs
@@ -302,12 +302,7 @@ describe('LINK', () => {
 
   it('reads a snapshot from before LINK, its LINK a new machine', () => {
     const m = switchOn()
-    const v2 = m.snapshot()
-    // Version 1: the same without LINK's 14 bytes, the last of the devices (no halt's cause).
-    const linkAt = v2.length - (m.state.ram.length + m.state.vram.length) - 14
-    const v1 = new Uint8Array([...v2.subarray(0, linkAt), ...v2.subarray(linkAt + 14)])
-    v1[4] = 1
-    const back = decodeSnapshot(v1)
+    const back = decodeSnapshot(olderSnapshot(m.snapshot(), 1))
     expect(back).not.toBeNull()
     expect(back?.link).toMatchObject({ busy: false, fresh: true, status: LINK_STATUS.ready })
     expect(back?.ram).toEqual(m.state.ram)
@@ -316,7 +311,8 @@ describe('LINK', () => {
   it('refuses a snapshot whose LINK is out of range', () => {
     const m = switchOn()
     const bytes = m.snapshot()
-    const at = bytes.length - (m.state.ram.length + m.state.vram.length) - 14
+    // LINK is the last of the devices, before the count of extended RAM banks.
+    const at = bytes.length - (m.state.ram.length + m.state.vram.length) - 1 - 14
     const broken = bytes.slice()
     // STATUS: past service, type, QUERY, REPLY and MAX.
     broken[at + 8] = 9

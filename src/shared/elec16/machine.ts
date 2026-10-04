@@ -133,10 +133,11 @@ export class Elec16 implements Core {
 
   /**
    * A machine switched on with `rom` in it, the CPU at the reset vector: RAM clear, or the
-   * RAM given (another LCD fitted to the same unit keeps what it held; its VRAM starts empty).
+   * RAM given (another LCD fitted to the same unit keeps what it held; its VRAM starts empty),
+   * and `xram` bytes of extended RAM, clear, on a model that can have them.
    */
-  static boot(rom: Uint8Array, model: ModelId = DEFAULT_MODEL, ram?: Uint8Array): Elec16 {
-    const s = createState(model)
+  static boot(rom: Uint8Array, model: ModelId = DEFAULT_MODEL, ram?: Uint8Array, xram = 0): Elec16 {
+    const s = createState(model, xram)
     if (ram !== undefined) s.ram.set(ram.subarray(0, s.ram.length))
     return new Elec16(rom, s)
   }

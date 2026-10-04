@@ -7,7 +7,14 @@
 
 import { z } from 'zod'
 import { CARD_FILE_MAX, CARD_OP, type CardRequest } from './elec16/card.js'
-import { DEFAULT_MODEL, MODEL_IDS, type ModelId } from './elec16/map.js'
+import {
+  DEFAULT_MODEL,
+  DEFAULT_XRAM_KB,
+  TUNE_MODEL_IDS,
+  type TuneModelId,
+  XRAM_SIZES_KB,
+  type XramSizeKb,
+} from './elec16/map.js'
 
 /** The skins a pane may draw its unit in (widgets/elec16/skins.ts has what each looks like). */
 export const ELEC16_SKINS = [
@@ -34,6 +41,9 @@ export const DEFAULT_CLOCK: Elec16Clock = 4
 export const ELEC16_AUTO_OFF = [10, 30, 0] as const
 export type Elec16AutoOff = (typeof ELEC16_AUTO_OFF)[number]
 const AutoOffSchema = z.union([z.literal(10), z.literal(30), z.literal(0)])
+
+/** Extended RAM in KB, used only on a model that has it (docs/elec16-play.md section 3). */
+const XramSchema = z.literal(XRAM_SIZES_KB)
 
 /** Cycles a second at a clock, or Infinity for MAX. */
 export const hzOfClock = (clock: Elec16Clock): number =>
@@ -62,9 +72,11 @@ export const Elec16UnitSchema = z.object({
     z.literal(16),
     z.literal(32),
   ]),
-  model: z.enum(MODEL_IDS),
+  model: z.enum(TUNE_MODEL_IDS),
   // Units made before it had one switch off as a new one does.
   autoOff: AutoOffSchema.default(10),
+  // Units made before extended RAM take the most, as a new one does.
+  xram: XramSchema.default(DEFAULT_XRAM_KB),
   created: z.number(),
 })
 export type Elec16Unit = z.infer<typeof Elec16UnitSchema>
@@ -74,8 +86,9 @@ export const Elec16UnitChangeSchema = z
   .object({
     name: UnitNameSchema,
     clock: Elec16UnitSchema.shape.clock,
-    model: z.enum(MODEL_IDS),
+    model: z.enum(TUNE_MODEL_IDS),
     autoOff: AutoOffSchema,
+    xram: XramSchema,
   })
   .partial()
 export type Elec16UnitChange = z.infer<typeof Elec16UnitChangeSchema>
@@ -83,15 +96,16 @@ export type Elec16UnitChange = z.infer<typeof Elec16UnitChangeSchema>
 /** Where a new unit starts: a pane made before units seeds it with what it had. */
 export interface Elec16UnitSeed {
   clock?: Elec16Clock
-  model?: ModelId
+  model?: TuneModelId
 }
 
 export const unitDefaults = (
   seed: Elec16UnitSeed = {},
-): { clock: Elec16Clock; model: ModelId; autoOff: Elec16AutoOff } => ({
+): { clock: Elec16Clock; model: TuneModelId; autoOff: Elec16AutoOff; xram: XramSizeKb } => ({
   clock: seed.clock ?? DEFAULT_CLOCK,
   model: seed.model ?? DEFAULT_MODEL,
   autoOff: 10,
+  xram: DEFAULT_XRAM_KB,
 })
 
 /** Who holds a unit, as one page sees it: one of its own panes, or another page (null). */

@@ -72,8 +72,11 @@ describe('a snapshot', () => {
     // The model, then a field of each device out of its range.
     expect(broken((b) => b.fill(9, 5, 6))).toBeNull()
     const head = 4 + 1 + 1 + 32 + 2 + 14 + 1 + 2 + 1 + 8 + 8
+    // The bank (16 bits): one past the ROM's, and extended RAM this model cannot have.
     expect(broken((b) => b.fill(12, head, head + 1))).toBeNull()
-    expect(broken((b) => b.fill(16, head + 2, head + 3))).toBeNull()
+    expect(broken((b) => b.fill(0x20, head, head + 1))).toBeNull()
+    // The LCD's contrast, after its switch.
+    expect(broken((b) => b.fill(16, head + 3, head + 4))).toBeNull()
     expect(new Uint8Array(RAM_SIZE).length).toBe(0x8000)
   })
 })

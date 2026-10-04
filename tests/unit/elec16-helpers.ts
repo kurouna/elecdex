@@ -112,6 +112,28 @@ export function type(m: Elec16, text: string): void {
   }
 }
 
+/** Where the bank starts in a snapshot: magic, version, model, registers, pc, CSRs, flags... */
+const SNAPSHOT_BANK_AT = 4 + 1 + 1 + 32 + 2 + 14 + 1 + 2 + 1 + 8 + 8
+
+/**
+ * A version 3 snapshot of a machine without extended RAM, as version 2 wrote it: the bank a
+ * byte, and no count of extended RAM banks after LINK (snapshot.ts). Version 1 is the same
+ * without LINK's 14 bytes.
+ */
+export function olderSnapshot(v3: Uint8Array, version: 1 | 2): Uint8Array {
+  const causeLength = v3[SNAPSHOT_BANK_AT - 17] ?? 0
+  const countAt = v3.length - (0x8000 + 0x1800) - causeLength - 1
+  if (v3[countAt] !== 0) throw new Error('only a machine without extended RAM')
+  const linkAt = version === 1 ? countAt - 14 : countAt
+  const older = new Uint8Array([
+    ...v3.subarray(0, SNAPSHOT_BANK_AT + 1),
+    ...v3.subarray(SNAPSHOT_BANK_AT + 2, linkAt),
+    ...v3.subarray(countAt + 1),
+  ])
+  older[4] = version
+  return older
+}
+
 export const screen = (m: Elec16): string[] => {
   const { width, height } = MODELS[m.state.model]
   return screenText(m.state.vram, width, height).map((line) => line.trimEnd())

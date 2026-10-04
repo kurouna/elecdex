@@ -159,6 +159,7 @@ export class Elec16Units {
       ...(c.clock !== undefined ? { clock: c.clock } : {}),
       ...(c.model !== undefined ? { model: c.model } : {}),
       ...(c.autoOff !== undefined ? { autoOff: c.autoOff } : {}),
+      ...(c.xram !== undefined ? { xram: c.xram } : {}),
     }
     const file = this.#units.read()
     this.#units.write({ ...file, units: file.units.map((u) => (u.id === unit.id ? next : u)) })

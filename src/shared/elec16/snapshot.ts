@@ -11,6 +11,9 @@
  * it ended, INTERRUPTED, so a program waiting for its answer is not left waiting.
  *
  * Version 2 added LINK; a version 1 snapshot is still read, its LINK as a new machine's.
+ * Version 3 added extended RAM (PLAY-320, docs/elec16-play.md section 3): the bank became 16
+ * bits, the count of extended RAM banks follows LINK, and their bytes follow VRAM. An older
+ * snapshot is read with none, as every machine then had.
  */
 
 import { ByteReader, ByteWriter } from '../emu/bytes.js'
@@ -18,11 +21,11 @@ import { CARD_STATUS } from './card.js'
 import type { Angle } from './decimal.js'
 import { linkInterrupted } from './link.js'
 import { LINK_STATUS } from './link-services.js'
-import { BANK_COUNT, MODEL_IDS, RAM_SIZE, VRAM_WINDOW } from './map.js'
+import { BANK_SIZE, bankTaken, MODEL_IDS, MODELS, RAM_SIZE, VRAM_WINDOW, XRAM_MAX } from './map.js'
 import { createState, type Elec16State } from './state.js'
 
 const MAGIC = [0x45, 0x31, 0x36, 0x53] // "E16S"
-export const SNAPSHOT_VERSION = 2
+export const SNAPSHOT_VERSION = 3
 
 /** A halt's cause is kept as text, at most this long. */
 const CAUSE_MAX = 64
@@ -45,7 +48,7 @@ const HEAD =
   1 + // flags, the halt's pc, its cause's length
   8 +
   8 +
-  1 + // cycles, instret, bank
+  2 + // cycles, instret, bank
   1 +
   1 +
   2 +
@@ -74,16 +77,17 @@ const HEAD =
   4 +
   1 +
   1 + // card
-  LINK_SIZE
+  LINK_SIZE +
+  1 // extended RAM banks
 
 /** The longest snapshot there is, for whoever stores them to check against. */
-export const SNAPSHOT_MAX_SIZE = HEAD + CAUSE_MAX + RAM_SIZE + VRAM_WINDOW
+export const SNAPSHOT_MAX_SIZE = HEAD + CAUSE_MAX + RAM_SIZE + VRAM_WINDOW + XRAM_MAX
 
 const FLAG = { inTrap: 1, sleeping: 2, off: 4, brk: 8, halted: 16 } as const
 
 export function encodeSnapshot(s: Elec16State): Uint8Array {
   const cause = (s.halt?.cause ?? '').slice(0, CAUSE_MAX)
-  const w = new ByteWriter(HEAD + cause.length + RAM_SIZE + VRAM_WINDOW)
+  const w = new ByteWriter(HEAD + cause.length + RAM_SIZE + VRAM_WINDOW + s.xram.length)
   w.raw(MAGIC)
   w.u8(SNAPSHOT_VERSION)
   w.u8(MODEL_IDS.indexOf(s.model))
@@ -102,11 +106,13 @@ export function encodeSnapshot(s: Elec16State): Uint8Array {
   w.u8(cause.length)
   w.f64(s.cycles)
   w.f64(s.instret)
-  w.u8(s.bank)
+  w.u16(s.bank)
   writeDevices(w, s)
+  w.u8(s.xram.length / BANK_SIZE)
   w.raw(Array.from(cause, (ch) => ch.charCodeAt(0) & 0x7f))
   w.raw(s.ram)
   w.raw(s.vram)
+  w.raw(s.xram)
   return w.bytes
 }
 
@@ -189,6 +195,36 @@ export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   const model = MODEL_IDS[r.u8()]
   if (model === undefined) return null
   const s = createState(model)
+  const head = readCpu(r, s, version)
+  if (!readDevices(r, s) || (version >= 2 && !readLink(r, s))) return null
+  // Extended RAM, made only as large as the model can have.
+  const banks = version >= 3 ? r.u8() : 0
+  if (banks * BANK_SIZE > MODELS[model].xramMax) return null
+  s.xram = new Uint8Array(banks * BANK_SIZE)
+  const cause = String.fromCharCode(...r.raw(head.causeLength))
+  s.ram.set(r.raw(RAM_SIZE))
+  s.vram.set(r.raw(VRAM_WINDOW))
+  s.xram.set(r.raw(s.xram.length))
+  if (r.overrun || r.at !== bytes.length) return null
+  if (head.causeLength > CAUSE_MAX || !/^[ -~]*$/.test(cause)) return null
+  if (!finite(s.cycles) || !finite(s.instret) || !bankTaken(s.bank, s.xram.length)) return null
+  const flags = head.flags
+  s.inTrap = (flags & FLAG.inTrap) !== 0
+  s.sleeping = (flags & FLAG.sleeping) !== 0
+  s.off = (flags & FLAG.off) !== 0
+  s.brk = (flags & FLAG.brk) !== 0
+  s.halt = (flags & FLAG.halted) !== 0 ? { cause, pc: head.haltPc } : null
+  // Whatever it showed is drawn afresh.
+  s.screenRevision = 1
+  return s
+}
+
+/** The CPU's part, into `s`; the flags and the halt are given back, to be checked last. */
+function readCpu(
+  r: ByteReader,
+  s: Elec16State,
+  version: number,
+): { flags: number; haltPc: number; causeLength: number } {
   for (let k = 0; k < 16; k++) s.regs[k] = r.u16()
   s.regs[0] = 0
   s.pc = r.u16() & 0xfffe
@@ -208,22 +244,8 @@ export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   const causeLength = r.u8()
   s.cycles = r.f64()
   s.instret = r.f64()
-  s.bank = r.u8()
-  if (!readDevices(r, s) || (version >= 2 && !readLink(r, s))) return null
-  const cause = String.fromCharCode(...r.raw(causeLength))
-  s.ram.set(r.raw(RAM_SIZE))
-  s.vram.set(r.raw(VRAM_WINDOW))
-  if (r.overrun || r.at !== bytes.length) return null
-  if (causeLength > CAUSE_MAX || !/^[\x20-\x7e]*$/.test(cause)) return null
-  if (!finite(s.cycles) || !finite(s.instret) || s.bank >= BANK_COUNT) return null
-  s.inTrap = (flags & FLAG.inTrap) !== 0
-  s.sleeping = (flags & FLAG.sleeping) !== 0
-  s.off = (flags & FLAG.off) !== 0
-  s.brk = (flags & FLAG.brk) !== 0
-  s.halt = (flags & FLAG.halted) !== 0 ? { cause, pc: haltPc } : null
-  // Whatever it showed is drawn afresh.
-  s.screenRevision = 1
-  return s
+  s.bank = version >= 3 ? r.u16() : r.u8()
+  return { flags, haltPc, causeLength }
 }
 
 /** The devices, checked; false when any is out of its range. */

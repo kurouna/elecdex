@@ -63,7 +63,15 @@ describe('the units', () => {
   it('makes the first unit when there is none, from the seed, and numbers the next', () => {
     const u = units()
     expect(u.list({ clock: 8, model: 'pocket-64' })).toEqual([
-      { id: 'u1', name: 'UNIT 1', clock: 8, model: 'pocket-64', autoOff: 10, created: 1234 },
+      {
+        id: 'u1',
+        name: 'UNIT 1',
+        clock: 8,
+        model: 'pocket-64',
+        autoOff: 10,
+        xram: 512,
+        created: 1234,
+      },
     ])
     expect(u.create().id).toBe('u2')
     expect(
@@ -84,6 +92,12 @@ describe('the units', () => {
     expect(u.update('u1', { autoOff: 0 })?.autoOff).toBe(0)
     expect(u.update('u1', { clock: 5 })).toBeNull()
     expect(u.update('u1', { autoOff: 5 })).toBeNull()
+    expect(u.update('u1', { xram: 128 })?.xram).toBe(128)
+    expect(u.update('u1', { xram: 0 })?.xram).toBe(0)
+    expect(u.update('u1', { xram: 64 })).toBeNull()
+    expect(u.update('u1', { xram: 1024 })).toBeNull()
+    // PLAY-320 is the machine's, but TUNE offers it only from G2 (docs/elec16-play.md).
+    expect(u.update('u1', { model: 'play-320' })).toBeNull()
     expect(u.update('u1', { name: '\u3042' })).toBeNull()
     expect(u.update('../u1', { name: 'X' })).toBeNull()
     expect(u.update('u9', { name: 'X' })).toBeNull()
@@ -99,6 +113,18 @@ describe('the units', () => {
       }),
     )
     expect(units().list()[0]?.autoOff).toBe(10)
+  })
+
+  it('gives a unit saved before extended RAM the most a new one has', () => {
+    const file = path.join(dir, 'elec16', 'units.json')
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        units: [{ id: 'u1', name: 'OLD', clock: 4, model: 'pocket-48', autoOff: 30, created: 1 }],
+      }),
+    )
+    expect(units().list()[0]).toMatchObject({ autoOff: 30, xram: 512 })
   })
 
   it('drops a broken unit alone, never the file', () => {

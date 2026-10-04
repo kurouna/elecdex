@@ -209,7 +209,8 @@ describe('the SOFT CARD', () => {
     }
     expect(errors(m)).toEqual([])
     expect(shown(m)).toEqual([expect.stringMatching(/^HITS \d OF 5$/), '>'])
-  })
+    // Four games of machine time: about 1.3 s alone, near 5 s beside the whole suite.
+  }, 20_000)
 
   it('rolls what is typed into TICKER round the middle row by MCPY, and a key ends it', () => {
     for (const model of ['pocket-32', 'handheld-160'] as const) {

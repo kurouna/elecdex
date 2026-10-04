@@ -5,7 +5,7 @@
 
 import { type CardState, createCardState } from './card.js'
 import { createLinkState, type LinkState } from './link.js'
-import { MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
+import { BANK_SIZE, MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
 import { createMathState, type MathState } from './math-unit.js'
 
 /** The CSRs a program can read and write (section 4). */
@@ -48,6 +48,8 @@ export interface Elec16State {
   instret: number
   ram: Uint8Array
   vram: Uint8Array
+  /** Extended RAM (PLAY-320 only), whole 8 KB banks: empty on every other model. */
+  xram: Uint8Array
   bank: number
   keys: { fifo: number[]; held: Uint8Array }
   lcd: { on: boolean; contrast: number; cursor: number; cursorMode: number; annunciators: number }
@@ -129,8 +131,12 @@ export const INTERRUPT = 0x8000
 /** misa: the extensions this machine has - M (bit 12), B (bit 1) and C (bit 2). */
 export const MISA = (1 << 12) | (1 << 1) | (1 << 2)
 
-export function createState(model: ModelId): Elec16State {
+/** A new machine of `model`, with `xram` bytes of extended RAM (whole banks, as it can have). */
+export function createState(model: ModelId, xram = 0): Elec16State {
   if (!(model in MODELS)) throw new RangeError(`no model ${model}`)
+  if (!Number.isInteger(xram / BANK_SIZE) || xram < 0 || xram > MODELS[model].xramMax) {
+    throw new RangeError(`${model} cannot have ${xram} bytes of extended RAM`)
+  }
   return {
     model,
     regs: new Uint16Array(16),
@@ -145,6 +151,7 @@ export function createState(model: ModelId): Elec16State {
     instret: 0,
     ram: new Uint8Array(RAM_SIZE),
     vram: new Uint8Array(VRAM_WINDOW),
+    xram: new Uint8Array(xram),
     bank: 0,
     keys: { fifo: [], held: new Uint8Array(KEY_ROWS) },
     lcd: { on: true, contrast: 8, cursor: 0, cursorMode: 0, annunciators: 0 },
