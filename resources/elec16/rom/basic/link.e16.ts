@@ -2,15 +2,7 @@
 // runs with bank 5 in the window; the interpreter's core (basic.e16.ts) calls it through
 // far_call. The question goes out through the ROM's service 8 (link.s), which waits for the
 // answer asleep and lets BRK stop the wait.
-import {
-  type bool,
-  type i16,
-  peek,
-  poke,
-  poke16,
-  str,
-  u16,
-} from '../../../../src/shared/e16c/builtins'
+import { type bool, i16, peek, poke, poke16, str, u16 } from '../../../../src/shared/e16c/builtins'
 import {
   checkBreak,
   E_ARGUMENT,
@@ -26,6 +18,7 @@ import {
   needString,
   next,
   nsp,
+  setInt,
   setNsp,
   setTxt,
   step,
@@ -61,7 +54,7 @@ const AI_TYPES = 11
 /** The type ASK asks with: ASK TYPE sets it, and it stays until the machine starts afresh. */
 let askType: u16 = 0
 
-/** ASK q$, a$ - and ASK NEW, ASK TYPE t. */
+/** ASK q$, a$[, s] - and ASK NEW, ASK TYPE t. */
 export function askStatement(): void {
   // The ASK itself, just before the text: BRK while it waits makes CONT ask again.
   const again = txt - 1
@@ -79,9 +72,10 @@ export function askStatement(): void {
 }
 
 /**
- * ASK q$, a$: the question put to the AI, its answer into a$ - at most as long as a$ holds,
- * which is what the AI is told it has. BRK while it waits stops the program there (CONT asks
- * again); the rest that goes wrong is an error.
+ * ASK q$, a$[, s]: the question put to the AI, its answer into a$ - at most as long as a$
+ * holds, which is what the AI is told it has. BRK while it waits stops the program there
+ * (CONT asks again). Without s, the rest that goes wrong is an error; with s, nothing stops:
+ * s is 0 for an answer and LINK's STATUS for none (a$ then empty), for the program to say.
  */
 function ask(again: u16): void {
   expr()
@@ -96,11 +90,24 @@ function ask(again: u16): void {
   const at = varAt(true)
   if (!nameIsString) fail(E_TYPE)
   const room = varRoom
+  let said: u16 = 0
+  if (next() === CH_COMMA) {
+    step()
+    said = varAt(true)
+    if (nameIsString) fail(E_TYPE)
+  }
   const reply = tempString(room + 1)
   const got: i16 = link(question, reply, room, askType)
-  if (got < 0) failed(u16(-got), again)
+  if (got < 0) {
+    const status = u16(-got)
+    if (said === 0 || status === LINK_ST_CANCELLED) failed(status, again)
+    poke(at, 0)
+    setInt(said, i16(status))
+    return
+  }
   move(reply, at + 1, u16(got))
   poke(at, u16(got))
+  if (said !== 0) setInt(said, 0)
 }
 
 /** LINK's STATUS for a question it did not answer: BREAK for BRK, else the error it is. */

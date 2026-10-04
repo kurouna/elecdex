@@ -81,6 +81,48 @@ describe('ASK', () => {
     expect(last()?.fresh).toBe(true)
   })
 
+  it('puts what became of the question in a third variable, and then never stops', () => {
+    const m = switchOn()
+    type(m, '10 DIM A$*40\n20 ASK "Q",A$,S\n30 PRINT S;"/";A$;"/"\nRUN\n')
+    expect(shown(m).slice(-2)).toEqual(['0 /RE:Q/', '>'])
+    for (const status of [
+      LINK_STATUS.off,
+      LINK_STATUS.held,
+      LINK_STATUS.failed,
+      LINK_STATUS.badRequest,
+      LINK_STATUS.interrupted,
+    ]) {
+      linkService.answer = () => ({ status })
+      type(m, 'RUN\n')
+      // The answer variable emptied, the status in S, and the program on to its end.
+      expect(shown(m).slice(-2), `status ${status}`).toEqual([`${status} //`, '>'])
+    }
+  })
+
+  it("runs the BASIC manual's example: an answer printed, a failure said, and on", () => {
+    const manual = readFileSync('docs/elec16-basic.md', 'utf8')
+    const at = manual.indexOf('10 DIM A$*200\n20 INPUT Q$\n30 ASK Q$,A$,S')
+    const program = manual.slice(at, manual.indexOf('```', at))
+    const m = switchOn()
+    type(m, `${program}RUN\nDOG\n`)
+    expect(shown(m).slice(-2)).toEqual(['RE:DOG', '?'])
+    linkService.answer = () => ({ status: LINK_STATUS.failed })
+    type(m, 'CAT\n')
+    expect(shown(m).slice(-2)).toEqual(['NO ANSWER 4', '?'])
+  })
+
+  it('stops at BRK even with a third variable, and wants a number there', () => {
+    const m = switchOn()
+    linkService.answer = () => null
+    type(m, '10 ASK "SLOW",A$,S\n20 PRINT "ON"\nRUN\n')
+    m.brk()
+    settle(m)
+    expect(shown(m).some((l) => l.startsWith('BREAK IN 10'))).toBe(true)
+    linkService.answer = echo
+    type(m, 'ASK "Q",A$,B$\n')
+    expect(shown(m).at(-2)).toBe('ERR:TYPE')
+  })
+
   it('says why it got no answer', () => {
     const m = switchOn()
     for (const [status, said] of [

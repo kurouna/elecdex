@@ -572,7 +572,7 @@ TS の部分集合 (*.e16.ts)
 | 9 | SEARCH | ウェブで調べて要約 | 合わせる | 覚えない | する |
 | 10 | WEATHER | 天気予報 | 合わせる | 覚えない | する |
 
-**BASIC と e16c**: `ASK 質問$,答え$`（答えの最大は答え$ の大きさ）、`ASK NEW`、`ASK TYPE "QUIZ"` / `ASK TYPE 3`（ROM のバンク 5、`link.e16.ts`。トークンは ASK 0xDC、TYPE 0xDD）。失敗は `ERR:LINK OFF`、`ERR:LINK HELD`、`ERR:LINK`。e16c のライブラリは `ask(q, reply, max)`、`askAs(type, q, reply, max)`、`askNew()`、`readline(buf, max)`。SOFT CARD の **CHAT.BAS** はタイプを選んで話す（空の ENTER でメニュー: TYPE、NEW、END）。説明書は BASIC §15、E16 §4.8 とサービス 8、e16c §7.5、SOFT CARD の CHAT
+**BASIC と e16c**: `ASK 質問$,答え$[,状態]`（答えの最大は答え$ の大きさ。3 つ目の数の変数があれば止まらず、0 か STATUS が入る。なければエラーで止まる。2026-10-04 利用者の決定）、`ASK NEW`、`ASK TYPE "QUIZ"` / `ASK TYPE 3`（ROM のバンク 5、`link.e16.ts`。トークンは ASK 0xDC、TYPE 0xDD）。失敗は `ERR:LINK OFF`、`ERR:LINK HELD`、`ERR:LINK`。e16c のライブラリは `ask(q, reply, max)`、`askAs(type, q, reply, max)`、`askNew()`、`readline(buf, max)`。SOFT CARD の **CHAT.BAS** はタイプを選んで話す（空の ENTER でメニュー: TYPE、NEW、END）。説明書は BASIC §15、E16 §4.8 とサービス 8、e16c §7.5、SOFT CARD の CHAT
 
 ## 13. 段階と規模
 

@@ -292,9 +292,24 @@ describe('the SOFT CARD', () => {
         type(m, '\n2\n')
         type(m, 'AGAIN\n')
         expect(linkService.asked.at(-1)?.fresh, model).toBe(true)
+        // No answer: CHAT says why and goes on to the next question, not stopped.
+        linkService.answer = () => ({ status: LINK_STATUS.failed })
+        type(m, 'WHY\n')
+        expect(shown(m).slice(-2), model).toEqual(['NO ANSWER: SEE TUNE', '?'])
+        linkService.answer = () => ({ status: LINK_STATUS.off })
+        type(m, 'OFF\n')
+        expect(shown(m).join(' '), model).toContain('LINK OFF: TURN ON IN TUNE')
+        expect(shown(m).at(-1), model).toBe('?')
+        // Ended from the menu, it says so before the prompt.
         type(m, '\n3\n')
-        expect(shown(m), model).toEqual(['>'])
+        expect(shown(m), model).toEqual(['CHAT ENDED', '>'])
         expect(errors(m), model).toEqual([])
+        linkService.answer = (r) => ({
+          status: LINK_STATUS.ready,
+          data: new Uint8Array(
+            [...said(String.fromCharCode(...r.query))].map((c) => c.charCodeAt(0)),
+          ),
+        })
       }
     } finally {
       linkService.answer = null

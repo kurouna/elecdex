@@ -15801,41 +15801,41 @@ str_152:
 
   .bank 5
   .org 0xc000
-; basic/link.e16.ts:65 askStatement() at -O1
+; basic/link.e16.ts:58 askStatement() at -O1
 ;   again in s1
 askStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/link.e16.ts:67  const again = txt - 1
+  ; basic/link.e16.ts:60  const again = txt - 1
   lw t0, 0x010e(zero)
   addi s1, t0, -1
-  ; basic/link.e16.ts:68  if (next() === T_NEW) {
+  ; basic/link.e16.ts:61  if (next() === T_NEW) {
   call next
   li t0, 130
   bne a0, t0, .L1
-  ; basic/link.e16.ts:69  step()
+  ; basic/link.e16.ts:62  step()
   call step
-  ; basic/link.e16.ts:70  poke16(LINK_CMD, LINK_FRESH)
+  ; basic/link.e16.ts:63  poke16(LINK_CMD, LINK_FRESH)
   li t0, 2
   li t1, 65392
   sw t0, 0(t1)
-  ; basic/link.e16.ts:71  return
+  ; basic/link.e16.ts:64  return
   j .return
 .L1:
-  ; basic/link.e16.ts:73  if (next() === T_TYPE) {
+  ; basic/link.e16.ts:66  if (next() === T_TYPE) {
   call next
   li t0, 221
   bne a0, t0, .L2
-  ; basic/link.e16.ts:74  step()
+  ; basic/link.e16.ts:67  step()
   call step
-  ; basic/link.e16.ts:75  askType = typeArgument()
+  ; basic/link.e16.ts:68  askType = typeArgument()
   call typeArgument
   sw a0, 0x07fa(zero)
-  ; basic/link.e16.ts:76  return
+  ; basic/link.e16.ts:69  return
   j .return
 .L2:
-  ; basic/link.e16.ts:78  ask(again)
+  ; basic/link.e16.ts:71  ask(again)
   mv a0, s1
   call ask
 .return:
@@ -15844,111 +15844,160 @@ askStatement:
   addi sp, sp, 4
   ret
 
-; basic/link.e16.ts:86 ask(again) at -O1
-;   again in 6(fp)
-;   n in s1
-;   question in s3
-;   at in 0(fp)
-;   room in 2(fp)
-;   reply in 4(fp)
-;   got in s2
+; basic/link.e16.ts:80 ask(again) at -O1
+;   again in 10(fp)
+;   n in s2
+;   question in 0(fp)
+;   at in 2(fp)
+;   room in 6(fp)
+;   said in s1
+;   reply in 8(fp)
+;   got in s3
+;   status in 4(fp)
 ask:
-  addi sp, sp, -18
-  sw ra, 8(sp)
-  sw s1, 10(sp)
-  sw s3, 12(sp)
+  addi sp, sp, -22
+  sw ra, 12(sp)
   sw s2, 14(sp)
-  sw s0, 16(sp)
+  sw s1, 16(sp)
+  sw s3, 18(sp)
+  sw s0, 20(sp)
   mv fp, sp
-  sw a0, 6(fp) ; again
-  ; basic/link.e16.ts:87  expr()
+  sw a0, 10(fp) ; again
+  ; basic/link.e16.ts:81  expr()
   call expr
-  ; basic/link.e16.ts:88  needString()
+  ; basic/link.e16.ts:82  needString()
   call needString
-  ; basic/link.e16.ts:89  const n = stringLength(top())
+  ; basic/link.e16.ts:83  const n = stringLength(top())
   call top
   call stringLength
-  mv s1, a0 ; n
-  ; basic/link.e16.ts:90  if (n === 0) fail(E_ARGUMENT)
-  bne s1, zero, .L1
-  ; basic/link.e16.ts:90  fail(E_ARGUMENT)
+  mv s2, a0 ; n
+  ; basic/link.e16.ts:84  if (n === 0) fail(E_ARGUMENT)
+  bne s2, zero, .L1
+  ; basic/link.e16.ts:84  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L1:
-  ; basic/link.e16.ts:91  const question = tempString(n + 1)
-  addi a0, s1, 1
+  ; basic/link.e16.ts:85  const question = tempString(n + 1)
+  addi a0, s2, 1
   call tempString
-  mv s3, a0 ; question
-  ; basic/link.e16.ts:92  move(stringAt(top()), question, n)
+  sw a0, 0(fp) ; question
+  ; basic/link.e16.ts:86  move(stringAt(top()), question, n)
   call top
   call stringAt
-  mv a1, s3
-  mv a2, s1
+  lw a1, 0(fp)
+  mv a2, s2
   call move
-  ; basic/link.e16.ts:93  poke(question + n, 0)
-  add t0, s3, s1
+  ; basic/link.e16.ts:87  poke(question + n, 0)
+  lw t0, 0(fp) ; question
+  add t0, t0, s2
   sb zero, 0(t0)
-  ; basic/link.e16.ts:94  setNsp(nsp - 8)
+  ; basic/link.e16.ts:88  setNsp(nsp - 8)
   lw t0, 0x0116(zero)
   addi a0, t0, -8
   call setNsp
-  ; basic/link.e16.ts:95  expect(CH_COMMA)
+  ; basic/link.e16.ts:89  expect(CH_COMMA)
   li a0, 44
   call expect
-  ; basic/link.e16.ts:96  const at = varAt(true)
+  ; basic/link.e16.ts:90  const at = varAt(true)
   li a0, 1
   call varAt
-  sw a0, 0(fp) ; at
-  ; basic/link.e16.ts:97  if (!nameIsString) fail(E_TYPE)
+  sw a0, 2(fp) ; at
+  ; basic/link.e16.ts:91  if (!nameIsString) fail(E_TYPE)
   lw t0, 0x061a(zero)
   bnez t0, .L2
-  ; basic/link.e16.ts:97  fail(E_TYPE)
+  ; basic/link.e16.ts:91  fail(E_TYPE)
   li a0, 11
   call fail
 .L2:
-  ; basic/link.e16.ts:98  const room = varRoom
+  ; basic/link.e16.ts:92  const room = varRoom
   lw t0, 0x011a(zero)
-  sw t0, 2(fp) ; room
+  sw t0, 6(fp) ; room
+  ; basic/link.e16.ts:93  let said: u16 = 0
+  li s1, 0 ; said
+  ; basic/link.e16.ts:94  if (next() === CH_COMMA) {
+  call next
+  li t0, 44
+  bne a0, t0, .L3
+  ; basic/link.e16.ts:95  step()
+  call step
+  ; basic/link.e16.ts:96  said = varAt(true)
+  li a0, 1
+  call varAt
+  mv s1, a0 ; said
+  ; basic/link.e16.ts:97  if (nameIsString) fail(E_TYPE)
+  lw t0, 0x061a(zero)
+  beqz t0, .L4
+  ; basic/link.e16.ts:97  fail(E_TYPE)
+  li a0, 11
+  call fail
+.L4:
+.L3:
   ; basic/link.e16.ts:99  const reply = tempString(room + 1)
-  lw t0, 2(fp) ; room
+  lw t0, 6(fp) ; room
   addi a0, t0, 1
   call tempString
-  sw a0, 4(fp) ; reply
+  sw a0, 8(fp) ; reply
   ; basic/link.e16.ts:100  const got: i16 = link(question, reply, room, askType)
   lw t0, 0x07fa(zero)
-  mv a0, s3
-  lw a1, 4(fp)
-  lw a2, 2(fp)
+  lw a0, 0(fp)
+  lw a1, 8(fp)
+  lw a2, 6(fp)
   mv a3, t0
   call link
-  mv s2, a0 ; got
-  ; basic/link.e16.ts:101  if (got < 0) failed(u16(-got), again)
-  bge s2, zero, .L3
-  ; basic/link.e16.ts:101  failed(u16(-got), again)
-  neg a0, s2
-  lw a1, 6(fp)
-  call failed
-.L3:
-  ; basic/link.e16.ts:102  move(reply, at + 1, u16(got))
-  lw t0, 0(fp) ; at
+  mv s3, a0 ; got
+  ; basic/link.e16.ts:101  if (got < 0) {
+  bge s3, zero, .L5
+  ; basic/link.e16.ts:102  const status = u16(-got)
+  neg t0, s3
+  sw t0, 4(fp) ; status
+  ; basic/link.e16.ts:103  if (said === 0 || status === LINK_ST_CANCELLED) failed(status, again)
+  beq s1, zero, .L7
+  li t0, 7
+  lw t1, 4(fp) ; status
+  bne t1, t0, .L6
+.L7:
+  ; basic/link.e16.ts:103  failed(status, again)
   lw a0, 4(fp)
+  lw a1, 10(fp)
+  call failed
+.L6:
+  ; basic/link.e16.ts:104  poke(at, 0)
+  lw t0, 2(fp) ; at
+  sb zero, 0(t0)
+  ; basic/link.e16.ts:105  setInt(said, i16(status))
+  mv a0, s1
+  lw a1, 4(fp)
+  call setInt
+  ; basic/link.e16.ts:106  return
+  j .return
+.L5:
+  ; basic/link.e16.ts:108  move(reply, at + 1, u16(got))
+  lw t0, 2(fp) ; at
+  lw a0, 8(fp)
   addi a1, t0, 1
-  mv a2, s2
+  mv a2, s3
   call move
-  ; basic/link.e16.ts:103  poke(at, u16(got))
-  lw t0, 0(fp) ; at
-  sb s2, 0(t0)
+  ; basic/link.e16.ts:109  poke(at, u16(got))
+  lw t0, 2(fp) ; at
+  sb s3, 0(t0)
+  ; basic/link.e16.ts:110  if (said !== 0) setInt(said, 0)
+  beq s1, zero, .L8
+  ; basic/link.e16.ts:110  setInt(said, 0)
+  mv a0, s1
+  li a1, 0
+  call setInt
+.L8:
 .return:
   mv sp, fp
-  lw ra, 8(sp)
-  lw s1, 10(sp)
-  lw s3, 12(sp)
+  lw ra, 12(sp)
   lw s2, 14(sp)
-  lw s0, 16(sp)
-  addi sp, sp, 18
+  lw s1, 16(sp)
+  lw s3, 18(sp)
+  lw s0, 20(sp)
+  addi sp, sp, 22
   ret
 
-; basic/link.e16.ts:107 failed(status, again) at -O1
+; basic/link.e16.ts:114 failed(status, again) at -O1
 ;   status in s1
 ;   again in s2
 failed:
@@ -15958,40 +16007,40 @@ failed:
   sw s2, 4(sp)
   mv s1, a0 ; status
   mv s2, a1 ; again
-  ; basic/link.e16.ts:108  if (status === LINK_ST_CANCELLED) {
+  ; basic/link.e16.ts:115  if (status === LINK_ST_CANCELLED) {
   li t0, 7
   bne s1, t0, .L1
-  ; basic/link.e16.ts:109  setTxt(again)
+  ; basic/link.e16.ts:116  setTxt(again)
   mv a0, s2
   call setTxt
-  ; basic/link.e16.ts:110  poke16(BRKFLAG, 1)
+  ; basic/link.e16.ts:117  poke16(BRKFLAG, 1)
   li t0, 1
   sw t0, 30(zero)
-  ; basic/link.e16.ts:111  checkBreak()
+  ; basic/link.e16.ts:118  checkBreak()
   call checkBreak
 .L1:
-  ; basic/link.e16.ts:113  if (status === LINK_ST_OFF) fail(E_LINK_OFF)
+  ; basic/link.e16.ts:120  if (status === LINK_ST_OFF) fail(E_LINK_OFF)
   li t0, 2
   bne s1, t0, .L2
-  ; basic/link.e16.ts:113  fail(E_LINK_OFF)
+  ; basic/link.e16.ts:120  fail(E_LINK_OFF)
   li a0, 19
   call fail
 .L2:
-  ; basic/link.e16.ts:114  if (status === LINK_ST_HELD) fail(E_LINK_HELD)
+  ; basic/link.e16.ts:121  if (status === LINK_ST_HELD) fail(E_LINK_HELD)
   li t0, 3
   bne s1, t0, .L3
-  ; basic/link.e16.ts:114  fail(E_LINK_HELD)
+  ; basic/link.e16.ts:121  fail(E_LINK_HELD)
   li a0, 20
   call fail
 .L3:
-  ; basic/link.e16.ts:115  if (status === LINK_ST_BAD_REQUEST) fail(E_ARGUMENT)
+  ; basic/link.e16.ts:122  if (status === LINK_ST_BAD_REQUEST) fail(E_ARGUMENT)
   li t0, 5
   bne s1, t0, .L4
-  ; basic/link.e16.ts:115  fail(E_ARGUMENT)
+  ; basic/link.e16.ts:122  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L4:
-  ; basic/link.e16.ts:116  fail(E_LINK)
+  ; basic/link.e16.ts:123  fail(E_LINK)
   li a0, 18
   call fail
 .return:
@@ -16001,18 +16050,18 @@ failed:
   addi sp, sp, 6
   ret
 
-; basic/link.e16.ts:120 typeArgument() at -O1
+; basic/link.e16.ts:127 typeArgument() at -O1
 ;   found/n in s1
 typeArgument:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; basic/link.e16.ts:121  expr()
+  ; basic/link.e16.ts:128  expr()
   call expr
-  ; basic/link.e16.ts:122  if (strType) {
+  ; basic/link.e16.ts:129  if (strType) {
   lw t0, 0x0118(zero)
   beqz t0, .L1
-  ; basic/link.e16.ts:123  const found = typeNamed(stringAt(top()), stringLength(top()))
+  ; basic/link.e16.ts:130  const found = typeNamed(stringAt(top()), stringLength(top()))
   call top
   call stringAt
   addi sp, sp, -2
@@ -16025,39 +16074,39 @@ typeArgument:
   mv a0, t0
   call typeNamed
   mv s1, a0 ; found/n
-  ; basic/link.e16.ts:124  setNsp(nsp - 8)
+  ; basic/link.e16.ts:131  setNsp(nsp - 8)
   lw t0, 0x0116(zero)
   addi a0, t0, -8
   call setNsp
-  ; basic/link.e16.ts:125  if (found >= AI_TYPES) fail(E_ARGUMENT)
+  ; basic/link.e16.ts:132  if (found >= AI_TYPES) fail(E_ARGUMENT)
   li t0, 11
   bltu s1, t0, .L2
-  ; basic/link.e16.ts:125  fail(E_ARGUMENT)
+  ; basic/link.e16.ts:132  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L2:
-  ; basic/link.e16.ts:126  return found
+  ; basic/link.e16.ts:133  return found
   mv a0, s1
   j .return
 .L1:
-  ; basic/link.e16.ts:128  const n = toInt(top())
+  ; basic/link.e16.ts:135  const n = toInt(top())
   call top
   call toInt
   mv s1, a0 ; found/n
-  ; basic/link.e16.ts:129  setNsp(nsp - 8)
+  ; basic/link.e16.ts:136  setNsp(nsp - 8)
   lw t0, 0x0116(zero)
   addi a0, t0, -8
   call setNsp
-  ; basic/link.e16.ts:130  if (n < 0 || n >= AI_TYPES) fail(E_ARGUMENT)
+  ; basic/link.e16.ts:137  if (n < 0 || n >= AI_TYPES) fail(E_ARGUMENT)
   blt s1, zero, .L4
   li t0, 11
   blt s1, t0, .L3
 .L4:
-  ; basic/link.e16.ts:130  fail(E_ARGUMENT)
+  ; basic/link.e16.ts:137  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L3:
-  ; basic/link.e16.ts:131  return u16(n)
+  ; basic/link.e16.ts:138  return u16(n)
   mv a0, s1
 .return:
   lw ra, 0(sp)
@@ -16065,7 +16114,7 @@ typeArgument:
   addi sp, sp, 4
   ret
 
-; basic/link.e16.ts:135 typeNamed(at, length) at -O1
+; basic/link.e16.ts:142 typeNamed(at, length) at -O1
 ;   at in 2(fp)
 ;   length in 0(fp)
 ;   p in s2
@@ -16081,19 +16130,19 @@ typeNamed:
   mv fp, sp
   sw a0, 2(fp) ; at
   sw a1, 0(fp) ; length
-  ; basic/link.e16.ts:136  let p = AI_TYPE_NAMES
+  ; basic/link.e16.ts:143  let p = AI_TYPE_NAMES
   la s2, str_2
-  ; basic/link.e16.ts:137  let k: u16 = 0
+  ; basic/link.e16.ts:144  let k: u16 = 0
   li s3, 0 ; k
-  ; basic/link.e16.ts:138  while (peek(p) !== 0) {
+  ; basic/link.e16.ts:145  while (peek(p) !== 0) {
   j .L3
 .L1:
-  ; basic/link.e16.ts:139  let q = p
+  ; basic/link.e16.ts:146  let q = p
   mv s1, s2 ; q
-  ; basic/link.e16.ts:140  while (peek(q) !== 0 && peek(q) !== 0x20) q++
+  ; basic/link.e16.ts:147  while (peek(q) !== 0 && peek(q) !== 0x20) q++
   j .L7
 .L5:
-  ; basic/link.e16.ts:140  q++
+  ; basic/link.e16.ts:147  q++
   addi s1, s1, 1
 .L7:
   lbu t0, 0(s1)
@@ -16102,7 +16151,7 @@ typeNamed:
   li t1, 32
   bne t0, t1, .L5
 .L9:
-  ; basic/link.e16.ts:141  if (q - p === length && same(p, at, length)) return k
+  ; basic/link.e16.ts:148  if (q - p === length && same(p, at, length)) return k
   sub t0, s1, s2
   lw t1, 0(fp) ; length
   bne t0, t1, .L10
@@ -16111,11 +16160,11 @@ typeNamed:
   lw a2, 0(fp)
   call same
   beqz a0, .L10
-  ; basic/link.e16.ts:141  return k
+  ; basic/link.e16.ts:148  return k
   mv a0, s3
   j .return
 .L10:
-  ; basic/link.e16.ts:142  p = peek(q) === 0 ? q : q + 1
+  ; basic/link.e16.ts:149  p = peek(q) === 0 ? q : q + 1
   lbu t0, 0(s1)
   bne t0, zero, .L11
   mv t0, s1
@@ -16124,12 +16173,12 @@ typeNamed:
   addi t0, s1, 1
 .L12:
   mv s2, t0 ; p
-  ; basic/link.e16.ts:143  k++
+  ; basic/link.e16.ts:150  k++
   addi s3, s3, 1
 .L3:
   lbu t0, 0(s2)
   bne t0, zero, .L1
-  ; basic/link.e16.ts:145  return AI_TYPES
+  ; basic/link.e16.ts:152  return AI_TYPES
   li a0, 11
 .return:
   mv sp, fp
@@ -16141,30 +16190,30 @@ typeNamed:
   addi sp, sp, 14
   ret
 
-; basic/link.e16.ts:148 same(a, b, length) at -O1
+; basic/link.e16.ts:155 same(a, b, length) at -O1
 ;   a in a0
 ;   b in a1
 ;   length in a2
 ;   k in a3
 same:
-  ; basic/link.e16.ts:149  for (let k: u16 = 0; k < length; k++) {
+  ; basic/link.e16.ts:156  for (let k: u16 = 0; k < length; k++) {
   li a3, 0 ; k
   j .L3
 .L1:
-  ; basic/link.e16.ts:150  if (peek(a + k) !== peek(b + k)) return false
+  ; basic/link.e16.ts:157  if (peek(a + k) !== peek(b + k)) return false
   add t0, a0, a3
   lbu t0, 0(t0)
   add t1, a1, a3
   lbu t1, 0(t1)
   beq t0, t1, .L5
-  ; basic/link.e16.ts:150  return false
+  ; basic/link.e16.ts:157  return false
   li a0, 0
   ret
 .L5:
   addi a3, a3, 1
 .L3:
   bltu a3, a2, .L1
-  ; basic/link.e16.ts:152  return true
+  ; basic/link.e16.ts:159  return true
   li a0, 1
 .return:
   ret
