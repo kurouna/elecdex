@@ -574,4 +574,36 @@ describe("the page's picture of mode 1", () => {
     expect([at(8, 99), at(0, 99)]).toEqual([6, 0])
     expect([at(0, 100), at(8, 100)]).toEqual([6, 0])
   })
+
+  it('draws a tile again once its bytes change, and starts afresh for another memory', () => {
+    // The painter keeps the tiles unpacked between frames: a change must still show.
+    const v = scene()
+    noSprites(v)
+    tile(v, 1, SOLID('3'))
+    cell(v, BG0_MAP, 0, 0, 1)
+    expect(draw(v)(0, 0)).toBe(3)
+    tile(v, 1, SOLID('7'))
+    expect(draw(v)(0, 0)).toBe(7)
+    const w = scene()
+    noSprites(w)
+    tile(w, 1, SOLID('2'))
+    cell(w, BG0_MAP, 0, 0, 1)
+    expect(draw(w)(0, 0)).toBe(2)
+    expect(draw(v)(0, 0)).toBe(7)
+  })
+
+  it('keeps a lower-numbered sprite marked behind in front of a higher one, under the backgrounds', () => {
+    const v = scene()
+    noSprites(v)
+    tile(v, 1, SOLID('5'))
+    tile(v, 2, SOLID('6'))
+    tile(v, 3, SOLID('4'))
+    sprite(v, 0, 0, 0, 1 | (1 << 15))
+    sprite(v, 1, 0, 0, 2)
+    // Nothing in between: sprite 0, though behind, is in front of sprite 1.
+    expect(draw(v)(0, 0)).toBe(8 * 16 + 5)
+    // A background over it: the background shows, sprite 1 hidden under sprite 0.
+    cell(v, BG0_MAP, 0, 0, 3)
+    expect(draw(v)(0, 0)).toBe(4)
+  })
 })

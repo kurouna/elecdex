@@ -178,6 +178,15 @@ function needleTile(a: u16): u16 {
   return (base + 8 - q) | FLIP_H
 }
 
+/** The bullets within `r` sixteenths of (x, y) into stars: the bomb's ring as it grows. */
+export function cancelWithin(x: i16, y: i16, r: i16): void {
+  let k: u16 = 0
+  while (k < B_N) {
+    if (buLive[k] !== 0 && inside(i16(buX[k]) - x, i16(buY[k]) - y, r)) cancelOne(k)
+    k++
+  }
+}
+
 /** Every bullet into a star (a bomb, a boss's end): answers how many. */
 export function cancelAll(): u16 {
   let n: u16 = 0
@@ -225,7 +234,7 @@ const sY = words(18)
 const sVX = words(18)
 const sLive = words(18)
 
-/** A shot from (x, y): `lean` -1 left, 0 straight, 1 right. */
+/** A shot from (x, y): `lean` -2 and -1 out to the left, 0 straight, 1 and 2 to the right. */
 export function shot(x: i16, y: i16, lean: i16): void {
   let k: u16 = 0
   while (k < S_N && sLive[k] !== 0) k++
@@ -233,7 +242,7 @@ export function shot(x: i16, y: i16, lean: i16): void {
   sX[k] = u16(x)
   sY[k] = u16(y)
   sVX[k] = u16(lean * 40)
-  sLive[k] = u16(lean + 2)
+  sLive[k] = u16(lean + 3)
 }
 
 /** The shots on by a frame: each that `hits` (the foes' check) is spent. Drawn. */
@@ -259,9 +268,10 @@ function shotOne(k: u16, damage: u16): void {
     fx(FX_SPARK, x, y + 64, 0)
     return
   }
+  // 1-5: two out to the left, ahead, two out to the right.
   const lean = sLive[k]
-  const tile = lean === 2 ? SHOT_TILE + (u16(y >> 6) & 1) : SHOT_TILE + 2
-  const flip = lean === 1 ? FLIP_H : 0
+  const tile = lean === 3 ? SHOT_TILE + (u16(y >> 6) & 1) : SHOT_TILE + 2
+  const flip = lean < 3 ? FLIP_H : 0
   spr((x >> 4) - 4 + shakeDX(), (y >> 4) - 4 + shakeDY(), tile | ((SL_SHOT - 8) << 10) | flip, S8)
 }
 
@@ -273,4 +283,4 @@ export function shotsClear(): void {
   }
 }
 
-import { foeHit } from './foes.e16'
+import { foeHit, inside } from './foes.e16'

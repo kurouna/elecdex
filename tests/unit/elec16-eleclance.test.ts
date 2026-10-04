@@ -76,6 +76,26 @@ function scrollTo(m: Elec16, row: number): void {
   put(m, 'scriptAt', constant('STAGE_SCRIPT_AT') + passed * 8)
 }
 
+/** A bullet standing still at (x, y), sixteenths: slot k of the bullets. */
+function stillBullet(m: Elec16, k: number, x: number, y: number): void {
+  put(m, 'buKind', 0, k)
+  put(m, 'buX', x, k)
+  put(m, 'buY', y, k)
+  put(m, 'buVX', 0, k)
+  put(m, 'buVY', 0, k)
+  put(m, 'buLive', 1, k)
+  put(m, 'buGrazed', 1, k)
+}
+
+/** Whether a bullet still stands at (x, y). */
+function stillAt(m: Elec16, x: number, y: number): boolean {
+  for (let k = 0; k < 72; k++) {
+    if (read(m, 'buLive', k) !== 0 && read(m, 'buX', k) === x && read(m, 'buY', k) === (y & 0xffff))
+      return true
+  }
+  return false
+}
+
 /** Runs (guarded) until `done`, at most `limit` frames: answers the frames it took. */
 function until(m: Elec16, done: () => boolean, limit: number): number {
   for (let k = 0; k < limit; k++) {
@@ -139,18 +159,127 @@ describe('ELECLANCE played', () => {
     expect(read(m, 'score')).toBeGreaterThan(0)
   })
 
-  it('turns every bullet into a star with a bomb, which costs one', () => {
+  it("sends a bomb's ring out farther with more power, taking the bullets it passes", () => {
+    // Two still bullets 60 and 150 points above the ship: power 0's ring (80) takes only the
+    // nearer; power 4's (208) both.
+    for (const [power, left] of [
+      [0, 1],
+      [4, 0],
+    ] as const) {
+      const m = playing()
+      guarded(m, 120, 0)
+      put(m, 'power', power)
+      const x = read(m, 'shipX')
+      const y = read(m, 'shipY')
+      stillBullet(m, 0, x, y - 60 * 16)
+      stillBullet(m, 1, x, y - 150 * 16)
+      const before = read(m, 'bombs')
+      m.pad(padBit('b'))
+      frames(m, 2, cart)
+      m.pad(0)
+      guarded(m, 40, 0)
+      expect(read(m, 'bombs')).toBe(before - 1)
+      // Still bullets are found by their places: a freed slot may already hold a new one.
+      expect([stillAt(m, x, y - 60 * 16), stillAt(m, x, y - 150 * 16)], `power ${power}`).toEqual([
+        false,
+        left === 1,
+      ])
+    }
+  })
+
+  it('takes P for power: more shots, missiles from 3, and the lance only half as hard', () => {
     const m = playing()
-    scrollTo(m, 400)
-    until(m, () => read(m, 'bulletCount') > 4, 1200)
-    const before = read(m, 'bombs')
-    m.pad(padBit('b'))
-    frames(m, 2, cart)
-    m.pad(0)
-    frames(m, 1, cart)
-    expect(read(m, 'bombs')).toBe(before - 1)
-    expect(read(m, 'bulletCount')).toBe(0)
-    expect(read(m, 'bombing')).toBeGreaterThan(0)
+    guarded(m, 120, 0)
+    // A P at the ship: caught at once.
+    put(m, 'itKind', 4, 0)
+    put(m, 'itX', read(m, 'shipX'), 0)
+    put(m, 'itY', read(m, 'shipY'), 0)
+    guarded(m, 2, 0)
+    expect(read(m, 'power')).toBe(1)
+    put(m, 'power', 3)
+    guarded(m, 40)
+    expect([0, 1, 2, 3, 4, 5].some((k) => read(m, 'mT', k) !== 0)).toBe(true)
+  })
+
+  it('lets the lance glance off a prism, which shots still hurt', () => {
+    const m = playing()
+    guarded(m, 120, 0)
+    const x = read(m, 'shipX')
+    put(m, 'fK', 9, 0)
+    put(m, 'fX', x, 0)
+    put(m, 'fY', 80 * 16, 0)
+    put(m, 'fHP', 18, 0)
+    put(m, 'fT', 0, 0)
+    put(m, 'fP', 200, 0)
+    guarded(m, 30)
+    expect(read(m, 'fHP')).toBe(18)
+    // Shots (A tapped) hurt it.
+    for (let k = 0; k < 20 && read(m, 'fK') === 9; k++) {
+      put(m, 'fX', read(m, 'shipX'), 0)
+      guarded(m, 2, padBit('a'))
+      guarded(m, 2, 0)
+    }
+    expect(read(m, 'fK') === 0 || read(m, 'fHP') < 18).toBe(true)
+  })
+
+  it('sends a spark on from what the lance strikes at power 2', () => {
+    const m = playing()
+    guarded(m, 120, 0)
+    put(m, 'power', 2)
+    const x = read(m, 'shipX')
+    // A turret in the lance's path, another beside it within the spark's reach.
+    for (const [k, dx] of [
+      [0, 0],
+      [1, 60],
+    ] as const) {
+      put(m, 'fK', 8, k)
+      put(m, 'fX', x + dx * 16, k)
+      put(m, 'fY', 60 * 16, k)
+      put(m, 'fHP', 200, k)
+      put(m, 'fT', 1, k)
+    }
+    guarded(m, 20)
+    expect(read(m, 'fHP', 0)).toBeLessThan(200)
+    expect(read(m, 'fHP', 1)).toBeLessThan(200)
+  })
+
+  it("sends a serpent's segments after its head, and up in a chain when the head dies", () => {
+    const m = playing()
+    scrollTo(m, 480)
+    const kinds = () => Array.from({ length: 24 }, (_, k) => read(m, 'fK', k))
+    until(m, () => kinds().includes(10), 600)
+    guarded(m, 60, 0)
+    expect(kinds().filter((k) => k === 11)).toHaveLength(6)
+    // The segments are strung out along the trail, not on top of the head.
+    const head = kinds().indexOf(10)
+    const seg = kinds().indexOf(11)
+    expect(read(m, 'fY', seg)).not.toBe(read(m, 'fY', head))
+    // The head down (the lance on it), the segments follow it one after another.
+    put(m, 'fHP', 1, head)
+    for (let k = 0; k < 120 && kinds().includes(10); k++) {
+      put(m, 'shipX', read(m, 'fX', head))
+      guarded(m, 1)
+    }
+    expect(kinds().includes(10)).toBe(false)
+    guarded(m, 60, 0)
+    expect(kinds().filter((k) => k === 11)).toHaveLength(0)
+  })
+
+  it('bursts a spinner into a ring of bullets when it dies', () => {
+    const m = playing()
+    guarded(m, 120, 0)
+    put(m, 'fK', 12, 0)
+    put(m, 'fX', read(m, 'shipX'), 0)
+    put(m, 'fY', 100 * 16, 0)
+    put(m, 'fHP', 1, 0)
+    put(m, 'fT', 1, 0)
+    for (let k = 0; k < 60 && read(m, 'fK') === 12; k++) {
+      put(m, 'fX', read(m, 'shipX'), 0)
+      guarded(m, 1)
+    }
+    expect(read(m, 'fK')).toBe(0)
+    guarded(m, 1, 0)
+    expect(read(m, 'bulletCount')).toBeGreaterThanOrEqual(8)
   })
 
   it('calls OVERDRIVE on X once VOLT is full, the music bringing its layer in', () => {

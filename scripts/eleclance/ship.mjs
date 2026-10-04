@@ -220,3 +220,39 @@ export function lanceEnds() {
   }
   return out
 }
+
+/**
+ * A homing missile (8x8, palette `shot`): pointing along +x, then by sixteenths of a turn to
+ * straight down; the game flips these for the other three quarters.
+ */
+export function missileFrames() {
+  return [0, Math.PI / 8, Math.PI / 4, (3 * Math.PI) / 8, Math.PI / 2].map((angle) => {
+    const c = new Canvas(8, 8)
+    const dx = Math.cos(angle)
+    const dy = Math.sin(angle)
+    // A white nose, a blue body, a flame behind.
+    for (let t = -3.5; t <= 3.5; t += 0.25) {
+      const colour = t > 1.5 ? T.w : t > -1.5 ? T.s : T.y
+      c.set(3.5 + dx * t, 3.5 + dy * t, colour)
+    }
+    c.set(3.5 - dx * 3.5 - dy, 3.5 - dy * 3.5 + dx, T.V)
+    c.set(3.5 - dx * 3.5 + dy, 3.5 - dy * 3.5 - dx, T.V)
+    return c
+  })
+}
+
+/** The lance's chain: a jagged spark that jumps to the next foe, four frames (8x8). */
+export function arcFrames(rnd) {
+  return [0, 1, 2, 3].map(() => {
+    const c = new Canvas(8, 8)
+    let x = 0
+    let y = 3.5
+    while (x < 8) {
+      c.set(x, y, T.w)
+      c.set(x, y + 1, T.L)
+      x += 1
+      y = Math.max(1, Math.min(6, y + (rnd() - 0.5) * 3))
+    }
+    return c
+  })
+}

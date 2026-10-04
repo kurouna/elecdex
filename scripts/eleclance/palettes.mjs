@@ -142,7 +142,7 @@ export const PALETTES = [
     ),
   },
   {
-    // Stars to pick up, sparks, the bomb's ring.
+    // Stars to pick up (emerald), the pickups, sparks, the bomb's ring.
     name: 'item',
     colours: row(
       '#000000',
@@ -156,11 +156,12 @@ export const PALETTES = [
       '#0090c0',
       '#40e0f8',
       '#c0f8f8',
-      '#600060',
-      '#c020c0',
-      '#f870f8',
-      '#f8c0f8',
-      '#183018',
+      // Emerald for the stars to pick up: no bullet is green, so they never read as one.
+      '#005020',
+      '#109040',
+      '#40d060',
+      '#b8f8b8',
+      '#002010',
     ),
   },
   {

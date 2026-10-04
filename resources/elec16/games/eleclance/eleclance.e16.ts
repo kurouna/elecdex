@@ -266,7 +266,6 @@ function spritesIn(): void {
   load(ROCK_SMALL_BANK, ROCK_SMALL_AT, ROCK_SMALL_TILE * 32, ROCK_SMALL_BYTES)
   load(HALBERD_BANK, HALBERD_AT, HALBERD_TILE * 32, HALBERD_BYTES)
   load(WARDEN_BANK, WARDEN_AT, WARDEN_TILE * 32, WARDEN_BYTES)
-  load(BASTION_BANK, BASTION_AT, BASTION_TILE * 32, BASTION_BYTES)
   load(BULLETS_BANK, BULLETS_AT, BULLETS_TILE * 32, BULLETS_BYTES)
   load(ORBS_BANK, ORBS_AT, ORBS_TILE * 32, ORBS_BYTES)
   load(BLAST_SMALL_BANK, BLAST_SMALL_AT, BLAST_SMALL_TILE * 32, BLAST_SMALL_BYTES)
@@ -280,6 +279,11 @@ function spritesIn(): void {
 }
 
 /** The battleship's tiles, over the title's word. */
+/** BASTION's tiles, over the battleship's: the two are never on the screen together. */
+function bastionIn(): void {
+  load(BASTION_BANK, BASTION_AT, BASTION_TILE * 32, BASTION_BYTES)
+}
+
 function zenithIn(): void {
   load(ZENITH_BANK, ZENITH_AT, ZENITH_TILE * 32, ZENITH_BYTES)
 }
@@ -364,7 +368,6 @@ function stage(round: u16): bool {
 /** A round's start: the screen, the stage from its bottom, nothing left of the last round. */
 function stageBegin(round: u16): void {
   mapsClear()
-  zenithIn()
   panelsIn()
   hudLabels()
   stageStart()
@@ -373,6 +376,7 @@ function stageBegin(round: u16): void {
   bulletsClear()
   shotsClear()
   itemsClear()
+  missilesClear()
   bossReset()
   bossOnWas = B_NONE
   banner = 150
@@ -426,6 +430,7 @@ let bossOnWas: u16 = B_NONE
 
 function midboss(): void {
   stageHold(STAGE_H - 64 - 128 - 96 - 64)
+  bastionIn()
   bastionStart()
   bossOnWas = B_BASTION
   music(M_BOSS)
@@ -435,6 +440,7 @@ function boss(): void {
   fieldClear()
   palettesIn()
   stageHold(0)
+  zenithIn()
   zenithStart()
   bossOnWas = B_ZENITH
   music(M_BOSS)
@@ -449,22 +455,26 @@ function play_(): void {
   shipStep()
   // OVERDRIVE, and ZENITH's burning core, bring the music's extra layer in.
   musicLayer(overdrive > 0 || bossPhase === 3 ? 1 : 0)
-  const damage: u16 = overdrive > 0 ? 2 : 1
-  lanceStep(damage)
+  // A shot hits for 2, the lance for 1 every other frame; OVERDRIVE adds 1 to both.
+  const od: u16 = overdrive > 0 ? 1 : 0
+  lanceStep(1 + od)
   // Drawn front to back: bullets over everything, then the ship, effects, the bosses, foes,
   // shots, stars; the far stars last, behind the backgrounds.
   bulletsStep(shipXNow(), shipYNow(), shipVulnerable())
   shipDraw()
+  chainDraw(frame)
   fxStep()
   bossStep()
   foesStep(scrollSpeed)
-  shotsStep(damage)
+  shotsStep(2 + od)
+  missilesStep(3 + od)
   itemsStep(shipXNow(), shipYNow(), overdrive > 0 ? 1 : 0)
   farStarsStep(scrollSpeed, frame)
   if (hitShip) shipHit()
   scorePlay()
   if ((frame & 1023) === 0) rankUp()
   hudStep(lives, bombs, voltNow(), overdrive)
+  powerShow(power)
 }
 
 function scorePlay(): void {
@@ -481,6 +491,8 @@ function scorePlay(): void {
     sfxPick()
   }
   if (caught[IT_BOMB] > 0) bombsAdd()
+  // P: a level of power, or 10,000 points once at the top.
+  if (caught[IT_POWER] > 0 && !powerAdd()) points(1000)
   if (caught[IT_LIFE] > 0 || extendDue()) livesAdd()
 }
 
@@ -505,5 +517,8 @@ export function overdriveOn(): bool {
 import { musicLayer } from './audio.e16'
 import { tableLoad } from './best.e16'
 import { bossReset } from './boss.e16'
+import { IT_POWER } from './fx.e16'
 import { gameOver, pause, tally, title, warningStep } from './scenes.e16'
-import { points } from './score.e16'
+import { points, powerShow } from './score.e16'
+import { power, powerAdd } from './ship.e16'
+import { chainDraw, missilesClear, missilesStep } from './weapons.e16'

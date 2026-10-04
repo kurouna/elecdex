@@ -2,7 +2,7 @@
 // how they are hit (by shots, the lance, a bomb) and what they leave; and the stage's script,
 // which sends them as the stage scrolls past their rows.
 import { type bool, i16, peek16, u16, words } from '../../../../src/shared/e16c/builtins'
-import { bank, FLIP_H, randBelow, S16, S32, spr } from '../lib/kit.e16'
+import { bank, FLIP_H, S16, S32, spr } from '../lib/kit.e16'
 import {
   DART_TILE,
   HALBERD_TILE,
@@ -14,23 +14,8 @@ import {
   STAGE_SCRIPT_BANK,
   WARDEN_TILE,
 } from './assets.e16'
-import { abs, burst, IT_BOMB, IT_LIFE, IT_STAR, item } from './fx.e16'
-import {
-  aimed,
-  BK_AMBER,
-  BK_BLUE,
-  BK_NEEDLE,
-  BK_ORB,
-  BK_PINK,
-  bullet,
-  cancelNear,
-  fan,
-  fanOf,
-  ring,
-  ringOf,
-  sk,
-  targetX,
-} from './shots.e16'
+import { abs, burst, IT_BOMB, IT_LIFE, IT_POWER, IT_STAR, item } from './fx.e16'
+import { aimed, BK_NEEDLE, BK_PINK, bullet, cancelNear, sk } from './shots.e16'
 import { FIELD_X, reached, SL_ENEMY, SL_FLASH, SL_HEAVY, shake, shakeDX, shakeDY } from './view.e16'
 
 export const K_MOTE = 1
@@ -41,6 +26,13 @@ export const K_WARDEN = 5
 export const K_ROCK = 6
 export const K_PEBBLE = 7
 export const K_TURRET = 8
+/** The lance glances off it: only shots, missiles and bombs hurt it. */
+export const K_PRISM = 9
+/** A serpent's head, and the segments that follow its trail. */
+export const K_SERPENT = 10
+export const K_SEGMENT = 11
+/** A mine that drifts after the ship and bursts into a ring when it dies. */
+export const K_SPINNER = 12
 
 /** Script commands, past the enemies. */
 const C_SPEED = 20
@@ -49,30 +41,37 @@ const C_BOSS = 22
 const C_PICKUP = 23
 
 const F_N = 24
-const fK = words(24)
-const fX = words(24)
-const fY = words(24)
-const fVX = words(24)
-const fVY = words(24)
-const fHP = words(24)
-const fT = words(24)
-const fP = words(24)
-const fFlash = words(24)
+export const fK = words(24)
+export const fX = words(24)
+export const fY = words(24)
+export const fVX = words(24)
+export const fVY = words(24)
+export const fHP = words(24)
+export const fT = words(24)
+export const fP = words(24)
+export const fFlash = words(24)
+/** Taken by the bomb's ring already (once a bomb). */
+const fBombed = words(24)
 
 /** Each kind's half size (points), life, and points (x10). */
-const HALF = words(9)
-const LIFE = words(9)
-const WORTH = words(9)
+export const HALF = words(13)
+const LIFE = words(13)
+const WORTH = words(13)
 
+/** Lives are counted in shot hits of 1; a shot now hits for 2, the lance for 1 every other frame. */
 export function foesInit(): void {
-  kindIs(K_MOTE, 7, 3, 10)
-  kindIs(K_DART, 7, 4, 15)
-  kindIs(K_PIKE, 7, 10, 30)
-  kindIs(K_HALBERD, 15, 60, 200)
-  kindIs(K_WARDEN, 15, 90, 300)
-  kindIs(K_ROCK, 14, 22, 50)
-  kindIs(K_PEBBLE, 7, 4, 10)
-  kindIs(K_TURRET, 7, 14, 40)
+  kindIs(K_MOTE, 7, 5, 10)
+  kindIs(K_DART, 7, 7, 15)
+  kindIs(K_PIKE, 7, 16, 30)
+  kindIs(K_HALBERD, 15, 90, 200)
+  kindIs(K_WARDEN, 15, 130, 300)
+  kindIs(K_ROCK, 14, 32, 50)
+  kindIs(K_PEBBLE, 7, 6, 10)
+  kindIs(K_TURRET, 7, 20, 40)
+  kindIs(K_PRISM, 7, 18, 40)
+  kindIs(K_SERPENT, 7, 40, 150)
+  kindIs(K_SEGMENT, 7, 8, 10)
+  kindIs(K_SPINNER, 7, 8, 20)
   foesClear()
 }
 
@@ -88,6 +87,7 @@ export function foesClear(): void {
     fK[k] = 0
     k++
   }
+  serpentsClear()
 }
 
 /** How many foes are about (the stage waits for a boss's field to be clear). */
@@ -105,11 +105,11 @@ export function rankUp(): void {
   if (rank < 15) rank++
 }
 
-/** A foe of `kind` at (x, y) points, with `p` for its path. */
-export function foe(kind: u16, x: i16, y: i16, p: u16): void {
+/** A foe of `kind` at (x, y) points, with `p` for its path: answers its slot (0xffff for none). */
+export function foe(kind: u16, x: i16, y: i16, p: u16): u16 {
   let k: u16 = 0
   while (k < F_N && fK[k] !== 0) k++
-  if (k === F_N) return
+  if (k === F_N) return 0xffff
   fK[k] = kind
   fX[k] = u16(x * 16)
   fY[k] = u16(y * 16)
@@ -119,6 +119,7 @@ export function foe(kind: u16, x: i16, y: i16, p: u16): void {
   fT[k] = 0
   fP[k] = p
   fFlash[k] = 0
+  return k
 }
 
 /** Every foe on a frame: moves, shoots, is drawn. `scroll` the stage's speed (sixteenths). */
@@ -156,6 +157,12 @@ function foeOne(k: u16, scroll: u16): void {
       if (t % (70 - rank * 2) === 0 && i16(fY[k]) > 320 && i16(fY[k]) < 3200)
         shootAimed(k, BK_NEEDLE, 40)
       break
+    case K_PRISM:
+    case K_SERPENT:
+    case K_SEGMENT:
+    case K_SPINNER:
+      newFoeMove(k, t)
+      break
     default:
       // Rocks and pebbles drift as they were thrown.
       break
@@ -172,91 +179,6 @@ function foeOne(k: u16, scroll: u16): void {
   foeDraw(k, x, y, t)
 }
 
-/** A mote's paths: 0 down and swaying, 1 in from the left on a curve, 2 from the right. */
-function moteMove(k: u16, t: u16): void {
-  const p = fP[k]
-  if (p === 0) {
-    fVY[k] = 22
-    fVX[k] = u16((t & 32) !== 0 ? 10 : -10)
-  } else {
-    const dir: i16 = p === 1 ? 1 : -1
-    const sp: i16 = t < 60 ? 36 : 20
-    fVX[k] = u16(dir * sp)
-    fVY[k] = u16(t < 30 ? 6 : 24)
-  }
-  if (t === 50 + (k & 15) && randBelow(16) < 4 + rank) shootAimed(k, BK_PINK, 36)
-}
-
-/** A dart dives toward the ship, then sheers off sideways. */
-function dartMove(k: u16, t: u16): void {
-  if (t < 40) {
-    fVY[k] = 48
-    fVX[k] = u16(chase(k))
-  } else {
-    const away: i16 = i16(fX[k]) < targetXNow() ? -40 : 40
-    fVX[k] = u16(away)
-    fVY[k] = 56
-    if (t === 40) shootAimed(k, BK_NEEDLE, 48)
-  }
-}
-
-/** A pike drops to its row, fires three fans, and climbs away. */
-function pikeMove(k: u16, t: u16): void {
-  const stop = 60 + fP[k]
-  if (t < 200) {
-    const y = i16(fY[k]) >> 4
-    fVY[k] = y < i16(stop) ? 24 : 0
-    if (y >= i16(stop) && t % 50 === 0) {
-      fan(
-        i16(fX[k]),
-        i16(fY[k]),
-        aimed(i16(fX[k]), i16(fY[k])),
-        fanOf(3 + (rank >> 2), 10, 32, BK_BLUE),
-      )
-    }
-  } else fVY[k] = u16(-24)
-}
-
-/** A halberd descends, strafes, fires pink fans and amber bursts, and leaves late. */
-function halberdMove(k: u16, t: u16): void {
-  const y = i16(fY[k]) >> 4
-  fVY[k] = y < 70 ? 20 : t > 640 ? u16(-16) : 0
-  fVX[k] = u16((t & 128) !== 0 ? 8 : -8)
-  if (y < 60) return
-  if (t % 60 === 0) fan(i16(fX[k]), i16(fY[k]) + 160, 64, fanOf(5 + (rank >> 2), 12, 36, BK_PINK))
-  if (t % 60 === 30) {
-    const a = aimed(i16(fX[k]), i16(fY[k]))
-    bullet(i16(fX[k]) - 128, i16(fY[k]) + 160, a, sk(52, BK_AMBER))
-    bullet(i16(fX[k]) + 128, i16(fY[k]) + 160, a, sk(52, BK_AMBER))
-  }
-}
-
-/** A warden settles high, rings bullets out and lets motes loose from its bay. */
-function wardenMove(k: u16, t: u16): void {
-  const y = i16(fY[k]) >> 4
-  fVY[k] = y < 50 ? 16 : t > 760 ? u16(-12) : 0
-  if (y < 40) return
-  if (t % 90 === 0) ring(i16(fX[k]), i16(fY[k]), t & 255, ringOf(12 + rank, 24, BK_ORB))
-  if (t % 80 === 40) foe(K_MOTE, i16(fX[k] >> 4), i16(fY[k] >> 4) + 8, 0)
-}
-
-/** A speed toward the ship's x, a fifth of the way a frame... softened. */
-function chase(k: u16): i16 {
-  const d = targetXNow() - i16(fX[k])
-  return d >> 5
-}
-
-function targetXNow(): i16 {
-  return targetX
-}
-
-/** An aimed bullet from the foe. */
-function shootAimed(k: u16, kind: u16, speed: u16): void {
-  const x = i16(fX[k])
-  const y = i16(fY[k])
-  bullet(x, y, aimed(x, y), sk(speed + rank * 2, kind))
-}
-
 function foeDraw(k: u16, x16: i16, y16: i16, t: u16): void {
   const kind = fK[k]
   const half = i16(HALF[kind])
@@ -267,8 +189,9 @@ function foeDraw(k: u16, x16: i16, y16: i16, t: u16): void {
     fFlash[k] = fFlash[k] - 1
     flash = 1
   }
-  const heavy = kind === K_HALBERD || kind === K_WARDEN
+  const heavy = kind === K_HALBERD || kind === K_WARDEN || kind === K_PRISM
   const pal = ((flash ? SL_FLASH : heavy ? SL_HEAVY : SL_ENEMY) - 8) << 10
+  foePal = pal
   switch (kind) {
     case K_MOTE:
       spr(x, y, (MOTE_TILE + ((t >> 2) & 3) * 4) | pal, S16)
@@ -292,10 +215,16 @@ function foeDraw(k: u16, x16: i16, y16: i16, t: u16): void {
     case K_ROCK:
       spr(x, y, (ROCK_BIG_TILE + ((t >> 5) & 1) * 16) | pal, S32)
       break
-    default:
+    case K_PEBBLE:
       spr(x, y, (ROCK_SMALL_TILE + ((t >> 4) & 1) * 4) | pal, S16)
+      break
+    default:
+      newFoeDraw(k, x, y, t)
   }
 }
+
+/** The palette bits of the foe being drawn, for the later foes' pictures (foes2.e16.ts). */
+export let foePal: u16 = 0
 
 /* ---------------- being hit ---------------- */
 
@@ -342,24 +271,101 @@ export function foeLance(x: i16, y: i16, damage: u16): i16 {
     }
     k++
   }
+  lanceVictim = 0xffff
   const boss = bossLance(x, y)
   if (boss > bestY) {
     bossHit(x, boss - 32, damage, true)
     return boss
   }
   if (best === 0xffff) return 0
-  hurt(best, damage, true)
+  // A prism takes the lance and gives nothing: it glances off.
+  if (fK[best] === K_PRISM) {
+    fFlash[best] = 1
+    return bestY
+  }
+  lanceVictim = best
+  if (damage > 0) hurt(best, damage, true)
   return bestY
 }
 
-/** The bomb: every foe on the screen hurt hard. */
-export function foeBomb(): void {
+/** The foe the lance struck this frame (0xffff for none), where its chain starts. */
+export let lanceVictim: u16 = 0xffff
+
+/** A new bomb: nothing taken by its ring yet. */
+export function foesBombReset(): void {
   let k: u16 = 0
   while (k < F_N) {
-    if (fK[k] !== 0 && i16(fY[k]) > 0) hurt(k, 40, false)
+    fBombed[k] = 0
     k++
   }
-  bossBomb()
+  bossBombed = 0
+}
+
+let bossBombed: u16 = 0
+
+/** The foes within `r` sixteenths of (x, y) that the ring has not yet taken, hurt hard. */
+export function foesBombWithin(x: i16, y: i16, r: i16): void {
+  let k: u16 = 0
+  while (k < F_N) {
+    if (
+      fK[k] !== 0 &&
+      fBombed[k] === 0 &&
+      i16(fY[k]) > 0 &&
+      inside(i16(fX[k]) - x, i16(fY[k]) - y, r)
+    ) {
+      fBombed[k] = 1
+      hurt(k, 40, false)
+    }
+    k++
+  }
+  if (bossBombed === 0 && r > 160 * 16) {
+    bossBombed = 1
+    bossBomb()
+  }
+}
+
+/** Whether a point (dx, dy) away is within r: an octagon close to the circle. */
+export function inside(ox: i16, oy: i16, r: i16): bool {
+  const dx = abs(ox)
+  const dy = abs(oy)
+  if (dx > r || dy > r) return false
+  const big = dx > dy ? dx : dy
+  const small = dx > dy ? dy : dx
+  return big + (small >> 1) < r
+}
+
+/* ---------------- what the weapons ask of the foes ---------------- */
+
+/** A foe's place (sixteenths). */
+export function foeX(k: u16): i16 {
+  return i16(fX[k])
+}
+
+export function foeY(k: u16): i16 {
+  return i16(fY[k])
+}
+
+/** Hurts foe k (the chain's sparks): a prism too, which only the lance cannot hurt. */
+export function foeHurt(k: u16, damage: u16): void {
+  if (fK[k] !== 0) hurt(k, damage, false)
+}
+
+/** The foe nearest (x, y) on the screen but `except` (0xffff for none). */
+export function foeNearest(x: i16, y: i16, except: u16): u16 {
+  let best: u16 = 0xffff
+  let bestD: i16 = 32000
+  let k: u16 = 0
+  while (k < F_N) {
+    if (fK[k] !== 0 && k !== except && i16(fY[k]) > 0) {
+      const d = abs(i16(fX[k]) - x) + abs(i16(fY[k]) - y)
+      if (d < bestD) {
+        best = k
+        bestD = d
+      }
+    }
+    k++
+  }
+  return best
 }
 
 function hurt(k: u16, damage: u16, byLance: bool): void {
@@ -379,6 +385,9 @@ function kill(k: u16, byLance: bool): void {
   const big = kind === K_HALBERD || kind === K_WARDEN || kind === K_ROCK
   burst(x, y, big ? 1 : 0)
   if (big) shake(10)
+  // The heavy ones carry power.
+  if (kind === K_HALBERD || kind === K_WARDEN) item(IT_POWER, x, y)
+  newFoeDies(k, kind, x, y)
   // Stars: more for the lance's kills, a handful for a big one.
   let stars: u16 = (big ? 6 : 1) + (byLance ? 2 : 0)
   while (stars > 0) {
@@ -428,6 +437,16 @@ export function scriptStart(): void {
   scriptAt = STAGE_SCRIPT_AT
 }
 
+/** A foe from the script (a serpent with its segments), or a pickup. */
+function scriptSend(kind: u16, x: u16, p: u16): void {
+  if (kind === C_PICKUP) {
+    item(p === 0 ? IT_BOMB : p === 1 ? IT_LIFE : IT_POWER, i16(x) * 16, 0)
+    return
+  }
+  const k = foe(kind, i16(x), spawnY(p), p & 255)
+  if (kind === K_SERPENT && k !== 0xffff) serpentBorn(k)
+}
+
 /** Sends what the script has for rows the stage has reached: answers a command for the game. */
 export function scriptStep(): u16 {
   const old = bank(STAGE_SCRIPT_BANK)
@@ -439,8 +458,7 @@ export function scriptStep(): u16 {
     const x = peek16(scriptAt + 4)
     const p = peek16(scriptAt + 6)
     scriptAt = scriptAt + 8
-    if (kind < C_SPEED) foe(kind, i16(x), spawnY(p), p & 255)
-    else if (kind === C_PICKUP) item(p === 0 ? IT_BOMB : IT_LIFE, i16(x) * 16, 0)
+    if (kind < C_SPEED || kind === C_PICKUP) scriptSend(kind, x, p)
     else {
       cmd = kind
       scriptArg = x
@@ -467,3 +485,16 @@ export const CMD_BOSS = C_BOSS
 import { sfxKill } from './audio.e16'
 import { bossBomb, bossHit, bossLance } from './boss.e16'
 import { overdriveOn } from './eleclance.e16'
+import {
+  dartMove,
+  halberdMove,
+  moteMove,
+  newFoeDies,
+  newFoeDraw,
+  newFoeMove,
+  pikeMove,
+  serpentBorn,
+  serpentsClear,
+  shootAimed,
+  wardenMove,
+} from './foes2.e16'

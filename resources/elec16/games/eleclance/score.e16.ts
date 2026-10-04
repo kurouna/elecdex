@@ -112,6 +112,8 @@ export function hudLabels(): void {
   say(35, 2, str('SHIP'), SL_TEXT)
   say(35, 7, str('BOMB'), SL_TEXT)
   say(35, 12, str('VOLT'), SL_TEXT)
+  say(35, 17, str('POWER'), SL_TEXT)
+  shownPower = 0xffff
   shownChain = 0xffff
   shownSkims = 0xffff
   shownLives = 0xffff
@@ -132,6 +134,19 @@ export function hudStep(lives: u16, bombs: u16, volt: u16, over: u16): void {
     icons(35, 8, bombs, 34)
   }
   voltShow(volt, over)
+}
+
+let shownPower: u16 = 0xffff
+
+/** POWER on the right panel: four cells, full (#) up to the level, the rest empty (.). */
+export function powerShow(power: u16): void {
+  if (power === shownPower) return
+  shownPower = power
+  let k: u16 = 0
+  while (k < 4) {
+    vpoke(cellAt(1, 35 + k, 18), font(SL_GOLD) + (k < power ? 3 : 14))
+    k++
+  }
 }
 
 /** The score and the best along the top, each with its last 0. */

@@ -128,6 +128,7 @@ function numberDraw(x: i16, y: i16, n: u16): void {
 export const IT_STAR = 1
 export const IT_BOMB = 2
 export const IT_LIFE = 3
+export const IT_POWER = 4
 
 const IT_N = 40
 const itKind = words(40)
@@ -151,7 +152,7 @@ export function item(kind: u16, x: i16, y: i16): void {
 }
 
 /** Every pickup on a frame: answers what the ship at (sx, sy) caught, by kind, in `caught`. */
-export const caught = words(4)
+export const caught = words(5)
 
 /** This frame's magnet (OVERDRIVE draws every star at once). */
 let magnetNow: u16 = 0
@@ -161,6 +162,7 @@ export function itemsStep(sx: i16, sy: i16, magnet: u16): void {
   caught[1] = 0
   caught[2] = 0
   caught[3] = 0
+  caught[4] = 0
   let k: u16 = 0
   while (k < IT_N) {
     if (itKind[k] !== 0) itemOne(k, sx, sy)
@@ -215,8 +217,11 @@ function itemDraw(k: u16, kind: u16, t: u16): void {
   const y = (i16(itY[k]) >> 4) + shakeDY()
   const pal = (SL_ITEM - 8) << 10
   if (kind === IT_STAR) spr(x - 4, y - 4, (STARS_TILE + ((t >> 2) & 3)) | pal, S8)
-  else
-    spr(x - 8, y - 8, (PICKUPS_TILE + (kind === IT_BOMB ? 0 : 8) + ((t >> 3) & 1) * 4) | pal, S16)
+  else {
+    // Pickups: B, then 1, then P, two glints each.
+    const which: u16 = kind === IT_BOMB ? 0 : kind === IT_LIFE ? 8 : 16
+    spr(x - 8, y - 8, (PICKUPS_TILE + which + ((t >> 3) & 1) * 4) | pal, S16)
+  }
 }
 
 /** Every star homes in at once (a boss's end, a bomb). */

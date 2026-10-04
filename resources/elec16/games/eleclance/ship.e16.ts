@@ -10,29 +10,15 @@ import {
   B_RIGHT,
   B_UP,
   B_X,
-  cos,
-  FLIP_H,
-  FLIP_V,
   held,
   pressed,
   S16,
-  sin,
   spr,
 } from '../lib/kit.e16'
-import { FLAME_TILE, LANCE_ENDS_TILE, LANCE_TILE, RING_TILE, SHIP_TILE } from './assets.e16'
+import { FLAME_TILE, LANCE_ENDS_TILE, LANCE_TILE, SHIP_TILE } from './assets.e16'
 import { burst, FX_SPARK, fx, itemsAll } from './fx.e16'
 import { cancelAll, shot, target } from './shots.e16'
-import {
-  FIELD_W,
-  FIELD_X,
-  SL_ITEM,
-  SL_SHIP,
-  SL_SHOT,
-  shake,
-  shakeDX,
-  shakeDY,
-  wave,
-} from './view.e16'
+import { FIELD_W, FIELD_X, SL_SHIP, SL_SHOT, shake, shakeDX, shakeDY, wave } from './view.e16'
 
 /** The ship's state. */
 export const SH_ENTER = 0
@@ -62,6 +48,10 @@ export let bombing: u16 = 0
 export let lancing: bool = false
 let lanceTop: i16 = 0
 
+/** Power, 0-4, from P pickups: more shots, missiles, the lance's chain, a wider bomb. */
+export let power: u16 = 0
+export const POWER_MAX = 4
+
 export const VOLT_FULL = 1024
 const OVERDRIVE_FRAMES = 480
 const BOMB_FRAMES = 120
@@ -72,6 +62,7 @@ export function shipNew(): void {
   bombs = 3
   volt = 0
   overdrive = 0
+  power = 0
   shipEnter()
 }
 
@@ -153,25 +144,49 @@ function fire(): void {
   else holdA = 0
   lancing = holdA >= 12
   if (cooldown > 0) cooldown--
+  // Missiles from power 3, with SHOT or the lance alike: every half second, at 4 twice as often.
+  const every: u16 = power >= 4 ? 15 : 30
+  if (holdA > 0 && power >= 3 && tick % every === 0) missilesFire(shipX, shipY)
   if (holdA === 0 || lancing || cooldown > 0) return
   cooldown = 4
-  shot(shipX - 64, shipY - 96, 0)
-  shot(shipX + 64, shipY - 96, 0)
-  if ((tick & 4) === 0 || overdrive > 0) {
-    shot(shipX - 96, shipY - 64, -1)
-    shot(shipX + 96, shipY - 64, 1)
-  }
+  volley()
   sfxShot()
 }
 
-/** The bomb: every bullet a star, every foe hurt, two seconds unhurt, the screen shaken. */
+/**
+ * A volley of shots by power: two ahead; at 1 the pair leaning out every time (before, every
+ * other volley); at 2 a wider pair too.
+ */
+function volley(): void {
+  shot(shipX - 64, shipY - 96, 0)
+  shot(shipX + 64, shipY - 96, 0)
+  if (power >= 1 || (tick & 4) === 0 || overdrive > 0) {
+    shot(shipX - 96, shipY - 64, -1)
+    shot(shipX + 96, shipY - 64, 1)
+  }
+  if (power >= 2) {
+    shot(shipX - 128, shipY - 32, -2)
+    shot(shipX + 128, shipY - 32, 2)
+  }
+}
+
+/** A P picked up: a level more, or points at the top. Answers whether it was a level. */
+export function powerAdd(): bool {
+  if (power >= POWER_MAX) return false
+  power++
+  return true
+}
+
+/**
+ * The bomb: a ring grows from the ship, every bullet it passes a star, every foe it passes hurt;
+ * it reaches 80 points and 32 more for each power. Two seconds unhurt, the screen shaken.
+ */
 function bomb(): void {
   bombs--
   bombing = BOMB_FRAMES
   guard = BOMB_FRAMES
-  cancelAll()
+  ringStart(shipX, shipY, 80 + power * 32)
   itemsAll()
-  foeBomb()
   shake(30)
   wave(90, 12)
   sfxBomb()
@@ -179,8 +194,7 @@ function bomb(): void {
 
 function bombStep(): void {
   bombing--
-  // The bomb keeps the air clear while it lasts.
-  if ((bombing & 7) === 0) cancelAll()
+  ringStep()
 }
 
 /** Hit: the ship blows up; after a while it comes back, or the game is over. */
@@ -206,6 +220,8 @@ function deadStep(): void {
   }
   lives--
   bombs = 3
+  // A ship lost costs a level of power.
+  if (power > 0) power--
   cancelAll()
   shipEnter()
 }
@@ -215,17 +231,22 @@ export function shipVulnerable(): bool {
   return shipState === SH_PLAY && guard === 0
 }
 
-/** The lance's reach this tick: from the nose up to what it strikes. */
+/**
+ * The lance's reach this tick: from the nose up to what it strikes, which it hurts every other
+ * frame; from power 2 a spark jumps on from what it struck (to two more at power 4).
+ */
 export function lanceStep(damage: u16): void {
   if (!lancing || shipState !== SH_PLAY) return
-  lanceTop = foeLance(shipX, shipY - 192, damage)
+  const now: u16 = (tick & 1) === 0 ? damage : 0
+  lanceTop = foeLance(shipX, shipY - 192, now)
+  if (power >= 2 && lanceVictim !== 0xffff) chainFrom(lanceVictim, power >= 4 ? 2 : 1, now)
   if (lanceTop > 0 && (tick & 3) === 0) fx(FX_SPARK, shipX + i16(tick & 7) * 16 - 64, lanceTop, 0)
 }
 
 /** The ship, its flame, the lance and the bomb's ring, drawn. */
 export function shipDraw(): void {
   if (shipState === SH_DEAD || shipState === SH_GONE) return
-  if (bombing > 0) ringDraw()
+  ringDraw()
   const x = (shipX >> 4) + shakeDX()
   const y = (shipY >> 4) + shakeDY()
   // Guarded, the ship blinks.
@@ -250,31 +271,6 @@ function lanceDraw(x: i16, y: i16): void {
   if (lanceTop > 0) spr(x - 8, top - 8, (LANCE_ENDS_TILE + 8 + ((tick >> 1) & 1) * 4) | pal, S16)
 }
 
-/** The bomb's ring: four quarters swelling, then sparks flung outward round the ship. */
-function ringDraw(): void {
-  const t = BOMB_FRAMES - bombing
-  const x = (shipX >> 4) + shakeDX()
-  const y = (shipY >> 4) + shakeDY()
-  const pal = (SL_ITEM - 8) << 10
-  if (t < 16) {
-    const tile = (RING_TILE + (t >> 2) * 4) | pal
-    spr(x - 16, y - 16, tile, S16)
-    spr(x, y - 16, tile | FLIP_H, S16)
-    spr(x - 16, y, tile | FLIP_V, S16)
-    spr(x, y, tile | FLIP_H | FLIP_V, S16)
-    return
-  }
-  if (t > 60) return
-  const r = i16(t - 14) * 4
-  let a: u16 = t * 2
-  let k: u16 = 0
-  while (k < 12) {
-    spr(x + ((cos(a) * r) >> 8) - 8, y + ((sin(a) * r) >> 8) - 8, (RING_TILE + 12) | pal, S16)
-    a = a + 21
-    k++
-  }
-}
-
 /** VOLT up by `n`, to full. */
 export function voltAdd(n: u16): void {
   if (overdrive > 0) return
@@ -293,4 +289,5 @@ export function livesAdd(): void {
 }
 
 import { sfxBomb, sfxDie, sfxExtend, sfxOverdrive, sfxShot } from './audio.e16'
-import { foeBomb, foeLance } from './foes.e16'
+import { foeLance, lanceVictim } from './foes.e16'
+import { chainFrom, missilesFire, ringDraw, ringStart, ringStep } from './weapons.e16'

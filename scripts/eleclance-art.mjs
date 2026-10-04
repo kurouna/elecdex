@@ -61,6 +61,11 @@ const sheets = [
   ['far-stars.png', foes.farStarFrames(), 8, 'item'],
   ['pickups.png', foes.pickupFrames(), 16, 'item'],
   ['font.png', fontFrames(), 8, 'text'],
+  ['missile.png', ship.missileFrames(), 8, 'shot'],
+  ['arc.png', ship.arcFrames(chance(9)), 8, 'shot'],
+  ['prism.png', foes.prismFrames(), 16, 'heavy'],
+  ['serpent.png', foes.serpentFrames(), 16, 'enemy'],
+  ['spinner.png', foes.spinnerFrames(), 16, 'enemy'],
 ]
 for (const [name, frames, cell, palette] of sheets) {
   savePng(file(name), sheet(frames, cell, 8), palette)

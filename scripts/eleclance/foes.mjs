@@ -436,7 +436,7 @@ export function bitFrames() {
   return out
 }
 
-/** `item`: gold ramp, white, cyan ramp, magenta ramp. */
+/** `item`: gold ramp, white, cyan ramp, emerald ramp and its dark edge. */
 const I = {
   g1: 1,
   g2: 2,
@@ -452,23 +452,27 @@ const I = {
   m2: 12,
   m3: 13,
   m4: 14,
+  e1: 11,
+  e2: 12,
+  e3: 13,
+  e4: 14,
+  ek: 15,
 }
 
-/** Stars to pick up (8x8, four turns of a gold star), then the sparkles a cancelled bullet makes. */
+/**
+ * Stars to pick up: an emerald cut as a diamond (8x8), a glint sweeping across it over four
+ * frames - green, which no bullet is; then the sparkles a cancelled bullet makes.
+ */
 export function starFrames() {
   const out = []
+  const gem = ['...k....', '..kek...', '.ke3ek..', 'ke332ek.', '.k221k..', '..k1k...', '...k....']
+  const key = { k: I.ek, e: I.e4, 3: I.e3, 2: I.e2, 1: I.e1 }
   for (let f = 0; f < 4; f++) {
     const c = new Canvas(8, 8)
-    const spin = (f * Math.PI) / 8
-    const pts = []
-    for (let k = 0; k < 8; k++) {
-      const r = k % 2 === 0 ? 3.6 : 1.5
-      const a = spin + (k * Math.PI) / 4 - Math.PI / 2
-      pts.push([3.5 + Math.cos(a) * r + 0.5, 3.5 + Math.sin(a) * r + 0.5])
-    }
-    c.poly(pts, I.g4)
-    c.bevel(I.g4, I.g5, I.g2)
-    c.set(3.5, 3.5, I.w)
+    c.grid(0, 0, gem, key)
+    // The glint: a white point moving down the left face, then gone.
+    const glint = [[3, 2], [2, 3], [3, 4], null][f]
+    if (glint) c.set(glint[0], glint[1], I.w)
     out.push(c)
   }
   for (let f = 0; f < 2; f++) {
@@ -521,25 +525,100 @@ export function farStarFrames() {
   })
 }
 
-/** The pickups: a bomb (B) and an extra ship (1UP), 16x16, two glints each. */
+/** The pickups, 16x16, two glints each: a bomb (B, cyan), an extra ship (1, emerald), power (P, gold). */
 export function pickupFrames() {
   const out = []
+  const glyphs = {
+    B: ['wwww.', 'w...w', 'wwww.', 'w...w', 'wwww.'],
+    1: ['.ww..', 'www..', '.ww..', '.ww..', 'wwww.'],
+    P: ['wwww.', 'w...w', 'wwww.', 'w....', 'w....'],
+  }
   for (const [colour, mark] of [
-    [[I.m1, I.m2, I.m3, I.m4], 'B'],
-    [[I.c1, I.c2, I.c3, I.c4], '1'],
+    [[I.c1, I.c2, I.c3, I.c4], 'B'],
+    [[I.e1, I.e2, I.e3, I.e4], '1'],
+    [[I.g2, I.g3, I.g4, I.g5], 'P'],
   ]) {
-    for (let f = 0; f < 2; f++) {
-      const c = new Canvas(16, 16)
-      c.ellipse(7.5, 7.5, 7, 7, (nx, ny, nz, x, y) =>
-        ramp(colour, lit(nx, ny, nz) + (f ? 0.15 : 0), x, y),
-      )
-      const glyph =
-        mark === 'B'
-          ? ['wwww.', 'w...w', 'wwww.', 'w...w', 'wwww.']
-          : ['.ww..', 'www..', '.ww..', '.ww..', 'wwww.']
-      c.grid(6, 5, glyph, { w: I.w })
-      out.push(c)
-    }
+    for (let f = 0; f < 2; f++) out.push(pickup(colour, glyphs[mark], f))
   }
   return out
+}
+
+function pickup(colour, glyph, f) {
+  const c = new Canvas(16, 16)
+  c.ellipse(7.5, 7.5, 7, 7, (nx, ny, nz, x, y) =>
+    ramp(colour, lit(nx, ny, nz) + (f ? 0.15 : 0), x, y),
+  )
+  c.grid(6, 5, glyph, { w: I.w })
+  c.outline(I.ek)
+  return c
+}
+
+/** PRISM: a crystal that turns, four frames (palette `heavy`): the lance glances off it. */
+export function prismFrames() {
+  return [0, 1, 2, 3].map((f) => {
+    const c = new Canvas(16, 16)
+    const turn = (f * Math.PI) / 8
+    const pts = [0, 1, 2, 3, 4, 5].map((k) => {
+      const a = turn + (k * Math.PI) / 3
+      const r = k % 2 === 0 ? 7 : 5
+      return [7.5 + Math.cos(a) * r + 0.5, 7.5 + Math.sin(a) * r * 0.85 + 0.5]
+    })
+    c.poly(pts, H.p2)
+    c.bevel(H.p2, H.p3, H.p1)
+    // Facets: lines from the centre to every other corner, a cyan heart.
+    for (const [x, y] of pts.filter((_, k) => k % 2 === 0)) c.line(7.5, 7.5, x - 0.5, y - 0.5, H.p3)
+    c.ellipse(7.5, 7.5, 1.8, 1.8, H.cy)
+    c.set(7, 7, H.wh)
+    c.outline(H.k)
+    return c
+  })
+}
+
+/** SERPENT's head (two frames: jaws shut and open) and a body segment, 16x16 (palette `enemy`). */
+export function serpentFrames() {
+  const out = []
+  for (let f = 0; f < 2; f++) {
+    const c = new Canvas(16, 16)
+    c.ellipse(7.5, 7, 6, 6.5, (nx, ny, nz, x, y) => ramp(TEAL, lit(nx, ny, nz), x, y))
+    // Jaws down the front, an eye each side.
+    const gap = f === 0 ? 0 : 2
+    c.rect(4 - gap, 12, 3, 3, E.g3)
+    c.rect(9 + gap, 12, 3, 3, E.g3)
+    c.set(5, 6, E.r3)
+    c.set(10, 6, E.r3)
+    c.set(5, 5, E.A)
+    c.set(10, 5, E.A)
+    c.outline(E.k)
+    out.push(c)
+  }
+  const body = new Canvas(16, 16)
+  body.ellipse(7.5, 7.5, 5.5, 5.5, (nx, ny, nz, x, y) => ramp(GUN, lit(nx, ny, nz), x, y))
+  body.rect(3, 7, 10, 2, E.t2)
+  body.set(7, 7, E.r2)
+  body.set(8, 7, E.r2)
+  body.outline(E.k)
+  out.push(body)
+  return out
+}
+
+/** SPINNER: a mine with four blades, turning (four frames, palette `enemy`). */
+export function spinnerFrames() {
+  return [0, 1, 2, 3].map((f) => {
+    const c = new Canvas(16, 16)
+    for (let k = 0; k < 4; k++) {
+      const a = (f * Math.PI) / 8 + (k * Math.PI) / 2
+      c.poly(
+        [
+          [7.5 + Math.cos(a) * 2 + 0.5, 7.5 + Math.sin(a) * 2 + 0.5],
+          [7.5 + Math.cos(a + 0.5) * 7.5 + 0.5, 7.5 + Math.sin(a + 0.5) * 7.5 + 0.5],
+          [7.5 + Math.cos(a + 0.9) * 4 + 0.5, 7.5 + Math.sin(a + 0.9) * 4 + 0.5],
+        ],
+        E.g4,
+      )
+    }
+    c.bevel(E.g4, E.g5, E.g2)
+    c.ellipse(7.5, 7.5, 3, 3, (_nx, _ny, nz) => (nz > 0.7 ? E.A : f % 2 === 0 ? E.r3 : E.r2))
+    c.outline(E.k)
+    return c
+  })
 }
