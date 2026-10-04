@@ -863,11 +863,12 @@ weather and calendar.
   types into it while the pane has the focus (kana by the JIS layout in KANA mode), and PASTE
   types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
   across restarts, its card holds files - and one pane runs it at a time (MOVE HERE takes it
-  over). The SOFT CARD brings ten programs (games, a sine wave, a clock, a biorhythm, and a
-  machine-code demo). The panel beside it shows the registers and the code (with breakpoints
-  and STEP), the memory, the card (IMPORT and EXPORT of `.bas`, `.asm` and binary files) and
-  TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off). **CODE** compiles a
-  program written in a subset of TypeScript into the machine's code at three levels of
+  over). The SOFT CARD brings twelve programs (games, a sine wave, a clock, a biorhythm, a
+  ticker and a demo in machine code). The panel beside it shows the registers and the code
+  (with breakpoints and STEP), the memory, the card (IMPORT and EXPORT of `.bas`, `.asm` and
+  binary files) and TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off).
+  **CODE** compiles a program written in a subset of TypeScript into the machine's code at
+  three levels of
   optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs
   it. A person's code runs only as the machine's code - never as JavaScript. While it waits at
   its prompt the CPU sleeps and the pane costs about what a paused one does. The manuals (in

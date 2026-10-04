@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { cardOp } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
 import type { Elec16 } from '@shared/elec16/machine'
+import { MODELS, type ModelId } from '@shared/elec16/map'
 import { buildSoftCard } from '@shared/elec16/soft-card'
 import { fromBase64 } from '@shared/emu/base64'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -47,9 +48,9 @@ function runFor(m: Elec16, cycles: number): void {
   }
 }
 
-/** LOAD and RUN on a cleared screen; the program left running or waiting. */
-function load(name: string): Elec16 {
-  const m = switchOn()
+/** LOAD on a cleared screen, on the default LCD or the one named: ready for RUN. */
+function load(name: string, model?: ModelId): Elec16 {
+  const m = switchOn(model)
   type(m, `LOAD "${name}"\n`)
   expect(shown(m).at(-1), name).toBe('>')
   press(m, keyCode('cls'))
@@ -65,12 +66,14 @@ describe('the SOFT CARD', () => {
       'ASMDEMO.BIN',
       'BIORHYTH.BAS',
       'BOUNCE.BAS',
+      'CANNON.BAS',
       'CLOCK.BAS',
       'HITBLOW.BAS',
       'LANDER.BAS',
       'MAZE.BAS',
       'PRIMES.BAS',
       'SINEWAVE.BAS',
+      'TICKER.BIN',
       'UNITS.BAS',
     ])
     const file = JSON.parse(readFileSync('resources/elec16/soft.json', 'utf8')) as {
@@ -98,9 +101,9 @@ describe('the SOFT CARD', () => {
     const m = switchOn()
     press(m, keyCode('cls'))
     type(m, 'FILES "SOFT"\n')
-    // Ten files on six rows: the last two, and the prompt (no room counted for this card).
+    // Twelve files on six rows: the last two, and the prompt (no room counted for this card).
     expect(shown(m).slice(-3)).toEqual([
-      expect.stringMatching(/^SINEWAVE\.BAS +\d+$/),
+      expect.stringMatching(/^TICKER\.BIN +\d+$/),
       expect.stringMatching(/^UNITS\.BAS +\d+$/),
       '>',
     ])
@@ -176,4 +179,178 @@ describe('the SOFT CARD', () => {
     expect(rows.at(-1)).toMatch(/^\?+$/)
     expect(errors(m)).toEqual([])
   })
+
+  it('aims and fires CANNON on three LCDs: the right angle hits, Q ends it, five shots end it', () => {
+    for (const model of ['pocket-32', 'pocket-48', 'handheld-160'] as const) {
+      const m = load('CANNON', model)
+      type(m, 'RUN')
+      tap(m, keyCode('enter'), 2_000_000)
+      expect(screen(m)[0], model).toBe('SHOT1 ANGLE45 HITS0')
+      const angle = aim(m)
+      expect(screen(m)[0], model).toBe(`SHOT1 ANGLE${angle} HITS0`)
+      tap(m, keyCode(' '))
+      runUntilRow(m, 'SHOT2')
+      expect(screen(m)[0], model).toBe(`SHOT2 ANGLE${angle} HITS1`)
+      expect(errors(m), model).toEqual([])
+      // Q ends it: the prompt on a cleared screen.
+      tap(m, keyCode('q'))
+      settle(m)
+      expect(shown(m), model).toEqual(['>'])
+    }
+    // Five shots, aimed nowhere in particular, end it with the score.
+    const m = load('CANNON')
+    type(m, 'RUN')
+    tap(m, keyCode('enter'), 2_000_000)
+    for (let shot = 1; shot <= 5; shot++) {
+      tap(m, keyCode(' '))
+      runUntilRow(m, shot < 5 ? `SHOT${shot + 1}` : 'OF 5')
+    }
+    expect(errors(m)).toEqual([])
+    expect(shown(m)).toEqual([expect.stringMatching(/^HITS \d OF 5$/), '>'])
+  })
+
+  it('rolls what is typed into TICKER round the middle row by MCPY, and a key ends it', () => {
+    for (const model of ['pocket-32', 'handheld-160'] as const) {
+      const { width, height, depth } = MODELS[model]
+      const m = load('TICKER.BIN', model)
+      type(m, 'CALL 28672\n')
+      expect(shown(m), model).toEqual(['TEXT?'])
+      type(m, 'HELLO')
+      m.press(keyCode('enter'))
+      m.release(keyCode('enter'))
+      roll(m, 0)
+      const row = (height / 8) >> 1
+      expect(screen(m)[row], model).toBe('HELLO')
+      // The row's band in every plane as written: what the moves go round.
+      const plane = (width * height) / 8
+      const bands = Array.from({ length: depth }, (_, p) =>
+        Array.from(m.state.vram.slice(p * plane + row * width, p * plane + (row + 1) * width)),
+      )
+      roll(m, 6)
+      expectRolled(m, row, bands, 6)
+      // A character to the left; on the 240-wide LCD (40 cells) the H has come round whole.
+      if (model === 'pocket-32') expect(screen(m)[row]).toBe(`ELLO${' '.repeat(35)}H`)
+      roll(m, width - 6)
+      expectRolled(m, row, bands, 0)
+      expect(screen(m)[row], model).toBe('HELLO')
+      expect(
+        screen(m)
+          .filter((_, r) => r !== row)
+          .join(''),
+        model,
+      ).toBe('')
+      m.press(keyCode('a'))
+      m.release(keyCode('a'))
+      runFor(m, 1_000_000)
+      settle(m)
+      // The key that ended it was taken, not typed at the prompt, on a cleared screen.
+      expect(shown(m), model).toEqual(['>'])
+    }
+    // ENTER alone rolls the machine's own words, and CLS at the question leaves at once.
+    const m = load('TICKER.BIN')
+    type(m, 'CALL 28672\n')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    roll(m, 0)
+    expect(screen(m)[3]).toBe('ELEC-16 POCKET COMPUTER')
+    m.press(keyCode('enter'))
+    m.release(keyCode('enter'))
+    runFor(m, 1_000_000)
+    settle(m)
+    type(m, 'CALL 28672\n')
+    press(m, keyCode('cls'))
+    expect(shown(m)).toEqual(['>'])
+    expect(errors(m)).toEqual([])
+  })
 })
+
+/**
+ * A key pressed and let go, and the program run on for a while, as the page would: for a
+ * program that reads keys as it goes (INKEY$) and so never waits on one alone.
+ */
+function tap(m: Elec16, code: number, cycles = 1_000_000): void {
+  m.press(code)
+  m.release(code)
+  runFor(m, cycles)
+}
+
+/** Whether the dot (x, y) is lit, in the first plane. */
+function lit(m: Elec16, x: number, y: number): boolean {
+  const { width } = MODELS[m.state.model]
+  return (((m.state.vram[(y >> 3) * width + x] ?? 0) >> (y & 7)) & 1) === 1
+}
+
+/** Runs on until the first row says `text`: a shot's flight, at most. */
+function runUntilRow(m: Elec16, text: string): void {
+  for (let k = 0; k < 40 && !screen(m)[0]?.includes(text); k++) runFor(m, 1_000_000)
+  expect(screen(m)[0], text).toContain(text)
+}
+
+/**
+ * The angle at which CANNON's shell comes nearest the target's centre, flown as the program
+ * flies it (4 dots a frame, gravity 16 / width), from 1 to 89 degrees.
+ */
+function aimAt(width: number, height: number, target: number, radius: number): number {
+  const centre = height - radius - 1
+  let best = { angle: 45, distance: Number.POSITIVE_INFINITY }
+  for (let angle = 1; angle <= 89; angle++) {
+    const rad = (angle * Math.PI) / 180
+    const vx = Math.cos(rad) * 4
+    let vy = -Math.sin(rad) * 4
+    let x = 0
+    let y = height - 2
+    for (;;) {
+      x += vx
+      vy += 16 / width
+      y += vy
+      const distance = Math.hypot(x - target, y - centre)
+      if (distance < best.distance) best = { angle, distance }
+      if (distance <= radius || x >= width || y >= height - 1) break
+    }
+  }
+  return best.angle
+}
+
+/**
+ * CANNON aimed at its target, read off the screen (the filled circle on the ground in the
+ * right half): up and down turn the barrel by five degrees, right and left by one. The angle
+ * it was turned to.
+ */
+function aim(m: Elec16): number {
+  const { width, height } = MODELS[m.state.model]
+  const radius = Math.floor(height / 16) + 1
+  const xs: number[] = []
+  for (let x = width / 2; x < width; x++) if (lit(m, x, height - radius - 1)) xs.push(x)
+  expect(xs.length).toBe(2 * radius + 1)
+  const angle = aimAt(width, height, ((xs[0] ?? 0) + (xs.at(-1) ?? 0)) / 2, radius)
+  const fives = Math.trunc((angle - 45) / 5)
+  const ones = angle - 45 - fives * 5
+  for (let k = 0; k < Math.abs(fives); k++) tap(m, keyCode(fives > 0 ? 'up' : 'down'))
+  for (let k = 0; k < Math.abs(ones); k++) tap(m, keyCode(ones > 0 ? 'right' : 'left'))
+  return angle
+}
+
+/**
+ * TICKER's loop: run to its next sleep on the timer, letting the timer go off `moves`
+ * times on the way, so the row has moved that many dots.
+ */
+function roll(m: Elec16, moves: number): void {
+  for (let i = 0; i <= moves; i++) {
+    let r = m.run(100_000)
+    for (let k = 0; r.sleeping === null && k < 50; k++) r = m.run(100_000)
+    if (r.sleeping?.timerMs == null) throw new Error('TICKER does not sleep on the timer')
+    if (i < moves) m.advance(r.sleeping.timerMs)
+  }
+}
+
+/** The row's band in every plane is what was written, moved round by so many bytes. */
+function expectRolled(m: Elec16, row: number, bands: number[][], by: number): void {
+  const { width, height } = MODELS[m.state.model]
+  const plane = (width * height) / 8
+  for (const [p, band] of bands.entries()) {
+    const now = Array.from(
+      m.state.vram.slice(p * plane + row * width, p * plane + (row + 1) * width),
+    )
+    expect(now, `plane ${p}`).toEqual(band.map((_, i) => band[(i + by) % width]))
+  }
+}

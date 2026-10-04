@@ -915,10 +915,12 @@ HELLO.BAS    17
 | CLOCK | 時計（`LOCATE`、`TIME$`、`DATE$`） |
 | HITBLOW | 3 桁の数当て（配列、`RND`、`MID$`） |
 | LANDER | 月着陸（`INPUT`、計算） |
+| CANNON | 大砲で的を撃つゲーム（`CIRCLE ...,F`、`PSET ...,X`、`INKEY$`、`TAN`） |
 | MAZE | 斜線の迷路（`CHR$`、`RND`） |
 | BIORHYTH | バイオリズム（`GOSUB`、`DATE$`、`SIN`） |
 | UNITS | 単位の換算（`ON GOSUB`） |
 | ASMDEMO.BIN | 機械語で液晶に描く例（`LOAD "ASMDEMO.BIN":CALL 28672`） |
+| TICKER.BIN | 打った文を機械語で流す（`LOAD "TICKER.BIN":CALL 28672`） |
 
 - 読んだプログラムは、直して自分のカードに `SAVE` できます。同じ名前で `SAVE` すると、以後はそちらが読まれます
 - SOFT CARD のファイルは消せません（`KILL` は `ERR:NO FILE`）

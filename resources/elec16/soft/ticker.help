@@ -1,0 +1,2 @@
+LOAD ▸ loads it and runs it at once (CALL 28672). Type a message of up to a row and ENTER (ENTER alone shows the machine's own words): it rolls across the middle of the screen a dot at a time, moved by one MCPY on the ROM's timer.
+Any key ends it and clears the screen. Read how it is done with U 7000 in the monitor (MON), or EXPORT it.
