@@ -811,6 +811,12 @@ test("PLAY-320's body: its buttons pressed from the keys, the pointer and a prog
     await expect.poll(() => playLines(page)).toContain('0010')
     await page.keyboard.up('z')
     await expect(button('a')).toHaveAttribute('aria-pressed', 'false')
+    // A held arm is drawn held, never as the down arm (the class once shared that name).
+    await page.keyboard.down('ArrowRight')
+    await expect(button('right')).toHaveClass(/(^| )held( |$)/)
+    await expect(button('right')).not.toHaveClass(/(^| )down( |$)/)
+    await page.keyboard.up('ArrowRight')
+    await expect(button('right')).not.toHaveClass(/(^| )held( |$)/)
 
     // The pointer holds a button while it is down, and the pane keeps the keys.
     const start = button('start')

@@ -224,3 +224,23 @@ export const PLAY_SKIN_COLOURS: Readonly<Record<PlaySkin, PlaySkinColours>> = {
     dark: ['#3b3f48', '#0e0f12', '#fbe3df'],
   },
 }
+
+/** The d-pad as one cross: its arms and middle, which the raised plate under them covers. */
+export const dpadCross = (b: PlayBody): Rect => ({
+  x: b.buttons.left.x,
+  y: b.buttons.up.y,
+  w: b.buttons.left.w + b.hub.w + b.buttons.right.w,
+  h: b.buttons.up.h + b.hub.h + b.buttons.down.h,
+})
+
+/** How far the d-pad's dish and a button's well reach round them, in units. */
+export const DISH = 8
+export const WELL = 4
+
+/** `r` grown by `by` units each way: the recess a button sits in. */
+export const recess = (r: Rect, by: number): Rect => ({
+  x: r.x - by,
+  y: r.y - by,
+  w: r.w + by * 2,
+  h: r.h + by * 2,
+})

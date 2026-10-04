@@ -4,15 +4,19 @@ import { describe, expect, it } from 'vitest'
 import {
   BODIES,
   bodyFor,
+  DISH,
+  dpadCross,
   legendOf,
   PLAY_SKIN_COLOURS,
   PLAY_SKINS,
   type PlayBody,
   playScale,
   type Rect,
+  recess,
   SPEAKER_TURN,
   TALL,
   turned,
+  WELL,
   WIDE,
 } from '../../src/renderer/widgets/elec16/play-body'
 
@@ -102,6 +106,47 @@ describe.each([
     expect(centre(y)[1]).toBe(centre(a)[1])
     // The d-pad on the left, the face buttons on the right.
     expect(hx).toBeLessThan(centre(y)[0])
+  })
+})
+
+describe.each([
+  ['tall', TALL],
+  ['wide', WIDE],
+])('the recesses of the %s body', (_, b) => {
+  it('sits the d-pad on its plate in a dish, and each round button and pill in a well, all on the case', () => {
+    const cross = dpadCross(b)
+    for (const k of ['up', 'down', 'left', 'right'] as const)
+      expect(inside(b.buttons[k], cross), k).toBe(true)
+    expect(inside(b.hub, cross)).toBe(true)
+    const dish = recess(cross, DISH)
+    expect(inside(dish, b.body)).toBe(true)
+    const wells = (['a', 'b', 'x', 'y', 'select', 'start'] as const).map(
+      (k) => [k, recess(b.buttons[k], WELL)] as [string, Rect],
+    )
+    for (const [k, w] of wells) expect(inside(w, b.body), k).toBe(true)
+    // Nothing else lies in them: the frame, the bar, the speaker turned, the legends, each other.
+    const others: [string, Rect][] = [
+      ['frame', b.frame],
+      ['bar', b.bar],
+      ['speaker', turned(b.speaker, SPEAKER_TURN)],
+      ['select legend', legendOf(b.buttons.select)],
+      ['start legend', legendOf(b.buttons.start)],
+    ]
+    for (const [k, r] of [['dish', dish] as [string, Rect], ...wells]) {
+      for (const [o, q] of others) expect(overlap(r, q), `${k} and ${o}`).toBe(false)
+    }
+    for (const [k, w] of wells) expect(overlap(dish, w), `dish and ${k}`).toBe(false)
+  })
+
+  it('keeps the round wells apart: circles, farther between their middles than their radii', () => {
+    const round = (['a', 'b', 'x', 'y'] as const).map((k) => recess(b.buttons[k], WELL))
+    for (let i = 0; i < round.length; i++) {
+      for (let j = i + 1; j < round.length; j++) {
+        const [p, q] = [round[i], round[j]] as [Rect, Rect]
+        const d = Math.hypot(p.x + p.w / 2 - (q.x + q.w / 2), p.y + p.h / 2 - (q.y + q.h / 2))
+        expect(d).toBeGreaterThan(p.w / 2 + q.w / 2)
+      }
+    }
   })
 })
 

@@ -6,12 +6,16 @@ import {
   BODIES,
   type BodyShape,
   bodyFor,
+  DISH,
+  dpadCross,
   legendOf,
   PLAY_SKIN_COLOURS,
   type PlaySkin,
   playScale,
   type Rect,
+  recess,
   SPEAKER_TURN,
+  WELL,
 } from './play-body.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
 
@@ -53,6 +57,8 @@ const colours = $derived(PLAY_SKIN_COLOURS[skin])
 
 const place = (r: Rect): string =>
   `left:${r.x * unit}px;top:${r.y * unit}px;width:${r.w * unit}px;height:${r.h * unit}px`
+
+const cross = $derived(dpadCross(body))
 
 const LABELS: Partial<Record<PadButton, string>> = {
   a: 'A',
@@ -122,7 +128,7 @@ $effect(() => () => {
           type="button"
           tabindex="-1"
           class="pad shoulder"
-          class:down={(runner.padHeld & padBit(b)) !== 0}
+          class:held={(runner.padHeld & padBit(b)) !== 0}
           style={place(r)}
           style:--face={face}
           style:--shade={shade}
@@ -146,6 +152,13 @@ $effect(() => () => {
       <div class="screen" style={place(body.screen)}>
         <PlayScreen {runner} {seen} fixed={{ scale, ratio: room.ratio }} />
       </div>
+      <div class="glass" style={place(body.screen)} aria-hidden="true"></div>
+      <!-- The recesses the buttons sit in, then the d-pad's plate: one raised cross. -->
+      <div class="dish" style={place(recess(cross, DISH))}></div>
+      {#each PAD_BUTTONS.filter((b) => body.buttons[b].shape === 'round' || body.buttons[b].shape === 'pill') as b (b)}
+        <div class="well {body.buttons[b].shape}" style={place(recess(body.buttons[b], WELL))}></div>
+      {/each}
+      <div class="plate" style={place(cross)} style:--face={colours.dark[0]}></div>
       <div class="hub" style={place(body.hub)} style:--face={colours.dark[0]}></div>
       {#each PAD_BUTTONS.filter((b) => body.buttons[b].shape !== 'shoulder') as b (b)}
         {@const r = body.buttons[b]}
@@ -154,7 +167,7 @@ $effect(() => () => {
           type="button"
           tabindex="-1"
           class="pad {r.shape} {b}"
-          class:down={(runner.padHeld & padBit(b)) !== 0}
+          class:held={(runner.padHeld & padBit(b)) !== 0}
           style={place(r)}
           style:--face={face}
           style:--shade={shade}
@@ -166,7 +179,8 @@ $effect(() => () => {
           onpointercancel={letGo}
           onlostpointercapture={letGo}
           data-testid="elec16-pad-button"
-          data-button={b}>{LABELS[b] ?? ''}</button
+          data-button={b}
+          >{#if r.shape === 'arm'}<i class="arrow" aria-hidden="true"></i>{:else}{LABELS[b] ?? ''}{/if}</button
         >
         {#if r.shape === 'pill'}
           <span class="legend" style={place(legendOf(r))}>{b.toUpperCase()}</span>
@@ -204,11 +218,21 @@ $effect(() => () => {
   border: 1px solid var(--p-edge);
   border-radius: calc(var(--p-unit) * 22) calc(var(--p-unit) * 22) calc(var(--p-unit) * 56)
     calc(var(--p-unit) * 22);
-  background: var(--p-case);
+  /* Moulded plastic: lit from above and the left, darker towards the bottom edge. */
+  background:
+    radial-gradient(120% 60% at 20% 0%, rgb(255 255 255 / 0.1), transparent 60%),
+    linear-gradient(
+      175deg,
+      color-mix(in srgb, var(--p-case) 92%, white) 0%,
+      var(--p-case) 35%,
+      color-mix(in srgb, var(--p-case) 86%, black) 100%
+    );
   box-shadow:
-    inset 0 2px 0 rgb(255 255 255 / 0.1),
-    inset 0 -2px 0 rgb(0 0 0 / 0.15),
-    0 10px 28px rgb(0 0 0 / 0.35);
+    inset 0 calc(var(--p-unit) * 2) 0 rgb(255 255 255 / 0.14),
+    inset 0 calc(var(--p-unit) * -3) 0 rgb(0 0 0 / 0.18),
+    inset calc(var(--p-unit) * 2) 0 0 rgb(255 255 255 / 0.05),
+    0 calc(var(--p-unit) * 3) calc(var(--p-unit) * 4) rgb(0 0 0 / 0.25),
+    0 calc(var(--p-unit) * 14) calc(var(--p-unit) * 30) rgb(0 0 0 / 0.35);
 }
 
 .bar {
@@ -223,6 +247,8 @@ $effect(() => () => {
   letter-spacing: 0.06em;
   color: var(--p-name);
   white-space: nowrap;
+  /* Printed on the case: a hair of light under it. */
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.12);
 }
 
 .name b {
@@ -236,21 +262,32 @@ $effect(() => () => {
   width: calc(var(--p-unit) * 10);
   height: calc(var(--p-unit) * 10);
   border-radius: 50%;
-  background: var(--p-print);
-  opacity: 0.35;
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, var(--p-print) 60%, white),
+    var(--p-print)
+  );
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.5);
+  opacity: 0.4;
 }
 
 .lamp.on {
-  background: var(--p-lamp);
+  background: radial-gradient(circle at 35% 30%, white, var(--p-lamp) 55%);
   opacity: 1;
-  box-shadow: 0 0 calc(var(--p-unit) * 8) var(--p-lamp);
+  box-shadow:
+    0 0 calc(var(--p-unit) * 8) var(--p-lamp),
+    inset 0 -1px 1px rgb(0 0 0 / 0.3);
 }
 
+/* The screen's bezel: a dark glossy surround, sunk into the case. */
 .frame {
   border-radius: calc(var(--p-unit) * 12) calc(var(--p-unit) * 12) calc(var(--p-unit) * 30)
     calc(var(--p-unit) * 12);
-  background: #14161b;
-  box-shadow: inset 0 3px 6px rgb(0 0 0 / 0.45);
+  background: linear-gradient(170deg, #23262d, #121418 60%, #0d0f12);
+  box-shadow:
+    inset 0 calc(var(--p-unit) * 3) calc(var(--p-unit) * 6) rgb(0 0 0 / 0.55),
+    inset 0 calc(var(--p-unit) * -1) 0 rgb(255 255 255 / 0.06),
+    0 calc(var(--p-unit) * 1) 0 rgb(255 255 255 / 0.12);
 }
 
 .screen {
@@ -259,11 +296,67 @@ $effect(() => () => {
   overflow: hidden;
 }
 
-.hub {
-  background: linear-gradient(var(--face), color-mix(in srgb, var(--face) 60%, black));
+/* The glass over the screen: the faintest reflection, so the dots keep their colours. */
+.glass {
+  pointer-events: none;
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.07), transparent 38%);
+  box-shadow: inset 0 0 calc(var(--p-unit) * 3) rgb(0 0 0 / 0.5);
 }
 
-/* A raised button: lit from above, its own shade below; pressed, it sinks onto it. */
+/* The dish the d-pad sits in, and the wells of the round buttons and the pills. */
+.dish,
+.well {
+  background: color-mix(in srgb, var(--p-case) 80%, black);
+  box-shadow:
+    inset 0 calc(var(--p-unit) * 2) calc(var(--p-unit) * 3) rgb(0 0 0 / 0.45),
+    0 calc(var(--p-unit) * 1) 0 rgb(255 255 255 / 0.14);
+}
+
+.dish,
+.well.round {
+  border-radius: 50%;
+}
+
+.well.pill {
+  border-radius: calc(var(--p-unit) * 11);
+}
+
+/* The d-pad's plate: one raised cross, its arms the buttons over it. */
+.plate {
+  clip-path: polygon(
+    33% 0,
+    67% 0,
+    67% 33%,
+    100% 33%,
+    100% 67%,
+    67% 67%,
+    67% 100%,
+    33% 100%,
+    33% 67%,
+    0 67%,
+    0 33%,
+    33% 33%
+  );
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--face) 78%, white),
+    var(--face) 40%,
+    color-mix(in srgb, var(--face) 65%, black)
+  );
+}
+
+/* A shallow dimple in the middle of the cross. */
+.hub {
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--face) 70%, black) 0 30%,
+    color-mix(in srgb, var(--face) 88%, black) 34%,
+    transparent 62%
+  );
+}
+
+/* A raised button: convex, lit from above and the left, its shade below; pressed, it sinks. */
 .pad {
   display: grid;
   place-items: center;
@@ -276,38 +369,76 @@ $effect(() => () => {
   line-height: 1;
   cursor: pointer;
   touch-action: none;
-  background: linear-gradient(var(--face), color-mix(in srgb, var(--face) 70%, black));
+  background: linear-gradient(
+    color-mix(in srgb, var(--face) 85%, white),
+    var(--face) 45%,
+    color-mix(in srgb, var(--face) 70%, black)
+  );
   box-shadow:
-    0 calc(var(--p-unit) * 4) 0 var(--shade),
-    inset 0 calc(var(--p-unit) * 2) 0 rgb(255 255 255 / 0.25);
+    0 calc(var(--p-unit) * 3) 0 var(--shade),
+    0 calc(var(--p-unit) * 5) calc(var(--p-unit) * 5) rgb(0 0 0 / 0.35),
+    inset 0 calc(var(--p-unit) * 2) calc(var(--p-unit) * 1) rgb(255 255 255 / 0.3),
+    inset 0 calc(var(--p-unit) * -2) calc(var(--p-unit) * 2) rgb(0 0 0 / 0.2);
+  /* Moulded letters: a hair of light below, as if cut in. */
+  text-shadow: 0 1px 0 rgb(255 255 255 / 0.25);
 }
 
-.pad.down {
-  transform: translateY(calc(var(--p-unit) * 3));
+.pad.held {
+  transform: translateY(calc(var(--p-unit) * 2.5));
   box-shadow:
-    0 calc(var(--p-unit) * 1) 0 var(--shade),
-    inset 0 calc(var(--p-unit) * 2) 0 rgb(0 0 0 / 0.2);
-}
-
-.pad:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+    0 calc(var(--p-unit) * 0.5) 0 var(--shade),
+    0 calc(var(--p-unit) * 1) calc(var(--p-unit) * 2) rgb(0 0 0 / 0.3),
+    inset 0 calc(var(--p-unit) * 2) calc(var(--p-unit) * 3) rgb(0 0 0 / 0.3);
 }
 
 .round {
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, var(--face), color-mix(in srgb, var(--face) 65%, black));
+  background: radial-gradient(
+    circle at 35% 28%,
+    color-mix(in srgb, var(--face) 55%, white) 0,
+    var(--face) 45%,
+    color-mix(in srgb, var(--face) 62%, black) 100%
+  );
 }
 
-/* The d-pad's arms cast a shorter shadow: a long one fell on its middle. */
+/* The d-pad's arms draw only an arrow and their press: the plate is their face. */
 .pad.arm {
-  box-shadow:
-    0 calc(var(--p-unit) * 2) 0 var(--shade),
-    inset 0 calc(var(--p-unit) * 2) 0 rgb(255 255 255 / 0.18);
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
 }
 
-.pad.arm.down {
-  box-shadow: 0 0 0 var(--shade);
+.pad.arm.held {
+  transform: none;
+  background: linear-gradient(rgb(0 0 0 / 0.32), rgb(0 0 0 / 0.18));
+}
+
+.arrow {
+  display: block;
+  width: 0;
+  height: 0;
+  border: calc(var(--p-unit) * 5) solid transparent;
+  opacity: 0.55;
+}
+
+.arm.up .arrow {
+  border-bottom-color: var(--text);
+  margin-top: calc(var(--p-unit) * -6);
+}
+
+.arm.down .arrow {
+  border-top-color: var(--text);
+  margin-top: calc(var(--p-unit) * 6);
+}
+
+.arm.left .arrow {
+  border-right-color: var(--text);
+  margin-left: calc(var(--p-unit) * -6);
+}
+
+.arm.right .arrow {
+  border-left-color: var(--text);
+  margin-left: calc(var(--p-unit) * 6);
 }
 
 .arm.up {
@@ -326,11 +457,23 @@ $effect(() => () => {
   border-radius: 0 calc(var(--p-unit) * 5) calc(var(--p-unit) * 5) 0;
 }
 
+/* The shoulders: ribbed, rounded to the hand. */
 .shoulder {
   align-items: start;
   padding-top: calc(var(--p-unit) * 4);
   border-radius: calc(var(--p-unit) * 14) calc(var(--p-unit) * 14) 0 0;
   font-size: var(--step--1);
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgb(255 255 255 / 0.06) 0 calc(var(--p-unit) * 1),
+      transparent calc(var(--p-unit) * 1) calc(var(--p-unit) * 4)
+    ),
+    linear-gradient(
+      color-mix(in srgb, var(--face) 85%, white),
+      var(--face) 50%,
+      color-mix(in srgb, var(--face) 70%, black)
+    );
 }
 
 .pill {
@@ -350,9 +493,13 @@ $effect(() => () => {
   transform: rotate(var(--turn));
 }
 
+/* Slots cut through the case: dark inside, a lit lower lip. */
 .speaker i {
   width: calc(var(--p-unit) * 5);
   border-radius: calc(var(--p-unit) * 3);
-  background: rgb(0 0 0 / 0.3);
+  background: rgb(0 0 0 / 0.45);
+  box-shadow:
+    inset 0 calc(var(--p-unit) * 2) calc(var(--p-unit) * 2) rgb(0 0 0 / 0.5),
+    0 1px 0 rgb(255 255 255 / 0.12);
 }
 </style>
