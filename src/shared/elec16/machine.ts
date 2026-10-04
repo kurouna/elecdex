@@ -53,9 +53,11 @@ import {
   IRQ,
   MIE,
   MIE_LINES,
+  MIE_LINES_VIDEO,
   MISA,
   MPIE,
 } from './state.js'
+import { advanceVideo, msToFrame, resetVideo } from './video.js'
 
 /** What woke a sleeping machine may be waiting for: a key, or the timer in so many ms. */
 export interface Wake {
@@ -245,12 +247,13 @@ export class Elec16 implements Core {
     return true
   }
 
-  /** Host time passes: the timer counts, and may raise its interrupt. */
+  /** Host time passes: the timer counts, and may raise its interrupt; so does VBLANK. */
   advance(ms: number): void {
     if (!(ms > 0)) return
     const s = this.s
     const t = s.timer
     s.time += ms
+    if (s.video !== null) advanceVideo(s.video, ms)
     t.fraction += (ms * TIMER_HZ) / 1000
     const ticks = Math.floor(t.fraction)
     t.fraction -= ticks
@@ -307,6 +310,7 @@ export class Elec16 implements Core {
     s.timer.pending = false
     s.timer.enabled = false
     s.math.pending = false
+    if (s.video !== null) resetVideo(s.video)
     s.stall = 0
     // A command out belonged to the program that is gone: its answer is not waited for.
     Object.assign(s.card, createCardState())
@@ -437,7 +441,7 @@ export class Elec16 implements Core {
     const c = this.s.csr
     const v = value & 0xffff
     if (csr === CSR_NAMES.mstatus) c.mstatus = v & (MIE | MPIE)
-    else if (csr === CSR_NAMES.mie) c.mie = v & MIE_LINES
+    else if (csr === CSR_NAMES.mie) c.mie = v & (this.model.video ? MIE_LINES_VIDEO : MIE_LINES)
     else if (csr === CSR_NAMES.mtvec) c.mtvec = v & 0xfffe
     else if (csr === CSR_NAMES.mscratch) c.mscratch = v
     else if (csr === CSR_NAMES.mepc) c.mepc = v & 0xfffe
@@ -466,7 +470,8 @@ export class Elec16 implements Core {
       (s.keys.fifo.length > 0 ? 1 << IRQ.key : 0) |
       (s.math.pending ? 1 << IRQ.math : 0) |
       (s.card.pending ? 1 << IRQ.card : 0) |
-      (s.link.pending ? 1 << IRQ.link : 0)
+      (s.link.pending ? 1 << IRQ.link : 0) |
+      (s.video?.pending === true ? 1 << IRQ.vblank : 0)
     )
   }
 
@@ -574,9 +579,14 @@ export class Elec16 implements Core {
     const t = s.timer
     const timerOn = (s.csr.mie & (1 << IRQ.timer)) !== 0 && t.enabled && !t.pending
     const ticks = ((t.compare - t.count) & 0xffff || 0x10000) - t.fraction
+    const timerMs = timerOn ? (ticks * 1000) / TIMER_HZ : null
+    // VBLANK wakes it like the timer does: the page need only know how long it may sleep.
+    const v = s.video
+    const frameMs =
+      v !== null && (s.csr.mie & (1 << IRQ.vblank)) !== 0 && !v.pending ? msToFrame(v) : null
     return {
       key: (s.csr.mie & (1 << IRQ.key)) !== 0,
-      timerMs: timerOn ? (ticks * 1000) / TIMER_HZ : null,
+      timerMs: timerMs === null ? frameMs : frameMs === null ? timerMs : Math.min(timerMs, frameMs),
     }
   }
 }

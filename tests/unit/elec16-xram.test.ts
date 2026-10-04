@@ -232,14 +232,20 @@ describe('the other models, as they were', () => {
     }
   })
 
-  it('keep a snapshot of the same bytes as version 2, but for the wider bank and a count of 0', () => {
+  it('keep a snapshot of the same bytes as version 2, but for the wider bank, no banks and no video', () => {
     for (const id of TUNE_MODEL_IDS) {
       const m = boot('ebreak', id, 0)
       finish(m)
-      const v3 = m.snapshot()
-      const v2 = olderSnapshot(v3, 2)
-      expect(v3.length - v2.length).toBe(2)
-      expect(decodeSnapshot(v2)).toEqual(decodeSnapshot(v3))
+      const now = m.snapshot()
+      for (const [version, fewer] of [
+        [3, 1],
+        [2, 3],
+        [1, 3 + 14],
+      ] as const) {
+        const older = olderSnapshot(now, version)
+        expect(now.length - older.length).toBe(fewer)
+        expect(decodeSnapshot(older), `${id} ${version}`).toEqual(decodeSnapshot(now))
+      }
     }
   })
 })
@@ -268,9 +274,10 @@ describe('a snapshot with extended RAM', () => {
     finish(m)
     const good = m.snapshot()
     expect(decodeSnapshot(good)).not.toBeNull()
-    // The count follows LINK, before the halt's cause ("breakpoint"), RAM, VRAM and the banks.
+    // The count follows LINK, then the video byte and video's registers, the halt's cause
+    // ("breakpoint"), RAM, VRAM, the banks and the video memory.
     const cause = m.state.halt?.cause.length ?? 0
-    const countAt = good.length - (0x8000 + 0x1800 + 2 * BANK_SIZE) - cause - 1
+    const countAt = good.length - (0x8000 + 0x1800 + 2 * BANK_SIZE + 0x10000) - cause - 13 - 2
     expect(good[countAt]).toBe(2)
     // One bank fewer: the bank shown is not there, and a bank's bytes are left over.
     const fewer = good.slice()

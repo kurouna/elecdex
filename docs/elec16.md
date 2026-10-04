@@ -606,7 +606,7 @@ TS の部分集合 (*.e16.ts)
 - 固定 ROM の残りは少ない（2026-10-04 で BB90 ほどまで使い、上限は C000）。新しい文はバンクに置く（`BASIC_SOURCES`。バンク 5 が ASK）。gen の出力の「fixed ROM to …」で残りを見る
 - 新しいキーワードは `text.e16.ts` の `KEYWORDS` の末尾に足し、トークンの定数も末尾に足す（0xDD まで使っている。カナは文字列の中だけなので重ならない）。BASIC 取扱説明書の予約語の付録と文の表も直す
 - 機械が持つ状態（`state.ts`）を増やしたら、スナップショットの版を上げ、古い版も読む（`snapshot.ts` の `readLink` と版 1 の扱いが見本）。利用者の電池バックアップを捨てないため
-- 割り込みの線を足したら `IRQ`、`MIE_LINES`、`#pending()`、ROM の `io.inc`（rom.ts が作る）を揃える。ROM がその線を mie に足して待つなら、BRK でモニタへ落ちたとき（`save_all`）にも mie が戻ることを確かめる（戻らないと WFI が起き続けた）
+- 割り込みの線を足したら `IRQ`、`MIE_LINES`（PLAY-320 だけの線は `MIE_LINES_VIDEO`。ほかのモデルの mie は変えない）、`#pending()`、`#wake()`、ROM の `io.inc`（rom.ts が作る）を揃える。線 5 は PLAY-320 の VBLANK（elec16-play.md §4）。ROM がその線を mie に足して待つなら、BRK でモニタへ落ちたとき（`save_all`）にも mie が戻ることを確かめる（戻らないと WFI が起き続けた）
 - 利用者に見える変化は説明書（BASIC、E16、e16c、SOFT CARD）を同じコミットで直す。説明書の例は、できるだけテストが説明書から読んで機械の上で動かす（`tests/unit/elec16-ask.test.ts` の「manual」のテストが見本）
 
 **テストの道具**（`tests/unit/elec16-helpers.ts`）

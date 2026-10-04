@@ -116,20 +116,24 @@ export function type(m: Elec16, text: string): void {
 const SNAPSHOT_BANK_AT = 4 + 1 + 1 + 32 + 2 + 14 + 1 + 2 + 1 + 8 + 8
 
 /**
- * A version 3 snapshot of a machine without extended RAM, as version 2 wrote it: the bank a
- * byte, and no count of extended RAM banks after LINK (snapshot.ts). Version 1 is the same
- * without LINK's 14 bytes.
+ * Today's snapshot (version 4) of a machine without extended RAM or video, as an older version
+ * wrote it (snapshot.ts): version 3 without the byte that says there is no video; version 2
+ * also with the bank a byte and no count of extended RAM banks; version 1 also without LINK's
+ * 14 bytes.
  */
-export function olderSnapshot(v3: Uint8Array, version: 1 | 2): Uint8Array {
-  const causeLength = v3[SNAPSHOT_BANK_AT - 17] ?? 0
-  const countAt = v3.length - (0x8000 + 0x1800) - causeLength - 1
-  if (v3[countAt] !== 0) throw new Error('only a machine without extended RAM')
-  const linkAt = version === 1 ? countAt - 14 : countAt
-  const older = new Uint8Array([
-    ...v3.subarray(0, SNAPSHOT_BANK_AT + 1),
-    ...v3.subarray(SNAPSHOT_BANK_AT + 2, linkAt),
-    ...v3.subarray(countAt + 1),
-  ])
+export function olderSnapshot(now: Uint8Array, version: 1 | 2 | 3): Uint8Array {
+  const causeLength = now[SNAPSHOT_BANK_AT - 17] ?? 0
+  const videoAt = now.length - (0x8000 + 0x1800) - causeLength - 1
+  const countAt = videoAt - 1
+  if (now[videoAt] !== 0 || now[countAt] !== 0) throw new Error('only a pocket machine')
+  const older =
+    version === 3
+      ? new Uint8Array([...now.subarray(0, videoAt), ...now.subarray(videoAt + 1)])
+      : new Uint8Array([
+          ...now.subarray(0, SNAPSHOT_BANK_AT + 1),
+          ...now.subarray(SNAPSHOT_BANK_AT + 2, version === 1 ? countAt - 14 : countAt),
+          ...now.subarray(videoAt + 1),
+        ])
   older[4] = version
   return older
 }

@@ -36,6 +36,7 @@ import {
 } from './map.js'
 import { MATH_REG, mathRead, mathWrite } from './math-unit.js'
 import { type Elec16State, KEY_FIFO_SIZE, KEY_ROWS } from './state.js'
+import { VIDEO_IO, VIDEO_IO_END, VIDEO_PAGE_SIZE, videoRead, videoWrite } from './video.js'
 
 /** The I/O registers, by address. */
 export const REG = {
@@ -104,15 +105,19 @@ export class Bus {
     const a = address & 0xffff
     if (a < RAM_SIZE) return this.#s.ram[a] ?? 0
     if (a < BANK_WINDOW) return this.#rom[a - ROM_FIXED] ?? 0xff
-    if (a < VRAM) {
-      const bank = this.#s.bank
-      if (bank >= XRAM_BANK)
-        return this.#s.xram[(bank - XRAM_BANK) * BANK_SIZE + (a - BANK_WINDOW)] ?? 0
-      return this.#rom[ROM_FIXED_SIZE + bank * BANK_SIZE + (a - BANK_WINDOW)] ?? 0xff
-    }
+    if (a < VRAM) return this.#bankByte(a)
+    if (this.#s.video !== null && a < IO) return this.#videoByte(a)
     if (a < VRAM + VRAM_WINDOW) return a - VRAM < this.#vramUsed ? (this.#s.vram[a - VRAM] ?? 0) : 0
     if (a < IO) return 0
     return this.#ioByte(a, true)
+  }
+
+  /** The bank window: a bank of the ROM, or of extended RAM. */
+  #bankByte(a: number): number {
+    const bank = this.#s.bank
+    if (bank >= XRAM_BANK)
+      return this.#s.xram[(bank - XRAM_BANK) * BANK_SIZE + (a - BANK_WINDOW)] ?? 0
+    return this.#rom[ROM_FIXED_SIZE + bank * BANK_SIZE + (a - BANK_WINDOW)] ?? 0xff
   }
 
   /** Writes a byte; false where nothing can be written (the ROM). */
@@ -168,6 +173,10 @@ export class Bus {
       this.#stale(a & 0xfffe)
       return true
     }
+    if (s.video !== null) {
+      this.#videoWrite(a, value)
+      return true
+    }
     if (a < VRAM + VRAM_WINDOW && a - VRAM < this.#vramUsed) {
       if (s.vram[a - VRAM] !== value) {
         s.vram[a - VRAM] = value
@@ -176,6 +185,37 @@ export class Bus {
     }
     // The rest of the window and the reserved block ignore what is written.
     return true
+  }
+
+  /**
+   * PLAY-320's E000-FEFF: the page of video memory VPAGE shows, then nothing up to the video
+   * registers at F800, then nothing up to the I/O block. A register byte is its half.
+   */
+  #videoByte(a: number): number {
+    const v = this.#s.video as NonNullable<Elec16State['video']>
+    if (a < VRAM + VIDEO_PAGE_SIZE) return v.mem[v.page * VIDEO_PAGE_SIZE + (a - VRAM)] ?? 0
+    if (a < VIDEO_IO || a >= VIDEO_IO_END) return 0
+    const word = videoRead(v, a & 0xfffe)
+    return (a & 1) === 0 ? word & 0xff : word >>> 8
+  }
+
+  /**
+   * A write to PLAY-320's video: memory through the window, or a register - as for the other
+   * registers, a byte at an even address with the high byte zero, at an odd one ignored (none
+   * of them takes more than a byte). What is shown moved: the screen's count goes up.
+   */
+  #videoWrite(a: number, value: number): void {
+    const s = this.#s
+    const v = s.video as NonNullable<Elec16State['video']>
+    if (a < VRAM + VIDEO_PAGE_SIZE) {
+      const at = v.page * VIDEO_PAGE_SIZE + (a - VRAM)
+      if (v.mem[at] !== value) {
+        v.mem[at] = value
+        s.screenRevision++
+      }
+    } else if (a >= VIDEO_IO && a < VIDEO_IO_END && (a & 1) === 0) {
+      if (videoWrite(v, a, value)) s.screenRevision++
+    }
   }
 
   #ioByte(a: number, peek: boolean): number {

@@ -7,6 +7,7 @@ import { type CardState, createCardState } from './card.js'
 import { createLinkState, type LinkState } from './link.js'
 import { BANK_SIZE, MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
 import { createMathState, type MathState } from './math-unit.js'
+import { createVideoState, type VideoState } from './video.js'
 
 /** The CSRs a program can read and write (section 4). */
 export interface Csrs {
@@ -70,6 +71,8 @@ export interface Elec16State {
   card: CardState
   /** LINK's registers and the request out (link.ts). */
   link: LinkState
+  /** PLAY-320's video (video.ts); null on a model without it. */
+  video: VideoState | null
 }
 
 export const CSR_NAMES = {
@@ -97,10 +100,12 @@ export const MPIE = 1 << 7
  * interrupts off or not enabled in mie (only a handler already running holds it back), so
  * the key always gets the machine back, as on the pocket computers it follows.
  */
-export const IRQ = { timer: 0, key: 1, card: 2, math: 3, link: 4, brk: 15 } as const
+export const IRQ = { timer: 0, key: 1, card: 2, math: 3, link: 4, vblank: 5, brk: 15 } as const
 
 /** The lines mie takes: TIMER, KEY, CARD, MATH and LINK (BRK is never masked). */
 export const MIE_LINES = 0x1f
+/** And VBLANK too, on a model with video (PLAY-320): no other model's mie changes. */
+export const MIE_LINES_VIDEO = 0x3f
 
 /** The LCD's annunciators, as bits of ANNUN: the marks above the dots. */
 export const ANNUNCIATORS = [
@@ -164,5 +169,6 @@ export function createState(model: ModelId, xram = 0): Elec16State {
     stall: 0,
     card: createCardState(),
     link: createLinkState(),
+    video: MODELS[model].video ? createVideoState() : null,
   }
 }

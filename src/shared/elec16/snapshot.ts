@@ -14,6 +14,9 @@
  * Version 3 added extended RAM (PLAY-320, docs/elec16-play.md section 3): the bank became 16
  * bits, the count of extended RAM banks follows LINK, and their bytes follow VRAM. An older
  * snapshot is read with none, as every machine then had.
+ * Version 4 added PLAY-320's video (video.ts): after the count of banks, whether there is
+ * video and, if so, its registers; after the banks, its 64 KB. Older ones are read without,
+ * which only a model without video can be.
  */
 
 import { ByteReader, ByteWriter } from '../emu/bytes.js'
@@ -22,10 +25,11 @@ import type { Angle } from './decimal.js'
 import { linkInterrupted } from './link.js'
 import { LINK_STATUS } from './link-services.js'
 import { BANK_SIZE, bankTaken, MODEL_IDS, MODELS, RAM_SIZE, VRAM_WINDOW, XRAM_MAX } from './map.js'
-import { createState, type Elec16State } from './state.js'
+import { createState, type Elec16State, MIE_LINES, MIE_LINES_VIDEO } from './state.js'
+import { VCTRL_MASK, VIDEO_PAGES, VIDEO_SIZE } from './video.js'
 
 const MAGIC = [0x45, 0x31, 0x36, 0x53] // "E16S"
-export const SNAPSHOT_VERSION = 3
+export const SNAPSHOT_VERSION = 4
 
 /** A halt's cause is kept as text, at most this long. */
 const CAUSE_MAX = 64
@@ -78,16 +82,23 @@ const HEAD =
   1 +
   1 + // card
   LINK_SIZE +
-  1 // extended RAM banks
+  1 + // extended RAM banks
+  1 // video or not
 
 /** The longest snapshot there is, for whoever stores them to check against. */
-export const SNAPSHOT_MAX_SIZE = HEAD + CAUSE_MAX + RAM_SIZE + VRAM_WINDOW + XRAM_MAX
+/** Video's registers: control, page, VBLANK, frame, fraction. */
+const VIDEO_HEAD = 1 + 1 + 1 + 2 + 8
+
+/** The longest snapshot there is, for whoever stores them to check against. */
+export const SNAPSHOT_MAX_SIZE =
+  HEAD + CAUSE_MAX + RAM_SIZE + VRAM_WINDOW + XRAM_MAX + VIDEO_HEAD + VIDEO_SIZE
 
 const FLAG = { inTrap: 1, sleeping: 2, off: 4, brk: 8, halted: 16 } as const
 
 export function encodeSnapshot(s: Elec16State): Uint8Array {
   const cause = (s.halt?.cause ?? '').slice(0, CAUSE_MAX)
-  const w = new ByteWriter(HEAD + cause.length + RAM_SIZE + VRAM_WINDOW + s.xram.length)
+  const video = s.video === null ? 0 : VIDEO_HEAD + VIDEO_SIZE
+  const w = new ByteWriter(HEAD + cause.length + RAM_SIZE + VRAM_WINDOW + s.xram.length + video)
   w.raw(MAGIC)
   w.u8(SNAPSHOT_VERSION)
   w.u8(MODEL_IDS.indexOf(s.model))
@@ -109,10 +120,20 @@ export function encodeSnapshot(s: Elec16State): Uint8Array {
   w.u16(s.bank)
   writeDevices(w, s)
   w.u8(s.xram.length / BANK_SIZE)
+  const v = s.video
+  w.u8(v === null ? 0 : 1)
+  if (v !== null) {
+    w.u8(v.ctrl)
+    w.u8(v.page)
+    w.u8(v.pending ? 1 : 0)
+    w.u16(v.frame)
+    w.f64(v.fraction)
+  }
   w.raw(Array.from(cause, (ch) => ch.charCodeAt(0) & 0x7f))
   w.raw(s.ram)
   w.raw(s.vram)
   w.raw(s.xram)
+  if (v !== null) w.raw(v.mem)
   return w.bytes
 }
 
@@ -197,14 +218,12 @@ export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   const s = createState(model)
   const head = readCpu(r, s, version)
   if (!readDevices(r, s) || (version >= 2 && !readLink(r, s))) return null
-  // Extended RAM, made only as large as the model can have.
-  const banks = version >= 3 ? r.u8() : 0
-  if (banks * BANK_SIZE > MODELS[model].xramMax) return null
-  s.xram = new Uint8Array(banks * BANK_SIZE)
+  if (!readExtras(r, s, version)) return null
   const cause = String.fromCharCode(...r.raw(head.causeLength))
   s.ram.set(r.raw(RAM_SIZE))
   s.vram.set(r.raw(VRAM_WINDOW))
   s.xram.set(r.raw(s.xram.length))
+  s.video?.mem.set(r.raw(VIDEO_SIZE))
   if (r.overrun || r.at !== bytes.length) return null
   if (head.causeLength > CAUSE_MAX || !/^[ -~]*$/.test(cause)) return null
   if (!finite(s.cycles) || !finite(s.instret) || !bankTaken(s.bank, s.xram.length)) return null
@@ -217,6 +236,31 @@ export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   // Whatever it showed is drawn afresh.
   s.screenRevision = 1
   return s
+}
+
+/** What PLAY-320 added: extended RAM, made only as large as the model can have, and video. */
+function readExtras(r: ByteReader, s: Elec16State, version: number): boolean {
+  const banks = version >= 3 ? r.u8() : 0
+  if (banks * BANK_SIZE > MODELS[s.model].xramMax) return false
+  s.xram = new Uint8Array(banks * BANK_SIZE)
+  return readVideo(r, s, version)
+}
+
+/**
+ * Video's registers, checked: there must be video exactly when the model has it (the state
+ * made for the model already has it or not), and a snapshot older than video has none.
+ */
+function readVideo(r: ByteReader, s: Elec16State, version: number): boolean {
+  const has = version >= 4 ? r.u8() : 0
+  const v = s.video
+  if (has !== (v === null ? 0 : 1)) return false
+  if (v === null) return true
+  v.ctrl = r.u8()
+  v.page = r.u8()
+  v.pending = r.u8() === 1
+  v.frame = r.u16()
+  v.fraction = r.f64()
+  return v.ctrl <= VCTRL_MASK && v.page < VIDEO_PAGES && finite(v.fraction) && v.fraction < 1
 }
 
 /** The CPU's part, into `s`; the flags and the halt are given back, to be checked last. */
@@ -232,7 +276,7 @@ function readCpu(
     Array.from({ length: 7 }, () => r.u16())
   s.csr = {
     mstatus,
-    mie: mie & (version === 1 ? 15 : 31),
+    mie: mie & (version === 1 ? 15 : s.video !== null ? MIE_LINES_VIDEO : MIE_LINES),
     mtvec: mtvec & 0xfffe,
     mscratch,
     mepc: mepc & 0xfffe,
