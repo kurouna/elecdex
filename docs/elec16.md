@@ -510,7 +510,7 @@ TS の部分集合 (*.e16.ts)
 
 ## 12. v1 の後の構想
 
-ゲーム機（GAME モデル、§5）は [elec16-play.md](elec16-play.md)（PLAY-320、設計中）。下の LINK と AI チャットは段階 8 で作った。`shared/emu` のほかの使い道（Linux 系ペインなど）は [emu.md](emu.md) にある。
+ゲーム機（GAME モデル、§5）は [elec16-play.md](elec16-play.md)（ELEC-16 PLAY、設計中）。下の LINK と AI チャットは段階 8 で作った。`shared/emu` のほかの使い道（Linux 系ペインなど）は [emu.md](emu.md) にある。
 
 ### LINK と AI チャット（段階 8、2026-10-04 利用者の決定）
 
