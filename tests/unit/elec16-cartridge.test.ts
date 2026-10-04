@@ -239,11 +239,12 @@ describe('a snapshot with a cartridge', () => {
     const m = boot()
     finish(m)
     const now = m.snapshot()
-    // Version 4: the same without the cartridge byte, just before the halt's cause.
+    // Version 4: the same without mode 1's 19 bytes after video's registers and the cartridge
+    // byte, just before the halt's cause.
     const cause = m.state.halt?.cause.length ?? 0
     const at = now.length - (0x8000 + 0x1800 + 0x10000) - cause - 1
     expect(now[at]).toBe(0)
-    const v4 = new Uint8Array([...now.subarray(0, at), ...now.subarray(at + 1)])
+    const v4 = new Uint8Array([...now.subarray(0, at - 19), ...now.subarray(at + 1)])
     v4[4] = 4
     expect(decodeSnapshot(v4)?.cart).toBeNull()
   })

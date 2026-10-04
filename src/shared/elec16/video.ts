@@ -57,6 +57,8 @@ export interface VideoState {
   frame: number
   /** The part of a frame that has passed. */
   fraction: number
+  /** Mode 1's tile engine: scrolls, layers, LINE and DMA (G5). */
+  tiles: TileState
 }
 
 export function createVideoState(): VideoState {
@@ -67,6 +69,7 @@ export function createVideoState(): VideoState {
     pending: false,
     frame: 0,
     fraction: 0,
+    tiles: createTileState(),
   }
 }
 
@@ -75,26 +78,27 @@ export function resetVideo(v: VideoState): void {
   v.ctrl = VCTRL_ON
   v.page = 0
   v.pending = false
+  resetTiles(v.tiles)
 }
 
 /** A register's value; the rest of the block reads 0. Reading has no effect. */
-export function videoRead(v: VideoState, a: number): number {
+export function videoRead(v: VideoState, a: number, cycles = 0): number {
   switch (a) {
     case VIDEO_REG.ctrl:
       return v.ctrl
     case VIDEO_REG.page:
       return v.page
     case VIDEO_REG.stat:
-      return v.pending ? VSTAT_VBLANK : 0
+      return (v.pending ? VSTAT_VBLANK : 0) | (v.tiles.linePending ? VSTAT_LINE : 0)
     case VIDEO_REG.frame:
       return v.frame
     default:
-      return 0
+      return a >= TILE_REG.bg0x ? tileRead(v.tiles, a, cycles) : 0
   }
 }
 
-/** A register written: true when what is shown may have changed. */
-export function videoWrite(v: VideoState, a: number, value: number): boolean {
+/** A register written (at `cycles`): true when what is shown may have changed. */
+export function videoWrite(v: VideoState, a: number, value: number, cycles = 0): boolean {
   switch (a) {
     case VIDEO_REG.ctrl: {
       const ctrl = value & VCTRL_MASK
@@ -107,21 +111,259 @@ export function videoWrite(v: VideoState, a: number, value: number): boolean {
       return false
     case VIDEO_REG.stat:
       if ((value & VSTAT_VBLANK) !== 0) v.pending = false
+      if ((value & VSTAT_LINE) !== 0) v.tiles.linePending = false
       return false
     default:
-      return false
+      return a >= TILE_REG.bg0x ? tileWrite(v.tiles, a, value, cycles) : false
   }
 }
 
-/** Host time passes: each sixtieth of a second is a frame, and raises VBLANK. */
-export function advanceVideo(v: VideoState, ms: number): void {
+/**
+ * Host time passes: each sixtieth of a second is a frame, and raises VBLANK; the frame's
+ * lines start again from the machine's cycle count now.
+ */
+export function advanceVideo(v: VideoState, ms: number, cycles = 0): void {
   v.fraction += (ms * FRAME_HZ) / 1000
   const frames = Math.floor(v.fraction)
   if (frames === 0) return
   v.fraction -= frames
   v.frame = (v.frame + frames) & 0xffff
   v.pending = true
+  // The new frame began part way through this step, `fraction` of a frame ago: the beam is
+  // that far down it already.
+  const t = v.tiles
+  endFrame(t, cycles - v.fraction * t.cyclesPerLine * FRAME_LINES)
 }
 
 /** Milliseconds until the next VBLANK. */
 export const msToFrame = (v: VideoState): number => ((1 - v.fraction) * 1000) / FRAME_HZ
+
+/* ---------------- mode 1: the tile engine's registers (G5) ---------------- */
+
+/** The tile engine's registers (docs/elec16-play.md section 4, mode 1). */
+export const TILE_REG = {
+  bg0x: 0xf820,
+  bg0y: 0xf822,
+  bg1x: 0xf824,
+  bg1y: 0xf826,
+  layers: 0xf828,
+  lineCmp: 0xf82a,
+  line: 0xf82c,
+  dmaSrc: 0xf830,
+  dmaDst: 0xf832,
+  dmaLen: 0xf834,
+  dmaCtrl: 0xf836,
+} as const
+
+/** LAYERS' bits: BG0, BG1 and the sprites shown. */
+export const LAYER = { bg0: 1, bg1: 2, sprites: 4 } as const
+export const LAYERS_ALL = 7
+
+/** VSTAT's bit for LINE: set when the line LINECMP names is reached. */
+export const VSTAT_LINE = 2
+
+/** A frame's lines: 288 drawn, then VBLANK's. */
+export const FRAME_LINES = 312
+export const NO_LINE = 0xffff
+
+/** Where mode 1's parts are in the video memory. */
+export const TILES_AT = 0x0000
+export const TILE_BYTES = 32
+export const MAX_TILES = 1024
+export const BG0_MAP = 0x8000
+export const BG1_MAP = 0xa000
+export const MAP_SIZE = 64
+export const SPRITES_AT = 0xc000
+export const SPRITES = 128
+export const SPRITE_BYTES = 8
+export const SPRITES_A_LINE = 32
+/** Background tiles take palettes 0-7, sprites 8-15. */
+export const SPRITE_PALETTES = 8
+
+/** DMA: bytes moved, and the cycles they take, each step. */
+export const DMA_CHUNK = 16
+export const DMA_CYCLES = 8
+
+/**
+ * What a line is drawn with, of the registers a program may change between lines: the
+ * scrolls (BG0 X, BG0 Y, BG1 X, BG1 Y) and LAYERS. Indexed so a write is logged by number.
+ */
+export interface Raster {
+  scroll: [number, number, number, number]
+  layers: number
+}
+
+/** A write to a raster register, at a line: from that line down it is in force. */
+export interface RasterWrite {
+  line: number
+  /** 0-3 a scroll, 4 LAYERS. */
+  which: number
+  value: number
+}
+
+export interface TileState extends Raster {
+  lineCmp: number
+  /** LINE came and was not cleared: interrupt line 7. */
+  linePending: boolean
+  /** LINE was raised this frame (once a frame). */
+  lineDone: boolean
+  /**
+   * The beam's clock: the machine's cycles and the cycles it slept (credited from the time
+   * given while asleep in WFI, so a program waiting for LINE sees the beam go on); its count
+   * at the last VBLANK; and the cycles a line takes.
+   */
+  slept: number
+  frameCycles: number
+  cyclesPerLine: number
+  dma: { src: number; dst: number; len: number; active: boolean }
+  /** This frame: the registers it started with and what was written since, by line. */
+  start: Raster
+  log: RasterWrite[]
+  /** The frame last finished, as the page draws it. Not kept in a snapshot. */
+  last: { start: Raster; log: readonly RasterWrite[] }
+}
+
+const raster = (r: Raster): Raster => ({ scroll: [...r.scroll], layers: r.layers })
+
+export function createTileState(): TileState {
+  const start: Raster = { scroll: [0, 0, 0, 0], layers: LAYERS_ALL }
+  return {
+    scroll: [0, 0, 0, 0],
+    layers: LAYERS_ALL,
+    lineCmp: NO_LINE,
+    linePending: false,
+    lineDone: false,
+    slept: 0,
+    frameCycles: 0,
+    cyclesPerLine: 4_000_000 / FRAME_HZ / FRAME_LINES,
+    dma: { src: 0, dst: 0, len: 0, active: false },
+    start,
+    log: [],
+    last: { start: raster(start), log: [] },
+  }
+}
+
+/** A reset: the scrolls 0, every layer shown, no LINE, no DMA. The memory stays. */
+export function resetTiles(t: TileState): void {
+  t.scroll = [0, 0, 0, 0]
+  t.layers = LAYERS_ALL
+  t.lineCmp = NO_LINE
+  t.linePending = false
+  t.dma.active = false
+  t.log = []
+  t.start = raster(t)
+}
+
+/** The line the beam is on, by the cycles run and slept since VBLANK (0-311). */
+export function lineAt(t: TileState, cycles: number): number {
+  const line = Math.floor((cycles + t.slept - t.frameCycles) / t.cyclesPerLine)
+  return Math.max(0, Math.min(FRAME_LINES - 1, line))
+}
+
+/** Cycles from now until the beam reaches LINECMP this frame; null when LINE will not come. */
+export function cyclesToLine(t: TileState, cycles: number): number | null {
+  if (t.lineDone || t.lineCmp >= BITMAP_HEIGHT) return null
+  return Math.max(0, t.lineCmp * t.cyclesPerLine - (cycles + t.slept - t.frameCycles))
+}
+
+export function tileRead(t: TileState, a: number, cycles: number): number {
+  switch (a) {
+    case TILE_REG.bg0x:
+    case TILE_REG.bg0y:
+    case TILE_REG.bg1x:
+    case TILE_REG.bg1y:
+      return t.scroll[(a - TILE_REG.bg0x) >> 1] ?? 0
+    case TILE_REG.layers:
+      return t.layers
+    case TILE_REG.lineCmp:
+      return t.lineCmp
+    case TILE_REG.line:
+      return lineAt(t, cycles)
+    default:
+      return dmaRead(t, a)
+  }
+}
+
+function dmaRead(t: TileState, a: number): number {
+  switch (a) {
+    case TILE_REG.dmaSrc:
+      return t.dma.src
+    case TILE_REG.dmaDst:
+      return t.dma.dst
+    case TILE_REG.dmaLen:
+      return t.dma.len
+    case TILE_REG.dmaCtrl:
+      return t.dma.active ? 1 : 0
+    default:
+      return 0
+  }
+}
+
+/** A tile register written at `cycles`: a raster one is logged at its line. True when shown. */
+export function tileWrite(t: TileState, a: number, value: number, cycles: number): boolean {
+  if (a >= TILE_REG.bg0x && a <= TILE_REG.layers) {
+    const which = (a - TILE_REG.bg0x) >> 1
+    const v = which === 4 ? value & LAYERS_ALL : value & 511
+    if (which === 4) t.layers = v
+    else t.scroll[which] = v
+    t.log.push({ line: lineAt(t, cycles), which, value: v })
+    return true
+  }
+  switch (a) {
+    case TILE_REG.lineCmp:
+      t.lineCmp = value
+      return false
+    case TILE_REG.dmaSrc:
+      t.dma.src = value
+      return false
+    case TILE_REG.dmaDst:
+      t.dma.dst = value
+      return false
+    case TILE_REG.dmaLen:
+      t.dma.len = value
+      return false
+    case TILE_REG.dmaCtrl:
+      // 1 starts it (with something to move); 0 stops it where it is.
+      t.dma.active = (value & 1) !== 0 && t.dma.len > 0
+      return false
+    default:
+      return false
+  }
+}
+
+/** After an instruction: LINE raised once the beam reaches LINECMP this frame. */
+export function lineStep(t: TileState, cycles: number): void {
+  if (t.lineDone || t.lineCmp >= BITMAP_HEIGHT) return
+  if (lineAt(t, cycles) < t.lineCmp) return
+  t.lineDone = true
+  t.linePending = true
+}
+
+/**
+ * VBLANK: the frame just finished is the one the page draws - the registers it started with
+ * and what was written in it by line - and the next starts from the registers as they are.
+ */
+export function endFrame(t: TileState, cycles: number): void {
+  t.last = { start: t.start, log: t.log }
+  t.start = raster(t)
+  t.log = []
+  t.lineDone = false
+  t.frameCycles = cycles + t.slept
+}
+
+/** The registers in force on each line of the frame `f`: what the page draws each line with. */
+export function rasterLines(f: { start: Raster; log: readonly RasterWrite[] }): Raster[] {
+  const now = raster(f.start)
+  const lines: Raster[] = []
+  let k = 0
+  for (let y = 0; y < BITMAP_HEIGHT; y++) {
+    while (k < f.log.length && (f.log[k] as RasterWrite).line <= y) {
+      const w = f.log[k] as RasterWrite
+      if (w.which === 4) now.layers = w.value
+      else now.scroll[w.which] = w.value
+      k++
+    }
+    lines.push(raster(now))
+  }
+  return lines
+}

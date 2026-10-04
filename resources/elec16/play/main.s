@@ -20,6 +20,7 @@ BRKFLAG  = 0x1e     ; BASIC's in the pocket ROM: always 0 here, for link.s
 IO_PAD      = -0x7f0   ; F810: the buttons held
 IO_PAD_HIT  = -0x7ee   ; F812: those that went down or up since cleared
 PAD_START   = 0x400
+IO_DMACTRL  = -0x7ca   ; F836: 0 stops a DMA under way
 CART_BANK   = 0x100
 
 STACK_TOP = 0x8000  ; the stack grows down from the top of RAM, above the code area
@@ -51,7 +52,6 @@ start:
   csrw mtvec, t0
   csrwi mie, 0
   call e16c_init
-  call screenInit
   li a0, 0
   li a1, 0
   j boot
@@ -62,6 +62,14 @@ start:
 ; start screen says why and waits again.
 boot:
   li sp, STACK_TOP
+  ; The screen as the ROM draws it - mode 0, its palette - whatever a game left it as.
+  addi sp, sp, -4
+  sw a0, 0(sp)
+  sw a1, 2(sp)
+  call screenInit
+  lw a0, 0(sp)
+  lw a1, 2(sp)
+  addi sp, sp, 4
   call bootScreen
 idle:
   li t0, 1 << IRQ_PAD
@@ -149,9 +157,12 @@ trap:
   sw t0, REGS(zero)
   csrr t0, mcause
   sw t0, CAUSE(zero)
-  ; A LINK request out belonged to what stopped: its answer must not land in RAM later.
+  ; A LINK request out belonged to what stopped: its answer must not land in RAM later. Nor
+  ; is a copy it started into video memory left going.
   li t0, LINK_CANCEL
   sw t0, IO_LINK_CMD(zero)
+  li t0, IO_DMACTRL
+  sw zero, 0(t0)
   ; Out of the handler, to the start screen with the cause and the pc - or with neither when
   ; it only slept there (BRK at the start screen, or after a program came back). Where it
   ; was tells, not a flag: the pane calls a program without the ROM.

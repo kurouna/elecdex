@@ -9,6 +9,7 @@ import {
   VIDEO_MODE,
   type VideoState,
 } from '@shared/elec16/video'
+import { paintTiles } from './tile-painter.js'
 
 /**
  * PLAY-320's screen as pixels (docs/elec16-play.md section 4): mode 0's bitmap coloured by
@@ -34,15 +35,27 @@ export function paletteColour(v: VideoState, k: number): Rgb {
   return rgbOf((v.mem[at] ?? 0) | ((v.mem[at + 1] ?? 0) << 8))
 }
 
-/** What the screen shows: the bitmap (mode 0), nothing but colour 0 (another mode), or dark. */
-export function screenShows(v: VideoState | null, off: boolean): 'bitmap' | 'ground' | 'dark' {
+/**
+ * What the screen shows: the bitmap (mode 0), the tile engine (mode 1), nothing but colour 0
+ * (a mode there is not), or dark.
+ */
+export function screenShows(
+  v: VideoState | null,
+  off: boolean,
+): 'bitmap' | 'tiles' | 'ground' | 'dark' {
   if (v === null || off || (v.ctrl & VCTRL_ON) === 0) return 'dark'
-  return v.ctrl >> VCTRL_MODE_SHIFT === VIDEO_MODE.bitmap ? 'bitmap' : 'ground'
+  const mode = v.ctrl >> VCTRL_MODE_SHIFT
+  if (mode === VIDEO_MODE.bitmap) return 'bitmap'
+  return mode === VIDEO_MODE.tiles ? 'tiles' : 'ground'
 }
 
 /** Every dot into `out` (RGBA, 320 x 288). */
 export function paintPlay(v: VideoState | null, off: boolean, out: Uint8ClampedArray): void {
   const shows = screenShows(v, off)
+  if (v !== null && shows === 'tiles') {
+    paintTiles(v.mem, v.tiles.last, out)
+    return
+  }
   if (v === null || shows !== 'bitmap') {
     fill(out, shows === 'dark' || v === null ? DARK : paletteColour(v, 0))
     return

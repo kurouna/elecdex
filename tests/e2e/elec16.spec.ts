@@ -901,3 +901,50 @@ test("PLAY-320's cartridge: GAMES puts the demo in, START plays it, and it goes 
     await running?.close()
   }
 })
+
+test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with the d-pad", async () => {
+  // docs/elec16-play.md section 4, G5: the tile engine drawn by the page, at the machine's
+  // own resolution - a dot of the canvas read back to see the ship move.
+  test.setTimeout(180_000)
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) =>
+      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await tab('games').click()
+    await page.locator('[data-testid=elec16-game][data-game=SCROLL]').click()
+    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY SCROLL')
+    await page.getByTestId('elec16').focus()
+    await page.keyboard.press('Enter')
+    // Mode 1 has no text to read back: the start screen's words are gone.
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toEqual([''])
+    /** The colour of a dot of the screen's canvas (the machine's own 320 x 288). */
+    const dot = (x: number, y: number) =>
+      page
+        .getByTestId('elec16-play-screen')
+        .evaluate(
+          (canvas, [px, py]) =>
+            Array.from(
+              (canvas as HTMLCanvasElement).getContext('2d')?.getImageData(px ?? 0, py ?? 0, 1, 1)
+                .data ?? [],
+            ).slice(0, 3),
+          [x, y],
+        )
+    const hull = [222, 231, 239]
+    // The ship's middle, 16 x 16 from (152, 200): its hull.
+    await expect.poll(() => dot(160, 209), { timeout: 10_000 }).toEqual(hull)
+    await page.keyboard.down('ArrowLeft')
+    await page.waitForTimeout(500)
+    await page.keyboard.up('ArrowLeft')
+    await expect.poll(() => dot(160, 209)).not.toEqual(hull)
+    await page.keyboard.press('Enter')
+    await expect.poll(() => playLines(page)).toContain('PRESS START')
+  } finally {
+    await close()
+  }
+})

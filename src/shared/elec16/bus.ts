@@ -211,7 +211,7 @@ export class Bus {
   #gameIoRead(a: number): number {
     const pad = this.#s.pad
     if (a >= PAD_REG.held && a < PAD_REG.held + 16) return pad === null ? 0 : padRead(pad, a)
-    return videoRead(this.#s.video as NonNullable<Elec16State['video']>, a)
+    return videoRead(this.#s.video as NonNullable<Elec16State['video']>, a, this.#s.cycles)
   }
 
   /** A word (or a byte, its high half zero) to one of PLAY-320's registers. */
@@ -222,7 +222,9 @@ export class Bus {
       if (pad !== null) padWrite(pad, a, value)
       return
     }
-    if (videoWrite(s.video as NonNullable<Elec16State['video']>, a, value)) s.screenRevision++
+    if (videoWrite(s.video as NonNullable<Elec16State['video']>, a, value, s.cycles)) {
+      s.screenRevision++
+    }
   }
 
   /**

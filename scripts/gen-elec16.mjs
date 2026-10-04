@@ -126,7 +126,9 @@ for (const name of readdirSync(gamesDir, { withFileTypes: true })) {
   if (!name.isDirectory()) continue
   const at = path.join(gamesDir, name.name)
   const meta = JSON.parse(readFileSync(path.join(at, 'game.json'), 'utf8'))
-  const made = buildGame(readFileSync(path.join(at, 'game.s'), 'utf8'), meta)
+  const made = buildGame(readFileSync(path.join(at, 'game.s'), 'utf8'), meta, (file) =>
+    existsSync(path.join(at, file)) ? readFileSync(path.join(at, file), 'utf8') : null,
+  )
   if ('errors' in made) {
     for (const e of made.errors)
       console.error(`games/${name.name}/${e.file}:${e.line}: ${e.message}`)

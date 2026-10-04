@@ -20,6 +20,9 @@
  * Version 5 added PLAY-320's cartridge slot (cartridge.ts): after video's registers, whether
  * a cartridge is in it and, if so, its id, hash and bank counts; after the video memory, its
  * save RAM. Never its ROM: main has that on the shelf, and the page puts it back.
+ * Version 6 added mode 1's registers after video's (video.ts, TileState): the scrolls, LAYERS,
+ * LINECMP, LINE's flags and DMA's. Not what was written line by line: a restored machine's
+ * next frame is drawn afresh.
  */
 
 import { ByteReader, ByteWriter } from '../emu/bytes.js'
@@ -47,10 +50,10 @@ import {
   XRAM_MAX,
 } from './map.js'
 import { createState, type Elec16State, MIE_LINES, MIE_LINES_VIDEO } from './state.js'
-import { VCTRL_MASK, VIDEO_PAGES, VIDEO_SIZE } from './video.js'
+import { LAYERS_ALL, type TileState, VCTRL_MASK, VIDEO_PAGES, VIDEO_SIZE } from './video.js'
 
 const MAGIC = [0x45, 0x31, 0x36, 0x53] // "E16S"
-export const SNAPSHOT_VERSION = 5
+export const SNAPSHOT_VERSION = 6
 
 /** A halt's cause is kept as text, at most this long. */
 const CAUSE_MAX = 64
@@ -109,7 +112,10 @@ const HEAD =
 
 /** The longest snapshot there is, for whoever stores them to check against. */
 /** Video's registers: control, page, VBLANK, frame, fraction. */
-const VIDEO_HEAD = 1 + 1 + 1 + 2 + 8
+/** Mode 1's registers: four scrolls, LAYERS, LINECMP, LINE's flags, DMA's three and its flag. */
+const TILES_HEAD = 4 * 2 + 1 + 2 + 1 + 3 * 2 + 1
+
+const VIDEO_HEAD = 1 + 1 + 1 + 2 + 8 + TILES_HEAD
 
 /** The longest snapshot there is, for whoever stores them to check against. */
 /** The slot: id, hash, ROM banks, save RAM banks. */
@@ -177,6 +183,35 @@ function writeVideo(w: ByteWriter, v: Elec16State['video']): void {
   w.u8(v.pending ? 1 : 0)
   w.u16(v.frame)
   w.f64(v.fraction)
+  const t = v.tiles
+  for (const scroll of t.scroll) w.u16(scroll)
+  w.u8(t.layers)
+  w.u16(t.lineCmp)
+  w.u8((t.linePending ? 1 : 0) | (t.lineDone ? 2 : 0))
+  w.u16(t.dma.src)
+  w.u16(t.dma.dst)
+  w.u16(t.dma.len)
+  w.u8(t.dma.active ? 1 : 0)
+}
+
+/** Mode 1's registers, checked; its lines start from the cycles the machine has run. */
+function readTiles(r: ByteReader, s: Elec16State, t: TileState): boolean {
+  t.scroll = [r.u16(), r.u16(), r.u16(), r.u16()]
+  t.layers = r.u8()
+  t.lineCmp = r.u16()
+  const flags = r.u8()
+  t.linePending = (flags & 1) !== 0
+  t.lineDone = (flags & 2) !== 0
+  t.dma = { src: r.u16(), dst: r.u16(), len: r.u16(), active: r.u8() === 1 }
+  t.slept = 0
+  t.frameCycles = s.cycles
+  t.start = { scroll: [...t.scroll], layers: t.layers }
+  return (
+    t.scroll.every((v) => v < 512) &&
+    t.layers <= LAYERS_ALL &&
+    flags < 4 &&
+    (!t.dma.active || t.dma.len > 0)
+  )
 }
 
 /** The slot's head: whether a cartridge is in it, and its id (padded), hash and bank counts. */
@@ -361,6 +396,7 @@ function readVideo(r: ByteReader, s: Elec16State, version: number): boolean {
   v.pending = r.u8() === 1
   v.frame = r.u16()
   v.fraction = r.f64()
+  if (version >= 6 && !readTiles(r, s, v.tiles)) return false
   return v.ctrl <= VCTRL_MASK && v.page < VIDEO_PAGES && finite(v.fraction) && v.fraction < 1
 }
 

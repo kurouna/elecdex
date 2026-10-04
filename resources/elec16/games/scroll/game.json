@@ -1,0 +1,6 @@
+{
+  "id": "SCROLL",
+  "name": "ELEC-16 PLAY SCROLL",
+  "saveBanks": 0,
+  "about": "mode 1: tiles scrolled in two bands split by LINE, a sprite moved by the d-pad"
+}

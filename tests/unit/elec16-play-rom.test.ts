@@ -281,16 +281,19 @@ describe('a program the pane runs', () => {
 /** What is written, each row trimmed: the start screen centres its words. */
 const lines = (m: Elec16) => written(m).map((row) => row.trim())
 
-/** The bundled demo, built from its source as gen:elec16 builds it. */
-function demo(): Uint8Array {
-  const at = 'resources/elec16/games/demo/'
+/** A bundled game, built from its source as gen:elec16 builds it. */
+function game(name: string): Uint8Array {
+  const at = `resources/elec16/games/${name}/`
   const made = buildGame(
     readFileSync(`${at}game.s`, 'utf8'),
     JSON.parse(readFileSync(`${at}game.json`, 'utf8')),
+    (file) => (existsSync(at + file) ? readFileSync(at + file, 'utf8') : null),
   )
   if ('errors' in made) throw new Error(JSON.stringify(made.errors))
   return made.image
 }
+
+const demo = () => game('demo')
 
 /** A button pressed and let go, a frame apart. */
 function tap(m: Elec16, bit: number): void {
@@ -393,7 +396,7 @@ describe('the bundled demo', () => {
     const file = JSON.parse(readFileSync('resources/elec16/games/games.json', 'utf8')) as {
       games: { data: string; about: string }[]
     }
-    expect(file.games.map((g) => fromBase64(g.data))).toEqual([demo()])
+    expect(file.games.map((g) => fromBase64(g.data))).toEqual([demo(), game('scroll')])
     expect(readCart(demo())).toMatchObject({ id: 'DEMO', name: 'ELEC-16 PLAY DEMO', saveBanks: 0 })
   })
 
@@ -423,5 +426,44 @@ describe('the bundled demo', () => {
     m.brk()
     settle(m)
     expect(lines(m).at(-1) ?? '').toMatch(/^BREAK AT C[0-9A-F]{3}$/)
+  })
+})
+
+describe('the bundled SCROLL', () => {
+  /** Plays a frame, a millisecond at a time: VBLANK, the program's frame, its LINE. */
+  function frame(m: Elec16): void {
+    for (let ms = 0; ms < 17; ms++) {
+      m.advance(1)
+      settle(m)
+    }
+  }
+
+  it('starts mode 1, splits the scroll at line 144, moves its ship and goes back in mode 0', () => {
+    slot.image = game('scroll')
+    const m = switchOn()
+    m.pad(padBit('start'))
+    frame(m)
+    m.pad(0)
+    expect(m.state.cart?.id).toBe('SCROLL')
+    expect(m.bus.read16(VIDEO_REG.ctrl)).toBe(3)
+    for (let k = 0; k < 4; k++) frame(m)
+    const log = m.state.video?.tiles.last.log ?? []
+    const bg0x = log.filter((w) => w.which === 0)
+    // Each frame: the stars' scroll at the top, the wall's (twice as far) from line 144.
+    expect(bg0x.length).toBe(2)
+    expect(bg0x[0]?.line).toBeLessThan(10)
+    expect(bg0x[1]?.line).toBe(144)
+    // The stars at half the scroll the frame began with, the wall at the scroll moved on.
+    expect(bg0x[1]?.value).toBe(2 * (bg0x[0]?.value ?? 0) + 2)
+    const ship = () => [m.bus.read16(0x0304), m.bus.read16(0x0306)]
+    expect(ship()).toEqual([152, 200])
+    m.pad(padBit('left'))
+    for (let k = 0; k < 3; k++) frame(m)
+    m.pad(0)
+    frame(m)
+    expect(ship()[0]).toBeLessThan(152)
+    tap(m, padBit('start'))
+    expect(m.bus.read16(VIDEO_REG.ctrl)).toBe(1)
+    expect(lines(m)).toContain('PRESS START')
   })
 })

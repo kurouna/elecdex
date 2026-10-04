@@ -281,7 +281,7 @@ describe('a snapshot with extended RAM', () => {
     // ("breakpoint"), RAM, VRAM, the banks and the video memory.
     const cause = m.state.halt?.cause.length ?? 0
     // ...and the cartridge byte after video's registers.
-    const countAt = good.length - (0x8000 + 0x1800 + 2 * BANK_SIZE + 0x10000) - cause - 13 - 3
+    const countAt = good.length - (0x8000 + 0x1800 + 2 * BANK_SIZE + 0x10000) - cause - 32 - 3
     expect(good[countAt]).toBe(2)
     // One bank fewer: the bank shown is not there, and a bank's bytes are left over.
     const fewer = good.slice()

@@ -60,7 +60,7 @@ describe("PLAY-320's screen", () => {
     expect(pixel(out, BITMAP_WIDTH - 1, BITMAP_HEIGHT - 1)).toEqual([0, 0, 255, 255])
   })
 
-  it('is dark switched off or with the display off, and colour 0 alone in another mode', () => {
+  it('is dark switched off or with the display off, tiles in mode 1, and colour 0 alone in a mode there is not', () => {
     const v = withPalette()
     v.mem[0] = 0xff
     v.mem[PALETTE_AT] = 0x1f
@@ -71,6 +71,9 @@ describe("PLAY-320's screen", () => {
     v.ctrl = 0
     expect(screenShows(v, false)).toBe('dark')
     v.ctrl = VCTRL_ON | (VIDEO_MODE.tiles << VCTRL_MODE_SHIFT)
+    expect(screenShows(v, false)).toBe('tiles')
+    // Mode 2 is no mode: colour 0 alone.
+    v.ctrl = VCTRL_ON | (2 << VCTRL_MODE_SHIFT)
     expect(screenShows(v, false)).toBe('ground')
     paintPlay(v, false, out)
     expect(pixel(out, 0, 0)).toEqual([255, 0, 0, 255])

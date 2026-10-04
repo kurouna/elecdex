@@ -879,8 +879,9 @@ weather and calendar.
   binary files) and TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off).
   TUNE can also make a unit **PLAY-320**, the game model being built (*unreleased*, in progress:
   so far a 320×288 colour screen, its extended RAM, a start screen, a tall or wide body with twelve
-  buttons, the PC's keys and a gamepad, and cartridges: GAMES puts one from the shelf in, START plays
-  it; CODE runs a program on it). LINK is the panel's own tab, with a switch for each service.
+  buttons, the PC's keys and a gamepad, cartridges - GAMES puts one from the shelf in, START plays
+  it - and a tile engine with two scrolled backgrounds, 128 sprites, sixteen palettes, a line
+  interrupt and DMA; CODE runs a program on it). LINK is the panel's own tab, with a switch for each service.
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
   three levels of
   optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs

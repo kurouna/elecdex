@@ -202,7 +202,8 @@ describe('a snapshot with video', () => {
     const bytes = m.snapshot()
     expect(bytes.length).toBeLessThanOrEqual(SNAPSHOT_MAX_SIZE)
     const back = decodeSnapshot(bytes)?.video
-    expect(back).toEqual({ ...v, mem: expect.any(Uint8Array) })
+    // The tile engine's clock starts afresh on restore (elec16-tiles.test.ts has its registers).
+    expect(back).toEqual({ ...v, mem: expect.any(Uint8Array), tiles: expect.anything() })
     expect([back?.mem[0], back?.mem[VIDEO_SIZE - 1]]).toEqual([1, 2])
   })
 
@@ -214,7 +215,7 @@ describe('a snapshot with video', () => {
     // The video byte, then CTRL and PAGE, after the count of extended RAM banks.
     const cause = m.state.halt?.cause.length ?? 0
     // (The cartridge byte follows video's registers.)
-    const at = good.length - (0x8000 + 0x1800 + 0x10000) - cause - 13 - 2
+    const at = good.length - (0x8000 + 0x1800 + 0x10000) - cause - 32 - 2
     expect([good[at], good[at - 1]]).toEqual([1, 0])
     const broken = (k: number, value: number) => {
       const b = good.slice()

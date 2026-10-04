@@ -114,13 +114,14 @@ export const IRQ = {
   link: 4,
   vblank: 5,
   pad: 6,
+  line: 7,
   brk: 15,
 } as const
 
 /** The lines mie takes: TIMER, KEY, CARD, MATH and LINK (BRK is never masked). */
 export const MIE_LINES = 0x1f
-/** And VBLANK and PAD too, on PLAY-320: no other model's mie changes. */
-export const MIE_LINES_VIDEO = 0x7f
+/** And VBLANK, PAD and LINE too, on PLAY-320: no other model's mie changes. */
+export const MIE_LINES_VIDEO = 0xff
 
 /** The LCD's annunciators, as bits of ANNUN: the marks above the dots. */
 export const ANNUNCIATORS = [

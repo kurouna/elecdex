@@ -62,7 +62,17 @@ import {
   MISA,
   MPIE,
 } from './state.js'
-import { advanceVideo, msToFrame, resetVideo } from './video.js'
+import {
+  advanceVideo,
+  cyclesToLine,
+  DMA_CHUNK,
+  DMA_CYCLES,
+  FRAME_HZ,
+  FRAME_LINES,
+  lineStep,
+  msToFrame,
+  resetVideo,
+} from './video.js'
 
 /** What woke a sleeping machine may be waiting for: a key, or the timer in so many ms. */
 export interface Wake {
@@ -180,6 +190,9 @@ export class Elec16 implements Core {
 
   set hz(hz: number) {
     this.#hz = Math.min(MAX_HZ, Math.max(MIN_HZ, Math.round(hz)))
+    // A line of PLAY-320's screen is a 312th of a sixtieth of a second at this clock.
+    const v = this.s.video
+    if (v !== null) v.tiles.cyclesPerLine = this.#hz / FRAME_HZ / FRAME_LINES
   }
 
   /** Runs up to `cycles` cycles; stops early when the machine sleeps, halts or goes off. */
@@ -258,7 +271,20 @@ export class Elec16 implements Core {
     const s = this.s
     const t = s.timer
     s.time += ms
-    if (s.video !== null) advanceVideo(s.video, ms)
+    const v = s.video
+    if (v !== null) {
+      // Asleep, the beam goes on: the time given is cycles for the line it is on - up to
+      // LINECMP at most, where LINE wakes the machine on its line, not some lines after.
+      if (s.sleeping) {
+        const toLine = cyclesToLine(v.tiles, s.cycles)
+        const given = (ms * this.#hz) / 1000
+        // One cycle into the line: stopping exactly at its start can fall a hair short of it.
+        v.tiles.slept += toLine === null ? given : Math.min(given, toLine + 1)
+      }
+      // LINE before VBLANK: a step of time that crosses both does not lose this frame's LINE.
+      lineStep(v.tiles, s.cycles)
+      advanceVideo(v, ms, s.cycles)
+    }
     t.fraction += (ms * TIMER_HZ) / 1000
     const ticks = Math.floor(t.fraction)
     t.fraction -= ticks
@@ -540,6 +566,7 @@ export class Elec16 implements Core {
       (s.card.pending ? 1 << IRQ.card : 0) |
       (s.link.pending ? 1 << IRQ.link : 0) |
       (s.video?.pending === true ? 1 << IRQ.vblank : 0) |
+      (s.video?.tiles.linePending === true ? 1 << IRQ.line : 0) |
       ((s.pad?.hit ?? 0) !== 0 ? 1 << IRQ.pad : 0)
     )
   }
@@ -565,6 +592,10 @@ export class Elec16 implements Core {
       const taken = this.#interrupt()
       if (taken >= 0) return taken
     }
+    // DMA has the bus: it moves a chunk in place of an instruction, interrupts taken between -
+    // and while their handler runs it waits, going on after MRET.
+    const dma = s.video?.tiles.dma
+    if (dma?.active === true && !s.inTrap) return this.#dmaStep(dma)
     const pc = s.pc
     const inst = (pc < VRAM ? this.#code[pc] : undefined) ?? this.#fetch(pc)
     this.next = (pc + inst.size) & 0xffff
@@ -580,7 +611,29 @@ export class Elec16 implements Core {
     }
     s.cycles += cycles
     s.instret++
+    if (s.video !== null) lineStep(s.video.tiles, s.cycles)
     return cycles
+  }
+
+  /**
+   * One step of DMA: up to DMA_CHUNK bytes from the CPU's address space (read as it reads,
+   * without side effects) into video memory, the registers moved on, DMA_CYCLES spent.
+   */
+  #dmaStep(dma: { src: number; dst: number; len: number; active: boolean }): number {
+    const s = this.s
+    const mem = (s.video as NonNullable<Elec16State['video']>).mem
+    const n = Math.min(DMA_CHUNK, dma.len)
+    for (let k = 0; k < n; k++) {
+      mem[(dma.dst + k) & 0xffff] = this.bus.peek((dma.src + k) & 0xffff)
+    }
+    dma.src = (dma.src + n) & 0xffff
+    dma.dst = (dma.dst + n) & 0xffff
+    dma.len -= n
+    if (dma.len === 0) dma.active = false
+    s.screenRevision++
+    s.cycles += DMA_CYCLES
+    lineStep((s.video as NonNullable<Elec16State['video']>).tiles, s.cycles)
+    return DMA_CYCLES
   }
 
   /**
@@ -624,6 +677,20 @@ export class Elec16 implements Core {
     return TRAP_CYCLES
   }
 
+  /** How long until VBLANK or LINE wakes a sleeping machine, of the ones it enabled; or null. */
+  #videoWakeMs(v: NonNullable<Elec16State['video']>): number | null {
+    const mie = this.s.csr.mie
+    const times: number[] = []
+    if ((mie & (1 << IRQ.vblank)) !== 0 && !v.pending) times.push(msToFrame(v))
+    if ((mie & (1 << IRQ.line)) !== 0 && !v.tiles.linePending) {
+      // This frame's LINE still to come, or - come and gone - the next frame's, after VBLANK:
+      // never nothing, or a program waiting for it would be taken for idle and left asleep.
+      const toLine = cyclesToLine(v.tiles, this.s.cycles)
+      times.push(toLine === null ? msToFrame(v) : (toLine * 1000) / this.#hz)
+    }
+    return times.length === 0 ? null : Math.min(...times)
+  }
+
   /** Decodes the instruction at `pc` and keeps it, where code is kept. */
   #fetch(pc: number): Inst {
     const lo = this.bus.peek(pc) | (this.bus.peek(pc + 1) << 8)
@@ -649,10 +716,9 @@ export class Elec16 implements Core {
     const timerOn = (s.csr.mie & (1 << IRQ.timer)) !== 0 && t.enabled && !t.pending
     const ticks = ((t.compare - t.count) & 0xffff || 0x10000) - t.fraction
     const timerMs = timerOn ? (ticks * 1000) / TIMER_HZ : null
-    // VBLANK wakes it like the timer does: the page need only know how long it may sleep.
+    // VBLANK and LINE wake it like the timer does: the page need only know how long it may sleep.
     const v = s.video
-    const frameMs =
-      v !== null && (s.csr.mie & (1 << IRQ.vblank)) !== 0 && !v.pending ? msToFrame(v) : null
+    const frameMs = v !== null ? this.#videoWakeMs(v) : null
     return {
       key: (s.csr.mie & (1 << IRQ.key)) !== 0,
       timerMs: timerMs === null ? frameMs : frameMs === null ? timerMs : Math.min(timerMs, frameMs),
