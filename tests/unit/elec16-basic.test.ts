@@ -185,6 +185,19 @@ describe('BASIC', () => {
     expect(annunciated(m)).toContain('RUN')
   })
 
+  it('switches with MODE on the same line: the typed text rubbed out, no new prompt below', () => {
+    const m = switchOn()
+    for (let k = 0; k < 4; k++) press(m, keyCode('mode'))
+    // Once a fresh `>` a press, down the screen.
+    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', '26622 BYTES FREE', '>'])
+    type(m, 'PRINT 12')
+    press(m, keyCode('mode'))
+    expect(annunciated(m)).toContain('PRO')
+    expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', '26622 BYTES FREE', '>'])
+    type(m, 'PRINT 3\n')
+    expect(shown(m).slice(-3)).toEqual(['>PRINT 3', '3', '>'])
+  })
+
   it('keeps the program, not its variables, while switched off; RAM that holds none starts empty', () => {
     const m = switchOn('pocket-64')
     type(m, '10 PRINT "KEPT";A\nA=7\n')

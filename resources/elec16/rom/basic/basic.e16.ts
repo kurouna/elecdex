@@ -1604,6 +1604,8 @@ export function basicLoop(): void {
       continue
     }
     edited(n)
+    // MODE gave the line up where it was typed: the same prompt takes the next one.
+    if (n === EDIT_MODE) prompt = false
   }
 }
 
