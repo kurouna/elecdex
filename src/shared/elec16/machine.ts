@@ -42,6 +42,7 @@ import {
   ROM_MAX,
   VRAM,
 } from './map.js'
+import { PAD_ALL, setPad } from './pad.js'
 import { decodeSnapshot, encodeSnapshot } from './snapshot.js'
 import {
   CAUSE,
@@ -289,6 +290,19 @@ export class Elec16 implements Core {
   /** The pane lost the keyboard: every key goes up. */
   releaseAll(): void {
     this.s.keys.held.fill(0)
+    if (this.s.pad !== null) setPad(this.s.pad, 0)
+  }
+
+  /**
+   * PLAY-320's buttons held now (pad.ts bits): each that went down or up is marked for the
+   * program. A button pressed is a person's action, which lets LINK send again. Nothing on a
+   * model without a pad.
+   */
+  pad(held: number): void {
+    const p = this.s.pad
+    if (p === null) return
+    if ((held & ~p.held & PAD_ALL) !== 0) vouchLink(this.s)
+    setPad(p, held)
   }
 
   /**
@@ -311,6 +325,7 @@ export class Elec16 implements Core {
     s.timer.enabled = false
     s.math.pending = false
     if (s.video !== null) resetVideo(s.video)
+    if (s.pad !== null) s.pad.hit = 0
     s.stall = 0
     // A command out belonged to the program that is gone: its answer is not waited for.
     Object.assign(s.card, createCardState())
@@ -471,7 +486,8 @@ export class Elec16 implements Core {
       (s.math.pending ? 1 << IRQ.math : 0) |
       (s.card.pending ? 1 << IRQ.card : 0) |
       (s.link.pending ? 1 << IRQ.link : 0) |
-      (s.video?.pending === true ? 1 << IRQ.vblank : 0)
+      (s.video?.pending === true ? 1 << IRQ.vblank : 0) |
+      ((s.pad?.hit ?? 0) !== 0 ? 1 << IRQ.pad : 0)
     )
   }
 

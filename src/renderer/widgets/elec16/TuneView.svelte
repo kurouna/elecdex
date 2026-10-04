@@ -11,6 +11,7 @@ import {
 import { sfx } from '../../stores/sound.svelte.ts'
 import LinkTune from './LinkTune.svelte'
 import { BODY_MODES, type BodyMode, type Elec16Pane } from './pane-state.ts'
+import { PLAY_BODY_MODES, PLAY_SKINS } from './play-body.ts'
 import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
 
 /**
@@ -302,6 +303,47 @@ function pick<T>(now: T, next: T, apply: () => void): void {
         data-testid="elec16-contrast-up">+</button
       >
     </div>
+  </section>
+  {:else}
+  <section>
+    <h3>body</h3>
+    <div class="chips" role="radiogroup" aria-label="body">
+      {#each PLAY_BODY_MODES as b (b)}
+        <button
+          type="button"
+          class="e16-chip"
+          role="radio"
+          aria-checked={pane.playBody === b}
+          onclick={() => pick(pane.playBody, b, () => onchange({ playBody: b }))}
+          data-testid="elec16-play-body-mode"
+          data-body={b}>{b}</button
+        >
+      {/each}
+    </div>
+  </section>
+  <section>
+    <h3>colour</h3>
+    <div class="chips" role="radiogroup" aria-label="colour">
+      {#each PLAY_SKINS as c (c)}
+        <button
+          type="button"
+          class="e16-chip"
+          role="radio"
+          disabled={pane.playBody === 'screen'}
+          aria-checked={pane.playSkin === c}
+          onclick={() => pick(pane.playSkin, c, () => onchange({ playSkin: c }))}
+          data-testid="elec16-play-skin"
+          data-skin={c}>{c}</button
+        >
+      {/each}
+    </div>
+  </section>
+  <section>
+    <h3>buttons</h3>
+    <p class="note" data-testid="elec16-play-keys">
+      Arrows the d-pad, Z A, X B, S X, A Y, Q L, W R, Enter START, right Shift SELECT, Pause
+      BRK - while the pane has the focus. A gamepad with the standard layout presses them too.
+    </p>
   </section>
   {/if}
 </div>

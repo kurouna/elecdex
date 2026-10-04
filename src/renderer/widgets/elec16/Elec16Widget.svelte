@@ -7,6 +7,7 @@ import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
+import { onFrame } from '../../lib/frame-loop.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -23,6 +24,7 @@ import Device from './Device.svelte'
 import FilesView from './FilesView.svelte'
 import type { LcdColours, Rgb } from './lcd-painter.ts'
 import MemView from './MemView.svelte'
+import PlayDevice from './PlayDevice.svelte'
 import PlayScreen from './PlayScreen.svelte'
 import {
   ELEC16_TABS,
@@ -33,6 +35,7 @@ import {
 } from './pane-state.ts'
 import { claim, park } from './park.ts'
 import { kanaLit, pasteModes, pcKeyFate } from './pc-keys.ts'
+import { gamepadBits, playKeyFate } from './play-input.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
@@ -245,18 +248,61 @@ function power(): void {
 
 /** PC keys held, by their code, with the machine key each pressed. */
 const held = new Map<string, number>()
+/** On PLAY-320: PC keys held, by their code, with the pad button each pressed. */
+const padKeys = new Map<string, number>()
 
 // The keyboard left: every key goes up, as no key-up will come.
 $effect(() => {
   if (listening) return
   untrack(() => {
     held.clear()
+    padKeys.clear()
     runner.releaseAll()
   })
 })
 
+/** The pad buttons the PC's keys hold, together. */
+function keysHeld(): number {
+  let bits = 0
+  for (const bit of padKeys.values()) bits |= bit
+  return bits
+}
+
+/** A key on PLAY-320: a pad button (play-input.ts), BRK, or the app's. */
+function playKeyDown(event: KeyboardEvent): void {
+  const fate = playKeyFate(event)
+  if (fate.kind === 'pass') return
+  event.preventDefault()
+  if (fate.kind === 'brk') {
+    runner.brk()
+    return
+  }
+  padKeys.set(event.code, fate.bit)
+  runner.padFrom('keys', keysHeld())
+}
+
+// PLAY-320's gamepads, only while the pane is seen and has the focus: each tick the machine
+// runs (the runner reads them), and on the shared 10 fps loop while it sleeps.
+$effect(() => {
+  if (!play || !listening || !machineSeen) return
+  const read = () => gamepadBits(navigator.getGamepads?.() ?? [])
+  runner.gamepads = read
+  const stop = onFrame(() => {
+    if (runner.asleep) runner.padFrom('gamepad', read())
+  })
+  return () => {
+    stop()
+    runner.gamepads = null
+    runner.padFrom('gamepad', 0)
+  }
+})
+
 function onkeydown(event: KeyboardEvent): void {
   if (event.target !== root || !listening) return
+  if (play) {
+    playKeyDown(event)
+    return
+  }
   const fate = pcKeyFate(event, kanaLit(runner.annunciators))
   if (fate.kind === 'pass') return
   event.preventDefault()
@@ -269,6 +315,11 @@ function onkeydown(event: KeyboardEvent): void {
 }
 
 function onkeyup(event: KeyboardEvent): void {
+  if (padKeys.delete(event.code)) {
+    event.preventDefault()
+    runner.padFrom('keys', keysHeld())
+    return
+  }
   // A key goes up whatever else is held by then: the machine must never keep one down.
   const code = held.get(event.code)
   if (code === undefined) return
@@ -489,7 +540,9 @@ onDestroy(() => {
         <!-- One view whatever the model: switching to or from PLAY-320 swaps the screen in place,
              as another LCD does, rather than powering one off over the other. -->
         <div class="view crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower>
-          {#if play}
+          {#if play && pane.playBody !== 'screen'}
+            <PlayDevice {runner} shape={pane.playBody} skin={pane.playSkin} seen={visible} />
+          {:else if play}
             <PlayScreen {runner} seen={visible} />
           {:else}
           <Device

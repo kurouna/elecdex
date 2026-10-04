@@ -35,6 +35,7 @@ import {
   XRAM_BANK,
 } from './map.js'
 import { MATH_REG, mathRead, mathWrite } from './math-unit.js'
+import { PAD_REG, padRead, padWrite } from './pad.js'
 import { type Elec16State, KEY_FIFO_SIZE, KEY_ROWS } from './state.js'
 import { VIDEO_IO, VIDEO_IO_END, VIDEO_PAGE_SIZE, videoRead, videoWrite } from './video.js'
 
@@ -148,6 +149,11 @@ export class Bus {
       this.#ioWrite(a, value & 0xffff)
       return true
     }
+    // PLAY-320's registers take a word whole, as the I/O block's do (PADHIT has 12 bits).
+    if (this.#s.video !== null && a >= VIDEO_IO && a < VIDEO_IO_END) {
+      this.#gameIoWrite(a, value & 0xffff)
+      return true
+    }
     return this.#memWrite(a, value & 0xff) && this.#memWrite(a + 1, (value >>> 8) & 0xff)
   }
 
@@ -195,8 +201,26 @@ export class Bus {
     const v = this.#s.video as NonNullable<Elec16State['video']>
     if (a < VRAM + VIDEO_PAGE_SIZE) return v.mem[v.page * VIDEO_PAGE_SIZE + (a - VRAM)] ?? 0
     if (a < VIDEO_IO || a >= VIDEO_IO_END) return 0
-    const word = videoRead(v, a & 0xfffe)
+    const word = this.#gameIoRead(a & 0xfffe)
     return (a & 1) === 0 ? word & 0xff : word >>> 8
+  }
+
+  /** PLAY-320's registers at F800: video's, then the pad's at F810; the rest read 0. */
+  #gameIoRead(a: number): number {
+    const pad = this.#s.pad
+    if (a >= PAD_REG.held && a < PAD_REG.held + 16) return pad === null ? 0 : padRead(pad, a)
+    return videoRead(this.#s.video as NonNullable<Elec16State['video']>, a)
+  }
+
+  /** A word (or a byte, its high half zero) to one of PLAY-320's registers. */
+  #gameIoWrite(a: number, value: number): void {
+    const s = this.#s
+    const pad = s.pad
+    if (a >= PAD_REG.held && a < PAD_REG.held + 16) {
+      if (pad !== null) padWrite(pad, a, value)
+      return
+    }
+    if (videoWrite(s.video as NonNullable<Elec16State['video']>, a, value)) s.screenRevision++
   }
 
   /**
@@ -214,7 +238,7 @@ export class Bus {
         s.screenRevision++
       }
     } else if (a >= VIDEO_IO && a < VIDEO_IO_END && (a & 1) === 0) {
-      if (videoWrite(v, a, value)) s.screenRevision++
+      this.#gameIoWrite(a, value)
     }
   }
 

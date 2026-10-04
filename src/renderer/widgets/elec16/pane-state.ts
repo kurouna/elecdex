@@ -9,6 +9,7 @@ import { isCardName } from '@shared/elec16/card'
 import { TUNE_MODEL_IDS } from '@shared/elec16/map'
 import { ELEC16_CLOCKS, type Elec16UnitSeed, isUnitId } from '@shared/elec16-units'
 import { oneOf } from '../emu/format.js'
+import { PLAY_BODY_MODES, PLAY_SKINS, type PlayBodyMode, type PlaySkin } from './play-body.js'
 import { isSkinId, type SkinId } from './skins.js'
 
 export const ELEC16_TABS = ['core', 'mem', 'files', 'tune'] as const
@@ -44,6 +45,10 @@ export interface Elec16Pane {
   codeFile: string
   /** The optimisation level whose code CODE shows, runs and saves. */
   codeLevel: 0 | 1 | 2
+  /** PLAY-320's body (play-body.ts): chosen by the room, tall, wide, or the screen alone. */
+  playBody: PlayBodyMode
+  /** And its colours. */
+  playSkin: PlaySkin
 }
 
 /** `skin` is a new pane's: the setting's, until the pane is given its own. */
@@ -70,6 +75,8 @@ export function readElec16Pane(
         ? s.codeFile
         : CODE_FILE,
     codeLevel: s.codeLevel === 0 || s.codeLevel === 1 ? s.codeLevel : 2,
+    playBody: oneOf(s.playBody, PLAY_BODY_MODES, 'auto'),
+    playSkin: oneOf(s.playSkin, PLAY_SKINS, 'graphite'),
   }
 }
 

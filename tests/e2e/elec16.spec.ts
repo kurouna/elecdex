@@ -773,3 +773,62 @@ test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, CO
     await close()
   }
 })
+
+test("PLAY-320's body: its buttons pressed from the keys, the pointer and a program's view of them", async () => {
+  // docs/elec16-play.md, G3: the tall or wide body, the twelve buttons drawn pressed from any
+  // source, and PAD read by a program; the screen alone as the fourth choice.
+  test.setTimeout(180_000)
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) =>
+      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    const body = page.getByTestId('elec16-play-body')
+    await expect(body).toBeVisible()
+    await expect(body).toHaveAttribute('data-skin', 'graphite')
+    await expect(page.getByTestId('elec16-pad-button')).toHaveCount(12)
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+
+    // A program that waits until a button is held, then writes PAD in hex.
+    await page.getByTestId('elec16-view-toggle').click()
+    await page
+      .getByTestId('elec16-source')
+      .fill(
+        'export function main(): void {\n  cls()\n  let p: u16 = 0\n  while (p === 0) p = peek16(0xf810)\n  puthex(p)\n}\n',
+      )
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 60_000 })
+    await page.getByTestId('elec16-run').click()
+    await expect(page.getByTestId('elec16-code-view')).toHaveCount(0)
+    await page.getByTestId('elec16').focus()
+    const button = (name: string) =>
+      page.locator(`[data-testid=elec16-pad-button][data-button=${name}]`)
+    await page.keyboard.down('z')
+    await expect(button('a')).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(() => playLines(page)).toContain('0010')
+    await page.keyboard.up('z')
+    await expect(button('a')).toHaveAttribute('aria-pressed', 'false')
+
+    // The pointer holds a button while it is down, and the pane keeps the keys.
+    const start = button('start')
+    await start.hover()
+    await page.mouse.down()
+    await expect(start).toHaveAttribute('aria-pressed', 'true')
+    await page.mouse.up()
+    await expect(start).toHaveAttribute('aria-pressed', 'false')
+
+    // The wide body, another colour, and the screen alone.
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=wide]').click()
+    await expect(body).toHaveAttribute('data-body', 'wide')
+    await page.locator('[data-testid=elec16-play-skin][data-skin=coral]').click()
+    await expect(body).toHaveAttribute('data-skin', 'coral')
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
+    await expect(body).toHaveCount(0)
+    await expect(page.getByTestId('elec16-play-screen')).toBeVisible()
+  } finally {
+    await close()
+  }
+})

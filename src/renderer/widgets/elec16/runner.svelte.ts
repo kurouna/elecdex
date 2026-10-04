@@ -22,6 +22,9 @@ import { browserLoop, EmuRunner, type PauseReason, type RunStatus } from '../emu
 
 export type { PauseReason, RunStatus }
 
+/** Where PLAY-320's buttons are pressed from. */
+export type PadSource = 'body' | 'keys' | 'gamepad'
+
 export interface Elec16Host extends LoopHost {
   /** The time and date for the machine's CLOCK. */
   clock(): ClockFields
@@ -95,6 +98,13 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   autoOffMs = 0
   /** Switched off by auto power-off (the pane keeps the battery backup, as for the switch). */
   onAutoOff: (() => void) | null = null
+  /** PLAY-320's buttons held, all sources together: the body draws them pressed. */
+  padHeld = $state(0)
+  /**
+   * The gamepads' buttons, read each tick while the machine runs (the pane sets it only while
+   * it is seen and has the focus); null reads none.
+   */
+  gamepads: (() => number) | null = null
 
   readonly #host: Elec16Host
   /** MAX: as many cycles as the budget allows. Shared with the loop, built before `this`. */
@@ -107,6 +117,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #offTimer: number | null = null
   /** Who waits for the machine to fall asleep at its prompt (CODE's RUN and LOAD). */
   #sleepers: (() => void)[] = []
+  /** PLAY-320's buttons by where they come from: they are held together (docs/elec16-play.md). */
+  #padFrom: Record<PadSource, number> = { body: 0, keys: 0, gamepad: 0 }
   /** The loop's policy: how often it draws is the model's (PLAY-320 sixty times a second). */
   readonly #policy: TimedPolicy
 
@@ -128,6 +140,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #fit(model: ModelId): void {
     this.model = model
     this.#policy.drawMs = drawMsOf(model)
+    // Another machine: what was held was held on the last one.
+    this.#padFrom = { body: 0, keys: 0, gamepad: 0 }
+    if (this.padHeld !== 0) this.padHeld = 0
   }
 
   get #timed(): TimedLoop<Elec16> {
@@ -212,6 +227,24 @@ export class Elec16Runner extends EmuRunner<Elec16> {
 
   releaseAll(): void {
     this.machine?.releaseAll()
+    this.#padFrom = { body: 0, keys: 0, gamepad: 0 }
+    if (this.padHeld !== 0) this.padHeld = 0
+  }
+
+  /**
+   * PLAY-320's buttons `bits` held from one source (the body's buttons, the PC's keys, the
+   * gamepads); the machine is given them all together, and woken when they changed.
+   */
+  padFrom(source: PadSource, bits: number): void {
+    if (this.#padFrom[source] === bits) return
+    this.#padFrom[source] = bits
+    const held = this.#padFrom.body | this.#padFrom.keys | this.#padFrom.gamepad
+    if (held === this.padHeld) return
+    this.padHeld = held
+    const machine = this.machine
+    if (machine === null) return
+    machine.pad(held)
+    this.#timed.wake()
   }
 
   /**
@@ -390,6 +423,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   }
 
   protected override afterFrames(machine: Elec16): void {
+    // The gamepads each tick the machine runs; asleep, the pane reads them on the 10 fps loop.
+    if (this.gamepads !== null) this.padFrom('gamepad', this.gamepads())
     // Stopped at a breakpoint: paused as by the player, for CORE to look and STEP or go on.
     if (machine.breakAt !== null && this.pausedBy === null) {
       this.pause('player')

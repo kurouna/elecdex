@@ -330,6 +330,17 @@ describe('the body and the pane', () => {
       view: 'machine',
       codeFile: 'MAIN.TS',
       codeLevel: 2,
+      playBody: 'auto',
+      playSkin: 'graphite',
+    })
+    // PLAY-320's body and colours, each one of its own list.
+    expect(readElec16Pane({ playBody: 'wide', playSkin: 'coral' })).toMatchObject({
+      playBody: 'wide',
+      playSkin: 'coral',
+    })
+    expect(readElec16Pane({ playBody: 'full', playSkin: 'night' })).toMatchObject({
+      playBody: 'auto',
+      playSkin: 'graphite',
     })
     // CODE's file is a .TS card name, its level 0 to 2.
     expect(readElec16Pane({ view: 'code', codeFile: 'GAME.TS', codeLevel: 0 })).toMatchObject({

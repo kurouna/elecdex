@@ -92,6 +92,8 @@ export interface Model {
    * games, sixty (docs/elec16-play.md section 4).
    */
   drawHz: 30 | 60
+  /** It has the pad of twelve buttons (PLAY-320, docs/elec16-play.md section 6). */
+  pad: boolean
 }
 
 export const MODELS: Readonly<Record<ModelId, Model>> = {
@@ -104,6 +106,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     video: false,
     rom: 'pocket',
     drawHz: 30,
+    pad: false,
   },
   'pocket-48': {
     id: 'pocket-48',
@@ -114,6 +117,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     video: false,
     rom: 'pocket',
     drawHz: 30,
+    pad: false,
   },
   'pocket-64': {
     id: 'pocket-64',
@@ -124,6 +128,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     video: false,
     rom: 'pocket',
     drawHz: 30,
+    pad: false,
   },
   'handheld-160': {
     id: 'handheld-160',
@@ -134,6 +139,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     video: false,
     rom: 'pocket',
     drawHz: 30,
+    pad: false,
   },
   'play-320': {
     id: 'play-320',
@@ -144,6 +150,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     video: true,
     rom: 'play',
     drawHz: 60,
+    pad: true,
   },
 }
 

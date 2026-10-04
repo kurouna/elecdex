@@ -3,6 +3,7 @@ import { BITMAP_HEIGHT, BITMAP_WIDTH } from '@shared/elec16/video'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { deviceRoom, type Room } from '../emu/screen.ts'
+import { playScale } from './play-body.ts'
 import { paintPlay, playText, screenShows } from './play-painter.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
 
@@ -20,23 +21,29 @@ interface Props {
   runner: Elec16Runner
   /** The pane is seen: the text is read only then. */
   seen: boolean
+  /**
+   * Device pixels a dot, when a body has sized the screen (PlayDevice.svelte, play-body.ts);
+   * without it, the screen fits the room it is given.
+   */
+  fixed?: { scale: number; ratio: number } | undefined
 }
 
-const { runner, seen }: Props = $props()
+const { runner, seen, fixed }: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
 let canvas = $state<HTMLCanvasElement | null>(null)
 let room = $state<Room>({ w: 0, h: 0, ratio: 1 })
 let text = $state('')
 
-/** Device pixels a dot: a whole number where it fits, else as much as fits. */
+/** Device pixels a dot: the body's, or a whole number where it fits, else as much as fits. */
 const scale = $derived.by(() => {
-  const most = Math.min(room.w / BITMAP_WIDTH, room.h / BITMAP_HEIGHT)
-  return most >= 1 ? Math.floor(most) : Math.max(most, 0.1)
+  if (fixed !== undefined) return fixed.scale
+  return playScale(room, BITMAP_WIDTH, BITMAP_HEIGHT)
 })
+const ratio = $derived(fixed?.ratio ?? room.ratio)
 const css = $derived({
-  w: (BITMAP_WIDTH * scale) / room.ratio,
-  h: (BITMAP_HEIGHT * scale) / room.ratio,
+  w: (BITMAP_WIDTH * scale) / ratio,
+  h: (BITMAP_HEIGHT * scale) / ratio,
 })
 
 let ctx: CanvasRenderingContext2D | null = null
@@ -47,7 +54,7 @@ let readAt = -1
 
 $effect(() => {
   const el = host
-  if (el === null) return
+  if (el === null || fixed !== undefined) return
   const observer = new ResizeObserver((entries) => {
     const entry = entries[entries.length - 1]
     if (entry === undefined) return
@@ -121,7 +128,7 @@ $effect(() => {
 })
 </script>
 
-<div class="play" data-testid="elec16-play">
+<div class="play" class:fixed={fixed !== undefined} data-testid="elec16-play">
   <div class="room" bind:this={host}>
     <canvas
       bind:this={canvas}
@@ -142,6 +149,10 @@ $effect(() => {
   min-width: 0;
   min-height: 0;
   height: 100%;
+}
+
+.play.fixed {
+  height: auto;
 }
 
 .room {
