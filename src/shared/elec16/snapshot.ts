@@ -23,9 +23,13 @@
  * Version 6 added mode 1's registers after video's (video.ts, TileState): the scrolls, LAYERS,
  * LINECMP, LINE's flags and DMA's. Not what was written line by line: a restored machine's
  * next frame is drawn afresh.
+ * Version 7 added PLAY-320's sound (apu.ts) after the slot's head: whether it has it and, if
+ * so, the channel chosen, the master and each channel's settings. Not whether a channel is
+ * held: a restored machine has every channel let go, as it has every key up.
  */
 
 import { ByteReader, ByteWriter } from '../emu/bytes.js'
+import { CHANNELS } from './apu.js'
 import { CARD_STATUS } from './card.js'
 import {
   CART_ID,
@@ -53,7 +57,7 @@ import { createState, type Elec16State, MIE_LINES, MIE_LINES_VIDEO } from './sta
 import { LAYERS_ALL, type TileState, VCTRL_MASK, VIDEO_PAGES, VIDEO_SIZE } from './video.js'
 
 const MAGIC = [0x45, 0x31, 0x36, 0x53] // "E16S"
-export const SNAPSHOT_VERSION = 6
+export const SNAPSHOT_VERSION = 7
 
 /** A halt's cause is kept as text, at most this long. */
 const CAUSE_MAX = 64
@@ -117,9 +121,13 @@ const TILES_HEAD = 4 * 2 + 1 + 2 + 1 + 3 * 2 + 1
 
 const VIDEO_HEAD = 1 + 1 + 1 + 2 + 8 + TILES_HEAD
 
-/** The longest snapshot there is, for whoever stores them to check against. */
 /** The slot: id, hash, ROM banks, save RAM banks. */
 const CART_SLOT_HEAD = CART_ID_LENGTH + DIGEST_LENGTH + 1 + 1
+
+/** The sound: its byte, CHSEL and MASTER, and each channel's WAVE, FREQ, VOL, PAN, ENV and MOD. */
+const APU_HEAD = 1 + 1 + 1 + CHANNELS * (1 + 2 + 1 + 1 + 2 + 2)
+
+/** The longest snapshot there is, for whoever stores them to check against. */
 
 export const SNAPSHOT_MAX_SIZE =
   HEAD +
@@ -130,7 +138,8 @@ export const SNAPSHOT_MAX_SIZE =
   VIDEO_HEAD +
   VIDEO_SIZE +
   CART_SLOT_HEAD +
-  CART_MAX_SAVE_BANKS * BANK_SIZE
+  CART_MAX_SAVE_BANKS * BANK_SIZE +
+  APU_HEAD
 
 const FLAG = { inTrap: 1, sleeping: 2, off: 4, brk: 8, halted: 16 } as const
 
@@ -139,7 +148,14 @@ export function encodeSnapshot(s: Elec16State): Uint8Array {
   const video = s.video === null ? 0 : VIDEO_HEAD + VIDEO_SIZE
   const cart = s.cart === null ? 0 : CART_SLOT_HEAD + s.cart.save.length
   const w = new ByteWriter(
-    HEAD + cause.length + RAM_SIZE + VRAM_WINDOW + s.xram.length + video + cart,
+    HEAD +
+      cause.length +
+      RAM_SIZE +
+      VRAM_WINDOW +
+      s.xram.length +
+      video +
+      cart +
+      (s.apu === null ? 1 : APU_HEAD),
   )
   w.raw(MAGIC)
   w.u8(SNAPSHOT_VERSION)
@@ -165,6 +181,7 @@ export function encodeSnapshot(s: Elec16State): Uint8Array {
   const v = s.video
   writeVideo(w, v)
   writeSlot(w, s.cart)
+  writeApu(w, s.apu)
   w.raw(Array.from(cause, (ch) => ch.charCodeAt(0) & 0x7f))
   w.raw(s.ram)
   w.raw(s.vram)
@@ -212,6 +229,22 @@ function readTiles(r: ByteReader, s: Elec16State, t: TileState): boolean {
     flags < 4 &&
     (!t.dma.active || t.dma.len > 0)
   )
+}
+
+/** The sound's settings: its byte, then CHSEL, MASTER and each channel's. */
+function writeApu(w: ByteWriter, a: Elec16State['apu']): void {
+  w.u8(a === null ? 0 : 1)
+  if (a === null) return
+  w.u8(a.sel)
+  w.u8(a.master)
+  for (const c of a.ch) {
+    w.u8(c.wave)
+    w.u16(c.freq)
+    w.u8(c.vol)
+    w.u8(c.pan)
+    w.u16(c.env)
+    w.u16(c.mod)
+  }
 }
 
 /** The slot's head: whether a cartridge is in it, and its id (padded), hash and bank counts. */
@@ -379,7 +412,30 @@ function readExtras(r: ByteReader, s: Elec16State, version: number): boolean {
   const banks = version >= 3 ? r.u8() : 0
   if (banks * BANK_SIZE > MODELS[s.model].xramMax) return false
   s.xram = new Uint8Array(banks * BANK_SIZE)
-  return readVideo(r, s, version) && readSlot(r, s, version)
+  return readVideo(r, s, version) && readSlot(r, s, version) && readApu(r, s, version)
+}
+
+/** The sound's settings, the model's own: every channel let go. */
+function readApu(r: ByteReader, s: Elec16State, version: number): boolean {
+  // From before the sound: a PLAY-320 of then comes back with its sound as a new one's.
+  if (version < 7) return true
+  const has = r.u8()
+  const a = s.apu
+  if (has !== (a === null ? 0 : 1)) return false
+  if (a === null) return true
+  a.sel = r.u8()
+  a.master = r.u8()
+  for (const c of a.ch) {
+    c.wave = r.u8()
+    c.freq = r.u16()
+    c.vol = r.u8()
+    c.pan = r.u8()
+    c.env = r.u16()
+    c.mod = r.u16()
+  }
+  return (
+    a.sel < CHANNELS && a.master < 16 && a.ch.every((c) => c.wave < 16 && c.vol < 16 && c.pan < 16)
+  )
 }
 
 /**

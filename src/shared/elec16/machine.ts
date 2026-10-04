@@ -10,6 +10,7 @@
  * looks its cycles up in a table built once (docs/elec16.md section 4 has what was measured).
  */
 
+import { resetApu } from './apu.js'
 import { Bus, pressKey, releaseKey } from './bus.js'
 import {
   answerCard,
@@ -395,6 +396,7 @@ export class Elec16 implements Core {
     s.math.pending = false
     if (s.video !== null) resetVideo(s.video)
     if (s.pad !== null) s.pad.hit = 0
+    if (s.apu !== null) resetApu(s.apu)
     s.stall = 0
     // A command out belonged to the program that is gone: its answer is not waited for.
     Object.assign(s.card, createCardState())

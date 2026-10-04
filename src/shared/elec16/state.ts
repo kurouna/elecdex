@@ -3,6 +3,7 @@
  * debugger reads. The ROM is not here - it is the same for every unit, and given at boot.
  */
 
+import { type ApuState, createApuState } from './apu.js'
 import { type CardState, createCardState } from './card.js'
 import type { CartSlot } from './cartridge.js'
 import { createLinkState, type LinkState } from './link.js'
@@ -79,6 +80,8 @@ export interface Elec16State {
   pad: PadState | null
   /** The cartridge in PLAY-320's slot (cartridge.ts); null when none, and on other models. */
   cart: CartSlot | null
+  /** PLAY-320's sixteen-channel sound (apu.ts); null on a model without it. */
+  apu: ApuState | null
 }
 
 export const CSR_NAMES = {
@@ -188,5 +191,6 @@ export function createState(model: ModelId, xram = 0): Elec16State {
     video: MODELS[model].video ? createVideoState() : null,
     pad: MODELS[model].pad ? createPadState() : null,
     cart: null,
+    apu: MODELS[model].apu ? createApuState() : null,
   }
 }

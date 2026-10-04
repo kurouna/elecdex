@@ -15,6 +15,7 @@ import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import { watchRoom } from '../emu/screen.ts'
 import type { WidgetProps } from '../registry.ts'
+import { Elec16Apu } from './apu.ts'
 import { Elec16Buzzer } from './buzzer.ts'
 import CodeView from './CodeView.svelte'
 import CoreView from './CoreView.svelte'
@@ -65,10 +66,16 @@ const buzzer = new Elec16Buzzer({
   enabled: () => appearance.settings.sound.enabled,
   volume: () => appearance.settings.elec16.volume,
 })
+const apu = new Elec16Apu({
+  enabled: () => appearance.settings.sound.enabled,
+  volume: () => appearance.settings.elec16.volume,
+})
 const runner = new Elec16Runner({
   ...browserElec16Host,
   buzz: (freq, ms, mark) => buzzer.play(freq, ms, mark),
   hush: () => buzzer.silence(),
+  apu: (frame) => apu.play(frame),
+  hushApu: () => apu.silence(),
 })
 // A pane's id is its mount's for good (a moved pane is mounted again): the session takes it once.
 const session = new UnitSession(
@@ -422,6 +429,7 @@ onDestroy(() => {
   }
   runner.dispose()
   buzzer.dispose()
+  apu.dispose()
 })
 </script>
 

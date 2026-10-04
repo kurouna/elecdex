@@ -240,10 +240,11 @@ describe('the other models, as they were', () => {
       finish(m)
       const now = m.snapshot()
       for (const [version, fewer] of [
-        [4, 1],
-        [3, 2],
-        [2, 4],
-        [1, 4 + 14],
+        [6, 1],
+        [4, 2],
+        [3, 3],
+        [2, 5],
+        [1, 5 + 14],
       ] as const) {
         const older = olderSnapshot(now, version)
         expect(now.length - older.length).toBe(fewer)
@@ -281,7 +282,7 @@ describe('a snapshot with extended RAM', () => {
     // ("breakpoint"), RAM, VRAM, the banks and the video memory.
     const cause = m.state.halt?.cause.length ?? 0
     // ...and the cartridge byte after video's registers.
-    const countAt = good.length - (0x8000 + 0x1800 + 2 * BANK_SIZE + 0x10000) - cause - 32 - 3
+    const countAt = good.length - (0x8000 + 0x1800 + 2 * BANK_SIZE + 0x10000) - cause - 147 - 32 - 3
     expect(good[countAt]).toBe(2)
     // One bank fewer: the bank shown is not there, and a bank's bytes are left over.
     const fewer = good.slice()

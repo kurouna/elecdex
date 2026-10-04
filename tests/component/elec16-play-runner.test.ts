@@ -1,3 +1,4 @@
+import { APU_REG, type ApuFrame } from '@shared/elec16/apu'
 import { assemble, ramImage } from '@shared/elec16/asm'
 import { PAD_REG, padBit } from '@shared/elec16/pad'
 import { romFromFile } from '@shared/elec16/rom'
@@ -6,6 +7,7 @@ import { VIDEO_REG, VSTAT_VBLANK } from '@shared/elec16/video'
 import { describe, expect, it } from 'vitest'
 import { playText } from '../../src/renderer/widgets/elec16/play-painter'
 import playJson from '../../src/renderer/widgets/elec16/play-rom.json'
+import pocketJson from '../../src/renderer/widgets/elec16/rom.json'
 import { type Elec16Host, Elec16Runner } from '../../src/renderer/widgets/elec16/runner.svelte.ts'
 
 /**
@@ -54,9 +56,13 @@ function fakeHost() {
   return { host, advance, timers }
 }
 
-function setUp() {
+function setUp(sound: { frames: ApuFrame[]; hushed: number } = { frames: [], hushed: 0 }) {
   const clock = fakeHost()
-  const runner = new Elec16Runner(clock.host)
+  const runner = new Elec16Runner({
+    ...clock.host,
+    apu: (frame) => void sound.frames.push(frame),
+    hushApu: () => void sound.hushed++,
+  })
   runner.boot(ROM, 'play-320', 4_000_000, undefined, 128 * 1024)
   clock.advance(500)
   const lines = () => playText(runner.machine?.state.video?.mem ?? []).map((l) => l.trim())
@@ -202,5 +208,58 @@ describe('the runner with PLAY-320', () => {
     expect(runner.padHeld).toBe(0)
     runner.padFrom('body', padBit('l'))
     expect(runner.machine?.bus.read16(PAD_REG.held)).toBe(padBit('l'))
+  })
+
+  it('sends the sound once a frame that changed it, and again in full after a pause', async () => {
+    const sound = { frames: [] as ApuFrame[], hushed: 0 }
+    const { runner, advance } = setUp(sound)
+    sound.frames.length = 0
+    // Nothing written: nothing sent, however many frames go by.
+    advance(100)
+    expect(sound.frames).toEqual([])
+    run(
+      runner,
+      `
+      li t0, ${APU_REG.sel}
+      li t1, 2
+      sw t1, 0(t0)
+      li t0, ${APU_REG.freq}
+      li t1, 1760
+      sw t1, 0(t0)
+      li t0, ${APU_REG.key}
+      li t1, 1
+      sw t1, 0(t0)
+      ret`,
+    )
+    const back = runner.whenAsleep(1000)
+    advance(50)
+    await expect(back).resolves.toBe(true)
+    expect(sound.frames.length).toBe(1)
+    expect([
+      sound.frames[0]?.ch[2]?.freq,
+      sound.frames[0]?.ch[2]?.ons,
+      sound.frames[0]?.ch[2]?.gate,
+    ]).toEqual([1760, 1, true])
+    expect(sound.frames[0]?.tables.length).toBe(128)
+    advance(200)
+    expect(sound.frames.length).toBe(1)
+    runner.pause()
+    expect(sound.hushed).toBeGreaterThan(0)
+    runner.resume()
+    advance(50)
+    // Played on: the whole machine's sound again, the voices started afresh.
+    expect(sound.frames.length).toBe(2)
+  })
+})
+
+describe('the runner with a pocket model', () => {
+  it('sends no sound, the handheld neither: they have none', () => {
+    const frames: ApuFrame[] = []
+    const clock = fakeHost()
+    const runner = new Elec16Runner({ ...clock.host, apu: (f) => void frames.push(f) })
+    runner.boot(romFromFile(pocketJson) ?? new Uint8Array(), 'handheld-160', 4_000_000)
+    clock.advance(500)
+    expect(runner.machine?.state.apu).toBe(null)
+    expect(frames).toEqual([])
   })
 })

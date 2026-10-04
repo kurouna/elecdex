@@ -315,9 +315,9 @@ describe('LINK', () => {
   it('refuses a snapshot whose LINK is out of range', () => {
     const m = switchOn()
     const bytes = m.snapshot()
-    // LINK is the last of the devices, before the count of extended RAM banks, the video byte
-    // and the cartridge byte.
-    const at = bytes.length - (m.state.ram.length + m.state.vram.length) - 3 - 14
+    // LINK is the last of the devices, before the count of extended RAM banks, the video byte,
+    // the cartridge byte and the sound's.
+    const at = bytes.length - (m.state.ram.length + m.state.vram.length) - 4 - 14
     const broken = bytes.slice()
     // STATUS: past service, type, QUERY, REPLY and MAX.
     broken[at + 8] = 9

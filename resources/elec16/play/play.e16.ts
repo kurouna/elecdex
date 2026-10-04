@@ -45,6 +45,11 @@ export const PALETTE = 0xc400
 export const IO_BANK = 0xff04
 export const XRAM_BANK = 0x20
 export const XRAM_BANKS = 64
+/** The sound (shared/elec16/apu.ts): the channel chosen, its KEY, the master, how many. */
+export const APU_CHSEL = 0xf840
+export const APU_KEY = 0xf84e
+export const APU_MASTER = 0xf850
+export const APU_CHANNELS = 16
 
 /* ---------------- text ---------------- */
 
@@ -133,6 +138,16 @@ export function screenInit(): void {
   poke16(at + 4, COLOUR_2)
   poke16(at + 6, COLOUR_3)
   cls()
+}
+
+/** Every channel let go and the master full, whatever a game left sounding. */
+export function soundOff(): void {
+  for (let ch: u16 = 0; ch < APU_CHANNELS; ch++) {
+    poke16(APU_CHSEL, ch)
+    poke16(APU_KEY, 0)
+  }
+  poke16(APU_CHSEL, 0)
+  poke16(APU_MASTER, 15)
 }
 
 /** The screen cleared to the ground, the cursor at the top left. */

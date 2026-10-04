@@ -116,13 +116,22 @@ export function type(m: Elec16, text: string): void {
 const SNAPSHOT_BANK_AT = 4 + 1 + 1 + 32 + 2 + 14 + 1 + 2 + 1 + 8 + 8
 
 /**
- * Today's snapshot (version 5) of a machine without extended RAM, video or a cartridge, as an
- * older version wrote it (snapshot.ts): version 4 without the byte that says there is no
- * cartridge; version 3 also without the one that says there is no video; version 2 also with
- * the bank a byte and no count of extended RAM banks; version 1 also without LINK's 14 bytes.
+ * Today's snapshot (version 7) of a pocket machine - no extended RAM, video, cartridge or
+ * sound - as an older version wrote it (snapshot.ts): versions 5 and 6 without the byte that
+ * says there is no sound; version 4 also without the one that says there is no cartridge;
+ * version 3 also without the video's; version 2 also with the bank a byte and no count of
+ * extended RAM banks; version 1 also without LINK's 14 bytes.
  */
-export function olderSnapshot(now: Uint8Array, version: 1 | 2 | 3 | 4): Uint8Array {
+export function olderSnapshot(now: Uint8Array, version: 1 | 2 | 3 | 4 | 6): Uint8Array {
   const causeLength = now[SNAPSHOT_BANK_AT - 17] ?? 0
+  const apuAt = now.length - (0x8000 + 0x1800) - causeLength - 1
+  if (now[apuAt] !== 0) throw new Error('only a pocket machine')
+  if (version === 6) {
+    const older = new Uint8Array([...now.subarray(0, apuAt), ...now.subarray(apuAt + 1)])
+    older[4] = 6
+    return older
+  }
+  now = new Uint8Array([...now.subarray(0, apuAt), ...now.subarray(apuAt + 1)])
   const cartAt = now.length - (0x8000 + 0x1800) - causeLength - 1
   const videoAt = cartAt - 1
   const countAt = videoAt - 1

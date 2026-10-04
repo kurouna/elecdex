@@ -96,6 +96,8 @@ export interface Model {
   pad: boolean
   /** It has a cartridge slot (PLAY-320, docs/elec16-play.md section 7). */
   cart: boolean
+  /** It has the sixteen-channel sound (PLAY-320, docs/elec16-play.md section 5). */
+  apu: boolean
 }
 
 export const MODELS: Readonly<Record<ModelId, Model>> = {
@@ -110,6 +112,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     drawHz: 30,
     pad: false,
     cart: false,
+    apu: false,
   },
   'pocket-48': {
     id: 'pocket-48',
@@ -122,6 +125,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     drawHz: 30,
     pad: false,
     cart: false,
+    apu: false,
   },
   'pocket-64': {
     id: 'pocket-64',
@@ -134,6 +138,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     drawHz: 30,
     pad: false,
     cart: false,
+    apu: false,
   },
   'handheld-160': {
     id: 'handheld-160',
@@ -146,6 +151,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     drawHz: 30,
     pad: false,
     cart: false,
+    apu: false,
   },
   'play-320': {
     id: 'play-320',
@@ -158,6 +164,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     drawHz: 60,
     pad: true,
     cart: true,
+    apu: true,
   },
 }
 

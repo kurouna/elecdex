@@ -14,6 +14,7 @@
  * through the general path for loads, stores and calls).
  */
 
+import { APU_IO, APU_IO_END, apuRead, apuWrite } from './apu.js'
 import { CARD_REG, cardRead, cardWrite } from './card.js'
 import { CART_BANK, cartBankTaken, SAVE_BANK } from './cartridge.js'
 import type { Inst } from './isa.js'
@@ -209,6 +210,8 @@ export class Bus {
 
   /** PLAY-320's registers at F800: video's, then the pad's at F810; the rest read 0. */
   #gameIoRead(a: number): number {
+    const apu = this.#s.apu
+    if (a >= APU_IO && a < APU_IO_END) return apu === null ? 0 : apuRead(apu, a)
     const pad = this.#s.pad
     if (a >= PAD_REG.held && a < PAD_REG.held + 16) return pad === null ? 0 : padRead(pad, a)
     return videoRead(this.#s.video as NonNullable<Elec16State['video']>, a, this.#s.cycles)
@@ -217,6 +220,10 @@ export class Bus {
   /** A word (or a byte, its high half zero) to one of PLAY-320's registers. */
   #gameIoWrite(a: number, value: number): void {
     const s = this.#s
+    if (a >= APU_IO && a < APU_IO_END) {
+      if (s.apu !== null) apuWrite(s.apu, a, value)
+      return
+    }
     const pad = s.pad
     if (a >= PAD_REG.held && a < PAD_REG.held + 16) {
       if (pad !== null) padWrite(pad, a, value)

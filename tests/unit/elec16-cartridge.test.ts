@@ -220,7 +220,7 @@ describe('a snapshot with a cartridge', () => {
     // The slot follows video's registers: the byte, the id, the hash, the bank counts.
     const save = 2 * BANK_SIZE
     const cause = m.state.halt?.cause.length ?? 0
-    const at = good.length - (0x8000 + 0x1800 + 0x10000 + save) - cause - (1 + 16 + 32 + 2)
+    const at = good.length - (0x8000 + 0x1800 + 0x10000 + save) - cause - 147 - (1 + 16 + 32 + 2)
     expect(good[at]).toBe(1)
     const broken = (k: number, v: number) => {
       const b = good.slice()
@@ -242,9 +242,10 @@ describe('a snapshot with a cartridge', () => {
     // Version 4: the same without mode 1's 19 bytes after video's registers and the cartridge
     // byte, just before the halt's cause.
     const cause = m.state.halt?.cause.length ?? 0
-    const at = now.length - (0x8000 + 0x1800 + 0x10000) - cause - 1
+    // (And without the sound's 147 bytes after it.)
+    const at = now.length - (0x8000 + 0x1800 + 0x10000) - cause - 147 - 1
     expect(now[at]).toBe(0)
-    const v4 = new Uint8Array([...now.subarray(0, at - 19), ...now.subarray(at + 1)])
+    const v4 = new Uint8Array([...now.subarray(0, at - 19), ...now.subarray(at + 1 + 147)])
     v4[4] = 4
     expect(decodeSnapshot(v4)?.cart).toBeNull()
   })

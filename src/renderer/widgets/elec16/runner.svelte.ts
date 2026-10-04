@@ -1,3 +1,4 @@
+import { type ApuFrame, apuFrame } from '@shared/elec16/apu'
 import { CARD_STATUS, type CardAnswer, type CardRequest } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
 import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
@@ -32,6 +33,10 @@ export interface Elec16Host extends LoopHost {
   buzz?(freq: number, ms: number, mark: string): void
   /** The buzzer quiet at once. */
   hush?(): void
+  /** PLAY-320's sixteen channels, once a frame that changed them. */
+  apu?(frame: ApuFrame): void
+  /** Every channel quiet at once. */
+  hushApu?(): void
 }
 
 export const browserElec16Host: Elec16Host = {
@@ -117,6 +122,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #offTimer: number | null = null
   /** Who waits for the machine to fall asleep at its prompt (CODE's RUN and LOAD). */
   #sleepers: (() => void)[] = []
+  /** The revision of PLAY-320's sound last sent to the page's synth. */
+  #apuSent = -1
   /** PLAY-320's buttons by where they come from: they are held together (docs/elec16-play.md). */
   #padFrom: Record<PadSource, number> = { body: 0, keys: 0, gamepad: 0 }
   /** The loop's policy: how often it draws is the model's (PLAY-320 sixty times a second). */
@@ -400,6 +407,9 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   /** Paused, out of sight, stopped: the buzzer too, and auto power-off waits no more. */
   protected override silence(): void {
     this.#host.hush?.()
+    this.#host.hushApu?.()
+    // Sent again in full when it plays on: the voices start afresh.
+    this.#apuSent = -1
     this.#disarmOff()
   }
 
@@ -434,6 +444,12 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     const b = machine.state.buzzer
     const left = b.gate ? Number.POSITIVE_INFINITY : b.duration - (machine.state.time - b.started)
     this.#host.buzz?.(b.freq, left, `${b.freq}:${b.gate}:${b.started}`)
+    const apu = machine.state.apu
+    const video = machine.state.video
+    if (apu !== null && video !== null && apu.revision !== this.#apuSent) {
+      this.#apuSent = apu.revision
+      this.#host.apu?.(apuFrame(apu, video.mem))
+    }
     const request = machine.takeCardRequest()
     if (request !== null) void this.#relay(machine, request)
     const dropped = machine.takeLinkDrop()

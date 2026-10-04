@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { compilePlay, playRomFile } from '@shared/e16c/play-rom'
+import { APU_REG, CHANNELS } from '@shared/elec16/apu'
 import { assemble, ramImage } from '@shared/elec16/asm'
 import { buildGame } from '@shared/elec16/cart-build'
 import { CART_BANK, readCart } from '@shared/elec16/cartridge'
@@ -136,6 +137,10 @@ describe('the PLAY ROM file', () => {
     expect(constant('IO_BANK')).toBe(0xff04)
     expect(constant('XRAM_BANK')).toBe(XRAM_BANK)
     expect(constant('XRAM_BANKS')).toBe(XRAM_MAX / BANK_SIZE)
+    expect(constant('APU_CHSEL')).toBe(APU_REG.sel)
+    expect(constant('APU_KEY')).toBe(APU_REG.key)
+    expect(constant('APU_MASTER')).toBe(APU_REG.master)
+    expect(constant('APU_CHANNELS')).toBe(CHANNELS)
     expect(constant('COLS')).toBe(Math.floor(BITMAP_WIDTH / 6))
     expect(constant('ROWS')).toBe(BITMAP_HEIGHT / 8)
   })
@@ -341,6 +346,27 @@ describe('the cartridge on the start screen', () => {
     tap(m, padBit('start'))
     expect(lines(m)).toContain('ELEC-16 PLAY')
     expect(lines(m)).toContain('PRESS START')
+  })
+
+  it('rings a note of the colour on channel 0 with A in DEMO, placed where the square is', () => {
+    slot.image = demo()
+    const m = switchOn()
+    tap(m, padBit('start'))
+    const c = m.state.apu?.ch[0]
+    expect(c?.ons).toBe(0)
+    tap(m, padBit('a'))
+    // Colour 3 to 0, then on to 1: C6, in the middle of the screen.
+    expect([c?.ons, c?.wave, c?.freq, c?.pan, c?.env]).toEqual([1, 4, 4186, 7, 0x80a1])
+    tap(m, padBit('a'))
+    expect([c?.ons, c?.freq]).toEqual([2, 5274])
+    // Leaving the game lets every channel go, and a game's MASTER is put back.
+    m.bus.write16(APU_REG.sel, 9)
+    m.bus.write16(APU_REG.key, 1)
+    m.bus.write16(APU_REG.master, 4)
+    tap(m, padBit('start'))
+    expect(lines(m)).toContain('PRESS START')
+    expect(m.state.apu?.ch.map((x) => x.gate)).toEqual(Array(16).fill(false))
+    expect([m.state.apu?.ch[9]?.offs, m.state.apu?.master, m.state.apu?.sel]).toEqual([1, 15, 0])
   })
 
   it('stays on the start screen saying why when START finds no cartridge', () => {

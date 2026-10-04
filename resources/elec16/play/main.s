@@ -62,11 +62,13 @@ start:
 ; start screen says why and waits again.
 boot:
   li sp, STACK_TOP
-  ; The screen as the ROM draws it - mode 0, its palette - whatever a game left it as.
+  ; The screen as the ROM draws it - mode 0, its palette - whatever a game left it as, and
+  ; no note of the game's left sounding.
   addi sp, sp, -4
   sw a0, 0(sp)
   sw a1, 2(sp)
   call screenInit
+  call soundOff
   lw a0, 0(sp)
   lw a1, 2(sp)
   addi sp, sp, 4
