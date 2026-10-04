@@ -139,6 +139,15 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     await settled()
   }
 
+  /** The tab named `label` brought to the front of its group, as a hand does. */
+  async function toTab(label) {
+    say(`tab: ${label}`)
+    await press(page.getByTestId('tab').filter({ hasText: label }))
+    await wait(300)
+    await settled()
+    await away()
+  }
+
   /** The layouts dialog: from the row of the layout in use one row down, Enter. */
   async function throughTheDialog(name) {
     say(`dialog: down to ${name}`)
@@ -367,6 +376,7 @@ export function beats({ app, page, wait, settled, theme, music = null }) {
     away,
     letGo,
     toLayout,
+    toTab,
     throughTheDialog,
     shellTypes,
     forward,

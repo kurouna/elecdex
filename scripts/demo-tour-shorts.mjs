@@ -13,8 +13,9 @@
  *               from the button, and the spectrum moving with them
  *   utility     a QR code typed, over the tasks
  *   keystream   the sample plugin over the processor's chart: a track typed on time
- *   chip8       the CHIP-8 library playing T8NKS by itself over the ELEC-16, loaded across the
- *               width (no panel), then paused; then the ELEC-16 runs SINEWAVE from its SOFT CARD
+ *   retro       the ELEC-16 and the CHIP-8 behind one tab strip over the spectrum, as the retro
+ *               preset has them: the ELEC-16 runs SINEWAVE from its SOFT CARD, then the CHIP-8
+ *               library plays T8NKS by itself, loaded across the width (no panel), then paused
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, on the shells
  *
@@ -84,19 +85,24 @@ const LAYOUTS = [
   ],
   ['utility', () => stack(pane('utility', { module: 'qr', qrKind: 'url' }), pane('todo'), 0.6)],
   ['keystream', () => stack(keystreamPane(`v${nextId++}`), pane('cpu'), 0.74)],
+  // As the retro preset has them: the two machines behind one tab strip, the ELEC-16 in front,
+  // the spectrum at sixteen bands under them.
   [
-    'chip8',
+    'retro',
     () =>
       stack(
-        pane('chip8', {
-          view: 'library',
-          filter: 'action',
-          program: 'archive/t8nks',
-          panel: false,
-          listShare: 0.42,
-        }),
-        pane('elec16', { skin: 'classic', panel: false }),
-        0.5,
+        tabs(
+          pane('elec16', { skin: 'classic', panel: false }),
+          pane('chip8', {
+            view: 'library',
+            filter: 'action',
+            program: 'archive/t8nks',
+            panel: false,
+            listShare: 0.42,
+          }),
+        ),
+        pane('spectrum', { bands: 16 }),
+        0.7,
       ),
   ],
   // The tenth: past the number keys, reached through the layouts dialog, one row down.
@@ -157,9 +163,10 @@ await run(async () => {
     previews: [],
     play: 10_000,
   })
-  await beat.toLayout(slot('chip8'), 'chip8')
-  await beat.chip8(2200, { mem: false })
+  await beat.toLayout(slot('retro'), 'retro')
   await beat.elec16(3500)
+  await beat.toTab('CHIP-8')
+  await beat.chip8(2200, { mem: false })
   await beat.throughTheDialog('council')
   await wait(800)
   await beat.councilSits(4000)

@@ -11,8 +11,9 @@
  *               then FEVER CALL from the next button, the spectrum moving with what is heard
  *   desk        copies landing in the clipboard history, a QR code typed
  *   keystream   the sample plugin: its menu previewing a track, then a track typed on time
- *   chip8       the CHIP-8 library playing T8NKS by itself, loaded, then paused on MEM; under
- *               it the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT CARD and run
+ *   retro       the retro preset: the ELEC-16 pocket computer, SINEWAVE loaded from its SOFT
+ *               CARD and run; then the CHIP-8 behind its tab, its library playing T8NKS by
+ *               itself, loaded, then paused on MEM
  *   council     the ELEC system pane: a motion put, three units voting (a stand-in model)
  *   themes      every built-in theme in turn, back to Tron
  *
@@ -45,7 +46,7 @@ const ORDER = ['standard', 'network', 'earth', 'dev', 'media', 'desk']
 const council = await startCouncil()
 const music = prepareMusic()
 
-/* ---- The saved layouts: the six presets, the council, KEYSTREAM, then CHIP-8 ---- */
+/* ---- The saved layouts: the six presets, the council, KEYSTREAM, then retro ---- */
 
 let nextId = 0
 const pane = (widget) => ({ kind: 'pane', id: `t${nextId++}`, widget })
@@ -84,32 +85,6 @@ const keystreamTree = {
   root: split('row', [councilTree.root.children[0], keystreamPane('tkeystream')], [0.18, 0.82]),
 }
 
-/**
- * The system column again, the CHIP-8 library open on T8NKS (chip8Archive, CC0), and the
- * ELEC-16 under it in the CLASSIC skin, its panel folded.
- */
-const chip8Tree = {
-  version: 1,
-  root: split(
-    'row',
-    [
-      councilTree.root.children[0],
-      split(
-        'column',
-        [
-          {
-            ...pane('chip8'),
-            state: { view: 'library', filter: 'action', program: 'archive/t8nks', panel: true },
-          },
-          { ...pane('elec16'), state: { skin: 'classic', panel: false } },
-        ],
-        [0.48, 0.52],
-      ),
-    ],
-    [0.18, 0.82],
-  ),
-}
-
 const { standIn } = await prepareData()
 const trees = await presetTrees(MAIN)
 const items = ORDER.map((id, i) => {
@@ -126,7 +101,19 @@ const items = ORDER.map((id, i) => {
 })
 items.push({ id: 'tourcouncil', name: 'council', tree: councilTree })
 items.push({ id: 'tourkeystream', name: 'keystream', tree: keystreamTree })
-items.push({ id: 'tourchip8', name: 'chip8', tree: chip8Tree })
+// The retro preset as it ships: the ELEC-16 in front in the CLASSIC skin, its panel folded, the
+// CHIP-8 behind its tab open on T8NKS (chip8Archive, CC0), the spectrum under them.
+const retro = trees.get('retro')
+if (retro === undefined) throw new Error('no preset retro in the built app')
+items.push({
+  id: 'tourretro',
+  name: 'retro',
+  preset: 'retro',
+  tree: withState(withDemoState(retro, standIn), {
+    elec16: { skin: 'classic', panel: false },
+    chip8: { view: 'library', filter: 'action', program: 'archive/t8nks', panel: true },
+  }),
+})
 
 if (!options.probe) {
   say(`the window opens in ${options.lead} s - start the recorder`)
@@ -192,9 +179,10 @@ await run(async () => {
   await beat.copies()
   await beat.qrCode()
   await beat.keystream(() => beat.toLayout(8, 'keystream'), { play: 12_000 })
-  await beat.toLayout(9, 'chip8')
-  await beat.chip8(2200)
+  await beat.toLayout(9, 'retro')
   await beat.elec16()
+  await beat.toTab('CHIP-8')
+  await beat.chip8(2200)
   await beat.toLayout(7, 'council')
   await wait(800)
   await beat.councilSits(4000)
