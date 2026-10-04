@@ -90,3 +90,28 @@ const used = built.symbols.e16c_fixed_end ?? built.symbols.rom_end ?? 0
 console.log(
   `rom.json: ${built.image.length} bytes, ${Object.keys(built.symbols).length} labels, fixed ROM to ${used.toString(16)}`,
 )
+
+// The PLAY ROM for PLAY-320 (resources/elec16/play, docs/elec16-play.md): its screen from
+// e16c into play.s, then assembled the same way, into play-rom.json.
+const { compilePlay } = await shared('e16c/play-rom.ts')
+const playSources = path.join(root, 'resources', 'elec16', 'play')
+const play = compilePlay((name) => readFileSync(path.join(playSources, name), 'utf8'))
+if (play.errors.length > 0) {
+  for (const e of play.errors) console.error(`${e.file}:${e.line}:${e.column}: ${e.message}`)
+  process.exit(1)
+}
+writeFileSync(path.join(playSources, 'play.s'), play.asm)
+const playBuilt = buildRom((name) => {
+  const file = path.join(playSources, name)
+  return existsSync(file) ? readFileSync(file, 'utf8') : null
+})
+if (playBuilt.errors.length > 0) {
+  for (const e of playBuilt.errors) console.error(`play/${e.file}:${e.line}: ${e.message}`)
+  process.exit(1)
+}
+writeFileSync(
+  path.join(root, 'src', 'renderer', 'widgets', 'elec16', 'play-rom.json'),
+  `${JSON.stringify(romFile(playBuilt), null, 2)}\n`,
+)
+const playUsed = playBuilt.symbols.e16c_fixed_end ?? playBuilt.symbols.rom_end ?? 0
+console.log(`play-rom.json: ${playBuilt.image.length} bytes, fixed ROM to ${playUsed.toString(16)}`)
