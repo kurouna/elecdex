@@ -392,3 +392,18 @@ export function signedQuotient(a: i16, b: i16): u16 {
   const q = idiv(a, b)
   return q < 0 ? 1000 + u16(-q) : u16(q)
 }
+
+/**
+ * A ?: of the numbers 0 and 1 is a number, as TypeScript has it: once a truth, which refused a
+ * 3 beside it in an outer ?:, a 7 put after into the variable it started, and an i16 argument.
+ */
+export function numberPicks(x: u16): u16 {
+  const r: u16 = x > 5 ? 1 | 2 : x > 2 ? 1 : 0
+  let k = x > 4 ? 1 : 0
+  k = k + 7
+  return r * 100 + k * 10 + u16(signedOne(x > 3 ? 0 : 1) + 1)
+}
+
+function signedOne(v: i16): i16 {
+  return v - 1
+}

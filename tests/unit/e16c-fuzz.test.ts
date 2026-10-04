@@ -52,6 +52,9 @@ function runMachine(asm: string, fn: string, args: number[], cycles = 5_000_000)
     asm,
   ].join('\n')
   const out = assemble(harness)
+  // A branch past 16 KB spans more than the harness's ROM holds: a program too big to test,
+  // which the assembler says before romImage can (seed 641 at -O0, 2,000 seeds).
+  if (out.errors.some((e) => /within 16 KB/.test(e.message))) return { ok: false, error: 'too big' }
   if (out.errors.length > 0)
     return { ok: false, error: `asm: ${out.errors.map((e) => e.message).join('; ')}` }
   let image: Uint8Array

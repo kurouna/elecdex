@@ -933,8 +933,7 @@ export class FnCompiler {
    */
   #eitherType(a: Typed, b: Typed, e: ts.Node): TypeRef {
     if (a.type.kind !== 'scalar' || b.type.kind !== 'scalar') return a.type
-    if (a.constant !== undefined && b.constant !== undefined)
-      return twoConstants(a.constant, b.constant, e)
+    if (a.constant !== undefined && b.constant !== undefined) return twoConstants(a, b, e)
     if (a.constant !== undefined) return constantBeside(a.constant, b.type, e)
     if (b.constant !== undefined) return constantBeside(b.constant, a.type, e)
     if (a.type.ty === b.type.ty) return a.type
@@ -1166,9 +1165,19 @@ export function readType(node: ts.TypeNode): TypeRef {
   )
 }
 
-/** A ?: of two constants: a truth (0 or 1), signed when either is negative, else a word. */
-function twoConstants(a: number, b: number, e: ts.Node): TypeRef {
-  if ((a === 0 || a === 1) && (b === 0 || b === 1)) return BOOL
+/**
+ * A ?: of two constants: a truth (true and false), a byte (both 0 to 255), signed when either
+ * is negative, else a word.
+ */
+function twoConstants(x: Typed, y: Typed, e: ts.Node): TypeRef {
+  // true and false make a truth; the numbers 0 and 1 stay numbers, as TypeScript has them
+  // (`c ? 1 : 0` is a number: a bool there refused a 3 beside it, and a 7 put in after).
+  if (isBool(x.type) && isBool(y.type)) return BOOL
+  const a = x.constant ?? 0
+  const b = y.constant ?? 0
+  // Two bytes are a byte, which reads alike as a u16 or an i16 in both runs (`c ? 0 : 1`
+  // passed where an i16 is wanted).
+  if (a >= 0 && b >= 0 && a <= 0xff && b <= 0xff) return scalar('u8')
   if (a >= 0 && b >= 0) return U16
   if (a > 32767 || b > 32767) throw new Refusal(e.getStart(), 'the answers fit no one type')
   return I16

@@ -97,6 +97,10 @@ const CASES: [string, number[]][] = [
   ['signedQuotient', [5, 0]],
   ['signedQuotient', [-7, 2]],
   ['signedQuotient', [-32768, -1]],
+  ['numberPicks', [0]],
+  ['numberPicks', [3]],
+  ['numberPicks', [5]],
+  ['numberPicks', [9]],
   ['signedQuotient', [100, -7]],
 ]
 
@@ -434,6 +438,34 @@ describe('e16c', () => {
       OPTIONS,
     )
     expect(placed.errors[0]).toMatchObject({ file: 'bad.ts', line: 3 })
+  })
+
+  it('reads a ?: of the numbers 0 and 1 as a number, as TypeScript does, and of true and false as a truth', () => {
+    const accepted = [
+      // Once "3 does not fit a bool": the inner ?: was taken for a truth (BASIC's prompt hit it).
+      'let f = false\nlet n: u16 = 0\nexport function a(): u16 { const r: u16 = f ? 1 | 2 : n > 0 ? 1 : 0; return r }',
+      // A variable it starts is a number, which takes another number after.
+      'export function b(x: u16): u16 { let k = x > 2 ? 1 : 0; k = 7; return k }',
+      'export function c(x: u16): u16 { return (x > 2 ? 1 : 0) + 5 }',
+      'export function d(x: u16): bool { const t = x > 2 ? true : false; return t }',
+    ]
+    for (const text of accepted) {
+      for (const opt of [0, 1, 2] as const) {
+        const out = compile([{ name: 'ok.ts', text }], { ...OPTIONS, opt })
+        expect(out.errors, `-O${opt} ${text}`).toEqual([])
+      }
+    }
+    // A truth is still not a number to compare with, as before.
+    const truth = compile(
+      [
+        {
+          name: 'bad.ts',
+          text: 'export function e(x: u16): u16 { const t = x > 2 ? true : false; return t === 1 ? 3 : 4 }',
+        },
+      ],
+      OPTIONS,
+    )
+    expect(truth.errors[0]?.message).toMatch(/never 1 or 0/)
   })
 
   it('writes assembly a person can read: names, slots and source lines', () => {
