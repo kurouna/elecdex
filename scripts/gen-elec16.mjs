@@ -147,8 +147,10 @@ for (const name of readdirSync(gamesDir, { withFileTypes: true })) {
         })
   if ('report' in made) {
     const r = made.report
-    // The constants the game's sources import, beside them (a test holds them to the build).
+    // The constants the game's sources import, and e16c's output to read and compare, beside
+    // them; the cartridge goes into games.json below (a test holds all three to the build).
     writeFileSync(path.join(at, 'assets.e16.ts'), r.assets)
+    writeFileSync(path.join(at, 'compiled.s'), r.asm)
     console.log(
       `  ${meta.id}: ${r.banks} banks, ${r.ramCode} bytes of code in RAM, ${r.tiles} tiles`,
     )

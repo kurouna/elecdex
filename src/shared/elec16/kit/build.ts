@@ -75,6 +75,7 @@ export interface KitReport {
   tiles: number
   /** The generated assets.e16.ts: gen:elec16 writes it beside the game's sources. */
   assets: string
+  /** e16c's output (every source, the library's too): gen:elec16 writes it as compiled.s. */
   asm: string
 }
 
@@ -83,6 +84,8 @@ export type KitResult = { image: Uint8Array; report: KitReport } | { errors: Asm
 export const KIT_LIB_SOURCES = ['kit.e16.ts', 'sound.e16.ts']
 /** The name of the generated constants, beside the game's sources. */
 export const KIT_ASSETS = 'assets.e16.ts'
+/** The name of e16c's output for the game, kept beside its sources to read and compare. */
+export const KIT_COMPILED = 'compiled.s'
 /** The game's globals and arrays in RAM; its code from IMAGE_AT to the stack. */
 export const KIT_DATA = { start: 0x0280, end: 0x2000 }
 export const KIT_IMAGE_AT = 0x2000

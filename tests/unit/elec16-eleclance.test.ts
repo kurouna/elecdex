@@ -112,6 +112,8 @@ describe('ELECLANCE as built', () => {
     expect(images.find((i: Uint8Array) => readCart(i)?.id === 'ELECLANCE')).toEqual(cart)
     expect(readCart(cart)).toMatchObject({ id: 'ELECLANCE', name: 'ELECLANCE', saveBanks: 1 })
     expect(readFileSync(`${DIR}/assets.e16.ts`, 'utf8')).toBe(built.report.assets)
+    // And e16c's output, kept to read: what the cartridge's code was assembled from.
+    expect(readFileSync(`${DIR}/compiled.s`, 'utf8')).toBe(built.report.asm)
   })
 
   it("keeps its code within RAM's room and its tiles within the 1,024", () => {

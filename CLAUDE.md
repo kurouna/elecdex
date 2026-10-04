@@ -282,7 +282,7 @@ user made; do not reverse one without asking.
     last look (a tapped key is often down and up between two).
   - Its game kit (elec16-play.md section 10, shared/elec16/kit, games/lib) builds a game with
     `sources` in its game.json: code copied into RAM 2000-6FFF, data in banks, constants in a
-    generated `assets.e16.ts` (never edited). Code given a bank runs in the window and never
+    generated `assets.e16.ts` and e16c's output kept as `compiled.s` (neither edited). Code given a bank runs in the window and never
     moves it. A sprite's palette field is 0-7 for slots 8-15. Pictures are PNG in exact palette
     colours; music is the kit's MML, effects on channels 12-15. ELECLANCE
     (docs/elec16-eleclance.md) is its sample: its PNGs and stage.txt are the source once
