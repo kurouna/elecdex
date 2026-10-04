@@ -882,7 +882,11 @@ weather and calendar.
   buttons, the PC's keys and a gamepad, cartridges - GAMES puts one from the shelf in, START plays
   it - a tile engine with two scrolled backgrounds, 128 sprites, sixteen palettes, a line
   interrupt and DMA, and sixteen sound channels in stereo with envelopes, slides and wave
-  tables; CODE runs a program on it). LINK is the panel's own tab, with a switch for each service.
+  tables; CODE runs a program on it). Its games are written in e16c with a game kit that
+  takes PNG pictures and music written as text
+  ([docs/elec16-play.md](docs/elec16-play.md#10-ゲームキットg7), in Japanese); the shelf comes
+  with **ELECLANCE**, a vertical shooter with a lance, bombs, OVERDRIVE and two bosses
+  ([docs/elec16-eleclance.md](docs/elec16-eleclance.md)). LINK is the panel's own tab, with a switch for each service.
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
   three levels of
   optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs

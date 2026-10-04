@@ -837,17 +837,19 @@ export class O1 {
 export const FAR_CALL = 'far_call'
 
 /**
+ * Each function's bank, and what a bank's number is to the machine: the ROM's banks are the
+ * window's own numbers, a cartridge's start at 0x100 (docs/elec16-play.md section 7).
+ */
+export type BankMap = Map<string, number | null> & { base?: number }
+
+/**
  * How a function in bank `from` calls `name`: directly within a bank or into the fixed ROM,
  * else through far_call, which maps the callee's bank and puts the caller's back.
  */
-export function callLines(
-  name: string,
-  from: number | null,
-  banks: Map<string, number | null>,
-): string[] {
+export function callLines(name: string, from: number | null, banks: BankMap): string[] {
   const bank = banks.get(name) ?? null
   if (bank === null || bank === from) return [`call ${name}`]
-  return [`la t0, ${name}`, `li t1, ${bank}`, `call ${FAR_CALL}`]
+  return [`la t0, ${name}`, `li t1, ${(banks.base ?? 0) + bank}`, `call ${FAR_CALL}`]
 }
 
 /**

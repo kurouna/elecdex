@@ -26,7 +26,8 @@ export interface SourceFile {
   text: string
   /**
    * The ROM bank (0-11) this file's functions and strings go in; none for the fixed ROM. A
-   * call into another bank goes through the ROM's `far_call` (docs/elec16.md section 6).
+   * call into another bank goes through the ROM's `far_call` (docs/elec16.md section 6). For a
+   * cartridge (`FrontOptions.banks`), one of its banks, and none for the code copied to RAM.
    */
   bank?: number
 }
@@ -37,6 +38,8 @@ const BANKS = 12
 export interface FrontOptions {
   /** Where globals and static arrays go in RAM: from `start`, up to but not including `end`. */
   data: { start: number; end: number }
+  /** How many banks a file may name: the ROM's 12 unless said (a cartridge has 128). */
+  banks?: number
 }
 
 export interface Front {
@@ -51,9 +54,10 @@ interface Parsed {
 }
 
 export function front(files: SourceFile[], options: FrontOptions): Front {
+  const banks = options.banks ?? BANKS
   const parsed = files.map((f) => {
-    if (f.bank !== undefined && !(Number.isInteger(f.bank) && f.bank >= 0 && f.bank < BANKS)) {
-      throw new RangeError(`${f.name}: a bank is 0 to ${BANKS - 1}`)
+    if (f.bank !== undefined && !(Number.isInteger(f.bank) && f.bank >= 0 && f.bank < banks)) {
+      throw new RangeError(`${f.name}: a bank is 0 to ${banks - 1}`)
     }
     return {
       name: f.name,

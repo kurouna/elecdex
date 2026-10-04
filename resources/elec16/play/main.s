@@ -62,6 +62,11 @@ start:
 ; start screen says why and waits again.
 boot:
   li sp, STACK_TOP
+  ; The ROM's handler and no interrupts, whatever a game had: one stopped by BRK or a fault
+  ; left its own handler in mtvec, in RAM the next program may overwrite.
+  la t0, trap
+  csrw mtvec, t0
+  csrci mstatus, 8
   ; The screen as the ROM draws it - mode 0, its palette - whatever a game left it as, and
   ; no note of the game's left sounding.
   addi sp, sp, -4

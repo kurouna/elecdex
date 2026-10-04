@@ -1,0 +1,4 @@
+song beep
+tempo 6
+inst lead wave=sq50 vol=12 env=2/40/8/80
+C0: @lead o5 l8 c e g L > c4 < g4

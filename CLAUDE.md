@@ -45,6 +45,7 @@ npm run demo:keystream # KEYSTREAM: menu previews, a track typed on time through
 npm run demo:snippets  # the clipboard pane's snippets: kept, written, moved, pasted into the shell, 16:9, under 30 s (Windows; build first)
 npm run demo:whatsnew  # what v0.0.19-v0.0.20 added, most striking first: CHIP-8, files in the ai preset's chat, dev's agent tree and FETCH/PULL, 16:9 (Windows; build first)
 npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE, the skins (Windows; build first)
+node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
 ```
@@ -279,6 +280,13 @@ user made; do not reverse one without asking.
     (main/elec16/games.ts), apart from CHIP-8's in every file, channel and list; games.json is
     written only by `npm run gen:elec16`. A press is a button PADHIT marks that was up at the
     last look (a tapped key is often down and up between two).
+  - Its game kit (elec16-play.md section 10, shared/elec16/kit, games/lib) builds a game with
+    `sources` in its game.json: code copied into RAM 2000-6FFF, data in banks, constants in a
+    generated `assets.e16.ts` (never edited). Code given a bank runs in the window and never
+    moves it. A sprite's palette field is 0-7 for slots 8-15. Pictures are PNG in exact palette
+    colours; music is the kit's MML, effects on channels 12-15. ELECLANCE
+    (docs/elec16-eleclance.md) is its sample: its PNGs and stage.txt are the source once
+    scripts/eleclance-art.mjs drew them; a test holds every song's channels in step.
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).

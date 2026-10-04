@@ -1,0 +1,74 @@
+# ELECLANCE's sound effects: each a short song on channels 12-15 only, so the music (0-11)
+# never stops for one. Tempo 2: a sixteenth is two frames, a thirty-second one.
+#   C12 the ship's shot, C13 small things (skim, pickups, select), C14 explosions,
+#   C15 big moments (bomb, OVERDRIVE, siren, a part down)
+
+song x_shot
+tempo 2
+inst zap wave=sq12 vol=4 env=0/40/0/20 pan=8
+C12: @zap o7 l32 c < g
+
+song x_skim
+tempo 2
+inst ping wave=tri vol=9 env=0/40/0/40 pan=8
+C13: @ping o8 l32 c g
+
+song x_pick
+tempo 2
+inst coin wave=sq50 vol=6 env=0/40/2/40 pan=8
+C13: @coin o7 l32 b > e
+
+song x_select
+tempo 2
+inst sel wave=sq25 vol=10 env=0/80/4/60
+C13: @sel o6 l32 c g > c4
+
+song x_hit
+tempo 2
+inst crack wave=noise vol=11 env=0/160/0/120 drop=3
+C14: @crack o8 c4
+
+song x_boom
+tempo 2
+inst boom wave=noise vol=14 env=0/600/0/400 drop=4
+inst thud wave=tri vol=13 env=0/250/0/120 drop=2
+C14: @boom o7 c1
+C15: @thud o4 c4
+
+song x_bomb
+tempo 2
+inst wash wave=noise vol=14 env=20/1200/0/800 drop=5
+inst sweep wave=saw vol=11 env=10/800/6/600 slide=127
+C14: @wash o8 c1^1
+C15: @sweep o3 c1^1
+
+song x_drive
+tempo 2
+inst rise wave=sq25 vol=12 env=0/120/8/200 pan=8
+C15: @rise o5 l32 c e g > c e g > c e g > c e g > c8
+
+song x_die
+tempo 2
+inst blast wave=noise vol=15 env=0/2000/0/1200 drop=5
+inst fall wave=saw vol=12 env=0/1200/0/800 slide=-127
+C14: @blast o8 c1^1^1
+C15: @fall o6 c1^1
+
+song x_siren
+tempo 2
+inst siren wave=saw vol=10 env=20/400/12/200 pan=8
+C15: @siren o5 [a8 > d8 <]4
+
+song x_part
+tempo 2
+inst crash wave=noise vol=15 env=0/800/0/600 drop=4
+inst clang wave=sq50 vol=11 env=0/400/0/300 slide=-60
+C14: @crash o8 c1
+C15: @clang o5 c4 < g4
+
+song x_down
+tempo 2
+inst rumble wave=noise vol=15 env=40/3000/0/2000 drop=6
+inst deep wave=tri vol=14 env=20/2000/0/1600 slide=-90
+C14: @rumble o8 c1^1^1^1
+C15: @deep o3 c1^1^1

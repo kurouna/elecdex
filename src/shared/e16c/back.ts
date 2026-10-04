@@ -1,4 +1,4 @@
-import { callLines, O1, REGISTER } from './back1.js'
+import { type BankMap, callLines, O1, REGISTER } from './back1.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
 import { hex, NEAR } from './types.js'
 
@@ -77,7 +77,12 @@ class Out {
  * part, `e16c_fixed_end`, and then each bank a file goes in, at the window. So the file is
  * the last thing the ROM includes.
  */
-export function assembly(program: Program, sources: string[], level: 0 | 1 = 0): string {
+export function assembly(
+  program: Program,
+  sources: string[],
+  level: 0 | 1 = 0,
+  bankBase = 0,
+): string {
   const out = new Out()
   out.raw(`; Made by e16c from ${sources.join(', ')}: do not edit.`)
   out.raw('')
@@ -87,7 +92,9 @@ export function assembly(program: Program, sources: string[], level: 0 | 1 = 0):
   const near = new Map(
     program.arrays.filter((a) => a.at + a.bytes < 0x2000).map((a) => [a.name, a.at]),
   )
-  const banks = new Map(program.fns.map((f) => [f.name, f.bank]))
+  const banks: BankMap = Object.assign(new Map(program.fns.map((f) => [f.name, f.bank])), {
+    base: bankBase,
+  })
   const section = (bank: number | null) => {
     for (const fn of program.fns.filter((f) => f.bank === bank)) {
       if (level === 0) func(out, fn, banks)

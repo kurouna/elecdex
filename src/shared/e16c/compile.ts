@@ -17,6 +17,11 @@ export interface E16cOptions extends FrontOptions {
    * folding, dead code and pure calls worked out while compiling (opt.ts).
    */
   opt: 0 | 1 | 2
+  /**
+   * The machine's number for bank 0 of `SourceFile.bank`: 0 for the ROM's banks, 0x100 for a
+   * cartridge's (its banks seen through the window from there).
+   */
+  bankBase?: number
 }
 
 export interface E16cResult {
@@ -63,6 +68,7 @@ function compileNow(files: SourceFile[], options: E16cOptions): E16cResult {
       program,
       files.map((f) => f.name),
       options.opt === 0 ? 0 : 1,
+      options.bankBase ?? 0,
     ),
     errors,
     program,

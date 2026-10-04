@@ -34,8 +34,21 @@ class Elec16Apu extends AudioWorkletProcessor {
 
   process(_inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const [left, right] = outputs[0] ?? []
-    if (left !== undefined && right !== undefined) this.#synth.render(left, right)
+    if (left !== undefined && right !== undefined) {
+      this.#synth.render(left, right)
+      clamp(left)
+      clamp(right)
+    }
     return this.#alive
+  }
+}
+
+/** Every sample within -1 to 1: sixteen loud channels at once would pass it. */
+function clamp(samples: Float32Array): void {
+  for (let k = 0; k < samples.length; k++) {
+    const v = samples[k] ?? 0
+    if (v > 1) samples[k] = 1
+    else if (v < -1) samples[k] = -1
   }
 }
 

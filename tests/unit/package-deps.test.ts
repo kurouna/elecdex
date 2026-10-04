@@ -23,9 +23,10 @@ const BUNDLED_INTO_MAIN = ['yahoo-finance2']
 
 /**
  * Shared code that only the build and the page run: e16c, the ELEC-16's compiler, which
- * loads TypeScript's parser (a devDependency). A test below holds main to never importing it.
+ * loads TypeScript's parser (a devDependency), and the PLAY game kit's builder (elec16/kit),
+ * which compiles with it. A test below holds main to never importing them.
  */
-const NOT_AT_RUNTIME = ['e16c']
+const NOT_AT_RUNTIME = ['e16c', 'kit']
 
 function files(dir: string, skip: string[] = []): string[] {
   return readdirSync(dir).flatMap((name) => {

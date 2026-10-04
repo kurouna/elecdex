@@ -119,16 +119,40 @@ console.log(`play-rom.json: ${playBuilt.image.length} bytes, fixed ROM to ${play
 
 // ELEC-16 PLAY's bundled games (resources/elec16/games/<name>/game.s and game.json), each built
 // into a .E16G for the shelf (main/elec16/games.ts) in games.json.
+// A game with `sources` in its game.json is written with the game kit (e16c, pictures, music:
+// shared/elec16/kit/build.ts, its library in games/lib); the rest are assembly.
 const { buildGame } = await shared('elec16/cart-build.ts')
+const { buildKitGame } = await shared('elec16/kit/build.ts')
+const { readPng } = await import(pathToFileURL(path.join(root, 'scripts', 'png.mjs')).href)
 const gamesDir = path.join(root, 'resources', 'elec16', 'games')
+const libDir = path.join(gamesDir, 'lib')
+const textIn = (dir, file) =>
+  existsSync(path.join(dir, file)) ? readFileSync(path.join(dir, file), 'utf8') : null
 const bundled = []
 for (const name of readdirSync(gamesDir, { withFileTypes: true })) {
   if (!name.isDirectory()) continue
   const at = path.join(gamesDir, name.name)
+  if (!existsSync(path.join(at, 'game.json'))) continue
   const meta = JSON.parse(readFileSync(path.join(at, 'game.json'), 'utf8'))
-  const made = buildGame(readFileSync(path.join(at, 'game.s'), 'utf8'), meta, (file) =>
-    existsSync(path.join(at, file)) ? readFileSync(path.join(at, file), 'utf8') : null,
-  )
+  const made =
+    meta.sources === undefined
+      ? buildGame(readFileSync(path.join(at, 'game.s'), 'utf8'), meta, (file) => textIn(at, file))
+      : buildKitGame({
+          meta,
+          read: (file) => textIn(at, file),
+          picture: (file) =>
+            existsSync(path.join(at, file)) ? readPng(readFileSync(path.join(at, file))) : null,
+          lib: (file) => textIn(libDir, file),
+          romTrap: playBuilt.symbols.trap,
+        })
+  if ('report' in made) {
+    const r = made.report
+    // The constants the game's sources import, beside them (a test holds them to the build).
+    writeFileSync(path.join(at, 'assets.e16.ts'), r.assets)
+    console.log(
+      `  ${meta.id}: ${r.banks} banks, ${r.ramCode} bytes of code in RAM, ${r.tiles} tiles`,
+    )
+  }
   if ('errors' in made) {
     for (const e of made.errors)
       console.error(`games/${name.name}/${e.file}:${e.line}: ${e.message}`)

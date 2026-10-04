@@ -902,6 +902,58 @@ test("PLAY-320's cartridge: GAMES puts the demo in, START plays it, and it goes 
   }
 })
 
+test("PLAY-320's game kit: ELECLANCE starts from GAMES, its title, then the stage between its panels", async () => {
+  // docs/elec16-eleclance.md: the kit's game copies its code into RAM and runs there; in the
+  // pane it reaches its title (its own interrupts, sound and save RAM), then the stage.
+  test.setTimeout(180_000)
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    const tab = (name: string) =>
+      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await tab('games').click()
+    await page.locator('[data-testid=elec16-game][data-game=ELECLANCE]').click()
+    await expect.poll(() => playLines(page)).toContain('ELECLANCE')
+    await page.getByTestId('elec16').focus()
+    await page.keyboard.press('Enter')
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toEqual([''])
+    const dot = (x: number, y: number) =>
+      page
+        .getByTestId('elec16-play-screen')
+        .evaluate(
+          (canvas, [px, py]) =>
+            Array.from(
+              (canvas as HTMLCanvasElement).getContext('2d')?.getImageData(px ?? 0, py ?? 0, 1, 1)
+                .data ?? [],
+            ).slice(0, 3),
+          [x, y],
+        )
+    // The title takes START only once its word has landed (40 frames): START until the stage
+    // shows its panels - their outer edges one colour on both sides, not the ground.
+    const panels = async () => {
+      const [left, right] = [await dot(0, 150), await dot(319, 150)]
+      return JSON.stringify(left) === JSON.stringify(right) && (left[0] ?? 0) + (left[1] ?? 0) > 60
+    }
+    await expect
+      .poll(
+        async () => {
+          if (await panels()) return true
+          await page.keyboard.press('Enter')
+          return false
+        },
+        { timeout: 20_000, intervals: [500] },
+      )
+      .toBe(true)
+  } finally {
+    await close()
+  }
+})
+
 test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with the d-pad", async () => {
   // docs/elec16-play.md section 4, G5: the tile engine drawn by the page, at the machine's
   // own resolution - a dot of the canvas read back to see the ship move.

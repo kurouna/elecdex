@@ -181,8 +181,12 @@ export const apuFrame = (a: ApuState, mem: Uint8Array): ApuFrame => ({
 
 /* ---------------- the synth ---------------- */
 
-/** One channel's loudness at full volume: sixteen together stay under 1. */
-export const CHANNEL_LEVEL = 0.06
+/**
+ * One channel's loudness at full volume. A game's music keeps six or eight channels going at
+ * once (about 0.2 at its peaks, measured on ELECLANCE); all sixteen at full would pass 1, which
+ * the page's worklet clamps.
+ */
+export const CHANNEL_LEVEL = 0.08
 /** The shortest ramp an edge takes, so a note never clicks on or off (seconds). */
 const EDGE = 0.002
 

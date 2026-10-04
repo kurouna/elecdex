@@ -40,6 +40,8 @@ export interface AsmOptions {
   include?: (name: string) => string | null
   /** The source's name in errors and the listing. */
   file?: string
+  /** How many banks `.bank` may name: the ROM's 12 unless said (a cartridge has 128). */
+  banks?: number
 }
 
 export interface AsmError {
@@ -658,6 +660,7 @@ class Layout {
   readonly #bytes = new Map<number, number>()
   readonly #items: Item[]
   readonly #compressDefault: boolean
+  readonly #banks: number
   #address = 0
   #bank = 0
   #compress = true
@@ -669,9 +672,10 @@ class Layout {
   /** Names defined in this pass, to find one defined twice. */
   readonly #defined = new Set<string>()
 
-  constructor(items: Item[], compressDefault: boolean) {
+  constructor(items: Item[], compressDefault: boolean, banks: number) {
     this.#items = items
     this.#compressDefault = compressDefault
+    this.#banks = banks
   }
 
   /**
@@ -771,8 +775,8 @@ class Layout {
         return
       case 'bank': {
         const bank = this.#value(item.expr, item.scope)
-        if (!(bank >= 0 && bank < BANK_COUNT)) {
-          throw new Error(`.bank takes 0 to ${BANK_COUNT - 1}`)
+        if (!(bank >= 0 && bank < this.#banks)) {
+          throw new Error(`.bank takes 0 to ${this.#banks - 1}`)
         }
         this.#bank = bank
         return
@@ -942,7 +946,7 @@ export function assemble(source: string, options: AsmOptions = {}): AsmResult {
   pre.read(source, file)
   const parser = new Parser()
   parser.parse(pre.lines)
-  const layout = new Layout(parser.items, options.compress ?? true)
+  const layout = new Layout(parser.items, options.compress ?? true, options.banks ?? BANK_COUNT)
   layout.run()
   return {
     chunks: chunksOf(layout.bytes),
