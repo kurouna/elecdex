@@ -25,9 +25,11 @@ interface Props {
   ghost: boolean
   contrast: number
   seen: boolean
+  /** LINK is on: the LCD shows its mark. */
+  link: boolean
 }
 
-const { runner, skin, lcdColours, mode, ghost, contrast, seen }: Props = $props()
+const { runner, skin, lcdColours, mode, ghost, contrast, seen, link }: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
 let room = $state({ w: 0, h: 0, ratio: 1 })
@@ -93,7 +95,7 @@ const FONTS = { ui: 'var(--font-ui)', display: 'var(--font-display)', mono: 'var
       </div>
     {/if}
     <div class="window" style:height="{fit.glass.h}px">
-      <Lcd {runner} colours={lcdColours} scale={fit.scale} {ghost} {contrast} {seen} />
+      <Lcd {runner} colours={lcdColours} scale={fit.scale} {ghost} {contrast} {seen} {link} />
     </div>
     {#if body !== 'lcd'}
       <Keyboard {runner} mode={body} {legends} rowHeight={fit.keyRow} big={fit.keyRow >= 32} />

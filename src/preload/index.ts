@@ -28,6 +28,7 @@ import type { ClipBoard, ClipRestoreResult } from '@shared/clipboard'
 import type { DockerBoard, DockerControlResult } from '@shared/docker'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from '@shared/elec'
 import type { CardAnswer } from '@shared/elec16/card'
+import type { LinkAnswer } from '@shared/elec16/link'
 import type {
   Elec16Board,
   Elec16Claim,
@@ -583,6 +584,9 @@ const api: ElecdexApi = {
       ipcRenderer.invoke(CH.elec16.save, unit, pane, snapshot) as Promise<boolean>,
     card: (unit, pane, request) =>
       ipcRenderer.invoke(CH.elec16.card, unit, pane, request) as Promise<CardAnswer>,
+    link: (unit, pane, request) =>
+      ipcRenderer.invoke(CH.elec16.link, unit, pane, request) as Promise<LinkAnswer>,
+    linkDrop: (unit, pane, serial) => ipcRenderer.send(CH.elec16.linkDrop, unit, pane, serial),
     files: (unit) => ipcRenderer.invoke(CH.elec16.files, unit) as Promise<Elec16FileInfo[]>,
     soft: () => ipcRenderer.invoke(CH.elec16.soft) as Promise<Elec16FileInfo[]>,
     import: (unit) =>

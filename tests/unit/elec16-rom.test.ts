@@ -30,8 +30,9 @@ function enter(m: Elec16, source: string): void {
 describe('the ROM', () => {
   it('is built from its sources into the fixed 16 KB and the banks of BASIC, with its labels', () => {
     expect(built.errors).toEqual([])
-    // The fixed ROM, then the 8 KB banks: BASIC's second half (0 to 3) and the monitor's U and B (4).
-    expect(built.image).toHaveLength(0x4000 + 5 * 0x2000)
+    // The fixed ROM, then the 8 KB banks: BASIC's second half (0 to 3), the monitor's U and B
+    // (4) and ASK (5).
+    expect(built.image).toHaveLength(0x4000 + 6 * 0x2000)
     expect(built.symbols.e16c_fixed_end).toBeLessThan(0xc000)
     expect(built.symbols.start).toBeGreaterThanOrEqual(0x8000)
     expect(built.symbols.services).toBe(0x8010)

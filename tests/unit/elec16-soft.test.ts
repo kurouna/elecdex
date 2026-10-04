@@ -1,12 +1,13 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { cardOp } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
+import { LINK_STATUS } from '@shared/elec16/link-services'
 import type { Elec16 } from '@shared/elec16/machine'
 import { MODELS, type ModelId } from '@shared/elec16/map'
 import { buildSoftCard } from '@shared/elec16/soft-card'
 import { fromBase64 } from '@shared/emu/base64'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { card, press, screen, settle, shown, switchOn, type } from './elec16-helpers'
+import { card, linkService, press, screen, settle, shown, switchOn, type } from './elec16-helpers'
 
 /**
  * The SOFT CARD (docs/elec16.md section 6): soft.json is what its sources make, and every
@@ -67,6 +68,7 @@ describe('the SOFT CARD', () => {
       'BIORHYTH.BAS',
       'BOUNCE.BAS',
       'CANNON.BAS',
+      'CHAT.BAS',
       'CLOCK.BAS',
       'HITBLOW.BAS',
       'LANDER.BAS',
@@ -261,6 +263,42 @@ describe('the SOFT CARD', () => {
     press(m, keyCode('cls'))
     expect(shown(m)).toEqual(['>'])
     expect(errors(m)).toEqual([])
+  })
+
+  it('talks with the AI in CHAT: a type chosen, the answer typed out and wrapped, the menu', () => {
+    const said = (q: string) => `THE ANSWER TO ${q} IS A LONG ONE THAT GOES ON PAST THE LINE END`
+    linkService.asked = []
+    linkService.answer = (r) => ({
+      status: LINK_STATUS.ready,
+      data: new Uint8Array([...said(String.fromCharCode(...r.query))].map((c) => c.charCodeAt(0))),
+    })
+    try {
+      for (const model of ['pocket-48', 'handheld-160'] as const) {
+        const columns = MODELS[model].width / 6
+        const m = load('CHAT', model)
+        type(m, 'RUN\n')
+        expect(screen(m)[0], model).toBe('CHAT: CHOOSE A TYPE')
+        expect(screen(m).join(' '), model).toMatch(/ 3 QUIZ .*10 WEATHER/)
+        type(m, '3\n')
+        expect(screen(m)[0], model).toBe('QUIZ: ENTER ALONE=MENU')
+        type(m, 'HELLO\n')
+        expect(linkService.asked.at(-1), model).toMatchObject({ type: 3, max: 255 })
+        // Typed out a word at a time to the screen's width, never a word cut in two.
+        const rows = screen(m)
+          .slice(2)
+          .filter((row) => row !== '' && !row.startsWith('?'))
+        expect(rows.join(' '), model).toBe(said('HELLO'))
+        for (const row of rows) expect(row.length, model).toBeLessThanOrEqual(columns)
+        type(m, '\n2\n')
+        type(m, 'AGAIN\n')
+        expect(linkService.asked.at(-1)?.fresh, model).toBe(true)
+        type(m, '\n3\n')
+        expect(shown(m), model).toEqual(['>'])
+        expect(errors(m), model).toEqual([])
+      }
+    } finally {
+      linkService.answer = null
+    }
   })
 })
 

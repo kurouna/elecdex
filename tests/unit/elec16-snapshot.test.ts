@@ -2,7 +2,7 @@ import { CARD_STATUS } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
 import { RAM_SIZE } from '@shared/elec16/map'
-import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
+import { decodeSnapshot, SNAPSHOT_MAX_SIZE, SNAPSHOT_VERSION } from '@shared/elec16/snapshot'
 import { describe, expect, it } from 'vitest'
 import { built, press, screen, settle, switchOn, type } from './elec16-helpers'
 
@@ -10,8 +10,8 @@ import { built, press, screen, settle, switchOn, type } from './elec16-helpers'
 
 /** The state without what a snapshot leaves out on purpose. */
 function comparable(m: Elec16) {
-  const { keys, screenRevision, card, ...rest } = m.state
-  return { ...rest, card: { ...card, request: null } }
+  const { keys, screenRevision, card, link, ...rest } = m.state
+  return { ...rest, card: { ...card, request: null }, link: { ...link, request: null } }
 }
 
 describe('a snapshot', () => {
@@ -67,7 +67,8 @@ describe('a snapshot', () => {
     expect(broken((b) => b.subarray(0, b.length - 1))).toBeNull()
     expect(broken((b) => new Uint8Array([...b, 0]))).toBeNull()
     expect(broken((b) => b.fill(0x58, 0, 1))).toBeNull()
-    expect(broken((b) => b.fill(2, 4, 5))).toBeNull()
+    expect(broken((b) => b.fill(SNAPSHOT_VERSION + 1, 4, 5))).toBeNull()
+    expect(broken((b) => b.fill(0, 4, 5))).toBeNull()
     // The model, then a field of each device out of its range.
     expect(broken((b) => b.fill(9, 5, 6))).toBeNull()
     const head = 4 + 1 + 1 + 32 + 2 + 14 + 1 + 2 + 1 + 8 + 8

@@ -1,5 +1,7 @@
 import { CARD_STATUS, type CardAnswer, type CardRequest } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
+import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
+import { LINK_STATUS } from '@shared/elec16/link-services'
 import { type ClockFields, Elec16 } from '@shared/elec16/machine'
 import { DEFAULT_MODEL, type ModelId } from '@shared/elec16/map'
 import { KEY_FIFO_SIZE } from '@shared/elec16/state'
@@ -45,6 +47,13 @@ export const browserElec16Host: Elec16Host = {
   },
 }
 
+/** What main answers without giving the request to any service: nothing was sent. */
+const NOT_SENT: ReadonlySet<number> = new Set([
+  LINK_STATUS.off,
+  LINK_STATUS.badRequest,
+  LINK_STATUS.noService,
+])
+
 const SHIFT = keyCode('shift')
 const CAPS = keyCode('caps')
 
@@ -70,6 +79,18 @@ export class Elec16Runner extends EmuRunner<Elec16> {
    * card is not there, and the command is answered so.
    */
   onCard: ((request: CardRequest) => Promise<CardAnswer>) | null = null
+  /**
+   * Where a LINK request goes (the pane's unit, through main), and where one the machine let
+   * go is dropped; none: LINK is not there, and the request FAILED.
+   */
+  onLink: ((request: LinkRequest) => Promise<LinkAnswer>) | null = null
+  onLinkDrop: ((serial: number) => void) | null = null
+  /** A LINK request is out: the LINK mark blinks. */
+  linkBusy = $state(false)
+  /** Why the last LINK request failed, in the service's words; null after one that did not. */
+  linkNote = $state<string | null>(null)
+  /** LINK requests a service was given since the pane opened (TUNE shows them). */
+  linkSent = $state(0)
   /** Auto power-off: how long asleep waiting for a key switches it off; 0 never. */
   autoOffMs = 0
   /** Switched off by auto power-off (the pane keeps the battery backup, as for the switch). */
@@ -163,14 +184,17 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     if (machine !== null && Number.isFinite(hz)) machine.hz = hz
   }
 
-  /** A key on the machine goes down; it wakes a sleeping machine. */
-  press(code: number): void {
+  /**
+   * A key on the machine goes down; it wakes a sleeping machine. `byPerson` is false for
+   * PASTE's keys: only a person's lets LINK send again.
+   */
+  press(code: number, byPerson = true): void {
     const machine = this.machine
     if (machine === null) return
     // As the ROM has it: SHIFT holds for the next key, and CAPS does not use it up.
     if (code === SHIFT) this.#shift = !this.#shift
     else if (code !== CAPS) this.#shift = false
-    machine.press(code)
+    machine.press(code, byPerson)
     this.#timed.wake()
     // A key to a machine asleep for one starts auto power-off's count again (the loop tells
     // only of falling asleep, not of a key taken between two sleeps).
@@ -220,11 +244,16 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     let room = KEY_FIFO_SIZE - 1 - machine.state.keys.fifo.length
     while (room > 0 && this.#paste.length > 0) {
       const code = this.#paste.shift() ?? 0
-      this.press(code)
+      this.press(code, false)
       this.release(code)
       room--
     }
     if (this.pasting !== this.#paste.length) this.pasting = this.#paste.length
+  }
+
+  /** A person's RUN or LOAD in the pane: the program it starts may use LINK once. */
+  vouch(): void {
+    this.machine?.vouch()
   }
 
   /** BRK/ON: stops what runs and gets the prompt back; starts a machine off or stopped. */
@@ -351,6 +380,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     if (this.annunciators !== marks) this.annunciators = marks
     const at = machine?.breakAt ?? null
     if (this.breakAt !== at) this.breakAt = at
+    const busy = machine?.state.link.busy ?? false
+    if (this.linkBusy !== busy) this.linkBusy = busy
   }
 
   protected override afterFrames(machine: Elec16): void {
@@ -365,7 +396,28 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.#host.buzz?.(b.freq, left, `${b.freq}:${b.gate}:${b.started}`)
     const request = machine.takeCardRequest()
     if (request !== null) void this.#relay(machine, request)
+    const dropped = machine.takeLinkDrop()
+    if (dropped !== null) this.onLinkDrop?.(dropped)
+    const asked = machine.takeLinkRequest()
+    if (asked !== null) void this.#ask(machine, asked)
     this.#feed(machine)
+  }
+
+  /** A LINK request to main and its answer back, waking the machine that waits for it. */
+  async #ask(machine: Elec16, request: LinkRequest): Promise<void> {
+    let answer: LinkAnswer = { status: LINK_STATUS.failed, note: 'LINK is not there' }
+    try {
+      if (this.onLink !== null) answer = await this.onLink(request)
+    } catch {
+      answer = { status: LINK_STATUS.failed, note: 'main could not be asked' }
+    }
+    if (!NOT_SENT.has(answer.status)) this.linkSent++
+    const failed = answer.status !== LINK_STATUS.ready && answer.status !== LINK_STATUS.cancelled
+    this.linkNote = failed ? (answer.note ?? null) : null
+    machine.answerLink(request.serial, answer)
+    if (this.machine !== machine) return
+    this.#timed.wake()
+    this.#changed()
   }
 
   /** A card command to main and its answer back, waking the machine that waits for it. */
@@ -383,10 +435,10 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #slept(wake: Wake | null): void {
     const asleep = wake !== null
     if (this.asleep !== asleep) this.asleep = asleep
-    if (wake?.key === true && this.#sleepers.length > 0) {
+    if (wake?.key === true && !this.#waitsForMain() && this.#sleepers.length > 0) {
       for (const sleeper of [...this.#sleepers]) sleeper()
     }
-    if (wake?.key === true && wake.timerMs === null) this.#armOff()
+    if (this.#forKey(wake)) this.#armOff()
     else this.#disarmOff()
     // Asleep waiting for a key: PASTE's next ones wake it - those given after the frames too,
     // which came while the loop still had it awake, when a key does not wake it.
@@ -410,10 +462,23 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     }, this.autoOffMs)
   }
 
-  /** Asleep in WFI for a key and nothing else: no timer, no running program. */
+  /**
+   * Asleep in WFI for a key and nothing else: no timer, no running program, no answer from
+   * main on its way (a program waiting for LINK or the card sleeps with KEY enabled too).
+   */
   #asleepForKey(): boolean {
-    const wake = this.#timed.asleep
-    return this.status === 'running' && wake !== null && wake.key && wake.timerMs === null
+    return this.status === 'running' && this.#forKey(this.#timed.asleep)
+  }
+
+  /** This sleep waits for a key and nothing else. */
+  #forKey(wake: Wake | null): boolean {
+    return wake?.key === true && wake.timerMs === null && !this.#waitsForMain()
+  }
+
+  /** An answer from main (LINK, the card) is on its way: the machine is not at its prompt. */
+  #waitsForMain(): boolean {
+    const s = this.machine?.state
+    return s !== undefined && (s.link.busy || s.card.busy)
   }
 
   #disarmOff(): void {

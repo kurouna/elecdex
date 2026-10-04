@@ -11,6 +11,7 @@ import { type AsmError, assemble, romImage } from './asm.js'
 import { REG } from './bus.js'
 import { fontTable } from './font.js'
 import { CONTROL, kanaTable, keyTable } from './keys.js'
+import { LINK_CMD, LINK_REG, LINK_STATUS } from './link-services.js'
 import { CODE_AREA, CODE_AREA_END, ROM_FIXED_SIZE, VRAM } from './map.js'
 import { ANNUNCIATORS, IRQ, KEY_ROWS } from './state.js'
 
@@ -39,6 +40,13 @@ function ioInclude(): string {
   // instruction (an offset is 14 bits, signed), and `li` still gives the address.
   for (const [name, address] of Object.entries(REG)) {
     lines.push(`IO_${upper(name)} = -0x${(0x10000 - address).toString(16)}`)
+  }
+  for (const [name, address] of Object.entries(LINK_REG)) {
+    lines.push(`IO_LINK_${upper(name)} = -0x${(0x10000 - address).toString(16)}`)
+  }
+  for (const [name, value] of Object.entries(LINK_CMD)) lines.push(`LINK_${upper(name)} = ${value}`)
+  for (const [name, value] of Object.entries(LINK_STATUS)) {
+    lines.push(`LINK_ST_${upper(name)} = ${value}`)
   }
   for (const [name, char] of Object.entries(CONTROL))
     lines.push(`K_${upper(name)} = 0x${char.toString(16)}`)

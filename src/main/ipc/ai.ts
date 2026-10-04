@@ -34,7 +34,7 @@ import { appWindows } from '../app-windows.js'
 import { SubscriptionRegistry } from '../metrics/subscriptions.js'
 import { secretCodec } from '../secrets/system.js'
 import { cacheFile } from '../store/cache-file.js'
-import { registerElecIpc } from './elec.js'
+import { type ElecLinks, registerElecIpc } from './elec.js'
 import { whenPageGoes } from './page-gone.js'
 import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
@@ -93,7 +93,11 @@ const MODELS_TIMEOUT_MS = 20_000
 const providerFetch: FetchLike = (url, init) =>
   net.fetch(url, { ...init, credentials: 'omit', cache: 'no-store' })
 
-export function registerAiIpc(settings: SettingsHandle): { dispose: () => void } {
+export function registerAiIpc(settings: SettingsHandle): {
+  dispose: () => void
+  /** The keys and adapters, for the ELEC-16's LINK to ask the same providers by. */
+  links: ElecLinks
+} {
   const registry = new SubscriptionRegistry<WebContents>()
   const orphans = new Map<string, NodeJS.Timeout>()
 
@@ -316,9 +320,11 @@ export function registerAiIpc(settings: SettingsHandle): { dispose: () => void }
   })
 
   // The ELEC system asks the same providers, with the same keys and adapters.
-  const elec = registerElecIpc(settings, { keyFor: (id) => vault.get(id), adapter: adapterFor })
+  const links: ElecLinks = { keyFor: (id) => vault.get(id), adapter: adapterFor }
+  const elec = registerElecIpc(settings, links)
 
   return {
+    links,
     dispose: () => {
       elec.dispose()
       for (const timer of orphans.values()) clearTimeout(timer)

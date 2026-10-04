@@ -25,6 +25,7 @@ import {
 } from '../../../../src/shared/e16c/builtins'
 import { EDIT_DOWN, EDIT_MODE, EDIT_UP, editLine } from './edit.e16'
 import { closeFiles, fileByte, fileStatement, printToFile } from './files.e16'
+import { askStatement } from './link.e16'
 import {
   ANN_BUSY,
   ANN_DEG,
@@ -67,6 +68,8 @@ import {
   IO_POWER,
   K_ENTER,
   LIMIT,
+  LINK_CANCEL,
+  LINK_CMD,
   MATH_A,
   MATH_ANGLE,
   MATH_ARG,
@@ -96,6 +99,7 @@ import {
   printUnsigned,
   T_AND,
   T_ANS,
+  T_ASK,
   T_AUTO,
   T_CALL,
   T_CIRCLE,
@@ -191,6 +195,9 @@ export const E_DATA = 14
 export const E_INDEX = 15
 export const E_DIM = 16
 export const E_FILE = 17
+export const E_LINK = 18
+export const E_LINK_OFF = 19
+export const E_LINK_HELD = 20
 
 /* ---------------- state ---------------- */
 
@@ -363,6 +370,12 @@ function moreErrorWord(code: u16): u16 {
       return str('INDEX')
     case E_DIM:
       return str('DIM')
+    case E_LINK:
+      return str('LINK')
+    case E_LINK_OFF:
+      return str('LINK OFF')
+    case E_LINK_HELD:
+      return str('LINK HELD')
     default:
       return str('FILE')
   }
@@ -659,6 +672,8 @@ export function storeString(at: u16, room: u16): void {
 }
 
 export function clearVariables(): void {
+  // RUN, NEW and CLEAR: a LINK request out would write its answer over the variables after.
+  poke16(LINK_CMD, LINK_CANCEL)
   varEnd = progEnd + 2
   fsp = 0
   gsp = 0
@@ -1106,6 +1121,8 @@ function commandStatement(c: u16): void {
       // to the monitor as G does - it may never look at a key. Back, BASIC has BRK again.
       poke16(INBASIC, 0)
       call_at(toWord(top()))
+      // A LINK request the code left out is let go: its answer must not land in RAM later.
+      poke16(LINK_CMD, LINK_CANCEL)
       poke16(INBASIC, 1)
       poke16(BRKFLAG, 0)
       nsp -= 8
@@ -1132,6 +1149,7 @@ function angleStatement(c: u16): void {
   if ((c >= T_LOCATE && c <= T_GPRINT) || c === T_CIRCLE) screenStatement(c)
   else if ((c >= T_FILES && c <= T_KILL) || c === T_OPEN || c === T_CLOSE) fileStatement(c)
   else if (c >= T_AUTO && c <= T_TROFF) toolStatement(c)
+  else if (c === T_ASK) askStatement()
   else dataStatement(c)
 }
 

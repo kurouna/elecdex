@@ -4,6 +4,7 @@ import { MODELS } from '@shared/elec16/map'
 import { ANNUNCIATORS } from '@shared/elec16/state'
 import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
+import { pulse } from '../../lib/pulse.svelte.ts'
 import { deviceRoom, drawDotGrid, type Room } from '../emu/screen.ts'
 import { GLASS } from './layout.ts'
 import { type Cursor, type LcdColours, LcdPainter } from './lcd-painter.ts'
@@ -32,9 +33,11 @@ interface Props {
   seen: boolean
   /** Device pixels a dot: the device fits the whole body (layout.ts, deviceFit). */
   scale: number
+  /** LINK is on in TUNE: its mark is lit, and blinks while a request is out. */
+  link: boolean
 }
 
-const { runner, colours, ghost, contrast, seen, scale }: Props = $props()
+const { runner, colours, ghost, contrast, seen, scale, link }: Props = $props()
 
 let host = $state<HTMLDivElement | null>(null)
 let dotsCanvas = $state<HTMLCanvasElement | null>(null)
@@ -196,9 +199,17 @@ $effect(() => {
   })
 })
 
-const marks = $derived(
-  ANNUNCIATORS.map((name, bit) => ({ name, on: (runner.annunciators & (1 << bit)) !== 0 })),
-)
+/**
+ * LINK's mark is the device's, not ANNUN's: the ROM writes ANNUN whole and never knows of it.
+ * It blinks with the shared pulse, half a second on and half off, while an answer is awaited.
+ */
+const waiting = $derived(link && runner.linkBusy && seen)
+$effect(() => (waiting ? pulse.use() : undefined))
+const linkLit = $derived(link && (!runner.linkBusy || !seen || pulse.phase < 2))
+const marks = $derived([
+  ...ANNUNCIATORS.map((name, bit) => ({ name, on: (runner.annunciators & (1 << bit)) !== 0 })),
+  { name: 'LINK', on: linkLit },
+])
 </script>
 
 <div class="lcd" data-testid="elec16-lcd">

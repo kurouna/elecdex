@@ -24,6 +24,7 @@ import type { ClipBoard, ClipRestoreResult } from './clipboard.js'
 import type { DockerAction, DockerBoard, DockerControlResult } from './docker.js'
 import type { ElecEvent, ElecSubmitResult, SessionSummary } from './elec.js'
 import type { CardAnswer, CardRequest } from './elec16/card.js'
+import type { LinkAnswer, LinkRequest } from './elec16/link.js'
 import type {
   Elec16Board,
   Elec16Claim,
@@ -515,6 +516,10 @@ export interface Elec16Api {
   save(unit: string, pane: string, snapshot: Uint8Array): Promise<boolean>
   /** A card command the machine gave (shared/elec16/card.ts), done on the unit's card. */
   card(unit: string, pane: string, request: CardRequest): Promise<CardAnswer>
+  /** A LINK request the machine made (shared/elec16/link.ts), given to the service it names. */
+  link(unit: string, pane: string, request: LinkRequest): Promise<LinkAnswer>
+  /** The machine let a LINK request go (CANCEL, BRK, RESET): main stops asking for it. */
+  linkDrop(unit: string, pane: string, serial: number): void
   files(unit: string): Promise<Elec16FileInfo[]>
   /** The SOFT CARD's programs: elecdex's own, read by every unit. */
   soft(): Promise<Elec16FileInfo[]>

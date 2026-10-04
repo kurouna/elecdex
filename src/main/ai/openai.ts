@@ -240,12 +240,24 @@ export const contentOf = (message: WireMessage) =>
         ...(message.text === '' ? [] : [{ type: 'text', text: message.text }]),
       ]
 
+/**
+ * The answer's cap: OpenAI's own service takes only `max_completion_tokens` from its reasoning
+ * models; the servers that copy its API know `max_tokens`.
+ */
+const capOf = (request: StreamRequest): Record<string, number> =>
+  new URL(request.baseUrl).host === 'api.openai.com'
+    ? { max_completion_tokens: request.maxTokens ?? 0 }
+    : { max_tokens: request.maxTokens ?? 0 }
+
 const bodyFor = (request: StreamRequest): string =>
   JSON.stringify({
     model: request.model,
     stream: true,
     // Asks for the token counts in a last chunk; a server that does not know it ignores it.
     stream_options: { include_usage: true },
+    ...(request.maxTokens === undefined ? {} : capOf(request)),
+    // OpenAI's own search; a server without it refuses the request (or ignores the field).
+    ...(request.webSearch === true ? { web_search_options: {} } : {}),
     messages: [
       ...(request.system === '' ? [] : [{ role: 'system', content: request.system }]),
       ...request.messages.map((m) => ({ role: m.role, content: contentOf(m) })),

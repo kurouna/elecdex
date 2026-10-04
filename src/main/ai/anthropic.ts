@@ -67,18 +67,43 @@ function failure(error: unknown): unknown {
   return error
 }
 
+/** The searches one LINK question may make: enough for an answer, not a bill. */
+const SEARCHES = 3
+
 const paramsFor = (request: StreamRequest, model: ModelFacts) => ({
   model: request.model,
-  max_tokens: model.maxTokens,
+  max_tokens: Math.min(request.maxTokens ?? model.maxTokens, model.maxTokens),
   // The conversation so far is the same prefix on every turn: cache it.
   cache_control: { type: 'ephemeral' as const },
   ...(request.system === '' ? {} : { system: request.system }),
   // Summarized, or the reasoning arrives as empty blocks and the pane shows a long silence.
-  ...(model.adaptiveThinking
+  ...(model.adaptiveThinking && request.noThinking !== true
     ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } }
+    : {}),
+  // The basic search, which every model with search takes, with no code run for it.
+  ...(request.webSearch === true
+    ? {
+        tools: [
+          { type: 'web_search_20250305' as const, name: 'web_search' as const, max_uses: SEARCHES },
+        ],
+      }
     : {}),
   messages: request.messages.map((m) => ({ role: m.role, content: contentOf(m) })),
 })
+
+/** The text after the last search result: the answer, without what was said while searching. */
+function answerAfterSearch(message: Anthropic.Message | Anthropic.Beta.BetaMessage): string | null {
+  const blocks = message.content as readonly { type: string; text?: string }[]
+  let last = -1
+  blocks.forEach((b, k) => {
+    if (b.type === 'server_tool_use' || b.type === 'web_search_tool_result') last = k
+  })
+  if (last < 0) return null
+  return blocks
+    .slice(last + 1)
+    .map((b) => (b.type === 'text' ? (b.text ?? '') : ''))
+    .join('')
+}
 
 const mediaBlock = (media: Media): Anthropic.ImageBlockParam | Anthropic.DocumentBlockParam =>
   media.kind === 'image'
@@ -115,6 +140,8 @@ function resultOf(
   }
   // A fallback model answered in the first one's place: the answer names who wrote it.
   if (message.model !== asked) result.model = message.model
+  const answer = answerAfterSearch(message)
+  if (answer !== null) result.answer = answer
   if (message.stop_reason === 'max_tokens') result.stop = 'length'
   if (message.stop_reason === 'refusal') {
     result.stop = 'refusal'

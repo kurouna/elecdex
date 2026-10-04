@@ -26,7 +26,9 @@ services:
   j puthex        ; 5  a0: a word, as four hex digits
   j newline       ; 6
   j readline      ; 7  a0: buffer, a1: most characters -> a0: how many
-SERVICES = 8
+  j link          ; 8  a0: question, a1: reply, a2: most bytes, a3: service * 256 + type
+                  ;    -> a0: the answer's length (negative: -STATUS), a1: the reply
+SERVICES = 9
   .option compress
 
 start:
@@ -84,6 +86,12 @@ save_all:
   sw t0, REGS(zero)
   csrr t0, mcause
   sw t0, CAUSE(zero)
+  ; A LINK request out belonged to what stopped: its answer must not land in RAM later.
+  ; And WFI wakes for what the ROM waits on again: a program stopped while it waited with
+  ; more lines enabled (LINK's service, which the cancel just answered) would wake it for ever.
+  li t0, LINK_CANCEL
+  sw t0, IO_LINK_CMD(zero)
+  csrwi mie, (1 << IRQ_KEY) | (1 << IRQ_CARD)
   ; Out of the handler, into the monitor.
   la t0, broken
   csrw mepc, t0
@@ -116,6 +124,7 @@ ecall_return:
 
   .include "lcd.s"
   .include "keys.s"
+  .include "link.s"
   .include "monitor.s"
 
 ; ---------------- BASIC ----------------
@@ -135,6 +144,9 @@ basic_warm:
   sw sp, BASIC_SP(zero)
   call basicWarm
 basic_abort:
+  ; An error or BREAK: a LINK request machine code left out is let go with the program.
+  li t0, LINK_CANCEL
+  sw t0, IO_LINK_CMD(zero)
   lw sp, BASIC_SP(zero)
   call basicLoop
   j basic_abort

@@ -275,6 +275,12 @@ export class Elec16Units {
     return this.#writeBackup(unit.id, snapshot)
   }
 
+  /** Whether this pane holds the unit now (LINK answers only the pane that runs it). */
+  holds(id: unknown, holder: Holder): boolean {
+    const unit = this.unit(id)
+    return unit !== null && this.#holds(unit.id, holder)
+  }
+
   #holds(id: string, holder: Holder): boolean {
     const now = this.#holders.get(id)
     return now !== undefined && same(now, holder)

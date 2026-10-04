@@ -7,21 +7,30 @@
  * way in: main keeps these files and checks them with this decoder too.
  *
  * Not kept: keys held or waiting (a machine comes back with every key up), and the card
- * command out - a machine put away while main was doing one comes back with it ended,
- * INTERRUPTED, so a program waiting for its answer is not left waiting.
+ * command or LINK request out - a machine put away while main was doing one comes back with
+ * it ended, INTERRUPTED, so a program waiting for its answer is not left waiting.
+ *
+ * Version 2 added LINK; a version 1 snapshot is still read, its LINK as a new machine's.
  */
 
 import { ByteReader, ByteWriter } from '../emu/bytes.js'
 import { CARD_STATUS } from './card.js'
 import type { Angle } from './decimal.js'
+import { linkInterrupted } from './link.js'
+import { LINK_STATUS } from './link-services.js'
 import { BANK_COUNT, MODEL_IDS, RAM_SIZE, VRAM_WINDOW } from './map.js'
 import { createState, type Elec16State } from './state.js'
 
 const MAGIC = [0x45, 0x31, 0x36, 0x53] // "E16S"
-export const SNAPSHOT_VERSION = 1
+export const SNAPSHOT_VERSION = 2
 
 /** A halt's cause is kept as text, at most this long. */
 const CAUSE_MAX = 64
+
+/** LINK: service, type, query, reply, max, status, length, serial, flags. */
+const LINK_SIZE = 1 + 1 + 2 + 2 + 2 + 1 + 2 + 2 + 1
+
+const LINK_FLAG = { pending: 1, busy: 2, vouched: 4, fresh: 8 } as const
 
 /** Everything but the halt's cause, RAM and VRAM. */
 const HEAD =
@@ -64,7 +73,8 @@ const HEAD =
   1 +
   4 +
   1 +
-  1 // card
+  1 + // card
+  LINK_SIZE
 
 /** The longest snapshot there is, for whoever stores them to check against. */
 export const SNAPSHOT_MAX_SIZE = HEAD + CAUSE_MAX + RAM_SIZE + VRAM_WINDOW
@@ -130,15 +140,52 @@ function writeDevices(w: ByteWriter, s: Elec16State): void {
   w.u32(card.result)
   w.u8(card.pending ? 1 : 0)
   w.u8(card.busy ? 1 : 0)
+  const link = s.link
+  w.u8(link.service)
+  w.u8(link.type)
+  w.u16(link.query)
+  w.u16(link.reply)
+  w.u16(link.max)
+  w.u8(link.status)
+  w.u16(link.length)
+  w.u16(link.serial)
+  w.u8(
+    (link.pending ? LINK_FLAG.pending : 0) |
+      (link.busy ? LINK_FLAG.busy : 0) |
+      (link.vouched ? LINK_FLAG.vouched : 0) |
+      (link.fresh ? LINK_FLAG.fresh : 0),
+  )
 }
 
 const finite = (v: number): boolean => Number.isFinite(v) && v >= 0
+
+/** LINK, checked; a request that was out comes back ended, INTERRUPTED. */
+function readLink(r: ByteReader, s: Elec16State): boolean {
+  const link = s.link
+  link.service = r.u8()
+  link.type = r.u8()
+  link.query = r.u16()
+  link.reply = r.u16()
+  link.max = r.u16()
+  link.status = r.u8()
+  link.length = r.u16()
+  link.serial = r.u16()
+  const flags = r.u8()
+  link.pending = (flags & LINK_FLAG.pending) !== 0
+  link.vouched = (flags & LINK_FLAG.vouched) !== 0
+  link.fresh = (flags & LINK_FLAG.fresh) !== 0
+  if ((flags & LINK_FLAG.busy) !== 0) linkInterrupted(s)
+  return link.status <= LINK_STATUS.noService && flags < 16
+}
 
 /** A snapshot read back into a state; null when it is not one of ours, whole and in range. */
 export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   const r = new ByteReader(bytes)
   const magic = r.raw(4)
-  if (MAGIC.some((b, k) => magic[k] !== b) || r.u8() !== SNAPSHOT_VERSION) return null
+  const version = r.u8()
+  if (MAGIC.some((b, k) => magic[k] !== b) || version < 1 || version > SNAPSHOT_VERSION) {
+    return null
+  }
   const model = MODEL_IDS[r.u8()]
   if (model === undefined) return null
   const s = createState(model)
@@ -149,7 +196,7 @@ export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
     Array.from({ length: 7 }, () => r.u16())
   s.csr = {
     mstatus,
-    mie: mie & 15,
+    mie: mie & (version === 1 ? 15 : 31),
     mtvec: mtvec & 0xfffe,
     mscratch,
     mepc: mepc & 0xfffe,
@@ -162,7 +209,7 @@ export function decodeSnapshot(bytes: Uint8Array): Elec16State | null {
   s.cycles = r.f64()
   s.instret = r.f64()
   s.bank = r.u8()
-  if (!readDevices(r, s)) return null
+  if (!readDevices(r, s) || (version >= 2 && !readLink(r, s))) return null
   const cause = String.fromCharCode(...r.raw(causeLength))
   s.ram.set(r.raw(RAM_SIZE))
   s.vram.set(r.raw(VRAM_WINDOW))

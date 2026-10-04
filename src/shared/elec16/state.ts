@@ -4,6 +4,7 @@
  */
 
 import { type CardState, createCardState } from './card.js'
+import { createLinkState, type LinkState } from './link.js'
 import { MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
 import { createMathState, type MathState } from './math-unit.js'
 
@@ -65,6 +66,8 @@ export interface Elec16State {
   stall: number
   /** The memory card's registers and the command out (card.ts). */
   card: CardState
+  /** LINK's registers and the request out (link.ts). */
+  link: LinkState
 }
 
 export const CSR_NAMES = {
@@ -92,7 +95,10 @@ export const MPIE = 1 << 7
  * interrupts off or not enabled in mie (only a handler already running holds it back), so
  * the key always gets the machine back, as on the pocket computers it follows.
  */
-export const IRQ = { timer: 0, key: 1, card: 2, math: 3, brk: 15 } as const
+export const IRQ = { timer: 0, key: 1, card: 2, math: 3, link: 4, brk: 15 } as const
+
+/** The lines mie takes: TIMER, KEY, CARD, MATH and LINK (BRK is never masked). */
+export const MIE_LINES = 0x1f
 
 /** The LCD's annunciators, as bits of ANNUN: the marks above the dots. */
 export const ANNUNCIATORS = [
@@ -150,5 +156,6 @@ export function createState(model: ModelId): Elec16State {
     math: createMathState(),
     stall: 0,
     card: createCardState(),
+    link: createLinkState(),
   }
 }

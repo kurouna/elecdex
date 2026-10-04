@@ -181,7 +181,7 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 
 - **ELEC-16** *(unreleased)* — a 16-bit pocket computer of elecdex's own design: its own
   RISC CPU, BASIC and machine-code monitor in ROM, an LCD and a keyboard, a memory card, and
-  a CODE view that compiles TypeScript into its machine code.
+  a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
 
 ### Layouts, looks and the rest
 
@@ -863,8 +863,13 @@ weather and calendar.
   types into it while the pane has the focus (kana by the JIS layout in KANA mode), and PASTE
   types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
   across restarts, its card holds files - and one pane runs it at a time (MOVE HERE takes it
-  over). The SOFT CARD brings twelve programs (games, a sine wave, a clock, a biorhythm, a
-  ticker and a demo in machine code). The panel beside it shows the registers and the code
+  over). The SOFT CARD brings thirteen programs (games, a sine wave, a clock, a biorhythm, a
+  chat with the AI, a ticker and a demo in machine code). **LINK** lets a program talk to the
+  AI of the AI settings: `ASK Q$,A$` puts a question and takes the answer, in English or -
+  asked in kana - in kana, as the LCD has no kanji; `ASK TYPE` picks how it answers (a
+  tutor, a quiz, a story, a dictionary, translation, a web search, the weather...). It is off
+  until turned on in TUNE, nothing but the question goes, and a program cannot send again
+  until a person has pressed a key. The panel beside it shows the registers and the code
   (with breakpoints and STEP), the memory, the card (IMPORT and EXPORT of `.bas`, `.asm` and
   binary files) and TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off).
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at

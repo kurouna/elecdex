@@ -51,6 +51,7 @@ ELEC-16 BASIC 1.0
 | MON | 機械語のモニタにいる |
 | DEG / RAD / GRAD | 角度の単位 |
 | ♪ | `BEEP` の音が鳴っている |
+| LINK | LINK（AI とのやりとり）が ON。答えを待つ間は点滅する（§15） |
 
 ### 1.3 キーボード
 
@@ -520,6 +521,7 @@ ERR:INDEX
 | OFF | `OFF` | 電源を切る |
 | POKE | `POKE 番地,値` | メモリに 1 バイト書く（§10） |
 | CALL | `CALL 番地` | 機械語を呼ぶ（§10） |
+| ASK | `ASK 問$,答$`、`ASK NEW`、`ASK TYPE 種類` | AI に聞く（§15） |
 | MON | `MON` | 機械語のモニタへ（§10） |
 | OPEN / CLOSE | §9.5 | データファイルを開く・閉じる |
 | PRINT # / INPUT # | §9.5 | データファイルに書く・読む |
@@ -921,6 +923,7 @@ HELLO.BAS    17
 | UNITS | 単位の換算（`ON GOSUB`） |
 | ASMDEMO.BIN | 機械語で液晶に描く例（`LOAD "ASMDEMO.BIN":CALL 28672`） |
 | TICKER.BIN | 打った文を機械語で流す（`LOAD "TICKER.BIN":CALL 28672`） |
+| CHAT | AI と話す（`ASK`、`ASK TYPE`、語の切れ目で折り返す表示） |
 
 - 読んだプログラムは、直して自分のカードに `SAVE` できます。同じ名前で `SAVE` すると、以後はそちらが読まれます
 - SOFT CARD のファイルは消せません（`KILL` は `ERR:NO FILE`）
@@ -1069,6 +1072,9 @@ ERR:SYNTAX
 | `INDEX` | 添字が範囲の外 | `DIM A(5)` の `A(6)`、負の添字、次元の数の違い |
 | `DIM` | 二度目の DIM | 作ってある配列や文字列変数をもう一度 `DIM` |
 | `FILE` | ファイルの使い方の誤り | 名前の決まりに合わない、番号が 1〜2 でない、開いていない番号、開いている番号を開く、`LOAD` できない中身 |
+| `LINK OFF` | LINK が OFF | PANEL の TUNE で LINK が OFF、AI のプロバイダが選ばれていない（§15） |
+| `LINK HELD` | 人の操作がない | 前の `ASK` の後にキーが押されていない（§15.3） |
+| `LINK` | AI が答えなかった | つながらない、鍵が違う・ない、時間切れ、断られた、検索できないモデル。理由は TUNE に出る（§15） |
 
 エラーではない止まり方:
 
@@ -1098,6 +1104,7 @@ ERR:SYNTAX
 | BEEP | 0〜20000 Hz、0〜10000 ミリ秒 |
 | 開けるデータファイル | 2 つ |
 | 記憶カード | 256 KB、1 ファイル 32 KB、名前は 8+3 文字 |
+| ASK | 質問 1〜255 文字、答えは答えの変数の大きさまで（255 文字まで）。AI は直近 10 往復を覚える |
 | 機械語の領域 | 28672〜31743（16 進 7000〜7BFF、3 KB） |
 
 メモリの使い方の目安です。
@@ -1239,16 +1246,96 @@ PLAYER2   200
 PLAYER3   300
 ```
 
+## 15. AI と話す（ASK）
+
+ELEC-16 は、通信の口 **LINK** を通して AI と話せます。AI は elecdex の設定の AI（AI チャットペインと同じプロバイダ）が答えます。問いと答えは液晶の文字で行き来し、カナで聞けばカナで、英語で聞けば英語で答えます。
+
+### 15.1 使う前に
+
+1. elecdex の設定の AI で、プロバイダ（OpenAI、Anthropic、手元の LLM など）とモデルを決めておきます。鍵が要るプロバイダには鍵を入れます。鍵のないプロバイダも選べます（手元の LLM は鍵が要りません。要るのにないときは、聞いたときに `ERR:LINK` になります）
+2. PANEL の TUNE で **LINK を ON** にし、プロバイダを選びます。液晶の上に LINK の表示記号が点きます
+3. LINK は既定で OFF です。OFF の間は何も送られません（`ERR:LINK OFF`）
+
+送られるのは、`ASK` で渡した問いと、それまでの会話（§15.4）だけです。プログラムやメモリのほかの中身は送りません。プロバイダによってはお金がかかります。
+
+### 15.2 ASK
+
+**ASK 問$,答$** — 問いを AI に渡し、答えを文字列の変数に入れます。
+
+```text
+>DIM A$*200
+>ASK "WHAT IS A PULSAR?",A$
+>PRINT A$
+A pulsar is a spinning neutron star that sends out beams of radio waves.
+```
+
+- 問いは文字列の式です（1〜255 文字）。答えは文字列の変数か、文字列の配列の要素に入ります
+- **答えの長さは、答えの変数の大きさまで**です。AI にもその長さで答えるよう頼みます。既定の 16 文字では短すぎるので、`DIM A$*200` のように大きくしておきます（255 まで）。長すぎる答えは文の切れ目で切り、途中で切ったときは `...` を付けます
+- 答えを待つ間、LINK の表示記号が点滅します。BRK で止めると `BREAK IN 行` になり、`CONT` でもう一度聞きます
+- 問いに**カナが 1 文字でもあれば、カナで**答えます（漢字は出せないので、かなだけで、文節の間に空白を入れて書きます）。カナがなければ英語で答えます
+
+```text
+>ASK "ﾊﾟﾙｻｰｯﾃ ﾅﾆ?",A$
+>PRINT A$
+ﾊﾟﾙｻｰﾊ ﾋｶﾘﾉ ﾋﾞｰﾑｦ ﾀﾞｼﾅｶﾞﾗ ﾊﾔｸ ﾏﾜﾙ ﾁｭｳｾｲｼﾎﾞｼﾃﾞｽ｡
+```
+
+- `ASK` は 1 つの文で作る文字列の 512 バイト（§4.4）のうち、問いと答えの分を使います。長い問いを `+` でつないで作り、長い答えを受けると `ERR:TOO COMPLEX` になることがあります。問いを変数に入れてから聞いてください
+
+### 15.3 勝手に送らない（LINK HELD）
+
+`ASK` は、**前の `ASK` の後に人が何か操作したときだけ**送ります。操作とは、ELEC-16 のキー（画面のキー、PC のキー）、BRK/ON、RESET、PANEL の RUN ▸ と LOAD ▸ です。PASTE で打たれた文字は数えません。
+
+プログラムが続けて `ASK` すると、2 回目は `ERR:LINK HELD` で止まります。プログラムが AI を呼び続けてお金を使うことはありません。ふつうは `INPUT` で問いを打ってもらってから `ASK` するので、気にする必要はありません。
+
+### 15.4 会話とタイプ（ASK NEW、ASK TYPE）
+
+AI はそれまでの会話（直近 10 往復）を覚えていて、続きとして答えます。
+
+**ASK NEW** — 会話を忘れ、次の `ASK` から新しい会話にします。RESET、電源 OFF、`ASK TYPE` で種類を変えたときも、会話は新しくなります（elecdex を閉じても忘れます）。
+
+**ASK TYPE 種類** — AI の答え方を選びます。種類は名前（`ASK TYPE "QUIZ"`）か番号（`ASK TYPE 3`）で書きます。電源を入れたときは NORMAL です。
+
+| 番号 | 名前 | 答え方 | 会話 |
+|---|---|---|---|
+| 0 | NORMAL | ふつうに短く答える | 覚える |
+| 1 | TUTOR | やさしく教える先生 | 覚える |
+| 2 | BASIC | ELEC-16 の BASIC と機械語の相談役 | 覚える |
+| 3 | QUIZ | クイズを出し、次に打った答えを判定する | 覚える |
+| 4 | STORY | テキストアドベンチャーの語り手。選択肢を出す | 覚える |
+| 5 | POET | 詩、俳句、川柳 | 覚える |
+| 6 | FORTUNE | 占い（遊び） | 覚える |
+| 7 | DICT | 辞書。語の意味を 1〜2 文で | 1 回ずつ |
+| 8 | TRANS | 和英・英和。カナの問いは英語に、英語の問いはカナに訳す | 1 回ずつ |
+| 9 | SEARCH | ウェブで調べて要約する | 1 回ずつ |
+| 10 | WEATHER | 地名の天気予報（今日と明日） | 1 回ずつ |
+
+- SEARCH と WEATHER は、プロバイダ側のウェブ検索を使います（Anthropic、OpenAI の検索に対応したモデルなど）。検索できないプロバイダやモデルでは `ERR:LINK` になります
+- 答えはすべて AI が書いたものです。辞書や天気も、AI の答えとして読んでください
+
+### 15.5 例: 質問を繰り返す
+
+```basic
+10 DIM Q$*78,A$*200
+20 INPUT Q$
+30 IF Q$="" THEN END
+40 ASK Q$,A$
+50 PRINT A$
+60 GOTO 20
+```
+
+SOFT CARD の **CHAT**（§9.3）は、タイプを選び、答えを 1 文字ずつ語の切れ目で折り返して出すチャットです。中身は `LIST` で読めます。機械語から LINK を使う方法は [E16 マニュアル](elec16-e16.md) の §4.8 と ROM サービス 8 にあります。
+
 ## 付録: 予約語
 
 次の語は BASIC が命令として読みます。変数の名前の中にも書けません（§4.3）。
 
 ```
-ABS ACOS AND ANS APPEND AS ASC ASIN ATAN AUTO BEEP CALL CHR$ CIRCLE
+ABS ACOS AND ANS APPEND AS ASC ASIN ASK ATAN AUTO BEEP CALL CHR$ CIRCLE
 CLEAR CLOSE CLS CONT COS CURSOR DATA DATE$ DEG DELETE DIM ELSE END EOF
 EXP FILES FOR GOSUB GOTO GPRINT GRAD IF INKEY$ INPUT INT KILL LCDH LCDW
 LEFT$ LEN LET LINE LIST LN LOAD LOCATE LOG MID$ MON NEW NEXT NOT OFF ON
 OPEN OR OUTPUT PEEK PI POINT POKE PRESET PRINT PSET RAD READ REM RENUM
 RESTORE RETURN RIGHT$ RND RUN SAVE SGN SIN SQR STEP STOP STR$ TAN THEN
-TIME$ TO TROFF TRON VAL WAIT
+TIME$ TO TROFF TRON TYPE VAL WAIT
 ```

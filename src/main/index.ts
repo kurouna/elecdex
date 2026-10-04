@@ -10,7 +10,7 @@ import { registerAudioIpc } from './ipc/audio.js'
 import { registerChip8Ipc } from './ipc/chip8.js'
 import { registerClipboardIpc } from './ipc/clipboard.js'
 import { registerDockerIpc } from './ipc/docker.js'
-import { registerElec16Ipc } from './ipc/elec16.js'
+import { type Elec16AiLinks, registerElec16Ipc } from './ipc/elec16.js'
 import { registerFeedsIpc } from './ipc/feeds.js'
 import { registerFsIpc } from './ipc/fs.js'
 import { registerGitIpc } from './ipc/git.js'
@@ -96,6 +96,8 @@ let gitIpc: { dispose: () => void } | null = null
 let orbitsIpc: { dispose: () => void } | null = null
 let agentsIpc: { dispose: () => void } | null = null
 let aiIpc: { dispose: () => void } | null = null
+/** The AI's keys and adapters, which the ELEC-16's LINK asks through once the AI is up. */
+let aiLinks: Elec16AiLinks | null = null
 let quakesIpc: { dispose: () => void } | null = null
 let notesIpc: { dispose: () => void } | null = null
 let tasksIpc: { dispose: () => void } | null = null
@@ -122,13 +124,15 @@ app.whenReady().then(() => {
   nowPlayingIpc = registerNowPlayingIpc()
   dockerIpc = registerDockerIpc()
   chip8Ipc = registerChip8Ipc()
-  elec16Ipc = registerElec16Ipc()
+  elec16Ipc = registerElec16Ipc(settings, () => aiLinks)
   // Before the window: AWAKE's hold from last time is taken up at once.
   utilityIpc = registerUtilityIpc(clipboardIpc.writer)
   gitIpc = registerGitIpc(settings)
   orbitsIpc = registerOrbitsIpc()
   agentsIpc = registerAgentsIpc(settings)
-  aiIpc = registerAiIpc(settings)
+  const ai = registerAiIpc(settings)
+  aiIpc = ai
+  aiLinks = ai.links
   updatesIpc = registerUpdatesIpc(settings)
   quakesIpc = registerQuakesIpc(settings)
   notesIpc = registerNotesIpc()
@@ -214,6 +218,7 @@ app.on('will-quit', () => {
   agentsIpc = null
   aiIpc?.dispose()
   aiIpc = null
+  aiLinks = null
   quakesIpc?.dispose()
   quakesIpc = null
   notesIpc?.dispose()

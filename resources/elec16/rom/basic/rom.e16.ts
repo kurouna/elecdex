@@ -26,6 +26,11 @@ export declare function basic_abort(): void
 export declare function monitor(): void
 /** Calls machine code at an address (CALL). */
 export declare function call_at(address: u16): void
+/**
+ * LINK's service 8 (link.s): the question at `query` put to service 0, the AI, of `type`;
+ * the answer at `reply`, at most `max` bytes. Its length, or -STATUS when there is none.
+ */
+export declare function link(query: u16, reply: u16, max: u16, type: u16): i16
 
 /* ---------------- the monitor's work area (ram.inc) ---------------- */
 
@@ -57,6 +62,14 @@ export const IO_DUR = 0xff42
 export const CARD_CMD = 0xff60
 export const CARD_BLOCK = 0xff62
 export const CARD_STATUS = 0xff64
+/** LINK (shared/elec16/link-services.ts): CMD and the statuses ASK tells apart. */
+export const LINK_CMD = 0xff70
+export const LINK_FRESH = 2
+export const LINK_CANCEL = 3
+export const LINK_ST_OFF = 2
+export const LINK_ST_HELD = 3
+export const LINK_ST_BAD_REQUEST = 5
+export const LINK_ST_CANCELLED = 7
 export const CARD_RESULT = 0xff66
 export const CARD_RESULT_HIGH = 0xff68
 /** The CSR that enables the lines WFI wakes for, and the timer's bit in it. */

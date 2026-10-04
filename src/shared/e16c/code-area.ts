@@ -27,6 +27,12 @@ function cls(): void { ecall(3) }
 function locate(column: u16, row: u16): void { ecall(4, column, row) }
 function puthex(v: u16): void { ecall(5, v) }
 function newline(): void { ecall(6) }
+function readline(buf: u16, max: u16): i16 { return i16(ecall(7, buf, max)) }
+function askAs(type: u16, question: u16, reply: u16, max: u16): i16 {
+  return i16(ecall(8, question, reply, max, type))
+}
+function ask(question: u16, reply: u16, max: u16): i16 { return askAs(0, question, reply, max) }
+function askNew(): void { poke16(0xff70, 2) }
 function putnum(v: u16): void {
   if (v >= 10) putnum(div(v, 10))
   putc(0x30 + (v % 10))
@@ -53,7 +59,8 @@ function pset(x: u16, y: u16): void {
 /** The program CODE starts with. */
 export const SAMPLE = `// A program for the ELEC-16, in the subset of TypeScript e16c compiles.
 // main() runs on CALL 28672 (BASIC) or G 7000 (the monitor), and returns to it.
-// The library: putc puts cls locate newline putnum puthex getkey keyWaiting beep pset.
+// The library: putc puts cls locate newline putnum puthex getkey keyWaiting beep pset
+// readline ask askAs askNew.
 
 const GREETING = str('HELLO FROM TYPESCRIPT')
 

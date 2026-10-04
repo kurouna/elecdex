@@ -176,6 +176,8 @@ export const CH = {
     release: 'elec16:release',
     save: 'elec16:save',
     card: 'elec16:card',
+    link: 'elec16:link',
+    linkDrop: 'elec16:link-drop',
     files: 'elec16:files',
     soft: 'elec16:soft',
     import: 'elec16:import',

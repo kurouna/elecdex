@@ -1,5 +1,7 @@
 import type { Elec16Api } from '@shared/api'
 import { CARD_STATUS, type CardAnswer, type CardRequest } from '@shared/elec16/card'
+import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
+import { LINK_STATUS } from '@shared/elec16/link-services'
 import { Elec16 } from '@shared/elec16/machine'
 import {
   type Elec16Board,
@@ -52,6 +54,11 @@ export class UnitSession {
     this.#runner = runner
     this.#host = host
     runner.onCard = (request) => this.#card(request)
+    runner.onLink = (request) => this.#link(request)
+    runner.onLinkDrop = (serial) => {
+      const unit = this.unit
+      if (unit !== null && this.phase === 'running') this.#api.linkDrop(unit.id, this.#pane, serial)
+    }
     this.#stops.push(
       api.onChange((board) => this.#boardChanged(board)),
       api.onGiveBack((unit) => {
@@ -161,6 +168,8 @@ export class UnitSession {
   dispose(): void {
     this.#disposed = true
     this.#runner.onCard = null
+    this.#runner.onLink = null
+    this.#runner.onLinkDrop = null
     for (const stop of this.#stops.splice(0)) stop()
   }
 
@@ -225,6 +234,14 @@ export class UnitSession {
     const unit = this.unit
     if (unit === null || this.phase !== 'running') return { status: CARD_STATUS.noCard }
     return this.#api.card(unit.id, this.#pane, request)
+  }
+
+  async #link(request: LinkRequest): Promise<LinkAnswer> {
+    const unit = this.unit
+    if (unit === null || this.phase !== 'running') {
+      return { status: LINK_STATUS.failed, note: 'the unit is not running here' }
+    }
+    return this.#api.link(unit.id, this.#pane, request)
   }
 }
 

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { type CardFile, cardOp } from '@shared/elec16/card'
 import { screenText } from '@shared/elec16/font'
 import { keyCode, keyForChar, keyForKana } from '@shared/elec16/keys'
+import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
 import { Elec16 } from '@shared/elec16/machine'
 import { MODELS, type ModelId } from '@shared/elec16/map'
 import { buildRom } from '@shared/elec16/rom'
@@ -24,8 +25,18 @@ export const card: { files: readonly CardFile[]; soft: readonly CardFile[] } = {
 }
 
 /**
+ * What main's LINK answers in a test (`answer`; null, or one that gives null, leaves the
+ * request out, as a slow service does), and every request it was given.
+ */
+export const linkService: {
+  answer: ((request: LinkRequest) => LinkAnswer | null) | null
+  asked: LinkRequest[]
+} = { answer: null, asked: [] }
+
+/**
  * Runs until the machine waits for a key (or stops), doing what the page and main would on
- * the way: card commands served from `card`, and time passed while it sleeps on its timer.
+ * the way: card commands served from `card`, LINK requests answered by `linkService`, and
+ * time passed while it sleeps on its timer.
  */
 export function settle(m: Elec16): void {
   for (let k = 0; k < 4000; k++) {
@@ -37,6 +48,7 @@ export function settle(m: Elec16): void {
       m.answerCard(request, done.answer)
       continue
     }
+    if (answerLink(m)) continue
     if (r.halted !== null) return
     if (r.sleeping !== null) {
       if (r.sleeping.timerMs === null) return
@@ -44,6 +56,16 @@ export function settle(m: Elec16): void {
     }
   }
   throw new Error('the ROM never waited for a key')
+}
+
+/** A LINK request out, given to `linkService`: true when it answered it. */
+function answerLink(m: Elec16): boolean {
+  const asked = m.takeLinkRequest()
+  if (asked === null) return false
+  linkService.asked.push(asked)
+  const answer = linkService.answer?.(asked) ?? null
+  if (answer !== null) m.answerLink(asked.serial, answer)
+  return answer !== null
 }
 
 /** Switched on: at BASIC's prompt. */

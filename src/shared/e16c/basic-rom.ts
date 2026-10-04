@@ -20,6 +20,7 @@ export const BASIC_SOURCES: readonly { name: string; bank?: number }[] = [
   { name: 'files.e16.ts', bank: 2 },
   { name: 'tools.e16.ts', bank: 3 },
   { name: 'monitor.e16.ts', bank: 4 },
+  { name: 'link.e16.ts', bank: 5 },
 ]
 
 /** BASIC's own RAM, above the monitor's work area and below the program (PROG, 0800). */

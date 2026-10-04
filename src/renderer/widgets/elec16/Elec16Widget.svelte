@@ -167,7 +167,11 @@ const taker: CodeTaker = {
  */
 async function typeLine(line: string): Promise<string | null> {
   const problem = await typeAtBasic(taker, line)
-  if (problem === null) root?.focus({ preventScroll: true })
+  if (problem === null) {
+    // A person's press, though PASTE's keys type it: the program may use LINK once.
+    runner.vouch()
+    root?.focus({ preventScroll: true })
+  }
   return problem
 }
 
@@ -189,6 +193,7 @@ async function giveCode(image: Uint8Array, how: 'run' | 'load'): Promise<void> {
     change({ view: 'code' })
     return
   }
+  runner.vouch()
   root?.focus({ preventScroll: true })
 }
 
@@ -469,6 +474,7 @@ onDestroy(() => {
             ghost={pane.ghost}
             contrast={pane.contrast}
             seen={visible}
+            link={appearance.settings.elec16.link.on}
           />
         </div>
       {/if}
@@ -517,6 +523,8 @@ onDestroy(() => {
               {pasteSkipped}
               canPaste={canType}
               onpaste={() => void paste()}
+              linkSent={runner.linkSent}
+              linkNote={runner.linkNote}
             />
           {/if}
         </div>

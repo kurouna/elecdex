@@ -1,10 +1,13 @@
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { AiProviderKind } from '@shared/ai'
 import { CH } from '@shared/channels'
 import { assemble, ramImage } from '@shared/elec16/asm'
 import { CARD_FILE_MAX, CARD_STATUS, type CardAnswer, isCardName } from '@shared/elec16/card'
 import { cardNameOf, fromMachineText, toMachineText } from '@shared/elec16/charset'
+import type { LinkAnswer } from '@shared/elec16/link'
+import { LINK_STATUS } from '@shared/elec16/link-services'
 import { CODE_AREA, CODE_AREA_END, MODEL_IDS } from '@shared/elec16/map'
 import {
   ELEC16_CLOCKS,
@@ -16,16 +19,31 @@ import {
   type Elec16UnitSeed,
 } from '@shared/elec16-units'
 import { app, BrowserWindow, dialog, type WebContents } from 'electron'
+import type { ProviderAdapter } from '../ai/adapter.js'
 import { appWindows } from '../app-windows.js'
+import { AiLinkService } from '../elec16/link/ai.js'
+import { LinkHub } from '../elec16/link/hub.js'
 import { Elec16Units, findElec16Dir, type Holder, readSoftCard } from '../elec16/units.js'
 import { whenPageGoes } from './page-gone.js'
+import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
 
 /**
  * The ELEC-16 pane's IPC (docs/elec16.md section 8): units, which pane runs each, their
  * battery backups and memory cards, and IMPORT / EXPORT through main's own pickers, so the
- * page never names a path. Nothing is fetched, and no plugin API reaches it.
+ * page never names a path. No plugin API reaches it.
+ *
+ * LINK (docs/elec16.md section 12) is the one way out: a request the machine made, passed on
+ * by the page that runs the unit, answered by a service of main's (main/elec16/link) - the AI
+ * asks the providers of the AI settings through the chat pane's adapters and keys, which
+ * ipc/ai.ts hands over once it is up. Nothing is asked while LINK is off.
  */
+
+/** What the AI service needs of the AI chat's side: the keys and the adapters. */
+export interface Elec16AiLinks {
+  keyFor(providerId: string): string | null
+  adapter(kind: AiProviderKind): Promise<ProviderAdapter>
+}
 
 /** A text listing may be larger than the card file it makes (CRLF becomes CR). */
 const TEXT_MAX = 4 * CARD_FILE_MAX
@@ -42,7 +60,11 @@ function seedOf(raw: unknown): Elec16UnitSeed {
   return { ...(clock !== undefined ? { clock } : {}), ...(model !== undefined ? { model } : {}) }
 }
 
-export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec16')): {
+export function registerElec16Ipc(
+  settings: SettingsHandle,
+  aiLinks: () => Elec16AiLinks | null,
+  dir = path.join(app.getPath('userData'), 'elec16'),
+): {
   dispose: () => void
 } {
   const units = new Elec16Units(
@@ -51,6 +73,24 @@ export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec
     readSoftCard(findElec16Dir(path.dirname(fileURLToPath(import.meta.url)))),
   )
   const owner = {}
+  const hub = new LinkHub({
+    services: [
+      new AiLinkService({
+        providers: () => settings.current().ai.providers,
+        provider: () => settings.current().elec16.link.ai.provider,
+        keyFor: (id) => aiLinks()?.keyFor(id) ?? null,
+        adapter: (kind) => {
+          const links = aiLinks()
+          if (links === null) return Promise.reject(new Error('the AI is not ready yet'))
+          return links.adapter(kind)
+        },
+        today: () => new Date().toLocaleDateString('sv-SE'),
+      }),
+    ],
+    enabled: () => settings.current().elec16.link.on,
+    setTimer: (fn, ms) => setTimeout(fn, ms),
+    clearTimer: (handle) => clearTimeout(handle as NodeJS.Timeout),
+  })
 
   const boardFor = (page: WebContents, seed?: Elec16UnitSeed): Elec16Board => ({
     units: units.list(seed),
@@ -73,7 +113,9 @@ export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec
   /** The page's holder for a pane; its going frees what it held. */
   const holderOf = (page: WebContents, pane: string): Holder => {
     whenPageGoes(page, owner, () => {
-      if (units.dropPage(page.id).length > 0) changed()
+      const freed = units.dropPage(page.id)
+      for (const unit of freed) hub.dropUnit(unit)
+      if (freed.length > 0) changed()
     })
     return { page: page.id, pane }
   }
@@ -120,6 +162,7 @@ export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec
       [CH.elec16.release]: (event, unit: unknown, pane: unknown, snapshot: unknown): boolean => {
         if (!isPane(pane)) return false
         const done = units.release(unit, { page: event.sender.id, pane }, snapshot)
+        if (done && typeof unit === 'string') hub.dropUnit(unit)
         if (done) changed()
         return done
       },
@@ -136,6 +179,21 @@ export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec
         if (answer.status === CARD_STATUS.ok && writes && typeof unit === 'string')
           filesChanged(unit)
         return answer
+      },
+      [CH.elec16.link]: async (
+        event,
+        unit: unknown,
+        pane: unknown,
+        request: unknown,
+      ): Promise<LinkAnswer> => {
+        if (
+          !isPane(pane) ||
+          typeof unit !== 'string' ||
+          !units.holds(unit, { page: event.sender.id, pane })
+        ) {
+          return { status: LINK_STATUS.failed, note: 'this pane does not run that unit' }
+        }
+        return hub.ask(unit, request)
       },
       [CH.elec16.files]: (_event, unit: unknown): Elec16FileInfo[] => units.files(unit),
       [CH.elec16.soft]: (): Elec16FileInfo[] => units.softFiles(),
@@ -171,9 +229,20 @@ export function registerElec16Ipc(dir = path.join(app.getPath('userData'), 'elec
         return true
       },
     },
+    on: {
+      [CH.elec16.linkDrop]: (event, unit: unknown, pane: unknown, serial: unknown) => {
+        if (!isPane(pane) || typeof unit !== 'string') return
+        if (units.holds(unit, { page: event.sender.id, pane })) hub.drop(unit, serial)
+      },
+    },
   })
 
-  return { dispose: unregister }
+  return {
+    dispose: () => {
+      hub.dispose()
+      unregister()
+    },
+  }
 }
 
 async function pickOpen(page: WebContents): Promise<string | undefined> {

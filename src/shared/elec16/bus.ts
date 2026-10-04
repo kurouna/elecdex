@@ -16,6 +16,8 @@
 
 import { CARD_REG, cardRead, cardWrite } from './card.js'
 import type { Inst } from './isa.js'
+import { linkLetGo, linkRead, linkWrite } from './link.js'
+import { LINK_REG } from './link-services.js'
 import {
   BANK_COUNT,
   BANK_SIZE,
@@ -178,6 +180,7 @@ export class Bus {
     const s = this.#s
     if (a >= MATH_REG.op && a < MATH_REG.op + 16) return mathRead(s, a, peek)
     if (a >= CARD_REG.cmd && a < CARD_REG.cmd + 16) return cardRead(s, a, peek)
+    if (a >= LINK_REG.cmd && a < LINK_REG.cmd + 16) return linkRead(s, a, peek)
     switch (a) {
       case REG.id:
         return MACHINE_ID
@@ -254,6 +257,10 @@ export class Bus {
       cardWrite(s, a, value)
       return
     }
+    if (a >= LINK_REG.cmd && a < LINK_REG.cmd + 16) {
+      linkWrite(s, a, value)
+      return
+    }
     switch (a) {
       case REG.bank:
         // A bank the ROM cannot have is not taken: the window stays as it was.
@@ -264,7 +271,10 @@ export class Bus {
         }
         return
       case REG.power:
-        if (value === 0) s.off = true
+        if (value === 0) {
+          s.off = true
+          linkLetGo(s)
+        }
         return
       case REG.timerCompare:
         s.timer.compare = value

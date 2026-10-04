@@ -369,7 +369,7 @@ C.JR と C.JALR は飛び先のレジスタを rd の欄（11..8）に持ちま�
 |---|---|---|
 | `mstatus` | 0x300 | ビット 3 MIE（割り込みの許可）、ビット 7 MPIE（例外の前の MIE）。ほかのビットは 0 |
 | `misa` | 0x301 | 読み出し専用。0x1006（M = ビット 12、C = ビット 2、B = ビット 1） |
-| `mie` | 0x304 | 割り込みの線ごとの許可。ビット 0 TIMER、1 KEY、2 CARD、3 MATH（ほかは書いても 0） |
+| `mie` | 0x304 | 割り込みの線ごとの許可。ビット 0 TIMER、1 KEY、2 CARD、3 MATH、4 LINK（ほかは書いても 0） |
 | `mtvec` | 0x305 | 例外と割り込みの入口（ビット 0 は 0 になる）。**0 のときは例外で機械が止まる** |
 | `mscratch` | 0x340 | ハンドラの作業用 |
 | `mepc` | 0x341 | 例外の戻り番地（ビット 0 は 0 になる） |
@@ -413,6 +413,7 @@ C.JR と C.JALR は飛び先のレジスタを rd の欄（11..8）に持ちま�
 | KEY | 1 | キーの FIFO が空でない間ずっと | FIFO が空になったとき |
 | CARD | 2 | 記憶カードの命令が終わった | カードの STATUS を読むか、次の命令を始めたとき |
 | MATH | 3 | 数値演算ユニットの演算が終わった | ユニットの STATUS を読むか、次の演算を始めたとき |
+| LINK | 4 | LINK の答えが来た、すぐの誤り、取り消し（§4.8） | LINK の STATUS を読むか、次の SEND |
 | BRK | 15 | BRK/ON キー | 取ったとき |
 
 - 割り込みは命令の前に見ます。mstatus.MIE が 1 で、mie と mip の両方に立っている線があれば、**番号の小さい線から**取ります
@@ -455,6 +456,8 @@ ROM は起動時に mtvec を自分のハンドラ（`trap`）にします。ハ
 | ほかの例外、割り込み | レジスタを保存して、モニタで `FAULT 原因 AT 番地` |
 
 BASIC の `CALL` で動いている機械語は「それ以外」です。`CALL` の間、BASIC は印を受け取る側を外すので、BRK は機械語をモニタで止めます（§8.6）。
+
+モニタに落ちるとき（BRK、EBREAK、FAULT）、ROM は LINK の答えを待っている依頼を取り消し（CANCEL）、mie を KEY と CARD に戻します。止まったプログラムの答えが後から RAM に書かれることはありません。
 
 ROM のハンドラは TIMER などの割り込みを受け付けません（`FAULT 8000 AT …` になります）。自分で割り込みを使うときは、mtvec を自分のハンドラに替え、終わったら元に戻します（§9.6）。替えている間は ECALL も BRK も自分のハンドラに来ることに注意してください。
 
@@ -505,7 +508,7 @@ LCD_WIDTH = -0xe0           ; FF20
 | FF44 | -0xBC | GATE | 読み書き | ビット 0: 鳴り続ける |
 | FF50–FF5F | -0xB0〜 | MATH | | 数値演算ユニット（§4.6） |
 | FF60–FF6F | -0xA0〜 | CARD | | 記憶カード（§4.7） |
-| FF70–FF7F | | LINK | | 予約。読むと 0 |
+| FF70–FF7E | -0x90〜 | LINK | | main のサービス（AI）を呼ぶ口（§4.8） |
 
 ### 4.2 液晶と VRAM
 
@@ -645,6 +648,62 @@ STATUS: 0 なし、1 あふれ、2 0 での割り算、3 関数の引数、4 数
 - カードの容量は 256 KB、1 ファイル 32 KB までです
 - 例は §9.5
 
+### 4.8 LINK（AI に聞く）
+
+LINK は、elecdex の main が持つサービスを番号で呼ぶ口です。今あるのはサービス 0、**AI**（設定の AI のプロバイダが答える）だけです。機械は問いを RAM に置いて SEND し、答えは指定した RAM に届きます。ネットワークにつなぐのは elecdex で、機械とページは直接話しません。使う前に、PANEL の TUNE で LINK を ON にし、プロバイダを選びます（[BASIC 取扱説明書](elec16-basic.md) §15）。
+
+| 番地 | オフセット | 名前 | 中身 |
+|---|---|---|---|
+| FF70 | -0x90 | CMD | 書くと始める: 1 SEND（聞く）、2 NEW（次の SEND から新しい会話）、3 CANCEL（待っている依頼を取り消す） |
+| FF72 | -0x8E | SERVICE | サービスの番号。0 AI（ほかは NO SERVICE） |
+| FF74 | -0x8C | TYPE | サービスの中の種類。AI は答え方のタイプ 0〜10（BASIC 取扱説明書 §15.4 の表） |
+| FF76 | -0x8A | QUERY | 問いの番地。0 で終わる 1〜255 バイト |
+| FF78 | -0x88 | REPLY | 答えを置く番地。MAX ＋ 1 バイト要る（答えの後に 0 が付く） |
+| FF7A | -0x86 | MAX | 答えの最大バイト数（1〜255） |
+| FF7C | -0x84 | STATUS | 0 READY、1 BUSY、2 OFF、3 HELD、4 FAILED、5 BAD REQUEST、6 INTERRUPTED、7 CANCELLED、8 NO SERVICE。読むと LINK の線が下りる |
+| FF7E | -0x82 | LENGTH | 答えのバイト数 |
+
+- SEND の時に、サービス、タイプ、MAX、番地の範囲、問いの終わりの 0 を確かめます。おかしければすぐに STATUS が誤り（BAD REQUEST、NO SERVICE）になり、LINK の線が上がります。通れば BUSY になり、答えが来ると READY（または誤り）になって線が上がります。BUSY の間の SEND は無視します
+- **HELD**: SEND は、前の SEND の後に人の操作（機械のキー、BRK/ON、RESET、PANEL の RUN ▸ と LOAD ▸）があったときだけ通ります。なければすぐに HELD です。プログラムが勝手に送り続けることはできません
+- 答えは液晶の文字（ASCII と半角カナ）だけで、制御文字は入りません。問いに半角カナの文字があればカナで、なければ英語で答えます（TRANS は逆）
+- **会話**: AI は直近 10 往復を覚えます。NEW、TYPE や SERVICE を変えたとき、RESET、電源 OFF で新しい会話になります
+- CANCEL、RESET、電源 OFF は待っている依頼を取り消します（STATUS は CANCELLED）。取り消した依頼の答えは、後から来ても RAM に書きません
+- BUSY のまま機械がしまわれる（ペインを隠す、閉じる）と、戻ったときは INTERRUPTED です
+- 答えを待つ時間は 60 秒までです。過ぎると FAILED です
+- 答えは数秒かかることがあります。**BUSY の間は WFI で待ちます**（mie に LINK を足し、終わったら戻す）。ふつうは ROM サービス 8（§5.3）を使えば、待つところまでしてくれます
+
+自分で待つ例です。サービス 8 と同じことを、レジスタで書いています。
+
+```asm
+; AI に聞いて、答えを出す（LINK を直接使う）
+        la   t0, question
+        sw   t0, -0x8a(zero)     ; QUERY
+        li   t0, 0x7200
+        sw   t0, -0x88(zero)     ; REPLY
+        li   t0, 100
+        sw   t0, -0x86(zero)     ; MAX
+        sw   zero, -0x8e(zero)   ; SERVICE 0: AI
+        sw   zero, -0x8c(zero)   ; TYPE 0: NORMAL
+        csrr t2, mie
+        li   t0, 16              ; LINK の線（csrsi は 15 まで）
+        or   t0, t0, t2
+        csrw mie, t0
+        li   t0, 1
+        sw   t0, -0x90(zero)     ; SEND
+wait:   lw   t0, -0x84(zero)     ; STATUS（読むと線が下りる）
+        li   t1, 1
+        bne  t0, t1, done        ; BUSY でなくなった
+        wfi
+        j    wait
+done:   csrw mie, t2
+        bnez t0, failed
+        li   a0, 0x7200
+        li   t0, 1               ; PUTS
+        ecall
+failed: ret
+question: .asciz "WHAT IS A PULSAR?"
+```
+
 ---
 
 ## 5. 呼び出しの約束と ROM サービス
@@ -662,7 +721,7 @@ ROM、BASIC（e16c）、CODE 画面の出力は、同じ約束で呼び合いま
 
 ### 5.2 ROM サービスの呼び方
 
-ROM は 8 つのサービスを持ちます。呼び方は 2 通りです。
+ROM は 9 つのサービスを持ちます。呼び方は 2 通りです。
 
 **ECALL**: t0 にサービスの番号を入れて `ecall`。
 
@@ -674,7 +733,7 @@ ROM は 8 つのサービスを持ちます。呼び方は 2 通りです。
 
 - ECALL で変わってよいのは **a0–a3 と t0–t3** です。**ra も s0–s3 も sp も変わりません**
 - サービスはトラップのハンドラの外で動くので、キーを待っている間も BRK が効きます
-- 番号が 8 以上なら、モニタに落ちます（`FAULT 000B AT ECALL の番地`）
+- 番号が 9 以上なら、モニタに落ちます（`FAULT 000B AT ECALL の番地`）
 - mtvec を自分のハンドラに替えている間は、ECALL はそちらに行きます
 
 **表を呼ぶ**: 8010 から 4 バイトおきに、各サービスへのジャンプが並んでいます。サービス n は `call 0x8010 + 4 * n` で呼べます。
@@ -705,6 +764,7 @@ msg:    .asciz "VIA TABLE"
 | 5 | 8024 | PUTHEX | a0: ワード | 16 進 4 桁で書く |
 | 6 | 8028 | NEWLINE | | 次の行の頭へ。最下行なら画面を 1 行送る |
 | 7 | 802C | READLINE | a0: バッファ、a1: 最大の文字数 | a0: 打った文字数。文字は 0 で終わる |
+| 8 | 8030 | LINK | a0: 問い、a1: 答えの置き場、a2: 最大バイト数、a3: サービス × 256 ＋ タイプ | a0: 答えの長さ（負なら -STATUS）、a1: 答えの番地。答えまで WFI で待つ（下） |
 
 **PUTC** の文字:
 
@@ -729,6 +789,24 @@ msg:    .asciz "VIA TABLE"
 | 0x0E / 0x0F | INS / DEL | | |
 
 **READLINE** は、打った文字を画面に出しながら 1 行を読みます（点滅するブロックのカーソル）。BS で消せます。バッファには a1 ＋ 1 バイト（終わりの 0 の分）を用意してください。a0 は ENTER なら文字数、CLS なら -1（画面を消して行を捨てる）、BRK なら -2（BASIC が機械を持っているとき）、MODE なら -3 です。
+
+**LINK** は §4.8 のデバイスで問いを送り、答えが来るまで WFI で眠ります。答えは a1 の番地に 0 で終わる文字列で入り、a0 はその長さです。答えがなければ a0 は -STATUS です（-2 OFF、-3 HELD、-4 FAILED、-5 BAD REQUEST、-6 INTERRUPTED、-7 CANCELLED、-8 NO SERVICE）。BASIC が機械を持っているとき（`ASK`）の BRK は依頼を取り消して -7 を返し、機械語から呼んだときの BRK はモニタに落ちます（依頼は取り消されます）。
+
+```asm
+; LINK: AI に辞書を引かせる（タイプ 7 DICT）
+        la   a0, word
+        li   a1, 0x7200          ; 答えの置き場（81 バイト）
+        li   a2, 80
+        li   a3, 0 * 256 + 7     ; サービス 0（AI）、タイプ 7（DICT）
+        li   t0, 8               ; LINK
+        ecall
+        bltz a0, failed
+        mv   a0, a1              ; a1 = 答えの番地
+        li   t0, 1               ; PUTS
+        ecall
+failed: ret
+word:   .asciz "PULSAR"
+```
 
 サービスはスタックを数バイト使います。
 

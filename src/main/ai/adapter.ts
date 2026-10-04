@@ -36,6 +36,15 @@ export interface StreamRequest extends AdapterTarget {
   /** Empty for none. */
   system: string
   messages: readonly WireMessage[]
+  /** At most this many tokens of answer (LINK's short ones); unset: as much as the model gives. */
+  maxTokens?: number
+  /** No reasoning, even from a model that has it (LINK: a short answer, soon, cheaply). */
+  noThinking?: boolean
+  /**
+   * Let the provider search the web on its own side (LINK's SEARCH and WEATHER). Nothing runs
+   * here; a provider that cannot refuses the request, or ignores it.
+   */
+  webSearch?: boolean
 }
 
 export interface StreamSink {
@@ -51,6 +60,11 @@ export interface StreamResult {
   usage?: { input: number; output: number }
   /** The model that answered, when the service names another than the one asked for. */
   model?: string
+  /**
+   * After a search: only the text written after the last result, the answer itself, where the
+   * text streamed also has what the model said while it searched.
+   */
+  answer?: string
 }
 
 export interface ProviderAdapter {

@@ -235,7 +235,7 @@ user made; do not reverse one without asking.
     claim. Its battery backup is the core's snapshot, written only when the pane is hidden or
     closed, the machine is switched off or the page goes - never on a timer. The core never
     touches the card: it makes a request, the page passes it on, main does it (`cardOp`).
-  - BASIC's second half lives in ROM banks 0-3, the monitor's U and B in 4 (`BASIC_SOURCES`);
+  - BASIC's second half lives in ROM banks 0-3, the monitor's U and B in 4, ASK in 5 (`BASIC_SOURCES`);
     a bank's strings are read only in that bank. String variables have a fixed room: no
     garbage collector. B writes C.EBREAK into RAM code only while G runs it.
   - The LCD is drawn at the machine's resolution, scaled crisp by CSS, the gaps a grid drawn
@@ -245,6 +245,16 @@ user made; do not reverse one without asking.
     shared/e16c/program.ts (it pulls in TypeScript's parser); the page reads code-area.ts.
   - The body follows the agreed mock (name plate but on Business, key layout, key tops) and
     is never stretched: `deviceFit` sizes it, the pane's room goes round it.
+  - LINK (FF70-FF7E, elec16.md section 12) is the machine's only way out: it names a service
+    of main's by number (the AI is 0; another is a `LinkService` in main/elec16/link and a line
+    in link-services.ts, never code in the core, the page or the ROM). The core makes a request,
+    the page passes it on, main answers - only for the page that holds the unit, nothing while
+    LINK is off (the default). A SEND goes only after a person's action since the last (HELD
+    otherwise: PASTE's keys do not count), one at a time a unit, the answer capped, 60 s. The
+    AI uses the AI settings' providers and keys (a key never reaches the page or the machine;
+    a provider with none may be chosen); its answer reaches the machine only as the LCD's
+    characters (`lcdReply`), and everything else - dictionary, translation, search, weather -
+    is the model's (search on the provider's side, user decision 2026-10-04).
   - The SOFT CARD (resources/elec16/soft) is written into soft.json only by `npm run gen:elec16`
     (a test holds it and runs every program); main lays it read-only over every unit's card
     and never writes it. PASTE and LOAD ▸ type through the key FIFO (`pasteKeys`), never

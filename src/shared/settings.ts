@@ -245,8 +245,22 @@ export const SettingsSchema = z.object({
       volume: z.number().min(0).max(1).catch(0.5).default(0.5),
       /** The skin a new ELEC-16 pane is drawn in. */
       skin: z.enum(ELEC16_SKINS).catch('elec').default('elec'),
+      /**
+       * LINK (docs/elec16.md section 12): off until the user turns it on; the AI service asks
+       * the provider of the AI settings named here (empty: none chosen), with its key.
+       */
+      link: z
+        .object({
+          on: z.boolean().catch(false).default(false),
+          ai: z
+            .object({ provider: z.string().max(64).catch('').default('') })
+            .catch({ provider: '' })
+            .default({ provider: '' }),
+        })
+        .catch({ on: false, ai: { provider: '' } })
+        .default({ on: false, ai: { provider: '' } }),
     })
-    .default({ volume: 0.5, skin: 'elec' }),
+    .default({ volume: 0.5, skin: 'elec', link: { on: false, ai: { provider: '' } } }),
   /**
    * The ELEC system pane (shared/elec.ts): which provider and model sits in each of the
    * three seats, their standpoints, and how the council decides. The providers are the

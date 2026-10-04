@@ -21,6 +21,15 @@ import {
 import { type Core, EXEC } from './exec.js'
 import { cyclesOf, decode, type Inst, OP, OPS } from './isa.js'
 import {
+  answerLink,
+  type LinkAnswer,
+  type LinkRequest,
+  linkLetGo,
+  takeLinkDrop,
+  takeLinkRequest,
+  vouchLink,
+} from './link.js'
+import {
   DEFAULT_HZ,
   DEFAULT_MODEL,
   MAX_HZ,
@@ -43,6 +52,7 @@ import {
   INTERRUPT,
   IRQ,
   MIE,
+  MIE_LINES,
   MISA,
   MPIE,
 } from './state.js'
@@ -254,9 +264,18 @@ export class Elec16 implements Core {
     this.s.clock.set([c.second, c.minute, c.hour, c.day, c.month, c.year - 2000, c.weekday])
   }
 
-  /** A key goes down (its code is row * 8 + column of the key matrix). */
-  press(code: number): void {
+  /**
+   * A key goes down (its code is row * 8 + column of the key matrix). `byPerson` is false for
+   * a key PASTE types: only a person's key lets LINK send again.
+   */
+  press(code: number, byPerson = true): void {
     pressKey(this.s, code)
+    if (byPerson) vouchLink(this.s)
+  }
+
+  /** A person did something to the machine (RUN or LOAD in the pane): LINK may send again. */
+  vouch(): void {
+    vouchLink(this.s)
   }
 
   release(code: number): void {
@@ -290,6 +309,7 @@ export class Elec16 implements Core {
     s.stall = 0
     // A command out belonged to the program that is gone: its answer is not waited for.
     Object.assign(s.card, createCardState())
+    linkLetGo(s)
     this.#code.fill(undefined)
     this.breakAt = null
     this.#passing = -1
@@ -301,6 +321,7 @@ export class Elec16 implements Core {
    */
   brk(): void {
     this.breakAt = null
+    vouchLink(this.s)
     if (this.s.off || this.s.halt !== null) this.reset()
     else this.s.brk = true
   }
@@ -318,10 +339,26 @@ export class Elec16 implements Core {
     answerCard(this.s, request, answer)
   }
 
+  /** LINK's request out for the page to take (link.ts), once; null when there is none. */
+  takeLinkRequest(): LinkRequest | null {
+    return takeLinkRequest(this.s)
+  }
+
+  /** A LINK request main should drop (cancelled, or the machine reset), once. */
+  takeLinkDrop(): number | null {
+    return takeLinkDrop(this.s)
+  }
+
+  /** main's answer to a LINK request: written at REPLY, the LINK line up, a sleeper woken. */
+  answerLink(serial: number, answer: LinkAnswer): void {
+    answerLink(this.s, serial, answer)
+  }
+
   /** The power switch: off as a program's POWER write leaves it, RAM kept; BRK/ON is on. */
   powerOff(): void {
     this.s.off = true
     this.s.sleeping = false
+    linkLetGo(this.s)
   }
 
   /** The screen as one value a dot (0..3), row by row, for whoever draws it. */
@@ -397,7 +434,7 @@ export class Elec16 implements Core {
     const c = this.s.csr
     const v = value & 0xffff
     if (csr === CSR_NAMES.mstatus) c.mstatus = v & (MIE | MPIE)
-    else if (csr === CSR_NAMES.mie) c.mie = v & 15
+    else if (csr === CSR_NAMES.mie) c.mie = v & MIE_LINES
     else if (csr === CSR_NAMES.mtvec) c.mtvec = v & 0xfffe
     else if (csr === CSR_NAMES.mscratch) c.mscratch = v
     else if (csr === CSR_NAMES.mepc) c.mepc = v & 0xfffe
@@ -425,7 +462,8 @@ export class Elec16 implements Core {
       (s.timer.pending ? 1 << IRQ.timer : 0) |
       (s.keys.fifo.length > 0 ? 1 << IRQ.key : 0) |
       (s.math.pending ? 1 << IRQ.math : 0) |
-      (s.card.pending ? 1 << IRQ.card : 0)
+      (s.card.pending ? 1 << IRQ.card : 0) |
+      (s.link.pending ? 1 << IRQ.link : 0)
     )
   }
 

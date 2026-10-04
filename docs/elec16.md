@@ -210,7 +210,7 @@ ALU は 1、ロード・ストアは 2、分岐が成立したときとジャン
 | FF40 / FF42 / FF44 | FREQ / DUR / GATE | 読み書き | ブザーの周波数（Hz）、長さ（ms。書いた時から鳴る）、ゲート（ビット 0 で鳴り続ける） |
 | FF50–FF5F | MATH | | 数値演算ユニット（段階 3）。下の表 |
 | FF60–FF6F | CARD | | 記憶カード（段階 4）。下の表 |
-| FF70–FF7F | LINK | | 予約（AI チャットの構想、§12）。読むと 0 |
+| FF70–FF7F | LINK | | main のサービス（AI チャット）を呼ぶ口（段階 8、§12） |
 
 | 番地 | デバイス | 振る舞い |
 |---|---|---|
@@ -359,7 +359,7 @@ TS の部分集合 (*.e16.ts)
 
 ### BASIC の後半（段階 4、ROM のバンク）
 
-- **置き場所**: 解釈器の中心（`basic.e16.ts`、式、変数、PRINT、FOR、行の編集）は固定 ROM。残りはバンクに置き、中心は far_call で呼ぶ: バンク 0 `strings.e16.ts`（配列と DIM、文字列の演算と関数、INPUT、READ と DATA、ON、CLEAR、WAIT、BEEP）、1 `screen.e16.ts`（LOCATE CURSOR PSET PRESET LINE CIRCLE GPRINT POINT）、2 `files.e16.ts`（カードと データファイル）、3 `tools.e16.ts`（AUTO RENUM DELETE TRON TROFF）。バンクの関数が中心の変数を変えるときは中心の小さな関数（`setTxt`、`step`、`setNsp` など）を通す（TypeScript では import した `let` に代入できないため）。e16c の名前は全部のファイルで 1 つなので、関数名と大域変数の名前は重ねない
+- **置き場所**: 解釈器の中心（`basic.e16.ts`、式、変数、PRINT、FOR、行の編集）は固定 ROM。残りはバンクに置き、中心は far_call で呼ぶ: バンク 0 `strings.e16.ts`（配列と DIM、文字列の演算と関数、INPUT、READ と DATA、ON、CLEAR、WAIT、BEEP）、1 `screen.e16.ts`（LOCATE CURSOR PSET PRESET LINE CIRCLE GPRINT POINT）、2 `files.e16.ts`（カードと データファイル）、3 `tools.e16.ts`（AUTO RENUM DELETE TRON TROFF）、5 `link.e16.ts`（ASK。§12）。バンクの関数が中心の変数を変えるときは中心の小さな関数（`setTxt`、`step`、`setNsp` など）を通す（TypeScript では import した `let` に代入できないため）。e16c の名前は全部のファイルで 1 つなので、関数名と大域変数の名前は重ねない
 - **変数**: プログラムの後ろの記録 [名前 2][種類][容量][大きさ u16][値]。種類はビット 0 文字列、1 配列、2 二次元。数は 8 バイト、文字列は [長さ][容量の文字]、配列は [d1][d2] と要素を (0,0) から。同じ名前でも数・文字列・配列は別の変数
 - **文字列**: 当時のポケコンと同じく、文字列変数は決まった容量を持つ（`A$` は 16 文字、`DIM A$*80` で 1〜255 文字。入りきらない分は切る）。だからガーベジコレクションはいらない。式の途中でできる文字列（`+`、STR$、CHR$、INKEY$、TIME$、DATE$）は 512 バイトの作業域に置き、文ごとに空にする（あふれれば TOO COMPLEX）。LEFT$、MID$、RIGHT$ と文字列の定数は元の文字を指すだけで写さない。式の値は 8 バイトの欄で、文字列は [0xFF][長さ][番地]。型は式が `strType` で持ち、数と文字列を混ぜると ERR:TYPE。比較は文字コードの辞書順
 - **配列**: `DIM A(10)`、`DIM B(3,4)`、`DIM C$(5)*20`。添字は 0 から。DIM せずに使うと 10（二次元なら 10, 10）で作る。範囲の外は ERR:INDEX、二度目の DIM は ERR:DIM
@@ -389,7 +389,7 @@ TS の部分集合 (*.e16.ts)
 - **作ったもの（段階 6）**:
   - 組み立てと計測は純粋な `shared/e16c/program.ts`（`buildCode`、`measuringMachine`、`measure`）。定数と見本とライブラリは `code-area.ts` に分け、ページはこちらだけを読む（program.ts を読むと TypeScript のパーサーが入口のチャンクに入り 5.9 MB になった）
   - 機械語と文字列は 7000–77FF（2 KB）、大域変数と配列は 7800–7BEF。7000 の入口が `e16c_init` を呼んでから `main()` を呼び、RET で戻る（`CALL 28672` も `G 7000` も同じ）。`main` がなければ、また領域に収まらなければ、そう言って書かない
-  - ライブラリ（`LIBRARY`、ファイル名 `ELEC16`）は putc puts getkey cls locate puthex newline putnum keyWaiting beep pset。ROM サービスを ECALL で呼ぶ。export しないので -O2 は使わないものを落とす
+  - ライブラリ（`LIBRARY`、ファイル名 `ELEC16`）は putc puts getkey cls locate puthex newline putnum keyWaiting beep pset readline ask askAs askNew。ROM サービスを ECALL で呼ぶ。export しないので -O2 は使わないものを落とす
   - 組み込み関数 `memcpy(to, from, n)` と `memset(to, value, n)` は MCPY と MSET 1 命令になる（引数は a0–a2 に置く）。TypeScript として動かすときも memmove と同じに写す
   - Worker（`code/compile.worker.ts`、`?worker&inline` で blob。CSP の `worker-src blob:` のまま）は最初の CODE で読み込み、最後の CODE が閉じると終える（`holdCompiler`）。1 回の COMPILE で -O0〜-O2 を全部作り、同じ ROM の機械（プロンプトで眠った状態のスナップショット）で `main` を呼んでサイクル数を測る。キーを待てば「waits for a key」、2,000 万サイクルを越えれば打ち切り
   - ソースはユニットのカードの `.TS`（既定 `MAIN.TS`、空行も残す `sourceToMachine`）。COMPILE の前と CODE を離れるときに書く。SAVE は選んだ段階の `.BIN` も書く。main の口は `elec16.readFile` と `elec16.writeFile`（書けるのは `.TS` と `.BIN` だけ、32 KB まで）
@@ -433,7 +433,7 @@ TS の部分集合 (*.e16.ts)
 - **本体の描き方は 3 通り**で、ペインの大きさから自動で選び、TUNE で固定もできます。FULL（本体とキーボード）、COMPACT（液晶とキー 1 列: BRK、MODE、CLS、SHIFT、矢印、ENTER。打つのは PC のキーボード）、LCD（液晶だけ）
 - **液晶はデバイスピクセルの整数倍**（`fitScreen`、単位はモデルの解像度。既定 240×48）。ドットの描き方は機種の差し込みです。反射型の地、ドットの影（地へ少しずらした薄い影）、応答の遅さ（点くのは速く、消えるのはゆっくり）、コントラスト。描き直すのは VRAM の版が動いたときと、残像が消えていく間だけです
 - **スキン**は本体の色と形、キーの色、液晶の地とドットの色を持つデータです（テーマと同じく CSS 変数）。初めは 7 つ: **ELEC**（今のテーマに従う HUD 風、角の括弧、液晶はアクセントの濃淡）、**TRON**（elecdex の TRON テーマの色で固定、縁が光る）、**BUSINESS LIGHT** と **BUSINESS DARK**（elecdex の 2 つの Business テーマ。Windows 11 の色と Segoe UI、角の丸いキー）、**CLASSIC**（黒い本体と黄緑の反射型液晶）、**IVORY**（ベージュの本体と灰色の液晶）、**NIGHT**（紺の本体と青い透過型液晶）。実在の製品の配色は写しません。既定はペインごとで、新しいペインには設定 `elec16.skin` を使います
-- 右の **PANEL**（CHIP-8 と同じく畳める）: CORE（16 本のレジスタと ABI 名、pc、CSR、命令数、眠りの表示、逆アセンブル、STEP / HALT / ブレークポイント）、MEM（共通の MemView: PC / SP / VRAM / FREE を追い、ROM / RAM / VRAM / I/O で色分け）、FILES（カードのファイルと SOFT CARD。**LOAD ▸** は機械に `LOAD "名前"` を打ち込む。.BIN は `LOAD "名前":CALL 28672`、データファイルには出さない。行の詳細カード `CardFileCard` は種類、バイト数、保存した時刻か SOFT CARD であること、LOAD が打つ行、SOFT CARD ならその説明）、TUNE（PASTE、クロック、自動電源 OFF、液晶の大きさ、本体の描き方、コントラスト、残像、スキン）
+- 右の **PANEL**（CHIP-8 と同じく畳める）: CORE（16 本のレジスタと ABI 名、pc、CSR、命令数、眠りの表示、逆アセンブル、STEP / HALT / ブレークポイント）、MEM（共通の MemView: PC / SP / VRAM / FREE を追い、ROM / RAM / VRAM / I/O で色分け）、FILES（カードのファイルと SOFT CARD。**LOAD ▸** は機械に `LOAD "名前"` を打ち込む。.BIN は `LOAD "名前":CALL 28672`、データファイルには出さない。行の詳細カード `CardFileCard` は種類、バイト数、保存した時刻か SOFT CARD であること、LOAD が打つ行、SOFT CARD ならその説明）、TUNE（PASTE、LINK（ON/OFF、AI のプロバイダ、送った数、直前の失敗の理由。`LinkTune.svelte`、アプリの設定 `elec16.link`）、クロック、自動電源 OFF、液晶の大きさ、本体の描き方、コントラスト、残像、スキン）
 - 帯: ユニット名、CPU ランプ（`running` / `asleep` / `off`）、SND、KEYS（フォーカス）、一時停止、BRK、POWER、**RESET**（CPU をリセット番地から始め直す。RAM は電池で残るので、BASIC はプログラムを持ったまま起動する）、PANEL、CODE
 - **本体はモックのとおり**（2026-10-03 に見直した）: 上に名前板（大きな `ELEC-16`、`16-BIT POCKET COMPUTER`、POWER の LED。電源が入っていると LED がスキンの色で光る）、ベゼルに入った液晶（表示記号は消えているときも薄く印刷されて見える）、キーボード。**Business の 2 つは名前板を持たない**（テーマに飾りがないため）。キーの並びもモックのとおり: 上の段に BRK MODE CLS ANS カナ INS DEL BS、下の段に SHIFT CAPS SPACE ENTER、テンキーの上に矢印、下に 0 . =。BRK は赤、ENTER は強調の色、SHIFT 面の刻印はスキンの色。キートップは 3 種類: CLASSIC・IVORY・NIGHT は立体（押すと沈む）、ELEC と TRON は平らなタイル（押している間は点滅）、Business は角の丸い平らなキー（押すと暗くなる）
 - **本体は一体のまま**: 部品の高さは `deviceFit`（layout.ts）が部屋から決め、本体は中身の高さで、伸ばさない。ペインが高ければ上下に、広ければ左右に余白を取って真ん中に置く（本体の幅は 960px まで）
@@ -510,20 +510,69 @@ TS の部分集合 (*.e16.ts)
 
 ## 12. v1 の後の構想
 
-ゲーム機（GAME モデル、§5）と、下の AI チャット。`shared/emu` のほかの使い道（Linux 系ペインなど）は [emu.md](emu.md) にある。
+ゲーム機（GAME モデル、§5）。下の LINK と AI チャットは段階 8 で作った。`shared/emu` のほかの使い道（Linux 系ペインなど）は [emu.md](emu.md) にある。
 
-### 構想: ポケコンの中の AI チャット
+### LINK と AI チャット（段階 8、2026-10-04 利用者の決定）
 
-ポケコンの画面とキーボードで AI と話せたら楽しい、という構想です。v1 には入れず、決まっていることではありません。作るときに守ることを先に書いておきます。
+ポケコンの画面とキーボードで AI と話す。機械からは通信デバイス **LINK**（FF70–FF7E）と ROM サービス 8 **LINK** に見え、BASIC の `ASK`、e16c の `ask` がその上に乗る。AI はそのうちの**サービス 0**: LINK は main のサービスを番号で呼ぶ汎用の口で、将来は株価（MARKETS のローソク足）なども同じ口で返せる。今作るのは AI だけ。
 
-- **通信の口**: モデムのようなデバイス `LINK`（I/O の予約域 FF70–FF7F を当てる）。機械は送る文をバッファに書いて SEND し、答えは受信の FIFO に入って割り込みで知らせる。ROM に `CHAT` 命令（専用の画面）を持たせる
-- **ネットワークは main だけ**: 機械もページも直接は話さない。main が AI チャットペインのプロバイダ（`AI_PRESETS`、鍵は `ai-keys.json`）を使う。**鍵は機械にもページにも届かない**
-- **API キーは利用者が用意し、設定の AI に入れたものを使う**（AI チャットペインと同じ設定、同じ鍵）。ELEC-16 には鍵を入れる場所を作らず、TUNE で「どのプロバイダで話すか」を選ぶだけにする（`elec16.chat.provider`。プロバイダの id だけを持つ）。鍵がないプロバイダは選べず、「設定の AI で鍵を入れてください」と出す
-- **答えを短くするプロンプト**: ELEC-16 用の固定のシステムプロンプトで「1〜3 文、合計 200 字（40 桁 × 5 行）以内、表・Markdown・コードブロックを使わない、文字は ASCII と半角カナ」と頼む。それでも長い答えは main が文の切れ目で切って「…」を付け、画面の文字セットにない文字は置き換える。モデルの文は信用しないデータとして文字だけを渡す
-- **漢字は出せない**: 液晶のフォントは英数と半角カナだけです。日本語の答えはカタカナになり、それも味ですが読みにくくなります。英語で答えさせるか、漢字のフォント ROM（モデルの拡張）を足すかは、そのときに決めます
-- **勝手に送らせない**: 送るたびに、前回の送信の後に機械のキーが押されていることを条件にする（ENTER が人の手で押された印）。BASIC のプログラムが繰り返し送ってお金を使うことができないようにする。既定は OFF（`elec16.chat`）で、ペインに LINK の表示記号を出す
-- 会話は main が持ち、送る文脈は短く切る（AI チャットペインの `chatWindow` と同じ考え方で、窓はずっと小さく）。会話は、ユニットの電池バックアップとは別に保存する
-- e16c と組み合わせれば、TypeScript で書いたチャットのプログラムを ELEC-16 の機械語で動かす、ということもできます
+**分担（疎結合）**
+
+| 置き場所 | 知っていること |
+|---|---|
+| コア `shared/elec16/link.ts` | レジスタ、番地の確認、依頼、答えを書く、HELD、取り消し、「次は新しい会話」の印。サービスの中身は知らない |
+| ページ（runner、unit-session） | 依頼を `elec16.link` で main に渡し、答えをコアに戻す。中身は知らない |
+| main `main/elec16/link/hub.ts`（`LinkHub`） | サービスの番号から `LinkService` を選ぶ。ユニットを持つページか、1 台 1 つずつ、時間切れ、取り消し、答えが MAX に収まるか |
+| main `main/elec16/link/ai.ts` | AI サービス。AI チャットペインのプロバイダ、鍵、アダプタを使う |
+| `shared/elec16/link-services.ts`（純粋） | サービスとタイプの番号と名前、上限。ROM、BASIC、e16c、説明書の名前はここから |
+| `shared/elec16/link-text.ts`（純粋） | 英語かカナかの判定、AI のタイプの指示文、答えを液晶の文字に直す |
+
+**LINK デバイス**（偶数番地の 16 ビット）
+
+| 番地 | 名前 | 中身 |
+|---|---|---|
+| FF70 | CMD | 書くと始める: 1 SEND、2 NEW（次の SEND から新しい会話）、3 CANCEL |
+| FF72 | SERVICE | 0 AI。ほかは予約（NO SERVICE） |
+| FF74 | TYPE | サービスの中の種類（AI はタイプ、下の表） |
+| FF76 | QUERY | 質問の番地（0 で終わる、1〜255 バイト） |
+| FF78 | REPLY | 答えを置く番地（MAX ＋ 1 バイト。文の答えは 0 で終わる） |
+| FF7A | MAX | 答えの最大バイト数（1 以上。上限はサービスが決める、AI は 255） |
+| FF7C | STATUS | 0 READY、1 BUSY、2 OFF、3 HELD、4 FAILED、5 BAD REQUEST、6 INTERRUPTED、7 CANCELLED、8 NO SERVICE。読むと LINK の線が下りる |
+| FF7E | LENGTH | 答えのバイト数 |
+
+- 割り込みの線 **LINK = 4**（mie のビット 4 も書けるようにした）。答えか、すぐの誤りで上がる
+- 液晶の **LINK の印**は ANNUN の外にあり、デバイスが点ける（ROM の `annunciate` が ANNUN を書き直しても消えない）。LINK が ON の間は点き、BUSY の間は点滅
+- **HELD**: SEND は、前の SEND の後に人の操作があったときだけ通る。人の操作は機械のキー（画面のキー、PC のキー）、BRK/ON、RESET、ペインの RUN ▸ / LOAD ▸。PASTE と LOAD ▸ が打つ文字は数えない（ページが本物のキーにだけ印を付ける）。BASIC のループが送り続けてお金を使うことはできない
+- **待っている間のページ**: 答えを待って眠る機械（KEY も許可している）を、プロンプトで眠っているとは見なさない。自動電源 OFF は数えず、CODE の RUN ▸ もプロンプトを待ち続ける（カードの答えを待つ間も同じ）
+- **新しい会話**: NEW、RESET、電源 OFF（ボタン、`OFF`、POWER）、TYPE の変更で、コアが「次は新しい会話」の印を立て、次の依頼に添える。main に別の口は要らない。main はプロバイダの変更、LINK の OFF、アプリの終了でも忘れる
+- スナップショットは版 2 で LINK を足した（版 1 も読み、LINK は新しい機械のまま）。答えを待つ間に機械がしまわれる（スナップショット）と INTERRUPTED。リセットと電源 OFF は待っている依頼を取り消す。ROM は RUN、NEW、CLEAR、プログラムの終わり、CALL から戻ったとき、BRK でモニタに落ちたときに CANCEL を書く（遅れて届いた答えが BASIC の変数を壊さないように）
+
+**ROM サービス 8 LINK**（`link.s`）: a0 = 質問、a1 = 置き場、a2 = MAX、a3 = サービス × 256 ＋ タイプ。答えまで WFI で眠り（mie に LINK を足し、戻るとき元に戻す）、a0 = 長さ（負なら -STATUS）、a1 = 置き場で戻る。BASIC の BRK（BRKFLAG）では CANCEL を書いて -CANCELLED を返す。機械語からの BRK はモニタへ落ち、モニタの入口（`save_all`）が CANCEL を書いて mie を KEY と CARD に戻す（取り消しで LINK の線が上がったまま、mie に LINK が残ると WFI が起き続けるため。テストで見つけた）。サービスの数は 9
+
+**AI サービス**
+
+- **ネットワークは main だけ**。AI チャットペインのプロバイダ（設定の AI）と鍵を使い、鍵は機械にもページにも届かない。TUNE の LINK で ON/OFF とプロバイダを選ぶ（`elec16.link`、既定 OFF）。**鍵がなくても選べる**（ローカルの LLM など）。要るのにない鍵は、聞いたときに FAILED になり、プロバイダの言葉を TUNE に出す。モデルは設定の AI でそのプロバイダに選んであるもの
+- **全部 LLM に任せる**: 辞書、翻訳、検索、天気も LLM が答える。SEARCH と WEATHER はプロバイダ側のウェブ検索（Anthropic の web search、OpenAI 互換は `web_search_options`）を頼む。対応しないプロバイダではエラーになり FAILED（2026-10-04 利用者の決定。AI チャットペインの「ツールは使わない」とは別。検索はプロバイダのサーバーで行われ、この機械では何も動かない）
+- **文字**: 質問にカナの文字（A6–DF）があればカナ、なければ英語で答える（TRANS は逆）。送る前に半角カナは全角カタカナにする。固定のシステムプロンプトで、N 文字以内、1〜3 文、Markdown・表・改行なし、カナのときは漢字を使わずかなで、文節の間に空白（分かち書き）を頼む。受けた答えは `link-text.ts` が液晶の文字に直す: ひらがな→カタカナ→半角（ガ→ｶﾞ）、全角英数→半角、。、「」・ー→｡､｢｣･ｰ、改行→空白、Markdown の記号を外す、制御文字を捨てる（0x0C で画面が消えないように）、残った字は `?`、MAX を越えれば文の切れ目で切って `...`。英語のときはカナも `?`
+- **会話**: 1 台ごとに直近 10 往復を main のメモリに持つ（ファイルには書かない）。会話を覚えないタイプは 1 回ずつ
+- **お金**: 1 台 1 つずつ、答えの長さの上限（`maxTokens`）を小さく、考える機能は使わない、60 秒で時間切れ
+- 送るのは、指した質問と会話だけ。RAM のほかの部分は送らない。モデルの文は信用しないデータとして、液晶の文字だけを渡す
+
+| 番号 | 名前 | 中身 | 文字 | 会話 | 検索 |
+|---|---|---|---|---|---|
+| 0 | NORMAL | ふつうに短く答える | 合わせる | 覚える | |
+| 1 | TUTOR | やさしく教える | 合わせる | 覚える | |
+| 2 | BASIC | ELEC-16 の BASIC と機械語の相談役 | 合わせる | 覚える | |
+| 3 | QUIZ | クイズを出し、答えを判定する | 合わせる | 覚える | |
+| 4 | STORY | テキストアドベンチャーの語り手 | 合わせる | 覚える | |
+| 5 | POET | 詩、俳句、川柳 | 合わせる | 覚える | |
+| 6 | FORTUNE | 占い | 合わせる | 覚える | |
+| 7 | DICT | 辞書 | 合わせる | 覚えない | |
+| 8 | TRANS | 和英・英和 | 逆 | 覚えない | |
+| 9 | SEARCH | ウェブで調べて要約 | 合わせる | 覚えない | する |
+| 10 | WEATHER | 天気予報 | 合わせる | 覚えない | する |
+
+**BASIC と e16c**: `ASK 質問$,答え$`（答えの最大は答え$ の大きさ）、`ASK NEW`、`ASK TYPE "QUIZ"` / `ASK TYPE 3`（ROM のバンク 5、`link.e16.ts`。トークンは ASK 0xDC、TYPE 0xDD）。失敗は `ERR:LINK OFF`、`ERR:LINK HELD`、`ERR:LINK`。e16c のライブラリは `ask(q, reply, max)`、`askAs(type, q, reply, max)`、`askNew()`、`readline(buf, max)`。SOFT CARD の **CHAT.BAS** はタイプを選んで話す（空の ENTER でメニュー: TYPE、NEW、END）。説明書は BASIC §15、E16 §4.8 とサービス 8、e16c §7.5、SOFT CARD の CHAT
 
 ## 13. 段階と規模
 
@@ -536,6 +585,7 @@ TS の部分集合 (*.e16.ts)
 | 4 | BASIC 後半: 文字列、配列、画面、音、データ、カード、電池バックアップ、ユニット、IMPORT / EXPORT（**済み**） | ポケコンとしてひととおり |
 | 5 | FILES と TUNE の仕上げ、ブレークポイント、同梱ソフト、詳細カード、カナ、PASTE（**済み**） | 同梱ソフト |
 | 6 | **CODE 画面**: e16c をページの Worker で動かし、TypeScript からアセンブリ、カードへ。-O0〜-O2 の比較（**済み**） | TypeScript で書いて機械語で動かす |
+| 8 | **LINK と AI チャット**（§12）: LINK デバイス、ROM サービス 8、BASIC の `ASK`、e16c の `ask`、main の LinkHub と AI サービス、TUNE の LINK、SOFT CARD の CHAT（**済み**） | ポケコンで AI と話す |
 | 7 | 負荷の測定、README の画像（3 か国語の README を同じコミットで。状態の行も）、紹介ツアーのビート、decisions.md、CLAUDE.md の規則（ループの例外、ELEC-16 の境界） | 公開 |
 
 規模は CHIP-8 ペイン（7 段階、本体約 7,400 行とテスト）より大きくなります。一番重いのは BASIC の ROM です。手で書けば 1 万行を超える見込みのところを、e16c で TS の部分集合から作り、速さの要るところだけ手で書きます（§6）。
@@ -543,5 +593,5 @@ TS の部分集合 (*.e16.ts)
 ## 14. 入れないもの（v1）
 
 - 実在の機種との互換（ROM、BASIC の方言、キーの刻印、本体のデザイン）
-- 巻き戻し、ROM の中のアセンブラ（アセンブラはページの .asm の IMPORT で使う）、利用者が作るスキン（JSON。v1 はデータとして 7 つだけ）、GAME モデル、AI チャット（構想）、プリンタ、カセットの音、シリアル
-- ユニット間の通信、ネットワーク（使わない）、ポップアップ表示
+- 巻き戻し、ROM の中のアセンブラ（アセンブラはページの .asm の IMPORT で使う）、利用者が作るスキン（JSON。v1 はデータとして 7 つだけ）、GAME モデル、プリンタ、カセットの音、シリアル
+- ユニット間の通信、ポップアップ表示。ネットワークは LINK（§12）だけで、main が行う

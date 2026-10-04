@@ -549,8 +549,12 @@ CODE のプログラムには、`ELEC16` という名前のライブラリがい
 | `keyWaiting(): bool` | キーの FIFO にキーがあるか（待たない） |
 | `beep(freq: u16, ms: u16): void` | freq Hz の音を ms ミリ秒鳴らし始める。鳴り終わるのは待たない |
 | `pset(x: u16, y: u16): void` | 液晶の点 (x, y) を点ける。画面の外は何もしない。4 階調のモデルでは一番濃く |
+| `readline(buf: u16, max: u16): i16` | 1 行を打ってもらい、buf に 0 で終わる字で入れる。答えは字数、-1 CLS、-2 BRK（BASIC から）、-3 MODE |
+| `ask(question: u16, reply: u16, max: u16): i16` | AI に聞く（LINK）。問いは 0 で終わる字、答えは reply に max バイトまで、0 で終わる。答えは長さ、負なら -STATUS（[7.5](#75-ai-に聞くask)） |
+| `askAs(type: u16, question: u16, reply: u16, max: u16): i16` | タイプを選んで AI に聞く（0 NORMAL 〜 10 WEATHER） |
+| `askNew(): void` | AI との会話を忘れ、次から新しい会話にする |
 
-ライブラリは export されていないので、-O2 は使わない関数を消します。-O0 と -O1 では全部が入ります（何もしないプログラムでも -O0 で 1,230 バイト、-O1 で 350 バイト）。
+ライブラリは export されていないので、-O2 は使わない関数を消します。-O0 と -O1 では全部が入ります（何もしないプログラムでも -O0 で 1,542 バイト、-O1 で 478 バイト）。
 
 ### 7.2 ROM サービス（ECALL）
 
@@ -566,9 +570,10 @@ CODE のプログラムには、`ELEC16` という名前のライブラリがい
 | 5 | PUTHEX | a0: ワード | |
 | 6 | NEWLINE | | |
 | 7 | READLINE | a0: バッファの番地、a1: 最大の字数 | 打った字数。-1 CLS、-2 BRK（BASIC から）、-3 MODE |
+| 8 | LINK | a0: 問い、a1: 答えの置き場、a2: 最大バイト数、a3: サービス × 256 ＋ タイプ | 答えの長さ。負なら -STATUS |
 
 - READLINE は打つ字を画面に出し、BS で消せます。バッファには打った字と、その後ろに 0 が入るので、バッファは最大の字数 + 1 バイト要ります。答えは負の数があるので `i16(ecall(7, …))` で読みます（[11.7](#117-名前を尋ねる)）
-- 8 以上の番号は例外になり、`FAULT 000B` でモニタに落ちます
+- 9 以上の番号は例外になり、`FAULT 000B` でモニタに落ちます
 - ECALL の間も BRK は効きます（キーを待っているときを含む）
 
 ### 7.3 キーのコード
@@ -606,6 +611,39 @@ SHIFT、CAPS、カナのキーは `getkey` の中でモードを変えるだけ�
 | E000– | VRAM | 液晶。幅 × (高さ ÷ 8) バイトで、1 バイトが縦 8 ドット（ビット 0 が上）。8 ドットの 1 段（文字 1 行）が幅のバイト数 |
 
 既定のモデル（240×48）では、画面は 40 桁 6 行、VRAM は E000 から 1,440 バイトです。モデルによって大きさが違うので、WIDTH と HEIGHT を読んで合わせてください。
+
+### 7.5 AI に聞く（ask）
+
+`ask` は、ELEC-16 の LINK（[E16 マニュアル](elec16-e16.md) §4.8）で、elecdex の設定の AI に問いを渡します。使う前に PANEL の TUNE で LINK を ON にし、プロバイダを選んでおきます。
+
+```ts
+// 打った問いを AI に聞いて、答えを出す。何も打たずに ENTER で終わる。
+const line = bytes(41)
+const answer = bytes(201)
+
+export function main(): void {
+  askNew()
+  for (;;) {
+    putc(0x3f)
+    const n = readline(addr(line), 40)
+    newline()
+    if (n <= 0) return
+    const got = ask(addr(line), addr(answer), 200)
+    if (got < 0) {
+      puts(str('LINK FAILED'))
+    } else {
+      puts(addr(answer))
+    }
+    newline()
+  }
+}
+```
+
+- 答えは液晶の文字（ASCII と半角カナ）だけで、`max` バイトまでです。置き場は `max` ＋ 1 バイト要ります（終わりの 0）
+- 問いにカナがあればカナで、なければ英語で答えます。`askAs(8, …)`（TRANS）は逆の言葉に訳します
+- 負の答えは -STATUS です: -2 OFF（LINK が OFF）、-3 HELD（前の `ask` の後に人がキーを押していない）、-4 FAILED、-5 BAD REQUEST、-7 CANCELLED。HELD があるので、プログラムが続けて `ask` しても 2 回目は送られません。上の例のように、問いを打ってもらってから聞きます
+- 待つ間、機械は WFI で眠ります。BRK で止めるとモニタに落ち、問いは取り消されます
+- TypeScript として動かすと、`ecall` は 0 を返すので `ask` の答えは 0（空の答え）です
 
 ## 8. 最適化の段階
 
