@@ -3,6 +3,8 @@ import { CARD_STATUS, type CardAnswer, type CardRequest } from '@shared/elec16/c
 import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
 import { LINK_STATUS } from '@shared/elec16/link-services'
 import { Elec16 } from '@shared/elec16/machine'
+import { MODELS, type ModelId, xramBytes } from '@shared/elec16/map'
+import { snapshotModel } from '@shared/elec16/snapshot'
 import {
   type Elec16Board,
   type Elec16Claim,
@@ -33,6 +35,20 @@ export interface UnitHost {
   keep(unit: string): void
 }
 
+/** The two ROMs, by the models that run them: the pocket ROM and the PLAY ROM. */
+export type Elec16Roms = Readonly<Record<'pocket' | 'play', Uint8Array>>
+
+/** The extended RAM a unit's machine has, in bytes: its choice, on a model that has any. */
+const xramOf = (unit: Elec16Unit): number => xramBytes(MODELS[unit.model], unit.xram)
+
+/**
+ * Whether a machine of one model, with `xram` bytes, goes on as another with its RAM: only on
+ * the same ROM with the same extended RAM. Between the pocket ROM and the PLAY ROM, or with
+ * another size of extended RAM, what it kept means nothing there (docs/elec16-play.md).
+ */
+const keepsRam = (from: ModelId, xram: number, unit: Elec16Unit): boolean =>
+  MODELS[from].rom === MODELS[unit.model].rom && xram === xramOf(unit)
+
 export class UnitSession {
   phase = $state<UnitPhase>('loading')
   unit = $state.raw<Elec16Unit | null>(null)
@@ -42,7 +58,7 @@ export class UnitSession {
   readonly #pane: string
   readonly #runner: Elec16Runner
   readonly #host: UnitHost
-  #rom: Uint8Array | null = null
+  #roms: Elec16Roms | null = null
   /** The machine as it was when the backup was last written, to skip one that did not run. */
   #saved = ''
   #stops: (() => void)[] = []
@@ -72,13 +88,13 @@ export class UnitSession {
    * the machine a moved pane left running, taken up as it is.
    */
   async start(
-    rom: Uint8Array,
+    roms: Elec16Roms,
     wanted: string | undefined,
     seed: Elec16UnitSeed,
     parked: Elec16 | null,
     paused: boolean,
   ): Promise<void> {
-    this.#rom = rom
+    this.#roms = roms
     const board = await this.#api.board(seed)
     if (this.#disposed) return
     this.board = board
@@ -119,7 +135,10 @@ export class UnitSession {
     return this.#api.remove(id)
   }
 
-  /** TUNE: the unit's name, clock or LCD. Another LCD restarts the machine, its RAM kept. */
+  /**
+   * TUNE: the unit's name, clock, model or extended RAM. Another model or size of extended RAM
+   * restarts the machine: its RAM kept on the same ROM, cleared across (keepsRam).
+   */
   async change(change: Elec16UnitChange): Promise<void> {
     const unit = this.unit
     if (unit === null || this.phase !== 'running') return
@@ -127,14 +146,26 @@ export class UnitSession {
     if (next === null || this.#disposed) return
     this.unit = next
     this.#runner.setHz(hzOfClock(next.clock))
-    if (next.model !== unit.model && this.#rom !== null) {
-      this.#runner.boot(
-        this.#rom,
-        next.model,
-        hzOfClock(next.clock),
-        this.#runner.machine?.state.ram.slice(),
-      )
-    }
+    if (next.model === unit.model && xramOf(next) === xramOf(unit)) return
+    const machine = this.#runner.machine
+    const ram =
+      machine !== null && keepsRam(unit.model, xramOf(unit), next)
+        ? machine.state.ram.slice()
+        : undefined
+    this.#boot(next, ram)
+  }
+
+  /** The unit's machine switched on afresh with its ROM, and the RAM given if any. */
+  #boot(unit: Elec16Unit, ram: Uint8Array | undefined): void {
+    const roms = this.#roms
+    if (roms === null) return
+    this.#runner.boot(
+      roms[MODELS[unit.model].rom],
+      unit.model,
+      hzOfClock(unit.clock),
+      ram,
+      xramOf(unit),
+    )
   }
 
   /** The battery backup, written when the machine ran since the last; not without a unit. */
@@ -191,22 +222,26 @@ export class UnitSession {
     this.phase = 'running'
   }
 
-  /** The machine from the backup, on the unit's LCD; null to switch one on afresh. */
+  /** The machine from the backup, with the ROM of the model it was made on; null for none. */
   #restored(snapshot: Uint8Array | null): Elec16 | null {
-    const rom = this.#rom
-    if (snapshot === null || rom === null) return null
-    return Elec16.restore(rom, snapshot)
+    const roms = this.#roms
+    const model = snapshot === null ? null : snapshotModel(snapshot)
+    if (snapshot === null || roms === null || model === null) return null
+    return Elec16.restore(roms[MODELS[model].rom], snapshot)
   }
 
   #begin(unit: Elec16Unit, machine: Elec16 | null, paused: boolean): void {
-    const rom = this.#rom
-    if (rom === null) return
+    if (this.#roms === null) return
     const hz = hzOfClock(unit.clock)
-    if (machine !== null && machine.state.model === unit.model) {
+    const s = machine?.state
+    if (machine !== null && s?.model === unit.model && s.xram.length === xramOf(unit)) {
       this.#runner.adopt(machine, hz, paused)
     } else {
-      // Its LCD was changed while it was put away: the RAM goes on, on the unit's.
-      this.#runner.boot(rom, unit.model, hz, machine?.state.ram.slice())
+      // Changed while it was put away: on the same ROM the RAM goes on, across it is cleared.
+      this.#boot(
+        unit,
+        s !== undefined && keepsRam(s.model, s.xram.length, unit) ? s.ram.slice() : undefined,
+      )
     }
     this.#saved = this.#runner.machine === null ? '' : markOf(this.#runner.machine)
   }

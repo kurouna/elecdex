@@ -877,6 +877,8 @@ weather and calendar.
   until a person has pressed a key. The panel beside it shows the registers and the code
   (with breakpoints and STEP), the memory, the card (IMPORT and EXPORT of `.bas`, `.asm` and
   binary files) and TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off).
+  TUNE can also make a unit **PLAY-320**, the game model being built (*unreleased*, in progress:
+  so far a 320×288 colour screen, its extended RAM and a start screen; CODE runs a program on it).
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
   three levels of
   optimisation side by side, with their bytes and cycles; RUN puts it in the machine and runs

@@ -20,6 +20,11 @@ export interface CodeTaker {
   loadCode(at: number, bytes: Uint8Array): boolean
   /** Types the text on the machine's keys, as PASTE does. */
   typeText(text: string): void
+  /**
+   * PLAY-320, which has no prompt to type at (docs/elec16-play.md): calls the program at an
+   * address itself, to come back to the start screen. Absent on the pocket models.
+   */
+  callCode?: ((at: number) => void) | undefined
 }
 
 /** How long a machine is given to come back to its prompt. */
@@ -45,6 +50,11 @@ export async function giveCode(
 ): Promise<string | null> {
   if (!(await toPrompt(t))) return NO_PROMPT
   if (!t.loadCode(CODE_START, image)) return NO_MACHINE
+  if (t.callCode !== undefined) {
+    // No monitor to list it: LOAD only puts it there, for CORE to show.
+    if (how === 'run') t.callCode(CODE_START)
+    return null
+  }
   const monitor = lit(t, 'MON')
   if (how === 'run') t.typeText(monitor ? 'G 7000\n' : 'CALL 28672\n')
   else t.typeText(monitor ? 'U 7000\n' : 'MON\nU 7000\n')

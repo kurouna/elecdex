@@ -54,11 +54,14 @@ export const MODEL_IDS = [
 ] as const
 export type ModelId = (typeof MODEL_IDS)[number]
 
-/**
- * The models a unit may be: PLAY-320 is the machine's, but TUNE offers it only once it has
- * its screen and its ROM (docs/elec16-play.md section 9, G2).
- */
-export const TUNE_MODEL_IDS = ['pocket-32', 'pocket-48', 'pocket-64', 'handheld-160'] as const
+/** The models a unit may be, as TUNE offers them (PLAY-320 from G2, docs/elec16-play.md). */
+export const TUNE_MODEL_IDS = [
+  'pocket-32',
+  'pocket-48',
+  'pocket-64',
+  'handheld-160',
+  'play-320',
+] as const
 export type TuneModelId = (typeof TUNE_MODEL_IDS)[number]
 
 export interface Model {
@@ -77,12 +80,51 @@ export interface Model {
    * until then the window reads 0 and ignores writes there.
    */
   video: boolean
+  /**
+   * The ROM it runs: the pocket ROM (BASIC and the monitor) or the PLAY ROM (the start
+   * screen). A unit moved between the two starts with its RAM cleared: what one kept means
+   * nothing to the other (docs/elec16-play.md section 1).
+   */
+  rom: 'pocket' | 'play'
+  /**
+   * How often its screen is drawn at most: an LCD answers in tens of milliseconds, thirty
+   * times a second (measured, docs/elec16.md section 9); PLAY-320's colour screen, for
+   * games, sixty (docs/elec16-play.md section 4).
+   */
+  drawHz: 30 | 60
 }
 
 export const MODELS: Readonly<Record<ModelId, Model>> = {
-  'pocket-32': { id: 'pocket-32', width: 240, height: 32, depth: 1, xramMax: 0, video: false },
-  'pocket-48': { id: 'pocket-48', width: 240, height: 48, depth: 1, xramMax: 0, video: false },
-  'pocket-64': { id: 'pocket-64', width: 240, height: 64, depth: 1, xramMax: 0, video: false },
+  'pocket-32': {
+    id: 'pocket-32',
+    width: 240,
+    height: 32,
+    depth: 1,
+    xramMax: 0,
+    video: false,
+    rom: 'pocket',
+    drawHz: 30,
+  },
+  'pocket-48': {
+    id: 'pocket-48',
+    width: 240,
+    height: 48,
+    depth: 1,
+    xramMax: 0,
+    video: false,
+    rom: 'pocket',
+    drawHz: 30,
+  },
+  'pocket-64': {
+    id: 'pocket-64',
+    width: 240,
+    height: 64,
+    depth: 1,
+    xramMax: 0,
+    video: false,
+    rom: 'pocket',
+    drawHz: 30,
+  },
   'handheld-160': {
     id: 'handheld-160',
     width: 160,
@@ -90,6 +132,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     depth: 2,
     xramMax: 0,
     video: false,
+    rom: 'pocket',
+    drawHz: 30,
   },
   'play-320': {
     id: 'play-320',
@@ -98,6 +142,8 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
     depth: 2,
     xramMax: XRAM_MAX,
     video: true,
+    rom: 'play',
+    drawHz: 60,
   },
 }
 

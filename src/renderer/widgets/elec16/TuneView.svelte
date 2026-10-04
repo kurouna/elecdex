@@ -1,5 +1,5 @@
 <script lang="ts">
-import { MODELS, type ModelId, TUNE_MODEL_IDS } from '@shared/elec16/map'
+import { MODELS, type ModelId, TUNE_MODEL_IDS, XRAM_SIZES_KB } from '@shared/elec16/map'
 import {
   ELEC16_AUTO_OFF,
   ELEC16_CLOCKS,
@@ -15,9 +15,10 @@ import { SKIN_IDS, SKINS, type SkinId } from './skins.ts'
 
 /**
  * TUNE (docs/elec16.md section 7): PASTE, LINK (LinkTune.svelte), which unit the pane runs (or a new one), the unit's
- * clock, auto power-off and its LCD (fitting another one restarts the machine, its RAM kept
- * and the screen empty) - the unit's own, kept by main - then this pane's: how the body is
- * drawn, the skin, the LCD's slow fade and its contrast.
+ * clock, auto power-off (or on PLAY-320 its extended RAM) and its model (fitting another
+ * restarts the machine, its RAM kept on the same ROM and the screen empty) - the unit's own,
+ * kept by main - then this pane's: how the body is drawn, the skin, the LCD's slow fade and
+ * its contrast.
  */
 interface Props {
   pane: Elec16Pane
@@ -65,8 +66,12 @@ const {
 const clockWords = (c: Elec16Clock): string => (c === 'max' ? 'MAX' : `${c} MHz`)
 const modelWords = (id: ModelId): string => {
   const m = MODELS[id]
+  // The game model by its name: its screen is a colour one, not another LCD.
+  if (m.rom === 'play') return id.toUpperCase()
   return `${m.width}×${m.height}${m.depth === 2 ? ' ·4' : ''}`
 }
+/** PLAY-320 (docs/elec16-play.md): extended RAM to choose, and no auto power-off. */
+const play = $derived(unit !== null && MODELS[unit.model].rom === 'play')
 const offWords = (m: Elec16AutoOff): string => (m === 0 ? 'never' : `${m} min`)
 const BODY_WORDS: Record<BodyMode, string> = {
   auto: 'auto',
@@ -105,6 +110,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
 </script>
 
 <div class="tune" data-testid="elec16-tune">
+  {#if !play}
   <section>
     <h3>keys</h3>
     <div class="chips">
@@ -124,6 +130,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
         >{/if}.
     </p>
   </section>
+  {/if}
   <LinkTune sent={linkSent} note={linkNote} />
   <section>
     <h3>unit</h3>
@@ -174,6 +181,26 @@ function pick<T>(now: T, next: T, apply: () => void): void {
       {/each}
     </div>
   </section>
+  {#if play}
+  <section>
+    <h3>extended ram</h3>
+    <div class="chips" role="radiogroup" aria-label="extended RAM">
+      {#each XRAM_SIZES_KB as kb (kb)}
+        <button
+          type="button"
+          class="e16-chip"
+          role="radio"
+          disabled={unit === null}
+          aria-checked={unit?.xram === kb}
+          onclick={() => pick(unit?.xram, kb, () => onunit({ xram: kb }))}
+          data-testid="elec16-xram"
+          data-kb={kb}>{kb === 0 ? 'none' : `${kb} KB`}</button
+        >
+      {/each}
+    </div>
+    <p class="note">Another size restarts the machine with its RAM cleared.</p>
+  </section>
+  {:else}
   <section>
     <h3>auto off</h3>
     <div class="chips" role="radiogroup" aria-label="auto power-off">
@@ -191,9 +218,10 @@ function pick<T>(now: T, next: T, apply: () => void): void {
       {/each}
     </div>
   </section>
+  {/if}
   <section>
-    <h3>lcd</h3>
-    <div class="chips" role="radiogroup" aria-label="LCD">
+    <h3>model</h3>
+    <div class="chips" role="radiogroup" aria-label="model">
       {#each TUNE_MODEL_IDS as id (id)}
         <button
           type="button"
@@ -207,8 +235,13 @@ function pick<T>(now: T, next: T, apply: () => void): void {
         >
       {/each}
     </div>
-    <p class="note">Another LCD restarts the machine: its RAM stays, its screen is cleared.</p>
+    <p class="note">
+      Another LCD restarts the machine: its RAM stays, its screen is cleared. To or from PLAY-320,
+      a game machine with no BASIC, its RAM is cleared too.
+    </p>
   </section>
+  <!-- The body, its skin and the LCD glass: PLAY-320 shows its screen alone until G3. -->
+  {#if !play}
   <section>
     <h3>body</h3>
     <div class="chips" role="radiogroup" aria-label="body">
@@ -270,6 +303,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
       >
     </div>
   </section>
+  {/if}
 </div>
 
 <style>

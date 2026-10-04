@@ -23,6 +23,7 @@ import Device from './Device.svelte'
 import FilesView from './FilesView.svelte'
 import type { LcdColours, Rgb } from './lcd-painter.ts'
 import MemView from './MemView.svelte'
+import PlayScreen from './PlayScreen.svelte'
 import {
   ELEC16_TABS,
   type Elec16Pane,
@@ -35,7 +36,7 @@ import { kanaLit, pasteModes, pcKeyFate } from './pc-keys.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
-import { UnitSession } from './unit-session.svelte.ts'
+import { type Elec16Roms, UnitSession } from './unit-session.svelte.ts'
 
 /**
  * The ELEC-16 pane (docs/elec16.md): a pocket computer of elecdex's own, its machine-code
@@ -86,9 +87,20 @@ $effect(() => {
 let root = $state<HTMLDivElement | null>(null)
 let paneFocused = $state(false)
 let windowFocused = $state(document.hasFocus())
-let rom = $state.raw<Uint8Array | null>(null)
-let labels = $state.raw<ReadonlyMap<number, string>>(new Map())
+let roms = $state.raw<Elec16Roms | null>(null)
+/** The pocket ROM: CODE measures on it (the same CPU on every model). */
+const rom = $derived(roms?.pocket ?? null)
+let symbols = $state.raw<Readonly<Record<'pocket' | 'play', Readonly<Record<string, number>>>>>({
+  pocket: {},
+  play: {},
+})
 let failed = $state(false)
+/** PLAY-320 (docs/elec16-play.md): the PLAY ROM, its screen alone until G3, no keys, no FILES. */
+const play = $derived(MODELS[runner.model].rom === 'play')
+/** CORE names code by the labels of the ROM the machine runs. */
+const labels = $derived(labelsOf(symbols[MODELS[runner.model].rom]))
+const tabs = $derived(play ? ELEC16_TABS.filter((t) => t !== 'files') : ELEC16_TABS)
+const tab = $derived(play && pane.tab === 'files' ? 'tune' : pane.tab)
 
 const listening = $derived(
   paneFocused && windowFocused && runner.status !== 'empty' && pane.view === 'machine',
@@ -98,24 +110,28 @@ function change(next: Partial<Elec16Pane>): void {
   widgetState.patch(paneId, next)
 }
 
-// The ROM comes with the page, in a chunk of its own, the first time a pane needs it.
-void import('./rom.json').then(
-  (file) => {
-    const image = romFromFile(file.default)
-    if (image === null) failed = true
-    rom = image
-    labels = labelsOf(file.default.symbols)
+// The ROMs come with the page, in chunks of their own, the first time a pane needs them: the
+// pocket ROM and the PLAY ROM, so a unit can be moved between the two in TUNE.
+void Promise.all([import('./rom.json'), import('./play-rom.json')]).then(
+  ([pocket, playFile]) => {
+    const images = { pocket: romFromFile(pocket.default), play: romFromFile(playFile.default) }
+    if (images.pocket === null || images.play === null) {
+      failed = true
+      return
+    }
+    symbols = { pocket: pocket.default.symbols, play: playFile.default.symbols }
+    roms = { pocket: images.pocket, play: images.play }
   },
   () => {
     failed = true
   },
 )
 
-// Once the ROM is here: the pane's unit, with the machine a moved pane left behind, or
+// Once the ROMs are here: the pane's unit, with the machine a moved pane left behind, or
 // from its battery backup.
 let started = false
 $effect(() => {
-  const image = rom
+  const image = roms
   if (started || image === null) return
   started = true
   untrack(() => {
@@ -138,8 +154,8 @@ $effect(() => {
   if (!machineSeen) untrack(() => session.save())
 })
 
-/** Whether there is a machine on for PASTE and LOAD ▸ to type into. */
-const canType = $derived(runner.status !== 'empty' && !runner.off)
+/** Whether there is a machine on for PASTE and LOAD ▸ to type into: PLAY-320 has no keys. */
+const canType = $derived(runner.status !== 'empty' && !runner.off && !play)
 
 /** The runner as code/give.ts types on it: PASTE's keys, in the machine's modes of the moment. */
 const taker: CodeTaker = {
@@ -159,6 +175,11 @@ const taker: CodeTaker = {
   whenAsleep: (ms) => runner.whenAsleep(ms),
   loadCode: (at, bytes) => runner.loadCode(at, bytes),
   typeText: (text) => runner.paste(pasteKeys(text, pasteModes(runner.annunciators)).keys),
+  get callCode() {
+    // The PLAY ROM's start screen takes the program back at code_return.
+    const back = symbols.play.code_return
+    return play && back !== undefined ? (at: number) => runner.callCode(at, back) : undefined
+  },
 }
 
 /**
@@ -465,7 +486,12 @@ onDestroy(() => {
           </div>
         </div>
       {:else if runner.status !== 'empty'}
+        <!-- One view whatever the model: switching to or from PLAY-320 swaps the screen in place,
+             as another LCD does, rather than powering one off over the other. -->
         <div class="view crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower>
+          {#if play}
+            <PlayScreen {runner} seen={visible} />
+          {:else}
           <Device
             {runner}
             {skin}
@@ -476,33 +502,34 @@ onDestroy(() => {
             seen={visible}
             link={appearance.settings.elec16.link.on}
           />
+          {/if}
         </div>
       {/if}
     </div>
     {#if panelOpen}
       <aside class="panel crt-on" style:width="{PANEL_WIDTH}px" transition:crtPower data-testid="elec16-panel">
         <div class="tabs" role="tablist">
-          {#each ELEC16_TABS as tab (tab)}
+          {#each tabs as t (t)}
             <button
               type="button"
               class="tab"
               role="tab"
-              aria-selected={pane.tab === tab}
+              aria-selected={tab === t}
               onclick={() => {
-                if (pane.tab !== tab) sfx.play('panel')
-                change({ tab })
+                if (tab !== t) sfx.play('panel')
+                change({ tab: t })
               }}
               data-testid="elec16-tab"
-              data-tab={tab}>{tab}</button
+              data-tab={t}>{t}</button
             >
           {/each}
         </div>
         <div class="pane-body">
-          {#if pane.tab === 'core'}
+          {#if tab === 'core'}
             <CoreView {runner} {labels} />
-          {:else if pane.tab === 'mem'}
+          {:else if tab === 'mem'}
             <MemView {runner} />
-          {:else if pane.tab === 'files'}
+          {:else if tab === 'files'}
             <FilesView
               unit={session.phase === 'running' ? (session.unit?.id ?? null) : null}
               seen={visible}

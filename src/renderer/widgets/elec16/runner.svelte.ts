@@ -3,7 +3,7 @@ import { keyCode } from '@shared/elec16/keys'
 import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
 import { LINK_STATUS } from '@shared/elec16/link-services'
 import { type ClockFields, Elec16 } from '@shared/elec16/machine'
-import { DEFAULT_MODEL, type ModelId } from '@shared/elec16/map'
+import { DEFAULT_MODEL, MODELS, type ModelId } from '@shared/elec16/map'
 import { KEY_FIFO_SIZE } from '@shared/elec16/state'
 import { type LoopHost, TimedLoop, type TimedPolicy, type Wake } from '../emu/loops.ts'
 import { browserLoop, EmuRunner, type PauseReason, type RunStatus } from '../emu/runner.svelte.ts'
@@ -107,22 +107,27 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #offTimer: number | null = null
   /** Who waits for the machine to fall asleep at its prompt (CODE's RUN and LOAD). */
   #sleepers: (() => void)[] = []
+  /** The loop's policy: how often it draws is the model's (PLAY-320 sixty times a second). */
+  readonly #policy: TimedPolicy
 
   constructor(host: Elec16Host) {
     const speed = { max: false }
     const sleeps: { to: (wake: Wake | null) => void } = { to: () => {} }
-    super(
-      (owner) =>
-        new TimedLoop(
-          host,
-          owner,
-          policy(() => (speed.max ? Number.POSITIVE_INFINITY : (owner.machine?.hz ?? 0))),
-          (wake) => sleeps.to(wake),
-        ),
-    )
+    const made: { policy: TimedPolicy | null } = { policy: null }
+    super((owner) => {
+      made.policy = policy(() => (speed.max ? Number.POSITIVE_INFINITY : (owner.machine?.hz ?? 0)))
+      return new TimedLoop(host, owner, made.policy, (wake) => sleeps.to(wake))
+    })
     this.#host = host
     this.#speed = speed
+    this.#policy = made.policy ?? policy(() => 0)
     sleeps.to = (wake) => this.#slept(wake)
+  }
+
+  /** The model fitted: the views read it, and the loop draws at its rate. */
+  #fit(model: ModelId): void {
+    this.model = model
+    this.#policy.drawMs = drawMsOf(model)
   }
 
   get #timed(): TimedLoop<Elec16> {
@@ -133,11 +138,11 @@ export class Elec16Runner extends EmuRunner<Elec16> {
    * Switches a machine on with `rom` in it, on `model`; the RAM given is kept (a new LCD), and
    * a machine the player had paused stays paused.
    */
-  boot(rom: Uint8Array, model: ModelId, hz: number, ram?: Uint8Array): void {
+  boot(rom: Uint8Array, model: ModelId, hz: number, ram?: Uint8Array, xram = 0): void {
     const paused = this.pausedBy === 'player'
     if (this.disposed) return
     this.stopLoop()
-    const machine = Elec16.boot(rom, model, ram)
+    const machine = Elec16.boot(rom, model, ram, xram)
     machine.setClock(this.#host.clock())
     this.setMachine(machine)
     this.#armBreakpoints(machine)
@@ -146,7 +151,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.stopPaste()
     this.pausedBy = paused ? 'player' : null
     this.asleep = false
-    this.model = model
+    this.#fit(model)
     this.#changed()
   }
 
@@ -159,7 +164,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     this.setMachine(machine)
     // The machine brings its breakpoints with it.
     this.breakpoints = [...machine.breakpoints].sort((x, y) => x - y)
-    this.model = machine.state.model
+    this.#fit(machine.state.model)
     this.setHz(hz)
     this.#shift = false
     this.stopPaste()
@@ -435,7 +440,7 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #slept(wake: Wake | null): void {
     const asleep = wake !== null
     if (this.asleep !== asleep) this.asleep = asleep
-    if (wake?.key === true && !this.#waitsForMain() && this.#sleepers.length > 0) {
+    if (this.#atPrompt(wake) && this.#sleepers.length > 0) {
       for (const sleeper of [...this.#sleepers]) sleeper()
     }
     if (this.#forKey(wake)) this.#armOff()
@@ -470,9 +475,37 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     return this.status === 'running' && this.#forKey(this.#timed.asleep)
   }
 
-  /** This sleep waits for a key and nothing else. */
+  /**
+   * This sleep waits for a key and nothing else - auto power-off's count. Never on PLAY-320,
+   * which switches itself off no more than a handheld game does (docs/elec16-play.md).
+   */
   #forKey(wake: Wake | null): boolean {
+    if (MODELS[this.model].rom === 'play') return false
     return wake?.key === true && wake.timerMs === null && !this.#waitsForMain()
+  }
+
+  /**
+   * Asleep at its prompt, where CODE can give it a program: the pocket ROM sleeps there for a
+   * key; the PLAY ROM's start screen, and after a program came back, for nothing but BRK.
+   */
+  #atPrompt(wake: Wake | null): boolean {
+    if (wake === null || this.#waitsForMain()) return false
+    if (MODELS[this.model].rom === 'play') return !wake.key && wake.timerMs === null
+    return wake.key
+  }
+
+  /**
+   * CODE's RUN on PLAY-320, which has no prompt to type at: the program at `pc` called, to
+   * come back to `ra` (the ROM's code_return). A person's action, as RUN is on the others.
+   */
+  callCode(pc: number, ra: number): void {
+    const machine = this.machine
+    if (machine === null) return
+    machine.vouch()
+    machine.callAt(pc, ra)
+    this.asleep = false
+    this.#timed.wake()
+    this.#changed()
   }
 
   /** An answer from main (LINK, the card) is on its way: the machine is not at its prompt. */
@@ -496,13 +529,15 @@ export class Elec16Runner extends EmuRunner<Elec16> {
 
 /** The timed loop's policy for this machine; `rate` is the unit's clock, or MAX. */
 function policy(rate: () => number): TimedPolicy {
-  // An LCD answers in tens of milliseconds: drawn at most thirty times a second.
   return {
     tickMs: 1000 / 60,
     maxCatchUpMs: 50,
     budgetMs: 8,
     slice: 20_000,
     rate,
-    drawMs: 1000 / 30,
+    drawMs: drawMsOf(DEFAULT_MODEL),
   }
 }
+
+/** How long between two draws of a model's screen at the least (its `drawHz`). */
+const drawMsOf = (model: ModelId): number => 1000 / MODELS[model].drawHz

@@ -24,7 +24,16 @@ import { CARD_STATUS } from './card.js'
 import type { Angle } from './decimal.js'
 import { linkInterrupted } from './link.js'
 import { LINK_STATUS } from './link-services.js'
-import { BANK_SIZE, bankTaken, MODEL_IDS, MODELS, RAM_SIZE, VRAM_WINDOW, XRAM_MAX } from './map.js'
+import {
+  BANK_SIZE,
+  bankTaken,
+  MODEL_IDS,
+  MODELS,
+  type ModelId,
+  RAM_SIZE,
+  VRAM_WINDOW,
+  XRAM_MAX,
+} from './map.js'
 import { createState, type Elec16State, MIE_LINES, MIE_LINES_VIDEO } from './state.js'
 import { VCTRL_MASK, VIDEO_PAGES, VIDEO_SIZE } from './video.js'
 
@@ -203,6 +212,15 @@ function readLink(r: ByteReader, s: Elec16State): boolean {
   link.fresh = (flags & LINK_FLAG.fresh) !== 0
   if ((flags & LINK_FLAG.busy) !== 0) linkInterrupted(s)
   return link.status <= LINK_STATUS.noService && flags < 16
+}
+
+/**
+ * The model a snapshot says it was made on, from its head alone; null when it is not one of
+ * ours. Which ROM to restore it with follows from it (the pocket ROM or the PLAY ROM).
+ */
+export function snapshotModel(bytes: Uint8Array): ModelId | null {
+  if (bytes.length < 6 || MAGIC.some((b, k) => bytes[k] !== b)) return null
+  return MODEL_IDS[bytes[5] ?? 0xff] ?? null
 }
 
 /** A snapshot read back into a state; null when it is not one of ours, whole and in range. */

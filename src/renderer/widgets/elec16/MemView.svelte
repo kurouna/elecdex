@@ -1,4 +1,5 @@
 <script lang="ts">
+import { BANK_SIZE, BANK_WINDOW, XRAM_BANK } from '@shared/elec16/map'
 import {
   byteMap,
   changedBytes,
@@ -18,12 +19,52 @@ import type { Elec16Runner } from './runner.svelte.ts'
  * code area, ROM, the bank window, video memory and I/O are told apart, and a byte that
  * changed since the last look is lit. Read through the bus's peek, so looking at the key
  * register never takes a key; on the shared 10 fps loop only while the machine runs awake.
+ *
+ * PLAY-320 has two more memories the address space shows only a window of (docs/elec16-play.md):
+ * extended RAM, every bank, named by bank and the address the window shows it at, and the
+ * 64 KB of video memory. They are read as they are, not through the bus.
  */
 const { runner }: { runner: Elec16Runner } = $props()
 
 type Follow = 'pc' | 'sp' | 'vram' | 'free'
 const FOLLOWS: readonly Follow[] = ['pc', 'sp', 'vram', 'free']
 const SIZE = 0x10000
+
+type Space = 'cpu' | 'xram' | 'video'
+const SPACE_WORDS: Record<Space, string> = { cpu: 'CPU', xram: 'XRAM', video: 'VIDEO' }
+/** The memories this machine has: the address space, and PLAY-320's own. */
+const spaces = $derived.by((): Space[] => {
+  void runner.stepped
+  const s = runner.machine?.state
+  return [
+    'cpu',
+    ...(s?.xram.length ? (['xram'] as const) : []),
+    ...(s?.video ? (['video'] as const) : []),
+  ]
+})
+let chosen = $state<Space>('cpu')
+const space = $derived(spaces.includes(chosen) ? chosen : 'cpu')
+
+/** A memory to read and how far it goes. */
+function memory(where: Space): { size: number; read: (a: number) => number } | null {
+  const machine = runner.machine
+  if (machine === null) return null
+  const s = machine.state
+  if (where === 'xram') return { size: s.xram.length, read: (a) => s.xram[a] ?? 0 }
+  if (where === 'video' && s.video !== null) {
+    const mem = s.video.mem
+    return { size: mem.length, read: (a) => mem[a] ?? 0 }
+  }
+  return { size: SIZE, read: (a) => machine.bus.peek(a) }
+}
+
+/** A row's address: extended RAM by its bank and where the window shows it, video by V. */
+function where(address: number): string {
+  if (space === 'xram') {
+    return `${hex(XRAM_BANK + Math.floor(address / BANK_SIZE), 2)}:${hex(BANK_WINDOW + (address % BANK_SIZE))}`
+  }
+  return space === 'video' ? `V:${hex(address)}` : hex(address)
+}
 
 let follow = $state<Follow>('pc')
 let top = $state(0)
@@ -49,10 +90,12 @@ const rows = $derived.by((): MemRow[] | null => {
   void runner.status
   // Falling asleep stops the ticks: what was written last is read then.
   void runner.asleep
-  const machine = runner.machine
-  if (machine === null) return null
+  const mem = memory(space)
+  if (mem === null || mem.size === 0) return null
+  // PLAY-320's own memories are only looked through: from their start, where the wheel takes it.
+  if (space !== 'cpu') return memoryRows(mem, scrollWindow(top, 0, mem.size))
   const start = follow === 'free' ? scrollWindow(top, 0, SIZE) : windowStart(target(follow), SIZE)
-  return memoryRows({ size: SIZE, read: (a) => machine.bus.peek(a) }, start)
+  return memoryRows(mem, start)
 })
 
 let before: Map<number, number> | null = null
@@ -63,6 +106,12 @@ $effect(() => {
   changed = changedBytes(before, now)
   before = byteMap(now)
 })
+
+function pickSpace(next: Space): void {
+  chosen = next
+  top = 0
+  follow = next === 'cpu' ? 'pc' : 'free'
+}
 
 function choose(next: Follow): void {
   if (next === 'free') top = rows?.[0]?.address ?? 0
@@ -77,7 +126,7 @@ $effect(() => {
   const wheel = (event: WheelEvent) => {
     event.preventDefault()
     const from = follow === 'free' ? top : (rows?.[0]?.address ?? 0)
-    top = scrollWindow(from, Math.sign(event.deltaY) * 2, SIZE)
+    top = scrollWindow(from, Math.sign(event.deltaY) * 2, memory(space)?.size ?? SIZE)
     follow = 'free'
   }
   el.addEventListener('wheel', wheel, { passive: false })
@@ -93,6 +142,22 @@ const pc = $derived.by(() => {
 
 {#if rows !== null}
   <div class="mem" data-testid="elec16-mem">
+    {#if spaces.length > 1}
+      <div class="chips" role="radiogroup" aria-label="memory">
+        {#each spaces as m (m)}
+          <button
+            type="button"
+            class="e16-chip"
+            role="radio"
+            aria-checked={space === m}
+            onclick={() => pickSpace(m)}
+            data-testid="elec16-mem-space"
+            data-space={m}>{SPACE_WORDS[m]}</button
+          >
+        {/each}
+      </div>
+    {/if}
+    {#if space === 'cpu'}
     <div class="chips" role="radiogroup" aria-label="follow">
       {#each FOLLOWS as f (f)}
         <button
@@ -106,19 +171,21 @@ const pc = $derived.by(() => {
         >
       {/each}
     </div>
+    {/if}
     <div class="grid" bind:this={grid} data-testid="elec16-mem-rows">
       {#each rows as row (row.address)}
-        <span class="address">{hex(row.address)}</span>
+        <span class="address">{where(row.address)}</span>
         {#each COLUMNS as k (k)}
           {@const address = row.address + k}
           <span
-            class="byte {byteKind(address)}"
-            class:pc={address === pc}
+            class="byte {space === 'cpu' ? byteKind(address) : space === 'xram' ? 'ram' : 'vram'}"
+            class:pc={space === 'cpu' && address === pc}
             class:changed={changed.has(address)}>{hex(row.bytes[k] ?? 0, 2)}</span
           >
         {/each}
       {/each}
     </div>
+    {#if space === 'cpu'}
     <div class="key">
       <span class="byte ram">RAM</span>
       <span class="byte code">CODE</span>
@@ -127,6 +194,7 @@ const pc = $derived.by(() => {
       <span class="byte vram">VRAM</span>
       <span class="byte io">I/O</span>
     </div>
+    {/if}
   </div>
 {/if}
 

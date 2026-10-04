@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { compilePlay } from '@shared/e16c/play-rom'
 import { assemble, ramImage } from '@shared/elec16/asm'
-import { screenText } from '@shared/elec16/font'
 import { REG_NAMES } from '@shared/elec16/isa'
 import { Elec16 } from '@shared/elec16/machine'
 import { BANK_SIZE, IO, XRAM_BANK, XRAM_MAX } from '@shared/elec16/map'
@@ -16,6 +15,7 @@ import {
   VIDEO_REG,
 } from '@shared/elec16/video'
 import { describe, expect, it } from 'vitest'
+import { playText } from '../../src/renderer/widgets/elec16/play-painter'
 import playJson from '../../src/renderer/widgets/elec16/play-rom.json'
 
 /**
@@ -28,18 +28,8 @@ const DIR = 'resources/elec16/play/'
 const read = (name: string) => (existsSync(DIR + name) ? readFileSync(DIR + name, 'utf8') : null)
 const built = buildRom(read)
 
-/** The bitmap as the pocket LCD's memory (a byte a column of eight dots), for the font to read. */
-function screen(m: Elec16): string[] {
-  const mem = m.state.video?.mem ?? new Uint8Array()
-  const columns = new Uint8Array(BITMAP_WIDTH * (BITMAP_HEIGHT / 8))
-  for (let y = 0; y < BITMAP_HEIGHT; y++) {
-    for (let x = 0; x < BITMAP_WIDTH; x++) {
-      const dot = ((mem[y * BITMAP_ROW + (x >> 2)] ?? 0) >> (6 - (x & 3) * 2)) & 3
-      if (dot !== 0) columns[(y >> 3) * BITMAP_WIDTH + x] |= 1 << (y & 7)
-    }
-  }
-  return screenText(columns, BITMAP_WIDTH, BITMAP_HEIGHT).map((row) => row.trimEnd())
-}
+/** The screen's text, read back through the font as the pane does. */
+const screen = (m: Elec16): string[] => playText(m.state.video?.mem ?? new Uint8Array())
 
 /** What is written on the screen, its blank rows left out. */
 const written = (m: Elec16) => screen(m).filter((row) => row !== '')

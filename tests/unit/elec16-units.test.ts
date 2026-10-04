@@ -96,8 +96,9 @@ describe('the units', () => {
     expect(u.update('u1', { xram: 0 })?.xram).toBe(0)
     expect(u.update('u1', { xram: 64 })).toBeNull()
     expect(u.update('u1', { xram: 1024 })).toBeNull()
-    // PLAY-320 is the machine's, but TUNE offers it only from G2 (docs/elec16-play.md).
-    expect(u.update('u1', { model: 'play-320' })).toBeNull()
+    // PLAY-320, the game model, is one TUNE offers too (docs/elec16-play.md).
+    expect(u.update('u1', { model: 'play-320' })?.model).toBe('play-320')
+    expect(u.update('u1', { model: 'play-640' })).toBeNull()
     expect(u.update('u1', { name: '\u3042' })).toBeNull()
     expect(u.update('../u1', { name: 'X' })).toBeNull()
     expect(u.update('u9', { name: 'X' })).toBeNull()

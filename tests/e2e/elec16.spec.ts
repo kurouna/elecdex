@@ -717,3 +717,59 @@ test("the dots' shadows follow the dots after the window was too small to draw t
     await close()
   }
 })
+
+/** PLAY-320's screen text, each row trimmed (it centres its words). */
+const playLines = async (page: Page): Promise<string[]> =>
+  (await lcdLines(page)).map((l) => l.trim())
+
+test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, CODE run on it, and back with RAM cleared', async () => {
+  // docs/elec16-play.md, G2: the PLAY ROM's start screen, no FILES and no auto power-off,
+  // extended RAM in TUNE and MEM, CODE's RUN calling the program itself.
+  test.setTimeout(180_000)
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await toMonitor(page)
+    await typeLine(page, 'e 7000 5a')
+    const tab = (name: string) =>
+      page.getByTestId('elec16-tab').and(page.locator(`[data-tab=${name}]`))
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect(page.getByTestId('elec16-play-screen')).toBeVisible()
+    await expect(page.getByTestId('elec16-device')).toHaveCount(0)
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    await expect.poll(() => playLines(page)).toContain('RAM 32K  XRAM 512K')
+    await expect(page.getByTestId('elec16')).toHaveAttribute('data-asleep', 'true')
+    await expect(tab('files')).toHaveCount(0)
+    await expect(page.getByTestId('elec16-auto-off')).toHaveCount(0)
+    await expect(page.getByTestId('elec16-xram')).toHaveCount(4)
+    await page.locator('[data-testid=elec16-xram][data-kb="128"]').click()
+    await expect.poll(() => playLines(page)).toContain('RAM 32K  XRAM 128K')
+
+    await tab('mem').click()
+    await expect(page.getByTestId('elec16-mem-space')).toHaveCount(3)
+    await page.locator('[data-testid=elec16-mem-space][data-space=xram]').click()
+    await expect(page.getByTestId('elec16-mem-rows')).toContainText('20:C000')
+
+    await page.getByTestId('elec16-view-toggle').click()
+    await page.getByTestId('elec16-compile').click()
+    await expect(page.getByTestId('elec16-run')).toBeEnabled({ timeout: 60_000 })
+    await page.getByTestId('elec16-run').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('HELLO FROM TYPESCRIPT')
+    // BRK brings the start screen back.
+    await page.getByTestId('elec16-brk').click({ delay: 20 })
+    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY')
+
+    await tab('tune').click()
+    await page.locator('[data-testid=elec16-model][data-model=pocket-48]').click()
+    await booted(page)
+    await toMonitor(page)
+    await typeLine(page, 'd 7000')
+    await expect
+      .poll(() => lcdLines(page))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/^7000: 00/)]))
+  } finally {
+    await close()
+  }
+})

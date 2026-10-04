@@ -52,6 +52,22 @@ describe("CODE's RUN and LOAD", () => {
     expect(did.filter((d) => d.startsWith('type'))).toEqual(['type G 7000\n', 'type U 7000\n'])
   })
 
+  it('calls the code itself on PLAY-320, which has no prompt to type at, and LOAD only puts it there', async () => {
+    const { t, did } = taker({
+      annunciators: 0,
+      callCode: (at) => did.push(`call ${at.toString(16)}`),
+    })
+    expect(await giveCode(t, IMAGE, 'run')).toBeNull()
+    expect(await giveCode(t, IMAGE, 'load')).toBeNull()
+    expect(did).toEqual(['load', 'call 7000', 'load'])
+  })
+
+  it('stops a program on PLAY-320 first, as on the others', async () => {
+    const { t, did } = taker({ asleep: false, annunciators: 0, callCode: () => did.push('call') })
+    expect(await giveCode(t, IMAGE, 'run')).toBeNull()
+    expect(did).toEqual(['brk', 'load', 'call'])
+  })
+
   it('says why when the machine does not come back to a prompt', async () => {
     const { t, did } = taker({ asleep: false, whenAsleep: async () => false })
     expect(await giveCode(t, IMAGE, 'run')).toMatch(/did not come back to its prompt/)

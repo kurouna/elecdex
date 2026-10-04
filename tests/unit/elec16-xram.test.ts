@@ -9,7 +9,6 @@ import {
   MODEL_IDS,
   MODELS,
   type ModelId,
-  TUNE_MODEL_IDS,
   XRAM_BANK,
   XRAM_MAX,
   XRAM_SIZES_KB,
@@ -58,6 +57,9 @@ const code = (src: string): Uint8Array => {
   expect(out.errors).toEqual([])
   return ramImage(out, 0x7000)
 }
+
+/** Every model but PLAY-320: the pocket ROM's, which must stay as they were. */
+const POCKETS = MODEL_IDS.filter((id) => MODELS[id].rom === 'pocket')
 
 describe('extended RAM', () => {
   it('is a model property only PLAY-320 has, up to the most there can be', () => {
@@ -188,7 +190,7 @@ describe('extended RAM', () => {
 
 describe('the other models, as they were', () => {
   it('cannot be made with extended RAM', () => {
-    for (const id of TUNE_MODEL_IDS) {
+    for (const id of POCKETS) {
       expect(() => createState(id, BANK_SIZE)).toThrow(RangeError)
       expect(createState(id).xram.length).toBe(0)
     }
@@ -198,7 +200,7 @@ describe('the other models, as they were', () => {
   })
 
   it('ignore every bank from 0x20 up, and the window shows the ROM bank it had', () => {
-    for (const id of TUNE_MODEL_IDS) {
+    for (const id of POCKETS) {
       const out = assemble(`
         .org 0x8000
         ${select(2)}
@@ -223,7 +225,7 @@ describe('the other models, as they were', () => {
   })
 
   it('read 0 from the reserved block and nothing changes when it is written', () => {
-    for (const id of TUNE_MODEL_IDS) {
+    for (const id of POCKETS) {
       const m = boot('ebreak', id, 0)
       for (const a of [0xf800, 0xfa00, 0xfefe]) {
         expect(m.bus.write16(a, 0xffff)).toBe(true)
@@ -233,7 +235,7 @@ describe('the other models, as they were', () => {
   })
 
   it('keep a snapshot of the same bytes as version 2, but for the wider bank, no banks and no video', () => {
-    for (const id of TUNE_MODEL_IDS) {
+    for (const id of POCKETS) {
       const m = boot('ebreak', id, 0)
       finish(m)
       const now = m.snapshot()

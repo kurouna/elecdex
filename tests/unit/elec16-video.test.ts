@@ -1,7 +1,7 @@
 import { assemble, romImage } from '@shared/elec16/asm'
 import { REG_NAMES } from '@shared/elec16/isa'
 import { Elec16 } from '@shared/elec16/machine'
-import { type ModelId, TUNE_MODEL_IDS, VRAM } from '@shared/elec16/map'
+import { MODEL_IDS, MODELS, type ModelId, VRAM } from '@shared/elec16/map'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
 import { IRQ } from '@shared/elec16/state'
 import {
@@ -39,6 +39,9 @@ const video = (m: Elec16) => {
   if (v === null) throw new Error('no video')
   return v
 }
+
+/** Every model but PLAY-320: the pocket ROM's, which must stay as they were. */
+const POCKETS = MODEL_IDS.filter((id) => MODELS[id].rom === 'pocket')
 
 describe('the video memory', () => {
   it('is seen 4 KB at a time in the window, the page VPAGE says', () => {
@@ -225,7 +228,7 @@ describe('a snapshot with video', () => {
 
 describe('the other models, without video', () => {
   it('have none, raise no VBLANK and keep mie to the five lines they had', () => {
-    for (const id of TUNE_MODEL_IDS) {
+    for (const id of POCKETS) {
       const m = boot(
         `
         li t0, 0x3f
