@@ -82,6 +82,7 @@ scripts/         asset generators, sync-calc, fix-node-pty
 docs/            architecture.md, decisions.md, plugins.md (the plugin API), weather-providers.md,
                  emu.md (the emulators' shared base), elec16.md (the ELEC-16 pane),
                  elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (its manuals),
+                 elec16-play.md (the game model PLAY-320, being designed),
                  screenshots/ (README images)
 ```
 
