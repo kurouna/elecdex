@@ -288,17 +288,13 @@ const BELLY = [7, 8, 9]
 const MARK = [10, 11]
 
 /**
- * A ramp's colour at `level` 0-1: the nearest shade, and a checker of the two only where the
- * level falls half way between them - flat facets stay clean, curves step softly.
+ * A ramp's colour at `level` 0-1: the nearest shade, never a checker of two - a facet half
+ * way between two shades was a field of dots (user decision 2026-10-05); facets stay one
+ * tone, curves step from one to the next.
  */
-function rampOf(colours, level, x, y) {
+function rampOf(colours, level) {
   const v = Math.max(0, Math.min(0.9999, level)) * (colours.length - 1)
-  const k = Math.floor(v)
-  const t = v - k
-  const up = Math.min(k + 1, colours.length - 1)
-  if (t < 0.4) return colours[k]
-  if (t > 0.6) return colours[up]
-  return colours[(x + y) & 1 ? up : k]
+  return colours[Math.min(colours.length - 1, Math.round(v))]
 }
 
 /**
@@ -425,16 +421,16 @@ function samplesOf(f, x, y) {
   return { count, drawn }
 }
 
-/** A point's colour from what it shows: shaded and dithered, highlights where they fall. */
-function colourOf(p, x, y, big) {
+/** A point's colour from what it shows: shaded in flat steps, highlights where they fall. */
+function colourOf(p, big) {
   switch (p.mat) {
     case M.paint:
       if (big && p.spec > 0.6) return 15
-      return rampOf(PAINT, p.lit * 1.05, x, y)
+      return rampOf(PAINT, p.lit * 1.05)
     case M.belly:
-      return rampOf(BELLY, p.lit * 1.1, x, y)
+      return rampOf(BELLY, p.lit * 1.1)
     case M.mark:
-      return rampOf(MARK, p.lit * 1.25, x, y)
+      return rampOf(MARK, p.lit * 1.25)
     case M.canopy:
       return p.spec > 0.35 ? 13 : 12
     case M.nozzle:
@@ -460,7 +456,7 @@ function downsample(f) {
       const p = pointOf(f, x, y)
       if (p === null) continue
       shown.push([x, y, p])
-      out.set(x, y, colourOf(p, x, y, big))
+      out.set(x, y, colourOf(p, big))
     }
   }
   canopyGlint(out, shown)

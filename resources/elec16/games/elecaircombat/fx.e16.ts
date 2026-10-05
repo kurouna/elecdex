@@ -6,11 +6,13 @@
 import {
   asm,
   type bool,
+  csrr,
   div,
   i16,
   mulShift,
   u16,
   words,
+  wrap16,
 } from '../../../../src/shared/e16c/builtins'
 import { rand, randBelow, S8, S16, S32, spr } from '../lib/kit.e16'
 import {
@@ -34,9 +36,10 @@ import { abs16, bodyV, V_PF, V_REL, V_T0, vget, vset } from './math.e16'
 import {
   abovePanel,
   bodyZ,
-  busy,
+  CSR_CYCLE,
   CX,
   CY,
+  frameT0,
   SL_CLOUD,
   SL_FIRE,
   SL_SHOT,
@@ -237,8 +240,10 @@ function fxOne(k: u16): void {
   // Smoke once the frame has had its share is not drawn, nor far smoke; sparks and pieces
   // not once the frame is nearly spent.
   const w = weight(kind)
-  if (w === 0 && busy() > SMOKE_BUDGET) return
-  if (w === 1 && busy() > SPARK_BUDGET) return
+  // The cycles used read here rather than through sky.e16.ts's busy(): a call saved for
+  // every effect of the busiest frames.
+  if (w === 0 && wrap16(csrr(CSR_CYCLE) - frameT0) > SMOKE_BUDGET) return
+  if (w === 1 && wrap16(csrr(CSR_CYCLE) - frameT0) > SPARK_BUDGET) return
   if (fxFar(k, kind, w)) return
   vset(V_T0, i16(xX[k]), i16(xY[k]), i16(xZ[k]))
   if (see(V_T0) && abovePanel(scrY(), 16)) fxDraw(kind, t)

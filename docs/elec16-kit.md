@@ -53,7 +53,7 @@ mygame/
 | `about` | 棚に出る説明 |
 | `sources` | e16c のファイル。`{ "file": "boss.e16.ts", "bank": 1 }` で、そのファイルのコードをカートリッジのバンクに置く（8 章） |
 | `palettes` | `{ "png": "art/palettes.png", "names": ["ship", "space"] }`。定数 `PAL_名前` が行の番号 |
-| `sheets` | `{ "name", "png", "cell": 8/16/32, "palette", "count"?, "tile"?, "stream"? }`。8 KB を越えるシートはバンクの頭から次のバンクへ続けて置く（`load` はバンクをまたげる）。`stream` は映像メモリに取るコマの数で、全部はカートリッジに残し、見せるものだけ `load` する（`_BYTES` はその場所の大きさ。ELECAIRCOMBAT の敵機）。定数 `名前_TILE`、`_BANK`、`_AT`、`_BYTES`、`_FRAMES`、`_STEP` |
+| `sheets` | `{ "name", "png", "cell": 8/16/32, "palette", "count"?, "tile"?, "stream"? }`。8 KB を越えるシートはバンクの頭から次のバンクへ続けて置く（`load` はバンクをまたげる）。`stream` は映像メモリに取るコマの数で、全部はカートリッジに残し、見せるものだけ `load` する（`_BYTES` はその場所の大きさ。ELECAIRCOMBAT の敵機）。0 なら映像メモリを取らず、ほかのシートのタイルの上に写す絵だけを持つ（ELECAIRCOMBAT の海の位相）。定数 `名前_TILE`、`_BANK`、`_AT`、`_BYTES`、`_FRAMES`、`_STEP` |
 | `maps` | `{ "name", "png", "palettes": [{ "palette", "slot" }], "tile"?, "front"? }`。背景の絵。定数 `名前_TILE`、`_TILES_BANK`、`_TILES_AT`、`_TILES_BYTES`、`_MAP_BANK`、`_W`、`_H`、`_ROWS_PER_BANK` |
 | `music` | MML のファイル。定数 `SONG_名前_BANK`、`SONG_名前_AT` |
 | `tables` | `{ "name", "file" }`。数を並べたテキスト（16 ビットの語）。定数 `名前_BANK`、`_AT`、`_LEN` |

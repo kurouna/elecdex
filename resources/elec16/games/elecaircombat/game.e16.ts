@@ -5,12 +5,14 @@
 import {
   addr,
   type bool,
+  csrr,
   div,
   i16,
   mulShift,
   str,
-  type u16,
+  u16,
   words,
+  wrap16,
 } from '../../../../src/shared/e16c/builtins'
 import {
   B_A,
@@ -168,7 +170,7 @@ import {
   eVel,
   viewsInit,
 } from './bandit.e16'
-import { pAlt, playerNew, playerStep, worldStep } from './flight.e16'
+import { pAlt, playerNew, playerStep, pSpeed, worldStep } from './flight.e16'
 import {
   boomAt,
   cloudsDraw,
@@ -199,11 +201,14 @@ import {
 } from './hud.e16'
 import { V_PF, V_PU, V_REL, vget } from './math.e16'
 import {
+  CSR_CYCLE,
   cockpitIn,
   cockpitTilesIn,
+  flashLeft,
   flashScreen,
   flashStep,
   frameStarts,
+  frameT0,
   mapsClear,
   palettesIn,
   SL_CLOUD,
@@ -212,6 +217,7 @@ import {
   SL_WHITE,
   say,
   screenOn,
+  seaTurn,
   shake,
   shakeStep,
   skyInit,
@@ -223,6 +229,14 @@ import {
 /** The frame count the runtime keeps, as `frame_wait` last answered it, and ours. */
 export let seen: u16 = 0
 export let frame: u16 = 0
+/**
+ * The player's speed (sixteenths of a unit a frame) summed towards the sea's next phase, and
+ * what moves it on one: every fourth frame at cruise, sooner on the burner, later braking.
+ */
+let seaRun: u16 = 0
+const SEA_STRIDE: u16 = 1280
+/** A frame that has used more cycles than this copies no phase. */
+const SEA_BUDGET: u16 = 44000
 /** Set by a scene that wants the sky drawn as the frame begins. */
 export let skyOn: bool = false
 
@@ -279,12 +293,22 @@ function spritesIn(): void {
 
 /** A frame's start: last frame's sprites and sky shown, the shake, the pad and the sound. */
 export function frameBegin(): void {
+  // As the frame ends, the sea's waves move on by the player's speed (sky.e16.ts's seaTurn),
+  // unless the frame has used much already: the busiest frames never pay for the copy, and
+  // the waves wait a frame.
+  if (skyOn) {
+    seaRun = seaRun + u16(pSpeed)
+    if (seaRun >= SEA_STRIDE && wrap16(csrr(CSR_CYCLE) - frameT0) <= SEA_BUDGET) {
+      seaTurn()
+      seaRun = seaRun - SEA_STRIDE
+    }
+  }
   seen = frame_wait(seen)
   frameStarts()
   sprShow()
   shakeStep()
   if (skyOn) skyDraw()
-  flashStep()
+  if (flashLeft !== 0) flashStep()
   padRead()
   soundTick()
   sprBegin()

@@ -143,8 +143,17 @@ function headingSay(): void {
   sayChar(21, 3, 48 + (heading % 10), SL_HUD_TEXT)
 }
 
-/** The target's strength as a bar of six on the centre display (within its glass). */
+/** The target's toughness the bar was last worked out for (its strength is shown[11]). */
+let barMax: u16 = 0
+
+/**
+ * The target's strength as a bar of six on the centre display (within its glass). Its share
+ * is divided out only when the strength or toughness has changed since the last frame.
+ */
 function targetBar(): void {
+  if (shown[11] === u16(eHP) && barMax === u16(eHPMax)) return
+  shown[11] = u16(eHP)
+  barMax = u16(eHPMax)
   const n = eHPMax > 0 ? u16(div(u16(eHP) * 6 + u16(eHPMax) - 1, u16(eHPMax))) : 0
   if (shown[7] === n) return
   shown[7] = n

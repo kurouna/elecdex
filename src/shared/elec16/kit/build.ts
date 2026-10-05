@@ -46,7 +46,8 @@ export interface KitSheet {
   tile?: number
   /**
    * Frames kept in the cartridge and loaded a few at a time: the sheet takes room in video
-   * memory for only this many frames from `tile` (a game `load`s the ones it shows).
+   * memory for only this many frames from `tile` (a game `load`s the ones it shows). With 0
+   * it takes none: pictures a game copies over another sheet's tiles.
    */
   stream?: number
 }

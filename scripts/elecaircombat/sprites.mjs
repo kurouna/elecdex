@@ -2,7 +2,7 @@
 // palette), tracers, missiles and flares, clouds and smoke, the sun and its flare.
 // Explosions and debris are drawn here too, in the fire palette (which ELECLANCE's shares
 // colour for colour).
-import { bayer, Canvas, chance, each, fbm, ramp } from '../eleclance/draw.mjs'
+import { bayer, Canvas, chance, despeckle, each, fbm, ramp, tone } from '../eleclance/draw.mjs'
 
 /** The HUD palette: its dark edge and green ramp. */
 const H = { edge: 1, g0: 2, g1: 3, g2: 4, g3: 5, g4: 6 }
@@ -123,23 +123,26 @@ export function seekerQuarter() {
 
 /** The shot palette: amber tracer, white, steel, burner, blue, red. */
 const S = { a0: 1, a1: 2, a2: 3, a3: 4, w0: 5, w1: 6, steel: 7, dark: 8, o0: 9, o1: 10 }
-/** The shot palette's glow, dark amber out to white at the core. */
-const GLOW = [S.a0, S.a1, S.a2, S.a3, S.w0, S.w1]
+/**
+ * The shot palette's glow, amber out to white at the core: without its two dark ambers, which
+ * round a light in one tone reads as a dark ring, not as the light's fall.
+ */
+const GLOW = [S.a2, S.a3, S.w0, S.w1]
 
 /**
  * A round glow of `size` points: `level` at a distance from its centre (0 the centre) through
- * `colours`, its fringe dithered thin so it fades into the sky instead of ending in a rim.
+ * `colours`, in rings of one tone each - never dithered, which at this size is a scatter of
+ * dots round the light.
  */
 function glowOf(size, colours, level, cx = size / 2, cy = size / 2) {
   const c = new Canvas(size, size)
   each(size, size, (x, y) => {
     const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy)
     const v = level(d, x, y)
-    if (v <= 0) return
-    if (v < 0.22 && bayer(x, y) > v * 4.5) return
-    c.set(x, y, ramp(colours, v, x, y))
+    if (v <= 0.12) return
+    c.set(x, y, tone(colours, v))
   })
-  return c
+  return despeckle(c, 1)
 }
 
 /**
@@ -158,7 +161,7 @@ export function shots() {
   ]) {
     out.push(glowOf(8, GLOW, (d) => (d < r ? hot * (1 - d / r) ** 0.8 : 0)))
   }
-  for (const flame of [3.6, 2.7]) {
+  for (const flame of [3.1, 2.6]) {
     const c = new Canvas(8, 8)
     each(8, 8, (x, y) => {
       const v = missilePoint(Math.hypot(x + 0.5 - 4, y + 0.5 - 4), flame, x, y)
@@ -178,12 +181,16 @@ export function shots() {
   return out
 }
 
-/** A missile from behind at distance `d` from its middle: burner, steel ring, flame. */
+/**
+ * A missile from behind at distance `d` from its middle: burner, a steel ring lit on its
+ * upper left and dark below, the flame round it.
+ */
 function missilePoint(d, flame, x, y) {
   if (d < 1.1) return S.w1
   if (d < 1.8) return S.w0
-  if (d < 2.6) return (x + y) & 1 ? S.steel : S.o1
-  if (d < flame && bayer(x, y) < (flame - d) * 1.2) return S.o0
+  if (d < 2.6) return x + y < 7 ? S.steel : S.dark
+  if (d < flame) return S.o1
+  if (d < flame + 0.7) return S.o0
   return 0
 }
 
@@ -205,11 +212,10 @@ export function bursts() {
     const ray = 7.8 - f * 2
     each(16, 16, (x, y) => {
       const level = burstLevel(Math.abs(x + 0.5 - 8), Math.abs(y + 0.5 - 8), core, ray)
-      if (level <= 0.06) return
-      if (level < 0.3 && bayer(x, y) > level * 3) return
-      c.set(x, y, ramp(FIRE, level, x, y))
+      if (level <= 0.16) return
+      c.set(x, y, tone(FIRE, level))
     })
-    out.push(c)
+    out.push(despeckle(c, 1))
   }
   return out
 }
@@ -251,66 +257,100 @@ export function muzzle() {
       const dy = y + 0.5 - 8
       const d = Math.hypot(dx, dy)
       const reach = reachOf(rays, Math.atan2(dy, dx))
-      if (d <= reach) c.set(x, y, muzzleColour(d, d / reach, x, y))
+      if (d <= reach) c.set(x, y, muzzleColour(d, d / reach))
     })
-    out.push(c)
+    out.push(despeckle(c, 1))
   }
   return out
 }
 
 /** A muzzle flash's colour at distance `d`, `t` of the way out along its ray. */
-function muzzleColour(d, t, x, y) {
+function muzzleColour(d, t) {
   if (d < 1.6) return S.w1
   if (t < 0.4) return S.w0
   if (t < 0.62) return S.a3
   if (t < 0.82) return S.o1
-  return bayer(x, y) < 0.6 ? S.o0 : S.a2
+  return S.o0
 }
 
 /**
  * An explosion of `size` points, `count` frames: a white flash, a ball of fire that swells -
- * white-hot at its heart, lit from above, its underside darker - then breaks into billows of
- * smoke with embers in them, thinning away.
+ * white-hot at its heart, lit from above, its underside darker - then breaks into a few soft
+ * clumps that drift apart, shrink and darken, their glow going out to smoke. Every area one
+ * tone: no dither and no scattered embers (at the screen's size they read as dots).
  */
 export function fireball(size, count, seed) {
   const n = fbm(seed, 4)
-  const crumble = fbm(seed + 17, 2)
-  const embers = chance(seed * 7 + 1)
+  const rnd = chance(seed * 7 + 1)
+  // Fewer and larger clumps in a small explosion, so each stays a lump and not a dot.
+  const many = size >= 32 ? 5 : 3
+  const clumps = Array.from({ length: many }, (_, k) => ({
+    a: ((k + rnd() * 0.6) / many) * Math.PI * 2,
+    d: 0.3 + rnd() * 0.25,
+    r: (size >= 32 ? 0.4 : 0.52) + rnd() * 0.16,
+  }))
   const out = []
   for (let f = 0; f < count; f++) {
     const t = f / (count - 1)
     const c = new Canvas(size, size)
-    const radius = (size / 2 - 1) * (0.42 + 0.58 * Math.sqrt(t))
-    const heat = Math.max(0, 1 - t * 1.2)
-    const fade = Math.max(0, (t - 0.55) / 0.55)
-    const frame = { n, crumble, embers, f, t, radius, heat, fade }
+    const frame = { n, clumps, f, t, size, reach: size / 2 - 1 }
     each(size, size, (x, y) => {
-      const v = fireballPoint(frame, size, x, y)
+      const v = t < 0.5 ? ballPoint(frame, x, y) : clumpPoint(frame, x, y)
       if (v !== 0) c.set(x, y, v)
     })
-    out.push(c)
+    out.push(despeckle(c))
   }
   return out
 }
 
-/** A point of an explosion's frame: fire by its heat, smoke (with embers) where it cooled. */
-function fireballPoint(frame, size, x, y) {
-  const { n, crumble, embers, f, t, radius, heat, fade } = frame
+/** A point of the swelling ball: fire by its heat, its rim gone to smoke as it cools. */
+function ballPoint(frame, x, y) {
+  const { n, f, t, size, reach } = frame
+  const radius = reach * (0.42 + 0.58 * Math.sqrt(t))
   const dx = (x + 0.5 - size / 2) / radius
   const dy = (y + 0.5 - size / 2) / radius
   const d = Math.hypot(dx, dy)
-  const billow = n(x * (6 / size) + f * 0.35, y * (6 / size) - f * 0.3)
-  const edge = 0.68 + 0.46 * billow
+  const billow = n(x * (5 / size) + f * 0.35, y * (5 / size) - f * 0.3)
+  const edge = 0.72 + 0.38 * billow
   if (d > edge) return 0
-  // Thinning: the old smoke breaks up into wisps, from its edge in.
-  if (fade > 0 && crumble(x * 0.8 + f, y * 0.8) < fade * 1.1 - (1 - d) * 0.3) return 0
   const inner = 1 - d / edge
   // Lit from above: the top glows, the underside is the darker side.
   const lit = -dy * 0.22 - dx * 0.08
-  const level = (inner * 0.95 + billow * 0.3 + lit) * heat * 1.45 + (f === 0 ? 0.7 : 0)
-  if (level >= 0.2 || t <= 0.25) return ramp(FIRE, level, x, y)
-  if (t < 0.75 && embers() < 0.04 * heat + 0.02) return FIRE[5]
-  return ramp(ASH, billow * 0.9 + lit * 1.6 + 0.15 - t * 0.35, x, y)
+  const heat = Math.max(0, 1 - t * 1.2)
+  const level = (inner * 0.95 + billow * 0.25 + lit) * heat * 1.45 + (f === 0 ? 0.7 : 0)
+  if (level >= 0.2 || t <= 0.25) return tone(FIRE, level)
+  return tone(ASH, 0.45 + lit * 1.6)
+}
+
+/** A point of the clumps the ball breaks into: a glowing heart going out, smoke round it. */
+function clumpPoint(frame, x, y) {
+  const { n, clumps, t, size, reach } = frame
+  const s = (t - 0.5) / 0.5
+  let best = 0
+  let up = 0
+  for (const k of clumps) {
+    const out = reach * (k.d + 0.3 * s)
+    const cx = size / 2 + Math.cos(k.a) * out
+    // Smoke rises as it goes.
+    const cy = size / 2 + Math.sin(k.a) * out * 0.8 - reach * 0.15 * s
+    const r = reach * k.r * (1 - 0.5 * s)
+    const dx = (x + 0.5 - cx) / r
+    const dy = (y + 0.5 - cy) / r
+    const v = 1 - Math.hypot(dx, dy)
+    if (v > best) {
+      best = v
+      up = dy
+    }
+  }
+  if (best <= 0) return 0
+  const billow = n(x * (4 / size), y * (4 / size))
+  const v = best + (billow - 0.5) * 0.25
+  if (v <= 0) return 0
+  // The heart glows only as the clumps part (gone halfway, before it is a dot); the rest is
+  // smoke, lit on top and darkening with age.
+  const glow = v * (1 - s * 1.8) * 1.6
+  if (glow > 0.55) return tone(FIRE.slice(1, 6), glow - 0.3)
+  return tone(ASH, 0.62 - up * 0.35 - s * 0.45)
 }
 
 /**
@@ -338,9 +378,9 @@ export function debris() {
       const dy = Math.abs(y + 0.5 - 4)
       const along = Math.min(dx, dy) < 0.6 ? 1 - Math.max(dx, dy) / (r + 0.6) : 0
       const level = Math.max(1.1 - Math.hypot(dx, dy) / 1.2, along)
-      if (level > 0.05) c.set(x, y, ramp(FIRE.slice(4), level, x, y))
+      if (level > 0.12) c.set(x, y, tone(FIRE.slice(4), level))
     })
-    out.push(c)
+    out.push(despeckle(c, 1))
   }
   return out
 }
@@ -400,20 +440,19 @@ function pad(c, size) {
 }
 
 /**
- * A puff of `size` points and radius `r`: three lumps of noise, lit from above (`colours`
- * dark to light), its underside in shade and its fringe dithered thin; `thin` 0-1 breaks it
- * up as it ages.
+ * A puff of `size` points and radius `r`: three solid lumps, lit on top (`colours` dark to
+ * light), the underside in shade, each area one tone; `thin` 0-1 parts the lumps and lightens
+ * them as the puff ages - never a crumbling into specks.
  */
 function puffOf(size, r, seed, colours, light, thin) {
   const c = new Canvas(size, size)
   const n = fbm(seed, 3)
-  const crumble = fbm(seed + 29, 2)
   const h = size / 2
   const rnd = chance(seed)
   const lumps = Array.from({ length: 3 }, () => [
-    h + (rnd() - 0.5) * r * 0.8,
-    h + (rnd() - 0.5) * r * 0.6,
-    r * (0.62 + rnd() * 0.25),
+    h + (rnd() - 0.5) * r * (0.8 + thin * 0.9),
+    h + (rnd() - 0.5) * r * (0.6 + thin * 0.5),
+    r * (0.62 + rnd() * 0.25) * (1 - thin * 0.3),
   ])
   each(size, size, (x, y) => {
     let inside = -1
@@ -427,14 +466,12 @@ function puffOf(size, r, seed, colours, light, thin) {
         top = -dy * 0.6 - dx * 0.25
       }
     }
-    const b = n(x * (4 / size) * 2, y * (4 / size) * 2)
-    const v = inside + (b - 0.5) * 0.35
-    if (v <= 0) return
-    if (v < 0.18 && bayer(x, y) > v * 5) return
-    if (thin > 0 && crumble(x * 0.9, y * 0.9) < thin * (1.15 - v)) return
-    c.set(x, y, ramp(colours, light + top * 0.55 + v * 0.25 + (b - 0.5) * 0.3, x, y))
+    const b = n(x * (4 / size), y * (4 / size))
+    const v = inside + (b - 0.5) * 0.2
+    if (v <= 0.04) return
+    c.set(x, y, tone(colours, light + top * 0.5 + v * 0.2 + thin * 0.12))
   })
-  return c
+  return despeckle(c)
 }
 
 /** Smoke puffs (16x16): four frames, dense and dark to wide and thin. */

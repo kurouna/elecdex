@@ -159,19 +159,34 @@ export function hull(c, points, ramp_, rnd, lamps = 0) {
   const ry = (Math.max(...ys) - Math.min(...ys)) / 2 + 1
   const mark = 200
   c.poly(points, mark)
+  // A plate ending at the canvas's middle goes on in its mirror image: no edge there.
+  const mirrored = Math.max(...xs) === c.w / 2
+  const inside = (x, y) =>
+    c.get(x, y) === mark || (mirrored && x >= c.w / 2 && c.get(c.w - 1 - x, y) === mark)
+  const levels = new Float32Array(c.w * c.h).fill(-1)
   each(c.w, c.h, (x, y) => {
     if (c.get(x, y) !== mark) return
     const nx = (x - cx) / rx
     const ny = (y - cy) / ry
-    // Clean bands, not dithered: plates read as metal, not grain.
-    const level = Math.max(0, Math.min(0.999, 0.6 - 0.35 * nx - 0.45 * ny))
-    c.set(x, y, ramp_[Math.floor(level * ramp_.length)])
+    // Lit from the top left by each half's own middle: mirrored, a ridge down the centre.
+    let level = 0.6 - 0.35 * nx - 0.45 * ny
+    // Bevelled edges: lit where the plate's edge faces the light, shaded where it turns away.
+    if (!inside(x, y - 1) || !inside(x - 1, y)) level += 0.28
+    else if (!inside(x, y + 1) || !inside(x + 1, y)) level -= 0.3
+    levels[y * c.w + x] = level
   })
-  // Panel lines across, in the darkest of the ramp.
+  each(c.w, c.h, (x, y) => {
+    const level = levels[y * c.w + x]
+    if (level >= 0 || c.get(x, y) === mark) c.set(x, y, metal(ramp_, level))
+  })
+  // Panel lines across: a groove, dark with a lit lip under it.
   for (let k = 0; k < 2; k++) {
     const y = Math.round(Math.min(...ys) + (Math.max(...ys) - Math.min(...ys)) * (0.35 + 0.3 * k))
     for (let x = Math.ceil(Math.min(...xs)); x <= Math.max(...xs); x++) {
-      if (ramp_.includes(c.get(x, y)) && rnd() < 0.85) c.set(x, y, ramp_[0])
+      if (!ramp_.includes(c.get(x, y)) || rnd() >= 0.85) continue
+      const below = ramp_.indexOf(c.get(x, y + 1))
+      c.set(x, y, ramp_[0])
+      if (below >= 0) c.set(x, y + 1, ramp_[Math.min(ramp_.length - 1, below + 1)])
     }
   }
   for (let k = 0; k < lamps; k++) {
@@ -179,6 +194,16 @@ export function hull(c, points, ramp_, rnd, lamps = 0) {
     const y = Math.round(cy + (rnd() - 0.5) * ry)
     if (ramp_.includes(c.get(x, y))) c.set(x, y, H.cy)
   }
+}
+
+/**
+ * Metal at `level` (0-1) of a ramp: plain bands, as plates read as metal and not grain. Where
+ * two bands meet, a clean line: a dithered step there was a row of specks (user decision
+ * 2026-10-05).
+ */
+function metal(ramp_, level) {
+  const v = Math.max(0, Math.min(0.9999, level)) * ramp_.length
+  return ramp_[Math.floor(v)]
 }
 
 /** HALBERD: a gunship, 32x32 - twin hulls round a hot engine, two guns. Two frames (engine). */
@@ -314,7 +339,13 @@ const B = {
   a4: 14,
 }
 
-/** Bullets: round 8x8 in pink, blue and amber, two pulses each; then 16x16 orbs, pink and blue. */
+/**
+ * Bullets: round 8x8 in pink, blue and amber, two pulses each; then 16x16 orbs, pink and
+ * blue. Drawn as they always were - the size and brightness that make them easy to see - with
+ * a dark rim only on points they leave empty: it never takes a lit point, so a bullet is never
+ * smaller or dimmer than before on any ground, and on a bright one (the near nebula's glow,
+ * the dust, the station's plates) it keeps an edge.
+ */
 export function bulletFrames() {
   const small = []
   const big = []
@@ -323,15 +354,18 @@ export function bulletFrames() {
     [B.b2, B.b3, B.b4, B.w],
     [B.a2, B.a3, B.a4, B.w],
   ]
-  for (const ring of sets) {
+  // Each colour's darkest step is its rim.
+  const rims = [B.p1, B.b1, B.a1]
+  sets.forEach((ring, k) => {
     for (const r of [3.3, 3.8]) {
       const c = new Canvas(8, 8)
       c.ellipse(3.5, 3.5, r, r, (_nx, _ny, nz) =>
         nz > 0.85 ? B.w : nz > 0.6 ? ring[3] : nz > 0.35 ? ring[2] : ring[1],
       )
+      c.outline(rims[k])
       small.push(c)
     }
-  }
+  })
   // A needle: from along +x to straight down by sixteenths of a turn; the game flips the rest.
   for (const angle of [0, Math.PI / 8, Math.PI / 4, (3 * Math.PI) / 8, Math.PI / 2]) {
     const c = new Canvas(8, 8)
@@ -343,17 +377,19 @@ export function bulletFrames() {
       c.set(x, y, Math.abs(t) < 1.5 ? B.w : B.p4)
       c.set(x - dy * 0.9, y + dx * 0.9, B.p3)
     }
+    c.outline(B.p1)
     small.push(c)
   }
-  for (const ring of sets.slice(0, 2)) {
+  sets.slice(0, 2).forEach((ring, k) => {
     for (const r of [6.6, 7.5]) {
       const c = new Canvas(16, 16)
       c.ellipse(7.5, 7.5, r, r, (_nx, _ny, nz) =>
         nz > 0.8 ? B.w : nz > 0.55 ? ring[3] : nz > 0.3 ? ring[2] : ring[1],
       )
+      c.outline(rims[k])
       big.push(c)
     }
-  }
+  })
   return { small, big }
 }
 

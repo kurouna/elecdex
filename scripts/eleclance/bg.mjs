@@ -1,8 +1,9 @@
 // ELECLANCE's backgrounds: the stage (BG0, read from the bottom up), the side panels and the
 // title's letters (BG1). Drawn so that cells repeat: clouds by marching squares over a coarse
-// field (a cell's look depends only on its corners), the station from plates on an 8-point
-// grid, so the kit's builder finds few distinct tiles.
-import { bayer, Canvas, chance, each, fbm } from './draw.mjs'
+// field (a cell's look depends only on its corners, the same either way round, so mirrored
+// cells share a tile), the station from plates on an 8-point grid, so the kit's builder finds
+// few distinct tiles.
+import { Canvas, chance, each, fbm } from './draw.mjs'
 import { fontFrames } from './font.mjs'
 
 export const STAGE_W = 40
@@ -22,27 +23,49 @@ export const STAGE_H = SECTIONS.reduce((n, s) => n + s.rows, 0)
 /** Palette slots on BG0: space (and its far nebula), the near nebula, the station, the hull. */
 export const SLOT = { space: 0, nebula: 1, station: 2, hull: 3 }
 
+/** The highest corner level of a cloud: its field is cut into levels 0 to this. */
+const TOP = 3
+
 /**
- * A cloud cell from its four corner levels (0-2 each): each point's level is the corners'
- * blend, thresholded by Bayer dithering into nothing, thin or dense. `thin` and `dense` are
- * colour lists picked by a soft gradient inside.
+ * A cloud cell from its four corner levels (0 to TOP each), so a cell's look depends only on
+ * its corners and the builder finds few distinct tiles. Each point's level is the corners'
+ * blend: under the edge nothing, above it a few broad areas of one tone each (`cloudPoint`),
+ * their borders the blend's own smooth lines. Nothing in it leans one way, so a cell and its
+ * mirror image share a tile.
  */
-function cloudCell(c, x0, y0, corners, colours) {
+function cloudCell(c, x0, y0, corners, cloud) {
   const [a, b, cc, d] = corners
   each(8, 8, (x, y) => {
     const u = (x + 0.5) / 8
     const v = (y + 0.5) / 8
     const level = a * (1 - u) * (1 - v) + b * u * (1 - v) + cc * (1 - u) * v + d * u * v
-    const k = cloudShade(level, bayer(x, y))
-    if (k >= 0) c.set(x0 + x, y0 + y, colours[k])
+    const colour = cloudPoint(level, cloud)
+    if (colour !== 0) c.set(x0 + x, y0 + y, colour)
   })
 }
 
-/** Which of a cloud's four colours a level takes at dither threshold `t`, or -1 for none. */
-function cloudShade(level, t) {
-  if (level > 1 + t) return level > 1.6 + t * 0.4 ? 3 : 2
-  if (level > t * 1.1 + 0.1) return level > 0.6 + t * 0.4 ? 1 : 0
-  return -1
+/**
+ * Where a cloud's tones change, by depth into it (0 at its edge, 1 in its heart), and where
+ * along its ramp (`from` at the edge, `to` in the heart) each tone is taken.
+ */
+const BANDS = [
+  [0.2, 0.05],
+  [0.55, 0.45],
+  [1, 0.9],
+]
+
+/**
+ * A cloud's colour at `level`, or 0 for none: three flat tones from its edge to its heart.
+ * Never dithered: at the screen's size a dither reads as a field of dots, not as a cloud
+ * (user decision 2026-10-05).
+ */
+function cloudPoint(level, cloud) {
+  const edge = 0.5
+  if (level < edge) return 0
+  const depth = Math.min(1, (level - edge) / (TOP - edge))
+  const at = (BANDS.find(([upTo]) => depth <= upTo) ?? BANDS[BANDS.length - 1])[1]
+  const v = cloud.from + (cloud.to - cloud.from) * at
+  return cloud.ramp[Math.round(v * (cloud.ramp.length - 1))]
 }
 
 /** Stars: a few kinds of cell, placed by a hash where the cell is otherwise empty. */
@@ -97,25 +120,78 @@ export function stage() {
     bounds[s.name] = [at, at + s.rows]
     at += s.rows
   }
-  const scene = { layers, owner, bounds, far: fbm(101, 4), near: fbm(202, 4), dust: fbm(303, 3) }
+  // The arenas by the stage row (from the top) of their top corners.
+  const arenas = [STAGE_H - bounds.approach[1], STAGE_H - bounds.beyond[1]]
+  const fields = { far: fbm(101, 4), near: fbm(202, 4), dust: fbm(303, 3) }
+  const scene = { layers, owner, bounds, arenas, ...fields }
   each(STAGE_W, STAGE_H, (cx, cy) => stageCell(scene, cx, cy))
   return { layers, owner }
 }
 
 const inPart = (bounds, row, name) => row >= bounds[name][0] && row < bounds[name][1]
 
-/** A coarse field's level (0-2) at a corner (cx, cy in cells, cy from the top). */
-const levelAt = (cx, cy, field, scale, lift) => {
-  const v = field(cx * scale, cy * scale) + lift
-  return v < 0.5 ? 0 : v < 0.62 ? 1 : 2
+/**
+ * The clouds, each a field cut into levels at the cells' corners. Dark and quiet, the ground
+ * behind the bullets, never brighter than they are: the far nebula (palette `space`) dim,
+ * lighter in its heart; the near nebula (rose, in `nebula`) glowing at its edges round a dark
+ * heart; the belt's dust (amber, in `nebula`) a soft swell.
+ */
+const FAR = { ramp: [1, 2, 3, 4, 5, 6], from: 0, to: 0.7 }
+const NEAR = { ramp: [1, 2, 3, 4, 5, 6, 7], from: 0.68, to: 0.15 }
+const DUST = { ramp: [9, 10, 11, 12, 13, 14], from: 0.1, to: 0.62 }
+
+/** A field's level (0 to TOP) from its value: the edge at 0.5, then a level every `step`. */
+const levelOf = (v, step) => (v < 0.5 ? 0 : Math.min(TOP, 1 + Math.floor((v - 0.5) / step)))
+
+/**
+ * A corner's value of `field` (cx, cy in cells, cy from the stage's top). A boss's arena loops
+ * (its 64 rows come round again until the boss falls), so in an arena the field is blended
+ * with itself 64 rows on: its top and bottom corners take the same value, and the clouds
+ * run on across the loop with no seam.
+ */
+function fieldAt(scene, field, scale, cx, cy) {
+  for (const arena of scene.arenas) {
+    const t = cy - arena
+    if (t > 0 && t < 64) {
+      return (
+        ((64 - t) * field(cx * scale, cy * scale) + t * field(cx * scale, (cy - 64) * scale)) / 64
+      )
+    }
+  }
+  return field(cx * scale, cy * scale)
+}
+
+/** The near clouds' level at a corner: rose in the nebula, dust in the belt, none elsewhere. */
+function nearLevel(scene, cx, cy) {
+  const row = STAGE_H - cy
+  const [from, to] = [scene.bounds.nebula[0], scene.bounds.belt[1]]
+  // Thinning out over a few dozen rows into the launch, and inside the belt's last rows, so
+  // none reach the arena above it (whose loop would cut them off).
+  const lift = row < from ? -0.025 * (from - row) : row > to - 20 ? -0.025 * (row - to + 20) : 0
+  if (row < from - 24 || row > to) return 0
+  const belt = row >= scene.bounds.belt[0]
+  // Between the rose and the dust a gap of dark, so their colours never meet at a cell's edge.
+  const gap = Math.abs(row - scene.bounds.belt[0]) < 3 ? -0.3 : 0
+  const v = fieldAt(scene, belt ? scene.dust : scene.near, 0.11, cx, cy)
+  return levelOf(v - 0.04 + lift + gap, 0.05)
+}
+
+/** The far clouds' level at a corner: none where a near cloud is, or one beside it. */
+function farLevel(scene, cx, cy) {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) if (nearLevel(scene, cx + dx, cy + dy) > 0) return 0
+  }
+  const row = STAGE_H - cy
+  const lift = row < scene.bounds.launch[1] ? -0.1 + (0.05 * row) / scene.bounds.launch[1] : -0.05
+  return levelOf(fieldAt(scene, scene.far, 0.07, cx, cy) + lift, 0.05)
 }
 
 /** The levels at a cell's four corners: top left, top right, bottom left, bottom right. */
-const cornersOf = (cx, cy, field, scale, lift) => [
-  levelAt(cx, cy, field, scale, lift),
-  levelAt(cx + 1, cy, field, scale, lift),
-  levelAt(cx, cy + 1, field, scale, lift),
-  levelAt(cx + 1, cy + 1, field, scale, lift),
+const cornersOf = (level, scene, cx, cy) => [
+  level(scene, cx, cy),
+  level(scene, cx + 1, cy),
+  level(scene, cx, cy + 1),
+  level(scene, cx + 1, cy + 1),
 ]
 
 /** One cell of the stage: the station where it stands, else near clouds, far clouds or stars. */
@@ -126,35 +202,19 @@ function stageCell(scene, cx, cy) {
   const y0 = cy * 8
   if (inPart(bounds, row, 'station') && stationCell(layers, cx, cy, row - bounds.station[0], owner))
     return
-  if (nearCloudCell(scene, cx, cy, row)) return
-  const farLift = inPart(bounds, row, 'launch') ? -0.1 : -0.05
-  const farC = cornersOf(cx, cy, scene.far, 0.07, farLift)
+  const nearC = cornersOf(nearLevel, scene, cx, cy)
+  if (nearC.some((v) => v > 0)) {
+    cloudCell(layers.nebula, x0, y0, nearC, inPart(bounds, row, 'belt') ? DUST : NEAR)
+    owner[cy * STAGE_W + cx] = SLOT.nebula
+    return
+  }
+  const farC = cornersOf(farLevel, scene, cx, cy)
   if (farC.some((v) => v > 0)) {
-    cloudCell(layers.space, x0, y0, farC, [1, 11, 2, 12])
+    cloudCell(layers.space, x0, y0, farC, FAR)
     return
   }
   const r = hash(cx, cy, 7)
   if (r < 0.22) starCell(layers.space, x0, y0, Math.floor(r * 22.7) % 5)
-}
-
-/**
- * Near nebula (rose) in its part and fading into the belt as amber dust, or false where none
- * reaches the cell. The near clouds thin out over a few dozen rows either side of their
- * parts, no edge.
- */
-function nearCloudCell(scene, cx, cy, row) {
-  const { bounds } = scene
-  const belt = inPart(bounds, row, 'belt')
-  const [from, to] = [bounds.nebula[0], bounds.belt[1]]
-  const outside = row < from ? from - row : row >= to ? row - to + 1 : 0
-  const nearLift = outside > 24 ? -1 : -0.04 - (belt ? 0.03 : 0) - outside * 0.025
-  const nearC = cornersOf(cx, cy, belt ? scene.dust : scene.near, 0.11, nearLift)
-  if (nearLift <= -1 || !nearC.some((v) => v > 0)) return false
-  // Dark and quiet: the ground behind the bullets, never brighter than they are.
-  const colours = belt ? [1, 10, 10, 10] : [1, 2, 2, 3]
-  cloudCell(scene.layers.nebula, cx * 8, cy * 8, nearC, colours)
-  scene.owner[cy * STAGE_W + cx] = SLOT.nebula
-  return true
 }
 
 /**

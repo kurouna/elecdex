@@ -90,17 +90,23 @@ function rounded(inside, r) {
 function shadeAt([dist, dx, dy], x, y) {
   if (dist <= 1.01) return 1
   if (dist <= 3.6) return rimAt(dist, dx, dy)
+  // The face: a dome of light up and left of the cell's middle, a calm tone, its foot shaded.
   const lx = x - 5.5
   const ly = y - 5
   if (lx * lx * 0.8 + ly * ly < 10) return 5
   return y > 11 ? 3 : 4
 }
 
-/** The rim, `dist` in from the edge that lies (dx, dy) away. */
+/**
+ * The rim, `dist` in from the edge that lies (dx, dy) away: a gloss line just inside the lit
+ * edge (the candy's shine), its foot shaded.
+ */
 function rimAt(dist, dx, dy) {
   const s = -(dx * 0.62 + dy * 0.78) / Math.max(dist, 0.001)
   const close = dist < 2.3
+  if (s > 0.55 && dist >= 2.3 && dist < 3.2) return 7
   if (s > 0.3) return close ? 6 : 5
+  // The foot in one shade: light thrown back by dither read as a row of dots (user, 2026-10-05).
   if (s < -0.3) return close ? 2 : 3
   return s > 0 ? 5 : 3
 }
@@ -195,6 +201,8 @@ export function alloyFrames() {
     if (hits >= 3) {
       for (const pts of cracks.slice(0, hits)) {
         const [x, y] = pts[pts.length - 1]
+        const [px, py] = pts[pts.length - 2]
+        c.set(Math.round((x + px) / 2), Math.round((y + py) / 2), 9)
         c.set(Math.round(x), Math.round(y), 10)
       }
     }
@@ -225,18 +233,37 @@ function crackLines(rnd) {
   return out
 }
 
+/** A crack: a black line cut into the steel, its lower lip catching the light. */
 function crack(c, pts) {
+  const line = new Canvas(16, 16)
   for (let s = 0; s + 1 < pts.length; s++) {
     const [x0, y0] = pts[s].map(Math.round)
     const [x1, y1] = pts[s + 1].map(Math.round)
-    c.line(x0, y0, x1, y1, 1)
+    line.line(x0, y0, x1, y1, 1)
   }
+  each(16, 16, (x, y) => {
+    if (line.get(x, y) !== 0) c.set(x, y, 1)
+    else if (
+      line.get(x - 1, y - 1) !== 0 &&
+      line.get(x, y - 1) === 0 &&
+      c.get(x, y) >= 2 &&
+      c.get(x, y) <= 3
+    )
+      c.set(x, y, 4)
+  })
 }
 
 /** The crate whole: a bevelled steel plate, its corners cut, the orange cross, rivets. */
 function alloyPlate() {
   const c = new Canvas(16, 16)
   c.rect(1, 1, 14, 14, 3)
+  // Steel a shade lighter in the corner towards the light, a shade darker in the far one, each
+  // a clean area: dithered where it turned, it was a scatter of dots (user decision 2026-10-05).
+  each(16, 16, (x, y) => {
+    const v = (x + y - 15) / 8
+    if (v < -1) c.set(x, y, 4)
+    else if (v > 1.1) c.set(x, y, 2)
+  })
   for (let k = 1; k < 15; k++) {
     c.set(k, 0, 1)
     c.set(k, 15, 1)
@@ -256,7 +283,8 @@ function alloyPlate() {
   }
   // The cross edged dark where the plate meets it below and right.
   each(16, 16, (x, y) => {
-    if (c.get(x, y) === 3 && (c.get(x - 1, y) === 9 || c.get(x, y - 1) === 9)) c.set(x, y, 2)
+    const steel = c.get(x, y) >= 2 && c.get(x, y) <= 4
+    if (steel && (c.get(x - 1, y) === 9 || c.get(x, y - 1) === 9)) c.set(x, y, 2)
   })
   for (const [x, y] of [
     [3, 3],

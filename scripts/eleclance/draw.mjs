@@ -185,6 +185,50 @@ export function ramp(colours, level, x, y) {
   return colours[v - k > bayer(x, y) ? Math.min(k + 1, colours.length - 1) : k]
 }
 
+/**
+ * A ramp of colours (dark to light) at level 0-1, the nearest step and never dithered: areas
+ * of one tone. At the screen's size a checker of two tones reads as a field of dots, not as
+ * the tone between them (user decision 2026-10-05).
+ */
+export function tone(colours, level) {
+  const v = Math.max(0, Math.min(0.9999, level)) * colours.length
+  return colours[Math.min(colours.length - 1, Math.floor(v))]
+}
+
+/**
+ * Takes out what reads as a dot: a drawn point with at most one drawn neighbour (of four)
+ * goes, and a point unlike every one of its four drawn neighbours takes the tone most of
+ * them have. `rounds` passes.
+ */
+export function despeckle(c, rounds = 2) {
+  const dirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ]
+  for (let r = 0; r < rounds; r++) {
+    const out = c.px.slice()
+    each(c.w, c.h, (x, y) => {
+      const v = c.get(x, y)
+      if (v === 0) return
+      const near = dirs.map(([dx, dy]) => c.get(x + dx, y + dy)).filter((n) => n !== 0)
+      out[y * c.w + x] = undotted(v, near)
+    })
+    c.px = out
+  }
+  return c
+}
+
+/** A drawn point `v` among its drawn neighbours `near`: kept, gone, or the tone most have. */
+function undotted(v, near) {
+  if (near.length <= 1) return 0
+  if (near.includes(v)) return v
+  const count = new Map()
+  for (const n of near) count.set(n, (count.get(n) ?? 0) + 1)
+  return [...count].sort((p, q) => q[1] - p[1] || p[0] - q[0])[0][0]
+}
+
 /** Smooth value noise in 2D, seeded, about 0-1. */
 export function noise2(seed) {
   const rnd = chance(seed)
