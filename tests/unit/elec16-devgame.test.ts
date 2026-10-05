@@ -437,8 +437,11 @@ describe('a game folder at the edges', () => {
   })
 
   it('ends the watch, and tells nothing more, when the watcher fails (a folder taken away)', async () => {
-    let fake: (EventEmitter & { close(): void; closed: boolean }) | null = null
-    let changed: ((kind: string, name: string) => void) | null = null
+    // Held in an object: what a callback assigns, TypeScript does not narrow to.
+    const seen: {
+      fake: (EventEmitter & { close(): void; closed: boolean }) | null
+      changed: ((kind: string, name: string) => void) | null
+    } = { fake: null, changed: null }
     const watchWith = ((
       _dir: string,
       _options: unknown,
@@ -450,8 +453,8 @@ describe('a game folder at the edges', () => {
           w.closed = true
         },
       })
-      fake = w
-      changed = listener
+      seen.fake = w
+      seen.changed = listener
       return w
     }) as unknown as typeof watch
     const folders = new DevFolders(watchWith)
@@ -462,11 +465,11 @@ describe('a game folder at the edges', () => {
       told++
     })
     expect(folders.watching()).toEqual([key])
-    changed?.('change', 'main.e16.ts')
+    seen.changed?.('change', 'main.e16.ts')
     // Without its listener an 'error' would be thrown out of main: here it ends the watch.
-    expect(() => fake?.emit('error', new Error('EPERM'))).not.toThrow()
+    expect(() => seen.fake?.emit('error', new Error('EPERM'))).not.toThrow()
     expect(folders.watching()).toEqual([])
-    expect(fake?.closed).toBe(true)
+    expect(seen.fake?.closed).toBe(true)
     await new Promise((r) => setTimeout(r, 500))
     expect(told).toBe(0)
     // Watched again later, it starts afresh.
