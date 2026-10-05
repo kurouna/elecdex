@@ -5,10 +5,10 @@ import { type bool, i16, type u16, wrap16 } from '../../../../src/shared/e16c/bu
 import {
   B_A,
   B_B,
-  B_DOWN,
   B_LEFT,
   B_RIGHT,
-  B_UP,
+  B_X,
+  B_Y,
   FLIP_H,
   held,
   pressed,
@@ -181,17 +181,30 @@ function stand(): void {
   step(left ? pCol - 1 : pCol + 1)
 }
 
-/** A is the drill (down with down held, up with up), B the drill down; held, they go on. */
+/**
+ * The face buttons dig the way they sit on the pad's diamond (user decision 2026-10-05): A on
+ * the right digs right, Y on the left left, B at the bottom down, X at the top up, whichever
+ * way the driller faced; held, they go on.
+ */
 function digWanted(): bool {
-  if (pressed(B_A) || (held(B_A) && pT > 10)) {
-    startDig(held(B_DOWN) ? 2 : held(B_UP) ? 3 : pFace)
-    return true
-  }
-  if (pressed(B_B) || (held(B_B) && pT > 10)) {
-    startDig(2)
-    return true
-  }
-  return false
+  const dir = digAsked()
+  if (dir > 3) return false
+  startDig(dir)
+  return true
+}
+
+/** The way the face buttons ask to dig (0 right, 1 left, 2 down, 3 up), else 4. */
+function digAsked(): u16 {
+  if (digButton(B_A)) return 0
+  if (digButton(B_Y)) return 1
+  if (digButton(B_B)) return 2
+  if (digButton(B_X)) return 3
+  return 4
+}
+
+/** Button `b` pressed now, or held since the last dig ended. */
+function digButton(b: u16): bool {
+  return pressed(b) || (held(b) && pT > 10)
 }
 
 /** A step to column `to`: walk into an empty cell (catching a capsule), or up a step. */

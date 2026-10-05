@@ -10473,12 +10473,12 @@ stand:
   call standsOn
   bnez a0, .L1
   ; player.e16.ts:169  startFall()
-  ; player.e16.ts:231  pState = P_FALL
+  ; player.e16.ts:244  pState = P_FALL
   li t0, 3
   sw t0, 0x1d98(zero)
-  ; player.e16.ts:232  pT = 0
+  ; player.e16.ts:245  pT = 0
   sw zero, 0x1d9a(zero)
-  ; player.e16.ts:233  pSpeed = 1
+  ; player.e16.ts:246  pSpeed = 1
   li t0, 1
   sw t0, 0x1da2(zero)
   ; player.e16.ts:170  return
@@ -10538,69 +10538,124 @@ stand:
   addi sp, sp, 4
   ret
 
-; player.e16.ts:185 digWanted() at -O1
+; player.e16.ts:189 digWanted() at -O1
+;   dir in s2
+;   startDig.dir in s1
 digWanted:
-  addi sp, sp, -2
+  addi sp, sp, -6
   sw ra, 0(sp)
-  ; player.e16.ts:186  if (pressed(B_A) || (held(B_A) && pT > 10)) {
-  li a0, 16
-  call pressed
-  bnez a0, .L2
-  li a0, 16
-  call held
-  beqz a0, .L1
-  lw t0, 0x1d9a(zero)
-  li t1, 10
-  bgeu t1, t0, .L1
-.L2:
-  ; player.e16.ts:187  startDig(held(B_DOWN) ? 2 : held(B_UP) ? 3 : pFace)
-  li a0, 2
-  call held
-  beqz a0, .L3
-  li t0, 2
-  j .L4
-.L3:
-  li a0, 1
-  call held
-  beqz a0, .L5
+  sw s2, 2(sp)
+  sw s1, 4(sp)
+  ; player.e16.ts:190  const dir = digAsked()
+  call digAsked
+  mv s2, a0 ; dir
+  ; player.e16.ts:191  if (dir > 3) return false
   li t0, 3
-  j .L6
-.L5:
-  lw t0, 0x1d9c(zero)
-.L6:
-.L4:
-  mv a0, t0
-  call startDig
-  ; player.e16.ts:188  return true
-  li a0, 1
+  bgeu t0, s2, .L1
+  ; player.e16.ts:191  return false
+  li a0, 0
   j .return
 .L1:
-  ; player.e16.ts:190  if (pressed(B_B) || (held(B_B) && pT > 10)) {
-  li a0, 32
-  call pressed
-  bnez a0, .L8
-  li a0, 32
-  call held
-  beqz a0, .L7
-  lw t0, 0x1d9a(zero)
-  li t1, 10
-  bgeu t1, t0, .L7
-.L8:
-  ; player.e16.ts:191  startDig(2)
-  li a0, 2
-  call startDig
-  ; player.e16.ts:192  return true
+  ; player.e16.ts:192  startDig(dir)
+  mv s1, s2 ; startDig.dir
+  ; player.e16.ts:297  pDir = dir
+  sw s1, 0x1d9e(zero)
+  ; player.e16.ts:298  if (dir < 2) pFace = dir
+  li t0, 2
+  bgeu s1, t0, .I1.L1
+  ; player.e16.ts:298  pFace = dir
+  sw s1, 0x1d9c(zero)
+.I1.L1:
+  ; player.e16.ts:299  pState = P_DIG
+  li t0, 4
+  sw t0, 0x1d98(zero)
+  ; player.e16.ts:300  pT = 0
+  sw zero, 0x1d9a(zero)
+  ; player.e16.ts:301  pIdle = 0
+  sw zero, 0x1da6(zero)
+  ; player.e16.ts:193  return true
+  li a0, 1
+.return:
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s1, 4(sp)
+  addi sp, sp, 6
+  ret
+
+; player.e16.ts:197 digAsked() at -O1
+digAsked:
+  addi sp, sp, -2
+  sw ra, 0(sp)
+  ; player.e16.ts:198  if (digButton(B_A)) return 0
+  li a0, 16
+  call digButton
+  beqz a0, .L1
+  ; player.e16.ts:198  return 0
+  li a0, 0
+  j .return
+.L1:
+  ; player.e16.ts:199  if (digButton(B_Y)) return 1
+  li a0, 128
+  call digButton
+  beqz a0, .L2
+  ; player.e16.ts:199  return 1
   li a0, 1
   j .return
-.L7:
-  ; player.e16.ts:194  return false
-  li a0, 0
+.L2:
+  ; player.e16.ts:200  if (digButton(B_B)) return 2
+  li a0, 32
+  call digButton
+  beqz a0, .L3
+  ; player.e16.ts:200  return 2
+  li a0, 2
+  j .return
+.L3:
+  ; player.e16.ts:201  if (digButton(B_X)) return 3
+  li a0, 64
+  call digButton
+  beqz a0, .L4
+  ; player.e16.ts:201  return 3
+  li a0, 3
+  j .return
+.L4:
+  ; player.e16.ts:202  return 4
+  li a0, 4
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; player.e16.ts:198 step(to) at -O1
+; player.e16.ts:206 digButton(b) at -O1
+;   b in s1
+digButton:
+  addi sp, sp, -4
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  mv s1, a0 ; b
+  ; player.e16.ts:207  return pressed(b) || (held(b) && pT > 10)
+  mv a0, s1
+  call pressed
+  mv t1, a0
+  mv t0, a0
+  bnez t1, .L1
+  mv a0, s1
+  call held
+  mv t1, a0
+  mv t0, a0
+  beqz t1, .L2
+  lw t0, 0x1d9a(zero)
+  li t1, 10
+  sltu t0, t1, t0
+.L2:
+.L1:
+  mv a0, t0
+.return:
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  addi sp, sp, 4
+  ret
+
+; player.e16.ts:211 step(to) at -O1
 ;   to in s1
 ;   v in s2
 ;   up in s3
@@ -10611,52 +10666,52 @@ step:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; to
-  ; player.e16.ts:199  const v = at(to, pRow)
+  ; player.e16.ts:212  const v = at(to, pRow)
   lw t0, 0x1d92(zero)
   mv a0, s1
   mv a1, t0
   call at
   mv s2, a0 ; v
-  ; player.e16.ts:200  if ((v & 15) === T_AIR && (v & (F_LOOSE | F_PEND)) === 0) collect(cellOf(to, pRow))
+  ; player.e16.ts:213  if ((v & 15) === T_AIR && (v & (F_LOOSE | F_PEND)) === 0) collect(cellOf(to, pRow))
   andi t0, s2, 15
   li t1, 6
   bne t0, t1, .L1
   andi t0, s2, 192
   bne t0, zero, .L1
-  ; player.e16.ts:200  collect(cellOf(to, pRow))
+  ; player.e16.ts:213  collect(cellOf(to, pRow))
   lw t0, 0x1d92(zero)
   mv a0, s1
   mv a1, t0
   call cellOf
   call collect
 .L1:
-  ; player.e16.ts:201  if ((at(to, pRow) & 15) === T_EMPTY) {
+  ; player.e16.ts:214  if ((at(to, pRow) & 15) === T_EMPTY) {
   lw t0, 0x1d92(zero)
   mv a0, s1
   mv a1, t0
   call at
   andi t0, a0, 15
   bne t0, zero, .L2
-  ; player.e16.ts:202  pTo = to
+  ; player.e16.ts:215  pTo = to
   sw s1, 0x1da0(zero)
-  ; player.e16.ts:203  pState = P_WALK
+  ; player.e16.ts:216  pState = P_WALK
   li t0, 1
   sw t0, 0x1d98(zero)
-  ; player.e16.ts:204  pT = 0
+  ; player.e16.ts:217  pT = 0
   sw zero, 0x1d9a(zero)
-  ; player.e16.ts:205  pPush = 0
+  ; player.e16.ts:218  pPush = 0
   sw zero, 0x1da4(zero)
-  ; player.e16.ts:206  return
+  ; player.e16.ts:219  return
   j .return
 .L2:
-  ; player.e16.ts:209  pPush++
+  ; player.e16.ts:222  pPush++
   lw t0, 0x1da4(zero)
   addi t0, t0, 1
   sw t0, 0x1da4(zero)
-  ; player.e16.ts:210  const up = wrap16(pRow - 1)
+  ; player.e16.ts:223  const up = wrap16(pRow - 1)
   lw t0, 0x1d92(zero)
   addi s3, t0, -1
-  ; player.e16.ts:211  if (pPush >= 8 && (at(to, up) & 15) === T_EMPTY && (at(pCol, up) & 15) === T_EMPTY) {
+  ; player.e16.ts:224  if (pPush >= 8 && (at(to, up) & 15) === T_EMPTY && (at(pCol, up) & 15) === T_EMPTY) {
   lw t0, 0x1da4(zero)
   li t1, 8
   bltu t0, t1, .L3
@@ -10670,14 +10725,14 @@ step:
   call at
   andi t0, a0, 15
   bne t0, zero, .L3
-  ; player.e16.ts:212  pTo = to
+  ; player.e16.ts:225  pTo = to
   sw s1, 0x1da0(zero)
-  ; player.e16.ts:213  pState = P_CLIMB
+  ; player.e16.ts:226  pState = P_CLIMB
   li t0, 2
   sw t0, 0x1d98(zero)
-  ; player.e16.ts:214  pT = 0
+  ; player.e16.ts:227  pT = 0
   sw zero, 0x1d9a(zero)
-  ; player.e16.ts:215  pPush = 0
+  ; player.e16.ts:228  pPush = 0
   sw zero, 0x1da4(zero)
 .L3:
 .return:
@@ -10688,7 +10743,7 @@ step:
   addi sp, sp, 8
   ret
 
-; player.e16.ts:220 standsOn() at -O1
+; player.e16.ts:233 standsOn() at -O1
 ;   below in s2
 ;   v in s1
 standsOn:
@@ -10696,29 +10751,29 @@ standsOn:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; player.e16.ts:221  const below = cellOf(pCol, pRow + 1)
+  ; player.e16.ts:234  const below = cellOf(pCol, pRow + 1)
   lw t0, 0x1d90(zero)
   lw t1, 0x1d92(zero)
   mv a0, t0
   addi a1, t1, 1
   call cellOf
   mv s2, a0 ; below
-  ; player.e16.ts:222  const v = cells[below]
+  ; player.e16.ts:235  const v = cells[below]
   lbu s1, cells(s2)
-  ; player.e16.ts:223  if ((v & 15) === T_AIR && (v & (F_LOOSE | F_PEND)) === 0) {
+  ; player.e16.ts:236  if ((v & 15) === T_AIR && (v & (F_LOOSE | F_PEND)) === 0) {
   andi t0, s1, 15
   li t1, 6
   bne t0, t1, .L1
   andi t0, s1, 192
   bne t0, zero, .L1
-  ; player.e16.ts:224  collect(below)
+  ; player.e16.ts:237  collect(below)
   mv a0, s2
   call collect
-  ; player.e16.ts:225  return false
+  ; player.e16.ts:238  return false
   li a0, 0
   j .return
 .L1:
-  ; player.e16.ts:227  return (v & 15) !== T_EMPTY
+  ; player.e16.ts:240  return (v & 15) !== T_EMPTY
   andi t0, s1, 15
   sub t0, t0, zero
   snez a0, t0
@@ -10729,52 +10784,52 @@ standsOn:
   addi sp, sp, 6
   ret
 
-; player.e16.ts:236 walk() at -O1
+; player.e16.ts:249 walk() at -O1
 walk:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; player.e16.ts:237  pT++
+  ; player.e16.ts:250  pT++
   lw t0, 0x1d9a(zero)
   addi t0, t0, 1
   sw t0, 0x1d9a(zero)
-  ; player.e16.ts:238  if (pTo > pCol) pX = pX + 2
+  ; player.e16.ts:251  if (pTo > pCol) pX = pX + 2
   lw t0, 0x1da0(zero)
   lw t1, 0x1d90(zero)
   bgeu t1, t0, .L1
-  ; player.e16.ts:238  pX = pX + 2
+  ; player.e16.ts:251  pX = pX + 2
   lw t0, 0x1d94(zero)
   addi t0, t0, 2
   sw t0, 0x1d94(zero)
   j .L2
 .L1:
-  ; player.e16.ts:239  pX = pX - 2
+  ; player.e16.ts:252  pX = pX - 2
   lw t0, 0x1d94(zero)
   addi t0, t0, -2
   sw t0, 0x1d94(zero)
 .L2:
-  ; player.e16.ts:240  if (pT < 8) return
+  ; player.e16.ts:253  if (pT < 8) return
   lw t0, 0x1d9a(zero)
   li t1, 8
   bgeu t0, t1, .L3
-  ; player.e16.ts:240  return
+  ; player.e16.ts:253  return
   j .return
 .L3:
-  ; player.e16.ts:241  pCol = pTo
+  ; player.e16.ts:254  pCol = pTo
   lw t0, 0x1da0(zero)
   sw t0, 0x1d90(zero)
-  ; player.e16.ts:242  pX = pCol * 16
+  ; player.e16.ts:255  pX = pCol * 16
   slli t0, t0, 4
   sw t0, 0x1d94(zero)
-  ; player.e16.ts:243  pState = P_STAND
+  ; player.e16.ts:256  pState = P_STAND
   sw zero, 0x1d98(zero)
-  ; player.e16.ts:244  pT = 11
+  ; player.e16.ts:257  pT = 11
   li t0, 11
   sw t0, 0x1d9a(zero)
-  ; player.e16.ts:245  if ((pIdle & 1) === 0) dust(i16(FIELD_X + pX) + (pFace === 0 ? -2 : 18), i16(pY) + 14, 0)
+  ; player.e16.ts:258  if ((pIdle & 1) === 0) dust(i16(FIELD_X + pX) + (pFace === 0 ? -2 : 18), i16(pY) + 14, 0)
   lw t0, 0x1da6(zero)
   andi t0, t0, 1
   bne t0, zero, .L4
-  ; player.e16.ts:245  dust(i16(FIELD_X + pX) + (pFace === 0 ? -2 : 18), i16(pY) + 14, 0)
+  ; player.e16.ts:258  dust(i16(FIELD_X + pX) + (pFace === 0 ? -2 : 18), i16(pY) + 14, 0)
   lw t0, 0x1d94(zero)
   lw t1, 0x1d9c(zero)
   addi t0, t0, 88
@@ -10792,7 +10847,7 @@ walk:
   li a2, 0
   call dust
 .L4:
-  ; player.e16.ts:246  pIdle++
+  ; player.e16.ts:259  pIdle++
   lw t0, 0x1da6(zero)
   addi t0, t0, 1
   sw t0, 0x1da6(zero)
@@ -10801,68 +10856,68 @@ walk:
   addi sp, sp, 2
   ret
 
-; player.e16.ts:249 climb() at -O1
+; player.e16.ts:262 climb() at -O1
 climb:
-  ; player.e16.ts:250  pT++
+  ; player.e16.ts:263  pT++
   lw t0, 0x1d9a(zero)
   addi t0, t0, 1
   sw t0, 0x1d9a(zero)
-  ; player.e16.ts:251  if (pT <= 8) pY = pY - 2
+  ; player.e16.ts:264  if (pT <= 8) pY = pY - 2
   li t1, 8
   bltu t1, t0, .L1
-  ; player.e16.ts:251  pY = pY - 2
+  ; player.e16.ts:264  pY = pY - 2
   lw t0, 0x1d96(zero)
   addi t0, t0, -2
   sw t0, 0x1d96(zero)
   j .L2
 .L1:
-  ; player.e16.ts:252  if (pTo > pCol) pX = pX + 2
+  ; player.e16.ts:265  if (pTo > pCol) pX = pX + 2
   lw t0, 0x1da0(zero)
   lw t1, 0x1d90(zero)
   bgeu t1, t0, .L3
-  ; player.e16.ts:252  pX = pX + 2
+  ; player.e16.ts:265  pX = pX + 2
   lw t0, 0x1d94(zero)
   addi t0, t0, 2
   sw t0, 0x1d94(zero)
   j .L4
 .L3:
-  ; player.e16.ts:253  pX = pX - 2
+  ; player.e16.ts:266  pX = pX - 2
   lw t0, 0x1d94(zero)
   addi t0, t0, -2
   sw t0, 0x1d94(zero)
 .L4:
 .L2:
-  ; player.e16.ts:254  if (pT < 16) return
+  ; player.e16.ts:267  if (pT < 16) return
   lw t0, 0x1d9a(zero)
   li t1, 16
   bgeu t0, t1, .L5
-  ; player.e16.ts:254  return
+  ; player.e16.ts:267  return
   ret
 .L5:
-  ; player.e16.ts:255  pCol = pTo
+  ; player.e16.ts:268  pCol = pTo
   lw t0, 0x1da0(zero)
   sw t0, 0x1d90(zero)
-  ; player.e16.ts:256  pRow = pRow - 1
+  ; player.e16.ts:269  pRow = pRow - 1
   lw t0, 0x1d92(zero)
   addi t0, t0, -1
   sw t0, 0x1d92(zero)
-  ; player.e16.ts:257  pX = pCol * 16
+  ; player.e16.ts:270  pX = pCol * 16
   lw t0, 0x1d90(zero)
   slli t0, t0, 4
   sw t0, 0x1d94(zero)
-  ; player.e16.ts:258  pY = pRow * 16
+  ; player.e16.ts:271  pY = pRow * 16
   lw t0, 0x1d92(zero)
   slli t0, t0, 4
   sw t0, 0x1d96(zero)
-  ; player.e16.ts:259  pState = P_STAND
+  ; player.e16.ts:272  pState = P_STAND
   sw zero, 0x1d98(zero)
-  ; player.e16.ts:260  pT = 11
+  ; player.e16.ts:273  pT = 11
   li t0, 11
   sw t0, 0x1d9a(zero)
 .return:
   ret
 
-; player.e16.ts:263 fall() at -O1
+; player.e16.ts:276 fall() at -O1
 ;   next in s1
 ;   step in s2
 fall:
@@ -10870,26 +10925,26 @@ fall:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; player.e16.ts:264  pT++
+  ; player.e16.ts:277  pT++
   lw t0, 0x1d9a(zero)
   addi t0, t0, 1
   sw t0, 0x1d9a(zero)
-  ; player.e16.ts:265  if ((pT & 3) === 0 && pSpeed < 4) pSpeed++
+  ; player.e16.ts:278  if ((pT & 3) === 0 && pSpeed < 4) pSpeed++
   andi t0, t0, 3
   bne t0, zero, .L1
   lw t0, 0x1da2(zero)
   li t1, 4
   bgeu t0, t1, .L1
-  ; player.e16.ts:265  pSpeed++
+  ; player.e16.ts:278  pSpeed++
   lw t0, 0x1da2(zero)
   addi t0, t0, 1
   sw t0, 0x1da2(zero)
 .L1:
-  ; player.e16.ts:266  const next = (pRow + 1) * 16
+  ; player.e16.ts:279  const next = (pRow + 1) * 16
   lw t0, 0x1d92(zero)
   addi t0, t0, 1
   slli s1, t0, 4
-  ; player.e16.ts:267  const step = next - pY < pSpeed ? next - pY : pSpeed
+  ; player.e16.ts:280  const step = next - pY < pSpeed ? next - pY : pSpeed
   lw t0, 0x1d96(zero)
   sub t0, s1, t0
   lw t1, 0x1da2(zero)
@@ -10901,41 +10956,41 @@ fall:
   lw t0, 0x1da2(zero)
 .L3:
   mv s2, t0 ; step
-  ; player.e16.ts:268  pY = pY + step
+  ; player.e16.ts:281  pY = pY + step
   lw t0, 0x1d96(zero)
   add t0, t0, s2
   sw t0, 0x1d96(zero)
-  ; player.e16.ts:269  if (pY < next) return
+  ; player.e16.ts:282  if (pY < next) return
   bgeu t0, s1, .L4
-  ; player.e16.ts:269  return
+  ; player.e16.ts:282  return
   j .return
 .L4:
-  ; player.e16.ts:270  pRow++
+  ; player.e16.ts:283  pRow++
   lw t0, 0x1d92(zero)
   addi t0, t0, 1
   sw t0, 0x1d92(zero)
-  ; player.e16.ts:271  if (standsOn()) {
+  ; player.e16.ts:284  if (standsOn()) {
   call standsOn
   beqz a0, .L5
-  ; player.e16.ts:272  pY = pRow * 16
+  ; player.e16.ts:285  pY = pRow * 16
   lw t0, 0x1d92(zero)
   slli t0, t0, 4
   sw t0, 0x1d96(zero)
-  ; player.e16.ts:273  pState = P_LAND
+  ; player.e16.ts:286  pState = P_LAND
   li t0, 5
   sw t0, 0x1d98(zero)
-  ; player.e16.ts:274  pT = 0
+  ; player.e16.ts:287  pT = 0
   sw zero, 0x1d9a(zero)
-  ; player.e16.ts:275  sfxLand()
+  ; player.e16.ts:288  sfxLand()
   call sfxLand
-  ; player.e16.ts:276  dust(i16(FIELD_X + pX) + 2, i16(pY) + 14, 0)
+  ; player.e16.ts:289  dust(i16(FIELD_X + pX) + 2, i16(pY) + 14, 0)
   lw t0, 0x1d94(zero)
   lw t1, 0x1d96(zero)
   addi a0, t0, 90
   addi a1, t1, 14
   li a2, 0
   call dust
-  ; player.e16.ts:277  dust(i16(FIELD_X + pX) + 14, i16(pY) + 14, 0)
+  ; player.e16.ts:290  dust(i16(FIELD_X + pX) + 14, i16(pY) + 14, 0)
   lw t0, 0x1d94(zero)
   lw t1, 0x1d96(zero)
   addi a0, t0, 102
@@ -10950,28 +11005,7 @@ fall:
   addi sp, sp, 6
   ret
 
-; player.e16.ts:283 startDig(dir) at -O1
-;   dir in a0
-startDig:
-  ; player.e16.ts:284  pDir = dir
-  sw a0, 0x1d9e(zero)
-  ; player.e16.ts:285  if (dir < 2) pFace = dir
-  li t0, 2
-  bgeu a0, t0, .L1
-  ; player.e16.ts:285  pFace = dir
-  sw a0, 0x1d9c(zero)
-.L1:
-  ; player.e16.ts:286  pState = P_DIG
-  li t0, 4
-  sw t0, 0x1d98(zero)
-  ; player.e16.ts:287  pT = 0
-  sw zero, 0x1d9a(zero)
-  ; player.e16.ts:288  pIdle = 0
-  sw zero, 0x1da6(zero)
-.return:
-  ret
-
-; player.e16.ts:292 aimed() at -O1
+; player.e16.ts:305 aimed() at -O1
 ;   col in s1
 ;   row in s2
 aimed:
@@ -10979,7 +11013,7 @@ aimed:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; player.e16.ts:293  const col = pDir === 0 ? pCol + 1 : pDir === 1 ? pCol - 1 : pCol
+  ; player.e16.ts:306  const col = pDir === 0 ? pCol + 1 : pDir === 1 ? pCol - 1 : pCol
   lw t0, 0x1d9e(zero)
   bne t0, zero, .L1
   lw t0, 0x1d90(zero)
@@ -10997,7 +11031,7 @@ aimed:
 .L4:
 .L2:
   mv s1, t0 ; col
-  ; player.e16.ts:294  const row = pDir === 2 ? pRow + 1 : pDir === 3 ? pRow - 1 : pRow
+  ; player.e16.ts:307  const row = pDir === 2 ? pRow + 1 : pDir === 3 ? pRow - 1 : pRow
   lw t0, 0x1d9e(zero)
   li t1, 2
   bne t0, t1, .L5
@@ -11016,14 +11050,14 @@ aimed:
 .L8:
 .L6:
   mv s2, t0 ; row
-  ; player.e16.ts:295  if (col >= COLS) return 0xffff
+  ; player.e16.ts:308  if (col >= COLS) return 0xffff
   li t0, 9
   bltu s1, t0, .L9
-  ; player.e16.ts:295  return 0xffff
+  ; player.e16.ts:308  return 0xffff
   li a0, 65535
   j .return
 .L9:
-  ; player.e16.ts:296  return cellOf(col, row)
+  ; player.e16.ts:309  return cellOf(col, row)
   mv a0, s1
   mv a1, s2
   call cellOf
@@ -11034,31 +11068,31 @@ aimed:
   addi sp, sp, 6
   ret
 
-; player.e16.ts:299 dig(now) at -O1
+; player.e16.ts:312 dig(now) at -O1
 ;   now in s1
 dig:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; now
-  ; player.e16.ts:300  pT++
+  ; player.e16.ts:313  pT++
   lw t0, 0x1d9a(zero)
   addi t0, t0, 1
   sw t0, 0x1d9a(zero)
-  ; player.e16.ts:301  if (pT === 3) bite(now)
+  ; player.e16.ts:314  if (pT === 3) bite(now)
   li t1, 3
   bne t0, t1, .L1
-  ; player.e16.ts:301  bite(now)
+  ; player.e16.ts:314  bite(now)
   mv a0, s1
   call bite
 .L1:
-  ; player.e16.ts:302  if (pT >= 10) {
+  ; player.e16.ts:315  if (pT >= 10) {
   lw t0, 0x1d9a(zero)
   li t1, 10
   bltu t0, t1, .L2
-  ; player.e16.ts:303  pState = P_STAND
+  ; player.e16.ts:316  pState = P_STAND
   sw zero, 0x1d98(zero)
-  ; player.e16.ts:304  pT = 0
+  ; player.e16.ts:317  pT = 0
   sw zero, 0x1d9a(zero)
 .L2:
 .return:
@@ -11067,7 +11101,7 @@ dig:
   addi sp, sp, 4
   ret
 
-; player.e16.ts:309 bite(now) at -O1
+; player.e16.ts:322 bite(now) at -O1
 ;   now in 2(fp)
 ;   c in s1
 ;   v in 4(fp)
@@ -11084,10 +11118,10 @@ bite:
   sw s0, 16(sp)
   mv fp, sp
   sw a0, 2(fp) ; now
-  ; player.e16.ts:310  const c = aimed()
+  ; player.e16.ts:323  const c = aimed()
   call aimed
   mv s1, a0 ; c
-  ; player.e16.ts:311  const v = c === 0xffff ? T_EMPTY : cells[c]
+  ; player.e16.ts:324  const v = c === 0xffff ? T_EMPTY : cells[c]
   li t0, 65535
   bne s1, t0, .L1
   li t0, 0
@@ -11096,10 +11130,10 @@ bite:
   lbu t0, cells(s1)
 .L2:
   sw t0, 4(fp) ; v
-  ; player.e16.ts:312  const t = v & 15
+  ; player.e16.ts:325  const t = v & 15
   lw t0, 4(fp) ; v
   andi s2, t0, 15
-  ; player.e16.ts:313  const x = i16(FIELD_X + pX + (pDir === 0 ? 16 : pDir === 1 ? 0 : 8))
+  ; player.e16.ts:326  const x = i16(FIELD_X + pX + (pDir === 0 ? 16 : pDir === 1 ? 0 : 8))
   lw t0, 0x1d94(zero)
   lw t1, 0x1d9e(zero)
   addi t0, t0, 88
@@ -11118,7 +11152,7 @@ bite:
 .L6:
 .L4:
   add s3, t0, t1
-  ; player.e16.ts:314  const y = i16(pY + (pDir === 2 ? 16 : pDir === 3 ? 0 : 8))
+  ; player.e16.ts:327  const y = i16(pY + (pDir === 2 ? 16 : pDir === 3 ? 0 : 8))
   lw t0, 0x1d96(zero)
   lw t1, 0x1d9e(zero)
   li t2, 2
@@ -11137,13 +11171,13 @@ bite:
 .L8:
   add t0, t0, t1
   sw t0, 0(fp) ; y
-  ; player.e16.ts:315  if (t === T_EMPTY) sfxSwing()
+  ; player.e16.ts:328  if (t === T_EMPTY) sfxSwing()
   bne s2, zero, .L11
-  ; player.e16.ts:315  sfxSwing()
+  ; player.e16.ts:328  sfxSwing()
   call sfxSwing
   j .L12
 .L11:
-  ; player.e16.ts:316  if ((v & (F_LOOSE | F_PEND)) !== 0 || t === T_CORE || t === T_WALL) {
+  ; player.e16.ts:329  if ((v & (F_LOOSE | F_PEND)) !== 0 || t === T_CORE || t === T_WALL) {
   lw t0, 4(fp) ; v
   andi t0, t0, 192
   bne t0, zero, .L14
@@ -11152,27 +11186,27 @@ bite:
   li t0, 15
   bne s2, t0, .L13
 .L14:
-  ; player.e16.ts:317  sfxClink()
+  ; player.e16.ts:330  sfxClink()
   call sfxClink
-  ; player.e16.ts:318  sparks(x, y, 2)
+  ; player.e16.ts:331  sparks(x, y, 2)
   mv a0, s3
   lw a1, 0(fp)
   li a2, 2
   call sparks
   j .L15
 .L13:
-  ; player.e16.ts:319  if (t === T_AIR) collect(c)
+  ; player.e16.ts:332  if (t === T_AIR) collect(c)
   li t0, 6
   bne s2, t0, .L16
-  ; player.e16.ts:319  collect(c)
+  ; player.e16.ts:332  collect(c)
   mv a0, s1
   call collect
   j .L17
 .L16:
-  ; player.e16.ts:320  if (t === T_ALLOY) alloyHit(c, now, x, y)
+  ; player.e16.ts:333  if (t === T_ALLOY) alloyHit(c, now, x, y)
   li t0, 5
   bne s2, t0, .L18
-  ; player.e16.ts:320  alloyHit(c, now, x, y)
+  ; player.e16.ts:333  alloyHit(c, now, x, y)
   mv a0, s1
   lw a1, 2(fp)
   mv a2, s3
@@ -11180,24 +11214,24 @@ bite:
   call alloyHit
   j .L19
 .L18:
-  ; player.e16.ts:322  chainNew()
+  ; player.e16.ts:335  chainNew()
   call chainNew
-  ; player.e16.ts:323  const n = groupOf(c)
+  ; player.e16.ts:336  const n = groupOf(c)
   mv a0, s1
   call groupOf
   sw a0, 6(fp) ; n
-  ; player.e16.ts:324  vanish(n, now + 1, 1)
+  ; player.e16.ts:337  vanish(n, now + 1, 1)
   lw t0, 2(fp) ; now
   lw a0, 6(fp)
   addi a1, t0, 1
   li a2, 1
   call vanish
-  ; player.e16.ts:325  dugN = n
+  ; player.e16.ts:338  dugN = n
   lw t0, 6(fp) ; n
   sw t0, 0x1db0(zero)
-  ; player.e16.ts:326  sfxDig()
+  ; player.e16.ts:339  sfxDig()
   call sfxDig
-  ; player.e16.ts:327  dust(x, y, 1)
+  ; player.e16.ts:340  dust(x, y, 1)
   mv a0, s3
   lw a1, 0(fp)
   li a2, 1
@@ -11216,7 +11250,7 @@ bite:
   addi sp, sp, 18
   ret
 
-; player.e16.ts:332 alloyHit(c, now, x, y) at -O1
+; player.e16.ts:345 alloyHit(c, now, x, y) at -O1
 ;   c in s1
 ;   now in 0(fp)
 ;   x in 2(fp)
@@ -11235,45 +11269,45 @@ alloyHit:
   sw a1, 0(fp) ; now
   sw a2, 2(fp) ; x
   sw a3, 4(fp) ; y
-  ; player.e16.ts:333  const v = cells[c]
+  ; player.e16.ts:346  const v = cells[c]
   lbu s2, cells(s1)
-  ; player.e16.ts:334  const hits = ((v >> 4) & 3) + 1
+  ; player.e16.ts:347  const hits = ((v >> 4) & 3) + 1
   srli t0, s2, 4
   andi t0, t0, 3
   addi s3, t0, 1
-  ; player.e16.ts:335  sparks(x, y, 4)
+  ; player.e16.ts:348  sparks(x, y, 4)
   lw a0, 2(fp)
   lw a1, 4(fp)
   li a2, 4
   call sparks
-  ; player.e16.ts:336  sfxClank()
+  ; player.e16.ts:349  sfxClank()
   call sfxClank
-  ; player.e16.ts:337  if (hits >= ALLOY_HITS) {
+  ; player.e16.ts:350  if (hits >= ALLOY_HITS) {
   li t0, 4
   bltu s3, t0, .L1
-  ; player.e16.ts:338  groupOf(c)
+  ; player.e16.ts:351  groupOf(c)
   mv a0, s1
   call groupOf
-  ; player.e16.ts:339  vanish(1, now, 0)
+  ; player.e16.ts:352  vanish(1, now, 0)
   li a0, 1
   lw a1, 0(fp)
   li a2, 0
   call vanish
-  ; player.e16.ts:340  alloyBroken = 1
+  ; player.e16.ts:353  alloyBroken = 1
   li t0, 1
   sw t0, 0x1db2(zero)
-  ; player.e16.ts:341  airLose(20)
+  ; player.e16.ts:354  airLose(20)
   li a0, 20
   call airLose
-  ; player.e16.ts:342  return
+  ; player.e16.ts:355  return
   j .return
 .L1:
-  ; player.e16.ts:344  cells[c] = (v & 0xcf) | (hits << 4)
+  ; player.e16.ts:357  cells[c] = (v & 0xcf) | (hits << 4)
   andi t0, s2, 207
   slli t1, s3, 4
   or t0, t0, t1
   sb t0, cells(s1)
-  ; player.e16.ts:345  markAround(c)
+  ; player.e16.ts:358  markAround(c)
   mv a0, s1
   call markAround
 .return:
@@ -11286,25 +11320,25 @@ alloyHit:
   addi sp, sp, 16
   ret
 
-; player.e16.ts:349 collect(c) at -O1
+; player.e16.ts:362 collect(c) at -O1
 ;   c in s1
 collect:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; c
-  ; player.e16.ts:350  cellClear(c)
+  ; player.e16.ts:363  cellClear(c)
   mv a0, s1
   call cellClear
-  ; player.e16.ts:351  capsuleN++
+  ; player.e16.ts:364  capsuleN++
   lw t0, 0x1db4(zero)
   addi t0, t0, 1
   sw t0, 0x1db4(zero)
-  ; player.e16.ts:352  capsules++
+  ; player.e16.ts:365  capsules++
   lw t0, 0x1db6(zero)
   addi t0, t0, 1
   sw t0, 0x1db6(zero)
-  ; player.e16.ts:353  airAdd(20)
+  ; player.e16.ts:366  airAdd(20)
   li a0, 20
   call airAdd
 .return:
@@ -11313,19 +11347,19 @@ collect:
   addi sp, sp, 4
   ret
 
-; player.e16.ts:357 caughtFalling() at -O1
+; player.e16.ts:370 caughtFalling() at -O1
 caughtFalling:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; player.e16.ts:358  capsuleN++
+  ; player.e16.ts:371  capsuleN++
   lw t0, 0x1db4(zero)
   addi t0, t0, 1
   sw t0, 0x1db4(zero)
-  ; player.e16.ts:359  capsules++
+  ; player.e16.ts:372  capsules++
   lw t0, 0x1db6(zero)
   addi t0, t0, 1
   sw t0, 0x1db6(zero)
-  ; player.e16.ts:360  airAdd(20)
+  ; player.e16.ts:373  airAdd(20)
   li a0, 20
   call airAdd
 .return:
@@ -11333,19 +11367,19 @@ caughtFalling:
   addi sp, sp, 2
   ret
 
-; player.e16.ts:365 crushed() at -O1
+; player.e16.ts:378 crushed() at -O1
 crushed:
-  ; player.e16.ts:366  pState = P_CRUSH
+  ; player.e16.ts:379  pState = P_CRUSH
   li t0, 6
   sw t0, 0x1d98(zero)
-  ; player.e16.ts:367  pT = 0
+  ; player.e16.ts:380  pT = 0
   sw zero, 0x1d9a(zero)
 .return:
   ret
 
-; player.e16.ts:371 deathDone() at -O1
+; player.e16.ts:384 deathDone() at -O1
 deathDone:
-  ; player.e16.ts:372  return (pState === P_CRUSH && pT >= 100) || (pState === P_GASP && pT >= 130)
+  ; player.e16.ts:385  return (pState === P_CRUSH && pT >= 100) || (pState === P_GASP && pT >= 130)
   lw t0, 0x1d98(zero)
   li t1, 6
   sub t0, t0, t1
@@ -11375,7 +11409,7 @@ deathDone:
 .return:
   ret
 
-; player.e16.ts:376 comeBack() at -O1
+; player.e16.ts:389 comeBack() at -O1
 ;   k in s1
 ;   c in s3
 ;   t in s2
@@ -11385,12 +11419,12 @@ comeBack:
   sw s1, 2(sp)
   sw s3, 4(sp)
   sw s2, 6(sp)
-  ; player.e16.ts:377  let k: u16 = 0
+  ; player.e16.ts:390  let k: u16 = 0
   li s1, 0 ; k
-  ; player.e16.ts:378  while (k < 3) {
+  ; player.e16.ts:391  while (k < 3) {
   j .L3
 .L1:
-  ; player.e16.ts:379  const c = cellOf(pCol, pRow - k)
+  ; player.e16.ts:392  const c = cellOf(pCol, pRow - k)
   lw t0, 0x1d90(zero)
   lw t1, 0x1d92(zero)
   sub t1, t1, s1
@@ -11398,42 +11432,42 @@ comeBack:
   mv a1, t1
   call cellOf
   mv s3, a0 ; c
-  ; player.e16.ts:380  const t = cells[c] & 15
+  ; player.e16.ts:393  const t = cells[c] & 15
   lbu t0, cells(s3)
   andi s2, t0, 15
-  ; player.e16.ts:381  if (t !== T_CORE && t !== T_WALL && t !== T_EMPTY) cellClear(c)
+  ; player.e16.ts:394  if (t !== T_CORE && t !== T_WALL && t !== T_EMPTY) cellClear(c)
   li t0, 7
   beq s2, t0, .L5
   li t0, 15
   beq s2, t0, .L5
   beq s2, zero, .L5
-  ; player.e16.ts:381  cellClear(c)
+  ; player.e16.ts:394  cellClear(c)
   mv a0, s3
   call cellClear
 .L5:
-  ; player.e16.ts:382  k++
+  ; player.e16.ts:395  k++
   addi s1, s1, 1
 .L3:
   li t0, 3
   bltu s1, t0, .L1
-  ; player.e16.ts:384  pY = pRow * 16
+  ; player.e16.ts:397  pY = pRow * 16
   lw t0, 0x1d92(zero)
   slli t0, t0, 4
   sw t0, 0x1d96(zero)
-  ; player.e16.ts:385  pX = pCol * 16
+  ; player.e16.ts:398  pX = pCol * 16
   lw t0, 0x1d90(zero)
   slli t0, t0, 4
   sw t0, 0x1d94(zero)
-  ; player.e16.ts:386  pState = P_STAND
+  ; player.e16.ts:399  pState = P_STAND
   sw zero, 0x1d98(zero)
-  ; player.e16.ts:387  pT = 0
+  ; player.e16.ts:400  pT = 0
   sw zero, 0x1d9a(zero)
-  ; player.e16.ts:388  air = 100
+  ; player.e16.ts:401  air = 100
   li t0, 100
   sw t0, 0x1daa(zero)
-  ; player.e16.ts:389  airSub = 0
+  ; player.e16.ts:402  airSub = 0
   sw zero, 0x1dac(zero)
-  ; player.e16.ts:390  pSafe = 150
+  ; player.e16.ts:403  pSafe = 150
   li t0, 150
   sw t0, 0x1da8(zero)
 .return:
@@ -11444,17 +11478,17 @@ comeBack:
   addi sp, sp, 8
   ret
 
-; player.e16.ts:393 cheer() at -O1
+; player.e16.ts:406 cheer() at -O1
 cheer:
-  ; player.e16.ts:394  pState = P_CHEER
+  ; player.e16.ts:407  pState = P_CHEER
   li t0, 8
   sw t0, 0x1d98(zero)
-  ; player.e16.ts:395  pT = 0
+  ; player.e16.ts:408  pT = 0
   sw zero, 0x1d9a(zero)
 .return:
   ret
 
-; player.e16.ts:401 playerDraw(camY, frame) at -O1
+; player.e16.ts:414 playerDraw(camY, frame) at -O1
 ;   camY in 2(fp)
 ;   frame in s1
 ;   x in s2
@@ -11471,22 +11505,22 @@ playerDraw:
   mv fp, sp
   sw a0, 2(fp) ; camY
   mv s1, a1 ; frame
-  ; player.e16.ts:402  if (pSafe > 0 && (frame & 4) !== 0) return
+  ; player.e16.ts:415  if (pSafe > 0 && (frame & 4) !== 0) return
   lw t0, 0x1da8(zero)
   bgeu zero, t0, .L1
   andi t0, s1, 4
   beq t0, zero, .L1
-  ; player.e16.ts:402  return
+  ; player.e16.ts:415  return
   j .return
 .L1:
-  ; player.e16.ts:403  const x = i16(FIELD_X + pX)
+  ; player.e16.ts:416  const x = i16(FIELD_X + pX)
   lw t0, 0x1d94(zero)
   addi s2, t0, 88
-  ; player.e16.ts:404  const y = i16(pY - camY)
+  ; player.e16.ts:417  const y = i16(pY - camY)
   lw t0, 0x1d96(zero)
   lw t1, 2(fp) ; camY
   sub s3, t0, t1
-  ; player.e16.ts:405  const flip = pFace === 1 ? FLIP_H : 0
+  ; player.e16.ts:418  const flip = pFace === 1 ? FLIP_H : 0
   lw t0, 0x1d9c(zero)
   li t1, 1
   bne t0, t1, .L2
@@ -11496,11 +11530,11 @@ playerDraw:
   li t0, 0
 .L3:
   sw t0, 0(fp) ; flip
-  ; player.e16.ts:406  const f = frameNow(frame)
+  ; player.e16.ts:419  const f = frameNow(frame)
   mv a0, s1
   call frameNow
   sw a0, 4(fp) ; f
-  ; player.e16.ts:407  if (pState === P_DIG && pT >= 2 && pT < 9) bitDraw(x, y, flip)
+  ; player.e16.ts:420  if (pState === P_DIG && pT >= 2 && pT < 9) bitDraw(x, y, flip)
   lw t0, 0x1d98(zero)
   li t1, 4
   bne t0, t1, .L4
@@ -11510,13 +11544,13 @@ playerDraw:
   lw t0, 0x1d9a(zero)
   li t1, 9
   bgeu t0, t1, .L4
-  ; player.e16.ts:407  bitDraw(x, y, flip)
+  ; player.e16.ts:420  bitDraw(x, y, flip)
   mv a0, s2
   mv a1, s3
   lw a2, 0(fp)
   call bitDraw
 .L4:
-  ; player.e16.ts:408  spr(x, y, (DRILLER_TILE + f * 4) | flip, S16)
+  ; player.e16.ts:421  spr(x, y, (DRILLER_TILE + f * 4) | flip, S16)
   lw t0, 4(fp) ; f
   slli t0, t0, 2
   lw t1, 0(fp) ; flip
@@ -11537,7 +11571,7 @@ playerDraw:
   addi sp, sp, 16
   ret
 
-; player.e16.ts:415 warnDraw(camY, frame, how) at -O1
+; player.e16.ts:428 warnDraw(camY, frame, how) at -O1
 ;   camY in s3
 ;   frame in s1
 ;   how in s2
@@ -11555,15 +11589,15 @@ warnDraw:
   mv s3, a0 ; camY
   mv s1, a1 ; frame
   mv s2, a2 ; how
-  ; player.e16.ts:416  if (how === 0 || !alive()) return
+  ; player.e16.ts:429  if (how === 0 || !alive()) return
   beq s2, zero, .L2
   call alive
   bnez a0, .L1
 .L2:
-  ; player.e16.ts:416  return
+  ; player.e16.ts:429  return
   j .return
 .L1:
-  ; player.e16.ts:417  const fast = how === 2 ? 1 : 3
+  ; player.e16.ts:430  const fast = how === 2 ? 1 : 3
   li t0, 2
   bne s2, t0, .L3
   li t0, 1
@@ -11572,12 +11606,12 @@ warnDraw:
   li t0, 3
 .L4:
   sw t0, 0(fp) ; fast
-  ; player.e16.ts:418  const sign: u16 = (frame >> fast) & 1
+  ; player.e16.ts:431  const sign: u16 = (frame >> fast) & 1
   lw t0, 0(fp) ; fast
   srl t0, s1, t0
   andi t0, t0, 1
   sw t0, 2(fp) ; sign
-  ; player.e16.ts:419  const bob: i16 = ((frame >> 2) & 1) !== 0 ? 1 : 0
+  ; player.e16.ts:432  const bob: i16 = ((frame >> 2) & 1) !== 0 ? 1 : 0
   srli t0, s1, 2
   andi t0, t0, 1
   beq t0, zero, .L5
@@ -11587,7 +11621,7 @@ warnDraw:
   li t0, 0
 .L6:
   sw t0, 4(fp) ; bob
-  ; player.e16.ts:420  spr(i16(FIELD_X + pX) + 4, i16(pY - camY) - 10 - bob, (FX_TILE + 10 + sign) | (6 << 10), S8)
+  ; player.e16.ts:433  spr(i16(FIELD_X + pX) + 4, i16(pY - camY) - 10 - bob, (FX_TILE + 10 + sign) | (6 << 10), S8)
   lw t0, 0x1d94(zero)
   lw t1, 0x1d96(zero)
   sub t1, t1, s3
@@ -11612,7 +11646,7 @@ warnDraw:
   addi sp, sp, 16
   ret
 
-; player.e16.ts:423 bitDraw(x, y, flip) at -O1
+; player.e16.ts:436 bitDraw(x, y, flip) at -O1
 ;   x in s1
 ;   y in s2
 ;   flip in s0
@@ -11627,16 +11661,16 @@ bitDraw:
   mv s1, a0 ; x
   mv s2, a1 ; y
   mv s0, a2 ; flip
-  ; player.e16.ts:424  const spin = (pT >> 1) & 1
+  ; player.e16.ts:437  const spin = (pT >> 1) & 1
   lw t0, 0x1d9a(zero)
   srli t0, t0, 1
   andi s3, t0, 1
-  ; player.e16.ts:425  const pal = 6 << 10
-  ; player.e16.ts:426  if (pDir < 2) spr(x + (pDir === 0 ? 13 : -13), y, (BIT_TILE + spin * 4) | pal | flip, S16)
+  ; player.e16.ts:438  const pal = 6 << 10
+  ; player.e16.ts:439  if (pDir < 2) spr(x + (pDir === 0 ? 13 : -13), y, (BIT_TILE + spin * 4) | pal | flip, S16)
   lw t0, 0x1d9e(zero)
   li t1, 2
   bgeu t0, t1, .L1
-  ; player.e16.ts:426  spr(x + (pDir === 0 ? 13 : -13), y, (BIT_TILE + spin * 4) | pal | flip, S16)
+  ; player.e16.ts:439  spr(x + (pDir === 0 ? 13 : -13), y, (BIT_TILE + spin * 4) | pal | flip, S16)
   lw t1, 0x1d9e(zero)
   mv t0, s1
   li t2, 0
@@ -11658,11 +11692,11 @@ bitDraw:
   call spr
   j .L4
 .L1:
-  ; player.e16.ts:427  if (pDir === 2) spr(x, y + 13, (BIT_TILE + 8 + spin * 4) | pal, S16)
+  ; player.e16.ts:440  if (pDir === 2) spr(x, y + 13, (BIT_TILE + 8 + spin * 4) | pal, S16)
   lw t0, 0x1d9e(zero)
   li t1, 2
   bne t0, t1, .L5
-  ; player.e16.ts:427  spr(x, y + 13, (BIT_TILE + 8 + spin * 4) | pal, S16)
+  ; player.e16.ts:440  spr(x, y + 13, (BIT_TILE + 8 + spin * 4) | pal, S16)
   slli t0, s3, 2
   addi t0, t0, 417
   ori t0, t0, 6144
@@ -11673,7 +11707,7 @@ bitDraw:
   call spr
   j .L6
 .L5:
-  ; player.e16.ts:428  spr(x, y - 13, (BIT_TILE + 16 + spin * 4) | pal, S16)
+  ; player.e16.ts:441  spr(x, y - 13, (BIT_TILE + 16 + spin * 4) | pal, S16)
   slli t0, s3, 2
   addi t0, t0, 425
   ori t0, t0, 6144
@@ -11693,7 +11727,7 @@ bitDraw:
   addi sp, sp, 10
   ret
 
-; player.e16.ts:432 frameNow(frame) at -O1
+; player.e16.ts:445 frameNow(frame) at -O1
 ;   frame in s2
 ;   s in s1
 frameNow:
@@ -11702,63 +11736,63 @@ frameNow:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; frame
-  ; player.e16.ts:433  const s = pState
+  ; player.e16.ts:446  const s = pState
   lw s1, 0x1d98(zero)
-  ; player.e16.ts:434  if (s === P_WALK) return 2 + ((pT >> 1) & 3)
+  ; player.e16.ts:447  if (s === P_WALK) return 2 + ((pT >> 1) & 3)
   li t0, 1
   bne s1, t0, .L1
-  ; player.e16.ts:434  return 2 + ((pT >> 1) & 3)
+  ; player.e16.ts:447  return 2 + ((pT >> 1) & 3)
   lw t0, 0x1d9a(zero)
   srli t0, t0, 1
   andi t0, t0, 3
   addi a0, t0, 2
   j .return
 .L1:
-  ; player.e16.ts:435  if (s === P_FALL) return 12
+  ; player.e16.ts:448  if (s === P_FALL) return 12
   li t0, 3
   bne s1, t0, .L2
-  ; player.e16.ts:435  return 12
+  ; player.e16.ts:448  return 12
   li a0, 12
   j .return
 .L2:
-  ; player.e16.ts:436  if (s === P_CLIMB) return 14 + ((pT >> 2) & 1)
+  ; player.e16.ts:449  if (s === P_CLIMB) return 14 + ((pT >> 2) & 1)
   li t0, 2
   bne s1, t0, .L3
-  ; player.e16.ts:436  return 14 + ((pT >> 2) & 1)
+  ; player.e16.ts:449  return 14 + ((pT >> 2) & 1)
   lw t0, 0x1d9a(zero)
   srli t0, t0, 2
   andi t0, t0, 1
   addi a0, t0, 14
   j .return
 .L3:
-  ; player.e16.ts:437  if (s === P_DIG) return digFrame()
+  ; player.e16.ts:450  if (s === P_DIG) return digFrame()
   li t0, 4
   bne s1, t0, .L4
-  ; player.e16.ts:437  return digFrame()
+  ; player.e16.ts:450  return digFrame()
   call digFrame
   j .return
 .L4:
-  ; player.e16.ts:438  if (s === P_LAND) return 13
+  ; player.e16.ts:451  if (s === P_LAND) return 13
   li t0, 5
   bne s1, t0, .L5
-  ; player.e16.ts:438  return 13
+  ; player.e16.ts:451  return 13
   li a0, 13
   j .return
 .L5:
-  ; player.e16.ts:439  if (s === P_CRUSH) return 16 + ((pT >> 3) & 1)
+  ; player.e16.ts:452  if (s === P_CRUSH) return 16 + ((pT >> 3) & 1)
   li t0, 6
   bne s1, t0, .L6
-  ; player.e16.ts:439  return 16 + ((pT >> 3) & 1)
+  ; player.e16.ts:452  return 16 + ((pT >> 3) & 1)
   lw t0, 0x1d9a(zero)
   srli t0, t0, 3
   andi t0, t0, 1
   addi a0, t0, 16
   j .return
 .L6:
-  ; player.e16.ts:440  if (s === P_GASP) return pT > 90 ? 20 : 18 + ((pT >> 3) & 1)
+  ; player.e16.ts:453  if (s === P_GASP) return pT > 90 ? 20 : 18 + ((pT >> 3) & 1)
   li t0, 7
   bne s1, t0, .L7
-  ; player.e16.ts:440  return pT > 90 ? 20 : 18 + ((pT >> 3) & 1)
+  ; player.e16.ts:453  return pT > 90 ? 20 : 18 + ((pT >> 3) & 1)
   lw t0, 0x1d9a(zero)
   li t1, 90
   bgeu t1, t0, .L8
@@ -11773,17 +11807,17 @@ frameNow:
   mv a0, t0
   j .return
 .L7:
-  ; player.e16.ts:441  if (s === P_CHEER) return 21 + ((pT >> 4) & 1)
+  ; player.e16.ts:454  if (s === P_CHEER) return 21 + ((pT >> 4) & 1)
   li t0, 8
   bne s1, t0, .L10
-  ; player.e16.ts:441  return 21 + ((pT >> 4) & 1)
+  ; player.e16.ts:454  return 21 + ((pT >> 4) & 1)
   lw t0, 0x1d9a(zero)
   srli t0, t0, 4
   andi t0, t0, 1
   addi a0, t0, 21
   j .return
 .L10:
-  ; player.e16.ts:443  return (frame & 127) < 6 ? 1 : 0
+  ; player.e16.ts:456  return (frame & 127) < 6 ? 1 : 0
   andi t0, s2, 127
   li t1, 6
   bgeu t0, t1, .L11
@@ -11800,22 +11834,22 @@ frameNow:
   addi sp, sp, 6
   ret
 
-; player.e16.ts:447 digFrame() at -O1
+; player.e16.ts:460 digFrame() at -O1
 ;   shake in a0
 digFrame:
-  ; player.e16.ts:448  const shake = (pT >> 1) & 1
+  ; player.e16.ts:461  const shake = (pT >> 1) & 1
   lw t0, 0x1d9a(zero)
   srli t0, t0, 1
   andi a0, t0, 1
-  ; player.e16.ts:449  if (pDir < 2) return 6 + shake
+  ; player.e16.ts:462  if (pDir < 2) return 6 + shake
   lw t0, 0x1d9e(zero)
   li t1, 2
   bgeu t0, t1, .L1
-  ; player.e16.ts:449  return 6 + shake
+  ; player.e16.ts:462  return 6 + shake
   addi a0, a0, 6
   ret
 .L1:
-  ; player.e16.ts:450  return pDir === 2 ? 8 + shake : 10 + shake
+  ; player.e16.ts:463  return pDir === 2 ? 8 + shake : 10 + shake
   lw t0, 0x1d9e(zero)
   li t1, 2
   bne t0, t1, .L2
@@ -14368,47 +14402,47 @@ levelWord:
   addi sp, sp, 10
   ret
 
-; title.e16.ts:146 helpShow() at -O1
+; title.e16.ts:149 helpShow() at -O1
 helpShow:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; title.e16.ts:147  say(14, 15, str('HOW TO PLAY'), W_GOLD)
+  ; title.e16.ts:150  say(14, 15, str('HOW TO PLAY'), W_GOLD)
   li a0, 14
   li a1, 15
   la a2, str_68
   li a3, 6
   call say
-  ; title.e16.ts:148  say(3, 17, str('DIG A BLOCK: ITS WHOLE GROUP GOES'), W_WHITE)
-  li a0, 3
+  ; title.e16.ts:151  say(2, 17, str('A/Z RIGHT  Y/A LEFT  B/X DOWN  X/S UP'), W_GOLD)
+  li a0, 2
   li a1, 17
   la a2, str_69
-  li a3, 7
+  li a3, 6
   call say
-  ; title.e16.ts:149  say(3, 19, str('WHAT HANGS SHAKES, THEN FALLS'), W_WHITE)
+  ; title.e16.ts:152  say(3, 19, str('DIG A BLOCK: ITS WHOLE GROUP GOES'), W_WHITE)
   li a0, 3
   li a1, 19
   la a2, str_70
   li a3, 7
   call say
-  ; title.e16.ts:150  say(3, 21, str('4 OF A COLOUR AFTER A FALL: CHAIN'), W_WHITE)
-  li a0, 3
+  ; title.e16.ts:153  say(2, 21, str('WHAT HANGS FALLS: 4 OF A COLOUR CHAIN'), W_WHITE)
+  li a0, 2
   li a1, 21
   la a2, str_71
   li a3, 7
   call say
-  ; title.e16.ts:151  say(5, 23, str('OVER RIVET: STEP OUT FROM UNDER'), W_WHITE)
+  ; title.e16.ts:154  say(5, 23, str('OVER RIVET: STEP OUT FROM UNDER'), W_WHITE)
   li a0, 5
   li a1, 23
   la a2, str_72
   li a3, 7
   call say
-  ; title.e16.ts:152  say(3, 25, str('CAPSULES GIVE AIR, ALLOY COSTS IT'), W_WHITE)
+  ; title.e16.ts:155  say(3, 25, str('CAPSULES GIVE AIR, ALLOY COSTS IT'), W_WHITE)
   li a0, 3
   li a1, 25
   la a2, str_73
   li a3, 7
   call say
-  ; title.e16.ts:153  say(9, 27, str('REACH THE CORE AT 500 M'), W_GOLD)
+  ; title.e16.ts:156  say(9, 27, str('REACH THE CORE AT 500 M'), W_GOLD)
   li a0, 9
   li a1, 27
   la a2, str_74
@@ -14419,151 +14453,157 @@ helpShow:
   addi sp, sp, 2
   ret
 
-; title.e16.ts:162 controls() at -O1
+; title.e16.ts:165 controls() at -O1
 ;   t in s1
 controls:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; title.e16.ts:163  rowsClear(0, 30)
+  ; title.e16.ts:166  rowsClear(0, 30)
   li a0, 0
   li a1, 30
   call rowsClear
-  ; title.e16.ts:164  say(16, 2, str('CONTROLS'), W_GOLD)
+  ; title.e16.ts:167  say(16, 2, str('CONTROLS'), W_GOLD)
   li a0, 16
   li a1, 2
   la a2, str_75
   li a3, 6
   call say
-  ; title.e16.ts:165  say(2, 5, str('PAD'), W_GOLD)
+  ; title.e16.ts:168  say(2, 5, str('PAD'), W_GOLD)
   li a0, 2
   li a1, 5
   la a2, str_76
   li a3, 6
   call say
-  ; title.e16.ts:166  say(12, 5, str('PC KEY'), W_GOLD)
+  ; title.e16.ts:169  say(12, 5, str('PC KEY'), W_GOLD)
   li a0, 12
   li a1, 5
   la a2, str_77
   li a3, 6
   call say
-  ; title.e16.ts:167  say(22, 5, str('ACTION'), W_GOLD)
+  ; title.e16.ts:170  say(22, 5, str('ACTION'), W_GOLD)
   li a0, 22
   li a1, 5
   la a2, str_78
   li a3, 6
   call say
-  ; title.e16.ts:168  rule(6)
+  ; title.e16.ts:171  rule(6)
   li a0, 6
   call rule
-  ; title.e16.ts:169  control(8, str('D-PAD < >'), str('ARROW < >'), str('WALK'))
+  ; title.e16.ts:174  control(8, str('D-PAD < >'), str('ARROW < >'), str('WALK'))
   li a0, 8
   la a1, str_79
   la a2, str_80
   la a3, str_81
   call control
-  ; title.e16.ts:170  control(10, str('A'), str('Z'), str('DIG FACING'))
+  ; title.e16.ts:175  control(10, str('A'), str('Z'), str('DIG RIGHT'))
   li a0, 10
   la a1, str_82
   la a2, str_83
   la a3, str_84
   call control
-  ; title.e16.ts:171  control(12, str('UP/DOWN+A'), str('UP/DOWN+Z'), str('DIG UP/DOWN'))
+  ; title.e16.ts:176  control(12, str('Y'), str('A'), str('DIG LEFT'))
   li a0, 12
   la a1, str_85
-  la a2, str_86
-  la a3, str_87
+  la a2, str_82
+  la a3, str_86
   call control
-  ; title.e16.ts:172  control(14, str('B'), str('X'), str('DIG DOWN'))
+  ; title.e16.ts:177  control(14, str('B'), str('X'), str('DIG DOWN'))
   li a0, 14
-  la a1, str_88
-  la a2, str_89
-  la a3, str_90
+  la a1, str_87
+  la a2, str_88
+  la a3, str_89
   call control
-  ; title.e16.ts:173  control(16, str('START'), str('ENTER'), str('PAUSE'))
+  ; title.e16.ts:178  control(16, str('X'), str('S'), str('DIG UP'))
   li a0, 16
-  la a1, str_91
-  la a2, str_92
-  la a3, str_93
+  la a1, str_88
+  la a2, str_90
+  la a3, str_91
   call control
-  ; title.e16.ts:174  rule(17)
-  li a0, 17
+  ; title.e16.ts:179  control(18, str('START'), str('ENTER'), str('PAUSE'))
+  li a0, 18
+  la a1, str_92
+  la a2, str_93
+  la a3, str_94
+  call control
+  ; title.e16.ts:180  rule(19)
+  li a0, 19
   call rule
-  ; title.e16.ts:175  say(2, 19, str('HOLD < OR > ON A STEP TO CLIMB IT.'), W_WHITE)
-  li a0, 2
-  li a1, 19
-  la a2, str_94
-  li a3, 7
-  call say
-  ; title.e16.ts:176  say(2, 21, str('HOLD A OR B TO KEEP DIGGING.'), W_WHITE)
+  ; title.e16.ts:181  say(2, 21, str('HOLD < OR > ON A STEP TO CLIMB IT.'), W_WHITE)
   li a0, 2
   li a1, 21
   la a2, str_95
   li a3, 7
   call say
-  ; title.e16.ts:177  say(2, 23, str('WHEN'), W_WHITE)
+  ; title.e16.ts:182  say(2, 23, str('HOLD A DIG BUTTON TO KEEP DIGGING.'), W_WHITE)
   li a0, 2
   li a1, 23
   la a2, str_96
   li a3, 7
   call say
-  ; title.e16.ts:178  say(9, 23, str('SHOWS, STEP OUT FROM UNDER.'), W_WHITE)
-  li a0, 9
-  li a1, 23
+  ; title.e16.ts:183  say(2, 25, str('WHEN'), W_WHITE)
+  li a0, 2
+  li a1, 25
   la a2, str_97
   li a3, 7
   call say
-  ; title.e16.ts:179  controlsUp = 1
+  ; title.e16.ts:184  say(9, 25, str('SHOWS, STEP OUT FROM UNDER.'), W_WHITE)
+  li a0, 9
+  li a1, 25
+  la a2, str_98
+  li a3, 7
+  call say
+  ; title.e16.ts:185  controlsUp = 1
   li t0, 1
   sw t0, 0x1f96(zero)
-  ; title.e16.ts:180  let t: u16 = 0
+  ; title.e16.ts:186  let t: u16 = 0
   li s1, 0 ; t
-  ; title.e16.ts:181  for (;;) {
+  ; title.e16.ts:187  for (;;) {
 .L1:
-  ; title.e16.ts:182  frameBegin()
+  ; title.e16.ts:188  frameBegin()
   call frameBegin
-  ; title.e16.ts:183  if ((t & 32) === 0) say(12, 27, str('PRESS A OR START'), W_GOLD)
+  ; title.e16.ts:189  if ((t & 32) === 0) say(12, 27, str('PRESS A OR START'), W_GOLD)
   andi t0, s1, 32
   bne t0, zero, .L5
-  ; title.e16.ts:183  say(12, 27, str('PRESS A OR START'), W_GOLD)
+  ; title.e16.ts:189  say(12, 27, str('PRESS A OR START'), W_GOLD)
   li a0, 12
   li a1, 27
-  la a2, str_98
+  la a2, str_99
   li a3, 6
   call say
   j .L6
 .L5:
-  ; title.e16.ts:184  unsay(12, 27, 16)
+  ; title.e16.ts:190  unsay(12, 27, 16)
   li a0, 12
   li a1, 27
   li a2, 16
   call unsay
 .L6:
-  ; title.e16.ts:185  signAt(7, 23)
+  ; title.e16.ts:191  signAt(7, 25)
   li a0, 7
-  li a1, 23
+  li a1, 25
   call signAt
-  ; title.e16.ts:186  walker(t + 100)
+  ; title.e16.ts:192  walker(t + 100)
   addi a0, s1, 100
   call walker
-  ; title.e16.ts:187  if (t > 10 && pressed(B_A | B_START)) break
+  ; title.e16.ts:193  if (t > 10 && pressed(B_A | B_START)) break
   li t0, 10
   bgeu t0, s1, .L7
   li a0, 1040
   call pressed
   beqz a0, .L7
-  ; title.e16.ts:187  break
+  ; title.e16.ts:193  break
   j .L4
 .L7:
-  ; title.e16.ts:188  t++
+  ; title.e16.ts:194  t++
   addi s1, s1, 1
   j .L1
 .L4:
-  ; title.e16.ts:190  controlsUp = 0
+  ; title.e16.ts:196  controlsUp = 0
   sw zero, 0x1f96(zero)
-  ; title.e16.ts:191  sfxSelect()
+  ; title.e16.ts:197  sfxSelect()
   call sfxSelect
-  ; title.e16.ts:192  rowsClear(0, 30)
+  ; title.e16.ts:198  rowsClear(0, 30)
   li a0, 0
   li a1, 30
   call rowsClear
@@ -14573,7 +14613,7 @@ controls:
   addi sp, sp, 4
   ret
 
-; title.e16.ts:199 control(y, pad, key, does) at -O1
+; title.e16.ts:205 control(y, pad, key, does) at -O1
 ;   y in s1
 ;   pad in s2
 ;   key in s3
@@ -14589,19 +14629,19 @@ control:
   mv s2, a1 ; pad
   mv s3, a2 ; key
   mv s0, a3 ; does
-  ; title.e16.ts:200  say(2, y, pad, W_WHITE)
+  ; title.e16.ts:206  say(2, y, pad, W_WHITE)
   li a0, 2
   mv a1, s1
   mv a2, s2
   li a3, 7
   call say
-  ; title.e16.ts:201  say(12, y, key, W_GOLD)
+  ; title.e16.ts:207  say(12, y, key, W_GOLD)
   li a0, 12
   mv a1, s1
   mv a2, s3
   li a3, 6
   call say
-  ; title.e16.ts:202  say(22, y, does, W_WHITE)
+  ; title.e16.ts:208  say(22, y, does, W_WHITE)
   li a0, 22
   mv a1, s1
   mv a2, s0
@@ -14616,7 +14656,7 @@ control:
   addi sp, sp, 10
   ret
 
-; title.e16.ts:206 rule(y) at -O1
+; title.e16.ts:212 rule(y) at -O1
 ;   y in s2
 ;   x in s1
 rule:
@@ -14625,18 +14665,18 @@ rule:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; y
-  ; title.e16.ts:207  let x: u16 = 2
+  ; title.e16.ts:213  let x: u16 = 2
   li s1, 2 ; x
-  ; title.e16.ts:208  while (x < 38) {
+  ; title.e16.ts:214  while (x < 38) {
   j .L3
 .L1:
-  ; title.e16.ts:209  say(x, y, str('-'), W_GOLD)
+  ; title.e16.ts:215  say(x, y, str('-'), W_GOLD)
   mv a0, s1
   mv a1, s2
-  la a2, str_99
+  la a2, str_100
   li a3, 6
   call say
-  ; title.e16.ts:210  x++
+  ; title.e16.ts:216  x++
   addi s1, s1, 1
 .L3:
   li t0, 38
@@ -14648,7 +14688,7 @@ rule:
   addi sp, sp, 6
   ret
 
-; title.e16.ts:217 groundFill() at -O1
+; title.e16.ts:223 groundFill() at -O1
 ;   y in s1
 ;   x in s2
 groundFill:
@@ -14656,17 +14696,17 @@ groundFill:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; title.e16.ts:218  let y: u16 = 0
+  ; title.e16.ts:224  let y: u16 = 0
   li s1, 0 ; y
-  ; title.e16.ts:219  while (y < 36) {
+  ; title.e16.ts:225  while (y < 36) {
   j .L3
 .L1:
-  ; title.e16.ts:220  let x: u16 = 0
+  ; title.e16.ts:226  let x: u16 = 0
   li s2, 0 ; x
-  ; title.e16.ts:221  while (x < 40) {
+  ; title.e16.ts:227  while (x < 40) {
   j .L7
 .L5:
-  ; title.e16.ts:222  vpoke(cellAt(0, x, y), GROUND_TILE + 8 + (((x >> 1) + (y >> 1)) & 1) * 9)
+  ; title.e16.ts:228  vpoke(cellAt(0, x, y), GROUND_TILE + 8 + (((x >> 1) + (y >> 1)) & 1) * 9)
   li a0, 0
   mv a1, s2
   mv a2, s1
@@ -14679,12 +14719,12 @@ groundFill:
   add t0, t1, t0
   addi a1, t0, 187
   call vpoke
-  ; title.e16.ts:223  x++
+  ; title.e16.ts:229  x++
   addi s2, s2, 1
 .L7:
   li t0, 40
   bltu s2, t0, .L5
-  ; title.e16.ts:225  y++
+  ; title.e16.ts:231  y++
   addi s1, s1, 1
 .L3:
   li t0, 36
@@ -14696,7 +14736,7 @@ groundFill:
   addi sp, sp, 6
   ret
 
-; title.e16.ts:233 walker(t) at -O1
+; title.e16.ts:239 walker(t) at -O1
 ;   t in s1
 ;   phase in s3
 ;   f in s2
@@ -14707,18 +14747,18 @@ walker:
   sw s3, 4(sp)
   sw s2, 6(sp)
   mv s1, a0 ; t
-  ; title.e16.ts:234  const phase = t % 240
+  ; title.e16.ts:240  const phase = t % 240
   li t0, 240
   remu s3, s1, t0
-  ; title.e16.ts:235  let f: u16 = 0
+  ; title.e16.ts:241  let f: u16 = 0
   li s2, 0 ; f
-  ; title.e16.ts:236  if (phase < 160) {
+  ; title.e16.ts:242  if (phase < 160) {
   li t0, 160
   bgeu s3, t0, .L1
-  ; title.e16.ts:237  if ((t & 1) === 0) walkX = walkFace === 0 ? walkX + 1 : walkX - 1
+  ; title.e16.ts:243  if ((t & 1) === 0) walkX = walkFace === 0 ? walkX + 1 : walkX - 1
   andi t0, s1, 1
   bne t0, zero, .L2
-  ; title.e16.ts:237  walkX = walkFace === 0 ? walkX + 1 : walkX - 1
+  ; title.e16.ts:243  walkX = walkFace === 0 ? walkX + 1 : walkX - 1
   lw t0, 0x1f9a(zero)
   bne t0, zero, .L3
   lw t0, 0x1f98(zero)
@@ -14730,47 +14770,47 @@ walker:
 .L4:
   sw t0, 0x1f98(zero)
 .L2:
-  ; title.e16.ts:238  if (walkX > 280) walkFace = 1
+  ; title.e16.ts:244  if (walkX > 280) walkFace = 1
   lw t0, 0x1f98(zero)
   li t1, 280
   bgeu t1, t0, .L5
-  ; title.e16.ts:238  walkFace = 1
+  ; title.e16.ts:244  walkFace = 1
   li t0, 1
   sw t0, 0x1f9a(zero)
 .L5:
-  ; title.e16.ts:239  if (walkX < 24) walkFace = 0
+  ; title.e16.ts:245  if (walkX < 24) walkFace = 0
   lw t0, 0x1f98(zero)
   li t1, 24
   bgeu t0, t1, .L6
-  ; title.e16.ts:239  walkFace = 0
+  ; title.e16.ts:245  walkFace = 0
   sw zero, 0x1f9a(zero)
 .L6:
-  ; title.e16.ts:240  f = 2 + ((t >> 2) & 3)
+  ; title.e16.ts:246  f = 2 + ((t >> 2) & 3)
   srli t0, s1, 2
   andi t0, t0, 3
   addi s2, t0, 2
   j .L7
 .L1:
-  ; title.e16.ts:241  if (phase < 200) f = 8 + ((t >> 1) & 1)
+  ; title.e16.ts:247  if (phase < 200) f = 8 + ((t >> 1) & 1)
   li t0, 200
   bgeu s3, t0, .L8
-  ; title.e16.ts:241  f = 8 + ((t >> 1) & 1)
+  ; title.e16.ts:247  f = 8 + ((t >> 1) & 1)
   srli t0, s1, 1
   andi t0, t0, 1
   addi s2, t0, 8
   j .L9
 .L8:
-  ; title.e16.ts:242  if (phase < 230) f = 21 + ((t >> 4) & 1)
+  ; title.e16.ts:248  if (phase < 230) f = 21 + ((t >> 4) & 1)
   li t0, 230
   bgeu s3, t0, .L10
-  ; title.e16.ts:242  f = 21 + ((t >> 4) & 1)
+  ; title.e16.ts:248  f = 21 + ((t >> 4) & 1)
   srli t0, s1, 4
   andi t0, t0, 1
   addi s2, t0, 21
 .L10:
 .L9:
 .L7:
-  ; title.e16.ts:243  spr(i16(walkX), 240, (DRILLER_TILE + f * 4) | (walkFace !== 0 ? FLIP_H : 0), S16)
+  ; title.e16.ts:249  spr(i16(walkX), 240, (DRILLER_TILE + f * 4) | (walkFace !== 0 ? FLIP_H : 0), S16)
   lw t0, 0x1f98(zero)
   slli t1, s2, 2
   lw t3, 0x1f9a(zero)
@@ -14797,13 +14837,13 @@ walker:
   addi sp, sp, 8
   ret
 
-; title.e16.ts:247 logoDrop(t) at -O1
+; title.e16.ts:253 logoDrop(t) at -O1
 ;   t in a0
 logoDrop:
-  ; title.e16.ts:248  if (t < 30) poke16(BG1Y, (30 - t) * 3)
+  ; title.e16.ts:254  if (t < 30) poke16(BG1Y, (30 - t) * 3)
   li t0, 30
   bgeu a0, t0, .L1
-  ; title.e16.ts:248  poke16(BG1Y, (30 - t) * 3)
+  ; title.e16.ts:254  poke16(BG1Y, (30 - t) * 3)
   li t0, 30
   sub t0, t0, a0
   slli t1, t0, 1
@@ -14812,10 +14852,10 @@ logoDrop:
   sw t0, 0(t1)
   j .L2
 .L1:
-  ; title.e16.ts:249  if (t < 36) poke16(BG1Y, 512 - (t - 30))
+  ; title.e16.ts:255  if (t < 36) poke16(BG1Y, 512 - (t - 30))
   li t0, 36
   bgeu a0, t0, .L3
-  ; title.e16.ts:249  poke16(BG1Y, 512 - (t - 30))
+  ; title.e16.ts:255  poke16(BG1Y, 512 - (t - 30))
   addi t0, a0, -30
   li t1, 512
   sub t1, t1, t0
@@ -14823,10 +14863,10 @@ logoDrop:
   sw t1, 0(t0)
   j .L4
 .L3:
-  ; title.e16.ts:250  if (t < 42) poke16(BG1Y, 512 - (42 - t))
+  ; title.e16.ts:256  if (t < 42) poke16(BG1Y, 512 - (42 - t))
   li t0, 42
   bgeu a0, t0, .L5
-  ; title.e16.ts:250  poke16(BG1Y, 512 - (42 - t))
+  ; title.e16.ts:256  poke16(BG1Y, 512 - (42 - t))
   li t0, 42
   sub t0, t0, a0
   li t1, 512
@@ -14835,10 +14875,10 @@ logoDrop:
   sw t1, 0(t0)
   j .L6
 .L5:
-  ; title.e16.ts:251  if (t === 42) poke16(BG1Y, 0)
+  ; title.e16.ts:257  if (t === 42) poke16(BG1Y, 0)
   li t0, 42
   bne a0, t0, .L7
-  ; title.e16.ts:251  poke16(BG1Y, 0)
+  ; title.e16.ts:257  poke16(BG1Y, 0)
   li t0, 63526
   sw zero, 0(t0)
 .L7:
@@ -14848,56 +14888,56 @@ logoDrop:
 .return:
   ret
 
-; title.e16.ts:258 heapDraw() at -O1
+; title.e16.ts:264 heapDraw() at -O1
 ;   k in s1
 heapDraw:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; title.e16.ts:259  let k: u16 = 0
+  ; title.e16.ts:265  let k: u16 = 0
   li s1, 0 ; k
-  ; title.e16.ts:260  while (k < 40) {
+  ; title.e16.ts:266  while (k < 40) {
   j .L3
 .L1:
-  ; title.e16.ts:261  heap[k] = 1 + (rand() & 3)
+  ; title.e16.ts:267  heap[k] = 1 + (rand() & 3)
   call rand
   andi t0, a0, 3
   addi t0, t0, 1
   sb t0, heap(s1)
-  ; title.e16.ts:262  if (k >= 20 && (rand() & 3) !== 0) heap[k] = heap[k - 20]
+  ; title.e16.ts:268  if (k >= 20 && (rand() & 3) !== 0) heap[k] = heap[k - 20]
   li t0, 20
   bltu s1, t0, .L5
   call rand
   andi t0, a0, 3
   beq t0, zero, .L5
-  ; title.e16.ts:262  heap[k] = heap[k - 20]
+  ; title.e16.ts:268  heap[k] = heap[k - 20]
   lbu t0, heap-20(s1)
   sb t0, heap(s1)
   j .L6
 .L5:
-  ; title.e16.ts:263  if (k > 0 && (rand() & 1) !== 0 && k !== 20) heap[k] = heap[k - 1]
+  ; title.e16.ts:269  if (k > 0 && (rand() & 1) !== 0 && k !== 20) heap[k] = heap[k - 1]
   bgeu zero, s1, .L7
   call rand
   andi t0, a0, 1
   beq t0, zero, .L7
   li t0, 20
   beq s1, t0, .L7
-  ; title.e16.ts:263  heap[k] = heap[k - 1]
+  ; title.e16.ts:269  heap[k] = heap[k - 1]
   lbu t0, heap-1(s1)
   sb t0, heap(s1)
 .L7:
 .L6:
-  ; title.e16.ts:264  k++
+  ; title.e16.ts:270  k++
   addi s1, s1, 1
 .L3:
   li t0, 40
   bltu s1, t0, .L1
-  ; title.e16.ts:266  k = 0
+  ; title.e16.ts:272  k = 0
   li s1, 0 ; k
-  ; title.e16.ts:267  while (k < 40) {
+  ; title.e16.ts:273  while (k < 40) {
   j .L10
 .L8:
-  ; title.e16.ts:268  heapCell(k % 20, div(k, 20))
+  ; title.e16.ts:274  heapCell(k % 20, div(k, 20))
   li t0, 20
   remu t0, s1, t0
   li t1, 20
@@ -14905,7 +14945,7 @@ heapDraw:
   mv a0, t0
   mv a1, t1
   call heapCell
-  ; title.e16.ts:269  k++
+  ; title.e16.ts:275  k++
   addi s1, s1, 1
 .L10:
   li t0, 40
@@ -14916,22 +14956,22 @@ heapDraw:
   addi sp, sp, 4
   ret
 
-; title.e16.ts:273 heapAt(x, y, c) at -O1
+; title.e16.ts:279 heapAt(x, y, c) at -O1
 ;   x in a0
 ;   y in a1
 ;   c in a2
 heapAt:
-  ; title.e16.ts:274  if (x >= 20 || y >= 2) return 0
+  ; title.e16.ts:280  if (x >= 20 || y >= 2) return 0
   li t0, 20
   bgeu a0, t0, .L2
   li t0, 2
   bltu a1, t0, .L1
 .L2:
-  ; title.e16.ts:274  return 0
+  ; title.e16.ts:280  return 0
   li a0, 0
   ret
 .L1:
-  ; title.e16.ts:275  return heap[y * 20 + x] === c ? 1 : 0
+  ; title.e16.ts:281  return heap[y * 20 + x] === c ? 1 : 0
   slli t1, a1, 4
   slli t0, a1, 2
   add t0, t0, t1
@@ -14947,7 +14987,7 @@ heapAt:
 .return:
   ret
 
-; title.e16.ts:278 heapCell(x, y) at -O1
+; title.e16.ts:284 heapCell(x, y) at -O1
 ;   x in s2
 ;   y in s3
 ;   c in s1
@@ -14969,48 +15009,48 @@ heapCell:
   mv fp, sp
   mv s2, a0 ; x
   mv s3, a1 ; y
-  ; title.e16.ts:279  const c = heap[y * 20 + x]
+  ; title.e16.ts:285  const c = heap[y * 20 + x]
   slli t1, s3, 4
   slli t0, s3, 2
   add t0, t0, t1
   add t0, t0, s2
   lbu s1, heap(t0)
-  ; title.e16.ts:280  const up = wrap16(y - 1)
+  ; title.e16.ts:286  const up = wrap16(y - 1)
   addi t0, s3, -1
   sw t0, 4(fp) ; up
-  ; title.e16.ts:281  const left = wrap16(x - 1)
+  ; title.e16.ts:287  const left = wrap16(x - 1)
   addi t0, s2, -1
   sw t0, 6(fp) ; left
-  ; title.e16.ts:282  const n = heapAt(x, up, c)
+  ; title.e16.ts:288  const n = heapAt(x, up, c)
   mv a0, s2
   lw a1, 4(fp)
   mv a2, s1
   call heapAt
   sw a0, 8(fp) ; n
-  ; title.e16.ts:283  const s = heapAt(x, y + 1, c)
+  ; title.e16.ts:289  const s = heapAt(x, y + 1, c)
   mv a0, s2
   addi a1, s3, 1
   mv a2, s1
   call heapAt
   sw a0, 10(fp) ; s
-  ; title.e16.ts:284  const w = heapAt(left, y, c)
+  ; title.e16.ts:290  const w = heapAt(left, y, c)
   lw a0, 6(fp)
   mv a1, s3
   mv a2, s1
   call heapAt
   sw a0, 12(fp) ; w
-  ; title.e16.ts:285  const e = heapAt(x + 1, y, c)
+  ; title.e16.ts:291  const e = heapAt(x + 1, y, c)
   addi a0, s2, 1
   mv a1, s3
   mv a2, s1
   call heapAt
   sw a0, 14(fp) ; e
-  ; title.e16.ts:286  const base = QUARTERS_TILE | (c << 10)
+  ; title.e16.ts:292  const base = QUARTERS_TILE | (c << 10)
   slli t0, s1, 10
   li t1, 159
   or t1, t1, t0
   sw t1, 0(fp) ; base
-  ; title.e16.ts:287  const at = cellAt(0, x * 2, 32 + y * 2)
+  ; title.e16.ts:293  const at = cellAt(0, x * 2, 32 + y * 2)
   slli t0, s2, 1
   slli t1, s3, 1
   li a0, 0
@@ -15018,7 +15058,7 @@ heapCell:
   addi a2, t1, 32
   call cellAt
   sw a0, 2(fp) ; at
-  ; title.e16.ts:288  vpoke(at, base + quarterOf(n, w, heapAt(left, up, c)))
+  ; title.e16.ts:294  vpoke(at, base + quarterOf(n, w, heapAt(left, up, c)))
   lw a0, 6(fp)
   lw a1, 4(fp)
   mv a2, s1
@@ -15032,7 +15072,7 @@ heapCell:
   lw a0, 2(fp)
   mv a1, t0
   call vpoke
-  ; title.e16.ts:289  vpoke(at + 2, base + 5 + quarterOf(n, e, heapAt(x + 1, up, c)))
+  ; title.e16.ts:295  vpoke(at + 2, base + 5 + quarterOf(n, e, heapAt(x + 1, up, c)))
   lw t0, 2(fp) ; at
   lw t1, 0(fp) ; base
   addi t0, t0, 2
@@ -15057,7 +15097,7 @@ heapCell:
   mv a0, t1
   mv a1, t0
   call vpoke
-  ; title.e16.ts:290  vpoke(at + 128, base + 10 + quarterOf(s, w, heapAt(left, y + 1, c)))
+  ; title.e16.ts:296  vpoke(at + 128, base + 10 + quarterOf(s, w, heapAt(left, y + 1, c)))
   lw t0, 2(fp) ; at
   lw t1, 0(fp) ; base
   addi t0, t0, 128
@@ -15082,7 +15122,7 @@ heapCell:
   mv a0, t1
   mv a1, t0
   call vpoke
-  ; title.e16.ts:291  vpoke(at + 130, base + 15 + quarterOf(s, e, heapAt(x + 1, y + 1, c)))
+  ; title.e16.ts:297  vpoke(at + 130, base + 15 + quarterOf(s, e, heapAt(x + 1, y + 1, c)))
   lw t0, 2(fp) ; at
   lw t1, 0(fp) ; base
   addi t0, t0, 130
@@ -15117,16 +15157,16 @@ heapCell:
   addi sp, sp, 26
   ret
 
-; title.e16.ts:294 quarterOf(v, h, d) at -O1
+; title.e16.ts:300 quarterOf(v, h, d) at -O1
 ;   v in a0
 ;   h in a1
 ;   d in a2
 quarterOf:
-  ; title.e16.ts:295  if (v !== 0) {
+  ; title.e16.ts:301  if (v !== 0) {
   beq a0, zero, .L1
-  ; title.e16.ts:296  if (h !== 0) return d !== 0 ? 4 : 3
+  ; title.e16.ts:302  if (h !== 0) return d !== 0 ? 4 : 3
   beq a1, zero, .L2
-  ; title.e16.ts:296  return d !== 0 ? 4 : 3
+  ; title.e16.ts:302  return d !== 0 ? 4 : 3
   beq a2, zero, .L3
   li t0, 4
   j .L4
@@ -15136,11 +15176,11 @@ quarterOf:
   mv a0, t0
   ret
 .L2:
-  ; title.e16.ts:297  return 1
+  ; title.e16.ts:303  return 1
   li a0, 1
   ret
 .L1:
-  ; title.e16.ts:299  return h !== 0 ? 2 : 0
+  ; title.e16.ts:305  return h !== 0 ? 2 : 0
   beq a1, zero, .L5
   li t0, 2
   j .L6
@@ -15174,11 +15214,11 @@ str_67:
 str_68:
   .byte 72, 79, 87, 32, 84, 79, 32, 80, 76, 65, 89, 0
 str_69:
-  .byte 68, 73, 71, 32, 65, 32, 66, 76, 79, 67, 75, 58, 32, 73, 84, 83, 32, 87, 72, 79, 76, 69, 32, 71, 82, 79, 85, 80, 32, 71, 79, 69, 83, 0
+  .byte 65, 47, 90, 32, 82, 73, 71, 72, 84, 32, 32, 89, 47, 65, 32, 76, 69, 70, 84, 32, 32, 66, 47, 88, 32, 68, 79, 87, 78, 32, 32, 88, 47, 83, 32, 85, 80, 0
 str_70:
-  .byte 87, 72, 65, 84, 32, 72, 65, 78, 71, 83, 32, 83, 72, 65, 75, 69, 83, 44, 32, 84, 72, 69, 78, 32, 70, 65, 76, 76, 83, 0
+  .byte 68, 73, 71, 32, 65, 32, 66, 76, 79, 67, 75, 58, 32, 73, 84, 83, 32, 87, 72, 79, 76, 69, 32, 71, 82, 79, 85, 80, 32, 71, 79, 69, 83, 0
 str_71:
-  .byte 52, 32, 79, 70, 32, 65, 32, 67, 79, 76, 79, 85, 82, 32, 65, 70, 84, 69, 82, 32, 65, 32, 70, 65, 76, 76, 58, 32, 67, 72, 65, 73, 78, 0
+  .byte 87, 72, 65, 84, 32, 72, 65, 78, 71, 83, 32, 70, 65, 76, 76, 83, 58, 32, 52, 32, 79, 70, 32, 65, 32, 67, 79, 76, 79, 85, 82, 32, 67, 72, 65, 73, 78, 0
 str_72:
   .byte 79, 86, 69, 82, 32, 82, 73, 86, 69, 84, 58, 32, 83, 84, 69, 80, 32, 79, 85, 84, 32, 70, 82, 79, 77, 32, 85, 78, 68, 69, 82, 0
 str_73:
@@ -15204,35 +15244,37 @@ str_82:
 str_83:
   .byte 90, 0
 str_84:
-  .byte 68, 73, 71, 32, 70, 65, 67, 73, 78, 71, 0
+  .byte 68, 73, 71, 32, 82, 73, 71, 72, 84, 0
 str_85:
-  .byte 85, 80, 47, 68, 79, 87, 78, 43, 65, 0
+  .byte 89, 0
 str_86:
-  .byte 85, 80, 47, 68, 79, 87, 78, 43, 90, 0
+  .byte 68, 73, 71, 32, 76, 69, 70, 84, 0
 str_87:
-  .byte 68, 73, 71, 32, 85, 80, 47, 68, 79, 87, 78, 0
-str_88:
   .byte 66, 0
-str_89:
+str_88:
   .byte 88, 0
-str_90:
+str_89:
   .byte 68, 73, 71, 32, 68, 79, 87, 78, 0
+str_90:
+  .byte 83, 0
 str_91:
-  .byte 83, 84, 65, 82, 84, 0
+  .byte 68, 73, 71, 32, 85, 80, 0
 str_92:
-  .byte 69, 78, 84, 69, 82, 0
+  .byte 83, 84, 65, 82, 84, 0
 str_93:
-  .byte 80, 65, 85, 83, 69, 0
+  .byte 69, 78, 84, 69, 82, 0
 str_94:
-  .byte 72, 79, 76, 68, 32, 60, 32, 79, 82, 32, 62, 32, 79, 78, 32, 65, 32, 83, 84, 69, 80, 32, 84, 79, 32, 67, 76, 73, 77, 66, 32, 73, 84, 46, 0
+  .byte 80, 65, 85, 83, 69, 0
 str_95:
-  .byte 72, 79, 76, 68, 32, 65, 32, 79, 82, 32, 66, 32, 84, 79, 32, 75, 69, 69, 80, 32, 68, 73, 71, 71, 73, 78, 71, 46, 0
+  .byte 72, 79, 76, 68, 32, 60, 32, 79, 82, 32, 62, 32, 79, 78, 32, 65, 32, 83, 84, 69, 80, 32, 84, 79, 32, 67, 76, 73, 77, 66, 32, 73, 84, 46, 0
 str_96:
-  .byte 87, 72, 69, 78, 0
+  .byte 72, 79, 76, 68, 32, 65, 32, 68, 73, 71, 32, 66, 85, 84, 84, 79, 78, 32, 84, 79, 32, 75, 69, 69, 80, 32, 68, 73, 71, 71, 73, 78, 71, 46, 0
 str_97:
-  .byte 83, 72, 79, 87, 83, 44, 32, 83, 84, 69, 80, 32, 79, 85, 84, 32, 70, 82, 79, 77, 32, 85, 78, 68, 69, 82, 46, 0
+  .byte 87, 72, 69, 78, 0
 str_98:
-  .byte 80, 82, 69, 83, 83, 32, 65, 32, 79, 82, 32, 83, 84, 65, 82, 84, 0
+  .byte 83, 72, 79, 87, 83, 44, 32, 83, 84, 69, 80, 32, 79, 85, 84, 32, 70, 82, 79, 77, 32, 85, 78, 68, 69, 82, 46, 0
 str_99:
+  .byte 80, 82, 69, 83, 83, 32, 65, 32, 79, 82, 32, 83, 84, 65, 82, 84, 0
+str_100:
   .byte 45, 0
   .align 2

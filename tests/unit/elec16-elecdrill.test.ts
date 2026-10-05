@@ -219,10 +219,13 @@ describe('ELECDRILL played', () => {
     expect(read(m, 'controlsUp')).toBe(1)
     expect(rowText(m, 5).replace(/\s+/g, ' ').trim()).toBe('PAD PC KEY ACTION')
     expect(rowText(m, 8).replace(/\s+/g, ' ').trim()).toBe('D-PAD < > ARROW < > WALK')
-    expect(rowText(m, 10).replace(/\s+/g, ' ').trim()).toBe('A Z DIG FACING')
-    expect(rowText(m, 12).replace(/\s+/g, ' ').trim()).toBe('UP/DOWN+A UP/DOWN+Z DIG UP/DOWN')
+    // The face buttons dig the way they sit on the pad; their PC keys beside them.
+    expect(rowText(m, 10).replace(/\s+/g, ' ').trim()).toBe('A Z DIG RIGHT')
+    expect(rowText(m, 12).replace(/\s+/g, ' ').trim()).toBe('Y A DIG LEFT')
     expect(rowText(m, 14).replace(/\s+/g, ' ').trim()).toBe('B X DIG DOWN')
-    expect(rowText(m, 16).replace(/\s+/g, ' ').trim()).toBe('START ENTER PAUSE')
+    expect(rowText(m, 16).replace(/\s+/g, ' ').trim()).toBe('X S DIG UP')
+    expect(rowText(m, 18).replace(/\s+/g, ' ').trim()).toBe('START ENTER PAUSE')
+    expect(rowText(m, 23)).toContain('HOLD A DIG BUTTON TO KEEP DIGGING.')
     frames(m, 120, cart)
     // It waits there for A or START.
     expect(read(m, 'controlsUp')).toBe(1)
@@ -236,6 +239,83 @@ describe('ELECDRILL played', () => {
     const tiles = m.state.video?.mem ?? new Uint8Array()
     const map = 0x8000 + ((6 & 31) << 8) + 22 + 4 * 4
     expect(tiles[map] ?? 0).not.toBe(0)
+  })
+
+  it('passes the title and the controls with A as well as START', () => {
+    const m = startGame(cart)
+    frames(m, 60, cart)
+    press(m, padBit('a'), 10)
+    expect(read(m, 'controlsUp')).toBe(1)
+    press(m, padBit('a'), 30)
+    expect(read(m, 'controlsUp')).toBe(0)
+    expect(read(m, 'pState')).toBe(P.stand)
+  })
+
+  /**
+   * One block on each side of the driller at (4, 8): yellow on its left, red on its right, the
+   * green row over its head (held up by both), blue under its feet.
+   */
+  const AROUND = [EMPTY, 'GGGGGGGGG', '...Y.R...', 'GGGGBGGGG', ...FLOOR]
+  const sides = (m: Elec16) => ({
+    left: cell(m, 3, 8),
+    right: cell(m, 5, 8),
+    up: cell(m, 4, 7),
+    down: cell(m, 4, 9),
+  })
+  const WHOLE = { left: KIND.Y, right: KIND.R, up: KIND.G, down: KIND.B }
+
+  it('digs the way each face button sits on the pad, whichever way the driller faced', () => {
+    // User decision 2026-10-05: A (right of the diamond) digs right, Y (left) left, B (bottom)
+    // down, X (top) up; a side dug sideways turns the driller to it.
+    const ways = [
+      ['a', 'right', 0],
+      ['y', 'left', 1],
+      ['b', 'down', -1],
+      ['x', 'up', -1],
+    ] as const
+    for (const [button, side, faces] of ways) {
+      for (const face of [0, 1]) {
+        const m = playing()
+        lay(m, 6, AROUND)
+        place(m, 4, 8)
+        put(m, 'pFace', face)
+        press(m, padBit(button), 30)
+        const what = `${button} facing ${face === 0 ? 'right' : 'left'}`
+        expect(sides(m), what).toEqual({ ...WHOLE, [side]: 0 })
+        expect(read(m, 'pFace'), what).toBe(faces < 0 ? face : faces)
+        expect(m.state.halt).toBeNull()
+      }
+    }
+  })
+
+  it('no longer digs up with UP and A: A digs right, and up is left whole', () => {
+    const m = playing()
+    lay(m, 6, AROUND)
+    place(m, 4, 8)
+    put(m, 'pFace', 1)
+    press(m, padBit('a') | padBit('up'), 30)
+    expect(sides(m)).toEqual({ ...WHOLE, right: 0 })
+    // Nor does DOWN and A dig down.
+    const n = playing()
+    lay(n, 6, AROUND)
+    place(n, 4, 8)
+    press(n, padBit('a') | padBit('down'), 30)
+    expect(sides(n)).toEqual({ ...WHOLE, right: 0 })
+  })
+
+  it('digs on while a face button is held, the same way', () => {
+    const m = playing()
+    lay(m, 6, [EMPTY, EMPTY, '.....RYGB', 'GGGGGGGGG', ...FLOOR])
+    place(m, 4, 8)
+    m.pad(padBit('a'))
+    frames(m, 40, cart)
+    m.pad(0)
+    frames(m, 30, cart)
+    // The red dug, the driller walked nowhere (A does not walk), and the yellow behind it was
+    // not reached: an empty cell is dug at, not walked into.
+    expect(cell(m, 5, 8)).toBe(0)
+    expect(read(m, 'pCol')).toBe(4)
+    expect(cell(m, 6, 8)).toBe(KIND.Y)
   })
 
   it('digs a whole group of a colour at once, and the driller drops into the hole', () => {
@@ -257,8 +337,7 @@ describe('ELECDRILL played', () => {
     const m = playing()
     lay(m, 6, [EMPTY, EMPTY, '...Y.....', '...B.....', 'YYYYGGGGG', ...FLOOR])
     place(m, 4, 9)
-    put(m, 'pFace', 1)
-    press(m, padBit('a'), 0)
+    press(m, padBit('y'), 0)
     frames(m, 8, cart)
     // The yellow came loose and wobbles where it was; beside the driller, no warning.
     expect(cell(m, 3, 8) & 0x8f).toBe(0x82)
@@ -280,8 +359,7 @@ describe('ELECDRILL played', () => {
     const m = playing()
     lay(m, 6, [EMPTY, '...R.....', '...Y.....', '...B.....', 'YYYYGGGGG', 'RRRRGGGGG', ...FLOOR])
     place(m, 4, 9)
-    put(m, 'pFace', 1)
-    press(m, padBit('a'), 0)
+    press(m, padBit('y'), 0)
     // Wobble, fall, land, vanish (yellow), fall again, land, vanish (red).
     frames(m, 260, cart)
     expect(read(m, 'maxChain')).toBe(2)
@@ -295,9 +373,9 @@ describe('ELECDRILL played', () => {
     const m = playing()
     lay(m, 6, ['....R....', '....B....', EMPTY, 'GGGGGGGGG', ...FLOOR])
     place(m, 4, 8)
-    // Drill up: the blue overhead goes, and the red above it comes down on the driller. Over
+    // Drill up (X): the blue overhead goes, and the red above it comes down on the driller. Over
     // its head the warning shows while the red wobbles (1), and quickens as it falls (2).
-    m.pad(padBit('a') | padBit('up'))
+    m.pad(padBit('x'))
     frames(m, 3, cart)
     m.pad(0)
     const warned = new Set<number>()
@@ -322,7 +400,7 @@ describe('ELECDRILL played', () => {
     const m = playing()
     lay(m, 6, ['....R....', '....B....', EMPTY, 'GGGGGGGGG', ...FLOOR])
     place(m, 4, 8)
-    m.pad(padBit('a') | padBit('up'))
+    m.pad(padBit('x'))
     frames(m, 3, cart)
     m.pad(padBit('right'))
     frames(m, 20, cart)
@@ -490,7 +568,8 @@ describe('ELECDRILL title and difficulties', () => {
     expect(rowText(m, 15)).toContain('BEST DRILLERS')
     frames(m, 300, cart)
     expect(rowText(m, 15)).toContain('HOW TO PLAY')
-    expect(rowText(m, 17)).toContain('DIG A BLOCK: ITS WHOLE GROUP GOES')
+    expect(rowText(m, 17)).toContain('A/Z RIGHT  Y/A LEFT  B/X DOWN  X/S UP')
+    expect(rowText(m, 19)).toContain('DIG A BLOCK: ITS WHOLE GROUP GOES')
     expect(rowText(m, 23)).toContain('OVER RIVET: STEP OUT FROM UNDER')
     expect(rowText(m, 27)).toContain('REACH THE CORE AT 500 M')
     frames(m, 300, cart)
@@ -641,8 +720,7 @@ describe('ELECDRILL telling the player', () => {
     const m = playing()
     lay(m, 6, [EMPTY, EMPTY, '...Y.....', '...B.....', 'YYYYGGGGG', ...FLOOR])
     place(m, 4, 9)
-    put(m, 'pFace', 1)
-    press(m, padBit('a'), 0)
+    press(m, padBit('y'), 0)
     let grit = 0
     for (let k = 0; k < 40; k++) {
       frames(m, 1, cart)
@@ -672,7 +750,7 @@ describe('ELECDRILL within its frames', () => {
     // Safe from what falls on it, so the whole collapse is seen through.
     put(m, 'pSafe', 2000)
     frames(m, 40, cart)
-    press(m, padBit('a') | padBit('up'), 0)
+    press(m, padBit('x'), 0)
     let worst = 0
     let sum = 0
     let most = 0
@@ -700,7 +778,7 @@ describe('ELECDRILL within its frames', () => {
       s = (s * 1103515245 + 12345) & 0x7fffffff
       return s / 0x7fffffff
     }
-    const moves = ['b', 'left', 'right', 'a', 'b', 'down', '']
+    const moves = ['b', 'left', 'right', 'a', 'b', 'down', 'y', '']
     let worst = 0
     for (let k = 0; k < 120; k++) {
       put(m, 'lives', 3)

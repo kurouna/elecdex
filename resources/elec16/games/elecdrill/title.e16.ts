@@ -142,12 +142,15 @@ function levelWord(l: u16, x: u16, n: u16, s: u16): void {
   say(x + n, 12, str('<'), W_GOLD)
 }
 
-/** How to play: the rules in a few lines. */
+/**
+ * How to play: the face buttons that dig, each beside its PC key (on the keyboard they do not
+ * sit as a diamond, so the way each digs is said), then the rules in a few lines.
+ */
 function helpShow(): void {
   say(14, 15, str('HOW TO PLAY'), W_GOLD)
-  say(3, 17, str('DIG A BLOCK: ITS WHOLE GROUP GOES'), W_WHITE)
-  say(3, 19, str('WHAT HANGS SHAKES, THEN FALLS'), W_WHITE)
-  say(3, 21, str('4 OF A COLOUR AFTER A FALL: CHAIN'), W_WHITE)
+  say(2, 17, str('A/Z RIGHT  Y/A LEFT  B/X DOWN  X/S UP'), W_GOLD)
+  say(3, 19, str('DIG A BLOCK: ITS WHOLE GROUP GOES'), W_WHITE)
+  say(2, 21, str('WHAT HANGS FALLS: 4 OF A COLOUR CHAIN'), W_WHITE)
   say(5, 23, str('OVER RIVET: STEP OUT FROM UNDER'), W_WHITE)
   say(3, 25, str('CAPSULES GIVE AIR, ALLOY COSTS IT'), W_WHITE)
   say(9, 27, str('REACH THE CORE AT 500 M'), W_GOLD)
@@ -166,23 +169,26 @@ export function controls(): void {
   say(12, 5, str('PC KEY'), W_GOLD)
   say(22, 5, str('ACTION'), W_GOLD)
   rule(6)
+  // The face buttons dig the way they sit on the pad (A right, Y left, B down, X up); the PC's
+  // keys for them are not in a diamond, so each line says its way.
   control(8, str('D-PAD < >'), str('ARROW < >'), str('WALK'))
-  control(10, str('A'), str('Z'), str('DIG FACING'))
-  control(12, str('UP/DOWN+A'), str('UP/DOWN+Z'), str('DIG UP/DOWN'))
+  control(10, str('A'), str('Z'), str('DIG RIGHT'))
+  control(12, str('Y'), str('A'), str('DIG LEFT'))
   control(14, str('B'), str('X'), str('DIG DOWN'))
-  control(16, str('START'), str('ENTER'), str('PAUSE'))
-  rule(17)
-  say(2, 19, str('HOLD < OR > ON A STEP TO CLIMB IT.'), W_WHITE)
-  say(2, 21, str('HOLD A OR B TO KEEP DIGGING.'), W_WHITE)
-  say(2, 23, str('WHEN'), W_WHITE)
-  say(9, 23, str('SHOWS, STEP OUT FROM UNDER.'), W_WHITE)
+  control(16, str('X'), str('S'), str('DIG UP'))
+  control(18, str('START'), str('ENTER'), str('PAUSE'))
+  rule(19)
+  say(2, 21, str('HOLD < OR > ON A STEP TO CLIMB IT.'), W_WHITE)
+  say(2, 23, str('HOLD A DIG BUTTON TO KEEP DIGGING.'), W_WHITE)
+  say(2, 25, str('WHEN'), W_WHITE)
+  say(9, 25, str('SHOWS, STEP OUT FROM UNDER.'), W_WHITE)
   controlsUp = 1
   let t: u16 = 0
   for (;;) {
     frameBegin()
     if ((t & 32) === 0) say(12, 27, str('PRESS A OR START'), W_GOLD)
     else unsay(12, 27, 16)
-    signAt(7, 23)
+    signAt(7, 25)
     walker(t + 100)
     if (t > 10 && pressed(B_A | B_START)) break
     t++
