@@ -54,7 +54,7 @@ ELEC-16 ペインのパネルで **TUNE** を開き、モデルの一覧から *
 
 ## 4. ゲームを差して遊ぶ
 
-1. パネルの **GAMES** を開きます。**shelf**（ゲームの棚）に、アプリに入っているゲーム（ELECLANCE、ELECAIRCOMBAT、ELECDRILL、DEMO、SCROLL）と取り込んだゲームが並びます
+1. パネルの **GAMES** を開きます。**shelf**（ゲームの棚）に、アプリに入っているゲーム（ELECLANCE、ELECAIRCOMBAT、ELECDRILL）と取り込んだゲームが並びます
 2. 遊ぶゲームを押すと、ユニットのスロットに差さります（**in the slot** に名前が出ます）。**take out** で抜きます
 3. 起動画面で **START** を押すと、ゲームを読み込んで始まります
 

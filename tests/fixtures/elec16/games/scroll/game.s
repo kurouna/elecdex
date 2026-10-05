@@ -2,7 +2,8 @@
 ; engine. A field of stars over a brick wall, scrolled sideways - the stars at half the
 ; speed, split from the wall at line 144 by the LINE interrupt - under a band that stays put
 ; (BG1), and a ship (a 16 x 16 sprite) the d-pad moves. START goes back to the start screen.
-; The tiles and palettes go to video memory by DMA from the cartridge's own ROM.
+; The tiles and palettes go to video memory by DMA from the cartridge's own ROM. Built by the
+; tests (shared/elec16/cart-build.ts): a test cartridge, not on the shelf since 2026-10-06.
 
   .include "io.inc"
 

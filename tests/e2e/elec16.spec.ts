@@ -2,6 +2,7 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } 
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
+import { buildGame } from '../../src/shared/elec16/cart-build.js'
 import { atDesignSize, launch, powerNote, settleLayout } from './support.js'
 
 /**
@@ -722,6 +723,32 @@ test("the dots' shadows follow the dots after the window was too small to draw t
 const playLines = async (page: Page): Promise<string[]> =>
   (await lcdLines(page)).map((l) => l.trim())
 
+/**
+ * A test cartridge (tests/fixtures/elec16/games: DEMO, SCROLL - not on the shelf since
+ * 2026-10-06) built as gen:elec16 builds an assembly game and written to an .e16g in `dir`.
+ */
+function testCartridge(name: string, dir: string): string {
+  const at = path.join(process.cwd(), 'tests', 'fixtures', 'elec16', 'games', name)
+  const made = buildGame(
+    readFileSync(path.join(at, 'game.s'), 'utf8'),
+    JSON.parse(readFileSync(path.join(at, 'game.json'), 'utf8')),
+    (file) => (existsSync(path.join(at, file)) ? readFileSync(path.join(at, file), 'utf8') : null),
+  )
+  if ('errors' in made) throw new Error(JSON.stringify(made.errors))
+  const file = path.join(dir, `${name}.e16g`)
+  writeFileSync(file, made.image)
+  return file
+}
+
+/** A test cartridge put on the shelf through GAMES' import, main's picker answered with it. */
+async function importCartridge(app: ElectronApplication, page: Page, name: string, dir: string) {
+  const file = testCartridge(name, dir)
+  await app.evaluate(({ dialog }, answer) => {
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [answer] })) as never
+  }, file)
+  await page.getByTestId('elec16-game-import').click()
+}
+
 test('TUNE makes the unit PLAY-320: its start screen alone, its extended RAM, CODE run on it, and back with RAM cleared', async () => {
   // docs/elec16-play.md, G2: the PLAY ROM's start screen, no FILES and no auto power-off,
   // extended RAM in TUNE and MEM, CODE's RUN calling the program itself.
@@ -839,14 +866,17 @@ test("PLAY-320's body: its buttons pressed from the keys, the pointer and a prog
   }
 })
 
-test("PLAY-320's cartridge: GAMES puts the demo in, START plays it, and it goes on after a restart", async () => {
+test("PLAY-320's cartridge: GAMES puts a game in, START plays it, it goes on after a restart, and one gone from the shelf leaves the slot empty", async () => {
   // docs/elec16-play.md section 7, G4: the shelf, the slot, CART through LINK (on by default),
-  // the ROM put back after a restore, and the slot emptied by GAMES.
-  test.setTimeout(240_000)
+  // the ROM put back after a restore, and the slot emptied by GAMES. The game is the test
+  // cartridge DEMO, imported: a game in a unit's slot that later leaves the shelf (as DEMO
+  // itself did on 2026-10-06) leaves the slot empty, the machine at its start screen.
+  test.setTimeout(300_000)
   const first = await launch(undefined, { layout: BESIDE_CLOCK })
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-cart-'))
   let running: Awaited<ReturnType<typeof launch>> | null = first
   try {
-    const { page } = first
+    const { app, page } = first
     await settleLayout(page)
     await booted(page)
     const tab = (name: string) =>
@@ -857,6 +887,11 @@ test("PLAY-320's cartridge: GAMES puts the demo in, START plays it, and it goes 
     await expect(tab('files')).toHaveCount(0)
     await tab('games').click()
     await expect(page.getByTestId('elec16-game-slot')).toHaveText('empty')
+    // Only the real games come with the app; the test cartridge is imported.
+    await expect(page.locator('[data-testid=elec16-game][data-game=ELECLANCE]')).toHaveCount(1)
+    await expect(page.locator('[data-testid=elec16-game][data-game=DEMO]')).toHaveCount(0)
+    await expect(page.locator('[data-testid=elec16-game][data-game=SCROLL]')).toHaveCount(0)
+    await importCartridge(app, page, 'demo', outside)
     await page.locator('[data-testid=elec16-game][data-game=DEMO]').click()
     await expect(page.getByTestId('elec16-game-slot')).toHaveText('ELEC-16 PLAY DEMO')
     // Put in, the start screen names it (a person's press: CART is asked).
@@ -897,8 +932,42 @@ test("PLAY-320's cartridge: GAMES puts the demo in, START plays it, and it goes 
       .click()
     await again.page.getByTestId('elec16-reset').click()
     await expect.poll(() => playLines(again.page)).toContain('LINK CART IS OFF')
+
+    // CART on again and the game playing; then, with the app closed, the game leaves the
+    // shelf. The unit still names it in its slot: the pane puts no ROM back, the machine
+    // goes to its start screen, START finds no cartridge and GAMES shows the slot empty.
+    await again.page
+      .locator('[data-testid=elec16-link-service][data-service=cart][data-on=true]')
+      .click()
+    await again.page.getByTestId('elec16-reset').click()
+    await again.page.getByTestId('elec16').focus()
+    await expect
+      .poll(async () => {
+        if ((await playLines(again.page)).includes('D-PAD MOVES  A COLOUR  START ENDS')) return true
+        await again.page.keyboard.press('Enter')
+        return false
+      })
+      .toBe(true)
+    running = null
+    await again.quit()
+    writeFileSync(
+      path.join(first.userData, 'elec16', 'games', 'library.json'),
+      JSON.stringify({ version: 1, games: [] }),
+    )
+    const gone = await launch(first.userData)
+    running = gone
+    await settleLayout(gone.page)
+    await expect.poll(() => playLines(gone.page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    expect(await playLines(gone.page)).not.toContain('D-PAD MOVES  A COLOUR  START ENDS')
+    await gone.page.getByTestId('elec16').focus()
+    await gone.page.keyboard.press('Enter')
+    await expect.poll(() => playLines(gone.page)).toContain('NO CARTRIDGE')
+    await gone.page.getByTestId('elec16-tab').and(gone.page.locator('[data-tab=games]')).click()
+    await expect(gone.page.getByTestId('elec16-game-slot')).toHaveText('empty')
+    await expect(gone.page.locator('[data-testid=elec16-game][data-game=DEMO]')).toHaveCount(0)
   } finally {
     await running?.close()
+    rmSync(outside, { recursive: true, force: true })
   }
 })
 
@@ -1071,9 +1140,11 @@ test("PLAY-320's DEVELOP builds ELECLANCE's own folder exactly as npm run gen:el
 
 test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with the d-pad", async () => {
   // docs/elec16-play.md section 4, G5: the tile engine drawn by the page, at the machine's
-  // own resolution - a dot of the canvas read back to see the ship move.
+  // own resolution - a dot of the canvas read back to see the ship move. SCROLL is a test
+  // cartridge (tests/fixtures/elec16/games), imported through GAMES.
   test.setTimeout(180_000)
-  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  const outside = mkdtempSync(path.join(tmpdir(), 'elecdex-elec16-cart-'))
   try {
     await settleLayout(page)
     await booted(page)
@@ -1084,6 +1155,7 @@ test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with
     await page.locator('[data-testid=elec16-play-body-mode][data-body=screen]').click()
     await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
     await tab('games').click()
+    await importCartridge(app, page, 'scroll', outside)
     await page.locator('[data-testid=elec16-game][data-game=SCROLL]').click()
     await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY SCROLL')
     await page.getByTestId('elec16').focus()
@@ -1113,5 +1185,6 @@ test("PLAY-320's mode 1: SCROLL draws its tiles and sprite, the ship moving with
     await expect.poll(() => playLines(page)).toContain('PRESS START')
   } finally {
     await close()
+    rmSync(outside, { recursive: true, force: true })
   }
 })

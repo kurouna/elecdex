@@ -326,9 +326,12 @@ describe('a program the pane runs', () => {
 /** What is written, each row trimmed: the start screen centres its words. */
 const lines = (m: Elec16) => written(m).map((row) => row.trim())
 
-/** A bundled game, built from its source as gen:elec16 builds it. */
+/**
+ * A test cartridge (tests/fixtures/elec16/games: DEMO and SCROLL, off the shelf since
+ * 2026-10-06), built from its source as gen:elec16 builds an assembly game.
+ */
 function game(name: string): Uint8Array {
-  const at = `resources/elec16/games/${name}/`
+  const at = `tests/fixtures/elec16/games/${name}/`
   const made = buildGame(
     readFileSync(`${at}game.s`, 'utf8'),
     JSON.parse(readFileSync(`${at}game.json`, 'utf8')),
@@ -453,21 +456,27 @@ describe('the cartridge on the start screen', () => {
   })
 })
 
-describe('the bundled demo', () => {
+describe('the test cartridge DEMO', () => {
   /** The colour of the dot at (x, y) of the bitmap. */
   const dot = (m: Elec16, x: number, y: number) =>
     ((m.state.video?.mem[y * 80 + (x >> 2)] ?? 0) >> (6 - (x & 3) * 2)) & 3
 
-  it('is what games.json holds (run npm run gen:elec16 after changing it)', () => {
+  it('builds from its fixture, and is not on the shelf (games.json holds neither test cartridge)', () => {
     const file = JSON.parse(readFileSync('resources/elec16/games/games.json', 'utf8')) as {
       games: { data: string; about: string }[]
     }
-    // The kit games between them each have a test that holds them to their sources
-    // (elec16-eleclance.test.ts and the others): these two are the assembly samples.
-    const images = file.games.map((g) => fromBase64(g.data) ?? new Uint8Array())
-    const assembly = images.filter((i) => ['DEMO', 'SCROLL'].includes(readCart(i)?.id ?? ''))
-    expect(assembly).toEqual([demo(), game('scroll')])
+    // The bundled games are the kit's, each held to its sources by a test of its own
+    // (elec16-eleclance.test.ts and the others); DEMO and SCROLL are only the tests' now.
+    const ids = file.games.map((g) => readCart(fromBase64(g.data) ?? new Uint8Array())?.id)
+    expect(ids).not.toContain('DEMO')
+    expect(ids).not.toContain('SCROLL')
+    expect(ids.length).toBeGreaterThan(0)
     expect(readCart(demo())).toMatchObject({ id: 'DEMO', name: 'ELEC-16 PLAY DEMO', saveBanks: 0 })
+    expect(readCart(game('scroll'))).toMatchObject({
+      id: 'SCROLL',
+      name: 'ELEC-16 PLAY SCROLL',
+      saveBanks: 0,
+    })
   })
 
   it('draws a square that the d-pad moves and A colours anew, and BRK stops it saying where', () => {
@@ -499,7 +508,7 @@ describe('the bundled demo', () => {
   })
 })
 
-describe('the bundled SCROLL', () => {
+describe('the test cartridge SCROLL', () => {
   /** Plays a frame, a millisecond at a time: VBLANK, the program's frame, its LINE. */
   function frame(m: Elec16): void {
     for (let ms = 0; ms < 17; ms++) {

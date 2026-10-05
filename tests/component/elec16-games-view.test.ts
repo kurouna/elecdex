@@ -5,7 +5,8 @@ import GamesView from '../../src/renderer/widgets/elec16/GamesView.svelte'
 
 /**
  * GAMES (widgets/elec16/GamesView.svelte): the shelf as main last said it - an answer to an
- * older ask, coming after a newer one, never puts back the list it replaced.
+ * older ask, coming after a newer one, never puts back the list it replaced - and a slot
+ * naming a game the shelf no longer holds shown empty.
  */
 
 const game = (id: string): Elec16Game => ({
@@ -48,5 +49,36 @@ describe('GAMES', () => {
     expect(screen.getAllByTestId('elec16-game').map((e) => e.textContent)).toEqual([
       expect.stringContaining('NEW'),
     ])
+  })
+
+  it('shows a slot naming a game no longer on the shelf as empty, with nothing to take out', async () => {
+    // A unit that had DEMO in its slot before DEMO left the shelf (2026-10-06).
+    vi.stubGlobal('elecdex', {
+      elec16: {
+        games: async () => [{ ...game('ELECLANCE'), name: 'ELECLANCE' }],
+        onGamesChange: () => () => {},
+      },
+    })
+    const dev = { status: 'idle', builds: 0, folder: null, problems: [], report: null }
+    const view = render(GamesView, {
+      inSlot: 'DEMO',
+      running: true,
+      oninsert: () => {},
+      dev: dev as never,
+    })
+    await vi.waitFor(() => expect(screen.getByTestId('elec16-game-slot').textContent).toBe('empty'))
+    expect(screen.getByTestId('elec16-game-eject')).toHaveProperty('disabled', true)
+    expect(screen.getAllByTestId('elec16-game').map((e) => e.getAttribute('aria-pressed'))).toEqual(
+      ['false'],
+    )
+    // A game the shelf has is shown by its name, and can be taken out.
+    await view.rerender({
+      inSlot: 'ELECLANCE',
+      running: true,
+      oninsert: () => {},
+      dev: dev as never,
+    })
+    expect(screen.getByTestId('elec16-game-slot').textContent).toBe('ELECLANCE')
+    expect(screen.getByTestId('elec16-game-eject')).toHaveProperty('disabled', false)
   })
 })

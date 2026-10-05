@@ -1,8 +1,8 @@
 ; DEMO, ELEC-16 PLAY's first cartridge (docs/elec16-play.md section 7): a square on mode 0's
 ; bitmap, moved by the d-pad and coloured anew by A, which also rings a note of the colour's
 ; on the sound's channel 0, placed left to right where the square is; START goes back to the
-; start screen. It waits for VBLANK each frame and reads the pad then. E16 assembly, built into a .E16G by
-; npm run gen:elec16 (shared/elec16/cart-build.ts).
+; start screen. It waits for VBLANK each frame and reads the pad then. E16 assembly, built into a .E16G
+; by the tests (shared/elec16/cart-build.ts): a test cartridge, not on the shelf since 2026-10-06.
 
   .include "io.inc"
 

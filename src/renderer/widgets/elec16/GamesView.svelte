@@ -34,7 +34,17 @@ const where = (p: { file: string; line: number }): string =>
   p.file === '' ? '' : p.line > 0 ? `${p.file}:${p.line}: ` : `${p.file}: `
 
 let games = $state<readonly Elec16Game[]>([])
+/** Whether main has answered the shelf yet: until then a game in the slot is shown by its id. */
+let loaded = $state(false)
 let problem = $state<string | null>(null)
+
+/**
+ * The game in the slot as the shelf has it. A unit may name one the shelf no longer holds (a
+ * game taken off it with the app closed, or once bundled: DEMO and SCROLL left the shelf on
+ * 2026-10-06): its slot is empty to the machine (CART answers NO CARTRIDGE), so it is shown
+ * empty here too, its id kept by main in case the same game is put on the shelf again.
+ */
+const shown = $derived(games.find((g) => g.id === inSlot))
 
 /** Counts the lists asked for: an answer to an older ask, come after a newer one, is dropped. */
 let asked = 0
@@ -42,7 +52,9 @@ let asked = 0
 async function load(): Promise<void> {
   const mine = ++asked
   const list = await window.elecdex.elec16.games()
-  if (mine === asked) games = list
+  if (mine !== asked) return
+  games = list
+  loaded = true
 }
 
 $effect(() => {
@@ -90,12 +102,12 @@ const kb = (banks: number): string => `${banks * 8} KB`
     <h3>in the slot</h3>
     <div class="chips">
       <span class="e16-chip plain" data-testid="elec16-game-slot"
-        >{games.find((g) => g.id === inSlot)?.name ?? inSlot ?? 'empty'}</span
+        >{shown?.name ?? (loaded ? 'empty' : (inSlot ?? 'empty'))}</span
       >
       <button
         type="button"
         class="e16-chip"
-        disabled={inSlot === undefined || !running}
+        disabled={(loaded ? shown === undefined : inSlot === undefined) || !running}
         onclick={() => put(null)}
         data-testid="elec16-game-eject">take out</button
       >
