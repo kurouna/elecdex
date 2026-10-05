@@ -1,7 +1,7 @@
 // ELECLANCE's effects and pickups (docs/elec16-eleclance.md section 6): explosions, debris,
 // sparks, chain numbers that float up, the stars a cancelled bullet becomes (drawn to the
 // ship), the bomb and extra-ship pickups, and the far stars behind everything.
-import { div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { div, i16, peek, str, u16, words } from '../../../../src/shared/e16c/builtins'
 import { BEHIND, rand, randBelow, S8, S16, S32, spr } from '../lib/kit.e16'
 import {
   BITS_TILE,
@@ -21,6 +21,8 @@ export const FX_BIG = 2
 export const FX_BIT = 3
 export const FX_SPARK = 4
 export const FX_NUMBER = 5
+/** A pickup's word floating up (BOMB+1, 1UP, POWER UP): `v` the pickup's kind. */
+export const FX_WORD = 6
 
 const FX_N = 32
 const fxKind = words(32)
@@ -71,6 +73,11 @@ export function floatNumber(x: i16, y: i16, n: u16): void {
   fx(FX_NUMBER, x, y, n)
 }
 
+/** What a pickup of `kind` gave, in words floating up from (x, y). */
+export function floatWord(x: i16, y: i16, kind: u16): void {
+  fx(FX_WORD, x, y, kind)
+}
+
 /** Every effect on by a frame, and drawn. */
 export function fxStep(): void {
   let k: u16 = 0
@@ -89,13 +96,19 @@ function fxOne(k: u16): void {
     fxY[k] = fxY[k] + fxVY[k]
     // Drag: the bits slow, then fall behind the scroll.
     if ((t & 3) === 0) fxVY[k] = fxVY[k] + 1
-    if (t > 36) fxKind[k] = 0
-  } else if (kind === FX_NUMBER && t > 40) fxKind[k] = 0
-  else if (kind === FX_NUMBER) fxY[k] = fxY[k] - 6
-  else if (kind === FX_SMALL && t >= 18) fxKind[k] = 0
-  else if (kind === FX_BIG && t >= 32) fxKind[k] = 0
-  else if (kind === FX_SPARK && t >= 10) fxKind[k] = 0
-  if (fxKind[k] !== 0) fxDraw(k, kind, t)
+  } else if (kind >= FX_NUMBER) fxY[k] = fxY[k] - 6
+  if (t > fxLife(kind)) fxKind[k] = 0
+  else fxDraw(k, kind, t)
+}
+
+/** How many frames an effect of `kind` lasts. */
+function fxLife(kind: u16): u16 {
+  if (kind === FX_BIT) return 36
+  if (kind === FX_WORD) return 60
+  if (kind === FX_NUMBER) return 40
+  if (kind === FX_SMALL) return 17
+  if (kind === FX_BIG) return 31
+  return 9
 }
 
 function fxDraw(k: u16, kind: u16, t: u16): void {
@@ -106,7 +119,23 @@ function fxDraw(k: u16, kind: u16, t: u16): void {
   else if (kind === FX_BIG) spr(x - 16, y - 16, (BLAST_BIG_TILE + (t >> 2) * 16) | pal, S32)
   else if (kind === FX_BIT) spr(x - 4, y - 4, (BITS_TILE + ((t >> 2) & 3)) | pal, S8)
   else if (kind === FX_SPARK) spr(x - 4, y - 4, (BITS_TILE + 4 + (t > 4 ? 1 : 0)) | pal, S8)
-  else numberDraw(x, y, (fxVX[k] << 8) | (fxVY[k] & 255))
+  else if (kind === FX_NUMBER) numberDraw(x, y, (fxVX[k] << 8) | (fxVY[k] & 255))
+  else if (t < 44 || (t & 2) !== 0) wordDraw(x, y, fxVY[k])
+}
+
+/** A pickup's word centred on (x, y), in the stars' colours. */
+function wordDraw(x: i16, y: i16, kind: u16): void {
+  const s = kind === IT_BOMB ? str('BOMB+1') : kind === IT_LIFE ? str('1UP') : str('POWER UP')
+  let n: u16 = 0
+  while (peek(s + n) !== 0) n++
+  let at = x - i16(n * 4)
+  const tile = (FONT_TILE - 32) | ((SL_ITEM - 8) << 10)
+  let k: u16 = 0
+  while (k < n) {
+    spr(at, y - 4, tile + peek(s + k), S8)
+    at = at + 8
+    k++
+  }
 }
 
 /** "x" and a chain's number in gold, centred on (x, y), blinking as it fades. */

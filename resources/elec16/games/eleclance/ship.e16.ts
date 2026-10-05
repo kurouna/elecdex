@@ -56,10 +56,10 @@ export const VOLT_FULL = 1024
 const OVERDRIVE_FRAMES = 480
 const BOMB_FRAMES = 120
 
-/** A new game: three ships, three bombs, the ship flying in. */
+/** A new game: its difficulty's ships and bombs, the ship flying in. */
 export function shipNew(): void {
-  lives = 3
-  bombs = 3
+  lives = levelLives()
+  bombs = levelBombs()
   volt = 0
   overdrive = 0
   power = 0
@@ -219,7 +219,7 @@ function deadStep(): void {
     return
   }
   lives--
-  bombs = 3
+  bombs = levelBombs()
   // A ship lost costs a level of power.
   if (power > 0) power--
   cancelAll()
@@ -290,4 +290,5 @@ export function livesAdd(): void {
 
 import { sfxBomb, sfxDie, sfxExtend, sfxOverdrive, sfxShot } from './audio.e16'
 import { foeLance, lanceVictim } from './foes.e16'
+import { levelBombs, levelLives } from './level.e16'
 import { chainFrom, missilesFire, ringDraw, ringStart, ringStep } from './weapons.e16'

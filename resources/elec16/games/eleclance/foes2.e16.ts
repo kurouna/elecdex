@@ -2,7 +2,7 @@
 // off; SERPENT, a head whose segments follow its trail and go up in a chain when it dies; and
 // SPINNER, a mine that drifts after the ship and bursts into a ring when it is shot. In
 // cartridge bank 3, with the foes' tables and everything they call in RAM.
-import { i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { type bool, i16, u16, words } from '../../../../src/shared/e16c/builtins'
 import { cos, S16, spr } from '../lib/kit.e16'
 import { PRISM_TILE, SERPENT_TILE, SPINNER_TILE } from './assets.e16'
 import { IT_STAR, item } from './fx.e16'
@@ -29,9 +29,10 @@ export function newFoeMove(k: u16, t: u16): void {
 /** A prism drops to its row, sways and fires blue fans; it leaves after ten seconds. */
 function prismMove(k: u16, t: u16): void {
   const y = i16(fY[k]) >> 4
-  fVY[k] = y < 60 + i16(fP[k]) ? 20 : t > 600 ? u16(-16) : 0
+  // Its time up, it climbs away for good: tested first, or its row would call it back down.
+  fVY[k] = t > 600 ? u16(-16) : y < 60 + i16(fP[k]) ? 20 : 0
   fVX[k] = u16((cos(t * 2) * 24) >> 8)
-  if (t % 80 === 40 && y > 30) {
+  if (t % 80 === 40 && y > 30 && t < 600) {
     fan(
       i16(fX[k]),
       i16(fY[k]),
@@ -62,7 +63,10 @@ function serpentMove(k: u16, t: u16): void {
   }
 }
 
-/** A segment sits where the head was a little while ago; with the head gone, it goes up in turn. */
+/**
+ * A segment sits where the head was a little while ago; with the head shot down, it goes up in
+ * turn; with the head gone off the screen, it falls away after it.
+ */
 function segmentMove(k: u16, t: u16): void {
   const slot = (fP[k] >> 8) & 1
   const index = fP[k] & 15
@@ -73,9 +77,18 @@ function segmentMove(k: u16, t: u16): void {
     if (t > index * 5) foeHurt(k, 999)
     return
   }
+  if ((fP[k] & 0x40) !== 0) {
+    fVY[k] = 32
+    return
+  }
   const at = (trailAt[slot] + 32 - index * SPACING) & 31
   fX[k] = trail[slot * 64 + at * 2]
   fY[k] = trail[slot * 64 + at * 2 + 1]
+}
+
+/** Whether a serpent may come: two at most, each with a trail of its own. */
+export function serpentRoom(): bool {
+  return serpentHead[0] === 0 || serpentHead[1] === 0
 }
 
 /** A serpent born at foe k: its slot, its trail all at its start, its segments behind it. */
@@ -114,13 +127,23 @@ export function newFoeDies(k: u16, kind: u16, x: i16, y: i16): void {
   }
 }
 
-/** The head is gone: its segments go up one after another. */
+/** The head is shot down: its segments go up one after another. */
 function serpentDown(slot: u16): void {
+  segmentsLet(slot, 0x80)
+}
+
+/** The head has left the screen: its segments fall away after it. */
+export function serpentGone(slot: u16): void {
+  segmentsLet(slot, 0x40)
+}
+
+/** Serpent `slot` is free again; its segments marked with `how` and their time begun again. */
+function segmentsLet(slot: u16, how: u16): void {
   serpentHead[slot] = 0
   let k: u16 = 0
   while (k < 24) {
     if (fK[k] === K_SEGMENT && fP[k] >> 8 === slot) {
-      fP[k] = fP[k] | 0x80
+      fP[k] = fP[k] | how
       fT[k] = 0
     }
     k++
@@ -150,7 +173,7 @@ export function dartMove(k: u16, t: u16): void {
     fVY[k] = 48
     fVX[k] = u16(chase(k))
   } else {
-    const away: i16 = i16(fX[k]) < targetXNow() ? -40 : 40
+    const away: i16 = i16(fX[k]) < targetX ? -40 : 40
     fVX[k] = u16(away)
     fVY[k] = 56
     if (t === 40) shootAimed(k, BK_NEEDLE, 48)
@@ -177,9 +200,9 @@ export function pikeMove(k: u16, t: u16): void {
 /** A halberd descends, strafes, fires pink fans and amber bursts, and leaves late. */
 export function halberdMove(k: u16, t: u16): void {
   const y = i16(fY[k]) >> 4
-  fVY[k] = y < 70 ? 20 : t > 640 ? u16(-16) : 0
+  fVY[k] = t > 640 ? u16(-16) : y < 70 ? 20 : 0
   fVX[k] = u16((t & 128) !== 0 ? 8 : -8)
-  if (y < 60) return
+  if (y < 60 || t > 640) return
   if (t % 60 === 0) fan(i16(fX[k]), i16(fY[k]) + 160, 64, fanOf(5 + (rank >> 2), 12, 36, BK_PINK))
   if (t % 60 === 30) {
     const a = aimed(i16(fX[k]), i16(fY[k]))
@@ -188,23 +211,28 @@ export function halberdMove(k: u16, t: u16): void {
   }
 }
 
-/** A warden settles high, rings bullets out and lets motes loose from its bay. */
+/** A warden settles high, rings bullets out and lets motes loose from its bay, and leaves late. */
 export function wardenMove(k: u16, t: u16): void {
   const y = i16(fY[k]) >> 4
-  fVY[k] = y < 50 ? 16 : t > 760 ? u16(-12) : 0
-  if (y < 40) return
+  fVY[k] = t > 760 ? u16(-12) : y < 50 ? 16 : 0
+  if (y < 40 || t > 760) return
   if (t % 90 === 0) ring(i16(fX[k]), i16(fY[k]), t & 255, ringOf(12 + rank, 24, BK_ORB))
   if (t % 80 === 40) foe(K_MOTE, i16(fX[k] >> 4), i16(fY[k] >> 4) + 8, 0)
 }
 
-/** A speed toward the ship's x, a fifth of the way a frame... softened. */
+/** A speed toward the ship's x: a thirty-second of the way a frame. */
 function chase(k: u16): i16 {
-  const d = targetXNow() - i16(fX[k])
-  return d >> 5
+  return (targetX - i16(fX[k])) >> 5
 }
 
-function targetXNow(): i16 {
-  return targetX
+/**
+ * Whether a heavy foe is about to loose its big volley (the frames before a halberd's pink fan,
+ * a warden's ring, a prism's blue fan): it blinks white as a warning.
+ */
+export function foeCharging(kind: u16, t: u16): bool {
+  if (kind === K_HALBERD) return t % 60 >= 46 && t < 640
+  if (kind === K_WARDEN) return t % 90 >= 70 && t < 760
+  return t % 80 >= 26 && t % 80 < 40 && t < 600
 }
 
 /** An aimed bullet from the foe. */
@@ -241,11 +269,13 @@ import {
   fVY,
   fX,
   fY,
+  K_HALBERD,
   K_MOTE,
   K_PRISM,
   K_SEGMENT,
   K_SERPENT,
   K_SPINNER,
+  K_WARDEN,
   rank,
 } from './foes.e16'
 import { BK_AMBER, BK_NEEDLE, BK_ORB, bullet, sk, targetX } from './shots.e16'

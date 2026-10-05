@@ -1,14 +1,13 @@
 // ELECLANCE's screen (docs/elec16-eleclance.md section 2): palettes into their slots, the stage
 // streamed into BG0 a row at a time as it scrolls, the panels and the score line on BG1, the
 // raster wave and the shake.
-import { type bool, i16, poke16, u16, wrap16 } from '../../../../src/shared/e16c/builtins'
+import { type bool, div, i16, poke16, u16, wrap16 } from '../../../../src/shared/e16c/builtins'
 import {
   BG0X,
   BG0Y,
   BG1X,
   BG1Y,
   cellAt,
-  colour,
   LAYERS,
   load,
   mapRow,
@@ -22,6 +21,7 @@ import {
   text,
   VCTRL,
   vfill,
+  WINDOW,
 } from '../lib/kit.e16'
 import {
   FONT_TILE,
@@ -49,6 +49,7 @@ import {
   PANELS_TILES_BYTES,
   STAGE_H,
   STAGE_MAP_BANK,
+  STAGE_ROWS_PER_BANK,
   STAGE_TILE,
   STAGE_TILES_AT,
   STAGE_TILES_BANK,
@@ -76,7 +77,11 @@ export const SL_FLASH = 15
 /** The field: 224 points from x 48, the panels either side. */
 export const FIELD_X = 48
 export const FIELD_W = 224
-export const FIELD_H = 288
+
+/** A map picture's row in the cartridge: always 64 cells, 128 bytes. */
+export const MAP_ROW = 128
+/** The frame count the kit's runtime keeps (runtime.s's RT_FRAME). */
+export const RT_FRAME = 0x0202
 
 /** Every palette into its slot, and kept for flashes and fades. */
 export function palettesIn(): void {
@@ -129,7 +134,7 @@ export function bgTilesIn(): void {
 export function panelsIn(): void {
   let y: u16 = 0
   while (y < PANELS_H) {
-    mapRow(PANELS_MAP_BANK, 0xc000 + y * 128, 1, y)
+    mapRow(PANELS_MAP_BANK, WINDOW + y * MAP_ROW, 1, y)
     y++
   }
 }
@@ -163,8 +168,8 @@ function sourceRow(r: u16): u16 {
 /** One stage row into BG0 at its place for logical row `r`. */
 function stageRow(r: u16): void {
   const src = sourceRow(r)
-  const b = STAGE_MAP_BANK + (src >> 6)
-  mapRow(b, 0xc000 + (src & 63) * 128, 0, r & 63)
+  const b = STAGE_MAP_BANK + div(src, STAGE_ROWS_PER_BANK)
+  mapRow(b, WINDOW + (src % STAGE_ROWS_PER_BANK) * MAP_ROW, 0, r & 63)
 }
 
 /** The stage from its start: BG0 filled with the first screen and the rows just above it. */
@@ -228,10 +233,11 @@ let shakeLeft: u16 = 0
 let shakeX: i16 = 0
 let shakeY: i16 = 0
 
+/** BG0's scroll for the frame; while the wave is on, its table carries the side to side. */
 export function stageScroll(): void {
   const y = wrap16(STAGE_H * 8 - 288 - scrolled)
   poke16(BG0Y, (y + u16(shakeY)) & 511)
-  poke16(BG0X, u16(sway + shakeX) & 511)
+  if (waveLeft === 0) poke16(BG0X, u16(sway + shakeX) & 511)
 }
 
 /** The background leans with the ship: `shipX` its x on the screen. */
@@ -293,28 +299,43 @@ let waveLeft: u16 = 0
 let wavePhase: u16 = 0
 let waveSize: u16 = 0
 
-/** Heat in the air for `frames` frames: BG0 waves side to side by up to `size` points. */
+/**
+ * Heat in the air for `frames` frames: BG0 waves side to side by up to `size` points (at most
+ * 127). The table is filled at once, so the first frame's first band is the wave's too.
+ */
 export function wave(frames: u16, size: u16): void {
   waveLeft = frames
   waveSize = size
+  waveFill()
   raster(1)
 }
 
-/** Fills the raster table for the next frame, or stops it when the wave is spent. */
+/** The wave on by a frame: its table filled for the bands to come, or stopped when it is spent. */
 export function waveStep(): void {
-  const base = u16(sway + shakeX) & 511
   if (waveLeft === 0) return
   waveLeft--
   wavePhase = wavePhase + 5
-  const fade = waveLeft < 16 ? waveLeft : 16
+  if (waveLeft === 0) {
+    raster(0)
+    return
+  }
+  waveFill()
+}
+
+/**
+ * Every band's BG0X: the field's sway and shake, and the wave fading over its last 16 frames.
+ * A sine (to 256) times the size is scaled down before the fade multiplies it: both within a word.
+ */
+function waveFill(): void {
+  const base = u16(sway + shakeX) & 511
+  const fade = i16(waveLeft < 16 ? waveLeft : 16)
   let k: u16 = 0
   while (k < RASTER_BANDS) {
     const s = sin(wavePhase + k * 14)
-    const off = (s * i16(waveSize * fade)) >> 12
+    const off = (((s * i16(waveSize)) >> 4) * fade) >> 8
     poke16(RASTER + k * 2, (base + u16(off)) & 511)
     k++
   }
-  if (waveLeft === 0) raster(0)
 }
 
 /* ---------------- words on BG1 ---------------- */
@@ -338,17 +359,7 @@ export function fieldClear(): void {
   }
 }
 
-/** A colour of a slot set straight (a lamp, a flash). */
-export function tint(s: u16, k: u16, rgb: u16): void {
-  colour(s, k, rgb)
-}
-
 /** Whether the stage's logical top has reached picture row `row` (an event's place). */
 export function reached(row: u16): bool {
   return i16(wrap16(logicalTop - row)) <= 0
-}
-
-/** The logical top row now. */
-export function topRow(): u16 {
-  return logicalTop
 }

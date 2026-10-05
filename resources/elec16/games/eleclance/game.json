@@ -9,6 +9,7 @@
     "shots.e16.ts",
     "ship.e16.ts",
     "foes.e16.ts",
+    "level.e16.ts",
     {
       "file": "boss.e16.ts",
       "bank": 1
@@ -31,6 +32,14 @@
     {
       "file": "best.e16.ts",
       "bank": 2
+    },
+    {
+      "file": "title.e16.ts",
+      "bank": 4
+    },
+    {
+      "file": "round.e16.ts",
+      "bank": 4
     }
   ],
   "palettes": {
@@ -316,6 +325,10 @@
     {
       "name": "stage_script",
       "file": "stage.txt"
+    },
+    {
+      "name": "difficulty",
+      "file": "difficulty.txt"
     }
   ]
 }

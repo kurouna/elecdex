@@ -97,9 +97,10 @@ function open(k: u16): bool {
   return true
 }
 
-/** One frame of the boss. */
+/** One frame of the boss: what it fires goes by the difficulty's share for a boss. */
 export function bossStep(): void {
   if (bossOn === B_NONE || bossPhase >= 10) return
+  levelBoss(1)
   bT++
   if (bossPhase === 0) {
     bY = bY + 24
@@ -110,11 +111,13 @@ export function bossStep(): void {
   } else if (bossPhase >= 9) dying()
   else if (bossOn === B_BASTION) bastionStep()
   else zenithStep()
+  levelBoss(0)
   bossDraw()
 }
 
+/** Side to side by `size` sixteenths: scaled down first, so sin times size keeps to a word. */
 function bossSway(size: i16): void {
-  bX = (48 + 112) * 16 + ((sin(bT) * size) >> 8)
+  bX = (48 + 112) * 16 + ((sin(bT) * (size >> 4)) >> 4)
 }
 
 function bastionStep(): void {
@@ -176,7 +179,7 @@ function zenithSpiral(): void {
     bossPhase = 2
     shake(20)
     wave(60, 6)
-    sfxBossPhase()
+    sfxPart()
   }
   spin = spin + 5
   const y = bY + 16 * 16
@@ -193,7 +196,7 @@ function zenithBurning(): void {
     bossPhase = 3
     shake(30)
     wave(90, 10)
-    sfxBossPhase()
+    sfxPart()
   }
   spin = spin + 11
   const y = bY + 16 * 16
@@ -299,7 +302,7 @@ function hurtPart(k: u16, damage: u16, byLance: bool): void {
   if (k !== 0) {
     burst(bX + i16(PX[k]) * 16, bY + i16(PY[k]) * 16, 1)
     shake(16)
-    bossPartDown()
+    sfxPart()
     // An arm or a cannon: 10,000 points.
     points(1000)
   }
@@ -317,12 +320,24 @@ function bossDraw(): void {
 }
 
 function pal(k: u16, dying_: bool): u16 {
-  let f = false
+  let f = (bT & 2) !== 0 && bossCharging(k)
   if (flash[k] > 0) {
     flash[k] = flash[k] - 1
     f = true
   }
   return ((f || dying_ ? SL_FLASH : SL_HEAVY) - 8) << 10
+}
+
+/**
+ * Whether part `k` is about to loose a big volley - BASTION's ring of orbs from the core, a
+ * cannon's wide blue fan, ZENITH's slow orbs: it blinks white the frames before, as a warning.
+ */
+function bossCharging(k: u16): bool {
+  if (bossPhase !== 1 && bossPhase !== 2) return false
+  if (bossOn === B_BASTION)
+    return k === 0 && life[1] + life[2] !== 0 && bT % 120 >= 44 && bT % 120 < 60
+  if (k !== 0) return (bT + k * 25) % 100 >= 54 && (bT + k * 25) % 100 < 70
+  return bossPhase === 2 && bT % 90 >= 74
 }
 
 function bastionDraw(x: i16, y: i16, dying_: bool): void {
@@ -354,11 +369,5 @@ function zenithDraw(x: i16, y: i16, dying_: bool): void {
   spr(x + 32, y + 16, (ZENITH_TILE + 144 + right) | pal(2, dying_) | FLIP_H, S32)
 }
 
-/** The boss's life for the gauge: 0-64, the core's share. */
-export function bossGauge(): u16 {
-  if (bossOn === B_NONE) return 0
-  const full: u16 = bossOn === B_BASTION ? 320 : 560
-  return div(life[0] * 64, full)
-}
-
-import { bossPartDown, sfxBossDown, sfxBossPhase } from './audio.e16'
+import { sfxBossDown, sfxPart } from './audio.e16'
+import { levelBoss } from './level.e16'

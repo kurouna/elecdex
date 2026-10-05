@@ -1,83 +1,50 @@
-// ELECLANCE's scenes round the play (docs/elec16-eleclance.md): the title, the warning, the
-// pause, the tally, the game's end and the name for the best five. Kept in cartridge bank 2,
+// ELECLANCE's scenes round the play (docs/elec16-eleclance.md): the panels' labels, the warning,
+// the pause, the tally, the game's end and the name for the best five. Kept in cartridge bank 2,
 // out of RAM's room: they run seldom, and reach everything in RAM through far_call's return.
-import { div, peek16, poke16, str, type u16 } from '../../../../src/shared/e16c/builtins'
+import { div, str, type u16, words } from '../../../../src/shared/e16c/builtins'
 import {
   B_A,
   B_DOWN,
   B_START,
   B_UP,
-  BG1Y,
   cellAt,
   frame_wait,
+  number,
   padRead,
   palMix,
   pressed,
-  randSeed,
   vpoke,
 } from '../lib/kit.e16'
 import { soundMaster } from '../lib/sound.e16'
-import { M_CLEAR, M_ENTRY, M_OVER, M_TITLE, music, sfxSelect, sfxSiren } from './audio.e16'
-import { farStarsStep, fxStep } from './fx.e16'
-import { font, hudStep, maxChain, points, skims } from './score.e16'
+import { M_CLEAR, M_ENTRY, M_OVER, music, sfxSelect, sfxSiren } from './audio.e16'
+import { fxStep } from './fx.e16'
+import { LV_EASY, LV_HARD, level } from './level.e16'
+import { DIGITS, font, hudReset, hudStep, maxChain, points, skims } from './score.e16'
 import { bombs, lives } from './ship.e16'
-import {
-  fieldClear,
-  mapsClear,
-  palettesIn,
-  SL_GOLD,
-  SL_RED,
-  SL_TEXT,
-  say,
-  shake,
-  shakeStep,
-  stageSpeed,
-  stageStart,
-  stageStep,
-  unsay,
-  wave,
-} from './view.e16'
+import { fieldClear, palettesIn, SL_GOLD, SL_RED, SL_TEXT, say, unsay } from './view.e16'
 
-/* ---------------- the title ---------------- */
+/* ---------------- the panels ---------------- */
 
-export function title(): void {
-  mapsClear()
-  stageStart()
-  stageSpeed(4)
-  logoIn()
-  music(M_TITLE)
-  tableShow(22)
-  say(10, 34, str('(C) ELECXZY PROJECT'), SL_TEXT)
-  let t: u16 = 0
-  for (;;) {
-    frameBegin()
-    shakeStep()
-    stageStep()
-    farStarsStep(1, frame)
-    logoStep(t)
-    if ((t & 32) === 0) say(14, 17, str('PRESS START'), SL_GOLD)
-    else unsay(14, 17, 11)
-    if (t > 40 && pressed(B_START | B_A)) break
-    t++
-  }
-  randSeed(frame ^ peek16(0x0202))
-  sfxSelect()
-  palettesIn()
-}
-
-/** The word comes down from above and flashes white as it lands. */
-function logoStep(t: u16): void {
-  if (t < 48) {
-    poke16(BG1Y, (48 - t) * 2)
-    palMix(SL_RED, 0x7fff, 16)
-  } else if (t < 64) {
-    poke16(BG1Y, 0)
-    palMix(SL_RED, 0x7fff, 64 - t)
-    if (t === 48) {
-      shake(12)
-      wave(40, 6)
-    }
-  }
+/** The panels' labels and the difficulty, once a round; every reading drawn again after. */
+export function hudLabels(): void {
+  say(6, 0, str('1UP'), SL_RED)
+  say(21, 0, str('HI'), SL_GOLD)
+  say(1, 2, str('CHAIN'), SL_TEXT)
+  say(1, 6, str('MULT'), SL_TEXT)
+  say(1, 11, str('SKIM'), SL_TEXT)
+  say(1, 15, str('LEVEL'), SL_TEXT)
+  // Four letters under the label, as the other readings: NORMAL would touch the panel's edge.
+  say(
+    1,
+    16,
+    level === LV_EASY ? str('EASY') : level === LV_HARD ? str('HARD') : str('NORM'),
+    SL_GOLD,
+  )
+  say(35, 2, str('SHIP'), SL_TEXT)
+  say(35, 7, str('BOMB'), SL_TEXT)
+  say(35, 12, str('VOLT'), SL_TEXT)
+  say(35, 17, str('POWER'), SL_TEXT)
+  hudReset()
 }
 
 /** WARNING: a red band across the field, the ground pulsing red, the siren. */
@@ -98,9 +65,11 @@ export function warningStep(t: u16): void {
   }
 }
 
-/** START: everything stops until START again. */
+/** START: everything stops, dimmed, until START again; the words say so, below the banners. */
 export function pause(): void {
-  say(16, 15, str('PAUSE'), SL_GOLD)
+  dim(8)
+  say(17, 20, str('PAUSED'), SL_GOLD)
+  say(12, 22, str('START TO RESUME'), SL_TEXT)
   soundMaster(4)
   for (;;) {
     seenIs(frame_wait(seen))
@@ -108,7 +77,18 @@ export function pause(): void {
     if (pressed(B_START)) break
   }
   soundMaster(15)
-  unsay(16, 15, 5)
+  unsay(17, 20, 6)
+  unsay(12, 22, 15)
+  dim(0)
+}
+
+/** The field's colours, backgrounds and sprites, `t` sixteenths of the way to black (0 as kept). */
+function dim(t: u16): void {
+  let s: u16 = 0
+  while (s < 16) {
+    if (s < 4 || s >= 8) palMix(s, 0, t)
+    s++
+  }
 }
 
 /** The stage cleared: the tally of the round, points for each line. */
@@ -126,27 +106,49 @@ export function tally(): void {
   say(9, 16, str('BOMBS LEFT'), SL_TEXT)
   number_(24, 16, bombs)
   idle(30)
-  points(maxChain * 100 + bombs * 1000)
-  say(9, 19, str('BONUS'), SL_GOLD)
-  number_(22, 19, maxChain * 100 + bombs * 1000)
+  bonus()
   hudStep(lives, bombs, voltNow(), 0)
   idle(180)
   fieldClear()
+}
+
+/**
+ * The tally's bonus: 1,000 points for each of MAX CHAIN and 10,000 for each bomb left. Kept in
+ * tens as the score is, in two words (a long chain alone runs past one), added and shown in
+ * points with the score's last 0.
+ */
+function bonus(): void {
+  let hi = div(maxChain, 100)
+  let lo = (maxChain % 100) * 100 + bombs * 1000
+  if (lo >= 10000) {
+    lo = lo - 10000
+    hi++
+  }
+  let k = hi
+  while (k > 0) {
+    points(10000)
+    k--
+  }
+  points(lo)
+  say(9, 19, str('BONUS'), SL_GOLD)
+  let at = cellAt(1, 22, 19)
+  if (hi > 0) {
+    at = numberAt(at, hi)
+    number(at, lo, 4, font(SL_GOLD) + DIGITS)
+    at = at + 8
+  } else at = numberAt(at, lo)
+  if (hi + lo > 0) vpoke(at, font(SL_GOLD) + DIGITS)
 }
 
 function number_(x: u16, y: u16, n: u16): void {
   numberAt(cellAt(1, x, y), n)
 }
 
-/** A number of up to five digits, its last a 0 (points are kept in tens), or as it is. */
-function numberAt(at: u16, n: u16): void {
-  let k: u16 = n >= 10000 ? 5 : n >= 1000 ? 4 : n >= 100 ? 3 : n >= 10 ? 2 : 1
-  let v = n
-  while (k > 0) {
-    k--
-    vpoke(at + k * 2, font(SL_GOLD) + 16 + (v % 10))
-    v = div(v, 10)
-  }
+/** A number as it is, without leading zeros, at a cell: answers the cell after it. */
+function numberAt(at: u16, n: u16): u16 {
+  const digits: u16 = n >= 10000 ? 5 : n >= 1000 ? 4 : n >= 100 ? 3 : n >= 10 ? 2 : 1
+  number(at, n, digits, font(SL_GOLD) + DIGITS)
+  return at + digits * 2
 }
 
 /** The game's end: GAME OVER, then the name if the score made the best five. */
@@ -204,6 +206,5 @@ function nameEntry(place: u16): void {
   idle(240)
 }
 
-import { words } from '../../../../src/shared/e16c/builtins'
 import { tableEnter, tablePlace, tableShow } from './best.e16'
-import { frame, frameBegin, idle, logoIn, seen, seenIs, voltNow } from './eleclance.e16'
+import { frameBegin, idle, seen, seenIs, voltNow } from './eleclance.e16'

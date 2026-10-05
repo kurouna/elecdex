@@ -90,8 +90,6 @@ export function foesClear(): void {
   serpentsClear()
 }
 
-/** How many foes are about (the stage waits for a boss's field to be clear). */
-export let foeCount: u16 = 0
 /** The second round: foes shoot back when they die, and faster. */
 export let round: u16 = 1
 /** Rank, 0-15: rises as the game goes; more and faster bullets. */
@@ -101,8 +99,14 @@ export function roundIs(r: u16): void {
   round = r
 }
 
+/** A game's start: the rank its difficulty begins at. */
+export function rankReset(): void {
+  rank = levelRank()
+}
+
+/** The rank one higher, to the most its difficulty reaches. */
 export function rankUp(): void {
-  if (rank < 15) rank++
+  if (rank < levelTop()) rank++
 }
 
 /** A foe of `kind` at (x, y) points, with `p` for its path: answers its slot (0xffff for none). */
@@ -124,7 +128,6 @@ export function foe(kind: u16, x: i16, y: i16, p: u16): u16 {
 
 /** Every foe on a frame: moves, shoots, is drawn. `scroll` the stage's speed (sixteenths). */
 export function foesStep(scroll: u16): void {
-  foeCount = 0
   let k: u16 = 0
   while (k < F_N) {
     if (fK[k] !== 0) foeOne(k, scroll)
@@ -133,7 +136,6 @@ export function foesStep(scroll: u16): void {
 }
 
 function foeOne(k: u16, scroll: u16): void {
-  foeCount++
   const t = fT[k] + 1
   fT[k] = t
   switch (fK[k]) {
@@ -163,8 +165,12 @@ function foeOne(k: u16, scroll: u16): void {
     case K_SPINNER:
       newFoeMove(k, t)
       break
+    case K_ROCK:
+      // A rock falls a little faster than the stage scrolls, turning.
+      fVY[k] = scroll + 12
+      break
     default:
-      // Rocks and pebbles drift as they were thrown.
+      // Pebbles fly as they were thrown.
       break
   }
   const x = i16(fX[k]) + i16(fVX[k])
@@ -173,6 +179,8 @@ function foeOne(k: u16, scroll: u16): void {
   fY[k] = u16(y)
   // Gone off any edge but the top it came in by.
   if (y > 4900 || y < -1200 || x < (FIELD_X - 48) * 16 || x > (FIELD_X + 272) * 16) {
+    // A serpent's head gone lets its segments go after it.
+    if (fK[k] === K_SERPENT) serpentGone(fP[k] >> 8)
     fK[k] = 0
     return
   }
@@ -184,13 +192,7 @@ function foeDraw(k: u16, x16: i16, y16: i16, t: u16): void {
   const half = i16(HALF[kind])
   const x = (x16 >> 4) - half + shakeDX()
   const y = (y16 >> 4) - half + shakeDY()
-  let flash: u16 = 0
-  if (fFlash[k] > 0) {
-    fFlash[k] = fFlash[k] - 1
-    flash = 1
-  }
-  const heavy = kind === K_HALBERD || kind === K_WARDEN || kind === K_PRISM
-  const pal = ((flash ? SL_FLASH : heavy ? SL_HEAVY : SL_ENEMY) - 8) << 10
+  const pal = foeColours(k, kind, t)
   foePal = pal
   switch (kind) {
     case K_MOTE:
@@ -221,6 +223,21 @@ function foeDraw(k: u16, x16: i16, y16: i16, t: u16): void {
     default:
       newFoeDraw(k, x, y, t)
   }
+}
+
+/**
+ * A foe's palette bits: white for two frames when hit; the heavy ones in their own colours,
+ * blinking white just before their big volleys (a warning to move).
+ */
+function foeColours(k: u16, kind: u16, t: u16): u16 {
+  let flash = false
+  if (fFlash[k] > 0) {
+    fFlash[k] = fFlash[k] - 1
+    flash = true
+  }
+  const heavy = kind === K_HALBERD || kind === K_WARDEN || kind === K_PRISM
+  if (heavy && (t & 2) !== 0 && foeCharging(kind, t)) flash = true
+  return ((flash ? SL_FLASH : heavy ? SL_HEAVY : SL_ENEMY) - 8) << 10
 }
 
 /** The palette bits of the foe being drawn, for the later foes' pictures (foes2.e16.ts). */
@@ -395,9 +412,8 @@ function kill(k: u16, byLance: bool): void {
     stars--
   }
   if (kind === K_ROCK) {
-    foe(K_PEBBLE, (x >> 4) - 6, y >> 4, 0)
-    foe(K_PEBBLE, (x >> 4) + 6, y >> 4, 0)
-    pebbleThrow()
+    pebble(foe(K_PEBBLE, (x >> 4) - 6, y >> 4, 0), -20)
+    pebble(foe(K_PEBBLE, (x >> 4) + 6, y >> 4, 0), 20)
   }
   if (overdriveOn()) cancelNear(x, y, 960)
   // The second round: the dying shoot back.
@@ -409,18 +425,11 @@ function kill(k: u16, byLance: bool): void {
   sfxKill(big)
 }
 
-/** The two pebbles just made fly apart. */
-function pebbleThrow(): void {
-  let k: u16 = F_N
-  let n: u16 = 0
-  while (k > 0 && n < 2) {
-    k--
-    if (fK[k] === K_PEBBLE && fT[k] === 0) {
-      fVX[k] = u16(n === 0 ? -20 : 20)
-      fVY[k] = 30
-      n++
-    }
-  }
+/** A pebble just made (its slot, 0xffff for none) flies off sideways at `vx`. */
+function pebble(k: u16, vx: i16): void {
+  if (k === 0xffff) return
+  fVX[k] = u16(vx)
+  fVY[k] = 30
 }
 
 /** Clears what a frame's kills came to. */
@@ -437,12 +446,13 @@ export function scriptStart(): void {
   scriptAt = STAGE_SCRIPT_AT
 }
 
-/** A foe from the script (a serpent with its segments), or a pickup. */
+/** A foe from the script (a serpent with its segments: none while two are about), or a pickup. */
 function scriptSend(kind: u16, x: u16, p: u16): void {
   if (kind === C_PICKUP) {
     item(p === 0 ? IT_BOMB : p === 1 ? IT_LIFE : IT_POWER, i16(x) * 16, 0)
     return
   }
+  if (kind === K_SERPENT && !serpentRoom()) return
   const k = foe(kind, i16(x), spawnY(p), p & 255)
   if (kind === K_SERPENT && k !== 0xffff) serpentBorn(k)
 }
@@ -462,7 +472,6 @@ export function scriptStep(): u16 {
     else {
       cmd = kind
       scriptArg = x
-      scriptArg2 = p
       break
     }
   }
@@ -471,7 +480,6 @@ export function scriptStep(): u16 {
 }
 
 export let scriptArg: u16 = 0
-export let scriptArg2: u16 = 0
 
 /** Where a foe comes in: the script's row (`p`'s high byte), or just above the screen. */
 function spawnY(p: u16): i16 {
@@ -487,6 +495,7 @@ import { bossBomb, bossHit, bossLance } from './boss.e16'
 import { overdriveOn } from './eleclance.e16'
 import {
   dartMove,
+  foeCharging,
   halberdMove,
   moteMove,
   newFoeDies,
@@ -494,7 +503,10 @@ import {
   newFoeMove,
   pikeMove,
   serpentBorn,
+  serpentGone,
+  serpentRoom,
   serpentsClear,
   shootAimed,
   wardenMove,
 } from './foes2.e16'
+import { levelRank, levelTop } from './level.e16'

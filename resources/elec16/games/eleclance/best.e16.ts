@@ -1,24 +1,64 @@
-// ELECLANCE's best five (docs/elec16-eleclance.md section 4), in the cartridge's save RAM:
-// read at the start, written when a name is entered, shown on the title. In cartridge bank 2
-// with the scenes; save RAM is reached through the kit, which puts the window back.
-import { addr, type u16, words } from '../../../../src/shared/e16c/builtins'
+// ELECLANCE's best five (docs/elec16-eleclance.md section 4), one for each difficulty, in the
+// cartridge's save RAM with the difficulty last chosen: read at the start, written when a name
+// is entered, shown on the title. In cartridge bank 2 with the scenes; save RAM is reached
+// through the kit, which puts the window back.
+import { addr, str, type u16, words } from '../../../../src/shared/e16c/builtins'
 import { cellAt, saveRead, saveWrite, scoreMore, scoreShow, vpoke } from '../lib/kit.e16'
-import { best, font, score } from './score.e16'
-import { SL_GOLD, SL_TEXT } from './view.e16'
+import { LV_EASY, LV_HARD, LV_NORMAL, level, levelSet } from './level.e16'
+import { best, DIGITS, font, score } from './score.e16'
+import { SL_GOLD, SL_TEXT, say, unsay } from './view.e16'
 
-/** Save RAM: "AR", then five of (score low, score high, three letters in two words). */
+/**
+ * Save RAM: "AR" at 0, then NORMAL's five at 2 - each a score (low, high) and three letters in
+ * two words - where the one table of the first saves was, so an old save's names stay NORMAL's.
+ * "LV" at 42 marks the rest: the difficulty last chosen at 44, EASY's five at 64, HARD's at 128.
+ */
 const MAGIC = 0x5241
+const LEVEL_MAGIC = 0x564c
+const LEVEL_MARK = 42
+const LEVEL_AT = 44
 const ENTRY = 8
 
 export const bestScore = words(10)
 export const bestName = words(15)
 
-/** The table read from save RAM, or a fresh one. */
+/** Where difficulty `l`'s five are kept. */
+function tableAt(l: u16): u16 {
+  return l === LV_EASY ? 64 : l === LV_HARD ? 128 : 2
+}
+
+/**
+ * Save RAM read at the start: made fresh if it is not this game's; an old save (before the
+ * difficulties) keeps its five as NORMAL's and is given the rest. The difficulty last chosen
+ * is chosen again, and its five read.
+ */
 export function tableLoad(): void {
-  if (saveRead(0) !== MAGIC) tableFresh()
+  if (saveRead(0) !== MAGIC) {
+    saveWrite(0, MAGIC)
+    tableFresh(tableAt(LV_NORMAL))
+    saveWrite(LEVEL_MARK, 0)
+  }
+  if (saveRead(LEVEL_MARK) !== LEVEL_MAGIC) {
+    tableFresh(tableAt(LV_EASY))
+    tableFresh(tableAt(LV_HARD))
+    saveWrite(LEVEL_AT, LV_NORMAL)
+    saveWrite(LEVEL_MARK, LEVEL_MAGIC)
+  }
+  levelSet(saveRead(LEVEL_AT))
+  tableRead()
+}
+
+/** The difficulty now chosen kept in save RAM, if it is not already. */
+export function levelKeep(): void {
+  if (saveRead(LEVEL_AT) !== level) saveWrite(LEVEL_AT, level)
+}
+
+/** The chosen difficulty's five from save RAM; the best of them is HI. */
+export function tableRead(): void {
+  const from = tableAt(level)
   let k: u16 = 0
   while (k < 5) {
-    const at = 2 + k * ENTRY
+    const at = from + k * ENTRY
     bestScore[k * 2] = saveRead(at)
     bestScore[k * 2 + 1] = saveRead(at + 2)
     const ab = saveRead(at + 4)
@@ -31,11 +71,11 @@ export function tableLoad(): void {
   best[1] = bestScore[1]
 }
 
-function tableFresh(): void {
-  saveWrite(0, MAGIC)
+/** A fresh five at `from`: ELC, 50,000 down to 10,000. */
+function tableFresh(from: u16): void {
   let k: u16 = 0
   while (k < 5) {
-    const at = 2 + k * ENTRY
+    const at = from + k * ENTRY
     saveWrite(at, (5 - k) * 1000)
     saveWrite(at + 2, 0)
     saveWrite(at + 4, 0x4c45)
@@ -70,9 +110,10 @@ export function tableEnter(place: u16, a: u16, b: u16, c: u16): void {
   bestName[place * 3] = a
   bestName[place * 3 + 1] = b
   bestName[place * 3 + 2] = c
+  const from = tableAt(level)
   k = 0
   while (k < 5) {
-    const at = 2 + k * ENTRY
+    const at = from + k * ENTRY
     saveWrite(at, bestScore[k * 2])
     saveWrite(at + 2, bestScore[k * 2 + 1])
     saveWrite(at + 4, bestName[k * 3] | (bestName[k * 3 + 1] << 8))
@@ -81,8 +122,16 @@ export function tableEnter(place: u16, a: u16, b: u16, c: u16): void {
   }
 }
 
-/** The table drawn from row `y`: place, name and score. */
+/** The table drawn from row `y`, its difficulty named above it: place, name and score. */
 export function tableShow(y: u16): void {
+  unsay(13, y - 2, 14)
+  say(13, y - 2, str('BEST 5'), SL_TEXT)
+  say(
+    20,
+    y - 2,
+    level === LV_EASY ? str('EASY') : level === LV_HARD ? str('HARD') : str('NORMAL'),
+    SL_GOLD,
+  )
   let k: u16 = 0
   while (k < 5) {
     const row = y + k * 2
@@ -96,5 +145,3 @@ export function tableShow(y: u16): void {
     k++
   }
 }
-
-import { DIGITS } from './score.e16'

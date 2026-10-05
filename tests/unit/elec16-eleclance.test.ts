@@ -2,11 +2,23 @@ import { readFileSync } from 'node:fs'
 import { CHANNELS } from '@shared/elec16/apu'
 import { readCart } from '@shared/elec16/cartridge'
 import { compileSongs, loopFrames, type Song } from '@shared/elec16/kit/mml'
-import type { Elec16 } from '@shared/elec16/machine'
+import { Elec16 } from '@shared/elec16/machine'
+import { XRAM_MAX } from '@shared/elec16/map'
 import { padBit } from '@shared/elec16/pad'
+import { rasterLines } from '@shared/elec16/video'
 import { fromBase64 } from '@shared/emu/base64'
 import { describe, expect, it } from 'vitest'
-import { buildKit, frames, globalsOf, ramPoke, ramWord, startGame } from './elec16-kit-helpers'
+import {
+  buildKit,
+  frames,
+  globalsOf,
+  ROM,
+  ramPoke,
+  ramWord,
+  settle,
+  startGame,
+  tap,
+} from './elec16-kit-helpers'
 
 /**
  * ELECLANCE, the game kit's sample (docs/elec16-eleclance.md): built from its folder as
@@ -30,10 +42,28 @@ const addr = (name: string) => {
 const read = (m: Elec16, name: string, k = 0) => ramWord(m, addr(name) + k * 2)
 const put = (m: Elec16, name: string, v: number, k = 0) => ramPoke(m, addr(name) + k * 2, v)
 
-/** The game from its title, START pressed: the stage begins. */
-function playing(): Elec16 {
-  const m = startGame(cart)
+/** The difficulties, as the title offers them left to right. */
+const LEVELS = ['easy', 'normal', 'hard'] as const
+type Level = (typeof LEVELS)[number]
+
+/** PLAY-320 switched on with ELECLANCE in the slot holding `save`, START pressed: its title. */
+function startWithSave(save: Uint8Array): Elec16 {
+  const m = Elec16.boot(ROM.image, 'play-320', undefined, XRAM_MAX)
+  settle(m, cart)
+  m.insertCart(cart, new Uint8Array(32), save)
+  tap(m, padBit('start'), cart)
+  return m
+}
+
+/** Left or right on the title, `n` times (negative for left). */
+function choose(m: Elec16, n: number): void {
+  for (let k = 0; k < Math.abs(n); k++) tap(m, padBit(n < 0 ? 'left' : 'right'), cart)
+}
+
+/** The game from its title, START pressed (at `level`, from NORMAL): the stage begins. */
+function playing(level: Level = 'normal', m = startGame(cart)): Elec16 {
   frames(m, 70, cart)
+  choose(m, LEVELS.indexOf(level) - 1)
   m.pad(padBit('start'))
   frames(m, 2, cart)
   m.pad(0)
@@ -198,6 +228,8 @@ describe('ELECLANCE played', () => {
     put(m, 'itY', read(m, 'shipY'), 0)
     guarded(m, 2, 0)
     expect(read(m, 'power')).toBe(1)
+    // Named as it is taken: POWER UP floats up over the ship.
+    expect(Array.from({ length: 32 }, (_, k) => read(m, 'fxKind', k))).toContain(6)
     put(m, 'power', 3)
     guarded(m, 40)
     expect([0, 1, 2, 3, 4, 5].some((k) => read(m, 'mT', k) !== 0)).toBe(true)
@@ -268,7 +300,8 @@ describe('ELECLANCE played', () => {
   })
 
   it('bursts a spinner into a ring of bullets when it dies', () => {
-    const m = playing()
+    // HARD: every volley whole.
+    const m = playing('hard')
     guarded(m, 120, 0)
     put(m, 'fK', 12, 0)
     put(m, 'fX', read(m, 'shipX'), 0)
@@ -343,6 +376,10 @@ describe('ELECLANCE played', () => {
     // Beaten, it is worth 100,000 (kept in tens).
     expect(read(m, 'score', 1) * 10000 + read(m, 'score') - before).toBeGreaterThanOrEqual(10000)
     until(m, () => read(m, 'round') === 2, 1200)
+    // The panels drawn again, the score and the best with them before any point is scored.
+    idleFrames(m, 2)
+    expect(rowText(m, 0, 10, 19)).toMatch(/^\d{9}$/)
+    expect(rowText(m, 0, 24, 33)).toMatch(/^\d{9}$/)
     expect(read(m, 'scrolled')).toBeLessThan(200)
     // Round two plays on: nothing of the beaten boss carried over to end it at once.
     guarded(m, 400)
@@ -381,4 +418,363 @@ describe('ELECLANCE played', () => {
     expect([word(2), word(4)]).toEqual([0, 99])
     expect([save[6], save[7], save[8]]).toEqual([0x42, 0x41, 0x41])
   })
+})
+
+/* ---------------- the screen read back, and the foes by slot ---------------- */
+
+/** BG1's row `y` as text: each cell's character from the game's font (space for the rest). */
+function rowText(m: Elec16, y: number, from = 0, to = 40): string {
+  const font = constant('FONT_TILE')
+  let out = ''
+  for (let x = from; x < to; x++) {
+    const tile = cellWord(m, x, y) & 0x3ff
+    out += tile >= font && tile < font + 64 ? String.fromCharCode(32 + tile - font) : ' '
+  }
+  return out
+}
+
+/** The palette slot of BG1's cell (x, y). */
+const cellSlot = (m: Elec16, x: number, y: number) => (cellWord(m, x, y) >> 10) & 7
+
+function cellWord(m: Elec16, x: number, y: number): number {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  const at = 0xa000 + (y << 7) + (x << 1)
+  return (mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)
+}
+
+/** The foes' kinds by slot. */
+const kinds = (m: Elec16) => Array.from({ length: 24 }, (_, k) => read(m, 'fK', k))
+
+/** Frames with the ship kept from harm and the pad let go (nothing shot). */
+const idleFrames = (m: Elec16, n: number) => guarded(m, n, 0)
+
+/** Runs (guarded, nothing shot) until `done`, at most `limit` frames. */
+function untilIdle(m: Elec16, done: () => boolean, limit: number): number {
+  for (let k = 0; k < limit; k++) {
+    if (done()) return k
+    idleFrames(m, 1)
+  }
+  throw new Error(`not done after ${limit} frames`)
+}
+
+/** A foe put straight into slot k. */
+function foeAt(m: Elec16, k: number, kind: number, x: number, y: number, t = 0, p = 0): void {
+  put(m, 'fK', kind, k)
+  put(m, 'fX', x & 0xffff, k)
+  put(m, 'fY', y & 0xffff, k)
+  put(m, 'fVX', 0, k)
+  put(m, 'fVY', 0, k)
+  put(m, 'fHP', 999, k)
+  put(m, 'fT', t & 0xffff, k)
+  put(m, 'fP', p, k)
+}
+
+/** A two-word score (tens) as a number. */
+const scoreOf = (m: Elec16) => read(m, 'score', 1) * 10000 + read(m, 'score')
+
+const i16 = (v: number) => ((v & 0xffff) ^ 0x8000) - 0x8000
+
+/** How far from the ship each of the bomb's ring's sparks is drawn (the frame's sprite table). */
+function ringRadii(m: Elec16): number[] {
+  const cx = i16(read(m, 'shipX')) >> 4
+  const cy = i16(read(m, 'shipY')) >> 4
+  const edge = constant('RING_TILE') + 12
+  const found: number[] = []
+  for (let k = 0; k < 128; k++) {
+    const shown = read(m, 'oam', k * 4 + 3) !== 3
+    if (!shown || (read(m, 'oam', k * 4 + 2) & 0x3ff) !== edge) continue
+    const x = i16(read(m, 'oam', k * 4)) + 8 - cx
+    const y = i16(read(m, 'oam', k * 4 + 1)) + 8 - cy
+    found.push(Math.hypot(x, y))
+  }
+  return found
+}
+
+describe('ELECLANCE bugs found in review', () => {
+  it("lets the belt's rocks fall through the field and leave it, freeing their slots", () => {
+    const m = playing()
+    scrollTo(m, 412)
+    const rocks = () =>
+      kinds(m)
+        .map((kind, k) => (kind === 6 ? k : -1))
+        .filter((k) => k >= 0)
+    untilIdle(m, () => rocks().length > 0, 300)
+    // In the field, where shots and the lance can reach them...
+    untilIdle(m, () => rocks().some((k) => i16(read(m, 'fY', k)) > 40 * 16), 300)
+    // ...and out of it at the bottom, their slots free for the foes after them.
+    untilIdle(m, () => rocks().length === 0 && read(m, 'logicalTop') < 395, 900)
+  })
+
+  it('sends PRISM, HALBERD and WARDEN away when their time is up, not back down', () => {
+    for (const [kind, time, row] of [
+      [9, 600, 110],
+      [4, 640, 80],
+      [5, 760, 60],
+    ] as const) {
+      const m = playing()
+      idleFrames(m, 30)
+      foeAt(m, 23, kind, 160 * 16, row * 16, time + 1, 40)
+      idleFrames(m, 400)
+      expect(read(m, 'fK', 23), `kind ${kind}`).not.toBe(kind)
+    }
+  })
+
+  it("lets a serpent's segments go when its head leaves by the edge", () => {
+    const m = playing()
+    scrollTo(m, 480)
+    untilIdle(m, () => kinds(m).includes(10), 600)
+    idleFrames(m, 30)
+    const head = kinds(m).indexOf(10)
+    put(m, 'fX', (48 + 300) * 16, head)
+    idleFrames(m, 400)
+    expect(kinds(m).filter((k) => k === 10 || k === 11)).toHaveLength(0)
+  })
+
+  it('refuses a third serpent while two are about, so no two share a trail', () => {
+    const m = playing()
+    idleFrames(m, 10)
+    // Two heads high in the field, slots 0 and 1 of the serpents taken.
+    foeAt(m, 22, 10, 100 * 16, 20 * 16, 1, 0x000)
+    foeAt(m, 23, 10, 200 * 16, 20 * 16, 1, 0x100)
+    put(m, 'serpentHead', 23, 0)
+    put(m, 'serpentHead', 24, 1)
+    scrollTo(m, 480)
+    idleFrames(m, 60)
+    expect(kinds(m).filter((k) => k === 10)).toHaveLength(2)
+    expect(kinds(m).filter((k) => k === 11)).toHaveLength(0)
+  })
+
+  it('sways BASTION and ZENITH smoothly within their reach, never wrapping', () => {
+    for (const [row, which, reach] of [
+      [316, 1, 40],
+      [74, 2, 56],
+    ] as const) {
+      const m = playing()
+      scrollTo(m, row)
+      untilIdle(m, () => read(m, 'bossOn') === which && read(m, 'bossPhase') === 1, 1200)
+      const xs: number[] = []
+      for (let k = 0; k < 300; k++) {
+        idleFrames(m, 1)
+        xs.push(i16(read(m, 'bX')) - 160 * 16)
+      }
+      const far = Math.max(...xs.map(Math.abs))
+      expect(far, `boss ${which}`).toBeLessThanOrEqual(reach * 16)
+      expect(far, `boss ${which}`).toBeGreaterThan((reach - 4) * 16)
+      const step = Math.max(...xs.slice(1).map((x, k) => Math.abs(x - (xs[k] ?? 0))))
+      // At most about 56 x 2 pi / 256 sixteenths a frame: a wrapped sway jumps by thousands.
+      expect(step, `boss ${which}`).toBeLessThanOrEqual(32)
+    }
+  })
+
+  it("waves BG0 in every band, the first too, a smooth sine within the wave's size", () => {
+    const m = playing()
+    idleFrames(m, 200)
+    // A bomb: a wave of 12 points for 90 frames. Its shake is over by frame 40.
+    m.pad(padBit('b'))
+    frames(m, 2, cart)
+    idleFrames(m, 40)
+    const firstBand = new Set<number>()
+    for (let f = 0; f < 30; f++) {
+      idleFrames(m, 1)
+      const last = m.state.video?.tiles.last
+      if (last === undefined) throw new Error('no frame')
+      const lines = rasterLines(last)
+      const bands = Array.from(
+        { length: 36 },
+        (_, k) => i16((lines[k * 8]?.scroll[0] ?? 0) << 7) >> 7,
+      )
+      firstBand.add(bands[0] ?? 0)
+      // Sway is 0 with the ship in the middle: every band within the wave's 12 points.
+      for (const b of bands) expect(Math.abs(b)).toBeLessThanOrEqual(13)
+      // A band from the next: about 12 x 2 pi x 14 / 256 apart, and the phase's step of a frame.
+      for (let k = 1; k < 36; k++)
+        expect(Math.abs((bands[k] ?? 0) - (bands[k - 1] ?? 0))).toBeLessThanOrEqual(7)
+    }
+    // The first band waves with the rest (the scroll did not overwrite it).
+    expect(firstBand.size).toBeGreaterThan(3)
+  })
+
+  it("draws the bomb's ring at its radius at every power", () => {
+    for (const power of [0, 2, 4]) {
+      const m = playing()
+      idleFrames(m, 200)
+      put(m, 'power', power)
+      m.pad(padBit('b'))
+      frames(m, 2, cart)
+      idleFrames(m, 30)
+      const r = Math.min(32 * 8, 80 + power * 32)
+      const found = ringRadii(m)
+      expect(found.length, `power ${power}`).toBeGreaterThan(8)
+      for (const d of found) expect(Math.abs(d - r), `power ${power}`).toBeLessThanOrEqual(8)
+    }
+  })
+
+  it("adds the tally's bonus whole and shows it in points, its last 0 too", () => {
+    const m = playing()
+    scrollTo(m, 74)
+    untilIdle(m, () => read(m, 'bossOn') === 2 && read(m, 'bossPhase') === 1, 900)
+    put(m, 'life', 0, 1)
+    put(m, 'life', 0, 2)
+    put(m, 'life', 1, 0)
+    // The core's last point taken by the lance.
+    until(m, () => read(m, 'bossPhase') >= 9, 600)
+    put(m, 'maxChain', 700)
+    put(m, 'bombs', 5)
+    untilIdle(m, () => rowText(m, 8).includes('STAGE CLEAR'), 600)
+    const before = scoreOf(m)
+    untilIdle(m, () => rowText(m, 19).includes('BONUS'), 600)
+    // 700 x 1,000 and 5 x 10,000 points: 750,000, kept in tens.
+    expect(scoreOf(m) - before).toBe(75000)
+    expect(rowText(m, 19).replace(/\s+/g, ' ').trim()).toBe('BONUS 750000')
+  })
+
+  it("throws a dead rock's own pebbles apart, whatever else is new that frame", () => {
+    const m = playing()
+    idleFrames(m, 30)
+    for (let k = 0; k < 24; k++) put(m, 'fK', 0, k)
+    // A pebble still new this frame (its time comes round to 0), in a slot above the rock's.
+    const x = read(m, 'shipX')
+    foeAt(m, 0, 6, x, 120 * 16)
+    put(m, 'fHP', 1, 0)
+    let k = 0
+    for (; k < 60 && read(m, 'fK', 0) === 6; k++) {
+      foeAt(m, 2, 7, x + 90 * 16, -40 * 16, 0xffff)
+      put(m, 'fX', x, 0)
+      guarded(m, 1)
+    }
+    expect(k).toBeLessThan(60)
+    // The rock's two pebbles fly apart; the other is left as it was.
+    const thrown = [0, 1, 3].filter((s) => read(m, 'fK', s) === 7 && read(m, 'fVX', s) !== 0)
+    expect(thrown).toHaveLength(2)
+    expect(read(m, 'fVX', 2)).toBe(0)
+  })
+
+  it('redraws the score whenever it changes, whatever the two words', () => {
+    const m = playing()
+    idleFrames(m, 4)
+    put(m, 'score', 8, 0)
+    put(m, 'score', 0, 1)
+    frames(m, 1, cart)
+    expect(rowText(m, 0, 10, 19)).toBe('000000080')
+    // 10,000 tens: a key made of both words by xor and shift once took it for the same.
+    put(m, 'score', 0, 0)
+    put(m, 'score', 1, 1)
+    frames(m, 1, cart)
+    expect(rowText(m, 0, 10, 19)).toBe('000100000')
+  })
+
+  it("starts a new game at its difficulty's first rank, not where the last one ended", () => {
+    const m = playing()
+    put(m, 'rank', 15)
+    put(m, 'lives', 0)
+    put(m, 'shipState', 2)
+    // GAME OVER (no best score), the title, START again.
+    for (let k = 0; k < 200 && !rowText(m, 15).includes('GAME OVER'); k++) frames(m, 1, cart)
+    expect(rowText(m, 15)).toContain('GAME OVER')
+    frames(m, 400, cart)
+    playing('normal', m)
+    expect(read(m, 'rank')).toBe(0)
+  })
+})
+
+describe('ELECLANCE difficulties', () => {
+  it('chooses EASY, NORMAL or HARD on the title with left and right, and keeps the choice', () => {
+    const m = startGame(cart)
+    frames(m, 70, cart)
+    // NORMAL first: in gold between arrows, the others plain.
+    expect(rowText(m, 13, 9, 31)).toBe(' EASY  >NORMAL<  HARD ')
+    expect([cellSlot(m, 10, 13), cellSlot(m, 17, 13), cellSlot(m, 26, 13)]).toEqual([5, 6, 5])
+    choose(m, -1)
+    expect(read(m, 'level')).toBe(0)
+    expect(rowText(m, 13, 9, 31)).toBe('>EASY<  NORMAL   HARD ')
+    expect([cellSlot(m, 10, 13), cellSlot(m, 17, 13)]).toEqual([6, 5])
+    expect(rowText(m, 20)).toContain('BEST 5 EASY')
+    // Left stops at EASY, right at HARD.
+    choose(m, -1)
+    expect(read(m, 'level')).toBe(0)
+    choose(m, 3)
+    expect(read(m, 'level')).toBe(2)
+    expect(rowText(m, 13, 25, 31)).toBe('>HARD<')
+    expect(rowText(m, 20)).toContain('BEST 5 HARD')
+    m.pad(padBit('start'))
+    frames(m, 2, cart)
+    m.pad(0)
+    frames(m, 2, cart)
+    // HARD's row: three ships and bombs, from rank 3; named on the left panel.
+    expect([read(m, 'lives'), read(m, 'bombs'), read(m, 'rank')]).toEqual([3, 3, 3])
+    expect(rowText(m, 16, 0, 6).trim()).toBe('HARD')
+    // Kept in save RAM, and chosen again when the machine is next switched on.
+    const save = Uint8Array.from(m.state.cart?.save ?? [])
+    expect(save[44]).toBe(2)
+    const again = startWithSave(save)
+    frames(again, 70, cart)
+    expect(read(again, 'level')).toBe(2)
+    expect(rowText(again, 13, 25, 31)).toBe('>HARD<')
+  })
+
+  it('gives EASY more ships and bombs, and bombs again after a ship is lost', () => {
+    const m = playing('easy')
+    expect([read(m, 'lives'), read(m, 'bombs')]).toEqual([4, 4])
+    expect(rowText(m, 3, 35, 40).trim()).toBe('****')
+    put(m, 'bombs', 0)
+    put(m, 'shipState', 2)
+    frames(m, 100, cart)
+    expect([read(m, 'lives'), read(m, 'bombs')]).toEqual([3, 4])
+  })
+
+  it("keeps an old save's best five as NORMAL's, and gives EASY and HARD fresh ones", () => {
+    // The first saves: "AR", then five of (score low, score high, three letters).
+    const save = new Uint8Array(8192)
+    const word = (at: number, v: number) => {
+      save[at] = v & 255
+      save[at + 1] = v >> 8
+    }
+    word(0, 0x5241)
+    for (let k = 0; k < 5; k++) {
+      word(2 + k * 8, k === 0 ? 1234 : (5 - k) * 100)
+      word(4 + k * 8, k === 0 ? 5 : 0)
+      word(6 + k * 8, 0x5958)
+      word(8 + k * 8, 0x5a)
+    }
+    const m = startWithSave(save)
+    frames(m, 70, cart)
+    expect(read(m, 'level')).toBe(1)
+    expect(rowText(m, 20)).toContain('BEST 5 NORMAL')
+    expect(rowText(m, 22, 10, 27).replace(/\s+/g, ' ')).toBe('1 XYZ 000512340')
+    expect([read(m, 'best', 0), read(m, 'best', 1)]).toEqual([1234, 5])
+    choose(m, -1)
+    expect(rowText(m, 22, 10, 27).replace(/\s+/g, ' ')).toBe('1 ELC 000050000')
+    const kept = m.state.cart?.save ?? new Uint8Array()
+    const at = (k: number) => (kept[k] ?? 0) | ((kept[k + 1] ?? 0) << 8)
+    // NORMAL's five where they were, the mark of the new layout, EASY's and HARD's made.
+    expect([at(2), at(4), at(42), at(44)]).toEqual([1234, 5, 0x564c, 1])
+    expect([at(64), at(128)]).toEqual([5000, 5000])
+  })
+
+  it('fires fewer bullets the easier it is, NORMAL gentle at first and whole by the end', () => {
+    // A minute of the stage from its start, the ship kept from harm, the lance out.
+    const made: Record<string, number> = {}
+    for (const level of LEVELS) {
+      const m = playing(level)
+      guarded(m, 3600)
+      expect(m.state.halt).toBeNull()
+      made[level] = read(m, 'bulletsMade')
+    }
+    // Measured: EASY 77, NORMAL 171, HARD 396 (the old game fired 527, its foes never leaving).
+    const { easy = 0, normal = 0, hard = 0 } = made
+    expect(easy).toBeLessThan(normal * 0.6)
+    expect(normal).toBeLessThan(hard * 0.6)
+    expect(hard).toBeGreaterThan(330)
+    // Late in the game (rank 10), NORMAL fires every volley whole, as HARD does.
+    const late: Record<string, number> = {}
+    for (const level of ['normal', 'hard'] as const) {
+      const m = playing(level)
+      scrollTo(m, 256)
+      put(m, 'rank', 10)
+      const before = read(m, 'bulletsMade')
+      guarded(m, 1200)
+      late[level] = read(m, 'bulletsMade') - before
+    }
+    expect(late.normal ?? 0).toBeGreaterThan((late.hard ?? 0) * 0.75)
+  }, 60_000)
 })

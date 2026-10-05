@@ -6,7 +6,7 @@ import { type bool, div, i16, u16, words } from '../../../../src/shared/e16c/bui
 import { aim, cos, FLIP_H, FLIP_V, S8, S16, sin, spr } from '../lib/kit.e16'
 import { ARC_TILE, MISSILE_TILE, RING_TILE } from './assets.e16'
 import { abs, clamp, FX_SPARK, fx } from './fx.e16'
-import { SL_ITEM, SL_SHOT, shakeDX, shakeDY } from './view.e16'
+import { FIELD_X, SL_ITEM, SL_SHOT, shakeDX, shakeDY } from './view.e16'
 
 /* ---------------- missiles ---------------- */
 
@@ -54,7 +54,8 @@ function missileMove(k: u16, damage: u16): void {
   y = y + i16(mVY[k])
   mX[k] = u16(x)
   mY[k] = u16(y)
-  if (t > 150 || y < -256 || y > 4864 || x < 640 || x > 4480) {
+  // Gone by the bounds the bullets keep (shots.e16.ts), or spent.
+  if (t > 150 || y < -256 || y > 4864 || x < (FIELD_X - 16) * 16 || x > (FIELD_X + 240) * 16) {
     mT[k] = 0
     return
   }
@@ -216,11 +217,12 @@ export function ringDraw(): void {
   }
   // Grown, the edge flickers away.
   if (i16(ringT) * 8 > ringMax + 160 && (ringT & 1) !== 0) return
-  const r = radius()
+  // Half the radius times a sine (to 256) keeps to a word for any ring a bomb makes (to 255).
+  const half = radius() >> 1
   let a: u16 = ringT * 3
   let k: u16 = 0
   while (k < 16) {
-    spr(x + ((cos(a) * r) >> 8) - 8, y + ((sin(a) * r) >> 8) - 8, (RING_TILE + 12) | pal, S16)
+    spr(x + ((cos(a) * half) >> 7) - 8, y + ((sin(a) * half) >> 7) - 8, (RING_TILE + 12) | pal, S16)
     a = a + 16
     k++
   }

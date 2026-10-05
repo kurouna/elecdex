@@ -107,16 +107,13 @@ export function sfxSiren(): void {
   play(SONG_X_SIREN_BANK, SONG_X_SIREN_AT, false)
 }
 
-export function sfxBossPhase(): void {
+/** A boss's part shot away, or its next phase. */
+export function sfxPart(): void {
   play(SONG_X_PART_BANK, SONG_X_PART_AT, false)
 }
 
 export function sfxBossDown(): void {
   play(SONG_X_DOWN_BANK, SONG_X_DOWN_AT, false)
-}
-
-export function bossPartDown(): void {
-  play(SONG_X_PART_BANK, SONG_X_PART_AT, false)
 }
 
 export function sfxSelect(): void {

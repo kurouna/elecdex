@@ -38,8 +38,19 @@ export function sk(speed: u16, kind: u16): u16 {
   return (kind << 8) | (speed & 255)
 }
 
-/** A bullet from (x, y) toward direction `a` (256 a turn), `speedKind` from `sk`. */
+/**
+ * A bullet from (x, y) toward direction `a` (256 a turn), `speedKind` from `sk`: a volley of
+ * one, which the difficulty may hold back (level.e16.ts).
+ */
 export function bullet(x: i16, y: i16, a: u16, speedKind: u16): void {
+  if (volleyGoes()) place(x, y, a, speedKind)
+}
+
+/** Bullets made since the game began: what the difficulty's tests count. */
+export let bulletsMade: u16 = 0
+
+/** A bullet put in a free slot, at the difficulty's speed. */
+function place(x: i16, y: i16, a: u16, speedKind: u16): void {
   const speed = speedKind & 255
   const kind = speedKind >> 8
   // A free slot: from where the last one went, at most a lap.
@@ -50,7 +61,7 @@ export function bullet(x: i16, y: i16, a: u16, speedKind: u16): void {
   }
   if (tries === 0) return
   const k = buNext
-  const v = i16(speed + bulletBoost)
+  const v = i16(volleySpeed(speed + bulletBoost))
   buKind[k] = kind
   buX[k] = u16(x)
   buY[k] = u16(y)
@@ -58,6 +69,7 @@ export function bullet(x: i16, y: i16, a: u16, speedKind: u16): void {
   buVY[k] = u16((sin(a) * v) >> 8)
   buLive[k] = 1 + (a & 255)
   buGrazed[k] = 0
+  bulletsMade++
 }
 
 /** The ship's place, for aiming (set by the ship each frame). */
@@ -74,17 +86,18 @@ export function aimed(x: i16, y: i16): u16 {
   return aim(targetX - x, targetY - y)
 }
 
-/** `n` bullets spread `step` apart round direction `a`. */
+/** `n` bullets spread `step` apart round direction `a` (fewer, or none, by the difficulty). */
 export function fan(x: i16, y: i16, a: u16, nStepSpeedKind: u16): void {
+  if (!volleyGoes()) return
   // Packed so a call keeps to four values: n (4 bits), step (4), speed (6, x2), kind (2).
-  const n = nStepSpeedKind >> 12
+  const n = volleyCount(nStepSpeedKind >> 12, 1)
   const step = (nStepSpeedKind >> 8) & 15
   const speed = ((nStepSpeedKind >> 2) & 63) * 2
   const kind = nStepSpeedKind & 3
   let d = wrap16(a + 256 - div((n - 1) * step, 2))
   let k: u16 = 0
   while (k < n) {
-    bullet(x, y, d & 255, sk(speed, kind))
+    place(x, y, d & 255, sk(speed, kind))
     d = d + step
     k++
   }
@@ -95,16 +108,17 @@ export function fanOf(n: u16, step: u16, speed: u16, kind: u16): u16 {
   return (n << 12) | (step << 8) | ((speed >> 1) << 2) | kind
 }
 
-/** `n` bullets all round, the first at direction `a`. */
+/** `n` bullets all round, the first at direction `a` (fewer, or none, by the difficulty). */
 export function ring(x: i16, y: i16, a: u16, nSpeedKind: u16): void {
-  const n = nSpeedKind >> 10
-  const speed = ((nSpeedKind >> 3) & 127) + 0
+  if (!volleyGoes()) return
+  const n = volleyCount(nSpeedKind >> 10, 4)
+  const speed = (nSpeedKind >> 3) & 127
   const kind = nSpeedKind & 7
   const step = div(256, n)
   let d = a
   let k: u16 = 0
   while (k < n) {
-    bullet(x, y, d & 255, sk(speed, kind))
+    place(x, y, d & 255, sk(speed, kind))
     d = d + step
     k++
   }
@@ -284,3 +298,4 @@ export function shotsClear(): void {
 }
 
 import { foeHit, inside } from './foes.e16'
+import { volleyCount, volleyGoes, volleySpeed } from './level.e16'

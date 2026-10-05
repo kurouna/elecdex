@@ -1,0 +1,13 @@
+# ELECLANCE's difficulties (docs/elec16-eleclance.md section 3): a row each, EASY, NORMAL, HARD.
+# level.e16.ts reads the chosen row when a game starts; everything that fires asks it.
+#   lives   spare ships at the start          bombs   bombs at the start, and after a ship is lost
+#   rate    sixteenths of the foes' volleys fired at rank 0
+#   boss    sixteenths of a boss's volleys fired at rank 0
+#   rise    quarters of a sixteenth more of both, and of count, for each rank (to 16)
+#   count   sixteenths of a volley's bullets at rank 0 (a fan of 5 at 12 is 4)
+#   speed   sixteenths of the bullets' speed
+#   rank    the rank a game starts at         top     the highest rank it reaches (15 at most)
+# lives bombs rate boss rise count speed rank top
+4 4 6 12 1 10 12 0 8
+3 3 9 16 3 12 16 0 15
+3 3 16 16 0 16 17 3 15

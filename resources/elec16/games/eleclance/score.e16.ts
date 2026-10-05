@@ -38,7 +38,7 @@ export function scoreNew(): void {
   maxChain = 0
   skims = 0
   nextExtend = 5000
-  shown = 0xffff
+  hudReset()
 }
 
 /** `tens` points (any number: added a piece at a time). */
@@ -93,7 +93,8 @@ export function scoreStars(n: u16, double: bool): void {
 
 /* ---------------- the panels' readings ---------------- */
 
-let shown: u16 = 0xffff
+let shownLo: u16 = 0xffff
+let shownHi: u16 = 0xffff
 let shownChain: u16 = 0xffff
 let shownSkims: u16 = 0xffff
 let shownLives: u16 = 0xffff
@@ -102,17 +103,10 @@ let shownVolt: u16 = 0xffff
 
 export const DIGITS = 48 - 32
 
-/** The labels, once a game. */
-export function hudLabels(): void {
-  say(6, 0, str('1UP'), SL_RED)
-  say(21, 0, str('HI'), SL_GOLD)
-  say(1, 2, str('CHAIN'), SL_TEXT)
-  say(1, 6, str('MULT'), SL_TEXT)
-  say(1, 11, str('SKIM'), SL_TEXT)
-  say(35, 2, str('SHIP'), SL_TEXT)
-  say(35, 7, str('BOMB'), SL_TEXT)
-  say(35, 12, str('VOLT'), SL_TEXT)
-  say(35, 17, str('POWER'), SL_TEXT)
+/** Every reading drawn afresh at the next `hudStep` (the panels were just drawn again). */
+export function hudReset(): void {
+  shownLo = 0xffff
+  shownHi = 0xffff
   shownPower = 0xffff
   shownChain = 0xffff
   shownSkims = 0xffff
@@ -149,11 +143,11 @@ export function powerShow(power: u16): void {
   }
 }
 
-/** The score and the best along the top, each with its last 0. */
+/** The score and the best along the top, each with its last 0: drawn when either word moves. */
 function scoreLine(): void {
-  const key = score[0] ^ (score[1] << 3)
-  if (key === shown) return
-  shown = key
+  if (score[0] === shownLo && score[1] === shownHi) return
+  shownLo = score[0]
+  shownHi = score[1]
   const gold = font(SL_GOLD)
   scoreShow(cellAt(1, 10, 0), addr(score), gold + DIGITS)
   vpoke(cellAt(1, 18, 0), gold + DIGITS)
