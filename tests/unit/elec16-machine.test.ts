@@ -283,7 +283,7 @@ describe('traps, CSRs and sleeping', () => {
       csrw mtvec, zero
       ebreak`)
     const asleep = m.run(10_000)
-    expect(asleep.sleeping).toEqual({ key: true, timerMs: null })
+    expect(asleep.sleeping).toEqual({ key: true, pad: false, timerMs: null })
     expect(m.run(10_000).cycles).toBe(0)
     m.press(17)
     const r = finish(m)
@@ -376,7 +376,7 @@ describe('traps, CSRs and sleeping', () => {
       csrr a0, mcause
       csrw mtvec, zero
       ebreak`)
-    expect(asleep.run(1000).sleeping).toEqual({ key: false, timerMs: null })
+    expect(asleep.run(1000).sleeping).toEqual({ key: false, pad: false, timerMs: null })
     asleep.brk()
     expect(finish(asleep).a0).toBe(0x8000 | 15)
   })
@@ -393,7 +393,7 @@ describe('traps, CSRs and sleeping', () => {
       j spin`)
     m.run(1000)
     expect(m.running).toBe(false)
-    expect(m.run(1000).sleeping).toEqual({ key: false, timerMs: null })
+    expect(m.run(1000).sleeping).toEqual({ key: false, pad: false, timerMs: null })
     m.brk()
     expect(m.running).toBe(true)
     m.run(1000)
@@ -673,5 +673,117 @@ loop:
     expect(m.breakAt).toBeNull()
     const bare = boot(LOOP)
     expect(finish(bare).t0).toBe(5)
+  })
+})
+
+describe('code written over by a device', () => {
+  /** A program at 7000 that sets a0 to `n` and stops. */
+  const code = (n: number) => {
+    const out = assemble(`.org 0x7000\n li a0, ${n}\n ebreak`)
+    expect(out.errors).toEqual([])
+    return ramImage(out, 0x7000)
+  }
+  /** Runs the program at 7000 (decoding it), answering a0. */
+  const call = (m: Elec16) => {
+    m.s.halt = null
+    m.callAt(0x7000, 0)
+    m.run(100)
+    return m.state.regs[REG_NAMES.indexOf('a0')]
+  }
+
+  it('runs what a card READ put over code that ran, not what was decoded before', () => {
+    const m = boot('ebreak')
+    m.loadCode(0x7000, code(1))
+    expect(call(m)).toBe(1)
+    m.s.card.busy = true
+    const fresh = code(2)
+    m.answerCard(
+      {
+        op: 'read',
+        name: 'X',
+        newName: '',
+        offset: 0,
+        length: fresh.length,
+        data: null,
+        address: 0x7000,
+      },
+      { status: 0, data: fresh },
+    )
+    expect(call(m)).toBe(2)
+  })
+
+  it("runs what LINK's answer put over code that ran", () => {
+    const m = boot('ebreak')
+    m.loadCode(0x7000, code(1))
+    expect(call(m)).toBe(1)
+    const l = m.s.link
+    l.busy = true
+    l.serial = 1
+    l.outReply = 0x7000
+    l.outMax = 64
+    m.answerLink(1, { status: 0, data: code(2) })
+    expect(call(m)).toBe(2)
+  })
+
+  it('runs what the maths unit wrote over code that ran', () => {
+    // PI written at 7000 by the unit: the machine that ran the code first must do as one that
+    // never decoded it.
+    const decoded = boot('ebreak')
+    const fresh = boot('ebreak')
+    for (const m of [decoded, fresh]) m.loadCode(0x7000, code(1))
+    expect(call(decoded)).toBe(1)
+    for (const m of [decoded, fresh]) {
+      m.bus.write16(0xff52, 0x7000)
+      m.bus.write16(0xff50, 0x20)
+      m.s.halt = null
+      m.s.regs.fill(0)
+      m.callAt(0x7000, 0)
+      m.step()
+    }
+    expect(Array.from(decoded.state.ram.subarray(0x7000, 0x7008))).not.toEqual(Array.from(code(1)))
+    const seen = (m: Elec16) => [m.state.pc, m.state.halt?.cause, ...m.state.regs]
+    expect(seen(decoded)).toEqual(seen(fresh))
+  })
+})
+
+describe("CORE's breakpoints and DMA", () => {
+  it('go on through a DMA under way in one GO, stopping before the instruction once it is done', () => {
+    const src = `
+      li t0, 0
+      li t1, 0xF830
+      sw t0, 0(t1)
+      li t1, 0xF832
+      sw t0, 0(t1)
+      li t2, 1024
+      li t1, 0xF834
+      sw t2, 0(t1)
+      li t2, 1
+      li t1, 0xF836
+    go:
+      sw t2, 0(t1)
+    after:
+      ebreak`
+    const m = boot(src, 'play-320')
+    const symbols = assemble(`.org 0x8000\n${src}`).symbols
+    const go = symbols.get('go') ?? -1
+    const after = symbols.get('after') ?? -1
+    m.breakpoints.add(after)
+    m.run(100_000)
+    // Stopped before the instruction, once the copy it waited for was done.
+    expect(m.breakAt).toBe(after)
+    expect(m.state.video?.tiles.dma.active).toBe(false)
+    // A GO pressed while the copy goes on still runs the instruction after it.
+    const n = boot(src, 'play-320')
+    n.breakpoints.add(go)
+    n.run(100_000)
+    expect(n.breakAt).toBe(go)
+    n.goOn()
+    n.run(20)
+    expect(n.state.video?.tiles.dma.active).toBe(true)
+    n.breakpoints.add(after)
+    n.run(100_000)
+    expect(n.breakAt).toBe(after)
+    n.goOn()
+    expect(n.run(100_000).halted?.cause).toBe('breakpoint')
   })
 })

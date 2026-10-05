@@ -6,19 +6,12 @@ import {
   measure,
   measuringMachine,
 } from '@shared/e16c/program'
-import { buildKitGame, type KitMeta } from '@shared/elec16/kit/build'
 import type { Picture } from '@shared/elec16/kit/tiles'
 import kitLib from '../../../../../resources/elec16/games/lib/kit.e16.ts?raw'
 import runtime from '../../../../../resources/elec16/games/lib/runtime.s?raw'
 import soundLib from '../../../../../resources/elec16/games/lib/sound.e16.ts?raw'
-import type {
-  CodeReply,
-  CodeRequest,
-  KitFiles,
-  KitOutcome,
-  KitReply,
-  LevelResult,
-} from './protocol.ts'
+import { buildKitFiles } from './kit-files.ts'
+import type { CodeReply, CodeRequest, KitReply, LevelResult } from './protocol.ts'
 
 /** The kit's library, the same for every game: the app's own, never a folder's copy. */
 const LIB: Record<string, string> = {
@@ -47,7 +40,8 @@ scope.onmessage = (event: MessageEvent<CodeRequest>) => {
     return
   }
   if (request.kind === 'kit') {
-    void kit(request.files, request.romTrap).then((outcome) => {
+    const lib = (name: string) => LIB[name] ?? null
+    void buildKitFiles(request.files, request.romTrap, lib, decode).then((outcome) => {
       const reply: KitReply = { id: request.id, kit: outcome }
       scope.postMessage(reply, outcome.ok ? [outcome.image.buffer as ArrayBuffer] : [])
     })
@@ -70,51 +64,15 @@ function measured(image: Uint8Array): Measured | null {
   return measure(rom, snapshot, image)
 }
 
-/** A game built from its files: the pictures decoded here, then the kit's builder. */
-async function kit(files: KitFiles, romTrap: number): Promise<KitOutcome> {
-  const fail = (file: string, message: string): KitOutcome => ({
-    ok: false,
-    errors: [{ file, line: 0, message }],
-  })
-  let meta: unknown
-  try {
-    meta = JSON.parse(files.meta)
-  } catch (e) {
-    return fail('game.json', e instanceof Error ? e.message : String(e))
-  }
-  const pictures = new Map<string, Picture>()
-  for (const [name, bytes] of Object.entries(files.pictures)) {
-    const picture = await decode(bytes)
-    if (picture === null) return fail(name, 'it is not a picture this can read (PNG)')
-    pictures.set(name, picture)
-  }
-  const built = buildKitGame({
-    meta: meta as KitMeta,
-    read: (name) => files.texts[name] ?? null,
-    picture: (name) => pictures.get(name) ?? null,
-    lib: (name) => LIB[name] ?? null,
-    romTrap,
-  })
-  if ('errors' in built) return { ok: false, errors: built.errors.slice(0, 8) }
-  const r = built.report
-  return {
-    ok: true,
-    image: built.image,
-    assets: r.assets,
-    compiled: r.asm,
-    banks: r.banks,
-    ramCode: r.ramCode,
-    tiles: r.tiles,
-  }
-}
-
 /**
  * A PNG's points as RGBA, exactly as the file has them: no colour space conversion and no
- * premultiplied alpha, so a colour matches its palette to the bit.
+ * premultiplied alpha, so a colour matches its palette to the bit. Its size was checked from
+ * its header first (kit-files.ts).
  */
 async function decode(bytes: Uint8Array): Promise<Picture | null> {
+  let bitmap: ImageBitmap | null = null
   try {
-    const bitmap = await createImageBitmap(new Blob([bytes as BlobPart], { type: 'image/png' }), {
+    bitmap = await createImageBitmap(new Blob([bytes as BlobPart], { type: 'image/png' }), {
       premultiplyAlpha: 'none',
       colorSpaceConversion: 'none',
     })
@@ -126,5 +84,8 @@ async function decode(bytes: Uint8Array): Promise<Picture | null> {
     return { width: bitmap.width, height: bitmap.height, data: new Uint8Array(data.buffer) }
   } catch {
     return null
+  } finally {
+    // Its memory is the decoder's until closed, not the collector's.
+    bitmap?.close()
   }
 }

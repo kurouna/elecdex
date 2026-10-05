@@ -14,7 +14,7 @@
  * through the general path for loads, stores and calls).
  */
 
-import { APU_IO, APU_IO_END, apuRead, apuWrite } from './apu.js'
+import { APU_IO, APU_IO_END, apuRead, apuWrite, wavesAt } from './apu.js'
 import { CARD_REG, cardRead, cardWrite } from './card.js'
 import { CART_BANK, cartBankTaken, SAVE_BANK } from './cartridge.js'
 import type { Inst } from './isa.js'
@@ -36,7 +36,7 @@ import {
   vramSize,
   XRAM_BANK,
 } from './map.js'
-import { MATH_REG, mathRead, mathWrite } from './math-unit.js'
+import { MATH_OP, MATH_REG, mathRead, mathWrite } from './math-unit.js'
 import { PAD_REG, padRead, padWrite } from './pad.js'
 import { type Elec16State, KEY_FIFO_SIZE, KEY_ROWS } from './state.js'
 import { VIDEO_IO, VIDEO_IO_END, VIDEO_PAGE_SIZE, videoRead, videoWrite } from './video.js'
@@ -166,6 +166,17 @@ export class Bus {
   }
 
   /**
+   * `length` bytes of RAM from `at` written by a device rather than the CPU (the card, LINK,
+   * the maths unit): what was decoded there, from the 32-bit instruction that may reach in two
+   * bytes before, is stale.
+   */
+  ramWritten(at: number, length: number): void {
+    const from = Math.max(0, (at & 0xfffe) - 2)
+    const to = Math.min(RAM_SIZE, at + length)
+    if (to > from) this.#code.fill(undefined, from, to)
+  }
+
+  /**
    * The half-word at `even` changed: an instruction decoded there, or a 32-bit one decoded
    * two bytes before it, is stale. Most writes are to data, where nothing was decoded.
    */
@@ -247,6 +258,8 @@ export class Bus {
       if (v.mem[at] !== value) {
         v.mem[at] = value
         s.screenRevision++
+        // The wave tables are the sound's: the page sends them when the sound's count moves.
+        if (s.apu !== null && wavesAt(at, 1)) s.apu.revision++
       }
     } else if (a >= VIDEO_IO && a < VIDEO_IO_END && (a & 1) === 0) {
       this.#gameIoWrite(a, value)
@@ -354,10 +367,20 @@ export class Bus {
     }
   }
 
+  /** The maths unit's registers: an operation writes RAM itself, past the code cache. */
+  #mathWrite(a: number, value: number): void {
+    const s = this.#s
+    s.stall += mathWrite(s, a, value)
+    // An operation writes its number at A, and FORMAT its text at B (ARG long).
+    if (a !== MATH_REG.op) return
+    this.ramWritten(s.math.a, 8)
+    if ((value & 0xff) === MATH_OP.format) this.ramWritten(s.math.b, s.math.arg)
+  }
+
   #ioWrite(a: number, value: number): void {
     const s = this.#s
     if (a >= MATH_REG.op && a < MATH_REG.op + 16) {
-      s.stall += mathWrite(s, a, value)
+      this.#mathWrite(a, value)
       return
     }
     if (a >= CARD_REG.cmd && a < CARD_REG.cmd + 16) {

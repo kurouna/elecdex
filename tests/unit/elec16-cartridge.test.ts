@@ -1,4 +1,5 @@
 import { assemble, romImage } from '@shared/elec16/asm'
+import { buildGame } from '@shared/elec16/cart-build'
 import {
   CART_BANK,
   CART_HEADER,
@@ -153,8 +154,8 @@ describe('the slot', () => {
     bankIs(m, CART_BANK + 1)
     m.ejectCart()
     expect(m.state.cart).toBeNull()
-    expect(m.bus.read16(0xc000)).toBe(0xffff)
-    expect(bankIs(m, CART_BANK)).toBe(CART_BANK + 1)
+    // The window goes back to bank 0: the bank it showed is gone.
+    expect(m.bus.read16(0xff04)).toBe(0)
     expect(bankIs(m, 0)).toBe(0)
     expect(bankIs(m, CART_BANK)).toBe(0)
     expect(bankIs(m, SAVE_BANK)).toBe(0)
@@ -299,5 +300,99 @@ describe("CART's LOAD", () => {
     const image = cart()
     m.answerLink(5, { status: LINK_STATUS.ready, cart: { image, digest: DIGEST } })
     expect(m.state.cart).toBeNull()
+  })
+
+  /** A LOAD out, as the ROM's START sends it. */
+  const loadOut = (m: Elec16, serial: number) => {
+    const l = m.s.link
+    l.busy = true
+    l.serial = serial
+    l.outReply = 0x6100
+    l.outMax = 64
+  }
+
+  it('keeps the save RAM of the game in the slot when the same game is loaded again', () => {
+    const m = boot()
+    const image = cart()
+    expect(m.insertCart(image, DIGEST, new Uint8Array([1]))).toBe(true)
+    m.bus.write16(0xff04, 0x80)
+    m.bus.write8(0xc000, 0x42)
+    // START again: main answers with the save it kept, older than the game's own.
+    loadOut(m, 5)
+    m.answerLink(5, {
+      status: LINK_STATUS.ready,
+      data: image.subarray(0, 64),
+      cart: { image, digest: DIGEST, save: new Uint8Array([1]) },
+    })
+    expect(m.state.cart?.save[0]).toBe(0x42)
+    // Another game takes its own.
+    const other = cart({ ...HEADER, id: 'OTHER' })
+    expect(m.insertCart(other, DIGEST, new Uint8Array([9]))).toBe(true)
+    expect(m.state.cart?.save[0]).toBe(9)
+  })
+
+  it('answers FAILED, not READY, when the image it brings is no cartridge', () => {
+    const m = boot()
+    const broken = cart().slice(0, CART_HEADER + BANK_SIZE)
+    loadOut(m, 6)
+    m.answerLink(6, {
+      status: LINK_STATUS.ready,
+      data: broken.subarray(0, 64),
+      cart: { image: broken, digest: DIGEST },
+    })
+    expect(m.state.cart).toBeNull()
+    expect(m.state.link.status).toBe(LINK_STATUS.failed)
+    expect(m.state.link.length).toBe(0)
+  })
+
+  it('shows bank 0 once the bank in the window is taken out, so its snapshot reads back', () => {
+    for (const bank of [0x101, 0x81]) {
+      const m = boot()
+      m.insertCart(cart(), DIGEST)
+      expect(bankIs(m, bank)).toBe(bank)
+      m.ejectCart()
+      expect(m.state.bank).toBe(0)
+      expect(decodeSnapshot(m.snapshot())).not.toBeNull()
+    }
+    // A smaller cartridge in its place: a bank it has not is no longer shown.
+    const m = boot()
+    m.insertCart(cart(), DIGEST)
+    expect(bankIs(m, 0x102)).toBe(0x102)
+    expect(m.insertCart(cart({ ...HEADER, banks: 1, saveBanks: 0 }), DIGEST)).toBe(true)
+    expect(m.state.bank).toBe(0)
+    expect(decodeSnapshot(m.snapshot())).not.toBeNull()
+    // One that still has it keeps it.
+    m.insertCart(cart(), DIGEST)
+    expect(bankIs(m, 0x101)).toBe(0x101)
+    m.insertCart(cart({ ...HEADER, id: 'OTHER' }), DIGEST)
+    expect(m.state.bank).toBe(0x101)
+  })
+})
+
+describe('a game built from assembly', () => {
+  const META = { id: 'T', name: 'T', saveBanks: 0, about: '' }
+  const SOURCE = '.bank 0\n.org 0xc000\nstart: ebreak'
+  const said = (r: ReturnType<typeof buildGame>) =>
+    'errors' in r ? r.errors.map((e) => e.message).join('; ') : 'built'
+
+  it('is a cartridge readCart takes', () => {
+    const r = buildGame(SOURCE, META)
+    expect('image' in r && readCart(r.image)).toMatchObject({ id: 'T', entry: 0xc000 })
+  })
+
+  it('refuses what readCart would not take, saying why, never an image', () => {
+    expect(said(buildGame(SOURCE, { ...META, saveBanks: 9 }))).toMatch(/save/)
+    expect(said(buildGame(SOURCE, { ...META, saveBanks: -1 }))).toMatch(/save/)
+    expect(said(buildGame(SOURCE, { ...META, name: 'CAFÉ' }))).toMatch(/name/)
+    expect(said(buildGame(SOURCE, { ...META, name: 'X'.repeat(25) }))).toMatch(/name/)
+    // The entry: an even address in the window.
+    expect(said(buildGame('.bank 0\n.org 0xc000\n ebreak\nstart = 0x7000', META))).toMatch(/start/)
+    // Every byte in its bank's window.
+    expect(said(buildGame('.bank 0\n.org 0xdffe\nstart: ebreak\n ebreak', META))).toMatch(
+      /bank|window/,
+    )
+    expect(said(buildGame('.bank 0\n.org 0xbffe\n ebreak\nstart: ebreak', META))).toMatch(
+      /bank|window/,
+    )
   })
 })

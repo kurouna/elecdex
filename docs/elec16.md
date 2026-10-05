@@ -626,6 +626,8 @@ TS の部分集合 (*.e16.ts)
 **ページと main**
 
 - 答えを main から待つ機械（LINK、カード）は KEY も許可して眠るので、runner はそれをプロンプトとは見なさない（`#waitsForMain`）。待ち方を足したらここにも入れる
+- PLAY-320 の起動画面は PAD を許可して眠る。`Wake` の `pad` が立っていても、眠っているのが ROM の外（ゲームや CODE のプログラム）ならプロンプトではない（runner の `#atPrompt`）
+- カードの READ と DIR、LINK の答え、数値演算装置は CPU を通らずに RAM を書くので、書いた範囲の解読済みの命令を捨てる（`Bus.ramWritten`）。RAM を書く装置を足したら同じようにする
 - LINK の新しいサービスは main の `LinkService` と `link-services.ts` の 1 行で足す。コア、ページ、ROM サービス 8 は変えない。AI の答えの上限は、考えるモデル（Gemini 2.5 など）が考える分も含む
 - 見た目の変更は 1920×1080 で画面写真を撮って確かめる。スキンは PLAIN（テーマに従う）と固定色のものの両方、テーマは暗いものと Business Light で見る
 - 録画用の台本: `npm run demo:elec16`（ELEC-16 だけ）、紹介ツアー（`scripts/demo-beats.mjs` の `elec16` と `toTab`。retro プリセットの並び）。見た目や操作を変えたら `--shots` で撮り直して見る

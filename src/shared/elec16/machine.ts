@@ -10,7 +10,7 @@
  * looks its cycles up in a table built once (docs/elec16.md section 4 has what was measured).
  */
 
-import { resetApu } from './apu.js'
+import { resetApu, wavesAt } from './apu.js'
 import { Bus, pressKey, releaseKey } from './bus.js'
 import {
   answerCard,
@@ -19,7 +19,7 @@ import {
   createCardState,
   takeCardRequest,
 } from './card.js'
-import { sameDigest, slotOf } from './cartridge.js'
+import { cartBankTaken, SAVE_BANK, sameDigest, slotOf } from './cartridge.js'
 import { type Core, EXEC } from './exec.js'
 import { cyclesOf, decode, type Inst, OP, OPS } from './isa.js'
 import {
@@ -75,9 +75,11 @@ import {
   resetVideo,
 } from './video.js'
 
-/** What woke a sleeping machine may be waiting for: a key, or the timer in so many ms. */
+/** What woke a sleeping machine may be waiting for: a key, the pad, or the timer in so many ms. */
 export interface Wake {
   key: boolean
+  /** PLAY-320's buttons wake it (PAD enabled). */
+  pad: boolean
   timerMs: number | null
 }
 
@@ -137,6 +139,8 @@ export class Elec16 implements Core {
   #hz = DEFAULT_HZ
   /** The breakpoint `goOn` passes, once. */
   #passing = -1
+  /** Host time given past a VBLANK or LINE that woke the machine, still to pass (`advance`). */
+  #owedMs = 0
   // Filled, not sized: reading a hole in a sparse array goes up the prototype chain.
   readonly #code: (Inst | undefined)[] = Array.from({ length: VRAM }, () => undefined)
 
@@ -204,7 +208,10 @@ export class Elec16 implements Core {
     while (used < cycles) {
       if (stops.size !== 0 && this.#stopsHere()) break
       const spent = this.#step()
-      if (spent === 0) break
+      if (spent === 0) {
+        if (this.#catchUp()) continue
+        break
+      }
       used += spent
     }
     return this.#result(used)
@@ -255,6 +262,9 @@ export class Elec16 implements Core {
    * is not about to run anything (an instruction just after a WFI runs on waking, unstopped).
    */
   #stopsHere(): boolean {
+    // DMA has the bus: the instruction at the PC is not about to run, so it neither stops
+    // there nor uses up the GO that passes it - one GO goes through the whole copy.
+    if (this.s.video?.tiles.dma.active === true && !this.s.inTrap) return false
     const pc = this.s.pc
     if (pc === this.#passing) {
       this.#passing = -1
@@ -266,18 +276,67 @@ export class Elec16 implements Core {
     return true
   }
 
-  /** Host time passes: the timer counts, and may raise its interrupt; so does VBLANK. */
+  /**
+   * Host time passes: the timer counts, and may raise its interrupt; so does VBLANK. A sleeper
+   * that VBLANK or LINE wakes within the step has the time up to it now and the rest once it
+   * has answered and sleeps again (in `run`): the beam is where it was when the interrupt came,
+   * and the next one does not overtake it, however coarse the steps the page gives.
+   */
   advance(ms: number): void {
     if (!(ms > 0)) return
+    // Time still held back goes first: it came before this.
+    const given = ms + this.#owedMs
+    this.#owedMs = 0
+    const wake = this.#msToVideoWake()
+    if (wake !== null && wake < given) {
+      this.#pass(wake)
+      this.#owedMs = given - wake
+      return
+    }
+    this.#pass(given)
+  }
+
+  /** Milliseconds until VBLANK or LINE wakes a sleeper waiting for it; null for neither. */
+  #msToVideoWake(): number | null {
+    const s = this.s
+    const v = s.video
+    if (v === null || !s.sleeping) return null
+    const mie = s.csr.mie
+    const frame = msToFrame(v)
+    let ms: number | null = null
+    // Just past the frame's end, so the step surely brings it.
+    if ((mie & (1 << IRQ.vblank)) !== 0 && !v.pending) ms = frame + 1e-6
+    if ((mie & (1 << IRQ.line)) !== 0 && !v.tiles.linePending) {
+      const cycles = cyclesToLine(v.tiles, s.cycles)
+      // One cycle into the line, as the beam is credited.
+      const line = cycles === null ? null : ((cycles + 1) * 1000) / this.#hz
+      if (line !== null && line < frame) ms = ms === null ? line : Math.min(ms, line)
+    }
+    return ms
+  }
+
+  /** Time held back for a sleeper that was woken, passed once it sleeps again: true if any. */
+  #catchUp(): boolean {
+    const s = this.s
+    if (this.#owedMs <= 0 || !s.sleeping || s.halt !== null || s.off) return false
+    const owed = this.#owedMs
+    this.#owedMs = 0
+    this.advance(owed)
+    return true
+  }
+
+  #pass(ms: number): void {
     const s = this.s
     const t = s.timer
     s.time += ms
     const v = s.video
     if (v !== null) {
       // Asleep, the beam goes on: the time given is cycles for the line it is on - up to
-      // LINECMP at most, where LINE wakes the machine on its line, not some lines after.
+      // LINECMP at most when LINE is enabled, where LINE wakes the machine on its line, not
+      // some lines after. A sleeper LINE does not wake has the time whole.
       if (s.sleeping) {
-        const toLine = cyclesToLine(v.tiles, s.cycles)
+        const wakes = (s.csr.mie & (1 << IRQ.line)) !== 0
+        const toLine = wakes ? cyclesToLine(v.tiles, s.cycles) : null
         const given = (ms * this.#hz) / 1000
         // One cycle into the line: stopping exactly at its start can fall a hair short of it.
         v.tiles.slept += toLine === null ? given : Math.min(given, toLine + 1)
@@ -332,7 +391,14 @@ export class Elec16 implements Core {
   insertCart(image: Uint8Array, digest: Uint8Array, save?: Uint8Array): boolean {
     const slot = this.model.cart ? slotOf(image, digest, save) : null
     if (slot === null) return false
+    // The same game again (START once more, or another build of it): its save RAM here is
+    // newer than what main kept, which is written only when the machine is put away.
+    const was = this.s.cart
+    if (was !== null && was.id === slot.id && was.save.length === slot.save.length) {
+      slot.save = was.save
+    }
     this.s.cart = slot
+    this.#bankGone()
     this.#windowStale()
     return true
   }
@@ -355,7 +421,18 @@ export class Elec16 implements Core {
   ejectCart(): void {
     if (this.s.cart === null) return
     this.s.cart = null
+    this.#bankGone()
     this.#windowStale()
+  }
+
+  /**
+   * The window back to bank 0 when the bank it showed is no longer the machine's (a cartridge
+   * taken out, or a smaller one put in): BANK never names a bank it has not, and a snapshot
+   * that did would not read back.
+   */
+  #bankGone(): void {
+    const s = this.s
+    if (s.bank >= SAVE_BANK && !cartBankTaken(s.cart, s.bank)) s.bank = 0
   }
 
   /** What was decoded in the bank window (and the two bytes before it) is stale. */
@@ -406,6 +483,7 @@ export class Elec16 implements Core {
     this.#code.fill(undefined)
     this.breakAt = null
     this.#passing = -1
+    this.#owedMs = 0
   }
 
   /**
@@ -429,7 +507,15 @@ export class Elec16 implements Core {
    * waking a machine asleep for it.
    */
   answerCard(request: CardRequest, answer: CardAnswer): void {
+    const busy = this.s.card.busy
     answerCard(this.s, request, answer)
+    // What a READ or DIR wrote went straight into RAM: code decoded there is stale.
+    if (busy) this.#ramWritten(request.address, request.length)
+  }
+
+  /** RAM a device wrote without the bus: what was decoded there is stale. */
+  #ramWritten(at: number, length: number): void {
+    this.bus.ramWritten(at, length)
   }
 
   /** LINK's request out for the page to take (link.ts), once; null when there is none. */
@@ -445,16 +531,20 @@ export class Elec16 implements Core {
   /** main's answer to a LINK request: written at REPLY, the LINK line up, a sleeper woken. */
   answerLink(serial: number, answer: LinkAnswer): void {
     // CART's LOAD brings the cartridge itself: in the slot before the program hears the answer.
+    // One the slot refuses is no LOAD: the program hears FAILED, never READY with no game.
     const request = this.s.link
+    let heard = answer
     if (
       answer.cart !== undefined &&
       answer.status === LINK_STATUS.ready &&
       request.busy &&
-      request.serial === serial
+      request.serial === serial &&
+      !this.insertCart(answer.cart.image, answer.cart.digest, answer.cart.save)
     ) {
-      this.insertCart(answer.cart.image, answer.cart.digest, answer.cart.save)
+      heard = { status: LINK_STATUS.failed }
     }
-    answerLink(this.s, serial, answer)
+    answerLink(this.s, serial, heard)
+    if (heard.status === LINK_STATUS.ready) this.#ramWritten(request.outReply, request.length + 1)
   }
 
   /** The power switch: off as a program's POWER write leaves it, RAM kept; BRK/ON is on. */
@@ -628,6 +718,7 @@ export class Elec16 implements Core {
     for (let k = 0; k < n; k++) {
       mem[(dma.dst + k) & 0xffff] = this.bus.peek((dma.src + k) & 0xffff)
     }
+    if (s.apu !== null && wavesAt(dma.dst, n)) s.apu.revision++
     dma.src = (dma.src + n) & 0xffff
     dma.dst = (dma.dst + n) & 0xffff
     dma.len -= n
@@ -713,7 +804,7 @@ export class Elec16 implements Core {
   #wake(): Wake {
     const s = this.s
     // Off, only BRK/ON wakes it, and that is the page's call (brk), not a key in the FIFO.
-    if (s.off) return { key: false, timerMs: null }
+    if (s.off) return { key: false, pad: false, timerMs: null }
     const t = s.timer
     const timerOn = (s.csr.mie & (1 << IRQ.timer)) !== 0 && t.enabled && !t.pending
     const ticks = ((t.compare - t.count) & 0xffff || 0x10000) - t.fraction
@@ -723,6 +814,7 @@ export class Elec16 implements Core {
     const frameMs = v !== null ? this.#videoWakeMs(v) : null
     return {
       key: (s.csr.mie & (1 << IRQ.key)) !== 0,
+      pad: s.pad !== null && (s.csr.mie & (1 << IRQ.pad)) !== 0,
       timerMs: timerMs === null ? frameMs : frameMs === null ? timerMs : Math.min(timerMs, frameMs),
     }
   }

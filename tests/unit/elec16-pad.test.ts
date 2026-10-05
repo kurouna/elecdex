@@ -112,7 +112,7 @@ describe('the PAD line', () => {
       lw a2, 2(t1)
       ebreak`)
     const asleep = m.run(1_000_000)
-    expect(asleep.sleeping).toEqual({ key: false, timerMs: null })
+    expect(asleep.sleeping).toEqual({ key: false, pad: true, timerMs: null })
     // Asleep it stays while nothing is pressed; time passing does not wake it.
     m.advance(500)
     expect(m.run(1_000_000).sleeping).not.toBeNull()

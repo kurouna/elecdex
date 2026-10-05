@@ -157,6 +157,20 @@ describe('the runner with PLAY-320', () => {
     expect(runner.padHeld).toBe(START)
   })
 
+  it('does not take a program of its own asleep for the pad for the start screen', async () => {
+    const { runner, advance } = setUp()
+    run(runner, WAIT_FOR_PAD)
+    const back = runner.whenAsleep(200)
+    advance(300)
+    await expect(back).resolves.toBe(false)
+    expect(runner.asleep).toBe(true)
+    // Pressed, it comes back to the start screen: that is its prompt.
+    const prompt = runner.whenAsleep(200)
+    runner.padFrom('keys', padBit('b'))
+    advance(50)
+    await expect(prompt).resolves.toBe(true)
+  })
+
   it('wakes a program waiting for the pad when a button goes down', () => {
     const { runner, advance } = setUp()
     run(runner, WAIT_FOR_PAD)

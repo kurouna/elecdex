@@ -4,170 +4,171 @@
 ; sprShown at 0x0882
 ; padIs at 0x0884
 ; padWas at 0x0886
-; seed at 0x0aca
-; muted at 0x0c8c
-; opTook at 0x0c8e
-; scrolled at 0x0c90
-; scrollSpeed at 0x0c92
-; scrollFrac at 0x0c94
-; loadedTop at 0x0c96
-; holdTop at 0x0c98
-; holdRows at 0x0c9a
-; logicalTop at 0x0c9c
-; sway at 0x0c9e
-; shakeLeft at 0x0ca0
-; shakeX at 0x0ca2
-; shakeY at 0x0ca4
-; flashLeft at 0x0ca6
-; waveLeft at 0x0ca8
-; wavePhase at 0x0caa
-; waveSize at 0x0cac
-; fxNext at 0x0e2e
-; itNext at 0x1010
-; magnetNow at 0x101c
-; buNext at 0x1436
-; bulletCount at 0x1438
-; bulletBoost at 0x143a
-; targetX at 0x143c
-; targetY at 0x143e
-; grazes at 0x1440
-; hitShip at 0x1442
-; shipState at 0x14d4
-; shipX at 0x14d6
-; shipY at 0x14d8
-; tilt at 0x14da
-; timer at 0x14dc
-; guard at 0x14de
-; holdA at 0x14e0
-; cooldown at 0x14e2
-; tick at 0x14e4
-; lives at 0x14e6
-; bombs at 0x14e8
-; volt at 0x14ea
-; overdrive at 0x14ec
-; bombing at 0x14ee
-; lancing at 0x14f0
-; lanceTop at 0x14f2
-; power at 0x14f4
-; foeCount at 0x1724
-; round at 0x1726
-; rank at 0x1728
-; foePal at 0x172a
-; killed at 0x172c
-; killWorth at 0x172e
-; killX at 0x1730
-; killY at 0x1732
-; lanceVictim at 0x1734
-; bossBombed at 0x1736
-; scriptAt at 0x1738
-; scriptArg at 0x173a
-; scriptArg2 at 0x173c
-; bossOn at 0x173e
-; bossPhase at 0x1740
-; bX at 0x1742
-; bY at 0x1744
-; bT at 0x1746
-; spin at 0x1748
-; chain at 0x1770
-; chainLeft at 0x1772
-; maxChain at 0x1774
-; skims at 0x1776
-; nextExtend at 0x1778
-; shown at 0x177a
-; shownChain at 0x177c
-; shownSkims at 0x177e
-; shownLives at 0x1780
-; shownBombs at 0x1782
-; shownVolt at 0x1784
-; shownPower at 0x1786
-; links at 0x17dc
-; ringX at 0x17de
-; ringY at 0x17e0
-; ringMax at 0x17e2
-; ringT at 0x17e4
-; seen at 0x18ee
-; frame at 0x18f0
-; banner at 0x18f2
-; warning at 0x18f4
-; clearT at 0x18f6
-; bossOnWas at 0x18f8
+; padDown at 0x0888
+; seed at 0x0acc
+; muted at 0x0c8e
+; opTook at 0x0c90
+; scrolled at 0x0c92
+; scrollSpeed at 0x0c94
+; scrollFrac at 0x0c96
+; loadedTop at 0x0c98
+; holdTop at 0x0c9a
+; holdRows at 0x0c9c
+; logicalTop at 0x0c9e
+; sway at 0x0ca0
+; shakeLeft at 0x0ca2
+; shakeX at 0x0ca4
+; shakeY at 0x0ca6
+; flashLeft at 0x0ca8
+; waveLeft at 0x0caa
+; wavePhase at 0x0cac
+; waveSize at 0x0cae
+; fxNext at 0x0e30
+; itNext at 0x1012
+; magnetNow at 0x101e
+; buNext at 0x1438
+; bulletCount at 0x143a
+; bulletBoost at 0x143c
+; targetX at 0x143e
+; targetY at 0x1440
+; grazes at 0x1442
+; hitShip at 0x1444
+; shipState at 0x14d6
+; shipX at 0x14d8
+; shipY at 0x14da
+; tilt at 0x14dc
+; timer at 0x14de
+; guard at 0x14e0
+; holdA at 0x14e2
+; cooldown at 0x14e4
+; tick at 0x14e6
+; lives at 0x14e8
+; bombs at 0x14ea
+; volt at 0x14ec
+; overdrive at 0x14ee
+; bombing at 0x14f0
+; lancing at 0x14f2
+; lanceTop at 0x14f4
+; power at 0x14f6
+; foeCount at 0x1726
+; round at 0x1728
+; rank at 0x172a
+; foePal at 0x172c
+; killed at 0x172e
+; killWorth at 0x1730
+; killX at 0x1732
+; killY at 0x1734
+; lanceVictim at 0x1736
+; bossBombed at 0x1738
+; scriptAt at 0x173a
+; scriptArg at 0x173c
+; scriptArg2 at 0x173e
+; bossOn at 0x1740
+; bossPhase at 0x1742
+; bX at 0x1744
+; bY at 0x1746
+; bT at 0x1748
+; spin at 0x174a
+; chain at 0x1772
+; chainLeft at 0x1774
+; maxChain at 0x1776
+; skims at 0x1778
+; nextExtend at 0x177a
+; shown at 0x177c
+; shownChain at 0x177e
+; shownSkims at 0x1780
+; shownLives at 0x1782
+; shownBombs at 0x1784
+; shownVolt at 0x1786
+; shownPower at 0x1788
+; links at 0x17de
+; ringX at 0x17e0
+; ringY at 0x17e2
+; ringMax at 0x17e4
+; ringT at 0x17e6
+; seen at 0x18f0
+; frame at 0x18f2
+; banner at 0x18f4
+; warning at 0x18f6
+; clearT at 0x18f8
+; bossOnWas at 0x18fa
 palCopy = 0x0280 ; 512 bytes
 oam = 0x0480 ; 1024 bytes
-sines = 0x0888 ; 512 bytes
-atans = 0x0a88 ; 66 bytes
-chBank = 0x0acc ; 32 bytes
-chSong = 0x0aec ; 32 bytes
-chAt = 0x0b0c ; 32 bytes
-chLoop = 0x0b2c ; 32 bytes
-chWait = 0x0b4c ; 32 bytes
-chGate = 0x0b6c ; 32 bytes
-chFreq = 0x0b8c ; 32 bytes
-lastFreq = 0x0bac ; 32 bytes
-chLen = 0x0bcc ; 32 bytes
-chHeld = 0x0bec ; 32 bytes
-chDrop = 0x0c0c ; 32 bytes
-chVol = 0x0c2c ; 32 bytes
-chInstVol = 0x0c4c ; 32 bytes
-chOn = 0x0c6c ; 32 bytes
-fxKind = 0x0cae ; 64 bytes
-fxX = 0x0cee ; 64 bytes
-fxY = 0x0d2e ; 64 bytes
-fxVX = 0x0d6e ; 64 bytes
-fxVY = 0x0dae ; 64 bytes
-fxT = 0x0dee ; 64 bytes
-itKind = 0x0e30 ; 80 bytes
-itX = 0x0e80 ; 80 bytes
-itY = 0x0ed0 ; 80 bytes
-itVX = 0x0f20 ; 80 bytes
-itVY = 0x0f70 ; 80 bytes
-itT = 0x0fc0 ; 80 bytes
-caught = 0x1012 ; 10 bytes
-farX = 0x101e ; 20 bytes
-farY = 0x1032 ; 20 bytes
-buKind = 0x1046 ; 144 bytes
-buX = 0x10d6 ; 144 bytes
-buY = 0x1166 ; 144 bytes
-buVX = 0x11f6 ; 144 bytes
-buVY = 0x1286 ; 144 bytes
-buLive = 0x1316 ; 144 bytes
-buGrazed = 0x13a6 ; 144 bytes
-sX = 0x1444 ; 36 bytes
-sY = 0x1468 ; 36 bytes
-sVX = 0x148c ; 36 bytes
-sLive = 0x14b0 ; 36 bytes
-fK = 0x14f6 ; 48 bytes
-fX = 0x1526 ; 48 bytes
-fY = 0x1556 ; 48 bytes
-fVX = 0x1586 ; 48 bytes
-fVY = 0x15b6 ; 48 bytes
-fHP = 0x15e6 ; 48 bytes
-fT = 0x1616 ; 48 bytes
-fP = 0x1646 ; 48 bytes
-fFlash = 0x1676 ; 48 bytes
-fBombed = 0x16a6 ; 48 bytes
-HALF = 0x16d6 ; 26 bytes
-LIFE = 0x16f0 ; 26 bytes
-WORTH = 0x170a ; 26 bytes
-life = 0x174a ; 6 bytes
-flash = 0x1750 ; 6 bytes
-PX = 0x1756 ; 6 bytes
-PY = 0x175c ; 6 bytes
-PHALF = 0x1762 ; 6 bytes
-score = 0x1768 ; 4 bytes
-best = 0x176c ; 4 bytes
-mX = 0x1788 ; 12 bytes
-mY = 0x1794 ; 12 bytes
-mVX = 0x17a0 ; 12 bytes
-mVY = 0x17ac ; 12 bytes
-mT = 0x17b8 ; 12 bytes
-linkFrom = 0x17c4 ; 12 bytes
-linkTo = 0x17d0 ; 12 bytes
-serpentHead = 0x17e6 ; 4 bytes
-trail = 0x17ea ; 256 bytes
-trailAt = 0x18ea ; 4 bytes
-letters = 0x18fa ; 6 bytes
-bestScore = 0x1900 ; 20 bytes
-bestName = 0x1914 ; 30 bytes
+sines = 0x088a ; 512 bytes
+atans = 0x0a8a ; 66 bytes
+chBank = 0x0ace ; 32 bytes
+chSong = 0x0aee ; 32 bytes
+chAt = 0x0b0e ; 32 bytes
+chLoop = 0x0b2e ; 32 bytes
+chWait = 0x0b4e ; 32 bytes
+chGate = 0x0b6e ; 32 bytes
+chFreq = 0x0b8e ; 32 bytes
+lastFreq = 0x0bae ; 32 bytes
+chLen = 0x0bce ; 32 bytes
+chHeld = 0x0bee ; 32 bytes
+chDrop = 0x0c0e ; 32 bytes
+chVol = 0x0c2e ; 32 bytes
+chInstVol = 0x0c4e ; 32 bytes
+chOn = 0x0c6e ; 32 bytes
+fxKind = 0x0cb0 ; 64 bytes
+fxX = 0x0cf0 ; 64 bytes
+fxY = 0x0d30 ; 64 bytes
+fxVX = 0x0d70 ; 64 bytes
+fxVY = 0x0db0 ; 64 bytes
+fxT = 0x0df0 ; 64 bytes
+itKind = 0x0e32 ; 80 bytes
+itX = 0x0e82 ; 80 bytes
+itY = 0x0ed2 ; 80 bytes
+itVX = 0x0f22 ; 80 bytes
+itVY = 0x0f72 ; 80 bytes
+itT = 0x0fc2 ; 80 bytes
+caught = 0x1014 ; 10 bytes
+farX = 0x1020 ; 20 bytes
+farY = 0x1034 ; 20 bytes
+buKind = 0x1048 ; 144 bytes
+buX = 0x10d8 ; 144 bytes
+buY = 0x1168 ; 144 bytes
+buVX = 0x11f8 ; 144 bytes
+buVY = 0x1288 ; 144 bytes
+buLive = 0x1318 ; 144 bytes
+buGrazed = 0x13a8 ; 144 bytes
+sX = 0x1446 ; 36 bytes
+sY = 0x146a ; 36 bytes
+sVX = 0x148e ; 36 bytes
+sLive = 0x14b2 ; 36 bytes
+fK = 0x14f8 ; 48 bytes
+fX = 0x1528 ; 48 bytes
+fY = 0x1558 ; 48 bytes
+fVX = 0x1588 ; 48 bytes
+fVY = 0x15b8 ; 48 bytes
+fHP = 0x15e8 ; 48 bytes
+fT = 0x1618 ; 48 bytes
+fP = 0x1648 ; 48 bytes
+fFlash = 0x1678 ; 48 bytes
+fBombed = 0x16a8 ; 48 bytes
+HALF = 0x16d8 ; 26 bytes
+LIFE = 0x16f2 ; 26 bytes
+WORTH = 0x170c ; 26 bytes
+life = 0x174c ; 6 bytes
+flash = 0x1752 ; 6 bytes
+PX = 0x1758 ; 6 bytes
+PY = 0x175e ; 6 bytes
+PHALF = 0x1764 ; 6 bytes
+score = 0x176a ; 4 bytes
+best = 0x176e ; 4 bytes
+mX = 0x178a ; 12 bytes
+mY = 0x1796 ; 12 bytes
+mVX = 0x17a2 ; 12 bytes
+mVY = 0x17ae ; 12 bytes
+mT = 0x17ba ; 12 bytes
+linkFrom = 0x17c6 ; 12 bytes
+linkTo = 0x17d2 ; 12 bytes
+serpentHead = 0x17e8 ; 4 bytes
+trail = 0x17ec ; 256 bytes
+trailAt = 0x18ec ; 4 bytes
+letters = 0x18fc ; 6 bytes
+bestScore = 0x1902 ; 20 bytes
+bestName = 0x1916 ; 30 bytes
 
 e16c_init:
   ; sprN = 0
@@ -179,198 +180,200 @@ e16c_init:
   sw zero, 0x0884(zero)
   ; padWas = 0
   sw zero, 0x0886(zero)
+  ; padDown = 0
+  sw zero, 0x0888(zero)
   ; seed = 7467
   li t0, 7467
-  sw t0, 0x0aca(zero)
+  sw t0, 0x0acc(zero)
   ; muted = 0
-  sw zero, 0x0c8c(zero)
-  ; opTook = 0
   sw zero, 0x0c8e(zero)
-  ; scrolled = 0
+  ; opTook = 0
   sw zero, 0x0c90(zero)
+  ; scrolled = 0
+  sw zero, 0x0c92(zero)
   ; scrollSpeed = 8
   li t0, 8
-  sw t0, 0x0c92(zero)
+  sw t0, 0x0c94(zero)
   ; scrollFrac = 0
-  sw zero, 0x0c94(zero)
-  ; loadedTop = 0
   sw zero, 0x0c96(zero)
-  ; holdTop = 0
+  ; loadedTop = 0
   sw zero, 0x0c98(zero)
-  ; holdRows = 0
+  ; holdTop = 0
   sw zero, 0x0c9a(zero)
-  ; logicalTop = 0
+  ; holdRows = 0
   sw zero, 0x0c9c(zero)
-  ; sway = 0
+  ; logicalTop = 0
   sw zero, 0x0c9e(zero)
-  ; shakeLeft = 0
+  ; sway = 0
   sw zero, 0x0ca0(zero)
-  ; shakeX = 0
+  ; shakeLeft = 0
   sw zero, 0x0ca2(zero)
-  ; shakeY = 0
+  ; shakeX = 0
   sw zero, 0x0ca4(zero)
-  ; flashLeft = 0
+  ; shakeY = 0
   sw zero, 0x0ca6(zero)
-  ; waveLeft = 0
+  ; flashLeft = 0
   sw zero, 0x0ca8(zero)
-  ; wavePhase = 0
+  ; waveLeft = 0
   sw zero, 0x0caa(zero)
-  ; waveSize = 0
+  ; wavePhase = 0
   sw zero, 0x0cac(zero)
+  ; waveSize = 0
+  sw zero, 0x0cae(zero)
   ; fxNext = 0
-  sw zero, 0x0e2e(zero)
+  sw zero, 0x0e30(zero)
   ; itNext = 0
-  sw zero, 0x1010(zero)
+  sw zero, 0x1012(zero)
   ; magnetNow = 0
-  sw zero, 0x101c(zero)
+  sw zero, 0x101e(zero)
   ; buNext = 0
-  sw zero, 0x1436(zero)
-  ; bulletCount = 0
   sw zero, 0x1438(zero)
-  ; bulletBoost = 0
+  ; bulletCount = 0
   sw zero, 0x143a(zero)
+  ; bulletBoost = 0
+  sw zero, 0x143c(zero)
   ; targetX = 2560
   li t0, 2560
-  sw t0, 0x143c(zero)
+  sw t0, 0x143e(zero)
   ; targetY = 3800
   li t0, 3800
-  sw t0, 0x143e(zero)
+  sw t0, 0x1440(zero)
   ; grazes = 0
-  sw zero, 0x1440(zero)
-  ; hitShip = 0
   sw zero, 0x1442(zero)
+  ; hitShip = 0
+  sw zero, 0x1444(zero)
   ; shipState = 0
-  sw zero, 0x14d4(zero)
+  sw zero, 0x14d6(zero)
   ; shipX = 2560
   li t0, 2560
-  sw t0, 0x14d6(zero)
+  sw t0, 0x14d8(zero)
   ; shipY = 5000
   li t0, 5000
-  sw t0, 0x14d8(zero)
+  sw t0, 0x14da(zero)
   ; tilt = 0
-  sw zero, 0x14da(zero)
-  ; timer = 0
   sw zero, 0x14dc(zero)
-  ; guard = 0
+  ; timer = 0
   sw zero, 0x14de(zero)
-  ; holdA = 0
+  ; guard = 0
   sw zero, 0x14e0(zero)
-  ; cooldown = 0
+  ; holdA = 0
   sw zero, 0x14e2(zero)
-  ; tick = 0
+  ; cooldown = 0
   sw zero, 0x14e4(zero)
+  ; tick = 0
+  sw zero, 0x14e6(zero)
   ; lives = 3
   li t0, 3
-  sw t0, 0x14e6(zero)
+  sw t0, 0x14e8(zero)
   ; bombs = 3
   li t0, 3
-  sw t0, 0x14e8(zero)
+  sw t0, 0x14ea(zero)
   ; volt = 0
-  sw zero, 0x14ea(zero)
-  ; overdrive = 0
   sw zero, 0x14ec(zero)
-  ; bombing = 0
+  ; overdrive = 0
   sw zero, 0x14ee(zero)
-  ; lancing = 0
+  ; bombing = 0
   sw zero, 0x14f0(zero)
-  ; lanceTop = 0
+  ; lancing = 0
   sw zero, 0x14f2(zero)
-  ; power = 0
+  ; lanceTop = 0
   sw zero, 0x14f4(zero)
+  ; power = 0
+  sw zero, 0x14f6(zero)
   ; foeCount = 0
-  sw zero, 0x1724(zero)
+  sw zero, 0x1726(zero)
   ; round = 1
   li t0, 1
-  sw t0, 0x1726(zero)
+  sw t0, 0x1728(zero)
   ; rank = 0
-  sw zero, 0x1728(zero)
-  ; foePal = 0
   sw zero, 0x172a(zero)
-  ; killed = 0
+  ; foePal = 0
   sw zero, 0x172c(zero)
-  ; killWorth = 0
+  ; killed = 0
   sw zero, 0x172e(zero)
-  ; killX = 0
+  ; killWorth = 0
   sw zero, 0x1730(zero)
-  ; killY = 0
+  ; killX = 0
   sw zero, 0x1732(zero)
+  ; killY = 0
+  sw zero, 0x1734(zero)
   ; lanceVictim = 65535
   li t0, 65535
-  sw t0, 0x1734(zero)
+  sw t0, 0x1736(zero)
   ; bossBombed = 0
-  sw zero, 0x1736(zero)
-  ; scriptAt = 0
   sw zero, 0x1738(zero)
-  ; scriptArg = 0
+  ; scriptAt = 0
   sw zero, 0x173a(zero)
-  ; scriptArg2 = 0
+  ; scriptArg = 0
   sw zero, 0x173c(zero)
-  ; bossOn = 0
+  ; scriptArg2 = 0
   sw zero, 0x173e(zero)
-  ; bossPhase = 0
+  ; bossOn = 0
   sw zero, 0x1740(zero)
-  ; bX = 0
+  ; bossPhase = 0
   sw zero, 0x1742(zero)
-  ; bY = 0
+  ; bX = 0
   sw zero, 0x1744(zero)
-  ; bT = 0
+  ; bY = 0
   sw zero, 0x1746(zero)
-  ; spin = 0
+  ; bT = 0
   sw zero, 0x1748(zero)
+  ; spin = 0
+  sw zero, 0x174a(zero)
   ; chain = 0
-  sw zero, 0x1770(zero)
-  ; chainLeft = 0
   sw zero, 0x1772(zero)
-  ; maxChain = 0
+  ; chainLeft = 0
   sw zero, 0x1774(zero)
-  ; skims = 0
+  ; maxChain = 0
   sw zero, 0x1776(zero)
+  ; skims = 0
+  sw zero, 0x1778(zero)
   ; nextExtend = 5000
   li t0, 5000
-  sw t0, 0x1778(zero)
+  sw t0, 0x177a(zero)
   ; shown = 65535
   li t0, 65535
-  sw t0, 0x177a(zero)
+  sw t0, 0x177c(zero)
   ; shownChain = 65535
   li t0, 65535
-  sw t0, 0x177c(zero)
+  sw t0, 0x177e(zero)
   ; shownSkims = 65535
   li t0, 65535
-  sw t0, 0x177e(zero)
+  sw t0, 0x1780(zero)
   ; shownLives = 65535
   li t0, 65535
-  sw t0, 0x1780(zero)
+  sw t0, 0x1782(zero)
   ; shownBombs = 65535
   li t0, 65535
-  sw t0, 0x1782(zero)
+  sw t0, 0x1784(zero)
   ; shownVolt = 65535
   li t0, 65535
-  sw t0, 0x1784(zero)
+  sw t0, 0x1786(zero)
   ; shownPower = 65535
   li t0, 65535
-  sw t0, 0x1786(zero)
+  sw t0, 0x1788(zero)
   ; links = 0
-  sw zero, 0x17dc(zero)
-  ; ringX = 0
   sw zero, 0x17de(zero)
-  ; ringY = 0
+  ; ringX = 0
   sw zero, 0x17e0(zero)
-  ; ringMax = 0
+  ; ringY = 0
   sw zero, 0x17e2(zero)
-  ; ringT = 0
+  ; ringMax = 0
   sw zero, 0x17e4(zero)
+  ; ringT = 0
+  sw zero, 0x17e6(zero)
   ; seen = 0
-  sw zero, 0x18ee(zero)
-  ; frame = 0
   sw zero, 0x18f0(zero)
-  ; banner = 0
+  ; frame = 0
   sw zero, 0x18f2(zero)
-  ; warning = 0
+  ; banner = 0
   sw zero, 0x18f4(zero)
-  ; clearT = 0
+  ; warning = 0
   sw zero, 0x18f6(zero)
-  ; bossOnWas = 0
+  ; clearT = 0
   sw zero, 0x18f8(zero)
+  ; bossOnWas = 0
+  sw zero, 0x18fa(zero)
   ; palCopy: 512 bytes of 0
   li t0, 0x0280
   li t1, 512
@@ -380,337 +383,337 @@ e16c_init:
   li t1, 1024
   mset t0, zero, t1
   ; sines: 512 bytes of 0
-  li t0, 0x0888
+  li t0, 0x088a
   li t1, 512
   mset t0, zero, t1
   ; atans: 66 bytes of 0
-  li t0, 0x0a88
+  li t0, 0x0a8a
   li t1, 66
   mset t0, zero, t1
   ; chBank: 32 bytes of 0
-  li t0, 0x0acc
+  li t0, 0x0ace
   li t1, 32
   mset t0, zero, t1
   ; chSong: 32 bytes of 0
-  li t0, 0x0aec
+  li t0, 0x0aee
   li t1, 32
   mset t0, zero, t1
   ; chAt: 32 bytes of 0
-  li t0, 0x0b0c
+  li t0, 0x0b0e
   li t1, 32
   mset t0, zero, t1
   ; chLoop: 32 bytes of 0
-  li t0, 0x0b2c
+  li t0, 0x0b2e
   li t1, 32
   mset t0, zero, t1
   ; chWait: 32 bytes of 0
-  li t0, 0x0b4c
+  li t0, 0x0b4e
   li t1, 32
   mset t0, zero, t1
   ; chGate: 32 bytes of 0
-  li t0, 0x0b6c
+  li t0, 0x0b6e
   li t1, 32
   mset t0, zero, t1
   ; chFreq: 32 bytes of 0
-  li t0, 0x0b8c
+  li t0, 0x0b8e
   li t1, 32
   mset t0, zero, t1
   ; lastFreq: 32 bytes of 0
-  li t0, 0x0bac
+  li t0, 0x0bae
   li t1, 32
   mset t0, zero, t1
   ; chLen: 32 bytes of 0
-  li t0, 0x0bcc
+  li t0, 0x0bce
   li t1, 32
   mset t0, zero, t1
   ; chHeld: 32 bytes of 0
-  li t0, 0x0bec
+  li t0, 0x0bee
   li t1, 32
   mset t0, zero, t1
   ; chDrop: 32 bytes of 0
-  li t0, 0x0c0c
+  li t0, 0x0c0e
   li t1, 32
   mset t0, zero, t1
   ; chVol: 32 bytes of 0
-  li t0, 0x0c2c
+  li t0, 0x0c2e
   li t1, 32
   mset t0, zero, t1
   ; chInstVol: 32 bytes of 0
-  li t0, 0x0c4c
+  li t0, 0x0c4e
   li t1, 32
   mset t0, zero, t1
   ; chOn: 32 bytes of 0
-  li t0, 0x0c6c
+  li t0, 0x0c6e
   li t1, 32
   mset t0, zero, t1
   ; fxKind: 64 bytes of 0
-  li t0, 0x0cae
+  li t0, 0x0cb0
   li t1, 64
   mset t0, zero, t1
   ; fxX: 64 bytes of 0
-  li t0, 0x0cee
+  li t0, 0x0cf0
   li t1, 64
   mset t0, zero, t1
   ; fxY: 64 bytes of 0
-  li t0, 0x0d2e
+  li t0, 0x0d30
   li t1, 64
   mset t0, zero, t1
   ; fxVX: 64 bytes of 0
-  li t0, 0x0d6e
+  li t0, 0x0d70
   li t1, 64
   mset t0, zero, t1
   ; fxVY: 64 bytes of 0
-  li t0, 0x0dae
+  li t0, 0x0db0
   li t1, 64
   mset t0, zero, t1
   ; fxT: 64 bytes of 0
-  li t0, 0x0dee
+  li t0, 0x0df0
   li t1, 64
   mset t0, zero, t1
   ; itKind: 80 bytes of 0
-  li t0, 0x0e30
+  li t0, 0x0e32
   li t1, 80
   mset t0, zero, t1
   ; itX: 80 bytes of 0
-  li t0, 0x0e80
+  li t0, 0x0e82
   li t1, 80
   mset t0, zero, t1
   ; itY: 80 bytes of 0
-  li t0, 0x0ed0
+  li t0, 0x0ed2
   li t1, 80
   mset t0, zero, t1
   ; itVX: 80 bytes of 0
-  li t0, 0x0f20
+  li t0, 0x0f22
   li t1, 80
   mset t0, zero, t1
   ; itVY: 80 bytes of 0
-  li t0, 0x0f70
+  li t0, 0x0f72
   li t1, 80
   mset t0, zero, t1
   ; itT: 80 bytes of 0
-  li t0, 0x0fc0
+  li t0, 0x0fc2
   li t1, 80
   mset t0, zero, t1
   ; caught: 10 bytes of 0
-  li t0, 0x1012
+  li t0, 0x1014
   li t1, 10
   mset t0, zero, t1
   ; farX: 20 bytes of 0
-  li t0, 0x101e
+  li t0, 0x1020
   li t1, 20
   mset t0, zero, t1
   ; farY: 20 bytes of 0
-  li t0, 0x1032
+  li t0, 0x1034
   li t1, 20
   mset t0, zero, t1
   ; buKind: 144 bytes of 0
-  li t0, 0x1046
+  li t0, 0x1048
   li t1, 144
   mset t0, zero, t1
   ; buX: 144 bytes of 0
-  li t0, 0x10d6
+  li t0, 0x10d8
   li t1, 144
   mset t0, zero, t1
   ; buY: 144 bytes of 0
-  li t0, 0x1166
+  li t0, 0x1168
   li t1, 144
   mset t0, zero, t1
   ; buVX: 144 bytes of 0
-  li t0, 0x11f6
+  li t0, 0x11f8
   li t1, 144
   mset t0, zero, t1
   ; buVY: 144 bytes of 0
-  li t0, 0x1286
+  li t0, 0x1288
   li t1, 144
   mset t0, zero, t1
   ; buLive: 144 bytes of 0
-  li t0, 0x1316
+  li t0, 0x1318
   li t1, 144
   mset t0, zero, t1
   ; buGrazed: 144 bytes of 0
-  li t0, 0x13a6
+  li t0, 0x13a8
   li t1, 144
   mset t0, zero, t1
   ; sX: 36 bytes of 0
-  li t0, 0x1444
+  li t0, 0x1446
   li t1, 36
   mset t0, zero, t1
   ; sY: 36 bytes of 0
-  li t0, 0x1468
+  li t0, 0x146a
   li t1, 36
   mset t0, zero, t1
   ; sVX: 36 bytes of 0
-  li t0, 0x148c
+  li t0, 0x148e
   li t1, 36
   mset t0, zero, t1
   ; sLive: 36 bytes of 0
-  li t0, 0x14b0
+  li t0, 0x14b2
   li t1, 36
   mset t0, zero, t1
   ; fK: 48 bytes of 0
-  li t0, 0x14f6
+  li t0, 0x14f8
   li t1, 48
   mset t0, zero, t1
   ; fX: 48 bytes of 0
-  li t0, 0x1526
+  li t0, 0x1528
   li t1, 48
   mset t0, zero, t1
   ; fY: 48 bytes of 0
-  li t0, 0x1556
+  li t0, 0x1558
   li t1, 48
   mset t0, zero, t1
   ; fVX: 48 bytes of 0
-  li t0, 0x1586
+  li t0, 0x1588
   li t1, 48
   mset t0, zero, t1
   ; fVY: 48 bytes of 0
-  li t0, 0x15b6
+  li t0, 0x15b8
   li t1, 48
   mset t0, zero, t1
   ; fHP: 48 bytes of 0
-  li t0, 0x15e6
+  li t0, 0x15e8
   li t1, 48
   mset t0, zero, t1
   ; fT: 48 bytes of 0
-  li t0, 0x1616
+  li t0, 0x1618
   li t1, 48
   mset t0, zero, t1
   ; fP: 48 bytes of 0
-  li t0, 0x1646
+  li t0, 0x1648
   li t1, 48
   mset t0, zero, t1
   ; fFlash: 48 bytes of 0
-  li t0, 0x1676
+  li t0, 0x1678
   li t1, 48
   mset t0, zero, t1
   ; fBombed: 48 bytes of 0
-  li t0, 0x16a6
+  li t0, 0x16a8
   li t1, 48
   mset t0, zero, t1
   ; HALF: 26 bytes of 0
-  li t0, 0x16d6
+  li t0, 0x16d8
   li t1, 26
   mset t0, zero, t1
   ; LIFE: 26 bytes of 0
-  li t0, 0x16f0
+  li t0, 0x16f2
   li t1, 26
   mset t0, zero, t1
   ; WORTH: 26 bytes of 0
-  li t0, 0x170a
+  li t0, 0x170c
   li t1, 26
   mset t0, zero, t1
   ; life: 6 bytes of 0
-  li t0, 0x174a
+  li t0, 0x174c
   li t1, 6
   mset t0, zero, t1
   ; flash: 6 bytes of 0
-  li t0, 0x1750
+  li t0, 0x1752
   li t1, 6
   mset t0, zero, t1
   ; PX: 6 bytes of 0
-  li t0, 0x1756
+  li t0, 0x1758
   li t1, 6
   mset t0, zero, t1
   ; PY: 6 bytes of 0
-  li t0, 0x175c
+  li t0, 0x175e
   li t1, 6
   mset t0, zero, t1
   ; PHALF: 6 bytes of 0
-  li t0, 0x1762
+  li t0, 0x1764
   li t1, 6
   mset t0, zero, t1
   ; score: 4 bytes of 0
-  li t0, 0x1768
+  li t0, 0x176a
   li t1, 4
   mset t0, zero, t1
   ; best: 4 bytes of 0
-  li t0, 0x176c
+  li t0, 0x176e
   li t1, 4
   mset t0, zero, t1
   ; mX: 12 bytes of 0
-  li t0, 0x1788
+  li t0, 0x178a
   li t1, 12
   mset t0, zero, t1
   ; mY: 12 bytes of 0
-  li t0, 0x1794
+  li t0, 0x1796
   li t1, 12
   mset t0, zero, t1
   ; mVX: 12 bytes of 0
-  li t0, 0x17a0
+  li t0, 0x17a2
   li t1, 12
   mset t0, zero, t1
   ; mVY: 12 bytes of 0
-  li t0, 0x17ac
+  li t0, 0x17ae
   li t1, 12
   mset t0, zero, t1
   ; mT: 12 bytes of 0
-  li t0, 0x17b8
+  li t0, 0x17ba
   li t1, 12
   mset t0, zero, t1
   ; linkFrom: 12 bytes of 0
-  li t0, 0x17c4
+  li t0, 0x17c6
   li t1, 12
   mset t0, zero, t1
   ; linkTo: 12 bytes of 0
-  li t0, 0x17d0
+  li t0, 0x17d2
   li t1, 12
   mset t0, zero, t1
   ; serpentHead: 4 bytes of 0
-  li t0, 0x17e6
+  li t0, 0x17e8
   li t1, 4
   mset t0, zero, t1
   ; trail: 256 bytes of 0
-  li t0, 0x17ea
+  li t0, 0x17ec
   li t1, 256
   mset t0, zero, t1
   ; trailAt: 4 bytes of 0
-  li t0, 0x18ea
+  li t0, 0x18ec
   li t1, 4
   mset t0, zero, t1
   ; letters: 6 bytes of 0
-  li t0, 0x18fa
+  li t0, 0x18fc
   li t1, 6
   mset t0, zero, t1
   ; bestScore: 20 bytes of 0
-  li t0, 0x1900
+  li t0, 0x1902
   li t1, 20
   mset t0, zero, t1
   ; bestName: 30 bytes of 0
-  li t0, 0x1914
+  li t0, 0x1916
   li t1, 30
   mset t0, zero, t1
   ret
 
-; lib/kit.e16.ts:82 bank(b) at -O1
+; lib/kit.e16.ts:84 bank(b) at -O1
 ;   b in a0
 ;   old in a1
 bank:
-  ; lib/kit.e16.ts:83  const old = peek16(IO_BANK)
+  ; lib/kit.e16.ts:85  const old = peek16(IO_BANK)
   li t0, 65284
   lw a1, 0(t0)
-  ; lib/kit.e16.ts:84  poke16(IO_BANK, b)
+  ; lib/kit.e16.ts:86  poke16(IO_BANK, b)
   li t0, 65284
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:85  return old
+  ; lib/kit.e16.ts:87  return old
   mv a0, a1
 .return:
   ret
 
-; lib/kit.e16.ts:89 vpoke(at, v) at -O1
+; lib/kit.e16.ts:91 vpoke(at, v) at -O1
 ;   at in a0
 ;   v in a1
 vpoke:
-  ; lib/kit.e16.ts:90  poke16(VPAGE, at >> 12)
+  ; lib/kit.e16.ts:92  poke16(VPAGE, at >> 12)
   srli t0, a0, 12
   li t1, 63490
   sw t0, 0(t1)
-  ; lib/kit.e16.ts:91  poke16(VWIN + (at & 0xfff), v)
+  ; lib/kit.e16.ts:93  poke16(VWIN + (at & 0xfff), v)
   andi t0, a0, 4095
   sw a1, -8192(t0)
 .return:
   ret
 
-; lib/kit.e16.ts:95 vfill(at, v, n) at -O1
+; lib/kit.e16.ts:97 vfill(at, v, n) at -O1
 ;   at in a0
 ;   v in a1
 ;   n in a2
@@ -719,39 +722,39 @@ vpoke:
 vfill:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:96  while (n > 0) {
+  ; lib/kit.e16.ts:98  while (n > 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:97  poke16(VPAGE, at >> 12)
+  ; lib/kit.e16.ts:99  poke16(VPAGE, at >> 12)
   srli t0, a0, 12
   li t1, 63490
   sw t0, 0(t1)
-  ; lib/kit.e16.ts:98  let p = VWIN + (at & 0xfff)
+  ; lib/kit.e16.ts:100  let p = VWIN + (at & 0xfff)
   andi t0, a0, 4095
   addi s1, t0, -8192
-  ; lib/kit.e16.ts:99  let k = div(0x1000 - (at & 0xfff), 2)
+  ; lib/kit.e16.ts:101  let k = div(0x1000 - (at & 0xfff), 2)
   andi t0, a0, 4095
   li t1, 4096
   sub t1, t1, t0
   srli a3, t1, 1
-  ; lib/kit.e16.ts:100  if (k > n) k = n
+  ; lib/kit.e16.ts:102  if (k > n) k = n
   bgeu a2, a3, .L5
-  ; lib/kit.e16.ts:100  k = n
+  ; lib/kit.e16.ts:102  k = n
   mv a3, a2 ; k
 .L5:
-  ; lib/kit.e16.ts:101  n = wrap16(n - k)
+  ; lib/kit.e16.ts:103  n = wrap16(n - k)
   sub a2, a2, a3
-  ; lib/kit.e16.ts:102  at = wrap16(at + k * 2)
+  ; lib/kit.e16.ts:104  at = wrap16(at + k * 2)
   slli t0, a3, 1
   add a0, a0, t0
-  ; lib/kit.e16.ts:103  while (k > 0) {
+  ; lib/kit.e16.ts:105  while (k > 0) {
   j .L8
 .L6:
-  ; lib/kit.e16.ts:104  poke16(p, v)
+  ; lib/kit.e16.ts:106  poke16(p, v)
   sw a1, 0(s1)
-  ; lib/kit.e16.ts:105  p = wrap16(p + 2)
+  ; lib/kit.e16.ts:107  p = wrap16(p + 2)
   addi s1, s1, 2
-  ; lib/kit.e16.ts:106  k--
+  ; lib/kit.e16.ts:108  k--
   addi a3, a3, -1
 .L8:
   bltu zero, a3, .L6
@@ -762,28 +765,28 @@ vfill:
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:112 dma(src, dst, len) at -O1
+; lib/kit.e16.ts:114 dma(src, dst, len) at -O1
 ;   src in a0
 ;   dst in a1
 ;   len in a2
 dma:
-  ; lib/kit.e16.ts:113  poke16(DMASRC, src)
+  ; lib/kit.e16.ts:115  poke16(DMASRC, src)
   li t0, 63536
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:114  poke16(DMADST, dst)
+  ; lib/kit.e16.ts:116  poke16(DMADST, dst)
   li t0, 63538
   sw a1, 0(t0)
-  ; lib/kit.e16.ts:115  poke16(DMALEN, len)
+  ; lib/kit.e16.ts:117  poke16(DMALEN, len)
   li t0, 63540
   sw a2, 0(t0)
-  ; lib/kit.e16.ts:116  poke16(DMACTRL, 1)
+  ; lib/kit.e16.ts:118  poke16(DMACTRL, 1)
   li t0, 1
   li t1, 63542
   sw t0, 0(t1)
 .return:
   ret
 
-; lib/kit.e16.ts:123 load(b, src, dst, len) at -O1
+; lib/kit.e16.ts:125 load(b, src, dst, len) at -O1
 ;   b in s3
 ;   src in 0(fp)
 ;   dst in 2(fp)
@@ -802,44 +805,44 @@ load:
   sw a1, 0(fp) ; src
   sw a2, 2(fp) ; dst
   mv s1, a3 ; len
-  ; lib/kit.e16.ts:124  const old = bank(b)
+  ; lib/kit.e16.ts:126  const old = bank(b)
   mv a0, s3
   call bank
   sw a0, 4(fp) ; old
-  ; lib/kit.e16.ts:125  while (len > 0) {
+  ; lib/kit.e16.ts:127  while (len > 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:126  let n = wrap16(0xe000 - src)
+  ; lib/kit.e16.ts:128  let n = wrap16(0xe000 - src)
   lw t0, 0(fp) ; src
   li t1, 57344
   sub s2, t1, t0
-  ; lib/kit.e16.ts:127  if (n > len) n = len
+  ; lib/kit.e16.ts:129  if (n > len) n = len
   bgeu s1, s2, .L5
-  ; lib/kit.e16.ts:127  n = len
+  ; lib/kit.e16.ts:129  n = len
   mv s2, s1 ; n
 .L5:
-  ; lib/kit.e16.ts:128  dma(src, dst, n)
+  ; lib/kit.e16.ts:130  dma(src, dst, n)
   lw a0, 0(fp)
   lw a1, 2(fp)
   mv a2, s2
   call dma
-  ; lib/kit.e16.ts:129  len = wrap16(len - n)
+  ; lib/kit.e16.ts:131  len = wrap16(len - n)
   sub s1, s1, s2
-  ; lib/kit.e16.ts:130  dst = wrap16(dst + n)
+  ; lib/kit.e16.ts:132  dst = wrap16(dst + n)
   lw t0, 2(fp) ; dst
   add t0, t0, s2
   sw t0, 2(fp) ; dst
-  ; lib/kit.e16.ts:131  b++
+  ; lib/kit.e16.ts:133  b++
   addi s3, s3, 1
-  ; lib/kit.e16.ts:132  poke16(IO_BANK, b)
+  ; lib/kit.e16.ts:134  poke16(IO_BANK, b)
   li t0, 65284
   sw s3, 0(t0)
-  ; lib/kit.e16.ts:133  src = WINDOW
+  ; lib/kit.e16.ts:135  src = WINDOW
   li t0, 49152
   sw t0, 0(fp) ; src
 .L3:
   bltu zero, s1, .L1
-  ; lib/kit.e16.ts:135  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:137  poke16(IO_BANK, old)
   lw t0, 4(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
@@ -853,7 +856,7 @@ load:
   addi sp, sp, 16
   ret
 
-; lib/kit.e16.ts:139 palette(row, slot) at -O1
+; lib/kit.e16.ts:141 palette(row, slot) at -O1
 ;   row in s1
 ;   slot in s2
 palette:
@@ -863,7 +866,7 @@ palette:
   sw s2, 4(sp)
   mv s1, a0 ; row
   mv s2, a1 ; slot
-  ; lib/kit.e16.ts:140  load(PALETTES_BANK, PALETTES_AT + row * 32, PALS + slot * 32, 32)
+  ; lib/kit.e16.ts:142  load(PALETTES_BANK, PALETTES_AT + row * 32, PALS + slot * 32, 32)
   slli t0, s1, 5
   li t1, 49730
   add t1, t1, t0
@@ -882,7 +885,7 @@ palette:
   addi sp, sp, 6
   ret
 
-; lib/kit.e16.ts:144 colour(slot, k, rgb) at -O1
+; lib/kit.e16.ts:146 colour(slot, k, rgb) at -O1
 ;   slot in s1
 ;   k in s2
 ;   rgb in s3
@@ -895,7 +898,7 @@ colour:
   mv s1, a0 ; slot
   mv s2, a1 ; k
   mv s3, a2 ; rgb
-  ; lib/kit.e16.ts:145  vpoke(PALS + slot * 32 + k * 2, rgb)
+  ; lib/kit.e16.ts:147  vpoke(PALS + slot * 32 + k * 2, rgb)
   slli t0, s1, 5
   li t1, 50176
   add t1, t1, t0
@@ -911,7 +914,7 @@ colour:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:152 palKeep(row, slot) at -O1
+; lib/kit.e16.ts:154 palKeep(row, slot) at -O1
 ;   row in s2
 ;   slot in s3
 ;   old in s0
@@ -925,16 +928,16 @@ palKeep:
   sw s1, 8(sp)
   mv s2, a0 ; row
   mv s3, a1 ; slot
-  ; lib/kit.e16.ts:153  const old = bank(PALETTES_BANK)
+  ; lib/kit.e16.ts:155  const old = bank(PALETTES_BANK)
   li a0, 260
   call bank
   mv s0, a0 ; old
-  ; lib/kit.e16.ts:154  let k: u16 = 0
+  ; lib/kit.e16.ts:156  let k: u16 = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:155  while (k < 16) {
+  ; lib/kit.e16.ts:157  while (k < 16) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:156  palCopy[slot * 16 + k] = peek16(PALETTES_AT + row * 32 + k * 2)
+  ; lib/kit.e16.ts:158  palCopy[slot * 16 + k] = peek16(PALETTES_AT + row * 32 + k * 2)
   slli t0, s3, 4
   add t0, t0, s1
   slli t0, t0, 1
@@ -945,12 +948,12 @@ palKeep:
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, palCopy(t0)
-  ; lib/kit.e16.ts:157  k++
+  ; lib/kit.e16.ts:159  k++
   addi s1, s1, 1
 .L3:
   li t0, 16
   bltu s1, t0, .L1
-  ; lib/kit.e16.ts:159  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:161  poke16(IO_BANK, old)
   li t0, 65284
   sw s0, 0(t0)
 .return:
@@ -962,7 +965,7 @@ palKeep:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:163 palMix(slot, rgb, t) at -O1
+; lib/kit.e16.ts:165 palMix(slot, rgb, t) at -O1
 ;   slot in s2
 ;   rgb in s3
 ;   t in 0(fp)
@@ -979,25 +982,25 @@ palMix:
   mv s2, a0 ; slot
   mv s3, a1 ; rgb
   sw a2, 0(fp) ; t
-  ; lib/kit.e16.ts:164  let k: u16 = 1
+  ; lib/kit.e16.ts:166  let k: u16 = 1
   li s1, 1 ; k
-  ; lib/kit.e16.ts:165  poke16(VPAGE, (PALS + slot * 32) >> 12)
+  ; lib/kit.e16.ts:167  poke16(VPAGE, (PALS + slot * 32) >> 12)
   slli t0, s2, 5
   li t1, 50176
   add t1, t1, t0
   srli t1, t1, 12
   li t0, 63490
   sw t1, 0(t0)
-  ; lib/kit.e16.ts:166  while (k < 16) {
+  ; lib/kit.e16.ts:168  while (k < 16) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:167  const c = palCopy[slot * 16 + k]
+  ; lib/kit.e16.ts:169  const c = palCopy[slot * 16 + k]
   slli t0, s2, 4
   add t0, t0, s1
   slli t0, t0, 1
   lw t0, palCopy(t0)
   sw t0, 2(fp) ; c
-  ; lib/kit.e16.ts:168  poke16(VWIN + ((PALS + slot * 32 + k * 2) & 0xfff), mix(c, rgb, t))
+  ; lib/kit.e16.ts:170  poke16(VWIN + ((PALS + slot * 32 + k * 2) & 0xfff), mix(c, rgb, t))
   slli t0, s2, 5
   li t1, 50176
   add t1, t1, t0
@@ -1014,7 +1017,7 @@ palMix:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:169  k++
+  ; lib/kit.e16.ts:171  k++
   addi s1, s1, 1
 .L3:
   li t0, 16
@@ -1029,7 +1032,7 @@ palMix:
   addi sp, sp, 14
   ret
 
-; lib/kit.e16.ts:174 mix(a, b, t) at -O1
+; lib/kit.e16.ts:176 mix(a, b, t) at -O1
 ;   a in s1
 ;   b in s2
 ;   t in s3
@@ -1047,7 +1050,7 @@ mix:
   mv s1, a0 ; a
   mv s2, a1 ; b
   mv s3, a2 ; t
-  ; lib/kit.e16.ts:175  const r = mixPart(a & 31, b & 31, t)
+  ; lib/kit.e16.ts:177  const r = mixPart(a & 31, b & 31, t)
   andi t0, s1, 31
   andi t1, s2, 31
   mv a0, t0
@@ -1055,7 +1058,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 0(fp) ; r
-  ; lib/kit.e16.ts:176  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
+  ; lib/kit.e16.ts:178  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
   srli t0, s1, 5
   andi t0, t0, 31
   srli t1, s2, 5
@@ -1065,7 +1068,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 2(fp) ; g
-  ; lib/kit.e16.ts:177  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
+  ; lib/kit.e16.ts:179  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
   srli t0, s1, 10
   andi t0, t0, 31
   srli t1, s2, 10
@@ -1075,7 +1078,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 4(fp) ; bl
-  ; lib/kit.e16.ts:178  return r | (g << 5) | (bl << 10)
+  ; lib/kit.e16.ts:180  return r | (g << 5) | (bl << 10)
   lw t0, 2(fp) ; g
   slli t0, t0, 5
   lw t1, 0(fp) ; r
@@ -1093,12 +1096,12 @@ mix:
   addi sp, sp, 16
   ret
 
-; lib/kit.e16.ts:181 mixPart(a, b, t) at -O1
+; lib/kit.e16.ts:183 mixPart(a, b, t) at -O1
 ;   a in a0
 ;   b in a1
 ;   t in a2
 mixPart:
-  ; lib/kit.e16.ts:182  return (a * (16 - t) + b * t) >> 4
+  ; lib/kit.e16.ts:184  return (a * (16 - t) + b * t) >> 4
   li t0, 16
   sub t0, t0, a2
   mul t0, a0, t0
@@ -1108,12 +1111,12 @@ mixPart:
 .return:
   ret
 
-; lib/kit.e16.ts:188 cellAt(layer, x, y) at -O1
+; lib/kit.e16.ts:190 cellAt(layer, x, y) at -O1
 ;   layer in a0
 ;   x in a1
 ;   y in a2
 cellAt:
-  ; lib/kit.e16.ts:189  return (layer === 0 ? MAP0 : MAP1) + ((y & 63) << 7) + ((x & 63) << 1)
+  ; lib/kit.e16.ts:191  return (layer === 0 ? MAP0 : MAP1) + ((y & 63) << 7) + ((x & 63) << 1)
   bne a0, zero, .L1
   li t0, 32768
   j .L2
@@ -1129,7 +1132,7 @@ cellAt:
 .return:
   ret
 
-; lib/kit.e16.ts:196 mapRow(b, src, layer, y) at -O1
+; lib/kit.e16.ts:198 mapRow(b, src, layer, y) at -O1
 ;   b in s1
 ;   src in s2
 ;   layer in s3
@@ -1147,11 +1150,11 @@ mapRow:
   mv s2, a1 ; src
   mv s3, a2 ; layer
   sw a3, 0(fp) ; y
-  ; lib/kit.e16.ts:197  const old = bank(b)
+  ; lib/kit.e16.ts:199  const old = bank(b)
   mv a0, s1
   call bank
   sw a0, 2(fp) ; old
-  ; lib/kit.e16.ts:198  dma(src, cellAt(layer, 0, y), 128)
+  ; lib/kit.e16.ts:200  dma(src, cellAt(layer, 0, y), 128)
   mv a0, s3
   li a1, 0
   lw a2, 0(fp)
@@ -1160,7 +1163,7 @@ mapRow:
   mv a0, s2
   li a2, 128
   call dma
-  ; lib/kit.e16.ts:199  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:201  poke16(IO_BANK, old)
   lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
@@ -1174,7 +1177,7 @@ mapRow:
   addi sp, sp, 14
   ret
 
-; lib/kit.e16.ts:203 text(at, s, font) at -O1
+; lib/kit.e16.ts:205 text(at, s, font) at -O1
 ;   at in s2
 ;   s in s1
 ;   font in s0
@@ -1189,21 +1192,21 @@ text:
   mv s2, a0 ; at
   mv s1, a1 ; s
   mv s0, a2 ; font
-  ; lib/kit.e16.ts:204  let c = peek(s)
+  ; lib/kit.e16.ts:206  let c = peek(s)
   lbu s3, 0(s1)
-  ; lib/kit.e16.ts:205  while (c !== 0) {
+  ; lib/kit.e16.ts:207  while (c !== 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:206  vpoke(at, font + c - 32)
+  ; lib/kit.e16.ts:208  vpoke(at, font + c - 32)
   add t0, s0, s3
   mv a0, s2
   addi a1, t0, -32
   call vpoke
-  ; lib/kit.e16.ts:207  at = wrap16(at + 2)
+  ; lib/kit.e16.ts:209  at = wrap16(at + 2)
   addi s2, s2, 2
-  ; lib/kit.e16.ts:208  s++
+  ; lib/kit.e16.ts:210  s++
   addi s1, s1, 1
-  ; lib/kit.e16.ts:209  c = peek(s)
+  ; lib/kit.e16.ts:211  c = peek(s)
   lbu s3, 0(s1)
 .L3:
   bne s3, zero, .L1
@@ -1216,7 +1219,7 @@ text:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:214 number(at, n, digits, zero) at -O1
+; lib/kit.e16.ts:216 number(at, n, digits, zero) at -O1
 ;   at in s1
 ;   n in s3
 ;   digits in s2
@@ -1232,25 +1235,25 @@ number:
   mv s3, a1 ; n
   mv s2, a2 ; digits
   mv s0, a3 ; zero
-  ; lib/kit.e16.ts:215  at = wrap16(at + digits * 2)
+  ; lib/kit.e16.ts:217  at = wrap16(at + digits * 2)
   slli t0, s2, 1
   add s1, s1, t0
-  ; lib/kit.e16.ts:216  while (digits > 0) {
+  ; lib/kit.e16.ts:218  while (digits > 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:217  at = wrap16(at - 2)
+  ; lib/kit.e16.ts:219  at = wrap16(at - 2)
   addi s1, s1, -2
-  ; lib/kit.e16.ts:218  vpoke(at, zero + (n % 10))
+  ; lib/kit.e16.ts:220  vpoke(at, zero + (n % 10))
   li t0, 10
   remu t0, s3, t0
   add t0, s0, t0
   mv a0, s1
   mv a1, t0
   call vpoke
-  ; lib/kit.e16.ts:219  n = div(n, 10)
+  ; lib/kit.e16.ts:221  n = div(n, 10)
   li t0, 10
   divu s3, s3, t0
-  ; lib/kit.e16.ts:220  digits--
+  ; lib/kit.e16.ts:222  digits--
   addi s2, s2, -1
 .L3:
   bltu zero, s2, .L1
@@ -1263,14 +1266,14 @@ number:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:232 sprBegin() at -O1
+; lib/kit.e16.ts:234 sprBegin() at -O1
 sprBegin:
-  ; lib/kit.e16.ts:233  sprN = 0
+  ; lib/kit.e16.ts:235  sprN = 0
   sw zero, 0x0880(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:237 spr(x, y, tile, size) at -O1
+; lib/kit.e16.ts:239 spr(x, y, tile, size) at -O1
 ;   x in a0
 ;   y in a1
 ;   tile in a2
@@ -1279,32 +1282,32 @@ sprBegin:
 spr:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:238  if (sprN >= 128) return
+  ; lib/kit.e16.ts:240  if (sprN >= 128) return
   lw t0, 0x0880(zero)
   li t1, 128
   bltu t0, t1, .L1
-  ; lib/kit.e16.ts:238  return
+  ; lib/kit.e16.ts:240  return
   j .return
 .L1:
-  ; lib/kit.e16.ts:239  const k = sprN << 2
+  ; lib/kit.e16.ts:241  const k = sprN << 2
   lw t0, 0x0880(zero)
   slli s1, t0, 2
-  ; lib/kit.e16.ts:240  oam[k] = u16(x)
+  ; lib/kit.e16.ts:242  oam[k] = u16(x)
   slli t0, s1, 1
   sw a0, oam(t0)
-  ; lib/kit.e16.ts:241  oam[k + 1] = u16(y)
+  ; lib/kit.e16.ts:243  oam[k + 1] = u16(y)
   addi t0, s1, 1
   slli t0, t0, 1
   sw a1, oam(t0)
-  ; lib/kit.e16.ts:242  oam[k + 2] = tile
+  ; lib/kit.e16.ts:244  oam[k + 2] = tile
   addi t0, s1, 2
   slli t0, t0, 1
   sw a2, oam(t0)
-  ; lib/kit.e16.ts:243  oam[k + 3] = size
+  ; lib/kit.e16.ts:245  oam[k + 3] = size
   addi t0, s1, 3
   slli t0, t0, 1
   sw a3, oam(t0)
-  ; lib/kit.e16.ts:244  sprN++
+  ; lib/kit.e16.ts:246  sprN++
   lw t0, 0x0880(zero)
   addi t0, t0, 1
   sw t0, 0x0880(zero)
@@ -1313,39 +1316,39 @@ spr:
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:248 sprCount() at -O1
+; lib/kit.e16.ts:250 sprCount() at -O1
 sprCount:
-  ; lib/kit.e16.ts:249  return sprN
+  ; lib/kit.e16.ts:251  return sprN
   lw a0, 0x0880(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:253 sprShow() at -O1
+; lib/kit.e16.ts:255 sprShow() at -O1
 ;   k in s1
 sprShow:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; lib/kit.e16.ts:254  let k = sprN
+  ; lib/kit.e16.ts:256  let k = sprN
   lw s1, 0x0880(zero)
-  ; lib/kit.e16.ts:255  while (k < sprShown) {
+  ; lib/kit.e16.ts:257  while (k < sprShown) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:256  oam[(k << 2) + 3] = S_NONE
+  ; lib/kit.e16.ts:258  oam[(k << 2) + 3] = S_NONE
   slli t0, s1, 2
   addi t0, t0, 3
   slli t0, t0, 1
   li t1, 3
   sw t1, oam(t0)
-  ; lib/kit.e16.ts:257  k++
+  ; lib/kit.e16.ts:259  k++
   addi s1, s1, 1
 .L3:
   lw t0, 0x0882(zero)
   bltu s1, t0, .L1
-  ; lib/kit.e16.ts:259  sprShown = sprN
+  ; lib/kit.e16.ts:261  sprShown = sprN
   lw t0, 0x0880(zero)
   sw t0, 0x0882(zero)
-  ; lib/kit.e16.ts:260  dma(addr(oam), OAM, 1024)
+  ; lib/kit.e16.ts:262  dma(addr(oam), OAM, 1024)
   la a0, oam
   li a1, 49152
   li a2, 1024
@@ -1356,22 +1359,36 @@ sprShow:
   addi sp, sp, 4
   ret
 
-; lib/kit.e16.ts:269 padRead() at -O1
+; lib/kit.e16.ts:276 padRead() at -O1
+;   hit in a0
 padRead:
-  ; lib/kit.e16.ts:270  padWas = padIs
+  ; lib/kit.e16.ts:277  const hit = peek16(PADHIT)
+  li t0, 63506
+  lw a0, 0(t0)
+  ; lib/kit.e16.ts:278  poke16(PADHIT, hit)
+  li t0, 63506
+  sw a0, 0(t0)
+  ; lib/kit.e16.ts:279  padWas = padIs
   lw t0, 0x0884(zero)
   sw t0, 0x0886(zero)
-  ; lib/kit.e16.ts:271  padIs = peek16(PAD)
+  ; lib/kit.e16.ts:280  padIs = peek16(PAD)
   li t0, 63504
   lw t0, 0(t0)
   sw t0, 0x0884(zero)
+  ; lib/kit.e16.ts:281  padDown = (hit | padIs) & ~padWas
+  lw t0, 0x0884(zero)
+  or t0, a0, t0
+  lw t1, 0x0886(zero)
+  not t1, t1
+  and t0, t0, t1
+  sw t0, 0x0888(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:275 held(mask) at -O1
+; lib/kit.e16.ts:285 held(mask) at -O1
 ;   mask in a0
 held:
-  ; lib/kit.e16.ts:276  return (padIs & mask) === mask
+  ; lib/kit.e16.ts:286  return (padIs & mask) === mask
   lw t0, 0x0884(zero)
   and t0, t0, a0
   sub t0, t0, a0
@@ -1379,28 +1396,25 @@ held:
 .return:
   ret
 
-; lib/kit.e16.ts:280 pressed(mask) at -O1
+; lib/kit.e16.ts:290 pressed(mask) at -O1
 ;   mask in a0
 pressed:
-  ; lib/kit.e16.ts:281  return (padIs & ~padWas & mask) !== 0
-  lw t0, 0x0884(zero)
-  lw t1, 0x0886(zero)
-  not t1, t1
-  and t0, t0, t1
+  ; lib/kit.e16.ts:291  return (padDown & mask) !== 0
+  lw t0, 0x0888(zero)
   and t0, t0, a0
   sub t0, t0, zero
   snez a0, t0
 .return:
   ret
 
-; lib/kit.e16.ts:285 padNow() at -O1
+; lib/kit.e16.ts:295 padNow() at -O1
 padNow:
-  ; lib/kit.e16.ts:286  return padIs
+  ; lib/kit.e16.ts:296  return padIs
   lw a0, 0x0884(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:298 kitInit() at -O1
+; lib/kit.e16.ts:308 kitInit() at -O1
 ;   old in s2
 ;   k in s1
 kitInit:
@@ -1408,53 +1422,59 @@ kitInit:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; lib/kit.e16.ts:299  const old = bank(KIT_TABLES_BANK)
+  ; lib/kit.e16.ts:309  const old = bank(KIT_TABLES_BANK)
   li a0, 260
   call bank
   mv s2, a0 ; old
-  ; lib/kit.e16.ts:300  let k: u16 = 0
+  ; lib/kit.e16.ts:310  let k: u16 = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:301  while (k < 256) {
+  ; lib/kit.e16.ts:311  while (k < 256) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:302  sines[k] = peek16(KIT_SIN_AT + k * 2)
+  ; lib/kit.e16.ts:312  sines[k] = peek16(KIT_SIN_AT + k * 2)
   slli t0, s1, 1
   slli t1, s1, 1
   li t2, 49152
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, sines(t0)
-  ; lib/kit.e16.ts:303  k++
+  ; lib/kit.e16.ts:313  k++
   addi s1, s1, 1
 .L3:
   li t0, 256
   bltu s1, t0, .L1
-  ; lib/kit.e16.ts:305  k = 0
+  ; lib/kit.e16.ts:315  k = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:306  while (k < 33) {
+  ; lib/kit.e16.ts:316  while (k < 33) {
   j .L7
 .L5:
-  ; lib/kit.e16.ts:307  atans[k] = peek16(KIT_ATAN_AT + k * 2)
+  ; lib/kit.e16.ts:317  atans[k] = peek16(KIT_ATAN_AT + k * 2)
   slli t0, s1, 1
   slli t1, s1, 1
   li t2, 49664
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, atans(t0)
-  ; lib/kit.e16.ts:308  k++
+  ; lib/kit.e16.ts:318  k++
   addi s1, s1, 1
 .L7:
   li t0, 33
   bltu s1, t0, .L5
-  ; lib/kit.e16.ts:310  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:320  poke16(IO_BANK, old)
   li t0, 65284
   sw s2, 0(t0)
-  ; lib/kit.e16.ts:312  padIs = peek16(PAD)
+  ; lib/kit.e16.ts:323  padIs = peek16(PAD)
   li t0, 63504
   lw t0, 0(t0)
   sw t0, 0x0884(zero)
-  ; lib/kit.e16.ts:313  padWas = padIs
+  ; lib/kit.e16.ts:324  padWas = padIs
   sw t0, 0x0886(zero)
+  ; lib/kit.e16.ts:325  padDown = 0
+  sw zero, 0x0888(zero)
+  ; lib/kit.e16.ts:326  poke16(PADHIT, 0xfff)
+  li t0, 4095
+  li t1, 63506
+  sw t0, 0(t1)
 .return:
   lw ra, 0(sp)
   lw s2, 2(sp)
@@ -1462,20 +1482,20 @@ kitInit:
   addi sp, sp, 6
   ret
 
-; lib/kit.e16.ts:317 sin(a) at -O1
+; lib/kit.e16.ts:330 sin(a) at -O1
 ;   a in a0
 sin:
-  ; lib/kit.e16.ts:318  return i16(sines[a & 255])
+  ; lib/kit.e16.ts:331  return i16(sines[a & 255])
   andi t0, a0, 255
   slli t0, t0, 1
   lw a0, sines(t0)
 .return:
   ret
 
-; lib/kit.e16.ts:322 cos(a) at -O1
+; lib/kit.e16.ts:335 cos(a) at -O1
 ;   a in a0
 cos:
-  ; lib/kit.e16.ts:323  return i16(sines[(a + 64) & 255])
+  ; lib/kit.e16.ts:336  return i16(sines[(a + 64) & 255])
   addi t0, a0, 64
   andi t0, t0, 255
   slli t0, t0, 1
@@ -1483,108 +1503,118 @@ cos:
 .return:
   ret
 
-; lib/kit.e16.ts:327 aim(dx, dy) at -O1
+; lib/kit.e16.ts:340 aim(dx, dy) at -O1
 ;   dx in a0
 ;   dy in a1
-;   ax in a3
-;   ay in s1
-;   a in a2
+;   ax in a2
+;   ay in a3
+;   a in s1
 aim:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:328  const ax = dx < 0 ? u16(-dx) : u16(dx)
+  ; lib/kit.e16.ts:341  let ax = dx < 0 ? u16(-dx) : u16(dx)
   bge a0, zero, .L1
   neg t0, a0
   j .L2
 .L1:
   mv t0, a0
 .L2:
-  mv a3, t0 ; ax
-  ; lib/kit.e16.ts:329  const ay = dy < 0 ? u16(-dy) : u16(dy)
+  mv a2, t0 ; ax
+  ; lib/kit.e16.ts:342  let ay = dy < 0 ? u16(-dy) : u16(dy)
   bge a1, zero, .L3
   neg t0, a1
   j .L4
 .L3:
   mv t0, a1
 .L4:
-  mv s1, t0 ; ay
-  ; lib/kit.e16.ts:330  if (ax === 0 && ay === 0) return 64
-  bne a3, zero, .L5
-  bne s1, zero, .L5
-  ; lib/kit.e16.ts:330  return 64
+  mv a3, t0 ; ay
+  ; lib/kit.e16.ts:343  if (ax === 0 && ay === 0) return 64
+  bne a2, zero, .L8
+  bne a3, zero, .L8
+  ; lib/kit.e16.ts:343  return 64
   li a0, 64
   j .return
-.L5:
-  ; lib/kit.e16.ts:332  let a: u16 = 0
-  li a2, 0 ; a
-  ; lib/kit.e16.ts:333  if (ax >= ay) a = atans[div(ay * 32 + (ax >> 1), ax)]
-  bltu a3, s1, .L6
-  ; lib/kit.e16.ts:333  a = atans[div(ay * 32 + (ax >> 1), ax)]
-  slli t0, s1, 5
+  ; lib/kit.e16.ts:346  while (ax >= 1024 || ay >= 1024) {
+.L6:
+  ; lib/kit.e16.ts:347  ax = ax >> 1
+  srli a2, a2, 1
+  ; lib/kit.e16.ts:348  ay = ay >> 1
+  srli a3, a3, 1
+.L8:
+  li t0, 1024
+  bgeu a2, t0, .L6
+  li t0, 1024
+  bgeu a3, t0, .L6
+  ; lib/kit.e16.ts:351  let a: u16 = 0
+  li s1, 0 ; a
+  ; lib/kit.e16.ts:352  if (ax >= ay) a = atans[div(ay * 32 + (ax >> 1), ax)]
+  bltu a2, a3, .L10
+  ; lib/kit.e16.ts:352  a = atans[div(ay * 32 + (ax >> 1), ax)]
+  slli t0, a3, 5
+  srli t1, a2, 1
+  add t0, t0, t1
+  divu t0, t0, a2
+  slli t0, t0, 1
+  lw s1, atans(t0)
+  j .L11
+.L10:
+  ; lib/kit.e16.ts:353  a = 64 - atans[div(ax * 32 + (ay >> 1), ay)]
+  slli t0, a2, 5
   srli t1, a3, 1
   add t0, t0, t1
   divu t0, t0, a3
   slli t0, t0, 1
-  lw a2, atans(t0)
-  j .L7
-.L6:
-  ; lib/kit.e16.ts:334  a = 64 - atans[div(ax * 32 + (ay >> 1), ay)]
-  slli t0, a3, 5
-  srli t1, s1, 1
-  add t0, t0, t1
-  divu t0, t0, s1
-  slli t0, t0, 1
   lw t0, atans(t0)
   li t1, 64
-  sub a2, t1, t0
-.L7:
-  ; lib/kit.e16.ts:335  if (dx < 0) a = 128 - a
-  bge a0, zero, .L8
-  ; lib/kit.e16.ts:335  a = 128 - a
+  sub s1, t1, t0
+.L11:
+  ; lib/kit.e16.ts:354  if (dx < 0) a = 128 - a
+  bge a0, zero, .L12
+  ; lib/kit.e16.ts:354  a = 128 - a
   li t0, 128
-  sub a2, t0, a2
-.L8:
-  ; lib/kit.e16.ts:336  if (dy < 0) a = wrap16(256 - a)
-  bge a1, zero, .L9
-  ; lib/kit.e16.ts:336  a = wrap16(256 - a)
+  sub s1, t0, s1
+.L12:
+  ; lib/kit.e16.ts:355  if (dy < 0) a = wrap16(256 - a)
+  bge a1, zero, .L13
+  ; lib/kit.e16.ts:355  a = wrap16(256 - a)
   li t0, 256
-  sub a2, t0, a2
-.L9:
-  ; lib/kit.e16.ts:337  return a & 255
-  andi a0, a2, 255
+  sub s1, t0, s1
+.L13:
+  ; lib/kit.e16.ts:356  return a & 255
+  andi a0, s1, 255
 .return:
   lw s1, 0(sp)
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:341 rand() at -O1
+; lib/kit.e16.ts:360 rand() at -O1
 ;   x in a0
 rand:
-  ; lib/kit.e16.ts:342  let x = seed
-  lw a0, 0x0aca(zero)
-  ; lib/kit.e16.ts:343  x = wrap16(x ^ (x << 7))
+  ; lib/kit.e16.ts:361  let x = seed
+  lw a0, 0x0acc(zero)
+  ; lib/kit.e16.ts:362  x = wrap16(x ^ (x << 7))
   slli t0, a0, 7
   xor a0, a0, t0
-  ; lib/kit.e16.ts:344  x = x ^ (x >> 9)
+  ; lib/kit.e16.ts:363  x = x ^ (x >> 9)
   srli t0, a0, 9
   xor a0, a0, t0
-  ; lib/kit.e16.ts:345  x = wrap16(x ^ (x << 8))
+  ; lib/kit.e16.ts:364  x = wrap16(x ^ (x << 8))
   slli t0, a0, 8
   xor a0, a0, t0
-  ; lib/kit.e16.ts:346  seed = x
-  sw a0, 0x0aca(zero)
-  ; lib/kit.e16.ts:347  return x
+  ; lib/kit.e16.ts:365  seed = x
+  sw a0, 0x0acc(zero)
+  ; lib/kit.e16.ts:366  return x
 .return:
   ret
 
-; lib/kit.e16.ts:351 randBelow(n) at -O1
+; lib/kit.e16.ts:370 randBelow(n) at -O1
 ;   n in s1
 randBelow:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n
-  ; lib/kit.e16.ts:352  return ((rand() >> 8) * n) >> 8
+  ; lib/kit.e16.ts:371  return ((rand() >> 8) * n) >> 8
   call rand
   srli t0, a0, 8
   mul t0, t0, s1
@@ -1595,68 +1625,68 @@ randBelow:
   addi sp, sp, 4
   ret
 
-; lib/kit.e16.ts:356 randSeed(s) at -O1
+; lib/kit.e16.ts:375 randSeed(s) at -O1
 ;   s in a0
 randSeed:
-  ; lib/kit.e16.ts:357  seed = s === 0 ? 0x1d2b : s
+  ; lib/kit.e16.ts:376  seed = s === 0 ? 0x1d2b : s
   bne a0, zero, .L1
   li t0, 7467
   j .L2
 .L1:
   mv t0, a0
 .L2:
-  sw t0, 0x0aca(zero)
+  sw t0, 0x0acc(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:363 scoreAdd(at, n) at -O1
+; lib/kit.e16.ts:382 scoreAdd(at, n) at -O1
 ;   at in a0
 ;   n in a1
 ;   lo in a2
 ;   hi in a3
 scoreAdd:
-  ; lib/kit.e16.ts:364  let lo = peek16(at) + n
+  ; lib/kit.e16.ts:383  let lo = peek16(at) + n
   lw t0, 0(a0)
   add a2, t0, a1
-  ; lib/kit.e16.ts:365  let hi = peek16(at + 2)
+  ; lib/kit.e16.ts:384  let hi = peek16(at + 2)
   lw a3, 2(a0)
-  ; lib/kit.e16.ts:366  while (lo >= 10000) {
+  ; lib/kit.e16.ts:385  while (lo >= 10000) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:367  lo = lo - 10000
+  ; lib/kit.e16.ts:386  lo = lo - 10000
   li t0, 10000
   sub a2, a2, t0
-  ; lib/kit.e16.ts:368  hi++
+  ; lib/kit.e16.ts:387  hi++
   addi a3, a3, 1
 .L3:
   li t0, 10000
   bgeu a2, t0, .L1
-  ; lib/kit.e16.ts:370  if (hi > 9999) {
+  ; lib/kit.e16.ts:389  if (hi > 9999) {
   li t0, 9999
   bgeu t0, a3, .L5
-  ; lib/kit.e16.ts:371  hi = 9999
+  ; lib/kit.e16.ts:390  hi = 9999
   li a3, 9999 ; hi
-  ; lib/kit.e16.ts:372  lo = 9999
+  ; lib/kit.e16.ts:391  lo = 9999
   li a2, 9999 ; lo
 .L5:
-  ; lib/kit.e16.ts:374  poke16(at, lo)
+  ; lib/kit.e16.ts:393  poke16(at, lo)
   sw a2, 0(a0)
-  ; lib/kit.e16.ts:375  poke16(at + 2, hi)
+  ; lib/kit.e16.ts:394  poke16(at + 2, hi)
   sw a3, 2(a0)
 .return:
   ret
 
-; lib/kit.e16.ts:379 scoreMore(a, b) at -O1
+; lib/kit.e16.ts:398 scoreMore(a, b) at -O1
 ;   a in a0
 ;   b in a1
 ;   ah in a2
 ;   bh in a3
 scoreMore:
-  ; lib/kit.e16.ts:380  const ah = peek16(a + 2)
+  ; lib/kit.e16.ts:399  const ah = peek16(a + 2)
   lw a2, 2(a0)
-  ; lib/kit.e16.ts:381  const bh = peek16(b + 2)
+  ; lib/kit.e16.ts:400  const bh = peek16(b + 2)
   lw a3, 2(a1)
-  ; lib/kit.e16.ts:382  return ah > bh || (ah === bh && peek16(a) > peek16(b))
+  ; lib/kit.e16.ts:401  return ah > bh || (ah === bh && peek16(a) > peek16(b))
   sltu t0, a3, a2
   mv t1, t0
   bnez t1, .L1
@@ -1673,7 +1703,7 @@ scoreMore:
 .return:
   ret
 
-; lib/kit.e16.ts:386 scoreShow(cell, at, zero) at -O1
+; lib/kit.e16.ts:405 scoreShow(cell, at, zero) at -O1
 ;   cell in s1
 ;   at in s2
 ;   zero in s3
@@ -1686,14 +1716,14 @@ scoreShow:
   mv s1, a0 ; cell
   mv s2, a1 ; at
   mv s3, a2 ; zero
-  ; lib/kit.e16.ts:387  number(cell, peek16(at + 2), 4, zero)
+  ; lib/kit.e16.ts:406  number(cell, peek16(at + 2), 4, zero)
   lw t0, 2(s2)
   mv a0, s1
   mv a1, t0
   li a2, 4
   mv a3, s3
   call number
-  ; lib/kit.e16.ts:388  number(wrap16(cell + 8), peek16(at), 4, zero)
+  ; lib/kit.e16.ts:407  number(wrap16(cell + 8), peek16(at), 4, zero)
   lw t0, 0(s2)
   addi a0, s1, 8
   mv a1, t0
@@ -1708,7 +1738,7 @@ scoreShow:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:394 saveRead(off) at -O1
+; lib/kit.e16.ts:413 saveRead(off) at -O1
 ;   off in s1
 ;   old in s2
 ;   v in s3
@@ -1719,18 +1749,19 @@ saveRead:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; off
-  ; lib/kit.e16.ts:395  const old = bank(SAVE_BANK)
+  ; lib/kit.e16.ts:414  const old = bank(SAVE_BANK)
   li a0, 128
   call bank
   mv s2, a0 ; old
-  ; lib/kit.e16.ts:396  const v = peek16(WINDOW + off)
-  li t0, 49152
-  add t0, t0, s1
-  lw s3, 0(t0)
-  ; lib/kit.e16.ts:397  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:415  const v = peek16(WINDOW + (off & SAVE_MASK))
+  andi t0, s1, 8190
+  li t1, 49152
+  add t1, t1, t0
+  lw s3, 0(t1)
+  ; lib/kit.e16.ts:416  poke16(IO_BANK, old)
   li t0, 65284
   sw s2, 0(t0)
-  ; lib/kit.e16.ts:398  return v
+  ; lib/kit.e16.ts:417  return v
   mv a0, s3
 .return:
   lw ra, 0(sp)
@@ -1740,7 +1771,7 @@ saveRead:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:401 saveWrite(off, v) at -O1
+; lib/kit.e16.ts:421 saveWrite(off, v) at -O1
 ;   off in s1
 ;   v in s2
 ;   old in s3
@@ -1752,15 +1783,16 @@ saveWrite:
   sw s3, 6(sp)
   mv s1, a0 ; off
   mv s2, a1 ; v
-  ; lib/kit.e16.ts:402  const old = bank(SAVE_BANK)
+  ; lib/kit.e16.ts:422  const old = bank(SAVE_BANK)
   li a0, 128
   call bank
   mv s3, a0 ; old
-  ; lib/kit.e16.ts:403  poke16(WINDOW + off, v)
-  li t0, 49152
-  add t0, t0, s1
-  sw s2, 0(t0)
-  ; lib/kit.e16.ts:404  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:423  poke16(WINDOW + (off & SAVE_MASK), v)
+  andi t0, s1, 8190
+  li t1, 49152
+  add t1, t1, t0
+  sw s2, 0(t1)
+  ; lib/kit.e16.ts:424  poke16(IO_BANK, old)
   li t0, 65284
   sw s3, 0(t0)
 .return:
@@ -1971,7 +2003,7 @@ musicStop:
 ;   mask in a0
 musicMute:
   ; lib/sound.e16.ts:116  muted = mask
-  sw a0, 0x0c8c(zero)
+  sw a0, 0x0c8e(zero)
 .return:
   ret
 
@@ -2122,7 +2154,7 @@ readOps:
   slli t0, s1, 1
   lw s2, chAt(t0)
   ; lib/sound.e16.ts:161  opTook = false
-  sw zero, 0x0c8e(zero)
+  sw zero, 0x0c90(zero)
   ; lib/sound.e16.ts:162  while (!opTook) at = oneOp(c, at)
   j .L3
 .L1:
@@ -2132,7 +2164,7 @@ readOps:
   call oneOp
   mv s2, a0 ; at
 .L3:
-  lw t0, 0x0c8e(zero)
+  lw t0, 0x0c90(zero)
   beqz t0, .L1
   ; lib/sound.e16.ts:163  chAt[c] = at
   slli t0, s1, 1
@@ -2192,7 +2224,7 @@ oneOp:
   call startNote
   ; lib/sound.e16.ts:172  opTook = true
   li t0, 1
-  sw t0, 0x0c8e(zero)
+  sw t0, 0x0c90(zero)
   ; lib/sound.e16.ts:173  return wrap16(at + 5)
   addi a0, s1, 5
   j .return
@@ -2213,7 +2245,7 @@ oneOp:
   call startNote
   ; lib/sound.e16.ts:176  opTook = true
   li t0, 1
-  sw t0, 0x0c8e(zero)
+  sw t0, 0x0c90(zero)
   ; lib/sound.e16.ts:177  return wrap16(at + 3)
   addi a0, s1, 3
   j .return
@@ -2232,7 +2264,7 @@ oneOp:
   call startNote
   ; lib/sound.e16.ts:180  opTook = true
   li t0, 1
-  sw t0, 0x0c8e(zero)
+  sw t0, 0x0c90(zero)
   ; lib/sound.e16.ts:181  return wrap16(at + 1)
   addi a0, s1, 1
   j .return
@@ -2243,84 +2275,74 @@ oneOp:
   sw t1, chWait(t0)
   ; lib/sound.e16.ts:184  opTook = true
   li t0, 1
-  sw t0, 0x0c8e(zero)
+  sw t0, 0x0c90(zero)
   ; lib/sound.e16.ts:185  return wrap16(at + 2)
   addi a0, s1, 2
   j .return
 .L6:
-  ; lib/sound.e16.ts:187  chWait[c] = peek(at + 1)
+  ; lib/sound.e16.ts:188  chWait[c] = peek(at + 1)
   slli t0, s2, 1
   lbu t1, 1(s1)
   sw t1, chWait(t0)
-  ; lib/sound.e16.ts:188  chGate[c] = peek(at + 2) === 0 ? 0 : chWait[c] + 1
+  ; lib/sound.e16.ts:189  chGate[c] = peek(at + 2)
   slli t0, s2, 1
   lbu t1, 2(s1)
-  addi t0, t0, chGate
-  li t2, 0
-  bne t1, t2, .L12
-  li t1, 0
-  j .L13
-.L12:
-  slli t1, s2, 1
-  lw t1, chWait(t1)
-  addi t1, t1, 1
-.L13:
-  sw t1, 0(t0)
-  ; lib/sound.e16.ts:189  opTook = true
+  sw t1, chGate(t0)
+  ; lib/sound.e16.ts:190  opTook = true
   li t0, 1
-  sw t0, 0x0c8e(zero)
-  ; lib/sound.e16.ts:190  return wrap16(at + 3)
+  sw t0, 0x0c90(zero)
+  ; lib/sound.e16.ts:191  return wrap16(at + 3)
   addi a0, s1, 3
   j .return
 .L7:
-  ; lib/sound.e16.ts:192  setInstrument(c, peek(at + 1))
+  ; lib/sound.e16.ts:193  setInstrument(c, peek(at + 1))
   lbu t0, 1(s1)
   mv a0, s2
   mv a1, t0
   call setInstrument
-  ; lib/sound.e16.ts:193  return wrap16(at + 2)
+  ; lib/sound.e16.ts:194  return wrap16(at + 2)
   addi a0, s1, 2
   j .return
 .L8:
-  ; lib/sound.e16.ts:195  chVol[c] = peek(at + 1)
+  ; lib/sound.e16.ts:196  chVol[c] = peek(at + 1)
   slli t0, s2, 1
   lbu t1, 1(s1)
   sw t1, chVol(t0)
-  ; lib/sound.e16.ts:196  return wrap16(at + 2)
+  ; lib/sound.e16.ts:197  return wrap16(at + 2)
   addi a0, s1, 2
   j .return
 .L9:
-  ; lib/sound.e16.ts:198  poke16(CHSEL, c)
+  ; lib/sound.e16.ts:199  poke16(CHSEL, c)
   li t0, 63552
   sw s2, 0(t0)
-  ; lib/sound.e16.ts:199  poke16(PAN, peek(at + 1))
+  ; lib/sound.e16.ts:200  poke16(PAN, peek(at + 1))
   lbu t0, 1(s1)
   li t1, 63560
   sw t0, 0(t1)
-  ; lib/sound.e16.ts:200  return wrap16(at + 2)
+  ; lib/sound.e16.ts:201  return wrap16(at + 2)
   addi a0, s1, 2
   j .return
 .L10:
-  ; lib/sound.e16.ts:202  if (chLoop[c] !== 0xffff) return wrap16(chSong[c] + chLoop[c])
+  ; lib/sound.e16.ts:203  if (chLoop[c] !== 0xffff) return wrap16(chSong[c] + chLoop[c])
   slli t0, s2, 1
   lw t0, chLoop(t0)
   li t1, 65535
-  beq t0, t1, .L14
-  ; lib/sound.e16.ts:202  return wrap16(chSong[c] + chLoop[c])
+  beq t0, t1, .L12
+  ; lib/sound.e16.ts:203  return wrap16(chSong[c] + chLoop[c])
   slli t0, s2, 1
   lw t0, chSong(t0)
   slli t1, s2, 1
   lw t1, chLoop(t1)
   add a0, t0, t1
   j .return
-.L14:
-  ; lib/sound.e16.ts:203  return endChannel(c, at)
+.L12:
+  ; lib/sound.e16.ts:204  return endChannel(c, at)
   mv a0, s2
   mv a1, s1
   call endChannel
   j .return
 .L11:
-  ; lib/sound.e16.ts:206  return endChannel(c, at)
+  ; lib/sound.e16.ts:207  return endChannel(c, at)
   mv a0, s2
   mv a1, s1
   call endChannel
@@ -2332,28 +2354,28 @@ oneOp:
   addi sp, sp, 8
   ret
 
-; lib/sound.e16.ts:210 endChannel(c, at) at -O1
+; lib/sound.e16.ts:211 endChannel(c, at) at -O1
 ;   c in a0
 ;   at in a1
 endChannel:
-  ; lib/sound.e16.ts:211  poke16(CHSEL, c)
+  ; lib/sound.e16.ts:212  poke16(CHSEL, c)
   li t0, 63552
   sw a0, 0(t0)
-  ; lib/sound.e16.ts:212  poke16(KEY, 0)
+  ; lib/sound.e16.ts:213  poke16(KEY, 0)
   li t0, 63566
   sw zero, 0(t0)
-  ; lib/sound.e16.ts:213  chOn[c] = 0
+  ; lib/sound.e16.ts:214  chOn[c] = 0
   slli t0, a0, 1
   sw zero, chOn(t0)
-  ; lib/sound.e16.ts:214  opTook = true
+  ; lib/sound.e16.ts:215  opTook = true
   li t0, 1
-  sw t0, 0x0c8e(zero)
-  ; lib/sound.e16.ts:215  return at
+  sw t0, 0x0c90(zero)
+  ; lib/sound.e16.ts:216  return at
   mv a0, a1
 .return:
   ret
 
-; lib/sound.e16.ts:219 startNote(c, freq, frames, held) at -O1
+; lib/sound.e16.ts:220 startNote(c, freq, frames, held) at -O1
 ;   c in a0
 ;   freq in a1
 ;   frames in a2
@@ -2362,35 +2384,35 @@ endChannel:
 startNote:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/sound.e16.ts:220  chLen[c] = frames
+  ; lib/sound.e16.ts:221  chLen[c] = frames
   slli t0, a0, 1
   sw a2, chLen(t0)
-  ; lib/sound.e16.ts:221  chHeld[c] = held
+  ; lib/sound.e16.ts:222  chHeld[c] = held
   slli t0, a0, 1
   sw a3, chHeld(t0)
-  ; lib/sound.e16.ts:222  lastFreq[c] = freq
+  ; lib/sound.e16.ts:223  lastFreq[c] = freq
   slli t0, a0, 1
   sw a1, lastFreq(t0)
-  ; lib/sound.e16.ts:223  chWait[c] = frames
+  ; lib/sound.e16.ts:224  chWait[c] = frames
   slli t0, a0, 1
   sw a2, chWait(t0)
-  ; lib/sound.e16.ts:224  chGate[c] = held
+  ; lib/sound.e16.ts:225  chGate[c] = held
   slli t0, a0, 1
   sw a3, chGate(t0)
-  ; lib/sound.e16.ts:225  chFreq[c] = freq
+  ; lib/sound.e16.ts:226  chFreq[c] = freq
   slli t0, a0, 1
   sw a1, chFreq(t0)
-  ; lib/sound.e16.ts:226  poke16(CHSEL, c)
+  ; lib/sound.e16.ts:227  poke16(CHSEL, c)
   li t0, 63552
   sw a0, 0(t0)
-  ; lib/sound.e16.ts:227  poke16(FREQ, freq)
+  ; lib/sound.e16.ts:228  poke16(FREQ, freq)
   li t0, 63556
   sw a1, 0(t0)
-  ; lib/sound.e16.ts:228  const quiet = c < 12 && (muted & (1 << c)) !== 0
+  ; lib/sound.e16.ts:229  const quiet = c < 12 && (muted & (1 << c)) !== 0
   sltiu t0, a0, 12
   mv t1, t0
   beqz t1, .L1
-  lw t0, 0x0c8c(zero)
+  lw t0, 0x0c8e(zero)
   li t1, 1
   sll t1, t1, a0
   and t0, t0, t1
@@ -2398,7 +2420,7 @@ startNote:
   snez t0, t0
 .L1:
   mv s1, t0 ; quiet
-  ; lib/sound.e16.ts:229  poke16(VOL, quiet ? 0 : (chVol[c] * chInstVol[c] + 14) >> 4)
+  ; lib/sound.e16.ts:231  poke16(VOL, quiet ? 0 : (chVol[c] * chInstVol[c] * 17 + 128) >> 8)
   li t0, 63558
   mv t1, s1
   beqz t1, .L2
@@ -2410,11 +2432,13 @@ startNote:
   slli t2, a0, 1
   lw t2, chInstVol(t2)
   mul t1, t1, t2
-  addi t1, t1, 14
-  srli t1, t1, 4
+  slli t2, t1, 4
+  add t1, t2, t1
+  addi t1, t1, 128
+  srli t1, t1, 8
 .L3:
   sw t1, 0(t0)
-  ; lib/sound.e16.ts:230  poke16(KEY, 1)
+  ; lib/sound.e16.ts:232  poke16(KEY, 1)
   li t0, 1
   li t1, 63566
   sw t0, 0(t1)
@@ -2423,16 +2447,16 @@ startNote:
   addi sp, sp, 2
   ret
 
-; lib/sound.e16.ts:234 setInstrument(c, k) at -O1
+; lib/sound.e16.ts:236 setInstrument(c, k) at -O1
 ;   c in a0
 ;   k in a1
 ;   song in a3
 ;   at in a2
 setInstrument:
-  ; lib/sound.e16.ts:235  const song = chSong[c]
+  ; lib/sound.e16.ts:237  const song = chSong[c]
   slli t0, a0, 1
   lw a3, chSong(t0)
-  ; lib/sound.e16.ts:236  const at = song + 2 + peek(song) * 6 + k * 8
+  ; lib/sound.e16.ts:238  const at = song + 2 + peek(song) * 6 + k * 8
   lbu t0, 0(a3)
   slli t1, t0, 2
   slli t0, t0, 1
@@ -2441,30 +2465,30 @@ setInstrument:
   add t1, t1, t0
   slli t0, a1, 3
   add a2, t1, t0
-  ; lib/sound.e16.ts:237  poke16(CHSEL, c)
+  ; lib/sound.e16.ts:239  poke16(CHSEL, c)
   li t0, 63552
   sw a0, 0(t0)
-  ; lib/sound.e16.ts:238  poke16(WAVE, peek(at))
+  ; lib/sound.e16.ts:240  poke16(WAVE, peek(at))
   lbu t0, 0(a2)
   li t1, 63554
   sw t0, 0(t1)
-  ; lib/sound.e16.ts:239  chInstVol[c] = peek(at + 1)
+  ; lib/sound.e16.ts:241  chInstVol[c] = peek(at + 1)
   slli t0, a0, 1
   lbu t1, 1(a2)
   sw t1, chInstVol(t0)
-  ; lib/sound.e16.ts:240  poke16(ENV, peek16(at + 2))
+  ; lib/sound.e16.ts:242  poke16(ENV, peek16(at + 2))
   lw t0, 2(a2)
   li t1, 63562
   sw t0, 0(t1)
-  ; lib/sound.e16.ts:241  poke16(MOD, peek16(at + 4))
+  ; lib/sound.e16.ts:243  poke16(MOD, peek16(at + 4))
   lw t0, 4(a2)
   li t1, 63564
   sw t0, 0(t1)
-  ; lib/sound.e16.ts:242  poke16(PAN, peek(at + 6))
+  ; lib/sound.e16.ts:244  poke16(PAN, peek(at + 6))
   lbu t0, 6(a2)
   li t1, 63560
   sw t0, 0(t1)
-  ; lib/sound.e16.ts:243  chDrop[c] = peek(at + 7)
+  ; lib/sound.e16.ts:245  chDrop[c] = peek(at + 7)
   slli t0, a0, 1
   lbu t1, 7(a2)
   sw t1, chDrop(t0)
@@ -2670,10 +2694,10 @@ panelsIn:
 ;   d in a1
 sourceRow:
   ; view.e16.ts:158  const d = wrap16(holdTop - r)
-  lw t0, 0x0c98(zero)
+  lw t0, 0x0c9a(zero)
   sub a1, t0, a0
   ; view.e16.ts:159  if (holdRows === 0 || d === 0 || d > 0x8000) return r
-  lw t0, 0x0c9a(zero)
+  lw t0, 0x0c9c(zero)
   beq t0, zero, .L2
   beq a1, zero, .L2
   li t0, 32768
@@ -2683,10 +2707,10 @@ sourceRow:
   ret
 .L1:
   ; view.e16.ts:160  return holdTop + holdRows - 1 - ((d - 1) % holdRows)
-  lw t0, 0x0c98(zero)
-  lw t1, 0x0c9a(zero)
+  lw t0, 0x0c9a(zero)
+  lw t1, 0x0c9c(zero)
   add t0, t0, t1
-  lw t1, 0x0c9a(zero)
+  lw t1, 0x0c9c(zero)
   addi t2, a1, -1
   remu t2, t2, t1
   addi t0, t0, -1
@@ -2738,18 +2762,18 @@ stageStart:
   sw ra, 0(sp)
   sw s1, 2(sp)
   ; view.e16.ts:172  scrolled = 0
-  sw zero, 0x0c90(zero)
+  sw zero, 0x0c92(zero)
   ; view.e16.ts:173  scrollFrac = 0
-  sw zero, 0x0c94(zero)
+  sw zero, 0x0c96(zero)
   ; view.e16.ts:174  holdRows = 0
-  sw zero, 0x0c9a(zero)
+  sw zero, 0x0c9c(zero)
   ; view.e16.ts:175  scrollSpeed = 8
   li t0, 8
-  sw t0, 0x0c92(zero)
+  sw t0, 0x0c94(zero)
   ; view.e16.ts:176  const top = STAGE_H - 36
   ; view.e16.ts:177  logicalTop = top
   li t0, 572
-  sw t0, 0x0c9c(zero)
+  sw t0, 0x0c9e(zero)
   ; view.e16.ts:178  let r = top - 2
   li s1, 570 ; r
   ; view.e16.ts:179  while (r < STAGE_H) {
@@ -2765,7 +2789,7 @@ stageStart:
   bltu s1, t0, .L1
   ; view.e16.ts:183  loadedTop = top - 2
   li t0, 570
-  sw t0, 0x0c96(zero)
+  sw t0, 0x0c98(zero)
   ; view.e16.ts:184  stageScroll()
   call stageScroll
 .return:
@@ -2778,10 +2802,10 @@ stageStart:
 ;   top in a0
 stageHold:
   ; view.e16.ts:189  holdTop = top
-  sw a0, 0x0c98(zero)
+  sw a0, 0x0c9a(zero)
   ; view.e16.ts:190  holdRows = 64
   li t0, 64
-  sw t0, 0x0c9a(zero)
+  sw t0, 0x0c9c(zero)
 .return:
   ret
 
@@ -2789,27 +2813,27 @@ stageHold:
 ;   laps in a0
 stageRelease:
   ; view.e16.ts:198  const laps = u16(i16(wrap16(holdTop - logicalTop)) >> 6)
-  lw t0, 0x0c98(zero)
-  lw t1, 0x0c9c(zero)
+  lw t0, 0x0c9a(zero)
+  lw t1, 0x0c9e(zero)
   sub t0, t0, t1
   srai a0, t0, 6
   ; view.e16.ts:199  scrolled = wrap16(scrolled - laps * 512)
-  lw t0, 0x0c90(zero)
+  lw t0, 0x0c92(zero)
   slli t1, a0, 9
   sub t0, t0, t1
-  sw t0, 0x0c90(zero)
+  sw t0, 0x0c92(zero)
   ; view.e16.ts:200  loadedTop = wrap16(loadedTop + laps * 64)
-  lw t0, 0x0c96(zero)
+  lw t0, 0x0c98(zero)
   slli t1, a0, 6
   add t0, t0, t1
-  sw t0, 0x0c96(zero)
+  sw t0, 0x0c98(zero)
   ; view.e16.ts:201  logicalTop = wrap16(logicalTop + laps * 64)
-  lw t0, 0x0c9c(zero)
+  lw t0, 0x0c9e(zero)
   slli t1, a0, 6
   add t0, t0, t1
-  sw t0, 0x0c9c(zero)
+  sw t0, 0x0c9e(zero)
   ; view.e16.ts:202  holdRows = 0
-  sw zero, 0x0c9a(zero)
+  sw zero, 0x0c9c(zero)
 .return:
   ret
 
@@ -2820,40 +2844,40 @@ stageStep:
   sw ra, 0(sp)
   sw s1, 2(sp)
   ; view.e16.ts:207  scrollFrac = scrollFrac + scrollSpeed
-  lw t0, 0x0c94(zero)
-  lw t1, 0x0c92(zero)
-  add t0, t0, t1
-  sw t0, 0x0c94(zero)
-  ; view.e16.ts:208  scrolled = scrolled + (scrollFrac >> 4)
-  lw t0, 0x0c90(zero)
+  lw t0, 0x0c96(zero)
   lw t1, 0x0c94(zero)
+  add t0, t0, t1
+  sw t0, 0x0c96(zero)
+  ; view.e16.ts:208  scrolled = scrolled + (scrollFrac >> 4)
+  lw t0, 0x0c92(zero)
+  lw t1, 0x0c96(zero)
   srli t1, t1, 4
   add t0, t0, t1
-  sw t0, 0x0c90(zero)
+  sw t0, 0x0c92(zero)
   ; view.e16.ts:209  scrollFrac = scrollFrac & 15
-  lw t0, 0x0c94(zero)
+  lw t0, 0x0c96(zero)
   andi t0, t0, 15
-  sw t0, 0x0c94(zero)
+  sw t0, 0x0c96(zero)
   ; view.e16.ts:211  const pixelTop = wrap16(STAGE_H * 8 - 288 - scrolled)
-  lw t0, 0x0c90(zero)
+  lw t0, 0x0c92(zero)
   li t1, 4576
   sub s1, t1, t0
   ; view.e16.ts:212  logicalTop = u16(i16(pixelTop) >> 3)
   srai t0, s1, 3
-  sw t0, 0x0c9c(zero)
+  sw t0, 0x0c9e(zero)
   ; view.e16.ts:214  while (i16(wrap16(loadedTop - logicalTop)) > -2) {
   j .L3
 .L1:
   ; view.e16.ts:215  loadedTop = wrap16(loadedTop - 1)
-  lw t0, 0x0c96(zero)
+  lw t0, 0x0c98(zero)
   addi t0, t0, -1
-  sw t0, 0x0c96(zero)
+  sw t0, 0x0c98(zero)
   ; view.e16.ts:216  stageRow(loadedTop)
   mv a0, t0
   call stageRow
 .L3:
-  lw t0, 0x0c96(zero)
-  lw t1, 0x0c9c(zero)
+  lw t0, 0x0c98(zero)
+  lw t1, 0x0c9e(zero)
   sub t0, t0, t1
   li t1, 65534
   blt t1, t0, .L1
@@ -2867,7 +2891,7 @@ stageStep:
 ;   s in a0
 stageSpeed:
   ; view.e16.ts:222  scrollSpeed = s
-  sw a0, 0x0c92(zero)
+  sw a0, 0x0c94(zero)
 .return:
   ret
 
@@ -2875,18 +2899,18 @@ stageSpeed:
 ;   y in a0
 stageScroll:
   ; view.e16.ts:232  const y = wrap16(STAGE_H * 8 - 288 - scrolled)
-  lw t0, 0x0c90(zero)
+  lw t0, 0x0c92(zero)
   li t1, 4576
   sub a0, t1, t0
   ; view.e16.ts:233  poke16(BG0Y, (y + u16(shakeY)) & 511)
-  lw t0, 0x0ca4(zero)
+  lw t0, 0x0ca6(zero)
   add t0, a0, t0
   andi t0, t0, 511
   li t1, 63522
   sw t0, 0(t1)
   ; view.e16.ts:234  poke16(BG0X, u16(sway + shakeX) & 511)
-  lw t0, 0x0c9e(zero)
-  lw t1, 0x0ca2(zero)
+  lw t0, 0x0ca0(zero)
+  lw t1, 0x0ca4(zero)
   add t0, t0, t1
   andi t0, t0, 511
   li t1, 63520
@@ -2900,7 +2924,7 @@ stageSway:
   ; view.e16.ts:239  sway = (shipX - 160) >> 3
   addi t0, a0, -160
   srai t0, t0, 3
-  sw t0, 0x0c9e(zero)
+  sw t0, 0x0ca0(zero)
 .return:
   ret
 
@@ -2908,10 +2932,10 @@ stageSway:
 ;   frames in a0
 shake:
   ; view.e16.ts:244  if (frames > shakeLeft) shakeLeft = frames
-  lw t0, 0x0ca0(zero)
+  lw t0, 0x0ca2(zero)
   bgeu t0, a0, .L1
   ; view.e16.ts:244  shakeLeft = frames
-  sw a0, 0x0ca0(zero)
+  sw a0, 0x0ca2(zero)
 .L1:
 .return:
   ret
@@ -2921,29 +2945,29 @@ shake:
 ;   size in a1
 shakeStep:
   ; view.e16.ts:249  if (shakeLeft === 0) {
-  lw t0, 0x0ca0(zero)
+  lw t0, 0x0ca2(zero)
   bne t0, zero, .L1
   ; view.e16.ts:250  shakeX = 0
-  sw zero, 0x0ca2(zero)
-  ; view.e16.ts:251  shakeY = 0
   sw zero, 0x0ca4(zero)
+  ; view.e16.ts:251  shakeY = 0
+  sw zero, 0x0ca6(zero)
   ; view.e16.ts:252  return
   ret
 .L1:
   ; view.e16.ts:254  shakeLeft--
-  lw t0, 0x0ca0(zero)
+  lw t0, 0x0ca2(zero)
   addi t0, t0, -1
-  sw t0, 0x0ca0(zero)
+  sw t0, 0x0ca2(zero)
   ; view.e16.ts:255  const r = shakeLeft & 3
   andi a0, t0, 3
   ; view.e16.ts:256  const size: i16 = shakeLeft > 8 ? 3 : shakeLeft > 3 ? 2 : 1
-  lw t0, 0x0ca0(zero)
+  lw t0, 0x0ca2(zero)
   li t1, 8
   bgeu t1, t0, .L2
   li t0, 3
   j .L3
 .L2:
-  lw t0, 0x0ca0(zero)
+  lw t0, 0x0ca2(zero)
   li t1, 3
   bgeu t1, t0, .L4
   li t0, 2
@@ -2966,7 +2990,7 @@ shakeStep:
   li t0, 0
 .L9:
 .L7:
-  sw t0, 0x0ca2(zero)
+  sw t0, 0x0ca4(zero)
   ; view.e16.ts:258  shakeY = r === 1 ? size : r === 3 ? -size : 0
   li t0, 1
   bne a0, t0, .L10
@@ -2981,21 +3005,21 @@ shakeStep:
   li t0, 0
 .L13:
 .L11:
-  sw t0, 0x0ca4(zero)
+  sw t0, 0x0ca6(zero)
 .return:
   ret
 
 ; view.e16.ts:261 shakeDX() at -O1
 shakeDX:
   ; view.e16.ts:262  return shakeX
-  lw a0, 0x0ca2(zero)
+  lw a0, 0x0ca4(zero)
 .return:
   ret
 
 ; view.e16.ts:265 shakeDY() at -O1
 shakeDY:
   ; view.e16.ts:266  return shakeY
-  lw a0, 0x0ca4(zero)
+  lw a0, 0x0ca6(zero)
 .return:
   ret
 
@@ -3010,7 +3034,7 @@ flashScreen:
 .L1:
   mv t0, a0
 .L2:
-  sw t0, 0x0ca6(zero)
+  sw t0, 0x0ca8(zero)
 .return:
   ret
 
@@ -3021,15 +3045,15 @@ flashStep:
   sw ra, 0(sp)
   sw s1, 2(sp)
   ; view.e16.ts:280  if (flashLeft === 0) return
-  lw t0, 0x0ca6(zero)
+  lw t0, 0x0ca8(zero)
   bne t0, zero, .L1
   ; view.e16.ts:280  return
   j .return
 .L1:
   ; view.e16.ts:281  flashLeft--
-  lw t0, 0x0ca6(zero)
+  lw t0, 0x0ca8(zero)
   addi t0, t0, -1
-  sw t0, 0x0ca6(zero)
+  sw t0, 0x0ca8(zero)
   ; view.e16.ts:282  let s: u16 = 0
   li s1, 0 ; s
   ; view.e16.ts:283  while (s < 16) {
@@ -3042,7 +3066,7 @@ flashStep:
   bltu s1, t0, .L6
 .L7:
   ; view.e16.ts:285  palMix(s, 0x7fff, flashLeft)
-  lw t0, 0x0ca6(zero)
+  lw t0, 0x0ca8(zero)
   mv a0, s1
   li a1, 32767
   mv a2, t0
@@ -3070,9 +3094,9 @@ wave:
   mv s1, a0 ; frames
   mv s2, a1 ; size
   ; view.e16.ts:298  waveLeft = frames
-  sw s1, 0x0ca8(zero)
+  sw s1, 0x0caa(zero)
   ; view.e16.ts:299  waveSize = size
-  sw s2, 0x0cac(zero)
+  sw s2, 0x0cae(zero)
   ; view.e16.ts:300  raster(1)
   li a0, 1
   call raster
@@ -3098,29 +3122,29 @@ waveStep:
   sw s0, 12(sp)
   mv fp, sp
   ; view.e16.ts:305  const base = u16(sway + shakeX) & 511
-  lw t0, 0x0c9e(zero)
-  lw t1, 0x0ca2(zero)
+  lw t0, 0x0ca0(zero)
+  lw t1, 0x0ca4(zero)
   add t0, t0, t1
   andi s2, t0, 511
   ; view.e16.ts:306  if (waveLeft === 0) return
-  lw t0, 0x0ca8(zero)
+  lw t0, 0x0caa(zero)
   bne t0, zero, .L1
   ; view.e16.ts:306  return
   j .return
 .L1:
   ; view.e16.ts:307  waveLeft--
-  lw t0, 0x0ca8(zero)
-  addi t0, t0, -1
-  sw t0, 0x0ca8(zero)
-  ; view.e16.ts:308  wavePhase = wavePhase + 5
   lw t0, 0x0caa(zero)
-  addi t0, t0, 5
+  addi t0, t0, -1
   sw t0, 0x0caa(zero)
+  ; view.e16.ts:308  wavePhase = wavePhase + 5
+  lw t0, 0x0cac(zero)
+  addi t0, t0, 5
+  sw t0, 0x0cac(zero)
   ; view.e16.ts:309  const fade = waveLeft < 16 ? waveLeft : 16
-  lw t0, 0x0ca8(zero)
+  lw t0, 0x0caa(zero)
   li t1, 16
   bgeu t0, t1, .L2
-  lw t0, 0x0ca8(zero)
+  lw t0, 0x0caa(zero)
   j .L3
 .L2:
   li t0, 16
@@ -3132,14 +3156,14 @@ waveStep:
   j .L6
 .L4:
   ; view.e16.ts:312  const s = sin(wavePhase + k * 14)
-  lw t0, 0x0caa(zero)
+  lw t0, 0x0cac(zero)
   li t1, 14
   mul t1, s1, t1
   add a0, t0, t1
   call sin
   sw a0, 0(fp) ; s
   ; view.e16.ts:313  const off = (s * i16(waveSize * fade)) >> 12
-  lw t0, 0x0cac(zero)
+  lw t0, 0x0cae(zero)
   mul t0, t0, s3
   lw t1, 0(fp) ; s
   mul t1, t1, t0
@@ -3157,7 +3181,7 @@ waveStep:
   li t0, 36
   bltu s1, t0, .L4
   ; view.e16.ts:317  if (waveLeft === 0) raster(0)
-  lw t0, 0x0ca8(zero)
+  lw t0, 0x0caa(zero)
   bne t0, zero, .L8
   ; view.e16.ts:317  raster(0)
   li a0, 0
@@ -3297,7 +3321,7 @@ tint:
 ;   row in a0
 reached:
   ; view.e16.ts:348  return i16(wrap16(logicalTop - row)) <= 0
-  lw t0, 0x0c9c(zero)
+  lw t0, 0x0c9e(zero)
   sub t0, t0, a0
   slt t0, zero, t0
   xori a0, t0, 1
@@ -3307,7 +3331,7 @@ reached:
 ; view.e16.ts:352 topRow() at -O1
 topRow:
   ; view.e16.ts:353  return logicalTop
-  lw a0, 0x0c9c(zero)
+  lw a0, 0x0c9e(zero)
 .return:
   ret
 
@@ -3321,12 +3345,12 @@ fx:
   addi sp, sp, -2
   sw s1, 0(sp)
   ; fx.e16.ts:36  const k = fxNext
-  lw s1, 0x0e2e(zero)
+  lw s1, 0x0e30(zero)
   ; fx.e16.ts:37  fxNext = (fxNext + 1) & 31
-  lw t0, 0x0e2e(zero)
+  lw t0, 0x0e30(zero)
   addi t0, t0, 1
   andi t0, t0, 31
-  sw t0, 0x0e2e(zero)
+  sw t0, 0x0e30(zero)
   ; fx.e16.ts:38  fxKind[k] = kind
   slli t0, s1, 1
   sw a0, fxKind(t0)
@@ -3686,14 +3710,14 @@ fxDraw:
   lw t0, fxX(t0)
   srai t0, t0, 4
   ; view.e16.ts:262  return shakeX
-  lw t1, 0x0ca2(zero)
+  lw t1, 0x0ca4(zero)
   add s1, t0, t1
   ; fx.e16.ts:103  const y = (i16(fxY[k]) >> 4) + shakeDY()
   slli t0, s3, 1
   lw t0, fxY(t0)
   srai t0, t0, 4
   ; view.e16.ts:266  return shakeY
-  lw t1, 0x0ca4(zero)
+  lw t1, 0x0ca6(zero)
   add s2, t0, t1
   ; fx.e16.ts:104  const pal = (SL_FIRE - 8) << 10
   ; fx.e16.ts:105  if (kind === FX_SMALL) spr(x - 8, y - 8, (BLAST_SMALL_TILE + div(t, 3) * 4) | pal, S16)
@@ -3891,19 +3915,19 @@ item:
   mv s3, a1 ; x
   mv s0, a2 ; y
   ; fx.e16.ts:144  const k = itNext
-  lw s1, 0x1010(zero)
+  lw s1, 0x1012(zero)
   ; fx.e16.ts:145  itNext = itNext + 1 === IT_N ? 0 : itNext + 1
-  lw t0, 0x1010(zero)
+  lw t0, 0x1012(zero)
   li t1, 40
   addi t0, t0, 1
   bne t0, t1, .L1
   li t0, 0
   j .L2
 .L1:
-  lw t0, 0x1010(zero)
+  lw t0, 0x1012(zero)
   addi t0, t0, 1
 .L2:
-  sw t0, 0x1010(zero)
+  sw t0, 0x1012(zero)
   ; fx.e16.ts:146  itKind[k] = kind
   slli t0, s1, 1
   sw s2, itKind(t0)
@@ -3963,7 +3987,7 @@ itemsStep:
   mv s3, a1 ; sy
   mv s0, a2 ; magnet
   ; fx.e16.ts:161  magnetNow = magnet
-  sw s0, 0x101c(zero)
+  sw s0, 0x101e(zero)
   ; fx.e16.ts:162  caught[1] = 0
   sw zero, caught+2(zero)
   ; fx.e16.ts:163  caught[2] = 0
@@ -4165,7 +4189,7 @@ itemSteer:
   ; fx.e16.ts:206  if (t <= 16 && magnetNow === 0) {
   li t0, 16
   bltu t0, s3, .L4
-  lw t0, 0x101c(zero)
+  lw t0, 0x101e(zero)
   bne t0, zero, .L4
   ; fx.e16.ts:207  itVY[k] = u16(i16(itVY[k]) + 2)
   slli t0, s1, 1
@@ -4262,7 +4286,7 @@ itemDraw:
   lw t0, itX(t0)
   srai t0, t0, 4
   ; view.e16.ts:262  return shakeX
-  lw t1, 0x0ca2(zero)
+  lw t1, 0x0ca4(zero)
   add t0, t0, t1
   sw t0, 0(fp) ; x
   ; fx.e16.ts:217  const y = (i16(itY[k]) >> 4) + shakeDY()
@@ -4270,7 +4294,7 @@ itemDraw:
   lw t0, itY(t0)
   srai t0, t0, 4
   ; view.e16.ts:266  return shakeY
-  lw t1, 0x0ca4(zero)
+  lw t1, 0x0ca6(zero)
   add t0, t0, t1
   sw t0, 2(fp) ; y
   ; fx.e16.ts:218  const pal = (SL_ITEM - 8) << 10
@@ -4572,7 +4596,7 @@ farStarsStep:
 ;   n in a0
 boost:
   ; shots.e16.ts:33  bulletBoost = n
-  sw a0, 0x143a(zero)
+  sw a0, 0x143c(zero)
 .return:
   ret
 
@@ -4623,21 +4647,21 @@ bullet:
   j .L3
 .L1:
   ; shots.e16.ts:48  buNext = buNext + 1 === B_N ? 0 : buNext + 1
-  lw t0, 0x1436(zero)
+  lw t0, 0x1438(zero)
   li t1, 72
   addi t0, t0, 1
   bne t0, t1, .L5
   li t0, 0
   j .L6
 .L5:
-  lw t0, 0x1436(zero)
+  lw t0, 0x1438(zero)
   addi t0, t0, 1
 .L6:
-  sw t0, 0x1436(zero)
+  sw t0, 0x1438(zero)
   ; shots.e16.ts:49  tries--
   addi s2, s2, -1
 .L3:
-  lw t0, 0x1436(zero)
+  lw t0, 0x1438(zero)
   slli t0, t0, 1
   lw t0, buLive(t0)
   beq t0, zero, .L7
@@ -4649,9 +4673,9 @@ bullet:
   j .return
 .L8:
   ; shots.e16.ts:52  const k = buNext
-  lw s1, 0x1436(zero)
+  lw s1, 0x1438(zero)
   ; shots.e16.ts:53  const v = i16(speed + bulletBoost)
-  lw t0, 0x143a(zero)
+  lw t0, 0x143c(zero)
   lw t1, 8(fp) ; speed
   add t1, t1, t0
   sw t1, 2(fp) ; v
@@ -4716,9 +4740,9 @@ bullet:
 ;   y in a1
 target:
   ; shots.e16.ts:68  targetX = x
-  sw a0, 0x143c(zero)
+  sw a0, 0x143e(zero)
   ; shots.e16.ts:69  targetY = y
-  sw a1, 0x143e(zero)
+  sw a1, 0x1440(zero)
 .return:
   ret
 
@@ -4733,9 +4757,9 @@ aimed:
   mv s1, a0 ; x
   mv s2, a1 ; y
   ; shots.e16.ts:74  return aim(targetX - x, targetY - y)
-  lw t0, 0x143c(zero)
+  lw t0, 0x143e(zero)
   sub t0, t0, s1
-  lw t1, 0x143e(zero)
+  lw t1, 0x1440(zero)
   sub t1, t1, s2
   mv a0, t0
   mv a1, t1
@@ -4954,11 +4978,11 @@ bulletsStep:
   mv s3, a1 ; sy
   mv s0, a2 ; vulnerable
   ; shots.e16.ts:127  grazes = 0
-  sw zero, 0x1440(zero)
-  ; shots.e16.ts:128  hitShip = false
   sw zero, 0x1442(zero)
+  ; shots.e16.ts:128  hitShip = false
+  sw zero, 0x1444(zero)
   ; shots.e16.ts:129  bulletCount = 0
-  sw zero, 0x1438(zero)
+  sw zero, 0x143a(zero)
   ; shots.e16.ts:130  let k: u16 = 0
   li s1, 0 ; k
   ; shots.e16.ts:131  while (k < B_N) {
@@ -5047,9 +5071,9 @@ bulletOne:
   j .return
 .L1:
   ; shots.e16.ts:146  bulletCount++
-  lw t0, 0x1438(zero)
+  lw t0, 0x143a(zero)
   addi t0, t0, 1
-  sw t0, 0x1438(zero)
+  sw t0, 0x143a(zero)
   ; shots.e16.ts:147  const dx = abs(x - sx)
   lw t0, 0(fp) ; sx
   sub a0, s2, t0
@@ -5087,7 +5111,7 @@ bulletOne:
   bge t1, t0, .L5
   ; shots.e16.ts:151  hitShip = true
   li t0, 1
-  sw t0, 0x1442(zero)
+  sw t0, 0x1444(zero)
   j .L6
 .L5:
   ; shots.e16.ts:152  if (vulnerable && buGrazed[k] === 0 && dx < 192 && dy < 192) {
@@ -5107,9 +5131,9 @@ bulletOne:
   li t1, 1
   sw t1, buGrazed(t0)
   ; shots.e16.ts:154  grazes++
-  lw t0, 0x1440(zero)
+  lw t0, 0x1442(zero)
   addi t0, t0, 1
-  sw t0, 0x1440(zero)
+  sw t0, 0x1442(zero)
   ; shots.e16.ts:155  fx(FX_SPARK, (x + sx) >> 1, (y + sy) >> 1, 0)
   lw t0, 0(fp) ; sx
   add t0, s2, t0
@@ -5165,13 +5189,13 @@ bulletDraw:
   lw t0, 2(fp) ; x16
   srai t0, t0, 4
   ; view.e16.ts:262  return shakeX
-  lw t1, 0x0ca2(zero)
+  lw t1, 0x0ca4(zero)
   add s3, t0, t1
   ; shots.e16.ts:163  const y = (y16 >> 4) + shakeDY()
   lw t0, 4(fp) ; y16
   srai t0, t0, 4
   ; view.e16.ts:266  return shakeY
-  lw t1, 0x0ca4(zero)
+  lw t1, 0x0ca6(zero)
   add t0, t0, t1
   sw t0, 0(fp) ; y
   ; shots.e16.ts:164  const pal = (SL_BULLET - 8) << 10
@@ -5647,12 +5671,12 @@ shotOne:
   ; shots.e16.ts:275  spr((x >> 4) - 4 + shakeDX(), (y >> 4) - 4 + shakeDY(), tile | ((SL_SHOT - 8) << 10) | flip, S8)
   srai t0, s3, 4
   ; view.e16.ts:262  return shakeX
-  lw t1, 0x0ca2(zero)
+  lw t1, 0x0ca4(zero)
   addi t0, t0, -4
   add t0, t0, t1
   srai t1, s2, 4
   ; view.e16.ts:266  return shakeY
-  lw t2, 0x0ca4(zero)
+  lw t2, 0x0ca6(zero)
   addi t1, t1, -4
   add t1, t1, t2
   lw t2, 4(fp) ; tile
@@ -5699,16 +5723,16 @@ shipNew:
   sw ra, 0(sp)
   ; ship.e16.ts:61  lives = 3
   li t0, 3
-  sw t0, 0x14e6(zero)
+  sw t0, 0x14e8(zero)
   ; ship.e16.ts:62  bombs = 3
   li t0, 3
-  sw t0, 0x14e8(zero)
+  sw t0, 0x14ea(zero)
   ; ship.e16.ts:63  volt = 0
-  sw zero, 0x14ea(zero)
-  ; ship.e16.ts:64  overdrive = 0
   sw zero, 0x14ec(zero)
+  ; ship.e16.ts:64  overdrive = 0
+  sw zero, 0x14ee(zero)
   ; ship.e16.ts:65  power = 0
-  sw zero, 0x14f4(zero)
+  sw zero, 0x14f6(zero)
   ; ship.e16.ts:66  shipEnter()
   call shipEnter
 .return:
@@ -5719,26 +5743,26 @@ shipNew:
 ; ship.e16.ts:70 shipEnter() at -O1
 shipEnter:
   ; ship.e16.ts:71  shipState = SH_ENTER
-  sw zero, 0x14d4(zero)
+  sw zero, 0x14d6(zero)
   ; ship.e16.ts:72  shipX = (FIELD_X + 112) * 16
   li t0, 2560
-  sw t0, 0x14d6(zero)
+  sw t0, 0x14d8(zero)
   ; ship.e16.ts:73  shipY = 5000
   li t0, 5000
-  sw t0, 0x14d8(zero)
+  sw t0, 0x14da(zero)
   ; ship.e16.ts:74  tilt = 0
-  sw zero, 0x14da(zero)
-  ; ship.e16.ts:75  timer = 0
   sw zero, 0x14dc(zero)
+  ; ship.e16.ts:75  timer = 0
+  sw zero, 0x14de(zero)
   ; ship.e16.ts:76  guard = 180
   li t0, 180
-  sw t0, 0x14de(zero)
+  sw t0, 0x14e0(zero)
   ; ship.e16.ts:77  holdA = 0
-  sw zero, 0x14e0(zero)
+  sw zero, 0x14e2(zero)
   ; ship.e16.ts:78  bombing = 0
-  sw zero, 0x14ee(zero)
-  ; ship.e16.ts:79  lancing = false
   sw zero, 0x14f0(zero)
+  ; ship.e16.ts:79  lancing = false
+  sw zero, 0x14f2(zero)
 .return:
   ret
 
@@ -5747,40 +5771,40 @@ shipStep:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; ship.e16.ts:84  tick++
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   addi t0, t0, 1
-  sw t0, 0x14e4(zero)
+  sw t0, 0x14e6(zero)
   ; ship.e16.ts:85  if (guard > 0) guard--
-  lw t0, 0x14de(zero)
+  lw t0, 0x14e0(zero)
   bgeu zero, t0, .L1
   ; ship.e16.ts:85  guard--
-  lw t0, 0x14de(zero)
+  lw t0, 0x14e0(zero)
   addi t0, t0, -1
-  sw t0, 0x14de(zero)
+  sw t0, 0x14e0(zero)
 .L1:
   ; ship.e16.ts:86  if (overdrive > 0) overdrive--
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   bgeu zero, t0, .L2
   ; ship.e16.ts:86  overdrive--
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   addi t0, t0, -1
-  sw t0, 0x14ec(zero)
+  sw t0, 0x14ee(zero)
 .L2:
   ; ship.e16.ts:87  if (bombing > 0) bombStep()
-  lw t0, 0x14ee(zero)
+  lw t0, 0x14f0(zero)
   bgeu zero, t0, .L3
   ; ship.e16.ts:87  bombStep()
   call bombStep
 .L3:
   ; ship.e16.ts:88  if (shipState === SH_ENTER) enterStep()
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   bne t0, zero, .L4
   ; ship.e16.ts:88  enterStep()
   call enterStep
   j .L5
 .L4:
   ; ship.e16.ts:89  if (shipState === SH_PLAY) playStep()
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 1
   bne t0, t1, .L6
   ; ship.e16.ts:89  playStep()
@@ -5788,7 +5812,7 @@ shipStep:
   j .L7
 .L6:
   ; ship.e16.ts:90  if (shipState === SH_DEAD) deadStep()
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 2
   bne t0, t1, .L8
   ; ship.e16.ts:90  deadStep()
@@ -5797,8 +5821,8 @@ shipStep:
 .L7:
 .L5:
   ; ship.e16.ts:91  target(shipX, shipY)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   mv a0, t0
   mv a1, t1
   call target
@@ -5811,9 +5835,9 @@ shipStep:
 ;   step in a0
 enterStep:
   ; ship.e16.ts:95  timer++
-  lw t0, 0x14dc(zero)
+  lw t0, 0x14de(zero)
   addi t0, t0, 1
-  sw t0, 0x14dc(zero)
+  sw t0, 0x14de(zero)
   ; ship.e16.ts:96  const step: i16 = timer < 40 ? 40 : 12
   li t1, 40
   bgeu t0, t1, .L1
@@ -5824,15 +5848,15 @@ enterStep:
 .L2:
   mv a0, t0 ; step
   ; ship.e16.ts:97  shipY = shipY - step
-  lw t0, 0x14d8(zero)
+  lw t0, 0x14da(zero)
   sub t0, t0, a0
-  sw t0, 0x14d8(zero)
+  sw t0, 0x14da(zero)
   ; ship.e16.ts:98  if (shipY <= 3800) shipState = SH_PLAY
   li t1, 3800
   blt t1, t0, .L3
   ; ship.e16.ts:98  shipState = SH_PLAY
   li t0, 1
-  sw t0, 0x14d4(zero)
+  sw t0, 0x14d6(zero)
 .L3:
 .return:
   ret
@@ -5849,9 +5873,9 @@ playStep:
   li a0, 32
   call pressed
   beqz a0, .L1
-  lw t0, 0x14e8(zero)
+  lw t0, 0x14ea(zero)
   bgeu zero, t0, .L1
-  lw t0, 0x14ee(zero)
+  lw t0, 0x14f0(zero)
   bne t0, zero, .L1
   ; ship.e16.ts:104  bomb()
   call bomb
@@ -5860,16 +5884,16 @@ playStep:
   li a0, 576
   call pressed
   beqz a0, .L2
-  lw t0, 0x14ea(zero)
+  lw t0, 0x14ec(zero)
   li t1, 1024
   bltu t0, t1, .L2
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   bne t0, zero, .L2
   ; ship.e16.ts:106  overdrive = OVERDRIVE_FRAMES
   li t0, 480
-  sw t0, 0x14ec(zero)
+  sw t0, 0x14ee(zero)
   ; ship.e16.ts:107  volt = 0
-  sw zero, 0x14ea(zero)
+  sw zero, 0x14ec(zero)
   ; ship.e16.ts:108  sfxOverdrive()
   call sfxOverdrive
 .L2:
@@ -5891,7 +5915,7 @@ move:
   sw s2, 6(sp)
   sw s0, 8(sp)
   ; ship.e16.ts:114  const speed: i16 = lancing ? 20 : 40
-  lw t0, 0x14f0(zero)
+  lw t0, 0x14f2(zero)
   beqz t0, .L1
   li t0, 20
   j .L2
@@ -5944,46 +5968,46 @@ move:
   srai s2, t0, 4
 .L7:
   ; ship.e16.ts:126  shipX = shipX + dx
-  lw t0, 0x14d6(zero)
-  add t0, t0, s1
-  sw t0, 0x14d6(zero)
-  ; ship.e16.ts:127  shipY = shipY + dy
   lw t0, 0x14d8(zero)
-  add t0, t0, s2
+  add t0, t0, s1
   sw t0, 0x14d8(zero)
+  ; ship.e16.ts:127  shipY = shipY + dy
+  lw t0, 0x14da(zero)
+  add t0, t0, s2
+  sw t0, 0x14da(zero)
   ; ship.e16.ts:128  const left = (FIELD_X + 8) * 16
   ; ship.e16.ts:129  const right = (FIELD_X + FIELD_W - 8) * 16
   ; ship.e16.ts:130  if (shipX < left) shipX = left
-  lw t0, 0x14d6(zero)
+  lw t0, 0x14d8(zero)
   li t1, 896
   bge t0, t1, .L8
   ; ship.e16.ts:130  shipX = left
   li t0, 896
-  sw t0, 0x14d6(zero)
+  sw t0, 0x14d8(zero)
 .L8:
   ; ship.e16.ts:131  if (shipX > right) shipX = right
-  lw t0, 0x14d6(zero)
+  lw t0, 0x14d8(zero)
   li t1, 4224
   bge t1, t0, .L9
   ; ship.e16.ts:131  shipX = right
   li t0, 4224
-  sw t0, 0x14d6(zero)
+  sw t0, 0x14d8(zero)
 .L9:
   ; ship.e16.ts:132  if (shipY < 16 * 16) shipY = 16 * 16
-  lw t0, 0x14d8(zero)
+  lw t0, 0x14da(zero)
   li t1, 256
   bge t0, t1, .L10
   ; ship.e16.ts:132  shipY = 16 * 16
   li t0, 256
-  sw t0, 0x14d8(zero)
+  sw t0, 0x14da(zero)
 .L10:
   ; ship.e16.ts:133  if (shipY > 276 * 16) shipY = 276 * 16
-  lw t0, 0x14d8(zero)
+  lw t0, 0x14da(zero)
   li t1, 4416
   bge t1, t0, .L11
   ; ship.e16.ts:133  shipY = 276 * 16
   li t0, 4416
-  sw t0, 0x14d8(zero)
+  sw t0, 0x14da(zero)
 .L11:
   ; ship.e16.ts:134  let want: i16 = 0
   li s0, 0 ; want
@@ -5998,20 +6022,20 @@ move:
   li s0, 16 ; want
 .L13:
   ; ship.e16.ts:137  if (tilt < want) tilt = tilt + 2
-  lw t0, 0x14da(zero)
+  lw t0, 0x14dc(zero)
   bge t0, s0, .L14
   ; ship.e16.ts:137  tilt = tilt + 2
-  lw t0, 0x14da(zero)
+  lw t0, 0x14dc(zero)
   addi t0, t0, 2
-  sw t0, 0x14da(zero)
+  sw t0, 0x14dc(zero)
 .L14:
   ; ship.e16.ts:138  if (tilt > want) tilt = tilt - 2
-  lw t0, 0x14da(zero)
+  lw t0, 0x14dc(zero)
   bge s0, t0, .L15
   ; ship.e16.ts:138  tilt = tilt - 2
-  lw t0, 0x14da(zero)
+  lw t0, 0x14dc(zero)
   addi t0, t0, -2
-  sw t0, 0x14da(zero)
+  sw t0, 0x14dc(zero)
 .L15:
 .return:
   lw ra, 0(sp)
@@ -6033,30 +6057,30 @@ fire:
   call held
   beqz a0, .L1
   ; ship.e16.ts:143  holdA++
-  lw t0, 0x14e0(zero)
+  lw t0, 0x14e2(zero)
   addi t0, t0, 1
-  sw t0, 0x14e0(zero)
+  sw t0, 0x14e2(zero)
   j .L2
 .L1:
   ; ship.e16.ts:144  holdA = 0
-  sw zero, 0x14e0(zero)
+  sw zero, 0x14e2(zero)
 .L2:
   ; ship.e16.ts:145  lancing = holdA >= 12
-  lw t0, 0x14e0(zero)
+  lw t0, 0x14e2(zero)
   li t1, 12
   sltu t0, t0, t1
   xori t0, t0, 1
-  sw t0, 0x14f0(zero)
+  sw t0, 0x14f2(zero)
   ; ship.e16.ts:146  if (cooldown > 0) cooldown--
-  lw t0, 0x14e2(zero)
+  lw t0, 0x14e4(zero)
   bgeu zero, t0, .L3
   ; ship.e16.ts:146  cooldown--
-  lw t0, 0x14e2(zero)
+  lw t0, 0x14e4(zero)
   addi t0, t0, -1
-  sw t0, 0x14e2(zero)
+  sw t0, 0x14e4(zero)
 .L3:
   ; ship.e16.ts:148  const every: u16 = power >= 4 ? 15 : 30
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   li t1, 4
   bltu t0, t1, .L4
   li t0, 15
@@ -6066,17 +6090,17 @@ fire:
 .L5:
   mv s1, t0 ; every
   ; ship.e16.ts:149  if (holdA > 0 && power >= 3 && tick % every === 0) missilesFire(shipX, shipY)
-  lw t0, 0x14e0(zero)
+  lw t0, 0x14e2(zero)
   bgeu zero, t0, .L6
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   li t1, 3
   bltu t0, t1, .L6
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   remu t0, t0, s1
   bne t0, zero, .L6
   ; ship.e16.ts:149  missilesFire(shipX, shipY)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   mv a0, t0
   mv a1, t1
   la t0, missilesFire
@@ -6084,11 +6108,11 @@ fire:
   call far_call
 .L6:
   ; ship.e16.ts:150  if (holdA === 0 || lancing || cooldown > 0) return
-  lw t0, 0x14e0(zero)
-  beq t0, zero, .L8
-  lw t0, 0x14f0(zero)
-  bnez t0, .L8
   lw t0, 0x14e2(zero)
+  beq t0, zero, .L8
+  lw t0, 0x14f2(zero)
+  bnez t0, .L8
+  lw t0, 0x14e4(zero)
   bgeu zero, t0, .L7
 .L8:
   ; ship.e16.ts:150  return
@@ -6096,7 +6120,7 @@ fire:
 .L7:
   ; ship.e16.ts:151  cooldown = 4
   li t0, 4
-  sw t0, 0x14e2(zero)
+  sw t0, 0x14e4(zero)
   ; ship.e16.ts:152  volley()
   call volley
   ; ship.e16.ts:153  sfxShot()
@@ -6112,58 +6136,58 @@ volley:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; ship.e16.ts:161  shot(shipX - 64, shipY - 96, 0)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, -64
   addi a1, t1, -96
   li a2, 0
   call shot
   ; ship.e16.ts:162  shot(shipX + 64, shipY - 96, 0)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, 64
   addi a1, t1, -96
   li a2, 0
   call shot
   ; ship.e16.ts:163  if (power >= 1 || (tick & 4) === 0 || overdrive > 0) {
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   li t1, 1
   bgeu t0, t1, .L2
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   andi t0, t0, 4
   beq t0, zero, .L2
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   bgeu zero, t0, .L1
 .L2:
   ; ship.e16.ts:164  shot(shipX - 96, shipY - 64, -1)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, -96
   addi a1, t1, -64
   li a2, 65535
   call shot
   ; ship.e16.ts:165  shot(shipX + 96, shipY - 64, 1)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, 96
   addi a1, t1, -64
   li a2, 1
   call shot
 .L1:
   ; ship.e16.ts:167  if (power >= 2) {
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   li t1, 2
   bltu t0, t1, .L3
   ; ship.e16.ts:168  shot(shipX - 128, shipY - 32, -2)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, -128
   addi a1, t1, -32
   li a2, 65534
   call shot
   ; ship.e16.ts:169  shot(shipX + 128, shipY - 32, 2)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, 128
   addi a1, t1, -32
   li a2, 2
@@ -6177,7 +6201,7 @@ volley:
 ; ship.e16.ts:174 powerAdd() at -O1
 powerAdd:
   ; ship.e16.ts:175  if (power >= POWER_MAX) return false
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   li t1, 4
   bltu t0, t1, .L1
   ; ship.e16.ts:175  return false
@@ -6185,9 +6209,9 @@ powerAdd:
   ret
 .L1:
   ; ship.e16.ts:176  power++
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   addi t0, t0, 1
-  sw t0, 0x14f4(zero)
+  sw t0, 0x14f6(zero)
   ; ship.e16.ts:177  return true
   li a0, 1
 .return:
@@ -6198,19 +6222,19 @@ bomb:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; ship.e16.ts:185  bombs--
-  lw t0, 0x14e8(zero)
+  lw t0, 0x14ea(zero)
   addi t0, t0, -1
-  sw t0, 0x14e8(zero)
+  sw t0, 0x14ea(zero)
   ; ship.e16.ts:186  bombing = BOMB_FRAMES
   li t0, 120
-  sw t0, 0x14ee(zero)
+  sw t0, 0x14f0(zero)
   ; ship.e16.ts:187  guard = BOMB_FRAMES
   li t0, 120
-  sw t0, 0x14de(zero)
+  sw t0, 0x14e0(zero)
   ; ship.e16.ts:188  ringStart(shipX, shipY, 80 + power * 32)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
-  lw t2, 0x14f4(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
+  lw t2, 0x14f6(zero)
   slli t2, t2, 5
   mv a0, t0
   mv a1, t1
@@ -6239,9 +6263,9 @@ bombStep:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; ship.e16.ts:196  bombing--
-  lw t0, 0x14ee(zero)
+  lw t0, 0x14f0(zero)
   addi t0, t0, -1
-  sw t0, 0x14ee(zero)
+  sw t0, 0x14f0(zero)
   ; ship.e16.ts:197  ringStep()
   la t0, ringStep
   li t1, 259
@@ -6257,30 +6281,30 @@ shipHit:
   sw ra, 0(sp)
   ; ship.e16.ts:202  shipState = SH_DEAD
   li t0, 2
-  sw t0, 0x14d4(zero)
+  sw t0, 0x14d6(zero)
   ; ship.e16.ts:203  timer = 0
-  sw zero, 0x14dc(zero)
+  sw zero, 0x14de(zero)
   ; ship.e16.ts:204  lancing = false
-  sw zero, 0x14f0(zero)
+  sw zero, 0x14f2(zero)
   ; ship.e16.ts:205  overdrive = 0
-  sw zero, 0x14ec(zero)
+  sw zero, 0x14ee(zero)
   ; ship.e16.ts:206  burst(shipX, shipY, 1)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   mv a0, t0
   mv a1, t1
   li a2, 1
   call burst
   ; ship.e16.ts:207  burst(shipX - 160, shipY + 80, 0)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, -160
   addi a1, t1, 80
   li a2, 0
   call burst
   ; ship.e16.ts:208  burst(shipX + 160, shipY - 80, 0)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi a0, t0, 160
   addi a1, t1, -80
   li a2, 0
@@ -6300,50 +6324,50 @@ deadStep:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; ship.e16.ts:214  timer++
-  lw t0, 0x14dc(zero)
+  lw t0, 0x14de(zero)
   addi t0, t0, 1
-  sw t0, 0x14dc(zero)
+  sw t0, 0x14de(zero)
   ; ship.e16.ts:215  if (timer === 20) burst(shipX, shipY - 200, 0)
   li t1, 20
   bne t0, t1, .L1
   ; ship.e16.ts:215  burst(shipX, shipY - 200, 0)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   mv a0, t0
   addi a1, t1, -200
   li a2, 0
   call burst
 .L1:
   ; ship.e16.ts:216  if (timer < 90) return
-  lw t0, 0x14dc(zero)
+  lw t0, 0x14de(zero)
   li t1, 90
   bgeu t0, t1, .L2
   ; ship.e16.ts:216  return
   j .return
 .L2:
   ; ship.e16.ts:217  if (lives === 0) {
-  lw t0, 0x14e6(zero)
+  lw t0, 0x14e8(zero)
   bne t0, zero, .L3
   ; ship.e16.ts:218  shipState = SH_GONE
   li t0, 3
-  sw t0, 0x14d4(zero)
+  sw t0, 0x14d6(zero)
   ; ship.e16.ts:219  return
   j .return
 .L3:
   ; ship.e16.ts:221  lives--
-  lw t0, 0x14e6(zero)
+  lw t0, 0x14e8(zero)
   addi t0, t0, -1
-  sw t0, 0x14e6(zero)
+  sw t0, 0x14e8(zero)
   ; ship.e16.ts:222  bombs = 3
   li t0, 3
-  sw t0, 0x14e8(zero)
+  sw t0, 0x14ea(zero)
   ; ship.e16.ts:224  if (power > 0) power--
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   bgeu zero, t0, .L4
   ; ship.e16.ts:224  power--
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   addi t0, t0, -1
-  sw t0, 0x14f4(zero)
+  sw t0, 0x14f6(zero)
 .L4:
   ; ship.e16.ts:225  cancelAll()
   call cancelAll
@@ -6357,13 +6381,13 @@ deadStep:
 ; ship.e16.ts:230 shipVulnerable() at -O1
 shipVulnerable:
   ; ship.e16.ts:231  return shipState === SH_PLAY && guard === 0
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 1
   sub t0, t0, t1
   seqz t0, t0
   mv t1, t0
   beqz t1, .L1
-  lw t0, 0x14de(zero)
+  lw t0, 0x14e0(zero)
   sub t0, t0, zero
   seqz t0, t0
 .L1:
@@ -6381,9 +6405,9 @@ lanceStep:
   sw s1, 4(sp)
   mv s2, a0 ; damage
   ; ship.e16.ts:239  if (!lancing || shipState !== SH_PLAY) return
-  lw t0, 0x14f0(zero)
+  lw t0, 0x14f2(zero)
   beqz t0, .L2
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 1
   beq t0, t1, .L1
 .L2:
@@ -6391,7 +6415,7 @@ lanceStep:
   j .return
 .L1:
   ; ship.e16.ts:240  const now: u16 = (tick & 1) === 0 ? damage : 0
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   andi t0, t0, 1
   bne t0, zero, .L3
   mv t0, s2
@@ -6401,23 +6425,23 @@ lanceStep:
 .L4:
   mv s1, t0 ; now
   ; ship.e16.ts:241  lanceTop = foeLance(shipX, shipY - 192, now)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14d8(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   mv a0, t0
   addi a1, t1, -192
   mv a2, s1
   call foeLance
-  sw a0, 0x14f2(zero)
+  sw a0, 0x14f4(zero)
   ; ship.e16.ts:242  if (power >= 2 && lanceVictim !== 0xffff) chainFrom(lanceVictim, power >= 4 ? 2 : 1, now)
-  lw t0, 0x14f4(zero)
+  lw t0, 0x14f6(zero)
   li t1, 2
   bltu t0, t1, .L5
-  lw t0, 0x1734(zero)
+  lw t0, 0x1736(zero)
   li t1, 65535
   beq t0, t1, .L5
   ; ship.e16.ts:242  chainFrom(lanceVictim, power >= 4 ? 2 : 1, now)
-  lw t0, 0x1734(zero)
-  lw t1, 0x14f4(zero)
+  lw t0, 0x1736(zero)
+  lw t1, 0x14f6(zero)
   li t2, 4
   bltu t1, t2, .L6
   li t1, 2
@@ -6433,18 +6457,18 @@ lanceStep:
   call far_call
 .L5:
   ; ship.e16.ts:243  if (lanceTop > 0 && (tick & 3) === 0) fx(FX_SPARK, shipX + i16(tick & 7) * 16 - 64, lanceTop, 0)
-  lw t0, 0x14f2(zero)
+  lw t0, 0x14f4(zero)
   bge zero, t0, .L8
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   andi t0, t0, 3
   bne t0, zero, .L8
   ; ship.e16.ts:243  fx(FX_SPARK, shipX + i16(tick & 7) * 16 - 64, lanceTop, 0)
-  lw t0, 0x14d6(zero)
-  lw t1, 0x14e4(zero)
+  lw t0, 0x14d8(zero)
+  lw t1, 0x14e6(zero)
   andi t1, t1, 7
   slli t1, t1, 4
   add t0, t0, t1
-  lw t1, 0x14f2(zero)
+  lw t1, 0x14f4(zero)
   li a0, 4
   addi a1, t0, -64
   mv a2, t1
@@ -6469,10 +6493,10 @@ shipDraw:
   sw s2, 4(sp)
   sw s3, 6(sp)
   ; ship.e16.ts:248  if (shipState === SH_DEAD || shipState === SH_GONE) return
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 2
   beq t0, t1, .L2
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 3
   bne t0, t1, .L1
 .L2:
@@ -6484,30 +6508,30 @@ shipDraw:
   li t1, 259
   call far_call
   ; ship.e16.ts:250  const x = (shipX >> 4) + shakeDX()
-  lw t0, 0x14d6(zero)
-  srai t0, t0, 4
-  ; view.e16.ts:262  return shakeX
-  lw t1, 0x0ca2(zero)
-  add s1, t0, t1
-  ; ship.e16.ts:251  const y = (shipY >> 4) + shakeDY()
   lw t0, 0x14d8(zero)
   srai t0, t0, 4
-  ; view.e16.ts:266  return shakeY
+  ; view.e16.ts:262  return shakeX
   lw t1, 0x0ca4(zero)
+  add s1, t0, t1
+  ; ship.e16.ts:251  const y = (shipY >> 4) + shakeDY()
+  lw t0, 0x14da(zero)
+  srai t0, t0, 4
+  ; view.e16.ts:266  return shakeY
+  lw t1, 0x0ca6(zero)
   add s2, t0, t1
   ; ship.e16.ts:253  if (guard > 0 && bombing === 0 && (tick & 4) !== 0) return
-  lw t0, 0x14de(zero)
+  lw t0, 0x14e0(zero)
   bgeu zero, t0, .L3
-  lw t0, 0x14ee(zero)
+  lw t0, 0x14f0(zero)
   bne t0, zero, .L3
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   andi t0, t0, 4
   beq t0, zero, .L3
   ; ship.e16.ts:253  return
   j .return
 .L3:
   ; ship.e16.ts:254  const pose = u16((tilt + 16 + 4) >> 3)
-  lw t0, 0x14da(zero)
+  lw t0, 0x14dc(zero)
   addi t0, t0, 20
   srai s3, t0, 3
   ; ship.e16.ts:255  spr(x - 8, y - 8, (SHIP_TILE + (pose > 4 ? 4 : pose) * 4) | ((SL_SHIP - 8) << 10), S16)
@@ -6530,7 +6554,7 @@ shipDraw:
   li a3, 1
   call spr
   ; ship.e16.ts:256  spr(x - 8, y + 6, (FLAME_TILE + ((tick >> 1) % 3) * 4) | ((SL_SHIP - 8) << 10), S16)
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   srli t0, t0, 1
   li t1, 3
   remu t0, t0, t1
@@ -6541,9 +6565,9 @@ shipDraw:
   li a3, 1
   call spr
   ; ship.e16.ts:257  if (lancing && shipState === SH_PLAY) lanceDraw(x, y)
-  lw t0, 0x14f0(zero)
+  lw t0, 0x14f2(zero)
   beqz t0, .L6
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 1
   bne t0, t1, .L6
   ; ship.e16.ts:257  lanceDraw(x, y)
@@ -6577,10 +6601,10 @@ lanceDraw:
   sw a1, 0(fp) ; y
   ; ship.e16.ts:261  const pal = (SL_SHOT - 8) << 10
   ; ship.e16.ts:262  const top = (lanceTop >> 4) + shakeDY()
-  lw t0, 0x14f2(zero)
+  lw t0, 0x14f4(zero)
   srai t0, t0, 4
   ; view.e16.ts:266  return shakeY
-  lw t1, 0x0ca4(zero)
+  lw t1, 0x0ca6(zero)
   add t0, t0, t1
   sw t0, 2(fp) ; top
   ; ship.e16.ts:263  let at = y - 24
@@ -6592,7 +6616,7 @@ lanceDraw:
   j .L3
 .L1:
   ; ship.e16.ts:266  spr(x - 8, at - 8, (LANCE_TILE + ((tick + k) & 3) * 4) | pal, S16)
-  lw t0, 0x14e4(zero)
+  lw t0, 0x14e6(zero)
   add t0, t0, s2
   andi t0, t0, 3
   slli t0, t0, 2
@@ -6616,7 +6640,7 @@ lanceDraw:
 .L5:
   ; ship.e16.ts:270  spr(x - 8, y - 22, (LANCE_ENDS_TILE + ((tick >> 1) & 1) * 4) | pal, S16)
   lw t0, 0(fp) ; y
-  lw t1, 0x14e4(zero)
+  lw t1, 0x14e6(zero)
   srli t1, t1, 1
   andi t1, t1, 1
   slli t1, t1, 2
@@ -6628,11 +6652,11 @@ lanceDraw:
   li a3, 1
   call spr
   ; ship.e16.ts:271  if (lanceTop > 0) spr(x - 8, top - 8, (LANCE_ENDS_TILE + 8 + ((tick >> 1) & 1) * 4) | pal, S16)
-  lw t0, 0x14f2(zero)
+  lw t0, 0x14f4(zero)
   bge zero, t0, .L6
   ; ship.e16.ts:271  spr(x - 8, top - 8, (LANCE_ENDS_TILE + 8 + ((tick >> 1) & 1) * 4) | pal, S16)
   lw t0, 2(fp) ; top
-  lw t1, 0x14e4(zero)
+  lw t1, 0x14e6(zero)
   srli t1, t1, 1
   andi t1, t1, 1
   slli t1, t1, 2
@@ -6658,36 +6682,36 @@ lanceDraw:
 ;   n in a0
 voltAdd:
   ; ship.e16.ts:276  if (overdrive > 0) return
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   bgeu zero, t0, .L1
   ; ship.e16.ts:276  return
   ret
 .L1:
   ; ship.e16.ts:277  volt = volt + n > VOLT_FULL ? VOLT_FULL : volt + n
-  lw t0, 0x14ea(zero)
+  lw t0, 0x14ec(zero)
   add t0, t0, a0
   li t1, 1024
   bgeu t1, t0, .L2
   li t0, 1024
   j .L3
 .L2:
-  lw t0, 0x14ea(zero)
+  lw t0, 0x14ec(zero)
   add t0, t0, a0
 .L3:
-  sw t0, 0x14ea(zero)
+  sw t0, 0x14ec(zero)
 .return:
   ret
 
 ; ship.e16.ts:281 bombsAdd() at -O1
 bombsAdd:
   ; ship.e16.ts:282  if (bombs < 5) bombs++
-  lw t0, 0x14e8(zero)
+  lw t0, 0x14ea(zero)
   li t1, 5
   bgeu t0, t1, .L1
   ; ship.e16.ts:282  bombs++
-  lw t0, 0x14e8(zero)
+  lw t0, 0x14ea(zero)
   addi t0, t0, 1
-  sw t0, 0x14e8(zero)
+  sw t0, 0x14ea(zero)
 .L1:
 .return:
   ret
@@ -6697,13 +6721,13 @@ livesAdd:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; ship.e16.ts:287  if (lives < 5) lives++
-  lw t0, 0x14e6(zero)
+  lw t0, 0x14e8(zero)
   li t1, 5
   bgeu t0, t1, .L1
   ; ship.e16.ts:287  lives++
-  lw t0, 0x14e6(zero)
+  lw t0, 0x14e8(zero)
   addi t0, t0, 1
-  sw t0, 0x14e6(zero)
+  sw t0, 0x14e8(zero)
 .L1:
   ; ship.e16.ts:288  sfxExtend()
   call sfxExtend
@@ -6846,20 +6870,20 @@ foesClear:
 ;   r in a0
 roundIs:
   ; foes.e16.ts:101  round = r
-  sw a0, 0x1726(zero)
+  sw a0, 0x1728(zero)
 .return:
   ret
 
 ; foes.e16.ts:104 rankUp() at -O1
 rankUp:
   ; foes.e16.ts:105  if (rank < 15) rank++
-  lw t0, 0x1728(zero)
+  lw t0, 0x172a(zero)
   li t1, 15
   bgeu t0, t1, .L1
   ; foes.e16.ts:105  rank++
-  lw t0, 0x1728(zero)
+  lw t0, 0x172a(zero)
   addi t0, t0, 1
-  sw t0, 0x1728(zero)
+  sw t0, 0x172a(zero)
 .L1:
 .return:
   ret
@@ -6917,7 +6941,7 @@ foe:
   slli t0, s1, 1
   slli t1, a0, 1
   lw t1, LIFE(t1)
-  lw t2, 0x1726(zero)
+  lw t2, 0x1728(zero)
   addi t0, t0, fHP
   li t3, 1
   bgeu t3, t2, .L7
@@ -6957,7 +6981,7 @@ foesStep:
   sw s1, 4(sp)
   mv s2, a0 ; scroll
   ; foes.e16.ts:127  foeCount = 0
-  sw zero, 0x1724(zero)
+  sw zero, 0x1726(zero)
   ; foes.e16.ts:128  let k: u16 = 0
   li s1, 0 ; k
   ; foes.e16.ts:129  while (k < F_N) {
@@ -7001,9 +7025,9 @@ foeOne:
   mv s1, a0 ; k
   sw a1, 2(fp) ; scroll
   ; foes.e16.ts:136  foeCount++
-  lw t0, 0x1724(zero)
+  lw t0, 0x1726(zero)
   addi t0, t0, 1
-  sw t0, 0x1724(zero)
+  sw t0, 0x1726(zero)
   ; foes.e16.ts:137  const t = fT[k] + 1
   slli t0, s1, 1
   lw t0, fT(t0)
@@ -7086,7 +7110,7 @@ foeOne:
   lw t1, 2(fp) ; scroll
   sw t1, fVY(t0)
   ; foes.e16.ts:157  if (t % (70 - rank * 2) === 0 && i16(fY[k]) > 320 && i16(fY[k]) < 3200)
-  lw t0, 0x1728(zero)
+  lw t0, 0x172a(zero)
   slli t0, t0, 1
   li t1, 70
   sub t1, t1, t0
@@ -7215,7 +7239,7 @@ foeDraw:
   lw t1, 6(fp) ; half
   sub t0, t0, t1
   ; view.e16.ts:262  return shakeX
-  lw t1, 0x0ca2(zero)
+  lw t1, 0x0ca4(zero)
   add s3, t0, t1
   ; foes.e16.ts:186  const y = (y16 >> 4) - half + shakeDY()
   lw t0, 12(fp) ; y16
@@ -7223,7 +7247,7 @@ foeDraw:
   lw t1, 6(fp) ; half
   sub t0, t0, t1
   ; view.e16.ts:266  return shakeY
-  lw t1, 0x0ca4(zero)
+  lw t1, 0x0ca6(zero)
   add t0, t0, t1
   sw t0, 0(fp) ; y
   ; foes.e16.ts:187  let flash: u16 = 0
@@ -7281,7 +7305,7 @@ foeDraw:
   sw t0, 2(fp) ; pal
   ; foes.e16.ts:194  foePal = pal
   lw t0, 2(fp) ; pal
-  sw t0, 0x172a(zero)
+  sw t0, 0x172c(zero)
   ; foes.e16.ts:195  switch (kind) {
   li t0, 1
   beq s1, t0, .L9
@@ -7676,7 +7700,7 @@ foeLance:
   bltu s1, t0, .L1
   ; foes.e16.ts:274  lanceVictim = 0xffff
   li t0, 65535
-  sw t0, 0x1734(zero)
+  sw t0, 0x1736(zero)
   ; foes.e16.ts:275  const boss = bossLance(x, y)
   lw a0, 2(fp)
   lw a1, 8(fp)
@@ -7721,7 +7745,7 @@ foeLance:
   j .return
 .L9:
   ; foes.e16.ts:286  lanceVictim = best
-  sw s2, 0x1734(zero)
+  sw s2, 0x1736(zero)
   ; foes.e16.ts:287  if (damage > 0) hurt(best, damage, true)
   lw t0, 4(fp) ; damage
   bgeu zero, t0, .L10
@@ -7760,7 +7784,7 @@ foesBombReset:
   li t0, 24
   bltu a0, t0, .L1
   ; foes.e16.ts:301  bossBombed = 0
-  sw zero, 0x1736(zero)
+  sw zero, 0x1738(zero)
 .return:
   ret
 
@@ -7821,13 +7845,13 @@ foesBombWithin:
   li t0, 24
   bltu s1, t0, .L1
   ; foes.e16.ts:321  if (bossBombed === 0 && r > 160 * 16) {
-  lw t0, 0x1736(zero)
+  lw t0, 0x1738(zero)
   bne t0, zero, .L6
   li t0, 2560
   bge t0, s2, .L6
   ; foes.e16.ts:322  bossBombed = 1
   li t0, 1
-  sw t0, 0x1736(zero)
+  sw t0, 0x1738(zero)
   ; foes.e16.ts:323  bossBomb()
   la t0, bossBomb
   li t1, 257
@@ -8233,7 +8257,7 @@ kill:
   call cancelNear
 .L17:
   ; foes.e16.ts:404  if (round > 1) bullet(x, y, aimed(x, y), sk(40, BK_PINK))
-  lw t0, 0x1726(zero)
+  lw t0, 0x1728(zero)
   li t1, 1
   bgeu t1, t0, .L18
   ; foes.e16.ts:404  bullet(x, y, aimed(x, y), sk(40, BK_PINK))
@@ -8247,19 +8271,19 @@ kill:
   call bullet
 .L18:
   ; foes.e16.ts:405  killed++
-  lw t0, 0x172c(zero)
-  addi t0, t0, 1
-  sw t0, 0x172c(zero)
-  ; foes.e16.ts:406  killWorth = killWorth + WORTH[kind]
   lw t0, 0x172e(zero)
+  addi t0, t0, 1
+  sw t0, 0x172e(zero)
+  ; foes.e16.ts:406  killWorth = killWorth + WORTH[kind]
+  lw t0, 0x1730(zero)
   slli t1, s3, 1
   lw t1, WORTH(t1)
   add t0, t0, t1
-  sw t0, 0x172e(zero)
+  sw t0, 0x1730(zero)
   ; foes.e16.ts:407  killX = x
-  sw s1, 0x1730(zero)
+  sw s1, 0x1732(zero)
   ; foes.e16.ts:408  killY = y
-  sw s2, 0x1732(zero)
+  sw s2, 0x1734(zero)
   ; foes.e16.ts:409  sfxKill(big)
   lw a0, 2(fp)
   call sfxKill
@@ -8324,17 +8348,17 @@ pebbleThrow:
 ; foes.e16.ts:427 killsReset() at -O1
 killsReset:
   ; foes.e16.ts:428  killed = 0
-  sw zero, 0x172c(zero)
-  ; foes.e16.ts:429  killWorth = 0
   sw zero, 0x172e(zero)
+  ; foes.e16.ts:429  killWorth = 0
+  sw zero, 0x1730(zero)
 .return:
   ret
 
 ; foes.e16.ts:436 scriptStart() at -O1
 scriptStart:
   ; foes.e16.ts:437  scriptAt = STAGE_SCRIPT_AT
-  li t0, 53046
-  sw t0, 0x1738(zero)
+  li t0, 53050
+  sw t0, 0x173a(zero)
 .return:
   ret
 
@@ -8448,7 +8472,7 @@ scriptStep:
   ; foes.e16.ts:454  for (;;) {
 .L1:
   ; foes.e16.ts:455  const row = peek16(scriptAt)
-  lw t0, 0x1738(zero)
+  lw t0, 0x173a(zero)
   lw s3, 0(t0)
   ; foes.e16.ts:456  if (row === 0xffff || !reached(row)) break
   li t0, 65535
@@ -8460,20 +8484,20 @@ scriptStep:
   j .L4
 .L5:
   ; foes.e16.ts:457  const kind = peek16(scriptAt + 2)
-  lw t0, 0x1738(zero)
+  lw t0, 0x173a(zero)
   lw s1, 2(t0)
   ; foes.e16.ts:458  const x = peek16(scriptAt + 4)
-  lw t0, 0x1738(zero)
+  lw t0, 0x173a(zero)
   lw t0, 4(t0)
   sw t0, 0(fp) ; x
   ; foes.e16.ts:459  const p = peek16(scriptAt + 6)
-  lw t0, 0x1738(zero)
+  lw t0, 0x173a(zero)
   lw t0, 6(t0)
   sw t0, 2(fp) ; p
   ; foes.e16.ts:460  scriptAt = scriptAt + 8
-  lw t0, 0x1738(zero)
+  lw t0, 0x173a(zero)
   addi t0, t0, 8
-  sw t0, 0x1738(zero)
+  sw t0, 0x173a(zero)
   ; foes.e16.ts:461  if (kind < C_SPEED || kind === C_PICKUP) scriptSend(kind, x, p)
   li t0, 20
   bltu s1, t0, .L8
@@ -8491,10 +8515,10 @@ scriptStep:
   mv s2, s1 ; cmd
   ; foes.e16.ts:464  scriptArg = x
   lw t0, 0(fp) ; x
-  sw t0, 0x173a(zero)
+  sw t0, 0x173c(zero)
   ; foes.e16.ts:465  scriptArg2 = p
   lw t0, 2(fp) ; p
-  sw t0, 0x173c(zero)
+  sw t0, 0x173e(zero)
   ; foes.e16.ts:466  break
 .L4:
   ; foes.e16.ts:469  bank(old)
@@ -8516,7 +8540,7 @@ scriptStep:
 ;   m in a0
 multiplier:
   ; score.e16.ts:29  const m = 1 + (chain >> 3)
-  lw t0, 0x1770(zero)
+  lw t0, 0x1772(zero)
   srli t0, t0, 3
   addi a0, t0, 1
   ; score.e16.ts:30  return m > 8 ? 8 : m
@@ -8538,19 +8562,19 @@ scoreNew:
   ; score.e16.ts:35  score[1] = 0
   sw zero, score+2(zero)
   ; score.e16.ts:36  chain = 0
-  sw zero, 0x1770(zero)
-  ; score.e16.ts:37  chainLeft = 0
   sw zero, 0x1772(zero)
-  ; score.e16.ts:38  maxChain = 0
+  ; score.e16.ts:37  chainLeft = 0
   sw zero, 0x1774(zero)
-  ; score.e16.ts:39  skims = 0
+  ; score.e16.ts:38  maxChain = 0
   sw zero, 0x1776(zero)
+  ; score.e16.ts:39  skims = 0
+  sw zero, 0x1778(zero)
   ; score.e16.ts:40  nextExtend = 5000
   li t0, 5000
-  sw t0, 0x1778(zero)
+  sw t0, 0x177a(zero)
   ; score.e16.ts:41  shown = 0xffff
   li t0, 65535
-  sw t0, 0x177a(zero)
+  sw t0, 0x177c(zero)
 .return:
   ret
 
@@ -8611,14 +8635,14 @@ points:
 ;   hi in a0
 extendDue:
   ; score.e16.ts:60  if (nextExtend === 0) return false
-  lw t0, 0x1778(zero)
+  lw t0, 0x177a(zero)
   bne t0, zero, .L1
   ; score.e16.ts:60  return false
   li a0, 0
   ret
 .L1:
   ; score.e16.ts:62  const hi: u16 = nextExtend === 5000 ? 0 : 1
-  lw t0, 0x1778(zero)
+  lw t0, 0x177a(zero)
   li t1, 5000
   bne t0, t1, .L2
   li t0, 0
@@ -8641,7 +8665,7 @@ extendDue:
   ret
 .L4:
   ; score.e16.ts:64  nextExtend = nextExtend === 5000 ? 15000 : 0
-  lw t0, 0x1778(zero)
+  lw t0, 0x177a(zero)
   li t1, 5000
   bne t0, t1, .L6
   li t0, 15000
@@ -8649,7 +8673,7 @@ extendDue:
 .L6:
   li t0, 0
 .L7:
-  sw t0, 0x1778(zero)
+  sw t0, 0x177a(zero)
   ; score.e16.ts:65  return true
   li a0, 1
 .return:
@@ -8677,30 +8701,30 @@ scoreKills:
   j .return
 .L1:
   ; score.e16.ts:71  chain = chain + n
-  lw t0, 0x1770(zero)
+  lw t0, 0x1772(zero)
   add t0, t0, s1
-  sw t0, 0x1770(zero)
+  sw t0, 0x1772(zero)
   ; score.e16.ts:72  chainLeft = 60
   li t0, 60
-  sw t0, 0x1772(zero)
+  sw t0, 0x1774(zero)
   ; score.e16.ts:73  if (chain > maxChain) maxChain = chain
-  lw t0, 0x1770(zero)
-  lw t1, 0x1774(zero)
+  lw t0, 0x1772(zero)
+  lw t1, 0x1776(zero)
   bgeu t1, t0, .L2
   ; score.e16.ts:73  maxChain = chain
-  lw t0, 0x1770(zero)
-  sw t0, 0x1774(zero)
+  lw t0, 0x1772(zero)
+  sw t0, 0x1776(zero)
 .L2:
   ; score.e16.ts:74  points(worth * multiplier())
   call multiplier
   mul a0, s2, a0
   call points
   ; score.e16.ts:75  if (chain >= 4) floatNumber(x, y - 192, chain)
-  lw t0, 0x1770(zero)
+  lw t0, 0x1772(zero)
   li t1, 4
   bltu t0, t1, .L3
   ; score.e16.ts:75  floatNumber(x, y - 192, chain)
-  lw t0, 0x1770(zero)
+  lw t0, 0x1772(zero)
   mv a0, s3
   addi a1, s0, -192
   mv a2, t0
@@ -8718,19 +8742,19 @@ scoreKills:
 ; score.e16.ts:79 chainStep() at -O1
 chainStep:
   ; score.e16.ts:80  if (chainLeft === 0) return
-  lw t0, 0x1772(zero)
+  lw t0, 0x1774(zero)
   bne t0, zero, .L1
   ; score.e16.ts:80  return
   ret
 .L1:
   ; score.e16.ts:81  chainLeft--
-  lw t0, 0x1772(zero)
+  lw t0, 0x1774(zero)
   addi t0, t0, -1
-  sw t0, 0x1772(zero)
+  sw t0, 0x1774(zero)
   ; score.e16.ts:82  if (chainLeft === 0) chain = 0
   bne t0, zero, .L2
   ; score.e16.ts:82  chain = 0
-  sw zero, 0x1770(zero)
+  sw zero, 0x1772(zero)
 .L2:
 .return:
   ret
@@ -8743,9 +8767,9 @@ scoreSkims:
   sw s1, 2(sp)
   mv s1, a0 ; n
   ; score.e16.ts:86  skims = skims + n
-  lw t0, 0x1776(zero)
+  lw t0, 0x1778(zero)
   add t0, t0, s1
-  sw t0, 0x1776(zero)
+  sw t0, 0x1778(zero)
   ; score.e16.ts:87  points(n)
   mv a0, s1
   call points
@@ -8843,22 +8867,22 @@ hudLabels:
   call say
   ; score.e16.ts:116  shownPower = 0xffff
   li t0, 65535
-  sw t0, 0x1786(zero)
+  sw t0, 0x1788(zero)
   ; score.e16.ts:117  shownChain = 0xffff
   li t0, 65535
-  sw t0, 0x177c(zero)
+  sw t0, 0x177e(zero)
   ; score.e16.ts:118  shownSkims = 0xffff
   li t0, 65535
-  sw t0, 0x177e(zero)
+  sw t0, 0x1780(zero)
   ; score.e16.ts:119  shownLives = 0xffff
   li t0, 65535
-  sw t0, 0x1780(zero)
+  sw t0, 0x1782(zero)
   ; score.e16.ts:120  shownBombs = 0xffff
   li t0, 65535
-  sw t0, 0x1782(zero)
+  sw t0, 0x1784(zero)
   ; score.e16.ts:121  shownVolt = 0xffff
   li t0, 65535
-  sw t0, 0x1784(zero)
+  sw t0, 0x1786(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
@@ -8885,10 +8909,10 @@ hudStep:
   ; score.e16.ts:127  chainShow()
   call chainShow
   ; score.e16.ts:128  if (lives !== shownLives) {
-  lw t0, 0x1780(zero)
+  lw t0, 0x1782(zero)
   beq s1, t0, .L1
   ; score.e16.ts:129  shownLives = lives
-  sw s1, 0x1780(zero)
+  sw s1, 0x1782(zero)
   ; score.e16.ts:130  icons(35, 3, lives, 10)
   li a0, 35
   li a1, 3
@@ -8897,10 +8921,10 @@ hudStep:
   call icons
 .L1:
   ; score.e16.ts:132  if (bombs !== shownBombs) {
-  lw t0, 0x1782(zero)
+  lw t0, 0x1784(zero)
   beq s2, t0, .L2
   ; score.e16.ts:133  shownBombs = bombs
-  sw s2, 0x1782(zero)
+  sw s2, 0x1784(zero)
   ; score.e16.ts:134  icons(35, 8, bombs, 34)
   li a0, 35
   li a1, 8
@@ -8931,13 +8955,13 @@ powerShow:
   sw s1, 4(sp)
   mv s2, a0 ; power
   ; score.e16.ts:143  if (power === shownPower) return
-  lw t0, 0x1786(zero)
+  lw t0, 0x1788(zero)
   bne s2, t0, .L1
   ; score.e16.ts:143  return
   j .return
 .L1:
   ; score.e16.ts:144  shownPower = power
-  sw s2, 0x1786(zero)
+  sw s2, 0x1788(zero)
   ; score.e16.ts:145  let k: u16 = 0
   li s1, 0 ; k
   ; score.e16.ts:146  while (k < 4) {
@@ -8988,13 +9012,13 @@ scoreLine:
   slli t1, t1, 3
   xor s1, t0, t1
   ; score.e16.ts:155  if (key === shown) return
-  lw t0, 0x177a(zero)
+  lw t0, 0x177c(zero)
   bne s1, t0, .L1
   ; score.e16.ts:155  return
   j .return
 .L1:
   ; score.e16.ts:156  shown = key
-  sw s1, 0x177a(zero)
+  sw s1, 0x177c(zero)
   ; score.e16.ts:157  const gold = font(SL_GOLD)
   li s2, 39349 ; gold
   ; score.e16.ts:158  scoreShow(cellAt(1, 10, 0), addr(score), gold + DIGITS)
@@ -9031,14 +9055,14 @@ chainShow:
   ; score.e16.ts:166  const gold = font(SL_GOLD)
   li s1, 39349 ; gold
   ; score.e16.ts:167  if (chain !== shownChain) {
-  lw t0, 0x1770(zero)
-  lw t1, 0x177c(zero)
+  lw t0, 0x1772(zero)
+  lw t1, 0x177e(zero)
   beq t0, t1, .L1
   ; score.e16.ts:168  shownChain = chain
-  lw t0, 0x1770(zero)
-  sw t0, 0x177c(zero)
+  lw t0, 0x1772(zero)
+  sw t0, 0x177e(zero)
   ; score.e16.ts:169  number(cellAt(1, 1, 3), chain, 4, gold + DIGITS)
-  lw t0, 0x1770(zero)
+  lw t0, 0x1772(zero)
   li a0, 41346
   mv a1, t0
   li a2, 4
@@ -9057,14 +9081,14 @@ chainShow:
   call number
 .L1:
   ; score.e16.ts:173  if (skims !== shownSkims) {
-  lw t0, 0x1776(zero)
-  lw t1, 0x177e(zero)
+  lw t0, 0x1778(zero)
+  lw t1, 0x1780(zero)
   beq t0, t1, .L2
   ; score.e16.ts:174  shownSkims = skims
-  lw t0, 0x1776(zero)
-  sw t0, 0x177e(zero)
+  lw t0, 0x1778(zero)
+  sw t0, 0x1780(zero)
   ; score.e16.ts:175  number(cellAt(1, 1, 12), skims, 4, font(SL_TEXT) + DIGITS)
-  lw t0, 0x1776(zero)
+  lw t0, 0x1778(zero)
   li a0, 42498
   mv a1, t0
   li a2, 4
@@ -9173,13 +9197,13 @@ voltShow:
 .L3:
   mv s0, t0 ; full
   ; score.e16.ts:194  if (v === shownVolt) return
-  lw t0, 0x1784(zero)
+  lw t0, 0x1786(zero)
   bne s2, t0, .L4
   ; score.e16.ts:194  return
   j .return
 .L4:
   ; score.e16.ts:195  shownVolt = v
-  sw s2, 0x1784(zero)
+  sw s2, 0x1786(zero)
   ; score.e16.ts:196  voltCells(v, full ? SL_GOLD : over > 0 ? SL_RED : SL_TEXT)
   mv t0, s2
   mv t1, s0
@@ -9326,13 +9350,13 @@ music:
   ; audio.e16.ts:58  musicMute(LAYER)
   li s2, 2048 ; musicMute.mask
   ; lib/sound.e16.ts:116  muted = mask
-  sw s2, 0x0c8c(zero)
+  sw s2, 0x0c8e(zero)
   ; audio.e16.ts:59  if (m === M_TITLE) play(SONG_TITLE_BANK, SONG_TITLE_AT, true)
   li t0, 1
   bne s1, t0, .L1
   ; audio.e16.ts:59  play(SONG_TITLE_BANK, SONG_TITLE_AT, true)
   li a0, 278
-  li a1, 51156
+  li a1, 51158
   li a2, 1
   call play
   j .L2
@@ -9362,7 +9386,7 @@ music:
   bne s1, t0, .L7
   ; audio.e16.ts:62  play(SONG_CLEAR_BANK, SONG_CLEAR_AT, true)
   li a0, 278
-  li a1, 51820
+  li a1, 51824
   li a2, 1
   call play
   j .L8
@@ -9372,7 +9396,7 @@ music:
   bne s1, t0, .L9
   ; audio.e16.ts:63  play(SONG_OVER_BANK, SONG_OVER_AT, true)
   li a0, 278
-  li a1, 52110
+  li a1, 52114
   li a2, 1
   call play
   j .L10
@@ -9382,7 +9406,7 @@ music:
   bne s1, t0, .L11
   ; audio.e16.ts:64  play(SONG_ENTRY_BANK, SONG_ENTRY_AT, true)
   li a0, 278
-  li a1, 52196
+  li a1, 52200
   li a2, 1
   call play
   j .L12
@@ -9415,7 +9439,7 @@ musicLayer:
 .L2:
   mv a1, t0 ; musicMute.mask
   ; lib/sound.e16.ts:116  muted = mask
-  sw a1, 0x0c8c(zero)
+  sw a1, 0x0c8e(zero)
 .return:
   ret
 
@@ -9425,7 +9449,7 @@ sfxShot:
   sw ra, 0(sp)
   ; audio.e16.ts:74  play(SONG_X_SHOT_BANK, SONG_X_SHOT_AT, false)
   li a0, 278
-  li a1, 52564
+  li a1, 52568
   li a2, 0
   call play
 .return:
@@ -9439,7 +9463,7 @@ sfxSkim:
   sw ra, 0(sp)
   ; audio.e16.ts:78  play(SONG_X_SKIM_BANK, SONG_X_SKIM_AT, false)
   li a0, 278
-  li a1, 52592
+  li a1, 52596
   li a2, 0
   call play
 .return:
@@ -9458,14 +9482,14 @@ sfxKill:
   beqz s1, .L1
   ; audio.e16.ts:82  play(SONG_X_BOOM_BANK, SONG_X_BOOM_AT, false)
   li a0, 278
-  li a1, 52704
+  li a1, 52708
   li a2, 0
   call play
   j .L2
 .L1:
   ; audio.e16.ts:83  play(SONG_X_HIT_BANK, SONG_X_HIT_AT, false)
   li a0, 278
-  li a1, 52680
+  li a1, 52684
   li a2, 0
   call play
 .L2:
@@ -9481,7 +9505,7 @@ sfxBomb:
   sw ra, 0(sp)
   ; audio.e16.ts:87  play(SONG_X_BOMB_BANK, SONG_X_BOMB_AT, false)
   li a0, 278
-  li a1, 52750
+  li a1, 52754
   li a2, 0
   call play
 .return:
@@ -9495,7 +9519,7 @@ sfxDie:
   sw ra, 0(sp)
   ; audio.e16.ts:91  play(SONG_X_DIE_BANK, SONG_X_DIE_AT, false)
   li a0, 278
-  li a1, 52858
+  li a1, 52862
   li a2, 0
   call play
 .return:
@@ -9509,7 +9533,7 @@ sfxOverdrive:
   sw ra, 0(sp)
   ; audio.e16.ts:95  play(SONG_X_DRIVE_BANK, SONG_X_DRIVE_AT, false)
   li a0, 278
-  li a1, 52796
+  li a1, 52800
   li a2, 0
   call play
 .return:
@@ -9523,7 +9547,7 @@ sfxPick:
   sw ra, 0(sp)
   ; audio.e16.ts:99  play(SONG_X_PICK_BANK, SONG_X_PICK_AT, false)
   li a0, 278
-  li a1, 52620
+  li a1, 52624
   li a2, 0
   call play
 .return:
@@ -9537,7 +9561,7 @@ sfxExtend:
   sw ra, 0(sp)
   ; audio.e16.ts:103  play(SONG_EXTEND_BANK, SONG_EXTEND_AT, false)
   li a0, 278
-  li a1, 52510
+  li a1, 52514
   li a2, 0
   call play
 .return:
@@ -9551,7 +9575,7 @@ sfxSiren:
   sw ra, 0(sp)
   ; audio.e16.ts:107  play(SONG_X_SIREN_BANK, SONG_X_SIREN_AT, false)
   li a0, 278
-  li a1, 52904
+  li a1, 52908
   li a2, 0
   call play
 .return:
@@ -9565,7 +9589,7 @@ sfxBossPhase:
   sw ra, 0(sp)
   ; audio.e16.ts:111  play(SONG_X_PART_BANK, SONG_X_PART_AT, false)
   li a0, 278
-  li a1, 52950
+  li a1, 52954
   li a2, 0
   call play
 .return:
@@ -9579,7 +9603,7 @@ sfxBossDown:
   sw ra, 0(sp)
   ; audio.e16.ts:115  play(SONG_X_DOWN_BANK, SONG_X_DOWN_AT, false)
   li a0, 278
-  li a1, 53000
+  li a1, 53004
   li a2, 0
   call play
 .return:
@@ -9593,7 +9617,7 @@ bossPartDown:
   sw ra, 0(sp)
   ; audio.e16.ts:119  play(SONG_X_PART_BANK, SONG_X_PART_AT, false)
   li a0, 278
-  li a1, 52950
+  li a1, 52954
   li a2, 0
   call play
 .return:
@@ -9607,7 +9631,7 @@ sfxSelect:
   sw ra, 0(sp)
   ; audio.e16.ts:123  play(SONG_X_SELECT_BANK, SONG_X_SELECT_AT, false)
   li a0, 278
-  li a1, 52648
+  li a1, 52652
   li a2, 0
   call play
 .return:
@@ -9619,7 +9643,7 @@ sfxSelect:
 ;   v in a0
 seenIs:
   ; eleclance.e16.ts:236  seen = v
-  sw a0, 0x18ee(zero)
+  sw a0, 0x18f0(zero)
 .return:
   ret
 
@@ -9837,9 +9861,9 @@ frameBegin:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; eleclance.e16.ts:293  seen = frame_wait(seen)
-  lw a0, 0x18ee(zero)
+  lw a0, 0x18f0(zero)
   call frame_wait
-  sw a0, 0x18ee(zero)
+  sw a0, 0x18f0(zero)
   ; eleclance.e16.ts:294  sprShow()
   call sprShow
   ; eleclance.e16.ts:295  stageScroll()
@@ -9853,12 +9877,12 @@ frameBegin:
   ; eleclance.e16.ts:299  soundTick()
   call soundTick
   ; eleclance.e16.ts:300  sprBegin()
-  ; lib/kit.e16.ts:233  sprN = 0
+  ; lib/kit.e16.ts:235  sprN = 0
   sw zero, 0x0880(zero)
   ; eleclance.e16.ts:301  frame++
-  lw t0, 0x18f0(zero)
+  lw t0, 0x18f2(zero)
   addi t0, t0, 1
-  sw t0, 0x18f0(zero)
+  sw t0, 0x18f2(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
@@ -9883,7 +9907,7 @@ idle:
   ; eleclance.e16.ts:310  fxStep()
   call fxStep
   ; eleclance.e16.ts:311  farStarsStep(1, frame)
-  lw t0, 0x18f0(zero)
+  lw t0, 0x18f2(zero)
   li a0, 1
   mv a1, t0
   call farStarsStep
@@ -9992,12 +10016,12 @@ game:
   ; eleclance.e16.ts:340  roundIs(1)
   li s3, 1 ; roundIs.r
   ; foes.e16.ts:101  round = r
-  sw s3, 0x1726(zero)
+  sw s3, 0x1728(zero)
   ; eleclance.e16.ts:341  boost(0)
   sw zero, 0(fp) ; boost.n
   ; shots.e16.ts:33  bulletBoost = n
   lw t0, 0(fp) ; boost.n
-  sw t0, 0x143a(zero)
+  sw t0, 0x143c(zero)
   ; eleclance.e16.ts:342  let r: u16 = 1
   li s1, 1 ; r
   ; eleclance.e16.ts:343  for (;;) {
@@ -10017,13 +10041,13 @@ game:
   sw s1, 2(fp) ; roundIs.r
   ; foes.e16.ts:101  round = r
   lw t0, 2(fp) ; roundIs.r
-  sw t0, 0x1726(zero)
+  sw t0, 0x1728(zero)
   ; eleclance.e16.ts:348  boost(8)
   li t0, 8
   sw t0, 4(fp) ; boost.n
   ; shots.e16.ts:33  bulletBoost = n
   lw t0, 4(fp) ; boost.n
-  sw t0, 0x143a(zero)
+  sw t0, 0x143c(zero)
   j .L1
 .L4:
   ; eleclance.e16.ts:350  gameOver()
@@ -10068,7 +10092,7 @@ stage:
   ; eleclance.e16.ts:360  play_()
   call play_
   ; eleclance.e16.ts:361  if (shipState === SH_GONE) return false
-  lw t0, 0x14d4(zero)
+  lw t0, 0x14d6(zero)
   li t1, 3
   bne t0, t1, .L6
   ; eleclance.e16.ts:361  return false
@@ -10108,8 +10132,8 @@ stageBegin:
   call stageStart
   ; eleclance.e16.ts:374  scriptStart()
   ; foes.e16.ts:437  scriptAt = STAGE_SCRIPT_AT
-  li t0, 53046
-  sw t0, 0x1738(zero)
+  li t0, 53050
+  sw t0, 0x173a(zero)
   ; eleclance.e16.ts:375  foesClear()
   call foesClear
   ; eleclance.e16.ts:376  bulletsClear()
@@ -10127,14 +10151,14 @@ stageBegin:
   li t1, 257
   call far_call
   ; eleclance.e16.ts:381  bossOnWas = B_NONE
-  sw zero, 0x18f8(zero)
+  sw zero, 0x18fa(zero)
   ; eleclance.e16.ts:382  banner = 150
   li t0, 150
-  sw t0, 0x18f2(zero)
+  sw t0, 0x18f4(zero)
   ; eleclance.e16.ts:383  warning = 0
-  sw zero, 0x18f4(zero)
-  ; eleclance.e16.ts:384  clearT = 0
   sw zero, 0x18f6(zero)
+  ; eleclance.e16.ts:384  clearT = 0
+  sw zero, 0x18f8(zero)
   ; eleclance.e16.ts:385  music(M_STAGE)
   li a0, 2
   call music
@@ -10175,12 +10199,12 @@ stageEvents:
   sw s1, 2(sp)
   sw s2, 4(sp)
   ; eleclance.e16.ts:396  if (banner > 0) {
-  lw t0, 0x18f2(zero)
+  lw t0, 0x18f4(zero)
   bgeu zero, t0, .L1
   ; eleclance.e16.ts:397  banner--
-  lw t0, 0x18f2(zero)
+  lw t0, 0x18f4(zero)
   addi t0, t0, -1
-  sw t0, 0x18f2(zero)
+  sw t0, 0x18f4(zero)
   ; eleclance.e16.ts:398  if (banner === 0) fieldClear()
   bne t0, zero, .L2
   ; eleclance.e16.ts:398  fieldClear()
@@ -10194,9 +10218,9 @@ stageEvents:
   li t0, 20
   bne s1, t0, .L3
   ; eleclance.e16.ts:401  stageSpeed(scriptArg)
-  lw s2, 0x173a(zero)
+  lw s2, 0x173c(zero)
   ; view.e16.ts:222  scrollSpeed = s
-  sw s2, 0x0c92(zero)
+  sw s2, 0x0c94(zero)
   j .L4
 .L3:
   ; eleclance.e16.ts:402  if (cmd === CMD_MIDBOSS) midboss()
@@ -10211,25 +10235,25 @@ stageEvents:
   bne s1, t0, .L7
   ; eleclance.e16.ts:403  warning = 300
   li t0, 300
-  sw t0, 0x18f4(zero)
+  sw t0, 0x18f6(zero)
 .L7:
 .L6:
 .L4:
   ; eleclance.e16.ts:404  if (warning === 0) return
-  lw t0, 0x18f4(zero)
+  lw t0, 0x18f6(zero)
   bne t0, zero, .L8
   ; eleclance.e16.ts:404  return
   j .return
 .L8:
   ; eleclance.e16.ts:405  warningStep(warning)
-  lw a0, 0x18f4(zero)
+  lw a0, 0x18f6(zero)
   la t0, warningStep
   li t1, 258
   call far_call
   ; eleclance.e16.ts:406  warning--
-  lw t0, 0x18f4(zero)
+  lw t0, 0x18f6(zero)
   addi t0, t0, -1
-  sw t0, 0x18f4(zero)
+  sw t0, 0x18f6(zero)
   ; eleclance.e16.ts:407  if (warning === 0) boss()
   bne t0, zero, .L9
   ; eleclance.e16.ts:407  boss()
@@ -10247,21 +10271,21 @@ bossOutcome:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; eleclance.e16.ts:416  if (bossOnWas !== B_NONE && (bossPhase === 10 || bossPhase === 11)) {
-  lw t0, 0x18f8(zero)
+  lw t0, 0x18fa(zero)
   beq t0, zero, .L1
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 10
   beq t0, t1, .L2
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 11
   bne t0, t1, .L1
 .L2:
   ; eleclance.e16.ts:417  if (bossPhase === 10) points(bossOnWas === B_BASTION ? 3000 : 10000)
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 10
   bne t0, t1, .L3
   ; eleclance.e16.ts:417  points(bossOnWas === B_BASTION ? 3000 : 10000)
-  lw t0, 0x18f8(zero)
+  lw t0, 0x18fa(zero)
   li t1, 1
   bne t0, t1, .L4
   li t0, 3000
@@ -10273,7 +10297,7 @@ bossOutcome:
   call points
 .L3:
   ; eleclance.e16.ts:418  if (bossOnWas === B_BASTION) {
-  lw t0, 0x18f8(zero)
+  lw t0, 0x18fa(zero)
   li t1, 1
   bne t0, t1, .L6
   ; eleclance.e16.ts:419  stageRelease()
@@ -10285,22 +10309,22 @@ bossOutcome:
 .L6:
   ; eleclance.e16.ts:421  clearT = 1
   li t0, 1
-  sw t0, 0x18f6(zero)
+  sw t0, 0x18f8(zero)
 .L7:
   ; eleclance.e16.ts:422  bossOnWas = B_NONE
-  sw zero, 0x18f8(zero)
+  sw zero, 0x18fa(zero)
 .L1:
   ; eleclance.e16.ts:424  if (clearT === 0) return false
-  lw t0, 0x18f6(zero)
+  lw t0, 0x18f8(zero)
   bne t0, zero, .L8
   ; eleclance.e16.ts:424  return false
   li a0, 0
   j .return
 .L8:
   ; eleclance.e16.ts:425  clearT++
-  lw t0, 0x18f6(zero)
+  lw t0, 0x18f8(zero)
   addi t0, t0, 1
-  sw t0, 0x18f6(zero)
+  sw t0, 0x18f8(zero)
   ; eleclance.e16.ts:426  return clearT > 150
   li t1, 150
   sltu a0, t1, t0
@@ -10324,7 +10348,7 @@ midboss:
   call far_call
   ; eleclance.e16.ts:435  bossOnWas = B_BASTION
   li t0, 1
-  sw t0, 0x18f8(zero)
+  sw t0, 0x18fa(zero)
   ; eleclance.e16.ts:436  music(M_BOSS)
   li a0, 3
   call music
@@ -10352,7 +10376,7 @@ boss:
   call far_call
   ; eleclance.e16.ts:445  bossOnWas = B_ZENITH
   li t0, 2
-  sw t0, 0x18f8(zero)
+  sw t0, 0x18fa(zero)
   ; eleclance.e16.ts:446  music(M_BOSS)
   li a0, 3
   call music
@@ -10372,7 +10396,7 @@ play_:
   ; eleclance.e16.ts:452  stageStep()
   call stageStep
   ; eleclance.e16.ts:453  stageSway(i16(shipX >> 4))
-  lw t0, 0x14d6(zero)
+  lw t0, 0x14d8(zero)
   srai a0, t0, 4
   call stageSway
   ; eleclance.e16.ts:454  killsReset()
@@ -10380,9 +10404,9 @@ play_:
   ; eleclance.e16.ts:455  shipStep()
   call shipStep
   ; eleclance.e16.ts:457  musicLayer(overdrive > 0 || bossPhase === 3 ? 1 : 0)
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   bltu zero, t0, .L3
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 3
   bne t0, t1, .L1
 .L3:
@@ -10394,7 +10418,7 @@ play_:
   mv a0, t0
   call musicLayer
   ; eleclance.e16.ts:459  const od: u16 = overdrive > 0 ? 1 : 0
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   bgeu zero, t0, .L4
   li t0, 1
   j .L5
@@ -10407,9 +10431,9 @@ play_:
   call lanceStep
   ; eleclance.e16.ts:463  bulletsStep(shipXNow(), shipYNow(), shipVulnerable())
   ; eleclance.e16.ts:502  return shipX
-  lw t0, 0x14d6(zero)
+  lw t0, 0x14d8(zero)
   ; eleclance.e16.ts:506  return shipY
-  lw t1, 0x14d8(zero)
+  lw t1, 0x14da(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
   addi sp, sp, -2
@@ -10426,7 +10450,7 @@ play_:
   ; eleclance.e16.ts:464  shipDraw()
   call shipDraw
   ; eleclance.e16.ts:465  chainDraw(frame)
-  lw a0, 0x18f0(zero)
+  lw a0, 0x18f2(zero)
   la t0, chainDraw
   li t1, 259
   call far_call
@@ -10437,7 +10461,7 @@ play_:
   li t1, 257
   call far_call
   ; eleclance.e16.ts:468  foesStep(scrollSpeed)
-  lw a0, 0x0c92(zero)
+  lw a0, 0x0c94(zero)
   call foesStep
   ; eleclance.e16.ts:469  shotsStep(2 + od)
   addi a0, s1, 2
@@ -10449,10 +10473,10 @@ play_:
   call far_call
   ; eleclance.e16.ts:471  itemsStep(shipXNow(), shipYNow(), overdrive > 0 ? 1 : 0)
   ; eleclance.e16.ts:502  return shipX
-  lw t0, 0x14d6(zero)
+  lw t0, 0x14d8(zero)
   ; eleclance.e16.ts:506  return shipY
-  lw t1, 0x14d8(zero)
-  lw t2, 0x14ec(zero)
+  lw t1, 0x14da(zero)
+  lw t2, 0x14ee(zero)
   li t3, 0
   bgeu t3, t2, .L6
   li t2, 1
@@ -10465,13 +10489,13 @@ play_:
   mv a2, t2
   call itemsStep
   ; eleclance.e16.ts:472  farStarsStep(scrollSpeed, frame)
-  lw t0, 0x0c92(zero)
-  lw t1, 0x18f0(zero)
+  lw t0, 0x0c94(zero)
+  lw t1, 0x18f2(zero)
   mv a0, t0
   mv a1, t1
   call farStarsStep
   ; eleclance.e16.ts:473  if (hitShip) shipHit()
-  lw t0, 0x1442(zero)
+  lw t0, 0x1444(zero)
   beqz t0, .L8
   ; eleclance.e16.ts:473  shipHit()
   call shipHit
@@ -10479,25 +10503,25 @@ play_:
   ; eleclance.e16.ts:474  scorePlay()
   call scorePlay
   ; eleclance.e16.ts:475  if ((frame & 1023) === 0) rankUp()
-  lw t0, 0x18f0(zero)
+  lw t0, 0x18f2(zero)
   andi t0, t0, 1023
   bne t0, zero, .L9
   ; eleclance.e16.ts:475  rankUp()
   call rankUp
 .L9:
   ; eleclance.e16.ts:476  hudStep(lives, bombs, voltNow(), overdrive)
-  lw t0, 0x14e6(zero)
-  lw t1, 0x14e8(zero)
+  lw t0, 0x14e8(zero)
+  lw t1, 0x14ea(zero)
   ; eleclance.e16.ts:510  return volt
-  lw t2, 0x14ea(zero)
-  lw t3, 0x14ec(zero)
+  lw t2, 0x14ec(zero)
+  lw t3, 0x14ee(zero)
   mv a0, t0
   mv a1, t1
   mv a2, t2
   mv a3, t3
   call hudStep
   ; eleclance.e16.ts:477  powerShow(power)
-  lw a0, 0x14f4(zero)
+  lw a0, 0x14f6(zero)
   call powerShow
 .return:
   lw ra, 0(sp)
@@ -10510,10 +10534,10 @@ scorePlay:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; eleclance.e16.ts:481  scoreKills(killed, killWorth, killX, killY)
-  lw t0, 0x172c(zero)
-  lw t1, 0x172e(zero)
-  lw t2, 0x1730(zero)
-  lw t3, 0x1732(zero)
+  lw t0, 0x172e(zero)
+  lw t1, 0x1730(zero)
+  lw t2, 0x1732(zero)
+  lw t3, 0x1734(zero)
   mv a0, t0
   mv a1, t1
   mv a2, t2
@@ -10522,13 +10546,13 @@ scorePlay:
   ; eleclance.e16.ts:482  chainStep()
   call chainStep
   ; eleclance.e16.ts:483  if (grazes > 0) {
-  lw t0, 0x1440(zero)
+  lw t0, 0x1442(zero)
   bgeu zero, t0, .L1
   ; eleclance.e16.ts:484  scoreSkims(grazes)
-  lw a0, 0x1440(zero)
+  lw a0, 0x1442(zero)
   call scoreSkims
   ; eleclance.e16.ts:485  voltAdd(grazes * 24)
-  lw t0, 0x1440(zero)
+  lw t0, 0x1442(zero)
   slli t1, t0, 4
   slli t0, t0, 3
   add a0, t0, t1
@@ -10541,7 +10565,7 @@ scorePlay:
   bgeu zero, t0, .L2
   ; eleclance.e16.ts:489  scoreStars(caught[IT_STAR], overdrive > 0)
   lw t0, caught+2(zero)
-  lw t1, 0x14ec(zero)
+  lw t1, 0x14ee(zero)
   sltu t1, zero, t1
   mv a0, t0
   mv a1, t1
@@ -10585,14 +10609,14 @@ scorePlay:
 ; eleclance.e16.ts:509 voltNow() at -O1
 voltNow:
   ; eleclance.e16.ts:510  return volt
-  lw a0, 0x14ea(zero)
+  lw a0, 0x14ec(zero)
 .return:
   ret
 
 ; eleclance.e16.ts:513 overdriveOn() at -O1
 overdriveOn:
   ; eleclance.e16.ts:514  return overdrive > 0
-  lw t0, 0x14ec(zero)
+  lw t0, 0x14ee(zero)
   sltu a0, zero, t0
 .return:
   ret
@@ -10631,9 +10655,9 @@ e16c_fixed_end:
 ; boss.e16.ts:48 bossReset() at -O1
 bossReset:
   ; boss.e16.ts:49  bossOn = B_NONE
-  sw zero, 0x173e(zero)
-  ; boss.e16.ts:50  bossPhase = 0
   sw zero, 0x1740(zero)
+  ; boss.e16.ts:50  bossPhase = 0
+  sw zero, 0x1742(zero)
 .return:
   ret
 
@@ -10719,17 +10743,17 @@ zenithStart:
 ;   which in a0
 bossBegin:
   ; boss.e16.ts:76  bossOn = which
-  sw a0, 0x173e(zero)
+  sw a0, 0x1740(zero)
   ; boss.e16.ts:77  bossPhase = 0
-  sw zero, 0x1740(zero)
+  sw zero, 0x1742(zero)
   ; boss.e16.ts:78  bX = (48 + 112) * 16
   li t0, 2560
-  sw t0, 0x1742(zero)
+  sw t0, 0x1744(zero)
   ; boss.e16.ts:79  bY = -1024
   li t0, 64512
-  sw t0, 0x1744(zero)
+  sw t0, 0x1746(zero)
   ; boss.e16.ts:80  bT = 0
-  sw zero, 0x1746(zero)
+  sw zero, 0x1748(zero)
   ; boss.e16.ts:81  flash[0] = 0
   sw zero, flash(zero)
   ; boss.e16.ts:82  flash[1] = 0
@@ -10764,9 +10788,9 @@ open:
   slli t0, a0, 1
   lw t0, life(t0)
   beq t0, zero, .L2
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   beq t0, zero, .L2
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 9
   bltu t0, t1, .L1
 .L2:
@@ -10775,7 +10799,7 @@ open:
   ret
 .L1:
   ; boss.e16.ts:96  if (bossOn === B_ZENITH && k === 0) return life[1] === 0 && life[2] === 0
-  lw t0, 0x173e(zero)
+  lw t0, 0x1740(zero)
   li t1, 2
   bne t0, t1, .L3
   bne a0, zero, .L3
@@ -10802,9 +10826,9 @@ bossStep:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; boss.e16.ts:102  if (bossOn === B_NONE || bossPhase >= 10) return
-  lw t0, 0x173e(zero)
-  beq t0, zero, .L2
   lw t0, 0x1740(zero)
+  beq t0, zero, .L2
+  lw t0, 0x1742(zero)
   li t1, 10
   bltu t0, t1, .L1
 .L2:
@@ -10812,28 +10836,28 @@ bossStep:
   j .return
 .L1:
   ; boss.e16.ts:103  bT++
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   addi t0, t0, 1
-  sw t0, 0x1746(zero)
+  sw t0, 0x1748(zero)
   ; boss.e16.ts:104  if (bossPhase === 0) {
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   bne t0, zero, .L3
   ; boss.e16.ts:105  bY = bY + 24
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   addi t0, t0, 24
-  sw t0, 0x1744(zero)
+  sw t0, 0x1746(zero)
   ; boss.e16.ts:106  if (bY >= 72 * 16) {
   li t1, 1152
   blt t0, t1, .L5
   ; boss.e16.ts:107  bossPhase = 1
   li t0, 1
-  sw t0, 0x1740(zero)
+  sw t0, 0x1742(zero)
   ; boss.e16.ts:108  bT = 0
-  sw zero, 0x1746(zero)
+  sw zero, 0x1748(zero)
   j .L5
 .L3:
   ; boss.e16.ts:110  if (bossPhase >= 9) dying()
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 9
   bltu t0, t1, .L6
   ; boss.e16.ts:110  dying()
@@ -10841,7 +10865,7 @@ bossStep:
   j .L7
 .L6:
   ; boss.e16.ts:111  if (bossOn === B_BASTION) bastionStep()
-  lw t0, 0x173e(zero)
+  lw t0, 0x1740(zero)
   li t1, 1
   bne t0, t1, .L8
   ; boss.e16.ts:111  bastionStep()
@@ -10868,12 +10892,12 @@ bossSway:
   sw s1, 2(sp)
   mv s1, a0 ; size
   ; boss.e16.ts:117  bX = (48 + 112) * 16 + ((sin(bT) * size) >> 8)
-  lw a0, 0x1746(zero)
+  lw a0, 0x1748(zero)
   call sin
   mul t0, a0, s1
   srai t0, t0, 8
   addi t0, t0, 2560
-  sw t0, 0x1742(zero)
+  sw t0, 0x1744(zero)
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
@@ -10888,7 +10912,7 @@ bastionStep:
   li a0, 640
   call bossSway
   ; boss.e16.ts:122  if (bT > 3600) flee()
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 3600
   bgeu t1, t0, .L1
   ; boss.e16.ts:122  flee()
@@ -10923,7 +10947,7 @@ bastionArms:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; boss.e16.ts:130  if (bT % 40 === 0) armFire(1)
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 40
   remu t0, t0, t1
   bne t0, zero, .L1
@@ -10932,7 +10956,7 @@ bastionArms:
   call armFire
 .L1:
   ; boss.e16.ts:131  if (bT % 40 === 20) armFire(2)
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 40
   remu t0, t0, t1
   li t1, 20
@@ -10942,15 +10966,15 @@ bastionArms:
   call armFire
 .L2:
   ; boss.e16.ts:132  if (bT % 120 === 60) ring(bX, bY, bT & 255, ringOf(16, 28, BK_ORB))
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 120
   remu t0, t0, t1
   li t1, 60
   bne t0, t1, .L3
   ; boss.e16.ts:132  ring(bX, bY, bT & 255, ringOf(16, 28, BK_ORB))
-  lw t0, 0x1742(zero)
-  lw t1, 0x1744(zero)
-  lw t2, 0x1746(zero)
+  lw t0, 0x1744(zero)
+  lw t1, 0x1746(zero)
+  lw t2, 0x1748(zero)
   andi t2, t2, 255
   mv a0, t0
   mv a1, t1
@@ -10968,18 +10992,18 @@ bastionSpiral:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; boss.e16.ts:137  spin = spin + 7
-  lw t0, 0x1748(zero)
+  lw t0, 0x174a(zero)
   addi t0, t0, 7
-  sw t0, 0x1748(zero)
+  sw t0, 0x174a(zero)
   ; boss.e16.ts:138  if (bT % 6 === 0) ring(bX, bY + 128, spin, ringOf(life[0] < 120 ? 6 : 4, 36, BK_PINK))
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 6
   remu t0, t0, t1
   bne t0, zero, .L1
   ; boss.e16.ts:138  ring(bX, bY + 128, spin, ringOf(life[0] < 120 ? 6 : 4, 36, BK_PINK))
-  lw t0, 0x1742(zero)
-  lw t1, 0x1744(zero)
-  lw t2, 0x1748(zero)
+  lw t0, 0x1744(zero)
+  lw t1, 0x1746(zero)
+  lw t2, 0x174a(zero)
   lw t3, life(zero)
   addi t1, t1, 128
   li a1, 120
@@ -11035,13 +11059,13 @@ armFire:
   j .return
 .L1:
   ; boss.e16.ts:143  const x = bX + i16(PX[k]) * 16
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t1, s1, 1
   lw t1, PX(t1)
   slli t1, t1, 4
   add s2, t0, t1
   ; boss.e16.ts:144  const y = bY + 160
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   addi s3, t0, 160
   ; boss.e16.ts:145  fan(x, y, aimed(x, y), fanOf(3, 8, 48, BK_AMBER))
   mv a0, s2
@@ -11070,7 +11094,7 @@ zenithStep:
   li a0, 896
   call bossSway
   ; boss.e16.ts:150  if (bT > 7200) flee()
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 7200
   bgeu t1, t0, .L1
   ; boss.e16.ts:150  flee()
@@ -11129,7 +11153,7 @@ zenithCannons:
   sw s3, 6(sp)
   ; boss.e16.ts:160  bossPhase = 1
   li t0, 1
-  sw t0, 0x1740(zero)
+  sw t0, 0x1742(zero)
   ; boss.e16.ts:161  let k: u16 = 1
   li s1, 1 ; k
   ; boss.e16.ts:162  while (k < 3) {
@@ -11140,20 +11164,20 @@ zenithCannons:
   lw t0, life(t0)
   beq t0, zero, .L5
   ; boss.e16.ts:164  const x = bX + i16(PX[k]) * 16
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t1, s1, 1
   lw t1, PX(t1)
   slli t1, t1, 4
   add s2, t0, t1
   ; boss.e16.ts:165  const y = bY + i16(PY[k]) * 16 + 256
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   slli t1, s1, 1
   lw t1, PY(t1)
   slli t1, t1, 4
   add t0, t0, t1
   addi s3, t0, 256
   ; boss.e16.ts:166  if ((bT + k * 25) % 50 === 0) fan(x, y, aimed(x, y), fanOf(5, 6, 52, BK_NEEDLE))
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 25
   mul t1, s1, t1
   add t0, t0, t1
@@ -11171,7 +11195,7 @@ zenithCannons:
   call fan
 .L6:
   ; boss.e16.ts:167  if ((bT + k * 25) % 100 === 70) fan(x, y, 64, fanOf(9, 14, 28, BK_BLUE))
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 25
   mul t1, s1, t1
   add t0, t0, t1
@@ -11207,12 +11231,12 @@ zenithSpiral:
   sw ra, 0(sp)
   sw s1, 2(sp)
   ; boss.e16.ts:175  if (bossPhase === 1) {
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 1
   bne t0, t1, .L1
   ; boss.e16.ts:176  bossPhase = 2
   li t0, 2
-  sw t0, 0x1740(zero)
+  sw t0, 0x1742(zero)
   ; boss.e16.ts:177  shake(20)
   li a0, 20
   call shake
@@ -11224,20 +11248,20 @@ zenithSpiral:
   call sfxBossPhase
 .L1:
   ; boss.e16.ts:181  spin = spin + 5
-  lw t0, 0x1748(zero)
+  lw t0, 0x174a(zero)
   addi t0, t0, 5
-  sw t0, 0x1748(zero)
+  sw t0, 0x174a(zero)
   ; boss.e16.ts:182  const y = bY + 16 * 16
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   addi s1, t0, 256
   ; boss.e16.ts:183  if (bT % 5 === 0) {
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 5
   remu t0, t0, t1
   bne t0, zero, .L2
   ; boss.e16.ts:184  bullet(bX, y, spin & 255, sk(34, BK_PINK))
-  lw t0, 0x1742(zero)
-  lw t1, 0x1748(zero)
+  lw t0, 0x1744(zero)
+  lw t1, 0x174a(zero)
   andi t1, t1, 255
   mv a0, t0
   mv a1, s1
@@ -11245,8 +11269,8 @@ zenithSpiral:
   li a3, 34
   call bullet
   ; boss.e16.ts:185  bullet(bX, y, (spin + 128) & 255, sk(34, BK_BLUE))
-  lw t0, 0x1742(zero)
-  lw t1, 0x1748(zero)
+  lw t0, 0x1744(zero)
+  lw t1, 0x174a(zero)
   addi t1, t1, 128
   andi t1, t1, 255
   mv a0, t0
@@ -11256,13 +11280,13 @@ zenithSpiral:
   call bullet
 .L2:
   ; boss.e16.ts:187  if (bT % 90 === 0) ring(bX, y, bT & 255, ringOf(10, 20, BK_ORB_BLUE))
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 90
   remu t0, t0, t1
   bne t0, zero, .L3
   ; boss.e16.ts:187  ring(bX, y, bT & 255, ringOf(10, 20, BK_ORB_BLUE))
-  lw t0, 0x1742(zero)
-  lw t1, 0x1746(zero)
+  lw t0, 0x1744(zero)
+  lw t1, 0x1748(zero)
   andi t1, t1, 255
   mv a0, t0
   mv a1, s1
@@ -11283,12 +11307,12 @@ zenithBurning:
   sw ra, 0(sp)
   sw s1, 2(sp)
   ; boss.e16.ts:192  if (bossPhase === 2) {
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 2
   bne t0, t1, .L1
   ; boss.e16.ts:193  bossPhase = 3
   li t0, 3
-  sw t0, 0x1740(zero)
+  sw t0, 0x1742(zero)
   ; boss.e16.ts:194  shake(30)
   li a0, 30
   call shake
@@ -11300,20 +11324,20 @@ zenithBurning:
   call sfxBossPhase
 .L1:
   ; boss.e16.ts:198  spin = spin + 11
-  lw t0, 0x1748(zero)
+  lw t0, 0x174a(zero)
   addi t0, t0, 11
-  sw t0, 0x1748(zero)
+  sw t0, 0x174a(zero)
   ; boss.e16.ts:199  const y = bY + 16 * 16
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   addi s1, t0, 256
   ; boss.e16.ts:200  if (bT % 14 === 0) ring(bX, y, spin, ringOf(14, 30, BK_PINK))
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 14
   remu t0, t0, t1
   bne t0, zero, .L2
   ; boss.e16.ts:200  ring(bX, y, spin, ringOf(14, 30, BK_PINK))
-  lw t0, 0x1742(zero)
-  lw t1, 0x1748(zero)
+  lw t0, 0x1744(zero)
+  lw t1, 0x174a(zero)
   mv a0, t0
   mv a1, s1
   mv a2, t1
@@ -11321,18 +11345,18 @@ zenithBurning:
   call ring
 .L2:
   ; boss.e16.ts:201  if (bT % 40 < 12 && bT % 3 === 0) bullet(bX, y, aimed(bX, y), sk(64, BK_NEEDLE))
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 40
   remu t0, t0, t1
   li t1, 12
   bgeu t0, t1, .L3
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 3
   remu t0, t0, t1
   bne t0, zero, .L3
   ; boss.e16.ts:201  bullet(bX, y, aimed(bX, y), sk(64, BK_NEEDLE))
-  lw t0, 0x1742(zero)
-  lw t1, 0x1742(zero)
+  lw t0, 0x1744(zero)
+  lw t1, 0x1744(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
   mv a0, t1
@@ -11356,9 +11380,9 @@ zenithBurning:
 flee:
   ; boss.e16.ts:206  bossPhase = 11
   li t0, 11
-  sw t0, 0x1740(zero)
+  sw t0, 0x1742(zero)
   ; boss.e16.ts:207  bossOn = B_NONE
-  sw zero, 0x173e(zero)
+  sw zero, 0x1740(zero)
 .return:
   ret
 
@@ -11368,9 +11392,9 @@ die:
   sw ra, 0(sp)
   ; boss.e16.ts:211  bossPhase = 9
   li t0, 9
-  sw t0, 0x1740(zero)
+  sw t0, 0x1742(zero)
   ; boss.e16.ts:212  bT = 0
-  sw zero, 0x1746(zero)
+  sw zero, 0x1748(zero)
   ; boss.e16.ts:213  cancelAll()
   call cancelAll
   ; boss.e16.ts:214  flashScreen(6)
@@ -11392,35 +11416,35 @@ dying:
   sw s1, 2(sp)
   sw s2, 4(sp)
   ; boss.e16.ts:220  bY = bY + 2
-  lw t0, 0x1744(zero)
-  addi t0, t0, 2
-  sw t0, 0x1744(zero)
-  ; boss.e16.ts:221  if (bT % 6 === 0) {
   lw t0, 0x1746(zero)
+  addi t0, t0, 2
+  sw t0, 0x1746(zero)
+  ; boss.e16.ts:221  if (bT % 6 === 0) {
+  lw t0, 0x1748(zero)
   li t1, 6
   remu t0, t0, t1
   bne t0, zero, .L1
   ; boss.e16.ts:222  const dx = i16((bT * 37) % 96) - 48
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 37
   mul t0, t0, t1
   li t1, 96
   remu t0, t0, t1
   addi s1, t0, -48
   ; boss.e16.ts:223  const dy = i16((bT * 23) % 64) - 32
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 23
   mul t0, t0, t1
   andi t0, t0, 63
   addi s2, t0, -32
   ; boss.e16.ts:224  burst(bX + dx * 16, bY + dy * 16, (bT & 8) !== 0 ? 1 : 0)
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t1, s1, 4
   add t0, t0, t1
-  lw t1, 0x1744(zero)
+  lw t1, 0x1746(zero)
   slli t2, s2, 4
   add t1, t1, t2
-  lw t2, 0x1746(zero)
+  lw t2, 0x1748(zero)
   andi t2, t2, 8
   li t3, 0
   beq t2, t3, .L2
@@ -11438,7 +11462,7 @@ dying:
   call shake
 .L1:
   ; boss.e16.ts:227  if (bT === 100) {
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   li t1, 100
   bne t0, t1, .L4
   ; boss.e16.ts:228  let k: u16 = 0
@@ -11447,13 +11471,13 @@ dying:
   j .L7
 .L5:
   ; boss.e16.ts:230  burst(bX + i16(k * 20) * 16 - 800, bY + i16(k & 1) * 320, 1)
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t2, s1, 4
   slli t1, s1, 2
   add t1, t1, t2
   slli t1, t1, 4
   add t0, t0, t1
-  lw t1, 0x1744(zero)
+  lw t1, 0x1746(zero)
   andi t2, s1, 1
   slli t3, t2, 8
   slli t2, t2, 6
@@ -11474,14 +11498,14 @@ dying:
   j .L11
 .L9:
   ; boss.e16.ts:235  item(IT_STAR, bX + i16((s * 13) % 96) * 16 - 768, bY + i16((s * 7) % 48) * 16)
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   li t1, 13
   mul t1, s2, t1
   li t2, 96
   remu t1, t1, t2
   slli t1, t1, 4
   add t0, t0, t1
-  lw t1, 0x1744(zero)
+  lw t1, 0x1746(zero)
   slli t3, s2, 3
   sub t2, t3, s2
   li t3, 48
@@ -11511,9 +11535,9 @@ dying:
   call flashScreen
   ; boss.e16.ts:242  bossPhase = 10
   li t0, 10
-  sw t0, 0x1740(zero)
+  sw t0, 0x1742(zero)
   ; boss.e16.ts:243  bossOn = B_NONE
-  sw zero, 0x173e(zero)
+  sw zero, 0x1740(zero)
 .L4:
 .return:
   lw ra, 0(sp)
@@ -11544,11 +11568,11 @@ bossHit:
   sw a2, 2(fp) ; damage
   sw a3, 4(fp) ; byLance
   ; boss.e16.ts:251  if (bossOn === B_NONE || bossPhase === 0 || bossPhase >= 9) return false
-  lw t0, 0x173e(zero)
-  beq t0, zero, .L2
   lw t0, 0x1740(zero)
   beq t0, zero, .L2
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
+  beq t0, zero, .L2
+  lw t0, 0x1742(zero)
   li t1, 9
   bltu t0, t1, .L1
 .L2:
@@ -11567,14 +11591,14 @@ bossHit:
   slli t0, t0, 4
   sw t0, 0(fp) ; r
   ; boss.e16.ts:255  const px = bX + i16(PX[k]) * 16
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t1, s1, 1
   lw t1, PX(t1)
   slli t1, t1, 4
   add t0, t0, t1
   sw t0, 6(fp) ; px
   ; boss.e16.ts:256  const py = bY + i16(PY[k]) * 16
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   slli t1, s1, 1
   lw t1, PY(t1)
   slli t1, t1, 4
@@ -11614,13 +11638,13 @@ bossHit:
   li t0, 3
   bltu s1, t0, .L3
   ; boss.e16.ts:264  return abs(bX - x) < 40 * 16 && abs(bY - y) < 28 * 16
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   sub a0, t0, s2
   call abs
   slti t0, a0, 640
   mv t1, t0
   beqz t1, .L9
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   sub a0, t0, s3
   call abs
   slti t0, a0, 448
@@ -11654,11 +11678,11 @@ bossLance:
   sw a0, 0(fp) ; x
   sw a1, 4(fp) ; y
   ; boss.e16.ts:269  if (bossOn === B_NONE || bossPhase === 0 || bossPhase >= 9) return 0
-  lw t0, 0x173e(zero)
-  beq t0, zero, .L2
   lw t0, 0x1740(zero)
   beq t0, zero, .L2
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
+  beq t0, zero, .L2
+  lw t0, 0x1742(zero)
   li t1, 9
   bltu t0, t1, .L1
 .L2:
@@ -11679,7 +11703,7 @@ bossLance:
   slli t0, t0, 4
   sw t0, 2(fp) ; r
   ; boss.e16.ts:274  const bottom = bY + i16(PY[k]) * 16 + r
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   slli t1, s1, 1
   lw t1, PY(t1)
   slli t1, t1, 4
@@ -11690,7 +11714,7 @@ bossLance:
   slli t0, s1, 1
   lw t0, life(t0)
   beq t0, zero, .L7
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t1, s1, 1
   lw t1, PX(t1)
   slli t1, t1, 4
@@ -11714,14 +11738,14 @@ bossLance:
   bltu s1, t0, .L3
   ; boss.e16.ts:279  if (best === 0 && abs(bX - x) < 40 * 16) best = bY + 28 * 16
   bne s2, zero, .L8
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   lw t1, 0(fp) ; x
   sub a0, t0, t1
   call abs
   li t0, 640
   bge a0, t0, .L8
   ; boss.e16.ts:279  best = bY + 28 * 16
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   addi s2, t0, 448
 .L8:
   ; boss.e16.ts:280  return best
@@ -11802,12 +11826,12 @@ hurtPart:
   andi t0, t0, 15
   bne t0, zero, .L2
   ; boss.e16.ts:295  item(IT_STAR, bX + i16(PX[k]) * 16, bY + i16(PY[k]) * 16)
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t1, s1, 1
   lw t1, PX(t1)
   slli t1, t1, 4
   add t0, t0, t1
-  lw t1, 0x1744(zero)
+  lw t1, 0x1746(zero)
   slli t2, s1, 1
   lw t2, PY(t2)
   slli t2, t2, 4
@@ -11826,12 +11850,12 @@ hurtPart:
   ; boss.e16.ts:299  if (k !== 0) {
   beq s1, zero, .L3
   ; boss.e16.ts:300  burst(bX + i16(PX[k]) * 16, bY + i16(PY[k]) * 16, 1)
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   slli t1, s1, 1
   lw t1, PX(t1)
   slli t1, t1, 4
   add t0, t0, t1
-  lw t1, 0x1744(zero)
+  lw t1, 0x1746(zero)
   slli t2, s1, 1
   lw t2, PY(t2)
   slli t2, t2, 4
@@ -11868,7 +11892,7 @@ bossDraw:
   sw s2, 4(sp)
   sw s3, 6(sp)
   ; boss.e16.ts:311  const x = (bX >> 4) + shakeDX()
-  lw t0, 0x1742(zero)
+  lw t0, 0x1744(zero)
   srai t0, t0, 4
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -11877,7 +11901,7 @@ bossDraw:
   addi sp, sp, 2
   add s1, t0, a0
   ; boss.e16.ts:312  const y = (bY >> 4) + shakeDY()
-  lw t0, 0x1744(zero)
+  lw t0, 0x1746(zero)
   srai t0, t0, 4
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -11886,20 +11910,20 @@ bossDraw:
   addi sp, sp, 2
   add s2, t0, a0
   ; boss.e16.ts:314  const dying_ = bossPhase === 9 && (bT & 2) !== 0
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 9
   sub t0, t0, t1
   seqz t0, t0
   mv t1, t0
   beqz t1, .L1
-  lw t0, 0x1746(zero)
+  lw t0, 0x1748(zero)
   andi t0, t0, 2
   sub t0, t0, zero
   snez t0, t0
 .L1:
   mv s3, t0 ; dying_
   ; boss.e16.ts:315  if (bossOn === B_BASTION) bastionDraw(x, y, dying_)
-  lw t0, 0x173e(zero)
+  lw t0, 0x1740(zero)
   li t1, 1
   bne t0, t1, .L2
   ; boss.e16.ts:315  bastionDraw(x, y, dying_)
@@ -12113,7 +12137,7 @@ zenithDraw:
   li t0, 6
   bltu s3, t0, .L3
   ; boss.e16.ts:346  const spread = bossPhase >= 2 ? 16 : 0
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 2
   bltu t0, t1, .L7
   li t0, 16
@@ -12145,7 +12169,7 @@ zenithDraw:
   li a3, 2
   call spr
   ; boss.e16.ts:349  const core = bossPhase >= 3 ? 2 : life[1] === 0 && life[2] === 0 ? 1 : 0
-  lw t0, 0x1740(zero)
+  lw t0, 0x1742(zero)
   li t1, 3
   bltu t0, t1, .L9
   li t0, 2
@@ -12245,14 +12269,14 @@ zenithDraw:
 ;   full in a0
 bossGauge:
   ; boss.e16.ts:359  if (bossOn === B_NONE) return 0
-  lw t0, 0x173e(zero)
+  lw t0, 0x1740(zero)
   bne t0, zero, .L1
   ; boss.e16.ts:359  return 0
   li a0, 0
   ret
 .L1:
   ; boss.e16.ts:360  const full: u16 = bossOn === B_BASTION ? 320 : 560
-  lw t0, 0x173e(zero)
+  lw t0, 0x1740(zero)
   li t1, 1
   bne t0, t1, .L2
   li t0, 320
@@ -12310,7 +12334,7 @@ title:
   ; scenes.e16.ts:55  stageStep()
   call stageStep
   ; scenes.e16.ts:56  farStarsStep(1, frame)
-  lw t0, 0x18f0(zero)
+  lw t0, 0x18f2(zero)
   li a0, 1
   mv a1, t0
   call farStarsStep
@@ -12348,7 +12372,7 @@ title:
   j .L1
 .L4:
   ; scenes.e16.ts:63  randSeed(frame ^ peek16(0x0202))
-  lw t0, 0x18f0(zero)
+  lw t0, 0x18f2(zero)
   lw t1, 514(zero)
   xor a0, t0, t1
   call randSeed
@@ -12515,7 +12539,7 @@ pause:
   ; scenes.e16.ts:105  for (;;) {
 .L1:
   ; scenes.e16.ts:106  seenIs(frame_wait(seen))
-  lw a0, 0x18ee(zero)
+  lw a0, 0x18f0(zero)
   call frame_wait
   call seenIs
   ; scenes.e16.ts:107  padRead()
@@ -12563,7 +12587,7 @@ tally:
   li a3, 5
   call say
   ; scenes.e16.ts:121  number_(24, 12, maxChain)
-  lw t0, 0x1774(zero)
+  lw t0, 0x1776(zero)
   li a0, 24
   li a1, 12
   mv a2, t0
@@ -12578,7 +12602,7 @@ tally:
   li a3, 5
   call say
   ; scenes.e16.ts:124  number_(24, 14, skims)
-  lw t0, 0x1776(zero)
+  lw t0, 0x1778(zero)
   li a0, 24
   li a1, 14
   mv a2, t0
@@ -12593,7 +12617,7 @@ tally:
   li a3, 5
   call say
   ; scenes.e16.ts:127  number_(24, 16, bombs)
-  lw t0, 0x14e8(zero)
+  lw t0, 0x14ea(zero)
   li a0, 24
   li a1, 16
   mv a2, t0
@@ -12602,10 +12626,10 @@ tally:
   li a0, 30
   call idle
   ; scenes.e16.ts:129  points(maxChain * 100 + bombs * 1000)
-  lw t0, 0x1774(zero)
+  lw t0, 0x1776(zero)
   li t1, 100
   mul t0, t0, t1
-  lw t1, 0x14e8(zero)
+  lw t1, 0x14ea(zero)
   li t2, 1000
   mul t1, t1, t2
   add a0, t0, t1
@@ -12617,10 +12641,10 @@ tally:
   li a3, 6
   call say
   ; scenes.e16.ts:131  number_(22, 19, maxChain * 100 + bombs * 1000)
-  lw t0, 0x1774(zero)
+  lw t0, 0x1776(zero)
   li t1, 100
   mul t0, t0, t1
-  lw t1, 0x14e8(zero)
+  lw t1, 0x14ea(zero)
   li t2, 1000
   mul t1, t1, t2
   add t0, t0, t1
@@ -12629,8 +12653,8 @@ tally:
   mv a2, t0
   call number_
   ; scenes.e16.ts:132  hudStep(lives, bombs, voltNow(), 0)
-  lw t0, 0x14e6(zero)
-  lw t1, 0x14e8(zero)
+  lw t0, 0x14e8(zero)
+  lw t1, 0x14ea(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
   addi sp, sp, -2
@@ -13988,7 +14012,7 @@ chainFrom:
   sw a1, 4(fp) ; count
   sw a2, 0(fp) ; damage
   ; weapons.e16.ts:121  links = 0
-  sw zero, 0x17dc(zero)
+  sw zero, 0x17de(zero)
   ; weapons.e16.ts:122  let at = first
   lw s1, 2(fp) ; first
   ; weapons.e16.ts:123  let left = count
@@ -14022,7 +14046,7 @@ chainFrom:
   j .return
 .L5:
   ; weapons.e16.ts:127  linkFrom[links * 2] = u16(foeX(at))
-  lw t0, 0x17dc(zero)
+  lw t0, 0x17de(zero)
   slli t0, t0, 1
   slli t0, t0, 1
   addi t0, t0, linkFrom
@@ -14034,7 +14058,7 @@ chainFrom:
   addi sp, sp, 2
   sw a0, 0(t0)
   ; weapons.e16.ts:128  linkFrom[links * 2 + 1] = u16(foeY(at))
-  lw t0, 0x17dc(zero)
+  lw t0, 0x17de(zero)
   slli t0, t0, 1
   addi t0, t0, 1
   slli t0, t0, 1
@@ -14047,7 +14071,7 @@ chainFrom:
   addi sp, sp, 2
   sw a0, 0(t0)
   ; weapons.e16.ts:129  linkTo[links * 2] = u16(foeX(next))
-  lw t0, 0x17dc(zero)
+  lw t0, 0x17de(zero)
   slli t0, t0, 1
   slli t0, t0, 1
   addi t0, t0, linkTo
@@ -14059,7 +14083,7 @@ chainFrom:
   addi sp, sp, 2
   sw a0, 0(t0)
   ; weapons.e16.ts:130  linkTo[links * 2 + 1] = u16(foeY(next))
-  lw t0, 0x17dc(zero)
+  lw t0, 0x17de(zero)
   slli t0, t0, 1
   addi t0, t0, 1
   slli t0, t0, 1
@@ -14072,9 +14096,9 @@ chainFrom:
   addi sp, sp, 2
   sw a0, 0(t0)
   ; weapons.e16.ts:131  links++
-  lw t0, 0x17dc(zero)
+  lw t0, 0x17de(zero)
   addi t0, t0, 1
-  sw t0, 0x17dc(zero)
+  sw t0, 0x17de(zero)
   ; weapons.e16.ts:132  if (damage > 0) foeHurt(next, damage)
   lw t0, 0(fp) ; damage
   bgeu zero, t0, .L7
@@ -14167,10 +14191,10 @@ chainDraw:
   ; weapons.e16.ts:147  k++
   addi s1, s1, 1
 .L3:
-  lw t0, 0x17dc(zero)
+  lw t0, 0x17de(zero)
   bltu s1, t0, .L1
   ; weapons.e16.ts:149  links = 0
-  sw zero, 0x17dc(zero)
+  sw zero, 0x17de(zero)
 .return:
   lw ra, 0(sp)
   lw s2, 2(sp)
@@ -14298,14 +14322,14 @@ ringStart:
   mv s2, a1 ; y
   mv s3, a2 ; reach
   ; weapons.e16.ts:180  ringX = x
-  sw s1, 0x17de(zero)
+  sw s1, 0x17e0(zero)
   ; weapons.e16.ts:181  ringY = y
-  sw s2, 0x17e0(zero)
+  sw s2, 0x17e2(zero)
   ; weapons.e16.ts:182  ringMax = i16(reach)
-  sw s3, 0x17e2(zero)
+  sw s3, 0x17e4(zero)
   ; weapons.e16.ts:183  ringT = 1
   li t0, 1
-  sw t0, 0x17e4(zero)
+  sw t0, 0x17e6(zero)
   ; weapons.e16.ts:184  foesBombReset()
   call foesBombReset
 .return:
@@ -14320,12 +14344,12 @@ ringStart:
 ;   r in a0
 radius:
   ; weapons.e16.ts:189  const r = i16(ringT) * 8
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   slli a0, t0, 3
   ; weapons.e16.ts:190  return r > ringMax ? ringMax : r
-  lw t0, 0x17e2(zero)
+  lw t0, 0x17e4(zero)
   bge t0, a0, .L1
-  lw t0, 0x17e2(zero)
+  lw t0, 0x17e4(zero)
   j .L2
 .L1:
   mv t0, a0
@@ -14341,40 +14365,40 @@ ringStep:
   sw ra, 0(sp)
   sw s1, 2(sp)
   ; weapons.e16.ts:195  if (ringT === 0) return
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   bne t0, zero, .L1
   ; weapons.e16.ts:195  return
   j .return
 .L1:
   ; weapons.e16.ts:196  ringT++
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   addi t0, t0, 1
-  sw t0, 0x17e4(zero)
+  sw t0, 0x17e6(zero)
   ; weapons.e16.ts:197  const r = radius()
   call radius
   mv s1, a0 ; r
   ; weapons.e16.ts:198  cancelWithin(ringX, ringY, r * 16)
-  lw t0, 0x17de(zero)
-  lw t1, 0x17e0(zero)
+  lw t0, 0x17e0(zero)
+  lw t1, 0x17e2(zero)
   slli t2, s1, 4
   mv a0, t0
   mv a1, t1
   mv a2, t2
   call cancelWithin
   ; weapons.e16.ts:199  foesBombWithin(ringX, ringY, r * 16)
-  lw t0, 0x17de(zero)
-  lw t1, 0x17e0(zero)
+  lw t0, 0x17e0(zero)
+  lw t1, 0x17e2(zero)
   slli t2, s1, 4
   mv a0, t0
   mv a1, t1
   mv a2, t2
   call foesBombWithin
   ; weapons.e16.ts:200  if (ringT > 120) ringT = 0
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   li t1, 120
   bgeu t1, t0, .L2
   ; weapons.e16.ts:200  ringT = 0
-  sw zero, 0x17e4(zero)
+  sw zero, 0x17e6(zero)
 .L2:
 .return:
   lw ra, 0(sp)
@@ -14397,13 +14421,13 @@ ringDraw:
   sw s0, 12(sp)
   mv fp, sp
   ; weapons.e16.ts:205  if (ringT === 0) return
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   bne t0, zero, .L1
   ; weapons.e16.ts:205  return
   j .return
 .L1:
   ; weapons.e16.ts:206  const x = (ringX >> 4) + shakeDX()
-  lw t0, 0x17de(zero)
+  lw t0, 0x17e0(zero)
   srai t0, t0, 4
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -14412,7 +14436,7 @@ ringDraw:
   addi sp, sp, 2
   add s2, t0, a0
   ; weapons.e16.ts:207  const y = (ringY >> 4) + shakeDY()
-  lw t0, 0x17e0(zero)
+  lw t0, 0x17e2(zero)
   srai t0, t0, 4
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -14422,11 +14446,11 @@ ringDraw:
   add s3, t0, a0
   ; weapons.e16.ts:208  const pal = (SL_ITEM - 8) << 10
   ; weapons.e16.ts:209  if (ringT < 8) {
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   li t1, 8
   bgeu t0, t1, .L2
   ; weapons.e16.ts:210  const tile = (RING_TILE + (ringT >> 1) * 4) | pal
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   srli t0, t0, 1
   slli t0, t0, 2
   addi t0, t0, 394
@@ -14467,12 +14491,12 @@ ringDraw:
   j .return
 .L2:
   ; weapons.e16.ts:218  if (i16(ringT) * 8 > ringMax + 160 && (ringT & 1) !== 0) return
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   slli t0, t0, 3
-  lw t1, 0x17e2(zero)
+  lw t1, 0x17e4(zero)
   addi t1, t1, 160
   bge t1, t0, .L3
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   andi t0, t0, 1
   beq t0, zero, .L3
   ; weapons.e16.ts:218  return
@@ -14482,7 +14506,7 @@ ringDraw:
   call radius
   mv s1, a0 ; tile/r
   ; weapons.e16.ts:220  let a: u16 = ringT * 3
-  lw t0, 0x17e4(zero)
+  lw t0, 0x17e6(zero)
   slli t1, t0, 1
   add t0, t1, t0
   sw t0, 0(fp) ; a
@@ -14666,7 +14690,7 @@ prismMove:
   mv a0, t2
   mv a1, t3
   call aimed
-  lw t0, 0x1728(zero)
+  lw t0, 0x172a(zero)
   srli t0, t0, 2
   addi sp, sp, -2
   sw a0, 0(sp)
@@ -14702,7 +14726,7 @@ prismMove:
 ;   toward in a3
 spinnerMove:
   ; foes2.e16.ts:46  const dx = targetX - i16(fX[k])
-  lw t0, 0x143c(zero)
+  lw t0, 0x143e(zero)
   slli t1, a0, 1
   lw t1, fX(t1)
   sub a2, t0, t1
@@ -15030,7 +15054,7 @@ newFoeDies:
   ; foes2.e16.ts:105  ring(x, y, u16(x >> 4) & 255, ringOf(8 + (rank >> 2), 20, BK_PINK))
   srai t0, s1, 4
   andi t0, t0, 255
-  lw t1, 0x1728(zero)
+  lw t1, 0x172a(zero)
   srli t1, t1, 2
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -15207,7 +15231,7 @@ moteMove:
   bne s2, t0, .L11
   li a0, 16
   call randBelow
-  lw t0, 0x1728(zero)
+  lw t0, 0x172a(zero)
   addi t0, t0, 4
   bgeu a0, t0, .L11
   ; foes2.e16.ts:144  shootAimed(k, BK_PINK, 36)
@@ -15261,7 +15285,7 @@ dartMove:
   slli t0, s1, 1
   lw t0, fX(t0)
   ; foes2.e16.ts:207  return targetX
-  lw t1, 0x143c(zero)
+  lw t1, 0x143e(zero)
   bge t0, t1, .L3
   li t0, 65496
   j .L4
@@ -15352,7 +15376,7 @@ pikeMove:
   mv a0, t2
   mv a1, t3
   call aimed
-  lw t0, 0x1728(zero)
+  lw t0, 0x172a(zero)
   srli t0, t0, 2
   addi sp, sp, -2
   sw a0, 0(sp)
@@ -15452,7 +15476,7 @@ halberdMove:
   lw t0, fX(t0)
   slli t1, s1, 1
   lw t1, fY(t1)
-  lw t2, 0x1728(zero)
+  lw t2, 0x172a(zero)
   srli t2, t2, 2
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -15569,7 +15593,7 @@ wardenMove:
   slli t1, s1, 1
   lw t1, fY(t1)
   andi t2, s2, 255
-  lw t3, 0x1728(zero)
+  lw t3, 0x172a(zero)
   addi sp, sp, -2
   sw t0, 0(sp)
   addi sp, sp, -2
@@ -15624,7 +15648,7 @@ wardenMove:
 chase:
   ; foes2.e16.ts:202  const d = targetXNow() - i16(fX[k])
   ; foes2.e16.ts:207  return targetX
-  lw t0, 0x143c(zero)
+  lw t0, 0x143e(zero)
   slli t1, a0, 1
   lw t1, fX(t1)
   sub a1, t0, t1
@@ -15660,7 +15684,7 @@ shootAimed:
   mv a0, s2
   mv a1, s3
   call aimed
-  lw t0, 0x1728(zero)
+  lw t0, 0x172a(zero)
   slli t0, t0, 1
   lw t1, 2(fp) ; speed
   add t1, t1, t0
@@ -15717,7 +15741,7 @@ newFoeDraw:
   srli t0, s3, 3
   andi t0, t0, 3
   slli t0, t0, 2
-  lw t1, 0x172a(zero)
+  lw t1, 0x172c(zero)
   addi t0, t0, 510
   or t0, t0, t1
   mv a0, s1
@@ -15735,7 +15759,7 @@ newFoeDraw:
   srli t0, s3, 1
   andi t0, t0, 3
   slli t0, t0, 2
-  lw t1, 0x172a(zero)
+  lw t1, 0x172c(zero)
   addi t0, t0, 538
   or t0, t0, t1
   mv a0, s1
@@ -15753,7 +15777,7 @@ newFoeDraw:
   srli t0, s3, 4
   andi t0, t0, 1
   slli t0, t0, 2
-  lw t1, 0x172a(zero)
+  lw t1, 0x172c(zero)
   addi t0, t0, 526
   or t0, t0, t1
   mv a0, s1
@@ -15764,7 +15788,7 @@ newFoeDraw:
   j .L6
 .L5:
   ; foes2.e16.ts:223  spr(x, y, (SERPENT_TILE + 8) | foePal, S16)
-  lw t0, 0x172a(zero)
+  lw t0, 0x172c(zero)
   li t1, 534
   or t1, t1, t0
   mv a0, s1

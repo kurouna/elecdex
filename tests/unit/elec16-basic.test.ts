@@ -567,7 +567,7 @@ describe('BASIC', () => {
     expect(say(m, 'WAIT 32:PRINT "AFTER"')).toEqual(['AFTER'])
     expect(m.state.time - waited).toBeGreaterThanOrEqual(500)
     // The timer is left as it was found: the prompt sleeps for keys alone.
-    expect(m.run(1000).sleeping).toEqual({ key: true, timerMs: null })
+    expect(m.run(1000).sleeping).toEqual({ key: true, pad: false, timerMs: null })
   })
 
   it('ends a WAIT whose compare the clock passed before it was turned on', () => {
@@ -673,7 +673,7 @@ describe('BASIC', () => {
     m.release(keyCode('q'))
     // Once into the wait, the machine sleeps on the timer, the key left in the FIFO.
     const r = m.run(200_000)
-    expect(r.sleeping).toEqual({ key: false, timerMs: expect.any(Number) })
+    expect(r.sleeping).toEqual({ key: false, pad: false, timerMs: expect.any(Number) })
     expect(r.cycles).toBeLessThan(5_000)
     settle(m)
     expect(shown(m).slice(-2)).toEqual(['Q', '>'])

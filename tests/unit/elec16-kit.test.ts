@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { type KitMeta, Layout } from '@shared/elec16/kit/build'
 import { channelFrames, compileSong, freqOf, OP, songBytes } from '@shared/elec16/kit/mml'
 import { type Picture, readMap, readSheet, rgb555 } from '@shared/elec16/kit/tiles'
 import { padBit } from '@shared/elec16/pad'
@@ -322,5 +323,197 @@ describe("the kit's template for a new game", () => {
     settle(m, built.image)
     const lines = playText(m.state.video?.mem ?? []).map((l) => l.trim())
     expect(lines).toContain('PRESS START')
+  })
+})
+
+describe("the kit's music, refusing what would go wrong on the machine", () => {
+  const code = (text: string, ch = 0) =>
+    compileSong('t', text).channels.find((c) => c.channel === ch)?.code ?? []
+
+  it('reads # after a note as a sharp, and as a comment only at the start or after a space', () => {
+    expect(code('C0: c#4 d e')).toEqual(code('C0: c+4 d e'))
+    expect(notesOf(code('C0: c#4 d e'))).toEqual(['note', 'again', 'again', 'end'])
+    expect(code('C0: c d # e f\n# C0: g')).toEqual(code('C0: c d'))
+  })
+
+  it('accepts a dotted default length, and refuses a length of 0 or less', () => {
+    expect(code('tempo 6\nC0: l8. c')).toEqual(code('tempo 6\nC0: c8.'))
+    expect(() => compileSong('t', 'C0: l-4 c')).toThrow(/length/)
+    expect(() => compileSong('t', 'C0: c r-8')).toThrow(/length/)
+    expect(() => compileSong('t', 'C0: c0')).toThrow(/length/)
+  })
+
+  it('refuses a loop with nothing that takes time after L', () => {
+    expect(() => compileSong('t', 'C0: c d L v10')).toThrow(/after L/)
+    expect(() => compileSong('t', 'C0: c d L')).toThrow(/after L/)
+    expect(code('C0: c L d')).toContain(OP.loop)
+  })
+
+  it('holds a note past 255 frames, letting it go on its own frame', () => {
+    // A whole note at tempo 6 is 96 frames: four tied are 384, held whole or half.
+    const a = freqOf(60)
+    expect(code('tempo 6\nC0: o4 c1^1^1^1')).toEqual([
+      OP.note,
+      a & 0xff,
+      a >> 8,
+      255,
+      0,
+      OP.hold,
+      129,
+      129,
+      OP.end,
+    ])
+    expect(code('tempo 6\nC0: o4 q4 c1^1^1^1')).toEqual([
+      OP.note,
+      a & 0xff,
+      a >> 8,
+      255,
+      192,
+      OP.hold,
+      129,
+      0,
+      OP.end,
+    ])
+    // Over three parts (576 frames, 504 held): held through the first, let go in the second.
+    expect(code('tempo 6\nC0: o4 q7 c1^1^1^1^1^1').slice(3)).toEqual([
+      255,
+      0,
+      OP.hold,
+      255,
+      249,
+      OP.hold,
+      66,
+      0,
+      OP.end,
+    ])
+  })
+
+  it('starts an echo with its own volume, waits for no delay of 0, and checks its numbers', () => {
+    expect(code('C0: c d\necho C1 = C0 delay 3 vol -4', 1).slice(0, 4)).toEqual([
+      OP.rest,
+      3,
+      OP.vol,
+      11,
+    ])
+    const now = code('C0: c d\necho C1 = C0 delay 0', 1)
+    expect(now.slice(0, 2)).toEqual([OP.vol, 11])
+    expect(notesOf(now)).not.toContain('rest')
+    expect(() => compileSong('t', 'C0: c\necho C16 = C0 delay 3')).toThrow(/C16/)
+    expect(() => compileSong('t', 'C0: c\necho C1 = C99 delay 3')).toThrow(/C99/)
+    expect(() => compileSong('t', 'C0: c\necho C1 = C0 delay 3 pan 99')).toThrow(/pan/)
+    expect(() => compileSong('t', 'C0: c\necho C1 = C0 delay 300')).toThrow(/delay/)
+  })
+
+  it('stops a song that unrolls past what a channel holds, quickly', () => {
+    const started = performance.now()
+    expect(() => compileSong('t', 'C0: [[[c16]60]60]60')).toThrow(/8192/)
+    expect(() => compileSong('t', 'C0: []1000000000 c')).toThrow(/8192/)
+    expect(performance.now() - started).toBeLessThan(2000)
+  })
+})
+
+describe("the kit's builder, refusing what would go wrong on the machine", () => {
+  const ship = picture(16, 16, (x, y) => (x === y ? RED : null))
+  const META: KitMeta = {
+    id: 'TINY',
+    name: 'TINY',
+    saveBanks: 0,
+    about: 'the kit test game',
+    sources: ['tiny.e16.ts', { file: 'far.e16.ts', bank: 1 }],
+    palettes: { png: 'palettes.png', names: ['ship', 'text'] },
+    sheets: [{ name: 'ship', png: 'ship.png', cell: 16 as const, palette: 'ship', tile: 40 }],
+    music: ['tiny.mml'],
+  }
+  type Meta = KitMeta
+  const build = (change: (m: Meta) => Meta, files: Record<string, string> = {}) =>
+    buildKit(
+      'tests/fixtures/kit',
+      change(structuredClone(META)) as never,
+      {
+        'palettes.png': PALETTES,
+        'ship.png': ship,
+        'map.png': picture(16, 8, (x) => (x >= 8 ? RED : null)),
+      },
+      files,
+    )
+  const said = (r: ReturnType<typeof build>) =>
+    'errors' in r ? r.errors.map((e) => e.message).join('; ') : 'built'
+
+  it("refuses a header readCart would not take: save RAM, the name's characters", () => {
+    expect(said(build((m) => ({ ...m, saveBanks: 9 })))).toMatch(/saveBanks/)
+    expect(said(build((m) => ({ ...m, name: 'TÏNY' })))).toMatch(/name/)
+    expect(said(build((m) => m))).toBe('built')
+  })
+
+  it("takes a map's palette only in a background's slot, 0 to 7", () => {
+    const map = (slot: number) => ({
+      name: 'bg',
+      png: 'map.png',
+      palettes: [{ palette: 'ship', slot }],
+    })
+    expect(said(build((m) => ({ ...m, maps: [map(8)] })))).toMatch(/slot 8/)
+    expect(said(build((m) => ({ ...m, maps: [map(7)] })))).toBe('built')
+  })
+
+  it('puts only drawn cells of a front map in front, not its clear ones', () => {
+    const built = build((m) => ({
+      ...m,
+      maps: [{ name: 'bg', png: 'map.png', front: true, palettes: [{ palette: 'ship', slot: 3 }] }],
+    }))
+    if ('errors' in built) throw new Error(said(built))
+    const at = (name: string) =>
+      Number.parseInt(
+        new RegExp(`${name} = 0x([0-9a-f]+)`).exec(built.report.assets)?.[1] ?? '',
+        16,
+      )
+    const rows = 64 + (at('BG_MAP_BANK') - 0x100) * 8192
+    const cell = (k: number) =>
+      (built.image[rows + k * 2] ?? 0) | ((built.image[rows + k * 2 + 1] ?? 0) << 8)
+    expect(cell(0) & 0x8000).toBe(0)
+    expect(cell(1) & 0x8000).toBe(0x8000)
+  })
+
+  it("refuses a table's word that is not one, never reading it as 0", () => {
+    const table = (text: string) =>
+      said(build((m) => ({ ...m, tables: [{ name: 'tab', file: 't.txt' }] }), { 't.txt': text }))
+    expect(table('1 2 3 # three\n-4, 0x10')).toBe('built')
+    expect(table('1 two 3')).toMatch(/"two"/)
+    expect(table('1 70000')).toMatch(/70000/)
+    expect(table('1.5')).toMatch(/1\.5/)
+  })
+
+  it('places even an empty part inside its bank', () => {
+    const layout = new Layout(1)
+    layout.put(new Uint8Array(8191))
+    expect(layout.put(new Uint8Array(0)).at).toBeLessThan(0xe000)
+  })
+
+  it('refuses tiles that run into another part, unless both start at the same tile', () => {
+    const sheet = (name: string, tile: number) => ({
+      name,
+      png: 'ship.png',
+      cell: 16 as const,
+      palette: 'ship',
+      tile,
+    })
+    expect(said(build((m) => ({ ...m, sheets: [...(m.sheets ?? []), sheet('two', 42)] })))).toMatch(
+      /two's tiles 42-45 run into ship's 40-43/,
+    )
+    expect(said(build((m) => ({ ...m, sheets: [...(m.sheets ?? []), sheet('two', 40)] })))).toBe(
+      'built',
+    )
+    expect(said(build((m) => ({ ...m, sheets: [...(m.sheets ?? []), sheet('two', 44)] })))).toBe(
+      'built',
+    )
+  })
+
+  it('says so when two parts make one constant, or a name is no constant', () => {
+    const sheet = (name: string) => ({ name, png: 'ship.png', cell: 16 as const, palette: 'ship' })
+    expect(said(build((m) => ({ ...m, sheets: [...(m.sheets ?? []), sheet('SHIP')] })))).toMatch(
+      /SHIP_TILE is made twice/,
+    )
+    expect(said(build((m) => ({ ...m, sheets: [...(m.sheets ?? []), sheet('1up')] })))).toMatch(
+      /1UP_TILE is not a name/,
+    )
   })
 })

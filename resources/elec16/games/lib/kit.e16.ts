@@ -35,6 +35,7 @@ export const VCTRL = 0xf800
 export const VPAGE = 0xf802
 export const VWIN = 0xe000
 export const PAD = 0xf810
+export const PADHIT = 0xf812
 export const BG0X = 0xf820
 export const BG0Y = 0xf822
 export const BG1X = 0xf824
@@ -49,8 +50,9 @@ export const MAP0 = 0x8000
 export const MAP1 = 0xa000
 export const OAM = 0xc000
 export const PALS = 0xc400
-/** A cartridge's save RAM, bank 0x80 in the window. */
+/** A cartridge's save RAM, bank 0x80 in the window: a word's offset within its 8 KB. */
 export const SAVE_BANK = 0x80
+const SAVE_MASK = 0x1ffe
 
 /** The buttons: PAD's bits. */
 export const B_UP = 1
@@ -264,11 +266,19 @@ export function sprShow(): void {
 
 let padIs: u16 = 0
 let padWas: u16 = 0
+/** The buttons that went down since the last read, held now or not. */
+let padDown: u16 = 0
 
-/** Reads the pad: once a frame. */
+/**
+ * Reads the pad: once a frame. A press is a button PADHIT marks that was up at the last read,
+ * so one pressed and let go between two reads (a key tapped on the PC) still counts.
+ */
 export function padRead(): void {
+  const hit = peek16(PADHIT)
+  poke16(PADHIT, hit)
   padWas = padIs
   padIs = peek16(PAD)
+  padDown = (hit | padIs) & ~padWas
 }
 
 /** Whether every button in `mask` is held. */
@@ -276,9 +286,9 @@ export function held(mask: u16): bool {
   return (padIs & mask) === mask
 }
 
-/** Whether a button in `mask` went down this frame. */
+/** Whether a button in `mask` went down since the last read. */
 export function pressed(mask: u16): bool {
-  return (padIs & ~padWas & mask) !== 0
+  return (padDown & mask) !== 0
 }
 
 /** The buttons held now, PAD's bits. */
@@ -308,9 +318,12 @@ export function kitInit(): void {
     k++
   }
   poke16(IO_BANK, old)
-  // The START that began the game is still held: what is held now is not a press in it.
+  // The START that began the game is still held: what is held now is not a press in it, nor
+  // what PADHIT marked before the game began.
   padIs = peek16(PAD)
   padWas = padIs
+  padDown = 0
+  poke16(PADHIT, 0xfff)
 }
 
 /** sin(a) of 256 steps, times 256. */
@@ -325,9 +338,15 @@ export function cos(a: u16): i16 {
 
 /** The direction (256 steps, 0 along +x, 64 along +y: down the screen) from 0 to (dx, dy). */
 export function aim(dx: i16, dy: i16): u16 {
-  const ax = dx < 0 ? u16(-dx) : u16(dx)
-  const ay = dy < 0 ? u16(-dy) : u16(dy)
+  let ax = dx < 0 ? u16(-dx) : u16(dx)
+  let ay = dy < 0 ? u16(-dy) : u16(dy)
   if (ax === 0 && ay === 0) return 64
+  // The smaller times 32 must fit a word: both halved while either is 1024 or more, which
+  // keeps their ratio (all the table reads) to well within a step.
+  while (ax >= 1024 || ay >= 1024) {
+    ax = ax >> 1
+    ay = ay >> 1
+  }
   // In the first octant first: atan of the smaller over the larger.
   let a: u16 = 0
   if (ax >= ay) a = atans[div(ay * 32 + (ax >> 1), ax)]
@@ -390,16 +409,17 @@ export function scoreShow(cell: u16, at: u16, zero: u16): void {
 
 /* ---------------- save RAM ---------------- */
 
-/** A word of the cartridge's save RAM (offset under 8 KB). */
+/** A word of the cartridge's save RAM: the offset taken within its 8 KB, a word's (even). */
 export function saveRead(off: u16): u16 {
   const old = bank(SAVE_BANK)
-  const v = peek16(WINDOW + off)
+  const v = peek16(WINDOW + (off & SAVE_MASK))
   poke16(IO_BANK, old)
   return v
 }
 
+/** A word into the cartridge's save RAM, the offset as `saveRead` takes it. */
 export function saveWrite(off: u16, v: u16): void {
   const old = bank(SAVE_BANK)
-  poke16(WINDOW + off, v)
+  poke16(WINDOW + (off & SAVE_MASK), v)
   poke16(IO_BANK, old)
 }

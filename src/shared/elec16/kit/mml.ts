@@ -10,7 +10,7 @@ import { CHANNELS, ENV_MS } from '../apu.js'
  *
  * A file:
  *
- *   # a comment
+ *   # a comment (at a line's start or after a space: `c#` is a sharp)
  *   tempo 6                         frames to a sixteenth note (6 is 150 BPM at 60 frames)
  *   inst lead wave=sq25 vol=12 env=2/250/9/120 vib=3,6 pan=8
  *   define riff = o2 l16 a a > a < a
@@ -19,10 +19,15 @@ import { CHANNELS, ENV_MS } from '../apu.js'
  *   echo C1 = C0 delay 3 vol -4 pan 12
  *
  * In a channel: `c d e f g a b` with `+`/`#` or `-`, a length (1 2 4 8 16 32 64), dots and
- * `^` ties; `r` a rest; `o` `<` `>` octaves; `l` the length; `v` volume; `@` an instrument; `p`
- * pan; `q` how much of a note is held, in eighths; `k` transpose in semitones; `L` where it
- * loops; `[ ... ]n` repeats; `$name` a definition.
+ * `^` ties; `r` a rest; `o` `<` `>` octaves; `l` the length (dotted too); `v` volume; `@` an
+ * instrument; `p` pan; `q` how much of a note is held, in eighths; `k` transpose in semitones;
+ * `L` where it loops; `[ ... ]n` repeats; `$name` a definition.
  */
+
+/** The most items a channel unrolls to: past it a song is refused, never left to run on. */
+export const MAX_ITEMS = 8192
+/** The most commands a channel reads, repeats unrolled: a song can never hang a build. */
+const MAX_WORK = 1_000_000
 
 export const OP = {
   note: 1,
@@ -203,12 +208,15 @@ class Track {
   items: Item[] = []
   octave = 4
   length = 4
+  /** The dots of the default length (`l8.`). */
+  lengthDots = 0
   gate = 8
   transpose = 0
   readonly #tempo: number
   readonly #insts: Map<string, number>
   readonly #defs: Map<string, string>
   #depth = 0
+  #work = 0
 
   constructor(tempo: number, insts: Map<string, number>, defs: Map<string, string>) {
     this.#tempo = tempo
@@ -228,22 +236,46 @@ class Track {
     return f
   }
 
-  #length(c: Cursor): number {
+  /** A length's number, if one is written: 1 or more. */
+  #lengthNumber(c: Cursor): number | null {
     const n = c.number()
+    if (n !== null && n <= 0) throw new MmlError(`a length of ${n}: lengths are 1 to 64`)
+    return n
+  }
+
+  #dots(c: Cursor): number {
     let dots = 0
     while (c.peek() === '.') {
       dots++
       c.take()
     }
-    return this.#frames(n ?? this.length, dots)
+    return dots
+  }
+
+  #length(c: Cursor): number {
+    const n = this.#lengthNumber(c)
+    const dots = this.#dots(c)
+    return n === null ? this.#frames(this.length, this.lengthDots + dots) : this.#frames(n, dots)
   }
 
   read(text: string): void {
+    this.#count()
     this.#depth++
     if (this.#depth > 16) throw new MmlError('definitions nest too deeply')
     const c = new Cursor(text)
-    while (!c.done) this.#command(c, c.take())
+    while (!c.done) {
+      this.#count()
+      this.#command(c, c.take())
+    }
     this.#depth--
+  }
+
+  /** A step of work: a song that unrolls past what a channel can hold stops here. */
+  #count(): void {
+    this.#work++
+    if (this.#work > MAX_WORK || this.items.length > MAX_ITEMS) {
+      throw new MmlError(`more than ${MAX_ITEMS} notes and changes unrolled: repeat less`)
+    }
   }
 
   /** One command, its letter `raw` already taken. */
@@ -265,13 +297,23 @@ class Track {
     if (k === 'o') this.octave = c.number() ?? this.octave
     else if (k === '<') this.octave--
     else if (k === '>') this.octave++
-    else if (k === 'l') this.length = c.number() ?? this.length
+    else if (k === 'l') this.#defaultLength(c)
     else if (k === 'q') this.gate = Math.max(1, Math.min(8, c.number() ?? 8))
     else if (k === 'k') this.transpose = c.number() ?? 0
     else if (k === 'v') this.items.push({ k: 'vol', v: (c.number() ?? 15) & 15 })
     else if (k === 'p') this.items.push({ k: 'pan', p: (c.number() ?? 8) & 15 })
     else return false
     return true
+  }
+
+  /** `l`: the length a note without one takes, dots and all. */
+  #defaultLength(c: Cursor): void {
+    const n = this.#lengthNumber(c)
+    const dots = this.#dots(c)
+    if (n === null && dots === 0) return
+    this.length = n ?? this.length
+    this.lengthDots = dots
+    this.#frames(this.length, this.lengthDots)
   }
 
   #note(c: Cursor, base: number): void {
@@ -300,6 +342,7 @@ class Track {
     const body = c.text.slice(c.i, end)
     c.i = end + 1
     const times = c.number() ?? 2
+    if (times < 1) throw new MmlError(`[ ... ]${times}: a repeat is played once or more`)
     for (let k = 0; k < times; k++) this.read(body)
   }
 
@@ -350,12 +393,15 @@ interface Last {
 
 /**
  * A note as bytecode: REPEAT when it is the last note again, AGAIN when only its pitch differs,
- * NOTE otherwise; one longer than 255 frames goes on held or let go as its gate says.
+ * NOTE otherwise. One longer than 255 frames goes on in HOLDs of at most 255, each saying how
+ * many of its frames the key is still held (0 when it is held past it, or was let go before),
+ * so the key is let go on the note's exact frame.
  */
 function noteCode(e: Event, code: number[], last: Last): void {
   const [first = 0, ...rest] = chunks(e.frames)
   const freq = freqOf(e.note ?? 0)
-  const held = Math.min(e.held, 255)
+  // A held of 0 keeps the key down past the first part: a HOLD lets it go.
+  const held = rest.length > 0 && e.held > first ? 0 : e.held
   if (rest.length === 0 && first === last.frames && held === last.held) {
     if (freq === last.freq) code.push(OP.repeat)
     else code.push(OP.again, freq & 0xff, freq >> 8)
@@ -369,10 +415,11 @@ function noteCode(e: Event, code: number[], last: Last): void {
   // Past 255 frames the channel's last length is not this one: the next note says its own.
   if (rest.length > 0) last.frames = -1
   let left = e.held - first
-  for (const f of rest) {
-    code.push(OP.hold, f, left > 0 ? 1 : 0)
+  rest.forEach((f, k) => {
+    const end = k === rest.length - 1
+    code.push(OP.hold, f, left <= 0 || (left > f && !end) ? 0 : Math.min(left, f))
     left -= f
-  }
+  })
 }
 
 /** One item's bytecode onto `code`. */
@@ -393,8 +440,12 @@ function itemCode(item: Exclude<Item, { k: 'loop' }>, code: number[], last: Last
   }
 }
 
-/** A channel's items as bytecode. */
+/** A channel's items as bytecode; one that loops must take time after its loop point. */
 function encode(items: Item[]): { code: number[]; loop: number | null } {
+  const back = items.findLastIndex((item) => item.k === 'loop')
+  if (back >= 0 && !items.slice(back).some((item) => item.k === 'event')) {
+    throw new MmlError('nothing plays after L: the loop would never take a frame')
+  }
   const code: number[] = []
   let loop: number | null = null
   // Nothing is known at the start, nor where the loop comes back to.
@@ -412,7 +463,13 @@ function encode(items: Item[]): { code: number[]; loop: number | null } {
 
 /** The echo of a channel: its items shifted later and quieter, perhaps placed elsewhere. */
 function echoOf(items: Item[], delay: number, volume: number, pan: number | null): Item[] {
-  const out: Item[] = [{ k: 'event', e: { note: null, frames: delay, held: 0 } }]
+  const out: Item[] = delay > 0 ? [{ k: 'event', e: { note: null, frames: delay, held: 0 } }] : []
+  // A channel that sets no volume before its first note plays at 15: its echo is quieter
+  // than that from the start, not only after a `v`.
+  const first = items.findIndex((item) => item.k === 'event' || item.k === 'vol')
+  if (first < 0 || items[first]?.k !== 'vol') {
+    out.push({ k: 'vol', v: Math.max(0, Math.min(15, 15 + volume)) })
+  }
   for (const item of items) {
     if (item.k === 'vol') out.push({ k: 'vol', v: Math.max(0, Math.min(15, item.v + volume)) })
     else if (item.k === 'pan') out.push({ k: 'pan', p: pan ?? item.p })
@@ -473,13 +530,21 @@ class SongText {
   }
 
   #echo(m: RegExpExecArray): void {
-    this.echoes.push({
+    const echo: Echo = {
       to: Number(m[1]),
       from: Number(m[2]),
       delay: Number(m[3]),
       vol: Number(m[4] ?? -4),
       pan: m[5] === undefined ? null : Number(m[5]),
-    })
+    }
+    const say = (what: string) => new MmlError(`${this.#name}: echo ${what}`)
+    for (const ch of [echo.to, echo.from]) {
+      if (ch >= CHANNELS) throw say(`on C${ch}: no such channel`)
+    }
+    if (echo.delay > 255) throw say(`delay ${echo.delay}: at most 255 frames`)
+    if (echo.vol < -15 || echo.vol > 15) throw say(`vol ${echo.vol}: -15 to 15`)
+    if (echo.pan !== null && echo.pan > 15) throw say(`pan ${echo.pan}: 0 to 15`)
+    this.echoes.push(echo)
   }
 }
 
@@ -507,7 +572,8 @@ function tracksOf(name: string, song: SongText): Map<number, Item[]> {
 export function compileSong(name: string, text: string): Song {
   const song = new SongText(name)
   for (const raw of text.split(/\r?\n/)) {
-    const line = raw.replace(/#.*$/, '').trim()
+    // A comment starts a line or follows a space: `c#` is a sharp.
+    const line = raw.replace(/(^|\s)#.*$/, '').trim()
     if (line !== '' && !song.line(line)) throw new MmlError(`${name}: what is "${line}"`)
   }
   if (!(song.tempo >= 1 && song.tempo <= 60)) {

@@ -54,7 +54,14 @@ import {
   XRAM_MAX,
 } from './map.js'
 import { createState, type Elec16State, MIE_LINES, MIE_LINES_VIDEO } from './state.js'
-import { LAYERS_ALL, type TileState, VCTRL_MASK, VIDEO_PAGES, VIDEO_SIZE } from './video.js'
+import {
+  FRAME_LINES,
+  LAYERS_ALL,
+  type TileState,
+  VCTRL_MASK,
+  VIDEO_PAGES,
+  VIDEO_SIZE,
+} from './video.js'
 
 const MAGIC = [0x45, 0x31, 0x36, 0x53] // "E16S"
 export const SNAPSHOT_VERSION = 7
@@ -212,7 +219,7 @@ function writeVideo(w: ByteWriter, v: Elec16State['video']): void {
 }
 
 /** Mode 1's registers, checked; its lines start from the cycles the machine has run. */
-function readTiles(r: ByteReader, s: Elec16State, t: TileState): boolean {
+function readTiles(r: ByteReader, s: Elec16State, t: TileState, fraction: number): boolean {
   t.scroll = [r.u16(), r.u16(), r.u16(), r.u16()]
   t.layers = r.u8()
   t.lineCmp = r.u16()
@@ -221,7 +228,8 @@ function readTiles(r: ByteReader, s: Elec16State, t: TileState): boolean {
   t.lineDone = (flags & 2) !== 0
   t.dma = { src: r.u16(), dst: r.u16(), len: r.u16(), active: r.u8() === 1 }
   t.slept = 0
-  t.frameCycles = s.cycles
+  // The beam where the frame's time had it, so LINE and lineDone agree as they did.
+  t.frameCycles = s.cycles - (finite(fraction) ? fraction : 0) * t.cyclesPerLine * FRAME_LINES
   t.start = { scroll: [...t.scroll], layers: t.layers }
   return (
     t.scroll.every((v) => v < 512) &&
@@ -452,7 +460,7 @@ function readVideo(r: ByteReader, s: Elec16State, version: number): boolean {
   v.pending = r.u8() === 1
   v.frame = r.u16()
   v.fraction = r.f64()
-  if (version >= 6 && !readTiles(r, s, v.tiles)) return false
+  if (version >= 6 && !readTiles(r, s, v.tiles, v.fraction)) return false
   return v.ctrl <= VCTRL_MASK && v.page < VIDEO_PAGES && finite(v.fraction) && v.fraction < 1
 }
 

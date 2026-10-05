@@ -150,6 +150,8 @@ export class FrameLoop<M extends FrameMachine> implements Loop {
 /** What a sleeping machine waits for: a key, or the timer in so many milliseconds. */
 export interface Wake {
   key: boolean
+  /** A pad's buttons wake it (a machine that has one). */
+  pad?: boolean
   timerMs: number | null
 }
 

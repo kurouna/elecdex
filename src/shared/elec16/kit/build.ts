@@ -1,7 +1,7 @@
 import { compile } from '../../e16c/compile.js'
 import { type AsmChunk, type AsmError, type AsmResult, assemble } from '../asm.js'
-import type { GameMeta } from '../cart-build.js'
-import { CART_HEADER, CART_ID, CART_MAX_BANKS, type CartHeader, makeCart } from '../cartridge.js'
+import { entryProblem, type GameMeta, metaProblem } from '../cart-build.js'
+import { CART_HEADER, CART_MAX_BANKS, type CartHeader, makeCart, readCart } from '../cartridge.js'
 import { BANK_SIZE } from '../map.js'
 import { generatedIncludes } from '../rom.js'
 import { compileSongs, songBytes } from './mml.js'
@@ -103,7 +103,7 @@ const MAP_ROW = 128
 class KitError extends Error {}
 
 /** The data placed bank by bank: a blob never straddles a bank unless it says it may. */
-class Layout {
+export class Layout {
   bank: number
   offset = 0
   readonly blobs: { bank: number; offset: number; bytes: Uint8Array }[] = []
@@ -118,7 +118,8 @@ class Layout {
       throw new KitError(`a part of ${bytes.length} bytes is more than a bank`)
     }
     this.offset += this.offset & 1
-    if (wholeBanks ? this.offset !== 0 : this.offset + bytes.length > BANK_SIZE) {
+    // Even an empty part is placed in its bank's window, never at its end (E000).
+    if (wholeBanks ? this.offset !== 0 : this.offset + Math.max(1, bytes.length) > BANK_SIZE) {
       this.bank++
       this.offset = 0
     }
@@ -147,12 +148,21 @@ const words = (values: number[]) => {
 
 const constName = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '_')
 
+/** A tile range of video memory and what took it. */
+interface TileRange {
+  first: number
+  count: number
+  what: string
+}
+
 /** The data, laid out after the code's banks, and the constants that find it. */
 class Assets {
   readonly layout: Layout
   readonly #consts: string[] = []
   readonly #input: KitInput
   readonly #palettes = new Map<string, Palette>()
+  readonly #names = new Set<string>()
+  readonly #ranges: TileRange[] = []
   #tile = 0
   tiles = 0
 
@@ -173,7 +183,15 @@ class Assets {
     return `${[head, ...this.#consts].join('\n')}\n`
   }
 
+  /** A constant for the game's sources: a name of its own, which TypeScript can read. */
   #say(name: string, value: number): void {
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(name)) {
+      throw new KitError(`${name} is not a name a constant can have: start a name with a letter`)
+    }
+    if (this.#names.has(name)) {
+      throw new KitError(`${name} is made twice: give the parts different names`)
+    }
+    this.#names.add(name)
     this.#consts.push(`export const ${name} = 0x${value.toString(16)}`)
   }
 
@@ -195,10 +213,26 @@ class Assets {
     return p
   }
 
-  /** Tiles from `want` (or the next free), `count` of them. */
+  /**
+   * Tiles from `want` (or the next free), `count` of them. Parts share tiles only when they
+   * say so, by starting at the same `tile` (frames loaded in turn into one room); any other
+   * overlap is a mistake that would draw one part with the other's tiles.
+   */
   #tilesAt(want: number | undefined, count: number, what: string): number {
     const first = want ?? this.#tile
+    if (first < 0 || !Number.isInteger(first))
+      throw new KitError(`${what}: tile ${first} is no tile`)
     if (first + count > TILES) throw new KitError(`${what} needs tiles past ${TILES}`)
+    for (const r of this.#ranges) {
+      const overlaps = count > 0 && first < r.first + r.count && r.first < first + count
+      if (overlaps && first !== r.first) {
+        const range = (x: number, n: number) => `${x}-${x + n - 1}`
+        throw new KitError(
+          `${what}'s tiles ${range(first, count)} run into ${r.what}'s ${range(r.first, r.count)}: give both the same tile to share them`,
+        )
+      }
+    }
+    this.#ranges.push({ first, count, what })
     this.#tile = Math.max(this.#tile, first + count)
     this.tiles = Math.max(this.tiles, first + count)
     return first
@@ -255,9 +289,14 @@ class Assets {
     const p = this.#picture(m.png)
     if (p.width > 64 * 8) throw new KitError(`${m.name} is wider than 64 cells`)
     const first = m.tile ?? this.#tile
+    for (const x of m.palettes) {
+      if (!(Number.isInteger(x.slot) && x.slot >= 0 && x.slot <= 7)) {
+        throw new KitError(`${m.name}: slot ${x.slot} is not a background's palette, 0 to 7`)
+      }
+    }
     const palettes = m.palettes.map((x) => ({ slot: x.slot, palette: this.#paletteOf(x.palette) }))
     const map = readMap(p, palettes, first)
-    this.#tilesAt(first, map.tiles.length / 32, m.name)
+    this.#tilesAt(m.tile, map.tiles.length / 32, m.name)
     const t = this.layout.put(map.tiles, map.tiles.length > BANK_SIZE)
     this.#say(`${n}_TILE`, first)
     this.#say(`${n}_TILES_BANK`, t.bank)
@@ -268,8 +307,11 @@ class Assets {
     for (let y = 0; y < map.height; y++) {
       rows.set(map.cells.subarray(y * map.width, (y + 1) * map.width), y * 64)
     }
+    // The clear tile is first, whatever palette its cell took: only drawn cells go in front.
     if (m.front === true) {
-      for (let k = 0; k < rows.length; k++) if (rows[k] !== first) rows[k] = (rows[k] ?? 0) | 0x8000
+      for (let k = 0; k < rows.length; k++) {
+        if (((rows[k] ?? 0) & 0x3ff) !== first) rows[k] = (rows[k] ?? 0) | 0x8000
+      }
     }
     const cells = this.layout.put(words([...rows]), true)
     this.#say(`${n}_MAP_BANK`, cells.bank)
@@ -292,7 +334,14 @@ class Assets {
       .replace(/#.*$/gm, '')
       .split(/[\s,]+/)
       .filter(Boolean)
-      .map((v) => Number(v) & 0xffff)
+      .map((v) => {
+        const n = Number(v)
+        // A word: -32768 to 65535, whole. Anything else is a typing slip, never a 0.
+        if (!Number.isInteger(n) || n < -0x8000 || n > 0xffff) {
+          throw new KitError(`${file}: "${v}" is not a word (a whole number, -32768 to 65535)`)
+        }
+        return n & 0xffff
+      })
     const n = constName(name)
     const place = this.layout.put(words(values))
     this.#say(`${n}_BANK`, place.bank)
@@ -307,7 +356,8 @@ export function buildKitGame(input: KitInput): KitResult {
   const problem = (message: string): KitResult => ({
     errors: [{ file: meta.id, line: 0, message }],
   })
-  if (!CART_ID.test(meta.id) || meta.name.length > 24) return problem('a bad id or name')
+  const bad = metaProblem(meta)
+  if (bad !== null) return problem(bad)
   try {
     return build(input)
   } catch (e) {
@@ -366,6 +416,8 @@ function build(input: KitInput): KitResult {
   const rom = romOf(banks, codeBanks, out.chunks, data.layout, imageBank, image)
   const entry = out.symbols.get('start')
   if (entry === undefined) throw new KitError('no start')
+  const wrongEntry = entryProblem(entry)
+  if (wrongEntry !== null) throw new KitError(wrongEntry)
   const { meta } = input
   const header: CartHeader = {
     banks,
@@ -376,6 +428,8 @@ function build(input: KitInput): KitResult {
   }
   const cart = makeCart(header, rom)
   if (cart.length !== CART_HEADER + rom.length) throw new KitError('the image is not whole')
+  // The last word is the reader's: what it refuses is no cartridge, whatever was checked above.
+  if (readCart(cart) === null) throw new KitError('the image is not a cartridge PLAY-320 takes')
   return {
     image: cart,
     report: {

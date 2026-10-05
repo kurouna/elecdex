@@ -798,9 +798,12 @@ export class O1 {
         this.#line('wfi')
         return
       case 'asm':
-        // Assembly may use any register: nothing is left in one across it.
+        // Assembly may use any register: nothing is left in one across it. It is the author's,
+        // kept whole between its marks: tidyJumps cuts nothing in it.
         this.#spillAt(this.#stack.length - 1)
+        this.#line(ASM_START)
         for (const line of op.text.split('\n')) if (line.trim() !== '') this.#line(line.trim())
+        this.#line(ASM_END)
         return
       case 'drop':
         this.#drop()
@@ -965,21 +968,41 @@ function byUse(fn: Fn, uses: number[]): number[] {
   return fn.slots.map((_, k) => k).sort((x, y) => (uses[y] ?? 0) - (uses[x] ?? 0))
 }
 
+/** The marks around an asm block, which tidyJumps leaves whole. */
+const ASM_START = '; asm'
+const ASM_END = '; end asm'
+
 /**
  * Jumps tidied in the finished lines: what follows a jump up to the next label is never run,
- * and a jump to a label that comes next (labels and comments between) goes.
+ * and a jump to a label that comes next (labels and comments between) goes. An asm block is
+ * left whole - its jumps, what follows them and its labels are the author's - and what comes
+ * after one is taken to run.
  */
 export function tidyJumps(lines: string[]): string[] {
   const out: string[] = []
+  const authored: boolean[] = []
   let dead = false
+  let inAsm = false
   for (const line of lines) {
+    if (line === `  ${ASM_START}`) inAsm = true
+    if (inAsm) {
+      out.push(line)
+      authored.push(true)
+      if (line === `  ${ASM_END}`) {
+        inAsm = false
+        dead = false
+      }
+      continue
+    }
     const isLabel = /^[.\w]+:/.test(line)
     if (isLabel) dead = false
     if (dead && !line.startsWith('  ;') && line !== '') continue
     out.push(line)
+    authored.push(false)
     if (/^ {2}(j|jr|ret)\b/.test(line)) dead = true
   }
   return out.filter((line, k) => {
+    if (authored[k] === true) return true
     const jump = /^ {2}j ([.\w]+)$/.exec(line)
     // A jump to the label that comes next, or a `ret` with the epilogue's `ret` next, goes.
     if (jump !== null) return !comesNext(out, k, `${jump[1]}:`)

@@ -244,6 +244,58 @@ describe('the synth', () => {
     ])
   })
 
+  it('holds a sweep at the highest pitch there is: never NaN, never a stalled noise', () => {
+    // A slide up held for minutes: without a ceiling the pitch passes any rate, the noise's
+    // steps a sample grow without end and the phase becomes NaN.
+    for (const wave of [WAVE.triangle, WAVE.noise]) {
+      const rate = 100
+      const synth = new ApuSynth(rate)
+      synth.set(frame({ wave, env: 0x0f00, mod: 0x007f, ons: 1, gate: true }))
+      const left = new Float32Array(rate * 400)
+      synth.render(left, new Float32Array(left.length))
+      expect(left.every(Number.isFinite), `wave ${wave}`).toBe(true)
+    }
+  })
+
+  it('stops a voice whose envelope has decayed to a sustain of 0', () => {
+    const synth = new ApuSynth(RATE)
+    synth.set(frame({ env: 0x0050, ons: 1, gate: true }))
+    play(synth, 0.2)
+    expect(synth.sounding).toBe(false)
+  })
+
+  it('sounds a note keyed on and off within one frame: its attack, then its release', () => {
+    const synth = new ApuSynth(RATE)
+    // Attack 10 ms, release 120 ms; on and off before the page sent a frame.
+    synth.set(frame({ env: 0x7f03, ons: 1, offs: 1, gate: false }))
+    const attack = play(synth, 0.012).left
+    expect(peak(attack)).toBeGreaterThan((CHANNEL_LEVEL / 2) * 0.8)
+    play(synth, 0.2)
+    expect(synth.sounding).toBe(false)
+  })
+
+  it('counts a write to the wave tables, by the window or DMA, so the page sends them', () => {
+    const m = boot()
+    const apu = m.state.apu
+    if (apu === null) throw new Error('no sound')
+    // Elsewhere in video memory: not the sound's.
+    m.bus.write16(0xf802, 0)
+    let rev = apu.revision
+    m.bus.write8(0xe000, 5)
+    expect(apu.revision).toBe(rev)
+    m.bus.write16(0xf802, WAVE_TABLES_AT >> 12)
+    m.bus.write8(0xe000 + (WAVE_TABLES_AT & 0xfff) + 3, 0x5a)
+    expect(apu.revision).toBeGreaterThan(rev)
+    rev = apu.revision
+    m.bus.write16(0xf830, 0x0100)
+    m.bus.write16(0xf832, WAVE_TABLES_AT + 16)
+    m.bus.write16(0xf834, 16)
+    m.bus.write16(0xf836, 1)
+    m.run(100)
+    expect(m.state.video?.tiles.dma.active).toBe(false)
+    expect(apu.revision).toBeGreaterThan(rev)
+  })
+
   it('reads the wave tables from video memory for the page to send', () => {
     const m = boot()
     const v = m.state.video

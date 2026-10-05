@@ -205,7 +205,10 @@ export interface TileState extends Raster {
   lineCmp: number
   /** LINE came and was not cleared: interrupt line 7. */
   linePending: boolean
-  /** LINE was raised this frame (once a frame). */
+  /**
+   * LINE will not come again this frame: raised for LINECMP, or LINECMP written for a line
+   * the beam had passed (or one not drawn). Writing LINECMP sets it afresh; VBLANK clears it.
+   */
   lineDone: boolean
   /**
    * The beam's clock: the machine's cycles and the cycles it slept (credited from the time
@@ -311,7 +314,10 @@ export function tileWrite(t: TileState, a: number, value: number, cycles: number
   }
   switch (a) {
     case TILE_REG.lineCmp:
+      // A line still to come this frame raises LINE when the beam gets there - again in the
+      // same frame, for a handler naming the next band; one passed waits for the next frame.
       t.lineCmp = value
+      t.lineDone = value >= BITMAP_HEIGHT || lineAt(t, cycles) >= value
       return false
     case TILE_REG.dmaSrc:
       t.dma.src = value

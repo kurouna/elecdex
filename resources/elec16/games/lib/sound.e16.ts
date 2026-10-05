@@ -184,8 +184,9 @@ function oneOp(c: u16, at: u16): u16 {
       opTook = true
       return wrap16(at + 2)
     case OP_HOLD:
+      // A long note goes on: its key let go after this many of its frames (0: as it is).
       chWait[c] = peek(at + 1)
-      chGate[c] = peek(at + 2) === 0 ? 0 : chWait[c] + 1
+      chGate[c] = peek(at + 2)
       opTook = true
       return wrap16(at + 3)
     case OP_INST:
@@ -226,7 +227,8 @@ function startNote(c: u16, freq: u16, frames: u16, held: u16): void {
   poke16(CHSEL, c)
   poke16(FREQ, freq)
   const quiet = c < 12 && (muted & (1 << c)) !== 0
-  poke16(VOL, quiet ? 0 : (chVol[c] * chInstVol[c] + 14) >> 4)
+  // The two volumes' product over 15, rounded: 15 and 15 are 15 (x 17 / 256 is / 15).
+  poke16(VOL, quiet ? 0 : (chVol[c] * chInstVol[c] * 17 + 128) >> 8)
   poke16(KEY, 1)
 }
 

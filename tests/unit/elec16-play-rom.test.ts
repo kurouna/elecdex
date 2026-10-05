@@ -157,7 +157,7 @@ describe('the start screen', () => {
       expect.stringMatching(/^ +PRESS START$/),
     ])
     const r = m.run(1000)
-    expect(r.sleeping).toEqual({ key: false, timerMs: null })
+    expect(r.sleeping).toEqual({ key: false, pad: true, timerMs: null })
   })
 
   it('counts the extended RAM the unit has', () => {
@@ -211,7 +211,7 @@ describe('a program the pane runs', () => {
       .byte 72, 73, 32, 0`,
     )
     expect(written(m)).toEqual(['HI 1234'])
-    expect(m.run(1000).sleeping).toEqual({ key: false, timerMs: null })
+    expect(m.run(1000).sleeping).toEqual({ key: false, pad: true, timerMs: null })
     // BRK then brings the start screen back.
     m.brk()
     settle(m)
@@ -247,6 +247,46 @@ describe('a program the pane runs', () => {
     expect(written(m).at(-1)).toMatch(/^ {2}FAULT 0007 AT 700[0-9A-F]$/)
     runCode(m, 'li t0, 40\necall')
     expect(written(m).at(-1)).toMatch(/^ {2}FAULT 000B AT 700[0-9A-F]$/)
+  })
+
+  it("never takes an interrupt into the program's handler on its way back to the start screen", () => {
+    // Its own handler for VBLANK (the rest to the ROM's, as the kit's runtime does) with
+    // interrupts on, VBLANK waiting, then BRK: the ROM's MRET to the start screen must not let
+    // the waiting VBLANK into the program's handler.
+    const m = switchOn()
+    callCode(
+      m,
+      `
+      la t0, irq
+      csrw mtvec, t0
+      li t0, ${1 << 5}
+      csrw mie, t0
+      csrsi mstatus, 8
+    spin:
+      j spin
+    irq:
+      csrr t0, mcause
+      li t1, 0x8005
+      bne t0, t1, rom
+      li t1, 0x6000
+      lw t0, 0(t1)
+      addi t0, t0, 1
+      sw t0, 0(t1)
+      li t1, 0xf804
+      li t0, 1
+      sw t0, 0(t1)
+      mret
+    rom:
+      li t0, ${symbol('trap')}
+      jr t0`,
+    )
+    m.run(10_000)
+    m.advance(1000 / 60 + 0.01)
+    m.brk()
+    settle(m)
+    expect((m.state.ram[0x6000] ?? 0) | ((m.state.ram[0x6001] ?? 0) << 8)).toBe(0)
+    expect(m.state.csr.mtvec).toBe(symbol('trap'))
+    expect(written(m).at(-1)).toMatch(/^ {2}BREAK AT 70/)
   })
 
   it('scrolls the screen up a row when the text reaches the bottom', () => {

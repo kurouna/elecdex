@@ -42,7 +42,7 @@ describe('the ROM', () => {
   it('starts in BASIC, and MON takes it to the monitor, waiting for a key at its prompt', () => {
     const m = switchOn()
     expect(shown(m)).toEqual(['ELEC-16 BASIC 1.0', expect.stringMatching(/^\d+ BYTES FREE$/), '>'])
-    expect(m.run(1000).sleeping).toEqual({ key: true, timerMs: null })
+    expect(m.run(1000).sleeping).toEqual({ key: true, pad: false, timerMs: null })
     expect(annunciated(m)).toEqual(expect.arrayContaining(['CAPS', 'RUN']))
     type(m, 'MON\n')
     expect(shown(m).slice(-3)).toEqual(['>MON', 'ELEC-16 MONITOR 0.1', '*'])

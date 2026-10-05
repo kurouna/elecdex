@@ -188,6 +188,41 @@ describe('e16c', () => {
     ])
   })
 
+  it('keeps an asm block whole: what follows a jump in it, its labels too', () => {
+    // A jump over code in the block, and a loop back to a label after the jump.
+    const text = [
+      'export function f(_n: u16): u16 {',
+      '  asm`',
+      '    li a1, 0',
+      '.top:',
+      '    addi a1, a1, 3',
+      '    addi a0, a0, -1',
+      '    j .test',
+      '    li a1, 999',
+      '.test:',
+      '    bnez a0, .top',
+      '    mv a0, a1',
+      '  `',
+      '  return 0',
+      '}',
+    ].join(String.fromCharCode(10))
+    for (const opt of [0, 1, 2] as const) {
+      const out = compile([{ name: 'asm.ts', text }], { ...OPTIONS, opt })
+      expect(out.errors).toEqual([])
+      expect(out.asm, `-O${opt}`).toMatch(/^\s*\.test:$/m)
+      const asm = assemble(
+        ['.org 0x8000', 'li sp, 0x8000', 'li a0, 4', 'call f', 'mv a2, a1', 'ebreak', out.asm].join(
+          String.fromCharCode(10),
+        ),
+      )
+      expect(asm.errors, `-O${opt}`).toEqual([])
+      const m = Elec16.boot(romImage(asm))
+      expect(m.run(100_000).halted?.cause).toBe('breakpoint')
+      // a1 counted 3 a pass, four passes; 999 never set.
+      expect(m.state.regs[6], `-O${opt}`).toBe(12)
+    }
+  })
+
   it('at -O2 leaves a pure call it cannot finish within its budget as a call', () => {
     const text = [
       'function spin(n: u16): u16 { let i: u16 = 0; while (i !== n) i++; return i }',

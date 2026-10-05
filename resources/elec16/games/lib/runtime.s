@@ -79,7 +79,8 @@ game_main:
   sw t0, 0(t1)
   la t0, irq
   csrw mtvec, t0
-  li t0, (1 << IRQ_VBLANK) | (1 << IRQ_LINE)
+  ; LINE only while raster(1): otherwise it is the game's to read in VSTAT.
+  li t0, 1 << IRQ_VBLANK
   csrw mie, t0
   csrsi mstatus, 8
   call main
@@ -131,6 +132,9 @@ irq:
   li t0, VSTAT
   li t1, 2
   sw t1, 0(t0)
+  ; Not stepping the table (raster(0) on the way): LINECMP is left as the game has it.
+  lw t1, RT_RASTER(zero)
+  beqz t1, .done
   lw t0, RT_K(zero)
   slli t1, t0, 1
   lw t1, RT_TABLE(t1)
@@ -164,13 +168,18 @@ frame_wait:
   mv a0, t0
   ret
 
-; raster(on): the LINE steps through RT_TABLE from the next frame, or stop at once.
+; raster(on): the LINE steps through RT_TABLE from the next frame, or stops at once - its
+; line no longer enabled, LINE (and LINECMP) left to the game.
 raster:
   sw a0, RT_RASTER(zero)
+  li t0, 1 << IRQ_LINE
   bnez a0, .on
+  csrc mie, t0
   li t0, 0xffff
   sw t0, -0x7d6(zero)     ; LINECMP
+  ret
 .on:
+  csrs mie, t0
   ret
 
 ; A call into a cartridge bank (e16c's code for a function in another bank): t0 the

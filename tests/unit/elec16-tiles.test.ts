@@ -10,10 +10,13 @@ import {
   BITMAP_HEIGHT,
   BITMAP_WIDTH,
   createVideoState,
+  cyclesToLine,
   DMA_CHUNK,
+  endFrame,
   FRAME_HZ,
   FRAME_LINES,
   LAYER,
+  lineStep,
   NO_LINE,
   PALETTE_AT,
   type Raster,
@@ -21,6 +24,7 @@ import {
   rasterLines,
   SPRITES_AT,
   TILE_REG,
+  tileWrite,
   VIDEO_MODE,
   VIDEO_REG,
   type VideoState,
@@ -222,6 +226,117 @@ describe('LINE', () => {
     const r = finish(m)
     expect([r.a1, r.a2]).toEqual([0x8000 | IRQ.line, 1 << IRQ.line])
     expect(r.a3).toBe(30)
+  })
+
+  it('rises again in the same frame for a later line its handler names', () => {
+    const t = createVideoState().tiles
+    tileWrite(t, TILE_REG.lineCmp, 100, 0)
+    lineStep(t, 100 * CYCLES_A_LINE + 1)
+    expect(t.linePending).toBe(true)
+    t.linePending = false
+    tileWrite(t, TILE_REG.lineCmp, 200, 100 * CYCLES_A_LINE + 10)
+    lineStep(t, 199 * CYCLES_A_LINE)
+    expect(t.linePending).toBe(false)
+    lineStep(t, 200 * CYCLES_A_LINE + 1)
+    expect(t.linePending).toBe(true)
+  })
+
+  it('waits for the next frame for a line the beam has passed, never rising at once', () => {
+    const t = createVideoState().tiles
+    tileWrite(t, TILE_REG.lineCmp, 50, 250 * CYCLES_A_LINE)
+    lineStep(t, 250 * CYCLES_A_LINE + 4)
+    expect(t.linePending).toBe(false)
+    expect(cyclesToLine(t, 250 * CYCLES_A_LINE + 4)).toBeNull()
+    endFrame(t, FRAME_LINES * CYCLES_A_LINE)
+    lineStep(t, (FRAME_LINES + 50) * CYCLES_A_LINE + 1)
+    expect(t.linePending).toBe(true)
+  })
+
+  it("gives the kit runtime's handler, moving LINECMP on 8 lines at a time, every band", () => {
+    // The handler clears LINE, counts it and names the line 8 on (game kit, runtime.s).
+    const m = boot(`
+      la t0, irq
+      csrw mtvec, t0
+      li t0, ${1 << IRQ.line}
+      csrw mie, t0
+      li t0, ${TILE_REG.lineCmp}
+      li t1, 8
+      sw t1, 0(t0)
+      csrsi mstatus, 8
+    loop:
+      j loop
+    irq:
+      li t0, ${VIDEO_REG.stat}
+      li t1, ${VSTAT_LINE}
+      sw t1, 0(t0)
+      lw t0, 0x100(zero)
+      addi t0, t0, 1
+      sw t0, 0x100(zero)
+      li t1, ${TILE_REG.lineCmp}
+      lw t0, 0(t1)
+      addi t0, t0, 8
+      sw t0, 0(t1)
+      mret`)
+    m.run(4_000_000 / FRAME_HZ)
+    // Lines 8, 16 ... 280: 288 is not drawn.
+    expect((m.state.ram[0x100] ?? 0) | ((m.state.ram[0x101] ?? 0) << 8)).toBe(35)
+  })
+
+  it('lets the beam run on for a sleeper that has not enabled LINE', () => {
+    // Asleep for VBLANK alone, LINECMP set: the time given is the beam's, all of it.
+    const m = boot(`
+      li t0, ${TILE_REG.lineCmp}
+      li t1, 50
+      sw t1, 0(t0)
+      li t0, ${1 << IRQ.vblank}
+      csrw mie, t0
+      wfi
+      ebreak`)
+    expect(m.run(1000).sleeping).not.toBeNull()
+    m.advance(FRAME_MS / 2)
+    expect(m.bus.read16(TILE_REG.line)).toBeGreaterThan(150)
+    expect(tiles(m).linePending).toBe(true)
+  })
+
+  it('wakes a sleeper on LINE in a step of time that also brings VBLANK, VBLANK after it', () => {
+    // One step of more than a frame: the program wakes on its line before VBLANK, and the
+    // rest of the step - VBLANK with it - passes once it sleeps again.
+    const m = boot(`
+      li t0, ${TILE_REG.lineCmp}
+      li t1, 280
+      sw t1, 0(t0)
+      li t0, ${1 << IRQ.line}
+      csrw mie, t0
+      wfi
+      li t0, ${VIDEO_REG.stat}
+      lw a0, 0(t0)
+      li t0, ${TILE_REG.line}
+      lw a1, 0(t0)
+      li t0, ${1 << IRQ.vblank}
+      csrw mie, t0
+      wfi
+      li t0, ${VIDEO_REG.frame}
+      lw a2, 0(t0)
+      ebreak`)
+    expect(m.run(1000).sleeping).not.toBeNull()
+    m.advance(FRAME_MS * 1.2)
+    expect(tiles(m).linePending).toBe(true)
+    const r = finish(m)
+    expect([r.a0, r.a1, r.a2]).toEqual([VSTAT_LINE, 280, 1])
+  })
+
+  it('comes back from a snapshot with the beam on the line it was, its LINE had', () => {
+    const m = boot('loop:\n  j loop')
+    m.bus.write16(TILE_REG.lineCmp, 100)
+    m.advance((FRAME_MS * 120) / FRAME_LINES)
+    m.run(CYCLES_A_LINE * 120)
+    expect(tiles(m).linePending).toBe(true)
+    m.bus.write16(VIDEO_REG.stat, VSTAT_LINE)
+    const back = Elec16.restore(romImage(assemble('.org 0x8000\nloop: j loop')), m.snapshot())
+    if (back === null) throw new Error('no snapshot')
+    expect(Math.abs(back.bus.read16(TILE_REG.line) - 120)).toBeLessThanOrEqual(1)
+    back.run(CYCLES_A_LINE * 100)
+    expect(tiles(back).linePending).toBe(false)
   })
 })
 

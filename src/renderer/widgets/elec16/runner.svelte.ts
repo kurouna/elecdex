@@ -4,7 +4,7 @@ import { keyCode } from '@shared/elec16/keys'
 import type { LinkAnswer, LinkRequest } from '@shared/elec16/link'
 import { LINK_STATUS } from '@shared/elec16/link-services'
 import { type ClockFields, Elec16 } from '@shared/elec16/machine'
-import { DEFAULT_MODEL, MODELS, type ModelId } from '@shared/elec16/map'
+import { BANK_WINDOW, DEFAULT_MODEL, MODELS, type ModelId, ROM_FIXED } from '@shared/elec16/map'
 import { KEY_FIFO_SIZE } from '@shared/elec16/state'
 import { type LoopHost, TimedLoop, type TimedPolicy, type Wake } from '../emu/loops.ts'
 import { browserLoop, EmuRunner, type PauseReason, type RunStatus } from '../emu/runner.svelte.ts'
@@ -537,12 +537,15 @@ export class Elec16Runner extends EmuRunner<Elec16> {
 
   /**
    * Asleep at its prompt, where CODE can give it a program: the pocket ROM sleeps there for a
-   * key; the PLAY ROM's start screen, and after a program came back, for nothing but BRK.
+   * key; the PLAY ROM's start screen, and after a program came back, for START (the pad) or
+   * BRK. A program of its own asleep for the pad is not there: it sleeps outside the ROM.
    */
   #atPrompt(wake: Wake | null): boolean {
     if (wake === null || this.#waitsForMain()) return false
-    if (MODELS[this.model].rom === 'play') return !wake.key && wake.timerMs === null
-    return wake.key
+    if (MODELS[this.model].rom !== 'play') return wake.key
+    if (wake.key || wake.timerMs !== null) return false
+    const pc = this.machine?.state.pc ?? 0
+    return wake.pad !== true || (pc >= ROM_FIXED && pc < BANK_WINDOW)
   }
 
   /**

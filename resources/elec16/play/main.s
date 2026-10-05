@@ -15,6 +15,7 @@ CAUSE    = 0x16     ; mcause of the last break or fault
 REGS     = 0x20     ; 16 words at the last break or fault: pc, then x1 to x15
 LASTPAD  = 0x1c     ; the buttons held at the start screen's last look
 BRKFLAG  = 0x1e     ; BASIC's in the pocket ROM: always 0 here, for link.s
+MPIE     = 0x80     ; mstatus: interrupts on before the trap
 
 ; The pad (shared/elec16/pad.ts) and the cartridge (shared/elec16/cartridge.ts).
 IO_PAD      = -0x7f0   ; F810: the buttons held
@@ -182,6 +183,13 @@ trap:
   li a0, 0
   li a1, 0
 .say:
+  ; Out to the start screen with interrupts staying off and the ROM's own handler in mtvec:
+  ; MRET would let them back on as the program had them, into its handler in RAM, before
+  ; boot could put the ROM's back.
+  li t0, MPIE
+  csrc mstatus, t0
+  la t0, trap
+  csrw mtvec, t0
   la t0, boot
   csrw mepc, t0
   mret
@@ -212,6 +220,11 @@ ecall_entry:
   sw t0, CAUSE(zero)
   lw a0, CAUSE(zero)
   lw a1, REGS(zero)
+  ; As .say does.
+  li t0, MPIE
+  csrc mstatus, t0
+  la t0, trap
+  csrw mtvec, t0
   la t0, boot
   csrw mepc, t0
   mret

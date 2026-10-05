@@ -41,6 +41,8 @@ export const WAVE = {
 export const WAVE_TABLES_AT = 0xc600
 export const WAVE_TABLE_BYTES = 16
 export const WAVE_TABLES = 8
+/** The highest pitch FREQ can name (0xFFFF quarters): a slide stops there. */
+export const MAX_HZ = 0xffff / 4
 /** An envelope stage's time by its four-bit number, in milliseconds. */
 export const ENV_MS = [
   0, 2, 5, 10, 20, 40, 80, 120, 160, 250, 400, 600, 800, 1200, 2000, 3000,
@@ -165,6 +167,10 @@ function keyChannel(c: ApuChannel, on: boolean): void {
   }
 }
 
+/** Whether `length` bytes of video memory from `at` reach the wave tables. */
+export const wavesAt = (at: number, length: number): boolean =>
+  at < WAVE_TABLES_AT + WAVE_TABLES * WAVE_TABLE_BYTES && at + length > WAVE_TABLES_AT
+
 /** What the page sends the synth once a frame that changed. */
 export interface ApuFrame {
   master: number
@@ -187,6 +193,8 @@ export const apuFrame = (a: ApuState, mem: Uint8Array): ApuFrame => ({
  * the page's worklet clamps.
  */
 export const CHANNEL_LEVEL = 0.08
+/** The most LFSR steps noise takes in one sample (a low sample rate and a high pitch). */
+const NOISE_STEPS = 16
 /** The shortest ramp an edge takes, so a note never clicks on or off (seconds). */
 const EDGE = 0.002
 
@@ -203,6 +211,8 @@ interface Voice {
   offs: number
   lfsr: number
   noise: number
+  /** Keyed off in the frame it was keyed on: released once its attack is done. */
+  letGo: boolean
 }
 
 const secondsOf = (index: number): number => Math.max(EDGE, (ENV_MS[index & 15] ?? 0) / 1000)
@@ -230,6 +240,7 @@ export class ApuSynth {
       offs: 0,
       lfsr: 0x4000,
       noise: 1,
+      letGo: false,
     }))
   }
 
@@ -240,14 +251,21 @@ export class ApuSynth {
     frame.ch.forEach((c, k) => {
       const v = this.#voices[k]
       if (v === undefined) return
-      if (c.ons !== v.ons) {
+      const started = c.ons !== v.ons
+      if (started) {
         // From the envelope's start, as the spec has it: keyed on again, a note starts over.
         v.stage = 'attack'
         v.level = 0
         v.age = 0
         v.phase = 0
+        v.letGo = false
       }
-      if (c.offs !== v.offs && !c.gate && v.stage !== 'off') v.stage = 'release'
+      // Let go in the same frame it began (a tap shorter than a frame): it still sounds, its
+      // attack and then its release, rather than nothing.
+      if (c.offs !== v.offs && !c.gate && v.stage !== 'off') {
+        if (started) v.letGo = true
+        else v.stage = 'release'
+      }
       v.ons = c.ons
       v.offs = c.offs
       v.c = { ...c }
@@ -292,14 +310,16 @@ export class ApuSynth {
         v.level += step / secondsOf(env & 15)
         if (v.level >= 1) {
           v.level = 1
-          v.stage = 'decay'
+          v.stage = v.letGo ? 'release' : 'decay'
+          v.letGo = false
         }
         break
       case 'decay':
         v.level -= (step / secondsOf((env >> 4) & 15)) * (1 - sustain)
         if (v.level <= sustain) {
           v.level = sustain
-          v.stage = 'sustain'
+          // Held at nothing is silence: the voice is done, not left sounding at 0.
+          v.stage = sustain === 0 ? 'off' : 'sustain'
         }
         break
       case 'release':
@@ -322,7 +342,8 @@ export class ApuSynth {
     const depth = ((c.mod >> 8) & 15) / 16 / 12
     const rate = (c.mod >> 12) & 15
     const semis = slide * v.age + depth * Math.sin(2 * Math.PI * rate * v.age)
-    const hz = (c.freq / 4) * 2 ** semis
+    // A slide stops at the highest pitch there is, however long it is held.
+    const hz = Math.min(MAX_HZ, (c.freq / 4) * 2 ** semis)
     v.phase += hz / this.#rate
     if (c.wave === WAVE.noise) return this.#noise(v)
     v.phase -= Math.floor(v.phase)
@@ -331,12 +352,15 @@ export class ApuSynth {
 
   /** Noise: a 15-bit LFSR clocked at the pitch, a step each time the phase passes 1. */
   #noise(v: Voice): number {
-    while (v.phase >= 1) {
+    // At most a few steps a sample, at any rate the page runs at: what more would change is
+    // past hearing.
+    for (let k = 0; k < NOISE_STEPS && v.phase >= 1; k++) {
       v.phase -= 1
       const bit = (v.lfsr ^ (v.lfsr >> 1)) & 1
       v.lfsr = (v.lfsr >> 1) | (bit << 14)
       v.noise = (v.lfsr & 1) === 0 ? 1 : -1
     }
+    v.phase -= Math.floor(v.phase)
     return v.noise
   }
 }
