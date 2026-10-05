@@ -45,26 +45,17 @@ function cloudCell(c, x0, y0, corners, cloud) {
 }
 
 /**
- * Where a cloud's tones change, by depth into it (0 at its edge, 1 in its heart), and where
- * along its ramp (`from` at the edge, `to` in the heart) each tone is taken.
- */
-const BANDS = [
-  [0.2, 0.05],
-  [0.55, 0.45],
-  [1, 0.9],
-]
-
-/**
- * A cloud's colour at `level`, or 0 for none: three flat tones from its edge to its heart.
- * Never dithered: at the screen's size a dither reads as a field of dots, not as a cloud
- * (user decision 2026-10-05).
+ * A cloud's colour at `level`, or 0 for none: every step of its ramp in turn from its edge
+ * (`from`) to its heart (`to`), each an area of one tone whose border is the corners' blend's
+ * own smooth line - so the cloud gradates from the dark of space to its heart in as many
+ * steps as its ramp has between the two, neither a few flat areas (user review 2026-10-05)
+ * nor a dither, which at the screen's size reads as a field of dots.
  */
 function cloudPoint(level, cloud) {
   const edge = 0.5
   if (level < edge) return 0
   const depth = Math.min(1, (level - edge) / (TOP - edge))
-  const at = (BANDS.find(([upTo]) => depth <= upTo) ?? BANDS[BANDS.length - 1])[1]
-  const v = cloud.from + (cloud.to - cloud.from) * at
+  const v = cloud.from + (cloud.to - cloud.from) * depth
   return cloud.ramp[Math.round(v * (cloud.ramp.length - 1))]
 }
 
@@ -136,9 +127,9 @@ const inPart = (bounds, row, name) => row >= bounds[name][0] && row < bounds[nam
  * lighter in its heart; the near nebula (rose, in `nebula`) glowing at its edges round a dark
  * heart; the belt's dust (amber, in `nebula`) a soft swell.
  */
-const FAR = { ramp: [1, 2, 3, 4, 5, 6], from: 0, to: 0.7 }
-const NEAR = { ramp: [1, 2, 3, 4, 5, 6, 7], from: 0.68, to: 0.15 }
-const DUST = { ramp: [9, 10, 11, 12, 13, 14], from: 0.1, to: 0.62 }
+const FAR = { ramp: [1, 2, 3, 4, 5, 6], from: 0, to: 0.8 }
+const NEAR = { ramp: [1, 2, 3, 4, 5, 6, 7], from: 0.84, to: 0.28 }
+const DUST = { ramp: [9, 10, 11, 12, 13, 14], from: 0, to: 0.72 }
 
 /** A field's level (0 to TOP) from its value: the edge at 0.5, then a level every `step`. */
 const levelOf = (v, step) => (v < 0.5 ? 0 : Math.min(TOP, 1 + Math.floor((v - 0.5) / step)))

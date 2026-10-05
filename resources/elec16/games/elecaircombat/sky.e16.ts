@@ -47,7 +47,6 @@ import {
   COCKPIT_TILES_BANK,
   COCKPIT_TILES_BYTES,
   FONT_TILE,
-  HORIZON_FRAMES,
   HORIZON_TABLE_AT,
   HORIZON_TABLE_BANK,
   HORIZON_TILE,
@@ -78,9 +77,6 @@ import {
   SCREENS_TILES_AT,
   SCREENS_TILES_BANK,
   SCREENS_TILES_BYTES,
-  SEA_AT,
-  SEA_BANK,
-  SEA_FRAMES,
 } from './assets.e16'
 import { bodyV, mOut, toBodyOf, vec } from './math.e16'
 
@@ -256,7 +252,7 @@ export function rowsClear(y0: u16, y1: u16): void {
 
 /** The machine's cycle counter (the low word): a frame is 66,667 cycles at 4 MHz. */
 export const CSR_CYCLE = 0xc00
-/** When this frame began (game.e16.ts weighs the sea's copy by it without a call). */
+/** When this frame began (fx.e16.ts weighs its effects by it without a call). */
 export let frameT0: u16 = 0
 
 /** The frame begins: called as the wait for it ends. */
@@ -267,28 +263,6 @@ export function frameStarts(): void {
 /** The cycles this frame has used so far: what may be left out of a crowded one is weighed by it. */
 export function busy(): u16 {
   return wrap16(csrr(CSR_CYCLE) - frameT0)
-}
-
-/* ---------------- the sea's motion ---------------- */
-
-/**
- * The sea's band tiles are the horizon's last (horizon.png); sea.png holds them in each of
- * four phases, the waves moved on towards the viewer, and one phase at a time is copied over
- * them - the row writer's tile numbers never change, only what those tiles show.
- */
-/** The phase shown (0-3). */
-export let seaPhase: u16 = 0
-
-/** The waves move on a phase: about 350 bytes by DMA (game.e16.ts decides when). */
-export function seaTurn(): void {
-  seaPhase = (seaPhase + 1) & 3
-  // A phase is a quarter of sea.png: its tiles go over the horizon's last.
-  const bytes: u16 = SEA_FRAMES << 3
-  const to: u16 = (HORIZON_TILE + HORIZON_FRAMES) * 32 - bytes
-  // sea.png lies within one bank (a test holds it), so this is one DMA, not `load`'s loop.
-  const old = bank(SEA_BANK)
-  dma(SEA_AT + seaPhase * bytes, to, bytes)
-  poke16(IO_BANK, old)
 }
 
 /* ---------------- the shake and the flash ---------------- */

@@ -1,15 +1,14 @@
 // ELECAIRCOMBAT's sky and sea (docs/elec16-elecaircombat.md section 4): the tiles BG0 is
 // rewritten with every frame, and the tables that choose them. A cell's tile depends only on
 // its centre's distance from the horizon, in points (the sky positive): far from it a band of
-// colour - the sky plain, the sea with waves - and between two bands a cell-high step from one
-// to the next; within six points of it a tile that draws the horizon across the cell at the
-// angle it lies, smoothed. Those are drawn for a quarter turn of angles (ANGLES of them); the
-// game flips them for the rest. Which distances share a tile is what the game's row writer
-// pays for, never what the tiles show: the bands keep as many runs as they always had. Broad
-// areas are flat tones and strokes, never a dither: only the horizon's own line is smoothed by
-// one, where two tones meet (user decision 2026-10-05). The sea's band tiles come last, and
-// are drawn again in each phase of the waves' motion (sea.png), which the game copies over
-// them in turn.
+// one colour, and between two bands a cell-high ramp from one to the next; within six points
+// of it a tile that draws the horizon across the cell at the angle it lies, smoothed. Those
+// are drawn for a quarter turn of angles (ANGLES of them); the game flips them for the rest.
+// Which distances share a tile is what the game's row writer pays for, never what the tiles
+// show: the bands keep as many runs as they always had, so the gradient is made by the
+// palette's steps being small and the ramps between them soft - short dashes, never a checker
+// of single points and never a flat edge (user review 2026-10-05). The sea has no waves: only
+// its gradient, from the bright haze at the horizon to the deep water below.
 
 import { Canvas } from '../eleclance/draw.mjs'
 
@@ -44,7 +43,8 @@ function zoneOf(s) {
 /**
  * Bands away from the horizon: [from (points), colour], the sky up and the sea down. A
  * band's tile is the same wherever its run reaches, so the colours step in runs; the seams
- * between them are what make the steps a gradient.
+ * between them, and the palette's small steps, are what make the steps a gradient. The bands
+ * narrow towards the horizon, as the light changes fastest there.
  */
 const SKY_BANDS = [
   [7, 7],
@@ -65,37 +65,29 @@ const SEA_BANDS = [
 ]
 /**
  * The width of the seam before each band but the first: one cell's height, so a level
- * horizon always puts exactly one row of cells on it, and that row's tile steps from one
+ * horizon always puts exactly one row of cells on it, and that row's tile ramps from one
  * band's colour to the next across its eight lines.
  */
 const SEAM = 8
 
 /**
- * A seam's lines, the outer band's (1) or the inner's (0), from the line nearer the horizon:
- * three of one, two lines interleaved where the two meet, three of the other. Whole lines,
- * never an ordered dither: at the screen's size a checker of two colours reads as a field of
- * dots (user decision 2026-10-05), a line or two of each reads as the step it is.
+ * A seam's eight lines, from the one nearer the horizon: `#` the outer band's colour, `.` the
+ * inner's. Short horizontal dashes of the one colour in the other, longer line by line, so
+ * the step between two bands is a soft ramp across the cell rather than an edge - never a
+ * checker of single points, which at the screen's size reads as a field of dots, and never
+ * flat (user review 2026-10-05). Each dash is two points or more, and the dashes of one line
+ * sit between those of the next, so no column of them forms.
  */
-const SEAM_LINES = [0, 0, 0, 1, 0, 1, 1, 1]
-
-/**
- * The sea's waves for each band, nearest the horizon first: `+` a crest (a step lighter),
- * `#` its lit middle (two steps lighter), `-` the shadow under it (a step darker). Strokes,
- * never single points: a crest at least three points long, its shadow under it. Far off (near
- * the horizon) thin short crests close together; near, long ones with deep shadows. A band's
- * rows repeat every PERIOD lines (four far off, eight near) and every eight points across, so
- * the tile repeats seamlessly; the sea moves by drawing it again moved towards the viewer.
- */
-const SEA_WAVES = [
-  ['..+++...', '........', '++....++', '........'],
-  ['.+++++..', '..-----.', '++...+++', '---...--'],
-  ['.++++++.', '..------', '........', '........', '+++..+++', '----..--', '........', '........'],
-  ['.++##++.', '..------', '........', '........', '#++..++#', '----..--', '........', '........'],
-  ['++###++.', '.-------', '........', '........', '#++.++##', '----.---', '........', '........'],
-  ['.++###+.', '..+++++.', '........', '........', '#+...+##', '++...+++', '........', '........'],
+const SEAM_MASK = [
+  '........',
+  '.##.....',
+  '.....##.',
+  '..####..',
+  '##....##',
+  '#..#####',
+  '#####..#',
+  '########',
 ]
-/** The phases of the sea's motion: each moves the waves on a quarter of their rows' repeat. */
-export const SEA_PHASES = 4
 
 class Tiles {
   constructor() {
@@ -120,37 +112,17 @@ const solid = (k) => {
   return c
 }
 
-/** A sky tile: `inner` (the band nearer the horizon) at the bottom, stepping to `outer` up a seam. */
-function skyTile(inner, outer, seam) {
-  const c = new Canvas(8, 8)
-  for (let y = 0; y < 8; y++) c.rect(0, y, 8, 1, seam && SEAM_LINES[7 - y] === 1 ? outer : inner)
-  return c
-}
-
 /**
- * A sea tile of band `k` at `phase`: its colour, stepping to the next band's (deeper, at the
- * bottom) on a seam, then the band's waves over it, moved down `phase` steps.
+ * A band's tile: `inner` (the band nearer the horizon) all over, or on a seam stepping to
+ * `outer` across the cell - up it in the sky, down it in the sea.
  */
-function seaTile(k, seam, phase) {
-  const colour = SEA_BANDS[k][1]
-  const deeper = SEA_BANDS[Math.min(k + 1, SEA_BANDS.length - 1)][1]
-  const waves = SEA_WAVES[k]
-  const step = waves.length / SEA_PHASES
+function bandTile(inner, outer, seam, up) {
   const c = new Canvas(8, 8)
   for (let y = 0; y < 8; y++) {
-    const base = seam && SEAM_LINES[y] === 1 ? deeper : colour
-    const row = waves[(((y - phase * step) % waves.length) + waves.length) % waves.length]
-    for (let x = 0; x < 8; x++) c.set(x, y, waveOn(row[x], base))
+    const line = SEAM_MASK[up ? 7 - y : y]
+    for (let x = 0; x < 8; x++) c.set(x, y, seam && line[x] === '#' ? outer : inner)
   }
   return c
-}
-
-/** A sea point of colour `base` under the waves' `mark`. */
-function waveOn(mark, base) {
-  if (mark === '+') return Math.max(SEA_HAZE, base - 1)
-  if (mark === '#') return Math.max(SEA_HAZE, base - 2)
-  if (mark === '-') return Math.min(15, base + 1)
-  return base
 }
 
 /** The band and whether it is the seam before the next, for a centre distance `d` beyond the horizon's cells. */
@@ -200,43 +172,21 @@ function horizonPoint(cover, x, y) {
   return share > bayer(x, y) ? second[0] : first[0]
 }
 
-/** The sky's band tiles by centre distance. */
-function skyBands(tiles) {
-  const sky = new Map()
-  for (let s = REACH + 1; s <= RANGE; s++) {
-    const { k, seam } = bandOf(SKY_BANDS, s)
-    const outer = SKY_BANDS[k + 1]?.[1] ?? 0
-    sky.set(s, tiles.add(skyTile(SKY_BANDS[k][1], outer, seam)))
+/** The band tiles of one side (the sky up, the sea down) by centre distance from the horizon. */
+function bandTiles(tiles, bands, up) {
+  const out = new Map()
+  for (let d = REACH + 1; d <= RANGE; d++) {
+    const { k, seam } = bandOf(bands, d)
+    const outer = bands[k + 1]?.[1] ?? bands[k][1]
+    out.set(d, tiles.add(bandTile(bands[k][1], outer, seam, up)))
   }
-  return sky
-}
-
-/**
- * The sea's band tiles: each distance's place among them (a band and its seam, deepest
- * first), and every phase's tiles in that order, phase by phase.
- */
-function seaBands() {
-  const seaKeys = []
-  const sea = new Map()
-  for (let s = -RANGE; s < -REACH; s++) {
-    const { k, seam } = bandOf(SEA_BANDS, -s)
-    const key = `${k}${seam ? 's' : ''}`
-    if (!seaKeys.includes(key)) seaKeys.push(key)
-    sea.set(s, seaKeys.indexOf(key))
-  }
-  const phases = []
-  for (let p = 0; p < SEA_PHASES; p++) {
-    for (const key of seaKeys) phases.push(seaTile(Number(key[0]), key.endsWith('s'), p))
-  }
-  return { sea, seaKeys, phases }
+  return out
 }
 
 /**
  * Every tile, and the table: RANGE * 2 + 1 band entries (distance -RANGE first), then ANGLES *
  * OFFSETS horizon entries (angle by angle, offset -REACH first). Entries are tile numbers in
- * the sheet; the band entries within REACH of the horizon are the level horizon's. The sea's
- * band tiles come last in the sheet, in the order of `sea` (each phase's tiles in that order,
- * phase by phase): the game copies a phase over them to move the waves.
+ * the sheet; the band entries within REACH of the horizon are the level horizon's.
  */
 export function horizon() {
   const tiles = new Tiles()
@@ -245,15 +195,12 @@ export function horizon() {
   for (let a = 0; a < ANGLES; a++) {
     for (let o = -REACH; o <= REACH; o++) partial.push(tiles.add(horizonTile(a, o)))
   }
-  const sky = skyBands(tiles)
-  // The sea's tiles, numbered after every other.
-  const { sea, seaKeys, phases } = seaBands()
-  const first = tiles.list.length
-  const list = [...tiles.list, ...phases.slice(0, seaKeys.length)]
+  const sky = bandTiles(tiles, SKY_BANDS, true)
+  const sea = bandTiles(tiles, SEA_BANDS, false)
   const bands = []
   for (let s = -RANGE; s <= RANGE; s++) {
     if (Math.abs(s) <= REACH) bands.push(partial[s + REACH] ?? 0)
-    else bands.push(s > 0 ? (sky.get(s) ?? 0) : first + (sea.get(s) ?? 0))
+    else bands.push((s > 0 ? sky.get(s) : sea.get(-s)) ?? 0)
   }
-  return { tiles: list, table: [...bands, ...partial], sea: phases, seaTiles: seaKeys.length }
+  return { tiles: tiles.list, table: [...bands, ...partial] }
 }

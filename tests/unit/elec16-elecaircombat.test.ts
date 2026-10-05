@@ -482,10 +482,10 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     expect(sum / 480).toBeLessThan(45_000)
     expect(worst).toBeLessThan(60_000)
     // The art's redraw (sky, fighter, effects, the damage by part) cost no cycles: before it
-    // this flight measured 26,599 on average and 38,922 at worst (2026-10-05). The sea's
-    // motion pays its way too: 26,594 and 38,816 with it (frames that skip a call it saved).
-    expect(sum / 480).toBeLessThanOrEqual(26_599)
-    expect(worst).toBeLessThanOrEqual(38_922)
+    // this flight measured 26,599 on average and 38,922 at worst (2026-10-05). With the sea's
+    // motion gone and the savings that came with it kept: 26,505 and 38,803.
+    expect(sum / 480).toBeLessThanOrEqual(26_505)
+    expect(worst).toBeLessThanOrEqual(38_803)
   })
 
   it('keeps the hardest fight within its frames: NOCTURNE and the player firing missiles all the while', () => {
@@ -517,10 +517,9 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     expect(sum / n).toBeLessThan(45_000)
     expect(worst).toBeLessThan(60_000)
     // Nor here: 30,380 on average and 52,528 at worst before the redraw, 52,484 at worst
-    // after it (2026-10-05). The sea's motion never copies in a frame past 44,000 cycles, and
-    // its check is paid for: 30,359 and 52,421 with it.
-    expect(sum / n).toBeLessThanOrEqual(30_380)
-    expect(worst).toBeLessThanOrEqual(52_484)
+    // after it (2026-10-05); 30,287 and 52,401 now the sea no longer moves.
+    expect(sum / n).toBeLessThanOrEqual(30_287)
+    expect(worst).toBeLessThanOrEqual(52_401)
   })
 })
 
@@ -1026,78 +1025,76 @@ describe('ELECAIRCOMBAT sky, as redrawn', () => {
   })
 })
 
-// The sea's motion (docs/elec16-elecaircombat.md section 4): the band tiles' images, never
-// their numbers, copied from sea.png a phase at a time, sooner the faster the player flies.
-describe('ELECAIRCOMBAT sea, moving', { timeout: 60_000 }, () => {
-  const tableOf = () =>
-    readFileSync(`${DIR}/horizon.txt`, 'utf8')
+// The art after the user's review (2026-10-05): gradients by small steps and soft ramps, smoke
+// as billows - neither flat edges nor a scatter of single points.
+describe('ELECAIRCOMBAT art, gradients and smoke', () => {
+  /** The colour of each point of a picture (RGBA packed), 0 where it is clear. */
+  const points = (file: string) => {
+    const p = pictureFile(`${DIR}/art/${file}`)
+    if (p === null) throw new Error(`no ${file}`)
+    const at = (x: number, y: number) => {
+      if (x < 0 || y < 0 || x >= p.width || y >= p.height) return 0
+      const o = (y * p.width + x) * 4
+      return p.data[o + 3] === 0
+        ? 0
+        : ((p.data[o] ?? 0) << 16) | ((p.data[o + 1] ?? 0) << 8) | (p.data[o + 2] ?? 0)
+    }
+    return { width: p.width, height: p.height, at }
+  }
+
+  it('ramps between the bands of sky and sea in dashes, with no point alone in its colour', () => {
+    const sky = points('horizon.png')
+    const table = readFileSync(`${DIR}/horizon.txt`, 'utf8')
       .split('\n')
       .filter((l) => !l.startsWith('#'))
       .join(' ')
       .trim()
       .split(/\s+/)
       .map(Number)
-  const skyTiles = meta.sheets.find((x: { name: string }) => x.name === 'horizon').count
-  const seaFrames = meta.sheets.find((x: { name: string }) => x.name === 'sea').count
-  const phase = seaFrames / 4
-
-  it("draws the sea's band tiles last, sea.png's first phase, and its phases within a bank", () => {
-    const sky = pictureFile(`${DIR}/art/horizon.png`)
-    const sea = pictureFile(`${DIR}/art/sea.png`)
-    if (sky === null || sea === null) throw new Error('no picture')
-    // Every band entry of the sea (below the horizon's cells) is one of the last tiles.
-    const sea0 = tableOf().slice(0, 321 - 167)
-    expect(sea0.every((t) => t >= skyTiles - phase && t < skyTiles)).toBe(true)
-    expect(new Set(sea0).size).toBe(phase)
-    // Those tiles are sea.png's first row, point for point.
     const across = sky.width / 8
-    for (let k = 0; k < phase; k++) {
-      const t = skyTiles - phase + k
+    const bands = new Set(table.slice(0, 321).filter((_, k) => Math.abs(k - 160) > 6))
+    let ramps = 0
+    for (const t of bands) {
+      // A band tile repeats across and down, so its neighbours wrap round it.
+      const at = (x: number, y: number) =>
+        sky.at((t % across) * 8 + ((x + 8) % 8), Math.floor(t / across) * 8 + ((y + 8) % 8))
+      const colours = new Set<number>()
       for (let y = 0; y < 8; y++) {
         for (let x = 0; x < 8; x++) {
-          const a = (((Math.floor(t / across) * 8 + y) * sky.width + (t % across) * 8 + x) * 4) | 0
-          const b = ((y * sea.width + k * 8 + x) * 4) | 0
-          expect([...sky.data.subarray(a, a + 4)]).toEqual([...sea.data.subarray(b, b + 4)])
+          const v = at(x, y)
+          colours.add(v)
+          const near = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)]
+          expect(near.includes(v), `tile ${t} at ${x},${y}`).toBe(true)
         }
       }
+      if (colours.size === 2) ramps++
     }
-    // The game copies a phase with one DMA, so the four lie in one bank's window.
-    expect(constant('SEA_AT') + seaFrames * 32).toBeLessThanOrEqual(0xe000)
-    // And they take no room in video memory of their own.
-    expect(constant('SEA_BYTES')).toBe(0)
+    // Every seam between two bands is a ramp of their two colours (six in the sky, five in
+    // the sea), the bands themselves one colour each: the sea has no waves.
+    expect(ramps).toBe(11)
   })
 
-  it('moves the waves through four phases, sooner on the burner than braking', () => {
-    const m = flying()
-    const vram = m.state.video?.mem ?? new Uint8Array()
-    const from = (constant('HORIZON_TILE') + skyTiles - phase) * 32
-    const image = () => Array.from(vram.subarray(from, from + phase * 32)).join(',')
-    const run = (speed: number, n: number) => {
-      let moves = 0
-      const seen: string[] = []
-      for (let k = 0; k < n; k++) {
-        put(m, 'pSpeed', speed)
-        put(m, 'pAlt', 5200)
-        const was = read(m, 'seaPhase')
-        frames(m, 1, cart)
-        if (read(m, 'seaPhase') !== was) {
-          moves++
-          seen.push(image())
+  it('draws explosions and smoke as clumps, never single points', () => {
+    for (const [file, cell] of [
+      ['blast32.png', 32],
+      ['blast16.png', 16],
+      ['smoke.png', 16],
+      ['trail16.png', 16],
+    ] as const) {
+      const p = points(file)
+      for (let y = 0; y < p.height; y++) {
+        for (let x = 0; x < p.width; x++) {
+          if (p.at(x, y) === 0) continue
+          // A drawn point has a drawn neighbour within its own frame.
+          const same = (dx: number, dy: number) =>
+            Math.floor((x + dx) / cell) === Math.floor(x / cell) &&
+            Math.floor((y + dy) / cell) === Math.floor(y / cell) &&
+            p.at(x + dx, y + dy) !== 0
+          expect(same(1, 0) || same(-1, 0) || same(0, 1) || same(0, -1), `${file} ${x},${y}`).toBe(
+            true,
+          )
         }
       }
-      return { moves, seen }
     }
-    // On the burner (464 sixteenths a frame) a phase every 2.8 frames; braking (200) every 6.4.
-    const fast = run(464, 128)
-    const slow = run(200, 128)
-    expect(Math.abs(fast.moves - (128 * 464) / 1280)).toBeLessThanOrEqual(1)
-    expect(Math.abs(slow.moves - (128 * 200) / 1280)).toBeLessThanOrEqual(1)
-    // Four different pictures of the sea, then the first again; the tiles' numbers stay.
-    expect(new Set(fast.seen).size).toBe(4)
-    expect(fast.seen[4]).toBe(fast.seen[0])
-    expect(fast.seen[1]).not.toBe(fast.seen[0])
-    const t = constant('HORIZON_TILE')
-    const rows = Array.from({ length: 26 }, (_, y) => bg0(m, 20, y + 1) & 0x3ff)
-    expect(rows.every((r) => r >= t && r < t + skyTiles)).toBe(true)
   })
 })

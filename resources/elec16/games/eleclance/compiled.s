@@ -2478,7 +2478,7 @@ bgTilesIn:
   li a0, 265
   li a1, 49152
   li a2, 18432
-  li a3, 5216
+  li a3, 5696
   call load
   ; view.e16.ts:138  load(PANELS_TILES_BANK, PANELS_TILES_AT, PANELS_TILE * 32, PANELS_TILES_BYTES)
   li a0, 275

@@ -2,10 +2,10 @@
 /**
  * Draws ELECAIRCOMBAT's pictures (docs/elec16-elecaircombat.md) into
  * resources/elec16/games/elecaircombat/art: the palettes, the enemy fighter from every view
- * and size, the sky's tiles and their table (and the sea's tiles in each phase of its waves),
- * the cockpit, the HUD's marks, clouds, smoke, explosions, the sun and the title. The PNG
- * files (and horizon.txt) are the source from then on - they may be touched up in any paint
- * program, keeping to each palette's colours - and this script is how they were first made.
+ * and size, the sky's and the sea's tiles and their table, the cockpit, the HUD's marks,
+ * clouds, smoke, explosions, the sun and the title. The PNG files (and horizon.txt) are the
+ * source from then on - they may be touched up in any paint program, keeping to each
+ * palette's colours - and this script is how they were first made.
  * Run it again only to start them over: it overwrites them.
  *
  *   node scripts/elecaircombat-art.mjs
@@ -74,9 +74,6 @@ for (const b of BANDITS) {
 // The sky's tiles, sixteen to a row, and the table that picks them (horizon.txt).
 const sky = horizon()
 save('horizon.png', sheet(sky.tiles, 8, 16), 'sky_day')
-// The sea's band tiles in each phase of its motion, a phase to a row (the last tiles of
-// horizon.png are the first phase): the game copies one phase at a time over them.
-save('sea.png', sheet(sky.sea, 8, sky.seaTiles), 'sky_day')
 const lines = []
 for (let k = 0; k < sky.table.length; k += 16) lines.push(sky.table.slice(k, k + 16).join(' '))
 writeFileSync(

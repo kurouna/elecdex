@@ -84,15 +84,7 @@
       "png": "art/horizon.png",
       "cell": 8,
       "palette": "sky_day",
-      "count": 206
-    },
-    {
-      "name": "sea",
-      "png": "art/sea.png",
-      "cell": 8,
-      "palette": "sky_day",
-      "count": 44,
-      "stream": 0
+      "count": 205
     },
     {
       "name": "hud8",
@@ -225,7 +217,8 @@
       "png": "art/bandit64.png",
       "cell": 32,
       "palette": "ace_gannet",
-      "stream": 4
+      "stream": 4,
+      "tile": 690
     },
     {
       "name": "bandit48",

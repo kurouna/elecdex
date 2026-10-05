@@ -2,7 +2,17 @@
 // palette), tracers, missiles and flares, clouds and smoke, the sun and its flare.
 // Explosions and debris are drawn here too, in the fire palette (which ELECLANCE's shares
 // colour for colour).
-import { bayer, Canvas, chance, despeckle, each, fbm, ramp, tone } from '../eleclance/draw.mjs'
+import {
+  bayer,
+  Canvas,
+  chance,
+  despeckle,
+  each,
+  fbm,
+  ramp,
+  tone,
+  unspeck,
+} from '../eleclance/draw.mjs'
 
 /** The HUD palette: its dark edge and green ramp. */
 const H = { edge: 1, g0: 2, g1: 3, g2: 4, g3: 5, g4: 6 }
@@ -275,82 +285,111 @@ function muzzleColour(d, t) {
 
 /**
  * An explosion of `size` points, `count` frames: a white flash, a ball of fire that swells -
- * white-hot at its heart, lit from above, its underside darker - then breaks into a few soft
- * clumps that drift apart, shrink and darken, their glow going out to smoke. Every area one
- * tone: no dither and no scattered embers (at the screen's size they read as dots).
+ * white-hot at its heart, lit from above, its underside darker - then billows out into smoke,
+ * the fire glowing on in its folds a while, and the smoke drifts up, opens and thins away.
+ * Smoke is billows: each lump lit on its top and shaded beneath, its edge ragged with smaller
+ * lumps. It thins by opening in broad holes from its thin parts, and what is left is made of
+ * clumps, never single points (user review 2026-10-05: the first redraw's billows, without
+ * their scatter of specks).
  */
 export function fireball(size, count, seed) {
-  const n = fbm(seed, 4)
+  const big = size >= 32
   const rnd = chance(seed * 7 + 1)
-  // Fewer and larger clumps in a small explosion, so each stays a lump and not a dot.
-  const many = size >= 32 ? 5 : 3
-  const clumps = Array.from({ length: many }, (_, k) => ({
-    a: ((k + rnd() * 0.6) / many) * Math.PI * 2,
-    d: 0.3 + rnd() * 0.25,
-    r: (size >= 32 ? 0.4 : 0.52) + rnd() * 0.16,
-  }))
-  const out = []
-  for (let f = 0; f < count; f++) {
-    const t = f / (count - 1)
-    const c = new Canvas(size, size)
-    const frame = { n, clumps, f, t, size, reach: size / 2 - 1 }
-    each(size, size, (x, y) => {
-      const v = t < 0.5 ? ballPoint(frame, x, y) : clumpPoint(frame, x, y)
-      if (v !== 0) c.set(x, y, v)
+  const ring = big ? 8 : 5
+  // The ball's middle, the billows round it, and smaller ones between them, nearer the eye.
+  const lumps = [{ a: 0, d: 0, r: 0.5, z: 0, die: 0.8 }]
+  for (let k = 0; k < ring; k++) {
+    lumps.push({
+      a: ((k + rnd() * 0.6) / ring) * Math.PI * 2,
+      d: 0.42 + rnd() * 0.22,
+      r: (big ? 0.3 : 0.36) + rnd() * 0.12,
+      z: rnd() * 0.1,
+      die: 0.72 + rnd() * 0.4,
     })
-    out.push(despeckle(c))
   }
+  for (let k = 0; k < ring; k++) {
+    lumps.push({
+      a: ((k + 0.5 + rnd() * 0.4) / ring) * Math.PI * 2,
+      d: 0.22 + rnd() * 0.2,
+      r: (big ? 0.24 : 0.3) + rnd() * 0.1,
+      z: 0.12 + rnd() * 0.1,
+      die: 0.6 + rnd() * 0.3,
+    })
+  }
+  const blast = { size, reach: size / 2 - 1, lumps, edge: fbm(seed, 3) }
+  const out = []
+  for (let f = 0; f < count; f++) out.push(blastFrame(blast, f, f / (count - 1)))
   return out
 }
 
-/** A point of the swelling ball: fire by its heat, its rim gone to smoke as it cools. */
-function ballPoint(frame, x, y) {
-  const { n, f, t, size, reach } = frame
-  const radius = reach * (0.42 + 0.58 * Math.sqrt(t))
-  const dx = (x + 0.5 - size / 2) / radius
-  const dy = (y + 0.5 - size / 2) / radius
-  const d = Math.hypot(dx, dy)
-  const billow = n(x * (5 / size) + f * 0.35, y * (5 / size) - f * 0.3)
-  const edge = 0.72 + 0.38 * billow
-  if (d > edge) return 0
-  const inner = 1 - d / edge
-  // Lit from above: the top glows, the underside is the darker side.
-  const lit = -dy * 0.22 - dx * 0.08
-  const heat = Math.max(0, 1 - t * 1.2)
-  const level = (inner * 0.95 + billow * 0.25 + lit) * heat * 1.45 + (f === 0 ? 0.7 : 0)
-  if (level >= 0.2 || t <= 0.25) return tone(FIRE, level)
-  return tone(ASH, 0.45 + lit * 1.6)
+/** One frame of an explosion, `t` of the way through its life. */
+function blastFrame(blast, f, t) {
+  const { size, reach } = blast
+  const lumps = lumpsAt(blast, t)
+  const c = new Canvas(size, size)
+  const heat = Math.max(0, 1 - t * 1.25)
+  const s = 7 / size
+  each(size, size, (x, y) => {
+    const px = x + 0.5 - size / 2
+    const py = y + 0.5 - size / 2
+    const e = blast.edge(x * s + f * 0.3, y * s - f * 0.3) - 0.5
+    // The flash is round; the billows' edges grow more ragged as they spread.
+    if (f === 0) {
+      if (Math.hypot(px, py) < reach * 0.42) c.set(x, y, FIRE[8])
+      return
+    }
+    const top = topLump(lumps, px, py, 1 + e * (0.5 + 0.7 * t))
+    if (top === null) return
+    const core = 1 - Math.hypot(px, py + reach * 0.15 * t) / (reach * (0.55 + 0.35 * Math.sqrt(t)))
+    const level = heat * 1.5 * (0.62 * core + 0.25 * top.shade + 0.16 + e * 0.45)
+    if (level >= 0.3) c.set(x, y, tone(FIRE, level))
+    else c.set(x, y, tone(ASH, 0.04 + top.shade * 0.6 + t * 0.2))
+  })
+  return despeckle(unspeck(c, size >= 32 ? 5 : 4), 1)
 }
 
-/** A point of the clumps the ball breaks into: a glowing heart going out, smoke round it. */
-function clumpPoint(frame, x, y) {
-  const { n, clumps, t, size, reach } = frame
-  const s = (t - 0.5) / 0.5
-  let best = 0
-  let up = 0
-  for (const k of clumps) {
-    const out = reach * (k.d + 0.3 * s)
-    const cx = size / 2 + Math.cos(k.a) * out
-    // Smoke rises as it goes.
-    const cy = size / 2 + Math.sin(k.a) * out * 0.8 - reach * 0.15 * s
-    const r = reach * k.r * (1 - 0.5 * s)
-    const dx = (x + 0.5 - cx) / r
-    const dy = (y + 0.5 - cy) / r
-    const v = 1 - Math.hypot(dx, dy)
-    if (v > best) {
-      best = v
-      up = dy
+/**
+ * The billows at `t`: each moved out from the middle as the explosion swells, risen a little,
+ * and grown - until its time to go, when it shrinks away, so late in its life the smoke
+ * parts into separate puffs rather than crumbling.
+ */
+function lumpsAt(blast, t) {
+  const { reach } = blast
+  const grow = Math.sqrt(t)
+  return blast.lumps.map((k) => {
+    const out = reach * k.d * (0.2 + 0.8 * grow)
+    const fade = t > k.die ? Math.max(0, 1 - (t - k.die) / 0.45) : 1
+    return {
+      x: Math.cos(k.a) * out,
+      y: Math.sin(k.a) * out * 0.85 - reach * 0.2 * t,
+      r: reach * k.r * (0.72 + 0.45 * grow) * fade,
+      z: k.z * reach,
+    }
+  })
+}
+
+/**
+ * The billow nearest the eye at (px, py), its edge moved by `wobble`, and how it is lit: its
+ * surface's slant to a light above, a little to the left and towards the eye (-1 to 1).
+ */
+function topLump(lumps, px, py, wobble) {
+  let best = null
+  let bestZ = -1
+  for (const k of lumps) {
+    const r = k.r * wobble
+    if (r <= 0.5) continue
+    const dx = (px - k.x) / r
+    const dy = (py - k.y) / r
+    const q = dx * dx + dy * dy
+    if (q >= 1) continue
+    const nz = Math.sqrt(1 - q)
+    const z = nz * r + k.z
+    if (z > bestZ) {
+      bestZ = z
+      best = { shade: dx * -0.4 + dy * -0.62 + nz * 0.68 }
     }
   }
-  if (best <= 0) return 0
-  const billow = n(x * (4 / size), y * (4 / size))
-  const v = best + (billow - 0.5) * 0.25
-  if (v <= 0) return 0
-  // The heart glows only as the clumps part (gone halfway, before it is a dot); the rest is
-  // smoke, lit on top and darkening with age.
-  const glow = v * (1 - s * 1.8) * 1.6
-  if (glow > 0.55) return tone(FIRE.slice(1, 6), glow - 0.3)
-  return tone(ASH, 0.62 - up * 0.35 - s * 0.45)
+  return best
 }
 
 /**
@@ -440,38 +479,35 @@ function pad(c, size) {
 }
 
 /**
- * A puff of `size` points and radius `r`: three solid lumps, lit on top (`colours` dark to
- * light), the underside in shade, each area one tone; `thin` 0-1 parts the lumps and lightens
- * them as the puff ages - never a crumbling into specks.
+ * A puff of `size` points and radius `r`: a few billows, each lit on its top (`colours` dark
+ * to light) and shaded beneath where it rounds away, so the puff reads as soft rolling smoke;
+ * its edge made ragged by noise into smaller lumps. `thin` 0-1 parts the billows, shrinks them
+ * and lightens them as the puff ages - and what is left is clumps, never specks.
  */
 function puffOf(size, r, seed, colours, light, thin) {
   const c = new Canvas(size, size)
-  const n = fbm(seed, 3)
+  const edge = fbm(seed, 3)
   const h = size / 2
   const rnd = chance(seed)
-  const lumps = Array.from({ length: 3 }, () => [
-    h + (rnd() - 0.5) * r * (0.8 + thin * 0.9),
-    h + (rnd() - 0.5) * r * (0.6 + thin * 0.5),
-    r * (0.62 + rnd() * 0.25) * (1 - thin * 0.3),
-  ])
-  each(size, size, (x, y) => {
-    let inside = -1
-    let top = 0
-    for (const [lx, ly, lr] of lumps) {
-      const dx = (x + 0.5 - lx) / lr
-      const dy = (y + 0.5 - ly) / lr
-      const v = 1 - Math.hypot(dx, dy)
-      if (v > inside) {
-        inside = v
-        top = -dy * 0.6 - dx * 0.25
-      }
+  const many = size >= 16 ? 5 : 3
+  const lumps = Array.from({ length: many }, (_, k) => {
+    const a = ((k + rnd() * 0.6) / many) * Math.PI * 2
+    const out = k === 0 ? 0 : r * (0.38 + rnd() * 0.2) * (1 + thin * 0.7)
+    return {
+      x: Math.cos(a) * out,
+      y: Math.sin(a) * out * 0.8,
+      r: r * (k === 0 ? 0.66 : 0.44 + rnd() * 0.18) * (1 - thin * 0.35),
+      z: rnd() * r * 0.2,
     }
-    const b = n(x * (4 / size), y * (4 / size))
-    const v = inside + (b - 0.5) * 0.2
-    if (v <= 0.04) return
-    c.set(x, y, tone(colours, light + top * 0.5 + v * 0.2 + thin * 0.12))
   })
-  return despeckle(c)
+  const s = 6 / size
+  each(size, size, (x, y) => {
+    const e = edge(x * s, y * s) - 0.5
+    const top = topLump(lumps, x + 0.5 - h, y + 0.5 - h, 1 + e * (0.45 + thin * 0.5))
+    if (top === null) return
+    c.set(x, y, tone(colours, light - 0.1 + top.shade * 0.45 + thin * 0.15))
+  })
+  return despeckle(unspeck(c, size >= 16 ? 4 : 3), 1)
 }
 
 /** Smoke puffs (16x16): four frames, dense and dark to wide and thin. */

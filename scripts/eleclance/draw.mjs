@@ -229,6 +229,57 @@ function undotted(v, near) {
   return [...count].sort((p, q) => q[1] - p[1] || p[0] - q[0])[0][0]
 }
 
+/**
+ * Takes out what reads as a speck at the size of the drawn shape: a group of drawn points
+ * (joined side to side) smaller than `least` goes, and a pinhole - an empty point with all
+ * four neighbours drawn - takes the tone most of them have. Soft edges stay soft, but made of
+ * clumps, never of single points.
+ */
+export function unspeck(c, least = 4) {
+  const seen = new Uint8Array(c.w * c.h)
+  each(c.w, c.h, (x, y) => {
+    const k = y * c.w + x
+    if (seen[k] || c.px[k] === 0) return
+    const group = groupOf(c, k, seen)
+    if (group.length < least) for (const g of group) c.px[g] = 0
+  })
+  const out = c.px.slice()
+  each(c.w, c.h, (x, y) => {
+    if (c.get(x, y) !== 0) return
+    const near = NEAR4.map(([dx, dy]) => c.get(x + dx, y + dy))
+    if (near.includes(0)) return
+    out[y * c.w + x] = undotted(0, near)
+  })
+  c.px = out
+  return c
+}
+
+/** The drawn points joined side to side with point `k` (indices), each marked in `seen`. */
+function groupOf(c, k, seen) {
+  const group = [k]
+  seen[k] = 1
+  for (let j = 0; j < group.length; j++) {
+    const gx = group[j] % c.w
+    const gy = Math.floor(group[j] / c.w)
+    for (const [dx, dy] of NEAR4) {
+      const nx = gx + dx
+      const ny = gy + dy
+      const n = ny * c.w + nx
+      if (c.get(nx, ny) === 0 || seen[n]) continue
+      seen[n] = 1
+      group.push(n)
+    }
+  }
+  return group
+}
+
+const NEAR4 = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+]
+
 /** Smooth value noise in 2D, seeded, about 0-1. */
 export function noise2(seed) {
   const rnd = chance(seed)
