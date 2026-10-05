@@ -101,6 +101,7 @@ export function hudLabels(): void {
     shown[k] = 0xffff
     k++
   }
+  partsNew()
 }
 
 let numTick: u16 = 0
@@ -130,7 +131,7 @@ export function hudNumbers(damage: u16, missiles: u16, flares: u16, seconds: u16
   showNumber(6, seconds, cellXY(20, 31), 3 | (SL_AMBER << 8))
   targetBar()
   throttleSay()
-  damageColour(damage)
+  partsShow()
 }
 
 /** The heading as three digits, zeros shown (a compass reads 045, not 45). */
@@ -188,22 +189,104 @@ function throttleSay(): void {
   else unsay(7, 14, 3)
 }
 
-/** Our fighter on the right display: green, then yellow, then red as damage mounts. */
-function damageColour(damage: u16): void {
-  const k = damage < 35 ? 0 : damage < 70 ? 1 : 2
-  if (shown[11] === k) return
-  shown[11] = k
-  colour(SL_SCREEN, 15, k === 0 ? 0x3308 : k === 1 ? 0x1b7f : 0x18df)
+/*
+ * Our fighter on the right display, in four parts - the nose, the left wing, the right wing,
+ * the tail - each its own colour of the screen's palette (10-13; scripts/elecaircombat/
+ * cockpit.mjs draws them so), so a part's state is one colour written, never a point drawn.
+ * A part goes from green through yellow to red by the blows it took itself; a part just hit
+ * blinks red. The total (DMG) is the game's damage, as it always was: the parts only show
+ * where the blows came from.
+ */
+
+/**
+ * Each part's blows (damage points), its colour by them, the frames it still blinks, the
+ * colour it shows; and whether any part has a colour still to write (most frames none: then
+ * nothing is looked at).
+ */
+export const partDmg = words(4)
+const partBase = words(4)
+const partBlink = words(4)
+const partShown = words(4)
+let partsLive: u16 = 0
+/** Frames a part blinks after a hit: red for four, dark for four. */
+const BLINK = 24
+
+/** A sortie begins: every part unhurt, written afresh (the palette was loaded anew). */
+function partsNew(): void {
+  let k: u16 = 0
+  while (k < 4) {
+    partDmg[k] = 0
+    partBase[k] = 0x3308
+    partBlink[k] = 0
+    partShown[k] = 0xffff
+    k++
+  }
+  partsLive = 1
+  lampShown[0] = 0xffff
+  lampShown[1] = 0xffff
+  lampShown[2] = 0xffff
+}
+
+/**
+ * A blow of `n` on part `p`: its count goes up, its colour steps on - green, yellow-green,
+ * yellow, orange, red-orange, red at 6, 12, 20, 30 and 45 - and it blinks from now.
+ */
+export function partHit(p: u16, n: u16): void {
+  const d = partDmg[p] + n > 999 ? 999 : partDmg[p] + n
+  partDmg[p] = d
+  partBase[p] = partColour(d)
+  partBlink[p] = BLINK
+  partsLive = 1
+}
+
+function partColour(d: u16): u16 {
+  if (d < 6) return 0x3308
+  if (d < 12) return 0x2394
+  if (d < 20) return 0x1b7f
+  if (d < 30) return 0x125f
+  if (d < 45) return 0x115f
+  return 0x18df
+}
+
+/** Each part's colour this frame, written only when it changes; nothing while none moves. */
+function partsShow(): void {
+  if (partsLive === 0) return
+  let blinking: u16 = 0
+  let k: u16 = 0
+  while (k < 4) {
+    let c = partBase[k]
+    const b = partBlink[k]
+    if (b > 0) {
+      partBlink[k] = b - 1
+      blinking = 1
+      c = ((b + 3) & 4) === 0 ? 0x109f : 0x0860
+    }
+    if (partShown[k] !== c) {
+      partShown[k] = c
+      colour(SL_SCREEN, 10 + k, c)
+    }
+    k++
+  }
+  partsLive = blinking
 }
 
 /* ---------------- the lamps ---------------- */
 
+/** What each lamp shows, so a lamp's colour is written only when it changes. */
+const lampShown = words(3)
+
 /** The panel's lamps: MSL (an enemy missile), ALT (too low), LCK (locked). */
 export function lamps(frame: u16, low: bool): void {
   const blink = (frame & 8) !== 0
-  colour(SL_FRAME, 13, warned && blink ? 0x18df : 0x0848)
-  colour(SL_FRAME, 14, low && blink ? 0x1adf : 0x08c8)
-  colour(SL_FRAME, 15, locked ? 0x3bc8 : 0x0cc2)
+  lampIs(0, warned && blink ? 0x18df : 0x0848)
+  lampIs(1, low && blink ? 0x1adf : 0x08c8)
+  lampIs(2, locked ? 0x3bc8 : 0x0cc2)
+}
+
+function lampIs(k: u16, rgb: u16): void {
+  if (lampShown[k] === rgb) return
+  lampShown[k] = rgb
+  colour(SL_FRAME, 13 + k, rgb)
 }
 
 /* ---------------- the HUD's marks ---------------- */

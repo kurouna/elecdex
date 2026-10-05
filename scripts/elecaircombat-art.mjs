@@ -20,7 +20,6 @@ import { PALETTES, paletteOf } from './elecaircombat/palettes.mjs'
 import { arcwing, drawFrame, VIEWS } from './elecaircombat/plane.mjs'
 import * as sprites from './elecaircombat/sprites.mjs'
 import { Canvas, sheet } from './eleclance/draw.mjs'
-import { bitFrames, blastFrames } from './eleclance/foes.mjs'
 import { fontFrames } from './eleclance/font.mjs'
 import { writePng } from './png.mjs'
 
@@ -110,9 +109,9 @@ const sheets = [
   ['hud16.png', sprites.hudLarge(), 16, 'hud'],
   ['seeker.png', [sprites.seekerQuarter()], 32, 'hud'],
   ['shots.png', sprites.shots(), 8, 'shot'],
-  ['blast32.png', blastFrames(32, 8, 3), 32, 'fire'],
-  ['blast16.png', blastFrames(16, 6, 4), 16, 'fire'],
-  ['bits.png', bitFrames(), 8, 'fire'],
+  ['blast32.png', sprites.fireball(32, 8, 3), 32, 'fire'],
+  ['blast16.png', sprites.fireball(16, 6, 4), 16, 'fire'],
+  ['bits.png', sprites.debris(), 8, 'fire'],
   ['smoke.png', sprites.smoke(), 16, 'cloud'],
   ['cloud64.png', cl.big, 32, 'cloud'],
   ['cloud32.png', cl.mid, 32, 'cloud'],

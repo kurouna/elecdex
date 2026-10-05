@@ -84,7 +84,7 @@
       "png": "art/horizon.png",
       "cell": 8,
       "palette": "sky_day",
-      "count": 197
+      "count": 206
     },
     {
       "name": "hud8",
@@ -225,7 +225,7 @@
       "cell": 16,
       "palette": "ace_gannet",
       "stream": 9,
-      "tile": 681
+      "tile": 690
     },
     {
       "name": "bandit32",
@@ -233,7 +233,7 @@
       "cell": 32,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 681
+      "tile": 690
     },
     {
       "name": "bandit24",
@@ -241,7 +241,7 @@
       "cell": 32,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 681
+      "tile": 690
     },
     {
       "name": "bandit16",
@@ -249,7 +249,7 @@
       "cell": 16,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 681
+      "tile": 690
     },
     {
       "name": "bandit12",
@@ -257,7 +257,7 @@
       "cell": 16,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 681
+      "tile": 690
     },
     {
       "name": "bandit8",
@@ -265,7 +265,7 @@
       "cell": 8,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 681
+      "tile": 690
     }
   ],
   "maps": [
@@ -293,7 +293,7 @@
     {
       "name": "logo",
       "png": "art/logo.png",
-      "tile": 795,
+      "tile": 804,
       "front": true,
       "palettes": [
         {

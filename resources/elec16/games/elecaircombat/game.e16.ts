@@ -39,6 +39,7 @@ import {
   missileFired,
   missileOnClear,
   missileOnPlayer,
+  missilePart,
   missileStruck,
   missilesLeft,
   missilesStep,
@@ -48,6 +49,7 @@ import {
   playerGun,
   playerMissile,
   railSide,
+  roundPart,
   roundsStep,
   seekerStep,
   warnDist,
@@ -185,7 +187,16 @@ import {
   sunIs,
 } from './fx.e16'
 import { skyDraw } from './horizon.e16'
-import { callout, hudDraw, hudInit, hudLabels, hudNumbers, hudScore, lamps } from './hud.e16'
+import {
+  callout,
+  hudDraw,
+  hudInit,
+  hudLabels,
+  hudNumbers,
+  hudScore,
+  lamps,
+  partHit,
+} from './hud.e16'
 import { V_PF, V_PU, V_REL, vget } from './math.e16'
 import {
   cockpitIn,
@@ -428,8 +439,8 @@ function struck(): void {
     shake(12)
     sfxNear()
   }
-  if (hitsOnPlayer > 0 && outcome === 0) hurt(hitsOnPlayer * 3)
-  if (missileOnPlayer && outcome === 0) hurt(34)
+  if (hitsOnPlayer > 0 && outcome === 0) hurt(hitsOnPlayer * 3, roundPart)
+  if (missileOnPlayer && outcome === 0) hurt(34, missilePart)
   missileOnClear()
   if (!eAlive && outcome === 0) aceDown()
   wounds()
@@ -462,8 +473,10 @@ function wounds(): void {
   if (eHP * 4 < eHPMax && (frame & 7) === 0) sparkAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
 }
 
-function hurt(n: u16): void {
+/** A blow of `n` on part `part` of the player (the panel shows where; the damage is one). */
+function hurt(n: u16, part: u16): void {
   damage = damage + n > 100 ? 100 : damage + n
+  partHit(part, n)
   hitsTaken++
   cueHurt()
   sfxOuch()

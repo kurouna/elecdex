@@ -301,7 +301,8 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     expect(bg1(m, 20, 34) & 0x8000).toBe(0x8000)
     const horizon = constant('HORIZON_TILE')
     const rows = Array.from({ length: 26 }, (_, y) => bg0(m, 20, y + 1) & 0x3ff)
-    expect(rows.every((t) => t >= horizon && t < horizon + 197)).toBe(true)
+    const skyTiles = meta.sheets.find((x: { name: string }) => x.name === 'horizon').count
+    expect(rows.every((t) => t >= horizon && t < horizon + skyTiles)).toBe(true)
     expect(new Set(rows).size).toBeGreaterThan(4)
     expect(read(m, 'outcome')).toBe(0)
   })
@@ -471,6 +472,10 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     // 4 MHz at 60 frames: 66,667 cycles a frame.
     expect(sum / 480).toBeLessThan(45_000)
     expect(worst).toBeLessThan(60_000)
+    // The art's redraw (sky, fighter, effects, the damage by part) cost no cycles: before it
+    // this flight measured 26,599 on average and 38,922 at worst (2026-10-05).
+    expect(sum / 480).toBeLessThanOrEqual(26_599)
+    expect(worst).toBeLessThanOrEqual(38_922)
   })
 
   it('keeps the hardest fight within its frames: NOCTURNE and the player firing missiles all the while', () => {
@@ -501,6 +506,9 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     expect(read(m, 'outcome')).toBe(0)
     expect(sum / n).toBeLessThan(45_000)
     expect(worst).toBeLessThan(60_000)
+    // Nor here: 30,380 on average and 52,528 at worst before the redraw (2026-10-05).
+    expect(sum / n).toBeLessThanOrEqual(30_380)
+    expect(worst).toBeLessThanOrEqual(52_528)
   })
 })
 
@@ -895,5 +903,113 @@ describe('ELECAIRCOMBAT arms, as fixed', { timeout: 60_000 }, () => {
     expect([19, 20, 21, 22, 23, 24].every(isText)).toBe(true)
     // The bezel past the glass is the cockpit's own picture.
     expect([25, 26].some(isText)).toBe(false)
+  })
+})
+
+// The panel's figure of our fighter shows each part's damage (docs/elec16-elecaircombat.md
+// section 3): a palette colour per part, chosen by where the blow came from.
+describe('ELECAIRCOMBAT damage by part', { timeout: 60_000 }, () => {
+  /** The screen slot's colour `k` (the figure's parts are 10-13: nose, left, right, tail). */
+  const screenColour = (m: Elec16, k: number) => vword(m, 0xc400 + 2 * 32 + k * 2)
+  const GREEN = 0x3308
+  const RED = 0x109f
+
+  /**
+   * The enemy at (x, y) from the player (level, heading north, held still so rounds from the
+   * side meet it), its nose on the player.
+   */
+  function aimedFrom(m: Elec16, x: number, y: number): void {
+    pin(m, 0)
+    put(m, 'pSpeed', 0)
+    const d = Math.hypot(x, y)
+    const fx = Math.round((-x / d) * 16384)
+    const fy = Math.round((-y / d) * 16384)
+    vecPut(m, V.EF, fx, fy, 0)
+    vecPut(m, V.ER, fy, -fx, 0)
+    vecPut(m, V.REL, x, y, 0)
+    put(m, 'aiThinkT', 200)
+  }
+
+  /** Frames with the enemy held at (x, y) until the player has taken `n` damage more. */
+  function shotFrom(m: Elec16, x: number, y: number, n: number): void {
+    const before = read(m, 'damage')
+    for (let k = 0; k < 400 && read(m, 'damage') < before + n; k++) {
+      aimedFrom(m, x, y)
+      frames(m, 1, cart)
+    }
+    expect(read(m, 'damage')).toBeGreaterThanOrEqual(before + n)
+  }
+
+  it('lights the left wing for rounds from the left, the tail for rounds from behind', () => {
+    const m = flying()
+    for (let k = 10; k < 14; k++) expect(screenColour(m, k)).toBe(GREEN)
+    shotFrom(m, -450, 0, 1)
+    expect([0, 1, 2, 3].map((k) => read(m, 'partDmg', k))).toEqual([0, read(m, 'damage'), 0, 0])
+    // The hit part blinks red at once; the others stay green.
+    expect(screenColour(m, 11)).toBe(RED)
+    expect([10, 12, 13].map((k) => screenColour(m, k))).toEqual([GREEN, GREEN, GREEN])
+    // From behind: the tail.
+    const left = read(m, 'partDmg', 1)
+    for (let k = 0; k < 40; k++) {
+      pin(m, 3000)
+      frames(m, 1, cart)
+    }
+    shotFrom(m, 0, -450, 1)
+    expect(read(m, 'partDmg', 3)).toBeGreaterThan(0)
+    expect(read(m, 'partDmg', 1)).toBe(left)
+    expect(screenColour(m, 13)).toBe(RED)
+    // From the right and from ahead: the right wing, the nose.
+    shotFrom(m, 450, 0, 1)
+    expect(read(m, 'partDmg', 2)).toBeGreaterThan(0)
+    shotFrom(m, 0, 600, 1)
+    expect(read(m, 'partDmg', 0)).toBeGreaterThan(0)
+  })
+
+  it("steps a part's colour from green through yellow to red by its own blows, the total kept", () => {
+    const m = flying()
+    const seen: number[] = []
+    for (let round = 0; round < 40 && read(m, 'partDmg', 1) < 45; round++) {
+      shotFrom(m, -450, 0, 1)
+      // The blink over, the part shows its colour by its blows.
+      for (let k = 0; k < 30; k++) {
+        pin(m, 3000)
+        put(m, 'aiThinkT', 200)
+        frames(m, 1, cart)
+      }
+      const c = screenColour(m, 11)
+      if (seen[seen.length - 1] !== c) seen.push(c)
+    }
+    // Green, yellow-green, yellow, orange, red-orange, red: in order, none skipped back.
+    const steps = [0x3308, 0x2394, 0x1b7f, 0x125f, 0x115f, 0x18df]
+    const order = seen.map((c) => steps.indexOf(c))
+    expect(order.every((k) => k >= 0)).toBe(true)
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+    expect(order[order.length - 1]).toBe(5)
+    // The other parts untouched, and the damage the sum of the parts' (it is one total).
+    expect([10, 12, 13].map((k) => screenColour(m, k))).toEqual([GREEN, GREEN, GREEN])
+    const parts = [0, 1, 2, 3].reduce((n, k) => n + read(m, 'partDmg', k), 0)
+    expect(read(m, 'damage')).toBe(Math.min(100, parts))
+  })
+})
+
+// The redrawn sky (docs/elec16-elecaircombat.md section 4): the row writer's cost is in which
+// distances share a tile, never in what the tiles show.
+describe('ELECAIRCOMBAT sky, as redrawn', () => {
+  it('keeps the bands beyond the horizon in as many runs as before the redraw', () => {
+    const table = readFileSync(`${DIR}/horizon.txt`, 'utf8')
+      .split('\n')
+      .filter((l) => !l.startsWith('#'))
+      .join(' ')
+      .trim()
+      .split(/\s+/)
+      .map(Number)
+    const bands = table.slice(0, 321)
+    let changes = 0
+    for (let s = -160; s < 160; s++) {
+      if (Math.abs(s) <= 7 || Math.abs(s + 1) <= 7) continue
+      if (bands[s + 161] !== bands[s + 160]) changes++
+    }
+    // Thirteen sky runs and eleven sea runs (bands and the seams between them): 22 changes.
+    expect(changes).toBe(22)
   })
 })

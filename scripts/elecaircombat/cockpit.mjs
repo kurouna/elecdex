@@ -160,7 +160,20 @@ export function cockpit() {
 }
 
 /** The screen palette's colours. */
-const S = { glass: 2, dim: 3, grid: 4, ring: 5, line: 6, bright: 8, plane: 15, edge: 14 }
+const S = {
+  glass: 2,
+  dim: 3,
+  grid: 4,
+  ring: 5,
+  line: 6,
+  bright: 8,
+  nose: 10,
+  left: 11,
+  right: 12,
+  tail: 13,
+  edge: 14,
+  canopy: 15,
+}
 
 /** The left display's radar: rings round us at its foot, bearing lines. */
 function radar(c, s) {
@@ -180,31 +193,95 @@ function radar(c, s) {
   c.grid(cx - 3, cy - 3, ['...#...', '..###..', '.#####.', '###.###', '#.....#'], { '#': S.bright })
 }
 
-/** The right display: our fighter from above, its fill the colour the game sets by damage. */
+/**
+ * The right display: our fighter from above in four parts - the nose (with the canards), the
+ * left wing, the right wing, the tail (the rear and the fins) - each in its own colour of the
+ * palette (10-13), which the game sets by that part's damage. Seams of the edge colour part
+ * them, so each reads alone.
+ */
 function status(c, s) {
   const cx = s.x * 8 + 22
   const cy = (s.y - PANEL_ROW) * 8 + 28
-  const shape = [
-    '......#......',
-    '......#......',
-    '.....###.....',
-    '.....###.....',
-    '....#####....',
-    '...##.#.##...',
-    '..###.#.###..',
-    '.####.#.####.',
-    '#####.#.#####',
-    '#############',
-    '.....###.....',
-    '....#####....',
-    '...##...##...',
-  ]
   const big = new Canvas(26, 39)
-  shape.forEach((row, y) => {
-    ;[...row].forEach((ch, x) => {
-      if (ch === '#') big.rect(x * 2, y * 3, 2, 3, S.plane)
-    })
-  })
+  const both = (points, left, right) => {
+    big.poly(points, left)
+    big.poly(
+      points.map(([x, y]) => [26 - x, y]),
+      right,
+    )
+  }
+  both(
+    [
+      [9.5, 14],
+      [0.5, 28],
+      [0.5, 31.5],
+      [9.5, 31.5],
+    ],
+    S.left,
+    S.right,
+  )
+  big.poly(
+    [
+      [9.5, 21],
+      [16.5, 21],
+      [17, 34],
+      [15, 38.5],
+      [11, 38.5],
+      [9, 34],
+    ],
+    S.tail,
+  )
+  both(
+    [
+      [9.6, 29],
+      [5.5, 35.5],
+      [5.5, 38],
+      [10, 36],
+    ],
+    S.tail,
+    S.tail,
+  )
+  big.poly(
+    [
+      [13, 0],
+      [15.6, 6],
+      [16.5, 13],
+      [16.5, 21],
+      [9.5, 21],
+      [9.5, 13],
+      [10.4, 6],
+    ],
+    S.nose,
+  )
+  both(
+    [
+      [9.6, 11],
+      [4.5, 15.5],
+      [4.5, 17],
+      [9.6, 15],
+    ],
+    S.nose,
+    S.nose,
+  )
+  // The seams: a point beside another part (right or below) becomes the edge.
+  const parts = [S.nose, S.left, S.right, S.tail]
+  const seam = []
+  for (let y = 0; y < big.h; y++) {
+    for (let x = 0; x < big.w; x++) {
+      const v = big.get(x, y)
+      if (!parts.includes(v)) continue
+      for (const [dx, dy] of [
+        [1, 0],
+        [0, 1],
+      ]) {
+        const w = big.get(x + dx, y + dy)
+        if (w !== v && parts.includes(w)) seam.push([x, y])
+      }
+    }
+  }
+  for (const [x, y] of seam) big.set(x, y, S.edge)
+  // The canopy, which takes no damage colour.
+  big.rect(12, 6, 2, 5, S.canopy)
   big.outline(S.edge)
   c.blit(big, cx - 13, cy - 19)
 }

@@ -282,30 +282,31 @@ export const NOSE_REF = new Set([7, 8])
 
 /* ---------------- the renderer ---------------- */
 
-/** Colour indices of the ace palettes by material and light (0 dark - 1 lit). */
-function shadeOf(mat, light, glint) {
-  switch (mat) {
-    case M.paint:
-      return [2, 3, 4, 5, 6][Math.min(4, Math.floor(light * 5))]
-    case M.belly:
-      return [7, 8, 9][Math.min(2, Math.floor(light * 3))]
-    case M.mark:
-      return light > 0.5 ? 11 : 10
-    case M.canopy:
-      return glint ? 13 : 12
-    case M.nozzle:
-      return 14
-    case M.dark:
-      return 1
-    default:
-      return 15
-  }
+/** The ace palettes' ramps: the upper paint dark to light, the underside, the markings. */
+const PAINT = [2, 3, 4, 5, 6]
+const BELLY = [7, 8, 9]
+const MARK = [10, 11]
+
+/**
+ * A ramp's colour at `level` 0-1: the nearest shade, and a checker of the two only where the
+ * level falls half way between them - flat facets stay clean, curves step softly.
+ */
+function rampOf(colours, level, x, y) {
+  const v = Math.max(0, Math.min(0.9999, level)) * (colours.length - 1)
+  const k = Math.floor(v)
+  const t = v - k
+  const up = Math.min(k + 1, colours.length - 1)
+  if (t < 0.4) return colours[k]
+  if (t > 0.6) return colours[up]
+  return colours[(x + y) & 1 ? up : k]
 }
 
 /**
  * The fighter drawn into a `box`-point square, `size` points from nose to tail, seen from
  * view `v`, its reference (up, or the nose for views from above and below) turned `g`
- * sixteenths of a turn clockwise from the screen's up. Outlined, so it reads on any sky.
+ * sixteenths of a turn clockwise from the screen's up. Shaded by facet, the shades dithered
+ * into one another; a glint on the canopy and highlights on the paint, a rim of light along
+ * the lit side's edge, and a dark outline, so it reads on any sky.
  */
 export function drawFrame(tris, v, g, box, size) {
   const c = norm(VIEWS[v])
@@ -321,28 +322,43 @@ export function drawFrame(tris, v, g, box, size) {
   // Light from the top left of the frame before it is turned, so the turns and the game's
   // flips (a half turn is both flips) shade the fighter alike.
   const light = norm(add(add(mul(right0, -0.45), mul(up0, 0.75)), mul(c, 0.55)))
-  const k = 3
+  // Half way between the light and the eye (the camera looks from `c`): the highlights.
+  const half = norm(add(light, c))
+  const k = 4
   const n = box * k
   const depth = new Float32Array(n * n).fill(-1e9)
-  const colour = new Uint8Array(n * n)
+  const f = {
+    mats: new Int8Array(n * n).fill(-1),
+    lits: new Float32Array(n * n),
+    specs: new Float32Array(n * n),
+    n,
+    k,
+    box,
+    // The light's way on the screen (y down), for the rim.
+    lx: dot(light, right),
+    ly: -dot(light, up),
+  }
   for (const [a, b, d, mat] of tris) {
     let normal = norm(cross(sub(b, a), sub(d, a)))
     if (dot(normal, c) < 0) normal = mul(normal, -1)
-    const lit = Math.max(0, dot(normal, light))
-    const glint = mat === M.canopy && dot(normal, light) > 0.8
-    const idx = shadeOf(mat, 0.15 + lit * 0.85, glint)
+    const lit = 0.12 + Math.max(0, dot(normal, light)) * 0.88
+    const spec = Math.max(0, dot(normal, half)) ** 24
     const P = [a, b, d].map((p) => [
       n / 2 + dot(p, right) * scale * k,
       n / 2 - dot(p, up) * scale * k,
       dot(p, c),
     ])
-    raster(P, n, depth, colour, idx)
+    raster(P, n, depth, (at) => {
+      f.mats[at] = mat
+      f.lits[at] = lit
+      f.specs[at] = spec
+    })
   }
-  return downsample(colour, n, k, box)
+  return downsample(f)
 }
 
 /** A triangle into the supersampled buffers: nearer the camera (larger depth) wins. */
-function raster(P, n, depth, colour, idx) {
+function raster(P, n, depth, put) {
   const [p0, p1, p2] = P
   const minX = Math.max(0, Math.floor(Math.min(p0[0], p1[0], p2[0])))
   const maxX = Math.min(n - 1, Math.ceil(Math.max(p0[0], p1[0], p2[0])))
@@ -362,54 +378,118 @@ function raster(P, n, depth, colour, idx) {
       const at = y * n + x
       if (z > depth[at]) {
         depth[at] = z
-        colour[at] = idx
+        put(at)
       }
     }
   }
 }
 
-/**
- * The supersampled picture down to points: a point is drawn where most of its samples are,
- * in its most common colour; then a dark outline round everything.
- */
-function downsample(colour, n, k, box) {
-  const out = new Canvas(box, box)
-  for (let y = 0; y < box; y++) {
-    for (let x = 0; x < box; x++) {
-      const v = pointOf(colour, n, k, box, x, y)
-      if (v !== 0) out.set(x, y, v)
+/** What a point of the frame shows: its material, light and highlight, from its samples. */
+function pointOf(f, x, y) {
+  const { count, drawn } = samplesOf(f, x, y)
+  const { k, box } = f
+  // Small frames keep a point a quarter covered (thin wings and fins stay); large ones half.
+  if (drawn === 0 || drawn < (box > 16 ? (k * k) / 2 : (k * k) / 4)) return null
+  let best = -1
+  let most = -1
+  for (const [m, e] of count) {
+    // The burner and the canopy are what is seen: they win near ties.
+    const w = e.n + (m === M.nozzle || m === M.canopy ? k : 0)
+    if (w > most) {
+      most = w
+      best = m
     }
   }
-  out.outline(1, box >= 32)
-  return out
+  const e = count.get(best)
+  return { mat: best, lit: e.lit / e.n, spec: e.spec }
 }
 
-/** One point's colour from its samples: none where too few are drawn, else the commonest. */
-function pointOf(colour, n, k, box, x, y) {
-  const counts = new Map()
+/** A point's samples by material: how many, their light summed, their brightest highlight. */
+function samplesOf(f, x, y) {
+  const { mats, lits, specs, n, k } = f
+  const count = new Map()
   let drawn = 0
   for (let sy = 0; sy < k; sy++) {
     for (let sx = 0; sx < k; sx++) {
-      const v = colour[(y * k + sy) * n + x * k + sx]
-      if (v === 0) continue
+      const at = (y * k + sy) * n + x * k + sx
+      const m = mats[at]
+      if (m < 0) continue
       drawn++
-      counts.set(v, (counts.get(v) ?? 0) + 1)
+      const e = count.get(m) ?? { n: 0, lit: 0, spec: 0 }
+      e.n++
+      e.lit += lits[at]
+      e.spec = Math.max(e.spec, specs[at])
+      count.set(m, e)
     }
   }
-  if (drawn === 0 || (drawn < 3 && box > 16)) return 0
-  return commonest(counts)
+  return { count, drawn }
 }
 
-function commonest(counts) {
-  let best = 0
-  let most = -1
-  for (const [v, m] of counts) {
-    // Bright details (the burner, the canopy's glint) win ties: they are what is seen.
-    const w = m + (v === 14 || v === 13 ? 0.6 : 0)
-    if (w > most) {
-      most = w
-      best = v
+/** A point's colour from what it shows: shaded and dithered, highlights where they fall. */
+function colourOf(p, x, y, big) {
+  switch (p.mat) {
+    case M.paint:
+      if (big && p.spec > 0.6) return 15
+      return rampOf(PAINT, p.lit * 1.05, x, y)
+    case M.belly:
+      return rampOf(BELLY, p.lit * 1.1, x, y)
+    case M.mark:
+      return rampOf(MARK, p.lit * 1.25, x, y)
+    case M.canopy:
+      return p.spec > 0.35 ? 13 : 12
+    case M.nozzle:
+      return 14
+    case M.dark:
+      return 1
+    default:
+      return 15
+  }
+}
+
+/**
+ * The supersampled picture down to points: shaded, then the canopy given one glint if it has
+ * none, a rim of light along the lit side's edge, and a dark outline round everything.
+ */
+function downsample(f) {
+  const { box } = f
+  const big = box >= 32
+  const out = new Canvas(box, box)
+  const shown = []
+  for (let y = 0; y < box; y++) {
+    for (let x = 0; x < box; x++) {
+      const p = pointOf(f, x, y)
+      if (p === null) continue
+      shown.push([x, y, p])
+      out.set(x, y, colourOf(p, x, y, big))
     }
   }
-  return best
+  canopyGlint(out, shown)
+  if (box >= 16) rim(out, shown, f.lx, f.ly)
+  out.outline(1, big)
+  return out
+}
+
+/** The canopy's brightest point catches the light, if no point of it does. */
+function canopyGlint(out, shown) {
+  const canopy = shown.filter(([, , p]) => p.mat === M.canopy)
+  if (canopy.length === 0 || canopy.some(([x, y]) => out.get(x, y) === 13)) return
+  let best = canopy[0]
+  for (const q of canopy) if (q[2].lit + q[2].spec > best[2].lit + best[2].spec) best = q
+  out.set(best[0], best[1], 13)
+}
+
+/**
+ * Edges towards the light: a painted point with nothing beside it on the light's side is the
+ * paint's lightest (the belly's), so the silhouette reads on a dark sky as on a bright one.
+ */
+function rim(out, shown, lx, ly) {
+  const sx = Math.abs(lx) > 0.3 ? Math.sign(lx) : 0
+  const sy = Math.abs(ly) > 0.3 ? Math.sign(ly) : 0
+  const lit = []
+  for (const [x, y, p] of shown) {
+    if (p.mat !== M.paint && p.mat !== M.belly) continue
+    const open = (sx !== 0 && out.get(x + sx, y) === 0) || (sy !== 0 && out.get(x, y + sy) === 0)
+    if (open) lit.push([x, y, p.mat === M.paint ? 6 : 9])
+  }
+  for (const [x, y, v] of lit) out.set(x, y, v)
 }

@@ -207,7 +207,7 @@ function roundStep(k: u16, px: i16, py: i16, pz: i16): void {
   const tx = bOwner[k] === 1 ? x - vget(V_REL) : x
   const ty = bOwner[k] === 1 ? y - vget(V_REL + 1) : y
   if (tx < 160 && tx > -160 && ty < 160 && ty > -160) {
-    if (bOwner[k] === 1 ? strikesEnemy(k, x, y, z) : strikesPlayer(x, y, z)) {
+    if (bOwner[k] === 1 ? strikesEnemy(k, x, y, z) : strikesPlayer(k, x, y, z)) {
       bLife[k] = 0
       return
     }
@@ -239,11 +239,36 @@ function strikesEnemy(k: u16, x: i16, y: i16, z: i16): bool {
   return true
 }
 
-function strikesPlayer(x: i16, y: i16, z: i16): bool {
+function strikesPlayer(k: u16, x: i16, y: i16, z: i16): bool {
   if (!within(x, y, z, 40)) return false
   hitsOnPlayer++
+  // Where it came from: against its way relative to the player.
+  roundPart = partFacing(
+    (pVel(0) >> 4) - i16(bVX[k]),
+    (pVel(1) >> 4) - i16(bVY[k]),
+    (pVel(2) >> 4) - i16(bVZ[k]),
+  )
   return true
 }
+
+/**
+ * The part of the player (the panel's figure: 0 the nose, 1 the left wing, 2 the right wing,
+ * 3 the tail) a blow from the way (x, y, z) strikes (the world's axes, pointing to where it
+ * came from): ahead or behind where that is more along the nose than across it, else the
+ * wing on that side. Only the display reads it.
+ */
+function partFacing(x: i16, y: i16, z: i16): u16 {
+  const across =
+    mulShift(x, vget(V_PR), 14) + mulShift(y, vget(V_PR + 1), 14) + mulShift(z, vget(V_PR + 2), 14)
+  const along =
+    mulShift(x, vget(V_PF), 14) + mulShift(y, vget(V_PF + 1), 14) + mulShift(z, vget(V_PF + 2), 14)
+  if (abs16(along) >= abs16(across)) return along >= 0 ? 0 : 3
+  return across < 0 ? 1 : 2
+}
+
+/** The part the last round, and the last missile, struck this frame (`partFacing`). */
+export let roundPart: u16 = 0
+export let missilePart: u16 = 0
 
 function within(x: i16, y: i16, z: i16, r: i16): bool {
   if (abs16(x) > r || abs16(y) > r || abs16(z) > r) return false
@@ -546,6 +571,9 @@ function missileArrives(k: u16, x: i16, y: i16, z: i16): bool {
       mulShift(i16(mDY[k]), vget(V_EF + 1), 14) +
       mulShift(i16(mDZ[k]), vget(V_EF + 2), 14) <
     -8000
+  if (mOwner[k] === 2) {
+    missilePart = partFacing(-(i16(mDX[k]) >> 4), -(i16(mDY[k]) >> 4), -(i16(mDZ[k]) >> 4))
+  }
   mOwner[k] =
     mOwner[k] === 1 ? hitByMissile(x, y, z, mChase[k]) : hitPlayerMissile(x, y, z, mChase[k])
   return true
