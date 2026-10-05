@@ -937,6 +937,15 @@ describe('GOTO and GOSUB to a computed line', () => {
     )
   })
 
+  it("are read in ON's list and by RESTORE as GOTO reads them: 1E2 and 100.5 are line 100", () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 X=1:ON X GOTO 1E2,200\n20 END\n100 RESTORE 100.5:READ A:PRINT A\n')
+    type(m, '110 X=2:ON X GOSUB 100,3.0E2:PRINT "BACK":END\n150 DATA 7\n300 RETURN\n')
+    // Line 100's RESTORE names line 100, whose next DATA is 7; ON's second entry, 3.0E2, is line 300.
+    expect(say(m, 'RUN')).toEqual(['7', 'BACK'])
+    expect(say(m, 'RESTORE 1E9')).toEqual(['ERR:NO LINE'])
+  })
+
   it('are read by RENUM as a run reads them: 1E2 and 100.5 are line 100', () => {
     const m = switchOn('pocket-64')
     type(m, '10 GOTO 1E2\n20 GOSUB 100.5\n30 GOTO 1E2+0\n40 GOTO 1.0E2\n100 RETURN\n')

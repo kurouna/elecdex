@@ -92,6 +92,7 @@ import {
   CH_0,
   CH_COLON,
   CH_COMMA,
+  CH_DOT,
   CH_HASH,
   CH_LPAREN,
   CH_MINUS,
@@ -670,9 +671,40 @@ function restoreStatement(): void {
     setData(0, 0)
     return
   }
-  const line = findLine(readUnsigned(), true)
+  const line = findLine(writtenLine(), true)
   if (line === 0) fail(E_LINE)
   setData(line, 0)
+}
+
+const CH_E = 0x45
+
+/**
+ * A line number written at the text (RESTORE's, an entry of ON's list), read as GOTO reads a
+ * number and as RENUM does: digits alone at once, else by the maths unit (PARSE, then TOWORD),
+ * so 1E2 and 100.5 are line 100. NO LINE when it names none.
+ */
+function writtenLine(): u16 {
+  // From the number itself: the spaces before it passed, as readUnsigned passes them.
+  next()
+  const save = txt
+  const n = readUnsigned()
+  const c = peek(txt)
+  if (c !== CH_DOT && c !== CH_E) return n
+  setTxt(save)
+  const at = push()
+  poke16(MATH_ARG, 255)
+  poke16(MATH_A, at)
+  poke16(MATH_B, txt)
+  poke16(MATH_OP, M_PARSE)
+  const length = peek16(MATH_ARG)
+  if (peek16(MATH_STATUS) !== 0 || length === 0) fail(E_SYNTAX)
+  setTxt(txt + length)
+  poke16(MATH_A, at)
+  poke16(MATH_OP, M_TOWORD)
+  // As computedLine: a sign or TOWORD's refusal is no line's number.
+  if (peek16(MATH_STATUS) !== 0 || (peek(at) & 0x80) !== 0) fail(E_LINE)
+  setNsp(nsp - 8)
+  return peek16(MATH_ARG)
 }
 
 /* ---------------- ON, WAIT, BEEP ---------------- */
@@ -707,7 +739,7 @@ function onStatement(): void {
   let chosen: u16 = 0
   let k: i16 = 1
   for (;;) {
-    const line = readUnsigned()
+    const line = writtenLine()
     if (k === n) chosen = line
     if (next() !== CH_COMMA) break
     step()
