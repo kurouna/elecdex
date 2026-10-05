@@ -12,13 +12,15 @@ import {
 } from '../../../../src/shared/e16c/builtins'
 import {
   E_ARGUMENT,
-  E_COMPLEX,
+  E_LONG,
   E_MEMORY,
   E_SYNTAX,
   fail,
+  failIn,
   findLine,
   isDigit,
   keepProgramTo,
+  LINE_MAX,
   lineBuf,
   next,
   progEnd,
@@ -28,9 +30,12 @@ import {
   statementEnds,
   step,
   storeLine,
+  strTemp,
+  textOut,
 } from './basic.e16'
-import { CH_COMMA, CH_MINUS, CH_QUOTE, CH_SPACE, LIMIT, PROG } from './rom.e16'
+import { CH_COLON, CH_COMMA, CH_MINUS, CH_QUOTE, CH_SPACE, LIMIT, PROG } from './rom.e16'
 import {
+  expand,
   T_AUTO,
   T_DELETE,
   T_ELSE,
@@ -81,6 +86,23 @@ function deleteStatement(): void {
   }
 }
 
+/* ---------------- how long a line lists ---------------- */
+
+/** How many characters line `n`, its tokens at `text`, lists in: its number, a space, its text. */
+export function listedLength(n: u16, text: u16): u16 {
+  // Written into strTemp only to be counted: no expression is open while a line comes in.
+  return unsignedText(n, addr(strTemp)) + 1 + expand(text, addr(strTemp), 255)
+}
+
+/**
+ * Line `n` must list in LINE_MAX characters, or SAVE and calling it up would cut it: TOO
+ * LONG, naming it, when it would not (typed with no space after its number, say). Checked
+ * where a line comes in - typed, LOADed, RENUMbered - before anything changes.
+ */
+export function checkLength(n: u16, text: u16): void {
+  if (listedLength(n, text) > LINE_MAX) failIn(E_LONG, n)
+}
+
 /* ---------------- RENUM ---------------- */
 
 let newStart: u16 = 10
@@ -102,7 +124,8 @@ function renumbered(old: u16): u16 {
 
 /**
  * RENUM [new][, from][, step]: the lines from `from` on numbered `new`, `new + step`, ...,
- * and every GOTO, GOSUB, THEN, ELSE and RESTORE (and ON's lists) changed to match.
+ * and every GOTO, GOSUB, THEN, ELSE and RESTORE (and ON's lists) changed to match - where the
+ * number stands alone: one an operator follows (GOTO 100+I*10) is an expression's, left as it is.
  */
 function renumStatement(): void {
   newStart = 10
@@ -152,15 +175,26 @@ function checkRoom(): void {
 }
 
 /**
- * Every line's references rewritten once without keeping them: a line made too long, or a
- * program grown past memory, stops RENUM before anything has changed.
+ * Every line's references rewritten once without keeping them: a line that would list past
+ * LINE_MAX with its new numbers (TOO LONG, naming it), or a program grown past memory, stops
+ * RENUM before anything has changed.
  */
 function checkRewrites(): void {
   let grows: u16 = 0
+  let k: u16 = 0
   for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
+    const n = peek16(at)
     const length = rewrite(at + 4)
     const was = peek16(at + 2) - 4
     if (length > was) grows += length - was
+    // The number it will have: renumbered in order from renumFrom, as renumStatement does.
+    let now = n
+    if (n >= renumFrom) {
+      now = newStart + k * renumStep
+      k++
+    }
+    const text = length === 0 ? at + 4 : addr(lineBuf)
+    if (length > LINE_MAX + 1 || listedLength(now, text) > LINE_MAX) failIn(E_LONG, n)
   }
   if (progEnd + 2 + grows > LIMIT) fail(E_MEMORY)
 }
@@ -199,7 +233,7 @@ function rewrite(from: u16): u16 {
     note(peek(rp))
     copyOne()
   }
-  poke(addr(lineBuf) + ro, 0)
+  if (ro <= LINE_MAX) poke(addr(lineBuf) + ro, 0)
   return rChanged ? ro + 1 : 0
 }
 
@@ -214,15 +248,17 @@ function note(c: u16): void {
   if (!rInside && c !== CH_SPACE) rWanting = takesLine(c) || (rWanting && c === CH_COMMA)
 }
 
-/** One character copied as it is. */
+/**
+ * One character copied as it is. Past LINE_MAX it is only counted: the length says the line
+ * is too long (checkRewrites), and lineBuf is never written beyond.
+ */
 function copyOne(): void {
-  if (ro >= 78) fail(E_COMPLEX)
-  poke(addr(lineBuf) + ro, peek(rp))
+  if (ro < LINE_MAX) poke(addr(lineBuf) + ro, peek(rp))
   ro++
   rp++
 }
 
-/** The line number at the text, written renumbered. */
+/** The line number at the text, written renumbered; as it is when an operator follows it. */
 function renumberHere(): void {
   let old: u16 = 0
   const start = rp
@@ -230,11 +266,28 @@ function renumberHere(): void {
     old = old * 10 + (peek(rp) - 0x30)
     rp++
   }
-  if (ro + 6 > 78) fail(E_COMPLEX)
+  if (!standsAlone(rp)) {
+    rp = start
+    while (isDigit(peek(rp))) copyOne()
+    return
+  }
   const now = renumbered(old)
-  const written = unsignedText(now, addr(lineBuf) + ro)
+  // Where the line is already too long, the digits are only counted (in textOut).
+  const written = unsignedText(now, ro + 5 <= LINE_MAX ? addr(lineBuf) + ro : addr(textOut))
   if (written !== rp - start || now !== old) rChanged = true
   ro += written
+}
+
+/**
+ * Whether a number ending at `p` is a line number by itself: the statement ends after it, or
+ * an ON list's comma follows. Anything else (GOTO 100+I*10) makes it part of an expression,
+ * whose line RENUM cannot follow.
+ */
+function standsAlone(p: u16): bool {
+  let q = p
+  while (peek(q) === CH_SPACE) q++
+  const c = peek(q)
+  return c === 0 || c === CH_COLON || c === CH_COMMA || c === T_ELSE
 }
 
 /** The statements of this bank. */

@@ -47,6 +47,7 @@ import {
   basic_abort,
   CH_0,
   CH_9,
+  CH_BACKSLASH,
   CH_CARET,
   CH_COLON,
   CH_COMMA,
@@ -95,6 +96,7 @@ import {
 import { pointFunction, screenStatement } from './screen.e16'
 import {
   compareStrings,
+  computedLine,
   dataStatement,
   elementAt,
   inputStatement,
@@ -133,6 +135,7 @@ import {
   T_LET,
   T_LIST,
   T_LOCATE,
+  T_MOD,
   T_MON,
   T_NEW,
   T_NEXT,
@@ -151,6 +154,7 @@ import {
   T_RND,
   T_RUN,
   T_SIN,
+  T_SPACES,
   T_STEP,
   T_STOP,
   T_THEN,
@@ -159,7 +163,7 @@ import {
   tokenize,
   unsignedText,
 } from './text.e16'
-import { toolStatement } from './tools.e16'
+import { checkLength, toolStatement } from './tools.e16'
 
 /* ---------------- the maths unit's operations (shared/elec16/math-unit.ts) ---------------- */
 
@@ -169,13 +173,15 @@ const M_MUL = 0x03
 const M_DIV = 0x04
 const M_POW = 0x05
 const M_CMP = 0x06
+const M_IDIV = 0x08
+const M_MOD = 0x09
 export const M_NEG = 0x10
 const M_INT = 0x12
 const M_RND = 0x1f
 const M_PI = 0x20
 const M_FROMINT = 0x30
 const M_TOINT = 0x31
-const M_TOWORD = 0x32
+export const M_TOWORD = 0x32
 export const M_PARSE = 0x38
 const M_FORMAT = 0x39
 
@@ -206,6 +212,8 @@ export const E_FILE = 17
 export const E_LINK = 18
 export const E_LINK_OFF = 19
 export const E_LINK_HELD = 20
+/** A line that would list longer than LINE_MAX (RENUM, LOAD, SAVE, or typed with no space). */
+export const E_LONG = 21
 
 /* ---------------- state ---------------- */
 
@@ -255,15 +263,16 @@ let justStored = false
 /** RUN: the length of the last line typed (kept in lastLine), for up to call back. */
 let lastLength: u16 = 0
 
-/** The longest line typed at the prompt. */
-const LINE_MAX = 78
+/** The longest line typed at the prompt, and the longest any line of the program lists. */
+export const LINE_MAX = 78
 export const lineBuf = bytes(80)
 const lastLine = bytes(80)
-export const tokens = bytes(96)
+/** A line tokenized: never longer than the LINE_MAX characters it came from, and its zero. */
+export const tokens = bytes(80)
 /** Twenty-four entries of eight bytes. */
 const nums = bytes(192)
 /** Strings an expression makes (joined, STR$, ...): taken afresh at every statement. */
-const strTemp = bytes(512)
+export const strTemp = bytes(512)
 let strTop: u16 = 0
 const ans = bytes(8)
 export const textOut = bytes(24)
@@ -271,6 +280,8 @@ export const textOut = bytes(24)
 const forStack = bytes(176)
 /** GOSUB entries: [line][text], sixteen deep. */
 const gosubStack = words(32)
+/** Each GOSUB's FOR depth as it was called: its loops start above it, RETURN goes back to it. */
+const gosubFor = bytes(16)
 
 export const STR_MARK = 0xff
 /** A variable record's head: [name0][name1][kind][room][size: u16]; its value follows. */
@@ -384,6 +395,8 @@ function moreErrorWord(code: u16): u16 {
       return str('LINK OFF')
     case E_LINK_HELD:
       return str('LINK HELD')
+    case E_LONG:
+      return str('TOO LONG')
     default:
       return str('FILE')
   }
@@ -396,12 +409,20 @@ function inLine(): void {
   printUnsigned(peek16(curLine))
 }
 
-/** An error: said, the program stopped, back to the prompt. Never returns. */
+/** An error: said (with the line running), the program stopped, back to the prompt. Never returns. */
 export function fail(code: u16): void {
+  failIn(code, running && curLine !== 0 ? peek16(curLine) : 0)
+}
+
+/** An error about line `n` (0: none to name), as fail; for a line that is not running. */
+export function failIn(code: u16, n: u16): void {
   fresh_line()
   puts(str('ERR:'))
   puts(errorWord(code))
-  if (running) inLine()
+  if (n !== 0) {
+    puts(str(' IN '))
+    printUnsigned(n)
+  }
   newline()
   contLine = 0
   stopRunning()
@@ -784,16 +805,21 @@ function addExpr(): void {
   }
 }
 
+/** * and /, and the whole quotient \ and the remainder MOD (the maths unit's IDIV and MOD). */
 function mulExpr(): void {
   unary()
   for (;;) {
     const c = next()
-    if (c !== CH_STAR && c !== CH_SLASH) return
+    let op: u16 = M_MUL
+    if (c === CH_SLASH) op = M_DIV
+    else if (c === CH_BACKSLASH) op = M_IDIV
+    else if (c === T_MOD) op = M_MOD
+    else if (c !== CH_STAR) return
     needNumber()
     txt++
     unary()
     needNumber()
-    binary(c === CH_STAR ? M_MUL : M_DIV)
+    binary(op)
   }
 }
 
@@ -1294,16 +1320,31 @@ function skipToElse(): bool {
   return false
 }
 
+/**
+ * The line GOTO, GOSUB, THEN or ELSE names: a number alone (up to the statement's end) read
+ * at once, as ever; anything else an expression, worked in bank 0. NO LINE when it is not there.
+ */
+function targetLine(): u16 {
+  const save = txt
+  if (isDigit(next())) {
+    const n = readUnsigned()
+    if (statementEnds()) {
+      const line = findLine(n, true)
+      if (line === 0) fail(E_LINE)
+      return line
+    }
+    txt = save
+  }
+  return computedLine()
+}
+
 export function gotoStatement(): void {
-  const line = findLine(readUnsigned(), true)
-  if (line === 0) fail(E_LINE)
+  const line = targetLine()
   jump(line, line + 4)
 }
 
-export function gosubStatement(): void {
-  const line = findLine(readUnsigned(), true)
-  if (line === 0) fail(E_LINE)
-  gosubTo(line)
+function gosubStatement(): void {
+  gosubTo(targetLine())
 }
 
 /** A GOSUB to the line at `line`, coming back to where the text is now. */
@@ -1311,14 +1352,22 @@ export function gosubTo(line: u16): void {
   if (gsp >= GOSUB_DEPTH) fail(E_COMPLEX)
   gosubStack[gsp * 2] = curLine
   gosubStack[gsp * 2 + 1] = txt
+  gosubFor[gsp] = fsp
   gsp++
   jump(line, line + 4)
 }
 
+/** RETURN: back to just after the GOSUB, the loops the subroutine left open dropped. */
 function returnStatement(): void {
   if (gsp === 0) fail(E_RETURN)
   gsp--
+  fsp = gosubFor[gsp]
   jump(gosubStack[gsp * 2], gosubStack[gsp * 2 + 1])
+}
+
+/** Where the running subroutine's FOR entries start: those below are its callers'. */
+function forBase(): u16 {
+  return gsp === 0 ? 0 : gosubFor[gsp - 1]
 }
 
 /** FOR v = a TO b [STEP s]: the loop kept as where to come back to, the limit and the step. */
@@ -1340,8 +1389,8 @@ function forStatement(): void {
     needNumber()
   } else setInt(push(), 1)
   const step = top()
-  // A loop on the same variable already open is ended, with any inside it.
-  let k: u16 = 0
+  // A loop on the same variable already open (in this subroutine) is ended, with any inside it.
+  let k = forBase()
   while (k < fsp && peek16(forEntry(k)) !== at) k++
   fsp = k
   if (fsp >= FOR_DEPTH) fail(E_COMPLEX)
@@ -1361,12 +1410,14 @@ function forEntry(k: u16): u16 {
 
 /** NEXT [v]: the step added; back to the loop while the limit is not passed. */
 function nextStatement(): void {
-  if (fsp === 0) fail(E_NEXT)
+  // Only the loops this subroutine opened: going round its caller's would leave the GOSUB.
+  const base = forBase()
+  if (fsp <= base) fail(E_NEXT)
   let k = fsp - 1
   if (isLetter(next())) {
     const at = varAt(false)
     while (peek16(forEntry(k)) !== at) {
-      if (k === 0) fail(E_NEXT)
+      if (k === base) fail(E_NEXT)
       k--
     }
   }
@@ -1495,7 +1546,8 @@ function run(): void {
 /** Whether the typed line is a calculation: it starts with no statement and no `name =`. */
 function isCalculation(): bool {
   const c = next()
-  if (c >= 0x80) return c >= T_SIN && c <= T_LCDH
+  // A function: SIN to LCDH, or SPACE$ and STRING$ at the end of the keywords.
+  if (c >= 0x80) return u16(c - T_SIN) <= T_LCDH - T_SIN || c >= T_SPACES
   if (!isLetter(c)) return c !== 0
   const save = txt
   readName()
@@ -1536,17 +1588,20 @@ function calculate(): void {
 }
 
 /**
- * The text in lineBuf as a program line (LOAD's): tokenized and kept; false when it is not
- * one (no number, or nothing after it).
+ * The text in lineBuf as a program line (LOAD's): tokenized and kept, or with `keep` false
+ * only checked as it would be (TOO LONG past LINE_MAX). The bytes it takes in the program;
+ * 0 when it is not a line (no number, or nothing after it).
  */
-export function storeTypedLine(): bool {
+export function storeTypedLine(keep: bool): u16 {
   const length = tokenize(addr(lineBuf), addr(tokens))
   txt = addr(tokens)
-  if (!isDigit(next())) return false
+  if (!isDigit(next())) return 0
   const n = readUnsigned()
-  if (n === 0 || next() === 0) return false
-  storeLine(n, txt, length - (txt - addr(tokens)))
-  return true
+  if (n === 0 || next() === 0) return 0
+  const rest = length - (txt - addr(tokens))
+  if (keep) storeLine(n, txt, rest)
+  else checkLength(n, txt)
+  return (4 + rest + 1) & 0xfffe
 }
 
 /** A line typed at the prompt: a numbered line to keep (or take out), or one to run now. */
@@ -1565,6 +1620,8 @@ function enter(): void {
     }
     // A number is a line of the program when a statement follows it (or nothing, in PRO).
     if (n !== 0 && (isLetter(c) || c >= 0x80 || (c === 0 && proMode))) {
+      // A line that would list past LINE_MAX is refused (one taken out lists in a few).
+      checkLength(n, txt)
       storeLine(n, txt, length - (txt - addr(tokens)))
       recallNo = n
       justStored = true

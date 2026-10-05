@@ -138,6 +138,7 @@ export const CH_QUESTION = 0x3f
 export const CH_A = 0x41
 export const CH_Z = 0x5a
 export const CH_LBRACKET = 0x5b
+export const CH_BACKSLASH = 0x5c
 export const CH_RBRACKET = 0x5d
 export const CH_CARET = 0x5e
 export const CH_LOWER_A = 0x61

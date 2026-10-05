@@ -459,7 +459,7 @@ describe('BASIC', () => {
     const m = switchOn('pocket-64')
     type(m, '1 GOTO 2\n')
     type(m, `2 ON X GOTO ${Array.from({ length: 30 }, () => '1').join(',')}\n`)
-    expect(say(m, 'RENUM 10000,1,10000')).toEqual(['ERR:TOO COMPLEX'])
+    expect(say(m, 'RENUM 10000,1,10000')).toEqual(['ERR:TOO LONG IN 2'])
     expect(say(m, 'LIST 1')[0]).toBe('1 GOTO 2')
     expect(say(m, 'RENUM 65530')).toEqual(['ERR:ARGUMENT'])
   })
@@ -788,5 +788,252 @@ describe('a line typed over what a program left on the screen', () => {
     // On into the next row, whose old text goes too.
     type(m, 'C'.repeat(40))
     expect(screen(m).slice(0, 2)).toEqual([`>AB${'C'.repeat(37)}`, 'CCC'])
+  })
+})
+
+describe('FOR inside GOSUB', () => {
+  it("leaves the caller's loop alone when a subroutine loops on the same variable", () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 FOR M=1 TO 3:GOSUB 100:PRINT M;:NEXT M:PRINT\n')
+    type(m, '20 END\n')
+    type(m, '100 S=M:FOR M=1 TO 2:NEXT M:M=S:RETURN\n')
+    expect(say(m, 'RUN')).toEqual(['1 2 3'])
+    // The same variable is the same number: the subroutine's loop leaves M at 12, past 3.
+    type(m, '100 FOR M=10 TO 11:NEXT M:RETURN\n')
+    expect(say(m, 'RUN')).toEqual(['12'])
+  })
+
+  it('drops the loops a subroutine left open when it RETURNs', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 FOR I=1 TO 2:GOSUB 100:PRINT I;:NEXT:PRINT "END"\n20 END\n')
+    type(m, '100 FOR J=1 TO 5:IF J=2 THEN RETURN\n110 NEXT J\n')
+    expect(say(m, 'RUN')).toEqual(['1 2 END'])
+  })
+
+  it('lets subroutines leave loops by GOTO without filling the FOR stack', () => {
+    const m = switchOn('pocket-64')
+    const subs = 'ABCDEFGHI'.split('').map((v, k) => `${100 + k * 10} FOR ${v}=1 TO 2:GOTO 900`)
+    for (const line of subs) type(m, `${line}\n`)
+    type(m, '900 RETURN\n')
+    type(m, '10 GOSUB 100:GOSUB 110:GOSUB 120:GOSUB 130:GOSUB 140:GOSUB 150\n')
+    type(m, '20 GOSUB 160:GOSUB 170:GOSUB 180:PRINT "OK":END\n')
+    expect(say(m, 'RUN')).toEqual(['OK'])
+  })
+
+  it("says NEXT for a NEXT in a subroutine that would go round the caller's loop", () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 FOR I=1 TO 3:GOSUB 100:NEXT I\n20 END\n100 PRINT I;:NEXT I\n')
+    expect(say(m, 'RUN')).toEqual(['1', 'ERR:NEXT IN 100'])
+    type(m, '100 PRINT I;:NEXT\n')
+    expect(say(m, 'RUN')).toEqual(['1', 'ERR:NEXT IN 100'])
+    // Its own loops are its own: a loop inside a subroutine runs as anywhere.
+    type(m, '100 FOR J=1 TO 2:PRINT I*10+J;:NEXT:RETURN\n')
+    type(m, '10 FOR I=1 TO 2:GOSUB 100:NEXT I:PRINT\n')
+    expect(say(m, 'RUN')).toEqual(['11 12 21 22'])
+  })
+
+  it('counts a subroutine left by GOTO as still running, as the manual says', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 FOR I=1 TO 2:GOSUB 100\n20 NEXT I:PRINT "DONE":END\n100 GOTO 20\n')
+    expect(say(m, 'RUN')).toEqual(['ERR:NEXT IN 20'])
+    // RUN starts afresh: no GOSUB and no loop is left over from the run before.
+    type(m, '100 RETURN\n')
+    expect(say(m, 'RUN')).toEqual(['DONE'])
+  })
+})
+
+describe('the integer quotient and the remainder', () => {
+  it('cut \\ towards zero, and give MOD the sign of what is divided', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT 7\\2;-7\\2;7\\-2;-7\\-2')).toEqual(['3 -3 -3 3'])
+    expect(say(m, 'PRINT 7 MOD 2;-7 MOD 2;7 MOD -2;-7 MOD -2;-4 MOD 2')).toEqual(['1 -1 1 -1 0'])
+    expect(say(m, 'PRINT 7.5\\2;7.5 MOD 2;1E10\\3;1E10 MOD 3')).toEqual(['3 1.5 3333333333 1'])
+    expect(say(m, 'PRINT 0.9999999999\\1;1\\0.9999999999')).toEqual(['0 1'])
+    expect(say(m, 'X=999999999999:Y=500000000000:PRINT X\\Y;X MOD Y=499999999999')).toEqual(['1 1'])
+  })
+
+  it('takes them with * and /, left to right, after the sign and ^', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT 2+7\\2*3;2+7 MOD 4*2;10-7 MOD 4;2^3\\3;-7MOD2')).toEqual(['11 8 7 2 -1'])
+    expect(say(m, '17\\5')).toEqual([expect.stringMatching(/ 3$/)])
+    type(m, '10 A=17MOD5:PRINT A\n')
+    expect(say(m, 'LIST')).toEqual(['10 A=17MOD5:PRINT A'])
+    expect(say(m, 'RUN')).toEqual(['2'])
+  })
+
+  it('says DIV BY 0 for a divisor of 0, and TYPE for a string', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT 5\\0')).toEqual(['ERR:DIV BY 0'])
+    expect(say(m, 'PRINT 5 MOD 0')).toEqual(['ERR:DIV BY 0'])
+    expect(say(m, 'PRINT "A" MOD 2')).toEqual(['ERR:TYPE'])
+    expect(say(m, 'PRINT 2\\"A"')).toEqual(['ERR:TYPE'])
+  })
+})
+
+describe('SPACE$ and STRING$', () => {
+  it('make a run of one character, 0 to 255 long', () => {
+    const m = switchOn('pocket-64')
+    expect(say(m, 'PRINT "[";SPACE$(3);"]";LEN(SPACE$ 0)')).toEqual(['[   ]0'])
+    expect(say(m, 'PRINT STRING$(3,65);STRING$(2,"XY");STRING$(0,"Q");"!"')).toEqual(['AAAXX!'])
+    expect(say(m, 'PRINT LEN(SPACE$(255));LEN(STRING$(255,"Z"))')).toEqual(['255 255'])
+    expect(say(m, 'PRINT LEN(STRING$(255,65))+LEN(STRING$(255,66))')).toEqual(['510'])
+    expect(say(m, 'STRING$(3,42)')).toEqual([expect.stringMatching(/ \*\*\*$/)])
+    type(m, '10 A$=STRING$(4,"-")+SPACE$ 2+"!"\n20 PRINT A$\n')
+    expect(say(m, 'LIST')).toEqual(['10 A$=STRING$(4,"-")+SPACE$ 2+"!"', '20 PRINT A$'])
+    expect(say(m, 'RUN')).toEqual(['----  !'])
+  })
+
+  it('refuse a count past 255 or below 0, a code past 255, and an empty string', () => {
+    const m = switchOn('pocket-64')
+    for (const bad of [
+      'SPACE$(256)',
+      'SPACE$(-1)',
+      'STRING$(256,65)',
+      'STRING$(2,256)',
+      'STRING$(2,-1)',
+      'STRING$(2,"")',
+    ]) {
+      expect(say(m, `PRINT ${bad}`), bad).toEqual(['ERR:ARGUMENT'])
+    }
+    expect(say(m, 'PRINT SPACE$("A")')).toEqual(['ERR:TYPE'])
+  })
+})
+
+describe('GOTO and GOSUB to a computed line', () => {
+  it('go to the line an expression names, and to a plain number as before', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 I=2:GOTO 10*I+20\n30 PRINT "THIRTY":END\n')
+    type(m, '40 PRINT "FORTY":GOSUB 50+I*25:PRINT "BACK":END\n100 PRINT "SUB":RETURN\n')
+    expect(say(m, 'RUN')).toEqual(['FORTY', 'SUB', 'BACK'])
+    expect(say(m, 'GOTO 3*10')).toEqual(['THIRTY'])
+    expect(say(m, 'IF 1 THEN 20+10')).toEqual(['THIRTY'])
+    expect(say(m, 'IF 0 THEN 20 ELSE 15*2')).toEqual(['THIRTY'])
+    expect(say(m, 'GOTO 30:PRINT "NOT HERE"')).toEqual(['THIRTY'])
+  })
+
+  it('say NO LINE when the line is not there, below 0 or past 65535', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 END\n')
+    for (const bad of ['GOTO 10+5', 'GOTO -10', 'GOSUB 1E6', 'GOTO 0.5', 'GOTO 15']) {
+      expect(say(m, bad), bad).toEqual(['ERR:NO LINE'])
+    }
+    expect(say(m, 'GOTO "A"')).toEqual(['ERR:TYPE'])
+  })
+
+  it('are left alone by RENUM when an operator follows the number', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 GOTO 100+I*10\n20 IF X THEN 100 ELSE 110\n')
+    type(m, '30 ON X GOTO 100, 110:GOSUB 100 :END\n100 RETURN\n110 END\n')
+    type(m, 'RENUM 1000\n')
+    // Each line read whole, the one wider than the screen too.
+    expect(say(m, 'LIST').join('')).toBe(
+      [
+        '1000 GOTO 100+I*10',
+        '1010 IF X THEN 1030 ELSE 1040',
+        '1020 ON X GOTO 1030, 1040:GOSUB 1030 :END',
+        '1030 RETURN',
+        '1040 END',
+      ].join(''),
+    )
+  })
+})
+
+describe("the manual's examples of \\, MOD, SPACE$, STRING$, computed GOSUB and loops in one", () => {
+  const manual = readFileSync('docs/elec16-basic.md', 'utf8')
+  /** The ```text session in the manual whose first line is `first`: each line typed, what it printed. */
+  const session = (first: string): [string, string[]][] => {
+    const at = manual.indexOf(`\`\`\`text\n>${first}\n`)
+    expect(at, first).toBeGreaterThan(0)
+    const body = manual.slice(at + 8, manual.indexOf('\n```', at + 8)).split('\n')
+    const steps: [string, string[]][] = []
+    for (const line of body) {
+      if (line.startsWith('>')) steps.push([line.slice(1), []])
+      else steps.at(-1)?.[1].push(line)
+    }
+    return steps
+  }
+
+  for (const first of [
+    'PRINT 7\\2;-7\\2;7 MOD 3;-7 MOD 3;7.5 MOD 2',
+    'PRINT "[";SPACE$(3);"]";STRING$(5,"-");STRING$(2,65)',
+  ]) {
+    it(`runs as written: ${first}`, () => {
+      const m = switchOn('pocket-64')
+      for (const [line, printed] of session(first)) expect(say(m, line), line).toEqual(printed)
+    })
+  }
+
+  it('runs the computed GOSUB and the loop left by RETURN as written', () => {
+    for (const marker of ['10 FOR K=1 TO 3:GOSUB 100+K*10', '10 FOR I=1 TO 3:GOSUB 100:PRINT']) {
+      const at = manual.indexOf(`>NEW\n>${marker}`)
+      expect(at, marker).toBeGreaterThan(0)
+      const m = switchOn('pocket-64')
+      const lines = manual.slice(at, manual.indexOf('\n```', at)).split('\n')
+      const typed = lines.filter((l) => l.startsWith('>')).map((l) => l.slice(1))
+      for (const line of typed.slice(0, -1)) type(m, `${line}\n`)
+      expect(say(m, 'RUN'), marker).toEqual(lines.filter((l) => !l.startsWith('>')))
+    }
+  })
+})
+
+describe('a line never lists longer than 78 characters', () => {
+  /** A line of `length` characters: PRINT of Ys, then a GOTO to its own number. */
+  const longLine = (n: number, length: number) => {
+    const head = `${n} PRINT "`
+    const tail = `":GOTO ${n}`
+    return `${head}${'Y'.repeat(length - head.length - tail.length)}${tail}`
+  }
+  const file = (text: string) => ({
+    name: 'X.BAS',
+    data: new TextEncoder().encode(text),
+    modified: 0,
+  })
+
+  it('is refused by RENUM, naming it, before anything changes', () => {
+    const m = switchOn('pocket-64')
+    const line = longLine(5, 75)
+    type(m, `${line}\n`)
+    expect(say(m, 'RENUM 10000,,1000')).toEqual(['ERR:TOO LONG IN 5'])
+    expect(say(m, 'LIST')).toEqual([line.slice(0, 40), line.slice(40)])
+    // Numbers that fit renumber as ever.
+    expect(say(m, 'RENUM 10')).toEqual([])
+    expect(say(m, 'LIST')[1]).toMatch(/GOTO 10$/)
+  })
+
+  it('is refused when typed without the space LIST puts after the number', () => {
+    const m = switchOn('pocket-64')
+    const line = `10PRINT"${'X'.repeat(69)}"`
+    expect(line).toHaveLength(78)
+    expect(say(m, line)).toEqual(['ERR:TOO LONG IN 10'])
+    expect(say(m, 'LIST')).toEqual([])
+    expect(say(m, line.slice(0, 77))).toEqual([])
+    expect(say(m, 'LIST').join('')).toHaveLength(78)
+  })
+
+  it('is refused by SAVE before the file is written, rather than cut', () => {
+    card.files = []
+    const m = switchOn('pocket-64')
+    type(m, `10 REM ${'X'.repeat(71)}\n`)
+    // Line 10 made 10000 behind BASIC's back, as an older RENUM could leave a line.
+    type(m, 'POKE 2048,16:POKE 2049,39\n')
+    expect(say(m, 'SAVE "L"')).toEqual(['ERR:TOO LONG IN 10000'])
+    expect(card.files.find((f) => f.name === 'L.BAS')).toBeUndefined()
+  })
+
+  it('is refused by LOAD, naming it, with the program in memory kept whole', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 PRINT 1\n')
+    card.files = [file(`10 PRINT 2\r20 REM ${'X'.repeat(80)}\r30 PRINT 3\r`)]
+    expect(say(m, 'LOAD "X"')).toEqual(['ERR:TOO LONG IN 20'])
+    expect(say(m, 'LIST')).toEqual(['10 PRINT 1'])
+    card.files = [file(`10 PRINT 2\r20PRINT"${'X'.repeat(69)}"\r`)]
+    expect(say(m, 'LOAD "X"')).toEqual(['ERR:TOO LONG IN 20'])
+    expect(say(m, 'LIST')).toEqual(['10 PRINT 1'])
+    card.files = [file('10 PRINT 2\rHELLO\r')]
+    expect(say(m, 'LOAD "X"')).toEqual(['ERR:FILE'])
+    expect(say(m, 'LIST')).toEqual(['10 PRINT 1'])
+    card.files = [file('10 PRINT 2\r20 PRINT 3\r')]
+    expect(say(m, 'LOAD "X"')).toEqual([])
+    expect(say(m, 'LIST')).toEqual(['10 PRINT 2', '20 PRINT 3'])
   })
 })

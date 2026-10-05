@@ -102,6 +102,31 @@ export function div(a: Dec, b: Dec): Dec {
   return make(a.neg !== b.neg, q, e)
 }
 
+/** a and b as whole coefficients over one power of ten: a = x x 10^e, b = y x 10^e. */
+function aligned(a: Dec, b: Dec): { x: bigint; y: bigint; e: number } {
+  if (b.coeff === 0n) throw new DecError(ERR.divideByZero, 'division by zero')
+  const p = parts(a)
+  const q = parts(b)
+  const e = Math.min(p.e, q.e)
+  return { x: p.n * 10n ** BigInt(p.e - e), y: q.n * 10n ** BigInt(q.e - e), e }
+}
+
+/**
+ * a / b cut towards zero to a whole number, worked exactly: dividing and then cutting would
+ * take 999999999999 / 500000000000, rounded up to 2 at its twelfth digit, for 2. A quotient
+ * longer than twelve digits is then rounded as any result is.
+ */
+export function idiv(a: Dec, b: Dec): Dec {
+  const { x, y } = aligned(a, b)
+  return fromSigned(x / y, 0)
+}
+
+/** a - (a idiv b) x b, the remainder, with a's sign; always exact (it is shorter than a or b). */
+export function mod(a: Dec, b: Dec): Dec {
+  const { x, y, e } = aligned(a, b)
+  return fromSigned(x % y, e)
+}
+
 export function compare(a: Dec, b: Dec): -1 | 0 | 1 {
   const d = sub(a, b)
   if (d.coeff === 0n) return 0

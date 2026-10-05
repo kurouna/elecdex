@@ -23,6 +23,7 @@ import {
   E_CARD,
   E_DATA,
   E_FILE,
+  E_LONG,
   E_MEMORY,
   E_NOFILE,
   E_SYNTAX,
@@ -31,7 +32,10 @@ import {
   expect,
   expr,
   fail,
+  failIn,
+  isDigit,
   keepProgramTo,
+  LINE_MAX,
   lineBuf,
   needNumber,
   needString,
@@ -73,6 +77,7 @@ import {
   CODE_AREA,
   CODE_AREA_END,
   K_ENTER,
+  LIMIT,
   newline,
   PROG,
   putc,
@@ -95,6 +100,7 @@ import {
   T_SAVE,
   unsignedText,
 } from './text.e16'
+import { listedLength } from './tools.e16'
 
 const OP_DIR = 1
 const OP_READ = 2
@@ -253,6 +259,11 @@ function saveStatement(): void {
     cardMust(OP_WRITE, 0, from, length)
     return
   }
+  // A line that lists past LINE_MAX (left by an older RENUM) would be cut: refused, named,
+  // before the file is begun, so an older file of the name is not lost either.
+  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
+    if (listedLength(peek16(at), at + 4) > LINE_MAX) failIn(E_LONG, peek16(at))
+  }
   cardMust(OP_WRITE, 0, addr(cardBuf), 0)
   let n: u16 = 0
   let at = PROG
@@ -291,36 +302,64 @@ function loadStatement(): void {
     cardMust(OP_READ, 0, to, CODE_AREA_END - to)
     return
   }
-  // Read before the program goes: a name that is not on the card costs nothing.
-  cardMust(OP_READ, 0, addr(cardBuf), 256)
+  // Read through once before the program goes, every line checked as it will be kept: a
+  // name that is not on the card, or a file that is not a program that fits, costs nothing.
+  readListing(false)
   keepProgramTo(PROG)
-  let offset: u16 = 0
-  let n: u16 = 0
-  for (;;) {
-    if (offset > 0) cardMust(OP_READ, offset, addr(cardBuf), 256)
-    const got = peek16(CARD_RESULT)
-    if (got === 0) break
-    for (let k: u16 = 0; k < got; k++) n = loadByte(n, peek(addr(cardBuf) + k))
-    offset += got
-  }
-  loadByte(n, K_ENTER)
+  readListing(true)
   // The program in place, the line LOAD was in gone with it: nothing more runs.
   endProgram()
   setTxt(addr(nothing))
 }
 
-/** One byte of a listing: added to the line, or (CR, LF) the line kept. The line's new length. */
-function loadByte(n: u16, c: u16): u16 {
-  const line = addr(lineBuf)
-  if (c === K_ENTER || c === LF) {
-    if (n === 0) return 0
-    poke(line + n, 0)
-    if (!storeTypedLine()) fail(E_FILE)
-    return 0
+/**
+ * The listing named in the block, a line at a time: kept as if typed, or (`keep` false) only
+ * checked - a line not a program line is FILE, one past LINE_MAX TOO LONG (naming it), and
+ * lines that would not fit in memory MEMORY.
+ */
+function readListing(keep: bool): void {
+  let offset: u16 = 0
+  let n: u16 = 0
+  let room: u16 = LIMIT - PROG - 2
+  for (;;) {
+    cardMust(OP_READ, offset, addr(cardBuf), 256)
+    const got = peek16(CARD_RESULT)
+    if (got === 0) break
+    for (let k: u16 = 0; k < got; k++) {
+      const c = peek(addr(cardBuf) + k)
+      if (c === K_ENTER || c === LF) {
+        if (n > 0) room = lineRead(n, keep, room)
+        n = 0
+      } else n = lineChar(n, c)
+    }
+    offset += got
   }
-  if (n >= 78) fail(E_FILE)
-  poke(line + n, c)
+  if (n > 0) lineRead(n, keep, room)
+}
+
+/** A character of a line, the `n`th: past LINE_MAX only counted (the length says it is too long). */
+function lineChar(n: u16, c: u16): u16 {
+  if (n < LINE_MAX) poke(addr(lineBuf) + n, c)
   return n + 1
+}
+
+/** A line of `n` characters read into lineBuf: kept or checked; the memory left after it. */
+function lineRead(n: u16, keep: bool, room: u16): u16 {
+  const line = addr(lineBuf)
+  if (n > LINE_MAX) {
+    // Named by the number it starts with, read from what was kept of it.
+    poke(line + LINE_MAX, 0)
+    setTxt(line)
+    if (!isDigit(next())) fail(E_FILE)
+    failIn(E_LONG, readUnsigned())
+  }
+  poke(line + n, 0)
+  const size = storeTypedLine(keep)
+  if (size === 0) fail(E_FILE)
+  // Counted as if no two lines had one number: a file that repeats one may be refused room
+  // it would just have had, never given room it has not.
+  if (!keep && size > room) fail(E_MEMORY)
+  return room - size
 }
 
 /* ---------------- data files ---------------- */

@@ -34,6 +34,10 @@ export const MATH_OP = {
   pow: 0x05,
   cmp: 0x06,
   move: 0x07,
+  /** A = A / B cut towards zero to a whole number (exact). */
+  idiv: 0x08,
+  /** A = A - (A IDIV B) x B: the remainder, with A's sign (exact). */
+  mod: 0x09,
   neg: 0x10,
   abs: 0x11,
   int: 0x12,
@@ -100,6 +104,8 @@ const CYCLES: Record<Op, number> = {
   [MATH_OP.pow]: 3000,
   [MATH_OP.cmp]: 30,
   [MATH_OP.move]: 16,
+  [MATH_OP.idiv]: 250,
+  [MATH_OP.mod]: 250,
   [MATH_OP.neg]: 16,
   [MATH_OP.abs]: 16,
   [MATH_OP.int]: 30,
@@ -149,6 +155,8 @@ const BINARY: Partial<Record<Op, (a: D.Dec, b: D.Dec) => D.Dec>> = {
   [MATH_OP.div]: D.div,
   [MATH_OP.pow]: D.pow,
   [MATH_OP.move]: (_a, b) => b,
+  [MATH_OP.idiv]: D.idiv,
+  [MATH_OP.mod]: D.mod,
 }
 
 /** pi to twelve digits. */

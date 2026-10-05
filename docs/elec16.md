@@ -230,7 +230,7 @@ ALU は 1、ロード・ストアは 2、分岐が成立したときとジャン
 
 - elecdex の電卓（`src/shared/calc`）は使わず、10 進の数を新しく書いた（`decimal.ts`）。電卓は JavaScript の倍精度で計算するので 0.1 + 0.2 が 0.30000000000000004 になり、12 桁の 10 進を正確に扱うユニットにならない。電卓の本体は elecxzy の写しで手を入れられず、`shared/elec16` は自分と `shared/emu` しか import しない（`emu-boundary.test.ts`）ことも理由（2026-10-03、利用者の提案を受けて確かめた）
 - 数は 8 バイト: 符号のバイト（ビット 7。ほかのビットは 0）、指数（符号付き、-99〜99）、BCD の 12 桁（先頭は 0 でない。0 は全部 0）。値は d1.d2…d12 × 10^指数
-- 演算: ADD SUB MUL DIV POW CMP MOVE、NEG ABS INT FRAC SGN SQR SIN COS TAN ASN ACS ATN LN LOG EXP RND PI、FROMINT TOINT TOWORD（-32768〜65535 を 16 ビットに。番地用）、PARSE FORMAT。四則と平方根は BigInt の 10 進で正確に計算して 1 回だけ丸める（四捨五入）ので、0.1 + 0.2 は 0.3。1 / 3 × 3 は 0.999999999999（10 桁の表示では 1）。三角・対数・指数は倍精度で計算して 12 桁に丸める。度とグラードは 1 周に正確に戻してから計算し、丸めの誤差だけの値は 0 にする（COS 90 は 0）
+- 演算: ADD SUB MUL DIV POW CMP MOVE IDIV MOD、NEG ABS INT FRAC SGN SQR SIN COS TAN ASN ACS ATN LN LOG EXP RND PI、FROMINT TOINT TOWORD（-32768〜65535 を 16 ビットに。番地用）、PARSE FORMAT。四則と平方根は BigInt の 10 進で正確に計算して 1 回だけ丸める（四捨五入）ので、0.1 + 0.2 は 0.3。1 / 3 × 3 は 0.999999999999（10 桁の表示では 1）。IDIV（0 の方へ切り捨てた商）と MOD（その余り、A の符号）は割り算をせずに正確に求める（DIV の後に切り捨てると、999999999999 / 500000000000 は 12 桁目で 2 に丸まる。2026-10-05）。三角・対数・指数は倍精度で計算して 12 桁に丸める。度とグラードは 1 周に正確に戻してから計算し、丸めの誤差だけの値は 0 にする（COS 90 は 0）
 - サイクルは演算を始めた命令に足す（SIN は 2,000、DIV は 250、ADD は 60 など。`stall`）。演算はその場で終わり、MATH の線が上がる。機械が眠っている間にサイクルは進まないので、終わりを待つ仕組みにはしなかった
 - FORMAT は 10 桁（ARG で 1〜12）で、整数や小数で書けるうちはそのまま、はみ出せば指数で（`1.23456789E10`、`1.5E-12`）。RND は状態に持つ乱数で、同じ始まりからは同じ列
 
@@ -361,17 +361,23 @@ TS の部分集合 (*.e16.ts)
 
 - **置き場所**: 解釈器の中心（`basic.e16.ts`、式、変数、PRINT、FOR、行の編集）は固定 ROM。残りはバンクに置き、中心は far_call で呼ぶ: バンク 0 `strings.e16.ts`（配列と DIM、文字列の演算と関数、INPUT、READ と DATA、ON、CLEAR、WAIT、BEEP）、1 `screen.e16.ts`（LOCATE CURSOR PSET PRESET LINE CIRCLE GPRINT POINT）、2 `files.e16.ts`（カードと データファイル）、3 `tools.e16.ts`（AUTO RENUM DELETE TRON TROFF）、5 `link.e16.ts`（ASK。§12）。バンクの関数が中心の変数を変えるときは中心の小さな関数（`setTxt`、`step`、`setNsp` など）を通す（TypeScript では import した `let` に代入できないため）。e16c の名前は全部のファイルで 1 つなので、関数名と大域変数の名前は重ねない
 - **変数**: プログラムの後ろの記録 [名前 2][種類][容量][大きさ u16][値]。種類はビット 0 文字列、1 配列、2 二次元。数は 8 バイト、文字列は [長さ][容量の文字]、配列は [d1][d2] と要素を (0,0) から。同じ名前でも数・文字列・配列は別の変数
-- **文字列**: 当時のポケコンと同じく、文字列変数は決まった容量を持つ（`A$` は 16 文字、`DIM A$*80` で 1〜255 文字。入りきらない分は切る）。だからガーベジコレクションはいらない。式の途中でできる文字列（`+`、STR$、CHR$、INKEY$、TIME$、DATE$）は 512 バイトの作業域に置き、文ごとに空にする（あふれれば TOO COMPLEX）。LEFT$、MID$、RIGHT$ と文字列の定数は元の文字を指すだけで写さない。式の値は 8 バイトの欄で、文字列は [0xFF][長さ][番地]。型は式が `strType` で持ち、数と文字列を混ぜると ERR:TYPE。比較は文字コードの辞書順
+- **文字列**: 当時のポケコンと同じく、文字列変数は決まった容量を持つ（`A$` は 16 文字、`DIM A$*80` で 1〜255 文字。入りきらない分は切る）。だからガーベジコレクションはいらない。式の途中でできる文字列（`+`、STR$、CHR$、SPACE$、STRING$、INKEY$、TIME$、DATE$）は 512 バイトの作業域に置き、文ごとに空にする（あふれれば TOO COMPLEX）。LEFT$、MID$、RIGHT$ と文字列の定数は元の文字を指すだけで写さない。式の値は 8 バイトの欄で、文字列は [0xFF][長さ][番地]。型は式が `strType` で持ち、数と文字列を混ぜると ERR:TYPE。比較は文字コードの辞書順
 - **配列**: `DIM A(10)`、`DIM B(3,4)`、`DIM C$(5)*20`。添字は 0 から。DIM せずに使うと 10（二次元なら 10, 10）で作る。範囲の外は ERR:INDEX、二度目の DIM は ERR:DIM
-- **関数**: LEN LEFT$ MID$ RIGHT$ CHR$ ASC STR$ VAL INKEY$ TIME$（`HH:MM:SS`）DATE$（`YYYY-MM-DD`）EOF LCDW LCDH POINT。複数の引数は括弧で（`LEFT$(A$,2)`）、一つなら括弧なしでもよい
-- **文**: `INPUT ["問";] v[, v...]`（コンマで区切って複数、文字列は引用符でも）、`DATA`（項目は打ったまま字句にしない。引用符の中のコンマは項目の中）、`READ`、`RESTORE [行]`、`ON n GOTO|GOSUB 行, 行...`（範囲の外は次の文へ）、`CLEAR`、`WAIT n`（64 分の 1 秒）、`BEEP 周波数[, ミリ秒]`（鳴り終わるまで待つ。既定 100 ms）、`OFF`、`LOCATE x, y`、`CURSOR n`（CURMODE の値）、`PSET x, y[, X]`（X で点を反転）、`PRESET x, y`、`LINE (x1, y1)-(x2, y2)[, B | BF]`、`CIRCLE (x, y), r[, F]`（中点法、F で塗りつぶし。画面の外は切る）、`GPRINT` に列のバイトを数か 16 進の文字列で（`GPRINT "7F08087F"`）、`AUTO [始め][, 刻み]`、`RENUM [新][, 元][, 刻み]`（GOTO、GOSUB、THEN、ELSE、RESTORE と ON の並びも直す）、`DELETE a`、`DELETE a-b`、`DELETE -b`、`DELETE a-`、`TRON`、`TROFF`
+- **関数**: LEN LEFT$ MID$ RIGHT$ CHR$ ASC STR$ VAL SPACE$ STRING$ INKEY$ TIME$（`HH:MM:SS`）DATE$（`YYYY-MM-DD`）EOF LCDW LCDH POINT。複数の引数は括弧で（`LEFT$(A$,2)`）、一つなら括弧なしでもよい
+- **文**: `INPUT ["問";] v[, v...]`（コンマで区切って複数、文字列は引用符でも）、`DATA`（項目は打ったまま字句にしない。引用符の中のコンマは項目の中）、`READ`、`RESTORE [行]`、`ON n GOTO|GOSUB 行, 行...`（範囲の外は次の文へ）、`CLEAR`、`WAIT n`（64 分の 1 秒）、`BEEP 周波数[, ミリ秒]`（鳴り終わるまで待つ。既定 100 ms）、`OFF`、`LOCATE x, y`、`CURSOR n`（CURMODE の値）、`PSET x, y[, X]`（X で点を反転）、`PRESET x, y`、`LINE (x1, y1)-(x2, y2)[, B | BF]`、`CIRCLE (x, y), r[, F]`（中点法、F で塗りつぶし。画面の外は切る）、`GPRINT` に列のバイトを数か 16 進の文字列で（`GPRINT "7F08087F"`）、`AUTO [始め][, 刻み]`、`RENUM [新][, 元][, 刻み]`（GOTO、GOSUB、THEN、ELSE、RESTORE と ON の並びも直す。数の後に演算子が続く式の飛び先はそのまま）、`DELETE a`、`DELETE a-b`、`DELETE -b`、`DELETE a-`、`TRON`、`TROFF`
 - **WAIT と BEEP の待ち**: タイマー（1,024 Hz）の比較を仕掛けて WFI で眠る。待ちの間は mie に TIMER を足し、終われば（BRK で止まっても）元に戻す。戻さないと、プロンプトで眠るたびにタイマーの線で起きてしまう
 - **カード**: `FILES`（16 ファイルまでと空きの KB）、`SAVE "名前"`（プログラムを**リストの文字**で。1 行 1 つの CR。PC でもそのまま読める。拡張子がなければ .BAS）、`LOAD "名前"`（読めてから今のプログラムを消すので、ない名前では何も失わない）、`SAVE "X.BIN", 番地, 長さ` と `LOAD "X.BIN"[, 番地]`（機械語。既定は 7000、プログラムの上と スタックの手前の間だけ）、`KILL "名前"`。データファイルは 2 つまで: `OPEN "名前" FOR INPUT|OUTPUT|APPEND AS #n`（拡張子がなければ .DAT）、`PRINT #n, ...`（項目の間はコンマ、行の終わりは CR）、`INPUT #n, v...`、`EOF(n)`、`CLOSE [#n]`。プログラムが止まると（END、誤り、BRK）開いているファイルは書き出して閉じる。カードの命令は WFI で答えを待つので、main は ROM の最初で mie に CARD も入れる。カードの WRITE の位置 FFFF は「ファイルの終わりに足す」
+- **FOR と GOSUB、`\` と MOD、SPACE$ と STRING$、式の飛び先、行の長さ**（2026-10-05、利用者の決定）:
+  - GOSUB は呼んだときの FOR の深さを覚え（`gosubFor`、16 バイト）、サブルーチンの中の FOR と NEXT はそれより上のループだけを探す。RETURN はその深さに戻す（サブルーチンが開けたままのループを捨てる）。サブルーチンの中で呼んだ側のループの NEXT は ERR:NEXT。RAM は `tokens` を 96 から 80 バイトにして取った（字句にした行は元の 78 文字より長くならず、0 を足して 79 で足りる。説明書の制限は変わらない）
+  - `a\b`（0 の方へ切り捨てた商）と `a MOD b`（余り、a の符号）は `*` `/` と同じ順位。演算ユニットの IDIV と MOD で正確に求める。MOD は語の表の末尾のトークン 0xDE、`\` は字のまま
+  - SPACE$(n) と STRING$(n, c)（0xDF、0xE0、バンク 0）。TAB と PRINT USING は入れない
+  - GOTO、GOSUB、THEN・ELSE の後は、数だけ（後ろが文の終わりか ELSE）なら今までどおり読み、ほかは式としてバンク 0 で計算する（`computedLine`）。RENUM は後ろに演算子が続く数を直さない
+  - どの行も LIST の形で 78 文字（`LINE_MAX`）に収まる: 行番号の後に空白なしで打った 78 文字の行、番号が伸びる RENUM、長い行のある LOAD は ERR:TOO LONG IN 行（新しい誤り 21）で何も変えない。LOAD はファイルを 2 度読み、1 度目で全部の行（形、長さ、メモリ）を確かめてからプログラムを消す。SAVE は書き始める前に確かめる（以前の RENUM で長くなった行を切らない）
 - **表示の小さな直し**: 画面の幅ちょうどの行を出すと、文字が折り返したうえで改行してしまい空の行が入っていた。PRINT（何か出したうえで行の頭にいるなら改行しない）、LIST、行を打った後は、行の頭なら改行しない
-- **誤り**（段階 4 で足した）: TYPE、NO FILE、CARD、NO DATA、INDEX、DIM、FILE
+- **誤り**（段階 4 で足した）: TYPE、NO FILE、CARD、NO DATA、INDEX、DIM、FILE。2026-10-05 に TOO LONG
 - **音**: ページはブザーの状態（FREQ、DUR、GATE）を毎フレーム見て、共有の AudioContext の矩形波を鳴らす（`widgets/elec16/buzzer.ts`）。長さのある音は音のクロックで止めるので、フレームの粒に関係なく長さどおり。インターフェースの音が切れているか音量 0 なら何も作らない（e2e は音を切って動く）。音量は設定の `elec16.volume`、新しいペインのスキンは `elec16.skin`
 - 測定（4 MHz、-O2）: `N=N+1` と `IF N<2000 THEN 10` の繰り返しで 1 文 約 1,550 サイクル（毎秒約 2,570 文。§4 の見込み 1,500 より速い）、空の FOR/NEXT は 1 周 約 725 サイクル、`A=SIN I*2+SQR I` を含む 1 周は約 5,670 サイクル（演算ユニットの待ちが大半）。-O1 の改良の前はそれぞれ 1,860、840、6,200 サイクル
-- 大きさ: 固定 ROM は 8000–B861（残り約 1.9 KB）。段階 3 の終わりは AFB7、-O1 の改良の直後は A96B、その前は AF03。後半はバンク 0〜3（ROM の像は 48 KB）。-O0 は ROM に入らない
+- 大きさ: 固定 ROM は 8000–B861（残り約 1.9 KB。2026-10-05 の下の変更の後は BCC2、残り 830 バイト）。段階 3 の終わりは AFB7、-O1 の改良の直後は A96B、その前は AF03。後半はバンク 0〜3（ROM の像は 48 KB）。-O0 は ROM に入らない
 - テスト: `elec16-basic.test.ts` が文・プログラム・誤りを 1 行ずつ打って画面を比べ、前半と後半のやり取りを -O1 で翻訳した ROM でも確かめる（e16c の確かめにもなる）。テストの `settle`（`elec16-helpers.ts`）は、ページと main がすることを代わりにする: カードの命令を `cardOp` で答え、タイマーで眠っている間は時間を進める
 
 ### CODE 画面（段階 6）: e16c をペインで使う
@@ -413,9 +419,10 @@ TS の部分集合 (*.e16.ts)
 |---|---|
 | 命令 | RUN LIST NEW CONT AUTO RENUM DELETE TRON TROFF FILES LOAD SAVE KILL MON |
 | 文 | PRINT INPUT LET IF THEN ELSE FOR TO STEP NEXT GOTO GOSUB RETURN ON END STOP REM DIM DATA READ RESTORE CLEAR WAIT BEEP DEG RAD GRAD POKE CALL |
+| 演算子 | `+ - * / ^`、`\`（整数の商）MOD、比較、NOT AND OR |
 | 画面 | CLS LOCATE CURSOR PSET (,X) PRESET LINE (,B / ,BF) CIRCLE (,F) GPRINT POINT |
 | 関数 | SIN COS TAN ASIN ACOS ATAN SQR ABS INT SGN LOG LN EXP RND PI ANS PEEK POINT |
-| 文字列 | LEN LEFT$ MID$ RIGHT$ CHR$ ASC STR$ VAL INKEY$ TIME$ DATE$ |
+| 文字列 | LEN LEFT$ MID$ RIGHT$ CHR$ ASC STR$ VAL SPACE$ STRING$ INKEY$ TIME$ DATE$ |
 | データファイル | OPEN CLOSE PRINT# INPUT# EOF（カードの .DAT） |
 
 数は 10 進浮動小数点（演算ユニット）、配列は 2 次元まで、文字列は 255 文字までです。番地（PEEK、POKE、CALL、SAVE と LOAD の番地）は -32768〜65535 で、負の数は上から数える。図形の座標は画面から 4096 まで。INKEY$ は待たず、SHIFT・CAPS・カナだけならキーなし。式の入れ子は機械のスタックの残りで決まり（括弧で 18 段ほど）、越えると TOO COMPLEX。カナは引用符の中、REM と DATA の後にだけ書ける（ほかは SYNTAX）。エラーは短い語で示します（`ERR:SYNTAX IN 30`）。方言は独自のものです。ROM、取扱説明書の文、特定の機種の方言をそのまま写すことはしません。RUN / PRO のモード、`ANS`、`GPRINT` のような 80 年代のポケコンの BASIC に共通の語は使います（プログラム言語の語彙は著作権の対象外です。著作権法 10 条 3 項）。
@@ -603,8 +610,8 @@ TS の部分集合 (*.e16.ts)
 **変更の流れ**
 
 - ROM（`resources/elec16/rom`、`rom/basic/*.e16.ts`）か SOFT CARD（`resources/elec16/soft`）を変えたら `npm run gen:elec16` を実行し、`basic.s`、`src/renderer/widgets/elec16/rom.json`、`resources/elec16/soft.json` を元のファイルと同じコミットに入れる。手で書き換えない
-- 固定 ROM の残りは少ない（2026-10-04 で BB90 ほどまで使い、上限は C000）。新しい文はバンクに置く（`BASIC_SOURCES`。バンク 5 が ASK）。gen の出力の「fixed ROM to …」で残りを見る
-- 新しいキーワードは `text.e16.ts` の `KEYWORDS` の末尾に足し、トークンの定数も末尾に足す（0xDD まで使っている。カナは文字列の中だけなので重ならない）。BASIC 取扱説明書の予約語の付録と文の表も直す
+- 固定 ROM の残りは少ない（2026-10-05 で BCC2 まで使い、上限は C000）。新しい文はバンクに置く（`BASIC_SOURCES`。バンク 5 が ASK）。gen の出力の「fixed ROM to …」で残りを見る
+- 新しいキーワードは `text.e16.ts` の `KEYWORDS` の末尾に足し、トークンの定数も末尾に足す（0xE0 まで使っている。カナは文字列の中だけなので重ならない）。BASIC 取扱説明書の予約語の付録と文の表も直す
 - 機械が持つ状態（`state.ts`）を増やしたら、スナップショットの版を上げ、古い版も読む（`snapshot.ts` の `readLink` と版 1 の扱いが見本）。利用者の電池バックアップを捨てないため
 - 割り込みの線を足したら `IRQ`、`MIE_LINES`（PLAY-320 だけの線は `MIE_LINES_VIDEO`。ほかのモデルの mie は変えない）、`#pending()`、`#wake()`、ROM の `io.inc`（rom.ts が作る）を揃える。線 5 は PLAY-320 の VBLANK（elec16-play.md §4）。ROM がその線を mie に足して待つなら、BRK でモニタへ落ちたとき（`save_all`）にも mie が戻ることを確かめる（戻らないと WFI が起き続けた）
 - 利用者に見える変化は説明書（BASIC、E16、e16c、SOFT CARD）を同じコミットで直す。説明書の例は、できるだけテストが説明書から読んで機械の上で動かす（`tests/unit/elec16-ask.test.ts` の「manual」のテストが見本）
@@ -622,6 +629,7 @@ TS の部分集合 (*.e16.ts)
 - `u16()`、`i16()` を値として使うファイルは `import { u16 }` にする（`import { type u16 }` は型だけになり、typecheck:e16c が落ちる）
 - アセンブリからだけ呼ぶ関数は export する（-O2 が落とす）。関数名と大域変数の名前は全ファイルで 1 つ（ROM のラベルとも重ねない）
 - e16c の変更の前後に `E16C_FUZZ_SEEDS=2000` でファズを回す
+- BASIC の作業域（0100–07FF）は 07FB まで埋まり、残りは 4 バイト。大域変数を足すなら、既存のバッファを意図して削り、説明書の制限が変わるならそれも直す（2026-10-05 は `tokens` の 96 を 80 にして GOSUB の 16 バイトを取った）
 
 **ページと main**
 

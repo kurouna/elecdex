@@ -16,8 +16,10 @@ import {
   format,
   frac,
   fromInt,
+  idiv,
   ln,
   log,
+  mod,
   mul,
   parse,
   pow,
@@ -64,6 +66,29 @@ describe('the four operations', () => {
     fails(() => mul(n('1E60'), n('1E60')), ERR.overflow)
     expect(show(mul(n('1E-60'), n('1E-60')))).toBe('0')
     fails(() => div(n('1'), n('0')), ERR.divideByZero)
+  })
+
+  it("divide to a whole quotient towards zero, and leave a remainder of the dividend's sign, exactly", () => {
+    const both = (a: string, b: string) => [show(idiv(n(a), n(b)), 12), show(mod(n(a), n(b)), 12)]
+    expect(both('7', '2')).toEqual(['3', '1'])
+    expect(both('-7', '2')).toEqual(['-3', '-1'])
+    expect(both('7', '-2')).toEqual(['-3', '1'])
+    expect(both('-7', '-2')).toEqual(['3', '-1'])
+    expect(both('7.5', '2')).toEqual(['3', '1.5'])
+    expect(both('-4', '2')).toEqual(['-2', '0'])
+    expect(both('1E10', '3')).toEqual(['3333333333', '1'])
+    expect(both('0.9999999999', '1')).toEqual(['0', '0.9999999999'])
+    expect(both('1', '0.9999999999')).toEqual(['1', '0.0000000001'])
+    // Divided and then cut, the quotient here rounds up to 2 at its twelfth digit: worked
+    // exactly, it is 1.
+    expect(show(div(n('999999999999'), n('500000000000')), 12)).toBe('2')
+    expect(both('999999999999', '500000000000')).toEqual(['1', '499999999999'])
+    // A quotient longer than twelve digits is rounded as any result is; its remainder is exact.
+    expect(both('1E20', '7')).toEqual(['1.42857142857E19', '2'])
+    expect(show(mod(n('1E-99'), n('1E99')), 12)).toBe('1E-99')
+    fails(() => idiv(n('1'), n('0')), ERR.divideByZero)
+    fails(() => mod(n('1'), n('0')), ERR.divideByZero)
+    fails(() => idiv(n('1E99'), n('1E-99')), ERR.overflow)
   })
 
   it('compare, and take whole and fractional parts as BASIC does', () => {

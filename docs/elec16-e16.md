@@ -605,6 +605,8 @@ FREQ に周波数（Hz）を書いてから DUR に長さ（ms）を書くと、
 | 0x01〜0x05 | ADD SUB MUL DIV POW: A = A op B | 60 / 60 / 120 / 250 / 3000 |
 | 0x06 | CMP: RESULT = A と B の比較 | 30 |
 | 0x07 | MOVE: A = B | 16 |
+| 0x08 | IDIV: A = A ÷ B を 0 の方へ切り捨てた整数（割り算をせずに正確に。12 桁を越える商は丸める） | 250 |
+| 0x09 | MOD: A = A − (A IDIV B) × B（余り。符号は A と同じ。正確） | 250 |
 | 0x10〜0x15 | NEG ABS INT FRAC SGN SQR（A をその場で） | 16〜400 |
 | 0x16〜0x1B | SIN COS TAN ASN ACS ATN（ANGLE の単位） | 2000〜2400 |
 | 0x1C〜0x1E | LN LOG EXP | 1800 |

@@ -8,6 +8,7 @@ import {
   csrw,
   div,
   i16,
+  memset,
   peek,
   peek16,
   poke,
@@ -44,6 +45,7 @@ import {
   lineBuf,
   M_NEG,
   M_PARSE,
+  M_TOWORD,
   move,
   nameIsString,
   nameKey,
@@ -70,6 +72,7 @@ import {
   stringAt,
   stringLength,
   stringSize,
+  strType,
   tempString,
   textOut,
   toInt,
@@ -141,7 +144,9 @@ import {
   T_REM,
   T_RESTORE,
   T_RIGHT,
+  T_SPACES,
   T_STR,
+  T_STRING,
   T_TIME,
   T_VAL,
   T_WAIT,
@@ -315,8 +320,53 @@ export function moreFunctions(token: u16): void {
     eofFunction()
     return
   }
+  if (token === T_STRING) {
+    stringOf()
+    return
+  }
   unary()
-  oneArgument(token)
+  if (token === T_SPACES) repeated(CH_SPACE, repeatCount())
+  else oneArgument(token)
+}
+
+/** STRING$(n, c): n of the character c, a code (0 to 255) or a string's first character. */
+function stringOf(): void {
+  expect(CH_LPAREN)
+  expr()
+  const n = repeatCount()
+  expect(CH_COMMA)
+  expr()
+  let c: u16 = 0
+  if (strType) {
+    // A string gives its first character: an empty one has none to repeat.
+    if (stringLength(top()) === 0) fail(E_ARGUMENT)
+    c = peek(stringAt(top()))
+  } else c = charCode(top())
+  setNsp(nsp - 8)
+  expect(CH_RPAREN)
+  repeated(c, n)
+}
+
+/** A character code from the number at `e`: 0 to 255, ARGUMENT outside. */
+function charCode(e: u16): u16 {
+  const c = toInt(e)
+  if (c < 0 || c > 255) fail(E_ARGUMENT)
+  return u16(c)
+}
+
+/** SPACE$'s and STRING$'s count from the number on top, taken off: 0 to 255, ARGUMENT outside. */
+function repeatCount(): u16 {
+  needNumber()
+  const n = charCode(top())
+  setNsp(nsp - 8)
+  return n
+}
+
+/** `n` of the character `c`, a new string onto the stack (SPACE$, STRING$). */
+function repeated(c: u16, n: u16): void {
+  const at = tempString(n)
+  memset(at, c, n)
+  pushString(at, n)
 }
 
 /** LEN, ASC and VAL of a string; CHR$ and STR$ of a number. */
@@ -626,6 +676,24 @@ function restoreStatement(): void {
 }
 
 /* ---------------- ON, WAIT, BEEP ---------------- */
+
+/**
+ * The line an expression after GOTO or GOSUB names (GOTO 100+I*10): its address; NO LINE when
+ * no line has that number, as below 0 or past 65535 none can.
+ */
+export function computedLine(): u16 {
+  expr()
+  needNumber()
+  const e = top()
+  setNsp(nsp - 8)
+  poke16(MATH_A, e)
+  poke16(MATH_OP, M_TOWORD)
+  // TOWORD takes -32768 to 65535: a sign or its refusal is no line's number.
+  if (peek16(MATH_STATUS) !== 0 || (peek(e) & 0x80) !== 0) fail(E_LINE)
+  const at = findLine(peek16(MATH_ARG), true)
+  if (at === 0) fail(E_LINE)
+  return at
+}
 
 /** ON n GOTO a, b, c (or GOSUB): the n-th line; past the list's end, on to the next statement. */
 function onStatement(): void {

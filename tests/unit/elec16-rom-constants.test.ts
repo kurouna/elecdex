@@ -128,6 +128,8 @@ describe("BASIC's copied constants", () => {
       M_DIV: MATH_OP.div,
       M_POW: MATH_OP.pow,
       M_CMP: MATH_OP.cmp,
+      M_IDIV: MATH_OP.idiv,
+      M_MOD: MATH_OP.mod,
       M_NEG: MATH_OP.neg,
       M_INT: MATH_OP.int,
       M_RND: MATH_OP.rnd,

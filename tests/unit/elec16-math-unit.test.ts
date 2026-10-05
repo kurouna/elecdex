@@ -65,6 +65,21 @@ describe('the maths unit', () => {
     expect(at(r, A)).toBe('1')
   })
 
+  it('divides to a whole quotient towards zero (IDIV) and gives the remainder (MOD)', () => {
+    const operands = (mm: Elec16) => {
+      put(mm, A, '7.5')
+      put(mm, B, '2')
+    }
+    expect(at(run([MATH_OP.idiv], operands), A)).toBe('3')
+    expect(at(run([MATH_OP.mod], operands), A)).toBe('1.5')
+    const zero = run([MATH_OP.mod], (mm) => {
+      put(mm, A, '5')
+      put(mm, B, '0')
+    })
+    expect(zero.state.regs[4]).toBe(MATH_ERR.divideByZero)
+    expect(at(zero, A)).toBe('5')
+  })
+
   it('charges its cycles to the instruction that starts it, and raises the MATH line', () => {
     const quick = run([MATH_OP.neg], (mm) => put(mm, A, '2'))
     const slow = run([MATH_OP.sin], (mm) => put(mm, A, '2'))
