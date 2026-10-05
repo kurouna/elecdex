@@ -102,6 +102,7 @@ ${[...q6, ...near].join(' ')}
 )
 
 const cl = sprites.clouds()
+const tr = sprites.trail()
 const sun = sprites.sun()
 const sheets = [
   ['font.png', fontFrames(), 8, 'hud_text'],
@@ -119,6 +120,10 @@ const sheets = [
   ['cloud8.png', cl.tiny, 8, 'cloud'],
   ['sun.png', [sun.disc], 32, 'sun'],
   ['flare.png', sun.ghosts, 16, 'sun'],
+  ['burst16.png', sprites.bursts(), 16, 'fire'],
+  ['muzzle.png', sprites.muzzle(), 16, 'shot'],
+  ['trail16.png', tr.big, 16, 'cloud'],
+  ['trail8.png', tr.small, 8, 'cloud'],
 ]
 for (const [name, frames, cell, palette] of sheets) save(name, sheet(frames, cell, 8), palette)
 // The big clouds two halves to a row, so each cloud's halves are read together.

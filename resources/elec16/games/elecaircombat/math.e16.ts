@@ -212,8 +212,9 @@ export function muldiv(_a: u16, _b: u16, _d: u16): u16 {
   return mOut[0]
 }
 
-/** A place's parts along the player's right, up and forward (units), from `toBodyOf`. */
-export const bodyV = words(3)
+/** A place's parts along the player's right, up and forward (units), from `toBodyOf`; then
+ * where sky.e16.ts's `see` put it on the screen. */
+export const bodyV = words(5)
 
 /** The place at `p` (an address: units, world) along the player's three axes into `bodyV`. */
 export function toBodyOf(_p: u16): void {
@@ -321,38 +322,6 @@ export function toBodyOf(_p: u16): void {
     li t2, bodyV
     sw t0, 4(t2)
   `
-}
-
-/**
- * x / z on the screen: x * 192 / z points, for |x| <= z and z > 0 - z brought up to fill its
- * word by its leading zeros, then two divisions for fourteen bits.
- */
-export function persp(_x: i16, _z: i16): i16 {
-  asm`
-    srai t3, a0, 15
-    xor a0, a0, t3
-    sub a0, a0, t3
-    clz t0, a1
-    sll a1, a1, t0
-    sll a0, a0, t0
-    srli a1, a1, 7
-    srli a0, a0, 7
-    slli a0, a0, 7
-    divu t1, a0, a1
-    remu t2, a0, a1
-    slli t2, t2, 7
-    divu t2, t2, a1
-    slli t1, t1, 7
-    add t1, t1, t2
-    slli t0, t1, 1
-    add t1, t1, t0
-    srli t1, t1, 8
-    xor t1, t1, t3
-    sub t1, t1, t3
-    li t2, mOut
-    sw t1, 0(t2)
-  `
-  return i16(mOut[0])
 }
 
 /* ---------------- vectors in e16c ---------------- */

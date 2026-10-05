@@ -12,7 +12,20 @@ import {
   u16,
   words,
 } from '../../../../src/shared/e16c/builtins'
-import { aim, bank, FLIP_H, FLIP_V, IO_BANK, load, S8, S16, S32, spr } from '../lib/kit.e16'
+import {
+  aim,
+  bank,
+  FLIP_H,
+  FLIP_V,
+  IO_BANK,
+  load,
+  rand,
+  randBelow,
+  S8,
+  S16,
+  S32,
+  spr,
+} from '../lib/kit.e16'
 import {
   BANDIT8_AT,
   BANDIT8_BANK,
@@ -29,6 +42,7 @@ import {
   BANDIT64_AT,
   BANDIT64_BANK,
   BANDIT64_TILE,
+  BITS_TILE,
   VIEW_TABLE_AT,
   VIEW_TABLE_BANK,
 } from './assets.e16'
@@ -57,11 +71,12 @@ import {
   bodyX,
   bodyY,
   bodyZ,
-  project,
   SL_ENEMY,
+  SL_FIRE,
   SL_FLASH,
   scrX,
   scrY,
+  see,
   toBody,
 } from './sky.e16'
 
@@ -117,9 +132,11 @@ export let eRollMax: i16 = 640
 export let ePullMax: i16 = 300
 /** 1 flying, 0 gone (shot down). */
 export let eAlive: bool = true
-/** Frames it shows white after a hit. */
+/** Frames it shows white after a hit, and its gun's flash shows. */
 export let eFlash: u16 = 0
+export let eMuzzle: u16 = 0
 let eRollRate: i16 = 0
+let eSquare: u16 = 1
 let ePitchRate: i16 = 0
 /** What the AI asks for this frame. */
 export let eWantRoll: i16 = 0
@@ -138,6 +155,7 @@ export function banditNew(k: u16, dist: i16): void {
   ePullMax = i16(acePull[k])
   eAlive = true
   eFlash = 0
+  eMuzzle = 0
   eRollRate = 0
   ePitchRate = 0
   eWantRoll = 0
@@ -159,6 +177,7 @@ export function aiWants(roll: i16, pitch: i16, speed: i16): void {
 /** A frame of the enemy's flying: its rates toward what the AI wants, within the ace's limits. */
 export function banditStep(): void {
   if (eFlash > 0) eFlash--
+  if (eMuzzle > 0) eMuzzle--
   if (!eAlive) return
   const wr = eWantRoll > eRollMax ? eRollMax : eWantRoll < -eRollMax ? -eRollMax : eWantRoll
   const wp = eWantPitch > ePullMax ? ePullMax : eWantPitch < -ePullMax ? -ePullMax : eWantPitch
@@ -166,13 +185,20 @@ export function banditStep(): void {
   ePitchRate = approach(ePitchRate, wp, 50)
   if (eRollRate !== 0) rollBy(V_ER, V_EU, eRollRate)
   if (ePitchRate !== 0) pitchBy(V_EF, V_EU, ePitchRate)
-  orthonormal(V_EF, V_ER, V_EU)
+  // Squared up on the frames the player's axes are not (flight.e16.ts).
+  eSquare = eSquare ^ 1
+  if (eSquare === 0) orthonormal(V_EF, V_ER, V_EU)
   eSpeed = approach(eSpeed, eWantSpeed - (vget(V_EF + 2) >> 7), 3)
 }
 
 /** The enemy's velocity part `k`, sixteenths of a unit a frame (its wreck keeps it). */
 export function eVel(k: u16): i16 {
   return mulq(vget(V_EF + k), eSpeed)
+}
+
+/** Its gun fired: the flash on its nose for a few frames. */
+export function banditFired(): void {
+  eMuzzle = 3
 }
 
 /** Damage: answers whether it was the last. */
@@ -202,12 +228,12 @@ export let eDist: u16 = 0
 
 export function banditView(): void {
   toBody(V_REL)
-  eBX = bodyX
-  eBY = bodyY
-  eBZ = bodyZ
-  eOn = project()
-  eSX = scrX
-  eSY = scrY
+  eBX = bodyX()
+  eBY = bodyY()
+  eBZ = bodyZ()
+  eOn = see(V_REL)
+  eSX = scrX()
+  eSY = scrY()
   eDist = vlenRel()
   eSize = eBZ > 0 ? (eBZ < 260 ? 62 : div(16000, u16(eBZ))) : 0
 }
@@ -345,6 +371,8 @@ let viewTick: u16 = 0
 let classWas: u16 = 0xffff
 let frameNow: u16 = 0
 let flipsNow: u16 = 0
+let viewNow: u16 = 0
+let viewMirrorNow: bool = false
 
 /** The size class shown, for the box round it. */
 export let eClass: u16 = 6
@@ -354,18 +382,42 @@ export function banditDraw(): void {
   if (!eAlive || !eOn) return
   eClass = sizeClass(eSize)
   if (!abovePanel(eSY, eClass === 0 ? 32 : eClass === 1 ? 24 : 16)) return
-  // Which frame, every other frame (the turn of a sprite at thirty a second is smooth enough;
-  // its place moves every frame), or at once when the size changes.
-  viewTick = viewTick ^ 1
+  // Which frame: the side it shows every fourth frame, the turn of its wings every other (at
+  // fifteen and thirty a second they are smooth enough; its place moves every frame), or both
+  // at once when the size changes.
+  viewTick = (viewTick + 1) & 3
   if (viewTick === 0 || eClass !== classWas) {
-    const view = viewOf(eClass <= 1)
-    frameNow = view * 8 + turnOf(view)
+    viewNow = viewOf(eClass <= 1)
+    viewMirrorNow = viewMirror
+  }
+  if ((viewTick & 1) === 0 || eClass !== classWas) {
+    viewMirror = viewMirrorNow
+    frameNow = viewNow * 8 + turnOf(viewNow)
     flipsNow = frameFlips
     classWas = eClass
   }
   frameLoad(eClass, frameNow)
+  sparks()
   const pal = (eFlash > 0 ? SL_FLASH - 8 : SL_ENEMY - 8) << 10
   drawFrame(eSX, eSY, BANDIT64_TILE | pal | flipsNow, eClass)
+}
+
+/**
+ * In front of the fighter: its gun's flash while it fires, and the sparks of the player's
+ * rounds striking it while it shows the hit - drawn where it is, with nothing more to project.
+ */
+function sparks(): void {
+  const fire = (SL_FIRE - 8) << 10
+  if (eMuzzle > 0) spr(eSX - 4, eSY - 4, (BITS_TILE + 4 + (eMuzzle & 1)) | fire, S8)
+  if (eFlash === 0) return
+  const r = (eSize >> 1) + 2
+  let n: u16 = 0
+  while (n < 2) {
+    const x = eSX + i16(randBelow(r * 2)) - i16(r)
+    const y = eSY + i16(randBelow(r)) - i16(r >> 1)
+    spr(x - 4, y - 4, (BITS_TILE + 4 + (rand() & 1)) | fire, S8)
+    n++
+  }
 }
 
 /**
@@ -383,16 +435,21 @@ export function drawFrame(x: i16, y: i16, word: u16, c: u16): void {
 function cells(x0: i16, y0: i16, word: u16, n: u16): void {
   const size: i16 = n === 2 ? 32 : 16
   const step: u16 = n === 2 ? 16 : 4
+  const sz: u16 = n === 2 ? S32 : S16
   const fh = (word & FLIP_H) !== 0
   const fv = (word & FLIP_V) !== 0
-  let j: u16 = 0
-  while (j < n * n) {
-    const cx = j % n
-    const cy = div(j, n)
-    const px = fh ? n - 1 - cx : cx
+  let w = word
+  let cy: u16 = 0
+  while (cy < n) {
     const py = fv ? n - 1 - cy : cy
-    spr(x0 + i16(px) * size, y0 + i16(py) * size, word + j * step, n === 2 ? S32 : S16)
-    j++
+    let cx: u16 = 0
+    while (cx < n) {
+      const px = fh ? n - 1 - cx : cx
+      spr(x0 + i16(px) * size, y0 + i16(py) * size, w, sz)
+      w = w + step
+      cx++
+    }
+    cy++
   }
 }
 

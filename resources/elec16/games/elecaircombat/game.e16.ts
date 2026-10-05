@@ -12,8 +12,10 @@ import {
   words,
 } from '../../../../src/shared/e16c/builtins'
 import {
+  B_A,
   B_START,
   frame_wait,
+  held,
   kitInit,
   load,
   padRead,
@@ -23,7 +25,7 @@ import {
   sprShow,
 } from '../lib/kit.e16'
 import { soundInit, soundTick } from '../lib/sound.e16'
-import { aiNew, aiStep } from './ai.e16'
+import { aiInit, aiNew, aiStep } from './ai.e16'
 import {
   armsNew,
   flaresLeft,
@@ -31,15 +33,20 @@ import {
   gunFiring,
   hitsOnEnemy,
   hitsOnPlayer,
+  LOCK_FRAMES,
+  lockT,
   missileFired,
   missileOnClear,
   missileOnPlayer,
   missileStruck,
   missilesLeft,
   missilesStep,
+  muzzle,
+  nearMiss,
   playerFlares,
   playerGun,
   playerMissile,
+  railSide,
   roundsStep,
   seekerStep,
   warnDist,
@@ -58,6 +65,10 @@ import {
   BLAST32_BANK,
   BLAST32_BYTES,
   BLAST32_TILE,
+  BURST16_AT,
+  BURST16_BANK,
+  BURST16_BYTES,
+  BURST16_TILE,
   CLOUD8_AT,
   CLOUD8_BANK,
   CLOUD8_BYTES,
@@ -94,6 +105,10 @@ import {
   HUD16_BANK,
   HUD16_BYTES,
   HUD16_TILE,
+  MUZZLE_AT,
+  MUZZLE_BANK,
+  MUZZLE_BYTES,
+  MUZZLE_TILE,
   PAL_ACE_GANNET,
   SEEKER_AT,
   SEEKER_BANK,
@@ -111,6 +126,14 @@ import {
   SUN_BANK,
   SUN_BYTES,
   SUN_TILE,
+  TRAIL8_AT,
+  TRAIL8_BANK,
+  TRAIL8_BYTES,
+  TRAIL8_TILE,
+  TRAIL16_AT,
+  TRAIL16_BANK,
+  TRAIL16_BYTES,
+  TRAIL16_TILE,
 } from './assets.e16'
 import {
   M_FIGHT,
@@ -121,8 +144,10 @@ import {
   sfxFlare,
   sfxGun,
   sfxHit,
+  sfxHush,
   sfxLock,
   sfxMissile,
+  sfxNear,
   sfxOuch,
   sfxSeek,
   sfxSplash,
@@ -146,6 +171,10 @@ import {
   cloudsDraw,
   cloudsNew,
   cloudsStep,
+  cockpitFx,
+  cueGun,
+  cueHurt,
+  cueRail,
   fxClear,
   fxStep,
   puffAt,
@@ -154,13 +183,15 @@ import {
   sunDraw,
   sunIs,
 } from './fx.e16'
-import { hudDraw, hudInit, hudLabels, hudNumbers, hudScore, lamps } from './hud.e16'
+import { skyDraw } from './horizon.e16'
+import { callout, hudDraw, hudInit, hudLabels, hudNumbers, hudScore, lamps } from './hud.e16'
 import { mulq, V_PF, V_PU, V_REL, vget } from './math.e16'
 import {
   cockpitIn,
   cockpitTilesIn,
   flashScreen,
   flashStep,
+  frameStarts,
   mapsClear,
   palettesIn,
   SL_CLOUD,
@@ -171,7 +202,6 @@ import {
   screenOn,
   shake,
   shakeStep,
-  skyDraw,
   skyInit,
   slot,
   tintSlot,
@@ -201,10 +231,12 @@ export function main(): void {
   skyInit()
   viewsInit()
   acesInit()
+  aiInit()
   hudInit()
   tableLoad()
   for (;;) {
     title()
+    controls()
     campaign()
   }
 }
@@ -227,11 +259,16 @@ function spritesIn(): void {
   load(CLOUD8_BANK, CLOUD8_AT, CLOUD8_TILE * 32, CLOUD8_BYTES)
   load(SUN_BANK, SUN_AT, SUN_TILE * 32, SUN_BYTES)
   load(FLARE_BANK, FLARE_AT, FLARE_TILE * 32, FLARE_BYTES)
+  load(BURST16_BANK, BURST16_AT, BURST16_TILE * 32, BURST16_BYTES)
+  load(MUZZLE_BANK, MUZZLE_AT, MUZZLE_TILE * 32, MUZZLE_BYTES)
+  load(TRAIL16_BANK, TRAIL16_AT, TRAIL16_TILE * 32, TRAIL16_BYTES)
+  load(TRAIL8_BANK, TRAIL8_AT, TRAIL8_TILE * 32, TRAIL8_BYTES)
 }
 
 /** A frame's start: last frame's sprites and sky shown, the shake, the pad and the sound. */
 export function frameBegin(): void {
   seen = frame_wait(seen)
+  frameStarts()
   sprShow()
   shakeStep()
   if (skyOn) skyDraw()
@@ -313,10 +350,14 @@ export function cloudTint(k: u16): void {
 export function fly(k: u16): u16 {
   sortie = k
   sortieSetup(k)
+  calloutT = 0
   say(13, 8, str('ENGAGE'), SL_WHITE)
   for (;;) {
     frameBegin()
-    if (pressed(B_START) && outcome === 0) pause()
+    if (pressed(B_START) && outcome === 0) {
+      gunSound(false)
+      pause()
+    }
     if (flown === 120) unsay(13, 8, 7)
     flyFrame()
     if (outcome !== 0) {
@@ -325,6 +366,7 @@ export function fly(k: u16): u16 {
     }
   }
   skyIs(false)
+  gunSound(false)
   return outcome
 }
 
@@ -334,6 +376,7 @@ function flyFrame(): void {
   flown++
   if (clock > 0 && outcome === 0) clock--
   playerStep(alive)
+  if (!alive) gunSound(false)
   aiStep()
   banditStep()
   worldStep(eVel(0), eVel(1), eVel(2))
@@ -353,8 +396,21 @@ function shoot(): void {
   playerGun()
   playerMissile()
   if (playerFlares()) sfxFlare()
-  if (gunFiring && (frame & 3) < 3) sfxGun()
-  if (missileFired) sfxMissile()
+  gunSound(held(B_A))
+  if (gunFiring) cueGun(muzzle === 0)
+  if (missileFired) {
+    sfxMissile()
+    cueRail(railSide)
+  }
+}
+
+/** Whether the gun's loop is sounding: it starts and stops with the trigger, never per round. */
+let gunSounding: bool = false
+
+function gunSound(on: bool): void {
+  if (on === gunSounding) return
+  gunSounding = on
+  sfxGun(on)
 }
 
 /** What struck what this frame: points, damage, the enemy's end. */
@@ -366,6 +422,10 @@ function struck(): void {
   if (missileStruck > 0) {
     points(30)
     shake(6)
+  }
+  if (nearMiss && outcome === 0) {
+    shake(12)
+    sfxNear()
   }
   if (hitsOnPlayer > 0 && outcome === 0) hurt(hitsOnPlayer * 3)
   if (missileOnPlayer && outcome === 0) hurt(34)
@@ -389,16 +449,22 @@ function ownSmoke(): void {
   if (outcome === 2 && (frame & 3) === 0) boomAt(x, y, z)
 }
 
-/** A wounded ace trails smoke, and burns once it is nearly down. */
+/**
+ * A wounded ace trails smoke, more as it is hurt: a wisp now and then below three quarters,
+ * thicker below half, and thick and burning below a quarter.
+ */
 function wounds(): void {
-  if (!eAlive || eHP * 2 > eHPMax || (frame & 7) !== 0) return
+  if (!eAlive || eHP * 4 > eHPMax * 3) return
+  const every: u16 = eHP * 4 < eHPMax ? 3 : eHP * 2 < eHPMax ? 7 : 15
+  if ((frame & every) !== 0) return
   puffAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2), 1)
-  if (eHP * 4 < eHPMax) sparkAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
+  if (eHP * 4 < eHPMax && (frame & 7) === 0) sparkAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
 }
 
 function hurt(n: u16): void {
   damage = damage + n > 100 ? 100 : damage + n
   hitsTaken++
+  cueHurt()
   sfxOuch()
   shake(n > 10 ? 24 : 8)
   flashScreen(n > 10 ? 12 : 5, 0x001f)
@@ -414,7 +480,11 @@ function aceDown(): void {
   points(500 * (sortie + 1))
   unsay(13, 8, 7)
   say(12, 8, str('TARGET DESTROYED'), SL_WHITE)
+  calloutT = 150
 }
+
+/** Frames the kill's callout still shows on the HUD. */
+let calloutT: u16 = 0
 
 /** Shot down, into the sea, or out of time: the sortie is lost. */
 function ending(): void {
@@ -433,12 +503,28 @@ function lost(how: u16, words_: u16): void {
   say(15, 8, words_, SL_RED)
 }
 
-/** The seeker's tones and the missile alarm. */
+/** Frames until the steady lock tone is played again; whether a tone is sounding. */
+let lockToneT: u16 = 0
+let toneOn: bool = false
+
+/**
+ * The seeker's tones - short ones while it tracks, rising as the lock nears, two quick ones
+ * as it locks, then one steady tone, hushed when the lock is lost - and the missile alarm.
+ */
 function sounds(): void {
   const s = seekerStep()
-  if (s === 1) sfxLock()
-  else if (s === 2 && (frame & 7) === 0) sfxSeek()
-  else if (s === 3 && (frame & 15) === 0) sfxLock()
+  if (s === 1) {
+    sfxLock(true)
+    lockToneT = 4
+  } else if (s === 2 && (frame & 7) === 0) sfxSeek(div(lockT * 4, LOCK_FRAMES))
+  else if (s === 3) {
+    if (lockToneT > 0) lockToneT--
+    else {
+      sfxLock(false)
+      lockToneT = 15
+    }
+  } else if (s === 0 && toneOn) sfxHush()
+  toneOn = s !== 0
   if (!warned) return
   const every: u16 = warnDist < 1500 ? 7 : warnDist < 4000 ? 15 : 31
   if ((frame & every) === 0) sfxAlert()
@@ -453,6 +539,11 @@ function draw(): void {
   fxStep()
   cloudsDraw(eBZ, false)
   sunDraw()
+  if (calloutT > 0) {
+    calloutT--
+    callout(calloutT)
+  }
+  cockpitFx()
   hudNumbers(damage, missilesLeft, flaresLeft, div(clock, 60))
   hudScore(score[1], score[0])
   lamps(frame, low)
@@ -490,4 +581,13 @@ function campaign(): void {
 }
 
 import { tableLoad } from './best.e16'
-import { briefing, continueAsk, ending_, gameOver, pause, results, title } from './scenes.e16'
+import {
+  briefing,
+  continueAsk,
+  controls,
+  ending_,
+  gameOver,
+  pause,
+  results,
+  title,
+} from './scenes.e16'

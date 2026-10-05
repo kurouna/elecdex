@@ -21,11 +21,13 @@ import {
   cos,
   frame_wait,
   padRead,
+  palMix,
   pressed,
   randSeed,
   sin,
 } from '../lib/kit.e16'
 import { soundMaster } from '../lib/sound.e16'
+import { aceFlares, aceMissiles } from './ai.e16'
 import { roundsHit } from './arms.e16'
 import { PAL_ACE_GANNET } from './assets.e16'
 import { M_BRIEF, M_ENDING, M_OVER, M_TITLE, M_WIN, music, sfxSelect } from './audio.e16'
@@ -72,9 +74,11 @@ import {
   palettesIn,
   rowsClear,
   SL_AMBER,
+  SL_CLOUD,
   SL_ENEMY,
   SL_HUD_TEXT,
   SL_RED,
+  SL_SKY,
   SL_WHITE,
   say,
   sayChar,
@@ -176,10 +180,96 @@ function wingman(t: u16): void {
   banditDraw()
 }
 
+/* ---------------- the controls ---------------- */
+
+/**
+ * After the title: the console's buttons and the PC's keys side by side (their names differ),
+ * with what each does in the cockpit, over the dimmed sky. A or START goes on; SELECT turns
+ * the stick round here too, and the stick's lines follow it.
+ */
+export function controls(): void {
+  sceneSky(3)
+  dim()
+  say(16, 2, str('CONTROLS'), SL_AMBER)
+  say(2, 5, str('PAD'), SL_AMBER)
+  say(13, 5, str('PC KEY'), SL_AMBER)
+  say(25, 5, str('ACTION'), SL_AMBER)
+  rule(6)
+  control(8, str('D-PAD < >'), str('ARROW < >'), str('ROLL, TURN'))
+  stickLines()
+  control(13, str('A'), str('Z'), str('GUN (HOLD)'))
+  control(14, str('B'), str('X'), str('MISSILE'))
+  control(15, str('X'), str('S'), str('FLARES'))
+  control(17, str('R'), str('W'), str('AFTERBURNER'))
+  control(18, str('L'), str('Q'), str('AIR BRAKE'))
+  control(20, str('START'), str('ENTER'), str('PAUSE'))
+  control(21, str('SELECT'), str('RIGHT SHIFT'), str('STICK REVERSE'))
+  rule(23)
+  say(2, 25, str('LOCK ON: KEEP THE TARGET IN THE'), SL_WHITE)
+  say(2, 26, str('CIRCLE, THEN B. X DECOYS MISSILES.'), SL_WHITE)
+  let t: u16 = 0
+  for (;;) {
+    frameBegin()
+    cruise(t, 6)
+    if ((t & 32) === 0) say(12, 32, str('PRESS A OR START'), SL_AMBER)
+    else unsay(12, 32, 16)
+    if (pressed(B_SELECT)) {
+      stickToggle()
+      stickLines()
+      sfxSelect()
+    }
+    if (t > 10 && pressed(B_A | B_START)) break
+    t++
+  }
+  sfxSelect()
+  rowsClear(0, 35)
+}
+
+/** The pad's up and down as the stick is set: pulling the nose up comes first. */
+function stickLines(): void {
+  const up = stickReversed ? str('D-PAD UP  ') : str('D-PAD DOWN')
+  const upKey = stickReversed ? str('ARROW UP  ') : str('ARROW DOWN')
+  const down = stickReversed ? str('D-PAD DOWN') : str('D-PAD UP  ')
+  const downKey = stickReversed ? str('ARROW DOWN') : str('ARROW UP  ')
+  control(9, up, upKey, str('PULL UP'))
+  control(10, down, downKey, str('PUSH DOWN'))
+  say(
+    2,
+    29,
+    stickReversed
+      ? str('STICK REVERSE  (SELECT TO CHANGE)')
+      : str('STICK NORMAL   (SELECT TO CHANGE)'),
+    SL_HUD_TEXT,
+  )
+}
+
+/** One line: the pad's button, the PC's key, what it does. */
+function control(y: u16, pad: u16, key: u16, does: u16): void {
+  say(2, y, pad, SL_WHITE)
+  say(13, y, key, SL_HUD_TEXT)
+  say(25, y, does, SL_WHITE)
+}
+
+/** A rule across the table. */
+function rule(y: u16): void {
+  let x: u16 = 2
+  while (x < 38) {
+    sayChar(x, y, 45, SL_AMBER)
+    x++
+  }
+}
+
+/** The sky behind words darkened, so they read over the brightest of it. */
+function dim(): void {
+  palMix(SL_SKY, 0, 6)
+  palMix(SL_CLOUD, 0, 5)
+}
+
 /* ---------------- the briefing ---------------- */
 
 export function briefing(k: u16): void {
   sceneSky(k)
+  dim()
   music(M_BRIEF)
   say(2, 2, str('SORTIE'), SL_AMBER)
   sayChar(9, 2, 49 + k, SL_AMBER)
@@ -187,6 +277,11 @@ export function briefing(k: u16): void {
   say(2, 4, str('TARGET  ACE'), SL_AMBER)
   say(14, 4, aceName(k), SL_RED)
   say(2, 5, str('TYPE    ARCWING'), SL_AMBER)
+  say(2, 6, str('ARMS'), SL_AMBER)
+  sayNumber(cellXY(10, 6), aceMissiles[k], 2, SL_WHITE)
+  say(13, 6, str('MISSILES'), SL_AMBER)
+  sayNumber(cellXY(22, 6), aceFlares[k], 2, SL_WHITE)
+  say(25, 6, str('FLARES'), SL_AMBER)
   brief(k)
   bestSay(k)
   let t: u16 = 0
@@ -214,42 +309,42 @@ function operation(k: u16): u16 {
   return str('OPERATION NIGHTFALL')
 }
 
-/** Four lines on the ace: how it flies. */
+/** Four lines on the ace: how it fights (docs section 7). */
 function brief(k: u16): void {
   if (k === 0)
     lines(
-      str('A CAREFUL PILOT WHO TURNS'),
-      str('ONE WAY WHEN PRESSED.'),
-      str('STAY ON ITS TAIL AND USE'),
-      str('THE GUN. LOCK FOR MISSILES.'),
+      str('A CAREFUL PILOT. IT BREAKS ONE'),
+      str('WAY ONLY, AND SEES A MISSILE'),
+      str('COMING HALF THE TIME. STAY ON'),
+      str('ITS TAIL: GUN, OR LOCK AND B.'),
     )
   else if (k === 1)
     lines(
-      str('FAST IN THE CLIMB. IT DROPS'),
-      str('FLARES WHEN A MISSILE COMES.'),
-      str('FIRE CLOSE, OR WAIT FOR'),
-      str('THE FLARES TO BURN OUT.'),
+      str('PRESSED, SHE GOES STRAIGHT UP,'),
+      str('TURNS OVER AND DIVES ON YOU.'),
+      str('FAR OFF SHE CLIMBS FOR HEIGHT.'),
+      str('CATCH HER SLOW AT THE TOP.'),
     )
   else if (k === 2)
     lines(
-      str('A SCISSORS FIGHTER: IT BREAKS'),
-      str('AND REVERSES. DO NOT'),
-      str('OVERSHOOT - USE THE BRAKE'),
-      str('(L) TO TURN INSIDE IT.'),
+      str('A SCISSORS FIGHTER: WITH YOU'),
+      str('BEHIND HE BRAKES AND REVERSES'),
+      str('TO MAKE YOU OVERSHOOT. BRAKE'),
+      str('TOO (L) AND STAY INSIDE HIM.'),
     )
   else if (k === 3)
     lines(
-      str('SHE READS YOUR MOVES AND'),
-      str('FIRES MISSILES FROM AFAR.'),
-      str('WATCH THE MSL LAMP AND'),
-      str('DROP FLARES WITH X.'),
+      str('SHE LOCKS FROM FURTHER THAN'),
+      str('ANYONE, AND COMES BACK HEAD'),
+      str('ON FOR A GUN DUEL. DROP FLARES'),
+      str('(X) EARLY. DO NOT TRADE NOSES.'),
     )
   else
     lines(
-      str('THE LAST ACE, IN BLACK.'),
-      str('IT TURNS HARDER THAN YOU,'),
-      str('FIRES SOONER, FLIES FASTER.'),
-      str('USE EVERYTHING. GOOD LUCK.'),
+      str('THE LAST ACE, IN BLACK. HE'),
+      str('FEINTS ONE WAY AND BREAKS THE'),
+      str('OTHER, AND IS ON YOUR TAIL THE'),
+      str('MOMENT YOU OVERSHOOT. BEST OF ALL.'),
     )
 }
 
@@ -302,6 +397,7 @@ export function pause(): void {
 export function results(k: u16): void {
   rowsClear(0, 35)
   sceneSky(k)
+  dim()
   music(M_WIN)
   say(10, 4, str('MISSION ACCOMPLISHED'), SL_AMBER)
   say(12, 6, aceName(k), SL_RED)

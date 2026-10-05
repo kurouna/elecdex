@@ -1,29 +1,67 @@
 # ELECAIRCOMBAT's sound effects: each a short song on channels 12-15 only, so the music (0-11)
 # never stops for one. Tempo 2: a sixteenth is two frames, a thirty-second one.
-#   C12 the gun, C13 the seeker's tones and small things, C14 strikes and explosions,
+#   C12 the gun alone (a loop while the trigger is held, so it never takes another channel)
+#   C13 the seeker's tones and small things, C14 strikes, launches and explosions,
 #   C15 warnings and big moments
 
+# The gun: a burst every four frames, looping while A is held; x_gunoff ends it.
 song x_gun
-tempo 2
-inst gun wave=noise vol=8 env=0/40/0/30 drop=2 pan=8
-C12: @gun o6 c32
+tempo 1
+inst gun wave=noise vol=9 env=0/45/0/30 drop=2 pan=8
+C12: @gun L o6 c16 r16 r8
+
+song x_gunoff
+tempo 1
+C12: r16
 
 song x_missile
 tempo 2
 inst whoosh wave=noise vol=11 env=0/700/0/500 drop=6
-inst ignite wave=saw vol=8 env=0/300/0/200 slide=-80
-C13: @whoosh o7 c1
-C14: @ignite o4 g4
+inst ignite wave=saw vol=8 env=0/120/0/80 slide=-80
+C13: @ignite o4 g16
+C14: @whoosh o7 c1
 
-song x_seek
+# The seeker: a short tone every eighth frame while it tracks, higher as the lock nears;
+# once locked, one steady tone, played again as it ends.
+song x_seek1
 tempo 2
-inst tick wave=tri vol=6 env=0/30/0/20 pan=8
-C13: @tick o6 a32
+inst tick wave=sq50 vol=6 env=0/40/6/20 pan=8
+C13: @tick o5 e32
+
+song x_seek2
+tempo 2
+inst tick wave=sq50 vol=6 env=0/40/6/20 pan=8
+C13: @tick o5 a32
+
+song x_seek3
+tempo 2
+inst tick wave=sq50 vol=6 env=0/40/6/20 pan=8
+C13: @tick o6 d32
+
+song x_seek4
+tempo 2
+inst tick wave=sq50 vol=7 env=0/40/6/20 pan=8
+C13: @tick o6 g32
 
 song x_lock
 tempo 2
-inst tone wave=sq50 vol=6 env=0/40/12/20 pan=8
-C13: @tone o7 a8
+inst tone wave=sq50 vol=6 env=0/20/12/10 pan=8
+C13: @tone o6 a2
+
+song x_hush
+tempo 2
+C13: r32
+
+song x_lockon
+tempo 2
+inst tone wave=sq50 vol=8 env=0/30/12/20 pan=8
+C13: @tone o7 a32 r32 a32 r32
+
+# An enemy missile: a warble as it leaves the rail, then the alarm, faster as it nears.
+song x_launch
+tempo 2
+inst warble wave=sq25 vol=11 env=0/40/12/30 pan=8
+C15: @warble o6 b32 g32 b32 g32 b32 g32 b16
 
 song x_alert
 tempo 2
@@ -32,8 +70,9 @@ C15: @beep o6 e16 r16 e16
 
 song x_hit
 tempo 2
-inst crack wave=noise vol=9 env=0/90/0/60 drop=3
-C14: @crack o8 c16
+inst clank wave=sq12 vol=8 env=0/40/0/30 slide=-40
+inst crack wave=noise vol=10 env=0/90/0/60 drop=3
+C14: @clank o6 g32 @crack o8 c16
 
 song x_ouch
 tempo 2
@@ -41,6 +80,12 @@ inst slam wave=noise vol=14 env=0/400/0/300 drop=4
 inst thud wave=tri vol=13 env=0/250/0/120 drop=2
 C14: @slam o7 c4
 C15: @thud o3 c8
+
+# A missile bursting close by without striking.
+song x_near
+tempo 2
+inst crump wave=noise vol=13 env=0/500/0/400 drop=5
+C14: @crump o6 c4
 
 song x_boom
 tempo 2

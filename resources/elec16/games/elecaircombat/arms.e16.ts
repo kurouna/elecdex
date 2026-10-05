@@ -4,13 +4,24 @@
 // seeker's lock. Places are units from the player, in the world's axes.
 import { type bool, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
 import { B_A, B_B, B_X, held, pressed, rand, randBelow, S8, spr } from '../lib/kit.e16'
-import { SHOTS_TILE } from './assets.e16'
-import { banditHit, eAlive, eBX, eBY, eBZ, eDist, eOn, eSpeed, eVel } from './bandit.e16'
+import { HUD8_TILE, SHOTS_TILE } from './assets.e16'
+import {
+  banditFired,
+  banditHit,
+  eAlive,
+  eBX,
+  eBY,
+  eBZ,
+  eDist,
+  eOn,
+  eSpeed,
+  eVel,
+} from './bandit.e16'
 import { pSpeed, pVel } from './flight.e16'
 import {
   abs16,
-  muldiv,
   mulq,
+  scaleq,
   V_EF,
   V_EU,
   V_PF,
@@ -19,6 +30,7 @@ import {
   V_REL,
   V_T0,
   V_T1,
+  va,
   vec,
   vget,
   vlen,
@@ -26,7 +38,7 @@ import {
   vset,
   vunit,
 } from './math.e16'
-import { abovePanel, bodyZ, project, SL_SHOT, scrX, scrY, toBody } from './sky.e16'
+import { abovePanel, bodyZ, SL_HUD_RED, SL_SHOT, scrX, scrY, see } from './sky.e16'
 
 /* ---------------- rounds ---------------- */
 
@@ -43,7 +55,8 @@ const bLife = words(24)
 const bOwner = words(24)
 let bNext: u16 = 0
 let gunCool: u16 = 0
-let muzzle: u16 = 0
+/** The side the last round left from (0 right, 1 left). */
+export let muzzle: u16 = 0
 /** Rounds that struck this frame: the enemy, the player. */
 export let hitsOnEnemy: u16 = 0
 export let hitsOnPlayer: u16 = 0
@@ -117,7 +130,12 @@ function assistAim(): bool {
   return true
 }
 
-/** Vector `k` (any size up to a word) made a unit vector, Q14. */
+/**
+ * Vector `k` (any size up to a word) made a unit vector, Q14: brought by halves and doubles to
+ * a rough length of 8192-16383, scaled by one reciprocal of it (one division, not three long
+ * ones: the direction is exact, the length within a few parts in a hundred), then made a unit
+ * by two of Newton's steps.
+ */
 export function unitOf(k: u16): void {
   let x = vget(k)
   let y = vget(k + 1)
@@ -127,21 +145,22 @@ export function unitOf(k: u16): void {
     y = y >> 2
     z = z >> 2
   }
-  const len = vlen(x, y, z)
+  let len = vlen(x, y, z)
   if (len === 0) return
-  vec[k] = u16(signed(muldiv(u16(abs16(x)), 16384, len), x))
-  vec[k + 1] = u16(signed(muldiv(u16(abs16(y)), 16384, len), y))
-  vec[k + 2] = u16(signed(muldiv(u16(abs16(z)), 16384, len), z))
+  while (len < 8192) {
+    x = x << 1
+    y = y << 1
+    z = z << 1
+    len = len << 1
+  }
+  vset(k, x, y, z)
+  scaleq(va(k), i16(div(65535, len >> 6) << 6))
   vunit(k)
   vunit(k)
 }
 
 function scatter(spread: u16): i16 {
   return ((i16(rand() & 255) - 128) * i16(spread)) >> 5
-}
-
-function signed(v: u16, like: i16): i16 {
-  return like < 0 ? -i16(v) : i16(v)
 }
 
 /**
@@ -159,8 +178,8 @@ export function enemyRound(spread: u16): void {
     vget(V_REL + 2),
     2,
   )
-  // The muzzle's flash on its nose.
-  sparkAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
+  // The muzzle's flash on its nose, drawn with the fighter (no effect of its own to project).
+  banditFired()
 }
 
 /** Every round on a frame: moved, struck, drawn. */
@@ -185,9 +204,14 @@ function roundStep(k: u16, px: i16, py: i16, pz: i16): void {
   bX[k] = u16(x)
   bY[k] = u16(y)
   bZ[k] = u16(z)
-  if (bOwner[k] === 1 ? strikesEnemy(k, x, y, z) : strikesPlayer(x, y, z)) {
-    bLife[k] = 0
-    return
+  // Only a round within a box round its target is weighed (a few compares, no calls).
+  const tx = bOwner[k] === 1 ? x - vget(V_REL) : x
+  const ty = bOwner[k] === 1 ? y - vget(V_REL + 1) : y
+  if (tx < 160 && tx > -160 && ty < 160 && ty > -160) {
+    if (bOwner[k] === 1 ? strikesEnemy(k, x, y, z) : strikesPlayer(x, y, z)) {
+      bLife[k] = 0
+      return
+    }
   }
   // Every other round is a tracer: only those are seen.
   if ((k & 1) === 0) roundDraw(x, y, z)
@@ -211,7 +235,7 @@ function strikesEnemy(k: u16, x: i16, y: i16, z: i16): bool {
   if (!near) return false
   hitsOnEnemy++
   roundsHit++
-  sparkAt(x, y, z)
+  // Its sparks are drawn on the fighter while it shows the hit (bandit.e16.ts).
   banditHit(3)
   return true
 }
@@ -230,30 +254,46 @@ function within(x: i16, y: i16, z: i16, r: i16): bool {
 /** A round as a tracer: brighter and larger the nearer it is. */
 function roundDraw(x: i16, y: i16, z: i16): void {
   vset(V_T0, x, y, z)
-  toBody(V_T0)
-  if (!project() || !abovePanel(scrY, 4)) return
-  const f: u16 = bodyZ < 260 ? 0 : bodyZ < 700 ? 1 : bodyZ < 1500 ? 2 : 3
-  spr(scrX - 4, scrY - 4, (SHOTS_TILE + f) | ((SL_SHOT - 8) << 10), S8)
+  if (!see(V_T0) || !abovePanel(scrY(), 4)) return
+  const d = bodyZ()
+  const f: u16 = d < 260 ? 0 : d < 700 ? 1 : d < 1500 ? 2 : 3
+  spr(scrX() - 4, scrY() - 4, (SHOTS_TILE + f) | ((SL_SHOT - 8) << 10), S8)
 }
 
 /* ---------------- missiles and flares ---------------- */
 
 const MN = 6
+/** The player's missiles fly in slots 0-3, the enemy's in 4-5: one side's never keep the other's off the rail. */
+const M_ENEMY = 4
 const mX = words(6)
 const mY = words(6)
 const mZ = words(6)
 const mDX = words(6)
 const mDY = words(6)
 const mDZ = words(6)
+/** Speed and top speed, sixteenths of a unit a frame, and what it gains a frame. */
 const mSpeed = words(6)
+const mTop = words(6)
+const mGain = words(6)
 const mLife = words(6)
 /** 1 the player's (at the enemy), 2 the enemy's (at the player), 0 free. */
 const mOwner = words(6)
-/** Chasing: 0 its quarry, 1 a flare (it has been fooled), 2 nothing (it was fired blind). */
+/** Chasing: 0 its quarry, 1 a flare (it has been fooled), 2 nothing (fired blind, or lost it). */
 const mChase = words(6)
 const mFlare = words(6)
-export let missilesLeft: u16 = 32
-export let flaresLeft: u16 = 24
+/**
+ * Whether it was within 400 of its quarry when it last turned (every other frame): only then
+ * can it arrive before it turns again (it closes by at most about 80 a frame).
+ */
+const mNear = words(6)
+/** What the player carries into a sortie: missiles, and flares (a pair each). */
+export const PLAYER_MISSILES = 64
+export const PLAYER_FLARES = 48
+/** A tenth of a missile's top speed, sixteenths (the top is 50 units a frame), and of what it gains a frame. */
+const M_TOP_TENTH: u16 = 80
+const M_GAIN_TENTH: u16 = 2
+export let missilesLeft: u16 = PLAYER_MISSILES
+export let flaresLeft: u16 = PLAYER_FLARES
 let missileCool: u16 = 0
 /** An enemy missile is after the player; the nearest one's distance. */
 export let warned: bool = false
@@ -261,6 +301,12 @@ export let warnDist: u16 = 0
 /** What the player's missiles did this frame. */
 export let missileStruck: u16 = 0
 export let missileFired: bool = false
+/** An enemy missile burst close by without striking (the cockpit shakes). */
+export let nearMiss: bool = false
+/** The frame's count, for the missiles' turns on alternate frames; their smoke's beat. */
+let armsTick: u16 = 0
+let trailT: u16 = 0
+let trailNow: bool = false
 
 export function armsNew(): void {
   let k: u16 = 0
@@ -278,8 +324,8 @@ export function armsNew(): void {
     fLife[k] = 0
     k++
   }
-  missilesLeft = 32
-  flaresLeft = 24
+  missilesLeft = PLAYER_MISSILES
+  flaresLeft = PLAYER_FLARES
   lockT = 0
   locked = false
   roundsFired = 0
@@ -288,19 +334,26 @@ export function armsNew(): void {
   flareCool = 0
 }
 
-function missileSlot(): u16 {
-  let k: u16 = 0
-  while (k < MN) {
+/** A free slot of `owner`'s, or MN. */
+function missileSlot(owner: u16): u16 {
+  let k: u16 = owner === 1 ? 0 : M_ENEMY
+  const end: u16 = owner === 1 ? M_ENEMY : MN
+  while (k < end) {
     if (mOwner[k] === 0) return k
     k++
   }
   return MN
 }
 
-/** A missile from the place in V_T1 along vector `dir` (a unit), for `owner`, chasing or not. */
-function launch(owner: u16, dir: u16, speed: i16, chase: u16): void {
-  const k = missileSlot()
-  if (k === MN) return
+/**
+ * A missile from the place in V_T1 along vector `dir` (a unit), for `owner`, chasing or not,
+ * `tenths` tenths as fast as the standard one: off the rail (the shooter's speed and a bit),
+ * in what it gains a frame, and at the top. Answers whether a slot took it (none is spent
+ * when none does).
+ */
+function launch(owner: u16, dir: u16, chase: u16, tenths: u16): bool {
+  const k = missileSlot(owner)
+  if (k === MN) return false
   mOwner[k] = owner
   mChase[k] = chase
   mX[k] = vec[V_T1]
@@ -309,18 +362,24 @@ function launch(owner: u16, dir: u16, speed: i16, chase: u16): void {
   mDX[k] = vec[dir]
   mDY[k] = vec[dir + 1]
   mDZ[k] = vec[dir + 2]
-  mSpeed[k] = u16(speed)
-  mLife[k] = 300
+  const shooter = owner === 1 ? pSpeed : eSpeed
+  mSpeed[k] = div((u16(shooter) + 64) * tenths, 10)
+  mTop[k] = M_TOP_TENTH * tenths
+  mGain[k] = M_GAIN_TENTH * tenths
+  mNear[k] = 1
+  // Fired blind it goes on only a little way: it chases nothing.
+  mLife[k] = chase === 2 ? 120 : 300
+  return true
 }
+
+/** The side of the rail the last missile left (the launch's flash is drawn there). */
+export let railSide: i16 = 14
 
 /** B: a missile from under the wing, locked or fired blind. */
 export function playerMissile(): void {
   missileFired = false
   if (missileCool > 0) missileCool--
   if (!pressed(B_B) || missileCool > 0 || missilesLeft === 0) return
-  missileCool = 24
-  missilesLeft--
-  missileFired = true
   const side: i16 = (missilesLeft & 1) === 0 ? 14 : -14
   vset(
     V_T1,
@@ -328,30 +387,44 @@ export function playerMissile(): void {
     mulq(vget(V_PR + 1), side) - mulq(vget(V_PU + 1), 8),
     mulq(vget(V_PR + 2), side) - mulq(vget(V_PU + 2), 8),
   )
-  launch(1, V_PF, (pSpeed >> 4) + 4, locked ? 0 : 2)
+  if (!launch(1, V_PF, locked ? 0 : 2, 10)) return
+  missileCool = 24
+  missilesLeft--
+  missileFired = true
+  railSide = side
 }
 
-/** The enemy fires a missile at the player. */
-export function enemyMissile(): void {
+/**
+ * The enemy fires a missile at the player, `tenths` tenths as fast as the player's (off the
+ * rail, gaining, and at the top): answers whether it went.
+ */
+export function enemyMissile(tenths: u16): bool {
   vset(
     V_T1,
     vget(V_REL) - (vget(V_EU) >> 10),
     vget(V_REL + 1) - (vget(V_EU + 1) >> 10),
     vget(V_REL + 2) - (vget(V_EU + 2) >> 10),
   )
-  launch(2, V_EF, (eSpeed >> 4) + 4, 0)
+  if (!launch(2, V_EF, 0, tenths)) return false
+  launchAt(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
+  sfxLaunch()
+  return true
 }
 
-/** Every missile on a frame. */
 /** The nearest of the player's missiles still chasing the enemy, units (0xffff for none). */
 export let threatDist: u16 = 0xffff
 
+/** Every missile on a frame. */
 export function missilesStep(): void {
   missileStruck = 0
   missileDodged = 0
+  nearMiss = false
   warned = false
   warnDist = 0xffff
   threatDist = 0xffff
+  armsTick++
+  trailT = trailT === 0 ? 2 : trailT - 1
+  trailNow = trailT === 0
   let k: u16 = 0
   while (k < MN) {
     if (mOwner[k] !== 0) missileStep(k)
@@ -366,16 +439,20 @@ function missileStep(k: u16): void {
     puffAt(i16(mX[k]), i16(mY[k]), i16(mZ[k]), 1)
     return
   }
-  if (mSpeed[k] < 50) mSpeed[k] = mSpeed[k] + 1
-  if (mChase[k] !== 2) missileSteer(k)
+  const gained = mSpeed[k] + mGain[k]
+  mSpeed[k] = gained > mTop[k] ? mTop[k] : gained
+  // Each turns on alternate frames, twice as far: half the cost, much the same path.
+  if (mChase[k] !== 2 && ((k ^ armsTick) & 1) === 0) missileSteer(k)
+  if (mOwner[k] === 0) return
   const s = i16(mSpeed[k])
-  const x = i16(mX[k]) + mulq(i16(mDX[k]), s) - (pVel(0) >> 4)
-  const y = i16(mY[k]) + mulq(i16(mDY[k]), s) - (pVel(1) >> 4)
-  const z = i16(mZ[k]) + mulq(i16(mDZ[k]), s) - (pVel(2) >> 4)
+  const x = i16(mX[k]) + ((mulq(i16(mDX[k]), s) + 8) >> 4) - (pVel(0) >> 4)
+  const y = i16(mY[k]) + ((mulq(i16(mDY[k]), s) + 8) >> 4) - (pVel(1) >> 4)
+  const z = i16(mZ[k]) + ((mulq(i16(mDZ[k]), s) + 8) >> 4) - (pVel(2) >> 4)
   mX[k] = u16(x)
   mY[k] = u16(y)
   mZ[k] = u16(z)
-  if (mLife[k] % 6 === 0) puffAt(x, y, z, 0)
+  // Its smoke: a puff every third frame, left where it was made.
+  if (trailNow) puffAt(x, y, z, 0)
   if (missileArrives(k, x, y, z)) return
   if (mOwner[k] === 2 && mChase[k] === 0) {
     warned = true
@@ -385,7 +462,7 @@ function missileStep(k: u16): void {
     const d = vlen(vget(V_REL) - x, vget(V_REL + 1) - y, vget(V_REL + 2) - z)
     if (d < threatDist) threatDist = d
   }
-  missileDraw(x, y, z)
+  missileDraw(k, x, y, z)
 }
 
 /** Where missile `k`'s quarry is, into V_T0 (from the missile). */
@@ -406,20 +483,30 @@ function quarry(k: u16): void {
   vset(V_T0, tx - i16(mX[k]), ty - i16(mY[k]), tz - i16(mZ[k]))
 }
 
-/** Turns the missile toward its quarry, by at most its turn a frame. */
+/**
+ * Turns the missile toward its quarry, by at most its turn (two frames' worth). A quarry gone
+ * behind it is lost: close by, the proximity fuse bursts it; else it flies on blind, a short
+ * way. A flare that has burnt out is lost too.
+ */
 function missileSteer(k: u16): void {
+  if (mChase[k] === 1 && fLife[mFlare[k]] === 0) {
+    goBlind(k)
+    return
+  }
   quarry(k)
+  const d = vlen(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2))
+  mNear[k] = d < 400 ? 1 : 0
   unitOf(V_T0)
-  // Ahead of it only: a quarry behind is lost.
   const ahead =
     mulq(vget(V_T0), i16(mDX[k])) +
     mulq(vget(V_T0 + 1), i16(mDY[k])) +
     mulq(vget(V_T0 + 2), i16(mDZ[k]))
   if (ahead < 4000) {
-    mChase[k] = 2
+    if (d < 300) proximity(k)
+    else goBlind(k)
     return
   }
-  const turn = i16(mOwner[k] === 1 ? 760 : 620)
+  const turn = i16(mOwner[k] === 1 ? 1520 : 1240)
   mDX[k] = u16(i16(mDX[k]) + mulq(vget(V_T0) - i16(mDX[k]), turn))
   mDY[k] = u16(i16(mDY[k]) + mulq(vget(V_T0 + 1) - i16(mDY[k]), turn))
   mDZ[k] = u16(i16(mDZ[k]) + mulq(vget(V_T0 + 2) - i16(mDZ[k]), turn))
@@ -430,13 +517,32 @@ function missileSteer(k: u16): void {
   mDZ[k] = vec[V_T0 + 2]
 }
 
+function goBlind(k: u16): void {
+  mChase[k] = 2
+  if (mLife[k] > 60) mLife[k] = 60
+}
+
+/**
+ * The proximity fuse: a missile that passes its quarry close bursts there. Against the enemy
+ * it scorches (as a missile it turned inside of); against the player it shakes the cockpit.
+ */
+function proximity(k: u16): void {
+  boomAt(i16(mX[k]), i16(mY[k]), i16(mZ[k]))
+  if (mChase[k] === 0 && mOwner[k] === 1 && eAlive) {
+    missileDodged = 1
+    banditHit(4)
+  }
+  if (mChase[k] === 0 && mOwner[k] === 2) nearMiss = true
+  mOwner[k] = 0
+}
+
 /** Whether the missile reached its quarry (and burst on it). */
 function missileArrives(k: u16, x: i16, y: i16, z: i16): bool {
-  if (mChase[k] === 2) return false
+  if (mChase[k] === 2 || mNear[k] === 0) return false
   quarry(k)
   if (!within(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2), 80)) return false
   // Met head on, the fuse bursts it too early or late: less of a blow.
-  headOn =
+  metHeadOn =
     mulq(i16(mDX[k]), vget(V_EF)) +
       mulq(i16(mDY[k]), vget(V_EF + 1)) +
       mulq(i16(mDZ[k]), vget(V_EF + 2)) <
@@ -459,12 +565,12 @@ function hitByMissile(x: i16, y: i16, z: i16, chase: u16): u16 {
     return 0
   }
   missileStruck = 1
-  banditHit(headOn ? 18 : 30)
+  banditHit(metHeadOn ? 18 : 30)
   return 0
 }
 
 /** The missile arriving met its quarry head on. */
-let headOn: bool = false
+let metHeadOn: bool = false
 
 /** Set when an enemy missile strikes: the player takes it. */
 export let missileOnPlayer: bool = false
@@ -479,11 +585,16 @@ function hitPlayerMissile(x: i16, y: i16, z: i16, chase: u16): u16 {
   return 0
 }
 
-function missileDraw(x: i16, y: i16, z: i16): void {
+/** A missile: its burner from behind; the enemy's marked in red while it comes for the player. */
+function missileDraw(k: u16, x: i16, y: i16, z: i16): void {
   vset(V_T0, x, y, z)
-  toBody(V_T0)
-  if (!project() || !abovePanel(scrY, 4)) return
-  spr(scrX - 4, scrY - 4, (SHOTS_TILE + 4 + (rand() & 1)) | ((SL_SHOT - 8) << 10), S8)
+  if (!see(V_T0) || !abovePanel(scrY(), 4)) return
+  const sx = scrX()
+  const sy = scrY()
+  if (mOwner[k] === 2 && mChase[k] === 0) {
+    spr(sx - 4, sy - 4, (HUD8_TILE + 20) | ((SL_HUD_RED - 8) << 10), S8)
+  }
+  spr(sx - 4, sy - 4, (SHOTS_TILE + 4 + (rand() & 1)) | ((SL_SHOT - 8) << 10), S8)
 }
 
 /** Each missile in flight as a radar blip: called with each one's place, owner. */
@@ -499,6 +610,15 @@ export function missileY(k: u16): i16 {
   return i16(mY[k])
 }
 
+/** A missile's speed, sixteenths of a unit a frame, and its quarry (for the tests). */
+export function missileSpeed(k: u16): u16 {
+  return mSpeed[k]
+}
+
+export function missileChase(k: u16): u16 {
+  return mChase[k]
+}
+
 export const MISSILES = MN
 
 /* ---------------- flares ---------------- */
@@ -511,41 +631,41 @@ const fLife = words(8)
 let fNext: u16 = 0
 let flareCool: u16 = 0
 
-/** X: two flares, which an enemy missile may chase instead (three in four do). */
+/** X: two flares, which an enemy missile may chase instead (three in four do, whoever fired it). */
 export function playerFlares(): bool {
   if (flareCool > 0) flareCool--
   if (!pressed(B_X) || flareCool > 0 || flaresLeft === 0) return false
   flareCool = 20
   flaresLeft--
-  flarePair(0, 0, 0, 2)
+  flarePair(0, 0, 0)
+  let k: u16 = M_ENEMY
+  while (k < MN) {
+    if (mOwner[k] === 2 && mChase[k] === 0 && randBelow(4) !== 0) fooled(k)
+    k++
+  }
   return true
 }
 
 /** The enemy's flares, behind it: a player's missile may be fooled (`odds` in 256). */
 export function enemyFlares(odds: u16): void {
-  flarePair(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2), 1)
+  flarePair(vget(V_REL), vget(V_REL + 1), vget(V_REL + 2))
   let k: u16 = 0
-  while (k < MN) {
-    if (mOwner[k] === 1 && mChase[k] === 0 && randBelow(256) < odds) {
-      mChase[k] = 1
-      mFlare[k] = fNext
-    }
+  while (k < M_ENEMY) {
+    if (mOwner[k] === 1 && mChase[k] === 0 && randBelow(256) < odds) fooled(k)
     k++
   }
 }
 
-function flarePair(x: i16, y: i16, z: i16, owner: u16): void {
+/** Missile `k` turns to the pair's second flare, the one just lit. */
+function fooled(k: u16): void {
+  mChase[k] = 1
+  mFlare[k] = (fNext + FN - 1) % FN
+  mNear[k] = 1
+}
+
+function flarePair(x: i16, y: i16, z: i16): void {
   flareAt(x - 20, y, z - 10)
   flareAt(x + 20, y, z - 10)
-  if (owner !== 2) return
-  let k: u16 = 0
-  while (k < MN) {
-    if (mOwner[k] === 2 && mChase[k] === 0 && randBelow(4) !== 0) {
-      mChase[k] = 1
-      mFlare[k] = (fNext + FN - 1) % FN
-    }
-    k++
-  }
 }
 
 function flareAt(x: i16, y: i16, z: i16): void {
@@ -571,9 +691,17 @@ function flareStep(k: u16): void {
   fY[k] = u16(i16(fY[k]) - (pVel(1) >> 5))
   fZ[k] = u16(i16(fZ[k]) - (pVel(2) >> 5) - 1)
   vset(V_T0, i16(fX[k]), i16(fY[k]), i16(fZ[k]))
-  toBody(V_T0)
-  if (!project() || !abovePanel(scrY, 4)) return
-  spr(scrX - 4, scrY - 4, (SHOTS_TILE + 6 + ((fLife[k] >> 1) & 1)) | ((SL_SHOT - 8) << 10), S8)
+  if (!see(V_T0) || !abovePanel(scrY(), 4)) return
+  spr(scrX() - 4, scrY() - 4, (SHOTS_TILE + 6 + ((fLife[k] >> 1) & 1)) | ((SL_SHOT - 8) << 10), S8)
+}
+
+/** Whether flare `k` burns, and which flare missile `k` chases (for the tests). */
+export function flareLit(k: u16): bool {
+  return fLife[k] !== 0
+}
+
+export function missileFlare(k: u16): u16 {
+  return mFlare[k]
 }
 
 /* ---------------- the seeker ---------------- */
@@ -609,4 +737,5 @@ export function seekerStep(): u16 {
 /* ---------------- what the effects module draws ---------------- */
 
 import { aiDodge, aiEvading } from './ai.e16'
-import { boomAt, puffAt, sparkAt } from './fx.e16'
+import { sfxLaunch } from './audio.e16'
+import { boomAt, launchAt, puffAt } from './fx.e16'

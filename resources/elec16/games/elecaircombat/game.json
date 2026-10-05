@@ -20,11 +20,18 @@
       "file": "hud.e16.ts",
       "bank": 3
     },
-    "audio.e16.ts",
+    {
+      "file": "audio.e16.ts",
+      "bank": 1
+    },
     "game.e16.ts",
     {
       "file": "ai.e16.ts",
       "bank": 1
+    },
+    {
+      "file": "horizon.e16.ts",
+      "bank": 6
     },
     {
       "file": "scenes.e16.ts",
@@ -178,6 +185,34 @@
       "count": 3
     },
     {
+      "name": "burst16",
+      "png": "art/burst16.png",
+      "cell": 16,
+      "palette": "fire",
+      "count": 3
+    },
+    {
+      "name": "muzzle",
+      "png": "art/muzzle.png",
+      "cell": 16,
+      "palette": "shot",
+      "count": 2
+    },
+    {
+      "name": "trail16",
+      "png": "art/trail16.png",
+      "cell": 16,
+      "palette": "cloud",
+      "count": 2
+    },
+    {
+      "name": "trail8",
+      "png": "art/trail8.png",
+      "cell": 8,
+      "palette": "cloud",
+      "count": 4
+    },
+    {
       "name": "bandit64",
       "png": "art/bandit64.png",
       "cell": 32,
@@ -190,7 +225,7 @@
       "cell": 16,
       "palette": "ace_gannet",
       "stream": 9,
-      "tile": 649
+      "tile": 681
     },
     {
       "name": "bandit32",
@@ -198,7 +233,7 @@
       "cell": 32,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 649
+      "tile": 681
     },
     {
       "name": "bandit24",
@@ -206,7 +241,7 @@
       "cell": 32,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 649
+      "tile": 681
     },
     {
       "name": "bandit16",
@@ -214,7 +249,7 @@
       "cell": 16,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 649
+      "tile": 681
     },
     {
       "name": "bandit12",
@@ -222,7 +257,7 @@
       "cell": 16,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 649
+      "tile": 681
     },
     {
       "name": "bandit8",
@@ -230,7 +265,7 @@
       "cell": 8,
       "palette": "ace_gannet",
       "stream": 1,
-      "tile": 649
+      "tile": 681
     }
   ],
   "maps": [
@@ -258,7 +293,7 @@
     {
       "name": "logo",
       "png": "art/logo.png",
-      "tile": 763,
+      "tile": 795,
       "front": true,
       "palettes": [
         {

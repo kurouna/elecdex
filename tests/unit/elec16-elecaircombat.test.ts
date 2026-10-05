@@ -2,18 +2,19 @@ import { readFileSync } from 'node:fs'
 import { CHANNELS } from '@shared/elec16/apu'
 import { readCart } from '@shared/elec16/cartridge'
 import { compileSongs, loopFrames, type Song } from '@shared/elec16/kit/mml'
-import type { Elec16 } from '@shared/elec16/machine'
+import { Elec16 } from '@shared/elec16/machine'
 import { padBit } from '@shared/elec16/pad'
 import { fromBase64 } from '@shared/emu/base64'
 import { describe, expect, it } from 'vitest'
-import { buildKit, frames, globalsOf, ramPoke, ramWord, startGame } from './elec16-kit-helpers'
+import { buildKit, frames, globalsOf, ROM, ramPoke, ramWord, startGame } from './elec16-kit-helpers'
 
 /**
  * ELECAIRCOMBAT, the cockpit dogfight (docs/elec16-elecaircombat.md): built from its folder as
  * gen:elec16 builds it, and flown on the core - the title, the briefing, the sortie's sky and
  * HUD, the stick, the gun, a locked missile, the ace's gun and missile, flares, the end of a
- * sortie, the continue, the game's end and a name kept in save RAM. Variables are found by
- * name in what e16c wrote; where a test needs a fixed geometry it pins the enemy in place.
+ * sortie, the continue, the game's end and a name kept in save RAM; each ace's arms and way of
+ * fighting; and the frame's budget. Variables are found by name in what e16c wrote; where a
+ * test needs a fixed geometry it pins the enemy in place.
  */
 
 const DIR = 'resources/elec16/games/elecaircombat'
@@ -52,15 +53,93 @@ function hold(m: Elec16, bit: number, n = 3): void {
   frames(m, 2, cart)
 }
 
-/** From the title through the briefing: the first sortie begins. */
+/** From the title through the controls and the briefing: the first sortie begins. */
 function flying(): Elec16 {
   const m = startGame(cart)
   frames(m, 60, cart)
   hold(m, padBit('start'))
+  frames(m, 20, cart)
+  hold(m, padBit('a'))
   frames(m, 40, cart)
   hold(m, padBit('a'))
   frames(m, 4, cart)
   return m
+}
+
+/** The words BG1 shows from cell (x, y), `n` of them: its font's tiles read back as characters. */
+function textAt(m: Elec16, x: number, y: number, n: number): string {
+  const font = constant('FONT_TILE')
+  let out = ''
+  for (let k = 0; k < n; k++) {
+    const t = (bg1(m, x + k, y) & 0x3ff) - font
+    out += t >= 0 && t < 64 ? String.fromCharCode(t + 32) : ' '
+  }
+  return out
+}
+
+/** Each sortie's first frames, ace by ace: the campaign flown through once (each ace downed). */
+let aceSnaps: Uint8Array[] | null = null
+
+/** Ace `a` downed at once, through the results and the next briefing to the next sortie. */
+function nextSortie(m: Elec16, a: number): void {
+  put(m, 'eAlive', 0)
+  frames(m, 215, cart)
+  for (let j = 0; j < 40; j++) {
+    if (read(m, 'sortie') === a + 1 && read(m, 'outcome') === 0 && read(m, 'flown') > 0) return
+    hold(m, padBit('a'))
+    frames(m, 20, cart)
+  }
+}
+
+function atAce(k: number): Elec16 {
+  if (aceSnaps === null) {
+    const snaps: Uint8Array[] = []
+    const m = flying()
+    for (let a = 0; a < 5; a++) {
+      snaps.push(m.snapshot())
+      if (a < 4) nextSortie(m, a)
+    }
+    aceSnaps = snaps
+  }
+  const snap = aceSnaps[k]
+  if (snap === undefined) throw new Error(`no ace ${k}`)
+  const c = Elec16.restore(ROM.image, snap)
+  if (c === null || !c.attachCartRom(cart, new Uint8Array(32))) throw new Error('no restore')
+  return c
+}
+
+/**
+ * The enemy `ahead` units in front of the player, coming the other way (nose to nose): its
+ * thinking held, so it holds its aim on the player.
+ */
+function headOn(m: Elec16, ahead: number): void {
+  vecPut(m, V.PF, 0, 16384, 0)
+  vecPut(m, V.PR, 16384, 0, 0)
+  vecPut(m, V.PU, 0, 0, 16384)
+  vecPut(m, V.EF, 0, -16384, 0)
+  vecPut(m, V.ER, -16384, 0, 0)
+  vecPut(m, V.EU, 0, 0, 16384)
+  vecPut(m, V.REL, 0, ahead, 0)
+  put(m, 'pAlt', 5200)
+  put(m, 'aiThinkT', 200)
+}
+
+/** An enemy missile off its rail at the player, nose to nose at `ahead`: answers its slot (4). */
+function enemyLaunch(m: Elec16, ahead = 2500): number {
+  put(m, 'aiMissiles', 20)
+  for (let k = 0; k < 4 && read(m, 'mOwner', 4) === 0; k++) {
+    headOn(m, ahead)
+    put(m, 'aiMslCool', 0)
+    put(m, 'aiLockT', 400)
+    frames(m, 1, cart)
+  }
+  expect(read(m, 'mOwner', 4)).toBe(2)
+  return 4
+}
+
+/** The player `behind` units behind the enemy, both level and heading north: on its tail. */
+function onTail(m: Elec16, behind: number): void {
+  pin(m, behind)
 }
 
 /** The player level, heading north; the enemy `ahead` units in front, flying the same way. */
@@ -88,6 +167,34 @@ function pinned(m: Elec16, n: number, ahead: number, pad = 0): number {
   }
   m.pad(0)
   return worst
+}
+
+/**
+ * A simple pilot for the frame tests: rolls the enemy over the canopy and pulls, fires the gun
+ * when it is close in the sights, a missile whenever the seeker holds a lock, and flares now
+ * and then.
+ */
+function pilot(m: Elec16, t: number): number {
+  const bx = read(m, 'eBX')
+  const by = read(m, 'eBY')
+  const bz = read(m, 'eBZ')
+  let pad = stick(bx, by, bz)
+  if (bz > 0 && bz < 2600 && Math.abs(bx) < bz / 6 && Math.abs(by) < bz / 6) pad |= padBit('a')
+  if (read(m, 'locked') === 1 && (t & 31) === 0) pad |= padBit('b')
+  if ((t & 63) === 5) pad |= padBit('x')
+  return pad
+}
+
+/** The pilot's stick: nearly ahead, the nose nudged; else rolled toward it and pulled. */
+function stick(bx: number, by: number, bz: number): number {
+  if (bz > 0 && Math.abs(bx) < bz / 10 && Math.abs(by) < bz / 10) {
+    return by > 10 ? padBit('down') : 0
+  }
+  const ang = Math.atan2(bx, by)
+  let pad = Math.abs(ang) < 1.4 ? padBit('down') : 0
+  if (ang > 0.25) pad |= padBit('right')
+  else if (ang < -0.25) pad |= padBit('left')
+  return pad
 }
 
 /** A video memory word. */
@@ -162,7 +269,7 @@ describe('ELECAIRCOMBAT as built', () => {
 
 // Whole sorties run on the core: given time, as the suite runs everything at once.
 describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
-  it('shows the title, the briefing, then the cockpit over the sky and the sea', () => {
+  it('shows the title, the controls, the briefing, then the cockpit over the sky and the sea', () => {
     const m = startGame(cart)
     frames(m, 60, cart)
     expect(m.state.halt).toBeNull()
@@ -172,7 +279,13 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     expect(cells.some((t) => t > logo)).toBe(true)
     hold(m, padBit('start'))
     frames(m, 30, cart)
-    // The briefing: the fighter turning on its stand (sprites), the ace's name in words.
+    expect(textAt(m, 16, 2, 8)).toBe('CONTROLS')
+    hold(m, padBit('a'))
+    frames(m, 30, cart)
+    // The briefing: the fighter turning on its stand (sprites), the ace's name and arms in words.
+    expect(textAt(m, 2, 2, 6)).toBe('SORTIE')
+    expect(textAt(m, 14, 4, 6)).toBe('GANNET')
+    expect(textAt(m, 2, 6, 29)).toBe('ARMS     8 MISSILES  4 FLARES')
     expect(spritesShown(m)).toBeGreaterThan(3)
     hold(m, padBit('a'))
     frames(m, 10, cart)
@@ -275,8 +388,18 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
       warned = read(m, 'warned')
     }
     expect(warned).toBe(1)
-    hold(m, padBit('x'))
-    expect(read(m, 'flaresLeft')).toBe(23)
+    // A pair fools it three times in four: dropped again after the flares' cooling if not.
+    let pairs = 0
+    while (pairs < 3 && read(m, 'mChase', 4) === 0) {
+      hold(m, padBit('x'), 1)
+      pairs++
+      for (let k = 0; k < 19 && read(m, 'mChase', 4) === 0; k++) {
+        pin(m, -2600)
+        frames(m, 1, cart)
+      }
+    }
+    expect(read(m, 'mChase', 4)).toBe(1)
+    expect(read(m, 'flaresLeft')).toBe(48 - pairs)
     // Chasing a flare, the missile no longer warns.
     let k = 0
     while (k < 120 && read(m, 'warned') === 1) {
@@ -340,5 +463,429 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     // 4 MHz at 60 frames: 66,667 cycles a frame.
     expect(sum / 480).toBeLessThan(45_000)
     expect(worst).toBeLessThan(60_000)
+  })
+
+  it('keeps the hardest fight within its frames: NOCTURNE and the player firing missiles all the while', () => {
+    const m = atAce(4)
+    let sum = 0
+    let worst = 0
+    const n = 900
+    for (let t = 0; t < n; t++) {
+      // Neither side runs dry or falls; the ace fires each time it holds a lock.
+      put(m, 'damage', 0)
+      if (read(m, 'pAlt') < 2500) put(m, 'pAlt', 2500)
+      put(m, 'eHP', 100)
+      put(m, 'clock', 9000)
+      put(m, 'aiMslCool', 0)
+      put(m, 'aiMissiles', 20)
+      if (at.has('aiFlares')) put(m, 'aiFlares', 10)
+      put(m, 'missilesLeft', 50)
+      put(m, 'flaresLeft', 40)
+      m.pad(pilot(m, t))
+      const c0 = m.state.cycles
+      frames(m, 1, cart)
+      const d = m.state.cycles - c0
+      sum += d
+      if (t > 4) worst = Math.max(worst, d)
+    }
+    m.pad(0)
+    expect(m.state.halt).toBeNull()
+    expect(read(m, 'outcome')).toBe(0)
+    expect(sum / n).toBeLessThan(45_000)
+    expect(worst).toBeLessThan(60_000)
+  })
+})
+
+// The controls screen and each ace (docs/elec16-elecaircombat.md sections 2 and 7), on the core.
+describe('ELECAIRCOMBAT controls and aces', { timeout: 120_000 }, () => {
+  it("lays the pad's buttons beside the PC's keys after the title, and A or START goes on", () => {
+    const m = startGame(cart)
+    frames(m, 60, cart)
+    hold(m, padBit('start'))
+    frames(m, 20, cart)
+    expect(textAt(m, 16, 2, 8)).toBe('CONTROLS')
+    const line = (y: number) => [textAt(m, 2, y, 11), textAt(m, 13, y, 11), textAt(m, 25, y, 13)]
+    expect(line(8)).toEqual(['D-PAD < >  ', 'ARROW < >  ', 'ROLL, TURN   '])
+    expect(line(9)).toEqual(['D-PAD DOWN ', 'ARROW DOWN ', 'PULL UP      '])
+    expect(line(10)).toEqual(['D-PAD UP   ', 'ARROW UP   ', 'PUSH DOWN    '])
+    expect(line(13)).toEqual(['A          ', 'Z          ', 'GUN (HOLD)   '])
+    expect(line(14)).toEqual(['B          ', 'X          ', 'MISSILE      '])
+    expect(line(15)).toEqual(['X          ', 'S          ', 'FLARES       '])
+    expect(line(17)).toEqual(['R          ', 'W          ', 'AFTERBURNER  '])
+    expect(line(18)).toEqual(['L          ', 'Q          ', 'AIR BRAKE    '])
+    expect(line(20)).toEqual(['START      ', 'ENTER      ', 'PAUSE        '])
+    expect(line(21)).toEqual(['SELECT     ', 'RIGHT SHIFT', 'STICK REVERSE'])
+    // The stick reversed (SELECT, here as on the title): up pulls, and the lines say so.
+    hold(m, padBit('select'))
+    expect(line(9)).toEqual(['D-PAD UP   ', 'ARROW UP   ', 'PULL UP      '])
+    expect(line(10)).toEqual(['D-PAD DOWN ', 'ARROW DOWN ', 'PUSH DOWN    '])
+    expect(read(m, 'stickReversed')).toBe(1)
+    hold(m, padBit('select'))
+    expect(read(m, 'stickReversed')).toBe(0)
+    // It waits for a press, then the briefing.
+    frames(m, 300, cart)
+    expect(textAt(m, 16, 2, 8)).toBe('CONTROLS')
+    hold(m, padBit('a'))
+    frames(m, 10, cart)
+    expect(textAt(m, 2, 2, 6)).toBe('SORTIE')
+    // START skips it as well.
+    const n = startGame(cart)
+    frames(n, 60, cart)
+    hold(n, padBit('start'))
+    frames(n, 20, cart)
+    hold(n, padBit('start'))
+    frames(n, 10, cart)
+    expect(textAt(n, 2, 2, 6)).toBe('SORTIE')
+  })
+
+  it('arms each side as set: the player 64 missiles and 48 flares, each ace its own', () => {
+    const missiles = [8, 12, 16, 20, 24]
+    const flares = [4, 8, 10, 12, 14]
+    for (let k = 0; k < 5; k++) {
+      const m = atAce(k)
+      expect([read(m, 'sortie'), read(m, 'ace')]).toEqual([k, k])
+      expect([read(m, 'missilesLeft'), read(m, 'flaresLeft')]).toEqual([64, 48])
+      expect([read(m, 'aiMissiles'), read(m, 'aiFlares')], `ace ${k}`).toEqual([
+        missiles[k],
+        flares[k],
+      ])
+      // The panel shows the player's two counts whole.
+      expect([textAt(m, 28, 34, 3), textAt(m, 33, 34, 3)]).toEqual(['M64', 'F48'])
+    }
+  })
+
+  it("fools three in four of every ace's missiles with the player's flares", () => {
+    let all = 0
+    const trials = 20
+    for (let k = 0; k < 5; k++) {
+      const m = atAce(k)
+      let fooled = 0
+      for (let t = 0; t < trials; t++) {
+        const slot = enemyLaunch(m)
+        expect(read(m, 'mChase', slot)).toBe(0)
+        hold(m, padBit('x'), 1)
+        if (read(m, 'mChase', slot) === 1) fooled++
+        // The next trial: this missile gone, the flares' cooling over.
+        put(m, 'mOwner', 0, slot)
+        put(m, 'damage', 0)
+        frames(m, 20, cart)
+      }
+      expect(fooled, `ace ${k}`).toBeGreaterThanOrEqual(11)
+      expect(fooled, `ace ${k}`).toBeLessThan(trials)
+      all += fooled
+    }
+    expect(all / (5 * trials)).toBeGreaterThan(0.65)
+    expect(all / (5 * trials)).toBeLessThan(0.85)
+  })
+
+  it("flies ORACLE's and NOCTURNE's missiles a tenth faster than the others'", () => {
+    const tops: number[] = []
+    for (let k = 0; k < 5; k++) {
+      const m = atAce(k)
+      const slot = enemyLaunch(m)
+      const tenths = k >= 3 ? 11 : 10
+      // Off the rail at the fighter's speed and a bit, gaining, and at the top: all of it.
+      const off = Math.floor(((read(m, 'eSpeed') + 64) * tenths) / 10)
+      expect(Math.abs(read(m, 'mSpeed', slot) - read(m, 'mGain', slot) - off)).toBeLessThan(8)
+      expect([read(m, 'mTop', slot), read(m, 'mGain', slot)]).toEqual([80 * tenths, 2 * tenths])
+      frames(m, 40, cart)
+      tops.push(read(m, 'mSpeed', slot))
+    }
+    expect(tops).toEqual([800, 800, 800, 880, 880])
+  })
+
+  it('runs out of flares: an ace drops a pair only while it has one', () => {
+    const m = atAce(0)
+    put(m, 'aiFlares', 2)
+    put(m, 'aiDodge', 0)
+    // Locked on from behind, missile after missile on its way: GANNET (who once had none)
+    // drops a pair against each while it has one, then none.
+    pinned(m, 60, 1500)
+    expect(read(m, 'locked')).toBe(1)
+    const left: number[] = []
+    let lit = 0
+    for (let k = 0; k < 240; k++) {
+      pin(m, 1500)
+      put(m, 'aiThinkT', 200)
+      put(m, 'aiFlareCool', 0)
+      put(m, 'eHP', 90)
+      const fNext = read(m, 'fNext')
+      m.pad(k % 30 < 2 ? padBit('b') : 0)
+      frames(m, 1, cart)
+      if (read(m, 'fNext') !== fNext) lit++
+      left.push(read(m, 'aiFlares'))
+    }
+    m.pad(0)
+    expect(read(m, 'missilesLeft')).toBeLessThan(60)
+    expect(left).toContain(1)
+    expect(left.at(-1)).toBe(0)
+    expect(lit).toBe(2)
+  })
+
+  it('lets ORACLE lock from further than any other ace', () => {
+    const fired: boolean[] = []
+    for (let k = 0; k < 5; k++) {
+      const m = atAce(k)
+      const before = read(m, 'aiMissiles')
+      for (let t = 0; t < 160; t++) {
+        headOn(m, 7000)
+        put(m, 'aiMslCool', 0)
+        frames(m, 1, cart)
+      }
+      fired.push(read(m, 'aiMissiles') < before)
+    }
+    expect(fired).toEqual([false, false, false, true, false])
+    // Within every ace's reach, every ace fires.
+    for (let k = 0; k < 5; k++) {
+      const m = atAce(k)
+      const before = read(m, 'aiMissiles')
+      for (let t = 0; t < 160; t++) {
+        headOn(m, 4600)
+        put(m, 'aiMslCool', 0)
+        frames(m, 1, cart)
+      }
+      expect(read(m, 'aiMissiles'), `ace ${k}`).toBeLessThan(before)
+    }
+  })
+  it('sends MISTRAL straight up when pressed from behind, where GANNET turns', () => {
+    const climb = (k: number) => {
+      const m = atAce(k)
+      onTail(m, 800)
+      put(m, 'aiThinkT', 0)
+      put(m, 'aiStateT', 0)
+      let most = -16384
+      for (let t = 0; t < 120; t++) {
+        // The player stays on its tail, 800 behind: only the enemy's own flying is free.
+        const ef = vecOf(m, V.EF)
+        vecPut(m, V.PF, ...(ef as [number, number, number]))
+        vecPut(
+          m,
+          V.REL,
+          ...(ef.map((c) => Math.round((c * 800) / 16384)) as [number, number, number]),
+        )
+        put(m, 'pAlt', 5200)
+        frames(m, 1, cart)
+        most = Math.max(most, vecOf(m, V.EF)[2] ?? 0)
+      }
+      return most
+    }
+    const mistral = climb(1)
+    const gannet = climb(0)
+    // Nearly upright (sin 60 degrees is 14,189): a zoom climb; GANNET's break stays far flatter.
+    expect(mistral).toBeGreaterThan(14000)
+    expect(gannet).toBeLessThan(9000)
+  })
+
+  it('has MISTRAL turn over the top of its climb and dive back down', () => {
+    const m = atAce(1)
+    put(m, 'aiState', 2)
+    put(m, 'aiStateT', 90)
+    put(m, 'aiThinkT', 200)
+    const states = new Set<number>()
+    let lowest = 16384
+    let highest = -16384
+    for (let t = 0; t < 200; t++) {
+      put(m, 'pAlt', 5200)
+      put(m, 'aiThinkT', 200)
+      frames(m, 1, cart)
+      states.add(read(m, 'aiState'))
+      const z = vecOf(m, V.EF)[2] ?? 0
+      highest = Math.max(highest, z)
+      if (highest > 14000) lowest = Math.min(lowest, z)
+    }
+    // ZOOM (2), then HAMMER (5): up past 60 degrees, then nose down.
+    expect(states.has(5)).toBe(true)
+    expect(highest).toBeGreaterThan(14000)
+    expect(lowest).toBeLessThan(0)
+  })
+
+  it('slows CINDER and has it scissor with the player behind it; GANNET neither', () => {
+    const fight = (k: number) => {
+      const m = atAce(k)
+      const cruise = read(m, 'eCruise')
+      let flips = 0
+      let side = read(m, 'aiSide')
+      let slowest = 9999
+      for (let t = 0; t < 240; t++) {
+        onTail(m, 900)
+        frames(m, 1, cart)
+        slowest = Math.min(slowest, read(m, 'eSpeed'))
+        if (read(m, 'aiSide') !== side) flips++
+        side = read(m, 'aiSide')
+      }
+      return { drop: cruise - slowest, flips }
+    }
+    const cinder = fight(2)
+    const gannet = fight(0)
+    expect(cinder.drop).toBeGreaterThan(120)
+    expect(cinder.flips).toBeGreaterThanOrEqual(3)
+    expect(gannet.drop).toBeLessThan(30)
+    expect(gannet.flips).toBe(0)
+  })
+
+  it('sends ORACLE out to come back nose on, and has it open fire from further head on', () => {
+    // After a pass it runs out further than the others before it turns.
+    const run = (k: number) => {
+      const m = atAce(k)
+      put(m, 'aiState', 3)
+      put(m, 'aiStateT', 170)
+      put(m, 'aiThinkT', 200)
+      let far = 0
+      for (let t = 0; t < 170; t++) {
+        put(m, 'pAlt', 5200)
+        put(m, 'aiThinkT', 200)
+        frames(m, 1, cart)
+        const r = vecOf(m, V.REL).map(Math.abs)
+        far = Math.max(far, Math.max(...r))
+      }
+      return far
+    }
+    expect(run(3)).toBeGreaterThan(3500)
+    // Nose to nose at 2,200: ORACLE fires, GANNET (1,700) holds its fire.
+    const guns = (k: number) => {
+      const m = atAce(k)
+      let hits = 0
+      for (let t = 0; t < 60; t++) {
+        headOn(m, 2200)
+        put(m, 'aiMslCool', 999)
+        frames(m, 1, cart)
+        if (read(m, 'eMuzzle') > 0) hits++
+      }
+      return hits
+    }
+    expect(guns(3)).toBeGreaterThan(5)
+    expect(guns(0)).toBe(0)
+  })
+
+  it('has NOCTURNE feint its break, and roll in behind the player the moment it overshoots', () => {
+    // The feint: the side of its break turns once, without a new thought.
+    let flipped = -1
+    for (let tries = 0; tries < 6 && flipped < 0; tries++) {
+      const m = atAce(4)
+      // A frame for the enemy to see where the player is, then its thought.
+      onTail(m, 800)
+      frames(m, tries + 1, cart)
+      onTail(m, 800)
+      put(m, 'aiThinkT', 0)
+      put(m, 'aiStateT', 0)
+      frames(m, 1, cart)
+      if (read(m, 'aiState') !== 1) continue
+      const side = read(m, 'aiSide')
+      for (let t = 0; t < 30; t++) {
+        onTail(m, 800)
+        put(m, 'aiThinkT', 200)
+        frames(m, 1, cart)
+        if (read(m, 'aiSide') !== side) {
+          flipped = t
+          break
+        }
+      }
+    }
+    expect(flipped).toBeGreaterThan(10)
+    expect(flipped).toBeLessThan(24)
+    // The overshoot: the player shot past to 500 ahead of it while it breaks.
+    const overshot = (k: number) => {
+      const m = atAce(k)
+      put(m, 'aiState', 1)
+      put(m, 'aiStateT', 100)
+      pin(m, -500)
+      put(m, 'aiThinkT', 200)
+      frames(m, 2, cart)
+      return read(m, 'aiState')
+    }
+    expect(overshot(4)).toBe(0)
+    expect(overshot(0)).toBe(1)
+    expect(overshot(3)).toBe(1)
+  })
+})
+
+/** Missiles from 1,500 behind the enemy until one is fooled by its flares: answers its slot. */
+function firstFooled(m: Elec16): number {
+  const chasing = () =>
+    [0, 1, 2, 3].find((s) => read(m, 'mOwner', s) === 1 && read(m, 'mChase', s) === 1)
+  for (let k = 0; k < 400; k++) {
+    pin(m, 1500)
+    put(m, 'aiThinkT', 200)
+    put(m, 'eHP', 200)
+    // (Before the flares were counted, there was no count to keep up.)
+    if (at.has('aiFlares')) put(m, 'aiFlares', 10)
+    m.pad(k % 30 < 2 ? padBit('b') : 0)
+    frames(m, 1, cart)
+    const s = chasing()
+    if (s !== undefined) return s
+  }
+  return -1
+}
+
+// Bugs found while rebalancing the arms: each failed before its fix.
+describe('ELECAIRCOMBAT arms, as fixed', { timeout: 60_000 }, () => {
+  const owned = (m: Elec16, owner: number) =>
+    Array.from({ length: 6 }, (_, k) => read(m, 'mOwner', k)).filter((o) => o === owner).length
+
+  it('spends a missile only when one leaves the rail, and keeps the enemy two rails of its own', () => {
+    const m = flying()
+    // Fired blind into the empty sky, a missile every 25 frames: more than there are rails.
+    for (let press = 0; press < 7; press++) {
+      const before = owned(m, 1)
+      const left = read(m, 'missilesLeft')
+      const was = Array.from({ length: 6 }, (_, k) => read(m, 'mOwner', k))
+      pin(m, 9000)
+      m.pad(padBit('b'))
+      frames(m, 1, cart)
+      m.pad(0)
+      const gone = was.filter((o, k) => o === 1 && read(m, 'mOwner', k) !== 1).length
+      // Each one spent is one more in flight (allowing for one that ended the same frame).
+      expect(left - read(m, 'missilesLeft')).toBeLessThanOrEqual(owned(m, 1) - before + gone)
+      for (let k = 0; k < 24; k++) {
+        pin(m, 9000)
+        frames(m, 1, cart)
+      }
+    }
+    // The player's crowd never takes the enemy's rail: its missile still goes, and costs one.
+    const theirs = read(m, 'aiMissiles')
+    put(m, 'aiMissiles', theirs)
+    for (let k = 0; k < 4 && owned(m, 2) === 0; k++) {
+      headOn(m, 2500)
+      put(m, 'aiMslCool', 0)
+      put(m, 'aiLockT', 400)
+      frames(m, 1, cart)
+    }
+    expect(owned(m, 2)).toBe(1)
+    expect(read(m, 'aiMissiles')).toBe(theirs - 1)
+  })
+
+  it("sends a missile the enemy's flares fool after a flare that burns, and blind once it is out", () => {
+    // NOCTURNE's flares fool most often; missiles from close behind until one is fooled.
+    const m = atAce(4)
+    put(m, 'aiDodge', 0)
+    pinned(m, 60, 1500)
+    const fooled = firstFooled(m)
+    m.pad(0)
+    expect(fooled).toBeGreaterThanOrEqual(0)
+    const flare = read(m, 'mFlare', fooled)
+    expect(read(m, 'fLife', flare)).toBeGreaterThan(0)
+    // The flare burns out (80 frames): within a turn the missile chases it no more.
+    let k = 0
+    while (k < 90 && read(m, 'fLife', flare) > 0) {
+      pin(m, 1500)
+      put(m, 'aiThinkT', 200)
+      frames(m, 1, cart)
+      k++
+    }
+    frames(m, 2, cart)
+    expect(read(m, 'mOwner', fooled) !== 1 || read(m, 'mChase', fooled) === 2).toBe(true)
+  })
+
+  it("keeps the target's strength within the centre display's glass", () => {
+    const m = flying()
+    frames(m, 4, cart)
+    const font = constant('FONT_TILE')
+    const isText = (x: number) => {
+      const t = (bg1(m, x, 32) & 0x3ff) - font
+      return t >= 0 && t < 64
+    }
+    expect([19, 20, 21, 22, 23, 24].every(isText)).toBe(true)
+    // The bezel past the glass is the cockpit's own picture.
+    expect([25, 26].some(isText)).toBe(false)
   })
 })

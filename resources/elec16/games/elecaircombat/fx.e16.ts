@@ -1,35 +1,41 @@
-// ELECAIRCOMBAT's effects (docs/elec16-elecaircombat.md section 7): sparks, bursts, smoke and a
-// falling wreck, set in the world so the fighter flies past them; clouds that stream by for
-// speed; the sun and its flare. Each is projected through the cockpit and drawn at the size
-// its distance gives.
-import { type bool, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+// ELECAIRCOMBAT's effects (docs/elec16-elecaircombat.md section 6): sparks, bursts, launches,
+// smoke, debris and a falling wreck, set in the world so the fighter flies past them; clouds
+// that stream by for speed; the sun and its flare. Each is projected through the cockpit and
+// drawn at the size its distance gives. Then what is drawn in the cockpit's own frame: the
+// gun's flash, a launch leaving its rail, sparks on the canopy.
+import { asm, type bool, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
 import { rand, randBelow, S8, S16, S32, spr } from '../lib/kit.e16'
 import {
   BITS_TILE,
   BLAST16_TILE,
   BLAST32_TILE,
+  BURST16_TILE,
   CLOUD8_TILE,
   CLOUD16_TILE,
   CLOUD32_TILE,
   CLOUD64_TILE,
   FLARE_TILE,
+  MUZZLE_TILE,
   SMOKE_TILE,
   SUN_TILE,
+  TRAIL8_TILE,
+  TRAIL16_TILE,
 } from './assets.e16'
 import { pAlt, pVel } from './flight.e16'
-import { abs16, mulq, V_PF, V_REL, V_T0, vget, vset } from './math.e16'
+import { abs16, bodyV, mulq, V_PF, V_REL, V_T0, vget, vset } from './math.e16'
 import {
   abovePanel,
   bodyZ,
+  busy,
   CX,
   CY,
-  project,
   SL_CLOUD,
   SL_FIRE,
+  SL_SHOT,
   SL_SUN,
   scrX,
   scrY,
-  toBody,
+  see,
 } from './sky.e16'
 
 /* ---------------- effects in the world ---------------- */
@@ -40,17 +46,29 @@ const FX_PUFF = 3
 const FX_TRAIL = 4
 const FX_WRECK = 5
 const FX_FLAME = 6
+/** A missile leaving its rail: a burst of light. */
+const FX_LAUNCH = 7
+/** A piece of a fighter shot down, tumbling and falling. */
+const FX_DEBRIS = 8
 
-const XN = 20
-const xKind = words(20)
-const xX = words(20)
-const xY = words(20)
-const xZ = words(20)
-const xVX = words(20)
-const xVY = words(20)
-const xVZ = words(20)
-const xT = words(20)
+const XN = 24
+const xKind = words(24)
+const xX = words(24)
+const xY = words(24)
+const xZ = words(24)
+const xVX = words(24)
+const xVY = words(24)
+const xVZ = words(24)
+const xT = words(24)
 let xNext: u16 = 0
+
+/**
+ * A frame's cycles past which smoke is no longer drawn (it still drifts), and past which
+ * sparks and pieces are not either: what a frame has left after them is kept for the rest of
+ * it, so a crowded sky never costs a frame. Bursts and the wreck are always drawn.
+ */
+const SMOKE_BUDGET: u16 = 44000
+const SPARK_BUDGET: u16 = 50000
 
 export function fxClear(): void {
   let k: u16 = 0
@@ -58,12 +76,41 @@ export function fxClear(): void {
     xKind[k] = 0
     k++
   }
+  fxLife[FX_SPARK] = 9
+  fxLife[FX_BOOM] = 40
+  fxLife[FX_PUFF] = 44
+  fxLife[FX_TRAIL] = 36
+  fxLife[FX_WRECK] = 170
+  fxLife[FX_FLAME] = 24
+  fxLife[FX_LAUNCH] = 8
+  fxLife[FX_DEBRIS] = 56
 }
 
-/** An effect of `kind` at (x, y, z), units from the player; it stays where it is in the world. */
+/** Each kind's life, frames. */
+const fxLife = words(9)
+
+/** How much an effect matters: smoke least, a burst or a wreck most (a new one never takes its slot). */
+function weight(kind: u16): u16 {
+  if (kind === FX_PUFF || kind === FX_TRAIL) return 0
+  if (kind === FX_BOOM || kind === FX_WRECK) return 2
+  return 1
+}
+
+/**
+ * An effect of `kind` at (x, y, z), units from the player; it stays where it is in the world.
+ * It takes the next slot that is free or holds nothing that matters more; answers the slot,
+ * or XN when every one does (a puff is then not made).
+ */
 function fxAt(kind: u16, x: i16, y: i16, z: i16): u16 {
-  const k = xNext
-  xNext = xNext + 1 === XN ? 0 : xNext + 1
+  const w = weight(kind)
+  let tries: u16 = 0
+  let k = xNext
+  while (xKind[k] !== 0 && weight(xKind[k]) > w) {
+    k = k + 1 === XN ? 0 : k + 1
+    tries++
+    if (tries === XN) return XN
+  }
+  xNext = k + 1 === XN ? 0 : k + 1
   xKind[k] = kind
   xX[k] = u16(x)
   xY[k] = u16(y)
@@ -88,14 +135,20 @@ export function boomAt(x: i16, y: i16, z: i16): void {
   fxAt(FX_BOOM, x, y, z)
 }
 
+/** A missile's launch: a flash where it leaves the rail. */
+export function launchAt(x: i16, y: i16, z: i16): void {
+  fxAt(FX_LAUNCH, x, y, z)
+}
+
 /** Smoke: a missile's trail (0) or a dark puff (1). */
 export function puffAt(x: i16, y: i16, z: i16, dark: u16): void {
   fxAt(dark === 0 ? FX_TRAIL : FX_PUFF, x, y, z)
 }
 
 /**
- * The enemy shot down: bursts round it and a wreck that keeps its way, slows and falls,
- * burning and trailing smoke. (vx, vy) its velocity across, sixteenths.
+ * The enemy shot down: a fireball of bursts round it, pieces thrown out, and a wreck that
+ * keeps its way, slows and falls, burning and trailing smoke. (vx, vy) its velocity across,
+ * sixteenths.
  */
 export function shotDown(vx: i16, vy: i16): void {
   const x = vget(V_REL)
@@ -104,53 +157,102 @@ export function shotDown(vx: i16, vy: i16): void {
   boomAt(x, y, z)
   boomAt(x + 40, y - 30, z + 20)
   boomAt(x - 30, y + 40, z - 20)
+  launchAt(x, y, z)
+  let n: u16 = 0
+  while (n < 5) {
+    const k = fxAt(FX_DEBRIS, x, y, z)
+    if (k < XN) {
+      xVX[k] = u16((vx >> 4) + i16(randBelow(24)) - 12)
+      xVY[k] = u16((vy >> 4) + i16(randBelow(24)) - 12)
+      xVZ[k] = u16(i16(randBelow(16)) - 4)
+    }
+    n++
+  }
   const k = fxAt(FX_WRECK, x, y, z)
-  xVX[k] = u16(vx >> 4)
-  xVY[k] = u16(vy >> 4)
+  if (k < XN) {
+    xVX[k] = u16(vx >> 4)
+    xVY[k] = u16(vy >> 4)
+  }
 }
 
 /** Every effect on by a frame, and drawn. */
 export function fxStep(): void {
-  const px = pVel(0) >> 4
-  const py = pVel(1) >> 4
-  const pz = pVel(2) >> 4
+  fxMove(pVel(0) >> 4, pVel(1) >> 4, pVel(2) >> 4)
   let k: u16 = 0
   while (k < XN) {
-    if (xKind[k] !== 0) fxOne(k, px, py, pz)
+    if (xKind[k] !== 0) fxOne(k)
     k++
   }
 }
 
-function fxOne(k: u16, px: i16, py: i16, pz: i16): void {
+/**
+ * Every effect on by its velocity less the player's (px, py, pz: units this frame), in one
+ * piece of assembly: the effects' own work below is only their ageing and drawing.
+ */
+function fxMove(_px: i16, _py: i16, _pz: i16): void {
+  asm`
+    li t3, 0
+.mv_k:
+    lw t0, xKind(t3)
+    beqz t0, .mv_skip
+    lw t0, xX(t3)
+    lw t1, xVX(t3)
+    add t0, t0, t1
+    sub t0, t0, a0
+    sw t0, xX(t3)
+    lw t0, xY(t3)
+    lw t1, xVY(t3)
+    add t0, t0, t1
+    sub t0, t0, a1
+    sw t0, xY(t3)
+    lw t0, xZ(t3)
+    lw t1, xVZ(t3)
+    add t0, t0, t1
+    sub t0, t0, a2
+    sw t0, xZ(t3)
+.mv_skip:
+    addi t3, t3, 2
+    li t0, 48
+    blt t3, t0, .mv_k
+  `
+}
+
+function fxOne(k: u16): void {
   const t = xT[k] + 1
   xT[k] = t
   const kind = xKind[k]
-  if (t > lifeOf(kind)) {
+  if (t > fxLife[kind]) {
     xKind[k] = 0
     return
   }
+  fxAge(k, kind, t)
+  // Smoke once the frame has had its share is not drawn, nor far smoke; sparks and pieces
+  // not once the frame is nearly spent.
+  const w = weight(kind)
+  if (w === 0 && busy() > SMOKE_BUDGET) return
+  if (w === 1 && busy() > SPARK_BUDGET) return
+  if (fxFar(k, kind, w)) return
+  vset(V_T0, i16(xX[k]), i16(xY[k]), i16(xZ[k]))
+  if (see(V_T0) && abovePanel(scrY(), 16)) fxDraw(kind, t)
+}
+
+/** What a frame does to an effect's way: the wreck's fall, a piece's, smoke's slow rise. */
+function fxAge(k: u16, kind: u16, t: u16): void {
   if (kind === FX_WRECK) wreckStep(k, t)
-  if (kind === FX_PUFF || kind === FX_TRAIL) xVZ[k] = u16(t > 8 ? 1 : 0)
-  xX[k] = u16(i16(xX[k]) + i16(xVX[k]) - px)
-  xY[k] = u16(i16(xY[k]) + i16(xVY[k]) - py)
-  xZ[k] = u16(i16(xZ[k]) + i16(xVZ[k]) - pz)
-  // Far smoke is not worth projecting.
+  else if (kind === FX_DEBRIS && (t & 3) === 0) xVZ[k] = u16(i16(xVZ[k]) - 1)
+  else if (kind === FX_PUFF || kind === FX_TRAIL) xVZ[k] = u16(t > 8 ? 1 : 0)
+}
+
+/** Whether effect `k` (of weight `w`) is too far off to be worth projecting. */
+function fxFar(k: u16, kind: u16, w: u16): bool {
   const x = i16(xX[k])
   const y = i16(xY[k])
   const z = i16(xZ[k])
-  if (kind !== FX_WRECK && abs16(x) + abs16(y) + abs16(z) > 4800) return
-  vset(V_T0, x, y, z)
-  toBody(V_T0)
-  if (project() && abovePanel(scrY, 16)) fxDraw(kind, t)
-}
-
-function lifeOf(kind: u16): u16 {
-  if (kind === FX_SPARK) return 9
-  if (kind === FX_BOOM) return 40
-  if (kind === FX_FLAME) return 24
-  if (kind === FX_TRAIL) return 24
-  if (kind === FX_PUFF) return 44
-  return 170
+  const ax = x < 0 ? -x : x
+  const ay = y < 0 ? -y : y
+  const az = z < 0 ? -z : z
+  if (kind !== FX_WRECK && (ax > 9000 || ay > 9000 || az > 9000)) return true
+  return w === 0 && ax + ay + az > 5600
 }
 
 /** The wreck slows, falls faster, burns, and smokes. */
@@ -170,34 +272,112 @@ function wreckStep(k: u16, t: u16): void {
 /** An effect drawn by how far it is (bodyZ): near ones large. */
 function fxDraw(kind: u16, t: u16): void {
   const fire = (SL_FIRE - 8) << 10
-  const z = bodyZ
+  const z = bodyZ()
+  if (kind === FX_BOOM || kind === FX_FLAME) boomDraw(kind === FX_BOOM ? t : t + 12, z, fire)
+  else if (kind === FX_WRECK) wreckDraw(t, z, fire)
+  else if (kind === FX_PUFF || kind === FX_TRAIL) puffDraw(kind, t, z)
+  else smallDraw(kind, t, fire)
+}
+
+/** A spark, a launch's flash or a piece: the same size at any distance. */
+function smallDraw(kind: u16, t: u16, fire: u16): void {
   if (kind === FX_SPARK) {
-    spr(scrX - 4, scrY - 4, (BITS_TILE + 4 + (t > 4 ? 1 : 0)) | fire, S8)
-  } else if (kind === FX_BOOM || kind === FX_FLAME) {
-    const f = kind === FX_BOOM ? t : t + 12
-    boomDraw(f, z, fire)
-  } else if (kind === FX_WRECK) {
-    if (z < 900) spr(scrX - 8, scrY - 8, (BLAST16_TILE + 4 + ((t >> 2) & 1) * 4) | fire, S16)
-    else spr(scrX - 4, scrY - 4, (BITS_TILE + 4) | fire, S8)
-  } else puffDraw(kind, t, z)
+    spr(scrX() - 4, scrY() - 4, (BITS_TILE + 4 + (t > 4 ? 1 : 0)) | fire, S8)
+  } else if (kind === FX_LAUNCH) {
+    const f: u16 = t > 5 ? 8 : t > 2 ? 4 : 0
+    spr(scrX() - 8, scrY() - 8, (BURST16_TILE + f) | fire, S16)
+  } else spr(scrX() - 4, scrY() - 4, (BITS_TILE + ((t >> 1) & 3)) | fire, S8)
 }
 
-/** A burst at frame `f` of its life (40), as large as its distance allows. */
+function wreckDraw(t: u16, z: i16, fire: u16): void {
+  if (z < 900) spr(scrX() - 8, scrY() - 8, (BLAST16_TILE + 4 + ((t >> 2) & 1) * 4) | fire, S16)
+  else spr(scrX() - 4, scrY() - 4, (BITS_TILE + 4) | fire, S8)
+}
+
+/**
+ * A burst at frame `f` of its life (40), as large as its distance allows - and never smaller
+ * than a flash of 16 points while it is young, so one far off still reads.
+ */
 function boomDraw(f: u16, z: i16, fire: u16): void {
-  if (z < 700)
-    spr(scrX - 16, scrY - 16, (BLAST32_TILE + (f >> 2 > 7 ? 7 : f >> 2) * 16) | fire, S32)
-  else if (z < 2200)
-    spr(scrX - 8, scrY - 8, (BLAST16_TILE + div(f > 35 ? 35 : f, 7) * 4) | fire, S16)
-  else spr(scrX - 4, scrY - 4, (BITS_TILE + 4 + ((f >> 2) & 1)) | fire, S8)
+  const x = scrX()
+  const y = scrY()
+  if (f < 3) spr(x - 8, y - 8, (BURST16_TILE + f * 4) | fire, S16)
+  if (z < 1000) spr(x - 16, y - 16, (BLAST32_TILE + (f >> 2 > 7 ? 7 : f >> 2) * 16) | fire, S32)
+  else if (z < 4000 || f < 16) {
+    spr(x - 8, y - 8, (BLAST16_TILE + div(f > 35 ? 35 : f, 7) * 4) | fire, S16)
+  } else spr(x - 4, y - 4, (BITS_TILE + 4 + ((f >> 2) & 1)) | fire, S8)
 }
 
+/** Smoke: a dark puff of 16 points, thinning as it ages; or a missile's white trail. */
 function puffDraw(kind: u16, t: u16, z: i16): void {
-  if (z > 2400) return
-  const life = kind === FX_TRAIL ? 24 : 44
-  const f = div(t * 4, life + 1)
   const pal = (SL_CLOUD - 8) << 10
-  if (z < 1000 || kind === FX_PUFF) spr(scrX - 8, scrY - 8, (SMOKE_TILE + f * 4) | pal, S16)
-  else spr(scrX - 4, scrY - 4, (CLOUD8_TILE + (t & 1)) | pal, S8)
+  if (kind === FX_TRAIL) trailDraw(t, z, pal)
+  else if (z < 2400) spr(scrX() - 8, scrY() - 8, (SMOKE_TILE + div(t * 4, 45) * 4) | pal, S16)
+}
+
+/** A puff of a missile's trail: white, as large as its distance gives, smaller as it ages. */
+function trailDraw(t: u16, z: i16, pal: u16): void {
+  const old: u16 = t > 26 ? 1 : 0
+  if (z < 700) spr(scrX() - 8, scrY() - 8, (TRAIL16_TILE + old * 4) | pal, S16)
+  else if (z < 1500 && old === 0) spr(scrX() - 8, scrY() - 8, (TRAIL16_TILE + 4) | pal, S16)
+  else {
+    const f: u16 = (z < 2600 ? 0 : z < 4000 ? 1 : 2) + old
+    spr(scrX() - 4, scrY() - 4, (TRAIL8_TILE + f) | pal, S8)
+  }
+}
+
+/* ---------------- in the cockpit ---------------- */
+
+/** Frames the gun's flash, a launch's flash and the canopy's sparks still show. */
+let gunFlashT: u16 = 0
+let gunRight: bool = false
+let railT: u16 = 0
+let railX: i16 = 0
+let hurtT: u16 = 0
+
+/** The gun fired, from the right of the nose or the left. */
+export function cueGun(right: bool): void {
+  gunFlashT = 2
+  gunRight = right
+}
+
+/** A missile left its rail, on `side` (positive the right). */
+export function cueRail(side: i16): void {
+  railT = 6
+  railX = side > 0 ? 84 : -84
+}
+
+/** The fighter was hit. */
+export function cueHurt(): void {
+  hurtT = 6
+}
+
+/**
+ * What is drawn in the cockpit's own frame, not the world's: the gun's flash low on the nose,
+ * a missile's flash leaving its rail, sparks across the canopy when the fighter is hit.
+ */
+export function cockpitFx(): void {
+  const shot = (SL_SHOT - 8) << 10
+  const fire = (SL_FIRE - 8) << 10
+  if (gunFlashT > 0) {
+    gunFlashT--
+    spr(gunRight ? CX + 14 : CX - 30, 189, (MUZZLE_TILE + (rand() & 4)) | shot, S16)
+  }
+  if (railT > 0) {
+    railT--
+    const f: u16 = railT > 3 ? 0 : railT > 1 ? 4 : 8
+    spr(i16(CX) + railX - 8, 184 + i16(6 - railT) * 2, (BURST16_TILE + f) | fire, S16)
+  }
+  if (hurtT > 0) {
+    hurtT--
+    let n: u16 = 0
+    while (n < 3) {
+      const x = i16(randBelow(240)) + 40
+      const y = i16(randBelow(160)) + 24
+      spr(x - 4, y - 4, (BITS_TILE + 4 + (rand() & 1)) | fire, S8)
+      n++
+    }
+  }
 }
 
 /* ---------------- clouds ---------------- */
@@ -242,14 +422,14 @@ export function cloudsStep(): void {
     cY[k] = u16(i16(cY[k]) - py)
     cZ[k] = u16(i16(cZ[k]) - pz)
     vset(V_T0, i16(cX[k]), i16(cY[k]), i16(cZ[k]))
-    toBody(V_T0)
-    if (bodyZ < -400 || abs16(i16(cX[k])) > 9000 || abs16(i16(cY[k])) > 9000) {
+    cloudShown[k] = see(V_T0) && abovePanel(scrY(), 16) ? 1 : 0
+    cloudSX[k] = bodyV[3]
+    cloudSY[k] = bodyV[4]
+    cloudZ[k] = bodyV[2]
+    if (bodyZ() < -400 || abs16(i16(cX[k])) > 9000 || abs16(i16(cY[k])) > 9000) {
       cloudPlace(k, 7000 + i16(randBelow(100)) * 10)
+      cloudShown[k] = 0
     }
-    cloudShown[k] = project() && abovePanel(scrY, 16) ? 1 : 0
-    cloudSX[k] = u16(scrX)
-    cloudSY[k] = u16(scrY)
-    cloudZ[k] = u16(bodyZ)
     k++
   }
 }
@@ -302,10 +482,9 @@ export function sunIs(x: i16, y: i16, z: i16, on: bool): void {
 export function sunDraw(): void {
   if (!sunOn) return
   vset(V_T0, sunX, sunY, sunZ)
-  toBody(V_T0)
-  if (!project() || !abovePanel(scrY, 16)) return
-  const sx = scrX
-  const sy = scrY
+  if (!see(V_T0) || !abovePanel(scrY(), 16)) return
+  const sx = scrX()
+  const sy = scrY()
   spr(sx - 16, sy - 16, SUN_TILE | ((SL_SUN - 8) << 10), S32)
   // The flare only while the sun itself is in the glass, not behind the frame.
   if (sy < 16 || sy > 196 || sx < 30 || sx > 290) return

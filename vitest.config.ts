@@ -16,6 +16,10 @@ export default defineConfig({
   },
   test: {
     globals: false,
+    // Half the cores: the games' tests run the machine for minutes of play each, and with a
+    // worker on every core short tests beside them went past their 5 s (measured 2026-10-05:
+    // three timeouts on 12 cores, none with 6; the suite took no longer).
+    maxWorkers: '50%',
     projects: [
       {
         extends: true,

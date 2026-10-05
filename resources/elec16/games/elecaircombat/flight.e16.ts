@@ -37,6 +37,7 @@ let pitchRate: i16 = 0
 export let throttle: u16 = 0
 /** Up on the pad pulls the nose up when set (the stick reversed). */
 export let stickReversed: bool = false
+let pSquare: u16 = 0
 /** Kept fractions of the enemy's place (sixteenths). */
 const relFrac = words(3)
 
@@ -101,7 +102,10 @@ export function playerStep(alive: bool): void {
     turnWorld(V_PR, bankTurn)
     turnWorld(V_PU, bankTurn)
   }
-  orthonormal(V_PF, V_PR, V_PU)
+  // Squared up every other frame (the enemy on the others): a frame's turns are small, and
+  // the drift one leaves is far below a point on the screen.
+  pSquare = pSquare ^ 1
+  if (pSquare === 0) orthonormal(V_PF, V_PR, V_PU)
   let target = SPEED_CRUISE
   if (throttle === 1) target = SPEED_BURNER
   if (throttle === 2) target = SPEED_BRAKE

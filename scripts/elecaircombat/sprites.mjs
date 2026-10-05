@@ -152,6 +152,66 @@ export function shots() {
   return out
 }
 
+/** The fire palette's ramp (as ELECLANCE's foes.mjs has it): dark red, orange, yellow, white. */
+const FIRE = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+/**
+ * A burst's flash (16x16, three frames, each smaller): a white core and four long rays and four
+ * short ones, so a missile's burst or a launch reads as a point of light at any distance.
+ */
+export function bursts() {
+  const out = []
+  for (let f = 0; f < 3; f++) {
+    const c = new Canvas(16, 16)
+    const core = 3.4 - f * 0.9
+    const ray = 7.6 - f * 2
+    each(16, 16, (x, y) => {
+      const dx = Math.abs(x + 0.5 - 8)
+      const dy = Math.abs(y + 0.5 - 8)
+      const d = Math.hypot(dx, dy)
+      const along = Math.min(dx, dy) < 0.8 ? Math.max(dx, dy) / ray : 9
+      const diag = Math.abs(dx - dy) < 0.8 ? (d * 1.6) / ray : 9
+      const level = Math.max(1.25 - d / core, 1.05 - along, 0.9 - diag)
+      if (level > 0.08) c.set(x, y, ramp(FIRE, level, x, y))
+    })
+    out.push(c)
+  }
+  return out
+}
+
+/** How far a ragged star reaches at angle `a`: its core, or the ray nearest that way. */
+function reachOf(rays, a) {
+  let reach = 2.4
+  for (const [ra, len] of rays) {
+    const off = Math.abs(Math.atan2(Math.sin(a - ra), Math.cos(a - ra)))
+    if (off < 0.4) reach = Math.max(reach, len * (1 - off / 0.4) ** 0.7)
+  }
+  return reach
+}
+
+/** The gun's muzzle flash (16x16, two): a ragged star of the shot palette's white and amber. */
+export function muzzle() {
+  const out = []
+  for (const seed of [3, 8]) {
+    const c = new Canvas(16, 16)
+    const rnd = chance(seed)
+    const rays = Array.from({ length: 6 }, (_, k) => [
+      ((k + rnd() * 0.6) / 6) * Math.PI * 2,
+      4.5 + rnd() * 3,
+    ])
+    each(16, 16, (x, y) => {
+      const dx = x + 0.5 - 8
+      const dy = y + 0.5 - 8
+      const d = Math.hypot(dx, dy)
+      const reach = reachOf(rays, Math.atan2(dy, dx))
+      if (d > reach) return
+      c.set(x, y, d < 1.8 ? S.w1 : d < 3 ? S.w0 : d < reach * 0.75 ? S.a3 : S.a2)
+    })
+    out.push(c)
+  }
+  return out
+}
+
 /** The cloud palette's ramp, shadow to sunlit. */
 const CLOUD = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 const SMOKE = [11, 12, 13, 14, 15]
@@ -223,6 +283,29 @@ export function smoke() {
     out.push(c)
   }
   return out
+}
+
+/**
+ * A missile's smoke trail: soft white puffs lit from above, in the cloud palette (so they take
+ * the hour's light as the clouds do) - two of 16 points and four of 8, largest first.
+ */
+export function trail() {
+  const puff = (size, r, seed) => {
+    const c = new Canvas(size, size)
+    const n = fbm(seed, 2)
+    const h = size / 2
+    each(size, size, (x, y) => {
+      const d = Math.hypot(x + 0.5 - h, y + 0.5 - h) / r
+      const b = n(x * 0.5, y * 0.5)
+      if (d > 0.85 + b * 0.3) return
+      c.set(x, y, ramp(CLOUD, 1.05 - d * 0.5 - (y / size) * 0.35 + b * 0.2, x, y))
+    })
+    return c
+  }
+  return {
+    big: [puff(16, 6.2, 51), puff(16, 4.6, 52)],
+    small: [puff(8, 3.7, 53), puff(8, 2.9, 54), puff(8, 2.1, 55), puff(8, 1.4, 56)],
+  }
 }
 
 /** The sun palette: gold ramp to white, then the flare's tints. */

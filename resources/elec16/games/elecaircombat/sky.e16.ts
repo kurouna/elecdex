@@ -7,33 +7,33 @@ import {
   addr,
   asm,
   type bool,
+  csrr,
   div,
   i16,
   peek16,
   poke16,
   u16,
   words,
+  wrap16,
 } from '../../../../src/shared/e16c/builtins'
 import {
-  aim,
   BG0X,
   BG0Y,
   BG1X,
   BG1Y,
   bank,
   cellAt,
-  cos,
   dma,
   IO_BANK,
   LAYERS,
   load,
   mapRow,
   mix,
+  PALS,
   palCopy,
   palette,
   palKeep,
   palMix,
-  sin,
   text,
   VCTRL,
   vfill,
@@ -78,19 +78,7 @@ import {
   SCREENS_TILES_BANK,
   SCREENS_TILES_BYTES,
 } from './assets.e16'
-import {
-  abs16,
-  bodyV,
-  muldiv,
-  mulq,
-  persp,
-  toBodyOf,
-  V_PF,
-  V_PR,
-  V_PU,
-  vec,
-  vget,
-} from './math.e16'
+import { bodyV, mOut, toBodyOf, vec } from './math.e16'
 
 /** Palette slots: backgrounds 0-7, sprites 8-15. */
 export const SL_SKY = 0
@@ -205,7 +193,7 @@ export function say(x: u16, y: u16, s: u16, sl: u16): void {
 }
 
 /** Whether the cockpit is on BG1 (words cleared put its cells back), or nothing is. */
-let cockpitOn: bool = false
+export let cockpitOn: bool = false
 
 /** A cell of BG1 cleared: the cockpit's own cell put back, or the clear cell. */
 export function unsay(x: u16, y: u16, n: u16): void {
@@ -260,11 +248,35 @@ export function rowsClear(y0: u16, y1: u16): void {
   }
 }
 
+/* ---------------- the frame's time ---------------- */
+
+/** The machine's cycle counter (the low word): a frame is 66,667 cycles at 4 MHz. */
+const CSR_CYCLE = 0xc00
+let frameT0: u16 = 0
+
+/** The frame begins: called as the wait for it ends. */
+export function frameStarts(): void {
+  frameT0 = csrr(CSR_CYCLE)
+}
+
+/** The cycles this frame has used so far: what may be left out of a crowded one is weighed by it. */
+export function busy(): u16 {
+  return wrap16(csrr(CSR_CYCLE) - frameT0)
+}
+
 /* ---------------- the shake and the flash ---------------- */
 
 let shakeLeft: u16 = 0
-export let shakeX: i16 = 0
-export let shakeY: i16 = 0
+/** This frame's shake, x and y: every layer and sprite moved by it (an array: `see` reads it). */
+export const shakeV = words(2)
+
+export function shakeX(): i16 {
+  return i16(shakeV[0])
+}
+
+export function shakeY(): i16 {
+  return i16(shakeV[1])
+}
 
 export function shake(frames: u16): void {
   if (frames > shakeLeft) shakeLeft = frames
@@ -272,18 +284,20 @@ export function shake(frames: u16): void {
 
 /** This frame's shake: every layer and sprite moved together. */
 export function shakeStep(): void {
-  shakeX = 0
-  shakeY = 0
+  let x: i16 = 0
+  let y: i16 = 0
   if (shakeLeft > 0) {
     shakeLeft--
     const r = shakeLeft & 3
     const size = shakeSize()
-    if (r === 0) shakeX = size
-    else if (r === 2) shakeX = -size
-    else if (r === 1) shakeY = size
-    else shakeY = -size
+    if (r === 0) x = size
+    else if (r === 2) x = -size
+    else if (r === 1) y = size
+    else y = -size
   }
-  scrollAll(shakeX, shakeY)
+  shakeV[0] = u16(x)
+  shakeV[1] = u16(y)
+  scrollAll(x, y)
 }
 
 function shakeSize(): i16 {
@@ -303,20 +317,90 @@ export function flashScreen(frames: u16, rgb: u16): void {
 export function flashStep(): void {
   if (flashLeft === 0) return
   flashLeft--
-  palMix(SL_SKY, flashRgb, flashLeft)
-  palMix(SL_CLOUD, flashRgb, flashLeft)
-  palMix(SL_ENEMY, flashRgb, flashLeft)
+  flashSlot(SL_SKY)
+  flashSlot(SL_CLOUD)
+  flashSlot(SL_ENEMY)
+}
+
+function flashSlot(sl: u16): void {
+  flashMix(sl, flashRgb, flashLeft)
+  dma(addr(flashBuf), PALS + sl * 32 + 2, 30)
+}
+
+/** The flash's weights (16 - t, then each channel of its colour times t), and a slot's colours. */
+export const flashK = words(4)
+const flashBuf = words(15)
+
+/**
+ * As the kit's `palMix`, in assembly, into `flashBuf` (for DMA): slot `sl`'s kept colours 1-15
+ * mixed `t` sixteenths toward `rgb` (a flash of three slots once cost a tenth of a frame).
+ */
+function flashMix(_sl: u16, _rgb: u16, _t: u16): void {
+  asm`
+    li t0, flashK
+    li t1, 16
+    sub t1, t1, a2
+    sw t1, 0(t0)
+    andi t1, a1, 31
+    mul t1, t1, a2
+    sw t1, 2(t0)
+    srli t1, a1, 5
+    andi t1, t1, 31
+    mul t1, t1, a2
+    sw t1, 4(t0)
+    srli t1, a1, 10
+    andi t1, t1, 31
+    mul t1, t1, a2
+    sw t1, 6(t0)
+    slli a0, a0, 5
+    li t0, palCopy + 2
+    add a0, a0, t0
+    li a1, flashBuf
+    li a2, 15
+.fm_next:
+    lw t3, 0(a0)
+    li t2, flashK
+    lw a3, 0(t2)
+    andi t0, t3, 31
+    mul t0, t0, a3
+    lw t1, 2(t2)
+    add t0, t0, t1
+    srli t0, t0, 4
+    sw t0, 0(a1)
+    srli t0, t3, 5
+    andi t0, t0, 31
+    mul t0, t0, a3
+    lw t1, 4(t2)
+    add t0, t0, t1
+    srli t0, t0, 4
+    slli t0, t0, 5
+    lw t1, 0(a1)
+    or t1, t1, t0
+    srli t0, t3, 10
+    andi t0, t0, 31
+    mul t0, t0, a3
+    lw t3, 6(t2)
+    add t0, t0, t3
+    srli t0, t0, 4
+    slli t0, t0, 10
+    or t1, t1, t0
+    sw t1, 0(a1)
+    addi a0, a0, 2
+    addi a1, a1, 2
+    addi a2, a2, -1
+    bnez a2, .fm_next
+  `
 }
 
 /* ---------------- the sky and the sea ---------------- */
 
 /** The band table (tile words by distance, -RANGE to RANGE points) and the horizon's tiles. */
-const RANGE = 400
+export const RANGE = 400
 export const hBand = words(801)
-const hPart = words(221)
+export const hPart = words(221)
 /** A row of tile words for BG0, and what each sky row last held when it was all one tile. */
-const hRow = words(40)
-const hRowWas = words(36)
+export const hRow = words(40)
+export const hRowWas = words(36)
 
 /** The table into RAM, its band entries made tile words. */
 export function skyInit(): void {
@@ -347,351 +431,218 @@ export function skyForget(): void {
   }
 }
 
-/** The horizon on the screen, as the HUD reads it too: its normal (x 256) and distance. */
-export let hNX: i16 = 0
-export let hNY: i16 = -256
-/** The horizon's distance from the boresight in 32nds of a point (the sky positive). */
-export let hC: i16 = 0
-/** The length of the up axes' part across the screen (Q14): small looking straight up or down. */
-export let hL: i16 = 16384
-
-/**
- * Where the horizon lies, from the player's axes: the sky is where a point's direction has the
- * world's up in it, (x - CX) R.z + (CY - y) U.z + FOCAL F.z > 0, a line on the screen.
- */
-export function horizonFind(): void {
-  const rz = vget(V_PR + 2)
-  const uz = vget(V_PU + 2)
-  const fz = vget(V_PF + 2)
-  const a = aim(rz >> 6, -uz >> 6)
-  hNX = cos(a)
-  hNY = sin(a)
-  hL = mulq(rz, hNX * 64) + mulq(-uz, hNY * 64)
-  const far: i16 = 19200
-  if (hL < 64 || u16(abs16(fz)) > u16(hL) * 3) hC = fz > 0 ? far : -far
-  else {
-    const c = i16(muldiv(u16(abs16(fz)), 6144, u16(hL)))
-    hC = fz < 0 ? -c : c
-  }
-  partialIn((a + 64) & 255)
-}
-
-/** The horizon's tiles for the normal at angle `b` (0: the sky straight up) into the table. */
-function partialIn(b: u16): void {
-  let flips: u16 = 0
-  let bc = b
-  if (b > 192) {
-    bc = 256 - b
-    flips = 0x2000
-  } else if (b > 128) {
-    bc = b - 128
-    flips = 0x6000
-  } else if (b > 64) {
-    bc = 128 - b
-    flips = 0x4000
-  }
-  const row = ((bc + 2) >> 2) * 13
-  let o: u16 = 0
-  while (o < 13) {
-    hBand[RANGE - 6 + o] = (HORIZON_TILE + hPart[row + o]) | flips
-    o++
-  }
-}
-
-/** BG0's sky rows for this frame. */
-export function skyDraw(): void {
-  horizonFind()
-  const nx = hNX
-  const ny = hNY
-  // Row 0 is under the canopy's bow wherever the cockpit is shown.
-  let r: u16 = cockpitOn ? 1 : 0
-  const rows: u16 = cockpitOn ? SKY_ROWS : 36
-  while (r < rows) {
-    const s0 = (((i16(r * 2) - 27) * ny - 39 * nx) >> 1) + hC
-    skyRow(r, s0, nx)
-    r++
-  }
-}
-
-/** One row: all one tile (a quick fill, or nothing when it already is), or cell by cell. */
-function skyRow(r: u16, s0: i16, ds: i16): void {
-  const w0 = hBand[bandAt(s0)]
-  const w1 = hBand[bandAt(s0 + 39 * ds)]
-  if (w0 === w1) {
-    if (hRowWas[r] === w0) return
-    hRowWas[r] = w0
-    rowFill(w0)
-  } else {
-    hRowWas[r] = 0xffff
-    const s1 = s0 + 39 * ds
-    const lim: i16 = 12760
-    if (s0 < lim && s0 > -lim && s1 < lim && s1 > -lim) rowCellsNear(s0, ds)
-    else rowCells(s0, ds)
-  }
-  dma(addr(hRow), cellAt(0, 0, r), 80)
-}
-
-function bandAt(s: i16): u16 {
-  let p = s >> 5
-  if (p > RANGE) p = RANGE
-  if (p < -RANGE) p = -RANGE
-  return u16(p + RANGE)
-}
-
-/** The row buffer all one tile word. */
-function rowFill(_w: u16): void {
-  asm`
-    li t0, hRow
-    li t1, 40
-.rf_next:
-    sw a0, 0(t0)
-    addi t0, t0, 2
-    addi t1, t1, -1
-    bnez t1, .rf_next
-  `
-}
-
-/**
- * As `rowCells`, for a row that stays within the table (no clamping), eight cells at a time:
- * where the tiles at both ends of the eight are one (the table runs in order, so all eight
- * are), they are written at once; else cell by cell.
- */
-function rowCellsNear(_s: i16, _ds: i16): void {
-  asm`
-    li a2, hRow
-    li a3, 5
-    li t1, hBand + 800
-.rn_seg:
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t2, 0(t0)
-    slli t3, a1, 3
-    sub t3, t3, a1
-    add t3, t3, a0
-    srai t3, t3, 5
-    slli t3, t3, 1
-    add t3, t3, t1
-    lw t3, 0(t3)
-    bne t2, t3, .rn_cells
-    sw t2, 0(a2)
-    sw t2, 2(a2)
-    sw t2, 4(a2)
-    sw t2, 6(a2)
-    sw t2, 8(a2)
-    sw t2, 10(a2)
-    sw t2, 12(a2)
-    sw t2, 14(a2)
-    slli t0, a1, 3
-    add a0, a0, t0
-    beq t2, t2, .rn_next
-.rn_cells:
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 0(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 2(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 4(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 6(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 8(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 10(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 12(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 14(a2)
-    add a0, a0, a1
-.rn_next:
-    addi a2, a2, 16
-    addi a3, a3, -1
-    bnez a3, .rn_seg
-  `
-}
-
-/** As `rowCellsNear`, each distance held to the table's ends (a row reaching past them). */
-function rowCells(_s: i16, _ds: i16): void {
-  asm`
-    li a2, hRow
-    li a3, 5
-    li t1, hBand + 800
-.rc_seg:
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t2, 0(t0)
-    slli t3, a1, 3
-    sub t3, t3, a1
-    add t3, t3, a0
-    srai t3, t3, 5
-    li t0, 400
-    min t3, t3, t0
-    li t0, -400
-    max t3, t3, t0
-    slli t3, t3, 1
-    add t3, t3, t1
-    lw t3, 0(t3)
-    bne t2, t3, .rc_cells
-    sw t2, 0(a2)
-    sw t2, 2(a2)
-    sw t2, 4(a2)
-    sw t2, 6(a2)
-    sw t2, 8(a2)
-    sw t2, 10(a2)
-    sw t2, 12(a2)
-    sw t2, 14(a2)
-    slli t0, a1, 3
-    add a0, a0, t0
-    beq t2, t2, .rc_next
-.rc_cells:
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 0(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 2(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 4(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 6(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 8(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 10(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 12(a2)
-    add a0, a0, a1
-    srai t0, a0, 5
-    li t2, 400
-    min t0, t0, t2
-    li t2, -400
-    max t0, t0, t2
-    slli t0, t0, 1
-    add t0, t0, t1
-    lw t0, 0(t0)
-    sw t0, 14(a2)
-    add a0, a0, a1
-.rc_next:
-    addi a2, a2, 16
-    addi a3, a3, -1
-    bnez a3, .rc_seg
-  `
-}
-
 /* ---------------- the player's view ---------------- */
 
-/** A place in the player's axes (units): right, up, ahead. */
-export let bodyX: i16 = 0
-export let bodyY: i16 = 0
-export let bodyZ: i16 = 0
-/** Where `project` put it on the screen. */
-export let scrX: i16 = 0
-export let scrY: i16 = 0
+/**
+ * What `toBody` and `see` found, in `bodyV`: the place in the player's axes (units: right, up,
+ * ahead), then where `see` put it on the screen. Read through these (each a load, inlined).
+ */
+export function bodyX(): i16 {
+  return i16(bodyV[0])
+}
+
+export function bodyY(): i16 {
+  return i16(bodyV[1])
+}
+
+export function bodyZ(): i16 {
+  return i16(bodyV[2])
+}
+
+export function scrX(): i16 {
+  return i16(bodyV[3])
+}
+
+export function scrY(): i16 {
+  return i16(bodyV[4])
+}
 
 /** The place in vector `p` (world, units, from the player) in the player's axes. */
 export function toBody(p: u16): void {
   toBodyOf(addr(vec) + p * 2)
-  bodyX = i16(bodyV[0])
-  bodyY = i16(bodyV[1])
-  bodyZ = i16(bodyV[2])
 }
 
-/** The body place onto the screen: whether it is ahead and within the screen's reach. */
-export function project(): bool {
-  if (bodyZ < 8) return false
-  if (abs16(bodyX) > bodyZ || abs16(bodyY) > bodyZ) return false
-  scrX = CX + persp(bodyX, bodyZ) + shakeX
-  scrY = CY - persp(bodyY, bodyZ) + shakeY
-  return true
+/**
+ * The place in vector `p` seen from the cockpit, in one piece of assembly (it runs some sixty
+ * times a frame): how far ahead first, and nothing more for what is behind; then across and
+ * up, and onto the screen (x * FOCAL / z, shaken) when it is within the screen's reach: one
+ * reciprocal of z (two divisions, to fifteen bits) and a product for each of x and y.
+ * Answers whether it is; `bodyZ` is set either way.
+ */
+export function see(_p: u16): bool {
+  asm`
+    slli a0, a0, 1
+    li t0, vec
+    add a0, a0, t0
+    li a1, vec
+    lw t0, 0(a0)
+    lw t1, 0(a1)
+    mul t2, t0, t1
+    mulh t3, t0, t1
+    lw t0, 2(a0)
+    lw t1, 2(a1)
+    mul a2, t0, t1
+    mulh a3, t0, t1
+    add t2, t2, a2
+    sltu a2, t2, a2
+    add t3, t3, a3
+    add t3, t3, a2
+    lw t0, 4(a0)
+    lw t1, 4(a1)
+    mul a2, t0, t1
+    mulh a3, t0, t1
+    add t2, t2, a2
+    sltu a2, t2, a2
+    add t3, t3, a3
+    add t3, t3, a2
+    srli t2, t2, 14
+    slli t0, t3, 2
+    or t0, t0, t2
+    srai t1, t3, 13
+    beqz t1, .se_z
+    addi t1, t1, 1
+    beqz t1, .se_z
+    li t0, 32767
+    bge t3, zero, .se_z
+    li t0, -32767
+.se_z:
+    li t2, bodyV
+    sw t0, 4(t2)
+    li t1, 8
+    blt t0, t1, .se_no
+    li a1, vec + 6
+    lw t0, 0(a0)
+    lw t1, 0(a1)
+    mul t2, t0, t1
+    mulh t3, t0, t1
+    lw t0, 2(a0)
+    lw t1, 2(a1)
+    mul a2, t0, t1
+    mulh a3, t0, t1
+    add t2, t2, a2
+    sltu a2, t2, a2
+    add t3, t3, a3
+    add t3, t3, a2
+    lw t0, 4(a0)
+    lw t1, 4(a1)
+    mul a2, t0, t1
+    mulh a3, t0, t1
+    add t2, t2, a2
+    sltu a2, t2, a2
+    add t3, t3, a3
+    add t3, t3, a2
+    srli t2, t2, 14
+    slli t0, t3, 2
+    or t0, t0, t2
+    srai t1, t3, 13
+    beqz t1, .se_x
+    addi t1, t1, 1
+    beqz t1, .se_x
+    li t0, 32767
+    bge t3, zero, .se_x
+    li t0, -32767
+.se_x:
+    li t2, bodyV
+    sw t0, 0(t2)
+    li a1, vec + 12
+    lw t0, 0(a0)
+    lw t1, 0(a1)
+    mul t2, t0, t1
+    mulh t3, t0, t1
+    lw t0, 2(a0)
+    lw t1, 2(a1)
+    mul a2, t0, t1
+    mulh a3, t0, t1
+    add t2, t2, a2
+    sltu a2, t2, a2
+    add t3, t3, a3
+    add t3, t3, a2
+    lw t0, 4(a0)
+    lw t1, 4(a1)
+    mul a2, t0, t1
+    mulh a3, t0, t1
+    add t2, t2, a2
+    sltu a2, t2, a2
+    add t3, t3, a3
+    add t3, t3, a2
+    srli t2, t2, 14
+    slli t0, t3, 2
+    or t0, t0, t2
+    srai t1, t3, 13
+    beqz t1, .se_y
+    addi t1, t1, 1
+    beqz t1, .se_y
+    li t0, 32767
+    bge t3, zero, .se_y
+    li t0, -32767
+.se_y:
+    li t2, bodyV
+    sw t0, 2(t2)
+    lw a1, 4(t2)
+    srai t3, t0, 15
+    xor t1, t0, t3
+    sub t1, t1, t3
+    blt a1, t1, .se_no
+    lw a0, 0(t2)
+    srai t3, a0, 15
+    xor t1, a0, t3
+    sub t1, t1, t3
+    blt a1, t1, .se_no
+    clz t1, a1
+    sll a1, a1, t1
+    srli a1, a1, 7
+    li a2, -1
+    divu a3, a2, a1
+    remu a2, a2, a1
+    slli a2, a2, 7
+    divu a2, a2, a1
+    slli a3, a3, 7
+    add a3, a3, a2
+    srai t3, t0, 15
+    xor t0, t0, t3
+    sub t0, t0, t3
+    sll t0, t0, t1
+    mulhu t0, t0, a3
+    srli t0, t0, 1
+    slli t2, t0, 1
+    add t0, t0, t2
+    srli t0, t0, 7
+    xor t0, t0, t3
+    sub t0, t0, t3
+    li t2, 112
+    sub t0, t2, t0
+    li t2, shakeV
+    lw a2, 2(t2)
+    add t0, t0, a2
+    li t2, bodyV
+    sw t0, 8(t2)
+    lw t0, 0(t2)
+    srai t3, t0, 15
+    xor t0, t0, t3
+    sub t0, t0, t3
+    sll t0, t0, t1
+    mulhu t0, t0, a3
+    srli t0, t0, 1
+    slli t2, t0, 1
+    add t0, t0, t2
+    srli t0, t0, 7
+    xor t0, t0, t3
+    sub t0, t0, t3
+    addi t0, t0, 160
+    li t2, shakeV
+    lw a2, 0(t2)
+    add t0, t0, a2
+    li t2, bodyV
+    sw t0, 6(t2)
+    li t0, 1
+    j .se_out
+.se_no:
+    li t0, 0
+.se_out:
+    li t2, mOut
+    sw t0, 0(t2)
+  `
+  return mOut[0] !== 0
 }
 
 /**

@@ -41,6 +41,7 @@ import {
   eSY,
 } from './bandit.e16'
 import { headingDegrees, pAlt, pSpeed, throttle } from './flight.e16'
+import { hL, hNX, hNY } from './horizon.e16'
 import { abs16, muldiv, mulq, V_PF, V_T0, vget, vset } from './math.e16'
 import {
   abovePanel,
@@ -49,9 +50,6 @@ import {
   CX,
   CY,
   cellXY,
-  hL,
-  hNX,
-  hNY,
   SL_AMBER,
   SL_FRAME,
   SL_HUD,
@@ -79,7 +77,7 @@ const BOX_B: i16 = 200
 /** A HUD mark (8x8) if it is on the glass. */
 function mark(x: i16, y: i16, word: u16): void {
   if (x < BOX_L || x > BOX_R || y < BOX_T || y > BOX_B) return
-  spr(x - 4 + shakeX, y - 4 + shakeY, word, S8)
+  spr(x - 4 + shakeX(), y - 4 + shakeY(), word, S8)
 }
 
 /* ---------------- the words that stay ---------------- */
@@ -143,13 +141,13 @@ function headingSay(): void {
   sayChar(21, 3, 48 + (heading % 10), SL_HUD_TEXT)
 }
 
-/** The target's strength as a bar of eight on the centre display. */
+/** The target's strength as a bar of six on the centre display (within its glass). */
 function targetBar(): void {
-  const n = eHPMax > 0 ? u16(div(u16(eHP) * 8 + u16(eHPMax) - 1, u16(eHPMax))) : 0
+  const n = eHPMax > 0 ? u16(div(u16(eHP) * 6 + u16(eHPMax) - 1, u16(eHPMax))) : 0
   if (shown[7] === n) return
   shown[7] = n
   let k: u16 = 0
-  while (k < 8) {
+  while (k < 6) {
     sayChar(19 + k, 32, k < n ? 35 : 45, k < n && n <= 2 ? SL_RED : SL_AMBER)
     k++
   }
@@ -212,7 +210,7 @@ export function lamps(frame: u16, low: bool): void {
 /** Every HUD sprite of a frame. */
 export function hudDraw(frame: u16, low: bool): void {
   heading = headingDegrees()
-  spr(CX - 8 + shakeX, CY - 8 + shakeY, HUD16_TILE | GREEN, S16)
+  spr(CX - 8 + shakeX(), CY - 8 + shakeY(), HUD16_TILE | GREEN, S16)
   warnings(frame, low)
   lockDraw(frame)
   targetDraw()
@@ -394,17 +392,17 @@ function arrowDraw(): void {
     t = 8 - d
     flips = FLIP_H
   }
-  spr(px - 8 + shakeX, py - 8 + shakeY, (HUD16_TILE + 12 + t * 4) | flips | RED, S16)
+  spr(px - 8 + shakeX(), py - 8 + shakeY(), (HUD16_TILE + 12 + t * 4) | flips | RED, S16)
 }
 
 /** The seeker's circle while the enemy is within its reach; the diamond closing; the lock. */
 function lockDraw(frame: u16): void {
   if (!eAlive || !inSeeker()) return
   const q = SEEKER_TILE | GREEN
-  spr(CX - 32 + shakeX, CY - 32 + shakeY, q, S32)
-  spr(CX + shakeX, CY - 32 + shakeY, q | FLIP_H, S32)
-  spr(CX - 32 + shakeX, CY + shakeY, q | FLIP_V, S32)
-  spr(CX + shakeX, CY + shakeY, q | FLIP_H | FLIP_V, S32)
+  spr(CX - 32 + shakeX(), CY - 32 + shakeY(), q, S32)
+  spr(CX + shakeX(), CY - 32 + shakeY(), q | FLIP_H, S32)
+  spr(CX - 32 + shakeX(), CY + shakeY(), q | FLIP_V, S32)
+  spr(CX + shakeX(), CY + shakeY(), q | FLIP_H | FLIP_V, S32)
   if (locked) {
     const f = (frame >> 2) & 1
     spr(eSX - 8, eSY - 8, (HUD16_TILE + 4 + f * 4) | RED, S16)
@@ -424,13 +422,23 @@ function warnings(frame: u16, low: bool): void {
 }
 
 function words8(x: i16, y: i16, s: u16): void {
+  wordsIn(x, y, s, RED)
+}
+
+function wordsIn(x: i16, y: i16, s: u16, pal: u16): void {
   let k: u16 = 0
   let c = peek(s)
   while (c !== 0) {
-    if (c !== 32) spr(x + i16(k) * 8 + shakeX, y + shakeY, (FONT_TILE + c - 32) | RED, S8)
+    if (c !== 32) spr(x + i16(k) * 8 + shakeX(), y + shakeY(), (FONT_TILE + c - 32) | pal, S8)
     k++
     c = peek(s + k)
   }
+}
+
+/** The kill called on the HUD, `t` frames before it goes: steady, then blinking out. */
+export function callout(t: u16): void {
+  if (t < 60 && (t & 8) === 0) return
+  wordsIn(120, 50, str('SPLASH ONE'), GREEN)
 }
 
 /** The radar on the left display: the enemy and its missiles from above, 8,000 units round. */
@@ -441,7 +449,7 @@ function radar(): void {
     if (missileAt(k) === 2) {
       vset(V_T0, missileX(k), missileY(k), 0)
       toBody(V_T0)
-      blip(bodyX, bodyZ, HUD8_TILE + 21, RED)
+      blip(bodyX(), bodyZ(), HUD8_TILE + 21, RED)
     }
     k++
   }
