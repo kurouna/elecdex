@@ -86,7 +86,8 @@ export function skyDraw(): void {
  * Every row from `skyArgs`: its ends' tiles read (straight from the table when both are within
  * it, held to its ends when not); one tile across is a quick fill, or nothing when the row
  * already is; else cell by cell, eight at once where the eight's ends are one tile (the table
- * runs in order, so all eight are). Each row written goes to BG0 by DMA.
+ * runs in order, so all eight are), and the eight's ends, already read, not read again. Each
+ * row written goes to BG0 by DMA.
  */
 function skyRows(): void {
   asm`
@@ -143,10 +144,17 @@ function skyRows(): void {
     beq t3, t2, .sr_next
     sw t2, 0(t1)
     li t0, hRow
-    li t1, 40
+    li t1, 5
 .sr_fill:
     sw t2, 0(t0)
-    addi t0, t0, 2
+    sw t2, 2(t0)
+    sw t2, 4(t0)
+    sw t2, 6(t0)
+    sw t2, 8(t0)
+    sw t2, 10(t0)
+    sw t2, 12(t0)
+    sw t2, 14(t0)
+    addi t0, t0, 16
     addi t1, t1, -1
     bnez t1, .sr_fill
     j .sr_dma
@@ -183,10 +191,8 @@ function skyRows(): void {
     add a0, a0, t0
     j .rn_next
 .rn_cells:
-    srai t0, a0, 5
-    slli t0, t0, 1
-    lw t0, hBand + 800(t0)
-    sw t0, 0(a2)
+    sw t2, 0(a2)
+    sw t3, 14(a2)
     add a0, a0, a1
     srai t0, a0, 5
     slli t0, t0, 1
@@ -218,10 +224,6 @@ function skyRows(): void {
     lw t0, hBand + 800(t0)
     sw t0, 12(a2)
     add a0, a0, a1
-    srai t0, a0, 5
-    slli t0, t0, 1
-    lw t0, hBand + 800(t0)
-    sw t0, 14(a2)
     add a0, a0, a1
 .rn_next:
     addi a2, a2, 16

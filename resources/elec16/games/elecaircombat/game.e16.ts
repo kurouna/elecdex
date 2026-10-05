@@ -154,6 +154,7 @@ import {
   sfxOuch,
   sfxSeek,
   sfxSplash,
+  sfxStall,
 } from './audio.e16'
 import {
   acesInit,
@@ -168,7 +169,7 @@ import {
   eVel,
   viewsInit,
 } from './bandit.e16'
-import { pAlt, playerNew, playerStep, worldStep } from './flight.e16'
+import { pAlt, playerNew, playerStep, stallState, worldStep } from './flight.e16'
 import {
   boomAt,
   cloudsDraw,
@@ -389,6 +390,7 @@ function flyFrame(): void {
   flown++
   if (clock > 0 && outcome === 0) clock--
   playerStep(alive)
+  if (stallState !== 0) buffet()
   if (!alive) gunSound(false)
   aiStep()
   banditStep()
@@ -403,6 +405,12 @@ function flyFrame(): void {
   ending()
   sounds()
   draw()
+}
+
+/** The buffet near the stall, harder once stalled, and its horn. */
+function buffet(): void {
+  shake(stallState === 2 ? 6 : 2)
+  if ((frame & 15) === 0) sfxStall()
 }
 
 function shoot(): void {

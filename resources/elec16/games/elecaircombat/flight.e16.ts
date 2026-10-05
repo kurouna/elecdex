@@ -1,10 +1,12 @@
-// ELECAIRCOMBAT's flying (docs/elec16-elecaircombat.md section 2): the player's fighter as three
-// axes turned by the pad - roll on left and right, pitch on up and down, a bank turning it as
-// a coordinated turn would - its speed (the burner on R, the brake on L), its height, and the
-// world moving past: the enemy's place is kept relative to the player.
+// ELECAIRCOMBAT's flying (docs/elec16-elecaircombat.md sections 2 and 6): the player's fighter
+// as three axes turned by the pad - roll on left and right, pitch on up and down, a bank
+// turning it as a coordinated turn would - its speed (the burner on R, the brake on L), a
+// gentle stall when it is slow and pulled, its height, and the world moving past: the enemy's
+// place is kept relative to the player.
 import { type bool, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 import { aim, B_DOWN, B_L, B_LEFT, B_R, B_RIGHT, B_UP, held } from '../lib/kit.e16'
 import {
+  abs16,
   approach,
   clamp16,
   muldiv,
@@ -19,13 +21,43 @@ import {
   V_REL,
   vec,
   vget,
+  vmax,
   vset,
+  yawBy,
 } from './math.e16'
 
 /** Speeds in sixteenths of a unit a frame. */
 export const SPEED_CRUISE: i16 = 320
 export const SPEED_BURNER: i16 = 464
 export const SPEED_BRAKE: i16 = 200
+
+/**
+ * The stall, the player's only (the aces fly their own way): no airflow model, a speed below
+ * which the wing no longer holds the nose. It is STALL_BASE, a little under the brake's
+ * speed, raised by the nose's climb, by the pull and by height above STALL_HIGH, a little
+ * lowered on the burner. Within STALL_MARGIN above it the fighter buffets (the screen shakes,
+ * a horn, STALL on the HUD) and the pull is dulled; below it the pull hardly answers, the roll
+ * is halved, the wing drags (STALL_DRAG) and the nose falls toward the ground by itself,
+ * STALL_DROP a frame, until the speed is back half the margin above the stall speed -
+ * lowering the nose is the way out. A
+ * stall alone never brings the fighter down; only the sea does.
+ */
+export const STALL_BASE: i16 = 176
+export const STALL_MARGIN: i16 = 24
+export const STALL_HIGH: i16 = 20000
+/** The nose's fall a frame while stalled, Q14 radians (about half a degree). */
+export const STALL_DROP: i16 = 140
+/** What a stalled wing takes off the speed the fighter tends to. */
+export const STALL_DRAG: i16 = 32
+/**
+ * The stall's base as flown: STALL_BASE, which a test lowers out of reach to measure a fight's
+ * frames along the flight they were first measured on.
+ */
+export let stallBase: i16 = STALL_BASE
+/** 0 flying, 1 buffeting near the stall, 2 stalled. */
+export let stallState: u16 = 0
+/** The stall speed as this frame's flying set it. */
+export let stallSpeed: i16 = STALL_BASE
 
 export let pSpeed: i16 = SPEED_CRUISE
 export let pAlt: i16 = 6000
@@ -55,6 +87,9 @@ export function playerNew(alt: i16): void {
   rollRate = 0
   pitchRate = 0
   throttle = 0
+  stallBase = STALL_BASE
+  stallState = 0
+  stallSpeed = stallBase
   relFrac[0] = 0
   relFrac[1] = 0
   relFrac[2] = 0
@@ -85,15 +120,65 @@ function wantedPitch(): i16 {
   return p
 }
 
+/** The stall speed now: the base, raised by the climb, the pull and the height; the burner's lower. */
+function stallSpeedNow(): i16 {
+  let s = stallBase
+  const fz = vget(V_PF + 2)
+  // Up to 32 more with the nose straight up, up to 19 for the hardest pull.
+  if (fz > 0) s = s + (fz >> 9)
+  if (pitchRate > 0) s = s + (pitchRate >> 5)
+  // Thin air: a point more for every 128 of height above STALL_HIGH (78 at the ceiling).
+  if (pAlt > STALL_HIGH) s = s + ((pAlt - STALL_HIGH) >> 7)
+  if (throttle === 1) s = s - 16
+  return s
+}
+
+/**
+ * Where the speed stands to the stall: 0 clear of it, 1 buffeting, 2 stalled. A stall holds
+ * until the speed is half the margin above the stall speed, so it does not flicker at the edge.
+ */
+function stallNow(alive: bool): u16 {
+  stallSpeed = stallSpeedNow()
+  if (!alive) return 0
+  if (pSpeed < stallSpeed) return 2
+  if (stallState === 2 && pSpeed < stallSpeed + (STALL_MARGIN >> 1)) return 2
+  return pSpeed < stallSpeed + STALL_MARGIN ? 1 : 0
+}
+
+/**
+ * A stalled nose falls toward the ground, STALL_DROP a frame however the fighter is turned:
+ * the way down across the nose is the up axis's height (a pitch) and the wing's (a yaw), taken
+ * in the share of the larger. Straight up, it falls over the top of the canopy's side.
+ */
+function noseFalls(): void {
+  const uz = vget(V_PU + 2)
+  const rz = vget(V_PR + 2)
+  const h = vmax(uz, rz, 0)
+  if (h < 2048) {
+    if (vget(V_PF + 2) > 0) pitchBy(V_PF, V_PU, -STALL_DROP)
+    return
+  }
+  const p = -i16(muldiv(u16(abs16(uz)), u16(STALL_DROP), u16(h)))
+  if (p !== 0) pitchBy(V_PF, V_PU, uz < 0 ? -p : p)
+  const y = -i16(muldiv(u16(abs16(rz)), u16(STALL_DROP), u16(h)))
+  if (y !== 0) yawBy(V_PF, V_PR, rz < 0 ? -y : y)
+}
+
 /** A frame of the player's flying: the pad, the turns, the speed. `alive` false lets go. */
 export function playerStep(alive: bool): void {
   throttle = alive && held(B_R) ? 1 : alive && held(B_L) ? 2 : 0
-  const wr = alive ? wantedRoll() : 400
-  const wp = alive ? wantedPitch() : -120
+  stallState = stallNow(alive)
+  let wr = alive ? wantedRoll() : 400
+  let wp = alive ? wantedPitch() : -120
+  if (stallState !== 0) {
+    wr = rollAsked(wr)
+    wp = pullAsked(wp)
+  }
   rollRate = approach(rollRate, wr, 160)
   pitchRate = approach(pitchRate, wp, 60)
   if (rollRate !== 0) rollBy(V_PR, V_PU, rollRate)
   if (pitchRate !== 0) pitchBy(V_PF, V_PU, pitchRate)
+  if (stallState === 2) noseFalls()
   // A bank turns the fighter about the world's up, as lift would.
   const bankTurn = mulShift(-vget(V_PR + 2), 330, 14)
   if (bankTurn !== 0) {
@@ -105,13 +190,28 @@ export function playerStep(alive: bool): void {
   // the drift one leaves is far below a point on the screen.
   pSquare = pSquare ^ 1
   if (pSquare === 0) orthonormal(V_PF, V_PR, V_PU)
+  pSpeed = approach(pSpeed, speedAsked(), 3)
+  velocityKept()
+}
+
+/** The roll as the stall lets it: halved while stalled. */
+function rollAsked(wr: i16): i16 {
+  return stallState === 2 ? wr >> 1 : wr
+}
+
+/** The pull as the stall lets it: dulled near it, hardly answering in it; a push is kept. */
+function pullAsked(wp: i16): i16 {
+  if (wp <= 0) return wp
+  return stallState === 2 ? wp >> 4 : wp - (wp >> 2)
+}
+
+/** The speed the fighter tends to: the throttle's, less the climb (more the dive), the stall's drag. */
+function speedAsked(): i16 {
   let target = SPEED_CRUISE
   if (throttle === 1) target = SPEED_BURNER
   if (throttle === 2) target = SPEED_BRAKE
-  // Climbing slows the fighter, diving speeds it.
   target = target - (vget(V_PF + 2) >> 7)
-  pSpeed = approach(pSpeed, target, 3)
-  velocityKept()
+  return stallState === 2 ? target - STALL_DRAG : target
 }
 
 /** The player's velocity part `k` (0 x, 1 y, 2 z) in sixteenths of a unit a frame. */

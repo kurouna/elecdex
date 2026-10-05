@@ -65,12 +65,12 @@ import {
   PAL_HUD_RED,
   PAL_HUD_TEXT,
   PAL_LOGO,
-  PAL_RED_TEXT,
+  PAL_RED_DAY,
   PAL_SCREEN,
   PAL_SHOT,
   PAL_SKY_DAY,
   PAL_SUN,
-  PAL_WHITE_TEXT,
+  PAL_WHITE_DAY,
   SCREENS_H,
   SCREENS_MAP_BANK,
   SCREENS_TILE,
@@ -112,8 +112,10 @@ export function palettesIn(skyRow: u16): void {
   slot(PAL_SCREEN, SL_SCREEN)
   slot(PAL_HUD_TEXT, SL_HUD_TEXT)
   slot(PAL_AMBER_TEXT, SL_AMBER)
-  slot(PAL_RED_TEXT, SL_RED)
-  slot(PAL_WHITE_TEXT, SL_WHITE)
+  // The red and the white words' slots keep the sky's further steps in their colours 7-15
+  // (scripts/elecaircombat/palettes.mjs).
+  slot(PAL_RED_DAY + skyRow, SL_RED)
+  slot(PAL_WHITE_DAY + skyRow, SL_WHITE)
   slot(PAL_LOGO, SL_LOGO)
   slot(PAL_HUD, SL_HUD)
   slot(PAL_FIRE, SL_FIRE)
@@ -326,78 +328,91 @@ export function flashScreen(frames: u16, rgb: u16): void {
 /** A frame of the flash, fading: called only while `flashLeft` has frames. */
 export function flashStep(): void {
   flashLeft--
-  flashSlot(SL_SKY)
+  skyTint(flashRgb, flashLeft)
   flashSlot(SL_CLOUD)
   flashSlot(SL_ENEMY)
 }
 
 function flashSlot(sl: u16): void {
-  flashMix(sl, flashRgb, flashLeft)
+  flashMix(sl * 16 + 1, flashRgb, flashLeft, 15)
   dma(addr(flashBuf), PALS + sl * 32 + 2, 30)
 }
 
-/** The flash's weights (16 - t, then each channel of its colour times t), and a slot's colours. */
-export const flashK = words(4)
+/**
+ * The sky and the sea `t` sixteenths toward `rgb` from their kept colours: the sky's slot, and
+ * the steps of its gradient kept in the red and the white words' slots (their colours 7-15;
+ * the words in 1-6 are left as they are).
+ */
+export function skyTint(rgb: u16, t: u16): void {
+  flashMix(SL_SKY * 16 + 1, rgb, t, 15)
+  dma(addr(flashBuf), PALS + SL_SKY * 32 + 2, 30)
+  flashMix(SL_RED * 16 + 7, rgb, t, 9)
+  dma(addr(flashBuf), PALS + SL_RED * 32 + 14, 18)
+  flashMix(SL_WHITE * 16 + 7, rgb, t, 9)
+  dma(addr(flashBuf), PALS + SL_WHITE * 32 + 14, 18)
+}
+
+/** A slot's colours, mixed for the flash. */
 const flashBuf = words(15)
 
 /**
- * As the kit's `palMix`, in assembly, into `flashBuf` (for DMA): slot `sl`'s kept colours 1-15
- * mixed `t` sixteenths toward `rgb` (a flash of three slots once cost a tenth of a frame).
+ * As the kit's `palMix`, in assembly, into `flashBuf` (for DMA): `n` kept colours from
+ * `palCopy[at]` mixed `t` sixteenths toward `rgb` (a flash of three slots once cost a tenth of
+ * a frame).
  */
-function flashMix(_sl: u16, _rgb: u16, _t: u16): void {
+function flashMix(_at: u16, _rgb: u16, _t: u16, _n: u16): void {
+  // The weights stay in s0-s3 for the loop (saved and put back): 16 - t, and each channel of
+  // the colour times t.
   asm`
-    li t0, flashK
-    li t1, 16
-    sub t1, t1, a2
-    sw t1, 0(t0)
-    andi t1, a1, 31
-    mul t1, t1, a2
-    sw t1, 2(t0)
-    srli t1, a1, 5
-    andi t1, t1, 31
-    mul t1, t1, a2
-    sw t1, 4(t0)
-    srli t1, a1, 10
-    andi t1, t1, 31
-    mul t1, t1, a2
-    sw t1, 6(t0)
-    slli a0, a0, 5
-    li t0, palCopy + 2
+    addi sp, sp, -8
+    sw s0, 0(sp)
+    sw s1, 2(sp)
+    sw s2, 4(sp)
+    sw s3, 6(sp)
+    li s0, 16
+    sub s0, s0, a2
+    andi s1, a1, 31
+    mul s1, s1, a2
+    srli s2, a1, 5
+    andi s2, s2, 31
+    mul s2, s2, a2
+    srli s3, a1, 10
+    andi s3, s3, 31
+    mul s3, s3, a2
+    slli a0, a0, 1
+    li t0, palCopy
     add a0, a0, t0
     li a1, flashBuf
-    li a2, 15
 .fm_next:
     lw t3, 0(a0)
-    li t2, flashK
-    lw a3, 0(t2)
-    andi t0, t3, 31
-    mul t0, t0, a3
-    lw t1, 2(t2)
-    add t0, t0, t1
-    srli t0, t0, 4
-    sw t0, 0(a1)
+    andi t1, t3, 31
+    mul t1, t1, s0
+    add t1, t1, s1
+    srli t1, t1, 4
     srli t0, t3, 5
     andi t0, t0, 31
-    mul t0, t0, a3
-    lw t1, 4(t2)
-    add t0, t0, t1
+    mul t0, t0, s0
+    add t0, t0, s2
     srli t0, t0, 4
     slli t0, t0, 5
-    lw t1, 0(a1)
     or t1, t1, t0
     srli t0, t3, 10
     andi t0, t0, 31
-    mul t0, t0, a3
-    lw t3, 6(t2)
-    add t0, t0, t3
+    mul t0, t0, s0
+    add t0, t0, s3
     srli t0, t0, 4
     slli t0, t0, 10
     or t1, t1, t0
     sw t1, 0(a1)
     addi a0, a0, 2
     addi a1, a1, 2
-    addi a2, a2, -1
-    bnez a2, .fm_next
+    addi a3, a3, -1
+    bnez a3, .fm_next
+    lw s0, 0(sp)
+    lw s1, 2(sp)
+    lw s2, 4(sp)
+    lw s3, 6(sp)
+    addi sp, sp, 8
   `
 }
 

@@ -106,6 +106,12 @@ tempo 2
 inst sel wave=sq25 vol=10 env=0/80/4/60
 C13: @sel o6 c32 g32 > c4
 
+# The stall horn, sounded every sixteenth frame while the wing is near the stall or past it.
+song x_stall
+tempo 2
+inst horn wave=sq25 vol=9 env=0/50/10/40 pan=8
+C15: @horn o4 a32 r32 a32
+
 song x_splash
 tempo 2
 inst ring wave=sq50 vol=9 env=0/300/0/300 pan=8

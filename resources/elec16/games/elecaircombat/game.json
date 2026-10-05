@@ -54,8 +54,16 @@
       "screen",
       "hud_text",
       "amber_text",
-      "red_text",
-      "white_text",
+      "red_day",
+      "red_dawn",
+      "red_storm",
+      "red_dusk",
+      "red_night",
+      "white_day",
+      "white_dawn",
+      "white_storm",
+      "white_dusk",
+      "white_night",
       "logo",
       "hud",
       "hud_red",
@@ -84,7 +92,7 @@
       "png": "art/horizon.png",
       "cell": 8,
       "palette": "sky_day",
-      "count": 205
+      "count": 159
     },
     {
       "name": "hud8",

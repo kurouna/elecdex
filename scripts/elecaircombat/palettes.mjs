@@ -13,103 +13,149 @@ const hex = (s) => {
 const row = (...colours) => colours.map(hex)
 
 /**
- * A sky: the backdrop, the bands from the zenith (1) down to the haze (7), the glow on the
- * horizon (8), then the sea from its haze (9) to the deep water below (15).
+ * Where each step of the sky's gradient lives: [slot, colour], from the haze at the horizon
+ * (step 0) up to the zenith, and the sea's from its haze down to the deep water. A slot has
+ * fifteen colours and every background slot is taken, so the steps between are shared out
+ * between the sky's own slot (0) and the free colours 7-15 of two slots of words, the red
+ * (5) and the white (7) - the font draws only with 1, 4, 5 and 6. A band's tile is one colour,
+ * and its tile word names the slot (horizon.mjs). The horizon's own cells use the sky's slot
+ * only: its haze (7), the glow (8) and the sea's haze (9).
  */
-const sky = (name, colours) => ({ name, colours: row(...colours) })
+const SKY_STEPS = 16
+const SEA_STEPS = 15
 
-export const SKIES = [
-  sky('sky_day', [
-    '#102868',
-    '#102868',
-    '#184088',
-    '#2050a8',
-    '#3068c0',
-    '#4880d0',
-    '#68a0e0',
-    '#98c0e8',
-    '#e8f0f0',
-    '#a8c8e0',
-    '#90b8d8',
-    '#70a0d0',
-    '#5890c8',
-    '#4078b0',
-    '#306098',
-    '#204880',
-  ]),
-  sky('sky_dawn', [
-    '#282050',
-    '#282050',
-    '#403068',
-    '#604880',
-    '#886090',
-    '#b07890',
-    '#d89888',
-    '#f0c080',
-    '#f8f0c8',
-    '#e0c0b0',
-    '#c8b0a8',
-    '#b098a0',
-    '#a08098',
-    '#786880',
-    '#585070',
-    '#383858',
-  ]),
-  sky('sky_storm', [
-    '#283038',
-    '#283038',
-    '#303840',
-    '#404850',
-    '#505860',
-    '#606870',
-    '#707880',
-    '#889098',
-    '#c8d0d0',
-    '#a8b0b8',
-    '#9098a0',
-    '#808890',
-    '#687078',
-    '#505860',
-    '#404850',
-    '#303038',
-  ]),
-  sky('sky_dusk', [
-    '#180838',
-    '#180838',
-    '#301050',
-    '#502068',
-    '#783070',
-    '#a84068',
-    '#d86050',
-    '#f89038',
-    '#f8d890',
-    '#f0b080',
-    '#d09880',
-    '#b87880',
-    '#986078',
-    '#704860',
-    '#483050',
-    '#281838',
-  ]),
-  sky('sky_night', [
-    '#000010',
-    '#000010',
-    '#000818',
-    '#080820',
-    '#081028',
-    '#081830',
-    '#102038',
-    '#182848',
-    '#5070a8',
-    '#284060',
-    '#182840',
-    '#102038',
-    '#102030',
-    '#081828',
-    '#081020',
-    '#000818',
-  ]),
+/** The words' slots that keep sky steps, with their own colours (0-6). */
+export const WORD_SLOTS = [
+  {
+    slot: 5,
+    name: 'red',
+    colours: ['#000000', '#200000', '#000000', '#000000', '#a01020', '#f03040', '#f8b0a8'],
+  },
+  {
+    slot: 7,
+    name: 'white',
+    colours: ['#000000', '#000810', '#000000', '#000000', '#6888a8', '#b8d0e8', '#f8f8f8'],
+  },
 ]
+/** The free colours 7-15 of those slots, in the order the steps take them. */
+const MORE = WORD_SLOTS.flatMap(({ slot }) => Array.from({ length: 9 }, (_, k) => [slot, 7 + k]))
+
+/**
+ * `n` steps' places: the first (the haze) at `haze`; the far end's six in the sky's slot from
+ * `far` towards the haze (`dir` the way), and those between in the words' slots from `more`.
+ */
+function places(n, haze, far, dir, more) {
+  return Array.from({ length: n }, (_, k) => {
+    if (k === 0) return [0, haze]
+    if (k >= n - 6) return [0, far + dir * (n - 1 - k)]
+    const at = MORE[more + k - 1]
+    if (at === undefined) throw new Error('more sky steps than free colours')
+    return at
+  })
+}
+export const SKY_PLACES = places(SKY_STEPS, 7, 1, 1, 0)
+export const SEA_PLACES = places(SEA_STEPS, 9, 15, -1, SKY_STEPS - 7)
+
+/**
+ * A sky from its five chosen colours: the zenith, the haze at the horizon, the glow on it, the
+ * sea's haze below it and the deep water. The bands between are the two ends split into even
+ * steps in OKLab (`steps`), so neighbouring bands differ by the same small amount all the way
+ * and the whole reads as one smooth gradient (user review 2026-10-05). A row for the sky's
+ * slot (the backdrop is the zenith again), and one for each words' slot with its steps.
+ */
+function sky(name, { zenith, haze, glow, seaHaze, deep }) {
+  const rows = new Map([[0, Array(16).fill(hex(zenith))]])
+  for (const w of WORD_SLOTS) rows.set(w.slot, [...row(...w.colours), ...Array(9).fill([0, 0, 0])])
+  rows.get(0)[8] = hex(glow)
+  const place = (places, colours) => {
+    places.forEach(([slot, k], j) => {
+      rows.get(slot)[k] = colours[j]
+    })
+  }
+  place(SKY_PLACES, steps(haze, zenith, SKY_PLACES.length))
+  place(SEA_PLACES, steps(seaHaze, deep, SEA_PLACES.length))
+  return [
+    { name: `sky_${name}`, colours: rows.get(0) },
+    ...WORD_SLOTS.map((w) => ({ name: `${w.name}_${name}`, colours: rows.get(w.slot) })),
+  ]
+}
+
+/** sRGB (0-1) to OKLab and back (Björn Ottosson's matrices). */
+const linear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+const gamma = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055)
+function toLab(rgb) {
+  const [r, g, b] = rgb.map((c) => linear(c / 255))
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+function fromLab([L, a, b]) {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3
+  return [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ].map((c) => Math.min(248, Math.round((gamma(Math.max(0, Math.min(1, c))) * 255) / 8) * 8))
+}
+
+/** `n` colours from `from` to `to` (both kept) in even steps of OKLab, each exact in RGB555. */
+export function steps(from, to, n) {
+  const a = toLab(hex(from))
+  const b = toLab(hex(to))
+  return Array.from({ length: n }, (_, k) =>
+    fromLab(a.map((v, j) => v + ((b[j] - v) * k) / (n - 1))),
+  )
+}
+
+const HOURS = [
+  sky('day', {
+    zenith: '#102868',
+    haze: '#98c0e8',
+    glow: '#e8f0f0',
+    seaHaze: '#a8c8e0',
+    deep: '#204880',
+  }),
+  sky('dawn', {
+    zenith: '#282050',
+    haze: '#f0c080',
+    glow: '#f8f0c8',
+    seaHaze: '#e0c0b0',
+    deep: '#383858',
+  }),
+  sky('storm', {
+    zenith: '#283038',
+    haze: '#889098',
+    glow: '#c8d0d0',
+    seaHaze: '#a8b0b8',
+    deep: '#303038',
+  }),
+  sky('dusk', {
+    zenith: '#180838',
+    haze: '#f89038',
+    glow: '#f8d890',
+    seaHaze: '#f0b080',
+    deep: '#281838',
+  }),
+  sky('night', {
+    zenith: '#000010',
+    haze: '#182848',
+    glow: '#5070a8',
+    seaHaze: '#284060',
+    deep: '#000818',
+  }),
+]
+/** The sky's slot for each hour, in the game's order (day, dawn, storm, dusk, night). */
+export const SKIES = HOURS.map((h) => h[0])
+/** The words' slots for each hour, with the sky's further steps: the reds, then the whites. */
+const REDS = HOURS.map((h) => h[1])
+const WHITES = HOURS.map((h) => h[2])
 
 /**
  * An ace's paint: the outline, the upper paint dark to light (2-6), the underside (7-9), the
@@ -310,50 +356,8 @@ export const PALETTES = [
       '#000000',
     ),
   },
-  {
-    // Words in red: warnings.
-    name: 'red_text',
-    colours: row(
-      '#000000',
-      '#200000',
-      '#000000',
-      '#000000',
-      '#a01020',
-      '#f03040',
-      '#f8b0a8',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-    ),
-  },
-  {
-    // Words in white, for the briefing and the results.
-    name: 'white_text',
-    colours: row(
-      '#000000',
-      '#000810',
-      '#000000',
-      '#000000',
-      '#6888a8',
-      '#b8d0e8',
-      '#f8f8f8',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-      '#000000',
-    ),
-  },
+  ...REDS,
+  ...WHITES,
   {
     // The title's letters: steel and sky blue, an afterburner orange edge.
     name: 'logo',

@@ -221,6 +221,50 @@ const spritesShown = (m: Elec16) => {
   return n
 }
 
+/** horizon.txt's entries: the band words by distance (-160 first), then the horizon's tiles. */
+function horizonTable(): number[] {
+  return readFileSync(`${DIR}/horizon.txt`, 'utf8')
+    .split('\n')
+    .filter((l) => !l.startsWith('#'))
+    .join(' ')
+    .trim()
+    .split(/\s+/)
+    .map(Number)
+}
+
+/** The distance of two sRGB colours (0-255) in OKLab. */
+function okDistance(a: number[], b: number[]): number {
+  const lab = (c: number[]) => {
+    const [r, g, bl] = c.map((v) => {
+      const x = v / 255
+      return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+    }) as [number, number, number]
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * bl)
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * bl)
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * bl)
+    return [
+      0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+      1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+      0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+    ]
+  }
+  const p = lab(a)
+  const q = lab(b)
+  return Math.hypot(...p.map((v, k) => v - (q[k] ?? 0)))
+}
+
+/**
+ * The frame budget's pins (cycles), as measured on 2026-10-05 with the smooth sky and the
+ * stall: the scripted sortie, NOCTURNE's fight as first measured (the stall out of reach) and
+ * the same fight with the stall in it. See the tests that use them.
+ */
+const SORTIE_AVG = 26_336
+const SORTIE_WORST = 37_894
+const HARD_AVG = 30_109
+const HARD_WORST = 51_546
+const STALL_AVG = 31_271
+const STALL_WORST = 51_546
+
 describe('ELECAIRCOMBAT as built', () => {
   it('is what games.json holds, and its folder keeps the constants and the assembly', () => {
     const file = JSON.parse(readFileSync('resources/elec16/games/games.json', 'utf8'))
@@ -483,43 +527,248 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     expect(worst).toBeLessThan(60_000)
     // The art's redraw (sky, fighter, effects, the damage by part) cost no cycles: before it
     // this flight measured 26,599 on average and 38,922 at worst (2026-10-05). With the sea's
-    // motion gone and the savings that came with it kept: 26,505 and 38,803.
-    expect(sum / 480).toBeLessThanOrEqual(26_505)
-    expect(worst).toBeLessThanOrEqual(38_803)
+    // motion gone and the savings that came with it kept: 26,505 and 38,803. The smooth sky
+    // (31 bands, its row writer reading the eight's ends once) and the stall's checks, which
+    // this flight never meets: SORTIE_AVG and SORTIE_WORST.
+    expect(sum / 480).toBeLessThanOrEqual(SORTIE_AVG)
+    expect(worst).toBeLessThanOrEqual(SORTIE_WORST)
   })
 
   it('keeps the hardest fight within its frames: NOCTURNE and the player firing missiles all the while', () => {
-    const m = atAce(4)
-    let sum = 0
-    let worst = 0
-    const n = 900
-    for (let t = 0; t < n; t++) {
-      // Neither side runs dry or falls; the ace fires each time it holds a lock.
+    // The fight as it was first measured: the stall lowered out of reach, so the pilot flies
+    // the same fight and the frames compare (the stall changes where the fight goes).
+    const fight = hardFight(false)
+    expect(fight.stalled).toBe(0)
+    // Nor here: 30,380 on average and 52,528 at worst before the redraw, 52,484 at worst
+    // after it (2026-10-05); 30,287 and 52,401 once the sea no longer moved; HARD_AVG and
+    // HARD_WORST with the smooth sky and the stall's checks.
+    expect(fight.avg).toBeLessThanOrEqual(HARD_AVG)
+    expect(fight.worst).toBeLessThanOrEqual(HARD_WORST)
+  })
+
+  it('keeps the hardest fight within its frames with the stall in it', () => {
+    // The pilot pulls whatever its speed, so it stalls now and then: a different fight, whose
+    // frames are its own (STALL_AVG, STALL_WORST); the stalled frames themselves are light.
+    const fight = hardFight(true)
+    expect(fight.stalled).toBeGreaterThan(50)
+    expect(fight.avg).toBeLessThanOrEqual(STALL_AVG)
+    expect(fight.worst).toBeLessThanOrEqual(STALL_WORST)
+  })
+})
+
+/**
+ * NOCTURNE and the player firing missiles all the while, 900 frames: the average and the
+ * busiest frame, and how many frames the player was stalled. Neither side runs dry or falls;
+ * the ace fires each time it holds a lock. `stall` false lowers the stall out of reach.
+ */
+function hardFight(stall: boolean): { avg: number; worst: number; stalled: number } {
+  const m = atAce(4)
+  if (!stall) put(m, 'stallBase', -2000)
+  let sum = 0
+  let worst = 0
+  let stalled = 0
+  const n = 900
+  for (let t = 0; t < n; t++) {
+    put(m, 'damage', 0)
+    if (read(m, 'pAlt') < 2500) put(m, 'pAlt', 2500)
+    put(m, 'eHP', 100)
+    put(m, 'clock', 9000)
+    put(m, 'aiMslCool', 0)
+    put(m, 'aiMissiles', 20)
+    if (at.has('aiFlares')) put(m, 'aiFlares', 10)
+    put(m, 'missilesLeft', 50)
+    put(m, 'flaresLeft', 40)
+    m.pad(pilot(m, t))
+    const c0 = m.state.cycles
+    frames(m, 1, cart)
+    const d = m.state.cycles - c0
+    sum += d
+    if (t > 4) worst = Math.max(worst, d)
+    if (read(m, 'stallState') === 2) stalled++
+  }
+  m.pad(0)
+  expect(m.state.halt).toBeNull()
+  expect(read(m, 'outcome')).toBe(0)
+  // 4 MHz at 60 frames: 66,667 cycles a frame.
+  expect(sum / n).toBeLessThan(45_000)
+  expect(worst).toBeLessThan(60_000)
+  return { avg: sum / n, worst, stalled }
+}
+
+// The stall (docs/elec16-elecaircombat.md section 6): the player's alone, on the flight model.
+describe('ELECAIRCOMBAT stall', { timeout: 120_000 }, () => {
+  const source = readFileSync(`${DIR}/flight.e16.ts`, 'utf8')
+  const constantOf = (name: string) =>
+    Number(new RegExp(`${name}: i16 = (\\d+)`).exec(source)?.[1] ?? Number.NaN)
+  const BASE = constantOf('STALL_BASE')
+  const MARGIN = constantOf('STALL_MARGIN')
+  const HIGH = constantOf('STALL_HIGH')
+
+  /** A copy of the machine as it is, to fly two ways from one moment. */
+  const fork = (m: Elec16) => {
+    const c = Elec16.restore(ROM.image, m.snapshot())
+    if (c === null || !c.attachCartRom(cart, new Uint8Array(32))) throw new Error('no restore')
+    return c
+  }
+
+  /** Level flight at `alt`, cruising, the enemy far off and its thinking held. */
+  function level(alt = 6000): Elec16 {
+    const m = flying()
+    pin(m, 12000, alt)
+    return m
+  }
+
+  /** `n` frames with `pad` held, the enemy kept far ahead: answers each frame's stall state. */
+  function fly(m: Elec16, pad: number, n: number, alt?: number): number[] {
+    const states: number[] = []
+    for (let k = 0; k < n; k++) {
       put(m, 'damage', 0)
-      if (read(m, 'pAlt') < 2500) put(m, 'pAlt', 2500)
-      put(m, 'eHP', 100)
-      put(m, 'clock', 9000)
-      put(m, 'aiMslCool', 0)
-      put(m, 'aiMissiles', 20)
-      if (at.has('aiFlares')) put(m, 'aiFlares', 10)
-      put(m, 'missilesLeft', 50)
-      put(m, 'flaresLeft', 40)
-      m.pad(pilot(m, t))
-      const c0 = m.state.cycles
+      put(m, 'aiThinkT', 200)
+      vecPut(m, V.REL, 0, 12000, 4000)
+      if (alt !== undefined) put(m, 'pAlt', alt)
+      m.pad(pad)
       frames(m, 1, cart)
-      const d = m.state.cycles - c0
-      sum += d
-      if (t > 4) worst = Math.max(worst, d)
+      states.push(read(m, 'stallState'))
     }
     m.pad(0)
-    expect(m.state.halt).toBeNull()
+    return states
+  }
+
+  /** Whether the HUD spells STALL in red words this frame (its font's tiles, side by side). */
+  const saysStall = (m: Elec16) => {
+    const font = constant('FONT_TILE')
+    const letters: [number, number][] = []
+    for (let k = 0; k < 128; k++) {
+      const a = 0xc000 + k * 8
+      if (vword(m, a + 6) >= 3) continue
+      const t = (vword(m, a + 4) & 0x3ff) - font
+      if (t >= 0 && t < 64) letters.push([signed(vword(m, a)), t + 32])
+    }
+    const word = letters
+      .filter(([, c]) => 'STAL'.includes(String.fromCharCode(c)))
+      .sort((p, q) => p[0] - q[0])
+      .map(([, c]) => String.fromCharCode(c))
+      .join('')
+    return word.includes('STALL')
+  }
+
+  const B = { pull: padBit('down'), push: padBit('up'), brake: padBit('l'), right: padBit('right') }
+
+  /** Braked to the brake's speed, then pulled into the stall: the machine just stalled. */
+  function stalled(): { m: Elec16; buffetAt: number; stallAt: number; warned: boolean } {
+    const m = level()
+    const before = fly(m, B.brake, 60)
+    expect(before.every((s) => s === 0)).toBe(true)
+    expect(read(m, 'pSpeed')).toBeLessThanOrEqual(204)
+    let buffetAt = -1
+    let stallAt = -1
+    let warned = false
+    for (let t = 0; t < 120 && stallAt < 0; t++) {
+      const [s] = fly(m, B.brake | B.pull, 1)
+      if (s === 1 && buffetAt < 0) buffetAt = t
+      if (s === 1 && saysStall(m)) warned = true
+      if (s === 2) stallAt = t
+    }
+    return { m, buffetAt, stallAt, warned }
+  }
+
+  it('flies clear of it at cruise: a hard turn, and a pull into a climb', () => {
+    const m = level()
+    const turn = [...fly(m, B.right, 25), ...fly(m, B.pull, 150)]
+    expect(Math.max(...turn)).toBe(0)
+    const n = level()
+    expect(Math.max(...fly(n, B.pull, 24))).toBe(0)
+    expect(read(n, 'vec', 2)).toBeGreaterThan(8000)
+  })
+
+  it('slows with the brake and a pull into the buffet, the HUD calling STALL, then stalls', () => {
+    const { m, buffetAt, stallAt, warned } = stalled()
+    expect(buffetAt).toBeGreaterThanOrEqual(0)
+    expect(stallAt).toBeGreaterThan(buffetAt)
+    expect(warned).toBe(true)
+    expect(read(m, 'pSpeed')).toBeLessThan(read(m, 'stallSpeed'))
+  })
+
+  it('stalled, lets the nose fall by itself, the pull hardly answering and the roll halved', () => {
+    const { m } = stalled()
+    // Let go, the nose falls by itself.
+    const free = fork(m)
+    const z0 = read(free, 'vec', 2)
+    fly(free, B.brake, 10)
+    const fell = z0 - read(free, 'vec', 2)
+    expect(fell).toBeGreaterThan(400)
+    // Pulled, it still falls: the pull answers a sixteenth of what it asks.
+    const pulled = fork(m)
+    expect(fly(pulled, B.brake | B.pull, 10).every((s) => s === 2)).toBe(true)
+    expect(read(pulled, 'vec', 2)).toBeLessThan(z0)
+    expect(read(pulled, 'pitchRate')).toBeLessThanOrEqual(625 >> 4)
+    // The roll comes at half the rate it does at cruise.
+    const rolled = fork(m)
+    fly(rolled, B.brake | B.pull | B.right, 12)
+    const cruising = level()
+    fly(cruising, B.right, 12)
+    expect(read(rolled, 'rollRate')).toBe(read(cruising, 'rollRate') >> 1)
+  })
+
+  it('recovers once the nose is lowered and the speed comes back', () => {
+    const { m } = stalled()
+    const states = fly(m, B.push, 90)
+    const back = states.indexOf(0)
+    expect(back).toBeGreaterThan(0)
+    expect(states.slice(back).every((s) => s === 0)).toBe(true)
+    expect(read(m, 'pSpeed')).toBeGreaterThan(read(m, 'stallSpeed') + MARGIN)
     expect(read(m, 'outcome')).toBe(0)
-    expect(sum / n).toBeLessThan(45_000)
-    expect(worst).toBeLessThan(60_000)
-    // Nor here: 30,380 on average and 52,528 at worst before the redraw, 52,484 at worst
-    // after it (2026-10-05); 30,287 and 52,401 now the sea no longer moves.
-    expect(sum / n).toBeLessThanOrEqual(30_287)
-    expect(worst).toBeLessThanOrEqual(52_401)
+  })
+
+  it('never brings the fighter down by itself: held in the stall, it stays in the air', () => {
+    const { m } = stalled()
+    const states = fly(m, B.brake | B.pull, 300)
+    expect(states.filter((s) => s === 2).length).toBeGreaterThan(100)
+    expect(read(m, 'outcome')).toBe(0)
+    expect(read(m, 'pAlt')).toBeGreaterThan(3000)
+  })
+
+  it('comes at a higher speed high up', () => {
+    const climb = (alt: number) => {
+      const m = level(alt)
+      const level0 = fly(m, 0, 2, alt)
+      const speed = read(m, 'stallSpeed')
+      const states = [...level0, ...fly(m, B.pull, 20, alt), ...fly(m, 0, 120, alt)]
+      return { speed, worst: Math.max(...states) }
+    }
+    const low = climb(6000)
+    const high = climb(27000)
+    expect(low.speed).toBe(BASE)
+    expect(high.speed).toBe(BASE + ((27000 - HIGH) >> 7))
+    // The same gentle climb at cruise: clear low down, buffeting up high.
+    expect(low.worst).toBe(0)
+    expect(high.worst).toBeGreaterThanOrEqual(1)
+  })
+
+  it("leaves the aces' flying alone: MISTRAL zooms on through speeds the player would stall at", () => {
+    const m = atAce(1)
+    put(m, 'aiState', 2)
+    put(m, 'aiStateT', 90)
+    put(m, 'aiThinkT', 200)
+    let under = 0
+    let highest = -16384
+    for (let t = 0; t < 120; t++) {
+      put(m, 'pAlt', 5200)
+      put(m, 'aiThinkT', 200)
+      frames(m, 1, cart)
+      const z = vecOf(m, V.EF)[2] ?? 0
+      highest = Math.max(highest, z)
+      // The player's stall speed at this climb with the stick pulled: the base, the climb's
+      // share and the pull's.
+      if (z > 0 && read(m, 'eSpeed') < BASE + (z >> 9) + (500 >> 5)) under++
+    }
+    // Slower than that, pulling, it climbs on past 60 degrees to its own turn over the top.
+    expect(under).toBeGreaterThan(0)
+    expect(highest).toBeGreaterThan(14000)
+    // Nothing of the aces' flying reads the stall.
+    for (const file of ['ai.e16.ts', 'bandit.e16.ts']) {
+      expect(readFileSync(`${DIR}/${file}`, 'utf8')).not.toMatch(/stall/i)
+    }
   })
 })
 
@@ -542,6 +791,8 @@ describe('ELECAIRCOMBAT controls and aces', { timeout: 120_000 }, () => {
     expect(line(18)).toEqual(['L          ', 'Q          ', 'AIR BRAKE    '])
     expect(line(20)).toEqual(['START      ', 'ENTER      ', 'PAUSE        '])
     expect(line(21)).toEqual(['SELECT     ', 'RIGHT SHIFT', 'STICK REVERSE'])
+    // How the stall comes and goes, in a line under the lock-on's.
+    expect(textAt(m, 2, 27, 36)).toBe('SLOW + PULL = STALL. LOWER THE NOSE.')
     // The stick reversed (SELECT, here as on the title): up pulls, and the lines say so.
     hold(m, padBit('select'))
     expect(line(9)).toEqual(['D-PAD UP   ', 'ARROW UP   ', 'PULL UP      '])
@@ -1006,27 +1257,22 @@ describe('ELECAIRCOMBAT damage by part', { timeout: 60_000 }, () => {
 // The redrawn sky (docs/elec16-elecaircombat.md section 4): the row writer's cost is in which
 // distances share a tile, never in what the tiles show.
 describe('ELECAIRCOMBAT sky, as redrawn', () => {
-  it('keeps the bands beyond the horizon in as many runs as before the redraw', () => {
-    const table = readFileSync(`${DIR}/horizon.txt`, 'utf8')
-      .split('\n')
-      .filter((l) => !l.startsWith('#'))
-      .join(' ')
-      .trim()
-      .split(/\s+/)
-      .map(Number)
-    const bands = table.slice(0, 321)
+  it('runs the bands beyond the horizon a step of the gradient each, no seams between', () => {
+    const bands = horizonTable().slice(0, 321)
     let changes = 0
     for (let s = -160; s < 160; s++) {
       if (Math.abs(s) <= 7 || Math.abs(s + 1) <= 7) continue
       if (bands[s + 161] !== bands[s + 160]) changes++
     }
-    // Thirteen sky runs and eleven sea runs (bands and the seams between them): 22 changes.
-    expect(changes).toBe(22)
+    // Sixteen sky bands and fifteen sea bands: 29 changes (the dashed seams once made 22, in
+    // thirteen and eleven runs). The row writer pays for them cell by cell, the frame tests
+    // hold what that costs.
+    expect(changes).toBe(29)
   })
 })
 
-// The art after the user's review (2026-10-05): gradients by small steps and soft ramps, smoke
-// as billows - neither flat edges nor a scatter of single points.
+// The art after the user's review (2026-10-05): the sky and the sea in small even steps of one
+// colour each, smoke as billows - neither a texture nor a scatter of single points.
 describe('ELECAIRCOMBAT art, gradients and smoke', () => {
   /** The colour of each point of a picture (RGBA packed), 0 where it is clear. */
   const points = (file: string) => {
@@ -1042,36 +1288,85 @@ describe('ELECAIRCOMBAT art, gradients and smoke', () => {
     return { width: p.width, height: p.height, at }
   }
 
-  it('ramps between the bands of sky and sea in dashes, with no point alone in its colour', () => {
+  /** The colour (RGB) of a palette row's entry, by the row's name. */
+  const palettes = pictureFile(`${DIR}/art/palettes.png`)
+  const paletteColour = (name: string, k: number) => {
+    const p = palettes
+    const row = meta.palettes.names.indexOf(name)
+    if (p === null || row < 0) throw new Error(`no palette ${name}`)
+    const o = (row * 16 + k) * 4
+    return [p.data[o] ?? 0, p.data[o + 1] ?? 0, p.data[o + 2] ?? 0]
+  }
+
+  it('draws every band one colour, each a slot of the sky or of the words, no seam or texture', () => {
     const sky = points('horizon.png')
-    const table = readFileSync(`${DIR}/horizon.txt`, 'utf8')
-      .split('\n')
-      .filter((l) => !l.startsWith('#'))
-      .join(' ')
-      .trim()
-      .split(/\s+/)
-      .map(Number)
+    const table = horizonTable()
     const across = sky.width / 8
     const bands = new Set(table.slice(0, 321).filter((_, k) => Math.abs(k - 160) > 6))
-    let ramps = 0
-    for (const t of bands) {
-      // A band tile repeats across and down, so its neighbours wrap round it.
-      const at = (x: number, y: number) =>
-        sky.at((t % across) * 8 + ((x + 8) % 8), Math.floor(t / across) * 8 + ((y + 8) % 8))
+    for (const word of bands) {
+      // A band's word is its tile and the slot of its colour: the sky's (0), or the free
+      // colours 7-15 of the red (5) or the white (7) words.
+      const t = word & 0x3ff
+      expect([0, 5, 7]).toContain(word >> 10)
       const colours = new Set<number>()
       for (let y = 0; y < 8; y++) {
         for (let x = 0; x < 8; x++) {
-          const v = at(x, y)
-          colours.add(v)
-          const near = [at(x - 1, y), at(x + 1, y), at(x, y - 1), at(x, y + 1)]
-          expect(near.includes(v), `tile ${t} at ${x},${y}`).toBe(true)
+          colours.add(sky.at((t % across) * 8 + x, Math.floor(t / across) * 8 + y))
         }
       }
-      if (colours.size === 2) ramps++
+      expect(colours.size, `band tile ${t}`).toBe(1)
     }
-    // Every seam between two bands is a ramp of their two colours (six in the sky, five in
-    // the sea), the bands themselves one colour each: the sea has no waves.
-    expect(ramps).toBe(11)
+  })
+
+  it('steps the sky and the sea evenly from their chosen ends, every time of day', () => {
+    const table = horizonTable()
+    const sky = points('horizon.png')
+    const across = sky.width / 8
+    /** A band entry's palette index (its one colour in sky_day) and slot. */
+    const place = (word: number) => {
+      const t = word & 0x3ff
+      const v = sky.at((t % across) * 8, Math.floor(t / across) * 8)
+      const rgb = [v >> 16, (v >> 8) & 255, v & 255]
+      const k = [...Array(16).keys()].find((j) =>
+        paletteColour('sky_day', j).every((c, n) => c === rgb[n]),
+      )
+      return { slot: word >> 10, k: k ?? -1 }
+    }
+    /** The bands one side, from the horizon out, as palette places. */
+    const side = (dir: number) => {
+      const out: { slot: number; k: number }[] = []
+      for (let d = 7; d <= 160; d++) {
+        const w = table[160 + dir * d] ?? 0
+        const p = place(w)
+        const last = out[out.length - 1]
+        if (last === undefined || last.slot !== p.slot || last.k !== p.k) out.push(p)
+      }
+      return out
+    }
+    const slotName = ['sky', '', '', '', '', 'red', '', 'white']
+    for (const hour of ['day', 'dawn', 'storm', 'dusk', 'night']) {
+      for (const [dir, n, first, last] of [
+        [1, 16, 7, 1],
+        [-1, 15, 9, 15],
+      ] as const) {
+        const steps = side(dir).map((p) => paletteColour(`${slotName[p.slot]}_${hour}`, p.k))
+        expect(steps.length).toBe(n)
+        // The ends are the hour's haze and zenith (or the sea's haze and deep water).
+        expect(steps[0]).toEqual(paletteColour(`sky_${hour}`, first))
+        expect(steps[n - 1]).toEqual(paletteColour(`sky_${hour}`, last))
+        // Each step is the even share of the way from end to end, give or take what RGB555's
+        // rounding moves a colour - or, where the way is too short for that (the night), no
+        // more than one RGB555 level in each channel.
+        const even = okDistance(steps[0] ?? [], steps[n - 1] ?? []) / (n - 1)
+        steps.slice(1).forEach((c, k) => {
+          const p = steps[k] ?? c
+          const level = c.every((v, j) => Math.abs(v - (p[j] ?? 0)) <= 8)
+          const g = okDistance(c, p)
+          expect(level || g < even + 0.025, `${hour} ${dir > 0 ? 'sky' : 'sea'} ${k}`).toBe(true)
+          expect(g).toBeLessThan(0.07)
+        })
+      }
+    }
   })
 
   it('draws explosions and smoke as clumps, never single points', () => {

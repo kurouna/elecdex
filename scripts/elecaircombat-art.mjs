@@ -78,7 +78,7 @@ const lines = []
 for (let k = 0; k < sky.table.length; k += 16) lines.push(sky.table.slice(k, k + 16).join(' '))
 writeFileSync(
   path.join(dir, 'horizon.txt'),
-  `# ELECAIRCOMBAT's sky: tiles of horizon.png by the horizon's distance (321 bands, -160 to\n# 160 points), then by its angle and offset (17 x 13). Written by scripts/elecaircombat-art.mjs.\n${lines.join('\n')}\n`,
+  `# ELECAIRCOMBAT's sky: tiles of horizon.png by the horizon's distance (321 bands, -160 to\n# 160 points), then by its angle and offset (17 x 13); a band's entry\n# carries its palette slot in bits 10-12. Written by scripts/elecaircombat-art.mjs.\n${lines.join('\n')}\n`,
 )
 
 // The views as the game finds them (views.txt): each one's direction in 64ths, then for each

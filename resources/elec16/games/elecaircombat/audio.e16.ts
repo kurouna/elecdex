@@ -55,6 +55,8 @@ import {
   SONG_X_SELECT_BANK,
   SONG_X_SPLASH_AT,
   SONG_X_SPLASH_BANK,
+  SONG_X_STALL_AT,
+  SONG_X_STALL_BANK,
 } from './assets.e16'
 
 export const M_TITLE = 1
@@ -141,4 +143,9 @@ export function sfxSelect(): void {
 
 export function sfxSplash(): void {
   play(SONG_X_SPLASH_BANK, SONG_X_SPLASH_AT, false)
+}
+
+/** The stall horn: near the stall or in it. */
+export function sfxStall(): void {
+  play(SONG_X_STALL_BANK, SONG_X_STALL_AT, false)
 }

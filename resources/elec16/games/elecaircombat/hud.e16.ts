@@ -41,7 +41,7 @@ import {
   eSX,
   eSY,
 } from './bandit.e16'
-import { headingDegrees, pAlt, pSpeed, throttle } from './flight.e16'
+import { headingDegrees, pAlt, pSpeed, stallState, throttle } from './flight.e16'
 import { hL, hNX, hNY } from './horizon.e16'
 import { abs16, muldiv, V_PF, V_T0, vget, vset } from './math.e16'
 import {
@@ -507,8 +507,14 @@ function lockDraw(frame: u16): void {
   spr(x - 8, y - 8, (HUD16_TILE + 4) | GREEN, S16)
 }
 
-/** MISSILE when one is after the player, PULL UP when too low: red words that blink. */
+/**
+ * MISSILE when one is after the player, PULL UP when too low, STALL near the stall or in it
+ * (faster): red words that blink.
+ */
 function warnings(frame: u16, low: bool): void {
+  if (stallState !== 0 && (frame & (stallState === 2 ? 4 : 8)) !== 0) {
+    words8(140, 194, str('STALL'))
+  }
   if ((frame & 8) === 0) return
   if (warned) words8(132, 170, str('MISSILE'))
   if (low) words8(132, 182, str('PULL UP'))

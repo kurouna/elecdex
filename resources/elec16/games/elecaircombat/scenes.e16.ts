@@ -78,11 +78,11 @@ import {
   SL_ENEMY,
   SL_HUD_TEXT,
   SL_RED,
-  SL_SKY,
   SL_WHITE,
   say,
   sayChar,
   sayNumber,
+  skyTint,
   slot,
   unsay,
 } from './sky.e16'
@@ -209,6 +209,7 @@ export function controls(): void {
   rule(23)
   say(2, 25, str('LOCK ON: KEEP THE TARGET IN THE'), SL_WHITE)
   say(2, 26, str('CIRCLE, THEN B. X DECOYS MISSILES.'), SL_WHITE)
+  say(2, 27, str('SLOW + PULL = STALL. LOWER THE NOSE.'), SL_WHITE)
   let t: u16 = 0
   for (;;) {
     frameBegin()
@@ -263,7 +264,7 @@ function rule(y: u16): void {
 
 /** The sky behind words darkened, so they read over the brightest of it. */
 function dim(): void {
-  palMix(SL_SKY, 0, 6)
+  skyTint(0, 6)
   palMix(SL_CLOUD, 0, 5)
 }
 
