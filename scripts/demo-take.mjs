@@ -24,6 +24,7 @@ import {
   SESSION,
   seedOrbits,
 } from './demo-fixtures.mjs'
+import { noGamepads } from './demo-play-kit.mjs'
 import { deskFiles, mediaStandIn, withState } from './preset-shots.mjs'
 
 export const MAIN = path.resolve('out/main/index.js')
@@ -168,6 +169,7 @@ export async function openTake({
     },
   })
   const page = await app.firstWindow()
+  await noGamepads(page)
   const { width, height, x, y, zoom, pace } = options
   await app.evaluate(
     ({ BrowserWindow }, [w, h, left, top, factor]) => {

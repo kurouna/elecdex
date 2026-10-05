@@ -45,6 +45,7 @@ npm run demo:keystream # KEYSTREAM: menu previews, a track typed on time through
 npm run demo:snippets  # the clipboard pane's snippets: kept, written, moved, pasted into the shell, 16:9, under 30 s (Windows; build first)
 npm run demo:whatsnew  # what v0.0.19-v0.0.20 added, most striking first: CHIP-8, files in the ai preset's chat, dev's agent tree and FETCH/PULL, 16:9 (Windows; build first)
 npm run demo:elec16    # the ELEC-16 alone, 1280x600: BASIC, the SOFT CARD, CODE, the skins (Windows; build first)
+npm run demo:games     # the PLAY-320's three games played, bodies and themes changing, CORE beside (Windows; build first)
 node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
 node scripts/elecaircombat-art.mjs       # the same for ELECAIRCOMBAT
 node scripts/elecdrill-art.mjs           # the same for ELECDRILL

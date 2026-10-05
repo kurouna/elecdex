@@ -168,14 +168,24 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 </p>
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-play.jpg" alt="变成珊瑚色机身 PLAY-320 的 ELEC-16 窗格：彩色屏幕上是 ELECLANCE，左右面板显示分数、CHAIN、BOMB 和 VOLT，中间的自机向上发射 LANCE，旁边的 GAMES 中有卡槽里的 ELECLANCE、游戏架和 DEVELOP">
-  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECLANCE</sub>
+  <img src="./docs/screenshots/elecdex-play-air.jpg" alt="Phosphor 主题，变成石墨色横向机身 PLAY-320 的 ELEC-16 窗格：屏幕上是 ELECAIRCOMBAT 的驾驶舱，导引头圆圈中带红色锁定框和 ENGAGE 的王牌 GANNET，导弹在它身上爆炸，下方是雷达、分数和损伤仪表，LCK 灯亮着；旁边的 CORE 显示正在运行的 E16 的寄存器和程序计数器处的代码">
+  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECAIRCOMBAT · Phosphor · 旁边是 CORE</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play.jpg" alt="Business (Dark) 主题，变成珊瑚色纵向机身 PLAY-320 的 ELEC-16 窗格：彩色屏幕上是 ELECLANCE，自机在小型敌机之间笔直向上发射 LANCE，左右面板显示分数、CHAIN、SHIP、BOMB 和 VOLT，旁边的 GAMES 中有卡槽里的 ELECLANCE、三款游戏的游戏架和 DEVELOP">
+  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECLANCE · Business (Dark)</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play-drill.jpg" alt="Business (Light) 主题，只显示屏幕的 PLAY-320 的 ELEC-16 窗格：ELECDRILL 的红、黄、绿、蓝方块竖井，34 m 处的钻探者，他上方亮起的 3 CHAIN，两侧是深度计、AIR 气罐、DRILLERS 和 CHAIN；旁边的 MEM 以十六进制显示 E16 的内存">
+  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECDRILL · Business (Light) · 只显示屏幕，旁边是 MEM</sub>
 </p>
 
 - **ELEC-16** — elecdex 自行设计的 16 位袖珍电脑：自己的 RISC CPU、ROM 中的
   BASIC 和机器码监视器、液晶和键盘、存储卡、把 TypeScript 编译成它的机器码的 CODE 画面，以及与 AI
   对话的 LINK。变成 **PLAY-320** 后，它是一台带卡带、精灵和 16 个声道的游戏机，附带纵版射击游戏
-  ELECLANCE、ELECAIRCOMBAT、ELECDRILL 三款游戏和制作游戏的工具包。
+  ELECLANCE、空战游戏 ELECAIRCOMBAT、方块解谜 ELECDRILL 三款游戏和制作游戏的工具包。
 
 ### 布局、外观及其他
 

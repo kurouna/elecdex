@@ -66,7 +66,8 @@
     "demo:keystream": "node scripts/demo-keystream.mjs",
     "demo:snippets": "node scripts/demo-snippets.mjs",
     "demo:whatsnew": "node scripts/demo-whatsnew.mjs",
-    "demo:elec16": "node scripts/demo-elec16.mjs"
+    "demo:elec16": "node scripts/demo-elec16.mjs",
+    "demo:games": "node scripts/demo-games.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

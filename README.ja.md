@@ -181,8 +181,18 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
 </p>
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-play.jpg" alt="コーラルの本体の PLAY-320 にした ELEC-16 ペイン：カラーの画面に ELECLANCE、左右のパネルにスコア、CHAIN、BOMB、VOLT、中央で自機が LANCE を撃ち上げ、横の GAMES にはスロットの ELECLANCE、棚、DEVELOP">
-  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECLANCE</sub>
+  <img src="./docs/screenshots/elecdex-play-air.jpg" alt="Phosphor テーマで、グラファイトの横長の本体の PLAY-320 にした ELEC-16 ペイン：画面に ELECAIRCOMBAT のコックピット、シーカー円の中に赤いロックの枠と ENGAGE の付いたエース GANNET、そこで炸裂するミサイル、下にレーダー、スコア、損傷の計器と点いた LCK 灯；横の CORE には動いている E16 のレジスタとプログラムカウンタのコード">
+  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECAIRCOMBAT · Phosphor · 横に CORE</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play.jpg" alt="Business (Dark) テーマで、コーラルの縦長の本体の PLAY-320 にした ELEC-16 ペイン：カラーの画面に ELECLANCE、小さな敵のあいだで自機が LANCE をまっすぐ撃ち上げ、左右のパネルにスコア、CHAIN、SHIP、BOMB、VOLT、横の GAMES にはスロットの ELECLANCE、3 本のゲームの棚、DEVELOP">
+  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECLANCE · Business (Dark)</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play-drill.jpg" alt="Business (Light) テーマで、画面だけを出す PLAY-320 にした ELEC-16 ペイン：ELECDRILL の赤、黄、緑、青のブロックの井戸、34 m の掘り手とその上で光る 3 CHAIN、左右に深さのゲージ、AIR のタンク、DRILLERS、CHAIN；横の MEM には E16 のメモリの 16 進">
+  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECDRILL · Business (Light) · 画面だけ、横に MEM</sub>
 </p>
 
 - **ELEC-16** — elecdex が独自に設計した 16 ビットのポケコン。自前の RISC の

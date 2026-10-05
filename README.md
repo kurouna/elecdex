@@ -185,8 +185,18 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 </p>
 
 <p align="center">
-  <img src="./docs/screenshots/elecdex-play.jpg" alt="An ELEC-16 pane made a PLAY-320 in its coral body: ELECLANCE on its colour screen, the ship firing the lance up the middle between two side panels with the score, CHAIN, BOMB and VOLT, and GAMES beside it with ELECLANCE in the slot, the shelf and DEVELOP">
-  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECLANCE</sub>
+  <img src="./docs/screenshots/elecdex-play-air.jpg" alt="An ELEC-16 pane made a PLAY-320 in its wide graphite body, in the Phosphor theme: ELECAIRCOMBAT's cockpit on the screen, the ace GANNET ahead in the seeker circle under a red lock box with ENGAGE above, a missile bursting on it, the radar, score and damage panels below with the LCK lamp lit; CORE beside it with the E16's registers and the code at the program counter as it runs">
+  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECAIRCOMBAT · Phosphor · CORE beside it</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play.jpg" alt="An ELEC-16 pane made a PLAY-320 in its tall coral body, in the Business (Dark) theme: ELECLANCE on its colour screen, the ship firing the LANCE straight up between small enemies, its side panels with the score, CHAIN, SHIP, BOMB and VOLT, and GAMES beside it with ELECLANCE in the slot, the shelf of three games and DEVELOP">
+  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECLANCE · Business (Dark)</sub>
+</p>
+
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play-drill.jpg" alt="An ELEC-16 pane made a PLAY-320 showing its screen alone, in the Business (Light) theme: ELECDRILL's well of red, yellow, green and blue blocks, the driller at 34 m with a 3 CHAIN lit up above him, the depth gauge, AIR tank, DRILLERS and CHAIN panels either side; MEM beside it with the E16's memory in hex">
+  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECDRILL · Business (Light) · the screen alone, MEM beside it</sub>
 </p>
 
 - **ELEC-16** — a 16-bit pocket computer of elecdex's own design: its own

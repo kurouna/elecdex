@@ -10,6 +10,9 @@
  * `npm run build` first, then `npm run gen:screenshots`; name shots to take only those
  * (`npm run gen:screenshots -- elecdex-media`).
  *
+ * The PLAY-320's three games (elecdex-play, -play-air, -play-drill) are played by
+ * demo-play-kit.mjs's scripted pad, with no gamepad of this machine reaching the page.
+ *
  * Shots for posting (`social-elec-sitting`, `social-elec-approved`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
  * so nothing of the machine is in them.
@@ -31,6 +34,15 @@ import {
   SESSION,
   seedOrbits,
 } from './demo-fixtures.mjs'
+import {
+  airTakeOff,
+  drillDig,
+  drillStart,
+  lanceStart,
+  lanceWeave,
+  noGamepads,
+  padOf,
+} from './demo-play-kit.mjs'
 import { deskFiles, mediaStandIn, presetTrees, withState } from './preset-shots.mjs'
 
 const OUT = path.resolve('docs/screenshots')
@@ -282,10 +294,11 @@ async function sinewave(page) {
 }
 
 /*
- * ELEC-16 PLAY: a PLAY-320 unit with ELECLANCE in its slot, the tall body in coral, GAMES in
- * the panel beside it; the game started and played for a while.
+ * ELEC-16 PLAY: a PLAY-320 unit with a game in its slot in the middle column, the panel beside it
+ * on the tab named; the game started and played for a while. Each game's shot has a body, a
+ * colour and a theme of its own, so the README shows the range.
  */
-const playLayout = {
+const playLayout = (state) => ({
   version: 1,
   root: split(
     'row',
@@ -295,10 +308,7 @@ const playLayout = {
         ['clock', 'sysinfo', 'cpu', 'memory', 'disk', 'toplist', 'netstat', 'throughput'].map(pane),
         [0.04, 0.125, 0.19, 0.12, 0.116, 0.189, 0.055, 0.165],
       ),
-      {
-        ...pane('elec16'),
-        state: { unit: 'u1', tab: 'games', playBody: 'tall', playSkin: 'coral' },
-      },
+      { ...pane('elec16'), state: { unit: 'u1', ...state } },
       split(
         'column',
         ['globe', 'markets', 'weather', 'calendar'].map(pane),
@@ -307,48 +317,96 @@ const playLayout = {
     ],
     [0.18, 0.64, 0.18],
   ),
-}
+})
 
-/** The profile's unit: a PLAY-320 with the bundled ELECLANCE in its slot. */
-function playUnit(dir) {
+/** The profile's unit: a PLAY-320 with the bundled `cart` in its slot. */
+const playUnit = (cart) => (dir) => {
   mkdirSync(path.join(dir, 'elec16'), { recursive: true })
   const unit = { id: 'u1', name: 'UNIT 1', clock: 4, model: 'play-320', autoOff: 10, xram: 512 }
   writeFileSync(
     path.join(dir, 'elec16', 'units.json'),
-    JSON.stringify({ version: 1, units: [{ ...unit, cart: 'ELECLANCE', created: 0 }] }),
+    JSON.stringify({ version: 1, units: [{ ...unit, cart, created: 0 }] }),
   )
 }
 
-/**
- * START at the start screen (the game loads), START on its title once the word has landed,
- * then a few seconds of play: the ship weaving, shooting in taps, then the lance held.
- */
-async function eleclance(page) {
+/** The machine focused, a moment after it has come up at its start screen. */
+async function atStartScreen(page) {
   const device = page.getByTestId('elec16')
   await device.waitFor()
   await page.waitForTimeout(2000)
   await device.focus()
-  // The machine looks at the pad once a frame: a key is held for a few frames, as a hand would.
-  const tap = async (key) => {
-    await page.keyboard.down(key)
-    await page.waitForTimeout(120)
-    await page.keyboard.up(key)
+  return (ms) => page.waitForTimeout(ms)
+}
+
+/** The LANCE on screen: a column of the play area lit pale blue for most of its height. */
+function lanceBurning(canvas) {
+  const data = canvas.getContext('2d').getImageData(48, 16, 224, 272).data
+  const lit = new Array(224).fill(0)
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] > 150 && data[i + 1] > 190 && data[i + 2] > 230) lit[(i / 4) % 224]++
   }
-  await tap('Enter')
-  // The title takes A as well as START; in the game A only shoots, where START would pause.
-  await page.waitForTimeout(1500)
-  await tap('KeyZ')
-  await page.waitForTimeout(4000)
-  for (let k = 0; k < 40; k++) {
-    const side = k % 8 < 4 ? 'ArrowLeft' : 'ArrowRight'
-    await page.keyboard.down(side)
-    await tap('KeyZ')
-    await page.waitForTimeout(100)
-    await page.keyboard.up(side)
+  return Math.max(...lit) > 90
+}
+
+/**
+ * ELECLANCE on EASY: the ship weaving and shooting through the first enemies, then the LANCE
+ * held - still held as the shot is taken, the moment it burns up the screen.
+ */
+async function eleclance(page) {
+  const wait = await atStartScreen(page)
+  await lanceStart(page, wait)
+  await wait(3500)
+  await lanceWeave(page, wait, 8_000, { lanceEvery: 1000 })
+  const pad = padOf(page, wait)
+  await pad.down('KeyZ')
+  await pad.hold('ArrowRight', 250)
+  // The LANCE takes a moment to charge after the last shots, then burns up to the first enemy.
+  const screen = page.getByTestId('elec16-play-screen')
+  for (let k = 0; k < 60 && !(await screen.evaluate(lanceBurning)); k++) await wait(50)
+  await wait(150)
+  await page.mouse.move(W / 2, H / 6)
+}
+
+/**
+ * ELECAIRCOMBAT: from the title to the first sortie, the ace ahead and closing head-on; the gun
+ * held, and a missile away once it is locked - the shot taken as it flies, the box red.
+ */
+async function airCombat(page) {
+  const wait = await atStartScreen(page)
+  await airTakeOff(page, wait)
+  const pad = padOf(page, wait)
+  await wait(100)
+  await pad.down('KeyZ')
+  await wait(700)
+  await pad.hold('KeyX', 100)
+  await wait(220)
+  await page.mouse.move(W / 2, H / 6)
+}
+
+/** The well's flash: a group lit gold before it goes (a chain), in the colours it cycles. */
+function flashing(canvas) {
+  const data = canvas.getContext('2d').getImageData(88, 0, 144, 288).data
+  let lit = 0
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] >= 231 && data[i + 1] === 222 && data[i + 2] >= 140) lit++
   }
-  await page.keyboard.down('KeyZ')
-  await page.waitForTimeout(1500)
-  await page.keyboard.up('KeyZ')
+  return lit > 250
+}
+
+/**
+ * ELECDRILL on EASY: digging down through the first strata, side digs now and then; the shot
+ * taken as a group lights up to go, after fifteen seconds of it.
+ */
+async function elecdrill(page) {
+  const wait = await atStartScreen(page)
+  await drillStart(page, wait)
+  await drillDig(page, wait, 15_000)
+  const screen = page.getByTestId('elec16-play-screen')
+  const pad = padOf(page, wait)
+  for (let k = 0; k < 60 && !(await screen.evaluate(flashing)); k++) {
+    await pad.hold(k % 6 === 5 ? 'KeyZ' : 'KeyX', 160)
+    for (let t = 0; t < 4 && !(await screen.evaluate(flashing)); t++) await wait(60)
+  }
   await page.mouse.move(W / 2, H / 6)
 }
 
@@ -529,6 +587,7 @@ async function shoot(theme, name, { extra, layout, env, settings, social, prepar
     },
   })
   const page = await app.firstWindow()
+  await noGamepads(page)
   await app.evaluate(
     ({ BrowserWindow }, [w, h]) => {
       const win = BrowserWindow.getAllWindows()[0]
@@ -679,10 +738,21 @@ await shoot('phosphor', 'elecdex-retro', {
 })
 await shoot('amber', 'elecdex-chip8', { layout: chip8Layout, extra: playing })
 await shoot('tron', 'elecdex-elec16', { layout: elec16Layout, extra: sinewave })
+// ELEC-16 PLAY: one shot a game, each in a body, a colour and a theme of its own.
 await shoot('business-dark', 'elecdex-play', {
-  layout: playLayout,
-  prepare: playUnit,
+  layout: playLayout({ tab: 'games', playBody: 'tall', playSkin: 'coral' }),
+  prepare: playUnit('ELECLANCE'),
   extra: eleclance,
+})
+await shoot('phosphor', 'elecdex-play-air', {
+  layout: playLayout({ tab: 'core', playBody: 'wide', playSkin: 'graphite' }),
+  prepare: playUnit('ELECAIRCOMBAT'),
+  extra: airCombat,
+})
+await shoot('business-light', 'elecdex-play-drill', {
+  layout: playLayout({ tab: 'mem', playBody: 'screen', playSkin: 'ivory' }),
+  prepare: playUnit('ELECDRILL'),
+  extra: elecdrill,
 })
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [
