@@ -68,7 +68,7 @@ export const REG = {
 } as const
 
 /** The machine's decoded instructions by address: what a write to RAM must make stale. */
-export type CodeCache = (Inst | undefined)[]
+type CodeCache = (Inst | undefined)[]
 
 export class Bus {
   readonly #s: Elec16State
@@ -77,6 +77,14 @@ export class Bus {
   readonly #model: Model
   readonly #code: CodeCache
   readonly #vramUsed: number
+  /** The MODEL register's number. */
+  readonly #modelNumber: number
+  /**
+   * Code in the bank window (or a 32-bit instruction reaching into it) was decoded since the
+   * window was last made stale: the machine sets it as it decodes there. Without it, a bank
+   * switch - which programs make all the time for data - has nothing to drop.
+   */
+  windowDecoded = false
 
   constructor(s: Elec16State, rom: Uint8Array, model: Model, code: CodeCache) {
     this.#s = s
@@ -85,6 +93,14 @@ export class Bus {
     this.#model = model
     this.#code = code
     this.#vramUsed = vramSize(model)
+    this.#modelNumber = MODEL_IDS.indexOf(model.id)
+  }
+
+  /** What was decoded in the bank window (and the two bytes before it) is stale. */
+  windowStale(): void {
+    if (!this.windowDecoded) return
+    this.windowDecoded = false
+    this.#code.fill(undefined, BANK_WINDOW - 2, BANK_WINDOW + BANK_SIZE)
   }
 
   /** A byte, as the CPU reads it: an I/O read may have an effect (the key FIFO). */
@@ -100,6 +116,8 @@ export class Bus {
     const a = address & 0xfffe
     if (a < RAM_SIZE) return (this.#ram[a] as number) | ((this.#ram[a + 1] as number) << 8)
     if (a >= IO) return this.#io(a, false)
+    // PLAY-320's registers are read whole, once (LINE's division is not done twice).
+    if (this.#s.video !== null && a >= VIDEO_IO && a < VIDEO_IO_END) return this.#gameIoRead(a)
     return this.peek(a) | (this.peek(a + 1) << 8)
   }
 
@@ -305,7 +323,7 @@ export class Bus {
       case REG.id:
         return MACHINE_ID
       case REG.model:
-        return MODEL_IDS.indexOf(this.#model.id)
+        return this.#modelNumber
       case REG.bank:
         return s.bank
       case REG.keyData:
@@ -396,8 +414,7 @@ export class Bus {
         // A bank the machine does not have is not taken: the window stays as it was.
         if (s.bank !== value && (bankTaken(value, s.xram.length) || cartBankTaken(s.cart, value))) {
           s.bank = value
-          // From two bytes before the window: a 32-bit instruction there reaches into it.
-          this.#code.fill(undefined, BANK_WINDOW - 2, BANK_WINDOW + BANK_SIZE)
+          this.windowStale()
         }
         return
       case REG.power:

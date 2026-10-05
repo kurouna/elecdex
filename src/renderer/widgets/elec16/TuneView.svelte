@@ -1,5 +1,5 @@
 <script lang="ts">
-import { MODELS, type ModelId, TUNE_MODEL_IDS, XRAM_SIZES_KB } from '@shared/elec16/map'
+import { MODEL_IDS, MODELS, type ModelId, XRAM_SIZES_KB } from '@shared/elec16/map'
 import {
   ELEC16_AUTO_OFF,
   ELEC16_CLOCKS,
@@ -216,7 +216,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
   <section>
     <h3>model</h3>
     <div class="chips" role="radiogroup" aria-label="model">
-      {#each TUNE_MODEL_IDS as id (id)}
+      {#each MODEL_IDS as id (id)}
         <button
           type="button"
           class="e16-chip"

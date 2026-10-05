@@ -31,6 +31,7 @@ import {
   VSTAT_LINE,
 } from '@shared/elec16/video'
 import { describe, expect, it } from 'vitest'
+import { paintPlay } from '../../src/renderer/widgets/elec16/play-painter'
 import { paintTiles } from '../../src/renderer/widgets/elec16/tile-painter'
 
 /**
@@ -720,5 +721,158 @@ describe("the page's picture of mode 1", () => {
     // A background over it: the background shows, sprite 1 hidden under sprite 0.
     cell(v, BG0_MAP, 0, 0, 3)
     expect(draw(v)(0, 0)).toBe(4)
+  })
+})
+
+describe('the frame the page draws', () => {
+  /**
+   * A program that, each VBLANK, scrolls BG0 one dot on and moves sprite 0 with it - or, with
+   * `once`, scrolls BG0 to 8 at the first and changes nothing after.
+   */
+  function scrolling(once: boolean): Elec16 {
+    const m = boot(`
+      li t0, ${VIDEO_REG.page}
+      li t1, ${SPRITES_AT >> 12}
+      sw t1, 0(t0)
+      li t0, ${1 << IRQ.vblank}
+      csrw mie, t0
+      li a0, 0
+    loop:
+      wfi
+      li t0, ${VIDEO_REG.stat}
+      li t1, 1
+      sw t1, 0(t0)
+      ${once ? 'bnez a0, loop\n      li a0, 7' : ''}
+      addi a0, a0, 1
+      andi a0, a0, 63
+      li t0, ${TILE_REG.bg0x}
+      sw a0, 0(t0)
+      li t1, 80
+      sub t1, t1, a0
+      li t0, 0xe000
+      sw t1, 0(t0)
+      j loop`)
+    const v = m.state.video as VideoState
+    const s = scene()
+    noSprites(s)
+    tile(s, 1, SOLID('5'))
+    cell(s, BG0_MAP, 10, 0, 1)
+    sprite(s, 0, 80, 100, 1)
+    v.mem.set(s.mem)
+    v.ctrl = s.ctrl
+    return m
+  }
+
+  /** The page: a frame of time, the machine run, and a paint when its count of changes moved. */
+  function page(m: Elec16, frames: number, seen: (at: (x: number, y: number) => number) => void) {
+    const out = new Uint8ClampedArray(BITMAP_WIDTH * BITMAP_HEIGHT * 4)
+    const at = (x: number, y: number) => {
+      const o = (y * BITMAP_WIDTH + x) * 4
+      return (((out[o + 1] ?? 0) >> 3) << 5) | ((out[o] ?? 0) >> 3)
+    }
+    let painted = -1
+    for (let k = 0; k < frames; k++) {
+      m.advance(FRAME_MS)
+      m.run(100_000)
+      if (m.screenRevision === painted) continue
+      painted = m.screenRevision
+      paintPlay(m.state.video, false, out)
+      seen(at)
+    }
+  }
+
+  const leftmost = (at: (x: number, y: number) => number, y: number) => {
+    for (let x = 0; x < BITMAP_WIDTH; x++) if (at(x, y) !== 0) return x
+    return -1
+  }
+
+  it('has the scroll and the sprites of one frame: a sprite moved with the scroll stays with it', () => {
+    const m = scrolling(false)
+    let paints = 0
+    page(m, 40, (at) => {
+      paints++
+      // The background's block on line 0, the sprite on line 100: always the same column.
+      expect(leftmost(at, 100)).toBe(leftmost(at, 0))
+    })
+    expect(paints).toBeGreaterThan(30)
+  })
+
+  it('draws a scroll written with nothing else changing', () => {
+    const m = scrolling(true)
+    let last = -1
+    page(m, 10, (at) => {
+      last = leftmost(at, 0)
+    })
+    // BG0X 8: the block at column 80 is drawn at 72.
+    expect(last).toBe(72)
+  })
+})
+
+describe("the raster log's upkeep", () => {
+  it('logs a write only when it changes a register, and moves no count of the screen then', () => {
+    const t = createVideoState().tiles
+    expect(tileWrite(t, TILE_REG.bg0x, 5, 0)).toBe(true)
+    expect(tileWrite(t, TILE_REG.bg0x, 5, 10 * CYCLES_A_LINE)).toBe(false)
+    expect(tileWrite(t, TILE_REG.layers, 7, 0)).toBe(false)
+    expect(t.log).toEqual([{ line: 0, which: 0, value: 5 }])
+    const m = boot('ebreak')
+    const before = m.screenRevision
+    m.bus.write16(TILE_REG.bg1y, 0)
+    expect(m.screenRevision).toBe(before)
+  })
+
+  it('keeps one write a register a line, the last, however often a program writes', () => {
+    const t = createVideoState().tiles
+    for (let k = 1; k <= 100; k++) {
+      tileWrite(t, TILE_REG.bg0x, k, 3 * CYCLES_A_LINE)
+      tileWrite(t, TILE_REG.bg0y, k, 3 * CYCLES_A_LINE)
+    }
+    tileWrite(t, TILE_REG.bg0x, 7, 4 * CYCLES_A_LINE)
+    expect(t.log).toEqual([
+      { line: 3, which: 0, value: 100 },
+      { line: 3, which: 1, value: 100 },
+      { line: 4, which: 0, value: 7 },
+    ])
+    // A frame of a program writing both scrolls in a loop: at most a write a register a line.
+    const m = boot(`
+      li t0, ${TILE_REG.bg0x}
+      li a0, 0
+    loop:
+      addi a0, a0, 1
+      sw a0, 0(t0)
+      sw a0, 2(t0)
+      j loop`)
+    m.run(4_000_000 / FRAME_HZ)
+    expect(tiles(m).log.length).toBeLessThanOrEqual(FRAME_LINES * 2)
+    const lines = rasterLines({ start: tiles(m).start, log: tiles(m).log })
+    expect(lines[287]?.scroll[0]).toBeGreaterThan(0)
+  })
+
+  it('keeps the beam on its line, and LINE on its own, when the clock is changed mid-frame', () => {
+    const m = boot('loop:\n  j loop')
+    m.bus.write16(TILE_REG.lineCmp, 200)
+    m.run(CYCLES_A_LINE * 100 + 5)
+    expect(m.bus.read16(TILE_REG.line)).toBe(100)
+    m.hz = 8_000_000
+    expect(m.bus.read16(TILE_REG.line)).toBe(100)
+    // A hundred lines more at the new clock: LINE then, not sooner.
+    const perLine = 8_000_000 / FRAME_HZ / FRAME_LINES
+    m.run(perLine * 99)
+    expect(m.bus.read16(VIDEO_REG.stat) & VSTAT_LINE).toBe(0)
+    m.run(perLine * 2)
+    expect(m.bus.read16(VIDEO_REG.stat) & VSTAT_LINE).toBe(VSTAT_LINE)
+  })
+
+  it('reads a register whole, and a reset leaves no LINE done', () => {
+    const m = boot('loop:\n  j loop')
+    m.run(CYCLES_A_LINE * 300 + 5)
+    expect(m.bus.read16(TILE_REG.line)).toBe(300)
+    expect(m.bus.read16(TILE_REG.line)).toBe(
+      m.bus.peek(TILE_REG.line) | (m.bus.peek(TILE_REG.line + 1) << 8),
+    )
+    m.bus.write16(TILE_REG.lineCmp, 10)
+    expect(tiles(m).lineDone).toBe(true)
+    m.reset()
+    expect(tiles(m).lineDone).toBe(false)
   })
 })

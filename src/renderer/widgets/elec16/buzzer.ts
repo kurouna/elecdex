@@ -61,7 +61,14 @@ export class Elec16Buzzer {
     const osc = this.#osc
     const gain = this.#gain
     if (osc === null || gain === null) return
-    emuAudio.wake()
+    // Gated, it sounds until the gate goes: the shared context is held awake till then. A tone
+    // of a length keeps it awake for that long.
+    if (Number.isFinite(ms)) {
+      emuAudio.hold(this, false)
+      emuAudio.wake(ms)
+    } else {
+      emuAudio.hold(this, true)
+    }
     const now = osc.context.currentTime
     osc.frequency.setValueAtTime(Math.min(20_000, Math.max(20, freq)), now)
     gain.gain.cancelScheduledValues(now)
@@ -73,6 +80,7 @@ export class Elec16Buzzer {
   silence(): void {
     this.#mark = ''
     this.#pending = null
+    emuAudio.hold(this, false)
     const gain = this.#gain
     if (gain === null) return
     gain.gain.cancelScheduledValues(gain.context.currentTime)

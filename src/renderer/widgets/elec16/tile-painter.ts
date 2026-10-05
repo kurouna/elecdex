@@ -9,7 +9,6 @@ import {
   PALETTE_AT,
   type Raster,
   type RasterWrite,
-  rasterLines,
   SPRITE_BYTES,
   SPRITE_PALETTES,
   SPRITES,
@@ -30,9 +29,11 @@ import {
  * sprites, the lower number is in front; a line shows its first 32 sprites by number.
  *
  * How it is quick (measured in docs/decisions.md): the tiles' four-bit dots are unpacked once
- * into a cache of a byte a dot and unpacked again only when a tile's bytes change; each line is
- * built by drawing its layers from the back, each over the last, so no dot weighs every layer;
- * and a background cell all clear is passed over whole.
+ * into a cache of a byte a dot - one for each video memory, so two panes do not unpack each
+ * other's every frame - and unpacked again only when a tile's bytes change; each line is built
+ * by drawing its layers from the back, each over the last, so no dot weighs every layer; a
+ * background cell all clear is passed over whole. Nothing is made a frame: the sprites, the
+ * lines they are on and the palette live in buffers kept from one frame to the next.
  */
 
 const CELL_TILE = 0x3ff
@@ -41,60 +42,90 @@ const CELL_FLIP_Y = 1 << 14
 /** A background cell in front of the sprites; a sprite behind the backgrounds. */
 const CELL_FRONT = 1 << 15
 
-/** A sprite as its table entry says, while it is shown. */
-interface Sprite {
-  x: number
-  y: number
-  size: number
-  tile: number
-  /** The sprite's palette's first entry (0-255). */
-  base: number
-  flipX: boolean
-  flipY: boolean
-  behind: boolean
-}
-
 const signed = (v: number): number => (v << 16) >> 16
 const word = (mem: Uint8Array, at: number): number => (mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)
 
-/** Every colour of the sixteen palettes as RGBA in one 32-bit word (little-endian bytes). */
-function colours(mem: Uint8Array): Uint32Array {
-  const out = new Uint32Array(256)
+/** An RGB555 colour (red in the low bits) as RGBA in one 32-bit word (little-endian bytes). */
+export function rgba555(c: number): number {
   const wide = (v: number) => (v << 3) | (v >> 2)
-  for (let k = 0; k < 256; k++) {
-    const c = word(mem, PALETTE_AT + k * 2)
-    out[k] = (0xff << 24) | (wide((c >> 10) & 31) << 16) | (wide((c >> 5) & 31) << 8) | wide(c & 31)
-  }
-  return out
+  return (
+    ((0xff << 24) | (wide((c >> 10) & 31) << 16) | (wide((c >> 5) & 31) << 8) | wide(c & 31)) >>> 0
+  )
+}
+
+/** The sixteen palettes as RGBA words, read afresh each frame. */
+const palette = new Uint32Array(256)
+
+function readPalette(mem: Uint8Array): void {
+  for (let k = 0; k < 256; k++) palette[k] = rgba555(word(mem, PALETTE_AT + k * 2))
 }
 
 /* ---------------- the tiles, unpacked ---------------- */
 
 /**
  * The tiles as a byte a dot (64 a tile, rows from the top), a copy of the bytes they were
- * unpacked from, and whether each is all clear. Kept between frames for one video memory.
+ * unpacked from, and whether each is all clear: kept between frames for one video memory.
  */
-const dots = new Uint8Array(MAX_TILES * 64)
-const packed = new Uint8Array(MAX_TILES * TILE_BYTES)
-const clear = new Uint8Array(MAX_TILES)
-let cachedFor: Uint8Array | null = null
+interface TileCache {
+  dots: Uint8Array
+  packed: Uint32Array
+  clear: Uint8Array
+}
+
+const caches = new WeakMap<Uint8Array, TileCache>()
+
+/** The tiles of the memory being painted, for the functions below. */
+let dots: Uint8Array = new Uint8Array(0)
+let clear: Uint8Array = new Uint8Array(0)
 
 /** Unpacks the tiles whose bytes changed since the last frame (all of them for a new memory). */
 function refreshTiles(mem: Uint8Array): void {
-  const fresh = cachedFor !== mem
-  cachedFor = mem
-  const now = new Uint32Array(mem.buffer, mem.byteOffset + TILES_AT, (MAX_TILES * TILE_BYTES) / 4)
-  const was = new Uint32Array(packed.buffer)
+  let cache = caches.get(mem)
+  const fresh = cache === undefined
+  if (cache === undefined) {
+    cache = {
+      dots: new Uint8Array(MAX_TILES * 64),
+      packed: new Uint32Array((MAX_TILES * TILE_BYTES) / 4),
+      clear: new Uint8Array(MAX_TILES),
+    }
+    caches.set(mem, cache)
+  }
+  dots = cache.dots
+  clear = cache.clear
+  const was = cache.packed
+  const aligned = (mem.byteOffset + TILES_AT) % 4 === 0
   for (let t = 0; t < MAX_TILES; t++) {
     const w = t * 8
-    if (!fresh && sameTile(now, was, w)) continue
-    for (let k = 0; k < 8; k++) was[w + k] = now[w + k] as number
+    if (!fresh && sameTile(mem, was, t, aligned)) continue
+    const from = TILES_AT + t * TILE_BYTES
+    for (let k = 0; k < 8; k++) was[w + k] = word32(mem, from + k * 4)
     unpack(mem, t)
   }
 }
 
-function sameTile(now: Uint32Array, was: Uint32Array, w: number): boolean {
-  for (let k = 0; k < 8; k++) if (now[w + k] !== was[w + k]) return false
+const word32 = (mem: Uint8Array, at: number): number =>
+  ((mem[at] as number) |
+    ((mem[at + 1] as number) << 8) |
+    ((mem[at + 2] as number) << 16) |
+    ((mem[at + 3] as number) << 24)) >>>
+  0
+
+/** The memory's views as words, kept for the memory last painted (no view made a frame). */
+let wordsOf: Uint8Array | null = null
+let words: Uint32Array = new Uint32Array(0)
+
+function sameTile(mem: Uint8Array, was: Uint32Array, t: number, aligned: boolean): boolean {
+  const w = t * 8
+  if (aligned) {
+    if (wordsOf !== mem) {
+      wordsOf = mem
+      words = new Uint32Array(mem.buffer, mem.byteOffset + TILES_AT, (MAX_TILES * TILE_BYTES) / 4)
+    }
+    for (let k = 0; k < 8; k++) if (words[w + k] !== was[w + k]) return false
+    return true
+  }
+  const from = TILES_AT + t * TILE_BYTES
+  for (let k = 0; k < 8; k++) if (word32(mem, from + k * 4) !== was[w + k]) return false
   return true
 }
 
@@ -113,64 +144,76 @@ function unpack(mem: Uint8Array, t: number): void {
 
 /* ---------------- sprites ---------------- */
 
-/** The sprites shown (size 0-2), by number. */
-function sprites(mem: Uint8Array): (Sprite | null)[] {
-  const list: (Sprite | null)[] = []
+/** The sprites shown this frame, a field an array (by sprite number). */
+const sprX = new Int32Array(SPRITES)
+const sprY = new Int32Array(SPRITES)
+const sprSize = new Int32Array(SPRITES)
+const sprTile = new Int32Array(SPRITES)
+/** The sprite's palette's first entry (0-255). */
+const sprBase = new Int32Array(SPRITES)
+/** Bit 0 flipped left to right, bit 1 top to bottom, bit 2 behind the backgrounds. */
+const sprFlags = new Uint8Array(SPRITES)
+const FLIP_X = 1
+const FLIP_Y = 2
+const BEHIND = 4
+
+/** Each line's sprites, the first 32 by number: how many, and their numbers. */
+const onLine = new Uint8Array(BITMAP_HEIGHT)
+const lineSprites = new Uint8Array(BITMAP_HEIGHT * SPRITES_A_LINE)
+
+/**
+ * The sprites shown (size 0-2) read from the table, and each put on the lines it covers, in
+ * number order, once a frame - not every sprite looked at on every line.
+ */
+function readSprites(mem: Uint8Array): void {
+  onLine.fill(0)
   for (let k = 0; k < SPRITES; k++) {
     const at = SPRITES_AT + k * SPRITE_BYTES
     const size = word(mem, at + 6)
-    if (size > 2) {
-      list.push(null)
-      continue
-    }
+    if (size > 2) continue
     const t = word(mem, at + 4)
-    list.push({
-      x: signed(word(mem, at)),
-      y: signed(word(mem, at + 2)),
-      size: 8 << size,
-      tile: t & CELL_TILE,
-      base: (SPRITE_PALETTES + ((t >> 10) & 7)) * 16,
-      flipX: (t & CELL_FLIP_X) !== 0,
-      flipY: (t & CELL_FLIP_Y) !== 0,
-      behind: (t & CELL_FRONT) !== 0,
-    })
-  }
-  return list
-}
-
-/**
- * The sprites on each line: the first 32 by number. Each sprite goes on the lines it covers,
- * in number order, once a frame - not every sprite looked at on every line.
- */
-function spritesByLine(list: readonly (Sprite | null)[]): Sprite[][] {
-  const lines: Sprite[][] = Array.from({ length: BITMAP_HEIGHT }, () => [])
-  for (const s of list) {
-    if (s === null) continue
-    const from = Math.max(0, s.y)
-    const to = Math.min(BITMAP_HEIGHT, s.y + s.size)
-    for (let y = from; y < to; y++) {
-      const line = lines[y] as Sprite[]
-      if (line.length < SPRITES_A_LINE) line.push(s)
+    const y = signed(word(mem, at + 2))
+    const dots_ = 8 << size
+    sprX[k] = signed(word(mem, at))
+    sprY[k] = y
+    sprSize[k] = dots_
+    sprTile[k] = t & CELL_TILE
+    sprBase[k] = (SPRITE_PALETTES + ((t >> 10) & 7)) * 16
+    sprFlags[k] =
+      ((t & CELL_FLIP_X) !== 0 ? FLIP_X : 0) |
+      ((t & CELL_FLIP_Y) !== 0 ? FLIP_Y : 0) |
+      ((t & CELL_FRONT) !== 0 ? BEHIND : 0)
+    const to = Math.min(BITMAP_HEIGHT, y + dots_)
+    for (let line = Math.max(0, y); line < to; line++) {
+      const n = onLine[line] as number
+      if (n < SPRITES_A_LINE) {
+        lineSprites[line * SPRITES_A_LINE + n] = k
+        onLine[line] = n + 1
+      }
     }
   }
-  return lines
 }
 
 /**
- * One sprite's dots on line y into `spr` (palette entries), over what is there, with whether
- * it is behind. The highest number is drawn first, so the lowest ends in front.
+ * Sprite k's dots on line y into `spr` (palette entries), over what is there, with whether it
+ * is behind. The highest number is drawn first, so the lowest ends in front.
  */
-function drawSprite(s: Sprite, y: number): void {
-  const dy = s.flipY ? s.size - 1 - (y - s.y) : y - s.y
-  const rowTile = s.tile + (dy >> 3) * (s.size >> 3)
+function drawSprite(k: number, y: number): void {
+  const size = sprSize[k] as number
+  const sx = sprX[k] as number
+  const flags = sprFlags[k] as number
+  const dy = (flags & FLIP_Y) !== 0 ? size - 1 - (y - (sprY[k] as number)) : y - (sprY[k] as number)
+  const rowTile = (sprTile[k] as number) + (dy >> 3) * (size >> 3)
   const inTile = (dy & 7) * 8
-  const behind = s.behind ? 1 : 0
-  const to = Math.min(BITMAP_WIDTH, s.x + s.size)
-  for (let x = Math.max(0, s.x); x < to; x++) {
-    const dx = s.flipX ? s.size - 1 - (x - s.x) : x - s.x
+  const behind = (flags & BEHIND) !== 0 ? 1 : 0
+  const base = sprBase[k] as number
+  const flipX = (flags & FLIP_X) !== 0
+  const to = Math.min(BITMAP_WIDTH, sx + size)
+  for (let x = Math.max(0, sx); x < to; x++) {
+    const dx = flipX ? size - 1 - (x - sx) : x - sx
     const index = dots[((rowTile + (dx >> 3)) & CELL_TILE) * 64 + inTile + (dx & 7)] as number
     if (index === 0) continue
-    spr[x] = s.base + index
+    spr[x] = base + index
     sprBehind[x] = behind
   }
 }
@@ -255,22 +298,25 @@ function cellRow(at: number, base: number, span: number, x: number): void {
 }
 
 /**
- * The line's sprites into `spr`, the lowest number in front of the rest whether or not it is
+ * Line y's sprites into `spr`, the lowest number in front of the rest whether or not it is
  * behind the backgrounds; where they lie, and whether any is behind, kept for laying them in.
  */
-function spriteLine(on: readonly Sprite[], y: number): void {
+function spriteLine(y: number): void {
   sprFrom = BITMAP_WIDTH
   sprTo = 0
   anyBehind = false
-  if (on.length === 0) return
-  for (let k = on.length - 1; k >= 0; k--) {
-    const s = on[k] as Sprite
-    sprFrom = Math.min(sprFrom, Math.max(0, s.x))
-    sprTo = Math.max(sprTo, Math.min(BITMAP_WIDTH, s.x + s.size))
-    if (s.behind) anyBehind = true
+  const n = onLine[y] as number
+  if (n === 0) return
+  const first = y * SPRITES_A_LINE
+  for (let j = n - 1; j >= 0; j--) {
+    const k = lineSprites[first + j] as number
+    const sx = sprX[k] as number
+    sprFrom = Math.min(sprFrom, Math.max(0, sx))
+    sprTo = Math.max(sprTo, Math.min(BITMAP_WIDTH, sx + (sprSize[k] as number)))
+    if (((sprFlags[k] as number) & BEHIND) !== 0) anyBehind = true
   }
   spr.fill(-1, sprFrom, sprTo)
-  for (let k = on.length - 1; k >= 0; k--) drawSprite(on[k] as Sprite, y)
+  for (let j = n - 1; j >= 0; j--) drawSprite(lineSprites[first + j] as number, y)
 }
 
 /** The sprites' dots that are (1) or are not (0) behind the backgrounds, onto the line. */
@@ -279,6 +325,22 @@ function layInSprites(behind: number): void {
     const v = spr[x] as number
     if (v >= 0 && sprBehind[x] === behind) line[x] = v
   }
+}
+
+/** The registers in force on the line being painted, moved on by the frame's log. */
+const now = { scroll: [0, 0, 0, 0] as [number, number, number, number], layers: 0 }
+
+/** The RGBA words of the canvas's buffer, kept for the buffer last painted. */
+let pixelsOf: ArrayBufferLike | null = null
+let pixels: Uint32Array = new Uint32Array(0)
+
+/** `out`'s bytes as RGBA words. */
+export function pixelWords(out: Uint8ClampedArray): Uint32Array {
+  if (pixelsOf !== out.buffer || pixels.byteOffset !== out.byteOffset) {
+    pixelsOf = out.buffer
+    pixels = new Uint32Array(out.buffer, out.byteOffset, out.length >> 2)
+  }
+  return pixels
 }
 
 /**
@@ -290,25 +352,38 @@ export function paintTiles(
   frame: { start: Raster; log: readonly RasterWrite[] },
   out: Uint8ClampedArray,
 ): void {
-  const pixels = new Uint32Array(out.buffer, out.byteOffset, BITMAP_WIDTH * BITMAP_HEIGHT)
-  const palette = colours(mem)
+  const words_ = pixelWords(out)
+  readPalette(mem)
   refreshTiles(mem)
-  const byLine = spritesByLine(sprites(mem))
-  const lines = rasterLines(frame)
+  readSprites(mem)
+  const log = frame.log
+  const start = frame.start
+  now.scroll[0] = start.scroll[0]
+  now.scroll[1] = start.scroll[1]
+  now.scroll[2] = start.scroll[2]
+  now.scroll[3] = start.scroll[3]
+  now.layers = start.layers
+  let k = 0
   for (let y = 0; y < BITMAP_HEIGHT; y++) {
-    paintLine(mem, lines[y] as Raster, byLine[y] as Sprite[], y)
+    while (k < log.length && (log[k] as RasterWrite).line <= y) {
+      const w = log[k] as RasterWrite
+      if (w.which === 4) now.layers = w.value
+      else now.scroll[w.which] = w.value
+      k++
+    }
+    paintLine(mem, now, y)
     const at = y * BITMAP_WIDTH
-    for (let x = 0; x < BITMAP_WIDTH; x++) pixels[at + x] = palette[line[x] as number] as number
+    for (let x = 0; x < BITMAP_WIDTH; x++) words_[at + x] = palette[line[x] as number] as number
   }
 }
 
 /** Line y from the back: the backdrop, behind sprites, BG0, BG1, sprites, the fronts. */
-function paintLine(mem: Uint8Array, r: Raster, on: readonly Sprite[], y: number): void {
+function paintLine(mem: Uint8Array, r: Raster, y: number): void {
   line.fill(0)
   const bg0 = (r.layers & LAYER.bg0) !== 0
   const bg1 = (r.layers & LAYER.bg1) !== 0
   const sprites_ = (r.layers & LAYER.sprites) !== 0
-  if (sprites_) spriteLine(on, y)
+  if (sprites_) spriteLine(y)
   else sprTo = 0
   if (anyBehind && sprTo > 0) layInSprites(1)
   frontCount[0] = 0

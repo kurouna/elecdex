@@ -1,8 +1,10 @@
+import { assemble, romImage } from '@shared/elec16/asm'
 import { CARD_STATUS } from '@shared/elec16/card'
 import { keyCode } from '@shared/elec16/keys'
 import { Elec16 } from '@shared/elec16/machine'
 import { RAM_SIZE } from '@shared/elec16/map'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE, SNAPSHOT_VERSION } from '@shared/elec16/snapshot'
+import { MIE, MPIE } from '@shared/elec16/state'
 import { describe, expect, it } from 'vitest'
 import { built, press, screen, settle, switchOn, type } from './elec16-helpers'
 
@@ -78,5 +80,30 @@ describe('a snapshot', () => {
     // The LCD's contrast, after its switch.
     expect(broken((b) => b.fill(16, head + 3, head + 4))).toBeNull()
     expect(new Uint8Array(RAM_SIZE).length).toBe(0x8000)
+  })
+
+  it('takes a flag only as 0 or 1, and only the mstatus bits a program can set', () => {
+    const rom = romImage(assemble('.org 0x8000\n  ebreak'))
+    const good = Elec16.boot(rom, 'play-320').snapshot()
+    // Where PLAY-320's flags are: after the head and the devices, the count of extended RAM
+    // banks, then whether there is video and its registers, then whether a cartridge is in.
+    const video = 74 + 2 + 86 + 1
+    const pending = video + 3
+    const dmaActive = video + 1 + 1 + 1 + 1 + 2 + 8 + 8 + 1 + 2 + 1 + 6
+    const slot = dmaActive + 1
+    expect([good[video], good[slot]]).toEqual([1, 0])
+    const changed = (at: number, value: number) => {
+      const b = good.slice()
+      b[at] = value
+      return decodeSnapshot(b)
+    }
+    for (const at of [pending, dmaActive, slot]) {
+      // 1 is a flag set: a DMA must then have bytes to move, a cartridge its bytes after.
+      expect(changed(at, 1) === null).toBe(at !== pending)
+      expect(changed(at, 2)).toBeNull()
+      expect(changed(at, 0xff)).toBeNull()
+    }
+    // mstatus, after the registers and the PC: what csrWrite would never leave there is dropped.
+    expect(changed(40, 0xff)?.csr.mstatus).toBe(MIE | MPIE)
   })
 })

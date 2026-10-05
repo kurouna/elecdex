@@ -33,7 +33,6 @@ import {
 } from './link.js'
 import { LINK_STATUS } from './link-services.js'
 import {
-  BANK_SIZE,
   BANK_WINDOW,
   DEFAULT_HZ,
   DEFAULT_MODEL,
@@ -58,10 +57,9 @@ import {
   INTERRUPT,
   IRQ,
   MIE,
-  MIE_LINES,
-  MIE_LINES_VIDEO,
   MISA,
   MPIE,
+  mieLines,
 } from './state.js'
 import {
   advanceVideo,
@@ -70,9 +68,11 @@ import {
   DMA_CYCLES,
   FRAME_HZ,
   FRAME_LINES,
+  latchNow,
   lineStep,
   msToFrame,
   resetVideo,
+  setLineCycles,
 } from './video.js'
 
 /** What woke a sleeping machine may be waiting for: a key, the pad, or the timer in so many ms. */
@@ -83,7 +83,7 @@ export interface Wake {
   timerMs: number | null
 }
 
-export interface RunResult {
+interface RunResult {
   /** Cycles run. */
   cycles: number
   /** Asleep in WFI (or switched off): what it waits for. Null while it runs. */
@@ -141,6 +141,10 @@ export class Elec16 implements Core {
   #passing = -1
   /** Host time given past a VBLANK or LINE that woke the machine, still to pass (`advance`). */
   #owedMs = 0
+  /** The screen's count of changes when the last frame ended (mode 1 draws whole frames). */
+  #frameRevision = -1
+  /** The lines mie takes on this model. */
+  readonly #mieLines: number
   // Filled, not sized: reading a hole in a sparse array goes up the prototype chain.
   readonly #code: (Inst | undefined)[] = Array.from({ length: VRAM }, () => undefined)
 
@@ -149,6 +153,7 @@ export class Elec16 implements Core {
     this.s = s
     this.r = s.regs
     this.model = MODELS[s.model]
+    this.#mieLines = mieLines(this.model)
     // The bus drops decoded code when RAM under it is written or the bank window changes.
     this.bus = new Bus(s, rom, this.model, this.#code)
   }
@@ -167,7 +172,10 @@ export class Elec16 implements Core {
   /** A machine from its snapshot (snapshot.ts), as it was; null when the bytes are not one. */
   static restore(rom: Uint8Array, bytes: Uint8Array): Elec16 | null {
     const s = decodeSnapshot(bytes)
-    return s === null ? null : new Elec16(rom, s)
+    if (s === null) return null
+    // What it showed is drawn at once, as the frame last finished.
+    if (s.video !== null) latchNow(s.video)
+    return new Elec16(rom, s)
   }
 
   /** The machine as bytes: a unit's battery backup. */
@@ -197,7 +205,7 @@ export class Elec16 implements Core {
     this.#hz = Math.min(MAX_HZ, Math.max(MIN_HZ, Math.round(hz)))
     // A line of PLAY-320's screen is a 312th of a sixtieth of a second at this clock.
     const v = this.s.video
-    if (v !== null) v.tiles.cyclesPerLine = this.#hz / FRAME_HZ / FRAME_LINES
+    if (v !== null) setLineCycles(v.tiles, this.#hz / FRAME_HZ / FRAME_LINES, this.s.cycles)
   }
 
   /** Runs up to `cycles` cycles; stops early when the machine sleeps, halts or goes off. */
@@ -343,7 +351,7 @@ export class Elec16 implements Core {
       }
       // LINE before VBLANK: a step of time that crosses both does not lose this frame's LINE.
       lineStep(v.tiles, s.cycles)
-      advanceVideo(v, ms, s.cycles)
+      if (advanceVideo(v, ms, s.cycles)) this.#frameEnded(v)
     }
     t.fraction += (ms * TIMER_HZ) / 1000
     const ticks = Math.floor(t.fraction)
@@ -352,6 +360,17 @@ export class Elec16 implements Core {
     const distance = (t.compare - t.count) & 0xffff || 0x10000
     if (t.enabled && !t.pending && distance <= ticks) t.pending = true
     t.count = (t.count + ticks) & 0xffff
+  }
+
+  /**
+   * A frame ended. Mode 1 is drawn a whole frame at a time, as it ended (video.ts, LastFrame):
+   * when anything shown changed in it, the screen's count moves once more, so the page draws
+   * the frame that has it - a scroll written with nothing else changing is drawn too.
+   */
+  #frameEnded(v: NonNullable<Elec16State['video']>): void {
+    const s = this.s
+    if (v.tiles.last.latched && s.screenRevision !== this.#frameRevision) s.screenRevision++
+    this.#frameRevision = s.screenRevision
   }
 
   /** What the clock reads, as the page has it. */
@@ -399,7 +418,7 @@ export class Elec16 implements Core {
     }
     this.s.cart = slot
     this.#bankGone()
-    this.#windowStale()
+    this.bus.windowStale()
     return true
   }
 
@@ -413,7 +432,7 @@ export class Elec16 implements Core {
     const fresh = slotOf(image, digest)
     if (fresh === null || fresh.id !== slot.id || fresh.banks !== slot.banks) return false
     slot.rom = fresh.rom
-    this.#windowStale()
+    this.bus.windowStale()
     return true
   }
 
@@ -422,7 +441,7 @@ export class Elec16 implements Core {
     if (this.s.cart === null) return
     this.s.cart = null
     this.#bankGone()
-    this.#windowStale()
+    this.bus.windowStale()
   }
 
   /**
@@ -433,11 +452,6 @@ export class Elec16 implements Core {
   #bankGone(): void {
     const s = this.s
     if (s.bank >= SAVE_BANK && !cartBankTaken(s.cart, s.bank)) s.bank = 0
-  }
-
-  /** What was decoded in the bank window (and the two bytes before it) is stale. */
-  #windowStale(): void {
-    this.#code.fill(undefined, BANK_WINDOW - 2, BANK_WINDOW + BANK_SIZE)
   }
 
   /**
@@ -481,6 +495,7 @@ export class Elec16 implements Core {
     // RESET is a person's press (or BRK/ON's): the program it starts may use LINK once.
     vouchLink(s)
     this.#code.fill(undefined)
+    this.bus.windowDecoded = false
     this.breakAt = null
     this.#passing = -1
     this.#owedMs = 0
@@ -613,21 +628,27 @@ export class Elec16 implements Core {
 
   #trapCsrRead(csr: number): number | null {
     const c = this.s.csr
-    const values: Record<number, number> = {
-      [CSR_NAMES.mtvec]: c.mtvec,
-      [CSR_NAMES.mscratch]: c.mscratch,
-      [CSR_NAMES.mepc]: c.mepc,
-      [CSR_NAMES.mcause]: c.mcause,
-      [CSR_NAMES.mtval]: c.mtval,
+    switch (csr) {
+      case CSR_NAMES.mtvec:
+        return c.mtvec
+      case CSR_NAMES.mscratch:
+        return c.mscratch
+      case CSR_NAMES.mepc:
+        return c.mepc
+      case CSR_NAMES.mcause:
+        return c.mcause
+      case CSR_NAMES.mtval:
+        return c.mtval
+      default:
+        return null
     }
-    return values[csr] ?? null
   }
 
   csrWrite(csr: number, value: number): void {
     const c = this.s.csr
     const v = value & 0xffff
     if (csr === CSR_NAMES.mstatus) c.mstatus = v & (MIE | MPIE)
-    else if (csr === CSR_NAMES.mie) c.mie = v & (this.model.video ? MIE_LINES_VIDEO : MIE_LINES)
+    else if (csr === CSR_NAMES.mie) c.mie = v & this.#mieLines
     else if (csr === CSR_NAMES.mtvec) c.mtvec = v & 0xfffe
     else if (csr === CSR_NAMES.mscratch) c.mscratch = v
     else if (csr === CSR_NAMES.mepc) c.mepc = v & 0xfffe
@@ -773,15 +794,16 @@ export class Elec16 implements Core {
   /** How long until VBLANK or LINE wakes a sleeping machine, of the ones it enabled; or null. */
   #videoWakeMs(v: NonNullable<Elec16State['video']>): number | null {
     const mie = this.s.csr.mie
-    const times: number[] = []
-    if ((mie & (1 << IRQ.vblank)) !== 0 && !v.pending) times.push(msToFrame(v))
+    let ms: number | null = null
+    if ((mie & (1 << IRQ.vblank)) !== 0 && !v.pending) ms = msToFrame(v)
     if ((mie & (1 << IRQ.line)) !== 0 && !v.tiles.linePending) {
       // This frame's LINE still to come, or - come and gone - the next frame's, after VBLANK:
       // never nothing, or a program waiting for it would be taken for idle and left asleep.
       const toLine = cyclesToLine(v.tiles, this.s.cycles)
-      times.push(toLine === null ? msToFrame(v) : (toLine * 1000) / this.#hz)
+      const line = toLine === null ? msToFrame(v) : (toLine * 1000) / this.#hz
+      ms = ms === null ? line : Math.min(ms, line)
     }
-    return times.length === 0 ? null : Math.min(...times)
+    return ms
   }
 
   /** Decodes the instruction at `pc` and keeps it, where code is kept. */
@@ -790,7 +812,11 @@ export class Elec16 implements Core {
     const hi = (lo & 3) === 3 ? this.bus.peek(pc + 2) | (this.bus.peek(pc + 3) << 8) : 0
     const inst = decode(lo, hi)
     // Kept only when every byte of it is below video memory, whose writes do not unkeep it.
-    if (pc + inst.size <= VRAM) this.#code[pc] = inst
+    if (pc + inst.size <= VRAM) {
+      this.#code[pc] = inst
+      // In the bank window (or reaching into it): a bank switch must drop it.
+      if (pc >= BANK_WINDOW - 2) this.bus.windowDecoded = true
+    }
     return inst
   }
 

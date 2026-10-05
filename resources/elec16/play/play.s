@@ -11,17 +11,9 @@ e16c_init:
   sw zero, 0x0100(zero)
   ; curY = 0
   sw zero, 0x0102(zero)
-  ; rowBuffer: 80 bytes of 0
+  ; rowBuffer, header, question: 148 bytes of 0
   li t0, 0x0104
-  li t1, 80
-  mset t0, zero, t1
-  ; header: 66 bytes of 0
-  li t0, 0x0154
-  li t1, 66
-  mset t0, zero, t1
-  ; question: 2 bytes of 0
-  li t0, 0x0196
-  li t1, 2
+  li t1, 148
   mset t0, zero, t1
   ret
 

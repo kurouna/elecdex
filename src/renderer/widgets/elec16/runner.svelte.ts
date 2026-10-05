@@ -39,11 +39,18 @@ export interface Elec16Host extends LoopHost {
   hushApu?(): void
 }
 
+/** The page's clock, read afresh only when the second has moved (the runner asks each tick). */
+let clockSecond = Number.NaN
+let clockFields: ClockFields | null = null
+
 export const browserElec16Host: Elec16Host = {
   ...browserLoop,
   clock: () => {
-    const d = new Date()
-    return {
+    const second = Math.floor(Date.now() / 1000)
+    if (second === clockSecond && clockFields !== null) return clockFields
+    clockSecond = second
+    const d = new Date(second * 1000)
+    clockFields = {
       second: d.getSeconds(),
       minute: d.getMinutes(),
       hour: d.getHours(),
@@ -52,6 +59,7 @@ export const browserElec16Host: Elec16Host = {
       year: d.getFullYear(),
       weekday: d.getDay(),
     }
+    return clockFields
   },
 }
 
@@ -134,6 +142,10 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   #padFrom: Record<PadSource, number> = { body: 0, keys: 0, gamepad: 0 }
   /** The loop's policy: how often it draws is the model's (PLAY-320 sixty times a second). */
   readonly #policy: TimedPolicy
+  /** The clock's reading last given the machine: the same reading is not given again. */
+  #clockGiven: ClockFields | null = null
+  /** The buzzer's tone last told the host, and its mark (made only when the tone changes). */
+  #tone = { freq: -1, gate: false, started: -1, mark: '' }
 
   constructor(host: Elec16Host) {
     const speed = { max: false }
@@ -152,6 +164,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   /** The model fitted: the views read it, and the loop draws at its rate. */
   #fit(model: ModelId): void {
     this.model = model
+    // Another machine: it is given the clock at its next tick.
+    this.#clockGiven = null
     this.#policy.drawMs = drawMsOf(model)
     // Another machine: what was held was held on the last one.
     this.#padFrom = { body: 0, keys: 0, gamepad: 0 }
@@ -451,10 +465,14 @@ export class Elec16Runner extends EmuRunner<Elec16> {
       this.pause('player')
       this.stepped++
     }
-    machine.setClock(this.#host.clock())
+    const clock = this.#host.clock()
+    if (clock !== this.#clockGiven) {
+      this.#clockGiven = clock
+      machine.setClock(clock)
+    }
     const b = machine.state.buzzer
     const left = b.gate ? Number.POSITIVE_INFINITY : b.duration - (machine.state.time - b.started)
-    this.#host.buzz?.(b.freq, left, `${b.freq}:${b.gate}:${b.started}`)
+    this.#host.buzz?.(b.freq, left, this.#markOf(b))
     const apu = machine.state.apu
     const video = machine.state.video
     if (apu !== null && video !== null && apu.revision !== this.#apuSent) {
@@ -468,6 +486,18 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     const asked = machine.takeLinkRequest()
     if (asked !== null) void this.#ask(machine, asked)
     this.#feed(machine)
+  }
+
+  /** What tells one tone of the buzzer from the next: its pitch, gate and start. */
+  #markOf(b: { freq: number; gate: boolean; started: number }): string {
+    const t = this.#tone
+    if (t.freq !== b.freq || t.gate !== b.gate || t.started !== b.started) {
+      t.freq = b.freq
+      t.gate = b.gate
+      t.started = b.started
+      t.mark = `${b.freq}:${b.gate}:${b.started}`
+    }
+    return t.mark
   }
 
   /** A LINK request to main and its answer back, waking the machine that waits for it. */

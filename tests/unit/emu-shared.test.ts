@@ -286,6 +286,41 @@ describe('the shared audio context', () => {
     vi.useRealTimers()
   })
 
+  it('keeps the context awake while a voice sounds on by itself, and sleeps a while after', async () => {
+    vi.useFakeTimers()
+    const { ac } = fakeContext()
+    const calls: string[] = []
+    const audio = new SharedAudio(() => ac)
+    await audio.get('elec16.js')
+    Object.assign(ac, {
+      resume: () => Promise.resolve(),
+      suspend: () => {
+        calls.push('suspend')
+        return Promise.resolve()
+      },
+    })
+    // A held note (PLAY-320's gate on, a gated BEEP): nothing more is sent for ten seconds.
+    const voice = {}
+    audio.wake()
+    audio.hold(voice, true)
+    vi.advanceTimersByTime(10_000)
+    expect(calls).toEqual([])
+    // Let go: the quiet while starts then.
+    audio.hold(voice, false)
+    vi.advanceTimersByTime(3999)
+    expect(calls).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(calls).toEqual(['suspend'])
+    // A tone of a length: awake for it, and the quiet while after it.
+    calls.length = 0
+    audio.wake(6000)
+    vi.advanceTimersByTime(9999)
+    expect(calls).toEqual([])
+    vi.advanceTimersByTime(1)
+    expect(calls).toEqual(['suspend'])
+    vi.useRealTimers()
+  })
+
   it('answers null where a context cannot be made, or a voice will not load', async () => {
     const none = new SharedAudio(() => {
       throw new Error('no audio')

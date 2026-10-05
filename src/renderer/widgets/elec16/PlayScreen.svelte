@@ -4,7 +4,7 @@ import { untrack } from 'svelte'
 import { onBoundary } from '../../lib/frame-loop.ts'
 import { deviceRoom, type Room } from '../emu/screen.ts'
 import { playScale } from './play-body.ts'
-import { paintPlay, playText, screenShows } from './play-painter.ts'
+import { paintKey, paintPlay, playText, screenShows } from './play-painter.ts'
 import type { Elec16Runner } from './runner.svelte.ts'
 
 /**
@@ -15,7 +15,9 @@ import type { Elec16Runner } from './runner.svelte.ts'
  * second, the loop's rate for this model - and once when stopped or switched off.
  *
  * The text on it is there too, unseen, for a screen reader: read back through the font at
- * most once a second, and only when it changed.
+ * most once a second, and only when it changed. It is announced only once it has rested a
+ * second: a game in mode 0 whose clock or score moves every second would otherwise be read
+ * out every second.
  */
 interface Props {
   runner: Elec16Runner
@@ -34,11 +36,18 @@ let host = $state<HTMLDivElement | null>(null)
 let canvas = $state<HTMLCanvasElement | null>(null)
 let room = $state<Room>({ w: 0, h: 0, ratio: 1 })
 let text = $state('')
+/** What was last announced, and the text waiting to rest before it is. */
+let announced = $state('')
+let resting = ''
 
-/** Device pixels a dot: the body's, or a whole number where it fits, else as much as fits. */
+/**
+ * Device pixels a dot: the body's, or a whole number where it fits, else as much as fits. The
+ * room is measured in device pixels, and playScale takes CSS pixels.
+ */
 const scale = $derived.by(() => {
   if (fixed !== undefined) return fixed.scale
-  return playScale(room, BITMAP_WIDTH, BITMAP_HEIGHT)
+  const css = { w: room.w / room.ratio, h: room.h / room.ratio, ratio: room.ratio }
+  return playScale(css, BITMAP_WIDTH, BITMAP_HEIGHT)
 })
 const ratio = $derived(fixed?.ratio ?? room.ratio)
 const css = $derived({
@@ -48,7 +57,7 @@ const css = $derived({
 
 let ctx: CanvasRenderingContext2D | null = null
 let image: ImageData | null = null
-/** The screen's count of changes at the last paint and the last reading of its text. */
+/** What was painted (`paintKey`), and the screen's count of changes at the last reading. */
 let paintedAt = -1
 let readAt = -1
 
@@ -72,24 +81,32 @@ function draw(always = false): void {
   const machine = runner.machine
   if (machine === null || ctx === null || image === null) return
   const s = machine.state
-  if (!always && s.screenRevision === paintedAt) return
-  paintedAt = s.screenRevision
+  const key = paintKey(s.video, s.off, s.screenRevision)
+  if (!always && key === paintedAt) return
+  paintedAt = key
   paintPlay(s.video, s.off, image.data)
   ctx.putImageData(image, 0, 0)
 }
 
-/** The text for a screen reader, when the screen changed since it was last read. */
-function readText(): void {
+/**
+ * The text for a screen reader, when the screen changed since it was last read; announced
+ * at once when `now` (the machine stopped, or another), else once it reads the same twice.
+ */
+function readText(now = false): void {
   const s = runner.machine?.state
-  if (s === undefined || s.screenRevision === readAt) return
-  readAt = s.screenRevision
-  const now =
-    screenShows(s.video, s.off) === 'bitmap'
-      ? playText(s.video?.mem ?? [])
-          .join('\n')
-          .trimEnd()
-      : ''
-  if (now !== text) text = now
+  if (s !== undefined && s.screenRevision !== readAt) {
+    readAt = s.screenRevision
+    const read =
+      screenShows(s.video, s.off) === 'bitmap'
+        ? playText(s.video?.mem ?? [])
+            .join('\n')
+            .trimEnd()
+        : ''
+    if (read !== text) text = read
+  }
+  const rested = now || text === resting
+  resting = text
+  if (rested && announced !== text) announced = text
 }
 
 $effect(() => {
@@ -102,7 +119,7 @@ $effect(() => {
     image = ctx?.createImageData(BITMAP_WIDTH, BITMAP_HEIGHT) ?? null
     draw(true)
     readAt = -1
-    readText()
+    readText(true)
   })
 })
 
@@ -117,14 +134,14 @@ $effect(() => {
   void runner.stepped
   untrack(() => {
     draw(true)
-    readText()
+    readText(true)
   })
 })
 
 // The text for a screen reader, on the second, while seen.
 $effect(() => {
   if (!seen || runner.status === 'empty') return
-  return onBoundary(1000, readText)
+  return onBoundary(1000, () => readText())
 })
 </script>
 
@@ -139,11 +156,13 @@ $effect(() => {
       data-scale={scale}
     ></canvas>
   </div>
-  <pre class="read" aria-live="polite" data-testid="elec16-text">{text}</pre>
+  <pre class="read" data-testid="elec16-text">{text}</pre>
+  <div class="read" aria-live="polite">{announced}</div>
 </div>
 
 <style>
 .play {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;

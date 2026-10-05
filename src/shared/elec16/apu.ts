@@ -39,8 +39,8 @@ export const WAVE = {
 } as const
 /** Where the eight wave tables are in video memory: 32 four-bit points each, 16 bytes. */
 export const WAVE_TABLES_AT = 0xc600
-export const WAVE_TABLE_BYTES = 16
-export const WAVE_TABLES = 8
+const WAVE_TABLE_BYTES = 16
+const WAVE_TABLES = 8
 /** The highest pitch FREQ can name (0xFFFF quarters): a slide stops there. */
 export const MAX_HZ = 0xffff / 4
 /** An envelope stage's time by its four-bit number, in milliseconds. */
@@ -217,6 +217,19 @@ interface Voice {
 
 const secondsOf = (index: number): number => Math.max(EDGE, (ENV_MS[index & 15] ?? 0) / 1000)
 
+const silentVoice = (): Voice => ({
+  c: channel(),
+  phase: 0,
+  stage: 'off',
+  level: 0,
+  age: 0,
+  ons: 0,
+  offs: 0,
+  lfsr: 0x4000,
+  noise: 1,
+  letGo: false,
+})
+
 /**
  * Sixteen voices made from the frames the page sends: each carries its phase, envelope and
  * noise from one block to the next, starting a note when its channel was keyed on since the
@@ -224,24 +237,22 @@ const secondsOf = (index: number): number => Math.max(EDGE, (ENV_MS[index & 15] 
  */
 export class ApuSynth {
   readonly #rate: number
+  /** A sample's length in seconds. */
+  readonly #tick: number
   #master = 15
   #tables: Uint8Array = new Uint8Array(WAVE_TABLES * WAVE_TABLE_BYTES)
   readonly #voices: Voice[]
 
   constructor(sampleRate: number) {
     this.#rate = sampleRate
-    this.#voices = Array.from({ length: CHANNELS }, () => ({
-      c: channel(),
-      phase: 0,
-      stage: 'off' as Stage,
-      level: 0,
-      age: 0,
-      ons: 0,
-      offs: 0,
-      lfsr: 0x4000,
-      noise: 1,
-      letGo: false,
-    }))
+    this.#tick = 1 / sampleRate
+    this.#voices = Array.from({ length: CHANNELS }, silentVoice)
+  }
+
+  /** Every voice silent and back at its start, as a new synth's (pause, a hidden pane). */
+  reset(): void {
+    this.#master = 15
+    for (let k = 0; k < CHANNELS; k++) this.#voices[k] = silentVoice()
   }
 
   /** The machine as it is now: notes keyed on or off since the last frame start or end. */
@@ -274,7 +285,8 @@ export class ApuSynth {
 
   /** Whether anything still sounds (a page may let the audio thread sleep when not). */
   get sounding(): boolean {
-    return this.#voices.some((v) => v.stage !== 'off')
+    for (const v of this.#voices) if (v.stage !== 'off') return true
+    return false
   }
 
   /** The next samples into `left` and `right`, added to what is there (they start at 0). */
@@ -285,13 +297,20 @@ export class ApuSynth {
         if (v.stage !== 'off') this.#skip(v, left.length)
         continue
       }
-      const gain = (v.c.vol / 15) * master * CHANNEL_LEVEL
-      const toRight = panRight(v.c.pan)
-      for (let i = 0; i < left.length; i++) {
-        const s = this.#sample(v) * this.#envelope(v) * gain
-        left[i] = (left[i] ?? 0) + s * (1 - toRight)
-        right[i] = (right[i] ?? 0) + s * toRight
-      }
+      this.#voice(v, (v.c.vol / 15) * master * CHANNEL_LEVEL, left, right)
+    }
+  }
+
+  /** One sounding voice's samples added in at `gain`. */
+  #voice(v: Voice, gain: number, left: Float32Array, right: Float32Array): void {
+    const toRight = panRight(v.c.pan)
+    // No slide and no vibrato: the pitch is the same all the block, worked out once.
+    const step = v.c.mod === 0 ? Math.min(MAX_HZ, v.c.freq / 4) / this.#rate : -1
+    for (let i = 0; i < left.length; i++) {
+      const wave = step < 0 ? this.#sample(v) : this.#steady(v, step)
+      const s = wave * this.#envelope(v) * gain
+      left[i] = (left[i] ?? 0) + s * (1 - toRight)
+      right[i] = (right[i] ?? 0) + s * toRight
     }
   }
 
@@ -302,7 +321,7 @@ export class ApuSynth {
 
   /** The envelope's level for the next sample (0-1), its stage moved on as time passes. */
   #envelope(v: Voice): number {
-    const step = 1 / this.#rate
+    const step = this.#tick
     const env = v.c.env
     const sustain = ((env >> 8) & 15) / 15
     switch (v.stage) {
@@ -337,7 +356,7 @@ export class ApuSynth {
   /** The wave's next sample (-1 to 1) at the pitch now, slide and vibrato in. */
   #sample(v: Voice): number {
     const c = v.c
-    v.age += 1 / this.#rate
+    v.age += this.#tick
     const slide = ((c.mod << 24) >> 24) / 4 / 12
     const depth = ((c.mod >> 8) & 15) / 16 / 12
     const rate = (c.mod >> 12) & 15
@@ -348,6 +367,15 @@ export class ApuSynth {
     if (c.wave === WAVE.noise) return this.#noise(v)
     v.phase -= Math.floor(v.phase)
     return waveAt(c.wave, v.phase, this.#tables)
+  }
+
+  /** The wave's next sample at a pitch that does not move: `step` is its phase a sample. */
+  #steady(v: Voice, step: number): number {
+    v.age += this.#tick
+    v.phase += step
+    if (v.c.wave === WAVE.noise) return this.#noise(v)
+    v.phase -= Math.floor(v.phase)
+    return waveAt(v.c.wave, v.phase, this.#tables)
   }
 
   /** Noise: a 15-bit LFSR clocked at the pitch, a step each time the phase passes 1. */
@@ -366,7 +394,7 @@ export class ApuSynth {
 }
 
 /** How much of a channel goes right: 0 all left, 8 half each, 15 all right. */
-export const panRight = (pan: number): number => (pan <= 8 ? pan / 16 : 0.5 + (pan - 8) / 14)
+const panRight = (pan: number): number => (pan <= 8 ? pan / 16 : 0.5 + (pan - 8) / 14)
 
 const DUTY = [0.125, 0.25, 0.5, 0.75] as const
 

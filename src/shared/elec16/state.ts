@@ -7,7 +7,15 @@ import { type ApuState, createApuState } from './apu.js'
 import { type CardState, createCardState } from './card.js'
 import type { CartSlot } from './cartridge.js'
 import { createLinkState, type LinkState } from './link.js'
-import { BANK_SIZE, MODELS, type ModelId, RAM_SIZE, RESET_VECTOR, VRAM_WINDOW } from './map.js'
+import {
+  BANK_SIZE,
+  MODELS,
+  type Model,
+  type ModelId,
+  RAM_SIZE,
+  RESET_VECTOR,
+  VRAM_WINDOW,
+} from './map.js'
 import { createMathState, type MathState } from './math-unit.js'
 import { createPadState, type PadState } from './pad.js'
 import { createVideoState, type VideoState } from './video.js'
@@ -121,10 +129,17 @@ export const IRQ = {
   brk: 15,
 } as const
 
-/** The lines mie takes: TIMER, KEY, CARD, MATH and LINK (BRK is never masked). */
+/** The lines mie takes on every model: TIMER, KEY, CARD, MATH and LINK (BRK is never masked). */
 export const MIE_LINES = 0x1f
-/** And VBLANK, PAD and LINE too, on PLAY-320: no other model's mie changes. */
-export const MIE_LINES_VIDEO = 0xff
+
+/**
+ * The lines mie takes on `model`: the five, and each line of a device it has - VBLANK and LINE
+ * with video, PAD with the pad (PLAY-320's); no other model's mie changes.
+ */
+export const mieLines = (model: Model): number =>
+  MIE_LINES |
+  (model.video ? (1 << IRQ.vblank) | (1 << IRQ.line) : 0) |
+  (model.pad ? 1 << IRQ.pad : 0)
 
 /** The LCD's annunciators, as bits of ANNUN: the marks above the dots. */
 export const ANNUNCIATORS = [

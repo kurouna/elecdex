@@ -53,10 +53,11 @@ import {
   VRAM_WINDOW,
   XRAM_MAX,
 } from './map.js'
-import { createState, type Elec16State, MIE_LINES, MIE_LINES_VIDEO } from './state.js'
+import { createState, type Elec16State, MIE, MPIE, mieLines } from './state.js'
 import {
   FRAME_LINES,
   LAYERS_ALL,
+  lineDueAgain,
   type TileState,
   VCTRL_MASK,
   VIDEO_PAGES,
@@ -121,11 +122,10 @@ const HEAD =
   1 + // video or not
   1 // a cartridge or not
 
-/** The longest snapshot there is, for whoever stores them to check against. */
-/** Video's registers: control, page, VBLANK, frame, fraction. */
 /** Mode 1's registers: four scrolls, LAYERS, LINECMP, LINE's flags, DMA's three and its flag. */
 const TILES_HEAD = 4 * 2 + 1 + 2 + 1 + 3 * 2 + 1
 
+/** Video's registers: control, page, VBLANK, frame, fraction, and mode 1's. */
 const VIDEO_HEAD = 1 + 1 + 1 + 2 + 8 + TILES_HEAD
 
 /** The slot: id, hash, ROM banks, save RAM banks. */
@@ -135,7 +135,6 @@ const CART_SLOT_HEAD = CART_ID_LENGTH + DIGEST_LENGTH + 1 + 1
 const APU_HEAD = 1 + 1 + 1 + CHANNELS * (1 + 2 + 1 + 1 + 2 + 2)
 
 /** The longest snapshot there is, for whoever stores them to check against. */
-
 export const SNAPSHOT_MAX_SIZE =
   HEAD +
   CAUSE_MAX +
@@ -226,15 +225,21 @@ function readTiles(r: ByteReader, s: Elec16State, t: TileState, fraction: number
   const flags = r.u8()
   t.linePending = (flags & 1) !== 0
   t.lineDone = (flags & 2) !== 0
-  t.dma = { src: r.u16(), dst: r.u16(), len: r.u16(), active: r.u8() === 1 }
+  const src = r.u16()
+  const dst = r.u16()
+  const len = r.u16()
+  const active = r.u8()
+  t.dma = { src, dst, len, active: active === 1 }
   t.slept = 0
   // The beam where the frame's time had it, so LINE and lineDone agree as they did.
   t.frameCycles = s.cycles - (finite(fraction) ? fraction : 0) * t.cyclesPerLine * FRAME_LINES
+  lineDueAgain(t)
   t.start = { scroll: [...t.scroll], layers: t.layers }
   return (
     t.scroll.every((v) => v < 512) &&
     t.layers <= LAYERS_ALL &&
     flags < 4 &&
+    active <= 1 &&
     (!t.dma.active || t.dma.len > 0)
   )
 }
@@ -282,7 +287,10 @@ function idOf(bytes: Uint8Array): string | null {
  * and bank counts in range. Its ROM is not here: null until the page puts it back.
  */
 function readSlot(r: ByteReader, s: Elec16State, version: number): boolean {
-  if (version < 5 || r.u8() === 0) return true
+  if (version < 5) return true
+  const has = r.u8()
+  if (has === 0) return true
+  if (has !== 1) return false
   const idBytes = r.raw(CART_ID_LENGTH)
   const digest = Uint8Array.from(r.raw(DIGEST_LENGTH))
   const banks = r.u8()
@@ -457,11 +465,18 @@ function readVideo(r: ByteReader, s: Elec16State, version: number): boolean {
   if (v === null) return true
   v.ctrl = r.u8()
   v.page = r.u8()
-  v.pending = r.u8() === 1
+  const pending = r.u8()
+  v.pending = pending === 1
   v.frame = r.u16()
   v.fraction = r.f64()
   if (version >= 6 && !readTiles(r, s, v.tiles, v.fraction)) return false
-  return v.ctrl <= VCTRL_MASK && v.page < VIDEO_PAGES && finite(v.fraction) && v.fraction < 1
+  return (
+    v.ctrl <= VCTRL_MASK &&
+    v.page < VIDEO_PAGES &&
+    pending <= 1 &&
+    finite(v.fraction) &&
+    v.fraction < 1
+  )
 }
 
 /** The CPU's part, into `s`; the flags and the halt are given back, to be checked last. */
@@ -476,8 +491,9 @@ function readCpu(
   const [mstatus = 0, mie = 0, mtvec = 0, mscratch = 0, mepc = 0, mcause = 0, mtval = 0] =
     Array.from({ length: 7 }, () => r.u16())
   s.csr = {
-    mstatus,
-    mie: mie & (version === 1 ? 15 : s.video !== null ? MIE_LINES_VIDEO : MIE_LINES),
+    // Only the bits a program can set (csrWrite): a snapshot holds no other.
+    mstatus: mstatus & (MIE | MPIE),
+    mie: mie & (version === 1 ? 15 : mieLines(MODELS[s.model])),
     mtvec: mtvec & 0xfffe,
     mscratch,
     mepc: mepc & 0xfffe,

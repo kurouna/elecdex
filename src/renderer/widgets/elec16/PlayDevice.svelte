@@ -49,6 +49,20 @@ $effect(() => {
   })
 })
 
+// The window moved to a screen of another density (or the page zoomed) without a resize: the
+// body is scaled again for it. The query names the ratio now, so it fires when that changes.
+$effect(() => {
+  const ratio = room.ratio
+  const query = window.matchMedia?.(`(resolution: ${ratio}dppx)`)
+  if (query === undefined) return
+  const moved = () => {
+    const now = window.devicePixelRatio || 1
+    if (now !== room.ratio) room = { ...room, ratio: now }
+  }
+  query.addEventListener('change', moved)
+  return () => query.removeEventListener('change', moved)
+})
+
 const body = $derived(BODIES[shape === 'auto' ? bodyFor(room) : shape])
 const scale = $derived(playScale(room, body.width, body.height))
 /** CSS pixels to a dot of the screen. */

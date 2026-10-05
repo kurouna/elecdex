@@ -1,13 +1,11 @@
 <script lang="ts">
 import { DEFAULT_MODEL, MODELS } from '@shared/elec16/map'
 import { pasteKeys } from '@shared/elec16/paste'
-import { romFromFile } from '@shared/elec16/rom'
-import { parseRgb } from '@shared/qr'
 import { onDestroy, tick, untrack } from 'svelte'
 import { afterBlink } from '../../lib/blink.ts'
 import { POWER_OFF_MS } from '../../lib/crt-motion.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
-import { onFrame } from '../../lib/frame-loop.ts'
+import { colourReader } from '../../lib/css-colour.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
@@ -26,8 +24,9 @@ import { DevGame } from './dev-game.svelte.ts'
 import FilesView from './FilesView.svelte'
 import GamesView from './GamesView.svelte'
 import LinkView from './LinkView.svelte'
-import type { LcdColours, Rgb } from './lcd-painter.ts'
+import type { LcdColours } from './lcd-painter.ts'
 import MemView from './MemView.svelte'
+import { MachineKeys } from './machine-keys.svelte.ts'
 import PlayDevice from './PlayDevice.svelte'
 import PlayScreen from './PlayScreen.svelte'
 import {
@@ -38,8 +37,8 @@ import {
   readElec16Pane,
 } from './pane-state.ts'
 import { claim, park } from './park.ts'
-import { kanaLit, pasteModes, pcKeyFate } from './pc-keys.ts'
-import { gamepadBits, playKeyFate } from './play-input.ts'
+import { pasteModes } from './pc-keys.ts'
+import { loadRoms } from './roms.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
 import { SKINS } from './skins.ts'
 import TuneView from './TuneView.svelte'
@@ -89,7 +88,13 @@ const session = new UnitSession(
     },
   },
 )
-const model = $derived(session.unit?.model ?? DEFAULT_MODEL)
+/**
+ * The model shown: the machine's once one runs (the runner fits it), the unit's until then -
+ * one source for the screen, the tabs, CORE's labels, the panel and the title.
+ */
+const model = $derived(
+  runner.status === 'empty' ? (session.unit?.model ?? DEFAULT_MODEL) : runner.model,
+)
 // Auto power-off is the unit's; switched off by it, the battery backup is written as for the
 // switch.
 runner.onAutoOff = () => session.save()
@@ -108,10 +113,10 @@ let symbols = $state.raw<Readonly<Record<'pocket' | 'play', Readonly<Record<stri
   play: {},
 })
 let failed = $state(false)
-/** PLAY-320 (docs/elec16-play.md): the PLAY ROM, its screen alone until G3, no keys, no FILES. */
-const play = $derived(MODELS[runner.model].rom === 'play')
+/** PLAY-320 (docs/elec16-play.md): the PLAY ROM, its pad and body, no keyboard, no FILES. */
+const play = $derived(MODELS[model].rom === 'play')
 /** CORE names code by the labels of the ROM the machine runs. */
-const labels = $derived(labelsOf(symbols[MODELS[runner.model].rom]))
+const labels = $derived(labelsOf(symbols[MODELS[model].rom]))
 /** FILES (the card and BASIC) on the pocket models, GAMES (the cartridge shelf) on PLAY-320. */
 const tabs = $derived(ELEC16_TABS.filter((t) => t !== (play ? 'files' : 'games')))
 const tab = $derived(tabs.includes(pane.tab) ? pane.tab : 'tune')
@@ -124,22 +129,15 @@ function change(next: Partial<Elec16Pane>): void {
   widgetState.patch(paneId, next)
 }
 
-// The ROMs come with the page, in chunks of their own, the first time a pane needs them: the
-// pocket ROM and the PLAY ROM, so a unit can be moved between the two in TUNE.
-void Promise.all([import('./rom.json'), import('./play-rom.json')]).then(
-  ([pocket, playFile]) => {
-    const images = { pocket: romFromFile(pocket.default), play: romFromFile(playFile.default) }
-    if (images.pocket === null || images.play === null) {
-      failed = true
-      return
-    }
-    symbols = { pocket: pocket.default.symbols, play: playFile.default.symbols }
-    roms = { pocket: images.pocket, play: images.play }
-  },
-  () => {
+// The ROMs, loaded and decoded once for the page (roms.ts).
+void loadRoms().then((loaded) => {
+  if (loaded === null) {
     failed = true
-  },
-)
+    return
+  }
+  symbols = loaded.symbols
+  roms = loaded.images
+})
 
 // Once the ROMs are here: the pane's unit, with the machine a moved pane left behind, or
 // from its battery backup.
@@ -168,7 +166,7 @@ const dev = new DevGame(
   window.elecdex.elec16,
   untrack(() => paneId),
   (id) => session.insertGame(id),
-  async () => (await import('./play-rom.json')).default.symbols.trap ?? 0,
+  async () => (await loadRoms())?.symbols.play.trap ?? 0,
 )
 $effect(() => dev.setSeen(visible))
 // A unit that is no PLAY-320 now (TUNE) has no slot: its folder is closed, so no build resets
@@ -275,86 +273,19 @@ function power(): void {
   if (runner.off) session.save()
 }
 
-/** PC keys held, by their code, with the machine key each pressed. */
-const held = new Map<string, number>()
-/** On PLAY-320: PC keys held, by their code, with the pad button each pressed. */
-const padKeys = new Map<string, number>()
-
-// The keyboard left: every key goes up, as no key-up will come.
-$effect(() => {
-  if (listening) return
-  untrack(() => {
-    held.clear()
-    padKeys.clear()
-    runner.releaseAll()
-  })
-})
-
-/** The pad buttons the PC's keys hold, together. */
-function keysHeld(): number {
-  let bits = 0
-  for (const bit of padKeys.values()) bits |= bit
-  return bits
-}
-
-/** A key on PLAY-320: a pad button (play-input.ts), BRK, or the app's. */
-function playKeyDown(event: KeyboardEvent): void {
-  const fate = playKeyFate(event)
-  if (fate.kind === 'pass') return
-  event.preventDefault()
-  if (fate.kind === 'brk') {
-    runner.brk()
-    return
-  }
-  padKeys.set(event.code, fate.bit)
-  runner.padFrom('keys', keysHeld())
-}
-
-// PLAY-320's gamepads, only while the pane is seen and has the focus: each tick the machine
-// runs (the runner reads them), and on the shared 10 fps loop while it sleeps.
-$effect(() => {
-  if (!play || !listening || !machineSeen) return
-  const read = () => gamepadBits(navigator.getGamepads?.() ?? [])
-  runner.gamepads = read
-  const stop = onFrame(() => {
-    if (runner.asleep) runner.padFrom('gamepad', read())
-  })
-  return () => {
-    stop()
-    runner.gamepads = null
-    runner.padFrom('gamepad', 0)
-  }
+/** The PC's keys and gamepads, given to the machine while the pane listens (machine-keys). */
+const keys = new MachineKeys(runner, {
+  listening: () => listening,
+  play: () => play,
+  seen: () => machineSeen,
 })
 
 function onkeydown(event: KeyboardEvent): void {
-  if (event.target !== root || !listening) return
-  if (play) {
-    playKeyDown(event)
-    return
-  }
-  const fate = pcKeyFate(event, kanaLit(runner.annunciators))
-  if (fate.kind === 'pass') return
-  event.preventDefault()
-  if (fate.kind === 'brk') {
-    runner.brk()
-    return
-  }
-  held.set(event.code, fate.code)
-  runner.down(fate.code, fate.shift)
+  if (event.target === root) keys.down(event)
 }
 
 function onkeyup(event: KeyboardEvent): void {
-  if (padKeys.delete(event.code)) {
-    event.preventDefault()
-    runner.padFrom('keys', keysHeld())
-    return
-  }
-  // A key goes up whatever else is held by then: the machine must never keep one down.
-  const code = held.get(event.code)
-  if (code === undefined) return
-  held.delete(event.code)
-  event.preventDefault()
-  runner.release(code)
+  keys.up(event)
 }
 
 /** A press on one of the pane's buttons or keys gives the keyboard back to the machine. */
@@ -397,16 +328,7 @@ $effect(() => {
   const el = root
   const wanted = skin.lcd
   if (el === null) return
-  const probe = document.createElement('canvas').getContext('2d')
-  const read = (css: string, fallback: Rgb): Rgb => {
-    el.style.setProperty('--e16-probe', css)
-    const value = getComputedStyle(el).getPropertyValue('--e16-probe').trim()
-    el.style.removeProperty('--e16-probe')
-    if (probe === null || value === '') return fallback
-    probe.fillStyle = '#000'
-    probe.fillStyle = value
-    return parseRgb(String(probe.fillStyle)) ?? fallback
-  }
+  const read = colourReader(el)
   lcdColours = {
     ground: read(wanted.ground, [0, 0, 0]),
     dot: read(wanted.dot, [255, 255, 255]),

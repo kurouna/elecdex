@@ -183,81 +183,17 @@ e16c_init:
   sw zero, 0x07fc(zero)
   ; askType = 0
   sw zero, 0x07fe(zero)
-  ; lineBuf: 80 bytes of 0
+  ; lineBuf, lastLine, tokens, nums, strTemp: 944 bytes of 0
   li t0, 0x0144
-  li t1, 80
+  li t1, 944
   mset t0, zero, t1
-  ; lastLine: 80 bytes of 0
-  li t0, 0x0194
-  li t1, 80
-  mset t0, zero, t1
-  ; tokens: 80 bytes of 0
-  li t0, 0x01e4
-  li t1, 80
-  mset t0, zero, t1
-  ; nums: 192 bytes of 0
-  li t0, 0x0234
-  li t1, 192
-  mset t0, zero, t1
-  ; strTemp: 512 bytes of 0
-  li t0, 0x02f4
-  li t1, 512
-  mset t0, zero, t1
-  ; ans: 8 bytes of 0
+  ; ans, textOut, forStack, gosubStack, gosubFor: 288 bytes of 0
   li t0, 0x04f6
-  li t1, 8
+  li t1, 288
   mset t0, zero, t1
-  ; textOut: 24 bytes of 0
-  li t0, 0x04fe
-  li t1, 24
-  mset t0, zero, t1
-  ; forStack: 176 bytes of 0
-  li t0, 0x0516
-  li t1, 176
-  mset t0, zero, t1
-  ; gosubStack: 64 bytes of 0
-  li t0, 0x05c6
-  li t1, 64
-  mset t0, zero, t1
-  ; gosubFor: 16 bytes of 0
-  li t0, 0x0606
-  li t1, 16
-  mset t0, zero, t1
-  ; cardBlock: 32 bytes of 0
+  ; cardBlock, cardBuf, nothing, fileMode, fileName, fileOffset, fileLen, filePos, fileBuf: 456 bytes of 0
   li t0, 0x0622
-  li t1, 32
-  mset t0, zero, t1
-  ; cardBuf: 256 bytes of 0
-  li t0, 0x0642
-  li t1, 256
-  mset t0, zero, t1
-  ; nothing: 2 bytes of 0
-  li t0, 0x0742
-  li t1, 2
-  mset t0, zero, t1
-  ; fileMode: 2 bytes of 0
-  li t0, 0x0744
-  li t1, 2
-  mset t0, zero, t1
-  ; fileName: 24 bytes of 0
-  li t0, 0x0746
-  li t1, 24
-  mset t0, zero, t1
-  ; fileOffset: 4 bytes of 0
-  li t0, 0x075e
-  li t1, 4
-  mset t0, zero, t1
-  ; fileLen: 4 bytes of 0
-  li t0, 0x0762
-  li t1, 4
-  mset t0, zero, t1
-  ; filePos: 4 bytes of 0
-  li t0, 0x0766
-  li t1, 4
-  mset t0, zero, t1
-  ; fileBuf: 128 bytes of 0
-  li t0, 0x076a
-  li t1, 128
+  li t1, 456
   mset t0, zero, t1
   ret
 
@@ -12483,7 +12419,7 @@ str_33:
 
   .bank 3
   .org 0xc000
-; basic/tools.e16.ts:82 autoStatement() at -O1
+; basic/tools.e16.ts:81 autoStatement() at -O1
 ;   start in s2
 ;   by in s3
 ;   at in s1
@@ -12493,15 +12429,15 @@ autoStatement:
   sw s2, 2(sp)
   sw s3, 4(sp)
   sw s1, 6(sp)
-  ; basic/tools.e16.ts:83  let start: u16 = 10
+  ; basic/tools.e16.ts:82  let start: u16 = 10
   li s2, 10 ; start
-  ; basic/tools.e16.ts:84  let by: u16 = 10
+  ; basic/tools.e16.ts:83  let by: u16 = 10
   li s3, 10 ; by
-  ; basic/tools.e16.ts:86  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) start = peek16(at) + 10
+  ; basic/tools.e16.ts:85  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) start = peek16(at) + 10
   li s1, 2048 ; at
   j .L3
 .L1:
-  ; basic/tools.e16.ts:86  start = peek16(at) + 10
+  ; basic/tools.e16.ts:85  start = peek16(at) + 10
   lw t0, 0(s1)
   addi s2, t0, 10
   lw t0, 2(s1)
@@ -12509,33 +12445,33 @@ autoStatement:
 .L3:
   lw t0, 0(s1)
   bne t0, zero, .L1
-  ; basic/tools.e16.ts:87  if (isDigit(next())) start = readUnsigned()
+  ; basic/tools.e16.ts:86  if (isDigit(next())) start = readUnsigned()
   call next
   call isDigit
   beqz a0, .L5
-  ; basic/tools.e16.ts:87  start = readUnsigned()
+  ; basic/tools.e16.ts:86  start = readUnsigned()
   call readUnsigned
   mv s2, a0 ; start
 .L5:
-  ; basic/tools.e16.ts:88  if (next() === CH_COMMA) {
+  ; basic/tools.e16.ts:87  if (next() === CH_COMMA) {
   call next
   li t0, 44
   bne a0, t0, .L6
-  ; basic/tools.e16.ts:89  step()
+  ; basic/tools.e16.ts:88  step()
   call step
-  ; basic/tools.e16.ts:90  by = readUnsigned()
+  ; basic/tools.e16.ts:89  by = readUnsigned()
   call readUnsigned
   mv s3, a0 ; by
 .L6:
-  ; basic/tools.e16.ts:92  if (start === 0 || by === 0) fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:91  if (start === 0 || by === 0) fail(E_ARGUMENT)
   beq s2, zero, .L8
   bne s3, zero, .L7
 .L8:
-  ; basic/tools.e16.ts:92  fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:91  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L7:
-  ; basic/tools.e16.ts:93  setAuto(start, by)
+  ; basic/tools.e16.ts:92  setAuto(start, by)
   mv a0, s2
   mv a1, s3
   call setAuto
@@ -12547,7 +12483,7 @@ autoStatement:
   addi sp, sp, 8
   ret
 
-; basic/tools.e16.ts:97 deleteStatement() at -O1
+; basic/tools.e16.ts:96 deleteStatement() at -O1
 ;   from in s1
 ;   to in s2
 ;   at in s3
@@ -12557,34 +12493,34 @@ deleteStatement:
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  ; basic/tools.e16.ts:99  if (statementEnds()) fail(E_SYNTAX)
+  ; basic/tools.e16.ts:98  if (statementEnds()) fail(E_SYNTAX)
   call statementEnds
   beqz a0, .L1
-  ; basic/tools.e16.ts:99  fail(E_SYNTAX)
+  ; basic/tools.e16.ts:98  fail(E_SYNTAX)
   li a0, 1
   call fail
 .L1:
-  ; basic/tools.e16.ts:100  let from: u16 = 0
+  ; basic/tools.e16.ts:99  let from: u16 = 0
   li s1, 0 ; from
-  ; basic/tools.e16.ts:101  let to: u16 = 0xffff
+  ; basic/tools.e16.ts:100  let to: u16 = 0xffff
   li s2, 65535 ; to
-  ; basic/tools.e16.ts:102  if (isDigit(next())) {
+  ; basic/tools.e16.ts:101  if (isDigit(next())) {
   call next
   call isDigit
   beqz a0, .L2
-  ; basic/tools.e16.ts:103  from = readUnsigned()
+  ; basic/tools.e16.ts:102  from = readUnsigned()
   call readUnsigned
   mv s1, a0 ; from
-  ; basic/tools.e16.ts:104  to = from
+  ; basic/tools.e16.ts:103  to = from
   mv s2, s1 ; to
 .L2:
-  ; basic/tools.e16.ts:106  if (next() === CH_MINUS) {
+  ; basic/tools.e16.ts:105  if (next() === CH_MINUS) {
   call next
   li t0, 45
   bne a0, t0, .L3
-  ; basic/tools.e16.ts:107  step()
+  ; basic/tools.e16.ts:106  step()
   call step
-  ; basic/tools.e16.ts:108  to = isDigit(next()) ? readUnsigned() : 0xffff
+  ; basic/tools.e16.ts:107  to = isDigit(next()) ? readUnsigned() : 0xffff
   call next
   call isDigit
   beqz a0, .L4
@@ -12596,26 +12532,26 @@ deleteStatement:
 .L5:
   mv s2, t0 ; to
 .L3:
-  ; basic/tools.e16.ts:110  if (to < from) fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:109  if (to < from) fail(E_ARGUMENT)
   bgeu s2, s1, .L6
-  ; basic/tools.e16.ts:110  fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:109  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L6:
-  ; basic/tools.e16.ts:111  let at = findLine(from, false)
+  ; basic/tools.e16.ts:110  let at = findLine(from, false)
   mv a0, s1
   li a1, 0
   call findLine
   mv s3, a0 ; at
-  ; basic/tools.e16.ts:112  while (at !== 0 && peek16(at) <= to) {
+  ; basic/tools.e16.ts:111  while (at !== 0 && peek16(at) <= to) {
   j .L9
 .L7:
-  ; basic/tools.e16.ts:113  storeLine(peek16(at), 0, 1)
+  ; basic/tools.e16.ts:112  storeLine(peek16(at), 0, 1)
   lw a0, 0(s3)
   li a1, 0
   li a2, 1
   call storeLine
-  ; basic/tools.e16.ts:114  at = findLine(from, false)
+  ; basic/tools.e16.ts:113  at = findLine(from, false)
   mv a0, s1
   li a1, 0
   call findLine
@@ -12633,7 +12569,7 @@ deleteStatement:
   addi sp, sp, 8
   ret
 
-; basic/tools.e16.ts:121 listedLength(n, text) at -O1
+; basic/tools.e16.ts:120 listedLength(n, text) at -O1
 ;   n in s1
 ;   text in s2
 listedLength:
@@ -12643,7 +12579,7 @@ listedLength:
   sw s2, 4(sp)
   mv s1, a0 ; n
   mv s2, a1 ; text
-  ; basic/tools.e16.ts:123  return unsignedText(n, addr(strTemp)) + 1 + expand(text, addr(strTemp), 255)
+  ; basic/tools.e16.ts:122  return unsignedText(n, addr(strTemp)) + 1 + expand(text, addr(strTemp), 255)
   mv a0, s1
   la a1, strTemp
   call unsignedText
@@ -12664,7 +12600,7 @@ listedLength:
   addi sp, sp, 6
   ret
 
-; basic/tools.e16.ts:131 checkLength(n, text) at -O1
+; basic/tools.e16.ts:130 checkLength(n, text) at -O1
 ;   n in s1
 ;   text in s2
 checkLength:
@@ -12674,13 +12610,13 @@ checkLength:
   sw s2, 4(sp)
   mv s1, a0 ; n
   mv s2, a1 ; text
-  ; basic/tools.e16.ts:132  if (listedLength(n, text) > LINE_MAX) failIn(E_LONG, n)
+  ; basic/tools.e16.ts:131  if (listedLength(n, text) > LINE_MAX) failIn(E_LONG, n)
   mv a0, s1
   mv a1, s2
   call listedLength
   li t0, 78
   bgeu t0, a0, .L1
-  ; basic/tools.e16.ts:132  failIn(E_LONG, n)
+  ; basic/tools.e16.ts:131  failIn(E_LONG, n)
   li a0, 21
   mv a1, s1
   call failIn
@@ -12692,39 +12628,39 @@ checkLength:
   addi sp, sp, 6
   ret
 
-; basic/tools.e16.ts:142 renumbered(old) at -O1
+; basic/tools.e16.ts:141 renumbered(old) at -O1
 ;   old in a0
 ;   k in a2
 ;   at in a1
 ;   n in a3
 renumbered:
-  ; basic/tools.e16.ts:143  if (old < renumFrom) return old
+  ; basic/tools.e16.ts:142  if (old < renumFrom) return old
   lw t0, 0x07ec(zero)
   bgeu a0, t0, .L1
-  ; basic/tools.e16.ts:143  return old
+  ; basic/tools.e16.ts:142  return old
   ret
 .L1:
-  ; basic/tools.e16.ts:144  let k: u16 = 0
+  ; basic/tools.e16.ts:143  let k: u16 = 0
   li a2, 0 ; k
-  ; basic/tools.e16.ts:145  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
+  ; basic/tools.e16.ts:144  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
   li a1, 2048 ; at
   j .L4
 .L2:
-  ; basic/tools.e16.ts:146  const n = peek16(at)
+  ; basic/tools.e16.ts:145  const n = peek16(at)
   lw a3, 0(a1)
-  ; basic/tools.e16.ts:147  if (n === old) return newStart + k * renumStep
+  ; basic/tools.e16.ts:146  if (n === old) return newStart + k * renumStep
   bne a3, a0, .L6
-  ; basic/tools.e16.ts:147  return newStart + k * renumStep
+  ; basic/tools.e16.ts:146  return newStart + k * renumStep
   lw t0, 0x07ea(zero)
   lw t1, 0x07ee(zero)
   mul t1, a2, t1
   add a0, t0, t1
   ret
 .L6:
-  ; basic/tools.e16.ts:148  if (n >= renumFrom) k++
+  ; basic/tools.e16.ts:147  if (n >= renumFrom) k++
   lw t0, 0x07ec(zero)
   bltu a3, t0, .L7
-  ; basic/tools.e16.ts:148  k++
+  ; basic/tools.e16.ts:147  k++
   addi a2, a2, 1
 .L7:
   lw t0, 2(a1)
@@ -12732,11 +12668,11 @@ renumbered:
 .L4:
   lw t0, 0(a1)
   bne t0, zero, .L2
-  ; basic/tools.e16.ts:151  return old
+  ; basic/tools.e16.ts:150  return old
 .return:
   ret
 
-; basic/tools.e16.ts:159 renumStatement() at -O1
+; basic/tools.e16.ts:158 renumStatement() at -O1
 ;   at in s1
 ;   n/k in s2
 ;   length in s3
@@ -12746,101 +12682,101 @@ renumStatement:
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  ; basic/tools.e16.ts:160  newStart = 10
+  ; basic/tools.e16.ts:159  newStart = 10
   li t0, 10
   sw t0, 0x07ea(zero)
-  ; basic/tools.e16.ts:161  renumFrom = 0
+  ; basic/tools.e16.ts:160  renumFrom = 0
   sw zero, 0x07ec(zero)
-  ; basic/tools.e16.ts:162  renumStep = 10
+  ; basic/tools.e16.ts:161  renumStep = 10
   li t0, 10
   sw t0, 0x07ee(zero)
-  ; basic/tools.e16.ts:163  if (isDigit(next())) newStart = readUnsigned()
+  ; basic/tools.e16.ts:162  if (isDigit(next())) newStart = readUnsigned()
   call next
   call isDigit
   beqz a0, .L1
-  ; basic/tools.e16.ts:163  newStart = readUnsigned()
+  ; basic/tools.e16.ts:162  newStart = readUnsigned()
   call readUnsigned
   sw a0, 0x07ea(zero)
 .L1:
-  ; basic/tools.e16.ts:164  if (next() === CH_COMMA) {
+  ; basic/tools.e16.ts:163  if (next() === CH_COMMA) {
   call next
   li t0, 44
   bne a0, t0, .L2
-  ; basic/tools.e16.ts:165  step()
+  ; basic/tools.e16.ts:164  step()
   call step
-  ; basic/tools.e16.ts:166  if (isDigit(next())) renumFrom = readUnsigned()
+  ; basic/tools.e16.ts:165  if (isDigit(next())) renumFrom = readUnsigned()
   call next
   call isDigit
   beqz a0, .L3
-  ; basic/tools.e16.ts:166  renumFrom = readUnsigned()
+  ; basic/tools.e16.ts:165  renumFrom = readUnsigned()
   call readUnsigned
   sw a0, 0x07ec(zero)
 .L3:
 .L2:
-  ; basic/tools.e16.ts:168  if (next() === CH_COMMA) {
+  ; basic/tools.e16.ts:167  if (next() === CH_COMMA) {
   call next
   li t0, 44
   bne a0, t0, .L4
-  ; basic/tools.e16.ts:169  step()
+  ; basic/tools.e16.ts:168  step()
   call step
-  ; basic/tools.e16.ts:170  renumStep = readUnsigned()
+  ; basic/tools.e16.ts:169  renumStep = readUnsigned()
   call readUnsigned
   sw a0, 0x07ee(zero)
 .L4:
-  ; basic/tools.e16.ts:172  checkRoom()
+  ; basic/tools.e16.ts:171  checkRoom()
   call checkRoom
-  ; basic/tools.e16.ts:173  checkRewrites()
+  ; basic/tools.e16.ts:172  checkRewrites()
   call checkRewrites
-  ; basic/tools.e16.ts:175  let at = PROG
+  ; basic/tools.e16.ts:174  let at = PROG
   li s1, 2048 ; at
-  ; basic/tools.e16.ts:176  while (peek16(at) !== 0) {
+  ; basic/tools.e16.ts:175  while (peek16(at) !== 0) {
   j .L7
 .L5:
-  ; basic/tools.e16.ts:177  const n = peek16(at)
+  ; basic/tools.e16.ts:176  const n = peek16(at)
   lw s2, 0(s1)
-  ; basic/tools.e16.ts:178  const length = rewrite(at + 4)
+  ; basic/tools.e16.ts:177  const length = rewrite(at + 4)
   addi a0, s1, 4
   call rewrite
   mv s3, a0 ; length
-  ; basic/tools.e16.ts:179  if (length !== 0) {
+  ; basic/tools.e16.ts:178  if (length !== 0) {
   beq s3, zero, .L9
-  ; basic/tools.e16.ts:180  storeLine(n, addr(lineBuf), length)
+  ; basic/tools.e16.ts:179  storeLine(n, addr(lineBuf), length)
   mv a0, s2
   la a1, lineBuf
   mv a2, s3
   call storeLine
-  ; basic/tools.e16.ts:181  at = findLine(n, true)
+  ; basic/tools.e16.ts:180  at = findLine(n, true)
   mv a0, s2
   li a1, 1
   call findLine
   mv s1, a0 ; at
 .L9:
-  ; basic/tools.e16.ts:183  at += peek16(at + 2)
+  ; basic/tools.e16.ts:182  at += peek16(at + 2)
   lw t0, 2(s1)
   add s1, s1, t0
 .L7:
   lw t0, 0(s1)
   bne t0, zero, .L5
-  ; basic/tools.e16.ts:185  let k: u16 = 0
+  ; basic/tools.e16.ts:184  let k: u16 = 0
   li s2, 0 ; n/k
-  ; basic/tools.e16.ts:186  for (at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
+  ; basic/tools.e16.ts:185  for (at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
   li s1, 2048 ; at
   j .L12
 .L10:
-  ; basic/tools.e16.ts:187  if (peek16(at) < renumFrom) continue
+  ; basic/tools.e16.ts:186  if (peek16(at) < renumFrom) continue
   lw t0, 0(s1)
   lw t1, 0x07ec(zero)
   bgeu t0, t1, .L14
-  ; basic/tools.e16.ts:187  continue
+  ; basic/tools.e16.ts:186  continue
   j .L11
 .L14:
-  ; basic/tools.e16.ts:188  poke16(at, newStart + k * renumStep)
+  ; basic/tools.e16.ts:187  poke16(at, newStart + k * renumStep)
   lw t0, 0x07ea(zero)
   lw t1, 0x07ee(zero)
   mul t1, s2, t1
   add t0, t0, t1
   sw t0, 0(s1)
-  ; basic/tools.e16.ts:189  k++
+  ; basic/tools.e16.ts:188  k++
   addi s2, s2, 1
 .L11:
   lw t0, 2(s1)
@@ -12848,7 +12784,7 @@ renumStatement:
 .L12:
   lw t0, 0(s1)
   bne t0, zero, .L10
-  ; basic/tools.e16.ts:191  keepProgramTo(progEnd)
+  ; basic/tools.e16.ts:190  keepProgramTo(progEnd)
   lw a0, 0x0112(zero)
   call keepProgramTo
 .return:
@@ -12859,7 +12795,7 @@ renumStatement:
   addi sp, sp, 8
   ret
 
-; basic/tools.e16.ts:195 checkRoom() at -O1
+; basic/tools.e16.ts:194 checkRoom() at -O1
 ;   count in s2
 ;   at in s1
 ;   n in s3
@@ -12869,7 +12805,7 @@ checkRoom:
   sw s2, 2(sp)
   sw s1, 4(sp)
   sw s3, 6(sp)
-  ; basic/tools.e16.ts:196  if (renumStep === 0 || newStart === 0 || newStart > 65529) fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:195  if (renumStep === 0 || newStart === 0 || newStart > 65529) fail(E_ARGUMENT)
   lw t0, 0x07ee(zero)
   beq t0, zero, .L2
   lw t0, 0x07ea(zero)
@@ -12878,31 +12814,31 @@ checkRoom:
   li t1, 65529
   bgeu t1, t0, .L1
 .L2:
-  ; basic/tools.e16.ts:196  fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:195  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L1:
-  ; basic/tools.e16.ts:197  let count: u16 = 0
+  ; basic/tools.e16.ts:196  let count: u16 = 0
   li s2, 0 ; count
-  ; basic/tools.e16.ts:198  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
+  ; basic/tools.e16.ts:197  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
   li s1, 2048 ; at
   j .L5
 .L3:
-  ; basic/tools.e16.ts:199  const n = peek16(at)
+  ; basic/tools.e16.ts:198  const n = peek16(at)
   lw s3, 0(s1)
-  ; basic/tools.e16.ts:200  if (n < renumFrom && n >= newStart) fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:199  if (n < renumFrom && n >= newStart) fail(E_ARGUMENT)
   lw t0, 0x07ec(zero)
   bgeu s3, t0, .L7
   lw t0, 0x07ea(zero)
   bltu s3, t0, .L7
-  ; basic/tools.e16.ts:200  fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:199  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L7:
-  ; basic/tools.e16.ts:201  if (n >= renumFrom) count++
+  ; basic/tools.e16.ts:200  if (n >= renumFrom) count++
   lw t0, 0x07ec(zero)
   bltu s3, t0, .L8
-  ; basic/tools.e16.ts:201  count++
+  ; basic/tools.e16.ts:200  count++
   addi s2, s2, 1
 .L8:
   lw t0, 2(s1)
@@ -12910,7 +12846,7 @@ checkRoom:
 .L5:
   lw t0, 0(s1)
   bne t0, zero, .L3
-  ; basic/tools.e16.ts:203  if (count > 0 && count - 1 > div(65529 - newStart, renumStep)) fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:202  if (count > 0 && count - 1 > div(65529 - newStart, renumStep)) fail(E_ARGUMENT)
   bgeu zero, s2, .L9
   lw t0, 0x07ea(zero)
   li t1, 65529
@@ -12919,7 +12855,7 @@ checkRoom:
   divu t1, t1, t0
   addi t0, s2, -1
   bgeu t1, t0, .L9
-  ; basic/tools.e16.ts:203  fail(E_ARGUMENT)
+  ; basic/tools.e16.ts:202  fail(E_ARGUMENT)
   li a0, 4
   call fail
 .L9:
@@ -12931,7 +12867,7 @@ checkRoom:
   addi sp, sp, 8
   ret
 
-; basic/tools.e16.ts:211 checkRewrites() at -O1
+; basic/tools.e16.ts:210 checkRewrites() at -O1
 ;   grows in s3
 ;   k in 0(fp)
 ;   at in s1
@@ -12948,53 +12884,53 @@ checkRewrites:
   sw s2, 16(sp)
   sw s0, 18(sp)
   mv fp, sp
-  ; basic/tools.e16.ts:212  let grows: u16 = 0
+  ; basic/tools.e16.ts:211  let grows: u16 = 0
   li s3, 0 ; grows
-  ; basic/tools.e16.ts:213  let k: u16 = 0
+  ; basic/tools.e16.ts:212  let k: u16 = 0
   sw zero, 0(fp) ; k
-  ; basic/tools.e16.ts:214  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
+  ; basic/tools.e16.ts:213  for (let at = PROG; peek16(at) !== 0; at += peek16(at + 2)) {
   li s1, 2048 ; at
   j .L3
 .L1:
-  ; basic/tools.e16.ts:215  const n = peek16(at)
+  ; basic/tools.e16.ts:214  const n = peek16(at)
   lw t0, 0(s1)
   sw t0, 2(fp) ; n
-  ; basic/tools.e16.ts:216  const length = rewrite(at + 4)
+  ; basic/tools.e16.ts:215  const length = rewrite(at + 4)
   addi a0, s1, 4
   call rewrite
   mv s2, a0 ; length
-  ; basic/tools.e16.ts:217  const was = peek16(at + 2) - 4
+  ; basic/tools.e16.ts:216  const was = peek16(at + 2) - 4
   lw t0, 2(s1)
   addi t0, t0, -4
   sw t0, 4(fp) ; was
-  ; basic/tools.e16.ts:218  if (length > was) grows += length - was
+  ; basic/tools.e16.ts:217  if (length > was) grows += length - was
   lw t0, 4(fp) ; was
   bgeu t0, s2, .L5
-  ; basic/tools.e16.ts:218  grows += length - was
+  ; basic/tools.e16.ts:217  grows += length - was
   lw t0, 4(fp) ; was
   sub t0, s2, t0
   add s3, s3, t0
 .L5:
-  ; basic/tools.e16.ts:220  let now = n
+  ; basic/tools.e16.ts:219  let now = n
   lw t0, 2(fp) ; n
   sw t0, 6(fp) ; now
-  ; basic/tools.e16.ts:221  if (n >= renumFrom) {
+  ; basic/tools.e16.ts:220  if (n >= renumFrom) {
   lw t0, 0x07ec(zero)
   lw t1, 2(fp) ; n
   bltu t1, t0, .L6
-  ; basic/tools.e16.ts:222  now = newStart + k * renumStep
+  ; basic/tools.e16.ts:221  now = newStart + k * renumStep
   lw t0, 0x07ea(zero)
   lw t1, 0x07ee(zero)
   lw t2, 0(fp) ; k
   mul t2, t2, t1
   add t0, t0, t2
   sw t0, 6(fp) ; now
-  ; basic/tools.e16.ts:223  k++
+  ; basic/tools.e16.ts:222  k++
   lw t0, 0(fp) ; k
   addi t0, t0, 1
   sw t0, 0(fp) ; k
 .L6:
-  ; basic/tools.e16.ts:225  const text = length === 0 ? at + 4 : addr(lineBuf)
+  ; basic/tools.e16.ts:224  const text = length === 0 ? at + 4 : addr(lineBuf)
   bne s2, zero, .L7
   addi t0, s1, 4
   j .L8
@@ -13002,7 +12938,7 @@ checkRewrites:
   la t0, lineBuf
 .L8:
   sw t0, 8(fp) ; text
-  ; basic/tools.e16.ts:226  if (length > LINE_MAX + 1 || listedLength(now, text) > LINE_MAX) failIn(E_LONG, n)
+  ; basic/tools.e16.ts:225  if (length > LINE_MAX + 1 || listedLength(now, text) > LINE_MAX) failIn(E_LONG, n)
   li t0, 79
   bltu t0, s2, .L10
   lw a0, 6(fp)
@@ -13011,7 +12947,7 @@ checkRewrites:
   li t0, 78
   bgeu t0, a0, .L9
 .L10:
-  ; basic/tools.e16.ts:226  failIn(E_LONG, n)
+  ; basic/tools.e16.ts:225  failIn(E_LONG, n)
   li a0, 21
   lw a1, 2(fp)
   call failIn
@@ -13021,13 +12957,13 @@ checkRewrites:
 .L3:
   lw t0, 0(s1)
   bne t0, zero, .L1
-  ; basic/tools.e16.ts:228  if (progEnd + 2 + grows > LIMIT) fail(E_MEMORY)
+  ; basic/tools.e16.ts:227  if (progEnd + 2 + grows > LIMIT) fail(E_MEMORY)
   lw t0, 0x0112(zero)
   addi t0, t0, 2
   add t0, t0, s3
   li t1, 28672
   bgeu t1, t0, .L11
-  ; basic/tools.e16.ts:228  fail(E_MEMORY)
+  ; basic/tools.e16.ts:227  fail(E_MEMORY)
   li a0, 8
   call fail
 .L11:
@@ -13041,10 +12977,10 @@ checkRewrites:
   addi sp, sp, 20
   ret
 
-; basic/tools.e16.ts:232 takesLine(c) at -O1
+; basic/tools.e16.ts:231 takesLine(c) at -O1
 ;   c in a0
 takesLine:
-  ; basic/tools.e16.ts:233  return c === T_GOTO || c === T_GOSUB || c === T_THEN || c === T_ELSE || c === T_RESTORE
+  ; basic/tools.e16.ts:232  return c === T_GOTO || c === T_GOSUB || c === T_THEN || c === T_ELSE || c === T_RESTORE
   li t0, 142
   sub t0, a0, t0
   seqz t0, t0
@@ -13076,27 +13012,27 @@ takesLine:
 .return:
   ret
 
-; basic/tools.e16.ts:246 rewrite(from) at -O1
+; basic/tools.e16.ts:245 rewrite(from) at -O1
 ;   from in s1
 rewrite:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; from
-  ; basic/tools.e16.ts:247  rp = from
+  ; basic/tools.e16.ts:246  rp = from
   sw s1, 0x07f0(zero)
-  ; basic/tools.e16.ts:248  ro = 0
+  ; basic/tools.e16.ts:247  ro = 0
   sw zero, 0x07f2(zero)
-  ; basic/tools.e16.ts:249  rChanged = false
+  ; basic/tools.e16.ts:248  rChanged = false
   sw zero, 0x07f4(zero)
-  ; basic/tools.e16.ts:250  rWanting = false
+  ; basic/tools.e16.ts:249  rWanting = false
   sw zero, 0x07f8(zero)
-  ; basic/tools.e16.ts:251  rInside = false
+  ; basic/tools.e16.ts:250  rInside = false
   sw zero, 0x07f6(zero)
-  ; basic/tools.e16.ts:252  while (peek(rp) !== 0) {
+  ; basic/tools.e16.ts:251  while (peek(rp) !== 0) {
   j .L3
 .L1:
-  ; basic/tools.e16.ts:253  if (!rInside && rWanting && isDigit(peek(rp))) {
+  ; basic/tools.e16.ts:252  if (!rInside && rWanting && isDigit(peek(rp))) {
   lw t0, 0x07f6(zero)
   bnez t0, .L5
   lw t0, 0x07f8(zero)
@@ -13105,35 +13041,35 @@ rewrite:
   lbu a0, 0(t0)
   call isDigit
   beqz a0, .L5
-  ; basic/tools.e16.ts:254  renumberHere()
+  ; basic/tools.e16.ts:253  renumberHere()
   call renumberHere
-  ; basic/tools.e16.ts:255  continue
+  ; basic/tools.e16.ts:254  continue
   j .L2
 .L5:
-  ; basic/tools.e16.ts:257  if (!rInside && peek(rp) === T_REM) {
+  ; basic/tools.e16.ts:256  if (!rInside && peek(rp) === T_REM) {
   lw t0, 0x07f6(zero)
   bnez t0, .L6
   lw t0, 0x07f0(zero)
   lbu t0, 0(t0)
   li t1, 147
   bne t0, t1, .L6
-  ; basic/tools.e16.ts:259  while (peek(rp) !== 0) copyOne()
+  ; basic/tools.e16.ts:258  while (peek(rp) !== 0) copyOne()
   j .L9
 .L7:
-  ; basic/tools.e16.ts:259  copyOne()
+  ; basic/tools.e16.ts:258  copyOne()
   call copyOne
 .L9:
   lw t0, 0x07f0(zero)
   lbu t0, 0(t0)
   bne t0, zero, .L7
-  ; basic/tools.e16.ts:260  break
+  ; basic/tools.e16.ts:259  break
   j .L4
 .L6:
-  ; basic/tools.e16.ts:262  note(peek(rp))
+  ; basic/tools.e16.ts:261  note(peek(rp))
   lw t0, 0x07f0(zero)
   lbu a0, 0(t0)
   call note
-  ; basic/tools.e16.ts:263  copyOne()
+  ; basic/tools.e16.ts:262  copyOne()
   call copyOne
 .L2:
 .L3:
@@ -13141,15 +13077,15 @@ rewrite:
   lbu t0, 0(t0)
   bne t0, zero, .L1
 .L4:
-  ; basic/tools.e16.ts:265  if (ro <= LINE_MAX) poke(addr(lineBuf) + ro, 0)
+  ; basic/tools.e16.ts:264  if (ro <= LINE_MAX) poke(addr(lineBuf) + ro, 0)
   lw t0, 0x07f2(zero)
   li t1, 78
   bltu t1, t0, .L11
-  ; basic/tools.e16.ts:265  poke(addr(lineBuf) + ro, 0)
+  ; basic/tools.e16.ts:264  poke(addr(lineBuf) + ro, 0)
   lw t0, 0x07f2(zero)
   sb zero, lineBuf(t0)
 .L11:
-  ; basic/tools.e16.ts:266  return rChanged ? ro + 1 : 0
+  ; basic/tools.e16.ts:265  return rChanged ? ro + 1 : 0
   lw t0, 0x07f4(zero)
   beqz t0, .L12
   lw t0, 0x07f2(zero)
@@ -13165,27 +13101,27 @@ rewrite:
   addi sp, sp, 4
   ret
 
-; basic/tools.e16.ts:274 note(c) at -O1
+; basic/tools.e16.ts:273 note(c) at -O1
 ;   c in s1
 note:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; c
-  ; basic/tools.e16.ts:275  if (c === CH_QUOTE) rInside = !rInside
+  ; basic/tools.e16.ts:274  if (c === CH_QUOTE) rInside = !rInside
   li t0, 34
   bne s1, t0, .L1
-  ; basic/tools.e16.ts:275  rInside = !rInside
+  ; basic/tools.e16.ts:274  rInside = !rInside
   lw t0, 0x07f6(zero)
   seqz t0, t0
   sw t0, 0x07f6(zero)
 .L1:
-  ; basic/tools.e16.ts:277  if (!rInside && c !== CH_SPACE) rWanting = takesLine(c) || (rWanting && c === CH_COMMA)
+  ; basic/tools.e16.ts:276  if (!rInside && c !== CH_SPACE) rWanting = takesLine(c) || (rWanting && c === CH_COMMA)
   lw t0, 0x07f6(zero)
   bnez t0, .L2
   li t0, 32
   beq s1, t0, .L2
-  ; basic/tools.e16.ts:277  rWanting = takesLine(c) || (rWanting && c === CH_COMMA)
+  ; basic/tools.e16.ts:276  rWanting = takesLine(c) || (rWanting && c === CH_COMMA)
   mv a0, s1
   call takesLine
   mv t1, a0
@@ -13209,30 +13145,30 @@ note:
   addi sp, sp, 4
   ret
 
-; basic/tools.e16.ts:284 copyOne() at -O1
+; basic/tools.e16.ts:283 copyOne() at -O1
 copyOne:
-  ; basic/tools.e16.ts:285  if (ro < LINE_MAX) poke(addr(lineBuf) + ro, peek(rp))
+  ; basic/tools.e16.ts:284  if (ro < LINE_MAX) poke(addr(lineBuf) + ro, peek(rp))
   lw t0, 0x07f2(zero)
   li t1, 78
   bgeu t0, t1, .L1
-  ; basic/tools.e16.ts:285  poke(addr(lineBuf) + ro, peek(rp))
+  ; basic/tools.e16.ts:284  poke(addr(lineBuf) + ro, peek(rp))
   lw t0, 0x07f2(zero)
   lw t1, 0x07f0(zero)
   lbu t1, 0(t1)
   sb t1, lineBuf(t0)
 .L1:
-  ; basic/tools.e16.ts:286  ro++
+  ; basic/tools.e16.ts:285  ro++
   lw t0, 0x07f2(zero)
   addi t0, t0, 1
   sw t0, 0x07f2(zero)
-  ; basic/tools.e16.ts:287  rp++
+  ; basic/tools.e16.ts:286  rp++
   lw t0, 0x07f0(zero)
   addi t0, t0, 1
   sw t0, 0x07f0(zero)
 .return:
   ret
 
-; basic/tools.e16.ts:296 renumberHere() at -O1
+; basic/tools.e16.ts:295 renumberHere() at -O1
 ;   start in s1
 ;   length in s2
 ;   old in s3
@@ -13246,47 +13182,47 @@ renumberHere:
   sw s3, 10(sp)
   sw s0, 12(sp)
   mv fp, sp
-  ; basic/tools.e16.ts:297  const start = rp
+  ; basic/tools.e16.ts:296  const start = rp
   lw s1, 0x07f0(zero)
-  ; basic/tools.e16.ts:298  const length = lineLiteral()
+  ; basic/tools.e16.ts:297  const length = lineLiteral()
   call lineLiteral
   mv s2, a0 ; length
-  ; basic/tools.e16.ts:299  rp = start + length
+  ; basic/tools.e16.ts:298  rp = start + length
   add t0, s1, s2
   sw t0, 0x07f0(zero)
-  ; basic/tools.e16.ts:300  if (!rLineOk || !standsAlone(rp)) {
+  ; basic/tools.e16.ts:299  if (!rLineOk || !standsAlone(rp)) {
   lw t0, 0x07fc(zero)
   beqz t0, .L2
   lw a0, 0x07f0(zero)
   call standsAlone
   bnez a0, .L1
 .L2:
-  ; basic/tools.e16.ts:301  copyFrom(start)
+  ; basic/tools.e16.ts:300  copyFrom(start)
   mv a0, s1
   call copyFrom
-  ; basic/tools.e16.ts:302  return
+  ; basic/tools.e16.ts:301  return
   j .return
 .L1:
-  ; basic/tools.e16.ts:304  const old = rLine
+  ; basic/tools.e16.ts:303  const old = rLine
   lw s3, 0x07fa(zero)
-  ; basic/tools.e16.ts:305  const now = renumbered(old)
+  ; basic/tools.e16.ts:304  const now = renumbered(old)
   mv a0, s3
   call renumbered
   sw a0, 0(fp) ; now
-  ; basic/tools.e16.ts:306  if (now === old && !plainDigits(start, length)) {
+  ; basic/tools.e16.ts:305  if (now === old && !plainDigits(start, length)) {
   lw t0, 0(fp) ; now
   bne t0, s3, .L3
   mv a0, s1
   mv a1, s2
   call plainDigits
   bnez a0, .L3
-  ; basic/tools.e16.ts:307  copyFrom(start)
+  ; basic/tools.e16.ts:306  copyFrom(start)
   mv a0, s1
   call copyFrom
-  ; basic/tools.e16.ts:308  return
+  ; basic/tools.e16.ts:307  return
   j .return
 .L3:
-  ; basic/tools.e16.ts:311  const written = unsignedText(now, ro + 5 <= LINE_MAX ? addr(lineBuf) + ro : addr(textOut))
+  ; basic/tools.e16.ts:310  const written = unsignedText(now, ro + 5 <= LINE_MAX ? addr(lineBuf) + ro : addr(textOut))
   lw t0, 0x07f2(zero)
   addi t1, t0, 5
   lw t0, 0(fp)
@@ -13302,17 +13238,17 @@ renumberHere:
   mv a1, t1
   call unsignedText
   sw a0, 2(fp) ; written
-  ; basic/tools.e16.ts:312  if (written !== length || now !== old) rChanged = true
+  ; basic/tools.e16.ts:311  if (written !== length || now !== old) rChanged = true
   lw t0, 2(fp) ; written
   bne t0, s2, .L7
   lw t0, 0(fp) ; now
   beq t0, s3, .L6
 .L7:
-  ; basic/tools.e16.ts:312  rChanged = true
+  ; basic/tools.e16.ts:311  rChanged = true
   li t0, 1
   sw t0, 0x07f4(zero)
 .L6:
-  ; basic/tools.e16.ts:313  ro += written
+  ; basic/tools.e16.ts:312  ro += written
   lw t0, 0x07f2(zero)
   lw t1, 2(fp) ; written
   add t0, t0, t1
@@ -13327,7 +13263,7 @@ renumberHere:
   addi sp, sp, 14
   ret
 
-; basic/tools.e16.ts:324 lineLiteral() at -O1
+; basic/tools.e16.ts:323 lineLiteral() at -O1
 ;   at in s2
 ;   length in s1
 lineLiteral:
@@ -13335,41 +13271,41 @@ lineLiteral:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; basic/tools.e16.ts:325  const at = push()
+  ; basic/tools.e16.ts:324  const at = push()
   call push
   mv s2, a0 ; at
-  ; basic/tools.e16.ts:326  poke16(MATH_ARG, 255)
+  ; basic/tools.e16.ts:325  poke16(MATH_ARG, 255)
   li t0, 255
   li t1, 65366
   sw t0, 0(t1)
-  ; basic/tools.e16.ts:327  poke16(MATH_A, at)
+  ; basic/tools.e16.ts:326  poke16(MATH_A, at)
   li t0, 65362
   sw s2, 0(t0)
-  ; basic/tools.e16.ts:328  poke16(MATH_B, rp)
+  ; basic/tools.e16.ts:327  poke16(MATH_B, rp)
   lw t0, 0x07f0(zero)
   li t1, 65364
   sw t0, 0(t1)
-  ; basic/tools.e16.ts:329  poke16(MATH_OP, M_PARSE)
+  ; basic/tools.e16.ts:328  poke16(MATH_OP, M_PARSE)
   li t0, 56
   li t1, 65360
   sw t0, 0(t1)
-  ; basic/tools.e16.ts:330  let length = peek16(MATH_ARG)
+  ; basic/tools.e16.ts:329  let length = peek16(MATH_ARG)
   li t0, 65366
   lw s1, 0(t0)
-  ; basic/tools.e16.ts:331  rLineOk = false
+  ; basic/tools.e16.ts:330  rLineOk = false
   sw zero, 0x07fc(zero)
-  ; basic/tools.e16.ts:332  if (peek16(MATH_STATUS) !== 0 || length === 0) {
+  ; basic/tools.e16.ts:331  if (peek16(MATH_STATUS) !== 0 || length === 0) {
   li t0, 65368
   lw t0, 0(t0)
   bne t0, zero, .L2
   bne s1, zero, .L1
 .L2:
-  ; basic/tools.e16.ts:334  length = 0
+  ; basic/tools.e16.ts:333  length = 0
   li s1, 0 ; length
-  ; basic/tools.e16.ts:335  while (isDigit(peek(rp + length))) length++
+  ; basic/tools.e16.ts:334  while (isDigit(peek(rp + length))) length++
   j .L5
 .L3:
-  ; basic/tools.e16.ts:335  length++
+  ; basic/tools.e16.ts:334  length++
   addi s1, s1, 1
 .L5:
   lw t0, 0x07f0(zero)
@@ -13379,14 +13315,14 @@ lineLiteral:
   bnez a0, .L3
   j .L7
 .L1:
-  ; basic/tools.e16.ts:337  poke16(MATH_A, at)
+  ; basic/tools.e16.ts:336  poke16(MATH_A, at)
   li t0, 65362
   sw s2, 0(t0)
-  ; basic/tools.e16.ts:338  poke16(MATH_OP, M_TOWORD)
+  ; basic/tools.e16.ts:337  poke16(MATH_OP, M_TOWORD)
   li t0, 50
   li t1, 65360
   sw t0, 0(t1)
-  ; basic/tools.e16.ts:340  rLineOk = peek16(MATH_STATUS) === 0 && (peek(at) & 0x80) === 0
+  ; basic/tools.e16.ts:339  rLineOk = peek16(MATH_STATUS) === 0 && (peek(at) & 0x80) === 0
   li t0, 65368
   lw t0, 0(t0)
   sub t0, t0, zero
@@ -13399,16 +13335,16 @@ lineLiteral:
   seqz t0, t0
 .L8:
   sw t0, 0x07fc(zero)
-  ; basic/tools.e16.ts:341  rLine = peek16(MATH_ARG)
+  ; basic/tools.e16.ts:340  rLine = peek16(MATH_ARG)
   li t0, 65366
   lw t0, 0(t0)
   sw t0, 0x07fa(zero)
 .L7:
-  ; basic/tools.e16.ts:343  setNsp(nsp - 8)
+  ; basic/tools.e16.ts:342  setNsp(nsp - 8)
   lw t0, 0x0116(zero)
   addi a0, t0, -8
   call setNsp
-  ; basic/tools.e16.ts:344  return length
+  ; basic/tools.e16.ts:343  return length
   mv a0, s1
 .return:
   lw ra, 0(sp)
@@ -13417,7 +13353,7 @@ lineLiteral:
   addi sp, sp, 6
   ret
 
-; basic/tools.e16.ts:348 plainDigits(at, length) at -O1
+; basic/tools.e16.ts:347 plainDigits(at, length) at -O1
 ;   at in s2
 ;   length in s3
 ;   k in s1
@@ -13429,23 +13365,23 @@ plainDigits:
   sw s1, 6(sp)
   mv s2, a0 ; at
   mv s3, a1 ; length
-  ; basic/tools.e16.ts:349  for (let k: u16 = 0; k < length; k++) if (!isDigit(peek(at + k))) return false
+  ; basic/tools.e16.ts:348  for (let k: u16 = 0; k < length; k++) if (!isDigit(peek(at + k))) return false
   li s1, 0 ; k
   j .L3
 .L1:
-  ; basic/tools.e16.ts:349  if (!isDigit(peek(at + k))) return false
+  ; basic/tools.e16.ts:348  if (!isDigit(peek(at + k))) return false
   add t0, s2, s1
   lbu a0, 0(t0)
   call isDigit
   bnez a0, .L5
-  ; basic/tools.e16.ts:349  return false
+  ; basic/tools.e16.ts:348  return false
   li a0, 0
   j .return
 .L5:
   addi s1, s1, 1
 .L3:
   bltu s1, s3, .L1
-  ; basic/tools.e16.ts:350  return true
+  ; basic/tools.e16.ts:349  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -13455,7 +13391,7 @@ plainDigits:
   addi sp, sp, 8
   ret
 
-; basic/tools.e16.ts:354 copyFrom(start) at -O1
+; basic/tools.e16.ts:353 copyFrom(start) at -O1
 ;   start in s1
 ;   end in s2
 copyFrom:
@@ -13464,14 +13400,14 @@ copyFrom:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; start
-  ; basic/tools.e16.ts:355  const end = rp
+  ; basic/tools.e16.ts:354  const end = rp
   lw s2, 0x07f0(zero)
-  ; basic/tools.e16.ts:356  rp = start
+  ; basic/tools.e16.ts:355  rp = start
   sw s1, 0x07f0(zero)
-  ; basic/tools.e16.ts:357  while (rp < end) copyOne()
+  ; basic/tools.e16.ts:356  while (rp < end) copyOne()
   j .L3
 .L1:
-  ; basic/tools.e16.ts:357  copyOne()
+  ; basic/tools.e16.ts:356  copyOne()
   call copyOne
 .L3:
   lw t0, 0x07f0(zero)
@@ -13483,7 +13419,7 @@ copyFrom:
   addi sp, sp, 6
   ret
 
-; basic/tools.e16.ts:365 standsAlone(p) at -O1
+; basic/tools.e16.ts:364 standsAlone(p) at -O1
 ;   p in s2
 ;   q in s1
 standsAlone:
@@ -13492,18 +13428,18 @@ standsAlone:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; p
-  ; basic/tools.e16.ts:366  let q = p
+  ; basic/tools.e16.ts:365  let q = p
   mv s1, s2 ; q
-  ; basic/tools.e16.ts:367  while (peek(q) === CH_SPACE) q++
+  ; basic/tools.e16.ts:366  while (peek(q) === CH_SPACE) q++
   j .L3
 .L1:
-  ; basic/tools.e16.ts:367  q++
+  ; basic/tools.e16.ts:366  q++
   addi s1, s1, 1
 .L3:
   lbu t0, 0(s1)
   li t1, 32
   beq t0, t1, .L1
-  ; basic/tools.e16.ts:368  return !isOperator(peek(q))
+  ; basic/tools.e16.ts:367  return !isOperator(peek(q))
   lbu a0, 0(s1)
   call isOperator
   seqz a0, a0
@@ -13514,10 +13450,10 @@ standsAlone:
   addi sp, sp, 6
   ret
 
-; basic/tools.e16.ts:372 isOperator(c) at -O1
+; basic/tools.e16.ts:371 isOperator(c) at -O1
 ;   c in a0
 isOperator:
-  ; basic/tools.e16.ts:373  if (c === T_MOD || c === T_AND || c === T_OR) return true
+  ; basic/tools.e16.ts:372  if (c === T_MOD || c === T_AND || c === T_OR) return true
   li t0, 222
   beq a0, t0, .L2
   li t0, 199
@@ -13525,11 +13461,11 @@ isOperator:
   li t0, 200
   bne a0, t0, .L1
 .L2:
-  ; basic/tools.e16.ts:373  return true
+  ; basic/tools.e16.ts:372  return true
   li a0, 1
   ret
 .L1:
-  ; basic/tools.e16.ts:374  return (
+  ; basic/tools.e16.ts:373  return (
   li t0, 43
   sub t0, a0, t0
   seqz t0, t0
@@ -13585,35 +13521,35 @@ isOperator:
 .return:
   ret
 
-; basic/tools.e16.ts:388 toolStatement(c) at -O1
+; basic/tools.e16.ts:387 toolStatement(c) at -O1
 ;   c in s1
 toolStatement:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; c
-  ; basic/tools.e16.ts:389  if (c === T_AUTO) autoStatement()
+  ; basic/tools.e16.ts:388  if (c === T_AUTO) autoStatement()
   li t0, 163
   bne s1, t0, .L1
-  ; basic/tools.e16.ts:389  autoStatement()
+  ; basic/tools.e16.ts:388  autoStatement()
   call autoStatement
   j .L2
 .L1:
-  ; basic/tools.e16.ts:390  if (c === T_RENUM) renumStatement()
+  ; basic/tools.e16.ts:389  if (c === T_RENUM) renumStatement()
   li t0, 164
   bne s1, t0, .L3
-  ; basic/tools.e16.ts:390  renumStatement()
+  ; basic/tools.e16.ts:389  renumStatement()
   call renumStatement
   j .L4
 .L3:
-  ; basic/tools.e16.ts:391  if (c === T_DELETE) deleteStatement()
+  ; basic/tools.e16.ts:390  if (c === T_DELETE) deleteStatement()
   li t0, 165
   bne s1, t0, .L5
-  ; basic/tools.e16.ts:391  deleteStatement()
+  ; basic/tools.e16.ts:390  deleteStatement()
   call deleteStatement
   j .L6
 .L5:
-  ; basic/tools.e16.ts:392  setTracing(c === T_TRON)
+  ; basic/tools.e16.ts:391  setTracing(c === T_TRON)
   li t0, 166
   sub t0, s1, t0
   seqz a0, t0

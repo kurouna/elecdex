@@ -378,7 +378,7 @@ TS の部分集合 (*.e16.ts)
 - **誤り**（段階 4 で足した）: TYPE、NO FILE、CARD、NO DATA、INDEX、DIM、FILE。2026-10-05 に TOO LONG
 - **音**: ページはブザーの状態（FREQ、DUR、GATE）を毎フレーム見て、共有の AudioContext の矩形波を鳴らす（`widgets/elec16/buzzer.ts`）。長さのある音は音のクロックで止めるので、フレームの粒に関係なく長さどおり。インターフェースの音が切れているか音量 0 なら何も作らない（e2e は音を切って動く）。音量は設定の `elec16.volume`、新しいペインのスキンは `elec16.skin`
 - 測定（4 MHz、-O2）: `N=N+1` と `IF N<2000 THEN 10` の繰り返しで 1 文 約 1,550 サイクル（毎秒約 2,570 文。§4 の見込み 1,500 より速い）、空の FOR/NEXT は 1 周 約 725 サイクル、`A=SIN I*2+SQR I` を含む 1 周は約 5,670 サイクル（演算ユニットの待ちが大半）。-O1 の改良の前はそれぞれ 1,860、840、6,200 サイクル
-- 大きさ: 固定 ROM は 8000–B861（残り約 1.9 KB。2026-10-05 の下の変更の後は BCC2、残り 830 バイト）。段階 3 の終わりは AFB7、-O1 の改良の直後は A96B、その前は AF03。後半はバンク 0〜3（ROM の像は 48 KB）。-O0 は ROM に入らない
+- 大きさ: 固定 ROM は 8000–B861（残り約 1.9 KB。2026-10-05 の下の変更の後は BCC2、残り 830 バイト。RENUM の直しで BCCC。e16c_init が並んだ配列を 1 つの MSET で消すようにして BC1E、残り 994 バイト）。段階 3 の終わりは AFB7、-O1 の改良の直後は A96B、その前は AF03。後半はバンク 0〜3（ROM の像は 48 KB）。-O0 は ROM に入らない
 - テスト: `elec16-basic.test.ts` が文・プログラム・誤りを 1 行ずつ打って画面を比べ、前半と後半のやり取りを -O1 で翻訳した ROM でも確かめる（e16c の確かめにもなる）。テストの `settle`（`elec16-helpers.ts`）は、ページと main がすることを代わりにする: カードの命令を `cardOp` で答え、タイマーで眠っている間は時間を進める
 
 ### CODE 画面（段階 6）: e16c をペインで使う
@@ -611,10 +611,10 @@ TS の部分集合 (*.e16.ts)
 **変更の流れ**
 
 - ROM（`resources/elec16/rom`、`rom/basic/*.e16.ts`）か SOFT CARD（`resources/elec16/soft`）を変えたら `npm run gen:elec16` を実行し、`basic.s`、`src/renderer/widgets/elec16/rom.json`、`resources/elec16/soft.json` を元のファイルと同じコミットに入れる。手で書き換えない
-- 固定 ROM の残りは少ない（2026-10-05 で BCC2 まで使い、上限は C000）。新しい文はバンクに置く（`BASIC_SOURCES`。バンク 5 が ASK）。gen の出力の「fixed ROM to …」で残りを見る
+- 固定 ROM の残りは少ない（2026-10-05 で BC1E まで使い、上限は C000）。新しい文はバンクに置く（`BASIC_SOURCES`。バンク 5 が ASK）。gen の出力の「fixed ROM to …」で残りを見る
 - 新しいキーワードは `text.e16.ts` の `KEYWORDS` の末尾に足し、トークンの定数も末尾に足す（0xE0 まで使っている。カナは文字列の中だけなので重ならない）。BASIC 取扱説明書の予約語の付録と文の表も直す
 - 機械が持つ状態（`state.ts`）を増やしたら、スナップショットの版を上げ、古い版も読む（`snapshot.ts` の `readLink` と版 1 の扱いが見本）。利用者の電池バックアップを捨てないため
-- 割り込みの線を足したら `IRQ`、`MIE_LINES`（PLAY-320 だけの線は `MIE_LINES_VIDEO`。ほかのモデルの mie は変えない）、`#pending()`、`#wake()`、ROM の `io.inc`（rom.ts が作る）を揃える。線 5 は PLAY-320 の VBLANK（elec16-play.md §4）。ROM がその線を mie に足して待つなら、BRK でモニタへ落ちたとき（`save_all`）にも mie が戻ることを確かめる（戻らないと WFI が起き続けた）
+- 割り込みの線を足したら `IRQ`、`MIE_LINES`（装置ごとの線は `mieLines(model)`: VBLANK と LINE は映像、PAD はパッドを持つモデルだけ。ほかのモデルの mie は変えない）、`#pending()`、`#wake()`、ROM の `io.inc`（rom.ts が作る）を揃える。線 5 は PLAY-320 の VBLANK（elec16-play.md §4）。ROM がその線を mie に足して待つなら、BRK でモニタへ落ちたとき（`save_all`）にも mie が戻ることを確かめる（戻らないと WFI が起き続けた）
 - 利用者に見える変化は説明書（BASIC、E16、e16c、SOFT CARD）を同じコミットで直す。説明書の例は、できるだけテストが説明書から読んで機械の上で動かす（`tests/unit/elec16-ask.test.ts` の「manual」のテストが見本）
 
 **テストの道具**（`tests/unit/elec16-helpers.ts`）
@@ -636,6 +636,9 @@ TS の部分集合 (*.e16.ts)
 
 - 答えを main から待つ機械（LINK、カード）は KEY も許可して眠るので、runner はそれをプロンプトとは見なさない（`#waitsForMain`）。待ち方を足したらここにも入れる
 - PLAY-320 の起動画面は PAD を許可して眠る。`Wake` の `pad` が立っていても、眠っているのが ROM の外（ゲームや CODE のプログラム）ならプロンプトではない（runner の `#atPrompt`）
+- バンクを切り替えたときに解読済みの命令を捨てるのは、窓（BFFE–DFFF）で解読したことがあるときだけ（`Bus.windowDecoded`、`Bus.windowStale()`。機械の `#fetch` が立てる）。データのためのバンク切り替えは 8K 個の表を埋め直さない。窓のコードを捨てる場所を足したら `windowStale()` を通す
+- PLAY-320 の映像の行: ずらしと LAYERS の記録は、値が変わった書き込みだけを残し、同じ行の同じレジスタは最後の 1 つにまとめる（1 フレームに 1 行 1 レジスタまで）。同じ値の書き込みは画面の版を動かさない。LINE は `lineDue`（LINECMP の行のサイクルの 1 つ手前）より前なら割り算をしない。LINECMP、VBLANK、クロック（`setLineCycles`。途中で変えても今の行のまま）を変えるところでは `lineDueAgain` を呼ぶ
+- モード 1 の画面は、終わったフレームを丸ごと描く（`LastFrame`: 行ごとのレジスタと、VBLANK の時の映像メモリの写し 64 KB）。ページはスプライトとずらしを同じフレームから描き、そのフレームで何か変わっていれば VBLANK で画面の版がもう 1 つ進む（ずらしだけを書いたフレームも描かれる）。スナップショットから戻した機械は、戻した時の姿を写しにする
 - カードの READ と DIR、LINK の答え、数値演算装置は CPU を通らずに RAM を書くので、書いた範囲の解読済みの命令を捨てる（`Bus.ramWritten`）。RAM を書く装置を足したら同じようにする
 - LINK の新しいサービスは main の `LinkService` と `link-services.ts` の 1 行で足す。コア、ページ、ROM サービス 8 は変えない。AI の答えの上限は、考えるモデル（Gemini 2.5 など）が考える分も含む
 - 見た目の変更は 1920×1080 で画面写真を撮って確かめる。スキンは PLAIN（テーマに従う）と固定色のものの両方、テーマは暗いものと Business Light で見る

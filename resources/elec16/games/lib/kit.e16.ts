@@ -162,13 +162,26 @@ export function palKeep(row: u16, slot: u16): void {
   poke16(IO_BANK, old)
 }
 
-/** Slot `slot` mixed from its kept colours towards `rgb` by `t` sixteenths (0 none, 16 all). */
+/**
+ * Slot `slot` mixed from its kept colours towards `rgb` by `t` sixteenths (0 none, 16 all): as
+ * `mix` does each colour, `rgb`'s part of it worked out once for the fifteen.
+ */
 export function palMix(slot: u16, rgb: u16, t: u16): void {
-  let k: u16 = 1
+  const u = 16 - t
+  const r = (rgb & 31) * t
+  const g = ((rgb >> 5) & 31) * t
+  const b = ((rgb >> 10) & 31) * t
   poke16(VPAGE, (PALS + slot * 32) >> 12)
-  while (k < 16) {
-    const c = palCopy[slot * 16 + k]
-    poke16(VWIN + ((PALS + slot * 32 + k * 2) & 0xfff), mix(c, rgb, t))
+  let p = VWIN + ((PALS + slot * 32 + 2) & 0xfff)
+  let k = slot * 16 + 1
+  const end = slot * 16 + 16
+  while (k < end) {
+    const c = palCopy[k]
+    const mr = ((c & 31) * u + r) >> 4
+    const mg = (((c >> 5) & 31) * u + g) >> 4
+    const mb = (((c >> 10) & 31) * u + b) >> 4
+    poke16(p, mr | (mg << 5) | (mb << 10))
+    p = wrap16(p + 2)
     k++
   }
 }
@@ -218,8 +231,10 @@ export function number(at: u16, n: u16, digits: u16, zero: u16): void {
   at = wrap16(at + digits * 2)
   while (digits > 0) {
     at = wrap16(at - 2)
-    vpoke(at, zero + (n % 10))
-    n = div(n, 10)
+    // One division a digit: the remainder from it (a multiply), not a second division.
+    const q = div(n, 10)
+    vpoke(at, wrap16(zero + n - q * 10))
+    n = q
     digits--
   }
 }
@@ -252,15 +267,21 @@ export function sprCount(): u16 {
   return sprN
 }
 
-/** The frame's sprites, the rest hidden, into video memory: call just after the frame's wait. */
+/**
+ * The frame's sprites, the rest hidden, into video memory: call just after the frame's wait.
+ * Only the sprites this frame or the last showed are copied: every one past them is hidden
+ * there already.
+ */
 export function sprShow(): void {
   let k = sprN
-  while (k < sprShown) {
+  const was = sprShown
+  while (k < was) {
     oam[(k << 2) + 3] = S_NONE
     k++
   }
   sprShown = sprN
-  dma(addr(oam), OAM, 1024)
+  const n = sprN > was ? sprN : was
+  if (n > 0) dma(addr(oam), OAM, n << 3)
 }
 
 /* ---------------- the pad ---------------- */

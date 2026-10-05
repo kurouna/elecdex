@@ -185,6 +185,11 @@ export interface TimedPolicy {
   drawMs?: number
 }
 
+/** How long before a draw is due its animation frame is asked for: half a 60 Hz frame. */
+const HOLD_SLACK_MS = 8
+/** How early a vsync may come and still be the one a draw is due at. */
+const VSYNC_JITTER_MS = 1
+
 export class TimedLoop<M extends TimedMachine> implements Loop {
   readonly #host: LoopHost
   readonly #owner: LoopOwner<M>
@@ -332,24 +337,40 @@ export class TimedLoop<M extends TimedMachine> implements Loop {
 
   /**
    * One animation frame to draw what changed, never more than one waiting, and not before
-   * `drawMs` has passed since the last draw (a timer holds it back till then).
+   * `drawMs` has passed since the last draw. An animation frame comes only at the display's
+   * vsync, so the wait is measured from vsync to vsync (the frame's own time), a timer holds
+   * the request back only until half a 60 Hz frame before it is due, and a vsync still short of
+   * it is passed for the next. Held back to the millisecond by a timer instead, the draw missed
+   * the vsync it was due at: a screen of sixty a second was drawn at thirty on a 60 Hz display,
+   * and an LCD's thirty at twenty (docs/emu.md section 4).
    */
   #requestDraw(): void {
     if (!this.#active || this.#frame !== null || this.#drawTimer !== null) return
     const wait = (this.#policy.drawMs ?? 0) - (this.#host.now() - this.#drawnAt)
-    if (wait > 1) {
+    if (wait > HOLD_SLACK_MS) {
       this.#drawTimer = this.#host.setTimer(() => {
         this.#drawTimer = null
-        this.#requestDraw()
-      }, wait)
+        // The frame asked for now, not the wait weighed again: it would come out a hair over
+        // the slack, and a timer of no time at all be set over and over.
+        if (this.#active && this.#frame === null) {
+          this.#frame = this.#host.requestFrame(this.#onFrame)
+        }
+      }, wait - HOLD_SLACK_MS)
       return
     }
-    this.#frame = this.#host.requestFrame(() => {
-      this.#frame = null
-      this.#drawnAt = this.#host.now()
-      this.#drawn = this.#owner.machine?.screenRevision ?? -1
-      // Still fading: one more frame, until the picture rests.
-      if (this.#owner.draw()) this.#requestDraw()
-    })
+    this.#frame = this.#host.requestFrame(this.#onFrame)
+  }
+
+  readonly #onFrame = (at: number): void => {
+    this.#frame = null
+    // A vsync before the draw is due (a display faster than the screen): the next one.
+    if (at - this.#drawnAt < (this.#policy.drawMs ?? 0) - VSYNC_JITTER_MS) {
+      if (this.#active) this.#frame = this.#host.requestFrame(this.#onFrame)
+      return
+    }
+    this.#drawnAt = at
+    this.#drawn = this.#owner.machine?.screenRevision ?? -1
+    // Still fading: one more frame, until the picture rests.
+    if (this.#owner.draw()) this.#requestDraw()
   }
 }

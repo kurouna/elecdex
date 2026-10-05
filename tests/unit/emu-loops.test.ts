@@ -292,6 +292,83 @@ describe('the timed loop', () => {
     expect(clock.timers.size).toBe(0)
   })
 
+  /**
+   * A browser's clock: timers fire when due, an animation frame at the display's next vsync (60
+   * Hz), its callback a little after the vsync itself. A second of a screen changing every tick
+   * gives the draws made.
+   */
+  function vsyncDraws(drawMs: number, late = 0.4): number {
+    const VSYNC = 1000 / 60
+    let now = 0
+    let next = 1
+    const timers = new Map<number, { at: number; fn: () => void }>()
+    const frames = new Map<number, (t: number) => void>()
+    const host: LoopHost = {
+      requestFrame: (fn) => {
+        frames.set(next, fn)
+        return next++
+      },
+      cancelFrame: (h) => void frames.delete(h),
+      setTimer: (fn, ms) => {
+        timers.set(next, { at: now + Math.max(0, ms), fn })
+        return next++
+      },
+      clearTimer: (h) => void timers.delete(h),
+      now: () => now,
+    }
+    const machine = fakeMachine()
+    let draws = 0
+    const owner: LoopOwner<TimedMachine> = {
+      machine,
+      ran: () => {
+        machine.screenRevision++
+      },
+      draw: () => {
+        draws++
+        return false
+      },
+      settle: () => {},
+      wanted: () => true,
+    }
+    const loop = new TimedLoop(
+      host,
+      owner,
+      { tickMs: 1000 / 60, maxCatchUpMs: 50, budgetMs: 8, slice: 1_000_000, drawMs },
+      () => {},
+    )
+    loop.start()
+    let vsync = VSYNC
+    while (now < 2000) {
+      const due = [...timers].sort((a, b) => a[1].at - b[1].at)[0]
+      if (due !== undefined && due[1].at <= vsync) {
+        timers.delete(due[0])
+        now = due[1].at
+        due[1].fn()
+        continue
+      }
+      // The vsync: the frames waiting run, a moment after it.
+      now = vsync + late
+      const waiting = [...frames]
+      frames.clear()
+      for (const [, fn] of waiting) fn(vsync)
+      vsync += VSYNC
+      if (now >= 1000 && now < 1000 + VSYNC) draws = 0
+    }
+    loop.stop()
+    return draws
+  }
+
+  it('draws a screen of sixty a second at every vsync of a 60 Hz display, not every other', () => {
+    // PLAY-320 (drawHz 60): a draw held back to the timer for the last millisecond of its 1000/60
+    // went past the vsync it was meant for - 31 draws a second.
+    expect(vsyncDraws(1000 / 60)).toBeGreaterThanOrEqual(58)
+    expect(vsyncDraws(1000 / 60, 3)).toBeGreaterThanOrEqual(58)
+    // An LCD (drawHz 30) stays at its thirty.
+    const lcd = vsyncDraws(1000 / 30)
+    expect(lcd).toBeLessThanOrEqual(31)
+    expect(lcd).toBeGreaterThanOrEqual(28)
+  })
+
   it('draws nothing once stopped, a fade cut short with it', () => {
     const t = setUp()
     t.loop.start()

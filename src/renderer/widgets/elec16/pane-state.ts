@@ -6,7 +6,7 @@
  */
 
 import { isCardName } from '@shared/elec16/card'
-import { TUNE_MODEL_IDS } from '@shared/elec16/map'
+import { MODEL_IDS } from '@shared/elec16/map'
 import { ELEC16_CLOCKS, type Elec16UnitSeed, isUnitId } from '@shared/elec16-units'
 import { oneOf } from '../emu/format.js'
 import { PLAY_BODY_MODES, PLAY_SKINS, type PlayBodyMode, type PlaySkin } from './play-body.js'
@@ -59,7 +59,7 @@ export function readElec16Pane(
   const s = state ?? {}
   const contrast = typeof s.contrast === 'number' && Number.isInteger(s.contrast) ? s.contrast : 0
   const clock = ELEC16_CLOCKS.find((c) => c === s.clock)
-  const model = TUNE_MODEL_IDS.find((m) => m === s.model)
+  const model = MODEL_IDS.find((m) => m === s.model)
   return {
     skin: isSkinId(s.skin) ? s.skin : skin,
     unit: isUnitId(s.unit) ? s.unit : undefined,

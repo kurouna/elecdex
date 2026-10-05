@@ -11,8 +11,8 @@
 
 import { BANK_SIZE } from './map.js'
 
-export const CART_MAGIC = [0x45, 0x31, 0x36, 0x47] // "E16G"
-export const CART_VERSION = 1
+const CART_MAGIC = [0x45, 0x31, 0x36, 0x47] // "E16G"
+const CART_VERSION = 1
 export const CART_HEADER = 64
 export const CART_MAX_BANKS = 128
 export const CART_MAX_SAVE_BANKS = 4
@@ -70,11 +70,14 @@ export function readCartHeader(bytes: Uint8Array): CartHeader | null {
   const banks = at(5)
   const saveBanks = at(6)
   const entry = at(8) | (at(9) << 8)
-  const idBytes = bytes.subarray(16, 32)
-  const nameBytes = bytes.subarray(32, 56)
+  const idBytes = bytes.subarray(16, 16 + CART_ID_LENGTH)
+  const nameBytes = bytes.subarray(32, 32 + CART_NAME_LENGTH)
   const id = text(idBytes)
   const name = text(nameBytes)
-  const reserved = [...bytes.subarray(10, 16), ...bytes.subarray(56, 64)]
+  const reserved = [
+    ...bytes.subarray(10, 16),
+    ...bytes.subarray(32 + CART_NAME_LENGTH, CART_HEADER),
+  ]
   if (banks < 1 || banks > CART_MAX_BANKS || saveBanks > CART_MAX_SAVE_BANKS) return null
   if (entry < 0xc000 || entry >= 0xe000 || (entry & 1) !== 0) return null
   if (!CART_ID.test(id) || !padded(idBytes) || !padded(nameBytes)) return null

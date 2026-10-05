@@ -44,7 +44,10 @@ export const RESET_VECTOR = ROM_FIXED
 /** What the machine says it is, at FF00. */
 export const MACHINE_ID = 0xe016
 
-/** Every model, in the order of the MODEL register's number. */
+/**
+ * Every model, in the order of the MODEL register's number - and the models a unit may be, as
+ * TUNE offers them (all of them since PLAY-320 came, docs/elec16-play.md).
+ */
 export const MODEL_IDS = [
   'pocket-32',
   'pocket-48',
@@ -53,16 +56,6 @@ export const MODEL_IDS = [
   'play-320',
 ] as const
 export type ModelId = (typeof MODEL_IDS)[number]
-
-/** The models a unit may be, as TUNE offers them (PLAY-320 from G2, docs/elec16-play.md). */
-export const TUNE_MODEL_IDS = [
-  'pocket-32',
-  'pocket-48',
-  'pocket-64',
-  'handheld-160',
-  'play-320',
-] as const
-export type TuneModelId = (typeof TUNE_MODEL_IDS)[number]
 
 export interface Model {
   id: ModelId
@@ -168,7 +161,7 @@ export const MODELS: Readonly<Record<ModelId, Model>> = {
   },
 }
 
-export const DEFAULT_MODEL: TuneModelId = 'pocket-48'
+export const DEFAULT_MODEL: ModelId = 'pocket-48'
 
 /** The bytes of VRAM a model's screen uses: one plane per bit, a byte per 8 rows of a column. */
 export const vramSize = (m: Model): number => (m.video ? 0 : (m.width * m.height * m.depth) / 8)

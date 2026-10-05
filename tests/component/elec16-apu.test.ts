@@ -5,10 +5,15 @@ import { describe, expect, it, vi } from 'vitest'
 
 const posted: unknown[] = []
 const events: string[] = []
+const nodes: FakeNode[] = []
 class FakeNode {
-  readonly port = { postMessage: (m: unknown) => void posted.push(m) }
+  readonly port = {
+    postMessage: (m: unknown) => void posted.push(m),
+    onmessage: null as ((event: { data: unknown }) => void) | null,
+  }
   constructor(_ac: unknown, name: string, options: { outputChannelCount: number[] }) {
     events.push(`node ${name} ${options.outputChannelCount.join()}`)
+    nodes.push(this)
   }
   connect(node: unknown) {
     return node
@@ -23,6 +28,8 @@ const context = {
   destination: {},
 }
 let made = 0
+/** What the voice told the shared context: held awake (true) or let go. */
+const holds: boolean[] = []
 vi.mock('../../src/renderer/widgets/emu/audio.ts', () => ({
   emuAudio: {
     get: async () => {
@@ -30,6 +37,7 @@ vi.mock('../../src/renderer/widgets/emu/audio.ts', () => ({
       return context
     },
     wake: () => {},
+    hold: (_voice: object, on: boolean) => holds.push(on),
   },
 }))
 
@@ -68,5 +76,25 @@ describe("PLAY-320's sound in the page", () => {
     expect(events).toContain('disconnect')
     apu.play(frame(true))
     expect(posted.at(-1)).toBe('dispose')
+  })
+
+  it('holds the shared context awake while the worklet says a note sounds, and posts one stop', async () => {
+    posted.length = 0
+    holds.length = 0
+    const apu = new Elec16Apu({ enabled: () => true, volume: () => 1 })
+    apu.play(frame(true))
+    await vi.waitFor(() => expect(posted.length).toBe(1))
+    const node = nodes.at(-1) as FakeNode
+    // A held note: no frame is sent for it, the worklet says it sounds.
+    node.port.onmessage?.({ data: true })
+    expect(holds.at(-1)).toBe(true)
+    node.port.onmessage?.({ data: false })
+    expect(holds.at(-1)).toBe(false)
+    // Muted, each frame silences it: one stop, not one a frame.
+    apu.silence()
+    apu.silence()
+    apu.silence()
+    expect(posted.filter((m) => m === 'stop')).toHaveLength(1)
+    apu.dispose()
   })
 })

@@ -99,12 +99,16 @@ const rows = $derived.by((): MemRow[] | null => {
 })
 
 let before: Map<number, number> | null = null
+/** The space `before` was read in: another space's bytes at the same addresses are not a change. */
+let beforeIn: Space | null = null
 let changed = $state(new Set<number>())
 $effect(() => {
   const now = rows
+  const inSpace = space
   if (now === null) return
-  changed = changedBytes(before, now)
+  changed = changedBytes(inSpace === beforeIn ? before : null, now)
   before = byteMap(now)
+  beforeIn = inSpace
 })
 
 function pickSpace(next: Space): void {

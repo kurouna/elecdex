@@ -36,8 +36,13 @@ const where = (p: { file: string; line: number }): string =>
 let games = $state<readonly Elec16Game[]>([])
 let problem = $state<string | null>(null)
 
+/** Counts the lists asked for: an answer to an older ask, come after a newer one, is dropped. */
+let asked = 0
+
 async function load(): Promise<void> {
-  games = await window.elecdex.elec16.games()
+  const mine = ++asked
+  const list = await window.elecdex.elec16.games()
+  if (mine === asked) games = list
 }
 
 $effect(() => {

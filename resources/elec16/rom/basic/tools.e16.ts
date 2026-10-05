@@ -41,7 +41,6 @@ import {
 import {
   CH_BACKSLASH,
   CH_CARET,
-  CH_COLON,
   CH_COMMA,
   CH_EQ,
   CH_GT,

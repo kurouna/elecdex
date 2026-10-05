@@ -534,321 +534,65 @@ e16c_init:
   ; hL = 16384
   li t0, 16384
   sw t0, 0x1c74(zero)
-  ; palCopy: 512 bytes of 0
+  ; palCopy, oam: 1536 bytes of 0
   li t0, 0x0280
-  li t1, 512
+  li t1, 1536
   mset t0, zero, t1
-  ; oam: 1024 bytes of 0
-  li t0, 0x0480
-  li t1, 1024
-  mset t0, zero, t1
-  ; sines: 512 bytes of 0
+  ; sines, atans: 578 bytes of 0
   li t0, 0x088a
-  li t1, 512
+  li t1, 578
   mset t0, zero, t1
-  ; atans: 66 bytes of 0
-  li t0, 0x0a8a
-  li t1, 66
-  mset t0, zero, t1
-  ; chBank: 32 bytes of 0
+  ; chBank, chSong, chAt, chLoop, chWait, chGate, chFreq, lastFreq, chLen, chHeld, chDrop, chVol, chInstVol, chOn: 448 bytes of 0
   li t0, 0x0ace
-  li t1, 32
+  li t1, 448
   mset t0, zero, t1
-  ; chSong: 32 bytes of 0
-  li t0, 0x0aee
-  li t1, 32
-  mset t0, zero, t1
-  ; chAt: 32 bytes of 0
-  li t0, 0x0b0e
-  li t1, 32
-  mset t0, zero, t1
-  ; chLoop: 32 bytes of 0
-  li t0, 0x0b2e
-  li t1, 32
-  mset t0, zero, t1
-  ; chWait: 32 bytes of 0
-  li t0, 0x0b4e
-  li t1, 32
-  mset t0, zero, t1
-  ; chGate: 32 bytes of 0
-  li t0, 0x0b6e
-  li t1, 32
-  mset t0, zero, t1
-  ; chFreq: 32 bytes of 0
-  li t0, 0x0b8e
-  li t1, 32
-  mset t0, zero, t1
-  ; lastFreq: 32 bytes of 0
-  li t0, 0x0bae
-  li t1, 32
-  mset t0, zero, t1
-  ; chLen: 32 bytes of 0
-  li t0, 0x0bce
-  li t1, 32
-  mset t0, zero, t1
-  ; chHeld: 32 bytes of 0
-  li t0, 0x0bee
-  li t1, 32
-  mset t0, zero, t1
-  ; chDrop: 32 bytes of 0
-  li t0, 0x0c0e
-  li t1, 32
-  mset t0, zero, t1
-  ; chVol: 32 bytes of 0
-  li t0, 0x0c2e
-  li t1, 32
-  mset t0, zero, t1
-  ; chInstVol: 32 bytes of 0
-  li t0, 0x0c4e
-  li t1, 32
-  mset t0, zero, t1
-  ; chOn: 32 bytes of 0
-  li t0, 0x0c6e
-  li t1, 32
-  mset t0, zero, t1
-  ; mOut: 4 bytes of 0
+  ; mOut, vec, bodyV: 110 bytes of 0
   li t0, 0x0c92
-  li t1, 4
-  mset t0, zero, t1
-  ; vec: 96 bytes of 0
-  li t0, 0x0c96
-  li t1, 96
-  mset t0, zero, t1
-  ; bodyV: 10 bytes of 0
-  li t0, 0x0cf6
-  li t1, 10
+  li t1, 110
   mset t0, zero, t1
   ; shakeV: 4 bytes of 0
   li t0, 0x0d0a
   li t1, 4
   mset t0, zero, t1
-  ; flashK: 8 bytes of 0
+  ; flashK, flashBuf, hBand, hPart, hRow, hRowWas: 2234 bytes of 0
   li t0, 0x0d12
-  li t1, 8
+  li t1, 2234
   mset t0, zero, t1
-  ; flashBuf: 30 bytes of 0
-  li t0, 0x0d1a
-  li t1, 30
-  mset t0, zero, t1
-  ; hBand: 1602 bytes of 0
-  li t0, 0x0d38
-  li t1, 1602
-  mset t0, zero, t1
-  ; hPart: 442 bytes of 0
-  li t0, 0x137a
-  li t1, 442
-  mset t0, zero, t1
-  ; hRow: 80 bytes of 0
-  li t0, 0x1534
-  li t1, 80
-  mset t0, zero, t1
-  ; hRowWas: 72 bytes of 0
-  li t0, 0x1584
-  li t1, 72
-  mset t0, zero, t1
-  ; relFrac: 6 bytes of 0
+  ; relFrac, pv, aceHP, aceCruise, aceRoll, acePull: 52 bytes of 0
   li t0, 0x15dc
-  li t1, 6
+  li t1, 52
   mset t0, zero, t1
-  ; pv: 6 bytes of 0
-  li t0, 0x15e2
-  li t1, 6
-  mset t0, zero, t1
-  ; aceHP: 10 bytes of 0
-  li t0, 0x15e8
-  li t1, 10
-  mset t0, zero, t1
-  ; aceCruise: 10 bytes of 0
-  li t0, 0x15f2
-  li t1, 10
-  mset t0, zero, t1
-  ; aceRoll: 10 bytes of 0
-  li t0, 0x15fc
-  li t1, 10
-  mset t0, zero, t1
-  ; acePull: 10 bytes of 0
-  li t0, 0x1606
-  li t1, 10
-  mset t0, zero, t1
-  ; viewDir: 102 bytes of 0
+  ; viewDir, viewNear: 136 bytes of 0
   li t0, 0x1640
-  li t1, 102
+  li t1, 136
   mset t0, zero, t1
-  ; viewNear: 34 bytes of 0
-  li t0, 0x16a6
-  li t1, 34
-  mset t0, zero, t1
-  ; bX: 48 bytes of 0
+  ; bX, bY, bZ, bVX, bVY, bVZ, bLife, bOwner: 384 bytes of 0
   li t0, 0x16dc
-  li t1, 48
+  li t1, 384
   mset t0, zero, t1
-  ; bY: 48 bytes of 0
-  li t0, 0x170c
-  li t1, 48
-  mset t0, zero, t1
-  ; bZ: 48 bytes of 0
-  li t0, 0x173c
-  li t1, 48
-  mset t0, zero, t1
-  ; bVX: 48 bytes of 0
-  li t0, 0x176c
-  li t1, 48
-  mset t0, zero, t1
-  ; bVY: 48 bytes of 0
-  li t0, 0x179c
-  li t1, 48
-  mset t0, zero, t1
-  ; bVZ: 48 bytes of 0
-  li t0, 0x17cc
-  li t1, 48
-  mset t0, zero, t1
-  ; bLife: 48 bytes of 0
-  li t0, 0x17fc
-  li t1, 48
-  mset t0, zero, t1
-  ; bOwner: 48 bytes of 0
-  li t0, 0x182c
-  li t1, 48
-  mset t0, zero, t1
-  ; mX: 12 bytes of 0
+  ; mX, mY, mZ, mDX, mDY, mDZ, mSpeed, mTop, mGain, mLife, mOwner, mChase, mFlare, mNear: 168 bytes of 0
   li t0, 0x186c
-  li t1, 12
+  li t1, 168
   mset t0, zero, t1
-  ; mY: 12 bytes of 0
-  li t0, 0x1878
-  li t1, 12
-  mset t0, zero, t1
-  ; mZ: 12 bytes of 0
-  li t0, 0x1884
-  li t1, 12
-  mset t0, zero, t1
-  ; mDX: 12 bytes of 0
-  li t0, 0x1890
-  li t1, 12
-  mset t0, zero, t1
-  ; mDY: 12 bytes of 0
-  li t0, 0x189c
-  li t1, 12
-  mset t0, zero, t1
-  ; mDZ: 12 bytes of 0
-  li t0, 0x18a8
-  li t1, 12
-  mset t0, zero, t1
-  ; mSpeed: 12 bytes of 0
-  li t0, 0x18b4
-  li t1, 12
-  mset t0, zero, t1
-  ; mTop: 12 bytes of 0
-  li t0, 0x18c0
-  li t1, 12
-  mset t0, zero, t1
-  ; mGain: 12 bytes of 0
-  li t0, 0x18cc
-  li t1, 12
-  mset t0, zero, t1
-  ; mLife: 12 bytes of 0
-  li t0, 0x18d8
-  li t1, 12
-  mset t0, zero, t1
-  ; mOwner: 12 bytes of 0
-  li t0, 0x18e4
-  li t1, 12
-  mset t0, zero, t1
-  ; mChase: 12 bytes of 0
-  li t0, 0x18f0
-  li t1, 12
-  mset t0, zero, t1
-  ; mFlare: 12 bytes of 0
-  li t0, 0x18fc
-  li t1, 12
-  mset t0, zero, t1
-  ; mNear: 12 bytes of 0
-  li t0, 0x1908
-  li t1, 12
-  mset t0, zero, t1
-  ; fX: 16 bytes of 0
+  ; fX, fY, fZ, fLife: 64 bytes of 0
   li t0, 0x1934
-  li t1, 16
+  li t1, 64
   mset t0, zero, t1
-  ; fY: 16 bytes of 0
-  li t0, 0x1944
-  li t1, 16
-  mset t0, zero, t1
-  ; fZ: 16 bytes of 0
-  li t0, 0x1954
-  li t1, 16
-  mset t0, zero, t1
-  ; fLife: 16 bytes of 0
-  li t0, 0x1964
-  li t1, 16
-  mset t0, zero, t1
-  ; xKind: 48 bytes of 0
+  ; xKind, xX, xY, xZ, xVX, xVY, xVZ, xT: 384 bytes of 0
   li t0, 0x197c
-  li t1, 48
-  mset t0, zero, t1
-  ; xX: 48 bytes of 0
-  li t0, 0x19ac
-  li t1, 48
-  mset t0, zero, t1
-  ; xY: 48 bytes of 0
-  li t0, 0x19dc
-  li t1, 48
-  mset t0, zero, t1
-  ; xZ: 48 bytes of 0
-  li t0, 0x1a0c
-  li t1, 48
-  mset t0, zero, t1
-  ; xVX: 48 bytes of 0
-  li t0, 0x1a3c
-  li t1, 48
-  mset t0, zero, t1
-  ; xVY: 48 bytes of 0
-  li t0, 0x1a6c
-  li t1, 48
-  mset t0, zero, t1
-  ; xVZ: 48 bytes of 0
-  li t0, 0x1a9c
-  li t1, 48
-  mset t0, zero, t1
-  ; xT: 48 bytes of 0
-  li t0, 0x1acc
-  li t1, 48
+  li t1, 384
   mset t0, zero, t1
   ; fxLife: 18 bytes of 0
   li t0, 0x1afe
   li t1, 18
   mset t0, zero, t1
-  ; cX: 16 bytes of 0
+  ; cX, cY, cZ, cKind: 64 bytes of 0
   li t0, 0x1b1a
-  li t1, 16
+  li t1, 64
   mset t0, zero, t1
-  ; cY: 16 bytes of 0
-  li t0, 0x1b2a
-  li t1, 16
-  mset t0, zero, t1
-  ; cZ: 16 bytes of 0
-  li t0, 0x1b3a
-  li t1, 16
-  mset t0, zero, t1
-  ; cKind: 16 bytes of 0
-  li t0, 0x1b4a
-  li t1, 16
-  mset t0, zero, t1
-  ; cloudShown: 16 bytes of 0
+  ; cloudShown, cloudSX, cloudSY, cloudZ: 64 bytes of 0
   li t0, 0x1b5c
-  li t1, 16
-  mset t0, zero, t1
-  ; cloudSX: 16 bytes of 0
-  li t0, 0x1b6c
-  li t1, 16
-  mset t0, zero, t1
-  ; cloudSY: 16 bytes of 0
-  li t0, 0x1b7c
-  li t1, 16
-  mset t0, zero, t1
-  ; cloudZ: 16 bytes of 0
-  li t0, 0x1b8c
-  li t1, 16
+  li t1, 64
   mset t0, zero, t1
   ; shown: 24 bytes of 0
   li t0, 0x1ba6
@@ -862,57 +606,17 @@ e16c_init:
   li t0, 0x1bda
   li t1, 18
   mset t0, zero, t1
-  ; score: 4 bytes of 0
+  ; score, best: 8 bytes of 0
   li t0, 0x1bf2
-  li t1, 4
+  li t1, 8
   mset t0, zero, t1
-  ; best: 4 bytes of 0
-  li t0, 0x1bf6
-  li t1, 4
-  mset t0, zero, t1
-  ; aceFlags: 10 bytes of 0
+  ; aceFlags, aceMissiles, aceFlares, aceLockRange, aceBrake, aceMslTenths: 60 bytes of 0
   li t0, 0x1c10
-  li t1, 10
+  li t1, 60
   mset t0, zero, t1
-  ; aceMissiles: 10 bytes of 0
-  li t0, 0x1c1a
-  li t1, 10
-  mset t0, zero, t1
-  ; aceFlares: 10 bytes of 0
-  li t0, 0x1c24
-  li t1, 10
-  mset t0, zero, t1
-  ; aceLockRange: 10 bytes of 0
-  li t0, 0x1c2e
-  li t1, 10
-  mset t0, zero, t1
-  ; aceBrake: 10 bytes of 0
-  li t0, 0x1c38
-  li t1, 10
-  mset t0, zero, t1
-  ; aceMslTenths: 10 bytes of 0
-  li t0, 0x1c42
-  li t1, 10
-  mset t0, zero, t1
-  ; skyArgs: 12 bytes of 0
+  ; skyArgs, letters, bestScore, bestName, bestTime: 78 bytes of 0
   li t0, 0x1c76
-  li t1, 12
-  mset t0, zero, t1
-  ; letters: 6 bytes of 0
-  li t0, 0x1c82
-  li t1, 6
-  mset t0, zero, t1
-  ; bestScore: 20 bytes of 0
-  li t0, 0x1c88
-  li t1, 20
-  mset t0, zero, t1
-  ; bestName: 30 bytes of 0
-  li t0, 0x1c9c
-  li t1, 30
-  mset t0, zero, t1
-  ; bestTime: 10 bytes of 0
-  li t0, 0x1cba
-  li t1, 10
+  li t1, 78
   mset t0, zero, t1
   ret
 
@@ -1197,74 +901,121 @@ palKeep:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:166 palMix(slot, rgb, t) at -O1
-;   slot in s2
-;   rgb in s3
-;   t in 0(fp)
-;   k in s1
-;   c in 2(fp)
+; lib/kit.e16.ts:169 palMix(slot, rgb, t) at -O1
+;   slot in a0
+;   rgb in a1
+;   t in a2
+;   u in s1
+;   r in 0(fp)
+;   g in 2(fp)
+;   b in 4(fp)
+;   p in s2
+;   k in a3
+;   end in 6(fp)
+;   c in s3
+;   mr in 8(fp)
+;   mg in 10(fp)
+;   mb in 12(fp)
 palMix:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s2, 6(sp)
-  sw s3, 8(sp)
-  sw s1, 10(sp)
-  sw s0, 12(sp)
+  addi sp, sp, -22
+  sw s1, 14(sp)
+  sw s2, 16(sp)
+  sw s3, 18(sp)
+  sw s0, 20(sp)
   mv fp, sp
-  mv s2, a0 ; slot
-  mv s3, a1 ; rgb
-  sw a2, 0(fp) ; t
-  ; lib/kit.e16.ts:167  let k: u16 = 1
-  li s1, 1 ; k
-  ; lib/kit.e16.ts:168  poke16(VPAGE, (PALS + slot * 32) >> 12)
-  slli t0, s2, 5
+  ; lib/kit.e16.ts:170  const u = 16 - t
+  li t0, 16
+  sub s1, t0, a2
+  ; lib/kit.e16.ts:171  const r = (rgb & 31) * t
+  andi t0, a1, 31
+  mul t0, t0, a2
+  sw t0, 0(fp) ; r
+  ; lib/kit.e16.ts:172  const g = ((rgb >> 5) & 31) * t
+  srli t0, a1, 5
+  andi t0, t0, 31
+  mul t0, t0, a2
+  sw t0, 2(fp) ; g
+  ; lib/kit.e16.ts:173  const b = ((rgb >> 10) & 31) * t
+  srli t0, a1, 10
+  andi t0, t0, 31
+  mul t0, t0, a2
+  sw t0, 4(fp) ; b
+  ; lib/kit.e16.ts:174  poke16(VPAGE, (PALS + slot * 32) >> 12)
+  slli t0, a0, 5
   li t1, 50176
   add t1, t1, t0
   srli t1, t1, 12
   li t0, 63490
   sw t1, 0(t0)
-  ; lib/kit.e16.ts:169  while (k < 16) {
-  j .L3
-.L1:
-  ; lib/kit.e16.ts:170  const c = palCopy[slot * 16 + k]
-  slli t0, s2, 4
-  add t0, t0, s1
-  slli t0, t0, 1
-  lw t0, palCopy(t0)
-  sw t0, 2(fp) ; c
-  ; lib/kit.e16.ts:171  poke16(VWIN + ((PALS + slot * 32 + k * 2) & 0xfff), mix(c, rgb, t))
-  slli t0, s2, 5
+  ; lib/kit.e16.ts:175  let p = VWIN + ((PALS + slot * 32 + 2) & 0xfff)
+  slli t0, a0, 5
   li t1, 50176
   add t1, t1, t0
-  slli t0, s1, 1
-  add t1, t1, t0
+  addi t1, t1, 2
   andi t1, t1, 4095
-  addi t1, t1, -8192
-  addi sp, sp, -2
-  sw t1, 0(sp)
-  lw a0, 2(fp)
-  mv a1, s3
-  lw a2, 0(fp)
-  call mix
-  lw t0, 0(sp)
-  addi sp, sp, 2
-  sw a0, 0(t0)
-  ; lib/kit.e16.ts:172  k++
-  addi s1, s1, 1
+  addi s2, t1, -8192
+  ; lib/kit.e16.ts:176  let k = slot * 16 + 1
+  slli t0, a0, 4
+  addi a3, t0, 1
+  ; lib/kit.e16.ts:177  const end = slot * 16 + 16
+  slli t0, a0, 4
+  addi t0, t0, 16
+  sw t0, 6(fp) ; end
+  ; lib/kit.e16.ts:178  while (k < end) {
+  j .L3
+.L1:
+  ; lib/kit.e16.ts:179  const c = palCopy[k]
+  slli t0, a3, 1
+  lw s3, palCopy(t0)
+  ; lib/kit.e16.ts:180  const mr = ((c & 31) * u + r) >> 4
+  andi t0, s3, 31
+  mul t0, t0, s1
+  lw t1, 0(fp) ; r
+  add t0, t0, t1
+  srli t0, t0, 4
+  sw t0, 8(fp) ; mr
+  ; lib/kit.e16.ts:181  const mg = (((c >> 5) & 31) * u + g) >> 4
+  srli t0, s3, 5
+  andi t0, t0, 31
+  mul t0, t0, s1
+  lw t1, 2(fp) ; g
+  add t0, t0, t1
+  srli t0, t0, 4
+  sw t0, 10(fp) ; mg
+  ; lib/kit.e16.ts:182  const mb = (((c >> 10) & 31) * u + b) >> 4
+  srli t0, s3, 10
+  andi t0, t0, 31
+  mul t0, t0, s1
+  lw t1, 4(fp) ; b
+  add t0, t0, t1
+  srli t0, t0, 4
+  sw t0, 12(fp) ; mb
+  ; lib/kit.e16.ts:183  poke16(p, mr | (mg << 5) | (mb << 10))
+  lw t0, 10(fp) ; mg
+  slli t0, t0, 5
+  lw t1, 8(fp) ; mr
+  or t1, t1, t0
+  lw t0, 12(fp) ; mb
+  slli t0, t0, 10
+  or t1, t1, t0
+  sw t1, 0(s2)
+  ; lib/kit.e16.ts:184  p = wrap16(p + 2)
+  addi s2, s2, 2
+  ; lib/kit.e16.ts:185  k++
+  addi a3, a3, 1
 .L3:
-  li t0, 16
-  bltu s1, t0, .L1
+  lw t0, 6(fp) ; end
+  bltu a3, t0, .L1
 .return:
   mv sp, fp
-  lw ra, 4(sp)
-  lw s2, 6(sp)
-  lw s3, 8(sp)
-  lw s1, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
+  lw s1, 14(sp)
+  lw s2, 16(sp)
+  lw s3, 18(sp)
+  lw s0, 20(sp)
+  addi sp, sp, 22
   ret
 
-; lib/kit.e16.ts:177 mix(a, b, t) at -O1
+; lib/kit.e16.ts:190 mix(a, b, t) at -O1
 ;   a in s1
 ;   b in s2
 ;   t in s3
@@ -1282,7 +1033,7 @@ mix:
   mv s1, a0 ; a
   mv s2, a1 ; b
   mv s3, a2 ; t
-  ; lib/kit.e16.ts:178  const r = mixPart(a & 31, b & 31, t)
+  ; lib/kit.e16.ts:191  const r = mixPart(a & 31, b & 31, t)
   andi t0, s1, 31
   andi t1, s2, 31
   mv a0, t0
@@ -1290,7 +1041,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 0(fp) ; r
-  ; lib/kit.e16.ts:179  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
+  ; lib/kit.e16.ts:192  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
   srli t0, s1, 5
   andi t0, t0, 31
   srli t1, s2, 5
@@ -1300,7 +1051,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 2(fp) ; g
-  ; lib/kit.e16.ts:180  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
+  ; lib/kit.e16.ts:193  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
   srli t0, s1, 10
   andi t0, t0, 31
   srli t1, s2, 10
@@ -1310,7 +1061,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 4(fp) ; bl
-  ; lib/kit.e16.ts:181  return r | (g << 5) | (bl << 10)
+  ; lib/kit.e16.ts:194  return r | (g << 5) | (bl << 10)
   lw t0, 2(fp) ; g
   slli t0, t0, 5
   lw t1, 0(fp) ; r
@@ -1328,12 +1079,12 @@ mix:
   addi sp, sp, 16
   ret
 
-; lib/kit.e16.ts:184 mixPart(a, b, t) at -O1
+; lib/kit.e16.ts:197 mixPart(a, b, t) at -O1
 ;   a in a0
 ;   b in a1
 ;   t in a2
 mixPart:
-  ; lib/kit.e16.ts:185  return (a * (16 - t) + b * t) >> 4
+  ; lib/kit.e16.ts:198  return (a * (16 - t) + b * t) >> 4
   li t0, 16
   sub t0, t0, a2
   mul t0, a0, t0
@@ -1343,12 +1094,12 @@ mixPart:
 .return:
   ret
 
-; lib/kit.e16.ts:191 cellAt(layer, x, y) at -O1
+; lib/kit.e16.ts:204 cellAt(layer, x, y) at -O1
 ;   layer in a0
 ;   x in a1
 ;   y in a2
 cellAt:
-  ; lib/kit.e16.ts:192  return (layer === 0 ? MAP0 : MAP1) + ((y & 63) << 7) + ((x & 63) << 1)
+  ; lib/kit.e16.ts:205  return (layer === 0 ? MAP0 : MAP1) + ((y & 63) << 7) + ((x & 63) << 1)
   bne a0, zero, .L1
   li t0, 32768
   j .L2
@@ -1364,7 +1115,7 @@ cellAt:
 .return:
   ret
 
-; lib/kit.e16.ts:199 mapRow(b, src, layer, y) at -O1
+; lib/kit.e16.ts:212 mapRow(b, src, layer, y) at -O1
 ;   b in s1
 ;   src in s2
 ;   layer in s3
@@ -1382,11 +1133,11 @@ mapRow:
   mv s2, a1 ; src
   mv s3, a2 ; layer
   sw a3, 0(fp) ; y
-  ; lib/kit.e16.ts:200  const old = bank(b)
+  ; lib/kit.e16.ts:213  const old = bank(b)
   mv a0, s1
   call bank
   sw a0, 2(fp) ; old
-  ; lib/kit.e16.ts:201  dma(src, cellAt(layer, 0, y), 128)
+  ; lib/kit.e16.ts:214  dma(src, cellAt(layer, 0, y), 128)
   mv a0, s3
   li a1, 0
   lw a2, 0(fp)
@@ -1395,7 +1146,7 @@ mapRow:
   mv a0, s2
   li a2, 128
   call dma
-  ; lib/kit.e16.ts:202  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:215  poke16(IO_BANK, old)
   lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
@@ -1409,7 +1160,7 @@ mapRow:
   addi sp, sp, 14
   ret
 
-; lib/kit.e16.ts:206 text(at, s, font) at -O1
+; lib/kit.e16.ts:219 text(at, s, font) at -O1
 ;   at in s2
 ;   s in s1
 ;   font in s0
@@ -1424,21 +1175,21 @@ text:
   mv s2, a0 ; at
   mv s1, a1 ; s
   mv s0, a2 ; font
-  ; lib/kit.e16.ts:207  let c = peek(s)
+  ; lib/kit.e16.ts:220  let c = peek(s)
   lbu s3, 0(s1)
-  ; lib/kit.e16.ts:208  while (c !== 0) {
+  ; lib/kit.e16.ts:221  while (c !== 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:209  vpoke(at, font + c - 32)
+  ; lib/kit.e16.ts:222  vpoke(at, font + c - 32)
   add t0, s0, s3
   mv a0, s2
   addi a1, t0, -32
   call vpoke
-  ; lib/kit.e16.ts:210  at = wrap16(at + 2)
+  ; lib/kit.e16.ts:223  at = wrap16(at + 2)
   addi s2, s2, 2
-  ; lib/kit.e16.ts:211  s++
+  ; lib/kit.e16.ts:224  s++
   addi s1, s1, 1
-  ; lib/kit.e16.ts:212  c = peek(s)
+  ; lib/kit.e16.ts:225  c = peek(s)
   lbu s3, 0(s1)
 .L3:
   bne s3, zero, .L1
@@ -1451,61 +1202,71 @@ text:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:217 number(at, n, digits, zero) at -O1
+; lib/kit.e16.ts:230 number(at, n, digits, zero) at -O1
 ;   at in s1
 ;   n in s3
 ;   digits in s2
-;   zero in s0
+;   zero in 2(fp)
+;   q in 0(fp)
 number:
-  addi sp, sp, -10
-  sw ra, 0(sp)
-  sw s1, 2(sp)
-  sw s3, 4(sp)
-  sw s2, 6(sp)
-  sw s0, 8(sp)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s1, 6(sp)
+  sw s3, 8(sp)
+  sw s2, 10(sp)
+  sw s0, 12(sp)
+  mv fp, sp
   mv s1, a0 ; at
   mv s3, a1 ; n
   mv s2, a2 ; digits
-  mv s0, a3 ; zero
-  ; lib/kit.e16.ts:218  at = wrap16(at + digits * 2)
+  sw a3, 2(fp) ; zero
+  ; lib/kit.e16.ts:231  at = wrap16(at + digits * 2)
   slli t0, s2, 1
   add s1, s1, t0
-  ; lib/kit.e16.ts:219  while (digits > 0) {
+  ; lib/kit.e16.ts:232  while (digits > 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:220  at = wrap16(at - 2)
+  ; lib/kit.e16.ts:233  at = wrap16(at - 2)
   addi s1, s1, -2
-  ; lib/kit.e16.ts:221  vpoke(at, zero + (n % 10))
+  ; lib/kit.e16.ts:235  const q = div(n, 10)
   li t0, 10
-  remu t0, s3, t0
-  add t0, s0, t0
+  divu t0, s3, t0
+  sw t0, 0(fp) ; q
+  ; lib/kit.e16.ts:236  vpoke(at, wrap16(zero + n - q * 10))
+  lw t0, 2(fp) ; zero
+  add t0, t0, s3
+  lw t1, 0(fp) ; q
+  slli t2, t1, 3
+  slli t1, t1, 1
+  add t1, t1, t2
+  sub t0, t0, t1
   mv a0, s1
   mv a1, t0
   call vpoke
-  ; lib/kit.e16.ts:222  n = div(n, 10)
-  li t0, 10
-  divu s3, s3, t0
-  ; lib/kit.e16.ts:223  digits--
+  ; lib/kit.e16.ts:237  n = q
+  lw s3, 0(fp) ; q
+  ; lib/kit.e16.ts:238  digits--
   addi s2, s2, -1
 .L3:
   bltu zero, s2, .L1
 .return:
-  lw ra, 0(sp)
-  lw s1, 2(sp)
-  lw s3, 4(sp)
-  lw s2, 6(sp)
-  lw s0, 8(sp)
-  addi sp, sp, 10
+  mv sp, fp
+  lw ra, 4(sp)
+  lw s1, 6(sp)
+  lw s3, 8(sp)
+  lw s2, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
-; lib/kit.e16.ts:235 sprBegin() at -O1
+; lib/kit.e16.ts:250 sprBegin() at -O1
 sprBegin:
-  ; lib/kit.e16.ts:236  sprN = 0
+  ; lib/kit.e16.ts:251  sprN = 0
   sw zero, 0x0880(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:240 spr(x, y, tile, size) at -O1
+; lib/kit.e16.ts:255 spr(x, y, tile, size) at -O1
 ;   x in a0
 ;   y in a1
 ;   tile in a2
@@ -1514,32 +1275,32 @@ sprBegin:
 spr:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:241  if (sprN >= 128) return
+  ; lib/kit.e16.ts:256  if (sprN >= 128) return
   lw t0, 0x0880(zero)
   li t1, 128
   bltu t0, t1, .L1
-  ; lib/kit.e16.ts:241  return
+  ; lib/kit.e16.ts:256  return
   j .return
 .L1:
-  ; lib/kit.e16.ts:242  const k = sprN << 2
+  ; lib/kit.e16.ts:257  const k = sprN << 2
   lw t0, 0x0880(zero)
   slli s1, t0, 2
-  ; lib/kit.e16.ts:243  oam[k] = u16(x)
+  ; lib/kit.e16.ts:258  oam[k] = u16(x)
   slli t0, s1, 1
   sw a0, oam(t0)
-  ; lib/kit.e16.ts:244  oam[k + 1] = u16(y)
+  ; lib/kit.e16.ts:259  oam[k + 1] = u16(y)
   addi t0, s1, 1
   slli t0, t0, 1
   sw a1, oam(t0)
-  ; lib/kit.e16.ts:245  oam[k + 2] = tile
+  ; lib/kit.e16.ts:260  oam[k + 2] = tile
   addi t0, s1, 2
   slli t0, t0, 1
   sw a2, oam(t0)
-  ; lib/kit.e16.ts:246  oam[k + 3] = size
+  ; lib/kit.e16.ts:261  oam[k + 3] = size
   addi t0, s1, 3
   slli t0, t0, 1
   sw a3, oam(t0)
-  ; lib/kit.e16.ts:247  sprN++
+  ; lib/kit.e16.ts:262  sprN++
   lw t0, 0x0880(zero)
   addi t0, t0, 1
   sw t0, 0x0880(zero)
@@ -1548,66 +1309,86 @@ spr:
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:251 sprCount() at -O1
+; lib/kit.e16.ts:266 sprCount() at -O1
 sprCount:
-  ; lib/kit.e16.ts:252  return sprN
+  ; lib/kit.e16.ts:267  return sprN
   lw a0, 0x0880(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:256 sprShow() at -O1
+; lib/kit.e16.ts:275 sprShow() at -O1
 ;   k in s1
+;   was in s2
+;   n in s3
 sprShow:
-  addi sp, sp, -4
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; lib/kit.e16.ts:257  let k = sprN
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  ; lib/kit.e16.ts:276  let k = sprN
   lw s1, 0x0880(zero)
-  ; lib/kit.e16.ts:258  while (k < sprShown) {
+  ; lib/kit.e16.ts:277  const was = sprShown
+  lw s2, 0x0882(zero)
+  ; lib/kit.e16.ts:278  while (k < was) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:259  oam[(k << 2) + 3] = S_NONE
+  ; lib/kit.e16.ts:279  oam[(k << 2) + 3] = S_NONE
   slli t0, s1, 2
   addi t0, t0, 3
   slli t0, t0, 1
   li t1, 3
   sw t1, oam(t0)
-  ; lib/kit.e16.ts:260  k++
+  ; lib/kit.e16.ts:280  k++
   addi s1, s1, 1
 .L3:
-  lw t0, 0x0882(zero)
-  bltu s1, t0, .L1
-  ; lib/kit.e16.ts:262  sprShown = sprN
+  bltu s1, s2, .L1
+  ; lib/kit.e16.ts:282  sprShown = sprN
   lw t0, 0x0880(zero)
   sw t0, 0x0882(zero)
-  ; lib/kit.e16.ts:263  dma(addr(oam), OAM, 1024)
+  ; lib/kit.e16.ts:283  const n = sprN > was ? sprN : was
+  lw t0, 0x0880(zero)
+  bgeu s2, t0, .L5
+  lw t0, 0x0880(zero)
+  j .L6
+.L5:
+  mv t0, s2
+.L6:
+  mv s3, t0 ; n
+  ; lib/kit.e16.ts:284  if (n > 0) dma(addr(oam), OAM, n << 3)
+  bgeu zero, s3, .L7
+  ; lib/kit.e16.ts:284  dma(addr(oam), OAM, n << 3)
+  slli t0, s3, 3
   la a0, oam
   li a1, 49152
-  li a2, 1024
+  mv a2, t0
   call dma
+.L7:
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  addi sp, sp, 4
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:277 padRead() at -O1
+; lib/kit.e16.ts:298 padRead() at -O1
 ;   hit in a0
 padRead:
-  ; lib/kit.e16.ts:278  const hit = peek16(PADHIT)
+  ; lib/kit.e16.ts:299  const hit = peek16(PADHIT)
   li t0, 63506
   lw a0, 0(t0)
-  ; lib/kit.e16.ts:279  poke16(PADHIT, hit)
+  ; lib/kit.e16.ts:300  poke16(PADHIT, hit)
   li t0, 63506
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:280  padWas = padIs
+  ; lib/kit.e16.ts:301  padWas = padIs
   lw t0, 0x0884(zero)
   sw t0, 0x0886(zero)
-  ; lib/kit.e16.ts:281  padIs = peek16(PAD)
+  ; lib/kit.e16.ts:302  padIs = peek16(PAD)
   li t0, 63504
   lw t0, 0(t0)
   sw t0, 0x0884(zero)
-  ; lib/kit.e16.ts:282  padDown = (hit | padIs) & ~padWas
+  ; lib/kit.e16.ts:303  padDown = (hit | padIs) & ~padWas
   lw t0, 0x0884(zero)
   or t0, a0, t0
   lw t1, 0x0886(zero)
@@ -1617,10 +1398,10 @@ padRead:
 .return:
   ret
 
-; lib/kit.e16.ts:286 held(mask) at -O1
+; lib/kit.e16.ts:307 held(mask) at -O1
 ;   mask in a0
 held:
-  ; lib/kit.e16.ts:287  return (padIs & mask) === mask
+  ; lib/kit.e16.ts:308  return (padIs & mask) === mask
   lw t0, 0x0884(zero)
   and t0, t0, a0
   sub t0, t0, a0
@@ -1628,10 +1409,10 @@ held:
 .return:
   ret
 
-; lib/kit.e16.ts:291 pressed(mask) at -O1
+; lib/kit.e16.ts:312 pressed(mask) at -O1
 ;   mask in a0
 pressed:
-  ; lib/kit.e16.ts:292  return (padDown & mask) !== 0
+  ; lib/kit.e16.ts:313  return (padDown & mask) !== 0
   lw t0, 0x0888(zero)
   and t0, t0, a0
   sub t0, t0, zero
@@ -1639,14 +1420,14 @@ pressed:
 .return:
   ret
 
-; lib/kit.e16.ts:296 padNow() at -O1
+; lib/kit.e16.ts:317 padNow() at -O1
 padNow:
-  ; lib/kit.e16.ts:297  return padIs
+  ; lib/kit.e16.ts:318  return padIs
   lw a0, 0x0884(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:309 kitInit() at -O1
+; lib/kit.e16.ts:330 kitInit() at -O1
 ;   old in s2
 ;   k in s1
 kitInit:
@@ -1654,56 +1435,56 @@ kitInit:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; lib/kit.e16.ts:310  const old = bank(KIT_TABLES_BANK)
+  ; lib/kit.e16.ts:331  const old = bank(KIT_TABLES_BANK)
   li a0, 263
   call bank
   mv s2, a0 ; old
-  ; lib/kit.e16.ts:311  let k: u16 = 0
+  ; lib/kit.e16.ts:332  let k: u16 = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:312  while (k < 256) {
+  ; lib/kit.e16.ts:333  while (k < 256) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:313  sines[k] = peek16(KIT_SIN_AT + k * 2)
+  ; lib/kit.e16.ts:334  sines[k] = peek16(KIT_SIN_AT + k * 2)
   slli t0, s1, 1
   slli t1, s1, 1
   li t2, 49152
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, sines(t0)
-  ; lib/kit.e16.ts:314  k++
+  ; lib/kit.e16.ts:335  k++
   addi s1, s1, 1
 .L3:
   li t0, 256
   bltu s1, t0, .L1
-  ; lib/kit.e16.ts:316  k = 0
+  ; lib/kit.e16.ts:337  k = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:317  while (k < 33) {
+  ; lib/kit.e16.ts:338  while (k < 33) {
   j .L7
 .L5:
-  ; lib/kit.e16.ts:318  atans[k] = peek16(KIT_ATAN_AT + k * 2)
+  ; lib/kit.e16.ts:339  atans[k] = peek16(KIT_ATAN_AT + k * 2)
   slli t0, s1, 1
   slli t1, s1, 1
   li t2, 49664
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, atans(t0)
-  ; lib/kit.e16.ts:319  k++
+  ; lib/kit.e16.ts:340  k++
   addi s1, s1, 1
 .L7:
   li t0, 33
   bltu s1, t0, .L5
-  ; lib/kit.e16.ts:321  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:342  poke16(IO_BANK, old)
   li t0, 65284
   sw s2, 0(t0)
-  ; lib/kit.e16.ts:324  padIs = peek16(PAD)
+  ; lib/kit.e16.ts:345  padIs = peek16(PAD)
   li t0, 63504
   lw t0, 0(t0)
   sw t0, 0x0884(zero)
-  ; lib/kit.e16.ts:325  padWas = padIs
+  ; lib/kit.e16.ts:346  padWas = padIs
   sw t0, 0x0886(zero)
-  ; lib/kit.e16.ts:326  padDown = 0
+  ; lib/kit.e16.ts:347  padDown = 0
   sw zero, 0x0888(zero)
-  ; lib/kit.e16.ts:327  poke16(PADHIT, 0xfff)
+  ; lib/kit.e16.ts:348  poke16(PADHIT, 0xfff)
   li t0, 4095
   li t1, 63506
   sw t0, 0(t1)
@@ -1714,20 +1495,20 @@ kitInit:
   addi sp, sp, 6
   ret
 
-; lib/kit.e16.ts:331 sin(a) at -O1
+; lib/kit.e16.ts:352 sin(a) at -O1
 ;   a in a0
 sin:
-  ; lib/kit.e16.ts:332  return i16(sines[a & 255])
+  ; lib/kit.e16.ts:353  return i16(sines[a & 255])
   andi t0, a0, 255
   slli t0, t0, 1
   lw a0, sines(t0)
 .return:
   ret
 
-; lib/kit.e16.ts:336 cos(a) at -O1
+; lib/kit.e16.ts:357 cos(a) at -O1
 ;   a in a0
 cos:
-  ; lib/kit.e16.ts:337  return i16(sines[(a + 64) & 255])
+  ; lib/kit.e16.ts:358  return i16(sines[(a + 64) & 255])
   addi t0, a0, 64
   andi t0, t0, 255
   slli t0, t0, 1
@@ -1735,7 +1516,7 @@ cos:
 .return:
   ret
 
-; lib/kit.e16.ts:341 aim(dx, dy) at -O1
+; lib/kit.e16.ts:362 aim(dx, dy) at -O1
 ;   dx in a0
 ;   dy in a1
 ;   ax in a2
@@ -1744,7 +1525,7 @@ cos:
 aim:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:342  let ax = dx < 0 ? u16(-dx) : u16(dx)
+  ; lib/kit.e16.ts:363  let ax = dx < 0 ? u16(-dx) : u16(dx)
   bge a0, zero, .L1
   neg t0, a0
   j .L2
@@ -1752,7 +1533,7 @@ aim:
   mv t0, a0
 .L2:
   mv a2, t0 ; ax
-  ; lib/kit.e16.ts:343  let ay = dy < 0 ? u16(-dy) : u16(dy)
+  ; lib/kit.e16.ts:364  let ay = dy < 0 ? u16(-dy) : u16(dy)
   bge a1, zero, .L3
   neg t0, a1
   j .L4
@@ -1760,28 +1541,28 @@ aim:
   mv t0, a1
 .L4:
   mv a3, t0 ; ay
-  ; lib/kit.e16.ts:344  if (ax === 0 && ay === 0) return 64
+  ; lib/kit.e16.ts:365  if (ax === 0 && ay === 0) return 64
   bne a2, zero, .L8
   bne a3, zero, .L8
-  ; lib/kit.e16.ts:344  return 64
+  ; lib/kit.e16.ts:365  return 64
   li a0, 64
   j .return
-  ; lib/kit.e16.ts:347  while (ax >= 1024 || ay >= 1024) {
+  ; lib/kit.e16.ts:368  while (ax >= 1024 || ay >= 1024) {
 .L6:
-  ; lib/kit.e16.ts:348  ax = ax >> 1
+  ; lib/kit.e16.ts:369  ax = ax >> 1
   srli a2, a2, 1
-  ; lib/kit.e16.ts:349  ay = ay >> 1
+  ; lib/kit.e16.ts:370  ay = ay >> 1
   srli a3, a3, 1
 .L8:
   li t0, 1024
   bgeu a2, t0, .L6
   li t0, 1024
   bgeu a3, t0, .L6
-  ; lib/kit.e16.ts:352  let a: u16 = 0
+  ; lib/kit.e16.ts:373  let a: u16 = 0
   li s1, 0 ; a
-  ; lib/kit.e16.ts:353  if (ax >= ay) a = atans[div(ay * 32 + (ax >> 1), ax)]
+  ; lib/kit.e16.ts:374  if (ax >= ay) a = atans[div(ay * 32 + (ax >> 1), ax)]
   bltu a2, a3, .L10
-  ; lib/kit.e16.ts:353  a = atans[div(ay * 32 + (ax >> 1), ax)]
+  ; lib/kit.e16.ts:374  a = atans[div(ay * 32 + (ax >> 1), ax)]
   slli t0, a3, 5
   srli t1, a2, 1
   add t0, t0, t1
@@ -1790,7 +1571,7 @@ aim:
   lw s1, atans(t0)
   j .L11
 .L10:
-  ; lib/kit.e16.ts:354  a = 64 - atans[div(ax * 32 + (ay >> 1), ay)]
+  ; lib/kit.e16.ts:375  a = 64 - atans[div(ax * 32 + (ay >> 1), ay)]
   slli t0, a2, 5
   srli t1, a3, 1
   add t0, t0, t1
@@ -1800,53 +1581,53 @@ aim:
   li t1, 64
   sub s1, t1, t0
 .L11:
-  ; lib/kit.e16.ts:355  if (dx < 0) a = 128 - a
+  ; lib/kit.e16.ts:376  if (dx < 0) a = 128 - a
   bge a0, zero, .L12
-  ; lib/kit.e16.ts:355  a = 128 - a
+  ; lib/kit.e16.ts:376  a = 128 - a
   li t0, 128
   sub s1, t0, s1
 .L12:
-  ; lib/kit.e16.ts:356  if (dy < 0) a = wrap16(256 - a)
+  ; lib/kit.e16.ts:377  if (dy < 0) a = wrap16(256 - a)
   bge a1, zero, .L13
-  ; lib/kit.e16.ts:356  a = wrap16(256 - a)
+  ; lib/kit.e16.ts:377  a = wrap16(256 - a)
   li t0, 256
   sub s1, t0, s1
 .L13:
-  ; lib/kit.e16.ts:357  return a & 255
+  ; lib/kit.e16.ts:378  return a & 255
   andi a0, s1, 255
 .return:
   lw s1, 0(sp)
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:361 rand() at -O1
+; lib/kit.e16.ts:382 rand() at -O1
 ;   x in a0
 rand:
-  ; lib/kit.e16.ts:362  let x = seed
+  ; lib/kit.e16.ts:383  let x = seed
   lw a0, 0x0acc(zero)
-  ; lib/kit.e16.ts:363  x = wrap16(x ^ (x << 7))
+  ; lib/kit.e16.ts:384  x = wrap16(x ^ (x << 7))
   slli t0, a0, 7
   xor a0, a0, t0
-  ; lib/kit.e16.ts:364  x = x ^ (x >> 9)
+  ; lib/kit.e16.ts:385  x = x ^ (x >> 9)
   srli t0, a0, 9
   xor a0, a0, t0
-  ; lib/kit.e16.ts:365  x = wrap16(x ^ (x << 8))
+  ; lib/kit.e16.ts:386  x = wrap16(x ^ (x << 8))
   slli t0, a0, 8
   xor a0, a0, t0
-  ; lib/kit.e16.ts:366  seed = x
+  ; lib/kit.e16.ts:387  seed = x
   sw a0, 0x0acc(zero)
-  ; lib/kit.e16.ts:367  return x
+  ; lib/kit.e16.ts:388  return x
 .return:
   ret
 
-; lib/kit.e16.ts:371 randBelow(n) at -O1
+; lib/kit.e16.ts:392 randBelow(n) at -O1
 ;   n in s1
 randBelow:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n
-  ; lib/kit.e16.ts:372  return u16(mulShift(i16(rand() >> 8), i16(n), 8))
+  ; lib/kit.e16.ts:393  return u16(mulShift(i16(rand() >> 8), i16(n), 8))
   call rand
   srli t0, a0, 8
   mulq a0, t0, s1, 8
@@ -1856,10 +1637,10 @@ randBelow:
   addi sp, sp, 4
   ret
 
-; lib/kit.e16.ts:376 randSeed(s) at -O1
+; lib/kit.e16.ts:397 randSeed(s) at -O1
 ;   s in a0
 randSeed:
-  ; lib/kit.e16.ts:377  seed = s === 0 ? 0x1d2b : s
+  ; lib/kit.e16.ts:398  seed = s === 0 ? 0x1d2b : s
   bne a0, zero, .L1
   li t0, 7467
   j .L2
@@ -1870,54 +1651,54 @@ randSeed:
 .return:
   ret
 
-; lib/kit.e16.ts:383 scoreAdd(at, n) at -O1
+; lib/kit.e16.ts:404 scoreAdd(at, n) at -O1
 ;   at in a0
 ;   n in a1
 ;   lo in a2
 ;   hi in a3
 scoreAdd:
-  ; lib/kit.e16.ts:384  let lo = peek16(at) + n
+  ; lib/kit.e16.ts:405  let lo = peek16(at) + n
   lw t0, 0(a0)
   add a2, t0, a1
-  ; lib/kit.e16.ts:385  let hi = peek16(at + 2)
+  ; lib/kit.e16.ts:406  let hi = peek16(at + 2)
   lw a3, 2(a0)
-  ; lib/kit.e16.ts:386  while (lo >= 10000) {
+  ; lib/kit.e16.ts:407  while (lo >= 10000) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:387  lo = lo - 10000
+  ; lib/kit.e16.ts:408  lo = lo - 10000
   li t0, 10000
   sub a2, a2, t0
-  ; lib/kit.e16.ts:388  hi++
+  ; lib/kit.e16.ts:409  hi++
   addi a3, a3, 1
 .L3:
   li t0, 10000
   bgeu a2, t0, .L1
-  ; lib/kit.e16.ts:390  if (hi > 9999) {
+  ; lib/kit.e16.ts:411  if (hi > 9999) {
   li t0, 9999
   bgeu t0, a3, .L5
-  ; lib/kit.e16.ts:391  hi = 9999
+  ; lib/kit.e16.ts:412  hi = 9999
   li a3, 9999 ; hi
-  ; lib/kit.e16.ts:392  lo = 9999
+  ; lib/kit.e16.ts:413  lo = 9999
   li a2, 9999 ; lo
 .L5:
-  ; lib/kit.e16.ts:394  poke16(at, lo)
+  ; lib/kit.e16.ts:415  poke16(at, lo)
   sw a2, 0(a0)
-  ; lib/kit.e16.ts:395  poke16(at + 2, hi)
+  ; lib/kit.e16.ts:416  poke16(at + 2, hi)
   sw a3, 2(a0)
 .return:
   ret
 
-; lib/kit.e16.ts:399 scoreMore(a, b) at -O1
+; lib/kit.e16.ts:420 scoreMore(a, b) at -O1
 ;   a in a0
 ;   b in a1
 ;   ah in a2
 ;   bh in a3
 scoreMore:
-  ; lib/kit.e16.ts:400  const ah = peek16(a + 2)
+  ; lib/kit.e16.ts:421  const ah = peek16(a + 2)
   lw a2, 2(a0)
-  ; lib/kit.e16.ts:401  const bh = peek16(b + 2)
+  ; lib/kit.e16.ts:422  const bh = peek16(b + 2)
   lw a3, 2(a1)
-  ; lib/kit.e16.ts:402  return ah > bh || (ah === bh && peek16(a) > peek16(b))
+  ; lib/kit.e16.ts:423  return ah > bh || (ah === bh && peek16(a) > peek16(b))
   sltu t0, a3, a2
   mv t1, t0
   bnez t1, .L1
@@ -1934,7 +1715,7 @@ scoreMore:
 .return:
   ret
 
-; lib/kit.e16.ts:406 scoreShow(cell, at, zero) at -O1
+; lib/kit.e16.ts:427 scoreShow(cell, at, zero) at -O1
 ;   cell in s1
 ;   at in s2
 ;   zero in s3
@@ -1947,14 +1728,14 @@ scoreShow:
   mv s1, a0 ; cell
   mv s2, a1 ; at
   mv s3, a2 ; zero
-  ; lib/kit.e16.ts:407  number(cell, peek16(at + 2), 4, zero)
+  ; lib/kit.e16.ts:428  number(cell, peek16(at + 2), 4, zero)
   lw t0, 2(s2)
   mv a0, s1
   mv a1, t0
   li a2, 4
   mv a3, s3
   call number
-  ; lib/kit.e16.ts:408  number(wrap16(cell + 8), peek16(at), 4, zero)
+  ; lib/kit.e16.ts:429  number(wrap16(cell + 8), peek16(at), 4, zero)
   lw t0, 0(s2)
   addi a0, s1, 8
   mv a1, t0
@@ -1969,7 +1750,7 @@ scoreShow:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:414 saveRead(off) at -O1
+; lib/kit.e16.ts:435 saveRead(off) at -O1
 ;   off in s1
 ;   old in s2
 ;   v in s3
@@ -1980,19 +1761,19 @@ saveRead:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; off
-  ; lib/kit.e16.ts:415  const old = bank(SAVE_BANK)
+  ; lib/kit.e16.ts:436  const old = bank(SAVE_BANK)
   li a0, 128
   call bank
   mv s2, a0 ; old
-  ; lib/kit.e16.ts:416  const v = peek16(WINDOW + (off & SAVE_MASK))
+  ; lib/kit.e16.ts:437  const v = peek16(WINDOW + (off & SAVE_MASK))
   andi t0, s1, 8190
   li t1, 49152
   add t1, t1, t0
   lw s3, 0(t1)
-  ; lib/kit.e16.ts:417  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:438  poke16(IO_BANK, old)
   li t0, 65284
   sw s2, 0(t0)
-  ; lib/kit.e16.ts:418  return v
+  ; lib/kit.e16.ts:439  return v
   mv a0, s3
 .return:
   lw ra, 0(sp)
@@ -2002,7 +1783,7 @@ saveRead:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:422 saveWrite(off, v) at -O1
+; lib/kit.e16.ts:443 saveWrite(off, v) at -O1
 ;   off in s1
 ;   v in s2
 ;   old in s3
@@ -2014,16 +1795,16 @@ saveWrite:
   sw s3, 6(sp)
   mv s1, a0 ; off
   mv s2, a1 ; v
-  ; lib/kit.e16.ts:423  const old = bank(SAVE_BANK)
+  ; lib/kit.e16.ts:444  const old = bank(SAVE_BANK)
   li a0, 128
   call bank
   mv s3, a0 ; old
-  ; lib/kit.e16.ts:424  poke16(WINDOW + (off & SAVE_MASK), v)
+  ; lib/kit.e16.ts:445  poke16(WINDOW + (off & SAVE_MASK), v)
   andi t0, s1, 8190
   li t1, 49152
   add t1, t1, t0
   sw s2, 0(t1)
-  ; lib/kit.e16.ts:425  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:446  poke16(IO_BANK, old)
   li t0, 65284
   sw s3, 0(t0)
 .return:
@@ -7439,7 +7220,7 @@ frameBegin:
   ; game.e16.ts:278  soundTick()
   call soundTick
   ; game.e16.ts:279  sprBegin()
-  ; lib/kit.e16.ts:236  sprN = 0
+  ; lib/kit.e16.ts:251  sprN = 0
   sw zero, 0x0880(zero)
   ; game.e16.ts:280  frame++
   lw t0, 0x1bee(zero)

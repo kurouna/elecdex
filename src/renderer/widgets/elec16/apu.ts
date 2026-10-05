@@ -1,6 +1,6 @@
 import type { ApuFrame } from '@shared/elec16/apu'
 import { emuAudio } from '../emu/audio.ts'
-import type { ApuMessage } from './apu-worklet.ts'
+import type { ApuMessage, ApuReport } from './apu-worklet.ts'
 import apuWorklet from './apu-worklet.ts?worker&url'
 
 /**
@@ -25,6 +25,8 @@ export class Elec16Apu {
   #making = false
   #gone = false
   #pending: ApuFrame | null = null
+  /** Nothing sent since the last 'stop': silencing again (every frame, while muted) sends none. */
+  #stopped = true
 
   constructor(options: Elec16ApuOptions) {
     this.#options = options
@@ -49,13 +51,17 @@ export class Elec16Apu {
     }
     if (this.#gain !== null) this.#gain.gain.value = this.#options.volume()
     emuAudio.wake()
+    this.#stopped = false
     this.#node.port.postMessage(frame satisfies ApuMessage)
   }
 
   /** Every voice let go at once (pause, a hidden pane, a reset). */
   silence(): void {
     this.#pending = null
-    this.#node?.port.postMessage('stop' satisfies ApuMessage)
+    emuAudio.hold(this, false)
+    if (this.#stopped || this.#node === null) return
+    this.#stopped = true
+    this.#node.port.postMessage('stop' satisfies ApuMessage)
   }
 
   #make(): void {
@@ -65,6 +71,10 @@ export class Elec16Apu {
       this.#making = false
       if (ac === null || this.#gone) return
       const node = new AudioWorkletNode(ac, 'elec16-apu', { outputChannelCount: [2] })
+      // A note held with nothing new sent still sounds: the worklet says while it does.
+      node.port.onmessage = (event: MessageEvent<ApuReport>) => {
+        if (!this.#gone) emuAudio.hold(this, event.data === true)
+      }
       const gain = ac.createGain()
       gain.gain.value = this.#options.volume()
       node.connect(gain).connect(ac.destination)
@@ -79,6 +89,7 @@ export class Elec16Apu {
   dispose(): void {
     this.silence()
     this.#gone = true
+    if (this.#node !== null) this.#node.port.onmessage = null
     this.#node?.port.postMessage('dispose' satisfies ApuMessage)
     this.#node?.disconnect()
     this.#gain?.disconnect()

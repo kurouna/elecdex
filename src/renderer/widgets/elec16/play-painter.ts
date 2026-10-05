@@ -9,7 +9,7 @@ import {
   VIDEO_MODE,
   type VideoState,
 } from '@shared/elec16/video'
-import { paintTiles } from './tile-painter.js'
+import { paintTiles, pixelWords, rgba555 } from './tile-painter.js'
 
 /**
  * PLAY-320's screen as pixels (docs/elec16-play.md section 4): mode 0's bitmap coloured by
@@ -25,8 +25,14 @@ export const DARK: Rgb = [0, 0, 0]
 
 /** An RGB555 colour (red in the low bits) in eight bits a channel, white as 255. */
 export function rgbOf(c: number): Rgb {
-  const wide = (v: number) => (v << 3) | (v >> 2)
-  return [wide(c & 31), wide((c >> 5) & 31), wide((c >> 10) & 31)]
+  const w = rgba555(c)
+  return [w & 0xff, (w >> 8) & 0xff, (w >> 16) & 0xff]
+}
+
+/** Palette 0's colour `k` in `mem` as an RGBA word. */
+const paletteWord = (mem: Uint8Array, k: number): number => {
+  const at = PALETTE_AT + k * 2
+  return rgba555((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8))
 }
 
 /** Palette 0's colour `k`, as the video memory holds it. */
@@ -49,41 +55,48 @@ export function screenShows(
   return mode === VIDEO_MODE.tiles ? 'tiles' : 'ground'
 }
 
+/**
+ * What `paintPlay` would draw, as one number: the frame last finished in mode 1 (drawn whole
+ * frames at a time), else the screen's count of changes. A page paints when it moves.
+ */
+export function paintKey(v: VideoState | null, off: boolean, revision: number): number {
+  return v !== null && screenShows(v, off) === 'tiles' && v.tiles.last.latched
+    ? -1 - v.tiles.last.serial
+    : revision
+}
+
+/** Mode 0's four colours as RGBA words, kept from one frame to the next. */
+const four = new Uint32Array(4)
+
 /** Every dot into `out` (RGBA, 320 x 288). */
 export function paintPlay(v: VideoState | null, off: boolean, out: Uint8ClampedArray): void {
   const shows = screenShows(v, off)
   if (v !== null && shows === 'tiles') {
-    paintTiles(v.mem, v.tiles.last, out)
+    // The frame last finished, its memory as it ended when it was latched (video.ts).
+    const last = v.tiles.last
+    paintTiles(last.latched ? last.mem : v.mem, last, out)
     return
   }
+  const words = pixelWords(out)
   if (v === null || shows !== 'bitmap') {
-    fill(out, shows === 'dark' || v === null ? DARK : paletteColour(v, 0))
+    words.fill(shows === 'dark' || v === null ? DARK_WORD : paletteWord(v.mem, 0))
     return
   }
-  const colours = [0, 1, 2, 3].map((k) => paletteColour(v, k))
   const mem = v.mem
+  for (let k = 0; k < 4; k++) four[k] = paletteWord(mem, k)
   let o = 0
   for (let at = 0; at < BITMAP_ROW * BITMAP_HEIGHT; at++) {
-    const b = mem[at] ?? 0
-    for (let shift = 6; shift >= 0; shift -= 2) {
-      const [r, g, bl] = colours[(b >> shift) & 3] as Rgb
-      out[o] = r
-      out[o + 1] = g
-      out[o + 2] = bl
-      out[o + 3] = 255
-      o += 4
-    }
+    const b = mem[at] as number
+    words[o] = four[b >> 6] as number
+    words[o + 1] = four[(b >> 4) & 3] as number
+    words[o + 2] = four[(b >> 2) & 3] as number
+    words[o + 3] = four[b & 3] as number
+    o += 4
   }
 }
 
-function fill(out: Uint8ClampedArray, [r, g, b]: Rgb): void {
-  for (let o = 0; o < out.length; o += 4) {
-    out[o] = r
-    out[o + 1] = g
-    out[o + 2] = b
-    out[o + 3] = 255
-  }
-}
+/** DARK as an RGBA word. */
+const DARK_WORD = (0xff << 24) >>> 0
 
 /** The text on the bitmap, row by row, read through the font: a dot is any colour but 0. */
 export function playText(mem: ArrayLike<number>): string[] {

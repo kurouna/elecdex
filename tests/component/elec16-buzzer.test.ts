@@ -28,6 +28,8 @@ const context = {
   destination: {},
 }
 let made = 0
+/** What the buzzer told the shared context: held awake (true) or let go. */
+const holds: boolean[] = []
 vi.mock('../../src/renderer/widgets/emu/audio.ts', () => ({
   emuAudio: {
     get: async () => {
@@ -35,6 +37,7 @@ vi.mock('../../src/renderer/widgets/emu/audio.ts', () => ({
       return context
     },
     wake: () => {},
+    hold: (_voice: object, on: boolean) => holds.push(on),
   },
 }))
 
@@ -65,6 +68,18 @@ describe('the ELEC-16 buzzer', () => {
     events.length = 0
     buzzer.play(440, 0, 'y')
     expect(events).toEqual(['gain cancel', 'gain=0@10'])
+    buzzer.dispose()
+  })
+
+  it('holds the shared context awake while a gated tone sounds, however long', async () => {
+    const buzzer = new Elec16Buzzer({ enabled: () => true, volume: () => 1 })
+    holds.length = 0
+    buzzer.play(440, Number.POSITIVE_INFINITY, 'held')
+    await vi.waitFor(() => expect(holds).toContain(true))
+    // Nothing more comes while BEEP's gate stays on: the context must not sleep under it.
+    expect(holds.at(-1)).toBe(true)
+    buzzer.play(440, 0, 'held')
+    expect(holds.at(-1)).toBe(false)
     buzzer.dispose()
   })
 })

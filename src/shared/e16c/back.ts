@@ -131,14 +131,35 @@ function init(out: Out, program: Program): void {
     if (from === 't0') out.line(`li t0, ${g.init & 0xffff}`)
     out.absolute(g.byte ? 'sb' : 'sw', from, g.at)
   }
-  for (const a of program.arrays) {
-    out.comment(`${a.name}: ${a.bytes} bytes of 0`)
-    out.line(`li t0, ${hex(a.at)}`)
-    out.line(`li t1, ${a.bytes + (a.bytes & 1)}`)
+  for (const run of clearRuns(program.arrays)) {
+    out.comment(`${run.names.join(', ')}: ${run.bytes} bytes of 0`)
+    out.line(`li t0, ${hex(run.at)}`)
+    out.line(`li t1, ${run.bytes}`)
     out.line('mset t0, zero, t1')
   }
   out.line('ret')
   out.raw('')
+}
+
+/**
+ * The arrays to clear as runs of memory: arrays that follow one another with nothing between
+ * are one MSET, not one each (a game's dozens of arrays lie end to end).
+ */
+export function clearRuns(
+  arrays: readonly { name: string; at: number; bytes: number }[],
+): { at: number; bytes: number; names: string[] }[] {
+  const runs: { at: number; bytes: number; names: string[] }[] = []
+  for (const a of [...arrays].sort((x, y) => x.at - y.at)) {
+    const bytes = a.bytes + (a.bytes & 1)
+    const last = runs.at(-1)
+    if (last !== undefined && last.at + last.bytes === a.at) {
+      last.bytes += bytes
+      last.names.push(a.name)
+    } else {
+      runs.push({ at: a.at, bytes, names: [a.name] })
+    }
+  }
+  return runs
 }
 
 function func(out: Out, fn: Fn, banks: Map<string, number | null>): void {

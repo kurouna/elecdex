@@ -11,8 +11,8 @@ import { CART_ID } from './elec16/cartridge.js'
 import {
   DEFAULT_MODEL,
   DEFAULT_XRAM_KB,
-  TUNE_MODEL_IDS,
-  type TuneModelId,
+  MODEL_IDS,
+  type ModelId,
   XRAM_SIZES_KB,
   type XramSizeKb,
 } from './elec16/map.js'
@@ -73,7 +73,7 @@ export const Elec16UnitSchema = z.object({
     z.literal(16),
     z.literal(32),
   ]),
-  model: z.enum(TUNE_MODEL_IDS),
+  model: z.enum(MODEL_IDS),
   // Units made before it had one switch off as a new one does.
   autoOff: AutoOffSchema.default(10),
   // Units made before extended RAM take the most, as a new one does.
@@ -89,7 +89,7 @@ export const Elec16UnitChangeSchema = z
   .object({
     name: UnitNameSchema,
     clock: Elec16UnitSchema.shape.clock,
-    model: z.enum(TUNE_MODEL_IDS),
+    model: z.enum(MODEL_IDS),
     autoOff: AutoOffSchema,
     xram: XramSchema,
   })
@@ -130,12 +130,12 @@ export type Elec16DevFiles =
 /** Where a new unit starts: a pane made before units seeds it with what it had. */
 export interface Elec16UnitSeed {
   clock?: Elec16Clock
-  model?: TuneModelId
+  model?: ModelId
 }
 
 export const unitDefaults = (
   seed: Elec16UnitSeed = {},
-): { clock: Elec16Clock; model: TuneModelId; autoOff: Elec16AutoOff; xram: XramSizeKb } => ({
+): { clock: Elec16Clock; model: ModelId; autoOff: Elec16AutoOff; xram: XramSizeKb } => ({
   clock: seed.clock ?? DEFAULT_CLOCK,
   model: seed.model ?? DEFAULT_MODEL,
   autoOff: 10,

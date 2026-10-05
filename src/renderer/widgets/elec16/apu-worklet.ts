@@ -18,16 +18,23 @@ declare function registerProcessor(name: string, processor: new () => AudioWorkl
 /** What the page posts: a frame, 'stop' to let every voice go at once, 'dispose' when the pane goes. */
 export type ApuMessage = ApuFrame | 'stop' | 'dispose'
 
-class Elec16Apu extends AudioWorkletProcessor {
-  #synth = new ApuSynth(sampleRate)
+/**
+ * What the worklet posts back: whether anything sounds, each time that changes - a held note
+ * keeps the shared context awake with no frame sent (widgets/emu/audio.ts).
+ */
+export type ApuReport = boolean
+
+class Elec16ApuProcessor extends AudioWorkletProcessor {
+  readonly #synth = new ApuSynth(sampleRate)
   /** False once the pane has gone: `process` says so, and the audio thread lets it go. */
   #alive = true
+  #sounding = false
 
   constructor() {
     super()
     this.port.onmessage = (event: MessageEvent<ApuMessage>) => {
       if (event.data === 'dispose') this.#alive = false
-      else if (event.data === 'stop') this.#synth = new ApuSynth(sampleRate)
+      else if (event.data === 'stop') this.#synth.reset()
       else this.#synth.set(event.data)
     }
   }
@@ -38,6 +45,11 @@ class Elec16Apu extends AudioWorkletProcessor {
       this.#synth.render(left, right)
       clamp(left)
       clamp(right)
+    }
+    const sounding = this.#synth.sounding
+    if (sounding !== this.#sounding) {
+      this.#sounding = sounding
+      this.port.postMessage(sounding satisfies ApuReport)
     }
     return this.#alive
   }
@@ -52,4 +64,4 @@ function clamp(samples: Float32Array): void {
   }
 }
 
-registerProcessor('elec16-apu', Elec16Apu)
+registerProcessor('elec16-apu', Elec16ApuProcessor)
