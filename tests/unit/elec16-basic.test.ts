@@ -937,6 +937,26 @@ describe('GOTO and GOSUB to a computed line', () => {
     )
   })
 
+  it('are read by RENUM as a run reads them: 1E2 and 100.5 are line 100', () => {
+    const m = switchOn('pocket-64')
+    type(m, '10 GOTO 1E2\n20 GOSUB 100.5\n30 GOTO 1E2+0\n40 GOTO 1.0E2\n100 RETURN\n')
+    // As a run reads them: each goes to line 100.
+    type(m, 'RENUM 1000\n')
+    expect(say(m, 'LIST').join('')).toBe(
+      [
+        '1000 GOTO 1040',
+        '1010 GOSUB 1040',
+        '1020 GOTO 1E2+0',
+        '1030 GOTO 1040',
+        '1040 RETURN',
+      ].join(''),
+    )
+    // Unchanged in number, a number keeps how it was written.
+    type(m, 'NEW\n10 GOTO 1E2\n100 END\n')
+    type(m, 'RENUM 10,10,90\n')
+    expect(say(m, 'LIST').join('')).toBe(['10 GOTO 1E2', '100 END'].join(''))
+  })
+
   it('are renumbered by RENUM when anything but an operator follows, as a run takes them', () => {
     const m = switchOn('pocket-64')
     // What follows the number without a colon is no operator: the run goes to line 100, so

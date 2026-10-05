@@ -22,10 +22,15 @@ import {
   keepProgramTo,
   LINE_MAX,
   lineBuf,
+  M_PARSE,
+  M_TOWORD,
   next,
+  nsp,
   progEnd,
+  push,
   readUnsigned,
   setAuto,
+  setNsp,
   setTracing,
   statementEnds,
   step,
@@ -48,6 +53,11 @@ import {
   CH_SPACE,
   CH_STAR,
   LIMIT,
+  MATH_A,
+  MATH_ARG,
+  MATH_B,
+  MATH_OP,
+  MATH_STATUS,
   PROG,
 } from './rom.e16'
 import {
@@ -277,24 +287,74 @@ function copyOne(): void {
   rp++
 }
 
-/** The line number at the text, written renumbered; as it is when an operator follows it. */
+/**
+ * The line number at the text, written renumbered; as it is when an operator follows it. The
+ * number is read as a run reads it (the maths unit's PARSE, then TOWORD): 1E2 and 100.5 are
+ * line 100 there, so here too. One whose line does not change keeps how it was written,
+ * unless it is plain digits (0100 is written 100, as before).
+ */
 function renumberHere(): void {
-  let old: u16 = 0
   const start = rp
-  while (isDigit(peek(rp))) {
-    old = old * 10 + (peek(rp) - 0x30)
-    rp++
-  }
-  if (!standsAlone(rp)) {
-    rp = start
-    while (isDigit(peek(rp))) copyOne()
+  const length = lineLiteral()
+  rp = start + length
+  if (!rLineOk || !standsAlone(rp)) {
+    copyFrom(start)
     return
   }
+  const old = rLine
   const now = renumbered(old)
+  if (now === old && !plainDigits(start, length)) {
+    copyFrom(start)
+    return
+  }
   // Where the line is already too long, the digits are only counted (in textOut).
   const written = unsignedText(now, ro + 5 <= LINE_MAX ? addr(lineBuf) + ro : addr(textOut))
-  if (written !== rp - start || now !== old) rChanged = true
+  if (written !== length || now !== old) rChanged = true
   ro += written
+}
+
+/** The line a number at the text names, when it names one (rLineOk): read by lineLiteral. */
+let rLine: u16 = 0
+let rLineOk = false
+
+/**
+ * The number written at rp, read by the maths unit as a run reads it: its length in the text,
+ * and the line it names in rLine (rLineOk false when it names none: too large, or not read).
+ */
+function lineLiteral(): u16 {
+  const at = push()
+  poke16(MATH_ARG, 255)
+  poke16(MATH_A, at)
+  poke16(MATH_B, rp)
+  poke16(MATH_OP, M_PARSE)
+  let length = peek16(MATH_ARG)
+  rLineOk = false
+  if (peek16(MATH_STATUS) !== 0 || length === 0) {
+    // Not a number the unit reads: only its digits are passed over.
+    length = 0
+    while (isDigit(peek(rp + length))) length++
+  } else {
+    poke16(MATH_A, at)
+    poke16(MATH_OP, M_TOWORD)
+    // TOWORD takes -32768 to 65535: a sign or its refusal is no line's number (computedLine).
+    rLineOk = peek16(MATH_STATUS) === 0 && (peek(at) & 0x80) === 0
+    rLine = peek16(MATH_ARG)
+  }
+  setNsp(nsp - 8)
+  return length
+}
+
+/** Whether the `length` characters at `at` are all digits. */
+function plainDigits(at: u16, length: u16): bool {
+  for (let k: u16 = 0; k < length; k++) if (!isDigit(peek(at + k))) return false
+  return true
+}
+
+/** The text from `start` to rp copied as it is. */
+function copyFrom(start: u16): void {
+  const end = rp
+  rp = start
+  while (rp < end) copyOne()
 }
 
 /**
