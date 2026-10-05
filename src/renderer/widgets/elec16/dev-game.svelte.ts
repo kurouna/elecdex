@@ -252,6 +252,14 @@ export class DevGame {
     this.#api.devWatch(this.#pane, want)
   }
 
+  /**
+   * Whether the pane's unit has a cartridge slot now (TUNE may make it a pocket model): without
+   * one the folder is closed, so no build goes into a machine that cannot take it and resets it.
+   */
+  setSlot(has: boolean): void {
+    if (!has) this.close()
+  }
+
   /** The folder closed: no watch, the compiler let go, a build under way comes to nothing. */
   close(): void {
     this.#run++

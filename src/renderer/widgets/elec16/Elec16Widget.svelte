@@ -173,7 +173,8 @@ $effect(() => dev.setSeen(visible))
 // a pocket machine.
 const slotless = $derived(session.unit !== null && !MODELS[session.unit.model].cart)
 $effect(() => {
-  if (slotless) untrack(() => dev.close())
+  const has = !slotless
+  untrack(() => dev.setSlot(has))
 })
 
 // CODE covers the machine: it is out of sight then, and pauses as behind a tab.

@@ -70,6 +70,12 @@ function seedOf(raw: unknown): Elec16UnitSeed {
   return { ...(clock !== undefined ? { clock } : {}), ...(model !== undefined ? { model } : {}) }
 }
 
+/** A MOVE HERE's claim, the pages told of the units only when it moved one (not on a refusal). */
+export function toldIfMoved(claim: Elec16Claim, changed: () => void): Elec16Claim {
+  if (claim.ok) changed()
+  return claim
+}
+
 export function registerElec16Ipc(
   settings: SettingsHandle,
   aiLinks: () => Elec16AiLinks | null,
@@ -211,9 +217,10 @@ export function registerElec16Ipc(
       },
       [CH.elec16.moveHere]: async (event, unit: unknown, pane: unknown): Promise<Elec16Claim> => {
         if (!isPane(pane)) return { ok: false }
-        const claim = await units.moveHere(unit, holderOf(event.sender, pane), askBack)
-        if (claim.ok) changed()
-        return claim
+        return toldIfMoved(
+          await units.moveHere(unit, holderOf(event.sender, pane), askBack),
+          changed,
+        )
       },
       [CH.elec16.release]: (event, unit: unknown, pane: unknown, snapshot: unknown): boolean => {
         if (!isPane(pane)) return false

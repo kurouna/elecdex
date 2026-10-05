@@ -99,10 +99,15 @@ interface Root {
 function rootOf(dir: string): Root | null {
   try {
     const real = realpathSync(dir)
-    return { real, prefix: real.endsWith(path.sep) ? real : real + path.sep }
+    return { real, prefix: rootPrefix(real) }
   } catch {
     return null
   }
+}
+
+/** What every file inside the folder `real` starts with: a drive's root already ends in `sep`. */
+export function rootPrefix(real: string, sep: string = path.sep): string {
+  return real.endsWith(sep) ? real : real + sep
 }
 
 /** Reads a game folder's files for a build. */
@@ -281,7 +286,13 @@ interface Opened {
  */
 export class DevFolders {
   readonly #open = new Map<string, Opened>()
+  readonly #watch: typeof watch
   #gen = 0
+
+  /** `watchWith` is node's fs.watch; a test gives a stand-in to make it fail. */
+  constructor(watchWith: typeof watch = watch) {
+    this.#watch = watchWith
+  }
 
   /** The pane's folder, in place of any it had; the opening's number. */
   open(key: string, dir: string): number {
@@ -314,14 +325,18 @@ export class DevFolders {
     }
     if (held.watcher !== null) return
     try {
-      const watcher = watch(held.dir, { recursive: true, persistent: false }, (_kind, name) => {
-        if (!changeCounts(name === null ? null : String(name))) return
-        if (held.timer !== null) clearTimeout(held.timer)
-        held.timer = setTimeout(() => {
-          held.timer = null
-          if (held.watcher === watcher) onChange()
-        }, WATCH_SETTLE_MS)
-      })
+      const watcher = this.#watch(
+        held.dir,
+        { recursive: true, persistent: false },
+        (_kind, name) => {
+          if (!changeCounts(name === null ? null : String(name))) return
+          if (held.timer !== null) clearTimeout(held.timer)
+          held.timer = setTimeout(() => {
+            held.timer = null
+            if (held.watcher === watcher) onChange()
+          }, WATCH_SETTLE_MS)
+        },
+      )
       // A folder taken away under the watch: the watch ends, main goes on.
       watcher.on('error', () => {
         if (held.watcher === watcher) stopWatch(held)

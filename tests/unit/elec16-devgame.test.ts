@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events'
+import type { watch } from 'node:fs'
 import {
   existsSync,
   linkSync,
@@ -23,6 +25,7 @@ import {
   insideName,
   listedFiles,
   readGameFolder,
+  rootPrefix,
   templateFiles,
   writeBack,
   writeTemplate,
@@ -418,5 +421,57 @@ describe("DEVELOP's channels", () => {
   it('holds game.json to a count of names', () => {
     const many = Array.from({ length: 600 }, (_, k) => `f${k}.e16.ts`)
     expect(listedFiles({ ...META, sources: many })).toBe('game.json names more than 512 files')
+  })
+})
+
+describe('a game folder at the edges', () => {
+  it("takes a drive's root as a folder: its files start with the root itself, no doubled separator", () => {
+    const win = (p: string) => p.replaceAll('/', '\\')
+    expect(rootPrefix(win('C:/'), '\\')).toBe(win('C:/'))
+    expect(rootPrefix(win('C:/games'), '\\')).toBe(win('C:/games/'))
+    expect(rootPrefix('/', '/')).toBe('/')
+    expect(rootPrefix('/home/me/game', '/')).toBe('/home/me/game/')
+    // A file in a drive's root is inside it; one in a folder of the same name's prefix is not.
+    expect(win('C:/main.e16.ts').startsWith(rootPrefix(win('C:/'), '\\'))).toBe(true)
+    expect(win('C:/games2/x').startsWith(rootPrefix(win('C:/games'), '\\'))).toBe(false)
+  })
+
+  it('ends the watch, and tells nothing more, when the watcher fails (a folder taken away)', async () => {
+    let fake: (EventEmitter & { close(): void; closed: boolean }) | null = null
+    let changed: ((kind: string, name: string) => void) | null = null
+    const watchWith = ((
+      _dir: string,
+      _options: unknown,
+      listener: (k: string, n: string) => void,
+    ) => {
+      const w = Object.assign(new EventEmitter(), {
+        closed: false,
+        close() {
+          w.closed = true
+        },
+      })
+      fake = w
+      changed = listener
+      return w
+    }) as unknown as typeof watch
+    const folders = new DevFolders(watchWith)
+    const key = devKey(1, 'p1')
+    folders.open(key, dir)
+    let told = 0
+    folders.watch(key, true, () => {
+      told++
+    })
+    expect(folders.watching()).toEqual([key])
+    changed?.('change', 'main.e16.ts')
+    // Without its listener an 'error' would be thrown out of main: here it ends the watch.
+    expect(() => fake?.emit('error', new Error('EPERM'))).not.toThrow()
+    expect(folders.watching()).toEqual([])
+    expect(fake?.closed).toBe(true)
+    await new Promise((r) => setTimeout(r, 500))
+    expect(told).toBe(0)
+    // Watched again later, it starts afresh.
+    folders.watch(key, true, () => {})
+    expect(folders.watching()).toEqual([key])
+    folders.close(key)
   })
 })

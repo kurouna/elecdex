@@ -185,6 +185,27 @@ describe("the pane's development folder", () => {
     expect(dev.folder).toBeNull()
   })
 
+  it('closes its folder when the unit has no slot any more (made a pocket model in TUNE)', async () => {
+    const a = api()
+    const inserted: string[] = []
+    const dev = new DevGame(a.api, 'p1', inserting(inserted), async () => 0)
+    dev.setSeen(true)
+    dev.setSlot(true)
+    await dev.open()
+    await settle()
+    expect(dev.folder).not.toBeNull()
+    const builds = dev.builds
+    dev.setSlot(false)
+    expect(dev.folder).toBeNull()
+    expect(a.calls.slice(-2)).toEqual(['watch p1 false', 'close p1'])
+    // A change told after it builds nothing and puts nothing in the slot.
+    a.change()
+    await settle()
+    expect([dev.builds, dev.status]).toEqual([0, 'idle'])
+    expect(inserted).toHaveLength(builds)
+    dev.dispose()
+  })
+
   it('lets a build under way come to nothing when the folder is closed or another opened', async () => {
     const a = api()
     const inserted: string[] = []

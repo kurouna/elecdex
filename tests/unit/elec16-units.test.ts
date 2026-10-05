@@ -18,7 +18,7 @@ vi.mock('electron', () => ({
   dialog: {},
   ipcMain: {},
 }))
-const { importFile } = await import('../../src/main/ipc/elec16.js')
+const { importFile, toldIfMoved } = await import('../../src/main/ipc/elec16.js')
 
 /** main's ELEC-16 units (docs/elec16.md section 8): units, who runs them, backups and cards. */
 
@@ -395,5 +395,19 @@ describe('IMPORT and the character set', () => {
       problem: 'That file could not be read.',
     })
     expect(built.errors).toEqual([])
+  })
+})
+
+describe('MOVE HERE, told to the pages', () => {
+  it('tells the pages only when the unit moved, never on a refusal', () => {
+    let told = 0
+    const changed = () => {
+      told++
+    }
+    expect(toldIfMoved({ ok: false }, changed)).toEqual({ ok: false })
+    expect(told).toBe(0)
+    const moved = { ok: true } as Parameters<typeof toldIfMoved>[0]
+    expect(toldIfMoved(moved, changed)).toBe(moved)
+    expect(told).toBe(1)
   })
 })
