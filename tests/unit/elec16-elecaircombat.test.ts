@@ -254,16 +254,16 @@ function okDistance(a: number[], b: number[]): number {
 }
 
 /**
- * The frame budget's pins (cycles), as measured on 2026-10-05 with the smooth sky and the
- * stall: the scripted sortie, NOCTURNE's fight as first measured (the stall out of reach) and
- * the same fight with the stall in it. See the tests that use them.
+ * The frame budget's pins (cycles), as measured on 2026-10-05 with the smooth sky, the stall
+ * and the speed as energy: the scripted sortie, NOCTURNE's fight with the stall out of reach
+ * and the same fight with the stall in it. See the tests that use them.
  */
-const SORTIE_AVG = 26_336
-const SORTIE_WORST = 37_894
-const HARD_AVG = 30_109
-const HARD_WORST = 51_546
-const STALL_AVG = 31_271
-const STALL_WORST = 51_546
+const SORTIE_AVG = 26_351
+const SORTIE_WORST = 37_921
+const HARD_AVG = 32_178
+const HARD_WORST = 52_671
+const STALL_AVG = 32_217
+const STALL_WORST = 52_671
 
 describe('ELECAIRCOMBAT as built', () => {
   it('is what games.json holds, and its folder keeps the constants and the assembly', () => {
@@ -529,19 +529,21 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     // this flight measured 26,599 on average and 38,922 at worst (2026-10-05). With the sea's
     // motion gone and the savings that came with it kept: 26,505 and 38,803. The smooth sky
     // (31 bands, its row writer reading the eight's ends once) and the stall's checks, which
-    // this flight never meets: SORTIE_AVG and SORTIE_WORST.
+    // this flight never meets: 26,336 and 37,894. The speed as energy (its climbs and loops
+    // keep more speed, so the flight goes a little differently): SORTIE_AVG and SORTIE_WORST.
     expect(sum / 480).toBeLessThanOrEqual(SORTIE_AVG)
     expect(worst).toBeLessThanOrEqual(SORTIE_WORST)
   })
 
   it('keeps the hardest fight within its frames: NOCTURNE and the player firing missiles all the while', () => {
-    // The fight as it was first measured: the stall lowered out of reach, so the pilot flies
-    // the same fight and the frames compare (the stall changes where the fight goes).
+    // The stall lowered out of reach, so the pilot flies one fight whatever the stall's tuning
+    // and the frames compare (the stall changes where the fight goes).
     const fight = hardFight(false)
     expect(fight.stalled).toBe(0)
     // Nor here: 30,380 on average and 52,528 at worst before the redraw, 52,484 at worst
-    // after it (2026-10-05); 30,287 and 52,401 once the sea no longer moved; HARD_AVG and
-    // HARD_WORST with the smooth sky and the stall's checks.
+    // after it (2026-10-05); 30,287 and 52,401 once the sea no longer moved; 30,109 and 51,546
+    // with the smooth sky and the stall's checks. The speed as energy flies another fight
+    // (the frames are the path's, not the speed's few cycles): HARD_AVG and HARD_WORST.
     expect(fight.avg).toBeLessThanOrEqual(HARD_AVG)
     expect(fight.worst).toBeLessThanOrEqual(HARD_WORST)
   })
@@ -550,7 +552,7 @@ describe('ELECAIRCOMBAT flown', { timeout: 60_000 }, () => {
     // The pilot pulls whatever its speed, so it stalls now and then: a different fight, whose
     // frames are its own (STALL_AVG, STALL_WORST); the stalled frames themselves are light.
     const fight = hardFight(true)
-    expect(fight.stalled).toBeGreaterThan(50)
+    expect(fight.stalled).toBeGreaterThan(20)
     expect(fight.avg).toBeLessThanOrEqual(STALL_AVG)
     expect(fight.worst).toBeLessThanOrEqual(STALL_WORST)
   })
@@ -672,13 +674,86 @@ describe('ELECAIRCOMBAT stall', { timeout: 120_000 }, () => {
     return { m, buffetAt, stallAt, warned }
   }
 
-  it('flies clear of it at cruise: a hard turn, and a pull into a climb', () => {
+  /**
+   * `n` frames with `pad` held as `fly` flies them: each frame's stall state, the slowest speed
+   * and the stall speed of that frame, and how far the nose turned in the north-up plane
+   * (degrees, a whole loop 360).
+   */
+  function loop(m: Elec16, pad: number, n: number) {
+    const states: number[] = []
+    let slowest = Number.POSITIVE_INFINITY
+    let stallThere = 0
+    let turned = 0
+    let was = 0
+    for (let k = 0; k < n; k++) {
+      states.push(...fly(m, pad, 1))
+      const deg = (Math.atan2(read(m, 'vec', 2), read(m, 'vec', 1)) * 180) / Math.PI
+      turned += ((deg - was + 540) % 360) - 180
+      was = deg
+      if (read(m, 'pSpeed') < slowest) {
+        slowest = read(m, 'pSpeed')
+        stallThere = read(m, 'stallSpeed')
+      }
+    }
+    return { states, slowest, stallThere, turned }
+  }
+
+  it('flies clear of it at cruise: a hard turn, a pull into a climb, a whole loop', () => {
     const m = level()
-    const turn = [...fly(m, B.right, 25), ...fly(m, B.pull, 150)]
+    const turn = [...fly(m, B.right, 25), ...fly(m, B.pull, 300)]
     expect(Math.max(...turn)).toBe(0)
     const n = level()
     expect(Math.max(...fly(n, B.pull, 24))).toBe(0)
     expect(read(n, 'vec', 2)).toBeGreaterThan(8000)
+    // A loop pulled from cruise comes over the top slower, but well clear of the buffet: the
+    // nose's height is not the wing's angle, and the pull at the top asks no more than below.
+    const o = loop(level(), B.pull, 260)
+    expect(o.turned).toBeGreaterThan(360)
+    expect(Math.max(...o.states)).toBe(0)
+    expect(o.slowest).toBeLessThan(240)
+    expect(o.slowest).toBeGreaterThan(o.stallThere + MARGIN + 16)
+  })
+
+  it('loops on the burner far from it', () => {
+    const m = level()
+    fly(m, padBit('r'), 60)
+    const o = loop(m, B.pull | padBit('r'), 260)
+    expect(o.turned).toBeGreaterThan(360)
+    expect(Math.max(...o.states)).toBe(0)
+    expect(o.slowest).toBeGreaterThan(o.stallThere + 150)
+  })
+
+  it('stalls in a loop begun slow: braked to 215, the brake let go, then pulled', () => {
+    const m = level()
+    fly(m, B.brake, 35)
+    expect(read(m, 'pSpeed')).toBeLessThanOrEqual(220)
+    expect(read(m, 'pSpeed')).toBeGreaterThanOrEqual(210)
+    const o = loop(m, B.pull, 260)
+    // Buffeting first, then the stall, on the way over the top: the speed it began with was
+    // too little for the climb.
+    const buffet = o.states.indexOf(1)
+    const stall = o.states.indexOf(2)
+    expect(buffet).toBeGreaterThan(30)
+    expect(stall).toBeGreaterThan(buffet)
+    expect(o.slowest).toBeLessThan(o.stallThere)
+    expect(read(m, 'outcome')).toBe(0)
+  })
+
+  it('stalls at the top of a zoom held straight up, and only once the speed has bled', () => {
+    const m = level()
+    const up = fly(m, B.pull, 51)
+    expect(read(m, 'vec', 2)).toBeGreaterThan(16000)
+    const states = [...up, ...fly(m, 0, 200)]
+    const buffet = states.indexOf(1)
+    const stall = states.indexOf(2)
+    // Well over a second into the climb before the buffet, the nose still up when it stalls.
+    expect(buffet).toBeGreaterThan(80)
+    expect(stall).toBeGreaterThan(buffet)
+    const n = level()
+    fly(n, B.pull, 51)
+    fly(n, 0, stall - 51 + 1)
+    expect(read(n, 'stallState')).toBe(2)
+    expect(read(n, 'vec', 2)).toBeGreaterThan(14000)
   })
 
   it('slows with the brake and a pull into the buffet, the HUD calling STALL, then stalls', () => {
@@ -691,15 +766,15 @@ describe('ELECAIRCOMBAT stall', { timeout: 120_000 }, () => {
 
   it('stalled, lets the nose fall by itself, the pull hardly answering and the roll halved', () => {
     const { m } = stalled()
-    // Let go, the nose falls by itself.
+    // Let go, the nose falls by itself (it stalled steep, so the pull runs out first).
     const free = fork(m)
     const z0 = read(free, 'vec', 2)
-    fly(free, B.brake, 10)
+    fly(free, B.brake, 30)
     const fell = z0 - read(free, 'vec', 2)
-    expect(fell).toBeGreaterThan(400)
+    expect(fell).toBeGreaterThan(1000)
     // Pulled, it still falls: the pull answers a sixteenth of what it asks.
     const pulled = fork(m)
-    expect(fly(pulled, B.brake | B.pull, 10).every((s) => s === 2)).toBe(true)
+    expect(fly(pulled, B.brake | B.pull, 20).every((s) => s === 2)).toBe(true)
     expect(read(pulled, 'vec', 2)).toBeLessThan(z0)
     expect(read(pulled, 'pitchRate')).toBeLessThanOrEqual(625 >> 4)
     // The roll comes at half the rate it does at cruise.
@@ -728,42 +803,38 @@ describe('ELECAIRCOMBAT stall', { timeout: 120_000 }, () => {
     expect(read(m, 'pAlt')).toBeGreaterThan(3000)
   })
 
-  it('comes at a higher speed high up', () => {
+  it('comes at a higher speed high up, and sooner', () => {
     const climb = (alt: number) => {
       const m = level(alt)
       const level0 = fly(m, 0, 2, alt)
       const speed = read(m, 'stallSpeed')
-      const states = [...level0, ...fly(m, B.pull, 20, alt), ...fly(m, 0, 120, alt)]
-      return { speed, worst: Math.max(...states) }
+      const states = [...level0, ...fly(m, B.pull, 20, alt), ...fly(m, 0, 300, alt)]
+      return { speed, states }
     }
     const low = climb(6000)
     const high = climb(27000)
     expect(low.speed).toBe(BASE)
-    expect(high.speed).toBe(BASE + ((27000 - HIGH) >> 7))
-    // The same gentle climb at cruise: clear low down, buffeting up high.
-    expect(low.worst).toBe(0)
-    expect(high.worst).toBeGreaterThanOrEqual(1)
+    expect(high.speed).toBe(BASE + ((27000 - HIGH) >> 8))
+    // The same gentle climb at cruise (about 35 degrees): held low down, where the engine
+    // keeps the speed; up high the thinner air gives less, the speed bleeds and it stalls.
+    expect(Math.max(...low.states)).toBe(0)
+    expect(high.states.indexOf(1)).toBeGreaterThan(60)
+    expect(high.states.indexOf(2)).toBeGreaterThan(high.states.indexOf(1))
   })
 
-  it("leaves the aces' flying alone: MISTRAL zooms on through speeds the player would stall at", () => {
+  it("leaves the aces' flying alone: MISTRAL zooms over the top on its own speeds", () => {
     const m = atAce(1)
     put(m, 'aiState', 2)
     put(m, 'aiStateT', 90)
     put(m, 'aiThinkT', 200)
-    let under = 0
     let highest = -16384
     for (let t = 0; t < 120; t++) {
       put(m, 'pAlt', 5200)
       put(m, 'aiThinkT', 200)
       frames(m, 1, cart)
-      const z = vecOf(m, V.EF)[2] ?? 0
-      highest = Math.max(highest, z)
-      // The player's stall speed at this climb with the stick pulled: the base, the climb's
-      // share and the pull's.
-      if (z > 0 && read(m, 'eSpeed') < BASE + (z >> 9) + (500 >> 5)) under++
+      highest = Math.max(highest, vecOf(m, V.EF)[2] ?? 0)
     }
-    // Slower than that, pulling, it climbs on past 60 degrees to its own turn over the top.
-    expect(under).toBeGreaterThan(0)
+    // It climbs on past 60 degrees to its own turn over the top, as before the stall.
     expect(highest).toBeGreaterThan(14000)
     // Nothing of the aces' flying reads the stall.
     for (const file of ['ai.e16.ts', 'bandit.e16.ts']) {

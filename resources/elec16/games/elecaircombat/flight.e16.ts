@@ -30,19 +30,29 @@ import {
 export const SPEED_CRUISE: i16 = 320
 export const SPEED_BURNER: i16 = 464
 export const SPEED_BRAKE: i16 = 200
+/** The most the engine and drag change the speed a frame, sixteenths of a point (3 points). */
+const THRUST: i16 = 48
+/** What a climb straight up takes off the speed a frame, sixteenths of a point. */
+const CLIMB: i16 = 84
+/** How far over the throttle's speed a dive still gains. */
+const SPEED_DIVE: i16 = 128
+/** The slowest the fighter flies: a climb held into the stall hangs on the nose here. */
+const SPEED_MIN: i16 = 48
 
 /**
  * The stall, the player's only (the aces fly their own way): no airflow model, a speed below
- * which the wing no longer holds the nose. It is STALL_BASE, a little under the brake's
- * speed, raised by the nose's climb, by the pull and by height above STALL_HIGH, a little
- * lowered on the burner. Within STALL_MARGIN above it the fighter buffets (the screen shakes,
- * a horn, STALL on the HUD) and the pull is dulled; below it the pull hardly answers, the roll
- * is halved, the wing drags (STALL_DRAG) and the nose falls toward the ground by itself,
- * STALL_DROP a frame, until the speed is back half the margin above the stall speed -
- * lowering the nose is the way out. A
- * stall alone never brings the fighter down; only the sea does.
+ * which the wing no longer holds the nose. It is STALL_BASE, well under the brake's speed,
+ * raised by the pull (the wing's load) and by height above STALL_HIGH, a little lowered on
+ * the burner - never by where the nose points: a climb straight up at speed is no stall, the
+ * speed it bleeds is (speedStep). Within STALL_MARGIN above it the fighter buffets (the screen
+ * shakes, a horn, STALL on the HUD) and the pull is dulled; below it the pull hardly answers,
+ * the roll is halved, the wing drags (STALL_DRAG) and the nose falls toward the ground by
+ * itself, STALL_DROP a frame, until the speed is back half the margin above the stall speed -
+ * lowering the nose is the way out. A stall alone never brings the fighter down; only the sea
+ * does. A loop pulled from cruise comes over the top near 220, clear of it; one begun from
+ * the brake's speed, or a zoom held straight up, stalls.
  */
-export const STALL_BASE: i16 = 176
+export const STALL_BASE: i16 = 157
 export const STALL_MARGIN: i16 = 24
 export const STALL_HIGH: i16 = 20000
 /** The nose's fall a frame while stalled, Q14 radians (about half a degree). */
@@ -62,6 +72,7 @@ export let stallSpeed: i16 = STALL_BASE
 export let pSpeed: i16 = SPEED_CRUISE
 export let pAlt: i16 = 6000
 let pAltFrac: i16 = 0
+let pSpeedFrac: i16 = 0
 let rollRate: i16 = 0
 let pitchRate: i16 = 0
 /** 1 while the burner is lit, 2 while braking. */
@@ -84,6 +95,7 @@ export function playerNew(alt: i16): void {
   pSpeed = SPEED_CRUISE
   pAlt = alt
   pAltFrac = 0
+  pSpeedFrac = 0
   rollRate = 0
   pitchRate = 0
   throttle = 0
@@ -120,15 +132,13 @@ function wantedPitch(): i16 {
   return p
 }
 
-/** The stall speed now: the base, raised by the climb, the pull and the height; the burner's lower. */
+/** The stall speed now: the base, raised by the pull and the height; the burner's lower. */
 function stallSpeedNow(): i16 {
   let s = stallBase
-  const fz = vget(V_PF + 2)
-  // Up to 32 more with the nose straight up, up to 19 for the hardest pull.
-  if (fz > 0) s = s + (fz >> 9)
+  // Up to 15 more for the hardest pull (19 on the brake).
   if (pitchRate > 0) s = s + (pitchRate >> 5)
-  // Thin air: a point more for every 128 of height above STALL_HIGH (78 at the ceiling).
-  if (pAlt > STALL_HIGH) s = s + ((pAlt - STALL_HIGH) >> 7)
+  // Thin air: a point more for every 256 of height above STALL_HIGH (39 at the ceiling).
+  if (pAlt > STALL_HIGH) s = s + ((pAlt - STALL_HIGH) >> 8)
   if (throttle === 1) s = s - 16
   return s
 }
@@ -190,7 +200,7 @@ export function playerStep(alive: bool): void {
   // the drift one leaves is far below a point on the screen.
   pSquare = pSquare ^ 1
   if (pSquare === 0) orthonormal(V_PF, V_PR, V_PU)
-  pSpeed = approach(pSpeed, speedAsked(), 3)
+  speedStep()
   velocityKept()
 }
 
@@ -205,13 +215,38 @@ function pullAsked(wp: i16): i16 {
   return stallState === 2 ? wp >> 4 : wp - (wp >> 2)
 }
 
-/** The speed the fighter tends to: the throttle's, less the climb (more the dive), the stall's drag. */
+/** The speed the throttle holds in level flight, less the stalled wing's drag. */
 function speedAsked(): i16 {
   let target = SPEED_CRUISE
   if (throttle === 1) target = SPEED_BURNER
   if (throttle === 2) target = SPEED_BRAKE
-  target = target - (vget(V_PF + 2) >> 7)
   return stallState === 2 ? target - STALL_DRAG : target
+}
+
+/**
+ * A frame's change of speed, in sixteenths of a speed point (the fraction kept): the engine
+ * and drag pull it toward the throttle's speed, at most THRUST a frame, and the climb takes
+ * CLIMB at the vertical (a dive gives it), so the speed is energy: a loop entered fast comes
+ * over the top with speed to spare, one entered slow does not, and a climb steeper than the
+ * engine can hold bleeds the speed away however long it lasts (at cruise one steeper than
+ * about 35 degrees). Above STALL_HIGH the air is thin and the engine weaker, a sixteenth less
+ * for every 512 of height, so a gentler climb bleeds there. A dive gains no more once it is
+ * SPEED_DIVE over the throttle's speed, and nothing slows below SPEED_MIN.
+ */
+function speedStep(): void {
+  const target = speedAsked()
+  let most = THRUST
+  if (pAlt > STALL_HIGH) most = most - ((pAlt - STALL_HIGH) >> 9)
+  const d = clamp16((target - pSpeed) << 2, -most, most)
+  let g = mulShift(vget(V_PF + 2), CLIMB, 14)
+  if (g < 0 && pSpeed >= target + SPEED_DIVE) g = 0
+  const q = pSpeedFrac + d - g
+  pSpeed = pSpeed + (q >> 4)
+  pSpeedFrac = q & 15
+  if (pSpeed < SPEED_MIN) {
+    pSpeed = SPEED_MIN
+    pSpeedFrac = 0
+  }
 }
 
 /** The player's velocity part `k` (0 x, 1 y, 2 z) in sixteenths of a unit a frame. */
