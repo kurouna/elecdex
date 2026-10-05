@@ -9,7 +9,7 @@ import {
   isCardName,
 } from '@shared/elec16/card'
 import { CART_ID, CART_MAX_SAVE_BANKS } from '@shared/elec16/cartridge'
-import { BANK_SIZE } from '@shared/elec16/map'
+import { BANK_SIZE, MODELS } from '@shared/elec16/map'
 import { decodeSnapshot, SNAPSHOT_MAX_SIZE } from '@shared/elec16/snapshot'
 import { SOFT_HELP_MAX, type SoftFile } from '@shared/elec16/soft-card'
 import {
@@ -340,6 +340,8 @@ export class Elec16Units {
     const unit = this.unit(id)
     if (unit === null || !this.#holds(unit.id, holder)) return null
     if (game !== null && !CART_ID.test(game)) return null
+    // Only a model with a slot takes a game; any model may have one taken out.
+    if (game !== null && !MODELS[unit.model].cart) return null
     const { cart: _was, ...rest } = unit
     const next: Elec16Unit = game === null ? rest : { ...rest, cart: game }
     const file = this.#units.read()

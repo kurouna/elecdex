@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CART_MAX_SIZE, readCart } from '@shared/elec16/cartridge'
+import { CART_MAX_SIZE, type CartHeader, readCart } from '@shared/elec16/cartridge'
 import type { Elec16Game, Elec16GameImport } from '@shared/elec16-units'
 import { fromBase64 } from '@shared/emu/base64'
 import { z } from 'zod'
@@ -30,6 +30,8 @@ const ImportedSchema = z.object({
   /** The name the file had where it came from. */
   from: z.string().max(260),
   at: z.number(),
+  /** Built from a folder by DEVELOP (section 11): a later build takes its place. */
+  built: z.boolean().optional(),
 })
 
 const LibrarySchema = z.object({
@@ -48,6 +50,9 @@ interface Held {
   digest: Uint8Array
 }
 
+/** An imported file as read: its header, image and hash; null when it does not read as one. */
+type Read = { header: CartHeader; image: Uint8Array; digest: Uint8Array } | null
+
 const digestOf = (image: Uint8Array): Uint8Array =>
   new Uint8Array(createHash('sha256').update(image).digest())
 
@@ -56,6 +61,11 @@ export class Elec16Games {
   readonly #bundled: readonly Held[]
   readonly #library: JsonStore<LibraryOnDisk>
   readonly #now: () => number
+  /**
+   * The imported files as read, by file name: a file is named by its image's hash, so it is
+   * read and hashed once, not on every list, insert or CART request; dropped with its entry.
+   */
+  readonly #read = new Map<string, { stamp: string; read: Read }>()
 
   /** `dir` is userData/elec16; `resources` the folder holding games/games.json, if any. */
   constructor(dir: string, resources: string | null, now: () => number = Date.now) {
@@ -110,31 +120,48 @@ export class Elec16Games {
     return this.#take(image, from, true)
   }
 
-  #take(image: Uint8Array, from: string, replace: boolean): Elec16GameImport {
+  #take(image: Uint8Array, from: string, built: boolean): Elec16GameImport {
     const header = readCart(image)
     if (header === null)
       return { ok: false, problem: 'it is not an ELEC-16 PLAY cartridge (.E16G)' }
     if (this.#bundled.some((h) => h.game.id === header.id)) {
       return { ok: false, problem: `${header.id} is the id of a game that comes with the app` }
     }
-    if (!replace && this.list().some((g) => g.id === header.id)) {
+    const shown = this.#entries().find((e) => e.entry.id === header.id)
+    if (!built && shown !== undefined) {
       return { ok: false, problem: `a game with the id ${header.id} is already on the shelf` }
     }
-    if (replace) this.remove(header.id)
+    if (shown !== undefined && shown.entry.built !== true) {
+      return {
+        ok: false,
+        problem: `${header.id} is the id of a game imported from a file: take it off the shelf first`,
+      }
+    }
     const hash = Buffer.from(digestOf(image)).toString('hex')
     const name = `${hash}.e16g`
     const target = path.join(this.#dir, name)
-    mkdirSync(this.#dir, { recursive: true })
-    writeFileSync(`${target}.tmp`, image)
-    replaceFile(`${target}.tmp`, target)
+    try {
+      mkdirSync(this.#dir, { recursive: true })
+      writeFileSync(`${target}.tmp`, image)
+      replaceFile(`${target}.tmp`, target)
+    } catch {
+      // Never the path: the page shows the problem as it is.
+      return { ok: false, problem: 'the game could not be written to the shelf' }
+    }
+    // The new image is in place before the entry moves to it: a build never leaves the
+    // shelf without its game, and an entry of the same id left behind goes with the swap.
     const lib = this.#library.read()
     const entry = {
       id: header.id,
       file: name,
       from: from.slice(0, 260),
       at: this.#now(),
+      ...(built ? { built: true } : {}),
     }
-    this.#library.write({ ...lib, games: [...lib.games, entry] })
+    const old = lib.games.filter((g) => g.id === header.id)
+    const games = [...lib.games.filter((g) => g.id !== header.id), entry]
+    this.#library.write({ ...lib, games })
+    for (const g of old) this.#dropFile(g.file, games)
     return { ok: true, id: header.id }
   }
 
@@ -143,27 +170,65 @@ export class Elec16Games {
     const lib = this.#library.read()
     const entry = lib.games.find((g) => g.id === id)
     if (entry === undefined) return false
-    this.#library.write({ ...lib, games: lib.games.filter((g) => g !== entry) })
-    if (!lib.games.some((g) => g !== entry && g.file === entry.file)) {
-      rmSync(path.join(this.#dir, entry.file), { force: true })
-    }
+    const games = lib.games.filter((g) => g !== entry)
+    this.#library.write({ ...lib, games })
+    this.#dropFile(entry.file, games)
     return true
+  }
+
+  /** An image file no entry names any more, removed and forgotten. */
+  #dropFile(file: string, games: readonly { file: string }[]): void {
+    if (games.some((g) => g.file === file)) return
+    this.#read.delete(file)
+    rmSync(path.join(this.#dir, file), { force: true })
   }
 
   /** The imported games whose files are there and still read as cartridges. */
   #imported(): Held[] {
-    return this.#library.read().games.flatMap((g) => {
-      const file = path.join(this.#dir, g.file)
-      try {
-        if (!existsSync(file) || statSync(file).size > CART_MAX_SIZE) return []
-        const image = new Uint8Array(readFileSync(file))
-        const header = readCart(image)
-        if (header === null || header.id !== g.id) return []
-        return [{ game: gameOf(header, false, g.from), image, digest: digestOf(image) }]
-      } catch {
-        return []
-      }
+    return this.#entries().map(({ entry, read }) => ({
+      game: gameOf(read.header, false, entry.from),
+      image: read.image,
+      digest: read.digest,
+    }))
+  }
+
+  /** The library's entries with their files as read, those that read as their game. */
+  #entries(): {
+    entry: z.infer<typeof ImportedSchema>
+    read: NonNullable<Read>
+  }[] {
+    return this.#library.read().games.flatMap((entry) => {
+      const read = this.#readFile(entry.file)
+      return read === null || read.header.id !== entry.id ? [] : [{ entry, read }]
     })
+  }
+
+  /**
+   * An imported file, read and hashed again only when its size or time moved (one changed or
+   * taken away behind the app's back is not taken for the game it was); a stat each call.
+   */
+  #readFile(name: string): Read {
+    const file = path.join(this.#dir, name)
+    let stamp: string
+    try {
+      const st = statSync(file)
+      if (!st.isFile() || st.size > CART_MAX_SIZE) return null
+      stamp = `${st.size}:${st.mtimeMs}`
+    } catch {
+      return null
+    }
+    const known = this.#read.get(name)
+    if (known !== undefined && known.stamp === stamp) return known.read
+    let read: Read = null
+    try {
+      const image = new Uint8Array(readFileSync(file))
+      const header = readCart(image)
+      if (header !== null) read = { header, image, digest: digestOf(image) }
+    } catch {
+      read = null
+    }
+    this.#read.set(name, { stamp, read })
+    return read
   }
 }
 

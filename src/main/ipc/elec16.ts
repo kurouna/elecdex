@@ -15,6 +15,7 @@ import {
   type Elec16Claim,
   type Elec16DevFiles,
   type Elec16DevOpen,
+  type Elec16DevState,
   type Elec16FileInfo,
   type Elec16Game,
   type Elec16GameImport,
@@ -25,13 +26,8 @@ import {
 import { app, BrowserWindow, dialog, type WebContents } from 'electron'
 import type { ProviderAdapter } from '../ai/adapter.js'
 import { appWindows } from '../app-windows.js'
-import {
-  DevFolders,
-  readGameFolder,
-  templateFiles,
-  writeBack,
-  writeTemplate,
-} from '../elec16/devgame.js'
+import { devHandlers } from '../elec16/dev-handlers.js'
+import { DevFolders, templateFiles } from '../elec16/devgame.js'
 import { Elec16Games } from '../elec16/games.js'
 import { kitLibFiles } from '../elec16/kit-lib.js'
 import { AiLinkService } from '../elec16/link/ai.js'
@@ -155,12 +151,30 @@ export function registerElec16Ipc(
     })
     return { page: page.id, pane }
   }
-  /** A folder opened for this page; forgotten when the page goes. */
-  const devOpened = (page: WebContents, folder: string): Elec16DevOpen => {
-    dev.open(page.id, folder)
-    whenPageGoes(page, devOwner, () => dev.close(page.id))
-    return { ok: true, name: path.basename(folder) }
-  }
+  /** GAMES ▸ DEVELOP: a folder for each pane of each page, forgotten when the page goes. */
+  const devDesk = devHandlers({
+    folders: dev,
+    pick: (page, create) =>
+      pickFolder(
+        page as WebContents,
+        create ? 'A folder for a new game' : "Open a game's folder",
+        create,
+      ),
+    template: () =>
+      resources === null
+        ? null
+        : { ...templateFiles(path.join(resources, 'kit-template')), ...kitLibFiles() },
+    install: (image, from) => {
+      const done = games.importBuilt(image, from)
+      if (done.ok) gamesChanged()
+      return done
+    },
+    opened: (page) => {
+      const contents = page as WebContents
+      whenPageGoes(contents, devOwner, () => dev.closePage(contents.id))
+    },
+    changed: (page, pane) => (page as WebContents).send(CH.elec16.devChanged, pane),
+  })
   const askBack = (from: Holder): void => {
     const page = appWindows()
       .map((w) => w.webContents)
@@ -198,7 +212,7 @@ export function registerElec16Ipc(
       [CH.elec16.moveHere]: async (event, unit: unknown, pane: unknown): Promise<Elec16Claim> => {
         if (!isPane(pane)) return { ok: false }
         const claim = await units.moveHere(unit, holderOf(event.sender, pane), askBack)
-        changed()
+        if (claim.ok) changed()
         return claim
       },
       [CH.elec16.release]: (event, unit: unknown, pane: unknown, snapshot: unknown): boolean => {
@@ -289,43 +303,29 @@ export function registerElec16Ipc(
         const game = units.unit(unit)?.cart
         return game === undefined ? null : games.image(game)
       },
-      [CH.elec16.devOpen]: async (event): Promise<Elec16DevOpen | null> => {
-        const folder = await pickFolder(event.sender, "Open a game's folder", false)
-        if (folder === undefined) return null
-        return devOpened(event.sender, folder)
-      },
-      [CH.elec16.devNew]: async (event): Promise<Elec16DevOpen | null> => {
-        const folder = await pickFolder(event.sender, 'A folder for a new game', true)
-        if (folder === undefined || resources === null) return null
-        const files = { ...templateFiles(path.join(resources, 'kit-template')), ...kitLibFiles() }
-        const problem = writeTemplate(folder, files)
-        if (problem !== null) return { ok: false, problem }
-        return devOpened(event.sender, folder)
-      },
-      [CH.elec16.devRead]: (event): Elec16DevFiles => {
-        const folder = dev.dirOf(event.sender.id)
-        if (folder === null) return { ok: false, problem: 'no folder is open' }
-        return readGameFolder(folder)
-      },
-      [CH.elec16.devWrite]: (event, assets: unknown, compiled: unknown): boolean => {
-        const folder = dev.dirOf(event.sender.id)
-        if (folder === null || typeof assets !== 'string' || typeof compiled !== 'string')
-          return false
-        if (assets.length > 1 << 20 || compiled.length > 8 << 20) return false
-        writeBack(folder, assets, compiled)
-        return true
-      },
-      [CH.elec16.devInstall]: (event, image: unknown): Elec16GameImport => {
-        const folder = dev.dirOf(event.sender.id)
-        if (folder === null) return { ok: false, problem: 'no folder is open' }
-        if (!(image instanceof Uint8Array)) return { ok: false, problem: 'not a cartridge' }
-        const done = games.importBuilt(image, path.basename(folder))
-        if (done.ok) gamesChanged()
-        return done
-      },
-      [CH.elec16.devClose]: (event): void => {
-        dev.close(event.sender.id)
-      },
+      [CH.elec16.devOpen]: (event, pane: unknown): Promise<Elec16DevOpen | null> =>
+        devDesk.open(event.sender, pane),
+      [CH.elec16.devNew]: (event, pane: unknown): Promise<Elec16DevOpen | null> =>
+        devDesk.create(event.sender, pane),
+      [CH.elec16.devState]: (event, pane: unknown): Elec16DevState =>
+        devDesk.state(event.sender, pane),
+      [CH.elec16.devRead]: (event, pane: unknown, gen: unknown): Elec16DevFiles =>
+        devDesk.read(event.sender, pane, gen),
+      [CH.elec16.devWrite]: (
+        event,
+        pane: unknown,
+        gen: unknown,
+        assets: unknown,
+        compiled: unknown,
+      ): boolean => devDesk.write(event.sender, pane, gen, assets, compiled),
+      [CH.elec16.devInstall]: (
+        event,
+        pane: unknown,
+        gen: unknown,
+        image: unknown,
+      ): Elec16GameImport => devDesk.install(event.sender, pane, gen, image),
+      [CH.elec16.devClose]: (event, pane: unknown): void => devDesk.close(event.sender, pane),
+      [CH.elec16.devWatching]: (): string[] => dev.watching(),
       [CH.elec16.gamesInsert]: (
         event,
         unit: unknown,
@@ -341,12 +341,8 @@ export function registerElec16Ipc(
       },
     },
     on: {
-      [CH.elec16.devWatch]: (event, on: unknown) => {
-        const page = event.sender
-        dev.watch(page.id, on === true, () => {
-          if (!page.isDestroyed()) page.send(CH.elec16.devChanged, null)
-        })
-      },
+      [CH.elec16.devWatch]: (event, pane: unknown, on: unknown) =>
+        devDesk.watch(event.sender, pane, on),
       [CH.elec16.linkDrop]: (event, unit: unknown, pane: unknown, serial: unknown) => {
         if (!isPane(pane) || typeof unit !== 'string') return
         if (units.holds(unit, { page: event.sender.id, pane })) hub.drop(unit, serial)
@@ -356,7 +352,7 @@ export function registerElec16Ipc(
 
   return {
     dispose: () => {
-      for (const page of dev.pages()) dev.close(page)
+      for (const key of dev.keys()) dev.close(key)
       hub.dispose()
       unregister()
     },

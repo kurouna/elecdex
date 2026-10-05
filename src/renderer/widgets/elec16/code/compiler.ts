@@ -52,12 +52,23 @@ async function start(): Promise<Worker> {
   return w
 }
 
+/** How many hold the compiler: a build with nobody holding it starts no worker. */
+let holders = 0
+
 // The last view gone: a build still waiting is ended too, never left to wait for ever.
 const use = refCounted(() => () => failAll(new Error('the compiler was let go')))
 
 /** Holds the compiler while a CODE view (or a game's folder) is open; the last release ends it. */
 export function holdCompiler(): () => void {
-  return use()
+  const release = use()
+  holders++
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    holders--
+    release()
+  }
 }
 
 /** Every level's build of a source, measured on a machine with this ROM. */
@@ -94,6 +105,8 @@ function ask(w: Worker, request: (id: number) => CodeRequest): Promise<CodeReply
 
 /** The worker, started if need be; let go while it started, it is ended, not kept for no one. */
 async function ready(): Promise<Worker> {
+  // A worker started for no one would stay: no release would ever come to end it.
+  if (holders === 0) throw new Error('the compiler is not held')
   starting ??= start()
   const asked = starting
   let w: Worker

@@ -97,6 +97,12 @@ describe('the CODE compiler', () => {
     expect(FakeWorker.made.every((w) => w.terminated)).toBe(true)
   })
 
+  it('starts no worker for a build nobody holds the compiler for', async () => {
+    // Once a worker started for no one and stayed: no release would ever end it.
+    await expect(compileCode(ROM, 'MAIN.TS', 'x')).rejects.toThrow(/not held/)
+    expect(FakeWorker.made).toEqual([])
+  })
+
   it('says a failure with no words of its own as the compiler stopping', async () => {
     const release = holdCompiler()
     try {

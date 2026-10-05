@@ -166,10 +166,17 @@ $effect(() => {
  */
 const dev = new DevGame(
   window.elecdex.elec16,
+  untrack(() => paneId),
   (id) => session.insertGame(id),
   async () => (await import('./play-rom.json')).default.symbols.trap ?? 0,
 )
 $effect(() => dev.setSeen(visible))
+// A unit that is no PLAY-320 now (TUNE) has no slot: its folder is closed, so no build resets
+// a pocket machine.
+const slotless = $derived(session.unit !== null && !MODELS[session.unit.model].cart)
+$effect(() => {
+  if (slotless) untrack(() => dev.close())
+})
 
 // CODE covers the machine: it is out of sight then, and pauses as behind a tab.
 const machineSeen = $derived(visible && pane.view === 'machine')
@@ -539,6 +546,8 @@ onDestroy(() => {
     <div class="device">
       {#if failed}
         <p class="failed" data-testid="elec16-failed">The ROM could not be read.</p>
+      {:else if session.phase === 'failed'}
+        <p class="failed" data-testid="elec16-failed">The unit could not be had from main.</p>
       {:else if session.phase === 'held' || session.phase === 'gone'}
         <div class="sheet crt-on" style:--crt-delay="{POWER_OFF_MS}ms" transition:crtPower data-testid="elec16-sheet" data-phase={session.phase}>
           <p>

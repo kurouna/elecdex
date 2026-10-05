@@ -987,6 +987,22 @@ test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, m
     ]) {
       expect(existsSync(path.join(folder, name)), name).toBe(true)
     }
+    // Watched while the pane is seen, not while the window is minimised.
+    const watching = () => page.evaluate(() => window.elecdex.elec16.devWatching())
+    const windowTo = (how: 'minimize' | 'restore') =>
+      app.evaluate(({ BrowserWindow }, action) => {
+        const win = BrowserWindow.getAllWindows().find((w) => w.isVisible() || w.isMinimized())
+        if (action === 'minimize') win?.minimize()
+        else win?.restore()
+      }, how)
+    await expect.poll(watching).toHaveLength(1)
+    await windowTo('minimize')
+    await expect.poll(watching, { timeout: 10_000 }).toEqual([])
+    await windowTo('restore')
+    await expect.poll(watching, { timeout: 10_000 }).toHaveLength(1)
+    // Back in sight with nothing changed: read again, not built again.
+    await expect(dev).toHaveAttribute('data-status', 'built')
+    await expect(dev).toHaveAttribute('data-builds', '1')
     // A save that breaks it: built again, and the line said.
     const main = path.join(folder, 'main.e16.ts')
     const source = readFileSync(main, 'utf8')
@@ -999,6 +1015,13 @@ test("PLAY-320's DEVELOP: a new game from the template, built, broken on save, m
     await expect(dev).toHaveAttribute('data-builds', '2')
     await page.getByTestId('elec16-dev-close').click()
     await expect(page.getByTestId('elec16-dev-open')).toBeVisible()
+    await expect.poll(watching).toEqual([])
+    // Opened again, then the page goes (a reload): main forgets the folder and its watch.
+    await page.getByTestId('elec16-dev-open').click()
+    await expect(dev).toHaveAttribute('data-status', 'built', { timeout: 60_000 })
+    await expect.poll(watching).toHaveLength(1)
+    await page.reload()
+    await expect.poll(watching, { timeout: 10_000 }).toEqual([])
   } finally {
     await close()
     rmSync(folder, { recursive: true, force: true })

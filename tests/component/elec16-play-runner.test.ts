@@ -266,6 +266,21 @@ describe('the runner with PLAY-320', () => {
   })
 })
 
+describe('the runner with PLAY-320 switched to another machine', () => {
+  it('hushes the notes it was playing when a pocket machine or a moved one is fitted', () => {
+    const sound = { frames: [] as ApuFrame[], hushed: 0 }
+    const { runner } = setUp(sound)
+    const before = sound.hushed
+    runner.boot(romFromFile(pocketJson) ?? new Uint8Array(), 'pocket-48', 4_000_000)
+    // Once a note held over: the pocket machine sends no sound to end it.
+    expect(sound.hushed).toBeGreaterThan(before)
+    const again = sound.hushed
+    const other = setUp().runner.detach()
+    if (other !== null) runner.adopt(other, 4_000_000, false)
+    expect(sound.hushed).toBeGreaterThan(again)
+  })
+})
+
 describe('the runner with a pocket model', () => {
   it('sends no sound, the handheld neither: they have none', () => {
     const frames: ApuFrame[] = []

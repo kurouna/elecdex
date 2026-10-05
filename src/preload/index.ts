@@ -34,6 +34,7 @@ import type {
   Elec16Claim,
   Elec16DevFiles,
   Elec16DevOpen,
+  Elec16DevState,
   Elec16FileInfo,
   Elec16Game,
   Elec16GameImport,
@@ -610,16 +611,19 @@ const api: ElecdexApi = {
         image: Uint8Array
         digest: Uint8Array
       } | null>,
-    devOpen: () => ipcRenderer.invoke(CH.elec16.devOpen) as Promise<Elec16DevOpen | null>,
-    devNew: () => ipcRenderer.invoke(CH.elec16.devNew) as Promise<Elec16DevOpen | null>,
-    devRead: () => ipcRenderer.invoke(CH.elec16.devRead) as Promise<Elec16DevFiles>,
-    devWrite: (assets, compiled) =>
-      ipcRenderer.invoke(CH.elec16.devWrite, assets, compiled) as Promise<boolean>,
-    devInstall: (image) =>
-      ipcRenderer.invoke(CH.elec16.devInstall, image) as Promise<Elec16GameImport>,
-    devClose: () => ipcRenderer.invoke(CH.elec16.devClose) as Promise<void>,
-    devWatch: (on) => ipcRenderer.send(CH.elec16.devWatch, on),
-    onDevChange: (handler) => listen<null>(CH.elec16.devChanged, () => handler()),
+    devOpen: (pane) => ipcRenderer.invoke(CH.elec16.devOpen, pane) as Promise<Elec16DevOpen | null>,
+    devNew: (pane) => ipcRenderer.invoke(CH.elec16.devNew, pane) as Promise<Elec16DevOpen | null>,
+    devState: (pane) => ipcRenderer.invoke(CH.elec16.devState, pane) as Promise<Elec16DevState>,
+    devRead: (pane, gen) =>
+      ipcRenderer.invoke(CH.elec16.devRead, pane, gen) as Promise<Elec16DevFiles>,
+    devWrite: (pane, gen, assets, compiled) =>
+      ipcRenderer.invoke(CH.elec16.devWrite, pane, gen, assets, compiled) as Promise<boolean>,
+    devInstall: (pane, gen, image) =>
+      ipcRenderer.invoke(CH.elec16.devInstall, pane, gen, image) as Promise<Elec16GameImport>,
+    devClose: (pane) => ipcRenderer.invoke(CH.elec16.devClose, pane) as Promise<void>,
+    devWatch: (pane, on) => ipcRenderer.send(CH.elec16.devWatch, pane, on),
+    onDevChange: (handler) => listen<string>(CH.elec16.devChanged, handler),
+    devWatching: () => ipcRenderer.invoke(CH.elec16.devWatching) as Promise<string[]>,
   },
   chip8: {
     list: () => ipcRenderer.invoke(CH.chip8.list) as Promise<Chip8Program[]>,

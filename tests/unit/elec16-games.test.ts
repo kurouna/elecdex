@@ -107,6 +107,15 @@ describe('the game shelf', () => {
     expect(g.list()).toHaveLength(1)
   })
 
+  it('reads and hashes an imported file once, not on every look', () => {
+    const g = shelf([])
+    g.import(file('m.e16g', cart({ id: 'MINE' })))
+    const first = g.image('MINE')
+    g.list()
+    expect(g.image('MINE')?.image).toBe(first?.image)
+    expect(g.image('MINE')?.digest).toBe(first?.digest)
+  })
+
   it('takes an imported game off, never a bundled one', () => {
     const g = shelf([cart({ id: 'B1' })])
     g.import(file('m.e16g', cart({ id: 'MINE' })))
@@ -151,6 +160,9 @@ describe("a unit's slot and the save RAM it keeps", () => {
     const u = units()
     u.list()
     u.claim('u1', A)
+    // A model with no slot takes no game.
+    expect(u.setCart('u1', A, 'SPACE')).toBeNull()
+    u.update('u1', { model: 'play-320' })
     expect(u.setCart('u1', B, 'SPACE')).toBeNull()
     expect(u.setCart('u1', A, 'space')).toBeNull()
     expect(u.setCart('u1', A, 'SPACE')?.cart).toBe('SPACE')

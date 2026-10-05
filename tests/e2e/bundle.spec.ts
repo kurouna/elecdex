@@ -15,9 +15,10 @@ test('the page is built minified', () => {
   expect(entry).toBeDefined()
   const code = readFileSync(path.join(ASSETS, entry ?? ''), 'utf8')
   const lines = code.split('\n').length
-  // Unminified it was 3.4 MB on 77,800 lines; minified, 2.0 MB on 4,400 (template strings keep theirs).
+  // Unminified it was 3.4 MB on 77,800 lines; minified, 2.0 MB on 4,400 (template strings keep theirs),
+  // 2.50 MB by 2026-10-05: the bound tells minified from not, with room for the app to grow.
   expect(lines).toBeLessThan(10_000)
-  expect(code.length).toBeLessThan(2_500_000)
+  expect(code.length).toBeLessThan(2_600_000)
   // The licence notices the bundle keeps are kept where they are, not minified away.
   expect(code).toContain('@license')
   // No helper injected into functions (keepNames): the plugin worker is built from

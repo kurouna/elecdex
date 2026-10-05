@@ -1,6 +1,8 @@
 import { assemble, ramImage } from '@shared/elec16/asm'
 import { screenText } from '@shared/elec16/font'
 import { keyCode } from '@shared/elec16/keys'
+import type { LinkAnswer } from '@shared/elec16/link'
+import { LINK_CMD, LINK_REG, LINK_STATUS } from '@shared/elec16/link-services'
 import { pasteKeys } from '@shared/elec16/paste'
 import { romFromFile } from '@shared/elec16/rom'
 import { ANNUNCIATORS } from '@shared/elec16/state'
@@ -302,6 +304,42 @@ describe('the ELEC-16 runner', () => {
     const s = next.machine?.state
     expect(s === undefined ? [] : screenText(s.vram, 240, 48)[0]?.trimEnd()).toBe('*D1')
     expect(next.model).toBe('pocket-48')
+  })
+
+  it('wakes the next mount for a LINK answer that came back after the pane moved', async () => {
+    const { clock, runner } = setUp(true)
+    let answer: ((a: LinkAnswer) => void) | null = null
+    runner.onLink = () =>
+      new Promise<LinkAnswer>((resolve) => {
+        answer = resolve
+      })
+    const machine = runner.machine
+    if (machine === null) throw new Error('no machine')
+    // A SEND, as a program makes one; a key lets the loop take it to main.
+    const bus = (machine as unknown as { bus: { write16(a: number, v: number): boolean } }).bus
+    machine.state.ram.set([72, 73, 0], 0x7000)
+    bus.write16(LINK_REG.query, 0x7000)
+    bus.write16(LINK_REG.reply, 0x7100)
+    bus.write16(LINK_REG.max, 40)
+    machine.vouch()
+    bus.write16(LINK_REG.cmd, LINK_CMD.send)
+    runner.down(keyCode('a'), false)
+    runner.release(keyCode('a'))
+    clock.advance(50)
+    expect(answer).not.toBeNull()
+    runner.detach()
+    const there = fakeHost()
+    const next = new Elec16Runner(there.host)
+    next.adopt(machine, 4_000_000, false)
+    there.advance(500)
+    expect(there.timers.size).toBe(0)
+    ;(answer as unknown as (a: LinkAnswer) => void)({
+      status: LINK_STATUS.ready,
+      data: new Uint8Array([79, 75]),
+    })
+    for (let k = 0; k < 10; k++) await Promise.resolve()
+    // Woken where it runs now, not left asleep until a key.
+    expect(there.timers.size).toBe(1)
   })
 
   it('stays paused when another LCD is fitted, and keeps its RAM', () => {

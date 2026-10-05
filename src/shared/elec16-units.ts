@@ -110,8 +110,14 @@ export interface Elec16Game {
 
 export type Elec16GameImport = { ok: true; id: string } | { ok: false; problem: string }
 
-/** A development folder opened (its name only: main keeps where it is), or why not. */
-export type Elec16DevOpen = { ok: true; name: string } | { ok: false; problem: string }
+/**
+ * A development folder opened (its name only: main keeps where it is) and which opening it is
+ * (a build carries it, and main refuses one of an earlier opening); or why not.
+ */
+export type Elec16DevOpen = { ok: true; name: string; gen: number } | { ok: false; problem: string }
+
+/** The folder a pane has open, as main keeps it; null for none. */
+export type Elec16DevState = { name: string; gen: number } | null
 
 /** A game's files for a build: game.json as written, the text files and the pictures by name. */
 export type Elec16DevFiles =

@@ -65,6 +65,12 @@ const NOT_SENT: ReadonlySet<number> = new Set([
 const SHIFT = keyCode('shift')
 const CAPS = keyCode('caps')
 
+/**
+ * Which runner runs each machine now. A LINK or card answer comes back to the runner that
+ * asked; when the pane moved meanwhile, the machine waits in another runner, which it wakes.
+ */
+const runnerOf = new WeakMap<Elec16, Elec16Runner>()
+
 export class Elec16Runner extends EmuRunner<Elec16> {
   /** Asleep in WFI: the lamp, and whether coming back into sight goes on by itself. */
   asleep = $state(false)
@@ -164,9 +170,12 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     const paused = this.pausedBy === 'player'
     if (this.disposed) return
     this.stopLoop()
+    // The last machine's sound goes with it: a PLAY-320's notes would sound on under a pocket.
+    this.silence()
     const machine = Elec16.boot(rom, model, ram, xram)
     machine.setClock(this.#host.clock())
     this.setMachine(machine)
+    runnerOf.set(machine, this)
     this.#armBreakpoints(machine)
     this.setHz(hz)
     this.#shift = false
@@ -181,9 +190,11 @@ export class Elec16Runner extends EmuRunner<Elec16> {
   adopt(machine: Elec16, hz: number, paused: boolean): void {
     if (this.disposed) return
     this.stopLoop()
+    this.silence()
     // Keys held as the pane moved: the new mount never hears them go up.
     machine.releaseAll()
     this.setMachine(machine)
+    runnerOf.set(machine, this)
     // The machine brings its breakpoints with it.
     this.breakpoints = [...machine.breakpoints].sort((x, y) => x - y)
     this.#fit(machine.state.model)
@@ -471,9 +482,8 @@ export class Elec16Runner extends EmuRunner<Elec16> {
     const failed = answer.status !== LINK_STATUS.ready && answer.status !== LINK_STATUS.cancelled
     this.linkNote = failed ? (answer.note ?? null) : null
     machine.answerLink(request.serial, answer)
-    if (this.machine !== machine) return
-    this.#timed.wake()
-    this.#changed()
+    const now = runnerOf.get(machine)
+    if (now !== undefined) now.#answered(machine)
   }
 
   /** A card command to main and its answer back, waking the machine that waits for it. */
@@ -485,7 +495,15 @@ export class Elec16Runner extends EmuRunner<Elec16> {
       // main could not be asked: the card is as good as not there.
     }
     machine.answerCard(request, answer)
-    if (this.machine === machine) this.#timed.wake()
+    const now = runnerOf.get(machine)
+    if (now !== undefined) now.#answered(machine)
+  }
+
+  /** main answered `machine`: woken, if this runner still runs it. */
+  #answered(machine: Elec16): void {
+    if (this.machine !== machine) return
+    this.#timed.wake()
+    this.#changed()
   }
 
   #slept(wake: Wake | null): void {

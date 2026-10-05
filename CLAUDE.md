@@ -293,11 +293,14 @@ user made; do not reverse one without asking.
     ELECAIRCOMBAT and ELECDRILL (docs/elec16-elecaircombat.md, elec16-elecdrill.md) are the
     same kind of sample, each with its art script and test.
   - GAMES ▸ DEVELOP (elec16-play.md section 11, docs/elec16-kit.md, main/elec16/devgame.ts):
-    main picks a game's folder, keeps it per page and reads only the files game.json names,
-    inside it; the build runs in CODE's worker, never in main; main writes back only
-    assets.e16.ts and compiled.s, and a new game's template (resources/elec16/kit-template, a
-    test builds it) only where no game.json is. A build replaces its own id on the shelf,
-    never a bundled one; no automatic START (CART needs a person's action).
+    main picks a game's folder, keeps it per page and pane (`devKey`, the pane id checked) and
+    reads only the files game.json names, inside it once links are followed (`realpath`);
+    every read, write and install carries the opening's `gen`, and a stale one is refused.
+    The build runs in CODE's worker, never in main; main writes back only assets.e16.ts and
+    compiled.s (the temporary file made afresh, `wx`), and a new game's template
+    (resources/elec16/kit-template, a test builds it) only into an empty folder. A build
+    replaces only an earlier build of its id on the shelf (`built`), never a bundled or
+    imported game; no automatic START (CART needs a person's action).
 - **No location prompts.** Chromium permission requests are denied except clipboard
   (main/window.ts). On Windows never call `si.networkInterfaces`, `si.wifi*` or similar (they run
   `netsh wlan`).

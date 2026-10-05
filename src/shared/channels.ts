@@ -204,6 +204,8 @@ export const CH = {
     /** A game's development folder (docs/elec16-play.md section 11): opened, made from the template. */
     devOpen: 'elec16:dev-open',
     devNew: 'elec16:dev-new',
+    /** The pane's open folder, for a pane mounted again (a moved pane keeps its folder). */
+    devState: 'elec16:dev-state',
     /** Its files for a build in the page; the build's two files back; the cartridge onto the shelf. */
     devRead: 'elec16:dev-read',
     devWrite: 'elec16:dev-write',
@@ -211,8 +213,10 @@ export const CH = {
     devClose: 'elec16:dev-close',
     /** renderer -> main: watch the folder (true) or stop. */
     devWatch: 'elec16:dev-watch',
-    /** main -> renderer: the folder's files changed. */
+    /** main -> renderer: the folder's files changed (the pane's id). */
     devChanged: 'elec16:dev-changed',
+    /** For tests: the panes whose folders are watched. */
+    devWatching: 'elec16:dev-watching',
   },
   /** The UTILITY pane (shared/utility.ts): AWAKE's hold, sealed secrets and copies. */
   utility: {

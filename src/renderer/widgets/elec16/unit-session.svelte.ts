@@ -24,10 +24,10 @@ import type { Elec16Runner } from './runner.svelte.ts'
  * gives, passed to main and answered.
  *
  * `held`: another pane runs the unit (MOVE HERE or NEW UNIT); `gone`: this pane ran it and
- * another took it (MOVE HERE there).
+ * another took it (MOVE HERE there); `failed`: main could not be asked for it.
  */
 
-export type UnitPhase = 'loading' | 'running' | 'held' | 'gone'
+export type UnitPhase = 'loading' | 'running' | 'held' | 'gone' | 'failed'
 
 /** What the pane gives its session: where to keep its unit's id, and the clock it asks for. */
 export interface UnitHost {
@@ -49,6 +49,13 @@ const xramOf = (unit: Elec16Unit): number => xramBytes(MODELS[unit.model], unit.
 const keepsRam = (from: ModelId, xram: number, unit: Elec16Unit): boolean =>
   MODELS[from].rom === MODELS[unit.model].rom && xram === xramOf(unit)
 
+/**
+ * The panes that have a live session, by pane id: a claim that comes back after its session
+ * went is let go only when no new mount of the same pane (a moved pane) is there to take the
+ * unit up - its release would be the new mount's.
+ */
+const live = new Map<string, number>()
+
 export class UnitSession {
   phase = $state<UnitPhase>('loading')
   unit = $state.raw<Elec16Unit | null>(null)
@@ -69,6 +76,7 @@ export class UnitSession {
     this.#pane = pane
     this.#runner = runner
     this.#host = host
+    live.set(pane, (live.get(pane) ?? 0) + 1)
     runner.onCard = (request) => this.#card(request)
     runner.onLink = (request) => this.#link(request)
     runner.onLinkDrop = (serial) => {
@@ -95,7 +103,13 @@ export class UnitSession {
     paused: boolean,
   ): Promise<void> {
     this.#roms = roms
-    const board = await this.#api.board(seed)
+    let board: Elec16Board
+    try {
+      board = await this.#api.board(seed)
+    } catch {
+      if (!this.#disposed) this.phase = 'failed'
+      return
+    }
     if (this.#disposed) return
     this.board = board
     const free = board.units.find((u) => !board.held.some((h) => h.unit === u.id))
@@ -116,7 +130,13 @@ export class UnitSession {
   async newUnit(): Promise<void> {
     const was = this.unit
     await this.letGo()
-    const unit = await this.#api.create(was === null ? {} : { clock: was.clock, model: was.model })
+    let unit: Elec16Unit
+    try {
+      unit = await this.#api.create(was === null ? {} : { clock: was.clock, model: was.model })
+    } catch {
+      if (!this.#disposed) this.phase = 'failed'
+      return
+    }
     if (this.#disposed) return
     await this.#claim(unit, (id) => this.#api.claim(id, this.#pane), null, false)
   }
@@ -171,16 +191,26 @@ export class UnitSession {
   /**
    * GAMES: a game put in PLAY-320's slot, or the one there taken out (null). main keeps which;
    * the machine's slot is emptied and it starts again at the start screen, where START loads
-   * what is in now - a game being played stops, as a cartridge pulled out stops it.
+   * what is in now - a game being played stops, as a cartridge pulled out stops it. Only a
+   * model with a slot takes a game; false when it did not go in (or come out).
    */
-  async insertGame(id: string | null): Promise<void> {
+  async insertGame(id: string | null): Promise<boolean> {
     const unit = this.unit
-    if (unit === null || this.phase !== 'running') return
-    const next = await this.#api.insertGame(unit.id, this.#pane, id)
-    if (next === null || this.#disposed) return
+    if (this.#disposed || unit === null || this.phase !== 'running') return false
+    if (id !== null && !MODELS[unit.model].cart) return false
+    let next: Elec16Unit | null
+    try {
+      next = await this.#api.insertGame(unit.id, this.#pane, id)
+    } catch {
+      return false
+    }
+    // Another unit, or none running, by the time main answered: this machine is not that one.
+    if (next === null || this.#disposed || this.unit?.id !== unit.id) return false
+    if (this.phase !== 'running') return false
     this.unit = next
     this.#runner.machine?.ejectCart()
     this.#runner.reset()
+    return true
   }
 
   /** The battery backup, written when the machine ran since the last; not without a unit. */
@@ -212,7 +242,11 @@ export class UnitSession {
   }
 
   dispose(): void {
+    if (this.#disposed) return
     this.#disposed = true
+    const left = (live.get(this.#pane) ?? 1) - 1
+    if (left > 0) live.set(this.#pane, left)
+    else live.delete(this.#pane)
     this.#runner.onCard = null
     this.#runner.onLink = null
     this.#runner.onLinkDrop = null
@@ -227,8 +261,19 @@ export class UnitSession {
   ): Promise<void> {
     this.unit = unit
     this.#host.keep(unit.id)
-    const claim = await ask(unit.id)
-    if (this.#disposed) return
+    let claim: Elec16Claim
+    try {
+      claim = await ask(unit.id)
+    } catch {
+      if (!this.#disposed) this.phase = 'failed'
+      return
+    }
+    if (this.#disposed) {
+      // The pane went while main answered: a unit it got is let go, unless a new mount of
+      // the pane is there (a moved pane), whose claim it is now.
+      if (claim.ok && !live.has(this.#pane)) void this.#api.release(unit.id, this.#pane, null)
+      return
+    }
     if (!claim.ok) {
       this.phase = 'held'
       return

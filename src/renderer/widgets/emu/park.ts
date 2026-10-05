@@ -22,7 +22,10 @@ export interface Park<T> {
 
 /** A place for one kind of machine. */
 export function createPark<T>(): Park<T> {
-  const parked = new Map<string, { entry: T; timer: ReturnType<typeof setTimeout> }>()
+  const parked = new Map<
+    string,
+    { entry: T; timer: ReturnType<typeof setTimeout>; expired: ((entry: T) => void) | undefined }
+  >()
   const claim = (paneId: string): T | null => {
     const held = parked.get(paneId)
     if (held === undefined) return null
@@ -31,12 +34,16 @@ export function createPark<T>(): Park<T> {
     return held.entry
   }
   const park = (paneId: string, entry: T, expired?: (entry: T) => void): void => {
-    claim(paneId)
+    // What was kept for the pane before is not taken up now: let go as nobody took it.
+    const before = parked.get(paneId)
+    if (claim(paneId) !== null && before !== undefined && before.entry !== entry) {
+      before.expired?.(before.entry)
+    }
     const timer = setTimeout(() => {
       parked.delete(paneId)
       expired?.(entry)
     }, PARK_MS)
-    parked.set(paneId, { entry, timer })
+    parked.set(paneId, { entry, timer, expired })
   }
   return { park, claim }
 }
