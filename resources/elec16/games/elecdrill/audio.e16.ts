@@ -47,6 +47,8 @@ import {
   SONG_X_SELECT_BANK,
   SONG_X_SWING_AT,
   SONG_X_SWING_BANK,
+  SONG_X_WARN_AT,
+  SONG_X_WARN_BANK,
 } from './assets.e16'
 
 export const M_TITLE = 1
@@ -126,4 +128,9 @@ export function sfxRumble(): void {
 
 export function sfxSelect(): void {
   play(SONG_X_SELECT_BANK, SONG_X_SELECT_AT, false)
+}
+
+/** Something loose over the driller's head: a quick double tick. */
+export function sfxWarn(): void {
+  play(SONG_X_WARN_BANK, SONG_X_WARN_AT, false)
 }

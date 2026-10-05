@@ -1,8 +1,18 @@
 // ELECDRILL's effects (docs/elec16-elecdrill.md section 6): the pop a block vanishes in, stars
 // flung from it, dust where the drill bites and where the driller lands, sparks off ALLOY,
-// bubbles from a capsule, the chain's count rising from where it struck. Kept in the well's
+// bubbles from a capsule, grit trickling from blocks about to fall, the chain's count and the
+// callouts (AIR won and lost, the depth) rising from where they happened. Kept in the well's
 // own places (y from row 0) and drawn against the camera.
-import { div, i16, u16, words, wrap16 } from '../../../../src/shared/e16c/builtins'
+import {
+  type bool,
+  div,
+  i16,
+  peek,
+  str,
+  u16,
+  words,
+  wrap16,
+} from '../../../../src/shared/e16c/builtins'
 import { randBelow, S8, S16, spr } from '../lib/kit.e16'
 import { FONT_TILE, FX_TILE, POP_TILE } from './assets.e16'
 
@@ -21,8 +31,17 @@ const K_DUST = 2
 const K_SPARK = 3
 const K_STAR = 4
 const K_BUBBLE = 5
-const K_CHAIN = 6
-const K_PLUS = 7
+const K_GRIT = 6
+/** Words: these and every kind after them are drawn first, in front. */
+const K_CHAIN = 7
+const K_PLUS = 8
+const K_SAY = 9
+const K_METRES = 10
+
+/** The callouts `callout` shows. */
+export const SAY_AIR_UP = 0
+export const SAY_AIR_DOWN = 1
+export const SAY_LOW_AIR = 2
 
 let velX: i16 = 0
 let velY: i16 = 0
@@ -96,6 +115,24 @@ export function chainShow(x: i16, y: i16, n: u16): void {
   fxAdd(K_CHAIN, x, y, n)
 }
 
+/** A grain of grit falling from (x, y): a block above is about to come down. */
+export function grit(x: i16, y: i16): void {
+  fxVel(i16(randBelow(8)) - 4, 8)
+  fxAdd(K_GRIT, x, y, 0)
+}
+
+/** A callout (`SAY_`) rising from (x, y). */
+export function callout(x: i16, y: i16, id: u16): void {
+  fxVel(0, -10)
+  fxAdd(K_SAY, x, y, id)
+}
+
+/** "n M" (a depth passed) rising from (x, y). */
+export function metresShow(x: i16, y: i16, n: u16): void {
+  fxVel(0, -8)
+  fxAdd(K_METRES, x, y, n)
+}
+
 /** "+n" (points) rising from (x, y). */
 export function plusShow(x: i16, y: i16, n: u16): void {
   fxVel(0, -10)
@@ -110,21 +147,39 @@ export function fxClear(): void {
   }
 }
 
-/** Every effect a frame on, and drawn (the well's top at `camY`). Words first, in front. */
-export function fxStep(camY: u16): void {
+/**
+ * Every effect a frame on, and drawn (the well's top at `camY`). Words first, in front - a
+ * pass of their own only while there were words last frame (a word new this frame is drawn
+ * with the rest, behind, for its first frame). In a busy frame (`busy`) the dust, sparks and
+ * the like move but are not drawn: a frame of them missing is not seen, a missed frame is.
+ */
+export function fxStep(camY: u16, busy: bool): void {
+  lite = busy
+  const front = wordsSeen !== 0
+  wordsSeen = 0
   let k: u16 = 0
-  while (k < FX_N) {
-    const kind = fxK[k]
-    if (kind === K_CHAIN || kind === K_PLUS) fxOne(k, kind, camY)
-    k++
+  if (front) {
+    while (k < FX_N) {
+      const kind = fxK[k]
+      if (kind >= K_CHAIN) fxOne(k, kind, camY)
+      k++
+    }
+    k = 0
   }
-  k = 0
   while (k < FX_N) {
     const kind = fxK[k]
-    if (kind !== 0 && kind !== K_CHAIN && kind !== K_PLUS) fxOne(k, kind, camY)
+    if (kind >= K_CHAIN) {
+      wordsSeen++
+      if (!front) fxOne(k, kind, camY)
+    } else if (kind !== 0) fxOne(k, kind, camY)
     k++
   }
 }
+
+/** Words alive at the last frame's pass. */
+let wordsSeen: u16 = 0
+/** This frame's particles are moved, not drawn. */
+let lite = false
 
 function fxOne(k: u16, kind: u16, camY: u16): void {
   const t = fxT[k] + 1
@@ -134,19 +189,22 @@ function fxOne(k: u16, kind: u16, camY: u16): void {
     return
   }
   fxMove(k, kind, t)
+  if (lite && kind < K_CHAIN) return
   const x = i16(fxX[k] >> 4)
   const y = i16(wrap16(fxY[k] - (camY << 4))) >> 4
   if (y < -16 || y > 296) return
   fxDraw(k, x, y)
 }
 
-/** How many frames an effect of `kind` lasts. */
+/** How many frames an effect of `kind` lasts (the commonest asked first). */
 function lifeOf(kind: u16): u16 {
-  if (kind === K_POP) return 15
   if (kind === K_DUST) return 20
-  if (kind === K_SPARK) return 12
   if (kind === K_STAR) return 30
+  if (kind === K_POP) return 15
+  if (kind === K_GRIT) return 14
+  if (kind === K_SPARK) return 12
   if (kind === K_BUBBLE) return 40
+  if (kind === K_SAY) return 60
   return 50
 }
 
@@ -154,11 +212,11 @@ function lifeOf(kind: u16): u16 {
 function fxMove(k: u16, kind: u16, t: u16): void {
   fxX[k] = fxX[k] + fxVX[k]
   fxY[k] = fxY[k] + fxVY[k]
-  if (kind === K_STAR || kind === K_SPARK) fxVY[k] = fxVY[k] + 3
+  if (kind === K_STAR || kind === K_SPARK || kind === K_GRIT) fxVY[k] = fxVY[k] + 3
   else if (kind === K_DUST && (t & 3) === 0) {
     fxVX[k] = u16(i16(fxVX[k]) >> 1)
     fxVY[k] = u16(i16(fxVY[k]) >> 1)
-  } else if ((kind === K_CHAIN || kind === K_PLUS) && t > 20) fxVY[k] = 0
+  } else if (kind >= K_CHAIN && t > 20) fxVY[k] = 0
 }
 
 function fxDraw(k: u16, x: i16, y: i16): void {
@@ -169,9 +227,48 @@ function fxDraw(k: u16, x: i16, y: i16): void {
   else if (kind === K_DUST) spr(x, y, (FX_TILE + (t >> 2 > 3 ? 3 : t >> 2)) | fx, S8)
   else if (kind === K_SPARK) spr(x, y, (FX_TILE + 4 + ((t >> 1) & 1)) | fx, S8)
   else if (kind === K_BUBBLE) spr(x, y, (FX_TILE + 6 + (t > 20 ? 1 : 0)) | fx, S8)
+  else if (kind === K_GRIT) spr(x, y, (FX_TILE + 3) | fx, S8)
   else if (kind === K_STAR) {
     if (t < 20 || (t & 2) !== 0) spr(x, y, (FX_TILE + 8 + ((t >> 2) & 1)) | fx, S8)
-  } else if (t < 36 || (t & 2) !== 0) wordDraw(x, y, kind, fxA[k])
+  } else wordsAt(k, kind, x, y)
+}
+
+/** Words of effect `k`, blinking out at the end of their time. */
+function wordsAt(k: u16, kind: u16, x: i16, y: i16): void {
+  const t = fxT[k]
+  if (t >= 36 && (t & 2) === 0) return
+  if (kind === K_SAY) sayDraw(x, y, fxA[k])
+  else wordDraw(x, y, kind, fxA[k])
+}
+
+/** A callout's words, in its colour (sprite slots 9 red, 11 green, 15 gold), centred on x. */
+function sayDraw(x: i16, y: i16, id: u16): void {
+  let s = str('AIR +20')
+  let pal: u16 = 3
+  if (id === SAY_AIR_DOWN) {
+    s = str('AIR -20')
+    pal = 1
+  } else if (id === SAY_LOW_AIR) {
+    s = str('LOW AIR!')
+    pal = 1
+  }
+  let n: u16 = 0
+  while (peek(s + n) !== 0) n++
+  let at = inWell(x - i16(n * 4), n)
+  let c = peek(s)
+  while (c !== 0) {
+    if (c !== 32) spr(at, y, (FONT_TILE + c - 32) | (pal << 10), S8)
+    at = at + 8
+    s++
+    c = peek(s)
+  }
+}
+
+/** Where words `n` letters wide start, kept inside the well. */
+function inWell(at: i16, n: u16): i16 {
+  if (at < 90) return 90
+  if (at + i16(n * 8) > 230) return 230 - i16(n * 8)
+  return at
 }
 
 /** A character of the lettering in gold (sprite slot 15). */
@@ -179,13 +276,11 @@ function gold(c: u16): u16 {
   return (FONT_TILE + c - 32) | (7 << 10)
 }
 
-/** A number and its word in gold lettering (slot 15), centred on x but kept in the well. */
+/** A number and its word in gold lettering (slot 15): points, a chain, metres. Centred on x. */
 function wordDraw(x: i16, y: i16, kind: u16, n: u16): void {
   const digits: u16 = n >= 1000 ? 4 : n >= 100 ? 3 : n >= 10 ? 2 : 1
-  const width: u16 = kind === K_CHAIN ? digits + 6 : digits + 1
-  let at = x - i16(width * 4)
-  if (at < 90) at = 90
-  if (at + i16(width * 8) > 230) at = 230 - i16(width * 8)
+  const width: u16 = kind === K_CHAIN ? digits + 6 : kind === K_METRES ? digits + 2 : digits + 1
+  let at = inWell(x - i16(width * 4), width)
   if (kind === K_PLUS) {
     spr(at, y, gold(43), S8)
     at = at + 8
@@ -197,6 +292,7 @@ function wordDraw(x: i16, y: i16, kind: u16, n: u16): void {
     spr(at + i16(d * 8), y, gold(48 + (v % 10)), S8)
     v = div(v, 10)
   }
+  if (kind === K_METRES) spr(at + i16(digits * 8) + 8, y, gold(77), S8)
   if (kind !== K_CHAIN) return
   at = at + i16(digits * 8) + 8
   spr(at, y, gold(67), S8)

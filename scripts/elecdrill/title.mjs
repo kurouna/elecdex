@@ -146,7 +146,31 @@ function drillShape(inside, w, x0) {
 
 /** Effects of eight points (palette `fx`): dust 0-3, sparks 4-5, bubbles 6-7, a star 8-9. */
 export function fxFrames() {
-  return [0, 1, 2, 3].map(dust).concat([0, 1].map(spark), [0, 1].map(bubble), [0, 1].map(star))
+  return [0, 1, 2, 3]
+    .map(dust)
+    .concat([0, 1].map(spark), [0, 1].map(bubble), [0, 1].map(star), [0, 1].map(warnSign))
+}
+
+/** The warning over the driller's head: a sign with a mark, gold and dark, then orange and white. */
+function warnSign(f) {
+  const c = new Canvas(8, 8)
+  const rows = [
+    '...oo...',
+    '..offo..',
+    '..oxxo..',
+    '.ofxxfo.',
+    '.ofxxfo.',
+    'offffffo',
+    'offxxffo',
+    'oooooooo',
+  ]
+  const ink = { o: 12, f: f === 0 ? 14 : 4, x: f === 0 ? 12 : 6 }
+  rows.forEach((line, y) => {
+    ;[...line].forEach((ch, x) => {
+      if (ch !== '.') c.set(x, y, ink[ch])
+    })
+  })
+  return c
 }
 
 /** A puff of dust growing, the last breaking up. */

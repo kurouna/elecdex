@@ -1,6 +1,6 @@
 # ELECDRILL's music (docs/elec16-elecdrill.md section 7), for the game kit's MML
 # (docs/elec16-play.md section 10). Channels 0-11 are the music's; 12-15 the effects'.
-# Sharps are written with + (the compiler reads a hash as a comment).
+# Sharps are written with + (c# reads the same; a hash after a space is a comment).
 #
 # The band in the looping songs:
 #   C0 lead, C1 its echo, C2 harmony, C3 bass, C4 arpeggio, C5 kick, C6 snare, C7 hats

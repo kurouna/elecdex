@@ -547,6 +547,7 @@ const landQ = words(64)
 let landN: u16 = 0
 
 function landed(c: u16): void {
+  if (landAt === 0xffff) landAt = c
   if (landN < 64) {
     landQ[landN] = c
     landN++
@@ -561,6 +562,8 @@ export let vanishedAt: u16 = 0
 export let landings: u16 = 0
 /** Groups that came loose of themselves this frame (not on another's back). */
 export let loosened: u16 = 0
+/** A block that came to rest this frame (the first), for its dust, or 0xffff. */
+export let landAt: u16 = 0xffff
 
 /** A dig starts a new count: a chain is what falls of itself, not what the drill does. */
 export function chainNew(): void {
@@ -572,6 +575,7 @@ export function newsClear(): void {
   vanishedBlocks = 0
   vanishedChain = 0
   landings = 0
+  landAt = 0xffff
 }
 
 /**

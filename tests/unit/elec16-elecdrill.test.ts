@@ -2,18 +2,31 @@ import { readFileSync } from 'node:fs'
 import { CHANNELS } from '@shared/elec16/apu'
 import { readCart } from '@shared/elec16/cartridge'
 import { compileSongs, loopFrames, type Song } from '@shared/elec16/kit/mml'
-import type { Elec16 } from '@shared/elec16/machine'
+import { Elec16 } from '@shared/elec16/machine'
+import { XRAM_MAX } from '@shared/elec16/map'
 import { padBit } from '@shared/elec16/pad'
 import { fromBase64 } from '@shared/emu/base64'
 import { describe, expect, it } from 'vitest'
-import { buildKit, frames, globalsOf, ramPoke, ramWord, startGame } from './elec16-kit-helpers'
+import {
+  buildKit,
+  frames,
+  globalsOf,
+  ROM,
+  ramPoke,
+  ramWord,
+  settle,
+  startGame,
+  tap,
+} from './elec16-kit-helpers'
 
 /**
  * ELECDRILL, the block-digging puzzle (docs/elec16-elecdrill.md): built from its folder as
  * gen:elec16 builds it, and played on the core. Most tests lay out a piece of the well by
  * hand - rows of letters written into its cells - put the driller beside it and press the
  * buttons: a group dug, blocks left hanging wobbling and falling, chains, a crushed driller,
- * AIR, capsules, ALLOY, the strata, the core, and the best five kept in save RAM.
+ * AIR, capsules, ALLOY, the strata, the core, and the best five kept in save RAM. The title's
+ * difficulties, the controls, the pause and the warnings and callouts in play are read from
+ * the screen's words (BG1) and the game's state.
  */
 
 const DIR = 'resources/elec16/games/elecdrill'
@@ -37,6 +50,9 @@ const putByte = (m: Elec16, name: string, k: number, v: number) => {
 /** The player's states and the cells' kinds, as player.e16.ts and field.e16.ts number them. */
 const P = { stand: 0, walk: 1, fall: 3, dig: 4, crush: 6, gasp: 7 }
 const KIND: Record<string, number> = { '.': 0, R: 1, Y: 2, G: 3, B: 4, X: 5, A: 6 }
+
+/** The well's nine columns. */
+const COLUMNS = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 
 /** Cell (col, row) of the well's ring. */
 const cellIndex = (col: number, row: number) => ((row & 31) << 4) + col
@@ -62,15 +78,72 @@ function place(m: Elec16, col: number, row: number): void {
   put(m, 'pState', P.stand)
 }
 
-/** The game from its title, START held: play begins (and the READY banner is up). */
-function playing(): Elec16 {
-  const m = startGame(cart)
-  frames(m, 60, cart)
-  m.pad(padBit('start'))
-  frames(m, 3, cart)
-  m.pad(0)
-  frames(m, 10, cart)
+const constant = (name: string) =>
+  Number.parseInt(new RegExp(`${name} = 0x([0-9a-f]+)`).exec(built.report.assets)?.[1] ?? 'x', 16)
+
+/** The difficulties, in the order of difficulty.txt's rows and the title's left to right. */
+const LEVELS = ['easy', 'normal', 'hard'] as const
+type Level = (typeof LEVELS)[number]
+
+/** Left or right on the title, `n` times (negative for left). */
+function choose(m: Elec16, n: number): void {
+  for (let k = 0; k < Math.abs(n); k++) tap(m, padBit(n < 0 ? 'left' : 'right'), cart)
+}
+
+/** PLAY-320 switched on with the cartridge and `save` in its save RAM, START pressed. */
+function startWithSave(save: Uint8Array): Elec16 {
+  const m = Elec16.boot(ROM.image, 'play-320', undefined, XRAM_MAX)
+  settle(m, cart)
+  m.insertCart(cart, new Uint8Array(32), save)
+  tap(m, padBit('start'), cart)
   return m
+}
+
+/**
+ * The game from its title (at `level`, from NORMAL), START held, then A on the controls:
+ * play begins (and the READY banner is up).
+ */
+function playing(level: Level = 'normal', m = startGame(cart)): Elec16 {
+  frames(m, 60, cart)
+  choose(m, LEVELS.indexOf(level) - 1)
+  press(m, padBit('start'), 10)
+  press(m, padBit('a'), 10)
+  return m
+}
+
+/** BG1's row y from cell `from` to `to` as text, through the font. */
+function rowText(m: Elec16, y: number, from = 0, to = 40): string {
+  const font = constant('FONT_TILE')
+  let out = ''
+  for (let x = from; x < to; x++) {
+    const tile = cellWord(m, x, y) & 0x3ff
+    out += tile >= font && tile < font + 64 ? String.fromCharCode(32 + tile - font) : ' '
+  }
+  return out
+}
+
+/** The screen's words, every row of BG1, for a search. */
+const screenText = (m: Elec16) => Array.from({ length: 36 }, (_, y) => rowText(m, y)).join('\n')
+
+function cellWord(m: Elec16, x: number, y: number): number {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  const at = 0xa000 + (y << 7) + (x << 1)
+  return (mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)
+}
+
+/** Colour k of palette slot `slot` as the screen has it (RGB555). */
+function colourOf(m: Elec16, slot: number, k: number): number {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  const at = 0xc400 + slot * 32 + k * 2
+  return (mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)
+}
+
+/** The live effects of a kind (fx.e16.ts's numbers): each one's own value. */
+const FX = { dust: 2, grit: 6, say: 9, metres: 10 }
+function effects(m: Elec16, kind: number): number[] {
+  const out: number[] = []
+  for (let k = 0; k < 32; k++) if (read(m, 'fxK', k) === kind) out.push(read(m, 'fxA', k))
+  return out
 }
 
 /** A button held for three frames, then let go for `after` frames. */
@@ -136,14 +209,25 @@ describe('ELECDRILL as built', () => {
 })
 
 describe('ELECDRILL played', () => {
-  it('shows the title, then starts the dig with START: the driller on the surface, AIR full', () => {
+  it('shows the title, the controls after START, then the dig: the driller on the surface', () => {
     const m = startGame(cart)
     frames(m, 60, cart)
     expect(read(m, 'outcome')).toBe(0)
-    m.pad(padBit('start'))
-    frames(m, 3, cart)
-    m.pad(0)
-    frames(m, 30, cart)
+    expect(rowText(m, 12)).toContain('>NORMAL<')
+    press(m, padBit('start'), 10)
+    // The controls: the pad's buttons beside the PC's keys, and what each does.
+    expect(read(m, 'controlsUp')).toBe(1)
+    expect(rowText(m, 5).replace(/\s+/g, ' ').trim()).toBe('PAD PC KEY ACTION')
+    expect(rowText(m, 8).replace(/\s+/g, ' ').trim()).toBe('D-PAD < > ARROW < > WALK')
+    expect(rowText(m, 10).replace(/\s+/g, ' ').trim()).toBe('A Z DIG FACING')
+    expect(rowText(m, 12).replace(/\s+/g, ' ').trim()).toBe('UP/DOWN+A UP/DOWN+Z DIG UP/DOWN')
+    expect(rowText(m, 14).replace(/\s+/g, ' ').trim()).toBe('B X DIG DOWN')
+    expect(rowText(m, 16).replace(/\s+/g, ' ').trim()).toBe('START ENTER PAUSE')
+    frames(m, 120, cart)
+    // It waits there for A or START.
+    expect(read(m, 'controlsUp')).toBe(1)
+    press(m, padBit('a'), 30)
+    expect(read(m, 'controlsUp')).toBe(0)
     expect(m.state.halt).toBeNull()
     expect([read(m, 'pRow'), read(m, 'pCol'), read(m, 'air'), read(m, 'lives')]).toEqual([
       5, 4, 100, 3,
@@ -176,10 +260,14 @@ describe('ELECDRILL played', () => {
     put(m, 'pFace', 1)
     press(m, padBit('a'), 0)
     frames(m, 8, cart)
-    // The yellow came loose and wobbles where it was.
+    // The yellow came loose and wobbles where it was; beside the driller, no warning.
     expect(cell(m, 3, 8) & 0x8f).toBe(0x82)
     expect(read(m, 'uState')).toBe(1)
+    expect(read(m, 'warn')).toBe(0)
+    put(m, 'thudAt', 0)
     frames(m, 70, cart)
+    // It landed: a thump and a puff of dust where it came to rest.
+    expect(read(m, 'thudAt')).not.toBe(0)
     // Fallen and landed on the yellow row: five of them vanish, the first of a chain.
     frames(m, 40, cart)
     expect([0, 1, 2, 3].map((c) => cell(m, c, 10))).toEqual([0, 0, 0, 0])
@@ -207,16 +295,20 @@ describe('ELECDRILL played', () => {
     const m = playing()
     lay(m, 6, ['....R....', '....B....', EMPTY, 'GGGGGGGGG', ...FLOOR])
     place(m, 4, 8)
-    // Drill up: the blue overhead goes, and the red above it comes down on the driller.
+    // Drill up: the blue overhead goes, and the red above it comes down on the driller. Over
+    // its head the warning shows while the red wobbles (1), and quickens as it falls (2).
     m.pad(padBit('a') | padBit('up'))
     frames(m, 3, cart)
     m.pad(0)
+    const warned = new Set<number>()
     let crushed = false
     for (let k = 0; k < 160 && !crushed; k++) {
       frames(m, 1, cart)
+      warned.add(read(m, 'warn'))
       crushed = read(m, 'pState') === P.crush
     }
     expect(crushed).toBe(true)
+    expect([...warned].sort()).toEqual([0, 1, 2])
     frames(m, 110, cart)
     // A driller less, back where it was with the red cleared away, safe a moment, AIR full.
     expect(read(m, 'lives')).toBe(2)
@@ -338,6 +430,10 @@ describe('ELECDRILL played', () => {
     frames(m, 200, cart)
     // GAME OVER and the count from ten.
     expect(read(m, 'lives')).toBe(0)
+    expect(screenText(m)).toContain('GAME OVER')
+    // Bug: the panel still showed a driller left while GAME OVER asked to go on.
+    const icons = constant('ICONS_TILE')
+    expect((cellWord(m, 31, 21) & 0x3ff) - icons).toBe(1)
     frames(m, 800, cart)
     expect(read(m, 'outcome')).toBe(1)
     expect(m.state.halt).toBeNull()
@@ -351,6 +447,208 @@ describe('ELECDRILL played', () => {
     press(m, padBit('start'), 10)
     expect([read(m, 'lives'), read(m, 'continues'), read(m, 'outcome')]).toEqual([3, 1, 0])
     expect(read(m, 'air')).toBe(100)
+  })
+})
+
+describe('ELECDRILL title and difficulties', () => {
+  it('chooses EASY, NORMAL or HARD on the title with left and right, and keeps the choice', () => {
+    const m = startGame(cart)
+    frames(m, 60, cart)
+    // NORMAL first: in gold between arrows, the others plain; a line on what it means below.
+    expect(rowText(m, 12, 9, 31)).toBe(' EASY  >NORMAL<  HARD ')
+    choose(m, -1)
+    expect(read(m, 'level')).toBe(0)
+    expect(rowText(m, 12, 9, 31)).toBe('>EASY<  NORMAL   HARD ')
+    expect(rowText(m, 13)).toContain('MORE AIR, SLOWER FALLS, LESS ALLOY')
+    // Left stops at EASY, right at HARD.
+    choose(m, -1)
+    expect(read(m, 'level')).toBe(0)
+    choose(m, 3)
+    expect(read(m, 'level')).toBe(2)
+    expect(rowText(m, 12, 25, 31)).toBe('>HARD<')
+    expect(rowText(m, 13)).toContain('LESS AIR, QUICK FALLS, MORE ALLOY')
+    press(m, padBit('start'), 10)
+    press(m, padBit('a'), 10)
+    // HARD's row from the first stratum: AIR, the wobble, the fall; named on the right panel.
+    expect([read(m, 'airDrain'), read(m, 'wobbleFrames'), read(m, 'fallSpeed')]).toEqual([
+      48, 48, 10,
+    ])
+    expect(rowText(m, 29, 31, 39).trim()).toBe('LEVEL')
+    expect(rowText(m, 30, 31, 39).trim()).toBe('HARD')
+    // Kept in save RAM, and chosen again when the machine is next switched on.
+    const save = Uint8Array.from(m.state.cart?.save ?? [])
+    expect(save[54]).toBe(2)
+    const again = startWithSave(save)
+    frames(again, 60, cart)
+    expect(read(again, 'level')).toBe(2)
+    expect(rowText(again, 12, 25, 31)).toBe('>HARD<')
+  })
+
+  it('shows how to play and the best five by turns, five seconds each', () => {
+    const m = startGame(cart)
+    frames(m, 60, cart)
+    expect(rowText(m, 15)).toContain('BEST DRILLERS')
+    frames(m, 300, cart)
+    expect(rowText(m, 15)).toContain('HOW TO PLAY')
+    expect(rowText(m, 17)).toContain('DIG A BLOCK: ITS WHOLE GROUP GOES')
+    expect(rowText(m, 23)).toContain('OVER RIVET: STEP OUT FROM UNDER')
+    expect(rowText(m, 27)).toContain('REACH THE CORE AT 500 M')
+    frames(m, 300, cart)
+    expect(rowText(m, 15)).toContain('BEST DRILLERS')
+    // A new choice of difficulty brings its best five at once.
+    frames(m, 300, cart)
+    expect(rowText(m, 15)).toContain('HOW TO PLAY')
+    choose(m, 1)
+    expect(rowText(m, 15)).toContain('BEST DRILLERS')
+  })
+
+  it("keeps an old save's best five as NORMAL's, and gives EASY and HARD fresh ones", () => {
+    // The first saves: "ED", then five of (score low, score high, depth, three letters).
+    const save = new Uint8Array(8192)
+    const word = (at: number, v: number) => {
+      save[at] = v & 255
+      save[at + 1] = v >> 8
+    }
+    word(0, 0x4445)
+    for (let k = 0; k < 5; k++) {
+      word(2 + k * 10, k === 0 ? 1234 : (5 - k) * 100)
+      word(4 + k * 10, k === 0 ? 5 : 0)
+      word(6 + k * 10, k === 0 ? 123 : 10)
+      word(8 + k * 10, 0x5958)
+      word(10 + k * 10, 0x5a)
+    }
+    const m = startWithSave(save)
+    frames(m, 60, cart)
+    expect(read(m, 'level')).toBe(1)
+    expect(rowText(m, 17, 7, 29).replace(/\s+/g, ' ')).toBe('1 XYZ 00051234 123M')
+    expect([read(m, 'best', 0), read(m, 'best', 1)]).toEqual([1234, 5])
+    choose(m, -1)
+    expect(rowText(m, 17, 7, 29).replace(/\s+/g, ' ')).toBe('1 RIV 00005000 100M')
+    const kept = m.state.cart?.save ?? new Uint8Array()
+    const at = (k: number) => (kept[k] ?? 0) | ((kept[k + 1] ?? 0) << 8)
+    // NORMAL's five where they were, the mark of the new layout, EASY's and HARD's made.
+    expect([at(2), at(4), at(6), at(52), at(54)]).toEqual([1234, 5, 123, 0x564c, 1])
+    expect([at(64), at(128)]).toEqual([5000, 5000])
+  })
+
+  it('makes EASY gentler and HARD harsher: AIR, wobbles, falls and ALLOY', () => {
+    const pace: Record<string, number[]> = {}
+    const alloy: Record<string, number> = {}
+    for (const level of LEVELS) {
+      const m = playing(level)
+      // ALLOY in the well made at the start (rows 6-30).
+      const rows = Array.from({ length: 25 }, (_, k) => k + 6)
+      alloy[level] = rows.flatMap((r) => COLUMNS.filter((c) => (cell(m, c, r) & 15) === 5)).length
+      // In the third stratum (SLATE).
+      put(m, 'maxDepth', 200)
+      frames(m, 4, cart)
+      expect(read(m, 'stratum')).toBe(2)
+      pace[level] = [read(m, 'airDrain'), read(m, 'wobbleFrames'), read(m, 'fallSpeed')]
+    }
+    // difficulty.txt's rows: air - 2 * step, wobble - 2 * step, fall + 2.
+    expect(pace).toEqual({ easy: [68, 72, 9], normal: [48, 50, 10], hard: [38, 36, 12] })
+    // 1%, 3% and 5% of the blocks in LOAM.
+    expect(alloy.easy).toBeLessThan(alloy.normal ?? 0)
+    expect(alloy.normal).toBeLessThan(alloy.hard ?? 0)
+  })
+})
+
+describe('ELECDRILL telling the player', () => {
+  it('pauses with the well dimmed and PAUSED, and START resumes it as it was', () => {
+    const m = playing()
+    frames(m, 100, cart)
+    const red = colourOf(m, 1, 4)
+    const panel = colourOf(m, 7, 15)
+    press(m, padBit('start'), 10)
+    expect(rowText(m, 16)).toContain('PAUSED')
+    expect(rowText(m, 18)).toContain('START TO RESUME')
+    // The well's colours darkened, the panels' kept.
+    expect(colourOf(m, 1, 4)).not.toBe(red)
+    expect(colourOf(m, 7, 15)).toBe(panel)
+    const frame = read(m, 'frame')
+    frames(m, 60, cart)
+    expect(read(m, 'frame')).toBe(frame)
+    press(m, padBit('start'), 10)
+    expect(colourOf(m, 1, 4)).toBe(red)
+    expect(rowText(m, 16)).not.toContain('PAUSED')
+    expect(read(m, 'frame')).toBeGreaterThan(frame)
+  })
+
+  it("keeps a banner's band when a pause ends while it is up", () => {
+    // Bug: the pause took the band away, leaving a stratum's words over the bare blocks.
+    const m = playing()
+    put(m, 'maxDepth', 100)
+    frames(m, 10, cart)
+    expect([read(m, 'bandY'), read(m, 'bandH')]).toEqual([146, 5])
+    press(m, padBit('start'), 10)
+    press(m, padBit('start'), 4)
+    expect([read(m, 'bandY'), read(m, 'bandH')]).toEqual([146, 5])
+    expect(screenText(m)).toContain('STRATUM 2')
+  })
+
+  it('calls out AIR won from a capsule and lost to ALLOY', () => {
+    const m = playing()
+    lay(m, 6, [EMPTY, EMPTY, '.....A...', '....X....', ...FLOOR])
+    place(m, 4, 8)
+    put(m, 'air', 50)
+    m.pad(padBit('right'))
+    frames(m, 6, cart)
+    m.pad(0)
+    frames(m, 4, cart)
+    expect(effects(m, FX.say)).toContain(0)
+    // Back on the ALLOY and four hits on it.
+    place(m, 4, 8)
+    for (let k = 0; k < 4; k++) press(m, padBit('b'), 10)
+    expect(cell(m, 4, 9)).toBe(0)
+    expect(effects(m, FX.say)).toContain(1)
+  })
+
+  it('calls out LOW AIR once, pulses the stripes red while it lasts, and puts them back', () => {
+    const m = playing()
+    frames(m, 30, cart)
+    const orange = colourOf(m, 7, 9)
+    put(m, 'air', 26)
+    frames(m, 70, cart)
+    expect(read(m, 'air')).toBeLessThanOrEqual(25)
+    expect(effects(m, FX.say)).toEqual([2])
+    const seen = new Set<number>()
+    for (let k = 0; k < 32; k++) {
+      frames(m, 1, cart)
+      seen.add(colourOf(m, 7, 9))
+    }
+    expect(seen.size).toBeGreaterThan(2)
+    put(m, 'air', 80)
+    frames(m, 4, cart)
+    expect(colourOf(m, 7, 9)).toBe(orange)
+    expect(read(m, 'airWarned')).toBe(0)
+  })
+
+  it('calls out every 50 m between the strata', () => {
+    const m = playing()
+    // The ring moved on to 40 m, the driller over a single blue at 50 m.
+    put(m, 'top', 40)
+    put(m, 'camY', 48 * 16)
+    lay(m, 53, [EMPTY, EMPTY, '....B....', ...FLOOR])
+    place(m, 4, 54)
+    put(m, 'maxDepth', 49)
+    frames(m, 2, cart)
+    press(m, padBit('b'), 30)
+    expect(read(m, 'maxDepth')).toBe(50)
+    expect(effects(m, FX.metres)).toEqual([50])
+  })
+
+  it('lets grit trickle from under a wobbling block', () => {
+    const m = playing()
+    lay(m, 6, [EMPTY, EMPTY, '...Y.....', '...B.....', 'YYYYGGGGG', ...FLOOR])
+    place(m, 4, 9)
+    put(m, 'pFace', 1)
+    press(m, padBit('a'), 0)
+    let grit = 0
+    for (let k = 0; k < 40; k++) {
+      frames(m, 1, cart)
+      grit = Math.max(grit, effects(m, FX.grit).length)
+    }
+    expect(grit).toBeGreaterThan(0)
   })
 })
 

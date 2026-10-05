@@ -12,10 +12,11 @@ import {
   FLIP_H,
   held,
   pressed,
+  S8,
   S16,
   spr,
 } from '../lib/kit.e16'
-import { BIT_TILE, DRILLER_TILE } from './assets.e16'
+import { BIT_TILE, DRILLER_TILE, FX_TILE } from './assets.e16'
 import { sfxClank, sfxClink, sfxDig, sfxLand, sfxSwing } from './audio.e16'
 import { cellClear, chainNew, groupOf, targetIs, vanish } from './fall.e16'
 import {
@@ -405,6 +406,18 @@ export function playerDraw(camY: u16, frame: u16): void {
   const f = frameNow(frame)
   if (pState === P_DIG && pT >= 2 && pT < 9) bitDraw(x, y, flip)
   spr(x, y, (DRILLER_TILE + f * 4) | flip, S16)
+}
+
+/**
+ * The warning over the driller's head: something loose above it, `how` 1 wobbling (a slow
+ * blink, gold and orange), 2 falling (a quick one).
+ */
+export function warnDraw(camY: u16, frame: u16, how: u16): void {
+  if (how === 0 || !alive()) return
+  const fast = how === 2 ? 1 : 3
+  const sign: u16 = (frame >> fast) & 1
+  const bob: i16 = ((frame >> 2) & 1) !== 0 ? 1 : 0
+  spr(i16(FIELD_X + pX) + 4, i16(pY - camY) - 10 - bob, (FX_TILE + 10 + sign) | (6 << 10), S8)
 }
 
 function bitDraw(x: i16, y: i16, flip: u16): void {

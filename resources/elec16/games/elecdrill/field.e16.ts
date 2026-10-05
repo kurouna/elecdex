@@ -13,6 +13,7 @@ import {
   QUARTERS_TILE,
   TANK_TILE,
 } from './assets.e16'
+import { levelAlloy } from './level.e16'
 
 /** What a cell holds: its low four bits. */
 export const T_EMPTY = 0
@@ -52,11 +53,6 @@ const rowMarked = bytes(32)
 export let top: u16 = 0
 /** The search's mark of now (1-127). */
 export let stamp: u16 = 1
-
-/** Each stratum's chance of ALLOY in a hundred, per cell. */
-function alloyChance(s: u16): u16 {
-  return s === 0 ? 3 : s === 1 ? 5 : s === 2 ? 7 : s === 3 ? 9 : 11
-}
 
 /** Which stratum (0-4) row `r` is in. */
 export function stratumOf(r: u16): u16 {
@@ -128,7 +124,7 @@ function rowMake(r: u16): void {
 
 /** A block by chance: often its left or upper neighbour's colour again, so groups form. */
 function blockFor(c: u16, r: u16, base: u16, above: u16): u16 {
-  if (randBelow(100) < alloyChance(stratumOf(r))) return T_ALLOY
+  if (randBelow(100) < levelAlloy(stratumOf(r))) return T_ALLOY
   const p = randBelow(100)
   const left = c > 0 ? cells[base + c - 1] & 15 : 0
   if (p < 20 && left >= T_RED && left <= T_BLUE) return left

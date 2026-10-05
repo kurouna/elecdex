@@ -1,6 +1,7 @@
-// ELECDRILL's best five (docs/elec16-elecdrill.md section 4), in the cartridge's save RAM: read
-// at the start, written when a name is entered, shown on the title. In cartridge bank 1 with
-// the scenes; save RAM is reached through the kit, which puts the window back.
+// ELECDRILL's best five (docs/elec16-elecdrill.md section 4), one for each difficulty, in the
+// cartridge's save RAM with the difficulty last chosen: read at the start, written when a name
+// is entered, shown on the title. In cartridge bank 1 with the scenes; save RAM is reached
+// through the kit, which puts the window back.
 import { addr, type u16, words } from '../../../../src/shared/e16c/builtins'
 import {
   B_A,
@@ -15,21 +16,61 @@ import {
 } from '../lib/kit.e16'
 import { sfxSelect } from './audio.e16'
 import { band, best, figure, glyph, say, score, W_GOLD, W_WHITE, wellClear } from './hud.e16'
+import { LV_EASY, LV_HARD, LV_NORMAL, level, levelSet } from './level.e16'
 
-/** Save RAM: "ED", then five of (score low, score high, depth, three letters in two words). */
+/**
+ * Save RAM: "ED" at 0, then NORMAL's five at 2 - each a score (low, high), the depth and three
+ * letters in two words - where the one table of the first saves was, so an old save's names
+ * stay NORMAL's. "LV" at 52 marks the rest: the difficulty last chosen at 54, EASY's five at
+ * 64, HARD's at 128.
+ */
 const MAGIC = 0x4445
+const LEVEL_MAGIC = 0x564c
+const LEVEL_MARK = 52
+const LEVEL_AT = 54
 const ENTRY = 10
 
 export const bestScore = words(10)
 export const bestDepth = words(5)
 export const bestName = words(15)
 
-/** The table read from save RAM, or a fresh one. */
+/** Where difficulty `l`'s five are kept. */
+function tableAt(l: u16): u16 {
+  return l === LV_EASY ? 64 : l === LV_HARD ? 128 : 2
+}
+
+/**
+ * Save RAM read at the start: made fresh if it is not this game's; an old save (before the
+ * difficulties) keeps its five as NORMAL's and is given the rest. The difficulty last chosen
+ * is chosen again, and its five read.
+ */
 export function tableLoad(): void {
-  if (saveRead(0) !== MAGIC) tableFresh()
+  if (saveRead(0) !== MAGIC) {
+    saveWrite(0, MAGIC)
+    tableFresh(tableAt(LV_NORMAL))
+    saveWrite(LEVEL_MARK, 0)
+  }
+  if (saveRead(LEVEL_MARK) !== LEVEL_MAGIC) {
+    tableFresh(tableAt(LV_EASY))
+    tableFresh(tableAt(LV_HARD))
+    saveWrite(LEVEL_AT, LV_NORMAL)
+    saveWrite(LEVEL_MARK, LEVEL_MAGIC)
+  }
+  levelSet(saveRead(LEVEL_AT))
+  tableRead()
+}
+
+/** The difficulty now chosen kept in save RAM, if it is not already. */
+export function levelKeep(): void {
+  if (saveRead(LEVEL_AT) !== level) saveWrite(LEVEL_AT, level)
+}
+
+/** The chosen difficulty's five from save RAM; the best of them is BEST. */
+export function tableRead(): void {
+  const from = tableAt(level)
   let k: u16 = 0
   while (k < 5) {
-    const at = 2 + k * ENTRY
+    const at = from + k * ENTRY
     bestScore[k * 2] = saveRead(at)
     bestScore[k * 2 + 1] = saveRead(at + 2)
     bestDepth[k] = saveRead(at + 4)
@@ -43,12 +84,11 @@ export function tableLoad(): void {
   best[1] = bestScore[1]
 }
 
-/** A first table: RIV and friends, modest depths. */
-function tableFresh(): void {
-  saveWrite(0, MAGIC)
+/** A fresh five at `from`: RIV, 5,000 down to 1,000, modest depths. */
+function tableFresh(from: u16): void {
   let k: u16 = 0
   while (k < 5) {
-    const at = 2 + k * ENTRY
+    const at = from + k * ENTRY
     saveWrite(at, (5 - k) * 1000)
     saveWrite(at + 2, 0)
     saveWrite(at + 4, (5 - k) * 20)
@@ -86,9 +126,10 @@ export function tableEnter(place: u16, a: u16, b: u16, c: u16): void {
   bestName[place * 3] = a
   bestName[place * 3 + 1] = b
   bestName[place * 3 + 2] = c
+  const from = tableAt(level)
   k = 0
   while (k < 5) {
-    const at = 2 + k * ENTRY
+    const at = from + k * ENTRY
     saveWrite(at, bestScore[k * 2])
     saveWrite(at + 2, bestScore[k * 2 + 1])
     saveWrite(at + 4, bestDepth[k])
@@ -153,6 +194,7 @@ export function nameEntry(place: u16): void {
   band(58, 6)
   say(14, 9, str('NEW RECORD'), W_GOLD)
   say(13, 11, str('ENTER A NAME'), W_WHITE)
+  say(13, 17, str('UP DOWN, A: OK'), W_WHITE)
   letters[0] = 65
   letters[1] = 65
   letters[2] = 65

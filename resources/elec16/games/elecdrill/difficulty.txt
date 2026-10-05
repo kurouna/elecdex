@@ -1,0 +1,10 @@
+# ELECDRILL's difficulties (docs/elec16-elecdrill.md section 4): a row each, EASY, NORMAL, HARD.
+# level.e16.ts reads the chosen row on the title; each stratum s (0 LOAM to 4 GEODE) takes
+#   air - s * airStep          frames to breathe a unit of AIR
+#   wobble - s * wobbleStep    frames a group wobbles before it falls
+#   fall + s                   quarter points a falling block moves a frame
+#   alloy + s * alloyStep      ALLOY's chance in a hundred, per block made
+# air airStep wobble wobbleStep fall alloy alloyStep
+84 8 88 8 7 1 1
+60 6 64 7 8 3 2
+48 5 48 6 10 5 3

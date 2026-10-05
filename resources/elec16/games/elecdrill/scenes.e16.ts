@@ -1,39 +1,15 @@
-// ELECDRILL's scenes round the play (docs/elec16-elecdrill.md section 4): the title, the pause,
-// a stratum passed, the question of going on, the core reached and the tally. Kept in
+// ELECDRILL's scenes round the play (docs/elec16-elecdrill.md section 4): the pause, a stratum
+// passed, the question of going on, the core reached and the tally. Kept in
 // cartridge bank 1, out of RAM's room: they run seldom, and reach everything in RAM through
 // far_call's return. Nothing here moves the bank window (the kit's calls put it back).
-import {
-  bytes,
-  div,
-  i16,
-  peek16,
-  poke16,
-  str,
-  type u16,
-  wrap16,
-} from '../../../../src/shared/e16c/builtins'
-import {
-  B_A,
-  B_START,
-  BG1Y,
-  cellAt,
-  FLIP_H,
-  frame_wait,
-  padRead,
-  pressed,
-  rand,
-  randSeed,
-  S16,
-  spr,
-  vfill,
-  vpoke,
-} from '../lib/kit.e16'
+import { div, str, type u16 } from '../../../../src/shared/e16c/builtins'
+import { B_A, B_START, cellAt, frame_wait, padRead, palMix, pressed, vpoke } from '../lib/kit.e16'
 import { soundMaster } from '../lib/sound.e16'
-import { DRILLER_TILE, GROUND_TILE, PANELS_TILE, QUARTERS_TILE } from './assets.e16'
-import { M_DEEP, M_GOAL, M_MAIN, M_OVER, M_RESULT, M_TITLE, music, sfxSelect } from './audio.e16'
-import { fieldNew } from './field.e16'
+import { M_DEEP, M_GOAL, M_MAIN, M_OVER, M_RESULT, music, sfxSelect } from './audio.e16'
 import {
   band,
+  bandH,
+  bandY,
   figure,
   glyph,
   say,
@@ -45,131 +21,24 @@ import {
   W_WHITE,
   wellClear,
 } from './hud.e16'
+import { LV_EASY, LV_HARD, level } from './level.e16'
 import { stratumShow } from './panel.e16'
 import { air, capsules, cheer } from './player.e16'
 
-/* ---------------- the title ---------------- */
-
-/** The heap at the title's foot: 20 columns of blocks, two rows, by chance. */
-const heap = bytes(40)
-
-export function title(): void {
-  music(M_TITLE)
-  fieldNew()
-  vfill(cellAt(1, 0, 0), PANELS_TILE, 4096)
-  groundFill()
-  heapDraw()
-  logoIn(4, 3)
-  scrollIs(0)
-  tableShow(15)
-  say(10, 28, str('(C) ELECXZY PROJECT'), W_WHITE)
-  let t: u16 = 0
-  walkX = 40
-  walkFace = 0
-  for (;;) {
-    frameBegin()
-    logoDrop(t)
-    if ((t & 32) === 0) say(14, 10, str('PRESS START'), W_GOLD)
-    else unsay(14, 10, 11)
-    walker(t)
-    if (t > 40 && pressed(B_START | B_A)) break
-    t++
-  }
-  randSeed(frame ^ peek16(0x0202))
-  sfxSelect()
-  poke16(BG1Y, 0)
-}
-
-/** BG0 all ground, its two textures in a loose check. */
-function groundFill(): void {
-  let y: u16 = 0
-  while (y < 36) {
-    let x: u16 = 0
-    while (x < 40) {
-      vpoke(cellAt(0, x, y), GROUND_TILE + 8 + (((x >> 1) + (y >> 1)) & 1) * 9)
-      x++
-    }
-    y++
-  }
-}
-
-let walkX: u16 = 40
-let walkFace: u16 = 0
-
-/** RIVET walks the heap, stops, and drills a moment, then hops for joy before going on. */
-function walker(t: u16): void {
-  const phase = t % 240
-  let f: u16 = 0
-  if (phase < 160) {
-    if ((t & 1) === 0) walkX = walkFace === 0 ? walkX + 1 : walkX - 1
-    if (walkX > 280) walkFace = 1
-    if (walkX < 24) walkFace = 0
-    f = 2 + ((t >> 2) & 3)
-  } else if (phase < 200) f = 8 + ((t >> 1) & 1)
-  else if (phase < 230) f = 21 + ((t >> 4) & 1)
-  spr(i16(walkX), 240, (DRILLER_TILE + f * 4) | (walkFace !== 0 ? FLIP_H : 0), S16)
-}
-
-/** The word falls in from above, and bounces as it lands. */
-function logoDrop(t: u16): void {
-  if (t < 30) poke16(BG1Y, (30 - t) * 3)
-  else if (t < 36) poke16(BG1Y, 512 - (t - 30))
-  else if (t < 42) poke16(BG1Y, 512 - (42 - t))
-  else if (t === 42) poke16(BG1Y, 0)
-}
-
-/** The heap: blocks in rows 32-35 joined as in the well. */
-function heapDraw(): void {
-  let k: u16 = 0
-  while (k < 40) {
-    heap[k] = 1 + (rand() & 3)
-    if (k >= 20 && (rand() & 3) !== 0) heap[k] = heap[k - 20]
-    else if (k > 0 && (rand() & 1) !== 0 && k !== 20) heap[k] = heap[k - 1]
-    k++
-  }
-  k = 0
-  while (k < 40) {
-    heapCell(k % 20, div(k, 20))
-    k++
-  }
-}
-
-function heapAt(x: u16, y: u16, c: u16): u16 {
-  if (x >= 20 || y >= 2) return 0
-  return heap[y * 20 + x] === c ? 1 : 0
-}
-
-function heapCell(x: u16, y: u16): void {
-  const c = heap[y * 20 + x]
-  const up = wrap16(y - 1)
-  const left = wrap16(x - 1)
-  const n = heapAt(x, up, c)
-  const s = heapAt(x, y + 1, c)
-  const w = heapAt(left, y, c)
-  const e = heapAt(x + 1, y, c)
-  const base = QUARTERS_TILE | (c << 10)
-  const at = cellAt(0, x * 2, 32 + y * 2)
-  vpoke(at, base + quarterOf(n, w, heapAt(left, up, c)))
-  vpoke(at + 2, base + 5 + quarterOf(n, e, heapAt(x + 1, up, c)))
-  vpoke(at + 128, base + 10 + quarterOf(s, w, heapAt(left, y + 1, c)))
-  vpoke(at + 130, base + 15 + quarterOf(s, e, heapAt(x + 1, y + 1, c)))
-}
-
-function quarterOf(v: u16, h: u16, d: u16): u16 {
-  if (v !== 0) {
-    if (h !== 0) return d !== 0 ? 4 : 3
-    return 1
-  }
-  return h !== 0 ? 2 : 0
-}
-
 /* ---------------- in play ---------------- */
 
-/** START: everything stops until START again. */
+/**
+ * START: everything stops, the well dimmed, until START again; the words say so. A banner up
+ * (READY, a stratum) keeps its band when play goes on.
+ */
 export function pause(): void {
-  band(108, 1)
-  say(17, 14, str('PAUSE'), W_GOLD)
+  const oldY = bandY
+  const oldH = bandH
+  band(116, 3)
+  say(17, 16, str('PAUSED'), W_GOLD)
+  say(12, 18, str('START TO RESUME'), W_WHITE)
   soundMaster(4)
+  dim(8)
   // Two frames drawn, so the band is up; then nothing moves.
   idle(2)
   for (;;) {
@@ -178,8 +47,20 @@ export function pause(): void {
     if (pressed(B_START)) break
   }
   soundMaster(15)
-  unsay(17, 14, 5)
-  band(0, 0)
+  dim(0)
+  unsay(17, 16, 6)
+  unsay(12, 18, 15)
+  band(oldY, oldH)
+}
+
+/** The well's colours, backgrounds and sprites, `t` sixteenths of the way to black (0 as kept). */
+function dim(t: u16): void {
+  let s: u16 = 0
+  while (s < 16) {
+    // Not the gold words and the flash (6), the panels (7, and 13 the band's), the gold (15).
+    if (s !== 6 && s !== 7 && s !== 13 && s !== 15) palMix(s, 0, t)
+    s++
+  }
 }
 
 /** A stratum passed: its number and name across the well, the bonus. */
@@ -256,6 +137,12 @@ export function results(): void {
   wellClear()
   band(42, 9)
   say(16, 6, str('RESULT'), W_GOLD)
+  say(
+    17,
+    7,
+    level === LV_EASY ? str(' EASY') : level === LV_HARD ? str(' HARD') : str('NORMAL'),
+    W_WHITE,
+  )
   say(12, 9, str('DEPTH'), W_WHITE)
   figure(cellAt(1, 24, 9), maxDepth, 3, W_GOLD)
   vpoke(cellAt(1, 27, 9), glyph(77, W_GOLD))
@@ -306,18 +193,14 @@ function scoreAt(at: u16): void {
 }
 
 import type { bool } from '../../../../src/shared/e16c/builtins'
-import { nameEntry, tablePlace, tableShow } from './best.e16'
+import { nameEntry, tablePlace } from './best.e16'
 import {
   continues,
-  frame,
-  frameBegin,
   idle,
   lives,
-  logoIn,
   maxChain,
   maxDepth,
   points,
-  scrollIs,
   seen,
   seenIs,
   stratum,

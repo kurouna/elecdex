@@ -1,12 +1,13 @@
 // ELECDRILL's panels (docs/elec16-elecdrill.md section 2): the depth in big digits, the
 // stratum, the score and the best on the left with the depth gauge; AIR's tank and its figure,
-// the drillers left, the chain and the capsules on the right. Each reading is drawn only when
+// the drillers left, the chain, the capsules and the difficulty on the right. Each reading is drawn only when
 // it changes. In cartridge bank 2: it moves no window, and its words are its own.
 import { addr, div, str, type u16 } from '../../../../src/shared/e16c/builtins'
 import { cellAt, scoreShow, vpoke } from '../lib/kit.e16'
 import { DIGITS_TILE, FONT_TILE, ICONS_TILE, TANK_TILE } from './assets.e16'
 import { SL_PANEL } from './field.e16'
 import { best, figure, glyph, say, score, unsay, W_GOLD, W_RED, W_WHITE } from './hud.e16'
+import { LV_EASY, LV_HARD, level } from './level.e16'
 
 let shownDepth: u16 = 0xffff
 let shownAir: u16 = 0xffff
@@ -34,6 +35,13 @@ export function hudLabels(): void {
   say(31, 20, str('DRILLERS'), W_GOLD)
   say(31, 23, str('CHAIN'), W_GOLD)
   say(31, 26, str('CAPSULES'), W_GOLD)
+  say(31, 29, str('LEVEL'), W_GOLD)
+  say(
+    31,
+    30,
+    level === LV_EASY ? str('EASY') : level === LV_HARD ? str('HARD') : str('NORMAL'),
+    W_WHITE,
+  )
   shownDepth = 0xffff
   shownAir = 0xffff
   shownLives = 0xffff

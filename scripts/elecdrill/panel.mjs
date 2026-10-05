@@ -24,6 +24,7 @@ export const LAYOUT = {
     [31, 20, 8, 2], // DRILLERS left
     [31, 23, 8, 2], // CHAIN
     [31, 26, 8, 2], // CAPSULES
+    [31, 29, 8, 2], // LEVEL, the difficulty
   ],
   /** The AIR tank: its glass two cells wide from (34, 3), 14 cells high. */
   tank: [34, 3, 2, 14],

@@ -1,15 +1,17 @@
 // ELECDRILL, ELEC-16 PLAY's block-digging puzzle (docs/elec16-elecdrill.md): the title, the
 // dig down through five strata to the core at 500 m, the driller's lives and AIR, the score,
 // the game's end and the best five. The well, its falls, the driller, the effects and the
-// panels are in the files beside this one; the scenes round the play are in bank 1.
+// panels are in the files beside this one; the scenes round the play are in bank 1, the title
+// and the controls in bank 3, the difficulty's row in level.e16.ts.
 import {
   addr,
+  type bool,
   csrr,
   i16,
   peek16,
   poke16,
   str,
-  type u16,
+  u16,
   wrap16,
 } from '../../../../src/shared/e16c/builtins'
 import {
@@ -32,6 +34,7 @@ import {
   palCopy,
   palette,
   palKeep,
+  palMix,
   pressed,
   S16,
   scoreAdd,
@@ -138,8 +141,11 @@ import {
   sfxChain,
   sfxCrush,
   sfxGasp,
+  sfxLand,
   sfxPop,
   sfxRumble,
+  sfxSelect,
+  sfxWarn,
   song,
 } from './audio.e16'
 import {
@@ -150,6 +156,7 @@ import {
   goneCell,
   goneN,
   goneType,
+  landAt,
   lbCell,
   lbN,
   lbTile,
@@ -161,8 +168,8 @@ import {
   struck,
   struckClear,
   suspectsStep,
+  target,
   U_FALL,
-  U_WOBBLE,
   unitsStep,
   uOff,
   uState,
@@ -173,19 +180,37 @@ import {
 } from './fall.e16'
 import {
   CORE_ROW,
+  cells,
   FIELD_X,
   fieldAdvance,
   fieldDraw,
   fieldNew,
   markAll,
   rowOf,
+  SL_EARTH_A,
+  SL_EARTH_B,
   SL_FLASH,
   SL_PANEL,
   T_BLUE,
   top,
 } from './field.e16'
-import { bubbles, chainShow, fxClear, fxStep, plusShow, pop } from './fx.e16'
+import {
+  bubbles,
+  callout,
+  chainShow,
+  dust,
+  fxClear,
+  fxStep,
+  grit,
+  metresShow,
+  plusShow,
+  pop,
+  SAY_AIR_DOWN,
+  SAY_AIR_UP,
+  SAY_LOW_AIR,
+} from './fx.e16'
 import { band, bandDraw, best, say, score, W_GOLD, wellClear } from './hud.e16'
+import { levelAir, levelFall, levelWobble } from './level.e16'
 import { hudCounts, hudLabels, hudStep, stratumShow } from './panel.e16'
 import {
   air,
@@ -211,6 +236,7 @@ import {
   pState,
   pX,
   pY,
+  warnDraw,
 } from './player.e16'
 
 /** The frame count the runtime keeps, as `frame_wait` last answered it, and frames played. */
@@ -247,6 +273,7 @@ export function main(): void {
   tableLoad()
   for (;;) {
     title()
+    controls()
     game()
   }
 }
@@ -402,10 +429,10 @@ export function points(n: u16): void {
   }
 }
 
-/** Each stratum's pace: AIR a unit every 60 frames down to 36, wobbles shorter, falls faster. */
+/** Each stratum's pace, as the difficulty's row says: AIR faster, wobbles shorter, falls faster. */
 function pace(s: u16): void {
-  airPace(60 - s * 6)
-  fallPace(64 - s * 7, 8 + s)
+  airPace(levelAir(s))
+  fallPace(levelWobble(s), levelFall(s))
 }
 
 function gameNew(): void {
@@ -426,6 +453,9 @@ function gameNew(): void {
   alarmT = 0
   bannerT = 90
   jingleT = 0
+  flashT = 0
+  warn = 0
+  airWarned = 0
   wasAlive = true
   score[0] = 0
   score[1] = 0
@@ -485,6 +515,7 @@ function fieldStep(): void {
     caughtFalling()
     sfxCapsule()
     bubbles(i16(FIELD_X + pX) + 8, i16(pY))
+    callout(i16(FIELD_X + pX) + 8, i16(pY) - 10, SAY_AIR_UP)
   }
   struckClear()
   scoreFrame()
@@ -506,32 +537,65 @@ function pops(): void {
 /** This frame's points: blocks dug, chains, capsules, ALLOY, and every new metre. */
 function scoreFrame(): void {
   if (dugN > 0) points(dugN * 10)
-  if (vanishedBlocks > 0) {
-    const worth = vanishedBlocks * 20 * vanishedChain
-    points(worth)
-    if (vanishedChain > maxChain) maxChain = vanishedChain
-    const c = vanishedAt
-    const x = i16(FIELD_X + (c & 15) * 16) + 8
-    const y = i16(rowOf(c >> 4) * 16) - 10
-    if (vanishedChain >= 2) chainShow(x, y, vanishedChain)
-    else plusShow(x, y, worth)
-    sfxChain(vanishedChain)
-  }
+  if (vanishedBlocks > 0) chainScored()
+  if (capsuleN > 0 || alloyBroken !== 0) pickups()
+  if (loosened > 0) sfxRumble()
+  if (landAt !== 0xffff && wrap16(frame - thudAt) >= 4) landDust(landAt)
+  if (pRow > 5 && pRow - 5 > maxDepth) deeper()
+}
+
+/** A group vanished of a fall: its points, its count rising, a shake for a chain. */
+function chainScored(): void {
+  const worth = vanishedBlocks * 20 * vanishedChain
+  points(worth)
+  if (vanishedChain > maxChain) maxChain = vanishedChain
+  const c = vanishedAt
+  const x = i16(FIELD_X + (c & 15) * 16) + 8
+  const y = i16(rowOf(c >> 4) * 16) - 10
+  if (vanishedChain >= 2) {
+    chainShow(x, y, vanishedChain)
+    shakeT = vanishedChain >= 3 ? 8 : 4
+  } else plusShow(x, y, worth)
+  sfxChain(vanishedChain)
+}
+
+/** Capsules caught and ALLOY broken: points, and the AIR won or lost called out. */
+function pickups(): void {
   if (capsuleN > 0) {
     points(capsuleN * 100)
     sfxCapsule()
     bubbles(i16(FIELD_X + pX) + 8, i16(pY))
+    callout(i16(FIELD_X + pX) + 8, i16(pY) - 10, SAY_AIR_UP)
   }
   if (alloyBroken !== 0) {
     points(50)
     shakeT = 6
-  }
-  if (loosened > 0) sfxRumble()
-  if (pRow > 5 && pRow - 5 > maxDepth) {
-    points((pRow - 5 - maxDepth) * 10)
-    maxDepth = pRow - 5
+    callout(i16(FIELD_X + pX) + 8, i16(pY) - 10, SAY_AIR_DOWN)
   }
 }
+
+/** A new metre: its points, and every 50 m between the strata's banners called out. */
+function deeper(): void {
+  points((pRow - 5 - maxDepth) * 10)
+  maxDepth = pRow - 5
+  if (maxDepth % 50 === 0 && maxDepth % 100 !== 0) {
+    metresShow(i16(FIELD_X + pX) + 8, i16(pY) - 10, maxDepth)
+    sfxSelect()
+  }
+}
+
+/**
+ * Dust where a fallen block came to rest, and its thump: a puff every few frames of a big
+ * landing, not one a block (the effects' room is shared).
+ */
+function landDust(c: u16): void {
+  thudAt = frame
+  dust(i16(FIELD_X + (c & 15) * 16) + 8, i16(rowOf(c >> 4) * 16) + 14, 0)
+  sfxLand()
+}
+
+/** The frame of the last thump of a landing. */
+let thudAt: u16 = 0
 
 /** After the driller's last moment: back again, or the question of going on, or the end. */
 function afterDeath(): void {
@@ -582,31 +646,93 @@ function drawStep(): void {
   fieldDraw(camY >> 4, 19, busy < 16000 ? 24 : busy < 26000 ? 10 : 3)
   // A banner's band first: in front of the well, behind the banner's words.
   bandDraw()
-  fxStep(view)
+  // The warning in front of what falls (worked out by last frame's loose blocks).
+  warnDraw(view, frame, warn)
+  fxStep(view, spent() > 30000)
   looseDraw()
   playerDraw(view, frame)
   hudStep(maxDepth, air, lives, frame)
   hudCounts(maxChain, capsules)
 }
 
-/** The loose blocks as sprites: a wobble side to side, then down with their unit. */
+/**
+ * The loose blocks as sprites: a wobble side to side, harder as the fall nears, grit
+ * trickling from under them; then down with their unit. Whether any hangs over the driller
+ * (in its column, up to eight rows above) is the warning over its head: `warn`.
+ */
 function looseDraw(): void {
+  if (lbN === 0) {
+    warn = 0
+    return
+  }
+  sways()
+  let wcol: u16 = 0xffff
+  if (target !== 0xffff) wcol = target & 15
+  const w = looseSprites(wcol, rowOf(target >> 4))
+  if (w > warn && alive()) sfxWarn()
+  warn = w
+}
+
+/** The loose blocks drawn; answers the warning for the driller at column `wcol`, row `wrow`. */
+function looseSprites(wcol: u16, wrow: u16): u16 {
+  // Grit from each wobbling block every 32 frames.
+  const gk = frame & 31
+  let w: u16 = 0
   let k: u16 = 0
   while (k < lbN) {
     const c = lbCell[k]
     const u = lbUnit[k]
-    const st = uState[u]
-    let y = i16(wrap16(rowOf(c >> 4) * 16 - view))
-    if (st === U_FALL) y = y + i16(uOff[u] >> 2)
-    let x = i16(FIELD_X + (c & 15) * 16)
-    if (st === U_WOBBLE) {
-      const fast = uTime[u] < 24 ? 1 : 2
-      x = x + ((frame >> fast) & 1 ? 1 : -1)
+    const col = c & 15
+    // rowOf, written out: this runs for every loose block.
+    const row = top + (wrap16((c >> 4) - top) & 31)
+    let y = i16(wrap16(row * 16 - view))
+    let x = i16(FIELD_X + col * 16)
+    const falling = uState[u] === U_FALL
+    if (falling) y = y + i16(uOff[u] >> 2)
+    else {
+      x = x + swayOf(uTime[u])
+      if ((k & 31) === gk) gritUnder(c, x)
     }
-    if (y > -16 && y < 288) spr(x, y, lbTile[k], S16)
+    if (col === wcol) w = warnOf(w, row, wrow, falling)
+    // On the screen: y from -15 to 287.
+    if (u16(y + 15) < 303) spr(x, y, lbTile[k], S16)
     k++
   }
+  return w
 }
+
+/** The warning so far, `w`, with a block in the driller's column at `row` (it at `wrow`). */
+function warnOf(w: u16, row: u16, wrow: u16, falling: bool): u16 {
+  if (row >= wrow || row + 8 <= wrow) return w
+  return falling ? 2 : w > 0 ? w : 1
+}
+
+/**
+ * This frame's sway of a wobbling block, in points: a point each way every four frames, every
+ * two in its last 24, two points in its last 12. Worked out once a frame, not for each block.
+ */
+function sways(): void {
+  swaySlow = ((frame >> 2) & 1) !== 0 ? 1 : -1
+  swayQuick = ((frame >> 1) & 1) !== 0 ? 1 : -1
+  swayLast = swayQuick * 2
+}
+
+/** The sway of a block `left` frames from falling. */
+function swayOf(left: u16): i16 {
+  return left < 12 ? swayLast : left < 24 ? swayQuick : swaySlow
+}
+
+let swaySlow: i16 = 0
+let swayQuick: i16 = 0
+let swayLast: i16 = 0
+
+/** Grit from under wobbling cell `c` (drawn at `x`), where there is room under it. */
+function gritUnder(c: u16, x: i16): void {
+  if ((cells[(c + 16) & 511] & 15) === 0) grit(x + 6, i16(rowOf(c >> 4) * 16) + 15)
+}
+
+/** Something loose hangs over the driller: 0 no, 1 wobbling, 2 falling. */
+export let warn: u16 = 0
 
 /** The stratum passed, the core reached, the alarm, the banner and the music's turns. */
 function events(): void {
@@ -623,8 +749,11 @@ function events(): void {
     stratumBanner(stratum)
     bannerT = 150
     jingleT = 110
+    flashT = 18
+    shakeT = 10
     music(M_STRATUM)
   }
+  if (flashT > 0) earthFlash()
   if (jingleT > 0) {
     jingleT--
     if (jingleT === 0) music(baseSong())
@@ -640,34 +769,75 @@ function baseSong(): u16 {
   return stratum >= 3 ? M_DEEP : M_MAIN
 }
 
-/** AIR low: the alarm every 45 frames and the tense music; back again with air to spare. */
+/** A stratum entered: the earth flashes white and fades back, a slot each frame by turns. */
+function earthFlash(): void {
+  flashT--
+  palMix((flashT & 1) !== 0 ? SL_EARTH_A : SL_EARTH_B, 0x7fff, flashT >> 1)
+}
+
+let flashT: u16 = 0
+
+/**
+ * AIR low: LOW AIR called out once, the alarm every 45 frames (24 at 10 and under), the tense
+ * music, and the well's hazard stripes pulsing red; back again with air to spare.
+ */
 function airMood(): void {
-  if (jingleT > 0 || !alive()) return
-  if (air <= 25) {
-    if (song !== M_LOWAIR) music(M_LOWAIR)
-    alarmT++
-    if (alarmT >= 45) {
-      alarmT = 0
-      sfxAlarm()
-    }
-  } else {
+  const low = air <= 25 && alive() && outcome === 0
+  stripes(low)
+  if (!low) {
     alarmT = 40
-    if (song === M_LOWAIR) music(baseSong())
+    if (air > 25) airWarned = 0
+    if (jingleT === 0 && song === M_LOWAIR) music(baseSong())
+    return
+  }
+  if (airWarned === 0) {
+    airWarned = 1
+    callout(i16(FIELD_X + pX) + 8, i16(pY) - 12, SAY_LOW_AIR)
+  }
+  if (jingleT > 0) return
+  if (song !== M_LOWAIR) music(M_LOWAIR)
+  alarmT++
+  if (alarmT >= (air <= 10 ? 24 : 45)) {
+    alarmT = 0
+    sfxAlarm()
   }
 }
 
-/** Frames with nothing played: the screen kept up (a scene over the well). */
+/** Whether LOW AIR has been called out since AIR last went over 25. */
+let airWarned: u16 = 0
+
+/** The hazard stripes' orange (the panel's colour 9) pulsing to red, or put back. */
+function stripes(on: bool): void {
+  if (!on) {
+    if (stripesRed !== 0) {
+      stripesRed = 0
+      colour(SL_PANEL, 9, palCopy[SL_PANEL * 16 + 9])
+    }
+    return
+  }
+  if ((frame & 3) !== 0) return
+  stripesRed = 1
+  const p = (frame >> 2) & 7
+  colour(SL_PANEL, 9, mix(palCopy[SL_PANEL * 16 + 9], 0x0c1f, p < 4 ? p * 4 : (8 - p) * 4))
+}
+
+let stripesRed: u16 = 0
+
+/** Frames with nothing played: the screen and the panels kept up (a scene over the well). */
 export function idle(n: u16): void {
   while (n > 0) {
     frameBegin()
     fieldDraw(camY >> 4, 19, 40)
     bandDraw()
-    fxStep(view)
+    fxStep(view, false)
     looseDraw()
     playerDraw(view, frame)
+    // The panels too: the drillers left are none while GAME OVER asks to go on.
+    hudStep(maxDepth, air, lives, frame)
     n--
   }
 }
 
 import { tableLoad } from './best.e16'
-import { continueAsk, goal, pause, results, stratumBanner, title } from './scenes.e16'
+import { continueAsk, goal, pause, results, stratumBanner } from './scenes.e16'
+import { controls, title } from './title.e16'

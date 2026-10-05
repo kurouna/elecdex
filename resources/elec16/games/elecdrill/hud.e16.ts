@@ -57,8 +57,8 @@ export function figure(cell: u16, n: u16, digits: u16, sl: u16): void {
 
 /* ---------------- the band behind a banner ---------------- */
 
-let bandY: u16 = 0
-let bandH: u16 = 0
+export let bandY: u16 = 0
+export let bandH: u16 = 0
 
 /** A dark band across the well from `y` (points), `rows` sprites high, behind the words. */
 export function band(y: u16, rows: u16): void {

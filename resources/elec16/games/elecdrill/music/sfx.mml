@@ -1,7 +1,7 @@
 # ELECDRILL's sound effects: each a short song on channels 12-15 only, so the music (0-11)
 # never stops for one. Tempo 2: a sixteenth is two frames, a thirty-second one.
 #   C12 the drill (a dig, ALLOY's clank, a clink off what will not give, a swing at nothing)
-#   C13 small things (a landing, a capsule, a rumble as blocks come loose, select)
+#   C13 small things (a landing, a capsule, a rumble as blocks come loose, select, a warning)
 #   C14 vanishing and chains
 #   C15 big moments (crushed, out of air, the low-air alarm)
 
@@ -79,6 +79,14 @@ inst deflate wave=saw vol=10 env=10/1200/0/600 slide=-60 vib=6,8
 C15: @deflate o5 c1^1
 
 song x_alarm
+# The low-air alarm: two falling syllables twice, a voice's "air! air!" more than a beep - a
+# reedy pulse whose pitch sags as it speaks.
 tempo 2
-inst beep wave=sq50 vol=8 env=0/40/12/20 pan=8
-C15: @beep o6 a8 r8 a8
+inst call wave=sq25 vol=10 env=4/120/9/60 vib=3,10 slide=-12 pan=8
+C15: @call o6 l16 a e r8 a e
+
+song x_warn
+# Something loose over the driller's head: a quick, high double tick.
+tempo 2
+inst tick wave=sq12 vol=9 env=0/30/0/30
+C13: @tick o7 l32 e r32 e

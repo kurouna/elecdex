@@ -9,6 +9,7 @@
     "hud.e16.ts",
     "audio.e16.ts",
     "drill.e16.ts",
+    "level.e16.ts",
     {
       "file": "scenes.e16.ts",
       "bank": 1
@@ -28,6 +29,10 @@
     {
       "file": "panel.e16.ts",
       "bank": 2
+    },
+    {
+      "file": "title.e16.ts",
+      "bank": 3
     }
   ],
   "palettes": {
@@ -153,7 +158,7 @@
       "png": "art/fx.png",
       "cell": 8,
       "palette": "fx",
-      "count": 10
+      "count": 12
     }
   ],
   "maps": [
@@ -177,6 +182,12 @@
           "slot": 5
         }
       ]
+    }
+  ],
+  "tables": [
+    {
+      "name": "difficulty",
+      "file": "difficulty.txt"
     }
   ],
   "music": ["music/songs.mml", "music/sfx.mml"]
