@@ -2,7 +2,7 @@
 // half way, with two arms to shoot away; ZENITH, the battleship at the end - two cannons, then
 // its wings spread and its core opens, then the core burns. Each part takes hits apart, and
 // the machine goes down in a chain of explosions.
-import { type bool, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { type bool, div, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 import { FLIP_H, S32, sin, spr } from '../lib/kit.e16'
 import { BASTION_TILE, ZENITH_TILE } from './assets.e16'
 import { abs, burst, IT_STAR, item, itemsAll } from './fx.e16'
@@ -115,9 +115,9 @@ export function bossStep(): void {
   bossDraw()
 }
 
-/** Side to side by `size` sixteenths: scaled down first, so sin times size keeps to a word. */
+/** Side to side by `size` sixteenths: sin (to 256) times size, the whole product (MULQ). */
 function bossSway(size: i16): void {
-  bX = (48 + 112) * 16 + ((sin(bT) * (size >> 4)) >> 4)
+  bX = (48 + 112) * 16 + mulShift(sin(bT), size, 8)
 }
 
 function bastionStep(): void {

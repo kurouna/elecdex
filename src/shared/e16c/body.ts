@@ -7,6 +7,7 @@ import {
   I16,
   isBool,
   isSigned,
+  mulShiftWord,
   Refusal,
   rangeOf,
   type Sym,
@@ -1038,25 +1039,10 @@ export class FnCompiler {
         this.#emit({ k: 'store', byte: name === 'poke' })
         return null
       case 'div':
-      case 'idiv': {
-        const [a, b] = this.#args(e, 2) as [Typed, Typed]
-        const s = this.#signedness(a, b, e)
-        // TypeScript's div answers 65535 for a division by zero, which the machine reads as
-        // -1 where the answer is signed: a divisor that may be 0 is idiv's, which says -1.
-        if (name === 'div' && s && b.constant === undefined) {
-          throw new Refusal(
-            e.getStart(),
-            'a signed division by what may be 0 differs: use idiv(a, b)',
-          )
-        }
-        if (name === 'idiv' && !s) {
-          throw new Refusal(e.getStart(), 'idiv divides i16s: say which with i16()')
-        }
-        this.#constantFits(a, b, s, e)
-        this.#sameEverywhere(s ? 'div' : 'divu', b, e)
-        this.#emit({ k: 'bin', op: s ? 'div' : 'divu' })
-        return { type: s ? I16 : U16 }
-      }
+      case 'idiv':
+        return this.#division(name, e)
+      case 'mulShift':
+        return this.#mulShift(e)
       case 'wrap16':
       case 'u16':
         this.#args(e, 1)
@@ -1115,6 +1101,62 @@ export class FnCompiler {
     }
     this.#assignable(U16, n, args[2] as ts.Expression)
     this.#emit({ k: 'block', fill })
+  }
+
+  /** div(a, b) and idiv(a, b): DIV or DIVU, by how the two are read. */
+  #division(name: 'div' | 'idiv', e: ts.CallExpression): Typed {
+    const [a, b] = this.#args(e, 2) as [Typed, Typed]
+    const s = this.#signedness(a, b, e)
+    // TypeScript's div answers 65535 for a division by zero, which the machine reads as
+    // -1 where the answer is signed: a divisor that may be 0 is idiv's, which says -1.
+    if (name === 'div' && s && b.constant === undefined) {
+      throw new Refusal(e.getStart(), 'a signed division by what may be 0 differs: use idiv(a, b)')
+    }
+    if (name === 'idiv' && !s) {
+      throw new Refusal(e.getStart(), 'idiv divides i16s: say which with i16()')
+    }
+    this.#constantFits(a, b, s, e)
+    this.#sameEverywhere(s ? 'div' : 'divu', b, e)
+    this.#emit({ k: 'bin', op: s ? 'div' : 'divu' })
+    return { type: s ? I16 : U16 }
+  }
+
+  /**
+   * mulShift(a, b, k): one MULQ, the 32-bit product of two i16s shifted right by k. Each
+   * operand must read alike as an i16 in both runs - an i16, a u8, or a constant that fits -
+   * and k is a constant from 0 to 15.
+   */
+  #mulShift(e: ts.CallExpression): Typed {
+    if (e.arguments.length !== 3) throw new Refusal(e.getStart(), 'mulShift takes 3 arguments')
+    const mark = this.ops.length
+    const [a, b] = e.arguments.slice(0, 2).map((arg) => this.#signedOperand(arg)) as [Typed, Typed]
+    const shiftMark = this.ops.length
+    const k = this.expr(e.arguments[2] as ts.Expression).constant
+    this.ops.length = shiftMark
+    if (k === undefined || !Number.isInteger(k) || k < 0 || k > 15) {
+      throw new Refusal(e.getStart(), 'mulShift shifts by a constant from 0 to 15')
+    }
+    if (a.constant !== undefined && b.constant !== undefined) {
+      this.ops.length = mark
+      const v = mulShiftWord(a.constant, b.constant, k)
+      this.#emit({ k: 'push', v })
+      return { type: I16, constant: (v << 16) >> 16 }
+    }
+    this.#emit({ k: 'mulq', shift: k })
+    return { type: I16 }
+  }
+
+  /** An operand of mulShift: what reads as the same i16 in TypeScript and on the machine. */
+  #signedOperand(arg: ts.Expression): Typed {
+    const t = this.expr(arg)
+    if (t.type.kind === 'array') {
+      throw new Refusal(arg.getStart(), 'an array is not a number: use addr(a) for its address')
+    }
+    const fits = t.constant !== undefined && t.constant >= -32768 && t.constant <= 32767
+    if (!fits && t.type.ty !== 'i16' && t.type.ty !== 'u8') {
+      throw new Refusal(arg.getStart(), 'mulShift multiplies i16s: say which with i16()')
+    }
+    return t
   }
 
   #ecall(e: ts.CallExpression): Typed {

@@ -60,6 +60,7 @@ export const OPS = [
   'divu',
   'rem',
   'remu',
+  'mulq',
   // bit manipulation
   'andn',
   'orn',
@@ -189,12 +190,27 @@ export const MAJOR = {
 } as const
 
 /** How an operation sits in 32 bits: its format, major opcode, funct3 and its extra selector. */
-export type Format = 'R' | 'I' | 'S' | 'B' | 'U' | 'J' | 'Ish' | 'Iun' | 'Isys' | 'Icsr' | 'Icsri'
+export type Format =
+  | 'R'
+  | 'Rsh'
+  | 'I'
+  | 'S'
+  | 'B'
+  | 'U'
+  | 'J'
+  | 'Ish'
+  | 'Iun'
+  | 'Isys'
+  | 'Icsr'
+  | 'Icsri'
 interface Encoding {
   format: Format
   major: number
   f3: number
-  /** R: funct10. Ish / Iun: the selector in imm[13:4]. Isys: the whole immediate. */
+  /**
+   * R: funct10. Rsh: the selector in funct10[9:4] (the amount in [3:0]). Ish / Iun: the
+   * selector in imm[13:4]. Isys: the whole immediate.
+   */
   sel: number
 }
 
@@ -237,6 +253,9 @@ export const ENCODINGS: Partial<Record<OpName, Encoding>> = {
   // A block of bytes copied or filled, a few at a time (blockRegisters).
   mcpy: R(0, 6),
   mset: R(1, 6),
+  // Three registers and an amount: the operation in funct10[9:4], the amount in funct10[3:0],
+  // as the shifts by an immediate have it. Every R operation's funct10 is below 0x10.
+  mulq: { format: 'Rsh', major: MAJOR.op, f3: 0, sel: 1 },
   addi: I(MAJOR.opImm, 0),
   slti: I(MAJOR.opImm, 2),
   sltiu: I(MAJOR.opImm, 3),
@@ -335,6 +354,10 @@ function encodeAs(e: Encoding, name: string, i: Omit<Inst, 'op' | 'size' | 'c'>)
   switch (e.format) {
     case 'R':
       return base(e) | rd | rs1 | rs2 | (e.sel << 22)
+    case 'Rsh':
+      // By 0 it would be MUL, by 16 MULH: each has its own encoding.
+      need(i.imm >= 1 && i.imm <= 15, name, 'a shift from 1 to 15')
+      return base(e) | rd | rs1 | rs2 | (((e.sel << 4) | i.imm) << 22)
     case 'I':
       need(fitsSigned(i.imm, 14), name, 'an immediate from -8192 to 8191')
       return base(e) | rd | rs1 | ((i.imm & 0x3fff) << 18)
@@ -379,11 +402,13 @@ const ILLEGAL = (size: 2 | 4): Inst => ({ op: 0, rd: 0, rs1: 0, rs2: 0, imm: 0, 
 
 /** Looks an encoding up by its fields: built once from ENCODINGS. */
 const R_TABLE = new Map<number, number>()
+const RSH_TABLE = new Map<number, number>()
 const SH_TABLE = new Map<number, number>()
 const I_TABLE = new Map<number, number>()
 for (const [name, e] of Object.entries(ENCODINGS) as [OpName, Encoding][]) {
   const op = OP[name]
   if (e.format === 'R') R_TABLE.set((e.sel << 3) | e.f3, op)
+  else if (e.format === 'Rsh') RSH_TABLE.set((e.sel << 3) | e.f3, op)
   else if (e.format === 'Ish' || e.format === 'Iun') SH_TABLE.set((e.f3 << 10) | e.sel, op)
   else I_TABLE.set((e.major << 8) | (e.format === 'Isys' ? 0x80 | e.sel : e.f3), op)
 }
@@ -413,10 +438,8 @@ function decode32(w: number): Inst {
     c: -1,
   })
   switch (major) {
-    case MAJOR.op: {
-      const op = R_TABLE.get((((w >>> 22) & 0x3ff) << 3) | f3)
-      return op === undefined || !blockRegisters(op, rd, rs1, rs2) ? ILLEGAL(4) : inst(op, 0)
-    }
+    case MAJOR.op:
+      return decodeOp(w, rd, f3, rs1, rs2)
     case MAJOR.opImm:
       return decodeOpImm(w, rd, f3, rs1)
     case MAJOR.load:
@@ -443,6 +466,20 @@ function decode32(w: number): Inst {
     default:
       return ILLEGAL(4)
   }
+}
+
+/** OP: funct10 below 0x10 names an R operation; above, its top six bits one with an amount. */
+function decodeOp(w: number, rd: number, f3: number, rs1: number, rs2: number): Inst {
+  const f10 = (w >>> 22) & 0x3ff
+  if (f10 >= 0x10) {
+    const op = RSH_TABLE.get(((f10 >>> 4) << 3) | f3)
+    // An amount of 0 is MUL's: one encoding, one meaning.
+    if (op === undefined || (f10 & 15) === 0) return ILLEGAL(4)
+    return { op, rd, rs1, rs2, imm: f10 & 15, size: 4, c: -1 }
+  }
+  const op = R_TABLE.get((f10 << 3) | f3)
+  if (op === undefined || !blockRegisters(op, rd, rs1, rs2)) return ILLEGAL(4)
+  return { op, rd, rs1, rs2, imm: 0, size: 4, c: -1 }
 }
 
 function decodeOpImm(w: number, rd: number, f3: number, rs1: number): Inst {
@@ -778,6 +815,7 @@ export function cyclesOf(op: number, taken: boolean): number {
     case 'mulh':
     case 'mulhu':
     case 'mulhsu':
+    case 'mulq':
       return 4
     case 'div':
     case 'divu':

@@ -2,7 +2,7 @@
 // off; SERPENT, a head whose segments follow its trail and go up in a chain when it dies; and
 // SPINNER, a mine that drifts after the ship and bursts into a ring when it is shot. In
 // cartridge bank 3, with the foes' tables and everything they call in RAM.
-import { type bool, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { type bool, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 import { cos, S16, spr } from '../lib/kit.e16'
 import { PRISM_TILE, SERPENT_TILE, SPINNER_TILE } from './assets.e16'
 import { IT_STAR, item } from './fx.e16'
@@ -31,7 +31,7 @@ function prismMove(k: u16, t: u16): void {
   const y = i16(fY[k]) >> 4
   // Its time up, it climbs away for good: tested first, or its row would call it back down.
   fVY[k] = t > 600 ? u16(-16) : y < 60 + i16(fP[k]) ? 20 : 0
-  fVX[k] = u16((cos(t * 2) * 24) >> 8)
+  fVX[k] = u16(mulShift(cos(t * 2), 24, 8))
   if (t % 80 === 40 && y > 30 && t < 600) {
     fan(
       i16(fX[k]),
@@ -53,7 +53,7 @@ function spinnerMove(k: u16, t: u16): void {
 /** The head weaves down the screen; its trail is kept for the segments behind. */
 function serpentMove(k: u16, t: u16): void {
   fVY[k] = 12
-  fVX[k] = u16((cos(t * 3) * 52) >> 8)
+  fVX[k] = u16(mulShift(cos(t * 3), 52, 8))
   const slot = fP[k] >> 8
   if ((t & 1) === 0) {
     const at = (trailAt[slot] + 1) & 31

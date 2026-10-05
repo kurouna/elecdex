@@ -6,6 +6,7 @@ import {
   type bool,
   div,
   i16,
+  mulShift,
   peek16,
   poke16,
   str,
@@ -50,7 +51,6 @@ import {
   abs16,
   approach,
   dotq,
-  mulq,
   ONE,
   orthonormal,
   pitchBy,
@@ -193,7 +193,7 @@ export function banditStep(): void {
 
 /** The enemy's velocity part `k`, sixteenths of a unit a frame (its wreck keeps it). */
 export function eVel(k: u16): i16 {
-  return mulq(vget(V_EF + k), eSpeed)
+  return mulShift(vget(V_EF + k), eSpeed, 14)
 }
 
 /** Its gun fired: the flash on its nose for a few frames. */

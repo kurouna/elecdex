@@ -49,6 +49,8 @@ export type Op =
   | { k: 'store'; byte: boolean }
   | { k: 'bin'; op: BinOp }
   | { k: 'un'; op: UnOp }
+  /** The two words below read signed, their 32-bit product shifted right by `shift` (MULQ). */
+  | { k: 'mulq'; shift: number }
   | { k: 'label'; name: string }
   | { k: 'jmp'; to: string }
   | { k: 'jz'; to: string }
@@ -125,6 +127,7 @@ export function stackEffect(op: Op): number {
     case 'st':
     case 'stg':
     case 'bin':
+    case 'mulq':
     case 'jz':
     case 'jnz':
     case 'drop':

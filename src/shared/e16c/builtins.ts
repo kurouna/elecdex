@@ -97,6 +97,16 @@ export function idiv(a: number, b: number): number {
   return Math.trunc(a / b)
 }
 
+/**
+ * A fixed-point product as the machine's MULQ makes it: a and b read as i16s, their whole
+ * product shifted right by k (a constant, 0 to 15) - rounding down, as >> does - and held to
+ * an i16. Unlike `(a * b) >> k` it never loses the product's top bits first.
+ */
+export function mulShift(a: i16, b: i16, k: number): i16 {
+  const p = (((a << 16) >> 16) * ((b << 16) >> 16)) >> k
+  return (p << 16) >> 16
+}
+
 /** A value held to 16 bits, where arithmetic may have left them. */
 export const wrap16 = (v: number): u16 => v & 0xffff
 

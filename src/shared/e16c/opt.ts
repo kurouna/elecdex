@@ -1,6 +1,6 @@
 import { binary, Interp, NeedsMachine, OutOfBudget } from './interp.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
-import { word } from './types.js'
+import { mulShiftWord, word } from './types.js'
 
 /**
  * e16c's -O2 (docs/elec16.md section 6, e16c): passes over the stack code before the -O1
@@ -210,6 +210,11 @@ const RULES: Rule[] = [
   (out, [c, b, a]) => {
     if (c?.k !== 'bin' || b?.k !== 'push' || a?.k !== 'push') return false
     out.splice(out.length - 3, 3, { k: 'push', v: binary(c.op, a.v, b.v) })
+    return true
+  },
+  (out, [c, b, a]) => {
+    if (c?.k !== 'mulq' || b?.k !== 'push' || a?.k !== 'push') return false
+    out.splice(out.length - 3, 3, { k: 'push', v: mulShiftWord(a.v, b.v, c.shift) })
     return true
   },
   (out, [c, b]) => {

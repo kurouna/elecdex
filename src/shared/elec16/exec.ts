@@ -279,6 +279,11 @@ const HANDLERS: Record<OpName, Handler> = {
   mulhsu: (c, i) => {
     if (i.rd !== 0) c.r[i.rd] = Math.floor((sx(c.r, i.rs1) * x(c.r, i.rs2)) / 65536)
   },
+  // The signed 32-bit product shifted right by 1-15, its low 16 bits: a fixed-point product.
+  // Two i16s make at most 2^30, which a JavaScript int32 holds exactly.
+  mulq: (c, i) => {
+    if (i.rd !== 0) c.r[i.rd] = (sx(c.r, i.rs1) * sx(c.r, i.rs2)) >> i.imm
+  },
   div: (c, i) => {
     const d = sx(c.r, i.rs2)
     const v = d === 0 ? 0xffff : signedDivide(sx(c.r, i.rs1), d, false)

@@ -1,4 +1,4 @@
-import { type BankMap, callLines, O1, REGISTER } from './back1.js'
+import { type BankMap, callLines, mulqLine, O1, REGISTER } from './back1.js'
 import type { BinOp, Fn, Op, Program } from './ir.js'
 import { hex, NEAR } from './types.js'
 
@@ -219,6 +219,12 @@ function memoryOrFlow(out: Out, op: Op, fn: Fn, banks: Map<string, number | null
     case 'un':
       out.pop('t0')
       out.line(UN[op.op])
+      out.push('t0')
+      return
+    case 'mulq':
+      out.pop('t1')
+      out.pop('t0')
+      out.line(mulqLine('t0', 't0', 't1', op.shift))
       out.push('t0')
       return
     case 'label':

@@ -6,7 +6,14 @@
 // it is in its row of the tables below (`aceFlags` and its numbers), not in the code's
 // branches: GANNET careful, MISTRAL vertical, CINDER slow and scissoring, ORACLE long-range
 // and head on, NOCTURNE feinting and punishing an overshoot.
-import { type bool, i16, idiv, type u16, words } from '../../../../src/shared/e16c/builtins'
+import {
+  type bool,
+  i16,
+  idiv,
+  mulShift,
+  type u16,
+  words,
+} from '../../../../src/shared/e16c/builtins'
 import { aim, rand, randBelow } from '../lib/kit.e16'
 import { enemyFlares, enemyMissile, enemyRound, threatDist } from './arms.e16'
 import {
@@ -302,9 +309,9 @@ function leadGoal(): void {
   if (has(F_HEADON) && headOn()) t = 0
   vset(
     V_T2,
-    -vget(V_REL) + ((pVel(0) * t) >> 4),
-    -vget(V_REL + 1) + ((pVel(1) * t) >> 4),
-    -vget(V_REL + 2) + ((pVel(2) * t) >> 4),
+    -vget(V_REL) + mulShift(pVel(0), t, 4),
+    -vget(V_REL + 1) + mulShift(pVel(1), t, 4),
+    -vget(V_REL + 2) + mulShift(pVel(2), t, 4),
   )
 }
 
@@ -360,7 +367,7 @@ function steer(): void {
 function pullFor(gy: i16, gz: i16): i16 {
   if (gz <= gy * 2) return ePullMax
   const q = idiv(gy * 64, gz)
-  return clampTo((ePullMax * q) >> 4, ePullMax)
+  return clampTo(mulShift(ePullMax, q, 4), ePullMax)
 }
 
 function clampTo(v: i16, m: i16): i16 {

@@ -4,10 +4,10 @@
 // from the horizon (horizon.txt, made tile words in sky.e16.ts's hBand), rows that did not
 // change left alone. The rows are one piece of assembly: a row of the sky is up to 40 table
 // reads, and a steep bank has every row's cells differ.
-import { asm, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { asm, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 import { aim, cos, sin } from '../lib/kit.e16'
 import { HORIZON_TILE } from './assets.e16'
-import { abs16, muldiv, mulq, V_PF, V_PR, V_PU, vget } from './math.e16'
+import { abs16, muldiv, V_PF, V_PR, V_PU, vget } from './math.e16'
 import { cockpitOn, hBand, hPart, RANGE, SKY_ROWS } from './sky.e16'
 
 /** The horizon on the screen, as the HUD reads it too: its normal (x 256) and distance. */
@@ -29,7 +29,7 @@ export function horizonFind(): void {
   const a = aim(rz >> 6, -uz >> 6)
   hNX = cos(a)
   hNY = sin(a)
-  hL = mulq(rz, hNX * 64) + mulq(-uz, hNY * 64)
+  hL = mulShift(rz, hNX * 64, 14) + mulShift(-uz, hNY * 64, 14)
   const far: i16 = 19200
   if (hL < 64 || u16(abs16(fz)) > u16(hL) * 3) hC = fz > 0 ? far : -far
   else {

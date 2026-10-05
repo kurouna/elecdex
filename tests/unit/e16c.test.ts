@@ -102,6 +102,10 @@ const CASES: [string, number[]][] = [
   ['numberPicks', [5]],
   ['numberPicks', [9]],
   ['signedQuotient', [100, -7]],
+  ['fixedProducts', [16384, -16384]],
+  ['fixedProducts', [-32768, -32768]],
+  ['fixedProducts', [12345, -23456]],
+  ['fixedProducts', [7, 3]],
 ]
 
 describe('e16c', () => {
@@ -382,6 +386,25 @@ describe('e16c', () => {
     }
   })
 
+  it('makes mulShift one MULQ at every level (MUL by 0), and works out constants', () => {
+    const text = [
+      'export function q(a: i16, b: i16): i16 { return mulShift(a, b, 14) }',
+      'export function z(a: i16, b: i16): i16 { return mulShift(a, b, 0) }',
+      'export function c(): i16 { return mulShift(-300, 200, 4) }',
+    ].join(String.fromCharCode(10))
+    for (const opt of [0, 1, 2] as const) {
+      const out = compile([{ name: 'm.ts', text }], { ...OPTIONS, opt })
+      expect(out.errors).toEqual([])
+      const body = (fn: string) => out.asm.slice(out.asm.indexOf(`\n${fn}:`)).split(/\n\n/)[0] ?? ''
+      expect(body('q').match(/^\s+mulq \w+, \w+, \w+, 14$/gm), `-O${opt}`).toHaveLength(1)
+      expect(body('q'), `-O${opt}`).not.toMatch(/^\s+(mulh|srli|srai)/m)
+      expect(body('z'), `-O${opt}`).toMatch(/^\s+mul \w+, \w+, \w+$/m)
+      // -3750 worked out while compiling.
+      expect(body('c'), `-O${opt}`).not.toMatch(/^\s+mul/m)
+      expect(body('c'), `-O${opt}`).toMatch(/-3750|61786/)
+    }
+  })
+
   it('says what is outside the subset, where', () => {
     const bad = [
       'export function f(a: u16): u16 { return a / 2 }',
@@ -453,6 +476,12 @@ describe('e16c', () => {
       // A runtime divisor read signed may be 0: idiv says what the machine gives, -1.
       ['export function dv(s: i16, t: i16): i16 { return div(s, t) }', /use idiv/],
       ['export function dw(w: u16, v: u16): i16 { return idiv(w, v) }', /idiv divides i16s/],
+      // MULQ reads its registers signed: a u16 of 40000 is -25536 there.
+      ['export function ms(w: u16, s: i16): i16 { return mulShift(w, s, 2) }', /multiplies i16s/],
+      ['export function mt(s: i16): i16 { return mulShift(s, 40000, 2) }', /multiplies i16s/],
+      ['export function mu(s: i16, k: u16): i16 { return mulShift(s, s, k) }', /0 to 15/],
+      ['export function mv(s: i16): i16 { return mulShift(s, s, 16) }', /0 to 15/],
+      ['export function mw(s: i16): i16 { return mulShift(s, s) }', /takes 3 arguments/],
     ]
     for (const [text, said] of differs) {
       expect(compile([{ name: 'bad.ts', text }], OPTIONS).errors[0]?.message, text).toMatch(said)

@@ -20,13 +20,13 @@ ELEC-16（elecdex の `ELEC-16` ペインのポケコン）の機械語 **E16** 
 
 | 項目 | 内容 |
 |---|---|
-| CPU | E16。16 ビットの RISC（RISC-V に倣った独自の命令セット）。103 命令 |
+| CPU | E16。16 ビットの RISC（RISC-V に倣った独自の命令セット）。104 命令 |
 | データ | 16 ビット。演算はすべて 16 ビットで折り返す。バイトの並びはリトルエンディアン |
 | レジスタ | 汎用 16 本（x0〜x15、x0 は常に 0）と pc |
 | 番地 | 16 ビット、64 KB。番地の計算も 64 KB で一周する |
 | 命令の長さ | 32 ビットの基本形と 16 ビットの圧縮形。どちらも 2 バイト境界に置く |
 | 条件フラグ | なし。比較と分岐が 1 命令になっている |
-| 拡張 | M（乗除算）、B（ビット操作）、C（圧縮命令）、ブロック転送（MCPY、MSET） |
+| 拡張 | M（乗除算と固定小数点の積 MULQ）、B（ビット操作）、C（圧縮命令）、ブロック転送（MCPY、MSET） |
 | 特権 | 1 つだけ（RISC-V の M モード相当）。CSR と例外・割り込みを持つ |
 | クロック | 既定 4 MHz。ユニットごとに 1 / 2 / 4 / 8 / 16 / 32 MHz と MAX（TUNE で選ぶ） |
 | RAM | 32 KB（0000–7FFF）。電池で保たれる扱いで、電源を切っても残る |
@@ -153,7 +153,7 @@ ELEC-16（elecdex の `ELEC-16` ペインのポケコン）の機械語 **E16** 
 - JALR は rd を書く前に rs1 を読むので、`jalr ra, 0(ra)` も正しく動きます
 - 「次の命令の番地」は、その命令が 2 バイトなら +2、4 バイトなら +4 です
 
-### 2.6 乗除算（M）8 命令
+### 2.6 乗除算（M）9 命令
 
 | 命令 | 動作 | サイクル |
 |---|---|---|
@@ -161,12 +161,27 @@ ELEC-16（elecdex の `ELEC-16` ペインのポケコン）の機械語 **E16** 
 | `mulh rd, rs1, rs2` | 積の上位 16 ビット（符号付き × 符号付き） | 4 |
 | `mulhu rd, rs1, rs2` | 積の上位 16 ビット（符号なし × 符号なし） | 4 |
 | `mulhsu rd, rs1, rs2` | 積の上位 16 ビット（rs1 符号付き × rs2 符号なし） | 4 |
+| `mulq rd, rs1, rs2, k` | 符号付き × 符号付きの 32 ビットの積を k ビット算術右シフトした下位 16 ビット（k は 1〜15） | 4 |
 | `div rd, rs1, rs2` | 商（符号付き、0 の方へ切り捨て） | 18 |
 | `divu rd, rs1, rs2` | 商（符号なし） | 18 |
 | `rem rd, rs1, rs2` | 余り（符号付き。符号は被除数と同じ） | 18 |
 | `remu rd, rs1, rs2` | 余り（符号なし） | 18 |
 
 **割り算は例外を起こしません**（RISC-V と同じ）。0 で割ると商は 0xFFFF（全ビット 1）、余りは被除数です。`-32768 / -1` は商 -32768、余り 0 です。
+
+**MULQ は固定小数点の積**です。下位 k ビットを小数とする数（Q14 なら 16384 が 1）どうしの積を、途中で上位のビットを失わずに 1 命令で求めます。`mul` だけでは積の下位 16 ビットしか残らず、`(a × b) >> k` の上位が欠けます。同じことを `mul`、`mulh`、`srli`、`slli`、`or` の 5 命令（4 + 4 + 3 = 11 サイクル）でしていたのが、4 サイクルになります。シフトは算術なので、端数は小さい方（負の側）へ切り捨てます（-3 × 1 を 1 ビット右へは -2）。答えは下位 16 ビットで、入りきらなければ折り返します。
+
+```text
+  li a0, 0x6000            ; 1.5（Q14）
+  li a1, 0xE000            ; -0.5（Q14）
+  mulq a2, a0, a1, 14      ; a2 = 0xD000（-0.75）
+  li a0, 200               ; 整数の 200
+  li a1, 0xFF80            ; -0.5（Q8: 256 が 1）
+  mulq a3, a0, a1, 8       ; a3 = 0xFF9C（-100）
+```
+
+- k が 0 なら `mul`、16 なら `mulh` と同じ答えなので、それぞれの命令を使います（1 つの符号は 1 つの意味。量 0 の MULQ は不正な命令で、アセンブラは 0 と 16 以上を誤りにします）
+- 16 ビットの圧縮形はありません
 
 ### 2.7 ビット操作（B）24 命令
 
@@ -289,6 +304,7 @@ E16 は「1 つの符号は 1 つの意味」にしてあります。何もし�
 - 32 ビットの SYSTEM のうち ECALL、EBREAK、MRET、WFI（0〜3）以外の種類、ECALL などで rd や rs1 の欄が 0 でないもの
 - LI、AUIPC、JAL のビット 31〜27 が 0 でないもの（予約）
 - MCPY と MSET のレジスタの組が §2.8 の制約に合わないもの
+- シフト量が 0 の MULQ（MUL と同じ答え）と、OP の f10 が 0x10 以上で MULQ でないもの
 - 存在しない CSR を読み書きする CSR 命令
 
 アセンブラは何もしない形の圧縮命令を作りません（`addi a0, a0, 0` は 32 ビットのまま）。逆アセンブラ（モニタの `U`）は不正な命令を `.word ?`（16 ビット）か `.word ?, ?`（32 ビット）と出します。
@@ -301,7 +317,7 @@ E16 は「1 つの符号は 1 つの意味」にしてあります。何もし�
 | ロード、ストア | 2 |
 | 分岐 | 成立 2、不成立 1 |
 | JAL、JALR | 2 |
-| MUL、MULH、MULHU、MULHSU | 4 |
+| MUL、MULH、MULHU、MULHSU、MULQ | 4 |
 | DIV、DIVU、REM、REMU | 18 |
 | CSR の命令 | 2 |
 | ECALL、EBREAK、WFI、MRET | 1（ECALL と EBREAK の後は、ROM のハンドラの命令がその分かかる） |
@@ -319,6 +335,7 @@ E16 は「1 つの符号は 1 つの意味」にしてあります。何もし�
 ```text
 32 ビット        31        22 21  18 17  14 13 11 10   7 6     2 1 0
   R  レジスタ    |  f10     | rs2  | rs1  | f3  | rd   | major |11|
+  R  MULQ        |000001 k  | rs2  | rs1  | 000 | rd   | major |11|  f10 = 0x10 + k（k は 1〜15）
   I  即値        |   imm[13:0]     | rs1  | f3  | rd   | major |11|  符号付き 14 ビット
   S  ストア      | imm[13:4]| rs2  | rs1  | f3  |imm[3:0]|major|11|
   B  分岐        |off[14:5] | rs2  | rs1  | f3  |off[4:1]|major|11|  ±16 KB
@@ -333,7 +350,7 @@ E16 は「1 つの符号は 1 つの意味」にしてあります。何もし�
 | 2 OP-IMM | ADDI SLTI SLTIU XORI ORI ANDI | f3 = 0 2 3 4 6 7 |
 | 2 OP-IMM（f3 = 1） | imm[13:4]: 0 SLLI、1 BSETI、2 BCLRI、3 BINVI（imm[3:0] が量）、0x10 CLZ、0x11 CTZ、0x12 CPOP、0x13 SEXT.B、0x14 ZEXT.B、0x15 REV8（imm[3:0] は 0） | |
 | 2 OP-IMM（f3 = 5） | imm[13:4]: 0 SRLI、1 SRAI、2 RORI、3 BEXTI | |
-| 3 OP | f10 = 0: ADD SLL SLT SLTU XOR SRL OR AND（f3 = 0〜7）。f10 = 1: SUB（0）SRA（5）。f10 = 2: MUL MULH MULHSU MULHU DIV DIVU REM REMU（f3 = 0〜7）。f10 = 3: ROL（1）XNOR（4）ROR（5）ORN（6）ANDN（7）。f10 = 4: MIN（4）MINU（5）MAX（6）MAXU（7）。f10 = 5: BSET BCLR BINV BEXT（0〜3）。f10 = 6: MCPY（0）MSET（1） | |
+| 3 OP | f10 = 0: ADD SLL SLT SLTU XOR SRL OR AND（f3 = 0〜7）。f10 = 1: SUB（0）SRA（5）。f10 = 2: MUL MULH MULHSU MULHU DIV DIVU REM REMU（f3 = 0〜7）。f10 = 3: ROL（1）XNOR（4）ROR（5）ORN（6）ANDN（7）。f10 = 4: MIN（4）MINU（5）MAX（6）MAXU（7）。f10 = 5: BSET BCLR BINV BEXT（0〜3）。f10 = 6: MCPY（0）MSET（1）。f10 = 0x11〜0x1F: MULQ（f3 = 0、f10 の下位 4 ビットがシフト量 1〜15） | |
 | 4 BRANCH | BEQ BNE BLT BGE BLTU BGEU | f3 = 0 1 4 5 6 7 |
 | 5 JAL、6 JALR（f3 = 0）、7 LI、8 AUIPC | | |
 | 9 SYSTEM | f3 = 0: imm で ECALL（0）EBREAK（1）MRET（2）WFI（3）。f3 = 1〜3: CSRRW CSRRS CSRRC、5〜7: CSRRWI CSRRSI CSRRCI（imm[11:0] が CSR 番号、I 形は rs1 の欄が値） | |

@@ -39,6 +39,8 @@ export function textOf(i: Inst, address: number): string {
   switch (ENCODINGS[name]?.format) {
     case 'R':
       return `${name} ${r(i.rd)}, ${r(i.rs1)}, ${r(i.rs2)}`
+    case 'Rsh':
+      return `${name} ${r(i.rd)}, ${r(i.rs1)}, ${r(i.rs2)}, ${i.imm}`
     case 'I':
       return immediateText(name, i)
     case 'Ish':

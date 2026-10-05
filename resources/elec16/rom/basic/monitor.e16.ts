@@ -168,6 +168,8 @@ const F_C_B = 16
 const F_C_J = 17
 /** rs1 */
 const F_C_R = 18
+/** rd, rs1, rs2, imm */
+const F_RQ = 19
 
 function decoded(name: u16, format: u16, rd: u16, rs1: u16): void {
   poke16(D_NAME, name)
@@ -437,6 +439,18 @@ function upperForm(major: u16, rd: u16, lo: u16, hi: u16): void {
   }
 }
 
+/** OP: funct10 below 16 an R operation; above, MULQ (its amount, 1 to 15, in the low four bits). */
+function registers(f10: u16, f3: u16, rd: u16, rs1: u16): void {
+  if (f10 >= 16) {
+    const amount = f10 & 15
+    decoded(f10 >> 4 === 1 && f3 === 0 && amount !== 0 ? str('mulq') : 0, F_RQ, rd, rs1)
+    setImm(i16(amount))
+    return
+  }
+  const key = (f10 << 3) | f3
+  decoded(blockRegisters(key, rd, rs1, peek16(D_RS2)) ? rName(key) : 0, F_R, rd, rs1)
+}
+
 function decode32(lo: u16, hi: u16): void {
   poke16(D_SIZE, 4)
   const major = (lo >> 2) & 31
@@ -447,8 +461,7 @@ function decode32(lo: u16, hi: u16): void {
   const imm14 = (hi >> 2) & 0x3fff
   setRs2((hi >> 2) & 15)
   if (major === 3) {
-    const key = (f10 << 3) | f3
-    decoded(blockRegisters(key, rd, rs1, (hi >> 2) & 15) ? rName(key) : 0, F_R, rd, rs1)
+    registers(f10, f3, rd, rs1)
   } else if (major === 2) {
     opImm(f3, rd, rs1, imm14)
   } else if (major === 0 || major === 6) {
@@ -628,9 +641,14 @@ function emitFirst(format: u16, target: u16): void {
 function emitRest(format: u16, target: u16): void {
   switch (format) {
     case F_R:
+    case F_RQ:
       emitReg(peek16(D_RS1))
       comma()
       emitReg(peek16(D_RS2))
+      if (format === F_RQ) {
+        comma()
+        emitNumber(imm())
+      }
       break
     case F_I:
       emitReg(peek16(D_RS1))

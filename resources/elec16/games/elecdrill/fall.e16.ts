@@ -17,7 +17,8 @@ import {
   bytes,
   i16,
   memcpy,
-  type u16,
+  mulShift,
+  u16,
   words,
   wrap16,
 } from '../../../../src/shared/e16c/builtins'
@@ -618,7 +619,7 @@ export function vanish(n: u16, due: u16, step: u16): void {
     const c = found[k]
     cells[c] = cells[c] | F_PEND
     markAround(c)
-    pend(c, wrap16(due + ((k * step) >> 2)))
+    pend(c, wrap16(due + u16(mulShift(i16(k), i16(step), 2))))
     k++
   }
 }

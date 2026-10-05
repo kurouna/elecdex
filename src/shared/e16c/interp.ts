@@ -1,5 +1,5 @@
 import type { BinOp, Fn, Op, Program } from './ir.js'
-import { signed, word } from './types.js'
+import { mulShiftWord, signed, word } from './types.js'
 
 /**
  * Runs e16c's stack code directly (docs/elec16.md section 6, e16c), with the machine's
@@ -204,6 +204,11 @@ export class Interp {
       case 'bin': {
         const b = pop()
         stack.push(word(BIN[op.op](pop(), b)))
+        return null
+      }
+      case 'mulq': {
+        const b = pop()
+        stack.push(mulShiftWord(pop(), b, op.shift))
         return null
       }
       case 'un': {

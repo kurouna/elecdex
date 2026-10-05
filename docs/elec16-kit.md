@@ -137,7 +137,8 @@ echo C1 = C0 delay 12 vol -6 pan 11    # C0 のこだま
 - `padRead()` を毎フレーム。`held(B_LEFT)` は押されている間、`pressed(B_A)` は前の `padRead` から押されたもの。PADHIT も読むので、2 回の読み取りの間に押して離したボタン（PC のキーを軽く叩いたとき）も 1 回押したことになります
 - 点は 2 語（下 4 桁と上 4 桁）で持ち、`scoreAdd`、`scoreMore`、`scoreShow`
 - セーブ RAM（`saveBanks` が 1 以上）は `saveRead(番地)`、`saveWrite(番地, 値)`。番地は 8 KB の中の語（偶数）で、外れた分は落とします（`0x2004` は `4`）。電池バックアップと同じく、ゲームの id ごとに残ります
-- `sin`、`cos`（256 段で 1 回り、256 倍）、`aim(dx, dy)`（向き。-32768〜32767 のどんな大きさでも）、`rand`、`randBelow(n)`
+- `sin`、`cos`（256 段で 1 回り、256 倍）、`aim(dx, dy)`（向き。-32768〜32767 のどんな大きさでも）、`rand`、`randBelow(n)`（0〜n-1、n は 32767 まで）
+- 速さに `cos` を掛けるような固定小数点の積は、e16c の組み込み関数 `mulShift(a, b, k)` で（`mulShift(speed, cos(a), 8)`）。32 ビットの積を k ビット右へずらす MULQ 1 命令で、`(a * b) >> k` と違い積が 16 ビットを越えても上の桁を失いません（docs/elec16-e16c.md 4.11）
 
 ## 8. メモリとバンク
 

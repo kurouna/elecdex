@@ -1,7 +1,15 @@
 // ELECLANCE's difficulty (docs/elec16-eleclance.md section 3): EASY, NORMAL or HARD, each a row
 // of difficulty.txt read into RAM when it is chosen. Whatever fires a bullet asks here whether a
 // volley goes, how many bullets it has and how fast they fly; ships, bombs and rank start here.
-import { type bool, peek16, poke16, type u16, words } from '../../../../src/shared/e16c/builtins'
+import {
+  type bool,
+  i16,
+  mulShift,
+  peek16,
+  poke16,
+  u16,
+  words,
+} from '../../../../src/shared/e16c/builtins'
 import { bank, IO_BANK, randBelow } from '../lib/kit.e16'
 import { DIFFICULTY_AT, DIFFICULTY_BANK } from './assets.e16'
 import { rank } from './foes.e16'
@@ -63,7 +71,7 @@ export function levelBoss(on: u16): void {
 
 /** A share in sixteenths at this rank: `base`, and `rise` quarters more a rank, to 16. */
 function rising(base: u16): u16 {
-  const v = base + ((rank * lv[D_RISE]) >> 2)
+  const v = base + u16(mulShift(i16(rank), i16(lv[D_RISE]), 2))
   return v > 16 ? 16 : v
 }
 
@@ -84,5 +92,5 @@ export function volleyCount(n: u16, least: u16): u16 {
 
 /** A bullet's speed `v` (sixteenths a frame) at this difficulty. */
 export function volleySpeed(v: u16): u16 {
-  return (v * lv[D_SPEED]) >> 4
+  return u16(mulShift(i16(v), i16(lv[D_SPEED]), 4))
 }

@@ -8,6 +8,7 @@ import {
   idiv,
   memcpy,
   memset,
+  mulShift,
   peek,
   poke,
   str,
@@ -406,4 +407,19 @@ export function numberPicks(x: u16): u16 {
 
 function signedOne(v: i16): i16 {
   return v - 1
+}
+
+/**
+ * A fixed-point product (MULQ): Q14 values whose product leaves 16 bits before its shift,
+ * which `(a * b) >> 14` loses; by 0 it is MUL's low half, and constants are worked out
+ * while compiling. An argument the machine reads otherwise in a register - a sum held only
+ * by i16() - and a u8 beside an i16.
+ */
+export function fixedProducts(a: i16, b: i16): u16 {
+  const q = mulShift(a, b, 14)
+  const low = mulShift(a, b, 0)
+  const byte = mulShift(u8(a), b, 3)
+  const known = mulShift(-12000, 30000, 15)
+  const sum = mulShift(i16(a + b), 16384, 14)
+  return u16(q + low * 3 + byte * 5 + known + sum * 7)
 }

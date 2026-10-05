@@ -7,6 +7,7 @@ import {
   div,
   i16,
   idiv,
+  mulShift,
   peek,
   str,
   u16,
@@ -42,7 +43,7 @@ import {
 } from './bandit.e16'
 import { headingDegrees, pAlt, pSpeed, throttle } from './flight.e16'
 import { hL, hNX, hNY } from './horizon.e16'
-import { abs16, muldiv, mulq, V_PF, V_T0, vget, vset } from './math.e16'
+import { abs16, muldiv, V_PF, V_T0, vget, vset } from './math.e16'
 import {
   abovePanel,
   bodyX,
@@ -281,7 +282,7 @@ function ladder(): void {
     let d = fz - rungSinOf(e)
     if (d > 16000) d = 16000
     if (d < -16000) d = -16000
-    const c = mulq(d, i16(k))
+    const c = mulShift(d, i16(k), 14)
     if (abs16(c) < 100) rung(e, c)
     e++
   }
@@ -312,8 +313,8 @@ function ladderStep(tx: i16, ty: i16): void {
 
 /** Rung `e` (tens of degrees) whose line is `c` points from the boresight along the normal. */
 function rung(e: i16, c: i16): void {
-  const x0 = i16(CX) - ((hNX * c) >> 8)
-  const y0 = i16(CY) - ((hNY * c) >> 8)
+  const x0 = i16(CX) - mulShift(hNX, c, 8)
+  const y0 = i16(CY) - mulShift(hNY, c, 8)
   const last: i16 = e === 0 ? 8 : 4
   let j: i16 = 2
   while (j <= last) {
@@ -377,8 +378,8 @@ function arrowDraw(): void {
   }
   if (x === 0 && y === 0) y = 1
   const a = aim(x, y)
-  const px = i16(CX) + ((cos(a) * 70) >> 8)
-  const py = i16(CY) + ((sin(a) * 70) >> 8)
+  const px = i16(CX) + mulShift(cos(a), 70, 8)
+  const py = i16(CY) + mulShift(sin(a), 70, 8)
   const d = ((a + 8) >> 4) & 15
   let t = d
   let flips: u16 = 0

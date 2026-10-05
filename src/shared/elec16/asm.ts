@@ -187,12 +187,8 @@ function planBase(op: OpName, a: string[]): Plan {
   const format = ENCODINGS[op]?.format
   switch (format) {
     case 'R':
-      count(a, 3, op)
-      return plan(op, {
-        rd: register(a[0] ?? ''),
-        rs1: register(a[1] ?? ''),
-        rs2: register(a[2] ?? ''),
-      })
+    case 'Rsh':
+      return planRegisters(op, a, format === 'Rsh')
     case 'I':
       return planImmediate(op, a)
     case 'Ish':
@@ -217,6 +213,17 @@ function planBase(op: OpName, a: string[]): Plan {
     default:
       return planOther(op, a)
   }
+}
+
+/** Three registers, and for MULQ an amount after them. */
+function planRegisters(op: OpName, a: string[], amount: boolean): Plan {
+  count(a, amount ? 4 : 3, op)
+  return plan(op, {
+    rd: register(a[0] ?? ''),
+    rs1: register(a[1] ?? ''),
+    rs2: register(a[2] ?? ''),
+    ...(amount ? { imm: a[3] ?? '0' } : {}),
+  })
 }
 
 function planImmediate(op: OpName, a: string[]): Plan {

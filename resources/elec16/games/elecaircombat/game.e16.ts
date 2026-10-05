@@ -7,6 +7,7 @@ import {
   type bool,
   div,
   i16,
+  mulShift,
   str,
   type u16,
   words,
@@ -185,7 +186,7 @@ import {
 } from './fx.e16'
 import { skyDraw } from './horizon.e16'
 import { callout, hudDraw, hudInit, hudLabels, hudNumbers, hudScore, lamps } from './hud.e16'
-import { mulq, V_PF, V_PU, V_REL, vget } from './math.e16'
+import { V_PF, V_PU, V_REL, vget } from './math.e16'
 import {
   cockpitIn,
   cockpitTilesIn,
@@ -442,9 +443,9 @@ function struck(): void {
 function ownSmoke(): void {
   const every: u16 = outcome === 2 ? 1 : damage >= 75 ? 3 : 7
   if (damage < 50 || (frame & every) !== 0) return
-  const x = mulq(vget(V_PF), 70) - mulq(vget(V_PU), 18)
-  const y = mulq(vget(V_PF + 1), 70) - mulq(vget(V_PU + 1), 18)
-  const z = mulq(vget(V_PF + 2), 70) - mulq(vget(V_PU + 2), 18)
+  const x = mulShift(vget(V_PF), 70, 14) - mulShift(vget(V_PU), 18, 14)
+  const y = mulShift(vget(V_PF + 1), 70, 14) - mulShift(vget(V_PU + 1), 18, 14)
+  const z = mulShift(vget(V_PF + 2), 70, 14) - mulShift(vget(V_PU + 2), 18, 14)
   puffAt(x, y, z, 1)
   if (outcome === 2 && (frame & 3) === 0) boomAt(x, y, z)
 }

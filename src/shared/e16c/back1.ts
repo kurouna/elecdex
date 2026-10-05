@@ -96,6 +96,10 @@ const NEGATE: Partial<Record<BinOp, BinOp>> = {
 
 const fits14 = (v: number): boolean => v >= -8192 && v <= 8191
 
+/** MULQ by 1 to 15; by 0 the low half of the product is MUL's (MULQ has no amount 0). */
+export const mulqLine = (d: string, a: string, b: string, shift: number): string =>
+  shift === 0 ? `mul ${d}, ${a}, ${b}` : `mulq ${d}, ${a}, ${b}, ${shift}`
+
 export class O1 {
   readonly lines: string[] = []
   readonly #fn: Fn
@@ -501,6 +505,9 @@ export class O1 {
       case 'un':
         this.#unary(op.op)
         return
+      case 'mulq':
+        this.#mulq(op.shift)
+        return
       default:
         this.#flow(op)
         return
@@ -653,6 +660,17 @@ export class O1 {
   #result(operands: string[]): string {
     const temp = operands.find((r) => this.#temps.includes(r) && !this.#used().has(r))
     return temp ?? this.#temp(new Set(operands))
+  }
+
+  /** `mulShift(a, b, k)`: one MULQ (MUL by 0), its operands in registers. */
+  #mulq(shift: number): void {
+    const b = this.#pop()
+    const a = this.#pop()
+    const rb = this.#inReg(b, held(a))
+    const ra = this.#inReg(a, new Set([rb]))
+    const d = this.#result([ra, rb])
+    this.#line(mulqLine(d, ra, rb, shift))
+    this.#stack.push({ kind: 'reg', r: d })
   }
 
   #unary(op: 'neg' | 'not' | 'lnot'): void {

@@ -596,36 +596,36 @@ e16c_init:
   mset t0, zero, t1
   ret
 
-; lib/kit.e16.ts:84 bank(b) at -O1
+; lib/kit.e16.ts:85 bank(b) at -O1
 ;   b in a0
 ;   old in a1
 bank:
-  ; lib/kit.e16.ts:85  const old = peek16(IO_BANK)
+  ; lib/kit.e16.ts:86  const old = peek16(IO_BANK)
   li t0, 65284
   lw a1, 0(t0)
-  ; lib/kit.e16.ts:86  poke16(IO_BANK, b)
+  ; lib/kit.e16.ts:87  poke16(IO_BANK, b)
   li t0, 65284
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:87  return old
+  ; lib/kit.e16.ts:88  return old
   mv a0, a1
 .return:
   ret
 
-; lib/kit.e16.ts:91 vpoke(at, v) at -O1
+; lib/kit.e16.ts:92 vpoke(at, v) at -O1
 ;   at in a0
 ;   v in a1
 vpoke:
-  ; lib/kit.e16.ts:92  poke16(VPAGE, at >> 12)
+  ; lib/kit.e16.ts:93  poke16(VPAGE, at >> 12)
   srli t0, a0, 12
   li t1, 63490
   sw t0, 0(t1)
-  ; lib/kit.e16.ts:93  poke16(VWIN + (at & 0xfff), v)
+  ; lib/kit.e16.ts:94  poke16(VWIN + (at & 0xfff), v)
   andi t0, a0, 4095
   sw a1, -8192(t0)
 .return:
   ret
 
-; lib/kit.e16.ts:97 vfill(at, v, n) at -O1
+; lib/kit.e16.ts:98 vfill(at, v, n) at -O1
 ;   at in a0
 ;   v in a1
 ;   n in a2
@@ -634,39 +634,39 @@ vpoke:
 vfill:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:98  while (n > 0) {
+  ; lib/kit.e16.ts:99  while (n > 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:99  poke16(VPAGE, at >> 12)
+  ; lib/kit.e16.ts:100  poke16(VPAGE, at >> 12)
   srli t0, a0, 12
   li t1, 63490
   sw t0, 0(t1)
-  ; lib/kit.e16.ts:100  let p = VWIN + (at & 0xfff)
+  ; lib/kit.e16.ts:101  let p = VWIN + (at & 0xfff)
   andi t0, a0, 4095
   addi s1, t0, -8192
-  ; lib/kit.e16.ts:101  let k = div(0x1000 - (at & 0xfff), 2)
+  ; lib/kit.e16.ts:102  let k = div(0x1000 - (at & 0xfff), 2)
   andi t0, a0, 4095
   li t1, 4096
   sub t1, t1, t0
   srli a3, t1, 1
-  ; lib/kit.e16.ts:102  if (k > n) k = n
+  ; lib/kit.e16.ts:103  if (k > n) k = n
   bgeu a2, a3, .L5
-  ; lib/kit.e16.ts:102  k = n
+  ; lib/kit.e16.ts:103  k = n
   mv a3, a2 ; k
 .L5:
-  ; lib/kit.e16.ts:103  n = wrap16(n - k)
+  ; lib/kit.e16.ts:104  n = wrap16(n - k)
   sub a2, a2, a3
-  ; lib/kit.e16.ts:104  at = wrap16(at + k * 2)
+  ; lib/kit.e16.ts:105  at = wrap16(at + k * 2)
   slli t0, a3, 1
   add a0, a0, t0
-  ; lib/kit.e16.ts:105  while (k > 0) {
+  ; lib/kit.e16.ts:106  while (k > 0) {
   j .L8
 .L6:
-  ; lib/kit.e16.ts:106  poke16(p, v)
+  ; lib/kit.e16.ts:107  poke16(p, v)
   sw a1, 0(s1)
-  ; lib/kit.e16.ts:107  p = wrap16(p + 2)
+  ; lib/kit.e16.ts:108  p = wrap16(p + 2)
   addi s1, s1, 2
-  ; lib/kit.e16.ts:108  k--
+  ; lib/kit.e16.ts:109  k--
   addi a3, a3, -1
 .L8:
   bltu zero, a3, .L6
@@ -677,28 +677,28 @@ vfill:
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:114 dma(src, dst, len) at -O1
+; lib/kit.e16.ts:115 dma(src, dst, len) at -O1
 ;   src in a0
 ;   dst in a1
 ;   len in a2
 dma:
-  ; lib/kit.e16.ts:115  poke16(DMASRC, src)
+  ; lib/kit.e16.ts:116  poke16(DMASRC, src)
   li t0, 63536
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:116  poke16(DMADST, dst)
+  ; lib/kit.e16.ts:117  poke16(DMADST, dst)
   li t0, 63538
   sw a1, 0(t0)
-  ; lib/kit.e16.ts:117  poke16(DMALEN, len)
+  ; lib/kit.e16.ts:118  poke16(DMALEN, len)
   li t0, 63540
   sw a2, 0(t0)
-  ; lib/kit.e16.ts:118  poke16(DMACTRL, 1)
+  ; lib/kit.e16.ts:119  poke16(DMACTRL, 1)
   li t0, 1
   li t1, 63542
   sw t0, 0(t1)
 .return:
   ret
 
-; lib/kit.e16.ts:125 load(b, src, dst, len) at -O1
+; lib/kit.e16.ts:126 load(b, src, dst, len) at -O1
 ;   b in s3
 ;   src in 0(fp)
 ;   dst in 2(fp)
@@ -717,44 +717,44 @@ load:
   sw a1, 0(fp) ; src
   sw a2, 2(fp) ; dst
   mv s1, a3 ; len
-  ; lib/kit.e16.ts:126  const old = bank(b)
+  ; lib/kit.e16.ts:127  const old = bank(b)
   mv a0, s3
   call bank
   sw a0, 4(fp) ; old
-  ; lib/kit.e16.ts:127  while (len > 0) {
+  ; lib/kit.e16.ts:128  while (len > 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:128  let n = wrap16(0xe000 - src)
+  ; lib/kit.e16.ts:129  let n = wrap16(0xe000 - src)
   lw t0, 0(fp) ; src
   li t1, 57344
   sub s2, t1, t0
-  ; lib/kit.e16.ts:129  if (n > len) n = len
+  ; lib/kit.e16.ts:130  if (n > len) n = len
   bgeu s1, s2, .L5
-  ; lib/kit.e16.ts:129  n = len
+  ; lib/kit.e16.ts:130  n = len
   mv s2, s1 ; n
 .L5:
-  ; lib/kit.e16.ts:130  dma(src, dst, n)
+  ; lib/kit.e16.ts:131  dma(src, dst, n)
   lw a0, 0(fp)
   lw a1, 2(fp)
   mv a2, s2
   call dma
-  ; lib/kit.e16.ts:131  len = wrap16(len - n)
+  ; lib/kit.e16.ts:132  len = wrap16(len - n)
   sub s1, s1, s2
-  ; lib/kit.e16.ts:132  dst = wrap16(dst + n)
+  ; lib/kit.e16.ts:133  dst = wrap16(dst + n)
   lw t0, 2(fp) ; dst
   add t0, t0, s2
   sw t0, 2(fp) ; dst
-  ; lib/kit.e16.ts:133  b++
+  ; lib/kit.e16.ts:134  b++
   addi s3, s3, 1
-  ; lib/kit.e16.ts:134  poke16(IO_BANK, b)
+  ; lib/kit.e16.ts:135  poke16(IO_BANK, b)
   li t0, 65284
   sw s3, 0(t0)
-  ; lib/kit.e16.ts:135  src = WINDOW
+  ; lib/kit.e16.ts:136  src = WINDOW
   li t0, 49152
   sw t0, 0(fp) ; src
 .L3:
   bltu zero, s1, .L1
-  ; lib/kit.e16.ts:137  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:138  poke16(IO_BANK, old)
   lw t0, 4(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
@@ -768,7 +768,7 @@ load:
   addi sp, sp, 16
   ret
 
-; lib/kit.e16.ts:141 palette(row, slot) at -O1
+; lib/kit.e16.ts:142 palette(row, slot) at -O1
 ;   row in s1
 ;   slot in s2
 palette:
@@ -778,7 +778,7 @@ palette:
   sw s2, 4(sp)
   mv s1, a0 ; row
   mv s2, a1 ; slot
-  ; lib/kit.e16.ts:142  load(PALETTES_BANK, PALETTES_AT + row * 32, PALS + slot * 32, 32)
+  ; lib/kit.e16.ts:143  load(PALETTES_BANK, PALETTES_AT + row * 32, PALS + slot * 32, 32)
   slli t0, s1, 5
   li t1, 49730
   add t1, t1, t0
@@ -797,7 +797,7 @@ palette:
   addi sp, sp, 6
   ret
 
-; lib/kit.e16.ts:146 colour(slot, k, rgb) at -O1
+; lib/kit.e16.ts:147 colour(slot, k, rgb) at -O1
 ;   slot in s1
 ;   k in s2
 ;   rgb in s3
@@ -810,7 +810,7 @@ colour:
   mv s1, a0 ; slot
   mv s2, a1 ; k
   mv s3, a2 ; rgb
-  ; lib/kit.e16.ts:147  vpoke(PALS + slot * 32 + k * 2, rgb)
+  ; lib/kit.e16.ts:148  vpoke(PALS + slot * 32 + k * 2, rgb)
   slli t0, s1, 5
   li t1, 50176
   add t1, t1, t0
@@ -826,7 +826,7 @@ colour:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:154 palKeep(row, slot) at -O1
+; lib/kit.e16.ts:155 palKeep(row, slot) at -O1
 ;   row in s2
 ;   slot in s3
 ;   old in s0
@@ -840,16 +840,16 @@ palKeep:
   sw s1, 8(sp)
   mv s2, a0 ; row
   mv s3, a1 ; slot
-  ; lib/kit.e16.ts:155  const old = bank(PALETTES_BANK)
+  ; lib/kit.e16.ts:156  const old = bank(PALETTES_BANK)
   li a0, 260
   call bank
   mv s0, a0 ; old
-  ; lib/kit.e16.ts:156  let k: u16 = 0
+  ; lib/kit.e16.ts:157  let k: u16 = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:157  while (k < 16) {
+  ; lib/kit.e16.ts:158  while (k < 16) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:158  palCopy[slot * 16 + k] = peek16(PALETTES_AT + row * 32 + k * 2)
+  ; lib/kit.e16.ts:159  palCopy[slot * 16 + k] = peek16(PALETTES_AT + row * 32 + k * 2)
   slli t0, s3, 4
   add t0, t0, s1
   slli t0, t0, 1
@@ -860,12 +860,12 @@ palKeep:
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, palCopy(t0)
-  ; lib/kit.e16.ts:159  k++
+  ; lib/kit.e16.ts:160  k++
   addi s1, s1, 1
 .L3:
   li t0, 16
   bltu s1, t0, .L1
-  ; lib/kit.e16.ts:161  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:162  poke16(IO_BANK, old)
   li t0, 65284
   sw s0, 0(t0)
 .return:
@@ -877,7 +877,7 @@ palKeep:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:165 palMix(slot, rgb, t) at -O1
+; lib/kit.e16.ts:166 palMix(slot, rgb, t) at -O1
 ;   slot in s2
 ;   rgb in s3
 ;   t in 0(fp)
@@ -894,25 +894,25 @@ palMix:
   mv s2, a0 ; slot
   mv s3, a1 ; rgb
   sw a2, 0(fp) ; t
-  ; lib/kit.e16.ts:166  let k: u16 = 1
+  ; lib/kit.e16.ts:167  let k: u16 = 1
   li s1, 1 ; k
-  ; lib/kit.e16.ts:167  poke16(VPAGE, (PALS + slot * 32) >> 12)
+  ; lib/kit.e16.ts:168  poke16(VPAGE, (PALS + slot * 32) >> 12)
   slli t0, s2, 5
   li t1, 50176
   add t1, t1, t0
   srli t1, t1, 12
   li t0, 63490
   sw t1, 0(t0)
-  ; lib/kit.e16.ts:168  while (k < 16) {
+  ; lib/kit.e16.ts:169  while (k < 16) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:169  const c = palCopy[slot * 16 + k]
+  ; lib/kit.e16.ts:170  const c = palCopy[slot * 16 + k]
   slli t0, s2, 4
   add t0, t0, s1
   slli t0, t0, 1
   lw t0, palCopy(t0)
   sw t0, 2(fp) ; c
-  ; lib/kit.e16.ts:170  poke16(VWIN + ((PALS + slot * 32 + k * 2) & 0xfff), mix(c, rgb, t))
+  ; lib/kit.e16.ts:171  poke16(VWIN + ((PALS + slot * 32 + k * 2) & 0xfff), mix(c, rgb, t))
   slli t0, s2, 5
   li t1, 50176
   add t1, t1, t0
@@ -929,7 +929,7 @@ palMix:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:171  k++
+  ; lib/kit.e16.ts:172  k++
   addi s1, s1, 1
 .L3:
   li t0, 16
@@ -944,7 +944,7 @@ palMix:
   addi sp, sp, 14
   ret
 
-; lib/kit.e16.ts:176 mix(a, b, t) at -O1
+; lib/kit.e16.ts:177 mix(a, b, t) at -O1
 ;   a in s1
 ;   b in s2
 ;   t in s3
@@ -962,7 +962,7 @@ mix:
   mv s1, a0 ; a
   mv s2, a1 ; b
   mv s3, a2 ; t
-  ; lib/kit.e16.ts:177  const r = mixPart(a & 31, b & 31, t)
+  ; lib/kit.e16.ts:178  const r = mixPart(a & 31, b & 31, t)
   andi t0, s1, 31
   andi t1, s2, 31
   mv a0, t0
@@ -970,7 +970,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 0(fp) ; r
-  ; lib/kit.e16.ts:178  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
+  ; lib/kit.e16.ts:179  const g = mixPart((a >> 5) & 31, (b >> 5) & 31, t)
   srli t0, s1, 5
   andi t0, t0, 31
   srli t1, s2, 5
@@ -980,7 +980,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 2(fp) ; g
-  ; lib/kit.e16.ts:179  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
+  ; lib/kit.e16.ts:180  const bl = mixPart((a >> 10) & 31, (b >> 10) & 31, t)
   srli t0, s1, 10
   andi t0, t0, 31
   srli t1, s2, 10
@@ -990,7 +990,7 @@ mix:
   mv a2, s3
   call mixPart
   sw a0, 4(fp) ; bl
-  ; lib/kit.e16.ts:180  return r | (g << 5) | (bl << 10)
+  ; lib/kit.e16.ts:181  return r | (g << 5) | (bl << 10)
   lw t0, 2(fp) ; g
   slli t0, t0, 5
   lw t1, 0(fp) ; r
@@ -1008,12 +1008,12 @@ mix:
   addi sp, sp, 16
   ret
 
-; lib/kit.e16.ts:183 mixPart(a, b, t) at -O1
+; lib/kit.e16.ts:184 mixPart(a, b, t) at -O1
 ;   a in a0
 ;   b in a1
 ;   t in a2
 mixPart:
-  ; lib/kit.e16.ts:184  return (a * (16 - t) + b * t) >> 4
+  ; lib/kit.e16.ts:185  return (a * (16 - t) + b * t) >> 4
   li t0, 16
   sub t0, t0, a2
   mul t0, a0, t0
@@ -1023,12 +1023,12 @@ mixPart:
 .return:
   ret
 
-; lib/kit.e16.ts:190 cellAt(layer, x, y) at -O1
+; lib/kit.e16.ts:191 cellAt(layer, x, y) at -O1
 ;   layer in a0
 ;   x in a1
 ;   y in a2
 cellAt:
-  ; lib/kit.e16.ts:191  return (layer === 0 ? MAP0 : MAP1) + ((y & 63) << 7) + ((x & 63) << 1)
+  ; lib/kit.e16.ts:192  return (layer === 0 ? MAP0 : MAP1) + ((y & 63) << 7) + ((x & 63) << 1)
   bne a0, zero, .L1
   li t0, 32768
   j .L2
@@ -1044,7 +1044,7 @@ cellAt:
 .return:
   ret
 
-; lib/kit.e16.ts:198 mapRow(b, src, layer, y) at -O1
+; lib/kit.e16.ts:199 mapRow(b, src, layer, y) at -O1
 ;   b in s1
 ;   src in s2
 ;   layer in s3
@@ -1062,11 +1062,11 @@ mapRow:
   mv s2, a1 ; src
   mv s3, a2 ; layer
   sw a3, 0(fp) ; y
-  ; lib/kit.e16.ts:199  const old = bank(b)
+  ; lib/kit.e16.ts:200  const old = bank(b)
   mv a0, s1
   call bank
   sw a0, 2(fp) ; old
-  ; lib/kit.e16.ts:200  dma(src, cellAt(layer, 0, y), 128)
+  ; lib/kit.e16.ts:201  dma(src, cellAt(layer, 0, y), 128)
   mv a0, s3
   li a1, 0
   lw a2, 0(fp)
@@ -1075,7 +1075,7 @@ mapRow:
   mv a0, s2
   li a2, 128
   call dma
-  ; lib/kit.e16.ts:201  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:202  poke16(IO_BANK, old)
   lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
@@ -1089,7 +1089,7 @@ mapRow:
   addi sp, sp, 14
   ret
 
-; lib/kit.e16.ts:205 text(at, s, font) at -O1
+; lib/kit.e16.ts:206 text(at, s, font) at -O1
 ;   at in s2
 ;   s in s1
 ;   font in s0
@@ -1104,21 +1104,21 @@ text:
   mv s2, a0 ; at
   mv s1, a1 ; s
   mv s0, a2 ; font
-  ; lib/kit.e16.ts:206  let c = peek(s)
+  ; lib/kit.e16.ts:207  let c = peek(s)
   lbu s3, 0(s1)
-  ; lib/kit.e16.ts:207  while (c !== 0) {
+  ; lib/kit.e16.ts:208  while (c !== 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:208  vpoke(at, font + c - 32)
+  ; lib/kit.e16.ts:209  vpoke(at, font + c - 32)
   add t0, s0, s3
   mv a0, s2
   addi a1, t0, -32
   call vpoke
-  ; lib/kit.e16.ts:209  at = wrap16(at + 2)
+  ; lib/kit.e16.ts:210  at = wrap16(at + 2)
   addi s2, s2, 2
-  ; lib/kit.e16.ts:210  s++
+  ; lib/kit.e16.ts:211  s++
   addi s1, s1, 1
-  ; lib/kit.e16.ts:211  c = peek(s)
+  ; lib/kit.e16.ts:212  c = peek(s)
   lbu s3, 0(s1)
 .L3:
   bne s3, zero, .L1
@@ -1131,7 +1131,7 @@ text:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:216 number(at, n, digits, zero) at -O1
+; lib/kit.e16.ts:217 number(at, n, digits, zero) at -O1
 ;   at in s1
 ;   n in s3
 ;   digits in s2
@@ -1147,25 +1147,25 @@ number:
   mv s3, a1 ; n
   mv s2, a2 ; digits
   mv s0, a3 ; zero
-  ; lib/kit.e16.ts:217  at = wrap16(at + digits * 2)
+  ; lib/kit.e16.ts:218  at = wrap16(at + digits * 2)
   slli t0, s2, 1
   add s1, s1, t0
-  ; lib/kit.e16.ts:218  while (digits > 0) {
+  ; lib/kit.e16.ts:219  while (digits > 0) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:219  at = wrap16(at - 2)
+  ; lib/kit.e16.ts:220  at = wrap16(at - 2)
   addi s1, s1, -2
-  ; lib/kit.e16.ts:220  vpoke(at, zero + (n % 10))
+  ; lib/kit.e16.ts:221  vpoke(at, zero + (n % 10))
   li t0, 10
   remu t0, s3, t0
   add t0, s0, t0
   mv a0, s1
   mv a1, t0
   call vpoke
-  ; lib/kit.e16.ts:221  n = div(n, 10)
+  ; lib/kit.e16.ts:222  n = div(n, 10)
   li t0, 10
   divu s3, s3, t0
-  ; lib/kit.e16.ts:222  digits--
+  ; lib/kit.e16.ts:223  digits--
   addi s2, s2, -1
 .L3:
   bltu zero, s2, .L1
@@ -1178,14 +1178,14 @@ number:
   addi sp, sp, 10
   ret
 
-; lib/kit.e16.ts:234 sprBegin() at -O1
+; lib/kit.e16.ts:235 sprBegin() at -O1
 sprBegin:
-  ; lib/kit.e16.ts:235  sprN = 0
+  ; lib/kit.e16.ts:236  sprN = 0
   sw zero, 0x0880(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:239 spr(x, y, tile, size) at -O1
+; lib/kit.e16.ts:240 spr(x, y, tile, size) at -O1
 ;   x in a0
 ;   y in a1
 ;   tile in a2
@@ -1194,32 +1194,32 @@ sprBegin:
 spr:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:240  if (sprN >= 128) return
+  ; lib/kit.e16.ts:241  if (sprN >= 128) return
   lw t0, 0x0880(zero)
   li t1, 128
   bltu t0, t1, .L1
-  ; lib/kit.e16.ts:240  return
+  ; lib/kit.e16.ts:241  return
   j .return
 .L1:
-  ; lib/kit.e16.ts:241  const k = sprN << 2
+  ; lib/kit.e16.ts:242  const k = sprN << 2
   lw t0, 0x0880(zero)
   slli s1, t0, 2
-  ; lib/kit.e16.ts:242  oam[k] = u16(x)
+  ; lib/kit.e16.ts:243  oam[k] = u16(x)
   slli t0, s1, 1
   sw a0, oam(t0)
-  ; lib/kit.e16.ts:243  oam[k + 1] = u16(y)
+  ; lib/kit.e16.ts:244  oam[k + 1] = u16(y)
   addi t0, s1, 1
   slli t0, t0, 1
   sw a1, oam(t0)
-  ; lib/kit.e16.ts:244  oam[k + 2] = tile
+  ; lib/kit.e16.ts:245  oam[k + 2] = tile
   addi t0, s1, 2
   slli t0, t0, 1
   sw a2, oam(t0)
-  ; lib/kit.e16.ts:245  oam[k + 3] = size
+  ; lib/kit.e16.ts:246  oam[k + 3] = size
   addi t0, s1, 3
   slli t0, t0, 1
   sw a3, oam(t0)
-  ; lib/kit.e16.ts:246  sprN++
+  ; lib/kit.e16.ts:247  sprN++
   lw t0, 0x0880(zero)
   addi t0, t0, 1
   sw t0, 0x0880(zero)
@@ -1228,39 +1228,39 @@ spr:
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:250 sprCount() at -O1
+; lib/kit.e16.ts:251 sprCount() at -O1
 sprCount:
-  ; lib/kit.e16.ts:251  return sprN
+  ; lib/kit.e16.ts:252  return sprN
   lw a0, 0x0880(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:255 sprShow() at -O1
+; lib/kit.e16.ts:256 sprShow() at -O1
 ;   k in s1
 sprShow:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; lib/kit.e16.ts:256  let k = sprN
+  ; lib/kit.e16.ts:257  let k = sprN
   lw s1, 0x0880(zero)
-  ; lib/kit.e16.ts:257  while (k < sprShown) {
+  ; lib/kit.e16.ts:258  while (k < sprShown) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:258  oam[(k << 2) + 3] = S_NONE
+  ; lib/kit.e16.ts:259  oam[(k << 2) + 3] = S_NONE
   slli t0, s1, 2
   addi t0, t0, 3
   slli t0, t0, 1
   li t1, 3
   sw t1, oam(t0)
-  ; lib/kit.e16.ts:259  k++
+  ; lib/kit.e16.ts:260  k++
   addi s1, s1, 1
 .L3:
   lw t0, 0x0882(zero)
   bltu s1, t0, .L1
-  ; lib/kit.e16.ts:261  sprShown = sprN
+  ; lib/kit.e16.ts:262  sprShown = sprN
   lw t0, 0x0880(zero)
   sw t0, 0x0882(zero)
-  ; lib/kit.e16.ts:262  dma(addr(oam), OAM, 1024)
+  ; lib/kit.e16.ts:263  dma(addr(oam), OAM, 1024)
   la a0, oam
   li a1, 49152
   li a2, 1024
@@ -1271,23 +1271,23 @@ sprShow:
   addi sp, sp, 4
   ret
 
-; lib/kit.e16.ts:276 padRead() at -O1
+; lib/kit.e16.ts:277 padRead() at -O1
 ;   hit in a0
 padRead:
-  ; lib/kit.e16.ts:277  const hit = peek16(PADHIT)
+  ; lib/kit.e16.ts:278  const hit = peek16(PADHIT)
   li t0, 63506
   lw a0, 0(t0)
-  ; lib/kit.e16.ts:278  poke16(PADHIT, hit)
+  ; lib/kit.e16.ts:279  poke16(PADHIT, hit)
   li t0, 63506
   sw a0, 0(t0)
-  ; lib/kit.e16.ts:279  padWas = padIs
+  ; lib/kit.e16.ts:280  padWas = padIs
   lw t0, 0x0884(zero)
   sw t0, 0x0886(zero)
-  ; lib/kit.e16.ts:280  padIs = peek16(PAD)
+  ; lib/kit.e16.ts:281  padIs = peek16(PAD)
   li t0, 63504
   lw t0, 0(t0)
   sw t0, 0x0884(zero)
-  ; lib/kit.e16.ts:281  padDown = (hit | padIs) & ~padWas
+  ; lib/kit.e16.ts:282  padDown = (hit | padIs) & ~padWas
   lw t0, 0x0884(zero)
   or t0, a0, t0
   lw t1, 0x0886(zero)
@@ -1297,10 +1297,10 @@ padRead:
 .return:
   ret
 
-; lib/kit.e16.ts:285 held(mask) at -O1
+; lib/kit.e16.ts:286 held(mask) at -O1
 ;   mask in a0
 held:
-  ; lib/kit.e16.ts:286  return (padIs & mask) === mask
+  ; lib/kit.e16.ts:287  return (padIs & mask) === mask
   lw t0, 0x0884(zero)
   and t0, t0, a0
   sub t0, t0, a0
@@ -1308,10 +1308,10 @@ held:
 .return:
   ret
 
-; lib/kit.e16.ts:290 pressed(mask) at -O1
+; lib/kit.e16.ts:291 pressed(mask) at -O1
 ;   mask in a0
 pressed:
-  ; lib/kit.e16.ts:291  return (padDown & mask) !== 0
+  ; lib/kit.e16.ts:292  return (padDown & mask) !== 0
   lw t0, 0x0888(zero)
   and t0, t0, a0
   sub t0, t0, zero
@@ -1319,14 +1319,14 @@ pressed:
 .return:
   ret
 
-; lib/kit.e16.ts:295 padNow() at -O1
+; lib/kit.e16.ts:296 padNow() at -O1
 padNow:
-  ; lib/kit.e16.ts:296  return padIs
+  ; lib/kit.e16.ts:297  return padIs
   lw a0, 0x0884(zero)
 .return:
   ret
 
-; lib/kit.e16.ts:308 kitInit() at -O1
+; lib/kit.e16.ts:309 kitInit() at -O1
 ;   old in s2
 ;   k in s1
 kitInit:
@@ -1334,56 +1334,56 @@ kitInit:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; lib/kit.e16.ts:309  const old = bank(KIT_TABLES_BANK)
+  ; lib/kit.e16.ts:310  const old = bank(KIT_TABLES_BANK)
   li a0, 260
   call bank
   mv s2, a0 ; old
-  ; lib/kit.e16.ts:310  let k: u16 = 0
+  ; lib/kit.e16.ts:311  let k: u16 = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:311  while (k < 256) {
+  ; lib/kit.e16.ts:312  while (k < 256) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:312  sines[k] = peek16(KIT_SIN_AT + k * 2)
+  ; lib/kit.e16.ts:313  sines[k] = peek16(KIT_SIN_AT + k * 2)
   slli t0, s1, 1
   slli t1, s1, 1
   li t2, 49152
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, sines(t0)
-  ; lib/kit.e16.ts:313  k++
+  ; lib/kit.e16.ts:314  k++
   addi s1, s1, 1
 .L3:
   li t0, 256
   bltu s1, t0, .L1
-  ; lib/kit.e16.ts:315  k = 0
+  ; lib/kit.e16.ts:316  k = 0
   li s1, 0 ; k
-  ; lib/kit.e16.ts:316  while (k < 33) {
+  ; lib/kit.e16.ts:317  while (k < 33) {
   j .L7
 .L5:
-  ; lib/kit.e16.ts:317  atans[k] = peek16(KIT_ATAN_AT + k * 2)
+  ; lib/kit.e16.ts:318  atans[k] = peek16(KIT_ATAN_AT + k * 2)
   slli t0, s1, 1
   slli t1, s1, 1
   li t2, 49664
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, atans(t0)
-  ; lib/kit.e16.ts:318  k++
+  ; lib/kit.e16.ts:319  k++
   addi s1, s1, 1
 .L7:
   li t0, 33
   bltu s1, t0, .L5
-  ; lib/kit.e16.ts:320  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:321  poke16(IO_BANK, old)
   li t0, 65284
   sw s2, 0(t0)
-  ; lib/kit.e16.ts:323  padIs = peek16(PAD)
+  ; lib/kit.e16.ts:324  padIs = peek16(PAD)
   li t0, 63504
   lw t0, 0(t0)
   sw t0, 0x0884(zero)
-  ; lib/kit.e16.ts:324  padWas = padIs
+  ; lib/kit.e16.ts:325  padWas = padIs
   sw t0, 0x0886(zero)
-  ; lib/kit.e16.ts:325  padDown = 0
+  ; lib/kit.e16.ts:326  padDown = 0
   sw zero, 0x0888(zero)
-  ; lib/kit.e16.ts:326  poke16(PADHIT, 0xfff)
+  ; lib/kit.e16.ts:327  poke16(PADHIT, 0xfff)
   li t0, 4095
   li t1, 63506
   sw t0, 0(t1)
@@ -1394,20 +1394,20 @@ kitInit:
   addi sp, sp, 6
   ret
 
-; lib/kit.e16.ts:330 sin(a) at -O1
+; lib/kit.e16.ts:331 sin(a) at -O1
 ;   a in a0
 sin:
-  ; lib/kit.e16.ts:331  return i16(sines[a & 255])
+  ; lib/kit.e16.ts:332  return i16(sines[a & 255])
   andi t0, a0, 255
   slli t0, t0, 1
   lw a0, sines(t0)
 .return:
   ret
 
-; lib/kit.e16.ts:335 cos(a) at -O1
+; lib/kit.e16.ts:336 cos(a) at -O1
 ;   a in a0
 cos:
-  ; lib/kit.e16.ts:336  return i16(sines[(a + 64) & 255])
+  ; lib/kit.e16.ts:337  return i16(sines[(a + 64) & 255])
   addi t0, a0, 64
   andi t0, t0, 255
   slli t0, t0, 1
@@ -1415,7 +1415,7 @@ cos:
 .return:
   ret
 
-; lib/kit.e16.ts:340 aim(dx, dy) at -O1
+; lib/kit.e16.ts:341 aim(dx, dy) at -O1
 ;   dx in a0
 ;   dy in a1
 ;   ax in a2
@@ -1424,7 +1424,7 @@ cos:
 aim:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; lib/kit.e16.ts:341  let ax = dx < 0 ? u16(-dx) : u16(dx)
+  ; lib/kit.e16.ts:342  let ax = dx < 0 ? u16(-dx) : u16(dx)
   bge a0, zero, .L1
   neg t0, a0
   j .L2
@@ -1432,7 +1432,7 @@ aim:
   mv t0, a0
 .L2:
   mv a2, t0 ; ax
-  ; lib/kit.e16.ts:342  let ay = dy < 0 ? u16(-dy) : u16(dy)
+  ; lib/kit.e16.ts:343  let ay = dy < 0 ? u16(-dy) : u16(dy)
   bge a1, zero, .L3
   neg t0, a1
   j .L4
@@ -1440,28 +1440,28 @@ aim:
   mv t0, a1
 .L4:
   mv a3, t0 ; ay
-  ; lib/kit.e16.ts:343  if (ax === 0 && ay === 0) return 64
+  ; lib/kit.e16.ts:344  if (ax === 0 && ay === 0) return 64
   bne a2, zero, .L8
   bne a3, zero, .L8
-  ; lib/kit.e16.ts:343  return 64
+  ; lib/kit.e16.ts:344  return 64
   li a0, 64
   j .return
-  ; lib/kit.e16.ts:346  while (ax >= 1024 || ay >= 1024) {
+  ; lib/kit.e16.ts:347  while (ax >= 1024 || ay >= 1024) {
 .L6:
-  ; lib/kit.e16.ts:347  ax = ax >> 1
+  ; lib/kit.e16.ts:348  ax = ax >> 1
   srli a2, a2, 1
-  ; lib/kit.e16.ts:348  ay = ay >> 1
+  ; lib/kit.e16.ts:349  ay = ay >> 1
   srli a3, a3, 1
 .L8:
   li t0, 1024
   bgeu a2, t0, .L6
   li t0, 1024
   bgeu a3, t0, .L6
-  ; lib/kit.e16.ts:351  let a: u16 = 0
+  ; lib/kit.e16.ts:352  let a: u16 = 0
   li s1, 0 ; a
-  ; lib/kit.e16.ts:352  if (ax >= ay) a = atans[div(ay * 32 + (ax >> 1), ax)]
+  ; lib/kit.e16.ts:353  if (ax >= ay) a = atans[div(ay * 32 + (ax >> 1), ax)]
   bltu a2, a3, .L10
-  ; lib/kit.e16.ts:352  a = atans[div(ay * 32 + (ax >> 1), ax)]
+  ; lib/kit.e16.ts:353  a = atans[div(ay * 32 + (ax >> 1), ax)]
   slli t0, a3, 5
   srli t1, a2, 1
   add t0, t0, t1
@@ -1470,7 +1470,7 @@ aim:
   lw s1, atans(t0)
   j .L11
 .L10:
-  ; lib/kit.e16.ts:353  a = 64 - atans[div(ax * 32 + (ay >> 1), ay)]
+  ; lib/kit.e16.ts:354  a = 64 - atans[div(ax * 32 + (ay >> 1), ay)]
   slli t0, a2, 5
   srli t1, a3, 1
   add t0, t0, t1
@@ -1480,67 +1480,66 @@ aim:
   li t1, 64
   sub s1, t1, t0
 .L11:
-  ; lib/kit.e16.ts:354  if (dx < 0) a = 128 - a
+  ; lib/kit.e16.ts:355  if (dx < 0) a = 128 - a
   bge a0, zero, .L12
-  ; lib/kit.e16.ts:354  a = 128 - a
+  ; lib/kit.e16.ts:355  a = 128 - a
   li t0, 128
   sub s1, t0, s1
 .L12:
-  ; lib/kit.e16.ts:355  if (dy < 0) a = wrap16(256 - a)
+  ; lib/kit.e16.ts:356  if (dy < 0) a = wrap16(256 - a)
   bge a1, zero, .L13
-  ; lib/kit.e16.ts:355  a = wrap16(256 - a)
+  ; lib/kit.e16.ts:356  a = wrap16(256 - a)
   li t0, 256
   sub s1, t0, s1
 .L13:
-  ; lib/kit.e16.ts:356  return a & 255
+  ; lib/kit.e16.ts:357  return a & 255
   andi a0, s1, 255
 .return:
   lw s1, 0(sp)
   addi sp, sp, 2
   ret
 
-; lib/kit.e16.ts:360 rand() at -O1
+; lib/kit.e16.ts:361 rand() at -O1
 ;   x in a0
 rand:
-  ; lib/kit.e16.ts:361  let x = seed
+  ; lib/kit.e16.ts:362  let x = seed
   lw a0, 0x0acc(zero)
-  ; lib/kit.e16.ts:362  x = wrap16(x ^ (x << 7))
+  ; lib/kit.e16.ts:363  x = wrap16(x ^ (x << 7))
   slli t0, a0, 7
   xor a0, a0, t0
-  ; lib/kit.e16.ts:363  x = x ^ (x >> 9)
+  ; lib/kit.e16.ts:364  x = x ^ (x >> 9)
   srli t0, a0, 9
   xor a0, a0, t0
-  ; lib/kit.e16.ts:364  x = wrap16(x ^ (x << 8))
+  ; lib/kit.e16.ts:365  x = wrap16(x ^ (x << 8))
   slli t0, a0, 8
   xor a0, a0, t0
-  ; lib/kit.e16.ts:365  seed = x
+  ; lib/kit.e16.ts:366  seed = x
   sw a0, 0x0acc(zero)
-  ; lib/kit.e16.ts:366  return x
+  ; lib/kit.e16.ts:367  return x
 .return:
   ret
 
-; lib/kit.e16.ts:370 randBelow(n) at -O1
+; lib/kit.e16.ts:371 randBelow(n) at -O1
 ;   n in s1
 randBelow:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; n
-  ; lib/kit.e16.ts:371  return ((rand() >> 8) * n) >> 8
+  ; lib/kit.e16.ts:372  return u16(mulShift(i16(rand() >> 8), i16(n), 8))
   call rand
   srli t0, a0, 8
-  mul t0, t0, s1
-  srli a0, t0, 8
+  mulq a0, t0, s1, 8
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
   addi sp, sp, 4
   ret
 
-; lib/kit.e16.ts:375 randSeed(s) at -O1
+; lib/kit.e16.ts:376 randSeed(s) at -O1
 ;   s in a0
 randSeed:
-  ; lib/kit.e16.ts:376  seed = s === 0 ? 0x1d2b : s
+  ; lib/kit.e16.ts:377  seed = s === 0 ? 0x1d2b : s
   bne a0, zero, .L1
   li t0, 7467
   j .L2
@@ -1551,54 +1550,54 @@ randSeed:
 .return:
   ret
 
-; lib/kit.e16.ts:382 scoreAdd(at, n) at -O1
+; lib/kit.e16.ts:383 scoreAdd(at, n) at -O1
 ;   at in a0
 ;   n in a1
 ;   lo in a2
 ;   hi in a3
 scoreAdd:
-  ; lib/kit.e16.ts:383  let lo = peek16(at) + n
+  ; lib/kit.e16.ts:384  let lo = peek16(at) + n
   lw t0, 0(a0)
   add a2, t0, a1
-  ; lib/kit.e16.ts:384  let hi = peek16(at + 2)
+  ; lib/kit.e16.ts:385  let hi = peek16(at + 2)
   lw a3, 2(a0)
-  ; lib/kit.e16.ts:385  while (lo >= 10000) {
+  ; lib/kit.e16.ts:386  while (lo >= 10000) {
   j .L3
 .L1:
-  ; lib/kit.e16.ts:386  lo = lo - 10000
+  ; lib/kit.e16.ts:387  lo = lo - 10000
   li t0, 10000
   sub a2, a2, t0
-  ; lib/kit.e16.ts:387  hi++
+  ; lib/kit.e16.ts:388  hi++
   addi a3, a3, 1
 .L3:
   li t0, 10000
   bgeu a2, t0, .L1
-  ; lib/kit.e16.ts:389  if (hi > 9999) {
+  ; lib/kit.e16.ts:390  if (hi > 9999) {
   li t0, 9999
   bgeu t0, a3, .L5
-  ; lib/kit.e16.ts:390  hi = 9999
+  ; lib/kit.e16.ts:391  hi = 9999
   li a3, 9999 ; hi
-  ; lib/kit.e16.ts:391  lo = 9999
+  ; lib/kit.e16.ts:392  lo = 9999
   li a2, 9999 ; lo
 .L5:
-  ; lib/kit.e16.ts:393  poke16(at, lo)
+  ; lib/kit.e16.ts:394  poke16(at, lo)
   sw a2, 0(a0)
-  ; lib/kit.e16.ts:394  poke16(at + 2, hi)
+  ; lib/kit.e16.ts:395  poke16(at + 2, hi)
   sw a3, 2(a0)
 .return:
   ret
 
-; lib/kit.e16.ts:398 scoreMore(a, b) at -O1
+; lib/kit.e16.ts:399 scoreMore(a, b) at -O1
 ;   a in a0
 ;   b in a1
 ;   ah in a2
 ;   bh in a3
 scoreMore:
-  ; lib/kit.e16.ts:399  const ah = peek16(a + 2)
+  ; lib/kit.e16.ts:400  const ah = peek16(a + 2)
   lw a2, 2(a0)
-  ; lib/kit.e16.ts:400  const bh = peek16(b + 2)
+  ; lib/kit.e16.ts:401  const bh = peek16(b + 2)
   lw a3, 2(a1)
-  ; lib/kit.e16.ts:401  return ah > bh || (ah === bh && peek16(a) > peek16(b))
+  ; lib/kit.e16.ts:402  return ah > bh || (ah === bh && peek16(a) > peek16(b))
   sltu t0, a3, a2
   mv t1, t0
   bnez t1, .L1
@@ -1615,7 +1614,7 @@ scoreMore:
 .return:
   ret
 
-; lib/kit.e16.ts:405 scoreShow(cell, at, zero) at -O1
+; lib/kit.e16.ts:406 scoreShow(cell, at, zero) at -O1
 ;   cell in s1
 ;   at in s2
 ;   zero in s3
@@ -1628,14 +1627,14 @@ scoreShow:
   mv s1, a0 ; cell
   mv s2, a1 ; at
   mv s3, a2 ; zero
-  ; lib/kit.e16.ts:406  number(cell, peek16(at + 2), 4, zero)
+  ; lib/kit.e16.ts:407  number(cell, peek16(at + 2), 4, zero)
   lw t0, 2(s2)
   mv a0, s1
   mv a1, t0
   li a2, 4
   mv a3, s3
   call number
-  ; lib/kit.e16.ts:407  number(wrap16(cell + 8), peek16(at), 4, zero)
+  ; lib/kit.e16.ts:408  number(wrap16(cell + 8), peek16(at), 4, zero)
   lw t0, 0(s2)
   addi a0, s1, 8
   mv a1, t0
@@ -1650,7 +1649,7 @@ scoreShow:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:413 saveRead(off) at -O1
+; lib/kit.e16.ts:414 saveRead(off) at -O1
 ;   off in s1
 ;   old in s2
 ;   v in s3
@@ -1661,19 +1660,19 @@ saveRead:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; off
-  ; lib/kit.e16.ts:414  const old = bank(SAVE_BANK)
+  ; lib/kit.e16.ts:415  const old = bank(SAVE_BANK)
   li a0, 128
   call bank
   mv s2, a0 ; old
-  ; lib/kit.e16.ts:415  const v = peek16(WINDOW + (off & SAVE_MASK))
+  ; lib/kit.e16.ts:416  const v = peek16(WINDOW + (off & SAVE_MASK))
   andi t0, s1, 8190
   li t1, 49152
   add t1, t1, t0
   lw s3, 0(t1)
-  ; lib/kit.e16.ts:416  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:417  poke16(IO_BANK, old)
   li t0, 65284
   sw s2, 0(t0)
-  ; lib/kit.e16.ts:417  return v
+  ; lib/kit.e16.ts:418  return v
   mv a0, s3
 .return:
   lw ra, 0(sp)
@@ -1683,7 +1682,7 @@ saveRead:
   addi sp, sp, 8
   ret
 
-; lib/kit.e16.ts:421 saveWrite(off, v) at -O1
+; lib/kit.e16.ts:422 saveWrite(off, v) at -O1
 ;   off in s1
 ;   v in s2
 ;   old in s3
@@ -1695,16 +1694,16 @@ saveWrite:
   sw s3, 6(sp)
   mv s1, a0 ; off
   mv s2, a1 ; v
-  ; lib/kit.e16.ts:422  const old = bank(SAVE_BANK)
+  ; lib/kit.e16.ts:423  const old = bank(SAVE_BANK)
   li a0, 128
   call bank
   mv s3, a0 ; old
-  ; lib/kit.e16.ts:423  poke16(WINDOW + (off & SAVE_MASK), v)
+  ; lib/kit.e16.ts:424  poke16(WINDOW + (off & SAVE_MASK), v)
   andi t0, s1, 8190
   li t1, 49152
   add t1, t1, t0
   sw s2, 0(t1)
-  ; lib/kit.e16.ts:424  poke16(IO_BANK, old)
+  ; lib/kit.e16.ts:425  poke16(IO_BANK, old)
   li t0, 65284
   sw s3, 0(t0)
 .return:
@@ -3562,7 +3561,7 @@ rowIn:
 .return:
   ret
 
-; fall.e16.ts:48 groupOf(start) at -O1
+; fall.e16.ts:49 groupOf(start) at -O1
 ;   start in s0
 ;   key in s1
 ;   k in s2
@@ -3575,52 +3574,52 @@ groupOf:
   sw s2, 6(sp)
   sw s3, 8(sp)
   mv s0, a0 ; start
-  ; fall.e16.ts:49  stampNext()
+  ; fall.e16.ts:50  stampNext()
   call stampNext
-  ; fall.e16.ts:50  found[0] = start
+  ; fall.e16.ts:51  found[0] = start
   sw s0, found(zero)
-  ; fall.e16.ts:51  stampIt(start)
+  ; fall.e16.ts:52  stampIt(start)
   mv a0, s0
   call stampIt
-  ; fall.e16.ts:52  foundN = 1
+  ; fall.e16.ts:53  foundN = 1
   li t0, 1
   sw t0, 0x12e8(zero)
-  ; fall.e16.ts:53  const key = cells[start]
+  ; fall.e16.ts:54  const key = cells[start]
   lbu s1, cells(s0)
-  ; fall.e16.ts:54  if ((key & 15) > T_BLUE) return 1
+  ; fall.e16.ts:55  if ((key & 15) > T_BLUE) return 1
   andi t0, s1, 15
   li t1, 4
   bgeu t1, t0, .L1
-  ; fall.e16.ts:54  return 1
+  ; fall.e16.ts:55  return 1
   li a0, 1
   j .return
 .L1:
-  ; fall.e16.ts:55  let k: u16 = 0
+  ; fall.e16.ts:56  let k: u16 = 0
   li s2, 0 ; k
-  ; fall.e16.ts:56  while (k < foundN) {
+  ; fall.e16.ts:57  while (k < foundN) {
   j .L4
 .L2:
-  ; fall.e16.ts:57  const i = found[k]
+  ; fall.e16.ts:58  const i = found[k]
   slli t0, s2, 1
   lw s3, found(t0)
-  ; fall.e16.ts:58  k++
+  ; fall.e16.ts:59  k++
   addi s2, s2, 1
-  ; fall.e16.ts:59  reach((i - 16) & 511, key)
+  ; fall.e16.ts:60  reach((i - 16) & 511, key)
   addi t0, s3, -16
   andi a0, t0, 511
   mv a1, s1
   call reach
-  ; fall.e16.ts:60  reach((i + 16) & 511, key)
+  ; fall.e16.ts:61  reach((i + 16) & 511, key)
   addi t0, s3, 16
   andi a0, t0, 511
   mv a1, s1
   call reach
-  ; fall.e16.ts:61  reach((i - 1) & 511, key)
+  ; fall.e16.ts:62  reach((i - 1) & 511, key)
   addi t0, s3, -1
   andi a0, t0, 511
   mv a1, s1
   call reach
-  ; fall.e16.ts:62  reach((i + 1) & 511, key)
+  ; fall.e16.ts:63  reach((i + 1) & 511, key)
   addi t0, s3, 1
   andi a0, t0, 511
   mv a1, s1
@@ -3628,7 +3627,7 @@ groupOf:
 .L4:
   lw t0, 0x12e8(zero)
   bltu s2, t0, .L2
-  ; fall.e16.ts:64  return foundN
+  ; fall.e16.ts:65  return foundN
   lw a0, 0x12e8(zero)
 .return:
   lw ra, 0(sp)
@@ -3639,7 +3638,7 @@ groupOf:
   addi sp, sp, 10
   ret
 
-; fall.e16.ts:67 reach(i, key) at -O1
+; fall.e16.ts:68 reach(i, key) at -O1
 ;   i in s1
 ;   key in s2
 reach:
@@ -3649,7 +3648,7 @@ reach:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; key
-  ; fall.e16.ts:68  if (cells[i] !== key || stamped(i) || foundN >= 280) return
+  ; fall.e16.ts:69  if (cells[i] !== key || stamped(i) || foundN >= 280) return
   lbu t0, cells(s1)
   bne t0, s2, .L2
   mv a0, s1
@@ -3659,17 +3658,17 @@ reach:
   li t1, 280
   bltu t0, t1, .L1
 .L2:
-  ; fall.e16.ts:68  return
+  ; fall.e16.ts:69  return
   j .return
 .L1:
-  ; fall.e16.ts:69  stampIt(i)
+  ; fall.e16.ts:70  stampIt(i)
   mv a0, s1
   call stampIt
-  ; fall.e16.ts:70  found[foundN] = i
+  ; fall.e16.ts:71  found[foundN] = i
   lw t0, 0x12e8(zero)
   slli t0, t0, 1
   sw s1, found(t0)
-  ; fall.e16.ts:71  foundN++
+  ; fall.e16.ts:72  foundN++
   lw t0, 0x12e8(zero)
   addi t0, t0, 1
   sw t0, 0x12e8(zero)
@@ -3680,18 +3679,18 @@ reach:
   addi sp, sp, 6
   ret
 
-; fall.e16.ts:96 groupNew() at -O1
+; fall.e16.ts:97 groupNew() at -O1
 ;   n in a0
 ;   g in a1
 groupNew:
-  ; fall.e16.ts:97  let n: u16 = 0
+  ; fall.e16.ts:98  let n: u16 = 0
   li a0, 0 ; n
-  ; fall.e16.ts:98  while (n < G_N) {
+  ; fall.e16.ts:99  while (n < G_N) {
   j .L3
 .L1:
-  ; fall.e16.ts:99  const g = gNext
+  ; fall.e16.ts:100  const g = gNext
   lw a1, 0x181c(zero)
-  ; fall.e16.ts:100  gNext = gNext + 1 === G_N ? 0 : gNext + 1
+  ; fall.e16.ts:101  gNext = gNext + 1 === G_N ? 0 : gNext + 1
   lw t0, 0x181c(zero)
   li t1, 48
   addi t0, t0, 1
@@ -3703,53 +3702,53 @@ groupNew:
   addi t0, t0, 1
 .L6:
   sw t0, 0x181c(zero)
-  ; fall.e16.ts:101  if (gSize[g] === 0) return g
+  ; fall.e16.ts:102  if (gSize[g] === 0) return g
   slli t0, a1, 1
   lw t0, gSize(t0)
   bne t0, zero, .L7
-  ; fall.e16.ts:101  return g
+  ; fall.e16.ts:102  return g
   mv a0, a1
   ret
 .L7:
-  ; fall.e16.ts:102  n++
+  ; fall.e16.ts:103  n++
   addi a0, a0, 1
 .L3:
   li t0, 48
   bltu a0, t0, .L1
-  ; fall.e16.ts:104  return 0xff
+  ; fall.e16.ts:105  return 0xff
   li a0, 255
 .return:
   ret
 
-; fall.e16.ts:121 fallPace(wobble, speed) at -O1
+; fall.e16.ts:122 fallPace(wobble, speed) at -O1
 ;   wobble in a0
 ;   speed in a1
 fallPace:
-  ; fall.e16.ts:122  wobbleFrames = wobble
+  ; fall.e16.ts:123  wobbleFrames = wobble
   sw a0, 0x187e(zero)
-  ; fall.e16.ts:123  fallSpeed = speed
+  ; fall.e16.ts:124  fallSpeed = speed
   sw a1, 0x1880(zero)
 .return:
   ret
 
-; fall.e16.ts:131 targetIs(cell) at -O1
+; fall.e16.ts:132 targetIs(cell) at -O1
 ;   cell in a0
 targetIs:
-  ; fall.e16.ts:132  target = cell
+  ; fall.e16.ts:133  target = cell
   sw a0, 0x1882(zero)
 .return:
   ret
 
-; fall.e16.ts:135 struckClear() at -O1
+; fall.e16.ts:136 struckClear() at -O1
 struckClear:
-  ; fall.e16.ts:136  struck = 0
+  ; fall.e16.ts:137  struck = 0
   sw zero, 0x1884(zero)
 .return:
   ret
 
-; fall.e16.ts:140 fallQuiet() at -O1
+; fall.e16.ts:141 fallQuiet() at -O1
 fallQuiet:
-  ; fall.e16.ts:141  return lbN === 0 && pendN === 0 && landN === 0 && susHead === susTail
+  ; fall.e16.ts:142  return lbN === 0 && pendN === 0 && landN === 0 && susHead === susTail
   lw t0, 0x158a(zero)
   sub t0, t0, zero
   seqz t0, t0
@@ -3776,130 +3775,130 @@ fallQuiet:
 .return:
   ret
 
-; fall.e16.ts:144 fallClear() at -O1
+; fall.e16.ts:145 fallClear() at -O1
 ;   k in a0
 fallClear:
-  ; fall.e16.ts:145  let k: u16 = 0
+  ; fall.e16.ts:146  let k: u16 = 0
   li a0, 0 ; k
-  ; fall.e16.ts:146  while (k < 512) {
+  ; fall.e16.ts:147  while (k < 512) {
   j .L3
 .L1:
-  ; fall.e16.ts:147  lbAt[k] = 0
+  ; fall.e16.ts:148  lbAt[k] = 0
   sb zero, lbAt(a0)
-  ; fall.e16.ts:148  k++
+  ; fall.e16.ts:149  k++
   addi a0, a0, 1
 .L3:
   li t0, 512
   bltu a0, t0, .L1
-  ; fall.e16.ts:150  k = 0
+  ; fall.e16.ts:151  k = 0
   li a0, 0 ; k
-  ; fall.e16.ts:151  while (k < U_N) {
+  ; fall.e16.ts:152  while (k < U_N) {
   j .L7
 .L5:
-  ; fall.e16.ts:152  uState[k] = U_FREE
+  ; fall.e16.ts:153  uState[k] = U_FREE
   slli t0, a0, 1
   sw zero, uState(t0)
-  ; fall.e16.ts:153  uSize[k] = 0
+  ; fall.e16.ts:154  uSize[k] = 0
   slli t0, a0, 1
   sw zero, uSize(t0)
-  ; fall.e16.ts:154  k++
+  ; fall.e16.ts:155  k++
   addi a0, a0, 1
 .L7:
   li t0, 12
   bltu a0, t0, .L5
-  ; fall.e16.ts:156  k = 0
+  ; fall.e16.ts:157  k = 0
   li a0, 0 ; k
-  ; fall.e16.ts:157  while (k < G_N) {
+  ; fall.e16.ts:158  while (k < G_N) {
   j .L11
 .L9:
-  ; fall.e16.ts:158  gSize[k] = 0
+  ; fall.e16.ts:159  gSize[k] = 0
   slli t0, a0, 1
   sw zero, gSize(t0)
-  ; fall.e16.ts:159  k++
+  ; fall.e16.ts:160  k++
   addi a0, a0, 1
 .L11:
   li t0, 48
   bltu a0, t0, .L9
-  ; fall.e16.ts:161  lbN = 0
+  ; fall.e16.ts:162  lbN = 0
   sw zero, 0x158a(zero)
-  ; fall.e16.ts:162  pendN = 0
+  ; fall.e16.ts:163  pendN = 0
   sw zero, 0x1c9a(zero)
-  ; fall.e16.ts:163  susHead = 0
+  ; fall.e16.ts:164  susHead = 0
   sw zero, 0x1986(zero)
-  ; fall.e16.ts:164  susTail = 0
+  ; fall.e16.ts:165  susTail = 0
   sw zero, 0x1988(zero)
-  ; fall.e16.ts:165  landN = 0
+  ; fall.e16.ts:166  landN = 0
   sw zero, 0x1a0a(zero)
-  ; fall.e16.ts:166  chain = 0
+  ; fall.e16.ts:167  chain = 0
   sw zero, 0x1a0c(zero)
-  ; fall.e16.ts:167  struck = 0
+  ; fall.e16.ts:168  struck = 0
   sw zero, 0x1884(zero)
 .return:
   ret
 
-; fall.e16.ts:170 unitNew() at -O1
+; fall.e16.ts:171 unitNew() at -O1
 ;   u in a0
 unitNew:
-  ; fall.e16.ts:171  let u: u16 = 0
+  ; fall.e16.ts:172  let u: u16 = 0
   li a0, 0 ; u
-  ; fall.e16.ts:172  while (u < U_N) {
+  ; fall.e16.ts:173  while (u < U_N) {
   j .L3
 .L1:
-  ; fall.e16.ts:173  if (uState[u] === U_FREE) {
+  ; fall.e16.ts:174  if (uState[u] === U_FREE) {
   slli t0, a0, 1
   lw t0, uState(t0)
   bne t0, zero, .L5
-  ; fall.e16.ts:174  uState[u] = U_WOBBLE
+  ; fall.e16.ts:175  uState[u] = U_WOBBLE
   slli t0, a0, 1
   li t1, 1
   sw t1, uState(t0)
-  ; fall.e16.ts:175  uTime[u] = wobbleFrames
+  ; fall.e16.ts:176  uTime[u] = wobbleFrames
   slli t0, a0, 1
   lw t1, 0x187e(zero)
   sw t1, uTime(t0)
-  ; fall.e16.ts:176  uOff[u] = 0
+  ; fall.e16.ts:177  uOff[u] = 0
   slli t0, a0, 1
   sw zero, uOff(t0)
-  ; fall.e16.ts:177  uSize[u] = 0
+  ; fall.e16.ts:178  uSize[u] = 0
   slli t0, a0, 1
   sw zero, uSize(t0)
-  ; fall.e16.ts:178  return u
+  ; fall.e16.ts:179  return u
   ret
 .L5:
-  ; fall.e16.ts:180  u++
+  ; fall.e16.ts:181  u++
   addi a0, a0, 1
 .L3:
   li t0, 12
   bltu a0, t0, .L1
-  ; fall.e16.ts:182  return 0xff
+  ; fall.e16.ts:183  return 0xff
   li a0, 255
 .return:
   ret
 
-; fall.e16.ts:191 suspect(i) at -O1
+; fall.e16.ts:192 suspect(i) at -O1
 ;   i in a0
 ;   next in a1
 suspect:
-  ; fall.e16.ts:192  const next = (susTail + 1) & 127
+  ; fall.e16.ts:193  const next = (susTail + 1) & 127
   lw t0, 0x1988(zero)
   addi t0, t0, 1
   andi a1, t0, 127
-  ; fall.e16.ts:193  if (next === susHead) return
+  ; fall.e16.ts:194  if (next === susHead) return
   lw t0, 0x1986(zero)
   bne a1, t0, .L1
-  ; fall.e16.ts:193  return
+  ; fall.e16.ts:194  return
   ret
 .L1:
-  ; fall.e16.ts:194  sus[susTail] = i
+  ; fall.e16.ts:195  sus[susTail] = i
   lw t0, 0x1988(zero)
   slli t0, t0, 1
   sw a0, sus(t0)
-  ; fall.e16.ts:195  susTail = next
+  ; fall.e16.ts:196  susTail = next
   sw a1, 0x1988(zero)
 .return:
   ret
 
-; fall.e16.ts:199 suspectsStep(budget) at -O1
+; fall.e16.ts:200 suspectsStep(budget) at -O1
 ;   budget in s3
 ;   spent in s1
 ;   i in s0
@@ -3912,31 +3911,31 @@ suspectsStep:
   sw s0, 6(sp)
   sw s2, 8(sp)
   mv s3, a0 ; budget
-  ; fall.e16.ts:200  let spent: u16 = 0
+  ; fall.e16.ts:201  let spent: u16 = 0
   li s1, 0 ; spent
-  ; fall.e16.ts:201  while (susHead !== susTail && spent < budget) {
+  ; fall.e16.ts:202  while (susHead !== susTail && spent < budget) {
   j .L3
 .L1:
-  ; fall.e16.ts:202  const i = sus[susHead]
+  ; fall.e16.ts:203  const i = sus[susHead]
   lw t0, 0x1986(zero)
   slli t0, t0, 1
   lw s0, sus(t0)
-  ; fall.e16.ts:203  susHead = (susHead + 1) & 127
+  ; fall.e16.ts:204  susHead = (susHead + 1) & 127
   lw t0, 0x1986(zero)
   addi t0, t0, 1
   andi t0, t0, 127
   sw t0, 0x1986(zero)
-  ; fall.e16.ts:204  const cost = footing(i)
+  ; fall.e16.ts:205  const cost = footing(i)
   mv a0, s0
   call footing
   mv s2, a0 ; cost
-  ; fall.e16.ts:206  if (cost === FULL) return
+  ; fall.e16.ts:207  if (cost === FULL) return
   li t0, 65535
   bne s2, t0, .L5
-  ; fall.e16.ts:206  return
+  ; fall.e16.ts:207  return
   j .return
 .L5:
-  ; fall.e16.ts:207  spent = spent + cost
+  ; fall.e16.ts:208  spent = spent + cost
   add s1, s1, s2
 .L3:
   lw t0, 0x1986(zero)
@@ -3953,7 +3952,7 @@ suspectsStep:
   addi sp, sp, 10
   ret
 
-; fall.e16.ts:221 underneath(n) at -O1
+; fall.e16.ts:222 underneath(n) at -O1
 ;   n in 4(fp)
 ;   join in s3
 ;   k in s1
@@ -3970,70 +3969,70 @@ underneath:
   sw s0, 16(sp)
   mv fp, sp
   sw a0, 4(fp) ; n
-  ; fall.e16.ts:222  let join: u16 = 0xff
+  ; fall.e16.ts:223  let join: u16 = 0xff
   li s3, 255 ; join
-  ; fall.e16.ts:223  let k: u16 = 0
+  ; fall.e16.ts:224  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:224  const ceiling = top & 31
+  ; fall.e16.ts:225  const ceiling = top & 31
   lw t0, 0x10b2(zero)
   andi t0, t0, 31
   sw t0, 6(fp) ; ceiling
-  ; fall.e16.ts:225  while (k < n) {
+  ; fall.e16.ts:226  while (k < n) {
   j .L3
 .L1:
-  ; fall.e16.ts:227  if (found[k] >> 4 === ceiling) return HELD
+  ; fall.e16.ts:228  if (found[k] >> 4 === ceiling) return HELD
   slli t0, s1, 1
   lw t0, found(t0)
   srli t0, t0, 4
   lw t1, 6(fp) ; ceiling
   bne t0, t1, .L5
-  ; fall.e16.ts:227  return HELD
+  ; fall.e16.ts:228  return HELD
   li a0, 254
   j .return
 .L5:
-  ; fall.e16.ts:228  const below = (found[k] + 16) & 511
+  ; fall.e16.ts:229  const below = (found[k] + 16) & 511
   slli t0, s1, 1
   lw t0, found(t0)
   addi t0, t0, 16
   andi s2, t0, 511
-  ; fall.e16.ts:229  const bv = cells[below]
+  ; fall.e16.ts:230  const bv = cells[below]
   lbu t0, cells(s2)
   sw t0, 0(fp) ; bv
-  ; fall.e16.ts:230  if ((bv & 15) !== 0 && !stamped(below)) {
+  ; fall.e16.ts:231  if ((bv & 15) !== 0 && !stamped(below)) {
   lw t0, 0(fp) ; bv
   andi t0, t0, 15
   beq t0, zero, .L6
   mv a0, s2
   call stamped
   bnez a0, .L6
-  ; fall.e16.ts:231  if ((bv & F_LOOSE) === 0) return HELD
+  ; fall.e16.ts:232  if ((bv & F_LOOSE) === 0) return HELD
   lw t0, 0(fp) ; bv
   andi t0, t0, 128
   bne t0, zero, .L7
-  ; fall.e16.ts:231  return HELD
+  ; fall.e16.ts:232  return HELD
   li a0, 254
   j .return
 .L7:
-  ; fall.e16.ts:232  const u = lbUnit[lbAt[below] - 1]
+  ; fall.e16.ts:233  const u = lbUnit[lbAt[below] - 1]
   lbu t0, lbAt(s2)
   lbu t0, lbUnit-1(t0)
   sw t0, 2(fp) ; u
-  ; fall.e16.ts:233  if (uState[u] === U_WOBBLE) join = u
+  ; fall.e16.ts:234  if (uState[u] === U_WOBBLE) join = u
   lw t0, 2(fp) ; u
   slli t0, t0, 1
   lw t0, uState(t0)
   li t1, 1
   bne t0, t1, .L8
-  ; fall.e16.ts:233  join = u
+  ; fall.e16.ts:234  join = u
   lw s3, 2(fp) ; u
 .L8:
 .L6:
-  ; fall.e16.ts:235  k++
+  ; fall.e16.ts:236  k++
   addi s1, s1, 1
 .L3:
   lw t0, 4(fp) ; n
   bltu s1, t0, .L1
-  ; fall.e16.ts:237  return join
+  ; fall.e16.ts:238  return join
   mv a0, s3
 .return:
   mv sp, fp
@@ -4045,7 +4044,7 @@ underneath:
   addi sp, sp, 18
   ret
 
-; fall.e16.ts:241 footing(i) at -O1
+; fall.e16.ts:242 footing(i) at -O1
 ;   i in s2
 ;   v in 0(fp)
 ;   t in 2(fp)
@@ -4062,14 +4061,14 @@ footing:
   sw s0, 16(sp)
   mv fp, sp
   mv s2, a0 ; i
-  ; fall.e16.ts:242  const v = cells[i]
+  ; fall.e16.ts:243  const v = cells[i]
   lbu t0, cells(s2)
   sw t0, 0(fp) ; v
-  ; fall.e16.ts:243  const t = v & 15
+  ; fall.e16.ts:244  const t = v & 15
   lw t0, 0(fp) ; v
   andi t0, t0, 15
   sw t0, 2(fp) ; t
-  ; fall.e16.ts:244  if (t === T_EMPTY || t >= T_CORE || (v & (F_LOOSE | F_PEND)) !== 0) return 2
+  ; fall.e16.ts:245  if (t === T_EMPTY || t >= T_CORE || (v & (F_LOOSE | F_PEND)) !== 0) return 2
   lw t0, 2(fp) ; t
   beq t0, zero, .L2
   li t0, 7
@@ -4079,41 +4078,41 @@ footing:
   andi t0, t0, 192
   beq t0, zero, .L1
 .L2:
-  ; fall.e16.ts:244  return 2
+  ; fall.e16.ts:245  return 2
   li a0, 2
   j .return
 .L1:
-  ; fall.e16.ts:245  const n = groupOf(i)
+  ; fall.e16.ts:246  const n = groupOf(i)
   mv a0, s2
   call groupOf
   mv s1, a0 ; n
-  ; fall.e16.ts:246  const join = underneath(n)
+  ; fall.e16.ts:247  const join = underneath(n)
   mv a0, s1
   call underneath
   mv s3, a0 ; join
-  ; fall.e16.ts:247  if (join === HELD) return n + 4
+  ; fall.e16.ts:248  if (join === HELD) return n + 4
   li t0, 254
   bne s3, t0, .L3
-  ; fall.e16.ts:247  return n + 4
+  ; fall.e16.ts:248  return n + 4
   addi a0, s1, 4
   j .return
 .L3:
-  ; fall.e16.ts:248  if (lbN + n > LB_N) {
+  ; fall.e16.ts:249  if (lbN + n > LB_N) {
   lw t0, 0x158a(zero)
   add t0, t0, s1
   li t1, 96
   bgeu t1, t0, .L4
-  ; fall.e16.ts:250  suspect(i)
+  ; fall.e16.ts:251  suspect(i)
   mv a0, s2
   call suspect
-  ; fall.e16.ts:251  return FULL
+  ; fall.e16.ts:252  return FULL
   li a0, 65535
   j .return
 .L4:
-  ; fall.e16.ts:253  const g = groupNew()
+  ; fall.e16.ts:254  const g = groupNew()
   call groupNew
   sw a0, 4(fp) ; g
-  ; fall.e16.ts:254  const u = g === 0xff ? 0xff : join !== 0xff ? join : unitNew()
+  ; fall.e16.ts:255  const u = g === 0xff ? 0xff : join !== 0xff ? join : unitNew()
   li t0, 255
   lw t1, 4(fp) ; g
   bne t1, t0, .L5
@@ -4130,31 +4129,31 @@ footing:
 .L8:
 .L6:
   sw t0, 6(fp) ; u
-  ; fall.e16.ts:255  if (u === 0xff) {
+  ; fall.e16.ts:256  if (u === 0xff) {
   li t0, 255
   lw t1, 6(fp) ; u
   bne t1, t0, .L9
-  ; fall.e16.ts:256  suspect(i)
+  ; fall.e16.ts:257  suspect(i)
   mv a0, s2
   call suspect
-  ; fall.e16.ts:257  return FULL
+  ; fall.e16.ts:258  return FULL
   li a0, 65535
   j .return
 .L9:
-  ; fall.e16.ts:259  if (join === 0xff) loosened++
+  ; fall.e16.ts:260  if (join === 0xff) loosened++
   li t0, 255
   bne s3, t0, .L10
-  ; fall.e16.ts:259  loosened++
+  ; fall.e16.ts:260  loosened++
   lw t0, 0x1a16(zero)
   addi t0, t0, 1
   sw t0, 0x1a16(zero)
 .L10:
-  ; fall.e16.ts:260  loosen(n, u, g)
+  ; fall.e16.ts:261  loosen(n, u, g)
   mv a0, s1
   lw a1, 6(fp)
   lw a2, 4(fp)
   call loosen
-  ; fall.e16.ts:262  return n * 4 + 16
+  ; fall.e16.ts:263  return n * 4 + 16
   slli t0, s1, 2
   addi a0, t0, 16
 .return:
@@ -4167,7 +4166,7 @@ footing:
   addi sp, sp, 18
   ret
 
-; fall.e16.ts:266 loosen(n, u, g) at -O1
+; fall.e16.ts:267 loosen(n, u, g) at -O1
 ;   n in s3
 ;   u in 0(fp)
 ;   g in 2(fp)
@@ -4185,53 +4184,53 @@ loosen:
   mv s3, a0 ; n
   sw a1, 0(fp) ; u
   sw a2, 2(fp) ; g
-  ; fall.e16.ts:267  const first = lbN
+  ; fall.e16.ts:268  const first = lbN
   lw t0, 0x158a(zero)
   sw t0, 4(fp) ; first
-  ; fall.e16.ts:268  let k: u16 = 0
+  ; fall.e16.ts:269  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:269  while (k < n) {
+  ; fall.e16.ts:270  while (k < n) {
   j .L3
 .L1:
-  ; fall.e16.ts:270  const c = found[k]
+  ; fall.e16.ts:271  const c = found[k]
   slli t0, s1, 1
   lw s2, found(t0)
-  ; fall.e16.ts:271  cells[c] = cells[c] | F_LOOSE
+  ; fall.e16.ts:272  cells[c] = cells[c] | F_LOOSE
   lbu t0, cells(s2)
   ori t0, t0, 128
   sb t0, cells(s2)
-  ; fall.e16.ts:272  lbCell[lbN] = c
+  ; fall.e16.ts:273  lbCell[lbN] = c
   lw t0, 0x158a(zero)
   slli t0, t0, 1
   sw s2, lbCell(t0)
-  ; fall.e16.ts:273  lbGroup[lbN] = g
+  ; fall.e16.ts:274  lbGroup[lbN] = g
   lw t0, 0x158a(zero)
   lw t1, 2(fp) ; g
   sb t1, lbGroup(t0)
-  ; fall.e16.ts:274  lbUnit[lbN] = u
+  ; fall.e16.ts:275  lbUnit[lbN] = u
   lw t0, 0x158a(zero)
   lw t1, 0(fp) ; u
   sb t1, lbUnit(t0)
-  ; fall.e16.ts:275  lbN++
+  ; fall.e16.ts:276  lbN++
   lw t0, 0x158a(zero)
   addi t0, t0, 1
   sw t0, 0x158a(zero)
-  ; fall.e16.ts:276  lbAt[c] = lbN
+  ; fall.e16.ts:277  lbAt[c] = lbN
   lw t0, 0x158a(zero)
   sb t0, lbAt(s2)
-  ; fall.e16.ts:277  markAround(c)
+  ; fall.e16.ts:278  markAround(c)
   mv a0, s2
   call markAround
-  ; fall.e16.ts:278  k++
+  ; fall.e16.ts:279  k++
   addi s1, s1, 1
 .L3:
   bltu s1, s3, .L1
-  ; fall.e16.ts:282  k = first
+  ; fall.e16.ts:283  k = first
   lw s1, 4(fp) ; first
-  ; fall.e16.ts:283  while (k < lbN) {
+  ; fall.e16.ts:284  while (k < lbN) {
   j .L7
 .L5:
-  ; fall.e16.ts:284  lbTile[k] = looseTile(lbCell[k], g)
+  ; fall.e16.ts:285  lbTile[k] = looseTile(lbCell[k], g)
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, lbCell(t1)
@@ -4244,16 +4243,16 @@ loosen:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; fall.e16.ts:285  k++
+  ; fall.e16.ts:286  k++
   addi s1, s1, 1
 .L7:
   lw t0, 0x158a(zero)
   bltu s1, t0, .L5
-  ; fall.e16.ts:287  gSize[g] = n
+  ; fall.e16.ts:288  gSize[g] = n
   lw t0, 2(fp) ; g
   slli t0, t0, 1
   sw s3, gSize(t0)
-  ; fall.e16.ts:288  uSize[u] = uSize[u] + n
+  ; fall.e16.ts:289  uSize[u] = uSize[u] + n
   lw t0, 0(fp) ; u
   slli t0, t0, 1
   lw t1, 0(fp) ; u
@@ -4261,25 +4260,25 @@ loosen:
   lw t1, uSize(t1)
   add t1, t1, s3
   sw t1, uSize(t0)
-  ; fall.e16.ts:289  k = 0
+  ; fall.e16.ts:290  k = 0
   li s1, 0 ; k
-  ; fall.e16.ts:290  while (k < n) {
+  ; fall.e16.ts:291  while (k < n) {
   j .L11
 .L9:
-  ; fall.e16.ts:291  const above = (found[k] - 16) & 511
+  ; fall.e16.ts:292  const above = (found[k] - 16) & 511
   slli t0, s1, 1
   lw t0, found(t0)
   addi t0, t0, -16
   andi s2, t0, 511
-  ; fall.e16.ts:292  if (!stamped(above)) suspect(above)
+  ; fall.e16.ts:293  if (!stamped(above)) suspect(above)
   mv a0, s2
   call stamped
   bnez a0, .L13
-  ; fall.e16.ts:292  suspect(above)
+  ; fall.e16.ts:293  suspect(above)
   mv a0, s2
   call suspect
 .L13:
-  ; fall.e16.ts:293  k++
+  ; fall.e16.ts:294  k++
   addi s1, s1, 1
 .L11:
   bltu s1, s3, .L9
@@ -4293,7 +4292,7 @@ loosen:
   addi sp, sp, 16
   ret
 
-; fall.e16.ts:298 looseTile(c, g) at -O1
+; fall.e16.ts:299 looseTile(c, g) at -O1
 ;   c in s2
 ;   g in s3
 ;   v in 2(fp)
@@ -4309,18 +4308,18 @@ looseTile:
   mv fp, sp
   mv s2, a0 ; c
   mv s3, a1 ; g
-  ; fall.e16.ts:299  const v = cells[c]
+  ; fall.e16.ts:300  const v = cells[c]
   lbu t0, cells(s2)
   sw t0, 2(fp) ; v
-  ; fall.e16.ts:300  const t = v & 15
+  ; fall.e16.ts:301  const t = v & 15
   lw t0, 2(fp) ; v
   andi t0, t0, 15
   sw t0, 0(fp) ; t
-  ; fall.e16.ts:301  if (t === T_ALLOY) return (ALLOY_TILE + ((v >> 4) & 3) * 4) | (5 << 10)
+  ; fall.e16.ts:302  if (t === T_ALLOY) return (ALLOY_TILE + ((v >> 4) & 3) * 4) | (5 << 10)
   li t0, 5
   lw t1, 0(fp) ; t
   bne t1, t0, .L1
-  ; fall.e16.ts:301  return (ALLOY_TILE + ((v >> 4) & 3) * 4) | (5 << 10)
+  ; fall.e16.ts:302  return (ALLOY_TILE + ((v >> 4) & 3) * 4) | (5 << 10)
   lw t0, 2(fp) ; v
   srli t0, t0, 4
   andi t0, t0, 3
@@ -4329,53 +4328,53 @@ looseTile:
   ori a0, t0, 5120
   j .return
 .L1:
-  ; fall.e16.ts:302  if (t === T_AIR) return CAPSULE_TILE | (5 << 10)
+  ; fall.e16.ts:303  if (t === T_AIR) return CAPSULE_TILE | (5 << 10)
   li t0, 6
   lw t1, 0(fp) ; t
   bne t1, t0, .L2
-  ; fall.e16.ts:302  return CAPSULE_TILE | (5 << 10)
+  ; fall.e16.ts:303  return CAPSULE_TILE | (5 << 10)
   li a0, 5421
   j .return
 .L2:
-  ; fall.e16.ts:303  let m: u16 = 0
+  ; fall.e16.ts:304  let m: u16 = 0
   li s1, 0 ; m
-  ; fall.e16.ts:304  if (kin((c - 16) & 511, g)) m = m | 1
+  ; fall.e16.ts:305  if (kin((c - 16) & 511, g)) m = m | 1
   addi t0, s2, -16
   andi a0, t0, 511
   mv a1, s3
   call kin
   beqz a0, .L3
-  ; fall.e16.ts:304  m = m | 1
+  ; fall.e16.ts:305  m = m | 1
   ori s1, s1, 1
 .L3:
-  ; fall.e16.ts:305  if (kin((c + 1) & 511, g)) m = m | 2
+  ; fall.e16.ts:306  if (kin((c + 1) & 511, g)) m = m | 2
   addi t0, s2, 1
   andi a0, t0, 511
   mv a1, s3
   call kin
   beqz a0, .L4
-  ; fall.e16.ts:305  m = m | 2
+  ; fall.e16.ts:306  m = m | 2
   ori s1, s1, 2
 .L4:
-  ; fall.e16.ts:306  if (kin((c + 16) & 511, g)) m = m | 4
+  ; fall.e16.ts:307  if (kin((c + 16) & 511, g)) m = m | 4
   addi t0, s2, 16
   andi a0, t0, 511
   mv a1, s3
   call kin
   beqz a0, .L5
-  ; fall.e16.ts:306  m = m | 4
+  ; fall.e16.ts:307  m = m | 4
   ori s1, s1, 4
 .L5:
-  ; fall.e16.ts:307  if (kin((c - 1) & 511, g)) m = m | 8
+  ; fall.e16.ts:308  if (kin((c - 1) & 511, g)) m = m | 8
   addi t0, s2, -1
   andi a0, t0, 511
   mv a1, s3
   call kin
   beqz a0, .L6
-  ; fall.e16.ts:307  m = m | 8
+  ; fall.e16.ts:308  m = m | 8
   ori s1, s1, 8
 .L6:
-  ; fall.e16.ts:308  return (LOOSE_TILE + m * 4) | (t << 10)
+  ; fall.e16.ts:309  return (LOOSE_TILE + m * 4) | (t << 10)
   slli t0, s1, 2
   lw t1, 0(fp) ; t
   slli t1, t1, 10
@@ -4391,14 +4390,14 @@ looseTile:
   addi sp, sp, 14
   ret
 
-; fall.e16.ts:311 kin(c, g) at -O1
+; fall.e16.ts:312 kin(c, g) at -O1
 ;   c in a0
 ;   g in a1
 ;   j in a2
 kin:
-  ; fall.e16.ts:312  const j = lbAt[c]
+  ; fall.e16.ts:313  const j = lbAt[c]
   lbu a2, lbAt(a0)
-  ; fall.e16.ts:313  return j !== 0 && lbGroup[j - 1] === g
+  ; fall.e16.ts:314  return j !== 0 && lbGroup[j - 1] === g
   sub t0, a2, zero
   snez t0, t0
   mv t1, t0
@@ -4411,7 +4410,7 @@ kin:
 .return:
   ret
 
-; fall.e16.ts:319 unitsStep() at -O1
+; fall.e16.ts:320 unitsStep() at -O1
 ;   u in s1
 ;   s in s2
 unitsStep:
@@ -4419,31 +4418,31 @@ unitsStep:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; fall.e16.ts:320  let u: u16 = 0
+  ; fall.e16.ts:321  let u: u16 = 0
   li s1, 0 ; u
-  ; fall.e16.ts:321  while (u < U_N) {
+  ; fall.e16.ts:322  while (u < U_N) {
   j .L3
 .L1:
-  ; fall.e16.ts:322  const s = uState[u]
+  ; fall.e16.ts:323  const s = uState[u]
   slli t0, s1, 1
   lw s2, uState(t0)
-  ; fall.e16.ts:323  if (s === U_WOBBLE) wobbleStep(u)
+  ; fall.e16.ts:324  if (s === U_WOBBLE) wobbleStep(u)
   li t0, 1
   bne s2, t0, .L5
-  ; fall.e16.ts:323  wobbleStep(u)
+  ; fall.e16.ts:324  wobbleStep(u)
   mv a0, s1
   call wobbleStep
   j .L6
 .L5:
-  ; fall.e16.ts:324  if (s === U_FALL) fallStep(u)
+  ; fall.e16.ts:325  if (s === U_FALL) fallStep(u)
   li t0, 2
   bne s2, t0, .L7
-  ; fall.e16.ts:324  fallStep(u)
+  ; fall.e16.ts:325  fallStep(u)
   mv a0, s1
   call fallStep
 .L7:
 .L6:
-  ; fall.e16.ts:325  u++
+  ; fall.e16.ts:326  u++
   addi s1, s1, 1
 .L3:
   li t0, 12
@@ -4455,38 +4454,38 @@ unitsStep:
   addi sp, sp, 6
   ret
 
-; fall.e16.ts:329 wobbleStep(u) at -O1
+; fall.e16.ts:330 wobbleStep(u) at -O1
 ;   u in s1
 wobbleStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; u
-  ; fall.e16.ts:330  if (uTime[u] > 0) {
+  ; fall.e16.ts:331  if (uTime[u] > 0) {
   slli t0, s1, 1
   lw t0, uTime(t0)
   bgeu zero, t0, .L1
-  ; fall.e16.ts:331  uTime[u] = uTime[u] - 1
+  ; fall.e16.ts:332  uTime[u] = uTime[u] - 1
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, uTime(t1)
   addi t1, t1, -1
   sw t1, uTime(t0)
-  ; fall.e16.ts:332  return
+  ; fall.e16.ts:333  return
   j .return
 .L1:
-  ; fall.e16.ts:334  settle(u)
+  ; fall.e16.ts:335  settle(u)
   mv a0, s1
   call settle
-  ; fall.e16.ts:335  if (uState[u] !== U_FREE) {
+  ; fall.e16.ts:336  if (uState[u] !== U_FREE) {
   slli t0, s1, 1
   lw t0, uState(t0)
   beq t0, zero, .L2
-  ; fall.e16.ts:336  uState[u] = U_FALL
+  ; fall.e16.ts:337  uState[u] = U_FALL
   slli t0, s1, 1
   li t1, 2
   sw t1, uState(t0)
-  ; fall.e16.ts:337  uOff[u] = 0
+  ; fall.e16.ts:338  uOff[u] = 0
   slli t0, s1, 1
   sw zero, uOff(t0)
 .L2:
@@ -4496,7 +4495,7 @@ wobbleStep:
   addi sp, sp, 4
   ret
 
-; fall.e16.ts:341 fallStep(u) at -O1
+; fall.e16.ts:342 fallStep(u) at -O1
 ;   u in s1
 ;   off in s2
 ;   v in s3
@@ -4507,65 +4506,65 @@ fallStep:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; u
-  ; fall.e16.ts:342  let off = uOff[u] + fallSpeed
+  ; fall.e16.ts:343  let off = uOff[u] + fallSpeed
   slli t0, s1, 1
   lw t0, uOff(t0)
   lw t1, 0x1880(zero)
   add s2, t0, t1
-  ; fall.e16.ts:344  if (off >= 32 && target !== 0xffff) strikeCheck(u)
+  ; fall.e16.ts:345  if (off >= 32 && target !== 0xffff) strikeCheck(u)
   li t0, 32
   bltu s2, t0, .L1
   lw t0, 0x1882(zero)
   li t1, 65535
   beq t0, t1, .L1
-  ; fall.e16.ts:344  strikeCheck(u)
+  ; fall.e16.ts:345  strikeCheck(u)
   mv a0, s1
   call strikeCheck
 .L1:
-  ; fall.e16.ts:345  if (off < 64) {
+  ; fall.e16.ts:346  if (off < 64) {
   li t0, 64
   bgeu s2, t0, .L2
-  ; fall.e16.ts:346  uOff[u] = off
+  ; fall.e16.ts:347  uOff[u] = off
   slli t0, s1, 1
   sw s2, uOff(t0)
-  ; fall.e16.ts:347  return
+  ; fall.e16.ts:348  return
   j .return
 .L2:
-  ; fall.e16.ts:351  const v = blocker(u)
+  ; fall.e16.ts:352  const v = blocker(u)
   mv a0, s1
   call blocker
   mv s3, a0 ; v
-  ; fall.e16.ts:352  if (v !== 0xff) {
+  ; fall.e16.ts:353  if (v !== 0xff) {
   li t0, 255
   beq s3, t0, .L3
-  ; fall.e16.ts:355  if (uState[v] === U_FALL) merge(u, v)
+  ; fall.e16.ts:356  if (uState[v] === U_FALL) merge(u, v)
   slli t0, s3, 1
   lw t0, uState(t0)
   li t1, 2
   bne t0, t1, .L4
-  ; fall.e16.ts:355  merge(u, v)
+  ; fall.e16.ts:356  merge(u, v)
   mv a0, s1
   mv a1, s3
   call merge
   j .L5
 .L4:
-  ; fall.e16.ts:356  uOff[u] = 64
+  ; fall.e16.ts:357  uOff[u] = 64
   slli t0, s1, 1
   li t1, 64
   sw t1, uOff(t0)
 .L5:
-  ; fall.e16.ts:357  return
+  ; fall.e16.ts:358  return
   j .return
 .L3:
-  ; fall.e16.ts:359  down(u)
+  ; fall.e16.ts:360  down(u)
   mv a0, s1
   call down
-  ; fall.e16.ts:360  off = off - 64
+  ; fall.e16.ts:361  off = off - 64
   addi s2, s2, -64
-  ; fall.e16.ts:361  uOff[u] = off
+  ; fall.e16.ts:362  uOff[u] = off
   slli t0, s1, 1
   sw s2, uOff(t0)
-  ; fall.e16.ts:362  settle(u)
+  ; fall.e16.ts:363  settle(u)
   mv a0, s1
   call settle
 .return:
@@ -4576,7 +4575,7 @@ fallStep:
   addi sp, sp, 8
   ret
 
-; fall.e16.ts:366 strikeCheck(u) at -O1
+; fall.e16.ts:367 strikeCheck(u) at -O1
 ;   u in s2
 ;   k in s1
 ;   c in s3
@@ -4587,12 +4586,12 @@ strikeCheck:
   sw s1, 4(sp)
   sw s3, 6(sp)
   mv s2, a0 ; u
-  ; fall.e16.ts:367  let k: u16 = 0
+  ; fall.e16.ts:368  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:368  while (k < lbN) {
+  ; fall.e16.ts:369  while (k < lbN) {
   j .L3
 .L1:
-  ; fall.e16.ts:369  if (lbUnit[k] === u && ((lbCell[k] + 16) & 511) === target) {
+  ; fall.e16.ts:370  if (lbUnit[k] === u && ((lbCell[k] + 16) & 511) === target) {
   lbu t0, lbUnit(s1)
   bne t0, s2, .L5
   slli t0, s1, 1
@@ -4601,41 +4600,41 @@ strikeCheck:
   andi t0, t0, 511
   lw t1, 0x1882(zero)
   bne t0, t1, .L5
-  ; fall.e16.ts:370  if ((cells[lbCell[k]] & 15) === T_AIR) {
+  ; fall.e16.ts:371  if ((cells[lbCell[k]] & 15) === T_AIR) {
   slli t0, s1, 1
   lw t0, lbCell(t0)
   lbu t0, cells(t0)
   andi t0, t0, 15
   li t1, 6
   bne t0, t1, .L6
-  ; fall.e16.ts:371  struck = 2
+  ; fall.e16.ts:372  struck = 2
   li t0, 2
   sw t0, 0x1884(zero)
-  ; fall.e16.ts:372  const c = lbCell[k]
+  ; fall.e16.ts:373  const c = lbCell[k]
   slli t0, s1, 1
   lw s3, lbCell(t0)
-  ; fall.e16.ts:373  dropBlock(k)
+  ; fall.e16.ts:374  dropBlock(k)
   mv a0, s1
   call dropBlock
-  ; fall.e16.ts:374  cells[c] = T_EMPTY
+  ; fall.e16.ts:375  cells[c] = T_EMPTY
   sb zero, cells(s3)
-  ; fall.e16.ts:375  markAround(c)
+  ; fall.e16.ts:376  markAround(c)
   mv a0, s3
   call markAround
-  ; fall.e16.ts:376  return
+  ; fall.e16.ts:377  return
   j .return
 .L6:
-  ; fall.e16.ts:379  struck = 1
+  ; fall.e16.ts:380  struck = 1
   li t0, 1
   sw t0, 0x1884(zero)
-  ; fall.e16.ts:380  uOff[u] = 50
+  ; fall.e16.ts:381  uOff[u] = 50
   slli t0, s2, 1
   li t1, 50
   sw t1, uOff(t0)
-  ; fall.e16.ts:381  return
+  ; fall.e16.ts:382  return
   j .return
 .L5:
-  ; fall.e16.ts:383  k++
+  ; fall.e16.ts:384  k++
   addi s1, s1, 1
 .L3:
   lw t0, 0x158a(zero)
@@ -4648,72 +4647,72 @@ strikeCheck:
   addi sp, sp, 8
   ret
 
-; fall.e16.ts:388 blocker(u) at -O1
+; fall.e16.ts:389 blocker(u) at -O1
 ;   u in a0
 ;   k in a1
 ;   below in a2
 ;   v in a3
 blocker:
-  ; fall.e16.ts:389  let k: u16 = 0
+  ; fall.e16.ts:390  let k: u16 = 0
   li a1, 0 ; k
-  ; fall.e16.ts:390  while (k < lbN) {
+  ; fall.e16.ts:391  while (k < lbN) {
   j .L3
 .L1:
-  ; fall.e16.ts:391  if (lbUnit[k] === u) {
+  ; fall.e16.ts:392  if (lbUnit[k] === u) {
   lbu t0, lbUnit(a1)
   bne t0, a0, .L5
-  ; fall.e16.ts:392  const below = (lbCell[k] + 16) & 511
+  ; fall.e16.ts:393  const below = (lbCell[k] + 16) & 511
   slli t0, a1, 1
   lw t0, lbCell(t0)
   addi t0, t0, 16
   andi a2, t0, 511
-  ; fall.e16.ts:393  if ((cells[below] & F_LOOSE) !== 0) {
+  ; fall.e16.ts:394  if ((cells[below] & F_LOOSE) !== 0) {
   lbu t0, cells(a2)
   andi t0, t0, 128
   beq t0, zero, .L6
-  ; fall.e16.ts:394  const v = lbUnit[lbAt[below] - 1]
+  ; fall.e16.ts:395  const v = lbUnit[lbAt[below] - 1]
   lbu t0, lbAt(a2)
   lbu a3, lbUnit-1(t0)
-  ; fall.e16.ts:395  if (v !== u) return v
+  ; fall.e16.ts:396  if (v !== u) return v
   beq a3, a0, .L7
-  ; fall.e16.ts:395  return v
+  ; fall.e16.ts:396  return v
   mv a0, a3
   ret
 .L7:
 .L6:
 .L5:
-  ; fall.e16.ts:398  k++
+  ; fall.e16.ts:399  k++
   addi a1, a1, 1
 .L3:
   lw t0, 0x158a(zero)
   bltu a1, t0, .L1
-  ; fall.e16.ts:400  return 0xff
+  ; fall.e16.ts:401  return 0xff
   li a0, 255
 .return:
   ret
 
-; fall.e16.ts:404 merge(u, v) at -O1
+; fall.e16.ts:405 merge(u, v) at -O1
 ;   u in a0
 ;   v in a1
 ;   k in a2
 merge:
-  ; fall.e16.ts:405  let k: u16 = 0
+  ; fall.e16.ts:406  let k: u16 = 0
   li a2, 0 ; k
-  ; fall.e16.ts:406  while (k < lbN) {
+  ; fall.e16.ts:407  while (k < lbN) {
   j .L3
 .L1:
-  ; fall.e16.ts:407  if (lbUnit[k] === u) lbUnit[k] = v
+  ; fall.e16.ts:408  if (lbUnit[k] === u) lbUnit[k] = v
   lbu t0, lbUnit(a2)
   bne t0, a0, .L5
-  ; fall.e16.ts:407  lbUnit[k] = v
+  ; fall.e16.ts:408  lbUnit[k] = v
   sb a1, lbUnit(a2)
 .L5:
-  ; fall.e16.ts:408  k++
+  ; fall.e16.ts:409  k++
   addi a2, a2, 1
 .L3:
   lw t0, 0x158a(zero)
   bltu a2, t0, .L1
-  ; fall.e16.ts:410  uSize[v] = uSize[v] + uSize[u]
+  ; fall.e16.ts:411  uSize[v] = uSize[v] + uSize[u]
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, uSize(t1)
@@ -4721,68 +4720,68 @@ merge:
   lw t2, uSize(t2)
   add t1, t1, t2
   sw t1, uSize(t0)
-  ; fall.e16.ts:411  uSize[u] = 0
+  ; fall.e16.ts:412  uSize[u] = 0
   slli t0, a0, 1
   sw zero, uSize(t0)
-  ; fall.e16.ts:412  uState[u] = U_FREE
+  ; fall.e16.ts:413  uState[u] = U_FREE
   slli t0, a0, 1
   sw zero, uState(t0)
 .return:
   ret
 
-; fall.e16.ts:416 down(u) at -O1
+; fall.e16.ts:417 down(u) at -O1
 ;   u in a0
 ;   k in a1
 ;   c in a2
 down:
-  ; fall.e16.ts:417  let k: u16 = 0
+  ; fall.e16.ts:418  let k: u16 = 0
   li a1, 0 ; k
-  ; fall.e16.ts:418  while (k < lbN) {
+  ; fall.e16.ts:419  while (k < lbN) {
   j .L3
 .L1:
-  ; fall.e16.ts:419  if (lbUnit[k] === u) {
+  ; fall.e16.ts:420  if (lbUnit[k] === u) {
   lbu t0, lbUnit(a1)
   bne t0, a0, .L5
-  ; fall.e16.ts:422  const c = lbCell[k]
+  ; fall.e16.ts:423  const c = lbCell[k]
   slli t0, a1, 1
   lw a2, lbCell(t0)
-  ; fall.e16.ts:423  lbVal[k] = cells[c]
+  ; fall.e16.ts:424  lbVal[k] = cells[c]
   lbu t0, cells(a2)
   sb t0, lbVal(a1)
-  ; fall.e16.ts:424  cells[c] = T_EMPTY
+  ; fall.e16.ts:425  cells[c] = T_EMPTY
   sb zero, cells(a2)
-  ; fall.e16.ts:425  lbAt[c] = 0
+  ; fall.e16.ts:426  lbAt[c] = 0
   sb zero, lbAt(a2)
 .L5:
-  ; fall.e16.ts:427  k++
+  ; fall.e16.ts:428  k++
   addi a1, a1, 1
 .L3:
   lw t0, 0x158a(zero)
   bltu a1, t0, .L1
-  ; fall.e16.ts:429  k = 0
+  ; fall.e16.ts:430  k = 0
   li a1, 0 ; k
-  ; fall.e16.ts:430  while (k < lbN) {
+  ; fall.e16.ts:431  while (k < lbN) {
   j .L8
 .L6:
-  ; fall.e16.ts:431  if (lbUnit[k] === u) {
+  ; fall.e16.ts:432  if (lbUnit[k] === u) {
   lbu t0, lbUnit(a1)
   bne t0, a0, .L10
-  ; fall.e16.ts:432  const c = (lbCell[k] + 16) & 511
+  ; fall.e16.ts:433  const c = (lbCell[k] + 16) & 511
   slli t0, a1, 1
   lw t0, lbCell(t0)
   addi t0, t0, 16
   andi a2, t0, 511
-  ; fall.e16.ts:433  cells[c] = lbVal[k]
+  ; fall.e16.ts:434  cells[c] = lbVal[k]
   lbu t0, lbVal(a1)
   sb t0, cells(a2)
-  ; fall.e16.ts:434  lbCell[k] = c
+  ; fall.e16.ts:435  lbCell[k] = c
   slli t0, a1, 1
   sw a2, lbCell(t0)
-  ; fall.e16.ts:435  lbAt[c] = k + 1
+  ; fall.e16.ts:436  lbAt[c] = k + 1
   addi t0, a1, 1
   sb t0, lbAt(a2)
 .L10:
-  ; fall.e16.ts:437  k++
+  ; fall.e16.ts:438  k++
   addi a1, a1, 1
 .L8:
   lw t0, 0x158a(zero)
@@ -4790,7 +4789,7 @@ down:
 .return:
   ret
 
-; fall.e16.ts:446 settle(u) at -O1
+; fall.e16.ts:447 settle(u) at -O1
 ;   u in s2
 ;   k in s1
 ;   up in 0(fp)
@@ -4805,37 +4804,37 @@ settle:
   sw s0, 12(sp)
   mv fp, sp
   mv s2, a0 ; u
-  ; fall.e16.ts:448  if (!touches(u)) return
+  ; fall.e16.ts:449  if (!touches(u)) return
   mv a0, s2
   call touches
   bnez a0, .L1
-  ; fall.e16.ts:448  return
+  ; fall.e16.ts:449  return
   j .return
 .L1:
-  ; fall.e16.ts:449  let k: u16 = 0
+  ; fall.e16.ts:450  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:450  while (k < lbN) {
+  ; fall.e16.ts:451  while (k < lbN) {
   j .L4
 .L2:
-  ; fall.e16.ts:451  if (lbUnit[k] === u) gSet[lbGroup[k]] = 0
+  ; fall.e16.ts:452  if (lbUnit[k] === u) gSet[lbGroup[k]] = 0
   lbu t0, lbUnit(s1)
   bne t0, s2, .L6
-  ; fall.e16.ts:451  gSet[lbGroup[k]] = 0
+  ; fall.e16.ts:452  gSet[lbGroup[k]] = 0
   lbu t0, lbGroup(s1)
   sb zero, gSet(t0)
 .L6:
-  ; fall.e16.ts:452  k++
+  ; fall.e16.ts:453  k++
   addi s1, s1, 1
 .L4:
   lw t0, 0x158a(zero)
   bltu s1, t0, .L2
-  ; fall.e16.ts:456  let up = true
+  ; fall.e16.ts:457  let up = true
   li t0, 1
   sw t0, 0(fp) ; up
-  ; fall.e16.ts:457  while (settlePass(u, up)) up = !up
+  ; fall.e16.ts:458  while (settlePass(u, up)) up = !up
   j .L9
 .L7:
-  ; fall.e16.ts:457  up = !up
+  ; fall.e16.ts:458  up = !up
   lw t0, 0(fp) ; up
   seqz t0, t0
   sw t0, 0(fp) ; up
@@ -4844,54 +4843,54 @@ settle:
   lw a1, 0(fp)
   call settlePass
   bnez a0, .L7
-  ; fall.e16.ts:459  k = lbN
+  ; fall.e16.ts:460  k = lbN
   lw s1, 0x158a(zero)
-  ; fall.e16.ts:460  while (k > 0) {
+  ; fall.e16.ts:461  while (k > 0) {
   j .L13
 .L11:
-  ; fall.e16.ts:461  k--
+  ; fall.e16.ts:462  k--
   addi s1, s1, -1
-  ; fall.e16.ts:462  if (lbUnit[k] === u && gSet[lbGroup[k]] !== 0) {
+  ; fall.e16.ts:463  if (lbUnit[k] === u && gSet[lbGroup[k]] !== 0) {
   lbu t0, lbUnit(s1)
   bne t0, s2, .L15
   lbu t0, lbGroup(s1)
   lbu t0, gSet(t0)
   beq t0, zero, .L15
-  ; fall.e16.ts:463  const c = lbCell[k]
+  ; fall.e16.ts:464  const c = lbCell[k]
   slli t0, s1, 1
   lw s3, lbCell(t0)
-  ; fall.e16.ts:464  cells[c] = cells[c] & ~F_LOOSE
+  ; fall.e16.ts:465  cells[c] = cells[c] & ~F_LOOSE
   lbu t0, cells(s3)
   andi t0, t0, -129
   sb t0, cells(s3)
-  ; fall.e16.ts:465  markAround(c)
+  ; fall.e16.ts:466  markAround(c)
   mv a0, s3
   call markAround
-  ; fall.e16.ts:466  landed(c)
+  ; fall.e16.ts:467  landed(c)
   sw s3, 2(fp) ; landed.c
-  ; fall.e16.ts:550  if (landAt === 0xffff) landAt = c
+  ; fall.e16.ts:551  if (landAt === 0xffff) landAt = c
   lw t0, 0x1a18(zero)
   li t1, 65535
   bne t0, t1, .I1.L1
-  ; fall.e16.ts:550  landAt = c
+  ; fall.e16.ts:551  landAt = c
   lw t0, 2(fp) ; landed.c
   sw t0, 0x1a18(zero)
 .I1.L1:
-  ; fall.e16.ts:551  if (landN < 64) {
+  ; fall.e16.ts:552  if (landN < 64) {
   lw t0, 0x1a0a(zero)
   li t1, 64
   bgeu t0, t1, .I1_end
-  ; fall.e16.ts:552  landQ[landN] = c
+  ; fall.e16.ts:553  landQ[landN] = c
   lw t0, 0x1a0a(zero)
   slli t0, t0, 1
   lw t1, 2(fp) ; landed.c
   sw t1, landQ(t0)
-  ; fall.e16.ts:553  landN++
+  ; fall.e16.ts:554  landN++
   lw t0, 0x1a0a(zero)
   addi t0, t0, 1
   sw t0, 0x1a0a(zero)
 .I1_end:
-  ; fall.e16.ts:467  dropBlock(k)
+  ; fall.e16.ts:468  dropBlock(k)
   mv a0, s1
   call dropBlock
 .L15:
@@ -4907,7 +4906,7 @@ settle:
   addi sp, sp, 14
   ret
 
-; fall.e16.ts:473 settlePass(u, up) at -O1
+; fall.e16.ts:474 settlePass(u, up) at -O1
 ;   u in s3
 ;   up in 2(fp)
 ;   more in 0(fp)
@@ -4923,14 +4922,14 @@ settlePass:
   mv fp, sp
   mv s3, a0 ; u
   sw a1, 2(fp) ; up
-  ; fall.e16.ts:474  let more = false
+  ; fall.e16.ts:475  let more = false
   sw zero, 0(fp) ; more
-  ; fall.e16.ts:475  let k: u16 = 0
+  ; fall.e16.ts:476  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:476  while (k < lbN) {
+  ; fall.e16.ts:477  while (k < lbN) {
   j .L3
 .L1:
-  ; fall.e16.ts:477  const j = up ? k : lbN - 1 - k
+  ; fall.e16.ts:478  const j = up ? k : lbN - 1 - k
   lw t0, 2(fp) ; up
   beqz t0, .L5
   mv t0, s1
@@ -4941,7 +4940,7 @@ settlePass:
   sub t0, t0, s1
 .L6:
   mv s2, t0 ; j
-  ; fall.e16.ts:478  if (lbUnit[j] === u && gSet[lbGroup[j]] === 0 && rests(j, u)) {
+  ; fall.e16.ts:479  if (lbUnit[j] === u && gSet[lbGroup[j]] === 0 && rests(j, u)) {
   lbu t0, lbUnit(s2)
   bne t0, s3, .L7
   lbu t0, lbGroup(s2)
@@ -4951,20 +4950,20 @@ settlePass:
   mv a1, s3
   call rests
   beqz a0, .L7
-  ; fall.e16.ts:479  gSet[lbGroup[j]] = 1
+  ; fall.e16.ts:480  gSet[lbGroup[j]] = 1
   lbu t0, lbGroup(s2)
   li t1, 1
   sb t1, gSet(t0)
-  ; fall.e16.ts:480  more = true
+  ; fall.e16.ts:481  more = true
   li t0, 1
   sw t0, 0(fp) ; more
 .L7:
-  ; fall.e16.ts:482  k++
+  ; fall.e16.ts:483  k++
   addi s1, s1, 1
 .L3:
   lw t0, 0x158a(zero)
   bltu s1, t0, .L1
-  ; fall.e16.ts:484  return more
+  ; fall.e16.ts:485  return more
   lw a0, 0(fp)
 .return:
   mv sp, fp
@@ -4976,46 +4975,46 @@ settlePass:
   addi sp, sp, 14
   ret
 
-; fall.e16.ts:488 touches(u) at -O1
+; fall.e16.ts:489 touches(u) at -O1
 ;   u in a0
 ;   k in a1
 ;   bv in a2
 touches:
-  ; fall.e16.ts:489  let k: u16 = 0
+  ; fall.e16.ts:490  let k: u16 = 0
   li a1, 0 ; k
-  ; fall.e16.ts:490  while (k < lbN) {
+  ; fall.e16.ts:491  while (k < lbN) {
   j .L3
 .L1:
-  ; fall.e16.ts:491  if (lbUnit[k] === u) {
+  ; fall.e16.ts:492  if (lbUnit[k] === u) {
   lbu t0, lbUnit(a1)
   bne t0, a0, .L5
-  ; fall.e16.ts:492  const bv = cells[(lbCell[k] + 16) & 511]
+  ; fall.e16.ts:493  const bv = cells[(lbCell[k] + 16) & 511]
   slli t0, a1, 1
   lw t0, lbCell(t0)
   addi t0, t0, 16
   andi t0, t0, 511
   lbu a2, cells(t0)
-  ; fall.e16.ts:493  if ((bv & 15) !== 0 && (bv & F_LOOSE) === 0) return true
+  ; fall.e16.ts:494  if ((bv & 15) !== 0 && (bv & F_LOOSE) === 0) return true
   andi t0, a2, 15
   beq t0, zero, .L6
   andi t0, a2, 128
   bne t0, zero, .L6
-  ; fall.e16.ts:493  return true
+  ; fall.e16.ts:494  return true
   li a0, 1
   ret
 .L6:
 .L5:
-  ; fall.e16.ts:495  k++
+  ; fall.e16.ts:496  k++
   addi a1, a1, 1
 .L3:
   lw t0, 0x158a(zero)
   bltu a1, t0, .L1
-  ; fall.e16.ts:497  return false
+  ; fall.e16.ts:498  return false
   li a0, 0
 .return:
   ret
 
-; fall.e16.ts:500 rests(k, u) at -O1
+; fall.e16.ts:501 rests(k, u) at -O1
 ;   k in a0
 ;   u in a1
 ;   below in a2
@@ -5024,31 +5023,31 @@ touches:
 rests:
   addi sp, sp, -2
   sw s1, 0(sp)
-  ; fall.e16.ts:501  const below = (lbCell[k] + 16) & 511
+  ; fall.e16.ts:502  const below = (lbCell[k] + 16) & 511
   slli t0, a0, 1
   lw t0, lbCell(t0)
   addi t0, t0, 16
   andi a2, t0, 511
-  ; fall.e16.ts:502  const bv = cells[below]
+  ; fall.e16.ts:503  const bv = cells[below]
   lbu a3, cells(a2)
-  ; fall.e16.ts:503  if ((bv & 15) === 0) return false
+  ; fall.e16.ts:504  if ((bv & 15) === 0) return false
   andi t0, a3, 15
   bne t0, zero, .L1
-  ; fall.e16.ts:503  return false
+  ; fall.e16.ts:504  return false
   li a0, 0
   j .return
 .L1:
-  ; fall.e16.ts:504  if ((bv & F_LOOSE) === 0) return true
+  ; fall.e16.ts:505  if ((bv & F_LOOSE) === 0) return true
   andi t0, a3, 128
   bne t0, zero, .L2
-  ; fall.e16.ts:504  return true
+  ; fall.e16.ts:505  return true
   li a0, 1
   j .return
 .L2:
-  ; fall.e16.ts:505  const j = lbAt[below] - 1
+  ; fall.e16.ts:506  const j = lbAt[below] - 1
   lbu t0, lbAt(a2)
   addi s1, t0, -1
-  ; fall.e16.ts:506  return lbUnit[j] === u && gSet[lbGroup[j]] !== 0
+  ; fall.e16.ts:507  return lbUnit[j] === u && gSet[lbGroup[j]] !== 0
   lbu t0, lbUnit(s1)
   sub t0, t0, a1
   seqz t0, t0
@@ -5065,13 +5064,13 @@ rests:
   addi sp, sp, 2
   ret
 
-; fall.e16.ts:510 dropBlock(k) at -O1
+; fall.e16.ts:511 dropBlock(k) at -O1
 ;   k in a0
 ;   u in a1
 dropBlock:
-  ; fall.e16.ts:511  const u = lbUnit[k]
+  ; fall.e16.ts:512  const u = lbUnit[k]
   lbu a1, lbUnit(a0)
-  ; fall.e16.ts:512  gSize[lbGroup[k]] = gSize[lbGroup[k]] - 1
+  ; fall.e16.ts:513  gSize[lbGroup[k]] = gSize[lbGroup[k]] - 1
   lbu t0, lbGroup(a0)
   slli t0, t0, 1
   lbu t1, lbGroup(a0)
@@ -5079,85 +5078,85 @@ dropBlock:
   lw t1, gSize(t1)
   addi t1, t1, -1
   sw t1, gSize(t0)
-  ; fall.e16.ts:513  lbAt[lbCell[k]] = 0
+  ; fall.e16.ts:514  lbAt[lbCell[k]] = 0
   slli t0, a0, 1
   lw t0, lbCell(t0)
   sb zero, lbAt(t0)
-  ; fall.e16.ts:514  lbN--
+  ; fall.e16.ts:515  lbN--
   lw t0, 0x158a(zero)
   addi t0, t0, -1
   sw t0, 0x158a(zero)
-  ; fall.e16.ts:515  if (k !== lbN) {
+  ; fall.e16.ts:516  if (k !== lbN) {
   lw t0, 0x158a(zero)
   beq a0, t0, .L1
-  ; fall.e16.ts:516  lbCell[k] = lbCell[lbN]
+  ; fall.e16.ts:517  lbCell[k] = lbCell[lbN]
   slli t0, a0, 1
   lw t1, 0x158a(zero)
   slli t1, t1, 1
   lw t1, lbCell(t1)
   sw t1, lbCell(t0)
-  ; fall.e16.ts:517  lbGroup[k] = lbGroup[lbN]
+  ; fall.e16.ts:518  lbGroup[k] = lbGroup[lbN]
   lw t0, 0x158a(zero)
   lbu t0, lbGroup(t0)
   sb t0, lbGroup(a0)
-  ; fall.e16.ts:518  lbUnit[k] = lbUnit[lbN]
+  ; fall.e16.ts:519  lbUnit[k] = lbUnit[lbN]
   lw t0, 0x158a(zero)
   lbu t0, lbUnit(t0)
   sb t0, lbUnit(a0)
-  ; fall.e16.ts:519  lbTile[k] = lbTile[lbN]
+  ; fall.e16.ts:520  lbTile[k] = lbTile[lbN]
   slli t0, a0, 1
   lw t1, 0x158a(zero)
   slli t1, t1, 1
   lw t1, lbTile(t1)
   sw t1, lbTile(t0)
-  ; fall.e16.ts:520  lbVal[k] = lbVal[lbN]
+  ; fall.e16.ts:521  lbVal[k] = lbVal[lbN]
   lw t0, 0x158a(zero)
   lbu t0, lbVal(t0)
   sb t0, lbVal(a0)
-  ; fall.e16.ts:521  lbAt[lbCell[k]] = k + 1
+  ; fall.e16.ts:522  lbAt[lbCell[k]] = k + 1
   slli t0, a0, 1
   lw t0, lbCell(t0)
   addi t1, a0, 1
   sb t1, lbAt(t0)
 .L1:
-  ; fall.e16.ts:523  uSize[u] = uSize[u] - 1
+  ; fall.e16.ts:524  uSize[u] = uSize[u] - 1
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, uSize(t1)
   addi t1, t1, -1
   sw t1, uSize(t0)
-  ; fall.e16.ts:524  if (uSize[u] === 0) uState[u] = U_FREE
+  ; fall.e16.ts:525  if (uSize[u] === 0) uState[u] = U_FREE
   slli t0, a1, 1
   lw t0, uSize(t0)
   bne t0, zero, .L2
-  ; fall.e16.ts:524  uState[u] = U_FREE
+  ; fall.e16.ts:525  uState[u] = U_FREE
   slli t0, a1, 1
   sw zero, uState(t0)
 .L2:
 .return:
   ret
 
-; fall.e16.ts:528 cellClear(c) at -O1
+; fall.e16.ts:529 cellClear(c) at -O1
 ;   c in s1
 cellClear:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; c
-  ; fall.e16.ts:529  if (lbAt[c] !== 0) dropBlock(lbAt[c] - 1)
+  ; fall.e16.ts:530  if (lbAt[c] !== 0) dropBlock(lbAt[c] - 1)
   lbu t0, lbAt(s1)
   beq t0, zero, .L1
-  ; fall.e16.ts:529  dropBlock(lbAt[c] - 1)
+  ; fall.e16.ts:530  dropBlock(lbAt[c] - 1)
   lbu t0, lbAt(s1)
   addi a0, t0, -1
   call dropBlock
 .L1:
-  ; fall.e16.ts:530  cells[c] = T_EMPTY
+  ; fall.e16.ts:531  cells[c] = T_EMPTY
   sb zero, cells(s1)
-  ; fall.e16.ts:531  markAround(c)
+  ; fall.e16.ts:532  markAround(c)
   mv a0, s1
   call markAround
-  ; fall.e16.ts:532  suspect((c - 16) & 511)
+  ; fall.e16.ts:533  suspect((c - 16) & 511)
   addi t0, s1, -16
   andi a0, t0, 511
   call suspect
@@ -5167,7 +5166,7 @@ cellClear:
   addi sp, sp, 4
   ret
 
-; fall.e16.ts:536 fallForget(ring) at -O1
+; fall.e16.ts:537 fallForget(ring) at -O1
 ;   ring in s2
 ;   k in s1
 fallForget:
@@ -5176,19 +5175,19 @@ fallForget:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; ring
-  ; fall.e16.ts:537  let k = lbN
+  ; fall.e16.ts:538  let k = lbN
   lw s1, 0x158a(zero)
-  ; fall.e16.ts:538  while (k > 0) {
+  ; fall.e16.ts:539  while (k > 0) {
   j .L3
 .L1:
-  ; fall.e16.ts:539  k--
+  ; fall.e16.ts:540  k--
   addi s1, s1, -1
-  ; fall.e16.ts:540  if (lbCell[k] >> 4 === ring) dropBlock(k)
+  ; fall.e16.ts:541  if (lbCell[k] >> 4 === ring) dropBlock(k)
   slli t0, s1, 1
   lw t0, lbCell(t0)
   srli t0, t0, 4
   bne t0, s2, .L5
-  ; fall.e16.ts:540  dropBlock(k)
+  ; fall.e16.ts:541  dropBlock(k)
   mv a0, s1
   call dropBlock
 .L5:
@@ -5201,30 +5200,30 @@ fallForget:
   addi sp, sp, 6
   ret
 
-; fall.e16.ts:569 chainNew() at -O1
+; fall.e16.ts:570 chainNew() at -O1
 chainNew:
-  ; fall.e16.ts:570  chain = 0
+  ; fall.e16.ts:571  chain = 0
   sw zero, 0x1a0c(zero)
 .return:
   ret
 
-; fall.e16.ts:573 newsClear() at -O1
+; fall.e16.ts:574 newsClear() at -O1
 newsClear:
-  ; fall.e16.ts:574  loosened = 0
+  ; fall.e16.ts:575  loosened = 0
   sw zero, 0x1a16(zero)
-  ; fall.e16.ts:575  vanishedBlocks = 0
+  ; fall.e16.ts:576  vanishedBlocks = 0
   sw zero, 0x1a0e(zero)
-  ; fall.e16.ts:576  vanishedChain = 0
+  ; fall.e16.ts:577  vanishedChain = 0
   sw zero, 0x1a10(zero)
-  ; fall.e16.ts:577  landings = 0
+  ; fall.e16.ts:578  landings = 0
   sw zero, 0x1a14(zero)
-  ; fall.e16.ts:578  landAt = 0xffff
+  ; fall.e16.ts:579  landAt = 0xffff
   li t0, 65535
   sw t0, 0x1a18(zero)
 .return:
   ret
 
-; fall.e16.ts:586 chainsStep(now, budget) at -O1
+; fall.e16.ts:587 chainsStep(now, budget) at -O1
 ;   now in 4(fp)
 ;   budget in 6(fp)
 ;   spent in s2
@@ -5242,71 +5241,71 @@ chainsStep:
   mv fp, sp
   sw a0, 4(fp) ; now
   sw a1, 6(fp) ; budget
-  ; fall.e16.ts:587  landings = landN
+  ; fall.e16.ts:588  landings = landN
   lw t0, 0x1a0a(zero)
   sw t0, 0x1a14(zero)
-  ; fall.e16.ts:588  let spent: u16 = 0
+  ; fall.e16.ts:589  let spent: u16 = 0
   li s2, 0 ; spent
-  ; fall.e16.ts:589  let k: u16 = 0
+  ; fall.e16.ts:590  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:590  while (k < landN && spent < budget) {
+  ; fall.e16.ts:591  while (k < landN && spent < budget) {
   j .L3
 .L1:
-  ; fall.e16.ts:591  const c = landQ[k]
+  ; fall.e16.ts:592  const c = landQ[k]
   slli t0, s1, 1
   lw t0, landQ(t0)
   sw t0, 0(fp) ; c
-  ; fall.e16.ts:592  k++
+  ; fall.e16.ts:593  k++
   addi s1, s1, 1
-  ; fall.e16.ts:593  const t = cells[c]
+  ; fall.e16.ts:594  const t = cells[c]
   lw t0, 0(fp) ; c
   lbu t0, cells(t0)
   sw t0, 2(fp) ; t
-  ; fall.e16.ts:594  spent = spent + 2
+  ; fall.e16.ts:595  spent = spent + 2
   addi s2, s2, 2
-  ; fall.e16.ts:595  if (t < 1 || t > T_BLUE) continue
+  ; fall.e16.ts:596  if (t < 1 || t > T_BLUE) continue
   li t0, 1
   lw t1, 2(fp) ; t
   bltu t1, t0, .L2
   li t0, 4
   lw t1, 2(fp) ; t
   bgeu t0, t1, .L5
-  ; fall.e16.ts:595  continue
+  ; fall.e16.ts:596  continue
   j .L2
 .L5:
-  ; fall.e16.ts:596  const n = groupOf(c)
+  ; fall.e16.ts:597  const n = groupOf(c)
   lw a0, 0(fp)
   call groupOf
   mv s3, a0 ; n
-  ; fall.e16.ts:597  spent = spent + n
+  ; fall.e16.ts:598  spent = spent + n
   add s2, s2, s3
-  ; fall.e16.ts:598  if (n < 4) continue
+  ; fall.e16.ts:599  if (n < 4) continue
   li t0, 4
   bgeu s3, t0, .L7
-  ; fall.e16.ts:598  continue
+  ; fall.e16.ts:599  continue
   j .L2
 .L7:
-  ; fall.e16.ts:599  chain++
+  ; fall.e16.ts:600  chain++
   lw t0, 0x1a0c(zero)
   addi t0, t0, 1
   sw t0, 0x1a0c(zero)
-  ; fall.e16.ts:600  vanishedBlocks = vanishedBlocks + n
+  ; fall.e16.ts:601  vanishedBlocks = vanishedBlocks + n
   lw t0, 0x1a0e(zero)
   add t0, t0, s3
   sw t0, 0x1a0e(zero)
-  ; fall.e16.ts:601  vanishedChain = chain
+  ; fall.e16.ts:602  vanishedChain = chain
   lw t0, 0x1a0c(zero)
   sw t0, 0x1a10(zero)
-  ; fall.e16.ts:602  vanishedAt = c
+  ; fall.e16.ts:603  vanishedAt = c
   lw t0, 0(fp) ; c
   sw t0, 0x1a12(zero)
-  ; fall.e16.ts:603  vanish(n, now + 24, 0)
+  ; fall.e16.ts:604  vanish(n, now + 24, 0)
   lw t0, 4(fp) ; now
   mv a0, s3
   addi a1, t0, 24
   li a2, 0
   call vanish
-  ; fall.e16.ts:604  spent = spent + n * 2
+  ; fall.e16.ts:605  spent = spent + n * 2
   slli t0, s3, 1
   add s2, s2, t0
 .L2:
@@ -5316,11 +5315,11 @@ chainsStep:
   lw t0, 6(fp) ; budget
   bltu s2, t0, .L1
 .L8:
-  ; fall.e16.ts:606  if (k > 0 && k < landN) memcpy(addr(landQ), addr(landQ) + k * 2, (landN - k) * 2)
+  ; fall.e16.ts:607  if (k > 0 && k < landN) memcpy(addr(landQ), addr(landQ) + k * 2, (landN - k) * 2)
   bgeu zero, s1, .L9
   lw t0, 0x1a0a(zero)
   bgeu s1, t0, .L9
-  ; fall.e16.ts:606  memcpy(addr(landQ), addr(landQ) + k * 2, (landN - k) * 2)
+  ; fall.e16.ts:607  memcpy(addr(landQ), addr(landQ) + k * 2, (landN - k) * 2)
   slli t0, s1, 1
   lw t1, 0x1a0a(zero)
   sub t1, t1, s1
@@ -5330,14 +5329,14 @@ chainsStep:
   mv a2, t1
   mcpy a0, a1, a2
 .L9:
-  ; fall.e16.ts:607  landN = landN - k
+  ; fall.e16.ts:608  landN = landN - k
   lw t0, 0x1a0a(zero)
   sub t0, t0, s1
   sw t0, 0x1a0a(zero)
-  ; fall.e16.ts:608  if (fallQuiet()) chain = 0
+  ; fall.e16.ts:609  if (fallQuiet()) chain = 0
   call fallQuiet
   beqz a0, .L10
-  ; fall.e16.ts:608  chain = 0
+  ; fall.e16.ts:609  chain = 0
   sw zero, 0x1a0c(zero)
 .L10:
 .return:
@@ -5350,7 +5349,7 @@ chainsStep:
   addi sp, sp, 18
   ret
 
-; fall.e16.ts:615 vanish(n, due, step) at -O1
+; fall.e16.ts:616 vanish(n, due, step) at -O1
 ;   n in s3
 ;   due in 0(fp)
 ;   step in 2(fp)
@@ -5367,31 +5366,30 @@ vanish:
   mv s3, a0 ; n
   sw a1, 0(fp) ; due
   sw a2, 2(fp) ; step
-  ; fall.e16.ts:616  let k: u16 = 0
+  ; fall.e16.ts:617  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:617  while (k < n) {
+  ; fall.e16.ts:618  while (k < n) {
   j .L3
 .L1:
-  ; fall.e16.ts:618  const c = found[k]
+  ; fall.e16.ts:619  const c = found[k]
   slli t0, s1, 1
   lw s2, found(t0)
-  ; fall.e16.ts:619  cells[c] = cells[c] | F_PEND
+  ; fall.e16.ts:620  cells[c] = cells[c] | F_PEND
   lbu t0, cells(s2)
   ori t0, t0, 64
   sb t0, cells(s2)
-  ; fall.e16.ts:620  markAround(c)
+  ; fall.e16.ts:621  markAround(c)
   mv a0, s2
   call markAround
-  ; fall.e16.ts:621  pend(c, wrap16(due + ((k * step) >> 2)))
+  ; fall.e16.ts:622  pend(c, wrap16(due + u16(mulShift(i16(k), i16(step), 2))))
   lw t0, 2(fp) ; step
-  mul t0, s1, t0
-  srli t0, t0, 2
+  mulq t0, s1, t0, 2
   lw t1, 0(fp) ; due
   add t1, t1, t0
   mv a0, s2
   mv a1, t1
   call pend
-  ; fall.e16.ts:622  k++
+  ; fall.e16.ts:623  k++
   addi s1, s1, 1
 .L3:
   bltu s1, s3, .L1
@@ -5405,7 +5403,7 @@ vanish:
   addi sp, sp, 14
   ret
 
-; fall.e16.ts:631 pend(c, due) at -O1
+; fall.e16.ts:632 pend(c, due) at -O1
 ;   c in s1
 ;   due in s2
 pend:
@@ -5415,25 +5413,25 @@ pend:
   sw s2, 4(sp)
   mv s1, a0 ; c
   mv s2, a1 ; due
-  ; fall.e16.ts:632  if (pendN >= PEND_N) {
+  ; fall.e16.ts:633  if (pendN >= PEND_N) {
   lw t0, 0x1c9a(zero)
   li t1, 160
   bltu t0, t1, .L1
-  ; fall.e16.ts:633  gone(c)
+  ; fall.e16.ts:634  gone(c)
   mv a0, s1
   call gone
-  ; fall.e16.ts:634  return
+  ; fall.e16.ts:635  return
   j .return
 .L1:
-  ; fall.e16.ts:636  pendCell[pendN] = c
+  ; fall.e16.ts:637  pendCell[pendN] = c
   lw t0, 0x1c9a(zero)
   slli t0, t0, 1
   sw s1, pendCell(t0)
-  ; fall.e16.ts:637  pendDue[pendN] = due
+  ; fall.e16.ts:638  pendDue[pendN] = due
   lw t0, 0x1c9a(zero)
   slli t0, t0, 1
   sw s2, pendDue(t0)
-  ; fall.e16.ts:638  pendN++
+  ; fall.e16.ts:639  pendN++
   lw t0, 0x1c9a(zero)
   addi t0, t0, 1
   sw t0, 0x1c9a(zero)
@@ -5444,7 +5442,7 @@ pend:
   addi sp, sp, 6
   ret
 
-; fall.e16.ts:647 pendStep(now, most) at -O1
+; fall.e16.ts:648 pendStep(now, most) at -O1
 ;   now in s3
 ;   most in s2
 ;   k in s1
@@ -5456,36 +5454,36 @@ pendStep:
   sw s1, 6(sp)
   mv s3, a0 ; now
   mv s2, a1 ; most
-  ; fall.e16.ts:648  goneN = 0
+  ; fall.e16.ts:649  goneN = 0
   sw zero, 0x1cfc(zero)
-  ; fall.e16.ts:649  let k: u16 = 0
+  ; fall.e16.ts:650  let k: u16 = 0
   li s1, 0 ; k
-  ; fall.e16.ts:650  while (k < pendN) {
+  ; fall.e16.ts:651  while (k < pendN) {
   j .L3
 .L1:
-  ; fall.e16.ts:651  if (i16(wrap16(now - pendDue[k])) >= 0 && most > 0) {
+  ; fall.e16.ts:652  if (i16(wrap16(now - pendDue[k])) >= 0 && most > 0) {
   slli t0, s1, 1
   lw t0, pendDue(t0)
   sub t0, s3, t0
   blt t0, zero, .L5
   bgeu zero, s2, .L5
-  ; fall.e16.ts:652  gone(pendCell[k])
+  ; fall.e16.ts:653  gone(pendCell[k])
   slli t0, s1, 1
   lw a0, pendCell(t0)
   call gone
-  ; fall.e16.ts:653  most--
+  ; fall.e16.ts:654  most--
   addi s2, s2, -1
-  ; fall.e16.ts:654  pendN--
+  ; fall.e16.ts:655  pendN--
   lw t0, 0x1c9a(zero)
   addi t0, t0, -1
   sw t0, 0x1c9a(zero)
-  ; fall.e16.ts:655  pendCell[k] = pendCell[pendN]
+  ; fall.e16.ts:656  pendCell[k] = pendCell[pendN]
   slli t0, s1, 1
   lw t1, 0x1c9a(zero)
   slli t1, t1, 1
   lw t1, pendCell(t1)
   sw t1, pendCell(t0)
-  ; fall.e16.ts:656  pendDue[k] = pendDue[pendN]
+  ; fall.e16.ts:657  pendDue[k] = pendDue[pendN]
   slli t0, s1, 1
   lw t1, 0x1c9a(zero)
   slli t1, t1, 1
@@ -5493,7 +5491,7 @@ pendStep:
   sw t1, pendDue(t0)
   j .L6
 .L5:
-  ; fall.e16.ts:657  k++
+  ; fall.e16.ts:658  k++
   addi s1, s1, 1
 .L6:
 .L3:
@@ -5507,7 +5505,7 @@ pendStep:
   addi sp, sp, 8
   ret
 
-; fall.e16.ts:662 gone(c) at -O1
+; fall.e16.ts:663 gone(c) at -O1
 ;   c in s1
 ;   v in s2
 gone:
@@ -5516,38 +5514,38 @@ gone:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; c
-  ; fall.e16.ts:663  const v = cells[c]
+  ; fall.e16.ts:664  const v = cells[c]
   lbu s2, cells(s1)
-  ; fall.e16.ts:664  if ((v & F_PEND) === 0) return
+  ; fall.e16.ts:665  if ((v & F_PEND) === 0) return
   andi t0, s2, 64
   bne t0, zero, .L1
-  ; fall.e16.ts:664  return
+  ; fall.e16.ts:665  return
   j .return
 .L1:
-  ; fall.e16.ts:665  if (goneN < 24) {
+  ; fall.e16.ts:666  if (goneN < 24) {
   lw t0, 0x1cfc(zero)
   li t1, 24
   bgeu t0, t1, .L2
-  ; fall.e16.ts:666  goneCell[goneN] = c
+  ; fall.e16.ts:667  goneCell[goneN] = c
   lw t0, 0x1cfc(zero)
   slli t0, t0, 1
   sw s1, goneCell(t0)
-  ; fall.e16.ts:667  goneType[goneN] = v & 15
+  ; fall.e16.ts:668  goneType[goneN] = v & 15
   lw t0, 0x1cfc(zero)
   slli t0, t0, 1
   andi t1, s2, 15
   sw t1, goneType(t0)
-  ; fall.e16.ts:668  goneN++
+  ; fall.e16.ts:669  goneN++
   lw t0, 0x1cfc(zero)
   addi t0, t0, 1
   sw t0, 0x1cfc(zero)
 .L2:
-  ; fall.e16.ts:670  cells[c] = T_EMPTY
+  ; fall.e16.ts:671  cells[c] = T_EMPTY
   sb zero, cells(s1)
-  ; fall.e16.ts:671  markAround(c)
+  ; fall.e16.ts:672  markAround(c)
   mv a0, s1
   call markAround
-  ; fall.e16.ts:672  suspect((c - 16) & 511)
+  ; fall.e16.ts:673  suspect((c - 16) & 511)
   addi t0, s1, -16
   andi a0, t0, 511
   call suspect
@@ -5558,10 +5556,10 @@ gone:
   addi sp, sp, 6
   ret
 
-; fall.e16.ts:676 pending(c) at -O1
+; fall.e16.ts:677 pending(c) at -O1
 ;   c in a0
 pending:
-  ; fall.e16.ts:677  return (cells[c] & F_PEND) !== 0
+  ; fall.e16.ts:678  return (cells[c] & F_PEND) !== 0
   lbu t0, cells(a0)
   andi t0, t0, 64
   sub t0, t0, zero
@@ -5569,31 +5567,31 @@ pending:
 .return:
   ret
 
-; fall.e16.ts:681 pendForget(ring) at -O1
+; fall.e16.ts:682 pendForget(ring) at -O1
 ;   ring in a0
 ;   k in a1
 pendForget:
-  ; fall.e16.ts:682  let k: u16 = 0
+  ; fall.e16.ts:683  let k: u16 = 0
   li a1, 0 ; k
-  ; fall.e16.ts:683  while (k < pendN) {
+  ; fall.e16.ts:684  while (k < pendN) {
   j .L3
 .L1:
-  ; fall.e16.ts:684  if (pendCell[k] >> 4 === ring) {
+  ; fall.e16.ts:685  if (pendCell[k] >> 4 === ring) {
   slli t0, a1, 1
   lw t0, pendCell(t0)
   srli t0, t0, 4
   bne t0, a0, .L5
-  ; fall.e16.ts:685  pendN--
+  ; fall.e16.ts:686  pendN--
   lw t0, 0x1c9a(zero)
   addi t0, t0, -1
   sw t0, 0x1c9a(zero)
-  ; fall.e16.ts:686  pendCell[k] = pendCell[pendN]
+  ; fall.e16.ts:687  pendCell[k] = pendCell[pendN]
   slli t0, a1, 1
   lw t1, 0x1c9a(zero)
   slli t1, t1, 1
   lw t1, pendCell(t1)
   sw t1, pendCell(t0)
-  ; fall.e16.ts:687  pendDue[k] = pendDue[pendN]
+  ; fall.e16.ts:688  pendDue[k] = pendDue[pendN]
   slli t0, a1, 1
   lw t1, 0x1c9a(zero)
   slli t1, t1, 1
@@ -5601,7 +5599,7 @@ pendForget:
   sw t1, pendDue(t0)
   j .L6
 .L5:
-  ; fall.e16.ts:688  k++
+  ; fall.e16.ts:689  k++
   addi a1, a1, 1
 .L6:
 .L3:
@@ -6580,7 +6578,7 @@ frameBegin:
   ; drill.e16.ts:372  soundTick()
   call soundTick
   ; drill.e16.ts:373  sprBegin()
-  ; lib/kit.e16.ts:235  sprN = 0
+  ; lib/kit.e16.ts:236  sprN = 0
   sw zero, 0x0880(zero)
   ; drill.e16.ts:374  frame++
   lw t0, 0x1d0e(zero)
@@ -7099,7 +7097,7 @@ fieldStep:
 .L7:
 .L6:
   ; drill.e16.ts:520  struckClear()
-  ; fall.e16.ts:136  struck = 0
+  ; fall.e16.ts:137  struck = 0
   sw zero, 0x1884(zero)
   ; drill.e16.ts:521  scoreFrame()
   call scoreFrame

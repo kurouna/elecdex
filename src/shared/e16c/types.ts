@@ -47,6 +47,13 @@ export const hex = (n: number): string => `0x${word(n).toString(16).padStart(4, 
 /** A word read as signed. */
 export const signed = (v: number): number => (word(v) << 16) >> 16
 
+/**
+ * MULQ: the two words read signed, their 32-bit product shifted right by `k` (0 to 15), its
+ * low 16 bits. Two i16s make at most 2^30, which `>>` takes exactly.
+ */
+export const mulShiftWord = (a: number, b: number, k: number): number =>
+  word((signed(a) * signed(b)) >> k)
+
 /** RAM below this is within reach of an instruction's 14-bit offset from zero. */
 export const NEAR = 0x2000
 
@@ -88,6 +95,7 @@ export const BUILTINS = new Set([
   'poke16',
   'div',
   'idiv',
+  'mulShift',
   'wrap16',
   'ecall',
   'memcpy',

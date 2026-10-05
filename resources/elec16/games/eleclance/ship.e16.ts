@@ -1,6 +1,6 @@
 // ELECLANCE's ship (docs/elec16-eleclance.md sections 3 and 6): moved by the d-pad, banking as
 // it goes; A taps SHOT, held becomes the LANCE; B the bomb; X or R OVERDRIVE when VOLT is full.
-import { type bool, i16, u16 } from '../../../../src/shared/e16c/builtins'
+import { type bool, i16, mulShift, u16 } from '../../../../src/shared/e16c/builtins'
 import {
   B_A,
   B_B,
@@ -120,8 +120,8 @@ function move(): void {
   if (held(B_DOWN)) dy = speed
   // Diagonals at the same speed: about 0.7 each way.
   if (dx !== 0 && dy !== 0) {
-    dx = (dx * 11) >> 4
-    dy = (dy * 11) >> 4
+    dx = mulShift(dx, 11, 4)
+    dy = mulShift(dy, 11, 4)
   }
   shipX = shipX + dx
   shipY = shipY + dy

@@ -1,7 +1,15 @@
 // ELECLANCE's screen (docs/elec16-eleclance.md section 2): palettes into their slots, the stage
 // streamed into BG0 a row at a time as it scrolls, the panels and the score line on BG1, the
 // raster wave and the shake.
-import { type bool, div, i16, poke16, u16, wrap16 } from '../../../../src/shared/e16c/builtins'
+import {
+  type bool,
+  div,
+  i16,
+  mulShift,
+  poke16,
+  u16,
+  wrap16,
+} from '../../../../src/shared/e16c/builtins'
 import {
   BG0X,
   BG0Y,
@@ -324,7 +332,7 @@ export function waveStep(): void {
 
 /**
  * Every band's BG0X: the field's sway and shake, and the wave fading over its last 16 frames.
- * A sine (to 256) times the size is scaled down before the fade multiplies it: both within a word.
+ * A sine (to 256) times the size, scaled down, then times the fade: each the whole product (MULQ).
  */
 function waveFill(): void {
   const base = u16(sway + shakeX) & 511
@@ -332,7 +340,7 @@ function waveFill(): void {
   let k: u16 = 0
   while (k < RASTER_BANDS) {
     const s = sin(wavePhase + k * 14)
-    const off = (((s * i16(waveSize)) >> 4) * fade) >> 8
+    const off = mulShift(mulShift(s, i16(waveSize), 4), fade, 8)
     poke16(RASTER + k * 2, (base + u16(off)) & 511)
     k++
   }

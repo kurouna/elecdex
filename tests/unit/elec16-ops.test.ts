@@ -146,6 +146,22 @@ describe('every operation', () => {
     })
   })
 
+  it.each(Array.from({ length: 15 }, (_, k) => k + 1))(
+    'mulq by %i: the signed 32-bit product shifted right, its low 16 bits',
+    (n) => {
+      const m = machine(
+        PAIRS.map(
+          ([a, b], k) => `li a0, ${a}\nli a1, ${b}\nmulq a2, a0, a1, ${n}\n${keep(k)}`,
+        ).join('\n'),
+      )
+      PAIRS.forEach(([a, b], k) => {
+        // Worked out in BigInt from the two words read signed, as a 32-bit product.
+        const want = Number((BigInt(s(a)) * BigInt(s(b))) >> BigInt(n)) & 0xffff
+        expect(answer(m, k), `mulq ${a}, ${b}, ${n}`).toBe(want)
+      })
+    },
+  )
+
   it.each(Object.keys(BRANCH))('%s taken exactly when its comparison holds', (op) => {
     const m = machine(
       PAIRS.map(
@@ -229,7 +245,7 @@ describe('cycles, as section 4 has them', () => {
     return Elec16.boot(romImage(out)).step().cycles
   }
 
-  it('ALU 1, load and store 2, MUL 4, DIV and REM 18, CSR 2; compressed forms the same', () => {
+  it('ALU 1, load and store 2, MUL and MULQ 4, DIV and REM 18, CSR 2; compressed forms the same', () => {
     expect(cycles('add a0, a1, a2')).toBe(1)
     expect(cycles('c.add a0, a1')).toBe(1)
     expect(cycles('slli a0, a1, 3')).toBe(1)
@@ -240,6 +256,7 @@ describe('cycles, as section 4 has them', () => {
     expect(cycles('c.lwsp a0, 0')).toBe(2)
     expect(cycles('mul a0, a1, a2')).toBe(4)
     expect(cycles('mulhu a0, a1, a2')).toBe(4)
+    expect(cycles('mulq a0, a1, a2, 14')).toBe(4)
     expect(cycles('div a0, a1, a2')).toBe(18)
     expect(cycles('remu a0, a1, a2')).toBe(18)
     expect(cycles('csrrs a0, mscratch, zero')).toBe(2)

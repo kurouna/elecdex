@@ -231,6 +231,14 @@ describe('ELECAIRCOMBAT as built', () => {
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
   })
 
+  it('makes each Q14 product one MULQ, never the five instructions it once took', () => {
+    const lines = built.report.asm.split('\n').map((l) => l.trim().split(' ')[0])
+    const five = ['mul', 'mulh', 'srli', 'slli', 'or']
+    const left = lines.filter((_, k) => five.every((op, j) => lines[k + j] === op))
+    expect(left).toEqual([])
+    expect(lines.filter((op) => op === 'mulq').length).toBeGreaterThan(60)
+  })
+
   it("streams the fighter's frames through one place in video memory, each size from a bank's start", () => {
     const slot = constant('BANDIT64_TILE')
     for (const size of [64, 48, 32, 24, 16, 12, 8]) {

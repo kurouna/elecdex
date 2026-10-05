@@ -1,9 +1,10 @@
 // ELECAIRCOMBAT's numbers (docs/elec16-elecaircombat.md section 4): vectors of three words in
-// one array, unit vectors in Q14 (16384 is 1), and the few sums that need the machine's 32-bit
-// products - a fixed-point product, a dot product, a turn of two vectors together, a scaled
-// add and a long division - written in assembly. Their arguments come in a0-a3 (the first
-// thing each function does), and an answer goes back through `mOut`.
-import { addr, asm, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+// one array, unit vectors in Q14 (16384 is 1). A fixed-point product is `mulShift(a, b, 14)`,
+// one MULQ; the few sums that need more of the machine's 32-bit products - a dot product, a
+// turn of two vectors together, a scaled add and a long division - are written in assembly.
+// Their arguments come in a0-a3 (the first thing each function does), and an answer goes
+// back through `mOut`.
+import { addr, asm, div, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 
 /** Where answers of the assembly come back. */
 export const mOut = words(2)
@@ -33,20 +34,6 @@ export function va(k: u16): u16 {
 
 /** One is 16384. */
 export const ONE = 16384
-
-/** (a * b) >> 14, from the full product. */
-export function mulq(_a: i16, _b: i16): i16 {
-  asm`
-    mul t0, a0, a1
-    mulh t1, a0, a1
-    srli t0, t0, 14
-    slli t1, t1, 2
-    or t0, t0, t1
-    li t2, mOut
-    sw t0, 0(t2)
-  `
-  return i16(mOut[0])
-}
 
 /**
  * The dot product of the vectors at `pa` and `pb`, shifted down 14 (so a unit vector's dot
@@ -103,37 +90,13 @@ export function rotq(_pa: u16, _pb: u16, _c: i16, _s: i16): void {
 .rq_next:
     lw t0, 0(a0)
     lw t1, 0(a1)
-    mul t2, t0, a2
-    mulh t3, t0, a2
-    srli t2, t2, 14
-    slli t3, t3, 2
-    or t2, t2, t3
-    li t3, mOut
-    sw t2, 0(t3)
-    mul t2, t1, a3
-    mulh t3, t1, a3
-    srli t2, t2, 14
-    slli t3, t3, 2
-    or t2, t2, t3
-    li t3, mOut
-    lw t3, 0(t3)
+    mulq t2, t0, a2, 14
+    mulq t3, t1, a3, 14
     add t2, t2, t3
     sw t2, 0(a0)
-    mul t2, t1, a2
-    mulh t3, t1, a2
-    srli t2, t2, 14
-    slli t3, t3, 2
-    or t2, t2, t3
-    li t3, mOut
-    sw t2, 0(t3)
-    mul t2, t0, a3
-    mulh t3, t0, a3
-    srli t2, t2, 14
-    slli t3, t3, 2
-    or t2, t2, t3
-    li t3, mOut
-    lw t3, 0(t3)
-    sub t2, t3, t2
+    mulq t2, t1, a2, 14
+    mulq t3, t0, a3, 14
+    sub t2, t2, t3
     sw t2, 0(a1)
     addi a0, a0, 2
     addi a1, a1, 2
@@ -151,11 +114,7 @@ export function axpyq(_pd: u16, _ps: u16, _k: i16): void {
     li t3, 3
 .ax_next:
     lw t0, 0(a1)
-    mul t1, t0, a2
-    mulh t2, t0, a2
-    srli t1, t1, 14
-    slli t2, t2, 2
-    or t1, t1, t2
+    mulq t1, t0, a2, 14
     lw t0, 0(a0)
     add t0, t0, t1
     sw t0, 0(a0)
@@ -172,11 +131,7 @@ export function scaleq(_pv: u16, _k: i16): void {
     li t3, 3
 .sc_next:
     lw t0, 0(a0)
-    mul t1, t0, a1
-    mulh t2, t0, a1
-    srli t1, t1, 14
-    slli t2, t2, 2
-    or t1, t1, t2
+    mulq t1, t0, a1, 14
     sw t1, 0(a0)
     addi a0, a0, 2
     addi t3, t3, -1
@@ -352,9 +307,9 @@ export function vcross(d: u16, a: u16, b: u16): void {
   const bx = vget(b)
   const by = vget(b + 1)
   const bz = vget(b + 2)
-  vec[d] = u16(mulq(ay, bz) - mulq(az, by))
-  vec[d + 1] = u16(mulq(az, bx) - mulq(ax, bz))
-  vec[d + 2] = u16(mulq(ax, by) - mulq(ay, bx))
+  vec[d] = u16(mulShift(ay, bz, 14) - mulShift(az, by, 14))
+  vec[d + 1] = u16(mulShift(az, bx, 14) - mulShift(ax, bz, 14))
+  vec[d + 2] = u16(mulShift(ax, by, 14) - mulShift(ay, bx, 14))
 }
 
 /** Vector `k` made a unit again (it is near one: a step of Newton's method). */
@@ -380,7 +335,7 @@ export let cosA: i16 = ONE
 
 export function smallAngle(a: i16): void {
   sinA = a
-  cosA = ONE - (mulq(a, a) >> 1)
+  cosA = ONE - (mulShift(a, a, 14) >> 1)
 }
 
 /** Pitch up by `a` (Q14 radians): forward toward up. */
@@ -406,8 +361,8 @@ export function turnWorld(k: u16, a: i16): void {
   smallAngle(a)
   const x = vget(k)
   const y = vget(k + 1)
-  vec[k] = u16(mulq(x, cosA) + mulq(y, sinA))
-  vec[k + 1] = u16(mulq(y, cosA) - mulq(x, sinA))
+  vec[k] = u16(mulShift(x, cosA, 14) + mulShift(y, sinA, 14))
+  vec[k + 1] = u16(mulShift(y, cosA, 14) - mulShift(x, sinA, 14))
 }
 
 /* ---------------- small numbers ---------------- */

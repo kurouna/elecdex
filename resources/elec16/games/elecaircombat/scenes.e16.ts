@@ -7,6 +7,7 @@ import {
   type bool,
   div,
   type i16,
+  mulShift,
   peek16,
   str,
   u16,
@@ -50,7 +51,6 @@ import {
   skyIs,
 } from './game.e16'
 import {
-  mulq,
   orthonormal,
   rotq,
   turnWorld,
@@ -96,7 +96,7 @@ function cruise(t: u16, turn: i16): void {
   turnWorld(V_PU, turn)
   // A slow rock of the wings.
   const a = sin(t) >> 2
-  rotq(va(V_PR), va(V_PU), 16384 - (mulq(a, a) >> 1), -a)
+  rotq(va(V_PR), va(V_PU), 16384 - (mulShift(a, a, 14) >> 1), -a)
   orthonormal(V_PF, V_PR, V_PU)
 }
 
@@ -165,7 +165,9 @@ function wingman(t: u16): void {
   let k: u16 = 0
   while (k < 3) {
     vec[V_REL + k] = u16(
-      mulq(vget(V_PF + k), 430) + mulq(vget(V_PR + k), 130 + (s >> 2)) + mulq(vget(V_PU + k), 30),
+      mulShift(vget(V_PF + k), 430, 14) +
+        mulShift(vget(V_PR + k), 130 + (s >> 2), 14) +
+        mulShift(vget(V_PU + k), 30, 14),
     )
     k++
   }

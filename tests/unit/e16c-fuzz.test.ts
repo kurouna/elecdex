@@ -9,9 +9,9 @@ import { describe, expect, it } from 'vitest'
 /**
  * e16c's differential fuzz (docs/elec16.md section 6, e16c): seeded programs in the subset -
  * locals, globals, byte and word arrays, helpers of up to four parameters, nested ?:, && and
- * ||, for, while, switch, break and continue, every overflow wrapped so TypeScript agrees -
- * each run five ways: as TypeScript, in the interpreter, and on the machine at -O0, -O1 and
- * -O2. All five must give the same answer. A review found three miscompiles this way; the
+ * ||, for, while, switch, break and continue, mulShift, every overflow wrapped so TypeScript
+ * agrees - each run five ways: as TypeScript, in the interpreter, and on the machine at -O0,
+ * -O1 and -O2. All five must give the same answer. A review found three miscompiles this way; the
  * seeds are fixed, so a failure repeats, and a new bug it finds gets a function of its own in
  * the sample (tests/fixtures/e16c/sample.e16.ts).
  */
@@ -212,6 +212,8 @@ const call = (c: Ctx): string => {
   return `${f.name}(${Array.from({ length: f.params }, () => wexpr(c)).join(', ')})`
 }
 
+const mulShift = (c: Ctx, a: string, b: string): string => `mulShift(${a}, ${b}, ${c.g.int(16)})`
+
 const EXPRS: readonly Choice[] = [
   [6, leaf],
   [4, (c) => `(${expr(c)} ${c.g.pick(['+', '-', '*', '&', '|', '^'])} ${expr(c)})`],
@@ -220,6 +222,14 @@ const EXPRS: readonly Choice[] = [
   // A signed division by what may be 0 is idiv: the same -1 in both runs.
   [1, (c) => `${c.signed ? 'idiv' : 'div'}(${wexpr(c)}, (${wexpr(c)} | 1))`],
   [1, (c) => `(${wexpr(c)} % (${wexpr(c)} | 1))`],
+  // MULQ: two i16s, their whole product shifted (an unsigned program says i16 and back).
+  [
+    1,
+    (c) =>
+      c.signed
+        ? mulShift(c, wexpr(c), wexpr(c))
+        : `u16(${mulShift(c, `i16(${wexpr(c)})`, `i16(${wexpr(c)})`)})`,
+  ],
   [2, (c) => `(${cond(c)} ? ${wexpr(c)} : ${wexpr(c)})`],
   [1, (c) => `(${c.g.pick(c.bools)} ? ${wexpr(c)} : ${wexpr(c)})`, (c) => c.bools.length > 0],
   [1, (c) => W(c, `(${cond(c)} ? 1 : 0)`)],

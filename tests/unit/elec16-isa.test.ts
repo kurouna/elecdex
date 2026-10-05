@@ -60,6 +60,8 @@ function operandsFor(name: OpName, next: () => number): Omit<Inst, 'op' | 'size'
       return { rd: reg(), rs1: 0, rs2: 0, imm: pick(0, 0xffff) }
     case 'Ish':
       return { rd: reg(), rs1: reg(), rs2: 0, imm: pick(0, 15) }
+    case 'Rsh':
+      return { rd: reg(), rs1: reg(), rs2: reg(), imm: pick(1, 15) }
     case 'Icsr':
     case 'Icsri':
       return {
@@ -80,6 +82,8 @@ function kept(name: OpName, f: Omit<Inst, 'op' | 'size' | 'c'>): Omit<Inst, 'siz
   switch (format) {
     case 'R':
       return { op: OP[name], ...f, imm: 0 }
+    case 'Rsh':
+      return { op: OP[name], ...f }
     case 'I':
     case 'Ish':
       return { op: OP[name], ...f, rs2: 0 }
@@ -101,11 +105,11 @@ function kept(name: OpName, f: Omit<Inst, 'op' | 'size' | 'c'>): Omit<Inst, 'siz
 const NAMES = OPS.filter((name) => name !== 'illegal')
 
 describe('the 32-bit encodings', () => {
-  it('has one for every operation, and 103 operations', () => {
-    expect(NAMES).toHaveLength(78)
+  it('has one for every operation, and 104 operations', () => {
+    expect(NAMES).toHaveLength(79)
     for (const name of NAMES) expect(ENCODINGS[name], name).toBeDefined()
-    // 78 operations in 32 bits and 25 compressed forms: the 103 of docs/elec16.md.
-    expect(NAMES.length + C_OPS.length).toBe(103)
+    // 79 operations in 32 bits and 25 compressed forms: the 104 of docs/elec16.md.
+    expect(NAMES.length + C_OPS.length).toBe(104)
   })
 
   it.each(NAMES)('%s decodes to what was encoded, and reads back as text', (name) => {
@@ -142,6 +146,32 @@ describe('the 32-bit encodings', () => {
     expect(legal).toBeGreaterThan(10_000)
     // Every kind field of ECALL and its kin (once, 0x80 read as ECALL).
     for (let kind = 0; kind < 0x4000; kind++) check(((kind << 18) | (9 << 2) | 3) >>> 0)
+  })
+
+  it('gives MULQ its amount in funct10, 1 to 15: by 0 it would be MUL, by 16 MULH', () => {
+    const f = { rd: 4, rs1: 5, rs2: 6, imm: 14 }
+    const word = encode32('mulq', f)
+    // funct10 is 0x10 + the amount, funct3 0, the OP major opcode.
+    expect(word >>> 22).toBe(0x1e)
+    expect((word >>> 11) & 7).toBe(0)
+    expect(word & 0x7f).toBe(0x0f)
+    expect(decode(...halves(word))).toMatchObject({ op: OP.mulq, ...f, size: 4 })
+    expect(() => encode32('mulq', { ...f, imm: 0 })).toThrow(/1 to 15/)
+    expect(() => encode32('mulq', { ...f, imm: 16 })).toThrow(/1 to 15/)
+    // Every funct10 from 0x10 up decodes as MULQ only with funct3 0, selector 1, an amount.
+    const mul = encode32('mul', { ...f, imm: 0 })
+    for (let f10 = 0x10; f10 < 0x400; f10++) {
+      for (let f3 = 0; f3 < 8; f3++) {
+        const w = ((mul & ~(0x3ff << 22) & ~(7 << 11)) | (f10 << 22) | (f3 << 11)) >>> 0
+        const want = f10 >>> 4 === 1 && f3 === 0 && (f10 & 15) !== 0 ? OP.mulq : 0
+        expect(decode(...halves(w)).op, `${f10.toString(16)} ${f3}`).toBe(want)
+      }
+    }
+    const bytes = [0, 1, 2, 3].map((k) => (word >>> (8 * k)) & 0xff)
+    expect(bytesOf('mulq a0, a1, a2, 14')).toEqual(bytes)
+    // It has no 16-bit form.
+    expect(compress('mulq', f)).toBeNull()
+    expect(bytesOf('mulq a0, a1, a2, 14', true)).toHaveLength(4)
   })
 
   it('refuses operands that do not fit their field', () => {

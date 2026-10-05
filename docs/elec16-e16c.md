@@ -447,6 +447,22 @@ check = wrap16(check * 3 + buffer[i])
 - 定数のシフト量は 0〜15 です（`a shift by 16 differs on the machine: 0 to 15`）。変数のシフト量は確かめませんが、機械は下 4 ビットしか使わないので、16 以上にしないでください
 - `**` はありません
 
+### 4.11 固定小数点の積: mulShift
+
+下位 k ビットを小数とする数（Q8 なら 256 が 1、Q14 なら 16384 が 1）を掛けるときは、`(a * b) >> k` ではなく **`mulShift(a, b, k)`** を使います。
+
+```ts
+// x times 0.75 in Q14 (16384 is 1): the whole product, shifted, in one MULQ.
+const y = mulShift(x, 12288, 14)
+```
+
+- `(a * b) >> k` は、機械では積の下位 16 ビットを右へずらすので、積が 16 ビットを越えると上の桁が消えて答えが変わります（TypeScript では消えないので、両方の答えも食い違います）。`mulShift` は 32 ビットの積をずらすので、答えが i16 に入るかぎり正しく、両方で同じです
+- 機械では MULQ 1 命令（4 サイクル）です。`mul` と `srai` の 2 命令より短く、積の全体が要るときの 5 命令（11 サイクル）よりずっと速くなります。k が 0 なら `mul` になります
+- a と b は **i16 として読める値**です: i16、u8、i16 に入る定数。u16 の変数は `mulShift(i16(w), s, 4)` のように読み方を書きます（`mulShift multiplies i16s: say which with i16()`）。答えは i16 です
+- k は 0〜15 の定数です（`mulShift shifts by a constant from 0 to 15`）。右へのシフトは算術なので、負の数の端数は小さい方へ切り捨てます（`>>` と同じ）
+- 答えが i16 に入らないときは、下位 16 ビットに折り返します（両方で同じ）
+- a と b が両方定数なら、コンパイルのときに計算します
+
 ## 5. 文と式
 
 ### 5.1 使える文
@@ -508,6 +524,7 @@ check = wrap16(check * 3 + buffer[i])
 | `poke16(a, v)` | なし | 番地 a にワードを書く。**a は偶数** | `sw` |
 | `div(a, b)` | u16 / i16 | 整数の割り算（0 に向かって切り捨て）。両方 i16（か i16 と定数）なら符号付き。符号付きで割る数が定数でないときは `idiv` | `divu` / `div` |
 | `idiv(a, b)` | i16 | 符号付きの割り算。0 で割ると -1、-32768 ÷ -1 は -32768（機械と同じ） | `div` |
+| `mulShift(a, b, k)` | i16 | 固定小数点の積: i16 の a × b の 32 ビットの積を k（定数 0〜15）ビット右へ算術シフトした下位 16 ビット（[4.11](#411-固定小数点の積-mulshift)） | `mulq` 1 命令（k = 0 は `mul`） |
 | `wrap16(x)` | u16 | 16 ビットに折り返す（[4.9](#49-16-ビットの折り返しと-wrap16)） | なし |
 | `u8(x)` | u8 | 下位バイト | `andi` |
 | `u16(x)` | u16 | 符号なしで読む | なし |
@@ -781,6 +798,8 @@ main:
 | `>>> on an i16 differs in TypeScript: use >> or u16()` | i16 に `>>>` |
 | `a shift by N differs on the machine: 0 to 15` | 定数のシフト量が 16 以上 |
 | `a division by zero differs on the machine` | 定数の 0 で割った |
+| `mulShift multiplies i16s: say which with i16()` | `mulShift` に u16 の値か i16 に入らない定数を渡した |
+| `mulShift shifts by a constant from 0 to 15` | `mulShift` のシフト量が変数か、0〜15 の外 |
 | `N is not a word` | 0〜65535 の整数でない数 |
 | `X is not a type of the subset (u16, i16, u8, bool, u8[], u16[])` | 使えない型 |
 | `X is not in the subset` | 部分集合の外の構文（[5.3](#53-使えないもの)） |

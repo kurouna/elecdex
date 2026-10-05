@@ -1,7 +1,15 @@
 // ELECLANCE's bullets (docs/elec16-eleclance.md sections 3 and 4): the enemies' - aimed, fans,
 // rings, spirals - which graze the ship for points and VOLT or hit it, and turn into stars
 // when cancelled; and the ship's own shots, straight and leaning out.
-import { type bool, div, i16, u16, words, wrap16 } from '../../../../src/shared/e16c/builtins'
+import {
+  type bool,
+  div,
+  i16,
+  mulShift,
+  u16,
+  words,
+  wrap16,
+} from '../../../../src/shared/e16c/builtins'
 import { aim, cos, FLIP_H, S8, S16, sin, spr } from '../lib/kit.e16'
 import { BULLETS_TILE, ORBS_TILE, SHOT_TILE } from './assets.e16'
 import { abs, FX_SPARK, fx, IT_STAR, item } from './fx.e16'
@@ -65,8 +73,8 @@ function place(x: i16, y: i16, a: u16, speedKind: u16): void {
   buKind[k] = kind
   buX[k] = u16(x)
   buY[k] = u16(y)
-  buVX[k] = u16((cos(a) * v) >> 8)
-  buVY[k] = u16((sin(a) * v) >> 8)
+  buVX[k] = u16(mulShift(cos(a), v, 8))
+  buVY[k] = u16(mulShift(sin(a), v, 8))
   buLive[k] = 1 + (a & 255)
   buGrazed[k] = 0
   bulletsMade++

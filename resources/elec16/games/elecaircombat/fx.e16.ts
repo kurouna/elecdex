@@ -3,7 +3,15 @@
 // that stream by for speed; the sun and its flare. Each is projected through the cockpit and
 // drawn at the size its distance gives. Then what is drawn in the cockpit's own frame: the
 // gun's flash, a launch leaving its rail, sparks on the canopy.
-import { asm, type bool, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import {
+  asm,
+  type bool,
+  div,
+  i16,
+  mulShift,
+  u16,
+  words,
+} from '../../../../src/shared/e16c/builtins'
 import { rand, randBelow, S8, S16, S32, spr } from '../lib/kit.e16'
 import {
   BITS_TILE,
@@ -22,7 +30,7 @@ import {
   TRAIL16_TILE,
 } from './assets.e16'
 import { pAlt, pVel } from './flight.e16'
-import { abs16, bodyV, mulq, V_PF, V_REL, V_T0, vget, vset } from './math.e16'
+import { abs16, bodyV, V_PF, V_REL, V_T0, vget, vset } from './math.e16'
 import {
   abovePanel,
   bodyZ,
@@ -405,8 +413,8 @@ function cloudPlace(k: u16, ahead: i16): void {
   const fx = vget(V_PF)
   const fy = vget(V_PF + 1)
   const side = i16(randBelow(250)) * 24 - 3000
-  cX[k] = u16(mulq(fx, ahead) + mulq(fy, side))
-  cY[k] = u16(mulq(fy, ahead) - mulq(fx, side))
+  cX[k] = u16(mulShift(fx, ahead, 14) + mulShift(fy, side, 14))
+  cY[k] = u16(mulShift(fy, ahead, 14) - mulShift(fx, side, 14))
   cZ[k] = u16(cloudLayer - pAlt + i16(randBelow(200)) * 3 - 300)
   cKind[k] = rand() & 7
 }

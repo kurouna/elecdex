@@ -2,13 +2,12 @@
 // axes turned by the pad - roll on left and right, pitch on up and down, a bank turning it as
 // a coordinated turn would - its speed (the burner on R, the brake on L), its height, and the
 // world moving past: the enemy's place is kept relative to the player.
-import { type bool, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { type bool, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 import { aim, B_DOWN, B_L, B_LEFT, B_R, B_RIGHT, B_UP, held } from '../lib/kit.e16'
 import {
   approach,
   clamp16,
   muldiv,
-  mulq,
   ONE,
   orthonormal,
   pitchBy,
@@ -96,7 +95,7 @@ export function playerStep(alive: bool): void {
   if (rollRate !== 0) rollBy(V_PR, V_PU, rollRate)
   if (pitchRate !== 0) pitchBy(V_PF, V_PU, pitchRate)
   // A bank turns the fighter about the world's up, as lift would.
-  const bankTurn = mulq(-vget(V_PR + 2), 330)
+  const bankTurn = mulShift(-vget(V_PR + 2), 330, 14)
   if (bankTurn !== 0) {
     turnWorld(V_PF, bankTurn)
     turnWorld(V_PR, bankTurn)
@@ -124,9 +123,9 @@ export function pVel(k: u16): i16 {
 const pv = words(3)
 
 function velocityKept(): void {
-  pv[0] = u16(mulq(vget(V_PF), pSpeed))
-  pv[1] = u16(mulq(vget(V_PF + 1), pSpeed))
-  pv[2] = u16(mulq(vget(V_PF + 2), pSpeed))
+  pv[0] = u16(mulShift(vget(V_PF), pSpeed, 14))
+  pv[1] = u16(mulShift(vget(V_PF + 1), pSpeed, 14))
+  pv[2] = u16(mulShift(vget(V_PF + 2), pSpeed, 14))
 }
 
 /**
@@ -154,17 +153,17 @@ export function headingDegrees(): u16 {
   const fy = vget(V_PF + 1)
   const a = aim(fx >> 6, fy >> 6)
   const h = (64 - a) & 255
-  return (h * 45) >> 5
+  return u16(mulShift(i16(h), 45, 5))
 }
 
 /** The nose's pitch in degrees, -90 to 90. */
 export function pitchDegrees(): i16 {
   const fz = vget(V_PF + 2)
   // asin by the kit's table: the angle whose sine is fz.
-  const flat = mulq(vget(V_PF), vget(V_PF)) + mulq(vget(V_PF + 1), vget(V_PF + 1))
+  const flat = mulShift(vget(V_PF), vget(V_PF), 14) + mulShift(vget(V_PF + 1), vget(V_PF + 1), 14)
   const a = aim(isqrt(u16(flat)) >> 6, fz >> 6)
   const s = i16(a > 128 ? a - 256 : a)
-  return (s * 45) >> 5
+  return mulShift(s, 45, 5)
 }
 
 /** The square root of a Q14 number (at most one), in Q14: Newton's steps from one. */

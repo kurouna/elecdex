@@ -2,7 +2,7 @@
 // chain of sparks to the next foe, and the bomb's ring, which grows outward and takes bullets
 // and foes as it passes them - farther with more power. In cartridge bank 3: it reaches the
 // foes, the bullets and the sprites in RAM, and never moves the window itself.
-import { type bool, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { type bool, div, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 import { aim, cos, FLIP_H, FLIP_V, S8, S16, sin, spr } from '../lib/kit.e16'
 import { ARC_TILE, MISSILE_TILE, RING_TILE } from './assets.e16'
 import { abs, clamp, FX_SPARK, fx } from './fx.e16'
@@ -217,12 +217,17 @@ export function ringDraw(): void {
   }
   // Grown, the edge flickers away.
   if (i16(ringT) * 8 > ringMax + 160 && (ringT & 1) !== 0) return
-  // Half the radius times a sine (to 256) keeps to a word for any ring a bomb makes (to 255).
+  // Half the radius times a sine (to 256), the whole product (MULQ), as it always was.
   const half = radius() >> 1
   let a: u16 = ringT * 3
   let k: u16 = 0
   while (k < 16) {
-    spr(x + ((cos(a) * half) >> 7) - 8, y + ((sin(a) * half) >> 7) - 8, (RING_TILE + 12) | pal, S16)
+    spr(
+      x + mulShift(cos(a), half, 7) - 8,
+      y + mulShift(sin(a), half, 7) - 8,
+      (RING_TILE + 12) | pal,
+      S16,
+    )
     a = a + 16
     k++
   }

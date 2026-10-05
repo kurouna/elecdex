@@ -7,6 +7,7 @@ import {
   type bool,
   div,
   i16,
+  mulShift,
   peek,
   peek16,
   poke16,
@@ -366,9 +367,9 @@ export function rand(): u16 {
   return x
 }
 
-/** A chance number below `n` (n at most 256). */
+/** A chance number below `n` (n at most 32767): the top byte of chance times n, over 256. */
 export function randBelow(n: u16): u16 {
-  return ((rand() >> 8) * n) >> 8
+  return u16(mulShift(i16(rand() >> 8), i16(n), 8))
 }
 
 /** Seeds chance (from the frame count, say, when START is pressed). */

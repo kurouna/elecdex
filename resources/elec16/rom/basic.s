@@ -13794,15 +13794,15 @@ emitCsr:
   addi sp, sp, 4
   ret
 
-; basic/monitor.e16.ts:172 decoded(name, format, rd, rs1) at -O1
+; basic/monitor.e16.ts:174 decoded(name, format, rd, rs1) at -O1
 ;   name in a0
 ;   format in a1
 ;   rd in a2
 ;   rs1 in a3
 decoded:
-  ; basic/monitor.e16.ts:173  poke16(D_NAME, name)
+  ; basic/monitor.e16.ts:175  poke16(D_NAME, name)
   sw a0, 132(zero)
-  ; basic/monitor.e16.ts:174  poke16(D_FORMAT, name === 0 ? F_ILLEGAL : format)
+  ; basic/monitor.e16.ts:176  poke16(D_FORMAT, name === 0 ? F_ILLEGAL : format)
   li t0, 134
   mv t1, a0
   li t2, 0
@@ -13813,28 +13813,28 @@ decoded:
   mv t1, a1
 .L2:
   sw t1, 0(t0)
-  ; basic/monitor.e16.ts:175  poke16(D_RD, rd)
+  ; basic/monitor.e16.ts:177  poke16(D_RD, rd)
   sw a2, 136(zero)
-  ; basic/monitor.e16.ts:176  poke16(D_RS1, rs1)
+  ; basic/monitor.e16.ts:178  poke16(D_RS1, rs1)
   sw a3, 138(zero)
 .return:
   ret
 
-; basic/monitor.e16.ts:191 imm() at -O1
+; basic/monitor.e16.ts:193 imm() at -O1
 imm:
-  ; basic/monitor.e16.ts:192  return i16(peek16(D_IMM))
+  ; basic/monitor.e16.ts:194  return i16(peek16(D_IMM))
   lw a0, 142(zero)
 .return:
   ret
 
-; basic/monitor.e16.ts:198 rName(key) at -O1
+; basic/monitor.e16.ts:200 rName(key) at -O1
 ;   key in s1
 rName:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; key
-  ; basic/monitor.e16.ts:199  switch (key) {
+  ; basic/monitor.e16.ts:201  switch (key) {
   beq s1, zero, .L2
   li t0, 1
   beq s1, t0, .L3
@@ -13872,79 +13872,79 @@ rName:
   beq s1, t0, .L19
   j .L20
 .L2:
-  ; basic/monitor.e16.ts:201  return str('add')
+  ; basic/monitor.e16.ts:203  return str('add')
   la a0, str_48
   j .return
 .L3:
-  ; basic/monitor.e16.ts:203  return str('sll')
+  ; basic/monitor.e16.ts:205  return str('sll')
   la a0, str_49
   j .return
 .L4:
-  ; basic/monitor.e16.ts:205  return str('slt')
+  ; basic/monitor.e16.ts:207  return str('slt')
   la a0, str_50
   j .return
 .L5:
-  ; basic/monitor.e16.ts:207  return str('sltu')
+  ; basic/monitor.e16.ts:209  return str('sltu')
   la a0, str_51
   j .return
 .L6:
-  ; basic/monitor.e16.ts:209  return str('xor')
+  ; basic/monitor.e16.ts:211  return str('xor')
   la a0, str_52
   j .return
 .L7:
-  ; basic/monitor.e16.ts:211  return str('srl')
+  ; basic/monitor.e16.ts:213  return str('srl')
   la a0, str_53
   j .return
 .L8:
-  ; basic/monitor.e16.ts:213  return str('or')
+  ; basic/monitor.e16.ts:215  return str('or')
   la a0, str_54
   j .return
 .L9:
-  ; basic/monitor.e16.ts:215  return str('and')
+  ; basic/monitor.e16.ts:217  return str('and')
   la a0, str_55
   j .return
 .L10:
-  ; basic/monitor.e16.ts:217  return str('sub')
+  ; basic/monitor.e16.ts:219  return str('sub')
   la a0, str_56
   j .return
 .L11:
-  ; basic/monitor.e16.ts:219  return str('sra')
+  ; basic/monitor.e16.ts:221  return str('sra')
   la a0, str_57
   j .return
 .L12:
-  ; basic/monitor.e16.ts:221  return str('mul')
+  ; basic/monitor.e16.ts:223  return str('mul')
   la a0, str_58
   j .return
 .L13:
-  ; basic/monitor.e16.ts:223  return str('mulh')
+  ; basic/monitor.e16.ts:225  return str('mulh')
   la a0, str_59
   j .return
 .L14:
-  ; basic/monitor.e16.ts:225  return str('mulhsu')
+  ; basic/monitor.e16.ts:227  return str('mulhsu')
   la a0, str_60
   j .return
 .L15:
-  ; basic/monitor.e16.ts:227  return str('mulhu')
+  ; basic/monitor.e16.ts:229  return str('mulhu')
   la a0, str_61
   j .return
 .L16:
-  ; basic/monitor.e16.ts:229  return str('div')
+  ; basic/monitor.e16.ts:231  return str('div')
   la a0, str_62
   j .return
 .L17:
-  ; basic/monitor.e16.ts:231  return str('divu')
+  ; basic/monitor.e16.ts:233  return str('divu')
   la a0, str_63
   j .return
 .L18:
-  ; basic/monitor.e16.ts:233  return str('rem')
+  ; basic/monitor.e16.ts:235  return str('rem')
   la a0, str_64
   j .return
 .L19:
-  ; basic/monitor.e16.ts:235  return str('remu')
+  ; basic/monitor.e16.ts:237  return str('remu')
   la a0, str_65
   j .return
 .L20:
-  ; basic/monitor.e16.ts:237  return bitName(key)
+  ; basic/monitor.e16.ts:239  return bitName(key)
   mv a0, s1
   call bitName
 .return:
@@ -13953,10 +13953,10 @@ rName:
   addi sp, sp, 4
   ret
 
-; basic/monitor.e16.ts:241 bitName(key) at -O1
+; basic/monitor.e16.ts:243 bitName(key) at -O1
 ;   key in a0
 bitName:
-  ; basic/monitor.e16.ts:242  switch (key) {
+  ; basic/monitor.e16.ts:244  switch (key) {
   li t0, 25
   beq a0, t0, .L2
   li t0, 28
@@ -13989,98 +13989,98 @@ bitName:
   beq a0, t0, .L16
   j .L17
 .L2:
-  ; basic/monitor.e16.ts:244  return str('rol')
+  ; basic/monitor.e16.ts:246  return str('rol')
   la a0, str_66
   ret
 .L3:
-  ; basic/monitor.e16.ts:246  return str('xnor')
+  ; basic/monitor.e16.ts:248  return str('xnor')
   la a0, str_67
   ret
 .L4:
-  ; basic/monitor.e16.ts:248  return str('ror')
+  ; basic/monitor.e16.ts:250  return str('ror')
   la a0, str_68
   ret
 .L5:
-  ; basic/monitor.e16.ts:250  return str('orn')
+  ; basic/monitor.e16.ts:252  return str('orn')
   la a0, str_69
   ret
 .L6:
-  ; basic/monitor.e16.ts:252  return str('andn')
+  ; basic/monitor.e16.ts:254  return str('andn')
   la a0, str_70
   ret
 .L7:
-  ; basic/monitor.e16.ts:254  return str('min')
+  ; basic/monitor.e16.ts:256  return str('min')
   la a0, str_71
   ret
 .L8:
-  ; basic/monitor.e16.ts:256  return str('minu')
+  ; basic/monitor.e16.ts:258  return str('minu')
   la a0, str_72
   ret
 .L9:
-  ; basic/monitor.e16.ts:258  return str('max')
+  ; basic/monitor.e16.ts:260  return str('max')
   la a0, str_73
   ret
 .L10:
-  ; basic/monitor.e16.ts:260  return str('maxu')
+  ; basic/monitor.e16.ts:262  return str('maxu')
   la a0, str_74
   ret
 .L11:
-  ; basic/monitor.e16.ts:262  return str('bset')
+  ; basic/monitor.e16.ts:264  return str('bset')
   la a0, str_75
   ret
 .L12:
-  ; basic/monitor.e16.ts:264  return str('bclr')
+  ; basic/monitor.e16.ts:266  return str('bclr')
   la a0, str_76
   ret
 .L13:
-  ; basic/monitor.e16.ts:266  return str('binv')
+  ; basic/monitor.e16.ts:268  return str('binv')
   la a0, str_77
   ret
 .L14:
-  ; basic/monitor.e16.ts:268  return str('bext')
+  ; basic/monitor.e16.ts:270  return str('bext')
   la a0, str_78
   ret
 .L15:
-  ; basic/monitor.e16.ts:270  return str('mcpy')
+  ; basic/monitor.e16.ts:272  return str('mcpy')
   la a0, str_79
   ret
 .L16:
-  ; basic/monitor.e16.ts:272  return str('mset')
+  ; basic/monitor.e16.ts:274  return str('mset')
   la a0, str_80
   ret
 .L17:
-  ; basic/monitor.e16.ts:274  return 0
+  ; basic/monitor.e16.ts:276  return 0
   li a0, 0
 .return:
   ret
 
-; basic/monitor.e16.ts:282 blockRegisters(key, rd, rs1, rs2) at -O1
+; basic/monitor.e16.ts:284 blockRegisters(key, rd, rs1, rs2) at -O1
 ;   key in a0
 ;   rd in a1
 ;   rs1 in a2
 ;   rs2 in a3
 blockRegisters:
-  ; basic/monitor.e16.ts:283  if (key !== 48 && key !== 49) return true
+  ; basic/monitor.e16.ts:285  if (key !== 48 && key !== 49) return true
   li t0, 48
   beq a0, t0, .L1
   li t0, 49
   beq a0, t0, .L1
-  ; basic/monitor.e16.ts:283  return true
+  ; basic/monitor.e16.ts:285  return true
   li a0, 1
   ret
 .L1:
-  ; basic/monitor.e16.ts:284  if (rd === 0 || rs2 === 0 || rd === rs2 || rd === rs1 || rs1 === rs2) return false
+  ; basic/monitor.e16.ts:286  if (rd === 0 || rs2 === 0 || rd === rs2 || rd === rs1 || rs1 === rs2) return false
   beq a1, zero, .L3
   beq a3, zero, .L3
   beq a1, a3, .L3
   beq a1, a2, .L3
   bne a2, a3, .L2
 .L3:
-  ; basic/monitor.e16.ts:284  return false
+  ; basic/monitor.e16.ts:286  return false
   li a0, 0
   ret
 .L2:
-  ; basic/monitor.e16.ts:285  return key === 49 || rs1 !== 0
+  ; basic/monitor.e16.ts:287  return key === 49 || rs1 !== 0
   li t0, 49
   sub t0, a0, t0
   seqz t0, t0
@@ -14093,45 +14093,45 @@ blockRegisters:
 .return:
   ret
 
-; basic/monitor.e16.ts:289 shiftName(f3, sel) at -O1
+; basic/monitor.e16.ts:291 shiftName(f3, sel) at -O1
 ;   f3 in a0
 ;   sel in a1
 shiftName:
-  ; basic/monitor.e16.ts:290  if (f3 === 5) {
+  ; basic/monitor.e16.ts:292  if (f3 === 5) {
   li t0, 5
   bne a0, t0, .L1
-  ; basic/monitor.e16.ts:291  if (sel === 0) return str('srli')
+  ; basic/monitor.e16.ts:293  if (sel === 0) return str('srli')
   bne a1, zero, .L2
-  ; basic/monitor.e16.ts:291  return str('srli')
+  ; basic/monitor.e16.ts:293  return str('srli')
   la a0, str_81
   ret
 .L2:
-  ; basic/monitor.e16.ts:292  if (sel === 1) return str('srai')
+  ; basic/monitor.e16.ts:294  if (sel === 1) return str('srai')
   li t0, 1
   bne a1, t0, .L3
-  ; basic/monitor.e16.ts:292  return str('srai')
+  ; basic/monitor.e16.ts:294  return str('srai')
   la a0, str_82
   ret
 .L3:
-  ; basic/monitor.e16.ts:293  if (sel === 2) return str('rori')
+  ; basic/monitor.e16.ts:295  if (sel === 2) return str('rori')
   li t0, 2
   bne a1, t0, .L4
-  ; basic/monitor.e16.ts:293  return str('rori')
+  ; basic/monitor.e16.ts:295  return str('rori')
   la a0, str_83
   ret
 .L4:
-  ; basic/monitor.e16.ts:294  if (sel === 3) return str('bexti')
+  ; basic/monitor.e16.ts:296  if (sel === 3) return str('bexti')
   li t0, 3
   bne a1, t0, .L5
-  ; basic/monitor.e16.ts:294  return str('bexti')
+  ; basic/monitor.e16.ts:296  return str('bexti')
   la a0, str_84
   ret
 .L5:
-  ; basic/monitor.e16.ts:295  return 0
+  ; basic/monitor.e16.ts:297  return 0
   li a0, 0
   ret
 .L1:
-  ; basic/monitor.e16.ts:297  switch (sel) {
+  ; basic/monitor.e16.ts:299  switch (sel) {
   beq a1, zero, .L7
   li t0, 1
   beq a1, t0, .L8
@@ -14153,55 +14153,55 @@ shiftName:
   beq a1, t0, .L16
   j .L17
 .L7:
-  ; basic/monitor.e16.ts:299  return str('slli')
+  ; basic/monitor.e16.ts:301  return str('slli')
   la a0, str_85
   ret
 .L8:
-  ; basic/monitor.e16.ts:301  return str('bseti')
+  ; basic/monitor.e16.ts:303  return str('bseti')
   la a0, str_86
   ret
 .L9:
-  ; basic/monitor.e16.ts:303  return str('bclri')
+  ; basic/monitor.e16.ts:305  return str('bclri')
   la a0, str_87
   ret
 .L10:
-  ; basic/monitor.e16.ts:305  return str('binvi')
+  ; basic/monitor.e16.ts:307  return str('binvi')
   la a0, str_88
   ret
 .L11:
-  ; basic/monitor.e16.ts:307  return str('clz')
+  ; basic/monitor.e16.ts:309  return str('clz')
   la a0, str_89
   ret
 .L12:
-  ; basic/monitor.e16.ts:309  return str('ctz')
+  ; basic/monitor.e16.ts:311  return str('ctz')
   la a0, str_90
   ret
 .L13:
-  ; basic/monitor.e16.ts:311  return str('cpop')
+  ; basic/monitor.e16.ts:313  return str('cpop')
   la a0, str_91
   ret
 .L14:
-  ; basic/monitor.e16.ts:313  return str('sext.b')
+  ; basic/monitor.e16.ts:315  return str('sext.b')
   la a0, str_92
   ret
 .L15:
-  ; basic/monitor.e16.ts:315  return str('zext.b')
+  ; basic/monitor.e16.ts:317  return str('zext.b')
   la a0, str_93
   ret
 .L16:
-  ; basic/monitor.e16.ts:317  return str('rev8')
+  ; basic/monitor.e16.ts:319  return str('rev8')
   la a0, str_94
   ret
 .L17:
-  ; basic/monitor.e16.ts:319  return 0
+  ; basic/monitor.e16.ts:321  return 0
   li a0, 0
 .return:
   ret
 
-; basic/monitor.e16.ts:323 immName(f3) at -O1
+; basic/monitor.e16.ts:325 immName(f3) at -O1
 ;   f3 in a0
 immName:
-  ; basic/monitor.e16.ts:324  switch (f3) {
+  ; basic/monitor.e16.ts:326  switch (f3) {
   beq a0, zero, .L2
   li t0, 2
   beq a0, t0, .L3
@@ -14215,36 +14215,36 @@ immName:
   beq a0, t0, .L7
   j .L8
 .L2:
-  ; basic/monitor.e16.ts:326  return str('addi')
+  ; basic/monitor.e16.ts:328  return str('addi')
   la a0, str_95
   ret
 .L3:
-  ; basic/monitor.e16.ts:328  return str('slti')
+  ; basic/monitor.e16.ts:330  return str('slti')
   la a0, str_96
   ret
 .L4:
-  ; basic/monitor.e16.ts:330  return str('sltiu')
+  ; basic/monitor.e16.ts:332  return str('sltiu')
   la a0, str_97
   ret
 .L5:
-  ; basic/monitor.e16.ts:332  return str('xori')
+  ; basic/monitor.e16.ts:334  return str('xori')
   la a0, str_98
   ret
 .L6:
-  ; basic/monitor.e16.ts:334  return str('ori')
+  ; basic/monitor.e16.ts:336  return str('ori')
   la a0, str_99
   ret
 .L7:
-  ; basic/monitor.e16.ts:336  return str('andi')
+  ; basic/monitor.e16.ts:338  return str('andi')
   la a0, str_100
   ret
 .L8:
-  ; basic/monitor.e16.ts:338  return 0
+  ; basic/monitor.e16.ts:340  return 0
   li a0, 0
 .return:
   ret
 
-; basic/monitor.e16.ts:342 opImm(f3, rd, rs1, imm14) at -O1
+; basic/monitor.e16.ts:344 opImm(f3, rd, rs1, imm14) at -O1
 ;   f3 in s1
 ;   rd in s3
 ;   rs1 in 0(fp)
@@ -14264,36 +14264,36 @@ opImm:
   mv s3, a1 ; rd
   sw a2, 0(fp) ; rs1
   mv s2, a3 ; imm14
-  ; basic/monitor.e16.ts:343  if (f3 !== 1 && f3 !== 5) {
+  ; basic/monitor.e16.ts:345  if (f3 !== 1 && f3 !== 5) {
   li t0, 1
   beq s1, t0, .L1
   li t0, 5
   beq s1, t0, .L1
-  ; basic/monitor.e16.ts:344  decoded(immName(f3), F_I, rd, rs1)
+  ; basic/monitor.e16.ts:346  decoded(immName(f3), F_I, rd, rs1)
   mv a0, s1
   call immName
   li a1, 2
   mv a2, s3
   lw a3, 0(fp)
   call decoded
-  ; basic/monitor.e16.ts:345  setImm(i16(wrap16(imm14 << 2)) >> 2)
+  ; basic/monitor.e16.ts:347  setImm(i16(wrap16(imm14 << 2)) >> 2)
   slli t0, s2, 2
   srai t0, t0, 2
   sw t0, 4(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 4(fp) ; setImm.v
   sw t0, 142(zero)
-  ; basic/monitor.e16.ts:346  return
+  ; basic/monitor.e16.ts:348  return
   j .return
 .L1:
-  ; basic/monitor.e16.ts:348  const sel = imm14 >> 4
+  ; basic/monitor.e16.ts:350  const sel = imm14 >> 4
   srli t0, s2, 4
   sw t0, 2(fp) ; sel
-  ; basic/monitor.e16.ts:349  if (sel < 0x10) {
+  ; basic/monitor.e16.ts:351  if (sel < 0x10) {
   li t0, 16
   lw t1, 2(fp) ; sel
   bgeu t1, t0, .L2
-  ; basic/monitor.e16.ts:350  decoded(shiftName(f3, sel), F_I, rd, rs1)
+  ; basic/monitor.e16.ts:352  decoded(shiftName(f3, sel), F_I, rd, rs1)
   mv a0, s1
   lw a1, 2(fp)
   call shiftName
@@ -14301,18 +14301,18 @@ opImm:
   mv a2, s3
   lw a3, 0(fp)
   call decoded
-  ; basic/monitor.e16.ts:351  setImm(i16(imm14 & 15))
+  ; basic/monitor.e16.ts:353  setImm(i16(imm14 & 15))
   andi t0, s2, 15
   sw t0, 6(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 6(fp) ; setImm.v
   sw t0, 142(zero)
   j .L3
 .L2:
-  ; basic/monitor.e16.ts:352  if ((imm14 & 15) === 0) {
+  ; basic/monitor.e16.ts:354  if ((imm14 & 15) === 0) {
   andi t0, s2, 15
   bne t0, zero, .L4
-  ; basic/monitor.e16.ts:353  decoded(shiftName(f3, sel), F_UNARY, rd, rs1)
+  ; basic/monitor.e16.ts:355  decoded(shiftName(f3, sel), F_UNARY, rd, rs1)
   mv a0, s1
   lw a1, 2(fp)
   call shiftName
@@ -14322,8 +14322,8 @@ opImm:
   call decoded
   j .L5
 .L4:
-  ; basic/monitor.e16.ts:355  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  ; basic/monitor.e16.ts:357  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
 .L5:
 .L3:
@@ -14337,14 +14337,14 @@ opImm:
   addi sp, sp, 18
   ret
 
-; basic/monitor.e16.ts:359 loadOrJalr(major, f3) at -O1
+; basic/monitor.e16.ts:361 loadOrJalr(major, f3) at -O1
 ;   major in a0
 ;   f3 in a1
 loadOrJalr:
-  ; basic/monitor.e16.ts:360  if (major === 6) return f3 === 0 ? str('jalr') : 0
+  ; basic/monitor.e16.ts:362  if (major === 6) return f3 === 0 ? str('jalr') : 0
   li t0, 6
   bne a0, t0, .L1
-  ; basic/monitor.e16.ts:360  return f3 === 0 ? str('jalr') : 0
+  ; basic/monitor.e16.ts:362  return f3 === 0 ? str('jalr') : 0
   bne a1, zero, .L2
   la t0, str_101
   j .L3
@@ -14354,35 +14354,35 @@ loadOrJalr:
   mv a0, t0
   ret
 .L1:
-  ; basic/monitor.e16.ts:361  if (f3 === 0) return str('lb')
+  ; basic/monitor.e16.ts:363  if (f3 === 0) return str('lb')
   bne a1, zero, .L4
-  ; basic/monitor.e16.ts:361  return str('lb')
+  ; basic/monitor.e16.ts:363  return str('lb')
   la a0, str_102
   ret
 .L4:
-  ; basic/monitor.e16.ts:362  if (f3 === 1) return str('lw')
+  ; basic/monitor.e16.ts:364  if (f3 === 1) return str('lw')
   li t0, 1
   bne a1, t0, .L5
-  ; basic/monitor.e16.ts:362  return str('lw')
+  ; basic/monitor.e16.ts:364  return str('lw')
   la a0, str_103
   ret
 .L5:
-  ; basic/monitor.e16.ts:363  if (f3 === 4) return str('lbu')
+  ; basic/monitor.e16.ts:365  if (f3 === 4) return str('lbu')
   li t0, 4
   bne a1, t0, .L6
-  ; basic/monitor.e16.ts:363  return str('lbu')
+  ; basic/monitor.e16.ts:365  return str('lbu')
   la a0, str_104
   ret
 .L6:
-  ; basic/monitor.e16.ts:364  return 0
+  ; basic/monitor.e16.ts:366  return 0
   li a0, 0
 .return:
   ret
 
-; basic/monitor.e16.ts:367 branchName(f3) at -O1
+; basic/monitor.e16.ts:369 branchName(f3) at -O1
 ;   f3 in a0
 branchName:
-  ; basic/monitor.e16.ts:368  switch (f3) {
+  ; basic/monitor.e16.ts:370  switch (f3) {
   beq a0, zero, .L2
   li t0, 1
   beq a0, t0, .L3
@@ -14396,39 +14396,39 @@ branchName:
   beq a0, t0, .L7
   j .L8
 .L2:
-  ; basic/monitor.e16.ts:370  return str('beq')
+  ; basic/monitor.e16.ts:372  return str('beq')
   la a0, str_105
   ret
 .L3:
-  ; basic/monitor.e16.ts:372  return str('bne')
+  ; basic/monitor.e16.ts:374  return str('bne')
   la a0, str_106
   ret
 .L4:
-  ; basic/monitor.e16.ts:374  return str('blt')
+  ; basic/monitor.e16.ts:376  return str('blt')
   la a0, str_107
   ret
 .L5:
-  ; basic/monitor.e16.ts:376  return str('bge')
+  ; basic/monitor.e16.ts:378  return str('bge')
   la a0, str_108
   ret
 .L6:
-  ; basic/monitor.e16.ts:378  return str('bltu')
+  ; basic/monitor.e16.ts:380  return str('bltu')
   la a0, str_109
   ret
 .L7:
-  ; basic/monitor.e16.ts:380  return str('bgeu')
+  ; basic/monitor.e16.ts:382  return str('bgeu')
   la a0, str_110
   ret
 .L8:
-  ; basic/monitor.e16.ts:382  return 0
+  ; basic/monitor.e16.ts:384  return 0
   li a0, 0
 .return:
   ret
 
-; basic/monitor.e16.ts:386 csrName(f3) at -O1
+; basic/monitor.e16.ts:388 csrName(f3) at -O1
 ;   f3 in a0
 csrName:
-  ; basic/monitor.e16.ts:387  switch (f3) {
+  ; basic/monitor.e16.ts:389  switch (f3) {
   li t0, 1
   beq a0, t0, .L2
   li t0, 2
@@ -14443,71 +14443,71 @@ csrName:
   beq a0, t0, .L7
   j .L8
 .L2:
-  ; basic/monitor.e16.ts:389  return str('csrrw')
+  ; basic/monitor.e16.ts:391  return str('csrrw')
   la a0, str_111
   ret
 .L3:
-  ; basic/monitor.e16.ts:391  return str('csrrs')
+  ; basic/monitor.e16.ts:393  return str('csrrs')
   la a0, str_112
   ret
 .L4:
-  ; basic/monitor.e16.ts:393  return str('csrrc')
+  ; basic/monitor.e16.ts:395  return str('csrrc')
   la a0, str_113
   ret
 .L5:
-  ; basic/monitor.e16.ts:395  return str('csrrwi')
+  ; basic/monitor.e16.ts:397  return str('csrrwi')
   la a0, str_114
   ret
 .L6:
-  ; basic/monitor.e16.ts:397  return str('csrrsi')
+  ; basic/monitor.e16.ts:399  return str('csrrsi')
   la a0, str_115
   ret
 .L7:
-  ; basic/monitor.e16.ts:399  return str('csrrci')
+  ; basic/monitor.e16.ts:401  return str('csrrci')
   la a0, str_116
   ret
 .L8:
-  ; basic/monitor.e16.ts:401  return 0
+  ; basic/monitor.e16.ts:403  return 0
   li a0, 0
 .return:
   ret
 
-; basic/monitor.e16.ts:405 sysName(kind) at -O1
+; basic/monitor.e16.ts:407 sysName(kind) at -O1
 ;   kind in a0
 sysName:
-  ; basic/monitor.e16.ts:406  if (kind === 0) return str('ecall')
+  ; basic/monitor.e16.ts:408  if (kind === 0) return str('ecall')
   bne a0, zero, .L1
-  ; basic/monitor.e16.ts:406  return str('ecall')
+  ; basic/monitor.e16.ts:408  return str('ecall')
   la a0, str_117
   ret
 .L1:
-  ; basic/monitor.e16.ts:407  if (kind === 1) return str('ebreak')
+  ; basic/monitor.e16.ts:409  if (kind === 1) return str('ebreak')
   li t0, 1
   bne a0, t0, .L2
-  ; basic/monitor.e16.ts:407  return str('ebreak')
+  ; basic/monitor.e16.ts:409  return str('ebreak')
   la a0, str_118
   ret
 .L2:
-  ; basic/monitor.e16.ts:408  if (kind === 2) return str('mret')
+  ; basic/monitor.e16.ts:410  if (kind === 2) return str('mret')
   li t0, 2
   bne a0, t0, .L3
-  ; basic/monitor.e16.ts:408  return str('mret')
+  ; basic/monitor.e16.ts:410  return str('mret')
   la a0, str_119
   ret
 .L3:
-  ; basic/monitor.e16.ts:409  if (kind === 3) return str('wfi')
+  ; basic/monitor.e16.ts:411  if (kind === 3) return str('wfi')
   li t0, 3
   bne a0, t0, .L4
-  ; basic/monitor.e16.ts:409  return str('wfi')
+  ; basic/monitor.e16.ts:411  return str('wfi')
   la a0, str_120
   ret
 .L4:
-  ; basic/monitor.e16.ts:410  return 0
+  ; basic/monitor.e16.ts:412  return 0
   li a0, 0
 .return:
   ret
 
-; basic/monitor.e16.ts:413 system(f3, rd, rs1, imm14) at -O1
+; basic/monitor.e16.ts:415 system(f3, rd, rs1, imm14) at -O1
 ;   f3 in s1
 ;   rd in s3
 ;   rs1 in 0(fp)
@@ -14525,19 +14525,19 @@ system:
   mv s3, a1 ; rd
   sw a2, 0(fp) ; rs1
   mv s2, a3 ; imm14
-  ; basic/monitor.e16.ts:414  if (f3 === 0) {
+  ; basic/monitor.e16.ts:416  if (f3 === 0) {
   bne s1, zero, .L1
-  ; basic/monitor.e16.ts:416  if (rd !== 0 || rs1 !== 0) illegal()
+  ; basic/monitor.e16.ts:418  if (rd !== 0 || rs1 !== 0) illegal()
   bne s3, zero, .L3
   lw t0, 0(fp) ; rs1
   beq t0, zero, .L2
 .L3:
-  ; basic/monitor.e16.ts:416  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  ; basic/monitor.e16.ts:418  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
   j .L5
 .L2:
-  ; basic/monitor.e16.ts:417  decoded(sysName(imm14), F_NONE, 0, 0)
+  ; basic/monitor.e16.ts:419  decoded(sysName(imm14), F_NONE, 0, 0)
   mv a0, s2
   call sysName
   li a1, 11
@@ -14546,15 +14546,15 @@ system:
   call decoded
   j .L5
 .L1:
-  ; basic/monitor.e16.ts:418  if (imm14 > 0xfff) {
+  ; basic/monitor.e16.ts:420  if (imm14 > 0xfff) {
   li t0, 4095
   bgeu t0, s2, .L6
-  ; basic/monitor.e16.ts:419  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  ; basic/monitor.e16.ts:421  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
   j .L7
 .L6:
-  ; basic/monitor.e16.ts:421  decoded(csrName(f3), f3 >= 5 ? F_CSRI : F_CSR, rd, rs1)
+  ; basic/monitor.e16.ts:423  decoded(csrName(f3), f3 >= 5 ? F_CSRI : F_CSR, rd, rs1)
   mv a0, s1
   call csrName
   mv t0, a0
@@ -14571,9 +14571,9 @@ system:
   mv a2, s3
   lw a3, 0(fp)
   call decoded
-  ; basic/monitor.e16.ts:422  setImm(i16(imm14))
+  ; basic/monitor.e16.ts:424  setImm(i16(imm14))
   sw s2, 2(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 2(fp) ; setImm.v
   sw t0, 142(zero)
 .L7:
@@ -14588,7 +14588,7 @@ system:
   addi sp, sp, 14
   ret
 
-; basic/monitor.e16.ts:427 upperForm(major, rd, lo, hi) at -O1
+; basic/monitor.e16.ts:429 upperForm(major, rd, lo, hi) at -O1
 ;   major in s1
 ;   rd in s2
 ;   lo in 2(fp)
@@ -14608,39 +14608,39 @@ upperForm:
   mv s2, a1 ; rd
   sw a2, 2(fp) ; lo
   mv s3, a3 ; hi
-  ; basic/monitor.e16.ts:428  const field = wrap16((lo >> 11) | (hi << 5))
+  ; basic/monitor.e16.ts:430  const field = wrap16((lo >> 11) | (hi << 5))
   lw t0, 2(fp) ; lo
   srli t0, t0, 11
   slli t1, s3, 5
   or t0, t0, t1
   sw t0, 0(fp) ; field
-  ; basic/monitor.e16.ts:429  if (hi >> 11 !== 0) {
+  ; basic/monitor.e16.ts:431  if (hi >> 11 !== 0) {
   srli t0, s3, 11
   beq t0, zero, .L1
-  ; basic/monitor.e16.ts:430  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  ; basic/monitor.e16.ts:432  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
   j .L2
 .L1:
-  ; basic/monitor.e16.ts:431  if (major === 5) {
+  ; basic/monitor.e16.ts:433  if (major === 5) {
   li t0, 5
   bne s1, t0, .L3
-  ; basic/monitor.e16.ts:432  decoded(str('jal'), F_J, rd, 0)
+  ; basic/monitor.e16.ts:434  decoded(str('jal'), F_J, rd, 0)
   la a0, str_121
   li a1, 7
   mv a2, s2
   li a3, 0
   call decoded
-  ; basic/monitor.e16.ts:433  setImm(i16(wrap16(field << 1)))
+  ; basic/monitor.e16.ts:435  setImm(i16(wrap16(field << 1)))
   lw t0, 0(fp) ; field
   slli t0, t0, 1
   sw t0, 4(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 4(fp) ; setImm.v
   sw t0, 142(zero)
   j .L4
 .L3:
-  ; basic/monitor.e16.ts:435  decoded(major === 7 ? str('li') : str('auipc'), F_U, rd, 0)
+  ; basic/monitor.e16.ts:437  decoded(major === 7 ? str('li') : str('auipc'), F_U, rd, 0)
   li t0, 7
   bne s1, t0, .L5
   la t0, str_122
@@ -14653,10 +14653,10 @@ upperForm:
   mv a2, s2
   li a3, 0
   call decoded
-  ; basic/monitor.e16.ts:436  setImm(i16(field))
+  ; basic/monitor.e16.ts:438  setImm(i16(field))
   lw t0, 0(fp) ; field
   sw t0, 6(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 6(fp) ; setImm.v
   sw t0, 142(zero)
 .L4:
@@ -14671,121 +14671,182 @@ upperForm:
   addi sp, sp, 18
   ret
 
-; basic/monitor.e16.ts:440 decode32(lo, hi) at -O1
-;   lo in 4(fp)
-;   hi in 2(fp)
+; basic/monitor.e16.ts:443 registers(f10, f3, rd, rs1) at -O1
+;   f10 in s2
+;   f3 in 2(fp)
+;   rd in s3
+;   rs1 in 0(fp)
+;   amount/key in s1
+;   setImm.v in 4(fp)
+registers:
+  addi sp, sp, -16
+  sw ra, 6(sp)
+  sw s2, 8(sp)
+  sw s3, 10(sp)
+  sw s1, 12(sp)
+  sw s0, 14(sp)
+  mv fp, sp
+  mv s2, a0 ; f10
+  sw a1, 2(fp) ; f3
+  mv s3, a2 ; rd
+  sw a3, 0(fp) ; rs1
+  ; basic/monitor.e16.ts:444  if (f10 >= 16) {
+  li t0, 16
+  bltu s2, t0, .L1
+  ; basic/monitor.e16.ts:445  const amount = f10 & 15
+  andi s1, s2, 15
+  ; basic/monitor.e16.ts:446  decoded(f10 >> 4 === 1 && f3 === 0 && amount !== 0 ? str('mulq') : 0, F_RQ, rd, rs1)
+  srli t0, s2, 4
+  li t1, 1
+  bne t0, t1, .L2
+  lw t0, 2(fp) ; f3
+  bne t0, zero, .L2
+  beq s1, zero, .L2
+  la t0, str_124
+  j .L3
+.L2:
+  li t0, 0
+.L3:
+  mv a0, t0
+  li a1, 19
+  mv a2, s3
+  lw a3, 0(fp)
+  call decoded
+  ; basic/monitor.e16.ts:447  setImm(i16(amount))
+  sw s1, 4(fp) ; setImm.v
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
+  lw t0, 4(fp) ; setImm.v
+  sw t0, 142(zero)
+  ; basic/monitor.e16.ts:448  return
+  j .return
+.L1:
+  ; basic/monitor.e16.ts:450  const key = (f10 << 3) | f3
+  slli t0, s2, 3
+  lw t1, 2(fp) ; f3
+  or s1, t0, t1
+  ; basic/monitor.e16.ts:451  decoded(blockRegisters(key, rd, rs1, peek16(D_RS2)) ? rName(key) : 0, F_R, rd, rs1)
+  lw t0, 140(zero)
+  mv a0, s1
+  mv a1, s3
+  lw a2, 0(fp)
+  mv a3, t0
+  call blockRegisters
+  beqz a0, .L4
+  mv a0, s1
+  call rName
+  mv t0, a0
+  j .L5
+.L4:
+  li t0, 0
+.L5:
+  mv a0, t0
+  li a1, 1
+  mv a2, s3
+  lw a3, 0(fp)
+  call decoded
+.return:
+  mv sp, fp
+  lw ra, 6(sp)
+  lw s2, 8(sp)
+  lw s3, 10(sp)
+  lw s1, 12(sp)
+  lw s0, 14(sp)
+  addi sp, sp, 16
+  ret
+
+; basic/monitor.e16.ts:454 decode32(lo, hi) at -O1
+;   lo in 2(fp)
+;   hi in 4(fp)
 ;   major in s1
 ;   rd in s2
 ;   f3 in s3
 ;   rs1 in 0(fp)
 ;   f10 in 6(fp)
 ;   imm14 in 8(fp)
-;   key in 10(fp)
-;   setRs2.r in 12(fp)
+;   setRs2.r in 10(fp)
+;   setImm.v in 12(fp)
 ;   setImm.v in 14(fp)
 ;   setImm.v in 16(fp)
-;   setImm.v in 18(fp)
 decode32:
-  addi sp, sp, -30
-  sw ra, 20(sp)
-  sw s1, 22(sp)
-  sw s2, 24(sp)
-  sw s3, 26(sp)
-  sw s0, 28(sp)
+  addi sp, sp, -28
+  sw ra, 18(sp)
+  sw s1, 20(sp)
+  sw s2, 22(sp)
+  sw s3, 24(sp)
+  sw s0, 26(sp)
   mv fp, sp
-  sw a0, 4(fp) ; lo
-  sw a1, 2(fp) ; hi
-  ; basic/monitor.e16.ts:441  poke16(D_SIZE, 4)
+  sw a0, 2(fp) ; lo
+  sw a1, 4(fp) ; hi
+  ; basic/monitor.e16.ts:455  poke16(D_SIZE, 4)
   li t0, 4
   sw t0, 144(zero)
-  ; basic/monitor.e16.ts:442  const major = (lo >> 2) & 31
-  lw t0, 4(fp) ; lo
+  ; basic/monitor.e16.ts:456  const major = (lo >> 2) & 31
+  lw t0, 2(fp) ; lo
   srli t0, t0, 2
   andi s1, t0, 31
-  ; basic/monitor.e16.ts:443  const rd = (lo >> 7) & 15
-  lw t0, 4(fp) ; lo
+  ; basic/monitor.e16.ts:457  const rd = (lo >> 7) & 15
+  lw t0, 2(fp) ; lo
   srli t0, t0, 7
   andi s2, t0, 15
-  ; basic/monitor.e16.ts:444  const f3 = (lo >> 11) & 7
-  lw t0, 4(fp) ; lo
+  ; basic/monitor.e16.ts:458  const f3 = (lo >> 11) & 7
+  lw t0, 2(fp) ; lo
   srli t0, t0, 11
   andi s3, t0, 7
-  ; basic/monitor.e16.ts:445  const rs1 = ((lo >> 14) | (hi << 2)) & 15
-  lw t0, 4(fp) ; lo
+  ; basic/monitor.e16.ts:459  const rs1 = ((lo >> 14) | (hi << 2)) & 15
+  lw t0, 2(fp) ; lo
   srli t0, t0, 14
-  lw t1, 2(fp) ; hi
+  lw t1, 4(fp) ; hi
   slli t1, t1, 2
   or t0, t0, t1
   andi t0, t0, 15
   sw t0, 0(fp) ; rs1
-  ; basic/monitor.e16.ts:446  const f10 = (hi >> 6) & 0x3ff
-  lw t0, 2(fp) ; hi
+  ; basic/monitor.e16.ts:460  const f10 = (hi >> 6) & 0x3ff
+  lw t0, 4(fp) ; hi
   srli t0, t0, 6
   andi t0, t0, 1023
   sw t0, 6(fp) ; f10
-  ; basic/monitor.e16.ts:447  const imm14 = (hi >> 2) & 0x3fff
-  lw t0, 2(fp) ; hi
+  ; basic/monitor.e16.ts:461  const imm14 = (hi >> 2) & 0x3fff
+  lw t0, 4(fp) ; hi
   srli t0, t0, 2
   li t1, 16383
   and t0, t0, t1
   sw t0, 8(fp) ; imm14
-  ; basic/monitor.e16.ts:448  setRs2((hi >> 2) & 15)
-  lw t0, 2(fp) ; hi
+  ; basic/monitor.e16.ts:462  setRs2((hi >> 2) & 15)
+  lw t0, 4(fp) ; hi
   srli t0, t0, 2
   andi t0, t0, 15
-  sw t0, 12(fp) ; setRs2.r
-  ; basic/monitor.e16.ts:188  poke16(D_RS2, r)
-  lw t0, 12(fp) ; setRs2.r
+  sw t0, 10(fp) ; setRs2.r
+  ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
+  lw t0, 10(fp) ; setRs2.r
   sw t0, 140(zero)
-  ; basic/monitor.e16.ts:449  if (major === 3) {
+  ; basic/monitor.e16.ts:463  if (major === 3) {
   li t0, 3
   bne s1, t0, .L1
-  ; basic/monitor.e16.ts:450  const key = (f10 << 3) | f3
-  lw t0, 6(fp) ; f10
-  slli t0, t0, 3
-  or t0, t0, s3
-  sw t0, 10(fp) ; key
-  ; basic/monitor.e16.ts:451  decoded(blockRegisters(key, rd, rs1, (hi >> 2) & 15) ? rName(key) : 0, F_R, rd, rs1)
-  lw t0, 2(fp) ; hi
-  srli t0, t0, 2
-  andi t0, t0, 15
-  lw a0, 10(fp)
-  mv a1, s2
-  lw a2, 0(fp)
-  mv a3, t0
-  call blockRegisters
-  beqz a0, .L2
-  lw a0, 10(fp)
-  call rName
-  mv t0, a0
-  j .L3
-.L2:
-  li t0, 0
-.L3:
-  mv a0, t0
-  li a1, 1
+  ; basic/monitor.e16.ts:464  registers(f10, f3, rd, rs1)
+  lw a0, 6(fp)
+  mv a1, s3
   mv a2, s2
   lw a3, 0(fp)
-  call decoded
-  j .L4
+  call registers
+  j .L2
 .L1:
-  ; basic/monitor.e16.ts:452  if (major === 2) {
+  ; basic/monitor.e16.ts:465  if (major === 2) {
   li t0, 2
-  bne s1, t0, .L5
-  ; basic/monitor.e16.ts:453  opImm(f3, rd, rs1, imm14)
+  bne s1, t0, .L3
+  ; basic/monitor.e16.ts:466  opImm(f3, rd, rs1, imm14)
   mv a0, s3
   mv a1, s2
   lw a2, 0(fp)
   lw a3, 8(fp)
   call opImm
-  j .L6
-.L5:
-  ; basic/monitor.e16.ts:454  if (major === 0 || major === 6) {
-  beq s1, zero, .L8
+  j .L4
+.L3:
+  ; basic/monitor.e16.ts:467  if (major === 0 || major === 6) {
+  beq s1, zero, .L6
   li t0, 6
-  bne s1, t0, .L7
-.L8:
-  ; basic/monitor.e16.ts:455  decoded(loadOrJalr(major, f3), F_MEM, rd, rs1)
+  bne s1, t0, .L5
+.L6:
+  ; basic/monitor.e16.ts:468  decoded(loadOrJalr(major, f3), F_MEM, rd, rs1)
   mv a0, s1
   mv a1, s3
   call loadOrJalr
@@ -14793,120 +14854,120 @@ decode32:
   mv a2, s2
   lw a3, 0(fp)
   call decoded
-  ; basic/monitor.e16.ts:456  setImm(i16(wrap16(imm14 << 2)) >> 2)
+  ; basic/monitor.e16.ts:469  setImm(i16(wrap16(imm14 << 2)) >> 2)
   lw t0, 8(fp) ; imm14
   slli t0, t0, 2
   srai t0, t0, 2
-  sw t0, 14(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
-  lw t0, 14(fp) ; setImm.v
+  sw t0, 12(fp) ; setImm.v
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
+  lw t0, 12(fp) ; setImm.v
   sw t0, 142(zero)
-  j .L9
-.L7:
-  ; basic/monitor.e16.ts:457  if (major === 1) {
+  j .L7
+.L5:
+  ; basic/monitor.e16.ts:470  if (major === 1) {
   li t0, 1
-  bne s1, t0, .L10
-  ; basic/monitor.e16.ts:458  decoded(f3 === 0 ? str('sb') : f3 === 1 ? str('sw') : 0, F_S, 0, rs1)
-  bne s3, zero, .L11
-  la t0, str_124
+  bne s1, t0, .L8
+  ; basic/monitor.e16.ts:471  decoded(f3 === 0 ? str('sb') : f3 === 1 ? str('sw') : 0, F_S, 0, rs1)
+  bne s3, zero, .L9
+  la t0, str_125
+  j .L10
+.L9:
+  li t0, 1
+  bne s3, t0, .L11
+  la t0, str_126
   j .L12
 .L11:
-  li t0, 1
-  bne s3, t0, .L13
-  la t0, str_125
-  j .L14
-.L13:
   li t0, 0
-.L14:
 .L12:
+.L10:
   mv a0, t0
   li a1, 5
   li a2, 0
   lw a3, 0(fp)
   call decoded
-  ; basic/monitor.e16.ts:459  setImm(i16(wrap16(((f10 << 4) | rd) << 2)) >> 2)
+  ; basic/monitor.e16.ts:472  setImm(i16(wrap16(((f10 << 4) | rd) << 2)) >> 2)
   lw t0, 6(fp) ; f10
   slli t0, t0, 4
   or t0, t0, s2
   slli t0, t0, 2
   srai t0, t0, 2
-  sw t0, 16(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
-  lw t0, 16(fp) ; setImm.v
+  sw t0, 14(fp) ; setImm.v
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
+  lw t0, 14(fp) ; setImm.v
   sw t0, 142(zero)
-  j .L15
-.L10:
-  ; basic/monitor.e16.ts:460  if (major === 4) {
+  j .L13
+.L8:
+  ; basic/monitor.e16.ts:473  if (major === 4) {
   li t0, 4
-  bne s1, t0, .L16
-  ; basic/monitor.e16.ts:461  decoded(branchName(f3), F_B, 0, rs1)
+  bne s1, t0, .L14
+  ; basic/monitor.e16.ts:474  decoded(branchName(f3), F_B, 0, rs1)
   mv a0, s3
   call branchName
   li a1, 6
   li a2, 0
   lw a3, 0(fp)
   call decoded
-  ; basic/monitor.e16.ts:462  setImm(i16(wrap16(((f10 << 5) | (rd << 1)) << 1)) >> 1)
+  ; basic/monitor.e16.ts:475  setImm(i16(wrap16(((f10 << 5) | (rd << 1)) << 1)) >> 1)
   lw t0, 6(fp) ; f10
   slli t0, t0, 5
   slli t1, s2, 1
   or t0, t0, t1
   slli t0, t0, 1
   srai t0, t0, 1
-  sw t0, 18(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
-  lw t0, 18(fp) ; setImm.v
+  sw t0, 16(fp) ; setImm.v
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
+  lw t0, 16(fp) ; setImm.v
   sw t0, 142(zero)
-  j .L17
-.L16:
-  ; basic/monitor.e16.ts:463  if (major === 5 || major === 7 || major === 8) {
+  j .L15
+.L14:
+  ; basic/monitor.e16.ts:476  if (major === 5 || major === 7 || major === 8) {
   li t0, 5
-  beq s1, t0, .L19
+  beq s1, t0, .L17
   li t0, 7
-  beq s1, t0, .L19
+  beq s1, t0, .L17
   li t0, 8
-  bne s1, t0, .L18
-.L19:
-  ; basic/monitor.e16.ts:464  upperForm(major, rd, lo, hi)
+  bne s1, t0, .L16
+.L17:
+  ; basic/monitor.e16.ts:477  upperForm(major, rd, lo, hi)
   mv a0, s1
   mv a1, s2
-  lw a2, 4(fp)
-  lw a3, 2(fp)
+  lw a2, 2(fp)
+  lw a3, 4(fp)
   call upperForm
-  j .L20
-.L18:
-  ; basic/monitor.e16.ts:465  if (major === 9) {
+  j .L18
+.L16:
+  ; basic/monitor.e16.ts:478  if (major === 9) {
   li t0, 9
-  bne s1, t0, .L21
-  ; basic/monitor.e16.ts:466  system(f3, rd, rs1, imm14)
+  bne s1, t0, .L19
+  ; basic/monitor.e16.ts:479  system(f3, rd, rs1, imm14)
   mv a0, s3
   mv a1, s2
   lw a2, 0(fp)
   lw a3, 8(fp)
   call system
-  j .L22
-.L21:
-  ; basic/monitor.e16.ts:468  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  j .L20
+.L19:
+  ; basic/monitor.e16.ts:481  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
-.L22:
 .L20:
-.L17:
+.L18:
 .L15:
-.L9:
-.L6:
+.L13:
+.L7:
 .L4:
+.L2:
 .return:
   mv sp, fp
-  lw ra, 20(sp)
-  lw s1, 22(sp)
-  lw s2, 24(sp)
-  lw s3, 26(sp)
-  lw s0, 28(sp)
-  addi sp, sp, 30
+  lw ra, 18(sp)
+  lw s1, 20(sp)
+  lw s2, 22(sp)
+  lw s3, 24(sp)
+  lw s0, 26(sp)
+  addi sp, sp, 28
   ret
 
-; basic/monitor.e16.ts:475 quadrant0(h) at -O1
+; basic/monitor.e16.ts:488 quadrant0(h) at -O1
 ;   h in s1
 ;   f3 in s3
 ;   r9 in 0(fp)
@@ -14924,19 +14985,19 @@ quadrant0:
   sw s0, 18(sp)
   mv fp, sp
   mv s1, a0 ; h
-  ; basic/monitor.e16.ts:476  const f3 = h >> 13
+  ; basic/monitor.e16.ts:489  const f3 = h >> 13
   srli s3, s1, 13
-  ; basic/monitor.e16.ts:477  const r9 = (h >> 9) & 15
+  ; basic/monitor.e16.ts:490  const r9 = (h >> 9) & 15
   srli t0, s1, 9
   andi t0, t0, 15
   sw t0, 0(fp) ; r9
-  ; basic/monitor.e16.ts:478  if (f3 <= 1) {
+  ; basic/monitor.e16.ts:491  if (f3 <= 1) {
   li t0, 1
   bltu t0, s3, .L1
-  ; basic/monitor.e16.ts:479  const reg = (h >> 7) & 15
+  ; basic/monitor.e16.ts:492  const reg = (h >> 7) & 15
   srli t0, s1, 7
   andi s2, t0, 15
-  ; basic/monitor.e16.ts:480  setImm(i16(((((h >> 11) & 3) << 1) | ((h >> 2) & 1)) << 1))
+  ; basic/monitor.e16.ts:493  setImm(i16(((((h >> 11) & 3) << 1) | ((h >> 2) & 1)) << 1))
   srli t0, s1, 11
   andi t0, t0, 3
   slli t0, t0, 1
@@ -14945,33 +15006,33 @@ quadrant0:
   or t0, t0, t1
   slli t0, t0, 1
   sw t0, 2(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 2(fp) ; setImm.v
   sw t0, 142(zero)
-  ; basic/monitor.e16.ts:481  if (f3 === 1) {
+  ; basic/monitor.e16.ts:494  if (f3 === 1) {
   li t0, 1
   bne s3, t0, .L2
-  ; basic/monitor.e16.ts:482  decoded(str('c.sw'), F_S, 0, (h >> 3) & 15)
+  ; basic/monitor.e16.ts:495  decoded(str('c.sw'), F_S, 0, (h >> 3) & 15)
   srli t0, s1, 3
   andi t0, t0, 15
-  la a0, str_126
+  la a0, str_127
   li a1, 5
   li a2, 0
   mv a3, t0
   call decoded
-  ; basic/monitor.e16.ts:483  setRs2(reg)
+  ; basic/monitor.e16.ts:496  setRs2(reg)
   sw s2, 4(fp) ; setRs2.r
-  ; basic/monitor.e16.ts:188  poke16(D_RS2, r)
+  ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
   lw t0, 4(fp) ; setRs2.r
   sw t0, 140(zero)
   j .L3
 .L2:
-  ; basic/monitor.e16.ts:485  decoded(reg === 0 ? 0 : str('c.lw'), F_MEM, reg, (h >> 3) & 15)
+  ; basic/monitor.e16.ts:498  decoded(reg === 0 ? 0 : str('c.lw'), F_MEM, reg, (h >> 3) & 15)
   bne s2, zero, .L4
   li t0, 0
   j .L5
 .L4:
-  la t0, str_127
+  la t0, str_128
 .L5:
   srli t1, s1, 3
   andi t1, t1, 15
@@ -14981,28 +15042,28 @@ quadrant0:
   mv a3, t1
   call decoded
 .L3:
-  ; basic/monitor.e16.ts:487  return
+  ; basic/monitor.e16.ts:500  return
   j .return
 .L1:
-  ; basic/monitor.e16.ts:489  const off7 = ((h >> 2) & 0x7f) << 1
+  ; basic/monitor.e16.ts:502  const off7 = ((h >> 2) & 0x7f) << 1
   srli t0, s1, 2
   andi t0, t0, 127
   slli s2, t0, 1
-  ; basic/monitor.e16.ts:490  setImm(i16(off7))
+  ; basic/monitor.e16.ts:503  setImm(i16(off7))
   sw s2, 6(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 6(fp) ; setImm.v
   sw t0, 142(zero)
-  ; basic/monitor.e16.ts:491  if (f3 === 2) {
+  ; basic/monitor.e16.ts:504  if (f3 === 2) {
   li t0, 2
   bne s3, t0, .L6
-  ; basic/monitor.e16.ts:492  decoded(r9 === 0 ? 0 : str('c.lwsp'), F_C_LWSP, r9, 2)
+  ; basic/monitor.e16.ts:505  decoded(r9 === 0 ? 0 : str('c.lwsp'), F_C_LWSP, r9, 2)
   lw t0, 0(fp) ; r9
   bne t0, zero, .L7
   li t0, 0
   j .L8
 .L7:
-  la t0, str_128
+  la t0, str_129
 .L8:
   mv a0, t0
   li a1, 14
@@ -15011,39 +15072,39 @@ quadrant0:
   call decoded
   j .L9
 .L6:
-  ; basic/monitor.e16.ts:493  if (f3 === 3) {
+  ; basic/monitor.e16.ts:506  if (f3 === 3) {
   li t0, 3
   bne s3, t0, .L10
-  ; basic/monitor.e16.ts:494  decoded(str('c.swsp'), F_C_SWSP, 0, 2)
-  la a0, str_129
+  ; basic/monitor.e16.ts:507  decoded(str('c.swsp'), F_C_SWSP, 0, 2)
+  la a0, str_130
   li a1, 15
   li a2, 0
   li a3, 2
   call decoded
-  ; basic/monitor.e16.ts:495  setRs2(r9)
+  ; basic/monitor.e16.ts:508  setRs2(r9)
   lw t0, 0(fp) ; r9
   sw t0, 8(fp) ; setRs2.r
-  ; basic/monitor.e16.ts:188  poke16(D_RS2, r)
+  ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
   lw t0, 8(fp) ; setRs2.r
   sw t0, 140(zero)
   j .L11
 .L10:
-  ; basic/monitor.e16.ts:496  if (f3 === 4 && off7 !== 0 && r9 !== 0) {
+  ; basic/monitor.e16.ts:509  if (f3 === 4 && off7 !== 0 && r9 !== 0) {
   li t0, 4
   bne s3, t0, .L12
   beq s2, zero, .L12
   lw t0, 0(fp) ; r9
   beq t0, zero, .L12
-  ; basic/monitor.e16.ts:497  decoded(str('c.addi2spn'), F_C_RI, r9, 2)
-  la a0, str_130
+  ; basic/monitor.e16.ts:510  decoded(str('c.addi2spn'), F_C_RI, r9, 2)
+  la a0, str_131
   li a1, 12
   lw a2, 0(fp)
   li a3, 2
   call decoded
   j .L13
 .L12:
-  ; basic/monitor.e16.ts:499  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  ; basic/monitor.e16.ts:512  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
 .L13:
 .L11:
@@ -15058,7 +15119,7 @@ quadrant0:
   addi sp, sp, 20
   ret
 
-; basic/monitor.e16.ts:504 shiftC(name, r, amount) at -O1
+; basic/monitor.e16.ts:517 shiftC(name, r, amount) at -O1
 ;   name in s3
 ;   r in s1
 ;   amount in s2
@@ -15073,26 +15134,26 @@ shiftC:
   mv s3, a0 ; name
   mv s1, a1 ; r
   mv s2, a2 ; amount
-  ; basic/monitor.e16.ts:505  if (amount > 15 || amount === 0 || r === 0) {
+  ; basic/monitor.e16.ts:518  if (amount > 15 || amount === 0 || r === 0) {
   li t0, 15
   bltu t0, s2, .L2
   beq s2, zero, .L2
   bne s1, zero, .L1
 .L2:
-  ; basic/monitor.e16.ts:506  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  ; basic/monitor.e16.ts:519  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
   j .L3
 .L1:
-  ; basic/monitor.e16.ts:508  decoded(name, F_C_RI, r, r)
+  ; basic/monitor.e16.ts:521  decoded(name, F_C_RI, r, r)
   mv a0, s3
   li a1, 12
   mv a2, s1
   mv a3, s1
   call decoded
-  ; basic/monitor.e16.ts:509  setImm(i16(amount))
+  ; basic/monitor.e16.ts:522  setImm(i16(amount))
   mv s0, s2 ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   sw s0, 142(zero)
 .L3:
 .return:
@@ -15104,7 +15165,7 @@ shiftC:
   addi sp, sp, 10
   ret
 
-; basic/monitor.e16.ts:514 quadrant1(h) at -O1
+; basic/monitor.e16.ts:527 quadrant1(h) at -O1
 ;   h in s3
 ;   f3 in 4(fp)
 ;   r in s1
@@ -15121,28 +15182,28 @@ quadrant1:
   sw s0, 16(sp)
   mv fp, sp
   mv s3, a0 ; h
-  ; basic/monitor.e16.ts:515  const f3 = h >> 13
+  ; basic/monitor.e16.ts:528  const f3 = h >> 13
   srli t0, s3, 13
   sw t0, 4(fp) ; f3
-  ; basic/monitor.e16.ts:516  const r = (h >> 9) & 15
+  ; basic/monitor.e16.ts:529  const r = (h >> 9) & 15
   srli t0, s3, 9
   andi s1, t0, 15
-  ; basic/monitor.e16.ts:517  const raw6 = (h >> 3) & 63
+  ; basic/monitor.e16.ts:530  const raw6 = (h >> 3) & 63
   srli t0, s3, 3
   andi t0, t0, 63
   sw t0, 0(fp) ; raw6
-  ; basic/monitor.e16.ts:518  const imm6 = i16(wrap16(raw6 << 10)) >> 10
+  ; basic/monitor.e16.ts:531  const imm6 = i16(wrap16(raw6 << 10)) >> 10
   lw t0, 0(fp) ; raw6
   slli t0, t0, 10
   srai t0, t0, 10
   sw t0, 2(fp) ; imm6
-  ; basic/monitor.e16.ts:519  setImm(imm6)
+  ; basic/monitor.e16.ts:532  setImm(imm6)
   lw t0, 2(fp) ; imm6
   sw t0, 6(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 6(fp) ; setImm.v
   sw t0, 142(zero)
-  ; basic/monitor.e16.ts:520  switch ((f3 << 1) | ((h >> 2) & 1)) {
+  ; basic/monitor.e16.ts:533  switch ((f3 << 1) | ((h >> 2) & 1)) {
   lw t0, 4(fp) ; f3
   slli t0, t0, 1
   srli t1, s3, 2
@@ -15161,12 +15222,12 @@ quadrant1:
   beq s2, t0, .L7
   j .L8
 .L2:
-  ; basic/monitor.e16.ts:522  if (r === 0) decoded(imm6 === 0 ? str('c.nop') : 0, F_NONE, 0, 0)
+  ; basic/monitor.e16.ts:535  if (r === 0) decoded(imm6 === 0 ? str('c.nop') : 0, F_NONE, 0, 0)
   bne s1, zero, .L9
-  ; basic/monitor.e16.ts:522  decoded(imm6 === 0 ? str('c.nop') : 0, F_NONE, 0, 0)
+  ; basic/monitor.e16.ts:535  decoded(imm6 === 0 ? str('c.nop') : 0, F_NONE, 0, 0)
   lw t0, 2(fp) ; imm6
   bne t0, zero, .L10
-  la t0, str_131
+  la t0, str_132
   j .L11
 .L10:
   li t0, 0
@@ -15178,62 +15239,62 @@ quadrant1:
   call decoded
   j .L1
 .L9:
-  ; basic/monitor.e16.ts:523  decoded(imm6 === 0 ? 0 : str('c.addi'), F_C_RI, r, r)
+  ; basic/monitor.e16.ts:536  decoded(imm6 === 0 ? 0 : str('c.addi'), F_C_RI, r, r)
   lw t0, 2(fp) ; imm6
   bne t0, zero, .L13
   li t0, 0
   j .L14
 .L13:
-  la t0, str_132
+  la t0, str_133
 .L14:
   mv a0, t0
   li a1, 12
   mv a2, s1
   mv a3, s1
   call decoded
-  ; basic/monitor.e16.ts:524  break
+  ; basic/monitor.e16.ts:537  break
   j .L1
 .L3:
-  ; basic/monitor.e16.ts:526  decoded(r === 0 ? 0 : str('c.li'), F_C_RI, r, 0)
+  ; basic/monitor.e16.ts:539  decoded(r === 0 ? 0 : str('c.li'), F_C_RI, r, 0)
   bne s1, zero, .L15
   li t0, 0
   j .L16
 .L15:
-  la t0, str_133
+  la t0, str_134
 .L16:
   mv a0, t0
   li a1, 12
   mv a2, s1
   li a3, 0
   call decoded
-  ; basic/monitor.e16.ts:527  break
+  ; basic/monitor.e16.ts:540  break
   j .L1
 .L4:
-  ; basic/monitor.e16.ts:529  shiftC(str('c.slli'), r, raw6)
-  la a0, str_134
-  mv a1, s1
-  lw a2, 0(fp)
-  call shiftC
-  ; basic/monitor.e16.ts:530  break
-  j .L1
-.L5:
-  ; basic/monitor.e16.ts:532  shiftC(str('c.srli'), r, raw6)
+  ; basic/monitor.e16.ts:542  shiftC(str('c.slli'), r, raw6)
   la a0, str_135
   mv a1, s1
   lw a2, 0(fp)
   call shiftC
-  ; basic/monitor.e16.ts:533  break
+  ; basic/monitor.e16.ts:543  break
   j .L1
-.L6:
-  ; basic/monitor.e16.ts:535  shiftC(str('c.srai'), r, raw6)
+.L5:
+  ; basic/monitor.e16.ts:545  shiftC(str('c.srli'), r, raw6)
   la a0, str_136
   mv a1, s1
   lw a2, 0(fp)
   call shiftC
-  ; basic/monitor.e16.ts:536  break
+  ; basic/monitor.e16.ts:546  break
+  j .L1
+.L6:
+  ; basic/monitor.e16.ts:548  shiftC(str('c.srai'), r, raw6)
+  la a0, str_137
+  mv a1, s1
+  lw a2, 0(fp)
+  call shiftC
+  ; basic/monitor.e16.ts:549  break
   j .L1
 .L7:
-  ; basic/monitor.e16.ts:539  decoded(r === 0 || imm6 === -1 ? 0 : str('c.andi'), F_C_RI, r, r)
+  ; basic/monitor.e16.ts:552  decoded(r === 0 || imm6 === -1 ? 0 : str('c.andi'), F_C_RI, r, r)
   beq s1, zero, .L19
   li t0, 65535
   lw t1, 2(fp) ; imm6
@@ -15242,17 +15303,17 @@ quadrant1:
   li t0, 0
   j .L18
 .L17:
-  la t0, str_137
+  la t0, str_138
 .L18:
   mv a0, t0
   li a1, 12
   mv a2, s1
   mv a3, s1
   call decoded
-  ; basic/monitor.e16.ts:540  break
+  ; basic/monitor.e16.ts:553  break
   j .L1
 .L8:
-  ; basic/monitor.e16.ts:542  jumpsC(h, f3, r)
+  ; basic/monitor.e16.ts:555  jumpsC(h, f3, r)
   mv a0, s3
   lw a1, 4(fp)
   mv a2, s1
@@ -15268,7 +15329,7 @@ quadrant1:
   addi sp, sp, 18
   ret
 
-; basic/monitor.e16.ts:546 jumpsC(h, f3, r) at -O1
+; basic/monitor.e16.ts:559 jumpsC(h, f3, r) at -O1
 ;   h in s2
 ;   f3 in s1
 ;   r in s3
@@ -15285,68 +15346,68 @@ jumpsC:
   mv s2, a0 ; h
   mv s1, a1 ; f3
   mv s3, a2 ; r
-  ; basic/monitor.e16.ts:547  if (f3 === 3 || f3 === 4) {
+  ; basic/monitor.e16.ts:560  if (f3 === 3 || f3 === 4) {
   li t0, 3
   beq s1, t0, .L2
   li t0, 4
   bne s1, t0, .L1
 .L2:
-  ; basic/monitor.e16.ts:548  decoded(f3 === 3 ? str('c.beqz') : str('c.bnez'), F_C_B, 0, r)
+  ; basic/monitor.e16.ts:561  decoded(f3 === 3 ? str('c.beqz') : str('c.bnez'), F_C_B, 0, r)
   li t0, 3
   bne s1, t0, .L3
-  la t0, str_138
+  la t0, str_139
   j .L4
 .L3:
-  la t0, str_139
+  la t0, str_140
 .L4:
   mv a0, t0
   li a1, 16
   li a2, 0
   mv a3, s3
   call decoded
-  ; basic/monitor.e16.ts:549  setImm(i16(wrap16(((h >> 2) & 0x7f) << 9)) >> 8)
+  ; basic/monitor.e16.ts:562  setImm(i16(wrap16(((h >> 2) & 0x7f) << 9)) >> 8)
   srli t0, s2, 2
   andi t0, t0, 127
   slli t0, t0, 9
   srai t0, t0, 8
   sw t0, 0(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 0(fp) ; setImm.v
   sw t0, 142(zero)
   j .L5
 .L1:
-  ; basic/monitor.e16.ts:550  if (f3 === 5 || f3 === 6) {
+  ; basic/monitor.e16.ts:563  if (f3 === 5 || f3 === 6) {
   li t0, 5
   beq s1, t0, .L7
   li t0, 6
   bne s1, t0, .L6
 .L7:
-  ; basic/monitor.e16.ts:551  decoded(f3 === 5 ? str('c.j') : str('c.jal'), F_C_J, 0, 0)
+  ; basic/monitor.e16.ts:564  decoded(f3 === 5 ? str('c.j') : str('c.jal'), F_C_J, 0, 0)
   li t0, 5
   bne s1, t0, .L8
-  la t0, str_140
+  la t0, str_141
   j .L9
 .L8:
-  la t0, str_141
+  la t0, str_142
 .L9:
   mv a0, t0
   li a1, 17
   li a2, 0
   li a3, 0
   call decoded
-  ; basic/monitor.e16.ts:552  setImm(i16(wrap16(((h >> 2) & 0x7ff) << 5)) >> 4)
+  ; basic/monitor.e16.ts:565  setImm(i16(wrap16(((h >> 2) & 0x7ff) << 5)) >> 4)
   srli t0, s2, 2
   andi t0, t0, 2047
   slli t0, t0, 5
   srai t0, t0, 4
   sw t0, 2(fp) ; setImm.v
-  ; basic/monitor.e16.ts:184  poke16(D_IMM, u16(v))
+  ; basic/monitor.e16.ts:186  poke16(D_IMM, u16(v))
   lw t0, 2(fp) ; setImm.v
   sw t0, 142(zero)
   j .L10
 .L6:
-  ; basic/monitor.e16.ts:554  illegal()
-  ; basic/monitor.e16.ts:180  poke16(D_FORMAT, F_ILLEGAL)
+  ; basic/monitor.e16.ts:567  illegal()
+  ; basic/monitor.e16.ts:182  poke16(D_FORMAT, F_ILLEGAL)
   sw zero, 134(zero)
 .L10:
 .L5:
@@ -15360,10 +15421,10 @@ jumpsC:
   addi sp, sp, 14
   ret
 
-; basic/monitor.e16.ts:558 pairName(form) at -O1
+; basic/monitor.e16.ts:571 pairName(form) at -O1
 ;   form in a0
 pairName:
-  ; basic/monitor.e16.ts:559  switch (form) {
+  ; basic/monitor.e16.ts:572  switch (form) {
   beq a0, zero, .L2
   li t0, 1
   beq a0, t0, .L3
@@ -15375,32 +15436,32 @@ pairName:
   beq a0, t0, .L6
   j .L7
 .L2:
-  ; basic/monitor.e16.ts:561  return str('c.mv')
-  la a0, str_142
-  ret
-.L3:
-  ; basic/monitor.e16.ts:563  return str('c.add')
+  ; basic/monitor.e16.ts:574  return str('c.mv')
   la a0, str_143
   ret
-.L4:
-  ; basic/monitor.e16.ts:565  return str('c.sub')
+.L3:
+  ; basic/monitor.e16.ts:576  return str('c.add')
   la a0, str_144
   ret
-.L5:
-  ; basic/monitor.e16.ts:567  return str('c.xor')
+.L4:
+  ; basic/monitor.e16.ts:578  return str('c.sub')
   la a0, str_145
   ret
-.L6:
-  ; basic/monitor.e16.ts:569  return str('c.and')
+.L5:
+  ; basic/monitor.e16.ts:580  return str('c.xor')
   la a0, str_146
   ret
-.L7:
-  ; basic/monitor.e16.ts:571  return str('c.or')
+.L6:
+  ; basic/monitor.e16.ts:582  return str('c.and')
   la a0, str_147
+  ret
+.L7:
+  ; basic/monitor.e16.ts:584  return str('c.or')
+  la a0, str_148
 .return:
   ret
 
-; basic/monitor.e16.ts:576 quadrant2(h) at -O1
+; basic/monitor.e16.ts:589 quadrant2(h) at -O1
 ;   h in s3
 ;   rd in s1
 ;   rs2 in 0(fp)
@@ -15416,32 +15477,32 @@ quadrant2:
   sw s0, 14(sp)
   mv fp, sp
   mv s3, a0 ; h
-  ; basic/monitor.e16.ts:577  const rd = (h >> 8) & 15
+  ; basic/monitor.e16.ts:590  const rd = (h >> 8) & 15
   srli t0, s3, 8
   andi s1, t0, 15
-  ; basic/monitor.e16.ts:578  const rs2 = (h >> 4) & 15
+  ; basic/monitor.e16.ts:591  const rs2 = (h >> 4) & 15
   srli t0, s3, 4
   andi t0, t0, 15
   sw t0, 0(fp) ; rs2
-  ; basic/monitor.e16.ts:579  const form = ((h >> 12) << 2) | ((h >> 2) & 3)
+  ; basic/monitor.e16.ts:592  const form = ((h >> 12) << 2) | ((h >> 2) & 3)
   srli t0, s3, 12
   slli t0, t0, 2
   srli t1, s3, 2
   andi t1, t1, 3
   or s2, t0, t1
-  ; basic/monitor.e16.ts:580  setRs2(rs2)
+  ; basic/monitor.e16.ts:593  setRs2(rs2)
   lw t0, 0(fp) ; rs2
   sw t0, 4(fp) ; setRs2.r
-  ; basic/monitor.e16.ts:188  poke16(D_RS2, r)
+  ; basic/monitor.e16.ts:190  poke16(D_RS2, r)
   lw t0, 4(fp) ; setRs2.r
   sw t0, 140(zero)
-  ; basic/monitor.e16.ts:581  if (form === 8 || form === 9) {
+  ; basic/monitor.e16.ts:594  if (form === 8 || form === 9) {
   li t0, 8
   beq s2, t0, .L2
   li t0, 9
   bne s2, t0, .L1
 .L2:
-  ; basic/monitor.e16.ts:582  const ok = rd !== 0 && rs2 === 0
+  ; basic/monitor.e16.ts:595  const ok = rd !== 0 && rs2 === 0
   sub t0, s1, zero
   snez t0, t0
   mv t1, t0
@@ -15451,7 +15512,7 @@ quadrant2:
   seqz t0, t0
 .L3:
   sw t0, 2(fp) ; ok
-  ; basic/monitor.e16.ts:583  decoded(!ok ? 0 : form === 8 ? str('c.jr') : str('c.jalr'), F_C_R, 0, rd)
+  ; basic/monitor.e16.ts:596  decoded(!ok ? 0 : form === 8 ? str('c.jr') : str('c.jalr'), F_C_R, 0, rd)
   lw t0, 2(fp) ; ok
   bnez t0, .L4
   li t0, 0
@@ -15459,10 +15520,10 @@ quadrant2:
 .L4:
   li t0, 8
   bne s2, t0, .L6
-  la t0, str_148
+  la t0, str_149
   j .L7
 .L6:
-  la t0, str_149
+  la t0, str_150
 .L7:
 .L5:
   mv a0, t0
@@ -15472,10 +15533,10 @@ quadrant2:
   call decoded
   j .L8
 .L1:
-  ; basic/monitor.e16.ts:584  if (form === 10) {
+  ; basic/monitor.e16.ts:597  if (form === 10) {
   li t0, 10
   bne s2, t0, .L9
-  ; basic/monitor.e16.ts:585  decoded(rd !== 0 || rs2 !== 0 ? 0 : str('c.ebreak'), F_NONE, 0, 0)
+  ; basic/monitor.e16.ts:598  decoded(rd !== 0 || rs2 !== 0 ? 0 : str('c.ebreak'), F_NONE, 0, 0)
   bne s1, zero, .L12
   lw t0, 0(fp) ; rs2
   beq t0, zero, .L10
@@ -15483,7 +15544,7 @@ quadrant2:
   li t0, 0
   j .L11
 .L10:
-  la t0, str_150
+  la t0, str_151
 .L11:
   mv a0, t0
   li a1, 11
@@ -15492,7 +15553,7 @@ quadrant2:
   call decoded
   j .L13
 .L9:
-  ; basic/monitor.e16.ts:587  decoded(pairChanges(form, rd, rs2) ? pairName(form) : 0, F_C_RR, rd, rd)
+  ; basic/monitor.e16.ts:600  decoded(pairChanges(form, rd, rs2) ? pairName(form) : 0, F_C_RR, rd, rd)
   mv a0, s2
   mv a1, s1
   lw a2, 0(fp)
@@ -15522,28 +15583,28 @@ quadrant2:
   addi sp, sp, 16
   ret
 
-; basic/monitor.e16.ts:595 pairChanges(form, rd, rs2) at -O1
+; basic/monitor.e16.ts:608 pairChanges(form, rd, rs2) at -O1
 ;   form in a0
 ;   rd in a1
 ;   rs2 in a2
 pairChanges:
-  ; basic/monitor.e16.ts:596  if (form > 5 || rd === 0) return false
+  ; basic/monitor.e16.ts:609  if (form > 5 || rd === 0) return false
   li t0, 5
   bltu t0, a0, .L2
   bne a1, zero, .L1
 .L2:
-  ; basic/monitor.e16.ts:596  return false
+  ; basic/monitor.e16.ts:609  return false
   li a0, 0
   ret
 .L1:
-  ; basic/monitor.e16.ts:597  if (form === 0) return rd !== rs2
+  ; basic/monitor.e16.ts:610  if (form === 0) return rd !== rs2
   bne a0, zero, .L3
-  ; basic/monitor.e16.ts:597  return rd !== rs2
+  ; basic/monitor.e16.ts:610  return rd !== rs2
   sub t0, a1, a2
   snez a0, t0
   ret
 .L3:
-  ; basic/monitor.e16.ts:598  return form === 4 || rs2 !== 0
+  ; basic/monitor.e16.ts:611  return form === 4 || rs2 !== 0
   li t0, 4
   sub t0, a0, t0
   seqz t0, t0
@@ -15556,7 +15617,7 @@ pairChanges:
 .return:
   ret
 
-; basic/monitor.e16.ts:601 decode16(h) at -O1
+; basic/monitor.e16.ts:614 decode16(h) at -O1
 ;   h in s1
 ;   q in s2
 decode16:
@@ -15565,27 +15626,27 @@ decode16:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; h
-  ; basic/monitor.e16.ts:602  poke16(D_SIZE, 2)
+  ; basic/monitor.e16.ts:615  poke16(D_SIZE, 2)
   li t0, 2
   sw t0, 144(zero)
-  ; basic/monitor.e16.ts:603  const q = h & 3
+  ; basic/monitor.e16.ts:616  const q = h & 3
   andi s2, s1, 3
-  ; basic/monitor.e16.ts:604  if (q === 0) quadrant0(h)
+  ; basic/monitor.e16.ts:617  if (q === 0) quadrant0(h)
   bne s2, zero, .L1
-  ; basic/monitor.e16.ts:604  quadrant0(h)
+  ; basic/monitor.e16.ts:617  quadrant0(h)
   mv a0, s1
   call quadrant0
   j .L2
 .L1:
-  ; basic/monitor.e16.ts:605  if (q === 1) quadrant1(h)
+  ; basic/monitor.e16.ts:618  if (q === 1) quadrant1(h)
   li t0, 1
   bne s2, t0, .L3
-  ; basic/monitor.e16.ts:605  quadrant1(h)
+  ; basic/monitor.e16.ts:618  quadrant1(h)
   mv a0, s1
   call quadrant1
   j .L4
 .L3:
-  ; basic/monitor.e16.ts:606  quadrant2(h)
+  ; basic/monitor.e16.ts:619  quadrant2(h)
   mv a0, s1
   call quadrant2
 .L4:
@@ -15597,20 +15658,20 @@ decode16:
   addi sp, sp, 6
   ret
 
-; basic/monitor.e16.ts:612 emitOffset() at -O1
+; basic/monitor.e16.ts:625 emitOffset() at -O1
 emitOffset:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; basic/monitor.e16.ts:613  emitNumber(imm())
+  ; basic/monitor.e16.ts:626  emitNumber(imm())
   call imm
   call emitNumber
-  ; basic/monitor.e16.ts:614  emit(0x28)
+  ; basic/monitor.e16.ts:627  emit(0x28)
   li a0, 40
   call emit
-  ; basic/monitor.e16.ts:615  emitReg(peek16(D_RS1))
+  ; basic/monitor.e16.ts:628  emitReg(peek16(D_RS1))
   lw a0, 138(zero)
   call emitReg
-  ; basic/monitor.e16.ts:616  emit(0x29)
+  ; basic/monitor.e16.ts:629  emit(0x29)
   li a0, 41
   call emit
 .return:
@@ -15618,7 +15679,7 @@ emitOffset:
   addi sp, sp, 2
   ret
 
-; basic/monitor.e16.ts:620 emitFirst(format, target) at -O1
+; basic/monitor.e16.ts:633 emitFirst(format, target) at -O1
 ;   format in s1
 ;   target in s2
 emitFirst:
@@ -15628,18 +15689,18 @@ emitFirst:
   sw s2, 4(sp)
   mv s1, a0 ; format
   mv s2, a1 ; target
-  ; basic/monitor.e16.ts:621  if (format === F_S || format === F_C_SWSP) emitReg(peek16(D_RS2))
+  ; basic/monitor.e16.ts:634  if (format === F_S || format === F_C_SWSP) emitReg(peek16(D_RS2))
   li t0, 5
   beq s1, t0, .L2
   li t0, 15
   bne s1, t0, .L1
 .L2:
-  ; basic/monitor.e16.ts:621  emitReg(peek16(D_RS2))
+  ; basic/monitor.e16.ts:634  emitReg(peek16(D_RS2))
   lw a0, 140(zero)
   call emitReg
   j .L3
 .L1:
-  ; basic/monitor.e16.ts:622  if (format === F_B || format === F_C_B || format === F_C_R) emitReg(peek16(D_RS1))
+  ; basic/monitor.e16.ts:635  if (format === F_B || format === F_C_B || format === F_C_R) emitReg(peek16(D_RS1))
   li t0, 6
   beq s1, t0, .L5
   li t0, 16
@@ -15647,20 +15708,20 @@ emitFirst:
   li t0, 18
   bne s1, t0, .L4
 .L5:
-  ; basic/monitor.e16.ts:622  emitReg(peek16(D_RS1))
+  ; basic/monitor.e16.ts:635  emitReg(peek16(D_RS1))
   lw a0, 138(zero)
   call emitReg
   j .L6
 .L4:
-  ; basic/monitor.e16.ts:623  if (format === F_C_J) emitHex(target)
+  ; basic/monitor.e16.ts:636  if (format === F_C_J) emitHex(target)
   li t0, 17
   bne s1, t0, .L7
-  ; basic/monitor.e16.ts:623  emitHex(target)
+  ; basic/monitor.e16.ts:636  emitHex(target)
   mv a0, s2
   call emitHex
   j .L8
 .L7:
-  ; basic/monitor.e16.ts:624  emitReg(peek16(D_RD))
+  ; basic/monitor.e16.ts:637  emitReg(peek16(D_RD))
   lw a0, 136(zero)
   call emitReg
 .L8:
@@ -15673,7 +15734,7 @@ emitFirst:
   addi sp, sp, 6
   ret
 
-; basic/monitor.e16.ts:628 emitRest(format, target) at -O1
+; basic/monitor.e16.ts:641 emitRest(format, target) at -O1
 ;   format in s1
 ;   target in s2
 emitRest:
@@ -15683,94 +15744,105 @@ emitRest:
   sw s2, 4(sp)
   mv s1, a0 ; format
   mv s2, a1 ; target
-  ; basic/monitor.e16.ts:629  switch (format) {
+  ; basic/monitor.e16.ts:642  switch (format) {
   li t0, 1
   beq s1, t0, .L2
-  li t0, 2
+  li t0, 19
   beq s1, t0, .L3
-  li t0, 3
+  li t0, 2
   beq s1, t0, .L4
-  li t0, 5
+  li t0, 3
   beq s1, t0, .L5
-  li t0, 4
+  li t0, 5
   beq s1, t0, .L6
-  li t0, 6
+  li t0, 4
   beq s1, t0, .L7
-  li t0, 7
+  li t0, 6
   beq s1, t0, .L8
-  li t0, 16
+  li t0, 7
   beq s1, t0, .L9
-  li t0, 8
+  li t0, 16
   beq s1, t0, .L10
-  li t0, 13
+  li t0, 8
   beq s1, t0, .L11
-  j .L12
+  li t0, 13
+  beq s1, t0, .L12
+  j .L13
 .L2:
-  ; basic/monitor.e16.ts:631  emitReg(peek16(D_RS1))
-  lw a0, 138(zero)
-  call emitReg
-  ; basic/monitor.e16.ts:632  comma()
-  call comma
-  ; basic/monitor.e16.ts:633  emitReg(peek16(D_RS2))
-  lw a0, 140(zero)
-  call emitReg
-  ; basic/monitor.e16.ts:634  break
-  j .L1
 .L3:
-  ; basic/monitor.e16.ts:636  emitReg(peek16(D_RS1))
-  lw a0, 138(zero)
-  call emitReg
-  ; basic/monitor.e16.ts:637  comma()
-  call comma
-  ; basic/monitor.e16.ts:638  emitNumber(imm())
-  call imm
-  call emitNumber
-  ; basic/monitor.e16.ts:639  break
-  j .L1
-.L4:
-.L5:
-  ; basic/monitor.e16.ts:642  emitOffset()
-  call emitOffset
-  ; basic/monitor.e16.ts:643  break
-  j .L1
-.L6:
   ; basic/monitor.e16.ts:645  emitReg(peek16(D_RS1))
   lw a0, 138(zero)
   call emitReg
-  ; basic/monitor.e16.ts:646  break
-  j .L1
-.L7:
-  ; basic/monitor.e16.ts:648  emitReg(peek16(D_RS2))
+  ; basic/monitor.e16.ts:646  comma()
+  call comma
+  ; basic/monitor.e16.ts:647  emitReg(peek16(D_RS2))
   lw a0, 140(zero)
   call emitReg
+  ; basic/monitor.e16.ts:648  if (format === F_RQ) {
+  li t0, 19
+  bne s1, t0, .L1
   ; basic/monitor.e16.ts:649  comma()
   call comma
-  ; basic/monitor.e16.ts:650  emitHex(target)
-  mv a0, s2
-  call emitHex
-  ; basic/monitor.e16.ts:651  break
+  ; basic/monitor.e16.ts:650  emitNumber(imm())
+  call imm
+  call emitNumber
+  ; basic/monitor.e16.ts:652  break
   j .L1
-.L8:
-.L9:
-  ; basic/monitor.e16.ts:654  emitHex(target)
-  mv a0, s2
-  call emitHex
-  ; basic/monitor.e16.ts:655  break
-  j .L1
-.L10:
-  ; basic/monitor.e16.ts:657  emitHex(peek16(D_IMM))
-  lw a0, 142(zero)
-  call emitHex
-  ; basic/monitor.e16.ts:658  break
-  j .L1
-.L11:
-  ; basic/monitor.e16.ts:660  emitReg(peek16(D_RS2))
-  lw a0, 140(zero)
+.L4:
+  ; basic/monitor.e16.ts:654  emitReg(peek16(D_RS1))
+  lw a0, 138(zero)
   call emitReg
+  ; basic/monitor.e16.ts:655  comma()
+  call comma
+  ; basic/monitor.e16.ts:656  emitNumber(imm())
+  call imm
+  call emitNumber
+  ; basic/monitor.e16.ts:657  break
+  j .L1
+.L5:
+.L6:
+  ; basic/monitor.e16.ts:660  emitOffset()
+  call emitOffset
   ; basic/monitor.e16.ts:661  break
   j .L1
+.L7:
+  ; basic/monitor.e16.ts:663  emitReg(peek16(D_RS1))
+  lw a0, 138(zero)
+  call emitReg
+  ; basic/monitor.e16.ts:664  break
+  j .L1
+.L8:
+  ; basic/monitor.e16.ts:666  emitReg(peek16(D_RS2))
+  lw a0, 140(zero)
+  call emitReg
+  ; basic/monitor.e16.ts:667  comma()
+  call comma
+  ; basic/monitor.e16.ts:668  emitHex(target)
+  mv a0, s2
+  call emitHex
+  ; basic/monitor.e16.ts:669  break
+  j .L1
+.L9:
+.L10:
+  ; basic/monitor.e16.ts:672  emitHex(target)
+  mv a0, s2
+  call emitHex
+  ; basic/monitor.e16.ts:673  break
+  j .L1
+.L11:
+  ; basic/monitor.e16.ts:675  emitHex(peek16(D_IMM))
+  lw a0, 142(zero)
+  call emitHex
+  ; basic/monitor.e16.ts:676  break
+  j .L1
 .L12:
-  ; basic/monitor.e16.ts:663  emitLast(format)
+  ; basic/monitor.e16.ts:678  emitReg(peek16(D_RS2))
+  lw a0, 140(zero)
+  call emitReg
+  ; basic/monitor.e16.ts:679  break
+  j .L1
+.L13:
+  ; basic/monitor.e16.ts:681  emitLast(format)
   mv a0, s1
   call emitLast
 .L1:
@@ -15781,38 +15853,38 @@ emitRest:
   addi sp, sp, 6
   ret
 
-; basic/monitor.e16.ts:667 emitLast(format) at -O1
+; basic/monitor.e16.ts:685 emitLast(format) at -O1
 ;   format in s1
 emitLast:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; format
-  ; basic/monitor.e16.ts:668  if (format === F_CSR || format === F_CSRI) {
+  ; basic/monitor.e16.ts:686  if (format === F_CSR || format === F_CSRI) {
   li t0, 9
   beq s1, t0, .L2
   li t0, 10
   bne s1, t0, .L1
 .L2:
-  ; basic/monitor.e16.ts:669  emitCsr(peek16(D_IMM))
+  ; basic/monitor.e16.ts:687  emitCsr(peek16(D_IMM))
   lw a0, 142(zero)
   call emitCsr
-  ; basic/monitor.e16.ts:670  comma()
+  ; basic/monitor.e16.ts:688  comma()
   call comma
-  ; basic/monitor.e16.ts:671  if (format === F_CSR) emitReg(peek16(D_RS1))
+  ; basic/monitor.e16.ts:689  if (format === F_CSR) emitReg(peek16(D_RS1))
   li t0, 9
   bne s1, t0, .L3
-  ; basic/monitor.e16.ts:671  emitReg(peek16(D_RS1))
+  ; basic/monitor.e16.ts:689  emitReg(peek16(D_RS1))
   lw a0, 138(zero)
   call emitReg
   j .L5
 .L3:
-  ; basic/monitor.e16.ts:672  emitUnsigned(peek16(D_RS1))
+  ; basic/monitor.e16.ts:690  emitUnsigned(peek16(D_RS1))
   lw a0, 138(zero)
   call emitUnsigned
   j .L5
 .L1:
-  ; basic/monitor.e16.ts:675  emitNumber(imm())
+  ; basic/monitor.e16.ts:693  emitNumber(imm())
   call imm
   call emitNumber
 .L5:
@@ -15822,7 +15894,7 @@ emitLast:
   addi sp, sp, 4
   ret
 
-; basic/monitor.e16.ts:683 disasmInto(at, out) at -O1
+; basic/monitor.e16.ts:701 disasmInto(at, out) at -O1
 ;   at in s2
 ;   out in 2(fp)
 ;   lo in s3
@@ -15838,19 +15910,19 @@ disasmInto:
   mv fp, sp
   mv s2, a0 ; at
   sw a1, 2(fp) ; out
-  ; basic/monitor.e16.ts:684  poke16(OUT_AT, out)
+  ; basic/monitor.e16.ts:702  poke16(OUT_AT, out)
   lw t0, 2(fp) ; out
   sw t0, 130(zero)
-  ; basic/monitor.e16.ts:685  const lo = peek(at) | (peek(at + 1) << 8)
+  ; basic/monitor.e16.ts:703  const lo = peek(at) | (peek(at + 1) << 8)
   lbu t0, 0(s2)
   lbu t1, 1(s2)
   slli t1, t1, 8
   or s3, t0, t1
-  ; basic/monitor.e16.ts:686  if ((lo & 3) === 3) decode32(lo, peek(at + 2) | (peek(at + 3) << 8))
+  ; basic/monitor.e16.ts:704  if ((lo & 3) === 3) decode32(lo, peek(at + 2) | (peek(at + 3) << 8))
   andi t0, s3, 3
   li t1, 3
   bne t0, t1, .L1
-  ; basic/monitor.e16.ts:686  decode32(lo, peek(at + 2) | (peek(at + 3) << 8))
+  ; basic/monitor.e16.ts:704  decode32(lo, peek(at + 2) | (peek(at + 3) << 8))
   lbu t0, 2(s2)
   lbu t1, 3(s2)
   slli t1, t1, 8
@@ -15860,62 +15932,62 @@ disasmInto:
   call decode32
   j .L2
 .L1:
-  ; basic/monitor.e16.ts:687  decode16(lo)
+  ; basic/monitor.e16.ts:705  decode16(lo)
   mv a0, s3
   call decode16
 .L2:
-  ; basic/monitor.e16.ts:688  const format = peek16(D_FORMAT)
+  ; basic/monitor.e16.ts:706  const format = peek16(D_FORMAT)
   lw s1, 134(zero)
-  ; basic/monitor.e16.ts:689  if (format === F_ILLEGAL) {
+  ; basic/monitor.e16.ts:707  if (format === F_ILLEGAL) {
   bne s1, zero, .L3
-  ; basic/monitor.e16.ts:690  emitStr(peek16(D_SIZE) === 2 ? str('.word ?') : str('.word ?, ?'))
+  ; basic/monitor.e16.ts:708  emitStr(peek16(D_SIZE) === 2 ? str('.word ?') : str('.word ?, ?'))
   lw t0, 144(zero)
   li t1, 2
   bne t0, t1, .L4
-  la t0, str_151
+  la t0, str_152
   j .L5
 .L4:
-  la t0, str_152
+  la t0, str_153
 .L5:
   mv a0, t0
   call emitStr
   j .L6
 .L3:
-  ; basic/monitor.e16.ts:692  emitStr(peek16(D_NAME))
+  ; basic/monitor.e16.ts:710  emitStr(peek16(D_NAME))
   lw a0, 132(zero)
   call emitStr
-  ; basic/monitor.e16.ts:693  if (format !== F_NONE) {
+  ; basic/monitor.e16.ts:711  if (format !== F_NONE) {
   li t0, 11
   beq s1, t0, .L7
-  ; basic/monitor.e16.ts:694  const target = u16(at + peek16(D_IMM))
+  ; basic/monitor.e16.ts:712  const target = u16(at + peek16(D_IMM))
   lw t0, 142(zero)
   add t0, s2, t0
   sw t0, 0(fp) ; target
-  ; basic/monitor.e16.ts:695  emit(0x20)
+  ; basic/monitor.e16.ts:713  emit(0x20)
   li a0, 32
   call emit
-  ; basic/monitor.e16.ts:696  emitFirst(format, target)
+  ; basic/monitor.e16.ts:714  emitFirst(format, target)
   mv a0, s1
   lw a1, 0(fp)
   call emitFirst
-  ; basic/monitor.e16.ts:698  if (format !== F_C_J && format !== F_C_R) {
+  ; basic/monitor.e16.ts:716  if (format !== F_C_J && format !== F_C_R) {
   li t0, 17
   beq s1, t0, .L8
   li t0, 18
   beq s1, t0, .L8
-  ; basic/monitor.e16.ts:699  comma()
+  ; basic/monitor.e16.ts:717  comma()
   call comma
-  ; basic/monitor.e16.ts:700  emitRest(format, target)
+  ; basic/monitor.e16.ts:718  emitRest(format, target)
   mv a0, s1
   lw a1, 0(fp)
   call emitRest
 .L8:
 .L7:
 .L6:
-  ; basic/monitor.e16.ts:704  emit(0)
+  ; basic/monitor.e16.ts:722  emit(0)
   li a0, 0
   call emit
-  ; basic/monitor.e16.ts:705  return peek16(D_SIZE)
+  ; basic/monitor.e16.ts:723  return peek16(D_SIZE)
   lw a0, 144(zero)
 .return:
   mv sp, fp
@@ -15927,7 +15999,7 @@ disasmInto:
   addi sp, sp, 14
   ret
 
-; basic/monitor.e16.ts:711 unassemble(from, given) at -O1
+; basic/monitor.e16.ts:729 unassemble(from, given) at -O1
 ;   from in s3
 ;   given in s0
 ;   at in s1
@@ -15941,7 +16013,7 @@ unassemble:
   sw s2, 8(sp)
   mv s3, a0 ; from
   mv s0, a1 ; given
-  ; basic/monitor.e16.ts:712  let at = given ? from : peek16(U_NEXT)
+  ; basic/monitor.e16.ts:730  let at = given ? from : peek16(U_NEXT)
   beqz s0, .L1
   mv t0, s3
   j .L2
@@ -15949,35 +16021,35 @@ unassemble:
   lw t0, 146(zero)
 .L2:
   mv s1, t0 ; at
-  ; basic/monitor.e16.ts:713  for (let k: u16 = 1; k < peek16(ROWS); k++) {
+  ; basic/monitor.e16.ts:731  for (let k: u16 = 1; k < peek16(ROWS); k++) {
   li s2, 1 ; k
   j .L5
 .L3:
-  ; basic/monitor.e16.ts:714  poke16(OUT_AT, LINEBUF)
+  ; basic/monitor.e16.ts:732  poke16(OUT_AT, LINEBUF)
   li t0, 64
   sw t0, 130(zero)
-  ; basic/monitor.e16.ts:715  emitHex4(at)
+  ; basic/monitor.e16.ts:733  emitHex4(at)
   mv a0, s1
   call emitHex4
-  ; basic/monitor.e16.ts:716  emit(0x20)
+  ; basic/monitor.e16.ts:734  emit(0x20)
   li a0, 32
   call emit
-  ; basic/monitor.e16.ts:717  at = u16(at + disasmInto(at, peek16(OUT_AT)))
+  ; basic/monitor.e16.ts:735  at = u16(at + disasmInto(at, peek16(OUT_AT)))
   lw t0, 130(zero)
   mv a0, s1
   mv a1, t0
   call disasmInto
   add s1, s1, a0
-  ; basic/monitor.e16.ts:718  puts(LINEBUF)
+  ; basic/monitor.e16.ts:736  puts(LINEBUF)
   li a0, 64
   call puts
-  ; basic/monitor.e16.ts:719  newline()
+  ; basic/monitor.e16.ts:737  newline()
   call newline
   addi s2, s2, 1
 .L5:
   lw t0, 6(zero)
   bltu s2, t0, .L3
-  ; basic/monitor.e16.ts:721  poke16(U_NEXT, at)
+  ; basic/monitor.e16.ts:739  poke16(U_NEXT, at)
   sw s1, 146(zero)
 .return:
   lw ra, 0(sp)
@@ -15988,16 +16060,16 @@ unassemble:
   addi sp, sp, 10
   ret
 
-; basic/monitor.e16.ts:727 breakAt(k) at -O1
+; basic/monitor.e16.ts:745 breakAt(k) at -O1
 ;   k in a0
 breakAt:
-  ; basic/monitor.e16.ts:728  return peek16(BREAKS + k * 2)
+  ; basic/monitor.e16.ts:746  return peek16(BREAKS + k * 2)
   slli t0, a0, 1
   lw a0, 150(t0)
 .return:
   ret
 
-; basic/monitor.e16.ts:735 breakCommand(at, given) at -O1
+; basic/monitor.e16.ts:753 breakCommand(at, given) at -O1
 ;   at in s1
 ;   given in s2
 breakCommand:
@@ -16007,18 +16079,18 @@ breakCommand:
   sw s2, 4(sp)
   mv s1, a0 ; at
   mv s2, a1 ; given
-  ; basic/monitor.e16.ts:736  if (given && !toggleBreak(at)) return 1
+  ; basic/monitor.e16.ts:754  if (given && !toggleBreak(at)) return 1
   beqz s2, .L1
   mv a0, s1
   call toggleBreak
   bnez a0, .L1
-  ; basic/monitor.e16.ts:736  return 1
+  ; basic/monitor.e16.ts:754  return 1
   li a0, 1
   j .return
 .L1:
-  ; basic/monitor.e16.ts:737  listBreaks()
+  ; basic/monitor.e16.ts:755  listBreaks()
   call listBreaks
-  ; basic/monitor.e16.ts:738  return 0
+  ; basic/monitor.e16.ts:756  return 0
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -16027,7 +16099,7 @@ breakCommand:
   addi sp, sp, 6
   ret
 
-; basic/monitor.e16.ts:742 toggleBreak(at) at -O1
+; basic/monitor.e16.ts:760 toggleBreak(at) at -O1
 ;   at in s2
 ;   free in s3
 ;   k in s1
@@ -16038,7 +16110,7 @@ toggleBreak:
   sw s3, 4(sp)
   sw s1, 6(sp)
   mv s2, a0 ; at
-  ; basic/monitor.e16.ts:744  if (at >= 0x8000 || at < 0x0800 || (at & 1) !== 0) return false
+  ; basic/monitor.e16.ts:762  if (at >= 0x8000 || at < 0x0800 || (at & 1) !== 0) return false
   li t0, 32768
   bgeu s2, t0, .L2
   li t0, 2048
@@ -16046,51 +16118,51 @@ toggleBreak:
   andi t0, s2, 1
   beq t0, zero, .L1
 .L2:
-  ; basic/monitor.e16.ts:744  return false
+  ; basic/monitor.e16.ts:762  return false
   li a0, 0
   j .return
 .L1:
-  ; basic/monitor.e16.ts:745  let free: u16 = 4
+  ; basic/monitor.e16.ts:763  let free: u16 = 4
   li s3, 4 ; free
-  ; basic/monitor.e16.ts:746  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:764  for (let k: u16 = 0; k < 4; k++) {
   li s1, 0 ; k
   j .L5
 .L3:
-  ; basic/monitor.e16.ts:747  if (breakAt(k) === at) {
+  ; basic/monitor.e16.ts:765  if (breakAt(k) === at) {
   mv a0, s1
   call breakAt
   bne a0, s2, .L7
-  ; basic/monitor.e16.ts:748  poke16(BREAKS + k * 2, 0)
+  ; basic/monitor.e16.ts:766  poke16(BREAKS + k * 2, 0)
   slli t0, s1, 1
   sw zero, 150(t0)
-  ; basic/monitor.e16.ts:749  return true
+  ; basic/monitor.e16.ts:767  return true
   li a0, 1
   j .return
 .L7:
-  ; basic/monitor.e16.ts:751  if (breakAt(k) === 0 && free === 4) free = k
+  ; basic/monitor.e16.ts:769  if (breakAt(k) === 0 && free === 4) free = k
   mv a0, s1
   call breakAt
   bne a0, zero, .L8
   li t0, 4
   bne s3, t0, .L8
-  ; basic/monitor.e16.ts:751  free = k
+  ; basic/monitor.e16.ts:769  free = k
   mv s3, s1 ; free
 .L8:
   addi s1, s1, 1
 .L5:
   li t0, 4
   bltu s1, t0, .L3
-  ; basic/monitor.e16.ts:753  if (free === 4) return false
+  ; basic/monitor.e16.ts:771  if (free === 4) return false
   li t0, 4
   bne s3, t0, .L9
-  ; basic/monitor.e16.ts:753  return false
+  ; basic/monitor.e16.ts:771  return false
   li a0, 0
   j .return
 .L9:
-  ; basic/monitor.e16.ts:754  poke16(BREAKS + free * 2, at)
+  ; basic/monitor.e16.ts:772  poke16(BREAKS + free * 2, at)
   slli t0, s3, 1
   sw s2, 150(t0)
-  ; basic/monitor.e16.ts:755  return true
+  ; basic/monitor.e16.ts:773  return true
   li a0, 1
 .return:
   lw ra, 0(sp)
@@ -16100,7 +16172,7 @@ toggleBreak:
   addi sp, sp, 8
   ret
 
-; basic/monitor.e16.ts:758 listBreaks() at -O1
+; basic/monitor.e16.ts:776 listBreaks() at -O1
 ;   any in s2
 ;   k in s1
 listBreaks:
@@ -16108,49 +16180,49 @@ listBreaks:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; basic/monitor.e16.ts:759  poke16(OUT_AT, LINEBUF)
+  ; basic/monitor.e16.ts:777  poke16(OUT_AT, LINEBUF)
   li t0, 64
   sw t0, 130(zero)
-  ; basic/monitor.e16.ts:760  let any = false
+  ; basic/monitor.e16.ts:778  let any = false
   li s2, 0 ; any
-  ; basic/monitor.e16.ts:761  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:779  for (let k: u16 = 0; k < 4; k++) {
   li s1, 0 ; k
   j .L3
 .L1:
-  ; basic/monitor.e16.ts:762  if (breakAt(k) !== 0) {
+  ; basic/monitor.e16.ts:780  if (breakAt(k) !== 0) {
   mv a0, s1
   call breakAt
   beq a0, zero, .L5
-  ; basic/monitor.e16.ts:763  if (any) emit(0x20)
+  ; basic/monitor.e16.ts:781  if (any) emit(0x20)
   beqz s2, .L6
-  ; basic/monitor.e16.ts:763  emit(0x20)
+  ; basic/monitor.e16.ts:781  emit(0x20)
   li a0, 32
   call emit
 .L6:
-  ; basic/monitor.e16.ts:764  emitHex4(breakAt(k))
+  ; basic/monitor.e16.ts:782  emitHex4(breakAt(k))
   mv a0, s1
   call breakAt
   call emitHex4
-  ; basic/monitor.e16.ts:765  any = true
+  ; basic/monitor.e16.ts:783  any = true
   li s2, 1 ; any
 .L5:
   addi s1, s1, 1
 .L3:
   li t0, 4
   bltu s1, t0, .L1
-  ; basic/monitor.e16.ts:768  if (!any) emitStr(str('NO BREAKPOINTS'))
+  ; basic/monitor.e16.ts:786  if (!any) emitStr(str('NO BREAKPOINTS'))
   bnez s2, .L7
-  ; basic/monitor.e16.ts:768  emitStr(str('NO BREAKPOINTS'))
-  la a0, str_153
+  ; basic/monitor.e16.ts:786  emitStr(str('NO BREAKPOINTS'))
+  la a0, str_154
   call emitStr
 .L7:
-  ; basic/monitor.e16.ts:769  emit(0)
+  ; basic/monitor.e16.ts:787  emit(0)
   li a0, 0
   call emit
-  ; basic/monitor.e16.ts:770  puts(LINEBUF)
+  ; basic/monitor.e16.ts:788  puts(LINEBUF)
   li a0, 64
   call puts
-  ; basic/monitor.e16.ts:771  newline()
+  ; basic/monitor.e16.ts:789  newline()
   call newline
 .return:
   lw ra, 0(sp)
@@ -16159,7 +16231,7 @@ listBreaks:
   addi sp, sp, 6
   ret
 
-; basic/monitor.e16.ts:775 armBreaks(start) at -O1
+; basic/monitor.e16.ts:793 armBreaks(start) at -O1
 ;   start in s3
 ;   k in s2
 ;   at in s1
@@ -16170,30 +16242,30 @@ armBreaks:
   sw s2, 4(sp)
   sw s1, 6(sp)
   mv s3, a0 ; start
-  ; basic/monitor.e16.ts:776  disarmBreaks()
+  ; basic/monitor.e16.ts:794  disarmBreaks()
   call disarmBreaks
-  ; basic/monitor.e16.ts:777  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:795  for (let k: u16 = 0; k < 4; k++) {
   li s2, 0 ; k
   j .L3
 .L1:
-  ; basic/monitor.e16.ts:778  const at = breakAt(k)
+  ; basic/monitor.e16.ts:796  const at = breakAt(k)
   mv a0, s2
   call breakAt
   mv s1, a0 ; at
-  ; basic/monitor.e16.ts:779  if (at !== 0 && at !== start) {
+  ; basic/monitor.e16.ts:797  if (at !== 0 && at !== start) {
   beq s1, zero, .L5
   beq s1, s3, .L5
-  ; basic/monitor.e16.ts:780  poke16(SAVED + k * 2, peek(at) | (peek(at + 1) << 8))
+  ; basic/monitor.e16.ts:798  poke16(SAVED + k * 2, peek(at) | (peek(at + 1) << 8))
   slli t0, s2, 1
   lbu t1, 0(s1)
   lbu t2, 1(s1)
   slli t2, t2, 8
   or t1, t1, t2
   sw t1, 158(t0)
-  ; basic/monitor.e16.ts:781  poke(at, C_EBREAK & 0xff)
+  ; basic/monitor.e16.ts:799  poke(at, C_EBREAK & 0xff)
   li t0, 10
   sb t0, 0(s1)
-  ; basic/monitor.e16.ts:782  poke(at + 1, C_EBREAK >> 8)
+  ; basic/monitor.e16.ts:800  poke(at + 1, C_EBREAK >> 8)
   li t0, 32
   sb t0, 1(s1)
 .L5:
@@ -16201,7 +16273,7 @@ armBreaks:
 .L3:
   li t0, 4
   bltu s2, t0, .L1
-  ; basic/monitor.e16.ts:785  poke16(ARMED, 1)
+  ; basic/monitor.e16.ts:803  poke16(ARMED, 1)
   li t0, 1
   sw t0, 148(zero)
 .return:
@@ -16212,7 +16284,7 @@ armBreaks:
   addi sp, sp, 8
   ret
 
-; basic/monitor.e16.ts:789 disarmBreaks() at -O1
+; basic/monitor.e16.ts:807 disarmBreaks() at -O1
 ;   k in s1
 ;   at in s2
 ;   was in s3
@@ -16222,21 +16294,21 @@ disarmBreaks:
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  ; basic/monitor.e16.ts:790  if (peek16(ARMED) === 0) return
+  ; basic/monitor.e16.ts:808  if (peek16(ARMED) === 0) return
   lw t0, 148(zero)
   bne t0, zero, .L1
-  ; basic/monitor.e16.ts:790  return
+  ; basic/monitor.e16.ts:808  return
   j .return
 .L1:
-  ; basic/monitor.e16.ts:791  for (let k: u16 = 0; k < 4; k++) {
+  ; basic/monitor.e16.ts:809  for (let k: u16 = 0; k < 4; k++) {
   li s1, 0 ; k
   j .L4
 .L2:
-  ; basic/monitor.e16.ts:792  const at = breakAt(k)
+  ; basic/monitor.e16.ts:810  const at = breakAt(k)
   mv a0, s1
   call breakAt
   mv s2, a0 ; at
-  ; basic/monitor.e16.ts:793  if (at !== 0 && peek(at) === (C_EBREAK & 0xff) && peek(at + 1) === C_EBREAK >> 8) {
+  ; basic/monitor.e16.ts:811  if (at !== 0 && peek(at) === (C_EBREAK & 0xff) && peek(at + 1) === C_EBREAK >> 8) {
   beq s2, zero, .L6
   lbu t0, 0(s2)
   li t1, 10
@@ -16244,13 +16316,13 @@ disarmBreaks:
   lbu t0, 1(s2)
   li t1, 32
   bne t0, t1, .L6
-  ; basic/monitor.e16.ts:794  const was = peek16(SAVED + k * 2)
+  ; basic/monitor.e16.ts:812  const was = peek16(SAVED + k * 2)
   slli t0, s1, 1
   lw s3, 158(t0)
-  ; basic/monitor.e16.ts:795  poke(at, was & 0xff)
+  ; basic/monitor.e16.ts:813  poke(at, was & 0xff)
   andi t0, s3, 255
   sb t0, 0(s2)
-  ; basic/monitor.e16.ts:796  poke(at + 1, was >> 8)
+  ; basic/monitor.e16.ts:814  poke(at + 1, was >> 8)
   srli t0, s3, 8
   sb t0, 1(s2)
 .L6:
@@ -16258,7 +16330,7 @@ disarmBreaks:
 .L4:
   li t0, 4
   bltu s1, t0, .L2
-  ; basic/monitor.e16.ts:799  poke16(ARMED, 0)
+  ; basic/monitor.e16.ts:817  poke16(ARMED, 0)
   sw zero, 148(zero)
 .return:
   lw ra, 0(sp)
@@ -16449,64 +16521,66 @@ str_122:
 str_123:
   .byte 97, 117, 105, 112, 99, 0
 str_124:
-  .byte 115, 98, 0
+  .byte 109, 117, 108, 113, 0
 str_125:
-  .byte 115, 119, 0
+  .byte 115, 98, 0
 str_126:
-  .byte 99, 46, 115, 119, 0
+  .byte 115, 119, 0
 str_127:
-  .byte 99, 46, 108, 119, 0
+  .byte 99, 46, 115, 119, 0
 str_128:
-  .byte 99, 46, 108, 119, 115, 112, 0
+  .byte 99, 46, 108, 119, 0
 str_129:
-  .byte 99, 46, 115, 119, 115, 112, 0
+  .byte 99, 46, 108, 119, 115, 112, 0
 str_130:
-  .byte 99, 46, 97, 100, 100, 105, 50, 115, 112, 110, 0
+  .byte 99, 46, 115, 119, 115, 112, 0
 str_131:
-  .byte 99, 46, 110, 111, 112, 0
+  .byte 99, 46, 97, 100, 100, 105, 50, 115, 112, 110, 0
 str_132:
-  .byte 99, 46, 97, 100, 100, 105, 0
+  .byte 99, 46, 110, 111, 112, 0
 str_133:
-  .byte 99, 46, 108, 105, 0
+  .byte 99, 46, 97, 100, 100, 105, 0
 str_134:
-  .byte 99, 46, 115, 108, 108, 105, 0
+  .byte 99, 46, 108, 105, 0
 str_135:
-  .byte 99, 46, 115, 114, 108, 105, 0
+  .byte 99, 46, 115, 108, 108, 105, 0
 str_136:
-  .byte 99, 46, 115, 114, 97, 105, 0
+  .byte 99, 46, 115, 114, 108, 105, 0
 str_137:
-  .byte 99, 46, 97, 110, 100, 105, 0
+  .byte 99, 46, 115, 114, 97, 105, 0
 str_138:
-  .byte 99, 46, 98, 101, 113, 122, 0
+  .byte 99, 46, 97, 110, 100, 105, 0
 str_139:
-  .byte 99, 46, 98, 110, 101, 122, 0
+  .byte 99, 46, 98, 101, 113, 122, 0
 str_140:
-  .byte 99, 46, 106, 0
+  .byte 99, 46, 98, 110, 101, 122, 0
 str_141:
-  .byte 99, 46, 106, 97, 108, 0
+  .byte 99, 46, 106, 0
 str_142:
-  .byte 99, 46, 109, 118, 0
+  .byte 99, 46, 106, 97, 108, 0
 str_143:
-  .byte 99, 46, 97, 100, 100, 0
+  .byte 99, 46, 109, 118, 0
 str_144:
-  .byte 99, 46, 115, 117, 98, 0
+  .byte 99, 46, 97, 100, 100, 0
 str_145:
-  .byte 99, 46, 120, 111, 114, 0
+  .byte 99, 46, 115, 117, 98, 0
 str_146:
-  .byte 99, 46, 97, 110, 100, 0
+  .byte 99, 46, 120, 111, 114, 0
 str_147:
-  .byte 99, 46, 111, 114, 0
+  .byte 99, 46, 97, 110, 100, 0
 str_148:
-  .byte 99, 46, 106, 114, 0
+  .byte 99, 46, 111, 114, 0
 str_149:
-  .byte 99, 46, 106, 97, 108, 114, 0
+  .byte 99, 46, 106, 114, 0
 str_150:
-  .byte 99, 46, 101, 98, 114, 101, 97, 107, 0
+  .byte 99, 46, 106, 97, 108, 114, 0
 str_151:
-  .byte 46, 119, 111, 114, 100, 32, 63, 0
+  .byte 99, 46, 101, 98, 114, 101, 97, 107, 0
 str_152:
-  .byte 46, 119, 111, 114, 100, 32, 63, 44, 32, 63, 0
+  .byte 46, 119, 111, 114, 100, 32, 63, 0
 str_153:
+  .byte 46, 119, 111, 114, 100, 32, 63, 44, 32, 63, 0
+str_154:
   .byte 78, 79, 32, 66, 82, 69, 65, 75, 80, 79, 73, 78, 84, 83, 0
   .align 2
 

@@ -2,7 +2,7 @@
 // flown as points in the world, the player's eased onto the enemy's lead when it is close to
 // the cross), missiles that steer at what they chase, flares that pull them away, and the
 // seeker's lock. Places are units from the player, in the world's axes.
-import { type bool, div, i16, u16, words } from '../../../../src/shared/e16c/builtins'
+import { type bool, div, i16, mulShift, u16, words } from '../../../../src/shared/e16c/builtins'
 import { B_A, B_B, B_X, held, pressed, rand, randBelow, S8, spr } from '../lib/kit.e16'
 import { HUD8_TILE, SHOTS_TILE } from './assets.e16'
 import {
@@ -20,7 +20,6 @@ import {
 import { pSpeed, pVel } from './flight.e16'
 import {
   abs16,
-  mulq,
   scaleq,
   V_EF,
   V_EU,
@@ -82,9 +81,9 @@ function fireRound(x: i16, y: i16, z: i16, owner: u16): void {
 
 /** The direction of the gun in V_T0 as a velocity: `speed` units a frame plus the shooter's. */
 function gunVelocity(speed: i16, vx: i16, vy: i16, vz: i16): void {
-  vec[V_T0] = u16(mulq(vget(V_T0), speed) + (vx >> 4))
-  vec[V_T0 + 1] = u16(mulq(vget(V_T0 + 1), speed) + (vy >> 4))
-  vec[V_T0 + 2] = u16(mulq(vget(V_T0 + 2), speed) + (vz >> 4))
+  vec[V_T0] = u16(mulShift(vget(V_T0), speed, 14) + (vx >> 4))
+  vec[V_T0 + 1] = u16(mulShift(vget(V_T0 + 1), speed, 14) + (vy >> 4))
+  vec[V_T0 + 2] = u16(mulShift(vget(V_T0 + 2), speed, 14) + (vz >> 4))
 }
 
 /**
@@ -105,9 +104,9 @@ export function playerGun(): void {
   }
   gunVelocity(72, pVel(0), pVel(1), pVel(2))
   const side: i16 = muzzle === 0 ? 7 : -7
-  const x = mulq(vget(V_PR), side) - mulq(vget(V_PU), 5)
-  const y = mulq(vget(V_PR + 1), side) - mulq(vget(V_PU + 1), 5)
-  const z = mulq(vget(V_PR + 2), side) - mulq(vget(V_PU + 2), 5)
+  const x = mulShift(vget(V_PR), side, 14) - mulShift(vget(V_PU), 5, 14)
+  const y = mulShift(vget(V_PR + 1), side, 14) - mulShift(vget(V_PU + 1), 5, 14)
+  const z = mulShift(vget(V_PR + 2), side, 14) - mulShift(vget(V_PU + 2), 5, 14)
   fireRound(x, y, z, 1)
   roundsFired++
 }
@@ -122,9 +121,9 @@ function assistAim(): bool {
   if (t > 31) t = 31
   vset(
     V_T0,
-    vget(V_REL) + mulq(eVel(0) - pVel(0), t * 1024),
-    vget(V_REL + 1) + mulq(eVel(1) - pVel(1), t * 1024),
-    vget(V_REL + 2) + mulq(eVel(2) - pVel(2), t * 1024),
+    vget(V_REL) + mulShift(eVel(0) - pVel(0), t * 1024, 14),
+    vget(V_REL + 1) + mulShift(eVel(1) - pVel(1), t * 1024, 14),
+    vget(V_REL + 2) + mulShift(eVel(2) - pVel(2), t * 1024, 14),
   )
   unitOf(V_T0)
   return true
@@ -160,7 +159,7 @@ export function unitOf(k: u16): void {
 }
 
 function scatter(spread: u16): i16 {
-  return ((i16(rand() & 255) - 128) * i16(spread)) >> 5
+  return mulShift(i16(rand() & 255) - 128, i16(spread), 5)
 }
 
 /**
@@ -383,9 +382,9 @@ export function playerMissile(): void {
   const side: i16 = (missilesLeft & 1) === 0 ? 14 : -14
   vset(
     V_T1,
-    mulq(vget(V_PR), side) - mulq(vget(V_PU), 8),
-    mulq(vget(V_PR + 1), side) - mulq(vget(V_PU + 1), 8),
-    mulq(vget(V_PR + 2), side) - mulq(vget(V_PU + 2), 8),
+    mulShift(vget(V_PR), side, 14) - mulShift(vget(V_PU), 8, 14),
+    mulShift(vget(V_PR + 1), side, 14) - mulShift(vget(V_PU + 1), 8, 14),
+    mulShift(vget(V_PR + 2), side, 14) - mulShift(vget(V_PU + 2), 8, 14),
   )
   if (!launch(1, V_PF, locked ? 0 : 2, 10)) return
   missileCool = 24
@@ -445,9 +444,9 @@ function missileStep(k: u16): void {
   if (mChase[k] !== 2 && ((k ^ armsTick) & 1) === 0) missileSteer(k)
   if (mOwner[k] === 0) return
   const s = i16(mSpeed[k])
-  const x = i16(mX[k]) + ((mulq(i16(mDX[k]), s) + 8) >> 4) - (pVel(0) >> 4)
-  const y = i16(mY[k]) + ((mulq(i16(mDY[k]), s) + 8) >> 4) - (pVel(1) >> 4)
-  const z = i16(mZ[k]) + ((mulq(i16(mDZ[k]), s) + 8) >> 4) - (pVel(2) >> 4)
+  const x = i16(mX[k]) + ((mulShift(i16(mDX[k]), s, 14) + 8) >> 4) - (pVel(0) >> 4)
+  const y = i16(mY[k]) + ((mulShift(i16(mDY[k]), s, 14) + 8) >> 4) - (pVel(1) >> 4)
+  const z = i16(mZ[k]) + ((mulShift(i16(mDZ[k]), s, 14) + 8) >> 4) - (pVel(2) >> 4)
   mX[k] = u16(x)
   mY[k] = u16(y)
   mZ[k] = u16(z)
@@ -498,18 +497,18 @@ function missileSteer(k: u16): void {
   mNear[k] = d < 400 ? 1 : 0
   unitOf(V_T0)
   const ahead =
-    mulq(vget(V_T0), i16(mDX[k])) +
-    mulq(vget(V_T0 + 1), i16(mDY[k])) +
-    mulq(vget(V_T0 + 2), i16(mDZ[k]))
+    mulShift(vget(V_T0), i16(mDX[k]), 14) +
+    mulShift(vget(V_T0 + 1), i16(mDY[k]), 14) +
+    mulShift(vget(V_T0 + 2), i16(mDZ[k]), 14)
   if (ahead < 4000) {
     if (d < 300) proximity(k)
     else goBlind(k)
     return
   }
   const turn = i16(mOwner[k] === 1 ? 1520 : 1240)
-  mDX[k] = u16(i16(mDX[k]) + mulq(vget(V_T0) - i16(mDX[k]), turn))
-  mDY[k] = u16(i16(mDY[k]) + mulq(vget(V_T0 + 1) - i16(mDY[k]), turn))
-  mDZ[k] = u16(i16(mDZ[k]) + mulq(vget(V_T0 + 2) - i16(mDZ[k]), turn))
+  mDX[k] = u16(i16(mDX[k]) + mulShift(vget(V_T0) - i16(mDX[k]), turn, 14))
+  mDY[k] = u16(i16(mDY[k]) + mulShift(vget(V_T0 + 1) - i16(mDY[k]), turn, 14))
+  mDZ[k] = u16(i16(mDZ[k]) + mulShift(vget(V_T0 + 2) - i16(mDZ[k]), turn, 14))
   vset(V_T0, i16(mDX[k]), i16(mDY[k]), i16(mDZ[k]))
   vunit(V_T0)
   mDX[k] = vec[V_T0]
@@ -543,9 +542,9 @@ function missileArrives(k: u16, x: i16, y: i16, z: i16): bool {
   if (!within(vget(V_T0), vget(V_T0 + 1), vget(V_T0 + 2), 80)) return false
   // Met head on, the fuse bursts it too early or late: less of a blow.
   metHeadOn =
-    mulq(i16(mDX[k]), vget(V_EF)) +
-      mulq(i16(mDY[k]), vget(V_EF + 1)) +
-      mulq(i16(mDZ[k]), vget(V_EF + 2)) <
+    mulShift(i16(mDX[k]), vget(V_EF), 14) +
+      mulShift(i16(mDY[k]), vget(V_EF + 1), 14) +
+      mulShift(i16(mDZ[k]), vget(V_EF + 2), 14) <
     -8000
   mOwner[k] =
     mOwner[k] === 1 ? hitByMissile(x, y, z, mChase[k]) : hitPlayerMissile(x, y, z, mChase[k])
