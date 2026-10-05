@@ -936,6 +936,26 @@ describe('GOTO and GOSUB to a computed line', () => {
       ].join(''),
     )
   })
+
+  it('are renumbered by RENUM when anything but an operator follows, as a run takes them', () => {
+    const m = switchOn('pocket-64')
+    // What follows the number without a colon is no operator: the run goes to line 100, so
+    // RENUM must follow it there too.
+    type(m, '10 GOTO 100 REM GO\n20 ON X GOTO 100,110 REM TWO\n30 RESTORE 110 REM DATA\n')
+    type(m, '40 GOTO 100*2\n100 END\n110 DATA 1\n')
+    type(m, 'RENUM 1000\n')
+    // Six lines: the screen's six rows.
+    expect(say(m, 'LIST').join('')).toBe(
+      [
+        '1000 GOTO 1040 REM GO',
+        '1010 ON X GOTO 1040,1050 REM TWO',
+        '1020 RESTORE 1050 REM DATA',
+        '1030 GOTO 100*2',
+        '1040 END',
+        '1050 DATA 1',
+      ].join(''),
+    )
+  })
 })
 
 describe("the manual's examples of \\, MOD, SPACE$, STRING$, computed GOSUB and loops in one", () => {

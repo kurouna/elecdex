@@ -33,14 +33,33 @@ import {
   strTemp,
   textOut,
 } from './basic.e16'
-import { CH_COLON, CH_COMMA, CH_MINUS, CH_QUOTE, CH_SPACE, LIMIT, PROG } from './rom.e16'
+import {
+  CH_BACKSLASH,
+  CH_CARET,
+  CH_COLON,
+  CH_COMMA,
+  CH_EQ,
+  CH_GT,
+  CH_LT,
+  CH_MINUS,
+  CH_PLUS,
+  CH_QUOTE,
+  CH_SLASH,
+  CH_SPACE,
+  CH_STAR,
+  LIMIT,
+  PROG,
+} from './rom.e16'
 import {
   expand,
+  T_AND,
   T_AUTO,
   T_DELETE,
   T_ELSE,
   T_GOSUB,
   T_GOTO,
+  T_MOD,
+  T_OR,
   T_REM,
   T_RENUM,
   T_RESTORE,
@@ -279,15 +298,30 @@ function renumberHere(): void {
 }
 
 /**
- * Whether a number ending at `p` is a line number by itself: the statement ends after it, or
- * an ON list's comma follows. Anything else (GOTO 100+I*10) makes it part of an expression,
- * whose line RENUM cannot follow.
+ * Whether a number ending at `p` is a line number by itself: no operator follows it. Only an
+ * operator (GOTO 100+I*10) makes it part of an expression, whose line RENUM cannot follow;
+ * anything else - the end, a colon, a comma, ELSE, REM - leaves it the line a run goes to.
  */
 function standsAlone(p: u16): bool {
   let q = p
   while (peek(q) === CH_SPACE) q++
-  const c = peek(q)
-  return c === 0 || c === CH_COLON || c === CH_COMMA || c === T_ELSE
+  return !isOperator(peek(q))
+}
+
+/** The arithmetic, comparison and logical operators an expression goes on with. */
+function isOperator(c: u16): bool {
+  if (c === T_MOD || c === T_AND || c === T_OR) return true
+  return (
+    c === CH_PLUS ||
+    c === CH_MINUS ||
+    c === CH_STAR ||
+    c === CH_SLASH ||
+    c === CH_BACKSLASH ||
+    c === CH_CARET ||
+    c === CH_LT ||
+    c === CH_EQ ||
+    c === CH_GT
+  )
 }
 
 /** The statements of this bank. */

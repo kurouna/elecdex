@@ -157,6 +157,7 @@ import {
   T_SPACES,
   T_STEP,
   T_STOP,
+  T_STRING,
   T_THEN,
   T_TO,
   T_TROFF,
@@ -1546,8 +1547,9 @@ function run(): void {
 /** Whether the typed line is a calculation: it starts with no statement and no `name =`. */
 function isCalculation(): bool {
   const c = next()
-  // A function: SIN to LCDH, or SPACE$ and STRING$ at the end of the keywords.
-  if (c >= 0x80) return u16(c - T_SIN) <= T_LCDH - T_SIN || c >= T_SPACES
+  // A function: SIN to LCDH, or SPACE$ and STRING$ - named, so a statement added at the end
+  // of the keywords later is not taken for one.
+  if (c >= 0x80) return u16(c - T_SIN) <= T_LCDH - T_SIN || u16(c - T_SPACES) <= T_STRING - T_SPACES
   if (!isLetter(c)) return c !== 0
   const save = txt
   readName()
