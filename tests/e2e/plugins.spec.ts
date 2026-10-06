@@ -4,7 +4,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, type Page, test } from '@playwright/test'
-import { launch, removeDir } from './support.js'
+import { launch, removeDir, settleLayout } from './support.js'
 
 /**
  * Plugins in the running app (docs/plugins.md): the sample in a new plugins folder,
@@ -274,6 +274,62 @@ test('a plugin pane gets the state it saved back after a restart', async () => {
     await expect(pluginPane(app.page)).toHaveAttribute('data-status', 'ready')
     await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
     expect(errors).toEqual([])
+  } finally {
+    await app.close()
+    removeDir(dir)
+  }
+})
+
+test("a saved layout's plugin pane gets its own state, though the last layout's pane had its id", async () => {
+  // Two layouts with a plugin pane of the same id ("save as" keeps ids): the pane stays
+  // mounted over the switch and only its state changes, which the plugin must be given.
+  const dir = withPlugins({
+    'tally.js': `export default {
+      apiVersion: 1, id: 'tally', title: 'tally',
+      view(ctx) {
+        let n = ctx.state.get()?.n ?? 0
+        const draw = () => ctx.render([
+          { t: 'text', text: 'tally ' + n },
+          { t: 'buttons', items: [{ action: 'add', text: 'add' }] },
+        ])
+        ctx.on('action', (a) => {
+          if (a.action !== 'add') return
+          n += 1
+          ctx.state.set({ n })
+          draw()
+        })
+        draw()
+      },
+    }`,
+  })
+  const tally = (n: number) => ({
+    version: 1,
+    root: { kind: 'pane', id: 'p1', widget: 'plugin:tally', state: { plugin: { n } } },
+  })
+  writeFileSync(
+    path.join(dir, 'layouts.json'),
+    JSON.stringify({
+      version: 1,
+      items: [
+        { id: 'layouta', name: 'one', tree: tally(2) },
+        { id: 'layoutb', name: 'two', tree: tally(7) },
+      ],
+      active: 'layouta',
+    }),
+  )
+  const app = await launch(dir, { layout: tally(2) })
+  try {
+    await turnOn(app.page, 'tally')
+    await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
+    await app.page.keyboard.press('Control+Shift+Digit2')
+    await settleLayout(app.page)
+    await expect(pluginPane(app.page).getByText('tally 7')).toBeVisible()
+    // Its own set is its own: counted on from there, not mounted again.
+    await pluginPane(app.page).getByTestId('plugin-button').click()
+    await expect(pluginPane(app.page).getByText('tally 8')).toBeVisible()
+    await app.page.keyboard.press('Control+Shift+Digit1')
+    await settleLayout(app.page)
+    await expect(pluginPane(app.page).getByText('tally 2')).toBeVisible()
   } finally {
     await app.close()
     removeDir(dir)

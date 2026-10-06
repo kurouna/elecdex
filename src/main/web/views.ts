@@ -4,6 +4,7 @@ import {
   colorSchemeCss,
   httpUrl,
   navigationVerdict,
+  pageToReopen,
   paneTint,
   parseAddress,
   tintCss,
@@ -122,7 +123,8 @@ export class WebViews {
 
   /**
    * Creates the pane's view, or moves the one it has to `owner`. A new view opens
-   * `url` when the preset keeps it, else the preset's home.
+   * `url` when the preset keeps it, else the preset's home; one it has goes to `url`
+   * only when that is not the page it is on (`pageToReopen`).
    */
   open(
     owner: WebContents,
@@ -135,6 +137,8 @@ export class WebViews {
     if (existing !== undefined && existing.preset.id === preset.id) {
       existing.claim = claim
       this.adopt(existing, owner)
+      const page = pageToReopen(preset, existing.view.webContents.getURL(), url)
+      if (page !== null) this.load(existing, page)
       return this.stateOf(existing)
     }
     if (existing !== undefined) this.destroy(existing)
@@ -196,6 +200,11 @@ export class WebViews {
       case 'address':
         this.address(entry, command.input)
         return
+      case 'reopen': {
+        const page = pageToReopen(entry.preset, contents.getURL(), command.url)
+        if (page !== null) this.load(entry, page)
+        return
+      }
       case 'back':
         if (history.canGoBack()) history.goBack()
         return

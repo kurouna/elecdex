@@ -275,6 +275,38 @@ export async function launch(userData?: string, options: LaunchOptions = {}): Pr
 }
 
 /**
+ * Launches on two saved layouts, the first of them the one being worked in (Ctrl+Shift+1 and
+ * 2 go to them): what a switch between layouts is tested on. Their ids are main's to check
+ * (/^[a-z0-9]{4,32}$/; any other is dropped), and their trees go in as they are, so two may
+ * hold panes of the same id - as a layout kept under a new name ("save as") does.
+ */
+export async function launchOnTwoLayouts(
+  first: unknown,
+  second: unknown,
+  options: Omit<LaunchOptions, 'layout'> = {},
+): Promise<Launched> {
+  const dir = mkdtempSync(path.join(tmpdir(), 'elecdex-e2e-'))
+  writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(quietly(options.settings)))
+  writeFileSync(path.join(dir, 'layout.json'), JSON.stringify(first))
+  const items = [
+    { id: 'layouta', name: 'one', tree: first },
+    { id: 'layoutb', name: 'two', tree: second },
+  ]
+  writeFileSync(
+    path.join(dir, 'layouts.json'),
+    JSON.stringify({ version: 1, items, active: 'layouta' }),
+  )
+  const launched = await launch(dir, options)
+  return {
+    ...launched,
+    close: async () => {
+      await launched.close()
+      removeDir(dir)
+    },
+  }
+}
+
+/**
  * Terminal panes that are on screen. Background tabs stay mounted (their shells
  * keep running) but are not displayed, so they are left out.
  */

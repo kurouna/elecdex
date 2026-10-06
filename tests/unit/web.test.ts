@@ -5,6 +5,7 @@ import {
   hostMatches,
   hslToHex,
   navigationVerdict,
+  pageToReopen,
   paneTint,
   parseAddress,
   presetOfWidget,
@@ -114,6 +115,27 @@ describe('hostMatches', () => {
     expect(hostMatches('m.youtube.com', 'youtube.com')).toBe(true)
     expect(hostMatches('notyoutube.com', 'youtube.com')).toBe(false)
     expect(hostMatches('youtube.com.evil.test', 'youtube.com')).toBe(false)
+  })
+})
+
+describe('pageToReopen', () => {
+  const youtube = () => preset('youtube')
+  const at = 'https://www.youtube.com/watch?v=1'
+
+  it('leaves a view on the page its remounting pane saved: a move', () => {
+    expect(pageToReopen(youtube(), at, at)).toBeNull()
+  })
+
+  it("sends it to another saved page: another layout's pane of that id", () => {
+    const other = 'https://www.youtube.com/watch?v=2'
+    expect(pageToReopen(youtube(), at, other)).toBe(other)
+  })
+
+  it('leaves it where it is with no page saved, or one off the preset', () => {
+    expect(pageToReopen(youtube(), at, null)).toBeNull()
+    expect(pageToReopen(youtube(), at, '')).toBeNull()
+    expect(pageToReopen(youtube(), at, 'https://example.com/')).toBeNull()
+    expect(pageToReopen(youtube(), at, 'file:///C:/Windows/win.ini')).toBeNull()
   })
 })
 

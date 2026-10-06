@@ -107,6 +107,15 @@ $effect(() => {
   }
 })
 
+// Another saved layout's pane of the same id keeps this pane mounted and changes only its
+// saved state: the plugin's view is given it (its own ctx.state.set comes back unchanged).
+$effect(() => {
+  const wanted = saved?.plugin
+  if (!ready) return
+  const pluginId = id
+  untrack(() => plugins.follow(pluginId, paneId, wanted))
+})
+
 $effect(() => {
   const at = view?.glowAt ?? 0
   if (at === 0) return

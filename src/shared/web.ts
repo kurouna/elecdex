@@ -156,6 +156,21 @@ export function navigationVerdict(preset: WebPreset, raw: string): WebVerdict {
 }
 
 /**
+ * The page a pane's existing view goes to as the pane mounts again, or null to stay where it
+ * is. A moved pane asks for the page it last reported (the pane writes every page into its
+ * state), so the view stays on its document. Another saved layout's pane of the same id asks
+ * for its own saved page, which the view - main's, kept by pane id - is not on: it goes there.
+ */
+export function pageToReopen(
+  preset: WebPreset,
+  current: string,
+  saved: string | null,
+): string | null {
+  if (saved === null || saved === '' || saved === current) return null
+  return navigationVerdict(preset, saved) === 'allow' ? saved : null
+}
+
+/**
  * A new window a page asks for: a sign-in popup (window.open with a size, which
  * Chromium reports as 'new-window') on a host of the preset opens as a small window
  * of its own, since the page waits for it to report back; any other link on such
@@ -275,6 +290,11 @@ export const WebClaimSchema = z.string().min(1).max(64)
 
 export const WebCommandSchema = z.discriminatedUnion('t', [
   z.object({ t: z.literal('address'), input: z.string().max(4096) }),
+  /**
+   * The page the pane's state names, changed under a mounted pane (another saved layout's pane
+   * of the same id): gone to only on the preset's site (`pageToReopen`), never handed out.
+   */
+  z.object({ t: z.literal('reopen'), url: z.string().max(4096) }),
   z.object({ t: z.literal('back') }),
   z.object({ t: z.literal('forward') }),
   z.object({ t: z.literal('reload') }),

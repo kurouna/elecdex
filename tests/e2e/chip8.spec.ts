@@ -2,7 +2,15 @@ import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { type ElectronApplication, expect, type Page, test } from '@playwright/test'
-import { atDesignSize, launch, powerNote, removeDir, settleLayout, zoomSettled } from './support.js'
+import {
+  atDesignSize,
+  launch,
+  launchOnTwoLayouts,
+  powerNote,
+  removeDir,
+  settleLayout,
+  zoomSettled,
+} from './support.js'
 
 /**
  * The CHIP-8 pane (docs/architecture.md section 5.18): the library, a program running on
@@ -261,6 +269,58 @@ test('a pane split beside it keeps its machine going, and a restart brings the p
   } finally {
     await launched.close()
     removeDir(profile)
+  }
+})
+
+test("a saved layout's pane runs its own program, though the last layout's pane had its id", async () => {
+  // Two saved layouts with a CHIP-8 pane of the same id (a layout kept under a new name),
+  // each running another program: the switch must not leave the first one's machine on.
+  const running = (program: string) => ({
+    version: 1,
+    root: { kind: 'pane', id: 'c8', widget: 'chip8', state: { view: 'run', program } },
+  })
+  const { page, close } = await launchOnTwoLayouts(
+    running('diag/3-corax+'),
+    running('diag/6-keypad'),
+  )
+  try {
+    const subtitle = page.getByTestId('pane-subtitle')
+    await expect(subtitle).toHaveText('Corax+')
+    await page.keyboard.press('Control+Shift+Digit2')
+    await settleLayout(page)
+    await expect(subtitle).toHaveText('Keypad')
+    await expect(page.getByTestId('chip8-run')).toContainText('Keypad')
+    await page.keyboard.press('Control+Shift+Digit1')
+    await settleLayout(page)
+    await expect(subtitle).toHaveText('Corax+')
+  } finally {
+    await close()
+  }
+})
+
+test("a saved layout's pane on the library stops the machine the last layout's pane left running", async () => {
+  const state = (view: string) => ({ view, program: 'diag/3-corax+' })
+  const { page, close } = await launchOnTwoLayouts(
+    { version: 1, root: { kind: 'pane', id: 'c8', widget: 'chip8', state: state('run') } },
+    { version: 1, root: { kind: 'pane', id: 'c8', widget: 'chip8', state: state('library') } },
+  )
+  try {
+    const run = page.getByTestId('chip8-run')
+    // Brought back paused, as after a restart; P sets it going.
+    await expect(run).toHaveAttribute('data-status', 'paused')
+    await page.getByTestId('chip8').focus()
+    await page.keyboard.press('KeyP')
+    await expect(run).toHaveAttribute('data-status', 'running')
+    await page.keyboard.press('Control+Shift+Digit2')
+    await settleLayout(page)
+    await expect(page.getByTestId('chip8-library')).toBeVisible()
+    // Back in the first layout the machine is where the library left it: paused, not run on
+    // unseen behind it.
+    await page.keyboard.press('Control+Shift+Digit1')
+    await settleLayout(page)
+    await expect(run).toHaveAttribute('data-status', 'paused')
+  } finally {
+    await close()
   }
 })
 

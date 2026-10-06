@@ -263,6 +263,36 @@ describe('WebViews', () => {
     expect(view().webContents.url).toBe('https://www.youtube.com/')
   })
 
+  it("goes to the page a remounting pane saved when it is not on it: another layout's pane of that id", () => {
+    views.open(asOwner(owner), 'p', 'a', preset('youtube'), 'https://www.youtube.com/watch?v=1')
+    const first = view().webContents
+    // A moved pane asks for the page it is on: nothing is loaded again.
+    views.open(asOwner(owner), 'p', 'b', preset('youtube'), 'https://www.youtube.com/watch?v=1')
+    expect(first.loadURL).toHaveBeenCalledTimes(1)
+    // Another layout's pane of the same id, on its own page: the same view goes there.
+    views.open(asOwner(owner), 'p', 'c', preset('youtube'), 'https://www.youtube.com/watch?v=2')
+    expect(view().webContents).toBe(first)
+    expect(first.url).toBe('https://www.youtube.com/watch?v=2')
+    // A pane with no page saved, or one off the preset's site, leaves the view where it is.
+    views.open(asOwner(owner), 'p', 'd', preset('youtube'), null)
+    views.open(asOwner(owner), 'p', 'e', preset('youtube'), 'https://example.com/')
+    expect(first.loadURL).toHaveBeenCalledTimes(2)
+    expect(win.children).toHaveLength(1)
+  })
+
+  it("goes to the page a mounted pane's state now names, only on the preset's site, never handed out", () => {
+    views.open(asOwner(owner), 'p', 'a', preset('youtube'), 'https://www.youtube.com/watch?v=1')
+    const contents = view().webContents
+    views.command(asOwner(owner), 'p', { t: 'reopen', url: 'https://www.youtube.com/watch?v=1' })
+    expect(contents.loadURL).toHaveBeenCalledTimes(1)
+    views.command(asOwner(owner), 'p', { t: 'reopen', url: 'https://www.youtube.com/watch?v=2' })
+    expect(contents.url).toBe('https://www.youtube.com/watch?v=2')
+    // A page off the site, from a layout file, is neither opened here nor in the browser.
+    views.command(asOwner(owner), 'p', { t: 'reopen', url: 'https://example.com/' })
+    expect(contents.loadURL).toHaveBeenCalledTimes(2)
+    expect(hoisted.opened).toEqual([])
+  })
+
   it('hides with a picture, unless shown again while the picture was taken', async () => {
     views.open(asOwner(owner), 'p', 'a', preset('x'), null)
     views.show(asOwner(owner), 'p', 'a', RECT)

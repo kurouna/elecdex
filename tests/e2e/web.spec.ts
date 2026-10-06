@@ -1,7 +1,14 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { expect, type Locator, type Page, test } from '@playwright/test'
-import { type Launched, type LaunchOptions, launch, zoomSettled } from './support.js'
+import {
+  type Launched,
+  type LaunchOptions,
+  launch,
+  launchOnTwoLayouts,
+  settleLayout,
+  zoomSettled,
+} from './support.js'
 
 /**
  * Web panes (the browser, YouTube and X presets) against a local server standing in
@@ -601,6 +608,77 @@ test.describe('web panes', () => {
       app = await app.relaunch()
       await expect(webPane(app.page).getByTestId('pane-subtitle')).toHaveText('YT next')
       expect((await views(app))[0]?.url).toBe(`http://127.0.0.1:${port}/yt/next`)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test("open their own layout's page when the last layout's pane had their id", async () => {
+    // Two layouts with a web pane of the same id ("save as" keeps ids), each on its own page:
+    // the view main keeps for the pane id must not stand in for the other layout's page.
+    const app = await launchOnTwoLayouts(
+      layoutWith('web.youtube', { url: yt() }),
+      layoutWith('web.youtube', { url: `${yt()}next` }),
+      { env: { ELECDEX_WEB_HOMES: `youtube=${yt()}` } },
+    )
+    const { page } = app
+    try {
+      const subtitle = webPane(page).getByTestId('pane-subtitle')
+      await expect(subtitle).toHaveText('YT home')
+      await page.keyboard.press('Control+Shift+Digit2')
+      await settleLayout(page)
+      await expect(subtitle).toHaveText('YT next')
+      await expect.poll(async () => (await views(app))[0]?.url).toBe(`${yt()}next`)
+      await page.keyboard.press('Control+Shift+Digit1')
+      await settleLayout(page)
+      await expect(subtitle).toHaveText('YT home')
+      expect((await views(app)).length).toBe(1)
+    } finally {
+      await app.close()
+    }
+  })
+
+  test("open their own layout's page when the last layout's pane had their id in another place", async () => {
+    // The pane of the same id sits elsewhere in the second layout, so it is mounted again and
+    // asks main for its page: main's view for that id, still on the first layout's page, must
+    // go to the page this layout saved.
+    const deeper = {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 'root',
+        direction: 'row',
+        sizes: [0.3, 0.7],
+        children: [
+          { kind: 'pane', id: 'clock', widget: 'clock' },
+          {
+            kind: 'split',
+            id: 'inner',
+            direction: 'column',
+            sizes: [0.7, 0.3],
+            children: [
+              { kind: 'pane', id: 'web', widget: 'web.youtube', state: { url: `${yt()}next` } },
+              { kind: 'pane', id: 'calendar', widget: 'calendar' },
+            ],
+          },
+        ],
+      },
+    }
+    const app = await launchOnTwoLayouts(layoutWith('web.youtube', { url: yt() }), deeper, {
+      env: { ELECDEX_WEB_HOMES: `youtube=${yt()}` },
+    })
+    const { page } = app
+    try {
+      const subtitle = webPane(page).getByTestId('pane-subtitle')
+      await expect(subtitle).toHaveText('YT home')
+      await page.keyboard.press('Control+Shift+Digit2')
+      await settleLayout(page)
+      await expect(page.locator('[data-testid=pane][data-widget=calendar]')).toHaveCount(1)
+      await expect(subtitle).toHaveText('YT next')
+      await page.keyboard.press('Control+Shift+Digit1')
+      await settleLayout(page)
+      await expect(subtitle).toHaveText('YT home')
+      expect((await views(app)).length).toBe(1)
     } finally {
       await app.close()
     }

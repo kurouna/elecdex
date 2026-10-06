@@ -576,6 +576,63 @@ describe('a plugin pane', () => {
     expect(screen.getByText(/not in the plugins folder/)).toBeTruthy()
   })
 
+  it("gives a plugin the state another layout's pane of its id saved, and not its own back", async () => {
+    // The view counts its mounts into its state: its own set must not mount it again (it would
+    // go on counting), while a state changed under the pane - a saved layout switched to whose
+    // pane has this id keeps the pane mounted - must reach a view mounted on it.
+    const COUNTS = `export default {
+      apiVersion: 1, id: 'counts', title: 'counts',
+      view(ctx) {
+        const n = (ctx.state.get()?.n ?? 0) + 1
+        ctx.state.set({ n })
+        ctx.render([{ t: 'text', text: 'mounts: ' + n }])
+      },
+    }`
+    // As a browser does it: the observer reports after the effect that made it, so what the
+    // report reads is no dependency of the effect (which would attach the pane again).
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        readonly callback: IntersectionObserverCallback
+        constructor(callback: IntersectionObserverCallback) {
+          this.callback = callback
+        }
+        observe() {
+          queueMicrotask(() =>
+            this.callback([{ isIntersecting: true } as IntersectionObserverEntry], {} as never),
+          )
+        }
+        disconnect() {}
+      },
+    )
+    await startHost([source('counts.ts', COUNTS)], {
+      counts: { enabled: true, key: 'counts.ts', granted: grantFor(NO_PERMISSIONS), values: {} },
+    })
+    const view = render(PluginPane, {
+      props: {
+        paneId: 'pane-1',
+        title: 'counts',
+        props: undefined,
+        state: { plugin: { n: 0 } },
+        active: true,
+        widget: 'plugin:counts',
+      },
+    })
+    await settle()
+    expect(screen.getByText('mounts: 1')).toBeTruthy()
+    // Its own set, written into the layout, comes back to the pane as its state.
+    const { layout } = await import('../../src/renderer/stores/layout.svelte.ts')
+    expect(layout.setPaneState).toHaveBeenLastCalledWith('pane-1', { plugin: { n: 1 } })
+    await view.rerender({ state: { plugin: { n: 1 } } })
+    await settle()
+    expect(screen.getByText('mounts: 1')).toBeTruthy()
+
+    // Another layout's state for this pane id.
+    await view.rerender({ state: { plugin: { n: 40 } } })
+    await settle()
+    expect(screen.getByText('mounts: 41')).toBeTruthy()
+  })
+
   it('gives a plugin the state its pane saved, which the layout holds as live state', async () => {
     await startHost([source('remembers.ts', REMEMBERS)], {
       remembers: {

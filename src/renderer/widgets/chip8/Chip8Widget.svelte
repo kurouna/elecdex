@@ -12,6 +12,7 @@ import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import { Buzzer } from './buzzer.ts'
+import { chip8Follow } from './follow.ts'
 import LibraryView from './LibraryView.svelte'
 import { chip8Library } from './library.svelte.ts'
 import { originalPalette, type Palette, type Rgb, themePalette } from './palette.ts'
@@ -75,6 +76,8 @@ function change(next: Partial<Chip8Pane>): void {
 
 /** Counts starts, so a program whose bytes arrive after another was chosen is not loaded. */
 let starts = 0
+/** The program this pane last started or took up: its own changes to the state are not followed. */
+let asked: string | null = null
 
 /** Where a start goes on from: AUTO or a slot when it holds a machine, or the beginning. */
 type From = Chip8Slot | 'fresh'
@@ -91,6 +94,7 @@ type Started = 'resumed' | 'fresh' | 'failed' | 'stale'
  */
 async function start(id: string, from: From, paused: boolean): Promise<Started> {
   const mine = ++starts
+  asked = id
   const found = chip8Library.find(id)
   const [rom, snapshot] = await Promise.all([
     found === null ? null : chip8Library.rom(id),
@@ -144,10 +148,26 @@ $effect(() => {
   untrack(() => {
     const parked = claim(paneId)
     if (parked !== null && parked.program.id === pane.program) {
+      asked = parked.program.id
       runner.adopt(parked.program, parked.rom, parked.machine, parked.paused)
     } else if (pane.view === 'run' && pane.program !== null) {
       void start(pane.program, 'auto', true)
     }
+  })
+})
+
+// Another saved layout's pane of the same id keeps this widget mounted and changes only its
+// state: the machine follows it (follow.ts), the one it leaves kept in AUTO as a moved pane's
+// would be.
+$effect(() => {
+  const { view, program } = pane
+  if (!restored) return
+  untrack(() => {
+    const next = chip8Follow(view, program, asked, runner.status)
+    if (next === null) return
+    void keepAuto()
+    if (next.kind === 'pause') runner.pause('player')
+    else void start(next.program, 'auto', true)
   })
 })
 

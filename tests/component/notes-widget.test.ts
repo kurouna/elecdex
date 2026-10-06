@@ -89,6 +89,24 @@ describe('NotesWidget', () => {
     expect(save).toHaveBeenCalledWith('n1', 'half typed')
   })
 
+  it("writes what was typed to its note when the pane's note changes under it", async () => {
+    // Another saved layout's pane of the same id keeps the widget mounted and changes only its
+    // state's note, within the pause before a save: the keystrokes belong to the first note.
+    vi.useFakeTimers()
+    file = { version: 1, notes: [note(), note({ id: 'n2', body: 'the other', updatedAt: 500 })] }
+    const view = render(NotesWidget, { props: { paneId: 'p', state: { noteId: 'n1' } } as never })
+    await settle()
+    await fireEvent.input(body(), { target: { value: 'half typed' } })
+    await view.rerender({ paneId: 'p', state: { noteId: 'n2' } } as never)
+    await settle()
+    expect(body().value).toBe('the other')
+    expect(save).toHaveBeenCalledWith('n1', 'half typed')
+    // And nothing of it reaches the note now shown, after the pause either.
+    vi.advanceTimersByTime(600)
+    await settle()
+    expect(save).not.toHaveBeenCalledWith('n2', expect.anything())
+  })
+
   it('takes a change made elsewhere while nothing is being typed here', async () => {
     render(NotesWidget, { props: { paneId: 'p', state: { noteId: 'n1' } } as never })
     await settle()

@@ -365,6 +365,41 @@ describe('WebWidget', () => {
     view.unmount()
   })
 
+  it("goes to the page another layout's pane of its id saved, and not to its own last one", async () => {
+    // A saved layout switched to whose pane has this id keeps the widget mounted: only the
+    // node changes, with that layout's page in its state.
+    const view = render(LayoutNodeView, { props: { node: layout.tree.root } })
+    await settle()
+    // Its own navigation is written into its state, and is not sent back as an address.
+    states.get('p')?.(stateOf('p', 'https://www.youtube.com/watch?v=2'))
+    await settle()
+    await view.rerender({ node: layout.tree.root })
+    await settle()
+    expect(api.command).not.toHaveBeenCalledWith('p', expect.objectContaining({ t: 'reopen' }))
+
+    const other = {
+      kind: 'pane' as const,
+      id: 'p',
+      widget: 'web.youtube',
+      state: { url: 'https://www.youtube.com/watch?v=3' },
+    }
+    layout.tree = { version: LAYOUT_VERSION, root: other }
+    await view.rerender({ node: other })
+    // Main says again where the view is, as it does when the switch shows it: not a move of
+    // the page, so the other layout's page is not written over with this one's.
+    states.get('p')?.(stateOf('p', 'https://www.youtube.com/watch?v=2'))
+    await settle()
+    expect(layout.tree.root.kind === 'pane' && layout.tree.root.state).toEqual({
+      url: 'https://www.youtube.com/watch?v=3',
+    })
+    expect(api.command).toHaveBeenCalledWith('p', {
+      t: 'reopen',
+      url: 'https://www.youtube.com/watch?v=3',
+    })
+    expect(api.open).toHaveBeenCalledTimes(1)
+    view.unmount()
+  })
+
   it('keeps where the page went in pane state, and shows its title', async () => {
     mount()
     await settle()

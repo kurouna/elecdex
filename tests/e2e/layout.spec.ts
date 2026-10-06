@@ -3,7 +3,15 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { launch, SINGLE_TERMINAL, showStatusBar, terminalPane, typeInto } from './support.js'
+import {
+  launch,
+  launchOnTwoLayouts,
+  SINGLE_TERMINAL,
+  settleLayout,
+  showStatusBar,
+  terminalPane,
+  typeInto,
+} from './support.js'
 
 /**
  * Layout engine, end to end. Each test gets its own userData directory because
@@ -527,6 +535,48 @@ test('the layout being worked in keeps what is done to the workspace', async () 
 
     const saved = JSON.parse(readFileSync(path.join(userData, 'layouts.json'), 'utf8'))
     expect(saved.items.map((item: { name: string }) => item.name)).toEqual(['one', 'two'])
+  } finally {
+    await close()
+  }
+})
+
+test("a shell in a layout switched to is that layout's pane's, recorded and kept through a reload", async () => {
+  // Two layouts with a terminal pane of the same id, as "save as" leaves them: the widget is
+  // kept mounted over the switch, and only its state changes. Whatever shell it then shows,
+  // the pane's live state must name it, or a reload would lose it.
+  const { page, userData, close } = await launchOnTwoLayouts(SINGLE_TERMINAL, SINGLE_TERMINAL, {
+    settings: NO_SWITCH_PROMPT,
+  })
+  try {
+    const alive = async () =>
+      (await page.evaluate(() => window.elecdex.pty.list())).map((s) => s.id)
+    const recorded = () => {
+      const tree = JSON.parse(readFileSync(layoutFile(userData), 'utf8'))
+      const id = tree.root?.state?.sessionId
+      return typeof id === 'string' ? id : null
+    }
+    await expect(terminalPane(page)).toHaveCount(1)
+    await expect.poll(recorded, { timeout: 20_000 }).not.toBeNull()
+
+    await page.keyboard.press('Control+Shift+Digit2')
+    await settleLayout(page)
+    await expect(terminalPane(page)).toHaveCount(1)
+    // The live layout names a shell that is running: the one the pane shows.
+    let kept: string | null = null
+    await expect
+      .poll(
+        async () => {
+          kept = recorded()
+          return kept !== null && (await alive()).includes(kept)
+        },
+        { timeout: 20_000 },
+      )
+      .toBe(true)
+
+    await page.reload()
+    await expect(page.getByTestId('workspace')).toHaveAttribute('data-loaded', 'true')
+    await expect(terminalPane(page)).toHaveCount(1)
+    await expect.poll(alive, { timeout: 20_000 }).toEqual([kept])
   } finally {
     await close()
   }

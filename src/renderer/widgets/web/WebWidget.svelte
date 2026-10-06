@@ -100,15 +100,31 @@ function toggleTint(): void {
   widgetState.patch(paneId, { tint: !tinted })
 }
 
-// Where the page is now, for a restart to open it again.
+// Where the page is now, for a restart to open it again. Written when the page moves, not
+// whenever main says where it is (it says so again as the view is hidden and shown): a pane
+// whose state another saved layout has just changed must not have it written back over.
+let reported: string | null = null
 $effect(() => {
   const url = page?.url
-  if (url === undefined || url === '') return
+  if (url === undefined || url === '' || url === reported) return
+  reported = url
   const id = paneId
   // Untracked: writing the tree must not make this effect depend on the tree.
   untrack(() => {
     const current = paneState
     if (current?.url !== url) widgetState.patch(id, { url })
+  })
+})
+
+// Another saved layout's pane of the same id keeps this widget mounted and changes only its
+// state: the page follows the url it saved (the one written above never differs from the page).
+// Main judges it by the preset as it has it, and goes there only on the preset's site.
+$effect(() => {
+  const saved = typeof paneState?.url === 'string' ? paneState.url : null
+  untrack(() => {
+    const current = page
+    if (current === null || saved === null || saved === '' || saved === current.url) return
+    api.command(paneId, { t: 'reopen', url: saved })
   })
 })
 

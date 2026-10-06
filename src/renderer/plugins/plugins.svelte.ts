@@ -32,6 +32,7 @@ import { registerDynamic, unregisterDynamic } from '../widgets/registry.ts'
 import { HeldNotes } from './held.ts'
 import PluginPane from './PluginPane.svelte'
 import { readLabels, readTheme } from './plugin-env.ts'
+import { sameSavedState } from './saved-state.ts'
 import { Synth } from './synth.ts'
 import type { Played } from './voices.ts'
 import { createWorker, type PluginWorker, type WorkerFactory } from './worker.ts'
@@ -255,6 +256,17 @@ class Runner {
     if (!this.started || json === this.sentSettings) return
     this.sentSettings = json
     this.worker?.post({ t: 'settings', settings: values })
+  }
+
+  /**
+   * The pane's saved state as the layout now holds it: a state that is not the view's own
+   * (saved-state.ts) mounts the view again on it, as after a restart.
+   */
+  follow(pane: string, state: unknown): void {
+    const attached = this.panes.get(pane)
+    if (attached === undefined || sameSavedState(attached.state, state)) return
+    this.detach(pane)
+    this.attach(pane, { ...attached, state })
   }
 
   detach(pane: string): void {
@@ -832,6 +844,14 @@ export class PluginHost {
     runner?.attach(pane, { ...attached, state: $state.snapshot(attached.state) })
     if (runner && !runner.running && runner.stopped === null) void runner.start()
     this.refresh(id)
+  }
+
+  /**
+   * A pane's saved state changed under it: another saved layout's pane of the same id keeps the
+   * pane mounted and changes only its state, which the plugin's view must be given.
+   */
+  follow(id: string, pane: string, state: unknown): void {
+    this.runners.get(id)?.follow(pane, $state.snapshot(state))
   }
 
   detach(id: string, pane: string): void {

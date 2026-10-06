@@ -106,8 +106,14 @@ $effect(() => {
     return
   }
   // A different note - a switch, or the one being shown was deleted - always
-  // replaces what is on screen, whatever was half typed for the old one.
-  if (!sameNote) dirtyAt = null
+  // replaces what is on screen. What was half typed for the old one is written to it
+  // first: the pane's note can change under it (another saved layout's pane of this id
+  // keeps the widget mounted), and the keystrokes waiting for the pause must not be
+  // dropped. Main ignores a note that is gone.
+  if (!sameNote) {
+    if (loaded !== null && dirtyAt !== null) keepTyped(loaded.id, draft)
+    dirtyAt = null
+  }
   draft = note.body
   loaded = { id: note.id, rev: note.rev }
   elsewhere = false
@@ -143,6 +149,13 @@ function flushNow(): void {
     flash += 1
     elsewhere = false
   })
+}
+
+/** Writes what was typed for a note no longer on screen; nothing here follows its answer. */
+function keepTyped(id: string, body: string): void {
+  if (saveTimer !== null) clearTimeout(saveTimer)
+  saveTimer = null
+  void notes.save(id, body)
 }
 
 // A pane being moved is remounted, and a window being closed never comes back:
