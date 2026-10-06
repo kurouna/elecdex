@@ -302,11 +302,19 @@ describe('the LINK hub', () => {
       expect((await cancelled).status).toBe(LINK_STATUS.cancelled)
       expect(hub.watching()).toEqual([])
 
+      // Three minutes: a model that reasons or searches may take more than one.
+      expect(LINK_TIMEOUT_MS).toBe(180_000)
       const late = hub.ask('u1', request('HI'))
-      await vi.advanceTimersByTimeAsync(LINK_TIMEOUT_MS)
+      let settled = false
+      void late.then(() => {
+        settled = true
+      })
+      await vi.advanceTimersByTimeAsync(61_000)
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(LINK_TIMEOUT_MS - 61_000)
       const answer = await late
       expect(answer.status).toBe(LINK_STATUS.failed)
-      expect(answer.note).toContain('minute')
+      expect(answer.note).toContain('3 minutes')
 
       const gone = hub.ask('u2', request('HI'))
       hub.dropUnit('u2')

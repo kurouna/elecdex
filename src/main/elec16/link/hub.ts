@@ -34,8 +34,12 @@ export interface LinkHubDeps {
   clearTimer(handle: unknown): void
 }
 
-/** A request with no answer by then is given up: FAILED. */
-export const LINK_TIMEOUT_MS = 60_000
+/**
+ * A request with no answer by then is given up: FAILED. Three minutes (user decision
+ * 2026-10-06; it was 60 s): with no token cap, a model that reasons first or searches the web
+ * can take longer than a minute, and the machine waits asleep - BRK or RESET gives the wait up.
+ */
+export const LINK_TIMEOUT_MS = 180_000
 
 /** A request as the page passes it on, checked: the page is not trusted to have. */
 const RequestSchema = z.object({
@@ -85,7 +89,7 @@ export class LinkHub {
     try {
       return await service.ask(request, { unit, signal: out.abort.signal })
     } catch (error) {
-      if (late) return { status: LINK_STATUS.failed, note: 'no answer within a minute' }
+      if (late) return { status: LINK_STATUS.failed, note: 'no answer within 3 minutes' }
       if (out.abort.signal.aborted) return { status: LINK_STATUS.cancelled }
       const said = error instanceof Error ? error.message : String(error)
       return { status: LINK_STATUS.failed, note: said.slice(0, 300) }

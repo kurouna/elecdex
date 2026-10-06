@@ -264,7 +264,7 @@ user made; do not reverse one without asking.
     the page passes it on, main answers - only for the page that holds the unit, nothing while
     LINK or that service is off in the panel's LINK (LINK on, the AI off, CART on by default;
     an old single switch is the AI's, `linkSettings`). A SEND goes only after a person's action since the last (HELD
-    otherwise: PASTE's keys do not count), one at a time a unit, the answer capped, 60 s. The
+    otherwise: PASTE's keys do not count), one at a time a unit, no token cap (as the AI chat pane), 180 s. The
     AI uses the AI settings' providers and keys (a key never reaches the page or the machine;
     a provider with none may be chosen); its answer reaches the machine only as the LCD's
     characters (`lcdReply`), and everything else - dictionary, translation, search, weather -
