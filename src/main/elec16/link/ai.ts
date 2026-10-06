@@ -42,13 +42,6 @@ export interface AiLinkDeps {
 
 /** Exchanges a conversation keeps. */
 export const AI_TURNS = 10
-/**
- * The answer's cap in tokens: a few lines, and room for a model that reasons before it
- * answers whatever it is asked (Gemini 2.5 spends its thinking from the same cap: at 600 it
- * was cut off a line into its answer), and for a search's words around the answer.
- */
-const ANSWER_TOKENS = 2000
-const SEARCH_TOKENS = 3000
 
 interface Talk {
   provider: string
@@ -95,7 +88,9 @@ export class AiLinkService implements LinkService {
       model,
       system: aiSystemPrompt(request.type, script, request.max, this.#deps.today()),
       messages: [...before, { role: 'user', text: question }],
-      maxTokens: traits.search ? SEARCH_TOKENS : ANSWER_TOKENS,
+      // No cap, as the AI chat pane asks (user decision 2026-10-06): a cap cut the answers of
+      // models that reason first (Gemini 2.5 spends its thinking from it), and what the LCD
+      // shows is cut to the room the program gave anyway (lcdReply).
       noThinking: true,
       ...(traits.search ? { webSearch: true } : {}),
     })

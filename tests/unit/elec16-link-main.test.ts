@@ -90,7 +90,7 @@ describe('the AI service', () => {
     expect(r?.key).toBeNull()
     expect(r?.noThinking).toBe(true)
     expect(r?.webSearch).toBeUndefined()
-    expect(r?.maxTokens).toBeLessThanOrEqual(2000)
+    expect(r?.maxTokens).toBeUndefined()
     expect(r?.system).toContain('only ASCII')
     expect(r?.messages).toEqual([{ role: 'user', text: 'WHAT IS A PULSAR?' }])
   })
@@ -151,6 +151,8 @@ describe('the AI service', () => {
       context(),
     )
     expect(asked[0]?.webSearch).toBe(true)
+    // A search has no cap either (it had 3,000 tokens).
+    expect(asked[0]?.maxTokens).toBeUndefined()
     expect(asked[0]?.system).toContain('Today is 2026-10-04.')
     expect(text(answer.data)).toBe('Sunny, 24 C.')
   })
@@ -204,11 +206,13 @@ describe('the AI service', () => {
     expect(gone.status).toBe(LINK_STATUS.failed)
   })
 
-  it('leaves room for a model that thinks before it answers', async () => {
+  it('sets no token cap, as the AI chat pane, for an answer and for a search alike', async () => {
     const { service, asked } = aiService()
     await service.ask(request('HI'), context())
-    // Gemini 2.5 spends its reasoning from the same cap: 600 cut its answers at a line.
-    expect(asked[0]?.maxTokens).toBeGreaterThanOrEqual(2000)
+    // A cap cut the answers of a model that thinks first (Gemini 2.5 spends its reasoning from
+    // it); the LCD's room is kept by cutting what is shown, not by the cap.
+    expect(asked[0]?.maxTokens).toBeUndefined()
+    expect('maxTokens' in (asked[0] ?? {})).toBe(false)
   })
 
   it('drops the sentence an answer was cut off in at the length limit', async () => {
