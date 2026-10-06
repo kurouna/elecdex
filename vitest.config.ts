@@ -20,6 +20,10 @@ export default defineConfig({
     // worker on every core short tests beside them went past their 5 s (measured 2026-10-05:
     // three timeouts on 12 cores, none with 6; the suite took no longer).
     maxWorkers: '50%',
+    // Tests that run the machine for seconds of play take 1-2 s alone but 3-5 times that beside
+    // the games' long tests on this hybrid CPU's efficiency cores (measured 2026-10-06: three
+    // went past 5 s in every full run, none alone). 20 s still stops a test that hangs.
+    testTimeout: 20_000,
     projects: [
       {
         extends: true,
