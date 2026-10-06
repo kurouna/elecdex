@@ -77,7 +77,7 @@ jobs:
           macOS 版と Linux 版は GitHub のランナーで e2e テストを通していますが、実機での確認はまだです。
 
           EOF
-          gh release create "$TAG" --prerelease --verify-tag --title "elecdex ${TAG#v}" \
+          gh release create "$TAG" --prerelease --verify-tag --title "$TAG" \
             --notes-file "$RUNNER_TEMP/notes.md" --generate-notes
 
   package:
