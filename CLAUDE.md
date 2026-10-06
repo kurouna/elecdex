@@ -87,7 +87,9 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  emu.md (the emulators' shared base), elec16.md (the ELEC-16 pane),
                  elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (its manuals),
                  elec16-play.md (the game model ELEC-16 PLAY), elec16-play-manual.md (its user's
-                 manual), elec16-kit.md (making its games), elec16-eleclance.md (the sample game),
+                 manual), elec16-kit.md (making its games), elec16-eleclance.md,
+                 elec16-elecaircombat.md, elec16-elecdrill.md (the three games),
+                 elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER, being designed),
                  screenshots/ (README images)
 ```
 

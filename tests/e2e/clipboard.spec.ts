@@ -381,9 +381,21 @@ test('writes, moves, edits and deletes snippets', async () => {
     await page.keyboard.press('Escape')
     await expect(page.getByTestId('snip-editor')).toHaveCount(0)
 
-    // Dragged by its slot number, below the last.
+    // Dragged by its slot number, below the last - measured once the rows stand still: under
+    // load the list was still settling after the editor powered off, and the drag was aimed
+    // at where a row had been (failed only in a full run, 2026-10-06).
     const handle = page.getByTestId('snip-handle').first()
-    const last = await page.getByTestId('snip-row').nth(2).boundingBox()
+    const lastRow = page.getByTestId('snip-row').nth(2)
+    let was = ''
+    await expect
+      .poll(async () => {
+        const now = JSON.stringify([await lastRow.boundingBox(), await handle.boundingBox()])
+        const still = now === was
+        was = now
+        return still
+      })
+      .toBe(true)
+    const last = await lastRow.boundingBox()
     const from = await handle.boundingBox()
     if (last === null || from === null) throw new Error('no rows')
     await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)

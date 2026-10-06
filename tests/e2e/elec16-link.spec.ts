@@ -163,7 +163,8 @@ test('ASK is refused while the AI is off; on in the LINK panel, the answer comes
     expect(seen).toHaveLength(1)
     expect(seen[0]?.user).toBe('WHAT IS A PULSAR?')
     expect(seen[0]?.system).toContain('within 60 characters')
-    expect(seen[0]?.maxTokens).toBeLessThanOrEqual(2000)
+    // No token cap, as the AI chat pane (user decision 2026-10-06).
+    expect(seen[0]?.maxTokens).toBeUndefined()
     expect(seen[0]?.search).toBe(false)
     await expect(page.getByTestId('elec16-link-sent')).toHaveText('1 sent.')
 

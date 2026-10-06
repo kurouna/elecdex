@@ -20,7 +20,7 @@ for Windows, macOS and Linux.
   <img src="./docs/screenshots/elecdex-tron.jpg" alt="elecdex with the Tron theme: system monitors on the left, three shell tabs with the launcher and file browser in the middle, and the world view, markets, weather and calendar on the right">
 </p>
 
-> **v0.0.21 — pre-release.** Everything below works today; builds are unsigned. What is marked
+> **v0.0.22 — pre-release.** Everything below works today; builds are unsigned. What is marked
 > *unreleased* is on `main` and arrives with the next release.
 >
 > **Developed and used on Windows.** macOS and Linux are built for every release, but they have
@@ -895,7 +895,7 @@ weather and calendar.
   until a person has pressed a key. The panel beside it shows the registers and the code
   (with breakpoints and STEP), the memory, the card (IMPORT and EXPORT of `.bas`, `.asm` and
   binary files) and TUNE (the clock from 1 to 32 MHz, the LCD, the skin, auto power-off).
-  TUNE can also make a unit **PLAY-320**, the game model (*unreleased*:
+  TUNE can also make a unit **PLAY-320**, the game model (
   a 320×288 colour screen, its extended RAM, a start screen, a tall or wide body with twelve
   buttons, the PC's keys and a gamepad, cartridges - GAMES puts one from the shelf in, START plays
   it - a tile engine with two scrolled backgrounds, 128 sprites, sixteen palettes, a line
