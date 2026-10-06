@@ -37,6 +37,7 @@ import {
   readElec16Pane,
 } from './pane-state.ts'
 import { claim, park } from './park.ts'
+import { takeParked, unitToFollow } from './parked-unit.ts'
 import { pasteModes } from './pc-keys.ts'
 import { loadRoms } from './roms.ts'
 import { browserElec16Host, Elec16Runner } from './runner.svelte.ts'
@@ -147,7 +148,12 @@ $effect(() => {
   if (started || image === null) return
   started = true
   untrack(() => {
-    const parked = claim(paneId)
+    // Only this pane's own machine is taken back: another layout's pane of the same id, on
+    // another unit, lets the parked one go (its RAM saved) and opens its own.
+    const { take: parked, letGo } = takeParked(claim(paneId), pane.unit)
+    if (letGo !== null) {
+      UnitSession.release(window.elecdex.elec16, letGo.unit, paneId, letGo.machine)
+    }
     void session.start(
       image,
       parked?.unit ?? pane.unit,
@@ -155,6 +161,17 @@ $effect(() => {
       parked?.machine ?? null,
       parked?.paused ?? false,
     )
+  })
+})
+
+// Another saved layout's pane of the same id keeps this widget mounted and changes only its
+// state's unit: the session follows it (only the state's unit is watched, so TUNE's own
+// switch, which writes the state back, does not come round again).
+$effect(() => {
+  const wanted = pane.unit
+  untrack(() => {
+    const to = unitToFollow(wanted, session.unit?.id ?? null, session.phase === 'running')
+    if (to !== null) void session.switchTo(to)
   })
 })
 
