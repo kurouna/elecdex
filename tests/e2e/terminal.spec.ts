@@ -4,7 +4,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
-import { type Launched, launch, SINGLE_TERMINAL, terminalPane, typeInto } from './support.js'
+import {
+  type Launched,
+  launch,
+  removeDir,
+  SINGLE_TERMINAL,
+  savedLayout,
+  terminalPane,
+  typeInto,
+} from './support.js'
 
 let launched: Launched
 let page: Page
@@ -696,6 +704,47 @@ test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves bet
     expect(await focusedPane()).not.toBe(rightSelected)
   } finally {
     await own.close()
+  }
+})
+
+test('a shell pane comes back in its last folder; a new pane, or one whose folder has gone, starts where the settings say', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'elecdex-cwd-'))
+  const start = path.join(root, 'start-here')
+  const kept = path.join(root, 'kept-folder')
+  mkdirSync(start)
+  mkdirSync(kept)
+  let own = await launch(undefined, {
+    layout: SINGLE_TERMINAL,
+    settings: { terminal: { startDirectory: start } },
+  })
+  const subtitle = (p: Page, n = 0) =>
+    p.locator('[data-testid=pane][data-widget=terminal]').nth(n).getByTestId('pane-subtitle')
+  const keptInLayout = () => {
+    const saved = savedLayout(own.userData)
+    return saved === null ? null : (JSON.parse(saved).root?.state?.cwd ?? null)
+  }
+  try {
+    await expect(subtitle(own.page)).toContainText('start-here', { timeout: 40_000 })
+    await typeInto(own.page, terminalPane(own.page).first(), `cd '${kept}'`)
+    await expect(subtitle(own.page)).toContainText('kept-folder', { timeout: 40_000 })
+    // The pane keeps the folder in its state, so it is saved with the layout.
+    await expect.poll(keptInLayout, { timeout: 10_000 }).toBe(kept)
+
+    own = await own.relaunch()
+    await expect(subtitle(own.page)).toContainText('kept-folder', { timeout: 40_000 })
+    // A pane opened now has no folder of its own yet.
+    await own.page.keyboard.press('Control+Shift+KeyA')
+    await own.page.locator('[data-testid=pane-picker-item][data-widget=terminal]').click()
+    await expect(subtitle(own.page, 1)).toContainText('start-here', { timeout: 40_000 })
+
+    await own.quit()
+    rmSync(kept, { recursive: true, force: true })
+    own = await launch(own.userData)
+    await expect(subtitle(own.page)).toContainText('start-here', { timeout: 40_000 })
+  } finally {
+    await own.quit()
+    removeDir(own.userData)
+    rmSync(root, { recursive: true, force: true })
   }
 })
 

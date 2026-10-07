@@ -77,7 +77,7 @@ describe('buildInjection', () => {
     const script = injection.env[POWERSHELL_INIT_ENV]
     expect(script).toContain('ELECDEX_SHELL_INTEGRATION')
     expect(script).toContain('133;A')
-    expect(script).toContain('7;file://')
+    expect(script).toContain('9;9;')
   })
 
   it('keeps the PowerShell script off the command line', () => {

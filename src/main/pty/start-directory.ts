@@ -25,6 +25,23 @@ export function resolveStartDirectory(
   return { path: home, fellBack: true }
 }
 
+/**
+ * Where a shell a pane asked for starts: the folder it asked for (the one its
+ * last shell was in, kept in the pane's state) while that is still a folder,
+ * otherwise where a new shell starts. A folder deleted, renamed or on a drive
+ * no longer there must not stop the shell from starting.
+ */
+export function resolveShellDirectory(
+  requested: string | undefined,
+  fallback: () => string,
+  isDirectory: (dir: string) => boolean = directoryExists,
+): string {
+  if (requested !== undefined && path.isAbsolute(requested) && isDirectory(requested)) {
+    return path.normalize(requested)
+  }
+  return fallback()
+}
+
 function directoryExists(dir: string): boolean {
   try {
     return statSync(dir).isDirectory()

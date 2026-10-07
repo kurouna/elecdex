@@ -22,15 +22,16 @@ function global:__Elecdex-Esc([string]$Payload) {
 }
 
 function global:__Elecdex-Cwd {
-    $path = (Get-Location).Path
+    $location = Get-Location
     # Only report real filesystem locations; PowerShell providers such as
     # HKLM:\ or Cert:\ are not directories and would confuse the file browser.
-    if ((Get-Location).Provider.Name -ne 'FileSystem') { return }
+    if ($location.Provider.Name -ne 'FileSystem') { return }
 
-    $encoded = ($path -replace '\\', '/')
-    # Percent-encode, then put the path separators back.
-    $encoded = [System.Uri]::EscapeDataString($encoded) -replace '%2F', '/'
-    __Elecdex-Esc "7;file://$($env:COMPUTERNAME)/$encoded"
+    # OSC 9;9 as Windows Terminal reads it: the native path in quotes, no
+    # encoding. ProviderPath, not Path: a drive of the user's own (New-PSDrive)
+    # or a share reached as FileSystem::\\server\share becomes a path any
+    # program can start in, which is what the pane is restored with.
+    __Elecdex-Esc "9;9;`"$($location.ProviderPath)`""
 }
 
 # PowerShell has no preexec hook. The prompt function runs after each command,

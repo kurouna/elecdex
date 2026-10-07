@@ -10,10 +10,10 @@ import { displayPath } from '../../layout/tab-labels.ts'
 import { releaseWebglContexts } from '../../lib/webgl.ts'
 import { appearance } from '../../stores/appearance.svelte.ts'
 import { boot } from '../../stores/boot.svelte.ts'
-import { layout } from '../../stores/layout.svelte.ts'
 import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sessions, shellName } from '../../stores/sessions.svelte.ts'
 import { ui } from '../../stores/ui.svelte.ts'
+import { widgetState } from '../../stores/widget-state.svelte.ts'
 import type { WidgetProps } from '../registry.ts'
 import TerminalSearch from './TerminalSearch.svelte'
 import './xterm-css.ts'
@@ -72,6 +72,20 @@ let selectionIsSearch = false
 const info = $derived(sessions.get(paneId))
 
 /**
+ * The folder the pane's shell was last in, kept in the pane's state so that a
+ * pane brought back (the next start, a saved layout) starts its new shell
+ * there. A new pane has none and starts where the settings say (main decides,
+ * and falls back the same way when the folder has gone).
+ */
+function lastFolder(): string | undefined {
+  return typeof paneState?.cwd === 'string' && paneState.cwd !== '' ? paneState.cwd : undefined
+}
+
+function recordFolder(cwd: string | null): void {
+  if (cwd !== null && cwd !== lastFolder()) widgetState.patch(paneId, { cwd })
+}
+
+/**
  * Adopts a session: reuses the one recorded in the pane's layout state when it
  * is still alive, otherwise creates one. This is what makes a pane survive a
  * window reload with its shell intact.
@@ -88,18 +102,21 @@ async function adoptSession(): Promise<string | null> {
         shell: shellName(found.shell),
         cwd: found.cwd,
       })
+      recordFolder(found.cwd)
       return found.id
     }
   }
 
   try {
-    const created = await window.elecdex.pty.create({})
+    const folder = lastFolder()
+    const created = await window.elecdex.pty.create(folder === undefined ? {} : { cwd: folder })
     sessions.patch(paneId, {
       sessionId: created.id,
       shell: shellName(created.shell),
       cwd: created.cwd,
     })
-    layout.setPaneState(paneId, { sessionId: created.id })
+    // A patch, not a replacement: the folder kept beside it must stay.
+    widgetState.patch(paneId, { sessionId: created.id })
     return created.id
   } catch (cause) {
     sessions.patch(paneId, {
@@ -218,7 +235,10 @@ $effect(() => {
     try {
       off = await window.elecdex.pty.attach(id, {
         onData: (chunk) => terminal?.write(decoder.decode(chunk, { stream: true })),
-        onCwd: (cwd) => sessions.patch(paneId, { cwd, integrationPending: false }),
+        onCwd: (cwd) => {
+          sessions.patch(paneId, { cwd, integrationPending: false })
+          recordFolder(cwd)
+        },
         onCommandEnd: (exitCode, durationMs) =>
           sessions.patch(paneId, { lastCommand: { exitCode, durationMs } }),
         onIntegrationUnavailable: () => sessions.patch(paneId, { integrationPending: false }),

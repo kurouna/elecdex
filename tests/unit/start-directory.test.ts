@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { resolveStartDirectory } from '../../src/main/pty/start-directory.js'
+import { resolveShellDirectory, resolveStartDirectory } from '../../src/main/pty/start-directory.js'
 
 const home = path.resolve('/home/user')
 const folders = new Set([home, path.resolve('/work'), path.join(home, 'dev')])
@@ -48,5 +48,33 @@ describe('resolveStartDirectory', () => {
       expect(resolveStartDirectory(dir, home)).toEqual({ path: dir, fellBack: false })
       expect(resolveStartDirectory(file, home)).toEqual({ path: home, fellBack: true })
     })
+
+    it('starts a pane in the folder it asked for only while that is a folder', () => {
+      const settings = () => home
+      expect(resolveShellDirectory(dir, settings)).toBe(dir)
+      expect(resolveShellDirectory(file, settings)).toBe(home)
+      expect(resolveShellDirectory(path.join(dir, 'gone'), settings)).toBe(home)
+    })
+  })
+})
+
+describe('resolveShellDirectory', () => {
+  const settings = () => path.resolve('/work')
+
+  it('starts a new pane, which asks for none, where the settings say', () => {
+    expect(resolveShellDirectory(undefined, settings, isDirectory)).toBe(path.resolve('/work'))
+  })
+
+  it('starts a pane brought back in its last folder', () => {
+    expect(resolveShellDirectory(path.join(home, 'dev'), settings, isDirectory)).toBe(
+      path.join(home, 'dev'),
+    )
+  })
+
+  it('falls back to the settings when the folder has gone or is relative', () => {
+    expect(resolveShellDirectory(path.join(home, 'gone'), settings, isDirectory)).toBe(
+      path.resolve('/work'),
+    )
+    expect(resolveShellDirectory('dev', settings, isDirectory)).toBe(path.resolve('/work'))
   })
 })

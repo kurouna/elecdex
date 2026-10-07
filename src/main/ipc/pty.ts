@@ -9,7 +9,7 @@ import {
   type WebContents,
 } from 'electron'
 import { PtyManager } from '../pty/pty-manager.js'
-import { resolveStartDirectory } from '../pty/start-directory.js'
+import { resolveShellDirectory, resolveStartDirectory } from '../pty/start-directory.js'
 import type { SettingsHandle } from './settings.js'
 import { registerTable } from './table.js'
 
@@ -85,8 +85,10 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
       [CH.pty.create]: (_event, raw: unknown): PtySessionSummary => {
         if (closing) throw new Error('elecdex is quitting')
         const opts = validateCreateOptions(raw)
-        // A pane asks for no folder: it starts where the settings say.
-        opts.cwd ??= startDirectory().path
+        // A pane brought back asks for the folder its last shell was in; a new
+        // pane asks for none, and starts where the settings say - as does one
+        // whose folder has gone.
+        opts.cwd = resolveShellDirectory(opts.cwd, () => startDirectory().path)
         return manager.create(opts)
       },
       [CH.settings.startDirectory]: (): StartDirectory => startDirectory(),

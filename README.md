@@ -45,7 +45,8 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
 
 - **Terminal** — real shells (PowerShell, bash, zsh, fish) in unlimited tabs and splits. Shell
   integration reports the working directory and exit codes, on Windows too, and a session keeps
-  its scrollback when its pane is moved or reloaded. The shell has focus at start; selecting text
+  its scrollback when its pane is moved or reloaded. Each pane starts again in its last folder at
+  the next start; a new pane starts in the folder the settings name. The shell has focus at start; selecting text
   copies it and a right-click pastes. Ctrl+Shift+F finds text in the scrollback, and a URL the
   shell prints opens in your browser.
 - **System monitor** — clock with time zone, system strip with a battery gauge, per-core CPU (as
@@ -1063,7 +1064,7 @@ refactoring". elecdex keeps the idea and drops the implementation:
 | PTY tunnelled over a localhost WebSocket (ports 3000+) | `MessageChannelMain`, one channel per session; no listening socket |
 | `nodeIntegration: true`, `contextIsolation: false`, `@electron/remote` | `sandbox: true`, `contextIsolation: true`, a single typed preload bridge; the renderer has no network or filesystem access |
 | `cluster` fork per core; every widget polls `systeminformation` on its own timer | one `utilityProcess` and a subscription-driven scheduler that stops when nobody is watching; on Windows, one long-lived sampler instead of a PowerShell per reading (monitoring cost measured 144% → 14% of one core) |
-| CWD tracked by polling `/proc`, `lsof` and `ps` — unsupported on Windows | shell integration (`OSC 7` / `OSC 133`), so Windows works too |
+| CWD tracked by polling `/proc`, `lsof` and `ps` — unsupported on Windows | shell integration (`OSC 7` / `OSC 9;9` / `OSC 133`), so Windows works too |
 | Five hardcoded screen regions, five terminal tabs | a persisted layout tree: unlimited panes, splits and tabs |
 | No bundler; minify-as-postprocess | electron-vite (Vite + Rollup) |
 

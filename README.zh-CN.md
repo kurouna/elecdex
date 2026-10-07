@@ -41,6 +41,7 @@ elecdex 启动时的默认布局，即页首那张图（Tron）。
 
 - **终端** — 真正的 shell（PowerShell、bash、zsh、fish），标签页和分屏数量不限。shell 集成会
   报告工作目录和退出码，Windows 上也一样；窗格被移动或重新加载后，会话的回滚缓冲区依然保留。
+  下次启动时每个窗格都回到它最后所在的文件夹；新打开的窗格从设置指定的文件夹开始。
   启动时焦点在 shell 上；选中文本即复制，右键粘贴。Ctrl+Shift+F 在回滚缓冲区中查找文本，
   shell 输出的 URL 会在浏览器中打开。
 - **系统监视器** — 带时区的时钟、带电池计量的系统条、按核心显示的 CPU（曲线图或柱状图）、
@@ -847,7 +848,7 @@ eDEX-UI 被归档时，用其作者的话说，代码库"极需一次彻底的�
 | PTY 通过 localhost WebSocket 隧道传输（端口 3000+） | `MessageChannelMain`，每个会话一个通道；没有监听套接字 |
 | `nodeIntegration: true`、`contextIsolation: false`、`@electron/remote` | `sandbox: true`、`contextIsolation: true`，单一的带类型 preload 桥；渲染进程无法访问网络或文件系统 |
 | 每个核心 fork 一个 `cluster`；每个组件用自己的定时器轮询 `systeminformation` | 一个 `utilityProcess` 加一个由订阅驱动、无人关注时即停止的调度器；在 Windows 上用一个常驻采样器代替每次读取启动一个 PowerShell（实测监控开销从单核的 144% 降至 14%） |
-| 通过轮询 `/proc`、`lsof` 和 `ps` 跟踪 CWD——不支持 Windows | shell 集成（`OSC 7` / `OSC 133`），因此 Windows 也能用 |
+| 通过轮询 `/proc`、`lsof` 和 `ps` 跟踪 CWD——不支持 Windows | shell 集成（`OSC 7` / `OSC 9;9` / `OSC 133`），因此 Windows 也能用 |
 | 五个硬编码的屏幕区域，五个终端标签页 | 持久化的布局树：窗格、分屏和标签页数量不限 |
 | 没有打包工具；以后处理方式压缩 | electron-vite（Vite + Rollup） |
 

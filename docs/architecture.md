@@ -1467,13 +1467,15 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 
 | シーケンス | 用途 |
 |---|---|
-| `OSC 7 ; file://<host><path> ST` | CWD 通知 |
+| `OSC 7 ; file://<host><path> ST` | CWD 通知（bash / zsh / fish） |
+| `OSC 9 ; 9 ; "<path>" ST` | CWD 通知（PowerShell。Windows Terminal と同じ形） |
 | `OSC 133 ; A/B/C/D ST` | プロンプト開始 / 入力開始 / コマンド実行開始 / 終了（終了コード付き） |
 
 - `resources/shell-integration/` に bash / zsh / fish / pwsh 用の注入スクリプトを同梱
 - PTY 起動時に注入する: bash は `--init-file`、zsh は `ZDOTDIR` 差し替え、fish は `XDG_DATA_DIRS`、pwsh は `-NoExit -Command`（スクリプト本体は環境変数で渡す。理由は [decisions.md](decisions.md)）
 - main の `OscParser` が PTY 出力ストリームから該当シーケンスを抽出（xterm には渡さず消費）し、`onCwd` / `onProcess` として通知する
 - ネイティブ取得へのフォールバック（`/proc` や `lsof` の低頻度ポーリング）は設計時に考えたが入れていない。注入が効かないシェルでは CWD 追従が働かないだけで、ポーリングは一切しない
+- 報告された CWD はペインの状態 `cwd` に置かれ、レイアウトと一緒に保存される。戻ったペイン（次の起動、保存済みレイアウト）はそのフォルダで新しいシェルを始め、新しく開くペインやフォルダが消えたペインは開始フォルダの設定で始める（main の `resolveShellDirectory`）
 - 副産物として「直前コマンドの終了コード」「実行時間」が取れる。セッション情報には入れているが、タブに終了コードを出すバッジは意図して無効にしてある（シェルそのものが終了したときの `exited N` だけを出す）
 
 ### 6.3 シェル解決

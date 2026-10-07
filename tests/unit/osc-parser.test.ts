@@ -93,6 +93,41 @@ describe('OscParser: OSC 7 cwd', () => {
   )
 })
 
+describe('OscParser: OSC 9;9 cwd', () => {
+  it('reports a quoted windows path, as elecdex.ps1 and Windows Terminal send it', () => {
+    const { text, events } = feed(`a${osc('9;9;"C:\\Users\\me\\my work"', '\u0007')}b`)
+    expect(text).toBe('ab')
+    expect(events).toEqual([{ cwd: 'C:\\Users\\me\\my work' }])
+  })
+
+  it('reports an unquoted path, a UNC share and a posix path', () => {
+    expect(feed(osc('9;9;D:\\src')).events).toEqual([{ cwd: 'D:\\src' }])
+    expect(feed(osc('9;9;"\\\\server\\share\\dir"')).events).toEqual([
+      { cwd: '\\\\server\\share\\dir' },
+    ])
+    expect(feed(osc('9;9;/home/me')).events).toEqual([{ cwd: '/home/me' }])
+  })
+
+  it('survives being split at every byte', () => {
+    expect(feedByteByByte(osc('9;9;"C:\\é\\日本"')).events).toEqual([{ cwd: 'C:\\é\\日本' }])
+  })
+
+  it.each([
+    '9;9;"HKLM:\\SOFTWARE"',
+    '9;9;relative\\dir',
+    '9;9;""',
+    '9;9;',
+    '9;9;"C:\\a\u0001b"',
+    // Other OSC 9 sequences are not ours: progress and notifications.
+    '9;4;1;50',
+    '9;hello',
+  ])('passes through %s', (payload) => {
+    const { text, events } = feed(osc(payload))
+    expect(events).toEqual([])
+    expect(text).toBe(osc(payload))
+  })
+})
+
 describe('OscParser: OSC 133 command lifecycle', () => {
   it('reports prompt, start and end with an exit code', () => {
     const { text, events } = feed(

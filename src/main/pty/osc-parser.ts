@@ -9,7 +9,8 @@
  * Sequences understood (the same ones VS Code's shell integration emits):
  *
  *   OSC 7  ; file://<host><path>          ST   current working directory
- *   OSC 133 ; A                           ST   prompt start
+ *   OSC 9 ; 9 ; ["]<path>["]              ST   the same, as Windows Terminal reads it
+ *   OSC 133 ; A                          ST   prompt start
  *   OSC 133 ; B                           ST   command input start
  *   OSC 133 ; C                           ST   command execution start
  *   OSC 133 ; D [ ; <exitCode> ]          ST   command finished
@@ -41,7 +42,7 @@ const OSC = 0x5d // ']' - the byte after ESC that starts an OSC string
 const MAX_SEQUENCE_BYTES = 4096
 
 export interface OscEvent {
-  /** The working directory reported by OSC 7. */
+  /** The working directory reported by OSC 7 or OSC 9;9. */
   cwd?: string
   /** A command started executing (OSC 133;C). */
   commandStart?: true
@@ -187,34 +188,41 @@ function parsePayload(payload: string): OscEvent | null {
   const code = payload.slice(0, semi)
   const body = payload.slice(semi + 1)
 
-  if (code === '7') {
-    const cwd = parseFileUri(body)
-    return cwd === null ? null : { cwd }
-  }
+  if (code === '133') return parseCommandMark(body)
+  const cwd = parseCwd(code, body)
+  return cwd === null ? null : { cwd }
+}
 
-  if (code === '133') {
-    const [kind, ...rest] = body.split(';')
-    switch (kind) {
-      case 'A':
-        return { promptStart: true }
-      case 'B':
-        // Input start carries no information we act on, but it is ours, so
-        // consume it rather than leaking it to the terminal.
-        return {}
-      case 'C':
-        return { commandStart: true }
-      case 'D': {
-        const raw = rest[0]
-        if (raw === undefined || raw === '') return { commandEnd: { exitCode: null } }
-        const exitCode = Number.parseInt(raw, 10)
-        return { commandEnd: { exitCode: Number.isNaN(exitCode) ? null : exitCode } }
-      }
-      default:
-        return null
-    }
-  }
-
+/** The working directory a payload reports, or null when it reports none. */
+function parseCwd(code: string, body: string): string | null {
+  if (code === '7') return parseFileUri(body)
+  // OSC 9 is also ConEmu's family of other things (9;4 is progress, a bare 9 a
+  // notification): only 9;9 is a directory, and the rest pass through.
+  if (code === '9' && body.startsWith('9;')) return parseWindowsTerminalCwd(body.slice(2))
   return null
+}
+
+/** OSC 133's prompt and command marks. */
+function parseCommandMark(body: string): OscEvent | null {
+  const [kind, ...rest] = body.split(';')
+  switch (kind) {
+    case 'A':
+      return { promptStart: true }
+    case 'B':
+      // Input start carries no information we act on, but it is ours, so
+      // consume it rather than leaking it to the terminal.
+      return {}
+    case 'C':
+      return { commandStart: true }
+    case 'D': {
+      const raw = rest[0]
+      if (raw === undefined || raw === '') return { commandEnd: { exitCode: null } }
+      const exitCode = Number.parseInt(raw, 10)
+      return { commandEnd: { exitCode: Number.isNaN(exitCode) ? null : exitCode } }
+    }
+    default:
+      return null
+  }
 }
 
 /**
@@ -243,6 +251,26 @@ function parseFileUri(value: string): string | null {
   // Windows shells report /C:/Users/... - strip the leading slash.
   if (/^\/[a-zA-Z]:/.test(path)) path = path.slice(1)
 
+  return cleanPath(path)
+}
+
+/**
+ * Reads the path of OSC 9;9, the form Windows Terminal (and oh-my-posh and
+ * Starship for it) use: a native path, often in double quotes, no percent
+ * encoding.
+ *
+ * Only an absolute path is a directory: a drive (`C:\`), a UNC share
+ * (`\\server\share`) or a POSIX root. A PowerShell provider location such as
+ * `HKLM:\` is not, and a relative path is relative to nothing we know.
+ */
+function parseWindowsTerminalCwd(value: string): string | null {
+  const path =
+    value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value
+  if (!/^(?:[a-zA-Z]:[\\/]|\\\\[^\\]|\/)/.test(path)) return null
+  return cleanPath(path)
+}
+
+function cleanPath(path: string): string | null {
   if (path === '') return null
 
   // A path carrying control characters is either a malformed sequence or an
