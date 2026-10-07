@@ -3,6 +3,7 @@ import type { Chip8Program, Chip8Slot } from '@shared/chip8-library'
 import { afterBlink } from '../../lib/blink.ts'
 import { crtPower } from '../../lib/crt-transitions.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
+import { panelPress } from '../emu/panel.ts'
 import { watchRoom } from '../emu/screen.ts'
 import CoreView from './CoreView.svelte'
 import { haltLines } from './core.ts'
@@ -83,12 +84,11 @@ $effect(() => {
 })
 
 function togglePanel(): void {
-  const open = !panelOpen
-  forced = false
-  // Folded away for want of room while it is wanted: shown anyway, the screen gives way.
-  if (open && panelWanted) forced = true
-  else onchange({ panel: open })
-  sfx.play(open ? 'expand' : 'collapse')
+  // Opened, it shows at once even without room: the screen gives way (panelPress).
+  const next = panelPress(panelOpen)
+  forced = next.forced
+  if (panelWanted !== next.panel) onchange({ panel: next.panel })
+  sfx.play(next.panel ? 'expand' : 'collapse')
 }
 
 const scaleWords = $derived(

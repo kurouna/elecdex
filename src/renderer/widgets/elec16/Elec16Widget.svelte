@@ -11,6 +11,7 @@ import { paneMeta } from '../../stores/pane-meta.svelte.ts'
 import { sfx } from '../../stores/sound.svelte.ts'
 import { widgetState } from '../../stores/widget-state.svelte.ts'
 import { seen } from '../../stores/window-state.svelte.ts'
+import { panelPress } from '../emu/panel.ts'
 import { watchRoom } from '../emu/screen.ts'
 import type { WidgetProps } from '../registry.ts'
 import { Elec16Apu } from './apu.ts'
@@ -336,11 +337,10 @@ let forced = $state(false)
 const panelOpen = $derived(forced || panelShown(pane.panel, room, MODELS[model].width))
 
 function togglePanel(): void {
-  const open = !panelOpen
-  forced = false
-  if (open && pane.panel) forced = true
-  else change({ panel: open })
-  sfx.play(open ? 'expand' : 'collapse')
+  const next = panelPress(panelOpen)
+  forced = next.forced
+  if (pane.panel !== next.panel) change({ panel: next.panel })
+  sfx.play(next.panel ? 'expand' : 'collapse')
 }
 
 // The LCD's colours: the skin's, through the theme where the skin follows it, read again

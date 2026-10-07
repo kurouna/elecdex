@@ -576,6 +576,42 @@ test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboa
   }
 })
 
+test('PANEL opens a panel shut by hand with one press, in a pane too narrow to keep it open', async () => {
+  // A narrow pane folds the panel away; one shut by hand once took two presses to come back
+  // (the first only marked it wanted, still without room to show).
+  const { app, page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [70, 30],
+        children: [
+          { kind: 'pane', id: 'clock', widget: 'clock' },
+          { kind: 'pane', id: 'e16', widget: 'elec16', state: { panel: false } },
+        ],
+      },
+    },
+  })
+  try {
+    await atDesignSize(app, page)
+    await settleLayout(page)
+    await booted(page)
+    const toggle = page.getByTestId('elec16-panel-toggle')
+    await expect(page.getByTestId('elec16-panel')).toHaveCount(0)
+    await toggle.click()
+    await expect(page.getByTestId('elec16-panel')).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await toggle.click()
+    await expect(page.getByTestId('elec16-panel')).toHaveCount(0)
+    await toggle.click()
+    await expect(page.getByTestId('elec16-panel')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
 test('CORE stops the machine at a breakpoint typed in, goes on from it, and steps', async () => {
   const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {

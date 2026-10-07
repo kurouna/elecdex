@@ -92,6 +92,46 @@ async function designSize(app: ElectronApplication, page: Page): Promise<void> {
   await settleLayout(page)
 }
 
+test('PANEL opens a panel shut by hand with one press, in a pane too narrow to keep it open', async () => {
+  // A narrow pane folds the panel away; one shut by hand once took two presses to come back
+  // (the first only marked it wanted, still without room to show).
+  const { app, page, close } = await launch(undefined, {
+    layout: {
+      version: 1,
+      root: {
+        kind: 'split',
+        id: 's',
+        direction: 'row',
+        sizes: [70, 30],
+        children: [
+          { kind: 'pane', id: 'clock', widget: 'clock' },
+          {
+            kind: 'pane',
+            id: 'c8',
+            widget: 'chip8',
+            state: { view: 'run', program: 'diag/3-corax+', panel: false },
+          },
+        ],
+      },
+    },
+  })
+  try {
+    await designSize(app, page)
+    await expect(page.getByTestId('chip8-run')).toBeVisible()
+    const toggle = page.getByTestId('chip8-panel-toggle')
+    await expect(page.getByTestId('chip8-panel')).toHaveCount(0)
+    await toggle.click()
+    await expect(page.getByTestId('chip8-panel')).toBeVisible()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    await toggle.click()
+    await expect(page.getByTestId('chip8-panel')).toHaveCount(0)
+    await toggle.click()
+    await expect(page.getByTestId('chip8-panel')).toBeVisible()
+  } finally {
+    await close()
+  }
+})
+
 test('the library loads a program, which draws at a whole number of pixels a dot', async () => {
   const { app, page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
