@@ -1483,10 +1483,12 @@ const setRow = (m: Elec16, i: number, c: number, v: number) => put(m, 'opp', v, 
 const rowOf = (m: Elec16, i: number, c: number) => read(m, 'opp', i * OPP_W + c)
 
 /**
- * CPU fighter 1 kept still for a test: no whim, no habit, no anti-air or punish, waiting where it
- * stands (its liked distance the one it is at) with nothing new chosen for a long while.
+ * CPU fighter 1 kept still for a test: no whim, no habit, no anti-air or punish, not wary of the
+ * other's swinging, waiting where it stands (its liked distance the one it is at) with nothing
+ * new chosen for a long while.
  */
 function still(m: Elec16): void {
+  put(m, 'swing', 0, 1)
   setRow(m, 1, O3.whim, 0)
   setRow(m, 1, O.think, 250)
   setRow(m, 1, O2.pattern, 0)
@@ -1656,6 +1658,102 @@ function wakeBeside(m: Elec16, button: number): { guarded: number; threw: number
   steps(m, 30)
   return { guarded, threw, log }
 }
+
+/** P1's one-button players: a heavy punch, a heavy kick, or all four buttons, whenever able. */
+const ONE_BUTTON: Record<string, (k: number) => number> = {
+  hp: (k) => (k & 1 ? I.hp : 0),
+  hk: (k) => (k & 1 ? I.hk : 0),
+  all: (k) => [I.lp, 0, I.hp, 0, I.lk, 0, I.hk, 0][k & 7] ?? 0,
+}
+/** The ladder's five as met: [P1's slot, the place] (KERNEL is S1's, so P1 takes S2 for it). */
+const MET = { PACKET: [0, 0], MAINFRAME: [0, 1], DAEMON: [0, 2], KERNEL: [1, 2], ROOT: [0, MIRROR] }
+
+/**
+ * A match against the CPU of ladder place `at` (P1 in `slot`, the clock's second `second`), P1
+ * playing `p1` and standing where it is: the outcome; P1's heavies struck in their recovery
+ * (the CPU's punishes, whiffed or guarded); the CPU's hits taken, and of them those taken while
+ * it walked forward (into an attack under way).
+ */
+function oneButton(slot: number, at: number, second: number, p1: (k: number) => number) {
+  const m = fight(boot({ ...CLOCK, second }), [2, 1], slot, at)
+  const heavy = (mv: number) => [MV.sHP, MV.sHK, MV.cHP, MV.cHK].includes(mv)
+  let punished = 0
+  let taken = 0
+  let walking = 0
+  for (let k = 0; k < 30_000 && read(m, 'outcome') === 0; k++) {
+    const mv = read(m, 'fMove', 0)
+    const r = moves[slot]?.[mv] ?? []
+    const recovering =
+      read(m, 'fState', 0) === ST.attack &&
+      heavy(mv) &&
+      read(m, 'fMoveF', 0) >= (r[C.startup] ?? 0) + (r[C.active] ?? 0)
+    const free = [ST.stand, ST.crouch].includes(read(m, 'fState', 1))
+    step(m, p1(k), 0)
+    if ([1, 3, 4].includes(read(m, 'struck', 1)) && recovering) punished++
+    if ([1, 3].includes(read(m, 'struck', 0))) {
+      taken++
+      if (free && (read(m, 'outWas', 1) & I.fwd) !== 0) walking++
+    }
+  }
+  return { outcome: read(m, 'outcome'), punished, taken, walking }
+}
+
+/** A match of two CPUs (P1 in S1, the ladder's place `at`, the clock's second `second`): its rounds' lengths in seconds. */
+function roundsOf(second: number, at: number): number[] {
+  const m = fight(boot({ ...CLOCK, second }), [1, 1], 0, at)
+  const rounds: number[] = []
+  let n = 0
+  for (let k = 0; k < 30_000 && read(m, 'outcome') === 0; k++) {
+    const fighting = read(m, 'phase') === PH.fight
+    frames(m, 1, cart)
+    if (fighting) n++
+    if (fighting && read(m, 'phase') !== PH.fight) {
+      rounds.push(n / 60)
+      n = 0
+    }
+  }
+  expect(read(m, 'outcome'), `place ${at}`).not.toBe(0)
+  return rounds
+}
+
+describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout: 600_000 }, () => {
+  it('beats a heavy pressed whenever able, and all four mashed: it keeps out of reach and punishes', () => {
+    // Measured 2026-10-08 in four seeds, before (the CPU walking in): the heavy punch beat
+    // PACKET, MAINFRAME, DAEMON and KERNEL 4 of 4 times each, the CPU took 10 of the 60 matches
+    // of the five against the three, and against DAEMON 50 of its 56 hits taken were walking
+    // forward. After, in three seeds: 45 of 45, with 1 to 30 punishes a match.
+    let won = 0
+    let all = 0
+    let taken = 0
+    let walking = 0
+    for (const [name, [slot, at]] of Object.entries(MET)) {
+      for (const [player, p1] of Object.entries(ONE_BUTTON)) {
+        const runs = [10, 11].map((s) => oneButton(slot ?? 0, at ?? 0, s, p1))
+        const why = `${name} against ${player}: ${JSON.stringify(runs)}`
+        // Most of the time the CPU's (outcome 2), and never a match without a punish.
+        expect(runs.filter((r) => r.outcome === 2).length, why).toBeGreaterThanOrEqual(1)
+        for (const r of runs) expect(r.punished, why).toBeGreaterThan(0)
+        won += runs.filter((r) => r.outcome === 2).length
+        all += runs.length
+        taken += runs.reduce((a, r) => a + r.taken, 0)
+        walking += runs.reduce((a, r) => a + r.walking, 0)
+      }
+    }
+    expect(won / all).toBeGreaterThanOrEqual(0.9)
+    // Walking into an attack under way: before, about half of the CPU's hits taken (DAEMON 14 of
+    // 14); now a hit taken walking in is one the other started as it came, rarely.
+    expect(walking / taken).toBeLessThan(0.15)
+  })
+
+  it('plays rounds of about half a minute CPU against CPU', () => {
+    // Measured 2026-10-08: 16.4 s a round on average before (every round a KO); after the CPU
+    // kept to its reach and the life went up by a quarter, 32.5 s over 36 rounds (13 to 66 s).
+    const rounds = [20, 21].flatMap((second) => [0, 1, 2, 3].flatMap((at) => roundsOf(second, at)))
+    const avg = rounds.reduce((a, b) => a + b, 0) / rounds.length
+    expect(avg, rounds.map((r) => r.toFixed(0)).join(' ')).toBeGreaterThanOrEqual(25)
+    expect(avg).toBeLessThanOrEqual(50)
+  })
+})
 
 describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
   /**
@@ -2218,7 +2316,7 @@ describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () =>
         level(heavy, 44, 6),
         level(pr[2] ?? 0, 15, 2),
         level((hk[16] ?? 0) + (hk[18] ?? 0), 36, 2),
-        level((pr[0] ?? 0) + (pr[1] ?? 0), 175, 10),
+        level((pr[0] ?? 0) + (pr[1] ?? 0), 200, 10),
       ]
     })
     const m = boot()

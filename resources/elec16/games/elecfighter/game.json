@@ -20,7 +20,7 @@
     },
     {
       "file": "cpu/habit.e16.ts",
-      "bank": 2
+      "bank": 8
     },
     {
       "file": "scenes/pause.e16.ts",

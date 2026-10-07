@@ -266,7 +266,7 @@ function barsOf(s: u16): void {
   bars[0] = level(heavy, 44, 6)
   bars[1] = level(prAt(0, P_WALK_F), 15, 2)
   bars[2] = level(reach[3], 36, 2)
-  bars[3] = level(prAt(0, P_LIFE) + prAt(0, P_WEIGHT), 175, 10)
+  bars[3] = level(prAt(0, P_LIFE) + prAt(0, P_WEIGHT), 200, 10)
 }
 
 /** A bar: its word, then five segments, `n` of them lit. */

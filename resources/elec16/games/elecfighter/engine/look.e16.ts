@@ -270,7 +270,9 @@ function shatter(i: u16): void {
     const px = right ? x0 + dx : x0 - dx - 16
     const away = right ? dx - mean : mean - dx
     shX[e] = u16(px * 16)
-    shY[e] = u16((y0 + highOf(w)) * 16)
+    // Every other piece lifted a piece's height: a body lying flat breaks into about 30 pieces
+    // on the same lines, which with a winner standing near passed 32 sprites a line.
+    shY[e] = u16((y0 + highOf(w) - i16((c & 1) * 16)) * 16)
     shVX[e] = u16(away * 3 + i16((c * 7) & 15) - 8)
     shVY[e] = u16(-24 - i16((c * 13) & 31))
     c++

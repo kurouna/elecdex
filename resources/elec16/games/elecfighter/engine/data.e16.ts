@@ -251,6 +251,14 @@ export function poseLoad(i: u16, s: u16, p: u16): void {
   if (artHold[i] === 0) artCopy(i, s, p)
 }
 
+/** Word `w` of pose `p` of slot `s` (its boxes: the CPU measures reaches by them, ai.e16.ts). */
+export function poseWord(s: u16, p: u16, w: u16): u16 {
+  const old = bank(slPosesB[s])
+  const v = peek16(slPosesA[s] + (p * POSE_W + w) * 2)
+  poke16(IO_BANK, old)
+  return v
+}
+
 /* ---------------- the pictures (design 2.2, 2.4): a room of 32 cells each ---------------- */
 
 /**

@@ -330,6 +330,7 @@ export function frameStep(): void {
     pictureStep()
     return
   }
+  liveN = wrap16(liveN + 1)
   cpuInputs(true)
   fightersSeen()
   throwsStep()
@@ -369,6 +370,13 @@ export const seenF = words(64)
 export const seenX = words(64)
 export const seenY = words(64)
 export let seenN: u16 = 0
+/**
+ * Frames the fighters have moved (a hitstop's are not counted), and the count as each entry of
+ * the ring was written: what a move's frames are counted in, so the CPU can tell how far a move
+ * it saw has gone since, a hitstop between or not.
+ */
+export let liveN: u16 = 0
+export const seenL = words(32)
 
 function seenRecord(): void {
   const k = seenN & 31
@@ -382,6 +390,7 @@ function seenRecord(): void {
     seenY[e] = fAir[i] !== 0 && fY[i] < 16 ? 1 : fY[i] >> 4
     i++
   }
+  seenL[k] = liveN
   seenN = wrap16(seenN + 1)
 }
 
