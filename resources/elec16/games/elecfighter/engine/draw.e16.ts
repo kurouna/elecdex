@@ -1,7 +1,8 @@
 // ELECFIGHTER's picture (docs/elec16-elecfighter-design.md 4.2, 5.2): the camera, the fighters
 // as coloured boxes (the placeholder until the meshes come: each hurt box, the hit box while it
 // is out, the body when there is no hurt box), their shadows, and the HUD on BG1 - names, life
-// bars, TIME, the rounds' lamps and the banners' bands - redrawn only where it changed.
+// bars, TIME, the rounds' lamps, the banners' bands and the log line - redrawn only where it
+// changed.
 import {
   type bool,
   div,
@@ -12,8 +13,20 @@ import {
   words,
   wrap16,
 } from '../../../../../src/shared/e16c/builtins'
-import { cellAt, colour, palCopy, S8, S16, spr, sprBegin, vfill, vpoke } from '../../lib/kit.e16'
+import {
+  cellAt,
+  colour,
+  palCopy,
+  palMix,
+  S8,
+  S16,
+  spr,
+  sprBegin,
+  vfill,
+  vpoke,
+} from '../../lib/kit.e16'
 import { BOX_TILE, DIGITS_TILE, FONT_TILE, FONTB_TILE, FX_TILE, HUD_TILE } from '../assets.e16'
+import { logDraw } from '../scenes/pause.e16'
 import { P_LIFE, prAt, slName } from './data.e16'
 import { fLife, fSlot, fX } from './fighter.e16'
 import { wb } from './hit.e16'
@@ -309,4 +322,69 @@ export function bandShow(s: u16): void {
 /** The band gone. */
 export function bandClear(): void {
   vfill(cellAt(1, 0, BAND_ROW), HUD_TILE + T_CLEAR, 64 * 3)
+}
+
+/* ---------------- the log line (design 5.3) ---------------- */
+
+/** What the log tells: a counter hit, an anti-air, a throw, a throw tech, a read. */
+export const LOG_COUNTER = 1
+export const LOG_AA = 2
+export const LOG_THROW = 3
+export const LOG_TECH = 4
+export const LOG_READ = 5
+/** The log off (1) or on (0): the controls' LOG, kept in save RAM. */
+export const logOff = words(1)
+/** What waits to be written this frame: kind (0 nothing), side, move. */
+export const logWait = words(3)
+/** Frames since the line was written (0xffff: none shown). */
+export let logT: u16 = 0xffff
+/** BG1's slot for the line (the HUD's colours, faded on their own) and its row: y 268-275. */
+export const SL_LOG = 5
+export const LOG_ROW = 34
+const LOG_SHOW = 60
+const LOG_FADE = 16
+
+/** Something for the log line, written with the frame's picture (the last of a frame wins). */
+export function logPost(kind: u16, side: u16, move: u16): void {
+  if (logOff[0] !== 0) return
+  logWait[0] = kind
+  logWait[1] = side
+  logWait[2] = move
+}
+
+/** The line written when there is something, faded by its palette after 60 frames, then gone. */
+export function logStep(): void {
+  if (logWait[0] !== 0) {
+    logClear()
+    palMix(SL_LOG, 0, 0)
+    logDraw(logWait[0], logWait[1], logWait[2])
+    logWait[0] = 0
+    logT = 0
+    return
+  }
+  if (logT === 0xffff) return
+  logT++
+  if (logT <= LOG_SHOW) return
+  const f = logT - LOG_SHOW
+  if (f < LOG_FADE) {
+    palMix(SL_LOG, 0, f)
+    return
+  }
+  logGone()
+}
+
+/** The line cleared and its colours back. */
+export function logGone(): void {
+  logClear()
+  palMix(SL_LOG, 0, 0)
+  logT = 0xffff
+}
+
+function logClear(): void {
+  vfill(cellAt(1, 0, LOG_ROW), HUD_TILE + T_CLEAR, 40)
+}
+
+/** BG1's rows from `y`, `n` of them, cleared. */
+export function hudRows(y: u16, n: u16): void {
+  vfill(cellAt(1, 0, y), HUD_TILE + T_CLEAR, 64 * n)
 }

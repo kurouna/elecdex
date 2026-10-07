@@ -86,7 +86,7 @@ export function inputPad(i: u16, faceRight: bool): void {
   let held = padButtons(p)
   if ((p & B_LEFT) !== 0) held |= faceRight ? I_BACK : I_FWD
   if ((p & B_RIGHT) !== 0) held |= faceRight ? I_FWD : I_BACK
-  inputPut(i, held, padPresses())
+  inputPut(i, held, padPresses(faceRight))
   lastHeld[i] = held
 }
 
@@ -112,8 +112,10 @@ function padButtons(p: u16): u16 {
 }
 
 /** The pad's presses since the last read (PADHIT's too), as the engine's buttons. */
-function padPresses(): u16 {
+function padPresses(faceRight: bool): u16 {
   let down: u16 = 0
+  if (pressed(B_LEFT)) down |= faceRight ? I_BACK : I_FWD
+  if (pressed(B_RIGHT)) down |= faceRight ? I_FWD : I_BACK
   if (pressed(B_Y)) down |= I_LP
   if (pressed(B_X)) down |= I_HP
   if (pressed(lightKick())) down |= I_LK
@@ -155,6 +157,21 @@ export function buffered(i: u16, mask: u16): u16 {
     k++
   }
   return out & mask
+}
+
+/** What fighter `i` pressed this frame. */
+export function pressNow(i: u16): u16 {
+  return ringD[i * 16 + ringAt]
+}
+
+/** Whether fighter `i` pressed any of `mask` in the `n` frames before this one (n under 16). */
+export function pressedBefore(i: u16, mask: u16, n: u16): bool {
+  let k: u16 = 1
+  while (k <= n) {
+    if ((ringD[i * 16 + ((ringAt - k) & 15)] & mask) !== 0) return true
+    k++
+  }
+  return false
 }
 
 /** The presses of `mask` used: gone from the buffer. */

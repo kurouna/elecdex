@@ -1,0 +1,8 @@
+# The CPU's patterns (docs/elec16-elecfighter-design.md 7.10.3): a habit's short run of actions,
+# 4 steps of two words each - an action (weights.txt's order; 10 ANTI-AIR, 11 WALK IN, 12 WALK
+# OUT; 255 ends) and its frames (0: half the gap drawn for the habit's trigger).
+255 0 255 0 255 0 255 0 # 0 none
+6 10 5 30 255 0 255 0 # 1 in, then the throw
+6 24 1 20 255 0 255 0 # 2 out of its shell: in, then a heavy
+11 0 12 0 255 0 255 0 # 3 in and out on its gap
+7 30 255 0 255 0 255 0 # 4 a crouching guard, held

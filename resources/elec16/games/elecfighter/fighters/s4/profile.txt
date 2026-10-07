@@ -1,4 +1,5 @@
 # S4 OUTBOX: its body (design 3.1), 16 words:
 # life weight walkForward walkBack jumpUp gravity jumpForward jumpBack throwRange height
-# (speeds in 1/16 points a frame), then six kept for later.
-97 95 19 16 112 5 36 32 30 100 0 0 0 0 0 0
+# dashFrames dashSpeed backdashFrames backdashSpeed (design 6.2: 14 F about 36 points, 18 F about 32)
+# (speeds in 1/16 points a frame), then two kept for later.
+97 95 19 16 112 5 36 32 30 100 14 41 18 28 0 0

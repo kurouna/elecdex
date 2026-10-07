@@ -1,26 +1,35 @@
 // ELECFIGHTER's fighters (docs/elec16-elecfighter-design.md 7.1, 7.3, 7.4): the state machine,
-// gravity, motion, the walls, the most two may stand apart and the push of their bodies. A
+// gravity, motion, the walls (and the push they give back, 7.4), the most two may stand apart,
+// the push of their bodies, the dashes (6.2) and a throw's start (7.9). A
 // fighter is index 0 (P1) or 1 (P2) into arrays of two; everything it does is its slot's
 // tables' (data.e16.ts), never a branch on the slot. Positions and speeds are 1/16 points;
 // `fZ` and `fVZ` are kept and never written (the game is X-Y, design 7.1).
 import { type bool, div, i16, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import {
   bx,
+  F_ANTIAIR,
   F_CHAIN,
   K_HEAVY,
   M_ACTIVE,
   M_FLAGS,
+  M_INVUL,
   M_KIND,
   M_POSE,
   M_RECOVERY,
   M_STARTUP,
   MOVES,
+  MV_THROW,
   mvAt,
+  P_BACK_F,
+  P_BACK_V,
+  P_DASH_F,
+  P_DASH_V,
   P_GRAVITY,
   P_JUMP,
   P_JUMP_B,
   P_JUMP_F,
   P_LIFE,
+  P_THROW,
   P_WALK_B,
   P_WALK_F,
   POSE_W,
@@ -39,6 +48,8 @@ import {
   I_HP,
   I_LP,
   I_UP,
+  pressedBefore,
+  pressNow,
 } from './input.e16'
 
 /** The states (design 7.3). */
@@ -53,6 +64,10 @@ export const ST_GUARD = 7
 export const ST_DOWN = 8
 export const ST_WAKE = 9
 export const ST_DEAD = 10
+export const ST_THROW = 11
+export const ST_THROWN = 12
+export const ST_DASH = 13
+export const ST_BACKDASH = 14
 
 /** The common poses (poses.txt rows 0-11); a move's are its row's `pose` and the two after. */
 const PO_STAND = 0
@@ -65,11 +80,20 @@ const PO_GUARD = 7
 const PO_DOWN = 9
 const PO_WAKE = 10
 const PO_FALLING = 11
+/** The throw's active pose: the thrower holding (a placeholder until the art, P3). */
+const PO_THROWING = 49
 
 const PREJUMP_F = 3
 const LAND_F = 3
 const DOWN_F = 36
 const WAKE_F = 12
+/** Frames past Wake a fighter cannot be thrown (design 7.3); a backdash's first, the same. */
+const WAKE_THROW_INVUL = 2
+const BACKDASH_THROW_INVUL = 6
+/** Two presses of a direction this many frames apart at most make a dash (design 6.2). */
+const DASH_GAP = 10
+/** The line, in points above the feet, an anti-air's upper body is out of reach above. */
+const UPPER = 28
 /** The chain's window past the light's active frames (design 7.8). */
 const CHAIN_LATE = 4
 /** A push's slowing, 1/16 points a frame each frame. */
@@ -109,6 +133,9 @@ export const fAirUsed = words(2)
 export const fKnock = words(2)
 /** Which way the jump goes: 0 up, 1 forward, 2 back. */
 const fJump = words(2)
+/** Frames still safe from throws after waking; a throw's direction (1 back). */
+export const fThrowInv = words(2)
+export const fThrowBack = words(2)
 /** A push (a hit's or a guard's), 1/16 points a frame, signed; it slows by friction. */
 export const fPush = words(2)
 export const fSlot = words(2)
@@ -139,6 +166,7 @@ export function fighterReset(i: u16): void {
   fAirUsed[i] = 0
   fKnock[i] = 0
   fPush[i] = 0
+  fThrowInv[i] = 0
   fPose[i] = PO_STAND
   poseLoad(i, fSlot[i], PO_STAND)
 }
@@ -166,8 +194,14 @@ export function fightersSeen(): void {
  * then gravity. It reads the other only as the frame began (`was`).
  */
 export function fighterStep(i: u16): void {
+  if (fThrowInv[i] > 0) fThrowInv[i]--
   const st = fState[i]
+  if (st === ST_THROW || st === ST_THROWN) {
+    poseSet(i)
+    return
+  }
   if (st === ST_ATTACK) attackStep(i)
+  else if (st === ST_DASH || st === ST_BACKDASH) dashStep(i, st)
   else if (st === ST_HIT || st === ST_GUARD) stunStep(i)
   else if (st === ST_PREJUMP) prejumpStep(i)
   else if (st === ST_JUMP) jumpStep(i)
@@ -185,7 +219,10 @@ function timedStep(i: u16, st: u16): void {
   const t = fStateT[i]
   if (st === ST_LAND && t >= LAND_F) enter(i, ST_STAND)
   if (st === ST_DOWN && t >= DOWN_F) enter(i, fLife[i] === 0 ? ST_DEAD : ST_WAKE)
-  if (st === ST_WAKE && t >= WAKE_F) enter(i, ST_STAND)
+  if (st === ST_WAKE && t >= WAKE_F) {
+    enter(i, ST_STAND)
+    fThrowInv[i] = WAKE_THROW_INVUL
+  }
 }
 
 /** Standing or crouching, free: face the other, then strike, jump, crouch or walk. */
@@ -196,6 +233,7 @@ function freeStep(i: u16): void {
   const held = heldNow(i)
   const crouch = (held & I_DOWN) !== 0
   if (attackTry(i, crouch ? 1 : 0)) return
+  if (!crouch && dashTry(i)) return
   if ((held & I_UP) !== 0) {
     enter(i, ST_PREJUMP)
     fJump[i] = (held & I_FWD) !== 0 ? 1 : (held & I_BACK) !== 0 ? 2 : 0
@@ -229,6 +267,7 @@ function walk(i: u16, held: u16): void {
 function attackTry(i: u16, posture: u16): bool {
   const b = buffered(i, I_ATTACKS)
   if (b === 0) return false
+  if (posture === 0 && (b & I_HP) !== 0 && throwTry(i)) return true
   let col: u16 = 0
   if ((b & I_HP) !== 0) col = 1
   else if ((b & I_HK) !== 0) col = 3
@@ -237,6 +276,93 @@ function attackTry(i: u16, posture: u16): bool {
   consume(i, I_ATTACKS)
   moveStart(i, posture * 4 + col)
   return true
+}
+
+/**
+ * The throw (design 7.9): the heavy punch with forward or back held, near the other and both on
+ * the ground. Whether it takes hold is judged in its active frames (hit.e16.ts); out of range
+ * the press is the heavy punch.
+ */
+function throwTry(i: u16): bool {
+  const held = heldNow(i)
+  if ((held & (I_FWD | I_BACK)) === 0) return false
+  const d = 1 - i
+  if (fY[d] !== 0 || fY[i] !== 0) return false
+  if (throwGap(i, was[i], was[d]) > prAt(i, P_THROW)) return false
+  consume(i, I_ATTACKS)
+  fThrowBack[i] = (held & I_FWD) !== 0 ? 0 : 1
+  moveStart(i, MV_THROW)
+  return true
+}
+
+/** From thrower `a` at `xa` to the near edge of the other at `xd` (1/16 points), in points. */
+export function throwGap(a: u16, xa: u16, xd: u16): u16 {
+  const dx = (xa > xd ? xa - xd : xd - xa) >> 4
+  const h = half(1 - a)
+  return dx > h ? dx - h : 0
+}
+
+/**
+ * A dash (design 6.2): forward pressed now and once more within 10 frames before, or back so;
+ * only the directions are read, so a light pressed again is never one.
+ */
+function dashTry(i: u16): bool {
+  const now = pressNow(i)
+  const s = faceSign(i)
+  if ((now & I_FWD) !== 0 && pressedBefore(i, I_FWD, DASH_GAP)) {
+    consume(i, I_FWD | I_BACK)
+    enter(i, ST_DASH)
+    fVX[i] = u16(s * i16(prAt(i, P_DASH_V)))
+    return true
+  }
+  if ((now & I_BACK) !== 0 && pressedBefore(i, I_BACK, DASH_GAP)) {
+    consume(i, I_FWD | I_BACK)
+    enter(i, ST_BACKDASH)
+    fVX[i] = u16(-s * i16(prAt(i, P_BACK_V)))
+    return true
+  }
+  return false
+}
+
+/** A dash's frames at its speed (no guard, no move), then standing. */
+function dashStep(i: u16, st: u16): void {
+  fStateT[i]++
+  const fwd = st === ST_DASH
+  if (fStateT[i] >= prAt(i, fwd ? P_DASH_F : P_BACK_F)) {
+    fVX[i] = 0
+    enter(i, ST_STAND)
+    return
+  }
+  const s = faceSign(i)
+  fVX[i] = fwd ? u16(s * i16(prAt(i, P_DASH_V))) : u16(-s * i16(prAt(i, P_BACK_V)))
+}
+
+/** Fighter `d` cannot be thrown: waking, just woken, or in a backdash's first frames. */
+export function throwInvul(d: u16): bool {
+  const st = fState[d]
+  if (st === ST_WAKE || fThrowInv[d] > 0) return true
+  return st === ST_BACKDASH && fStateT[d] < BACKDASH_THROW_INVUL
+}
+
+/** Fighter `d` cannot be struck at all: down or waking (design 7.3). */
+export function strikeInvul(d: u16): bool {
+  const st = fState[d]
+  return st === ST_DOWN || st === ST_WAKE || st === ST_DEAD
+}
+
+/**
+ * Whether a hurt box of fighter `d` whose bottom is at `bottom` (world points) is out of reach:
+ * an anti-air's upper body, in the frames of the table's invul column (from | to << 8), above
+ * the UPPER line (design 7.7).
+ */
+export function upperSafe(d: u16, bottom: i16): bool {
+  if (fState[d] !== ST_ATTACK) return false
+  const m = fMove[d]
+  if ((mvAt(d, m, M_FLAGS) & F_ANTIAIR) === 0) return false
+  const v = mvAt(d, m, M_INVUL)
+  const f = fMoveF[d]
+  if (f < (v & 255) || f > v >> 8) return false
+  return bottom - i16(fY[d] >> 4) >= UPPER
 }
 
 /** Fighter `i` begins move `m`: its first frame is this one. */
@@ -328,6 +454,8 @@ function poseSet(i: u16): void {
   else if (st === ST_GUARD) p = PO_GUARD + fCrouch[i]
   else if (st === ST_DOWN || st === ST_DEAD) p = PO_DOWN
   else if (st === ST_WAKE) p = PO_WAKE
+  else if (st === ST_THROW) p = PO_THROWING
+  else if (st === ST_THROWN) p = PO_HIT
   fPose[i] = p
   poseLoad(i, fSlot[i], p)
 }
@@ -392,13 +520,28 @@ function half(i: u16): u16 {
   return bx[i * POSE_W + 2] >> 1
 }
 
-/** Fighter `i` kept inside the walls (design 4.2): its body never past 32 or 480. */
+/**
+ * Fighter `i` kept inside the walls (design 4.2): its body never past 32 or 480. A struck or
+ * guarding fighter the wall stops gives the rest of its push to the other, the striker (7.4):
+ * at the wall, a blow pushes back whoever struck it.
+ */
 export function wall(i: u16): void {
   const h = half(i)
   const lo = (RING_L + h) * 16
   const hi = (RING_R - h) * 16
-  if (fX[i] < lo) fX[i] = lo
-  if (fX[i] > hi) fX[i] = hi
+  const p = i16(fPush[i])
+  let into = false
+  if (fX[i] < lo) {
+    fX[i] = lo
+    into = p < 0
+  }
+  if (fX[i] > hi) {
+    fX[i] = hi
+    into = p > 0
+  }
+  if (!into || (fState[i] !== ST_HIT && fState[i] !== ST_GUARD)) return
+  fPush[1 - i] = u16(-p)
+  fPush[i] = 0
 }
 
 /**

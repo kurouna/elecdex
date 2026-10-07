@@ -20,8 +20,16 @@
       "bank": 1
     },
     {
-      "file": "cpu/standin.e16.ts",
+      "file": "cpu/ai.e16.ts",
       "bank": 2
+    },
+    {
+      "file": "cpu/habit.e16.ts",
+      "bank": 2
+    },
+    {
+      "file": "scenes/pause.e16.ts",
+      "bank": 3
     }
   ],
   "palettes": {
@@ -98,6 +106,8 @@
     { "name": "s4_poses", "file": "fighters/s4/poses.txt" },
     { "name": "s4_profile", "file": "fighters/s4/profile.txt" },
     { "name": "stage_grid", "file": "stages/grid/stage.txt" },
-    { "name": "opponents", "file": "cpu/opponents.txt" }
+    { "name": "opponents", "file": "cpu/opponents.txt" },
+    { "name": "weights", "file": "cpu/weights.txt" },
+    { "name": "patterns", "file": "cpu/patterns.txt" }
   ]
 }

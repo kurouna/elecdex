@@ -1,9 +1,17 @@
 // ELECFIGHTER, ELEC-16 PLAY's one-on-one fighter (docs/elec16-elecfighter-design.md): the
 // match - rounds of 99, two to win, KO, time up, draws - and the frame, in the order the design
-// fixes (section 8). The fighters, the strikes and the picture are in the files beside this one;
-// the match's rounds, the title and the controls in bank 1 (scenes/), the stand-in CPU in bank 2
-// (cpu/). Phases P0 and P1: coloured boxes for fighters, a stand-in opponent.
-import { type bool, poke16, str, type u16, words } from '../../../../../src/shared/e16c/builtins'
+// fixes (section 8), and the ring of what each fighter was that the CPU sees by (7.10.1). The
+// fighters, the strikes, the throws and the picture are in the files beside this one; the
+// match, the ladder, the title and the controls in bank 1 (scenes/), the pause and the log's
+// words in bank 3, the CPU in bank 2 (cpu/). Phases P0-P2: coloured boxes for fighters.
+import {
+  type bool,
+  poke16,
+  str,
+  type u16,
+  words,
+  wrap16,
+} from '../../../../../src/shared/e16c/builtins'
 import {
   BG0X,
   BG0Y,
@@ -52,13 +60,38 @@ import {
   PAL_HUDDIM,
   PAL_P1,
 } from '../assets.e16'
-import { cpuThink } from '../cpu/standin.e16'
-import { matchPlay } from '../scenes/match.e16'
+import { cpuThink } from '../cpu/ai.e16'
+import { ladderPlay } from '../scenes/match.e16'
 import { controlsLoad, title } from '../scenes/scenes.e16'
-import { slotsIn, stageClearTile, stagesIn } from './data.e16'
-import { bandShow, cameraStep, camX, hudClear, hudStep, spritesBuild } from './draw.e16'
-import { apart, bodies, fFace, fighterStep, fightersSeen, fLife, motion, wall } from './fighter.e16'
-import { boxesWorld, hitsResolve, hitstop, hitstopIs, struckClear } from './hit.e16'
+import { oppNamesIn, slotsIn, stageClearTile, stagesIn } from './data.e16'
+import { bandShow, cameraStep, camX, hudClear, hudStep, logStep, spritesBuild } from './draw.e16'
+import {
+  apart,
+  bodies,
+  fAir,
+  fFace,
+  fighterStep,
+  fightersSeen,
+  fLife,
+  fMove,
+  fMoveF,
+  fState,
+  fStateT,
+  fX,
+  fY,
+  motion,
+  ST_ATTACK,
+  wall,
+} from './fighter.e16'
+import {
+  boxesWorld,
+  hitsResolve,
+  hitstop,
+  hitstopIs,
+  struck,
+  struckClear,
+  throwsStep,
+} from './hit.e16'
 import { C_CPU, C_PAD, ctl, inputExt, inputHeld, inputNone, inputPad, ringStep } from './input.e16'
 
 /** The frame count the runtime keeps, as `frame_wait` last answered it, and frames played. */
@@ -92,12 +125,13 @@ export function main(): void {
   tilesIn()
   slotsIn()
   stagesIn()
+  oppNamesIn()
   controlsLoad()
   ctl[0] = C_PAD
   ctl[1] = C_CPU
   for (;;) {
     title()
-    matchPlay()
+    ladderPlay()
   }
 }
 
@@ -117,6 +151,7 @@ function palettesIn(): void {
   slot(PAL_HUD, 2)
   slot(PAL_HUDDIM, 3)
   slot(PAL_HUD, 4)
+  slot(PAL_HUD, 5)
   slot(PAL_P1, 8)
   slot(PAL_CPU, 9)
   slot(PAL_FX, 10)
@@ -150,6 +185,13 @@ export function frameBegin(): void {
   poke16(BG0X, scrollNext)
   padRead()
   frame++
+}
+
+/** A paused frame: shown and the pad read, nothing counted (design 5.6: nothing goes on). */
+export function pauseFrame(): void {
+  seen = frame_wait(seen)
+  sprShow()
+  padRead()
 }
 
 /* ---------------- the round's end and its clock (design 7.2) ---------------- */
@@ -208,14 +250,16 @@ function roundOver(s: u16): void {
 /**
  * One frame, in the design's order:
  *   frame_wait, sprShow (and the scroll), [the pose's cells: P3], padRead, the input ring;
- *   in a hitstop, stop here (draw and sound only);
- *   the CPU (P2's buttons);
- *   the state machines, P1 then P2, each reading the other as the frame began;
- *   motion (X and Y; z stays 0), the walls, the most apart, the bodies' push;
- *   the boxes in the world, the strikes judged both ways from that state, dealt together;
- *   life, KO and the round;
- *   the camera, [the raster: later], the sprites (fighters, shadows), the HUD where it changed,
- *   [sound: later].
+ *   in a hitstop, stop here (the CPU watches; the ring of what was, draw and sound only);
+ *   the CPU (P2's buttons, from the ring of what was: never this frame's);
+ *   the throws' frames, then the state machines, P1 then P2, each reading the other as the
+ *   frame began;
+ *   motion (X and Y; z stays 0), the walls (and their push back), the most apart, the bodies;
+ *   the boxes in the world, the throws and strikes judged both ways from that state, dealt
+ *   together;
+ *   life, KO and the round; the ring of what was (the CPU's eyes) gets this frame's end;
+ *   the camera, [the raster: later], the sprites (fighters, shadows), the HUD and the log line
+ *   where they changed, [sound: later].
  */
 export function frameStep(): void {
   frameBegin()
@@ -225,11 +269,13 @@ export function frameStep(): void {
   if (hitstop > 0) {
     hitstopIs(hitstop - 1)
     cpuInputs(false)
+    seenRecord()
     pictureStep()
     return
   }
   cpuInputs(true)
   fightersSeen()
+  throwsStep()
   fighterStep(0)
   fighterStep(1)
   motion(0)
@@ -241,6 +287,7 @@ export function frameStep(): void {
   boxesWorld()
   hitsResolve()
   judgeRound()
+  seenRecord()
   cameraStep()
   pictureStep()
 }
@@ -249,6 +296,36 @@ function pictureStep(): void {
   scrollNext = camX
   spritesBuild()
   hudStep(timeLeft, frame)
+  logStep()
+}
+
+/* ---------------- what the CPU sees (design 7.10.1) ---------------- */
+
+/**
+ * 32 frames of each fighter as each frame ended, `j * 32 + (n & 31)`: its state and move
+ * (`state | move << 8`), frames into the move or the state with that frame's strike
+ * (`frames | struck << 8`), and where it stood in points. `seenN` counts the frames written;
+ * the CPU reads `seenN - R`, R frames back, never the frame being played.
+ */
+export const seenS = words(64)
+export const seenF = words(64)
+export const seenX = words(64)
+export const seenY = words(64)
+export let seenN: u16 = 0
+
+function seenRecord(): void {
+  const k = seenN & 31
+  let i: u16 = 0
+  while (i < 2) {
+    const e = i * 32 + k
+    const st = fState[i]
+    seenS[e] = st | (fMove[i] << 8)
+    seenF[e] = ((st === ST_ATTACK ? fMoveF[i] : fStateT[i]) & 255) | (struck[i] << 8)
+    seenX[e] = fX[i] >> 4
+    seenY[e] = fAir[i] !== 0 && fY[i] < 16 ? 1 : fY[i] >> 4
+    i++
+  }
+  seenN = wrap16(seenN + 1)
 }
 
 /** Whether the fighters take buttons: only while they fight. */
@@ -273,7 +350,7 @@ function cpuInputs(think: bool): void {
   while (i < 2) {
     if (ctl[i] === C_CPU) {
       if (!live()) cpuHeld[i] = 0
-      else if (think) cpuHeld[i] = cpuThink(i)
+      else cpuHeld[i] = cpuThink(i, think)
       inputHeld(i, cpuHeld[i])
     }
     i++

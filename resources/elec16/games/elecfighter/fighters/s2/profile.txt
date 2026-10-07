@@ -1,4 +1,5 @@
 # S2 RUSH: its body (design 3.1), 16 words:
 # life weight walkForward walkBack jumpUp gravity jumpForward jumpBack throwRange height
-# (speeds in 1/16 points a frame), then six kept for later.
-95 90 24 18 108 5 38 34 26 88 0 0 0 0 0 0
+# dashFrames dashSpeed backdashFrames backdashSpeed (design 6.2: 14 F about 36 points, 18 F about 32)
+# (speeds in 1/16 points a frame), then two kept for later.
+95 90 24 18 108 5 38 34 26 88 14 41 18 28 0 0
