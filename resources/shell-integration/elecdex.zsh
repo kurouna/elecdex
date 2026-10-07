@@ -21,9 +21,12 @@ __elecdex_esc() { printf '\033]%s\007' "$1" }
 
 __elecdex_cwd() {
   # zsh's ${(j::)...} with the `q` flag is not a URI encoder, so do it directly.
-  local path=$PWD out='' i c
-  for (( i = 1; i <= ${#path}; i++ )); do
-    c=$path[i]
+  # Not `path`: zsh ties that name to PATH as an array, local or not, so the
+  # loop saw one element - the whole folder - and reported no directory.
+  # Byte by byte (LC_ALL=C), so a name outside ASCII is encoded as UTF-8.
+  local LC_ALL=C dir=$PWD out='' i c
+  for (( i = 1; i <= ${#dir}; i++ )); do
+    c=$dir[i]
     if [[ "$c" == [a-zA-Z0-9/._~-] ]]; then
       out+="$c"
     else

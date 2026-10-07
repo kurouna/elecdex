@@ -82,13 +82,15 @@ export function registerPtyIpc(settings: SettingsHandle): PtyIpc {
 
   const unregister = registerTable({
     handle: {
-      [CH.pty.create]: (_event, raw: unknown): PtySessionSummary => {
+      [CH.pty.create]: async (_event, raw: unknown): Promise<PtySessionSummary> => {
         if (closing) throw new Error('elecdex is quitting')
         const opts = validateCreateOptions(raw)
         // A pane brought back asks for the folder its last shell was in; a new
         // pane asks for none, and starts where the settings say - as does one
-        // whose folder has gone.
-        opts.cwd = resolveShellDirectory(opts.cwd, () => startDirectory().path)
+        // whose folder has gone or does not answer.
+        opts.cwd = await resolveShellDirectory(opts.cwd, () => startDirectory().path)
+        // The app may have begun quitting while the folder was looked at.
+        if (closing) throw new Error('elecdex is quitting')
         return manager.create(opts)
       },
       [CH.settings.startDirectory]: (): StartDirectory => startDirectory(),

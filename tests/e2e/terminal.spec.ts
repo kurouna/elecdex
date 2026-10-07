@@ -710,7 +710,8 @@ test('every shell pane can grow its own tabs, and Ctrl+Alt+Shift+Arrow moves bet
 test('a shell pane comes back in its last folder; a new pane, or one whose folder has gone, starts where the settings say', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'elecdex-cwd-'))
   const start = path.join(root, 'start-here')
-  const kept = path.join(root, 'kept-folder')
+  // Outside ASCII: PowerShell sends it unencoded (OSC 9;9), the others percent-encoded UTF-8.
+  const kept = path.join(root, 'kept-フォルダ é')
   mkdirSync(start)
   mkdirSync(kept)
   let own = await launch(undefined, {
@@ -726,12 +727,12 @@ test('a shell pane comes back in its last folder; a new pane, or one whose folde
   try {
     await expect(subtitle(own.page)).toContainText('start-here', { timeout: 40_000 })
     await typeInto(own.page, terminalPane(own.page).first(), `cd '${kept}'`)
-    await expect(subtitle(own.page)).toContainText('kept-folder', { timeout: 40_000 })
+    await expect(subtitle(own.page)).toContainText('kept-フォルダ é', { timeout: 40_000 })
     // The pane keeps the folder in its state, so it is saved with the layout.
     await expect.poll(keptInLayout, { timeout: 10_000 }).toBe(kept)
 
     own = await own.relaunch()
-    await expect(subtitle(own.page)).toContainText('kept-folder', { timeout: 40_000 })
+    await expect(subtitle(own.page)).toContainText('kept-フォルダ é', { timeout: 40_000 })
     // A pane opened now has no folder of its own yet.
     await own.page.keyboard.press('Control+Shift+KeyA')
     await own.page.locator('[data-testid=pane-picker-item][data-widget=terminal]').click()

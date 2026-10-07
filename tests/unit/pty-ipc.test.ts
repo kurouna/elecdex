@@ -89,6 +89,15 @@ describe('pty IPC while quitting', () => {
     expect(created).toEqual([])
   })
 
+  it('starts no shell when quitting begins while its folder is looked at', async () => {
+    const ipc = registerPtyIpc(settings)
+    // The look at the pane's folder is asynchronous: the app can begin to quit meanwhile.
+    const asked = invoke(CH.pty.create, { cwd: process.cwd() })
+    ipc.closeSessions()
+    await expect(asked).rejects.toThrow(/quitting/)
+    expect(created).toEqual([])
+  })
+
   it('removes every handler on dispose, and can be registered again', async () => {
     const ipc = registerPtyIpc(settings)
     await invoke(CH.pty.create, {})

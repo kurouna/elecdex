@@ -37,6 +37,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      # The shells elecdex integrates with, so shell-cwd-scripts.test.ts runs each
+      # one's own script (bash is already there).
+      - name: zsh and fish
+        run: sudo apt-get update && sudo apt-get install -y zsh fish
       - run: npm test
 
   e2e:

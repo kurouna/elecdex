@@ -20,8 +20,10 @@ if [ -f "$HOME/.bashrc" ]; then . "$HOME/.bashrc"; fi
 __elecdex_esc() { printf '\033]%s\007' "$1"; }
 
 __elecdex_cwd() {
-  # Percent-encode everything outside the unreserved set plus '/'.
-  local path="$PWD" out='' i c
+  # Percent-encode everything outside the unreserved set plus '/'. Byte by
+  # byte: in a UTF-8 locale bash steps by character and printf "'c" gives the
+  # code point, so a folder named in Japanese was reported as another path.
+  local LC_ALL=C path="$PWD" out='' i c
   for ((i = 0; i < ${#path}; i++)); do
     c=${path:i:1}
     case "$c" in
