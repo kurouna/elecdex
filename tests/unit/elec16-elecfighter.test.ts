@@ -3,6 +3,7 @@ import { readCart } from '@shared/elec16/cartridge'
 import { Elec16 } from '@shared/elec16/machine'
 import { XRAM_MAX } from '@shared/elec16/map'
 import { padBit } from '@shared/elec16/pad'
+import { rasterLines } from '@shared/elec16/video'
 import { fromBase64 } from '@shared/emu/base64'
 import { describe, expect, it } from 'vitest'
 import {
@@ -14,6 +15,7 @@ import {
   ramWord,
   settle,
   tap,
+  word,
 } from './elec16-kit-helpers'
 
 /**
@@ -213,6 +215,83 @@ function poseSound(n: number, p: number[]): void {
     expect(Math.min(b[2], b[3])).toBeGreaterThanOrEqual(8)
   }
 }
+
+/** The stage GRID's numbers, as stages/grid/stage.txt holds them (design 4.1). */
+function stageNumbers() {
+  const w = readFileSync(`${DIR}/stages/grid/stage.txt`, 'utf8')
+    .replace(/#.*$/gm, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(Number)
+  const [palette, music, horizon, ground, raster, center, last] = w as number[]
+  return {
+    palette,
+    music,
+    horizon: horizon ?? 0,
+    ground: ground ?? 0,
+    raster,
+    center: center ?? 0,
+    last: last ?? 0,
+    bands: w.slice(7, 43),
+    lines: w.slice(43),
+  }
+}
+
+describe('ELECFIGHTER the stage (design 4.1, 4.2)', () => {
+  const st = stageNumbers()
+  const constant = (name: string) =>
+    Number(new RegExp(`export const ${name} = (0x[0-9a-f]+)`).exec(built.report.assets)?.[1])
+
+  it('draws GRID within its 320 tiles, its floor a line at a time from the horizon to the bottom', () => {
+    expect(constant('GRID_TILES_BYTES') / 32).toBeLessThanOrEqual(320)
+    expect(constant('GRID_W') * 8).toBe(512)
+    expect([st.horizon, st.ground, st.raster, st.center, st.last]).toEqual([168, 244, 2, 96, 287])
+    expect(st.bands).toHaveLength(36)
+    // The skyline a quarter of the camera's move, the platform's rim a half.
+    expect(st.bands.slice(0, 20).every((b) => b === 4)).toBe(true)
+    expect(st.bands[20]).toBe(8)
+    // The floor: 0.6 at the horizon, 1.0 on the foot line (the fighters' feet), more below.
+    expect(st.lines).toHaveLength(st.last - st.horizon + 1)
+    expect(st.lines[0]).toBe(154)
+    expect(st.lines[st.ground - st.horizon]).toBe(256)
+    for (let k = 1; k < st.lines.length; k++) {
+      expect(st.lines[k] ?? 0).toBeGreaterThanOrEqual(st.lines[k - 1] ?? 0)
+    }
+  })
+
+  it("loads the stage the opponent's row names, every row naming a stage there is", () => {
+    const rows = table('cpu/opponents.txt', 32)
+    for (const r of rows) expect(r[1]).toBeLessThan(1)
+    const m = fight()
+    expect(read(m, 'stageNow')).toBe(rows[0]?.[1])
+    // The runtime's raster(2), the floor's lines from the horizon to the last.
+    expect([word(m, 0x0204), word(m, 0x020c), word(m, 0x020e)]).toEqual([2, 168, 287])
+  })
+
+  it('puts each band and floor line at its share of the camera, the foot line with the fighters', () => {
+    const m = fight()
+    for (const [x0, x1] of [
+      [100, 200],
+      [300, 450],
+      [250, 300],
+      [200, 312],
+    ]) {
+      place(m, x0 ?? 0, x1 ?? 0)
+      frames(m, 3, cart)
+      const cam = read(m, 'camX')
+      const last = m.state.video?.tiles.last
+      if (last === undefined) throw new Error('no video')
+      const got = rasterLines(last).map((r) => r.scroll[0])
+      const at = (share: number, bits: number) =>
+        (st.center + Math.floor(((cam - st.center) * share) / 2 ** bits)) & 511
+      const want = Array.from({ length: 288 }, (_, y) =>
+        y < st.horizon ? at(st.bands[y >> 3] ?? 0, 4) : at(st.lines[y - st.horizon] ?? 0, 8),
+      )
+      expect(got, `camera ${cam}`).toEqual(want)
+      expect(got[st.ground]).toBe(cam)
+    }
+  })
+})
 
 describe('ELECFIGHTER frame data (design 7.7)', () => {
   it('has every light start sooner than every heavy, in every slot', () => {
@@ -1405,11 +1484,13 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     // Measured on 2026-10-08: 3,950 frames of fighting, 9,240 cycles on average and 17,069 at
     // worst (design 10.4: 25,000 and 40,000). A frame that loads a match runs past the frame
     // (76,879: both backgrounds cleared whole, the stage's map and both slots' tables) and the
-    // picture waits a frame there, as it did in P1.
+    // picture waits a frame there, as it did in P1. With GRID's raster (the floor a line at a
+    // time, about 6,300 cycles a frame for the LINEs, and its tables made when the camera
+    // moves) on 2026-10-08: 17,271 on average and 25,413 at worst.
     expect(r.avg).toBeLessThan(25_000)
     expect(r.worst).toBeLessThan(40_000)
-    expect(r.avg).toBeLessThanOrEqual(10_500)
-    expect(r.worst).toBeLessThanOrEqual(20_000)
+    expect(r.avg).toBeLessThanOrEqual(18_500)
+    expect(r.worst).toBeLessThanOrEqual(28_000)
     // P1's CPU kept standing: it beats all four in turn, ROOT last, to SYSTEM CLEAR.
     const c = boot()
     put(c, 'choice', ROOT_ROW, 2)
@@ -1515,10 +1596,12 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     // against PACKET 8,230 cycles on average and 15,291 at worst over 3,104 frames, two CPUs'
     // 8,965 and 16,531 over 3,604 (P1's stand-ins: 7,505 and 15,130); 21 sprites on the busiest
     // line. The match follows the seed, which takes the cycle counter at START, so any change to
-    // the code plays another: held with room, to be tightened as the phases come.
-    expect(scripted.avg).toBeLessThanOrEqual(9_000)
-    expect(scripted.worst).toBeLessThanOrEqual(18_000)
-    expect(cpus.avg).toBeLessThanOrEqual(10_000)
-    expect(cpus.worst).toBeLessThanOrEqual(19_000)
+    // the code plays another: held with room, to be tightened as the phases come. With GRID's
+    // raster (the floor a line at a time) on 2026-10-08: the scripted match 15,451 and 24,489
+    // over 1,749 frames, two CPUs' 16,667 and 24,499 over 3,125.
+    expect(scripted.avg).toBeLessThanOrEqual(16_500)
+    expect(scripted.worst).toBeLessThanOrEqual(27_000)
+    expect(cpus.avg).toBeLessThanOrEqual(17_500)
+    expect(cpus.worst).toBeLessThanOrEqual(27_000)
   })
 })

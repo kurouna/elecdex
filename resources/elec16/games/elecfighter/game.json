@@ -83,7 +83,7 @@
   "maps": [
     {
       "name": "grid",
-      "png": "stages/grid/art/floor.png",
+      "png": "stages/grid/art/stage.png",
       "palettes": [
         {
           "palette": "stage",

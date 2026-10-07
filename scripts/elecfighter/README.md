@@ -11,6 +11,7 @@ will only ever import the bitmaps.
 | `slots.json` | The camera, pixels a metre, and eight fighter slots (four used, four reserved). |
 | `poses.json` | The poses: joint rotations per bone, shared by every slot. |
 | `svg/stage.svg`, `svg/hud.svg` | The stage (512 x 288, BG0) and the HUD frame (320 x 36, BG1), in palette colours only. |
+| `stage.mjs` | The game's stage GRID from `svg/stage.svg`: its map (`stages/grid/art/stage.png`), the stage palette's row and `stages/grid/stage.txt` (the raster's bands and floor lines). Run by `node scripts/elecfighter-art.mjs`; the PNG is the source afterwards. |
 | `scene.mjs` | The scene both the viewer and the bitmap renderer use: posing, build, materials, wire, camera, light. |
 | `viewer.html`, `viewer.mjs` | The design viewer. |
 | `render.html`, `render-page.mjs`, `render-main.mjs`, `bitmaps.mjs` | The bitmap renderer: three.js's WebGLRenderer in a hidden Electron window. |
@@ -20,6 +21,7 @@ will only ever import the bitmaps.
 node scripts/elecfighter/mock.mjs           # every mock PNG (Electron, SwiftShader; ELECFIGHTER_GPU=1 for the GPU)
 node scripts/elecfighter/serve.mjs          # the viewer: open the address it prints
 node scripts/elecfighter/build-models.mjs   # only to make the base models afresh
+node scripts/elecfighter-art.mjs            # the game's pictures afresh (for now the stage; overwrites them)
 ```
 
 ## How a bitmap is drawn

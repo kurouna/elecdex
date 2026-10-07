@@ -21,10 +21,20 @@ import { KIT_ATAN_AT, KIT_SIN_AT, KIT_TABLES_BANK, PALETTES_AT, PALETTES_BANK } 
 
 /** Sleeps until the frame count is not `seen`; answers the count. */
 export declare function frame_wait(seen: u16): u16
-/** LINE steps BG0X through `RASTER` every 8 lines from the next frame (1), or stops (0). */
+/**
+ * LINE steps BG0X through `RASTER` every 8 lines from the next frame (1); or does so down to
+ * the line `raster_lines` names and then writes BG0X every line from the game's table (2); or
+ * stops (0).
+ */
 export declare function raster(on: u16): void
+/**
+ * `raster(2)`'s lines: BG0X from the word at `table` on line `from` (8 to 287) and from the
+ * next word each line down to `to` (`from` to 287). `table` is the game's (`words(n)`); given
+ * before `from` comes, it is drawn from this frame.
+ */
+export declare function raster_lines(table: u16, from: u16, to: u16): void
 
-/** BG0X for each band of 8 lines, while `raster(1)`: the runtime's table. */
+/** BG0X for each band of 8 lines, while `raster(1)` (and above the lines, `raster(2)`). */
 export const RASTER = 0x0210
 export const RASTER_BANDS = 36
 

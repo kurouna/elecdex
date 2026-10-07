@@ -25,6 +25,7 @@ import {
   padRead,
   palette,
   palKeep,
+  raster,
   sprShow,
   VCTRL,
   vfill,
@@ -63,7 +64,7 @@ import {
 import { cpuThink } from '../cpu/ai.e16'
 import { ladderPlay } from '../scenes/match.e16'
 import { controlsLoad, title } from '../scenes/scenes.e16'
-import { oppNamesIn, slotsIn, stageClearTile, stagesIn } from './data.e16'
+import { oppNamesIn, slotsIn, stageClearTile, stageScroll, stageShow, stagesIn } from './data.e16'
 import { bandShow, cameraStep, camX, hudClear, hudStep, logStep, spritesBuild } from './draw.e16'
 import {
   apart,
@@ -171,18 +172,20 @@ function tilesIn(): void {
   load(FX_BANK, FX_AT, FX_TILE * 32, FX_BYTES)
 }
 
-/** Both backgrounds clear (the title's screen). */
+/** Both backgrounds clear (the title's screen), BG0 still: no raster until a stage is loaded. */
 export function screenClear(): void {
+  raster(0)
   vfill(MAP0, stageClearTile(), 64 * 64)
   hudClear()
   scrollNext = 0
 }
 
-/** A frame's start: the sprites made last frame shown with their scroll, then the pad. */
+/** A frame's start: the sprites made last frame shown with their scroll and raster, then the pad. */
 export function frameBegin(): void {
   seen = frame_wait(seen)
   sprShow()
   poke16(BG0X, scrollNext)
+  stageShow()
   padRead()
   frame++
 }
@@ -258,7 +261,7 @@ function roundOver(s: u16): void {
  *   the boxes in the world, the throws and strikes judged both ways from that state, dealt
  *   together;
  *   life, KO and the round; the ring of what was (the CPU's eyes) gets this frame's end;
- *   the camera, [the raster: later], the sprites (fighters, shadows), the HUD and the log line
+ *   the camera, the raster's tables (the stage's bands and floor lines), the sprites (fighters, shadows), the HUD and the log line
  *   where they changed, [sound: later].
  */
 export function frameStep(): void {
@@ -293,7 +296,7 @@ export function frameStep(): void {
 }
 
 function pictureStep(): void {
-  scrollNext = camX
+  scrollNext = stageScroll(camX)
   spritesBuild()
   hudStep(timeLeft, frame)
   logStep()

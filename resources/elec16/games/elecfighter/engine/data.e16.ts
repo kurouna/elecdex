@@ -2,8 +2,30 @@
 // fighters' slots and of the stages - a line each, the only place a slot or a stage is named -
 // and the reading of their tables. Everything else asks by number; no code branches on a slot
 // or a stage. In RAM: it moves the window to read the cartridge's tables.
-import { peek16, poke16, str, type u16, words } from '../../../../../src/shared/e16c/builtins'
-import { BG0X, bank, IO_BANK, load, mapRow, palette, palKeep, RASTER } from '../../lib/kit.e16'
+import {
+  addr,
+  type bool,
+  i16,
+  memcpy,
+  mulShift,
+  peek16,
+  poke16,
+  str,
+  u16,
+  words,
+} from '../../../../../src/shared/e16c/builtins'
+import {
+  BG0X,
+  bank,
+  IO_BANK,
+  load,
+  mapRow,
+  palette,
+  palKeep,
+  RASTER,
+  raster,
+  raster_lines,
+} from '../../lib/kit.e16'
 import {
   GRID_H,
   GRID_MAP_BANK,
@@ -243,27 +265,46 @@ function stagePlaces(k: u16, n: u16, mapB: u16, rows: u16): void {
   stRows[k] = rows
 }
 
-/** A stage's numbers (stage.txt): palette row, music, horizon, ground, raster, 36 bands. */
+/**
+ * A stage's numbers (stage.txt): palette row, music, horizon, ground, raster, the camera its map
+ * is drawn for, the raster's last line; the 36 bands' share of the camera's move (16ths); the
+ * floor's lines' (256ths), from the horizon to the last.
+ */
 const S_PALETTE = 0
+const S_HORIZON = 2
 const S_RASTER = 4
-const S_BANDS = 5
-const stageWords = words(41)
+const S_CENTER = 5
+const S_LAST = 6
+const S_BANDS = 7
+const S_LINES = 43
+const LINES_MAX = 120
+/** S_LINES + LINES_MAX: `words` takes a number written out. */
+const S_WORDS = 163
+const stageWords = words(163)
 /** The stage the round is on. */
 export let stageNow: u16 = 0
-/** The stage's 36 bands' parallax (16ths of the camera's move), for the raster. */
-export function stageBand(k: u16): u16 {
-  return stageWords[S_BANDS + k]
-}
-export function stageRaster(): u16 {
-  return stageWords[S_RASTER]
-}
 
-/** Stage `k` into BG0: its numbers, its palette in slot 0, its tiles and its map's rows. */
+/**
+ * The raster's tables for the next frame (design 8: made after the camera, shown as the next
+ * frame begins, with the sprites made against the same camera): the bands, copied into the
+ * runtime's, and the floor's lines in two halves - the one drawn and the one being made.
+ */
+const bandNext = words(36)
+const lineTab = words(240)
+let lineBack: u16 = 0
+/** The camera the tables were last made for, and whether they wait to be shown. */
+let scrollCam: u16 = 0xffff
+let scrollMade: bool = false
+/** BG0X at the frame's top: the first band's, or the camera's for a stage without a raster. */
+let scrollTop: u16 = 0
+
+/** Stage `k` into BG0: its numbers, its palette in slot 0, its tiles, its map's rows, its raster. */
 export function stageLoad(k: u16): void {
   stageNow = k
+  raster(0)
   const old = bank(stDataB[k])
   let w: u16 = 0
-  while (w < 41) {
+  while (w < S_WORDS) {
     stageWords[w] = peek16(stDataA[k] + w * 2)
     w++
   }
@@ -276,12 +317,58 @@ export function stageLoad(k: u16): void {
     mapRow(stMapB[k], 0xc000 + y * 128, 0, y)
     y++
   }
-  w = 0
-  while (w < 36) {
-    poke16(RASTER + w * 2, 0)
-    w++
+  // Made and shown for the camera in the middle, where a round begins, before the LINE goes on.
+  scrollCam = 0xffff
+  poke16(BG0X, stageScroll(stageWords[S_CENTER]))
+  stageShow()
+  raster(stageWords[S_RASTER])
+}
+
+/**
+ * The raster's tables for camera `cam` (design 4.1): each band and each floor line at the
+ * stage's centre plus its share of the camera's move from there. Made only when the camera
+ * moved. Answers BG0X for the frame's top.
+ */
+export function stageScroll(cam: u16): u16 {
+  if (cam === scrollCam) return scrollTop
+  scrollCam = cam
+  const c = stageWords[S_CENTER]
+  if (stageWords[S_RASTER] === 0) {
+    scrollTop = cam
+    return cam
   }
-  poke16(BG0X, 0)
+  const d = i16(cam - c)
+  let k: u16 = 0
+  while (k < 36) {
+    bandNext[k] = (c + u16(mulShift(d, i16(stageWords[S_BANDS + k]), 4))) & 511
+    k++
+  }
+  const n = stageLines()
+  const t = lineBack
+  k = 0
+  while (k < n) {
+    lineTab[t + k] = (c + u16(mulShift(d, i16(stageWords[S_LINES + k]), 8))) & 511
+    k++
+  }
+  scrollMade = true
+  scrollTop = bandNext[0]
+  return scrollTop
+}
+
+/** The floor's lines a stage's raster writes: from the horizon to the last, at most 120. */
+function stageLines(): u16 {
+  if (stageWords[S_RASTER] !== 2) return 0
+  return stageWords[S_LAST] + 1 - stageWords[S_HORIZON]
+}
+
+/** As a frame begins: the tables made in the last one, drawn from this one. */
+export function stageShow(): void {
+  if (!scrollMade) return
+  scrollMade = false
+  memcpy(RASTER, addr(bandNext), 72)
+  if (stageWords[S_RASTER] !== 2) return
+  raster_lines(addr(lineTab) + lineBack * 2, stageWords[S_HORIZON], stageWords[S_LAST])
+  lineBack = LINES_MAX - lineBack
 }
 
 /** BG0's clear tile, while no stage is shown: a map's first tile is its clear one. */

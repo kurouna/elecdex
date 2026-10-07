@@ -3,6 +3,7 @@ import { type KitMeta, Layout } from '@shared/elec16/kit/build'
 import { channelFrames, compileSong, freqOf, OP, songBytes } from '@shared/elec16/kit/mml'
 import { type Picture, readMap, readSheet, rgb555 } from '@shared/elec16/kit/tiles'
 import { padBit } from '@shared/elec16/pad'
+import { rasterLines } from '@shared/elec16/video'
 import { describe, expect, it } from 'vitest'
 import { playText } from '../../src/renderer/widgets/elec16/play-painter'
 import { buildKit, frames, ROM_TRAP, settle, startGame, tap, word } from './elec16-kit-helpers'
@@ -294,6 +295,101 @@ describe('a kit game on the core', () => {
     const lines = playText(m.state.video?.mem ?? []).map((l) => l.trim())
     expect(lines.some((l) => l.startsWith('BREAK AT'))).toBe(true)
     expect([m.state.csr.mtvec, m.state.csr.mstatus & 8]).toEqual([ROM_TRAP, 0])
+  })
+})
+
+/**
+ * The runtime's raster (docs/elec16-play.md section 10): a game that fills the bands with
+ * 3 a band and its table of lines with 1000 + the line, in the mode `MODE`, its lines from
+ * `FROM` to `TO`, and counts the frames it drew.
+ */
+function rasterGame(mode: number, from: number, to: number): string {
+  return `
+import { addr, poke16, words, type u16 } from '../../../src/shared/e16c/builtins'
+import { frame_wait, kitInit, raster, raster_lines, RASTER, VCTRL } from '../../../resources/elec16/games/lib/kit.e16'
+const lines = words(288)
+export function main(): void {
+  kitInit()
+  poke16(VCTRL, 3)
+  let k: u16 = 0
+  while (k < 36) {
+    poke16(RASTER + k * 2, k * 3)
+    k++
+  }
+  k = 0
+  while (k < 288) {
+    lines[k] = 300 + k
+    k++
+  }
+  raster_lines(addr(lines), ${from}, ${to})
+  raster(${mode})
+  let seen: u16 = 0
+  for (;;) {
+    seen = frame_wait(seen)
+    poke16(0x0270, seen)
+  }
+}
+`
+}
+
+describe("the kit's raster", () => {
+  const META = {
+    id: 'RASTER',
+    name: 'RASTER',
+    saveBanks: 0,
+    about: 'the raster test game',
+    sources: ['raster.e16.ts'],
+    palettes: { png: 'palettes.png', names: ['ship', 'text'] },
+  }
+  /** The game run 10 frames: BG0X on each line of the frame last drawn, and its cycles. */
+  function run(mode: number, from = 168, to = 287) {
+    const built = buildKit(
+      'tests/fixtures/kit',
+      META,
+      { 'palettes.png': PALETTES },
+      { 'raster.e16.ts': rasterGame(mode, from, to) },
+    )
+    if ('errors' in built) throw new Error(JSON.stringify(built.errors))
+    const m = startGame(built.image)
+    frames(m, 10, built.image)
+    const c0 = m.state.cycles
+    frames(m, 1, built.image)
+    const cycles = m.state.cycles - c0
+    expect(m.state.halt).toBeNull()
+    const last = m.state.video?.tiles.last
+    if (last === undefined) throw new Error('no video')
+    return { x: rasterLines(last).map((r) => r.scroll[0]), cycles, m }
+  }
+  const band = (y: number) => Math.floor(y / 8) * 3
+
+  it('raster(1) writes each band of 8 lines, as it always has', () => {
+    const { x } = run(1)
+    expect(x).toEqual(Array.from({ length: 288 }, (_, y) => band(y)))
+  })
+
+  it('raster(2) writes the bands above its first line, then the table every line to its last', () => {
+    const { x } = run(2)
+    expect(x).toEqual(Array.from({ length: 288 }, (_, y) => (y < 168 ? band(y) : 300 + y - 168)))
+  })
+
+  it('raster(2) starts its lines between two bands and leaves the last value below its end', () => {
+    const { x } = run(2, 170, 250)
+    const want = Array.from({ length: 288 }, (_, y) =>
+      y < 170 ? band(y) : y <= 250 ? 300 + y - 170 : 300 + 250 - 170,
+    )
+    expect(x).toEqual(want)
+  })
+
+  it('raster(2) costs a short handler a line, raster(1) what it did, raster(0) nothing', () => {
+    const one = run(1)
+    const two = run(2)
+    // 120 lines, each a LINE taken and its handler: measured 1,792 cycles a frame for raster(1)'s
+    // 36 bands and 6,287 for raster(2)'s 21 bands and 120 lines (2026-10-08).
+    expect(two.cycles - one.cycles).toBeLessThan(120 * 45)
+    // raster(1)'s bands cost what they did before raster(2) came: its handler is untouched.
+    expect(one.cycles).toBe(1792)
+    const none = run(0)
+    expect(new Set(none.x)).toEqual(new Set([0]))
   })
 })
 

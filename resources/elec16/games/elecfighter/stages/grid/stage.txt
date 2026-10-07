@@ -1,13 +1,23 @@
-# GRID (docs/elec16-elecfighter-design.md 4.1), the first stage's numbers, read when a round
-# begins (engine/data.e16.ts). Its pictures are the map `grid` (art/floor.png here), made into
-# tiles and BG0's cells by the kit; stages.e16.ts registers both under the stage's number.
+# GRID (docs/elec16-elecfighter-design.md 4.1), the first stage's numbers, written by
+# scripts/elecfighter-art.mjs with its picture (art/stage.png, the map `grid`) and read when a
+# round begins (engine/data.e16.ts). The map is drawn for the camera in the middle of its reach
+# (`center`); each band or line of BG0 is put at center + share * (camera - center).
 #   palette   the row of art/palettes.png for background slot 0 (0: stage)
 #   music     the song's number (0: none yet)
-#   horizon   the screen's line of the horizon
-#   ground    the screen's line of the feet
-#   raster    1: BG0 steps through the 36 bands below each frame (the floor's per-line raster
-#             is a later phase), 0: BG0 scrolls whole with the camera
-# palette music horizon ground raster
-0 0 168 244 0
-# the 36 bands' parallax, in 1/16 of the camera's move (16 moves with it); unused while raster 0
-16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16
+#   horizon   the screen's line of the horizon: the first line of the floor
+#   ground    the screen's line of the feet (the floor moves with the camera there)
+#   raster    0: BG0 scrolls whole with the camera; 1: the 36 bands; 2: the bands above the
+#             horizon, then the floor a line at a time down to `last`
+#   center    the camera the map is drawn for
+#   last      the last line the raster writes
+# palette music horizon ground raster center last
+0 0 168 244 2 96 287
+# the 36 bands' share of the camera's move, in 16ths: the skyline 4, the platform's rim 8
+4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 8 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16
+# the floor's lines 168 to 287, their share in 256ths: (y - 54) / 190
+154 155 156 158 159 160 162 163 164 166 167 168 170 171 172 174 175 177 178 179
+181 182 183 185 186 187 189 190 191 193 194 195 197 198 199 201 202 203 205 206
+207 209 210 212 213 214 216 217 218 220 221 222 224 225 226 228 229 230 232 233
+234 236 237 238 240 241 243 244 245 247 248 249 251 252 253 255 256 257 259 260
+261 263 264 265 267 268 269 271 272 274 275 276 278 279 280 282 283 284 286 287
+288 290 291 292 294 295 296 298 299 300 302 303 305 306 307 309 310 311 313 314

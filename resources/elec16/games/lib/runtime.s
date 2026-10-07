@@ -1,7 +1,7 @@
 ; The game kit's runtime (docs/elec16-play.md section 10), written once for every game made
 ; with e16c: the cartridge's entry, which copies the game's code into RAM and starts it there,
-; the interrupt handler (VBLANK counted, LINE stepping the raster table), the wait for the next
-; frame and far_call. The kit's builder (shared/elec16/kit/build.ts) assembles it with the
+; the interrupt handlers (VBLANK counted, LINE stepping the raster table - and, for raster(2),
+; the game's table of lines), the wait for the next frame and far_call. The kit's builder (shared/elec16/kit/build.ts) assembles it with the
 ; game's e16c output and defines IMAGE_BANK, IMAGE_LEN and ROM_TRAP.
 ;
 ; RAM:  0000-01FF the PLAY ROM's      0200-027F this runtime's (RT_*)
@@ -18,14 +18,19 @@ STACK_TOP   = 0x8000
 
 RT_RA       = 0x0200   ; where the game returns to: the ROM's start screen
 RT_FRAME    = 0x0202   ; VBLANKs counted by the handler
-RT_RASTER   = 0x0204   ; nonzero: LINE steps BG0X through RT_TABLE every 8 lines
+RT_RASTER   = 0x0204   ; nonzero: LINE steps BG0X through RT_TABLE every 8 lines (2: then lines)
 RT_K        = 0x0206   ; the next band of the raster table
 RT_T1       = 0x0208   ; the handler's own room
+RT_LTAB     = 0x020a   ; raster(2): the game's table, a BG0X word for each line from RT_LFROM
+RT_LFROM    = 0x020c   ; raster(2): the first line BG0X is written for, 8 to 287
+RT_LTO      = 0x020e   ; raster(2): the last, RT_LFROM to 287
 RT_TABLE    = 0x0210   ; 36 words: BG0X for each band of 8 lines
+RT_LP       = 0x0258   ; raster(2): RT_LTAB less two bytes a line above RT_LFROM, this frame's
 
 VSTAT       = 0xf804
 BG0X        = 0xf820
 LINECMP     = 0xf82a
+LINE        = 0xf82c
 BANDS       = 36
 
 ; ---------------- the cartridge's entry, in its bank 0 ----------------
@@ -168,10 +173,19 @@ frame_wait:
   mv a0, t0
   ret
 
-; raster(on): the LINE steps through RT_TABLE from the next frame, or stops at once - its
-; line no longer enabled, LINE (and LINECMP) left to the game.
+; raster(on): the LINE steps through RT_TABLE from the next frame (1; 2 to RT_LFROM, then
+; the game's lines to RT_LTO), or stops at once - its line no longer enabled, LINE (and
+; LINECMP) left to the game. raster(2) takes the LINE with handlers of its own, irq_lines and
+; irq_each, so the bands of raster(1) cost what they always have. A change of mode takes a
+; frame to settle: called while a frame is drawn, the rest of it may keep the last value.
 raster:
   sw a0, RT_RASTER(zero)
+  la t0, irq
+  li t1, 2
+  bne a0, t1, .vector
+  la t0, irq_lines
+.vector:
+  csrw mtvec, t0
   li t0, 1 << IRQ_LINE
   bnez a0, .on
   csrc mie, t0
@@ -181,6 +195,92 @@ raster:
 .on:
   csrs mie, t0
   ret
+
+; raster_lines(table, from, to): raster(2)'s lines - BG0X from the word at `table` on line
+; `from` and the next word each line down to `to` - from the next frame. Written whole before
+; `from` comes, the game may give another table each frame (one drawn, one being made).
+raster_lines:
+  sw a0, RT_LTAB(zero)
+  sw a1, RT_LFROM(zero)
+  sw a2, RT_LTO(zero)
+  ret
+
+; raster(2)'s handler for the bands. VBLANK, and anything else, is irq's; LINE steps the bands
+; as irq does down to RT_LFROM, then hands the LINE to irq_each for the lines.
+irq_lines:
+  csrw mscratch, t0
+  csrr t0, mcause
+  sw t1, RT_T1(zero)
+  li t1, 0x8000 + IRQ_LINE
+  bne t0, t1, .other
+  li t1, 2
+  sw t1, -0x7fc(zero)     ; VSTAT: LINE seen
+  lw t0, RT_K(zero)
+  slli t1, t0, 1
+  lw t1, RT_TABLE(t1)
+  sw t1, -0x7e0(zero)     ; BG0X
+  addi t0, t0, 1
+  sw t0, RT_K(zero)
+  slli t0, t0, 3
+  lw t1, RT_LFROM(zero)
+  bltu t0, t1, .next
+  ; The bands end: the lines from RT_LFROM, through this frame's table, by irq_each.
+  slli t0, t1, 1
+  lw t1, RT_LTAB(zero)
+  sub t1, t1, t0
+  sw t1, RT_LP(zero)
+  la t0, irq_each
+  csrw mtvec, t0
+  lw t0, RT_LFROM(zero)
+.next:
+  sw t0, -0x7d6(zero)     ; LINECMP
+  lw t1, RT_T1(zero)
+  csrr t0, mscratch
+  mret
+.other:
+  lw t1, RT_T1(zero)
+  csrr t0, mscratch
+  j irq
+
+; raster(2)'s handler for the lines, RT_LFROM to RT_LTO: BG0X from the game's table each line,
+; then irq_lines again for the next frame. A line is found by reading LINE, so a handler held up
+; past a line takes up again on the next. Anything else goes to irq_lines (and on to irq) with
+; irq_lines put back, as the end of the lines would.
+irq_each:
+  csrw mscratch, t0
+  csrr t0, mcause
+  sw t1, RT_T1(zero)
+  li t1, 0x8000 + IRQ_LINE
+  bne t0, t1, .other
+  li t1, 2
+  sw t1, -0x7fc(zero)     ; VSTAT: LINE seen
+  lw t0, -0x7d4(zero)     ; LINE
+  lw t1, RT_LP(zero)
+  add t1, t1, t0
+  add t1, t1, t0
+  lw t1, 0(t1)
+  sw t1, -0x7e0(zero)     ; BG0X
+  addi t0, t0, 1
+  lw t1, RT_LTO(zero)
+  bltu t1, t0, .end
+  sw t0, -0x7d6(zero)     ; LINECMP
+  lw t1, RT_T1(zero)
+  csrr t0, mscratch
+  mret
+.end:
+  li t0, 0xffff
+  sw t0, -0x7d6(zero)     ; LINECMP
+  la t0, irq_lines
+  csrw mtvec, t0
+  lw t1, RT_T1(zero)
+  csrr t0, mscratch
+  mret
+.other:
+  la t1, irq_lines
+  csrw mtvec, t1
+  lw t1, RT_T1(zero)
+  csrr t0, mscratch
+  j irq_lines
 
 ; A call into a cartridge bank (e16c's code for a function in another bank): t0 the
 ; function, t1 its bank, the arguments in a0-a3 and the answer in a0. The caller's bank goes
