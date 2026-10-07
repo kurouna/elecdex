@@ -1,0 +1,4 @@
+# S1 BALANCE: its body (design 3.1), 16 words:
+# life weight walkForward walkBack jumpUp gravity jumpForward jumpBack throwRange height
+# (speeds in 1/16 points a frame), then six kept for later.
+100 100 20 16 104 5 36 32 28 93 0 0 0 0 0 0

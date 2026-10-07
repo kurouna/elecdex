@@ -1,0 +1,103 @@
+{
+  "id": "ELECFIGHTER",
+  "name": "ELECFIGHTER",
+  "saveBanks": 1,
+  "about": "a one-on-one fighter: read, react, guard and strike, two rounds to win",
+  "shelf": false,
+  "sources": [
+    "engine/main.e16.ts",
+    "engine/data.e16.ts",
+    "engine/input.e16.ts",
+    "engine/fighter.e16.ts",
+    "engine/hit.e16.ts",
+    "engine/draw.e16.ts",
+    {
+      "file": "scenes/match.e16.ts",
+      "bank": 1
+    },
+    {
+      "file": "scenes/scenes.e16.ts",
+      "bank": 1
+    },
+    {
+      "file": "cpu/standin.e16.ts",
+      "bank": 2
+    }
+  ],
+  "palettes": {
+    "png": "art/palettes.png",
+    "names": ["stage", "hud", "huddim", "p1", "cpu", "fx"]
+  },
+  "sheets": [
+    {
+      "name": "font",
+      "png": "art/font.png",
+      "cell": 8,
+      "palette": "hud",
+      "count": 64
+    },
+    {
+      "name": "fontb",
+      "png": "art/fontb.png",
+      "cell": 8,
+      "palette": "hud",
+      "count": 64
+    },
+    {
+      "name": "digits",
+      "png": "art/digits.png",
+      "cell": 16,
+      "palette": "hud",
+      "count": 10
+    },
+    {
+      "name": "hud",
+      "png": "art/hud.png",
+      "cell": 8,
+      "palette": "hud",
+      "count": 89
+    },
+    {
+      "name": "box",
+      "png": "art/box.png",
+      "cell": 8,
+      "palette": "p1",
+      "count": 16
+    },
+    {
+      "name": "fx",
+      "png": "art/fx.png",
+      "cell": 8,
+      "palette": "fx",
+      "count": 1
+    }
+  ],
+  "maps": [
+    {
+      "name": "grid",
+      "png": "stages/grid/art/floor.png",
+      "palettes": [
+        {
+          "palette": "stage",
+          "slot": 0
+        }
+      ]
+    }
+  ],
+  "tables": [
+    { "name": "s1_moves", "file": "fighters/s1/moves.txt" },
+    { "name": "s1_poses", "file": "fighters/s1/poses.txt" },
+    { "name": "s1_profile", "file": "fighters/s1/profile.txt" },
+    { "name": "s2_moves", "file": "fighters/s2/moves.txt" },
+    { "name": "s2_poses", "file": "fighters/s2/poses.txt" },
+    { "name": "s2_profile", "file": "fighters/s2/profile.txt" },
+    { "name": "s3_moves", "file": "fighters/s3/moves.txt" },
+    { "name": "s3_poses", "file": "fighters/s3/poses.txt" },
+    { "name": "s3_profile", "file": "fighters/s3/profile.txt" },
+    { "name": "s4_moves", "file": "fighters/s4/moves.txt" },
+    { "name": "s4_poses", "file": "fighters/s4/poses.txt" },
+    { "name": "s4_profile", "file": "fighters/s4/profile.txt" },
+    { "name": "stage_grid", "file": "stages/grid/stage.txt" },
+    { "name": "opponents", "file": "cpu/opponents.txt" }
+  ]
+}

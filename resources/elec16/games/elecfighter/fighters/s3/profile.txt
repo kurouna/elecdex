@@ -1,0 +1,4 @@
+# S3 POWER: its body (design 3.1), 16 words:
+# life weight walkForward walkBack jumpUp gravity jumpForward jumpBack throwRange height
+# (speeds in 1/16 points a frame), then six kept for later.
+105 115 17 14 92 5 32 28 34 97 0 0 0 0 0 0

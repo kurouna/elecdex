@@ -1,0 +1,19 @@
+# S2 RUSH: its moves (docs/elec16-elecfighter-design.md 7.7), a row of 16 words each, in the
+# order sLP sHP sLK sHK cLP cHP cLK cHK jLP jHP jLK jHK throw. The columns:
+#  startup active recovery damage chip hitstun blockstun hitstop pushHit pushGuard
+#  height (1 high, 2 low, 3 mid, 4 throw) kind (1 kick, 2 heavy, 4 crouching, 8 in the air)
+#  flags (1 chain, 2 knockdown, 4 anti-air, 8 armour) invul (from | to << 8) pose sound
+# Frames: the first active one is `startup`; pushes in 1/16 points a frame.
+3 2 8 6 0 12 9 6 40 32 1 0 1 0 12 0 # sLP
+9 3 18 13 0 18 14 9 56 48 1 2 0 0 15 0 # sHP
+4 2 10 7 0 12 9 6 40 32 1 1 1 0 18 0 # sLK
+11 3 20 15 0 19 14 9 64 48 1 3 0 0 21 0 # sHK
+3 2 8 5 0 11 9 6 40 32 1 4 1 0 24 0 # cLP
+7 4 20 12 0 18 14 9 56 48 1 6 4 2049 27 0 # cHP
+4 2 10 6 0 12 9 6 40 32 2 5 1 0 30 0 # cLK
+10 3 24 12 0 0 14 9 64 48 2 7 2 0 33 0 # cHK
+3 6 0 7 0 12 9 6 32 24 3 8 0 0 36 0 # jLP
+8 4 0 12 0 16 12 9 48 40 3 10 0 0 39 0 # jHP
+4 8 0 7 0 12 9 6 32 24 3 9 0 0 42 0 # jLK
+9 4 0 13 0 17 13 9 48 40 3 11 0 0 45 0 # jHK
+5 2 22 18 0 0 0 12 0 0 4 2 2 0 48 0 # throw

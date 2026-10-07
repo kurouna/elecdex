@@ -1,0 +1,12 @@
+# The CPU's opponents (docs/elec16-elecfighter-design.md 7.10.6), a row of 8 words each. The
+# first version has one, the stand-in that plays a match until the real CPU comes (P2):
+#   slot      the body it fights in (0 S1 BALANCE ... 3 S4 OUTBOX)
+#   stage     the stage it is met on (0 GRID): a number of stages.e16.ts's registry
+#   think     frames between its choices (and 0-7 more, by chance)
+#   attack    its chance in 256 of pressing a normal when in reach
+#   guard     its chance in 256 of holding back (a guard) instead
+#   jump      its chance in 256 of jumping in
+#   reach     the distance it walks in to, in points
+#   kept      0, for later
+# slot stage think attack guard jump reach kept
+2 0 10 120 60 12 56 0

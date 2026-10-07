@@ -1,0 +1,13 @@
+# GRID (docs/elec16-elecfighter-design.md 4.1), the first stage's numbers, read when a round
+# begins (engine/data.e16.ts). Its pictures are the map `grid` (art/floor.png here), made into
+# tiles and BG0's cells by the kit; stages.e16.ts registers both under the stage's number.
+#   palette   the row of art/palettes.png for background slot 0 (0: stage)
+#   music     the song's number (0: none yet)
+#   horizon   the screen's line of the horizon
+#   ground    the screen's line of the feet
+#   raster    1: BG0 steps through the 36 bands below each frame (the floor's per-line raster
+#             is a later phase), 0: BG0 scrolls whole with the camera
+# palette music horizon ground raster
+0 0 168 244 0
+# the 36 bands' parallax, in 1/16 of the camera's move (16 moves with it); unused while raster 0
+16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16
