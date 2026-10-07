@@ -1,21 +1,13 @@
 // ELECFIGHTER's picture (docs/elec16-elecfighter-design.md 4.2, 5.2): the camera and the HUD on
-// BG1 - names, life bars, TIME, the rounds' lamps, the banners' bands and the log line - redrawn
-// only where it changed. The fighters, their shadows and the effects are engine/look.e16.ts's.
-import {
-  type bool,
-  div,
-  i16,
-  peek,
-  str,
-  u16,
-  words,
-  wrap16,
-} from '../../../../../src/shared/e16c/builtins'
+// BG1 - life bars, TIME, the banners' bands in large amber lettering and the log line - redrawn
+// only where it changed. The headings and lamps a round begins with are scenes/match.e16.ts's;
+// the fighters, their shadows and the effects engine/look.e16.ts's.
+import { div, i16, peek, str, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import { cellAt, colour, palCopy, palMix, vfill, vpoke } from '../../lib/kit.e16'
-import { DIGITS_TILE, FONT_TILE, FONTB_TILE, HUD_TILE } from '../assets.e16'
+import { BIG_TILE, DIGITS_TILE, FONT_TILE, FONTB_TILE, HUD_TILE } from '../assets.e16'
 import { logDraw } from '../scenes/pause.e16'
-import { P_LIFE, prAt, slName } from './data.e16'
-import { fLife, fSlot, fX } from './fighter.e16'
+import { P_LIFE, prAt } from './data.e16'
+import { fLife, fX } from './fighter.e16'
 
 /** The feet's line on the screen, and the camera's reach (design 4.2). */
 export const GROUND_Y = 244
@@ -35,23 +27,27 @@ export function cameraStep(): void {
 
 /* ---------------- the HUD (BG1, in front; its row r is drawn from y 8r - 4) ---------------- */
 
-const FRONT = 0x8000
-const FLIP = 0x2000
-/** BG1's palette slots: P1's side, P2's side, the dim words, TIME. */
-const SL_P1 = 1
-const SL_DIM = 3
+export const FRONT = 0x8000
+export const FLIP = 0x2000
+/** BG1's palette slots: P1's side, P2's side, the dim words, TIME; the large lettering. */
+export const SL_P1 = 1
+export const SL_DIM = 3
 const SL_TIME = 4
+export const SL_BIG = 6
 const BAR_ROW = 2
 const BAR_CELLS = 15
-const BAND_ROW = 15
-const T_CLEAR = 0
-const T_RULE = 1
-const T_TICK = 2
-const T_LAMP = 3
+/** The band: its top rule, three rows of large letters, a row of small words, its bottom rule. */
+export const BAND_ROW = 13
+export const BAND_SUB = 17
+const BAND_ROWS = 6
+export const T_CLEAR = 0
+export const T_RULE = 1
+export const T_TICK = 2
+export const T_LAMP = 3
 const T_BAND = 5
 const T_BAND_TOP = 6
 const T_BAND_BOTTOM = 7
-const T_BAR = 8
+export const T_BAR = 8
 /** The life bar's colour (5 in each side's slot), and the low life's two reds. */
 const C_LIFE = 5
 const RED = 0x1c3d
@@ -78,7 +74,7 @@ export function say(x: u16, y: u16, s: u16, sl: u16): void {
   }
 }
 
-function hudTile(x: u16, y: u16, t: u16, sl: u16): void {
+export function hudTile(x: u16, y: u16, t: u16, sl: u16): void {
   vpoke(cellAt(1, x, y), (HUD_TILE + t) | (sl << 10) | FRONT)
 }
 
@@ -87,20 +83,8 @@ export function hudClear(): void {
   vfill(cellAt(1, 0, 0), HUD_TILE + T_CLEAR, 64 * 64)
 }
 
-/**
- * The HUD as a round begins: each side's heading (a ruled title like a pane's, the slot and
- * role bright, who plays it dim), TIME's word, the lamps, and the bars and time drawn anew.
- */
-export function hudStatic(p2: u16, wins0: u16, wins1: u16): void {
-  heading(0, 0)
-  heading(22, 0)
-  say(2, 1, slName[fSlot[0]], SL_P1)
-  say(13, 1, str('P1'), SL_DIM)
-  say(24, 1, p2, SL_P1)
-  say(28, 1, slName[fSlot[1]], SL_DIM)
-  say(18, 3, str('TIME'), SL_DIM)
-  lamps(15, wins0, false)
-  lamps(23, wins1, true)
+/** The bars and TIME drawn anew as a round begins (their trails from the life as it is). */
+export function hudFresh(): void {
   shownLife[0] = 0xffff
   shownLife[1] = 0xffff
   timeShown = 0xffff
@@ -108,23 +92,6 @@ export function hudStatic(p2: u16, wins0: u16, wins1: u16): void {
   trail[1] = fLife[1]
   lowShown[0] = 2
   lowShown[1] = 2
-}
-
-function heading(x: u16, y: u16): void {
-  hudTile(x, y + 1, T_RULE, SL_P1)
-  hudTile(x + 1, y + 1, T_TICK, SL_P1)
-  vpoke(cellAt(1, x + 16, y + 1), (HUD_TILE + T_TICK) | (SL_P1 << 10) | FRONT | FLIP)
-  hudTile(x + 17, y + 1, T_RULE, SL_P1)
-}
-
-/** Two lamps from column `x`, `n` of them lit (from the middle outwards). */
-function lamps(x: u16, n: u16, right: bool): void {
-  let k: u16 = 0
-  while (k < 2) {
-    const lit = right ? k < n : 1 - k < n
-    hudTile(x + k, 3, T_LAMP + (lit ? 1 : 0), SL_P1)
-    k++
-  }
 }
 
 /** The bars, their trails and TIME, each drawn only when it changed. */
@@ -209,14 +176,87 @@ function bigDigit(x: u16, d: u16): void {
 
 /* ---------------- the bands (design 5.2): a banner across the middle ---------------- */
 
-/** The band across rows 15-17 with the words `s` in its middle. */
+/*
+ * The large letters (art/big.png, scripts/elecfighter/screens.mjs), each 2 tiles by 3 in the
+ * order `bigIndex` keeps them; anything else is a narrow space.
+ */
+
+/** Where `c` is among the large letters, or 0xffff. */
+function bigIndex(c: u16): u16 {
+  const chars = str('ABCDEFGHIKLMNOPRSTUVWY.?123')
+  let k: u16 = 0
+  let d = peek(chars)
+  while (d !== 0) {
+    if (d === c) return k
+    k++
+    d = peek(chars + k)
+  }
+  return 0xffff
+}
+
+/** Columns the words `s` take in large letters: two a letter, one a space. */
+function bigWidth(s: u16): u16 {
+  let n: u16 = 0
+  let k: u16 = 0
+  let c = peek(s)
+  while (c !== 0) {
+    n = n + (c === 32 ? 1 : 2)
+    k++
+    c = peek(s + k)
+  }
+  return n
+}
+
+/** The words `s` in large letters from BG1's cell (x, y) down three rows, in slot `sl`. */
+export function bigSay(x: u16, y: u16, s: u16, sl: u16): void {
+  let at = x
+  let k: u16 = 0
+  let c = peek(s)
+  while (c !== 0) {
+    const g = bigIndex(c)
+    if (g === 0xffff) at++
+    else {
+      const t = (BIG_TILE + g * 6) | (sl << 10) | FRONT
+      let r: u16 = 0
+      while (r < 3) {
+        vpoke(cellAt(1, at, y + r), t + r * 2)
+        vpoke(cellAt(1, at + 1, y + r), t + r * 2 + 1)
+        r++
+      }
+      at = at + 2
+    }
+    k++
+    c = peek(s + k)
+  }
+}
+
+/** The words `s` in large letters across BG1's rows from `y`, centred. */
+export function bigCentred(y: u16, s: u16): void {
+  bigSay(20 - (bigWidth(s) >> 1), y, s, SL_BIG)
+}
+
+/** The band across rows 13-18 with the words `s` large in its middle, nothing under them. */
 export function bandShow(s: u16): void {
   vfill(cellAt(1, 0, BAND_ROW), (HUD_TILE + T_BAND_TOP) | (SL_P1 << 10) | FRONT, 40)
-  vfill(cellAt(1, 0, BAND_ROW + 1), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
-  vfill(cellAt(1, 0, BAND_ROW + 2), (HUD_TILE + T_BAND_BOTTOM) | (SL_P1 << 10) | FRONT, 40)
+  let r: u16 = 1
+  while (r < BAND_ROWS - 1) {
+    vfill(cellAt(1, 0, BAND_ROW + r), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
+    r++
+  }
+  vfill(
+    cellAt(1, 0, BAND_ROW + BAND_ROWS - 1),
+    (HUD_TILE + T_BAND_BOTTOM) | (SL_P1 << 10) | FRONT,
+    40,
+  )
+  bigCentred(BAND_ROW + 1, s)
+}
+
+/** The band's small words under the large ones, centred (the band's own ground behind them). */
+export function bandSub(s: u16): void {
+  vfill(cellAt(1, 0, BAND_SUB), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
   let n: u16 = 0
   while (peek(s + n) !== 0) n++
-  let at = cellAt(1, 20 - (n >> 1), BAND_ROW + 1)
+  let at = cellAt(1, 20 - (n >> 1), BAND_SUB)
   let k: u16 = 0
   while (k < n) {
     vpoke(at, (FONTB_TILE + peek(s + k) - 32) | (SL_P1 << 10) | FRONT)
@@ -227,7 +267,7 @@ export function bandShow(s: u16): void {
 
 /** The band gone. */
 export function bandClear(): void {
-  vfill(cellAt(1, 0, BAND_ROW), HUD_TILE + T_CLEAR, 64 * 3)
+  vfill(cellAt(1, 0, BAND_ROW), HUD_TILE + T_CLEAR, 64 * BAND_ROWS)
 }
 
 /* ---------------- the log line (design 5.3) ---------------- */

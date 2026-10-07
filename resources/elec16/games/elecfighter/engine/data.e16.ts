@@ -257,9 +257,13 @@ export function poseLoad(i: u16, s: u16, p: u16): void {
  * Each fighter's room is 32 cells of 4 tiles from S1_TILE (the first sheet's `stream` of 64
  * keeps both rooms): P1's first, P2's after it.
  */
-/** A row of art.txt: first cell, count, 32 places. The KO's pieces are the row after the poses. */
+/**
+ * A row of art.txt: first cell, count, 32 places. The KO's pieces are the rows after the poses,
+ * cut from the pose the fighter breaks in: lying down, then falling (scripts/elecfighter/fighters.mjs).
+ */
 export const ART_W = 34
 export const SHARDS_ROW = 61
+export const SHARDS_AIR = 62
 /** Each fighter's picture row (`art[i * 34 + c]`), and whether its cells wait to be copied. */
 export const art = words(68)
 export const artWant = words(2)
@@ -295,6 +299,27 @@ export function artStream(): void {
     }
     i++
   }
+}
+
+/**
+ * Row `row` of slot `s`'s art (34 words) into RAM at `to`, and its cells into video memory from
+ * tile `tile` at once: the screens round the fight draw a figure where they like (the title's
+ * four, the select's, the versus's two), not in a fighter's room as the frame begins.
+ */
+export function artPut(s: u16, row: u16, to: u16, tile: u16): void {
+  const old = bank(slArtB[s])
+  memcpy(to, slArtA[s] + row * ART_W * 2, ART_W * 2)
+  poke16(IO_BANK, old)
+  const f = peek16(to)
+  load(slCellsB[s] + (f >> 6), 0xc000 + ((f & 63) << 7), tile * 32, peek16(to + 2) * 128)
+}
+
+/** Word `k` of a table in the cartridge (bank `b`, at `at`): for the screens in banks to read one. */
+export function tableWord(b: u16, at: u16, k: u16): u16 {
+  const old = bank(b)
+  const v = peek16(at + k * 2)
+  poke16(IO_BANK, old)
+  return v
 }
 
 /** Column `c` of fighter `i`'s move `m`. */
@@ -345,6 +370,7 @@ function stagePlaces(k: u16, n: u16, mapB: u16, rows: u16): void {
  * floor's lines' (256ths), from the horizon to the last.
  */
 const S_PALETTE = 0
+const S_MUSIC = 1
 const S_HORIZON = 2
 const S_RASTER = 4
 const S_CENTER = 5
@@ -443,6 +469,11 @@ export function stageShow(): void {
   if (stageWords[S_RASTER] !== 2) return
   raster_lines(addr(lineTab) + lineBack * 2, stageWords[S_HORIZON], stageWords[S_LAST])
   lineBack = LINES_MAX - lineBack
+}
+
+/** The song the stage is fought to (engine/audio.e16.ts's number). */
+export function stageMusic(): u16 {
+  return stageWords[S_MUSIC]
 }
 
 /** BG0's clear tile, while no stage is shown: a map's first tile is its clear one. */

@@ -1,0 +1,101 @@
+# ELECFIGHTER's sound effects (docs/elec16-elecfighter-design.md 9): each a short song on
+# channels 12-15 only, so the music (0-11) never stops for one. Tempo 2: a sixteenth is two
+# frames, a thirty-second one. engine/audio.e16.ts plays them by what happened.
+#   C12 hits and guards: a light hit high and short, a heavy one low and long with noise, a
+#       guard a high metal square
+#   C13 a swing at the air and a dash: small wind; the menus' cursor
+#   C14 a throw, a landing, a fall, and a KO's pieces falling away in small notes
+#   C15 the banners' cues (no voice), TIME's last ten, the materialising, a choice made
+#   A KO's chord takes all four at once.
+
+song x_light
+tempo 2
+inst tap  wave=noise vol=11 env=0/40/0/30 drop=2
+inst snap wave=sq25 vol=8 env=0/30/0/20 drop=3
+C12: @snap o7 l32 c @tap o8 c c
+
+song x_heavy
+tempo 2
+inst punch wave=tri vol=15 env=0/120/0/60 drop=3
+inst burst wave=noise vol=14 env=0/220/0/160 drop=2
+C12: @punch o4 l32 c c @burst o6 c8 c16
+
+song x_guard
+tempo 2
+inst clang wave=sq12 vol=11 env=0/90/0/90 vib=6,14
+C12: @clang o7 l32 e > c < e16
+
+song x_whiff
+tempo 2
+inst wind wave=noise vol=5 env=10/60/0/50
+C13: @wind o9 l32 c c16
+
+song x_dash
+tempo 2
+inst swish wave=noise vol=7 env=0/100/0/80 drop=1
+C13: @swish o8 l16 c c c
+
+song x_throw
+tempo 2
+inst grab wave=saw vol=11 env=0/120/4/80 slide=-40
+C14: @grab o5 l32 c e g > c16 < c8
+
+song x_land
+tempo 2
+inst thud wave=tri vol=12 env=0/80/0/40 drop=3
+C14: @thud o3 l32 c c
+
+song x_down
+tempo 2
+inst boom wave=noise vol=13 env=0/300/0/200 drop=3
+inst thud wave=tri vol=14 env=0/160/0/80 drop=3
+C14: @thud o3 l32 c @boom o5 c8 c16
+
+song x_shards
+# The pieces falling away: small glassy notes going down.
+tempo 2
+inst tink wave=sq12 vol=7 env=0/40/0/40
+C14: @tink o8 l32 c < a f d < b g e c < a f d < b g
+
+song x_round
+# ROUND: two bell tones, up.
+tempo 2
+inst bell wave=tri vol=12 env=0/300/6/300
+C15: @bell o6 l16 c g > c8
+
+song x_fight
+# FIGHT: a quick climb to a held top.
+tempo 2
+inst horn wave=saw vol=12 env=0/200/8/200
+C15: @horn o5 l32 c e g > c e g > c8
+
+song x_time
+# One of TIME's last ten seconds.
+tempo 2
+inst tick wave=sq12 vol=9 env=0/30/0/30
+C15: @tick o7 l32 e r32 e
+
+song x_ko
+# A KO: a minor chord, struck once, ringing down.
+tempo 2
+inst ring wave=sq25 vol=11 env=0/900/0/700 vib=3,6
+C12: @ring o4 c2
+C13: @ring o4 e-2
+C14: @ring o4 g2
+C15: @ring o5 c2
+
+song x_mat
+# Materialising: up through two octaves.
+tempo 2
+inst rise wave=tri vol=10 env=0/60/6/60
+C15: @rise o5 l32 c d e f g a b > c d e f g a b > c8
+
+song x_move
+tempo 2
+inst blip wave=sq25 vol=9 env=0/40/0/30
+C13: @blip o6 l32 c g
+
+song x_ok
+tempo 2
+inst ok wave=sq25 vol=10 env=0/80/4/60
+C15: @ok o6 l32 c e g > c8

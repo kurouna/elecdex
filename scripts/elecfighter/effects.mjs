@@ -28,7 +28,7 @@ export const FX = [
 ].map(q8)
 
 /** The spark's three frames: the icosahedron whole, then its faces flying apart. */
-export const SPARK_STEPS = [0, 0.3, 0.6]
+export const SPARK_STEPS = [0, 0.2, 0.38]
 
 export function sparkJobs() {
   const jobs = {}
@@ -38,7 +38,7 @@ export function sparkJobs() {
       file: 'models/effects.gltf',
       mesh: 'spark',
       explode: e,
-      scale: 9,
+      scale: 12,
       rot: [20, 30, 0],
     }
   })

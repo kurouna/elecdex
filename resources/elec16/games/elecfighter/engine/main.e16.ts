@@ -2,8 +2,10 @@
 // match - rounds of 99, two to win, KO, time up, draws - and the frame, in the order the design
 // fixes (section 8), and the ring of what each fighter was that the CPU sees by (7.10.1). The
 // fighters, the strikes, the throws and the picture are in the files beside this one; the
-// match, the ladder, the title and the controls in bank 1 (scenes/), the pause and the log's
-// words in bank 3, the CPU in bank 2 (cpu/), the fighters' picture in bank 4 (look.e16.ts).
+// match and the ladder in bank 1 (scenes/), the CPU in bank 2 (cpu/), the pause and the log's
+// words in bank 3, the fighters' picture and the sound in bank 4 (look.e16.ts, audio.e16.ts),
+// the boot log, the title and the controls in bank 5, the select and the versus in bank 6, the
+// results, the records and save RAM in bank 7 (design 5.4).
 import {
   type bool,
   poke16,
@@ -30,7 +32,12 @@ import {
   VCTRL,
   vfill,
 } from '../../lib/kit.e16'
+import { soundInit, soundTick } from '../../lib/sound.e16'
 import {
+  BIG_AT,
+  BIG_BANK,
+  BIG_BYTES,
+  BIG_TILE,
   DIGITS_AT,
   DIGITS_BANK,
   DIGITS_BYTES,
@@ -47,11 +54,13 @@ import {
   HUD_BANK,
   HUD_BYTES,
   HUD_TILE,
+  PAL_BIG,
   PAL_CPU,
   PAL_FX,
   PAL_HUD,
   PAL_HUDDIM,
   PAL_P1,
+  PAL_STAGE,
   SHADOW_AT,
   SHADOW_BANK,
   SHADOW_BYTES,
@@ -63,7 +72,10 @@ import {
 } from '../assets.e16'
 import { cpuThink } from '../cpu/ai.e16'
 import { ladderPlay } from '../scenes/match.e16'
-import { controlsLoad, title } from '../scenes/scenes.e16'
+import { saveLoad } from '../scenes/result.e16'
+import { selectRun } from '../scenes/select.e16'
+import { bootLog, titleRun } from '../scenes/title.e16'
+import { audioIn } from './audio.e16'
 import {
   artStream,
   oppNamesIn,
@@ -128,20 +140,40 @@ const cpuHeld = words(2)
 const KO_STOP = 24
 const SECOND = 60
 
+/** The screen showing (the tests follow the flow by it): design 5.4's, in order. */
+export const SC_BOOT = 1
+export const SC_TITLE = 2
+export const SC_CONTROLS = 3
+export const SC_SELECT = 4
+export const SC_VERSUS = 5
+export const SC_FIGHT = 6
+export const SC_RESULT = 7
+export const SC_CONTINUE = 8
+export const SC_OVER = 9
+export const SC_CLEAR = 10
+export const SC_BEST = 11
+export let screen: u16 = 0
+export function screenIs(sc: u16): void {
+  screen = sc
+}
+
 export function main(): void {
   kitInit()
+  soundInit()
   screenOn()
   palettesIn()
   tilesIn()
   slotsIn()
   stagesIn()
   oppNamesIn()
-  controlsLoad()
+  audioIn()
+  saveLoad()
   ctl[0] = C_PAD
   ctl[1] = C_CPU
+  bootLog()
   for (;;) {
-    title()
-    ladderPlay()
+    titleRun()
+    if (selectRun()) ladderPlay()
   }
 }
 
@@ -155,13 +187,18 @@ export function screenOn(): void {
   poke16(BG1Y, 508)
 }
 
-/** The HUD's slots (1 and 2 a side each, 3 dim, 4 TIME), P1, the CPU, the shadows. */
-function palettesIn(): void {
+/**
+ * The HUD's slots (1 and 2 a side each, 3 dim, 4 TIME, 5 the log, 6 the large lettering), P1,
+ * the CPU, the shadows. The select screen lends 4-7 to its busts and gives them back here.
+ */
+export function palettesIn(): void {
+  slot(PAL_STAGE, 0)
   slot(PAL_HUD, 1)
   slot(PAL_HUD, 2)
   slot(PAL_HUDDIM, 3)
   slot(PAL_HUD, 4)
   slot(PAL_HUD, 5)
+  slot(PAL_BIG, 6)
   slot(PAL_P1, 8)
   slot(PAL_CPU, 9)
   slot(PAL_FX, 10)
@@ -177,6 +214,7 @@ function tilesIn(): void {
   load(FONTB_BANK, FONTB_AT, FONTB_TILE * 32, FONTB_BYTES)
   load(DIGITS_BANK, DIGITS_AT, DIGITS_TILE * 32, DIGITS_BYTES)
   load(HUD_BANK, HUD_AT, HUD_TILE * 32, HUD_BYTES)
+  load(BIG_BANK, BIG_AT, BIG_TILE * 32, BIG_BYTES)
   load(SPARK_BANK, SPARK_AT, SPARK_TILE * 32, SPARK_BYTES)
   load(SHADOW_BANK, SHADOW_AT, SHADOW_TILE * 32, SHADOW_BYTES)
 }
@@ -193,6 +231,7 @@ export function screenClear(): void {
 export function frameBegin(): void {
   seen = frame_wait(seen)
   sprShow()
+  soundTick()
   artStream()
   poke16(BG0X, scrollNext)
   stageShow()
@@ -200,10 +239,14 @@ export function frameBegin(): void {
   frame++
 }
 
-/** A paused frame: shown and the pad read, nothing counted (design 5.6: nothing goes on). */
+/**
+ * A frame of a screen that holds the fight still (the pause, its controls): shown, the sound on
+ * and the pad read, nothing else counted (design 5.6: nothing goes on).
+ */
 export function pauseFrame(): void {
   seen = frame_wait(seen)
   sprShow()
+  soundTick()
   padRead()
 }
 
@@ -250,7 +293,7 @@ function clockStep(): void {
   timeLeft--
   if (timeLeft > 0) return
   roundWon = fLife[0] === fLife[1] ? 2 : fLife[0] > fLife[1] ? 0 : 1
-  roundOver(roundWon === 2 ? str('TIME UP  DRAW') : str('TIME UP'))
+  roundOver(str('TIME UP'))
 }
 
 function roundOver(s: u16): void {

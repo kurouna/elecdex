@@ -13,6 +13,7 @@ will only ever import the bitmaps.
 | `pose-book.mjs` | The poses as described by hand: where the hips sit, where each fist and foot goes, which way knees and elbows point. Edit here, run it, and it writes `poses.json`. |
 | `ik.mjs` | The posing helper: forward kinematics from a model's glTF and a two-bone solver (hinged knees and elbows). |
 | `fighters.mjs`, `effects.mjs` | The game's fighters (cells, art rows, drafted boxes, limbs, KO pieces, a check picture) and effects (spark, firewall, shadows), for `scripts/elecfighter-art.mjs`. |
+| `screens.mjs` | The game's screens' pictures: the bands' large letters (`art/big.png`), the title's map (`art/title.png`: the stage and the logo, lettered here from the bold font), the select's busts (`art/busts.png`, `art/busts.txt`: each slot drawn again with the camera nearer). |
 | `svg/stage.svg`, `svg/hud.svg` | The stage (512 x 288, BG0) and the HUD frame (320 x 36, BG1), in palette colours only. |
 | `stage.mjs` | The game's stage GRID from `svg/stage.svg`: its map (`stages/grid/art/stage.png`), the stage palette's row and `stages/grid/stage.txt` (the raster's bands and floor lines). Run by `node scripts/elecfighter-art.mjs`; the PNG is the source afterwards. |
 | `scene.mjs` | The scene both the viewer and the bitmap renderer use: posing, build, materials, wire, camera, light. |
@@ -104,8 +105,10 @@ Check it in the viewer, then run `mock.mjs`.
 
 Every used slot in every picture of `rows` is cut into 16 x 16 cells (empty ones dropped) and
 written into the game's folder: `fighters/<id>/art/cells.png` (the source from then on),
-`art.txt` (each row's first cell, count and places; the last row is the KO's pieces, the `air`
-pose's own triangles in pieces that each fit a cell), `poses.txt` (boxes drafted from the posed
+`art.txt` (each row's first cell, count and places; the last two rows are the KO's pieces, the
+`down` and `air` poses' own triangles in pieces that each fit a cell, the game taking the one of
+the pose the fighter breaks in; every picture of a slot moved up so the stand's lowest point is
+on the foot line), `poses.txt` (boxes drafted from the posed
 model: hurt boxes round the upper body and the legs, the striking limb's box as the hit box from
 10 points ahead, a heavy's recovery leaving its limb as a third hurt box; a crouch's hurt boxes
 all 60 high; the anti-air's split at its invulnerable line; then `boxes.txt`, set by hand and

@@ -1,12 +1,12 @@
-// ELECFIGHTER's pause, log words and the ladder's screens (docs/elec16-elecfighter-design.md
-// 5.3, 5.4, 5.6). The pause darkens the stage, the fighters and the effects (their palettes
-// mixed 60% to black; the HUD as it was) under a band, PAUSED, and RESUME / CONTROLS / QUIT
-// FIGHT; nothing goes on meanwhile - no frame counted, no chance drawn, TIME still. The log
-// line's words are written here. CONTINUE?, GAME OVER and SYSTEM CLEAR are a band each until
-// P3 draws them. In bank 3: rarely run.
-import { type bool, peek, str, type u16, words } from '../../../../../src/shared/e16c/builtins'
-import { B_A, B_DOWN, B_START, B_UP, cellAt, palMix, pressed, vpoke } from '../../lib/kit.e16'
-import { FONT_TILE } from '../assets.e16'
+// ELECFIGHTER's pause and log words (docs/elec16-elecfighter-design.md 5.3, 5.6). The pause
+// darkens the stage, the fighters and the effects (their palettes mixed 60% to black; the HUD
+// as it was) under a band, PAUSED, and RESUME / CONTROLS / QUIT FIGHT, the music muted; nothing
+// goes on meanwhile - no frame counted, no chance drawn, TIME still. The log line's words are
+// written here. In bank 3: rarely run.
+import { peek, str, type u16, words } from '../../../../../src/shared/e16c/builtins'
+import { B_A, B_DOWN, B_START, B_UP, palMix, pressed } from '../../lib/kit.e16'
+import { musicMute } from '../../lib/sound.e16'
+import { sfx, X_MOVE, X_OK } from '../engine/audio.e16'
 import {
   bandClear,
   bandShow,
@@ -20,22 +20,23 @@ import {
   say,
 } from '../engine/draw.e16'
 import { palKey } from '../engine/look.e16'
-import { pauseFrame } from '../engine/main.e16'
+import { pauseFrame, SC_FIGHT, screenIs } from '../engine/main.e16'
 import { matchHud } from './match.e16'
-import { controlsRun } from './scenes.e16'
+import { controlsRun } from './title.e16'
 
 /** Paused (1) or not: the tests read it. */
 export const paused = words(1)
-/** The pause's choices' rows, and how dark it goes (sixteenths: 10 is about 60%). */
-const MENU_ROW = 19
+/** The pause's choices' rows (under the band), and how dark it goes (sixteenths: 10 is about 60%). */
+const MENU_ROW = 20
 const DIM = 10
 const PZ_TEXT = 1
-const PZ_DIM = 3
-const COUNT_F = 60
+/** Every music channel quiet (its notes go on, unheard), the effects still heard. */
+const MUSIC = 0x0fff
 
 /** The pause until RESUME (or START again); 1 when QUIT FIGHT was chosen. */
 export function pauseRun(): u16 {
   paused[0] = 1
+  musicMute(MUSIC)
   dim(DIM)
   pauseShow()
   let at: u16 = 0
@@ -46,12 +47,14 @@ export function pauseRun(): u16 {
     at = menuMove(at)
     if (pressed(B_START)) break
     if (!pressed(B_A)) continue
+    sfx(X_OK)
     if (at === 0) break
     if (at === 2) {
       quit = 1
       break
     }
-    controlsRun()
+    controlsRun(true)
+    screenIs(SC_FIGHT)
     matchHud()
     pauseShow()
     cursor(at)
@@ -62,6 +65,7 @@ export function pauseRun(): u16 {
   // The fighters' palettes as their effects want them, not as kept: written afresh next frame.
   palKey[0] = 0xffff
   palKey[1] = 0xffff
+  musicMute(0)
   paused[0] = 0
   return quit
 }
@@ -71,7 +75,10 @@ function menuMove(at: u16): u16 {
   let n = at
   if (pressed(B_UP)) n = n === 0 ? 2 : n - 1
   if (pressed(B_DOWN)) n = n === 2 ? 0 : n + 1
-  if (n !== at) cursor(n)
+  if (n !== at) {
+    cursor(n)
+    sfx(X_MOVE)
+  }
   return n
 }
 
@@ -137,59 +144,4 @@ function moveName(x: u16, m: u16): void {
   else if (col === 1) put(at, str('HEAVY PUNCH'))
   else if (col === 2) put(at, str('LIGHT KICK'))
   else put(at, str('HEAVY KICK'))
-}
-
-/* ---------------- the ladder's screens (design 5.4) ---------------- */
-
-/** CONTINUE? and a count from 9 to 0, a second each: START or A plays the opponent again. */
-export function continueAsk(): bool {
-  bandShow(str('CONTINUE?'))
-  let n: u16 = 9
-  let t: u16 = 0
-  countShow(n)
-  for (;;) {
-    pauseFrame()
-    if (pressed(B_START) || pressed(B_A)) {
-      hudRows(MENU_ROW, 1)
-      bandClear()
-      return true
-    }
-    t++
-    if (t < COUNT_F) continue
-    t = 0
-    if (n === 0) {
-      hudRows(MENU_ROW, 1)
-      bandClear()
-      return false
-    }
-    n--
-    countShow(n)
-  }
-}
-
-function countShow(n: u16): void {
-  vpoke(cellAt(1, 20, MENU_ROW), (FONT_TILE + 16 + n) | (PZ_TEXT << 10) | 0x8000)
-}
-
-/** GAME OVER on its band for two seconds (START goes on). */
-export function gameOver(): void {
-  bandWait(str('GAME OVER'), 120)
-}
-
-/** SYSTEM CLEAR on its band for three seconds (START goes on). */
-export function systemClear(): void {
-  bandWait(str('SYSTEM CLEAR'), 180)
-}
-
-function bandWait(s: u16, f: u16): void {
-  bandShow(s)
-  say(13, MENU_ROW, str('PRESS START'), PZ_DIM)
-  let t: u16 = 0
-  while (t < f) {
-    pauseFrame()
-    if (pressed(B_START)) break
-    t++
-  }
-  hudRows(MENU_ROW, 1)
-  bandClear()
 }

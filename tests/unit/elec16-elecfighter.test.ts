@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
+import { CHANNELS } from '@shared/elec16/apu'
 import { readCart } from '@shared/elec16/cartridge'
+import { channelFrames, compileSongs, loopFrames, type Song } from '@shared/elec16/kit/mml'
 import { Elec16 } from '@shared/elec16/machine'
 import { XRAM_MAX } from '@shared/elec16/map'
 import { padBit } from '@shared/elec16/pad'
@@ -21,7 +23,8 @@ import {
 
 /**
  * ELECFIGHTER (docs/elec16-elecfighter-design.md), phases P0 to P3: built from its folder as
- * gen:elec16 builds it and fought on the core. The fighters are drawn meshes streamed into a room
+ * gen:elec16 builds it and fought on the core, from its boot log through the title, the select
+ * and the versus to the ladder's end. The fighters are drawn meshes streamed into a room
  * of cells each (P3), their boxes drafted from the drawings; a test drives
  * either through the fighters' one entry (`ctl` 2 and `extHeld`, the buttons as the engine reads
  * them) or the pad, places them by their RAM, and reads the outcome there by the globals' names.
@@ -33,6 +36,8 @@ const built = buildKit(DIR, meta)
 if ('errors' in built) throw new Error(JSON.stringify(built.errors))
 const cart = built.image
 const at = globalsOf(built.report.asm)
+const assetsText = built.report.assets
+const asmText = built.report.asm
 const addr = (name: string) => {
   const a = at.get(name)
   if (a === undefined) throw new Error(`no ${name}`)
@@ -46,6 +51,9 @@ const I = { up: 1, down: 2, back: 4, fwd: 8, lp: 16, hp: 32, lk: 64, hk: 128 }
 const ST = { stand: 0, crouch: 1, prejump: 2, jump: 3, land: 4, attack: 5, hit: 6, guard: 7 }
 const ST2 = { down: 8, wake: 9, dead: 10, throw: 11, thrown: 12, dash: 13, backdash: 14 }
 const PH = { round: 0, fight: 1, over: 2, end: 3 }
+/** The screens (engine/main.e16.ts `screen`), design 5.4's. */
+const SC = { boot: 1, title: 2, controls: 3, select: 4, versus: 5, fight: 6, result: 7 }
+const SC2 = { cont: 8, over: 9, clear: 10, best: 11 }
 /** The moves' rows (moves.txt). */
 const MV = { sLP: 0, sHP: 1, sLK: 2, sHK: 3, cLP: 4, cHP: 5, cLK: 6, cHK: 7, jLP: 8, jHP: 9 }
 const MV2 = { jLK: 10, jHK: 11, throw: 12 }
@@ -74,28 +82,54 @@ const MIRROR = 3
 
 const CLOCK = { second: 12, minute: 34, hour: 5, day: 8, month: 10, year: 2026, weekday: 4 }
 
-/** PLAY-320 with the clock at `clock`, the cartridge started, its title up. */
-function boot(clock = CLOCK): Elec16 {
+/** PLAY-320 with the clock at `clock` (and `save` in its save RAM), the cartridge started. */
+function power(clock = CLOCK, save?: Uint8Array): Elec16 {
   const m = Elec16.boot(ROM.image, 'play-320', undefined, XRAM_MAX)
   m.setClock(clock)
   settle(m, cart)
+  if (save !== undefined) m.insertCart(cart, new Uint8Array(32), save)
   tap(m, padBit('start'), cart)
-  frames(m, 20, cart)
   return m
 }
 
+/** Frames until the screen is `sc`, at most `n`. */
+function until(m: Elec16, sc: number, n = 600): void {
+  for (let k = 0; k < n && read(m, 'screen') !== sc; k++) frames(m, 1, cart)
+  expect(read(m, 'screen')).toBe(sc)
+}
+
+/** The cartridge started and its boot log skipped with START: the title. */
+function boot(clock = CLOCK, save?: Uint8Array): Elec16 {
+  const m = power(clock, save)
+  expect(read(m, 'screen')).toBe(SC.boot)
+  tap(m, padBit('start'), cart)
+  until(m, SC.title, 20)
+  return m
+}
+
+/** From the title: START, VERSUS CPU (the controls the first time, START past them), the select. */
+function toSelect(m: Elec16): void {
+  tap(m, padBit('start'), cart)
+  tap(m, padBit('a'), cart)
+  if (read(m, 'screen') === SC.controls) tap(m, padBit('start'), cart)
+  until(m, SC.select, 4)
+}
+
 /**
- * From the title, START: the ladder from its place `at` (0 the first, PACKET in S2 RUSH, for
- * S1), until the fight begins; P1 in `slot` (S1 BALANCE unless said), each side driven as
- * `drive` says (2 from outside, 1 the CPU).
+ * From the title to the fight: the select's cursor starts on P1's `slot` (S1 BALANCE unless said)
+ * and A takes it; the ladder from its place `at` (0 the first, PACKET in S2 RUSH, for S1); the
+ * versus and the round's banner go by until the fight begins, each side driven as `drive` says
+ * (2 from outside, 1 the CPU).
  */
 function fight(m = boot(), drive: [number, number] = [2, 2], slot = 0, at = 0): Elec16 {
   put(m, 'choice', slot, 0)
   put(m, 'choice', at, 1)
-  tap(m, padBit('start'), cart)
+  toSelect(m)
+  tap(m, padBit('a'), cart)
   put(m, 'ctl', drive[0], 0)
   put(m, 'ctl', drive[1], 1)
-  for (let k = 0; k < 240 && read(m, 'phase') !== PH.fight; k++) frames(m, 1, cart)
+  for (let k = 0; k < 400 && (read(m, 'screen') !== SC.fight || read(m, 'phase') !== PH.fight); k++)
+    frames(m, 1, cart)
   expect(read(m, 'phase')).toBe(PH.fight)
   return m
 }
@@ -161,18 +195,19 @@ function perLine(m: Elec16): number[] {
 }
 
 describe('ELECFIGHTER as built', () => {
-  it('keeps its folder in step with its build, and is not on the shelf before P3', () => {
+  it('is what games.json holds (on the shelf from P3), and its folder keeps its build', () => {
     expect(readFileSync(`${DIR}/assets.e16.ts`, 'utf8')).toBe(built.report.assets)
     expect(readFileSync(`${DIR}/compiled.s`, 'utf8')).toBe(built.report.asm)
     expect(readCart(cart)).toMatchObject({ id: 'ELECFIGHTER', name: 'ELECFIGHTER', saveBanks: 1 })
+    expect(meta.shelf).toBeUndefined()
     const file = JSON.parse(readFileSync('resources/elec16/games/games.json', 'utf8'))
-    const ids = file.games.map(
-      (g: { data: string }) => readCart(fromBase64(g.data) ?? new Uint8Array())?.id,
-    )
-    expect(ids).not.toContain('ELECFIGHTER')
+    const images = file.games.map((g: { data: string }) => fromBase64(g.data) ?? new Uint8Array())
+    expect(images.find((i: Uint8Array) => readCart(i)?.id === 'ELECFIGHTER')).toEqual(cart)
   })
 
   it("keeps its code within RAM's 20 KB, its globals below the code, its tiles within 1,024", () => {
+    // Measured 2026-10-08 with the screens and the sound (P3): 18,986 bytes of RAM's 20,480 (the
+    // kit's sound in RAM, the screens in banks 5-7).
     expect(built.report.ramCode).toBeLessThanOrEqual(20 * 1024)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
     expect(Math.max(...at.values())).toBeLessThan(0x2000)
@@ -431,14 +466,15 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
 
   it('leaves no point alone in any picture, and every picture within its room of 32 cells', () => {
     for (const [s, art] of ARTS.entries()) {
-      expect(art.rows.length, SLOT_IDS[s]).toBe(62)
+      // The pose rows, then the KO's pieces cut from the down pose and from the falling one.
+      expect(art.rows.length, SLOT_IDS[s]).toBe(63)
       for (const [r, row] of art.rows.entries()) {
         const [first = 0, count = 0] = row
         expect(count, `${SLOT_IDS[s]} row ${r}`).toBeGreaterThan(0)
         expect(count).toBeLessThanOrEqual(32)
         expect(first + count).toBeLessThanOrEqual(art.frames)
       }
-      // The pose rows (the last is the KO's pieces, each a piece of its own).
+      // The pose rows (the last two are the KO's pieces, each a piece of its own).
       for (let r = 0; r < 61; r++) expect(isolatedIn(art.picture(r)), `row ${r}`).toBe(0)
     }
   })
@@ -486,8 +522,10 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
 
   it('fits the cartridge and video memory: rooms, effects and stage within 1,024 tiles, 1 MB', () => {
     // Measured 2026-10-08: 59 banks (472 KB of 1,024; the four slots' cells 330 KB), 710 tiles.
+    // With the screens and the sound (P3): 70 banks (560 KB), 932 tiles - the stage, the title's
+    // map and the busts sharing one place (never shown together).
     expect(built.report.banks).toBeLessThanOrEqual(128)
-    expect(built.report.banks).toBeLessThanOrEqual(62)
+    expect(built.report.banks).toBeLessThanOrEqual(72)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
     // Two rooms of 32 cells (4 tiles each) from the first slot's sheet, the others none.
     const constant = (name: string) =>
@@ -702,7 +740,8 @@ describe('ELECFIGHTER moving (P0)', () => {
     // One alone walks back to the wall.
     place(m, 200, 300)
     steps(m, 200, I.back)
-    expect(read(m, 'fX', 0)).toBe((32 + 14) * 16)
+    // S1's body is 36 points wide (fighters/s1/boxes.txt): its half from the wall.
+    expect(read(m, 'fX', 0)).toBe((32 + 18) * 16)
   })
 
   it('pushes bodies apart on the ground, half each, and the camera follows the middle', () => {
@@ -1034,6 +1073,51 @@ function rowText(m: Elec16, y: number): string {
   }
   return s.trim()
 }
+
+/** The large letters (engine/draw.e16.ts, art/big.png), 2 tiles by 3 each, in their order. */
+const BIG_CHARS = 'ABCDEFGHIKLMNOPRSTUVWY.?123'
+const BIG_TILE = Number(/export const BIG_TILE = (0x[0-9a-f]+)/.exec(assetsText)?.[1])
+
+/** BG1's row `y` read as the tops of large letters (a narrow space between words). */
+function bigText(m: Elec16, y: number): string {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  let s = ''
+  for (let x = 0; x < 40; x++) {
+    const at = 0xa000 + y * 128 + x * 2
+    const t = (((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)) & 0x3ff) - BIG_TILE
+    if (t >= 0 && t < BIG_CHARS.length * 6) {
+      if (t % 6 === 0) s += BIG_CHARS[t / 6]
+    } else s += ' '
+  }
+  return s.trim().replace(/ +/g, ' ')
+}
+
+/** A global's size in bytes: an array's as e16c lays it out, a word's 2. */
+function sizeOf(name: string): number {
+  const m = new RegExp(`^${name} = 0x[0-9a-f]+ ; (\\d+) bytes$`, 'm').exec(asmText)
+  return m ? Number(m[1]) : 2
+}
+
+/** The kit's sound's state (lib/sound.e16.ts): it goes on through a pause, the music muted. */
+const SOUND_STATE = [
+  'chBank',
+  'chSong',
+  'chAt',
+  'chLoop',
+  'chWait',
+  'chGate',
+  'chFreq',
+  'lastFreq',
+  'chLen',
+  'chHeld',
+  'chDrop',
+  'chVol',
+  'chInstVol',
+  'chOn',
+  'muted',
+  'opTook',
+  'sfxHeard',
+]
 
 /** Colour `k` of palette slot `slot` as shown, and as kept (`palCopy`). */
 const shown = (m: Elec16, slot: number, k: number) => {
@@ -1501,16 +1585,20 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
     const m = fight(boot(), [2, 1], 0, MIRROR)
     expect(rowOf(m, 1, O2.read)).toBe(Math.min(255, (opponents[4]?.[O2.read] ?? 0) + 3 * 26))
     const wake = (button: number) => wakeBeside(m, button)
+    // Counted from here: the seed (the select's press) may give it a read before.
+    const hits = read(m, 'readHits', 1)
+    const miss = read(m, 'readMiss', 1)
     const kept = Array.from({ length: 10 }, () => wake(I.down | I.lp))
     // Twice before it knows; from then on it reads the strike and is crouched guarding.
     expect(kept.slice(0, 2).map((r) => r.guarded)).toEqual([1, 1])
     expect(kept.slice(2).map((r) => r.guarded)).toEqual(Array(8).fill(2))
-    expect(read(m, 'readHits', 1)).toBe(8)
-    expect(read(m, 'readMiss', 1)).toBe(0)
+    // Eight reads of the habit right (another of the fight's moments may be read right too).
+    expect(read(m, 'readHits', 1) - hits).toBeGreaterThanOrEqual(8)
+    expect(read(m, 'readMiss', 1) - miss).toBe(0)
     // The habit changed: still reading the strike, it guards and is thrown.
     const changed = wake(I.fwd | I.hp)
     expect(changed.threw).toBe(1)
-    expect(read(m, 'readMiss', 1)).toBe(1)
+    expect(read(m, 'readMiss', 1) - miss).toBe(1)
   })
 
   it('logs READ when a read was right', () => {
@@ -1570,13 +1658,15 @@ function wakeBeside(m: Elec16, button: number): { guarded: number; threw: number
 }
 
 describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
-  /** The globals but the kit's pad and frame count (what a pause may move). */
+  /**
+   * The globals but the kit's pad and frame count and the sound's channels (the music goes on
+   * muted, design 9): what a pause may move.
+   */
   const frozen = (m: Elec16) => {
     const ram = globals(m)
-    for (const name of ['padIs', 'padWas', 'padDown', 'seen']) {
+    for (const name of ['padIs', 'padWas', 'padDown', 'seen', ...SOUND_STATE]) {
       const a = addr(name) - 0x280
-      ram[a] = 0
-      ram[a + 1] = 0
+      ram.fill(0, a, a + sizeOf(name))
     }
     return ram
   }
@@ -1607,14 +1697,17 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
       const k = 1
       expect(shown(m, slot, k), `slot ${slot}`).toBeLessThan(kept(m, slot, k))
     }
-    for (const slot of [1, 2, 3, 4, 5]) {
+    for (const slot of [1, 2, 3, 4, 5, 6]) {
       for (let k = 1; k < 16; k++) expect(shown(m, slot, k)).toBe(kept(m, slot, k))
     }
-    expect(rowText(m, 16)).toBe('PAUSED')
-    expect([19, 20, 21].map((y) => rowText(m, y))).toEqual(['> RESUME', 'CONTROLS', 'QUIT FIGHT'])
+    expect(bigText(m, 14)).toBe('PAUSED')
+    expect([20, 21, 22].map((y) => rowText(m, y))).toEqual(['> RESUME', 'CONTROLS', 'QUIT FIGHT'])
+    // The music muted (its channels go on unheard), the effects still heard.
+    expect(read(m, 'muted')).toBe(0x0fff)
     // RESUME: as it was, and the fight goes on.
     tap(m, padBit('a'), cart)
     expect(read(m, 'paused')).toBe(0)
+    expect(read(m, 'muted')).toBe(0)
     expect(shown(m, 9, 1)).toBe(kept(m, 9, 1))
     const t = read(m, 'timeT')
     steps(m, 3)
@@ -1626,14 +1719,15 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
     tap(m, padBit('start'), cart)
     tap(m, padBit('down'), cart)
     tap(m, padBit('a'), cart)
-    expect(rowText(m, 6)).toBe('CONTROLS')
+    expect(read(m, 'screen')).toBe(SC.controls)
+    expect(rowText(m, 2)).toBe('CONTROLS')
     tap(m, padBit('b'), cart)
-    expect(rowText(m, 16)).toBe('PAUSED')
+    expect(bigText(m, 14)).toBe('PAUSED')
     tap(m, padBit('down'), cart)
     tap(m, padBit('a'), cart)
     expect(read(m, 'ladderEnd')).toBe(3)
     frames(m, 4, cart)
-    expect(rowText(m, 9)).toBe('PRESS START')
+    expect(read(m, 'screen')).toBe(SC.title)
   })
 
   /** P1's light punch in P2's heavy kick's startup: a counter hit, with the log on or off. */
@@ -1658,11 +1752,17 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
     steps(m, 10)
     expect(rowText(m, LOG_ROW)).toBe('')
     expect(shown(m, 5, 1)).toBe(kept(m, 5, 1))
-    // A on the controls (the title, until P3) turns it off, and the save RAM keeps it.
+    // A on the controls (from the title's menu) turns it off, and the save RAM keeps it.
     const off = boot()
+    tap(off, padBit('start'), cart)
+    tap(off, padBit('down'), cart)
     tap(off, padBit('a'), cart)
-    expect(rowText(off, 12)).toContain('LOG OFF')
+    expect(read(off, 'screen')).toBe(SC.controls)
+    tap(off, padBit('a'), cart)
+    expect(rowText(off, 30)).toContain('LOG OFF')
     expect(read(off, 'logOff')).toBe(1)
+    tap(off, padBit('start'), cart)
+    until(off, SC.title, 4)
     const n = counter(off)
     expect(rowText(n, LOG_ROW)).toBe('')
   })
@@ -1699,7 +1799,9 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     expect(read(m, 'phase')).toBe(PH.over)
     for (
       let k = 0;
-      k < 600 && read(m, 'phase') !== PH.fight && rowText(m, 16) !== 'CONTINUE?';
+      k < 1500 &&
+      (read(m, 'phase') !== PH.fight || read(m, 'screen') !== SC.fight) &&
+      read(m, 'screen') !== SC2.cont;
       k++
     ) {
       step(m)
@@ -1716,10 +1818,10 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     // Lost twice: CONTINUE? and a count; START plays the same one again.
     koRound(m, 0)
     koRound(m, 0)
-    expect(rowText(m, 16)).toBe('CONTINUE?')
-    expect(rowText(m, 19)).toBe('9')
+    expect(bigText(m, 14)).toBe('CONTINUE?')
+    expect(read(m, 'contN')).toBe(9)
     steps(m, 61)
-    expect(rowText(m, 19)).toBe('8')
+    expect(read(m, 'contN')).toBe(8)
     tap(m, padBit('start'), cart)
     for (let k = 0; k < 300 && read(m, 'phase') !== PH.fight; k++) step(m)
     expect(read(m, 'ladderAt')).toBe(1)
@@ -1741,11 +1843,13 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     // moves) on 2026-10-08: 17,271 on average and 25,413 at worst. With the drawn fighters (P3:
     // a pose's cells streamed by one load, its sprites laid from its row, the palettes' effects,
     // the KO's pieces; in bank 4) on 2026-10-08: 16,673 and 29,116, 16 sprites at most on a line.
+    // With the screens and the sound (P3) on 2026-10-08: 17,191 to 18,030 and 29,189 to 32,084 (the
+    // ladder the seed gives moves with any change to the code before START), 16 sprites.
     expect(r.avg).toBeLessThan(25_000)
     expect(r.worst).toBeLessThan(40_000)
     expect(r.line).toBeLessThanOrEqual(32)
-    expect(r.avg).toBeLessThanOrEqual(17_500)
-    expect(r.worst).toBeLessThanOrEqual(31_000)
+    expect(r.avg).toBeLessThanOrEqual(19_000)
+    expect(r.worst).toBeLessThanOrEqual(34_000)
     // P1's CPU kept standing: it beats all four in turn, ROOT last, to SYSTEM CLEAR.
     const c = boot()
     put(c, 'choice', ROOT_ROW, 2)
@@ -1857,11 +1961,14 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     // raster (the floor a line at a time) on 2026-10-08: the scripted match 15,451 and 24,489
     // over 1,749 frames, two CPUs' 16,667 and 24,499 over 3,125. With the drawn fighters (P3) on
     // 2026-10-08: the scripted match 15,355 and 27,644 over 2,575 frames, two CPUs' 16,521 and
-    // 30,078 over 2,460; 16 sprites on the busiest line.
-    expect(scripted.avg).toBeLessThanOrEqual(16_000)
-    expect(scripted.worst).toBeLessThanOrEqual(29_000)
-    expect(cpus.avg).toBeLessThanOrEqual(17_500)
-    expect(cpus.worst).toBeLessThanOrEqual(31_500)
+    // 30,078 over 2,460; 16 sprites on the busiest line. With the screens and the sound (P3: the
+    // kit's sound ticked every frame, the fight's effects heard in the look, the wider bodies) on
+    // 2026-10-08: the scripted match 16,597 and 32,696 over 2,780 frames, two CPUs' 17,430 and
+    // 30,388 over 3,519; 26 sprites on the busiest line.
+    expect(scripted.avg).toBeLessThanOrEqual(17_500)
+    expect(scripted.worst).toBeLessThanOrEqual(34_000)
+    expect(cpus.avg).toBeLessThanOrEqual(18_500)
+    expect(cpus.worst).toBeLessThanOrEqual(32_500)
   })
 })
 
@@ -1915,5 +2022,533 @@ describe('ELECFIGHTER the look (P3, design 2.4)', () => {
     for (let k = 0; k < 200 && read(m, 'phase') !== PH.fight; k++) step(m)
     expect(read(m, 'shOn', 1)).toBe(0)
     expect(read(m, 'artHold', 1)).toBe(0)
+  })
+})
+
+/* ---------------- P3: the screens, the sound, save RAM, the polish ---------------- */
+
+/** The effects' numbers (engine/audio.e16.ts). */
+const X = { light: 0, heavy: 1, guard: 2, whiff: 3, dash: 4, throw: 5, land: 6, down: 7 }
+const X2 = { shards: 8, round: 9, fight: 10, time: 11, ko: 12, mat: 13, move: 14, ok: 15 }
+const hear = (m: Elec16, k: number) => (read(m, 'sfxHeard') & (1 << k)) !== 0
+
+/** The cartridge's save RAM as it is now, and a word of it. */
+const saveOf = (m: Elec16) => Uint8Array.from(m.state.cart?.save ?? [])
+const saveWord = (save: Uint8Array, k: number) => (save[k] ?? 0) | ((save[k + 1] ?? 0) << 8)
+
+/** A round won by P1 or lost (`loser`): the loser at one life, a light punch, the round's end. */
+function roundTo(m: Elec16, loser: number): void {
+  place(m, 236, 270)
+  put(m, 'fLife', 1, loser)
+  for (let k = 0; k < 10 && read(m, 'phase') === PH.fight; k++) {
+    step(m, loser === 1 && k === 0 ? I.lp : 0, loser === 0 && k === 0 ? I.lp : 0)
+  }
+  expect(read(m, 'phase')).toBe(PH.over)
+  for (let k = 0; k < 200 && read(m, 'phase') === PH.over; k++) step(m)
+}
+
+/** A match: two rounds to `loser`'s loss, on to the result after its END band. */
+function matchTo(m: Elec16, loser: number): void {
+  roundTo(m, loser)
+  for (let k = 0; k < 200 && read(m, 'phase') !== PH.fight; k++) step(m)
+  roundTo(m, loser)
+  until(m, SC.result, 400)
+  // The result takes a press from its 20th frame.
+  frames(m, 20, cart)
+}
+
+/** BG1's row `y` from column `x`, `n` columns, as the font's words. */
+function textAt(m: Elec16, x: number, y: number, n: number): string {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  let s = ''
+  for (let k = 0; k < n; k++) {
+    const at = 0xa000 + y * 128 + (x + k) * 2
+    const t = ((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)) & 0x3ff
+    s += t < 128 ? String.fromCharCode(32 + (t & 63)) : ' '
+  }
+  return s.trim()
+}
+
+describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () => {
+  it('goes from the boot log through the title, controls, select, versus and fights to the results', () => {
+    const m = power()
+    expect(read(m, 'screen')).toBe(SC.boot)
+    expect(rowText(m, 3)).toBe('ELEC-16 PLAY  ELECFIGHTER')
+    // The log's lines one by one, then the title by itself.
+    frames(m, 40, cart)
+    expect(rowText(m, 7)).toContain('LOADING FIGHTER DATA')
+    expect(rowText(m, 13)).toBe('')
+    until(m, SC.title, 120)
+    expect(read(m, 'songNow')).toBe(1)
+    // START: the menu; A: VERSUS CPU, the controls first (the first time), START past them.
+    tap(m, padBit('start'), cart)
+    expect([13, 14, 15].map((y) => rowText(m, y))).toEqual(['> VERSUS CPU', 'CONTROLS', 'BEST'])
+    tap(m, padBit('a'), cart)
+    expect(read(m, 'screen')).toBe(SC.controls)
+    tap(m, padBit('start'), cart)
+    until(m, SC.select, 4)
+    expect(read(m, 'songNow')).toBe(2)
+    expect(rowText(m, 1)).toBe('SELECT FIGHTER                  VS CPU')
+    // B goes back to the title; the second VERSUS CPU goes straight to the select.
+    tap(m, padBit('b'), cart)
+    until(m, SC.title, 4)
+    tap(m, padBit('start'), cart)
+    tap(m, padBit('a'), cart)
+    expect(read(m, 'screen')).toBe(SC.select)
+    // A: the win pose, then the versus, the round's banner and the fight to the stage's song.
+    tap(m, padBit('a'), cart)
+    until(m, SC.versus, 60)
+    put(m, 'ctl', 2, 0)
+    put(m, 'ctl', 2, 1)
+    until(m, SC.fight, 200)
+    expect(bigText(m, 14)).toBe('ROUND 1')
+    for (let k = 0; k < 100 && read(m, 'phase') !== PH.fight; k++) step(m)
+    expect(read(m, 'songNow')).toBe(3)
+    // Won: the result (WIN, the rounds), then the next opponent's versus.
+    matchTo(m, 1)
+    expect(bigText(m, 5)).toBe('WIN')
+    expect(textAt(m, 10, 16, 20)).toBe('ROUNDS          2-0')
+    expect(read(m, 'songNow')).toBe(4)
+    tap(m, padBit('start'), cart)
+    until(m, SC.versus, 30)
+    expect(read(m, 'ladderAt')).toBe(1)
+  })
+
+  it('counts CONTINUE? down to GAME OVER after a loss, and goes back to the title', () => {
+    const m = fight()
+    matchTo(m, 0)
+    expect(bigText(m, 5)).toBe('LOSE')
+    expect(read(m, 'songNow')).toBe(5)
+    tap(m, padBit('start'), cart)
+    until(m, SC2.cont, 10)
+    expect(bigText(m, 14)).toBe('CONTINUE?')
+    until(m, SC2.over, 700)
+    expect(read(m, 'contN')).toBe(0)
+    expect(bigText(m, 14)).toBe('GAME OVER')
+    until(m, SC.title, 200)
+    expect(read(m, 'ladderEnd')).toBe(2)
+  })
+
+  it('reaches SYSTEM CLEAR after the last, keeps the clear in save RAM, and shows it in BEST', () => {
+    const m = fight(boot(), [2, 2], 2, MIRROR)
+    matchTo(m, 1)
+    tap(m, padBit('start'), cart)
+    until(m, SC2.clear, 10)
+    expect(bigText(m, 3)).toBe('SYSTEM CLEAR')
+    expect(read(m, 'songNow')).toBe(6)
+    expect(rowText(m, 8)).toBe('S3 POWER')
+    expect(rowText(m, 13)).toBe('NEW RECORD')
+    const sec = read(m, 'clearSec')
+    expect(sec).toBeGreaterThan(0)
+    // Slot 2 (S3): one clear, its time; the streak one match.
+    const save = saveOf(m)
+    expect(saveWord(save, 16 + 2 * 8)).toBe(1)
+    expect(saveWord(save, 16 + 2 * 8 + 2)).toBe(sec)
+    expect(saveWord(save, 10)).toBe(1)
+    const mmss = (t: number) =>
+      `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
+    /** A row of the records: the slot, its clears, its best time. */
+    const record = (y: number) => [textAt(m, 4, y, 14), textAt(m, 20, y, 3), textAt(m, 29, y, 5)]
+    expect(record(22)).toEqual(['S3 POWER', '1', mmss(sec)])
+    // It takes a press from its second second.
+    frames(m, 60, cart)
+    tap(m, padBit('start'), cart)
+    until(m, SC.title, 30)
+    expect(read(m, 'ladderEnd')).toBe(1)
+    // BEST from the menu shows the same.
+    tap(m, padBit('start'), cart)
+    tap(m, padBit('down'), cart)
+    tap(m, padBit('down'), cart)
+    tap(m, padBit('a'), cart)
+    expect(read(m, 'screen')).toBe(SC2.best)
+    expect(record(12)).toEqual(['S3 POWER', '1', mmss(sec)])
+    expect(record(10)).toEqual(['S1 BALANCE', '0', '--:--'])
+    expect([textAt(m, 4, 16, 14), textAt(m, 20, 16, 3)]).toEqual(['BEST STREAK', '1'])
+  })
+
+  it('shows HOW TO PLAY and BEST in turn when the title is left alone', () => {
+    const m = boot()
+    frames(m, 365, cart)
+    expect(rowText(m, 13)).toBe('HOW TO PLAY')
+    frames(m, 360, cart)
+    frames(m, 360, cart)
+    expect(rowText(m, 13)).toBe('BEST RECORDS')
+    // The four figures drawn in, one after another, from their wire alone.
+    const n = boot()
+    frames(n, 2, cart)
+    for (const sl of [11, 12, 13, 14]) expect(shown(n, sl, 3)).toBe(kept(n, sl, 13))
+    frames(n, 200, cart)
+    for (const sl of [11, 12, 13, 14]) expect(shown(n, sl, 3)).toBe(kept(n, sl, 3))
+  })
+
+  it('tables the controls for both button sets, PAD | PC KEY | ACTION, and keeps the set', () => {
+    const m = boot()
+    tap(m, padBit('start'), cart)
+    tap(m, padBit('down'), cart)
+    tap(m, padBit('a'), cart)
+    expect(read(m, 'screen')).toBe(SC.controls)
+    const cells = (y: number) => [textAt(m, 2, y, 11), textAt(m, 13, y, 13), textAt(m, 26, y, 14)]
+    expect(cells(5)).toEqual(['PAD', 'PC KEY', 'ACTION'])
+    expect(cells(12)).toEqual(['Y', 'A', 'LIGHT PUNCH'])
+    expect(cells(13)).toEqual(['X', 'S', 'HEAVY PUNCH'])
+    expect(cells(14)).toEqual(['B', 'X', 'LIGHT KICK'])
+    expect(cells(15)).toEqual(['A', 'Z', 'HEAVY KICK'])
+    expect(cells(18)).toEqual(['SELECT', 'RIGHT SHIFT', 'BUTTON TYPE'])
+    expect(cells(19)).toEqual(['L  R', 'Q  W', 'NOT USED'])
+    expect(rowText(m, 22)).toBe('THROW     NEAR, < OR > + HEAVY PUNCH')
+    expect(textAt(m, 22, 29, 15)).toBe('TYPE A  PAD')
+    tap(m, padBit('select'), cart)
+    expect(cells(14)).toEqual(['B', 'X', 'HEAVY KICK'])
+    expect(cells(15)).toEqual(['A', 'Z', 'LIGHT KICK'])
+    expect(cells(12)).toEqual(['Y', 'A', 'LIGHT PUNCH'])
+    expect(textAt(m, 22, 29, 15)).toBe('TYPE B  PC KEYS')
+    expect(saveWord(saveOf(m), 2)).toBe(1)
+  })
+
+  it("draws each slot's bars from its tables: POWER, SPEED, REACH, DEFENSE", () => {
+    const level = (v: number, lo: number, step: number) =>
+      v <= lo ? 1 : Math.min(5, 1 + Math.floor((v - lo) / step))
+    const want = SLOT_IDS.map((id, s) => {
+      const mv = moves[s] ?? []
+      const heavy = [1, 3, 5, 7].reduce((a, k) => a + (mv[k]?.[C.damage] ?? 0), 0)
+      const pr = profiles[s] ?? []
+      const boxes = table(`fighters/${id}/poses.txt`, 24)
+      const hk = boxes[(mv[MV.sHK]?.[14] ?? 0) + 1] ?? []
+      return [
+        level(heavy, 44, 6),
+        level(pr[2] ?? 0, 15, 2),
+        level((hk[16] ?? 0) + (hk[18] ?? 0), 36, 2),
+        level((pr[0] ?? 0) + (pr[1] ?? 0), 175, 10),
+      ]
+    })
+    const m = boot()
+    toSelect(m)
+    const hud = Number(/export const HUD_TILE = (0x[0-9a-f]+)/.exec(built.report.assets)?.[1])
+    const lit = (y: number) =>
+      [0, 1, 2, 3, 4].filter((k) => {
+        const mem = m.state.video?.mem ?? new Uint8Array()
+        const at = 0xa000 + y * 128 + (29 + k * 2) * 2
+        return (((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)) & 0x3ff) === hud + 8 + 80
+      }).length
+    const got: number[][] = []
+    for (let s = 0; s < 4; s++) {
+      const bars = [0, 1, 2, 3].map((k) => read(m, 'bars', k))
+      got.push(bars)
+      expect([22, 24, 26, 28].map(lit), `slot ${s}`).toEqual(bars)
+      expect(textAt(m, 19, 17, 15)).toBe(['S1 BALANCE', 'S2 RUSH', 'S3 POWER', 'S4 OUTBOX'][s])
+      tap(m, padBit('right'), cart)
+    }
+    expect(got).toEqual(want)
+    // The bars tell the slots apart: no bar is the same for all four.
+    for (let k = 0; k < 4; k++) expect(new Set(got.map((g) => g[k])).size).toBeGreaterThan(1)
+  })
+
+  it("names the opponent's program on the versus with three lines on its style, never its habit", () => {
+    const never = ['THROW', 'HABIT', 'ALWAYS', 'LOW', 'MID', 'CROUCH', 'JUMP', 'READ', 'CYCLE']
+    const seen: string[] = []
+    for (const [slot, place] of [
+      [0, 0],
+      [0, 1],
+      [0, 2],
+      [1, 2],
+      [0, 3],
+    ] as const) {
+      const m = boot()
+      put(m, 'choice', slot, 0)
+      put(m, 'choice', place, 1)
+      toSelect(m)
+      tap(m, padBit('a'), cart)
+      until(m, SC.versus, 60)
+      frames(m, 40, cart)
+      const k = read(m, 'ladder', place)
+      const name = ['PACKET', 'MAINFRAME', 'DAEMON', 'KERNEL', 'ROOT'][k] ?? ''
+      expect(rowText(m, 10)).toBe(`PROGRAM ${name}`)
+      for (const l of [12, 13, 14].map((y) => rowText(m, y))) {
+        expect(l.length).toBeGreaterThan(5)
+        for (const w of never) expect(l, `${name}: ${l}`).not.toMatch(new RegExp(`\\b${w}`))
+      }
+      seen.push(name)
+      // RENDER to 100%, the fills there by then.
+      expect(textAt(m, 4, 31, 12)).toBe('RENDER 100%')
+      expect(shown(m, 9, 3)).toBe(kept(m, 9, 3))
+    }
+    expect(seen).toEqual(['PACKET', 'MAINFRAME', 'DAEMON', 'KERNEL', 'ROOT'])
+  })
+
+  it('keeps the button set, the log and the records in save RAM, marked EF and versioned', () => {
+    const m = boot()
+    let save = saveOf(m)
+    expect(saveWord(save, 0)).toBe(0x4645)
+    expect([2, 4, 6, 8].map((k) => saveWord(save, k))).toEqual([0, 0, 1, 0])
+    // TYPE B on the title, the log off on the controls (the first VERSUS CPU marks them seen).
+    tap(m, padBit('select'), cart)
+    tap(m, padBit('start'), cart)
+    tap(m, padBit('a'), cart)
+    tap(m, padBit('a'), cart)
+    tap(m, padBit('start'), cart)
+    until(m, SC.select, 4)
+    save = saveOf(m)
+    expect([2, 4, 8].map((k) => saveWord(save, k))).toEqual([1, 1, 1])
+    // Switched on again with it: TYPE B, the log off, VERSUS CPU straight to the select.
+    const again = boot(CLOCK, save)
+    expect([read(again, 'buttonSet'), read(again, 'logOff')]).toEqual([1, 1])
+    tap(again, padBit('start'), cart)
+    tap(again, padBit('a'), cart)
+    expect(read(again, 'screen')).toBe(SC.select)
+    // P2's layout (the mark, TYPE, LOG, nothing after): its two words kept, the rest new.
+    const old = new Uint8Array(8192).fill(0x55)
+    for (const [k, v] of [
+      [0, 0x4645],
+      [2, 1],
+      [4, 0],
+    ] as const) {
+      old[k] = v & 255
+      old[k + 1] = v >> 8
+    }
+    const up = boot(CLOCK, old)
+    expect([read(up, 'buttonSet'), read(up, 'logOff')]).toEqual([1, 0])
+    const now = saveOf(up)
+    expect([6, 8, 10, 16, 18, 16 + 7 * 8 + 2].map((k) => saveWord(now, k))).toEqual([
+      1, 0, 0, 0, 0, 0,
+    ])
+  })
+})
+
+describe('ELECFIGHTER sound (P3, design 9)', () => {
+  const songs: Song[] = [
+    ...compileSongs(readFileSync(`${DIR}/music/songs.mml`, 'utf8')),
+    ...compileSongs(readFileSync(`${DIR}/music/sfx.mml`, 'utf8')),
+  ]
+
+  it('has its songs on 0-11 with every channel in step, its effects on 12-15', () => {
+    expect(songs.filter((s) => !s.name.startsWith('x_')).map((s) => s.name)).toEqual([
+      'title',
+      'select',
+      'fight',
+      'win',
+      'lose',
+      'clear',
+    ])
+    for (const song of songs) {
+      const effect = song.name.startsWith('x_')
+      for (const ch of song.channels) {
+        expect(ch.channel < 12, `${song.name} C${ch.channel}`).toBe(!effect)
+        expect(ch.channel).toBeLessThan(CHANNELS)
+      }
+      if (effect) continue
+      // Looped: every channel's loop the same length; once through: every channel ends together.
+      const loops = new Set(loopFrames(song).values())
+      expect([...loops], song.name).toHaveLength(loops.size > 0 ? 1 : 0)
+      if (loops.size === 0) expect(new Set(channelFrames(song).values()).size, song.name).toBe(1)
+    }
+    // Whole bars: the fight's loop is 8 bars of 80 frames (tempo 5), the title's of 112.
+    const loopOf = (n: string) =>
+      [...loopFrames(songs.find((s) => s.name === n) as Song).values()][0]
+    expect(loopOf('fight')).toBe(8 * 80)
+    expect(loopOf('title')).toBe(8 * 112)
+    expect(songs.filter((s) => s.name.startsWith('x_'))).toHaveLength(16)
+  })
+
+  it('hears the fight by event: hits light and heavy, guards, swings, dashes, throws, landings, falls', () => {
+    const m = fight()
+    const strike = (h0: number, h1 = 0) => {
+      place(m, 236, 270)
+      put(m, 'sfxHeard', 0)
+      for (let k = 0; k < 20 && read(m, 'struck', 0) === 0; k++) step(m, k === 0 ? h0 : 0, h1)
+    }
+    strike(I.lp)
+    expect([hear(m, X.light), hear(m, X.whiff), hear(m, X.heavy)]).toEqual([true, true, false])
+    steps(m, 40)
+    strike(I.hp)
+    expect(hear(m, X.heavy)).toBe(true)
+    steps(m, 60)
+    strike(I.lp, I.back)
+    expect(read(m, 'struck', 0)).toBe(2)
+    expect([hear(m, X.guard), hear(m, X.light)]).toEqual([true, false])
+    steps(m, 40)
+    // A dash, a jump's landing.
+    place(m, 150, 350)
+    put(m, 'sfxHeard', 0)
+    for (const h of [I.fwd, 0, I.fwd]) step(m, h)
+    expect(hear(m, X.dash)).toBe(true)
+    steps(m, 30)
+    put(m, 'sfxHeard', 0)
+    step(m, I.up)
+    steps(m, 60)
+    expect(hear(m, X.land)).toBe(true)
+    // A throw: its hold, then the slam's fall.
+    place(m, 236, 270)
+    put(m, 'sfxHeard', 0)
+    step(m, I.fwd | I.hp)
+    steps(m, 30)
+    expect([hear(m, X.throw), hear(m, X.down)]).toEqual([true, true])
+    // TIME's last ten, a tick a second.
+    steps(m, 60)
+    put(m, 'timeLeft', 11)
+    put(m, 'sfxHeard', 0)
+    steps(m, 61)
+    expect(hear(m, X2.time)).toBe(true)
+  })
+
+  it('cues the round, the fight, the materialising, the KO chord and the pieces; never by slot', () => {
+    const m = fight()
+    roundTo(m, 1)
+    put(m, 'sfxHeard', 0)
+    for (let k = 0; k < 300 && read(m, 'phase') !== PH.fight; k++) step(m)
+    // The look hears the phase as the frame after it changed draws it.
+    step(m)
+    expect([X2.round, X2.mat, X2.fight].map((x) => hear(m, x))).toEqual([true, true, true])
+    place(m, 236, 270)
+    put(m, 'fLife', 1, 1)
+    put(m, 'sfxHeard', 0)
+    for (let k = 0; k < 30 && read(m, 'phase') !== PH.over; k++) step(m, k === 0 ? I.lp : 0)
+    for (let k = 0; k < 60 && read(m, 'phaseT') < 45; k++) step(m)
+    expect([hear(m, X2.ko), hear(m, X2.shards)]).toEqual([true, true])
+    // The look hears what happened, never which slot: no branch on a fighter's slot there.
+    const look = readFileSync(`${DIR}/engine/look.e16.ts`, 'utf8')
+    expect(look).not.toMatch(/fSlot\[[^\]]*\]\s*[!=]==/)
+  })
+})
+
+/** P2 knocked out on the ground (or, `air`, lifted into the air as it breaks): its picture's row then. */
+function koPieces(air: boolean): number[] {
+  const m = fight()
+  place(m, 236, 270)
+  put(m, 'fLife', 1, 1)
+  for (let k = 0; k < 30 && read(m, 'phase') !== PH.over; k++) step(m, k === 0 ? I.hp : 0)
+  for (let k = 0; k < 60 && read(m, 'phaseT') < 39; k++) step(m)
+  if (air) {
+    put(m, 'fAir', 1, 1)
+    put(m, 'fY', 50 * 16, 1)
+  }
+  for (let k = 0; k < 5 && read(m, 'shOn', 1) === 0; k++) step(m)
+  expect(read(m, 'shOn', 1)).toBe(1)
+  return Array.from({ length: 34 }, (_, k) => read(m, 'art', 34 + k))
+}
+
+describe('ELECFIGHTER the polish (P3)', () => {
+  it("keeps standing fighters' pictures from overlapping more than 8 points at their closest", () => {
+    // The body boxes are the drawn torso's width: two face to face as close as their bodies let
+    // them overlap their guards by a few points (16 with P2's 28-point boxes).
+    const half = (s: number) => (ARTS[s]?.boxes[0]?.[2] ?? 0) / 2
+    const front = (s: number, r: number) =>
+      Math.max(...[...(ARTS[s]?.picture(r).keys() ?? [])].map((k) => Number(k.split(',')[0])))
+    for (let a = 0; a < 4; a++)
+      for (let b = 0; b < 4; b++)
+        for (const r of [0, 7, 60]) {
+          const over = front(a, r) + front(b, r) + 2 - (half(a) + half(b))
+          expect(over, `${SLOT_IDS[a]} ${SLOT_IDS[b]} row ${r}`).toBeLessThanOrEqual(8)
+        }
+    // On the core: walked into each other, they stand their halves apart.
+    const m = fight()
+    place(m, 250, 254)
+    steps(m, 10, I.fwd, I.fwd)
+    const gap = (read(m, 'fX', 1) - read(m, 'fX', 0)) >> 4
+    expect(gap).toBe(half(read(m, 'fSlot', 0)) + half(read(m, 'fSlot', 1)))
+  })
+
+  it("stands every picture on the foot line: the stand's lowest point on it", () => {
+    for (const [s, art] of ARTS.entries()) {
+      const lowest = Math.max(...[...art.picture(0).keys()].map((k) => Number(k.split(',')[1])))
+      expect(lowest, SLOT_IDS[s]).toBe(0)
+    }
+  })
+
+  it('breaks a fighter knocked out into the pieces of the pose it is in: down, or falling', () => {
+    const rows = ARTS[1]?.rows ?? []
+    expect(koPieces(false)).toEqual(rows[61])
+    expect(koPieces(true)).toEqual(rows[62])
+    // The pieces of the down pose lie low; the falling one's reach higher.
+    const top = (r: number[]) =>
+      Math.min(...r.slice(2, 2 + (r[1] ?? 0)).map((w) => (w << 16) >> 24))
+    expect(top(rows[61] ?? [])).toBeGreaterThan(top(rows[62] ?? []))
+  })
+
+  it('blinks the wire under a quarter of the life, and turns it magenta while thrown', () => {
+    const m = fight()
+    place(m, 236, 270)
+    put(m, 'fLife', 20, 1)
+    const wire = new Set<number>()
+    for (let k = 0; k < 40; k++) {
+      step(m)
+      wire.add(shown(m, 9, 1))
+    }
+    expect([...wire].sort()).toEqual([kept(m, 9, 1), kept(m, 9, 2)].sort())
+    put(m, 'fLife', 90, 1)
+    place(m, 236, 270)
+    step(m, I.fwd | I.hp)
+    for (let k = 0; k < 10 && read(m, 'fState', 1) !== ST2.thrown; k++) step(m)
+    step(m)
+    expect(read(m, 'fState', 1)).toBe(ST2.thrown)
+    expect([shown(m, 9, 1), shown(m, 9, 2)]).toEqual([0x759f, 0x48d3])
+    expect(shown(m, 8, 1)).toBe(kept(m, 8, 1))
+  })
+
+  it('shows a hit spark that fills its 32-point frame', () => {
+    const p = pictureFile(`${DIR}/art/spark.png`)
+    if (p === null) throw new Error('no spark')
+    for (let f = 0; f < 3; f++) {
+      const xs: number[] = []
+      for (let k = 0; k < 32 * 32; k++)
+        if ((p.data[((k >> 5) * p.width + f * 32 + (k & 31)) * 4 + 3] ?? 0) >= 128) xs.push(k & 31)
+      expect(Math.max(...xs) - Math.min(...xs) + 1, `frame ${f}`).toBeGreaterThanOrEqual(22)
+    }
+  })
+})
+
+describe('ELECFIGHTER every screen within the frame (P3)', { timeout: 300_000 }, () => {
+  it('runs the boot log, title, select, versus, fight and result within the budget, 32 sprites a line', () => {
+    const m = power()
+    const by = new Map<number, number[]>()
+    const lines = new Map<number, number>()
+    let last = -1
+    /** `n` frames with `pad` pressed now and then; a frame that changes the screen is not counted. */
+    const run = (n: number, pad = 0) => {
+      for (let k = 0; k < n; k++) {
+        const sc = read(m, 'screen')
+        if (pad !== 0 && k % 50 === 25) m.pad(pad)
+        const c0 = m.state.cycles
+        frames(m, 1, cart)
+        m.pad(0)
+        const d = m.state.cycles - c0
+        const now = read(m, 'screen')
+        if (sc === now && sc === last) {
+          by.set(sc, [...(by.get(sc) ?? []), d])
+          lines.set(sc, Math.max(lines.get(sc) ?? 0, ...perLine(m)))
+        }
+        last = now
+      }
+    }
+    run(60)
+    run(500)
+    tap(m, padBit('start'), cart)
+    tap(m, padBit('a'), cart)
+    tap(m, padBit('start'), cart)
+    run(300, padBit('right'))
+    tap(m, padBit('a'), cart)
+    put(m, 'ctl', 1, 0)
+    put(m, 'ctl', 1, 1)
+    run(3000)
+    for (let k = 0; k < 12000 && read(m, 'screen') !== SC.result; k++) frames(m, 1, cart)
+    run(200)
+    expect(m.state.halt).toBeNull()
+    const stats = [...by.entries()].map(([sc, a]) => ({
+      sc,
+      avg: a.reduce((x, y) => x + y, 0) / a.length,
+      worst: Math.max(...a),
+      line: lines.get(sc) ?? 0,
+    }))
+    expect(stats.map((s) => s.sc)).toEqual(
+      expect.arrayContaining([SC.boot, SC.title, SC.select, SC.versus, SC.fight, SC.result]),
+    )
+    // Measured 2026-10-08: the boot log 490 cycles on average and 1,400 at worst; the title
+    // 6,700 and 18,600 (23 sprites on a line: the four figures and their shadows); the select
+    // 5,700 and 33,800 (a slot's tables, words and body read as the cursor moves); the versus
+    // 17,000 and 21,300; the fight 17,500 and 31,000; the result 6,800 and 7,400.
+    for (const s of stats) {
+      expect(s.avg, `screen ${s.sc}`).toBeLessThan(25_000)
+      expect(s.worst, `screen ${s.sc}`).toBeLessThan(40_000)
+      expect(s.line, `screen ${s.sc}`).toBeLessThanOrEqual(32)
+    }
   })
 })

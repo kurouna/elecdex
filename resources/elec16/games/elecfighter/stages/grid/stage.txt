@@ -3,7 +3,7 @@
 # round begins (engine/data.e16.ts). The map is drawn for the camera in the middle of its reach
 # (`center`); each band or line of BG0 is put at center + share * (camera - center).
 #   palette   the row of art/palettes.png for background slot 0 (0: stage)
-#   music     the song's number (0: none yet)
+#   music     the song's number (engine/audio.e16.ts: 3 the fight)
 #   horizon   the screen's line of the horizon: the first line of the floor
 #   ground    the screen's line of the feet (the floor moves with the camera there)
 #   raster    0: BG0 scrolls whole with the camera; 1: the 36 bands; 2: the bands above the
@@ -11,7 +11,7 @@
 #   center    the camera the map is drawn for
 #   last      the last line the raster writes
 # palette music horizon ground raster center last
-0 0 168 244 2 96 287
+0 3 168 244 2 96 287
 # the 36 bands' share of the camera's move, in 16ths: the skyline 4, the platform's rim 8
 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 4 8 16 16 16 16 16 16 16 16 16 16 16 16 16 16 16
 # the floor's lines 168 to 287, their share in 256ths: (y - 54) / 190

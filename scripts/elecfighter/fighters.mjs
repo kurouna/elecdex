@@ -52,9 +52,35 @@ export function fighterJobs(slots, poses) {
   const jobs = {}
   for (const s of slots.slots.filter((x) => x.used)) {
     for (const p of new Set(poses.rows)) jobs[`${s.id}/${p}`] = { slot: s.id, pose: p }
-    jobs[`${s.id}/pieces`] = { kind: 'pieces', slot: s.id, pose: 'air', cell: 16, most: ROOM }
+    for (const [k, pose] of PIECES.entries())
+      jobs[`${s.id}/pieces${k}`] = { kind: 'pieces', slot: s.id, pose, cell: 16, most: ROOM }
   }
   return jobs
+}
+
+/**
+ * The KO's pieces are cut from the pose the fighter breaks in (design 2.4): lying down (the
+ * KO on the ground, a throw's, an air KO that has landed), or still falling. Rows after the
+ * poses' in art.txt, in this order (engine/data.e16.ts SHARDS_ROW, SHARDS_AIR).
+ */
+export const PIECES = ['down', 'air']
+
+/**
+ * The slot's pictures moved so the stand's lowest point is on the foot line (the camera looks
+ * down a little, so a model's origin on the ground is drawn a point or two above its nearer
+ * foot): every picture of the slot by the same amount, so the poses keep their heights.
+ */
+function onFootLine(slot, results) {
+  const stand = results[`${slot.id}/stand`]
+  let low = 0
+  for (let y = 0; y < stand.h; y++)
+    for (let x = 0; x < stand.w; x++) if (stand.px[y * stand.w + x]) low = y
+  const lift = low - stand.oy
+  for (const [id, r] of Object.entries(results)) {
+    if (!id.startsWith(`${slot.id}/`)) continue
+    for (const s of Array.isArray(r) ? r : [r]) s.oy += lift
+  }
+  return lift
 }
 
 /**
@@ -281,12 +307,16 @@ function writeSlot(slot, results, poses, game, docs) {
   const id = slot.id.toLowerCase()
   const dir = path.join(game, 'fighters', id)
   mkdirSync(path.join(dir, 'art'), { recursive: true })
+  const lift = onFootLine(slot, results)
   const { frames, rows, distinct, isolatedLeft, most } = cutSlot(slot, results, poses)
   const cellsN = frames.length
-  // The KO's pieces of its own mesh, a cell each, after the poses.
-  const pieces = results[`${slot.id}/pieces`].map(pieceCell)
-  rows.push({ first: frames.length, cs: pieces })
-  for (const c of pieces) frames.push(c.px)
+  // The KO's pieces of its own mesh, a cell each, after the poses: a row for each pose it breaks in.
+  const pieceRows = PIECES.map((_, k) => results[`${slot.id}/pieces${k}`].map(pieceCell))
+  for (const pieces of pieceRows) {
+    rows.push({ first: frames.length, cs: pieces })
+    for (const c of pieces) frames.push(c.px)
+  }
+  const pieces = pieceRows.flat()
   writeFileSync(path.join(dir, 'art', 'cells.png'), sheetPng(frames, fighterPalette('p1')))
   writeFileSync(path.join(dir, 'art.txt'), artText(slot, rows, poses.rows))
   // The boxes: drafted, the hand table over them.
@@ -300,7 +330,7 @@ function writeSlot(slot, results, poses, game, docs) {
   writeFileSync(path.join(dir, 'limbs.txt'), limbsText(slot, results, poses))
   checkPicture(slot, results, poses, boxes, path.join(docs, `p3-boxes-${id}.png`))
   const clipped = pieces.some((p) => p.clipped) ? ' (some clipped)' : ''
-  return `${slot.id}: ${distinct} pictures for ${poses.rows.length} rows, ${cellsN} cells (${(cellsN / distinct).toFixed(1)} a picture, at most ${most}), ${pieces.length} KO pieces${clipped}, ${((frames.length * 128) / 1024).toFixed(1)} KB, isolated points ${isolatedLeft}`
+  return `${slot.id}: ${distinct} pictures for ${poses.rows.length} rows, ${cellsN} cells (${(cellsN / distinct).toFixed(1)} a picture, at most ${most}), ${pieceRows.map((p) => p.length).join(' + ')} KO pieces${clipped}, feet ${lift} up, ${((frames.length * 128) / 1024).toFixed(1)} KB, isolated points ${isolatedLeft}`
 }
 
 function artText(slot, rows, names) {
@@ -309,12 +339,14 @@ function artText(slot, rows, names) {
     '# where each is drawn. Written by scripts/elecfighter-art.mjs with the drawing. A row of 34 words:',
     '#   first cell, count (at most 32: the room each fighter streams into), then 32 places, a cell',
     '#   each: dx & 255 | (dy & 255) << 8, its top left from the feet (facing right; FLIP_H mirrors).',
-    `# The rows of poses.txt (${names.length}), then the KO's pieces of the slot's own mesh (a cell each).`,
+    `# The rows of poses.txt (${names.length}), then the KO's pieces of the slot's own mesh (a cell each),`,
+    `# cut from the poses ${PIECES.join(' and ')}.`,
   ]
   rows.forEach((r, k) => {
     const offs = r.cs.map((c) => pack(c.dx, c.dy))
     while (offs.length < ROOM) offs.push(0)
-    lines.push(`${[r.first, r.cs.length, ...offs].join(' ')} # ${k} ${names[k] ?? 'ko pieces'}`)
+    const name = names[k] ?? `ko pieces (${PIECES[k - names.length]})`
+    lines.push(`${[r.first, r.cs.length, ...offs].join(' ')} # ${k} ${name}`)
   })
   return `${lines.join('\n')}\n`
 }
@@ -416,9 +448,13 @@ function checkPicture(slot, results, poses, boxes, file) {
   img.save(file)
 }
 
-/** The fighters' palettes as rows `p1` and `cpu` of the game's palette picture. */
+/** Rows of the game's palette picture (the fighters', the effects', the screens'). */
 export function writePalettes(file, rows) {
-  const pals = readPng(readFileSync(file))
+  const old = readPng(readFileSync(file))
+  // A row past the picture's foot grows it.
+  const height = Math.max(old.height, ...rows.map(([y]) => y + 1))
+  const pals = { width: 16, height, data: new Uint8Array(16 * height * 4) }
+  pals.data.set(old.data)
   for (const [y, colours] of rows) {
     for (let x = 0; x < 16; x++) {
       const [r, g, b] = colours[x] ?? [0, 0, 0]

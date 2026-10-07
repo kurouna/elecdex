@@ -167,7 +167,8 @@ async function fighterJob(job) {
   const pose = data.poses.poses[job.pose]
   const mesh = posedMesh(gltf, slot.build, pose)
   const cam = designCamera(data.slots.camera.yaw, data.slots.camera.pitch)
-  const ppm = data.slots.pixelsPerMetre
+  // A job may draw nearer (the select screen's busts: the same model, the camera closer).
+  const ppm = job.ppm ?? data.slots.pixelsPerMetre
   if (job.kind === 'shatter') {
     return shatter(mesh, job).map((piece) => {
       const obj = placeFighter(fighterObject(piece.mesh, null, designLight(cam), job), ppm)

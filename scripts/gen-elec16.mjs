@@ -160,9 +160,6 @@ for (const name of readdirSync(gamesDir, { withFileTypes: true })) {
       console.error(`games/${name.name}/${e.file}:${e.line}: ${e.message}`)
     process.exit(1)
   }
-  // A game still being built (`"shelf": false`, ELECFIGHTER until its P3) keeps its folder's
-  // constants and assembly up to date but is not put on the shelf.
-  if (meta.shelf === false) continue
   bundled.push({ data: toBase64(made.image), about: meta.about })
 }
 writeFileSync(path.join(gamesDir, 'games.json'), `${JSON.stringify({ games: bundled }, null, 2)}\n`)

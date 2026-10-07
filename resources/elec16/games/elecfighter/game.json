@@ -3,7 +3,6 @@
   "name": "ELECFIGHTER",
   "saveBanks": 1,
   "about": "a one-on-one fighter: read, react, guard and strike, two rounds to win",
-  "shelf": false,
   "sources": [
     "engine/main.e16.ts",
     "engine/data.e16.ts",
@@ -13,10 +12,6 @@
     "engine/draw.e16.ts",
     {
       "file": "scenes/match.e16.ts",
-      "bank": 1
-    },
-    {
-      "file": "scenes/scenes.e16.ts",
       "bank": 1
     },
     {
@@ -34,11 +29,27 @@
     {
       "file": "engine/look.e16.ts",
       "bank": 4
+    },
+    {
+      "file": "engine/audio.e16.ts",
+      "bank": 4
+    },
+    {
+      "file": "scenes/title.e16.ts",
+      "bank": 5
+    },
+    {
+      "file": "scenes/select.e16.ts",
+      "bank": 6
+    },
+    {
+      "file": "scenes/result.e16.ts",
+      "bank": 7
     }
   ],
   "palettes": {
     "png": "art/palettes.png",
-    "names": ["stage", "hud", "huddim", "p1", "cpu", "fx"]
+    "names": ["stage", "hud", "huddim", "p1", "cpu", "fx", "big"]
   },
   "sheets": [
     {
@@ -110,6 +121,18 @@
       "cell": 16,
       "palette": "fx",
       "count": 4
+    },
+    {
+      "name": "big",
+      "png": "art/big.png",
+      "cell": 8,
+      "palette": "big"
+    },
+    {
+      "name": "busts",
+      "png": "art/busts.png",
+      "cell": 8,
+      "palette": "p1"
     }
   ],
   "maps": [
@@ -121,9 +144,26 @@
           "palette": "stage",
           "slot": 0
         }
-      ]
+      ],
+      "tile": 771
+    },
+    {
+      "name": "title",
+      "png": "art/title.png",
+      "palettes": [
+        {
+          "palette": "stage",
+          "slot": 0
+        },
+        {
+          "palette": "big",
+          "slot": 6
+        }
+      ],
+      "tile": 771
     }
   ],
+  "music": ["music/songs.mml", "music/sfx.mml"],
   "tables": [
     {
       "name": "s1_moves",
@@ -204,6 +244,10 @@
     {
       "name": "patterns",
       "file": "cpu/patterns.txt"
+    },
+    {
+      "name": "bust_cells",
+      "file": "art/busts.txt"
     }
   ]
 }

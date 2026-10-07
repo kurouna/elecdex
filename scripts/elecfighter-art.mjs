@@ -6,7 +6,8 @@
  * (three.js in a hidden Electron window, the viewer's scene: fighters/<id>/art/cells.png, art.txt,
  * poses.txt with boxes drafted from the drawing, limbs.txt) and its KO pieces; the hit spark, the
  * guard's firewall and the shadows (art/spark.png, art/shadow.png); the fighters' and the
- * effects' palettes. The PNG files are the source from then on - they may be touched up in any
+ * effects' palettes; the screens' pictures (art/big.png, art/title.png, art/busts.png and busts.txt:
+ * scripts/elecfighter/screens.mjs). The PNG files are the source from then on - they may be touched up in any
  * paint program, keeping to each palette's colours - and this script is how they were first
  * made. Run it again only to start a picture over: it overwrites them (but never the boxes set
  * by hand, fighters/<id>/boxes.txt).
@@ -21,6 +22,7 @@ import { renderBitmaps } from './elecfighter/bitmaps.mjs'
 import { FX, sparkJobs, writeEffects } from './elecfighter/effects.mjs'
 import { fighterJobs, writeFighters, writePalettes } from './elecfighter/fighters.mjs'
 import { fighterPalette } from './elecfighter/palettes.mjs'
+import { BIG_PAL, bustJobs, writeScreens } from './elecfighter/screens.mjs'
 import { drawStage } from './elecfighter/stage.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -34,14 +36,20 @@ console.log(`stage GRID: ${stage.exact} tiles, ${stage.flip} with flipped copies
 if (only !== 'stage') {
   const slots = JSON.parse(readFileSync(path.join(here, 'slots.json'), 'utf8'))
   const poses = JSON.parse(readFileSync(path.join(here, 'poses.json'), 'utf8'))
-  const { renderer, results } = renderBitmaps({ ...fighterJobs(slots, poses), ...sparkJobs() })
+  const { renderer, results } = renderBitmaps({
+    ...fighterJobs(slots, poses),
+    ...sparkJobs(),
+    ...bustJobs(slots),
+  })
   console.log(`three.js on ${renderer}`)
   for (const line of writeFighters(results, slots, poses, game, docs)) console.log(line)
   console.log(writeEffects(results, game))
-  // The palettes' rows (game.json's names): p1 3, cpu 4, fx 5.
+  console.log(writeScreens(results, slots, game))
+  // The palettes' rows (game.json's names): p1 3, cpu 4, fx 5, big 6.
   writePalettes(path.join(game, 'art/palettes.png'), [
     [3, fighterPalette('p1')],
     [4, fighterPalette('cpu')],
     [5, FX],
+    [6, BIG_PAL],
   ])
 }
