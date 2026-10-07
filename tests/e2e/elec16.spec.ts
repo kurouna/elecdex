@@ -529,6 +529,53 @@ test('a right-click on the machine types the clipboard as PASTE does, and anothe
   }
 })
 
+test('a right-click on the PLAY-320 does nothing: no button pressed, the clipboard not read', async () => {
+  // PLAY-320 has no keys to type on, so PASTE's right-click has nothing to do there; and a
+  // button pressed by the right button once held the pad as the left one does.
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await page.locator('[data-testid=elec16-model][data-model=play-320]').click()
+    await expect.poll(() => playLines(page), { timeout: 15_000 }).toContain('ELEC-16 PLAY')
+    // The clipboard is the page's stand-in, never this machine's; it counts its reads.
+    await page.evaluate(() => {
+      const counted = globalThis as unknown as { __reads: number }
+      counted.__reads = 0
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => {
+          counted.__reads += 1
+          return 'PRINT 1\n'
+        },
+        configurable: true,
+      })
+    })
+    const reads = () => page.evaluate(() => (globalThis as unknown as { __reads: number }).__reads)
+    const start = page.locator('[data-testid=elec16-pad-button][data-button=start]')
+
+    await start.hover()
+    await page.mouse.down({ button: 'right' })
+    await page.waitForTimeout(300)
+    expect(await start.getAttribute('aria-pressed')).toBe('false')
+    await page.mouse.up({ button: 'right' })
+    await page.getByTestId('elec16-play-body').click({ button: 'right', position: { x: 4, y: 4 } })
+    await page.waitForTimeout(300)
+    expect(await reads()).toBe(0)
+    await expect.poll(() => playLines(page)).toContain('ELEC-16 PLAY')
+
+    // The left button still presses it: the check above is not passing for want of a press.
+    await page.mouse.move(0, 0)
+    await start.hover()
+    await page.mouse.down()
+    await expect(start).toHaveAttribute('aria-pressed', 'true')
+    await page.mouse.up()
+    await expect(start).toHaveAttribute('aria-pressed', 'false')
+  } finally {
+    await close()
+  }
+})
+
 test('CORE stops the machine at a breakpoint typed in, goes on from it, and steps', async () => {
   const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {
