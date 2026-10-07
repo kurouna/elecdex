@@ -1475,8 +1475,45 @@ PowerToys のような小さな道具を 1 枚のペインにまとめる（2026
 - PTY 起動時に注入する: bash は `--init-file`、zsh は `ZDOTDIR` 差し替え、fish は `XDG_DATA_DIRS`、pwsh は `-NoExit -Command`（スクリプト本体は環境変数で渡す。理由は [decisions.md](decisions.md)）
 - main の `OscParser` が PTY 出力ストリームから該当シーケンスを抽出（xterm には渡さず消費）し、`onCwd` / `onProcess` として通知する
 - ネイティブ取得へのフォールバック（`/proc` や `lsof` の低頻度ポーリング）は設計時に考えたが入れていない。注入が効かないシェルでは CWD 追従が働かないだけで、ポーリングは一切しない
-- 報告された CWD はペインの状態 `cwd` に置かれ、レイアウトと一緒に保存される。戻ったペイン（次の起動、保存済みレイアウト）はそのフォルダで新しいシェルを始め、新しく開くペインやフォルダが消えたペインは開始フォルダの設定で始める（main の `resolveShellDirectory`）
+- 報告された CWD はペインの状態 `cwd` に置かれ、レイアウトと一緒に保存される。復元は下の 6.2.1
 - 副産物として「直前コマンドの終了コード」「実行時間」が取れる。セッション情報には入れているが、タブに終了コードを出すバッジは意図して無効にしてある（シェルそのものが終了したときの `exited N` だけを出す）
+
+#### 6.2.1 CWD の受け取りと、ペインのフォルダの復元（2026-10-07）
+
+**送る側**（resources/shell-integration）
+
+- PowerShell はプロンプトごとに `OSC 9;9;"<ProviderPath>"` を出す（Windows Terminal と同じ形、利用者の決定）。`Path` ではなく `ProviderPath` なので、New-PSDrive の自前のドライブや `FileSystem::\\server\share` も、どのプログラムでも始められる実パスになる。FileSystem 以外のプロバイダ（`HKLM:\` など）にいるときは何も出さない
+- bash / zsh / fish は `OSC 7;file://<host><path>` を出す。パスは **UTF-8 のバイトごと**に % で書く（bash と zsh は関数の中で `local LC_ALL=C`）。文字ごとに書くと符号位置が出て、日本語のフォルダが別のパスになる
+- zsh の関数で `path` という名前の変数を使わない。zsh は `path` を PATH と結ばれた配列にしているので、`local` にしてもその性質は残り、ループが一つの要素（フォルダ全体）しか見なかった
+
+**受け取る側**（main/pty/osc-parser.ts）
+
+| 形 | 受け取る条件 | それ以外 |
+|---|---|---|
+| OSC 7 | ホストが空、`localhost`、この機械の名前。% を解いて UTF-8 として正しい | 素通し（ssh 先の CWD は手元では意味がない） |
+| OSC 9;9 | 引用符は外す。絶対パスだけ（`C:\`、`\\server\share`、`/`） | 素通し |
+| ほかの OSC 9（9;4 の進捗、通知） | 受け取らない | 素通し |
+
+どちらの形でも、制御文字を含むパスは捨てる。OSC 9;9 にはホストがないので、ssh 先の Windows が出す 9;9 は手元のパスとして受け取る（Windows Terminal と同じ）。復元はフォルダの存在を確かめるので、手元にないフォルダはそこで設定のフォルダに戻る。
+
+**復元**
+
+```
+シェルが CWD を報告 ─→ main (onCwd) ─→ ペイン: sessions に表示用、widgetState.patch(paneId, { cwd }) で状態に
+                                                     （値が変わったときだけ。layout.json と、portableTree で cwd を落とさないので layouts.json にも）
+次の起動・保存済みレイアウトの適用
+  ペイン: 記録の sessionId が生きていれば付け直す（リロード）。なければ pty.create({ cwd: state.cwd })
+  main:  resolveShellDirectory — 絶対パスで、非同期の stat がフォルダと答えれば そこ
+                                 それ以外、または SHELL_DIRECTORY_WAIT_MS（1.5 秒）答えなければ terminal.startDirectory
+         待つ間に終了が始まっていれば、シェルは作らない
+```
+
+- 新しく開くペイン（ピッカー、タブの ＋、分割、プリセット）は状態を持たないので、いつも開始フォルダの設定で始まる
+- 新しいシェルの sessionId は `widgetState.patch` で状態に書き足す。置き換え（`setPaneState`）にすると `cwd` が消える
+- フォルダの確認を同期にしない理由: 応答しない共有フォルダへの `statSync` は main を何秒も止め、レイアウトが戻る間すべてのウィンドウが固まる
+- シェルを選ぶ設定はなく、Windows では常に PowerShell が起動する。Git Bash の `$PWD` は `/c/...` の形なので、もし将来 bash を Windows で起動するなら、変換が別に要る
+
+**テスト**: osc-parser.test.ts（9;9 の受け取りと素通し）、start-directory.test.ts（フォールバックと待ちの打ち切り）、pty-ipc.test.ts（待つ間の終了）、shell-cwd-scripts.test.ts（各シェルの本物のスクリプトで ASCII 外のフォルダ。CI では zsh と fish を入れる）、terminal.spec.ts（再起動でのフォルダの復元、新しいペイン、消えたフォルダ）
 
 ### 6.3 シェル解決
 `which` 相当を main 側で実装し、`shell-env` 相当（ログインシェルの環境変数取り込み、原版 issue #366）も main で行う。`TERM=xterm-256color` / `COLORTERM=truecolor` / `TERM_PROGRAM=elecdex` を付与する。
