@@ -498,6 +498,37 @@ test("FILES shows the SOFT CARD with each program's card, LOAD types its LOAD, a
   }
 })
 
+test('a right-click on the machine types the clipboard as PASTE does, and another stops it', async () => {
+  const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
+  try {
+    await settleLayout(page)
+    await booted(page)
+    // The clipboard is the page's stand-in, never this machine's.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => 'PRINT 6*7\n',
+        configurable: true,
+      })
+    })
+    await page.getByTestId('elec16-device').click({ button: 'right' })
+    await expect.poll(() => lcdLines(page)).toContain('42')
+    // A long text being typed: a second right-click stops it, as PASTE pressed again does.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.clipboard, 'readText', {
+        value: async () => `${'1'.repeat(200)}\n`,
+        configurable: true,
+      })
+    })
+    await page.getByTestId('elec16-device').click({ button: 'right' })
+    await page.getByTestId('elec16-tab').and(page.locator('[data-tab=tune]')).click()
+    await expect(page.getByTestId('elec16-paste')).toContainText('stop paste')
+    await page.getByTestId('elec16-device').click({ button: 'right' })
+    await expect(page.getByTestId('elec16-paste')).toHaveText('paste')
+  } finally {
+    await close()
+  }
+})
+
 test('CORE stops the machine at a breakpoint typed in, goes on from it, and steps', async () => {
   const { page, close } = await launch(undefined, { layout: BESIDE_CLOCK })
   try {

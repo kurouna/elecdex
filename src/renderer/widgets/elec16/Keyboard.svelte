@@ -29,6 +29,8 @@ let down = $state<ReadonlySet<string>>(new Set())
 const keyOf = (id: string): MachineKey | undefined => KEY_BY_ID.get(id)
 
 function press(event: PointerEvent, id: string): void {
+  // Only the main button presses: a right-click on the machine is PASTE (Elec16Widget).
+  if (event.button !== 0) return
   event.preventDefault()
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)

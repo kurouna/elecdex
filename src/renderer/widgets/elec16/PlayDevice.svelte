@@ -100,6 +100,8 @@ function held(): number {
 }
 
 function press(event: PointerEvent, button: PadButton): void {
+  // Only the main button presses: a right-click on the machine is PASTE (Elec16Widget).
+  if (event.button !== 0) return
   // The pane keeps the focus (and so the keys and the gamepads), as the pocket keyboard does.
   event.preventDefault()
   ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)

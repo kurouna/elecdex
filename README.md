@@ -884,7 +884,7 @@ weather and calendar.
   default (also 240×32, 240×64 and a 160×144 four-shade one), drawn dot by dot with the shadow,
   the slow fade and the contrast of a real one; eight skins dress the case - or, in PLAIN, leave it out for the app's own flat look in its theme. The PC's keyboard
   types into it while the pane has the focus (kana by the JIS layout in KANA mode), and PASTE
-  types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
+  (or a right-click on the machine) types the clipboard. Each machine is a **unit** that main keeps - its RAM is battery-backed
   across restarts, its card holds files - and one pane runs it at a time (MOVE HERE takes it
   over). The SOFT CARD brings thirteen programs (games, a sine wave, a clock, a biorhythm, a
   chat with the AI, a ticker and a demo in machine code). **LINK** lets a program talk to the

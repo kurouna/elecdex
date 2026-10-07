@@ -286,6 +286,15 @@ async function paste(): Promise<void> {
   runner.paste(planned.keys)
 }
 
+/**
+ * A right-click on the machine is PASTE, as in the shell: the clipboard typed as its keys, or a
+ * paste under way stopped. The page's own menu never opens over the machine.
+ */
+function oncontextmenu(event: MouseEvent): void {
+  event.preventDefault()
+  if (canType || runner.pasting > 0) void paste()
+}
+
 function power(): void {
   runner.power()
   if (runner.off) session.save()
@@ -483,7 +492,8 @@ onDestroy(() => {
     </div>
   {/if}
   <div class="body" bind:this={body} class:hidden={pane.view === 'code'}>
-    <div class="device">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="device" {oncontextmenu}>
       {#if failed}
         <p class="failed" data-testid="elec16-failed">The ROM could not be read.</p>
       {:else if session.phase === 'failed'}

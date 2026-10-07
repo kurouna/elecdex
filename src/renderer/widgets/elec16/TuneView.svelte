@@ -119,7 +119,7 @@ function pick<T>(now: T, next: T, apply: () => void): void {
       >
     </div>
     <p class="note">
-      PASTE types the clipboard's text on the machine's keys, kana in KANA mode{#if pasteSkipped > 0}<span
+      PASTE, or a right-click on the machine, types the clipboard's text on its keys, kana in KANA mode{#if pasteSkipped > 0}<span
           data-testid="elec16-paste-skipped"
         >; {pasteSkipped} {pasteSkipped === 1 ? 'character' : 'characters'} it has no key for left out</span
         >{/if}.
