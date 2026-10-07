@@ -1,0 +1,160 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "elecdex scripts/elecfighter/build-models.mjs"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "effects",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "spark",
+      "mesh": 0
+    },
+    {
+      "name": "shard",
+      "mesh": 1
+    }
+  ],
+  "meshes": [
+    {
+      "name": "spark",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0
+          },
+          "indices": 1,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "shard",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 2
+          },
+          "indices": 3,
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "spark",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1,
+          0.8,
+          0.4,
+          1
+        ]
+      },
+      "extras": {
+        "fill": "A"
+      }
+    },
+    {
+      "name": "shard",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5,
+          0.6,
+          0.7,
+          1
+        ]
+      },
+      "extras": {
+        "fill": "A"
+      }
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 144,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 144,
+      "byteLength": 120,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 264,
+      "byteLength": 72,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 336,
+      "byteLength": 48,
+      "target": 34963
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 12,
+      "type": "VEC3",
+      "min": [
+        -0.8506507873535156,
+        -0.8506507873535156,
+        -0.8506507873535156
+      ],
+      "max": [
+        0.8506507873535156,
+        0.8506507873535156,
+        0.8506507873535156
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5123,
+      "count": 60,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 6,
+      "type": "VEC3",
+      "min": [
+        -0.3199999928474426,
+        -0.41999998688697815,
+        -0.03999999910593033
+      ],
+      "max": [
+        0.36000001430511475,
+        0.5,
+        0.03999999910593033
+      ]
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 24,
+      "type": "SCALAR"
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 384,
+      "uri": "data:application/octet-stream;base64,UJYGv0DEWT8AAAAAUJYGP0DEWT8AAAAAUJYGv0DEWb8AAAAAUJYGP0DEWb8AAAAAAAAAAFCWBr9AxFk/AAAAAFCWBj9AxFk/AAAAAFCWBr9AxFm/AAAAAFCWBj9AxFm/QMRZPwAAAABQlga/QMRZPwAAAABQlgY/QMRZvwAAAABQlga/QMRZvwAAAABQlgY/AAALAAUAAAAFAAEAAAABAAcAAAAHAAoAAAAKAAsAAQAFAAkABQALAAQACwAKAAIACgAHAAYABwABAAgAAwAJAAQAAwAEAAIAAwACAAYAAwAGAAgAAwAIAAkABAAJAAUAAgAEAAsABgACAAoACAAGAAcACQAIAAEAAAAAAAAAAD8K1yM9Ctejvj0K174K1yM97FG4PpqZmb4K1yM9AAAAAAAAAD8K1yO9Ctejvj0K174K1yO97FG4PpqZmb4K1yO9AAABAAIAAwAFAAQAAAADAAQAAAAEAAEAAQAEAAUAAQAFAAIAAgAFAAMAAgADAAAA"
+    }
+  ]
+}

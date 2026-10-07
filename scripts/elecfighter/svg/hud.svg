@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="36" viewBox="0 0 320 36" shape-rendering="crispEdges">
+  <title>ELECFIGHTER HUD frame: 320 x 36, BG1. Names, TIME digits and the log line are drawn in the 8x8 font over it.</title>
+  <rect x="0" y="0" width="320" height="36" fill="#000810"/>
+  <!-- pane headings: a rule with short end ticks, as elecdex panes -->
+  <rect x="6" y="2" width="132" height="1" fill="#387078"/>
+  <rect x="6" y="2" width="1" height="3" fill="#387078"/>
+  <rect x="137" y="2" width="1" height="3" fill="#387078"/>
+  <rect x="182" y="2" width="132" height="1" fill="#387078"/>
+  <rect x="182" y="2" width="1" height="3" fill="#387078"/>
+  <rect x="313" y="2" width="1" height="3" fill="#387078"/>
+  <!-- life bars, 120 pixels, one colour; the widths of life1 and life2 say what is left -->
+  <rect x="16" y="13" width="120" height="8" fill="#102830"/>
+  <rect id="life1" x="16" y="13" width="120" height="8" fill="#98e8e8"/>
+  <rect x="184" y="13" width="120" height="8" fill="#102830"/>
+  <rect id="life2" x="184" y="13" width="120" height="8" fill="#98e8e8"/>
+  <rect x="15" y="12" width="1" height="10" fill="#387078"/>
+  <rect x="136" y="12" width="1" height="10" fill="#387078"/>
+  <rect x="183" y="12" width="1" height="10" fill="#387078"/>
+  <rect x="304" y="12" width="1" height="10" fill="#387078"/>
+  <!-- round lamps: two diamonds a side; a won round is amber (fill set by id) -->
+  <polygon id="win1a" points="128,22 131.5,25.5 128,29 124.5,25.5" fill="#102830"/>
+  <polygon id="win1b" points="118,22 121.5,25.5 118,29 114.5,25.5" fill="#102830"/>
+  <polygon id="win2a" points="192,22 195.5,25.5 192,29 188.5,25.5" fill="#102830"/>
+  <polygon id="win2b" points="202,22 205.5,25.5 202,29 198.5,25.5" fill="#102830"/>
+</svg>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ELECFIGHTER design viewer</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/addons/": "/node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ground: #000810;
+        --text: #98e8e8;
+        --dim: #387078;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--text);
+        font: 13px/1.4 ui-monospace, monospace;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        padding: 16px;
+      }
+      canvas {
+        image-rendering: pixelated;
+        border: 1px solid var(--dim);
+        touch-action: none;
+      }
+      form {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 6px 10px;
+        align-content: start;
+        min-width: 240px;
+      }
+      select,
+      button,
+      input {
+        font: inherit;
+        background: var(--ground);
+        color: var(--text);
+        border: 1px solid var(--dim);
+      }
+      p {
+        grid-column: 1 / -1;
+        color: var(--dim);
+        margin: 4px 0 0;
+      }
+    </style>
+    <script type="module" src="./viewer.mjs"></script>
+  </head>
+  <body>
+    <canvas id="view" width="200" height="160"></canvas>
+    <form id="controls">
+      <label for="slot">slot</label><select id="slot"></select>
+      <label for="pose">pose</label><select id="pose"></select>
+      <label for="side">fill</label>
+      <select id="side">
+        <option value="p1">P1</option>
+        <option value="cpu">CPU</option>
+      </select>
+      <label for="wire">wire</label>
+      <select id="wire">
+        <option value="A">A: outline, creases, borders</option>
+        <option value="S">S: outline and borders</option>
+        <option value="only">wire only (palette)</option>
+      </select>
+      <label for="zoom">zoom</label><input id="zoom" type="range" min="1" max="6" value="4" />
+      <button id="reset" type="button">design camera</button><span></span>
+      <p>
+        Drag to orbit, wheel to zoom. The design camera is the one the bitmaps are drawn with
+        (slots.json); the light stays where it is in the world.
+      </p>
+    </form>
+  </body>
+</html>

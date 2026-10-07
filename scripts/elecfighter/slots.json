@@ -1,0 +1,54 @@
+{
+  "about": "ELECFIGHTER's eight fighter slots. Each points at a skinned glTF model (bone names in README.md) and a build: scales on the model's bones. Poses (poses.json) are shared by every slot.",
+  "camera": { "yaw": 30, "pitch": 10 },
+  "pixelsPerMetre": 58,
+  "slots": [
+    {
+      "id": "S1",
+      "used": true,
+      "role": "balance",
+      "model": "models/human.gltf",
+      "build": { "scale": 1 }
+    },
+    {
+      "id": "S2",
+      "used": true,
+      "role": "rush",
+      "model": "models/human.gltf",
+      "build": { "scale": 0.93, "girth": 0.82, "shoulders": 0.93, "legs": 1.03, "head": 1.03 }
+    },
+    {
+      "id": "S3",
+      "used": true,
+      "role": "power",
+      "model": "models/human.gltf",
+      "build": {
+        "scale": 1.05,
+        "girth": 1.3,
+        "shoulders": 1.2,
+        "hips": 1.08,
+        "torso": 1.04,
+        "legs": 0.95,
+        "head": 0.97
+      }
+    },
+    {
+      "id": "S4",
+      "used": true,
+      "role": "reach",
+      "model": "models/human.gltf",
+      "build": {
+        "scale": 1.06,
+        "girth": 0.88,
+        "arms": 1.12,
+        "legs": 1.08,
+        "torso": 0.98,
+        "head": 0.96
+      }
+    },
+    { "id": "S5", "used": false, "role": "reserved", "model": "models/human.gltf", "build": {} },
+    { "id": "S6", "used": false, "role": "reserved", "model": "models/human.gltf", "build": {} },
+    { "id": "S7", "used": false, "role": "reserved", "model": "models/human.gltf", "build": {} },
+    { "id": "S8", "used": false, "role": "reserved", "model": "models/human.gltf", "build": {} }
+  ]
+}
