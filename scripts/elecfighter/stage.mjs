@@ -85,10 +85,45 @@ function stageText(palette) {
 const chunks = (a, n) =>
   Array.from({ length: Math.ceil(a.length / n) }, (_, k) => a.slice(k * n, k * n + n))
 
+/** The camera's reach (design 4.2). */
+export const CAM_MAX = 192
+
+/**
+ * The columns of floor line `y` a camera at either end of its reach reads round the map's edge
+ * (BG0 is 512 wide and wraps): below the foot line a line moves more than the camera, so at the
+ * left wall the screen's left edge reads the map's right end, and at the right wall its right
+ * edge the map's left end. Answers how many columns at each end.
+ */
+export function wrapColumns(y) {
+  if (y <= GROUND) return 0
+  const share = lines()[y - HORIZON] / 256
+  return Math.ceil(CENTER * (share - 1)) + 1
+}
+
+/**
+ * Those columns hold only what is the same from either side: a row's line across the floor, or
+ * nothing - never a line running into the depth, which read from the other end folded back
+ * into a V at the bottom corners.
+ */
+function clearWraps(pic) {
+  for (let y = GROUND + 1; y < pic.h; y++) {
+    const n = wrapColumns(y)
+    let drawn = 0
+    for (let x = 0; x < pic.w; x++) if (pic.px[y * pic.w + x]) drawn++
+    // A row's line is drawn across nearly the whole map; its colour at the middle of a side.
+    const row = drawn > pic.w * 0.8 ? pic.px[y * pic.w + 128] : 0
+    for (let k = 0; k < n; k++) {
+      pic.px[y * pic.w + k] = row
+      pic.px[y * pic.w + pic.w - 1 - k] = row
+    }
+  }
+}
+
 /** Draws the stage into the game's folder `game`; answers its counts. */
 export function drawStage(here, game) {
   const pic = svgIndices(svgText(path.join(here, 'svg/stage.svg')), STAGE)
   if (pic.stray > 0) throw new Error(`stage.svg: ${pic.stray} points not in the stage's palette`)
+  clearWraps(pic)
   const data = new Uint8Array(pic.w * pic.h * 4)
   for (let k = 0; k < pic.px.length; k++) {
     const c = pic.px[k]

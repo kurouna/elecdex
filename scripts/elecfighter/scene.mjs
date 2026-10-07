@@ -7,7 +7,6 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
-  EdgesGeometry,
   Euler,
   Group,
   LineSegments,
@@ -105,9 +104,15 @@ const fillOf = (m) => FILL_BASE[m?.userData?.fill] ?? FILL_BASE[m?.name?.[0]?.to
  * A slot in a pose as plain triangles in metres, the lowest point on y = 0:
  * { pos: Float32Array (9 a triangle), base: index per triangle (3, 6, 9 shaded; else fixed),
  * far: 0/1 per triangle, bone: name per triangle }. `far(name)` marks the side away from the
- * camera (the model's left, `_l`, when a fighter faces screen right).
+ * camera (the model's left, `_l`, when a fighter faces screen right), unless the pose lists
+ * the bone in `near` (a rear limb swung through in front).
  */
-export function posedMesh(gltf, build, pose, far = (n) => /_l$/.test(n)) {
+export function posedMesh(
+  gltf,
+  build,
+  pose,
+  far = (n) => /_l$/.test(n) && !(pose.near ?? []).includes(n),
+) {
   const { meshes, skeleton } = rig(gltf)
   const scales = boneScales(build)
   poseBones(skeleton, scales, pose)
@@ -127,7 +132,13 @@ export function posedMesh(gltf, build, pose, far = (n) => /_l$/.test(n)) {
   for (let k = 1; k < pos.length; k += 3) low = Math.min(low, pos[k])
   const sc = build?.scale ?? 1
   for (let k = 0; k < pos.length; k++) pos[k] = (k % 3 === 1 ? pos[k] - low : pos[k]) * sc
-  return { pos: Float32Array.from(pos), base, far: farOf, bone }
+  // Each bone's head in the same space: where a limb's joints are (the art script's boxes).
+  const joints = {}
+  for (const b of skeleton.bones) {
+    const p = new Vector3().setFromMatrixPosition(b.matrixWorld)
+    joints[b.name] = [p.x * sc, (p.y - low) * sc, p.z * sc]
+  }
+  return { pos: Float32Array.from(pos), base, far: farOf, bone, joints }
 }
 
 function posedTriangles(mesh, skin, skeleton, out) {
@@ -228,7 +239,8 @@ void main() {
   vec3 n = normalize(mat3(modelMatrix) * aNormal);
   float d = dot(n, uLight);
   float tone = d > uTone.x ? 0.0 : (d > uTone.y ? 1.0 : 2.0);
-  if (aFar > 0.5) tone = min(2.0, tone + 1.0);
+  // The far side is one flat tone, the shade: its facets would stripe it otherwise.
+  if (aFar > 0.5) tone = 2.0;
   bool shaded = aBase >= 2.5 && aBase <= 9.5;
   vIndex = shaded ? aBase + tone : (aBase < 1.5 ? (aFar > 0.5 ? 2.0 : 1.0) : aBase);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
@@ -322,10 +334,11 @@ function adjacency(pos) {
 }
 
 /**
- * A posed mesh as a scene object: the fill, the dim wire (EdgesGeometry's creases at
- * `crease` degrees, and the far side's outline) and the bright wire (the near outline and the
+ * A posed mesh as a scene object: the fill, the dim wire (creases sharper than `crease` degrees
+ * on the near side, and the far side's outline) and the bright wire (the near outline and the
  * borders between materials). Call `obj.userData.view(dir)` with the direction toward the
- * viewer (world) whenever the camera turns: the outline depends on it.
+ * viewer (world) whenever the camera turns: the outline and the creases depend on it. The far
+ * side draws no creases: its limbs are a flat shade inside a dim outline, never stripes.
  */
 export function fighterObject(mesh, pal, light, opt = {}) {
   const geo = new BufferGeometry()
@@ -339,46 +352,44 @@ export function fighterObject(mesh, pal, light, opt = {}) {
   const group = new Group()
   const fill = new Mesh(geo, fillMaterial(pal, light, opt))
   group.add(fill)
-  const crease = new LineSegments(new EdgesGeometry(geo, opt.crease ?? 30), lineMaterial(pal, 2))
-  if (opt.variant === 'S') crease.visible = false
-  crease.renderOrder = 1
-  const dimOutline = new LineSegments(new BufferGeometry(), lineMaterial(pal, 2))
-  dimOutline.renderOrder = 2
+  const dim = new LineSegments(new BufferGeometry(), lineMaterial(pal, 2))
+  dim.renderOrder = 2
   const bright = new LineSegments(new BufferGeometry(), lineMaterial(pal, 1))
   bright.renderOrder = 3
-  group.add(crease, dimOutline, bright)
+  group.add(dim, bright)
   const edges = adjacency(mesh.pos)
   const n = (t) => new Vector3().fromArray(normals, t * 9)
+  const sharp = Math.cos(((opt.crease ?? 50) * Math.PI) / 180)
   group.userData.view = (dirWorld) => {
     group.updateMatrixWorld(true)
     const inv = new Matrix4().copy(group.matrixWorld).invert()
     const d = dirWorld.clone().transformDirection(inv)
     const front = (t) => n(t).dot(d) > 1e-6
     const lists = { dim: [], bright: [] }
+    const crease = (e, allFar) =>
+      opt.variant !== 'S' &&
+      !allFar &&
+      e.t.length === 2 &&
+      e.t.every(front) &&
+      n(e.t[0]).dot(n(e.t[1])) < sharp
     for (const e of edges) {
-      const kind = edgeKind(e.t, front, mesh.base)
-      if (!kind) continue
       const allFar = e.t.every((t) => mesh.far[t])
-      const list =
-        kind === 'sil' && allFar ? lists.dim : kind === 'mat' && allFar ? lists.dim : lists.bright
+      const kind = edgeKind(e.t, front, mesh.base) ?? (crease(e, allFar) ? 'crease' : null)
+      if (!kind) continue
+      const list = kind === 'crease' || allFar ? lists.dim : lists.bright
       list.push(...mesh.pos.slice(e.a, e.a + 3), ...mesh.pos.slice(e.b, e.b + 3))
     }
-    dimOutline.geometry.dispose()
-    dimOutline.geometry = new BufferGeometry()
-    dimOutline.geometry.setAttribute(
-      'position',
-      new BufferAttribute(Float32Array.from(lists.dim), 3),
-    )
-    bright.geometry.dispose()
-    bright.geometry = new BufferGeometry()
-    bright.geometry.setAttribute(
-      'position',
-      new BufferAttribute(Float32Array.from(lists.bright), 3),
-    )
+    for (const [obj, list] of [
+      [dim, lists.dim],
+      [bright, lists.bright],
+    ]) {
+      obj.geometry.dispose()
+      obj.geometry = new BufferGeometry()
+      obj.geometry.setAttribute('position', new BufferAttribute(Float32Array.from(list), 3))
+    }
   }
   group.userData.setPalette = (p, wireOnly = false) => {
-    for (const o of [fill, crease, dimOutline, bright])
-      o.material.uniforms.uPal.value = paletteUniform(p)
+    for (const o of [fill, dim, bright]) o.material.uniforms.uPal.value = paletteUniform(p)
     fill.material.uniforms.uVoid.value = wireOnly ? 1 : 0
   }
   return group

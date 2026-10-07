@@ -10,6 +10,7 @@ import {
   buildKit,
   frames,
   globalsOf,
+  pictureFile,
   ROM,
   ramPoke,
   ramWord,
@@ -19,8 +20,9 @@ import {
 } from './elec16-kit-helpers'
 
 /**
- * ELECFIGHTER (docs/elec16-elecfighter-design.md), phases P0 and P1: built from its folder as
- * gen:elec16 builds it and fought on the core. The fighters are coloured boxes; a test drives
+ * ELECFIGHTER (docs/elec16-elecfighter-design.md), phases P0 to P3: built from its folder as
+ * gen:elec16 builds it and fought on the core. The fighters are drawn meshes streamed into a room
+ * of cells each (P3), their boxes drafted from the drawings; a test drives
  * either through the fighters' one entry (`ctl` 2 and `extHeld`, the buttons as the engine reads
  * them) or the pad, places them by their RAM, and reads the outcome there by the globals' names.
  */
@@ -182,7 +184,9 @@ describe('ELECFIGHTER as built', () => {
       for (const r of rows) moveInRange(r)
       expect(profiles[s]?.length).toBe(16)
       const poses = table(`fighters/${SLOT_IDS[s]}/poses.txt`, 24)
-      expect(poses.length).toBe(12 + 13 * 3)
+      // The common rows, three for each move, then the rows of the picture alone (walk, fall,
+      // dashes, thrown, win, idle).
+      expect(poses.length).toBe(12 + 13 * 3 + 10)
       for (const [n, p] of poses.entries()) poseSound(n, p)
     }
   })
@@ -199,7 +203,7 @@ function moveInRange(r: number[]): void {
 }
 
 /** The poses in the air (the jump, a falling hit, the jump attacks'): above the feet. */
-const AIR_POSES = new Set([3, 11, ...Array.from({ length: 12 }, (_, k) => 36 + k)])
+const AIR_POSES = new Set([3, 11, 55, ...Array.from({ length: 12 }, (_, k) => 36 + k)])
 
 /**
  * Pose `n`'s boxes: each drawn as sprites is at least 8 points each way, and a pose on the
@@ -289,6 +293,250 @@ describe('ELECFIGHTER the stage (design 4.1, 4.2)', () => {
       )
       expect(got, `camera ${cam}`).toEqual(want)
       expect(got[st.ground]).toBe(cam)
+    }
+  })
+})
+
+/** A slot's art: its cells (indices by the P1 palette), its rows, its boxes and its limbs. */
+function slotArt(s: string) {
+  const pal = palettesPicture()[3] ?? []
+  const pic = pictureFile(`${DIR}/fighters/${s}/art/cells.png`)
+  if (pic === null) throw new Error(`no cells for ${s}`)
+  const across = pic.width / 16
+  const index = new Map<string, number>()
+  pal.forEach((c, i) => {
+    if (i > 0) index.set(c.join(','), i)
+  })
+  const cell = (f: number, x: number, y: number) => {
+    const at = ((Math.floor(f / across) * 16 + y) * pic.width + (f % across) * 16 + x) * 4
+    if ((pic.data[at + 3] ?? 0) < 128) return 0
+    const k = index.get([0, 1, 2].map((j) => pic.data[at + j] ?? 0).join(','))
+    if (k === undefined) throw new Error(`${s}: a point of cell ${f} is not in the P1 palette`)
+    return k
+  }
+  const rows = table(`fighters/${s}/art.txt`, 34)
+  /** Row `r`'s picture: points by place from the feet (x right, y down), facing right. */
+  const picture = (r: number) => {
+    const row = rows[r] ?? []
+    const pts = new Map<string, number>()
+    for (let c = 0; c < (row[1] ?? 0); c++) {
+      const w = row[2 + c] ?? 0
+      cellInto(pts, (x, y) => cell((row[0] ?? 0) + c, x, y), (w << 24) >> 24, (w << 16) >> 24)
+    }
+    return pts
+  }
+  return {
+    rows,
+    picture,
+    cell,
+    frames: (pic.width / 16) * (pic.height / 16),
+    boxes: table(`fighters/${s}/poses.txt`, 24),
+    limbs: table(`fighters/${s}/limbs.txt`, 5),
+  }
+}
+
+/** The palette picture's rows: 16 colours each. */
+function palettesPicture(): number[][][] {
+  const p = pictureFile(`${DIR}/art/palettes.png`)
+  if (p === null) throw new Error('no palettes')
+  return Array.from({ length: p.height }, (_, y) =>
+    Array.from({ length: 16 }, (_, x) => [0, 1, 2].map((k) => p.data[(y * 16 + x) * 4 + k] ?? 0)),
+  )
+}
+
+/** A cell's drawn points into a picture, its top left at (dx, dy). */
+function cellInto(
+  pts: Map<string, number>,
+  cell: (x: number, y: number) => number,
+  dx: number,
+  dy: number,
+): void {
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const v = cell(x, y)
+      if (v) pts.set(`${dx + x},${dy + y}`, v)
+    }
+}
+
+const AROUND = [-1, 0, 1]
+  .flatMap((dy) => [-1, 0, 1].map((dx) => [dx, dy]))
+  .filter(([x, y]) => x || y)
+
+/** Points of a picture with no neighbour of their colour in 8 directions. */
+function isolatedIn(pts: Map<string, number>): number {
+  let n = 0
+  for (const [k, v] of pts) {
+    const [x, y] = k.split(',').map(Number) as [number, number]
+    if (!AROUND.some(([dx, dy]) => pts.get(`${x + (dx ?? 0)},${y + (dy ?? 0)}`) === v)) n++
+  }
+  return n
+}
+
+/** The share of two silhouettes' points (feet on feet) that only one of them covers. */
+function apartShare(a: Map<string, number>, b: Map<string, number>): number {
+  let both = 0
+  for (const k of a.keys()) if (b.has(k)) both++
+  const union = a.size + b.size - both
+  return (union - both) / union
+}
+
+/** A picture's points inside a box (x, top, w, h; a point at y covers height -y - 1). */
+function pointsIn(pts: Map<string, number>, bx: number, bt: number, bw: number, bh: number) {
+  let n = 0
+  for (const k of pts.keys()) {
+    const [px, py] = k.split(',').map(Number) as [number, number]
+    if (px >= bx && px < bx + bw && -py - 1 < bt && -py - 1 >= bt - bh) n++
+  }
+  return n
+}
+
+const ARTS = SLOT_IDS.map(slotArt)
+/** The active rows of the standing light and heavy punch and kick (poses.txt). */
+const ROW = { sLP: 13, sHP: 16, sLK: 19, sHK: 22 }
+
+/** Fighter `i`'s slot's art (as `fSlot` says). */
+function slotArtOf(m: Elec16, i: number) {
+  const k = read(m, 'fSlot', i)
+  const art = ARTS[k]
+  if (art === undefined) throw new Error(`no slot ${k}`)
+  return art
+}
+
+/** A cell's 256 indices in the order video memory holds them: four tiles, two points a byte. */
+function cellTiles(cell: (x: number, y: number) => number): number[] {
+  const out: number[] = []
+  for (const [tx, ty] of [
+    [0, 0],
+    [8, 0],
+    [0, 8],
+    [8, 8],
+  ] as const)
+    for (let y = 0; y < 8; y++)
+      for (let x = 0; x < 8; x += 2)
+        out.push((cell(tx + x, ty + y) << 4) | cell(tx + x + 1, ty + y))
+  return out
+}
+
+describe('ELECFIGHTER the art (P3, design 2)', () => {
+  it('tells the light from the heavy at 1x by its silhouette alone', () => {
+    // Measured 2026-10-08 (scripts/elecfighter/pose-book.mjs): punches 0.57-0.76 of the points
+    // apart, kicks 0.64-0.70. The first mock's punches, which read alike at 1x (design 16), were
+    // 0.34-0.43 and its kicks, which read apart, 0.70-0.81: 0.45 is above every pair that did not
+    // read.
+    for (const art of ARTS) {
+      expect(apartShare(art.picture(ROW.sLP), art.picture(ROW.sHP))).toBeGreaterThanOrEqual(0.45)
+      expect(apartShare(art.picture(ROW.sLK), art.picture(ROW.sHK))).toBeGreaterThanOrEqual(0.45)
+    }
+  })
+
+  it('leaves no point alone in any picture, and every picture within its room of 32 cells', () => {
+    for (const [s, art] of ARTS.entries()) {
+      expect(art.rows.length, SLOT_IDS[s]).toBe(62)
+      for (const [r, row] of art.rows.entries()) {
+        const [first = 0, count = 0] = row
+        expect(count, `${SLOT_IDS[s]} row ${r}`).toBeGreaterThan(0)
+        expect(count).toBeLessThanOrEqual(32)
+        expect(first + count).toBeLessThanOrEqual(art.frames)
+      }
+      // The pose rows (the last is the KO's pieces, each a piece of its own).
+      for (let r = 0; r < 61; r++) expect(isolatedIn(art.picture(r)), `row ${r}`).toBe(0)
+    }
+  })
+
+  it('gives every slot the palette roles; P1 and the CPU differ only in the fills 3-11', () => {
+    const rows = palettesPicture()
+    const names = meta.palettes.names as string[]
+    const p1 = rows[names.indexOf('p1')] ?? []
+    const cpu = rows[names.indexOf('cpu')] ?? []
+    const fills = [3, 4, 5, 6, 7, 8, 9, 10, 11]
+    for (const k of fills) expect(cpu[k], `colour ${k}`).not.toEqual(p1[k])
+    for (const k of [0, 1, 2, 12, 13, 14, 15]) expect(cpu[k], `colour ${k}`).toEqual(p1[k])
+    // P1 blue, the CPU red: the suit's lit fill.
+    const [r1, , b1] = p1[3] ?? []
+    const [r2, , b2] = cpu[3] ?? []
+    expect(b1 ?? 0).toBeGreaterThan(r1 ?? 0)
+    expect(r2 ?? 0).toBeGreaterThan(b2 ?? 0)
+    // Every slot's cells are drawn in the one palette (the build matched every point to it).
+    for (const s of SLOT_IDS) {
+      expect(meta.sheets.find((x: { name: string }) => x.name === s)?.palette).toBe('p1')
+    }
+  })
+
+  it('lays every hit box on the striking limb: within 2 points of it, on its drawn points', () => {
+    for (const [s, art] of ARTS.entries()) {
+      for (const [r, x, top, w, h] of art.limbs as [number, number, number, number, number][]) {
+        const [bx, bt, bw, bh] = (art.boxes[r] ?? []).slice(16, 20) as [
+          number,
+          number,
+          number,
+          number,
+        ]
+        const at = `${SLOT_IDS[s]} row ${r}`
+        expect(bw, at).toBeGreaterThan(0)
+        expect(bx, at).toBeGreaterThanOrEqual(x - 2)
+        expect(bx + bw, at).toBeLessThanOrEqual(x + w + 2)
+        expect(bt, at).toBeLessThanOrEqual(top + 2)
+        expect(bt - bh, at).toBeGreaterThanOrEqual(Math.max(0, top - h) - 2)
+        expect(pointsIn(art.picture(r), bx, bt, bw, bh), at).toBeGreaterThan(20)
+      }
+      // Every striking row has its limb measured.
+      expect(art.limbs.length).toBe(13)
+    }
+  })
+
+  it('fits the cartridge and video memory: rooms, effects and stage within 1,024 tiles, 1 MB', () => {
+    // Measured 2026-10-08: 59 banks (472 KB of 1,024; the four slots' cells 330 KB), 710 tiles.
+    expect(built.report.banks).toBeLessThanOrEqual(128)
+    expect(built.report.banks).toBeLessThanOrEqual(62)
+    expect(built.report.tiles).toBeLessThanOrEqual(1024)
+    // Two rooms of 32 cells (4 tiles each) from the first slot's sheet, the others none.
+    const constant = (name: string) =>
+      Number(new RegExp(`export const ${name} = (0x[0-9a-f]+)`).exec(built.report.assets)?.[1])
+    expect(constant('S1_BYTES')).toBe(2 * 32 * 128)
+    expect(constant('S2_BYTES')).toBe(0)
+  })
+
+  it("streams the pose into its room: the sprites show the row's cells, mirrored facing left", () => {
+    const m = fight()
+    place(m, 236, 300)
+    steps(m, 3)
+    const mem = m.state.video?.mem ?? new Uint8Array()
+    const room = Number(/export const S1_TILE = (0x[0-9a-f]+)/.exec(built.report.assets)?.[1])
+    // P2's room holds its pose's first cell as the sheet has it.
+    const art = slotArtOf(m, 1)
+    const row = art.rows[read(m, 'fPose', 1)] ?? []
+    const at = (room + 128) * 32
+    const first = row[0] ?? 0
+    expect([...mem.subarray(at, at + 128)]).toEqual(cellTiles((x, y) => art.cell(first, x, y)))
+    // Its sprites carry FLIP_H (P2 faces left) and palette slot 9; P1's slot 8, unflipped.
+    const tileWord = (k: number) =>
+      (mem[0xc000 + k * 8 + 4] ?? 0) | ((mem[0xc000 + k * 8 + 5] ?? 0) << 8)
+    const shown = (k: number) => ((mem[0xc000 + k * 8 + 6] ?? 0) & 3) !== 3
+    const words = Array.from({ length: 128 }, (_, k) => k)
+      .filter(shown)
+      .map(tileWord)
+    const p2 = words.filter((t) => (t & 0x3ff) >= room + 128 && (t & 0x3ff) < room + 256)
+    const p1 = words.filter((t) => (t & 0x3ff) >= room && (t & 0x3ff) < room + 128)
+    expect(p2.length).toBe(row[1])
+    expect(p2.every((t) => (t & 0x2000) !== 0 && ((t >> 10) & 7) === 1)).toBe(true)
+    expect(p1.length).toBeGreaterThan(0)
+    expect(p1.every((t) => (t & 0x2000) === 0 && ((t >> 10) & 7) === 0)).toBe(true)
+  })
+
+  it('keeps the walls clean: the floor columns read round the map hold only rows, not depth lines', () => {
+    const st = stageNumbers()
+    const p = pictureFile(`${DIR}/stages/grid/art/stage.png`)
+    if (p === null) throw new Error('no stage')
+    const at = (x: number, y: number) =>
+      [0, 1, 2, 3].map((k) => p.data[(y * p.width + x) * 4 + k] ?? 0).join(',')
+    for (let y = st.ground + 1; y < 288; y++) {
+      const share = (st.lines[y - st.horizon] ?? 0) / 256
+      const n = Math.ceil(st.center * (share - 1)) + 1
+      const row = at(128, y)
+      for (let k = 0; k < n; k++) {
+        expect(at(k, y), `(${k}, ${y})`).toBe(row)
+        expect(at(511 - k, y), `(${511 - k}, ${y})`).toBe(row)
+      }
     }
   })
 })
@@ -1340,6 +1588,10 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
     frames(m, 1, cart)
     m.pad(0)
     expect(read(m, 'paused')).toBe(1)
+    // The pause's first frame shows the sprites made as it began (the drawn fighters' counts
+    // change with their poses, so it may hide some the frame before showed): from then on,
+    // nothing.
+    frames(m, 1, cart)
     const before = frozen(m)
     const seed = read(m, 'seed')
     for (let k = 0; k < 90; k++) {
@@ -1486,11 +1738,14 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     // (76,879: both backgrounds cleared whole, the stage's map and both slots' tables) and the
     // picture waits a frame there, as it did in P1. With GRID's raster (the floor a line at a
     // time, about 6,300 cycles a frame for the LINEs, and its tables made when the camera
-    // moves) on 2026-10-08: 17,271 on average and 25,413 at worst.
+    // moves) on 2026-10-08: 17,271 on average and 25,413 at worst. With the drawn fighters (P3:
+    // a pose's cells streamed by one load, its sprites laid from its row, the palettes' effects,
+    // the KO's pieces; in bank 4) on 2026-10-08: 16,673 and 29,116, 16 sprites at most on a line.
     expect(r.avg).toBeLessThan(25_000)
     expect(r.worst).toBeLessThan(40_000)
-    expect(r.avg).toBeLessThanOrEqual(18_500)
-    expect(r.worst).toBeLessThanOrEqual(28_000)
+    expect(r.line).toBeLessThanOrEqual(32)
+    expect(r.avg).toBeLessThanOrEqual(17_500)
+    expect(r.worst).toBeLessThanOrEqual(31_000)
     // P1's CPU kept standing: it beats all four in turn, ROOT last, to SYSTEM CLEAR.
     const c = boot()
     put(c, 'choice', ROOT_ROW, 2)
@@ -1512,9 +1767,10 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
  * A ladder played to its end, the fight's frames measured (a frame that loads a match - its
  * stage, both slots - is not one of them): their average and busiest cycles.
  */
-function ladderMeasured(m: Elec16): { avg: number; worst: number } {
+function ladderMeasured(m: Elec16): { avg: number; worst: number; line: number } {
   let sum = 0
   let worst = 0
+  let line = 0
   let n = 0
   for (let k = 0; k < 120_000 && read(m, 'ladderEnd') === 0; k++) {
     const fighting = read(m, 'phase') === PH.fight
@@ -1524,15 +1780,16 @@ function ladderMeasured(m: Elec16): { avg: number; worst: number } {
       const d = m.state.cycles - c0
       sum += d
       worst = Math.max(worst, d)
+      line = Math.max(line, ...perLine(m))
       n++
     }
   }
-  return { avg: sum / n, worst }
+  return { avg: sum / n, worst, line }
 }
 
 describe('ELECFIGHTER chance and the frame budget', () => {
   /** P1 idle on the pad, the stand-in against it: the match's RAM after `n` frames. */
-  const match = (clock = CLOCK, n = 600) => {
+  const match = (clock = CLOCK, n = 300) => {
     const m = fight(boot(clock), [0, 1])
     frames(m, n, cart)
     return m
@@ -1598,10 +1855,65 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     // line. The match follows the seed, which takes the cycle counter at START, so any change to
     // the code plays another: held with room, to be tightened as the phases come. With GRID's
     // raster (the floor a line at a time) on 2026-10-08: the scripted match 15,451 and 24,489
-    // over 1,749 frames, two CPUs' 16,667 and 24,499 over 3,125.
-    expect(scripted.avg).toBeLessThanOrEqual(16_500)
-    expect(scripted.worst).toBeLessThanOrEqual(27_000)
+    // over 1,749 frames, two CPUs' 16,667 and 24,499 over 3,125. With the drawn fighters (P3) on
+    // 2026-10-08: the scripted match 15,355 and 27,644 over 2,575 frames, two CPUs' 16,521 and
+    // 30,078 over 2,460; 16 sprites on the busiest line.
+    expect(scripted.avg).toBeLessThanOrEqual(16_000)
+    expect(scripted.worst).toBeLessThanOrEqual(29_000)
     expect(cpus.avg).toBeLessThanOrEqual(17_500)
-    expect(cpus.worst).toBeLessThanOrEqual(27_000)
+    expect(cpus.worst).toBeLessThanOrEqual(31_500)
+  })
+})
+
+describe('ELECFIGHTER the look (P3, design 2.4)', () => {
+  /** A P1 heavy punch that knocks P2 (one life left) out; the frames of the round's end after it. */
+  function knockOut(): Elec16 {
+    const m = fight()
+    place(m, 236, 270)
+    put(m, 'fLife', 1, 1)
+    for (let k = 0; k < 30 && read(m, 'phase') !== PH.over; k++) step(m, k === 0 ? I.hp : 0, 0)
+    expect(read(m, 'phase')).toBe(PH.over)
+    return m
+  }
+
+  it('draws a fighter in from the void as a round begins, the wire first, then the fill', () => {
+    const m = knockOut()
+    for (let k = 0; k < 300 && read(m, 'phase') !== PH.round; k++) step(m)
+    frames(m, 3, cart)
+    // The fills are the void's colour, the wire there.
+    expect(shown(m, 8, 3)).toBe(kept(m, 8, 13))
+    expect(shown(m, 8, 2)).toBe(kept(m, 8, 2))
+    for (let k = 0; k < 45 && read(m, 'phase') === PH.round; k++) frames(m, 1, cart)
+    frames(m, 2, cart)
+    for (const k of [1, 3, 6, 9]) expect(shown(m, 8, k)).toBe(kept(m, 8, k))
+  })
+
+  it('flashes the one struck, and shows a spark where the blow lands', () => {
+    const m = fight()
+    place(m, 236, 270)
+    for (let k = 0; k < 20 && read(m, 'struck', 0) === 0; k++) step(m, k === 0 ? I.hp : 0, 0)
+    frames(m, 1, cart)
+    expect(shown(m, 9, 1)).toBe(0x7fff)
+    expect(shown(m, 8, 1)).toBe(kept(m, 8, 1))
+    expect(read(m, 'fxK', 0)).toBe(1)
+  })
+
+  it('takes the fill of the one knocked out to the void, then breaks it into its pieces both ways', () => {
+    const m = knockOut()
+    for (let k = 0; k < 45 && read(m, 'phaseT') < 41; k++) step(m)
+    expect(read(m, 'shOn', 1)).toBe(1)
+    expect(read(m, 'shOn', 0)).toBe(0)
+    const n = read(m, 'art', 34 + 1)
+    expect(n).toBeGreaterThan(8)
+    const vx = Array.from({ length: n }, (_, c) => (read(m, 'shVX', 32 + c) << 16) >> 16)
+    expect(vx.filter((v) => v < 0).length).toBeGreaterThan(n / 4)
+    expect(vx.filter((v) => v > 0).length).toBeGreaterThan(n / 4)
+    // Its fills are the void (its wire only); the winner's are its own.
+    expect(shown(m, 9, 4)).toBe(kept(m, 9, 13))
+    expect(shown(m, 8, 4)).toBe(kept(m, 8, 4))
+    // The next round draws the fighter whole again.
+    for (let k = 0; k < 200 && read(m, 'phase') !== PH.fight; k++) step(m)
+    expect(read(m, 'shOn', 1)).toBe(0)
+    expect(read(m, 'artHold', 1)).toBe(0)
   })
 })

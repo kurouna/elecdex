@@ -1,8 +1,6 @@
-// ELECFIGHTER's picture (docs/elec16-elecfighter-design.md 4.2, 5.2): the camera, the fighters
-// as coloured boxes (the placeholder until the meshes come: each hurt box, the hit box while it
-// is out, the body when there is no hurt box), their shadows, and the HUD on BG1 - names, life
-// bars, TIME, the rounds' lamps, the banners' bands and the log line - redrawn only where it
-// changed.
+// ELECFIGHTER's picture (docs/elec16-elecfighter-design.md 4.2, 5.2): the camera and the HUD on
+// BG1 - names, life bars, TIME, the rounds' lamps, the banners' bands and the log line - redrawn
+// only where it changed. The fighters, their shadows and the effects are engine/look.e16.ts's.
 import {
   type bool,
   div,
@@ -13,23 +11,11 @@ import {
   words,
   wrap16,
 } from '../../../../../src/shared/e16c/builtins'
-import {
-  cellAt,
-  colour,
-  palCopy,
-  palMix,
-  S8,
-  S16,
-  spr,
-  sprBegin,
-  vfill,
-  vpoke,
-} from '../../lib/kit.e16'
-import { BOX_TILE, DIGITS_TILE, FONT_TILE, FONTB_TILE, FX_TILE, HUD_TILE } from '../assets.e16'
+import { cellAt, colour, palCopy, palMix, vfill, vpoke } from '../../lib/kit.e16'
+import { DIGITS_TILE, FONT_TILE, FONTB_TILE, HUD_TILE } from '../assets.e16'
 import { logDraw } from '../scenes/pause.e16'
 import { P_LIFE, prAt, slName } from './data.e16'
 import { fLife, fSlot, fX } from './fighter.e16'
-import { wb } from './hit.e16'
 
 /** The feet's line on the screen, and the camera's reach (design 4.2). */
 export const GROUND_Y = 244
@@ -45,86 +31,6 @@ export function cameraStep(): void {
   if (c < 0) c = 0
   if (c > CAM_MAX) c = CAM_MAX
   camX = u16(c)
-}
-
-/* ---------------- the fighters ---------------- */
-
-const T_HIT = 12
-const T_BODY = 8
-/** Sprites' palette fields: P1 slot 8, P2 slot 9, the shadows slot 10. */
-const SHADOW_PAL = 2 << 10
-
-/** The frame's sprites: the hit boxes in front, the fighters, then their shadows. */
-export function spritesBuild(): void {
-  sprBegin()
-  hitSprites(0)
-  hitSprites(1)
-  bodySprites(0)
-  bodySprites(1)
-  shadow(0)
-  shadow(1)
-}
-
-function hitSprites(i: u16): void {
-  const pal = i << 10
-  if (wb[i * 24 + 17] !== wb[i * 24 + 16]) boxSprites(i, 4, (BOX_TILE + T_HIT) | pal)
-  if (wb[i * 24 + 21] !== wb[i * 24 + 20]) boxSprites(i, 5, (BOX_TILE + T_HIT) | pal)
-}
-
-function bodySprites(i: u16): void {
-  const pal = i << 10
-  let any = false
-  let k: u16 = 1
-  while (k < 4) {
-    const o = i * 24 + k * 4
-    if (wb[o + 1] !== wb[o]) {
-      boxSprites(i, k, (BOX_TILE + (k - 1) * 4) | pal)
-      any = true
-    }
-    k++
-  }
-  if (!any) boxSprites(i, 0, (BOX_TILE + T_BODY) | pal)
-}
-
-/** Box `k` of fighter `i` filled with sprites of `tile`: 16 points square, or 8 if it is small. */
-function boxSprites(i: u16, k: u16, tile: u16): void {
-  const o = i * 24 + k * 4
-  const x0 = i16(wb[o]) - i16(camX)
-  const w = i16(wb[o + 1]) - i16(wb[o])
-  const y0 = GROUND_Y - i16(wb[o + 2])
-  const h = i16(wb[o + 2]) - i16(wb[o + 3])
-  const big = w >= 16 && h >= 16
-  const step: i16 = big ? 16 : 8
-  let dy: i16 = 0
-  for (;;) {
-    // The last row and column end at the box's edge, overlapping the one before.
-    boxRow(x0, y0 + (dy + step > h ? h - step : dy), w, tile | (big ? 0x8000 : 0))
-    dy = dy + step
-    if (dy >= h) break
-  }
-}
-
-/** A row of sprites `w` points wide from (x0, y); the tile word's top bit says 16 points. */
-function boxRow(x0: i16, y: i16, w: i16, tile: u16): void {
-  const big = (tile & 0x8000) !== 0
-  const step: i16 = big ? 16 : 8
-  const t = tile & 0x7fff
-  let dx: i16 = 0
-  for (;;) {
-    spr(x0 + (dx + step > w ? w - step : dx), y, t, big ? S16 : S8)
-    dx = dx + step
-    if (dx >= w) break
-  }
-}
-
-/** A shadow under fighter `i` on the floor, four strips across, wherever it is in the air. */
-function shadow(i: u16): void {
-  const x = i16(fX[i] >> 4) - i16(camX) - 16
-  let k: i16 = 0
-  while (k < 32) {
-    spr(x + k, GROUND_Y, FX_TILE | SHADOW_PAL, S8)
-    k = k + 8
-  }
 }
 
 /* ---------------- the HUD (BG1, in front; its row r is drawn from y 8r - 4) ---------------- */

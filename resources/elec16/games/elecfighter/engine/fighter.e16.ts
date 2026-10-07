@@ -6,6 +6,8 @@
 // `fZ` and `fVZ` are kept and never written (the game is X-Y, design 7.1).
 import { type bool, div, i16, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import {
+  artHold,
+  boxPose,
   bx,
   F_ANTIAIR,
   F_CHAIN,
@@ -80,8 +82,16 @@ const PO_GUARD = 7
 const PO_DOWN = 9
 const PO_WAKE = 10
 const PO_FALLING = 11
-/** The throw's active pose: the thrower holding (a placeholder until the art, P3). */
+/** The throw's active pose: the thrower holding. */
 const PO_THROWING = 49
+/** Rows that change only the picture (and its boxes): the walk's four steps, the jump coming down, the dashes, held by a throw, the round won, a breath. */
+const PO_WALK = 51
+const PO_JUMP_FALL = 55
+const PO_DASH = 56
+const PO_BACKDASH = 57
+const PO_THROWN = 58
+const PO_WIN = 59
+const PO_IDLE = 60
 
 const PREJUMP_F = 3
 const LAND_F = 3
@@ -140,6 +150,9 @@ export const fThrowBack = words(2)
 export const fPush = words(2)
 export const fSlot = words(2)
 export const fPose = words(2)
+/** The round won (the picture's side: set by the look as a round ends), and a frame count for the breath. */
+export const fWin = words(2)
+const fBreath = words(2)
 /** Where each stood as the frame began: the other's state machine reads it (design 8). */
 export const was = words(2)
 /** Where each stood before this frame's motion, to tell who moved apart. */
@@ -167,7 +180,11 @@ export function fighterReset(i: u16): void {
   fKnock[i] = 0
   fPush[i] = 0
   fThrowInv[i] = 0
+  fWin[i] = 0
+  fBreath[i] = 0
   fPose[i] = PO_STAND
+  boxPose[i] = 0xffff
+  artHold[i] = 0
   poseLoad(i, fSlot[i], PO_STAND)
 }
 
@@ -441,23 +458,46 @@ function jumpStep(i: u16): void {
   if (fAirUsed[i] === 0) attackTry(i, 2)
 }
 
-/** The pose for the state, its boxes read when it changes. */
+/** The pose for the state, its boxes and picture read when it changes. */
 function poseSet(i: u16): void {
   const st = fState[i]
   let p: u16 = PO_STAND
   if (st === ST_ATTACK) p = attackPose(i)
-  else if (st === ST_CROUCH) p = PO_CROUCH
-  else if (st === ST_PREJUMP) p = PO_PREJUMP
-  else if (st === ST_JUMP) p = PO_JUMP
-  else if (st === ST_LAND) p = PO_LAND
+  else if (st === ST_STAND) p = standPose(i)
+  else if (st === ST_JUMP) p = i16(fVY[i]) > 0 ? PO_JUMP : PO_JUMP_FALL
   else if (st === ST_HIT) p = fKnock[i] !== 0 ? PO_FALLING : PO_HIT + fCrouch[i]
   else if (st === ST_GUARD) p = PO_GUARD + fCrouch[i]
-  else if (st === ST_DOWN || st === ST_DEAD) p = PO_DOWN
-  else if (st === ST_WAKE) p = PO_WAKE
-  else if (st === ST_THROW) p = PO_THROWING
-  else if (st === ST_THROWN) p = PO_HIT
+  else p = statePose(st)
   fPose[i] = p
   poseLoad(i, fSlot[i], p)
+}
+
+/** The pose of a state that has only one. */
+function statePose(st: u16): u16 {
+  if (st === ST_CROUCH) return PO_CROUCH
+  if (st === ST_PREJUMP) return PO_PREJUMP
+  if (st === ST_LAND) return PO_LAND
+  if (st === ST_DOWN || st === ST_DEAD) return PO_DOWN
+  if (st === ST_WAKE) return PO_WAKE
+  if (st === ST_THROW) return PO_THROWING
+  if (st === ST_THROWN) return PO_THROWN
+  if (st === ST_DASH) return PO_DASH
+  if (st === ST_BACKDASH) return PO_BACKDASH
+  return PO_STAND
+}
+
+/**
+ * Standing: the round won, a walk's step by how far it has gone (8 points a step, counted the
+ * way it faces, so walking back plays the steps backwards), or a breath every 32 frames.
+ */
+function standPose(i: u16): u16 {
+  if (fWin[i] !== 0) return PO_WIN
+  if (fVX[i] !== 0) {
+    const x = fX[i] >> 7
+    return PO_WALK + ((fFace[i] !== 0 ? x : wrap16(0 - x)) & 3)
+  }
+  fBreath[i]++
+  return (fBreath[i] & 32) !== 0 ? PO_IDLE : PO_STAND
 }
 
 function attackPose(i: u16): u16 {

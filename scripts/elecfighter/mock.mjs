@@ -33,8 +33,23 @@ import { svgIndices, svgText } from './svg.mjs'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const OUT = join(HERE, '../../docs/elecfighter-mock')
 const SLOTS = JSON.parse(readFileSync(join(HERE, 'slots.json'), 'utf8'))
-const POSES = JSON.parse(readFileSync(join(HERE, 'poses.json'), 'utf8'))
-const ORDER = POSES.order
+// The mock's fourteen pictures (pose-book.mjs names them; the game draws every row).
+const ORDER = [
+  'stand',
+  'walk2',
+  'crouch',
+  'jump',
+  'lp',
+  'hp',
+  'lk',
+  'hk',
+  'guard',
+  'hit',
+  'throw',
+  'chp',
+  'down',
+  'win',
+]
 const USED = SLOTS.slots.filter((s) => s.used)
 const RESERVED = SLOTS.slots.filter((s) => !s.used)
 const P1 = fighterPalette('p1')
@@ -47,7 +62,7 @@ const log = (s) => {
 
 const POSE_LABEL = {
   stand: 'STAND',
-  walk: 'WALK',
+  walk2: 'WALK',
   crouch: 'CROUCH',
   jump: 'JUMP',
   lp: 'L.PUNCH',
@@ -57,7 +72,7 @@ const POSE_LABEL = {
   guard: 'GUARD',
   hit: 'HIT',
   throw: 'THROW',
-  aa: 'ANTI-AIR',
+  chp: 'ANTI-AIR',
   ko: 'KO',
   win: 'WIN',
 }

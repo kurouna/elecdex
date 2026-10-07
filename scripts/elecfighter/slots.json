@@ -1,7 +1,7 @@
 {
   "about": "ELECFIGHTER's eight fighter slots. Each points at a skinned glTF model (bone names in README.md) and a build: scales on the model's bones. Poses (poses.json) are shared by every slot.",
   "camera": { "yaw": 30, "pitch": 10 },
-  "pixelsPerMetre": 58,
+  "pixelsPerMetre": 56,
   "slots": [
     {
       "id": "S1",

@@ -3,7 +3,7 @@
 // fixes (section 8), and the ring of what each fighter was that the CPU sees by (7.10.1). The
 // fighters, the strikes, the throws and the picture are in the files beside this one; the
 // match, the ladder, the title and the controls in bank 1 (scenes/), the pause and the log's
-// words in bank 3, the CPU in bank 2 (cpu/). Phases P0-P2: coloured boxes for fighters.
+// words in bank 3, the CPU in bank 2 (cpu/), the fighters' picture in bank 4 (look.e16.ts).
 import {
   type bool,
   poke16,
@@ -31,10 +31,6 @@ import {
   vfill,
 } from '../../lib/kit.e16'
 import {
-  BOX_AT,
-  BOX_BANK,
-  BOX_BYTES,
-  BOX_TILE,
   DIGITS_AT,
   DIGITS_BANK,
   DIGITS_BYTES,
@@ -47,10 +43,6 @@ import {
   FONTB_BANK,
   FONTB_BYTES,
   FONTB_TILE,
-  FX_AT,
-  FX_BANK,
-  FX_BYTES,
-  FX_TILE,
   HUD_AT,
   HUD_BANK,
   HUD_BYTES,
@@ -60,12 +52,28 @@ import {
   PAL_HUD,
   PAL_HUDDIM,
   PAL_P1,
+  SHADOW_AT,
+  SHADOW_BANK,
+  SHADOW_BYTES,
+  SHADOW_TILE,
+  SPARK_AT,
+  SPARK_BANK,
+  SPARK_BYTES,
+  SPARK_TILE,
 } from '../assets.e16'
 import { cpuThink } from '../cpu/ai.e16'
 import { ladderPlay } from '../scenes/match.e16'
 import { controlsLoad, title } from '../scenes/scenes.e16'
-import { oppNamesIn, slotsIn, stageClearTile, stageScroll, stageShow, stagesIn } from './data.e16'
-import { bandShow, cameraStep, camX, hudClear, hudStep, logStep, spritesBuild } from './draw.e16'
+import {
+  artStream,
+  oppNamesIn,
+  slotsIn,
+  stageClearTile,
+  stageScroll,
+  stageShow,
+  stagesIn,
+} from './data.e16'
+import { bandShow, cameraStep, camX, hudClear, hudStep, logStep } from './draw.e16'
 import {
   apart,
   bodies,
@@ -94,6 +102,7 @@ import {
   throwsStep,
 } from './hit.e16'
 import { C_CPU, C_PAD, ctl, inputExt, inputHeld, inputNone, inputPad, ringStep } from './input.e16'
+import { lookStep } from './look.e16'
 
 /** The frame count the runtime keeps, as `frame_wait` last answered it, and frames played. */
 let seen: u16 = 0
@@ -168,8 +177,8 @@ function tilesIn(): void {
   load(FONTB_BANK, FONTB_AT, FONTB_TILE * 32, FONTB_BYTES)
   load(DIGITS_BANK, DIGITS_AT, DIGITS_TILE * 32, DIGITS_BYTES)
   load(HUD_BANK, HUD_AT, HUD_TILE * 32, HUD_BYTES)
-  load(BOX_BANK, BOX_AT, BOX_TILE * 32, BOX_BYTES)
-  load(FX_BANK, FX_AT, FX_TILE * 32, FX_BYTES)
+  load(SPARK_BANK, SPARK_AT, SPARK_TILE * 32, SPARK_BYTES)
+  load(SHADOW_BANK, SHADOW_AT, SHADOW_TILE * 32, SHADOW_BYTES)
 }
 
 /** Both backgrounds clear (the title's screen), BG0 still: no raster until a stage is loaded. */
@@ -184,6 +193,7 @@ export function screenClear(): void {
 export function frameBegin(): void {
   seen = frame_wait(seen)
   sprShow()
+  artStream()
   poke16(BG0X, scrollNext)
   stageShow()
   padRead()
@@ -252,7 +262,7 @@ function roundOver(s: u16): void {
 
 /**
  * One frame, in the design's order:
- *   frame_wait, sprShow (and the scroll), [the pose's cells: P3], padRead, the input ring;
+ *   frame_wait, sprShow (and the scroll), the poses' cells into the rooms, padRead, the input ring;
  *   in a hitstop, stop here (the CPU watches; the ring of what was, draw and sound only);
  *   the CPU (P2's buttons, from the ring of what was: never this frame's);
  *   the throws' frames, then the state machines, P1 then P2, each reading the other as the
@@ -261,7 +271,8 @@ function roundOver(s: u16): void {
  *   the boxes in the world, the throws and strikes judged both ways from that state, dealt
  *   together;
  *   life, KO and the round; the ring of what was (the CPU's eyes) gets this frame's end;
- *   the camera, the raster's tables (the stage's bands and floor lines), the sprites (fighters, shadows), the HUD and the log line
+ *   the camera, the raster's tables (the stage's bands and floor lines), the look (palettes,
+ *   fighters, effects, KO pieces, shadows: look.e16.ts), the HUD and the log line
  *   where they changed, [sound: later].
  */
 export function frameStep(): void {
@@ -297,7 +308,7 @@ export function frameStep(): void {
 
 function pictureStep(): void {
   scrollNext = stageScroll(camX)
-  spritesBuild()
+  lookStep()
   hudStep(timeLeft, frame)
   logStep()
 }

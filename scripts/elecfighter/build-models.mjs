@@ -170,36 +170,29 @@ function arm(s) {
   const ua = `upperarm${L}`
   const fa = `forearm${L}`
   const hd = `hand${L}`
-  // Hexagons with a vertex front and back (phase 0 on the side axis gives faces front/back).
-  const R = (b, dy, ra, rd, w, dx = 0, dz = 0) =>
-    ring(at(b, dx * x, dy, dz), oval(6, ra, rd, 0, Math.PI / 2), w)
+  // Octagons like the legs' (45 degrees between faces, under the crease angle, so a straight
+  // limb draws no stripes of crease), with rings either side of the elbow weighted a quarter and
+  // three quarters across it so a bent elbow rounds instead of folding to a point.
+  const R = (b, dy, ra, rd, w, dx = 0, dz = 0) => ring(at(b, dx * x, dy, dz), oval(8, ra, rd), w)
   const rings = [
     R(ua, 0.045, 0.03, 0.035, blend(`clavicle${L}`, ua, 0.6), -0.015),
     R(ua, 0.0, 0.064, 0.066, blend(`clavicle${L}`, ua, 0.85), 0.006),
     R(ua, -0.1, 0.058, 0.06, only(ua), 0.005, 0.006),
-    R(fa, 0.0, 0.043, 0.045, blend(ua, fa)),
-    R(fa, -0.07, 0.05, 0.052, only(fa), 0, 0.005),
-    R(fa, -0.2, 0.034, 0.038, blend(fa, hd, 0.2)),
+    R(ua, -0.24, 0.05, 0.052, blend(ua, fa, 0.2), 0, 0.002),
+    R(fa, 0.0, 0.05, 0.05, blend(ua, fa)),
+    R(fa, -0.035, 0.053, 0.055, blend(ua, fa, 0.8), 0, 0.004),
+    R(fa, -0.1, 0.056, 0.058, only(fa), 0, 0.006),
+    R(fa, -0.2, 0.04, 0.044, blend(fa, hd, 0.2)),
   ]
-  bridge(rings, ['A', 'A', 'A', 'A', 'B'], [true, false])
-  // The fist (gloved): thick across the palm, the knuckles to the front once the arm is up.
-  const F = (dy, ra, rd, dz = 0) =>
-    ring(
-      at(hd, 0, dy, dz),
-      [
-        [0, rd],
-        [-ra, rd * 0.55],
-        [-ra, -rd * 0.55],
-        [0, -rd],
-        [ra, -rd * 0.55],
-        [ra, rd * 0.55],
-      ],
-      only(hd),
-    )
+  bridge(rings, ['A', 'A', 'A', 'A', 'A', 'A', 'B'], [true, false])
+  // The fist (gloved), 6 points deep and 5 across at 1x: thick across the palm, the knuckles to
+  // the front once the arm is up. Eight corners, so it joins the forearm's octagon.
+  const F = (dy, ra, rd, dz = 0) => ring(at(hd, 0, dy, dz), oval(8, ra, rd), only(hd))
   const fist = [
-    F(-0.01, 0.026, 0.035),
-    F(-0.06, 0.032, 0.048, 0.004),
-    F(-0.105, 0.03, 0.042, 0.008),
+    F(-0.005, 0.04, 0.046),
+    F(-0.06, 0.046, 0.058, 0.005),
+    F(-0.115, 0.042, 0.052, 0.01),
+    F(-0.14, 0.026, 0.032, 0.01),
   ]
   // The last ring of the forearm joins the glove so the wrist is one shell.
   bridge([rings[rings.length - 1], fist[0]], 'B', [false, false])
@@ -214,17 +207,21 @@ function leg(s) {
   const ft = `foot${L}`
   const R = (b, dy, ra, rd, w, dx = 0, dz = 0, n = 8) =>
     ring(at(b, dx * x, dy, dz), oval(n, ra, rd), w)
+  // Rings a quarter and three quarters across the knee round it when it bends; the calf is
+  // full behind the shin.
   const rings = [
     R(th, 0.03, 0.082, 0.09, blend('hips', th, 0.7), 0, 0.006),
-    R(th, -0.18, 0.073, 0.076, only(th), 0, 0.01),
-    R(th, -0.34, 0.056, 0.058, only(th), -0.004, 0.012),
-    R(sh, 0.0, 0.05, 0.052, blend(th, sh), -0.002, 0.012),
-    R(sh, -0.1, 0.054, 0.06, only(sh), 0, -0.012),
-    R(sh, -0.27, 0.04, 0.043, only(sh), 0, -0.004),
-    R(sh, -0.4, 0.036, 0.04, blend(sh, ft, 0.4)),
+    R(th, -0.18, 0.074, 0.078, only(th), 0, 0.01),
+    R(th, -0.33, 0.06, 0.062, blend(th, sh, 0.1), -0.004, 0.012),
+    R(sh, 0.035, 0.056, 0.06, blend(th, sh, 0.3), -0.002, 0.014),
+    R(sh, -0.01, 0.055, 0.058, blend(th, sh, 0.7), 0, 0.01),
+    R(sh, -0.11, 0.058, 0.068, only(sh), 0, -0.014),
+    R(sh, -0.25, 0.046, 0.05, only(sh), 0, -0.006),
+    R(sh, -0.38, 0.04, 0.044, blend(sh, ft, 0.4)),
   ]
-  bridge(rings, ['A', 'A', 'A', 'A', 'A', 'B'], [false, true])
-  // The shoe: a wedge from heel to toe, flat underneath (y = 0), along +Z.
+  bridge(rings, ['A', 'A', 'A', 'A', 'A', 'A', 'B'], [false, true])
+  // The shoe: a wedge from heel to toe, flat underneath (y = 0), along +Z; 7 points high at the
+  // instep and 16 long at 1x.
   const fx = at(ft)[0]
   const S = (z, w, h, wt = only(ft)) =>
     ring(
@@ -241,7 +238,7 @@ function leg(s) {
       [1, 0, 0],
       [0, 1, 0],
     )
-  bridge([S(-0.065, 0.036, 0.075), S(0.02, 0.045, 0.1), S(0.19, 0.04, 0.035)], 'B')
+  bridge([S(-0.075, 0.04, 0.085), S(0.02, 0.05, 0.12), S(0.2, 0.045, 0.045)], 'B')
 }
 
 function human() {

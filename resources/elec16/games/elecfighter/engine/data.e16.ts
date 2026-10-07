@@ -37,24 +37,37 @@ import {
   OPPONENTS_BANK,
   PATTERNS_AT,
   PATTERNS_BANK,
+  S1_ART_AT,
+  S1_ART_BANK,
+  S1_BANK,
   S1_MOVES_AT,
   S1_MOVES_BANK,
   S1_POSES_AT,
   S1_POSES_BANK,
   S1_PROFILE_AT,
   S1_PROFILE_BANK,
+  S1_TILE,
+  S2_ART_AT,
+  S2_ART_BANK,
+  S2_BANK,
   S2_MOVES_AT,
   S2_MOVES_BANK,
   S2_POSES_AT,
   S2_POSES_BANK,
   S2_PROFILE_AT,
   S2_PROFILE_BANK,
+  S3_ART_AT,
+  S3_ART_BANK,
+  S3_BANK,
   S3_MOVES_AT,
   S3_MOVES_BANK,
   S3_POSES_AT,
   S3_POSES_BANK,
   S3_PROFILE_AT,
   S3_PROFILE_BANK,
+  S4_ART_AT,
+  S4_ART_BANK,
+  S4_BANK,
   S4_MOVES_AT,
   S4_MOVES_BANK,
   S4_POSES_AT,
@@ -129,20 +142,28 @@ const slProfB = words(4)
 const slProfA = words(4)
 /** Each slot's number and role, as the HUD shows it. */
 export const slName = words(4)
+/** Each slot's art: its rows' cells and places (art.txt), and the bank its cells begin in. */
+const slArtB = words(4)
+const slArtA = words(4)
+const slCellsB = words(4)
 
 /** The slots' tables and names. */
 export function slotsIn(): void {
   slotTables(0, S1_MOVES_BANK, S1_MOVES_AT, S1_POSES_BANK)
   slotPlaces(0, S1_POSES_AT, S1_PROFILE_BANK, S1_PROFILE_AT)
+  slotArt(0, S1_ART_BANK, S1_ART_AT, S1_BANK)
   slName[0] = str('S1 BALANCE')
   slotTables(1, S2_MOVES_BANK, S2_MOVES_AT, S2_POSES_BANK)
   slotPlaces(1, S2_POSES_AT, S2_PROFILE_BANK, S2_PROFILE_AT)
+  slotArt(1, S2_ART_BANK, S2_ART_AT, S2_BANK)
   slName[1] = str('S2 RUSH')
   slotTables(2, S3_MOVES_BANK, S3_MOVES_AT, S3_POSES_BANK)
   slotPlaces(2, S3_POSES_AT, S3_PROFILE_BANK, S3_PROFILE_AT)
+  slotArt(2, S3_ART_BANK, S3_ART_AT, S3_BANK)
   slName[2] = str('S3 POWER')
   slotTables(3, S4_MOVES_BANK, S4_MOVES_AT, S4_POSES_BANK)
   slotPlaces(3, S4_POSES_AT, S4_PROFILE_BANK, S4_PROFILE_AT)
+  slotArt(3, S4_ART_BANK, S4_ART_AT, S4_BANK)
   slName[3] = str('S4 OUTBOX')
 }
 
@@ -150,6 +171,12 @@ function slotTables(k: u16, mb: u16, ma: u16, pb: u16): void {
   slMovesB[k] = mb
   slMovesA[k] = ma
   slPosesB[k] = pb
+}
+
+function slotArt(k: u16, ab: u16, aa: u16, cb: u16): void {
+  slArtB[k] = ab
+  slArtA[k] = aa
+  slCellsB[k] = cb
 }
 
 function slotPlaces(k: u16, pa: u16, fb: u16, fa: u16): void {
@@ -209,7 +236,7 @@ function copyIn(b: u16, at: u16, to: u16, n: u16): void {
   poke16(IO_BANK, old)
 }
 
-/** Fighter `i` (of slot `s`) in pose `p`: its boxes read, if they are another pose's. */
+/** Fighter `i` (of slot `s`) in pose `p`: its boxes and its picture read, if they are another pose's. */
 export function poseLoad(i: u16, s: u16, p: u16): void {
   if (boxPose[i] === p) return
   boxPose[i] = p
@@ -221,6 +248,53 @@ export function poseLoad(i: u16, s: u16, p: u16): void {
     k++
   }
   poke16(IO_BANK, old)
+  if (artHold[i] === 0) artCopy(i, s, p)
+}
+
+/* ---------------- the pictures (design 2.2, 2.4): a room of 32 cells each ---------------- */
+
+/**
+ * Each fighter's room is 32 cells of 4 tiles from S1_TILE (the first sheet's `stream` of 64
+ * keeps both rooms): P1's first, P2's after it.
+ */
+/** A row of art.txt: first cell, count, 32 places. The KO's pieces are the row after the poses. */
+export const ART_W = 34
+export const SHARDS_ROW = 61
+/** Each fighter's picture row (`art[i * 34 + c]`), and whether its cells wait to be copied. */
+export const art = words(68)
+export const artWant = words(2)
+/** 1 while a fighter's picture is held (its KO pieces): a pose changes only its boxes. */
+export const artHold = words(2)
+
+/** Fighter `i`'s picture becomes row `row` of slot `s`'s art: copied into its room next frame. */
+export function artCopy(i: u16, s: u16, row: u16): void {
+  const old = bank(slArtB[s])
+  const from = slArtA[s] + row * ART_W * 2
+  let k: u16 = 0
+  while (k < ART_W) {
+    art[i * ART_W + k] = peek16(from + k * 2)
+    k++
+  }
+  poke16(IO_BANK, old)
+  artWant[i] = s + 1
+}
+
+/**
+ * As a frame begins, just after `sprShow` (design 8): each picture chosen last frame streamed
+ * into its fighter's room with one `load`, so it shows with the sprites made for it. A sheet
+ * holds 64 cells a bank, from a bank's start.
+ */
+export function artStream(): void {
+  let i: u16 = 0
+  while (i < 2) {
+    if (artWant[i] !== 0) {
+      const f = art[i * ART_W]
+      const b = slCellsB[artWant[i] - 1] + (f >> 6)
+      load(b, 0xc000 + ((f & 63) << 7), (S1_TILE + i * 128) * 32, art[i * ART_W + 1] * 128)
+      artWant[i] = 0
+    }
+    i++
+  }
 }
 
 /** Column `c` of fighter `i`'s move `m`. */

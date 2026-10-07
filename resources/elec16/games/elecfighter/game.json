@@ -30,6 +30,10 @@
     {
       "file": "scenes/pause.e16.ts",
       "bank": 3
+    },
+    {
+      "file": "engine/look.e16.ts",
+      "bank": 4
     }
   ],
   "palettes": {
@@ -66,18 +70,46 @@
       "count": 89
     },
     {
-      "name": "box",
-      "png": "art/box.png",
-      "cell": 8,
+      "name": "s1",
+      "png": "fighters/s1/art/cells.png",
+      "cell": 16,
       "palette": "p1",
-      "count": 16
+      "stream": 64
     },
     {
-      "name": "fx",
-      "png": "art/fx.png",
-      "cell": 8,
+      "name": "s2",
+      "png": "fighters/s2/art/cells.png",
+      "cell": 16,
+      "palette": "p1",
+      "stream": 0
+    },
+    {
+      "name": "s3",
+      "png": "fighters/s3/art/cells.png",
+      "cell": 16,
+      "palette": "p1",
+      "stream": 0
+    },
+    {
+      "name": "s4",
+      "png": "fighters/s4/art/cells.png",
+      "cell": 16,
+      "palette": "p1",
+      "stream": 0
+    },
+    {
+      "name": "spark",
+      "png": "art/spark.png",
+      "cell": 32,
       "palette": "fx",
-      "count": 1
+      "count": 5
+    },
+    {
+      "name": "shadow",
+      "png": "art/shadow.png",
+      "cell": 16,
+      "palette": "fx",
+      "count": 4
     }
   ],
   "maps": [
@@ -93,21 +125,85 @@
     }
   ],
   "tables": [
-    { "name": "s1_moves", "file": "fighters/s1/moves.txt" },
-    { "name": "s1_poses", "file": "fighters/s1/poses.txt" },
-    { "name": "s1_profile", "file": "fighters/s1/profile.txt" },
-    { "name": "s2_moves", "file": "fighters/s2/moves.txt" },
-    { "name": "s2_poses", "file": "fighters/s2/poses.txt" },
-    { "name": "s2_profile", "file": "fighters/s2/profile.txt" },
-    { "name": "s3_moves", "file": "fighters/s3/moves.txt" },
-    { "name": "s3_poses", "file": "fighters/s3/poses.txt" },
-    { "name": "s3_profile", "file": "fighters/s3/profile.txt" },
-    { "name": "s4_moves", "file": "fighters/s4/moves.txt" },
-    { "name": "s4_poses", "file": "fighters/s4/poses.txt" },
-    { "name": "s4_profile", "file": "fighters/s4/profile.txt" },
-    { "name": "stage_grid", "file": "stages/grid/stage.txt" },
-    { "name": "opponents", "file": "cpu/opponents.txt" },
-    { "name": "weights", "file": "cpu/weights.txt" },
-    { "name": "patterns", "file": "cpu/patterns.txt" }
+    {
+      "name": "s1_moves",
+      "file": "fighters/s1/moves.txt"
+    },
+    {
+      "name": "s1_poses",
+      "file": "fighters/s1/poses.txt"
+    },
+    {
+      "name": "s1_art",
+      "file": "fighters/s1/art.txt"
+    },
+    {
+      "name": "s1_profile",
+      "file": "fighters/s1/profile.txt"
+    },
+    {
+      "name": "s2_moves",
+      "file": "fighters/s2/moves.txt"
+    },
+    {
+      "name": "s2_poses",
+      "file": "fighters/s2/poses.txt"
+    },
+    {
+      "name": "s2_art",
+      "file": "fighters/s2/art.txt"
+    },
+    {
+      "name": "s2_profile",
+      "file": "fighters/s2/profile.txt"
+    },
+    {
+      "name": "s3_moves",
+      "file": "fighters/s3/moves.txt"
+    },
+    {
+      "name": "s3_poses",
+      "file": "fighters/s3/poses.txt"
+    },
+    {
+      "name": "s3_art",
+      "file": "fighters/s3/art.txt"
+    },
+    {
+      "name": "s3_profile",
+      "file": "fighters/s3/profile.txt"
+    },
+    {
+      "name": "s4_moves",
+      "file": "fighters/s4/moves.txt"
+    },
+    {
+      "name": "s4_poses",
+      "file": "fighters/s4/poses.txt"
+    },
+    {
+      "name": "s4_art",
+      "file": "fighters/s4/art.txt"
+    },
+    {
+      "name": "s4_profile",
+      "file": "fighters/s4/profile.txt"
+    },
+    {
+      "name": "stage_grid",
+      "file": "stages/grid/stage.txt"
+    },
+    {
+      "name": "opponents",
+      "file": "cpu/opponents.txt"
+    },
+    {
+      "name": "weights",
+      "file": "cpu/weights.txt"
+    },
+    {
+      "name": "patterns",
+      "file": "cpu/patterns.txt"
+    }
   ]
 }

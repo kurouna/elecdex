@@ -19,6 +19,7 @@ import {
   SL_LOG,
   say,
 } from '../engine/draw.e16'
+import { palKey } from '../engine/look.e16'
 import { pauseFrame } from '../engine/main.e16'
 import { matchHud } from './match.e16'
 import { controlsRun } from './scenes.e16'
@@ -58,6 +59,9 @@ export function pauseRun(): u16 {
   hudRows(MENU_ROW, 3)
   bandClear()
   dim(0)
+  // The fighters' palettes as their effects want them, not as kept: written afresh next frame.
+  palKey[0] = 0xffff
+  palKey[1] = 0xffff
   paused[0] = 0
   return quit
 }

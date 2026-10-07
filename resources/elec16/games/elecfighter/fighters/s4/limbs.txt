@@ -1,0 +1,16 @@
+# S4: the striking limb (fist and forearm's end, or foot and shin's end) in each active
+# picture, as a box: row x top w h. Written by scripts/elecfighter-art.mjs; read only by the
+# tests (a hit box lies within 2 points of the limb's points). Not part of the game.
+13 3 85 39 19
+16 21 82 40 14
+19 -6 56 51 37
+22 -3 76 47 26
+25 12 53 32 17
+28 11 109 11 40
+31 -8 31 59 31
+34 -3 25 56 25
+37 5 72 35 35
+40 16 70 30 38
+43 -5 51 42 51
+46 -1 49 42 49
+49 -1 79 29 27
