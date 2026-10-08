@@ -154,12 +154,25 @@ const WARY = 32
  * the farther.
  */
 const COME = 10
+/**
+ * Points beyond the other's reach it already guards at while wary: about what the other walks in
+ * the time it is seen late.
+ */
+const GUARD_PTS = 20
 /** A recovery seen with at least this many frames still to run is an opening to step into. */
 const OPEN_F = 6
+/**
+ * Frames its turn lasts once it is out of a guard or a hit with the other near on the ground: it
+ * may strike inside the other's reach though wary (the other's next attack is no sooner than its
+ * own; a spammer of one light that never shows an opening would otherwise never be answered).
+ */
+const TURN_F = 8
 /** A whiff with more frames than this still to run is walked into, to punish it from nearer. */
 const WALK_F = 10
 /** About how far a dash goes: every slot's profile.txt has 14 frames at 41/16, about 36 points. */
 const DASH_PTS = 36
+/** Its crouching light kick (moves.txt's row): the low its turn strikes with. */
+const MV_CLK = 6
 /** The moves a punish is chosen from, the heaviest first: sHK, sHP, sLK, sLP. */
 const PUNISHERS = 4
 /** `punisher`'s answers when no normal fits now: one would land too soon, or none. */
@@ -204,8 +217,11 @@ const fwdUp = words(2)
 const tapT = words(2)
 /** For the tests: punishes pressed. */
 export const punishes = words(2)
-/** Frames since its own attack was guarded. */
-const minusT = words(2)
+/**
+ * Two clocks in a word (RAM's globals are full): frames since its own attack was guarded (low
+ * byte, MINUS_F down) and frames left of its turn (high byte, TURN_F down).
+ */
+const tempo = words(2)
 /** The throw it was caught in: 0 not judged, 1 techs, 2 does not. */
 const techArm = words(2)
 const chainArm = words(2)
@@ -238,7 +254,7 @@ export function cpuRoundReset(i: u16): void {
   swingId[i] = 0xffff
   swA[i] = longest(i) + EDGE
   swB[i] = swA[i]
-  minusT[i] = 0
+  tempo[i] = 0
   techArm[i] = 0
   chainArm[i] = 0
   prevState[i] = 0
@@ -319,10 +335,13 @@ export function cpuThink(i: u16, think: bool): u16 {
 function counters(i: u16, j: u16): void {
   swingStep(i, j)
   punishArm(i, j)
-  if (minusT[i] > 0) minusT[i]--
+  if ((tempo[i] & 255) > 0) tempo[i]--
+  if (tempo[i] >= 256) tempo[i] = tempo[i] - 256
+  // Before the reflexes: a punish it still means (too late to land) would hide the frame.
+  if ((prevState[i] === ST_GUARD || prevState[i] === ST_HIT) && free(i)) turnTake(i, j)
   // Its own last frame: what it knows of itself, not a sight of the other.
   const e = i * 32 + ((seenN - 1) & 31)
-  if (seenF[e] >> 8 === 2) minusT[i] = MINUS_F
+  if (seenF[e] >> 8 === 2) tempo[i] = (tempo[i] & 0xff00) | MINUS_F
 }
 
 /**
@@ -349,6 +368,12 @@ function reflex(i: u16, j: u16): u16 {
   if (!free(i) && st !== ST_GUARD) return 0xffff
   const aa = antiAir(i, j)
   if (aa !== 0xffff) return aa
+  // Its turn: the attacks it still sees are the ones it has just guarded or taken - a punish
+  // still presses, but neither guards them.
+  if (onTurn(i)) {
+    const p = punish(i, j)
+    return p === 0 || (p & I_BACK) !== 0 ? 0xffff : p
+  }
   const g = guard(i, j)
   if (g !== 0xffff) return g
   return punish(i, j)
@@ -658,6 +683,14 @@ function punishPress(i: u16, k: u16): u16 {
   return b
 }
 
+/**
+ * Its turn (TURN_F): a strike or a throw already in reach, or a jump in, though wary - never a
+ * walk in, which a poke waiting at its reach meets.
+ */
+function onTurn(i: u16): bool {
+  return tempo[i] >= 256
+}
+
 /** Wary of the other: it has been swinging lately. */
 function wary(i: u16): bool {
   return swing[i] >= WARY
@@ -689,9 +722,17 @@ function mayCome(i: u16, j: u16, d: u16): bool {
   return !wary(i) || opened(i, j)
 }
 
-/** Held off at `d`: inside the other's reach it backs away guarding, else it waits. */
+/**
+ * Held off at `d`: within the other's reach and what it may walk while seen late (GUARD_PTS),
+ * it guards crouched, holding its place (a TURTLE stands, late to lows); farther, it waits. It used to back away standing only
+ * inside the reach as seen R frames late: a light low, faster than its eyes, from one who had
+ * walked in meanwhile struck it every time (measured 2026-10-09: a crouching light kick pressed
+ * whenever able won every round of the ladder, ROOT's too).
+ */
 function heldOff(i: u16, d: u16): u16 {
-  return d <= edge(i) ? I_BACK : 0
+  // A TURTLE's guard walks it back, so only inside the reach (it would leave its range).
+  if ((row(i, O_FLAGS) & OF_TURTLE) !== 0) return d > edge(i) ? 0 : I_BACK
+  return d > edge(i) + GUARD_PTS ? 0 : I_BACK | I_DOWN
 }
 
 /** A step in, or held off. */
@@ -736,6 +777,30 @@ function planned(i: u16, j: u16): u16 {
   if (thinkT[i] > 0) thinkT[i]--
   if (plan[i] === A_NONE || (thinkT[i] === 0 && patNo[i] === 0)) think(i, j)
   return act(i, j)
+}
+
+/**
+ * Out of a guard or a hit: with the other on the ground within the reach it fears, its turn - it
+ * may strike inside the other's reach for TURN_F frames. Out of a guard with its light low in
+ * reach, by its punish chance, that low at once (a light guarded leaves its striker no sooner
+ * than the guard, design 7.7: the low comes first); else it thinks again now.
+ */
+function turnTake(i: u16, j: u16): void {
+  const e = seenAt(i, j, row(i, O_R_GUARD))
+  if (seenY[e] > 0 || distTo(i, e) > edge(i) + GUARD_PTS) return
+  tempo[i] = (tempo[i] & 255) | (TURN_F << 8)
+  if (patNo[i] !== 0) return
+  if (
+    prevState[i] === ST_GUARD &&
+    inReach(i, MV_CLK, distTo(i, e)) &&
+    randBelow(256) < row(i, O_PUNISH)
+  ) {
+    planSet(i, A_LOW, 0)
+    planB[i] = 0
+    thinkT[i] = row(i, O_THINK)
+    return
+  }
+  thinkT[i] = 1
 }
 
 /** The plan is `a` for `f` frames (0: the think interval, and a little more). */
@@ -820,7 +885,7 @@ function situation(i: u16, e: u16): u16 {
   if (st === ST_DOWN || st === ST_WAKE) return SIT_WAKE
   if (seenY[e] > 0 || st === ST_PREJUMP) return SIT_AIR
   if (st === ST_HIT || st === ST_GUARD) return SIT_PLUS
-  if (minusT[i] > 0) return SIT_MINUS
+  if ((tempo[i] & 255) > 0) return SIT_MINUS
   if (fLife[i] * 4 < prAt(i, P_LIFE) || cornered(i, e)) return SIT_PRESSED
   return SIT_NEUTRAL
 }
@@ -881,8 +946,9 @@ function strikeMove(i: u16, a: u16): u16 {
 function strikeAct(i: u16, j: u16, a: u16, d: u16): u16 {
   if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
   const m = strikeMove(i, a)
-  if (d > reach[i * MOVES + m] + SLACK) return stepIn(i, j, d)
-  if (!mayCome(i, j, d)) return heldOff(i, d)
+  if (!onTurn(i) && d > reach[i * MOVES + m] + SLACK) return stepIn(i, j, d)
+  if (onTurn(i) && !inReach(i, m, d)) return heldOff(i, d)
+  if (!onTurn(i) && !mayCome(i, j, d)) return heldOff(i, d)
   const col = m & 3
   const b = col === 0 ? I_LP : col === 1 ? I_HP : col === 2 ? I_LK : I_HK
   const down = m >= 4 ? I_DOWN : 0
@@ -891,10 +957,18 @@ function strikeAct(i: u16, j: u16, a: u16, d: u16): u16 {
   return b | down
 }
 
+/**
+ * Its move `m` reaches the other standing `d` points away: its box's tip and the other's body's
+ * half (measured as the match began). A strike it walks to keeps SLACK instead, nearer, to be sure.
+ */
+function inReach(i: u16, m: u16, d: u16): bool {
+  return d <= reach[i * MOVES + m] + otherHalf[i]
+}
+
 /** A jump in: from the middle distance, forward; the attack comes in the air (`airStep`). */
 function jumpIn(i: u16, j: u16, d: u16): u16 {
   if (d > 140) return I_FWD
-  if (wary(i)) return keepRange(i, j, d)
+  if (wary(i) && !onTurn(i)) return keepRange(i, j, d)
   if ((outWas[i] & I_UP) !== 0) return 0
   planStep[i] = 1
   return I_UP | I_FWD
@@ -921,7 +995,7 @@ function throwAct(i: u16, j: u16, d: u16): u16 {
   if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
   const gap = d > otherHalf[i] ? d - otherHalf[i] : 0
   if (gap + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
-  if (!mayCome(i, j, d)) return heldOff(i, d)
+  if (!onTurn(i) && !mayCome(i, j, d)) return heldOff(i, d)
   if ((outWas[i] & I_HP) !== 0) return I_FWD
   planEnd(i)
   return I_FWD | I_HP
@@ -977,7 +1051,8 @@ function keepRange(i: u16, j: u16, d: u16): u16 {
   const w = row(i, O_WIDTH)
   const turtle = (row(i, O_FLAGS) & OF_TURTLE) !== 0
   if (d > want + (turtle ? w * 3 : w)) return stepIn(i, j, d)
-  if (d + w < want || (wary(i) && d <= edge(i))) return I_BACK
+  if (wary(i) && d <= edge(i)) return heldOff(i, d)
+  if (d + w < want) return I_BACK
   return 0
 }
 
