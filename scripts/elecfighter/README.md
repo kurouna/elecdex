@@ -198,8 +198,10 @@ The slam puts the thrown in the down row, whose first picture is the floor's `bo
 1. Edit the pose in `pose-book.mjs` (`BOOK`): the hips' `t` and `r`, a foot's or fist's `at`
    (the ankle or wrist, model metres) and its `knee` or `elbow` pole. A limb reaches at most
    0.815 m from its hip (shin and foot); asked further, it comes out straight towards the
-   point. In-betweens blended from it follow by themselves; to add one, give it a name in
-   `TWEENS` and a place in a row's `SEQ`.
+   point. Give a limb stretched straight its `at` where it lands, not past it: an in-between
+   blends the two poses' points, so a point far out keeps the blended limb straight too.
+   In-betweens blended from it follow by themselves; to add one, give it a name in `TWEENS` and
+   a place in a row's `SEQ`.
 2. `node scripts/elecfighter/pose-book.mjs` writes `poses.json`.
 3. `node scripts/elecfighter-art.mjs` draws every used slot afresh (about 20 s): it overwrites
    each `fighters/<id>/art/cells.png`, `art.txt`, `poses.txt` (the boxes drafted from the new
@@ -207,8 +209,8 @@ The slam puts the thrown in the down row, whose first picture is the floor's `bo
    `docs/elecfighter-mock/p3-boxes-<id>.png` (every row with its boxes, then the in-betweens)
    and the select's busts (drawn from `idle`). It never writes `fighters/<id>/boxes.txt`: the
    lines set by hand there are laid over the draft every time. If the redraw moves a limb a hand
-   line names (S4's kicks), set that line to the new drawing by hand: a hit box must stay within
-   2 points of its limb.
+   line names (S3's jabs, S4's kicks), set that line to the new drawing by hand: a hit box must
+   stay within 2 points of its limb.
 4. `npm run gen:elec16` rebuilds the game (`compiled.s`, `assets.e16.ts`, games.json).
 5. Check: open the check picture; `npx vitest run tests/unit/elec16-elecfighter` (its four files; no
    isolated points, the room of 32 cells, every hit box on its limb, light and heavy apart by

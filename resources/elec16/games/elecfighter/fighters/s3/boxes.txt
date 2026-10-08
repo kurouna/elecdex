@@ -69,3 +69,8 @@
 # S3's standing heavy punch (2026-10-08): its fist's box ends at S1's reach, 55 (design 3.1: the
 # power slot's reach is the standard one), not the 63 the broad shoulders drew.
 16 4 24 81 31 16
+# S3's jabs, standing and crouching (2026-10-09): their fists' boxes end 4 points past S1's (51
+# and 49; design 3.1: the power slot's reaches are the standard ones and 2-4 more), not the 53
+# and 50 the broad shoulders drew once the lights were redrawn fully extended.
+13 4 11 78 40 11
+25 4 10 57 39 14

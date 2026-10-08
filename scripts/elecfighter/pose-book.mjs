@@ -313,15 +313,24 @@ const BOOK = {
   }),
 
   // ---- standing strikes ----
-  // The jab: the lead fist straight out at the chin's height, the shoulder behind it, no turn.
+  // The jab (a light: a small wind-up, the arm still straight at the blow): the lead fist drawn
+  // back a little before the face, then driven straight out at the shoulder's height, the lead
+  // shoulder turned through behind it and the body leaning in over the lead foot, the rear fist
+  // kept at the chin.
   lp0: vary(STAND, {
-    hips: { t: [0, -0.1, 0.01], r: [5, 20, 0] },
-    rh: { at: [-0.06, 1.28, 0.46], elbow: [-0.45, 1.0, 0.2] },
+    hips: { t: [0, -0.11, -0.01], r: [4, 16, 0] },
+    chest: [3, 2, 0],
+    rh: { at: [-0.08, 1.24, 0.2], elbow: [-0.45, 0.9, 0.0] },
   }),
   lp: vary(STAND, {
-    hips: { t: [0, -0.1, 0.03], r: [6, 22, 0] },
-    chest: [4, 10, 0],
-    rh: { at: [-0.06, 1.36, 0.66], elbow: [-0.4, 1.0, 0.3] },
+    hips: { t: [0, -0.12, 0.05], r: [10, 26, 0] },
+    spine: [6, 6, 0],
+    chest: [4, 16, 0],
+    neck: [-8, -22, 0],
+    head: [8, -20, 0],
+    R: { at: [-0.07, 0.085, 0.3], knee: [-0.2, 0.5, 1.4], yaw: 10 },
+    rh: { at: [-0.06, 1.32, 0.84], elbow: [-0.4, 0.8, 0.3] },
+    lh: { at: [0.0, 1.4, 0.14], elbow: [0.35, 0.9, -0.1] },
   }),
   // The cross: wound up with the rear fist back, then driven far, the hips and chest turned
   // through, the weight forward on a bent lead knee, the rear heel up; then half back.
@@ -357,17 +366,26 @@ const BOOK = {
     lh: { at: [0.02, 1.24, 0.62], elbow: [0.5, 0.8, 0.0] },
     near: ARM_FAR,
   }),
-  // The snap kick: the lead knee up, then the shin flicked out at the waist.
+  // The snap kick (a light): the lead knee drawn up to the waist, the foot tucked under it, then
+  // the leg snapped out straight at the thigh's height, the toes pointed, the body leaning back
+  // over the standing leg for the balance, the fists kept up.
   lk0: vary(STAND, {
-    hips: { t: [0, -0.08, -0.03], r: [0, 22, 0] },
-    R: { at: [-0.06, 0.46, 0.3], knee: [-0.15, 1.0, 1.0], yaw: 0, pitch: 30 },
-    L: { at: [0.1, 0.085, -0.14], knee: [0.4, 0.5, 0.9], yaw: 40 },
+    hips: { t: [0, -0.07, -0.03], r: [-2, 22, 0] },
+    spine: [-2, 2, 0],
+    R: { at: [-0.06, 0.58, 0.18], knee: [-0.15, 1.4, 1.2], yaw: 0, pitch: 30 },
+    L: { at: [0.1, 0.085, -0.12], knee: [0.4, 0.5, 0.9], yaw: 40 },
+    rh: { at: [-0.08, 1.26, 0.28] },
   }),
   lk: vary(STAND, {
-    hips: { t: [0, -0.07, -0.04], r: [-6, 24, 0] },
-    spine: [0, 2, 0],
-    R: { at: [-0.06, 0.44, 0.68], knee: [-0.15, 1.0, 1.0], yaw: 0, pitch: 30 },
-    L: { at: [0.1, 0.085, -0.12], knee: [0.4, 0.5, 0.9], yaw: 40 },
+    hips: { t: [0, -0.07, -0.17], r: [-10, 24, 0] },
+    spine: [-4, 2, 0],
+    chest: [-2, 6, 0],
+    neck: [6, -12, 0],
+    head: [16, -14, 0],
+    R: { at: [-0.07, 0.77, 0.69], knee: [-0.15, 1.4, 0.8], yaw: 0, pitch: 8 },
+    L: { at: [0.1, 0.085, -0.19], knee: [0.4, 0.5, 0.9], yaw: 40 },
+    rh: { at: [-0.12, 1.16, 0.18], elbow: [-0.5, 0.9, 0.0] },
+    lh: { at: [0.04, 1.34, 0.08], elbow: [0.4, 0.9, -0.2] },
   }),
   // The roundhouse: the rear knee lifted as the body turns, the leg swung high and far, then
   // coming down.
@@ -406,10 +424,17 @@ const BOOK = {
   }),
 
   // ---- crouching strikes ----
-  clp0: vary(CROUCH, { rh: { at: [-0.06, 0.84, 0.48] } }),
+  // The crouching jab: the fist drawn back a little, then driven straight out at the crouch's
+  // shoulder, a little upwards (at a standing body's middle), the lead shoulder behind it.
+  clp0: vary(CROUCH, { rh: { at: [-0.08, 0.82, 0.28], elbow: [-0.45, 0.4, 0.0] } }),
   clp: vary(CROUCH, {
-    hips: { t: [0, -0.5, 0.0], r: [26, 22, 0] },
-    rh: { at: [-0.05, 0.8, 0.72], elbow: [-0.45, 0.5, 0.2] },
+    hips: { t: [0, -0.56, -0.1], r: [28, 26, 0] },
+    spine: [8, 6, 0],
+    chest: [2, 14, 0],
+    neck: [-18, -20, 0],
+    head: [0, -20, 0],
+    rh: { at: [-0.04, 0.87, 0.79], elbow: [-0.45, 0.5, 0.2] },
+    lh: { at: [0.0, 0.96, 0.2], elbow: [0.35, 0.5, 0.0] },
   }),
   // The anti-air: the rear fist driven straight up from the crouch, the body rising with it.
   chp0: vary(CROUCH, {
@@ -436,47 +461,54 @@ const BOOK = {
     lh: { at: [0.02, 1.26, 0.42], elbow: [0.5, 0.8, 0.0] },
     near: ARM_FAR,
   }),
-  // The low kick: the lead foot slid out along the floor.
+  // The low kick: the lead knee drawn in, then the leg slid out straight along the floor, the
+  // toes pointed, the body sitting back over the rear foot.
   clk0: vary(CROUCH, {
-    R: { at: [-0.08, 0.12, 0.46], knee: [-0.25, 0.6, 1.2], yaw: 0, pitch: 10 },
+    R: { at: [-0.08, 0.16, 0.4], knee: [-0.25, 0.8, 1.2], yaw: 0, pitch: 20 },
   }),
   clk: vary(CROUCH, {
-    hips: { t: [0, -0.52, -0.06], r: [30, 22, 0] },
-    R: { at: [-0.06, 0.1, 0.72], knee: [-0.2, 0.6, 1.0], yaw: 0, pitch: 0 },
+    hips: { t: [0, -0.58, -0.02], r: [24, 22, 0] },
+    spine: [6, 4, 0],
+    neck: [-16, -12, 0],
+    R: { at: [-0.07, 0.16, 0.8], knee: [-0.2, 0.8, 0.8], yaw: 0, pitch: 4 },
   }),
-  // The sweep: down on a hand, the rear leg swung long and low through the front.
+  // The sweep: down on a hand, the hips thrown forward and low, the rear leg swung through the
+  // front and slid out straight along the floor as far as it goes; then drawn back.
   chk0: vary(CROUCH, {
-    hips: { t: [0, -0.56, 0.0], r: [34, -10, 0] },
+    hips: { t: [0, -0.58, 0.04], r: [36, -10, 0] },
     neck: [-20, 10, 0],
     head: [0, 10, 0],
-    rh: { at: [-0.16, 0.12, 0.36], elbow: [-0.5, 0.6, 0.2] },
-    L: { at: [0.14, 0.1, -0.06], knee: [0.4, 0.6, 0.6], yaw: 30, pitch: 40 },
+    rh: { at: [-0.18, 0.12, 0.42], elbow: [-0.5, 0.6, 0.2] },
+    L: { at: [0.14, 0.1, -0.04], knee: [0.4, 0.6, 0.6], yaw: 30, pitch: 40 },
   }),
   chk: vary(CROUCH, {
-    hips: { t: [0, -0.6, -0.04], r: [34, -36, -6] },
-    spine: [6, -6, 0],
-    chest: [4, -6, 0],
-    neck: [-20, 24, 0],
-    head: [0, 20, 0],
-    R: { at: [-0.12, 0.085, 0.12], knee: [-0.5, 0.6, 1.0], yaw: -20 },
-    L: { at: [-0.02, 0.1, 0.88], knee: [0.3, 0.6, 0.6], yaw: 0, pitch: 20 },
-    rh: { at: [-0.22, 0.12, 0.28], elbow: [-0.6, 0.6, 0.2] },
-    lh: { at: [0.14, 0.8, 0.0], elbow: [0.5, 0.6, -0.2] },
+    hips: { t: [0, -0.66, 0.16], r: [40, -44, -8] },
+    spine: [8, -6, 0],
+    chest: [6, -6, 0],
+    neck: [-24, 26, 0],
+    head: [0, 22, 0],
+    R: { at: [-0.14, 0.085, 0.12], knee: [-0.5, 0.6, 1.0], yaw: -20 },
+    L: { at: [0.01, 0.14, 1.0], knee: [0.3, 0.8, 0.6], yaw: 0, pitch: 6 },
+    rh: { at: [-0.24, 0.12, 0.44], elbow: [-0.6, 0.6, 0.3] },
+    lh: { at: [0.16, 0.76, -0.04], elbow: [0.5, 0.6, -0.3] },
     near: LEG_FAR,
   }),
   chk2: vary(CROUCH, {
-    hips: { t: [0, -0.56, -0.02], r: [30, -16, -4] },
+    hips: { t: [0, -0.6, 0.06], r: [32, -18, -4] },
     neck: [-20, 14, 0],
     head: [0, 12, 0],
-    rh: { at: [-0.18, 0.12, 0.32], elbow: [-0.6, 0.6, 0.2] },
-    L: { at: [0.06, 0.1, 0.52], knee: [0.3, 0.6, 0.6], yaw: 0, pitch: 60 },
+    rh: { at: [-0.2, 0.12, 0.38], elbow: [-0.6, 0.6, 0.2] },
+    L: { at: [0.04, 0.1, 0.62], knee: [0.3, 0.6, 0.6], yaw: 0, pitch: 60 },
     near: LEG_FAR,
   }),
 
   // ---- jumping strikes ----
+  // The jumping jab: the lead arm driven straight down and forward at the one below, the
+  // shoulder turned behind it.
   jlp: vary(TUCK, {
-    hips: { t: [0, 0, 0], r: [16, 20, 0] },
-    rh: { at: [-0.06, 1.0, 0.62], elbow: [-0.45, 1.2, 0.0] },
+    hips: { t: [0, 0, 0], r: [16, 24, 0] },
+    chest: [4, 14, 0],
+    rh: { at: [-0.06, 0.95, 0.63], elbow: [-0.45, 1.4, 0.0] },
   }),
   // The hammer: the rear fist brought down from high and far.
   jhp0: vary(TUCK, {
@@ -688,7 +720,7 @@ const TWEENS = {
   knock: blend(B.air, B.down, 0.5),
   wake2: blend(B.wake, B.stand, 0.5),
   win0: blend(B.stand, B.win, 0.5),
-  // A light's fist or foot drawn back halfway before the stance.
+  // A light's fist or foot snapped back halfway.
   lp1: blend(B.lp, B.lp0, 0.5),
   lk1: blend(B.lk, B.lk0, 0.5),
   // A heavy's wind-up begun, and its follow-through settling back into the stance.
@@ -732,6 +764,10 @@ const TWEENS = {
   // A throw tech's stagger and its recovery.
   stag: D.stag,
   stag2: blend(D.stag, B.stand, 0.5),
+  // The lights' retraction into the stance, and the snap kick's knee on its way up.
+  lp2: blend(B.lp0, B.stand, 0.5),
+  lk2: blend(B.lk0, B.stand, 0.5),
+  lk0a: blend(B.stand, B.lk0, 0.5),
 }
 
 /**
@@ -817,7 +853,7 @@ const SEQ = {
   ],
   14: [
     ['lp1', 3],
-    ['lp0', HOLD],
+    ['lp2', HOLD],
   ],
   15: [
     ['hp0a', 3],
@@ -828,9 +864,14 @@ const SEQ = {
     ['hp3', 12],
     ['hp4', HOLD],
   ],
+  18: [
+    ['lk0a', 2],
+    ['lk0', HOLD],
+  ],
   20: [
     ['lk1', 3],
-    ['lk0', HOLD],
+    ['lk0', 6],
+    ['lk2', HOLD],
   ],
   21: [
     ['hk0a', 3],

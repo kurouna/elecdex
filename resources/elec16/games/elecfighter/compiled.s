@@ -2506,20 +2506,20 @@ tilesIn:
   li a3, 2848
   call load
   ; engine/main.e16.ts:218  load(BIG_BANK, BIG_AT, BIG_TILE * 32, BIG_BYTES)
-  li a0, 352
+  li a0, 355
   li a1, 49152
   li a2, 19488
   li a3, 5184
   call load
   ; engine/main.e16.ts:219  load(SPARK_BANK, SPARK_AT, SPARK_TILE * 32, SPARK_BYTES)
-  li a0, 351
-  li a1, 49152
+  li a0, 354
+  li a1, 53248
   li a2, 16416
   li a3, 2560
   call load
   ; engine/main.e16.ts:220  load(SHADOW_BANK, SHADOW_AT, SHADOW_TILE * 32, SHADOW_BYTES)
-  li a0, 351
-  li a1, 51712
+  li a0, 354
+  li a1, 55808
   li a2, 18976
   li a3, 512
   call load
@@ -3144,19 +3144,19 @@ slotsIn:
   sw ra, 0(sp)
   ; engine/data.e16.ts:154  slotTables(0, S1_MOVES_BANK, S1_MOVES_AT, S1_POSES_BANK)
   li a0, 0
-  li a1, 357
+  li a1, 360
   li a2, 50962
-  li a3, 357
+  li a3, 360
   call slotTables
   ; engine/data.e16.ts:155  slotPlaces(0, S1_POSES_AT, S1_PROFILE_BANK, S1_PROFILE_AT)
   li a0, 0
   li a1, 51378
-  li a2, 358
-  li a3, 56836
+  li a2, 361
+  li a3, 57040
   call slotPlaces
   ; engine/data.e16.ts:156  slotArt(0, S1_ART_BANK, S1_ART_AT, S1_BANK)
   li a0, 0
-  li a1, 358
+  li a1, 361
   li a2, 49152
   li a3, 267
   call slotArt
@@ -3165,63 +3165,63 @@ slotsIn:
   sw t0, slName(zero)
   ; engine/data.e16.ts:158  slotTables(1, S2_MOVES_BANK, S2_MOVES_AT, S2_POSES_BANK)
   li a0, 1
-  li a1, 358
-  li a2, 56868
-  li a3, 359
+  li a1, 362
+  li a2, 49152
+  li a3, 362
   call slotTables
   ; engine/data.e16.ts:159  slotPlaces(1, S2_POSES_AT, S2_PROFILE_BANK, S2_PROFILE_AT)
   li a0, 1
-  li a1, 49152
-  li a2, 360
-  li a3, 56836
+  li a1, 49568
+  li a2, 363
+  li a3, 57040
   call slotPlaces
   ; engine/data.e16.ts:160  slotArt(1, S2_ART_BANK, S2_ART_AT, S2_BANK)
   li a0, 1
-  li a1, 360
+  li a1, 363
   li a2, 49152
-  li a3, 287
+  li a3, 288
   call slotArt
   ; engine/data.e16.ts:161  slName[1] = str('S2 RUSH')
   la t0, str_6
   sw t0, slName+2(zero)
   ; engine/data.e16.ts:162  slotTables(2, S3_MOVES_BANK, S3_MOVES_AT, S3_POSES_BANK)
   li a0, 2
-  li a1, 360
-  li a2, 56868
-  li a3, 361
+  li a1, 364
+  li a2, 49152
+  li a3, 364
   call slotTables
   ; engine/data.e16.ts:163  slotPlaces(2, S3_POSES_AT, S3_PROFILE_BANK, S3_PROFILE_AT)
   li a0, 2
-  li a1, 49152
-  li a2, 362
-  li a3, 56836
+  li a1, 49568
+  li a2, 365
+  li a3, 57040
   call slotPlaces
   ; engine/data.e16.ts:164  slotArt(2, S3_ART_BANK, S3_ART_AT, S3_BANK)
   li a0, 2
-  li a1, 362
+  li a1, 365
   li a2, 49152
-  li a3, 305
+  li a3, 307
   call slotArt
   ; engine/data.e16.ts:165  slName[2] = str('S3 POWER')
   la t0, str_7
   sw t0, slName+4(zero)
   ; engine/data.e16.ts:166  slotTables(3, S4_MOVES_BANK, S4_MOVES_AT, S4_POSES_BANK)
   li a0, 3
-  li a1, 362
-  li a2, 56868
-  li a3, 363
+  li a1, 366
+  li a2, 49152
+  li a3, 366
   call slotTables
   ; engine/data.e16.ts:167  slotPlaces(3, S4_POSES_AT, S4_PROFILE_BANK, S4_PROFILE_AT)
   li a0, 3
-  li a1, 49152
-  li a2, 364
-  li a3, 56836
+  li a1, 49568
+  li a2, 367
+  li a3, 57040
   call slotPlaces
   ; engine/data.e16.ts:168  slotArt(3, S4_ART_BANK, S4_ART_AT, S4_BANK)
   li a0, 3
-  li a1, 364
+  li a1, 367
   li a2, 49152
-  li a3, 328
+  li a3, 331
   call slotArt
   ; engine/data.e16.ts:169  slName[3] = str('S4 OUTBOX')
   la t0, str_8
@@ -3850,7 +3850,7 @@ stagesIn:
   sw s0, 6(sp)
   ; engine/data.e16.ts:356  stagePictures(0, GRID_TILE, GRID_TILES_BANK, GRID_TILES_AT)
   li s1, 53248 ; stagePictures.at
-  li a3, 353 ; stagePictures.b
+  li a3, 356 ; stagePictures.b
   li a2, 771 ; stagePictures.tile
   li a0, 0 ; stagePictures.k
   ; engine/data.e16.ts:363  stTile[k] = tile
@@ -3864,7 +3864,7 @@ stagesIn:
   sw s1, stTilesA(t0)
   ; engine/data.e16.ts:357  stagePlaces(0, GRID_TILES_BYTES, GRID_MAP_BANK, GRID_H)
   li s0, 36 ; stagePlaces.rows
-  li s3, 354 ; stagePlaces.mapB
+  li s3, 357 ; stagePlaces.mapB
   li s2, 3232 ; stagePlaces.n
   li a1, 0 ; stagePlaces.k
   ; engine/data.e16.ts:369  stTilesN[k] = n
@@ -3877,7 +3877,7 @@ stagesIn:
   slli t0, a1, 1
   sw s0, stRows(t0)
   ; engine/data.e16.ts:358  stDataB[0] = STAGE_GRID_BANK
-  li t0, 365
+  li t0, 368
   sw t0, stDataB(zero)
   ; engine/data.e16.ts:359  stDataA[0] = STAGE_GRID_AT
   li t0, 51178
@@ -4190,7 +4190,7 @@ oppLoad:
   sw a1, 4(fp) ; k
   sw a2, 2(fp) ; pos
   ; engine/data.e16.ts:541  const old = bank(OPPONENTS_BANK)
-  li a0, 365
+  li a0, 368
   call bank
   sw a0, 6(fp) ; old
   ; engine/data.e16.ts:542  let c: u16 = 0
@@ -4319,7 +4319,7 @@ oppWord:
   mv s1, a0 ; k
   mv s2, a1 ; c
   ; engine/data.e16.ts:564  const old = bank(OPPONENTS_BANK)
-  li a0, 365
+  li a0, 368
   call bank
   mv s3, a0 ; old
   ; engine/data.e16.ts:565  const v = peek16(OPPONENTS_AT + (k * OW + c) * 2)
@@ -4362,7 +4362,7 @@ weightsLoad:
   mv s3, a1 ; band
   sw a2, 0(fp) ; sit
   ; engine/data.e16.ts:573  const old = bank(WEIGHTS_BANK)
-  li a0, 365
+  li a0, 368
   call bank
   sw a0, 2(fp) ; old
   ; engine/data.e16.ts:574  const from = WEIGHTS_AT + (opp[i * OW + O_WEIGHTS] * 18 + band * 6 + sit) * 10 * 2
@@ -4432,7 +4432,7 @@ patternWord:
   mv s1, a0 ; p
   mv s2, a1 ; k
   ; engine/data.e16.ts:585  const old = bank(PATTERNS_BANK)
-  li a0, 365
+  li a0, 368
   call bank
   mv s3, a0 ; old
   ; engine/data.e16.ts:586  const v = peek16(PATTERNS_AT + (p * 8 + k) * 2)
@@ -16440,7 +16440,7 @@ rowPic:
 .L2:
 .L1:
   ; engine/look.e16.ts:250  if (tableWord(FRAMES_BANK, FRAMES_AT, row) !== 0) {
-  li a0, 365
+  li a0, 368
   li a1, 49152
   mv a2, s3
   call tableWord
@@ -16482,7 +16482,7 @@ rowPic:
   slli t0, s1, 1
   addi t1, s3, 2
   add t1, t1, t0
-  li a0, 365
+  li a0, 368
   li a1, 49152
   mv a2, t1
   call tableWord
@@ -16492,7 +16492,7 @@ rowPic:
   slli t0, s1, 1
   addi t1, s3, 1
   add t1, t1, t0
-  li a0, 365
+  li a0, 368
   li a1, 49152
   mv a2, t1
   call tableWord
@@ -16529,7 +16529,7 @@ transPic:
   mv s2, a2 ; t
   ; engine/look.e16.ts:265  const w = tableWord(FRAMES_BANK, FRAMES_AT, row + SEQ_TRANS)
   lw t0, 10(fp) ; row
-  li a0, 365
+  li a0, 368
   li a1, 49152
   addi a2, t0, 9
   call tableWord
@@ -16551,7 +16551,7 @@ transPic:
   ; engine/look.e16.ts:270  const from = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W)
   slli t1, s1, 1
   add t0, t1, s1
-  li a0, 365
+  li a0, 368
   li a1, 50372
   mv a2, t0
   call tableWord
@@ -16568,7 +16568,7 @@ transPic:
   ; engine/look.e16.ts:272  const a = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 1)
   slli t1, s1, 1
   add t0, t1, s1
-  li a0, 365
+  li a0, 368
   li a1, 50372
   addi a2, t0, 1
   call tableWord
@@ -16585,7 +16585,7 @@ transPic:
   ; engine/look.e16.ts:274  const b = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 2)
   slli t1, s1, 1
   add t0, t1, s1
-  li a0, 365
+  li a0, 368
   li a1, 50372
   addi a2, t0, 2
   call tableWord
@@ -16667,7 +16667,7 @@ throwWord:
   add t0, t0, s0
   slli t0, t0, 2
   add t0, t0, s3
-  li a0, 365
+  li a0, 368
   li a1, 50762
   mv a2, t0
   call tableWord
@@ -18754,112 +18754,112 @@ audioIn:
   sw ra, 0(sp)
   ; engine/audio.e16.ts:99  fxIs(X_LIGHT, SONG_X_LIGHT_BANK, SONG_X_LIGHT_AT)
   li a0, 0
-  li a1, 357
+  li a1, 360
   li a2, 50318
   call fxIs
   ; engine/audio.e16.ts:100  fxIs(X_HEAVY, SONG_X_HEAVY_BANK, SONG_X_HEAVY_AT)
   li a0, 1
-  li a1, 357
+  li a1, 360
   li a2, 50356
   call fxIs
   ; engine/audio.e16.ts:101  fxIs(X_GUARD, SONG_X_GUARD_BANK, SONG_X_GUARD_AT)
   li a0, 2
-  li a1, 357
+  li a1, 360
   li a2, 50402
   call fxIs
   ; engine/audio.e16.ts:102  fxIs(X_WHIFF, SONG_X_WHIFF_BANK, SONG_X_WHIFF_AT)
   li a0, 3
-  li a1, 357
+  li a1, 360
   li a2, 50434
   call fxIs
   ; engine/audio.e16.ts:103  fxIs(X_DASH, SONG_X_DASH_BANK, SONG_X_DASH_AT)
   li a0, 4
-  li a1, 357
+  li a1, 360
   li a2, 50464
   call fxIs
   ; engine/audio.e16.ts:104  fxIs(X_THROW, SONG_X_THROW_BANK, SONG_X_THROW_AT)
   li a0, 5
-  li a1, 357
+  li a1, 360
   li a2, 50490
   call fxIs
   ; engine/audio.e16.ts:105  fxIs(X_LAND, SONG_X_LAND_BANK, SONG_X_LAND_AT)
   li a0, 6
-  li a1, 357
+  li a1, 360
   li a2, 50530
   call fxIs
   ; engine/audio.e16.ts:106  fxIs(X_DOWN, SONG_X_DOWN_BANK, SONG_X_DOWN_AT)
   li a0, 7
-  li a1, 357
+  li a1, 360
   li a2, 50556
   call fxIs
   ; engine/audio.e16.ts:107  fxIs(X_SHARDS, SONG_X_SHARDS_BANK, SONG_X_SHARDS_AT)
   li a0, 8
-  li a1, 357
+  li a1, 360
   li a2, 50600
   call fxIs
   ; engine/audio.e16.ts:108  fxIs(X_ROUND, SONG_X_ROUND_BANK, SONG_X_ROUND_AT)
   li a0, 9
-  li a1, 357
+  li a1, 360
   li a2, 50660
   call fxIs
   ; engine/audio.e16.ts:109  fxIs(X_FIGHT, SONG_X_FIGHT_BANK, SONG_X_FIGHT_AT)
   li a0, 10
-  li a1, 357
+  li a1, 360
   li a2, 50692
   call fxIs
   ; engine/audio.e16.ts:110  fxIs(X_TIME, SONG_X_TIME_BANK, SONG_X_TIME_AT)
   li a0, 11
-  li a1, 357
+  li a1, 360
   li a2, 50736
   call fxIs
   ; engine/audio.e16.ts:111  fxIs(X_KO, SONG_X_KO_BANK, SONG_X_KO_AT)
   li a0, 12
-  li a1, 357
+  li a1, 360
   li a2, 50764
   call fxIs
   ; engine/audio.e16.ts:112  fxIs(X_MAT, SONG_X_MAT_BANK, SONG_X_MAT_AT)
   li a0, 13
-  li a1, 357
+  li a1, 360
   li a2, 50830
   call fxIs
   ; engine/audio.e16.ts:113  fxIs(X_MOVE, SONG_X_MOVE_BANK, SONG_X_MOVE_AT)
   li a0, 14
-  li a1, 357
+  li a1, 360
   li a2, 50898
   call fxIs
   ; engine/audio.e16.ts:114  fxIs(X_OK, SONG_X_OK_BANK, SONG_X_OK_AT)
   li a0, 15
-  li a1, 357
+  li a1, 360
   li a2, 50926
   call fxIs
   ; engine/audio.e16.ts:115  songIs(M_TITLE, SONG_TITLE_BANK, SONG_TITLE_AT)
   li a0, 1
-  li a1, 356
+  li a1, 359
   li a2, 53760
   call songIs
   ; engine/audio.e16.ts:116  songIs(M_SELECT, SONG_SELECT_BANK, SONG_SELECT_AT)
   li a0, 2
-  li a1, 356
+  li a1, 359
   li a2, 54970
   call songIs
   ; engine/audio.e16.ts:117  songIs(M_FIGHT, SONG_FIGHT_BANK, SONG_FIGHT_AT)
   li a0, 3
-  li a1, 356
+  li a1, 359
   li a2, 55644
   call songIs
   ; engine/audio.e16.ts:118  songIs(M_WIN, SONG_WIN_BANK, SONG_WIN_AT)
   li a0, 4
-  li a1, 356
+  li a1, 359
   li a2, 57006
   call songIs
   ; engine/audio.e16.ts:119  songIs(M_LOSE, SONG_LOSE_BANK, SONG_LOSE_AT)
   li a0, 5
-  li a1, 356
+  li a1, 359
   li a2, 57176
   call songIs
   ; engine/audio.e16.ts:120  songIs(M_CLEAR, SONG_CLEAR_BANK, SONG_CLEAR_AT)
   li a0, 6
-  li a1, 357
+  li a1, 360
   li a2, 49152
   call songIs
 .return:
@@ -19435,7 +19435,7 @@ titleDraw:
   li a1, 0
   call palKeep
   ; scenes/title.e16.ts:220  load(TITLE_TILES_BANK, TITLE_TILES_AT, TITLE_TILE * 32, TITLE_TILES_BYTES)
-  li a0, 355
+  li a0, 358
   li a1, 49152
   li a2, 24672
   li a3, 5536
@@ -19449,7 +19449,7 @@ titleDraw:
   slli t0, s2, 7
   li t1, 49152
   add t1, t1, t0
-  li a0, 356
+  li a0, 359
   mv a1, t1
   li a2, 0
   mv a3, s2
@@ -20659,7 +20659,7 @@ selectRun:
   li t1, 260
   call far_call
   ; scenes/select.e16.ts:117  load(BUSTS_BANK, BUSTS_AT, BUSTS_TILE * 32, BUSTS_BYTES)
-  li a0, 353
+  li a0, 356
   li a1, 49152
   li a2, 24672
   li a3, 4096
@@ -20863,7 +20863,7 @@ bustDraw:
   ; scenes/select.e16.ts:172  const t = tableWord(BUST_CELLS_BANK, BUST_CELLS_AT, s * BUST_CELLS + k)
   slli t0, s2, 6
   add t0, t0, s1
-  li a0, 365
+  li a0, 368
   li a1, 53704
   mv a2, t0
   call tableWord

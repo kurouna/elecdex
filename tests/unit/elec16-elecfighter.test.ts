@@ -311,7 +311,7 @@ function pointsIn(pts: Map<string, number>, bx: number, bt: number, bw: number, 
 
 const ARTS = SLOT_IDS.map(slotArt)
 /** The in-between pictures, after the KO's pieces in every art.txt (scripts/elecfighter/pose-book.mjs). */
-const TWEENS = 50
+const TWEENS = 53
 /** The active rows of the standing light and heavy punch and kick (poses.txt). */
 const ROW = { sLP: 13, sHP: 16, sLK: 19, sHK: 22 }
 
@@ -341,9 +341,10 @@ function cellTiles(cell: (x: number, y: number) => number): number[] {
 describe('ELECFIGHTER the art (P3, design 2)', () => {
   it('tells the light from the heavy at 1x by its silhouette alone', () => {
     // Measured 2026-10-08 (scripts/elecfighter/pose-book.mjs): punches 0.57-0.76 of the points
-    // apart, kicks 0.64-0.70. The first mock's punches, which read alike at 1x (design 16), were
-    // 0.34-0.43 and its kicks, which read apart, 0.70-0.81: 0.45 is above every pair that did not
-    // read.
+    // apart, kicks 0.64-0.70; with the lights fully extended (2026-10-09) punches 0.47-0.69 (S3's
+    // broad jab the nearest), kicks 0.58-0.73. The first mock's punches, which read alike at 1x
+    // (design 16), were 0.34-0.43 and its kicks, which read apart, 0.70-0.81: 0.45 is above every
+    // pair that did not read.
     for (const art of ARTS) {
       expect(apartShare(art.picture(ROW.sLP), art.picture(ROW.sHP))).toBeGreaterThanOrEqual(0.45)
       expect(apartShare(art.picture(ROW.sLK), art.picture(ROW.sHK))).toBeGreaterThanOrEqual(0.45)
@@ -423,8 +424,8 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
     // map and the busts sharing one place (never shown together).
     expect(built.report.banks).toBeLessThanOrEqual(128)
     // With 31 in-between pictures a slot (fighters/frames.txt) on 2026-10-08: 98 banks (784 KB);
-    // with 50 (the throw's, the transitions', the wake-up's) 113 banks (904 KB). At least 10
-    // banks are kept free.
+    // with 50 (the throw's, the transitions', the wake-up's) 113 banks (904 KB); with 53 (the
+    // lights' retraction, 2026-10-09) 116 banks (928 KB). At least 10 banks are kept free.
     expect(built.report.banks).toBeLessThanOrEqual(118)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
     // Two rooms of 32 cells (4 tiles each) from the first slot's sheet, the others none.
