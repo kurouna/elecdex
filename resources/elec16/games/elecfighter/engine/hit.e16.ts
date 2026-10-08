@@ -73,7 +73,7 @@ import {
   upperSafe,
 } from './fighter.e16'
 import { consume, heldNow, I_ATTACKS, I_BACK, I_FWD, I_HP, pressedIn } from './input.e16'
-import { PH_FIGHT, phase } from './main.e16'
+import { live } from './main.e16'
 
 /** Each fighter's six boxes in the world, in points: left, right, top, bottom (up is +). */
 export const wb = words(48)
@@ -331,7 +331,7 @@ function slam(a: u16, d: u16): void {
   if (fThrowBack[a] !== 0) fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
   const toRight = fX[d] > fX[a]
   // A throw held as the round ended still lands, but takes no life: the round is decided.
-  const dmg = phase === PH_FIGHT ? damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false) : 0
+  const dmg = live() ? damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false) : 0
   fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   dealt[a] = dmg
   struck[a] = 4

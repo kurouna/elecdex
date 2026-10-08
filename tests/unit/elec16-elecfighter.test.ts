@@ -1715,6 +1715,9 @@ function cpuTwice(m: Elec16, plan: number, p1: number): [number, number] {
   put(b, 'fState', read(b, 'fState', 0) === ST.attack ? ST.stand : ST.attack, 0)
   put(b, 'fMove', MV2.throw, 0)
   put(b, 'fY', 0, 0)
+  // P1's body box now (its pose's, `bx` word 2) made far wider: the throw's range is the
+  // other's body as its slot stands, never as it is posed this frame.
+  put(b, 'bx', read(b, 'bx', 2) + 60, 2)
   step(m, p1)
   step(b, p1)
   return [read(m, 'cpuHeld', 1), read(b, 'cpuHeld', 1)]
@@ -2370,6 +2373,28 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     }
     expect(read(m, 'screen')).toBe(SC.fight)
     expect(worst).toBeLessThan(66_667)
+
+    // Found in review 2026-10-08: START on the versus's first frame went on at once, and both
+    // sides were measured in that one frame. Pressed as the versus waits for its first frame.
+    const n = boot()
+    toSelect(n)
+    n.pad(padBit('a'))
+    frames(n, 1, cart)
+    n.pad(0)
+    put(n, 'ctl', 1, 0)
+    put(n, 'ctl', 1, 1)
+    for (let k = 0; k < 60 && read(n, 'screen') !== SC.versus; k++) frames(n, 1, cart)
+    expect(read(n, 'screen')).toBe(SC.versus)
+    n.pad(padBit('start'))
+    let first = 0
+    for (let k = 0; k < 300 && read(n, 'phase') !== PH.fight; k++) {
+      const c0 = n.state.cycles
+      frames(n, 1, cart)
+      if (k === 1) n.pad(0)
+      first = Math.max(first, n.state.cycles - c0)
+    }
+    expect(read(n, 'screen')).toBe(SC.fight)
+    expect(first).toBeLessThan(66_667)
   })
 
   it("plays a scripted fight and two CPUs' matches within their frames, 32 sprites a line", () => {

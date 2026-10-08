@@ -3,9 +3,10 @@
 // fixes (section 8), and the ring of what each fighter was that the CPU sees by (7.10.1). The
 // fighters, the strikes, the throws and the picture are in the files beside this one; the
 // match and the ladder in bank 1 (scenes/), the CPU in bank 2 (cpu/ai.e16.ts) and its memory
-// in bank 8 (cpu/habit.e16.ts), the pause and the log's words in bank 3, the fighters' picture and the sound in bank 4 (look.e16.ts, audio.e16.ts),
-// the boot log, the title and the controls in bank 5, the select and the versus in bank 6, the
-// results, the records and save RAM in bank 7 (design 5.4).
+// in bank 8 (cpu/habit.e16.ts), the pause and the log's words in bank 3, the fighters' picture
+// and the sound in bank 4 (look.e16.ts, audio.e16.ts), the boot log, the title and the
+// controls in bank 5, the select and the versus in bank 6, the results, the records and save
+// RAM in bank 7 (design 5.4).
 import {
   type bool,
   poke16,
@@ -412,8 +413,8 @@ function seenRecord(): void {
   seenN = wrap16(seenN + 1)
 }
 
-/** Whether the fighters take buttons: only while they fight. */
-function live(): bool {
+/** Whether the fighters take buttons, and a throw does damage: only while they fight. */
+export function live(): bool {
   return phase === PH_FIGHT
 }
 

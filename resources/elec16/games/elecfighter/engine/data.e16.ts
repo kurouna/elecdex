@@ -243,12 +243,13 @@ export function poseLoad(i: u16, s: u16, p: u16): void {
 }
 
 /**
- * Pose `p` of slot `s`'s hurt boxes (1-3, 12 words), or its hit boxes (`hit`: 4-5, 8 words),
- * copied to `to` under one bank: the CPU measures reaches by them (ai.e16.ts).
+ * `n` words of slot `s`'s poses from word `at` (pose p's word w at p * POSE_W + w: the body box
+ * 0-3, hurt boxes 4-15, hit boxes 16-23), copied to `to` under one bank: the CPU measures
+ * reaches by them (ai.e16.ts).
  */
-export function poseBoxes(s: u16, p: u16, hit: bool, to: u16): void {
+export function poseWords(s: u16, at: u16, n: u16, to: u16): void {
   const old = bank(slPosesB[s])
-  memcpy(to, slPosesA[s] + (p * POSE_W + (hit ? 16 : 4)) * 2, hit ? 16 : 24)
+  memcpy(to, slPosesA[s] + at * 2, n * 2)
   poke16(IO_BANK, old)
 }
 

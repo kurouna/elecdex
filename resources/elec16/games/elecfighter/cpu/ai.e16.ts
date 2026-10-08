@@ -48,8 +48,9 @@ import {
   opp,
   P_LIFE,
   P_THROW,
+  POSE_W,
   patternWord,
-  poseBoxes,
+  poseWords,
   prAt,
   reach,
   weightsLoad,
@@ -79,7 +80,6 @@ import {
   ST_THROW,
   ST_THROWN,
   ST_WAKE,
-  throwGap,
 } from '../engine/fighter.e16'
 import {
   C_CPU,
@@ -238,13 +238,16 @@ export function cpuRoundReset(i: u16): void {
   watchReset(i)
 }
 
-/** Fighter `i`'s CPU, new for a match (its reaches are measured as the versus shows: `cpuMeasure`). */
+/**
+ * Fighter `i`'s CPU, new for a match (its reaches are measured as the versus shows: `cpuMeasure`).
+ * The round's part is left to the first round's `cpuRoundReset`: here the reaches it sets the
+ * swinging by are still the last match's, and nothing reads them before that round.
+ */
 export function cpuMatchSet(i: u16): void {
   whims[i] = 0
   punishes[i] = 0
   seenLate[i] = 0xffff
   habitMatch(i)
-  cpuRoundReset(i)
 }
 
 /**
@@ -434,6 +437,11 @@ const punD = words(64)
 const bw = words(20)
 const BW_HURT = 0
 const BW_HIT = 12
+/**
+ * Half the other's body as its slot stands (its stand pose's body box), for the throw's range:
+ * the body box now is the other's pose this frame, which the CPU never sees (design 7.10.1).
+ */
+const otherHalf = words(2)
 
 /** The most points apart the hit boxes meet the hurt boxes, two facing on the ground (0 never). */
 function boxesMeet(): u16 {
@@ -464,7 +472,8 @@ function boxesMeet(): u16 {
 
 /** Pose `p` of fighter `f`'s slot: its hit boxes (`hit`) or its hurt boxes into `bw`. */
 function measured(f: u16, p: u16, hit: bool): void {
-  poseBoxes(fSlot[f], p, hit, addr(bw) + (hit ? BW_HIT : BW_HURT) * 2)
+  if (hit) poseWords(fSlot[f], p * POSE_W + 16, 8, addr(bw) + BW_HIT * 2)
+  else poseWords(fSlot[f], p * POSE_W + 4, 12, addr(bw) + BW_HURT * 2)
 }
 
 /**
@@ -474,6 +483,8 @@ function measured(f: u16, p: u16, hit: bool): void {
  */
 function measure(i: u16): void {
   const j = 1 - i
+  poseWords(fSlot[j], 0, 4, addr(bw))
+  otherHalf[i] = bw[2] >> 1
   let m: u16 = 0
   while (m < 8) {
     measured(i, 0, false)
@@ -880,11 +891,13 @@ function airStep(i: u16, j: u16): u16 {
 
 /**
  * The throw: walk in to its range (wary, as a strike), then forward and the heavy punch. The
- * range from where the other was seen (`d`, R frames late), as everything it does.
+ * range from where the other was seen (`d`, R frames late), as everything it does, to the edge
+ * of its body as its slot stands (`otherHalf`): the engine judges the throw by the body posed now.
  */
 function throwAct(i: u16, j: u16, d: u16): u16 {
   if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
-  if (throwGap(i, 0, d << 4) + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
+  const gap = d > otherHalf[i] ? d - otherHalf[i] : 0
+  if (gap + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
   if (!mayCome(i, j, d)) return heldOff(i, d)
   if ((outWas[i] & I_HP) !== 0) return I_FWD
   planEnd(i)

@@ -417,8 +417,12 @@ export function versusRun(k: u16): void {
     shadowAt(P2_X, SEL_FEET)
     t++
   }
-  // Gone on in the first frame: P2's reaches still to measure.
-  if (t === 0) cpuMeasure(1)
+  // Gone on in the first frame: P2's reaches still to measure, in a frame of their own (two
+  // sides do not fit in one).
+  if (t === 0) {
+    frameBegin()
+    cpuMeasure(1)
+  }
   hudRows(0, 36)
   palMix(0, 0, 0)
 }

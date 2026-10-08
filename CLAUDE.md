@@ -50,7 +50,7 @@ npm run demo:games     # the PLAY-320's three games played, bodies and themes ch
 node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
 node scripts/elecaircombat-art.mjs       # the same for ELECAIRCOMBAT
 node scripts/elecdrill-art.mjs           # the same for ELECDRILL
-node scripts/elecfighter-art.mjs [title|screens]  # ELECFIGHTER's pictures: three.js renders the fighters in a hidden Electron window
+node scripts/elecfighter-art.mjs [stage|title|screens]  # ELECFIGHTER's pictures: three.js renders the fighters in a hidden Electron window
 node scripts/elecfighter/serve.mjs       # ELECFIGHTER's design viewer (viewer.html): the same three.js scene the bitmaps come from
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
