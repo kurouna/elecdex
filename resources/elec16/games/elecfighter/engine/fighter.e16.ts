@@ -7,6 +7,7 @@
 import { type bool, div, i16, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import {
   artHold,
+  artPic,
   boxPose,
   bx,
   F_ANTIAIR,
@@ -160,6 +161,11 @@ export const fPose = words(2)
  */
 export const fWin = words(2)
 const fBreath = words(2)
+/**
+ * Frames fighter `i` has been in its pose row (0 its first): the clock its pictures follow
+ * (fighters/frames.txt). A state entered again begins it again (0xffff, the next `poseSet`'s 0).
+ */
+export const fRowT = words(2)
 /** Where each stood as the frame began: the other's state machine reads it (design 8). */
 export const was = words(2)
 /** Where each stood before this frame's motion, to tell who moved apart. */
@@ -192,6 +198,8 @@ export function fighterReset(i: u16): void {
   fPose[i] = PO_STAND
   boxPose[i] = 0xffff
   artHold[i] = 0
+  artPic[i] = 0xffff
+  fRowT[i] = 0
   poseLoad(i, fSlot[i], PO_STAND)
 }
 
@@ -213,6 +221,7 @@ export function pointX(i: u16): u16 {
 export function enter(i: u16, st: u16): void {
   fState[i] = st
   fStateT[i] = 0
+  fRowT[i] = 0xffff
 }
 
 /** The frame begins: where each stands, for the other's state machine. */
@@ -489,6 +498,7 @@ function poseSet(i: u16): void {
   else if (st === ST_HIT) p = fKnock[i] !== 0 ? PO_FALLING : PO_HIT + fCrouch[i]
   else if (st === ST_GUARD) p = PO_GUARD + fCrouch[i]
   else p = statePose(st)
+  fRowT[i] = p === fPose[i] ? wrap16(fRowT[i] + 1) : 0
   fPose[i] = p
   poseLoad(i, fSlot[i], p)
 }

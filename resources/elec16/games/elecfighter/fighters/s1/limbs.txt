@@ -3,8 +3,8 @@
 # tests (a hit box lies within 2 points of the limb's points). Not part of the game.
 13 3 80 35 18
 16 21 77 34 13
-19 -6 52 46 34
-22 -3 68 43 22
+19 -6 52 46 42
+22 3 66 43 24
 25 11 52 30 17
 28 10 101 11 36
 31 -8 30 53 30

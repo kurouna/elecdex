@@ -8,9 +8,9 @@
 // fly apart both ways and fade. The fight's sounds are heard here too, from what the frame did
 // (design 9: engine/audio.e16.ts's effects, by event, never by slot). In bank 4: entered once
 // a frame (`lookStep`), calling the kit and the RAM tables.
-import { type bool, i16, idiv, u16, words } from '../../../../../src/shared/e16c/builtins'
+import { type bool, i16, idiv, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import { colour, FLIP_H, mix, palCopy, S16, S32, spr, sprBegin } from '../../lib/kit.e16'
-import { S1_TILE, SHADOW_TILE, SPARK_TILE } from '../assets.e16'
+import { FRAMES_AT, FRAMES_BANK, S1_TILE, SHADOW_TILE, SPARK_TILE } from '../assets.e16'
 import {
   sfx,
   X_DASH,
@@ -33,6 +33,7 @@ import {
   art,
   artCopy,
   artHold,
+  artPic,
   boxPose,
   groundY,
   K_HEAVY,
@@ -45,6 +46,7 @@ import {
   prAt,
   SHARDS_AIR,
   SHARDS_ROW,
+  tableWord,
 } from './data.e16'
 import { camX } from './draw.e16'
 import {
@@ -53,6 +55,8 @@ import {
   fLife,
   fMove,
   fMoveF,
+  fPose,
+  fRowT,
   fSlot,
   fState,
   fWin,
@@ -87,6 +91,8 @@ export function lookStep(): void {
   eventsTake(1)
   koStep(0)
   koStep(1)
+  picStep(0)
+  picStep(1)
   soundStep()
   palStep(0)
   palStep(1)
@@ -163,6 +169,32 @@ function fxSprites(a: u16): void {
 }
 
 /* ---------------- the fighters ---------------- */
+
+/**
+ * Fighter `i`'s picture for this frame (design 2.2): its pose row's pictures in turn, as
+ * fighters/frames.txt has them - a row of SEQ_W words, the clock's kind, then four pairs of an
+ * art row and the clock it shows until. The clock is the frames the fighter has been in the row,
+ * or, for a walk's step, the points walked into it (counted the way it faces, rounded back as
+ * `pointX` is, so a mirrored walk steps alike and walking back plays the step backwards). A
+ * new picture is copied into its room as the next frame begins; none while its pieces are held.
+ */
+const SEQ_W = 9
+const SEQ_PICS = 4
+function picStep(i: u16): void {
+  if (artHold[i] !== 0) return
+  const row = fPose[i] * SEQ_W
+  let t = fRowT[i]
+  if (tableWord(FRAMES_BANK, FRAMES_AT, row) !== 0) {
+    const d = fFace[i] !== 0 ? pointX(i) : wrap16(0 - pointX(i))
+    t = d & 7
+  }
+  let k: u16 = 0
+  while (k < SEQ_PICS - 1 && t >= tableWord(FRAMES_BANK, FRAMES_AT, row + 2 + k * 2)) k++
+  const pic = tableWord(FRAMES_BANK, FRAMES_AT, row + 1 + k * 2)
+  if (pic === artPic[i]) return
+  artPic[i] = pic
+  artCopy(i, fSlot[i], pic)
+}
 
 /** Signed places of a cell from its packed word. */
 function lowOf(w: u16): i16 {

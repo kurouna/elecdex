@@ -59,6 +59,34 @@ const vary = (d, parts) => {
   return out
 }
 
+/**
+ * A picture between two descriptions, `t` of the way from `a` to `b`: every place, turn and
+ * pole interpolated, the IK solving the limbs afresh (an in-between's joints stay on the body's
+ * own lengths); far bones drawn as near as the nearer end has them.
+ */
+function blend(a, b, t) {
+  const mix = (x, y) => {
+    if (Array.isArray(x) || Array.isArray(y)) {
+      const u = x ?? [0, 0, 0]
+      const v = y ?? [0, 0, 0]
+      return u.map((n, k) => n + ((v[k] ?? 0) - n) * t)
+    }
+    if (typeof x === 'number' || typeof y === 'number') return (x ?? 0) + ((y ?? 0) - (x ?? 0)) * t
+    const out = {}
+    for (const k of new Set([...Object.keys(x ?? {}), ...Object.keys(y ?? {})]))
+      out[k] = mix(x?.[k], y?.[k])
+    return out
+  }
+  const out = {}
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (k === 'near') continue
+    out[k] = mix(a[k], b[k])
+  }
+  const near = t < 0.5 ? a.near : b.near
+  if (near) out.near = near
+  return out
+}
+
 // ---------- the stance ----------
 const STAND = {
   hips: { t: [0, -0.1, 0.0], r: [4, 18, 0] },
@@ -114,9 +142,9 @@ const BOOK = {
   stand: STAND,
   // A breath: a centimetre lower, the fists a little down (shown in turn with the stand).
   idle: vary(STAND, {
-    hips: { t: [0, -0.115, 0], r: [5, 18, 0] },
-    rh: { at: [-0.06, 1.27, 0.3] },
-    lh: { at: [0.02, 1.33, 0.17] },
+    hips: { t: [0, -0.125, 0], r: [6, 18, 0] },
+    rh: { at: [-0.06, 1.25, 0.31] },
+    lh: { at: [0.02, 1.31, 0.18] },
   }),
   // The walk: a boxer's shuffle, the lead foot sliding out, the rear one following.
   walk1: step([-0.07, 0.085, 0.25], [0.14, 0.085, -0.22]),
@@ -304,7 +332,7 @@ const BOOK = {
   lk: vary(STAND, {
     hips: { t: [0, -0.07, -0.04], r: [-6, 24, 0] },
     spine: [0, 2, 0],
-    R: { at: [-0.06, 0.6, 0.7], knee: [-0.15, 1.0, 1.0], yaw: 0, pitch: 40 },
+    R: { at: [-0.06, 0.44, 0.68], knee: [-0.15, 1.0, 1.0], yaw: 0, pitch: 30 },
     L: { at: [0.1, 0.085, -0.12], knee: [0.4, 0.5, 0.9], yaw: 40 },
   }),
   // The roundhouse: the rear knee lifted as the body turns, the leg swung high and far, then
@@ -318,16 +346,18 @@ const BOOK = {
     L: { at: [0.04, 0.62, 0.22], knee: [0.3, 1.4, 0.8], yaw: 0, pitch: 50 },
     near: LEG_FAR,
   }),
+  // The kick lands with the leg straight out at the chest's height, the foot as far as it goes,
+  // the body leaning back over the standing leg to give it the length.
   hk: vary(STAND, {
-    hips: { t: [0, -0.04, -0.06], r: [-14, -40, -8] },
-    spine: [-8, -10, 0],
-    chest: [-6, -6, 0],
-    neck: [6, 30, 0],
-    head: [8, 24, 0],
-    R: { at: [-0.04, 0.085, -0.02], knee: [-0.3, 0.5, 1.0], yaw: -40 },
-    L: { at: [0.02, 1.2, 0.72], knee: [0.6, 1.2, 0.4], yaw: 0, pitch: 60 },
-    rh: { at: [-0.22, 1.08, -0.12], elbow: [-0.6, 1.0, 0.0] },
-    lh: { at: [0.06, 1.3, 0.12], elbow: [0.4, 0.9, -0.2] },
+    hips: { t: [0, -0.08, 0.06], r: [-30, -40, -8] },
+    spine: [-16, -10, 0],
+    chest: [-12, -6, 0],
+    neck: [16, 30, 0],
+    head: [18, 24, 0],
+    R: { at: [-0.04, 0.085, -0.1], knee: [-0.3, 0.5, 1.0], yaw: -40 },
+    L: { at: [0.02, 1.34, 1.2], knee: [0.6, 1.8, 0.5], yaw: 0, pitch: 70 },
+    rh: { at: [-0.34, 0.96, -0.3], elbow: [-0.6, 1.0, -0.1] },
+    lh: { at: [0.1, 1.24, -0.08], elbow: [0.4, 0.9, -0.2] },
     near: LEG_FAR,
   }),
   hk2: vary(STAND, {
@@ -488,6 +518,190 @@ const ROWS = [
   ['walk1', 'walk2', 'walk3', 'walk4', 'fall', 'dash', 'backdash', 'thrown', 'win', 'idle'],
 ].flat()
 
+/**
+ * The in-between pictures (design 2.2): drawn between two of the book's poses by `blend`, shown
+ * only where a row's sequence (SEQ) names them - they have no boxes of their own (a row's boxes
+ * hold for all its pictures). In art.txt they follow the rows and the KO's pieces, in this order.
+ */
+const B = BOOK
+const TWEENS = {
+  breath: blend(B.stand, B.idle, 0.5),
+  walk1b: blend(B.walk1, B.walk2, 0.5),
+  walk2b: blend(B.walk2, B.walk3, 0.5),
+  walk3b: blend(B.walk3, B.walk4, 0.5),
+  walk4b: blend(B.walk4, B.walk1, 0.5),
+  takeoff: blend(B.prejump, B.jump, 0.5),
+  apex: blend(B.jump, B.fall, 0.5),
+  land: blend(B.fall, B.prejump, 0.5),
+  dash0: blend(B.stand, B.dash, 0.5),
+  dash2: blend(B.dash, B.stand, 0.5),
+  backdash0: blend(B.stand, B.backdash, 0.5),
+  hit2: blend(B.hit, B.stand, 0.5),
+  hitc2: blend(B.hitc, B.crouch, 0.5),
+  knock: blend(B.air, B.down, 0.5),
+  wake0: blend(B.down, B.wake, 0.5),
+  wake2: blend(B.wake, B.stand, 0.5),
+  win0: blend(B.stand, B.win, 0.5),
+  // A light's fist or foot drawn back halfway before the stance.
+  lp1: blend(B.lp, B.lp0, 0.5),
+  lk1: blend(B.lk, B.lk0, 0.5),
+  // A heavy's wind-up begun, and its follow-through settling back into the stance.
+  hp0a: blend(B.stand, B.hp0, 0.5),
+  hp3: blend(B.hp2, B.stand, 0.4),
+  hp4: blend(B.hp2, B.stand, 0.75),
+  hk0a: blend(B.stand, B.hk0, 0.45),
+  hk3: blend(B.hk2, B.stand, 0.4),
+  hk4: blend(B.hk2, B.stand, 0.75),
+  chp0a: blend(B.crouch, B.chp0, 0.5),
+  chp3: blend(B.chp2, B.crouch, 0.5),
+  chk0a: blend(B.crouch, B.chk0, 0.5),
+  chk3: blend(B.chk2, B.crouch, 0.5),
+  jhk0: blend(B.jump, B.jhk, 0.35),
+  throw3: blend(B.throw2, B.stand, 0.5),
+}
+
+/**
+ * Each row's pictures in turn (engine/look.e16.ts): `[picture, until]`, the picture shown while
+ * the row's clock is below `until` (the last one holds). The clock is the frames since the row
+ * began (a state entered again begins it again), or, for the walk's steps (`step: true`), the
+ * points walked into the step (0-7; walking back counts down, so a step plays backwards). A row
+ * not listed shows its own picture throughout. Thresholds count from the row's start, so a
+ * slot's quicker or slower move (design 3.1) only shortens or lengthens its last picture.
+ */
+const HOLD = 999
+const SEQ = {
+  0: [
+    ['stand', 26],
+    ['breath', HOLD],
+  ],
+  60: [
+    ['idle', 26],
+    ['breath', HOLD],
+  ],
+  51: {
+    step: true,
+    pics: [
+      ['walk1', 4],
+      ['walk1b', HOLD],
+    ],
+  },
+  52: {
+    step: true,
+    pics: [
+      ['walk2', 4],
+      ['walk2b', HOLD],
+    ],
+  },
+  53: {
+    step: true,
+    pics: [
+      ['walk3', 4],
+      ['walk3b', HOLD],
+    ],
+  },
+  54: {
+    step: true,
+    pics: [
+      ['walk4', 4],
+      ['walk4b', HOLD],
+    ],
+  },
+  3: [
+    ['takeoff', 5],
+    ['jump', HOLD],
+  ],
+  55: [
+    ['apex', 6],
+    ['fall', HOLD],
+  ],
+  4: [
+    ['land', 1],
+    ['prejump', HOLD],
+  ],
+  5: [
+    ['hit', 8],
+    ['hit2', HOLD],
+  ],
+  6: [
+    ['hitc', 8],
+    ['hitc2', HOLD],
+  ],
+  9: [
+    ['knock', 4],
+    ['down', HOLD],
+  ],
+  10: [
+    ['wake0', 4],
+    ['wake', 8],
+    ['wake2', HOLD],
+  ],
+  14: [
+    ['lp1', 3],
+    ['lp0', HOLD],
+  ],
+  15: [
+    ['hp0a', 3],
+    ['hp0', HOLD],
+  ],
+  17: [
+    ['hp2', 6],
+    ['hp3', 12],
+    ['hp4', HOLD],
+  ],
+  20: [
+    ['lk1', 3],
+    ['lk0', HOLD],
+  ],
+  21: [
+    ['hk0a', 3],
+    ['hk0', HOLD],
+  ],
+  23: [
+    ['hk2', 6],
+    ['hk3', 13],
+    ['hk4', HOLD],
+  ],
+  27: [
+    ['chp0a', 2],
+    ['chp0', HOLD],
+  ],
+  29: [
+    ['chp2', 8],
+    ['chp3', HOLD],
+  ],
+  33: [
+    ['chk0a', 3],
+    ['chk0', HOLD],
+  ],
+  35: [
+    ['chk2', 10],
+    ['chk3', HOLD],
+  ],
+  45: [
+    ['jump', 2],
+    ['jhk0', HOLD],
+  ],
+  50: [
+    ['throw2', 10],
+    ['throw3', HOLD],
+  ],
+  56: [
+    ['dash0', 2],
+    ['dash', 10],
+    ['dash2', HOLD],
+  ],
+  57: [
+    ['backdash0', 3],
+    ['backdash', HOLD],
+  ],
+  59: [
+    ['win0', 6],
+    ['win', HOLD],
+  ],
+}
+/** At most this many pictures a row (engine/look.e16.ts reads a row of 1 + 2 * SEQ_MOST words). */
+const SEQ_MOST = 4
+
 const FIST_R = ['hand_r', 'forearm_r', 'upperarm_r']
 const FIST_L = ['hand_l', 'forearm_l', 'upperarm_l']
 const FOOT_R = ['foot_r', 'shin_r', 'thigh_r']
@@ -513,22 +727,34 @@ const STRIKES = {
   chk2: FOOT_L,
 }
 
-const order = Object.keys(BOOK)
+for (const k of Object.keys(TWEENS)) if (BOOK[k]) throw new Error(`in-between ${k} is a pose`)
+const order = [...Object.keys(BOOK), ...Object.keys(TWEENS)]
 for (const r of ROWS) if (!BOOK[r]) throw new Error(`no pose ${r}`)
-const poses = Object.fromEntries(order.map((k) => [k, solve(BOOK[k])]))
+const poses = Object.fromEntries(order.map((k) => [k, solve(BOOK[k] ?? TWEENS[k])]))
+const seq = ROWS.map((name, r) => {
+  const d = SEQ[r] ?? [[name, HOLD]]
+  const pics = Array.isArray(d) ? d : d.pics
+  if (pics.length > SEQ_MOST) throw new Error(`row ${r}: more than ${SEQ_MOST} pictures`)
+  for (const [p] of pics) if (!poses[p]) throw new Error(`row ${r}: no picture ${p}`)
+  return { step: !Array.isArray(d) && d.step === true, pics }
+})
 for (const [k, bones] of Object.entries(STRIKES)) poses[k].strikes = bones
 writeFileSync(
   join(HERE, 'poses.json'),
   `${JSON.stringify(
     {
       about:
-        "Written by pose-book.mjs (edit the poses there): joint rotations per bone, Euler degrees [x, y, z] applied in the order Y, X, Z (yaw, pitch, roll) in the bone's rest frame (X across to the model's left, Y up, Z front). hips may also move by t [x, y, z] metres; `near` lists far bones drawn as near, `strikes` the bones an active picture strikes with. Every pose is put on the ground (lowest point y = 0). `rows` are the game's pose rows, each a picture.",
+        "Written by pose-book.mjs (edit the poses there): joint rotations per bone, Euler degrees [x, y, z] applied in the order Y, X, Z (yaw, pitch, roll) in the bone's rest frame (X across to the model's left, Y up, Z front). hips may also move by t [x, y, z] metres; `near` lists far bones drawn as near, `strikes` the bones an active picture strikes with. Every pose is put on the ground (lowest point y = 0). `rows` are the game's pose rows, each a picture; `tweens` the in-between pictures; `seq` each row's pictures in turn ([picture, until] by the row's clock; `step` for a walk's step).",
       order,
       rows: ROWS,
+      tweens: Object.keys(TWEENS),
+      seq,
       poses,
     },
     null,
     1,
   )}\n`,
 )
-console.log(`poses.json: ${order.length} poses, ${ROWS.length} rows`)
+console.log(
+  `poses.json: ${order.length} poses (${Object.keys(TWEENS).length} in-between), ${ROWS.length} rows`,
+)

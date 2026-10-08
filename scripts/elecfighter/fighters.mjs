@@ -10,6 +10,8 @@
 //                                 written here, so a redraw keeps every hand-set box)
 //   fighters/<id>/limbs.txt       the striking limb's extent in each striking picture (only the
 //                                 tests read it: a hit box lies within 2 points of it)
+//   fighters/frames.txt           every slot's rows' pictures in turn (poses.json `seq`): which
+//                                 art row each row shows, frame by frame (engine/look.e16.ts)
 // and a check picture of the boxes over the poses, docs/elecfighter-mock/p3-boxes-<id>.png.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -51,7 +53,8 @@ const rowRole = (r) => {
 export function fighterJobs(slots, poses) {
   const jobs = {}
   for (const s of slots.slots.filter((x) => x.used)) {
-    for (const p of new Set(poses.rows)) jobs[`${s.id}/${p}`] = { slot: s.id, pose: p }
+    for (const p of new Set([...poses.rows, ...poses.tweens]))
+      jobs[`${s.id}/${p}`] = { slot: s.id, pose: p }
     for (const [k, pose] of PIECES.entries())
       jobs[`${s.id}/pieces${k}`] = { kind: 'pieces', slot: s.id, pose, cell: 16, most: ROOM }
   }
@@ -276,9 +279,41 @@ function sheetPng(frames, pal) {
 
 /** Draws every used slot into the game's folder; answers counts for the log. */
 export function writeFighters(results, slots, poses, game, docs) {
-  return slots.slots
+  const lines = slots.slots
     .filter((x) => x.used)
     .map((slot) => writeSlot(slot, results, poses, game, docs))
+  writeFileSync(path.join(game, 'fighters', 'frames.txt'), framesText(poses))
+  return lines
+}
+
+/** The art row of picture `name`: a pose row's own, or an in-between's after the KO's pieces. */
+function artRowOf(poses, name) {
+  const r = poses.rows.indexOf(name)
+  if (r >= 0) return r
+  const k = poses.tweens.indexOf(name)
+  if (k < 0) throw new Error(`no picture ${name}`)
+  return poses.rows.length + PIECES.length + k
+}
+
+/** The words of a row of frames.txt: the clock, then 4 pictures and their ends. */
+export const SEQ_W = 9
+function framesText(poses) {
+  const lines = [
+    "# ELECFIGHTER: each pose row's pictures in turn, the same for every slot (docs/elec16-",
+    '# elecfighter-design.md 2.2; poses.json `seq`, written by scripts/elecfighter-art.mjs). A row',
+    '# of 9 words: the clock (0 the frames since the row began, 1 the points walked into a step,',
+    '# 0-7), then 4 pairs: an art row (fighters/<id>/art.txt) and the clock it shows until. The',
+    '# first pair whose end is past the clock is shown; the last holds.',
+  ]
+  poses.seq.forEach((q, r) => {
+    const pairs = q.pics.map(([name, until]) => [artRowOf(poses, name), until])
+    const last = pairs[pairs.length - 1]
+    while (pairs.length < 4) pairs.push(last)
+    const words = [q.step ? 1 : 0, ...pairs.flat()]
+    if (words.length !== SEQ_W) throw new Error(`row ${r}: ${words.length} words`)
+    lines.push(`${words.join(' ')} # ${r} ${q.pics.map(([n]) => n).join(' ')}`)
+  })
+  return `${lines.join('\n')}\n`
 }
 
 /** A slot's pictures cut into cells, a row each pointing at its picture's (shared by name). */
@@ -303,6 +338,24 @@ function cutSlot(slot, results, poses) {
   return { frames, rows, distinct: placed.size, isolatedLeft, most }
 }
 
+/** The in-between pictures cut into cells, after everything else in the sheet. */
+function cutTweens(slot, results, poses, frames) {
+  const rows = []
+  let isolatedLeft = 0
+  let most = 0
+  for (const name of poses.tweens) {
+    const s = results[`${slot.id}/${name}`]
+    const cs = cut(s)
+    rows.push({ first: frames.length, cs })
+    for (const c of cs) frames.push(c.px)
+    isolatedLeft += isolated(s.px, s.w, s.h)
+    most = Math.max(most, cs.length)
+  }
+  if (most > ROOM)
+    throw new Error(`${slot.id}: an in-between of ${most} cells, the room has ${ROOM}`)
+  return { rows, isolatedLeft, most }
+}
+
 function writeSlot(slot, results, poses, game, docs) {
   const id = slot.id.toLowerCase()
   const dir = path.join(game, 'fighters', id)
@@ -316,9 +369,12 @@ function writeSlot(slot, results, poses, game, docs) {
     rows.push({ first: frames.length, cs: pieces })
     for (const c of pieces) frames.push(c.px)
   }
+  // The in-betweens, after the pieces (art rows 63 on: frames.txt points at them).
+  const tweens = cutTweens(slot, results, poses, frames)
+  rows.push(...tweens.rows)
   const pieces = pieceRows.flat()
   writeFileSync(path.join(dir, 'art', 'cells.png'), sheetPng(frames, fighterPalette('p1')))
-  writeFileSync(path.join(dir, 'art.txt'), artText(slot, rows, poses.rows))
+  writeFileSync(path.join(dir, 'art.txt'), artText(slot, rows, poses))
   // The boxes: drafted, the hand table over them.
   const handFile = path.join(dir, 'boxes.txt')
   if (!existsSync(handFile)) handStart(handFile, path.join(dir, 'poses.txt'), poses.rows)
@@ -330,22 +386,26 @@ function writeSlot(slot, results, poses, game, docs) {
   writeFileSync(path.join(dir, 'limbs.txt'), limbsText(slot, results, poses))
   checkPicture(slot, results, poses, boxes, path.join(docs, `p3-boxes-${id}.png`))
   const clipped = pieces.some((p) => p.clipped) ? ' (some clipped)' : ''
-  return `${slot.id}: ${distinct} pictures for ${poses.rows.length} rows, ${cellsN} cells (${(cellsN / distinct).toFixed(1)} a picture, at most ${most}), ${pieceRows.map((p) => p.length).join(' + ')} KO pieces${clipped}, feet ${lift} up, ${((frames.length * 128) / 1024).toFixed(1)} KB, isolated points ${isolatedLeft}`
+  return `${slot.id}: ${distinct} + ${poses.tweens.length} in-between pictures (isolated ${tweens.isolatedLeft}, at most ${tweens.most} cells) for ${poses.rows.length} rows, ${cellsN} cells (${(cellsN / distinct).toFixed(1)} a picture, at most ${most}), ${pieceRows.map((p) => p.length).join(' + ')} KO pieces${clipped}, feet ${lift} up, ${((frames.length * 128) / 1024).toFixed(1)} KB, isolated points ${isolatedLeft}`
 }
 
-function artText(slot, rows, names) {
+function artText(slot, rows, poses) {
+  const names = poses.rows
   const lines = [
     `# ${slot.id} ${slot.role.toUpperCase()}: where each pose row's cells are (art/cells.png, 16 x 16 each) and`,
     '# where each is drawn. Written by scripts/elecfighter-art.mjs with the drawing. A row of 34 words:',
     '#   first cell, count (at most 32: the room each fighter streams into), then 32 places, a cell',
     '#   each: dx & 255 | (dy & 255) << 8, its top left from the feet (facing right; FLIP_H mirrors).',
     `# The rows of poses.txt (${names.length}), then the KO's pieces of the slot's own mesh (a cell each),`,
-    `# cut from the poses ${PIECES.join(' and ')}.`,
+    `# cut from the poses ${PIECES.join(' and ')}, then the in-between pictures (fighters/frames.txt).`,
   ]
   rows.forEach((r, k) => {
     const offs = r.cs.map((c) => pack(c.dx, c.dy))
     while (offs.length < ROOM) offs.push(0)
-    const name = names[k] ?? `ko pieces (${PIECES[k - names.length]})`
+    const tween = k - names.length - PIECES.length
+    const name =
+      names[k] ??
+      (tween < 0 ? `ko pieces (${PIECES[k - names.length]})` : `in-between ${poses.tweens[tween]}`)
     lines.push(`${[r.first, r.cs.length, ...offs].join(' ')} # ${k} ${name}`)
   })
   return `${lines.join('\n')}\n`
@@ -424,16 +484,17 @@ function checkPicture(slot, results, poses, boxes, file) {
   const S = 2
   const colW = 120
   const across = 11
-  const rowsN = Math.ceil(poses.rows.length / across)
+  const all = [...poses.rows, ...poses.tweens]
+  const rowsN = Math.ceil(all.length / across)
   const img = new Img(across * colW * S, rowsN * 140 * S)
   const colours = [q8([120, 128, 136]), q8([64, 232, 96]), q8([64, 232, 96]), q8([64, 232, 96])]
   colours.push(q8([248, 72, 72]), q8([248, 72, 72]))
-  poses.rows.forEach((name, r) => {
+  all.forEach((name, r) => {
     const s = results[`${slot.id}/${name}`]
     const ox = ((r % across) * colW + 50) * S
     const oy = (Math.floor(r / across) * 140 + 118) * S
     img.sprite(s, ox - s.ox * S, oy - s.oy * S, P1, S)
-    boxes[r].forEach(([x, top, w, h], k) => {
+    ;(boxes[r] ?? []).forEach(([x, top, w, h], k) => {
       if (!w) return
       const c = colours[k]
       const x0 = ox + x * S
@@ -443,7 +504,13 @@ function checkPicture(slot, results, poses, boxes, file) {
       img.rect(x0, y0, 1, h * S, c)
       img.rect(x0 + w * S - 1, y0, 1, h * S, c)
     })
-    img.text(`${r} ${name}`, ox - 46 * S, oy + 6 * S, P1[1], 1)
+    img.text(
+      r < poses.rows.length ? `${r} ${name}` : `+ ${name}`,
+      ox - 46 * S,
+      oy + 6 * S,
+      P1[1],
+      1,
+    )
   })
   img.save(file)
 }

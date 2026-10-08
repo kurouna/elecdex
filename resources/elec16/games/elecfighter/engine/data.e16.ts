@@ -229,8 +229,8 @@ function reachLoad(i: u16, s: u16): void {
 }
 
 /**
- * Fighter `i` (of slot `s`) in pose `p`: its boxes and its picture read, if they are another
- * pose's.
+ * Fighter `i` (of slot `s`) in pose `p`: its boxes read, if they are another pose's. The
+ * picture is the look's (engine/look.e16.ts): the row's pictures in turn, by frames.txt.
  */
 export function poseLoad(i: u16, s: u16, p: u16): void {
   if (boxPose[i] === p) return
@@ -243,7 +243,6 @@ export function poseLoad(i: u16, s: u16, p: u16): void {
     k++
   }
   poke16(IO_BANK, old)
-  if (artHold[i] === 0) artCopy(i, s, p)
 }
 
 /**
@@ -273,6 +272,8 @@ export const art = words(68)
 export const artWant = words(2)
 /** 1 while a fighter's picture is held (its KO pieces): a pose changes only its boxes. */
 export const artHold = words(2)
+/** The art row each fighter shows (0xffff: none yet, the next look copies one). */
+export const artPic = words(2)
 
 /** Fighter `i`'s picture becomes row `row` of slot `s`'s art: copied into its room next frame. */
 export function artCopy(i: u16, s: u16, row: u16): void {

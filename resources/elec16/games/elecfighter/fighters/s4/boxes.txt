@@ -6,10 +6,11 @@
 #   close as their bodies let them overlap their guards by at most a few points, never their
 #   bodies (the unit test holds it).
 #   S4's kicks (P4 2026-10-08, design 3.1): the standing heavy kick and the sweep reach to the
-#   drawn foot's tip and the 2 points past it a hit box may take (46 and 55: S1's 40 and 48), and
-#   the light kick stops short of the heavy (41), so REACH's bar and the kicks agree.
+#   drawn foot's tip and the 2 points past it a hit box may take (52 and 55: S1's 46 and 48,
+#   the heavy kick redrawn straight 2026-10-08), and the light kick stops short of the heavy
+#   (41), so REACH's bar and the kicks agree.
 19 4 10 58 31 37
-22 4 10 78 36 26
+22 4 10 75 42 26
 34 4 10 27 45 27
 0 0 -21 100 42 100
 1 0 -21 60 42 60

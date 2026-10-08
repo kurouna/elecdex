@@ -292,7 +292,7 @@ function barsOf(s: u16): void {
     mvAt(0, 1, M_DAMAGE) + mvAt(0, 3, M_DAMAGE) + mvAt(0, 5, M_DAMAGE) + mvAt(0, 7, M_DAMAGE)
   bars[0] = level(heavy, 44, 6)
   bars[1] = level(prAt(0, P_WALK_F), 15, 2)
-  bars[2] = level(reach[3], 36, 2)
+  bars[2] = level(reach[3], 40, 3)
   bars[3] = level(prAt(0, P_LIFE) + prAt(0, P_WEIGHT), 200, 10)
 }
 

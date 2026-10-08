@@ -9,7 +9,7 @@ imports the bitmaps alone (cells, art rows and boxes), never the models.
 | `models/human.gltf` | The base human: glTF 2.0, one embedded buffer, a skinned mesh (860 triangles: octagonal limbs, rounded knees and elbows, 6-point fists and shoes at 1x) on 19 bones. Made by `build-models.mjs`. |
 | `models/effects.gltf` | `spark` (an icosahedron, the hit spark) and `shard` (a thin triangular prism). |
 | `slots.json` | The camera, pixels a metre, and eight fighter slots (four used, four reserved). |
-| `poses.json` | The poses: joint rotations per bone, shared by every slot, and `rows`: the game's pose rows, a picture each. Written by `pose-book.mjs`. |
+| `poses.json` | The poses: joint rotations per bone, shared by every slot; `rows`, the game's pose rows, a picture each; `tweens`, the in-between pictures; `seq`, each row's pictures in turn. Written by `pose-book.mjs`. |
 | `pose-book.mjs` | The poses as described by hand: where the hips sit, where each fist and foot goes, which way knees and elbows point. Edit here, run it, and it writes `poses.json`. |
 | `ik.mjs` | The posing helper: forward kinematics from a model's glTF and a two-bone solver (hinged knees and elbows). |
 | `fighters.mjs`, `effects.mjs` | The game's fighters (cells, art rows, drafted boxes, limbs, KO pieces, a check picture) and effects (spark, firewall, shadows), for `scripts/elecfighter-art.mjs`. |
@@ -115,3 +115,43 @@ model: hurt boxes round the upper body and the legs, the striking limb's box as 
 all 60 high; the anti-air's split at its invulnerable line; then `boxes.txt`, set by hand and
 never written once there, laid over them) and `limbs.txt` (the striking limbs, for the tests).
 `docs/elecfighter-mock/p3-boxes-<id>.png` shows the boxes over the poses.
+
+## In-between pictures (`fighters/frames.txt`)
+
+A pose row (its boxes, what the engine's state machine chooses) may show several pictures in
+turn. `TWEENS` in `pose-book.mjs` draws each in-between with `blend(a, b, t)` - every
+place, turn and pole of two poses interpolated, the limbs solved afresh - and `SEQ` gives a row
+its pictures as `[picture, until]`: shown while the row's clock is below `until`, the last one
+holding. The clock is the frames since the row began (entering a state again starts it again;
+a hitstop holds it), or for the walk's steps (`step: true`) the points walked into the step
+(0-7), so walking back plays the step backwards. At most four pictures a row. The art script
+writes `fighters/frames.txt` (shared by every slot: a row of 9 words, the clock's kind, then
+four art rows and their ends); `engine/look.e16.ts` (`picStep`) reads it each frame and copies a
+new picture into the fighter's room only when it changes. In-betweens have no boxes: the row's
+boxes hold for all its pictures, so the fight plays the same whatever is drawn. In
+`art.txt` they follow the 61 rows and the two KO rows, in `TWEENS`'s order. A row's thresholds
+count from its start, so a slot's quicker or slower move (design 3.1) only shortens or
+lengthens its last picture.
+
+## Redrawing one pose
+
+1. Edit the pose in `pose-book.mjs` (`BOOK`): the hips' `t` and `r`, a foot's or fist's `at`
+   (the ankle or wrist, model metres) and its `knee` or `elbow` pole. A limb reaches at most
+   0.815 m from its hip (shin and foot); asked further, it comes out straight towards the
+   point. In-betweens blended from it follow by themselves; to add one, give it a name in
+   `TWEENS` and a place in a row's `SEQ`.
+2. `node scripts/elecfighter/pose-book.mjs` writes `poses.json`.
+3. `node scripts/elecfighter-art.mjs` draws every used slot afresh (about 20 s): it overwrites
+   each `fighters/<id>/art/cells.png`, `art.txt`, `poses.txt` (the boxes drafted from the new
+   drawing), `limbs.txt`, `fighters/frames.txt`, the check pictures
+   `docs/elecfighter-mock/p3-boxes-<id>.png` (every row with its boxes, then the in-betweens)
+   and the select's busts (drawn from `idle`). It never writes `fighters/<id>/boxes.txt`: the
+   lines set by hand there are laid over the draft every time. If the redraw moves a limb a hand
+   line names (S4's kicks), set that line to the new drawing by hand: a hit box must stay within
+   2 points of its limb.
+4. `npm run gen:elec16` rebuilds the game (`compiled.s`, `assets.e16.ts`, games.json).
+5. Check: open the check picture; `npx vitest run tests/unit/elec16-elecfighter.test.ts` (no
+   isolated points, the room of 32 cells, every hit box on its limb, light and heavy apart by
+   silhouette, the cartridge's banks, the reaches the CPU and the select's REACH bar read). A
+   reach that moved may need the design's numbers (3.1), DAEMON's range (`cpu/opponents.txt`)
+   and the REACH bar's steps (`scenes/select.e16.ts`) brought along.

@@ -230,6 +230,10 @@
       "file": "fighters/s4/profile.txt"
     },
     {
+      "name": "frames",
+      "file": "fighters/frames.txt"
+    },
+    {
       "name": "stage_grid",
       "file": "stages/grid/stage.txt"
     },

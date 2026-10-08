@@ -386,6 +386,9 @@ function deal(a: u16): void {
   const weight = prAt(d, P_WEIGHT)
   fHitDone[a] = 1
   fCrouch[d] = (w & W_CROUCH) !== 0 ? 1 : 0
+  // Struck or guarding, it stops walking: only the push moves it. Kept, a walk went on through
+  // the stun - and, knocked out, to the match's end, carrying the winner with it.
+  fVX[d] = 0
   const stop = mvAt(a, m, M_HITSTOP)
   if (stop > hitstop) hitstop = stop
   if ((w & W_GUARDED) !== 0) {

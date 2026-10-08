@@ -251,7 +251,8 @@ describe('ELECFIGHTER as built', () => {
   it("keeps its code within RAM's 20 KB, its globals below the code, its tiles within 1,024", () => {
     // Measured 2026-10-08 with the screens and the sound (P3): 18,986 bytes of RAM's 20,480 (the
     // kit's sound in RAM, the screens in banks 5-7); 19,304 at P4's balance, 19,206 after the
-    // review (the banners' letter lookup and their small words moved to banks 3 and 1). The
+    // review (the banners' letter lookup and their small words moved to banks 3 and 1); 19,208
+    // with the in-between pictures (their choice in bank 4, the clock in RAM). The
     // globals fill their area (0280-1FFF) to within a few bytes: a new array must free its room.
     expect(built.report.ramCode).toBeLessThanOrEqual(20 * 1024)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
@@ -474,6 +475,8 @@ function pointsIn(pts: Map<string, number>, bx: number, bt: number, bw: number, 
 }
 
 const ARTS = SLOT_IDS.map(slotArt)
+/** The in-between pictures, after the KO's pieces in every art.txt (scripts/elecfighter/pose-book.mjs). */
+const TWEENS = 31
 /** The active rows of the standing light and heavy punch and kick (poses.txt). */
 const ROW = { sLP: 13, sHP: 16, sLK: 19, sHK: 22 }
 
@@ -514,16 +517,18 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
 
   it('leaves no point alone in any picture, and every picture within its room of 32 cells', () => {
     for (const [s, art] of ARTS.entries()) {
-      // The pose rows, then the KO's pieces cut from the down pose and from the falling one.
-      expect(art.rows.length, SLOT_IDS[s]).toBe(63)
+      // The pose rows, the KO's pieces cut from the down pose and from the falling one, then the
+      // in-between pictures (fighters/frames.txt).
+      expect(art.rows.length, SLOT_IDS[s]).toBe(63 + TWEENS)
       for (const [r, row] of art.rows.entries()) {
         const [first = 0, count = 0] = row
         expect(count, `${SLOT_IDS[s]} row ${r}`).toBeGreaterThan(0)
         expect(count).toBeLessThanOrEqual(32)
         expect(first + count).toBeLessThanOrEqual(art.frames)
       }
-      // The pose rows (the last two are the KO's pieces, each a piece of its own).
-      for (let r = 0; r < 61; r++) expect(isolatedIn(art.picture(r)), `row ${r}`).toBe(0)
+      // The pose rows and the in-betweens (not the KO's pieces, each a piece of its own).
+      for (let r = 0; r < 63 + TWEENS; r++)
+        if (r < 61 || r >= 63) expect(isolatedIn(art.picture(r)), `row ${r}`).toBe(0)
     }
   })
 
@@ -582,7 +587,8 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
     // With the screens and the sound (P3): 70 banks (560 KB), 932 tiles - the stage, the title's
     // map and the busts sharing one place (never shown together).
     expect(built.report.banks).toBeLessThanOrEqual(128)
-    expect(built.report.banks).toBeLessThanOrEqual(72)
+    // With 31 in-between pictures a slot (fighters/frames.txt) on 2026-10-08: 98 banks (784 KB).
+    expect(built.report.banks).toBeLessThanOrEqual(100)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
     // Two rooms of 32 cells (4 tiles each) from the first slot's sheet, the others none.
     const constant = (name: string) =>
@@ -599,7 +605,7 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
     const room = Number(/export const S1_TILE = (0x[0-9a-f]+)/.exec(built.report.assets)?.[1])
     // P2's room holds its pose's first cell as the sheet has it.
     const art = slotArtOf(m, 1)
-    const row = art.rows[read(m, 'fPose', 1)] ?? []
+    const row = art.rows[read(m, 'artPic', 1)] ?? []
     const at = (room + 128) * 32
     const first = row[0] ?? 0
     expect([...mem.subarray(at, at + 128)]).toEqual(cellTiles((x, y) => art.cell(first, x, y)))
@@ -1154,6 +1160,49 @@ function scripted(swapped: boolean, seed: number, slot: number): string[] {
   return out
 }
 
+/**
+ * `winner` knocks out the other (one life left) walking with `walk` held - into a heavy punch,
+ * or, walking back (a guard of it), into the sweep - the winner on the left or the right: the
+ * round's end begun, and where the winner stood at the KO.
+ */
+function knockedOutWalking(winner: number, left: boolean, walk: number) {
+  const m = fight()
+  const w = (winner === 0) === left ? 236 : 270
+  place(m, w, w === 236 ? 270 : 236)
+  put(m, 'fLife', 1, 1 - winner)
+  const blow = walk === I.fwd ? I.hp : I.down | I.hk
+  const held = (i: number, k: number) => {
+    if (i !== winner) return walk
+    return k < 2 ? blow : 0
+  }
+  for (let k = 0; k < 30 && read(m, 'phase') === PH.fight; k++) step(m, held(0, k), held(1, k))
+  expect(read(m, 'phase')).toBe(PH.over)
+  return { m, xKO: read(m, 'fX', winner) }
+}
+
+/** Frames of the round's or the match's end with both still at `xs`, until it ends (at most 300). */
+function framesStill(m: Elec16, xs: number[]): number {
+  let n = 0
+  for (let k = 0; k < 300; k++) {
+    step(m)
+    const ph = read(m, 'phase')
+    if (ph !== PH.over && ph !== PH.end) break
+    expect([read(m, 'fX', 0), read(m, 'fX', 1)]).toEqual(xs)
+    n++
+  }
+  return n
+}
+
+/** P2's places, from now through its stun in state `st` (at most 40 frames), nothing held. */
+function stunPath(m: Elec16, st: number): number[] {
+  const xs = [read(m, 'fX', 1)]
+  for (let k = 0; k < 40 && read(m, 'fState', 1) === st; k++) {
+    step(m)
+    xs.push(read(m, 'fX', 1))
+  }
+  return xs
+}
+
 describe('ELECFIGHTER rounds (design 7.2)', () => {
   it('ends a round on a KO and counts it; two rounds win the match', () => {
     const m = fight()
@@ -1212,6 +1261,44 @@ describe('ELECFIGHTER rounds (design 7.2)', () => {
     }
     expect(read(m, 'phase')).toBe(PH.round)
     expect(most).toBeLessThanOrEqual(32)
+  })
+
+  it('leaves the winner and the one knocked out where they fell, whoever wins, either side', () => {
+    // Found in play 2026-10-08: struck while walking, a fighter kept its walking speed - knocked
+    // out, it lay sliding on to the end of the match and pushed the winner along with it.
+    for (const winner of [0, 1])
+      for (const left of [true, false])
+        for (const walk of [I.fwd, I.back]) {
+          const at = `winner ${winner}, ${left ? 'left' : 'right'}, walking ${walk}`
+          const { m, xKO } = knockedOutWalking(winner, left, walk)
+          // The blow's push and the fall run out; from then on nothing moves, through the
+          // win's pose and the next round's start (or the match's end).
+          steps(m, 50)
+          const xs = [read(m, 'fX', 0), read(m, 'fX', 1)]
+          expect(framesStill(m, xs), at).toBeGreaterThan(60)
+          expect(read(m, 'fVX', 1 - winner), at).toBe(0)
+          // The winner was never carried: at most the one shove of a body falling against it.
+          expect(Math.abs((xs[winner] ?? 0) - xKO), at).toBeLessThanOrEqual(32)
+        }
+  })
+
+  it('takes a struck or guarding fighter only as far as the push, not its walk', () => {
+    // P2 walks into P1's heavy punch, or back from it (a guard).
+    const cases = [
+      { walk: I.fwd, struck: 1, st: ST.hit },
+      { walk: I.back, struck: 2, st: ST.guard },
+    ]
+    for (const c of cases) {
+      const m = fight()
+      place(m, 236, 270)
+      for (let k = 0; k < 30 && read(m, 'struck', 0) === 0; k++) step(m, k === 0 ? I.hp : 0, c.walk)
+      expect(read(m, 'struck', 0)).toBe(c.struck)
+      expect(read(m, 'fVX', 1)).toBe(0)
+      // Its stun goes by with nothing held: the push alone moves it away, slowing to a stop.
+      const xs = stunPath(m, c.st)
+      expect(xs.every((x, k) => k === 0 || x >= (xs[k - 1] ?? 0))).toBe(true)
+      expect(read(m, 'fPush', 1)).toBe(0)
+    }
   })
 
   it('lands no strike and takes no throw once the round is over', () => {
@@ -2283,7 +2370,9 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     expect(r.avg).toBeLessThan(25_000)
     expect(r.worst).toBeLessThan(40_000)
     expect(r.line).toBeLessThanOrEqual(32)
-    expect(r.avg).toBeLessThanOrEqual(19_000)
+    // With the in-between pictures (a row's pictures in turn, each a copy into the room as the
+    // next frame begins) on 2026-10-08: 19,269 and 32,609.
+    expect(r.avg).toBeLessThanOrEqual(19_600)
     expect(r.worst).toBeLessThanOrEqual(34_000)
   })
 })
@@ -2457,12 +2546,15 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     // kit's sound ticked every frame, the fight's effects heard in the look, the wider bodies) on
     // 2026-10-08: the scripted match 16,597 and 32,696 over 2,780 frames, two CPUs' 17,430 and
     // 30,388 over 3,519; 26 sprites on the busiest line.
-    expect(scripted.avg).toBeLessThanOrEqual(17_500)
+    // With the in-between pictures on 2026-10-08 (more pictures, so more copies into the rooms):
+    // the scripted match 18,248 and 33,236.
+    expect(scripted.avg).toBeLessThanOrEqual(18_600)
     expect(scripted.worst).toBeLessThanOrEqual(34_000)
     // With places rounded from the way each faces (`pointX`, a call where a shift was) and S4's
     // and DAEMON's new numbers on 2026-10-08: two CPUs' 18,822 on average and 32,667 at worst.
-    expect(both.avg).toBeLessThanOrEqual(19_000)
-    expect(both.worst).toBeLessThanOrEqual(33_000)
+    // With the in-between pictures on 2026-10-08: 19,269 and 32,609.
+    expect(both.avg).toBeLessThanOrEqual(19_600)
+    expect(both.worst).toBeLessThanOrEqual(33_500)
   })
 })
 
@@ -2711,7 +2803,7 @@ describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () =>
       return [
         level(heavy, 44, 6),
         level(pr[2] ?? 0, 15, 2),
-        level((hk[16] ?? 0) + (hk[18] ?? 0), 36, 2),
+        level((hk[16] ?? 0) + (hk[18] ?? 0), 40, 3),
         level((pr[0] ?? 0) + (pr[1] ?? 0), 200, 10),
       ]
     })
