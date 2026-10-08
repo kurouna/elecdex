@@ -96,6 +96,9 @@ const BUST_ROW = 4
 const NAME_ROW = 12
 const PANEL_X = 19
 const BAR_X = 29
+/** The life bar's tiles (engine/draw.e16.ts T_BAR + life points * 9 + trail): 8 lit, and 7. */
+const BAR_WHOLE = 80
+const BAR_GAP = 70
 const SEL_FEET = 244
 const BODY_X = 72
 const WIN_F = 48
@@ -269,13 +272,18 @@ function barsOf(s: u16): void {
   bars[3] = level(prAt(0, P_LIFE) + prAt(0, P_WEIGHT), 200, 10)
 }
 
-/** A bar: its word, then five segments, `n` of them lit. */
+/**
+ * A bar: its word, then five segments of two cells in one colour, `n` of them lit - the life
+ * bar's tiles: a lit segment whole, then 7 points and a point of the empty colour between it and
+ * the next; an unlit one the empty colour throughout.
+ */
 function barRow(y: u16, s: u16, n: u16): void {
   say(PANEL_X, y, s, SL_DIM)
   let k: u16 = 0
   while (k < 5) {
     const lit = k < n
-    hudTile(BAR_X + k * 2, y, T_BAR + (lit ? 80 : 0), lit ? SL_P1 : SL_DIM)
+    hudTile(BAR_X + k * 2, y, lit ? T_BAR + BAR_WHOLE : T_BAR, SL_P1)
+    hudTile(BAR_X + k * 2 + 1, y, lit ? T_BAR + BAR_GAP : T_BAR, SL_P1)
     k++
   }
 }
@@ -332,6 +340,12 @@ const VERSUS_F = 60
 /** The stage behind the versus's words, this far to black. */
 const VERSUS_DIM = 7
 const RENDER_ROW = 31
+/**
+ * The program's name and its three lines: above the skyline's tallest tower (y 104), on the
+ * dimmed sky's clear ground, never over the stage's lines.
+ */
+const NAME_Y = 8
+const PROG_ROW = 10
 const P1_X = 88
 const P2_X = 232
 
@@ -347,9 +361,9 @@ export function versusRun(k: u16): void {
   say(5, 2, slName[fSlot[0]], SL_P1)
   say(24, 2, str('CPU'), SL_DIM)
   say(28, 2, slName[fSlot[1]], SL_P1)
-  bigSay(18, 5, str('VS'), SL_BIG)
-  say(11, 10, str('PROGRAM'), SL_DIM)
-  say(19, 10, oppName[k], SL_P1)
+  bigSay(18, 4, str('VS'), SL_BIG)
+  say(11, NAME_Y, str('PROGRAM'), SL_DIM)
+  say(19, NAME_Y, oppName[k], SL_P1)
   programLines(k)
   palMix(0, 0, VERSUS_DIM)
   say(4, RENDER_ROW, str('RENDER'), SL_DIM)
@@ -399,24 +413,24 @@ function renderShow(x: u16, pct: u16): void {
  */
 function programLines(k: u16): void {
   if (k === 0) {
-    say(6, 12, str('IMPATIENT. IT COMES TO YOU,'), SL_P1)
-    say(6, 13, str('QUICK HANDS AND LIGHT BLOWS,'), SL_P1)
-    say(6, 14, str('ONE AFTER ANOTHER.'), SL_P1)
+    say(6, PROG_ROW, str('IMPATIENT. IT COMES TO YOU,'), SL_P1)
+    say(6, PROG_ROW + 1, str('QUICK HANDS AND LIGHT BLOWS,'), SL_P1)
+    say(6, PROG_ROW + 2, str('ONE AFTER ANOTHER.'), SL_P1)
   } else if (k === 1) {
-    say(6, 12, str('IT WAITS FOR YOU TO COME.'), SL_P1)
-    say(6, 13, str('SLOW TO MOVE, HARD TO BREAK,'), SL_P1)
-    say(6, 14, str('AND ONE BLOW IS ENOUGH.'), SL_P1)
+    say(6, PROG_ROW, str('IT WAITS FOR YOU TO COME.'), SL_P1)
+    say(6, PROG_ROW + 1, str('SLOW TO MOVE, HARD TO BREAK,'), SL_P1)
+    say(6, PROG_ROW + 2, str('AND ONE BLOW IS ENOUGH.'), SL_P1)
   } else if (k === 2) {
-    say(6, 12, str('A TRAP AT THE EDGE OF REACH.'), SL_P1)
-    say(6, 13, str('LONG LIMBS GOING IN AND OUT,'), SL_P1)
-    say(6, 14, str('PUNISHING WHAT MISSES.'), SL_P1)
+    say(6, PROG_ROW, str('A TRAP AT THE EDGE OF REACH.'), SL_P1)
+    say(6, PROG_ROW + 1, str('LONG LIMBS GOING IN AND OUT,'), SL_P1)
+    say(6, PROG_ROW + 2, str('PUNISHING WHAT MISSES.'), SL_P1)
   } else if (k === 3) {
-    say(6, 12, str('THE TEXTBOOK.'), SL_P1)
-    say(6, 13, str('THE RIGHT GUARD, THE RIGHT'), SL_P1)
-    say(6, 14, str('ANSWER TO EVERY MISTAKE.'), SL_P1)
+    say(6, PROG_ROW, str('THE TEXTBOOK.'), SL_P1)
+    say(6, PROG_ROW + 1, str('THE RIGHT GUARD, THE RIGHT'), SL_P1)
+    say(6, PROG_ROW + 2, str('ANSWER TO EVERY MISTAKE.'), SL_P1)
   } else {
-    say(6, 12, str('YOUR OWN BODY, ANOTHER MIND.'), SL_P1)
-    say(6, 13, str('IT HAS WATCHED YOU FIGHT'), SL_P1)
-    say(6, 14, str('ALL THE WAY HERE.'), SL_P1)
+    say(6, PROG_ROW, str('YOUR OWN BODY, ANOTHER MIND.'), SL_P1)
+    say(6, PROG_ROW + 1, str('IT HAS WATCHED YOU FIGHT'), SL_P1)
+    say(6, PROG_ROW + 2, str('ALL THE WAY HERE.'), SL_P1)
   }
 }

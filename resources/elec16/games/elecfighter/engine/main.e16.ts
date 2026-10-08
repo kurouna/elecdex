@@ -85,7 +85,7 @@ import {
   stageShow,
   stagesIn,
 } from './data.e16'
-import { bandShow, cameraStep, camX, hudClear, hudStep, logStep } from './draw.e16'
+import { bandHigh, bandShow, cameraStep, camX, hudClear, hudStep, logStep } from './draw.e16'
 import {
   apart,
   bodies,
@@ -298,6 +298,7 @@ function clockStep(): void {
 
 function roundOver(s: u16): void {
   phaseIs(PH_OVER)
+  bandHigh()
   bandShow(s)
 }
 

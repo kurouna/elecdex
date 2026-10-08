@@ -54,6 +54,18 @@ export function fighterPalette(side) {
   ]
 }
 
+/**
+ * P2's palette when both sides show the same body (design 2.4, the mirror match: ROOT, or the
+ * same slot): the CPU's fills, the wire turned from the theme's cyan to amber, so the two read
+ * apart by their outline as well as their fill.
+ */
+export function mirrorPalette() {
+  const p = fighterPalette('cpu')
+  p[1] = q8([248, 200, 96])
+  p[2] = q8([160, 104, 40])
+  return p
+}
+
 /** The same palette with the fill emptied: the figure drawn by its wire alone. */
 export function wireOnly(pal, wire = 2) {
   const p = [...pal]

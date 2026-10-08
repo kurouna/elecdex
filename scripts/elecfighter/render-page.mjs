@@ -166,8 +166,9 @@ async function fighterJob(job) {
   const gltf = await loadGltf(slot.model)
   const pose = data.poses.poses[job.pose]
   const mesh = posedMesh(gltf, slot.build, pose)
-  const cam = designCamera(data.slots.camera.yaw, data.slots.camera.pitch)
-  // A job may draw nearer (the select screen's busts: the same model, the camera closer).
+  // A job may turn the camera (the select screen's busts face the viewer more) and draw nearer
+  // (the same model, the camera closer).
+  const cam = designCamera(job.yaw ?? data.slots.camera.yaw, job.pitch ?? data.slots.camera.pitch)
   const ppm = job.ppm ?? data.slots.pixelsPerMetre
   if (job.kind === 'shatter') {
     return shatter(mesh, job).map((piece) => {

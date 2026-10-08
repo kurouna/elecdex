@@ -196,10 +196,15 @@ elecdex を最初に開いたときの配置で、ページ冒頭の画像がこ
   <br><sub>ELEC-16 PLAY（PLAY-320）· ELECDRILL · Business (Light) · 画面だけ、横に MEM</sub>
 </p>
 
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play-fighter.jpg" alt="Tron テーマで、画面だけを出す PLAY-320 にした ELEC-16 ペイン：ELECFIGHTER の最初の試合、GRID のステージで、青いワイヤーと塗りの S4 OUTBOX のパンチが火花とともに赤い S2 RUSH に当たる。後ろに摩天楼と遠近の床、上に体力のバーと TIME。横の GAMES の差し口に ELECFIGHTER">
+  <br><sub>ELEC-16 PLAY（PLAY-320）· ELECFIGHTER（<i>unreleased</i>）· Tron · 画面だけ、横に GAMES</sub>
+</p>
+
 - **ELEC-16** — elecdex が独自に設計した 16 ビットのポケコン。自前の RISC の
   CPU、ROM の BASIC と機械語モニタ、液晶とキーボード、記憶カード、TypeScript をその機械語に
   コンパイルする CODE 画面、そして AI と話す LINK。**PLAY-320** にすると、カートリッジ、
-  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL の 3 本のゲームと、ゲームを作るキットが付きます。
+  スプライト、音 16 チャンネルのゲーム機になり、ELECLANCE、ELECAIRCOMBAT、ELECDRILL と 1 対 1 の対戦格闘 ELECFIGHTER（*unreleased*）の 4 本のゲームと、ゲームを作るキットが付きます。
 
 ### レイアウト、見た目、そのほか
 
@@ -845,7 +850,7 @@ Ctrl+Shift+1 から 8 に並んだ状態で始まり、すでにある一覧に�
   TUNE ではユニットを、ゲーム機 **PLAY-320** にもできます（
   320×288 のカラー画面、拡張 RAM、起動画面、12 個のボタンの縦長と横長の本体、PC のキーとゲームパッド、
   カートリッジ（GAMES で棚から差し、START で遊ぶ）、描画回路（スクロールする背景 2 枚、スプライト 128 個、
-  パレット 16 本、行の割り込み、DMA）、ステレオの音 16 チャンネル（エンベロープ、スライド、波形表）。CODE のプログラムを動かせます）。ゲームは、PNG の絵とテキストで書いた曲を取り込むゲームキットで e16c から作ります。GAMES の DEVELOP でゲームのフォルダを開く（または雛形から新しく作る）と、アプリの中でビルドしてユニットに差し、ファイルを保存するたびに作り直します。Node もリポジトリも要りません（[ゲーム開発の手引き](docs/elec16-kit.md)）。棚には、LANCE、ボム、OVERDRIVE、2 体のボスの縦スクロールシューティング **ELECLANCE**（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)）、コックピットから見る 1 対 1 の空中戦 **ELECAIRCOMBAT**（空と海を毎フレーム描き直して水平線が傾き、独自の敵機を 17 方向 × 8 回転 × 7 大きさで描いてカートリッジから写す。機銃、ロックオンのミサイル、フレアで 5 人のエースと戦う。[docs/elec16-elecaircombat.md](docs/elec16-elecaircombat.md)）、掘り進むブロックパズル **ELECDRILL**（同じ色のかたまりがまとめて消え、支えを失ったブロックは揺れて落ち、4 個そろうと連鎖。空気に気をつけて 5 つの地層を 500 m の核まで。[docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)）が入っています。遊び方は [PLAY-320 の取扱説明書](docs/elec16-play-manual.md)。LINK はパネルの専用の
+  パレット 16 本、行の割り込み、DMA）、ステレオの音 16 チャンネル（エンベロープ、スライド、波形表）。CODE のプログラムを動かせます）。ゲームは、PNG の絵とテキストで書いた曲を取り込むゲームキットで e16c から作ります。GAMES の DEVELOP でゲームのフォルダを開く（または雛形から新しく作る）と、アプリの中でビルドしてユニットに差し、ファイルを保存するたびに作り直します。Node もリポジトリも要りません（[ゲーム開発の手引き](docs/elec16-kit.md)）。棚には、LANCE、ボム、OVERDRIVE、2 体のボスの縦スクロールシューティング **ELECLANCE**（[docs/elec16-eleclance.md](docs/elec16-eleclance.md)）、コックピットから見る 1 対 1 の空中戦 **ELECAIRCOMBAT**（空と海を毎フレーム描き直して水平線が傾き、独自の敵機を 17 方向 × 8 回転 × 7 大きさで描いてカートリッジから写す。機銃、ロックオンのミサイル、フレアで 5 人のエースと戦う。[docs/elec16-elecaircombat.md](docs/elec16-elecaircombat.md)）、掘り進むブロックパズル **ELECDRILL**（同じ色のかたまりがまとめて消え、支えを失ったブロックは揺れて落ち、4 個そろうと連鎖。空気に気をつけて 5 つの地層を 500 m の核まで。[docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)）、ラウンド制の 1 対 1 の対戦格闘 **ELECFIGHTER**（*unreleased*。低ポリゴンのモデルから前もって描いたワイヤーとベタ塗りの人が、弱と強、高さで変わるガード、投げと投げ抜け、チェーン、カウンター、ダッシュで、それぞれ別の頭を持つ 4 つの対戦プログラムと戦う。[docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)）が入っています。遊び方は [PLAY-320 の取扱説明書](docs/elec16-play-manual.md)。LINK はパネルの専用の
   タブで、サービスごとに ON/OFF できます。
   **CODE** は TypeScript の部分集合で書いたプログラムを、3 段階の最適化で機械語にコンパイルし、
   大きさとサイクル数を並べて見せます。RUN でそのまま機械に入れて動かします。利用者のコードは機械語

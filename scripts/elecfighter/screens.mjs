@@ -3,23 +3,26 @@
 //   art/big.png     the bands' large lettering: the bold font's letters drawn 2 x 3, amber, on
 //                   the band's own ground so a band reads whole (a 16 x 24 glyph, six tiles)
 //   art/title.png   the title's background map: the stage GRID as the fight's camera sees it in
-//                   the middle, and the ELECFIGHTER logo in the sky above its skyline - ELEC in
-//                   amber, FIGHTER large and slanted in the theme's cyan, both drawn here from
-//                   the bold font (original lettering: no typeface of anyone else's)
-//   art/busts.png   the select screen's busts: each slot's model drawn again with the camera
-//                   nearer (not enlarged), cut to 64 x 64; only their drawn 8 x 8 tiles, the
-//                   first one clear, and busts.txt saying which tile goes in each cell
+//                   the middle, and the ELECFIGHTER logo in the sky above its skyline - svg/logo.svg,
+//                   original lettering in wire and flat fill as the fighters are drawn (ELEC in
+//                   amber, FIGHTER large and slanted in the theme's cyan; no typeface of anyone's)
+//   art/busts.png   the select screen's busts: each slot's model in its own build drawn again
+//                   with the camera nearer (not enlarged) and turned toward the viewer, so the
+//                   shoulders, neck and height tell the slots apart; cut to 64 x 64, all standing
+//                   on one ground (the tallest's head at the top), each fitted across; only their
+//                   drawn 8 x 8 tiles, the first one clear, and busts.txt saying which goes where
 // all in the `big` palette (row 6 of art/palettes.png) but the busts, which are the fighters'.
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { readPng, writePng } from '../png.mjs'
 import { fighterPalette, q8 } from './palettes.mjs'
 import { despeck } from './pixels.mjs'
+import { svgIndices } from './svg.mjs'
 
 /** The large letters, in this order: only the ones the bands' words use (engine/draw.e16.ts). */
 export const BIG = 'ABCDEFGHIKLMNOPRSTUVWY.?123'
 
-/** The `big` palette: amber lettering, the logo's cyan, the band's ground. */
+/** The `big` palette: amber lettering, the logo's cyan, the band's ground, the logo's deep amber. */
 export const BIG_PAL = [
   [0, 8, 16],
   [248, 232, 160],
@@ -33,7 +36,7 @@ export const BIG_PAL = [
   [8, 24, 32],
   [24, 96, 112],
   [16, 48, 64],
-  [0, 0, 0],
+  [56, 32, 16],
   [0, 0, 0],
   [0, 0, 0],
   [0, 0, 0],
@@ -75,15 +78,6 @@ const amber = (r, y, h) => {
   return y < h * 0.55 ? 2 : 3
 }
 
-/** Cyan, for FIGHTER: pale on top, the theme's cyan, deeper toward the foot. */
-const cyan = (r, y, h) => {
-  if (r === 0) return 0
-  if (r === 2) return 11
-  if (r === 1) return 10
-  if (r === 3) return 6
-  return y < h * 0.45 ? 7 : y < h * 0.8 ? 8 : 10
-}
-
 function sheetOf(cells, across, colours) {
   const h = Math.ceil(cells.length / across) * 8
   const data = new Uint8Array(across * 8 * h * 4)
@@ -113,35 +107,18 @@ function bigLetters(font) {
   return writePng({ width: 16, height: 24 * BIG.length, data })
 }
 
-/**
- * The logo, `w` x `h` indices: ELEC 2 x 2 in amber at its top left, FIGHTER 3 x 4 in cyan
- * below, slanted a point every four lines, a dark rule under both.
- */
-function logo(font) {
-  const w = 216
-  const h = 56
-  const px = new Array(w * h).fill(0)
-  const put = (x, y, v) => {
-    if (v && x >= 0 && y >= 0 && x < w && y < h) px[y * w + x] = v
-  }
-  /** A glyph's points at (x0, y0), each row slid right by `slant(y)`. */
-  const stamp = (g, x0, y0, slant) => {
-    for (const [y, row] of g.entries())
-      for (const [x, v] of row.entries()) put(x0 + x + slant(y), y0 + y, v)
-  }
-  for (const [k, ch] of [...'ELEC'].entries())
-    stamp(scaled(boldGlyph(font, ch), 2, 2, amber), 8 + k * 16, 0, () => 0)
-  for (const [k, ch] of [...'FIGHTER'].entries())
-    stamp(scaled(boldGlyph(font, ch), 3, 4, cyan), 12 + k * 26, 18, (y) => (31 - y) >> 2)
-  for (let x = 4; x < w - 4; x++) put(x, 53, 10)
-  return { w, h, px }
+/** The logo (svg/logo.svg) as `big` palette indices, 0 its clear ground. */
+function logo(here) {
+  const L = svgIndices(readFileSync(path.join(here, 'svg', 'logo.svg'), 'utf8'), BIG_PAL)
+  if (L.stray > 0) throw new Error(`svg/logo.svg: ${L.stray} points not in the palette`)
+  return L
 }
 
 /**
  * art/title.png: the stage map as the camera in its middle shows it (x 96 to 415), the logo
  * set in the sky; no tile holds both, so each takes one palette.
  */
-function titleMap(game, font) {
+function titleMap(game, here) {
   const stage = readPng(readFileSync(path.join(game, 'stages/grid/art/stage.png')))
   const W = 320
   const H = 288
@@ -152,7 +129,7 @@ function titleMap(game, font) {
       data.set(stage.data.subarray(a, a + 4), (y * W + x) * 4)
     }
   const mine = new Uint8Array(W * H)
-  const L = logo(font)
+  const L = logo(here)
   const x0 = (W - L.w) >> 1
   const y0 = 32
   for (let y = 0; y < L.h; y++)
@@ -181,26 +158,45 @@ function oneEachTile(data, mine, W, H) {
     if (stage.has(t)) throw new Error(`the title's tile ${t} holds the stage and the logo`)
 }
 
-/** Jobs for the renderer: each used slot's stand drawn nearer, for its bust. */
+/**
+ * Jobs for the renderer: each used slot at rest drawn nearer and turned 75 degrees toward the
+ * viewer (the fight's camera is 30), for its bust.
+ */
 export function bustJobs(slots) {
   const jobs = {}
   for (const s of slots.slots.filter((x) => x.used))
-    jobs[`bust/${s.id}`] = { slot: s.id, pose: 'stand', ppm: 150 }
+    jobs[`bust/${s.id}`] = { slot: s.id, pose: 'idle', ppm: 104, yaw: 75 }
   return jobs
 }
 
-/** A bust: the drawing cut to 64 x 64 from just above the head, the head in the middle. */
-function bust(s) {
-  const drawn = []
-  for (let k = 0; k < s.w * s.h; k++) if (s.px[k]) drawn.push([k % s.w, Math.floor(k / s.w)])
-  const top = Math.min(...drawn.map((p) => p[1]))
-  const upper = drawn.filter((p) => p[1] < top + 40)
-  const left = Math.round(upper.reduce((a, p) => a + p[0], 0) / upper.length) - 30
+/** The highest drawn row of a drawing. */
+function topOf(s) {
+  for (let k = 0; k < s.w * s.h; k++) if (s.px[k]) return Math.floor(k / s.w)
+  return 0
+}
+
+/**
+ * A bust: the drawing cut to 64 x 64, its ground `rise` points below the frame's top (the
+ * tallest slot's head 2 points from it, so a shorter one stands lower), across centred on the
+ * neck and chest and moved in so nothing drawn in the frame is cut at either side.
+ */
+function bust(s, rise) {
+  const y0 = s.oy - rise
+  const seen = []
+  for (let y = Math.max(0, y0); y < Math.min(s.h, y0 + 64); y++)
+    for (let x = 0; x < s.w; x++) if (s.px[y * s.w + x]) seen.push([x, y])
+  const top = Math.min(...seen.map((p) => p[1]))
+  const upper = seen.filter((p) => p[1] < top + 40)
+  let left = Math.round(upper.reduce((a, p) => a + p[0], 0) / upper.length) - 32
+  const lo = Math.min(...seen.map((p) => p[0]))
+  const hi = Math.max(...seen.map((p) => p[0]))
+  if (hi - lo > 61) throw new Error(`a bust ${hi - lo + 1} points wide does not fit 64`)
+  left = Math.min(Math.max(left, hi - 62), lo - 1)
   const out = new Uint8Array(64 * 64)
   for (let y = 0; y < 64; y++)
     for (let x = 0; x < 64; x++) {
       const sx = left + x
-      const sy = top - 3 + y
+      const sy = y0 + y
       if (sx >= 0 && sy >= 0 && sx < s.w && sy < s.h) out[y * 64 + x] = s.px[sy * s.w + sx]
     }
   despeck(out, 64, 64)
@@ -229,8 +225,11 @@ function busts(results, slots, game) {
     }
     return index.get(key)
   }
-  for (const s of slots.slots.filter((x) => x.used)) {
-    const b = bust(results[`bust/${s.id}`])
+  const used = slots.slots.filter((x) => x.used)
+  const rise =
+    Math.max(...used.map((s) => results[`bust/${s.id}`].oy - topOf(results[`bust/${s.id}`]))) + 2
+  for (const s of used) {
+    const b = bust(results[`bust/${s.id}`], rise)
     rows.push({ id: s.id, cells: tilesOf(b).map(tileAt) })
   }
   writeFileSync(path.join(game, 'art', 'busts.png'), sheetOf(tiles, 16, fighterPalette('p1')))
@@ -245,11 +244,16 @@ function busts(results, slots, game) {
   return tiles.length
 }
 
+/** art/title.png alone (no drawing of the fighters needed): the stage and the logo. */
+export function writeTitle(game, here) {
+  writeFileSync(path.join(game, 'art', 'title.png'), titleMap(game, here))
+}
+
 /** Writes the screens' pictures into the game's folder; answers counts for the log. */
-export function writeScreens(results, slots, game) {
+export function writeScreens(results, slots, game, here) {
   const font = readPng(readFileSync(path.join(game, 'art/fontb.png')))
   writeFileSync(path.join(game, 'art', 'big.png'), bigLetters(font))
-  writeFileSync(path.join(game, 'art', 'title.png'), titleMap(game, font))
+  writeTitle(game, here)
   const n = busts(results, slots, game)
   return `screens: ${BIG.length} large letters, the title, busts in ${n} tiles`
 }

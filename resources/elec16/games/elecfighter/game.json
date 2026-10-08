@@ -49,7 +49,7 @@
   ],
   "palettes": {
     "png": "art/palettes.png",
-    "names": ["stage", "hud", "huddim", "p1", "cpu", "fx", "big"]
+    "names": ["stage", "hud", "huddim", "p1", "cpu", "fx", "big", "mirror"]
   },
   "sheets": [
     {

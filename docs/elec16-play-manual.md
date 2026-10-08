@@ -3,7 +3,7 @@
 ELEC-16 のゲーム機モデル **ELEC-16 PLAY（PLAY-320）** の使い方です。カートリッジのゲームを差して遊び、自分でゲームを作ることもできます。
 
 - ゲームを作る人は [elec16-kit.md](elec16-kit.md)（ゲーム開発の手引き）へ
-- 見本のゲームは [ELECLANCE](elec16-eleclance.md)（縦スクロールシューティング）、[ELECAIRCOMBAT](elec16-elecaircombat.md)（コックピット視点の空中戦）、[ELECDRILL](elec16-elecdrill.md)（掘り進むブロックパズル）
+- 見本のゲームは [ELECLANCE](elec16-eleclance.md)（縦スクロールシューティング）、[ELECAIRCOMBAT](elec16-elecaircombat.md)（コックピット視点の空中戦）、[ELECDRILL](elec16-elecdrill.md)（掘り進むブロックパズル）、[ELECFIGHTER](elec16-elecfighter.md)（1 対 1 の対戦格闘）
 - 機械の詳しい仕様（メモリ、レジスタ、描画回路、音、カートリッジの形）は [elec16-play.md](elec16-play.md)
 
 ## 目次
@@ -54,7 +54,7 @@ ELEC-16 ペインのパネルで **TUNE** を開き、モデルの一覧から *
 
 ## 4. ゲームを差して遊ぶ
 
-1. パネルの **GAMES** を開きます。**shelf**（ゲームの棚）に、アプリに入っているゲーム（ELECLANCE、ELECAIRCOMBAT、ELECDRILL）と取り込んだゲームが並びます
+1. パネルの **GAMES** を開きます。**shelf**（ゲームの棚）に、アプリに入っているゲーム（ELECLANCE、ELECAIRCOMBAT、ELECDRILL、ELECFIGHTER）と取り込んだゲームが並びます
 2. 遊ぶゲームを押すと、ユニットのスロットに差さります（**in the slot** に名前が出ます）。**take out** で抜きます
 3. 起動画面で **START** を押すと、ゲームを読み込んで始まります
 

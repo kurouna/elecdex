@@ -202,7 +202,7 @@ CPU は今でも携帯ゲーム機の数倍の命令を実行できる（4 MHz �
 - **起動画面と START**（G4 で済み）: 起動画面は CART の INFO で差してあるゲームの名前を出し、下の行に PRESS START（だれもまだ何も押していなければ HELD なので、これも PRESS START）、差していなければ NO CARTRIDGE、LINK か CART が OFF なら LINK CART IS OFF。START は LOAD で読み込んで、BANK を 0x100 にし、入口へ新しいスタックで飛ぶ。ゲームが戻れば起動画面。押されたかは「PADHIT にあり、前に見たときは離されていた」ボタンで見る（PC のキーは押して離すまでが 1 フレームに収まることが多い）
 - **同梱のゲーム**（`resources/elec16/games/<名前>/`。`game.json` に `sources` のあるものはゲームキット（10 章）、ないものは `game.s` の E16 アセンブリで、同じフォルダのファイルを `.include` できる。`npm run gen:elec16` が `games.json` にする）:
   - `ELECLANCE`（G7）: ゲームキットで作った縦スクロールシューティング（[elec16-eleclance.md](elec16-eleclance.md)）
-  - `ELECAIRCOMBAT`、`ELECDRILL`: 同じくゲームキットで作ったもの（[elec16-elecaircombat.md](elec16-elecaircombat.md)、[elec16-elecdrill.md](elec16-elecdrill.md)）
+  - `ELECAIRCOMBAT`、`ELECDRILL`、`ELECFIGHTER`: 同じくゲームキットで作ったもの（[elec16-elecaircombat.md](elec16-elecaircombat.md)、[elec16-elecdrill.md](elec16-elecdrill.md)、[elec16-elecfighter.md](elec16-elecfighter.md)）
   - 起動画面は入るたびにモード 0 と自分のパレットに戻す（ゲームが何を残しても）
 - **テスト用のカートリッジ**（`tests/fixtures/elec16/games/<名前>/`、E16 アセンブリ。棚には載せず、テストが同梱のゲームと同じ `buildGame` で作る。e2e は GAMES の取り込みで棚に載せる。G4〜G6 の見本として同梱していたが、2026-10-06 に棚から外した、利用者の決定）:
   - `DEMO`: モード 0。十字キーで動き、A で色が変わる四角。A は色の音（C6・E6・G6、三角波、打って消える）をチャンネル 0 で鳴らし、四角の横の位置で左右に置く（G6）。START で起動画面へ

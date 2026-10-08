@@ -200,12 +200,17 @@ The arrangement elecdex opens with, in the picture at the top (Tron).
   <br><sub>ELEC-16 PLAY (PLAY-320) · ELECDRILL · Business (Light) · the screen alone, MEM beside it</sub>
 </p>
 
+<p align="center">
+  <img src="./docs/screenshots/elecdex-play-fighter.jpg" alt="An ELEC-16 pane made a PLAY-320 showing its screen alone, in the Tron theme: ELECFIGHTER's first fight on the GRID stage, S4 OUTBOX in blue wire and fill landing a punch with a burst of sparks on S2 RUSH in red, the skyline and the perspective floor behind them, the life bars and TIME above; GAMES beside it with ELECFIGHTER in the slot">
+  <br><sub>ELEC-16 PLAY (PLAY-320) · ELECFIGHTER (<i>unreleased</i>) · Tron · the screen alone, GAMES beside it</sub>
+</p>
+
 - **ELEC-16** — a 16-bit pocket computer of elecdex's own design: its own
   RISC CPU, BASIC and machine-code monitor in ROM, an LCD and a keyboard, a memory card, and
   a CODE view that compiles TypeScript into its machine code, and LINK to talk with the AI.
   Made a **PLAY-320**, it is a game console with cartridges, sprites and sixteen sound
-  channels, with games of its own - ELECLANCE, ELECAIRCOMBAT and ELECDRILL - and a kit to
-  make games for it.
+  channels, with games of its own - ELECLANCE, ELECAIRCOMBAT, ELECDRILL and the one-on-one
+  fighter ELECFIGHTER (*unreleased*) - and a kit to make games for it.
 
 ### Layouts, looks and the rest
 
@@ -914,7 +919,11 @@ weather and calendar.
   ([docs/elec16-elecaircombat.md](docs/elec16-elecaircombat.md)) - and **ELECDRILL**, a
   block-digging puzzle: a colour's whole group goes at once, blocks left hanging wobble and
   fall, four of a colour that land together vanish in chains, with AIR to mind through five
-  strata to the core at 500 m ([docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)); how to play is
+  strata to the core at 500 m ([docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)) - and
+  **ELECFIGHTER** (*unreleased*), a one-on-one fighter in rounds: wire-and-fill humans drawn ahead
+  of time from low-poly models, light and heavy blows, guards by height, throws and their techs,
+  chains, counters and dashes, against four opponent programs each with a mind of its own
+  ([docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)); how to play is
   [the PLAY-320 manual](docs/elec16-play-manual.md), in Japanese. LINK is the panel's own tab, with a switch for each service.
   **CODE** compiles a program written in a subset of TypeScript into the machine's code at
   three levels of

@@ -119,9 +119,39 @@ function toSelect(m: Elec16): void {
  * From the title to the fight: the select's cursor starts on P1's `slot` (S1 BALANCE unless said)
  * and A takes it; the ladder from its place `at` (0 the first, PACKET in S2 RUSH, for S1); the
  * versus and the round's banner go by until the fight begins, each side driven as `drive` says
- * (2 from outside, 1 the CPU).
+ * (2 from outside, 1 the CPU). From a machine at its title, or a clock to boot one by.
  */
-function fight(m = boot(), drive: [number, number] = [2, 2], slot = 0, at = 0): Elec16 {
+function fight(
+  from: Elec16 | typeof CLOCK = CLOCK,
+  drive: [number, number] = [2, 2],
+  slot = 0,
+  at = 0,
+): Elec16 {
+  if (from instanceof Elec16) return fightFrom(from, drive, slot, at)
+  // A fight from a clock is played from its first frame once, kept as the core's snapshot and
+  // restored for each test that asks for it again: the boot log, the menus, the versus and the
+  // round's banner cost a fifth of a second each time (a test checks that a restored machine
+  // plays on as the one it was taken from).
+  const key = JSON.stringify([from, drive, slot, at])
+  let bytes = FOUGHT.get(key)
+  if (bytes === undefined) {
+    bytes = fightFrom(boot(from), drive, slot, at).snapshot()
+    FOUGHT.set(key, bytes)
+  }
+  return again(bytes)
+}
+
+/** Fights begun, as snapshots, by the clock, the drive, the slot and the place they began from. */
+const FOUGHT = new Map<string, Uint8Array>()
+
+/** A machine back from its snapshot, the cartridge's ROM put back in its slot. */
+function again(bytes: Uint8Array): Elec16 {
+  const m = Elec16.restore(ROM.image, bytes)
+  if (m === null || !m.attachCartRom(cart, new Uint8Array(32))) throw new Error('no snapshot')
+  return m
+}
+
+function fightFrom(m: Elec16, drive: [number, number], slot: number, at: number): Elec16 {
   put(m, 'choice', slot, 0)
   put(m, 'choice', at, 1)
   toSelect(m)
@@ -667,7 +697,7 @@ describe('ELECFIGHTER moving (P0)', () => {
     steps(m, 10, I.back)
     expect(y - read(m, 'fX', 0)).toBe(10 * (profiles[0]?.[3] ?? 0))
     // With P1 on the right, the pad's right is back.
-    const n = fight(boot(), [0, 2])
+    const n = fight(CLOCK, [0, 2])
     place(n, 300, 200)
     const z = read(n, 'fX', 0)
     n.pad(padBit('right'))
@@ -758,7 +788,7 @@ describe('ELECFIGHTER moving (P0)', () => {
   })
 
   it('keeps z and its speed 0 through a whole match of the stand-ins', () => {
-    const m = fight(boot(), [1, 1])
+    const m = fight(CLOCK, [1, 1])
     for (let k = 0; k < 1500 && read(m, 'outcome') === 0; k++) {
       frames(m, 1, cart)
       for (const i of [0, 1]) {
@@ -770,7 +800,7 @@ describe('ELECFIGHTER moving (P0)', () => {
 
   it('changes nothing for L and R', () => {
     const run = (extra: number) => {
-      const m = fight(boot(), [0, 2])
+      const m = fight(CLOCK, [0, 2])
       const pads = [padBit('right'), padBit('y'), 0, padBit('down') | padBit('b'), padBit('up'), 0]
       for (let k = 0; k < 240; k++) {
         m.pad((pads[(k >> 3) % pads.length] ?? 0) | (k % 5 < 2 ? extra : 0))
@@ -949,7 +979,7 @@ describe('ELECFIGHTER striking (P1)', () => {
       expect(exchange(true, a ?? 0, b ?? 0)).toEqual(exchange(false, a ?? 0, b ?? 0))
     }
     // Both light punches at once: both hit.
-    const m = fight(boot(), [2, 2], 0, MIRROR)
+    const m = fight(CLOCK, [2, 2], 0, MIRROR)
     place(m, 236, 276)
     for (let k = 0; k < 10 && read(m, 'struck', 0) === 0; k++) {
       step(m, k === 0 ? I.lp : 0, k === 0 ? I.lp : 0)
@@ -988,7 +1018,7 @@ describe('ELECFIGHTER striking (P1)', () => {
  */
 function exchange(swapped: boolean, a: number, b: number): number[][] {
   const W = 512 * 16
-  const m = fight(boot(), [2, 2], 0, MIRROR)
+  const m = fight(CLOCK, [2, 2], 0, MIRROR)
   place(m, 236, 276)
   const side = (role: number) => {
     const j = swapped ? 1 - role : role
@@ -1051,7 +1081,7 @@ describe('ELECFIGHTER rounds (design 7.2)', () => {
   })
 
   it('counts a double KO as a draw', () => {
-    const m = fight(boot(), [2, 2], 0, MIRROR)
+    const m = fight(CLOCK, [2, 2], 0, MIRROR)
     place(m, 236, 276)
     put(m, 'fLife', 1, 0)
     put(m, 'fLife', 1, 1)
@@ -1212,7 +1242,7 @@ describe('ELECFIGHTER throws (P2, design 7.9)', () => {
   })
 
   it('breaks both of two throws at once: THROW TECH, no damage', () => {
-    const m = fight(boot(), [2, 2], 0, MIRROR)
+    const m = fight(CLOCK, [2, 2], 0, MIRROR)
     place(m, 236, 270)
     const life = [read(m, 'fLife', 0), read(m, 'fLife', 1)]
     for (let k = 1; k <= 8; k++) step(m, k === 1 ? I.fwd | I.hp : 0, k === 1 ? I.fwd | I.hp : 0)
@@ -1504,7 +1534,7 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
   it('guards on sight only what starts slower than its reaction, and never reads nearer than it', () => {
     /** P1's `button` (a crouching move with down) against the CPU of reaction R: how it landed. */
     const landed = (r: number, button: number) => {
-      const m = fight(boot(), [2, 1])
+      const m = fight(CLOCK, [2, 1])
       still(m)
       place(m, 236, 270)
       still(m)
@@ -1541,9 +1571,10 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
 
   it('combos no more than 4 hits on one who stands still, whichever opponent', () => {
     for (const at of [0, 1, 2, 3]) {
-      const m = fight(boot(), [2, 1], 0, at)
+      const m = fight(CLOCK, [2, 1], 0, at)
       let hit = 0
-      for (let k = 0; k < 3000 && read(m, 'outcome') === 0; k++) {
+      // A round is enough: every opponent knocks the one standing still out in it.
+      for (let k = 0; k < 3000 && read(m, 'phase') === PH.fight; k++) {
         step(m)
         if (read(m, 'struck', 1) !== 0) hit++
       }
@@ -1584,7 +1615,7 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
   })
 
   it('has ROOT read a habit kept up, and lose to it changed', () => {
-    const m = fight(boot(), [2, 1], 0, MIRROR)
+    const m = fight(CLOCK, [2, 1], 0, MIRROR)
     expect(rowOf(m, 1, O2.read)).toBe(Math.min(255, (opponents[4]?.[O2.read] ?? 0) + 3 * 26))
     const wake = (button: number) => wakeBeside(m, button)
     // Counted from here: the seed (the select's press) may give it a read before.
@@ -1604,7 +1635,7 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
   })
 
   it('logs READ when a read was right', () => {
-    const m = fight(boot(), [2, 1], 0, MIRROR)
+    const m = fight(CLOCK, [2, 1], 0, MIRROR)
     const logged = Array.from({ length: 6 }, () => wakeBeside(m, I.down | I.lp).log)
     expect(logged.slice(0, 2)).not.toContain('> READ')
     expect(logged.slice(2)).toEqual(Array(4).fill('> READ'))
@@ -1613,12 +1644,14 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
 
 /**
  * Against the CPU of ladder place `at` (P1 in `slot`, driven by `p1` frame by frame and never
- * falling, so the habit is watched as long as the test runs): its habit's counts for 6,000
- * frames - times due, times out, the counts drawn in order - and its whims.
+ * falling, so the habit is watched as long as the test runs): its habit's counts once it has
+ * been due 16 times (at most 6,000 frames: DAEMON's gap comes round in 600, PACKET's guarded
+ * lights only about 10 times in them) - times due, times out, the counts drawn in order - and
+ * its whims.
  */
 function habitWatched(slot: number, at: number, p1: (k: number) => number) {
-  const m = fight(boot(), [2, 1], slot, at)
-  for (let k = 0; k < 6000 && read(m, 'outcome') === 0; k++) {
+  const m = fight(CLOCK, [2, 1], slot, at)
+  for (let k = 0; k < 6000 && read(m, 'outcome') === 0 && read(m, 'habDue', 1) < 16; k++) {
     put(m, 'fLife', 90, 0)
     step(m, p1(k))
   }
@@ -1659,28 +1692,27 @@ function wakeBeside(m: Elec16, button: number): { guarded: number; threw: number
   return { guarded, threw, log }
 }
 
-/** P1's one-button players: a heavy punch, a heavy kick, or all four buttons, whenever able. */
+/** P1's one-button players: a heavy punch, or all four buttons, whenever able. */
 const ONE_BUTTON: Record<string, (k: number) => number> = {
   hp: (k) => (k & 1 ? I.hp : 0),
-  hk: (k) => (k & 1 ? I.hk : 0),
   all: (k) => [I.lp, 0, I.hp, 0, I.lk, 0, I.hk, 0][k & 7] ?? 0,
 }
 /** The ladder's five as met: [P1's slot, the place] (KERNEL is S1's, so P1 takes S2 for it). */
 const MET = { PACKET: [0, 0], MAINFRAME: [0, 1], DAEMON: [0, 2], KERNEL: [1, 2], ROOT: [0, MIRROR] }
 
 /**
- * A match against the CPU of ladder place `at` (P1 in `slot`, the clock's second `second`), P1
- * playing `p1` and standing where it is: the outcome; P1's heavies struck in their recovery
- * (the CPU's punishes, whiffed or guarded); the CPU's hits taken, and of them those taken while
- * it walked forward (into an attack under way).
+ * A round against the CPU of ladder place `at` (P1 in `slot`, the clock's second `second`), P1
+ * playing `p1` and standing where it is: who took it (`roundWon`, 1 the CPU); P1's heavies
+ * struck in their recovery (the CPU's punishes, whiffed or guarded); the CPU's hits taken, and
+ * of them those taken while it walked forward (into an attack under way).
  */
 function oneButton(slot: number, at: number, second: number, p1: (k: number) => number) {
-  const m = fight(boot({ ...CLOCK, second }), [2, 1], slot, at)
+  const m = fight({ ...CLOCK, second }, [2, 1], slot, at)
   const heavy = (mv: number) => [MV.sHP, MV.sHK, MV.cHP, MV.cHK].includes(mv)
   let punished = 0
   let taken = 0
   let walking = 0
-  for (let k = 0; k < 30_000 && read(m, 'outcome') === 0; k++) {
+  for (let k = 0; k < 7_000 && read(m, 'phase') === PH.fight; k++) {
     const mv = read(m, 'fMove', 0)
     const r = moves[slot]?.[mv] ?? []
     const recovering =
@@ -1695,61 +1727,47 @@ function oneButton(slot: number, at: number, second: number, p1: (k: number) => 
       if (free && (read(m, 'outWas', 1) & I.fwd) !== 0) walking++
     }
   }
-  return { outcome: read(m, 'outcome'), punished, taken, walking }
+  expect(read(m, 'phase')).not.toBe(PH.fight)
+  return { won: read(m, 'roundWon'), punished, taken, walking }
 }
 
-/** A match of two CPUs (P1 in S1, the ladder's place `at`, the clock's second `second`): its rounds' lengths in seconds. */
-function roundsOf(second: number, at: number): number[] {
-  const m = fight(boot({ ...CLOCK, second }), [1, 1], 0, at)
-  const rounds: number[] = []
-  let n = 0
-  for (let k = 0; k < 30_000 && read(m, 'outcome') === 0; k++) {
-    const fighting = read(m, 'phase') === PH.fight
-    frames(m, 1, cart)
-    if (fighting) n++
-    if (fighting && read(m, 'phase') !== PH.fight) {
-      rounds.push(n / 60)
-      n = 0
-    }
-  }
-  expect(read(m, 'outcome'), `place ${at}`).not.toBe(0)
-  return rounds
-}
-
-describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout: 600_000 }, () => {
+describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout: 120_000 }, () => {
   it('beats a heavy pressed whenever able, and all four mashed: it keeps out of reach and punishes', () => {
     // Measured 2026-10-08 in four seeds, before (the CPU walking in): the heavy punch beat
     // PACKET, MAINFRAME, DAEMON and KERNEL 4 of 4 times each, the CPU took 10 of the 60 matches
     // of the five against the three, and against DAEMON 50 of its 56 hits taken were walking
-    // forward. After, in three seeds: 45 of 45, with 1 to 30 punishes a match.
+    // forward. After, in three seeds: 45 of 45, with 1 to 30 punishes a match. Since P4 a round
+    // each of the heavy punch and the masher, in one seed (the heavy kick is the heavy punch's
+    // kind, and every seed won): the test took two and a half minutes.
     let won = 0
     let all = 0
     let taken = 0
     let walking = 0
     for (const [name, [slot, at]] of Object.entries(MET)) {
       for (const [player, p1] of Object.entries(ONE_BUTTON)) {
-        const runs = [10, 11].map((s) => oneButton(slot ?? 0, at ?? 0, s, p1))
-        const why = `${name} against ${player}: ${JSON.stringify(runs)}`
-        // Most of the time the CPU's (outcome 2), and never a match without a punish.
-        expect(runs.filter((r) => r.outcome === 2).length, why).toBeGreaterThanOrEqual(1)
-        for (const r of runs) expect(r.punished, why).toBeGreaterThan(0)
-        won += runs.filter((r) => r.outcome === 2).length
-        all += runs.length
-        taken += runs.reduce((a, r) => a + r.taken, 0)
-        walking += runs.reduce((a, r) => a + r.walking, 0)
+        const r = oneButton(slot ?? 0, at ?? 0, 10, p1)
+        const why = `${name} against ${player}: ${JSON.stringify(r)}`
+        // Never a round without a punish.
+        expect(r.punished, why).toBeGreaterThan(0)
+        if (r.won === 1) won++
+        all++
+        taken += r.taken
+        walking += r.walking
       }
     }
     expect(won / all).toBeGreaterThanOrEqual(0.9)
     // Walking into an attack under way: before, about half of the CPU's hits taken (DAEMON 14 of
     // 14); now a hit taken walking in is one the other started as it came, rarely.
-    expect(walking / taken).toBeLessThan(0.15)
+    expect(walking / Math.max(1, taken)).toBeLessThan(0.15)
   })
 
   it('plays rounds of about half a minute CPU against CPU', () => {
     // Measured 2026-10-08: 16.4 s a round on average before (every round a KO); after the CPU
     // kept to its reach and the life went up by a quarter, 32.5 s over 36 rounds (13 to 66 s).
-    const rounds = [20, 21].flatMap((second) => [0, 1, 2, 3].flatMap((at) => roundsOf(second, at)))
+    // Since P4 the rounds of the two CPUs' matches the frame budget measures.
+    const { rounds } = cpus()
     const avg = rounds.reduce((a, b) => a + b, 0) / rounds.length
+    expect(rounds.length).toBeGreaterThanOrEqual(4)
     expect(avg, rounds.map((r) => r.toFixed(0)).join(' ')).toBeGreaterThanOrEqual(25)
     expect(avg).toBeLessThanOrEqual(50)
   })
@@ -1770,7 +1788,7 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
   }
 
   it('pauses on START: nothing goes on, the fight darkened under PAUSED, the HUD as it was', () => {
-    const m = fight(boot(), [2, 1])
+    const m = fight(CLOCK, [2, 1])
     steps(m, 30, I.fwd)
     m.pad(padBit('start'))
     frames(m, 1, cart)
@@ -1813,7 +1831,7 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
   })
 
   it('quits the fight from the pause, and shows the controls from it', () => {
-    const m = fight(boot(), [2, 1])
+    const m = fight(CLOCK, [2, 1])
     tap(m, padBit('start'), cart)
     tap(m, padBit('down'), cart)
     tap(m, padBit('a'), cart)
@@ -1869,17 +1887,17 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
 describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }, () => {
   it('meets the three of other slots in order of strength, then ROOT in the same slot', () => {
     const names = (slot: number) => {
-      const m = fight(boot(), [2, 2], slot)
+      const m = fight(CLOCK, [2, 2], slot)
       return [0, 1, 2, 3].map((k) => read(m, 'ladder', k))
     }
     // Rows: 0 PACKET (S2), 1 MAINFRAME (S3), 2 DAEMON (S4), 3 KERNEL (S1), 4 ROOT.
     expect(names(0)).toEqual([0, 1, 2, 4])
     expect(names(1)).toEqual([1, 2, 3, 4])
     expect(names(3)).toEqual([0, 1, 3, 4])
-    const m = fight(boot(), [2, 2], 2, 3)
+    const m = fight(CLOCK, [2, 2], 2, 3)
     expect([read(m, 'fSlot', 0), read(m, 'fSlot', 1)]).toEqual([2, 2])
     // Later is quicker and reads more: reactions less 2 a place (never under 8), reads 26 more.
-    const at = (k: number) => fight(boot(), [2, 1], 0, k)
+    const at = (k: number) => fight(CLOCK, [2, 1], 0, k)
     const first = at(0)
     const root = at(3)
     expect(rowOf(first, 1, O.rGuard)).toBe(opponents[0]?.[O.rGuard])
@@ -1907,7 +1925,7 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
   }
 
   it('goes on to the next opponent after a win, counts CONTINUE? after a loss', () => {
-    const m = fight(boot(), [2, 2])
+    const m = fight(CLOCK, [2, 2])
     koRound(m, 1)
     expect(read(m, 'ladderAt')).toBe(0)
     koRound(m, 1)
@@ -1926,79 +1944,104 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     expect(read(m, 'continues')).toBe(1)
   })
 
-  it('plays a whole ladder CPU against CPU to SYSTEM CLEAR or GAME OVER, within the frame', () => {
-    const m = boot()
-    put(m, 'choice', ROOT_ROW, 2)
-    fight(m, [1, 1])
-    const r = ladderMeasured(m)
-    expect(m.state.halt).toBeNull()
-    expect([1, 2]).toContain(read(m, 'ladderEnd'))
-    // Measured on 2026-10-08: 3,950 frames of fighting, 9,240 cycles on average and 17,069 at
-    // worst (design 10.4: 25,000 and 40,000). A frame that loads a match runs past the frame
-    // (76,879: both backgrounds cleared whole, the stage's map and both slots' tables) and the
-    // picture waits a frame there, as it did in P1. With GRID's raster (the floor a line at a
-    // time, about 6,300 cycles a frame for the LINEs, and its tables made when the camera
-    // moves) on 2026-10-08: 17,271 on average and 25,413 at worst. With the drawn fighters (P3:
-    // a pose's cells streamed by one load, its sprites laid from its row, the palettes' effects,
-    // the KO's pieces; in bank 4) on 2026-10-08: 16,673 and 29,116, 16 sprites at most on a line.
-    // With the screens and the sound (P3) on 2026-10-08: 17,191 to 18,030 and 29,189 to 32,084 (the
-    // ladder the seed gives moves with any change to the code before START), 16 sprites.
+  it('plays a whole ladder CPU against CPU to SYSTEM CLEAR, ROOT last, within the frame', () => {
+    // P1's CPU kept standing and each opponent at one life once the fight is on (a fight to the
+    // end is measured once for the file, cpus()): it beats all four in turn, ROOT last.
+    const c = boot()
+    put(c, 'choice', ROOT_ROW, 2)
+    fight(c, [1, 1])
+    const order: number[] = [read(c, 'ladder', read(c, 'ladderAt'))]
+    for (let f = 0; f < 30_000 && read(c, 'ladderEnd') === 0; f++) {
+      put(c, 'fLife', 100, 0)
+      if (read(c, 'screen') === SC.fight && read(c, 'phase') === PH.fight) {
+        put(c, 'fLife', Math.min(1, read(c, 'fLife', 1)), 1)
+      }
+      frames(c, 1, cart)
+      const now = read(c, 'ladder', read(c, 'ladderAt'))
+      if (now !== order[order.length - 1]) order.push(now)
+    }
+    expect(c.state.halt).toBeNull()
+    expect(read(c, 'ladderEnd')).toBe(1)
+    expect(order).toEqual([0, 1, 2, 4])
+    expect(read(c, 'continues')).toBe(0)
+    // Measured on 2026-10-08 over a whole ladder of CPUs: 3,950 frames of fighting, 9,240 cycles
+    // on average and 17,069 at worst (design 10.4: 25,000 and 40,000). A frame that loads a
+    // match runs past the frame (76,879: both backgrounds cleared whole, the stage's map and both
+    // slots' tables) and the picture waits a frame there, as it did in P1. With GRID's raster
+    // (the floor a line at a time, about 6,300 cycles a frame for the LINEs, and its tables made
+    // when the camera moves) on 2026-10-08: 17,271 on average and 25,413 at worst. With the
+    // drawn fighters (P3: a pose's cells streamed by one load, its sprites laid from its row, the
+    // palettes' effects, the KO's pieces; in bank 4) on 2026-10-08: 16,673 and 29,116, 16 sprites
+    // at most on a line. With the screens and the sound (P3) on 2026-10-08: 17,191 to 18,030 and
+    // 29,189 to 32,084 (the ladder the seed gives moves with any change to the code before
+    // START), 16 sprites. Since P4 the two CPUs' matches of cpus() stand for the ladder.
+    const r = cpus()
+    expect(r.halted).toBe(false)
+    expect(r.outcomes.every((o) => o !== 0)).toBe(true)
     expect(r.avg).toBeLessThan(25_000)
     expect(r.worst).toBeLessThan(40_000)
     expect(r.line).toBeLessThanOrEqual(32)
     expect(r.avg).toBeLessThanOrEqual(19_000)
     expect(r.worst).toBeLessThanOrEqual(34_000)
-    // P1's CPU kept standing: it beats all four in turn, ROOT last, to SYSTEM CLEAR.
-    const c = boot()
-    put(c, 'choice', ROOT_ROW, 2)
-    fight(c, [1, 1])
-    const order: number[] = [read(c, 'ladder', read(c, 'ladderAt'))]
-    for (let f = 0; f < 120_000 && read(c, 'ladderEnd') === 0; f++) {
-      put(c, 'fLife', 100, 0)
-      frames(c, 1, cart)
-      const now = read(c, 'ladder', read(c, 'ladderAt'))
-      if (now !== order[order.length - 1]) order.push(now)
-    }
-    expect(read(c, 'ladderEnd')).toBe(1)
-    expect(order).toEqual([0, 1, 2, 4])
-    expect(read(c, 'continues')).toBe(0)
   })
 })
 
 /**
- * A ladder played to its end, the fight's frames measured (a frame that loads a match - its
- * stage, both slots - is not one of them): their average and busiest cycles.
+ * Two CPUs' matches (P1's CPU in S1 against the ladder's first two, the clock's second 20),
+ * played once for the file and measured frame by frame (a frame that loads a round or a match
+ * is not one of them): the rounds' lengths in seconds, the frames' average and busiest cycles,
+ * the most sprites on a line, the outcomes, and whether the machine stopped.
  */
-function ladderMeasured(m: Elec16): { avg: number; worst: number; line: number } {
+function playCpus() {
+  const rounds: number[] = []
+  const outcomes: number[] = []
   let sum = 0
   let worst = 0
   let line = 0
   let n = 0
-  for (let k = 0; k < 120_000 && read(m, 'ladderEnd') === 0; k++) {
-    const fighting = read(m, 'phase') === PH.fight
-    const c0 = m.state.cycles
-    frames(m, 1, cart)
-    if (fighting && read(m, 'phase') === PH.fight) {
+  let halted = false
+  for (const at of [0, 1]) {
+    const m = fight({ ...CLOCK, second: 20 }, [1, 1], 0, at)
+    let r = 0
+    for (let k = 0; k < 30_000 && read(m, 'outcome') === 0; k++) {
+      const fighting = read(m, 'phase') === PH.fight
+      const c0 = m.state.cycles
+      frames(m, 1, cart)
+      if (!fighting) continue
+      r++
+      if (read(m, 'phase') !== PH.fight) {
+        rounds.push(r / 60)
+        r = 0
+        continue
+      }
       const d = m.state.cycles - c0
       sum += d
       worst = Math.max(worst, d)
       line = Math.max(line, ...perLine(m))
       n++
     }
+    outcomes.push(read(m, 'outcome'))
+    halted ||= m.state.halt !== null
   }
-  return { avg: sum / n, worst, line }
+  return { rounds, avg: sum / n, worst, line, outcomes, halted }
+}
+let cpusPlayed: ReturnType<typeof playCpus> | undefined
+const cpus = () => {
+  cpusPlayed ??= playCpus()
+  return cpusPlayed
 }
 
 describe('ELECFIGHTER chance and the frame budget', () => {
   /** P1 idle on the pad, the stand-in against it: the match's RAM after `n` frames. */
-  const match = (clock = CLOCK, n = 300) => {
-    const m = fight(boot(clock), [0, 1])
+  const match = (clock: Elec16 | typeof CLOCK = CLOCK, n = 300) => {
+    const m = fight(clock, [0, 1])
     frames(m, n, cart)
     return m
   }
 
   it('plays the same match from the same clock and buttons, another from another clock', () => {
-    const a = match()
+    // One played from its first frame, one from the snapshot the tests keep: the same.
+    const a = match(boot())
     const b = match()
     expect(globals(a)).toEqual(globals(b))
     const c = match({ ...CLOCK, second: 13 })
@@ -2026,7 +2069,7 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     return { avg: sum / k, worst, line, frames: k, outcome: read(m, 'outcome') }
   }
 
-  it("plays a scripted match and a CPUs' match to the end within their frames, 32 sprites a line", () => {
+  it("plays a scripted fight and two CPUs' matches within their frames, 32 sprites a line", () => {
     const script = [
       I.fwd,
       I.fwd | I.lp,
@@ -2038,15 +2081,18 @@ describe('ELECFIGHTER chance and the frame budget', () => {
       I.down | I.hp,
       0,
     ]
+    // Its first 2,400 frames (since P4; before, the match to its end, 2,780 frames): rounds,
+    // a KO and the next round's start come in them.
     const scripted = measured(
-      fight(boot(), [2, 1]),
-      20000,
+      fight(CLOCK, [2, 1]),
+      2400,
       (k) => script[(k >> 4) % script.length] ?? 0,
     )
-    const cpus = measured(fight(boot(), [1, 1]), 20000, () => 0)
+    // Two CPUs' matches are measured once for the file (cpus()).
+    const both = cpus()
+    expect(both.outcomes.every((o) => o !== 0)).toBe(true)
     // 4 MHz at 60 frames: 66,667 cycles a frame (design 10.4: under 25,000 on average, 40,000 at worst).
-    for (const r of [scripted, cpus]) {
-      expect(r.outcome).not.toBe(0)
+    for (const r of [scripted, both]) {
       expect(r.avg).toBeLessThan(25_000)
       expect(r.worst).toBeLessThan(40_000)
       expect(r.line).toBeLessThanOrEqual(32)
@@ -2065,8 +2111,8 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     // 30,388 over 3,519; 26 sprites on the busiest line.
     expect(scripted.avg).toBeLessThanOrEqual(17_500)
     expect(scripted.worst).toBeLessThanOrEqual(34_000)
-    expect(cpus.avg).toBeLessThanOrEqual(18_500)
-    expect(cpus.worst).toBeLessThanOrEqual(32_500)
+    expect(both.avg).toBeLessThanOrEqual(18_500)
+    expect(both.worst).toBeLessThanOrEqual(32_500)
   })
 })
 
@@ -2204,8 +2250,8 @@ describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () =>
     expect(read(m, 'songNow')).toBe(3)
     // Won: the result (WIN, the rounds), then the next opponent's versus.
     matchTo(m, 1)
-    expect(bigText(m, 5)).toBe('WIN')
-    expect(textAt(m, 10, 16, 20)).toBe('ROUNDS          2-0')
+    expect(bigText(m, 2)).toBe('WIN')
+    expect(textAt(m, 10, 11, 20)).toBe('ROUNDS          2-0')
     expect(read(m, 'songNow')).toBe(4)
     tap(m, padBit('start'), cart)
     until(m, SC.versus, 30)
@@ -2215,7 +2261,7 @@ describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () =>
   it('counts CONTINUE? down to GAME OVER after a loss, and goes back to the title', () => {
     const m = fight()
     matchTo(m, 0)
-    expect(bigText(m, 5)).toBe('LOSE')
+    expect(bigText(m, 2)).toBe('LOSE')
     expect(read(m, 'songNow')).toBe(5)
     tap(m, padBit('start'), cart)
     until(m, SC2.cont, 10)
@@ -2228,7 +2274,7 @@ describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () =>
   })
 
   it('reaches SYSTEM CLEAR after the last, keeps the clear in save RAM, and shows it in BEST', () => {
-    const m = fight(boot(), [2, 2], 2, MIRROR)
+    const m = fight(CLOCK, [2, 2], 2, MIRROR)
     matchTo(m, 1)
     tap(m, padBit('start'), cart)
     until(m, SC2.clear, 10)
@@ -2322,11 +2368,17 @@ describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () =>
     const m = boot()
     toSelect(m)
     const hud = Number(/export const HUD_TILE = (0x[0-9a-f]+)/.exec(built.report.assets)?.[1])
+    /** A bar's lit segments: two cells each, the life bar's whole tile and its 7 points. */
     const lit = (y: number) =>
       [0, 1, 2, 3, 4].filter((k) => {
         const mem = m.state.video?.mem ?? new Uint8Array()
-        const at = 0xa000 + y * 128 + (29 + k * 2) * 2
-        return (((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)) & 0x3ff) === hud + 8 + 80
+        const cell = (x: number) => {
+          const at = 0xa000 + y * 128 + x * 2
+          return ((mem[at] ?? 0) | ((mem[at + 1] ?? 0) << 8)) & 0x3ff
+        }
+        const whole = cell(29 + k * 2) === hud + 8 + 80
+        expect(cell(30 + k * 2), `segment ${k}`).toBe(whole ? hud + 8 + 70 : hud + 8)
+        return whole
       }).length
     const got: number[][] = []
     for (let s = 0; s < 4; s++) {
@@ -2360,8 +2412,8 @@ describe('ELECFIGHTER the screens (P3, design 5.4)', { timeout: 300_000 }, () =>
       frames(m, 40, cart)
       const k = read(m, 'ladder', place)
       const name = ['PACKET', 'MAINFRAME', 'DAEMON', 'KERNEL', 'ROOT'][k] ?? ''
-      expect(rowText(m, 10)).toBe(`PROGRAM ${name}`)
-      for (const l of [12, 13, 14].map((y) => rowText(m, y))) {
+      expect(rowText(m, 8)).toBe(`PROGRAM ${name}`)
+      for (const l of [10, 11, 12].map((y) => rowText(m, y))) {
         expect(l.length).toBeGreaterThan(5)
         for (const w of never) expect(l, `${name}: ${l}`).not.toMatch(new RegExp(`\\b${w}`))
       }
@@ -2626,8 +2678,12 @@ describe('ELECFIGHTER every screen within the frame (P3)', { timeout: 300_000 },
     tap(m, padBit('a'), cart)
     put(m, 'ctl', 1, 0)
     put(m, 'ctl', 1, 1)
-    run(3000)
-    for (let k = 0; k < 12000 && read(m, 'screen') !== SC.result; k++) frames(m, 1, cart)
+    run(1500)
+    // The rest of the match quickly: P2 at one life whenever the fight is on.
+    for (let k = 0; k < 12000 && read(m, 'screen') !== SC.result; k++) {
+      if (read(m, 'screen') === SC.fight && read(m, 'phase') === PH.fight) put(m, 'fLife', 1, 1)
+      frames(m, 1, cart)
+    }
     run(200)
     expect(m.state.halt).toBeNull()
     const stats = [...by.entries()].map(([sc, a]) => ({

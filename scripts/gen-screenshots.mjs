@@ -10,8 +10,9 @@
  * `npm run build` first, then `npm run gen:screenshots`; name shots to take only those
  * (`npm run gen:screenshots -- elecdex-media`).
  *
- * The PLAY-320's three games (elecdex-play, -play-air, -play-drill) are played by
- * demo-play-kit.mjs's scripted pad, with no gamepad of this machine reaching the page.
+ * The PLAY-320's games (elecdex-play, -play-air, -play-drill, -play-fighter) are played by
+ * a scripted pad (demo-play-kit.mjs's, and elecfighter below), with no gamepad of this machine
+ * reaching the page.
  *
  * Shots for posting (`social-elec-sitting`, `social-elec-approved`) are taken only when named,
  * as PNG into release/social, which is not committed: the ELEC system pane alone,
@@ -410,6 +411,60 @@ async function elecdrill(page) {
   await page.mouse.move(W / 2, H / 6)
 }
 
+/** A blow landing: the one struck flashes white (wire and fill), as the spark bursts. */
+function striking(canvas) {
+  const data = canvas.getContext('2d').getImageData(0, 40, 320, 210).data
+  let lit = 0
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] > 240 && data[i + 1] > 240 && data[i + 2] > 240) lit++
+  }
+  return lit > 40
+}
+
+/**
+ * ELECFIGHTER: from the boot log through the title, the controls and the select (S4 OUTBOX) to
+ * the first fight; walking in, blows and a sweep against the first program - the shot taken as
+ * a blow lands, after about eight seconds of it.
+ */
+async function elecfighter(page) {
+  const wait = await atStartScreen(page)
+  const pad = padOf(page, wait)
+  // START: the boot log, START past it to the title, START for the menu, A for VERSUS CPU, the
+  // controls the first time (START past them), the select.
+  for (const [key, ms] of [
+    ['Enter', 1500],
+    ['Enter', 1500],
+    ['Enter', 600],
+    ['KeyZ', 900],
+    ['Enter', 1200],
+    ['ArrowLeft', 900],
+    ['KeyZ', 2200],
+    ['KeyZ', 2600],
+  ])
+    await pad.hold(key, 120).then(() => wait(ms))
+  const screen = page.getByTestId('elec16-play-screen')
+  // Walk in, then a light, a heavy kick, a crouching light kick, a heavy punch; and again.
+  const moves = [
+    ['ArrowRight', 420],
+    ['KeyA', 90],
+    ['KeyZ', 90],
+    ['ArrowRight', 260],
+    ['KeyS', 90],
+    ['ArrowLeft', 300],
+    ['KeyX', 90],
+    ['KeyZ', 90],
+  ]
+  const start = Date.now()
+  for (let k = 0; Date.now() - start < 30_000; k++) {
+    if (Date.now() - start > 8_000 && (await screen.evaluate(striking))) break
+    const [key, ms] = moves[k % moves.length]
+    await pad.hold(key, ms)
+    for (let t = 0; t < 3 && !(await screen.evaluate(striking)); t++) await wait(50)
+    if (Date.now() - start > 8_000 && (await screen.evaluate(striking))) break
+  }
+  await page.mouse.move(W / 2, H / 6)
+}
+
 /** A program brought back after a start waits paused: P runs it, for its title screen to draw. */
 async function playing(page) {
   await page.getByTestId('chip8-run').waitFor()
@@ -753,6 +808,11 @@ await shoot('business-light', 'elecdex-play-drill', {
   layout: playLayout({ tab: 'mem', playBody: 'screen', playSkin: 'ivory' }),
   prepare: playUnit('ELECDRILL'),
   extra: elecdrill,
+})
+await shoot('tron', 'elecdex-play-fighter', {
+  layout: playLayout({ tab: 'games', playBody: 'screen', playSkin: 'graphite' }),
+  prepare: playUnit('ELECFIGHTER'),
+  extra: elecfighter,
 })
 // For posting: the pane alone, the council sitting and the council decided. Only when named.
 for (const [name, extra, pace] of [

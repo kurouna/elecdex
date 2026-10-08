@@ -38,8 +38,13 @@ const BAR_ROW = 2
 const BAR_CELLS = 15
 /** The band: its top rule, three rows of large letters, a row of small words, its bottom rule. */
 export const BAND_ROW = 13
-export const BAND_SUB = 17
 const BAND_ROWS = 6
+/**
+ * The band's top row now: 13 for the banners, 5 once a round is over and to the match's end,
+ * above the winner's raised arm (the win pose reaches about y 126); back to 13 when it goes.
+ */
+const BAND_HIGH = 5
+let bandAt: u16 = BAND_ROW
 export const T_CLEAR = 0
 export const T_RULE = 1
 export const T_TICK = 2
@@ -237,26 +242,32 @@ export function bigCentred(y: u16, s: u16): void {
 
 /** The band across rows 13-18 with the words `s` large in its middle, nothing under them. */
 export function bandShow(s: u16): void {
-  vfill(cellAt(1, 0, BAND_ROW), (HUD_TILE + T_BAND_TOP) | (SL_P1 << 10) | FRONT, 40)
+  vfill(cellAt(1, 0, bandAt), (HUD_TILE + T_BAND_TOP) | (SL_P1 << 10) | FRONT, 40)
   let r: u16 = 1
   while (r < BAND_ROWS - 1) {
-    vfill(cellAt(1, 0, BAND_ROW + r), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
+    vfill(cellAt(1, 0, bandAt + r), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
     r++
   }
   vfill(
-    cellAt(1, 0, BAND_ROW + BAND_ROWS - 1),
+    cellAt(1, 0, bandAt + BAND_ROWS - 1),
     (HUD_TILE + T_BAND_BOTTOM) | (SL_P1 << 10) | FRONT,
     40,
   )
-  bigCentred(BAND_ROW + 1, s)
+  bigCentred(bandAt + 1, s)
+}
+
+/** The next band high (a round over, the match's end), clear of the winner's pose. */
+export function bandHigh(): void {
+  bandAt = BAND_HIGH
 }
 
 /** The band's small words under the large ones, centred (the band's own ground behind them). */
 export function bandSub(s: u16): void {
-  vfill(cellAt(1, 0, BAND_SUB), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
+  const y = bandAt + 4
+  vfill(cellAt(1, 0, y), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
   let n: u16 = 0
   while (peek(s + n) !== 0) n++
-  let at = cellAt(1, 20 - (n >> 1), BAND_SUB)
+  let at = cellAt(1, 20 - (n >> 1), y)
   let k: u16 = 0
   while (k < n) {
     vpoke(at, (FONTB_TILE + peek(s + k) - 32) | (SL_P1 << 10) | FRONT)
@@ -267,7 +278,8 @@ export function bandSub(s: u16): void {
 
 /** The band gone. */
 export function bandClear(): void {
-  vfill(cellAt(1, 0, BAND_ROW), HUD_TILE + T_CLEAR, 64 * BAND_ROWS)
+  vfill(cellAt(1, 0, bandAt), HUD_TILE + T_CLEAR, 64 * BAND_ROWS)
+  bandAt = BAND_ROW
 }
 
 /* ---------------- the log line (design 5.3) ---------------- */

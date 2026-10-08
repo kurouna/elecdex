@@ -7,8 +7,8 @@
 // it for both. START pauses the fight. The frame itself is engine/main.e16.ts's. In bank 1: once
 // a frame at most, and the frame's work is called from here into RAM.
 import { type bool, str, type u16, words } from '../../../../../src/shared/e16c/builtins'
-import { B_START, cellAt, pressed, vpoke } from '../../lib/kit.e16'
-import { HUD_TILE } from '../assets.e16'
+import { B_START, cellAt, palette, palKeep, pressed, vpoke } from '../../lib/kit.e16'
+import { HUD_TILE, PAL_CPU, PAL_MIRROR } from '../assets.e16'
 import { cpuMatchSet, cpuRoundReset } from '../cpu/ai.e16'
 import { habitLadder } from '../cpu/habit.e16'
 import { M_LOSE, M_WIN, music } from '../engine/audio.e16'
@@ -29,6 +29,7 @@ import {
 } from '../engine/data.e16'
 import {
   bandClear,
+  bandHigh,
   bandShow,
   bandSub,
   FLIP,
@@ -162,6 +163,7 @@ function matchPlay(k: u16, pos: u16): void {
   fSlot[1] = (opp[OW + O_FLAGS] & OF_MIRROR) !== 0 ? choice[0] : opp[OW + O_SLOT]
   fighterLoad(0, fSlot[0])
   fighterLoad(1, fSlot[1])
+  sidePalette()
   screenClear()
   stageLoad(opp[OW + O_STAGE])
   cpuMatchSet(0)
@@ -180,6 +182,7 @@ function matchPlay(k: u16, pos: u16): void {
   while (outcome === 0) roundPlay()
   if (outcome === QUIT) return
   phaseIs(PH_END)
+  bandHigh()
   if (outcome === 1) {
     bandShow(str('YOU WIN'))
     music(M_WIN)
@@ -192,6 +195,16 @@ function matchPlay(k: u16, pos: u16): void {
     phaseTick()
   }
   bandClear()
+}
+
+/**
+ * P2's palette for the match (slot 9): the CPU's, or the mirror's - the wire another hue, design
+ * 2.4 - when both sides show the same body (ROOT, or the same slot).
+ */
+function sidePalette(): void {
+  const row = fSlot[0] === fSlot[1] ? PAL_MIRROR : PAL_CPU
+  palette(row, 9)
+  palKeep(row, 9)
 }
 
 /** A round: its banner, the fight, its end. */
