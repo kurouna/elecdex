@@ -41,6 +41,7 @@ import {
   MV_THROW,
   mvAt,
   P_LIFE,
+  POSE_W,
   prAt,
   SHARDS_AIR,
   SHARDS_ROW,
@@ -143,7 +144,8 @@ function eventsTake(a: u16): void {
 
 /** An effect where fighter `a`'s hit box strikes: its front end, half way up. */
 function fxAt(a: u16, k: u16): void {
-  const o = a * 24 + 16
+  // The first hit box: box 4 of the pose's six, four words each.
+  const o = a * POSE_W + 4 * 4
   const right = fFace[a] !== 0
   fxK[a] = k
   fxT[a] = 0
