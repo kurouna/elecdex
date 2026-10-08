@@ -163,9 +163,15 @@ export const fWin = words(2)
 const fBreath = words(2)
 /**
  * Frames fighter `i` has been in its pose row (0 its first): the clock its pictures follow
- * (fighters/frames.txt). A state entered again begins it again (0xffff, the next `poseSet`'s 0).
+ * (fighters/frames.txt). A state entered again begins it again: 0xffff until the next `poseSet`
+ * (the look holds the picture showing meanwhile, through a hitstop too), then 0.
  */
 export const fRowT = words(2)
+/**
+ * The row fighter `i` was in before this one (its own, entered again): the pictures a row begins
+ * with follow it (fighters/transitions.txt).
+ */
+export const fRowWas = words(2)
 /** Where each stood as the frame began: the other's state machine reads it (design 8). */
 export const was = words(2)
 /** Where each stood before this frame's motion, to tell who moved apart. */
@@ -200,6 +206,7 @@ export function fighterReset(i: u16): void {
   artHold[i] = 0
   artPic[i] = 0xffff
   fRowT[i] = 0
+  fRowWas[i] = PO_STAND
   poseLoad(i, fSlot[i], PO_STAND)
 }
 
@@ -498,7 +505,10 @@ function poseSet(i: u16): void {
   else if (st === ST_HIT) p = fKnock[i] !== 0 ? PO_FALLING : PO_HIT + fCrouch[i]
   else if (st === ST_GUARD) p = PO_GUARD + fCrouch[i]
   else p = statePose(st)
-  fRowT[i] = p === fPose[i] ? wrap16(fRowT[i] + 1) : 0
+  if (p !== fPose[i] || fRowT[i] === 0xffff) {
+    fRowWas[i] = fPose[i]
+    fRowT[i] = 0
+  } else fRowT[i]++
   fPose[i] = p
   poseLoad(i, fSlot[i], p)
 }

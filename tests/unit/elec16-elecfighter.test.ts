@@ -252,8 +252,9 @@ describe('ELECFIGHTER as built', () => {
     // Measured 2026-10-08 with the screens and the sound (P3): 18,986 bytes of RAM's 20,480 (the
     // kit's sound in RAM, the screens in banks 5-7); 19,304 at P4's balance, 19,206 after the
     // review (the banners' letter lookup and their small words moved to banks 3 and 1); 19,208
-    // with the in-between pictures (their choice in bank 4, the clock in RAM). The
-    // globals fill their area (0280-1FFF) to within a few bytes: a new array must free its room.
+    // with the in-between pictures (their choice in bank 4, the clock in RAM); 19,244 with the
+    // transitions and the throw's frames (the row before kept in RAM, `fRowWas`). The
+    // globals fill their area (0280-1FFF) to its last byte since: a new array must free its room.
     expect(built.report.ramCode).toBeLessThanOrEqual(20 * 1024)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
     expect(Math.max(...at.values())).toBeLessThan(0x2000)
@@ -476,7 +477,7 @@ function pointsIn(pts: Map<string, number>, bx: number, bt: number, bw: number, 
 
 const ARTS = SLOT_IDS.map(slotArt)
 /** The in-between pictures, after the KO's pieces in every art.txt (scripts/elecfighter/pose-book.mjs). */
-const TWEENS = 31
+const TWEENS = 50
 /** The active rows of the standing light and heavy punch and kick (poses.txt). */
 const ROW = { sLP: 13, sHP: 16, sLK: 19, sHK: 22 }
 
@@ -587,8 +588,10 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
     // With the screens and the sound (P3): 70 banks (560 KB), 932 tiles - the stage, the title's
     // map and the busts sharing one place (never shown together).
     expect(built.report.banks).toBeLessThanOrEqual(128)
-    // With 31 in-between pictures a slot (fighters/frames.txt) on 2026-10-08: 98 banks (784 KB).
-    expect(built.report.banks).toBeLessThanOrEqual(100)
+    // With 31 in-between pictures a slot (fighters/frames.txt) on 2026-10-08: 98 banks (784 KB);
+    // with 50 (the throw's, the transitions', the wake-up's) 113 banks (904 KB). At least 10
+    // banks are kept free.
+    expect(built.report.banks).toBeLessThanOrEqual(118)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
     // Two rooms of 32 cells (4 tiles each) from the first slot's sheet, the others none.
     const constant = (name: string) =>
@@ -2371,8 +2374,9 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     expect(r.worst).toBeLessThan(40_000)
     expect(r.line).toBeLessThanOrEqual(32)
     // With the in-between pictures (a row's pictures in turn, each a copy into the room as the
-    // next frame begins) on 2026-10-08: 19,269 and 32,609.
-    expect(r.avg).toBeLessThanOrEqual(19_600)
+    // next frame begins) on 2026-10-08: 19,269 and 32,609. With the transitions and the throw's
+    // frames (fighters/transitions.txt, throws.txt) on 2026-10-08: 19,860 and 31,660.
+    expect(r.avg).toBeLessThanOrEqual(20_200)
     expect(r.worst).toBeLessThanOrEqual(34_000)
   })
 })
@@ -2552,11 +2556,224 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     expect(scripted.worst).toBeLessThanOrEqual(34_000)
     // With places rounded from the way each faces (`pointX`, a call where a shift was) and S4's
     // and DAEMON's new numbers on 2026-10-08: two CPUs' 18,822 on average and 32,667 at worst.
-    // With the in-between pictures on 2026-10-08: 19,269 and 32,609.
-    expect(both.avg).toBeLessThanOrEqual(19_600)
+    // With the in-between pictures on 2026-10-08: 19,269 and 32,609. With the transitions and
+    // the throw's frames on 2026-10-08: 19,860 and 31,660 (the scripted match 17,693 and 28,215).
+    expect(both.avg).toBeLessThanOrEqual(20_200)
     expect(both.worst).toBeLessThanOrEqual(33_500)
   })
 })
+
+/** A table of the game's folder as words, `#` comments left out. */
+function wordsOf(file: string): number[] {
+  return readFileSync(`${DIR}/${file}`, 'utf8')
+    .replace(/#.*$/gm, '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(Number)
+}
+
+/**
+ * The pictures' tables (design 2.5, 7.9), shared by every slot: each row's pictures in turn
+ * (frames.txt), the pictures a row begins with by the row before (transitions.txt), the throw
+ * frame by frame (throws.txt); and the pictures' names, as S1's art.txt has them.
+ */
+const SEQ = wordsOf('fighters/frames.txt')
+const TRANS = wordsOf('fighters/transitions.txt')
+const THROWS = wordsOf('fighters/throws.txt')
+const SEQ_W = 10
+const THROW_KS = 27
+const PIC_NAMES = readFileSync(`${DIR}/fighters/s1/art.txt`, 'utf8')
+  .split('\n')
+  .filter((l) => l.trim() !== '' && !l.startsWith('#'))
+  .map((l) => (l.split('#')[1] ?? '').trim().split(' ').pop() ?? '')
+/**
+ * The picture fighter `i` should show as this frame ends, worked out from the tables as the
+ * design says (independently of look.e16.ts): null to keep the one showing (a row entered after
+ * the frame's pose was set).
+ */
+function picWanted(m: Elec16, i: number): number | null {
+  const st = read(m, 'fState', i)
+  if (st === ST2.throw || st === ST2.thrown) return throwPicWanted(m, i, st === ST2.throw)
+  const t = read(m, 'fRowT', i)
+  if (t === 0xffff) return null
+  const row = read(m, 'fPose', i) * SEQ_W
+  return (t < 16 ? transPicWanted(m, i, row, t) : null) ?? rowPicWanted(m, i, row, t)
+}
+
+/** A throw's picture, thrower's or thrown's, by the thrower's frames since it took hold. */
+function throwPicWanted(m: Elec16, i: number, thrower: boolean): number {
+  const a = thrower ? i : 1 - i
+  const k = Math.min(read(m, 'fStateT', a), THROW_KS - 1)
+  const w = THROWS[(read(m, 'fThrowBack', a) * THROW_KS + k) * 4 + (thrower ? 0 : 1)]
+  return (w ?? 0) & 255
+}
+
+/** The picture the row begins with by the row before, or null for the row's own. */
+function transPicWanted(m: Elec16, i: number, row: number, t: number): number | null {
+  const into = SEQ[row + 9] ?? 0
+  const was = read(m, 'fRowWas', i)
+  for (let k = into & 255; k < (into & 255) + (into >> 8); k++) {
+    const from = TRANS[k * 3] ?? 0
+    if (was < (from & 255) || was > from >> 8) continue
+    const p = [TRANS[k * 3 + 1] ?? 0, TRANS[k * 3 + 2] ?? 0].find((w) => t < w >> 8)
+    return p !== undefined && (p & 255) !== 255 ? p & 255 : null
+  }
+  return null
+}
+
+/** The row's own picture by its clock: frames, or the points walked into a step. */
+function rowPicWanted(m: Elec16, i: number, row: number, t0: number): number {
+  const seq = (k: number) => SEQ[row + k] ?? 0
+  let t = t0
+  if (seq(0) === 1) {
+    const x = read(m, 'fX', i)
+    t = (read(m, 'fFace', i) !== 0 ? x >> 4 : -((x + 15) >> 4)) & 7
+  }
+  let k = 0
+  while (k < 3 && t >= seq(2 + k * 2)) k++
+  return seq(1 + k * 2)
+}
+
+/**
+ * Frames played with these buttons, each checked: both fighters show the picture the tables
+ * give (or keep theirs), and a picture is copied into its room on the frames it changes only.
+ */
+function picturesFollow(m: Elec16, n: number, h: (k: number) => [number, number]): number[][] {
+  const shown: number[][] = [[], []]
+  for (let k = 0; k < n; k++) {
+    const before = [read(m, 'artPic', 0), read(m, 'artPic', 1)]
+    const [h0, h1] = h(k)
+    step(m, h0, h1)
+    for (const i of [0, 1]) {
+      const want = picWanted(m, i) ?? before[i]
+      const now = read(m, 'artPic', i)
+      expect(now, `frame ${k} fighter ${i}`).toBe(want)
+      expect(read(m, 'artWant', i) !== 0, `frame ${k} fighter ${i} copied`).toBe(now !== before[i])
+      shown[i]?.push(now)
+    }
+  }
+  return shown
+}
+
+/** A run of pictures with each picture once, in the order they came. */
+const inTurn = (pics: number[]) => pics.filter((p, k) => p !== pics[k - 1]).map((p) => PIC_NAMES[p])
+
+describe('ELECFIGHTER the pictures in turn (design 2.5, 7.9)', () => {
+  it('shows each row its pictures by its clock, the walk by its points both ways and mirrored', () => {
+    const m = fight()
+    place(m, 236, 330)
+    // Both walk in and back: P2 faces left, so its steps run mirrored.
+    picturesFollow(m, 40, (k) => [k < 20 ? I.fwd : I.back, k < 20 ? I.back : I.fwd])
+    // A heavy punch from the stance: wind-up begun, wound, the blow, its follow-through settling.
+    place(m, 236, 330)
+    steps(m, 30)
+    const [p1] = picturesFollow(m, 40, (k) => [k === 0 ? I.hp : 0, 0])
+    expect(inTurn(p1 ?? []).slice(0, 6)).toEqual(['hp0a', 'hp0', 'hp', 'hp2', 'hp3', 'hp4'])
+  })
+
+  it('begins a row by the row before: through half a crouch down and up, half a guard up and down', () => {
+    const m = fight()
+    place(m, 236, 330)
+    steps(m, 30)
+    const [down] = picturesFollow(m, 12, () => [I.down, 0])
+    expect(inTurn(down ?? []).slice(-2)).toEqual(['chalf', 'crouch'])
+    const [up] = picturesFollow(m, 6, () => [0, 0])
+    expect(inTurn(up ?? [])[0]).toBe('chalf')
+    // P1 guards P2's light punch: the half guard as the hitstop ends, then half down again.
+    place(m, 236, 270)
+    steps(m, 30)
+    const [guard] = picturesFollow(m, 40, (k) => [k < 24 ? I.back : 0, k === 2 ? I.lp : 0])
+    const seen = inTurn(guard ?? [])
+    expect(seen).toContain('ghalf')
+    expect(seen.slice(seen.indexOf('ghalf'), seen.indexOf('ghalf') + 3)).toEqual([
+      'ghalf',
+      'guard',
+      'ghalf',
+    ])
+  })
+
+  it('plays the throw frame by frame: the thrower hauls, heaves and slams, the thrown is carried', () => {
+    for (const way of [I.fwd, I.back]) {
+      const m = fight()
+      place(m, 230, 262)
+      const xs: number[] = []
+      const [a, d] = picturesFollow(m, 30, (k) => {
+        if (k > 0 && k < 21) xs.push(heldAt(m))
+        return [k === 0 ? way | I.hp : 0, 0]
+      })
+      expect(inTurn(a ?? []).slice(1, 5)).toEqual(['throw', 'tpull', 'theave', 'tslam'])
+      const carried = inTurn(d ?? [])
+      expect(carried).toContain('thrown')
+      expect(carried).toContain('tlift')
+      expect(carried).toContain('tair')
+      expect(carried.at(-1)).toBe('bounce')
+      // Carried from in front of the thrower (x 230): over it to land behind on a back throw.
+      expect(Math.max(...xs)).toBeGreaterThan(240)
+      if (way === I.back) {
+        expect(carried).toContain('tinv')
+        expect(Math.min(...xs)).toBeLessThan(220)
+      } else expect(Math.min(...xs)).toBeGreaterThan(230)
+    }
+  })
+
+  it('staggers both apart after a throw tech, and plays the air hit, the fall and the wake-up', () => {
+    const m = fight()
+    place(m, 230, 262)
+    const [a, d] = picturesFollow(m, 30, (k) => [
+      k === 0 ? I.fwd | I.hp : 0,
+      k === 7 ? I.fwd | I.hp : 0,
+    ])
+    for (const p of [a, d])
+      expect(inTurn(p ?? [])).toEqual(expect.arrayContaining(['stag', 'stag2']))
+    place(m, 200, 280)
+    const [, air] = picturesFollow(m, 120, (k) => [k === 10 ? I.hp : 0, k < 3 ? I.up | I.fwd : 0])
+    const fell = inTurn(air ?? [])
+    const from = fell.indexOf('launch')
+    expect(fell.slice(from, from + 9)).toEqual([
+      'launch',
+      'air',
+      'knock',
+      'bounce',
+      'down',
+      'wsit',
+      'wake',
+      'wake2',
+      'wake3',
+    ])
+  })
+})
+
+/** Where P2's cells are drawn (OAM, palette slot 9), their middle in world points. */
+function heldAt(m: Elec16): number {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  const xs: number[] = []
+  for (let k = 0; k < 128; k++) {
+    const w = (n: number) =>
+      (mem[0xc000 + k * 8 + n * 2] ?? 0) | ((mem[0xc000 + k * 8 + n * 2 + 1] ?? 0) << 8)
+    if ((w(3) & 3) === 3 || ((w(2) >> 10) & 7) !== 1) continue
+    xs.push(((w(0) << 16) >> 16) + 8)
+  }
+  return xs.reduce((s, x) => s + x, 0) / Math.max(1, xs.length) + read(m, 'camX')
+}
+
+/**
+ * P1's light punch on P2 (holding `guard`): the frames from the one it lands on to the hitstop's
+ * end, each checked to show P2's picture of the frame before it landed.
+ */
+function heldThroughStop(m: Elec16, guard: number): number {
+  let was = read(m, 'artPic', 1)
+  let stopped = 0
+  for (let k = 0; k < 20; k++) {
+    step(m, k === 0 ? I.lp : 0, guard)
+    const landed = read(m, 'struck', 0) !== 0
+    if (landed || (stopped > 0 && read(m, 'hitstop') > 0)) {
+      expect(read(m, 'artPic', 1), `frame ${k}`).toBe(was)
+      stopped++
+    } else if (stopped > 0) break
+    was = read(m, 'artPic', 1)
+  }
+  return stopped
+}
 
 describe('ELECFIGHTER the look (P3, design 2.4)', () => {
   /** A P1 heavy punch that knocks P2 (one life left) out; the frames of the round's end after it. */
@@ -2589,6 +2806,20 @@ describe('ELECFIGHTER the look (P3, design 2.4)', () => {
     expect(shown(m, 9, 1)).toBe(0x7fff)
     expect(shown(m, 8, 1)).toBe(kept(m, 8, 1))
     expect(read(m, 'fxK', 0)).toBe(1)
+  })
+
+  it('holds the picture that was showing through a hitstop, struck or guarding', () => {
+    // Found in review 2026-10-08: the strike's `enter` set the row's clock to 0xffff after the
+    // frame's pose was set, so through the hitstop the old row was read with that clock and showed
+    // its last picture (the stand's breath) - then the struck picture after it.
+    for (const guard of [0, I.back]) {
+      const m = fight()
+      place(m, 236, 270)
+      // P2 crouches and stands again: its stand row's first frames, its first picture showing.
+      steps(m, 3, 0, I.down)
+      steps(m, 4, 0, guard)
+      expect(heldThroughStop(m, guard)).toBeGreaterThan(3)
+    }
   })
 
   it('takes the fill of the one knocked out to the void, then breaks it into its pieces both ways', () => {

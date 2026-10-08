@@ -10,7 +10,17 @@
 // a frame (`lookStep`), calling the kit and the RAM tables.
 import { type bool, i16, idiv, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import { colour, FLIP_H, mix, palCopy, S16, S32, spr, sprBegin } from '../../lib/kit.e16'
-import { FRAMES_AT, FRAMES_BANK, S1_TILE, SHADOW_TILE, SPARK_TILE } from '../assets.e16'
+import {
+  FRAMES_AT,
+  FRAMES_BANK,
+  S1_TILE,
+  SHADOW_TILE,
+  SPARK_TILE,
+  THROWS_AT,
+  THROWS_BANK,
+  TRANS_AT,
+  TRANS_BANK,
+} from '../assets.e16'
 import {
   sfx,
   X_DASH,
@@ -51,14 +61,18 @@ import {
 import { camX } from './draw.e16'
 import {
   fAir,
+  faceSign,
   fFace,
   fLife,
   fMove,
   fMoveF,
   fPose,
   fRowT,
+  fRowWas,
   fSlot,
   fState,
+  fStateT,
+  fThrowBack,
   fWin,
   fY,
   pointX,
@@ -67,6 +81,7 @@ import {
   ST_DASH,
   ST_DOWN,
   ST_LAND,
+  ST_THROW,
   ST_THROWN,
 } from './fighter.e16'
 import { struck, threw, wb } from './hit.e16'
@@ -171,29 +186,105 @@ function fxSprites(a: u16): void {
 /* ---------------- the fighters ---------------- */
 
 /**
- * Fighter `i`'s picture for this frame (design 2.2): its pose row's pictures in turn, as
- * fighters/frames.txt has them - a row of SEQ_W words, the clock's kind, then four pairs of an
- * art row and the clock it shows until. The clock is the frames the fighter has been in the row,
- * or, for a walk's step, the points walked into it (counted the way it faces, rounded back as
- * `pointX` is, so a mirrored walk steps alike and walking back plays the step backwards). A
- * new picture is copied into its room as the next frame begins; none while its pieces are held.
+ * Fighter `i`'s picture for this frame (design 2.5): its pose row's pictures in turn, as
+ * fighters/frames.txt has them - a row of SEQ_W words, the clock's kind, four pairs of an art
+ * row and the clock it shows until, then where the row's transitions are. The clock is the
+ * frames the fighter has been in the row, or, for a walk's step, the points walked into it
+ * (counted the way it faces, rounded back as `pointX` is, so a mirrored walk steps alike and
+ * walking back plays the step backwards). The row's first frames may show other pictures, by the
+ * row it came from (fighters/transitions.txt); a throw's both fighters show the throw's, frame
+ * by frame (fighters/throws.txt). A row entered after this frame's pose was set (a strike's, a
+ * landing's: its clock 0xffff) begins next frame: until then, through a hitstop too, the picture
+ * showing holds. A new picture is copied into its room as the next frame begins; none while its
+ * pieces are held.
  */
-const SEQ_W = 9
+const SEQ_W = 10
 const SEQ_PICS = 4
+/** frames.txt's word of a row's transitions: the first entry | the count << 8. */
+const SEQ_TRANS = 9
+/** A transition's entry: the rows from (first | last << 8), two pictures (art row | until << 8). */
+const TRANS_W = 3
+/** Every transition is over by this frame of its row; art row 255 is none. */
+const TRANS_MOST = 16
+const NO_PIC = 255
+/** The throw's frames each way, and a frame's words (thrower, thrown, share | off << 8, up). */
+const THROW_KS = 27
+const THROW_W = 4
 function picStep(i: u16): void {
   if (artHold[i] !== 0) return
+  const st = fState[i]
+  let pic: u16 = 0
+  if (st === ST_THROW || st === ST_THROWN) pic = throwWord(i, st === ST_THROW ? 0 : 1) & 255
+  else {
+    if (fRowT[i] === 0xffff) return
+    pic = rowPic(i)
+  }
+  if (pic === artPic[i]) return
+  artPic[i] = pic
+  artCopy(i, fSlot[i], pic)
+}
+
+/** The picture of fighter `i`'s row by its clock: a transition's first, else the row's own. */
+function rowPic(i: u16): u16 {
   const row = fPose[i] * SEQ_W
   let t = fRowT[i]
+  if (t < TRANS_MOST) {
+    const p = transPic(i, row, t)
+    if (p !== NO_PIC) return p
+  }
   if (tableWord(FRAMES_BANK, FRAMES_AT, row) !== 0) {
     const d = fFace[i] !== 0 ? pointX(i) : wrap16(0 - pointX(i))
     t = d & 7
   }
   let k: u16 = 0
   while (k < SEQ_PICS - 1 && t >= tableWord(FRAMES_BANK, FRAMES_AT, row + 2 + k * 2)) k++
-  const pic = tableWord(FRAMES_BANK, FRAMES_AT, row + 1 + k * 2)
-  if (pic === artPic[i]) return
-  artPic[i] = pic
-  artCopy(i, fSlot[i], pic)
+  return tableWord(FRAMES_BANK, FRAMES_AT, row + 1 + k * 2)
+}
+
+/**
+ * The transition's picture `t` frames into the row (at `row` of frames.txt) fighter `i` came to
+ * from `fRowWas`: the first of the row's entries whose rows hold that one, while its ends last.
+ */
+function transPic(i: u16, row: u16, t: u16): u16 {
+  const w = tableWord(FRAMES_BANK, FRAMES_AT, row + SEQ_TRANS)
+  let k = w & 255
+  const end = k + (w >> 8)
+  const was = fRowWas[i]
+  while (k < end) {
+    const from = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W)
+    if (was >= (from & 255) && was <= from >> 8) {
+      const a = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 1)
+      if (t < a >> 8) return a & 255
+      const b = tableWord(TRANS_BANK, TRANS_AT, k * TRANS_W + 2)
+      return t < b >> 8 ? b & 255 : NO_PIC
+    }
+    k++
+  }
+  return NO_PIC
+}
+
+/**
+ * Word `w` of the throw's frame fighter `i` is in, thrower or thrown (design 7.9): by the
+ * thrower's frames since it took hold, forward or back.
+ */
+function throwWord(i: u16, w: u16): u16 {
+  const a = fState[i] === ST_THROW ? i : 1 - i
+  const k = fStateT[a] < THROW_KS ? fStateT[a] : THROW_KS - 1
+  return tableWord(THROWS_BANK, THROWS_AT, (fThrowBack[a] * THROW_KS + k) * THROW_W + w)
+}
+
+/**
+ * Where held fighter `d` is drawn, in world points: from the thrower by the throw's share of
+ * the gap they stand apart (their places are still till the slam) and its points more, ahead
+ * of the thrower as it faces.
+ */
+function heldX(d: u16): i16 {
+  const a = 1 - d
+  const xa = i16(pointX(a))
+  const xd = i16(pointX(d))
+  const g = xd > xa ? xd - xa : xa - xd
+  const w = throwWord(d, 2)
+  return xa + faceSign(a) * (idiv(g * lowOf(w), 16) + highOf(w))
 }
 
 /** Signed places of a cell from its packed word. */
@@ -213,9 +304,18 @@ function bodySprites(i: u16): void {
     shardSprites(i)
     return
   }
-  const x = i16(pointX(i)) - i16(camX)
-  const y = i16(groundY) - i16(fY[i] >> 4)
-  const right = fFace[i] !== 0
+  let x = i16(pointX(i)) - i16(camX)
+  let y = i16(groundY) - i16(fY[i] >> 4)
+  let right = fFace[i] !== 0
+  const st = fState[i]
+  if (st === ST_THROW || st === ST_THROWN) {
+    // Held, drawn where the throw carries it; either drawn turned about where the throw says.
+    if ((throwWord(i, st === ST_THROW ? 0 : 1) & 256) !== 0) right = !right
+    if (st === ST_THROWN) {
+      x = heldX(i) - i16(camX)
+      y = i16(groundY) - i16(throwWord(i, 3))
+    }
+  }
   const tile = (S1_TILE + i * 128) | (i << 10) | (right ? 0 : FLIP_H)
   const n = art[i * ART_W + 1]
   let c: u16 = 0
@@ -233,8 +333,9 @@ function bodySprites(i: u16): void {
  */
 function shadow(i: u16): void {
   if (shOn[i] !== 0) return
-  const x = i16(pointX(i)) - i16(camX)
-  const h = fY[i] >> 4
+  const held = fState[i] === ST_THROWN
+  const x = (held ? heldX(i) : i16(pointX(i))) - i16(camX)
+  const h = held ? throwWord(i, 3) : fY[i] >> 4
   const y = i16(groundY) - 4
   const t = SHADOW_TILE | FX_PAL
   if (h < 20) {

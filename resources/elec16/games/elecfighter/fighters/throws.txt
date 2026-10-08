@@ -1,0 +1,60 @@
+# ELECFIGHTER: the throw frame by frame (docs/elec16-elecfighter-design.md 7.9; poses.json
+# `throws`, written by scripts/elecfighter-art.mjs), shared by every slot: 27 frames forward,
+# then 27 back, by the thrower's frames since it took hold. A frame of 4 words: the thrower's
+# art row | turned about << 8, the thrown's the same, where the thrown is drawn from the
+# thrower (share: sixteenths of the gap they stood at | points more ahead << 8, each signed),
+# and points up.
+49 58 16 0 # fwd 0 throw thrown 16 0 0
+49 58 15 0 # fwd 1 throw thrown 15 0 0
+49 58 15 0 # fwd 2 throw thrown 15 0 0
+49 58 14 0 # fwd 3 throw thrown 14 0 0
+93 58 13 0 # fwd 4 tpull thrown 13 0 0
+93 58 12 2 # fwd 5 tpull thrown 12 0 2
+93 58 12 4 # fwd 6 tpull thrown 12 0 4
+93 58 11 6 # fwd 7 tpull thrown 11 0 6
+93 97 10 8 # fwd 8 tpull tlift 10 0 8
+93 97 7 35 # fwd 9 tpull tlift 7 0 35
+94 100 4 62 # fwd 10 theave tair 4 0 62
+94 100 7 51 # fwd 11 theave tair 7 0 51
+94 100 9 41 # fwd 12 theave tair 9 0 41
+95 100 12 30 # fwd 13 tslam tair 12 0 30
+95 100 14 18 # fwd 14 tslam tair 14 0 18
+95 100 16 6 # fwd 15 tslam tair 16 0 6
+95 100 16 0 # fwd 16 tslam tair 16 0 0
+95 100 16 0 # fwd 17 tslam tair 16 0 0
+95 100 16 0 # fwd 18 tslam tair 16 0 0
+96 100 16 0 # fwd 19 tsettle tair 16 0 0
+96 100 16 0 # fwd 20 tsettle tair 16 0 0
+96 100 16 0 # fwd 21 tsettle tair 16 0 0
+96 100 16 0 # fwd 22 tsettle tair 16 0 0
+96 100 16 0 # fwd 23 tsettle tair 16 0 0
+96 100 16 0 # fwd 24 tsettle tair 16 0 0
+96 100 16 0 # fwd 25 tsettle tair 16 0 0
+96 100 16 0 # fwd 26 tsettle tair 16 0 0
+49 58 16 0 # back 0 throw thrown 16 0 0
+49 58 15 0 # back 1 throw thrown 15 0 0
+49 58 15 0 # back 2 throw thrown 15 0 0
+49 58 14 0 # back 3 throw thrown 14 0 0
+93 58 13 0 # back 4 tpull thrown 13 0 0
+93 58 12 3 # back 5 tpull thrown 12 0 3
+93 58 12 5 # back 6 tpull thrown 12 0 5
+93 58 11 8 # back 7 tpull thrown 11 0 8
+93 97 10 10 # back 8 tpull tlift 10 0 10
+94 98 6 44 # back 9 theave tface 6 0 44
+94 98 1 45 # back 10 theave tface 1 0 45
+94 99 252 46 # back 11 theave tinv -4 0 46
+94 99 248 37 # back 12 theave tinv -8 0 37
+351 100 244 28 # back 13 tslam turned tair -12 0 28
+351 100 242 17 # back 14 tslam turned tair -14 0 17
+351 100 240 6 # back 15 tslam turned tair -16 0 6
+351 100 240 0 # back 16 tslam turned tair -16 0 0
+351 100 240 0 # back 17 tslam turned tair -16 0 0
+351 100 240 0 # back 18 tslam turned tair -16 0 0
+352 100 240 0 # back 19 tsettle turned tair -16 0 0
+352 100 240 0 # back 20 tsettle turned tair -16 0 0
+352 100 240 0 # back 21 tsettle turned tair -16 0 0
+352 100 240 0 # back 22 tsettle turned tair -16 0 0
+352 100 240 0 # back 23 tsettle turned tair -16 0 0
+352 100 240 0 # back 24 tsettle turned tair -16 0 0
+352 100 240 0 # back 25 tsettle turned tair -16 0 0
+352 100 240 0 # back 26 tsettle turned tair -16 0 0

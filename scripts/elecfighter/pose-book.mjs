@@ -17,7 +17,8 @@
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { aim, reach, skeletonOf } from './ik.mjs'
+import { Quaternion, Vector3 } from 'three'
+import { aim, quatOf, reach, rotOf, skeletonOf } from './ik.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SKEL = skeletonOf(join(HERE, 'models/human.gltf'))
@@ -84,6 +85,39 @@ function blend(a, b, t) {
   }
   const near = t < 0.5 ? a.near : b.near
   if (near) out.near = near
+  return out
+}
+
+/**
+ * A description turned bodily by `pitch` degrees about the model's X through the hips (positive
+ * leans the body forward, the head towards +Z): the hips' turn, every fist and foot and its pole
+ * moved round with it, and an aimed hand or foot aimed round too. For the bodies a throw carries
+ * face down or upside down, posed upright and then turned.
+ */
+function turned(d, pitch) {
+  const q = quatOf([pitch, 0, 0])
+  const hip = SKEL.find((b) => b.name === 'hips')
+    .t.clone()
+    .add(new Vector3(...(d.hips?.t ?? [0, 0, 0])))
+  const move = (v) => (v ? new Vector3(...v).sub(hip).applyQuaternion(q).add(hip).toArray() : v)
+  const out = { ...d, hips: { ...d.hips, r: rotOf(q.clone().multiply(quatOf(d.hips?.r))) } }
+  for (const k of ['R', 'L', 'rh', 'lh']) {
+    const spec = d[k]
+    if (!spec) continue
+    const next = { ...spec, at: move(spec.at) }
+    if (spec.knee) next.knee = move(spec.knee)
+    if (spec.elbow) next.elbow = move(spec.elbow)
+    if (spec.yaw !== undefined || spec.pitch !== undefined || spec.roll !== undefined) {
+      const [x, y, z] = rotOf(
+        new Quaternion().multiplyQuaternions(
+          q,
+          quatOf([spec.pitch ?? 0, spec.yaw ?? 0, spec.roll ?? 0]),
+        ),
+      )
+      Object.assign(next, { pitch: x, yaw: y, roll: z })
+    }
+    out[k] = next
+  }
   return out
 }
 
@@ -519,11 +553,124 @@ const ROWS = [
 ].flat()
 
 /**
- * The in-between pictures (design 2.2): drawn between two of the book's poses by `blend`, shown
- * only where a row's sequence (SEQ) names them - they have no boxes of their own (a row's boxes
- * hold for all its pictures). In art.txt they follow the rows and the KO's pieces, in this order.
+ * Pictures drawn by hand that no row's boxes stand for, only shown in turn: a throw's thrower
+ * and thrown (THROWS), a body sitting up from the floor, a throw tech's stagger. In art.txt they
+ * are in-betweens like the blends below.
+ */
+const UPRIGHT = {
+  hips: { t: [0, -0.04, 0], r: [0, 18, 0] },
+  spine: [0, 4, 0],
+  chest: [0, 6, 0],
+  neck: [-4, -12, 0],
+  head: [0, -14, 0],
+  R: { at: [-0.08, 0.1, 0.08], knee: [-0.2, 0.5, 1.2], yaw: 10, pitch: 30 },
+  L: { at: [0.12, 0.16, -0.12], knee: [0.4, 0.5, 1.0], yaw: 20, pitch: 40 },
+  rh: { at: [-0.18, 1.78, 0.14], elbow: [-0.6, 1.4, 0.0] },
+  lh: { at: [0.18, 1.74, 0.04], elbow: [0.6, 1.4, 0.0] },
+}
+const DRAWN = {
+  // The thrower: hauling the other in, the hips turned and leaning back ...
+  tpull: vary(STAND, {
+    hips: { t: [0, -0.15, -0.02], r: [-4, 34, 0] },
+    spine: [-4, 8, 0],
+    chest: [-2, 10, 0],
+    neck: [-4, -20, 0],
+    head: [6, -20, 0],
+    R: { at: [-0.07, 0.085, 0.28], knee: [-0.2, 0.5, 1.4], yaw: 10 },
+    L: { at: [0.14, 0.085, -0.28], knee: [0.5, 0.5, 0.9], yaw: 50 },
+    rh: { at: [-0.12, 1.16, 0.26], elbow: [-0.5, 0.9, -0.2] },
+    lh: { at: [0.08, 1.2, 0.24], elbow: [0.5, 0.9, -0.2] },
+    near: ARM_FAR,
+  }),
+  // ... heaving it up overhead, the knees bent under the weight, leaning back ...
+  theave: vary(STAND, {
+    hips: { t: [0, -0.2, -0.02], r: [-12, 20, 0] },
+    spine: [-8, 4, 0],
+    chest: [-8, 4, 0],
+    neck: [-10, -10, 0],
+    head: [-16, -10, 0],
+    R: { at: [-0.07, 0.085, 0.3], knee: [-0.2, 0.5, 1.4], yaw: 10 },
+    L: { at: [0.14, 0.085, -0.26], knee: [0.5, 0.5, 0.9], yaw: 50 },
+    rh: { at: [-0.12, 1.9, 0.14], elbow: [-0.5, 1.5, 0.4] },
+    lh: { at: [0.1, 1.92, 0.1], elbow: [0.5, 1.5, 0.4] },
+    near: ARM_FAR,
+  }),
+  // ... and driving it down to the floor, bent over it, the arms following it down.
+  tslam: vary(STAND, {
+    hips: { t: [0, -0.32, 0.08], r: [36, 14, 0] },
+    spine: [14, 2, 0],
+    chest: [10, 2, 0],
+    neck: [-24, -8, 0],
+    head: [-10, -8, 0],
+    R: { at: [-0.07, 0.085, 0.4], knee: [-0.2, 0.5, 1.6], yaw: 10 },
+    L: { at: [0.14, 0.1, -0.32], knee: [0.5, 0.5, 0.9], yaw: 40, pitch: 30 },
+    rh: { at: [-0.1, 0.46, 0.62], elbow: [-0.5, 1.0, 0.2] },
+    lh: { at: [0.08, 0.5, 0.58], elbow: [0.5, 1.0, 0.2] },
+    near: ARM_FAR,
+  }),
+  // The thrown: lifted off its feet by the collar, leaning back, the feet hanging ...
+  tlift: vary(STAND, {
+    hips: { t: [0, 0, 0], r: [-12, 18, 0] },
+    spine: [-6, 4, 0],
+    chest: [-4, 4, 0],
+    neck: [-10, -12, 0],
+    head: [-14, -14, 0],
+    R: { at: [-0.08, 0.16, 0.14], knee: [-0.2, 0.6, 1.2], yaw: 10, pitch: 40 },
+    L: { at: [0.14, 0.2, -0.12], knee: [0.4, 0.6, 1.0], yaw: 30, pitch: 50 },
+    rh: { at: [-0.14, 1.28, 0.3], elbow: [-0.5, 1.0, 0.4] },
+    lh: { at: [0.12, 1.32, 0.26], elbow: [0.5, 1.0, 0.4] },
+  }),
+  // ... in the air on its back, the knees and arms flung up (the floor's bounce is blended
+  // from it) ...
+  tair: {
+    hips: { t: [0, -0.8, -0.18], r: [-80, 10, 0] },
+    spine: [-6, 0, 0],
+    chest: [-6, 0, 0],
+    neck: [-6, 0, 0],
+    head: [-10, -20, 0],
+    R: { at: [-0.1, 0.5, 0.56], knee: [-0.15, 1.0, 0.3], yaw: 10, pitch: -40 },
+    L: { at: [0.12, 0.42, 0.66], knee: [0.2, 1.0, 0.4], yaw: 10, pitch: -40 },
+    rh: { at: [-0.32, 0.5, -0.3], elbow: [-0.6, 0.5, 0.0] },
+    lh: { at: [0.3, 0.46, -0.26], elbow: [0.6, 0.5, 0.0] },
+  },
+  // ... carried over head first, face down, the arms out before it ...
+  tface: turned(UPRIGHT, 80),
+  // ... and upside down over the thrower's shoulder.
+  tinv: turned(UPRIGHT, 165),
+  // Sitting up from the floor, the hands behind on it, the knees up.
+  wsit: {
+    hips: { t: [0, -0.76, -0.1], r: [-34, 14, 0] },
+    spine: [14, 2, 0],
+    chest: [10, 2, 0],
+    neck: [10, -6, 0],
+    head: [6, -14, 0],
+    R: { at: [-0.1, 0.09, 0.5], knee: [-0.15, 0.8, 0.5], yaw: 10, pitch: -20 },
+    L: { at: [0.12, 0.1, 0.42], knee: [0.2, 0.8, 0.4], yaw: 10, pitch: -10 },
+    rh: { at: [-0.3, 0.09, -0.3], elbow: [-0.6, 0.4, -0.4] },
+    lh: { at: [0.3, 0.09, -0.28], elbow: [0.6, 0.4, -0.4] },
+  },
+  // A throw broken: knocked back off balance, the arms thrown out.
+  stag: vary(STAND, {
+    hips: { t: [0, -0.1, -0.1], r: [-14, 26, 0] },
+    spine: [-8, 6, 0],
+    chest: [-8, 8, 0],
+    neck: [-10, -10, 0],
+    head: [-16, -10, 0],
+    R: { at: [-0.07, 0.085, 0.34], knee: [-0.2, 0.5, 1.2], yaw: 10 },
+    L: { at: [0.14, 0.12, -0.34], knee: [0.5, 0.5, 0.9], yaw: 50, pitch: 20 },
+    rh: { at: [-0.36, 1.2, 0.3], elbow: [-0.6, 1.1, 0.0] },
+    lh: { at: [0.34, 1.24, 0.0], elbow: [0.6, 1.1, -0.2] },
+  }),
+}
+
+/**
+ * The in-between pictures (design 2.5): drawn between two of the book's poses by `blend`, or by
+ * hand (DRAWN), shown only where a row's sequence (SEQ), a change of row (TRANS) or a throw
+ * (THROWS) names them - they have no boxes of their own (a row's boxes hold for all its
+ * pictures). In art.txt they follow the rows and the KO's pieces, in this order.
  */
 const B = BOOK
+const D = DRAWN
 const TWEENS = {
   breath: blend(B.stand, B.idle, 0.5),
   walk1b: blend(B.walk1, B.walk2, 0.5),
@@ -539,7 +686,6 @@ const TWEENS = {
   hit2: blend(B.hit, B.stand, 0.5),
   hitc2: blend(B.hitc, B.crouch, 0.5),
   knock: blend(B.air, B.down, 0.5),
-  wake0: blend(B.down, B.wake, 0.5),
   wake2: blend(B.wake, B.stand, 0.5),
   win0: blend(B.stand, B.win, 0.5),
   // A light's fist or foot drawn back halfway before the stance.
@@ -558,6 +704,34 @@ const TWEENS = {
   chk3: blend(B.chk2, B.crouch, 0.5),
   jhk0: blend(B.jump, B.jhk, 0.35),
   throw3: blend(B.throw2, B.stand, 0.5),
+  // The throw (THROWS): the thrower's haul, heave, slam and settling; the thrown lifted,
+  // carried and flung.
+  tpull: D.tpull,
+  theave: D.theave,
+  tslam: D.tslam,
+  tsettle: blend(D.tslam, B.stand, 0.55),
+  tlift: D.tlift,
+  tface: D.tface,
+  tinv: D.tinv,
+  tair: D.tair,
+  // Struck into the air: thrown back as it leaves the floor; on the floor, the bounce.
+  launch: blend(B.hit, B.air, 0.5),
+  bounce: blend(D.tair, B.down, 0.5),
+  // Waking: sitting up, then the last of the rise.
+  wsit: D.wsit,
+  wake3: blend(B.wake, B.stand, 0.8),
+  // Halfway down to the crouch (and up from it), halfway to the guard (and down from it).
+  chalf: blend(B.stand, B.crouch, 0.5),
+  ghalf: blend(B.stand, B.guard, 0.5),
+  // The last of a hit's reel, standing and crouched.
+  hit3: blend(B.hit, B.stand, 0.8),
+  hitc3: blend(B.hitc, B.crouch, 0.8),
+  // A crouching light's fist or foot drawn back.
+  clp1: blend(B.clp, B.crouch, 0.5),
+  clk1: blend(B.clk, B.crouch, 0.5),
+  // A throw tech's stagger and its recovery.
+  stag: D.stag,
+  stag2: blend(D.stag, B.stand, 0.5),
 }
 
 /**
@@ -627,13 +801,19 @@ const SEQ = {
     ['hitc2', HOLD],
   ],
   9: [
-    ['knock', 4],
+    ['bounce', 6],
     ['down', HOLD],
   ],
   10: [
-    ['wake0', 4],
-    ['wake', 8],
-    ['wake2', HOLD],
+    ['wsit', 3],
+    ['wake', 6],
+    ['wake2', 9],
+    ['wake3', HOLD],
+  ],
+  11: [
+    ['launch', 3],
+    ['air', 9],
+    ['knock', HOLD],
   ],
   14: [
     ['lp1', 3],
@@ -661,6 +841,7 @@ const SEQ = {
     ['hk3', 13],
     ['hk4', HOLD],
   ],
+  26: [['clp1', HOLD]],
   27: [
     ['chp0a', 2],
     ['chp0', HOLD],
@@ -669,6 +850,7 @@ const SEQ = {
     ['chp2', 8],
     ['chp3', HOLD],
   ],
+  32: [['clk1', HOLD]],
   33: [
     ['chk0a', 3],
     ['chk0', HOLD],
@@ -701,6 +883,79 @@ const SEQ = {
 }
 /** At most this many pictures a row (engine/look.e16.ts reads a row of 1 + 2 * SEQ_MOST words). */
 const SEQ_MOST = 4
+
+/**
+ * Pictures played as a row begins, by the row the fighter came from (engine/look.e16.ts): a
+ * crouch begun from standing passes through half a crouch, a guard raised passes through half
+ * a guard, a throw broken staggers. Each is `{ from, to, pics }`: rows (any of `from` into any
+ * of `to`), and `[picture, until]` by the new row's clock (frames since it began), over the
+ * row's own pictures until the last `until`; the row's own go on from there by the same clock,
+ * so a row's thresholds never move. The first that matches is taken: one with no pictures
+ * stops a later one (the bounce into the down row from the air or a throw, `knock` from any
+ * other). At most two pictures, all over by TRANS_MOST frames.
+ */
+const STANDS = [0, 51, 52, 53, 54, 60]
+const CROUCH_OUT = [1, 8, 26, 29, 32, 35]
+const AIR_ATTACKS = Array.from({ length: 12 }, (_, k) => 36 + k)
+const ROWS_ALL = Array.from({ length: 61 }, (_, k) => k)
+const TRANS = [
+  { from: STANDS, to: [1, 8], pics: [['chalf', 3]] },
+  { from: CROUCH_OUT, to: STANDS, pics: [['chalf', 3]] },
+  { from: STANDS, to: [7], pics: [['ghalf', 2]] },
+  { from: [7], to: STANDS, pics: [['ghalf', 2]] },
+  { from: [5], to: STANDS, pics: [['hit3', 3]] },
+  { from: [6], to: [1], pics: [['hitc3', 3]] },
+  // A throw broken (THROW TECH): the 12 frames' stagger of both, the thrower's or the held one's.
+  {
+    from: [48, 49, 50, 58],
+    to: [7],
+    pics: [
+      ['stag', 6],
+      ['stag2', 12],
+    ],
+  },
+  { from: [11, 58], to: [9], pics: [] },
+  { from: ROWS_ALL, to: [9], pics: [['knock', 3]] },
+  // An air attack over in the air is still in the air: not the takeoff again.
+  { from: AIR_ATTACKS, to: [3], pics: [['jump', 5]] },
+  { from: AIR_ATTACKS, to: [4], pics: [['land', 2]] },
+]
+const TRANS_MOST = 16
+
+/**
+ * The throw (design 7.9) frame by frame, by the thrower's frames since it took hold (0-26: the
+ * tech window 1-7, the slam at 16, free at 26), forward and back: the thrower's picture and
+ * whether it is drawn turned about (the back throw slams behind it), the thrown's picture, and
+ * where the thrown is drawn from the thrower: `share` sixteenths of the gap they stood apart at
+ * (16 where it stands, -16 behind as far, where the back throw lands it) and `off` points more,
+ * ahead of the thrower as it faces, `dy` points up. Keys `[frame, thrower, turned, thrown, share,
+ * off, dy]`: a picture holds to the next key, the place moves evenly between keys. Both are
+ * drawn so only: the thrown has no boxes while it is held, and lands where the slam puts it.
+ */
+const THROWS = {
+  fwd: [
+    [0, 'throw', 0, 'thrown', 16, 0, 0],
+    [4, 'tpull', 0, 'thrown', 13, 0, 0],
+    [8, 'tpull', 0, 'tlift', 10, 0, 8],
+    [10, 'theave', 0, 'tair', 4, 0, 62],
+    [13, 'tslam', 0, 'tair', 12, 0, 30],
+    [15, 'tslam', 0, 'tair', 16, 0, 6],
+    [16, 'tslam', 0, 'tair', 16, 0, 0],
+    [19, 'tsettle', 0, 'tair', 16, 0, 0],
+  ],
+  back: [
+    [0, 'throw', 0, 'thrown', 16, 0, 0],
+    [4, 'tpull', 0, 'thrown', 13, 0, 0],
+    [8, 'tpull', 0, 'tlift', 10, 0, 10],
+    [9, 'theave', 0, 'tface', 6, 0, 44],
+    [11, 'theave', 0, 'tinv', -4, 0, 46],
+    [13, 'tslam', 1, 'tair', -12, 0, 28],
+    [15, 'tslam', 1, 'tair', -16, 0, 6],
+    [16, 'tslam', 1, 'tair', -16, 0, 0],
+    [19, 'tsettle', 1, 'tair', -16, 0, 0],
+  ],
+}
+const THROW_KS = 27
 
 const FIST_R = ['hand_r', 'forearm_r', 'upperarm_r']
 const FIST_L = ['hand_l', 'forearm_l', 'upperarm_l']
@@ -739,16 +994,59 @@ const seq = ROWS.map((name, r) => {
   return { step: !Array.isArray(d) && d.step === true, pics }
 })
 for (const [k, bones] of Object.entries(STRIKES)) poses[k].strikes = bones
+
+/** Rows as runs of consecutive ones: [[first, last], ...]. */
+function runs(rows) {
+  const out = []
+  for (const r of [...new Set(rows)].sort((a, b) => a - b)) {
+    const last = out[out.length - 1]
+    if (last && last[1] === r - 1) last[1] = r
+    else out.push([r, r])
+  }
+  return out
+}
+// The transitions by the row they lead into, in TRANS's order: one entry a run of rows from.
+const trans = []
+for (let r = 0; r < ROWS.length; r++)
+  for (const t of TRANS) {
+    if (!t.to.includes(r)) continue
+    if (t.pics.length > 2) throw new Error(`a transition into ${r}: more than two pictures`)
+    for (const [pic, until] of t.pics) {
+      if (!poses[pic]) throw new Error(`a transition into ${r}: no picture ${pic}`)
+      if (until > TRANS_MOST) throw new Error(`a transition into ${r}: past ${TRANS_MOST} frames`)
+    }
+    for (const from of runs(t.from)) trans.push({ to: r, from, pics: t.pics })
+  }
+// The throw, frame by frame: the keys' pictures held, the place moved evenly between keys.
+const throws = Object.fromEntries(
+  Object.entries(THROWS).map(([way, keys]) => {
+    const frames = []
+    for (let k = 0; k < THROW_KS; k++) {
+      let a = 0
+      while (a + 1 < keys.length && keys[a + 1][0] <= k) a++
+      const [k0, thrower, turnedA, thrown, share0, off0, dy0] = keys[a]
+      const next = keys[a + 1]
+      const f = next ? (k - k0) / (next[0] - k0) : 0
+      const at = (v0, n) => Math.round(v0 + ((next ? next[n] : v0) - v0) * f)
+      for (const pic of [thrower, thrown])
+        if (!poses[pic]) throw new Error(`the throw ${way}: no picture ${pic}`)
+      frames.push([thrower, turnedA, thrown, 0, at(share0, 4), at(off0, 5), at(dy0, 6)])
+    }
+    return [way, frames]
+  }),
+)
 writeFileSync(
   join(HERE, 'poses.json'),
   `${JSON.stringify(
     {
       about:
-        "Written by pose-book.mjs (edit the poses there): joint rotations per bone, Euler degrees [x, y, z] applied in the order Y, X, Z (yaw, pitch, roll) in the bone's rest frame (X across to the model's left, Y up, Z front). hips may also move by t [x, y, z] metres; `near` lists far bones drawn as near, `strikes` the bones an active picture strikes with. Every pose is put on the ground (lowest point y = 0). `rows` are the game's pose rows, each a picture; `tweens` the in-between pictures; `seq` each row's pictures in turn ([picture, until] by the row's clock; `step` for a walk's step).",
+        "Written by pose-book.mjs (edit the poses there): joint rotations per bone, Euler degrees [x, y, z] applied in the order Y, X, Z (yaw, pitch, roll) in the bone's rest frame (X across to the model's left, Y up, Z front). hips may also move by t [x, y, z] metres; `near` lists far bones drawn as near, `strikes` the bones an active picture strikes with. Every pose is put on the ground (lowest point y = 0). `rows` are the game's pose rows, each a picture; `tweens` the in-between pictures; `seq` each row's pictures in turn ([picture, until] by the row's clock; `step` for a walk's step); `trans` the pictures a row begins with by the row before ({ to, from: [first, last], pics }); `throws` the throw frame by frame, forward and back ([thrower, turned, thrown, turned, share, off, dy]).",
       order,
       rows: ROWS,
       tweens: Object.keys(TWEENS),
       seq,
+      trans,
+      throws,
       poses,
     },
     null,

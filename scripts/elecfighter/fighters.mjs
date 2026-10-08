@@ -12,6 +12,8 @@
 //                                 tests read it: a hit box lies within 2 points of it)
 //   fighters/frames.txt           every slot's rows' pictures in turn (poses.json `seq`): which
 //                                 art row each row shows, frame by frame (engine/look.e16.ts)
+//   fighters/transitions.txt      the pictures a row begins with, by the row before (`trans`)
+//   fighters/throws.txt           the throw frame by frame, forward and back (`throws`)
 // and a check picture of the boxes over the poses, docs/elecfighter-mock/p3-boxes-<id>.png.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -283,6 +285,8 @@ export function writeFighters(results, slots, poses, game, docs) {
     .filter((x) => x.used)
     .map((slot) => writeSlot(slot, results, poses, game, docs))
   writeFileSync(path.join(game, 'fighters', 'frames.txt'), framesText(poses))
+  writeFileSync(path.join(game, 'fighters', 'transitions.txt'), transText(poses))
+  writeFileSync(path.join(game, 'fighters', 'throws.txt'), throwsText(poses))
   return lines
 }
 
@@ -295,24 +299,88 @@ function artRowOf(poses, name) {
   return poses.rows.length + PIECES.length + k
 }
 
-/** The words of a row of frames.txt: the clock, then 4 pictures and their ends. */
-export const SEQ_W = 9
+/** The words of a row of frames.txt: the clock, 4 pictures and their ends, the transitions. */
+export const SEQ_W = 10
 function framesText(poses) {
   const lines = [
     "# ELECFIGHTER: each pose row's pictures in turn, the same for every slot (docs/elec16-",
-    '# elecfighter-design.md 2.2; poses.json `seq`, written by scripts/elecfighter-art.mjs). A row',
-    '# of 9 words: the clock (0 the frames since the row began, 1 the points walked into a step,',
-    '# 0-7), then 4 pairs: an art row (fighters/<id>/art.txt) and the clock it shows until. The',
-    '# first pair whose end is past the clock is shown; the last holds.',
+    '# elecfighter-design.md 2.5; poses.json `seq`, written by scripts/elecfighter-art.mjs). A row',
+    '# of 10 words: the clock (0 the frames since the row began, 1 the points walked into a step,',
+    '# 0-7), then 4 pairs: an art row (fighters/<id>/art.txt) and the clock it shows until (the',
+    '# first pair whose end is past the clock is shown; the last holds), then the transitions into',
+    '# the row: its first entry in transitions.txt | their count << 8 (0 none).',
   ]
+  const into = transInto(poses)
   poses.seq.forEach((q, r) => {
     const pairs = q.pics.map(([name, until]) => [artRowOf(poses, name), until])
     const last = pairs[pairs.length - 1]
     while (pairs.length < 4) pairs.push(last)
-    const words = [q.step ? 1 : 0, ...pairs.flat()]
+    const t = into[r]
+    const words = [q.step ? 1 : 0, ...pairs.flat(), t ? t.first | (t.count << 8) : 0]
     if (words.length !== SEQ_W) throw new Error(`row ${r}: ${words.length} words`)
     lines.push(`${words.join(' ')} # ${r} ${q.pics.map(([n]) => n).join(' ')}`)
   })
+  return `${lines.join('\n')}\n`
+}
+
+/** Each row's transitions: its first entry and how many (a row's entries are together). */
+function transInto(poses) {
+  const into = []
+  poses.trans.forEach((t, k) => {
+    const now = into[t.to]
+    if (now) now.count++
+    else into[t.to] = { first: k, count: 1 }
+  })
+  return into
+}
+
+/** No picture: the row's own shows (an entry that only stops later ones). */
+const NO_PIC = 255
+
+function transText(poses) {
+  const lines = [
+    '# ELECFIGHTER: the pictures a pose row begins with, by the row before (docs/elec16-elecfighter-',
+    '# design.md 2.5; poses.json `trans`, written by scripts/elecfighter-art.mjs), shared by every',
+    '# slot. An entry of 3 words: the rows from (first | last << 8), then two pictures: an art row |',
+    "# the new row's clock it shows until << 8 (art row 255: none). frames.txt's last word finds a",
+    "# row's entries; the first whose rows hold the row before is taken; past its ends the row's own.",
+  ]
+  for (const t of poses.trans) {
+    const pics = t.pics.map(([name, until]) => [artRowOf(poses, name), until])
+    if (pics.length === 0) pics.push([NO_PIC, 0])
+    while (pics.length < 2) pics.push(pics[0])
+    const words = [t.from[0] | (t.from[1] << 8), ...pics.map(([a, u]) => a | (u << 8))]
+    const names = t.pics.map(([n, u]) => `${n} ${u}`).join(' ') || 'none'
+    lines.push(`${words.join(' ')} # ${t.from[0]}-${t.from[1]} > ${t.to} ${names}`)
+  }
+  return `${lines.join('\n')}\n`
+}
+
+/** The frames of a throw in throws.txt, each way (pose-book.mjs THROW_KS). */
+export const THROW_KS = 27
+function throwsText(poses) {
+  const lines = [
+    '# ELECFIGHTER: the throw frame by frame (docs/elec16-elecfighter-design.md 7.9; poses.json',
+    '# `throws`, written by scripts/elecfighter-art.mjs), shared by every slot: 27 frames forward,',
+    "# then 27 back, by the thrower's frames since it took hold. A frame of 4 words: the thrower's",
+    "# art row | turned about << 8, the thrown's the same, where the thrown is drawn from the",
+    '# thrower (share: sixteenths of the gap they stood at | points more ahead << 8, each signed),',
+    '# and points up.',
+  ]
+  for (const way of ['fwd', 'back']) {
+    const frames = poses.throws[way]
+    if (frames.length !== THROW_KS) throw new Error(`the throw ${way}: ${frames.length} frames`)
+    frames.forEach(([a, ta, d, td, share, off, dy], k) => {
+      const words = [
+        artRowOf(poses, a) | (ta << 8),
+        artRowOf(poses, d) | (td << 8),
+        (share & 255) | ((off & 255) << 8),
+        dy,
+      ]
+      const turned = ta ? ' turned' : ''
+      lines.push(`${words.join(' ')} # ${way} ${k} ${a}${turned} ${d} ${share} ${off} ${dy}`)
+    })
+  }
   return `${lines.join('\n')}\n`
 }
 

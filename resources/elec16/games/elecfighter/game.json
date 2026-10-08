@@ -234,6 +234,14 @@
       "file": "fighters/frames.txt"
     },
     {
+      "name": "trans",
+      "file": "fighters/transitions.txt"
+    },
+    {
+      "name": "throws",
+      "file": "fighters/throws.txt"
+    },
+    {
       "name": "stage_grid",
       "file": "stages/grid/stage.txt"
     },

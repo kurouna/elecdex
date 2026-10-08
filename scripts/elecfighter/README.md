@@ -9,7 +9,7 @@ imports the bitmaps alone (cells, art rows and boxes), never the models.
 | `models/human.gltf` | The base human: glTF 2.0, one embedded buffer, a skinned mesh (860 triangles: octagonal limbs, rounded knees and elbows, 6-point fists and shoes at 1x) on 19 bones. Made by `build-models.mjs`. |
 | `models/effects.gltf` | `spark` (an icosahedron, the hit spark) and `shard` (a thin triangular prism). |
 | `slots.json` | The camera, pixels a metre, and eight fighter slots (four used, four reserved). |
-| `poses.json` | The poses: joint rotations per bone, shared by every slot; `rows`, the game's pose rows, a picture each; `tweens`, the in-between pictures; `seq`, each row's pictures in turn. Written by `pose-book.mjs`. |
+| `poses.json` | The poses: joint rotations per bone, shared by every slot; `rows`, the game's pose rows, a picture each; `tweens`, the in-between pictures; `seq`, each row's pictures in turn; `trans`, the pictures a row begins with by the row before; `throws`, the throw frame by frame. Written by `pose-book.mjs`. |
 | `pose-book.mjs` | The poses as described by hand: where the hips sit, where each fist and foot goes, which way knees and elbows point. Edit here, run it, and it writes `poses.json`. |
 | `ik.mjs` | The posing helper: forward kinematics from a model's glTF and a two-bone solver (hinged knees and elbows). |
 | `fighters.mjs`, `effects.mjs` | The game's fighters (cells, art rows, drafted boxes, limbs, KO pieces, a check picture) and effects (spark, firewall, shadows), for `scripts/elecfighter-art.mjs`. |
@@ -131,7 +131,61 @@ new picture into the fighter's room only when it changes. In-betweens have no bo
 boxes hold for all its pictures, so the fight plays the same whatever is drawn. In
 `art.txt` they follow the 61 rows and the two KO rows, in `TWEENS`'s order. A row's thresholds
 count from its start, so a slot's quicker or slower move (design 3.1) only shortens or
-lengthens its last picture.
+lengthens its last picture. A row entered after the frame's pose was set (a strike's, a
+landing's: its clock 0xffff until the next frame) keeps the picture showing, so a hitstop holds
+the picture the blow found.
+
+Some in-betweens are drawn by hand (`DRAWN` in `pose-book.mjs`: the throw's, sitting up, the
+tech's stagger); a body a throw carries face down or upside down is posed upright and turned
+bodily (`turned`).
+
+### Transitions (`TRANS`, `fighters/transitions.txt`)
+
+A row may begin with other pictures by the row the fighter came from (`fRowWas`, kept by
+`poseSet`): `{ from, to, pics }`, rows from and rows to, and at most two `[picture, until]` by
+the new row's clock, over the row's own pictures until the last `until` (at most 16 frames).
+The row's own sequence keeps its clock underneath, so its thresholds never move. The first entry
+whose `from` holds the row before is taken; an entry with no pictures stops later ones.
+
+| From | To | Pictures |
+|---|---|---|
+| stand, walk, breath (0, 51-54, 60) | crouch, crouch guard (1, 8) | `chalf` 3 |
+| crouch, crouch guard, a crouching move's recovery | stand, walk, breath | `chalf` 3 |
+| stand, walk, breath | guard (7) | `ghalf` 2 |
+| guard | stand, walk, breath | `ghalf` 2 |
+| hit (5) / crouching hit (6) | stand rows / crouch | `hit3` 3 / `hitc3` 3 |
+| the throw's rows, held (48-50, 58) | guard (the tech) | `stag` 6, `stag2` 12 |
+| air hit (11), held (58) | down (9) | none (the row's `bounce` at once) |
+| any other | down | `knock` 3 |
+| a jump attack (36-47) | jump (3) / land (4) | `jump` 5 / `land` 2 |
+
+`transitions.txt` holds an entry as 3 words, `first | last << 8` of the rows from and two
+`art row | until << 8` (art row 255: none); `frames.txt`'s tenth word finds a row's entries
+(`first | count << 8`).
+
+### The throw (`THROWS`, `fighters/throws.txt`)
+
+Both fighters of a throw show its own pictures, by the thrower's frames since it took hold (0-26:
+the tech window 1-7, the slam at 16, free at 26), forward and back. Keys
+`[frame, thrower, turned, thrown, share, off, dy]`: the thrower's picture and whether it is drawn
+turned about, the thrown's picture, and where the thrown is drawn - `share` sixteenths of the gap
+they stood apart (16 where it stands, -16 as far behind, where the back throw's slam puts it),
+`off` points more ahead of the thrower, `dy` points up. A picture holds to the next key; the
+place moves evenly between keys. The art script writes 27 frames each way (4 words: thrower
+`art | turned << 8`, thrown the same, `share & 255 | off << 8`, `dy`). Only the drawing moves:
+the thrown has no boxes while held, and its place, the tech window, the slam and the damage are
+the engine's (hit.e16.ts).
+
+| Frames | Forward: thrower / thrown | Back: thrower / thrown |
+|---|---|---|
+| 0-3 | `throw` / `thrown`, where it stands | the same |
+| 4-7 | `tpull` / `thrown`, pulled in a little (the tech window: still on its feet) | the same |
+| 8-9 | `tpull` / `tlift`, off its feet | `tpull`, `theave` / `tlift`, `tface` over the shoulder |
+| 10-12 | `theave` / `tair` overhead | `theave` / `tinv`, upside down behind |
+| 13-16 | `tslam` / `tair` driven down in front | `tslam` turned / `tair` driven down behind |
+| 16- | `tslam` (the slam's hitstop), `tsettle` from 19 | the same, turned; it faces round when free |
+
+The slam puts the thrown in the down row, whose first picture is the floor's `bounce`.
 
 ## Redrawing one pose
 

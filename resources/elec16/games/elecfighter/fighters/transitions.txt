@@ -1,0 +1,70 @@
+# ELECFIGHTER: the pictures a pose row begins with, by the row before (docs/elec16-elecfighter-
+# design.md 2.5; poses.json `trans`, written by scripts/elecfighter-art.mjs), shared by every
+# slot. An entry of 3 words: the rows from (first | last << 8), then two pictures: an art row |
+# the new row's clock it shows until << 8 (art row 255: none). frames.txt's last word finds a
+# row's entries; the first whose rows hold the row before is taken; past its ends the row's own.
+257 873 873 # 1-1 > 0 chalf 3
+2056 873 873 # 8-8 > 0 chalf 3
+6682 873 873 # 26-26 > 0 chalf 3
+7453 873 873 # 29-29 > 0 chalf 3
+8224 873 873 # 32-32 > 0 chalf 3
+8995 873 873 # 35-35 > 0 chalf 3
+1799 618 618 # 7-7 > 0 ghalf 2
+1285 875 875 # 5-5 > 0 hit3 3
+0 873 873 # 0-0 > 1 chalf 3
+13875 873 873 # 51-54 > 1 chalf 3
+15420 873 873 # 60-60 > 1 chalf 3
+1542 876 876 # 6-6 > 1 hitc3 3
+12068 1283 1283 # 36-47 > 3 jump 5
+12068 582 582 # 36-47 > 4 land 2
+0 618 618 # 0-0 > 7 ghalf 2
+13875 618 618 # 51-54 > 7 ghalf 2
+15420 618 618 # 60-60 > 7 ghalf 2
+12848 1647 3184 # 48-50 > 7 stag 6 stag2 12
+14906 1647 3184 # 58-58 > 7 stag 6 stag2 12
+0 873 873 # 0-0 > 8 chalf 3
+13875 873 873 # 51-54 > 8 chalf 3
+15420 873 873 # 60-60 > 8 chalf 3
+2827 255 255 # 11-11 > 9 none
+14906 255 255 # 58-58 > 9 none
+15360 844 844 # 0-60 > 9 knock 3
+257 873 873 # 1-1 > 51 chalf 3
+2056 873 873 # 8-8 > 51 chalf 3
+6682 873 873 # 26-26 > 51 chalf 3
+7453 873 873 # 29-29 > 51 chalf 3
+8224 873 873 # 32-32 > 51 chalf 3
+8995 873 873 # 35-35 > 51 chalf 3
+1799 618 618 # 7-7 > 51 ghalf 2
+1285 875 875 # 5-5 > 51 hit3 3
+257 873 873 # 1-1 > 52 chalf 3
+2056 873 873 # 8-8 > 52 chalf 3
+6682 873 873 # 26-26 > 52 chalf 3
+7453 873 873 # 29-29 > 52 chalf 3
+8224 873 873 # 32-32 > 52 chalf 3
+8995 873 873 # 35-35 > 52 chalf 3
+1799 618 618 # 7-7 > 52 ghalf 2
+1285 875 875 # 5-5 > 52 hit3 3
+257 873 873 # 1-1 > 53 chalf 3
+2056 873 873 # 8-8 > 53 chalf 3
+6682 873 873 # 26-26 > 53 chalf 3
+7453 873 873 # 29-29 > 53 chalf 3
+8224 873 873 # 32-32 > 53 chalf 3
+8995 873 873 # 35-35 > 53 chalf 3
+1799 618 618 # 7-7 > 53 ghalf 2
+1285 875 875 # 5-5 > 53 hit3 3
+257 873 873 # 1-1 > 54 chalf 3
+2056 873 873 # 8-8 > 54 chalf 3
+6682 873 873 # 26-26 > 54 chalf 3
+7453 873 873 # 29-29 > 54 chalf 3
+8224 873 873 # 32-32 > 54 chalf 3
+8995 873 873 # 35-35 > 54 chalf 3
+1799 618 618 # 7-7 > 54 ghalf 2
+1285 875 875 # 5-5 > 54 hit3 3
+257 873 873 # 1-1 > 60 chalf 3
+2056 873 873 # 8-8 > 60 chalf 3
+6682 873 873 # 26-26 > 60 chalf 3
+7453 873 873 # 29-29 > 60 chalf 3
+8224 873 873 # 32-32 > 60 chalf 3
+8995 873 873 # 35-35 > 60 chalf 3
+1799 618 618 # 7-7 > 60 ghalf 2
+1285 875 875 # 5-5 > 60 hit3 3
