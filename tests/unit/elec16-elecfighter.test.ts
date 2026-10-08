@@ -1917,10 +1917,16 @@ describe('ELECFIGHTER the pictures in turn (design 2.5, 7.9)', () => {
       const m = fight()
       place(m, 230, 262)
       const xs: number[] = []
+      // The thrower (P1, facing right) drawn turned about, frame by frame.
+      const turned: boolean[] = []
       const [a, d] = picturesFollow(m, 30, (k) => {
         if (k > 0 && k < 21) xs.push(heldAt(m))
+        if (k > 0 && k < 27) turned.push(drawnOf(m, 0).flipped)
         return [k === 0 ? way | I.hp : 0, 0]
       })
+      // Turned about only for a back throw in the open, from the haul on (it slams behind it).
+      if (way === I.back) expect(turned.slice(18).every(Boolean), String(turned)).toBe(true)
+      else expect(turned.some(Boolean), String(turned)).toBe(false)
       expect(inTurn(a ?? []).slice(1, 5)).toEqual(['throw', 'tpull', 'theave', 'tslam'])
       const carried = inTurn(d ?? [])
       expect(carried).toContain('thrown')

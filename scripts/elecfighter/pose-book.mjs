@@ -926,9 +926,10 @@ const TRANS_MOST = 16
  * The throw (design 7.9) frame by frame, by the thrower's frames since it took hold (0-25: the
  * tech window 1-7, the slam at 16, free at 26), forward and back: the thrower's picture and
  * whether it is drawn turned about (the back throw slams behind it), the thrown's picture, and
- * where the thrown is drawn from the thrower: `share` sixteenths of the gap they stood apart at
- * (16 where it stands, -16 behind as far, where the back throw lands it) and `off` points more,
- * ahead of the thrower as it faces, `dy` points up. Keys `[frame, thrower, turned, thrown, share,
+ * where the thrown is drawn from the thrower: `share` sixteenths of the way from the thrower to
+ * where the thrown stands (16 there), and below 0 of the way to where the slam will land it (-16
+ * there: look.e16.ts `landX`), `off` points more ahead of the thrower as it faces, `dy` points
+ * up. Keys `[frame, thrower, turned, thrown, share,
  * off, dy]`: a picture holds to the next key, the place moves evenly between keys. Both are
  * drawn so only: the thrown has no boxes while it is held, and lands where the slam puts it.
  * Through the tech window (to 7) the held one stays on its feet, where it was pulled to by 4: a

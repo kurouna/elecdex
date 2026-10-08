@@ -320,8 +320,7 @@ function landX(d: u16): i16 {
   const hd = i16(tableWord(slPosesB[s], slPosesA[s], PO_DOWN * POSE_W + 2) >> 1)
   const ha = i16(half(a))
   x = inRing(x, hd)
-  // Which is on the left as `bodies` sees it: by place, then by the way each faces.
-  const dLeft = x !== xa ? x < xa : (fFace[1] !== 0 && fFace[0] === 0 ? 1 : 0) === d
+  const dLeft = onLeft(d, x, xa)
   const reach = ha + hd
   const gap = dLeft ? xa - x : x - xa
   if (gap >= reach) return x
@@ -336,6 +335,15 @@ function landX(d: u16): i16 {
     else xl = xl - left
   }
   return dLeft ? xl : xr
+}
+
+/**
+ * Whether held fighter `d`, landing at `x`, is on the left of the thrower at `xa` as `bodies`
+ * sees it: by place, then by the way each faces.
+ */
+function onLeft(d: u16, x: i16, xa: i16): bool {
+  if (x !== xa) return x < xa
+  return (fFace[1] !== 0 && fFace[0] === 0 ? 1 : 0) === d
 }
 
 /** Place `x` kept inside the ring for a body of half `h`. */
