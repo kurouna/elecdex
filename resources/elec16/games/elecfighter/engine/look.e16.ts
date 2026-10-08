@@ -395,7 +395,7 @@ function colourOf(base: u16, k: u16, key: u16, empty: u16): u16 {
   return wireColour(base, k, mode)
 }
 
-/** The hit's flash: the wire white, the fills a third of the way to it. */
+/** The hit's flash: the wire white, the fills 6/16 of the way to it. */
 function flashColour(c: u16, k: u16): u16 {
   if (k <= 2) return WHITE
   return k <= 11 ? mix(c, WHITE, 6) : c

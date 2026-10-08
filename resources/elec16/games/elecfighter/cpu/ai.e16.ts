@@ -14,6 +14,8 @@ import {
   F_CHAIN,
   H_LOW,
   H_MID,
+  K_CROUCH,
+  K_KICK,
   M_ACTIVE,
   M_FLAGS,
   M_HEIGHT,
@@ -689,12 +691,12 @@ function chainStep(i: u16, out: u16): u16 {
   chainArm[i] = randBelow(256) < row(i, O_CHAIN) ? 1 : 2
   if (chainArm[i] === 2) return out
   const kind = mvAt(i, m, M_KIND)
-  const b = (kind & 1) !== 0 ? I_HK : I_HP
+  const b = (kind & K_KICK) !== 0 ? I_HK : I_HP
   if ((outWas[i] & b) !== 0) {
     chainArm[i] = 0
     return 0
   }
-  return b | (((kind >> 2) & 1) !== 0 ? I_DOWN : 0)
+  return b | ((kind & K_CROUCH) !== 0 ? I_DOWN : 0)
 }
 
 /* ---------------- plans: what it chooses ---------------- */

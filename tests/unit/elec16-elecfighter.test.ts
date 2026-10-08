@@ -224,6 +224,19 @@ function perLine(m: Elec16): number[] {
   return lines
 }
 
+/** The sprites shown (OAM, size not hidden) whose left edge is left of `x`. */
+function spritesLeftOf(m: Elec16, x: number): number {
+  const mem = m.state.video?.mem ?? new Uint8Array()
+  let n = 0
+  for (let k = 0; k < 128; k++) {
+    const w = (i: number) =>
+      (mem[0xc000 + k * 8 + i * 2] ?? 0) | ((mem[0xc000 + k * 8 + i * 2 + 1] ?? 0) << 8)
+    if ((w(3) & 3) === 3) continue
+    if ((w(0) << 16) >> 16 < x) n++
+  }
+  return n
+}
+
 describe('ELECFIGHTER as built', () => {
   it('is what games.json holds (on the shelf from P3), and its folder keeps its build', () => {
     expect(readFileSync(`${DIR}/assets.e16.ts`, 'utf8')).toBe(built.report.assets)
@@ -2387,14 +2400,19 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     expect(read(n, 'screen')).toBe(SC.versus)
     n.pad(padBit('start'))
     let first = 0
+    // Found in review 2026-10-08: gone on before the versus laid any sprite, its frames showed
+    // the select's last list - the figure at its left (x 72), on tiles refilled for the fight.
+    let stray = 0
     for (let k = 0; k < 300 && read(n, 'phase') !== PH.fight; k++) {
       const c0 = n.state.cycles
       frames(n, 1, cart)
       if (k === 1) n.pad(0)
       first = Math.max(first, n.state.cycles - c0)
+      if (read(n, 'phase') !== PH.fight) stray += spritesLeftOf(n, 80)
     }
     expect(read(n, 'screen')).toBe(SC.fight)
     expect(first).toBeLessThan(66_667)
+    expect(stray).toBe(0)
   })
 
   it("plays a scripted fight and two CPUs' matches within their frames, 32 sprites a line", () => {
@@ -3025,10 +3043,11 @@ describe('ELECFIGHTER every screen within the frame (P3)', { timeout: 300_000 },
     expect(stats.map((s) => s.sc)).toEqual(
       expect.arrayContaining([SC.boot, SC.title, SC.select, SC.versus, SC.fight, SC.result]),
     )
-    // Measured 2026-10-08: the boot log 490 cycles on average and 1,400 at worst; the title
-    // 6,700 and 18,600 (23 sprites on a line: the four figures and their shadows); the select
-    // 5,700 and 33,800 (a slot's tables, words and body read as the cursor moves); the versus
-    // 17,000 and 21,300; the fight 17,500 and 31,000; the result 6,800 and 7,400.
+    // Measured 2026-10-08 after the review: the boot log 490 cycles on average and 1,400 at
+    // worst; the title 6,758 and 18,579 (23 sprites on a line: the four figures and their
+    // shadows); the select 3,527 and 32,495 (a slot's tables, words and body read as the cursor
+    // moves); the versus 11,762 and 28,805 (its palettes written only on a change, the reaches
+    // measured in its first two frames); the fight 17,926 and 27,543; the result 6,786 and 7,403.
     for (const s of stats) {
       expect(s.avg, `screen ${s.sc}`).toBeLessThan(25_000)
       expect(s.worst, `screen ${s.sc}`).toBeLessThan(40_000)

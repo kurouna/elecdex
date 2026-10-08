@@ -12,6 +12,7 @@ import {
   F_ANTIAIR,
   F_CHAIN,
   K_HEAVY,
+  K_KICK,
   M_ACTIVE,
   M_FLAGS,
   M_INVUL,
@@ -113,8 +114,8 @@ const FRICTION = 4
 export const RING_L = 32
 export const RING_R = 480
 export const MAX_APART = 256
-export const START_APART = 100
-const START_HALF = 50
+const START_APART = 100
+const START_HALF = START_APART >> 1
 
 /* ---------------- each fighter ---------------- */
 
@@ -429,7 +430,7 @@ function chainTry(i: u16, m: u16): void {
   const f = fMoveF[i]
   if (f < s || f >= s + mvAt(i, m, M_ACTIVE) + CHAIN_LATE) return
   const kind = mvAt(i, m, M_KIND)
-  const button = (kind & 1) !== 0 ? I_HK : I_HP
+  const button = (kind & K_KICK) !== 0 ? I_HK : I_HP
   if (buffered(i, button) === 0) return
   let h: u16 = 0
   while (h < MOVES - 1) {

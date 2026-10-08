@@ -398,6 +398,8 @@ export function versusRun(k: u16): void {
   say(4, RENDER_ROW, str('RENDER'), SL_DIM)
   say(24, RENDER_ROW, str('RENDER'), SL_DIM)
   sfx(X_MAT)
+  // The select's last list is not shown on the versus's first frame: its tiles are refilled.
+  sprBegin()
   let t: u16 = 0
   // The step and the per cent last written: the palettes and RENDER's rows only as they move.
   let step: u16 = 0xffff
@@ -417,6 +419,8 @@ export function versusRun(k: u16): void {
     shadowAt(P2_X, SEL_FEET)
     t++
   }
+  // Nothing of the versus shown from here on, until the fight lays its own.
+  sprBegin()
   // Gone on in the first frame: P2's reaches still to measure, in a frame of their own (two
   // sides do not fit in one).
   if (t === 0) {

@@ -107,6 +107,7 @@ export const H_MID = 3
 export const H_THROW = 4
 export const K_KICK = 1
 export const K_HEAVY = 2
+export const K_CROUCH = 4
 export const F_CHAIN = 1
 export const F_KNOCKDOWN = 2
 export const F_ANTIAIR = 4
@@ -334,7 +335,6 @@ export function prAt(i: u16, c: u16): u16 {
 
 /* ---------------- the registry of stages: a line each ---------------- */
 
-export const STAGES = 1
 const stTile = words(1)
 const stTilesB = words(1)
 const stTilesA = words(1)

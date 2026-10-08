@@ -5,17 +5,17 @@
  * map, its palette's row and stages/grid/stage.txt); every used slot's fighter in every pose row
  * (three.js in a hidden Electron window, the viewer's scene: fighters/<id>/art/cells.png, art.txt,
  * poses.txt with boxes drafted from the drawing, limbs.txt) and its KO pieces; the hit spark, the
- * guard's firewall and the shadows (art/spark.png, art/shadow.png); the fighters' and the
- * effects' palettes; the screens' pictures (art/big.png, art/title.png, art/busts.png and busts.txt:
- * scripts/elecfighter/screens.mjs). The PNG files are the source from then on - they may be touched up in any
- * paint program, keeping to each palette's colours - and this script is how they were first
- * made. Run it again only to start a picture over: it overwrites them (but never the boxes set
- * by hand, fighters/<id>/boxes.txt).
+ * guard's firewall and the shadows (art/spark.png, art/shadow.png); the fighters' and the effects'
+ * palettes; the screens' pictures (art/big.png, art/title.png, art/busts.png and busts.txt:
+ * scripts/elecfighter/screens.mjs). The PNG files are the source from then on - they may be touched
+ * up in any paint program, keeping to each palette's colours - and this script is how they were
+ * first made. Run it again only to start a picture over: it overwrites them (but never the boxes
+ * set by hand, fighters/<id>/boxes.txt).
  *
  *   node scripts/elecfighter-art.mjs            everything
  *   node scripts/elecfighter-art.mjs stage      only the stage
  *   node scripts/elecfighter-art.mjs title      only the title's map (the stage and svg/logo.svg)
- *   node scripts/elecfighter-art.mjs screens    the screens' pictures and the palettes, not the fighters
+ *   node scripts/elecfighter-art.mjs screens    the screens' pictures and palettes, no fighters
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -32,6 +32,10 @@ const here = path.join(root, 'scripts', 'elecfighter')
 const game = path.join(root, 'resources', 'elec16', 'games', 'elecfighter')
 const docs = path.join(root, 'docs', 'elecfighter-mock')
 const only = process.argv[2]
+if (only !== undefined && !['stage', 'title', 'screens'].includes(only)) {
+  console.error(`elecfighter-art: no part "${only}" (stage, title or screens, or none for all)`)
+  process.exit(1)
+}
 
 if (only === 'title') {
   writeTitle(game, here)

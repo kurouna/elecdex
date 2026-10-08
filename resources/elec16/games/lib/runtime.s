@@ -1,8 +1,9 @@
-; The game kit's runtime (docs/elec16-play.md section 10), written once for every game made
-; with e16c: the cartridge's entry, which copies the game's code into RAM and starts it there,
-; the interrupt handlers (VBLANK counted, LINE stepping the raster table - and, for raster(2),
-; the game's table of lines), the wait for the next frame and far_call. The kit's builder (shared/elec16/kit/build.ts) assembles it with the
-; game's e16c output and defines IMAGE_BANK, IMAGE_LEN and ROM_TRAP.
+; The game kit's runtime (docs/elec16-play.md section 10), written once for every game made with
+; e16c: the cartridge's entry, which copies the game's code into RAM and starts it there, the
+; interrupt handlers (VBLANK counted, LINE stepping the raster table - and, for raster(2), the
+; game's table of lines), the wait for the next frame and far_call. The kit's builder
+; (shared/elec16/kit/build.ts) assembles it with the game's e16c output and defines IMAGE_BANK,
+; IMAGE_LEN and ROM_TRAP.
 ;
 ; RAM:  0000-01FF the PLAY ROM's      0200-027F this runtime's (RT_*)
 ;       0280-1FFF the game's globals    2000-6FFF its code (IMAGE_AT)    7000-7FFF the stack
