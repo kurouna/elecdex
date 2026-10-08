@@ -2,4 +2,4 @@
 # life weight walkForward walkBack jumpUp gravity jumpForward jumpBack throwRange height
 # dashFrames dashSpeed backdashFrames backdashSpeed (design 6.2: 14 F about 36 points, 18 F about 32)
 # (speeds in 1/16 points a frame), then two kept for later.
-128 100 20 16 112 5 36 32 30 100 14 41 18 28 0 0
+132 100 21 16 112 5 36 32 30 100 14 41 18 28 0 0
