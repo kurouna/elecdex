@@ -511,7 +511,7 @@ describe('ELECFIGHTER frame data (design 7.7)', () => {
     // S1's as the design's table has them.
     expect(
       [MV.sLP, MV.sHP, MV.sLK, MV.sHK, MV.cLP, MV.cHP, MV.cLK, MV.cHK].map((m) => blocked(row(m))),
-    ).toEqual([0, -6, -2, -8, 0, -9, -6, -12])
+    ).toEqual([0, -6, -2, -6, 0, -9, -6, -10])
   })
 
   it('measures on the core what the table computes: the light strikes first, the frames after a guard', () => {

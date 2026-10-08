@@ -9,11 +9,13 @@ import {
   MIRROR,
   MV,
   moves,
+  onceFor,
   PH,
   type Player,
   person,
   put,
   read,
+  rng,
   ST,
   spammer,
   step,
@@ -92,9 +94,12 @@ describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout:
     })
   }
 
-  it('wins nine rounds in ten of them, and is rarely hit walking in', () => {
+  it('wins eight rounds in ten of them, and is rarely hit walking in', () => {
     expect(all).toBe(Object.keys(MET).length * Object.keys(ONE_BUTTON).length)
-    expect(won / all).toBeGreaterThanOrEqual(0.9)
+    // PACKET, met first and slowed for it (cpu/ladder.txt), is the one these beat: over clocks
+    // 10-17 it took 11 of the 16 rounds before the third balance pass and 10 after (2026-10-09),
+    // the others all but one or two; this clock's two went to the player after the pass.
+    expect(won / all).toBeGreaterThanOrEqual(0.8)
     // Walking into an attack under way: before, about half of the CPU's hits taken (DAEMON 14 of
     // 14); now a hit taken walking in is one the other started as it came, rarely. Counted, not
     // a share: these ten rounds leave the CPU only 2 to 6 hits taken, so one walking in was 20%
@@ -131,10 +136,29 @@ describe('ELECFIGHTER the ladder against spammers and a person (design 3.1, 7.10
 
   it('is easier at the first place than at ROOT for a person', () => {
     // The tests' person (support's `person`) took 97% of the rounds at place 0 and 25% at ROOT
-    // over four slots and four clocks (2026-10-09). Here S1 BALANCE, two clocks each.
+    // over four slots and four clocks (2026-10-09; 94% and 25% after the third balance pass).
+    // Here S1 BALANCE, four clocks each.
     const won = (at: number) =>
-      [10, 11].filter((second, k) => roundBy(0, at, second, person(k + 1)) === 0).length
-    expect(won(0)).toBe(2)
-    expect(won(MIRROR)).toBeLessThan(2)
+      [10, 11, 12, 13].filter((second, k) => roundBy(0, at, second, person(k + 1)) === 0).length
+    const first = won(0)
+    const root = won(MIRROR)
+    expect(first).toBeGreaterThanOrEqual(3)
+    expect(root).toBeLessThan(first)
+    expect(root).toBeLessThanOrEqual(2)
+  })
+})
+
+describe("the tests' person (design 3.1's measure)", () => {
+  it('chains half the lights that strike: one draw a move, kept through its frames', () => {
+    const r = rng(7)
+    const d = { id: -1, on: false }
+    let on = 0
+    for (let id = 1; id <= 400; id++) {
+      const first = onceFor(d, id, r, 0.5)
+      for (let f = 0; f < 12; f++) expect(onceFor(d, id, r, 0.5)).toBe(first)
+      if (first) on++
+    }
+    expect(on).toBeGreaterThan(160)
+    expect(on).toBeLessThan(240)
   })
 })

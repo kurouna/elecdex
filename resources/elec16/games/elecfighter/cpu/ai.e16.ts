@@ -223,17 +223,20 @@ export const chainArm = words(2)
 export const prevState = words(2)
 /**
  * Two in a word (RAM's globals are full): the last of mid and low it chose (FEINT, low byte), and
- * the other's lows in a row as its record counts them (habit.e16.ts, high byte, at most LOWS) - two or more, and
- * even a TURTLE guards crouched: a person who sees one low again and again stops standing up to it.
+ * the other's lows in a row as it sees them, R late (habit.e16.ts, high byte, at most LOWS) - two
+ * or more, and even a TURTLE guards crouched: a person who sees one low again and again stops
+ * standing up to it.
  */
 export const lastML = words(2)
 export const LOWS = 2
 /**
- * The other's throws in a row (habit.e16.ts counts them, bits 4-5 of `lastML`'s low byte, under
- * the FEINT's choice in bits 0-1): both bits set, two or more, and the next is expected.
+ * The other's throws in a row (habit.e16.ts counts them as seen R late, bits 4-5 of `lastML`'s
+ * low byte, at most 3, over the FEINT's choice in bits 0-3): two or more, and the next is
+ * expected - the one it is caught in is not counted yet, so it is read, not seen.
  */
 export const THROWS_MASK = 0x30
 export const THROW_ONE = 0x10
+const THROWS_TWO = 0x20
 /** A pattern running (patterns.txt's row, 0 none) and its step; the gap its habit drew. */
 export const patNo = words(2)
 const patStep = words(2)
@@ -360,7 +363,7 @@ function tech(i: u16, j: u16): u16 {
   if (techArm[i] === 2) return 0
   const e = seenAt(i, j, row(i, O_R_TECH))
   const was = seenS[i * 32 + ((seenN - WOKE_F) & 31)] & 255
-  const expected = was === ST_WAKE || was === ST_DOWN || (lastML[i] & THROWS_MASK) === THROWS_MASK
+  const expected = was === ST_WAKE || was === ST_DOWN || (lastML[i] & THROWS_MASK) >= THROWS_TWO
   if ((seenS[e] & 255) !== ST_THROW && !expected) return 0
   if (techArm[i] === 0) techArm[i] = expected || randBelow(256) < row(i, O_GUARD) ? 1 : 2
   if (techArm[i] === 2) return 0

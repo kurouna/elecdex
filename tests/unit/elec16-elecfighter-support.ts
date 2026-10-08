@@ -432,6 +432,18 @@ export const PERSON: Skill = { react: 16, guard: 0.8, punish: 0.6, aa: 0.35 }
 /** A beginner: slower eyes, a wrong guard one time in three, fewer punishes and anti-airs. */
 export const NOVICE: Skill = { react: 20, guard: 0.65, punish: 0.35, aa: 0.2 }
 
+/** A chance drawn once for an id (a move, by the frame it began) and kept while the id is. */
+export type Drawn = { id: number; on: boolean }
+export function onceFor(d: Drawn, id: number, r: () => number, p: number): boolean {
+  // Found in review 2026-10-09: a draw kept only when it came out yes was drawn again on every
+  // frame after a no, so a light that struck was chained nearly always, not half the time.
+  if (d.id !== id) {
+    d.id = id
+    d.on = r() < p
+  }
+  return d.on
+}
+
 /** A person's mind from frame to frame (see `person`); each step answers buttons, or null. */
 class Person {
   readonly r: () => number
@@ -448,7 +460,7 @@ class Person {
   aaOn = false
   pId = -1
   pOn = false
-  chained = -1
+  readonly chainDraw: Drawn = { id: -1, on: false }
   wasGuard = false
   guardedMv = -1
   tech = 0
@@ -528,8 +540,8 @@ class Person {
     const row = rowOfMove(this.slot(0), mv)
     if (read(m, 'fHitDone', 0) === 0 || ((row[C2.flags] ?? 0) & 1) === 0) return 0
     const began = this.k - read(m, 'fMoveF', 0)
-    if (this.chained !== began) this.chained = this.r() < 0.5 ? began : -2
-    return this.chained > 0 ? this.press(mv & 2 ? I.hk : I.hp, mv >= 4 ? I.down : 0) : 0
+    if (!onceFor(this.chainDraw, began, this.r, 0.5)) return 0
+    return this.press(mv & 2 ? I.hk : I.hp, mv >= 4 ? I.down : 0)
   }
 
   /** Out of a guard: what it knows is unsafe, punished (the heaviest that comes in time). */

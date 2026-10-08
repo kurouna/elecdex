@@ -164,6 +164,9 @@ export function cpuRoundReset(i: u16): void {
  * swinging by are still the last match's, and nothing reads them before that round.
  */
 export function cpuMatchSet(i: u16): void {
+  // The other's lows and throws in a row, and the FEINT's last choice, are this match's: a new
+  // opponent (or the same after a continue) expects no throw from the last match's two.
+  lastML[i] = 0
   whims[i] = 0
   punishes[i] = 0
   seenLate[i] = 0xffff

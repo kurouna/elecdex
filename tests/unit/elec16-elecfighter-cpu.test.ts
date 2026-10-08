@@ -1,9 +1,11 @@
 import type { Elec16 } from '@shared/elec16/machine'
+import { padBit } from '@shared/elec16/pad'
 import { describe, expect, it } from 'vitest'
 import {
   again,
   C,
   CLOCK,
+  cart,
   fight,
   I,
   LOG_ROW,
@@ -22,6 +24,7 @@ import {
   row,
   rowOf,
   rowText,
+  SC,
   SLOT_IDS,
   ST,
   ST2,
@@ -30,8 +33,10 @@ import {
   step,
   steps,
   table,
+  until,
   WAIT,
 } from './elec16-elecfighter-support'
+import { frames, tap } from './elec16-kit-helpers'
 
 /** ELECFIGHTER's CPU (design 7.10): what it sees, guards and reads, its habits and combos. */
 
@@ -257,6 +262,43 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
     const changed = wake(I.fwd | I.hp)
     expect(changed.threw).toBe(1)
     expect(read(m, 'readMiss', 1) - miss).toBe(1)
+  })
+
+  it('counts the lows in a row only as it sees them, R late, and forgets them with the match', () => {
+    // Found in review 2026-10-09: the lows (and throws) in a row were counted from the record's
+    // frame, 1 late, so a TURTLE crouched to the second low as it began - quicker than its eyes -
+    // and the count carried into the next match.
+    const m = fight(CLOCK, [2, 1], 0, 0)
+    place(m, 100, 200)
+    still(m)
+    const r = rowOf(m, 1, O.rGuard)
+    const lows = () => read(m, 'lastML', 1) >> 8
+    const low = () => {
+      step(m, I.down | I.lk)
+      for (let k = 0; k < 60 && read(m, 'fState', 0) !== ST.crouch; k++) step(m, I.down)
+    }
+    low()
+    steps(m, 30, I.down)
+    expect(lows()).toBe(1)
+    // The second: still one until R frames after it began, then two.
+    step(m, I.down | I.lk)
+    let at = 1
+    while (at < 40 && lows() < 2) {
+      step(m, I.down)
+      at++
+    }
+    expect(at).toBeGreaterThanOrEqual(r)
+    expect(lows()).toBe(2)
+    // Two throws in a row and a FEINT's choice, left from a match, are gone at the next.
+    put(m, 'lastML', 0x0233, 1)
+    for (let k = 0; k < 3000 && read(m, 'screen') !== SC.result; k++) {
+      if (read(m, 'phase') === PH.fight) put(m, 'fLife', 0, 1)
+      step(m)
+    }
+    frames(m, 20, cart)
+    tap(m, padBit('start'), cart)
+    until(m, SC.fight, 600)
+    expect(read(m, 'lastML', 1)).toBe(0)
   })
 
   it('logs READ when a read was right', () => {

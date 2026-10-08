@@ -20,6 +20,7 @@ import {
   O_FLAGS,
   O_HABIT,
   O_PATTERN,
+  O_R_GUARD,
   O_READ,
   O_TRIG_MAX,
   O_TRIG_MIN,
@@ -216,6 +217,13 @@ export function observe(i: u16, j: u16): void {
   const s1 = seenS[e] & 255
   const s2 = stateAt(j, 2)
   marks(i, e, s1)
+  // The lows and throws in a row are counted as the CPU sees them, R frames late (its guard's):
+  // they change how it guards at once, so a count from the record's frame would be a reaction
+  // quicker than its eyes (the second low guarded crouched as it began).
+  const late = pastAt(j, oppAt(i, O_R_GUARD))
+  if ((seenS[late] & 255) === ST_ATTACK && seenY[late] === 0 && (seenF[late] & 255) === 1) {
+    lowsCount(i, late)
+  }
   where()
   if (watchSit[i] === NONE && !watchStart(i, j, s1, s2)) return
   watchT[i]++
@@ -234,7 +242,6 @@ export function observe(i: u16, j: u16): void {
  */
 function marks(i: u16, e: u16, s1: u16): void {
   if (seenF[e] >> 8 === 2) wasGuarded[i] = 1
-  if (s1 === ST_ATTACK && seenY[e] === 0 && (seenF[e] & 255) === 1) lowsCount(i, e)
   if (s1 === ST_ATTACK && seenY[e] > 0) airStruck[i] = 1
   if (s1 !== ST_ATTACK && s1 !== ST_LAND && seenY[e] === 0) airStruck[i] = 0
   if (s1 === ST_DOWN && watchSit[i] !== NONE && watchSit[i] !== HS_WAKE) {
