@@ -237,7 +237,9 @@ describe('ELECFIGHTER as built', () => {
 
   it("keeps its code within RAM's 20 KB, its globals below the code, its tiles within 1,024", () => {
     // Measured 2026-10-08 with the screens and the sound (P3): 18,986 bytes of RAM's 20,480 (the
-    // kit's sound in RAM, the screens in banks 5-7).
+    // kit's sound in RAM, the screens in banks 5-7); 19,304 at P4's balance, 19,206 after the
+    // review (the banners' letter lookup and their small words moved to banks 3 and 1). The
+    // globals fill their area (0280-1FFF) to within a few bytes: a new array must free its room.
     expect(built.report.ramCode).toBeLessThanOrEqual(20 * 1024)
     expect(built.report.tiles).toBeLessThanOrEqual(1024)
     expect(Math.max(...at.values())).toBeLessThan(0x2000)
@@ -265,6 +267,9 @@ function moveInRange(r: number[]): void {
   expect(r[C.active]).toBeGreaterThanOrEqual(1)
   expect(r[C2.height]).toBeGreaterThanOrEqual(1)
   expect(r[C2.height]).toBeLessThanOrEqual(4)
+  // The columns kept for later (chip damage, a move's sound) and the flag kept (8): read by
+  // nothing, so 0 until something reads them.
+  expect([r[4], r[15], (r[C2.flags] ?? 0) & 8]).toEqual([0, 0, 0])
 }
 
 /** The poses in the air (the jump, a falling hit, the jump attacks'): above the feet. */
@@ -526,6 +531,15 @@ describe('ELECFIGHTER the art (P3, design 2)', () => {
     for (const s of SLOT_IDS) {
       expect(meta.sheets.find((x: { name: string }) => x.name === s)?.palette).toBe('p1')
     }
+  })
+
+  it('tells the same body on both sides apart by the fill alone, the wire the common one', () => {
+    // User decision: P1 and the CPU differ by their fills only, ROOT's match too (found in review
+    // 2026-10-08: a palette of the mirror's own turned the CPU's wire amber).
+    expect(meta.palettes.names).not.toContain('mirror')
+    const m = fight(CLOCK, [2, 2], 0, MIRROR)
+    for (const k of [1, 2, 12, 13, 14, 15]) expect(kept(m, 9, k), `colour ${k}`).toBe(kept(m, 8, k))
+    for (let k = 3; k <= 11; k++) expect(kept(m, 9, k), `colour ${k}`).not.toBe(kept(m, 8, k))
   })
 
   it('lays every hit box on the striking limb: within 2 points of it, on its drawn points', () => {
@@ -833,6 +847,31 @@ describe('ELECFIGHTER moving (P0)', () => {
   })
 })
 
+/**
+ * P1 struck in the air by P2's heavy punch and falling; P2 then set free and pressing `again`
+ * every other frame, P1 kept beside it in its reach: P2's strikes that landed before P1 lay down.
+ */
+function fallingStruck(again: number): { hits: number; life: number; m: Elec16 } {
+  const m = fight()
+  place(m, 236, 270)
+  put(m, 'fAir', 1, 0)
+  put(m, 'fY', 30 * 16, 0)
+  put(m, 'fState', ST.jump, 0)
+  for (let k = 0; k < 20 && read(m, 'struck', 1) === 0; k++) step(m, 0, k === 0 ? I.hp : 0)
+  expect(read(m, 'fKnock', 0)).toBe(1)
+  const life = read(m, 'fLife', 0)
+  while (read(m, 'hitstop') > 0) step(m)
+  // P2 free at once (as after a quick air strike), to strike again while P1 falls.
+  put(m, 'fState', ST.stand, 1)
+  let hits = 0
+  for (let k = 0; k < 60 && read(m, 'fState', 0) !== ST2.down; k++) {
+    put(m, 'fX', 250 * 16, 0)
+    step(m, 0, k % 2 === 0 ? again : again & I.down)
+    if (read(m, 'struck', 1) !== 0) hits++
+  }
+  return { hits, life, m }
+}
+
 describe('ELECFIGHTER striking (P1)', () => {
   /** P2 strikes with `button` from beside P1, who holds `guard`; how it landed. */
   function guardOf(button: number, guard: number, crouchStrike = false): number {
@@ -887,6 +926,18 @@ describe('ELECFIGHTER striking (P1)', () => {
     expect(read(m, 'fKnock', 0)).toBe(1)
     for (let k = 0; k < 60 && read(m, 'fAir', 0) === 1; k++) step(m)
     expect(read(m, 'fState', 0)).toBe(ST2.down)
+  })
+
+  it('takes no follow-up on one knocked down falling (design 7.8: no air juggle)', () => {
+    // Found in review 2026-10-08: a fighter falling from an air hit could be struck again and
+    // lifted again. P1 in the air is struck by P2's heavy punch, then P2, set free, presses
+    // each light and heavy as P1 falls beside it: none lands until P1 lies down.
+    for (const again of [I.lp, I.lk, I.hp, I.down | I.hp, I.down | I.lk]) {
+      const { hits, life, m } = fallingStruck(again)
+      expect(hits, `${again}`).toBe(0)
+      expect(read(m, 'fLife', 0)).toBe(life)
+      expect(read(m, 'fState', 0)).toBe(ST2.down)
+    }
   })
 
   it('strikes once a move, however long its active frames', () => {
@@ -1140,6 +1191,49 @@ describe('ELECFIGHTER rounds (design 7.2)', () => {
     for (let k = 0; k < 10 && read(m, 'phase') === PH.fight; k++)
       step(m, k === 0 ? I.lp : 0, k === 0 ? I.lp : 0)
     expect(read(m, 'roundWon')).toBe(2)
+    // Both broken into their pieces at once: never more than 32 sprites on a line.
+    let most = 0
+    for (let k = 0; k < 300 && read(m, 'phase') !== PH.round; k++) {
+      step(m)
+      most = Math.max(most, ...perLine(m))
+    }
+    expect(read(m, 'phase')).toBe(PH.round)
+    expect(most).toBeLessThanOrEqual(32)
+  })
+
+  it('lands no strike and takes no throw once the round is over', () => {
+    // Found in review 2026-10-08: the strikes were judged in the round's end too, so a heavy
+    // started before TIME UP or a KO landed after it.
+    const startup = row(MV.sHP)[C.startup] ?? 0
+    for (const button of [I.hp, I.fwd | I.hp]) {
+      const m = fight()
+      place(m, 236, 270)
+      step(m, button)
+      // TIME runs out on the next frame, before the move's first active frame.
+      put(m, 'timeLeft', 1)
+      put(m, 'timeT', 59)
+      step(m)
+      expect(read(m, 'phase')).toBe(PH.over)
+      const life = read(m, 'fLife', 1)
+      for (let k = 0; k < startup + 30; k++) {
+        step(m)
+        expect(read(m, 'struck', 0)).toBe(0)
+        expect(read(m, 'threw', 0)).toBe(0)
+      }
+      expect(read(m, 'fLife', 1)).toBe(life)
+    }
+    // A throw that took hold before TIME UP still slams, but takes no life: the round is decided.
+    const n = fight()
+    place(n, 236, 270)
+    for (let k = 0; k < 10 && read(n, 'threw', 0) === 0; k++) step(n, k === 0 ? I.fwd | I.hp : 0)
+    expect(read(n, 'fState', 1)).toBe(ST2.thrown)
+    put(n, 'timeLeft', 1)
+    put(n, 'timeT', 59)
+    const life = read(n, 'fLife', 1)
+    steps(n, 30)
+    expect(read(n, 'phase')).toBe(PH.over)
+    expect(read(n, 'fState', 1)).toBe(ST2.down)
+    expect(read(n, 'fLife', 1)).toBe(life)
   })
 })
 
@@ -1325,6 +1419,26 @@ describe('ELECFIGHTER throws (P2, design 7.9)', () => {
     // buffer, it is.
     expect(techAt(3, I.hp, 0)).toBe(throwDamage(0))
     expect(techAt(3, I.hp)).toBe(0)
+  })
+
+  it('takes no tech from a heavy punch pressed before the hold, only one pressed after it', () => {
+    // Found in review 2026-10-08: the tech read the whole 8-frame buffer, so a heavy punch
+    // pressed up to 7 frames before the throw took hold (and not yet used) teched it at once.
+    // The presses are put in the ring as they would be, unused, `ago` frames before the hold.
+    const before = (ago: number) => {
+      const m = near()
+      holdAfter(
+        m,
+        (n) => (n === 1 ? I.fwd | I.hp : 0),
+        () => 0,
+      )
+      const now = read(m, 'ringAt')
+      put(m, 'ringD', read(m, 'ringD', 16 + ((now - ago) & 15)) | I.hp, 16 + ((now - ago) & 15))
+      const life = read(m, 'fLife', 1)
+      steps(m, 20, 0, I.back)
+      return life - read(m, 'fLife', 1)
+    }
+    for (let ago = 0; ago <= 7; ago++) expect(before(ago), `${ago} before`).toBe(throwDamage(0))
   })
 
   it('misses on one it cannot take, and recovers in 22 frames', () => {
@@ -1585,6 +1699,27 @@ function still(m: Elec16): void {
   for (let k = 0; k < 16; k++) put(m, 'ringD', 0, 16 + k)
 }
 
+/**
+ * One frame of the CPU (P2) with `plan` forced (-1: thinking afresh) and P1 holding `p1`, played
+ * on as it is and, from its snapshot, with P1 moved to the CPU's other side (from its left far
+ * out of a throw's reach, from its right near) in another state: the CPU's buttons both times.
+ */
+function cpuTwice(m: Elec16, plan: number, p1: number): [number, number] {
+  if (plan >= 0) {
+    put(m, 'plan', plan, 1)
+    put(m, 'planT', 30, 1)
+  } else put(m, 'thinkT', 0, 1)
+  const b = again(m.snapshot())
+  const x1 = read(b, 'fX', 1)
+  put(b, 'fX', read(b, 'fX', 0) < x1 ? x1 + 100 * 16 : x1 - 30 * 16, 0)
+  put(b, 'fState', read(b, 'fState', 0) === ST.attack ? ST.stand : ST.attack, 0)
+  put(b, 'fMove', MV2.throw, 0)
+  put(b, 'fY', 0, 0)
+  step(m, p1)
+  step(b, p1)
+  return [read(m, 'cpuHeld', 1), read(b, 'cpuHeld', 1)]
+}
+
 describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
   it('guards on sight only what starts slower than its reaction, and never reads nearer than it', () => {
     /** P1's `button` (a crouching move with down) against the CPU of reaction R: how it landed. */
@@ -1621,6 +1756,30 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
     for (const r of opponents) {
       for (const c of [O.rGuard, O.rAA, O.rPunish, O.rSwitch])
         expect(r[c]).toBeGreaterThanOrEqual(8)
+    }
+  })
+
+  it('chooses the same buttons whatever the other is doing now: it sees only the ring of what was', () => {
+    // Found in review 2026-10-08: the throw's range and "its back to the wall" read the other's
+    // place now (fX), not as seen R frames late. Each frame is played twice from the same
+    // snapshot, once with P1 moved to the CPU's other side, in another state, in RAM just before
+    // it: the CPU's buttons for that frame (chosen before P1 moves) must be the same.
+    const THROW = 5
+    // At the left wall with P1 beside it (its back to the wall), the throw planned or not; and
+    // the throw planned in the open.
+    for (const c of [
+      { cpu: 60, p1: 100, plan: THROW },
+      { cpu: 60, p1: 100, plan: -1 },
+      { cpu: 300, p1: 270, plan: THROW },
+    ]) {
+      const m = fight(CLOCK, [2, 1], 0, 3)
+      place(m, c.p1, c.cpu)
+      for (let k = 0; k < 120 && read(m, 'phase') === PH.fight; k++) {
+        const [now, moved] = cpuTwice(m, c.plan, k & 8 ? I.fwd : 0)
+        expect(moved, `frame ${k} of ${JSON.stringify(c)}`).toBe(now)
+        // Each run goes on from the true one.
+        if (k % 30 === 29) place(m, c.p1, c.cpu)
+      }
     }
   })
 
@@ -1704,6 +1863,18 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
     expect(daemon[O2.range] ?? 0).toBeLessThanOrEqual(tip(MV.cHK))
   })
 
+  it('reads more the later it is met, but never one that does not read at all', () => {
+    // Found in review 2026-10-08: KERNEL's read of 0 became 52 as the third met.
+    const kernel = opponents[3] ?? []
+    expect(kernel[O2.read]).toBe(0)
+    const m = fight(CLOCK, [2, 1], 1, 2)
+    expect(read(m, 'ladder', 2)).toBe(3)
+    expect(rowOf(m, 1, O2.read)).toBe(0)
+    // One that reads, met later, reads more: DAEMON as the third.
+    const d = fight(CLOCK, [2, 1], 0, 2)
+    expect(rowOf(d, 1, O2.read)).toBe((opponents[2]?.[O2.read] ?? 0) + 2 * 26)
+  })
+
   it('has ROOT read a habit kept up, and lose to it changed', () => {
     const m = fight(CLOCK, [2, 1], 0, MIRROR)
     expect(rowOf(m, 1, O2.read)).toBe(Math.min(255, (opponents[4]?.[O2.read] ?? 0) + 3 * 26))
@@ -1735,9 +1906,9 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
 /**
  * Against the CPU of ladder place `at` (P1 in `slot`, driven by `p1` frame by frame and never
  * falling, so the habit is watched as long as the test runs): its habit's counts once it has
- * been due 16 times (at most 6,000 frames: DAEMON's gap comes round in 600, PACKET's guarded
- * lights only about 10 times in them) - times due, times out, the counts drawn in order - and
- * its whims.
+ * been due 16 times (at most 6,000 frames: DAEMON's gap comes round in 600; at 8, tried
+ * 2026-10-08, DAEMON had taken no whim yet) - times due, times out, the counts drawn in order -
+ * and its whims.
  */
 function habitWatched(slot: number, at: number, p1: (k: number) => number) {
   const m = fight(CLOCK, [2, 1], slot, at)
@@ -1918,6 +2089,29 @@ describe('ELECFIGHTER pause and log (P2, design 5.3, 5.6)', () => {
     const t = read(m, 'timeT')
     steps(m, 3)
     expect(read(m, 'timeT')).not.toBe(t)
+  })
+
+  it('shows the pose and the floor of the frame the pause began on, not a frame behind', () => {
+    // Found in review 2026-10-08: the pause's frames showed the sprites made as it began but
+    // not their cells (streamed as a frame begins) nor the floor's lines made for that camera.
+    // Walking, poses and the camera change every few frames: START on each of eight frames.
+    let caught = 0
+    for (let at = 0; at < 8; at++) {
+      const m = fight(CLOCK, [2, 1])
+      put(m, 'fX', 300 * 16, 1)
+      steps(m, 20 + at, I.fwd)
+      m.pad(padBit('start'))
+      frames(m, 1, cart)
+      m.pad(0)
+      expect(read(m, 'paused')).toBe(1)
+      if (read(m, 'artWant', 0) | read(m, 'artWant', 1) | read(m, 'scrollMade')) caught++
+      frames(m, 2, cart)
+      expect([read(m, 'artWant', 0), read(m, 'artWant', 1), read(m, 'scrollMade')]).toEqual([
+        0, 0, 0,
+      ])
+    }
+    // The case the pause must handle came up: a picture or the floor still waiting as it began.
+    expect(caught).toBeGreaterThan(0)
   })
 
   it('quits the fight from the pause, and shows the controls from it', () => {
@@ -2158,6 +2352,25 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     expect(m.state.halt).toBeNull()
     return { avg: sum / k, worst, line, frames: k, outcome: read(m, 'outcome') }
   }
+
+  it('begins a match within a frame: the select to the versus and the fight, two CPUs measuring', () => {
+    // Found in review 2026-10-08: the frame the select gave way to the versus took 212,461
+    // cycles (both sides' reaches measured on the boxes, 60,000 each, a word and a bank a time;
+    // both backgrounds cleared a word at a time, 49,000), over three frames' worth.
+    const m = boot()
+    toSelect(m)
+    tap(m, padBit('a'), cart)
+    put(m, 'ctl', 1, 0)
+    put(m, 'ctl', 1, 1)
+    let worst = 0
+    for (let k = 0; k < 300 && read(m, 'phase') !== PH.fight; k++) {
+      const c0 = m.state.cycles
+      frames(m, 1, cart)
+      worst = Math.max(worst, m.state.cycles - c0)
+    }
+    expect(read(m, 'screen')).toBe(SC.fight)
+    expect(worst).toBeLessThan(66_667)
+  })
 
   it("plays a scripted fight and two CPUs' matches within their frames, 32 sprites a line", () => {
     const script = [

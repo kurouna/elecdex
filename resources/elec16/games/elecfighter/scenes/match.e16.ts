@@ -6,9 +6,16 @@
 // a draw (TIME UP with the same life, a double KO) is played again, and a third in a row loses
 // it for both. START pauses the fight. The frame itself is engine/main.e16.ts's. In bank 1: once
 // a frame at most, and the frame's work is called from here into RAM.
-import { type bool, str, type u16, words } from '../../../../../src/shared/e16c/builtins'
-import { B_START, cellAt, palette, palKeep, pressed, vpoke } from '../../lib/kit.e16'
-import { HUD_TILE, PAL_CPU, PAL_MIRROR } from '../assets.e16'
+import {
+  type bool,
+  peek,
+  str,
+  type u16,
+  words,
+  wrap16,
+} from '../../../../../src/shared/e16c/builtins'
+import { B_START, cellAt, palette, palKeep, pressed, vfill, vpoke } from '../../lib/kit.e16'
+import { FONTB_TILE, HUD_TILE, PAL_CPU } from '../assets.e16'
 import { cpuMatchSet, cpuRoundReset } from '../cpu/ai.e16'
 import { habitLadder } from '../cpu/habit.e16'
 import { M_LOSE, M_WIN, music } from '../engine/audio.e16'
@@ -28,10 +35,10 @@ import {
   stageMusic,
 } from '../engine/data.e16'
 import {
+  bandAt,
   bandClear,
   bandHigh,
   bandShow,
-  bandSub,
   FLIP,
   FRONT,
   hudClear,
@@ -40,6 +47,7 @@ import {
   SL_DIM,
   SL_P1,
   say,
+  T_BAND,
   T_LAMP,
   T_RULE,
   T_TICK,
@@ -50,6 +58,7 @@ import { ringClear } from '../engine/input.e16'
 import { hitsN, palKey } from '../engine/look.e16'
 import {
   clockReset,
+  fightClear,
   frameStep,
   PH_END,
   PH_FIGHT,
@@ -61,7 +70,6 @@ import {
   phaseTick,
   roundWon,
   SC_FIGHT,
-  screenClear,
   screenIs,
 } from '../engine/main.e16'
 import { pauseRun } from './pause.e16'
@@ -164,7 +172,7 @@ function matchPlay(k: u16, pos: u16): void {
   fighterLoad(0, fSlot[0])
   fighterLoad(1, fSlot[1])
   sidePalette()
-  screenClear()
+  fightClear()
   stageLoad(opp[OW + O_STAGE])
   cpuMatchSet(0)
   cpuMatchSet(1)
@@ -198,13 +206,12 @@ function matchPlay(k: u16, pos: u16): void {
 }
 
 /**
- * P2's palette for the match (slot 9): the CPU's, or the mirror's - the wire another hue, design
- * 2.4 - when both sides show the same body (ROOT, or the same slot).
+ * P2's palette for the match (slot 9): the CPU's, whatever the bodies - the same body on both
+ * sides (ROOT) is told apart by its fill, as every match is (design 2.4).
  */
 function sidePalette(): void {
-  const row = fSlot[0] === fSlot[1] ? PAL_MIRROR : PAL_CPU
-  palette(row, 9)
-  palKeep(row, 9)
+  palette(PAL_CPU, 9)
+  palKeep(PAL_CPU, 9)
 }
 
 /** A round: its banner, the fight, its end. */
@@ -307,6 +314,24 @@ function phaseStep(): bool {
     return true
   }
   return false
+}
+
+/**
+ * The band's small words under the large ones, centred (the band's own ground behind them): only
+ * this bank's words are said there, so it is here, not in RAM.
+ */
+function bandSub(s: u16): void {
+  const y = bandAt + 4
+  vfill(cellAt(1, 0, y), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
+  let n: u16 = 0
+  while (peek(s + n) !== 0) n++
+  let at = cellAt(1, 20 - (n >> 1), y)
+  let k: u16 = 0
+  while (k < n) {
+    vpoke(at, (FONTB_TILE + peek(s + k) - 32) | (SL_P1 << 10) | FRONT)
+    at = wrap16(at + 2)
+    k++
+  }
 }
 
 /** The round's end counted (design 7.2): a win, or a draw played again until the third. */

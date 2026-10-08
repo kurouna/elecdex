@@ -2,8 +2,8 @@
 // match - rounds of 99, two to win, KO, time up, draws - and the frame, in the order the design
 // fixes (section 8), and the ring of what each fighter was that the CPU sees by (7.10.1). The
 // fighters, the strikes, the throws and the picture are in the files beside this one; the
-// match and the ladder in bank 1 (scenes/), the CPU in bank 2 (cpu/), the pause and the log's
-// words in bank 3, the fighters' picture and the sound in bank 4 (look.e16.ts, audio.e16.ts),
+// match and the ladder in bank 1 (scenes/), the CPU in bank 2 (cpu/ai.e16.ts) and its memory
+// in bank 8 (cpu/habit.e16.ts), the pause and the log's words in bank 3, the fighters' picture and the sound in bank 4 (look.e16.ts, audio.e16.ts),
 // the boot log, the title and the controls in bank 5, the select and the versus in bank 6, the
 // results, the records and save RAM in bank 7 (design 5.4).
 import {
@@ -221,14 +221,32 @@ function tilesIn(): void {
 
 /** Both backgrounds clear (the title's screen), BG0 still: no raster until a stage is loaded. */
 export function screenClear(): void {
-  raster(0)
+  fightClear()
   vfill(MAP0, stageClearTile(), 64 * 64)
+}
+
+/**
+ * The screen made ready for a stage: BG1 clear and BG0 still, BG0 left as it is - the stage's
+ * map is written over every row BG0 shows (it never scrolls up or down), and the match begins
+ * inside a frame (design 10.4).
+ */
+export function fightClear(): void {
+  raster(0)
   hudClear()
   scrollNext = 0
 }
 
 /** A frame's start: the sprites made last frame shown with their scroll and raster, then the pad. */
 export function frameBegin(): void {
+  frameShow()
+  frame++
+}
+
+/**
+ * The frame shown as the last one made it: its sprites, the poses' cells they draw (streamed as
+ * the frame begins), BG0's scroll and the floor's lines; the sound on and the pad read.
+ */
+function frameShow(): void {
   seen = frame_wait(seen)
   sprShow()
   soundTick()
@@ -236,18 +254,16 @@ export function frameBegin(): void {
   poke16(BG0X, scrollNext)
   stageShow()
   padRead()
-  frame++
 }
 
 /**
  * A frame of a screen that holds the fight still (the pause, its controls): shown, the sound on
- * and the pad read, nothing else counted (design 5.6: nothing goes on).
+ * and the pad read, nothing else counted (design 5.6: nothing goes on). The fight's last frame
+ * is shown whole: the sprites made in it with their cells and the floor made with them, never
+ * the sprites alone over the frame before's.
  */
 export function pauseFrame(): void {
-  seen = frame_wait(seen)
-  sprShow()
-  soundTick()
-  padRead()
+  frameShow()
 }
 
 /* ---------------- the round's end and its clock (design 7.2) ---------------- */
@@ -313,11 +329,11 @@ function roundOver(s: u16): void {
  *   frame began;
  *   motion (X and Y; z stays 0), the walls (and their push back), the most apart, the bodies;
  *   the boxes in the world, the throws and strikes judged both ways from that state, dealt
- *   together;
+ *   together (only while the fight is on: none once the round is over);
  *   life, KO and the round; the ring of what was (the CPU's eyes) gets this frame's end;
  *   the camera, the raster's tables (the stage's bands and floor lines), the look (palettes,
- *   fighters, effects, KO pieces, shadows: look.e16.ts), the HUD and the log line
- *   where they changed, [sound: later].
+ *   fighters, effects, KO pieces, shadows and the fight's sounds: look.e16.ts), the HUD and
+ *   the log line where they changed.
  */
 export function frameStep(): void {
   frameBegin()
@@ -344,7 +360,8 @@ export function frameStep(): void {
   apart()
   bodies()
   boxesWorld()
-  hitsResolve()
+  // Only while they fight: a move started before TIME UP or a KO lands nothing after it.
+  if (live()) hitsResolve()
   judgeRound()
   seenRecord()
   cameraStep()

@@ -1,8 +1,9 @@
 # S4 OUTBOX: its moves (docs/elec16-elecfighter-design.md 7.7), a row of 16 words each, in the
 # order sLP sHP sLK sHK cLP cHP cLK cHK jLP jHP jLK jHK throw. The columns:
-#  startup active recovery damage chip hitstun blockstun hitstop pushHit pushGuard
+#  startup active recovery damage kept hitstun blockstun hitstop pushHit pushGuard
 #  height (1 high, 2 low, 3 mid, 4 throw) kind (1 kick, 2 heavy, 4 crouching, 8 in the air)
-#  flags (1 chain, 2 knockdown, 4 anti-air, 8 armour) invul (from | to << 8) pose sound
+#  flags (1 chain, 2 knockdown, 4 anti-air; 8 kept) invul (from | to << 8) pose kept
+#  (`kept`: read by nothing, 0 - room for a guarded strike's chip damage and a move's own sound)
 # Frames: the first active one is `startup`; pushes in 1/16 points a frame.
 4 2 8 6 0 12 9 6 40 32 1 0 1 0 12 0 # sLP
 14 3 18 15 0 18 14 9 56 48 3 2 0 0 15 0 # sHP (mid: both hands down, design 3.1)

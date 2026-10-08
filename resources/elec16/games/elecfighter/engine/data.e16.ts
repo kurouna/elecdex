@@ -196,15 +196,16 @@ export const bx = words(48)
 /** The pose each fighter's boxes are of. */
 export const boxPose = words(2)
 
-/** Fighter `i` takes slot `s`: its moves and profile into RAM. */
+/**
+ * Fighter `i` takes slot `s`: its moves and profile into RAM, each table a block copied under
+ * one bank (a match begins inside a frame: design 10.4).
+ */
 export function fighterLoad(i: u16, s: u16): void {
-  copyIn(slMovesB[s], slMovesA[s], i * MOVES * MOVE_W, MOVES * MOVE_W)
-  const old = bank(slProfB[s])
-  let k: u16 = 0
-  while (k < PROF_W) {
-    pr[i * PROF_W + k] = peek16(slProfA[s] + k * 2)
-    k++
-  }
+  let old = bank(slMovesB[s])
+  memcpy(addr(mv) + i * MOVES * MOVE_W * 2, slMovesA[s], MOVES * MOVE_W * 2)
+  poke16(IO_BANK, old)
+  old = bank(slProfB[s])
+  memcpy(addr(pr) + i * PROF_W * 2, slProfA[s], PROF_W * 2)
   poke16(IO_BANK, old)
   boxPose[i] = 0xffff
   reachLoad(i, s)
@@ -215,23 +216,13 @@ export const reach = words(26)
 
 /** Each move's reach: the far edge of its first hit box in its active pose (the row's pose + 1). */
 function reachLoad(i: u16, s: u16): void {
+  const old = bank(slPosesB[s])
   let m: u16 = 0
   while (m < MOVES) {
     const p = mvAt(i, m, M_POSE) + 1
-    const old = bank(slPosesB[s])
     const from = slPosesA[s] + (p * POSE_W + 16) * 2
     reach[i * MOVES + m] = peek16(from) + peek16(from + 4)
-    poke16(IO_BANK, old)
     m++
-  }
-}
-
-function copyIn(b: u16, at: u16, to: u16, n: u16): void {
-  const old = bank(b)
-  let k: u16 = 0
-  while (k < n) {
-    mv[to + k] = peek16(at + k * 2)
-    k++
   }
   poke16(IO_BANK, old)
 }
@@ -251,23 +242,23 @@ export function poseLoad(i: u16, s: u16, p: u16): void {
   if (artHold[i] === 0) artCopy(i, s, p)
 }
 
-/** Word `w` of pose `p` of slot `s` (its boxes: the CPU measures reaches by them, ai.e16.ts). */
-export function poseWord(s: u16, p: u16, w: u16): u16 {
+/**
+ * Pose `p` of slot `s`'s hurt boxes (1-3, 12 words), or its hit boxes (`hit`: 4-5, 8 words),
+ * copied to `to` under one bank: the CPU measures reaches by them (ai.e16.ts).
+ */
+export function poseBoxes(s: u16, p: u16, hit: bool, to: u16): void {
   const old = bank(slPosesB[s])
-  const v = peek16(slPosesA[s] + (p * POSE_W + w) * 2)
+  memcpy(to, slPosesA[s] + (p * POSE_W + (hit ? 16 : 4)) * 2, hit ? 16 : 24)
   poke16(IO_BANK, old)
-  return v
 }
 
 /* ---------------- the pictures (design 2.2, 2.4): a room of 32 cells each ---------------- */
 
 /**
  * Each fighter's room is 32 cells of 4 tiles from S1_TILE (the first sheet's `stream` of 64
- * keeps both rooms): P1's first, P2's after it.
- */
-/**
- * A row of art.txt: first cell, count, 32 places. The KO's pieces are the rows after the poses,
- * cut from the pose the fighter breaks in: lying down, then falling (scripts/elecfighter/fighters.mjs).
+ * keeps both rooms): P1's first, P2's after it. A row of art.txt: first cell, count, 32 places.
+ * The KO's pieces are the rows after the poses, cut from the pose the fighter breaks in: lying
+ * down, then falling (scripts/elecfighter/fighters.mjs).
  */
 export const ART_W = 34
 export const SHARDS_ROW = 61
@@ -380,6 +371,7 @@ function stagePlaces(k: u16, n: u16, mapB: u16, rows: u16): void {
 const S_PALETTE = 0
 const S_MUSIC = 1
 const S_HORIZON = 2
+const S_GROUND = 3
 const S_RASTER = 4
 const S_CENTER = 5
 const S_LAST = 6
@@ -389,8 +381,9 @@ const LINES_MAX = 120
 /** S_LINES + LINES_MAX: `words` takes a number written out. */
 const S_WORDS = 163
 const stageWords = words(163)
-/** The stage the round is on. */
+/** The stage the round is on, and its feet's line on the screen (the fighters, shadows, sparks). */
 export let stageNow: u16 = 0
+export let groundY: u16 = 244
 
 /**
  * The raster's tables for the next frame (design 8: made after the camera, shown as the next
@@ -411,12 +404,9 @@ export function stageLoad(k: u16): void {
   stageNow = k
   raster(0)
   const old = bank(stDataB[k])
-  let w: u16 = 0
-  while (w < S_WORDS) {
-    stageWords[w] = peek16(stDataA[k] + w * 2)
-    w++
-  }
+  memcpy(addr(stageWords), stDataA[k], S_WORDS * 2)
   poke16(IO_BANK, old)
+  groundY = stageWords[S_GROUND]
   palette(stageWords[S_PALETTE], 0)
   palKeep(stageWords[S_PALETTE], 0)
   load(stTilesB[k], stTilesA[k], stTile[k] * 32, stTilesN[k])
@@ -519,10 +509,9 @@ export const O_FLAGS = 24
 export const O_WEIGHTS = 25
 export const OW = 32
 export const OPPONENTS = 5
-/** The flags (column 24). */
+/** The flags (column 24); 2 and 8 are kept for later. */
 export const OF_FEINT = 1
 export const OF_TURTLE = 4
-export const OF_RUSH = 8
 export const OF_MIRROR = 16
 export const OF_KEEP = 32
 /** Reactions are never quicker than this (design 7.10.1), a tech's than its own. */
@@ -550,7 +539,10 @@ export function oppLoad(i: u16, k: u16, pos: u16): void {
     opp[i * OW + c] = r >= least + pos * 2 ? r - pos * 2 : least
     c++
   }
-  const read = opp[i * OW + O_READ] + pos * READ_STEP
+  // One that never reads (0) learns no reading by its place: only a reader reads more.
+  const r = opp[i * OW + O_READ]
+  if (r === 0) return
+  const read = r + pos * READ_STEP
   opp[i * OW + O_READ] = read > 255 ? 255 : read
 }
 

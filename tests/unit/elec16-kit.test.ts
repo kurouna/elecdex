@@ -380,6 +380,18 @@ describe("the kit's raster", () => {
     expect(x).toEqual(want)
   })
 
+  it('raster(2) starts its lines on line 8, the first a LINE can take, and on line 9', () => {
+    // Found in review 2026-10-08: from line 8 the first LINE wrote band 1 and set LINECMP to
+    // the line it was already on, so not one line of the table was drawn.
+    for (const from of [8, 9, 16]) {
+      const { x } = run(2, from, 287)
+      // BG0X takes 9 bits: the table's words past 511 come round.
+      expect(x, `from ${from}`).toEqual(
+        Array.from({ length: 288 }, (_, y) => (y < from ? band(y) : (300 + y - from) & 511)),
+      )
+    }
+  })
+
   it('raster(2) costs a short handler a line, raster(1) what it did, raster(0) nothing', () => {
     const one = run(1)
     const two = run(2)

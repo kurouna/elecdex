@@ -231,12 +231,23 @@ irq_lines:
   sw t1, RT_LP(zero)
   la t0, irq_each
   csrw mtvec, t0
+  ; Lines from 8, the first LINE: they begin on the line this LINE came on, which a LINECMP
+  ; set to it now would never see again - irq_each takes it at once.
+  lw t0, RT_K(zero)
+  addi t0, t0, -1
+  slli t0, t0, 3
+  lw t1, RT_LFROM(zero)
+  bgeu t0, t1, .now
   lw t0, RT_LFROM(zero)
 .next:
   sw t0, -0x7d6(zero)     ; LINECMP
   lw t1, RT_T1(zero)
   csrr t0, mscratch
   mret
+.now:
+  lw t1, RT_T1(zero)
+  csrr t0, mscratch
+  j irq_each
 .other:
   lw t1, RT_T1(zero)
   csrr t0, mscratch

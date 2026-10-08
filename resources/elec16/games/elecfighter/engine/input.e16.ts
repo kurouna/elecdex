@@ -148,10 +148,15 @@ export function heldNow(i: u16): u16 {
 
 /** The buttons of `mask` fighter `i` pressed in the last 8 frames, this one too. */
 export function buffered(i: u16, mask: u16): u16 {
+  return pressedIn(i, mask, BUFFER)
+}
+
+/** The buttons of `mask` fighter `i` pressed in the last `n` frames (at most 8), this one too. */
+export function pressedIn(i: u16, mask: u16, n: u16): u16 {
   let out: u16 = 0
   let k: u16 = 0
   let at = ringAt
-  while (k < BUFFER) {
+  while (k < n && k < BUFFER) {
     out |= ringD[i * 16 + at]
     at = (at + 15) & 15
     k++

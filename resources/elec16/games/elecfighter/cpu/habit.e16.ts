@@ -5,7 +5,8 @@
 // its own habit's triggers, a count drawn from a range each time; and where the two stand the
 // longest. It watches only the ring of what was (1 frame old at the least), never this frame's
 // buttons. One record lasts a match; a second the whole ladder, for an opponent that KEEPS it
-// (ROOT). In bank 2, with ai.e16.ts.
+// (ROOT). In bank 8, on its own (bank 2, ai.e16.ts's, has no room for it): the CPU calls it twice a
+// frame for each fighter it plays, and it reads its row from RAM rather than call back.
 import { type bool, bytes, type u16, words } from '../../../../../src/shared/e16c/builtins'
 import { randBelow } from '../../lib/kit.e16'
 import {
@@ -21,6 +22,8 @@ import {
   O_TRIG_MAX,
   O_TRIG_MIN,
   OF_KEEP,
+  OW,
+  opp,
   P_LIFE,
   prAt,
 } from '../engine/data.e16'
@@ -47,8 +50,15 @@ import {
   patGap,
   patNo,
   planSet,
-  row,
 } from './ai.e16'
+
+/**
+ * Column `c` of fighter `i`'s row, read from RAM here: ai.e16.ts's `row` is in another bank, a
+ * far call each time, and the habit reads its row every frame.
+ */
+function oppAt(i: u16, c: u16): u16 {
+  return opp[i * OW + c]
+}
 
 /** The record's situations and actions. */
 const HS_GUARDED = 0
@@ -305,8 +315,8 @@ function halve(base: u16): void {
  * if it has been seen twice and is more than half of it - before it can see what comes.
  */
 function readTry(i: u16, j: u16, sit: u16): void {
-  if (randBelow(256) >= row(i, O_READ)) return
-  const base = ((row(i, O_FLAGS) & OF_KEEP) !== 0 ? 50 : 0) + j * 25 + sit * 5
+  if (randBelow(256) >= oppAt(i, O_READ)) return
+  const base = ((oppAt(i, O_FLAGS) & OF_KEEP) !== 0 ? 50 : 0) + j * 25 + sit * 5
   let best: u16 = 0
   let sum: u16 = 0
   let k: u16 = 0
@@ -349,15 +359,15 @@ function readCheck(i: u16, did: u16): void {
  * never always - and a new count is drawn, never the last one again.
  */
 export function habitStep(i: u16, j: u16): void {
-  if (row(i, O_PATTERN) === 0) return
-  if (!triggered(i, j, row(i, O_EVENT))) return
+  if (oppAt(i, O_PATTERN) === 0) return
+  if (!triggered(i, j, oppAt(i, O_EVENT))) return
   habCount[i]++
   if (habCount[i] < habTarget[i]) return
   habCount[i] = 0
   habDue[i]++
   patGap[i] = habTarget[i]
   drawTarget(i)
-  if (randBelow(256) >= row(i, O_HABIT)) return
+  if (randBelow(256) >= oppAt(i, O_HABIT)) return
   habFired[i]++
   habitDue[i] = 1
 }
@@ -375,8 +385,8 @@ function triggered(i: u16, j: u16, ev: u16): bool {
 
 /** A new count of triggers, drawn from the row's range, never the same twice running. */
 function drawTarget(i: u16): void {
-  const lo = row(i, O_TRIG_MIN)
-  const hi = row(i, O_TRIG_MAX)
+  const lo = oppAt(i, O_TRIG_MIN)
+  const hi = oppAt(i, O_TRIG_MAX)
   let n = lo + randBelow(hi - lo + 1)
   if (n === habLast[i] && hi > lo) n = n === hi ? lo : n + 1
   habLast[i] = n

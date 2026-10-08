@@ -72,7 +72,8 @@ import {
   throwInvul,
   upperSafe,
 } from './fighter.e16'
-import { buffered, consume, heldNow, I_ATTACKS, I_BACK, I_FWD, I_HP } from './input.e16'
+import { consume, heldNow, I_ATTACKS, I_BACK, I_FWD, I_HP, pressedIn } from './input.e16'
+import { PH_FIGHT, phase } from './main.e16'
 
 /** Each fighter's six boxes in the world, in points: left, right, top, bottom (up is +). */
 export const wb = words(48)
@@ -149,7 +150,10 @@ const W_CROUCH = 8
 const how = words(2)
 const moveOf = words(2)
 
-/** This frame's strikes, for the record and the tests: 0 none, 1 hit, 2 guarded, 3 counter. */
+/**
+ * This frame's strikes, for the record and the tests: 0 none, 1 hit, 2 guarded, 3 counter, 4 a
+ * throw's slam.
+ */
 export const struck = words(2)
 /** The damage each fighter's strike dealt this frame. */
 export const dealt = words(2)
@@ -292,10 +296,14 @@ function thrownStep(d: u16): void {
   if (t >= SLAM_F) slam(1 - d, d)
 }
 
-/** The tech's buttons: the heavy punch pressed (in the buffer) with forward or back held. */
+/**
+ * The tech's buttons: the heavy punch pressed since the throw took hold (still in the buffer)
+ * with forward or back held. Only since: a press from before the hold, not yet used, is no
+ * answer to the throw, and would tech it the moment it holds.
+ */
 function techPressed(d: u16): bool {
   if ((heldNow(d) & (I_FWD | I_BACK)) === 0) return false
-  return buffered(d, I_HP) !== 0
+  return pressedIn(d, I_HP, fStateT[d]) !== 0
 }
 
 /** A throw broken (THROW TECH): both stagger back from each other. */
@@ -322,7 +330,8 @@ function techBoth(): void {
 function slam(a: u16, d: u16): void {
   if (fThrowBack[a] !== 0) fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
   const toRight = fX[d] > fX[a]
-  const dmg = damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false)
+  // A throw held as the round ended still lands, but takes no life: the round is decided.
+  const dmg = phase === PH_FIGHT ? damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false) : 0
   fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   dealt[a] = dmg
   struck[a] = 4

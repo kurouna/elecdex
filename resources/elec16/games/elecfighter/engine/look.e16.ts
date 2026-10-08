@@ -34,6 +34,7 @@ import {
   artCopy,
   artHold,
   boxPose,
+  groundY,
   K_HEAVY,
   M_KIND,
   M_STARTUP,
@@ -44,7 +45,7 @@ import {
   SHARDS_AIR,
   SHARDS_ROW,
 } from './data.e16'
-import { camX, GROUND_Y } from './draw.e16'
+import { camX } from './draw.e16'
 import {
   fAir,
   fFace,
@@ -144,7 +145,7 @@ function fxAt(a: u16, k: u16): void {
   fxK[a] = k
   fxT[a] = 0
   fxX[a] = u16(right ? i16(wb[o + 1]) - 6 : i16(wb[o]) + 6)
-  fxY[a] = u16(GROUND_Y - ((i16(wb[o + 2]) + i16(wb[o + 3])) >> 1))
+  fxY[a] = u16(i16(groundY) - ((i16(wb[o + 2]) + i16(wb[o + 3])) >> 1))
 }
 
 function fxSprites(a: u16): void {
@@ -176,7 +177,7 @@ function bodySprites(i: u16): void {
     return
   }
   const x = i16(pointX(i)) - i16(camX)
-  const y = GROUND_Y - i16(fY[i] >> 4)
+  const y = i16(groundY) - i16(fY[i] >> 4)
   const right = fFace[i] !== 0
   const tile = (S1_TILE + i * 128) | (i << 10) | (right ? 0 : FLIP_H)
   const n = art[i * ART_W + 1]
@@ -197,7 +198,7 @@ function shadow(i: u16): void {
   if (shOn[i] !== 0) return
   const x = i16(pointX(i)) - i16(camX)
   const h = fY[i] >> 4
-  const y = GROUND_Y - 4
+  const y = i16(groundY) - 4
   const t = SHADOW_TILE | FX_PAL
   if (h < 20) {
     spr(x - 24, y, t, S16)
@@ -253,7 +254,7 @@ function shatter(i: u16): void {
   shOn[i] = 1
   const right = fFace[i] !== 0
   const x0 = i16(pointX(i))
-  const y0 = GROUND_Y - i16(fY[i] >> 4)
+  const y0 = i16(groundY) - i16(fY[i] >> 4)
   const n = art[i * ART_W + 1]
   let mean: i16 = 0
   let c: u16 = 0

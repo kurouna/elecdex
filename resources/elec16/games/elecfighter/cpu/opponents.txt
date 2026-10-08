@@ -6,7 +6,8 @@
 #  3-7         its reactions, frames: guard, anti-air, punish, throw tech, guard switch. Less
 #              2 for each opponent beaten before it, never under 8 (a tech's never under 4)
 #  8-10        its chances in 256, when in time: the right guard, the anti-air, the punish
-# 11 read      its chance in 256 of acting on the person's record (26 more an opponent beaten)
+# 11 read      its chance in 256 of acting on the person's record (26 more an opponent beaten;
+#             0 stays 0)
 # 12 range     the distance it likes, in points (0: where the two have stood the longest)
 # 13 width     how far from it is still there
 # 14 approach  0 walks, 1 dashes in
@@ -19,13 +20,13 @@
 # 22 event     what counts as a trigger: 0 none, 1 its light guarded, 2 its heavy guarded,
 #              3 a frame the other walks back, 4 a frame gone by
 # 23 whim      its chance in 256 at each choice of an action drawn from all of them alike
-# 24 flags     1 FEINT (mid and low taken in turn), 2 BAIT, 4 TURTLE (waits rather than walk
-#              in), 8 RUSH (dashes to its range), 16 MIRROR (the person's slot), 32 KEEPS the
-#              person's record through the whole ladder
+# 24 flags     1 FEINT (mid and low taken in turn), 4 TURTLE (waits rather than walk in),
+#              16 MIRROR (the person's slot), 32 KEEPS the person's record through the whole
+#              ladder; 2 and 8 kept for later (a dash in is column 14's)
 # 25 weights   its block of weights.txt
 # 26-31        kept for later
 # PACKET: impatient, closes in and stacks lights
-1 0 8 18 16 14 9 24 150 90 120 0 40 10 1 0 200 0 1 154 1 3 1 50 8 0 0 0 0 0 0 0
+1 0 8 18 16 14 9 24 150 90 120 0 40 10 1 0 200 0 1 154 1 3 1 50 0 0 0 0 0 0 0 0
 # MAINFRAME: waits, and when it comes, one blow
 2 0 20 14 10 12 8 20 200 230 170 30 60 12 0 0 120 7 2 166 30 60 3 30 4 1 0 0 0 0 0 0
 # DAEMON: a trap at the edge of its reach, in and out, punishing what misses

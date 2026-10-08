@@ -50,6 +50,8 @@ npm run demo:games     # the PLAY-320's three games played, bodies and themes ch
 node scripts/eleclance-art.mjs           # ELECLANCE's pictures drawn afresh (overwrites its PNGs, the source)
 node scripts/elecaircombat-art.mjs       # the same for ELECAIRCOMBAT
 node scripts/elecdrill-art.mjs           # the same for ELECDRILL
+node scripts/elecfighter-art.mjs [title|screens]  # ELECFIGHTER's pictures: three.js renders the fighters in a hidden Electron window
+node scripts/elecfighter/serve.mjs       # ELECFIGHTER's design viewer (viewer.html): the same three.js scene the bitmaps come from
 node scripts/sync-calc.mjs <elecxzy>  # overwrite the vendored calculator from an elecxzy checkout
 node scripts/instruments-wav.mjs [dir] [voice]  # the plugins' instruments to WAV files, to listen to
 ```
@@ -89,8 +91,8 @@ docs/            architecture.md, decisions.md, plugins.md (the plugin API), wea
                  elec16-basic.md, elec16-e16.md, elec16-e16c.md, elec16-soft.md (its manuals),
                  elec16-play.md (the game model ELEC-16 PLAY), elec16-play-manual.md (its user's
                  manual), elec16-kit.md (making its games), elec16-eleclance.md,
-                 elec16-elecaircombat.md, elec16-elecdrill.md (the three games),
-                 elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER, being designed),
+                 elec16-elecaircombat.md, elec16-elecdrill.md, elec16-elecfighter.md (the four
+                 games), elec16-elecfighter-design.md and elecfighter-mock/ (ELECFIGHTER's design),
                  screenshots/ (README images)
 ```
 
@@ -296,6 +298,18 @@ user made; do not reverse one without asking.
     scripts/eleclance-art.mjs drew them; a test holds every song's channels in step.
     ELECAIRCOMBAT and ELECDRILL (docs/elec16-elecaircombat.md, elec16-elecdrill.md) are the
     same kind of sample, each with its art script and test.
+  - ELECFIGHTER (docs/elec16-elecfighter-design.md is its design, kept in step with the code;
+    elec16-elecfighter.md its manual) is the fourth. Its fighters are nameless humans, P1 and the
+    CPU told apart by the fill colour alone, in eight slots (scripts/elecfighter/slots.json, a
+    glTF with the README's bone names) - never characters (user decision 2026-10-08). three.js
+    is a design tool only: scripts/elecfighter-art.mjs renders the bitmaps ahead of time and the
+    cartridge streams them; the 3D data and SVGs live in scripts/elecfighter, the PNGs are the
+    source once drawn, a slot's hand box lines (boxes.txt) are never overwritten. Slots, stages
+    and opponents are table rows: no code names one. The CPU sees the player only at now - R and
+    reads no frame's input; its habits are tendencies (at most 70%) with whims, and are never
+    written in the manual or the game (user decision). The seed is the clock and the cycle count
+    at START (tests fix the clock). The round robin is measured on balance changes and recorded
+    in the design's 3.1, not unit-tested (a match takes seconds and results are chaotic).
   - GAMES ▸ DEVELOP (elec16-play.md section 11, docs/elec16-kit.md, main/elec16/devgame.ts):
     main picks a game's folder, keeps it per page and pane (`devKey`, the pane id checked) and
     reads only the files game.json names, inside it once links are followed (`realpath`);

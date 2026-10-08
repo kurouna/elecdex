@@ -1,8 +1,8 @@
-# ELECFIGHTER art (design stage)
+# ELECFIGHTER art
 
 The fighters of ELECFIGHTER (docs/elec16-elecfighter-design.md) are plain humans in wire and
 fill, drawn ahead of time. Here they are 3D data; three.js draws them to bitmaps, and the game
-will only ever import the bitmaps.
+imports the bitmaps alone (cells, art rows and boxes), never the models.
 
 | File | What it is |
 |---|---|
@@ -15,6 +15,7 @@ will only ever import the bitmaps.
 | `fighters.mjs`, `effects.mjs` | The game's fighters (cells, art rows, drafted boxes, limbs, KO pieces, a check picture) and effects (spark, firewall, shadows), for `scripts/elecfighter-art.mjs`. |
 | `screens.mjs` | The game's screens' pictures: the bands' large letters (`art/big.png`), the title's map (`art/title.png`: the stage and the logo, lettered here from the bold font), the select's busts (`art/busts.png`, `art/busts.txt`: each slot drawn again with the camera nearer). |
 | `svg/stage.svg`, `svg/hud.svg` | The stage (512 x 288, BG0) and the HUD frame (320 x 36, BG1), in palette colours only. |
+| `svg/logo.svg` | The title's logo, drawn into the title's map by `screens.mjs`. |
 | `stage.mjs` | The game's stage GRID from `svg/stage.svg`: its map (`stages/grid/art/stage.png`), the stage palette's row and `stages/grid/stage.txt` (the raster's bands and floor lines). Run by `node scripts/elecfighter-art.mjs`; the PNG is the source afterwards. |
 | `scene.mjs` | The scene both the viewer and the bitmap renderer use: posing, build, materials, wire, camera, light. |
 | `viewer.html`, `viewer.mjs` | The design viewer. |

@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url'
 import { renderBitmaps } from './elecfighter/bitmaps.mjs'
 import { FX, sparkJobs, writeEffects } from './elecfighter/effects.mjs'
 import { fighterJobs, writeFighters, writePalettes } from './elecfighter/fighters.mjs'
-import { fighterPalette, mirrorPalette } from './elecfighter/palettes.mjs'
+import { fighterPalette } from './elecfighter/palettes.mjs'
 import { BIG_PAL, bustJobs, writeScreens, writeTitle } from './elecfighter/screens.mjs'
 import { drawStage } from './elecfighter/stage.mjs'
 
@@ -54,12 +54,11 @@ if (only === undefined || only === 'screens') {
     console.log(writeEffects(results, game))
   }
   console.log(writeScreens(results, slots, game, here))
-  // The palettes' rows (game.json's names): p1 3, cpu 4, fx 5, big 6, mirror 7.
+  // The palettes' rows (game.json's names): p1 3, cpu 4, fx 5, big 6.
   writePalettes(path.join(game, 'art/palettes.png'), [
     [3, fighterPalette('p1')],
     [4, fighterPalette('cpu')],
     [5, FX],
     [6, BIG_PAL],
-    [7, mirrorPalette()],
   ])
 }

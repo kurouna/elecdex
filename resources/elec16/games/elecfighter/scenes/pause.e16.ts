@@ -2,7 +2,8 @@
 // darkens the stage, the fighters and the effects (their palettes mixed 60% to black; the HUD
 // as it was) under a band, PAUSED, and RESUME / CONTROLS / QUIT FIGHT, the music muted; nothing
 // goes on meanwhile - no frame counted, no chance drawn, TIME still. The log line's words are
-// written here. In bank 3: rarely run.
+// written here, and where each of the banners' large letters is (`bigIndex`). In bank 3: rarely
+// run.
 import { peek, str, type u16, words } from '../../../../../src/shared/e16c/builtins'
 import { B_A, B_DOWN, B_START, B_UP, palMix, pressed } from '../../lib/kit.e16'
 import { musicMute } from '../../lib/sound.e16'
@@ -144,4 +145,17 @@ function moveName(x: u16, m: u16): void {
   else if (col === 1) put(at, str('HEAVY PUNCH'))
   else if (col === 2) put(at, str('LIGHT KICK'))
   else put(at, str('HEAVY KICK'))
+}
+
+/** Where `c` is among the large letters (engine/draw.e16.ts `bigSay`), or 0xffff. */
+export function bigIndex(c: u16): u16 {
+  const chars = str('ABCDEFGHIKLMNOPRSTUVWY.?123')
+  let k: u16 = 0
+  let d = peek(chars)
+  while (d !== 0) {
+    if (d === c) return k
+    k++
+    d = peek(chars + k)
+  }
+  return 0xffff
 }

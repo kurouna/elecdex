@@ -24,9 +24,11 @@ import {
   B_SELECT,
   B_START,
   B_UP,
+  cellAt,
   FLIP_H,
   load,
   mapRow,
+  number,
   palette,
   palKeep,
   palMix,
@@ -36,6 +38,7 @@ import {
   sprBegin,
 } from '../../lib/kit.e16'
 import {
+  FONT_TILE,
   PAL_P1,
   PAL_STAGE,
   S1_TILE,
@@ -48,8 +51,18 @@ import {
   TITLE_TILES_BYTES,
 } from '../assets.e16'
 import { M_TITLE, music, sfx, X_MAT, X_MOVE, X_OK } from '../engine/audio.e16'
-import { artPut } from '../engine/data.e16'
-import { hudClear, hudRows, hudTile, logOff, SL_DIM, SL_P1, say, T_RULE } from '../engine/draw.e16'
+import { artPut, OPPONENTS, SLOTS } from '../engine/data.e16'
+import {
+  FRONT,
+  hudClear,
+  hudRows,
+  hudTile,
+  logOff,
+  SL_DIM,
+  SL_P1,
+  say,
+  T_RULE,
+} from '../engine/draw.e16'
 import { buttonSet, buttonSetIs } from '../engine/input.e16'
 import { introStep, M_INTRO, palShow } from '../engine/look.e16'
 import {
@@ -100,12 +113,18 @@ export function bootLog(): void {
 function bootLine(k: u16): void {
   const y = 7 + k
   if (k === 0) say(2, y, str('> LOADING FIGHTER DATA ........ OK'), SL_P1)
-  else if (k === 1) say(2, y, str('> MESH CELLS, 4 SLOTS ......... OK'), SL_P1)
-  else if (k === 2) say(2, y, str('> OPPONENT PROGRAMS, 5 ........ OK'), SL_P1)
+  else if (k === 1) bootCount(y, str('> MESH CELLS,   SLOTS ......... OK'), 16, SLOTS)
+  else if (k === 2) bootCount(y, str('> OPPONENT PROGRAMS,   ........ OK'), 22, OPPONENTS)
   else if (k === 3) say(2, y, str('> STAGE GRID .................. OK'), SL_P1)
   else if (k === 4) say(2, y, str('> SOUND ....................... OK'), SL_P1)
   else if (k === 5) say(2, y, str('> RECORDS ..................... OK'), SL_P1)
   else say(2, y + 1, str('> SIMULATOR READY'), SL_P1)
+}
+
+/** A boot line with a count from the registries (engine/data.e16.ts) written at column `x`. */
+function bootCount(y: u16, s: u16, x: u16, n: u16): void {
+  say(2, y, s, SL_P1)
+  number(cellAt(1, x, y), n, 1, (FONT_TILE + 16) | (SL_P1 << 10) | FRONT)
 }
 
 /* ---------------- the title ---------------- */

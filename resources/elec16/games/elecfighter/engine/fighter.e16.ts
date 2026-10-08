@@ -371,9 +371,13 @@ export function throwInvul(d: u16): bool {
   return st === ST_BACKDASH && fStateT[d] < BACKDASH_THROW_INVUL
 }
 
-/** Fighter `d` cannot be struck at all: down or waking (design 7.3). */
+/**
+ * Fighter `d` cannot be struck at all: down or waking (design 7.3), or falling from a hit in the
+ * air - knocked down already, it takes no follow-up until it has lain and stood (7.8).
+ */
 export function strikeInvul(d: u16): bool {
   const st = fState[d]
+  if (fKnock[d] !== 0) return true
   return st === ST_DOWN || st === ST_WAKE || st === ST_DEAD
 }
 
@@ -566,8 +570,8 @@ function land(i: u16): void {
   } else if (st === ST_JUMP || st === ST_ATTACK) enter(i, ST_LAND)
 }
 
-/** Half fighter `i`'s body, in points. */
-function half(i: u16): u16 {
+/** Half fighter `i`'s body, in points (its pose's body box). */
+export function half(i: u16): u16 {
   return bx[i * POSE_W + 2] >> 1
 }
 

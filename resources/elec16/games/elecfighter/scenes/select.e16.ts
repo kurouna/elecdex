@@ -47,6 +47,7 @@ import {
   PAL_P1,
   S1_TILE,
 } from '../assets.e16'
+import { cpuMeasure } from '../cpu/ai.e16'
 import { M_SELECT, music, sfx, X_MAT, X_MOVE, X_OK } from '../engine/audio.e16'
 import {
   artPut,
@@ -125,6 +126,8 @@ export function selectRun(): bool {
   let at = choice[0] & 3
   hover(at)
   let t: u16 = 0
+  // The drawing in's step last shown (hover shows step 0): its palette written only as it moves.
+  let shown: u16 = 0
   for (;;) {
     frameBegin()
     if (pressed(B_B)) {
@@ -139,8 +142,9 @@ export function selectRun(): bool {
     if (n !== at) {
       at = n
       t = 0
+      shown = 0
     }
-    bodyStep(t)
+    shown = bodyStep(t, shown)
     t++
   }
 }
@@ -234,20 +238,40 @@ function panel(s: u16): void {
   barRow(28, str('DEFENSE'), bars[3])
 }
 
-/** Each slot's words: a line each, by the registry's order (engine/data.e16.ts). */
+/** Each slot's words: its two lines of SLOT_LINES. */
 function slotWords(s: u16): void {
-  if (s === 0) {
-    say(PANEL_X, 19, str('EVEN IN EVERYTHING.'), SL_P1)
-    say(PANEL_X, 20, str('THE STANDARD BODY.'), SL_P1)
-  } else if (s === 1) {
-    say(PANEL_X, 19, str('SMALL AND QUICK,'), SL_P1)
-    say(PANEL_X, 20, str('SHORT IN REACH.'), SL_P1)
-  } else if (s === 2) {
-    say(PANEL_X, 19, str('BROAD AND HEAVY,'), SL_P1)
-    say(PANEL_X, 20, str('HARD TO MOVE.'), SL_P1)
-  } else {
-    say(PANEL_X, 19, str('TALL, LONG LIMBS,'), SL_P1)
-    say(PANEL_X, 20, str('A KICK FROM AFAR.'), SL_P1)
+  lineSay(PANEL_X, 19, SLOT_LINES, s * 2)
+  lineSay(PANEL_X, 20, SLOT_LINES, s * 2 + 1)
+}
+
+/**
+ * The words the select and the versus show, as data in the order of the registries (the slots'
+ * in engine/data.e16.ts, the programs' rows of cpu/opponents.txt): two lines a slot, three a
+ * program, each line ended by `|`. They stay in this bank, the only one that shows them.
+ */
+const SLOT_LINES = str(
+  'EVEN IN EVERYTHING.|THE STANDARD BODY.|SMALL AND QUICK,|SHORT IN REACH.|BROAD AND HEAVY,|HARD TO MOVE.|TALL, LONG LIMBS,|A KICK FROM AFAR.',
+)
+const PROGRAM_LINES = str(
+  'IMPATIENT. IT COMES TO YOU,|QUICK HANDS AND LIGHT BLOWS,|ONE AFTER ANOTHER.|IT WAITS FOR YOU TO COME.|SLOW TO MOVE, HARD TO BREAK,|AND ONE BLOW IS ENOUGH.|A TRAP AT THE EDGE OF REACH.|LONG LIMBS GOING IN AND OUT,|PUNISHING WHAT MISSES.|THE TEXTBOOK.|THE RIGHT GUARD, THE RIGHT|ANSWER TO EVERY MISTAKE.|YOUR OWN BODY, ANOTHER MIND.|IT HAS WATCHED YOU FIGHT|ALL THE WAY HERE.',
+)
+const BAR = 124
+
+/** Line `n` (from 0) of `text`, its lines ended by `|`, at BG1's cell (x, y). */
+function lineSay(x: u16, y: u16, text: u16, n: u16): void {
+  let s = text
+  let k: u16 = 0
+  while (k < n && peek(s) !== 0) {
+    if (peek(s) === BAR) k++
+    s++
+  }
+  let at = cellAt(1, x, y)
+  let c = peek(s)
+  while (c !== 0 && c !== BAR) {
+    vpoke(at, (FONT_TILE + c - 32) | (SL_P1 << 10) | FRONT)
+    at = wrap16(at + 2)
+    s++
+    c = peek(s)
   }
 }
 
@@ -288,12 +312,17 @@ function barRow(y: u16, s: u16, n: u16): void {
   }
 }
 
-/** The body under the cursor: drawn in from its wire, standing on its shadow. */
-function bodyStep(t: u16): void {
-  palShow(8, M_INTRO, introStep(t))
+/**
+ * The body under the cursor: drawn in from its wire (its palette written when the step moves on
+ * from `shown`), standing on its shadow. Answers the step shown.
+ */
+function bodyStep(t: u16, shown: u16): u16 {
+  const step = introStep(t)
+  if (step !== shown) palShow(8, M_INTRO, step)
   sprBegin()
   figure(BODY_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
   shadowAt(BODY_X, SEL_FEET)
+  return step
 }
 
 /** A slot chosen: its win pose a moment, chance seeded as the match begins. */
@@ -370,15 +399,17 @@ export function versusRun(k: u16): void {
   say(24, RENDER_ROW, str('RENDER'), SL_DIM)
   sfx(X_MAT)
   let t: u16 = 0
+  // The step and the per cent last written: the palettes and RENDER's rows only as they move.
+  let step: u16 = 0xffff
+  let pct: u16 = 0xffff
   while (t < VERSUS_F + 34) {
     frameBegin()
+    // The CPU's reaches, a side in each of the first two frames: the one before set the whole
+    // match up, and a frame has room for one side's.
+    if (t < 2) cpuMeasure(t)
     if (pressed(B_START) || pressed(B_A)) break
-    const step = introStep(t)
-    palShow(8, M_INTRO, step)
-    palShow(9, M_INTRO, step)
-    const pct = t * 3 > 100 ? 100 : t * 3
-    renderShow(4, pct)
-    renderShow(24, pct)
+    step = versusLook(t, step)
+    pct = versusRender(t, pct)
     sprBegin()
     figure(P1_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
     figure(P2_X, SEL_FEET, addr(fig) + 68, figWord(S1_TILE + 128, 9, false))
@@ -386,8 +417,28 @@ export function versusRun(k: u16): void {
     shadowAt(P2_X, SEL_FEET)
     t++
   }
+  // Gone on in the first frame: P2's reaches still to measure.
+  if (t === 0) cpuMeasure(1)
   hudRows(0, 36)
   palMix(0, 0, 0)
+}
+
+/** Both fighters drawn in to step `introStep(t)`, written if it is not `was`; answers it. */
+function versusLook(t: u16, was: u16): u16 {
+  const step = introStep(t)
+  if (step === was) return was
+  palShow(8, M_INTRO, step)
+  palShow(9, M_INTRO, step)
+  return step
+}
+
+/** Both RENDER rows at frame `t`'s per cent, written if it is not `was`; answers it. */
+function versusRender(t: u16, was: u16): u16 {
+  const pct = t * 3 > 100 ? 100 : t * 3
+  if (pct === was) return was
+  renderShow(4, pct)
+  renderShow(24, pct)
+  return pct
 }
 
 /** RENDER's per cent and its bar of ten cells, from column `x`. */
@@ -408,29 +459,13 @@ function renderShow(x: u16, pct: u16): void {
 }
 
 /**
- * Each program's style in three lines, by the table's row (cpu/opponents.txt): how it fights,
- * never what it tends to do (design 7.10.5: the habits are found, not told).
+ * Each program's style in three lines of PROGRAM_LINES, by the table's row (cpu/opponents.txt):
+ * how it fights, never what it tends to do (design 7.10.5: the habits are found, not told).
  */
 function programLines(k: u16): void {
-  if (k === 0) {
-    say(6, PROG_ROW, str('IMPATIENT. IT COMES TO YOU,'), SL_P1)
-    say(6, PROG_ROW + 1, str('QUICK HANDS AND LIGHT BLOWS,'), SL_P1)
-    say(6, PROG_ROW + 2, str('ONE AFTER ANOTHER.'), SL_P1)
-  } else if (k === 1) {
-    say(6, PROG_ROW, str('IT WAITS FOR YOU TO COME.'), SL_P1)
-    say(6, PROG_ROW + 1, str('SLOW TO MOVE, HARD TO BREAK,'), SL_P1)
-    say(6, PROG_ROW + 2, str('AND ONE BLOW IS ENOUGH.'), SL_P1)
-  } else if (k === 2) {
-    say(6, PROG_ROW, str('A TRAP AT THE EDGE OF REACH.'), SL_P1)
-    say(6, PROG_ROW + 1, str('LONG LIMBS GOING IN AND OUT,'), SL_P1)
-    say(6, PROG_ROW + 2, str('PUNISHING WHAT MISSES.'), SL_P1)
-  } else if (k === 3) {
-    say(6, PROG_ROW, str('THE TEXTBOOK.'), SL_P1)
-    say(6, PROG_ROW + 1, str('THE RIGHT GUARD, THE RIGHT'), SL_P1)
-    say(6, PROG_ROW + 2, str('ANSWER TO EVERY MISTAKE.'), SL_P1)
-  } else {
-    say(6, PROG_ROW, str('YOUR OWN BODY, ANOTHER MIND.'), SL_P1)
-    say(6, PROG_ROW + 1, str('IT HAS WATCHED YOU FIGHT'), SL_P1)
-    say(6, PROG_ROW + 2, str('ALL THE WAY HERE.'), SL_P1)
+  let n: u16 = 0
+  while (n < 3) {
+    lineSay(6, PROG_ROW + n, PROGRAM_LINES, k * 3 + n)
+    n++
   }
 }

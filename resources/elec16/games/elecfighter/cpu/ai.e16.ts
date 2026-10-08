@@ -8,7 +8,7 @@
 // kept to its liked range. It plays through the fighters' one entry as a person does: buttons
 // held, a press their first frame; it never reads this frame's buttons of the other. In bank 2:
 // once a frame for each fighter it plays.
-import { type bool, i16, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
+import { addr, type bool, i16, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import { randBelow } from '../../lib/kit.e16'
 import {
   F_CHAIN,
@@ -43,14 +43,13 @@ import {
   O_WHIM,
   O_WIDTH,
   OF_FEINT,
-  OF_RUSH,
   OF_TURTLE,
   OW,
   opp,
   P_LIFE,
   P_THROW,
   patternWord,
-  poseWord,
+  poseBoxes,
   prAt,
   reach,
   weightsLoad,
@@ -65,7 +64,7 @@ import {
   fSlot,
   fState,
   fVY,
-  fX,
+  half,
   pointX,
   RING_L,
   RING_R,
@@ -82,7 +81,18 @@ import {
   ST_WAKE,
   throwGap,
 } from '../engine/fighter.e16'
-import { I_BACK, I_DOWN, I_FWD, I_HK, I_HP, I_LK, I_LP, I_UP } from '../engine/input.e16'
+import {
+  C_CPU,
+  ctl,
+  I_BACK,
+  I_DOWN,
+  I_FWD,
+  I_HK,
+  I_HP,
+  I_LK,
+  I_LP,
+  I_UP,
+} from '../engine/input.e16'
 import { liveN, seenF, seenL, seenN, seenS, seenX, seenY } from '../engine/main.e16'
 import { habitMatch, habitStep, histRange, observe, watchReset } from './habit.e16'
 
@@ -128,8 +138,6 @@ const CORNER = 40
 const WAKE_CHANCE = 179
 /** A FEINT's mid and low taken in turn this often. */
 const FEINT_CHANCE = 160
-/** Points ahead of a fighter's middle its body's hurt box reaches (boxes.txt: 36 wide). */
-const HALF = 18
 /** How far outside the other's longest reach it stands while it is wary. */
 const EDGE = 6
 /**
@@ -230,14 +238,23 @@ export function cpuRoundReset(i: u16): void {
   watchReset(i)
 }
 
-/** Fighter `i`'s CPU, new for a match. */
+/** Fighter `i`'s CPU, new for a match (its reaches are measured as the versus shows: `cpuMeasure`). */
 export function cpuMatchSet(i: u16): void {
-  measure(i)
   whims[i] = 0
   punishes[i] = 0
   seenLate[i] = 0xffff
   habitMatch(i)
   cpuRoundReset(i)
+}
+
+/**
+ * Fighter `i`'s reaches, if the CPU plays it, measured on the boxes of the match's slots: in the
+ * versus's first frames, a side a frame - not in the one the match is set up in - so no frame
+ * passes its cycles (design 10.4); a side no one reads is not measured. The first round's
+ * `cpuRoundReset` comes after it.
+ */
+export function cpuMeasure(i: u16): void {
+  if (ctl[i] === C_CPU) measure(i)
 }
 
 /** Column `c` of fighter `i`'s row. */
@@ -413,37 +430,27 @@ function coming(i: u16, r: u16): bool {
  */
 const thD = words(16)
 const punD = words(64)
-/** A pose's hurt boxes (1-3) and hit boxes (4-5) as read, four words each: x, top, w, h. */
-const hurtW = words(12)
-const hitW = words(8)
+/** The boxes measured, as a pose holds them (x, top, w, h each): hurt boxes (1-3), then hit boxes (4-5). */
+const bw = words(20)
+const BW_HURT = 0
+const BW_HIT = 12
 
-/** Pose `p` of slot `s`: its hurt boxes into hurtW (`hurt`), else its hit boxes into hitW. */
-function boxesRead(s: u16, p: u16, hurt: bool): void {
-  let k: u16 = 0
-  while (k < (hurt ? 12 : 8)) {
-    const v = poseWord(s, p, (hurt ? 4 : 16) + k)
-    if (hurt) hurtW[k] = v
-    else hitW[k] = v
-    k++
-  }
-}
-
-/** The most points apart a hit box of hitW meets a hurt box of hurtW, two facing on the ground (0 never). */
+/** The most points apart the hit boxes meet the hurt boxes, two facing on the ground (0 never). */
 function boxesMeet(): u16 {
   let most: u16 = 0
-  let h: u16 = 0
-  while (h < 8) {
-    const hw = i16(hitW[h + 2])
-    let b: u16 = 0
-    while (hw !== 0 && b < 12) {
-      const bw = i16(hurtW[b + 2])
-      const ht = i16(hitW[h + 1])
-      const bt = i16(hurtW[b + 1])
-      const apart = i16(hitW[h]) + hw + i16(hurtW[b]) + bw - 1
+  let h: u16 = BW_HIT
+  while (h < BW_HIT + 8) {
+    const hw = i16(bw[h + 2])
+    let b: u16 = BW_HURT
+    while (hw !== 0 && b < BW_HURT + 12) {
+      const hurtW = i16(bw[b + 2])
+      const ht = i16(bw[h + 1])
+      const bt = i16(bw[b + 1])
+      const apart = i16(bw[h]) + hw + i16(bw[b]) + hurtW - 1
       if (
-        bw !== 0 &&
-        ht - i16(hitW[h + 3]) < bt &&
-        bt - i16(hurtW[b + 3]) < ht &&
+        hurtW !== 0 &&
+        ht - i16(bw[h + 3]) < bt &&
+        bt - i16(bw[b + 3]) < ht &&
         apart > i16(most)
       ) {
         most = u16(apart)
@@ -455,18 +462,27 @@ function boxesMeet(): u16 {
   return most
 }
 
-/** Fighter `i`'s tables, for the slots of this match. */
+/** Pose `p` of fighter `f`'s slot: its hit boxes (`hit`) or its hurt boxes into `bw`. */
+function measured(f: u16, p: u16, hit: bool): void {
+  poseBoxes(fSlot[f], p, hit, addr(bw) + (hit ? BW_HIT : BW_HURT) * 2)
+}
+
+/**
+ * Fighter `i`'s tables, for the slots of this match: a pose's boxes copied as a block under one
+ * bank (the match begins inside a frame, design 10.4), into one small room (RAM's globals are
+ * nearly all taken), so its standing pose is read again for each of the other's moves.
+ */
 function measure(i: u16): void {
   const j = 1 - i
   let m: u16 = 0
   while (m < 8) {
-    boxesRead(fSlot[i], 0, true)
-    boxesRead(fSlot[j], mvAt(j, m, M_POSE) + 1, false)
+    measured(i, 0, false)
+    measured(j, mvAt(j, m, M_POSE) + 1, true)
     thD[i * 8 + m] = boxesMeet()
-    boxesRead(fSlot[j], mvAt(j, m, M_POSE) + 2, true)
+    measured(j, mvAt(j, m, M_POSE) + 2, false)
     let k: u16 = 0
     while (k < PUNISHERS) {
-      boxesRead(fSlot[i], mvAt(i, k, M_POSE) + 1, false)
+      measured(i, mvAt(i, k, M_POSE) + 1, true)
       punD[i * 32 + k * 8 + m] = boxesMeet()
       k++
     }
@@ -487,11 +503,12 @@ function longest(i: u16): u16 {
 
 /**
  * How near fighter `j`'s move `m` must be to reach it, in points between the two: its reach and
- * the body's half, a little more; an attack in the air comes on, so anything within THREAT.
+ * its own body's half (its slot's, as it stands now), a little more; an attack in the air comes
+ * on, so anything within THREAT.
  */
 function reaches(j: u16, m: u16): u16 {
   if (m < 8) return thD[(1 - j) * 8 + m] + EDGE
-  if (m === MV_THROW) return reach[j * MOVES + m] + HALF + EDGE
+  if (m === MV_THROW) return reach[j * MOVES + m] + half(1 - j) + EDGE
   return THREAT
 }
 
@@ -770,15 +787,14 @@ function situation(i: u16, e: u16): u16 {
   if (seenY[e] > 0 || st === ST_PREJUMP) return SIT_AIR
   if (st === ST_HIT || st === ST_GUARD) return SIT_PLUS
   if (minusT[i] > 0) return SIT_MINUS
-  if (fLife[i] * 4 < prAt(i, P_LIFE) || cornered(i)) return SIT_PRESSED
+  if (fLife[i] * 4 < prAt(i, P_LIFE) || cornered(i, e)) return SIT_PRESSED
   return SIT_NEUTRAL
 }
 
-/** Its back to a wall: the wall behind it within CORNER points. */
-function cornered(i: u16): bool {
+/** Its back to a wall: the wall behind it within CORNER points, the other as seen in entry `e`. */
+function cornered(i: u16, e: u16): bool {
   const x = pointX(i)
-  const j = 1 - i
-  if (fX[j] > fX[i]) return x < RING_L + CORNER
+  if (seenX[e] > x) return x < RING_L + CORNER
   return x > RING_R - CORNER
 }
 
@@ -806,12 +822,21 @@ function act(i: u16, j: u16): u16 {
   return 0
 }
 
-/** The move each striking action uses: light, heavy, low, mid; punch or kick by `planB`. */
+/**
+ * The move each striking action uses: light, heavy, low, mid; punch or kick by `planB`. The mid
+ * is the slot's ground move the table marks mid (an overhead), or, for a slot with none, its
+ * standing heavy punch.
+ */
 function strikeMove(i: u16, a: u16): u16 {
   const kick = planB[i]
   if (a === A_LIGHT) return kick * 2
   if (a === A_HEAVY) return 1 + kick * 2
   if (a === A_LOW) return 6 + kick
+  let m: u16 = 0
+  while (m < 8) {
+    if (mvAt(i, m, M_HEIGHT) === H_MID) return m
+    m++
+  }
   return 1
 }
 
@@ -853,10 +878,13 @@ function airStep(i: u16, j: u16): u16 {
   return b
 }
 
-/** The throw: walk in to its range (wary, as a strike), then forward and the heavy punch. */
+/**
+ * The throw: walk in to its range (wary, as a strike), then forward and the heavy punch. The
+ * range from where the other was seen (`d`, R frames late), as everything it does.
+ */
 function throwAct(i: u16, j: u16, d: u16): u16 {
   if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
-  if (throwGap(i, fX[i], fX[j]) + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
+  if (throwGap(i, 0, d << 4) + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
   if (!mayCome(i, j, d)) return heldOff(i, d)
   if ((outWas[i] & I_HP) !== 0) return I_FWD
   planEnd(i)
@@ -865,7 +893,7 @@ function throwAct(i: u16, j: u16, d: u16): u16 {
 
 /** In: a dash (two taps) when it dashes and is far, else a walk to its range; wary, never into the other's reach. */
 function approach(i: u16, j: u16, d: u16): u16 {
-  const dash = row(i, O_APPROACH) !== 0 || (row(i, O_FLAGS) & OF_RUSH) !== 0
+  const dash = row(i, O_APPROACH) !== 0
   if (dash && d > 70 && (planStep[i] > 0 || mayCome(i, j, d - DASH_PTS))) return taps(i, I_FWD)
   if (d <= liked(i)) {
     planEnd(i)

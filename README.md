@@ -920,7 +920,8 @@ weather and calendar.
   block-digging puzzle: a colour's whole group goes at once, blocks left hanging wobble and
   fall, four of a colour that land together vanish in chains, with AIR to mind through five
   strata to the core at 500 m ([docs/elec16-elecdrill.md](docs/elec16-elecdrill.md)) - and
-  **ELECFIGHTER** (*unreleased*), a one-on-one fighter in rounds: wire-and-fill humans drawn ahead
+  **ELECFIGHTER** (*unreleased*), a one-on-one fighter in rounds between nameless humanoid slots -
+  the training bodies of an industrial combat simulator: wire-and-fill humans drawn ahead
   of time from low-poly models, light and heavy blows, guards by height, throws and their techs,
   chains, counters and dashes, against four opponent programs each with a mind of its own
   ([docs/elec16-elecfighter.md](docs/elec16-elecfighter.md)); how to play is

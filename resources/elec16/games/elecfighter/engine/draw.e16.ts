@@ -2,15 +2,14 @@
 // BG1 - life bars, TIME, the banners' bands in large amber lettering and the log line - redrawn
 // only where it changed. The headings and lamps a round begins with are scenes/match.e16.ts's;
 // the fighters, their shadows and the effects engine/look.e16.ts's.
-import { div, i16, peek, str, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
+import { div, i16, peek, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import { cellAt, colour, palCopy, palMix, vfill, vpoke } from '../../lib/kit.e16'
-import { BIG_TILE, DIGITS_TILE, FONT_TILE, FONTB_TILE, HUD_TILE } from '../assets.e16'
-import { logDraw } from '../scenes/pause.e16'
+import { BIG_TILE, DIGITS_TILE, FONT_TILE, HUD_TILE } from '../assets.e16'
+import { bigIndex, logDraw } from '../scenes/pause.e16'
 import { P_LIFE, prAt } from './data.e16'
 import { fLife, fX } from './fighter.e16'
 
-/** The feet's line on the screen, and the camera's reach (design 4.2). */
-export const GROUND_Y = 244
+/** The camera's reach (design 4.2); the feet's line is the stage's (data.e16.ts `groundY`). */
 const CAM_MAX = 192
 
 /** The camera: the screen's left edge in the world, in points. */
@@ -44,12 +43,12 @@ const BAND_ROWS = 6
  * above the winner's raised arm (the win pose reaches about y 126); back to 13 when it goes.
  */
 const BAND_HIGH = 5
-let bandAt: u16 = BAND_ROW
+export let bandAt: u16 = BAND_ROW
 export const T_CLEAR = 0
 export const T_RULE = 1
 export const T_TICK = 2
 export const T_LAMP = 3
-const T_BAND = 5
+export const T_BAND = 5
 const T_BAND_TOP = 6
 const T_BAND_BOTTOM = 7
 export const T_BAR = 8
@@ -83,9 +82,18 @@ export function hudTile(x: u16, y: u16, t: u16, sl: u16): void {
   vpoke(cellAt(1, x, y), (HUD_TILE + t) | (sl << 10) | FRONT)
 }
 
-/** BG1 all clear. */
+/**
+ * BG1 clear where it shows: 40 columns of rows 0-35 and of row 63 (BG1 stands 4 points up and
+ * never scrolls, engine/main.e16.ts `screenOn`). The rest is never seen, and clearing all 4,096
+ * cells a word at a time took a third of a frame.
+ */
 export function hudClear(): void {
-  vfill(cellAt(1, 0, 0), HUD_TILE + T_CLEAR, 64 * 64)
+  let y: u16 = 0
+  while (y < 36) {
+    vfill(cellAt(1, 0, y), HUD_TILE + T_CLEAR, 40)
+    y++
+  }
+  vfill(cellAt(1, 0, 63), HUD_TILE + T_CLEAR, 40)
 }
 
 /** The bars and TIME drawn anew as a round begins (their trails from the life as it is). */
@@ -183,21 +191,9 @@ function bigDigit(x: u16, d: u16): void {
 
 /*
  * The large letters (art/big.png, scripts/elecfighter/screens.mjs), each 2 tiles by 3 in the
- * order `bigIndex` keeps them; anything else is a narrow space.
+ * order scenes/pause.e16.ts's `bigIndex` keeps them (in bank 3: a letter's place is looked up
+ * only as a banner is drawn); anything else is a narrow space.
  */
-
-/** Where `c` is among the large letters, or 0xffff. */
-function bigIndex(c: u16): u16 {
-  const chars = str('ABCDEFGHIKLMNOPRSTUVWY.?123')
-  let k: u16 = 0
-  let d = peek(chars)
-  while (d !== 0) {
-    if (d === c) return k
-    k++
-    d = peek(chars + k)
-  }
-  return 0xffff
-}
 
 /** Columns the words `s` take in large letters: two a letter, one a space. */
 function bigWidth(s: u16): u16 {
@@ -259,21 +255,6 @@ export function bandShow(s: u16): void {
 /** The next band high (a round over, the match's end), clear of the winner's pose. */
 export function bandHigh(): void {
   bandAt = BAND_HIGH
-}
-
-/** The band's small words under the large ones, centred (the band's own ground behind them). */
-export function bandSub(s: u16): void {
-  const y = bandAt + 4
-  vfill(cellAt(1, 0, y), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
-  let n: u16 = 0
-  while (peek(s + n) !== 0) n++
-  let at = cellAt(1, 20 - (n >> 1), y)
-  let k: u16 = 0
-  while (k < n) {
-    vpoke(at, (FONTB_TILE + peek(s + k) - 32) | (SL_P1 << 10) | FRONT)
-    at = wrap16(at + 2)
-    k++
-  }
 }
 
 /** The band gone. */

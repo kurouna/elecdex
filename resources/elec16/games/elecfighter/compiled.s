@@ -20,32 +20,33 @@
 ; seenN at 0x0ea8
 ; liveN at 0x0eaa
 ; stageNow at 0x153a
-; lineBack at 0x1764
-; scrollCam at 0x1766
-; scrollMade at 0x1768
-; scrollTop at 0x176a
-; buttonSet at 0x1816
-; ringAt at 0x1898
-; hitstop at 0x1982
-; camX at 0x1988
-; bandAt at 0x198a
-; timeShown at 0x19a0
-; logT at 0x19aa
-; round at 0x19ac
-; draws at 0x19b2
-; outcome at 0x19b4
-; ladderAt at 0x19c4
-; ladderEnd at 0x19c6
-; continues at 0x19c8
-; clearSec at 0x19ca
-; clearT at 0x19cc
-; soundPhase at 0x1e50
-; soundTime at 0x1e52
-; songNow at 0x1eba
-; menuOn at 0x1fdc
-; menuAt at 0x1fde
-; streak at 0x1fe8
-; contN at 0x1fec
+; groundY at 0x153c
+; lineBack at 0x1766
+; scrollCam at 0x1768
+; scrollMade at 0x176a
+; scrollTop at 0x176c
+; buttonSet at 0x1818
+; ringAt at 0x189a
+; hitstop at 0x1984
+; camX at 0x198a
+; bandAt at 0x198c
+; timeShown at 0x19a2
+; logT at 0x19ac
+; round at 0x19ae
+; draws at 0x19b4
+; outcome at 0x19b6
+; ladderAt at 0x19c6
+; ladderEnd at 0x19c8
+; continues at 0x19ca
+; clearSec at 0x19cc
+; clearT at 0x19ce
+; soundPhase at 0x1e52
+; soundTime at 0x1e54
+; songNow at 0x1ebc
+; menuOn at 0x1fde
+; menuAt at 0x1fe0
+; streak at 0x1fea
+; contN at 0x1fee
 palCopy = 0x0280 ; 512 bytes
 oam = 0x0480 ; 1024 bytes
 sines = 0x088a ; 512 bytes
@@ -97,141 +98,140 @@ stRows = 0x13ee ; 2 bytes
 stDataB = 0x13f0 ; 2 bytes
 stDataA = 0x13f2 ; 2 bytes
 stageWords = 0x13f4 ; 326 bytes
-bandNext = 0x153c ; 72 bytes
-lineTab = 0x1584 ; 480 bytes
-opp = 0x176c ; 128 bytes
-wrow = 0x17ec ; 20 bytes
-oppName = 0x1800 ; 10 bytes
-ctl = 0x180a ; 4 bytes
-extHeld = 0x180e ; 4 bytes
-lastHeld = 0x1812 ; 4 bytes
-ringH = 0x1818 ; 64 bytes
-ringD = 0x1858 ; 64 bytes
-fX = 0x189a ; 4 bytes
-fY = 0x189e ; 4 bytes
-fZ = 0x18a2 ; 4 bytes
-fVX = 0x18a6 ; 4 bytes
-fVY = 0x18aa ; 4 bytes
-fVZ = 0x18ae ; 4 bytes
-fFace = 0x18b2 ; 4 bytes
-fState = 0x18b6 ; 4 bytes
-fStateT = 0x18ba ; 4 bytes
-fLife = 0x18be ; 4 bytes
-fMove = 0x18c2 ; 4 bytes
-fMoveF = 0x18c6 ; 4 bytes
-fHitDone = 0x18ca ; 4 bytes
-fCombo = 0x18ce ; 4 bytes
-fComboMax = 0x18d2 ; 4 bytes
-fStun = 0x18d6 ; 4 bytes
-fCrouch = 0x18da ; 4 bytes
-fAir = 0x18de ; 4 bytes
-fAirUsed = 0x18e2 ; 4 bytes
-fKnock = 0x18e6 ; 4 bytes
-fJump = 0x18ea ; 4 bytes
-fThrowInv = 0x18ee ; 4 bytes
-fThrowBack = 0x18f2 ; 4 bytes
-fPush = 0x18f6 ; 4 bytes
-fSlot = 0x18fa ; 4 bytes
-fPose = 0x18fe ; 4 bytes
-fWin = 0x1902 ; 4 bytes
-fBreath = 0x1906 ; 4 bytes
-was = 0x190a ; 4 bytes
-before = 0x190e ; 4 bytes
-wb = 0x1912 ; 96 bytes
-how = 0x1972 ; 4 bytes
-moveOf = 0x1976 ; 4 bytes
-struck = 0x197a ; 4 bytes
-dealt = 0x197e ; 4 bytes
-threw = 0x1984 ; 4 bytes
-trail = 0x198c ; 4 bytes
-trailT = 0x1990 ; 4 bytes
-shownLife = 0x1994 ; 4 bytes
-shownTrail = 0x1998 ; 4 bytes
-lowShown = 0x199c ; 4 bytes
-logOff = 0x19a2 ; 2 bytes
-logWait = 0x19a4 ; 6 bytes
-wins = 0x19ae ; 4 bytes
-choice = 0x19b6 ; 6 bytes
-ladder = 0x19bc ; 8 bytes
-plan = 0x19ce ; 4 bytes
-planT = 0x19d2 ; 4 bytes
-planStep = 0x19d6 ; 4 bytes
-planB = 0x19da ; 4 bytes
-thinkT = 0x19de ; 4 bytes
-outWas = 0x19e2 ; 4 bytes
-gId = 0x19e6 ; 4 bytes
-gHold = 0x19ea ; 4 bytes
-aaArm = 0x19ee ; 4 bytes
-punId = 0x19f2 ; 4 bytes
-punMove = 0x19f6 ; 4 bytes
-punArm = 0x19fa ; 4 bytes
-swing = 0x19fe ; 4 bytes
-swingId = 0x1a02 ; 4 bytes
-swA = 0x1a06 ; 4 bytes
-swB = 0x1a0a ; 4 bytes
-fwdUp = 0x1a0e ; 4 bytes
-tapT = 0x1a12 ; 4 bytes
-punishes = 0x1a16 ; 4 bytes
-minusT = 0x1a1a ; 4 bytes
-techArm = 0x1a1e ; 4 bytes
-chainArm = 0x1a22 ; 4 bytes
-prevState = 0x1a26 ; 4 bytes
-lastML = 0x1a2a ; 4 bytes
-patNo = 0x1a2e ; 4 bytes
-patStep = 0x1a32 ; 4 bytes
-patGap = 0x1a36 ; 4 bytes
-habitDue = 0x1a3a ; 4 bytes
-whims = 0x1a3e ; 4 bytes
-seenLate = 0x1a42 ; 4 bytes
-thD = 0x1a46 ; 32 bytes
-punD = 0x1a66 ; 128 bytes
-hurtW = 0x1ae6 ; 24 bytes
-hitW = 0x1afe ; 16 bytes
-hab = 0x1b0e ; 100 bytes
-habSeen = 0x1b72 ; 20 bytes
-watchSit = 0x1b86 ; 4 bytes
-watchT = 0x1b8a ; 4 bytes
-rest = 0x1b8e ; 4 bytes
-backT = 0x1b92 ; 4 bytes
-wasGuarded = 0x1b96 ; 4 bytes
-airStruck = 0x1b9a ; 4 bytes
-readOn = 0x1b9e ; 4 bytes
-readPred = 0x1ba2 ; 4 bytes
-reads = 0x1ba6 ; 4 bytes
-readHits = 0x1baa ; 4 bytes
-readMiss = 0x1bae ; 4 bytes
-habCount = 0x1bb2 ; 4 bytes
-habTarget = 0x1bb6 ; 4 bytes
-habLast = 0x1bba ; 4 bytes
-habDue = 0x1bbe ; 4 bytes
-habFired = 0x1bc2 ; 4 bytes
-habDrawn = 0x1bc6 ; 64 bytes
-habDrawnN = 0x1c06 ; 4 bytes
-hist = 0x1c0a ; 32 bytes
-paused = 0x1c2a ; 2 bytes
-fxK = 0x1c2c ; 4 bytes
-fxT = 0x1c30 ; 4 bytes
-fxX = 0x1c34 ; 4 bytes
-fxY = 0x1c38 ; 4 bytes
-flashT = 0x1c3c ; 4 bytes
-guardT = 0x1c40 ; 4 bytes
-hitsN = 0x1c44 ; 4 bytes
-shOn = 0x1c48 ; 4 bytes
-shX = 0x1c4c ; 128 bytes
-shY = 0x1ccc ; 128 bytes
-shVX = 0x1d4c ; 128 bytes
-shVY = 0x1dcc ; 128 bytes
-palKey = 0x1e4c ; 4 bytes
-soundSt = 0x1e54 ; 4 bytes
-soundF = 0x1e58 ; 4 bytes
-fxSong = 0x1e5c ; 64 bytes
-songs = 0x1e9c ; 28 bytes
-sfxHeard = 0x1eb8 ; 2 bytes
-fig = 0x1ebc ; 272 bytes
-figTile = 0x1fcc ; 8 bytes
-figStep = 0x1fd4 ; 8 bytes
-bars = 0x1fe0 ; 8 bytes
-newRecord = 0x1fea ; 2 bytes
+bandNext = 0x153e ; 72 bytes
+lineTab = 0x1586 ; 480 bytes
+opp = 0x176e ; 128 bytes
+wrow = 0x17ee ; 20 bytes
+oppName = 0x1802 ; 10 bytes
+ctl = 0x180c ; 4 bytes
+extHeld = 0x1810 ; 4 bytes
+lastHeld = 0x1814 ; 4 bytes
+ringH = 0x181a ; 64 bytes
+ringD = 0x185a ; 64 bytes
+fX = 0x189c ; 4 bytes
+fY = 0x18a0 ; 4 bytes
+fZ = 0x18a4 ; 4 bytes
+fVX = 0x18a8 ; 4 bytes
+fVY = 0x18ac ; 4 bytes
+fVZ = 0x18b0 ; 4 bytes
+fFace = 0x18b4 ; 4 bytes
+fState = 0x18b8 ; 4 bytes
+fStateT = 0x18bc ; 4 bytes
+fLife = 0x18c0 ; 4 bytes
+fMove = 0x18c4 ; 4 bytes
+fMoveF = 0x18c8 ; 4 bytes
+fHitDone = 0x18cc ; 4 bytes
+fCombo = 0x18d0 ; 4 bytes
+fComboMax = 0x18d4 ; 4 bytes
+fStun = 0x18d8 ; 4 bytes
+fCrouch = 0x18dc ; 4 bytes
+fAir = 0x18e0 ; 4 bytes
+fAirUsed = 0x18e4 ; 4 bytes
+fKnock = 0x18e8 ; 4 bytes
+fJump = 0x18ec ; 4 bytes
+fThrowInv = 0x18f0 ; 4 bytes
+fThrowBack = 0x18f4 ; 4 bytes
+fPush = 0x18f8 ; 4 bytes
+fSlot = 0x18fc ; 4 bytes
+fPose = 0x1900 ; 4 bytes
+fWin = 0x1904 ; 4 bytes
+fBreath = 0x1908 ; 4 bytes
+was = 0x190c ; 4 bytes
+before = 0x1910 ; 4 bytes
+wb = 0x1914 ; 96 bytes
+how = 0x1974 ; 4 bytes
+moveOf = 0x1978 ; 4 bytes
+struck = 0x197c ; 4 bytes
+dealt = 0x1980 ; 4 bytes
+threw = 0x1986 ; 4 bytes
+trail = 0x198e ; 4 bytes
+trailT = 0x1992 ; 4 bytes
+shownLife = 0x1996 ; 4 bytes
+shownTrail = 0x199a ; 4 bytes
+lowShown = 0x199e ; 4 bytes
+logOff = 0x19a4 ; 2 bytes
+logWait = 0x19a6 ; 6 bytes
+wins = 0x19b0 ; 4 bytes
+choice = 0x19b8 ; 6 bytes
+ladder = 0x19be ; 8 bytes
+plan = 0x19d0 ; 4 bytes
+planT = 0x19d4 ; 4 bytes
+planStep = 0x19d8 ; 4 bytes
+planB = 0x19dc ; 4 bytes
+thinkT = 0x19e0 ; 4 bytes
+outWas = 0x19e4 ; 4 bytes
+gId = 0x19e8 ; 4 bytes
+gHold = 0x19ec ; 4 bytes
+aaArm = 0x19f0 ; 4 bytes
+punId = 0x19f4 ; 4 bytes
+punMove = 0x19f8 ; 4 bytes
+punArm = 0x19fc ; 4 bytes
+swing = 0x1a00 ; 4 bytes
+swingId = 0x1a04 ; 4 bytes
+swA = 0x1a08 ; 4 bytes
+swB = 0x1a0c ; 4 bytes
+fwdUp = 0x1a10 ; 4 bytes
+tapT = 0x1a14 ; 4 bytes
+punishes = 0x1a18 ; 4 bytes
+minusT = 0x1a1c ; 4 bytes
+techArm = 0x1a20 ; 4 bytes
+chainArm = 0x1a24 ; 4 bytes
+prevState = 0x1a28 ; 4 bytes
+lastML = 0x1a2c ; 4 bytes
+patNo = 0x1a30 ; 4 bytes
+patStep = 0x1a34 ; 4 bytes
+patGap = 0x1a38 ; 4 bytes
+habitDue = 0x1a3c ; 4 bytes
+whims = 0x1a40 ; 4 bytes
+seenLate = 0x1a44 ; 4 bytes
+thD = 0x1a48 ; 32 bytes
+punD = 0x1a68 ; 128 bytes
+bw = 0x1ae8 ; 40 bytes
+hab = 0x1b10 ; 100 bytes
+habSeen = 0x1b74 ; 20 bytes
+watchSit = 0x1b88 ; 4 bytes
+watchT = 0x1b8c ; 4 bytes
+rest = 0x1b90 ; 4 bytes
+backT = 0x1b94 ; 4 bytes
+wasGuarded = 0x1b98 ; 4 bytes
+airStruck = 0x1b9c ; 4 bytes
+readOn = 0x1ba0 ; 4 bytes
+readPred = 0x1ba4 ; 4 bytes
+reads = 0x1ba8 ; 4 bytes
+readHits = 0x1bac ; 4 bytes
+readMiss = 0x1bb0 ; 4 bytes
+habCount = 0x1bb4 ; 4 bytes
+habTarget = 0x1bb8 ; 4 bytes
+habLast = 0x1bbc ; 4 bytes
+habDue = 0x1bc0 ; 4 bytes
+habFired = 0x1bc4 ; 4 bytes
+habDrawn = 0x1bc8 ; 64 bytes
+habDrawnN = 0x1c08 ; 4 bytes
+hist = 0x1c0c ; 32 bytes
+paused = 0x1c2c ; 2 bytes
+fxK = 0x1c2e ; 4 bytes
+fxT = 0x1c32 ; 4 bytes
+fxX = 0x1c36 ; 4 bytes
+fxY = 0x1c3a ; 4 bytes
+flashT = 0x1c3e ; 4 bytes
+guardT = 0x1c42 ; 4 bytes
+hitsN = 0x1c46 ; 4 bytes
+shOn = 0x1c4a ; 4 bytes
+shX = 0x1c4e ; 128 bytes
+shY = 0x1cce ; 128 bytes
+shVX = 0x1d4e ; 128 bytes
+shVY = 0x1dce ; 128 bytes
+palKey = 0x1e4e ; 4 bytes
+soundSt = 0x1e56 ; 4 bytes
+soundF = 0x1e5a ; 4 bytes
+fxSong = 0x1e5e ; 64 bytes
+songs = 0x1e9e ; 28 bytes
+sfxHeard = 0x1eba ; 2 bytes
+fig = 0x1ebe ; 272 bytes
+figTile = 0x1fce ; 8 bytes
+figStep = 0x1fd6 ; 8 bytes
+bars = 0x1fe2 ; 8 bytes
+newRecord = 0x1fec ; 2 bytes
 
 e16c_init:
   ; sprN = 0
@@ -277,64 +277,67 @@ e16c_init:
   sw zero, 0x0eaa(zero)
   ; stageNow = 0
   sw zero, 0x153a(zero)
+  ; groundY = 244
+  li t0, 244
+  sw t0, 0x153c(zero)
   ; lineBack = 0
-  sw zero, 0x1764(zero)
+  sw zero, 0x1766(zero)
   ; scrollCam = 65535
   li t0, 65535
-  sw t0, 0x1766(zero)
+  sw t0, 0x1768(zero)
   ; scrollMade = 0
-  sw zero, 0x1768(zero)
-  ; scrollTop = 0
   sw zero, 0x176a(zero)
+  ; scrollTop = 0
+  sw zero, 0x176c(zero)
   ; buttonSet = 0
-  sw zero, 0x1816(zero)
+  sw zero, 0x1818(zero)
   ; ringAt = 0
-  sw zero, 0x1898(zero)
+  sw zero, 0x189a(zero)
   ; hitstop = 0
-  sw zero, 0x1982(zero)
+  sw zero, 0x1984(zero)
   ; camX = 0
-  sw zero, 0x1988(zero)
+  sw zero, 0x198a(zero)
   ; bandAt = 13
   li t0, 13
-  sw t0, 0x198a(zero)
+  sw t0, 0x198c(zero)
   ; timeShown = 65535
   li t0, 65535
-  sw t0, 0x19a0(zero)
+  sw t0, 0x19a2(zero)
   ; logT = 65535
   li t0, 65535
-  sw t0, 0x19aa(zero)
+  sw t0, 0x19ac(zero)
   ; round = 1
   li t0, 1
-  sw t0, 0x19ac(zero)
+  sw t0, 0x19ae(zero)
   ; draws = 0
-  sw zero, 0x19b2(zero)
-  ; outcome = 0
   sw zero, 0x19b4(zero)
+  ; outcome = 0
+  sw zero, 0x19b6(zero)
   ; ladderAt = 0
-  sw zero, 0x19c4(zero)
-  ; ladderEnd = 0
   sw zero, 0x19c6(zero)
-  ; continues = 0
+  ; ladderEnd = 0
   sw zero, 0x19c8(zero)
-  ; clearSec = 0
+  ; continues = 0
   sw zero, 0x19ca(zero)
-  ; clearT = 0
+  ; clearSec = 0
   sw zero, 0x19cc(zero)
+  ; clearT = 0
+  sw zero, 0x19ce(zero)
   ; soundPhase = 65535
   li t0, 65535
-  sw t0, 0x1e50(zero)
+  sw t0, 0x1e52(zero)
   ; soundTime = 0
-  sw zero, 0x1e52(zero)
+  sw zero, 0x1e54(zero)
   ; songNow = 0
-  sw zero, 0x1eba(zero)
+  sw zero, 0x1ebc(zero)
   ; menuOn = 0
-  sw zero, 0x1fdc(zero)
-  ; menuAt = 0
   sw zero, 0x1fde(zero)
+  ; menuAt = 0
+  sw zero, 0x1fe0(zero)
   ; streak = 0
-  sw zero, 0x1fe8(zero)
+  sw zero, 0x1fea(zero)
   ; contN = 0
-  sw zero, 0x1fec(zero)
+  sw zero, 0x1fee(zero)
   ; palCopy, oam: 1536 bytes of 0
   li t0, 0x0280
   li t1, 1536
@@ -360,59 +363,59 @@ e16c_init:
   li t1, 1678
   mset t0, zero, t1
   ; bandNext, lineTab: 552 bytes of 0
-  li t0, 0x153c
+  li t0, 0x153e
   li t1, 552
   mset t0, zero, t1
   ; opp, wrow, oppName, ctl, extHeld, lastHeld: 170 bytes of 0
-  li t0, 0x176c
+  li t0, 0x176e
   li t1, 170
   mset t0, zero, t1
   ; ringH, ringD: 128 bytes of 0
-  li t0, 0x1818
+  li t0, 0x181a
   li t1, 128
   mset t0, zero, t1
   ; fX, fY, fZ, fVX, fVY, fVZ, fFace, fState, fStateT, fLife, fMove, fMoveF, fHitDone, fCombo, fComboMax, fStun, fCrouch, fAir, fAirUsed, fKnock, fJump, fThrowInv, fThrowBack, fPush, fSlot, fPose, fWin, fBreath, was, before, wb, how, moveOf, struck, dealt: 232 bytes of 0
-  li t0, 0x189a
+  li t0, 0x189c
   li t1, 232
   mset t0, zero, t1
   ; threw: 4 bytes of 0
-  li t0, 0x1984
+  li t0, 0x1986
   li t1, 4
   mset t0, zero, t1
   ; trail, trailT, shownLife, shownTrail, lowShown: 20 bytes of 0
-  li t0, 0x198c
+  li t0, 0x198e
   li t1, 20
   mset t0, zero, t1
   ; logOff, logWait: 8 bytes of 0
-  li t0, 0x19a2
+  li t0, 0x19a4
   li t1, 8
   mset t0, zero, t1
   ; wins: 4 bytes of 0
-  li t0, 0x19ae
+  li t0, 0x19b0
   li t1, 4
   mset t0, zero, t1
   ; choice, ladder: 14 bytes of 0
-  li t0, 0x19b6
+  li t0, 0x19b8
   li t1, 14
   mset t0, zero, t1
-  ; plan, planT, planStep, planB, thinkT, outWas, gId, gHold, aaArm, punId, punMove, punArm, swing, swingId, swA, swB, fwdUp, tapT, punishes, minusT, techArm, chainArm, prevState, lastML, patNo, patStep, patGap, habitDue, whims, seenLate, thD, punD, hurtW, hitW, hab, habSeen, watchSit, watchT, rest, backT, wasGuarded, airStruck, readOn, readPred, reads, readHits, readMiss, habCount, habTarget, habLast, habDue, habFired, habDrawn, habDrawnN, hist, paused, fxK, fxT, fxX, fxY, flashT, guardT, hitsN, shOn, shX, shY, shVX, shVY, palKey: 1154 bytes of 0
-  li t0, 0x19ce
+  ; plan, planT, planStep, planB, thinkT, outWas, gId, gHold, aaArm, punId, punMove, punArm, swing, swingId, swA, swB, fwdUp, tapT, punishes, minusT, techArm, chainArm, prevState, lastML, patNo, patStep, patGap, habitDue, whims, seenLate, thD, punD, bw, hab, habSeen, watchSit, watchT, rest, backT, wasGuarded, airStruck, readOn, readPred, reads, readHits, readMiss, habCount, habTarget, habLast, habDue, habFired, habDrawn, habDrawnN, hist, paused, fxK, fxT, fxX, fxY, flashT, guardT, hitsN, shOn, shX, shY, shVX, shVY, palKey: 1154 bytes of 0
+  li t0, 0x19d0
   li t1, 1154
   mset t0, zero, t1
   ; soundSt, soundF, fxSong, songs, sfxHeard: 102 bytes of 0
-  li t0, 0x1e54
+  li t0, 0x1e56
   li t1, 102
   mset t0, zero, t1
   ; fig, figTile, figStep: 288 bytes of 0
-  li t0, 0x1ebc
+  li t0, 0x1ebe
   li t1, 288
   mset t0, zero, t1
   ; bars: 8 bytes of 0
-  li t0, 0x1fe0
+  li t0, 0x1fe2
   li t1, 8
   mset t0, zero, t1
   ; newRecord: 2 bytes of 0
-  li t0, 0x1fea
+  li t0, 0x1fec
   li t1, 2
   mset t0, zero, t1
   ret
@@ -2476,19 +2479,19 @@ tilesIn:
   sw ra, 0(sp)
   ; engine/main.e16.ts:213  load(FONT_BANK, FONT_AT, FONT_TILE * 32, FONT_BYTES)
   li a0, 265
-  li a1, 49986
+  li a1, 49954
   li a2, 0
   li a3, 2048
   call load
   ; engine/main.e16.ts:214  load(FONTB_BANK, FONTB_AT, FONTB_TILE * 32, FONTB_BYTES)
   li a0, 265
-  li a1, 52034
+  li a1, 52002
   li a2, 2048
   li a3, 2048
   call load
   ; engine/main.e16.ts:215  load(DIGITS_BANK, DIGITS_AT, DIGITS_TILE * 32, DIGITS_BYTES)
   li a0, 265
-  li a1, 54082
+  li a1, 54050
   li a2, 4096
   li a3, 1280
   call load
@@ -2525,47 +2528,42 @@ tilesIn:
 screenClear:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/main.e16.ts:224  raster(0)
-  li a0, 0
-  call raster
+  ; engine/main.e16.ts:224  fightClear()
+  call fightClear
   ; engine/main.e16.ts:225  vfill(MAP0, stageClearTile(), 64 * 64)
   call stageClearTile
   mv a1, a0
   li a0, 32768
   li a2, 4096
   call vfill
-  ; engine/main.e16.ts:226  hudClear()
+.return:
+  lw ra, 0(sp)
+  addi sp, sp, 2
+  ret
+
+; engine/main.e16.ts:233 fightClear() at -O1
+fightClear:
+  addi sp, sp, -2
+  sw ra, 0(sp)
+  ; engine/main.e16.ts:234  raster(0)
+  li a0, 0
+  call raster
+  ; engine/main.e16.ts:235  hudClear()
   call hudClear
-  ; engine/main.e16.ts:227  scrollNext = 0
+  ; engine/main.e16.ts:236  scrollNext = 0
   sw zero, 0x0c96(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; engine/main.e16.ts:231 frameBegin() at -O1
+; engine/main.e16.ts:240 frameBegin() at -O1
 frameBegin:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/main.e16.ts:232  seen = frame_wait(seen)
-  lw a0, 0x0c92(zero)
-  call frame_wait
-  sw a0, 0x0c92(zero)
-  ; engine/main.e16.ts:233  sprShow()
-  call sprShow
-  ; engine/main.e16.ts:234  soundTick()
-  call soundTick
-  ; engine/main.e16.ts:235  artStream()
-  call artStream
-  ; engine/main.e16.ts:236  poke16(BG0X, scrollNext)
-  lw t0, 0x0c96(zero)
-  li t1, 63520
-  sw t0, 0(t1)
-  ; engine/main.e16.ts:237  stageShow()
-  call stageShow
-  ; engine/main.e16.ts:238  padRead()
-  call padRead
-  ; engine/main.e16.ts:239  frame++
+  ; engine/main.e16.ts:241  frameShow()
+  call frameShow
+  ; engine/main.e16.ts:242  frame++
   lw t0, 0x0c94(zero)
   addi t0, t0, 1
   sw t0, 0x0c94(zero)
@@ -2574,76 +2572,95 @@ frameBegin:
   addi sp, sp, 2
   ret
 
-; engine/main.e16.ts:246 pauseFrame() at -O1
-pauseFrame:
+; engine/main.e16.ts:249 frameShow() at -O1
+frameShow:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/main.e16.ts:247  seen = frame_wait(seen)
+  ; engine/main.e16.ts:250  seen = frame_wait(seen)
   lw a0, 0x0c92(zero)
   call frame_wait
   sw a0, 0x0c92(zero)
-  ; engine/main.e16.ts:248  sprShow()
+  ; engine/main.e16.ts:251  sprShow()
   call sprShow
-  ; engine/main.e16.ts:249  soundTick()
+  ; engine/main.e16.ts:252  soundTick()
   call soundTick
-  ; engine/main.e16.ts:250  padRead()
+  ; engine/main.e16.ts:253  artStream()
+  call artStream
+  ; engine/main.e16.ts:254  poke16(BG0X, scrollNext)
+  lw t0, 0x0c96(zero)
+  li t1, 63520
+  sw t0, 0(t1)
+  ; engine/main.e16.ts:255  stageShow()
+  call stageShow
+  ; engine/main.e16.ts:256  padRead()
   call padRead
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; engine/main.e16.ts:256 phaseIs(p) at -O1
+; engine/main.e16.ts:265 pauseFrame() at -O1
+pauseFrame:
+  addi sp, sp, -2
+  sw ra, 0(sp)
+  ; engine/main.e16.ts:266  frameShow()
+  call frameShow
+.return:
+  lw ra, 0(sp)
+  addi sp, sp, 2
+  ret
+
+; engine/main.e16.ts:272 phaseIs(p) at -O1
 ;   p in a0
 phaseIs:
-  ; engine/main.e16.ts:257  phase = p
+  ; engine/main.e16.ts:273  phase = p
   sw a0, 0x0c98(zero)
-  ; engine/main.e16.ts:258  phaseT = 0
+  ; engine/main.e16.ts:274  phaseT = 0
   sw zero, 0x0c9a(zero)
 .return:
   ret
 
-; engine/main.e16.ts:261 phaseTick() at -O1
+; engine/main.e16.ts:277 phaseTick() at -O1
 phaseTick:
-  ; engine/main.e16.ts:262  phaseT++
+  ; engine/main.e16.ts:278  phaseT++
   lw t0, 0x0c9a(zero)
   addi t0, t0, 1
   sw t0, 0x0c9a(zero)
 .return:
   ret
 
-; engine/main.e16.ts:266 clockReset() at -O1
+; engine/main.e16.ts:282 clockReset() at -O1
 clockReset:
-  ; engine/main.e16.ts:267  timeLeft = 99
+  ; engine/main.e16.ts:283  timeLeft = 99
   li t0, 99
   sw t0, 0x0c9c(zero)
-  ; engine/main.e16.ts:268  timeT = 0
+  ; engine/main.e16.ts:284  timeT = 0
   sw zero, 0x0c9e(zero)
 .return:
   ret
 
-; engine/main.e16.ts:275 judgeRound() at -O1
+; engine/main.e16.ts:291 judgeRound() at -O1
 judgeRound:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/main.e16.ts:276  if (phase !== PH_FIGHT) return
+  ; engine/main.e16.ts:292  if (phase !== PH_FIGHT) return
   lw t0, 0x0c98(zero)
   li t1, 1
   beq t0, t1, .L1
-  ; engine/main.e16.ts:276  return
+  ; engine/main.e16.ts:292  return
   j .return
 .L1:
-  ; engine/main.e16.ts:277  if (fLife[0] === 0 || fLife[1] === 0) knockedOut()
+  ; engine/main.e16.ts:293  if (fLife[0] === 0 || fLife[1] === 0) knockedOut()
   lw t0, fLife(zero)
   beq t0, zero, .L3
   lw t0, fLife+2(zero)
   bne t0, zero, .L2
 .L3:
-  ; engine/main.e16.ts:277  knockedOut()
+  ; engine/main.e16.ts:293  knockedOut()
   call knockedOut
   j .L4
 .L2:
-  ; engine/main.e16.ts:278  clockStep()
+  ; engine/main.e16.ts:294  clockStep()
   call clockStep
 .L4:
 .return:
@@ -2651,7 +2668,7 @@ judgeRound:
   addi sp, sp, 2
   ret
 
-; engine/main.e16.ts:281 knockedOut() at -O1
+; engine/main.e16.ts:297 knockedOut() at -O1
 ;   both in s1
 ;   hitstopIs.n in s2
 knockedOut:
@@ -2659,7 +2676,7 @@ knockedOut:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; engine/main.e16.ts:282  const both = fLife[0] === 0 && fLife[1] === 0
+  ; engine/main.e16.ts:298  const both = fLife[0] === 0 && fLife[1] === 0
   lw t0, fLife(zero)
   sub t0, t0, zero
   seqz t0, t0
@@ -2670,7 +2687,7 @@ knockedOut:
   seqz t0, t0
 .L1:
   mv s1, t0 ; both
-  ; engine/main.e16.ts:283  roundWon = both ? 2 : fLife[1] === 0 ? 0 : 1
+  ; engine/main.e16.ts:299  roundWon = both ? 2 : fLife[1] === 0 ? 0 : 1
   beqz s1, .L2
   li t0, 2
   j .L3
@@ -2684,16 +2701,16 @@ knockedOut:
 .L5:
 .L3:
   sw t0, 0x0ca0(zero)
-  ; engine/main.e16.ts:284  hitstopIs(KO_STOP)
+  ; engine/main.e16.ts:300  hitstopIs(KO_STOP)
   li s2, 24 ; hitstopIs.n
-  ; engine/hit.e16.ts:159  hitstop = n
-  sw s2, 0x1982(zero)
-  ; engine/main.e16.ts:285  roundOver(both ? str('DOUBLE K.O.') : str('K.O.'))
+  ; engine/hit.e16.ts:163  hitstop = n
+  sw s2, 0x1984(zero)
+  ; engine/main.e16.ts:301  roundOver(both ? str('DOUBLE K.O.') : str('K.O.'))
   beqz s1, .L6
-  la t0, str_0
+  la t0, str_2
   j .L7
 .L6:
-  la t0, str_1
+  la t0, str_3
 .L7:
   mv a0, t0
   call roundOver
@@ -2704,32 +2721,32 @@ knockedOut:
   addi sp, sp, 6
   ret
 
-; engine/main.e16.ts:289 clockStep() at -O1
+; engine/main.e16.ts:305 clockStep() at -O1
 clockStep:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/main.e16.ts:290  timeT++
+  ; engine/main.e16.ts:306  timeT++
   lw t0, 0x0c9e(zero)
   addi t0, t0, 1
   sw t0, 0x0c9e(zero)
-  ; engine/main.e16.ts:291  if (timeT < SECOND) return
+  ; engine/main.e16.ts:307  if (timeT < SECOND) return
   li t1, 60
   bgeu t0, t1, .L1
-  ; engine/main.e16.ts:291  return
+  ; engine/main.e16.ts:307  return
   j .return
 .L1:
-  ; engine/main.e16.ts:292  timeT = 0
+  ; engine/main.e16.ts:308  timeT = 0
   sw zero, 0x0c9e(zero)
-  ; engine/main.e16.ts:293  timeLeft--
+  ; engine/main.e16.ts:309  timeLeft--
   lw t0, 0x0c9c(zero)
   addi t0, t0, -1
   sw t0, 0x0c9c(zero)
-  ; engine/main.e16.ts:294  if (timeLeft > 0) return
+  ; engine/main.e16.ts:310  if (timeLeft > 0) return
   bgeu zero, t0, .L2
-  ; engine/main.e16.ts:294  return
+  ; engine/main.e16.ts:310  return
   j .return
 .L2:
-  ; engine/main.e16.ts:295  roundWon = fLife[0] === fLife[1] ? 2 : fLife[0] > fLife[1] ? 0 : 1
+  ; engine/main.e16.ts:311  roundWon = fLife[0] === fLife[1] ? 2 : fLife[0] > fLife[1] ? 0 : 1
   lw t0, fLife(zero)
   lw t1, fLife+2(zero)
   bne t0, t1, .L3
@@ -2746,29 +2763,29 @@ clockStep:
 .L6:
 .L4:
   sw t0, 0x0ca0(zero)
-  ; engine/main.e16.ts:296  roundOver(str('TIME UP'))
-  la a0, str_2
+  ; engine/main.e16.ts:312  roundOver(str('TIME UP'))
+  la a0, str_4
   call roundOver
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; engine/main.e16.ts:299 roundOver(s) at -O1
+; engine/main.e16.ts:315 roundOver(s) at -O1
 ;   s in s1
 roundOver:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; s
-  ; engine/main.e16.ts:300  phaseIs(PH_OVER)
+  ; engine/main.e16.ts:316  phaseIs(PH_OVER)
   li a0, 2
   call phaseIs
-  ; engine/main.e16.ts:301  bandHigh()
-  ; engine/draw.e16.ts:261  bandAt = BAND_HIGH
+  ; engine/main.e16.ts:317  bandHigh()
+  ; engine/draw.e16.ts:257  bandAt = BAND_HIGH
   li t0, 5
-  sw t0, 0x198a(zero)
-  ; engine/main.e16.ts:302  bandShow(s)
+  sw t0, 0x198c(zero)
+  ; engine/main.e16.ts:318  bandShow(s)
   mv a0, s1
   call bandShow
 .return:
@@ -2777,82 +2794,86 @@ roundOver:
   addi sp, sp, 4
   ret
 
-; engine/main.e16.ts:322 frameStep() at -O1
+; engine/main.e16.ts:338 frameStep() at -O1
 ;   hitstopIs.n in s1
 frameStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; engine/main.e16.ts:323  frameBegin()
+  ; engine/main.e16.ts:339  frameBegin()
   call frameBegin
-  ; engine/main.e16.ts:324  struckClear()
+  ; engine/main.e16.ts:340  struckClear()
   call struckClear
-  ; engine/main.e16.ts:325  ringStep()
+  ; engine/main.e16.ts:341  ringStep()
   call ringStep
-  ; engine/main.e16.ts:326  inputsGather()
+  ; engine/main.e16.ts:342  inputsGather()
   call inputsGather
-  ; engine/main.e16.ts:327  if (hitstop > 0) {
-  lw t0, 0x1982(zero)
+  ; engine/main.e16.ts:343  if (hitstop > 0) {
+  lw t0, 0x1984(zero)
   bgeu zero, t0, .L1
-  ; engine/main.e16.ts:328  hitstopIs(hitstop - 1)
-  lw t0, 0x1982(zero)
+  ; engine/main.e16.ts:344  hitstopIs(hitstop - 1)
+  lw t0, 0x1984(zero)
   addi s1, t0, -1
-  ; engine/hit.e16.ts:159  hitstop = n
-  sw s1, 0x1982(zero)
-  ; engine/main.e16.ts:329  cpuInputs(false)
+  ; engine/hit.e16.ts:163  hitstop = n
+  sw s1, 0x1984(zero)
+  ; engine/main.e16.ts:345  cpuInputs(false)
   li a0, 0
   call cpuInputs
-  ; engine/main.e16.ts:330  seenRecord()
+  ; engine/main.e16.ts:346  seenRecord()
   call seenRecord
-  ; engine/main.e16.ts:331  pictureStep()
+  ; engine/main.e16.ts:347  pictureStep()
   call pictureStep
-  ; engine/main.e16.ts:332  return
+  ; engine/main.e16.ts:348  return
   j .return
 .L1:
-  ; engine/main.e16.ts:334  liveN = wrap16(liveN + 1)
+  ; engine/main.e16.ts:350  liveN = wrap16(liveN + 1)
   lw t0, 0x0eaa(zero)
   addi t0, t0, 1
   sw t0, 0x0eaa(zero)
-  ; engine/main.e16.ts:335  cpuInputs(true)
+  ; engine/main.e16.ts:351  cpuInputs(true)
   li a0, 1
   call cpuInputs
-  ; engine/main.e16.ts:336  fightersSeen()
+  ; engine/main.e16.ts:352  fightersSeen()
   call fightersSeen
-  ; engine/main.e16.ts:337  throwsStep()
+  ; engine/main.e16.ts:353  throwsStep()
   call throwsStep
-  ; engine/main.e16.ts:338  fighterStep(0)
+  ; engine/main.e16.ts:354  fighterStep(0)
   li a0, 0
   call fighterStep
-  ; engine/main.e16.ts:339  fighterStep(1)
+  ; engine/main.e16.ts:355  fighterStep(1)
   li a0, 1
   call fighterStep
-  ; engine/main.e16.ts:340  motion(0)
+  ; engine/main.e16.ts:356  motion(0)
   li a0, 0
   call motion
-  ; engine/main.e16.ts:341  motion(1)
+  ; engine/main.e16.ts:357  motion(1)
   li a0, 1
   call motion
-  ; engine/main.e16.ts:342  wall(0)
+  ; engine/main.e16.ts:358  wall(0)
   li a0, 0
   call wall
-  ; engine/main.e16.ts:343  wall(1)
+  ; engine/main.e16.ts:359  wall(1)
   li a0, 1
   call wall
-  ; engine/main.e16.ts:344  apart()
+  ; engine/main.e16.ts:360  apart()
   call apart
-  ; engine/main.e16.ts:345  bodies()
+  ; engine/main.e16.ts:361  bodies()
   call bodies
-  ; engine/main.e16.ts:346  boxesWorld()
+  ; engine/main.e16.ts:362  boxesWorld()
   call boxesWorld
-  ; engine/main.e16.ts:347  hitsResolve()
+  ; engine/main.e16.ts:364  if (live()) hitsResolve()
+  call live
+  beqz a0, .L2
+  ; engine/main.e16.ts:364  hitsResolve()
   call hitsResolve
-  ; engine/main.e16.ts:348  judgeRound()
+.L2:
+  ; engine/main.e16.ts:365  judgeRound()
   call judgeRound
-  ; engine/main.e16.ts:349  seenRecord()
+  ; engine/main.e16.ts:366  seenRecord()
   call seenRecord
-  ; engine/main.e16.ts:350  cameraStep()
+  ; engine/main.e16.ts:367  cameraStep()
   call cameraStep
-  ; engine/main.e16.ts:351  pictureStep()
+  ; engine/main.e16.ts:368  pictureStep()
   call pictureStep
 .return:
   lw ra, 0(sp)
@@ -2860,32 +2881,32 @@ frameStep:
   addi sp, sp, 4
   ret
 
-; engine/main.e16.ts:354 pictureStep() at -O1
+; engine/main.e16.ts:371 pictureStep() at -O1
 pictureStep:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/main.e16.ts:355  scrollNext = stageScroll(camX)
-  lw a0, 0x1988(zero)
+  ; engine/main.e16.ts:372  scrollNext = stageScroll(camX)
+  lw a0, 0x198a(zero)
   call stageScroll
   sw a0, 0x0c96(zero)
-  ; engine/main.e16.ts:356  lookStep()
+  ; engine/main.e16.ts:373  lookStep()
   la t0, lookStep
   li t1, 260
   call far_call
-  ; engine/main.e16.ts:357  hudStep(timeLeft, frame)
+  ; engine/main.e16.ts:374  hudStep(timeLeft, frame)
   lw t0, 0x0c9c(zero)
   lw t1, 0x0c94(zero)
   mv a0, t0
   mv a1, t1
   call hudStep
-  ; engine/main.e16.ts:358  logStep()
+  ; engine/main.e16.ts:375  logStep()
   call logStep
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; engine/main.e16.ts:382 seenRecord() at -O1
+; engine/main.e16.ts:399 seenRecord() at -O1
 ;   k in s3
 ;   i in s1
 ;   e in s2
@@ -2897,28 +2918,28 @@ seenRecord:
   sw s1, 4(sp)
   sw s2, 6(sp)
   sw s0, 8(sp)
-  ; engine/main.e16.ts:383  const k = seenN & 31
+  ; engine/main.e16.ts:400  const k = seenN & 31
   lw t0, 0x0ea8(zero)
   andi s3, t0, 31
-  ; engine/main.e16.ts:384  let i: u16 = 0
+  ; engine/main.e16.ts:401  let i: u16 = 0
   li s1, 0 ; i
-  ; engine/main.e16.ts:385  while (i < 2) {
+  ; engine/main.e16.ts:402  while (i < 2) {
   j .L3
 .L1:
-  ; engine/main.e16.ts:386  const e = i * 32 + k
+  ; engine/main.e16.ts:403  const e = i * 32 + k
   slli t0, s1, 5
   add s2, t0, s3
-  ; engine/main.e16.ts:387  const st = fState[i]
+  ; engine/main.e16.ts:404  const st = fState[i]
   slli t0, s1, 1
   lw s0, fState(t0)
-  ; engine/main.e16.ts:388  seenS[e] = st | (fMove[i] << 8)
+  ; engine/main.e16.ts:405  seenS[e] = st | (fMove[i] << 8)
   slli t0, s2, 1
   slli t1, s1, 1
   lw t1, fMove(t1)
   slli t1, t1, 8
   or t1, s0, t1
   sw t1, seenS(t0)
-  ; engine/main.e16.ts:389  seenF[e] = ((st === ST_ATTACK ? fMoveF[i] : fStateT[i]) & 255) | (struck[i] << 8)
+  ; engine/main.e16.ts:406  seenF[e] = ((st === ST_ATTACK ? fMoveF[i] : fStateT[i]) & 255) | (struck[i] << 8)
   slli t0, s2, 1
   addi t0, t0, seenF
   mv t1, s0
@@ -2937,7 +2958,7 @@ seenRecord:
   slli t2, t2, 8
   or t1, t1, t2
   sw t1, 0(t0)
-  ; engine/main.e16.ts:390  seenX[e] = pointX(i)
+  ; engine/main.e16.ts:407  seenX[e] = pointX(i)
   slli t0, s2, 1
   addi t0, t0, seenX
   addi sp, sp, -2
@@ -2947,7 +2968,7 @@ seenRecord:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/main.e16.ts:391  seenY[e] = fAir[i] !== 0 && fY[i] < 16 ? 1 : fY[i] >> 4
+  ; engine/main.e16.ts:408  seenY[e] = fAir[i] !== 0 && fY[i] < 16 ? 1 : fY[i] >> 4
   slli t0, s2, 1
   slli t1, s1, 1
   lw t1, fAir(t1)
@@ -2966,16 +2987,16 @@ seenRecord:
   srli t1, t1, 4
 .L8:
   sw t1, 0(t0)
-  ; engine/main.e16.ts:392  i++
+  ; engine/main.e16.ts:409  i++
   addi s1, s1, 1
 .L3:
   li t0, 2
   bltu s1, t0, .L1
-  ; engine/main.e16.ts:394  seenL[k] = liveN
+  ; engine/main.e16.ts:411  seenL[k] = liveN
   slli t0, s3, 1
   lw t1, 0x0eaa(zero)
   sw t1, seenL(t0)
-  ; engine/main.e16.ts:395  seenN = wrap16(seenN + 1)
+  ; engine/main.e16.ts:412  seenN = wrap16(seenN + 1)
   lw t0, 0x0ea8(zero)
   addi t0, t0, 1
   sw t0, 0x0ea8(zero)
@@ -2988,9 +3009,9 @@ seenRecord:
   addi sp, sp, 10
   ret
 
-; engine/main.e16.ts:399 live() at -O1
+; engine/main.e16.ts:416 live() at -O1
 live:
-  ; engine/main.e16.ts:400  return phase === PH_FIGHT
+  ; engine/main.e16.ts:417  return phase === PH_FIGHT
   lw t0, 0x0c98(zero)
   li t1, 1
   sub t0, t0, t1
@@ -2998,30 +3019,30 @@ live:
 .return:
   ret
 
-; engine/main.e16.ts:404 inputsGather() at -O1
+; engine/main.e16.ts:421 inputsGather() at -O1
 ;   i in s1
 inputsGather:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; engine/main.e16.ts:405  let i: u16 = 0
+  ; engine/main.e16.ts:422  let i: u16 = 0
   li s1, 0 ; i
-  ; engine/main.e16.ts:406  while (i < 2) {
+  ; engine/main.e16.ts:423  while (i < 2) {
   j .L3
 .L1:
-  ; engine/main.e16.ts:407  if (!live()) inputNone(i)
+  ; engine/main.e16.ts:424  if (!live()) inputNone(i)
   call live
   bnez a0, .L5
-  ; engine/main.e16.ts:407  inputNone(i)
+  ; engine/main.e16.ts:424  inputNone(i)
   mv a0, s1
   call inputNone
   j .L6
 .L5:
-  ; engine/main.e16.ts:408  if (ctl[i] === C_PAD) inputPad(i, fFace[i] !== 0)
+  ; engine/main.e16.ts:425  if (ctl[i] === C_PAD) inputPad(i, fFace[i] !== 0)
   slli t0, s1, 1
   lw t0, ctl(t0)
   bne t0, zero, .L7
-  ; engine/main.e16.ts:408  inputPad(i, fFace[i] !== 0)
+  ; engine/main.e16.ts:425  inputPad(i, fFace[i] !== 0)
   slli t0, s1, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
@@ -3031,18 +3052,18 @@ inputsGather:
   call inputPad
   j .L8
 .L7:
-  ; engine/main.e16.ts:409  if (ctl[i] !== C_CPU) inputExt(i)
+  ; engine/main.e16.ts:426  if (ctl[i] !== C_CPU) inputExt(i)
   slli t0, s1, 1
   lw t0, ctl(t0)
   li t1, 1
   beq t0, t1, .L9
-  ; engine/main.e16.ts:409  inputExt(i)
+  ; engine/main.e16.ts:426  inputExt(i)
   mv a0, s1
   call inputExt
 .L9:
 .L8:
 .L6:
-  ; engine/main.e16.ts:410  i++
+  ; engine/main.e16.ts:427  i++
   addi s1, s1, 1
 .L3:
   li t0, 2
@@ -3053,7 +3074,7 @@ inputsGather:
   addi sp, sp, 4
   ret
 
-; engine/main.e16.ts:415 cpuInputs(think) at -O1
+; engine/main.e16.ts:432 cpuInputs(think) at -O1
 ;   think in s2
 ;   i in s1
 cpuInputs:
@@ -3062,25 +3083,25 @@ cpuInputs:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; think
-  ; engine/main.e16.ts:416  let i: u16 = 0
+  ; engine/main.e16.ts:433  let i: u16 = 0
   li s1, 0 ; i
-  ; engine/main.e16.ts:417  while (i < 2) {
+  ; engine/main.e16.ts:434  while (i < 2) {
   j .L3
 .L1:
-  ; engine/main.e16.ts:418  if (ctl[i] === C_CPU) {
+  ; engine/main.e16.ts:435  if (ctl[i] === C_CPU) {
   slli t0, s1, 1
   lw t0, ctl(t0)
   li t1, 1
   bne t0, t1, .L5
-  ; engine/main.e16.ts:419  if (!live()) cpuHeld[i] = 0
+  ; engine/main.e16.ts:436  if (!live()) cpuHeld[i] = 0
   call live
   bnez a0, .L6
-  ; engine/main.e16.ts:419  cpuHeld[i] = 0
+  ; engine/main.e16.ts:436  cpuHeld[i] = 0
   slli t0, s1, 1
   sw zero, cpuHeld(t0)
   j .L7
 .L6:
-  ; engine/main.e16.ts:420  cpuHeld[i] = cpuThink(i, think)
+  ; engine/main.e16.ts:437  cpuHeld[i] = cpuThink(i, think)
   slli t0, s1, 1
   addi t0, t0, cpuHeld
   addi sp, sp, -2
@@ -3094,14 +3115,14 @@ cpuInputs:
   addi sp, sp, 2
   sw a0, 0(t0)
 .L7:
-  ; engine/main.e16.ts:421  inputHeld(i, cpuHeld[i])
+  ; engine/main.e16.ts:438  inputHeld(i, cpuHeld[i])
   slli t0, s1, 1
   lw t0, cpuHeld(t0)
   mv a0, s1
   mv a1, t0
   call inputHeld
 .L5:
-  ; engine/main.e16.ts:423  i++
+  ; engine/main.e16.ts:440  i++
   addi s1, s1, 1
 .L3:
   li t0, 2
@@ -3136,7 +3157,7 @@ slotsIn:
   li a3, 267
   call slotArt
   ; engine/data.e16.ts:155  slName[0] = str('S1 BALANCE')
-  la t0, str_3
+  la t0, str_5
   sw t0, slName(zero)
   ; engine/data.e16.ts:156  slotTables(1, S2_MOVES_BANK, S2_MOVES_AT, S2_POSES_BANK)
   li a0, 1
@@ -3157,7 +3178,7 @@ slotsIn:
   li a3, 278
   call slotArt
   ; engine/data.e16.ts:159  slName[1] = str('S2 RUSH')
-  la t0, str_4
+  la t0, str_6
   sw t0, slName+2(zero)
   ; engine/data.e16.ts:160  slotTables(2, S3_MOVES_BANK, S3_MOVES_AT, S3_POSES_BANK)
   li a0, 2
@@ -3178,7 +3199,7 @@ slotsIn:
   li a3, 288
   call slotArt
   ; engine/data.e16.ts:163  slName[2] = str('S3 POWER')
-  la t0, str_5
+  la t0, str_7
   sw t0, slName+4(zero)
   ; engine/data.e16.ts:164  slotTables(3, S4_MOVES_BANK, S4_MOVES_AT, S4_POSES_BANK)
   li a0, 3
@@ -3199,7 +3220,7 @@ slotsIn:
   li a3, 300
   call slotArt
   ; engine/data.e16.ts:167  slName[3] = str('S4 OUTBOX')
-  la t0, str_6
+  la t0, str_8
   sw t0, slName+6(zero)
 .return:
   lw ra, 0(sp)
@@ -3260,84 +3281,76 @@ slotPlaces:
 .return:
   ret
 
-; engine/data.e16.ts:200 fighterLoad(i, s) at -O1
-;   i in s3
+; engine/data.e16.ts:203 fighterLoad(i, s) at -O1
+;   i in s2
 ;   s in s1
-;   old in s0
-;   k in s2
+;   old in s3
 fighterLoad:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
-  sw s3, 2(sp)
+  sw s2, 2(sp)
   sw s1, 4(sp)
-  sw s0, 6(sp)
-  sw s2, 8(sp)
-  mv s3, a0 ; i
+  sw s3, 6(sp)
+  mv s2, a0 ; i
   mv s1, a1 ; s
-  ; engine/data.e16.ts:201  copyIn(slMovesB[s], slMovesA[s], i * MOVES * MOVE_W, MOVES * MOVE_W)
+  ; engine/data.e16.ts:204  let old = bank(slMovesB[s])
   slli t0, s1, 1
-  lw t0, slMovesB(t0)
+  lw a0, slMovesB(t0)
+  call bank
+  mv s3, a0 ; old
+  ; engine/data.e16.ts:205  memcpy(addr(mv) + i * MOVES * MOVE_W * 2, slMovesA[s], MOVES * MOVE_W * 2)
+  li t0, 13
+  mul t0, s2, t0
+  slli t0, t0, 4
+  slli t0, t0, 1
   slli t1, s1, 1
   lw t1, slMovesA(t1)
-  li t2, 13
-  mul t2, s3, t2
-  slli t2, t2, 4
-  mv a0, t0
+  addi a0, t0, mv
   mv a1, t1
-  mv a2, t2
-  li a3, 208
-  call copyIn
-  ; engine/data.e16.ts:202  const old = bank(slProfB[s])
+  li a2, 416
+  mcpy a0, a1, a2
+  ; engine/data.e16.ts:206  poke16(IO_BANK, old)
+  li t0, 65284
+  sw s3, 0(t0)
+  ; engine/data.e16.ts:207  old = bank(slProfB[s])
   slli t0, s1, 1
   lw a0, slProfB(t0)
   call bank
-  mv s0, a0 ; old
-  ; engine/data.e16.ts:203  let k: u16 = 0
-  li s2, 0 ; k
-  ; engine/data.e16.ts:204  while (k < PROF_W) {
-  j .L3
-.L1:
-  ; engine/data.e16.ts:205  pr[i * PROF_W + k] = peek16(slProfA[s] + k * 2)
-  slli t0, s3, 4
-  add t0, t0, s2
+  mv s3, a0 ; old
+  ; engine/data.e16.ts:208  memcpy(addr(pr) + i * PROF_W * 2, slProfA[s], PROF_W * 2)
+  slli t0, s2, 4
   slli t0, t0, 1
   slli t1, s1, 1
   lw t1, slProfA(t1)
-  slli t2, s2, 1
-  add t1, t1, t2
-  lw t1, 0(t1)
-  sw t1, pr(t0)
-  ; engine/data.e16.ts:206  k++
-  addi s2, s2, 1
-.L3:
-  li t0, 16
-  bltu s2, t0, .L1
-  ; engine/data.e16.ts:208  poke16(IO_BANK, old)
+  addi a0, t0, pr
+  mv a1, t1
+  li a2, 32
+  mcpy a0, a1, a2
+  ; engine/data.e16.ts:209  poke16(IO_BANK, old)
   li t0, 65284
-  sw s0, 0(t0)
-  ; engine/data.e16.ts:209  boxPose[i] = 0xffff
-  slli t0, s3, 1
+  sw s3, 0(t0)
+  ; engine/data.e16.ts:210  boxPose[i] = 0xffff
+  slli t0, s2, 1
   li t1, 65535
   sw t1, boxPose(t0)
-  ; engine/data.e16.ts:210  reachLoad(i, s)
-  mv a0, s3
+  ; engine/data.e16.ts:211  reachLoad(i, s)
+  mv a0, s2
   mv a1, s1
   call reachLoad
 .return:
   lw ra, 0(sp)
-  lw s3, 2(sp)
+  lw s2, 2(sp)
   lw s1, 4(sp)
-  lw s0, 6(sp)
-  lw s2, 8(sp)
-  addi sp, sp, 10
+  lw s3, 6(sp)
+  addi sp, sp, 8
   ret
 
-; engine/data.e16.ts:217 reachLoad(i, s) at -O1
+; engine/data.e16.ts:218 reachLoad(i, s) at -O1
 ;   i in s2
 ;   s in s3
+;   old in 2(fp)
 ;   m in s1
-;   p in 2(fp)
-;   old in 4(fp)
+;   p in 4(fp)
 ;   from in 0(fp)
 reachLoad:
   addi sp, sp, -16
@@ -3349,27 +3362,27 @@ reachLoad:
   mv fp, sp
   mv s2, a0 ; i
   mv s3, a1 ; s
-  ; engine/data.e16.ts:218  let m: u16 = 0
+  ; engine/data.e16.ts:219  const old = bank(slPosesB[s])
+  slli t0, s3, 1
+  lw a0, slPosesB(t0)
+  call bank
+  sw a0, 2(fp) ; old
+  ; engine/data.e16.ts:220  let m: u16 = 0
   li s1, 0 ; m
-  ; engine/data.e16.ts:219  while (m < MOVES) {
+  ; engine/data.e16.ts:221  while (m < MOVES) {
   j .L3
 .L1:
-  ; engine/data.e16.ts:220  const p = mvAt(i, m, M_POSE) + 1
+  ; engine/data.e16.ts:222  const p = mvAt(i, m, M_POSE) + 1
   mv a0, s2
   mv a1, s1
   li a2, 14
   call mvAt
   addi t0, a0, 1
-  sw t0, 2(fp) ; p
-  ; engine/data.e16.ts:221  const old = bank(slPosesB[s])
-  slli t0, s3, 1
-  lw a0, slPosesB(t0)
-  call bank
-  sw a0, 4(fp) ; old
-  ; engine/data.e16.ts:222  const from = slPosesA[s] + (p * POSE_W + 16) * 2
+  sw t0, 4(fp) ; p
+  ; engine/data.e16.ts:223  const from = slPosesA[s] + (p * POSE_W + 16) * 2
   slli t0, s3, 1
   lw t0, slPosesA(t0)
-  lw t1, 2(fp) ; p
+  lw t1, 4(fp) ; p
   slli t2, t1, 4
   slli t1, t1, 3
   add t1, t1, t2
@@ -3377,7 +3390,7 @@ reachLoad:
   slli t1, t1, 1
   add t0, t0, t1
   sw t0, 0(fp) ; from
-  ; engine/data.e16.ts:223  reach[i * MOVES + m] = peek16(from) + peek16(from + 4)
+  ; engine/data.e16.ts:224  reach[i * MOVES + m] = peek16(from) + peek16(from + 4)
   li t0, 13
   mul t0, s2, t0
   add t0, t0, s1
@@ -3388,68 +3401,13 @@ reachLoad:
   lw t2, 4(t2)
   add t1, t1, t2
   sw t1, reach(t0)
-  ; engine/data.e16.ts:224  poke16(IO_BANK, old)
-  lw t0, 4(fp) ; old
-  li t1, 65284
-  sw t0, 0(t1)
   ; engine/data.e16.ts:225  m++
   addi s1, s1, 1
 .L3:
   li t0, 13
   bltu s1, t0, .L1
-.return:
-  mv sp, fp
-  lw ra, 6(sp)
-  lw s2, 8(sp)
-  lw s3, 10(sp)
-  lw s1, 12(sp)
-  lw s0, 14(sp)
-  addi sp, sp, 16
-  ret
-
-; engine/data.e16.ts:229 copyIn(b, at, to, n) at -O1
-;   b in s2
-;   at in s3
-;   to in 0(fp)
-;   n in 2(fp)
-;   old in 4(fp)
-;   k in s1
-copyIn:
-  addi sp, sp, -16
-  sw ra, 6(sp)
-  sw s2, 8(sp)
-  sw s3, 10(sp)
-  sw s1, 12(sp)
-  sw s0, 14(sp)
-  mv fp, sp
-  mv s2, a0 ; b
-  mv s3, a1 ; at
-  sw a2, 0(fp) ; to
-  sw a3, 2(fp) ; n
-  ; engine/data.e16.ts:230  const old = bank(b)
-  mv a0, s2
-  call bank
-  sw a0, 4(fp) ; old
-  ; engine/data.e16.ts:231  let k: u16 = 0
-  li s1, 0 ; k
-  ; engine/data.e16.ts:232  while (k < n) {
-  j .L3
-.L1:
-  ; engine/data.e16.ts:233  mv[to + k] = peek16(at + k * 2)
-  lw t0, 0(fp) ; to
-  add t0, t0, s1
-  slli t0, t0, 1
-  slli t1, s1, 1
-  add t1, s3, t1
-  lw t1, 0(t1)
-  sw t1, mv(t0)
-  ; engine/data.e16.ts:234  k++
-  addi s1, s1, 1
-.L3:
-  lw t0, 2(fp) ; n
-  bltu s1, t0, .L1
-  ; engine/data.e16.ts:236  poke16(IO_BANK, old)
-  lw t0, 4(fp) ; old
+  ; engine/data.e16.ts:227  poke16(IO_BANK, old)
+  lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
 .return:
@@ -3462,7 +3420,7 @@ copyIn:
   addi sp, sp, 16
   ret
 
-; engine/data.e16.ts:240 poseLoad(i, s, p) at -O1
+; engine/data.e16.ts:231 poseLoad(i, s, p) at -O1
 ;   i in s1
 ;   s in 0(fp)
 ;   p in s3
@@ -3480,23 +3438,23 @@ poseLoad:
   mv s1, a0 ; i
   sw a1, 0(fp) ; s
   mv s3, a2 ; p
-  ; engine/data.e16.ts:241  if (boxPose[i] === p) return
+  ; engine/data.e16.ts:232  if (boxPose[i] === p) return
   slli t0, s1, 1
   lw t0, boxPose(t0)
   bne t0, s3, .L1
-  ; engine/data.e16.ts:241  return
+  ; engine/data.e16.ts:232  return
   j .return
 .L1:
-  ; engine/data.e16.ts:242  boxPose[i] = p
+  ; engine/data.e16.ts:233  boxPose[i] = p
   slli t0, s1, 1
   sw s3, boxPose(t0)
-  ; engine/data.e16.ts:243  const old = bank(slPosesB[s])
+  ; engine/data.e16.ts:234  const old = bank(slPosesB[s])
   lw t0, 0(fp) ; s
   slli t0, t0, 1
   lw a0, slPosesB(t0)
   call bank
   sw a0, 2(fp) ; old
-  ; engine/data.e16.ts:244  const from = slPosesA[s] + p * POSE_W * 2
+  ; engine/data.e16.ts:235  const from = slPosesA[s] + p * POSE_W * 2
   lw t0, 0(fp) ; s
   slli t0, t0, 1
   lw t0, slPosesA(t0)
@@ -3506,12 +3464,12 @@ poseLoad:
   slli t1, t1, 1
   add t0, t0, t1
   sw t0, 4(fp) ; from
-  ; engine/data.e16.ts:245  let k: u16 = 0
+  ; engine/data.e16.ts:236  let k: u16 = 0
   li s2, 0 ; k
-  ; engine/data.e16.ts:246  while (k < POSE_W) {
+  ; engine/data.e16.ts:237  while (k < POSE_W) {
   j .L4
 .L2:
-  ; engine/data.e16.ts:247  bx[i * POSE_W + k] = peek16(from + k * 2)
+  ; engine/data.e16.ts:238  bx[i * POSE_W + k] = peek16(from + k * 2)
   slli t1, s1, 4
   slli t0, s1, 3
   add t0, t0, t1
@@ -3522,20 +3480,20 @@ poseLoad:
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, bx(t0)
-  ; engine/data.e16.ts:248  k++
+  ; engine/data.e16.ts:239  k++
   addi s2, s2, 1
 .L4:
   li t0, 24
   bltu s2, t0, .L2
-  ; engine/data.e16.ts:250  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:241  poke16(IO_BANK, old)
   lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
-  ; engine/data.e16.ts:251  if (artHold[i] === 0) artCopy(i, s, p)
+  ; engine/data.e16.ts:242  if (artHold[i] === 0) artCopy(i, s, p)
   slli t0, s1, 1
   lw t0, artHold(t0)
   bne t0, zero, .L6
-  ; engine/data.e16.ts:251  artCopy(i, s, p)
+  ; engine/data.e16.ts:242  artCopy(i, s, p)
   mv a0, s1
   lw a1, 0(fp)
   mv a2, s3
@@ -3551,56 +3509,73 @@ poseLoad:
   addi sp, sp, 16
   ret
 
-; engine/data.e16.ts:255 poseWord(s, p, w) at -O1
+; engine/data.e16.ts:249 poseBoxes(s, p, hit, to) at -O1
 ;   s in s1
-;   p in s2
-;   w in s3
-;   old in 0(fp)
-;   v in 2(fp)
-poseWord:
+;   p in s3
+;   hit in s2
+;   to in 0(fp)
+;   old in 2(fp)
+poseBoxes:
   addi sp, sp, -14
   sw ra, 4(sp)
   sw s1, 6(sp)
-  sw s2, 8(sp)
-  sw s3, 10(sp)
+  sw s3, 8(sp)
+  sw s2, 10(sp)
   sw s0, 12(sp)
   mv fp, sp
   mv s1, a0 ; s
-  mv s2, a1 ; p
-  mv s3, a2 ; w
-  ; engine/data.e16.ts:256  const old = bank(slPosesB[s])
+  mv s3, a1 ; p
+  mv s2, a2 ; hit
+  sw a3, 0(fp) ; to
+  ; engine/data.e16.ts:250  const old = bank(slPosesB[s])
   slli t0, s1, 1
   lw a0, slPosesB(t0)
   call bank
-  sw a0, 0(fp) ; old
-  ; engine/data.e16.ts:257  const v = peek16(slPosesA[s] + (p * POSE_W + w) * 2)
+  sw a0, 2(fp) ; old
+  ; engine/data.e16.ts:251  memcpy(to, slPosesA[s] + (p * POSE_W + (hit ? 16 : 4)) * 2, hit ? 16 : 24)
   slli t0, s1, 1
   lw t0, slPosesA(t0)
-  slli t2, s2, 4
-  slli t1, s2, 3
+  slli t2, s3, 4
+  slli t1, s3, 3
+  add t2, t1, t2
+  mv t1, t0
+  lw t0, 0(fp)
+  mv t3, s2
+  beqz t3, .L1
+  li t3, 16
+  j .L2
+.L1:
+  li t3, 4
+.L2:
+  add t2, t2, t3
+  slli t2, t2, 1
   add t1, t1, t2
-  add t1, t1, s3
-  slli t1, t1, 1
-  add t0, t0, t1
-  lw t0, 0(t0)
-  sw t0, 2(fp) ; v
-  ; engine/data.e16.ts:258  poke16(IO_BANK, old)
-  lw t0, 0(fp) ; old
+  mv t2, s2
+  beqz t2, .L3
+  li t2, 16
+  j .L4
+.L3:
+  li t2, 24
+.L4:
+  mv a0, t0
+  mv a1, t1
+  mv a2, t2
+  mcpy a0, a1, a2
+  ; engine/data.e16.ts:252  poke16(IO_BANK, old)
+  lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
-  ; engine/data.e16.ts:259  return v
-  lw a0, 2(fp)
 .return:
   mv sp, fp
   lw ra, 4(sp)
   lw s1, 6(sp)
-  lw s2, 8(sp)
-  lw s3, 10(sp)
+  lw s3, 8(sp)
+  lw s2, 10(sp)
   lw s0, 12(sp)
   addi sp, sp, 14
   ret
 
-; engine/data.e16.ts:282 artCopy(i, s, row) at -O1
+; engine/data.e16.ts:273 artCopy(i, s, row) at -O1
 ;   i in s3
 ;   s in s2
 ;   row in 0(fp)
@@ -3618,12 +3593,12 @@ artCopy:
   mv s3, a0 ; i
   mv s2, a1 ; s
   sw a2, 0(fp) ; row
-  ; engine/data.e16.ts:283  const old = bank(slArtB[s])
+  ; engine/data.e16.ts:274  const old = bank(slArtB[s])
   slli t0, s2, 1
   lw a0, slArtB(t0)
   call bank
   sw a0, 2(fp) ; old
-  ; engine/data.e16.ts:284  const from = slArtA[s] + row * ART_W * 2
+  ; engine/data.e16.ts:275  const from = slArtA[s] + row * ART_W * 2
   slli t0, s2, 1
   lw t0, slArtA(t0)
   lw t1, 0(fp) ; row
@@ -3633,12 +3608,12 @@ artCopy:
   slli t1, t1, 1
   add t0, t0, t1
   sw t0, 4(fp) ; from
-  ; engine/data.e16.ts:285  let k: u16 = 0
+  ; engine/data.e16.ts:276  let k: u16 = 0
   li s1, 0 ; k
-  ; engine/data.e16.ts:286  while (k < ART_W) {
+  ; engine/data.e16.ts:277  while (k < ART_W) {
   j .L3
 .L1:
-  ; engine/data.e16.ts:287  art[i * ART_W + k] = peek16(from + k * 2)
+  ; engine/data.e16.ts:278  art[i * ART_W + k] = peek16(from + k * 2)
   slli t1, s3, 5
   slli t0, s3, 1
   add t0, t0, t1
@@ -3649,16 +3624,16 @@ artCopy:
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, art(t0)
-  ; engine/data.e16.ts:288  k++
+  ; engine/data.e16.ts:279  k++
   addi s1, s1, 1
 .L3:
   li t0, 34
   bltu s1, t0, .L1
-  ; engine/data.e16.ts:290  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:281  poke16(IO_BANK, old)
   lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
-  ; engine/data.e16.ts:291  artWant[i] = s + 1
+  ; engine/data.e16.ts:282  artWant[i] = s + 1
   slli t0, s3, 1
   addi t1, s2, 1
   sw t1, artWant(t0)
@@ -3672,7 +3647,7 @@ artCopy:
   addi sp, sp, 16
   ret
 
-; engine/data.e16.ts:299 artStream() at -O1
+; engine/data.e16.ts:290 artStream() at -O1
 ;   i in s1
 ;   f in s2
 ;   b in s3
@@ -3682,22 +3657,22 @@ artStream:
   sw s1, 2(sp)
   sw s2, 4(sp)
   sw s3, 6(sp)
-  ; engine/data.e16.ts:300  let i: u16 = 0
+  ; engine/data.e16.ts:291  let i: u16 = 0
   li s1, 0 ; i
-  ; engine/data.e16.ts:301  while (i < 2) {
+  ; engine/data.e16.ts:292  while (i < 2) {
   j .L3
 .L1:
-  ; engine/data.e16.ts:302  if (artWant[i] !== 0) {
+  ; engine/data.e16.ts:293  if (artWant[i] !== 0) {
   slli t0, s1, 1
   lw t0, artWant(t0)
   beq t0, zero, .L5
-  ; engine/data.e16.ts:303  const f = art[i * ART_W]
+  ; engine/data.e16.ts:294  const f = art[i * ART_W]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
   slli t0, t0, 1
   lw s2, art(t0)
-  ; engine/data.e16.ts:304  const b = slCellsB[artWant[i] - 1] + (f >> 6)
+  ; engine/data.e16.ts:295  const b = slCellsB[artWant[i] - 1] + (f >> 6)
   slli t0, s1, 1
   lw t0, artWant(t0)
   addi t0, t0, -1
@@ -3705,7 +3680,7 @@ artStream:
   lw t0, slCellsB(t0)
   srli t1, s2, 6
   add s3, t0, t1
-  ; engine/data.e16.ts:305  load(b, 0xc000 + ((f & 63) << 7), (S1_TILE + i * 128) * 32, art[i * ART_W + 1] * 128)
+  ; engine/data.e16.ts:296  load(b, 0xc000 + ((f & 63) << 7), (S1_TILE + i * 128) * 32, art[i * ART_W + 1] * 128)
   andi t0, s2, 63
   slli t0, t0, 7
   li t1, 49152
@@ -3725,11 +3700,11 @@ artStream:
   mv a2, t0
   mv a3, t2
   call load
-  ; engine/data.e16.ts:306  artWant[i] = 0
+  ; engine/data.e16.ts:297  artWant[i] = 0
   slli t0, s1, 1
   sw zero, artWant(t0)
 .L5:
-  ; engine/data.e16.ts:308  i++
+  ; engine/data.e16.ts:299  i++
   addi s1, s1, 1
 .L3:
   li t0, 2
@@ -3742,7 +3717,7 @@ artStream:
   addi sp, sp, 8
   ret
 
-; engine/data.e16.ts:317 artPut(s, row, to, tile) at -O1
+; engine/data.e16.ts:308 artPut(s, row, to, tile) at -O1
 ;   s in s1
 ;   row in 0(fp)
 ;   to in s2
@@ -3761,12 +3736,12 @@ artPut:
   sw a1, 0(fp) ; row
   mv s2, a2 ; to
   sw a3, 2(fp) ; tile
-  ; engine/data.e16.ts:318  const old = bank(slArtB[s])
+  ; engine/data.e16.ts:309  const old = bank(slArtB[s])
   slli t0, s1, 1
   lw a0, slArtB(t0)
   call bank
   sw a0, 4(fp) ; old
-  ; engine/data.e16.ts:319  memcpy(to, slArtA[s] + row * ART_W * 2, ART_W * 2)
+  ; engine/data.e16.ts:310  memcpy(to, slArtA[s] + row * ART_W * 2, ART_W * 2)
   slli t0, s1, 1
   lw t0, slArtA(t0)
   lw t1, 0(fp) ; row
@@ -3779,13 +3754,13 @@ artPut:
   mv a1, t0
   li a2, 68
   mcpy a0, a1, a2
-  ; engine/data.e16.ts:320  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:311  poke16(IO_BANK, old)
   lw t0, 4(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
-  ; engine/data.e16.ts:321  const f = peek16(to)
+  ; engine/data.e16.ts:312  const f = peek16(to)
   lw s3, 0(s2)
-  ; engine/data.e16.ts:322  load(slCellsB[s] + (f >> 6), 0xc000 + ((f & 63) << 7), tile * 32, peek16(to + 2) * 128)
+  ; engine/data.e16.ts:313  load(slCellsB[s] + (f >> 6), 0xc000 + ((f & 63) << 7), tile * 32, peek16(to + 2) * 128)
   slli t0, s1, 1
   lw t0, slCellsB(t0)
   srli t1, s3, 6
@@ -3813,7 +3788,7 @@ artPut:
   addi sp, sp, 16
   ret
 
-; engine/data.e16.ts:326 tableWord(b, at, k) at -O1
+; engine/data.e16.ts:317 tableWord(b, at, k) at -O1
 ;   b in s1
 ;   at in s2
 ;   k in s3
@@ -3830,20 +3805,20 @@ tableWord:
   mv s1, a0 ; b
   mv s2, a1 ; at
   mv s3, a2 ; k
-  ; engine/data.e16.ts:327  const old = bank(b)
+  ; engine/data.e16.ts:318  const old = bank(b)
   mv a0, s1
   call bank
   sw a0, 0(fp) ; old
-  ; engine/data.e16.ts:328  const v = peek16(at + k * 2)
+  ; engine/data.e16.ts:319  const v = peek16(at + k * 2)
   slli t0, s3, 1
   add t0, s2, t0
   lw t0, 0(t0)
   sw t0, 2(fp) ; v
-  ; engine/data.e16.ts:329  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:320  poke16(IO_BANK, old)
   lw t0, 0(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
-  ; engine/data.e16.ts:330  return v
+  ; engine/data.e16.ts:321  return v
   lw a0, 2(fp)
 .return:
   mv sp, fp
@@ -3855,12 +3830,12 @@ tableWord:
   addi sp, sp, 14
   ret
 
-; engine/data.e16.ts:334 mvAt(i, m, c) at -O1
+; engine/data.e16.ts:325 mvAt(i, m, c) at -O1
 ;   i in a0
 ;   m in a1
 ;   c in a2
 mvAt:
-  ; engine/data.e16.ts:335  return mv[(i * MOVES + m) * MOVE_W + c]
+  ; engine/data.e16.ts:326  return mv[(i * MOVES + m) * MOVE_W + c]
   li t0, 13
   mul t0, a0, t0
   add t0, t0, a1
@@ -3871,11 +3846,11 @@ mvAt:
 .return:
   ret
 
-; engine/data.e16.ts:339 prAt(i, c) at -O1
+; engine/data.e16.ts:330 prAt(i, c) at -O1
 ;   i in a0
 ;   c in a1
 prAt:
-  ; engine/data.e16.ts:340  return pr[i * PROF_W + c]
+  ; engine/data.e16.ts:331  return pr[i * PROF_W + c]
   slli t0, a0, 4
   add t0, t0, a1
   slli t0, t0, 1
@@ -3883,7 +3858,7 @@ prAt:
 .return:
   ret
 
-; engine/data.e16.ts:356 stagesIn() at -O1
+; engine/data.e16.ts:347 stagesIn() at -O1
 ;   stagePictures.k in a0
 ;   stagePictures.tile in a2
 ;   stagePictures.b in a3
@@ -3898,38 +3873,38 @@ stagesIn:
   sw s2, 2(sp)
   sw s3, 4(sp)
   sw s0, 6(sp)
-  ; engine/data.e16.ts:357  stagePictures(0, GRID_TILE, GRID_TILES_BANK, GRID_TILES_AT)
+  ; engine/data.e16.ts:348  stagePictures(0, GRID_TILE, GRID_TILES_BANK, GRID_TILES_AT)
   li s1, 53248 ; stagePictures.at
   li a3, 314 ; stagePictures.b
   li a2, 771 ; stagePictures.tile
   li a0, 0 ; stagePictures.k
-  ; engine/data.e16.ts:364  stTile[k] = tile
+  ; engine/data.e16.ts:355  stTile[k] = tile
   slli t0, a0, 1
   sw a2, stTile(t0)
-  ; engine/data.e16.ts:365  stTilesB[k] = b
+  ; engine/data.e16.ts:356  stTilesB[k] = b
   slli t0, a0, 1
   sw a3, stTilesB(t0)
-  ; engine/data.e16.ts:366  stTilesA[k] = at
+  ; engine/data.e16.ts:357  stTilesA[k] = at
   slli t0, a0, 1
   sw s1, stTilesA(t0)
-  ; engine/data.e16.ts:358  stagePlaces(0, GRID_TILES_BYTES, GRID_MAP_BANK, GRID_H)
+  ; engine/data.e16.ts:349  stagePlaces(0, GRID_TILES_BYTES, GRID_MAP_BANK, GRID_H)
   li s0, 36 ; stagePlaces.rows
   li s3, 315 ; stagePlaces.mapB
   li s2, 3232 ; stagePlaces.n
   li a1, 0 ; stagePlaces.k
-  ; engine/data.e16.ts:370  stTilesN[k] = n
+  ; engine/data.e16.ts:361  stTilesN[k] = n
   slli t0, a1, 1
   sw s2, stTilesN(t0)
-  ; engine/data.e16.ts:371  stMapB[k] = mapB
+  ; engine/data.e16.ts:362  stMapB[k] = mapB
   slli t0, a1, 1
   sw s3, stMapB(t0)
-  ; engine/data.e16.ts:372  stRows[k] = rows
+  ; engine/data.e16.ts:363  stRows[k] = rows
   slli t0, a1, 1
   sw s0, stRows(t0)
-  ; engine/data.e16.ts:359  stDataB[0] = STAGE_GRID_BANK
+  ; engine/data.e16.ts:350  stDataB[0] = STAGE_GRID_BANK
   li t0, 322
   sw t0, stDataB(zero)
-  ; engine/data.e16.ts:360  stDataA[0] = STAGE_GRID_AT
+  ; engine/data.e16.ts:351  stDataA[0] = STAGE_GRID_AT
   li t0, 53468
   sw t0, stDataA(zero)
 .return:
@@ -3940,59 +3915,49 @@ stagesIn:
   addi sp, sp, 8
   ret
 
-; engine/data.e16.ts:410 stageLoad(k) at -O1
+; engine/data.e16.ts:403 stageLoad(k) at -O1
 ;   k in s1
-;   old in s0
-;   w in s2
-;   y in s3
+;   old in s3
+;   y in s2
 stageLoad:
-  addi sp, sp, -10
+  addi sp, sp, -8
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s0, 4(sp)
+  sw s3, 4(sp)
   sw s2, 6(sp)
-  sw s3, 8(sp)
   mv s1, a0 ; k
-  ; engine/data.e16.ts:411  stageNow = k
+  ; engine/data.e16.ts:404  stageNow = k
   sw s1, 0x153a(zero)
-  ; engine/data.e16.ts:412  raster(0)
+  ; engine/data.e16.ts:405  raster(0)
   li a0, 0
   call raster
-  ; engine/data.e16.ts:413  const old = bank(stDataB[k])
+  ; engine/data.e16.ts:406  const old = bank(stDataB[k])
   slli t0, s1, 1
   lw a0, stDataB(t0)
   call bank
-  mv s0, a0 ; old
-  ; engine/data.e16.ts:414  let w: u16 = 0
-  li s2, 0 ; w
-  ; engine/data.e16.ts:415  while (w < S_WORDS) {
-  j .L3
-.L1:
-  ; engine/data.e16.ts:416  stageWords[w] = peek16(stDataA[k] + w * 2)
-  slli t0, s2, 1
-  slli t1, s1, 1
-  lw t1, stDataA(t1)
-  slli t2, s2, 1
-  add t1, t1, t2
-  lw t1, 0(t1)
-  sw t1, stageWords(t0)
-  ; engine/data.e16.ts:417  w++
-  addi s2, s2, 1
-.L3:
-  li t0, 163
-  bltu s2, t0, .L1
-  ; engine/data.e16.ts:419  poke16(IO_BANK, old)
+  mv s3, a0 ; old
+  ; engine/data.e16.ts:407  memcpy(addr(stageWords), stDataA[k], S_WORDS * 2)
+  slli t0, s1, 1
+  lw t0, stDataA(t0)
+  la a0, stageWords
+  mv a1, t0
+  li a2, 326
+  mcpy a0, a1, a2
+  ; engine/data.e16.ts:408  poke16(IO_BANK, old)
   li t0, 65284
-  sw s0, 0(t0)
-  ; engine/data.e16.ts:420  palette(stageWords[S_PALETTE], 0)
+  sw s3, 0(t0)
+  ; engine/data.e16.ts:409  groundY = stageWords[S_GROUND]
+  lw t0, stageWords+6(zero)
+  sw t0, 0x153c(zero)
+  ; engine/data.e16.ts:410  palette(stageWords[S_PALETTE], 0)
   lw a0, stageWords(zero)
   li a1, 0
   call palette
-  ; engine/data.e16.ts:421  palKeep(stageWords[S_PALETTE], 0)
+  ; engine/data.e16.ts:411  palKeep(stageWords[S_PALETTE], 0)
   lw a0, stageWords(zero)
   li a1, 0
   call palKeep
-  ; engine/data.e16.ts:422  load(stTilesB[k], stTilesA[k], stTile[k] * 32, stTilesN[k])
+  ; engine/data.e16.ts:412  load(stTilesB[k], stTilesA[k], stTile[k] * 32, stTilesN[k])
   slli t0, s1, 1
   lw t0, stTilesB(t0)
   slli t1, s1, 1
@@ -4007,51 +3972,50 @@ stageLoad:
   mv a2, t2
   mv a3, t3
   call load
-  ; engine/data.e16.ts:423  let y: u16 = 0
-  li s3, 0 ; y
-  ; engine/data.e16.ts:424  while (y < stRows[k]) {
-  j .L7
-.L5:
-  ; engine/data.e16.ts:425  mapRow(stMapB[k], 0xc000 + y * 128, 0, y)
+  ; engine/data.e16.ts:413  let y: u16 = 0
+  li s2, 0 ; y
+  ; engine/data.e16.ts:414  while (y < stRows[k]) {
+  j .L3
+.L1:
+  ; engine/data.e16.ts:415  mapRow(stMapB[k], 0xc000 + y * 128, 0, y)
   slli t0, s1, 1
   lw t0, stMapB(t0)
-  slli t1, s3, 7
+  slli t1, s2, 7
   li t2, 49152
   add t2, t2, t1
   mv a0, t0
   mv a1, t2
   li a2, 0
-  mv a3, s3
+  mv a3, s2
   call mapRow
-  ; engine/data.e16.ts:426  y++
-  addi s3, s3, 1
-.L7:
+  ; engine/data.e16.ts:416  y++
+  addi s2, s2, 1
+.L3:
   slli t0, s1, 1
   lw t0, stRows(t0)
-  bltu s3, t0, .L5
-  ; engine/data.e16.ts:429  scrollCam = 0xffff
+  bltu s2, t0, .L1
+  ; engine/data.e16.ts:419  scrollCam = 0xffff
   li t0, 65535
-  sw t0, 0x1766(zero)
-  ; engine/data.e16.ts:430  poke16(BG0X, stageScroll(stageWords[S_CENTER]))
+  sw t0, 0x1768(zero)
+  ; engine/data.e16.ts:420  poke16(BG0X, stageScroll(stageWords[S_CENTER]))
   lw a0, stageWords+10(zero)
   call stageScroll
   li t0, 63520
   sw a0, 0(t0)
-  ; engine/data.e16.ts:431  stageShow()
+  ; engine/data.e16.ts:421  stageShow()
   call stageShow
-  ; engine/data.e16.ts:432  raster(stageWords[S_RASTER])
+  ; engine/data.e16.ts:422  raster(stageWords[S_RASTER])
   lw a0, stageWords+8(zero)
   call raster
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s0, 4(sp)
+  lw s3, 4(sp)
   lw s2, 6(sp)
-  lw s3, 8(sp)
-  addi sp, sp, 10
+  addi sp, sp, 8
   ret
 
-; engine/data.e16.ts:440 stageScroll(cam) at -O1
+; engine/data.e16.ts:430 stageScroll(cam) at -O1
 ;   cam in s2
 ;   c in s3
 ;   d in 0(fp)
@@ -4067,35 +4031,35 @@ stageScroll:
   sw s0, 14(sp)
   mv fp, sp
   mv s2, a0 ; cam
-  ; engine/data.e16.ts:441  if (cam === scrollCam) return scrollTop
-  lw t0, 0x1766(zero)
+  ; engine/data.e16.ts:431  if (cam === scrollCam) return scrollTop
+  lw t0, 0x1768(zero)
   bne s2, t0, .L1
-  ; engine/data.e16.ts:441  return scrollTop
-  lw a0, 0x176a(zero)
+  ; engine/data.e16.ts:431  return scrollTop
+  lw a0, 0x176c(zero)
   j .return
 .L1:
-  ; engine/data.e16.ts:442  scrollCam = cam
-  sw s2, 0x1766(zero)
-  ; engine/data.e16.ts:443  const c = stageWords[S_CENTER]
+  ; engine/data.e16.ts:432  scrollCam = cam
+  sw s2, 0x1768(zero)
+  ; engine/data.e16.ts:433  const c = stageWords[S_CENTER]
   lw s3, stageWords+10(zero)
-  ; engine/data.e16.ts:444  if (stageWords[S_RASTER] === 0) {
+  ; engine/data.e16.ts:434  if (stageWords[S_RASTER] === 0) {
   lw t0, stageWords+8(zero)
   bne t0, zero, .L2
-  ; engine/data.e16.ts:445  scrollTop = cam
-  sw s2, 0x176a(zero)
-  ; engine/data.e16.ts:446  return cam
+  ; engine/data.e16.ts:435  scrollTop = cam
+  sw s2, 0x176c(zero)
+  ; engine/data.e16.ts:436  return cam
   mv a0, s2
   j .return
 .L2:
-  ; engine/data.e16.ts:448  const d = i16(cam - c)
+  ; engine/data.e16.ts:438  const d = i16(cam - c)
   sub t0, s2, s3
   sw t0, 0(fp) ; d
-  ; engine/data.e16.ts:449  let k: u16 = 0
+  ; engine/data.e16.ts:439  let k: u16 = 0
   li s1, 0 ; k
-  ; engine/data.e16.ts:450  while (k < 36) {
+  ; engine/data.e16.ts:440  while (k < 36) {
   j .L5
 .L3:
-  ; engine/data.e16.ts:451  bandNext[k] = (c + u16(mulShift(d, i16(stageWords[S_BANDS + k]), 4))) & 511
+  ; engine/data.e16.ts:441  bandNext[k] = (c + u16(mulShift(d, i16(stageWords[S_BANDS + k]), 4))) & 511
   slli t0, s1, 1
   addi t1, s1, 7
   slli t1, t1, 1
@@ -4105,23 +4069,23 @@ stageScroll:
   add t2, s3, t2
   andi t2, t2, 511
   sw t2, bandNext(t0)
-  ; engine/data.e16.ts:452  k++
+  ; engine/data.e16.ts:442  k++
   addi s1, s1, 1
 .L5:
   li t0, 36
   bltu s1, t0, .L3
-  ; engine/data.e16.ts:454  const n = stageLines()
+  ; engine/data.e16.ts:444  const n = stageLines()
   call stageLines
   sw a0, 2(fp) ; n
-  ; engine/data.e16.ts:455  const t = lineBack
-  lw t0, 0x1764(zero)
+  ; engine/data.e16.ts:445  const t = lineBack
+  lw t0, 0x1766(zero)
   sw t0, 4(fp) ; t
-  ; engine/data.e16.ts:456  k = 0
+  ; engine/data.e16.ts:446  k = 0
   li s1, 0 ; k
-  ; engine/data.e16.ts:457  while (k < n) {
+  ; engine/data.e16.ts:447  while (k < n) {
   j .L9
 .L7:
-  ; engine/data.e16.ts:458  lineTab[t + k] = (c + u16(mulShift(d, i16(stageWords[S_LINES + k]), 8))) & 511
+  ; engine/data.e16.ts:448  lineTab[t + k] = (c + u16(mulShift(d, i16(stageWords[S_LINES + k]), 8))) & 511
   lw t0, 4(fp) ; t
   add t0, t0, s1
   slli t0, t0, 1
@@ -4133,18 +4097,18 @@ stageScroll:
   add t2, s3, t2
   andi t2, t2, 511
   sw t2, lineTab(t0)
-  ; engine/data.e16.ts:459  k++
+  ; engine/data.e16.ts:449  k++
   addi s1, s1, 1
 .L9:
   lw t0, 2(fp) ; n
   bltu s1, t0, .L7
-  ; engine/data.e16.ts:461  scrollMade = true
+  ; engine/data.e16.ts:451  scrollMade = true
   li t0, 1
-  sw t0, 0x1768(zero)
-  ; engine/data.e16.ts:462  scrollTop = bandNext[0]
-  lw t0, bandNext(zero)
   sw t0, 0x176a(zero)
-  ; engine/data.e16.ts:463  return scrollTop
+  ; engine/data.e16.ts:452  scrollTop = bandNext[0]
+  lw t0, bandNext(zero)
+  sw t0, 0x176c(zero)
+  ; engine/data.e16.ts:453  return scrollTop
   mv a0, t0
 .return:
   mv sp, fp
@@ -4156,17 +4120,17 @@ stageScroll:
   addi sp, sp, 16
   ret
 
-; engine/data.e16.ts:467 stageLines() at -O1
+; engine/data.e16.ts:457 stageLines() at -O1
 stageLines:
-  ; engine/data.e16.ts:468  if (stageWords[S_RASTER] !== 2) return 0
+  ; engine/data.e16.ts:458  if (stageWords[S_RASTER] !== 2) return 0
   lw t0, stageWords+8(zero)
   li t1, 2
   beq t0, t1, .L1
-  ; engine/data.e16.ts:468  return 0
+  ; engine/data.e16.ts:458  return 0
   li a0, 0
   ret
 .L1:
-  ; engine/data.e16.ts:469  return stageWords[S_LAST] + 1 - stageWords[S_HORIZON]
+  ; engine/data.e16.ts:459  return stageWords[S_LAST] + 1 - stageWords[S_HORIZON]
   lw t0, stageWords+12(zero)
   lw t1, stageWords+4(zero)
   addi t0, t0, 1
@@ -4174,32 +4138,32 @@ stageLines:
 .return:
   ret
 
-; engine/data.e16.ts:473 stageShow() at -O1
+; engine/data.e16.ts:463 stageShow() at -O1
 stageShow:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/data.e16.ts:474  if (!scrollMade) return
-  lw t0, 0x1768(zero)
+  ; engine/data.e16.ts:464  if (!scrollMade) return
+  lw t0, 0x176a(zero)
   bnez t0, .L1
-  ; engine/data.e16.ts:474  return
+  ; engine/data.e16.ts:464  return
   j .return
 .L1:
-  ; engine/data.e16.ts:475  scrollMade = false
-  sw zero, 0x1768(zero)
-  ; engine/data.e16.ts:476  memcpy(RASTER, addr(bandNext), 72)
+  ; engine/data.e16.ts:465  scrollMade = false
+  sw zero, 0x176a(zero)
+  ; engine/data.e16.ts:466  memcpy(RASTER, addr(bandNext), 72)
   li a0, 528
   la a1, bandNext
   li a2, 72
   mcpy a0, a1, a2
-  ; engine/data.e16.ts:477  if (stageWords[S_RASTER] !== 2) return
+  ; engine/data.e16.ts:467  if (stageWords[S_RASTER] !== 2) return
   lw t0, stageWords+8(zero)
   li t1, 2
   beq t0, t1, .L2
-  ; engine/data.e16.ts:477  return
+  ; engine/data.e16.ts:467  return
   j .return
 .L2:
-  ; engine/data.e16.ts:478  raster_lines(addr(lineTab) + lineBack * 2, stageWords[S_HORIZON], stageWords[S_LAST])
-  lw t0, 0x1764(zero)
+  ; engine/data.e16.ts:468  raster_lines(addr(lineTab) + lineBack * 2, stageWords[S_HORIZON], stageWords[S_LAST])
+  lw t0, 0x1766(zero)
   slli t0, t0, 1
   lw t1, stageWords+4(zero)
   lw t2, stageWords+12(zero)
@@ -4207,38 +4171,38 @@ stageShow:
   mv a1, t1
   mv a2, t2
   call raster_lines
-  ; engine/data.e16.ts:479  lineBack = LINES_MAX - lineBack
-  lw t0, 0x1764(zero)
+  ; engine/data.e16.ts:469  lineBack = LINES_MAX - lineBack
+  lw t0, 0x1766(zero)
   li t1, 120
   sub t1, t1, t0
-  sw t1, 0x1764(zero)
+  sw t1, 0x1766(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; engine/data.e16.ts:483 stageMusic() at -O1
+; engine/data.e16.ts:473 stageMusic() at -O1
 stageMusic:
-  ; engine/data.e16.ts:484  return stageWords[S_MUSIC]
+  ; engine/data.e16.ts:474  return stageWords[S_MUSIC]
   lw a0, stageWords+2(zero)
 .return:
   ret
 
-; engine/data.e16.ts:488 stageClearTile() at -O1
+; engine/data.e16.ts:478 stageClearTile() at -O1
 stageClearTile:
-  ; engine/data.e16.ts:489  return stTile[0]
+  ; engine/data.e16.ts:479  return stTile[0]
   lw a0, stTile(zero)
 .return:
   ret
 
-; engine/data.e16.ts:538 oppLoad(i, k, pos) at -O1
+; engine/data.e16.ts:527 oppLoad(i, k, pos) at -O1
 ;   i in s2
 ;   k in 4(fp)
-;   pos in 0(fp)
+;   pos in 2(fp)
 ;   old in 6(fp)
 ;   c in s1
-;   least/read in s3
-;   r in 2(fp)
+;   least/r in s3
+;   r/read in 0(fp)
 oppLoad:
   addi sp, sp, -18
   sw ra, 8(sp)
@@ -4249,17 +4213,17 @@ oppLoad:
   mv fp, sp
   mv s2, a0 ; i
   sw a1, 4(fp) ; k
-  sw a2, 0(fp) ; pos
-  ; engine/data.e16.ts:539  const old = bank(OPPONENTS_BANK)
+  sw a2, 2(fp) ; pos
+  ; engine/data.e16.ts:528  const old = bank(OPPONENTS_BANK)
   li a0, 322
   call bank
   sw a0, 6(fp) ; old
-  ; engine/data.e16.ts:540  let c: u16 = 0
+  ; engine/data.e16.ts:529  let c: u16 = 0
   li s1, 0 ; c
-  ; engine/data.e16.ts:541  while (c < OW) {
+  ; engine/data.e16.ts:530  while (c < OW) {
   j .L3
 .L1:
-  ; engine/data.e16.ts:542  opp[i * OW + c] = peek16(OPPONENTS_AT + (k * OW + c) * 2)
+  ; engine/data.e16.ts:531  opp[i * OW + c] = peek16(OPPONENTS_AT + (k * OW + c) * 2)
   slli t0, s2, 5
   add t0, t0, s1
   slli t0, t0, 1
@@ -4271,21 +4235,21 @@ oppLoad:
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, opp(t0)
-  ; engine/data.e16.ts:543  c++
+  ; engine/data.e16.ts:532  c++
   addi s1, s1, 1
 .L3:
   li t0, 32
   bltu s1, t0, .L1
-  ; engine/data.e16.ts:545  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:534  poke16(IO_BANK, old)
   lw t0, 6(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
-  ; engine/data.e16.ts:546  c = O_R_GUARD
+  ; engine/data.e16.ts:535  c = O_R_GUARD
   li s1, 3 ; c
-  ; engine/data.e16.ts:547  while (c <= O_R_SWITCH) {
+  ; engine/data.e16.ts:536  while (c <= O_R_SWITCH) {
   j .L7
 .L5:
-  ; engine/data.e16.ts:548  const least = c === O_R_TECH ? TECH_MIN : REACT_MIN
+  ; engine/data.e16.ts:537  const least = c === O_R_TECH ? TECH_MIN : REACT_MIN
   li t0, 6
   bne s1, t0, .L9
   li t0, 4
@@ -4293,60 +4257,67 @@ oppLoad:
 .L9:
   li t0, 8
 .L10:
-  mv s3, t0 ; least/read
-  ; engine/data.e16.ts:549  const r = opp[i * OW + c]
+  mv s3, t0 ; least/r
+  ; engine/data.e16.ts:538  const r = opp[i * OW + c]
   slli t0, s2, 5
   add t0, t0, s1
   slli t0, t0, 1
   lw t0, opp(t0)
-  sw t0, 2(fp) ; r
-  ; engine/data.e16.ts:550  opp[i * OW + c] = r >= least + pos * 2 ? r - pos * 2 : least
+  sw t0, 0(fp) ; r/read
+  ; engine/data.e16.ts:539  opp[i * OW + c] = r >= least + pos * 2 ? r - pos * 2 : least
   slli t0, s2, 5
   add t0, t0, s1
   slli t0, t0, 1
-  lw t1, 0(fp) ; pos
+  lw t1, 2(fp) ; pos
   slli t1, t1, 1
   add t1, s3, t1
   addi t0, t0, opp
   mv t2, t1
-  lw t1, 2(fp)
+  lw t1, 0(fp)
   bltu t1, t2, .L11
-  lw t1, 0(fp) ; pos
+  lw t1, 2(fp) ; pos
   slli t1, t1, 1
-  lw t2, 2(fp) ; r
+  lw t2, 0(fp) ; r/read
   sub t1, t2, t1
   j .L12
 .L11:
   mv t1, s3
 .L12:
   sw t1, 0(t0)
-  ; engine/data.e16.ts:551  c++
+  ; engine/data.e16.ts:540  c++
   addi s1, s1, 1
 .L7:
   li t0, 7
   bgeu t0, s1, .L5
-  ; engine/data.e16.ts:553  const read = opp[i * OW + O_READ] + pos * READ_STEP
+  ; engine/data.e16.ts:543  const r = opp[i * OW + O_READ]
   slli t0, s2, 5
   addi t0, t0, 11
   slli t0, t0, 1
-  lw t0, opp(t0)
-  li t1, 26
-  lw t2, 0(fp) ; pos
-  mul t2, t2, t1
-  add s3, t0, t2
-  ; engine/data.e16.ts:554  opp[i * OW + O_READ] = read > 255 ? 255 : read
+  lw s3, opp(t0)
+  ; engine/data.e16.ts:544  if (r === 0) return
+  bne s3, zero, .L13
+  ; engine/data.e16.ts:544  return
+  j .return
+.L13:
+  ; engine/data.e16.ts:545  const read = r + pos * READ_STEP
+  li t0, 26
+  lw t1, 2(fp) ; pos
+  mul t1, t1, t0
+  add t1, s3, t1
+  sw t1, 0(fp) ; r/read
+  ; engine/data.e16.ts:546  opp[i * OW + O_READ] = read > 255 ? 255 : read
   slli t0, s2, 5
   addi t0, t0, 11
   slli t0, t0, 1
   addi t0, t0, opp
-  mv t1, s3
+  lw t1, 0(fp)
   li t2, 255
-  bgeu t2, t1, .L13
+  bgeu t2, t1, .L14
   li t1, 255
-  j .L14
-.L13:
-  mv t1, s3
+  j .L15
 .L14:
+  lw t1, 0(fp)
+.L15:
   sw t1, 0(t0)
 .return:
   mv sp, fp
@@ -4358,7 +4329,7 @@ oppLoad:
   addi sp, sp, 18
   ret
 
-; engine/data.e16.ts:558 oppWord(k, c) at -O1
+; engine/data.e16.ts:550 oppWord(k, c) at -O1
 ;   k in s1
 ;   c in s2
 ;   old in s3
@@ -4372,21 +4343,21 @@ oppWord:
   sw s0, 8(sp)
   mv s1, a0 ; k
   mv s2, a1 ; c
-  ; engine/data.e16.ts:559  const old = bank(OPPONENTS_BANK)
+  ; engine/data.e16.ts:551  const old = bank(OPPONENTS_BANK)
   li a0, 322
   call bank
   mv s3, a0 ; old
-  ; engine/data.e16.ts:560  const v = peek16(OPPONENTS_AT + (k * OW + c) * 2)
+  ; engine/data.e16.ts:552  const v = peek16(OPPONENTS_AT + (k * OW + c) * 2)
   slli t0, s1, 5
   add t0, t0, s2
   slli t0, t0, 1
   li t1, 53794
   add t1, t1, t0
   lw s0, 0(t1)
-  ; engine/data.e16.ts:561  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:553  poke16(IO_BANK, old)
   li t0, 65284
   sw s3, 0(t0)
-  ; engine/data.e16.ts:562  return v
+  ; engine/data.e16.ts:554  return v
   mv a0, s0
 .return:
   lw ra, 0(sp)
@@ -4397,7 +4368,7 @@ oppWord:
   addi sp, sp, 10
   ret
 
-; engine/data.e16.ts:567 weightsLoad(i, band, sit) at -O1
+; engine/data.e16.ts:559 weightsLoad(i, band, sit) at -O1
 ;   i in s2
 ;   band in s3
 ;   sit in 0(fp)
@@ -4415,11 +4386,11 @@ weightsLoad:
   mv s2, a0 ; i
   mv s3, a1 ; band
   sw a2, 0(fp) ; sit
-  ; engine/data.e16.ts:568  const old = bank(WEIGHTS_BANK)
+  ; engine/data.e16.ts:560  const old = bank(WEIGHTS_BANK)
   li a0, 322
   call bank
   sw a0, 2(fp) ; old
-  ; engine/data.e16.ts:569  const from = WEIGHTS_AT + (opp[i * OW + O_WEIGHTS] * 18 + band * 6 + sit) * 10 * 2
+  ; engine/data.e16.ts:561  const from = WEIGHTS_AT + (opp[i * OW + O_WEIGHTS] * 18 + band * 6 + sit) * 10 * 2
   slli t0, s2, 5
   addi t0, t0, 25
   slli t0, t0, 1
@@ -4440,24 +4411,24 @@ weightsLoad:
   li t1, 54114
   add t1, t1, t0
   sw t1, 4(fp) ; from
-  ; engine/data.e16.ts:570  let k: u16 = 0
+  ; engine/data.e16.ts:562  let k: u16 = 0
   li s1, 0 ; k
-  ; engine/data.e16.ts:571  while (k < 10) {
+  ; engine/data.e16.ts:563  while (k < 10) {
   j .L3
 .L1:
-  ; engine/data.e16.ts:572  wrow[k] = peek16(from + k * 2)
+  ; engine/data.e16.ts:564  wrow[k] = peek16(from + k * 2)
   slli t0, s1, 1
   slli t1, s1, 1
   lw t2, 4(fp) ; from
   add t2, t2, t1
   lw t2, 0(t2)
   sw t2, wrow(t0)
-  ; engine/data.e16.ts:573  k++
+  ; engine/data.e16.ts:565  k++
   addi s1, s1, 1
 .L3:
   li t0, 10
   bltu s1, t0, .L1
-  ; engine/data.e16.ts:575  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:567  poke16(IO_BANK, old)
   lw t0, 2(fp) ; old
   li t1, 65284
   sw t0, 0(t1)
@@ -4471,7 +4442,7 @@ weightsLoad:
   addi sp, sp, 16
   ret
 
-; engine/data.e16.ts:579 patternWord(p, k) at -O1
+; engine/data.e16.ts:571 patternWord(p, k) at -O1
 ;   p in s1
 ;   k in s2
 ;   old in s3
@@ -4485,21 +4456,21 @@ patternWord:
   sw s0, 8(sp)
   mv s1, a0 ; p
   mv s2, a1 ; k
-  ; engine/data.e16.ts:580  const old = bank(PATTERNS_BANK)
+  ; engine/data.e16.ts:572  const old = bank(PATTERNS_BANK)
   li a0, 322
   call bank
   mv s3, a0 ; old
-  ; engine/data.e16.ts:581  const v = peek16(PATTERNS_AT + (p * 8 + k) * 2)
+  ; engine/data.e16.ts:573  const v = peek16(PATTERNS_AT + (p * 8 + k) * 2)
   slli t0, s1, 3
   add t0, t0, s2
   slli t0, t0, 1
   li t1, 55914
   add t1, t1, t0
   lw s0, 0(t1)
-  ; engine/data.e16.ts:582  poke16(IO_BANK, old)
+  ; engine/data.e16.ts:574  poke16(IO_BANK, old)
   li t0, 65284
   sw s3, 0(t0)
-  ; engine/data.e16.ts:583  return v
+  ; engine/data.e16.ts:575  return v
   mv a0, s0
 .return:
   lw ra, 0(sp)
@@ -4510,22 +4481,22 @@ patternWord:
   addi sp, sp, 10
   ret
 
-; engine/data.e16.ts:588 oppNamesIn() at -O1
+; engine/data.e16.ts:580 oppNamesIn() at -O1
 oppNamesIn:
-  ; engine/data.e16.ts:589  oppName[0] = str('PACKET')
-  la t0, str_7
-  sw t0, oppName(zero)
-  ; engine/data.e16.ts:590  oppName[1] = str('MAINFRAME')
-  la t0, str_8
-  sw t0, oppName+2(zero)
-  ; engine/data.e16.ts:591  oppName[2] = str('DAEMON')
+  ; engine/data.e16.ts:581  oppName[0] = str('PACKET')
   la t0, str_9
-  sw t0, oppName+4(zero)
-  ; engine/data.e16.ts:592  oppName[3] = str('KERNEL')
+  sw t0, oppName(zero)
+  ; engine/data.e16.ts:582  oppName[1] = str('MAINFRAME')
   la t0, str_10
-  sw t0, oppName+6(zero)
-  ; engine/data.e16.ts:593  oppName[4] = str('ROOT')
+  sw t0, oppName+2(zero)
+  ; engine/data.e16.ts:583  oppName[2] = str('DAEMON')
   la t0, str_11
+  sw t0, oppName+4(zero)
+  ; engine/data.e16.ts:584  oppName[3] = str('KERNEL')
+  la t0, str_12
+  sw t0, oppName+6(zero)
+  ; engine/data.e16.ts:585  oppName[4] = str('ROOT')
+  la t0, str_13
   sw t0, oppName+8(zero)
 .return:
   ret
@@ -4535,32 +4506,32 @@ oppNamesIn:
 buttonSetIs:
   ; engine/input.e16.ts:43  buttonSet = t & 1
   andi t0, a0, 1
-  sw t0, 0x1816(zero)
+  sw t0, 0x1818(zero)
 .return:
   ret
 
 ; engine/input.e16.ts:53 ringStep() at -O1
 ringStep:
   ; engine/input.e16.ts:54  ringAt = (ringAt + 1) & 15
-  lw t0, 0x1898(zero)
+  lw t0, 0x189a(zero)
   addi t0, t0, 1
   andi t0, t0, 15
-  sw t0, 0x1898(zero)
+  sw t0, 0x189a(zero)
   ; engine/input.e16.ts:55  ringH[ringAt] = 0
-  lw t0, 0x1898(zero)
+  lw t0, 0x189a(zero)
   slli t0, t0, 1
   sw zero, ringH(t0)
   ; engine/input.e16.ts:56  ringD[ringAt] = 0
-  lw t0, 0x1898(zero)
+  lw t0, 0x189a(zero)
   slli t0, t0, 1
   sw zero, ringD(t0)
   ; engine/input.e16.ts:57  ringH[16 + ringAt] = 0
-  lw t0, 0x1898(zero)
+  lw t0, 0x189a(zero)
   addi t0, t0, 16
   slli t0, t0, 1
   sw zero, ringH(t0)
   ; engine/input.e16.ts:58  ringD[16 + ringAt] = 0
-  lw t0, 0x1898(zero)
+  lw t0, 0x189a(zero)
   addi t0, t0, 16
   slli t0, t0, 1
   sw zero, ringD(t0)
@@ -4600,13 +4571,13 @@ ringClear:
 inputPut:
   ; engine/input.e16.ts:75  ringH[i * 16 + ringAt] = held
   slli t0, a0, 4
-  lw t1, 0x1898(zero)
+  lw t1, 0x189a(zero)
   add t0, t0, t1
   slli t0, t0, 1
   sw a1, ringH(t0)
   ; engine/input.e16.ts:76  ringD[i * 16 + ringAt] = down
   slli t0, a0, 4
-  lw t1, 0x1898(zero)
+  lw t1, 0x189a(zero)
   add t0, t0, t1
   slli t0, t0, 1
   sw a2, ringD(t0)
@@ -4684,7 +4655,7 @@ inputPad:
 ; engine/input.e16.ts:94 lightKick() at -O1
 lightKick:
   ; engine/input.e16.ts:95  return buttonSet === 0 ? B_B : B_A
-  lw t0, 0x1816(zero)
+  lw t0, 0x1818(zero)
   bne t0, zero, .L1
   li t0, 32
   j .L2
@@ -4698,7 +4669,7 @@ lightKick:
 ; engine/input.e16.ts:98 heavyKick() at -O1
 heavyKick:
   ; engine/input.e16.ts:99  return buttonSet === 0 ? B_A : B_B
-  lw t0, 0x1816(zero)
+  lw t0, 0x1818(zero)
   bne t0, zero, .L1
   li t0, 16
   j .L2
@@ -4929,7 +4900,7 @@ inputNone:
 heldNow:
   ; engine/input.e16.ts:146  return ringH[i * 16 + ringAt]
   slli t0, a0, 4
-  lw t1, 0x1898(zero)
+  lw t1, 0x189a(zero)
   add t0, t0, t1
   slli t0, t0, 1
   lw a0, ringH(t0)
@@ -4937,70 +4908,97 @@ heldNow:
   ret
 
 ; engine/input.e16.ts:150 buffered(i, mask) at -O1
-;   i in a0
-;   mask in a1
-;   out in a2
-;   k in a3
-;   at in s1
+;   i in s1
+;   mask in s2
 buffered:
-  addi sp, sp, -2
-  sw s1, 0(sp)
-  ; engine/input.e16.ts:151  let out: u16 = 0
-  li a2, 0 ; out
-  ; engine/input.e16.ts:152  let k: u16 = 0
-  li a3, 0 ; k
-  ; engine/input.e16.ts:153  let at = ringAt
-  lw s1, 0x1898(zero)
-  ; engine/input.e16.ts:154  while (k < BUFFER) {
-  j .L3
-.L1:
-  ; engine/input.e16.ts:155  out |= ringD[i * 16 + at]
-  slli t0, a0, 4
-  add t0, t0, s1
-  slli t0, t0, 1
-  lw t0, ringD(t0)
-  or a2, a2, t0
-  ; engine/input.e16.ts:156  at = (at + 15) & 15
-  addi t0, s1, 15
-  andi s1, t0, 15
-  ; engine/input.e16.ts:157  k++
-  addi a3, a3, 1
-.L3:
-  li t0, 8
-  bltu a3, t0, .L1
-  ; engine/input.e16.ts:159  return out & mask
-  and a0, a2, a1
+  addi sp, sp, -6
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  mv s1, a0 ; i
+  mv s2, a1 ; mask
+  ; engine/input.e16.ts:151  return pressedIn(i, mask, BUFFER)
+  mv a0, s1
+  mv a1, s2
+  li a2, 8
+  call pressedIn
 .return:
-  lw s1, 0(sp)
-  addi sp, sp, 2
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  addi sp, sp, 6
   ret
 
-; engine/input.e16.ts:163 pressNow(i) at -O1
+; engine/input.e16.ts:155 pressedIn(i, mask, n) at -O1
+;   i in a0
+;   mask in a1
+;   n in a2
+;   out in s1
+;   k in a3
+;   at in s2
+pressedIn:
+  addi sp, sp, -4
+  sw s1, 0(sp)
+  sw s2, 2(sp)
+  ; engine/input.e16.ts:156  let out: u16 = 0
+  li s1, 0 ; out
+  ; engine/input.e16.ts:157  let k: u16 = 0
+  li a3, 0 ; k
+  ; engine/input.e16.ts:158  let at = ringAt
+  lw s2, 0x189a(zero)
+  ; engine/input.e16.ts:159  while (k < n && k < BUFFER) {
+  j .L3
+.L1:
+  ; engine/input.e16.ts:160  out |= ringD[i * 16 + at]
+  slli t0, a0, 4
+  add t0, t0, s2
+  slli t0, t0, 1
+  lw t0, ringD(t0)
+  or s1, s1, t0
+  ; engine/input.e16.ts:161  at = (at + 15) & 15
+  addi t0, s2, 15
+  andi s2, t0, 15
+  ; engine/input.e16.ts:162  k++
+  addi a3, a3, 1
+.L3:
+  bgeu a3, a2, .L5
+  li t0, 8
+  bltu a3, t0, .L1
+.L5:
+  ; engine/input.e16.ts:164  return out & mask
+  and a0, s1, a1
+.return:
+  lw s1, 0(sp)
+  lw s2, 2(sp)
+  addi sp, sp, 4
+  ret
+
+; engine/input.e16.ts:168 pressNow(i) at -O1
 ;   i in a0
 pressNow:
-  ; engine/input.e16.ts:164  return ringD[i * 16 + ringAt]
+  ; engine/input.e16.ts:169  return ringD[i * 16 + ringAt]
   slli t0, a0, 4
-  lw t1, 0x1898(zero)
+  lw t1, 0x189a(zero)
   add t0, t0, t1
   slli t0, t0, 1
   lw a0, ringD(t0)
 .return:
   ret
 
-; engine/input.e16.ts:168 pressedBefore(i, mask, n) at -O1
+; engine/input.e16.ts:173 pressedBefore(i, mask, n) at -O1
 ;   i in a0
 ;   mask in a1
 ;   n in a2
 ;   k in a3
 pressedBefore:
-  ; engine/input.e16.ts:169  let k: u16 = 1
+  ; engine/input.e16.ts:174  let k: u16 = 1
   li a3, 1 ; k
-  ; engine/input.e16.ts:170  while (k <= n) {
+  ; engine/input.e16.ts:175  while (k <= n) {
   j .L3
 .L1:
-  ; engine/input.e16.ts:171  if ((ringD[i * 16 + ((ringAt - k) & 15)] & mask) !== 0) return true
+  ; engine/input.e16.ts:176  if ((ringD[i * 16 + ((ringAt - k) & 15)] & mask) !== 0) return true
   slli t0, a0, 4
-  lw t1, 0x1898(zero)
+  lw t1, 0x189a(zero)
   sub t1, t1, a3
   andi t1, t1, 15
   add t0, t0, t1
@@ -5008,33 +5006,33 @@ pressedBefore:
   lw t0, ringD(t0)
   and t0, t0, a1
   beq t0, zero, .L5
-  ; engine/input.e16.ts:171  return true
+  ; engine/input.e16.ts:176  return true
   li a0, 1
   ret
 .L5:
-  ; engine/input.e16.ts:172  k++
+  ; engine/input.e16.ts:177  k++
   addi a3, a3, 1
 .L3:
   bgeu a2, a3, .L1
-  ; engine/input.e16.ts:174  return false
+  ; engine/input.e16.ts:179  return false
   li a0, 0
 .return:
   ret
 
-; engine/input.e16.ts:178 consume(i, mask) at -O1
+; engine/input.e16.ts:183 consume(i, mask) at -O1
 ;   i in a0
 ;   mask in a1
 ;   k in a2
 ;   at in a3
 consume:
-  ; engine/input.e16.ts:179  let k: u16 = 0
+  ; engine/input.e16.ts:184  let k: u16 = 0
   li a2, 0 ; k
-  ; engine/input.e16.ts:180  let at = ringAt
-  lw a3, 0x1898(zero)
-  ; engine/input.e16.ts:181  while (k < BUFFER) {
+  ; engine/input.e16.ts:185  let at = ringAt
+  lw a3, 0x189a(zero)
+  ; engine/input.e16.ts:186  while (k < BUFFER) {
   j .L3
 .L1:
-  ; engine/input.e16.ts:182  ringD[i * 16 + at] &= ~mask
+  ; engine/input.e16.ts:187  ringD[i * 16 + at] &= ~mask
   slli t0, a0, 4
   add t0, t0, a3
   slli t0, t0, 1
@@ -5044,10 +5042,10 @@ consume:
   not t2, a1
   and t1, t1, t2
   sw t1, 0(t0)
-  ; engine/input.e16.ts:183  at = (at + 15) & 15
+  ; engine/input.e16.ts:188  at = (at + 15) & 15
   addi t0, a3, 15
   andi a3, t0, 15
-  ; engine/input.e16.ts:184  k++
+  ; engine/input.e16.ts:189  k++
   addi a2, a2, 1
 .L3:
   li t0, 8
@@ -6134,34 +6132,42 @@ throwInvul:
 .return:
   ret
 
-; engine/fighter.e16.ts:375 strikeInvul(d) at -O1
+; engine/fighter.e16.ts:378 strikeInvul(d) at -O1
 ;   d in a0
 ;   st in a1
 strikeInvul:
-  ; engine/fighter.e16.ts:376  const st = fState[d]
+  ; engine/fighter.e16.ts:379  const st = fState[d]
   slli t0, a0, 1
   lw a1, fState(t0)
-  ; engine/fighter.e16.ts:377  return st === ST_DOWN || st === ST_WAKE || st === ST_DEAD
+  ; engine/fighter.e16.ts:380  if (fKnock[d] !== 0) return true
+  slli t0, a0, 1
+  lw t0, fKnock(t0)
+  beq t0, zero, .L1
+  ; engine/fighter.e16.ts:380  return true
+  li a0, 1
+  ret
+.L1:
+  ; engine/fighter.e16.ts:381  return st === ST_DOWN || st === ST_WAKE || st === ST_DEAD
   li t0, 8
   sub t0, a1, t0
   seqz t0, t0
   mv t1, t0
-  bnez t1, .L2
+  bnez t1, .L3
   li t0, 9
   sub t0, a1, t0
   seqz t0, t0
-.L2:
+.L3:
   mv t1, t0
-  bnez t1, .L1
+  bnez t1, .L2
   li t0, 10
   sub t0, a1, t0
   seqz t0, t0
-.L1:
+.L2:
   mv a0, t0
 .return:
   ret
 
-; engine/fighter.e16.ts:385 upperSafe(d, bottom) at -O1
+; engine/fighter.e16.ts:389 upperSafe(d, bottom) at -O1
 ;   d in s1
 ;   bottom in 2(fp)
 ;   m in s2
@@ -6177,40 +6183,40 @@ upperSafe:
   mv fp, sp
   mv s1, a0 ; d
   sw a1, 2(fp) ; bottom
-  ; engine/fighter.e16.ts:386  if (fState[d] !== ST_ATTACK) return false
+  ; engine/fighter.e16.ts:390  if (fState[d] !== ST_ATTACK) return false
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 5
   beq t0, t1, .L1
-  ; engine/fighter.e16.ts:386  return false
+  ; engine/fighter.e16.ts:390  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/fighter.e16.ts:387  const m = fMove[d]
+  ; engine/fighter.e16.ts:391  const m = fMove[d]
   slli t0, s1, 1
   lw s2, fMove(t0)
-  ; engine/fighter.e16.ts:388  if ((mvAt(d, m, M_FLAGS) & F_ANTIAIR) === 0) return false
+  ; engine/fighter.e16.ts:392  if ((mvAt(d, m, M_FLAGS) & F_ANTIAIR) === 0) return false
   mv a0, s1
   mv a1, s2
   li a2, 12
   call mvAt
   andi t0, a0, 4
   bne t0, zero, .L2
-  ; engine/fighter.e16.ts:388  return false
+  ; engine/fighter.e16.ts:392  return false
   li a0, 0
   j .return
 .L2:
-  ; engine/fighter.e16.ts:389  const v = mvAt(d, m, M_INVUL)
+  ; engine/fighter.e16.ts:393  const v = mvAt(d, m, M_INVUL)
   mv a0, s1
   mv a1, s2
   li a2, 13
   call mvAt
   mv s3, a0 ; v
-  ; engine/fighter.e16.ts:390  const f = fMoveF[d]
+  ; engine/fighter.e16.ts:394  const f = fMoveF[d]
   slli t0, s1, 1
   lw t0, fMoveF(t0)
   sw t0, 0(fp) ; f
-  ; engine/fighter.e16.ts:391  if (f < (v & 255) || f > v >> 8) return false
+  ; engine/fighter.e16.ts:395  if (f < (v & 255) || f > v >> 8) return false
   andi t0, s3, 255
   lw t1, 0(fp) ; f
   bltu t1, t0, .L4
@@ -6218,11 +6224,11 @@ upperSafe:
   lw t1, 0(fp) ; f
   bgeu t0, t1, .L3
 .L4:
-  ; engine/fighter.e16.ts:391  return false
+  ; engine/fighter.e16.ts:395  return false
   li a0, 0
   j .return
 .L3:
-  ; engine/fighter.e16.ts:392  return bottom - i16(fY[d] >> 4) >= UPPER
+  ; engine/fighter.e16.ts:396  return bottom - i16(fY[d] >> 4) >= UPPER
   slli t0, s1, 1
   lw t0, fY(t0)
   srli t0, t0, 4
@@ -6241,7 +6247,7 @@ upperSafe:
   addi sp, sp, 14
   ret
 
-; engine/fighter.e16.ts:396 moveStart(i, m) at -O1
+; engine/fighter.e16.ts:400 moveStart(i, m) at -O1
 ;   i in s1
 ;   m in s2
 moveStart:
@@ -6251,30 +6257,30 @@ moveStart:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; m
-  ; engine/fighter.e16.ts:397  enter(i, ST_ATTACK)
+  ; engine/fighter.e16.ts:401  enter(i, ST_ATTACK)
   mv a0, s1
   li a1, 5
   call enter
-  ; engine/fighter.e16.ts:398  fMove[i] = m
+  ; engine/fighter.e16.ts:402  fMove[i] = m
   slli t0, s1, 1
   sw s2, fMove(t0)
-  ; engine/fighter.e16.ts:399  fMoveF[i] = 1
+  ; engine/fighter.e16.ts:403  fMoveF[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fMoveF(t0)
-  ; engine/fighter.e16.ts:400  fHitDone[i] = 0
+  ; engine/fighter.e16.ts:404  fHitDone[i] = 0
   slli t0, s1, 1
   sw zero, fHitDone(t0)
-  ; engine/fighter.e16.ts:401  if (fAir[i] === 0) fVX[i] = 0
+  ; engine/fighter.e16.ts:405  if (fAir[i] === 0) fVX[i] = 0
   slli t0, s1, 1
   lw t0, fAir(t0)
   bne t0, zero, .L1
-  ; engine/fighter.e16.ts:401  fVX[i] = 0
+  ; engine/fighter.e16.ts:405  fVX[i] = 0
   slli t0, s1, 1
   sw zero, fVX(t0)
   j .L2
 .L1:
-  ; engine/fighter.e16.ts:402  fAirUsed[i] = 1
+  ; engine/fighter.e16.ts:406  fAirUsed[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fAirUsed(t0)
@@ -6286,7 +6292,7 @@ moveStart:
   addi sp, sp, 6
   ret
 
-; engine/fighter.e16.ts:406 attackStep(i) at -O1
+; engine/fighter.e16.ts:410 attackStep(i) at -O1
 ;   i in s1
 ;   m in s2
 ;   total in s3
@@ -6297,17 +6303,17 @@ attackStep:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:407  fMoveF[i]++
+  ; engine/fighter.e16.ts:411  fMoveF[i]++
   slli t0, s1, 1
   addi t0, t0, fMoveF
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/fighter.e16.ts:408  const m = fMove[i]
+  ; engine/fighter.e16.ts:412  const m = fMove[i]
   slli t0, s1, 1
   lw s2, fMove(t0)
-  ; engine/fighter.e16.ts:409  const total = mvAt(i, m, M_STARTUP) + mvAt(i, m, M_ACTIVE) + mvAt(i, m, M_RECOVERY) - 1
+  ; engine/fighter.e16.ts:413  const total = mvAt(i, m, M_STARTUP) + mvAt(i, m, M_ACTIVE) + mvAt(i, m, M_RECOVERY) - 1
   mv a0, s1
   mv a1, s2
   li a2, 0
@@ -6331,21 +6337,21 @@ attackStep:
   addi sp, sp, 2
   add t0, t0, a0
   addi s3, t0, -1
-  ; engine/fighter.e16.ts:410  if (fMoveF[i] > total) {
+  ; engine/fighter.e16.ts:414  if (fMoveF[i] > total) {
   slli t0, s1, 1
   lw t0, fMoveF(t0)
   bgeu s3, t0, .L1
-  ; engine/fighter.e16.ts:411  if (fAir[i] !== 0) enter(i, ST_JUMP)
+  ; engine/fighter.e16.ts:415  if (fAir[i] !== 0) enter(i, ST_JUMP)
   slli t0, s1, 1
   lw t0, fAir(t0)
   beq t0, zero, .L2
-  ; engine/fighter.e16.ts:411  enter(i, ST_JUMP)
+  ; engine/fighter.e16.ts:415  enter(i, ST_JUMP)
   mv a0, s1
   li a1, 3
   call enter
   j .L3
 .L2:
-  ; engine/fighter.e16.ts:412  enter(i, (heldNow(i) & I_DOWN) !== 0 ? ST_CROUCH : ST_STAND)
+  ; engine/fighter.e16.ts:416  enter(i, (heldNow(i) & I_DOWN) !== 0 ? ST_CROUCH : ST_STAND)
   mv a0, s1
   call heldNow
   andi t1, a0, 2
@@ -6361,10 +6367,10 @@ attackStep:
   mv a1, t1
   call enter
 .L3:
-  ; engine/fighter.e16.ts:413  return
+  ; engine/fighter.e16.ts:417  return
   j .return
 .L1:
-  ; engine/fighter.e16.ts:415  chainTry(i, m)
+  ; engine/fighter.e16.ts:419  chainTry(i, m)
   mv a0, s1
   mv a1, s2
   call chainTry
@@ -6376,7 +6382,7 @@ attackStep:
   addi sp, sp, 8
   ret
 
-; engine/fighter.e16.ts:422 chainTry(i, m) at -O1
+; engine/fighter.e16.ts:426 chainTry(i, m) at -O1
 ;   i in s1
 ;   m in s3
 ;   s in 0(fp)
@@ -6394,7 +6400,7 @@ chainTry:
   mv fp, sp
   mv s1, a0 ; i
   mv s3, a1 ; m
-  ; engine/fighter.e16.ts:423  if (fHitDone[i] === 0 || (mvAt(i, m, M_FLAGS) & F_CHAIN) === 0) return
+  ; engine/fighter.e16.ts:427  if (fHitDone[i] === 0 || (mvAt(i, m, M_FLAGS) & F_CHAIN) === 0) return
   slli t0, s1, 1
   lw t0, fHitDone(t0)
   beq t0, zero, .L2
@@ -6405,20 +6411,20 @@ chainTry:
   andi t0, a0, 1
   bne t0, zero, .L1
 .L2:
-  ; engine/fighter.e16.ts:423  return
+  ; engine/fighter.e16.ts:427  return
   j .return
 .L1:
-  ; engine/fighter.e16.ts:424  const s = mvAt(i, m, M_STARTUP)
+  ; engine/fighter.e16.ts:428  const s = mvAt(i, m, M_STARTUP)
   mv a0, s1
   mv a1, s3
   li a2, 0
   call mvAt
   sw a0, 0(fp) ; s
-  ; engine/fighter.e16.ts:425  const f = fMoveF[i]
+  ; engine/fighter.e16.ts:429  const f = fMoveF[i]
   slli t0, s1, 1
   lw t0, fMoveF(t0)
   sw t0, 2(fp) ; f
-  ; engine/fighter.e16.ts:426  if (f < s || f >= s + mvAt(i, m, M_ACTIVE) + CHAIN_LATE) return
+  ; engine/fighter.e16.ts:430  if (f < s || f >= s + mvAt(i, m, M_ACTIVE) + CHAIN_LATE) return
   lw t0, 0(fp) ; s
   lw t1, 2(fp) ; f
   bltu t1, t0, .L4
@@ -6432,16 +6438,16 @@ chainTry:
   lw t1, 2(fp) ; f
   bltu t1, t0, .L3
 .L4:
-  ; engine/fighter.e16.ts:426  return
+  ; engine/fighter.e16.ts:430  return
   j .return
 .L3:
-  ; engine/fighter.e16.ts:427  const kind = mvAt(i, m, M_KIND)
+  ; engine/fighter.e16.ts:431  const kind = mvAt(i, m, M_KIND)
   mv a0, s1
   mv a1, s3
   li a2, 11
   call mvAt
   sw a0, 4(fp) ; kind
-  ; engine/fighter.e16.ts:428  const button = (kind & 1) !== 0 ? I_HK : I_HP
+  ; engine/fighter.e16.ts:432  const button = (kind & 1) !== 0 ? I_HK : I_HP
   lw t0, 4(fp) ; kind
   andi t0, t0, 1
   beq t0, zero, .L5
@@ -6451,20 +6457,20 @@ chainTry:
   li t0, 32
 .L6:
   sw t0, 6(fp) ; button
-  ; engine/fighter.e16.ts:429  if (buffered(i, button) === 0) return
+  ; engine/fighter.e16.ts:433  if (buffered(i, button) === 0) return
   mv a0, s1
   lw a1, 6(fp)
   call buffered
   bne a0, zero, .L7
-  ; engine/fighter.e16.ts:429  return
+  ; engine/fighter.e16.ts:433  return
   j .return
 .L7:
-  ; engine/fighter.e16.ts:430  let h: u16 = 0
+  ; engine/fighter.e16.ts:434  let h: u16 = 0
   li s2, 0 ; h
-  ; engine/fighter.e16.ts:431  while (h < MOVES - 1) {
+  ; engine/fighter.e16.ts:435  while (h < MOVES - 1) {
   j .L10
 .L8:
-  ; engine/fighter.e16.ts:432  if (mvAt(i, h, M_KIND) === (kind | K_HEAVY)) {
+  ; engine/fighter.e16.ts:436  if (mvAt(i, h, M_KIND) === (kind | K_HEAVY)) {
   mv a0, s1
   mv a1, s2
   li a2, 11
@@ -6472,18 +6478,18 @@ chainTry:
   lw t0, 4(fp) ; kind
   ori t0, t0, 2
   bne a0, t0, .L12
-  ; engine/fighter.e16.ts:433  consume(i, I_ATTACKS)
+  ; engine/fighter.e16.ts:437  consume(i, I_ATTACKS)
   mv a0, s1
   li a1, 240
   call consume
-  ; engine/fighter.e16.ts:434  moveStart(i, h)
+  ; engine/fighter.e16.ts:438  moveStart(i, h)
   mv a0, s1
   mv a1, s2
   call moveStart
-  ; engine/fighter.e16.ts:435  return
+  ; engine/fighter.e16.ts:439  return
   j .return
 .L12:
-  ; engine/fighter.e16.ts:437  h++
+  ; engine/fighter.e16.ts:441  h++
   addi s2, s2, 1
 .L10:
   li t0, 12
@@ -6498,30 +6504,30 @@ chainTry:
   addi sp, sp, 18
   ret
 
-; engine/fighter.e16.ts:442 stunStep(i) at -O1
+; engine/fighter.e16.ts:446 stunStep(i) at -O1
 ;   i in s1
 stunStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:443  if (fStun[i] > 0) {
+  ; engine/fighter.e16.ts:447  if (fStun[i] > 0) {
   slli t0, s1, 1
   lw t0, fStun(t0)
   bgeu zero, t0, .L1
-  ; engine/fighter.e16.ts:444  fStun[i]--
+  ; engine/fighter.e16.ts:448  fStun[i]--
   slli t0, s1, 1
   addi t0, t0, fStun
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, -1
   sw t1, 0(t0)
-  ; engine/fighter.e16.ts:445  if (fState[i] === ST_GUARD) fCrouch[i] = (heldNow(i) & I_DOWN) !== 0 ? 1 : 0
+  ; engine/fighter.e16.ts:449  if (fState[i] === ST_GUARD) fCrouch[i] = (heldNow(i) & I_DOWN) !== 0 ? 1 : 0
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 7
   bne t0, t1, .L2
-  ; engine/fighter.e16.ts:445  fCrouch[i] = (heldNow(i) & I_DOWN) !== 0 ? 1 : 0
+  ; engine/fighter.e16.ts:449  fCrouch[i] = (heldNow(i) & I_DOWN) !== 0 ? 1 : 0
   slli t0, s1, 1
   addi t0, t0, fCrouch
   addi sp, sp, -2
@@ -6543,17 +6549,17 @@ stunStep:
 .L4:
   sw t1, 0(t0)
 .L2:
-  ; engine/fighter.e16.ts:446  return
+  ; engine/fighter.e16.ts:450  return
   j .return
 .L1:
-  ; engine/fighter.e16.ts:448  if (fKnock[i] !== 0) return
+  ; engine/fighter.e16.ts:452  if (fKnock[i] !== 0) return
   slli t0, s1, 1
   lw t0, fKnock(t0)
   beq t0, zero, .L5
-  ; engine/fighter.e16.ts:448  return
+  ; engine/fighter.e16.ts:452  return
   j .return
 .L5:
-  ; engine/fighter.e16.ts:449  enter(i, fCrouch[i] !== 0 ? ST_CROUCH : ST_STAND)
+  ; engine/fighter.e16.ts:453  enter(i, fCrouch[i] !== 0 ? ST_CROUCH : ST_STAND)
   slli t0, s1, 1
   lw t1, fCrouch(t0)
   mv t0, s1
@@ -6573,7 +6579,7 @@ stunStep:
   addi sp, sp, 4
   ret
 
-; engine/fighter.e16.ts:453 prejumpStep(i) at -O1
+; engine/fighter.e16.ts:457 prejumpStep(i) at -O1
 ;   i in s1
 ;   s in s2
 prejumpStep:
@@ -6582,33 +6588,33 @@ prejumpStep:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:454  fStateT[i]++
+  ; engine/fighter.e16.ts:458  fStateT[i]++
   slli t0, s1, 1
   addi t0, t0, fStateT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/fighter.e16.ts:455  if (fStateT[i] < PREJUMP_F) return
+  ; engine/fighter.e16.ts:459  if (fStateT[i] < PREJUMP_F) return
   slli t0, s1, 1
   lw t0, fStateT(t0)
   li t1, 3
   bgeu t0, t1, .L1
-  ; engine/fighter.e16.ts:455  return
+  ; engine/fighter.e16.ts:459  return
   j .return
 .L1:
-  ; engine/fighter.e16.ts:456  const s = faceSign(i)
+  ; engine/fighter.e16.ts:460  const s = faceSign(i)
   mv a0, s1
   call faceSign
   mv s2, a0 ; s
-  ; engine/fighter.e16.ts:457  fAir[i] = 1
+  ; engine/fighter.e16.ts:461  fAir[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fAir(t0)
-  ; engine/fighter.e16.ts:458  fAirUsed[i] = 0
+  ; engine/fighter.e16.ts:462  fAirUsed[i] = 0
   slli t0, s1, 1
   sw zero, fAirUsed(t0)
-  ; engine/fighter.e16.ts:459  fVY[i] = prAt(i, P_JUMP)
+  ; engine/fighter.e16.ts:463  fVY[i] = prAt(i, P_JUMP)
   slli t0, s1, 1
   addi t0, t0, fVY
   addi sp, sp, -2
@@ -6619,15 +6625,15 @@ prejumpStep:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/fighter.e16.ts:460  fVX[i] = 0
+  ; engine/fighter.e16.ts:464  fVX[i] = 0
   slli t0, s1, 1
   sw zero, fVX(t0)
-  ; engine/fighter.e16.ts:461  if (fJump[i] === 1) fVX[i] = u16(s * i16(prAt(i, P_JUMP_F)))
+  ; engine/fighter.e16.ts:465  if (fJump[i] === 1) fVX[i] = u16(s * i16(prAt(i, P_JUMP_F)))
   slli t0, s1, 1
   lw t0, fJump(t0)
   li t1, 1
   bne t0, t1, .L2
-  ; engine/fighter.e16.ts:461  fVX[i] = u16(s * i16(prAt(i, P_JUMP_F)))
+  ; engine/fighter.e16.ts:465  fVX[i] = u16(s * i16(prAt(i, P_JUMP_F)))
   slli t0, s1, 1
   addi t0, t0, fVX
   addi sp, sp, -2
@@ -6640,12 +6646,12 @@ prejumpStep:
   addi sp, sp, 2
   sw t0, 0(t1)
 .L2:
-  ; engine/fighter.e16.ts:462  if (fJump[i] === 2) fVX[i] = u16(-s * i16(prAt(i, P_JUMP_B)))
+  ; engine/fighter.e16.ts:466  if (fJump[i] === 2) fVX[i] = u16(-s * i16(prAt(i, P_JUMP_B)))
   slli t0, s1, 1
   lw t0, fJump(t0)
   li t1, 2
   bne t0, t1, .L3
-  ; engine/fighter.e16.ts:462  fVX[i] = u16(-s * i16(prAt(i, P_JUMP_B)))
+  ; engine/fighter.e16.ts:466  fVX[i] = u16(-s * i16(prAt(i, P_JUMP_B)))
   slli t0, s1, 1
   neg t1, s2
   addi t0, t0, fVX
@@ -6663,7 +6669,7 @@ prejumpStep:
   addi sp, sp, 2
   sw t0, 0(t1)
 .L3:
-  ; engine/fighter.e16.ts:463  enter(i, ST_JUMP)
+  ; engine/fighter.e16.ts:467  enter(i, ST_JUMP)
   mv a0, s1
   li a1, 3
   call enter
@@ -6674,18 +6680,18 @@ prejumpStep:
   addi sp, sp, 6
   ret
 
-; engine/fighter.e16.ts:467 jumpStep(i) at -O1
+; engine/fighter.e16.ts:471 jumpStep(i) at -O1
 ;   i in s1
 jumpStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:468  if (fAirUsed[i] === 0) attackTry(i, 2)
+  ; engine/fighter.e16.ts:472  if (fAirUsed[i] === 0) attackTry(i, 2)
   slli t0, s1, 1
   lw t0, fAirUsed(t0)
   bne t0, zero, .L1
-  ; engine/fighter.e16.ts:468  attackTry(i, 2)
+  ; engine/fighter.e16.ts:472  attackTry(i, 2)
   mv a0, s1
   li a1, 2
   call attackTry
@@ -6696,7 +6702,7 @@ jumpStep:
   addi sp, sp, 4
   ret
 
-; engine/fighter.e16.ts:472 poseSet(i) at -O1
+; engine/fighter.e16.ts:476 poseSet(i) at -O1
 ;   i in s1
 ;   st in s3
 ;   p in s2
@@ -6707,32 +6713,32 @@ poseSet:
   sw s3, 4(sp)
   sw s2, 6(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:473  const st = fState[i]
+  ; engine/fighter.e16.ts:477  const st = fState[i]
   slli t0, s1, 1
   lw s3, fState(t0)
-  ; engine/fighter.e16.ts:474  let p: u16 = PO_STAND
+  ; engine/fighter.e16.ts:478  let p: u16 = PO_STAND
   li s2, 0 ; p
-  ; engine/fighter.e16.ts:475  if (st === ST_ATTACK) p = attackPose(i)
+  ; engine/fighter.e16.ts:479  if (st === ST_ATTACK) p = attackPose(i)
   li t0, 5
   bne s3, t0, .L1
-  ; engine/fighter.e16.ts:475  p = attackPose(i)
+  ; engine/fighter.e16.ts:479  p = attackPose(i)
   mv a0, s1
   call attackPose
   mv s2, a0 ; p
   j .L2
 .L1:
-  ; engine/fighter.e16.ts:476  if (st === ST_STAND) p = standPose(i)
+  ; engine/fighter.e16.ts:480  if (st === ST_STAND) p = standPose(i)
   bne s3, zero, .L3
-  ; engine/fighter.e16.ts:476  p = standPose(i)
+  ; engine/fighter.e16.ts:480  p = standPose(i)
   mv a0, s1
   call standPose
   mv s2, a0 ; p
   j .L4
 .L3:
-  ; engine/fighter.e16.ts:477  if (st === ST_JUMP) p = i16(fVY[i]) > 0 ? PO_JUMP : PO_JUMP_FALL
+  ; engine/fighter.e16.ts:481  if (st === ST_JUMP) p = i16(fVY[i]) > 0 ? PO_JUMP : PO_JUMP_FALL
   li t0, 3
   bne s3, t0, .L5
-  ; engine/fighter.e16.ts:477  p = i16(fVY[i]) > 0 ? PO_JUMP : PO_JUMP_FALL
+  ; engine/fighter.e16.ts:481  p = i16(fVY[i]) > 0 ? PO_JUMP : PO_JUMP_FALL
   slli t0, s1, 1
   lw t0, fVY(t0)
   bge zero, t0, .L6
@@ -6744,10 +6750,10 @@ poseSet:
   mv s2, t0 ; p
   j .L8
 .L5:
-  ; engine/fighter.e16.ts:478  if (st === ST_HIT) p = fKnock[i] !== 0 ? PO_FALLING : PO_HIT + fCrouch[i]
+  ; engine/fighter.e16.ts:482  if (st === ST_HIT) p = fKnock[i] !== 0 ? PO_FALLING : PO_HIT + fCrouch[i]
   li t0, 6
   bne s3, t0, .L9
-  ; engine/fighter.e16.ts:478  p = fKnock[i] !== 0 ? PO_FALLING : PO_HIT + fCrouch[i]
+  ; engine/fighter.e16.ts:482  p = fKnock[i] !== 0 ? PO_FALLING : PO_HIT + fCrouch[i]
   slli t0, s1, 1
   lw t0, fKnock(t0)
   beq t0, zero, .L10
@@ -6761,16 +6767,16 @@ poseSet:
   mv s2, t0 ; p
   j .L12
 .L9:
-  ; engine/fighter.e16.ts:479  if (st === ST_GUARD) p = PO_GUARD + fCrouch[i]
+  ; engine/fighter.e16.ts:483  if (st === ST_GUARD) p = PO_GUARD + fCrouch[i]
   li t0, 7
   bne s3, t0, .L13
-  ; engine/fighter.e16.ts:479  p = PO_GUARD + fCrouch[i]
+  ; engine/fighter.e16.ts:483  p = PO_GUARD + fCrouch[i]
   slli t0, s1, 1
   lw t0, fCrouch(t0)
   addi s2, t0, 7
   j .L14
 .L13:
-  ; engine/fighter.e16.ts:480  p = statePose(st)
+  ; engine/fighter.e16.ts:484  p = statePose(st)
   mv a0, s3
   call statePose
   mv s2, a0 ; p
@@ -6779,10 +6785,10 @@ poseSet:
 .L8:
 .L4:
 .L2:
-  ; engine/fighter.e16.ts:481  fPose[i] = p
+  ; engine/fighter.e16.ts:485  fPose[i] = p
   slli t0, s1, 1
   sw s2, fPose(t0)
-  ; engine/fighter.e16.ts:482  poseLoad(i, fSlot[i], p)
+  ; engine/fighter.e16.ts:486  poseLoad(i, fSlot[i], p)
   slli t0, s1, 1
   lw t0, fSlot(t0)
   mv a0, s1
@@ -6797,97 +6803,97 @@ poseSet:
   addi sp, sp, 8
   ret
 
-; engine/fighter.e16.ts:486 statePose(st) at -O1
+; engine/fighter.e16.ts:490 statePose(st) at -O1
 ;   st in a0
 statePose:
-  ; engine/fighter.e16.ts:487  if (st === ST_CROUCH) return PO_CROUCH
+  ; engine/fighter.e16.ts:491  if (st === ST_CROUCH) return PO_CROUCH
   li t0, 1
   bne a0, t0, .L1
-  ; engine/fighter.e16.ts:487  return PO_CROUCH
+  ; engine/fighter.e16.ts:491  return PO_CROUCH
   li a0, 1
   ret
 .L1:
-  ; engine/fighter.e16.ts:488  if (st === ST_PREJUMP) return PO_PREJUMP
+  ; engine/fighter.e16.ts:492  if (st === ST_PREJUMP) return PO_PREJUMP
   li t0, 2
   bne a0, t0, .L2
-  ; engine/fighter.e16.ts:488  return PO_PREJUMP
+  ; engine/fighter.e16.ts:492  return PO_PREJUMP
   li a0, 2
   ret
 .L2:
-  ; engine/fighter.e16.ts:489  if (st === ST_LAND) return PO_LAND
+  ; engine/fighter.e16.ts:493  if (st === ST_LAND) return PO_LAND
   li t0, 4
   bne a0, t0, .L3
-  ; engine/fighter.e16.ts:489  return PO_LAND
+  ; engine/fighter.e16.ts:493  return PO_LAND
   li a0, 4
   ret
 .L3:
-  ; engine/fighter.e16.ts:490  if (st === ST_DOWN || st === ST_DEAD) return PO_DOWN
+  ; engine/fighter.e16.ts:494  if (st === ST_DOWN || st === ST_DEAD) return PO_DOWN
   li t0, 8
   beq a0, t0, .L5
   li t0, 10
   bne a0, t0, .L4
 .L5:
-  ; engine/fighter.e16.ts:490  return PO_DOWN
+  ; engine/fighter.e16.ts:494  return PO_DOWN
   li a0, 9
   ret
 .L4:
-  ; engine/fighter.e16.ts:491  if (st === ST_WAKE) return PO_WAKE
+  ; engine/fighter.e16.ts:495  if (st === ST_WAKE) return PO_WAKE
   li t0, 9
   bne a0, t0, .L6
-  ; engine/fighter.e16.ts:491  return PO_WAKE
+  ; engine/fighter.e16.ts:495  return PO_WAKE
   li a0, 10
   ret
 .L6:
-  ; engine/fighter.e16.ts:492  if (st === ST_THROW) return PO_THROWING
+  ; engine/fighter.e16.ts:496  if (st === ST_THROW) return PO_THROWING
   li t0, 11
   bne a0, t0, .L7
-  ; engine/fighter.e16.ts:492  return PO_THROWING
+  ; engine/fighter.e16.ts:496  return PO_THROWING
   li a0, 49
   ret
 .L7:
-  ; engine/fighter.e16.ts:493  if (st === ST_THROWN) return PO_THROWN
+  ; engine/fighter.e16.ts:497  if (st === ST_THROWN) return PO_THROWN
   li t0, 12
   bne a0, t0, .L8
-  ; engine/fighter.e16.ts:493  return PO_THROWN
+  ; engine/fighter.e16.ts:497  return PO_THROWN
   li a0, 58
   ret
 .L8:
-  ; engine/fighter.e16.ts:494  if (st === ST_DASH) return PO_DASH
+  ; engine/fighter.e16.ts:498  if (st === ST_DASH) return PO_DASH
   li t0, 13
   bne a0, t0, .L9
-  ; engine/fighter.e16.ts:494  return PO_DASH
+  ; engine/fighter.e16.ts:498  return PO_DASH
   li a0, 56
   ret
 .L9:
-  ; engine/fighter.e16.ts:495  if (st === ST_BACKDASH) return PO_BACKDASH
+  ; engine/fighter.e16.ts:499  if (st === ST_BACKDASH) return PO_BACKDASH
   li t0, 14
   bne a0, t0, .L10
-  ; engine/fighter.e16.ts:495  return PO_BACKDASH
+  ; engine/fighter.e16.ts:499  return PO_BACKDASH
   li a0, 57
   ret
 .L10:
-  ; engine/fighter.e16.ts:496  return PO_STAND
+  ; engine/fighter.e16.ts:500  return PO_STAND
   li a0, 0
 .return:
   ret
 
-; engine/fighter.e16.ts:503 standPose(i) at -O1
+; engine/fighter.e16.ts:507 standPose(i) at -O1
 ;   i in a0
 ;   s in a1
 standPose:
-  ; engine/fighter.e16.ts:504  if (fWin[i] !== 0) return PO_WIN
+  ; engine/fighter.e16.ts:508  if (fWin[i] !== 0) return PO_WIN
   slli t0, a0, 1
   lw t0, fWin(t0)
   beq t0, zero, .L1
-  ; engine/fighter.e16.ts:504  return PO_WIN
+  ; engine/fighter.e16.ts:508  return PO_WIN
   li a0, 59
   ret
 .L1:
-  ; engine/fighter.e16.ts:505  if (fVX[i] !== 0) {
+  ; engine/fighter.e16.ts:509  if (fVX[i] !== 0) {
   slli t0, a0, 1
   lw t0, fVX(t0)
   beq t0, zero, .L2
-  ; engine/fighter.e16.ts:507  const s = fFace[i] !== 0 ? fX[i] >> 7 : wrap16(0 - ((fX[i] + 127) >> 7))
+  ; engine/fighter.e16.ts:511  const s = fFace[i] !== 0 ? fX[i] >> 7 : wrap16(0 - ((fX[i] + 127) >> 7))
   slli t0, a0, 1
   lw t0, fFace(t0)
   beq t0, zero, .L3
@@ -6903,19 +6909,19 @@ standPose:
   sub t0, zero, t0
 .L4:
   mv a1, t0 ; s
-  ; engine/fighter.e16.ts:508  return PO_WALK + (s & 3)
+  ; engine/fighter.e16.ts:512  return PO_WALK + (s & 3)
   andi t0, a1, 3
   addi a0, t0, 51
   ret
 .L2:
-  ; engine/fighter.e16.ts:510  fBreath[i]++
+  ; engine/fighter.e16.ts:514  fBreath[i]++
   slli t0, a0, 1
   addi t0, t0, fBreath
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/fighter.e16.ts:511  return (fBreath[i] & 32) !== 0 ? PO_IDLE : PO_STAND
+  ; engine/fighter.e16.ts:515  return (fBreath[i] & 32) !== 0 ? PO_IDLE : PO_STAND
   slli t0, a0, 1
   lw t0, fBreath(t0)
   andi t0, t0, 32
@@ -6929,7 +6935,7 @@ standPose:
 .return:
   ret
 
-; engine/fighter.e16.ts:514 attackPose(i) at -O1
+; engine/fighter.e16.ts:518 attackPose(i) at -O1
 ;   i in s1
 ;   m in s2
 ;   s in 0(fp)
@@ -6944,34 +6950,34 @@ attackPose:
   sw s0, 12(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:515  const m = fMove[i]
+  ; engine/fighter.e16.ts:519  const m = fMove[i]
   slli t0, s1, 1
   lw s2, fMove(t0)
-  ; engine/fighter.e16.ts:516  const s = mvAt(i, m, M_STARTUP)
+  ; engine/fighter.e16.ts:520  const s = mvAt(i, m, M_STARTUP)
   mv a0, s1
   mv a1, s2
   li a2, 0
   call mvAt
   sw a0, 0(fp) ; s
-  ; engine/fighter.e16.ts:517  const f = fMoveF[i]
+  ; engine/fighter.e16.ts:521  const f = fMoveF[i]
   slli t0, s1, 1
   lw t0, fMoveF(t0)
   sw t0, 2(fp) ; f
-  ; engine/fighter.e16.ts:518  const base = mvAt(i, m, M_POSE)
+  ; engine/fighter.e16.ts:522  const base = mvAt(i, m, M_POSE)
   mv a0, s1
   mv a1, s2
   li a2, 14
   call mvAt
   mv s3, a0 ; base
-  ; engine/fighter.e16.ts:519  if (f < s) return base
+  ; engine/fighter.e16.ts:523  if (f < s) return base
   lw t0, 0(fp) ; s
   lw t1, 2(fp) ; f
   bgeu t1, t0, .L1
-  ; engine/fighter.e16.ts:519  return base
+  ; engine/fighter.e16.ts:523  return base
   mv a0, s3
   j .return
 .L1:
-  ; engine/fighter.e16.ts:520  if (f < s + mvAt(i, m, M_ACTIVE)) return base + 1
+  ; engine/fighter.e16.ts:524  if (f < s + mvAt(i, m, M_ACTIVE)) return base + 1
   mv a0, s1
   mv a1, s2
   li a2, 1
@@ -6980,11 +6986,11 @@ attackPose:
   add t0, t0, a0
   lw t1, 2(fp) ; f
   bgeu t1, t0, .L2
-  ; engine/fighter.e16.ts:520  return base + 1
+  ; engine/fighter.e16.ts:524  return base + 1
   addi a0, s3, 1
   j .return
 .L2:
-  ; engine/fighter.e16.ts:521  return base + 2
+  ; engine/fighter.e16.ts:525  return base + 2
   addi a0, s3, 2
 .return:
   mv sp, fp
@@ -6996,14 +7002,14 @@ attackPose:
   addi sp, sp, 14
   ret
 
-; engine/fighter.e16.ts:525 inStartup(i) at -O1
+; engine/fighter.e16.ts:529 inStartup(i) at -O1
 ;   i in s1
 inStartup:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:526  return fState[i] === ST_ATTACK && fMoveF[i] < mvAt(i, fMove[i], M_STARTUP)
+  ; engine/fighter.e16.ts:530  return fState[i] === ST_ATTACK && fMoveF[i] < mvAt(i, fMove[i], M_STARTUP)
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 5
@@ -7032,7 +7038,7 @@ inStartup:
   addi sp, sp, 4
   ret
 
-; engine/fighter.e16.ts:530 inActive(i) at -O1
+; engine/fighter.e16.ts:534 inActive(i) at -O1
 ;   i in s1
 ;   s in s2
 ;   f in s3
@@ -7043,16 +7049,16 @@ inActive:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:531  if (fState[i] !== ST_ATTACK) return false
+  ; engine/fighter.e16.ts:535  if (fState[i] !== ST_ATTACK) return false
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 5
   beq t0, t1, .L1
-  ; engine/fighter.e16.ts:531  return false
+  ; engine/fighter.e16.ts:535  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/fighter.e16.ts:532  const s = mvAt(i, fMove[i], M_STARTUP)
+  ; engine/fighter.e16.ts:536  const s = mvAt(i, fMove[i], M_STARTUP)
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -7060,10 +7066,10 @@ inActive:
   li a2, 0
   call mvAt
   mv s2, a0 ; s
-  ; engine/fighter.e16.ts:533  const f = fMoveF[i]
+  ; engine/fighter.e16.ts:537  const f = fMoveF[i]
   slli t0, s1, 1
   lw s3, fMoveF(t0)
-  ; engine/fighter.e16.ts:534  return f >= s && f < s + mvAt(i, fMove[i], M_ACTIVE)
+  ; engine/fighter.e16.ts:538  return f >= s && f < s + mvAt(i, fMove[i], M_ACTIVE)
   sltu t0, s3, s2
   xori t0, t0, 1
   mv t1, t0
@@ -7086,7 +7092,7 @@ inActive:
   addi sp, sp, 8
   ret
 
-; engine/fighter.e16.ts:540 motion(i) at -O1
+; engine/fighter.e16.ts:544 motion(i) at -O1
 ;   i in s1
 ;   p in s2
 ;   y in s3
@@ -7097,15 +7103,15 @@ motion:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:541  before[i] = fX[i]
+  ; engine/fighter.e16.ts:545  before[i] = fX[i]
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fX(t1)
   sw t1, before(t0)
-  ; engine/fighter.e16.ts:542  const p = i16(fPush[i])
+  ; engine/fighter.e16.ts:546  const p = i16(fPush[i])
   slli t0, s1, 1
   lw s2, fPush(t0)
-  ; engine/fighter.e16.ts:543  fX[i] = u16(i16(fX[i]) + i16(fVX[i]) + p)
+  ; engine/fighter.e16.ts:547  fX[i] = u16(i16(fX[i]) + i16(fVX[i]) + p)
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fX(t1)
@@ -7114,51 +7120,51 @@ motion:
   add t1, t1, t2
   add t1, t1, s2
   sw t1, fX(t0)
-  ; engine/fighter.e16.ts:544  if (p > FRICTION) fPush[i] = u16(p - FRICTION)
+  ; engine/fighter.e16.ts:548  if (p > FRICTION) fPush[i] = u16(p - FRICTION)
   li t0, 4
   bge t0, s2, .L1
-  ; engine/fighter.e16.ts:544  fPush[i] = u16(p - FRICTION)
+  ; engine/fighter.e16.ts:548  fPush[i] = u16(p - FRICTION)
   slli t0, s1, 1
   addi t1, s2, -4
   sw t1, fPush(t0)
   j .L2
 .L1:
-  ; engine/fighter.e16.ts:545  if (p < -FRICTION) fPush[i] = u16(p + FRICTION)
+  ; engine/fighter.e16.ts:549  if (p < -FRICTION) fPush[i] = u16(p + FRICTION)
   li t0, 65532
   bge s2, t0, .L3
-  ; engine/fighter.e16.ts:545  fPush[i] = u16(p + FRICTION)
+  ; engine/fighter.e16.ts:549  fPush[i] = u16(p + FRICTION)
   slli t0, s1, 1
   addi t1, s2, 4
   sw t1, fPush(t0)
   j .L4
 .L3:
-  ; engine/fighter.e16.ts:546  fPush[i] = 0
+  ; engine/fighter.e16.ts:550  fPush[i] = 0
   slli t0, s1, 1
   sw zero, fPush(t0)
 .L4:
 .L2:
-  ; engine/fighter.e16.ts:547  if (fAir[i] === 0) return
+  ; engine/fighter.e16.ts:551  if (fAir[i] === 0) return
   slli t0, s1, 1
   lw t0, fAir(t0)
   bne t0, zero, .L5
-  ; engine/fighter.e16.ts:547  return
+  ; engine/fighter.e16.ts:551  return
   j .return
 .L5:
-  ; engine/fighter.e16.ts:548  const y = i16(fY[i]) + i16(fVY[i])
+  ; engine/fighter.e16.ts:552  const y = i16(fY[i]) + i16(fVY[i])
   slli t0, s1, 1
   lw t0, fY(t0)
   slli t1, s1, 1
   lw t1, fVY(t1)
   add s3, t0, t1
-  ; engine/fighter.e16.ts:549  if (y > 0) {
+  ; engine/fighter.e16.ts:553  if (y > 0) {
   bge zero, s3, .L6
-  ; engine/fighter.e16.ts:550  fY[i] = u16(y)
+  ; engine/fighter.e16.ts:554  fY[i] = u16(y)
   slli t0, s1, 1
   sw s3, fY(t0)
-  ; engine/fighter.e16.ts:551  return
+  ; engine/fighter.e16.ts:555  return
   j .return
 .L6:
-  ; engine/fighter.e16.ts:553  land(i)
+  ; engine/fighter.e16.ts:557  land(i)
   mv a0, s1
   call land
 .return:
@@ -7169,7 +7175,7 @@ motion:
   addi sp, sp, 8
   ret
 
-; engine/fighter.e16.ts:556 land(i) at -O1
+; engine/fighter.e16.ts:560 land(i) at -O1
 ;   i in s1
 ;   st in s2
 land:
@@ -7178,46 +7184,46 @@ land:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:557  fY[i] = 0
+  ; engine/fighter.e16.ts:561  fY[i] = 0
   slli t0, s1, 1
   sw zero, fY(t0)
-  ; engine/fighter.e16.ts:558  fVY[i] = 0
+  ; engine/fighter.e16.ts:562  fVY[i] = 0
   slli t0, s1, 1
   sw zero, fVY(t0)
-  ; engine/fighter.e16.ts:559  fVX[i] = 0
+  ; engine/fighter.e16.ts:563  fVX[i] = 0
   slli t0, s1, 1
   sw zero, fVX(t0)
-  ; engine/fighter.e16.ts:560  fAir[i] = 0
+  ; engine/fighter.e16.ts:564  fAir[i] = 0
   slli t0, s1, 1
   sw zero, fAir(t0)
-  ; engine/fighter.e16.ts:561  fAirUsed[i] = 0
+  ; engine/fighter.e16.ts:565  fAirUsed[i] = 0
   slli t0, s1, 1
   sw zero, fAirUsed(t0)
-  ; engine/fighter.e16.ts:562  const st = fState[i]
+  ; engine/fighter.e16.ts:566  const st = fState[i]
   slli t0, s1, 1
   lw s2, fState(t0)
-  ; engine/fighter.e16.ts:563  if (st === ST_HIT && fKnock[i] !== 0) {
+  ; engine/fighter.e16.ts:567  if (st === ST_HIT && fKnock[i] !== 0) {
   li t0, 6
   bne s2, t0, .L1
   slli t0, s1, 1
   lw t0, fKnock(t0)
   beq t0, zero, .L1
-  ; engine/fighter.e16.ts:564  fKnock[i] = 0
+  ; engine/fighter.e16.ts:568  fKnock[i] = 0
   slli t0, s1, 1
   sw zero, fKnock(t0)
-  ; engine/fighter.e16.ts:565  enter(i, ST_DOWN)
+  ; engine/fighter.e16.ts:569  enter(i, ST_DOWN)
   mv a0, s1
   li a1, 8
   call enter
   j .L2
 .L1:
-  ; engine/fighter.e16.ts:566  if (st === ST_JUMP || st === ST_ATTACK) enter(i, ST_LAND)
+  ; engine/fighter.e16.ts:570  if (st === ST_JUMP || st === ST_ATTACK) enter(i, ST_LAND)
   li t0, 3
   beq s2, t0, .L4
   li t0, 5
   bne s2, t0, .L3
 .L4:
-  ; engine/fighter.e16.ts:566  enter(i, ST_LAND)
+  ; engine/fighter.e16.ts:570  enter(i, ST_LAND)
   mv a0, s1
   li a1, 4
   call enter
@@ -7230,10 +7236,10 @@ land:
   addi sp, sp, 6
   ret
 
-; engine/fighter.e16.ts:570 half(i) at -O1
+; engine/fighter.e16.ts:574 half(i) at -O1
 ;   i in a0
 half:
-  ; engine/fighter.e16.ts:571  return bx[i * POSE_W + 2] >> 1
+  ; engine/fighter.e16.ts:575  return bx[i * POSE_W + 2] >> 1
   slli t1, a0, 4
   slli t0, a0, 3
   add t0, t0, t1
@@ -7244,7 +7250,7 @@ half:
 .return:
   ret
 
-; engine/fighter.e16.ts:579 wall(i) at -O1
+; engine/fighter.e16.ts:583 wall(i) at -O1
 ;   i in s1
 ;   h in 0(fp)
 ;   lo in 2(fp)
@@ -7260,51 +7266,51 @@ wall:
   sw s0, 14(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:580  const h = half(i)
+  ; engine/fighter.e16.ts:584  const h = half(i)
   mv a0, s1
   call half
   sw a0, 0(fp) ; h
-  ; engine/fighter.e16.ts:581  const lo = (RING_L + h) * 16
+  ; engine/fighter.e16.ts:585  const lo = (RING_L + h) * 16
   lw t0, 0(fp) ; h
   addi t0, t0, 32
   slli t0, t0, 4
   sw t0, 2(fp) ; lo
-  ; engine/fighter.e16.ts:582  const hi = (RING_R - h) * 16
+  ; engine/fighter.e16.ts:586  const hi = (RING_R - h) * 16
   lw t0, 0(fp) ; h
   li t1, 480
   sub t1, t1, t0
   slli t1, t1, 4
   sw t1, 4(fp) ; hi
-  ; engine/fighter.e16.ts:583  const p = i16(fPush[i])
+  ; engine/fighter.e16.ts:587  const p = i16(fPush[i])
   slli t0, s1, 1
   lw s2, fPush(t0)
-  ; engine/fighter.e16.ts:584  let into = false
+  ; engine/fighter.e16.ts:588  let into = false
   li s3, 0 ; into
-  ; engine/fighter.e16.ts:585  if (fX[i] < lo) {
+  ; engine/fighter.e16.ts:589  if (fX[i] < lo) {
   slli t0, s1, 1
   lw t0, fX(t0)
   lw t1, 2(fp) ; lo
   bgeu t0, t1, .L1
-  ; engine/fighter.e16.ts:586  fX[i] = lo
+  ; engine/fighter.e16.ts:590  fX[i] = lo
   slli t0, s1, 1
   lw t1, 2(fp) ; lo
   sw t1, fX(t0)
-  ; engine/fighter.e16.ts:587  into = p < 0
+  ; engine/fighter.e16.ts:591  into = p < 0
   slti s3, s2, 0
 .L1:
-  ; engine/fighter.e16.ts:589  if (fX[i] > hi) {
+  ; engine/fighter.e16.ts:593  if (fX[i] > hi) {
   slli t0, s1, 1
   lw t0, fX(t0)
   lw t1, 4(fp) ; hi
   bgeu t1, t0, .L2
-  ; engine/fighter.e16.ts:590  fX[i] = hi
+  ; engine/fighter.e16.ts:594  fX[i] = hi
   slli t0, s1, 1
   lw t1, 4(fp) ; hi
   sw t1, fX(t0)
-  ; engine/fighter.e16.ts:591  into = p > 0
+  ; engine/fighter.e16.ts:595  into = p > 0
   slt s3, zero, s2
 .L2:
-  ; engine/fighter.e16.ts:593  if (!into || (fState[i] !== ST_HIT && fState[i] !== ST_GUARD)) return
+  ; engine/fighter.e16.ts:597  if (!into || (fState[i] !== ST_HIT && fState[i] !== ST_GUARD)) return
   beqz s3, .L4
   slli t0, s1, 1
   lw t0, fState(t0)
@@ -7315,16 +7321,16 @@ wall:
   li t1, 7
   beq t0, t1, .L3
 .L4:
-  ; engine/fighter.e16.ts:593  return
+  ; engine/fighter.e16.ts:597  return
   j .return
 .L3:
-  ; engine/fighter.e16.ts:594  fPush[1 - i] = u16(-p)
+  ; engine/fighter.e16.ts:598  fPush[1 - i] = u16(-p)
   li t0, 1
   sub t0, t0, s1
   slli t0, t0, 1
   neg t1, s2
   sw t1, fPush(t0)
-  ; engine/fighter.e16.ts:595  fPush[i] = 0
+  ; engine/fighter.e16.ts:599  fPush[i] = 0
   slli t0, s1, 1
   sw zero, fPush(t0)
 .return:
@@ -7337,7 +7343,7 @@ wall:
   addi sp, sp, 16
   ret
 
-; engine/fighter.e16.ts:602 apart() at -O1
+; engine/fighter.e16.ts:606 apart() at -O1
 ;   l in a0
 ;   r in a1
 ;   gap in s2
@@ -7352,7 +7358,7 @@ apart:
   sw s3, 2(sp)
   sw s0, 4(sp)
   sw s1, 6(sp)
-  ; engine/fighter.e16.ts:603  const l = fX[0] <= fX[1] ? 0 : 1
+  ; engine/fighter.e16.ts:607  const l = fX[0] <= fX[1] ? 0 : 1
   lw t0, fX(zero)
   lw t1, fX+2(zero)
   bltu t1, t0, .L1
@@ -7362,24 +7368,24 @@ apart:
   li t0, 1
 .L2:
   mv a0, t0 ; l
-  ; engine/fighter.e16.ts:604  const r = 1 - l
+  ; engine/fighter.e16.ts:608  const r = 1 - l
   li t0, 1
   sub a1, t0, a0
-  ; engine/fighter.e16.ts:605  const gap = fX[r] - fX[l]
+  ; engine/fighter.e16.ts:609  const gap = fX[r] - fX[l]
   slli t0, a1, 1
   lw t0, fX(t0)
   slli t1, a0, 1
   lw t1, fX(t1)
   sub s2, t0, t1
-  ; engine/fighter.e16.ts:606  if (gap <= MAX_APART * 16) return
+  ; engine/fighter.e16.ts:610  if (gap <= MAX_APART * 16) return
   li t0, 4096
   bltu t0, s2, .L3
-  ; engine/fighter.e16.ts:606  return
+  ; engine/fighter.e16.ts:610  return
   j .return
 .L3:
-  ; engine/fighter.e16.ts:607  const excess = gap - MAX_APART * 16
+  ; engine/fighter.e16.ts:611  const excess = gap - MAX_APART * 16
   addi a3, s2, -4096
-  ; engine/fighter.e16.ts:608  const outL = before[l] > fX[l] ? before[l] - fX[l] : 0
+  ; engine/fighter.e16.ts:612  const outL = before[l] > fX[l] ? before[l] - fX[l] : 0
   slli t0, a0, 1
   lw t0, before(t0)
   slli t1, a0, 1
@@ -7395,7 +7401,7 @@ apart:
   li t0, 0
 .L5:
   mv s3, t0 ; outL
-  ; engine/fighter.e16.ts:609  const outR = fX[r] > before[r] ? fX[r] - before[r] : 0
+  ; engine/fighter.e16.ts:613  const outR = fX[r] > before[r] ? fX[r] - before[r] : 0
   slli t0, a1, 1
   lw t0, fX(t0)
   slli t1, a1, 1
@@ -7411,37 +7417,37 @@ apart:
   li t0, 0
 .L7:
   mv s0, t0 ; outR
-  ; engine/fighter.e16.ts:610  let cutL: u16 = 0
+  ; engine/fighter.e16.ts:614  let cutL: u16 = 0
   li a2, 0 ; cutL
-  ; engine/fighter.e16.ts:611  let cutR: u16 = 0
+  ; engine/fighter.e16.ts:615  let cutR: u16 = 0
   li s1, 0 ; cutR
-  ; engine/fighter.e16.ts:612  if (outL > 0 && outR > 0) {
+  ; engine/fighter.e16.ts:616  if (outL > 0 && outR > 0) {
   bgeu zero, s3, .L8
   bgeu zero, s0, .L8
-  ; engine/fighter.e16.ts:613  cutL = (excess + 1) >> 1
+  ; engine/fighter.e16.ts:617  cutL = (excess + 1) >> 1
   addi t0, a3, 1
   srli a2, t0, 1
-  ; engine/fighter.e16.ts:614  cutR = cutL
+  ; engine/fighter.e16.ts:618  cutR = cutL
   mv s1, a2 ; cutR
   j .L9
 .L8:
-  ; engine/fighter.e16.ts:615  if (outL > 0) cutL = excess
+  ; engine/fighter.e16.ts:619  if (outL > 0) cutL = excess
   bgeu zero, s3, .L10
-  ; engine/fighter.e16.ts:615  cutL = excess
+  ; engine/fighter.e16.ts:619  cutL = excess
   mv a2, a3 ; cutL
   j .L11
 .L10:
-  ; engine/fighter.e16.ts:616  cutR = excess
+  ; engine/fighter.e16.ts:620  cutR = excess
   mv s1, a3 ; cutR
 .L11:
 .L9:
-  ; engine/fighter.e16.ts:617  fX[l] = fX[l] + cutL
+  ; engine/fighter.e16.ts:621  fX[l] = fX[l] + cutL
   slli t0, a0, 1
   slli t1, a0, 1
   lw t1, fX(t1)
   add t1, t1, a2
   sw t1, fX(t0)
-  ; engine/fighter.e16.ts:618  fX[r] = fX[r] - cutR
+  ; engine/fighter.e16.ts:622  fX[r] = fX[r] - cutR
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, fX(t1)
@@ -7455,7 +7461,7 @@ apart:
   addi sp, sp, 8
   ret
 
-; engine/fighter.e16.ts:625 bodies() at -O1
+; engine/fighter.e16.ts:629 bodies() at -O1
 ;   l in s1
 ;   r in s2
 ;   reach in s3
@@ -7471,22 +7477,22 @@ bodies:
   sw s3, 14(sp)
   sw s0, 16(sp)
   mv fp, sp
-  ; engine/fighter.e16.ts:626  if (fAir[0] !== 0 || fAir[1] !== 0) return
+  ; engine/fighter.e16.ts:630  if (fAir[0] !== 0 || fAir[1] !== 0) return
   lw t0, fAir(zero)
   bne t0, zero, .L2
   lw t0, fAir+2(zero)
   beq t0, zero, .L1
 .L2:
-  ; engine/fighter.e16.ts:626  return
+  ; engine/fighter.e16.ts:630  return
   j .return
 .L1:
-  ; engine/fighter.e16.ts:627  const l = leftOne()
+  ; engine/fighter.e16.ts:631  const l = leftOne()
   call leftOne
   mv s1, a0 ; l
-  ; engine/fighter.e16.ts:628  const r = 1 - l
+  ; engine/fighter.e16.ts:632  const r = 1 - l
   li t0, 1
   sub s2, t0, s1
-  ; engine/fighter.e16.ts:629  const reach = (half(l) + half(r)) * 16
+  ; engine/fighter.e16.ts:633  const reach = (half(l) + half(r)) * 16
   mv a0, s1
   call half
   addi sp, sp, -2
@@ -7497,63 +7503,63 @@ bodies:
   addi sp, sp, 2
   add t0, t0, a0
   slli s3, t0, 4
-  ; engine/fighter.e16.ts:630  const gap = fX[r] - fX[l]
+  ; engine/fighter.e16.ts:634  const gap = fX[r] - fX[l]
   slli t0, s2, 1
   lw t0, fX(t0)
   slli t1, s1, 1
   lw t1, fX(t1)
   sub t0, t0, t1
   sw t0, 0(fp) ; gap
-  ; engine/fighter.e16.ts:631  if (gap >= reach) return
+  ; engine/fighter.e16.ts:635  if (gap >= reach) return
   lw t0, 0(fp) ; gap
   bltu t0, s3, .L3
-  ; engine/fighter.e16.ts:631  return
+  ; engine/fighter.e16.ts:635  return
   j .return
 .L3:
-  ; engine/fighter.e16.ts:632  const each = (reach - gap + 1) >> 1
+  ; engine/fighter.e16.ts:636  const each = (reach - gap + 1) >> 1
   lw t0, 0(fp) ; gap
   sub t0, s3, t0
   addi t0, t0, 1
   srli t0, t0, 1
   sw t0, 2(fp) ; each
-  ; engine/fighter.e16.ts:633  fX[l] = wrap16(fX[l] - each)
+  ; engine/fighter.e16.ts:637  fX[l] = wrap16(fX[l] - each)
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fX(t1)
   lw t2, 2(fp) ; each
   sub t1, t1, t2
   sw t1, fX(t0)
-  ; engine/fighter.e16.ts:634  fX[r] = fX[r] + each
+  ; engine/fighter.e16.ts:638  fX[r] = fX[r] + each
   slli t0, s2, 1
   slli t1, s2, 1
   lw t1, fX(t1)
   lw t2, 2(fp) ; each
   add t1, t1, t2
   sw t1, fX(t0)
-  ; engine/fighter.e16.ts:635  wall(l)
+  ; engine/fighter.e16.ts:639  wall(l)
   mv a0, s1
   call wall
-  ; engine/fighter.e16.ts:636  wall(r)
+  ; engine/fighter.e16.ts:640  wall(r)
   mv a0, s2
   call wall
-  ; engine/fighter.e16.ts:637  const still = fX[r] - fX[l]
+  ; engine/fighter.e16.ts:641  const still = fX[r] - fX[l]
   slli t0, s2, 1
   lw t0, fX(t0)
   slli t1, s1, 1
   lw t1, fX(t1)
   sub t0, t0, t1
   sw t0, 4(fp) ; still
-  ; engine/fighter.e16.ts:638  if (still >= reach) return
+  ; engine/fighter.e16.ts:642  if (still >= reach) return
   lw t0, 4(fp) ; still
   bltu t0, s3, .L4
-  ; engine/fighter.e16.ts:638  return
+  ; engine/fighter.e16.ts:642  return
   j .return
 .L4:
-  ; engine/fighter.e16.ts:639  const left = reach - still
+  ; engine/fighter.e16.ts:643  const left = reach - still
   lw t0, 4(fp) ; still
   sub t0, s3, t0
   sw t0, 6(fp) ; left
-  ; engine/fighter.e16.ts:640  if (fX[l] <= (RING_L + half(l)) * 16) fX[r] = fX[r] + left
+  ; engine/fighter.e16.ts:644  if (fX[l] <= (RING_L + half(l)) * 16) fX[r] = fX[r] + left
   slli t0, s1, 1
   lw t0, fX(t0)
   addi sp, sp, -2
@@ -7565,7 +7571,7 @@ bodies:
   lw t1, 0(sp)
   addi sp, sp, 2
   bltu t0, t1, .L5
-  ; engine/fighter.e16.ts:640  fX[r] = fX[r] + left
+  ; engine/fighter.e16.ts:644  fX[r] = fX[r] + left
   slli t0, s2, 1
   slli t1, s2, 1
   lw t1, fX(t1)
@@ -7574,7 +7580,7 @@ bodies:
   sw t1, fX(t0)
   j .L6
 .L5:
-  ; engine/fighter.e16.ts:641  fX[l] = fX[l] - left
+  ; engine/fighter.e16.ts:645  fX[l] = fX[l] - left
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fX(t1)
@@ -7592,25 +7598,25 @@ bodies:
   addi sp, sp, 18
   ret
 
-; engine/fighter.e16.ts:645 leftOne() at -O1
+; engine/fighter.e16.ts:649 leftOne() at -O1
 leftOne:
-  ; engine/fighter.e16.ts:646  if (fX[0] < fX[1]) return 0
+  ; engine/fighter.e16.ts:650  if (fX[0] < fX[1]) return 0
   lw t0, fX(zero)
   lw t1, fX+2(zero)
   bgeu t0, t1, .L1
-  ; engine/fighter.e16.ts:646  return 0
+  ; engine/fighter.e16.ts:650  return 0
   li a0, 0
   ret
 .L1:
-  ; engine/fighter.e16.ts:647  if (fX[1] < fX[0]) return 1
+  ; engine/fighter.e16.ts:651  if (fX[1] < fX[0]) return 1
   lw t0, fX+2(zero)
   lw t1, fX(zero)
   bgeu t0, t1, .L2
-  ; engine/fighter.e16.ts:647  return 1
+  ; engine/fighter.e16.ts:651  return 1
   li a0, 1
   ret
 .L2:
-  ; engine/fighter.e16.ts:648  return fFace[1] !== 0 && fFace[0] === 0 ? 1 : 0
+  ; engine/fighter.e16.ts:652  return fFace[1] !== 0 && fFace[0] === 0 ? 1 : 0
   lw t0, fFace+2(zero)
   beq t0, zero, .L3
   lw t0, fFace(zero)
@@ -7624,16 +7630,16 @@ leftOne:
 .return:
   ret
 
-; engine/fighter.e16.ts:652 comboNote(d) at -O1
+; engine/fighter.e16.ts:656 comboNote(d) at -O1
 ;   d in a0
 comboNote:
-  ; engine/fighter.e16.ts:653  if (fCombo[d] > fComboMax[d]) fComboMax[d] = fCombo[d]
+  ; engine/fighter.e16.ts:657  if (fCombo[d] > fComboMax[d]) fComboMax[d] = fCombo[d]
   slli t0, a0, 1
   lw t0, fCombo(t0)
   slli t1, a0, 1
   lw t1, fComboMax(t1)
   bgeu t1, t0, .L1
-  ; engine/fighter.e16.ts:653  fComboMax[d] = fCombo[d]
+  ; engine/fighter.e16.ts:657  fComboMax[d] = fCombo[d]
   slli t0, a0, 1
   slli t1, a0, 1
   lw t1, fCombo(t1)
@@ -7642,17 +7648,17 @@ comboNote:
 .return:
   ret
 
-; engine/fighter.e16.ts:657 pushOf(push, weight, towardsRight) at -O1
+; engine/fighter.e16.ts:661 pushOf(push, weight, towardsRight) at -O1
 ;   push in a0
 ;   weight in a1
 ;   towardsRight in a2
 ;   v in a3
 pushOf:
-  ; engine/fighter.e16.ts:658  const v = div(push * 100, weight)
+  ; engine/fighter.e16.ts:662  const v = div(push * 100, weight)
   li t0, 100
   mul t0, a0, t0
   divu a3, t0, a1
-  ; engine/fighter.e16.ts:659  return towardsRight ? v : wrap16(0 - v)
+  ; engine/fighter.e16.ts:663  return towardsRight ? v : wrap16(0 - v)
   beqz a2, .L1
   mv t0, a3
   j .L2
@@ -7663,10 +7669,10 @@ pushOf:
 .return:
   ret
 
-; engine/fighter.e16.ts:663 free(i) at -O1
+; engine/fighter.e16.ts:667 free(i) at -O1
 ;   i in a0
 free:
-  ; engine/fighter.e16.ts:664  return fState[i] === ST_STAND || fState[i] === ST_CROUCH
+  ; engine/fighter.e16.ts:668  return fState[i] === ST_STAND || fState[i] === ST_CROUCH
   slli t0, a0, 1
   lw t0, fState(t0)
   sub t0, t0, zero
@@ -7683,14 +7689,14 @@ free:
 .return:
   ret
 
-; engine/fighter.e16.ts:668 holdsBack(i) at -O1
+; engine/fighter.e16.ts:672 holdsBack(i) at -O1
 ;   i in s1
 holdsBack:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; engine/fighter.e16.ts:669  return (heldNow(i) & I_BACK) !== 0
+  ; engine/fighter.e16.ts:673  return (heldNow(i) & I_BACK) !== 0
   mv a0, s1
   call heldNow
   andi t0, a0, 4
@@ -7702,14 +7708,14 @@ holdsBack:
   addi sp, sp, 4
   ret
 
-; engine/hit.e16.ts:81 boxesWorld() at -O1
+; engine/hit.e16.ts:82 boxesWorld() at -O1
 boxesWorld:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/hit.e16.ts:82  boxesOf(0)
+  ; engine/hit.e16.ts:83  boxesOf(0)
   li a0, 0
   call boxesOf
-  ; engine/hit.e16.ts:83  boxesOf(1)
+  ; engine/hit.e16.ts:84  boxesOf(1)
   li a0, 1
   call boxesOf
 .return:
@@ -7717,7 +7723,7 @@ boxesWorld:
   addi sp, sp, 2
   ret
 
-; engine/hit.e16.ts:86 boxesOf(i) at -O1
+; engine/hit.e16.ts:87 boxesOf(i) at -O1
 ;   i in s2
 ;   x in 4(fp)
 ;   y in 12(fp)
@@ -7738,63 +7744,63 @@ boxesOf:
   sw s0, 24(sp)
   mv fp, sp
   mv s2, a0 ; i
-  ; engine/hit.e16.ts:87  const x = i16(pointX(i))
+  ; engine/hit.e16.ts:88  const x = i16(pointX(i))
   mv a0, s2
   call pointX
   sw a0, 4(fp) ; x
-  ; engine/hit.e16.ts:88  const y = i16(fY[i] >> 4)
+  ; engine/hit.e16.ts:89  const y = i16(fY[i] >> 4)
   slli t0, s2, 1
   lw t0, fY(t0)
   srli t0, t0, 4
   sw t0, 12(fp) ; y
-  ; engine/hit.e16.ts:89  const right = fFace[i] !== 0
+  ; engine/hit.e16.ts:90  const right = fFace[i] !== 0
   slli t0, s2, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez t0, t0
   sw t0, 14(fp) ; right
-  ; engine/hit.e16.ts:90  let k: u16 = 0
+  ; engine/hit.e16.ts:91  let k: u16 = 0
   li s3, 0 ; k
-  ; engine/hit.e16.ts:91  while (k < BOXES) {
+  ; engine/hit.e16.ts:92  while (k < BOXES) {
   j .L3
 .L1:
-  ; engine/hit.e16.ts:92  const at = i * POSE_W + k * 4
+  ; engine/hit.e16.ts:93  const at = i * POSE_W + k * 4
   slli t1, s2, 4
   slli t0, s2, 3
   add t0, t0, t1
   slli t1, s3, 2
   add t0, t0, t1
   sw t0, 0(fp) ; at
-  ; engine/hit.e16.ts:93  const w = i16(bx[at + 2])
+  ; engine/hit.e16.ts:94  const w = i16(bx[at + 2])
   lw t0, 0(fp) ; at
   addi t0, t0, 2
   slli t0, t0, 1
   lw t0, bx(t0)
   sw t0, 2(fp) ; w
-  ; engine/hit.e16.ts:94  const o = i * 24 + k * 4
+  ; engine/hit.e16.ts:95  const o = i * 24 + k * 4
   slli t1, s2, 4
   slli t0, s2, 3
   add t0, t0, t1
   slli t1, s3, 2
   add s1, t0, t1
-  ; engine/hit.e16.ts:95  if (w === 0) {
+  ; engine/hit.e16.ts:96  if (w === 0) {
   lw t0, 2(fp) ; w
   bne t0, zero, .L5
-  ; engine/hit.e16.ts:96  wb[o] = 0
+  ; engine/hit.e16.ts:97  wb[o] = 0
   slli t0, s1, 1
   sw zero, wb(t0)
-  ; engine/hit.e16.ts:97  wb[o + 1] = 0
+  ; engine/hit.e16.ts:98  wb[o + 1] = 0
   addi t0, s1, 1
   slli t0, t0, 1
   sw zero, wb(t0)
   j .L6
 .L5:
-  ; engine/hit.e16.ts:99  const bx0 = i16(bx[at])
+  ; engine/hit.e16.ts:100  const bx0 = i16(bx[at])
   lw t0, 0(fp) ; at
   slli t0, t0, 1
   lw t0, bx(t0)
   sw t0, 6(fp) ; bx0
-  ; engine/hit.e16.ts:100  const left = right ? x + bx0 : x - bx0 - w
+  ; engine/hit.e16.ts:101  const left = right ? x + bx0 : x - bx0 - w
   lw t0, 14(fp) ; right
   beqz t0, .L7
   lw t0, 6(fp) ; bx0
@@ -7809,7 +7815,7 @@ boxesOf:
   sub t0, t1, t0
 .L8:
   sw t0, 8(fp) ; left
-  ; engine/hit.e16.ts:101  const top = y + i16(bx[at + 1])
+  ; engine/hit.e16.ts:102  const top = y + i16(bx[at + 1])
   lw t0, 0(fp) ; at
   addi t0, t0, 1
   slli t0, t0, 1
@@ -7817,23 +7823,23 @@ boxesOf:
   lw t1, 12(fp) ; y
   add t1, t1, t0
   sw t1, 10(fp) ; top
-  ; engine/hit.e16.ts:102  wb[o] = u16(left)
+  ; engine/hit.e16.ts:103  wb[o] = u16(left)
   slli t0, s1, 1
   lw t1, 8(fp) ; left
   sw t1, wb(t0)
-  ; engine/hit.e16.ts:103  wb[o + 1] = u16(left + w)
+  ; engine/hit.e16.ts:104  wb[o + 1] = u16(left + w)
   addi t0, s1, 1
   slli t0, t0, 1
   lw t1, 2(fp) ; w
   lw t2, 8(fp) ; left
   add t2, t2, t1
   sw t2, wb(t0)
-  ; engine/hit.e16.ts:104  wb[o + 2] = u16(top)
+  ; engine/hit.e16.ts:105  wb[o + 2] = u16(top)
   addi t0, s1, 2
   slli t0, t0, 1
   lw t1, 10(fp) ; top
   sw t1, wb(t0)
-  ; engine/hit.e16.ts:105  wb[o + 3] = u16(top - i16(bx[at + 3]))
+  ; engine/hit.e16.ts:106  wb[o + 3] = u16(top - i16(bx[at + 3]))
   addi t0, s1, 3
   slli t0, t0, 1
   lw t1, 0(fp) ; at
@@ -7844,7 +7850,7 @@ boxesOf:
   sub t2, t2, t1
   sw t2, wb(t0)
 .L6:
-  ; engine/hit.e16.ts:107  k++
+  ; engine/hit.e16.ts:108  k++
   addi s3, s3, 1
 .L3:
   li t0, 6
@@ -7859,7 +7865,7 @@ boxesOf:
   addi sp, sp, 26
   ret
 
-; engine/hit.e16.ts:112 overlap(a, ka, b, kb) at -O1
+; engine/hit.e16.ts:113 overlap(a, ka, b, kb) at -O1
 ;   a in a0
 ;   ka in a1
 ;   b in a2
@@ -7870,19 +7876,19 @@ overlap:
   addi sp, sp, -4
   sw s1, 0(sp)
   sw s2, 2(sp)
-  ; engine/hit.e16.ts:113  const p = a * 24 + ka * 4
+  ; engine/hit.e16.ts:114  const p = a * 24 + ka * 4
   slli t1, a0, 4
   slli t0, a0, 3
   add t0, t0, t1
   slli t1, a1, 2
   add s1, t0, t1
-  ; engine/hit.e16.ts:114  const q = b * 24 + kb * 4
+  ; engine/hit.e16.ts:115  const q = b * 24 + kb * 4
   slli t1, a2, 4
   slli t0, a2, 3
   add t0, t0, t1
   slli t1, a3, 2
   add s2, t0, t1
-  ; engine/hit.e16.ts:115  return (
+  ; engine/hit.e16.ts:116  return (
   slli t0, s1, 1
   lw t0, wb(t0)
   addi t1, s2, 1
@@ -7925,7 +7931,7 @@ overlap:
   addi sp, sp, 4
   ret
 
-; engine/hit.e16.ts:127 strikes(a) at -O1
+; engine/hit.e16.ts:128 strikes(a) at -O1
 ;   a in s1
 ;   d in s3
 ;   h in s0
@@ -7938,7 +7944,7 @@ strikes:
   sw s0, 6(sp)
   sw s2, 8(sp)
   mv s1, a0 ; a
-  ; engine/hit.e16.ts:128  if (!inActive(a) || fHitDone[a] !== 0) return false
+  ; engine/hit.e16.ts:129  if (!inActive(a) || fHitDone[a] !== 0) return false
   mv a0, s1
   call inActive
   beqz a0, .L2
@@ -7946,11 +7952,11 @@ strikes:
   lw t0, fHitDone(t0)
   beq t0, zero, .L1
 .L2:
-  ; engine/hit.e16.ts:128  return false
+  ; engine/hit.e16.ts:129  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/hit.e16.ts:129  if (mvAt(a, fMove[a], M_HEIGHT) === H_THROW) return false
+  ; engine/hit.e16.ts:130  if (mvAt(a, fMove[a], M_HEIGHT) === H_THROW) return false
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -7959,32 +7965,32 @@ strikes:
   call mvAt
   li t0, 4
   bne a0, t0, .L3
-  ; engine/hit.e16.ts:129  return false
+  ; engine/hit.e16.ts:130  return false
   li a0, 0
   j .return
 .L3:
-  ; engine/hit.e16.ts:130  const d = 1 - a
+  ; engine/hit.e16.ts:131  const d = 1 - a
   li t0, 1
   sub s3, t0, s1
-  ; engine/hit.e16.ts:131  if (strikeInvul(d)) return false
+  ; engine/hit.e16.ts:132  if (strikeInvul(d)) return false
   mv a0, s3
   call strikeInvul
   beqz a0, .L4
-  ; engine/hit.e16.ts:131  return false
+  ; engine/hit.e16.ts:132  return false
   li a0, 0
   j .return
 .L4:
-  ; engine/hit.e16.ts:132  let h: u16 = 4
+  ; engine/hit.e16.ts:133  let h: u16 = 4
   li s0, 4 ; h
-  ; engine/hit.e16.ts:133  while (h < 6) {
+  ; engine/hit.e16.ts:134  while (h < 6) {
   j .L7
 .L5:
-  ; engine/hit.e16.ts:134  let k: u16 = 1
+  ; engine/hit.e16.ts:135  let k: u16 = 1
   li s2, 1 ; k
-  ; engine/hit.e16.ts:135  while (k < 4) {
+  ; engine/hit.e16.ts:136  while (k < 4) {
   j .L11
 .L9:
-  ; engine/hit.e16.ts:136  if (overlap(a, h, d, k) && !upperSafe(d, i16(wb[d * 24 + k * 4 + 3]))) return true
+  ; engine/hit.e16.ts:137  if (overlap(a, h, d, k) && !upperSafe(d, i16(wb[d * 24 + k * 4 + 3]))) return true
   mv a0, s1
   mv a1, s0
   mv a2, s3
@@ -8003,21 +8009,21 @@ strikes:
   mv a1, t0
   call upperSafe
   bnez a0, .L13
-  ; engine/hit.e16.ts:136  return true
+  ; engine/hit.e16.ts:137  return true
   li a0, 1
   j .return
 .L13:
-  ; engine/hit.e16.ts:137  k++
+  ; engine/hit.e16.ts:138  k++
   addi s2, s2, 1
 .L11:
   li t0, 4
   bltu s2, t0, .L9
-  ; engine/hit.e16.ts:139  h++
+  ; engine/hit.e16.ts:140  h++
   addi s0, s0, 1
 .L7:
   li t0, 6
   bltu s0, t0, .L5
-  ; engine/hit.e16.ts:141  return false
+  ; engine/hit.e16.ts:142  return false
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -8028,19 +8034,19 @@ strikes:
   addi sp, sp, 10
   ret
 
-; engine/hit.e16.ts:158 hitstopIs(n) at -O1
+; engine/hit.e16.ts:162 hitstopIs(n) at -O1
 ;   n in a0
 hitstopIs:
-  ; engine/hit.e16.ts:159  hitstop = n
-  sw a0, 0x1982(zero)
+  ; engine/hit.e16.ts:163  hitstop = n
+  sw a0, 0x1984(zero)
 .return:
   ret
 
-; engine/hit.e16.ts:164 scaleOf(n) at -O1
+; engine/hit.e16.ts:168 scaleOf(n) at -O1
 ;   n in a0
 ;   k in a1
 scaleOf:
-  ; engine/hit.e16.ts:165  const k = n > SCALE_LAST ? SCALE_LAST : n
+  ; engine/hit.e16.ts:169  const k = n > SCALE_LAST ? SCALE_LAST : n
   li t0, 6
   bgeu t0, a0, .L1
   li t0, 6
@@ -8049,53 +8055,53 @@ scaleOf:
   mv t0, a0
 .L2:
   mv a1, t0 ; k
-  ; engine/hit.e16.ts:166  if (k === 0) return 256
+  ; engine/hit.e16.ts:170  if (k === 0) return 256
   bne a1, zero, .L3
-  ; engine/hit.e16.ts:166  return 256
+  ; engine/hit.e16.ts:170  return 256
   li a0, 256
   ret
 .L3:
-  ; engine/hit.e16.ts:167  if (k === 1) return 230
+  ; engine/hit.e16.ts:171  if (k === 1) return 230
   li t0, 1
   bne a1, t0, .L4
-  ; engine/hit.e16.ts:167  return 230
+  ; engine/hit.e16.ts:171  return 230
   li a0, 230
   ret
 .L4:
-  ; engine/hit.e16.ts:168  if (k === 2) return 205
+  ; engine/hit.e16.ts:172  if (k === 2) return 205
   li t0, 2
   bne a1, t0, .L5
-  ; engine/hit.e16.ts:168  return 205
+  ; engine/hit.e16.ts:172  return 205
   li a0, 205
   ret
 .L5:
-  ; engine/hit.e16.ts:169  if (k === 3) return 179
+  ; engine/hit.e16.ts:173  if (k === 3) return 179
   li t0, 3
   bne a1, t0, .L6
-  ; engine/hit.e16.ts:169  return 179
+  ; engine/hit.e16.ts:173  return 179
   li a0, 179
   ret
 .L6:
-  ; engine/hit.e16.ts:170  if (k === 4) return 154
+  ; engine/hit.e16.ts:174  if (k === 4) return 154
   li t0, 4
   bne a1, t0, .L7
-  ; engine/hit.e16.ts:170  return 154
+  ; engine/hit.e16.ts:174  return 154
   li a0, 154
   ret
 .L7:
-  ; engine/hit.e16.ts:171  if (k === 5) return 128
+  ; engine/hit.e16.ts:175  if (k === 5) return 128
   li t0, 5
   bne a1, t0, .L8
-  ; engine/hit.e16.ts:171  return 128
+  ; engine/hit.e16.ts:175  return 128
   li a0, 128
   ret
 .L8:
-  ; engine/hit.e16.ts:172  return 102
+  ; engine/hit.e16.ts:176  return 102
   li a0, 102
 .return:
   ret
 
-; engine/hit.e16.ts:176 damageOf(base, n, counter) at -O1
+; engine/hit.e16.ts:180 damageOf(base, n, counter) at -O1
 ;   base in s3
 ;   n in 0(fp)
 ;   counter in 2(fp)
@@ -8112,25 +8118,25 @@ damageOf:
   mv s3, a0 ; base
   sw a1, 0(fp) ; n
   sw a2, 2(fp) ; counter
-  ; engine/hit.e16.ts:177  let f = scaleOf(n - 1)
+  ; engine/hit.e16.ts:181  let f = scaleOf(n - 1)
   lw t0, 0(fp) ; n
   addi a0, t0, -1
   call scaleOf
   mv s1, a0 ; f
-  ; engine/hit.e16.ts:178  if (counter) f = f + ((f * 13) >> 6)
+  ; engine/hit.e16.ts:182  if (counter) f = f + ((f * 13) >> 6)
   lw t0, 2(fp) ; counter
   beqz t0, .L1
-  ; engine/hit.e16.ts:178  f = f + ((f * 13) >> 6)
+  ; engine/hit.e16.ts:182  f = f + ((f * 13) >> 6)
   li t0, 13
   mul t0, s1, t0
   srli t0, t0, 6
   add s1, s1, t0
 .L1:
-  ; engine/hit.e16.ts:179  const d = (base * f + 128) >> 8
+  ; engine/hit.e16.ts:183  const d = (base * f + 128) >> 8
   mul t0, s3, s1
   addi t0, t0, 128
   srli s2, t0, 8
-  ; engine/hit.e16.ts:180  return d === 0 ? 1 : d
+  ; engine/hit.e16.ts:184  return d === 0 ? 1 : d
   bne s2, zero, .L2
   li t0, 1
   j .L3
@@ -8148,24 +8154,24 @@ damageOf:
   addi sp, sp, 14
   ret
 
-; engine/hit.e16.ts:184 struckClear() at -O1
+; engine/hit.e16.ts:188 struckClear() at -O1
 struckClear:
-  ; engine/hit.e16.ts:185  struck[0] = 0
+  ; engine/hit.e16.ts:189  struck[0] = 0
   sw zero, struck(zero)
-  ; engine/hit.e16.ts:186  struck[1] = 0
+  ; engine/hit.e16.ts:190  struck[1] = 0
   sw zero, struck+2(zero)
-  ; engine/hit.e16.ts:187  dealt[0] = 0
+  ; engine/hit.e16.ts:191  dealt[0] = 0
   sw zero, dealt(zero)
-  ; engine/hit.e16.ts:188  dealt[1] = 0
+  ; engine/hit.e16.ts:192  dealt[1] = 0
   sw zero, dealt+2(zero)
-  ; engine/hit.e16.ts:189  threw[0] = 0
+  ; engine/hit.e16.ts:193  threw[0] = 0
   sw zero, threw(zero)
-  ; engine/hit.e16.ts:190  threw[1] = 0
+  ; engine/hit.e16.ts:194  threw[1] = 0
   sw zero, threw+2(zero)
 .return:
   ret
 
-; engine/hit.e16.ts:197 hitsResolve() at -O1
+; engine/hit.e16.ts:201 hitsResolve() at -O1
 ;   t0 in s3
 ;   t1 in s0
 ;   s0 in s1
@@ -8177,71 +8183,71 @@ hitsResolve:
   sw s0, 4(sp)
   sw s1, 6(sp)
   sw s2, 8(sp)
-  ; engine/hit.e16.ts:198  const t0 = throwHolds(0)
+  ; engine/hit.e16.ts:202  const t0 = throwHolds(0)
   li a0, 0
   call throwHolds
   mv s3, a0 ; t0
-  ; engine/hit.e16.ts:199  const t1 = throwHolds(1)
+  ; engine/hit.e16.ts:203  const t1 = throwHolds(1)
   li a0, 1
   call throwHolds
   mv s0, a0 ; t1
-  ; engine/hit.e16.ts:200  if (t0 && t1) {
+  ; engine/hit.e16.ts:204  if (t0 && t1) {
   beqz s3, .L1
   beqz s0, .L1
-  ; engine/hit.e16.ts:201  fHitDone[0] = 1
+  ; engine/hit.e16.ts:205  fHitDone[0] = 1
   li t0, 1
   sw t0, fHitDone(zero)
-  ; engine/hit.e16.ts:202  fHitDone[1] = 1
+  ; engine/hit.e16.ts:206  fHitDone[1] = 1
   li t0, 1
   sw t0, fHitDone+2(zero)
-  ; engine/hit.e16.ts:203  techBoth()
+  ; engine/hit.e16.ts:207  techBoth()
   call techBoth
-  ; engine/hit.e16.ts:204  return
+  ; engine/hit.e16.ts:208  return
   j .return
 .L1:
-  ; engine/hit.e16.ts:206  const s0 = strikes(0)
+  ; engine/hit.e16.ts:210  const s0 = strikes(0)
   li a0, 0
   call strikes
   mv s1, a0 ; s0
-  ; engine/hit.e16.ts:207  const s1 = strikes(1)
+  ; engine/hit.e16.ts:211  const s1 = strikes(1)
   li a0, 1
   call strikes
   mv s2, a0 ; s1
-  ; engine/hit.e16.ts:208  if (s0) judge(0)
+  ; engine/hit.e16.ts:212  if (s0) judge(0)
   beqz s1, .L2
-  ; engine/hit.e16.ts:208  judge(0)
+  ; engine/hit.e16.ts:212  judge(0)
   li a0, 0
   call judge
 .L2:
-  ; engine/hit.e16.ts:209  if (s1) judge(1)
+  ; engine/hit.e16.ts:213  if (s1) judge(1)
   beqz s2, .L3
-  ; engine/hit.e16.ts:209  judge(1)
+  ; engine/hit.e16.ts:213  judge(1)
   li a0, 1
   call judge
 .L3:
-  ; engine/hit.e16.ts:210  if (s0) deal(0)
+  ; engine/hit.e16.ts:214  if (s0) deal(0)
   beqz s1, .L4
-  ; engine/hit.e16.ts:210  deal(0)
+  ; engine/hit.e16.ts:214  deal(0)
   li a0, 0
   call deal
 .L4:
-  ; engine/hit.e16.ts:211  if (s1) deal(1)
+  ; engine/hit.e16.ts:215  if (s1) deal(1)
   beqz s2, .L5
-  ; engine/hit.e16.ts:211  deal(1)
+  ; engine/hit.e16.ts:215  deal(1)
   li a0, 1
   call deal
 .L5:
-  ; engine/hit.e16.ts:212  if (t0 && !s1) hold(0)
+  ; engine/hit.e16.ts:216  if (t0 && !s1) hold(0)
   beqz s3, .L6
   bnez s2, .L6
-  ; engine/hit.e16.ts:212  hold(0)
+  ; engine/hit.e16.ts:216  hold(0)
   li a0, 0
   call hold
 .L6:
-  ; engine/hit.e16.ts:213  if (t1 && !s0) hold(1)
+  ; engine/hit.e16.ts:217  if (t1 && !s0) hold(1)
   beqz s0, .L7
   bnez s1, .L7
-  ; engine/hit.e16.ts:213  hold(1)
+  ; engine/hit.e16.ts:217  hold(1)
   li a0, 1
   call hold
 .L7:
@@ -8254,7 +8260,7 @@ hitsResolve:
   addi sp, sp, 10
   ret
 
-; engine/hit.e16.ts:233 throwHolds(a) at -O1
+; engine/hit.e16.ts:237 throwHolds(a) at -O1
 ;   a in s1
 ;   d in s2
 throwHolds:
@@ -8263,7 +8269,7 @@ throwHolds:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; a
-  ; engine/hit.e16.ts:234  if (fState[a] !== ST_ATTACK || fMove[a] !== MV_THROW) return false
+  ; engine/hit.e16.ts:238  if (fState[a] !== ST_ATTACK || fMove[a] !== MV_THROW) return false
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 5
@@ -8273,11 +8279,11 @@ throwHolds:
   li t1, 12
   beq t0, t1, .L1
 .L2:
-  ; engine/hit.e16.ts:234  return false
+  ; engine/hit.e16.ts:238  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/hit.e16.ts:235  if (!inActive(a) || fHitDone[a] !== 0) return false
+  ; engine/hit.e16.ts:239  if (!inActive(a) || fHitDone[a] !== 0) return false
   mv a0, s1
   call inActive
   beqz a0, .L4
@@ -8285,14 +8291,14 @@ throwHolds:
   lw t0, fHitDone(t0)
   beq t0, zero, .L3
 .L4:
-  ; engine/hit.e16.ts:235  return false
+  ; engine/hit.e16.ts:239  return false
   li a0, 0
   j .return
 .L3:
-  ; engine/hit.e16.ts:236  const d = 1 - a
+  ; engine/hit.e16.ts:240  const d = 1 - a
   li t0, 1
   sub s2, t0, s1
-  ; engine/hit.e16.ts:237  if (fAir[a] !== 0 || fAir[d] !== 0 || fY[d] !== 0) return false
+  ; engine/hit.e16.ts:241  if (fAir[a] !== 0 || fAir[d] !== 0 || fY[d] !== 0) return false
   slli t0, s1, 1
   lw t0, fAir(t0)
   bne t0, zero, .L6
@@ -8303,11 +8309,11 @@ throwHolds:
   lw t0, fY(t0)
   beq t0, zero, .L5
 .L6:
-  ; engine/hit.e16.ts:237  return false
+  ; engine/hit.e16.ts:241  return false
   li a0, 0
   j .return
 .L5:
-  ; engine/hit.e16.ts:238  if (!throwable(fState[d]) || throwInvul(d)) return false
+  ; engine/hit.e16.ts:242  if (!throwable(fState[d]) || throwInvul(d)) return false
   slli t0, s2, 1
   lw a0, fState(t0)
   call throwable
@@ -8316,11 +8322,11 @@ throwHolds:
   call throwInvul
   beqz a0, .L7
 .L8:
-  ; engine/hit.e16.ts:238  return false
+  ; engine/hit.e16.ts:242  return false
   li a0, 0
   j .return
 .L7:
-  ; engine/hit.e16.ts:239  return throwGap(a, fX[a], fX[d]) <= prAt(a, P_THROW)
+  ; engine/hit.e16.ts:243  return throwGap(a, fX[a], fX[d]) <= prAt(a, P_THROW)
   slli t0, s1, 1
   lw t0, fX(t0)
   slli t1, s2, 1
@@ -8345,10 +8351,10 @@ throwHolds:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:243 throwable(st) at -O1
+; engine/hit.e16.ts:247 throwable(st) at -O1
 ;   st in a0
 throwable:
-  ; engine/hit.e16.ts:244  if (st === ST_STAND || st === ST_CROUCH || st === ST_ATTACK || st === ST_LAND) return true
+  ; engine/hit.e16.ts:248  if (st === ST_STAND || st === ST_CROUCH || st === ST_ATTACK || st === ST_LAND) return true
   beq a0, zero, .L2
   li t0, 1
   beq a0, t0, .L2
@@ -8357,11 +8363,11 @@ throwable:
   li t0, 4
   bne a0, t0, .L1
 .L2:
-  ; engine/hit.e16.ts:244  return true
+  ; engine/hit.e16.ts:248  return true
   li a0, 1
   ret
 .L1:
-  ; engine/hit.e16.ts:245  return st === ST_DASH || st === ST_BACKDASH
+  ; engine/hit.e16.ts:249  return st === ST_DASH || st === ST_BACKDASH
   li t0, 13
   sub t0, a0, t0
   seqz t0, t0
@@ -8375,7 +8381,7 @@ throwable:
 .return:
   ret
 
-; engine/hit.e16.ts:249 hold(a) at -O1
+; engine/hit.e16.ts:253 hold(a) at -O1
 ;   a in s1
 ;   d in s2
 hold:
@@ -8384,40 +8390,40 @@ hold:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; a
-  ; engine/hit.e16.ts:250  const d = 1 - a
+  ; engine/hit.e16.ts:254  const d = 1 - a
   li t0, 1
   sub s2, t0, s1
-  ; engine/hit.e16.ts:251  fHitDone[a] = 1
+  ; engine/hit.e16.ts:255  fHitDone[a] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fHitDone(t0)
-  ; engine/hit.e16.ts:252  enter(a, ST_THROW)
+  ; engine/hit.e16.ts:256  enter(a, ST_THROW)
   mv a0, s1
   li a1, 11
   call enter
-  ; engine/hit.e16.ts:253  enter(d, ST_THROWN)
+  ; engine/hit.e16.ts:257  enter(d, ST_THROWN)
   mv a0, s2
   li a1, 12
   call enter
-  ; engine/hit.e16.ts:254  fVX[a] = 0
+  ; engine/hit.e16.ts:258  fVX[a] = 0
   slli t0, s1, 1
   sw zero, fVX(t0)
-  ; engine/hit.e16.ts:255  fVX[d] = 0
+  ; engine/hit.e16.ts:259  fVX[d] = 0
   slli t0, s2, 1
   sw zero, fVX(t0)
-  ; engine/hit.e16.ts:256  fPush[a] = 0
+  ; engine/hit.e16.ts:260  fPush[a] = 0
   slli t0, s1, 1
   sw zero, fPush(t0)
-  ; engine/hit.e16.ts:257  fPush[d] = 0
+  ; engine/hit.e16.ts:261  fPush[d] = 0
   slli t0, s2, 1
   sw zero, fPush(t0)
-  ; engine/hit.e16.ts:258  fStun[d] = 0
+  ; engine/hit.e16.ts:262  fStun[d] = 0
   slli t0, s2, 1
   sw zero, fStun(t0)
-  ; engine/hit.e16.ts:259  fCombo[d] = 0
+  ; engine/hit.e16.ts:263  fCombo[d] = 0
   slli t0, s2, 1
   sw zero, fCombo(t0)
-  ; engine/hit.e16.ts:260  threw[a] = 1
+  ; engine/hit.e16.ts:264  threw[a] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, threw(t0)
@@ -8428,7 +8434,7 @@ hold:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:268 throwsStep() at -O1
+; engine/hit.e16.ts:272 throwsStep() at -O1
 ;   d in s2
 ;   a in s1
 throwsStep:
@@ -8436,54 +8442,54 @@ throwsStep:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; engine/hit.e16.ts:269  let d: u16 = 0
+  ; engine/hit.e16.ts:273  let d: u16 = 0
   li s2, 0 ; d
-  ; engine/hit.e16.ts:270  while (d < 2) {
+  ; engine/hit.e16.ts:274  while (d < 2) {
   j .L3
 .L1:
-  ; engine/hit.e16.ts:271  if (fState[d] === ST_THROWN) thrownStep(d)
+  ; engine/hit.e16.ts:275  if (fState[d] === ST_THROWN) thrownStep(d)
   slli t0, s2, 1
   lw t0, fState(t0)
   li t1, 12
   bne t0, t1, .L5
-  ; engine/hit.e16.ts:271  thrownStep(d)
+  ; engine/hit.e16.ts:275  thrownStep(d)
   mv a0, s2
   call thrownStep
 .L5:
-  ; engine/hit.e16.ts:272  d++
+  ; engine/hit.e16.ts:276  d++
   addi s2, s2, 1
 .L3:
   li t0, 2
   bltu s2, t0, .L1
-  ; engine/hit.e16.ts:274  let a: u16 = 0
+  ; engine/hit.e16.ts:278  let a: u16 = 0
   li s1, 0 ; a
-  ; engine/hit.e16.ts:275  while (a < 2) {
+  ; engine/hit.e16.ts:279  while (a < 2) {
   j .L8
 .L6:
-  ; engine/hit.e16.ts:276  if (fState[a] === ST_THROW) {
+  ; engine/hit.e16.ts:280  if (fState[a] === ST_THROW) {
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 11
   bne t0, t1, .L10
-  ; engine/hit.e16.ts:277  fStateT[a]++
+  ; engine/hit.e16.ts:281  fStateT[a]++
   slli t0, s1, 1
   addi t0, t0, fStateT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:278  if (fStateT[a] >= THROW_F) enter(a, ST_STAND)
+  ; engine/hit.e16.ts:282  if (fStateT[a] >= THROW_F) enter(a, ST_STAND)
   slli t0, s1, 1
   lw t0, fStateT(t0)
   li t1, 26
   bltu t0, t1, .L11
-  ; engine/hit.e16.ts:278  enter(a, ST_STAND)
+  ; engine/hit.e16.ts:282  enter(a, ST_STAND)
   mv a0, s1
   li a1, 0
   call enter
 .L11:
 .L10:
-  ; engine/hit.e16.ts:280  a++
+  ; engine/hit.e16.ts:284  a++
   addi s1, s1, 1
 .L8:
   li t0, 2
@@ -8495,7 +8501,7 @@ throwsStep:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:284 thrownStep(d) at -O1
+; engine/hit.e16.ts:288 thrownStep(d) at -O1
 ;   d in s1
 ;   t in s2
 thrownStep:
@@ -8504,35 +8510,35 @@ thrownStep:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; d
-  ; engine/hit.e16.ts:285  fStateT[d]++
+  ; engine/hit.e16.ts:289  fStateT[d]++
   slli t0, s1, 1
   addi t0, t0, fStateT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:286  const t = fStateT[d]
+  ; engine/hit.e16.ts:290  const t = fStateT[d]
   slli t0, s1, 1
   lw s2, fStateT(t0)
-  ; engine/hit.e16.ts:287  if (t <= TECH_F && techPressed(d)) {
+  ; engine/hit.e16.ts:291  if (t <= TECH_F && techPressed(d)) {
   li t0, 7
   bltu t0, s2, .L1
   mv a0, s1
   call techPressed
   beqz a0, .L1
-  ; engine/hit.e16.ts:288  consume(d, I_ATTACKS)
+  ; engine/hit.e16.ts:292  consume(d, I_ATTACKS)
   mv a0, s1
   li a1, 240
   call consume
-  ; engine/hit.e16.ts:289  techBoth()
+  ; engine/hit.e16.ts:293  techBoth()
   call techBoth
-  ; engine/hit.e16.ts:290  return
+  ; engine/hit.e16.ts:294  return
   j .return
 .L1:
-  ; engine/hit.e16.ts:292  if (t >= SLAM_F) slam(1 - d, d)
+  ; engine/hit.e16.ts:296  if (t >= SLAM_F) slam(1 - d, d)
   li t0, 16
   bltu s2, t0, .L2
-  ; engine/hit.e16.ts:292  slam(1 - d, d)
+  ; engine/hit.e16.ts:296  slam(1 - d, d)
   li t0, 1
   sub a0, t0, s1
   mv a1, s1
@@ -8545,26 +8551,29 @@ thrownStep:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:296 techPressed(d) at -O1
+; engine/hit.e16.ts:304 techPressed(d) at -O1
 ;   d in s1
 techPressed:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; d
-  ; engine/hit.e16.ts:297  if ((heldNow(d) & (I_FWD | I_BACK)) === 0) return false
+  ; engine/hit.e16.ts:305  if ((heldNow(d) & (I_FWD | I_BACK)) === 0) return false
   mv a0, s1
   call heldNow
   andi t0, a0, 12
   bne t0, zero, .L1
-  ; engine/hit.e16.ts:297  return false
+  ; engine/hit.e16.ts:305  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/hit.e16.ts:298  return buffered(d, I_HP) !== 0
+  ; engine/hit.e16.ts:306  return pressedIn(d, I_HP, fStateT[d]) !== 0
+  slli t0, s1, 1
+  lw t0, fStateT(t0)
   mv a0, s1
   li a1, 32
-  call buffered
+  mv a2, t0
+  call pressedIn
   sub t0, a0, zero
   snez a0, t0
 .return:
@@ -8573,7 +8582,7 @@ techPressed:
   addi sp, sp, 4
   ret
 
-; engine/hit.e16.ts:302 techBoth() at -O1
+; engine/hit.e16.ts:310 techBoth() at -O1
 ;   l in s2
 ;   r in s3
 ;   i in s1
@@ -8583,7 +8592,7 @@ techBoth:
   sw s2, 2(sp)
   sw s3, 4(sp)
   sw s1, 6(sp)
-  ; engine/hit.e16.ts:303  const l = fX[0] <= fX[1] ? 0 : 1
+  ; engine/hit.e16.ts:311  const l = fX[0] <= fX[1] ? 0 : 1
   lw t0, fX(zero)
   lw t1, fX+2(zero)
   bltu t1, t0, .L1
@@ -8593,42 +8602,42 @@ techBoth:
   li t0, 1
 .L2:
   mv s2, t0 ; l
-  ; engine/hit.e16.ts:304  const r = 1 - l
+  ; engine/hit.e16.ts:312  const r = 1 - l
   li t0, 1
   sub s3, t0, s2
-  ; engine/hit.e16.ts:305  let i: u16 = 0
+  ; engine/hit.e16.ts:313  let i: u16 = 0
   li s1, 0 ; i
-  ; engine/hit.e16.ts:306  while (i < 2) {
+  ; engine/hit.e16.ts:314  while (i < 2) {
   j .L5
 .L3:
-  ; engine/hit.e16.ts:307  enter(i, ST_GUARD)
+  ; engine/hit.e16.ts:315  enter(i, ST_GUARD)
   mv a0, s1
   li a1, 7
   call enter
-  ; engine/hit.e16.ts:308  fStun[i] = TECH_STUN
+  ; engine/hit.e16.ts:316  fStun[i] = TECH_STUN
   slli t0, s1, 1
   li t1, 12
   sw t1, fStun(t0)
-  ; engine/hit.e16.ts:309  fCrouch[i] = 0
+  ; engine/hit.e16.ts:317  fCrouch[i] = 0
   slli t0, s1, 1
   sw zero, fCrouch(t0)
-  ; engine/hit.e16.ts:310  fKnock[i] = 0
+  ; engine/hit.e16.ts:318  fKnock[i] = 0
   slli t0, s1, 1
   sw zero, fKnock(t0)
-  ; engine/hit.e16.ts:311  i++
+  ; engine/hit.e16.ts:319  i++
   addi s1, s1, 1
 .L5:
   li t0, 2
   bltu s1, t0, .L3
-  ; engine/hit.e16.ts:313  fPush[l] = u16(-TECH_PUSH)
+  ; engine/hit.e16.ts:321  fPush[l] = u16(-TECH_PUSH)
   slli t0, s2, 1
   li t1, 65480
   sw t1, fPush(t0)
-  ; engine/hit.e16.ts:314  fPush[r] = TECH_PUSH
+  ; engine/hit.e16.ts:322  fPush[r] = TECH_PUSH
   slli t0, s3, 1
   li t1, 56
   sw t1, fPush(t0)
-  ; engine/hit.e16.ts:315  logPost(LOG_TECH, 0, 0)
+  ; engine/hit.e16.ts:323  logPost(LOG_TECH, 0, 0)
   li a0, 4
   li a1, 0
   li a2, 0
@@ -8641,7 +8650,7 @@ techBoth:
   addi sp, sp, 8
   ret
 
-; engine/hit.e16.ts:322 slam(a, d) at -O1
+; engine/hit.e16.ts:330 slam(a, d) at -O1
 ;   a in s2
 ;   d in s1
 ;   toRight in 2(fp)
@@ -8657,11 +8666,11 @@ slam:
   mv fp, sp
   mv s2, a0 ; a
   mv s1, a1 ; d
-  ; engine/hit.e16.ts:323  if (fThrowBack[a] !== 0) fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
+  ; engine/hit.e16.ts:331  if (fThrowBack[a] !== 0) fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
   slli t0, s2, 1
   lw t0, fThrowBack(t0)
   beq t0, zero, .L1
-  ; engine/hit.e16.ts:323  fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
+  ; engine/hit.e16.ts:331  fX[d] = u16(i16(fX[a]) * 2 - i16(fX[d]))
   slli t0, s1, 1
   slli t1, s2, 1
   lw t1, fX(t1)
@@ -8671,14 +8680,17 @@ slam:
   sub t1, t1, t2
   sw t1, fX(t0)
 .L1:
-  ; engine/hit.e16.ts:324  const toRight = fX[d] > fX[a]
+  ; engine/hit.e16.ts:332  const toRight = fX[d] > fX[a]
   slli t0, s1, 1
   lw t0, fX(t0)
   slli t1, s2, 1
   lw t1, fX(t1)
   sltu t0, t1, t0
   sw t0, 2(fp) ; toRight
-  ; engine/hit.e16.ts:325  const dmg = damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false)
+  ; engine/hit.e16.ts:334  const dmg = phase === PH_FIGHT ? damageOf(mvAt(a, MV_THROW, M_DAMAGE), 1, false) : 0
+  lw t0, 0x0c98(zero)
+  li t1, 1
+  bne t0, t1, .L2
   mv a0, s2
   li a1, 12
   li a2, 3
@@ -8686,35 +8698,40 @@ slam:
   li a1, 1
   li a2, 0
   call damageOf
-  mv s3, a0 ; dmg
-  ; engine/hit.e16.ts:326  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
+  mv t0, a0
+  j .L3
+.L2:
+  li t0, 0
+.L3:
+  mv s3, t0 ; dmg
+  ; engine/hit.e16.ts:335  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fLife(t1)
   addi t0, t0, fLife
   mv t2, t1
   mv t1, s3
-  bltu t1, t2, .L2
+  bltu t1, t2, .L4
   li t1, 0
-  j .L3
-.L2:
+  j .L5
+.L4:
   slli t1, s1, 1
   lw t1, fLife(t1)
   sub t1, t1, s3
-.L3:
+.L5:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:327  dealt[a] = dmg
+  ; engine/hit.e16.ts:336  dealt[a] = dmg
   slli t0, s2, 1
   sw s3, dealt(t0)
-  ; engine/hit.e16.ts:328  struck[a] = 4
+  ; engine/hit.e16.ts:337  struck[a] = 4
   slli t0, s2, 1
   li t1, 4
   sw t1, struck(t0)
-  ; engine/hit.e16.ts:329  enter(d, ST_DOWN)
+  ; engine/hit.e16.ts:338  enter(d, ST_DOWN)
   mv a0, s1
   li a1, 8
   call enter
-  ; engine/hit.e16.ts:330  fPush[d] = pushOf(THROW_PUSH, prAt(d, P_WEIGHT), toRight)
+  ; engine/hit.e16.ts:339  fPush[d] = pushOf(THROW_PUSH, prAt(d, P_WEIGHT), toRight)
   slli t0, s1, 1
   addi t0, t0, fPush
   addi sp, sp, -2
@@ -8729,21 +8746,21 @@ slam:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/hit.e16.ts:331  const stop = mvAt(a, MV_THROW, M_HITSTOP)
+  ; engine/hit.e16.ts:340  const stop = mvAt(a, MV_THROW, M_HITSTOP)
   mv a0, s2
   li a1, 12
   li a2, 7
   call mvAt
   sw a0, 0(fp) ; stop
-  ; engine/hit.e16.ts:332  if (stop > hitstop) hitstop = stop
-  lw t0, 0x1982(zero)
+  ; engine/hit.e16.ts:341  if (stop > hitstop) hitstop = stop
+  lw t0, 0x1984(zero)
   lw t1, 0(fp) ; stop
-  bgeu t0, t1, .L4
-  ; engine/hit.e16.ts:332  hitstop = stop
+  bgeu t0, t1, .L6
+  ; engine/hit.e16.ts:341  hitstop = stop
   lw t0, 0(fp) ; stop
-  sw t0, 0x1982(zero)
-.L4:
-  ; engine/hit.e16.ts:333  logPost(LOG_THROW, a, MV_THROW)
+  sw t0, 0x1984(zero)
+.L6:
+  ; engine/hit.e16.ts:342  logPost(LOG_THROW, a, MV_THROW)
   li a0, 3
   mv a1, s2
   li a2, 12
@@ -8758,7 +8775,7 @@ slam:
   addi sp, sp, 14
   ret
 
-; engine/hit.e16.ts:337 crouched(d) at -O1
+; engine/hit.e16.ts:346 crouched(d) at -O1
 ;   d in s1
 ;   st in s2
 crouched:
@@ -8767,33 +8784,33 @@ crouched:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; d
-  ; engine/hit.e16.ts:338  const st = fState[d]
+  ; engine/hit.e16.ts:347  const st = fState[d]
   slli t0, s1, 1
   lw s2, fState(t0)
-  ; engine/hit.e16.ts:339  if (st === ST_CROUCH) return true
+  ; engine/hit.e16.ts:348  if (st === ST_CROUCH) return true
   li t0, 1
   bne s2, t0, .L1
-  ; engine/hit.e16.ts:339  return true
+  ; engine/hit.e16.ts:348  return true
   li a0, 1
   j .return
 .L1:
-  ; engine/hit.e16.ts:340  if (st === ST_GUARD || st === ST_HIT) return fCrouch[d] !== 0
+  ; engine/hit.e16.ts:349  if (st === ST_GUARD || st === ST_HIT) return fCrouch[d] !== 0
   li t0, 7
   beq s2, t0, .L3
   li t0, 6
   bne s2, t0, .L2
 .L3:
-  ; engine/hit.e16.ts:340  return fCrouch[d] !== 0
+  ; engine/hit.e16.ts:349  return fCrouch[d] !== 0
   slli t0, s1, 1
   lw t0, fCrouch(t0)
   sub t0, t0, zero
   snez a0, t0
   j .return
 .L2:
-  ; engine/hit.e16.ts:341  if (st === ST_ATTACK) return ((mvAt(d, fMove[d], M_KIND) >> 2) & 3) === 1
+  ; engine/hit.e16.ts:350  if (st === ST_ATTACK) return ((mvAt(d, fMove[d], M_KIND) >> 2) & 3) === 1
   li t0, 5
   bne s2, t0, .L4
-  ; engine/hit.e16.ts:341  return ((mvAt(d, fMove[d], M_KIND) >> 2) & 3) === 1
+  ; engine/hit.e16.ts:350  return ((mvAt(d, fMove[d], M_KIND) >> 2) & 3) === 1
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -8807,7 +8824,7 @@ crouched:
   seqz a0, t0
   j .return
 .L4:
-  ; engine/hit.e16.ts:342  return false
+  ; engine/hit.e16.ts:351  return false
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -8816,7 +8833,7 @@ crouched:
   addi sp, sp, 6
   ret
 
-; engine/hit.e16.ts:346 guards(d, height) at -O1
+; engine/hit.e16.ts:355 guards(d, height) at -O1
 ;   d in s1
 ;   height in s2
 ;   guarding in s3
@@ -8828,15 +8845,15 @@ guards:
   sw s3, 6(sp)
   mv s1, a0 ; d
   mv s2, a1 ; height
-  ; engine/hit.e16.ts:347  if (fAir[d] !== 0) return false
+  ; engine/hit.e16.ts:356  if (fAir[d] !== 0) return false
   slli t0, s1, 1
   lw t0, fAir(t0)
   beq t0, zero, .L1
-  ; engine/hit.e16.ts:347  return false
+  ; engine/hit.e16.ts:356  return false
   li a0, 0
   j .return
 .L1:
-  ; engine/hit.e16.ts:348  const guarding = fState[d] === ST_GUARD || (free(d) && holdsBack(d))
+  ; engine/hit.e16.ts:357  const guarding = fState[d] === ST_GUARD || (free(d) && holdsBack(d))
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 7
@@ -8855,28 +8872,28 @@ guards:
 .L3:
 .L2:
   mv s3, t0 ; guarding
-  ; engine/hit.e16.ts:349  if (!guarding) return false
+  ; engine/hit.e16.ts:358  if (!guarding) return false
   bnez s3, .L4
-  ; engine/hit.e16.ts:349  return false
+  ; engine/hit.e16.ts:358  return false
   li a0, 0
   j .return
 .L4:
-  ; engine/hit.e16.ts:350  if (height === H_HIGH) return true
+  ; engine/hit.e16.ts:359  if (height === H_HIGH) return true
   li t0, 1
   bne s2, t0, .L5
-  ; engine/hit.e16.ts:350  return true
+  ; engine/hit.e16.ts:359  return true
   li a0, 1
   j .return
 .L5:
-  ; engine/hit.e16.ts:351  if (height === H_LOW) return crouched(d)
+  ; engine/hit.e16.ts:360  if (height === H_LOW) return crouched(d)
   li t0, 2
   bne s2, t0, .L6
-  ; engine/hit.e16.ts:351  return crouched(d)
+  ; engine/hit.e16.ts:360  return crouched(d)
   mv a0, s1
   call crouched
   j .return
 .L6:
-  ; engine/hit.e16.ts:352  return !crouched(d)
+  ; engine/hit.e16.ts:361  return !crouched(d)
   mv a0, s1
   call crouched
   seqz a0, a0
@@ -8888,7 +8905,7 @@ guards:
   addi sp, sp, 8
   ret
 
-; engine/hit.e16.ts:356 judge(a) at -O1
+; engine/hit.e16.ts:365 judge(a) at -O1
 ;   a in s2
 ;   d in s3
 ;   m in s0
@@ -8901,18 +8918,18 @@ judge:
   sw s0, 6(sp)
   sw s1, 8(sp)
   mv s2, a0 ; a
-  ; engine/hit.e16.ts:357  const d = 1 - a
+  ; engine/hit.e16.ts:366  const d = 1 - a
   li t0, 1
   sub s3, t0, s2
-  ; engine/hit.e16.ts:358  const m = fMove[a]
+  ; engine/hit.e16.ts:367  const m = fMove[a]
   slli t0, s2, 1
   lw s0, fMove(t0)
-  ; engine/hit.e16.ts:359  moveOf[a] = m
+  ; engine/hit.e16.ts:368  moveOf[a] = m
   slli t0, s2, 1
   sw s0, moveOf(t0)
-  ; engine/hit.e16.ts:360  let w: u16 = 0
+  ; engine/hit.e16.ts:369  let w: u16 = 0
   li s1, 0 ; w
-  ; engine/hit.e16.ts:361  if (guards(d, mvAt(a, m, M_HEIGHT))) w |= W_GUARDED
+  ; engine/hit.e16.ts:370  if (guards(d, mvAt(a, m, M_HEIGHT))) w |= W_GUARDED
   mv a0, s2
   mv a1, s0
   li a2, 10
@@ -8921,34 +8938,34 @@ judge:
   mv a0, s3
   call guards
   beqz a0, .L1
-  ; engine/hit.e16.ts:361  w |= W_GUARDED
+  ; engine/hit.e16.ts:370  w |= W_GUARDED
   ori s1, s1, 1
   j .L2
 .L1:
-  ; engine/hit.e16.ts:362  if (inStartup(d)) w |= W_COUNTER
+  ; engine/hit.e16.ts:371  if (inStartup(d)) w |= W_COUNTER
   mv a0, s3
   call inStartup
   beqz a0, .L3
-  ; engine/hit.e16.ts:362  w |= W_COUNTER
+  ; engine/hit.e16.ts:371  w |= W_COUNTER
   ori s1, s1, 2
 .L3:
 .L2:
-  ; engine/hit.e16.ts:363  if (fState[d] === ST_HIT) w |= W_AGAIN
+  ; engine/hit.e16.ts:372  if (fState[d] === ST_HIT) w |= W_AGAIN
   slli t0, s3, 1
   lw t0, fState(t0)
   li t1, 6
   bne t0, t1, .L4
-  ; engine/hit.e16.ts:363  w |= W_AGAIN
+  ; engine/hit.e16.ts:372  w |= W_AGAIN
   ori s1, s1, 4
 .L4:
-  ; engine/hit.e16.ts:364  if (crouched(d)) w |= W_CROUCH
+  ; engine/hit.e16.ts:373  if (crouched(d)) w |= W_CROUCH
   mv a0, s3
   call crouched
   beqz a0, .L5
-  ; engine/hit.e16.ts:364  w |= W_CROUCH
+  ; engine/hit.e16.ts:373  w |= W_CROUCH
   ori s1, s1, 8
 .L5:
-  ; engine/hit.e16.ts:365  how[a] = w
+  ; engine/hit.e16.ts:374  how[a] = w
   slli t0, s2, 1
   sw s1, how(t0)
 .return:
@@ -8960,7 +8977,7 @@ judge:
   addi sp, sp, 10
   ret
 
-; engine/hit.e16.ts:369 deal(a) at -O1
+; engine/hit.e16.ts:378 deal(a) at -O1
 ;   a in s1
 ;   d in s2
 ;   m in s3
@@ -8982,32 +8999,32 @@ deal:
   sw s0, 26(sp)
   mv fp, sp
   mv s1, a0 ; a
-  ; engine/hit.e16.ts:370  const d = 1 - a
+  ; engine/hit.e16.ts:379  const d = 1 - a
   li t0, 1
   sub s2, t0, s1
-  ; engine/hit.e16.ts:371  const m = moveOf[a]
+  ; engine/hit.e16.ts:380  const m = moveOf[a]
   slli t0, s1, 1
   lw s3, moveOf(t0)
-  ; engine/hit.e16.ts:372  const w = how[a]
+  ; engine/hit.e16.ts:381  const w = how[a]
   slli t0, s1, 1
   lw t0, how(t0)
   sw t0, 0(fp) ; w
-  ; engine/hit.e16.ts:373  const toRight = fFace[a] !== 0
+  ; engine/hit.e16.ts:382  const toRight = fFace[a] !== 0
   slli t0, s1, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez t0, t0
   sw t0, 6(fp) ; toRight
-  ; engine/hit.e16.ts:374  const weight = prAt(d, P_WEIGHT)
+  ; engine/hit.e16.ts:383  const weight = prAt(d, P_WEIGHT)
   mv a0, s2
   li a1, 1
   call prAt
   sw a0, 8(fp) ; weight
-  ; engine/hit.e16.ts:375  fHitDone[a] = 1
+  ; engine/hit.e16.ts:384  fHitDone[a] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fHitDone(t0)
-  ; engine/hit.e16.ts:376  fCrouch[d] = (w & W_CROUCH) !== 0 ? 1 : 0
+  ; engine/hit.e16.ts:385  fCrouch[d] = (w & W_CROUCH) !== 0 ? 1 : 0
   slli t0, s2, 1
   lw t1, 0(fp) ; w
   andi t1, t1, 8
@@ -9020,29 +9037,29 @@ deal:
   li t1, 0
 .L2:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:377  const stop = mvAt(a, m, M_HITSTOP)
+  ; engine/hit.e16.ts:386  const stop = mvAt(a, m, M_HITSTOP)
   mv a0, s1
   mv a1, s3
   li a2, 7
   call mvAt
   sw a0, 10(fp) ; stop
-  ; engine/hit.e16.ts:378  if (stop > hitstop) hitstop = stop
-  lw t0, 0x1982(zero)
+  ; engine/hit.e16.ts:387  if (stop > hitstop) hitstop = stop
+  lw t0, 0x1984(zero)
   lw t1, 10(fp) ; stop
   bgeu t0, t1, .L3
-  ; engine/hit.e16.ts:378  hitstop = stop
+  ; engine/hit.e16.ts:387  hitstop = stop
   lw t0, 10(fp) ; stop
-  sw t0, 0x1982(zero)
+  sw t0, 0x1984(zero)
 .L3:
-  ; engine/hit.e16.ts:379  if ((w & W_GUARDED) !== 0) {
+  ; engine/hit.e16.ts:388  if ((w & W_GUARDED) !== 0) {
   lw t0, 0(fp) ; w
   andi t0, t0, 1
   beq t0, zero, .L4
-  ; engine/hit.e16.ts:380  enter(d, ST_GUARD)
+  ; engine/hit.e16.ts:389  enter(d, ST_GUARD)
   mv a0, s2
   li a1, 7
   call enter
-  ; engine/hit.e16.ts:381  fStun[d] = mvAt(a, m, M_BLOCKSTUN)
+  ; engine/hit.e16.ts:390  fStun[d] = mvAt(a, m, M_BLOCKSTUN)
   slli t0, s2, 1
   addi t0, t0, fStun
   addi sp, sp, -2
@@ -9054,7 +9071,7 @@ deal:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/hit.e16.ts:382  fPush[d] = pushOf(mvAt(a, m, M_PUSH_GUARD), weight, toRight)
+  ; engine/hit.e16.ts:391  fPush[d] = pushOf(mvAt(a, m, M_PUSH_GUARD), weight, toRight)
   slli t0, s2, 1
   addi t0, t0, fPush
   addi sp, sp, -2
@@ -9069,20 +9086,20 @@ deal:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; engine/hit.e16.ts:383  struck[a] = 2
+  ; engine/hit.e16.ts:392  struck[a] = 2
   slli t0, s1, 1
   li t1, 2
   sw t1, struck(t0)
-  ; engine/hit.e16.ts:384  return
+  ; engine/hit.e16.ts:393  return
   j .return
 .L4:
-  ; engine/hit.e16.ts:386  const counter = (w & W_COUNTER) !== 0
+  ; engine/hit.e16.ts:395  const counter = (w & W_COUNTER) !== 0
   lw t0, 0(fp) ; w
   andi t0, t0, 2
   sub t0, t0, zero
   snez t0, t0
   sw t0, 2(fp) ; counter
-  ; engine/hit.e16.ts:387  const n = (w & W_AGAIN) !== 0 ? fCombo[d] + 1 : 1
+  ; engine/hit.e16.ts:396  const n = (w & W_AGAIN) !== 0 ? fCombo[d] + 1 : 1
   lw t0, 0(fp) ; w
   andi t0, t0, 4
   beq t0, zero, .L5
@@ -9094,7 +9111,7 @@ deal:
   li t0, 1
 .L6:
   sw t0, 12(fp) ; n
-  ; engine/hit.e16.ts:388  const dmg = damageOf(mvAt(a, m, M_DAMAGE), n, counter)
+  ; engine/hit.e16.ts:397  const dmg = damageOf(mvAt(a, m, M_DAMAGE), n, counter)
   mv a0, s1
   mv a1, s3
   li a2, 3
@@ -9103,7 +9120,7 @@ deal:
   lw a2, 2(fp)
   call damageOf
   sw a0, 4(fp) ; dmg
-  ; engine/hit.e16.ts:389  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
+  ; engine/hit.e16.ts:398  fLife[d] = dmg >= fLife[d] ? 0 : fLife[d] - dmg
   slli t0, s2, 1
   slli t1, s2, 1
   lw t1, fLife(t1)
@@ -9120,18 +9137,18 @@ deal:
   sub t1, t1, t2
 .L8:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:390  fCombo[d] = n
+  ; engine/hit.e16.ts:399  fCombo[d] = n
   slli t0, s2, 1
   lw t1, 12(fp) ; n
   sw t1, fCombo(t0)
-  ; engine/hit.e16.ts:391  comboNote(d)
+  ; engine/hit.e16.ts:400  comboNote(d)
   mv a0, s2
   call comboNote
-  ; engine/hit.e16.ts:392  dealt[a] = dmg
+  ; engine/hit.e16.ts:401  dealt[a] = dmg
   slli t0, s1, 1
   lw t1, 4(fp) ; dmg
   sw t1, dealt(t0)
-  ; engine/hit.e16.ts:393  struck[a] = counter ? 3 : 1
+  ; engine/hit.e16.ts:402  struck[a] = counter ? 3 : 1
   slli t0, s1, 1
   addi t0, t0, struck
   lw t1, 2(fp)
@@ -9142,17 +9159,17 @@ deal:
   li t1, 1
 .L10:
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:394  if (counter) logPost(LOG_COUNTER, a, m)
+  ; engine/hit.e16.ts:403  if (counter) logPost(LOG_COUNTER, a, m)
   lw t0, 2(fp) ; counter
   beqz t0, .L11
-  ; engine/hit.e16.ts:394  logPost(LOG_COUNTER, a, m)
+  ; engine/hit.e16.ts:403  logPost(LOG_COUNTER, a, m)
   li a0, 1
   mv a1, s1
   mv a2, s3
   call logPost
   j .L12
 .L11:
-  ; engine/hit.e16.ts:395  if ((mvAt(a, m, M_FLAGS) & F_ANTIAIR) !== 0 && fAir[d] !== 0) logPost(LOG_AA, a, m)
+  ; engine/hit.e16.ts:404  if ((mvAt(a, m, M_FLAGS) & F_ANTIAIR) !== 0 && fAir[d] !== 0) logPost(LOG_AA, a, m)
   mv a0, s1
   mv a1, s3
   li a2, 12
@@ -9162,14 +9179,14 @@ deal:
   slli t0, s2, 1
   lw t0, fAir(t0)
   beq t0, zero, .L13
-  ; engine/hit.e16.ts:395  logPost(LOG_AA, a, m)
+  ; engine/hit.e16.ts:404  logPost(LOG_AA, a, m)
   li a0, 2
   mv a1, s1
   mv a2, s3
   call logPost
 .L13:
 .L12:
-  ; engine/hit.e16.ts:396  const push = pushOf(mvAt(a, m, M_PUSH_HIT), weight, toRight)
+  ; engine/hit.e16.ts:405  const push = pushOf(mvAt(a, m, M_PUSH_HIT), weight, toRight)
   mv a0, s1
   mv a1, s3
   li a2, 8
@@ -9178,7 +9195,7 @@ deal:
   lw a2, 6(fp)
   call pushOf
   sw a0, 14(fp) ; push
-  ; engine/hit.e16.ts:397  const down = (mvAt(a, m, M_FLAGS) & F_KNOCKDOWN) !== 0
+  ; engine/hit.e16.ts:406  const down = (mvAt(a, m, M_FLAGS) & F_KNOCKDOWN) !== 0
   mv a0, s1
   mv a1, s3
   li a2, 12
@@ -9187,7 +9204,7 @@ deal:
   sub t0, t0, zero
   snez t0, t0
   sw t0, 16(fp) ; down
-  ; engine/hit.e16.ts:398  if (down || fAir[d] !== 0 || fLife[d] === 0) {
+  ; engine/hit.e16.ts:407  if (down || fAir[d] !== 0 || fLife[d] === 0) {
   lw t0, 16(fp) ; down
   bnez t0, .L15
   slli t0, s2, 1
@@ -9197,18 +9214,18 @@ deal:
   lw t0, fLife(t0)
   bne t0, zero, .L14
 .L15:
-  ; engine/hit.e16.ts:399  knock(d, push)
+  ; engine/hit.e16.ts:408  knock(d, push)
   mv a0, s2
   lw a1, 14(fp)
   call knock
-  ; engine/hit.e16.ts:400  return
+  ; engine/hit.e16.ts:409  return
   j .return
 .L14:
-  ; engine/hit.e16.ts:402  enter(d, ST_HIT)
+  ; engine/hit.e16.ts:411  enter(d, ST_HIT)
   mv a0, s2
   li a1, 6
   call enter
-  ; engine/hit.e16.ts:403  fStun[d] = mvAt(a, m, M_HITSTUN) + (counter ? 4 : 0)
+  ; engine/hit.e16.ts:412  fStun[d] = mvAt(a, m, M_HITSTUN) + (counter ? 4 : 0)
   slli t0, s2, 1
   addi t0, t0, fStun
   addi sp, sp, -2
@@ -9229,7 +9246,7 @@ deal:
 .L17:
   add t1, t1, t2
   sw t1, 0(t0)
-  ; engine/hit.e16.ts:404  fPush[d] = push
+  ; engine/hit.e16.ts:413  fPush[d] = push
   slli t0, s2, 1
   lw t1, 14(fp) ; push
   sw t1, fPush(t0)
@@ -9243,7 +9260,7 @@ deal:
   addi sp, sp, 28
   ret
 
-; engine/hit.e16.ts:411 knock(d, push) at -O1
+; engine/hit.e16.ts:420 knock(d, push) at -O1
 ;   d in s1
 ;   push in s2
 knock:
@@ -9253,36 +9270,36 @@ knock:
   sw s2, 4(sp)
   mv s1, a0 ; d
   mv s2, a1 ; push
-  ; engine/hit.e16.ts:412  fStun[d] = 0
+  ; engine/hit.e16.ts:421  fStun[d] = 0
   slli t0, s1, 1
   sw zero, fStun(t0)
-  ; engine/hit.e16.ts:413  if (fAir[d] !== 0) {
+  ; engine/hit.e16.ts:422  if (fAir[d] !== 0) {
   slli t0, s1, 1
   lw t0, fAir(t0)
   beq t0, zero, .L1
-  ; engine/hit.e16.ts:414  enter(d, ST_HIT)
+  ; engine/hit.e16.ts:423  enter(d, ST_HIT)
   mv a0, s1
   li a1, 6
   call enter
-  ; engine/hit.e16.ts:415  fKnock[d] = 1
+  ; engine/hit.e16.ts:424  fKnock[d] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fKnock(t0)
-  ; engine/hit.e16.ts:416  fVY[d] = 32
+  ; engine/hit.e16.ts:425  fVY[d] = 32
   slli t0, s1, 1
   li t1, 32
   sw t1, fVY(t0)
-  ; engine/hit.e16.ts:417  fVX[d] = push
+  ; engine/hit.e16.ts:426  fVX[d] = push
   slli t0, s1, 1
   sw s2, fVX(t0)
-  ; engine/hit.e16.ts:418  return
+  ; engine/hit.e16.ts:427  return
   j .return
 .L1:
-  ; engine/hit.e16.ts:420  enter(d, ST_DOWN)
+  ; engine/hit.e16.ts:429  enter(d, ST_DOWN)
   mv a0, s1
   li a1, 8
   call enter
-  ; engine/hit.e16.ts:421  fPush[d] = push
+  ; engine/hit.e16.ts:430  fPush[d] = push
   slli t0, s1, 1
   sw s2, fPush(t0)
 .return:
@@ -9292,34 +9309,34 @@ knock:
   addi sp, sp, 6
   ret
 
-; engine/draw.e16.ts:20 cameraStep() at -O1
+; engine/draw.e16.ts:19 cameraStep() at -O1
 ;   mid in a1
 ;   c in a0
 cameraStep:
-  ; engine/draw.e16.ts:21  const mid = i16((fX[0] + fX[1]) >> 5)
+  ; engine/draw.e16.ts:20  const mid = i16((fX[0] + fX[1]) >> 5)
   lw t0, fX(zero)
   lw t1, fX+2(zero)
   add t0, t0, t1
   srli a1, t0, 5
-  ; engine/draw.e16.ts:22  let c = mid - 160
+  ; engine/draw.e16.ts:21  let c = mid - 160
   addi a0, a1, -160
-  ; engine/draw.e16.ts:23  if (c < 0) c = 0
+  ; engine/draw.e16.ts:22  if (c < 0) c = 0
   bge a0, zero, .L1
-  ; engine/draw.e16.ts:23  c = 0
+  ; engine/draw.e16.ts:22  c = 0
   li a0, 0 ; c
 .L1:
-  ; engine/draw.e16.ts:24  if (c > CAM_MAX) c = CAM_MAX
+  ; engine/draw.e16.ts:23  if (c > CAM_MAX) c = CAM_MAX
   li t0, 192
   bge t0, a0, .L2
-  ; engine/draw.e16.ts:24  c = CAM_MAX
+  ; engine/draw.e16.ts:23  c = CAM_MAX
   li a0, 192 ; c
 .L2:
-  ; engine/draw.e16.ts:25  camX = u16(c)
-  sw a0, 0x1988(zero)
+  ; engine/draw.e16.ts:24  camX = u16(c)
+  sw a0, 0x198a(zero)
 .return:
   ret
 
-; engine/draw.e16.ts:71 say(x, y, s, sl) at -O1
+; engine/draw.e16.ts:70 say(x, y, s, sl) at -O1
 ;   x in 0(fp)
 ;   y in 2(fp)
 ;   s in s1
@@ -9338,18 +9355,18 @@ say:
   sw a1, 2(fp) ; y
   mv s1, a2 ; s
   sw a3, 4(fp) ; sl
-  ; engine/draw.e16.ts:72  let at = cellAt(1, x, y)
+  ; engine/draw.e16.ts:71  let at = cellAt(1, x, y)
   li a0, 1
   lw a1, 0(fp)
   lw a2, 2(fp)
   call cellAt
   mv s2, a0 ; at
-  ; engine/draw.e16.ts:73  let c = peek(s)
+  ; engine/draw.e16.ts:72  let c = peek(s)
   lbu s3, 0(s1)
-  ; engine/draw.e16.ts:74  while (c !== 0) {
+  ; engine/draw.e16.ts:73  while (c !== 0) {
   j .L3
 .L1:
-  ; engine/draw.e16.ts:75  vpoke(at, (FONT_TILE + c - 32) | (sl << 10) | FRONT)
+  ; engine/draw.e16.ts:74  vpoke(at, (FONT_TILE + c - 32) | (sl << 10) | FRONT)
   lw t0, 4(fp) ; sl
   slli t0, t0, 10
   addi t1, s3, -32
@@ -9359,11 +9376,11 @@ say:
   mv a0, s2
   mv a1, t1
   call vpoke
-  ; engine/draw.e16.ts:76  at = wrap16(at + 2)
+  ; engine/draw.e16.ts:75  at = wrap16(at + 2)
   addi s2, s2, 2
-  ; engine/draw.e16.ts:77  s++
+  ; engine/draw.e16.ts:76  s++
   addi s1, s1, 1
-  ; engine/draw.e16.ts:78  c = peek(s)
+  ; engine/draw.e16.ts:77  c = peek(s)
   lbu s3, 0(s1)
 .L3:
   bne s3, zero, .L1
@@ -9377,7 +9394,7 @@ say:
   addi sp, sp, 16
   ret
 
-; engine/draw.e16.ts:82 hudTile(x, y, t, sl) at -O1
+; engine/draw.e16.ts:81 hudTile(x, y, t, sl) at -O1
 ;   x in s1
 ;   y in s2
 ;   t in s3
@@ -9393,7 +9410,7 @@ hudTile:
   mv s2, a1 ; y
   mv s3, a2 ; t
   mv s0, a3 ; sl
-  ; engine/draw.e16.ts:83  vpoke(cellAt(1, x, y), (HUD_TILE + t) | (sl << 10) | FRONT)
+  ; engine/draw.e16.ts:82  vpoke(cellAt(1, x, y), (HUD_TILE + t) | (sl << 10) | FRONT)
   li a0, 1
   mv a1, s1
   mv a2, s2
@@ -9413,47 +9430,68 @@ hudTile:
   addi sp, sp, 10
   ret
 
-; engine/draw.e16.ts:87 hudClear() at -O1
+; engine/draw.e16.ts:90 hudClear() at -O1
+;   y in s1
 hudClear:
-  addi sp, sp, -2
+  addi sp, sp, -4
   sw ra, 0(sp)
-  ; engine/draw.e16.ts:88  vfill(cellAt(1, 0, 0), HUD_TILE + T_CLEAR, 64 * 64)
-  li a0, 40960
+  sw s1, 2(sp)
+  ; engine/draw.e16.ts:91  let y: u16 = 0
+  li s1, 0 ; y
+  ; engine/draw.e16.ts:92  while (y < 36) {
+  j .L3
+.L1:
+  ; engine/draw.e16.ts:93  vfill(cellAt(1, 0, y), HUD_TILE + T_CLEAR, 40)
+  li a0, 1
+  li a1, 0
+  mv a2, s1
+  call cellAt
   li a1, 168
-  li a2, 4096
+  li a2, 40
+  call vfill
+  ; engine/draw.e16.ts:94  y++
+  addi s1, s1, 1
+.L3:
+  li t0, 36
+  bltu s1, t0, .L1
+  ; engine/draw.e16.ts:96  vfill(cellAt(1, 0, 63), HUD_TILE + T_CLEAR, 40)
+  li a0, 49024
+  li a1, 168
+  li a2, 40
   call vfill
 .return:
   lw ra, 0(sp)
-  addi sp, sp, 2
+  lw s1, 2(sp)
+  addi sp, sp, 4
   ret
 
-; engine/draw.e16.ts:92 hudFresh() at -O1
+; engine/draw.e16.ts:100 hudFresh() at -O1
 hudFresh:
-  ; engine/draw.e16.ts:93  shownLife[0] = 0xffff
+  ; engine/draw.e16.ts:101  shownLife[0] = 0xffff
   li t0, 65535
   sw t0, shownLife(zero)
-  ; engine/draw.e16.ts:94  shownLife[1] = 0xffff
+  ; engine/draw.e16.ts:102  shownLife[1] = 0xffff
   li t0, 65535
   sw t0, shownLife+2(zero)
-  ; engine/draw.e16.ts:95  timeShown = 0xffff
+  ; engine/draw.e16.ts:103  timeShown = 0xffff
   li t0, 65535
-  sw t0, 0x19a0(zero)
-  ; engine/draw.e16.ts:96  trail[0] = fLife[0]
+  sw t0, 0x19a2(zero)
+  ; engine/draw.e16.ts:104  trail[0] = fLife[0]
   lw t0, fLife(zero)
   sw t0, trail(zero)
-  ; engine/draw.e16.ts:97  trail[1] = fLife[1]
+  ; engine/draw.e16.ts:105  trail[1] = fLife[1]
   lw t0, fLife+2(zero)
   sw t0, trail+2(zero)
-  ; engine/draw.e16.ts:98  lowShown[0] = 2
+  ; engine/draw.e16.ts:106  lowShown[0] = 2
   li t0, 2
   sw t0, lowShown(zero)
-  ; engine/draw.e16.ts:99  lowShown[1] = 2
+  ; engine/draw.e16.ts:107  lowShown[1] = 2
   li t0, 2
   sw t0, lowShown+2(zero)
 .return:
   ret
 
-; engine/draw.e16.ts:103 hudStep(time, frame) at -O1
+; engine/draw.e16.ts:111 hudStep(time, frame) at -O1
 ;   time in s1
 ;   frame in s2
 hudStep:
@@ -9463,18 +9501,18 @@ hudStep:
   sw s2, 4(sp)
   mv s1, a0 ; time
   mv s2, a1 ; frame
-  ; engine/draw.e16.ts:104  barStep(0, frame)
+  ; engine/draw.e16.ts:112  barStep(0, frame)
   li a0, 0
   mv a1, s2
   call barStep
-  ; engine/draw.e16.ts:105  barStep(1, frame)
+  ; engine/draw.e16.ts:113  barStep(1, frame)
   li a0, 1
   mv a1, s2
   call barStep
-  ; engine/draw.e16.ts:106  if (time !== timeShown) timeShow(time)
-  lw t0, 0x19a0(zero)
+  ; engine/draw.e16.ts:114  if (time !== timeShown) timeShow(time)
+  lw t0, 0x19a2(zero)
   beq s1, t0, .L1
-  ; engine/draw.e16.ts:106  timeShow(time)
+  ; engine/draw.e16.ts:114  timeShow(time)
   mv a0, s1
   call timeShow
 .L1:
@@ -9485,7 +9523,7 @@ hudStep:
   addi sp, sp, 6
   ret
 
-; engine/draw.e16.ts:109 barStep(i, frame) at -O1
+; engine/draw.e16.ts:117 barStep(i, frame) at -O1
 ;   i in s1
 ;   frame in s3
 ;   life in s2
@@ -9497,10 +9535,10 @@ barStep:
   sw s2, 6(sp)
   mv s1, a0 ; i
   mv s3, a1 ; frame
-  ; engine/draw.e16.ts:110  const life = fLife[i]
+  ; engine/draw.e16.ts:118  const life = fLife[i]
   slli t0, s1, 1
   lw s2, fLife(t0)
-  ; engine/draw.e16.ts:111  if (life < shownLife[i] && shownLife[i] !== 0xffff) trailT[i] = 0
+  ; engine/draw.e16.ts:119  if (life < shownLife[i] && shownLife[i] !== 0xffff) trailT[i] = 0
   slli t0, s1, 1
   lw t0, shownLife(t0)
   bgeu s2, t0, .L1
@@ -9508,20 +9546,20 @@ barStep:
   lw t0, shownLife(t0)
   li t1, 65535
   beq t0, t1, .L1
-  ; engine/draw.e16.ts:111  trailT[i] = 0
+  ; engine/draw.e16.ts:119  trailT[i] = 0
   slli t0, s1, 1
   sw zero, trailT(t0)
 .L1:
-  ; engine/draw.e16.ts:112  if (trail[i] > life) {
+  ; engine/draw.e16.ts:120  if (trail[i] > life) {
   slli t0, s1, 1
   lw t0, trail(t0)
   bgeu s2, t0, .L2
-  ; engine/draw.e16.ts:113  if (trailT[i] < TRAIL_WAIT) trailT[i]++
+  ; engine/draw.e16.ts:121  if (trailT[i] < TRAIL_WAIT) trailT[i]++
   slli t0, s1, 1
   lw t0, trailT(t0)
   li t1, 20
   bgeu t0, t1, .L3
-  ; engine/draw.e16.ts:113  trailT[i]++
+  ; engine/draw.e16.ts:121  trailT[i]++
   slli t0, s1, 1
   addi t0, t0, trailT
   mv t1, t0
@@ -9530,7 +9568,7 @@ barStep:
   sw t1, 0(t0)
   j .L5
 .L3:
-  ; engine/draw.e16.ts:114  trail[i]--
+  ; engine/draw.e16.ts:122  trail[i]--
   slli t0, s1, 1
   addi t0, t0, trail
   mv t1, t0
@@ -9539,16 +9577,16 @@ barStep:
   sw t1, 0(t0)
   j .L5
 .L2:
-  ; engine/draw.e16.ts:115  trail[i] = life
+  ; engine/draw.e16.ts:123  trail[i] = life
   slli t0, s1, 1
   sw s2, trail(t0)
 .L5:
-  ; engine/draw.e16.ts:116  lowStep(i, life, frame)
+  ; engine/draw.e16.ts:124  lowStep(i, life, frame)
   mv a0, s1
   mv a1, s2
   mv a2, s3
   call lowStep
-  ; engine/draw.e16.ts:117  if (life === shownLife[i] && trail[i] === shownTrail[i]) return
+  ; engine/draw.e16.ts:125  if (life === shownLife[i] && trail[i] === shownTrail[i]) return
   slli t0, s1, 1
   lw t0, shownLife(t0)
   bne s2, t0, .L6
@@ -9557,18 +9595,18 @@ barStep:
   slli t1, s1, 1
   lw t1, shownTrail(t1)
   bne t0, t1, .L6
-  ; engine/draw.e16.ts:117  return
+  ; engine/draw.e16.ts:125  return
   j .return
 .L6:
-  ; engine/draw.e16.ts:118  shownLife[i] = life
+  ; engine/draw.e16.ts:126  shownLife[i] = life
   slli t0, s1, 1
   sw s2, shownLife(t0)
-  ; engine/draw.e16.ts:119  shownTrail[i] = trail[i]
+  ; engine/draw.e16.ts:127  shownTrail[i] = trail[i]
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, trail(t1)
   sw t1, shownTrail(t0)
-  ; engine/draw.e16.ts:120  barDraw(i)
+  ; engine/draw.e16.ts:128  barDraw(i)
   mv a0, s1
   call barDraw
 .return:
@@ -9579,7 +9617,7 @@ barStep:
   addi sp, sp, 8
   ret
 
-; engine/draw.e16.ts:124 lowStep(i, life, frame) at -O1
+; engine/draw.e16.ts:132 lowStep(i, life, frame) at -O1
 ;   i in s2
 ;   life in 0(fp)
 ;   frame in 2(fp)
@@ -9597,19 +9635,19 @@ lowStep:
   mv s2, a0 ; i
   sw a1, 0(fp) ; life
   sw a2, 2(fp) ; frame
-  ; engine/draw.e16.ts:125  const max = prAt(i, P_LIFE)
+  ; engine/draw.e16.ts:133  const max = prAt(i, P_LIFE)
   mv a0, s2
   li a1, 0
   call prAt
   sw a0, 4(fp) ; max
-  ; engine/draw.e16.ts:126  let state: u16 = 0
+  ; engine/draw.e16.ts:134  let state: u16 = 0
   li s1, 0 ; state
-  ; engine/draw.e16.ts:127  if (life * 4 < max) state = (frame & 16) !== 0 ? 1 : 3
+  ; engine/draw.e16.ts:135  if (life * 4 < max) state = (frame & 16) !== 0 ? 1 : 3
   lw t0, 0(fp) ; life
   slli t0, t0, 2
   lw t1, 4(fp) ; max
   bgeu t0, t1, .L1
-  ; engine/draw.e16.ts:127  state = (frame & 16) !== 0 ? 1 : 3
+  ; engine/draw.e16.ts:135  state = (frame & 16) !== 0 ? 1 : 3
   lw t0, 2(fp) ; frame
   andi t0, t0, 16
   beq t0, zero, .L2
@@ -9620,21 +9658,21 @@ lowStep:
 .L3:
   mv s1, t0 ; state
 .L1:
-  ; engine/draw.e16.ts:128  if (state === lowShown[i]) return
+  ; engine/draw.e16.ts:136  if (state === lowShown[i]) return
   slli t0, s2, 1
   lw t0, lowShown(t0)
   bne s1, t0, .L4
-  ; engine/draw.e16.ts:128  return
+  ; engine/draw.e16.ts:136  return
   j .return
 .L4:
-  ; engine/draw.e16.ts:129  lowShown[i] = state
+  ; engine/draw.e16.ts:137  lowShown[i] = state
   slli t0, s2, 1
   sw s1, lowShown(t0)
-  ; engine/draw.e16.ts:130  const sl = SL_P1 + i
+  ; engine/draw.e16.ts:138  const sl = SL_P1 + i
   addi s3, s2, 1
-  ; engine/draw.e16.ts:131  if (state === 0) colour(sl, C_LIFE, palCopy[sl * 16 + C_LIFE])
+  ; engine/draw.e16.ts:139  if (state === 0) colour(sl, C_LIFE, palCopy[sl * 16 + C_LIFE])
   bne s1, zero, .L5
-  ; engine/draw.e16.ts:131  colour(sl, C_LIFE, palCopy[sl * 16 + C_LIFE])
+  ; engine/draw.e16.ts:139  colour(sl, C_LIFE, palCopy[sl * 16 + C_LIFE])
   slli t0, s3, 4
   addi t0, t0, 5
   slli t0, t0, 1
@@ -9645,7 +9683,7 @@ lowStep:
   call colour
   j .L6
 .L5:
-  ; engine/draw.e16.ts:132  colour(sl, C_LIFE, state === 1 ? RED : RED_DIM)
+  ; engine/draw.e16.ts:140  colour(sl, C_LIFE, state === 1 ? RED : RED_DIM)
   mv t0, s3
   li t1, 5
   mv t2, s1
@@ -9671,7 +9709,7 @@ lowStep:
   addi sp, sp, 16
   ret
 
-; engine/draw.e16.ts:136 barPoints(i, v) at -O1
+; engine/draw.e16.ts:144 barPoints(i, v) at -O1
 ;   i in s1
 ;   v in s2
 barPoints:
@@ -9681,7 +9719,7 @@ barPoints:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; v
-  ; engine/draw.e16.ts:137  return div(v * 120, prAt(i, P_LIFE))
+  ; engine/draw.e16.ts:145  return div(v * 120, prAt(i, P_LIFE))
   li t0, 120
   mul t0, s2, t0
   addi sp, sp, -2
@@ -9699,7 +9737,7 @@ barPoints:
   addi sp, sp, 6
   ret
 
-; engine/draw.e16.ts:141 barDraw(i) at -O1
+; engine/draw.e16.ts:149 barDraw(i) at -O1
 ;   i in s2
 ;   l in 0(fp)
 ;   t in 2(fp)
@@ -9717,40 +9755,40 @@ barDraw:
   sw s0, 18(sp)
   mv fp, sp
   mv s2, a0 ; i
-  ; engine/draw.e16.ts:142  const l = barPoints(i, fLife[i])
+  ; engine/draw.e16.ts:150  const l = barPoints(i, fLife[i])
   slli t0, s2, 1
   lw t0, fLife(t0)
   mv a0, s2
   mv a1, t0
   call barPoints
   sw a0, 0(fp) ; l
-  ; engine/draw.e16.ts:143  const t = barPoints(i, trail[i])
+  ; engine/draw.e16.ts:151  const t = barPoints(i, trail[i])
   slli t0, s2, 1
   lw t0, trail(t0)
   mv a0, s2
   mv a1, t0
   call barPoints
   sw a0, 2(fp) ; t
-  ; engine/draw.e16.ts:144  const sl = (SL_P1 + i) << 10
+  ; engine/draw.e16.ts:152  const sl = (SL_P1 + i) << 10
   addi t0, s2, 1
   slli t0, t0, 10
   sw t0, 4(fp) ; sl
-  ; engine/draw.e16.ts:145  let c: u16 = 0
+  ; engine/draw.e16.ts:153  let c: u16 = 0
   li s1, 0 ; c
-  ; engine/draw.e16.ts:146  while (c < BAR_CELLS) {
+  ; engine/draw.e16.ts:154  while (c < BAR_CELLS) {
   j .L3
 .L1:
-  ; engine/draw.e16.ts:147  const lc = cellPart(l, c)
+  ; engine/draw.e16.ts:155  const lc = cellPart(l, c)
   lw a0, 0(fp)
   mv a1, s1
   call cellPart
   sw a0, 6(fp) ; lc
-  ; engine/draw.e16.ts:148  const tc = cellPart(t, c)
+  ; engine/draw.e16.ts:156  const tc = cellPart(t, c)
   lw a0, 2(fp)
   mv a1, s1
   call cellPart
   sw a0, 8(fp) ; tc
-  ; engine/draw.e16.ts:149  const tile = (HUD_TILE + T_BAR + lc * 9 + tc) | sl | FRONT
+  ; engine/draw.e16.ts:157  const tile = (HUD_TILE + T_BAR + lc * 9 + tc) | sl | FRONT
   lw t0, 6(fp) ; lc
   slli t1, t0, 3
   add t0, t1, t0
@@ -9761,9 +9799,9 @@ barDraw:
   or t0, t0, t1
   li t1, 32768
   or s3, t0, t1
-  ; engine/draw.e16.ts:150  if (i === 0) vpoke(cellAt(1, 2 + c, BAR_ROW), tile)
+  ; engine/draw.e16.ts:158  if (i === 0) vpoke(cellAt(1, 2 + c, BAR_ROW), tile)
   bne s2, zero, .L5
-  ; engine/draw.e16.ts:150  vpoke(cellAt(1, 2 + c, BAR_ROW), tile)
+  ; engine/draw.e16.ts:158  vpoke(cellAt(1, 2 + c, BAR_ROW), tile)
   li a0, 1
   addi a1, s1, 2
   li a2, 2
@@ -9772,7 +9810,7 @@ barDraw:
   call vpoke
   j .L6
 .L5:
-  ; engine/draw.e16.ts:151  vpoke(cellAt(1, 37 - c, BAR_ROW), tile | FLIP)
+  ; engine/draw.e16.ts:159  vpoke(cellAt(1, 37 - c, BAR_ROW), tile | FLIP)
   li t0, 37
   sub t0, t0, s1
   li a0, 1
@@ -9783,7 +9821,7 @@ barDraw:
   or a1, s3, t0
   call vpoke
 .L6:
-  ; engine/draw.e16.ts:152  c++
+  ; engine/draw.e16.ts:160  c++
   addi s1, s1, 1
 .L3:
   li t0, 15
@@ -9798,20 +9836,20 @@ barDraw:
   addi sp, sp, 20
   ret
 
-; engine/draw.e16.ts:157 cellPart(p, c) at -O1
+; engine/draw.e16.ts:165 cellPart(p, c) at -O1
 ;   p in a0
 ;   c in a1
 ;   from in a2
 cellPart:
-  ; engine/draw.e16.ts:158  const from = c * 8
+  ; engine/draw.e16.ts:166  const from = c * 8
   slli a2, a1, 3
-  ; engine/draw.e16.ts:159  if (p <= from) return 0
+  ; engine/draw.e16.ts:167  if (p <= from) return 0
   bltu a2, a0, .L1
-  ; engine/draw.e16.ts:159  return 0
+  ; engine/draw.e16.ts:167  return 0
   li a0, 0
   ret
 .L1:
-  ; engine/draw.e16.ts:160  return p - from >= 8 ? 8 : p - from
+  ; engine/draw.e16.ts:168  return p - from >= 8 ? 8 : p - from
   sub t0, a0, a2
   li t1, 8
   bltu t0, t1, .L2
@@ -9824,7 +9862,7 @@ cellPart:
 .return:
   ret
 
-; engine/draw.e16.ts:164 timeShow(t) at -O1
+; engine/draw.e16.ts:172 timeShow(t) at -O1
 ;   t in s1
 ;   tens in s2
 timeShow:
@@ -9833,20 +9871,20 @@ timeShow:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; t
-  ; engine/draw.e16.ts:165  if (timeShown === 0xffff || t <= 10 !== timeShown <= 10) {
-  lw t0, 0x19a0(zero)
+  ; engine/draw.e16.ts:173  if (timeShown === 0xffff || t <= 10 !== timeShown <= 10) {
+  lw t0, 0x19a2(zero)
   li t1, 65535
   beq t0, t1, .L2
   li t0, 10
   sltu t0, t0, s1
   xori t0, t0, 1
-  lw t1, 0x19a0(zero)
+  lw t1, 0x19a2(zero)
   li t2, 10
   sltu t1, t2, t1
   xori t1, t1, 1
   beq t0, t1, .L1
 .L2:
-  ; engine/draw.e16.ts:166  colour(SL_TIME, 1, t <= 10 ? RED : palCopy[SL_TIME * 16 + 1])
+  ; engine/draw.e16.ts:174  colour(SL_TIME, 1, t <= 10 ? RED : palCopy[SL_TIME * 16 + 1])
   li t0, 4
   li t1, 1
   mv t2, s1
@@ -9862,16 +9900,16 @@ timeShow:
   mv a2, t2
   call colour
 .L1:
-  ; engine/draw.e16.ts:168  timeShown = t
-  sw s1, 0x19a0(zero)
-  ; engine/draw.e16.ts:169  const tens = div(t, 10)
+  ; engine/draw.e16.ts:176  timeShown = t
+  sw s1, 0x19a2(zero)
+  ; engine/draw.e16.ts:177  const tens = div(t, 10)
   li t0, 10
   divu s2, s1, t0
-  ; engine/draw.e16.ts:170  bigDigit(18, tens)
+  ; engine/draw.e16.ts:178  bigDigit(18, tens)
   li a0, 18
   mv a1, s2
   call bigDigit
-  ; engine/draw.e16.ts:171  bigDigit(20, t - tens * 10)
+  ; engine/draw.e16.ts:179  bigDigit(20, t - tens * 10)
   slli t1, s2, 3
   slli t0, s2, 1
   add t0, t0, t1
@@ -9886,7 +9924,7 @@ timeShow:
   addi sp, sp, 6
   ret
 
-; engine/draw.e16.ts:174 bigDigit(x, d) at -O1
+; engine/draw.e16.ts:182 bigDigit(x, d) at -O1
 ;   x in s1
 ;   d in s3
 ;   tile in s2
@@ -9898,34 +9936,34 @@ bigDigit:
   sw s2, 6(sp)
   mv s1, a0 ; x
   mv s3, a1 ; d
-  ; engine/draw.e16.ts:175  const tile = (DIGITS_TILE + d * 4) | (SL_TIME << 10) | FRONT
+  ; engine/draw.e16.ts:183  const tile = (DIGITS_TILE + d * 4) | (SL_TIME << 10) | FRONT
   slli t0, s3, 2
   addi t0, t0, 128
   ori t0, t0, 4096
   li t1, 32768
   or s2, t0, t1
-  ; engine/draw.e16.ts:176  vpoke(cellAt(1, x, 1), tile)
+  ; engine/draw.e16.ts:184  vpoke(cellAt(1, x, 1), tile)
   li a0, 1
   mv a1, s1
   li a2, 1
   call cellAt
   mv a1, s2
   call vpoke
-  ; engine/draw.e16.ts:177  vpoke(cellAt(1, x + 1, 1), tile + 1)
+  ; engine/draw.e16.ts:185  vpoke(cellAt(1, x + 1, 1), tile + 1)
   li a0, 1
   addi a1, s1, 1
   li a2, 1
   call cellAt
   addi a1, s2, 1
   call vpoke
-  ; engine/draw.e16.ts:178  vpoke(cellAt(1, x, 2), tile + 2)
+  ; engine/draw.e16.ts:186  vpoke(cellAt(1, x, 2), tile + 2)
   li a0, 1
   mv a1, s1
   li a2, 2
   call cellAt
   addi a1, s2, 2
   call vpoke
-  ; engine/draw.e16.ts:179  vpoke(cellAt(1, x + 1, 2), tile + 3)
+  ; engine/draw.e16.ts:187  vpoke(cellAt(1, x + 1, 2), tile + 3)
   li a0, 1
   addi a1, s1, 1
   li a2, 2
@@ -9940,55 +9978,22 @@ bigDigit:
   addi sp, sp, 8
   ret
 
-; engine/draw.e16.ts:190 bigIndex(c) at -O1
-;   c in a0
-;   chars in a3
-;   k in a1
-;   d in a2
-bigIndex:
-  ; engine/draw.e16.ts:191  const chars = str('ABCDEFGHIKLMNOPRSTUVWY.?123')
-  la a3, str_12
-  ; engine/draw.e16.ts:192  let k: u16 = 0
-  li a1, 0 ; k
-  ; engine/draw.e16.ts:193  let d = peek(chars)
-  lbu a2, 0(a3)
-  ; engine/draw.e16.ts:194  while (d !== 0) {
-  j .L3
-.L1:
-  ; engine/draw.e16.ts:195  if (d === c) return k
-  bne a2, a0, .L5
-  ; engine/draw.e16.ts:195  return k
-  mv a0, a1
-  ret
-.L5:
-  ; engine/draw.e16.ts:196  k++
-  addi a1, a1, 1
-  ; engine/draw.e16.ts:197  d = peek(chars + k)
-  add t0, a3, a1
-  lbu a2, 0(t0)
-.L3:
-  bne a2, zero, .L1
-  ; engine/draw.e16.ts:199  return 0xffff
-  li a0, 65535
-.return:
-  ret
-
-; engine/draw.e16.ts:203 bigWidth(s) at -O1
+; engine/draw.e16.ts:199 bigWidth(s) at -O1
 ;   s in a0
 ;   n in a1
 ;   k in a2
 ;   c in a3
 bigWidth:
-  ; engine/draw.e16.ts:204  let n: u16 = 0
+  ; engine/draw.e16.ts:200  let n: u16 = 0
   li a1, 0 ; n
-  ; engine/draw.e16.ts:205  let k: u16 = 0
+  ; engine/draw.e16.ts:201  let k: u16 = 0
   li a2, 0 ; k
-  ; engine/draw.e16.ts:206  let c = peek(s)
+  ; engine/draw.e16.ts:202  let c = peek(s)
   lbu a3, 0(a0)
-  ; engine/draw.e16.ts:207  while (c !== 0) {
+  ; engine/draw.e16.ts:203  while (c !== 0) {
   j .L3
 .L1:
-  ; engine/draw.e16.ts:208  n = n + (c === 32 ? 1 : 2)
+  ; engine/draw.e16.ts:204  n = n + (c === 32 ? 1 : 2)
   mv t0, a1
   mv t1, a3
   li t2, 32
@@ -9999,19 +10004,19 @@ bigWidth:
   li t1, 2
 .L6:
   add a1, t0, t1
-  ; engine/draw.e16.ts:209  k++
+  ; engine/draw.e16.ts:205  k++
   addi a2, a2, 1
-  ; engine/draw.e16.ts:210  c = peek(s + k)
+  ; engine/draw.e16.ts:206  c = peek(s + k)
   add t0, a0, a2
   lbu a3, 0(t0)
 .L3:
   bne a3, zero, .L1
-  ; engine/draw.e16.ts:212  return n
+  ; engine/draw.e16.ts:208  return n
   mv a0, a1
 .return:
   ret
 
-; engine/draw.e16.ts:216 bigSay(x, y, s, sl) at -O1
+; engine/draw.e16.ts:212 bigSay(x, y, s, sl) at -O1
 ;   x in 10(fp)
 ;   y in 2(fp)
 ;   s in 4(fp)
@@ -10034,30 +10039,32 @@ bigSay:
   sw a1, 2(fp) ; y
   sw a2, 4(fp) ; s
   sw a3, 12(fp) ; sl
-  ; engine/draw.e16.ts:217  let at = x
+  ; engine/draw.e16.ts:213  let at = x
   lw s2, 10(fp) ; x
-  ; engine/draw.e16.ts:218  let k: u16 = 0
+  ; engine/draw.e16.ts:214  let k: u16 = 0
   li s3, 0 ; k
-  ; engine/draw.e16.ts:219  let c = peek(s)
+  ; engine/draw.e16.ts:215  let c = peek(s)
   lw t0, 4(fp) ; s
   lbu t0, 0(t0)
   sw t0, 0(fp) ; c
-  ; engine/draw.e16.ts:220  while (c !== 0) {
+  ; engine/draw.e16.ts:216  while (c !== 0) {
   j .L3
 .L1:
-  ; engine/draw.e16.ts:221  const g = bigIndex(c)
+  ; engine/draw.e16.ts:217  const g = bigIndex(c)
   lw a0, 0(fp)
-  call bigIndex
+  la t0, bigIndex
+  li t1, 259
+  call far_call
   sw a0, 6(fp) ; g
-  ; engine/draw.e16.ts:222  if (g === 0xffff) at++
+  ; engine/draw.e16.ts:218  if (g === 0xffff) at++
   li t0, 65535
   lw t1, 6(fp) ; g
   bne t1, t0, .L5
-  ; engine/draw.e16.ts:222  at++
+  ; engine/draw.e16.ts:218  at++
   addi s2, s2, 1
   j .L6
 .L5:
-  ; engine/draw.e16.ts:224  const t = (BIG_TILE + g * 6) | (sl << 10) | FRONT
+  ; engine/draw.e16.ts:220  const t = (BIG_TILE + g * 6) | (sl << 10) | FRONT
   lw t0, 6(fp) ; g
   slli t1, t0, 2
   slli t0, t0, 1
@@ -10069,12 +10076,12 @@ bigSay:
   li t1, 32768
   or t0, t0, t1
   sw t0, 8(fp) ; t
-  ; engine/draw.e16.ts:225  let r: u16 = 0
+  ; engine/draw.e16.ts:221  let r: u16 = 0
   li s1, 0 ; r
-  ; engine/draw.e16.ts:226  while (r < 3) {
+  ; engine/draw.e16.ts:222  while (r < 3) {
   j .L9
 .L7:
-  ; engine/draw.e16.ts:227  vpoke(cellAt(1, at, y + r), t + r * 2)
+  ; engine/draw.e16.ts:223  vpoke(cellAt(1, at, y + r), t + r * 2)
   lw t0, 2(fp) ; y
   add t0, t0, s1
   li a0, 1
@@ -10085,7 +10092,7 @@ bigSay:
   lw t1, 8(fp) ; t
   add a1, t1, t0
   call vpoke
-  ; engine/draw.e16.ts:228  vpoke(cellAt(1, at + 1, y + r), t + r * 2 + 1)
+  ; engine/draw.e16.ts:224  vpoke(cellAt(1, at + 1, y + r), t + r * 2 + 1)
   lw t0, 2(fp) ; y
   add t0, t0, s1
   li a0, 1
@@ -10097,17 +10104,17 @@ bigSay:
   add t1, t1, t0
   addi a1, t1, 1
   call vpoke
-  ; engine/draw.e16.ts:229  r++
+  ; engine/draw.e16.ts:225  r++
   addi s1, s1, 1
 .L9:
   li t0, 3
   bltu s1, t0, .L7
-  ; engine/draw.e16.ts:231  at = at + 2
+  ; engine/draw.e16.ts:227  at = at + 2
   addi s2, s2, 2
 .L6:
-  ; engine/draw.e16.ts:233  k++
+  ; engine/draw.e16.ts:229  k++
   addi s3, s3, 1
-  ; engine/draw.e16.ts:234  c = peek(s + k)
+  ; engine/draw.e16.ts:230  c = peek(s + k)
   lw t0, 4(fp) ; s
   add t0, t0, s3
   lbu t0, 0(t0)
@@ -10125,7 +10132,7 @@ bigSay:
   addi sp, sp, 24
   ret
 
-; engine/draw.e16.ts:239 bigCentred(y, s) at -O1
+; engine/draw.e16.ts:235 bigCentred(y, s) at -O1
 ;   y in s2
 ;   s in s1
 bigCentred:
@@ -10135,7 +10142,7 @@ bigCentred:
   sw s1, 4(sp)
   mv s2, a0 ; y
   mv s1, a1 ; s
-  ; engine/draw.e16.ts:240  bigSay(20 - (bigWidth(s) >> 1), y, s, SL_BIG)
+  ; engine/draw.e16.ts:236  bigSay(20 - (bigWidth(s) >> 1), y, s, SL_BIG)
   mv a0, s1
   call bigWidth
   srli t0, a0, 1
@@ -10152,7 +10159,7 @@ bigCentred:
   addi sp, sp, 6
   ret
 
-; engine/draw.e16.ts:244 bandShow(s) at -O1
+; engine/draw.e16.ts:240 bandShow(s) at -O1
 ;   s in s2
 ;   r in s1
 bandShow:
@@ -10161,8 +10168,8 @@ bandShow:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; s
-  ; engine/draw.e16.ts:245  vfill(cellAt(1, 0, bandAt), (HUD_TILE + T_BAND_TOP) | (SL_P1 << 10) | FRONT, 40)
-  lw t0, 0x198a(zero)
+  ; engine/draw.e16.ts:241  vfill(cellAt(1, 0, bandAt), (HUD_TILE + T_BAND_TOP) | (SL_P1 << 10) | FRONT, 40)
+  lw t0, 0x198c(zero)
   li a0, 1
   li a1, 0
   mv a2, t0
@@ -10170,13 +10177,13 @@ bandShow:
   li a1, 33966
   li a2, 40
   call vfill
-  ; engine/draw.e16.ts:246  let r: u16 = 1
+  ; engine/draw.e16.ts:242  let r: u16 = 1
   li s1, 1 ; r
-  ; engine/draw.e16.ts:247  while (r < BAND_ROWS - 1) {
+  ; engine/draw.e16.ts:243  while (r < BAND_ROWS - 1) {
   j .L3
 .L1:
-  ; engine/draw.e16.ts:248  vfill(cellAt(1, 0, bandAt + r), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
-  lw t0, 0x198a(zero)
+  ; engine/draw.e16.ts:244  vfill(cellAt(1, 0, bandAt + r), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
+  lw t0, 0x198c(zero)
   add t0, t0, s1
   li a0, 1
   li a1, 0
@@ -10185,13 +10192,13 @@ bandShow:
   li a1, 33965
   li a2, 40
   call vfill
-  ; engine/draw.e16.ts:249  r++
+  ; engine/draw.e16.ts:245  r++
   addi s1, s1, 1
 .L3:
   li t0, 5
   bltu s1, t0, .L1
-  ; engine/draw.e16.ts:251  vfill(
-  lw t0, 0x198a(zero)
+  ; engine/draw.e16.ts:247  vfill(
+  lw t0, 0x198c(zero)
   li a0, 1
   li a1, 0
   addi a2, t0, 5
@@ -10199,8 +10206,8 @@ bandShow:
   li a1, 33967
   li a2, 40
   call vfill
-  ; engine/draw.e16.ts:256  bigCentred(bandAt + 1, s)
-  lw t0, 0x198a(zero)
+  ; engine/draw.e16.ts:252  bigCentred(bandAt + 1, s)
+  lw t0, 0x198c(zero)
   addi a0, t0, 1
   mv a1, s2
   call bigCentred
@@ -10211,100 +10218,20 @@ bandShow:
   addi sp, sp, 6
   ret
 
-; engine/draw.e16.ts:260 bandHigh() at -O1
+; engine/draw.e16.ts:256 bandHigh() at -O1
 bandHigh:
-  ; engine/draw.e16.ts:261  bandAt = BAND_HIGH
+  ; engine/draw.e16.ts:257  bandAt = BAND_HIGH
   li t0, 5
-  sw t0, 0x198a(zero)
+  sw t0, 0x198c(zero)
 .return:
   ret
 
-; engine/draw.e16.ts:265 bandSub(s) at -O1
-;   s in 0(fp)
-;   y in 2(fp)
-;   n in s1
-;   at in s3
-;   k in s2
-bandSub:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s1, 6(sp)
-  sw s3, 8(sp)
-  sw s2, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  sw a0, 0(fp) ; s
-  ; engine/draw.e16.ts:266  const y = bandAt + 4
-  lw t0, 0x198a(zero)
-  addi t0, t0, 4
-  sw t0, 2(fp) ; y
-  ; engine/draw.e16.ts:267  vfill(cellAt(1, 0, y), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
-  li a0, 1
-  li a1, 0
-  lw a2, 2(fp)
-  call cellAt
-  li a1, 33965
-  li a2, 40
-  call vfill
-  ; engine/draw.e16.ts:268  let n: u16 = 0
-  li s1, 0 ; n
-  ; engine/draw.e16.ts:269  while (peek(s + n) !== 0) n++
-  j .L3
-.L1:
-  ; engine/draw.e16.ts:269  n++
-  addi s1, s1, 1
-.L3:
-  lw t0, 0(fp) ; s
-  add t0, t0, s1
-  lbu t0, 0(t0)
-  bne t0, zero, .L1
-  ; engine/draw.e16.ts:270  let at = cellAt(1, 20 - (n >> 1), y)
-  srli t0, s1, 1
-  li t1, 20
-  sub t1, t1, t0
-  li a0, 1
-  mv a1, t1
-  lw a2, 2(fp)
-  call cellAt
-  mv s3, a0 ; at
-  ; engine/draw.e16.ts:271  let k: u16 = 0
-  li s2, 0 ; k
-  ; engine/draw.e16.ts:272  while (k < n) {
-  j .L7
-.L5:
-  ; engine/draw.e16.ts:273  vpoke(at, (FONTB_TILE + peek(s + k) - 32) | (SL_P1 << 10) | FRONT)
-  lw t0, 0(fp) ; s
-  add t0, t0, s2
-  lbu t0, 0(t0)
-  addi t0, t0, 32
-  ori t0, t0, 1024
-  li t1, 32768
-  or t0, t0, t1
-  mv a0, s3
-  mv a1, t0
-  call vpoke
-  ; engine/draw.e16.ts:274  at = wrap16(at + 2)
-  addi s3, s3, 2
-  ; engine/draw.e16.ts:275  k++
-  addi s2, s2, 1
-.L7:
-  bltu s2, s1, .L5
-.return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s1, 6(sp)
-  lw s3, 8(sp)
-  lw s2, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
-  ret
-
-; engine/draw.e16.ts:280 bandClear() at -O1
+; engine/draw.e16.ts:261 bandClear() at -O1
 bandClear:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/draw.e16.ts:281  vfill(cellAt(1, 0, bandAt), HUD_TILE + T_CLEAR, 64 * BAND_ROWS)
-  lw t0, 0x198a(zero)
+  ; engine/draw.e16.ts:262  vfill(cellAt(1, 0, bandAt), HUD_TILE + T_CLEAR, 64 * BAND_ROWS)
+  lw t0, 0x198c(zero)
   li a0, 1
   li a1, 0
   mv a2, t0
@@ -10312,51 +10239,51 @@ bandClear:
   li a1, 168
   li a2, 384
   call vfill
-  ; engine/draw.e16.ts:282  bandAt = BAND_ROW
+  ; engine/draw.e16.ts:263  bandAt = BAND_ROW
   li t0, 13
-  sw t0, 0x198a(zero)
+  sw t0, 0x198c(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; engine/draw.e16.ts:306 logPost(kind, side, move) at -O1
+; engine/draw.e16.ts:287 logPost(kind, side, move) at -O1
 ;   kind in a0
 ;   side in a1
 ;   move in a2
 logPost:
-  ; engine/draw.e16.ts:307  if (logOff[0] !== 0) return
+  ; engine/draw.e16.ts:288  if (logOff[0] !== 0) return
   lw t0, logOff(zero)
   beq t0, zero, .L1
-  ; engine/draw.e16.ts:307  return
+  ; engine/draw.e16.ts:288  return
   ret
 .L1:
-  ; engine/draw.e16.ts:308  logWait[0] = kind
+  ; engine/draw.e16.ts:289  logWait[0] = kind
   sw a0, logWait(zero)
-  ; engine/draw.e16.ts:309  logWait[1] = side
+  ; engine/draw.e16.ts:290  logWait[1] = side
   sw a1, logWait+2(zero)
-  ; engine/draw.e16.ts:310  logWait[2] = move
+  ; engine/draw.e16.ts:291  logWait[2] = move
   sw a2, logWait+4(zero)
 .return:
   ret
 
-; engine/draw.e16.ts:314 logStep() at -O1
+; engine/draw.e16.ts:295 logStep() at -O1
 ;   f in s1
 logStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; engine/draw.e16.ts:315  if (logWait[0] !== 0) {
+  ; engine/draw.e16.ts:296  if (logWait[0] !== 0) {
   lw t0, logWait(zero)
   beq t0, zero, .L1
-  ; engine/draw.e16.ts:316  logClear()
+  ; engine/draw.e16.ts:297  logClear()
   call logClear
-  ; engine/draw.e16.ts:317  palMix(SL_LOG, 0, 0)
+  ; engine/draw.e16.ts:298  palMix(SL_LOG, 0, 0)
   li a0, 5
   li a1, 0
   li a2, 0
   call palMix
-  ; engine/draw.e16.ts:318  logDraw(logWait[0], logWait[1], logWait[2])
+  ; engine/draw.e16.ts:299  logDraw(logWait[0], logWait[1], logWait[2])
   lw t0, logWait(zero)
   lw t1, logWait+2(zero)
   lw t2, logWait+4(zero)
@@ -10366,45 +10293,45 @@ logStep:
   la t0, logDraw
   li t1, 259
   call far_call
-  ; engine/draw.e16.ts:319  logWait[0] = 0
+  ; engine/draw.e16.ts:300  logWait[0] = 0
   sw zero, logWait(zero)
-  ; engine/draw.e16.ts:320  logT = 0
-  sw zero, 0x19aa(zero)
-  ; engine/draw.e16.ts:321  return
+  ; engine/draw.e16.ts:301  logT = 0
+  sw zero, 0x19ac(zero)
+  ; engine/draw.e16.ts:302  return
   j .return
 .L1:
-  ; engine/draw.e16.ts:323  if (logT === 0xffff) return
-  lw t0, 0x19aa(zero)
+  ; engine/draw.e16.ts:304  if (logT === 0xffff) return
+  lw t0, 0x19ac(zero)
   li t1, 65535
   bne t0, t1, .L2
-  ; engine/draw.e16.ts:323  return
+  ; engine/draw.e16.ts:304  return
   j .return
 .L2:
-  ; engine/draw.e16.ts:324  logT++
-  lw t0, 0x19aa(zero)
+  ; engine/draw.e16.ts:305  logT++
+  lw t0, 0x19ac(zero)
   addi t0, t0, 1
-  sw t0, 0x19aa(zero)
-  ; engine/draw.e16.ts:325  if (logT <= LOG_SHOW) return
+  sw t0, 0x19ac(zero)
+  ; engine/draw.e16.ts:306  if (logT <= LOG_SHOW) return
   li t1, 60
   bltu t1, t0, .L3
-  ; engine/draw.e16.ts:325  return
+  ; engine/draw.e16.ts:306  return
   j .return
 .L3:
-  ; engine/draw.e16.ts:326  const f = logT - LOG_SHOW
-  lw t0, 0x19aa(zero)
+  ; engine/draw.e16.ts:307  const f = logT - LOG_SHOW
+  lw t0, 0x19ac(zero)
   addi s1, t0, -60
-  ; engine/draw.e16.ts:327  if (f < LOG_FADE) {
+  ; engine/draw.e16.ts:308  if (f < LOG_FADE) {
   li t0, 16
   bgeu s1, t0, .L4
-  ; engine/draw.e16.ts:328  palMix(SL_LOG, 0, f)
+  ; engine/draw.e16.ts:309  palMix(SL_LOG, 0, f)
   li a0, 5
   li a1, 0
   mv a2, s1
   call palMix
-  ; engine/draw.e16.ts:329  return
+  ; engine/draw.e16.ts:310  return
   j .return
 .L4:
-  ; engine/draw.e16.ts:331  logGone()
+  ; engine/draw.e16.ts:312  logGone()
   call logGone
 .return:
   lw ra, 0(sp)
@@ -10412,30 +10339,30 @@ logStep:
   addi sp, sp, 4
   ret
 
-; engine/draw.e16.ts:335 logGone() at -O1
+; engine/draw.e16.ts:316 logGone() at -O1
 logGone:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/draw.e16.ts:336  logClear()
+  ; engine/draw.e16.ts:317  logClear()
   call logClear
-  ; engine/draw.e16.ts:337  palMix(SL_LOG, 0, 0)
+  ; engine/draw.e16.ts:318  palMix(SL_LOG, 0, 0)
   li a0, 5
   li a1, 0
   li a2, 0
   call palMix
-  ; engine/draw.e16.ts:338  logT = 0xffff
+  ; engine/draw.e16.ts:319  logT = 0xffff
   li t0, 65535
-  sw t0, 0x19aa(zero)
+  sw t0, 0x19ac(zero)
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; engine/draw.e16.ts:341 logClear() at -O1
+; engine/draw.e16.ts:322 logClear() at -O1
 logClear:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/draw.e16.ts:342  vfill(cellAt(1, 0, LOG_ROW), HUD_TILE + T_CLEAR, 40)
+  ; engine/draw.e16.ts:323  vfill(cellAt(1, 0, LOG_ROW), HUD_TILE + T_CLEAR, 40)
   li a0, 45312
   li a1, 168
   li a2, 40
@@ -10445,7 +10372,7 @@ logClear:
   addi sp, sp, 2
   ret
 
-; engine/draw.e16.ts:346 hudRows(y, n) at -O1
+; engine/draw.e16.ts:327 hudRows(y, n) at -O1
 ;   y in s1
 ;   n in s2
 hudRows:
@@ -10455,7 +10382,7 @@ hudRows:
   sw s2, 4(sp)
   mv s1, a0 ; y
   mv s2, a1 ; n
-  ; engine/draw.e16.ts:347  vfill(cellAt(1, 0, y), HUD_TILE + T_CLEAR, 64 * n)
+  ; engine/draw.e16.ts:328  vfill(cellAt(1, 0, y), HUD_TILE + T_CLEAR, 64 * n)
   li a0, 1
   li a1, 0
   mv a2, s1
@@ -10472,38 +10399,36 @@ hudRows:
   addi sp, sp, 6
   ret
 
-str_0:
-  .byte 68, 79, 85, 66, 76, 69, 32, 75, 46, 79, 46, 0
-str_1:
-  .byte 75, 46, 79, 46, 0
 str_2:
-  .byte 84, 73, 77, 69, 32, 85, 80, 0
+  .byte 68, 79, 85, 66, 76, 69, 32, 75, 46, 79, 46, 0
 str_3:
-  .byte 83, 49, 32, 66, 65, 76, 65, 78, 67, 69, 0
+  .byte 75, 46, 79, 46, 0
 str_4:
-  .byte 83, 50, 32, 82, 85, 83, 72, 0
+  .byte 84, 73, 77, 69, 32, 85, 80, 0
 str_5:
-  .byte 83, 51, 32, 80, 79, 87, 69, 82, 0
+  .byte 83, 49, 32, 66, 65, 76, 65, 78, 67, 69, 0
 str_6:
-  .byte 83, 52, 32, 79, 85, 84, 66, 79, 88, 0
+  .byte 83, 50, 32, 82, 85, 83, 72, 0
 str_7:
-  .byte 80, 65, 67, 75, 69, 84, 0
+  .byte 83, 51, 32, 80, 79, 87, 69, 82, 0
 str_8:
-  .byte 77, 65, 73, 78, 70, 82, 65, 77, 69, 0
+  .byte 83, 52, 32, 79, 85, 84, 66, 79, 88, 0
 str_9:
-  .byte 68, 65, 69, 77, 79, 78, 0
+  .byte 80, 65, 67, 75, 69, 84, 0
 str_10:
-  .byte 75, 69, 82, 78, 69, 76, 0
+  .byte 77, 65, 73, 78, 70, 82, 65, 77, 69, 0
 str_11:
-  .byte 82, 79, 79, 84, 0
+  .byte 68, 65, 69, 77, 79, 78, 0
 str_12:
-  .byte 65, 66, 67, 68, 69, 70, 71, 72, 73, 75, 76, 77, 78, 79, 80, 82, 83, 84, 85, 86, 87, 89, 46, 63, 49, 50, 51, 0
+  .byte 75, 69, 82, 78, 69, 76, 0
+str_13:
+  .byte 82, 79, 79, 84, 0
   .align 2
 e16c_fixed_end:
 
   .bank 1
   .org 0xc000
-; scenes/match.e16.ts:104 ladderPlay() at -O1
+; scenes/match.e16.ts:112 ladderPlay() at -O1
 ;   k in s1
 ;   won in s2
 ladderPlay:
@@ -10511,88 +10436,88 @@ ladderPlay:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; scenes/match.e16.ts:105  ladderBuild()
+  ; scenes/match.e16.ts:113  ladderBuild()
   call ladderBuild
-  ; scenes/match.e16.ts:106  habitLadder()
+  ; scenes/match.e16.ts:114  habitLadder()
   la t0, habitLadder
   li t1, 264
   call far_call
-  ; scenes/match.e16.ts:107  ladderEnd = 0
-  sw zero, 0x19c6(zero)
-  ; scenes/match.e16.ts:108  continues = 0
+  ; scenes/match.e16.ts:115  ladderEnd = 0
   sw zero, 0x19c8(zero)
-  ; scenes/match.e16.ts:109  clearSec = 0
+  ; scenes/match.e16.ts:116  continues = 0
   sw zero, 0x19ca(zero)
-  ; scenes/match.e16.ts:110  clearT = 0
+  ; scenes/match.e16.ts:117  clearSec = 0
   sw zero, 0x19cc(zero)
-  ; scenes/match.e16.ts:111  let k = choice[1]
+  ; scenes/match.e16.ts:118  clearT = 0
+  sw zero, 0x19ce(zero)
+  ; scenes/match.e16.ts:119  let k = choice[1]
   lw s1, choice+2(zero)
-  ; scenes/match.e16.ts:112  while (k < LADDER) {
+  ; scenes/match.e16.ts:120  while (k < LADDER) {
   j .L3
 .L1:
-  ; scenes/match.e16.ts:113  ladderAt = k
-  sw s1, 0x19c4(zero)
-  ; scenes/match.e16.ts:114  matchPlay(ladder[k], k)
+  ; scenes/match.e16.ts:121  ladderAt = k
+  sw s1, 0x19c6(zero)
+  ; scenes/match.e16.ts:122  matchPlay(ladder[k], k)
   slli t0, s1, 1
   lw a0, ladder(t0)
   mv a1, s1
   call matchPlay
-  ; scenes/match.e16.ts:115  if (outcome === QUIT) {
-  lw t0, 0x19b4(zero)
+  ; scenes/match.e16.ts:123  if (outcome === QUIT) {
+  lw t0, 0x19b6(zero)
   li t1, 4
   bne t0, t1, .L5
-  ; scenes/match.e16.ts:116  ladderEnd = 3
+  ; scenes/match.e16.ts:124  ladderEnd = 3
   li t0, 3
-  sw t0, 0x19c6(zero)
-  ; scenes/match.e16.ts:117  return
+  sw t0, 0x19c8(zero)
+  ; scenes/match.e16.ts:125  return
   j .return
 .L5:
-  ; scenes/match.e16.ts:119  const won = outcome === 1
-  lw t0, 0x19b4(zero)
+  ; scenes/match.e16.ts:127  const won = outcome === 1
+  lw t0, 0x19b6(zero)
   li t1, 1
   sub t0, t0, t1
   seqz s2, t0
-  ; scenes/match.e16.ts:120  resultShow(ladder[k])
+  ; scenes/match.e16.ts:128  resultShow(ladder[k])
   slli t0, s1, 1
   lw a0, ladder(t0)
   la t0, resultShow
   li t1, 263
   call far_call
-  ; scenes/match.e16.ts:121  if (won) k++
+  ; scenes/match.e16.ts:129  if (won) k++
   beqz s2, .L6
-  ; scenes/match.e16.ts:121  k++
+  ; scenes/match.e16.ts:129  k++
   addi s1, s1, 1
   j .L7
 .L6:
-  ; scenes/match.e16.ts:122  if (continueAsk()) continues++
+  ; scenes/match.e16.ts:130  if (continueAsk()) continues++
   la t0, continueAsk
   li t1, 263
   call far_call
   beqz a0, .L8
-  ; scenes/match.e16.ts:122  continues++
-  lw t0, 0x19c8(zero)
+  ; scenes/match.e16.ts:130  continues++
+  lw t0, 0x19ca(zero)
   addi t0, t0, 1
-  sw t0, 0x19c8(zero)
+  sw t0, 0x19ca(zero)
   j .L9
 .L8:
-  ; scenes/match.e16.ts:124  ladderEnd = 2
+  ; scenes/match.e16.ts:132  ladderEnd = 2
   li t0, 2
-  sw t0, 0x19c6(zero)
-  ; scenes/match.e16.ts:125  gameOver()
+  sw t0, 0x19c8(zero)
+  ; scenes/match.e16.ts:133  gameOver()
   la t0, gameOver
   li t1, 263
   call far_call
-  ; scenes/match.e16.ts:126  return
+  ; scenes/match.e16.ts:134  return
   j .return
 .L9:
 .L7:
 .L3:
   li t0, 4
   bltu s1, t0, .L1
-  ; scenes/match.e16.ts:129  ladderEnd = 1
+  ; scenes/match.e16.ts:137  ladderEnd = 1
   li t0, 1
-  sw t0, 0x19c6(zero)
-  ; scenes/match.e16.ts:130  systemClear()
+  sw t0, 0x19c8(zero)
+  ; scenes/match.e16.ts:138  systemClear()
   la t0, systemClear
   li t1, 263
   call far_call
@@ -10603,7 +10528,7 @@ ladderPlay:
   addi sp, sp, 6
   ret
 
-; scenes/match.e16.ts:137 ladderBuild() at -O1
+; scenes/match.e16.ts:145 ladderBuild() at -O1
 ;   n in s2
 ;   k in s1
 ;   mirror in s3
@@ -10613,34 +10538,34 @@ ladderBuild:
   sw s2, 2(sp)
   sw s1, 4(sp)
   sw s3, 6(sp)
-  ; scenes/match.e16.ts:138  let n: u16 = 0
+  ; scenes/match.e16.ts:146  let n: u16 = 0
   li s2, 0 ; n
-  ; scenes/match.e16.ts:139  let k: u16 = 0
+  ; scenes/match.e16.ts:147  let k: u16 = 0
   li s1, 0 ; k
-  ; scenes/match.e16.ts:140  while (k < OPPONENTS && n < LADDER - 1) {
+  ; scenes/match.e16.ts:148  while (k < OPPONENTS && n < LADDER - 1) {
   j .L3
 .L1:
-  ; scenes/match.e16.ts:141  const mirror = (oppWord(k, O_FLAGS) & OF_MIRROR) !== 0
+  ; scenes/match.e16.ts:149  const mirror = (oppWord(k, O_FLAGS) & OF_MIRROR) !== 0
   mv a0, s1
   li a1, 24
   call oppWord
   andi t0, a0, 16
   sub t0, t0, zero
   snez s3, t0
-  ; scenes/match.e16.ts:142  if (!mirror && oppWord(k, O_SLOT) !== choice[0]) {
+  ; scenes/match.e16.ts:150  if (!mirror && oppWord(k, O_SLOT) !== choice[0]) {
   bnez s3, .L5
   mv a0, s1
   li a1, 0
   call oppWord
   lw t0, choice(zero)
   beq a0, t0, .L5
-  ; scenes/match.e16.ts:143  ladder[n] = k
+  ; scenes/match.e16.ts:151  ladder[n] = k
   slli t0, s2, 1
   sw s1, ladder(t0)
-  ; scenes/match.e16.ts:144  n++
+  ; scenes/match.e16.ts:152  n++
   addi s2, s2, 1
 .L5:
-  ; scenes/match.e16.ts:146  k++
+  ; scenes/match.e16.ts:154  k++
   addi s1, s1, 1
 .L3:
   li t0, 5
@@ -10648,24 +10573,24 @@ ladderBuild:
   li t0, 3
   bltu s2, t0, .L1
 .L6:
-  ; scenes/match.e16.ts:148  k = 0
+  ; scenes/match.e16.ts:156  k = 0
   li s1, 0 ; k
-  ; scenes/match.e16.ts:149  while (k < OPPONENTS && n < LADDER) {
+  ; scenes/match.e16.ts:157  while (k < OPPONENTS && n < LADDER) {
   j .L9
 .L7:
-  ; scenes/match.e16.ts:150  if ((oppWord(k, O_FLAGS) & OF_MIRROR) !== 0) {
+  ; scenes/match.e16.ts:158  if ((oppWord(k, O_FLAGS) & OF_MIRROR) !== 0) {
   mv a0, s1
   li a1, 24
   call oppWord
   andi t0, a0, 16
   beq t0, zero, .L11
-  ; scenes/match.e16.ts:151  ladder[n] = k
+  ; scenes/match.e16.ts:159  ladder[n] = k
   slli t0, s2, 1
   sw s1, ladder(t0)
-  ; scenes/match.e16.ts:152  n++
+  ; scenes/match.e16.ts:160  n++
   addi s2, s2, 1
 .L11:
-  ; scenes/match.e16.ts:154  k++
+  ; scenes/match.e16.ts:162  k++
   addi s1, s1, 1
 .L9:
   li t0, 5
@@ -10681,7 +10606,7 @@ ladderBuild:
   addi sp, sp, 8
   ret
 
-; scenes/match.e16.ts:159 matchPlay(k, pos) at -O1
+; scenes/match.e16.ts:167 matchPlay(k, pos) at -O1
 ;   k in s1
 ;   pos in s2
 matchPlay:
@@ -10691,21 +10616,21 @@ matchPlay:
   sw s2, 4(sp)
   mv s1, a0 ; k
   mv s2, a1 ; pos
-  ; scenes/match.e16.ts:160  oppLoad(1, k, pos)
+  ; scenes/match.e16.ts:168  oppLoad(1, k, pos)
   li a0, 1
   mv a1, s1
   mv a2, s2
   call oppLoad
-  ; scenes/match.e16.ts:161  oppLoad(0, choice[2], 0)
+  ; scenes/match.e16.ts:169  oppLoad(0, choice[2], 0)
   lw t0, choice+4(zero)
   li a0, 0
   mv a1, t0
   li a2, 0
   call oppLoad
-  ; scenes/match.e16.ts:162  fSlot[0] = choice[0]
+  ; scenes/match.e16.ts:170  fSlot[0] = choice[0]
   lw t0, choice(zero)
   sw t0, fSlot(zero)
-  ; scenes/match.e16.ts:163  fSlot[1] = (opp[OW + O_FLAGS] & OF_MIRROR) !== 0 ? choice[0] : opp[OW + O_SLOT]
+  ; scenes/match.e16.ts:171  fSlot[1] = (opp[OW + O_FLAGS] & OF_MIRROR) !== 0 ? choice[0] : opp[OW + O_SLOT]
   lw t0, opp+112(zero)
   andi t1, t0, 16
   li t0, fSlot+2
@@ -10717,124 +10642,124 @@ matchPlay:
   lw t1, opp+64(zero)
 .L2:
   sw t1, 0(t0)
-  ; scenes/match.e16.ts:164  fighterLoad(0, fSlot[0])
+  ; scenes/match.e16.ts:172  fighterLoad(0, fSlot[0])
   lw t0, fSlot(zero)
   li a0, 0
   mv a1, t0
   call fighterLoad
-  ; scenes/match.e16.ts:165  fighterLoad(1, fSlot[1])
+  ; scenes/match.e16.ts:173  fighterLoad(1, fSlot[1])
   lw t0, fSlot+2(zero)
   li a0, 1
   mv a1, t0
   call fighterLoad
-  ; scenes/match.e16.ts:166  sidePalette()
+  ; scenes/match.e16.ts:174  sidePalette()
   call sidePalette
-  ; scenes/match.e16.ts:167  screenClear()
-  call screenClear
-  ; scenes/match.e16.ts:168  stageLoad(opp[OW + O_STAGE])
+  ; scenes/match.e16.ts:175  fightClear()
+  call fightClear
+  ; scenes/match.e16.ts:176  stageLoad(opp[OW + O_STAGE])
   lw a0, opp+66(zero)
   call stageLoad
-  ; scenes/match.e16.ts:169  cpuMatchSet(0)
+  ; scenes/match.e16.ts:177  cpuMatchSet(0)
   li a0, 0
   la t0, cpuMatchSet
   li t1, 258
   call far_call
-  ; scenes/match.e16.ts:170  cpuMatchSet(1)
+  ; scenes/match.e16.ts:178  cpuMatchSet(1)
   li a0, 1
   la t0, cpuMatchSet
   li t1, 258
   call far_call
-  ; scenes/match.e16.ts:171  wins[0] = 0
+  ; scenes/match.e16.ts:179  wins[0] = 0
   sw zero, wins(zero)
-  ; scenes/match.e16.ts:172  wins[1] = 0
+  ; scenes/match.e16.ts:180  wins[1] = 0
   sw zero, wins+2(zero)
-  ; scenes/match.e16.ts:173  round = 1
+  ; scenes/match.e16.ts:181  round = 1
   li t0, 1
-  sw t0, 0x19ac(zero)
-  ; scenes/match.e16.ts:174  draws = 0
-  sw zero, 0x19b2(zero)
-  ; scenes/match.e16.ts:175  outcome = 0
+  sw t0, 0x19ae(zero)
+  ; scenes/match.e16.ts:182  draws = 0
   sw zero, 0x19b4(zero)
-  ; scenes/match.e16.ts:176  fComboMax[0] = 0
+  ; scenes/match.e16.ts:183  outcome = 0
+  sw zero, 0x19b6(zero)
+  ; scenes/match.e16.ts:184  fComboMax[0] = 0
   sw zero, fComboMax(zero)
-  ; scenes/match.e16.ts:177  fComboMax[1] = 0
+  ; scenes/match.e16.ts:185  fComboMax[1] = 0
   sw zero, fComboMax+2(zero)
-  ; scenes/match.e16.ts:178  hitsN[0] = 0
+  ; scenes/match.e16.ts:186  hitsN[0] = 0
   sw zero, hitsN(zero)
-  ; scenes/match.e16.ts:179  hitsN[1] = 0
+  ; scenes/match.e16.ts:187  hitsN[1] = 0
   sw zero, hitsN+2(zero)
-  ; scenes/match.e16.ts:180  versusRun(k)
+  ; scenes/match.e16.ts:188  versusRun(k)
   mv a0, s1
   la t0, versusRun
   li t1, 262
   call far_call
-  ; scenes/match.e16.ts:181  music(stageMusic())
+  ; scenes/match.e16.ts:189  music(stageMusic())
   call stageMusic
   la t0, music
   li t1, 260
   call far_call
-  ; scenes/match.e16.ts:182  while (outcome === 0) roundPlay()
+  ; scenes/match.e16.ts:190  while (outcome === 0) roundPlay()
   j .L5
 .L3:
-  ; scenes/match.e16.ts:182  roundPlay()
+  ; scenes/match.e16.ts:190  roundPlay()
   call roundPlay
 .L5:
-  lw t0, 0x19b4(zero)
+  lw t0, 0x19b6(zero)
   beq t0, zero, .L3
-  ; scenes/match.e16.ts:183  if (outcome === QUIT) return
-  lw t0, 0x19b4(zero)
+  ; scenes/match.e16.ts:191  if (outcome === QUIT) return
+  lw t0, 0x19b6(zero)
   li t1, 4
   bne t0, t1, .L7
-  ; scenes/match.e16.ts:183  return
+  ; scenes/match.e16.ts:191  return
   j .return
 .L7:
-  ; scenes/match.e16.ts:184  phaseIs(PH_END)
+  ; scenes/match.e16.ts:192  phaseIs(PH_END)
   li a0, 3
   call phaseIs
-  ; scenes/match.e16.ts:185  bandHigh()
+  ; scenes/match.e16.ts:193  bandHigh()
   call bandHigh
-  ; scenes/match.e16.ts:186  if (outcome === 1) {
-  lw t0, 0x19b4(zero)
+  ; scenes/match.e16.ts:194  if (outcome === 1) {
+  lw t0, 0x19b6(zero)
   li t1, 1
   bne t0, t1, .L8
-  ; scenes/match.e16.ts:187  bandShow(str('YOU WIN'))
-  la a0, str_13
+  ; scenes/match.e16.ts:195  bandShow(str('YOU WIN'))
+  la a0, str_14
   call bandShow
-  ; scenes/match.e16.ts:188  music(M_WIN)
+  ; scenes/match.e16.ts:196  music(M_WIN)
   li a0, 4
   la t0, music
   li t1, 260
   call far_call
   j .L14
 .L8:
-  ; scenes/match.e16.ts:190  bandShow(outcome === 2 ? str('YOU LOSE') : str('BOTH LOSE'))
-  lw t0, 0x19b4(zero)
+  ; scenes/match.e16.ts:198  bandShow(outcome === 2 ? str('YOU LOSE') : str('BOTH LOSE'))
+  lw t0, 0x19b6(zero)
   li t1, 2
   bne t0, t1, .L10
-  la t0, str_14
+  la t0, str_15
   j .L11
 .L10:
-  la t0, str_15
+  la t0, str_16
 .L11:
   mv a0, t0
   call bandShow
-  ; scenes/match.e16.ts:191  music(M_LOSE)
+  ; scenes/match.e16.ts:199  music(M_LOSE)
   li a0, 5
   la t0, music
   li t1, 260
   call far_call
-  ; scenes/match.e16.ts:193  while (phaseT < END_F) {
+  ; scenes/match.e16.ts:201  while (phaseT < END_F) {
   j .L14
 .L12:
-  ; scenes/match.e16.ts:194  frameStep()
+  ; scenes/match.e16.ts:202  frameStep()
   call frameStep
-  ; scenes/match.e16.ts:195  phaseTick()
+  ; scenes/match.e16.ts:203  phaseTick()
   call phaseTick
 .L14:
   lw t0, 0x0c9a(zero)
   li t1, 150
   bltu t0, t1, .L12
-  ; scenes/match.e16.ts:197  bandClear()
+  ; scenes/match.e16.ts:205  bandClear()
   call bandClear
 .return:
   lw ra, 0(sp)
@@ -10843,125 +10768,112 @@ matchPlay:
   addi sp, sp, 6
   ret
 
-; scenes/match.e16.ts:204 sidePalette() at -O1
-;   row in s1
+; scenes/match.e16.ts:212 sidePalette() at -O1
 sidePalette:
-  addi sp, sp, -4
+  addi sp, sp, -2
   sw ra, 0(sp)
-  sw s1, 2(sp)
-  ; scenes/match.e16.ts:205  const row = fSlot[0] === fSlot[1] ? PAL_MIRROR : PAL_CPU
-  lw t0, fSlot(zero)
-  lw t1, fSlot+2(zero)
-  bne t0, t1, .L1
-  li t0, 7
-  j .L2
-.L1:
-  li t0, 4
-.L2:
-  mv s1, t0 ; row
-  ; scenes/match.e16.ts:206  palette(row, 9)
-  mv a0, s1
+  ; scenes/match.e16.ts:213  palette(PAL_CPU, 9)
+  li a0, 4
   li a1, 9
   call palette
-  ; scenes/match.e16.ts:207  palKeep(row, 9)
-  mv a0, s1
+  ; scenes/match.e16.ts:214  palKeep(PAL_CPU, 9)
+  li a0, 4
   li a1, 9
   call palKeep
 .return:
   lw ra, 0(sp)
-  lw s1, 2(sp)
-  addi sp, sp, 4
+  addi sp, sp, 2
   ret
 
-; scenes/match.e16.ts:211 roundPlay() at -O1
+; scenes/match.e16.ts:218 roundPlay() at -O1
 ;   roundWord.n in s1
 roundPlay:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; scenes/match.e16.ts:212  screenIs(SC_FIGHT)
+  ; scenes/match.e16.ts:219  screenIs(SC_FIGHT)
   li a0, 6
   call screenIs
-  ; scenes/match.e16.ts:213  fighterReset(0)
+  ; scenes/match.e16.ts:220  fighterReset(0)
   li a0, 0
   call fighterReset
-  ; scenes/match.e16.ts:214  fighterReset(1)
+  ; scenes/match.e16.ts:221  fighterReset(1)
   li a0, 1
   call fighterReset
-  ; scenes/match.e16.ts:215  ringClear()
+  ; scenes/match.e16.ts:222  ringClear()
   call ringClear
-  ; scenes/match.e16.ts:216  hitstopIs(0)
+  ; scenes/match.e16.ts:223  hitstopIs(0)
   li a0, 0
   call hitstopIs
-  ; scenes/match.e16.ts:217  clockReset()
+  ; scenes/match.e16.ts:224  clockReset()
   call clockReset
-  ; scenes/match.e16.ts:218  cpuRoundReset(0)
+  ; scenes/match.e16.ts:225  cpuRoundReset(0)
   li a0, 0
   la t0, cpuRoundReset
   li t1, 258
   call far_call
-  ; scenes/match.e16.ts:219  cpuRoundReset(1)
+  ; scenes/match.e16.ts:226  cpuRoundReset(1)
   li a0, 1
   la t0, cpuRoundReset
   li t1, 258
   call far_call
-  ; scenes/match.e16.ts:220  palKey[0] = 0xffff
+  ; scenes/match.e16.ts:227  palKey[0] = 0xffff
   li t0, 65535
   sw t0, palKey(zero)
-  ; scenes/match.e16.ts:221  palKey[1] = 0xffff
+  ; scenes/match.e16.ts:228  palKey[1] = 0xffff
   li t0, 65535
   sw t0, palKey+2(zero)
-  ; scenes/match.e16.ts:222  hudDraw()
+  ; scenes/match.e16.ts:229  hudDraw()
   call hudDraw
-  ; scenes/match.e16.ts:223  bandShow(roundWord(round))
-  lw s1, 0x19ac(zero)
-  ; scenes/match.e16.ts:287  if (n === 1) return str('ROUND 1')
+  ; scenes/match.e16.ts:230  bandShow(roundWord(round))
+  lw s1, 0x19ae(zero)
+  ; scenes/match.e16.ts:294  if (n === 1) return str('ROUND 1')
   li t0, 1
   bne s1, t0, .I1.L1
-  ; scenes/match.e16.ts:287  return str('ROUND 1')
-  la t0, str_19
-  j .I1_end
-.I1.L1:
-  ; scenes/match.e16.ts:288  if (n === 2) return str('ROUND 2')
-  li t0, 2
-  bne s1, t0, .I1.L2
-  ; scenes/match.e16.ts:288  return str('ROUND 2')
+  ; scenes/match.e16.ts:294  return str('ROUND 1')
   la t0, str_20
   j .I1_end
-.I1.L2:
-  ; scenes/match.e16.ts:289  return str('ROUND 3')
+.I1.L1:
+  ; scenes/match.e16.ts:295  if (n === 2) return str('ROUND 2')
+  li t0, 2
+  bne s1, t0, .I1.L2
+  ; scenes/match.e16.ts:295  return str('ROUND 2')
   la t0, str_21
+  j .I1_end
+.I1.L2:
+  ; scenes/match.e16.ts:296  return str('ROUND 3')
+  la t0, str_22
 .I1_end:
   mv a0, t0
   call bandShow
-  ; scenes/match.e16.ts:224  phaseIs(PH_ROUND)
+  ; scenes/match.e16.ts:231  phaseIs(PH_ROUND)
   li a0, 0
   call phaseIs
-  ; scenes/match.e16.ts:225  for (;;) {
+  ; scenes/match.e16.ts:232  for (;;) {
 .L1:
-  ; scenes/match.e16.ts:226  frameStep()
+  ; scenes/match.e16.ts:233  frameStep()
   call frameStep
-  ; scenes/match.e16.ts:227  phaseTick()
+  ; scenes/match.e16.ts:234  phaseTick()
   call phaseTick
-  ; scenes/match.e16.ts:228  clockOn()
-  ; scenes/match.e16.ts:239  clearT++
+  ; scenes/match.e16.ts:235  clockOn()
+  ; scenes/match.e16.ts:246  clearT++
+  lw t0, 0x19ce(zero)
+  addi t0, t0, 1
+  sw t0, 0x19ce(zero)
+  ; scenes/match.e16.ts:247  if (clearT < CLOCK_SECOND) return
+  li t1, 60
+  bgeu t0, t1, .I2.L1
+  ; scenes/match.e16.ts:247  return
+  j .I2_end
+.I2.L1:
+  ; scenes/match.e16.ts:248  clearT = 0
+  sw zero, 0x19ce(zero)
+  ; scenes/match.e16.ts:249  clearSec++
   lw t0, 0x19cc(zero)
   addi t0, t0, 1
   sw t0, 0x19cc(zero)
-  ; scenes/match.e16.ts:240  if (clearT < CLOCK_SECOND) return
-  li t1, 60
-  bgeu t0, t1, .I2.L1
-  ; scenes/match.e16.ts:240  return
-  j .I2_end
-.I2.L1:
-  ; scenes/match.e16.ts:241  clearT = 0
-  sw zero, 0x19cc(zero)
-  ; scenes/match.e16.ts:242  clearSec++
-  lw t0, 0x19ca(zero)
-  addi t0, t0, 1
-  sw t0, 0x19ca(zero)
 .I2_end:
-  ; scenes/match.e16.ts:229  if (phase === PH_FIGHT && pressed(B_START) && pauseRun() !== 0) {
+  ; scenes/match.e16.ts:236  if (phase === PH_FIGHT && pressed(B_START) && pauseRun() !== 0) {
   lw t0, 0x0c98(zero)
   li t1, 1
   bne t0, t1, .L5
@@ -10972,46 +10884,46 @@ roundPlay:
   li t1, 259
   call far_call
   beq a0, zero, .L5
-  ; scenes/match.e16.ts:230  outcome = QUIT
+  ; scenes/match.e16.ts:237  outcome = QUIT
   li t0, 4
-  sw t0, 0x19b4(zero)
-  ; scenes/match.e16.ts:231  return
+  sw t0, 0x19b6(zero)
+  ; scenes/match.e16.ts:238  return
   j .return
 .L5:
-  ; scenes/match.e16.ts:233  if (phaseStep()) return
+  ; scenes/match.e16.ts:240  if (phaseStep()) return
   call phaseStep
   beqz a0, .L1
-  ; scenes/match.e16.ts:233  return
+  ; scenes/match.e16.ts:240  return
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
   addi sp, sp, 4
   ret
 
-; scenes/match.e16.ts:246 matchHud() at -O1
+; scenes/match.e16.ts:253 matchHud() at -O1
 matchHud:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/match.e16.ts:247  hudClear()
+  ; scenes/match.e16.ts:254  hudClear()
   call hudClear
-  ; scenes/match.e16.ts:248  hudDraw()
+  ; scenes/match.e16.ts:255  hudDraw()
   call hudDraw
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; scenes/match.e16.ts:256 hudDraw() at -O1
+; scenes/match.e16.ts:263 hudDraw() at -O1
 hudDraw:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/match.e16.ts:257  heading(0)
+  ; scenes/match.e16.ts:264  heading(0)
   li a0, 0
   call heading
-  ; scenes/match.e16.ts:258  heading(22)
+  ; scenes/match.e16.ts:265  heading(22)
   li a0, 22
   call heading
-  ; scenes/match.e16.ts:259  say(2, 1, slName[fSlot[0]], SL_P1)
+  ; scenes/match.e16.ts:266  say(2, 1, slName[fSlot[0]], SL_P1)
   lw t0, fSlot(zero)
   slli t0, t0, 1
   lw t0, slName(t0)
@@ -11020,19 +10932,19 @@ hudDraw:
   mv a2, t0
   li a3, 1
   call say
-  ; scenes/match.e16.ts:260  say(13, 1, str('P1'), SL_DIM)
+  ; scenes/match.e16.ts:267  say(13, 1, str('P1'), SL_DIM)
   li a0, 13
   li a1, 1
-  la a2, str_16
+  la a2, str_17
   li a3, 3
   call say
-  ; scenes/match.e16.ts:261  say(24, 1, str('CPU'), SL_P1)
+  ; scenes/match.e16.ts:268  say(24, 1, str('CPU'), SL_P1)
   li a0, 24
   li a1, 1
-  la a2, str_17
+  la a2, str_18
   li a3, 1
   call say
-  ; scenes/match.e16.ts:262  say(28, 1, slName[fSlot[1]], SL_DIM)
+  ; scenes/match.e16.ts:269  say(28, 1, slName[fSlot[1]], SL_DIM)
   lw t0, fSlot+2(zero)
   slli t0, t0, 1
   lw t0, slName(t0)
@@ -11041,58 +10953,58 @@ hudDraw:
   mv a2, t0
   li a3, 3
   call say
-  ; scenes/match.e16.ts:263  say(18, 3, str('TIME'), SL_DIM)
+  ; scenes/match.e16.ts:270  say(18, 3, str('TIME'), SL_DIM)
   li a0, 18
   li a1, 3
-  la a2, str_18
+  la a2, str_19
   li a3, 3
   call say
-  ; scenes/match.e16.ts:264  lamps(15, wins[0], false)
+  ; scenes/match.e16.ts:271  lamps(15, wins[0], false)
   lw t0, wins(zero)
   li a0, 15
   mv a1, t0
   li a2, 0
   call lamps
-  ; scenes/match.e16.ts:265  lamps(23, wins[1], true)
+  ; scenes/match.e16.ts:272  lamps(23, wins[1], true)
   lw t0, wins+2(zero)
   li a0, 23
   mv a1, t0
   li a2, 1
   call lamps
-  ; scenes/match.e16.ts:266  hudFresh()
+  ; scenes/match.e16.ts:273  hudFresh()
   call hudFresh
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; scenes/match.e16.ts:269 heading(x) at -O1
+; scenes/match.e16.ts:276 heading(x) at -O1
 ;   x in s1
 heading:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; x
-  ; scenes/match.e16.ts:270  hudTile(x, 1, T_RULE, SL_P1)
+  ; scenes/match.e16.ts:277  hudTile(x, 1, T_RULE, SL_P1)
   mv a0, s1
   li a1, 1
   li a2, 1
   li a3, 1
   call hudTile
-  ; scenes/match.e16.ts:271  hudTile(x + 1, 1, T_TICK, SL_P1)
+  ; scenes/match.e16.ts:278  hudTile(x + 1, 1, T_TICK, SL_P1)
   addi a0, s1, 1
   li a1, 1
   li a2, 2
   li a3, 1
   call hudTile
-  ; scenes/match.e16.ts:272  vpoke(cellAt(1, x + 16, 1), (HUD_TILE + T_TICK) | (SL_P1 << 10) | FRONT | FLIP)
+  ; scenes/match.e16.ts:279  vpoke(cellAt(1, x + 16, 1), (HUD_TILE + T_TICK) | (SL_P1 << 10) | FRONT | FLIP)
   li a0, 1
   addi a1, s1, 16
   li a2, 1
   call cellAt
   li a1, 42154
   call vpoke
-  ; scenes/match.e16.ts:273  hudTile(x + 17, 1, T_RULE, SL_P1)
+  ; scenes/match.e16.ts:280  hudTile(x + 17, 1, T_RULE, SL_P1)
   addi a0, s1, 17
   li a1, 1
   li a2, 1
@@ -11104,7 +11016,7 @@ heading:
   addi sp, sp, 4
   ret
 
-; scenes/match.e16.ts:277 lamps(x, n, right) at -O1
+; scenes/match.e16.ts:284 lamps(x, n, right) at -O1
 ;   x in s3
 ;   n in s2
 ;   right in 0(fp)
@@ -11121,12 +11033,12 @@ lamps:
   mv s3, a0 ; x
   mv s2, a1 ; n
   sw a2, 0(fp) ; right
-  ; scenes/match.e16.ts:278  let k: u16 = 0
+  ; scenes/match.e16.ts:285  let k: u16 = 0
   li s1, 0 ; k
-  ; scenes/match.e16.ts:279  while (k < 2) {
+  ; scenes/match.e16.ts:286  while (k < 2) {
   j .L3
 .L1:
-  ; scenes/match.e16.ts:280  const lit = right ? k < n : 1 - k < n
+  ; scenes/match.e16.ts:287  const lit = right ? k < n : 1 - k < n
   lw t0, 0(fp) ; right
   beqz t0, .L5
   sltu t0, s1, s2
@@ -11137,7 +11049,7 @@ lamps:
   sltu t0, t0, s2
 .L6:
   sw t0, 2(fp) ; lit
-  ; scenes/match.e16.ts:281  hudTile(x + k, 3, T_LAMP + (lit ? 1 : 0), SL_P1)
+  ; scenes/match.e16.ts:288  hudTile(x + k, 3, T_LAMP + (lit ? 1 : 0), SL_P1)
   add t0, s3, s1
   li t1, 3
   li t2, 3
@@ -11154,7 +11066,7 @@ lamps:
   mv a2, t2
   li a3, 1
   call hudTile
-  ; scenes/match.e16.ts:282  k++
+  ; scenes/match.e16.ts:289  k++
   addi s1, s1, 1
 .L3:
   li t0, 2
@@ -11169,114 +11081,194 @@ lamps:
   addi sp, sp, 14
   ret
 
-; scenes/match.e16.ts:296 phaseStep() at -O1
+; scenes/match.e16.ts:303 phaseStep() at -O1
 phaseStep:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/match.e16.ts:297  if (phase === PH_ROUND && phaseT >= ROUND_F) {
+  ; scenes/match.e16.ts:304  if (phase === PH_ROUND && phaseT >= ROUND_F) {
   lw t0, 0x0c98(zero)
   bne t0, zero, .L1
   lw t0, 0x0c9a(zero)
   li t1, 45
   bltu t0, t1, .L1
-  ; scenes/match.e16.ts:298  phaseIs(PH_FIGHT)
+  ; scenes/match.e16.ts:305  phaseIs(PH_FIGHT)
   li a0, 1
   call phaseIs
-  ; scenes/match.e16.ts:299  bandShow(str('FIGHT'))
-  la a0, str_22
+  ; scenes/match.e16.ts:306  bandShow(str('FIGHT'))
+  la a0, str_23
   call bandShow
   j .L2
 .L1:
-  ; scenes/match.e16.ts:300  if (phase === PH_FIGHT && phaseT === FIGHT_BAND_F) bandClear()
+  ; scenes/match.e16.ts:307  if (phase === PH_FIGHT && phaseT === FIGHT_BAND_F) bandClear()
   lw t0, 0x0c98(zero)
   li t1, 1
   bne t0, t1, .L3
   lw t0, 0x0c9a(zero)
   li t1, 30
   bne t0, t1, .L3
-  ; scenes/match.e16.ts:300  bandClear()
+  ; scenes/match.e16.ts:307  bandClear()
   call bandClear
   j .L4
 .L3:
-  ; scenes/match.e16.ts:301  if (phase === PH_OVER && phaseT === SUB_AT) {
+  ; scenes/match.e16.ts:308  if (phase === PH_OVER && phaseT === SUB_AT) {
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L5
   lw t0, 0x0c9a(zero)
   li t1, 20
   bne t0, t1, .L5
-  ; scenes/match.e16.ts:302  if (roundWon === 0) bandSub(str('P1 TAKES THE ROUND'))
+  ; scenes/match.e16.ts:309  if (roundWon === 0) bandSub(str('P1 TAKES THE ROUND'))
   lw t0, 0x0ca0(zero)
   bne t0, zero, .L6
-  ; scenes/match.e16.ts:302  bandSub(str('P1 TAKES THE ROUND'))
-  la a0, str_23
-  call bandSub
-  j .L10
-.L6:
-  ; scenes/match.e16.ts:303  if (roundWon === 1) bandSub(str('CPU TAKES THE ROUND'))
-  lw t0, 0x0ca0(zero)
-  li t1, 1
-  bne t0, t1, .L8
-  ; scenes/match.e16.ts:303  bandSub(str('CPU TAKES THE ROUND'))
+  ; scenes/match.e16.ts:309  bandSub(str('P1 TAKES THE ROUND'))
   la a0, str_24
   call bandSub
   j .L10
-.L8:
-  ; scenes/match.e16.ts:304  bandSub(str('DRAW'))
+.L6:
+  ; scenes/match.e16.ts:310  if (roundWon === 1) bandSub(str('CPU TAKES THE ROUND'))
+  lw t0, 0x0ca0(zero)
+  li t1, 1
+  bne t0, t1, .L8
+  ; scenes/match.e16.ts:310  bandSub(str('CPU TAKES THE ROUND'))
   la a0, str_25
   call bandSub
   j .L10
+.L8:
+  ; scenes/match.e16.ts:311  bandSub(str('DRAW'))
+  la a0, str_26
+  call bandSub
+  j .L10
 .L5:
-  ; scenes/match.e16.ts:305  if (phase === PH_OVER && phaseT >= OVER_F) {
+  ; scenes/match.e16.ts:312  if (phase === PH_OVER && phaseT >= OVER_F) {
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L11
   lw t0, 0x0c9a(zero)
   li t1, 120
   bltu t0, t1, .L11
-  ; scenes/match.e16.ts:306  roundScore()
+  ; scenes/match.e16.ts:313  roundScore()
   call roundScore
-  ; scenes/match.e16.ts:307  return true
+  ; scenes/match.e16.ts:314  return true
   li a0, 1
   j .return
 .L11:
 .L10:
 .L4:
 .L2:
-  ; scenes/match.e16.ts:309  return false
+  ; scenes/match.e16.ts:316  return false
   li a0, 0
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; scenes/match.e16.ts:313 roundScore() at -O1
+; scenes/match.e16.ts:323 bandSub(s) at -O1
+;   s in 0(fp)
+;   y in 2(fp)
+;   n in s1
+;   at in s3
+;   k in s2
+bandSub:
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s1, 6(sp)
+  sw s3, 8(sp)
+  sw s2, 10(sp)
+  sw s0, 12(sp)
+  mv fp, sp
+  sw a0, 0(fp) ; s
+  ; scenes/match.e16.ts:324  const y = bandAt + 4
+  lw t0, 0x198c(zero)
+  addi t0, t0, 4
+  sw t0, 2(fp) ; y
+  ; scenes/match.e16.ts:325  vfill(cellAt(1, 0, y), (HUD_TILE + T_BAND) | (SL_P1 << 10) | FRONT, 40)
+  li a0, 1
+  li a1, 0
+  lw a2, 2(fp)
+  call cellAt
+  li a1, 33965
+  li a2, 40
+  call vfill
+  ; scenes/match.e16.ts:326  let n: u16 = 0
+  li s1, 0 ; n
+  ; scenes/match.e16.ts:327  while (peek(s + n) !== 0) n++
+  j .L3
+.L1:
+  ; scenes/match.e16.ts:327  n++
+  addi s1, s1, 1
+.L3:
+  lw t0, 0(fp) ; s
+  add t0, t0, s1
+  lbu t0, 0(t0)
+  bne t0, zero, .L1
+  ; scenes/match.e16.ts:328  let at = cellAt(1, 20 - (n >> 1), y)
+  srli t0, s1, 1
+  li t1, 20
+  sub t1, t1, t0
+  li a0, 1
+  mv a1, t1
+  lw a2, 2(fp)
+  call cellAt
+  mv s3, a0 ; at
+  ; scenes/match.e16.ts:329  let k: u16 = 0
+  li s2, 0 ; k
+  ; scenes/match.e16.ts:330  while (k < n) {
+  j .L7
+.L5:
+  ; scenes/match.e16.ts:331  vpoke(at, (FONTB_TILE + peek(s + k) - 32) | (SL_P1 << 10) | FRONT)
+  lw t0, 0(fp) ; s
+  add t0, t0, s2
+  lbu t0, 0(t0)
+  addi t0, t0, 32
+  ori t0, t0, 1024
+  li t1, 32768
+  or t0, t0, t1
+  mv a0, s3
+  mv a1, t0
+  call vpoke
+  ; scenes/match.e16.ts:332  at = wrap16(at + 2)
+  addi s3, s3, 2
+  ; scenes/match.e16.ts:333  k++
+  addi s2, s2, 1
+.L7:
+  bltu s2, s1, .L5
+.return:
+  mv sp, fp
+  lw ra, 4(sp)
+  lw s1, 6(sp)
+  lw s3, 8(sp)
+  lw s2, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
+  ret
+
+; scenes/match.e16.ts:338 roundScore() at -O1
 roundScore:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/match.e16.ts:314  bandClear()
+  ; scenes/match.e16.ts:339  bandClear()
   call bandClear
-  ; scenes/match.e16.ts:315  if (roundWon === 2) {
+  ; scenes/match.e16.ts:340  if (roundWon === 2) {
   lw t0, 0x0ca0(zero)
   li t1, 2
   bne t0, t1, .L1
-  ; scenes/match.e16.ts:316  draws++
-  lw t0, 0x19b2(zero)
+  ; scenes/match.e16.ts:341  draws++
+  lw t0, 0x19b4(zero)
   addi t0, t0, 1
-  sw t0, 0x19b2(zero)
-  ; scenes/match.e16.ts:317  if (draws >= DRAWS_LOST) outcome = 3
+  sw t0, 0x19b4(zero)
+  ; scenes/match.e16.ts:342  if (draws >= DRAWS_LOST) outcome = 3
   li t1, 3
   bltu t0, t1, .L2
-  ; scenes/match.e16.ts:317  outcome = 3
+  ; scenes/match.e16.ts:342  outcome = 3
   li t0, 3
-  sw t0, 0x19b4(zero)
+  sw t0, 0x19b6(zero)
 .L2:
-  ; scenes/match.e16.ts:318  return
+  ; scenes/match.e16.ts:343  return
   j .return
 .L1:
-  ; scenes/match.e16.ts:320  draws = 0
-  sw zero, 0x19b2(zero)
-  ; scenes/match.e16.ts:321  wins[roundWon]++
+  ; scenes/match.e16.ts:345  draws = 0
+  sw zero, 0x19b4(zero)
+  ; scenes/match.e16.ts:346  wins[roundWon]++
   lw t0, 0x0ca0(zero)
   slli t0, t0, 1
   addi t0, t0, wins
@@ -11284,106 +11276,106 @@ roundScore:
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; scenes/match.e16.ts:322  round++
-  lw t0, 0x19ac(zero)
+  ; scenes/match.e16.ts:347  round++
+  lw t0, 0x19ae(zero)
   addi t0, t0, 1
-  sw t0, 0x19ac(zero)
-  ; scenes/match.e16.ts:323  if (wins[roundWon] >= WINS) outcome = roundWon + 1
+  sw t0, 0x19ae(zero)
+  ; scenes/match.e16.ts:348  if (wins[roundWon] >= WINS) outcome = roundWon + 1
   lw t0, 0x0ca0(zero)
   slli t0, t0, 1
   lw t0, wins(t0)
   li t1, 2
   bltu t0, t1, .L3
-  ; scenes/match.e16.ts:323  outcome = roundWon + 1
+  ; scenes/match.e16.ts:348  outcome = roundWon + 1
   lw t0, 0x0ca0(zero)
   addi t0, t0, 1
-  sw t0, 0x19b4(zero)
+  sw t0, 0x19b6(zero)
 .L3:
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-str_13:
-  .byte 89, 79, 85, 32, 87, 73, 78, 0
 str_14:
-  .byte 89, 79, 85, 32, 76, 79, 83, 69, 0
+  .byte 89, 79, 85, 32, 87, 73, 78, 0
 str_15:
-  .byte 66, 79, 84, 72, 32, 76, 79, 83, 69, 0
+  .byte 89, 79, 85, 32, 76, 79, 83, 69, 0
 str_16:
-  .byte 80, 49, 0
+  .byte 66, 79, 84, 72, 32, 76, 79, 83, 69, 0
 str_17:
-  .byte 67, 80, 85, 0
+  .byte 80, 49, 0
 str_18:
-  .byte 84, 73, 77, 69, 0
+  .byte 67, 80, 85, 0
 str_19:
-  .byte 82, 79, 85, 78, 68, 32, 49, 0
+  .byte 84, 73, 77, 69, 0
 str_20:
-  .byte 82, 79, 85, 78, 68, 32, 50, 0
+  .byte 82, 79, 85, 78, 68, 32, 49, 0
 str_21:
-  .byte 82, 79, 85, 78, 68, 32, 51, 0
+  .byte 82, 79, 85, 78, 68, 32, 50, 0
 str_22:
-  .byte 70, 73, 71, 72, 84, 0
+  .byte 82, 79, 85, 78, 68, 32, 51, 0
 str_23:
-  .byte 80, 49, 32, 84, 65, 75, 69, 83, 32, 84, 72, 69, 32, 82, 79, 85, 78, 68, 0
+  .byte 70, 73, 71, 72, 84, 0
 str_24:
-  .byte 67, 80, 85, 32, 84, 65, 75, 69, 83, 32, 84, 72, 69, 32, 82, 79, 85, 78, 68, 0
+  .byte 80, 49, 32, 84, 65, 75, 69, 83, 32, 84, 72, 69, 32, 82, 79, 85, 78, 68, 0
 str_25:
+  .byte 67, 80, 85, 32, 84, 65, 75, 69, 83, 32, 84, 72, 69, 32, 82, 79, 85, 78, 68, 0
+str_26:
   .byte 68, 82, 65, 87, 0
   .align 2
 
   .bank 2
   .org 0xc000
-; cpu/ai.e16.ts:209 cpuRoundReset(i) at -O1
+; cpu/ai.e16.ts:217 cpuRoundReset(i) at -O1
 ;   i in s1
 cpuRoundReset:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; cpu/ai.e16.ts:210  plan[i] = A_NONE
+  ; cpu/ai.e16.ts:218  plan[i] = A_NONE
   slli t0, s1, 1
   li t1, 255
   sw t1, plan(t0)
-  ; cpu/ai.e16.ts:211  thinkT[i] = 0
+  ; cpu/ai.e16.ts:219  thinkT[i] = 0
   slli t0, s1, 1
   sw zero, thinkT(t0)
-  ; cpu/ai.e16.ts:212  outWas[i] = 0
+  ; cpu/ai.e16.ts:220  outWas[i] = 0
   slli t0, s1, 1
   sw zero, outWas(t0)
-  ; cpu/ai.e16.ts:213  gId[i] = 0xffff
+  ; cpu/ai.e16.ts:221  gId[i] = 0xffff
   slli t0, s1, 1
   li t1, 65535
   sw t1, gId(t0)
-  ; cpu/ai.e16.ts:214  gHold[i] = 0
+  ; cpu/ai.e16.ts:222  gHold[i] = 0
   slli t0, s1, 1
   sw zero, gHold(t0)
-  ; cpu/ai.e16.ts:215  aaArm[i] = 0
+  ; cpu/ai.e16.ts:223  aaArm[i] = 0
   slli t0, s1, 1
   sw zero, aaArm(t0)
-  ; cpu/ai.e16.ts:216  punId[i] = 0xffff
+  ; cpu/ai.e16.ts:224  punId[i] = 0xffff
   slli t0, s1, 1
   li t1, 65535
   sw t1, punId(t0)
-  ; cpu/ai.e16.ts:217  punArm[i] = 0
+  ; cpu/ai.e16.ts:225  punArm[i] = 0
   slli t0, s1, 1
   sw zero, punArm(t0)
-  ; cpu/ai.e16.ts:218  fwdUp[i] = 255
+  ; cpu/ai.e16.ts:226  fwdUp[i] = 255
   slli t0, s1, 1
   li t1, 255
   sw t1, fwdUp(t0)
-  ; cpu/ai.e16.ts:219  tapT[i] = 0
+  ; cpu/ai.e16.ts:227  tapT[i] = 0
   slli t0, s1, 1
   sw zero, tapT(t0)
-  ; cpu/ai.e16.ts:220  swing[i] = WARY + 16
+  ; cpu/ai.e16.ts:228  swing[i] = WARY + 16
   slli t0, s1, 1
   li t1, 48
   sw t1, swing(t0)
-  ; cpu/ai.e16.ts:221  swingId[i] = 0xffff
+  ; cpu/ai.e16.ts:229  swingId[i] = 0xffff
   slli t0, s1, 1
   li t1, 65535
   sw t1, swingId(t0)
-  ; cpu/ai.e16.ts:222  swA[i] = longest(i) + EDGE
+  ; cpu/ai.e16.ts:230  swA[i] = longest(i) + EDGE
   slli t0, s1, 1
   addi t0, t0, swA
   addi sp, sp, -2
@@ -11394,30 +11386,30 @@ cpuRoundReset:
   lw t1, 0(sp)
   addi sp, sp, 2
   sw t0, 0(t1)
-  ; cpu/ai.e16.ts:223  swB[i] = swA[i]
+  ; cpu/ai.e16.ts:231  swB[i] = swA[i]
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, swA(t1)
   sw t1, swB(t0)
-  ; cpu/ai.e16.ts:224  minusT[i] = 0
+  ; cpu/ai.e16.ts:232  minusT[i] = 0
   slli t0, s1, 1
   sw zero, minusT(t0)
-  ; cpu/ai.e16.ts:225  techArm[i] = 0
+  ; cpu/ai.e16.ts:233  techArm[i] = 0
   slli t0, s1, 1
   sw zero, techArm(t0)
-  ; cpu/ai.e16.ts:226  chainArm[i] = 0
+  ; cpu/ai.e16.ts:234  chainArm[i] = 0
   slli t0, s1, 1
   sw zero, chainArm(t0)
-  ; cpu/ai.e16.ts:227  prevState[i] = 0
+  ; cpu/ai.e16.ts:235  prevState[i] = 0
   slli t0, s1, 1
   sw zero, prevState(t0)
-  ; cpu/ai.e16.ts:228  patNo[i] = 0
+  ; cpu/ai.e16.ts:236  patNo[i] = 0
   slli t0, s1, 1
   sw zero, patNo(t0)
-  ; cpu/ai.e16.ts:229  habitDue[i] = 0
+  ; cpu/ai.e16.ts:237  habitDue[i] = 0
   slli t0, s1, 1
   sw zero, habitDue(t0)
-  ; cpu/ai.e16.ts:230  watchReset(i)
+  ; cpu/ai.e16.ts:238  watchReset(i)
   mv a0, s1
   la t0, watchReset
   li t1, 264
@@ -11428,32 +11420,29 @@ cpuRoundReset:
   addi sp, sp, 4
   ret
 
-; cpu/ai.e16.ts:234 cpuMatchSet(i) at -O1
+; cpu/ai.e16.ts:242 cpuMatchSet(i) at -O1
 ;   i in s1
 cpuMatchSet:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; cpu/ai.e16.ts:235  measure(i)
-  mv a0, s1
-  call measure
-  ; cpu/ai.e16.ts:236  whims[i] = 0
+  ; cpu/ai.e16.ts:243  whims[i] = 0
   slli t0, s1, 1
   sw zero, whims(t0)
-  ; cpu/ai.e16.ts:237  punishes[i] = 0
+  ; cpu/ai.e16.ts:244  punishes[i] = 0
   slli t0, s1, 1
   sw zero, punishes(t0)
-  ; cpu/ai.e16.ts:238  seenLate[i] = 0xffff
+  ; cpu/ai.e16.ts:245  seenLate[i] = 0xffff
   slli t0, s1, 1
   li t1, 65535
   sw t1, seenLate(t0)
-  ; cpu/ai.e16.ts:239  habitMatch(i)
+  ; cpu/ai.e16.ts:246  habitMatch(i)
   mv a0, s1
   la t0, habitMatch
   li t1, 264
   call far_call
-  ; cpu/ai.e16.ts:240  cpuRoundReset(i)
+  ; cpu/ai.e16.ts:247  cpuRoundReset(i)
   mv a0, s1
   call cpuRoundReset
 .return:
@@ -11462,11 +11451,33 @@ cpuMatchSet:
   addi sp, sp, 4
   ret
 
-; cpu/ai.e16.ts:244 row(i, c) at -O1
+; cpu/ai.e16.ts:256 cpuMeasure(i) at -O1
+;   i in s1
+cpuMeasure:
+  addi sp, sp, -4
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  mv s1, a0 ; i
+  ; cpu/ai.e16.ts:257  if (ctl[i] === C_CPU) measure(i)
+  slli t0, s1, 1
+  lw t0, ctl(t0)
+  li t1, 1
+  bne t0, t1, .L1
+  ; cpu/ai.e16.ts:257  measure(i)
+  mv a0, s1
+  call measure
+.L1:
+.return:
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  addi sp, sp, 4
+  ret
+
+; cpu/ai.e16.ts:261 row(i, c) at -O1
 ;   i in a0
 ;   c in a1
 row:
-  ; cpu/ai.e16.ts:245  return opp[i * OW + c]
+  ; cpu/ai.e16.ts:262  return opp[i * OW + c]
   slli t0, a0, 5
   add t0, t0, a1
   slli t0, t0, 1
@@ -11474,20 +11485,20 @@ row:
 .return:
   ret
 
-; cpu/ai.e16.ts:252 seenAt(i, j, age) at -O1
+; cpu/ai.e16.ts:269 seenAt(i, j, age) at -O1
 ;   i in a0
 ;   j in a1
 ;   age in a2
 seenAt:
-  ; cpu/ai.e16.ts:253  if (age < seenLate[i]) seenLate[i] = age
+  ; cpu/ai.e16.ts:270  if (age < seenLate[i]) seenLate[i] = age
   slli t0, a0, 1
   lw t0, seenLate(t0)
   bgeu a2, t0, .L1
-  ; cpu/ai.e16.ts:253  seenLate[i] = age
+  ; cpu/ai.e16.ts:270  seenLate[i] = age
   slli t0, a0, 1
   sw a2, seenLate(t0)
 .L1:
-  ; cpu/ai.e16.ts:254  return j * 32 + ((seenN - age) & 31)
+  ; cpu/ai.e16.ts:271  return j * 32 + ((seenN - age) & 31)
   slli t0, a1, 5
   lw t1, 0x0ea8(zero)
   sub t1, t1, a2
@@ -11496,7 +11507,7 @@ seenAt:
 .return:
   ret
 
-; cpu/ai.e16.ts:258 apartAt(i, age) at -O1
+; cpu/ai.e16.ts:275 apartAt(i, age) at -O1
 ;   i in s1
 ;   age in s0
 ;   a in s2
@@ -11510,14 +11521,14 @@ apartAt:
   sw s3, 8(sp)
   mv s1, a0 ; i
   mv s0, a1 ; age
-  ; cpu/ai.e16.ts:259  const a = seenX[seenAt(i, i, age)]
+  ; cpu/ai.e16.ts:276  const a = seenX[seenAt(i, i, age)]
   mv a0, s1
   mv a1, s1
   mv a2, s0
   call seenAt
   slli t0, a0, 1
   lw s2, seenX(t0)
-  ; cpu/ai.e16.ts:260  const b = seenX[seenAt(i, 1 - i, age)]
+  ; cpu/ai.e16.ts:277  const b = seenX[seenAt(i, 1 - i, age)]
   li t0, 1
   sub t0, t0, s1
   mv a0, s1
@@ -11526,7 +11537,7 @@ apartAt:
   call seenAt
   slli t0, a0, 1
   lw s3, seenX(t0)
-  ; cpu/ai.e16.ts:261  return a > b ? a - b : b - a
+  ; cpu/ai.e16.ts:278  return a > b ? a - b : b - a
   bgeu s3, s2, .L1
   sub t0, s2, s3
   j .L2
@@ -11543,7 +11554,7 @@ apartAt:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:265 distTo(i, e) at -O1
+; cpu/ai.e16.ts:282 distTo(i, e) at -O1
 ;   i in s3
 ;   e in s0
 ;   a in s1
@@ -11557,14 +11568,14 @@ distTo:
   sw s2, 8(sp)
   mv s3, a0 ; i
   mv s0, a1 ; e
-  ; cpu/ai.e16.ts:266  const a = pointX(i)
+  ; cpu/ai.e16.ts:283  const a = pointX(i)
   mv a0, s3
   call pointX
   mv s1, a0 ; a
-  ; cpu/ai.e16.ts:267  const b = seenX[e]
+  ; cpu/ai.e16.ts:284  const b = seenX[e]
   slli t0, s0, 1
   lw s2, seenX(t0)
-  ; cpu/ai.e16.ts:268  return a > b ? a - b : b - a
+  ; cpu/ai.e16.ts:285  return a > b ? a - b : b - a
   bgeu s2, s1, .L1
   sub t0, s1, s2
   j .L2
@@ -11581,7 +11592,7 @@ distTo:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:275 cpuThink(i, think) at -O1
+; cpu/ai.e16.ts:292 cpuThink(i, think) at -O1
 ;   i in s1
 ;   think in s0
 ;   j in s3
@@ -11595,47 +11606,47 @@ cpuThink:
   sw s2, 8(sp)
   mv s1, a0 ; i
   mv s0, a1 ; think
-  ; cpu/ai.e16.ts:276  const j = 1 - i
+  ; cpu/ai.e16.ts:293  const j = 1 - i
   li t0, 1
   sub s3, t0, s1
-  ; cpu/ai.e16.ts:277  observe(i, j)
+  ; cpu/ai.e16.ts:294  observe(i, j)
   mv a0, s1
   mv a1, s3
   la t0, observe
   li t1, 264
   call far_call
-  ; cpu/ai.e16.ts:278  habitStep(i, j)
+  ; cpu/ai.e16.ts:295  habitStep(i, j)
   mv a0, s1
   mv a1, s3
   la t0, habitStep
   li t1, 264
   call far_call
-  ; cpu/ai.e16.ts:279  if (!think) return outWas[i]
+  ; cpu/ai.e16.ts:296  if (!think) return outWas[i]
   bnez s0, .L1
-  ; cpu/ai.e16.ts:279  return outWas[i]
+  ; cpu/ai.e16.ts:296  return outWas[i]
   slli t0, s1, 1
   lw a0, outWas(t0)
   j .return
 .L1:
-  ; cpu/ai.e16.ts:280  counters(i, j)
+  ; cpu/ai.e16.ts:297  counters(i, j)
   mv a0, s1
   mv a1, s3
   call counters
-  ; cpu/ai.e16.ts:281  let out = reflex(i, j)
+  ; cpu/ai.e16.ts:298  let out = reflex(i, j)
   mv a0, s1
   mv a1, s3
   call reflex
   mv s2, a0 ; out
-  ; cpu/ai.e16.ts:282  if (out === 0xffff) out = planned(i, j)
+  ; cpu/ai.e16.ts:299  if (out === 0xffff) out = planned(i, j)
   li t0, 65535
   bne s2, t0, .L2
-  ; cpu/ai.e16.ts:282  out = planned(i, j)
+  ; cpu/ai.e16.ts:299  out = planned(i, j)
   mv a0, s1
   mv a1, s3
   call planned
   mv s2, a0 ; out
 .L2:
-  ; cpu/ai.e16.ts:283  out = undashed(i, chainStep(i, out))
+  ; cpu/ai.e16.ts:300  out = undashed(i, chainStep(i, out))
   mv a0, s1
   mv a1, s2
   call chainStep
@@ -11643,15 +11654,15 @@ cpuThink:
   mv a0, s1
   call undashed
   mv s2, a0 ; out
-  ; cpu/ai.e16.ts:284  outWas[i] = out
+  ; cpu/ai.e16.ts:301  outWas[i] = out
   slli t0, s1, 1
   sw s2, outWas(t0)
-  ; cpu/ai.e16.ts:285  prevState[i] = fState[i]
+  ; cpu/ai.e16.ts:302  prevState[i] = fState[i]
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, fState(t1)
   sw t1, prevState(t0)
-  ; cpu/ai.e16.ts:286  return out
+  ; cpu/ai.e16.ts:303  return out
   mv a0, s2
 .return:
   lw ra, 0(sp)
@@ -11662,7 +11673,7 @@ cpuThink:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:290 counters(i, j) at -O1
+; cpu/ai.e16.ts:307 counters(i, j) at -O1
 ;   i in s1
 ;   j in s2
 ;   e in s3
@@ -11674,19 +11685,19 @@ counters:
   sw s3, 6(sp)
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/ai.e16.ts:291  swingStep(i, j)
+  ; cpu/ai.e16.ts:308  swingStep(i, j)
   mv a0, s1
   mv a1, s2
   call swingStep
-  ; cpu/ai.e16.ts:292  punishArm(i, j)
+  ; cpu/ai.e16.ts:309  punishArm(i, j)
   mv a0, s1
   mv a1, s2
   call punishArm
-  ; cpu/ai.e16.ts:293  if (minusT[i] > 0) minusT[i]--
+  ; cpu/ai.e16.ts:310  if (minusT[i] > 0) minusT[i]--
   slli t0, s1, 1
   lw t0, minusT(t0)
   bgeu zero, t0, .L1
-  ; cpu/ai.e16.ts:293  minusT[i]--
+  ; cpu/ai.e16.ts:310  minusT[i]--
   slli t0, s1, 1
   addi t0, t0, minusT
   mv t1, t0
@@ -11694,19 +11705,19 @@ counters:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L1:
-  ; cpu/ai.e16.ts:295  const e = i * 32 + ((seenN - 1) & 31)
+  ; cpu/ai.e16.ts:312  const e = i * 32 + ((seenN - 1) & 31)
   slli t0, s1, 5
   lw t1, 0x0ea8(zero)
   addi t1, t1, -1
   andi t1, t1, 31
   add s3, t0, t1
-  ; cpu/ai.e16.ts:296  if (seenF[e] >> 8 === 2) minusT[i] = MINUS_F
+  ; cpu/ai.e16.ts:313  if (seenF[e] >> 8 === 2) minusT[i] = MINUS_F
   slli t0, s3, 1
   lw t0, seenF(t0)
   srli t0, t0, 8
   li t1, 2
   bne t0, t1, .L2
-  ; cpu/ai.e16.ts:296  minusT[i] = MINUS_F
+  ; cpu/ai.e16.ts:313  minusT[i] = MINUS_F
   slli t0, s1, 1
   li t1, 30
   sw t1, minusT(t0)
@@ -11719,18 +11730,18 @@ counters:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:304 undashed(i, out) at -O1
+; cpu/ai.e16.ts:321 undashed(i, out) at -O1
 ;   i in a0
 ;   out in a1
 ;   tapping in a2
 undashed:
-  ; cpu/ai.e16.ts:305  const tapping = tapT[i] > 0
+  ; cpu/ai.e16.ts:322  const tapping = tapT[i] > 0
   slli t0, a0, 1
   lw t0, tapT(t0)
   sltu a2, zero, t0
-  ; cpu/ai.e16.ts:306  if (tapping) tapT[i]--
+  ; cpu/ai.e16.ts:323  if (tapping) tapT[i]--
   beqz a2, .L1
-  ; cpu/ai.e16.ts:306  tapT[i]--
+  ; cpu/ai.e16.ts:323  tapT[i]--
   slli t0, a0, 1
   addi t0, t0, tapT
   mv t1, t0
@@ -11738,22 +11749,22 @@ undashed:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L1:
-  ; cpu/ai.e16.ts:307  if ((outWas[i] & I_FWD) !== 0) fwdUp[i] = 0
+  ; cpu/ai.e16.ts:324  if ((outWas[i] & I_FWD) !== 0) fwdUp[i] = 0
   slli t0, a0, 1
   lw t0, outWas(t0)
   andi t0, t0, 8
   beq t0, zero, .L2
-  ; cpu/ai.e16.ts:307  fwdUp[i] = 0
+  ; cpu/ai.e16.ts:324  fwdUp[i] = 0
   slli t0, a0, 1
   sw zero, fwdUp(t0)
   j .L3
 .L2:
-  ; cpu/ai.e16.ts:308  if (fwdUp[i] < 255) fwdUp[i]++
+  ; cpu/ai.e16.ts:325  if (fwdUp[i] < 255) fwdUp[i]++
   slli t0, a0, 1
   lw t0, fwdUp(t0)
   li t1, 255
   bgeu t0, t1, .L4
-  ; cpu/ai.e16.ts:308  fwdUp[i]++
+  ; cpu/ai.e16.ts:325  fwdUp[i]++
   slli t0, a0, 1
   addi t0, t0, fwdUp
   mv t1, t0
@@ -11762,7 +11773,7 @@ undashed:
   sw t1, 0(t0)
 .L4:
 .L3:
-  ; cpu/ai.e16.ts:309  if (tapping || (out & I_FWD) === 0 || (outWas[i] & I_FWD) !== 0 || fwdUp[i] > TAP_GAP) return out
+  ; cpu/ai.e16.ts:326  if (tapping || (out & I_FWD) === 0 || (outWas[i] & I_FWD) !== 0 || fwdUp[i] > TAP_GAP) return out
   bnez a2, .L6
   andi t0, a1, 8
   beq t0, zero, .L6
@@ -11775,16 +11786,16 @@ undashed:
   li t1, 10
   bgeu t1, t0, .L5
 .L6:
-  ; cpu/ai.e16.ts:309  return out
+  ; cpu/ai.e16.ts:326  return out
   mv a0, a1
   ret
 .L5:
-  ; cpu/ai.e16.ts:310  return out & ~I_FWD
+  ; cpu/ai.e16.ts:327  return out & ~I_FWD
   andi a0, a1, -9
 .return:
   ret
 
-; cpu/ai.e16.ts:316 reflex(i, j) at -O1
+; cpu/ai.e16.ts:333 reflex(i, j) at -O1
 ;   i in s1
 ;   j in s2
 ;   st in s3
@@ -11800,58 +11811,58 @@ reflex:
   mv fp, sp
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/ai.e16.ts:317  const st = fState[i]
+  ; cpu/ai.e16.ts:334  const st = fState[i]
   slli t0, s1, 1
   lw s3, fState(t0)
-  ; cpu/ai.e16.ts:318  if (st === ST_THROWN) return tech(i, j)
+  ; cpu/ai.e16.ts:335  if (st === ST_THROWN) return tech(i, j)
   li t0, 12
   bne s3, t0, .L1
-  ; cpu/ai.e16.ts:318  return tech(i, j)
+  ; cpu/ai.e16.ts:335  return tech(i, j)
   mv a0, s1
   mv a1, s2
   call tech
   j .return
 .L1:
-  ; cpu/ai.e16.ts:319  techArm[i] = 0
+  ; cpu/ai.e16.ts:336  techArm[i] = 0
   slli t0, s1, 1
   sw zero, techArm(t0)
-  ; cpu/ai.e16.ts:320  if (!free(i) && st !== ST_GUARD) return 0xffff
+  ; cpu/ai.e16.ts:337  if (!free(i) && st !== ST_GUARD) return 0xffff
   mv a0, s1
   call free
   bnez a0, .L2
   li t0, 7
   beq s3, t0, .L2
-  ; cpu/ai.e16.ts:320  return 0xffff
+  ; cpu/ai.e16.ts:337  return 0xffff
   li a0, 65535
   j .return
 .L2:
-  ; cpu/ai.e16.ts:321  const aa = antiAir(i, j)
+  ; cpu/ai.e16.ts:338  const aa = antiAir(i, j)
   mv a0, s1
   mv a1, s2
   call antiAir
   sw a0, 0(fp) ; aa
-  ; cpu/ai.e16.ts:322  if (aa !== 0xffff) return aa
+  ; cpu/ai.e16.ts:339  if (aa !== 0xffff) return aa
   li t0, 65535
   lw t1, 0(fp) ; aa
   beq t1, t0, .L3
-  ; cpu/ai.e16.ts:322  return aa
+  ; cpu/ai.e16.ts:339  return aa
   lw a0, 0(fp)
   j .return
 .L3:
-  ; cpu/ai.e16.ts:323  const g = guard(i, j)
+  ; cpu/ai.e16.ts:340  const g = guard(i, j)
   mv a0, s1
   mv a1, s2
   call guard
   sw a0, 2(fp) ; g
-  ; cpu/ai.e16.ts:324  if (g !== 0xffff) return g
+  ; cpu/ai.e16.ts:341  if (g !== 0xffff) return g
   li t0, 65535
   lw t1, 2(fp) ; g
   beq t1, t0, .L4
-  ; cpu/ai.e16.ts:324  return g
+  ; cpu/ai.e16.ts:341  return g
   lw a0, 2(fp)
   j .return
 .L4:
-  ; cpu/ai.e16.ts:325  return punish(i, j)
+  ; cpu/ai.e16.ts:342  return punish(i, j)
   mv a0, s1
   mv a1, s2
   call punish
@@ -11865,7 +11876,7 @@ reflex:
   addi sp, sp, 14
   ret
 
-; cpu/ai.e16.ts:329 tech(i, j) at -O1
+; cpu/ai.e16.ts:346 tech(i, j) at -O1
 ;   i in s1
 ;   j in s2
 ;   e in s3
@@ -11877,16 +11888,16 @@ tech:
   sw s3, 6(sp)
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/ai.e16.ts:330  if (techArm[i] === 2) return 0
+  ; cpu/ai.e16.ts:347  if (techArm[i] === 2) return 0
   slli t0, s1, 1
   lw t0, techArm(t0)
   li t1, 2
   bne t0, t1, .L1
-  ; cpu/ai.e16.ts:330  return 0
+  ; cpu/ai.e16.ts:347  return 0
   li a0, 0
   j .return
 .L1:
-  ; cpu/ai.e16.ts:331  const e = seenAt(i, j, row(i, O_R_TECH))
+  ; cpu/ai.e16.ts:348  const e = seenAt(i, j, row(i, O_R_TECH))
   mv a0, s1
   li a1, 6
   call row
@@ -11895,21 +11906,21 @@ tech:
   mv a0, s1
   call seenAt
   mv s3, a0 ; e
-  ; cpu/ai.e16.ts:332  if ((seenS[e] & 255) !== ST_THROW) return 0
+  ; cpu/ai.e16.ts:349  if ((seenS[e] & 255) !== ST_THROW) return 0
   slli t0, s3, 1
   lw t0, seenS(t0)
   andi t0, t0, 255
   li t1, 11
   beq t0, t1, .L2
-  ; cpu/ai.e16.ts:332  return 0
+  ; cpu/ai.e16.ts:349  return 0
   li a0, 0
   j .return
 .L2:
-  ; cpu/ai.e16.ts:333  if (techArm[i] === 0) techArm[i] = randBelow(256) < row(i, O_GUARD) ? 1 : 2
+  ; cpu/ai.e16.ts:350  if (techArm[i] === 0) techArm[i] = randBelow(256) < row(i, O_GUARD) ? 1 : 2
   slli t0, s1, 1
   lw t0, techArm(t0)
   bne t0, zero, .L3
-  ; cpu/ai.e16.ts:333  techArm[i] = randBelow(256) < row(i, O_GUARD) ? 1 : 2
+  ; cpu/ai.e16.ts:350  techArm[i] = randBelow(256) < row(i, O_GUARD) ? 1 : 2
   slli t0, s1, 1
   addi t0, t0, techArm
   addi sp, sp, -2
@@ -11937,29 +11948,29 @@ tech:
 .L5:
   sw t1, 0(t0)
 .L3:
-  ; cpu/ai.e16.ts:334  if (techArm[i] === 2) return 0
+  ; cpu/ai.e16.ts:351  if (techArm[i] === 2) return 0
   slli t0, s1, 1
   lw t0, techArm(t0)
   li t1, 2
   bne t0, t1, .L6
-  ; cpu/ai.e16.ts:334  return 0
+  ; cpu/ai.e16.ts:351  return 0
   li a0, 0
   j .return
 .L6:
-  ; cpu/ai.e16.ts:335  if ((outWas[i] & I_HP) !== 0) return I_BACK
+  ; cpu/ai.e16.ts:352  if ((outWas[i] & I_HP) !== 0) return I_BACK
   slli t0, s1, 1
   lw t0, outWas(t0)
   andi t0, t0, 32
   beq t0, zero, .L7
-  ; cpu/ai.e16.ts:335  return I_BACK
+  ; cpu/ai.e16.ts:352  return I_BACK
   li a0, 4
   j .return
 .L7:
-  ; cpu/ai.e16.ts:336  techArm[i] = 2
+  ; cpu/ai.e16.ts:353  techArm[i] = 2
   slli t0, s1, 1
   li t1, 2
   sw t1, techArm(t0)
-  ; cpu/ai.e16.ts:337  return I_BACK | I_HP
+  ; cpu/ai.e16.ts:354  return I_BACK | I_HP
   li a0, 36
 .return:
   lw ra, 0(sp)
@@ -11969,7 +11980,7 @@ tech:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:345 guard(i, j) at -O1
+; cpu/ai.e16.ts:362 guard(i, j) at -O1
 ;   i in s1
 ;   j in s2
 ;   guarding in 2(fp)
@@ -11989,14 +12000,14 @@ guard:
   mv fp, sp
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/ai.e16.ts:346  const guarding = fState[i] === ST_GUARD
+  ; cpu/ai.e16.ts:363  const guarding = fState[i] === ST_GUARD
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 7
   sub t0, t0, t1
   seqz t0, t0
   sw t0, 2(fp) ; guarding
-  ; cpu/ai.e16.ts:347  const e = seenAt(i, j, row(i, guarding ? O_R_SWITCH : O_R_GUARD))
+  ; cpu/ai.e16.ts:364  const e = seenAt(i, j, row(i, guarding ? O_R_SWITCH : O_R_GUARD))
   mv t0, s1
   mv t1, s2
   mv t2, s1
@@ -12023,17 +12034,17 @@ guard:
   mv a0, t1
   call seenAt
   mv s3, a0 ; e
-  ; cpu/ai.e16.ts:348  const st = seenS[e] & 255
+  ; cpu/ai.e16.ts:365  const st = seenS[e] & 255
   slli t0, s3, 1
   lw t0, seenS(t0)
   andi t0, t0, 255
   sw t0, 10(fp) ; st
-  ; cpu/ai.e16.ts:349  const m = seenS[e] >> 8
+  ; cpu/ai.e16.ts:366  const m = seenS[e] >> 8
   slli t0, s3, 1
   lw t0, seenS(t0)
   srli t0, t0, 8
   sw t0, 0(fp) ; m
-  ; cpu/ai.e16.ts:350  if (st !== ST_ATTACK || m === MV_THROW || distTo(i, e) > reaches(j, m)) {
+  ; cpu/ai.e16.ts:367  if (st !== ST_ATTACK || m === MV_THROW || distTo(i, e) > reaches(j, m)) {
   li t0, 5
   lw t1, 10(fp) ; st
   bne t1, t0, .L4
@@ -12052,7 +12063,7 @@ guard:
   addi sp, sp, 2
   bgeu a0, t0, .L3
 .L4:
-  ; cpu/ai.e16.ts:351  return guarding ? gHold[i] : 0xffff
+  ; cpu/ai.e16.ts:368  return guarding ? gHold[i] : 0xffff
   lw t0, 2(fp) ; guarding
   beqz t0, .L5
   slli t0, s1, 1
@@ -12064,11 +12075,11 @@ guard:
   mv a0, t0
   j .return
 .L3:
-  ; cpu/ai.e16.ts:353  const f = framesOf(e)
+  ; cpu/ai.e16.ts:370  const f = framesOf(e)
   mv a0, s3
   call framesOf
   sw a0, 6(fp) ; f
-  ; cpu/ai.e16.ts:354  if (f >= mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE)) return guarding ? gHold[i] : 0xffff
+  ; cpu/ai.e16.ts:371  if (f >= mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE)) return guarding ? gHold[i] : 0xffff
   mv a0, s2
   lw a1, 0(fp)
   li a2, 0
@@ -12084,7 +12095,7 @@ guard:
   add t0, t0, a0
   lw t1, 6(fp) ; f
   bltu t1, t0, .L7
-  ; cpu/ai.e16.ts:354  return guarding ? gHold[i] : 0xffff
+  ; cpu/ai.e16.ts:371  return guarding ? gHold[i] : 0xffff
   lw t0, 2(fp) ; guarding
   beqz t0, .L8
   slli t0, s1, 1
@@ -12096,23 +12107,23 @@ guard:
   mv a0, t0
   j .return
 .L7:
-  ; cpu/ai.e16.ts:355  const id = (seenN - f) & 0x7fff
+  ; cpu/ai.e16.ts:372  const id = (seenN - f) & 0x7fff
   lw t0, 0x0ea8(zero)
   lw t1, 6(fp) ; f
   sub t0, t0, t1
   li t1, 32767
   and t0, t0, t1
   sw t0, 8(fp) ; id
-  ; cpu/ai.e16.ts:356  if (gId[i] !== id) {
+  ; cpu/ai.e16.ts:373  if (gId[i] !== id) {
   slli t0, s1, 1
   lw t0, gId(t0)
   lw t1, 8(fp) ; id
   beq t0, t1, .L10
-  ; cpu/ai.e16.ts:357  gId[i] = id
+  ; cpu/ai.e16.ts:374  gId[i] = id
   slli t0, s1, 1
   lw t1, 8(fp) ; id
   sw t1, gId(t0)
-  ; cpu/ai.e16.ts:358  let crouch = mvAt(j, m, M_HEIGHT) !== H_MID && seenY[e] === 0
+  ; cpu/ai.e16.ts:375  let crouch = mvAt(j, m, M_HEIGHT) !== H_MID && seenY[e] === 0
   mv a0, s2
   lw a1, 0(fp)
   li a2, 10
@@ -12128,7 +12139,7 @@ guard:
   seqz t0, t0
 .L11:
   sw t0, 4(fp) ; crouch
-  ; cpu/ai.e16.ts:359  if (randBelow(256) >= row(i, O_GUARD)) crouch = !crouch
+  ; cpu/ai.e16.ts:376  if (randBelow(256) >= row(i, O_GUARD)) crouch = !crouch
   li a0, 256
   call randBelow
   addi sp, sp, -2
@@ -12139,12 +12150,12 @@ guard:
   lw t0, 0(sp)
   addi sp, sp, 2
   bltu t0, a0, .L12
-  ; cpu/ai.e16.ts:359  crouch = !crouch
+  ; cpu/ai.e16.ts:376  crouch = !crouch
   lw t0, 4(fp) ; crouch
   seqz t0, t0
   sw t0, 4(fp) ; crouch
 .L12:
-  ; cpu/ai.e16.ts:360  gHold[i] = I_BACK | (crouch ? I_DOWN : 0)
+  ; cpu/ai.e16.ts:377  gHold[i] = I_BACK | (crouch ? I_DOWN : 0)
   slli t0, s1, 1
   addi t0, t0, gHold
   li t1, 4
@@ -12158,7 +12169,7 @@ guard:
   or t1, t1, t2
   sw t1, 0(t0)
 .L10:
-  ; cpu/ai.e16.ts:362  return gHold[i]
+  ; cpu/ai.e16.ts:379  return gHold[i]
   slli t0, s1, 1
   lw a0, gHold(t0)
 .return:
@@ -12171,17 +12182,17 @@ guard:
   addi sp, sp, 22
   ret
 
-; cpu/ai.e16.ts:366 framesOf(e) at -O1
+; cpu/ai.e16.ts:383 framesOf(e) at -O1
 ;   e in a0
 framesOf:
-  ; cpu/ai.e16.ts:367  return seenF[e] & 255
+  ; cpu/ai.e16.ts:384  return seenF[e] & 255
   slli t0, a0, 1
   lw t0, seenF(t0)
   andi a0, t0, 255
 .return:
   ret
 
-; cpu/ai.e16.ts:375 antiAir(i, j) at -O1
+; cpu/ai.e16.ts:392 antiAir(i, j) at -O1
 ;   i in s1
 ;   j in s0
 ;   r in s3
@@ -12195,18 +12206,18 @@ antiAir:
   sw s2, 8(sp)
   mv s1, a0 ; i
   mv s0, a1 ; j
-  ; cpu/ai.e16.ts:376  const r = row(i, O_R_AA)
+  ; cpu/ai.e16.ts:393  const r = row(i, O_R_AA)
   mv a0, s1
   li a1, 4
   call row
   mv s3, a0 ; r
-  ; cpu/ai.e16.ts:377  const e = seenAt(i, j, r)
+  ; cpu/ai.e16.ts:394  const e = seenAt(i, j, r)
   mv a0, s1
   mv a1, s0
   mv a2, s3
   call seenAt
   mv s2, a0 ; e
-  ; cpu/ai.e16.ts:378  if (seenY[e] === 0 && (seenS[e] & 255) !== ST_PREJUMP) {
+  ; cpu/ai.e16.ts:395  if (seenY[e] === 0 && (seenS[e] & 255) !== ST_PREJUMP) {
   slli t0, s2, 1
   lw t0, seenY(t0)
   bne t0, zero, .L1
@@ -12215,18 +12226,18 @@ antiAir:
   andi t0, t0, 255
   li t1, 2
   beq t0, t1, .L1
-  ; cpu/ai.e16.ts:379  aaArm[i] = 0
+  ; cpu/ai.e16.ts:396  aaArm[i] = 0
   slli t0, s1, 1
   sw zero, aaArm(t0)
-  ; cpu/ai.e16.ts:380  return 0xffff
+  ; cpu/ai.e16.ts:397  return 0xffff
   li a0, 65535
   j .return
 .L1:
-  ; cpu/ai.e16.ts:382  if (aaArm[i] === 0) aaArm[i] = randBelow(256) < row(i, O_AA) ? 1 : 2
+  ; cpu/ai.e16.ts:399  if (aaArm[i] === 0) aaArm[i] = randBelow(256) < row(i, O_AA) ? 1 : 2
   slli t0, s1, 1
   lw t0, aaArm(t0)
   bne t0, zero, .L2
-  ; cpu/ai.e16.ts:382  aaArm[i] = randBelow(256) < row(i, O_AA) ? 1 : 2
+  ; cpu/ai.e16.ts:399  aaArm[i] = randBelow(256) < row(i, O_AA) ? 1 : 2
   slli t0, s1, 1
   addi t0, t0, aaArm
   addi sp, sp, -2
@@ -12254,12 +12265,12 @@ antiAir:
 .L4:
   sw t1, 0(t0)
 .L2:
-  ; cpu/ai.e16.ts:383  if (aaArm[i] === 2) return distTo(i, e) < THREAT ? I_BACK : 0xffff
+  ; cpu/ai.e16.ts:400  if (aaArm[i] === 2) return distTo(i, e) < THREAT ? I_BACK : 0xffff
   slli t0, s1, 1
   lw t0, aaArm(t0)
   li t1, 2
   bne t0, t1, .L5
-  ; cpu/ai.e16.ts:383  return distTo(i, e) < THREAT ? I_BACK : 0xffff
+  ; cpu/ai.e16.ts:400  return distTo(i, e) < THREAT ? I_BACK : 0xffff
   mv a0, s1
   mv a1, s2
   call distTo
@@ -12273,16 +12284,16 @@ antiAir:
   mv a0, t0
   j .return
 .L5:
-  ; cpu/ai.e16.ts:384  if (aaArm[i] === 3) return I_DOWN
+  ; cpu/ai.e16.ts:401  if (aaArm[i] === 3) return I_DOWN
   slli t0, s1, 1
   lw t0, aaArm(t0)
   li t1, 3
   bne t0, t1, .L8
-  ; cpu/ai.e16.ts:384  return I_DOWN
+  ; cpu/ai.e16.ts:401  return I_DOWN
   li a0, 2
   j .return
 .L8:
-  ; cpu/ai.e16.ts:385  return aaPress(i, e, r)
+  ; cpu/ai.e16.ts:402  return aaPress(i, e, r)
   mv a0, s1
   mv a1, s2
   mv a2, s3
@@ -12296,7 +12307,7 @@ antiAir:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:389 aaPress(i, e, r) at -O1
+; cpu/ai.e16.ts:406 aaPress(i, e, r) at -O1
 ;   i in s1
 ;   e in s3
 ;   r in s2
@@ -12309,16 +12320,16 @@ aaPress:
   mv s1, a0 ; i
   mv s3, a1 ; e
   mv s2, a2 ; r
-  ; cpu/ai.e16.ts:390  if (!coming(i, r)) return 0xffff
+  ; cpu/ai.e16.ts:407  if (!coming(i, r)) return 0xffff
   mv a0, s1
   mv a1, s2
   call coming
   bnez a0, .L1
-  ; cpu/ai.e16.ts:390  return 0xffff
+  ; cpu/ai.e16.ts:407  return 0xffff
   li a0, 65535
   j .return
 .L1:
-  ; cpu/ai.e16.ts:391  if (distTo(i, e) > aaReach(r) || (outWas[i] & I_HP) !== 0) return I_DOWN
+  ; cpu/ai.e16.ts:408  if (distTo(i, e) > aaReach(r) || (outWas[i] & I_HP) !== 0) return I_DOWN
   mv a0, s1
   mv a1, s3
   call distTo
@@ -12334,15 +12345,15 @@ aaPress:
   andi t0, t0, 32
   beq t0, zero, .L2
 .L3:
-  ; cpu/ai.e16.ts:391  return I_DOWN
+  ; cpu/ai.e16.ts:408  return I_DOWN
   li a0, 2
   j .return
 .L2:
-  ; cpu/ai.e16.ts:392  aaArm[i] = 3
+  ; cpu/ai.e16.ts:409  aaArm[i] = 3
   slli t0, s1, 1
   li t1, 3
   sw t1, aaArm(t0)
-  ; cpu/ai.e16.ts:393  return I_DOWN | I_HP
+  ; cpu/ai.e16.ts:410  return I_DOWN | I_HP
   li a0, 34
 .return:
   lw ra, 0(sp)
@@ -12352,10 +12363,10 @@ aaPress:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:397 aaReach(r) at -O1
+; cpu/ai.e16.ts:414 aaReach(r) at -O1
 ;   r in a0
 aaReach:
-  ; cpu/ai.e16.ts:398  return 20 + (((r + 7) * 9) >> 2)
+  ; cpu/ai.e16.ts:415  return 20 + (((r + 7) * 9) >> 2)
   addi t0, a0, 7
   slli t1, t0, 3
   add t0, t1, t0
@@ -12364,7 +12375,7 @@ aaReach:
 .return:
   ret
 
-; cpu/ai.e16.ts:402 coming(i, r) at -O1
+; cpu/ai.e16.ts:419 coming(i, r) at -O1
 ;   i in s1
 ;   r in s2
 coming:
@@ -12374,7 +12385,7 @@ coming:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; r
-  ; cpu/ai.e16.ts:403  return apartAt(i, r) < apartAt(i, r + 2)
+  ; cpu/ai.e16.ts:420  return apartAt(i, r) < apartAt(i, r + 2)
   mv a0, s1
   mv a1, s2
   call apartAt
@@ -12393,83 +12404,12 @@ coming:
   addi sp, sp, 6
   ret
 
-; cpu/ai.e16.ts:421 boxesRead(s, p, hurt) at -O1
-;   s in 0(fp)
-;   p in 2(fp)
-;   hurt in s2
-;   k in s1
-;   v in s3
-boxesRead:
-  addi sp, sp, -14
-  sw ra, 4(sp)
-  sw s2, 6(sp)
-  sw s1, 8(sp)
-  sw s3, 10(sp)
-  sw s0, 12(sp)
-  mv fp, sp
-  sw a0, 0(fp) ; s
-  sw a1, 2(fp) ; p
-  mv s2, a2 ; hurt
-  ; cpu/ai.e16.ts:422  let k: u16 = 0
-  li s1, 0 ; k
-  ; cpu/ai.e16.ts:423  while (k < (hurt ? 12 : 8)) {
-  j .L3
-.L1:
-  ; cpu/ai.e16.ts:424  const v = poseWord(s, p, (hurt ? 4 : 16) + k)
-  lw t0, 0(fp)
-  lw t1, 2(fp)
-  mv t2, s2
-  beqz t2, .L5
-  li t2, 4
-  j .L6
-.L5:
-  li t2, 16
-.L6:
-  add t2, t2, s1
-  mv a0, t0
-  mv a1, t1
-  mv a2, t2
-  call poseWord
-  mv s3, a0 ; v
-  ; cpu/ai.e16.ts:425  if (hurt) hurtW[k] = v
-  beqz s2, .L7
-  ; cpu/ai.e16.ts:425  hurtW[k] = v
-  slli t0, s1, 1
-  sw s3, hurtW(t0)
-  j .L8
-.L7:
-  ; cpu/ai.e16.ts:426  hitW[k] = v
-  slli t0, s1, 1
-  sw s3, hitW(t0)
-.L8:
-  ; cpu/ai.e16.ts:427  k++
-  addi s1, s1, 1
-.L3:
-  mv t0, s1
-  mv t1, s2
-  beqz t1, .L9
-  li t1, 12
-  j .L10
-.L9:
-  li t1, 8
-.L10:
-  bltu t0, t1, .L1
-.return:
-  mv sp, fp
-  lw ra, 4(sp)
-  lw s2, 6(sp)
-  lw s1, 8(sp)
-  lw s3, 10(sp)
-  lw s0, 12(sp)
-  addi sp, sp, 14
-  ret
-
-; cpu/ai.e16.ts:432 boxesMeet() at -O1
+; cpu/ai.e16.ts:439 boxesMeet() at -O1
 ;   most in a2
 ;   h in a0
 ;   hw in a3
 ;   b in a1
-;   bw in s1
+;   hurtW in s1
 ;   ht in s2
 ;   bt in s3
 ;   apart in s0
@@ -12479,72 +12419,72 @@ boxesMeet:
   sw s2, 2(sp)
   sw s3, 4(sp)
   sw s0, 6(sp)
-  ; cpu/ai.e16.ts:433  let most: u16 = 0
+  ; cpu/ai.e16.ts:440  let most: u16 = 0
   li a2, 0 ; most
-  ; cpu/ai.e16.ts:434  let h: u16 = 0
-  li a0, 0 ; h
-  ; cpu/ai.e16.ts:435  while (h < 8) {
+  ; cpu/ai.e16.ts:441  let h: u16 = BW_HIT
+  li a0, 12 ; h
+  ; cpu/ai.e16.ts:442  while (h < BW_HIT + 8) {
   j .L3
 .L1:
-  ; cpu/ai.e16.ts:436  const hw = i16(hitW[h + 2])
+  ; cpu/ai.e16.ts:443  const hw = i16(bw[h + 2])
   addi t0, a0, 2
   slli t0, t0, 1
-  lw a3, hitW(t0)
-  ; cpu/ai.e16.ts:437  let b: u16 = 0
+  lw a3, bw(t0)
+  ; cpu/ai.e16.ts:444  let b: u16 = BW_HURT
   li a1, 0 ; b
-  ; cpu/ai.e16.ts:438  while (hw !== 0 && b < 12) {
+  ; cpu/ai.e16.ts:445  while (hw !== 0 && b < BW_HURT + 12) {
   j .L7
 .L5:
-  ; cpu/ai.e16.ts:439  const bw = i16(hurtW[b + 2])
+  ; cpu/ai.e16.ts:446  const hurtW = i16(bw[b + 2])
   addi t0, a1, 2
   slli t0, t0, 1
-  lw s1, hurtW(t0)
-  ; cpu/ai.e16.ts:440  const ht = i16(hitW[h + 1])
+  lw s1, bw(t0)
+  ; cpu/ai.e16.ts:447  const ht = i16(bw[h + 1])
   addi t0, a0, 1
   slli t0, t0, 1
-  lw s2, hitW(t0)
-  ; cpu/ai.e16.ts:441  const bt = i16(hurtW[b + 1])
+  lw s2, bw(t0)
+  ; cpu/ai.e16.ts:448  const bt = i16(bw[b + 1])
   addi t0, a1, 1
   slli t0, t0, 1
-  lw s3, hurtW(t0)
-  ; cpu/ai.e16.ts:442  const apart = i16(hitW[h]) + hw + i16(hurtW[b]) + bw - 1
+  lw s3, bw(t0)
+  ; cpu/ai.e16.ts:449  const apart = i16(bw[h]) + hw + i16(bw[b]) + hurtW - 1
   slli t0, a0, 1
-  lw t0, hitW(t0)
+  lw t0, bw(t0)
   add t0, t0, a3
   slli t1, a1, 1
-  lw t1, hurtW(t1)
+  lw t1, bw(t1)
   add t0, t0, t1
   add t0, t0, s1
   addi s0, t0, -1
-  ; cpu/ai.e16.ts:443  if (
+  ; cpu/ai.e16.ts:450  if (
   beq s1, zero, .L9
   addi t0, a0, 3
   slli t0, t0, 1
-  lw t0, hitW(t0)
+  lw t0, bw(t0)
   sub t0, s2, t0
   bge t0, s3, .L9
   addi t0, a1, 3
   slli t0, t0, 1
-  lw t0, hurtW(t0)
+  lw t0, bw(t0)
   sub t0, s3, t0
   bge t0, s2, .L9
   bge a2, s0, .L9
-  ; cpu/ai.e16.ts:449  most = u16(apart)
+  ; cpu/ai.e16.ts:456  most = u16(apart)
   mv a2, s0 ; most
 .L9:
-  ; cpu/ai.e16.ts:451  b = b + 4
+  ; cpu/ai.e16.ts:458  b = b + 4
   addi a1, a1, 4
 .L7:
   beq a3, zero, .L10
   li t0, 12
   bltu a1, t0, .L5
 .L10:
-  ; cpu/ai.e16.ts:453  h = h + 4
+  ; cpu/ai.e16.ts:460  h = h + 4
   addi a0, a0, 4
 .L3:
-  li t0, 8
+  li t0, 20
   bltu a0, t0, .L1
-  ; cpu/ai.e16.ts:455  return most
+  ; cpu/ai.e16.ts:462  return most
   mv a0, a2
 .return:
   lw s1, 0(sp)
@@ -12554,7 +12494,48 @@ boxesMeet:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:459 measure(i) at -O1
+; cpu/ai.e16.ts:466 measured(f, p, hit) at -O1
+;   f in s2
+;   p in s3
+;   hit in s1
+measured:
+  addi sp, sp, -8
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  mv s2, a0 ; f
+  mv s3, a1 ; p
+  mv s1, a2 ; hit
+  ; cpu/ai.e16.ts:467  poseBoxes(fSlot[f], p, hit, addr(bw) + (hit ? BW_HIT : BW_HURT) * 2)
+  slli t0, s2, 1
+  lw t0, fSlot(t0)
+  mv t1, s3
+  mv t2, s1
+  la t3, bw
+  mv a1, s1
+  beqz a1, .L1
+  li a1, 12
+  j .L2
+.L1:
+  li a1, 0
+.L2:
+  slli a1, a1, 1
+  add t3, t3, a1
+  mv a0, t0
+  mv a1, t1
+  mv a2, t2
+  mv a3, t3
+  call poseBoxes
+.return:
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
+  addi sp, sp, 8
+  ret
+
+; cpu/ai.e16.ts:475 measure(i) at -O1
 ;   i in s2
 ;   j in s0
 ;   m in s1
@@ -12567,36 +12548,29 @@ measure:
   sw s1, 6(sp)
   sw s3, 8(sp)
   mv s2, a0 ; i
-  ; cpu/ai.e16.ts:460  const j = 1 - i
+  ; cpu/ai.e16.ts:476  const j = 1 - i
   li t0, 1
   sub s0, t0, s2
-  ; cpu/ai.e16.ts:461  let m: u16 = 0
+  ; cpu/ai.e16.ts:477  let m: u16 = 0
   li s1, 0 ; m
-  ; cpu/ai.e16.ts:462  while (m < 8) {
+  ; cpu/ai.e16.ts:478  while (m < 8) {
   j .L3
 .L1:
-  ; cpu/ai.e16.ts:463  boxesRead(fSlot[i], 0, true)
-  slli t0, s2, 1
-  lw a0, fSlot(t0)
+  ; cpu/ai.e16.ts:479  measured(i, 0, false)
+  mv a0, s2
   li a1, 0
-  li a2, 1
-  call boxesRead
-  ; cpu/ai.e16.ts:464  boxesRead(fSlot[j], mvAt(j, m, M_POSE) + 1, false)
-  slli t0, s0, 1
-  lw t0, fSlot(t0)
-  addi sp, sp, -2
-  sw t0, 0(sp)
+  li a2, 0
+  call measured
+  ; cpu/ai.e16.ts:480  measured(j, mvAt(j, m, M_POSE) + 1, true)
   mv a0, s0
   mv a1, s1
   li a2, 14
   call mvAt
-  lw t0, 0(sp)
-  addi sp, sp, 2
   addi a1, a0, 1
-  mv a0, t0
-  li a2, 0
-  call boxesRead
-  ; cpu/ai.e16.ts:465  thD[i * 8 + m] = boxesMeet()
+  mv a0, s0
+  li a2, 1
+  call measured
+  ; cpu/ai.e16.ts:481  thD[i * 8 + m] = boxesMeet()
   slli t0, s2, 3
   add t0, t0, s1
   slli t0, t0, 1
@@ -12607,42 +12581,30 @@ measure:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; cpu/ai.e16.ts:466  boxesRead(fSlot[j], mvAt(j, m, M_POSE) + 2, true)
-  slli t0, s0, 1
-  lw t0, fSlot(t0)
-  addi sp, sp, -2
-  sw t0, 0(sp)
+  ; cpu/ai.e16.ts:482  measured(j, mvAt(j, m, M_POSE) + 2, false)
   mv a0, s0
   mv a1, s1
   li a2, 14
   call mvAt
-  lw t0, 0(sp)
-  addi sp, sp, 2
   addi a1, a0, 2
-  mv a0, t0
-  li a2, 1
-  call boxesRead
-  ; cpu/ai.e16.ts:467  let k: u16 = 0
+  mv a0, s0
+  li a2, 0
+  call measured
+  ; cpu/ai.e16.ts:483  let k: u16 = 0
   li s3, 0 ; k
-  ; cpu/ai.e16.ts:468  while (k < PUNISHERS) {
+  ; cpu/ai.e16.ts:484  while (k < PUNISHERS) {
   j .L7
 .L5:
-  ; cpu/ai.e16.ts:469  boxesRead(fSlot[i], mvAt(i, k, M_POSE) + 1, false)
-  slli t0, s2, 1
-  lw t0, fSlot(t0)
-  addi sp, sp, -2
-  sw t0, 0(sp)
+  ; cpu/ai.e16.ts:485  measured(i, mvAt(i, k, M_POSE) + 1, true)
   mv a0, s2
   mv a1, s3
   li a2, 14
   call mvAt
-  lw t0, 0(sp)
-  addi sp, sp, 2
   addi a1, a0, 1
-  mv a0, t0
-  li a2, 0
-  call boxesRead
-  ; cpu/ai.e16.ts:470  punD[i * 32 + k * 8 + m] = boxesMeet()
+  mv a0, s2
+  li a2, 1
+  call measured
+  ; cpu/ai.e16.ts:486  punD[i * 32 + k * 8 + m] = boxesMeet()
   slli t0, s2, 5
   slli t1, s3, 3
   add t0, t0, t1
@@ -12655,12 +12617,12 @@ measure:
   lw t0, 0(sp)
   addi sp, sp, 2
   sw a0, 0(t0)
-  ; cpu/ai.e16.ts:471  k++
+  ; cpu/ai.e16.ts:487  k++
   addi s3, s3, 1
 .L7:
   li t0, 4
   bltu s3, t0, .L5
-  ; cpu/ai.e16.ts:473  m++
+  ; cpu/ai.e16.ts:489  m++
   addi s1, s1, 1
 .L3:
   li t0, 8
@@ -12674,82 +12636,101 @@ measure:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:478 longest(i) at -O1
+; cpu/ai.e16.ts:494 longest(i) at -O1
 ;   i in a0
 ;   most in a2
 ;   m in a1
 longest:
-  ; cpu/ai.e16.ts:479  let most: u16 = 0
+  ; cpu/ai.e16.ts:495  let most: u16 = 0
   li a2, 0 ; most
-  ; cpu/ai.e16.ts:480  let m: u16 = 0
+  ; cpu/ai.e16.ts:496  let m: u16 = 0
   li a1, 0 ; m
-  ; cpu/ai.e16.ts:481  while (m < 8) {
+  ; cpu/ai.e16.ts:497  while (m < 8) {
   j .L3
 .L1:
-  ; cpu/ai.e16.ts:482  if (thD[i * 8 + m] > most) most = thD[i * 8 + m]
+  ; cpu/ai.e16.ts:498  if (thD[i * 8 + m] > most) most = thD[i * 8 + m]
   slli t0, a0, 3
   add t0, t0, a1
   slli t0, t0, 1
   lw t0, thD(t0)
   bgeu a2, t0, .L5
-  ; cpu/ai.e16.ts:482  most = thD[i * 8 + m]
+  ; cpu/ai.e16.ts:498  most = thD[i * 8 + m]
   slli t0, a0, 3
   add t0, t0, a1
   slli t0, t0, 1
   lw a2, thD(t0)
 .L5:
-  ; cpu/ai.e16.ts:483  m++
+  ; cpu/ai.e16.ts:499  m++
   addi a1, a1, 1
 .L3:
   li t0, 8
   bltu a1, t0, .L1
-  ; cpu/ai.e16.ts:485  return most
+  ; cpu/ai.e16.ts:501  return most
   mv a0, a2
 .return:
   ret
 
-; cpu/ai.e16.ts:492 reaches(j, m) at -O1
-;   j in a0
-;   m in a1
+; cpu/ai.e16.ts:509 reaches(j, m) at -O1
+;   j in s2
+;   m in s1
 reaches:
-  ; cpu/ai.e16.ts:493  if (m < 8) return thD[(1 - j) * 8 + m] + EDGE
+  addi sp, sp, -6
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s1, 4(sp)
+  mv s2, a0 ; j
+  mv s1, a1 ; m
+  ; cpu/ai.e16.ts:510  if (m < 8) return thD[(1 - j) * 8 + m] + EDGE
   li t0, 8
-  bgeu a1, t0, .L1
-  ; cpu/ai.e16.ts:493  return thD[(1 - j) * 8 + m] + EDGE
+  bgeu s1, t0, .L1
+  ; cpu/ai.e16.ts:510  return thD[(1 - j) * 8 + m] + EDGE
   li t0, 1
-  sub t0, t0, a0
+  sub t0, t0, s2
   slli t0, t0, 3
-  add t0, t0, a1
+  add t0, t0, s1
   slli t0, t0, 1
   lw t0, thD(t0)
   addi a0, t0, 6
-  ret
+  j .return
 .L1:
-  ; cpu/ai.e16.ts:494  if (m === MV_THROW) return reach[j * MOVES + m] + HALF + EDGE
+  ; cpu/ai.e16.ts:511  if (m === MV_THROW) return reach[j * MOVES + m] + half(1 - j) + EDGE
   li t0, 12
-  bne a1, t0, .L2
-  ; cpu/ai.e16.ts:494  return reach[j * MOVES + m] + HALF + EDGE
+  bne s1, t0, .L2
+  ; cpu/ai.e16.ts:511  return reach[j * MOVES + m] + half(1 - j) + EDGE
   li t0, 13
-  mul t0, a0, t0
-  add t0, t0, a1
+  mul t0, s2, t0
+  add t0, t0, s1
   slli t0, t0, 1
   lw t0, reach(t0)
-  addi a0, t0, 24
-  ret
+  li t1, 1
+  sub t1, t1, s2
+  addi sp, sp, -2
+  sw t0, 0(sp)
+  mv a0, t1
+  call half
+  lw t0, 0(sp)
+  addi sp, sp, 2
+  add t0, t0, a0
+  addi a0, t0, 6
+  j .return
 .L2:
-  ; cpu/ai.e16.ts:495  return THREAT
+  ; cpu/ai.e16.ts:512  return THREAT
   li a0, 110
 .return:
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s1, 4(sp)
+  addi sp, sp, 6
   ret
 
-; cpu/ai.e16.ts:499 moveBegan(e) at -O1
+; cpu/ai.e16.ts:516 moveBegan(e) at -O1
 ;   e in s1
 moveBegan:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; e
-  ; cpu/ai.e16.ts:500  return wrap16(seenL[e & 31] - framesOf(e) + 1)
+  ; cpu/ai.e16.ts:517  return wrap16(seenL[e & 31] - framesOf(e) + 1)
   andi t0, s1, 31
   slli t0, t0, 1
   lw t0, seenL(t0)
@@ -12767,17 +12748,17 @@ moveBegan:
   addi sp, sp, 4
   ret
 
-; cpu/ai.e16.ts:504 frameNow(began) at -O1
+; cpu/ai.e16.ts:521 frameNow(began) at -O1
 ;   began in a0
 frameNow:
-  ; cpu/ai.e16.ts:505  return wrap16(liveN - began) + 1
+  ; cpu/ai.e16.ts:522  return wrap16(liveN - began) + 1
   lw t0, 0x0eaa(zero)
   sub t0, t0, a0
   addi a0, t0, 1
 .return:
   ret
 
-; cpu/ai.e16.ts:509 swingStep(i, j) at -O1
+; cpu/ai.e16.ts:526 swingStep(i, j) at -O1
 ;   i in s1
 ;   j in s3
 ;   e in s2
@@ -12791,14 +12772,14 @@ swingStep:
   sw s0, 8(sp)
   mv s1, a0 ; i
   mv s3, a1 ; j
-  ; cpu/ai.e16.ts:510  if (swing[i] > 0 && (liveN & 1) === 0) swing[i]--
+  ; cpu/ai.e16.ts:527  if (swing[i] > 0 && (liveN & 1) === 0) swing[i]--
   slli t0, s1, 1
   lw t0, swing(t0)
   bgeu zero, t0, .L1
   lw t0, 0x0eaa(zero)
   andi t0, t0, 1
   bne t0, zero, .L1
-  ; cpu/ai.e16.ts:510  swing[i]--
+  ; cpu/ai.e16.ts:527  swing[i]--
   slli t0, s1, 1
   addi t0, t0, swing
   mv t1, t0
@@ -12806,7 +12787,7 @@ swingStep:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L1:
-  ; cpu/ai.e16.ts:511  const e = seenAt(i, j, row(i, O_R_GUARD))
+  ; cpu/ai.e16.ts:528  const e = seenAt(i, j, row(i, O_R_GUARD))
   mv a0, s1
   li a1, 3
   call row
@@ -12815,30 +12796,30 @@ swingStep:
   mv a0, s1
   call seenAt
   mv s2, a0 ; e
-  ; cpu/ai.e16.ts:512  if ((seenS[e] & 255) !== ST_ATTACK) return
+  ; cpu/ai.e16.ts:529  if ((seenS[e] & 255) !== ST_ATTACK) return
   slli t0, s2, 1
   lw t0, seenS(t0)
   andi t0, t0, 255
   li t1, 5
   beq t0, t1, .L2
-  ; cpu/ai.e16.ts:512  return
+  ; cpu/ai.e16.ts:529  return
   j .return
 .L2:
-  ; cpu/ai.e16.ts:513  const began = moveBegan(e)
+  ; cpu/ai.e16.ts:530  const began = moveBegan(e)
   mv a0, s2
   call moveBegan
   mv s0, a0 ; began
-  ; cpu/ai.e16.ts:514  if (began === swingId[i]) return
+  ; cpu/ai.e16.ts:531  if (began === swingId[i]) return
   slli t0, s1, 1
   lw t0, swingId(t0)
   bne s0, t0, .L3
-  ; cpu/ai.e16.ts:514  return
+  ; cpu/ai.e16.ts:531  return
   j .return
 .L3:
-  ; cpu/ai.e16.ts:515  swingId[i] = began
+  ; cpu/ai.e16.ts:532  swingId[i] = began
   slli t0, s1, 1
   sw s0, swingId(t0)
-  ; cpu/ai.e16.ts:516  swing[i] = swing[i] > 255 - SWING_ADD ? 255 : swing[i] + SWING_ADD
+  ; cpu/ai.e16.ts:533  swing[i] = swing[i] > 255 - SWING_ADD ? 255 : swing[i] + SWING_ADD
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, swing(t1)
@@ -12853,19 +12834,19 @@ swingStep:
   addi t1, t1, 48
 .L5:
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:517  if (seenY[e] > 0) return
+  ; cpu/ai.e16.ts:534  if (seenY[e] > 0) return
   slli t0, s2, 1
   lw t0, seenY(t0)
   bgeu zero, t0, .L6
-  ; cpu/ai.e16.ts:517  return
+  ; cpu/ai.e16.ts:534  return
   j .return
 .L6:
-  ; cpu/ai.e16.ts:518  swB[i] = swA[i]
+  ; cpu/ai.e16.ts:535  swB[i] = swA[i]
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, swA(t1)
   sw t1, swB(t0)
-  ; cpu/ai.e16.ts:519  swA[i] = reaches(j, seenS[e] >> 8)
+  ; cpu/ai.e16.ts:536  swA[i] = reaches(j, seenS[e] >> 8)
   slli t0, s1, 1
   slli t1, s2, 1
   lw t1, seenS(t1)
@@ -12888,10 +12869,10 @@ swingStep:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:526 edge(i) at -O1
+; cpu/ai.e16.ts:543 edge(i) at -O1
 ;   i in a0
 edge:
-  ; cpu/ai.e16.ts:527  return swA[i] > swB[i] ? swA[i] : swB[i]
+  ; cpu/ai.e16.ts:544  return swA[i] > swB[i] ? swA[i] : swB[i]
   slli t0, a0, 1
   lw t0, swA(t0)
   slli t1, a0, 1
@@ -12908,7 +12889,7 @@ edge:
 .return:
   ret
 
-; cpu/ai.e16.ts:531 punishArm(i, j) at -O1
+; cpu/ai.e16.ts:548 punishArm(i, j) at -O1
 ;   i in s1
 ;   j in s0
 ;   e in s2
@@ -12922,7 +12903,7 @@ punishArm:
   sw s3, 8(sp)
   mv s1, a0 ; i
   mv s0, a1 ; j
-  ; cpu/ai.e16.ts:532  const e = seenAt(i, j, row(i, O_R_PUNISH))
+  ; cpu/ai.e16.ts:549  const e = seenAt(i, j, row(i, O_R_PUNISH))
   mv a0, s1
   li a1, 5
   call row
@@ -12931,7 +12912,7 @@ punishArm:
   mv a0, s1
   call seenAt
   mv s2, a0 ; e
-  ; cpu/ai.e16.ts:533  if ((seenS[e] & 255) !== ST_ATTACK || seenY[e] > 0) return
+  ; cpu/ai.e16.ts:550  if ((seenS[e] & 255) !== ST_ATTACK || seenY[e] > 0) return
   slli t0, s2, 1
   lw t0, seenS(t0)
   andi t0, t0, 255
@@ -12941,30 +12922,30 @@ punishArm:
   lw t0, seenY(t0)
   bgeu zero, t0, .L1
 .L2:
-  ; cpu/ai.e16.ts:533  return
+  ; cpu/ai.e16.ts:550  return
   j .return
 .L1:
-  ; cpu/ai.e16.ts:534  const began = moveBegan(e)
+  ; cpu/ai.e16.ts:551  const began = moveBegan(e)
   mv a0, s2
   call moveBegan
   mv s3, a0 ; began
-  ; cpu/ai.e16.ts:535  if (began === punId[i]) return
+  ; cpu/ai.e16.ts:552  if (began === punId[i]) return
   slli t0, s1, 1
   lw t0, punId(t0)
   bne s3, t0, .L3
-  ; cpu/ai.e16.ts:535  return
+  ; cpu/ai.e16.ts:552  return
   j .return
 .L3:
-  ; cpu/ai.e16.ts:536  punId[i] = began
+  ; cpu/ai.e16.ts:553  punId[i] = began
   slli t0, s1, 1
   sw s3, punId(t0)
-  ; cpu/ai.e16.ts:537  punMove[i] = seenS[e] >> 8
+  ; cpu/ai.e16.ts:554  punMove[i] = seenS[e] >> 8
   slli t0, s1, 1
   slli t1, s2, 1
   lw t1, seenS(t1)
   srli t1, t1, 8
   sw t1, punMove(t0)
-  ; cpu/ai.e16.ts:538  punArm[i] = randBelow(256) < row(i, O_PUNISH) ? 1 : 0
+  ; cpu/ai.e16.ts:555  punArm[i] = randBelow(256) < row(i, O_PUNISH) ? 1 : 0
   slli t0, s1, 1
   addi t0, t0, punArm
   addi sp, sp, -2
@@ -13000,7 +12981,7 @@ punishArm:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:542 totalOf(j, m) at -O1
+; cpu/ai.e16.ts:559 totalOf(j, m) at -O1
 ;   j in s1
 ;   m in s2
 totalOf:
@@ -13010,7 +12991,7 @@ totalOf:
   sw s2, 4(sp)
   mv s1, a0 ; j
   mv s2, a1 ; m
-  ; cpu/ai.e16.ts:543  return mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE) + mvAt(j, m, M_RECOVERY) - 1
+  ; cpu/ai.e16.ts:560  return mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE) + mvAt(j, m, M_RECOVERY) - 1
   mv a0, s1
   mv a1, s2
   li a2, 0
@@ -13041,7 +13022,7 @@ totalOf:
   addi sp, sp, 6
   ret
 
-; cpu/ai.e16.ts:553 punish(i, j) at -O1
+; cpu/ai.e16.ts:570 punish(i, j) at -O1
 ;   i in s1
 ;   j in s2
 ;   m in s3
@@ -13060,7 +13041,7 @@ punish:
   mv fp, sp
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/ai.e16.ts:554  if (punArm[i] !== 1 || !free(i)) return 0xffff
+  ; cpu/ai.e16.ts:571  if (punArm[i] !== 1 || !free(i)) return 0xffff
   slli t0, s1, 1
   lw t0, punArm(t0)
   li t1, 1
@@ -13069,24 +13050,24 @@ punish:
   call free
   bnez a0, .L1
 .L2:
-  ; cpu/ai.e16.ts:554  return 0xffff
+  ; cpu/ai.e16.ts:571  return 0xffff
   li a0, 65535
   j .return
 .L1:
-  ; cpu/ai.e16.ts:555  const m = punMove[i]
+  ; cpu/ai.e16.ts:572  const m = punMove[i]
   slli t0, s1, 1
   lw s3, punMove(t0)
-  ; cpu/ai.e16.ts:556  const f = frameNow(punId[i])
+  ; cpu/ai.e16.ts:573  const f = frameNow(punId[i])
   slli t0, s1, 1
   lw a0, punId(t0)
   call frameNow
   sw a0, 0(fp) ; f
-  ; cpu/ai.e16.ts:557  const total = totalOf(j, m)
+  ; cpu/ai.e16.ts:574  const total = totalOf(j, m)
   mv a0, s2
   mv a1, s3
   call totalOf
   sw a0, 4(fp) ; total
-  ; cpu/ai.e16.ts:558  const recA = mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE)
+  ; cpu/ai.e16.ts:575  const recA = mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE)
   mv a0, s2
   mv a1, s3
   li a2, 0
@@ -13101,7 +13082,7 @@ punish:
   addi sp, sp, 2
   add t0, t0, a0
   sw t0, 6(fp) ; recA
-  ; cpu/ai.e16.ts:559  const d = distTo(i, seenAt(i, j, row(i, O_R_PUNISH)))
+  ; cpu/ai.e16.ts:576  const d = distTo(i, seenAt(i, j, row(i, O_R_PUNISH)))
   mv a0, s1
   li a1, 5
   call row
@@ -13113,16 +13094,16 @@ punish:
   mv a0, s1
   call distTo
   sw a0, 8(fp) ; d
-  ; cpu/ai.e16.ts:560  if (f > total) return punishDone(i)
+  ; cpu/ai.e16.ts:577  if (f > total) return punishDone(i)
   lw t0, 4(fp) ; total
   lw t1, 0(fp) ; f
   bgeu t0, t1, .L3
-  ; cpu/ai.e16.ts:560  return punishDone(i)
+  ; cpu/ai.e16.ts:577  return punishDone(i)
   mv a0, s1
   call punishDone
   j .return
 .L3:
-  ; cpu/ai.e16.ts:561  if (f < recA && d <= reaches(j, m))
+  ; cpu/ai.e16.ts:578  if (f < recA && d <= reaches(j, m))
   lw t0, 6(fp) ; recA
   lw t1, 0(fp) ; f
   bgeu t1, t0, .L4
@@ -13131,7 +13112,7 @@ punish:
   call reaches
   lw t0, 8(fp) ; d
   bltu a0, t0, .L4
-  ; cpu/ai.e16.ts:562  return mvAt(j, m, M_HEIGHT) === H_LOW ? I_BACK | I_DOWN : I_BACK
+  ; cpu/ai.e16.ts:579  return mvAt(j, m, M_HEIGHT) === H_LOW ? I_BACK | I_DOWN : I_BACK
   mv a0, s2
   mv a1, s3
   li a2, 10
@@ -13146,32 +13127,32 @@ punish:
   mv a0, t0
   j .return
 .L4:
-  ; cpu/ai.e16.ts:563  const k = punisher(i, j, f, d)
+  ; cpu/ai.e16.ts:580  const k = punisher(i, j, f, d)
   mv a0, s1
   mv a1, s2
   lw a2, 0(fp)
   lw a3, 8(fp)
   call punisher
   sw a0, 2(fp) ; k
-  ; cpu/ai.e16.ts:564  if (k < PUNISHERS) return punishPress(i, k)
+  ; cpu/ai.e16.ts:581  if (k < PUNISHERS) return punishPress(i, k)
   li t0, 4
   lw t1, 2(fp) ; k
   bgeu t1, t0, .L7
-  ; cpu/ai.e16.ts:564  return punishPress(i, k)
+  ; cpu/ai.e16.ts:581  return punishPress(i, k)
   mv a0, s1
   lw a1, 2(fp)
   call punishPress
   j .return
 .L7:
-  ; cpu/ai.e16.ts:565  if (k === P_EARLY) return 0
+  ; cpu/ai.e16.ts:582  if (k === P_EARLY) return 0
   li t0, 4
   lw t1, 2(fp) ; k
   bne t1, t0, .L8
-  ; cpu/ai.e16.ts:565  return 0
+  ; cpu/ai.e16.ts:582  return 0
   li a0, 0
   j .return
 .L8:
-  ; cpu/ai.e16.ts:566  if (f >= recA && total - f > WALK_F) return I_FWD
+  ; cpu/ai.e16.ts:583  if (f >= recA && total - f > WALK_F) return I_FWD
   lw t0, 6(fp) ; recA
   lw t1, 0(fp) ; f
   bltu t1, t0, .L9
@@ -13180,11 +13161,11 @@ punish:
   sub t1, t1, t0
   li t0, 10
   bgeu t0, t1, .L9
-  ; cpu/ai.e16.ts:566  return I_FWD
+  ; cpu/ai.e16.ts:583  return I_FWD
   li a0, 8
   j .return
 .L9:
-  ; cpu/ai.e16.ts:567  return punishDone(i)
+  ; cpu/ai.e16.ts:584  return punishDone(i)
   mv a0, s1
   call punishDone
 .return:
@@ -13197,18 +13178,18 @@ punish:
   addi sp, sp, 20
   ret
 
-; cpu/ai.e16.ts:571 punishDone(i) at -O1
+; cpu/ai.e16.ts:588 punishDone(i) at -O1
 ;   i in a0
 punishDone:
-  ; cpu/ai.e16.ts:572  punArm[i] = 0
+  ; cpu/ai.e16.ts:589  punArm[i] = 0
   slli t0, a0, 1
   sw zero, punArm(t0)
-  ; cpu/ai.e16.ts:573  return 0xffff
+  ; cpu/ai.e16.ts:590  return 0xffff
   li a0, 65535
 .return:
   ret
 
-; cpu/ai.e16.ts:581 punisher(i, j, f, d) at -O1
+; cpu/ai.e16.ts:598 punisher(i, j, f, d) at -O1
 ;   i in s2
 ;   j in 0(fp)
 ;   f in 6(fp)
@@ -13231,15 +13212,15 @@ punisher:
   sw a1, 0(fp) ; j
   sw a2, 6(fp) ; f
   sw a3, 8(fp) ; d
-  ; cpu/ai.e16.ts:582  const m = punMove[i]
+  ; cpu/ai.e16.ts:599  const m = punMove[i]
   slli t0, s2, 1
   lw s3, punMove(t0)
-  ; cpu/ai.e16.ts:583  const total = totalOf(j, m)
+  ; cpu/ai.e16.ts:600  const total = totalOf(j, m)
   lw a0, 0(fp)
   mv a1, s3
   call totalOf
   sw a0, 10(fp) ; total
-  ; cpu/ai.e16.ts:584  const recA = mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE)
+  ; cpu/ai.e16.ts:601  const recA = mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE)
   lw a0, 0(fp)
   mv a1, s3
   li a2, 0
@@ -13254,16 +13235,16 @@ punisher:
   addi sp, sp, 2
   add t0, t0, a0
   sw t0, 12(fp) ; recA
-  ; cpu/ai.e16.ts:585  let early = false
+  ; cpu/ai.e16.ts:602  let early = false
   sw zero, 2(fp) ; early
-  ; cpu/ai.e16.ts:586  let k: u16 = PUNISHERS
+  ; cpu/ai.e16.ts:603  let k: u16 = PUNISHERS
   li s1, 4 ; k
-  ; cpu/ai.e16.ts:587  while (k > 0) {
+  ; cpu/ai.e16.ts:604  while (k > 0) {
   j .L3
 .L1:
-  ; cpu/ai.e16.ts:588  k--
+  ; cpu/ai.e16.ts:605  k--
   addi s1, s1, -1
-  ; cpu/ai.e16.ts:589  const lands = f + mvAt(i, k, M_STARTUP) - 1
+  ; cpu/ai.e16.ts:606  const lands = f + mvAt(i, k, M_STARTUP) - 1
   mv a0, s2
   mv a1, s1
   li a2, 0
@@ -13272,7 +13253,7 @@ punisher:
   add t0, t0, a0
   addi t0, t0, -1
   sw t0, 4(fp) ; lands
-  ; cpu/ai.e16.ts:590  if (d + SURE <= punReach(i, k, m) && lands <= total) {
+  ; cpu/ai.e16.ts:607  if (d + SURE <= punReach(i, k, m) && lands <= total) {
   lw t0, 8(fp) ; d
   addi t0, t0, 2
   addi sp, sp, -2
@@ -13287,7 +13268,7 @@ punisher:
   lw t0, 10(fp) ; total
   lw t1, 4(fp) ; lands
   bltu t0, t1, .L5
-  ; cpu/ai.e16.ts:591  if (lands + mvAt(i, k, M_ACTIVE) - 1 >= recA) return k
+  ; cpu/ai.e16.ts:608  if (lands + mvAt(i, k, M_ACTIVE) - 1 >= recA) return k
   mv a0, s2
   mv a1, s1
   li a2, 1
@@ -13297,17 +13278,17 @@ punisher:
   lw t1, 12(fp) ; recA
   addi t0, t0, -1
   bltu t0, t1, .L6
-  ; cpu/ai.e16.ts:591  return k
+  ; cpu/ai.e16.ts:608  return k
   mv a0, s1
   j .return
 .L6:
-  ; cpu/ai.e16.ts:592  early = true
+  ; cpu/ai.e16.ts:609  early = true
   li t0, 1
   sw t0, 2(fp) ; early
 .L5:
 .L3:
   bltu zero, s1, .L1
-  ; cpu/ai.e16.ts:595  return early ? P_EARLY : P_NONE
+  ; cpu/ai.e16.ts:612  return early ? P_EARLY : P_NONE
   lw t0, 2(fp) ; early
   beqz t0, .L7
   li t0, 4
@@ -13326,15 +13307,15 @@ punisher:
   addi sp, sp, 24
   ret
 
-; cpu/ai.e16.ts:599 punReach(i, k, m) at -O1
+; cpu/ai.e16.ts:616 punReach(i, k, m) at -O1
 ;   i in a0
 ;   k in a1
 ;   m in a2
 punReach:
-  ; cpu/ai.e16.ts:600  if (m < 8) return punD[i * 32 + k * 8 + m]
+  ; cpu/ai.e16.ts:617  if (m < 8) return punD[i * 32 + k * 8 + m]
   li t0, 8
   bgeu a2, t0, .L1
-  ; cpu/ai.e16.ts:600  return punD[i * 32 + k * 8 + m]
+  ; cpu/ai.e16.ts:617  return punD[i * 32 + k * 8 + m]
   slli t0, a0, 5
   slli t1, a1, 3
   add t0, t0, t1
@@ -13343,7 +13324,7 @@ punReach:
   lw a0, punD(t0)
   ret
 .L1:
-  ; cpu/ai.e16.ts:601  return reach[i * MOVES + k] + LEAN
+  ; cpu/ai.e16.ts:618  return reach[i * MOVES + k] + LEAN
   li t0, 13
   mul t0, a0, t0
   add t0, t0, a1
@@ -13353,12 +13334,12 @@ punReach:
 .return:
   ret
 
-; cpu/ai.e16.ts:605 punishPress(i, k) at -O1
+; cpu/ai.e16.ts:622 punishPress(i, k) at -O1
 ;   i in a0
 ;   k in a1
 ;   b in a2
 punishPress:
-  ; cpu/ai.e16.ts:606  const b = k === 0 ? I_LP : k === 1 ? I_HP : k === 2 ? I_LK : I_HK
+  ; cpu/ai.e16.ts:623  const b = k === 0 ? I_LP : k === 1 ? I_HP : k === 2 ? I_LK : I_HK
   bne a1, zero, .L1
   li t0, 16
   j .L2
@@ -13378,34 +13359,34 @@ punishPress:
 .L4:
 .L2:
   mv a2, t0 ; b
-  ; cpu/ai.e16.ts:607  if ((outWas[i] & b) !== 0) return 0
+  ; cpu/ai.e16.ts:624  if ((outWas[i] & b) !== 0) return 0
   slli t0, a0, 1
   lw t0, outWas(t0)
   and t0, t0, a2
   beq t0, zero, .L7
-  ; cpu/ai.e16.ts:607  return 0
+  ; cpu/ai.e16.ts:624  return 0
   li a0, 0
   ret
 .L7:
-  ; cpu/ai.e16.ts:608  punArm[i] = 0
+  ; cpu/ai.e16.ts:625  punArm[i] = 0
   slli t0, a0, 1
   sw zero, punArm(t0)
-  ; cpu/ai.e16.ts:609  punishes[i]++
+  ; cpu/ai.e16.ts:626  punishes[i]++
   slli t0, a0, 1
   addi t0, t0, punishes
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:610  return b
+  ; cpu/ai.e16.ts:627  return b
   mv a0, a2
 .return:
   ret
 
-; cpu/ai.e16.ts:614 wary(i) at -O1
+; cpu/ai.e16.ts:631 wary(i) at -O1
 ;   i in a0
 wary:
-  ; cpu/ai.e16.ts:615  return swing[i] >= WARY
+  ; cpu/ai.e16.ts:632  return swing[i] >= WARY
   slli t0, a0, 1
   lw t0, swing(t0)
   li t1, 32
@@ -13414,7 +13395,7 @@ wary:
 .return:
   ret
 
-; cpu/ai.e16.ts:619 opened(i, j) at -O1
+; cpu/ai.e16.ts:636 opened(i, j) at -O1
 ;   i in 2(fp)
 ;   j in s2
 ;   e in s3
@@ -13431,7 +13412,7 @@ opened:
   mv fp, sp
   sw a0, 2(fp) ; i
   mv s2, a1 ; j
-  ; cpu/ai.e16.ts:620  const e = seenAt(i, j, row(i, O_R_GUARD))
+  ; cpu/ai.e16.ts:637  const e = seenAt(i, j, row(i, O_R_GUARD))
   lw a0, 2(fp)
   li a1, 3
   call row
@@ -13440,32 +13421,32 @@ opened:
   lw a0, 2(fp)
   call seenAt
   mv s3, a0 ; e
-  ; cpu/ai.e16.ts:621  const st = seenS[e] & 255
+  ; cpu/ai.e16.ts:638  const st = seenS[e] & 255
   slli t0, s3, 1
   lw t0, seenS(t0)
   andi s1, t0, 255
-  ; cpu/ai.e16.ts:622  if (st === ST_ATTACK) {
+  ; cpu/ai.e16.ts:639  if (st === ST_ATTACK) {
   li t0, 5
   bne s1, t0, .L1
-  ; cpu/ai.e16.ts:623  if (seenY[e] > 0) return false
+  ; cpu/ai.e16.ts:640  if (seenY[e] > 0) return false
   slli t0, s3, 1
   lw t0, seenY(t0)
   bgeu zero, t0, .L2
-  ; cpu/ai.e16.ts:623  return false
+  ; cpu/ai.e16.ts:640  return false
   li a0, 0
   j .return
 .L2:
-  ; cpu/ai.e16.ts:624  const m = seenS[e] >> 8
+  ; cpu/ai.e16.ts:641  const m = seenS[e] >> 8
   slli t0, s3, 1
   lw t0, seenS(t0)
   srli t0, t0, 8
   sw t0, 0(fp) ; m
-  ; cpu/ai.e16.ts:625  const f = frameNow(moveBegan(e))
+  ; cpu/ai.e16.ts:642  const f = frameNow(moveBegan(e))
   mv a0, s3
   call moveBegan
   call frameNow
   sw a0, 4(fp) ; f
-  ; cpu/ai.e16.ts:626  return f >= mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE) && f + OPEN_F <= totalOf(j, m)
+  ; cpu/ai.e16.ts:643  return f >= mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE) && f + OPEN_F <= totalOf(j, m)
   mv a0, s2
   lw a1, 0(fp)
   li a2, 0
@@ -13502,7 +13483,7 @@ opened:
   mv a0, t0
   j .return
 .L1:
-  ; cpu/ai.e16.ts:628  if (st === ST_HIT || st === ST_GUARD || st === ST_DOWN || st === ST_WAKE) return true
+  ; cpu/ai.e16.ts:645  if (st === ST_HIT || st === ST_GUARD || st === ST_DOWN || st === ST_WAKE) return true
   li t0, 6
   beq s1, t0, .L5
   li t0, 7
@@ -13512,11 +13493,11 @@ opened:
   li t0, 9
   bne s1, t0, .L4
 .L5:
-  ; cpu/ai.e16.ts:628  return true
+  ; cpu/ai.e16.ts:645  return true
   li a0, 1
   j .return
 .L4:
-  ; cpu/ai.e16.ts:629  return st === ST_THROW || st === ST_THROWN || st === ST_DASH || st === ST_BACKDASH
+  ; cpu/ai.e16.ts:646  return st === ST_THROW || st === ST_THROWN || st === ST_DASH || st === ST_BACKDASH
   li t0, 11
   sub t0, s1, t0
   seqz t0, t0
@@ -13549,7 +13530,7 @@ opened:
   addi sp, sp, 16
   ret
 
-; cpu/ai.e16.ts:636 mayCome(i, j, d) at -O1
+; cpu/ai.e16.ts:653 mayCome(i, j, d) at -O1
 ;   i in s1
 ;   j in s2
 ;   d in s3
@@ -13562,16 +13543,16 @@ mayCome:
   mv s1, a0 ; i
   mv s2, a1 ; j
   mv s3, a2 ; d
-  ; cpu/ai.e16.ts:637  if (d > edge(i) + COME) return true
+  ; cpu/ai.e16.ts:654  if (d > edge(i) + COME) return true
   mv a0, s1
   call edge
   addi t0, a0, 10
   bgeu t0, s3, .L1
-  ; cpu/ai.e16.ts:637  return true
+  ; cpu/ai.e16.ts:654  return true
   li a0, 1
   j .return
 .L1:
-  ; cpu/ai.e16.ts:638  return !wary(i) || opened(i, j)
+  ; cpu/ai.e16.ts:655  return !wary(i) || opened(i, j)
   mv a0, s1
   call wary
   seqz t0, a0
@@ -13591,7 +13572,7 @@ mayCome:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:642 heldOff(i, d) at -O1
+; cpu/ai.e16.ts:659 heldOff(i, d) at -O1
 ;   i in s1
 ;   d in s2
 heldOff:
@@ -13601,7 +13582,7 @@ heldOff:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; d
-  ; cpu/ai.e16.ts:643  return d <= edge(i) ? I_BACK : 0
+  ; cpu/ai.e16.ts:660  return d <= edge(i) ? I_BACK : 0
   mv a0, s1
   call edge
   bltu a0, s2, .L1
@@ -13618,7 +13599,7 @@ heldOff:
   addi sp, sp, 6
   ret
 
-; cpu/ai.e16.ts:647 stepIn(i, j, d) at -O1
+; cpu/ai.e16.ts:664 stepIn(i, j, d) at -O1
 ;   i in s2
 ;   j in s3
 ;   d in s1
@@ -13631,7 +13612,7 @@ stepIn:
   mv s2, a0 ; i
   mv s3, a1 ; j
   mv s1, a2 ; d
-  ; cpu/ai.e16.ts:648  return mayCome(i, j, d > 2 ? d - 2 : 0) ? I_FWD : heldOff(i, d)
+  ; cpu/ai.e16.ts:665  return mayCome(i, j, d > 2 ? d - 2 : 0) ? I_FWD : heldOff(i, d)
   mv t0, s2
   mv t1, s3
   mv t2, s1
@@ -13664,7 +13645,7 @@ stepIn:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:654 chainStep(i, out) at -O1
+; cpu/ai.e16.ts:671 chainStep(i, out) at -O1
 ;   i in s1
 ;   out in s2
 ;   m in s3
@@ -13680,22 +13661,22 @@ chainStep:
   mv fp, sp
   mv s1, a0 ; i
   mv s2, a1 ; out
-  ; cpu/ai.e16.ts:655  if (fState[i] !== ST_ATTACK) {
+  ; cpu/ai.e16.ts:672  if (fState[i] !== ST_ATTACK) {
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 5
   beq t0, t1, .L1
-  ; cpu/ai.e16.ts:656  chainArm[i] = 0
+  ; cpu/ai.e16.ts:673  chainArm[i] = 0
   slli t0, s1, 1
   sw zero, chainArm(t0)
-  ; cpu/ai.e16.ts:657  return out
+  ; cpu/ai.e16.ts:674  return out
   mv a0, s2
   j .return
 .L1:
-  ; cpu/ai.e16.ts:659  const m = fMove[i]
+  ; cpu/ai.e16.ts:676  const m = fMove[i]
   slli t0, s1, 1
   lw s3, fMove(t0)
-  ; cpu/ai.e16.ts:660  if (fHitDone[i] === 0 || (mvAt(i, m, M_FLAGS) & F_CHAIN) === 0 || chainArm[i] !== 0) return out
+  ; cpu/ai.e16.ts:677  if (fHitDone[i] === 0 || (mvAt(i, m, M_FLAGS) & F_CHAIN) === 0 || chainArm[i] !== 0) return out
   slli t0, s1, 1
   lw t0, fHitDone(t0)
   beq t0, zero, .L3
@@ -13709,11 +13690,11 @@ chainStep:
   lw t0, chainArm(t0)
   beq t0, zero, .L2
 .L3:
-  ; cpu/ai.e16.ts:660  return out
+  ; cpu/ai.e16.ts:677  return out
   mv a0, s2
   j .return
 .L2:
-  ; cpu/ai.e16.ts:661  chainArm[i] = randBelow(256) < row(i, O_CHAIN) ? 1 : 2
+  ; cpu/ai.e16.ts:678  chainArm[i] = randBelow(256) < row(i, O_CHAIN) ? 1 : 2
   slli t0, s1, 1
   addi t0, t0, chainArm
   addi sp, sp, -2
@@ -13740,22 +13721,22 @@ chainStep:
   li t1, 2
 .L5:
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:662  if (chainArm[i] === 2) return out
+  ; cpu/ai.e16.ts:679  if (chainArm[i] === 2) return out
   slli t0, s1, 1
   lw t0, chainArm(t0)
   li t1, 2
   bne t0, t1, .L6
-  ; cpu/ai.e16.ts:662  return out
+  ; cpu/ai.e16.ts:679  return out
   mv a0, s2
   j .return
 .L6:
-  ; cpu/ai.e16.ts:663  const kind = mvAt(i, m, M_KIND)
+  ; cpu/ai.e16.ts:680  const kind = mvAt(i, m, M_KIND)
   mv a0, s1
   mv a1, s3
   li a2, 11
   call mvAt
   sw a0, 0(fp) ; kind
-  ; cpu/ai.e16.ts:664  const b = (kind & 1) !== 0 ? I_HK : I_HP
+  ; cpu/ai.e16.ts:681  const b = (kind & 1) !== 0 ? I_HK : I_HP
   lw t0, 0(fp) ; kind
   andi t0, t0, 1
   beq t0, zero, .L7
@@ -13765,20 +13746,20 @@ chainStep:
   li t0, 32
 .L8:
   sw t0, 2(fp) ; b
-  ; cpu/ai.e16.ts:665  if ((outWas[i] & b) !== 0) {
+  ; cpu/ai.e16.ts:682  if ((outWas[i] & b) !== 0) {
   slli t0, s1, 1
   lw t0, outWas(t0)
   lw t1, 2(fp) ; b
   and t0, t0, t1
   beq t0, zero, .L9
-  ; cpu/ai.e16.ts:666  chainArm[i] = 0
+  ; cpu/ai.e16.ts:683  chainArm[i] = 0
   slli t0, s1, 1
   sw zero, chainArm(t0)
-  ; cpu/ai.e16.ts:667  return 0
+  ; cpu/ai.e16.ts:684  return 0
   li a0, 0
   j .return
 .L9:
-  ; cpu/ai.e16.ts:669  return b | (((kind >> 2) & 1) !== 0 ? I_DOWN : 0)
+  ; cpu/ai.e16.ts:686  return b | (((kind >> 2) & 1) !== 0 ? I_DOWN : 0)
   lw t0, 0(fp) ; kind
   srli t0, t0, 2
   andi t1, t0, 1
@@ -13801,7 +13782,7 @@ chainStep:
   addi sp, sp, 14
   ret
 
-; cpu/ai.e16.ts:674 planned(i, j) at -O1
+; cpu/ai.e16.ts:691 planned(i, j) at -O1
 ;   i in s1
 ;   j in s2
 ;   st in s3
@@ -13813,10 +13794,10 @@ planned:
   sw s3, 6(sp)
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/ai.e16.ts:675  const st = fState[i]
+  ; cpu/ai.e16.ts:692  const st = fState[i]
   slli t0, s1, 1
   lw s3, fState(t0)
-  ; cpu/ai.e16.ts:676  if (st === ST_PREJUMP || st === ST_JUMP || (st === ST_ATTACK && fAirUsed[i] !== 0)) {
+  ; cpu/ai.e16.ts:693  if (st === ST_PREJUMP || st === ST_JUMP || (st === ST_ATTACK && fAirUsed[i] !== 0)) {
   li t0, 2
   beq s3, t0, .L2
   li t0, 3
@@ -13827,21 +13808,21 @@ planned:
   lw t0, fAirUsed(t0)
   beq t0, zero, .L1
 .L2:
-  ; cpu/ai.e16.ts:677  return airStep(i, j)
+  ; cpu/ai.e16.ts:694  return airStep(i, j)
   mv a0, s1
   mv a1, s2
   call airStep
   j .return
 .L1:
-  ; cpu/ai.e16.ts:679  if (!free(i)) return 0
+  ; cpu/ai.e16.ts:696  if (!free(i)) return 0
   mv a0, s1
   call free
   bnez a0, .L3
-  ; cpu/ai.e16.ts:679  return 0
+  ; cpu/ai.e16.ts:696  return 0
   li a0, 0
   j .return
 .L3:
-  ; cpu/ai.e16.ts:680  if (prevState[i] === ST_WAKE && randBelow(256) < WAKE_CHANCE) planSet(i, row(i, O_WAKE), 0)
+  ; cpu/ai.e16.ts:697  if (prevState[i] === ST_WAKE && randBelow(256) < WAKE_CHANCE) planSet(i, row(i, O_WAKE), 0)
   slli t0, s1, 1
   lw t0, prevState(t0)
   li t1, 9
@@ -13850,7 +13831,7 @@ planned:
   call randBelow
   li t0, 179
   bgeu a0, t0, .L4
-  ; cpu/ai.e16.ts:680  planSet(i, row(i, O_WAKE), 0)
+  ; cpu/ai.e16.ts:697  planSet(i, row(i, O_WAKE), 0)
   mv a0, s1
   li a1, 17
   call row
@@ -13859,14 +13840,14 @@ planned:
   li a2, 0
   call planSet
 .L4:
-  ; cpu/ai.e16.ts:681  if (habitDue[i] !== 0) {
+  ; cpu/ai.e16.ts:698  if (habitDue[i] !== 0) {
   slli t0, s1, 1
   lw t0, habitDue(t0)
   beq t0, zero, .L5
-  ; cpu/ai.e16.ts:682  habitDue[i] = 0
+  ; cpu/ai.e16.ts:699  habitDue[i] = 0
   slli t0, s1, 1
   sw zero, habitDue(t0)
-  ; cpu/ai.e16.ts:683  patternStart(i, row(i, O_PATTERN))
+  ; cpu/ai.e16.ts:700  patternStart(i, row(i, O_PATTERN))
   mv a0, s1
   li a1, 18
   call row
@@ -13874,11 +13855,11 @@ planned:
   mv a0, s1
   call patternStart
 .L5:
-  ; cpu/ai.e16.ts:685  if (thinkT[i] > 0) thinkT[i]--
+  ; cpu/ai.e16.ts:702  if (thinkT[i] > 0) thinkT[i]--
   slli t0, s1, 1
   lw t0, thinkT(t0)
   bgeu zero, t0, .L6
-  ; cpu/ai.e16.ts:685  thinkT[i]--
+  ; cpu/ai.e16.ts:702  thinkT[i]--
   slli t0, s1, 1
   addi t0, t0, thinkT
   mv t1, t0
@@ -13886,7 +13867,7 @@ planned:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L6:
-  ; cpu/ai.e16.ts:686  if (plan[i] === A_NONE || (thinkT[i] === 0 && patNo[i] === 0)) think(i, j)
+  ; cpu/ai.e16.ts:703  if (plan[i] === A_NONE || (thinkT[i] === 0 && patNo[i] === 0)) think(i, j)
   slli t0, s1, 1
   lw t0, plan(t0)
   li t1, 255
@@ -13898,12 +13879,12 @@ planned:
   lw t0, patNo(t0)
   bne t0, zero, .L7
 .L8:
-  ; cpu/ai.e16.ts:686  think(i, j)
+  ; cpu/ai.e16.ts:703  think(i, j)
   mv a0, s1
   mv a1, s2
   call think
 .L7:
-  ; cpu/ai.e16.ts:687  return act(i, j)
+  ; cpu/ai.e16.ts:704  return act(i, j)
   mv a0, s1
   mv a1, s2
   call act
@@ -13915,7 +13896,7 @@ planned:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:691 planSet(i, a, f) at -O1
+; cpu/ai.e16.ts:708 planSet(i, a, f) at -O1
 ;   i in s1
 ;   a in s3
 ;   f in s2
@@ -13928,10 +13909,10 @@ planSet:
   mv s1, a0 ; i
   mv s3, a1 ; a
   mv s2, a2 ; f
-  ; cpu/ai.e16.ts:692  plan[i] = a
+  ; cpu/ai.e16.ts:709  plan[i] = a
   slli t0, s1, 1
   sw s3, plan(t0)
-  ; cpu/ai.e16.ts:693  planT[i] = f !== 0 ? f : row(i, O_THINK) + 8
+  ; cpu/ai.e16.ts:710  planT[i] = f !== 0 ? f : row(i, O_THINK) + 8
   slli t0, s1, 1
   addi t0, t0, planT
   mv t1, s2
@@ -13950,10 +13931,10 @@ planSet:
   addi t1, a0, 8
 .L2:
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:694  planStep[i] = 0
+  ; cpu/ai.e16.ts:711  planStep[i] = 0
   slli t0, s1, 1
   sw zero, planStep(t0)
-  ; cpu/ai.e16.ts:695  planB[i] = randBelow(2)
+  ; cpu/ai.e16.ts:712  planB[i] = randBelow(2)
   slli t0, s1, 1
   addi t0, t0, planB
   addi sp, sp, -2
@@ -13971,32 +13952,32 @@ planSet:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:699 planEnd(i) at -O1
+; cpu/ai.e16.ts:716 planEnd(i) at -O1
 ;   i in s1
 planEnd:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; cpu/ai.e16.ts:700  plan[i] = A_NONE
+  ; cpu/ai.e16.ts:717  plan[i] = A_NONE
   slli t0, s1, 1
   li t1, 255
   sw t1, plan(t0)
-  ; cpu/ai.e16.ts:701  if (patNo[i] === 0) return
+  ; cpu/ai.e16.ts:718  if (patNo[i] === 0) return
   slli t0, s1, 1
   lw t0, patNo(t0)
   bne t0, zero, .L1
-  ; cpu/ai.e16.ts:701  return
+  ; cpu/ai.e16.ts:718  return
   j .return
 .L1:
-  ; cpu/ai.e16.ts:702  patStep[i]++
+  ; cpu/ai.e16.ts:719  patStep[i]++
   slli t0, s1, 1
   addi t0, t0, patStep
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:703  patternStep(i)
+  ; cpu/ai.e16.ts:720  patternStep(i)
   mv a0, s1
   call patternStep
 .return:
@@ -14005,7 +13986,7 @@ planEnd:
   addi sp, sp, 4
   ret
 
-; cpu/ai.e16.ts:707 patternStart(i, p) at -O1
+; cpu/ai.e16.ts:724 patternStart(i, p) at -O1
 ;   i in s1
 ;   p in s2
 patternStart:
@@ -14015,13 +13996,13 @@ patternStart:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; p
-  ; cpu/ai.e16.ts:708  patNo[i] = p
+  ; cpu/ai.e16.ts:725  patNo[i] = p
   slli t0, s1, 1
   sw s2, patNo(t0)
-  ; cpu/ai.e16.ts:709  patStep[i] = 0
+  ; cpu/ai.e16.ts:726  patStep[i] = 0
   slli t0, s1, 1
   sw zero, patStep(t0)
-  ; cpu/ai.e16.ts:710  patternStep(i)
+  ; cpu/ai.e16.ts:727  patternStep(i)
   mv a0, s1
   call patternStep
 .return:
@@ -14031,7 +14012,7 @@ patternStart:
   addi sp, sp, 6
   ret
 
-; cpu/ai.e16.ts:713 patternStep(i) at -O1
+; cpu/ai.e16.ts:730 patternStep(i) at -O1
 ;   i in s1
 ;   k in s2
 ;   a in s3
@@ -14044,10 +14025,10 @@ patternStep:
   sw s3, 6(sp)
   sw s0, 8(sp)
   mv s1, a0 ; i
-  ; cpu/ai.e16.ts:714  const k = patStep[i]
+  ; cpu/ai.e16.ts:731  const k = patStep[i]
   slli t0, s1, 1
   lw s2, patStep(t0)
-  ; cpu/ai.e16.ts:715  const a = k < 4 ? patternWord(patNo[i], k * 2) : 255
+  ; cpu/ai.e16.ts:732  const a = k < 4 ? patternWord(patNo[i], k * 2) : 255
   li t0, 4
   bgeu s2, t0, .L1
   slli t0, s1, 1
@@ -14062,16 +14043,16 @@ patternStep:
   li t0, 255
 .L2:
   mv s3, t0 ; a
-  ; cpu/ai.e16.ts:716  if (a === 255) {
+  ; cpu/ai.e16.ts:733  if (a === 255) {
   li t0, 255
   bne s3, t0, .L3
-  ; cpu/ai.e16.ts:717  patNo[i] = 0
+  ; cpu/ai.e16.ts:734  patNo[i] = 0
   slli t0, s1, 1
   sw zero, patNo(t0)
-  ; cpu/ai.e16.ts:718  return
+  ; cpu/ai.e16.ts:735  return
   j .return
 .L3:
-  ; cpu/ai.e16.ts:720  const f = patternWord(patNo[i], k * 2 + 1)
+  ; cpu/ai.e16.ts:737  const f = patternWord(patNo[i], k * 2 + 1)
   slli t0, s1, 1
   lw t0, patNo(t0)
   slli t1, s2, 1
@@ -14079,7 +14060,7 @@ patternStep:
   addi a1, t1, 1
   call patternWord
   mv s0, a0 ; f
-  ; cpu/ai.e16.ts:721  planSet(i, a, f !== 0 ? f : (patGap[i] >> 1) + 1)
+  ; cpu/ai.e16.ts:738  planSet(i, a, f !== 0 ? f : (patGap[i] >> 1) + 1)
   mv t0, s1
   mv t1, s3
   mv t2, s0
@@ -14106,7 +14087,7 @@ patternStep:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:728 think(i, j) at -O1
+; cpu/ai.e16.ts:745 think(i, j) at -O1
 ;   i in s1
 ;   j in 2(fp)
 ;   e in s3
@@ -14123,7 +14104,7 @@ think:
   mv fp, sp
   mv s1, a0 ; i
   sw a1, 2(fp) ; j
-  ; cpu/ai.e16.ts:729  thinkT[i] = row(i, O_THINK) + randBelow(8)
+  ; cpu/ai.e16.ts:746  thinkT[i] = row(i, O_THINK) + randBelow(8)
   slli t0, s1, 1
   addi t0, t0, thinkT
   addi sp, sp, -2
@@ -14141,7 +14122,7 @@ think:
   lw t1, 0(sp)
   addi sp, sp, 2
   sw t0, 0(t1)
-  ; cpu/ai.e16.ts:730  if (randBelow(256) < row(i, O_WHIM)) {
+  ; cpu/ai.e16.ts:747  if (randBelow(256) < row(i, O_WHIM)) {
   li a0, 256
   call randBelow
   addi sp, sp, -2
@@ -14152,24 +14133,24 @@ think:
   lw t0, 0(sp)
   addi sp, sp, 2
   bgeu t0, a0, .L1
-  ; cpu/ai.e16.ts:731  whims[i]++
+  ; cpu/ai.e16.ts:748  whims[i]++
   slli t0, s1, 1
   addi t0, t0, whims
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:732  planSet(i, randBelow(ACTIONS), 0)
+  ; cpu/ai.e16.ts:749  planSet(i, randBelow(ACTIONS), 0)
   li a0, 10
   call randBelow
   mv a1, a0
   mv a0, s1
   li a2, 0
   call planSet
-  ; cpu/ai.e16.ts:733  return
+  ; cpu/ai.e16.ts:750  return
   j .return
 .L1:
-  ; cpu/ai.e16.ts:735  const e = seenAt(i, j, row(i, O_R_GUARD))
+  ; cpu/ai.e16.ts:752  const e = seenAt(i, j, row(i, O_R_GUARD))
   mv a0, s1
   li a1, 3
   call row
@@ -14178,12 +14159,12 @@ think:
   mv a0, s1
   call seenAt
   mv s3, a0 ; e
-  ; cpu/ai.e16.ts:736  const d = distTo(i, e)
+  ; cpu/ai.e16.ts:753  const d = distTo(i, e)
   mv a0, s1
   mv a1, s3
   call distTo
   sw a0, 0(fp) ; d
-  ; cpu/ai.e16.ts:737  const band = d < NEAR ? 0 : d < MIDDLE ? 1 : 2
+  ; cpu/ai.e16.ts:754  const band = d < NEAR ? 0 : d < MIDDLE ? 1 : 2
   li t0, 50
   lw t1, 0(fp) ; d
   bgeu t1, t0, .L2
@@ -14200,7 +14181,7 @@ think:
 .L5:
 .L3:
   sw t0, 4(fp) ; band
-  ; cpu/ai.e16.ts:738  weightsLoad(i, band, situation(i, e))
+  ; cpu/ai.e16.ts:755  weightsLoad(i, band, situation(i, e))
   mv a0, s1
   mv a1, s3
   call situation
@@ -14208,10 +14189,10 @@ think:
   mv a2, a0
   mv a0, s1
   call weightsLoad
-  ; cpu/ai.e16.ts:739  let a = drawn()
+  ; cpu/ai.e16.ts:756  let a = drawn()
   call drawn
   mv s2, a0 ; a
-  ; cpu/ai.e16.ts:740  if ((row(i, O_FLAGS) & OF_FEINT) !== 0 && (a === A_MID || a === A_LOW)) {
+  ; cpu/ai.e16.ts:757  if ((row(i, O_FLAGS) & OF_FEINT) !== 0 && (a === A_MID || a === A_LOW)) {
   mv a0, s1
   li a1, 24
   call row
@@ -14222,7 +14203,7 @@ think:
   li t0, 2
   bne s2, t0, .L6
 .L7:
-  ; cpu/ai.e16.ts:741  if (a === lastML[i] && randBelow(256) < FEINT_CHANCE) a = a === A_MID ? A_LOW : A_MID
+  ; cpu/ai.e16.ts:758  if (a === lastML[i] && randBelow(256) < FEINT_CHANCE) a = a === A_MID ? A_LOW : A_MID
   slli t0, s1, 1
   lw t0, lastML(t0)
   bne s2, t0, .L8
@@ -14230,7 +14211,7 @@ think:
   call randBelow
   li t0, 160
   bgeu a0, t0, .L8
-  ; cpu/ai.e16.ts:741  a = a === A_MID ? A_LOW : A_MID
+  ; cpu/ai.e16.ts:758  a = a === A_MID ? A_LOW : A_MID
   li t0, 3
   bne s2, t0, .L9
   li t0, 2
@@ -14240,11 +14221,11 @@ think:
 .L10:
   mv s2, t0 ; a
 .L8:
-  ; cpu/ai.e16.ts:742  lastML[i] = a
+  ; cpu/ai.e16.ts:759  lastML[i] = a
   slli t0, s1, 1
   sw s2, lastML(t0)
 .L6:
-  ; cpu/ai.e16.ts:744  planSet(i, a, 0)
+  ; cpu/ai.e16.ts:761  planSet(i, a, 0)
   mv a0, s1
   mv a1, s2
   li a2, 0
@@ -14259,7 +14240,7 @@ think:
   addi sp, sp, 16
   ret
 
-; cpu/ai.e16.ts:748 drawn() at -O1
+; cpu/ai.e16.ts:765 drawn() at -O1
 ;   sum in s2
 ;   k in s1
 ;   r in s3
@@ -14269,55 +14250,55 @@ drawn:
   sw s2, 2(sp)
   sw s1, 4(sp)
   sw s3, 6(sp)
-  ; cpu/ai.e16.ts:749  let sum: u16 = 0
+  ; cpu/ai.e16.ts:766  let sum: u16 = 0
   li s2, 0 ; sum
-  ; cpu/ai.e16.ts:750  let k: u16 = 0
+  ; cpu/ai.e16.ts:767  let k: u16 = 0
   li s1, 0 ; k
-  ; cpu/ai.e16.ts:751  while (k < ACTIONS) {
+  ; cpu/ai.e16.ts:768  while (k < ACTIONS) {
   j .L3
 .L1:
-  ; cpu/ai.e16.ts:752  sum = sum + wrow[k]
+  ; cpu/ai.e16.ts:769  sum = sum + wrow[k]
   slli t0, s1, 1
   lw t0, wrow(t0)
   add s2, s2, t0
-  ; cpu/ai.e16.ts:753  k++
+  ; cpu/ai.e16.ts:770  k++
   addi s1, s1, 1
 .L3:
   li t0, 10
   bltu s1, t0, .L1
-  ; cpu/ai.e16.ts:755  if (sum === 0) return A_WAIT
+  ; cpu/ai.e16.ts:772  if (sum === 0) return A_WAIT
   bne s2, zero, .L5
-  ; cpu/ai.e16.ts:755  return A_WAIT
+  ; cpu/ai.e16.ts:772  return A_WAIT
   li a0, 8
   j .return
 .L5:
-  ; cpu/ai.e16.ts:756  let r = randBelow(sum)
+  ; cpu/ai.e16.ts:773  let r = randBelow(sum)
   mv a0, s2
   call randBelow
   mv s3, a0 ; r
-  ; cpu/ai.e16.ts:757  k = 0
+  ; cpu/ai.e16.ts:774  k = 0
   li s1, 0 ; k
-  ; cpu/ai.e16.ts:758  while (k < ACTIONS - 1) {
+  ; cpu/ai.e16.ts:775  while (k < ACTIONS - 1) {
   j .L8
 .L6:
-  ; cpu/ai.e16.ts:759  if (r < wrow[k]) return k
+  ; cpu/ai.e16.ts:776  if (r < wrow[k]) return k
   slli t0, s1, 1
   lw t0, wrow(t0)
   bgeu s3, t0, .L10
-  ; cpu/ai.e16.ts:759  return k
+  ; cpu/ai.e16.ts:776  return k
   mv a0, s1
   j .return
 .L10:
-  ; cpu/ai.e16.ts:760  r = r - wrow[k]
+  ; cpu/ai.e16.ts:777  r = r - wrow[k]
   slli t0, s1, 1
   lw t0, wrow(t0)
   sub s3, s3, t0
-  ; cpu/ai.e16.ts:761  k++
+  ; cpu/ai.e16.ts:778  k++
   addi s1, s1, 1
 .L8:
   li t0, 9
   bltu s1, t0, .L6
-  ; cpu/ai.e16.ts:763  return ACTIONS - 1
+  ; cpu/ai.e16.ts:780  return ACTIONS - 1
   li a0, 9
 .return:
   lw ra, 0(sp)
@@ -14327,7 +14308,7 @@ drawn:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:767 situation(i, e) at -O1
+; cpu/ai.e16.ts:784 situation(i, e) at -O1
 ;   i in s2
 ;   e in s3
 ;   st in s1
@@ -14339,50 +14320,50 @@ situation:
   sw s1, 6(sp)
   mv s2, a0 ; i
   mv s3, a1 ; e
-  ; cpu/ai.e16.ts:768  const st = seenS[e] & 255
+  ; cpu/ai.e16.ts:785  const st = seenS[e] & 255
   slli t0, s3, 1
   lw t0, seenS(t0)
   andi s1, t0, 255
-  ; cpu/ai.e16.ts:769  if (st === ST_DOWN || st === ST_WAKE) return SIT_WAKE
+  ; cpu/ai.e16.ts:786  if (st === ST_DOWN || st === ST_WAKE) return SIT_WAKE
   li t0, 8
   beq s1, t0, .L2
   li t0, 9
   bne s1, t0, .L1
 .L2:
-  ; cpu/ai.e16.ts:769  return SIT_WAKE
+  ; cpu/ai.e16.ts:786  return SIT_WAKE
   li a0, 4
   j .return
 .L1:
-  ; cpu/ai.e16.ts:770  if (seenY[e] > 0 || st === ST_PREJUMP) return SIT_AIR
+  ; cpu/ai.e16.ts:787  if (seenY[e] > 0 || st === ST_PREJUMP) return SIT_AIR
   slli t0, s3, 1
   lw t0, seenY(t0)
   bltu zero, t0, .L4
   li t0, 2
   bne s1, t0, .L3
 .L4:
-  ; cpu/ai.e16.ts:770  return SIT_AIR
+  ; cpu/ai.e16.ts:787  return SIT_AIR
   li a0, 3
   j .return
 .L3:
-  ; cpu/ai.e16.ts:771  if (st === ST_HIT || st === ST_GUARD) return SIT_PLUS
+  ; cpu/ai.e16.ts:788  if (st === ST_HIT || st === ST_GUARD) return SIT_PLUS
   li t0, 6
   beq s1, t0, .L6
   li t0, 7
   bne s1, t0, .L5
 .L6:
-  ; cpu/ai.e16.ts:771  return SIT_PLUS
+  ; cpu/ai.e16.ts:788  return SIT_PLUS
   li a0, 1
   j .return
 .L5:
-  ; cpu/ai.e16.ts:772  if (minusT[i] > 0) return SIT_MINUS
+  ; cpu/ai.e16.ts:789  if (minusT[i] > 0) return SIT_MINUS
   slli t0, s2, 1
   lw t0, minusT(t0)
   bgeu zero, t0, .L7
-  ; cpu/ai.e16.ts:772  return SIT_MINUS
+  ; cpu/ai.e16.ts:789  return SIT_MINUS
   li a0, 2
   j .return
 .L7:
-  ; cpu/ai.e16.ts:773  if (fLife[i] * 4 < prAt(i, P_LIFE) || cornered(i)) return SIT_PRESSED
+  ; cpu/ai.e16.ts:790  if (fLife[i] * 4 < prAt(i, P_LIFE) || cornered(i, e)) return SIT_PRESSED
   slli t0, s2, 1
   lw t0, fLife(t0)
   slli t0, t0, 2
@@ -14395,14 +14376,15 @@ situation:
   addi sp, sp, 2
   bltu t0, a0, .L9
   mv a0, s2
+  mv a1, s3
   call cornered
   beqz a0, .L8
 .L9:
-  ; cpu/ai.e16.ts:773  return SIT_PRESSED
+  ; cpu/ai.e16.ts:790  return SIT_PRESSED
   li a0, 5
   j .return
 .L8:
-  ; cpu/ai.e16.ts:774  return SIT_NEUTRAL
+  ; cpu/ai.e16.ts:791  return SIT_NEUTRAL
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -14412,46 +14394,42 @@ situation:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:778 cornered(i) at -O1
-;   i in s1
-;   x in s2
-;   j in s3
+; cpu/ai.e16.ts:795 cornered(i, e) at -O1
+;   i in s2
+;   e in s3
+;   x in s1
 cornered:
   addi sp, sp, -8
   sw ra, 0(sp)
-  sw s1, 2(sp)
-  sw s2, 4(sp)
-  sw s3, 6(sp)
-  mv s1, a0 ; i
-  ; cpu/ai.e16.ts:779  const x = pointX(i)
-  mv a0, s1
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  mv s2, a0 ; i
+  mv s3, a1 ; e
+  ; cpu/ai.e16.ts:796  const x = pointX(i)
+  mv a0, s2
   call pointX
-  mv s2, a0 ; x
-  ; cpu/ai.e16.ts:780  const j = 1 - i
-  li t0, 1
-  sub s3, t0, s1
-  ; cpu/ai.e16.ts:781  if (fX[j] > fX[i]) return x < RING_L + CORNER
+  mv s1, a0 ; x
+  ; cpu/ai.e16.ts:797  if (seenX[e] > x) return x < RING_L + CORNER
   slli t0, s3, 1
-  lw t0, fX(t0)
-  slli t1, s1, 1
-  lw t1, fX(t1)
-  bgeu t1, t0, .L1
-  ; cpu/ai.e16.ts:781  return x < RING_L + CORNER
-  sltiu a0, s2, 72
+  lw t0, seenX(t0)
+  bgeu s1, t0, .L1
+  ; cpu/ai.e16.ts:797  return x < RING_L + CORNER
+  sltiu a0, s1, 72
   j .return
 .L1:
-  ; cpu/ai.e16.ts:782  return x > RING_R - CORNER
+  ; cpu/ai.e16.ts:798  return x > RING_R - CORNER
   li t0, 440
-  sltu a0, t0, s2
+  sltu a0, t0, s1
 .return:
   lw ra, 0(sp)
-  lw s1, 2(sp)
-  lw s2, 4(sp)
-  lw s3, 6(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:786 act(i, j) at -O1
+; cpu/ai.e16.ts:802 act(i, j) at -O1
 ;   i in s1
 ;   j in s3
 ;   a in s2
@@ -14467,28 +14445,28 @@ act:
   mv fp, sp
   mv s1, a0 ; i
   mv s3, a1 ; j
-  ; cpu/ai.e16.ts:787  const a = plan[i]
+  ; cpu/ai.e16.ts:803  const a = plan[i]
   slli t0, s1, 1
   lw s2, plan(t0)
-  ; cpu/ai.e16.ts:788  if (planT[i] === 0) {
+  ; cpu/ai.e16.ts:804  if (planT[i] === 0) {
   slli t0, s1, 1
   lw t0, planT(t0)
   bne t0, zero, .L1
-  ; cpu/ai.e16.ts:789  planEnd(i)
+  ; cpu/ai.e16.ts:805  planEnd(i)
   mv a0, s1
   call planEnd
-  ; cpu/ai.e16.ts:790  return 0
+  ; cpu/ai.e16.ts:806  return 0
   li a0, 0
   j .return
 .L1:
-  ; cpu/ai.e16.ts:792  planT[i]--
+  ; cpu/ai.e16.ts:808  planT[i]--
   slli t0, s1, 1
   addi t0, t0, planT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, -1
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:793  const e = seenAt(i, j, row(i, O_R_GUARD))
+  ; cpu/ai.e16.ts:809  const e = seenAt(i, j, row(i, O_R_GUARD))
   mv a0, s1
   li a1, 3
   call row
@@ -14497,15 +14475,15 @@ act:
   mv a0, s1
   call seenAt
   sw a0, 2(fp) ; e
-  ; cpu/ai.e16.ts:794  const d = distTo(i, e)
+  ; cpu/ai.e16.ts:810  const d = distTo(i, e)
   mv a0, s1
   lw a1, 2(fp)
   call distTo
   sw a0, 0(fp) ; d
-  ; cpu/ai.e16.ts:795  if (a <= A_MID) return strikeAct(i, j, a, d)
+  ; cpu/ai.e16.ts:811  if (a <= A_MID) return strikeAct(i, j, a, d)
   li t0, 3
   bltu t0, s2, .L2
-  ; cpu/ai.e16.ts:795  return strikeAct(i, j, a, d)
+  ; cpu/ai.e16.ts:811  return strikeAct(i, j, a, d)
   mv a0, s1
   mv a1, s3
   mv a2, s2
@@ -14513,40 +14491,40 @@ act:
   call strikeAct
   j .return
 .L2:
-  ; cpu/ai.e16.ts:796  if (a === A_JUMPIN) return jumpIn(i, j, d)
+  ; cpu/ai.e16.ts:812  if (a === A_JUMPIN) return jumpIn(i, j, d)
   li t0, 4
   bne s2, t0, .L3
-  ; cpu/ai.e16.ts:796  return jumpIn(i, j, d)
+  ; cpu/ai.e16.ts:812  return jumpIn(i, j, d)
   mv a0, s1
   mv a1, s3
   lw a2, 0(fp)
   call jumpIn
   j .return
 .L3:
-  ; cpu/ai.e16.ts:797  if (a === A_THROW) return throwAct(i, j, d)
+  ; cpu/ai.e16.ts:813  if (a === A_THROW) return throwAct(i, j, d)
   li t0, 5
   bne s2, t0, .L4
-  ; cpu/ai.e16.ts:797  return throwAct(i, j, d)
+  ; cpu/ai.e16.ts:813  return throwAct(i, j, d)
   mv a0, s1
   mv a1, s3
   lw a2, 0(fp)
   call throwAct
   j .return
 .L4:
-  ; cpu/ai.e16.ts:798  if (a === A_APPROACH) return approach(i, j, d)
+  ; cpu/ai.e16.ts:814  if (a === A_APPROACH) return approach(i, j, d)
   li t0, 6
   bne s2, t0, .L5
-  ; cpu/ai.e16.ts:798  return approach(i, j, d)
+  ; cpu/ai.e16.ts:814  return approach(i, j, d)
   mv a0, s1
   mv a1, s3
   lw a2, 0(fp)
   call approach
   j .return
 .L5:
-  ; cpu/ai.e16.ts:799  if (a === A_GUARD) return (row(i, O_FLAGS) & OF_TURTLE) !== 0 ? I_BACK : I_BACK | I_DOWN
+  ; cpu/ai.e16.ts:815  if (a === A_GUARD) return (row(i, O_FLAGS) & OF_TURTLE) !== 0 ? I_BACK : I_BACK | I_DOWN
   li t0, 7
   bne s2, t0, .L6
-  ; cpu/ai.e16.ts:799  return (row(i, O_FLAGS) & OF_TURTLE) !== 0 ? I_BACK : I_BACK | I_DOWN
+  ; cpu/ai.e16.ts:815  return (row(i, O_FLAGS) & OF_TURTLE) !== 0 ? I_BACK : I_BACK | I_DOWN
   mv a0, s1
   li a1, 24
   call row
@@ -14560,54 +14538,54 @@ act:
   mv a0, t0
   j .return
 .L6:
-  ; cpu/ai.e16.ts:800  if (a === A_WAIT) return keepRange(i, j, d)
+  ; cpu/ai.e16.ts:816  if (a === A_WAIT) return keepRange(i, j, d)
   li t0, 8
   bne s2, t0, .L9
-  ; cpu/ai.e16.ts:800  return keepRange(i, j, d)
+  ; cpu/ai.e16.ts:816  return keepRange(i, j, d)
   mv a0, s1
   mv a1, s3
   lw a2, 0(fp)
   call keepRange
   j .return
 .L9:
-  ; cpu/ai.e16.ts:801  if (a === A_RETREAT) return retreat(i)
+  ; cpu/ai.e16.ts:817  if (a === A_RETREAT) return retreat(i)
   li t0, 9
   bne s2, t0, .L10
-  ; cpu/ai.e16.ts:801  return retreat(i)
+  ; cpu/ai.e16.ts:817  return retreat(i)
   mv a0, s1
   call retreat
   j .return
 .L10:
-  ; cpu/ai.e16.ts:802  if (a === A_AA) return aaPlan(i, j)
+  ; cpu/ai.e16.ts:818  if (a === A_AA) return aaPlan(i, j)
   li t0, 10
   bne s2, t0, .L11
-  ; cpu/ai.e16.ts:802  return aaPlan(i, j)
+  ; cpu/ai.e16.ts:818  return aaPlan(i, j)
   mv a0, s1
   mv a1, s3
   call aaPlan
   j .return
 .L11:
-  ; cpu/ai.e16.ts:803  if (a === A_WALK_IN) return stepIn(i, j, d)
+  ; cpu/ai.e16.ts:819  if (a === A_WALK_IN) return stepIn(i, j, d)
   li t0, 11
   bne s2, t0, .L12
-  ; cpu/ai.e16.ts:803  return stepIn(i, j, d)
+  ; cpu/ai.e16.ts:819  return stepIn(i, j, d)
   mv a0, s1
   mv a1, s3
   lw a2, 0(fp)
   call stepIn
   j .return
 .L12:
-  ; cpu/ai.e16.ts:804  if (a === A_WALK_OUT) return I_BACK
+  ; cpu/ai.e16.ts:820  if (a === A_WALK_OUT) return I_BACK
   li t0, 12
   bne s2, t0, .L13
-  ; cpu/ai.e16.ts:804  return I_BACK
+  ; cpu/ai.e16.ts:820  return I_BACK
   li a0, 4
   j .return
 .L13:
-  ; cpu/ai.e16.ts:805  planEnd(i)
+  ; cpu/ai.e16.ts:821  planEnd(i)
   mv a0, s1
   call planEnd
-  ; cpu/ai.e16.ts:806  return 0
+  ; cpu/ai.e16.ts:822  return 0
   li a0, 0
 .return:
   mv sp, fp
@@ -14619,41 +14597,77 @@ act:
   addi sp, sp, 14
   ret
 
-; cpu/ai.e16.ts:810 strikeMove(i, a) at -O1
-;   i in a0
-;   a in a1
-;   kick in a2
+; cpu/ai.e16.ts:830 strikeMove(i, a) at -O1
+;   i in s0
+;   a in s2
+;   kick in s3
+;   m in s1
 strikeMove:
-  ; cpu/ai.e16.ts:811  const kick = planB[i]
-  slli t0, a0, 1
-  lw a2, planB(t0)
-  ; cpu/ai.e16.ts:812  if (a === A_LIGHT) return kick * 2
-  bne a1, zero, .L1
-  ; cpu/ai.e16.ts:812  return kick * 2
-  slli a0, a2, 1
-  ret
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s0, 2(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  sw s1, 8(sp)
+  mv s0, a0 ; i
+  mv s2, a1 ; a
+  ; cpu/ai.e16.ts:831  const kick = planB[i]
+  slli t0, s0, 1
+  lw s3, planB(t0)
+  ; cpu/ai.e16.ts:832  if (a === A_LIGHT) return kick * 2
+  bne s2, zero, .L1
+  ; cpu/ai.e16.ts:832  return kick * 2
+  slli a0, s3, 1
+  j .return
 .L1:
-  ; cpu/ai.e16.ts:813  if (a === A_HEAVY) return 1 + kick * 2
+  ; cpu/ai.e16.ts:833  if (a === A_HEAVY) return 1 + kick * 2
   li t0, 1
-  bne a1, t0, .L2
-  ; cpu/ai.e16.ts:813  return 1 + kick * 2
-  slli t0, a2, 1
+  bne s2, t0, .L2
+  ; cpu/ai.e16.ts:833  return 1 + kick * 2
+  slli t0, s3, 1
   addi a0, t0, 1
-  ret
+  j .return
 .L2:
-  ; cpu/ai.e16.ts:814  if (a === A_LOW) return 6 + kick
+  ; cpu/ai.e16.ts:834  if (a === A_LOW) return 6 + kick
   li t0, 2
-  bne a1, t0, .L3
-  ; cpu/ai.e16.ts:814  return 6 + kick
-  addi a0, a2, 6
-  ret
+  bne s2, t0, .L3
+  ; cpu/ai.e16.ts:834  return 6 + kick
+  addi a0, s3, 6
+  j .return
 .L3:
-  ; cpu/ai.e16.ts:815  return 1
+  ; cpu/ai.e16.ts:835  let m: u16 = 0
+  li s1, 0 ; m
+  ; cpu/ai.e16.ts:836  while (m < 8) {
+  j .L6
+.L4:
+  ; cpu/ai.e16.ts:837  if (mvAt(i, m, M_HEIGHT) === H_MID) return m
+  mv a0, s0
+  mv a1, s1
+  li a2, 10
+  call mvAt
+  li t0, 3
+  bne a0, t0, .L8
+  ; cpu/ai.e16.ts:837  return m
+  mv a0, s1
+  j .return
+.L8:
+  ; cpu/ai.e16.ts:838  m++
+  addi s1, s1, 1
+.L6:
+  li t0, 8
+  bltu s1, t0, .L4
+  ; cpu/ai.e16.ts:840  return 1
   li a0, 1
 .return:
+  lw ra, 0(sp)
+  lw s0, 2(sp)
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  lw s1, 8(sp)
+  addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:822 strikeAct(i, j, a, d) at -O1
+; cpu/ai.e16.ts:847 strikeAct(i, j, a, d) at -O1
 ;   i in s1
 ;   j in 2(fp)
 ;   a in 8(fp)
@@ -14674,22 +14688,22 @@ strikeAct:
   sw a1, 2(fp) ; j
   sw a2, 8(fp) ; a
   mv s2, a3 ; d
-  ; cpu/ai.e16.ts:823  if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
+  ; cpu/ai.e16.ts:848  if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
   slli t0, s1, 1
   lw t0, planT(t0)
   li t1, 40
   bgeu t1, t0, .L1
-  ; cpu/ai.e16.ts:823  planT[i] = ATTACK_F
+  ; cpu/ai.e16.ts:848  planT[i] = ATTACK_F
   slli t0, s1, 1
   li t1, 40
   sw t1, planT(t0)
 .L1:
-  ; cpu/ai.e16.ts:824  const m = strikeMove(i, a)
+  ; cpu/ai.e16.ts:849  const m = strikeMove(i, a)
   mv a0, s1
   lw a1, 8(fp)
   call strikeMove
   mv s3, a0 ; m
-  ; cpu/ai.e16.ts:825  if (d > reach[i * MOVES + m] + SLACK) return stepIn(i, j, d)
+  ; cpu/ai.e16.ts:850  if (d > reach[i * MOVES + m] + SLACK) return stepIn(i, j, d)
   li t0, 13
   mul t0, s1, t0
   add t0, t0, s3
@@ -14697,29 +14711,29 @@ strikeAct:
   lw t0, reach(t0)
   addi t0, t0, 10
   bgeu t0, s2, .L2
-  ; cpu/ai.e16.ts:825  return stepIn(i, j, d)
+  ; cpu/ai.e16.ts:850  return stepIn(i, j, d)
   mv a0, s1
   lw a1, 2(fp)
   mv a2, s2
   call stepIn
   j .return
 .L2:
-  ; cpu/ai.e16.ts:826  if (!mayCome(i, j, d)) return heldOff(i, d)
+  ; cpu/ai.e16.ts:851  if (!mayCome(i, j, d)) return heldOff(i, d)
   mv a0, s1
   lw a1, 2(fp)
   mv a2, s2
   call mayCome
   bnez a0, .L3
-  ; cpu/ai.e16.ts:826  return heldOff(i, d)
+  ; cpu/ai.e16.ts:851  return heldOff(i, d)
   mv a0, s1
   mv a1, s2
   call heldOff
   j .return
 .L3:
-  ; cpu/ai.e16.ts:827  const col = m & 3
+  ; cpu/ai.e16.ts:852  const col = m & 3
   andi t0, s3, 3
   sw t0, 0(fp) ; col
-  ; cpu/ai.e16.ts:828  const b = col === 0 ? I_LP : col === 1 ? I_HP : col === 2 ? I_LK : I_HK
+  ; cpu/ai.e16.ts:853  const b = col === 0 ? I_LP : col === 1 ? I_HP : col === 2 ? I_LK : I_HK
   lw t0, 0(fp) ; col
   bne t0, zero, .L4
   li t0, 16
@@ -14742,7 +14756,7 @@ strikeAct:
 .L7:
 .L5:
   sw t0, 4(fp) ; b
-  ; cpu/ai.e16.ts:829  const down = m >= 4 ? I_DOWN : 0
+  ; cpu/ai.e16.ts:854  const down = m >= 4 ? I_DOWN : 0
   li t0, 4
   bltu s3, t0, .L10
   li t0, 2
@@ -14751,20 +14765,20 @@ strikeAct:
   li t0, 0
 .L11:
   sw t0, 6(fp) ; down
-  ; cpu/ai.e16.ts:830  if ((outWas[i] & b) !== 0) return down
+  ; cpu/ai.e16.ts:855  if ((outWas[i] & b) !== 0) return down
   slli t0, s1, 1
   lw t0, outWas(t0)
   lw t1, 4(fp) ; b
   and t0, t0, t1
   beq t0, zero, .L12
-  ; cpu/ai.e16.ts:830  return down
+  ; cpu/ai.e16.ts:855  return down
   lw a0, 6(fp)
   j .return
 .L12:
-  ; cpu/ai.e16.ts:831  planEnd(i)
+  ; cpu/ai.e16.ts:856  planEnd(i)
   mv a0, s1
   call planEnd
-  ; cpu/ai.e16.ts:832  return b | down
+  ; cpu/ai.e16.ts:857  return b | down
   lw t0, 6(fp) ; down
   lw t1, 4(fp) ; b
   or a0, t1, t0
@@ -14778,7 +14792,7 @@ strikeAct:
   addi sp, sp, 20
   ret
 
-; cpu/ai.e16.ts:836 jumpIn(i, j, d) at -O1
+; cpu/ai.e16.ts:861 jumpIn(i, j, d) at -O1
 ;   i in s1
 ;   j in s3
 ;   d in s2
@@ -14791,38 +14805,38 @@ jumpIn:
   mv s1, a0 ; i
   mv s3, a1 ; j
   mv s2, a2 ; d
-  ; cpu/ai.e16.ts:837  if (d > 140) return I_FWD
+  ; cpu/ai.e16.ts:862  if (d > 140) return I_FWD
   li t0, 140
   bgeu t0, s2, .L1
-  ; cpu/ai.e16.ts:837  return I_FWD
+  ; cpu/ai.e16.ts:862  return I_FWD
   li a0, 8
   j .return
 .L1:
-  ; cpu/ai.e16.ts:838  if (wary(i)) return keepRange(i, j, d)
+  ; cpu/ai.e16.ts:863  if (wary(i)) return keepRange(i, j, d)
   mv a0, s1
   call wary
   beqz a0, .L2
-  ; cpu/ai.e16.ts:838  return keepRange(i, j, d)
+  ; cpu/ai.e16.ts:863  return keepRange(i, j, d)
   mv a0, s1
   mv a1, s3
   mv a2, s2
   call keepRange
   j .return
 .L2:
-  ; cpu/ai.e16.ts:839  if ((outWas[i] & I_UP) !== 0) return 0
+  ; cpu/ai.e16.ts:864  if ((outWas[i] & I_UP) !== 0) return 0
   slli t0, s1, 1
   lw t0, outWas(t0)
   andi t0, t0, 1
   beq t0, zero, .L3
-  ; cpu/ai.e16.ts:839  return 0
+  ; cpu/ai.e16.ts:864  return 0
   li a0, 0
   j .return
 .L3:
-  ; cpu/ai.e16.ts:840  planStep[i] = 1
+  ; cpu/ai.e16.ts:865  planStep[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, planStep(t0)
-  ; cpu/ai.e16.ts:841  return I_UP | I_FWD
+  ; cpu/ai.e16.ts:866  return I_UP | I_FWD
   li a0, 9
 .return:
   lw ra, 0(sp)
@@ -14832,7 +14846,7 @@ jumpIn:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:845 airStep(i, j) at -O1
+; cpu/ai.e16.ts:870 airStep(i, j) at -O1
 ;   i in s1
 ;   j in s3
 ;   e in s0
@@ -14846,7 +14860,7 @@ airStep:
   sw s2, 8(sp)
   mv s1, a0 ; i
   mv s3, a1 ; j
-  ; cpu/ai.e16.ts:846  if (fAirUsed[i] !== 0 || fState[i] !== ST_JUMP) return 0
+  ; cpu/ai.e16.ts:871  if (fAirUsed[i] !== 0 || fState[i] !== ST_JUMP) return 0
   slli t0, s1, 1
   lw t0, fAirUsed(t0)
   bne t0, zero, .L2
@@ -14855,19 +14869,19 @@ airStep:
   li t1, 3
   beq t0, t1, .L1
 .L2:
-  ; cpu/ai.e16.ts:846  return 0
+  ; cpu/ai.e16.ts:871  return 0
   li a0, 0
   j .return
 .L1:
-  ; cpu/ai.e16.ts:847  if (i16(fVY[i]) > 0) return 0
+  ; cpu/ai.e16.ts:872  if (i16(fVY[i]) > 0) return 0
   slli t0, s1, 1
   lw t0, fVY(t0)
   bge zero, t0, .L3
-  ; cpu/ai.e16.ts:847  return 0
+  ; cpu/ai.e16.ts:872  return 0
   li a0, 0
   j .return
 .L3:
-  ; cpu/ai.e16.ts:848  const e = seenAt(i, j, row(i, O_R_GUARD))
+  ; cpu/ai.e16.ts:873  const e = seenAt(i, j, row(i, O_R_GUARD))
   mv a0, s1
   li a1, 3
   call row
@@ -14876,17 +14890,17 @@ airStep:
   mv a0, s1
   call seenAt
   mv s0, a0 ; e
-  ; cpu/ai.e16.ts:849  if (distTo(i, e) > 56) return 0
+  ; cpu/ai.e16.ts:874  if (distTo(i, e) > 56) return 0
   mv a0, s1
   mv a1, s0
   call distTo
   li t0, 56
   bgeu t0, a0, .L4
-  ; cpu/ai.e16.ts:849  return 0
+  ; cpu/ai.e16.ts:874  return 0
   li a0, 0
   j .return
 .L4:
-  ; cpu/ai.e16.ts:850  const b = planB[i] !== 0 ? I_HK : I_HP
+  ; cpu/ai.e16.ts:875  const b = planB[i] !== 0 ? I_HK : I_HP
   slli t0, s1, 1
   lw t0, planB(t0)
   beq t0, zero, .L5
@@ -14896,25 +14910,25 @@ airStep:
   li t0, 32
 .L6:
   mv s2, t0 ; b
-  ; cpu/ai.e16.ts:851  if ((outWas[i] & b) !== 0) return 0
+  ; cpu/ai.e16.ts:876  if ((outWas[i] & b) !== 0) return 0
   slli t0, s1, 1
   lw t0, outWas(t0)
   and t0, t0, s2
   beq t0, zero, .L7
-  ; cpu/ai.e16.ts:851  return 0
+  ; cpu/ai.e16.ts:876  return 0
   li a0, 0
   j .return
 .L7:
-  ; cpu/ai.e16.ts:852  if (plan[i] === A_JUMPIN) planEnd(i)
+  ; cpu/ai.e16.ts:877  if (plan[i] === A_JUMPIN) planEnd(i)
   slli t0, s1, 1
   lw t0, plan(t0)
   li t1, 4
   bne t0, t1, .L8
-  ; cpu/ai.e16.ts:852  planEnd(i)
+  ; cpu/ai.e16.ts:877  planEnd(i)
   mv a0, s1
   call planEnd
 .L8:
-  ; cpu/ai.e16.ts:853  return b
+  ; cpu/ai.e16.ts:878  return b
   mv a0, s2
 .return:
   lw ra, 0(sp)
@@ -14925,37 +14939,34 @@ airStep:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:857 throwAct(i, j, d) at -O1
+; cpu/ai.e16.ts:885 throwAct(i, j, d) at -O1
 ;   i in s1
-;   j in s2
-;   d in s3
+;   j in s3
+;   d in s2
 throwAct:
   addi sp, sp, -8
   sw ra, 0(sp)
   sw s1, 2(sp)
-  sw s2, 4(sp)
-  sw s3, 6(sp)
+  sw s3, 4(sp)
+  sw s2, 6(sp)
   mv s1, a0 ; i
-  mv s2, a1 ; j
-  mv s3, a2 ; d
-  ; cpu/ai.e16.ts:858  if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
+  mv s3, a1 ; j
+  mv s2, a2 ; d
+  ; cpu/ai.e16.ts:886  if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
   slli t0, s1, 1
   lw t0, planT(t0)
   li t1, 40
   bgeu t1, t0, .L1
-  ; cpu/ai.e16.ts:858  planT[i] = ATTACK_F
+  ; cpu/ai.e16.ts:886  planT[i] = ATTACK_F
   slli t0, s1, 1
   li t1, 40
   sw t1, planT(t0)
 .L1:
-  ; cpu/ai.e16.ts:859  if (throwGap(i, fX[i], fX[j]) + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
-  slli t0, s1, 1
-  lw t0, fX(t0)
-  slli t1, s2, 1
-  lw t1, fX(t1)
+  ; cpu/ai.e16.ts:887  if (throwGap(i, 0, d << 4) + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
+  slli t0, s2, 4
   mv a0, s1
-  mv a1, t0
-  mv a2, t1
+  li a1, 0
+  mv a2, t0
   call throwGap
   addi a0, a0, 4
   addi sp, sp, -2
@@ -14966,48 +14977,48 @@ throwAct:
   lw t0, 0(sp)
   addi sp, sp, 2
   bgeu a0, t0, .L2
-  ; cpu/ai.e16.ts:859  return stepIn(i, j, d)
+  ; cpu/ai.e16.ts:887  return stepIn(i, j, d)
   mv a0, s1
-  mv a1, s2
-  mv a2, s3
+  mv a1, s3
+  mv a2, s2
   call stepIn
   j .return
 .L2:
-  ; cpu/ai.e16.ts:860  if (!mayCome(i, j, d)) return heldOff(i, d)
-  mv a0, s1
-  mv a1, s2
-  mv a2, s3
-  call mayCome
-  bnez a0, .L3
-  ; cpu/ai.e16.ts:860  return heldOff(i, d)
+  ; cpu/ai.e16.ts:888  if (!mayCome(i, j, d)) return heldOff(i, d)
   mv a0, s1
   mv a1, s3
+  mv a2, s2
+  call mayCome
+  bnez a0, .L3
+  ; cpu/ai.e16.ts:888  return heldOff(i, d)
+  mv a0, s1
+  mv a1, s2
   call heldOff
   j .return
 .L3:
-  ; cpu/ai.e16.ts:861  if ((outWas[i] & I_HP) !== 0) return I_FWD
+  ; cpu/ai.e16.ts:889  if ((outWas[i] & I_HP) !== 0) return I_FWD
   slli t0, s1, 1
   lw t0, outWas(t0)
   andi t0, t0, 32
   beq t0, zero, .L4
-  ; cpu/ai.e16.ts:861  return I_FWD
+  ; cpu/ai.e16.ts:889  return I_FWD
   li a0, 8
   j .return
 .L4:
-  ; cpu/ai.e16.ts:862  planEnd(i)
+  ; cpu/ai.e16.ts:890  planEnd(i)
   mv a0, s1
   call planEnd
-  ; cpu/ai.e16.ts:863  return I_FWD | I_HP
+  ; cpu/ai.e16.ts:891  return I_FWD | I_HP
   li a0, 40
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
-  lw s2, 4(sp)
-  lw s3, 6(sp)
+  lw s3, 4(sp)
+  lw s2, 6(sp)
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:867 approach(i, j, d) at -O1
+; cpu/ai.e16.ts:895 approach(i, j, d) at -O1
 ;   i in s1
 ;   j in s3
 ;   d in s2
@@ -15022,53 +15033,43 @@ approach:
   mv s1, a0 ; i
   mv s3, a1 ; j
   mv s2, a2 ; d
-  ; cpu/ai.e16.ts:868  const dash = row(i, O_APPROACH) !== 0 || (row(i, O_FLAGS) & OF_RUSH) !== 0
+  ; cpu/ai.e16.ts:896  const dash = row(i, O_APPROACH) !== 0
   mv a0, s1
   li a1, 14
   call row
   sub t0, a0, zero
-  snez t0, t0
-  mv t1, t0
-  bnez t1, .L1
-  mv a0, s1
-  li a1, 24
-  call row
-  andi t0, a0, 8
-  sub t0, t0, zero
-  snez t0, t0
-.L1:
-  mv s0, t0 ; dash
-  ; cpu/ai.e16.ts:869  if (dash && d > 70 && (planStep[i] > 0 || mayCome(i, j, d - DASH_PTS))) return taps(i, I_FWD)
-  beqz s0, .L2
+  snez s0, t0
+  ; cpu/ai.e16.ts:897  if (dash && d > 70 && (planStep[i] > 0 || mayCome(i, j, d - DASH_PTS))) return taps(i, I_FWD)
+  beqz s0, .L1
   li t0, 70
-  bgeu t0, s2, .L2
+  bgeu t0, s2, .L1
   slli t0, s1, 1
   lw t0, planStep(t0)
-  bltu zero, t0, .L3
+  bltu zero, t0, .L2
   mv a0, s1
   mv a1, s3
   addi a2, s2, -36
   call mayCome
-  beqz a0, .L2
-.L3:
-  ; cpu/ai.e16.ts:869  return taps(i, I_FWD)
+  beqz a0, .L1
+.L2:
+  ; cpu/ai.e16.ts:897  return taps(i, I_FWD)
   mv a0, s1
   li a1, 8
   call taps
   j .return
-.L2:
-  ; cpu/ai.e16.ts:870  if (d <= liked(i)) {
+.L1:
+  ; cpu/ai.e16.ts:898  if (d <= liked(i)) {
   mv a0, s1
   call liked
-  bltu a0, s2, .L4
-  ; cpu/ai.e16.ts:871  planEnd(i)
+  bltu a0, s2, .L3
+  ; cpu/ai.e16.ts:899  planEnd(i)
   mv a0, s1
   call planEnd
-  ; cpu/ai.e16.ts:872  return 0
+  ; cpu/ai.e16.ts:900  return 0
   li a0, 0
   j .return
-.L4:
-  ; cpu/ai.e16.ts:874  return stepIn(i, j, d)
+.L3:
+  ; cpu/ai.e16.ts:902  return stepIn(i, j, d)
   mv a0, s1
   mv a1, s3
   mv a2, s2
@@ -15082,7 +15083,7 @@ approach:
   addi sp, sp, 10
   ret
 
-; cpu/ai.e16.ts:878 taps(i, dir) at -O1
+; cpu/ai.e16.ts:906 taps(i, dir) at -O1
 ;   i in s1
 ;   dir in s3
 ;   k in s2
@@ -15094,28 +15095,28 @@ taps:
   sw s2, 6(sp)
   mv s1, a0 ; i
   mv s3, a1 ; dir
-  ; cpu/ai.e16.ts:879  tapT[i] = 2
+  ; cpu/ai.e16.ts:907  tapT[i] = 2
   slli t0, s1, 1
   li t1, 2
   sw t1, tapT(t0)
-  ; cpu/ai.e16.ts:880  const k = planStep[i]
+  ; cpu/ai.e16.ts:908  const k = planStep[i]
   slli t0, s1, 1
   lw s2, planStep(t0)
-  ; cpu/ai.e16.ts:881  planStep[i]++
+  ; cpu/ai.e16.ts:909  planStep[i]++
   slli t0, s1, 1
   addi t0, t0, planStep
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/ai.e16.ts:882  if (k >= 3) planEnd(i)
+  ; cpu/ai.e16.ts:910  if (k >= 3) planEnd(i)
   li t0, 3
   bltu s2, t0, .L1
-  ; cpu/ai.e16.ts:882  planEnd(i)
+  ; cpu/ai.e16.ts:910  planEnd(i)
   mv a0, s1
   call planEnd
 .L1:
-  ; cpu/ai.e16.ts:883  return (k & 1) !== 0 ? dir : 0
+  ; cpu/ai.e16.ts:911  return (k & 1) !== 0 ? dir : 0
   andi t0, s2, 1
   beq t0, zero, .L2
   mv t0, s3
@@ -15132,7 +15133,7 @@ taps:
   addi sp, sp, 8
   ret
 
-; cpu/ai.e16.ts:887 retreat(i) at -O1
+; cpu/ai.e16.ts:915 retreat(i) at -O1
 ;   i in s1
 ;   how in s2
 retreat:
@@ -15141,27 +15142,27 @@ retreat:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; cpu/ai.e16.ts:888  const how = row(i, O_RETREAT)
+  ; cpu/ai.e16.ts:916  const how = row(i, O_RETREAT)
   mv a0, s1
   li a1, 15
   call row
   mv s2, a0 ; how
-  ; cpu/ai.e16.ts:889  if (how === 1) return taps(i, I_BACK)
+  ; cpu/ai.e16.ts:917  if (how === 1) return taps(i, I_BACK)
   li t0, 1
   bne s2, t0, .L1
-  ; cpu/ai.e16.ts:889  return taps(i, I_BACK)
+  ; cpu/ai.e16.ts:917  return taps(i, I_BACK)
   mv a0, s1
   li a1, 4
   call taps
   j .return
 .L1:
-  ; cpu/ai.e16.ts:890  if (how === 2) {
+  ; cpu/ai.e16.ts:918  if (how === 2) {
   li t0, 2
   bne s2, t0, .L2
-  ; cpu/ai.e16.ts:891  planEnd(i)
+  ; cpu/ai.e16.ts:919  planEnd(i)
   mv a0, s1
   call planEnd
-  ; cpu/ai.e16.ts:892  return (outWas[i] & I_UP) !== 0 ? I_BACK : I_UP | I_BACK
+  ; cpu/ai.e16.ts:920  return (outWas[i] & I_UP) !== 0 ? I_BACK : I_UP | I_BACK
   slli t0, s1, 1
   lw t0, outWas(t0)
   andi t0, t0, 1
@@ -15174,7 +15175,7 @@ retreat:
   mv a0, t0
   j .return
 .L2:
-  ; cpu/ai.e16.ts:894  return I_BACK
+  ; cpu/ai.e16.ts:922  return I_BACK
   li a0, 4
 .return:
   lw ra, 0(sp)
@@ -15183,7 +15184,7 @@ retreat:
   addi sp, sp, 6
   ret
 
-; cpu/ai.e16.ts:898 liked(i) at -O1
+; cpu/ai.e16.ts:926 liked(i) at -O1
 ;   i in s2
 ;   r in s1
 liked:
@@ -15192,12 +15193,12 @@ liked:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; i
-  ; cpu/ai.e16.ts:899  const r = row(i, O_RANGE)
+  ; cpu/ai.e16.ts:927  const r = row(i, O_RANGE)
   mv a0, s2
   li a1, 12
   call row
   mv s1, a0 ; r
-  ; cpu/ai.e16.ts:900  return r !== 0 ? r : histRange()
+  ; cpu/ai.e16.ts:928  return r !== 0 ? r : histRange()
   beq s1, zero, .L1
   mv t0, s1
   j .L2
@@ -15215,7 +15216,7 @@ liked:
   addi sp, sp, 6
   ret
 
-; cpu/ai.e16.ts:907 keepRange(i, j, d) at -O1
+; cpu/ai.e16.ts:935 keepRange(i, j, d) at -O1
 ;   i in s1
 ;   j in 2(fp)
 ;   d in s2
@@ -15233,11 +15234,11 @@ keepRange:
   mv s1, a0 ; i
   sw a1, 2(fp) ; j
   mv s2, a2 ; d
-  ; cpu/ai.e16.ts:908  let want = liked(i)
+  ; cpu/ai.e16.ts:936  let want = liked(i)
   mv a0, s1
   call liked
   mv s3, a0 ; want
-  ; cpu/ai.e16.ts:909  if (wary(i) && want < edge(i) + COME) want = edge(i) + COME
+  ; cpu/ai.e16.ts:937  if (wary(i) && want < edge(i) + COME) want = edge(i) + COME
   mv a0, s1
   call wary
   beqz a0, .L1
@@ -15245,17 +15246,17 @@ keepRange:
   call edge
   addi t0, a0, 10
   bgeu s3, t0, .L1
-  ; cpu/ai.e16.ts:909  want = edge(i) + COME
+  ; cpu/ai.e16.ts:937  want = edge(i) + COME
   mv a0, s1
   call edge
   addi s3, a0, 10
 .L1:
-  ; cpu/ai.e16.ts:910  const w = row(i, O_WIDTH)
+  ; cpu/ai.e16.ts:938  const w = row(i, O_WIDTH)
   mv a0, s1
   li a1, 13
   call row
   sw a0, 0(fp) ; w
-  ; cpu/ai.e16.ts:911  const turtle = (row(i, O_FLAGS) & OF_TURTLE) !== 0
+  ; cpu/ai.e16.ts:939  const turtle = (row(i, O_FLAGS) & OF_TURTLE) !== 0
   mv a0, s1
   li a1, 24
   call row
@@ -15263,7 +15264,7 @@ keepRange:
   sub t0, t0, zero
   snez t0, t0
   sw t0, 4(fp) ; turtle
-  ; cpu/ai.e16.ts:912  if (d > want + (turtle ? w * 3 : w)) return stepIn(i, j, d)
+  ; cpu/ai.e16.ts:940  if (d > want + (turtle ? w * 3 : w)) return stepIn(i, j, d)
   mv t0, s2
   mv t1, s3
   lw t2, 4(fp)
@@ -15277,14 +15278,14 @@ keepRange:
 .L4:
   add t1, t1, t2
   bgeu t1, t0, .L2
-  ; cpu/ai.e16.ts:912  return stepIn(i, j, d)
+  ; cpu/ai.e16.ts:940  return stepIn(i, j, d)
   mv a0, s1
   lw a1, 2(fp)
   mv a2, s2
   call stepIn
   j .return
 .L2:
-  ; cpu/ai.e16.ts:913  if (d + w < want || (wary(i) && d <= edge(i))) return I_BACK
+  ; cpu/ai.e16.ts:941  if (d + w < want || (wary(i) && d <= edge(i))) return I_BACK
   lw t0, 0(fp) ; w
   add t0, s2, t0
   bltu t0, s3, .L6
@@ -15295,11 +15296,11 @@ keepRange:
   call edge
   bltu a0, s2, .L5
 .L6:
-  ; cpu/ai.e16.ts:913  return I_BACK
+  ; cpu/ai.e16.ts:941  return I_BACK
   li a0, 4
   j .return
 .L5:
-  ; cpu/ai.e16.ts:914  return 0
+  ; cpu/ai.e16.ts:942  return 0
   li a0, 0
 .return:
   mv sp, fp
@@ -15311,7 +15312,7 @@ keepRange:
   addi sp, sp, 16
   ret
 
-; cpu/ai.e16.ts:918 aaPlan(i, j) at -O1
+; cpu/ai.e16.ts:946 aaPlan(i, j) at -O1
 ;   i in s1
 ;   j in s0
 ;   r in s2
@@ -15325,18 +15326,18 @@ aaPlan:
   sw s3, 8(sp)
   mv s1, a0 ; i
   mv s0, a1 ; j
-  ; cpu/ai.e16.ts:919  const r = row(i, O_R_AA)
+  ; cpu/ai.e16.ts:947  const r = row(i, O_R_AA)
   mv a0, s1
   li a1, 4
   call row
   mv s2, a0 ; r
-  ; cpu/ai.e16.ts:920  const e = seenAt(i, j, r)
+  ; cpu/ai.e16.ts:948  const e = seenAt(i, j, r)
   mv a0, s1
   mv a1, s0
   mv a2, s2
   call seenAt
   mv s3, a0 ; e
-  ; cpu/ai.e16.ts:921  if (seenY[e] === 0 || distTo(i, e) > aaReach(r)) return I_DOWN
+  ; cpu/ai.e16.ts:949  if (seenY[e] === 0 || distTo(i, e) > aaReach(r)) return I_DOWN
   slli t0, s3, 1
   lw t0, seenY(t0)
   beq t0, zero, .L2
@@ -15351,23 +15352,23 @@ aaPlan:
   addi sp, sp, 2
   bgeu a0, t0, .L1
 .L2:
-  ; cpu/ai.e16.ts:921  return I_DOWN
+  ; cpu/ai.e16.ts:949  return I_DOWN
   li a0, 2
   j .return
 .L1:
-  ; cpu/ai.e16.ts:922  if ((outWas[i] & I_HP) !== 0) return I_DOWN
+  ; cpu/ai.e16.ts:950  if ((outWas[i] & I_HP) !== 0) return I_DOWN
   slli t0, s1, 1
   lw t0, outWas(t0)
   andi t0, t0, 32
   beq t0, zero, .L3
-  ; cpu/ai.e16.ts:922  return I_DOWN
+  ; cpu/ai.e16.ts:950  return I_DOWN
   li a0, 2
   j .return
 .L3:
-  ; cpu/ai.e16.ts:923  planEnd(i)
+  ; cpu/ai.e16.ts:951  planEnd(i)
   mv a0, s1
   call planEnd
-  ; cpu/ai.e16.ts:924  return I_DOWN | I_HP
+  ; cpu/ai.e16.ts:952  return I_DOWN | I_HP
   li a0, 34
 .return:
   lw ra, 0(sp)
@@ -15382,7 +15383,7 @@ aaPlan:
 
   .bank 3
   .org 0xc000
-; scenes/pause.e16.ts:37 pauseRun() at -O1
+; scenes/pause.e16.ts:38 pauseRun() at -O1
 ;   at in s1
 ;   quit in s2
 pauseRun:
@@ -15390,104 +15391,104 @@ pauseRun:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; scenes/pause.e16.ts:38  paused[0] = 1
+  ; scenes/pause.e16.ts:39  paused[0] = 1
   li t0, 1
   sw t0, paused(zero)
-  ; scenes/pause.e16.ts:39  musicMute(MUSIC)
+  ; scenes/pause.e16.ts:40  musicMute(MUSIC)
   li a0, 4095
   call musicMute
-  ; scenes/pause.e16.ts:40  dim(DIM)
+  ; scenes/pause.e16.ts:41  dim(DIM)
   li a0, 10
   call dim
-  ; scenes/pause.e16.ts:41  pauseShow()
+  ; scenes/pause.e16.ts:42  pauseShow()
   call pauseShow
-  ; scenes/pause.e16.ts:42  let at: u16 = 0
+  ; scenes/pause.e16.ts:43  let at: u16 = 0
   li s1, 0 ; at
-  ; scenes/pause.e16.ts:43  cursor(at)
+  ; scenes/pause.e16.ts:44  cursor(at)
   mv a0, s1
   call cursor
-  ; scenes/pause.e16.ts:44  let quit: u16 = 0
+  ; scenes/pause.e16.ts:45  let quit: u16 = 0
   li s2, 0 ; quit
-  ; scenes/pause.e16.ts:45  for (;;) {
+  ; scenes/pause.e16.ts:46  for (;;) {
 .L1:
-  ; scenes/pause.e16.ts:46  pauseFrame()
+  ; scenes/pause.e16.ts:47  pauseFrame()
   call pauseFrame
-  ; scenes/pause.e16.ts:47  at = menuMove(at)
+  ; scenes/pause.e16.ts:48  at = menuMove(at)
   mv a0, s1
   call menuMove
   mv s1, a0 ; at
-  ; scenes/pause.e16.ts:48  if (pressed(B_START)) break
+  ; scenes/pause.e16.ts:49  if (pressed(B_START)) break
   li a0, 1024
   call pressed
   beqz a0, .L5
-  ; scenes/pause.e16.ts:48  break
+  ; scenes/pause.e16.ts:49  break
   j .L4
 .L5:
-  ; scenes/pause.e16.ts:49  if (!pressed(B_A)) continue
+  ; scenes/pause.e16.ts:50  if (!pressed(B_A)) continue
   li a0, 16
   call pressed
   bnez a0, .L6
-  ; scenes/pause.e16.ts:49  continue
+  ; scenes/pause.e16.ts:50  continue
   j .L1
 .L6:
-  ; scenes/pause.e16.ts:50  sfx(X_OK)
+  ; scenes/pause.e16.ts:51  sfx(X_OK)
   li a0, 15
   la t0, sfx
   li t1, 260
   call far_call
-  ; scenes/pause.e16.ts:51  if (at === 0) break
+  ; scenes/pause.e16.ts:52  if (at === 0) break
   bne s1, zero, .L7
-  ; scenes/pause.e16.ts:51  break
+  ; scenes/pause.e16.ts:52  break
   j .L4
 .L7:
-  ; scenes/pause.e16.ts:52  if (at === 2) {
+  ; scenes/pause.e16.ts:53  if (at === 2) {
   li t0, 2
   bne s1, t0, .L8
-  ; scenes/pause.e16.ts:53  quit = 1
+  ; scenes/pause.e16.ts:54  quit = 1
   li s2, 1 ; quit
-  ; scenes/pause.e16.ts:54  break
+  ; scenes/pause.e16.ts:55  break
   j .L4
 .L8:
-  ; scenes/pause.e16.ts:56  controlsRun(true)
+  ; scenes/pause.e16.ts:57  controlsRun(true)
   li a0, 1
   la t0, controlsRun
   li t1, 261
   call far_call
-  ; scenes/pause.e16.ts:57  screenIs(SC_FIGHT)
+  ; scenes/pause.e16.ts:58  screenIs(SC_FIGHT)
   li a0, 6
   call screenIs
-  ; scenes/pause.e16.ts:58  matchHud()
+  ; scenes/pause.e16.ts:59  matchHud()
   la t0, matchHud
   li t1, 257
   call far_call
-  ; scenes/pause.e16.ts:59  pauseShow()
+  ; scenes/pause.e16.ts:60  pauseShow()
   call pauseShow
-  ; scenes/pause.e16.ts:60  cursor(at)
+  ; scenes/pause.e16.ts:61  cursor(at)
   mv a0, s1
   call cursor
   j .L1
 .L4:
-  ; scenes/pause.e16.ts:62  hudRows(MENU_ROW, 3)
+  ; scenes/pause.e16.ts:63  hudRows(MENU_ROW, 3)
   li a0, 20
   li a1, 3
   call hudRows
-  ; scenes/pause.e16.ts:63  bandClear()
+  ; scenes/pause.e16.ts:64  bandClear()
   call bandClear
-  ; scenes/pause.e16.ts:64  dim(0)
+  ; scenes/pause.e16.ts:65  dim(0)
   li a0, 0
   call dim
-  ; scenes/pause.e16.ts:66  palKey[0] = 0xffff
+  ; scenes/pause.e16.ts:67  palKey[0] = 0xffff
   li t0, 65535
   sw t0, palKey(zero)
-  ; scenes/pause.e16.ts:67  palKey[1] = 0xffff
+  ; scenes/pause.e16.ts:68  palKey[1] = 0xffff
   li t0, 65535
   sw t0, palKey+2(zero)
-  ; scenes/pause.e16.ts:68  musicMute(0)
+  ; scenes/pause.e16.ts:69  musicMute(0)
   li a0, 0
   call musicMute
-  ; scenes/pause.e16.ts:69  paused[0] = 0
+  ; scenes/pause.e16.ts:70  paused[0] = 0
   sw zero, paused(zero)
-  ; scenes/pause.e16.ts:70  return quit
+  ; scenes/pause.e16.ts:71  return quit
   mv a0, s2
 .return:
   lw ra, 0(sp)
@@ -15496,7 +15497,7 @@ pauseRun:
   addi sp, sp, 6
   ret
 
-; scenes/pause.e16.ts:74 menuMove(at) at -O1
+; scenes/pause.e16.ts:75 menuMove(at) at -O1
 ;   at in s2
 ;   n in s1
 menuMove:
@@ -15505,13 +15506,13 @@ menuMove:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; at
-  ; scenes/pause.e16.ts:75  let n = at
+  ; scenes/pause.e16.ts:76  let n = at
   mv s1, s2 ; n
-  ; scenes/pause.e16.ts:76  if (pressed(B_UP)) n = n === 0 ? 2 : n - 1
+  ; scenes/pause.e16.ts:77  if (pressed(B_UP)) n = n === 0 ? 2 : n - 1
   li a0, 1
   call pressed
   beqz a0, .L1
-  ; scenes/pause.e16.ts:76  n = n === 0 ? 2 : n - 1
+  ; scenes/pause.e16.ts:77  n = n === 0 ? 2 : n - 1
   bne s1, zero, .L2
   li t0, 2
   j .L3
@@ -15520,11 +15521,11 @@ menuMove:
 .L3:
   mv s1, t0 ; n
 .L1:
-  ; scenes/pause.e16.ts:77  if (pressed(B_DOWN)) n = n === 2 ? 0 : n + 1
+  ; scenes/pause.e16.ts:78  if (pressed(B_DOWN)) n = n === 2 ? 0 : n + 1
   li a0, 2
   call pressed
   beqz a0, .L4
-  ; scenes/pause.e16.ts:77  n = n === 2 ? 0 : n + 1
+  ; scenes/pause.e16.ts:78  n = n === 2 ? 0 : n + 1
   li t0, 2
   bne s1, t0, .L5
   li t0, 0
@@ -15534,18 +15535,18 @@ menuMove:
 .L6:
   mv s1, t0 ; n
 .L4:
-  ; scenes/pause.e16.ts:78  if (n !== at) {
+  ; scenes/pause.e16.ts:79  if (n !== at) {
   beq s1, s2, .L7
-  ; scenes/pause.e16.ts:79  cursor(n)
+  ; scenes/pause.e16.ts:80  cursor(n)
   mv a0, s1
   call cursor
-  ; scenes/pause.e16.ts:80  sfx(X_MOVE)
+  ; scenes/pause.e16.ts:81  sfx(X_MOVE)
   li a0, 14
   la t0, sfx
   li t1, 260
   call far_call
 .L7:
-  ; scenes/pause.e16.ts:82  return n
+  ; scenes/pause.e16.ts:83  return n
   mv a0, s1
 .return:
   lw ra, 0(sp)
@@ -15554,29 +15555,29 @@ menuMove:
   addi sp, sp, 6
   ret
 
-; scenes/pause.e16.ts:86 dim(t) at -O1
+; scenes/pause.e16.ts:87 dim(t) at -O1
 ;   t in s1
 dim:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; t
-  ; scenes/pause.e16.ts:87  palMix(0, 0, t)
+  ; scenes/pause.e16.ts:88  palMix(0, 0, t)
   li a0, 0
   li a1, 0
   mv a2, s1
   call palMix
-  ; scenes/pause.e16.ts:88  palMix(8, 0, t)
+  ; scenes/pause.e16.ts:89  palMix(8, 0, t)
   li a0, 8
   li a1, 0
   mv a2, s1
   call palMix
-  ; scenes/pause.e16.ts:89  palMix(9, 0, t)
+  ; scenes/pause.e16.ts:90  palMix(9, 0, t)
   li a0, 9
   li a1, 0
   mv a2, s1
   call palMix
-  ; scenes/pause.e16.ts:90  palMix(10, 0, t)
+  ; scenes/pause.e16.ts:91  palMix(10, 0, t)
   li a0, 10
   li a1, 0
   mv a2, s1
@@ -15587,29 +15588,29 @@ dim:
   addi sp, sp, 4
   ret
 
-; scenes/pause.e16.ts:93 pauseShow() at -O1
+; scenes/pause.e16.ts:94 pauseShow() at -O1
 pauseShow:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/pause.e16.ts:94  bandShow(str('PAUSED'))
-  la a0, str_26
+  ; scenes/pause.e16.ts:95  bandShow(str('PAUSED'))
+  la a0, str_27
   call bandShow
-  ; scenes/pause.e16.ts:95  say(16, MENU_ROW, str('RESUME'), PZ_TEXT)
+  ; scenes/pause.e16.ts:96  say(16, MENU_ROW, str('RESUME'), PZ_TEXT)
   li a0, 16
   li a1, 20
-  la a2, str_27
-  li a3, 1
-  call say
-  ; scenes/pause.e16.ts:96  say(16, MENU_ROW + 1, str('CONTROLS'), PZ_TEXT)
-  li a0, 16
-  li a1, 21
   la a2, str_28
   li a3, 1
   call say
-  ; scenes/pause.e16.ts:97  say(16, MENU_ROW + 2, str('QUIT FIGHT'), PZ_TEXT)
+  ; scenes/pause.e16.ts:97  say(16, MENU_ROW + 1, str('CONTROLS'), PZ_TEXT)
+  li a0, 16
+  li a1, 21
+  la a2, str_29
+  li a3, 1
+  call say
+  ; scenes/pause.e16.ts:98  say(16, MENU_ROW + 2, str('QUIT FIGHT'), PZ_TEXT)
   li a0, 16
   li a1, 22
-  la a2, str_29
+  la a2, str_30
   li a3, 1
   call say
 .return:
@@ -15617,7 +15618,7 @@ pauseShow:
   addi sp, sp, 2
   ret
 
-; scenes/pause.e16.ts:100 cursor(at) at -O1
+; scenes/pause.e16.ts:101 cursor(at) at -O1
 ;   at in s2
 ;   k in s1
 cursor:
@@ -15626,28 +15627,28 @@ cursor:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; at
-  ; scenes/pause.e16.ts:101  let k: u16 = 0
+  ; scenes/pause.e16.ts:102  let k: u16 = 0
   li s1, 0 ; k
-  ; scenes/pause.e16.ts:102  while (k < 3) {
+  ; scenes/pause.e16.ts:103  while (k < 3) {
   j .L3
 .L1:
-  ; scenes/pause.e16.ts:103  say(14, MENU_ROW + k, k === at ? str('>') : str(' '), PZ_TEXT)
+  ; scenes/pause.e16.ts:104  say(14, MENU_ROW + k, k === at ? str('>') : str(' '), PZ_TEXT)
   li t0, 14
   addi t1, s1, 20
   mv t2, s1
   mv t3, s2
   bne t2, t3, .L5
-  la t2, str_30
+  la t2, str_31
   j .L6
 .L5:
-  la t2, str_31
+  la t2, str_32
 .L6:
   mv a0, t0
   mv a1, t1
   mv a2, t2
   li a3, 1
   call say
-  ; scenes/pause.e16.ts:104  k++
+  ; scenes/pause.e16.ts:105  k++
   addi s1, s1, 1
 .L3:
   li t0, 3
@@ -15659,7 +15660,7 @@ cursor:
   addi sp, sp, 6
   ret
 
-; scenes/pause.e16.ts:111 logDraw(kind, side, move) at -O1
+; scenes/pause.e16.ts:112 logDraw(kind, side, move) at -O1
 ;   kind in s2
 ;   side in s3
 ;   move in s0
@@ -15674,77 +15675,77 @@ logDraw:
   mv s2, a0 ; kind
   mv s3, a1 ; side
   mv s0, a2 ; move
-  ; scenes/pause.e16.ts:112  say(1, LOG_ROW, str('>'), SL_LOG)
+  ; scenes/pause.e16.ts:113  say(1, LOG_ROW, str('>'), SL_LOG)
   li a0, 1
   li a1, 34
-  la a2, str_30
+  la a2, str_31
   li a3, 5
   call say
-  ; scenes/pause.e16.ts:113  let x: u16 = 3
+  ; scenes/pause.e16.ts:114  let x: u16 = 3
   li s1, 3 ; x
-  ; scenes/pause.e16.ts:114  if (kind === LOG_TECH) {
+  ; scenes/pause.e16.ts:115  if (kind === LOG_TECH) {
   li t0, 4
   bne s2, t0, .L1
-  ; scenes/pause.e16.ts:115  say(x, LOG_ROW, str('THROW TECH'), SL_LOG)
+  ; scenes/pause.e16.ts:116  say(x, LOG_ROW, str('THROW TECH'), SL_LOG)
   mv a0, s1
   li a1, 34
-  la a2, str_32
+  la a2, str_33
   li a3, 5
   call say
-  ; scenes/pause.e16.ts:116  return
+  ; scenes/pause.e16.ts:117  return
   j .return
 .L1:
-  ; scenes/pause.e16.ts:118  if (kind !== LOG_COUNTER && kind !== LOG_AA && kind !== LOG_THROW) {
+  ; scenes/pause.e16.ts:119  if (kind !== LOG_COUNTER && kind !== LOG_AA && kind !== LOG_THROW) {
   li t0, 1
   beq s2, t0, .L2
   li t0, 2
   beq s2, t0, .L2
   li t0, 3
   beq s2, t0, .L2
-  ; scenes/pause.e16.ts:119  say(x, LOG_ROW, str('READ'), SL_LOG)
+  ; scenes/pause.e16.ts:120  say(x, LOG_ROW, str('READ'), SL_LOG)
   mv a0, s1
   li a1, 34
-  la a2, str_33
+  la a2, str_34
   li a3, 5
   call say
-  ; scenes/pause.e16.ts:120  return
+  ; scenes/pause.e16.ts:121  return
   j .return
 .L2:
-  ; scenes/pause.e16.ts:122  x = put(x, side === 0 ? str('P1') : str('CPU')) + 1
+  ; scenes/pause.e16.ts:123  x = put(x, side === 0 ? str('P1') : str('CPU')) + 1
   mv t0, s1
   mv t1, s3
   li t2, 0
   bne t1, t2, .L3
-  la t1, str_34
+  la t1, str_35
   j .L4
 .L3:
-  la t1, str_35
+  la t1, str_36
 .L4:
   mv a0, t0
   mv a1, t1
   call put
   addi s1, a0, 1
-  ; scenes/pause.e16.ts:123  if (kind === LOG_AA) put(x, str('ANTI-AIR'))
+  ; scenes/pause.e16.ts:124  if (kind === LOG_AA) put(x, str('ANTI-AIR'))
   li t0, 2
   bne s2, t0, .L5
-  ; scenes/pause.e16.ts:123  put(x, str('ANTI-AIR'))
-  mv a0, s1
-  la a1, str_36
-  call put
-  j .L6
-.L5:
-  ; scenes/pause.e16.ts:124  if (kind === LOG_THROW) put(x, str('THROW'))
-  li t0, 3
-  bne s2, t0, .L7
-  ; scenes/pause.e16.ts:124  put(x, str('THROW'))
+  ; scenes/pause.e16.ts:124  put(x, str('ANTI-AIR'))
   mv a0, s1
   la a1, str_37
   call put
-  j .L8
-.L7:
-  ; scenes/pause.e16.ts:125  moveName(put(x, str('COUNTER')) + 2, move)
+  j .L6
+.L5:
+  ; scenes/pause.e16.ts:125  if (kind === LOG_THROW) put(x, str('THROW'))
+  li t0, 3
+  bne s2, t0, .L7
+  ; scenes/pause.e16.ts:125  put(x, str('THROW'))
   mv a0, s1
   la a1, str_38
+  call put
+  j .L8
+.L7:
+  ; scenes/pause.e16.ts:126  moveName(put(x, str('COUNTER')) + 2, move)
+  mv a0, s1
+  la a1, str_39
   call put
   addi a0, a0, 2
   mv a1, s0
@@ -15760,7 +15761,7 @@ logDraw:
   addi sp, sp, 10
   ret
 
-; scenes/pause.e16.ts:129 put(x, s) at -O1
+; scenes/pause.e16.ts:130 put(x, s) at -O1
 ;   x in s2
 ;   s in s3
 ;   n in s1
@@ -15772,24 +15773,24 @@ put:
   sw s1, 6(sp)
   mv s2, a0 ; x
   mv s3, a1 ; s
-  ; scenes/pause.e16.ts:130  say(x, LOG_ROW, s, SL_LOG)
+  ; scenes/pause.e16.ts:131  say(x, LOG_ROW, s, SL_LOG)
   mv a0, s2
   li a1, 34
   mv a2, s3
   li a3, 5
   call say
-  ; scenes/pause.e16.ts:131  let n: u16 = 0
+  ; scenes/pause.e16.ts:132  let n: u16 = 0
   li s1, 0 ; n
-  ; scenes/pause.e16.ts:132  while (peek(s + n) !== 0) n++
+  ; scenes/pause.e16.ts:133  while (peek(s + n) !== 0) n++
   j .L3
 .L1:
-  ; scenes/pause.e16.ts:132  n++
+  ; scenes/pause.e16.ts:133  n++
   addi s1, s1, 1
 .L3:
   add t0, s3, s1
   lbu t0, 0(t0)
   bne t0, zero, .L1
-  ; scenes/pause.e16.ts:133  return x + n
+  ; scenes/pause.e16.ts:134  return x + n
   add a0, s2, s1
 .return:
   lw ra, 0(sp)
@@ -15799,7 +15800,7 @@ put:
   addi sp, sp, 8
   ret
 
-; scenes/pause.e16.ts:137 moveName(x, m) at -O1
+; scenes/pause.e16.ts:138 moveName(x, m) at -O1
 ;   x in 2(fp)
 ;   m in s3
 ;   at in s1
@@ -15815,64 +15816,64 @@ moveName:
   mv fp, sp
   sw a0, 2(fp) ; x
   mv s3, a1 ; m
-  ; scenes/pause.e16.ts:138  let at = x
+  ; scenes/pause.e16.ts:139  let at = x
   lw s1, 2(fp) ; x
-  ; scenes/pause.e16.ts:139  const posture = m >> 2
+  ; scenes/pause.e16.ts:140  const posture = m >> 2
   srli t0, s3, 2
   sw t0, 0(fp) ; posture
-  ; scenes/pause.e16.ts:140  if (posture === 1) at = put(at, str('CROUCH '))
+  ; scenes/pause.e16.ts:141  if (posture === 1) at = put(at, str('CROUCH '))
   li t0, 1
   lw t1, 0(fp) ; posture
   bne t1, t0, .L1
-  ; scenes/pause.e16.ts:140  at = put(at, str('CROUCH '))
-  mv a0, s1
-  la a1, str_39
-  call put
-  mv s1, a0 ; at
-  j .L2
-.L1:
-  ; scenes/pause.e16.ts:141  if (posture === 2) at = put(at, str('JUMP '))
-  li t0, 2
-  lw t1, 0(fp) ; posture
-  bne t1, t0, .L3
-  ; scenes/pause.e16.ts:141  at = put(at, str('JUMP '))
+  ; scenes/pause.e16.ts:141  at = put(at, str('CROUCH '))
   mv a0, s1
   la a1, str_40
   call put
   mv s1, a0 ; at
-.L3:
-.L2:
-  ; scenes/pause.e16.ts:142  const col = m & 3
-  andi s2, s3, 3
-  ; scenes/pause.e16.ts:143  if (col === 0) put(at, str('LIGHT PUNCH'))
-  bne s2, zero, .L4
-  ; scenes/pause.e16.ts:143  put(at, str('LIGHT PUNCH'))
+  j .L2
+.L1:
+  ; scenes/pause.e16.ts:142  if (posture === 2) at = put(at, str('JUMP '))
+  li t0, 2
+  lw t1, 0(fp) ; posture
+  bne t1, t0, .L3
+  ; scenes/pause.e16.ts:142  at = put(at, str('JUMP '))
   mv a0, s1
   la a1, str_41
   call put
-  j .L5
-.L4:
-  ; scenes/pause.e16.ts:144  if (col === 1) put(at, str('HEAVY PUNCH'))
-  li t0, 1
-  bne s2, t0, .L6
-  ; scenes/pause.e16.ts:144  put(at, str('HEAVY PUNCH'))
+  mv s1, a0 ; at
+.L3:
+.L2:
+  ; scenes/pause.e16.ts:143  const col = m & 3
+  andi s2, s3, 3
+  ; scenes/pause.e16.ts:144  if (col === 0) put(at, str('LIGHT PUNCH'))
+  bne s2, zero, .L4
+  ; scenes/pause.e16.ts:144  put(at, str('LIGHT PUNCH'))
   mv a0, s1
   la a1, str_42
   call put
-  j .L7
-.L6:
-  ; scenes/pause.e16.ts:145  if (col === 2) put(at, str('LIGHT KICK'))
-  li t0, 2
-  bne s2, t0, .L8
-  ; scenes/pause.e16.ts:145  put(at, str('LIGHT KICK'))
+  j .L5
+.L4:
+  ; scenes/pause.e16.ts:145  if (col === 1) put(at, str('HEAVY PUNCH'))
+  li t0, 1
+  bne s2, t0, .L6
+  ; scenes/pause.e16.ts:145  put(at, str('HEAVY PUNCH'))
   mv a0, s1
   la a1, str_43
   call put
-  j .L9
-.L8:
-  ; scenes/pause.e16.ts:146  put(at, str('HEAVY KICK'))
+  j .L7
+.L6:
+  ; scenes/pause.e16.ts:146  if (col === 2) put(at, str('LIGHT KICK'))
+  li t0, 2
+  bne s2, t0, .L8
+  ; scenes/pause.e16.ts:146  put(at, str('LIGHT KICK'))
   mv a0, s1
   la a1, str_44
+  call put
+  j .L9
+.L8:
+  ; scenes/pause.e16.ts:147  put(at, str('HEAVY KICK'))
+  mv a0, s1
+  la a1, str_45
   call put
 .L9:
 .L7:
@@ -15887,83 +15888,118 @@ moveName:
   addi sp, sp, 14
   ret
 
-str_26:
-  .byte 80, 65, 85, 83, 69, 68, 0
+; scenes/pause.e16.ts:151 bigIndex(c) at -O1
+;   c in a0
+;   chars in a3
+;   k in a1
+;   d in a2
+bigIndex:
+  ; scenes/pause.e16.ts:152  const chars = str('ABCDEFGHIKLMNOPRSTUVWY.?123')
+  la a3, str_46
+  ; scenes/pause.e16.ts:153  let k: u16 = 0
+  li a1, 0 ; k
+  ; scenes/pause.e16.ts:154  let d = peek(chars)
+  lbu a2, 0(a3)
+  ; scenes/pause.e16.ts:155  while (d !== 0) {
+  j .L3
+.L1:
+  ; scenes/pause.e16.ts:156  if (d === c) return k
+  bne a2, a0, .L5
+  ; scenes/pause.e16.ts:156  return k
+  mv a0, a1
+  ret
+.L5:
+  ; scenes/pause.e16.ts:157  k++
+  addi a1, a1, 1
+  ; scenes/pause.e16.ts:158  d = peek(chars + k)
+  add t0, a3, a1
+  lbu a2, 0(t0)
+.L3:
+  bne a2, zero, .L1
+  ; scenes/pause.e16.ts:160  return 0xffff
+  li a0, 65535
+.return:
+  ret
+
 str_27:
-  .byte 82, 69, 83, 85, 77, 69, 0
+  .byte 80, 65, 85, 83, 69, 68, 0
 str_28:
-  .byte 67, 79, 78, 84, 82, 79, 76, 83, 0
+  .byte 82, 69, 83, 85, 77, 69, 0
 str_29:
-  .byte 81, 85, 73, 84, 32, 70, 73, 71, 72, 84, 0
+  .byte 67, 79, 78, 84, 82, 79, 76, 83, 0
 str_30:
-  .byte 62, 0
+  .byte 81, 85, 73, 84, 32, 70, 73, 71, 72, 84, 0
 str_31:
-  .byte 32, 0
+  .byte 62, 0
 str_32:
-  .byte 84, 72, 82, 79, 87, 32, 84, 69, 67, 72, 0
+  .byte 32, 0
 str_33:
-  .byte 82, 69, 65, 68, 0
+  .byte 84, 72, 82, 79, 87, 32, 84, 69, 67, 72, 0
 str_34:
-  .byte 80, 49, 0
+  .byte 82, 69, 65, 68, 0
 str_35:
-  .byte 67, 80, 85, 0
+  .byte 80, 49, 0
 str_36:
-  .byte 65, 78, 84, 73, 45, 65, 73, 82, 0
+  .byte 67, 80, 85, 0
 str_37:
-  .byte 84, 72, 82, 79, 87, 0
+  .byte 65, 78, 84, 73, 45, 65, 73, 82, 0
 str_38:
-  .byte 67, 79, 85, 78, 84, 69, 82, 0
+  .byte 84, 72, 82, 79, 87, 0
 str_39:
-  .byte 67, 82, 79, 85, 67, 72, 32, 0
+  .byte 67, 79, 85, 78, 84, 69, 82, 0
 str_40:
-  .byte 74, 85, 77, 80, 32, 0
+  .byte 67, 82, 79, 85, 67, 72, 32, 0
 str_41:
-  .byte 76, 73, 71, 72, 84, 32, 80, 85, 78, 67, 72, 0
+  .byte 74, 85, 77, 80, 32, 0
 str_42:
-  .byte 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
+  .byte 76, 73, 71, 72, 84, 32, 80, 85, 78, 67, 72, 0
 str_43:
-  .byte 76, 73, 71, 72, 84, 32, 75, 73, 67, 75, 0
+  .byte 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
 str_44:
+  .byte 76, 73, 71, 72, 84, 32, 75, 73, 67, 75, 0
+str_45:
   .byte 72, 69, 65, 86, 89, 32, 75, 73, 67, 75, 0
+str_46:
+  .byte 65, 66, 67, 68, 69, 70, 71, 72, 73, 75, 76, 77, 78, 79, 80, 82, 83, 84, 85, 86, 87, 89, 46, 63, 49, 50, 51, 0
   .align 2
 
   .bank 4
   .org 0xc000
-; engine/look.e16.ts:83 lookStep() at -O1
+; engine/look.e16.ts:84 lookStep() at -O1
 ;   front in s1
 lookStep:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; engine/look.e16.ts:84  eventsTake(0)
+  ; engine/look.e16.ts:85  eventsTake(0)
   li a0, 0
   call eventsTake
-  ; engine/look.e16.ts:85  eventsTake(1)
+  ; engine/look.e16.ts:86  eventsTake(1)
   li a0, 1
   call eventsTake
-  ; engine/look.e16.ts:86  koStep(0)
+  ; engine/look.e16.ts:87  koStep(0)
   li a0, 0
   call koStep
-  ; engine/look.e16.ts:87  koStep(1)
+  ; engine/look.e16.ts:88  koStep(1)
   li a0, 1
   call koStep
-  ; engine/look.e16.ts:88  soundStep()
+  ; engine/look.e16.ts:89  soundStep()
   call soundStep
-  ; engine/look.e16.ts:89  palStep(0)
+  ; engine/look.e16.ts:90  palStep(0)
   li a0, 0
   call palStep
-  ; engine/look.e16.ts:90  palStep(1)
+  ; engine/look.e16.ts:91  palStep(1)
   li a0, 1
   call palStep
-  ; engine/look.e16.ts:91  sprBegin()
+  ; engine/look.e16.ts:92  sprBegin()
   call sprBegin
-  ; engine/look.e16.ts:92  fxSprites(0)
+  ; engine/look.e16.ts:93  fxSprites(0)
   li a0, 0
   call fxSprites
-  ; engine/look.e16.ts:93  fxSprites(1)
+  ; engine/look.e16.ts:94  fxSprites(1)
   li a0, 1
   call fxSprites
-  ; engine/look.e16.ts:94  const front = fState[1] === ST_ATTACK && fState[0] !== ST_ATTACK ? 1 : 0
+  ; engine/look.e16.ts:95  const front = fState[1] === ST_ATTACK && fState[0] !== ST_ATTACK ? 1 : 0
   lw t0, fState+2(zero)
   li t1, 5
   bne t0, t1, .L1
@@ -15976,17 +16012,17 @@ lookStep:
   li t0, 0
 .L2:
   mv s1, t0 ; front
-  ; engine/look.e16.ts:95  bodySprites(front)
+  ; engine/look.e16.ts:96  bodySprites(front)
   mv a0, s1
   call bodySprites
-  ; engine/look.e16.ts:96  bodySprites(1 - front)
+  ; engine/look.e16.ts:97  bodySprites(1 - front)
   li t0, 1
   sub a0, t0, s1
   call bodySprites
-  ; engine/look.e16.ts:97  shadow(0)
+  ; engine/look.e16.ts:98  shadow(0)
   li a0, 0
   call shadow
-  ; engine/look.e16.ts:98  shadow(1)
+  ; engine/look.e16.ts:99  shadow(1)
   li a0, 1
   call shadow
 .return:
@@ -15995,7 +16031,7 @@ lookStep:
   addi sp, sp, 4
   ret
 
-; engine/look.e16.ts:120 eventsTake(a) at -O1
+; engine/look.e16.ts:121 eventsTake(a) at -O1
 ;   a in s1
 ;   s in s2
 ;   d in s3
@@ -16006,11 +16042,11 @@ eventsTake:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:121  if (flashT[a] > 0) flashT[a]--
+  ; engine/look.e16.ts:122  if (flashT[a] > 0) flashT[a]--
   slli t0, s1, 1
   lw t0, flashT(t0)
   bgeu zero, t0, .L1
-  ; engine/look.e16.ts:121  flashT[a]--
+  ; engine/look.e16.ts:122  flashT[a]--
   slli t0, s1, 1
   addi t0, t0, flashT
   mv t1, t0
@@ -16018,11 +16054,11 @@ eventsTake:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L1:
-  ; engine/look.e16.ts:122  if (guardT[a] > 0) guardT[a]--
+  ; engine/look.e16.ts:123  if (guardT[a] > 0) guardT[a]--
   slli t0, s1, 1
   lw t0, guardT(t0)
   bgeu zero, t0, .L2
-  ; engine/look.e16.ts:122  guardT[a]--
+  ; engine/look.e16.ts:123  guardT[a]--
   slli t0, s1, 1
   addi t0, t0, guardT
   mv t1, t0
@@ -16030,18 +16066,18 @@ eventsTake:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L2:
-  ; engine/look.e16.ts:123  if (fxK[a] !== 0) {
+  ; engine/look.e16.ts:124  if (fxK[a] !== 0) {
   slli t0, s1, 1
   lw t0, fxK(t0)
   beq t0, zero, .L3
-  ; engine/look.e16.ts:124  fxT[a]++
+  ; engine/look.e16.ts:125  fxT[a]++
   slli t0, s1, 1
   addi t0, t0, fxT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; engine/look.e16.ts:125  if (fxT[a] >= (fxK[a] === 1 ? SPARK_F : WALL_F)) fxK[a] = 0
+  ; engine/look.e16.ts:126  if (fxT[a] >= (fxK[a] === 1 ? SPARK_F : WALL_F)) fxK[a] = 0
   slli t0, s1, 1
   lw t0, fxT(t0)
   slli t1, s1, 1
@@ -16054,29 +16090,29 @@ eventsTake:
   li t1, 8
 .L6:
   bltu t0, t1, .L4
-  ; engine/look.e16.ts:125  fxK[a] = 0
+  ; engine/look.e16.ts:126  fxK[a] = 0
   slli t0, s1, 1
   sw zero, fxK(t0)
 .L4:
 .L3:
-  ; engine/look.e16.ts:127  const s = struck[a]
+  ; engine/look.e16.ts:128  const s = struck[a]
   slli t0, s1, 1
   lw s2, struck(t0)
-  ; engine/look.e16.ts:128  if (s === 0) return
+  ; engine/look.e16.ts:129  if (s === 0) return
   bne s2, zero, .L7
-  ; engine/look.e16.ts:128  return
+  ; engine/look.e16.ts:129  return
   j .return
 .L7:
-  ; engine/look.e16.ts:129  const d = 1 - a
+  ; engine/look.e16.ts:130  const d = 1 - a
   li t0, 1
   sub s3, t0, s1
-  ; engine/look.e16.ts:130  if (s === 1 || s === 3) hitsN[a]++
+  ; engine/look.e16.ts:131  if (s === 1 || s === 3) hitsN[a]++
   li t0, 1
   beq s2, t0, .L9
   li t0, 3
   bne s2, t0, .L8
 .L9:
-  ; engine/look.e16.ts:130  hitsN[a]++
+  ; engine/look.e16.ts:131  hitsN[a]++
   slli t0, s1, 1
   addi t0, t0, hitsN
   mv t1, t0
@@ -16084,28 +16120,28 @@ eventsTake:
   addi t1, t1, 1
   sw t1, 0(t0)
 .L8:
-  ; engine/look.e16.ts:131  if (s === 2) {
+  ; engine/look.e16.ts:132  if (s === 2) {
   li t0, 2
   bne s2, t0, .L10
-  ; engine/look.e16.ts:132  guardT[d] = GUARD_F
+  ; engine/look.e16.ts:133  guardT[d] = GUARD_F
   slli t0, s3, 1
   li t1, 2
   sw t1, guardT(t0)
-  ; engine/look.e16.ts:133  fxAt(a, 2)
+  ; engine/look.e16.ts:134  fxAt(a, 2)
   mv a0, s1
   li a1, 2
   call fxAt
-  ; engine/look.e16.ts:134  return
+  ; engine/look.e16.ts:135  return
   j .return
 .L10:
-  ; engine/look.e16.ts:136  flashT[d] = FLASH_F
+  ; engine/look.e16.ts:137  flashT[d] = FLASH_F
   slli t0, s3, 1
   li t1, 3
   sw t1, flashT(t0)
-  ; engine/look.e16.ts:137  if (s !== 4) fxAt(a, 1)
+  ; engine/look.e16.ts:138  if (s !== 4) fxAt(a, 1)
   li t0, 4
   beq s2, t0, .L11
-  ; engine/look.e16.ts:137  fxAt(a, 1)
+  ; engine/look.e16.ts:138  fxAt(a, 1)
   mv a0, s1
   li a1, 1
   call fxAt
@@ -16118,29 +16154,29 @@ eventsTake:
   addi sp, sp, 8
   ret
 
-; engine/look.e16.ts:141 fxAt(a, k) at -O1
+; engine/look.e16.ts:142 fxAt(a, k) at -O1
 ;   a in a0
 ;   k in a1
 ;   o in a2
 ;   right in a3
 fxAt:
-  ; engine/look.e16.ts:142  const o = a * 24 + 16
+  ; engine/look.e16.ts:143  const o = a * 24 + 16
   slli t1, a0, 4
   slli t0, a0, 3
   add t0, t0, t1
   addi a2, t0, 16
-  ; engine/look.e16.ts:143  const right = fFace[a] !== 0
+  ; engine/look.e16.ts:144  const right = fFace[a] !== 0
   slli t0, a0, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez a3, t0
-  ; engine/look.e16.ts:144  fxK[a] = k
+  ; engine/look.e16.ts:145  fxK[a] = k
   slli t0, a0, 1
   sw a1, fxK(t0)
-  ; engine/look.e16.ts:145  fxT[a] = 0
+  ; engine/look.e16.ts:146  fxT[a] = 0
   slli t0, a0, 1
   sw zero, fxT(t0)
-  ; engine/look.e16.ts:146  fxX[a] = u16(right ? i16(wb[o + 1]) - 6 : i16(wb[o]) + 6)
+  ; engine/look.e16.ts:147  fxX[a] = u16(right ? i16(wb[o + 1]) - 6 : i16(wb[o]) + 6)
   slli t0, a0, 1
   addi t0, t0, fxX
   mv t1, a3
@@ -16156,23 +16192,23 @@ fxAt:
   addi t1, t1, 6
 .L2:
   sw t1, 0(t0)
-  ; engine/look.e16.ts:147  fxY[a] = u16(GROUND_Y - ((i16(wb[o + 2]) + i16(wb[o + 3])) >> 1))
+  ; engine/look.e16.ts:148  fxY[a] = u16(i16(groundY) - ((i16(wb[o + 2]) + i16(wb[o + 3])) >> 1))
   slli t0, a0, 1
-  addi t1, a2, 2
-  slli t1, t1, 1
-  lw t1, wb(t1)
-  addi t2, a2, 3
+  lw t1, 0x153c(zero)
+  addi t2, a2, 2
   slli t2, t2, 1
   lw t2, wb(t2)
-  add t1, t1, t2
-  srai t1, t1, 1
-  li t2, 244
-  sub t2, t2, t1
-  sw t2, fxY(t0)
+  addi t3, a2, 3
+  slli t3, t3, 1
+  lw t3, wb(t3)
+  add t2, t2, t3
+  srai t2, t2, 1
+  sub t1, t1, t2
+  sw t1, fxY(t0)
 .return:
   ret
 
-; engine/look.e16.ts:150 fxSprites(a) at -O1
+; engine/look.e16.ts:151 fxSprites(a) at -O1
 ;   a in s1
 ;   t in s2
 ;   f in s3
@@ -16183,24 +16219,24 @@ fxSprites:
   sw s2, 4(sp)
   sw s3, 6(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:151  if (fxK[a] === 0) return
+  ; engine/look.e16.ts:152  if (fxK[a] === 0) return
   slli t0, s1, 1
   lw t0, fxK(t0)
   bne t0, zero, .L1
-  ; engine/look.e16.ts:151  return
+  ; engine/look.e16.ts:152  return
   j .return
 .L1:
-  ; engine/look.e16.ts:152  const t = fxT[a]
+  ; engine/look.e16.ts:153  const t = fxT[a]
   slli t0, s1, 1
   lw s2, fxT(t0)
-  ; engine/look.e16.ts:153  let f: u16 = 0
+  ; engine/look.e16.ts:154  let f: u16 = 0
   li s3, 0 ; f
-  ; engine/look.e16.ts:154  if (fxK[a] === 1) f = t < 3 ? 0 : t < 6 ? 1 : 2
+  ; engine/look.e16.ts:155  if (fxK[a] === 1) f = t < 3 ? 0 : t < 6 ? 1 : 2
   slli t0, s1, 1
   lw t0, fxK(t0)
   li t1, 1
   bne t0, t1, .L2
-  ; engine/look.e16.ts:154  f = t < 3 ? 0 : t < 6 ? 1 : 2
+  ; engine/look.e16.ts:155  f = t < 3 ? 0 : t < 6 ? 1 : 2
   li t0, 3
   bgeu s2, t0, .L3
   li t0, 0
@@ -16217,7 +16253,7 @@ fxSprites:
   mv s3, t0 ; f
   j .L7
 .L2:
-  ; engine/look.e16.ts:155  f = t < 4 ? 3 : 4
+  ; engine/look.e16.ts:156  f = t < 4 ? 3 : 4
   li t0, 4
   bgeu s2, t0, .L8
   li t0, 3
@@ -16227,10 +16263,10 @@ fxSprites:
 .L9:
   mv s3, t0 ; f
 .L7:
-  ; engine/look.e16.ts:156  spr(i16(fxX[a]) - i16(camX) - 16, i16(fxY[a]) - 16, (SPARK_TILE + f * 16) | FX_PAL, S32)
+  ; engine/look.e16.ts:157  spr(i16(fxX[a]) - i16(camX) - 16, i16(fxY[a]) - 16, (SPARK_TILE + f * 16) | FX_PAL, S32)
   slli t0, s1, 1
   lw t0, fxX(t0)
-  lw t1, 0x1988(zero)
+  lw t1, 0x198a(zero)
   sub t0, t0, t1
   slli t1, s1, 1
   lw t1, fxY(t1)
@@ -16250,13 +16286,13 @@ fxSprites:
   addi sp, sp, 8
   ret
 
-; engine/look.e16.ts:162 lowOf(w) at -O1
+; engine/look.e16.ts:163 lowOf(w) at -O1
 ;   w in a0
 ;   v in a1
 lowOf:
-  ; engine/look.e16.ts:163  const v = i16(w & 255)
+  ; engine/look.e16.ts:164  const v = i16(w & 255)
   andi a1, a0, 255
-  ; engine/look.e16.ts:164  return v > 127 ? v - 256 : v
+  ; engine/look.e16.ts:165  return v > 127 ? v - 256 : v
   li t0, 127
   bge t0, a1, .L1
   addi t0, a1, -256
@@ -16268,13 +16304,13 @@ lowOf:
 .return:
   ret
 
-; engine/look.e16.ts:167 highOf(w) at -O1
+; engine/look.e16.ts:168 highOf(w) at -O1
 ;   w in a0
 ;   v in a1
 highOf:
-  ; engine/look.e16.ts:168  const v = i16(w >> 8)
+  ; engine/look.e16.ts:169  const v = i16(w >> 8)
   srli a1, a0, 8
-  ; engine/look.e16.ts:169  return v > 127 ? v - 256 : v
+  ; engine/look.e16.ts:170  return v > 127 ? v - 256 : v
   li t0, 127
   bge t0, a1, .L1
   addi t0, a1, -256
@@ -16286,7 +16322,7 @@ highOf:
 .return:
   ret
 
-; engine/look.e16.ts:173 bodySprites(i) at -O1
+; engine/look.e16.ts:174 bodySprites(i) at -O1
 ;   i in s1
 ;   x in s3
 ;   y in 6(fp)
@@ -16305,35 +16341,35 @@ bodySprites:
   sw s0, 20(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/look.e16.ts:174  if (shOn[i] !== 0) {
+  ; engine/look.e16.ts:175  if (shOn[i] !== 0) {
   slli t0, s1, 1
   lw t0, shOn(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:175  shardSprites(i)
+  ; engine/look.e16.ts:176  shardSprites(i)
   mv a0, s1
   call shardSprites
-  ; engine/look.e16.ts:176  return
+  ; engine/look.e16.ts:177  return
   j .return
 .L1:
-  ; engine/look.e16.ts:178  const x = i16(pointX(i)) - i16(camX)
+  ; engine/look.e16.ts:179  const x = i16(pointX(i)) - i16(camX)
   mv a0, s1
   call pointX
-  lw t0, 0x1988(zero)
+  lw t0, 0x198a(zero)
   sub s3, a0, t0
-  ; engine/look.e16.ts:179  const y = GROUND_Y - i16(fY[i] >> 4)
-  slli t0, s1, 1
-  lw t0, fY(t0)
-  srli t0, t0, 4
-  li t1, 244
-  sub t1, t1, t0
-  sw t1, 6(fp) ; y
-  ; engine/look.e16.ts:180  const right = fFace[i] !== 0
+  ; engine/look.e16.ts:180  const y = i16(groundY) - i16(fY[i] >> 4)
+  lw t0, 0x153c(zero)
+  slli t1, s1, 1
+  lw t1, fY(t1)
+  srli t1, t1, 4
+  sub t0, t0, t1
+  sw t0, 6(fp) ; y
+  ; engine/look.e16.ts:181  const right = fFace[i] !== 0
   slli t0, s1, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez t0, t0
   sw t0, 0(fp) ; right
-  ; engine/look.e16.ts:181  const tile = (S1_TILE + i * 128) | (i << 10) | (right ? 0 : FLIP_H)
+  ; engine/look.e16.ts:182  const tile = (S1_TILE + i * 128) | (i << 10) | (right ? 0 : FLIP_H)
   slli t0, s1, 7
   slli t1, s1, 10
   addi t0, t0, 257
@@ -16347,7 +16383,7 @@ bodySprites:
 .L3:
   or t0, t0, t1
   sw t0, 8(fp) ; tile
-  ; engine/look.e16.ts:182  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:183  const n = art[i * ART_W + 1]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -16355,12 +16391,12 @@ bodySprites:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 10(fp) ; n
-  ; engine/look.e16.ts:183  let c: u16 = 0
+  ; engine/look.e16.ts:184  let c: u16 = 0
   li s2, 0 ; c
-  ; engine/look.e16.ts:184  while (c < n) {
+  ; engine/look.e16.ts:185  while (c < n) {
   j .L6
 .L4:
-  ; engine/look.e16.ts:185  const w = art[i * ART_W + 2 + c]
+  ; engine/look.e16.ts:186  const w = art[i * ART_W + 2 + c]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -16369,11 +16405,11 @@ bodySprites:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 2(fp) ; w
-  ; engine/look.e16.ts:186  const dx = lowOf(w)
+  ; engine/look.e16.ts:187  const dx = lowOf(w)
   lw a0, 2(fp)
   call lowOf
   sw a0, 4(fp) ; dx
-  ; engine/look.e16.ts:187  spr(right ? x + dx : x - dx - 16, y + highOf(w), tile + c * 4, S16)
+  ; engine/look.e16.ts:188  spr(right ? x + dx : x - dx - 16, y + highOf(w), tile + c * 4, S16)
   lw t0, 0(fp) ; right
   beqz t0, .L8
   lw t0, 4(fp) ; dx
@@ -16400,7 +16436,7 @@ bodySprites:
   mv a2, t2
   li a3, 1
   call spr
-  ; engine/look.e16.ts:188  c++
+  ; engine/look.e16.ts:189  c++
   addi s2, s2, 1
 .L6:
   lw t0, 10(fp) ; n
@@ -16415,78 +16451,82 @@ bodySprites:
   addi sp, sp, 22
   ret
 
-; engine/look.e16.ts:196 shadow(i) at -O1
-;   i in s2
+; engine/look.e16.ts:197 shadow(i) at -O1
+;   i in s3
 ;   x in s1
-;   h in s3
+;   h in s0
+;   y in s2
 shadow:
-  addi sp, sp, -8
+  addi sp, sp, -10
   sw ra, 0(sp)
-  sw s2, 2(sp)
+  sw s3, 2(sp)
   sw s1, 4(sp)
-  sw s3, 6(sp)
-  mv s2, a0 ; i
-  ; engine/look.e16.ts:197  if (shOn[i] !== 0) return
-  slli t0, s2, 1
+  sw s0, 6(sp)
+  sw s2, 8(sp)
+  mv s3, a0 ; i
+  ; engine/look.e16.ts:198  if (shOn[i] !== 0) return
+  slli t0, s3, 1
   lw t0, shOn(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:197  return
+  ; engine/look.e16.ts:198  return
   j .return
 .L1:
-  ; engine/look.e16.ts:198  const x = i16(pointX(i)) - i16(camX)
-  mv a0, s2
+  ; engine/look.e16.ts:199  const x = i16(pointX(i)) - i16(camX)
+  mv a0, s3
   call pointX
-  lw t0, 0x1988(zero)
+  lw t0, 0x198a(zero)
   sub s1, a0, t0
-  ; engine/look.e16.ts:199  const h = fY[i] >> 4
-  slli t0, s2, 1
+  ; engine/look.e16.ts:200  const h = fY[i] >> 4
+  slli t0, s3, 1
   lw t0, fY(t0)
-  srli s3, t0, 4
-  ; engine/look.e16.ts:200  const y = GROUND_Y - 4
-  ; engine/look.e16.ts:201  const t = SHADOW_TILE | FX_PAL
-  ; engine/look.e16.ts:202  if (h < 20) {
+  srli s0, t0, 4
+  ; engine/look.e16.ts:201  const y = i16(groundY) - 4
+  lw t0, 0x153c(zero)
+  addi s2, t0, -4
+  ; engine/look.e16.ts:202  const t = SHADOW_TILE | FX_PAL
+  ; engine/look.e16.ts:203  if (h < 20) {
   li t0, 20
-  bgeu s3, t0, .L2
-  ; engine/look.e16.ts:203  spr(x - 24, y, t, S16)
+  bgeu s0, t0, .L2
+  ; engine/look.e16.ts:204  spr(x - 24, y, t, S16)
   addi a0, s1, -24
-  li a1, 240
+  mv a1, s2
   li a2, 2641
   li a3, 1
   call spr
-  ; engine/look.e16.ts:204  spr(x - 8, y, t + 4, S16)
+  ; engine/look.e16.ts:205  spr(x - 8, y, t + 4, S16)
   addi a0, s1, -8
-  li a1, 240
+  mv a1, s2
   li a2, 2645
   li a3, 1
   call spr
-  ; engine/look.e16.ts:205  spr(x + 8, y, t | FLIP_H, S16)
+  ; engine/look.e16.ts:206  spr(x + 8, y, t | FLIP_H, S16)
   addi a0, s1, 8
-  li a1, 240
+  mv a1, s2
   li a2, 10833
   li a3, 1
   call spr
   j .L3
 .L2:
-  ; engine/look.e16.ts:206  if (h < 50) {
+  ; engine/look.e16.ts:207  if (h < 50) {
   li t0, 50
-  bgeu s3, t0, .L4
-  ; engine/look.e16.ts:207  spr(x - 16, y, t + 8, S16)
+  bgeu s0, t0, .L4
+  ; engine/look.e16.ts:208  spr(x - 16, y, t + 8, S16)
   addi a0, s1, -16
-  li a1, 240
+  mv a1, s2
   li a2, 2649
   li a3, 1
   call spr
-  ; engine/look.e16.ts:208  spr(x, y, (t + 8) | FLIP_H, S16)
+  ; engine/look.e16.ts:209  spr(x, y, (t + 8) | FLIP_H, S16)
   mv a0, s1
-  li a1, 240
+  mv a1, s2
   li a2, 10841
   li a3, 1
   call spr
   j .L5
 .L4:
-  ; engine/look.e16.ts:209  spr(x - 8, y, t + 12, S16)
+  ; engine/look.e16.ts:210  spr(x - 8, y, t + 12, S16)
   addi a0, s1, -8
-  li a1, 240
+  mv a1, s2
   li a2, 2653
   li a3, 1
   call spr
@@ -16494,13 +16534,14 @@ shadow:
 .L3:
 .return:
   lw ra, 0(sp)
-  lw s2, 2(sp)
+  lw s3, 2(sp)
   lw s1, 4(sp)
-  lw s3, 6(sp)
-  addi sp, sp, 8
+  lw s0, 6(sp)
+  lw s2, 8(sp)
+  addi sp, sp, 10
   ret
 
-; engine/look.e16.ts:229 koStep(i) at -O1
+; engine/look.e16.ts:230 koStep(i) at -O1
 ;   i in s1
 ;   over in s2
 koStep:
@@ -16509,7 +16550,7 @@ koStep:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/look.e16.ts:230  const over = phase === PH_OVER || phase === PH_END
+  ; engine/look.e16.ts:231  const over = phase === PH_OVER || phase === PH_END
   lw t0, 0x0c98(zero)
   li t1, 2
   sub t0, t0, t1
@@ -16522,15 +16563,15 @@ koStep:
   seqz t0, t0
 .L1:
   mv s2, t0 ; over
-  ; engine/look.e16.ts:231  if (!over) {
+  ; engine/look.e16.ts:232  if (!over) {
   bnez s2, .L2
-  ; engine/look.e16.ts:232  shOn[i] = 0
+  ; engine/look.e16.ts:233  shOn[i] = 0
   slli t0, s1, 1
   sw zero, shOn(t0)
-  ; engine/look.e16.ts:233  return
+  ; engine/look.e16.ts:234  return
   j .return
 .L2:
-  ; engine/look.e16.ts:235  if (phase === PH_OVER && roundWon === i && phaseT >= WIN_AT) fWin[i] = 1
+  ; engine/look.e16.ts:236  if (phase === PH_OVER && roundWon === i && phaseT >= WIN_AT) fWin[i] = 1
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L3
@@ -16539,19 +16580,19 @@ koStep:
   lw t0, 0x0c9a(zero)
   li t1, 60
   bltu t0, t1, .L3
-  ; engine/look.e16.ts:235  fWin[i] = 1
+  ; engine/look.e16.ts:236  fWin[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, fWin(t0)
 .L3:
-  ; engine/look.e16.ts:236  if (fLife[i] !== 0) return
+  ; engine/look.e16.ts:237  if (fLife[i] !== 0) return
   slli t0, s1, 1
   lw t0, fLife(t0)
   beq t0, zero, .L4
-  ; engine/look.e16.ts:236  return
+  ; engine/look.e16.ts:237  return
   j .return
 .L4:
-  ; engine/look.e16.ts:237  if (phase === PH_OVER && phaseT === BREAK_AT && shOn[i] === 0) {
+  ; engine/look.e16.ts:238  if (phase === PH_OVER && phaseT === BREAK_AT && shOn[i] === 0) {
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L5
@@ -16561,18 +16602,18 @@ koStep:
   slli t0, s1, 1
   lw t0, shOn(t0)
   bne t0, zero, .L5
-  ; engine/look.e16.ts:238  shatter(i)
+  ; engine/look.e16.ts:239  shatter(i)
   mv a0, s1
   call shatter
-  ; engine/look.e16.ts:239  sfx(X_SHARDS)
+  ; engine/look.e16.ts:240  sfx(X_SHARDS)
   li a0, 8
   call sfx
 .L5:
-  ; engine/look.e16.ts:241  if (shOn[i] !== 0) shardsMove(i)
+  ; engine/look.e16.ts:242  if (shOn[i] !== 0) shardsMove(i)
   slli t0, s1, 1
   lw t0, shOn(t0)
   beq t0, zero, .L6
-  ; engine/look.e16.ts:241  shardsMove(i)
+  ; engine/look.e16.ts:242  shardsMove(i)
   mv a0, s1
   call shardsMove
 .L6:
@@ -16583,7 +16624,7 @@ koStep:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:249 shatter(i) at -O1
+; engine/look.e16.ts:250 shatter(i) at -O1
 ;   i in s1
 ;   right in 6(fp)
 ;   x0 in 8(fp)
@@ -16605,15 +16646,15 @@ shatter:
   sw s0, 26(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/look.e16.ts:250  artHold[i] = 1
+  ; engine/look.e16.ts:251  artHold[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, artHold(t0)
-  ; engine/look.e16.ts:251  boxPose[i] = 0xffff
+  ; engine/look.e16.ts:252  boxPose[i] = 0xffff
   slli t0, s1, 1
   li t1, 65535
   sw t1, boxPose(t0)
-  ; engine/look.e16.ts:252  artCopy(i, fSlot[i], fAir[i] !== 0 ? SHARDS_AIR : SHARDS_ROW)
+  ; engine/look.e16.ts:253  artCopy(i, fSlot[i], fAir[i] !== 0 ? SHARDS_AIR : SHARDS_ROW)
   slli t0, s1, 1
   lw t0, fSlot(t0)
   slli t1, s1, 1
@@ -16631,28 +16672,28 @@ shatter:
   mv a1, t1
   mv a2, t2
   call artCopy
-  ; engine/look.e16.ts:253  shOn[i] = 1
+  ; engine/look.e16.ts:254  shOn[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, shOn(t0)
-  ; engine/look.e16.ts:254  const right = fFace[i] !== 0
+  ; engine/look.e16.ts:255  const right = fFace[i] !== 0
   slli t0, s1, 1
   lw t0, fFace(t0)
   sub t0, t0, zero
   snez t0, t0
   sw t0, 6(fp) ; right
-  ; engine/look.e16.ts:255  const x0 = i16(pointX(i))
+  ; engine/look.e16.ts:256  const x0 = i16(pointX(i))
   mv a0, s1
   call pointX
   sw a0, 8(fp) ; x0
-  ; engine/look.e16.ts:256  const y0 = GROUND_Y - i16(fY[i] >> 4)
-  slli t0, s1, 1
-  lw t0, fY(t0)
-  srli t0, t0, 4
-  li t1, 244
-  sub t1, t1, t0
-  sw t1, 12(fp) ; y0
-  ; engine/look.e16.ts:257  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:257  const y0 = i16(groundY) - i16(fY[i] >> 4)
+  lw t0, 0x153c(zero)
+  slli t1, s1, 1
+  lw t1, fY(t1)
+  srli t1, t1, 4
+  sub t0, t0, t1
+  sw t0, 12(fp) ; y0
+  ; engine/look.e16.ts:258  const n = art[i * ART_W + 1]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -16660,14 +16701,14 @@ shatter:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 0(fp) ; n
-  ; engine/look.e16.ts:258  let mean: i16 = 0
+  ; engine/look.e16.ts:259  let mean: i16 = 0
   li s3, 0 ; mean
-  ; engine/look.e16.ts:259  let c: u16 = 0
+  ; engine/look.e16.ts:260  let c: u16 = 0
   li s2, 0 ; c
-  ; engine/look.e16.ts:260  while (c < n) {
+  ; engine/look.e16.ts:261  while (c < n) {
   j .L5
 .L3:
-  ; engine/look.e16.ts:261  mean = mean + lowOf(art[i * ART_W + 2 + c])
+  ; engine/look.e16.ts:262  mean = mean + lowOf(art[i * ART_W + 2 + c])
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -16677,24 +16718,24 @@ shatter:
   lw a0, art(t0)
   call lowOf
   add s3, s3, a0
-  ; engine/look.e16.ts:262  c++
+  ; engine/look.e16.ts:263  c++
   addi s2, s2, 1
 .L5:
   lw t0, 0(fp) ; n
   bltu s2, t0, .L3
-  ; engine/look.e16.ts:264  if (n > 0) mean = idiv(mean, i16(n))
+  ; engine/look.e16.ts:265  if (n > 0) mean = idiv(mean, i16(n))
   lw t0, 0(fp) ; n
   bgeu zero, t0, .L7
-  ; engine/look.e16.ts:264  mean = idiv(mean, i16(n))
+  ; engine/look.e16.ts:265  mean = idiv(mean, i16(n))
   lw t0, 0(fp) ; n
   div s3, s3, t0
 .L7:
-  ; engine/look.e16.ts:265  c = 0
+  ; engine/look.e16.ts:266  c = 0
   li s2, 0 ; c
-  ; engine/look.e16.ts:266  while (c < n) {
+  ; engine/look.e16.ts:267  while (c < n) {
   j .L10
 .L8:
-  ; engine/look.e16.ts:267  const w = art[i * ART_W + 2 + c]
+  ; engine/look.e16.ts:268  const w = art[i * ART_W + 2 + c]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -16703,15 +16744,15 @@ shatter:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 10(fp) ; w
-  ; engine/look.e16.ts:268  const dx = lowOf(w)
+  ; engine/look.e16.ts:269  const dx = lowOf(w)
   lw a0, 10(fp)
   call lowOf
   sw a0, 2(fp) ; dx
-  ; engine/look.e16.ts:269  const e = i * 32 + c
+  ; engine/look.e16.ts:270  const e = i * 32 + c
   slli t0, s1, 5
   add t0, t0, s2
   sw t0, 4(fp) ; e
-  ; engine/look.e16.ts:270  const px = right ? x0 + dx : x0 - dx - 16
+  ; engine/look.e16.ts:271  const px = right ? x0 + dx : x0 - dx - 16
   lw t0, 6(fp) ; right
   beqz t0, .L12
   lw t0, 2(fp) ; dx
@@ -16725,7 +16766,7 @@ shatter:
   addi t0, t1, -16
 .L13:
   sw t0, 14(fp) ; px
-  ; engine/look.e16.ts:271  const away = right ? dx - mean : mean - dx
+  ; engine/look.e16.ts:272  const away = right ? dx - mean : mean - dx
   lw t0, 6(fp) ; right
   beqz t0, .L14
   lw t0, 2(fp) ; dx
@@ -16736,13 +16777,13 @@ shatter:
   sub t0, s3, t0
 .L15:
   sw t0, 16(fp) ; away
-  ; engine/look.e16.ts:272  shX[e] = u16(px * 16)
+  ; engine/look.e16.ts:273  shX[e] = u16(px * 16)
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   lw t1, 14(fp) ; px
   slli t1, t1, 4
   sw t1, shX(t0)
-  ; engine/look.e16.ts:275  shY[e] = u16((y0 + highOf(w) - i16((c & 1) * 16)) * 16)
+  ; engine/look.e16.ts:276  shY[e] = u16((y0 + highOf(w) - i16((c & 1) * 16)) * 16)
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   addi t0, t0, shY
@@ -16759,7 +16800,7 @@ shatter:
   lw t1, 0(sp)
   addi sp, sp, 2
   sw t0, 0(t1)
-  ; engine/look.e16.ts:276  shVX[e] = u16(away * 3 + i16((c * 7) & 15) - 8)
+  ; engine/look.e16.ts:277  shVX[e] = u16(away * 3 + i16((c * 7) & 15) - 8)
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   lw t1, 16(fp) ; away
@@ -16771,7 +16812,7 @@ shatter:
   add t1, t1, t2
   addi t1, t1, -8
   sw t1, shVX(t0)
-  ; engine/look.e16.ts:277  shVY[e] = u16(-24 - i16((c * 13) & 31))
+  ; engine/look.e16.ts:278  shVY[e] = u16(-24 - i16((c * 13) & 31))
   lw t0, 4(fp) ; e
   slli t0, t0, 1
   li t1, 13
@@ -16780,7 +16821,7 @@ shatter:
   li t2, 65512
   sub t2, t2, t1
   sw t2, shVY(t0)
-  ; engine/look.e16.ts:278  c++
+  ; engine/look.e16.ts:279  c++
   addi s2, s2, 1
 .L10:
   lw t0, 0(fp) ; n
@@ -16795,34 +16836,34 @@ shatter:
   addi sp, sp, 28
   ret
 
-; engine/look.e16.ts:282 shardsMove(i) at -O1
+; engine/look.e16.ts:283 shardsMove(i) at -O1
 ;   i in a0
 ;   n in a3
 ;   c in a2
 ;   e in a1
 shardsMove:
-  ; engine/look.e16.ts:283  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:284  const n = art[i * ART_W + 1]
   slli t1, a0, 5
   slli t0, a0, 1
   add t0, t0, t1
   addi t0, t0, 1
   slli t0, t0, 1
   lw a3, art(t0)
-  ; engine/look.e16.ts:284  let c: u16 = 0
+  ; engine/look.e16.ts:285  let c: u16 = 0
   li a2, 0 ; c
-  ; engine/look.e16.ts:285  while (c < n) {
+  ; engine/look.e16.ts:286  while (c < n) {
   j .L3
 .L1:
-  ; engine/look.e16.ts:286  const e = i * 32 + c
+  ; engine/look.e16.ts:287  const e = i * 32 + c
   slli t0, a0, 5
   add a1, t0, a2
-  ; engine/look.e16.ts:287  shVY[e] = u16(i16(shVY[e]) + GRAVITY)
+  ; engine/look.e16.ts:288  shVY[e] = u16(i16(shVY[e]) + GRAVITY)
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, shVY(t1)
   addi t1, t1, 3
   sw t1, shVY(t0)
-  ; engine/look.e16.ts:288  shX[e] = u16(i16(shX[e]) + i16(shVX[e]))
+  ; engine/look.e16.ts:289  shX[e] = u16(i16(shX[e]) + i16(shVX[e]))
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, shX(t1)
@@ -16830,7 +16871,7 @@ shardsMove:
   lw t2, shVX(t2)
   add t1, t1, t2
   sw t1, shX(t0)
-  ; engine/look.e16.ts:289  shY[e] = u16(i16(shY[e]) + i16(shVY[e]))
+  ; engine/look.e16.ts:290  shY[e] = u16(i16(shY[e]) + i16(shVY[e]))
   slli t0, a1, 1
   slli t1, a1, 1
   lw t1, shY(t1)
@@ -16838,14 +16879,14 @@ shardsMove:
   lw t2, shVY(t2)
   add t1, t1, t2
   sw t1, shY(t0)
-  ; engine/look.e16.ts:290  c++
+  ; engine/look.e16.ts:291  c++
   addi a2, a2, 1
 .L3:
   bltu a2, a3, .L1
 .return:
   ret
 
-; engine/look.e16.ts:294 shardSprites(i) at -O1
+; engine/look.e16.ts:295 shardSprites(i) at -O1
 ;   i in s1
 ;   n in 2(fp)
 ;   tile in 4(fp)
@@ -16861,7 +16902,7 @@ shardSprites:
   sw s0, 14(sp)
   mv fp, sp
   mv s1, a0 ; i
-  ; engine/look.e16.ts:295  const n = art[i * ART_W + 1]
+  ; engine/look.e16.ts:296  const n = art[i * ART_W + 1]
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -16869,7 +16910,7 @@ shardSprites:
   slli t0, t0, 1
   lw t0, art(t0)
   sw t0, 2(fp) ; n
-  ; engine/look.e16.ts:296  const tile = (S1_TILE + i * 128) | (i << 10) | (fFace[i] !== 0 ? 0 : FLIP_H)
+  ; engine/look.e16.ts:297  const tile = (S1_TILE + i * 128) | (i << 10) | (fFace[i] !== 0 ? 0 : FLIP_H)
   slli t0, s1, 7
   slli t1, s1, 10
   addi t0, t0, 257
@@ -16885,28 +16926,28 @@ shardSprites:
 .L2:
   or t0, t0, t1
   sw t0, 4(fp) ; tile
-  ; engine/look.e16.ts:297  let c: u16 = 0
+  ; engine/look.e16.ts:298  let c: u16 = 0
   li s2, 0 ; c
-  ; engine/look.e16.ts:298  while (c < n) {
+  ; engine/look.e16.ts:299  while (c < n) {
   j .L5
 .L3:
-  ; engine/look.e16.ts:299  const e = i * 32 + c
+  ; engine/look.e16.ts:300  const e = i * 32 + c
   slli t0, s1, 5
   add s3, t0, s2
-  ; engine/look.e16.ts:300  const y = i16(shY[e]) >> 4
+  ; engine/look.e16.ts:301  const y = i16(shY[e]) >> 4
   slli t0, s3, 1
   lw t0, shY(t0)
   srai t0, t0, 4
   sw t0, 0(fp) ; y
-  ; engine/look.e16.ts:301  if (y < 300) spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
+  ; engine/look.e16.ts:302  if (y < 300) spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
   li t0, 300
   lw t1, 0(fp) ; y
   bge t1, t0, .L7
-  ; engine/look.e16.ts:301  spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
+  ; engine/look.e16.ts:302  spr((i16(shX[e]) >> 4) - i16(camX), y, tile + c * 4, S16)
   slli t0, s3, 1
   lw t0, shX(t0)
   srai t0, t0, 4
-  lw t1, 0x1988(zero)
+  lw t1, 0x198a(zero)
   sub t0, t0, t1
   slli t1, s2, 2
   lw t2, 4(fp) ; tile
@@ -16917,7 +16958,7 @@ shardSprites:
   li a3, 1
   call spr
 .L7:
-  ; engine/look.e16.ts:302  c++
+  ; engine/look.e16.ts:303  c++
   addi s2, s2, 1
 .L5:
   lw t0, 2(fp) ; n
@@ -16932,7 +16973,7 @@ shardSprites:
   addi sp, sp, 16
   ret
 
-; engine/look.e16.ts:326 palStep(i) at -O1
+; engine/look.e16.ts:327 palStep(i) at -O1
 ;   i in s1
 ;   key in s2
 palStep:
@@ -16941,21 +16982,21 @@ palStep:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/look.e16.ts:327  const key = palWanted(i)
+  ; engine/look.e16.ts:328  const key = palWanted(i)
   mv a0, s1
   call palWanted
   mv s2, a0 ; key
-  ; engine/look.e16.ts:328  if (key === palKey[i]) return
+  ; engine/look.e16.ts:329  if (key === palKey[i]) return
   slli t0, s1, 1
   lw t0, palKey(t0)
   bne s2, t0, .L1
-  ; engine/look.e16.ts:328  return
+  ; engine/look.e16.ts:329  return
   j .return
 .L1:
-  ; engine/look.e16.ts:329  palKey[i] = key
+  ; engine/look.e16.ts:330  palKey[i] = key
   slli t0, s1, 1
   sw s2, palKey(t0)
-  ; engine/look.e16.ts:330  palShow(8 + i, key >> 8, key & 255)
+  ; engine/look.e16.ts:331  palShow(8 + i, key >> 8, key & 255)
   srli t0, s2, 8
   andi t1, s2, 255
   addi a0, s1, 8
@@ -16969,7 +17010,7 @@ palStep:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:334 introStep(t) at -O1
+; engine/look.e16.ts:335 introStep(t) at -O1
 ;   t in s2
 ;   k in s1
 introStep:
@@ -16978,11 +17019,11 @@ introStep:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; t
-  ; engine/look.e16.ts:335  const k = introKey(t)
+  ; engine/look.e16.ts:336  const k = introKey(t)
   mv a0, s2
   call introKey
   mv s1, a0 ; k
-  ; engine/look.e16.ts:336  return k >> 8 === M_NORMAL ? 6 : k & 255
+  ; engine/look.e16.ts:337  return k >> 8 === M_NORMAL ? 6 : k & 255
   srli t0, s1, 8
   bne t0, zero, .L1
   li t0, 6
@@ -16998,7 +17039,7 @@ introStep:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:340 palWanted(i) at -O1
+; engine/look.e16.ts:341 palWanted(i) at -O1
 ;   i in s1
 ;   t in s2
 palWanted:
@@ -17007,11 +17048,11 @@ palWanted:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; i
-  ; engine/look.e16.ts:341  if (shOn[i] !== 0) {
+  ; engine/look.e16.ts:342  if (shOn[i] !== 0) {
   slli t0, s1, 1
   lw t0, shOn(t0)
   beq t0, zero, .L1
-  ; engine/look.e16.ts:342  const t = phaseT > FADE_AT ? phaseT - FADE_AT : 0
+  ; engine/look.e16.ts:343  const t = phaseT > FADE_AT ? phaseT - FADE_AT : 0
   lw t0, 0x0c9a(zero)
   li t1, 96
   bgeu t1, t0, .L2
@@ -17022,7 +17063,7 @@ palWanted:
   li t0, 0
 .L3:
   mv s2, t0 ; t
-  ; engine/look.e16.ts:343  return (M_PIECES << 8) | (t > 16 ? 16 : t)
+  ; engine/look.e16.ts:344  return (M_PIECES << 8) | (t > 16 ? 16 : t)
   li t0, 1792
   mv t1, s2
   li t2, 16
@@ -17035,7 +17076,7 @@ palWanted:
   or a0, t0, t1
   j .return
 .L1:
-  ; engine/look.e16.ts:345  if (phase === PH_OVER && fLife[i] === 0 && phaseT >= VOID_FROM) {
+  ; engine/look.e16.ts:346  if (phase === PH_OVER && fLife[i] === 0 && phaseT >= VOID_FROM) {
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L6
@@ -17045,10 +17086,10 @@ palWanted:
   lw t0, 0x0c9a(zero)
   li t1, 24
   bltu t0, t1, .L6
-  ; engine/look.e16.ts:346  const t = phaseT - VOID_FROM
+  ; engine/look.e16.ts:347  const t = phaseT - VOID_FROM
   lw t0, 0x0c9a(zero)
   addi s2, t0, -24
-  ; engine/look.e16.ts:347  return (M_KO << 8) | (t > 16 ? 16 : t)
+  ; engine/look.e16.ts:348  return (M_KO << 8) | (t > 16 ? 16 : t)
   li t0, 1536
   mv t1, s2
   li t2, 16
@@ -17061,40 +17102,40 @@ palWanted:
   or a0, t0, t1
   j .return
 .L6:
-  ; engine/look.e16.ts:349  if (phase === PH_ROUND) return introKey(phaseT)
+  ; engine/look.e16.ts:350  if (phase === PH_ROUND) return introKey(phaseT)
   lw t0, 0x0c98(zero)
   bne t0, zero, .L9
-  ; engine/look.e16.ts:349  return introKey(phaseT)
+  ; engine/look.e16.ts:350  return introKey(phaseT)
   lw a0, 0x0c9a(zero)
   call introKey
   j .return
 .L9:
-  ; engine/look.e16.ts:350  if (fState[i] === ST_THROWN) return M_THROWN << 8
+  ; engine/look.e16.ts:351  if (fState[i] === ST_THROWN) return M_THROWN << 8
   slli t0, s1, 1
   lw t0, fState(t0)
   li t1, 12
   bne t0, t1, .L10
-  ; engine/look.e16.ts:350  return M_THROWN << 8
+  ; engine/look.e16.ts:351  return M_THROWN << 8
   li a0, 1024
   j .return
 .L10:
-  ; engine/look.e16.ts:351  if (flashT[i] > 0) return M_FLASH << 8
+  ; engine/look.e16.ts:352  if (flashT[i] > 0) return M_FLASH << 8
   slli t0, s1, 1
   lw t0, flashT(t0)
   bgeu zero, t0, .L11
-  ; engine/look.e16.ts:351  return M_FLASH << 8
+  ; engine/look.e16.ts:352  return M_FLASH << 8
   li a0, 512
   j .return
 .L11:
-  ; engine/look.e16.ts:352  if (guardT[i] > 0) return M_GUARD << 8
+  ; engine/look.e16.ts:353  if (guardT[i] > 0) return M_GUARD << 8
   slli t0, s1, 1
   lw t0, guardT(t0)
   bgeu zero, t0, .L12
-  ; engine/look.e16.ts:352  return M_GUARD << 8
+  ; engine/look.e16.ts:353  return M_GUARD << 8
   li a0, 768
   j .return
 .L12:
-  ; engine/look.e16.ts:353  if (fLife[i] * 4 < prAt(i, P_LIFE) && (frame & 16) !== 0) return M_LOW << 8
+  ; engine/look.e16.ts:354  if (fLife[i] * 4 < prAt(i, P_LIFE) && (frame & 16) !== 0) return M_LOW << 8
   slli t0, s1, 1
   lw t0, fLife(t0)
   slli t0, t0, 2
@@ -17109,11 +17150,11 @@ palWanted:
   lw t0, 0x0c94(zero)
   andi t0, t0, 16
   beq t0, zero, .L13
-  ; engine/look.e16.ts:353  return M_LOW << 8
+  ; engine/look.e16.ts:354  return M_LOW << 8
   li a0, 1280
   j .return
 .L13:
-  ; engine/look.e16.ts:354  return M_NORMAL << 8
+  ; engine/look.e16.ts:355  return M_NORMAL << 8
   li a0, 0
 .return:
   lw ra, 0(sp)
@@ -17122,29 +17163,29 @@ palWanted:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:358 introKey(t) at -O1
+; engine/look.e16.ts:359 introKey(t) at -O1
 ;   t in a0
 ;   s in a1
 introKey:
-  ; engine/look.e16.ts:359  if (t < 10) return M_INTRO << 8
+  ; engine/look.e16.ts:360  if (t < 10) return M_INTRO << 8
   li t0, 10
   bgeu a0, t0, .L1
-  ; engine/look.e16.ts:359  return M_INTRO << 8
+  ; engine/look.e16.ts:360  return M_INTRO << 8
   li a0, 256
   ret
 .L1:
-  ; engine/look.e16.ts:360  if (t < 18) return (M_INTRO << 8) | 1
+  ; engine/look.e16.ts:361  if (t < 18) return (M_INTRO << 8) | 1
   li t0, 18
   bgeu a0, t0, .L2
-  ; engine/look.e16.ts:360  return (M_INTRO << 8) | 1
+  ; engine/look.e16.ts:361  return (M_INTRO << 8) | 1
   li a0, 257
   ret
 .L2:
-  ; engine/look.e16.ts:361  const s = 2 + ((t - 18) >> 2)
+  ; engine/look.e16.ts:362  const s = 2 + ((t - 18) >> 2)
   addi t0, a0, -18
   srli t0, t0, 2
   addi a1, t0, 2
-  ; engine/look.e16.ts:362  return s >= 6 ? M_NORMAL << 8 : (M_INTRO << 8) | s
+  ; engine/look.e16.ts:363  return s >= 6 ? M_NORMAL << 8 : (M_INTRO << 8) | s
   li t0, 6
   bltu a1, t0, .L3
   li t0, 0
@@ -17157,7 +17198,7 @@ introKey:
 .return:
   ret
 
-; engine/look.e16.ts:369 palShow(sl, mode, step) at -O1
+; engine/look.e16.ts:370 palShow(sl, mode, step) at -O1
 ;   sl in s2
 ;   mode in s3
 ;   step in 0(fp)
@@ -17176,16 +17217,16 @@ palShow:
   mv s2, a0 ; sl
   mv s3, a1 ; mode
   sw a2, 0(fp) ; step
-  ; engine/look.e16.ts:370  const base = sl * 16
+  ; engine/look.e16.ts:371  const base = sl * 16
   slli t0, s2, 4
   sw t0, 2(fp) ; base
-  ; engine/look.e16.ts:371  const empty = palCopy[base + 13]
+  ; engine/look.e16.ts:372  const empty = palCopy[base + 13]
   lw t0, 2(fp) ; base
   addi t0, t0, 13
   slli t0, t0, 1
   lw t0, palCopy(t0)
   sw t0, 4(fp) ; empty
-  ; engine/look.e16.ts:372  const m = mode === M_INTRO && step >= 6 ? M_NORMAL : mode
+  ; engine/look.e16.ts:373  const m = mode === M_INTRO && step >= 6 ? M_NORMAL : mode
   li t0, 1
   bne s3, t0, .L1
   li t0, 6
@@ -17197,12 +17238,12 @@ palShow:
   mv t0, s3
 .L2:
   sw t0, 6(fp) ; m
-  ; engine/look.e16.ts:373  let k: u16 = 1
+  ; engine/look.e16.ts:374  let k: u16 = 1
   li s1, 1 ; k
-  ; engine/look.e16.ts:374  while (k < 16) {
+  ; engine/look.e16.ts:375  while (k < 16) {
   j .L5
 .L3:
-  ; engine/look.e16.ts:375  colour(sl, k, colourOf(base, k, (m << 8) | step, empty))
+  ; engine/look.e16.ts:376  colour(sl, k, colourOf(base, k, (m << 8) | step, empty))
   lw t0, 6(fp) ; m
   slli t0, t0, 8
   lw t1, 0(fp) ; step
@@ -17216,7 +17257,7 @@ palShow:
   mv a2, a0
   mv a0, s2
   call colour
-  ; engine/look.e16.ts:376  k++
+  ; engine/look.e16.ts:377  k++
   addi s1, s1, 1
 .L5:
   li t0, 16
@@ -17231,10 +17272,10 @@ palShow:
   addi sp, sp, 18
   ret
 
-; engine/look.e16.ts:380 isFill(k) at -O1
+; engine/look.e16.ts:381 isFill(k) at -O1
 ;   k in a0
 isFill:
-  ; engine/look.e16.ts:381  return k >= 3 && k <= 13
+  ; engine/look.e16.ts:382  return k >= 3 && k <= 13
   li t0, 3
   sltu t0, a0, t0
   xori t0, t0, 1
@@ -17248,7 +17289,7 @@ isFill:
 .return:
   ret
 
-; engine/look.e16.ts:385 colourOf(base, k, key, empty) at -O1
+; engine/look.e16.ts:386 colourOf(base, k, key, empty) at -O1
 ;   base in 0(fp)
 ;   k in s1
 ;   key in 6(fp)
@@ -17268,22 +17309,22 @@ colourOf:
   mv s1, a1 ; k
   sw a2, 6(fp) ; key
   sw a3, 2(fp) ; empty
-  ; engine/look.e16.ts:386  const c = palCopy[base + k]
+  ; engine/look.e16.ts:387  const c = palCopy[base + k]
   lw t0, 0(fp) ; base
   add t0, t0, s1
   slli t0, t0, 1
   lw s2, palCopy(t0)
-  ; engine/look.e16.ts:387  const mode = key >> 8
+  ; engine/look.e16.ts:388  const mode = key >> 8
   lw t0, 6(fp) ; key
   srli s3, t0, 8
-  ; engine/look.e16.ts:388  const step = key & 255
+  ; engine/look.e16.ts:389  const step = key & 255
   lw t0, 6(fp) ; key
   andi t0, t0, 255
   sw t0, 4(fp) ; step
-  ; engine/look.e16.ts:389  if (mode === M_INTRO) return introColour(base, k, step, empty)
+  ; engine/look.e16.ts:390  if (mode === M_INTRO) return introColour(base, k, step, empty)
   li t0, 1
   bne s3, t0, .L1
-  ; engine/look.e16.ts:389  return introColour(base, k, step, empty)
+  ; engine/look.e16.ts:390  return introColour(base, k, step, empty)
   lw a0, 0(fp)
   mv a1, s1
   lw a2, 4(fp)
@@ -17291,10 +17332,10 @@ colourOf:
   call introColour
   j .return
 .L1:
-  ; engine/look.e16.ts:390  if (mode === M_KO) return isFill(k) ? mix(c, empty, step) : c
+  ; engine/look.e16.ts:391  if (mode === M_KO) return isFill(k) ? mix(c, empty, step) : c
   li t0, 6
   bne s3, t0, .L2
-  ; engine/look.e16.ts:390  return isFill(k) ? mix(c, empty, step) : c
+  ; engine/look.e16.ts:391  return isFill(k) ? mix(c, empty, step) : c
   mv a0, s1
   call isFill
   beqz a0, .L3
@@ -17310,10 +17351,10 @@ colourOf:
   mv a0, t0
   j .return
 .L2:
-  ; engine/look.e16.ts:391  if (mode === M_PIECES) return mix(isFill(k) ? empty : c, 0, step)
+  ; engine/look.e16.ts:392  if (mode === M_PIECES) return mix(isFill(k) ? empty : c, 0, step)
   li t0, 7
   bne s3, t0, .L5
-  ; engine/look.e16.ts:391  return mix(isFill(k) ? empty : c, 0, step)
+  ; engine/look.e16.ts:392  return mix(isFill(k) ? empty : c, 0, step)
   mv a0, s1
   call isFill
   beqz a0, .L6
@@ -17328,23 +17369,23 @@ colourOf:
   call mix
   j .return
 .L5:
-  ; engine/look.e16.ts:392  if (mode === M_FLASH) return flashColour(c, k)
+  ; engine/look.e16.ts:393  if (mode === M_FLASH) return flashColour(c, k)
   li t0, 2
   bne s3, t0, .L8
-  ; engine/look.e16.ts:392  return flashColour(c, k)
+  ; engine/look.e16.ts:393  return flashColour(c, k)
   mv a0, s2
   mv a1, s1
   call flashColour
   j .return
 .L8:
-  ; engine/look.e16.ts:393  if (k > 2) return c
+  ; engine/look.e16.ts:394  if (k > 2) return c
   li t0, 2
   bgeu t0, s1, .L9
-  ; engine/look.e16.ts:393  return c
+  ; engine/look.e16.ts:394  return c
   mv a0, s2
   j .return
 .L9:
-  ; engine/look.e16.ts:394  return wireColour(base, k, mode)
+  ; engine/look.e16.ts:395  return wireColour(base, k, mode)
   lw a0, 0(fp)
   mv a1, s1
   mv a2, s3
@@ -17359,7 +17400,7 @@ colourOf:
   addi sp, sp, 18
   ret
 
-; engine/look.e16.ts:398 flashColour(c, k) at -O1
+; engine/look.e16.ts:399 flashColour(c, k) at -O1
 ;   c in s1
 ;   k in s2
 flashColour:
@@ -17369,14 +17410,14 @@ flashColour:
   sw s2, 4(sp)
   mv s1, a0 ; c
   mv s2, a1 ; k
-  ; engine/look.e16.ts:399  if (k <= 2) return WHITE
+  ; engine/look.e16.ts:400  if (k <= 2) return WHITE
   li t0, 2
   bltu t0, s2, .L1
-  ; engine/look.e16.ts:399  return WHITE
+  ; engine/look.e16.ts:400  return WHITE
   li a0, 32767
   j .return
 .L1:
-  ; engine/look.e16.ts:400  return k <= 11 ? mix(c, WHITE, 6) : c
+  ; engine/look.e16.ts:401  return k <= 11 ? mix(c, WHITE, 6) : c
   li t0, 11
   bltu t0, s2, .L2
   mv a0, s1
@@ -17396,20 +17437,20 @@ flashColour:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:404 wireColour(base, k, mode) at -O1
+; engine/look.e16.ts:405 wireColour(base, k, mode) at -O1
 ;   base in a0
 ;   k in a1
 ;   mode in a2
 ;   one in a3
 wireColour:
-  ; engine/look.e16.ts:405  const one = k === 1
+  ; engine/look.e16.ts:406  const one = k === 1
   li t0, 1
   sub t0, a1, t0
   seqz a3, t0
-  ; engine/look.e16.ts:406  if (mode === M_GUARD) return one ? GUARD_1 : GUARD_2
+  ; engine/look.e16.ts:407  if (mode === M_GUARD) return one ? GUARD_1 : GUARD_2
   li t0, 3
   bne a2, t0, .L1
-  ; engine/look.e16.ts:406  return one ? GUARD_1 : GUARD_2
+  ; engine/look.e16.ts:407  return one ? GUARD_1 : GUARD_2
   beqz a3, .L2
   li t0, 32696
   j .L3
@@ -17419,10 +17460,10 @@ wireColour:
   mv a0, t0
   ret
 .L1:
-  ; engine/look.e16.ts:407  if (mode === M_THROWN) return one ? THROWN_1 : THROWN_2
+  ; engine/look.e16.ts:408  if (mode === M_THROWN) return one ? THROWN_1 : THROWN_2
   li t0, 4
   bne a2, t0, .L4
-  ; engine/look.e16.ts:407  return one ? THROWN_1 : THROWN_2
+  ; engine/look.e16.ts:408  return one ? THROWN_1 : THROWN_2
   beqz a3, .L5
   li t0, 30111
   j .L6
@@ -17432,24 +17473,24 @@ wireColour:
   mv a0, t0
   ret
 .L4:
-  ; engine/look.e16.ts:408  if (mode === M_LOW && one) return palCopy[base + 2]
+  ; engine/look.e16.ts:409  if (mode === M_LOW && one) return palCopy[base + 2]
   li t0, 5
   bne a2, t0, .L7
   beqz a3, .L7
-  ; engine/look.e16.ts:408  return palCopy[base + 2]
+  ; engine/look.e16.ts:409  return palCopy[base + 2]
   addi t0, a0, 2
   slli t0, t0, 1
   lw a0, palCopy(t0)
   ret
 .L7:
-  ; engine/look.e16.ts:409  return palCopy[base + k]
+  ; engine/look.e16.ts:410  return palCopy[base + k]
   add t0, a0, a1
   slli t0, t0, 1
   lw a0, palCopy(t0)
 .return:
   ret
 
-; engine/look.e16.ts:412 introColour(base, k, step, empty) at -O1
+; engine/look.e16.ts:413 introColour(base, k, step, empty) at -O1
 ;   base in s3
 ;   k in s1
 ;   step in s2
@@ -17467,37 +17508,37 @@ introColour:
   mv s1, a1 ; k
   mv s2, a2 ; step
   sw a3, 0(fp) ; empty
-  ; engine/look.e16.ts:413  const c = palCopy[base + k]
+  ; engine/look.e16.ts:414  const c = palCopy[base + k]
   add t0, s3, s1
   slli t0, t0, 1
   lw t0, palCopy(t0)
   sw t0, 2(fp) ; c
-  ; engine/look.e16.ts:414  if (k === 1 && step === 0) return palCopy[base + 2]
+  ; engine/look.e16.ts:415  if (k === 1 && step === 0) return palCopy[base + 2]
   li t0, 1
   bne s1, t0, .L1
   bne s2, zero, .L1
-  ; engine/look.e16.ts:414  return palCopy[base + 2]
+  ; engine/look.e16.ts:415  return palCopy[base + 2]
   addi t0, s3, 2
   slli t0, t0, 1
   lw a0, palCopy(t0)
   j .return
 .L1:
-  ; engine/look.e16.ts:415  if (!isFill(k)) return c
+  ; engine/look.e16.ts:416  if (!isFill(k)) return c
   mv a0, s1
   call isFill
   bnez a0, .L2
-  ; engine/look.e16.ts:415  return c
+  ; engine/look.e16.ts:416  return c
   lw a0, 2(fp)
   j .return
 .L2:
-  ; engine/look.e16.ts:416  if (step < 2) return empty
+  ; engine/look.e16.ts:417  if (step < 2) return empty
   li t0, 2
   bgeu s2, t0, .L3
-  ; engine/look.e16.ts:416  return empty
+  ; engine/look.e16.ts:417  return empty
   lw a0, 0(fp)
   j .return
 .L3:
-  ; engine/look.e16.ts:417  return mix(empty, c, (step - 1) * 4)
+  ; engine/look.e16.ts:418  return mix(empty, c, (step - 1) * 4)
   addi t0, s2, -1
   slli t0, t0, 2
   lw a0, 0(fp)
@@ -17514,39 +17555,39 @@ introColour:
   addi sp, sp, 14
   ret
 
-; engine/look.e16.ts:434 soundStep() at -O1
+; engine/look.e16.ts:435 soundStep() at -O1
 soundStep:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; engine/look.e16.ts:435  if (phase !== soundPhase) {
+  ; engine/look.e16.ts:436  if (phase !== soundPhase) {
   lw t0, 0x0c98(zero)
-  lw t1, 0x1e50(zero)
+  lw t1, 0x1e52(zero)
   beq t0, t1, .L1
-  ; engine/look.e16.ts:436  soundPhase = phase
+  ; engine/look.e16.ts:437  soundPhase = phase
   lw t0, 0x0c98(zero)
-  sw t0, 0x1e50(zero)
-  ; engine/look.e16.ts:437  if (phase === PH_ROUND) sfx(X_ROUND)
+  sw t0, 0x1e52(zero)
+  ; engine/look.e16.ts:438  if (phase === PH_ROUND) sfx(X_ROUND)
   lw t0, 0x0c98(zero)
   bne t0, zero, .L2
-  ; engine/look.e16.ts:437  sfx(X_ROUND)
+  ; engine/look.e16.ts:438  sfx(X_ROUND)
   li a0, 9
   call sfx
   j .L3
 .L2:
-  ; engine/look.e16.ts:438  if (phase === PH_FIGHT) sfx(X_FIGHT)
+  ; engine/look.e16.ts:439  if (phase === PH_FIGHT) sfx(X_FIGHT)
   lw t0, 0x0c98(zero)
   li t1, 1
   bne t0, t1, .L4
-  ; engine/look.e16.ts:438  sfx(X_FIGHT)
+  ; engine/look.e16.ts:439  sfx(X_FIGHT)
   li a0, 10
   call sfx
   j .L5
 .L4:
-  ; engine/look.e16.ts:439  if (phase === PH_OVER) sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
+  ; engine/look.e16.ts:440  if (phase === PH_OVER) sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
   lw t0, 0x0c98(zero)
   li t1, 2
   bne t0, t1, .L6
-  ; engine/look.e16.ts:439  sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
+  ; engine/look.e16.ts:440  sfx(fLife[0] === 0 || fLife[1] === 0 ? X_KO : X_ROUND)
   lw t0, fLife(zero)
   beq t0, zero, .L9
   lw t0, fLife+2(zero)
@@ -17563,39 +17604,39 @@ soundStep:
 .L5:
 .L3:
 .L1:
-  ; engine/look.e16.ts:441  if (phase === PH_ROUND && phaseT === MAT_AT) sfx(X_MAT)
+  ; engine/look.e16.ts:442  if (phase === PH_ROUND && phaseT === MAT_AT) sfx(X_MAT)
   lw t0, 0x0c98(zero)
   bne t0, zero, .L10
   lw t0, 0x0c9a(zero)
   li t1, 18
   bne t0, t1, .L10
-  ; engine/look.e16.ts:441  sfx(X_MAT)
+  ; engine/look.e16.ts:442  sfx(X_MAT)
   li a0, 13
   call sfx
 .L10:
-  ; engine/look.e16.ts:442  if (phase === PH_FIGHT && timeLeft !== soundTime && timeLeft <= 10 && timeLeft > 0) sfx(X_TIME)
+  ; engine/look.e16.ts:443  if (phase === PH_FIGHT && timeLeft !== soundTime && timeLeft <= 10 && timeLeft > 0) sfx(X_TIME)
   lw t0, 0x0c98(zero)
   li t1, 1
   bne t0, t1, .L11
   lw t0, 0x0c9c(zero)
-  lw t1, 0x1e52(zero)
+  lw t1, 0x1e54(zero)
   beq t0, t1, .L11
   lw t0, 0x0c9c(zero)
   li t1, 10
   bltu t1, t0, .L11
   lw t0, 0x0c9c(zero)
   bgeu zero, t0, .L11
-  ; engine/look.e16.ts:442  sfx(X_TIME)
+  ; engine/look.e16.ts:443  sfx(X_TIME)
   li a0, 11
   call sfx
 .L11:
-  ; engine/look.e16.ts:443  soundTime = timeLeft
+  ; engine/look.e16.ts:444  soundTime = timeLeft
   lw t0, 0x0c9c(zero)
-  sw t0, 0x1e52(zero)
-  ; engine/look.e16.ts:444  fighterSounds(0)
+  sw t0, 0x1e54(zero)
+  ; engine/look.e16.ts:445  fighterSounds(0)
   li a0, 0
   call fighterSounds
-  ; engine/look.e16.ts:445  fighterSounds(1)
+  ; engine/look.e16.ts:446  fighterSounds(1)
   li a0, 1
   call fighterSounds
 .return:
@@ -17603,7 +17644,7 @@ soundStep:
   addi sp, sp, 2
   ret
 
-; engine/look.e16.ts:448 fighterSounds(a) at -O1
+; engine/look.e16.ts:449 fighterSounds(a) at -O1
 ;   a in s1
 ;   s in s2
 fighterSounds:
@@ -17612,16 +17653,16 @@ fighterSounds:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:449  const s = struck[a]
+  ; engine/look.e16.ts:450  const s = struck[a]
   slli t0, s1, 1
   lw s2, struck(t0)
-  ; engine/look.e16.ts:450  if (s === 1 || s === 3) sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
+  ; engine/look.e16.ts:451  if (s === 1 || s === 3) sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
   li t0, 1
   beq s2, t0, .L2
   li t0, 3
   bne s2, t0, .L1
 .L2:
-  ; engine/look.e16.ts:450  sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
+  ; engine/look.e16.ts:451  sfx((mvAt(a, fMove[a], M_KIND) & K_HEAVY) !== 0 ? X_HEAVY : X_LIGHT)
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -17639,36 +17680,36 @@ fighterSounds:
   call sfx
   j .L5
 .L1:
-  ; engine/look.e16.ts:451  if (s === 2) sfx(X_GUARD)
+  ; engine/look.e16.ts:452  if (s === 2) sfx(X_GUARD)
   li t0, 2
   bne s2, t0, .L6
-  ; engine/look.e16.ts:451  sfx(X_GUARD)
+  ; engine/look.e16.ts:452  sfx(X_GUARD)
   li a0, 2
   call sfx
   j .L7
 .L6:
-  ; engine/look.e16.ts:452  if (s === 4) sfx(X_DOWN)
+  ; engine/look.e16.ts:453  if (s === 4) sfx(X_DOWN)
   li t0, 4
   bne s2, t0, .L8
-  ; engine/look.e16.ts:452  sfx(X_DOWN)
+  ; engine/look.e16.ts:453  sfx(X_DOWN)
   li a0, 7
   call sfx
 .L8:
 .L7:
 .L5:
-  ; engine/look.e16.ts:453  if (threw[a] !== 0) sfx(X_THROW)
+  ; engine/look.e16.ts:454  if (threw[a] !== 0) sfx(X_THROW)
   slli t0, s1, 1
   lw t0, threw(t0)
   beq t0, zero, .L9
-  ; engine/look.e16.ts:453  sfx(X_THROW)
+  ; engine/look.e16.ts:454  sfx(X_THROW)
   li a0, 5
   call sfx
 .L9:
-  ; engine/look.e16.ts:454  stateSounds(a, s)
+  ; engine/look.e16.ts:455  stateSounds(a, s)
   mv a0, s1
   mv a1, s2
   call stateSounds
-  ; engine/look.e16.ts:455  swingSound(a)
+  ; engine/look.e16.ts:456  swingSound(a)
   mv a0, s1
   call swingSound
 .return:
@@ -17678,7 +17719,7 @@ fighterSounds:
   addi sp, sp, 6
   ret
 
-; engine/look.e16.ts:459 stateSounds(a, s) at -O1
+; engine/look.e16.ts:460 stateSounds(a, s) at -O1
 ;   a in s2
 ;   s in s3
 ;   st in s1
@@ -17690,41 +17731,41 @@ stateSounds:
   sw s1, 6(sp)
   mv s2, a0 ; a
   mv s3, a1 ; s
-  ; engine/look.e16.ts:460  const st = fState[a]
+  ; engine/look.e16.ts:461  const st = fState[a]
   slli t0, s2, 1
   lw s1, fState(t0)
-  ; engine/look.e16.ts:461  if (st !== soundSt[a]) {
+  ; engine/look.e16.ts:462  if (st !== soundSt[a]) {
   slli t0, s2, 1
   lw t0, soundSt(t0)
   beq s1, t0, .L1
-  ; engine/look.e16.ts:462  soundSt[a] = st
+  ; engine/look.e16.ts:463  soundSt[a] = st
   slli t0, s2, 1
   sw s1, soundSt(t0)
-  ; engine/look.e16.ts:463  if (st === ST_DASH || st === ST_BACKDASH) sfx(X_DASH)
+  ; engine/look.e16.ts:464  if (st === ST_DASH || st === ST_BACKDASH) sfx(X_DASH)
   li t0, 13
   beq s1, t0, .L3
   li t0, 14
   bne s1, t0, .L2
 .L3:
-  ; engine/look.e16.ts:463  sfx(X_DASH)
+  ; engine/look.e16.ts:464  sfx(X_DASH)
   li a0, 4
   call sfx
   j .L4
 .L2:
-  ; engine/look.e16.ts:464  if (st === ST_LAND) sfx(X_LAND)
+  ; engine/look.e16.ts:465  if (st === ST_LAND) sfx(X_LAND)
   li t0, 4
   bne s1, t0, .L5
-  ; engine/look.e16.ts:464  sfx(X_LAND)
+  ; engine/look.e16.ts:465  sfx(X_LAND)
   li a0, 6
   call sfx
   j .L6
 .L5:
-  ; engine/look.e16.ts:465  if (st === ST_DOWN && s !== 4) sfx(X_DOWN)
+  ; engine/look.e16.ts:466  if (st === ST_DOWN && s !== 4) sfx(X_DOWN)
   li t0, 8
   bne s1, t0, .L7
   li t0, 4
   beq s3, t0, .L7
-  ; engine/look.e16.ts:465  sfx(X_DOWN)
+  ; engine/look.e16.ts:466  sfx(X_DOWN)
   li a0, 7
   call sfx
 .L7:
@@ -17739,7 +17780,7 @@ stateSounds:
   addi sp, sp, 8
   ret
 
-; engine/look.e16.ts:470 swingSound(a) at -O1
+; engine/look.e16.ts:471 swingSound(a) at -O1
 ;   a in s1
 ;   st in s3
 ;   f in s2
@@ -17750,13 +17791,13 @@ swingSound:
   sw s3, 4(sp)
   sw s2, 6(sp)
   mv s1, a0 ; a
-  ; engine/look.e16.ts:471  const st = fState[a]
+  ; engine/look.e16.ts:472  const st = fState[a]
   slli t0, s1, 1
   lw s3, fState(t0)
-  ; engine/look.e16.ts:472  const f = fMoveF[a]
+  ; engine/look.e16.ts:473  const f = fMoveF[a]
   slli t0, s1, 1
   lw s2, fMoveF(t0)
-  ; engine/look.e16.ts:473  if (st === ST_ATTACK && f !== soundF[a] && fMove[a] !== MV_THROW) {
+  ; engine/look.e16.ts:474  if (st === ST_ATTACK && f !== soundF[a] && fMove[a] !== MV_THROW) {
   li t0, 5
   bne s3, t0, .L1
   slli t0, s1, 1
@@ -17766,7 +17807,7 @@ swingSound:
   lw t0, fMove(t0)
   li t1, 12
   beq t0, t1, .L1
-  ; engine/look.e16.ts:474  if (f === mvAt(a, fMove[a], M_STARTUP)) sfx(X_WHIFF)
+  ; engine/look.e16.ts:475  if (f === mvAt(a, fMove[a], M_STARTUP)) sfx(X_WHIFF)
   slli t0, s1, 1
   lw t0, fMove(t0)
   mv a0, s1
@@ -17774,12 +17815,12 @@ swingSound:
   li a2, 0
   call mvAt
   bne s2, a0, .L2
-  ; engine/look.e16.ts:474  sfx(X_WHIFF)
+  ; engine/look.e16.ts:475  sfx(X_WHIFF)
   li a0, 3
   call sfx
 .L2:
 .L1:
-  ; engine/look.e16.ts:476  soundF[a] = st === ST_ATTACK ? f : 0
+  ; engine/look.e16.ts:477  soundF[a] = st === ST_ATTACK ? f : 0
   slli t0, s1, 1
   addi t0, t0, soundF
   mv t1, s3
@@ -17991,13 +18032,13 @@ music:
   sw s1, 2(sp)
   mv s1, a0 ; m
   ; engine/audio.e16.ts:131  if (m === songNow) return
-  lw t0, 0x1eba(zero)
+  lw t0, 0x1ebc(zero)
   bne s1, t0, .L1
   ; engine/audio.e16.ts:131  return
   j .return
 .L1:
   ; engine/audio.e16.ts:132  songNow = m
-  sw s1, 0x1eba(zero)
+  sw s1, 0x1ebc(zero)
   ; engine/audio.e16.ts:133  if (m === 0 || m > M_CLEAR) {
   beq s1, zero, .L3
   li t0, 6
@@ -18030,7 +18071,7 @@ music:
 
   .bank 5
   .org 0xc000
-; scenes/title.e16.ts:85 bootLog() at -O1
+; scenes/title.e16.ts:98 bootLog() at -O1
 ;   t in s1
 ;   k in s2
 bootLog:
@@ -18038,31 +18079,31 @@ bootLog:
   sw ra, 0(sp)
   sw s1, 2(sp)
   sw s2, 4(sp)
-  ; scenes/title.e16.ts:86  screenIs(SC_BOOT)
+  ; scenes/title.e16.ts:99  screenIs(SC_BOOT)
   li a0, 1
   call screenIs
-  ; scenes/title.e16.ts:87  screenClear()
+  ; scenes/title.e16.ts:100  screenClear()
   call screenClear
-  ; scenes/title.e16.ts:88  say(2, 3, str('ELEC-16 PLAY  ELECFIGHTER'), SL_P1)
+  ; scenes/title.e16.ts:101  say(2, 3, str('ELEC-16 PLAY  ELECFIGHTER'), SL_P1)
   li a0, 2
   li a1, 3
-  la a2, str_45
+  la a2, str_47
   li a3, 1
   call say
-  ; scenes/title.e16.ts:89  say(2, 4, str('INDUSTRIAL COMBAT SIMULATOR'), SL_DIM)
+  ; scenes/title.e16.ts:102  say(2, 4, str('INDUSTRIAL COMBAT SIMULATOR'), SL_DIM)
   li a0, 2
   li a1, 4
-  la a2, str_46
+  la a2, str_48
   li a3, 3
   call say
-  ; scenes/title.e16.ts:90  let t: u16 = 0
+  ; scenes/title.e16.ts:103  let t: u16 = 0
   li s1, 0 ; t
-  ; scenes/title.e16.ts:91  while (t < 7 * LINE_F + 40) {
+  ; scenes/title.e16.ts:104  while (t < 7 * LINE_F + 40) {
   j .L3
 .L1:
-  ; scenes/title.e16.ts:92  frameBegin()
+  ; scenes/title.e16.ts:105  frameBegin()
   call frameBegin
-  ; scenes/title.e16.ts:93  if (pressed(B_START) || pressed(B_A)) return
+  ; scenes/title.e16.ts:106  if (pressed(B_START) || pressed(B_A)) return
   li a0, 1024
   call pressed
   bnez a0, .L6
@@ -18070,23 +18111,23 @@ bootLog:
   call pressed
   beqz a0, .L5
 .L6:
-  ; scenes/title.e16.ts:93  return
+  ; scenes/title.e16.ts:106  return
   j .return
 .L5:
-  ; scenes/title.e16.ts:94  const k = div(t, LINE_F)
+  ; scenes/title.e16.ts:107  const k = div(t, LINE_F)
   li t0, 9
   divu s2, s1, t0
-  ; scenes/title.e16.ts:95  if (t === k * LINE_F && k < 7) bootLine(k)
+  ; scenes/title.e16.ts:108  if (t === k * LINE_F && k < 7) bootLine(k)
   slli t1, s2, 3
   add t0, t1, s2
   bne s1, t0, .L7
   li t0, 7
   bgeu s2, t0, .L7
-  ; scenes/title.e16.ts:95  bootLine(k)
+  ; scenes/title.e16.ts:108  bootLine(k)
   mv a0, s2
   call bootLine
 .L7:
-  ; scenes/title.e16.ts:96  t++
+  ; scenes/title.e16.ts:109  t++
   addi s1, s1, 1
 .L3:
   li t0, 103
@@ -18098,7 +18139,7 @@ bootLog:
   addi sp, sp, 6
   ret
 
-; scenes/title.e16.ts:100 bootLine(k) at -O1
+; scenes/title.e16.ts:113 bootLine(k) at -O1
 ;   k in s1
 ;   y in s2
 bootLine:
@@ -18107,77 +18148,77 @@ bootLine:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; k
-  ; scenes/title.e16.ts:101  const y = 7 + k
+  ; scenes/title.e16.ts:114  const y = 7 + k
   addi s2, s1, 7
-  ; scenes/title.e16.ts:102  if (k === 0) say(2, y, str('> LOADING FIGHTER DATA ........ OK'), SL_P1)
+  ; scenes/title.e16.ts:115  if (k === 0) say(2, y, str('> LOADING FIGHTER DATA ........ OK'), SL_P1)
   bne s1, zero, .L1
-  ; scenes/title.e16.ts:102  say(2, y, str('> LOADING FIGHTER DATA ........ OK'), SL_P1)
-  li a0, 2
-  mv a1, s2
-  la a2, str_47
-  li a3, 1
-  call say
-  j .L2
-.L1:
-  ; scenes/title.e16.ts:103  if (k === 1) say(2, y, str('> MESH CELLS, 4 SLOTS ......... OK'), SL_P1)
-  li t0, 1
-  bne s1, t0, .L3
-  ; scenes/title.e16.ts:103  say(2, y, str('> MESH CELLS, 4 SLOTS ......... OK'), SL_P1)
-  li a0, 2
-  mv a1, s2
-  la a2, str_48
-  li a3, 1
-  call say
-  j .L4
-.L3:
-  ; scenes/title.e16.ts:104  if (k === 2) say(2, y, str('> OPPONENT PROGRAMS, 5 ........ OK'), SL_P1)
-  li t0, 2
-  bne s1, t0, .L5
-  ; scenes/title.e16.ts:104  say(2, y, str('> OPPONENT PROGRAMS, 5 ........ OK'), SL_P1)
+  ; scenes/title.e16.ts:115  say(2, y, str('> LOADING FIGHTER DATA ........ OK'), SL_P1)
   li a0, 2
   mv a1, s2
   la a2, str_49
   li a3, 1
   call say
+  j .L2
+.L1:
+  ; scenes/title.e16.ts:116  if (k === 1) bootCount(y, str('> MESH CELLS,   SLOTS ......... OK'), 16, SLOTS)
+  li t0, 1
+  bne s1, t0, .L3
+  ; scenes/title.e16.ts:116  bootCount(y, str('> MESH CELLS,   SLOTS ......... OK'), 16, SLOTS)
+  mv a0, s2
+  la a1, str_50
+  li a2, 16
+  li a3, 4
+  call bootCount
+  j .L4
+.L3:
+  ; scenes/title.e16.ts:117  if (k === 2) bootCount(y, str('> OPPONENT PROGRAMS,   ........ OK'), 22, OPPONENTS)
+  li t0, 2
+  bne s1, t0, .L5
+  ; scenes/title.e16.ts:117  bootCount(y, str('> OPPONENT PROGRAMS,   ........ OK'), 22, OPPONENTS)
+  mv a0, s2
+  la a1, str_51
+  li a2, 22
+  li a3, 5
+  call bootCount
   j .L6
 .L5:
-  ; scenes/title.e16.ts:105  if (k === 3) say(2, y, str('> STAGE GRID .................. OK'), SL_P1)
+  ; scenes/title.e16.ts:118  if (k === 3) say(2, y, str('> STAGE GRID .................. OK'), SL_P1)
   li t0, 3
   bne s1, t0, .L7
-  ; scenes/title.e16.ts:105  say(2, y, str('> STAGE GRID .................. OK'), SL_P1)
-  li a0, 2
-  mv a1, s2
-  la a2, str_50
-  li a3, 1
-  call say
-  j .L8
-.L7:
-  ; scenes/title.e16.ts:106  if (k === 4) say(2, y, str('> SOUND ....................... OK'), SL_P1)
-  li t0, 4
-  bne s1, t0, .L9
-  ; scenes/title.e16.ts:106  say(2, y, str('> SOUND ....................... OK'), SL_P1)
-  li a0, 2
-  mv a1, s2
-  la a2, str_51
-  li a3, 1
-  call say
-  j .L10
-.L9:
-  ; scenes/title.e16.ts:107  if (k === 5) say(2, y, str('> RECORDS ..................... OK'), SL_P1)
-  li t0, 5
-  bne s1, t0, .L11
-  ; scenes/title.e16.ts:107  say(2, y, str('> RECORDS ..................... OK'), SL_P1)
+  ; scenes/title.e16.ts:118  say(2, y, str('> STAGE GRID .................. OK'), SL_P1)
   li a0, 2
   mv a1, s2
   la a2, str_52
   li a3, 1
   call say
+  j .L8
+.L7:
+  ; scenes/title.e16.ts:119  if (k === 4) say(2, y, str('> SOUND ....................... OK'), SL_P1)
+  li t0, 4
+  bne s1, t0, .L9
+  ; scenes/title.e16.ts:119  say(2, y, str('> SOUND ....................... OK'), SL_P1)
+  li a0, 2
+  mv a1, s2
+  la a2, str_53
+  li a3, 1
+  call say
+  j .L10
+.L9:
+  ; scenes/title.e16.ts:120  if (k === 5) say(2, y, str('> RECORDS ..................... OK'), SL_P1)
+  li t0, 5
+  bne s1, t0, .L11
+  ; scenes/title.e16.ts:120  say(2, y, str('> RECORDS ..................... OK'), SL_P1)
+  li a0, 2
+  mv a1, s2
+  la a2, str_54
+  li a3, 1
+  call say
   j .L12
 .L11:
-  ; scenes/title.e16.ts:108  say(2, y + 1, str('> SIMULATOR READY'), SL_P1)
+  ; scenes/title.e16.ts:121  say(2, y + 1, str('> SIMULATOR READY'), SL_P1)
   li a0, 2
   addi a1, s2, 1
-  la a2, str_53
+  la a2, str_55
   li a3, 1
   call say
 .L12:
@@ -18193,44 +18234,84 @@ bootLine:
   addi sp, sp, 6
   ret
 
-; scenes/title.e16.ts:114 titleRun() at -O1
+; scenes/title.e16.ts:125 bootCount(y, s, x, n) at -O1
+;   y in s1
+;   s in s2
+;   x in s3
+;   n in s0
+bootCount:
+  addi sp, sp, -10
+  sw ra, 0(sp)
+  sw s1, 2(sp)
+  sw s2, 4(sp)
+  sw s3, 6(sp)
+  sw s0, 8(sp)
+  mv s1, a0 ; y
+  mv s2, a1 ; s
+  mv s3, a2 ; x
+  mv s0, a3 ; n
+  ; scenes/title.e16.ts:126  say(2, y, s, SL_P1)
+  li a0, 2
+  mv a1, s1
+  mv a2, s2
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:127  number(cellAt(1, x, y), n, 1, (FONT_TILE + 16) | (SL_P1 << 10) | FRONT)
+  li a0, 1
+  mv a1, s3
+  mv a2, s1
+  call cellAt
+  mv a1, s0
+  li a2, 1
+  li a3, 33808
+  call number
+.return:
+  lw ra, 0(sp)
+  lw s1, 2(sp)
+  lw s2, 4(sp)
+  lw s3, 6(sp)
+  lw s0, 8(sp)
+  addi sp, sp, 10
+  ret
+
+; scenes/title.e16.ts:133 titleRun() at -O1
 ;   pick in s1
 titleRun:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; scenes/title.e16.ts:115  for (;;) {
+  ; scenes/title.e16.ts:134  for (;;) {
 .L1:
-  ; scenes/title.e16.ts:116  const pick = titleOnce()
+  ; scenes/title.e16.ts:135  const pick = titleOnce()
   call titleOnce
   mv s1, a0 ; pick
-  ; scenes/title.e16.ts:117  if (pick === 0) {
+  ; scenes/title.e16.ts:136  if (pick === 0) {
   bne s1, zero, .L5
-  ; scenes/title.e16.ts:118  if (!controlsSeen()) {
+  ; scenes/title.e16.ts:137  if (!controlsSeen()) {
   la t0, controlsSeen
   li t1, 263
   call far_call
   bnez a0, .L6
-  ; scenes/title.e16.ts:119  controlsRun(false)
+  ; scenes/title.e16.ts:138  controlsRun(false)
   li a0, 0
   call controlsRun
-  ; scenes/title.e16.ts:120  controlsSeenSet()
+  ; scenes/title.e16.ts:139  controlsSeenSet()
   la t0, controlsSeenSet
   li t1, 263
   call far_call
 .L6:
-  ; scenes/title.e16.ts:122  return
+  ; scenes/title.e16.ts:141  return
   j .return
 .L5:
-  ; scenes/title.e16.ts:124  if (pick === 1) controlsRun(false)
+  ; scenes/title.e16.ts:143  if (pick === 1) controlsRun(false)
   li t0, 1
   bne s1, t0, .L7
-  ; scenes/title.e16.ts:124  controlsRun(false)
+  ; scenes/title.e16.ts:143  controlsRun(false)
   li a0, 0
   call controlsRun
   j .L1
 .L7:
-  ; scenes/title.e16.ts:125  bestRun()
+  ; scenes/title.e16.ts:144  bestRun()
   la t0, bestRun
   li t1, 263
   call far_call
@@ -18241,7 +18322,7 @@ titleRun:
   addi sp, sp, 4
   ret
 
-; scenes/title.e16.ts:130 titleOnce() at -O1
+; scenes/title.e16.ts:149 titleOnce() at -O1
 ;   t in s1
 ;   ft in s3
 ;   page in 0(fp)
@@ -18255,67 +18336,67 @@ titleOnce:
   sw s2, 10(sp)
   sw s0, 12(sp)
   mv fp, sp
-  ; scenes/title.e16.ts:131  titleDraw()
+  ; scenes/title.e16.ts:150  titleDraw()
   call titleDraw
-  ; scenes/title.e16.ts:132  let t: u16 = 0
+  ; scenes/title.e16.ts:151  let t: u16 = 0
   li s1, 0 ; t
-  ; scenes/title.e16.ts:133  let ft: u16 = 0
+  ; scenes/title.e16.ts:152  let ft: u16 = 0
   li s3, 0 ; ft
-  ; scenes/title.e16.ts:134  let page: u16 = 0
+  ; scenes/title.e16.ts:153  let page: u16 = 0
   sw zero, 0(fp) ; page
-  ; scenes/title.e16.ts:135  menuOn = false
-  sw zero, 0x1fdc(zero)
-  ; scenes/title.e16.ts:136  for (;;) {
+  ; scenes/title.e16.ts:154  menuOn = false
+  sw zero, 0x1fde(zero)
+  ; scenes/title.e16.ts:155  for (;;) {
 .L1:
-  ; scenes/title.e16.ts:137  frameBegin()
+  ; scenes/title.e16.ts:156  frameBegin()
   call frameBegin
-  ; scenes/title.e16.ts:138  if (pressed(B_SELECT)) {
+  ; scenes/title.e16.ts:157  if (pressed(B_SELECT)) {
   li a0, 2048
   call pressed
   beqz a0, .L5
-  ; scenes/title.e16.ts:139  typeSwitch()
+  ; scenes/title.e16.ts:158  typeSwitch()
   call typeSwitch
-  ; scenes/title.e16.ts:140  t = 0
+  ; scenes/title.e16.ts:159  t = 0
   li s1, 0 ; t
 .L5:
-  ; scenes/title.e16.ts:142  const pick = menuKeys()
+  ; scenes/title.e16.ts:161  const pick = menuKeys()
   call menuKeys
   sw a0, 2(fp) ; pick
-  ; scenes/title.e16.ts:143  if (pick !== NO_PICK) return pick
+  ; scenes/title.e16.ts:162  if (pick !== NO_PICK) return pick
   li t0, 65535
   lw t1, 2(fp) ; pick
   beq t1, t0, .L6
-  ; scenes/title.e16.ts:143  return pick
+  ; scenes/title.e16.ts:162  return pick
   lw a0, 2(fp)
   j .return
 .L6:
-  ; scenes/title.e16.ts:144  if (menuOn) t = 0
-  lw t0, 0x1fdc(zero)
+  ; scenes/title.e16.ts:163  if (menuOn) t = 0
+  lw t0, 0x1fde(zero)
   beqz t0, .L7
-  ; scenes/title.e16.ts:144  t = 0
+  ; scenes/title.e16.ts:163  t = 0
   li s1, 0 ; t
 .L7:
-  ; scenes/title.e16.ts:145  const p = div(t, PAGE) & 3
+  ; scenes/title.e16.ts:164  const p = div(t, PAGE) & 3
   li t0, 360
   divu t0, s1, t0
   andi s2, t0, 3
-  ; scenes/title.e16.ts:146  if (p !== page) {
+  ; scenes/title.e16.ts:165  if (p !== page) {
   lw t0, 0(fp) ; page
   beq s2, t0, .L8
-  ; scenes/title.e16.ts:147  page = p
+  ; scenes/title.e16.ts:166  page = p
   sw s2, 0(fp) ; page
-  ; scenes/title.e16.ts:148  pageShow(p)
+  ; scenes/title.e16.ts:167  pageShow(p)
   mv a0, s2
   call pageShow
-  ; scenes/title.e16.ts:149  if (menuOn) menuShow(menuAt)
-  lw t0, 0x1fdc(zero)
+  ; scenes/title.e16.ts:168  if (menuOn) menuShow(menuAt)
+  lw t0, 0x1fde(zero)
   beqz t0, .L9
-  ; scenes/title.e16.ts:149  menuShow(menuAt)
-  lw a0, 0x1fde(zero)
+  ; scenes/title.e16.ts:168  menuShow(menuAt)
+  lw a0, 0x1fe0(zero)
   call menuShow
 .L9:
 .L8:
-  ; scenes/title.e16.ts:151  figuresStep(ft, p === 0 || p === 2, menuOn)
+  ; scenes/title.e16.ts:170  figuresStep(ft, p === 0 || p === 2, menuOn)
   sub t0, s2, zero
   seqz t0, t0
   mv t2, t0
@@ -18326,14 +18407,14 @@ titleOnce:
   sub t1, s2, t1
   seqz t1, t1
 .L10:
-  lw t2, 0x1fdc(zero)
+  lw t2, 0x1fde(zero)
   mv a0, t0
   mv a1, t1
   mv a2, t2
   call figuresStep
-  ; scenes/title.e16.ts:152  t++
+  ; scenes/title.e16.ts:171  t++
   addi s1, s1, 1
-  ; scenes/title.e16.ts:153  ft++
+  ; scenes/title.e16.ts:172  ft++
   addi s3, s3, 1
   j .L1
 .return:
@@ -18346,13 +18427,13 @@ titleOnce:
   addi sp, sp, 14
   ret
 
-; scenes/title.e16.ts:163 menuKeys() at -O1
+; scenes/title.e16.ts:182 menuKeys() at -O1
 ;   go in s1
 menuKeys:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; scenes/title.e16.ts:164  const go = pressed(B_START) || pressed(B_A)
+  ; scenes/title.e16.ts:183  const go = pressed(B_START) || pressed(B_A)
   li a0, 1024
   call pressed
   mv t1, a0
@@ -18363,62 +18444,62 @@ menuKeys:
   mv t0, a0
 .L1:
   mv s1, t0 ; go
-  ; scenes/title.e16.ts:165  if (!menuOn) {
-  lw t0, 0x1fdc(zero)
+  ; scenes/title.e16.ts:184  if (!menuOn) {
+  lw t0, 0x1fde(zero)
   bnez t0, .L2
-  ; scenes/title.e16.ts:166  if (!go) return NO_PICK
+  ; scenes/title.e16.ts:185  if (!go) return NO_PICK
   bnez s1, .L3
-  ; scenes/title.e16.ts:166  return NO_PICK
+  ; scenes/title.e16.ts:185  return NO_PICK
   li a0, 65535
   j .return
 .L3:
-  ; scenes/title.e16.ts:167  menuOn = true
+  ; scenes/title.e16.ts:186  menuOn = true
   li t0, 1
-  sw t0, 0x1fdc(zero)
-  ; scenes/title.e16.ts:168  menuAt = 0
-  sw zero, 0x1fde(zero)
-  ; scenes/title.e16.ts:169  sfx(X_OK)
+  sw t0, 0x1fde(zero)
+  ; scenes/title.e16.ts:187  menuAt = 0
+  sw zero, 0x1fe0(zero)
+  ; scenes/title.e16.ts:188  sfx(X_OK)
   li a0, 15
   la t0, sfx
   li t1, 260
   call far_call
-  ; scenes/title.e16.ts:170  menuShow(0)
+  ; scenes/title.e16.ts:189  menuShow(0)
   li a0, 0
   call menuShow
-  ; scenes/title.e16.ts:171  return NO_PICK
+  ; scenes/title.e16.ts:190  return NO_PICK
   li a0, 65535
   j .return
 .L2:
-  ; scenes/title.e16.ts:173  if (pressed(B_B)) {
+  ; scenes/title.e16.ts:192  if (pressed(B_B)) {
   li a0, 32
   call pressed
   beqz a0, .L4
-  ; scenes/title.e16.ts:174  menuOn = false
-  sw zero, 0x1fdc(zero)
-  ; scenes/title.e16.ts:175  hudRows(TITLE_ROW, 3)
+  ; scenes/title.e16.ts:193  menuOn = false
+  sw zero, 0x1fde(zero)
+  ; scenes/title.e16.ts:194  hudRows(TITLE_ROW, 3)
   li a0, 13
   li a1, 3
   call hudRows
-  ; scenes/title.e16.ts:176  return NO_PICK
+  ; scenes/title.e16.ts:195  return NO_PICK
   li a0, 65535
   j .return
 .L4:
-  ; scenes/title.e16.ts:178  if (go) {
+  ; scenes/title.e16.ts:197  if (go) {
   beqz s1, .L5
-  ; scenes/title.e16.ts:179  sfx(X_OK)
+  ; scenes/title.e16.ts:198  sfx(X_OK)
   li a0, 15
   la t0, sfx
   li t1, 260
   call far_call
-  ; scenes/title.e16.ts:180  return menuAt
-  lw a0, 0x1fde(zero)
+  ; scenes/title.e16.ts:199  return menuAt
+  lw a0, 0x1fe0(zero)
   j .return
 .L5:
-  ; scenes/title.e16.ts:182  menuAt = titleMenuMove(menuAt)
-  lw a0, 0x1fde(zero)
+  ; scenes/title.e16.ts:201  menuAt = titleMenuMove(menuAt)
+  lw a0, 0x1fe0(zero)
   call titleMenuMove
-  sw a0, 0x1fde(zero)
-  ; scenes/title.e16.ts:183  return NO_PICK
+  sw a0, 0x1fe0(zero)
+  ; scenes/title.e16.ts:202  return NO_PICK
   li a0, 65535
 .return:
   lw ra, 0(sp)
@@ -18426,22 +18507,22 @@ menuKeys:
   addi sp, sp, 4
   ret
 
-; scenes/title.e16.ts:187 typeSwitch() at -O1
+; scenes/title.e16.ts:206 typeSwitch() at -O1
 typeSwitch:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/title.e16.ts:188  buttonSetIs(1 - buttonSet)
-  lw t0, 0x1816(zero)
+  ; scenes/title.e16.ts:207  buttonSetIs(1 - buttonSet)
+  lw t0, 0x1818(zero)
   li t1, 1
   sub a0, t1, t0
   call buttonSetIs
-  ; scenes/title.e16.ts:189  saveKeep()
+  ; scenes/title.e16.ts:208  saveKeep()
   la t0, saveKeep
   li t1, 263
   call far_call
-  ; scenes/title.e16.ts:190  typeShow()
+  ; scenes/title.e16.ts:209  typeShow()
   call typeShow
-  ; scenes/title.e16.ts:191  sfx(X_MOVE)
+  ; scenes/title.e16.ts:210  sfx(X_MOVE)
   li a0, 14
   la t0, sfx
   li t1, 260
@@ -18451,7 +18532,7 @@ typeSwitch:
   addi sp, sp, 2
   ret
 
-; scenes/title.e16.ts:195 titleDraw() at -O1
+; scenes/title.e16.ts:214 titleDraw() at -O1
 ;   y in s2
 ;   tile in s3
 ;   s in s1
@@ -18461,36 +18542,36 @@ titleDraw:
   sw s2, 2(sp)
   sw s3, 4(sp)
   sw s1, 6(sp)
-  ; scenes/title.e16.ts:196  screenIs(SC_TITLE)
+  ; scenes/title.e16.ts:215  screenIs(SC_TITLE)
   li a0, 2
   call screenIs
-  ; scenes/title.e16.ts:197  screenClear()
+  ; scenes/title.e16.ts:216  screenClear()
   call screenClear
-  ; scenes/title.e16.ts:198  music(M_TITLE)
+  ; scenes/title.e16.ts:217  music(M_TITLE)
   li a0, 1
   la t0, music
   li t1, 260
   call far_call
-  ; scenes/title.e16.ts:199  palette(PAL_STAGE, 0)
+  ; scenes/title.e16.ts:218  palette(PAL_STAGE, 0)
   li a0, 0
   li a1, 0
   call palette
-  ; scenes/title.e16.ts:200  palKeep(PAL_STAGE, 0)
+  ; scenes/title.e16.ts:219  palKeep(PAL_STAGE, 0)
   li a0, 0
   li a1, 0
   call palKeep
-  ; scenes/title.e16.ts:201  load(TITLE_TILES_BANK, TITLE_TILES_AT, TITLE_TILE * 32, TITLE_TILES_BYTES)
+  ; scenes/title.e16.ts:220  load(TITLE_TILES_BANK, TITLE_TILES_AT, TITLE_TILE * 32, TITLE_TILES_BYTES)
   li a0, 316
   li a1, 49152
   li a2, 24672
   li a3, 5536
   call load
-  ; scenes/title.e16.ts:202  let y: u16 = 0
+  ; scenes/title.e16.ts:221  let y: u16 = 0
   li s2, 0 ; y
-  ; scenes/title.e16.ts:203  while (y < TITLE_H) {
+  ; scenes/title.e16.ts:222  while (y < TITLE_H) {
   j .L3
 .L1:
-  ; scenes/title.e16.ts:204  mapRow(TITLE_MAP_BANK, 0xc000 + y * 128, 0, y)
+  ; scenes/title.e16.ts:223  mapRow(TITLE_MAP_BANK, 0xc000 + y * 128, 0, y)
   slli t0, s2, 7
   li t1, 49152
   add t1, t1, t0
@@ -18499,19 +18580,19 @@ titleDraw:
   li a2, 0
   mv a3, s2
   call mapRow
-  ; scenes/title.e16.ts:205  y++
+  ; scenes/title.e16.ts:224  y++
   addi s2, s2, 1
 .L3:
   li t0, 36
   bltu s2, t0, .L1
-  ; scenes/title.e16.ts:207  let tile = S1_TILE
+  ; scenes/title.e16.ts:226  let tile = S1_TILE
   li s3, 257 ; tile
-  ; scenes/title.e16.ts:208  let s: u16 = 0
+  ; scenes/title.e16.ts:227  let s: u16 = 0
   li s1, 0 ; s
-  ; scenes/title.e16.ts:209  while (s < 4) {
+  ; scenes/title.e16.ts:228  while (s < 4) {
   j .L7
 .L5:
-  ; scenes/title.e16.ts:210  artPut(s, 0, addr(fig) + s * 68, tile)
+  ; scenes/title.e16.ts:229  artPut(s, 0, addr(fig) + s * 68, tile)
   slli t1, s1, 6
   slli t0, s1, 2
   add t0, t0, t1
@@ -18520,10 +18601,10 @@ titleDraw:
   addi a2, t0, fig
   mv a3, s3
   call artPut
-  ; scenes/title.e16.ts:211  figTile[s] = tile
+  ; scenes/title.e16.ts:230  figTile[s] = tile
   slli t0, s1, 1
   sw s3, figTile(t0)
-  ; scenes/title.e16.ts:212  tile = tile + fig[s * 34 + 1] * 4
+  ; scenes/title.e16.ts:231  tile = tile + fig[s * 34 + 1] * 4
   slli t1, s1, 5
   slli t0, s1, 1
   add t0, t0, t1
@@ -18532,35 +18613,35 @@ titleDraw:
   lw t0, fig(t0)
   slli t0, t0, 2
   add s3, s3, t0
-  ; scenes/title.e16.ts:213  palette(PAL_P1, 11 + s)
+  ; scenes/title.e16.ts:232  palette(PAL_P1, 11 + s)
   li a0, 3
   addi a1, s1, 11
   call palette
-  ; scenes/title.e16.ts:214  palKeep(PAL_P1, 11 + s)
+  ; scenes/title.e16.ts:233  palKeep(PAL_P1, 11 + s)
   li a0, 3
   addi a1, s1, 11
   call palKeep
-  ; scenes/title.e16.ts:215  palShow(11 + s, M_INTRO, 0)
+  ; scenes/title.e16.ts:234  palShow(11 + s, M_INTRO, 0)
   addi a0, s1, 11
   li a1, 1
   li a2, 0
   la t0, palShow
   li t1, 260
   call far_call
-  ; scenes/title.e16.ts:216  figStep[s] = 0
+  ; scenes/title.e16.ts:235  figStep[s] = 0
   slli t0, s1, 1
   sw zero, figStep(t0)
-  ; scenes/title.e16.ts:217  s++
+  ; scenes/title.e16.ts:236  s++
   addi s1, s1, 1
 .L7:
   li t0, 4
   bltu s1, t0, .L5
-  ; scenes/title.e16.ts:219  typeShow()
+  ; scenes/title.e16.ts:238  typeShow()
   call typeShow
-  ; scenes/title.e16.ts:220  say(10, 34, str('(C) ELECXZY PROJECT'), SL_DIM)
+  ; scenes/title.e16.ts:239  say(10, 34, str('(C) ELECXZY PROJECT'), SL_DIM)
   li a0, 10
   li a1, 34
-  la a2, str_54
+  la a2, str_56
   li a3, 3
   call say
 .return:
@@ -18571,21 +18652,21 @@ titleDraw:
   addi sp, sp, 8
   ret
 
-; scenes/title.e16.ts:224 typeShow() at -O1
+; scenes/title.e16.ts:243 typeShow() at -O1
 typeShow:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/title.e16.ts:225  say(
-  lw t0, 0x1816(zero)
+  ; scenes/title.e16.ts:244  say(
+  lw t0, 0x1818(zero)
   li t1, 33
   mv t2, t0
   li t0, 8
   li t3, 0
   bne t2, t3, .L1
-  la t2, str_55
+  la t2, str_57
   j .L2
 .L1:
-  la t2, str_56
+  la t2, str_58
 .L2:
   mv a0, t0
   mv a1, t1
@@ -18597,7 +18678,7 @@ typeShow:
   addi sp, sp, 2
   ret
 
-; scenes/title.e16.ts:234 pageShow(p) at -O1
+; scenes/title.e16.ts:253 pageShow(p) at -O1
 ;   p in s1
 ;   shown in s2
 pageShow:
@@ -18606,11 +18687,11 @@ pageShow:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; p
-  ; scenes/title.e16.ts:235  hudRows(TITLE_ROW, 19)
+  ; scenes/title.e16.ts:254  hudRows(TITLE_ROW, 19)
   li a0, 13
   li a1, 19
   call hudRows
-  ; scenes/title.e16.ts:236  const shown = p === 0 || p === 2
+  ; scenes/title.e16.ts:255  const shown = p === 0 || p === 2
   sub t0, s1, zero
   seqz t0, t0
   mv t1, t0
@@ -18620,7 +18701,7 @@ pageShow:
   seqz t0, t0
 .L1:
   mv s2, t0 ; shown
-  ; scenes/title.e16.ts:237  palMix(0, 0, shown ? 0 : 10)
+  ; scenes/title.e16.ts:256  palMix(0, 0, shown ? 0 : 10)
   li t0, 0
   li t1, 0
   mv t2, s2
@@ -18634,17 +18715,17 @@ pageShow:
   mv a1, t1
   mv a2, t2
   call palMix
-  ; scenes/title.e16.ts:238  if (p === 1) howTo()
+  ; scenes/title.e16.ts:257  if (p === 1) howTo()
   li t0, 1
   bne s1, t0, .L4
-  ; scenes/title.e16.ts:238  howTo()
+  ; scenes/title.e16.ts:257  howTo()
   call howTo
   j .L5
 .L4:
-  ; scenes/title.e16.ts:239  if (p === 3) bestDraw(TITLE_ROW)
+  ; scenes/title.e16.ts:258  if (p === 3) bestDraw(TITLE_ROW)
   li t0, 3
   bne s1, t0, .L6
-  ; scenes/title.e16.ts:239  bestDraw(TITLE_ROW)
+  ; scenes/title.e16.ts:258  bestDraw(TITLE_ROW)
   li a0, 13
   la t0, bestDraw
   li t1, 263
@@ -18658,7 +18739,7 @@ pageShow:
   addi sp, sp, 6
   ret
 
-; scenes/title.e16.ts:246 figuresStep(t, shown, menu) at -O1
+; scenes/title.e16.ts:265 figuresStep(t, shown, menu) at -O1
 ;   t in s2
 ;   shown in 4(fp)
 ;   menu in 6(fp)
@@ -18677,45 +18758,45 @@ figuresStep:
   mv s2, a0 ; t
   sw a1, 4(fp) ; shown
   sw a2, 6(fp) ; menu
-  ; scenes/title.e16.ts:247  sprBegin()
+  ; scenes/title.e16.ts:266  sprBegin()
   call sprBegin
-  ; scenes/title.e16.ts:248  if (!shown) return
+  ; scenes/title.e16.ts:267  if (!shown) return
   lw t0, 4(fp) ; shown
   bnez t0, .L1
-  ; scenes/title.e16.ts:248  return
+  ; scenes/title.e16.ts:267  return
   j .return
 .L1:
-  ; scenes/title.e16.ts:249  if (!menu) {
+  ; scenes/title.e16.ts:268  if (!menu) {
   lw t0, 6(fp) ; menu
   bnez t0, .L2
-  ; scenes/title.e16.ts:250  if ((t & 32) === 0) say(14, TITLE_ROW, str('PRESS START'), SL_P1)
+  ; scenes/title.e16.ts:269  if ((t & 32) === 0) say(14, TITLE_ROW, str('PRESS START'), SL_P1)
   andi t0, s2, 32
   bne t0, zero, .L3
-  ; scenes/title.e16.ts:250  say(14, TITLE_ROW, str('PRESS START'), SL_P1)
+  ; scenes/title.e16.ts:269  say(14, TITLE_ROW, str('PRESS START'), SL_P1)
   li a0, 14
   li a1, 13
-  la a2, str_57
+  la a2, str_59
   li a3, 1
   call say
   j .L4
 .L3:
-  ; scenes/title.e16.ts:251  hudRows(TITLE_ROW, 1)
+  ; scenes/title.e16.ts:270  hudRows(TITLE_ROW, 1)
   li a0, 13
   li a1, 1
   call hudRows
 .L4:
 .L2:
-  ; scenes/title.e16.ts:253  let s: u16 = 0
+  ; scenes/title.e16.ts:272  let s: u16 = 0
   li s1, 0 ; s
-  ; scenes/title.e16.ts:254  while (s < 4) {
+  ; scenes/title.e16.ts:273  while (s < 4) {
   j .L7
 .L5:
-  ; scenes/title.e16.ts:255  const from = FIG_FROM + s * FIG_EVERY
+  ; scenes/title.e16.ts:274  const from = FIG_FROM + s * FIG_EVERY
   slli t1, s1, 4
   slli t0, s1, 3
   add t0, t0, t1
   addi s3, t0, 20
-  ; scenes/title.e16.ts:256  const step = t < from ? 0 : introStep(t - from)
+  ; scenes/title.e16.ts:275  const step = t < from ? 0 : introStep(t - from)
   bgeu s2, s3, .L9
   li t0, 0
   j .L10
@@ -18727,24 +18808,24 @@ figuresStep:
   mv t0, a0
 .L10:
   sw t0, 0(fp) ; step
-  ; scenes/title.e16.ts:257  if (t === from) sfx(X_MAT)
+  ; scenes/title.e16.ts:276  if (t === from) sfx(X_MAT)
   bne s2, s3, .L11
-  ; scenes/title.e16.ts:257  sfx(X_MAT)
+  ; scenes/title.e16.ts:276  sfx(X_MAT)
   li a0, 13
   la t0, sfx
   li t1, 260
   call far_call
 .L11:
-  ; scenes/title.e16.ts:258  if (step !== figStep[s]) {
+  ; scenes/title.e16.ts:277  if (step !== figStep[s]) {
   slli t0, s1, 1
   lw t0, figStep(t0)
   lw t1, 0(fp) ; step
   beq t1, t0, .L12
-  ; scenes/title.e16.ts:259  figStep[s] = step
+  ; scenes/title.e16.ts:278  figStep[s] = step
   slli t0, s1, 1
   lw t1, 0(fp) ; step
   sw t1, figStep(t0)
-  ; scenes/title.e16.ts:260  palShow(11 + s, M_INTRO, step)
+  ; scenes/title.e16.ts:279  palShow(11 + s, M_INTRO, step)
   addi a0, s1, 11
   li a1, 1
   lw a2, 0(fp)
@@ -18752,13 +18833,13 @@ figuresStep:
   li t1, 260
   call far_call
 .L12:
-  ; scenes/title.e16.ts:262  const x = i16(52 + s * 72)
+  ; scenes/title.e16.ts:281  const x = i16(52 + s * 72)
   slli t1, s1, 6
   slli t0, s1, 3
   add t0, t0, t1
   addi t0, t0, 52
   sw t0, 2(fp) ; x
-  ; scenes/title.e16.ts:263  figure(x, FEET_Y, addr(fig) + s * 68, figWord(figTile[s], 11 + s, s < 2))
+  ; scenes/title.e16.ts:282  figure(x, FEET_Y, addr(fig) + s * 68, figWord(figTile[s], 11 + s, s < 2))
   slli t1, s1, 6
   slli t0, s1, 2
   add t0, t0, t1
@@ -18779,11 +18860,11 @@ figuresStep:
   mv a3, a0
   lw a0, 2(fp)
   call figure
-  ; scenes/title.e16.ts:264  shadowAt(x, FEET_Y)
+  ; scenes/title.e16.ts:283  shadowAt(x, FEET_Y)
   lw a0, 2(fp)
   li a1, 244
   call shadowAt
-  ; scenes/title.e16.ts:265  s++
+  ; scenes/title.e16.ts:284  s++
   addi s1, s1, 1
 .L7:
   li t0, 4
@@ -18798,39 +18879,39 @@ figuresStep:
   addi sp, sp, 18
   ret
 
-; scenes/title.e16.ts:270 menuShow(at) at -O1
+; scenes/title.e16.ts:289 menuShow(at) at -O1
 ;   at in s1
 menuShow:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; at
-  ; scenes/title.e16.ts:271  hudRows(TITLE_ROW, 3)
+  ; scenes/title.e16.ts:290  hudRows(TITLE_ROW, 3)
   li a0, 13
   li a1, 3
   call hudRows
-  ; scenes/title.e16.ts:272  say(15, TITLE_ROW, str('VERSUS CPU'), SL_P1)
+  ; scenes/title.e16.ts:291  say(15, TITLE_ROW, str('VERSUS CPU'), SL_P1)
   li a0, 15
   li a1, 13
-  la a2, str_58
-  li a3, 1
-  call say
-  ; scenes/title.e16.ts:273  say(15, TITLE_ROW + 1, str('CONTROLS'), SL_P1)
-  li a0, 15
-  li a1, 14
-  la a2, str_59
-  li a3, 1
-  call say
-  ; scenes/title.e16.ts:274  say(15, TITLE_ROW + 2, str('BEST'), SL_P1)
-  li a0, 15
-  li a1, 15
   la a2, str_60
   li a3, 1
   call say
-  ; scenes/title.e16.ts:275  say(13, TITLE_ROW + at, str('>'), SL_P1)
+  ; scenes/title.e16.ts:292  say(15, TITLE_ROW + 1, str('CONTROLS'), SL_P1)
+  li a0, 15
+  li a1, 14
+  la a2, str_61
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:293  say(15, TITLE_ROW + 2, str('BEST'), SL_P1)
+  li a0, 15
+  li a1, 15
+  la a2, str_62
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:294  say(13, TITLE_ROW + at, str('>'), SL_P1)
   li a0, 13
   addi a1, s1, 13
-  la a2, str_61
+  la a2, str_63
   li a3, 1
   call say
 .return:
@@ -18839,7 +18920,7 @@ menuShow:
   addi sp, sp, 4
   ret
 
-; scenes/title.e16.ts:278 titleMenuMove(at) at -O1
+; scenes/title.e16.ts:297 titleMenuMove(at) at -O1
 ;   at in s2
 ;   n in s1
 titleMenuMove:
@@ -18848,13 +18929,13 @@ titleMenuMove:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; at
-  ; scenes/title.e16.ts:279  let n = at
+  ; scenes/title.e16.ts:298  let n = at
   mv s1, s2 ; n
-  ; scenes/title.e16.ts:280  if (pressed(B_UP)) n = n === 0 ? 2 : n - 1
+  ; scenes/title.e16.ts:299  if (pressed(B_UP)) n = n === 0 ? 2 : n - 1
   li a0, 1
   call pressed
   beqz a0, .L1
-  ; scenes/title.e16.ts:280  n = n === 0 ? 2 : n - 1
+  ; scenes/title.e16.ts:299  n = n === 0 ? 2 : n - 1
   bne s1, zero, .L2
   li t0, 2
   j .L3
@@ -18863,11 +18944,11 @@ titleMenuMove:
 .L3:
   mv s1, t0 ; n
 .L1:
-  ; scenes/title.e16.ts:281  if (pressed(B_DOWN)) n = n === 2 ? 0 : n + 1
+  ; scenes/title.e16.ts:300  if (pressed(B_DOWN)) n = n === 2 ? 0 : n + 1
   li a0, 2
   call pressed
   beqz a0, .L4
-  ; scenes/title.e16.ts:281  n = n === 2 ? 0 : n + 1
+  ; scenes/title.e16.ts:300  n = n === 2 ? 0 : n + 1
   li t0, 2
   bne s1, t0, .L5
   li t0, 0
@@ -18877,18 +18958,18 @@ titleMenuMove:
 .L6:
   mv s1, t0 ; n
 .L4:
-  ; scenes/title.e16.ts:282  if (n !== at) {
+  ; scenes/title.e16.ts:301  if (n !== at) {
   beq s1, s2, .L7
-  ; scenes/title.e16.ts:283  sfx(X_MOVE)
+  ; scenes/title.e16.ts:302  sfx(X_MOVE)
   li a0, 14
   la t0, sfx
   li t1, 260
   call far_call
-  ; scenes/title.e16.ts:284  menuShow(n)
+  ; scenes/title.e16.ts:303  menuShow(n)
   mv a0, s1
   call menuShow
 .L7:
-  ; scenes/title.e16.ts:286  return n
+  ; scenes/title.e16.ts:305  return n
   mv a0, s1
 .return:
   lw ra, 0(sp)
@@ -18897,74 +18978,74 @@ titleMenuMove:
   addi sp, sp, 6
   ret
 
-; scenes/title.e16.ts:290 howTo() at -O1
+; scenes/title.e16.ts:309 howTo() at -O1
 howTo:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/title.e16.ts:291  say(14, TITLE_ROW, str('HOW TO PLAY'), SL_P1)
+  ; scenes/title.e16.ts:310  say(14, TITLE_ROW, str('HOW TO PLAY'), SL_P1)
   li a0, 14
   li a1, 13
-  la a2, str_62
-  li a3, 1
-  call say
-  ; scenes/title.e16.ts:292  say(2, 15, str('BEAT FOUR PROGRAMS, TWO ROUNDS EACH.'), SL_P1)
-  li a0, 2
-  li a1, 15
-  la a2, str_63
-  li a3, 1
-  call say
-  ; scenes/title.e16.ts:293  say(2, 17, str('HOLD BACK TO GUARD: CROUCH FOR LOWS,'), SL_P1)
-  li a0, 2
-  li a1, 17
   la a2, str_64
   li a3, 1
   call say
-  ; scenes/title.e16.ts:294  say(2, 18, str('STAND FOR JUMP-INS.'), SL_P1)
+  ; scenes/title.e16.ts:311  say(2, 15, str('BEAT FOUR PROGRAMS, TWO ROUNDS EACH.'), SL_P1)
   li a0, 2
-  li a1, 18
+  li a1, 15
   la a2, str_65
   li a3, 1
   call say
-  ; scenes/title.e16.ts:295  say(2, 20, str('LIGHT BLOWS COME OUT FAST. HEAVY ONES'), SL_P1)
+  ; scenes/title.e16.ts:312  say(2, 17, str('HOLD BACK TO GUARD: CROUCH FOR LOWS,'), SL_P1)
   li a0, 2
-  li a1, 20
+  li a1, 17
   la a2, str_66
   li a3, 1
   call say
-  ; scenes/title.e16.ts:296  say(2, 21, str('HURT, BUT THEY CAN BE SEEN COMING.'), SL_P1)
+  ; scenes/title.e16.ts:313  say(2, 18, str('STAND FOR JUMP-INS.'), SL_P1)
   li a0, 2
-  li a1, 21
+  li a1, 18
   la a2, str_67
   li a3, 1
   call say
-  ; scenes/title.e16.ts:297  say(2, 23, str('A LIGHT THAT LANDS CHAINS INTO THE'), SL_P1)
+  ; scenes/title.e16.ts:314  say(2, 20, str('LIGHT BLOWS COME OUT FAST. HEAVY ONES'), SL_P1)
   li a0, 2
-  li a1, 23
+  li a1, 20
   la a2, str_68
   li a3, 1
   call say
-  ; scenes/title.e16.ts:298  say(2, 24, str('HEAVY OF ITS KIND.'), SL_P1)
+  ; scenes/title.e16.ts:315  say(2, 21, str('HURT, BUT THEY CAN BE SEEN COMING.'), SL_P1)
   li a0, 2
-  li a1, 24
+  li a1, 21
   la a2, str_69
   li a3, 1
   call say
-  ; scenes/title.e16.ts:299  say(2, 26, str('CLOSE IN, < OR > + HEAVY PUNCH: THROW.'), SL_P1)
+  ; scenes/title.e16.ts:316  say(2, 23, str('A LIGHT THAT LANDS CHAINS INTO THE'), SL_P1)
   li a0, 2
-  li a1, 26
+  li a1, 23
   la a2, str_70
   li a3, 1
   call say
-  ; scenes/title.e16.ts:300  say(2, 27, str('FORWARD TWICE: DASH.'), SL_P1)
+  ; scenes/title.e16.ts:317  say(2, 24, str('HEAVY OF ITS KIND.'), SL_P1)
   li a0, 2
-  li a1, 27
+  li a1, 24
   la a2, str_71
   li a3, 1
   call say
-  ; scenes/title.e16.ts:301  say(2, 29, str('READ THEM. DO NOT LET THEM READ YOU.'), SL_DIM)
+  ; scenes/title.e16.ts:318  say(2, 26, str('CLOSE IN, < OR > + HEAVY PUNCH: THROW.'), SL_P1)
+  li a0, 2
+  li a1, 26
+  la a2, str_72
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:319  say(2, 27, str('FORWARD TWICE: DASH.'), SL_P1)
+  li a0, 2
+  li a1, 27
+  la a2, str_73
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:320  say(2, 29, str('READ THEM. DO NOT LET THEM READ YOU.'), SL_DIM)
   li a0, 2
   li a1, 29
-  la a2, str_72
+  la a2, str_74
   li a3, 3
   call say
 .return:
@@ -18972,7 +19053,7 @@ howTo:
   addi sp, sp, 2
   ret
 
-; scenes/title.e16.ts:321 figure(x, y, at, t) at -O1
+; scenes/title.e16.ts:340 figure(x, y, at, t) at -O1
 ;   x in 0(fp)
 ;   y in 10(fp)
 ;   at in 2(fp)
@@ -18998,36 +19079,36 @@ figure:
   sw a1, 10(fp) ; y
   sw a2, 2(fp) ; at
   sw a3, 4(fp) ; t
-  ; scenes/title.e16.ts:322  const n = peek16(at + 2)
+  ; scenes/title.e16.ts:341  const n = peek16(at + 2)
   lw t0, 2(fp) ; at
   lw t0, 2(t0)
   sw t0, 12(fp) ; n
-  ; scenes/title.e16.ts:323  const right = (t & FLIP_H) === 0
+  ; scenes/title.e16.ts:342  const right = (t & FLIP_H) === 0
   li t0, 8192
   lw t1, 4(fp) ; t
   and t1, t1, t0
   sub t1, t1, zero
   seqz t1, t1
   sw t1, 14(fp) ; right
-  ; scenes/title.e16.ts:324  let c: u16 = 0
+  ; scenes/title.e16.ts:343  let c: u16 = 0
   li s1, 0 ; c
-  ; scenes/title.e16.ts:325  while (c < n) {
+  ; scenes/title.e16.ts:344  while (c < n) {
   j .L3
 .L1:
-  ; scenes/title.e16.ts:326  const w = peek16(at + 4 + c * 2)
+  ; scenes/title.e16.ts:345  const w = peek16(at + 4 + c * 2)
   lw t0, 2(fp) ; at
   slli t1, s1, 1
   addi t0, t0, 4
   add t0, t0, t1
   lw t0, 0(t0)
   sw t0, 6(fp) ; w
-  ; scenes/title.e16.ts:327  const dx = placeX(w)
+  ; scenes/title.e16.ts:346  const dx = placeX(w)
   lw t0, 6(fp) ; w
   sw t0, 16(fp) ; placeX.w
-  ; scenes/title.e16.ts:308  const v = i16(w & 255)
+  ; scenes/title.e16.ts:327  const v = i16(w & 255)
   lw t0, 16(fp) ; placeX.w
   andi s2, t0, 255
-  ; scenes/title.e16.ts:309  return v > 127 ? v - 256 : v
+  ; scenes/title.e16.ts:328  return v > 127 ? v - 256 : v
   li t0, 127
   bge t0, s2, .I1.L1
   addi t0, s2, -256
@@ -19036,7 +19117,7 @@ figure:
   mv t0, s2
 .I1_end:
   sw t0, 8(fp) ; dx
-  ; scenes/title.e16.ts:328  spr(right ? x + dx : x - dx - 16, y + placeY(w), t + c * 4, S16)
+  ; scenes/title.e16.ts:347  spr(right ? x + dx : x - dx - 16, y + placeY(w), t + c * 4, S16)
   lw t0, 14(fp) ; right
   beqz t0, .L5
   lw t0, 8(fp) ; dx
@@ -19051,10 +19132,10 @@ figure:
 .L6:
   lw t1, 6(fp) ; w
   sw t1, 18(fp) ; placeY.w
-  ; scenes/title.e16.ts:313  const v = i16(w >> 8)
+  ; scenes/title.e16.ts:332  const v = i16(w >> 8)
   lw t1, 18(fp) ; placeY.w
   srli s3, t1, 8
-  ; scenes/title.e16.ts:314  return v > 127 ? v - 256 : v
+  ; scenes/title.e16.ts:333  return v > 127 ? v - 256 : v
   lw t1, 10(fp)
   mv t2, s3
   li t3, 127
@@ -19073,7 +19154,7 @@ figure:
   mv a2, t3
   li a3, 1
   call spr
-  ; scenes/title.e16.ts:329  c++
+  ; scenes/title.e16.ts:348  c++
   addi s1, s1, 1
 .L3:
   lw t0, 12(fp) ; n
@@ -19088,12 +19169,12 @@ figure:
   addi sp, sp, 30
   ret
 
-; scenes/title.e16.ts:334 figWord(tile, sl, right) at -O1
+; scenes/title.e16.ts:353 figWord(tile, sl, right) at -O1
 ;   tile in a0
 ;   sl in a1
 ;   right in a2
 figWord:
-  ; scenes/title.e16.ts:335  return tile | ((sl - 8) << 10) | (right ? 0 : FLIP_H)
+  ; scenes/title.e16.ts:354  return tile | ((sl - 8) << 10) | (right ? 0 : FLIP_H)
   addi t0, a1, -8
   slli t0, t0, 10
   or t0, a0, t0
@@ -19108,7 +19189,7 @@ figWord:
 .return:
   ret
 
-; scenes/title.e16.ts:339 shadowAt(x, y) at -O1
+; scenes/title.e16.ts:358 shadowAt(x, y) at -O1
 ;   x in s1
 ;   y in s2
 shadowAt:
@@ -19118,20 +19199,20 @@ shadowAt:
   sw s2, 4(sp)
   mv s1, a0 ; x
   mv s2, a1 ; y
-  ; scenes/title.e16.ts:340  const t = SHADOW_TILE | ((SL_FX - 8) << 10)
-  ; scenes/title.e16.ts:341  spr(x - 24, y - 4, t, S16)
+  ; scenes/title.e16.ts:359  const t = SHADOW_TILE | ((SL_FX - 8) << 10)
+  ; scenes/title.e16.ts:360  spr(x - 24, y - 4, t, S16)
   addi a0, s1, -24
   addi a1, s2, -4
   li a2, 2641
   li a3, 1
   call spr
-  ; scenes/title.e16.ts:342  spr(x - 8, y - 4, t + 4, S16)
+  ; scenes/title.e16.ts:361  spr(x - 8, y - 4, t + 4, S16)
   addi a0, s1, -8
   addi a1, s2, -4
   li a2, 2645
   li a3, 1
   call spr
-  ; scenes/title.e16.ts:343  spr(x + 8, y - 4, t | FLIP_H, S16)
+  ; scenes/title.e16.ts:362  spr(x + 8, y - 4, t | FLIP_H, S16)
   addi a0, s1, 8
   addi a1, s2, -4
   li a2, 10833
@@ -19144,84 +19225,84 @@ shadowAt:
   addi sp, sp, 6
   ret
 
-; scenes/title.e16.ts:352 controlsRun(still) at -O1
+; scenes/title.e16.ts:371 controlsRun(still) at -O1
 ;   still in s1
 controlsRun:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; still
-  ; scenes/title.e16.ts:353  screenIs(SC_CONTROLS)
+  ; scenes/title.e16.ts:372  screenIs(SC_CONTROLS)
   li a0, 3
   call screenIs
-  ; scenes/title.e16.ts:354  if (!still) screenClear()
+  ; scenes/title.e16.ts:373  if (!still) screenClear()
   bnez s1, .L1
-  ; scenes/title.e16.ts:354  screenClear()
+  ; scenes/title.e16.ts:373  screenClear()
   call screenClear
 .L1:
-  ; scenes/title.e16.ts:355  hudClear()
+  ; scenes/title.e16.ts:374  hudClear()
   call hudClear
-  ; scenes/title.e16.ts:356  if (!still) sprBegin()
+  ; scenes/title.e16.ts:375  if (!still) sprBegin()
   bnez s1, .L2
-  ; scenes/title.e16.ts:356  sprBegin()
+  ; scenes/title.e16.ts:375  sprBegin()
   call sprBegin
 .L2:
-  ; scenes/title.e16.ts:357  controlsDraw()
+  ; scenes/title.e16.ts:376  controlsDraw()
   call controlsDraw
-  ; scenes/title.e16.ts:358  for (;;) {
+  ; scenes/title.e16.ts:377  for (;;) {
 .L3:
-  ; scenes/title.e16.ts:359  if (still) pauseFrame()
+  ; scenes/title.e16.ts:378  if (still) pauseFrame()
   beqz s1, .L7
-  ; scenes/title.e16.ts:359  pauseFrame()
+  ; scenes/title.e16.ts:378  pauseFrame()
   call pauseFrame
   j .L8
 .L7:
-  ; scenes/title.e16.ts:360  frameBegin()
+  ; scenes/title.e16.ts:379  frameBegin()
   call frameBegin
 .L8:
-  ; scenes/title.e16.ts:361  if (pressed(B_SELECT)) {
+  ; scenes/title.e16.ts:380  if (pressed(B_SELECT)) {
   li a0, 2048
   call pressed
   beqz a0, .L9
-  ; scenes/title.e16.ts:362  buttonSetIs(1 - buttonSet)
-  lw t0, 0x1816(zero)
+  ; scenes/title.e16.ts:381  buttonSetIs(1 - buttonSet)
+  lw t0, 0x1818(zero)
   li t1, 1
   sub a0, t1, t0
   call buttonSetIs
-  ; scenes/title.e16.ts:363  saveKeep()
+  ; scenes/title.e16.ts:382  saveKeep()
   la t0, saveKeep
   li t1, 263
   call far_call
-  ; scenes/title.e16.ts:364  setShow()
+  ; scenes/title.e16.ts:383  setShow()
   call setShow
-  ; scenes/title.e16.ts:365  sfx(X_MOVE)
+  ; scenes/title.e16.ts:384  sfx(X_MOVE)
   li a0, 14
   la t0, sfx
   li t1, 260
   call far_call
 .L9:
-  ; scenes/title.e16.ts:367  if (pressed(B_A)) {
+  ; scenes/title.e16.ts:386  if (pressed(B_A)) {
   li a0, 16
   call pressed
   beqz a0, .L10
-  ; scenes/title.e16.ts:368  logOff[0] = 1 - logOff[0]
+  ; scenes/title.e16.ts:387  logOff[0] = 1 - logOff[0]
   lw t0, logOff(zero)
   li t1, 1
   sub t1, t1, t0
   sw t1, logOff(zero)
-  ; scenes/title.e16.ts:369  saveKeep()
+  ; scenes/title.e16.ts:388  saveKeep()
   la t0, saveKeep
   li t1, 263
   call far_call
-  ; scenes/title.e16.ts:370  setShow()
+  ; scenes/title.e16.ts:389  setShow()
   call setShow
-  ; scenes/title.e16.ts:371  sfx(X_MOVE)
+  ; scenes/title.e16.ts:390  sfx(X_MOVE)
   li a0, 14
   la t0, sfx
   li t1, 260
   call far_call
 .L10:
-  ; scenes/title.e16.ts:373  if (pressed(B_START) || pressed(B_B)) {
+  ; scenes/title.e16.ts:392  if (pressed(B_START) || pressed(B_B)) {
   li a0, 1024
   call pressed
   bnez a0, .L12
@@ -19229,19 +19310,19 @@ controlsRun:
   call pressed
   beqz a0, .L3
 .L12:
-  ; scenes/title.e16.ts:374  sfx(X_OK)
+  ; scenes/title.e16.ts:393  sfx(X_OK)
   li a0, 15
   la t0, sfx
   li t1, 260
   call far_call
-  ; scenes/title.e16.ts:375  return
+  ; scenes/title.e16.ts:394  return
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
   addi sp, sp, 4
   ret
 
-; scenes/title.e16.ts:383 row3(y, pad, key, act) at -O1
+; scenes/title.e16.ts:402 row3(y, pad, key, act) at -O1
 ;   y in s1
 ;   pad in s2
 ;   key in s3
@@ -19257,19 +19338,19 @@ row3:
   mv s2, a1 ; pad
   mv s3, a2 ; key
   mv s0, a3 ; act
-  ; scenes/title.e16.ts:384  say(2, y, pad, SL_P1)
+  ; scenes/title.e16.ts:403  say(2, y, pad, SL_P1)
   li a0, 2
   mv a1, s1
   mv a2, s2
   li a3, 1
   call say
-  ; scenes/title.e16.ts:385  say(COL_KEY, y, key, SL_P1)
+  ; scenes/title.e16.ts:404  say(COL_KEY, y, key, SL_P1)
   li a0, 13
   mv a1, s1
   mv a2, s3
   li a3, 1
   call say
-  ; scenes/title.e16.ts:386  say(COL_ACT, y, act, SL_P1)
+  ; scenes/title.e16.ts:405  say(COL_ACT, y, act, SL_P1)
   li a0, 26
   mv a1, s1
   mv a2, s0
@@ -19284,150 +19365,150 @@ row3:
   addi sp, sp, 10
   ret
 
-; scenes/title.e16.ts:389 controlsDraw() at -O1
+; scenes/title.e16.ts:408 controlsDraw() at -O1
 controlsDraw:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/title.e16.ts:390  say(16, 2, str('CONTROLS'), SL_P1)
+  ; scenes/title.e16.ts:409  say(16, 2, str('CONTROLS'), SL_P1)
   li a0, 16
   li a1, 2
-  la a2, str_59
+  la a2, str_61
   li a3, 1
   call say
-  ; scenes/title.e16.ts:391  row3(5, str('PAD'), str('PC KEY'), str('ACTION'))
+  ; scenes/title.e16.ts:410  row3(5, str('PAD'), str('PC KEY'), str('ACTION'))
   li a0, 5
-  la a1, str_73
-  la a2, str_74
-  la a3, str_75
+  la a1, str_75
+  la a2, str_76
+  la a3, str_77
   call row3
-  ; scenes/title.e16.ts:392  hudRule(6)
+  ; scenes/title.e16.ts:411  hudRule(6)
   li a0, 6
   call hudRule
-  ; scenes/title.e16.ts:393  row3(7, str('D-PAD < >'), str('ARROW < >'), str('WALK'))
+  ; scenes/title.e16.ts:412  row3(7, str('D-PAD < >'), str('ARROW < >'), str('WALK'))
   li a0, 7
-  la a1, str_76
-  la a2, str_77
-  la a3, str_78
-  call row3
-  ; scenes/title.e16.ts:394  row3(8, str('HOLD BACK'), str('HOLD BACK'), str('GUARD'))
-  li a0, 8
-  la a1, str_79
+  la a1, str_78
   la a2, str_79
   la a3, str_80
   call row3
-  ; scenes/title.e16.ts:395  row3(9, str('D-PAD DOWN'), str('ARROW DOWN'), str('CROUCH'))
-  li a0, 9
+  ; scenes/title.e16.ts:413  row3(8, str('HOLD BACK'), str('HOLD BACK'), str('GUARD'))
+  li a0, 8
   la a1, str_81
-  la a2, str_82
-  la a3, str_83
+  la a2, str_81
+  la a3, str_82
   call row3
-  ; scenes/title.e16.ts:396  row3(10, str('D-PAD UP'), str('ARROW UP'), str('JUMP'))
+  ; scenes/title.e16.ts:414  row3(9, str('D-PAD DOWN'), str('ARROW DOWN'), str('CROUCH'))
+  li a0, 9
+  la a1, str_83
+  la a2, str_84
+  la a3, str_85
+  call row3
+  ; scenes/title.e16.ts:415  row3(10, str('D-PAD UP'), str('ARROW UP'), str('JUMP'))
   li a0, 10
-  la a1, str_84
-  la a2, str_85
-  la a3, str_86
+  la a1, str_86
+  la a2, str_87
+  la a3, str_88
   call row3
-  ; scenes/title.e16.ts:397  row3(12, str('Y'), str('A'), str('LIGHT PUNCH'))
+  ; scenes/title.e16.ts:416  row3(12, str('Y'), str('A'), str('LIGHT PUNCH'))
   li a0, 12
-  la a1, str_87
-  la a2, str_88
-  la a3, str_89
-  call row3
-  ; scenes/title.e16.ts:398  row3(13, str('X'), str('S'), str('HEAVY PUNCH'))
-  li a0, 13
-  la a1, str_90
-  la a2, str_91
-  la a3, str_92
-  call row3
-  ; scenes/title.e16.ts:399  row3(14, str('B'), str('X'), str(''))
-  li a0, 14
-  la a1, str_93
+  la a1, str_89
   la a2, str_90
+  la a3, str_91
+  call row3
+  ; scenes/title.e16.ts:417  row3(13, str('X'), str('S'), str('HEAVY PUNCH'))
+  li a0, 13
+  la a1, str_92
+  la a2, str_93
   la a3, str_94
   call row3
-  ; scenes/title.e16.ts:400  row3(15, str('A'), str('Z'), str(''))
+  ; scenes/title.e16.ts:418  row3(14, str('B'), str('X'), str(''))
+  li a0, 14
+  la a1, str_95
+  la a2, str_92
+  la a3, str_96
+  call row3
+  ; scenes/title.e16.ts:419  row3(15, str('A'), str('Z'), str(''))
   li a0, 15
-  la a1, str_88
-  la a2, str_95
-  la a3, str_94
-  call row3
-  ; scenes/title.e16.ts:401  row3(17, str('START'), str('ENTER'), str('PAUSE'))
-  li a0, 17
-  la a1, str_96
+  la a1, str_90
   la a2, str_97
-  la a3, str_98
+  la a3, str_96
   call row3
-  ; scenes/title.e16.ts:402  row3(18, str('SELECT'), str('RIGHT SHIFT'), str('BUTTON TYPE'))
+  ; scenes/title.e16.ts:420  row3(17, str('START'), str('ENTER'), str('PAUSE'))
+  li a0, 17
+  la a1, str_98
+  la a2, str_99
+  la a3, str_100
+  call row3
+  ; scenes/title.e16.ts:421  row3(18, str('SELECT'), str('RIGHT SHIFT'), str('BUTTON TYPE'))
   li a0, 18
-  la a1, str_99
-  la a2, str_100
-  la a3, str_101
+  la a1, str_101
+  la a2, str_102
+  la a3, str_103
   call row3
-  ; scenes/title.e16.ts:403  row3(19, str('L  R'), str('Q  W'), str('NOT USED'))
+  ; scenes/title.e16.ts:422  row3(19, str('L  R'), str('Q  W'), str('NOT USED'))
   li a0, 19
-  la a1, str_102
-  la a2, str_103
-  la a3, str_104
+  la a1, str_104
+  la a2, str_105
+  la a3, str_106
   call row3
-  ; scenes/title.e16.ts:404  hudRule(21)
+  ; scenes/title.e16.ts:423  hudRule(21)
   li a0, 21
   call hudRule
-  ; scenes/title.e16.ts:405  say(2, 22, str('THROW     NEAR, < OR > + HEAVY PUNCH'), SL_P1)
+  ; scenes/title.e16.ts:424  say(2, 22, str('THROW     NEAR, < OR > + HEAVY PUNCH'), SL_P1)
   li a0, 2
   li a1, 22
-  la a2, str_105
-  li a3, 1
-  call say
-  ; scenes/title.e16.ts:406  say(2, 23, str('ANTI-AIR  DOWN + HEAVY PUNCH'), SL_P1)
-  li a0, 2
-  li a1, 23
-  la a2, str_106
-  li a3, 1
-  call say
-  ; scenes/title.e16.ts:407  say(2, 24, str('LOW GUARD HOLD BACK + DOWN'), SL_P1)
-  li a0, 2
-  li a1, 24
   la a2, str_107
   li a3, 1
   call say
-  ; scenes/title.e16.ts:408  say(2, 25, str('DASH      > > OR < <'), SL_P1)
+  ; scenes/title.e16.ts:425  say(2, 23, str('ANTI-AIR  DOWN + HEAVY PUNCH'), SL_P1)
   li a0, 2
-  li a1, 25
+  li a1, 23
   la a2, str_108
   li a3, 1
   call say
-  ; scenes/title.e16.ts:409  say(2, 26, str('CHAIN     A LIGHT THAT LANDS + HEAVY'), SL_P1)
+  ; scenes/title.e16.ts:426  say(2, 24, str('LOW GUARD HOLD BACK + DOWN'), SL_P1)
   li a0, 2
-  li a1, 26
+  li a1, 24
   la a2, str_109
   li a3, 1
   call say
-  ; scenes/title.e16.ts:410  say(2, 29, str('SELECT: BUTTON TYPE'), SL_DIM)
+  ; scenes/title.e16.ts:427  say(2, 25, str('DASH      > > OR < <'), SL_P1)
+  li a0, 2
+  li a1, 25
+  la a2, str_110
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:428  say(2, 26, str('CHAIN     A LIGHT THAT LANDS + HEAVY'), SL_P1)
+  li a0, 2
+  li a1, 26
+  la a2, str_111
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:429  say(2, 29, str('SELECT: BUTTON TYPE'), SL_DIM)
   li a0, 2
   li a1, 29
-  la a2, str_110
-  li a3, 3
-  call say
-  ; scenes/title.e16.ts:411  say(2, 30, str('A: LOG LINE'), SL_DIM)
-  li a0, 2
-  li a1, 30
-  la a2, str_111
-  li a3, 3
-  call say
-  ; scenes/title.e16.ts:412  say(12, 33, str('START OR B: BACK'), SL_DIM)
-  li a0, 12
-  li a1, 33
   la a2, str_112
   li a3, 3
   call say
-  ; scenes/title.e16.ts:413  setShow()
+  ; scenes/title.e16.ts:430  say(2, 30, str('A: LOG LINE'), SL_DIM)
+  li a0, 2
+  li a1, 30
+  la a2, str_113
+  li a3, 3
+  call say
+  ; scenes/title.e16.ts:431  say(12, 33, str('START OR B: BACK'), SL_DIM)
+  li a0, 12
+  li a1, 33
+  la a2, str_114
+  li a3, 3
+  call say
+  ; scenes/title.e16.ts:432  setShow()
   call setShow
 .return:
   lw ra, 0(sp)
   addi sp, sp, 2
   ret
 
-; scenes/title.e16.ts:417 hudRule(y) at -O1
+; scenes/title.e16.ts:436 hudRule(y) at -O1
 ;   y in s2
 ;   x in s1
 hudRule:
@@ -19436,18 +19517,18 @@ hudRule:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; y
-  ; scenes/title.e16.ts:418  let x: u16 = 2
+  ; scenes/title.e16.ts:437  let x: u16 = 2
   li s1, 2 ; x
-  ; scenes/title.e16.ts:419  while (x < 38) {
+  ; scenes/title.e16.ts:438  while (x < 38) {
   j .L3
 .L1:
-  ; scenes/title.e16.ts:420  hudTile(x, y, T_RULE, SL_DIM)
+  ; scenes/title.e16.ts:439  hudTile(x, y, T_RULE, SL_DIM)
   mv a0, s1
   mv a1, s2
   li a2, 1
   li a3, 3
   call hudTile
-  ; scenes/title.e16.ts:421  x++
+  ; scenes/title.e16.ts:440  x++
   addi s1, s1, 1
 .L3:
   li t0, 38
@@ -19459,63 +19540,63 @@ hudRule:
   addi sp, sp, 6
   ret
 
-; scenes/title.e16.ts:426 setShow() at -O1
+; scenes/title.e16.ts:445 setShow() at -O1
 setShow:
   addi sp, sp, -2
   sw ra, 0(sp)
-  ; scenes/title.e16.ts:427  if (buttonSet === 0) {
-  lw t0, 0x1816(zero)
+  ; scenes/title.e16.ts:446  if (buttonSet === 0) {
+  lw t0, 0x1818(zero)
   bne t0, zero, .L1
-  ; scenes/title.e16.ts:428  say(22, 29, str('TYPE A  PAD    '), SL_P1)
+  ; scenes/title.e16.ts:447  say(22, 29, str('TYPE A  PAD    '), SL_P1)
   li a0, 22
   li a1, 29
-  la a2, str_113
+  la a2, str_115
   li a3, 1
   call say
-  ; scenes/title.e16.ts:429  say(COL_ACT, 14, str('LIGHT KICK'), SL_P1)
+  ; scenes/title.e16.ts:448  say(COL_ACT, 14, str('LIGHT KICK'), SL_P1)
   li a0, 26
   li a1, 14
-  la a2, str_114
+  la a2, str_116
   li a3, 1
   call say
-  ; scenes/title.e16.ts:430  say(COL_ACT, 15, str('HEAVY KICK'), SL_P1)
+  ; scenes/title.e16.ts:449  say(COL_ACT, 15, str('HEAVY KICK'), SL_P1)
   li a0, 26
   li a1, 15
-  la a2, str_115
+  la a2, str_117
   li a3, 1
   call say
   j .L2
 .L1:
-  ; scenes/title.e16.ts:432  say(22, 29, str('TYPE B  PC KEYS'), SL_P1)
+  ; scenes/title.e16.ts:451  say(22, 29, str('TYPE B  PC KEYS'), SL_P1)
   li a0, 22
   li a1, 29
+  la a2, str_118
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:452  say(COL_ACT, 14, str('HEAVY KICK'), SL_P1)
+  li a0, 26
+  li a1, 14
+  la a2, str_117
+  li a3, 1
+  call say
+  ; scenes/title.e16.ts:453  say(COL_ACT, 15, str('LIGHT KICK'), SL_P1)
+  li a0, 26
+  li a1, 15
   la a2, str_116
   li a3, 1
   call say
-  ; scenes/title.e16.ts:433  say(COL_ACT, 14, str('HEAVY KICK'), SL_P1)
-  li a0, 26
-  li a1, 14
-  la a2, str_115
-  li a3, 1
-  call say
-  ; scenes/title.e16.ts:434  say(COL_ACT, 15, str('LIGHT KICK'), SL_P1)
-  li a0, 26
-  li a1, 15
-  la a2, str_114
-  li a3, 1
-  call say
 .L2:
-  ; scenes/title.e16.ts:436  say(22, 30, logOff[0] !== 0 ? str('LOG OFF') : str('LOG ON '), SL_P1)
+  ; scenes/title.e16.ts:455  say(22, 30, logOff[0] !== 0 ? str('LOG OFF') : str('LOG ON '), SL_P1)
   lw t0, logOff(zero)
   li t1, 30
   mv t2, t0
   li t0, 22
   li t3, 0
   beq t2, t3, .L3
-  la t2, str_117
+  la t2, str_119
   j .L4
 .L3:
-  la t2, str_118
+  la t2, str_120
 .L4:
   mv a0, t0
   mv a1, t1
@@ -19527,240 +19608,244 @@ setShow:
   addi sp, sp, 2
   ret
 
-str_45:
-  .byte 69, 76, 69, 67, 45, 49, 54, 32, 80, 76, 65, 89, 32, 32, 69, 76, 69, 67, 70, 73, 71, 72, 84, 69, 82, 0
-str_46:
-  .byte 73, 78, 68, 85, 83, 84, 82, 73, 65, 76, 32, 67, 79, 77, 66, 65, 84, 32, 83, 73, 77, 85, 76, 65, 84, 79, 82, 0
 str_47:
-  .byte 62, 32, 76, 79, 65, 68, 73, 78, 71, 32, 70, 73, 71, 72, 84, 69, 82, 32, 68, 65, 84, 65, 32, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
+  .byte 69, 76, 69, 67, 45, 49, 54, 32, 80, 76, 65, 89, 32, 32, 69, 76, 69, 67, 70, 73, 71, 72, 84, 69, 82, 0
 str_48:
-  .byte 62, 32, 77, 69, 83, 72, 32, 67, 69, 76, 76, 83, 44, 32, 52, 32, 83, 76, 79, 84, 83, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
+  .byte 73, 78, 68, 85, 83, 84, 82, 73, 65, 76, 32, 67, 79, 77, 66, 65, 84, 32, 83, 73, 77, 85, 76, 65, 84, 79, 82, 0
 str_49:
-  .byte 62, 32, 79, 80, 80, 79, 78, 69, 78, 84, 32, 80, 82, 79, 71, 82, 65, 77, 83, 44, 32, 53, 32, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
+  .byte 62, 32, 76, 79, 65, 68, 73, 78, 71, 32, 70, 73, 71, 72, 84, 69, 82, 32, 68, 65, 84, 65, 32, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
 str_50:
-  .byte 62, 32, 83, 84, 65, 71, 69, 32, 71, 82, 73, 68, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
+  .byte 62, 32, 77, 69, 83, 72, 32, 67, 69, 76, 76, 83, 44, 32, 32, 32, 83, 76, 79, 84, 83, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
 str_51:
-  .byte 62, 32, 83, 79, 85, 78, 68, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
+  .byte 62, 32, 79, 80, 80, 79, 78, 69, 78, 84, 32, 80, 82, 79, 71, 82, 65, 77, 83, 44, 32, 32, 32, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
 str_52:
-  .byte 62, 32, 82, 69, 67, 79, 82, 68, 83, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
+  .byte 62, 32, 83, 84, 65, 71, 69, 32, 71, 82, 73, 68, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
 str_53:
-  .byte 62, 32, 83, 73, 77, 85, 76, 65, 84, 79, 82, 32, 82, 69, 65, 68, 89, 0
+  .byte 62, 32, 83, 79, 85, 78, 68, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
 str_54:
-  .byte 40, 67, 41, 32, 69, 76, 69, 67, 88, 90, 89, 32, 80, 82, 79, 74, 69, 67, 84, 0
+  .byte 62, 32, 82, 69, 67, 79, 82, 68, 83, 32, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 46, 32, 79, 75, 0
 str_55:
-  .byte 83, 69, 76, 69, 67, 84, 32, 32, 84, 89, 80, 69, 32, 65, 32, 40, 80, 65, 68, 41, 32, 32, 32, 32, 0
+  .byte 62, 32, 83, 73, 77, 85, 76, 65, 84, 79, 82, 32, 82, 69, 65, 68, 89, 0
 str_56:
-  .byte 83, 69, 76, 69, 67, 84, 32, 32, 84, 89, 80, 69, 32, 66, 32, 40, 80, 67, 32, 75, 69, 89, 83, 41, 0
+  .byte 40, 67, 41, 32, 69, 76, 69, 67, 88, 90, 89, 32, 80, 82, 79, 74, 69, 67, 84, 0
 str_57:
-  .byte 80, 82, 69, 83, 83, 32, 83, 84, 65, 82, 84, 0
+  .byte 83, 69, 76, 69, 67, 84, 32, 32, 84, 89, 80, 69, 32, 65, 32, 40, 80, 65, 68, 41, 32, 32, 32, 32, 0
 str_58:
-  .byte 86, 69, 82, 83, 85, 83, 32, 67, 80, 85, 0
+  .byte 83, 69, 76, 69, 67, 84, 32, 32, 84, 89, 80, 69, 32, 66, 32, 40, 80, 67, 32, 75, 69, 89, 83, 41, 0
 str_59:
-  .byte 67, 79, 78, 84, 82, 79, 76, 83, 0
+  .byte 80, 82, 69, 83, 83, 32, 83, 84, 65, 82, 84, 0
 str_60:
-  .byte 66, 69, 83, 84, 0
+  .byte 86, 69, 82, 83, 85, 83, 32, 67, 80, 85, 0
 str_61:
-  .byte 62, 0
+  .byte 67, 79, 78, 84, 82, 79, 76, 83, 0
 str_62:
-  .byte 72, 79, 87, 32, 84, 79, 32, 80, 76, 65, 89, 0
+  .byte 66, 69, 83, 84, 0
 str_63:
-  .byte 66, 69, 65, 84, 32, 70, 79, 85, 82, 32, 80, 82, 79, 71, 82, 65, 77, 83, 44, 32, 84, 87, 79, 32, 82, 79, 85, 78, 68, 83, 32, 69, 65, 67, 72, 46, 0
+  .byte 62, 0
 str_64:
-  .byte 72, 79, 76, 68, 32, 66, 65, 67, 75, 32, 84, 79, 32, 71, 85, 65, 82, 68, 58, 32, 67, 82, 79, 85, 67, 72, 32, 70, 79, 82, 32, 76, 79, 87, 83, 44, 0
+  .byte 72, 79, 87, 32, 84, 79, 32, 80, 76, 65, 89, 0
 str_65:
-  .byte 83, 84, 65, 78, 68, 32, 70, 79, 82, 32, 74, 85, 77, 80, 45, 73, 78, 83, 46, 0
+  .byte 66, 69, 65, 84, 32, 70, 79, 85, 82, 32, 80, 82, 79, 71, 82, 65, 77, 83, 44, 32, 84, 87, 79, 32, 82, 79, 85, 78, 68, 83, 32, 69, 65, 67, 72, 46, 0
 str_66:
-  .byte 76, 73, 71, 72, 84, 32, 66, 76, 79, 87, 83, 32, 67, 79, 77, 69, 32, 79, 85, 84, 32, 70, 65, 83, 84, 46, 32, 72, 69, 65, 86, 89, 32, 79, 78, 69, 83, 0
+  .byte 72, 79, 76, 68, 32, 66, 65, 67, 75, 32, 84, 79, 32, 71, 85, 65, 82, 68, 58, 32, 67, 82, 79, 85, 67, 72, 32, 70, 79, 82, 32, 76, 79, 87, 83, 44, 0
 str_67:
-  .byte 72, 85, 82, 84, 44, 32, 66, 85, 84, 32, 84, 72, 69, 89, 32, 67, 65, 78, 32, 66, 69, 32, 83, 69, 69, 78, 32, 67, 79, 77, 73, 78, 71, 46, 0
+  .byte 83, 84, 65, 78, 68, 32, 70, 79, 82, 32, 74, 85, 77, 80, 45, 73, 78, 83, 46, 0
 str_68:
-  .byte 65, 32, 76, 73, 71, 72, 84, 32, 84, 72, 65, 84, 32, 76, 65, 78, 68, 83, 32, 67, 72, 65, 73, 78, 83, 32, 73, 78, 84, 79, 32, 84, 72, 69, 0
+  .byte 76, 73, 71, 72, 84, 32, 66, 76, 79, 87, 83, 32, 67, 79, 77, 69, 32, 79, 85, 84, 32, 70, 65, 83, 84, 46, 32, 72, 69, 65, 86, 89, 32, 79, 78, 69, 83, 0
 str_69:
-  .byte 72, 69, 65, 86, 89, 32, 79, 70, 32, 73, 84, 83, 32, 75, 73, 78, 68, 46, 0
+  .byte 72, 85, 82, 84, 44, 32, 66, 85, 84, 32, 84, 72, 69, 89, 32, 67, 65, 78, 32, 66, 69, 32, 83, 69, 69, 78, 32, 67, 79, 77, 73, 78, 71, 46, 0
 str_70:
-  .byte 67, 76, 79, 83, 69, 32, 73, 78, 44, 32, 60, 32, 79, 82, 32, 62, 32, 43, 32, 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 58, 32, 84, 72, 82, 79, 87, 46, 0
+  .byte 65, 32, 76, 73, 71, 72, 84, 32, 84, 72, 65, 84, 32, 76, 65, 78, 68, 83, 32, 67, 72, 65, 73, 78, 83, 32, 73, 78, 84, 79, 32, 84, 72, 69, 0
 str_71:
-  .byte 70, 79, 82, 87, 65, 82, 68, 32, 84, 87, 73, 67, 69, 58, 32, 68, 65, 83, 72, 46, 0
+  .byte 72, 69, 65, 86, 89, 32, 79, 70, 32, 73, 84, 83, 32, 75, 73, 78, 68, 46, 0
 str_72:
-  .byte 82, 69, 65, 68, 32, 84, 72, 69, 77, 46, 32, 68, 79, 32, 78, 79, 84, 32, 76, 69, 84, 32, 84, 72, 69, 77, 32, 82, 69, 65, 68, 32, 89, 79, 85, 46, 0
+  .byte 67, 76, 79, 83, 69, 32, 73, 78, 44, 32, 60, 32, 79, 82, 32, 62, 32, 43, 32, 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 58, 32, 84, 72, 82, 79, 87, 46, 0
 str_73:
-  .byte 80, 65, 68, 0
+  .byte 70, 79, 82, 87, 65, 82, 68, 32, 84, 87, 73, 67, 69, 58, 32, 68, 65, 83, 72, 46, 0
 str_74:
-  .byte 80, 67, 32, 75, 69, 89, 0
+  .byte 82, 69, 65, 68, 32, 84, 72, 69, 77, 46, 32, 68, 79, 32, 78, 79, 84, 32, 76, 69, 84, 32, 84, 72, 69, 77, 32, 82, 69, 65, 68, 32, 89, 79, 85, 46, 0
 str_75:
-  .byte 65, 67, 84, 73, 79, 78, 0
+  .byte 80, 65, 68, 0
 str_76:
-  .byte 68, 45, 80, 65, 68, 32, 60, 32, 62, 0
+  .byte 80, 67, 32, 75, 69, 89, 0
 str_77:
-  .byte 65, 82, 82, 79, 87, 32, 60, 32, 62, 0
+  .byte 65, 67, 84, 73, 79, 78, 0
 str_78:
-  .byte 87, 65, 76, 75, 0
+  .byte 68, 45, 80, 65, 68, 32, 60, 32, 62, 0
 str_79:
-  .byte 72, 79, 76, 68, 32, 66, 65, 67, 75, 0
+  .byte 65, 82, 82, 79, 87, 32, 60, 32, 62, 0
 str_80:
-  .byte 71, 85, 65, 82, 68, 0
+  .byte 87, 65, 76, 75, 0
 str_81:
-  .byte 68, 45, 80, 65, 68, 32, 68, 79, 87, 78, 0
+  .byte 72, 79, 76, 68, 32, 66, 65, 67, 75, 0
 str_82:
-  .byte 65, 82, 82, 79, 87, 32, 68, 79, 87, 78, 0
+  .byte 71, 85, 65, 82, 68, 0
 str_83:
-  .byte 67, 82, 79, 85, 67, 72, 0
+  .byte 68, 45, 80, 65, 68, 32, 68, 79, 87, 78, 0
 str_84:
-  .byte 68, 45, 80, 65, 68, 32, 85, 80, 0
+  .byte 65, 82, 82, 79, 87, 32, 68, 79, 87, 78, 0
 str_85:
-  .byte 65, 82, 82, 79, 87, 32, 85, 80, 0
+  .byte 67, 82, 79, 85, 67, 72, 0
 str_86:
-  .byte 74, 85, 77, 80, 0
+  .byte 68, 45, 80, 65, 68, 32, 85, 80, 0
 str_87:
-  .byte 89, 0
+  .byte 65, 82, 82, 79, 87, 32, 85, 80, 0
 str_88:
-  .byte 65, 0
+  .byte 74, 85, 77, 80, 0
 str_89:
-  .byte 76, 73, 71, 72, 84, 32, 80, 85, 78, 67, 72, 0
+  .byte 89, 0
 str_90:
-  .byte 88, 0
+  .byte 65, 0
 str_91:
-  .byte 83, 0
+  .byte 76, 73, 71, 72, 84, 32, 80, 85, 78, 67, 72, 0
 str_92:
-  .byte 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
+  .byte 88, 0
 str_93:
-  .byte 66, 0
+  .byte 83, 0
 str_94:
-  .byte 0
+  .byte 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
 str_95:
-  .byte 90, 0
+  .byte 66, 0
 str_96:
-  .byte 83, 84, 65, 82, 84, 0
+  .byte 0
 str_97:
-  .byte 69, 78, 84, 69, 82, 0
+  .byte 90, 0
 str_98:
-  .byte 80, 65, 85, 83, 69, 0
+  .byte 83, 84, 65, 82, 84, 0
 str_99:
-  .byte 83, 69, 76, 69, 67, 84, 0
+  .byte 69, 78, 84, 69, 82, 0
 str_100:
-  .byte 82, 73, 71, 72, 84, 32, 83, 72, 73, 70, 84, 0
+  .byte 80, 65, 85, 83, 69, 0
 str_101:
-  .byte 66, 85, 84, 84, 79, 78, 32, 84, 89, 80, 69, 0
+  .byte 83, 69, 76, 69, 67, 84, 0
 str_102:
-  .byte 76, 32, 32, 82, 0
+  .byte 82, 73, 71, 72, 84, 32, 83, 72, 73, 70, 84, 0
 str_103:
-  .byte 81, 32, 32, 87, 0
+  .byte 66, 85, 84, 84, 79, 78, 32, 84, 89, 80, 69, 0
 str_104:
-  .byte 78, 79, 84, 32, 85, 83, 69, 68, 0
+  .byte 76, 32, 32, 82, 0
 str_105:
-  .byte 84, 72, 82, 79, 87, 32, 32, 32, 32, 32, 78, 69, 65, 82, 44, 32, 60, 32, 79, 82, 32, 62, 32, 43, 32, 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
+  .byte 81, 32, 32, 87, 0
 str_106:
-  .byte 65, 78, 84, 73, 45, 65, 73, 82, 32, 32, 68, 79, 87, 78, 32, 43, 32, 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
+  .byte 78, 79, 84, 32, 85, 83, 69, 68, 0
 str_107:
-  .byte 76, 79, 87, 32, 71, 85, 65, 82, 68, 32, 72, 79, 76, 68, 32, 66, 65, 67, 75, 32, 43, 32, 68, 79, 87, 78, 0
+  .byte 84, 72, 82, 79, 87, 32, 32, 32, 32, 32, 78, 69, 65, 82, 44, 32, 60, 32, 79, 82, 32, 62, 32, 43, 32, 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
 str_108:
-  .byte 68, 65, 83, 72, 32, 32, 32, 32, 32, 32, 62, 32, 62, 32, 79, 82, 32, 60, 32, 60, 0
+  .byte 65, 78, 84, 73, 45, 65, 73, 82, 32, 32, 68, 79, 87, 78, 32, 43, 32, 72, 69, 65, 86, 89, 32, 80, 85, 78, 67, 72, 0
 str_109:
-  .byte 67, 72, 65, 73, 78, 32, 32, 32, 32, 32, 65, 32, 76, 73, 71, 72, 84, 32, 84, 72, 65, 84, 32, 76, 65, 78, 68, 83, 32, 43, 32, 72, 69, 65, 86, 89, 0
+  .byte 76, 79, 87, 32, 71, 85, 65, 82, 68, 32, 72, 79, 76, 68, 32, 66, 65, 67, 75, 32, 43, 32, 68, 79, 87, 78, 0
 str_110:
-  .byte 83, 69, 76, 69, 67, 84, 58, 32, 66, 85, 84, 84, 79, 78, 32, 84, 89, 80, 69, 0
+  .byte 68, 65, 83, 72, 32, 32, 32, 32, 32, 32, 62, 32, 62, 32, 79, 82, 32, 60, 32, 60, 0
 str_111:
-  .byte 65, 58, 32, 76, 79, 71, 32, 76, 73, 78, 69, 0
+  .byte 67, 72, 65, 73, 78, 32, 32, 32, 32, 32, 65, 32, 76, 73, 71, 72, 84, 32, 84, 72, 65, 84, 32, 76, 65, 78, 68, 83, 32, 43, 32, 72, 69, 65, 86, 89, 0
 str_112:
-  .byte 83, 84, 65, 82, 84, 32, 79, 82, 32, 66, 58, 32, 66, 65, 67, 75, 0
+  .byte 83, 69, 76, 69, 67, 84, 58, 32, 66, 85, 84, 84, 79, 78, 32, 84, 89, 80, 69, 0
 str_113:
-  .byte 84, 89, 80, 69, 32, 65, 32, 32, 80, 65, 68, 32, 32, 32, 32, 0
+  .byte 65, 58, 32, 76, 79, 71, 32, 76, 73, 78, 69, 0
 str_114:
-  .byte 76, 73, 71, 72, 84, 32, 75, 73, 67, 75, 0
+  .byte 83, 84, 65, 82, 84, 32, 79, 82, 32, 66, 58, 32, 66, 65, 67, 75, 0
 str_115:
-  .byte 72, 69, 65, 86, 89, 32, 75, 73, 67, 75, 0
+  .byte 84, 89, 80, 69, 32, 65, 32, 32, 80, 65, 68, 32, 32, 32, 32, 0
 str_116:
-  .byte 84, 89, 80, 69, 32, 66, 32, 32, 80, 67, 32, 75, 69, 89, 83, 0
+  .byte 76, 73, 71, 72, 84, 32, 75, 73, 67, 75, 0
 str_117:
-  .byte 76, 79, 71, 32, 79, 70, 70, 0
+  .byte 72, 69, 65, 86, 89, 32, 75, 73, 67, 75, 0
 str_118:
+  .byte 84, 89, 80, 69, 32, 66, 32, 32, 80, 67, 32, 75, 69, 89, 83, 0
+str_119:
+  .byte 76, 79, 71, 32, 79, 70, 70, 0
+str_120:
   .byte 76, 79, 71, 32, 79, 78, 32, 0
   .align 2
 
   .bank 6
   .org 0xc000
-; scenes/select.e16.ts:112 selectRun() at -O1
+; scenes/select.e16.ts:113 selectRun() at -O1
 ;   s in s2
 ;   at in s1
 ;   t in s3
-;   n in s0
+;   shown in 0(fp)
+;   n in 2(fp)
 selectRun:
-  addi sp, sp, -10
-  sw ra, 0(sp)
-  sw s2, 2(sp)
-  sw s1, 4(sp)
-  sw s3, 6(sp)
-  sw s0, 8(sp)
-  ; scenes/select.e16.ts:113  screenIs(SC_SELECT)
+  addi sp, sp, -14
+  sw ra, 4(sp)
+  sw s2, 6(sp)
+  sw s1, 8(sp)
+  sw s3, 10(sp)
+  sw s0, 12(sp)
+  mv fp, sp
+  ; scenes/select.e16.ts:114  screenIs(SC_SELECT)
   li a0, 4
   call screenIs
-  ; scenes/select.e16.ts:114  screenClear()
+  ; scenes/select.e16.ts:115  screenClear()
   call screenClear
-  ; scenes/select.e16.ts:115  music(M_SELECT)
+  ; scenes/select.e16.ts:116  music(M_SELECT)
   li a0, 2
   la t0, music
   li t1, 260
   call far_call
-  ; scenes/select.e16.ts:116  load(BUSTS_BANK, BUSTS_AT, BUSTS_TILE * 32, BUSTS_BYTES)
+  ; scenes/select.e16.ts:117  load(BUSTS_BANK, BUSTS_AT, BUSTS_TILE * 32, BUSTS_BYTES)
   li a0, 314
   li a1, 49152
   li a2, 24672
   li a3, 4096
   call load
-  ; scenes/select.e16.ts:117  say(1, 1, str('SELECT FIGHTER'), SL_P1)
+  ; scenes/select.e16.ts:118  say(1, 1, str('SELECT FIGHTER'), SL_P1)
   li a0, 1
   li a1, 1
-  la a2, str_119
+  la a2, str_121
   li a3, 1
   call say
-  ; scenes/select.e16.ts:118  say(33, 1, str('VS CPU'), SL_DIM)
+  ; scenes/select.e16.ts:119  say(33, 1, str('VS CPU'), SL_DIM)
   li a0, 33
   li a1, 1
-  la a2, str_120
+  la a2, str_122
   li a3, 3
   call say
-  ; scenes/select.e16.ts:119  let s: u16 = 0
+  ; scenes/select.e16.ts:120  let s: u16 = 0
   li s2, 0 ; s
-  ; scenes/select.e16.ts:120  while (s < SLOTS) {
+  ; scenes/select.e16.ts:121  while (s < SLOTS) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:121  bustDraw(s)
+  ; scenes/select.e16.ts:122  bustDraw(s)
   mv a0, s2
   call bustDraw
-  ; scenes/select.e16.ts:122  s++
+  ; scenes/select.e16.ts:123  s++
   addi s2, s2, 1
 .L3:
   li t0, 4
   bltu s2, t0, .L1
-  ; scenes/select.e16.ts:124  say(4, 34, str('< > CHOOSE     A OK     B BACK'), SL_DIM)
+  ; scenes/select.e16.ts:125  say(4, 34, str('< > CHOOSE     A OK     B BACK'), SL_DIM)
   li a0, 4
   li a1, 34
-  la a2, str_121
+  la a2, str_123
   li a3, 3
   call say
-  ; scenes/select.e16.ts:125  let at = choice[0] & 3
+  ; scenes/select.e16.ts:126  let at = choice[0] & 3
   lw t0, choice(zero)
   andi s1, t0, 3
-  ; scenes/select.e16.ts:126  hover(at)
+  ; scenes/select.e16.ts:127  hover(at)
   mv a0, s1
   call hover
-  ; scenes/select.e16.ts:127  let t: u16 = 0
+  ; scenes/select.e16.ts:128  let t: u16 = 0
   li s3, 0 ; t
-  ; scenes/select.e16.ts:128  for (;;) {
+  ; scenes/select.e16.ts:130  let shown: u16 = 0
+  sw zero, 0(fp) ; shown
+  ; scenes/select.e16.ts:131  for (;;) {
 .L5:
-  ; scenes/select.e16.ts:129  frameBegin()
+  ; scenes/select.e16.ts:132  frameBegin()
   call frameBegin
-  ; scenes/select.e16.ts:130  if (pressed(B_B)) {
+  ; scenes/select.e16.ts:133  if (pressed(B_B)) {
   li a0, 32
   call pressed
   beqz a0, .L9
-  ; scenes/select.e16.ts:131  palettesIn()
+  ; scenes/select.e16.ts:134  palettesIn()
   call palettesIn
-  ; scenes/select.e16.ts:132  return false
+  ; scenes/select.e16.ts:135  return false
   li a0, 0
   j .return
 .L9:
-  ; scenes/select.e16.ts:134  if (pressed(B_A) || pressed(B_START)) {
+  ; scenes/select.e16.ts:137  if (pressed(B_A) || pressed(B_START)) {
   li a0, 16
   call pressed
   bnez a0, .L11
@@ -19768,40 +19853,46 @@ selectRun:
   call pressed
   beqz a0, .L10
 .L11:
-  ; scenes/select.e16.ts:135  confirm(at)
+  ; scenes/select.e16.ts:138  confirm(at)
   mv a0, s1
   call confirm
-  ; scenes/select.e16.ts:136  return true
+  ; scenes/select.e16.ts:139  return true
   li a0, 1
   j .return
 .L10:
-  ; scenes/select.e16.ts:138  const n = cursorMove(at)
+  ; scenes/select.e16.ts:141  const n = cursorMove(at)
   mv a0, s1
   call cursorMove
-  mv s0, a0 ; n
-  ; scenes/select.e16.ts:139  if (n !== at) {
-  beq s0, s1, .L12
-  ; scenes/select.e16.ts:140  at = n
-  mv s1, s0 ; at
-  ; scenes/select.e16.ts:141  t = 0
+  sw a0, 2(fp) ; n
+  ; scenes/select.e16.ts:142  if (n !== at) {
+  lw t0, 2(fp) ; n
+  beq t0, s1, .L12
+  ; scenes/select.e16.ts:143  at = n
+  lw s1, 2(fp) ; n
+  ; scenes/select.e16.ts:144  t = 0
   li s3, 0 ; t
+  ; scenes/select.e16.ts:145  shown = 0
+  sw zero, 0(fp) ; shown
 .L12:
-  ; scenes/select.e16.ts:143  bodyStep(t)
+  ; scenes/select.e16.ts:147  shown = bodyStep(t, shown)
   mv a0, s3
+  lw a1, 0(fp)
   call bodyStep
-  ; scenes/select.e16.ts:144  t++
+  sw a0, 0(fp) ; shown
+  ; scenes/select.e16.ts:148  t++
   addi s3, s3, 1
   j .L5
 .return:
-  lw ra, 0(sp)
-  lw s2, 2(sp)
-  lw s1, 4(sp)
-  lw s3, 6(sp)
-  lw s0, 8(sp)
-  addi sp, sp, 10
+  mv sp, fp
+  lw ra, 4(sp)
+  lw s2, 6(sp)
+  lw s1, 8(sp)
+  lw s3, 10(sp)
+  lw s0, 12(sp)
+  addi sp, sp, 14
   ret
 
-; scenes/select.e16.ts:149 cursorMove(at) at -O1
+; scenes/select.e16.ts:153 cursorMove(at) at -O1
 ;   at in s1
 ;   n in s2
 cursorMove:
@@ -19810,13 +19901,13 @@ cursorMove:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; at
-  ; scenes/select.e16.ts:150  let n = at
+  ; scenes/select.e16.ts:154  let n = at
   mv s2, s1 ; n
-  ; scenes/select.e16.ts:151  if (pressed(B_LEFT)) n = at === 0 ? SLOTS - 1 : at - 1
+  ; scenes/select.e16.ts:155  if (pressed(B_LEFT)) n = at === 0 ? SLOTS - 1 : at - 1
   li a0, 4
   call pressed
   beqz a0, .L1
-  ; scenes/select.e16.ts:151  n = at === 0 ? SLOTS - 1 : at - 1
+  ; scenes/select.e16.ts:155  n = at === 0 ? SLOTS - 1 : at - 1
   bne s1, zero, .L2
   li t0, 3
   j .L3
@@ -19825,11 +19916,11 @@ cursorMove:
 .L3:
   mv s2, t0 ; n
 .L1:
-  ; scenes/select.e16.ts:152  if (pressed(B_RIGHT)) n = at === SLOTS - 1 ? 0 : at + 1
+  ; scenes/select.e16.ts:156  if (pressed(B_RIGHT)) n = at === SLOTS - 1 ? 0 : at + 1
   li a0, 8
   call pressed
   beqz a0, .L4
-  ; scenes/select.e16.ts:152  n = at === SLOTS - 1 ? 0 : at + 1
+  ; scenes/select.e16.ts:156  n = at === SLOTS - 1 ? 0 : at + 1
   li t0, 3
   bne s1, t0, .L5
   li t0, 0
@@ -19839,18 +19930,18 @@ cursorMove:
 .L6:
   mv s2, t0 ; n
 .L4:
-  ; scenes/select.e16.ts:153  if (n !== at) {
+  ; scenes/select.e16.ts:157  if (n !== at) {
   beq s2, s1, .L7
-  ; scenes/select.e16.ts:154  hover(n)
+  ; scenes/select.e16.ts:158  hover(n)
   mv a0, s2
   call hover
-  ; scenes/select.e16.ts:155  sfx(X_MOVE)
+  ; scenes/select.e16.ts:159  sfx(X_MOVE)
   li a0, 14
   la t0, sfx
   li t1, 260
   call far_call
 .L7:
-  ; scenes/select.e16.ts:157  return n
+  ; scenes/select.e16.ts:161  return n
   mv a0, s2
 .return:
   lw ra, 0(sp)
@@ -19859,7 +19950,7 @@ cursorMove:
   addi sp, sp, 6
   ret
 
-; scenes/select.e16.ts:161 bustDraw(s) at -O1
+; scenes/select.e16.ts:165 bustDraw(s) at -O1
 ;   s in s2
 ;   sl in s3
 ;   x0 in 0(fp)
@@ -19874,28 +19965,28 @@ bustDraw:
   sw s0, 12(sp)
   mv fp, sp
   mv s2, a0 ; s
-  ; scenes/select.e16.ts:162  const sl = BUST_SL + s
+  ; scenes/select.e16.ts:166  const sl = BUST_SL + s
   addi s3, s2, 4
-  ; scenes/select.e16.ts:163  palette(PAL_P1, sl)
+  ; scenes/select.e16.ts:167  palette(PAL_P1, sl)
   li a0, 3
   mv a1, s3
   call palette
-  ; scenes/select.e16.ts:164  palKeep(PAL_P1, sl)
+  ; scenes/select.e16.ts:168  palKeep(PAL_P1, sl)
   li a0, 3
   mv a1, s3
   call palKeep
-  ; scenes/select.e16.ts:165  const x0 = 1 + s * 10
+  ; scenes/select.e16.ts:169  const x0 = 1 + s * 10
   slli t1, s2, 3
   slli t0, s2, 1
   add t0, t0, t1
   addi t0, t0, 1
   sw t0, 0(fp) ; x0
-  ; scenes/select.e16.ts:166  let k: u16 = 0
+  ; scenes/select.e16.ts:170  let k: u16 = 0
   li s1, 0 ; k
-  ; scenes/select.e16.ts:167  while (k < BUST_CELLS) {
+  ; scenes/select.e16.ts:171  while (k < BUST_CELLS) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:168  const t = tableWord(BUST_CELLS_BANK, BUST_CELLS_AT, s * BUST_CELLS + k)
+  ; scenes/select.e16.ts:172  const t = tableWord(BUST_CELLS_BANK, BUST_CELLS_AT, s * BUST_CELLS + k)
   slli t0, s2, 6
   add t0, t0, s1
   li a0, 322
@@ -19903,7 +19994,7 @@ bustDraw:
   mv a2, t0
   call tableWord
   sw a0, 2(fp) ; t
-  ; scenes/select.e16.ts:169  vpoke(cellAt(0, x0 + (k & 7), BUST_ROW + (k >> 3)), (BUSTS_TILE + t) | (sl << 10))
+  ; scenes/select.e16.ts:173  vpoke(cellAt(0, x0 + (k & 7), BUST_ROW + (k >> 3)), (BUSTS_TILE + t) | (sl << 10))
   andi t0, s1, 7
   lw t1, 0(fp) ; x0
   add t1, t1, t0
@@ -19917,7 +20008,7 @@ bustDraw:
   addi t0, t0, 771
   or a1, t0, t1
   call vpoke
-  ; scenes/select.e16.ts:170  k++
+  ; scenes/select.e16.ts:174  k++
   addi s1, s1, 1
 .L3:
   li t0, 64
@@ -19932,7 +20023,7 @@ bustDraw:
   addi sp, sp, 14
   ret
 
-; scenes/select.e16.ts:178 hover(s) at -O1
+; scenes/select.e16.ts:182 hover(s) at -O1
 ;   s in s2
 ;   k in s1
 ;   x0/x in s3
@@ -19943,25 +20034,25 @@ hover:
   sw s1, 4(sp)
   sw s3, 6(sp)
   mv s2, a0 ; s
-  ; scenes/select.e16.ts:179  hudRows(3, 1)
+  ; scenes/select.e16.ts:183  hudRows(3, 1)
   li a0, 3
   li a1, 1
   call hudRows
-  ; scenes/select.e16.ts:180  hudRows(NAME_ROW, 2)
+  ; scenes/select.e16.ts:184  hudRows(NAME_ROW, 2)
   li a0, 12
   li a1, 2
   call hudRows
-  ; scenes/select.e16.ts:181  let k: u16 = 0
+  ; scenes/select.e16.ts:185  let k: u16 = 0
   li s1, 0 ; k
-  ; scenes/select.e16.ts:182  while (k < SLOTS) {
+  ; scenes/select.e16.ts:186  while (k < SLOTS) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:183  const x0 = 1 + k * 10
+  ; scenes/select.e16.ts:187  const x0 = 1 + k * 10
   slli t1, s1, 3
   slli t0, s1, 1
   add t0, t0, t1
   addi s3, t0, 1
-  ; scenes/select.e16.ts:184  palMix(BUST_SL + k, 0, k === s ? 0 : BUST_DIM)
+  ; scenes/select.e16.ts:188  palMix(BUST_SL + k, 0, k === s ? 0 : BUST_DIM)
   addi t0, s1, 4
   li t1, 0
   mv t2, s1
@@ -19976,7 +20067,7 @@ hover:
   mv a1, t1
   mv a2, t2
   call palMix
-  ; scenes/select.e16.ts:185  nameAt(x0, slName[k], k === s ? SL_P1 : SL_DIM)
+  ; scenes/select.e16.ts:189  nameAt(x0, slName[k], k === s ? SL_P1 : SL_DIM)
   slli t0, s1, 1
   lw t1, slName(t0)
   mv t0, s3
@@ -19992,26 +20083,26 @@ hover:
   mv a1, t1
   mv a2, t2
   call nameAt
-  ; scenes/select.e16.ts:186  k++
+  ; scenes/select.e16.ts:190  k++
   addi s1, s1, 1
 .L3:
   li t0, 4
   bltu s1, t0, .L1
-  ; scenes/select.e16.ts:188  let x: u16 = 1 + s * 10
+  ; scenes/select.e16.ts:192  let x: u16 = 1 + s * 10
   slli t1, s2, 3
   slli t0, s2, 1
   add t0, t0, t1
   addi s3, t0, 1
-  ; scenes/select.e16.ts:189  while (x < 9 + s * 10) {
+  ; scenes/select.e16.ts:193  while (x < 9 + s * 10) {
   j .L11
 .L9:
-  ; scenes/select.e16.ts:190  hudTile(x, 3, T_RULE, SL_P1)
+  ; scenes/select.e16.ts:194  hudTile(x, 3, T_RULE, SL_P1)
   mv a0, s3
   li a1, 3
   li a2, 1
   li a3, 1
   call hudTile
-  ; scenes/select.e16.ts:191  x++
+  ; scenes/select.e16.ts:195  x++
   addi s3, s3, 1
 .L11:
   slli t1, s2, 3
@@ -20019,32 +20110,32 @@ hover:
   add t0, t0, t1
   addi t0, t0, 9
   bltu s3, t0, .L9
-  ; scenes/select.e16.ts:193  say(7 + s * 10, 3, str('P1'), SL_P1)
+  ; scenes/select.e16.ts:197  say(7 + s * 10, 3, str('P1'), SL_P1)
   slli t1, s2, 3
   slli t0, s2, 1
   add t0, t0, t1
   addi a0, t0, 7
   li a1, 3
-  la a2, str_122
+  la a2, str_124
   li a3, 1
   call say
-  ; scenes/select.e16.ts:194  panel(s)
+  ; scenes/select.e16.ts:198  panel(s)
   mv a0, s2
   call panel
-  ; scenes/select.e16.ts:195  artPut(s, 0, addr(fig), S1_TILE)
+  ; scenes/select.e16.ts:199  artPut(s, 0, addr(fig), S1_TILE)
   mv a0, s2
   li a1, 0
   la a2, fig
   li a3, 257
   call artPut
-  ; scenes/select.e16.ts:196  palShow(8, M_INTRO, 0)
+  ; scenes/select.e16.ts:200  palShow(8, M_INTRO, 0)
   li a0, 8
   li a1, 1
   li a2, 0
   la t0, palShow
   li t1, 260
   call far_call
-  ; scenes/select.e16.ts:197  sfx(X_MAT)
+  ; scenes/select.e16.ts:201  sfx(X_MAT)
   li a0, 13
   la t0, sfx
   li t1, 260
@@ -20057,7 +20148,7 @@ hover:
   addi sp, sp, 8
   ret
 
-; scenes/select.e16.ts:201 nameAt(x, s, sl) at -O1
+; scenes/select.e16.ts:205 nameAt(x, s, sl) at -O1
 ;   x in 2(fp)
 ;   s in 4(fp)
 ;   sl in 6(fp)
@@ -20076,28 +20167,28 @@ nameAt:
   sw a0, 2(fp) ; x
   sw a1, 4(fp) ; s
   sw a2, 6(fp) ; sl
-  ; scenes/select.e16.ts:202  let y = NAME_ROW
+  ; scenes/select.e16.ts:206  let y = NAME_ROW
   li s1, 12 ; y
-  ; scenes/select.e16.ts:203  let at = cellAt(1, x, y)
+  ; scenes/select.e16.ts:207  let at = cellAt(1, x, y)
   li a0, 1
   lw a1, 2(fp)
   mv a2, s1
   call cellAt
   mv s2, a0 ; at
-  ; scenes/select.e16.ts:204  let k: u16 = 0
+  ; scenes/select.e16.ts:208  let k: u16 = 0
   sw zero, 0(fp) ; k
-  ; scenes/select.e16.ts:205  let c = peek(s)
+  ; scenes/select.e16.ts:209  let c = peek(s)
   lw t0, 4(fp) ; s
   lbu s3, 0(t0)
-  ; scenes/select.e16.ts:206  while (c !== 0) {
+  ; scenes/select.e16.ts:210  while (c !== 0) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:207  if (c === 32) {
+  ; scenes/select.e16.ts:211  if (c === 32) {
   li t0, 32
   bne s3, t0, .L5
-  ; scenes/select.e16.ts:208  y++
+  ; scenes/select.e16.ts:212  y++
   addi s1, s1, 1
-  ; scenes/select.e16.ts:209  at = cellAt(1, x, y)
+  ; scenes/select.e16.ts:213  at = cellAt(1, x, y)
   li a0, 1
   lw a1, 2(fp)
   mv a2, s1
@@ -20105,7 +20196,7 @@ nameAt:
   mv s2, a0 ; at
   j .L6
 .L5:
-  ; scenes/select.e16.ts:211  vpoke(at, (FONT_TILE + c - 32) | (sl << 10) | FRONT)
+  ; scenes/select.e16.ts:215  vpoke(at, (FONT_TILE + c - 32) | (sl << 10) | FRONT)
   lw t0, 6(fp) ; sl
   slli t0, t0, 10
   addi t1, s3, -32
@@ -20115,14 +20206,14 @@ nameAt:
   mv a0, s2
   mv a1, t1
   call vpoke
-  ; scenes/select.e16.ts:212  at = wrap16(at + 2)
+  ; scenes/select.e16.ts:216  at = wrap16(at + 2)
   addi s2, s2, 2
 .L6:
-  ; scenes/select.e16.ts:214  k++
+  ; scenes/select.e16.ts:218  k++
   lw t0, 0(fp) ; k
   addi t0, t0, 1
   sw t0, 0(fp) ; k
-  ; scenes/select.e16.ts:215  c = peek(s + k)
+  ; scenes/select.e16.ts:219  c = peek(s + k)
   lw t0, 0(fp) ; k
   lw t1, 4(fp) ; s
   add t1, t1, t0
@@ -20139,7 +20230,7 @@ nameAt:
   addi sp, sp, 18
   ret
 
-; scenes/select.e16.ts:220 panel(s) at -O1
+; scenes/select.e16.ts:224 panel(s) at -O1
 ;   s in s2
 ;   x in s1
 panel:
@@ -20148,27 +20239,27 @@ panel:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; s
-  ; scenes/select.e16.ts:221  hudRows(16, 15)
+  ; scenes/select.e16.ts:225  hudRows(16, 15)
   li a0, 16
   li a1, 15
   call hudRows
-  ; scenes/select.e16.ts:222  let x: u16 = PANEL_X - 1
+  ; scenes/select.e16.ts:226  let x: u16 = PANEL_X - 1
   li s1, 18 ; x
-  ; scenes/select.e16.ts:223  while (x < 39) {
+  ; scenes/select.e16.ts:227  while (x < 39) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:224  hudTile(x, 16, T_RULE, SL_DIM)
+  ; scenes/select.e16.ts:228  hudTile(x, 16, T_RULE, SL_DIM)
   mv a0, s1
   li a1, 16
   li a2, 1
   li a3, 3
   call hudTile
-  ; scenes/select.e16.ts:225  x++
+  ; scenes/select.e16.ts:229  x++
   addi s1, s1, 1
 .L3:
   li t0, 39
   bltu s1, t0, .L1
-  ; scenes/select.e16.ts:227  say(PANEL_X, 17, slName[s], SL_P1)
+  ; scenes/select.e16.ts:231  say(PANEL_X, 17, slName[s], SL_P1)
   slli t0, s2, 1
   lw t0, slName(t0)
   li a0, 19
@@ -20176,40 +20267,40 @@ panel:
   mv a2, t0
   li a3, 1
   call say
-  ; scenes/select.e16.ts:228  say(36, 17, str('P1'), SL_DIM)
+  ; scenes/select.e16.ts:232  say(36, 17, str('P1'), SL_DIM)
   li a0, 36
   li a1, 17
-  la a2, str_122
+  la a2, str_124
   li a3, 3
   call say
-  ; scenes/select.e16.ts:229  slotWords(s)
+  ; scenes/select.e16.ts:233  slotWords(s)
   mv a0, s2
   call slotWords
-  ; scenes/select.e16.ts:230  barsOf(s)
+  ; scenes/select.e16.ts:234  barsOf(s)
   mv a0, s2
   call barsOf
-  ; scenes/select.e16.ts:231  barRow(22, str('POWER'), bars[0])
+  ; scenes/select.e16.ts:235  barRow(22, str('POWER'), bars[0])
   lw t0, bars(zero)
   li a0, 22
-  la a1, str_123
-  mv a2, t0
-  call barRow
-  ; scenes/select.e16.ts:232  barRow(24, str('SPEED'), bars[1])
-  lw t0, bars+2(zero)
-  li a0, 24
-  la a1, str_124
-  mv a2, t0
-  call barRow
-  ; scenes/select.e16.ts:233  barRow(26, str('REACH'), bars[2])
-  lw t0, bars+4(zero)
-  li a0, 26
   la a1, str_125
   mv a2, t0
   call barRow
-  ; scenes/select.e16.ts:234  barRow(28, str('DEFENSE'), bars[3])
+  ; scenes/select.e16.ts:236  barRow(24, str('SPEED'), bars[1])
+  lw t0, bars+2(zero)
+  li a0, 24
+  la a1, str_126
+  mv a2, t0
+  call barRow
+  ; scenes/select.e16.ts:237  barRow(26, str('REACH'), bars[2])
+  lw t0, bars+4(zero)
+  li a0, 26
+  la a1, str_127
+  mv a2, t0
+  call barRow
+  ; scenes/select.e16.ts:238  barRow(28, str('DEFENSE'), bars[3])
   lw t0, bars+6(zero)
   li a0, 28
-  la a1, str_126
+  la a1, str_128
   mv a2, t0
   call barRow
 .return:
@@ -20219,101 +20310,135 @@ panel:
   addi sp, sp, 6
   ret
 
-; scenes/select.e16.ts:238 slotWords(s) at -O1
+; scenes/select.e16.ts:242 slotWords(s) at -O1
 ;   s in s1
 slotWords:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; s
-  ; scenes/select.e16.ts:239  if (s === 0) {
-  bne s1, zero, .L1
-  ; scenes/select.e16.ts:240  say(PANEL_X, 19, str('EVEN IN EVERYTHING.'), SL_P1)
+  ; scenes/select.e16.ts:243  lineSay(PANEL_X, 19, SLOT_LINES, s * 2)
+  slli t0, s1, 1
   li a0, 19
   li a1, 19
-  la a2, str_127
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:241  say(PANEL_X, 20, str('THE STANDARD BODY.'), SL_P1)
+  la a2, str_0
+  mv a3, t0
+  call lineSay
+  ; scenes/select.e16.ts:244  lineSay(PANEL_X, 20, SLOT_LINES, s * 2 + 1)
+  slli t0, s1, 1
   li a0, 19
   li a1, 20
-  la a2, str_128
-  li a3, 1
-  call say
-  j .L2
-.L1:
-  ; scenes/select.e16.ts:242  if (s === 1) {
-  li t0, 1
-  bne s1, t0, .L3
-  ; scenes/select.e16.ts:243  say(PANEL_X, 19, str('SMALL AND QUICK,'), SL_P1)
-  li a0, 19
-  li a1, 19
-  la a2, str_129
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:244  say(PANEL_X, 20, str('SHORT IN REACH.'), SL_P1)
-  li a0, 19
-  li a1, 20
-  la a2, str_130
-  li a3, 1
-  call say
-  j .L4
-.L3:
-  ; scenes/select.e16.ts:245  if (s === 2) {
-  li t0, 2
-  bne s1, t0, .L5
-  ; scenes/select.e16.ts:246  say(PANEL_X, 19, str('BROAD AND HEAVY,'), SL_P1)
-  li a0, 19
-  li a1, 19
-  la a2, str_131
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:247  say(PANEL_X, 20, str('HARD TO MOVE.'), SL_P1)
-  li a0, 19
-  li a1, 20
-  la a2, str_132
-  li a3, 1
-  call say
-  j .L6
-.L5:
-  ; scenes/select.e16.ts:249  say(PANEL_X, 19, str('TALL, LONG LIMBS,'), SL_P1)
-  li a0, 19
-  li a1, 19
-  la a2, str_133
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:250  say(PANEL_X, 20, str('A KICK FROM AFAR.'), SL_P1)
-  li a0, 19
-  li a1, 20
-  la a2, str_134
-  li a3, 1
-  call say
-.L6:
-.L4:
-.L2:
+  la a2, str_0
+  addi a3, t0, 1
+  call lineSay
 .return:
   lw ra, 0(sp)
   lw s1, 2(sp)
   addi sp, sp, 4
   ret
 
-; scenes/select.e16.ts:255 level(v, lo, step) at -O1
+; scenes/select.e16.ts:261 lineSay(x, y, text, n) at -O1
+;   x in 2(fp)
+;   y in 4(fp)
+;   text in 6(fp)
+;   n in 8(fp)
+;   s in s1
+;   k in s3
+;   at in 0(fp)
+;   c in s2
+lineSay:
+  addi sp, sp, -20
+  sw ra, 10(sp)
+  sw s1, 12(sp)
+  sw s3, 14(sp)
+  sw s2, 16(sp)
+  sw s0, 18(sp)
+  mv fp, sp
+  sw a0, 2(fp) ; x
+  sw a1, 4(fp) ; y
+  sw a2, 6(fp) ; text
+  sw a3, 8(fp) ; n
+  ; scenes/select.e16.ts:262  let s = text
+  lw s1, 6(fp) ; text
+  ; scenes/select.e16.ts:263  let k: u16 = 0
+  li s3, 0 ; k
+  ; scenes/select.e16.ts:264  while (k < n && peek(s) !== 0) {
+  j .L3
+.L1:
+  ; scenes/select.e16.ts:265  if (peek(s) === BAR) k++
+  lbu t0, 0(s1)
+  li t1, 124
+  bne t0, t1, .L5
+  ; scenes/select.e16.ts:265  k++
+  addi s3, s3, 1
+.L5:
+  ; scenes/select.e16.ts:266  s++
+  addi s1, s1, 1
+.L3:
+  lw t0, 8(fp) ; n
+  bgeu s3, t0, .L6
+  lbu t0, 0(s1)
+  bne t0, zero, .L1
+.L6:
+  ; scenes/select.e16.ts:268  let at = cellAt(1, x, y)
+  li a0, 1
+  lw a1, 2(fp)
+  lw a2, 4(fp)
+  call cellAt
+  sw a0, 0(fp) ; at
+  ; scenes/select.e16.ts:269  let c = peek(s)
+  lbu s2, 0(s1)
+  ; scenes/select.e16.ts:270  while (c !== 0 && c !== BAR) {
+  j .L9
+.L7:
+  ; scenes/select.e16.ts:271  vpoke(at, (FONT_TILE + c - 32) | (SL_P1 << 10) | FRONT)
+  addi t0, s2, -32
+  ori t0, t0, 1024
+  li t1, 32768
+  or t0, t0, t1
+  lw a0, 0(fp)
+  mv a1, t0
+  call vpoke
+  ; scenes/select.e16.ts:272  at = wrap16(at + 2)
+  lw t0, 0(fp) ; at
+  addi t0, t0, 2
+  sw t0, 0(fp) ; at
+  ; scenes/select.e16.ts:273  s++
+  addi s1, s1, 1
+  ; scenes/select.e16.ts:274  c = peek(s)
+  lbu s2, 0(s1)
+.L9:
+  beq s2, zero, .L11
+  li t0, 124
+  bne s2, t0, .L7
+.L11:
+.return:
+  mv sp, fp
+  lw ra, 10(sp)
+  lw s1, 12(sp)
+  lw s3, 14(sp)
+  lw s2, 16(sp)
+  lw s0, 18(sp)
+  addi sp, sp, 20
+  ret
+
+; scenes/select.e16.ts:279 level(v, lo, step) at -O1
 ;   v in a0
 ;   lo in a1
 ;   step in a2
 ;   n in a3
 level:
-  ; scenes/select.e16.ts:256  if (v <= lo) return 1
+  ; scenes/select.e16.ts:280  if (v <= lo) return 1
   bltu a1, a0, .L1
-  ; scenes/select.e16.ts:256  return 1
+  ; scenes/select.e16.ts:280  return 1
   li a0, 1
   ret
 .L1:
-  ; scenes/select.e16.ts:257  const n = 1 + div(v - lo, step)
+  ; scenes/select.e16.ts:281  const n = 1 + div(v - lo, step)
   sub t0, a0, a1
   divu t0, t0, a2
   addi a3, t0, 1
-  ; scenes/select.e16.ts:258  return n > 5 ? 5 : n
+  ; scenes/select.e16.ts:282  return n > 5 ? 5 : n
   li t0, 5
   bgeu t0, a3, .L2
   li t0, 5
@@ -20325,7 +20450,7 @@ level:
 .return:
   ret
 
-; scenes/select.e16.ts:265 barsOf(s) at -O1
+; scenes/select.e16.ts:289 barsOf(s) at -O1
 ;   s in s1
 ;   heavy in s2
 barsOf:
@@ -20334,11 +20459,11 @@ barsOf:
   sw s1, 2(sp)
   sw s2, 4(sp)
   mv s1, a0 ; s
-  ; scenes/select.e16.ts:266  fighterLoad(0, s)
+  ; scenes/select.e16.ts:290  fighterLoad(0, s)
   li a0, 0
   mv a1, s1
   call fighterLoad
-  ; scenes/select.e16.ts:267  const heavy =
+  ; scenes/select.e16.ts:291  const heavy =
   li a0, 0
   li a1, 1
   li a2, 3
@@ -20370,13 +20495,13 @@ barsOf:
   lw t0, 0(sp)
   addi sp, sp, 2
   add s2, t0, a0
-  ; scenes/select.e16.ts:269  bars[0] = level(heavy, 44, 6)
+  ; scenes/select.e16.ts:293  bars[0] = level(heavy, 44, 6)
   mv a0, s2
   li a1, 44
   li a2, 6
   call level
   sw a0, bars(zero)
-  ; scenes/select.e16.ts:270  bars[1] = level(prAt(0, P_WALK_F), 15, 2)
+  ; scenes/select.e16.ts:294  bars[1] = level(prAt(0, P_WALK_F), 15, 2)
   li a0, 0
   li a1, 2
   call prAt
@@ -20384,13 +20509,13 @@ barsOf:
   li a2, 2
   call level
   sw a0, bars+2(zero)
-  ; scenes/select.e16.ts:271  bars[2] = level(reach[3], 36, 2)
+  ; scenes/select.e16.ts:295  bars[2] = level(reach[3], 36, 2)
   lw a0, reach+6(zero)
   li a1, 36
   li a2, 2
   call level
   sw a0, bars+4(zero)
-  ; scenes/select.e16.ts:272  bars[3] = level(prAt(0, P_LIFE) + prAt(0, P_WEIGHT), 200, 10)
+  ; scenes/select.e16.ts:296  bars[3] = level(prAt(0, P_LIFE) + prAt(0, P_WEIGHT), 200, 10)
   li a0, 0
   li a1, 0
   call prAt
@@ -20413,7 +20538,7 @@ barsOf:
   addi sp, sp, 6
   ret
 
-; scenes/select.e16.ts:280 barRow(y, s, n) at -O1
+; scenes/select.e16.ts:304 barRow(y, s, n) at -O1
 ;   y in s2
 ;   s in 0(fp)
 ;   n in 2(fp)
@@ -20430,21 +20555,21 @@ barRow:
   mv s2, a0 ; y
   sw a1, 0(fp) ; s
   sw a2, 2(fp) ; n
-  ; scenes/select.e16.ts:281  say(PANEL_X, y, s, SL_DIM)
+  ; scenes/select.e16.ts:305  say(PANEL_X, y, s, SL_DIM)
   li a0, 19
   mv a1, s2
   lw a2, 0(fp)
   li a3, 3
   call say
-  ; scenes/select.e16.ts:282  let k: u16 = 0
+  ; scenes/select.e16.ts:306  let k: u16 = 0
   li s1, 0 ; k
-  ; scenes/select.e16.ts:283  while (k < 5) {
+  ; scenes/select.e16.ts:307  while (k < 5) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:284  const lit = k < n
+  ; scenes/select.e16.ts:308  const lit = k < n
   lw t0, 2(fp) ; n
   sltu s3, s1, t0
-  ; scenes/select.e16.ts:285  hudTile(BAR_X + k * 2, y, lit ? T_BAR + BAR_WHOLE : T_BAR, SL_P1)
+  ; scenes/select.e16.ts:309  hudTile(BAR_X + k * 2, y, lit ? T_BAR + BAR_WHOLE : T_BAR, SL_P1)
   slli t0, s1, 1
   addi t0, t0, 29
   mv t1, s2
@@ -20460,7 +20585,7 @@ barRow:
   mv a2, t2
   li a3, 1
   call hudTile
-  ; scenes/select.e16.ts:286  hudTile(BAR_X + k * 2 + 1, y, lit ? T_BAR + BAR_GAP : T_BAR, SL_P1)
+  ; scenes/select.e16.ts:310  hudTile(BAR_X + k * 2 + 1, y, lit ? T_BAR + BAR_GAP : T_BAR, SL_P1)
   slli t0, s1, 1
   addi t0, t0, 30
   mv t1, s2
@@ -20476,7 +20601,7 @@ barRow:
   mv a2, t2
   li a3, 1
   call hudTile
-  ; scenes/select.e16.ts:287  k++
+  ; scenes/select.e16.ts:311  k++
   addi s1, s1, 1
 .L3:
   li t0, 5
@@ -20491,27 +20616,37 @@ barRow:
   addi sp, sp, 14
   ret
 
-; scenes/select.e16.ts:292 bodyStep(t) at -O1
-;   t in s1
+; scenes/select.e16.ts:319 bodyStep(t, shown) at -O1
+;   t in s2
+;   shown in s3
+;   step in s1
 bodyStep:
-  addi sp, sp, -4
+  addi sp, sp, -8
   sw ra, 0(sp)
-  sw s1, 2(sp)
-  mv s1, a0 ; t
-  ; scenes/select.e16.ts:293  palShow(8, M_INTRO, introStep(t))
-  mv a0, s1
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  mv s2, a0 ; t
+  mv s3, a1 ; shown
+  ; scenes/select.e16.ts:320  const step = introStep(t)
+  mv a0, s2
   la t0, introStep
   li t1, 260
   call far_call
-  li a1, 1
-  mv a2, a0
+  mv s1, a0 ; step
+  ; scenes/select.e16.ts:321  if (step !== shown) palShow(8, M_INTRO, step)
+  beq s1, s3, .L1
+  ; scenes/select.e16.ts:321  palShow(8, M_INTRO, step)
   li a0, 8
+  li a1, 1
+  mv a2, s1
   la t0, palShow
   li t1, 260
   call far_call
-  ; scenes/select.e16.ts:294  sprBegin()
+.L1:
+  ; scenes/select.e16.ts:322  sprBegin()
   call sprBegin
-  ; scenes/select.e16.ts:295  figure(BODY_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
+  ; scenes/select.e16.ts:323  figure(BODY_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
   li a0, 72
   li a1, 244
   la a2, fig
@@ -20519,19 +20654,23 @@ bodyStep:
   la t0, figure
   li t1, 261
   call far_call
-  ; scenes/select.e16.ts:296  shadowAt(BODY_X, SEL_FEET)
+  ; scenes/select.e16.ts:324  shadowAt(BODY_X, SEL_FEET)
   li a0, 72
   li a1, 244
   la t0, shadowAt
   li t1, 261
   call far_call
+  ; scenes/select.e16.ts:325  return step
+  mv a0, s1
 .return:
   lw ra, 0(sp)
-  lw s1, 2(sp)
-  addi sp, sp, 4
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
+  addi sp, sp, 8
   ret
 
-; scenes/select.e16.ts:300 confirm(s) at -O1
+; scenes/select.e16.ts:329 confirm(s) at -O1
 ;   s in s2
 ;   t in s1
 confirm:
@@ -20540,38 +20679,38 @@ confirm:
   sw s2, 2(sp)
   sw s1, 4(sp)
   mv s2, a0 ; s
-  ; scenes/select.e16.ts:301  sfx(X_OK)
+  ; scenes/select.e16.ts:330  sfx(X_OK)
   li a0, 15
   la t0, sfx
   li t1, 260
   call far_call
-  ; scenes/select.e16.ts:302  choice[0] = s
+  ; scenes/select.e16.ts:331  choice[0] = s
   sw s2, choice(zero)
-  ; scenes/select.e16.ts:303  seedFromClock()
+  ; scenes/select.e16.ts:332  seedFromClock()
   call seedFromClock
-  ; scenes/select.e16.ts:304  artPut(s, WIN_ROW, addr(fig), S1_TILE)
+  ; scenes/select.e16.ts:333  artPut(s, WIN_ROW, addr(fig), S1_TILE)
   mv a0, s2
   li a1, 59
   la a2, fig
   li a3, 257
   call artPut
-  ; scenes/select.e16.ts:305  palShow(8, M_INTRO, 6)
+  ; scenes/select.e16.ts:334  palShow(8, M_INTRO, 6)
   li a0, 8
   li a1, 1
   li a2, 6
   la t0, palShow
   li t1, 260
   call far_call
-  ; scenes/select.e16.ts:306  let t: u16 = 0
+  ; scenes/select.e16.ts:335  let t: u16 = 0
   li s1, 0 ; t
-  ; scenes/select.e16.ts:307  while (t < WIN_F) {
+  ; scenes/select.e16.ts:336  while (t < WIN_F) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:308  frameBegin()
+  ; scenes/select.e16.ts:337  frameBegin()
   call frameBegin
-  ; scenes/select.e16.ts:309  sprBegin()
+  ; scenes/select.e16.ts:338  sprBegin()
   call sprBegin
-  ; scenes/select.e16.ts:310  figure(BODY_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
+  ; scenes/select.e16.ts:339  figure(BODY_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
   li a0, 72
   li a1, 244
   la a2, fig
@@ -20579,18 +20718,18 @@ confirm:
   la t0, figure
   li t1, 261
   call far_call
-  ; scenes/select.e16.ts:311  shadowAt(BODY_X, SEL_FEET)
+  ; scenes/select.e16.ts:340  shadowAt(BODY_X, SEL_FEET)
   li a0, 72
   li a1, 244
   la t0, shadowAt
   li t1, 261
   call far_call
-  ; scenes/select.e16.ts:312  t++
+  ; scenes/select.e16.ts:341  t++
   addi s1, s1, 1
 .L3:
   li t0, 48
   bltu s1, t0, .L1
-  ; scenes/select.e16.ts:314  palettesIn()
+  ; scenes/select.e16.ts:343  palettesIn()
   call palettesIn
 .return:
   lw ra, 0(sp)
@@ -20599,7 +20738,7 @@ confirm:
   addi sp, sp, 6
   ret
 
-; scenes/select.e16.ts:327 seedFromClock() at -O1
+; scenes/select.e16.ts:356 seedFromClock() at -O1
 ;   h in s2
 ;   k in s1
 seedFromClock:
@@ -20607,25 +20746,25 @@ seedFromClock:
   sw ra, 0(sp)
   sw s2, 2(sp)
   sw s1, 4(sp)
-  ; scenes/select.e16.ts:328  let h: u16 = 0x2b1d
+  ; scenes/select.e16.ts:357  let h: u16 = 0x2b1d
   li s2, 11037 ; h
-  ; scenes/select.e16.ts:329  let k: u16 = 0
+  ; scenes/select.e16.ts:358  let k: u16 = 0
   li s1, 0 ; k
-  ; scenes/select.e16.ts:330  while (k < 7) {
+  ; scenes/select.e16.ts:359  while (k < 7) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:331  h = wrap16((h ^ peek(CLOCK + k)) * 31 + 7)
+  ; scenes/select.e16.ts:360  h = wrap16((h ^ peek(CLOCK + k)) * 31 + 7)
   lbu t0, -200(s1)
   xor t0, s2, t0
   slli t1, t0, 5
   sub t0, t1, t0
   addi s2, t0, 7
-  ; scenes/select.e16.ts:332  k++
+  ; scenes/select.e16.ts:361  k++
   addi s1, s1, 1
 .L3:
   li t0, 7
   bltu s1, t0, .L1
-  ; scenes/select.e16.ts:334  randSeed(h ^ csrr(CSR_CYCLE))
+  ; scenes/select.e16.ts:363  randSeed(h ^ csrr(CSR_CYCLE))
   csrr t0, 3072
   xor a0, s2, t0
   call randSeed
@@ -20636,7 +20775,7 @@ seedFromClock:
   addi sp, sp, 6
   ret
 
-; scenes/select.e16.ts:356 versusRun(k) at -O1
+; scenes/select.e16.ts:385 versusRun(k) at -O1
 ;   k in s2
 ;   t in s1
 ;   step in s3
@@ -20649,28 +20788,28 @@ versusRun:
   sw s3, 6(sp)
   sw s0, 8(sp)
   mv s2, a0 ; k
-  ; scenes/select.e16.ts:357  screenIs(SC_VERSUS)
+  ; scenes/select.e16.ts:386  screenIs(SC_VERSUS)
   li a0, 5
   call screenIs
-  ; scenes/select.e16.ts:358  artPut(fSlot[0], 0, addr(fig), S1_TILE)
+  ; scenes/select.e16.ts:387  artPut(fSlot[0], 0, addr(fig), S1_TILE)
   lw a0, fSlot(zero)
   li a1, 0
   la a2, fig
   li a3, 257
   call artPut
-  ; scenes/select.e16.ts:359  artPut(fSlot[1], 0, addr(fig) + 68, S1_TILE + 128)
+  ; scenes/select.e16.ts:388  artPut(fSlot[1], 0, addr(fig) + 68, S1_TILE + 128)
   lw a0, fSlot+2(zero)
   li a1, 0
   li a2, fig+68
   li a3, 385
   call artPut
-  ; scenes/select.e16.ts:360  say(2, 2, str('P1'), SL_DIM)
+  ; scenes/select.e16.ts:389  say(2, 2, str('P1'), SL_DIM)
   li a0, 2
   li a1, 2
-  la a2, str_122
+  la a2, str_124
   li a3, 3
   call say
-  ; scenes/select.e16.ts:361  say(5, 2, slName[fSlot[0]], SL_P1)
+  ; scenes/select.e16.ts:390  say(5, 2, slName[fSlot[0]], SL_P1)
   lw t0, fSlot(zero)
   slli t0, t0, 1
   lw t0, slName(t0)
@@ -20679,13 +20818,13 @@ versusRun:
   mv a2, t0
   li a3, 1
   call say
-  ; scenes/select.e16.ts:362  say(24, 2, str('CPU'), SL_DIM)
+  ; scenes/select.e16.ts:391  say(24, 2, str('CPU'), SL_DIM)
   li a0, 24
   li a1, 2
-  la a2, str_135
+  la a2, str_129
   li a3, 3
   call say
-  ; scenes/select.e16.ts:363  say(28, 2, slName[fSlot[1]], SL_P1)
+  ; scenes/select.e16.ts:392  say(28, 2, slName[fSlot[1]], SL_P1)
   lw t0, fSlot+2(zero)
   slli t0, t0, 1
   lw t0, slName(t0)
@@ -20694,19 +20833,19 @@ versusRun:
   mv a2, t0
   li a3, 1
   call say
-  ; scenes/select.e16.ts:364  bigSay(18, 4, str('VS'), SL_BIG)
+  ; scenes/select.e16.ts:393  bigSay(18, 4, str('VS'), SL_BIG)
   li a0, 18
   li a1, 4
-  la a2, str_136
+  la a2, str_130
   li a3, 6
   call bigSay
-  ; scenes/select.e16.ts:365  say(11, NAME_Y, str('PROGRAM'), SL_DIM)
+  ; scenes/select.e16.ts:394  say(11, NAME_Y, str('PROGRAM'), SL_DIM)
   li a0, 11
   li a1, 8
-  la a2, str_137
+  la a2, str_131
   li a3, 3
   call say
-  ; scenes/select.e16.ts:366  say(19, NAME_Y, oppName[k], SL_P1)
+  ; scenes/select.e16.ts:395  say(19, NAME_Y, oppName[k], SL_P1)
   slli t0, s2, 1
   lw t0, oppName(t0)
   li a0, 19
@@ -20714,91 +20853,74 @@ versusRun:
   mv a2, t0
   li a3, 1
   call say
-  ; scenes/select.e16.ts:367  programLines(k)
+  ; scenes/select.e16.ts:396  programLines(k)
   mv a0, s2
   call programLines
-  ; scenes/select.e16.ts:368  palMix(0, 0, VERSUS_DIM)
+  ; scenes/select.e16.ts:397  palMix(0, 0, VERSUS_DIM)
   li a0, 0
   li a1, 0
   li a2, 7
   call palMix
-  ; scenes/select.e16.ts:369  say(4, RENDER_ROW, str('RENDER'), SL_DIM)
+  ; scenes/select.e16.ts:398  say(4, RENDER_ROW, str('RENDER'), SL_DIM)
   li a0, 4
   li a1, 31
-  la a2, str_138
+  la a2, str_132
   li a3, 3
   call say
-  ; scenes/select.e16.ts:370  say(24, RENDER_ROW, str('RENDER'), SL_DIM)
+  ; scenes/select.e16.ts:399  say(24, RENDER_ROW, str('RENDER'), SL_DIM)
   li a0, 24
   li a1, 31
-  la a2, str_138
+  la a2, str_132
   li a3, 3
   call say
-  ; scenes/select.e16.ts:371  sfx(X_MAT)
+  ; scenes/select.e16.ts:400  sfx(X_MAT)
   li a0, 13
   la t0, sfx
   li t1, 260
   call far_call
-  ; scenes/select.e16.ts:372  let t: u16 = 0
+  ; scenes/select.e16.ts:401  let t: u16 = 0
   li s1, 0 ; t
-  ; scenes/select.e16.ts:373  while (t < VERSUS_F + 34) {
+  ; scenes/select.e16.ts:403  let step: u16 = 0xffff
+  li s3, 65535 ; step
+  ; scenes/select.e16.ts:404  let pct: u16 = 0xffff
+  li s0, 65535 ; pct
+  ; scenes/select.e16.ts:405  while (t < VERSUS_F + 34) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:374  frameBegin()
+  ; scenes/select.e16.ts:406  frameBegin()
   call frameBegin
-  ; scenes/select.e16.ts:375  if (pressed(B_START) || pressed(B_A)) break
+  ; scenes/select.e16.ts:409  if (t < 2) cpuMeasure(t)
+  li t0, 2
+  bgeu s1, t0, .L5
+  ; scenes/select.e16.ts:409  cpuMeasure(t)
+  mv a0, s1
+  la t0, cpuMeasure
+  li t1, 258
+  call far_call
+.L5:
+  ; scenes/select.e16.ts:410  if (pressed(B_START) || pressed(B_A)) break
   li a0, 1024
   call pressed
   bnez a0, .L4
   li a0, 16
   call pressed
-  beqz a0, .L5
-  ; scenes/select.e16.ts:375  break
+  beqz a0, .L6
+  ; scenes/select.e16.ts:410  break
   j .L4
-.L5:
-  ; scenes/select.e16.ts:376  const step = introStep(t)
+.L6:
+  ; scenes/select.e16.ts:411  step = versusLook(t, step)
   mv a0, s1
-  la t0, introStep
-  li t1, 260
-  call far_call
+  mv a1, s3
+  call versusLook
   mv s3, a0 ; step
-  ; scenes/select.e16.ts:377  palShow(8, M_INTRO, step)
-  li a0, 8
-  li a1, 1
-  mv a2, s3
-  la t0, palShow
-  li t1, 260
-  call far_call
-  ; scenes/select.e16.ts:378  palShow(9, M_INTRO, step)
-  li a0, 9
-  li a1, 1
-  mv a2, s3
-  la t0, palShow
-  li t1, 260
-  call far_call
-  ; scenes/select.e16.ts:379  const pct = t * 3 > 100 ? 100 : t * 3
-  slli t1, s1, 1
-  add t0, t1, s1
-  li t1, 100
-  bgeu t1, t0, .L7
-  li t0, 100
-  j .L8
-.L7:
-  slli t1, s1, 1
-  add t0, t1, s1
-.L8:
-  mv s0, t0 ; pct
-  ; scenes/select.e16.ts:380  renderShow(4, pct)
-  li a0, 4
+  ; scenes/select.e16.ts:412  pct = versusRender(t, pct)
+  mv a0, s1
   mv a1, s0
-  call renderShow
-  ; scenes/select.e16.ts:381  renderShow(24, pct)
-  li a0, 24
-  mv a1, s0
-  call renderShow
-  ; scenes/select.e16.ts:382  sprBegin()
+  call versusRender
+  mv s0, a0 ; pct
+  ; scenes/select.e16.ts:413  sprBegin()
   call sprBegin
-  ; scenes/select.e16.ts:383  figure(P1_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
+  ; scenes/select.e16.ts:414  figure(P1_X, SEL_FEET, addr(fig), figWord(S1_TILE, 8, true))
   li a0, 88
   li a1, 244
   la a2, fig
@@ -20806,7 +20928,7 @@ versusRun:
   la t0, figure
   li t1, 261
   call far_call
-  ; scenes/select.e16.ts:384  figure(P2_X, SEL_FEET, addr(fig) + 68, figWord(S1_TILE + 128, 9, false))
+  ; scenes/select.e16.ts:415  figure(P2_X, SEL_FEET, addr(fig) + 68, figWord(S1_TILE + 128, 9, false))
   li a0, 232
   li a1, 244
   li a2, fig+68
@@ -20814,29 +20936,37 @@ versusRun:
   la t0, figure
   li t1, 261
   call far_call
-  ; scenes/select.e16.ts:385  shadowAt(P1_X, SEL_FEET)
+  ; scenes/select.e16.ts:416  shadowAt(P1_X, SEL_FEET)
   li a0, 88
   li a1, 244
   la t0, shadowAt
   li t1, 261
   call far_call
-  ; scenes/select.e16.ts:386  shadowAt(P2_X, SEL_FEET)
+  ; scenes/select.e16.ts:417  shadowAt(P2_X, SEL_FEET)
   li a0, 232
   li a1, 244
   la t0, shadowAt
   li t1, 261
   call far_call
-  ; scenes/select.e16.ts:387  t++
+  ; scenes/select.e16.ts:418  t++
   addi s1, s1, 1
 .L3:
   li t0, 94
   bltu s1, t0, .L1
 .L4:
-  ; scenes/select.e16.ts:389  hudRows(0, 36)
+  ; scenes/select.e16.ts:421  if (t === 0) cpuMeasure(1)
+  bne s1, zero, .L8
+  ; scenes/select.e16.ts:421  cpuMeasure(1)
+  li a0, 1
+  la t0, cpuMeasure
+  li t1, 258
+  call far_call
+.L8:
+  ; scenes/select.e16.ts:422  hudRows(0, 36)
   li a0, 0
   li a1, 36
   call hudRows
-  ; scenes/select.e16.ts:390  palMix(0, 0, 0)
+  ; scenes/select.e16.ts:423  palMix(0, 0, 0)
   li a0, 0
   li a1, 0
   li a2, 0
@@ -20850,7 +20980,103 @@ versusRun:
   addi sp, sp, 10
   ret
 
-; scenes/select.e16.ts:394 renderShow(x, pct) at -O1
+; scenes/select.e16.ts:427 versusLook(t, was) at -O1
+;   t in s3
+;   was in s2
+;   step in s1
+versusLook:
+  addi sp, sp, -8
+  sw ra, 0(sp)
+  sw s3, 2(sp)
+  sw s2, 4(sp)
+  sw s1, 6(sp)
+  mv s3, a0 ; t
+  mv s2, a1 ; was
+  ; scenes/select.e16.ts:428  const step = introStep(t)
+  mv a0, s3
+  la t0, introStep
+  li t1, 260
+  call far_call
+  mv s1, a0 ; step
+  ; scenes/select.e16.ts:429  if (step === was) return was
+  bne s1, s2, .L1
+  ; scenes/select.e16.ts:429  return was
+  mv a0, s2
+  j .return
+.L1:
+  ; scenes/select.e16.ts:430  palShow(8, M_INTRO, step)
+  li a0, 8
+  li a1, 1
+  mv a2, s1
+  la t0, palShow
+  li t1, 260
+  call far_call
+  ; scenes/select.e16.ts:431  palShow(9, M_INTRO, step)
+  li a0, 9
+  li a1, 1
+  mv a2, s1
+  la t0, palShow
+  li t1, 260
+  call far_call
+  ; scenes/select.e16.ts:432  return step
+  mv a0, s1
+.return:
+  lw ra, 0(sp)
+  lw s3, 2(sp)
+  lw s2, 4(sp)
+  lw s1, 6(sp)
+  addi sp, sp, 8
+  ret
+
+; scenes/select.e16.ts:436 versusRender(t, was) at -O1
+;   t in s2
+;   was in s3
+;   pct in s1
+versusRender:
+  addi sp, sp, -8
+  sw ra, 0(sp)
+  sw s2, 2(sp)
+  sw s3, 4(sp)
+  sw s1, 6(sp)
+  mv s2, a0 ; t
+  mv s3, a1 ; was
+  ; scenes/select.e16.ts:437  const pct = t * 3 > 100 ? 100 : t * 3
+  slli t1, s2, 1
+  add t0, t1, s2
+  li t1, 100
+  bgeu t1, t0, .L1
+  li t0, 100
+  j .L2
+.L1:
+  slli t1, s2, 1
+  add t0, t1, s2
+.L2:
+  mv s1, t0 ; pct
+  ; scenes/select.e16.ts:438  if (pct === was) return was
+  bne s1, s3, .L3
+  ; scenes/select.e16.ts:438  return was
+  mv a0, s3
+  j .return
+.L3:
+  ; scenes/select.e16.ts:439  renderShow(4, pct)
+  li a0, 4
+  mv a1, s1
+  call renderShow
+  ; scenes/select.e16.ts:440  renderShow(24, pct)
+  li a0, 24
+  mv a1, s1
+  call renderShow
+  ; scenes/select.e16.ts:441  return pct
+  mv a0, s1
+.return:
+  lw ra, 0(sp)
+  lw s2, 2(sp)
+  lw s3, 4(sp)
+  lw s1, 6(sp)
+  addi sp, sp, 8
+  ret
+
+; scenes/select.e16.ts:445 renderShow(x, pct) at -O1
 ;   x in s2
 ;   pct in 2(fp)
 ;   fill in s3
@@ -20867,7 +21093,7 @@ renderShow:
   mv fp, sp
   mv s2, a0 ; x
   sw a1, 2(fp) ; pct
-  ; scenes/select.e16.ts:395  number(cellAt(1, x + 7, RENDER_ROW), pct, 3, (FONT_TILE + 16) | (SL_P1 << 10) | FRONT)
+  ; scenes/select.e16.ts:446  number(cellAt(1, x + 7, RENDER_ROW), pct, 3, (FONT_TILE + 16) | (SL_P1 << 10) | FRONT)
   li a0, 1
   addi a1, s2, 7
   li a2, 31
@@ -20876,26 +21102,26 @@ renderShow:
   li a2, 3
   li a3, 33808
   call number
-  ; scenes/select.e16.ts:396  say(x + 10, RENDER_ROW, str('%'), SL_P1)
+  ; scenes/select.e16.ts:447  say(x + 10, RENDER_ROW, str('%'), SL_P1)
   addi a0, s2, 10
   li a1, 31
-  la a2, str_139
+  la a2, str_133
   li a3, 1
   call say
-  ; scenes/select.e16.ts:397  const fill = div(pct * 8, 10)
+  ; scenes/select.e16.ts:448  const fill = div(pct * 8, 10)
   lw t0, 2(fp) ; pct
   slli t0, t0, 3
   li t1, 10
   divu s3, t0, t1
-  ; scenes/select.e16.ts:398  let c: u16 = 0
+  ; scenes/select.e16.ts:449  let c: u16 = 0
   li s1, 0 ; c
-  ; scenes/select.e16.ts:399  while (c < 10) {
+  ; scenes/select.e16.ts:450  while (c < 10) {
   j .L3
 .L1:
-  ; scenes/select.e16.ts:400  const from = c * 8
+  ; scenes/select.e16.ts:451  const from = c * 8
   slli t0, s1, 3
   sw t0, 0(fp) ; from
-  ; scenes/select.e16.ts:401  const part = fill <= from ? 0 : fill - from >= 8 ? 8 : fill - from
+  ; scenes/select.e16.ts:452  const part = fill <= from ? 0 : fill - from >= 8 ? 8 : fill - from
   lw t0, 0(fp) ; from
   bltu t0, s3, .L5
   li t0, 0
@@ -20913,7 +21139,7 @@ renderShow:
 .L8:
 .L6:
   sw t0, 4(fp) ; part
-  ; scenes/select.e16.ts:402  vpoke(
+  ; scenes/select.e16.ts:453  vpoke(
   add t0, s2, s1
   li a0, 1
   mv a1, t0
@@ -20929,7 +21155,7 @@ renderShow:
   li t1, 32768
   or a1, t0, t1
   call vpoke
-  ; scenes/select.e16.ts:406  c++
+  ; scenes/select.e16.ts:457  c++
   addi s1, s1, 1
 .L3:
   li t0, 10
@@ -20944,204 +21170,71 @@ renderShow:
   addi sp, sp, 16
   ret
 
-; scenes/select.e16.ts:414 programLines(k) at -O1
-;   k in s1
+; scenes/select.e16.ts:465 programLines(k) at -O1
+;   k in s2
+;   n in s1
 programLines:
-  addi sp, sp, -4
+  addi sp, sp, -6
   sw ra, 0(sp)
-  sw s1, 2(sp)
-  mv s1, a0 ; k
-  ; scenes/select.e16.ts:415  if (k === 0) {
-  bne s1, zero, .L1
-  ; scenes/select.e16.ts:416  say(6, PROG_ROW, str('IMPATIENT. IT COMES TO YOU,'), SL_P1)
-  li a0, 6
-  li a1, 10
-  la a2, str_140
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:417  say(6, PROG_ROW + 1, str('QUICK HANDS AND LIGHT BLOWS,'), SL_P1)
-  li a0, 6
-  li a1, 11
-  la a2, str_141
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:418  say(6, PROG_ROW + 2, str('ONE AFTER ANOTHER.'), SL_P1)
-  li a0, 6
-  li a1, 12
-  la a2, str_142
-  li a3, 1
-  call say
-  j .L2
+  sw s2, 2(sp)
+  sw s1, 4(sp)
+  mv s2, a0 ; k
+  ; scenes/select.e16.ts:466  let n: u16 = 0
+  li s1, 0 ; n
+  ; scenes/select.e16.ts:467  while (n < 3) {
+  j .L3
 .L1:
-  ; scenes/select.e16.ts:419  if (k === 1) {
-  li t0, 1
-  bne s1, t0, .L3
-  ; scenes/select.e16.ts:420  say(6, PROG_ROW, str('IT WAITS FOR YOU TO COME.'), SL_P1)
+  ; scenes/select.e16.ts:468  lineSay(6, PROG_ROW + n, PROGRAM_LINES, k * 3 + n)
+  slli t1, s2, 1
+  add t0, t1, s2
+  add t0, t0, s1
   li a0, 6
-  li a1, 10
-  la a2, str_143
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:421  say(6, PROG_ROW + 1, str('SLOW TO MOVE, HARD TO BREAK,'), SL_P1)
-  li a0, 6
-  li a1, 11
-  la a2, str_144
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:422  say(6, PROG_ROW + 2, str('AND ONE BLOW IS ENOUGH.'), SL_P1)
-  li a0, 6
-  li a1, 12
-  la a2, str_145
-  li a3, 1
-  call say
-  j .L4
+  addi a1, s1, 10
+  la a2, str_1
+  mv a3, t0
+  call lineSay
+  ; scenes/select.e16.ts:469  n++
+  addi s1, s1, 1
 .L3:
-  ; scenes/select.e16.ts:423  if (k === 2) {
-  li t0, 2
-  bne s1, t0, .L5
-  ; scenes/select.e16.ts:424  say(6, PROG_ROW, str('A TRAP AT THE EDGE OF REACH.'), SL_P1)
-  li a0, 6
-  li a1, 10
-  la a2, str_146
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:425  say(6, PROG_ROW + 1, str('LONG LIMBS GOING IN AND OUT,'), SL_P1)
-  li a0, 6
-  li a1, 11
-  la a2, str_147
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:426  say(6, PROG_ROW + 2, str('PUNISHING WHAT MISSES.'), SL_P1)
-  li a0, 6
-  li a1, 12
-  la a2, str_148
-  li a3, 1
-  call say
-  j .L6
-.L5:
-  ; scenes/select.e16.ts:427  if (k === 3) {
   li t0, 3
-  bne s1, t0, .L7
-  ; scenes/select.e16.ts:428  say(6, PROG_ROW, str('THE TEXTBOOK.'), SL_P1)
-  li a0, 6
-  li a1, 10
-  la a2, str_149
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:429  say(6, PROG_ROW + 1, str('THE RIGHT GUARD, THE RIGHT'), SL_P1)
-  li a0, 6
-  li a1, 11
-  la a2, str_150
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:430  say(6, PROG_ROW + 2, str('ANSWER TO EVERY MISTAKE.'), SL_P1)
-  li a0, 6
-  li a1, 12
-  la a2, str_151
-  li a3, 1
-  call say
-  j .L8
-.L7:
-  ; scenes/select.e16.ts:432  say(6, PROG_ROW, str('YOUR OWN BODY, ANOTHER MIND.'), SL_P1)
-  li a0, 6
-  li a1, 10
-  la a2, str_152
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:433  say(6, PROG_ROW + 1, str('IT HAS WATCHED YOU FIGHT'), SL_P1)
-  li a0, 6
-  li a1, 11
-  la a2, str_153
-  li a3, 1
-  call say
-  ; scenes/select.e16.ts:434  say(6, PROG_ROW + 2, str('ALL THE WAY HERE.'), SL_P1)
-  li a0, 6
-  li a1, 12
-  la a2, str_154
-  li a3, 1
-  call say
-.L8:
-.L6:
-.L4:
-.L2:
+  bltu s1, t0, .L1
 .return:
   lw ra, 0(sp)
-  lw s1, 2(sp)
-  addi sp, sp, 4
+  lw s2, 2(sp)
+  lw s1, 4(sp)
+  addi sp, sp, 6
   ret
 
-str_119:
-  .byte 83, 69, 76, 69, 67, 84, 32, 70, 73, 71, 72, 84, 69, 82, 0
-str_120:
-  .byte 86, 83, 32, 67, 80, 85, 0
+str_0:
+  .byte 69, 86, 69, 78, 32, 73, 78, 32, 69, 86, 69, 82, 89, 84, 72, 73, 78, 71, 46, 124, 84, 72, 69, 32, 83, 84, 65, 78, 68, 65, 82, 68, 32, 66, 79, 68, 89, 46, 124, 83, 77, 65, 76, 76, 32, 65, 78, 68, 32, 81, 85, 73, 67, 75, 44, 124, 83, 72, 79, 82, 84, 32, 73, 78, 32, 82, 69, 65, 67, 72, 46, 124, 66, 82, 79, 65, 68, 32, 65, 78, 68, 32, 72, 69, 65, 86, 89, 44, 124, 72, 65, 82, 68, 32, 84, 79, 32, 77, 79, 86, 69, 46, 124, 84, 65, 76, 76, 44, 32, 76, 79, 78, 71, 32, 76, 73, 77, 66, 83, 44, 124, 65, 32, 75, 73, 67, 75, 32, 70, 82, 79, 77, 32, 65, 70, 65, 82, 46, 0
+str_1:
+  .byte 73, 77, 80, 65, 84, 73, 69, 78, 84, 46, 32, 73, 84, 32, 67, 79, 77, 69, 83, 32, 84, 79, 32, 89, 79, 85, 44, 124, 81, 85, 73, 67, 75, 32, 72, 65, 78, 68, 83, 32, 65, 78, 68, 32, 76, 73, 71, 72, 84, 32, 66, 76, 79, 87, 83, 44, 124, 79, 78, 69, 32, 65, 70, 84, 69, 82, 32, 65, 78, 79, 84, 72, 69, 82, 46, 124, 73, 84, 32, 87, 65, 73, 84, 83, 32, 70, 79, 82, 32, 89, 79, 85, 32, 84, 79, 32, 67, 79, 77, 69, 46, 124, 83, 76, 79, 87, 32, 84, 79, 32, 77, 79, 86, 69, 44, 32, 72, 65, 82, 68, 32, 84, 79, 32, 66, 82, 69, 65, 75, 44, 124, 65, 78, 68, 32, 79, 78, 69, 32, 66, 76, 79, 87, 32, 73, 83, 32, 69, 78, 79, 85, 71, 72, 46, 124, 65, 32, 84, 82, 65, 80, 32, 65, 84, 32, 84, 72, 69, 32, 69, 68, 71, 69, 32, 79, 70, 32, 82, 69, 65, 67, 72, 46, 124, 76, 79, 78, 71, 32, 76, 73, 77, 66, 83, 32, 71, 79, 73, 78, 71, 32, 73, 78, 32, 65, 78, 68, 32, 79, 85, 84, 44, 124, 80, 85, 78, 73, 83, 72, 73, 78, 71, 32, 87, 72, 65, 84, 32, 77, 73, 83, 83, 69, 83, 46, 124, 84, 72, 69, 32, 84, 69, 88, 84, 66, 79, 79, 75, 46, 124, 84, 72, 69, 32, 82, 73, 71, 72, 84, 32, 71, 85, 65, 82, 68, 44, 32, 84, 72, 69, 32, 82, 73, 71, 72, 84, 124, 65, 78, 83, 87, 69, 82, 32, 84, 79, 32, 69, 86, 69, 82, 89, 32, 77, 73, 83, 84, 65, 75, 69, 46, 124, 89, 79, 85, 82, 32, 79, 87, 78, 32, 66, 79, 68, 89, 44, 32, 65, 78, 79, 84, 72, 69, 82, 32, 77, 73, 78, 68, 46, 124, 73, 84, 32, 72, 65, 83, 32, 87, 65, 84, 67, 72, 69, 68, 32, 89, 79, 85, 32, 70, 73, 71, 72, 84, 124, 65, 76, 76, 32, 84, 72, 69, 32, 87, 65, 89, 32, 72, 69, 82, 69, 46, 0
 str_121:
-  .byte 60, 32, 62, 32, 67, 72, 79, 79, 83, 69, 32, 32, 32, 32, 32, 65, 32, 79, 75, 32, 32, 32, 32, 32, 66, 32, 66, 65, 67, 75, 0
+  .byte 83, 69, 76, 69, 67, 84, 32, 70, 73, 71, 72, 84, 69, 82, 0
 str_122:
-  .byte 80, 49, 0
+  .byte 86, 83, 32, 67, 80, 85, 0
 str_123:
-  .byte 80, 79, 87, 69, 82, 0
+  .byte 60, 32, 62, 32, 67, 72, 79, 79, 83, 69, 32, 32, 32, 32, 32, 65, 32, 79, 75, 32, 32, 32, 32, 32, 66, 32, 66, 65, 67, 75, 0
 str_124:
-  .byte 83, 80, 69, 69, 68, 0
+  .byte 80, 49, 0
 str_125:
-  .byte 82, 69, 65, 67, 72, 0
+  .byte 80, 79, 87, 69, 82, 0
 str_126:
-  .byte 68, 69, 70, 69, 78, 83, 69, 0
+  .byte 83, 80, 69, 69, 68, 0
 str_127:
-  .byte 69, 86, 69, 78, 32, 73, 78, 32, 69, 86, 69, 82, 89, 84, 72, 73, 78, 71, 46, 0
+  .byte 82, 69, 65, 67, 72, 0
 str_128:
-  .byte 84, 72, 69, 32, 83, 84, 65, 78, 68, 65, 82, 68, 32, 66, 79, 68, 89, 46, 0
+  .byte 68, 69, 70, 69, 78, 83, 69, 0
 str_129:
-  .byte 83, 77, 65, 76, 76, 32, 65, 78, 68, 32, 81, 85, 73, 67, 75, 44, 0
-str_130:
-  .byte 83, 72, 79, 82, 84, 32, 73, 78, 32, 82, 69, 65, 67, 72, 46, 0
-str_131:
-  .byte 66, 82, 79, 65, 68, 32, 65, 78, 68, 32, 72, 69, 65, 86, 89, 44, 0
-str_132:
-  .byte 72, 65, 82, 68, 32, 84, 79, 32, 77, 79, 86, 69, 46, 0
-str_133:
-  .byte 84, 65, 76, 76, 44, 32, 76, 79, 78, 71, 32, 76, 73, 77, 66, 83, 44, 0
-str_134:
-  .byte 65, 32, 75, 73, 67, 75, 32, 70, 82, 79, 77, 32, 65, 70, 65, 82, 46, 0
-str_135:
   .byte 67, 80, 85, 0
-str_136:
+str_130:
   .byte 86, 83, 0
-str_137:
+str_131:
   .byte 80, 82, 79, 71, 82, 65, 77, 0
-str_138:
+str_132:
   .byte 82, 69, 78, 68, 69, 82, 0
-str_139:
+str_133:
   .byte 37, 0
-str_140:
-  .byte 73, 77, 80, 65, 84, 73, 69, 78, 84, 46, 32, 73, 84, 32, 67, 79, 77, 69, 83, 32, 84, 79, 32, 89, 79, 85, 44, 0
-str_141:
-  .byte 81, 85, 73, 67, 75, 32, 72, 65, 78, 68, 83, 32, 65, 78, 68, 32, 76, 73, 71, 72, 84, 32, 66, 76, 79, 87, 83, 44, 0
-str_142:
-  .byte 79, 78, 69, 32, 65, 70, 84, 69, 82, 32, 65, 78, 79, 84, 72, 69, 82, 46, 0
-str_143:
-  .byte 73, 84, 32, 87, 65, 73, 84, 83, 32, 70, 79, 82, 32, 89, 79, 85, 32, 84, 79, 32, 67, 79, 77, 69, 46, 0
-str_144:
-  .byte 83, 76, 79, 87, 32, 84, 79, 32, 77, 79, 86, 69, 44, 32, 72, 65, 82, 68, 32, 84, 79, 32, 66, 82, 69, 65, 75, 44, 0
-str_145:
-  .byte 65, 78, 68, 32, 79, 78, 69, 32, 66, 76, 79, 87, 32, 73, 83, 32, 69, 78, 79, 85, 71, 72, 46, 0
-str_146:
-  .byte 65, 32, 84, 82, 65, 80, 32, 65, 84, 32, 84, 72, 69, 32, 69, 68, 71, 69, 32, 79, 70, 32, 82, 69, 65, 67, 72, 46, 0
-str_147:
-  .byte 76, 79, 78, 71, 32, 76, 73, 77, 66, 83, 32, 71, 79, 73, 78, 71, 32, 73, 78, 32, 65, 78, 68, 32, 79, 85, 84, 44, 0
-str_148:
-  .byte 80, 85, 78, 73, 83, 72, 73, 78, 71, 32, 87, 72, 65, 84, 32, 77, 73, 83, 83, 69, 83, 46, 0
-str_149:
-  .byte 84, 72, 69, 32, 84, 69, 88, 84, 66, 79, 79, 75, 46, 0
-str_150:
-  .byte 84, 72, 69, 32, 82, 73, 71, 72, 84, 32, 71, 85, 65, 82, 68, 44, 32, 84, 72, 69, 32, 82, 73, 71, 72, 84, 0
-str_151:
-  .byte 65, 78, 83, 87, 69, 82, 32, 84, 79, 32, 69, 86, 69, 82, 89, 32, 77, 73, 83, 84, 65, 75, 69, 46, 0
-str_152:
-  .byte 89, 79, 85, 82, 32, 79, 87, 78, 32, 66, 79, 68, 89, 44, 32, 65, 78, 79, 84, 72, 69, 82, 32, 77, 73, 78, 68, 46, 0
-str_153:
-  .byte 73, 84, 32, 72, 65, 83, 32, 87, 65, 84, 67, 72, 69, 68, 32, 89, 79, 85, 32, 70, 73, 71, 72, 84, 0
-str_154:
-  .byte 65, 76, 76, 32, 84, 72, 69, 32, 87, 65, 89, 32, 72, 69, 82, 69, 46, 0
   .align 2
 
   .bank 7
@@ -21237,7 +21330,7 @@ saveKeep:
   addi sp, sp, -2
   sw ra, 0(sp)
   ; scenes/result.e16.ts:107  saveWrite(SV_TYPE, buttonSet)
-  lw t0, 0x1816(zero)
+  lw t0, 0x1818(zero)
   li a0, 2
   mv a1, t0
   call saveWrite
@@ -21304,16 +21397,16 @@ resultShow:
   li a0, 7
   call screenIs
   ; scenes/result.e16.ts:129  const won = outcome === 1
-  lw t0, 0x19b4(zero)
+  lw t0, 0x19b6(zero)
   li t1, 1
   sub t0, t0, t1
   seqz s1, t0
   ; scenes/result.e16.ts:130  if (won) {
   beqz s1, .L1
   ; scenes/result.e16.ts:131  streak++
-  lw t0, 0x1fe8(zero)
+  lw t0, 0x1fea(zero)
   addi t0, t0, 1
-  sw t0, 0x1fe8(zero)
+  sw t0, 0x1fea(zero)
   ; scenes/result.e16.ts:132  if (streak > saveRead(SV_STREAK)) saveWrite(SV_STREAK, streak)
   addi sp, sp, -2
   sw t0, 0(sp)
@@ -21323,14 +21416,14 @@ resultShow:
   addi sp, sp, 2
   bgeu a0, t0, .L3
   ; scenes/result.e16.ts:132  saveWrite(SV_STREAK, streak)
-  lw t0, 0x1fe8(zero)
+  lw t0, 0x1fea(zero)
   li a0, 10
   mv a1, t0
   call saveWrite
   j .L3
 .L1:
   ; scenes/result.e16.ts:133  streak = 0
-  sw zero, 0x1fe8(zero)
+  sw zero, 0x1fea(zero)
 .L3:
   ; scenes/result.e16.ts:134  resultDim(10)
   li a0, 10
@@ -21340,17 +21433,17 @@ resultShow:
   ; scenes/result.e16.ts:137  say(14, 1, str('MATCH RESULT'), SL_DIM)
   li a0, 14
   li a1, 1
-  la a2, str_155
+  la a2, str_134
   li a3, 3
   call say
   ; scenes/result.e16.ts:138  bigCentred(2, won ? str('WIN') : str('LOSE'))
   li t0, 2
   mv t1, s1
   beqz t1, .L4
-  la t1, str_156
+  la t1, str_135
   j .L5
 .L4:
-  la t1, str_157
+  la t1, str_136
 .L5:
   mv a0, t0
   mv a1, t1
@@ -21358,7 +21451,7 @@ resultShow:
   ; scenes/result.e16.ts:139  say(13, 6, str('VS'), SL_DIM)
   li a0, 13
   li a1, 6
-  la a2, str_158
+  la a2, str_137
   li a3, 3
   call say
   ; scenes/result.e16.ts:140  say(16, 6, oppName[k], SL_P1)
@@ -21372,25 +21465,25 @@ resultShow:
   ; scenes/result.e16.ts:141  statRow(8, str('HITS'), hitsN[0])
   lw t0, hitsN(zero)
   li a0, 8
-  la a1, str_159
+  la a1, str_138
   mv a2, t0
   call statRow
   ; scenes/result.e16.ts:142  statRow(9, str('MAX COMBO'), fComboMax[1])
   lw t0, fComboMax+2(zero)
   li a0, 9
-  la a1, str_160
+  la a1, str_139
   mv a2, t0
   call statRow
   ; scenes/result.e16.ts:143  statRow(10, str('TIME LEFT'), timeLeft)
   lw t0, 0x0c9c(zero)
   li a0, 10
-  la a1, str_161
+  la a1, str_140
   mv a2, t0
   call statRow
   ; scenes/result.e16.ts:144  say(10, 11, str('ROUNDS'), SL_DIM)
   li a0, 10
   li a1, 11
-  la a2, str_162
+  la a2, str_141
   li a3, 3
   call say
   ; scenes/result.e16.ts:145  number(cellAt(1, 26, 11), wins[0], 1, digit())
@@ -21403,7 +21496,7 @@ resultShow:
   ; scenes/result.e16.ts:146  say(27, 11, str('-'), SL_P1)
   li a0, 27
   li a1, 11
-  la a2, str_163
+  la a2, str_142
   li a3, 1
   call say
   ; scenes/result.e16.ts:147  number(cellAt(1, 28, 11), wins[1], 1, digit())
@@ -21414,15 +21507,15 @@ resultShow:
   li a3, 33808
   call number
   ; scenes/result.e16.ts:148  statRow(12, str('STREAK'), streak)
-  lw t0, 0x1fe8(zero)
+  lw t0, 0x1fea(zero)
   li a0, 12
-  la a1, str_164
+  la a1, str_143
   mv a2, t0
   call statRow
   ; scenes/result.e16.ts:149  say(14, 30, str('PRESS START'), SL_P1)
   li a0, 14
   li a1, 30
-  la a2, str_165
+  la a2, str_144
   li a3, 1
   call say
   ; scenes/result.e16.ts:150  waitPress(360, 20)
@@ -21624,7 +21717,7 @@ continueAsk:
   li a0, 8
   call screenIs
   ; scenes/result.e16.ts:199  bandShow(str('CONTINUE?'))
-  la a0, str_166
+  la a0, str_145
   call bandShow
   ; scenes/result.e16.ts:200  let n: u16 = 9
   li s1, 9 ; n
@@ -21707,7 +21800,7 @@ countShow:
   sw s1, 4(sp)
   mv s2, a0 ; n
   ; scenes/result.e16.ts:228  contN = n
-  sw s2, 0x1fec(zero)
+  sw s2, 0x1fee(zero)
   ; scenes/result.e16.ts:229  const tile = (DIGITS_TILE + n * 4) | (4 << 10) | FRONT
   slli t0, s2, 2
   addi t0, t0, 128
@@ -21745,7 +21838,7 @@ gameOver:
   li a0, 9
   call screenIs
   ; scenes/result.e16.ts:239  bandShow(str('GAME OVER'))
-  la a0, str_167
+  la a0, str_146
   call bandShow
   ; scenes/result.e16.ts:240  waitPress(150, 20)
   li a0, 150
@@ -21777,7 +21870,7 @@ systemClear:
   call far_call
   ; scenes/result.e16.ts:252  recordClear(choice[0], clearSec)
   lw t0, choice(zero)
-  lw t1, 0x19ca(zero)
+  lw t1, 0x19cc(zero)
   mv a0, t0
   mv a1, t1
   call recordClear
@@ -21788,7 +21881,7 @@ systemClear:
   call hudClear
   ; scenes/result.e16.ts:255  bigCentred(3, str('SYSTEM CLEAR'))
   li a0, 3
-  la a1, str_168
+  la a1, str_147
   call bigCentred
   ; scenes/result.e16.ts:256  say(15, 8, slName[choice[0]], SL_P1)
   lw t0, choice(zero)
@@ -21802,11 +21895,11 @@ systemClear:
   ; scenes/result.e16.ts:257  say(10, 10, str('CLEAR TIME'), SL_DIM)
   li a0, 10
   li a1, 10
-  la a2, str_169
+  la a2, str_148
   li a3, 3
   call say
   ; scenes/result.e16.ts:258  timeAt(24, 10, clearSec)
-  lw t0, 0x19ca(zero)
+  lw t0, 0x19cc(zero)
   li a0, 24
   li a1, 10
   mv a2, t0
@@ -21814,11 +21907,11 @@ systemClear:
   ; scenes/result.e16.ts:259  say(10, 11, str('CONTINUES'), SL_DIM)
   li a0, 10
   li a1, 11
-  la a2, str_170
+  la a2, str_149
   li a3, 3
   call say
   ; scenes/result.e16.ts:260  count3(26, 11, continues)
-  lw t0, 0x19c8(zero)
+  lw t0, 0x19ca(zero)
   li a0, 26
   li a1, 11
   mv a2, t0
@@ -21829,7 +21922,7 @@ systemClear:
   ; scenes/result.e16.ts:261  say(15, 13, str('NEW RECORD'), SL_P1)
   li a0, 15
   li a1, 13
-  la a2, str_171
+  la a2, str_150
   li a3, 1
   call say
 .L1:
@@ -21839,7 +21932,7 @@ systemClear:
   ; scenes/result.e16.ts:263  say(14, 32, str('PRESS START'), SL_P1)
   li a0, 14
   li a1, 32
-  la a2, str_165
+  la a2, str_144
   li a3, 1
   call say
   ; scenes/result.e16.ts:264  waitPress(720, 60)
@@ -21944,7 +22037,7 @@ timeAt:
   ; scenes/result.e16.ts:286  say(x, y, str('--:--'), SL_DIM)
   mv a0, s1
   mv a1, s2
-  la a2, str_172
+  la a2, str_151
   li a3, 3
   call say
   ; scenes/result.e16.ts:287  return
@@ -21975,7 +22068,7 @@ timeAt:
   ; scenes/result.e16.ts:291  say(x + 2, y, str(':'), SL_P1)
   addi a0, s1, 2
   mv a1, s2
-  la a2, str_173
+  la a2, str_152
   li a3, 1
   call say
   ; scenes/result.e16.ts:292  number(cellAt(1, x + 3, y), sec - m * 60, 2, digit())
@@ -22012,25 +22105,25 @@ bestDraw:
   ; scenes/result.e16.ts:299  say(14, y, str('BEST RECORDS'), SL_P1)
   li a0, 14
   mv a1, s1
-  la a2, str_174
+  la a2, str_153
   li a3, 1
   call say
   ; scenes/result.e16.ts:300  say(4, y + 2, str('SLOT'), SL_DIM)
   li a0, 4
   addi a1, s1, 2
-  la a2, str_175
+  la a2, str_154
   li a3, 3
   call say
   ; scenes/result.e16.ts:301  say(18, y + 2, str('CLEARS'), SL_DIM)
   li a0, 18
   addi a1, s1, 2
-  la a2, str_176
+  la a2, str_155
   li a3, 3
   call say
   ; scenes/result.e16.ts:302  say(27, y + 2, str('BEST TIME'), SL_DIM)
   li a0, 27
   addi a1, s1, 2
-  la a2, str_177
+  la a2, str_156
   li a3, 3
   call say
   ; scenes/result.e16.ts:303  let s: u16 = 0
@@ -22086,7 +22179,7 @@ bestDraw:
   ; scenes/result.e16.ts:311  say(4, y + 10, str('BEST STREAK'), SL_DIM)
   li a0, 4
   addi a1, s1, 10
-  la a2, str_178
+  la a2, str_157
   li a3, 3
   call say
   ; scenes/result.e16.ts:312  count3(20, y + 10, saveRead(SV_STREAK))
@@ -22119,7 +22212,7 @@ bestRun:
   ; scenes/result.e16.ts:320  say(12, 30, str('START OR B: BACK'), SL_DIM)
   li a0, 12
   li a1, 30
-  la a2, str_179
+  la a2, str_158
   li a3, 3
   call say
   ; scenes/result.e16.ts:321  for (;;) {
@@ -22143,97 +22236,109 @@ bestRun:
   addi sp, sp, 2
   ret
 
-str_155:
+str_134:
   .byte 77, 65, 84, 67, 72, 32, 82, 69, 83, 85, 76, 84, 0
-str_156:
+str_135:
   .byte 87, 73, 78, 0
-str_157:
+str_136:
   .byte 76, 79, 83, 69, 0
-str_158:
+str_137:
   .byte 86, 83, 0
-str_159:
+str_138:
   .byte 72, 73, 84, 83, 0
-str_160:
+str_139:
   .byte 77, 65, 88, 32, 67, 79, 77, 66, 79, 0
-str_161:
+str_140:
   .byte 84, 73, 77, 69, 32, 76, 69, 70, 84, 0
-str_162:
+str_141:
   .byte 82, 79, 85, 78, 68, 83, 0
-str_163:
+str_142:
   .byte 45, 0
-str_164:
+str_143:
   .byte 83, 84, 82, 69, 65, 75, 0
-str_165:
+str_144:
   .byte 80, 82, 69, 83, 83, 32, 83, 84, 65, 82, 84, 0
-str_166:
+str_145:
   .byte 67, 79, 78, 84, 73, 78, 85, 69, 63, 0
-str_167:
+str_146:
   .byte 71, 65, 77, 69, 32, 79, 86, 69, 82, 0
-str_168:
+str_147:
   .byte 83, 89, 83, 84, 69, 77, 32, 67, 76, 69, 65, 82, 0
-str_169:
+str_148:
   .byte 67, 76, 69, 65, 82, 32, 84, 73, 77, 69, 0
-str_170:
+str_149:
   .byte 67, 79, 78, 84, 73, 78, 85, 69, 83, 0
-str_171:
+str_150:
   .byte 78, 69, 87, 32, 82, 69, 67, 79, 82, 68, 0
-str_172:
+str_151:
   .byte 45, 45, 58, 45, 45, 0
-str_173:
+str_152:
   .byte 58, 0
-str_174:
+str_153:
   .byte 66, 69, 83, 84, 32, 82, 69, 67, 79, 82, 68, 83, 0
-str_175:
+str_154:
   .byte 83, 76, 79, 84, 0
-str_176:
+str_155:
   .byte 67, 76, 69, 65, 82, 83, 0
-str_177:
+str_156:
   .byte 66, 69, 83, 84, 32, 84, 73, 77, 69, 0
-str_178:
+str_157:
   .byte 66, 69, 83, 84, 32, 83, 84, 82, 69, 65, 75, 0
-str_179:
+str_158:
   .byte 83, 84, 65, 82, 84, 32, 79, 82, 32, 66, 58, 32, 66, 65, 67, 75, 0
   .align 2
 
   .bank 8
   .org 0xc000
-; cpu/habit.e16.ts:109 watchReset(i) at -O1
+; cpu/habit.e16.ts:59 oppAt(i, c) at -O1
+;   i in a0
+;   c in a1
+oppAt:
+  ; cpu/habit.e16.ts:60  return opp[i * OW + c]
+  slli t0, a0, 5
+  add t0, t0, a1
+  slli t0, t0, 1
+  lw a0, opp(t0)
+.return:
+  ret
+
+; cpu/habit.e16.ts:119 watchReset(i) at -O1
 ;   i in s1
 watchReset:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
   mv s1, a0 ; i
-  ; cpu/habit.e16.ts:110  watchSit[i] = NONE
+  ; cpu/habit.e16.ts:120  watchSit[i] = NONE
   slli t0, s1, 1
   li t1, 255
   sw t1, watchSit(t0)
-  ; cpu/habit.e16.ts:111  watchT[i] = 0
+  ; cpu/habit.e16.ts:121  watchT[i] = 0
   slli t0, s1, 1
   sw zero, watchT(t0)
-  ; cpu/habit.e16.ts:112  rest[i] = 0
+  ; cpu/habit.e16.ts:122  rest[i] = 0
   slli t0, s1, 1
   sw zero, rest(t0)
-  ; cpu/habit.e16.ts:113  backT[i] = 0
+  ; cpu/habit.e16.ts:123  backT[i] = 0
   slli t0, s1, 1
   sw zero, backT(t0)
-  ; cpu/habit.e16.ts:114  wasGuarded[i] = 0
+  ; cpu/habit.e16.ts:124  wasGuarded[i] = 0
   slli t0, s1, 1
   sw zero, wasGuarded(t0)
-  ; cpu/habit.e16.ts:115  airStruck[i] = 0
+  ; cpu/habit.e16.ts:125  airStruck[i] = 0
   slli t0, s1, 1
   sw zero, airStruck(t0)
-  ; cpu/habit.e16.ts:116  readOn[i] = 0
+  ; cpu/habit.e16.ts:126  readOn[i] = 0
   slli t0, s1, 1
   sw zero, readOn(t0)
-  ; cpu/habit.e16.ts:117  habCount[i] = 0
+  ; cpu/habit.e16.ts:127  habCount[i] = 0
   slli t0, s1, 1
   sw zero, habCount(t0)
-  ; cpu/habit.e16.ts:118  if (habTarget[i] === 0) drawTarget(i)
+  ; cpu/habit.e16.ts:128  if (habTarget[i] === 0) drawTarget(i)
   slli t0, s1, 1
   lw t0, habTarget(t0)
   bne t0, zero, .L1
-  ; cpu/habit.e16.ts:118  drawTarget(i)
+  ; cpu/habit.e16.ts:128  drawTarget(i)
   mv a0, s1
   call drawTarget
 .L1:
@@ -22243,97 +22348,97 @@ watchReset:
   addi sp, sp, 4
   ret
 
-; cpu/habit.e16.ts:122 habitMatch(i) at -O1
+; cpu/habit.e16.ts:132 habitMatch(i) at -O1
 ;   i in a0
 ;   k in a1
 habitMatch:
-  ; cpu/habit.e16.ts:123  let k: u16 = 0
+  ; cpu/habit.e16.ts:133  let k: u16 = 0
   li a1, 0 ; k
-  ; cpu/habit.e16.ts:124  while (k < 50) {
+  ; cpu/habit.e16.ts:134  while (k < 50) {
   j .L3
 .L1:
-  ; cpu/habit.e16.ts:125  hab[k] = 0
+  ; cpu/habit.e16.ts:135  hab[k] = 0
   sb zero, hab(a1)
-  ; cpu/habit.e16.ts:126  k++
+  ; cpu/habit.e16.ts:136  k++
   addi a1, a1, 1
 .L3:
   li t0, 50
   bltu a1, t0, .L1
-  ; cpu/habit.e16.ts:128  k = 0
+  ; cpu/habit.e16.ts:138  k = 0
   li a1, 0 ; k
-  ; cpu/habit.e16.ts:129  while (k < 10) {
+  ; cpu/habit.e16.ts:139  while (k < 10) {
   j .L7
 .L5:
-  ; cpu/habit.e16.ts:130  habSeen[k] = 0
+  ; cpu/habit.e16.ts:140  habSeen[k] = 0
   sb zero, habSeen(a1)
-  ; cpu/habit.e16.ts:131  k++
+  ; cpu/habit.e16.ts:141  k++
   addi a1, a1, 1
 .L7:
   li t0, 10
   bltu a1, t0, .L5
-  ; cpu/habit.e16.ts:133  reads[i] = 0
+  ; cpu/habit.e16.ts:143  reads[i] = 0
   slli t0, a0, 1
   sw zero, reads(t0)
-  ; cpu/habit.e16.ts:134  readHits[i] = 0
+  ; cpu/habit.e16.ts:144  readHits[i] = 0
   slli t0, a0, 1
   sw zero, readHits(t0)
-  ; cpu/habit.e16.ts:135  readMiss[i] = 0
+  ; cpu/habit.e16.ts:145  readMiss[i] = 0
   slli t0, a0, 1
   sw zero, readMiss(t0)
-  ; cpu/habit.e16.ts:136  habDue[i] = 0
+  ; cpu/habit.e16.ts:146  habDue[i] = 0
   slli t0, a0, 1
   sw zero, habDue(t0)
-  ; cpu/habit.e16.ts:137  habFired[i] = 0
+  ; cpu/habit.e16.ts:147  habFired[i] = 0
   slli t0, a0, 1
   sw zero, habFired(t0)
-  ; cpu/habit.e16.ts:138  habDrawnN[i] = 0
+  ; cpu/habit.e16.ts:148  habDrawnN[i] = 0
   slli t0, a0, 1
   sw zero, habDrawnN(t0)
-  ; cpu/habit.e16.ts:139  habTarget[i] = 0
+  ; cpu/habit.e16.ts:149  habTarget[i] = 0
   slli t0, a0, 1
   sw zero, habTarget(t0)
-  ; cpu/habit.e16.ts:140  habLast[i] = 0
+  ; cpu/habit.e16.ts:150  habLast[i] = 0
   slli t0, a0, 1
   sw zero, habLast(t0)
 .return:
   ret
 
-; cpu/habit.e16.ts:144 habitLadder() at -O1
+; cpu/habit.e16.ts:154 habitLadder() at -O1
 ;   k in a0
 habitLadder:
-  ; cpu/habit.e16.ts:145  let k: u16 = 50
+  ; cpu/habit.e16.ts:155  let k: u16 = 50
   li a0, 50 ; k
-  ; cpu/habit.e16.ts:146  while (k < 100) {
+  ; cpu/habit.e16.ts:156  while (k < 100) {
   j .L3
 .L1:
-  ; cpu/habit.e16.ts:147  hab[k] = 0
+  ; cpu/habit.e16.ts:157  hab[k] = 0
   sb zero, hab(a0)
-  ; cpu/habit.e16.ts:148  k++
+  ; cpu/habit.e16.ts:158  k++
   addi a0, a0, 1
 .L3:
   li t0, 100
   bltu a0, t0, .L1
-  ; cpu/habit.e16.ts:150  k = 10
+  ; cpu/habit.e16.ts:160  k = 10
   li a0, 10 ; k
-  ; cpu/habit.e16.ts:151  while (k < 20) {
+  ; cpu/habit.e16.ts:161  while (k < 20) {
   j .L7
 .L5:
-  ; cpu/habit.e16.ts:152  habSeen[k] = 0
+  ; cpu/habit.e16.ts:162  habSeen[k] = 0
   sb zero, habSeen(a0)
-  ; cpu/habit.e16.ts:153  k++
+  ; cpu/habit.e16.ts:163  k++
   addi a0, a0, 1
 .L7:
   li t0, 20
   bltu a0, t0, .L5
-  ; cpu/habit.e16.ts:155  k = 0
+  ; cpu/habit.e16.ts:165  k = 0
   li a0, 0 ; k
-  ; cpu/habit.e16.ts:156  while (k < 16) {
+  ; cpu/habit.e16.ts:166  while (k < 16) {
   j .L11
 .L9:
-  ; cpu/habit.e16.ts:157  hist[k] = 0
+  ; cpu/habit.e16.ts:167  hist[k] = 0
   slli t0, a0, 1
   sw zero, hist(t0)
-  ; cpu/habit.e16.ts:158  k++
+  ; cpu/habit.e16.ts:168  k++
   addi a0, a0, 1
 .L11:
   li t0, 16
@@ -22341,42 +22446,42 @@ habitLadder:
 .return:
   ret
 
-; cpu/habit.e16.ts:163 histRange() at -O1
+; cpu/habit.e16.ts:173 histRange() at -O1
 ;   best in a1
 ;   k in a0
 histRange:
-  ; cpu/habit.e16.ts:164  let best: u16 = 4
+  ; cpu/habit.e16.ts:174  let best: u16 = 4
   li a1, 4 ; best
-  ; cpu/habit.e16.ts:165  let k: u16 = 0
+  ; cpu/habit.e16.ts:175  let k: u16 = 0
   li a0, 0 ; k
-  ; cpu/habit.e16.ts:166  while (k < 16) {
+  ; cpu/habit.e16.ts:176  while (k < 16) {
   j .L3
 .L1:
-  ; cpu/habit.e16.ts:167  if (hist[k] > hist[best]) best = k
+  ; cpu/habit.e16.ts:177  if (hist[k] > hist[best]) best = k
   slli t0, a0, 1
   lw t0, hist(t0)
   slli t1, a1, 1
   lw t1, hist(t1)
   bgeu t1, t0, .L5
-  ; cpu/habit.e16.ts:167  best = k
+  ; cpu/habit.e16.ts:177  best = k
   mv a1, a0 ; best
 .L5:
-  ; cpu/habit.e16.ts:168  k++
+  ; cpu/habit.e16.ts:178  k++
   addi a0, a0, 1
 .L3:
   li t0, 16
   bltu a0, t0, .L1
-  ; cpu/habit.e16.ts:170  return best * 16 + 8
+  ; cpu/habit.e16.ts:180  return best * 16 + 8
   slli t0, a1, 4
   addi a0, t0, 8
 .return:
   ret
 
-; cpu/habit.e16.ts:179 pastAt(j, age) at -O1
+; cpu/habit.e16.ts:189 pastAt(j, age) at -O1
 ;   j in a0
 ;   age in a1
 pastAt:
-  ; cpu/habit.e16.ts:180  return j * 32 + ((seenN - age) & 31)
+  ; cpu/habit.e16.ts:190  return j * 32 + ((seenN - age) & 31)
   slli t0, a0, 5
   lw t1, 0x0ea8(zero)
   sub t1, t1, a1
@@ -22385,7 +22490,7 @@ pastAt:
 .return:
   ret
 
-; cpu/habit.e16.ts:183 stateAt(j, age) at -O1
+; cpu/habit.e16.ts:193 stateAt(j, age) at -O1
 ;   j in s1
 ;   age in s2
 stateAt:
@@ -22395,7 +22500,7 @@ stateAt:
   sw s2, 4(sp)
   mv s1, a0 ; j
   mv s2, a1 ; age
-  ; cpu/habit.e16.ts:184  return seenS[pastAt(j, age)] & 255
+  ; cpu/habit.e16.ts:194  return seenS[pastAt(j, age)] & 255
   mv a0, s1
   mv a1, s2
   call pastAt
@@ -22409,7 +22514,7 @@ stateAt:
   addi sp, sp, 6
   ret
 
-; cpu/habit.e16.ts:188 apartPast(age) at -O1
+; cpu/habit.e16.ts:198 apartPast(age) at -O1
 ;   age in s3
 ;   a in s1
 ;   b in s2
@@ -22420,19 +22525,19 @@ apartPast:
   sw s1, 4(sp)
   sw s2, 6(sp)
   mv s3, a0 ; age
-  ; cpu/habit.e16.ts:189  const a = seenX[pastAt(0, age)]
+  ; cpu/habit.e16.ts:199  const a = seenX[pastAt(0, age)]
   li a0, 0
   mv a1, s3
   call pastAt
   slli t0, a0, 1
   lw s1, seenX(t0)
-  ; cpu/habit.e16.ts:190  const b = seenX[pastAt(1, age)]
+  ; cpu/habit.e16.ts:200  const b = seenX[pastAt(1, age)]
   li a0, 1
   mv a1, s3
   call pastAt
   slli t0, a0, 1
   lw s2, seenX(t0)
-  ; cpu/habit.e16.ts:191  return a > b ? a - b : b - a
+  ; cpu/habit.e16.ts:201  return a > b ? a - b : b - a
   bgeu s2, s1, .L1
   sub t0, s1, s2
   j .L2
@@ -22448,7 +22553,7 @@ apartPast:
   addi sp, sp, 8
   ret
 
-; cpu/habit.e16.ts:198 observe(i, j) at -O1
+; cpu/habit.e16.ts:208 observe(i, j) at -O1
 ;   i in s1
 ;   j in s2
 ;   e in 2(fp)
@@ -22465,30 +22570,30 @@ observe:
   mv fp, sp
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/habit.e16.ts:199  const e = pastAt(j, 1)
+  ; cpu/habit.e16.ts:209  const e = pastAt(j, 1)
   mv a0, s2
   li a1, 1
   call pastAt
   sw a0, 2(fp) ; e
-  ; cpu/habit.e16.ts:200  const s1 = seenS[e] & 255
+  ; cpu/habit.e16.ts:210  const s1 = seenS[e] & 255
   lw t0, 2(fp) ; e
   slli t0, t0, 1
   lw t0, seenS(t0)
   andi t0, t0, 255
   sw t0, 0(fp) ; s1
-  ; cpu/habit.e16.ts:201  const s2 = stateAt(j, 2)
+  ; cpu/habit.e16.ts:211  const s2 = stateAt(j, 2)
   mv a0, s2
   li a1, 2
   call stateAt
   sw a0, 4(fp) ; s2
-  ; cpu/habit.e16.ts:202  marks(i, e, s1)
+  ; cpu/habit.e16.ts:212  marks(i, e, s1)
   mv a0, s1
   lw a1, 2(fp)
   lw a2, 0(fp)
   call marks
-  ; cpu/habit.e16.ts:203  where()
+  ; cpu/habit.e16.ts:213  where()
   call where
-  ; cpu/habit.e16.ts:204  if (watchSit[i] === NONE && !watchStart(i, j, s1, s2)) return
+  ; cpu/habit.e16.ts:214  if (watchSit[i] === NONE && !watchStart(i, j, s1, s2)) return
   slli t0, s1, 1
   lw t0, watchSit(t0)
   li t1, 255
@@ -22499,51 +22604,51 @@ observe:
   lw a3, 4(fp)
   call watchStart
   bnez a0, .L1
-  ; cpu/habit.e16.ts:204  return
+  ; cpu/habit.e16.ts:214  return
   j .return
 .L1:
-  ; cpu/habit.e16.ts:205  watchT[i]++
+  ; cpu/habit.e16.ts:215  watchT[i]++
   slli t0, s1, 1
   addi t0, t0, watchT
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/habit.e16.ts:206  let did = didOf(i, j, s1, s2)
+  ; cpu/habit.e16.ts:216  let did = didOf(i, j, s1, s2)
   mv a0, s1
   mv a1, s2
   lw a2, 0(fp)
   lw a3, 4(fp)
   call didOf
   mv s3, a0 ; did
-  ; cpu/habit.e16.ts:207  if (did === NONE && watchT[i] >= WATCH_F) did = DID_WAIT
+  ; cpu/habit.e16.ts:217  if (did === NONE && watchT[i] >= WATCH_F) did = DID_WAIT
   li t0, 255
   bne s3, t0, .L2
   slli t0, s1, 1
   lw t0, watchT(t0)
   li t1, 40
   bltu t0, t1, .L2
-  ; cpu/habit.e16.ts:207  did = DID_WAIT
+  ; cpu/habit.e16.ts:217  did = DID_WAIT
   li s3, 4 ; did
 .L2:
-  ; cpu/habit.e16.ts:208  if (did === NONE) return
+  ; cpu/habit.e16.ts:218  if (did === NONE) return
   li t0, 255
   bne s3, t0, .L3
-  ; cpu/habit.e16.ts:208  return
+  ; cpu/habit.e16.ts:218  return
   j .return
 .L3:
-  ; cpu/habit.e16.ts:209  tally(j, watchSit[i], did)
+  ; cpu/habit.e16.ts:219  tally(j, watchSit[i], did)
   slli t0, s1, 1
   lw t0, watchSit(t0)
   mv a0, s2
   mv a1, t0
   mv a2, s3
   call tally
-  ; cpu/habit.e16.ts:210  readCheck(i, did)
+  ; cpu/habit.e16.ts:220  readCheck(i, did)
   mv a0, s1
   mv a1, s3
   call readCheck
-  ; cpu/habit.e16.ts:211  if (watchSit[i] === HS_MIDDLE || watchSit[i] === HS_LOW) rest[i] = REST_F
+  ; cpu/habit.e16.ts:221  if (watchSit[i] === HS_MIDDLE || watchSit[i] === HS_LOW) rest[i] = REST_F
   slli t0, s1, 1
   lw t0, watchSit(t0)
   li t1, 2
@@ -22553,12 +22658,12 @@ observe:
   li t1, 4
   bne t0, t1, .L4
 .L5:
-  ; cpu/habit.e16.ts:211  rest[i] = REST_F
+  ; cpu/habit.e16.ts:221  rest[i] = REST_F
   slli t0, s1, 1
   li t1, 40
   sw t1, rest(t0)
 .L4:
-  ; cpu/habit.e16.ts:212  watchSit[i] = NONE
+  ; cpu/habit.e16.ts:222  watchSit[i] = NONE
   slli t0, s1, 1
   li t1, 255
   sw t1, watchSit(t0)
@@ -22572,34 +22677,34 @@ observe:
   addi sp, sp, 16
   ret
 
-; cpu/habit.e16.ts:219 marks(i, e, s1) at -O1
+; cpu/habit.e16.ts:229 marks(i, e, s1) at -O1
 ;   i in a0
 ;   e in a1
 ;   s1 in a2
 marks:
-  ; cpu/habit.e16.ts:220  if (seenF[e] >> 8 === 2) wasGuarded[i] = 1
+  ; cpu/habit.e16.ts:230  if (seenF[e] >> 8 === 2) wasGuarded[i] = 1
   slli t0, a1, 1
   lw t0, seenF(t0)
   srli t0, t0, 8
   li t1, 2
   bne t0, t1, .L1
-  ; cpu/habit.e16.ts:220  wasGuarded[i] = 1
+  ; cpu/habit.e16.ts:230  wasGuarded[i] = 1
   slli t0, a0, 1
   li t1, 1
   sw t1, wasGuarded(t0)
 .L1:
-  ; cpu/habit.e16.ts:221  if (s1 === ST_ATTACK && seenY[e] > 0) airStruck[i] = 1
+  ; cpu/habit.e16.ts:231  if (s1 === ST_ATTACK && seenY[e] > 0) airStruck[i] = 1
   li t0, 5
   bne a2, t0, .L2
   slli t0, a1, 1
   lw t0, seenY(t0)
   bgeu zero, t0, .L2
-  ; cpu/habit.e16.ts:221  airStruck[i] = 1
+  ; cpu/habit.e16.ts:231  airStruck[i] = 1
   slli t0, a0, 1
   li t1, 1
   sw t1, airStruck(t0)
 .L2:
-  ; cpu/habit.e16.ts:222  if (s1 !== ST_ATTACK && s1 !== ST_LAND && seenY[e] === 0) airStruck[i] = 0
+  ; cpu/habit.e16.ts:232  if (s1 !== ST_ATTACK && s1 !== ST_LAND && seenY[e] === 0) airStruck[i] = 0
   li t0, 5
   beq a2, t0, .L3
   li t0, 4
@@ -22607,11 +22712,11 @@ marks:
   slli t0, a1, 1
   lw t0, seenY(t0)
   bne t0, zero, .L3
-  ; cpu/habit.e16.ts:222  airStruck[i] = 0
+  ; cpu/habit.e16.ts:232  airStruck[i] = 0
   slli t0, a0, 1
   sw zero, airStruck(t0)
 .L3:
-  ; cpu/habit.e16.ts:223  if (s1 === ST_DOWN && watchSit[i] !== NONE && watchSit[i] !== HS_WAKE) {
+  ; cpu/habit.e16.ts:233  if (s1 === ST_DOWN && watchSit[i] !== NONE && watchSit[i] !== HS_WAKE) {
   li t0, 8
   bne a2, t0, .L4
   slli t0, a0, 1
@@ -22622,18 +22727,18 @@ marks:
   lw t0, watchSit(t0)
   li t1, 1
   beq t0, t1, .L4
-  ; cpu/habit.e16.ts:224  watchSit[i] = NONE
+  ; cpu/habit.e16.ts:234  watchSit[i] = NONE
   slli t0, a0, 1
   li t1, 255
   sw t1, watchSit(t0)
-  ; cpu/habit.e16.ts:225  readOn[i] = 0
+  ; cpu/habit.e16.ts:235  readOn[i] = 0
   slli t0, a0, 1
   sw zero, readOn(t0)
 .L4:
 .return:
   ret
 
-; cpu/habit.e16.ts:230 watchStart(i, j, s1, s2) at -O1
+; cpu/habit.e16.ts:240 watchStart(i, j, s1, s2) at -O1
 ;   i in s1
 ;   j in s3
 ;   s1 in 0(fp)
@@ -22651,11 +22756,11 @@ watchStart:
   mv s3, a1 ; j
   sw a2, 0(fp) ; s1
   sw a3, 2(fp) ; s2
-  ; cpu/habit.e16.ts:231  if (rest[i] > 0) rest[i]--
+  ; cpu/habit.e16.ts:241  if (rest[i] > 0) rest[i]--
   slli t0, s1, 1
   lw t0, rest(t0)
   bgeu zero, t0, .L1
-  ; cpu/habit.e16.ts:231  rest[i]--
+  ; cpu/habit.e16.ts:241  rest[i]--
   slli t0, s1, 1
   addi t0, t0, rest
   mv t1, t0
@@ -22663,35 +22768,35 @@ watchStart:
   addi t1, t1, -1
   sw t1, 0(t0)
 .L1:
-  ; cpu/habit.e16.ts:232  const sit = startOf(i, j, s1, s2)
+  ; cpu/habit.e16.ts:242  const sit = startOf(i, j, s1, s2)
   mv a0, s1
   mv a1, s3
   lw a2, 0(fp)
   lw a3, 2(fp)
   call startOf
   mv s2, a0 ; sit
-  ; cpu/habit.e16.ts:233  if (sit === NONE) return false
+  ; cpu/habit.e16.ts:243  if (sit === NONE) return false
   li t0, 255
   bne s2, t0, .L2
-  ; cpu/habit.e16.ts:233  return false
+  ; cpu/habit.e16.ts:243  return false
   li a0, 0
   j .return
 .L2:
-  ; cpu/habit.e16.ts:234  watchSit[i] = sit
+  ; cpu/habit.e16.ts:244  watchSit[i] = sit
   slli t0, s1, 1
   sw s2, watchSit(t0)
-  ; cpu/habit.e16.ts:235  watchT[i] = 0
+  ; cpu/habit.e16.ts:245  watchT[i] = 0
   slli t0, s1, 1
   sw zero, watchT(t0)
-  ; cpu/habit.e16.ts:236  backT[i] = 0
+  ; cpu/habit.e16.ts:246  backT[i] = 0
   slli t0, s1, 1
   sw zero, backT(t0)
-  ; cpu/habit.e16.ts:237  readTry(i, j, sit)
+  ; cpu/habit.e16.ts:247  readTry(i, j, sit)
   mv a0, s1
   mv a1, s3
   mv a2, s2
   call readTry
-  ; cpu/habit.e16.ts:238  return true
+  ; cpu/habit.e16.ts:248  return true
   li a0, 1
 .return:
   mv sp, fp
@@ -22703,31 +22808,31 @@ watchStart:
   addi sp, sp, 14
   ret
 
-; cpu/habit.e16.ts:242 where() at -O1
+; cpu/habit.e16.ts:252 where() at -O1
 ;   d in s1
 where:
   addi sp, sp, -4
   sw ra, 0(sp)
   sw s1, 2(sp)
-  ; cpu/habit.e16.ts:243  if ((seenN & 7) !== 0) return
+  ; cpu/habit.e16.ts:253  if ((seenN & 7) !== 0) return
   lw t0, 0x0ea8(zero)
   andi t0, t0, 7
   beq t0, zero, .L1
-  ; cpu/habit.e16.ts:243  return
+  ; cpu/habit.e16.ts:253  return
   j .return
 .L1:
-  ; cpu/habit.e16.ts:244  const d = apartPast(1) >> 4
+  ; cpu/habit.e16.ts:254  const d = apartPast(1) >> 4
   li a0, 1
   call apartPast
   srli s1, a0, 4
-  ; cpu/habit.e16.ts:245  if (d < 16 && hist[d] < 0xfff0) hist[d]++
+  ; cpu/habit.e16.ts:255  if (d < 16 && hist[d] < 0xfff0) hist[d]++
   li t0, 16
   bgeu s1, t0, .L2
   slli t0, s1, 1
   lw t0, hist(t0)
   li t1, 65520
   bgeu t0, t1, .L2
-  ; cpu/habit.e16.ts:245  hist[d]++
+  ; cpu/habit.e16.ts:255  hist[d]++
   slli t0, s1, 1
   addi t0, t0, hist
   mv t1, t0
@@ -22741,7 +22846,7 @@ where:
   addi sp, sp, 4
   ret
 
-; cpu/habit.e16.ts:249 startOf(i, j, s1, s2) at -O1
+; cpu/habit.e16.ts:259 startOf(i, j, s1, s2) at -O1
 ;   i in s1
 ;   j in s3
 ;   s1 in s2
@@ -22760,17 +22865,17 @@ startOf:
   mv s3, a1 ; j
   mv s2, a2 ; s1
   sw a3, 0(fp) ; s2
-  ; cpu/habit.e16.ts:250  if (s1 === ST_WAKE && s2 === ST_DOWN) return HS_WAKE
+  ; cpu/habit.e16.ts:260  if (s1 === ST_WAKE && s2 === ST_DOWN) return HS_WAKE
   li t0, 9
   bne s2, t0, .L1
   li t0, 8
   lw t1, 0(fp) ; s2
   bne t1, t0, .L1
-  ; cpu/habit.e16.ts:250  return HS_WAKE
+  ; cpu/habit.e16.ts:260  return HS_WAKE
   li a0, 1
   j .return
 .L1:
-  ; cpu/habit.e16.ts:251  const freed = s1 === ST_STAND || s1 === ST_CROUCH
+  ; cpu/habit.e16.ts:261  const freed = s1 === ST_STAND || s1 === ST_CROUCH
   sub t0, s2, zero
   seqz t0, t0
   mv t1, t0
@@ -22780,20 +22885,20 @@ startOf:
   seqz t0, t0
 .L2:
   sw t0, 2(fp) ; freed
-  ; cpu/habit.e16.ts:252  if (wasGuarded[i] !== 0 && freed) {
+  ; cpu/habit.e16.ts:262  if (wasGuarded[i] !== 0 && freed) {
   slli t0, s1, 1
   lw t0, wasGuarded(t0)
   beq t0, zero, .L3
   lw t0, 2(fp) ; freed
   beqz t0, .L3
-  ; cpu/habit.e16.ts:253  wasGuarded[i] = 0
+  ; cpu/habit.e16.ts:263  wasGuarded[i] = 0
   slli t0, s1, 1
   sw zero, wasGuarded(t0)
-  ; cpu/habit.e16.ts:254  return HS_GUARDED
+  ; cpu/habit.e16.ts:264  return HS_GUARDED
   li a0, 0
   j .return
 .L3:
-  ; cpu/habit.e16.ts:256  if (s1 === ST_LAND && s2 !== ST_LAND && airStruck[i] !== 0) {
+  ; cpu/habit.e16.ts:266  if (s1 === ST_LAND && s2 !== ST_LAND && airStruck[i] !== 0) {
   li t0, 4
   bne s2, t0, .L4
   li t0, 4
@@ -22802,29 +22907,29 @@ startOf:
   slli t0, s1, 1
   lw t0, airStruck(t0)
   beq t0, zero, .L4
-  ; cpu/habit.e16.ts:257  airStruck[i] = 0
+  ; cpu/habit.e16.ts:267  airStruck[i] = 0
   slli t0, s1, 1
   sw zero, airStruck(t0)
-  ; cpu/habit.e16.ts:258  return HS_LANDED
+  ; cpu/habit.e16.ts:268  return HS_LANDED
   li a0, 3
   j .return
 .L4:
-  ; cpu/habit.e16.ts:260  if (!freed || rest[i] > 0) return NONE
+  ; cpu/habit.e16.ts:270  if (!freed || rest[i] > 0) return NONE
   lw t0, 2(fp) ; freed
   beqz t0, .L6
   slli t0, s1, 1
   lw t0, rest(t0)
   bgeu zero, t0, .L5
 .L6:
-  ; cpu/habit.e16.ts:260  return NONE
+  ; cpu/habit.e16.ts:270  return NONE
   li a0, 255
   j .return
 .L5:
-  ; cpu/habit.e16.ts:261  const d = apartPast(1)
+  ; cpu/habit.e16.ts:271  const d = apartPast(1)
   li a0, 1
   call apartPast
   sw a0, 4(fp) ; d
-  ; cpu/habit.e16.ts:262  if (d < 50 || d > 150) return NONE
+  ; cpu/habit.e16.ts:272  if (d < 50 || d > 150) return NONE
   li t0, 50
   lw t1, 4(fp) ; d
   bltu t1, t0, .L8
@@ -22832,11 +22937,11 @@ startOf:
   lw t1, 4(fp) ; d
   bgeu t0, t1, .L7
 .L8:
-  ; cpu/habit.e16.ts:262  return NONE
+  ; cpu/habit.e16.ts:272  return NONE
   li a0, 255
   j .return
 .L7:
-  ; cpu/habit.e16.ts:263  return fLife[j] * 4 < prAt(j, P_LIFE) ? HS_LOW : HS_MIDDLE
+  ; cpu/habit.e16.ts:273  return fLife[j] * 4 < prAt(j, P_LIFE) ? HS_LOW : HS_MIDDLE
   slli t0, s3, 1
   lw t0, fLife(t0)
   slli t0, t0, 2
@@ -22864,7 +22969,7 @@ startOf:
   addi sp, sp, 16
   ret
 
-; cpu/habit.e16.ts:267 didOf(i, j, s1, s2) at -O1
+; cpu/habit.e16.ts:277 didOf(i, j, s1, s2) at -O1
 ;   i in s2
 ;   j in s3
 ;   s1 in s1
@@ -22880,22 +22985,22 @@ didOf:
   mv s3, a1 ; j
   mv s1, a2 ; s1
   mv s0, a3 ; s2
-  ; cpu/habit.e16.ts:268  if (s1 === ST_WAKE || s1 === ST_DOWN) return NONE
+  ; cpu/habit.e16.ts:278  if (s1 === ST_WAKE || s1 === ST_DOWN) return NONE
   li t0, 9
   beq s1, t0, .L2
   li t0, 8
   bne s1, t0, .L1
 .L2:
-  ; cpu/habit.e16.ts:268  return NONE
+  ; cpu/habit.e16.ts:278  return NONE
   li a0, 255
   j .return
 .L1:
-  ; cpu/habit.e16.ts:269  if (s1 === ST_ATTACK && s2 !== ST_ATTACK) {
+  ; cpu/habit.e16.ts:279  if (s1 === ST_ATTACK && s2 !== ST_ATTACK) {
   li t0, 5
   bne s1, t0, .L3
   li t0, 5
   beq s0, t0, .L3
-  ; cpu/habit.e16.ts:270  return seenS[pastAt(j, 1)] >> 8 === MV_THROW ? DID_THROW : DID_STRIKE
+  ; cpu/habit.e16.ts:280  return seenS[pastAt(j, 1)] >> 8 === MV_THROW ? DID_THROW : DID_STRIKE
   mv a0, s3
   li a1, 1
   call pastAt
@@ -22912,21 +23017,21 @@ didOf:
   mv a0, t0
   j .return
 .L3:
-  ; cpu/habit.e16.ts:272  if (s1 === ST_PREJUMP) return DID_JUMP
+  ; cpu/habit.e16.ts:282  if (s1 === ST_PREJUMP) return DID_JUMP
   li t0, 2
   bne s1, t0, .L6
-  ; cpu/habit.e16.ts:272  return DID_JUMP
+  ; cpu/habit.e16.ts:282  return DID_JUMP
   li a0, 2
   j .return
 .L6:
-  ; cpu/habit.e16.ts:273  if (s1 === ST_BACKDASH) return DID_BACK
+  ; cpu/habit.e16.ts:283  if (s1 === ST_BACKDASH) return DID_BACK
   li t0, 14
   bne s1, t0, .L7
-  ; cpu/habit.e16.ts:273  return DID_BACK
+  ; cpu/habit.e16.ts:283  return DID_BACK
   li a0, 3
   j .return
 .L7:
-  ; cpu/habit.e16.ts:274  if (s1 === ST_STAND && apartPast(1) > apartPast(2)) backT[i]++
+  ; cpu/habit.e16.ts:284  if (s1 === ST_STAND && apartPast(1) > apartPast(2)) backT[i]++
   bne s1, zero, .L8
   li a0, 1
   call apartPast
@@ -22937,7 +23042,7 @@ didOf:
   lw t0, 0(sp)
   addi sp, sp, 2
   bgeu a0, t0, .L8
-  ; cpu/habit.e16.ts:274  backT[i]++
+  ; cpu/habit.e16.ts:284  backT[i]++
   slli t0, s2, 1
   addi t0, t0, backT
   mv t1, t0
@@ -22946,11 +23051,11 @@ didOf:
   sw t1, 0(t0)
   j .L9
 .L8:
-  ; cpu/habit.e16.ts:275  backT[i] = 0
+  ; cpu/habit.e16.ts:285  backT[i] = 0
   slli t0, s2, 1
   sw zero, backT(t0)
 .L9:
-  ; cpu/habit.e16.ts:276  return backT[i] >= BACK_F ? DID_BACK : NONE
+  ; cpu/habit.e16.ts:286  return backT[i] >= BACK_F ? DID_BACK : NONE
   slli t0, s2, 1
   lw t0, backT(t0)
   li t1, 6
@@ -22970,7 +23075,7 @@ didOf:
   addi sp, sp, 10
   ret
 
-; cpu/habit.e16.ts:280 tally(j, sit, did) at -O1
+; cpu/habit.e16.ts:290 tally(j, sit, did) at -O1
 ;   j in 0(fp)
 ;   sit in 2(fp)
 ;   did in 4(fp)
@@ -22989,12 +23094,12 @@ tally:
   sw a0, 0(fp) ; j
   sw a1, 2(fp) ; sit
   sw a2, 4(fp) ; did
-  ; cpu/habit.e16.ts:281  let r: u16 = 0
+  ; cpu/habit.e16.ts:291  let r: u16 = 0
   li s1, 0 ; r
-  ; cpu/habit.e16.ts:282  while (r < 2) {
+  ; cpu/habit.e16.ts:292  while (r < 2) {
   j .L3
 .L1:
-  ; cpu/habit.e16.ts:283  const base = r * 50 + j * 25 + sit * 5
+  ; cpu/habit.e16.ts:293  const base = r * 50 + j * 25 + sit * 5
   li t0, 50
   mul t0, s1, t0
   li t1, 25
@@ -23005,13 +23110,13 @@ tally:
   slli t2, t1, 2
   add t1, t2, t1
   add s2, t0, t1
-  ; cpu/habit.e16.ts:284  const v = hab[base + did] + STEP
+  ; cpu/habit.e16.ts:294  const v = hab[base + did] + STEP
   lw t0, 4(fp) ; did
   add t0, s2, t0
   lbu t0, hab(t0)
   addi t0, t0, 16
   sw t0, 6(fp) ; v
-  ; cpu/habit.e16.ts:285  hab[base + did] = v > MOST ? MOST : v
+  ; cpu/habit.e16.ts:295  hab[base + did] = v > MOST ? MOST : v
   lw t0, 4(fp) ; did
   add t0, s2, t0
   addi t0, t0, hab
@@ -23024,7 +23129,7 @@ tally:
   lw t1, 6(fp)
 .L6:
   sb t1, 0(t0)
-  ; cpu/habit.e16.ts:286  const n = r * 10 + j * 5 + sit
+  ; cpu/habit.e16.ts:296  const n = r * 10 + j * 5 + sit
   slli t1, s1, 3
   slli t0, s1, 1
   add t0, t0, t1
@@ -23034,19 +23139,19 @@ tally:
   add t0, t0, t1
   lw t1, 2(fp) ; sit
   add s3, t0, t1
-  ; cpu/habit.e16.ts:287  habSeen[n] = habSeen[n] + 1
+  ; cpu/habit.e16.ts:297  habSeen[n] = habSeen[n] + 1
   lbu t0, habSeen(s3)
   addi t0, t0, 1
   sb t0, habSeen(s3)
-  ; cpu/habit.e16.ts:288  if ((habSeen[n] & 15) === 0) halve(base)
+  ; cpu/habit.e16.ts:298  if ((habSeen[n] & 15) === 0) halve(base)
   lbu t0, habSeen(s3)
   andi t0, t0, 15
   bne t0, zero, .L7
-  ; cpu/habit.e16.ts:288  halve(base)
+  ; cpu/habit.e16.ts:298  halve(base)
   mv a0, s2
   call halve
 .L7:
-  ; cpu/habit.e16.ts:289  r++
+  ; cpu/habit.e16.ts:299  r++
   addi s1, s1, 1
 .L3:
   li t0, 2
@@ -23061,22 +23166,22 @@ tally:
   addi sp, sp, 18
   ret
 
-; cpu/habit.e16.ts:293 halve(base) at -O1
+; cpu/habit.e16.ts:303 halve(base) at -O1
 ;   base in a0
 ;   k in a1
 halve:
-  ; cpu/habit.e16.ts:294  let k: u16 = 0
+  ; cpu/habit.e16.ts:304  let k: u16 = 0
   li a1, 0 ; k
-  ; cpu/habit.e16.ts:295  while (k < 5) {
+  ; cpu/habit.e16.ts:305  while (k < 5) {
   j .L3
 .L1:
-  ; cpu/habit.e16.ts:296  hab[base + k] = hab[base + k] >> 1
+  ; cpu/habit.e16.ts:306  hab[base + k] = hab[base + k] >> 1
   add t0, a0, a1
   add t1, a0, a1
   lbu t1, hab(t1)
   srli t1, t1, 1
   sb t1, hab(t0)
-  ; cpu/habit.e16.ts:297  k++
+  ; cpu/habit.e16.ts:307  k++
   addi a1, a1, 1
 .L3:
   li t0, 5
@@ -23084,7 +23189,7 @@ halve:
 .return:
   ret
 
-; cpu/habit.e16.ts:307 readTry(i, j, sit) at -O1
+; cpu/habit.e16.ts:317 readTry(i, j, sit) at -O1
 ;   i in s1
 ;   j in 4(fp)
 ;   sit in 6(fp)
@@ -23103,28 +23208,24 @@ readTry:
   mv s1, a0 ; i
   sw a1, 4(fp) ; j
   sw a2, 6(fp) ; sit
-  ; cpu/habit.e16.ts:308  if (randBelow(256) >= row(i, O_READ)) return
+  ; cpu/habit.e16.ts:318  if (randBelow(256) >= oppAt(i, O_READ)) return
   li a0, 256
   call randBelow
   addi sp, sp, -2
   sw a0, 0(sp)
   mv a0, s1
   li a1, 11
-  la t0, row
-  li t1, 258
-  call far_call
+  call oppAt
   lw t0, 0(sp)
   addi sp, sp, 2
   bltu t0, a0, .L1
-  ; cpu/habit.e16.ts:308  return
+  ; cpu/habit.e16.ts:318  return
   j .return
 .L1:
-  ; cpu/habit.e16.ts:309  const base = ((row(i, O_FLAGS) & OF_KEEP) !== 0 ? 50 : 0) + j * 25 + sit * 5
+  ; cpu/habit.e16.ts:319  const base = ((oppAt(i, O_FLAGS) & OF_KEEP) !== 0 ? 50 : 0) + j * 25 + sit * 5
   mv a0, s1
   li a1, 24
-  la t0, row
-  li t1, 258
-  call far_call
+  call oppAt
   andi t0, a0, 32
   beq t0, zero, .L2
   li t0, 50
@@ -23141,23 +23242,23 @@ readTry:
   add t1, t2, t1
   add t0, t0, t1
   sw t0, 0(fp) ; base
-  ; cpu/habit.e16.ts:310  let best: u16 = 0
+  ; cpu/habit.e16.ts:320  let best: u16 = 0
   li s3, 0 ; best
-  ; cpu/habit.e16.ts:311  let sum: u16 = 0
+  ; cpu/habit.e16.ts:321  let sum: u16 = 0
   sw zero, 2(fp) ; sum
-  ; cpu/habit.e16.ts:312  let k: u16 = 0
+  ; cpu/habit.e16.ts:322  let k: u16 = 0
   li s2, 0 ; k
-  ; cpu/habit.e16.ts:313  while (k < 5) {
+  ; cpu/habit.e16.ts:323  while (k < 5) {
   j .L6
 .L4:
-  ; cpu/habit.e16.ts:314  sum = sum + hab[base + k]
+  ; cpu/habit.e16.ts:324  sum = sum + hab[base + k]
   lw t0, 0(fp) ; base
   add t0, t0, s2
   lbu t0, hab(t0)
   lw t1, 2(fp) ; sum
   add t1, t1, t0
   sw t1, 2(fp) ; sum
-  ; cpu/habit.e16.ts:315  if (hab[base + k] > hab[base + best]) best = k
+  ; cpu/habit.e16.ts:325  if (hab[base + k] > hab[base + best]) best = k
   lw t0, 0(fp) ; base
   add t0, t0, s2
   lbu t0, hab(t0)
@@ -23165,15 +23266,15 @@ readTry:
   add t1, t1, s3
   lbu t1, hab(t1)
   bgeu t1, t0, .L8
-  ; cpu/habit.e16.ts:315  best = k
+  ; cpu/habit.e16.ts:325  best = k
   mv s3, s2 ; best
 .L8:
-  ; cpu/habit.e16.ts:316  k++
+  ; cpu/habit.e16.ts:326  k++
   addi s2, s2, 1
 .L6:
   li t0, 5
   bltu s2, t0, .L4
-  ; cpu/habit.e16.ts:318  if (sum < KNOWN || hab[base + best] * 2 <= sum) return
+  ; cpu/habit.e16.ts:328  if (sum < KNOWN || hab[base + best] * 2 <= sum) return
   li t0, 32
   lw t1, 2(fp) ; sum
   bltu t1, t0, .L10
@@ -23184,24 +23285,24 @@ readTry:
   lw t1, 2(fp) ; sum
   bltu t1, t0, .L9
 .L10:
-  ; cpu/habit.e16.ts:318  return
+  ; cpu/habit.e16.ts:328  return
   j .return
 .L9:
-  ; cpu/habit.e16.ts:319  reads[i]++
+  ; cpu/habit.e16.ts:329  reads[i]++
   slli t0, s1, 1
   addi t0, t0, reads
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/habit.e16.ts:320  readOn[i] = 1
+  ; cpu/habit.e16.ts:330  readOn[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, readOn(t0)
-  ; cpu/habit.e16.ts:321  readPred[i] = best
+  ; cpu/habit.e16.ts:331  readPred[i] = best
   slli t0, s1, 1
   sw s3, readPred(t0)
-  ; cpu/habit.e16.ts:322  answer(i, best)
+  ; cpu/habit.e16.ts:332  answer(i, best)
   mv a0, s1
   mv a1, s3
   call answer
@@ -23215,7 +23316,7 @@ readTry:
   addi sp, sp, 18
   ret
 
-; cpu/habit.e16.ts:326 answer(i, did) at -O1
+; cpu/habit.e16.ts:336 answer(i, did) at -O1
 ;   i in s1
 ;   did in s2
 answer:
@@ -23225,12 +23326,12 @@ answer:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; did
-  ; cpu/habit.e16.ts:327  patNo[i] = 0
+  ; cpu/habit.e16.ts:337  patNo[i] = 0
   slli t0, s1, 1
   sw zero, patNo(t0)
-  ; cpu/habit.e16.ts:328  if (did === DID_STRIKE) planSet(i, A_GUARD, 30)
+  ; cpu/habit.e16.ts:338  if (did === DID_STRIKE) planSet(i, A_GUARD, 30)
   bne s2, zero, .L1
-  ; cpu/habit.e16.ts:328  planSet(i, A_GUARD, 30)
+  ; cpu/habit.e16.ts:338  planSet(i, A_GUARD, 30)
   mv a0, s1
   li a1, 7
   li a2, 30
@@ -23239,10 +23340,10 @@ answer:
   call far_call
   j .L2
 .L1:
-  ; cpu/habit.e16.ts:329  if (did === DID_THROW) planSet(i, A_LIGHT, 30)
+  ; cpu/habit.e16.ts:339  if (did === DID_THROW) planSet(i, A_LIGHT, 30)
   li t0, 1
   bne s2, t0, .L3
-  ; cpu/habit.e16.ts:329  planSet(i, A_LIGHT, 30)
+  ; cpu/habit.e16.ts:339  planSet(i, A_LIGHT, 30)
   mv a0, s1
   li a1, 0
   li a2, 30
@@ -23251,10 +23352,10 @@ answer:
   call far_call
   j .L4
 .L3:
-  ; cpu/habit.e16.ts:330  if (did === DID_JUMP) planSet(i, A_AA, 40)
+  ; cpu/habit.e16.ts:340  if (did === DID_JUMP) planSet(i, A_AA, 40)
   li t0, 2
   bne s2, t0, .L5
-  ; cpu/habit.e16.ts:330  planSet(i, A_AA, 40)
+  ; cpu/habit.e16.ts:340  planSet(i, A_AA, 40)
   mv a0, s1
   li a1, 10
   li a2, 40
@@ -23263,10 +23364,10 @@ answer:
   call far_call
   j .L6
 .L5:
-  ; cpu/habit.e16.ts:331  if (did === DID_BACK) planSet(i, A_APPROACH, 30)
+  ; cpu/habit.e16.ts:341  if (did === DID_BACK) planSet(i, A_APPROACH, 30)
   li t0, 3
   bne s2, t0, .L7
-  ; cpu/habit.e16.ts:331  planSet(i, A_APPROACH, 30)
+  ; cpu/habit.e16.ts:341  planSet(i, A_APPROACH, 30)
   mv a0, s1
   li a1, 6
   li a2, 30
@@ -23275,7 +23376,7 @@ answer:
   call far_call
   j .L8
 .L7:
-  ; cpu/habit.e16.ts:332  planSet(i, A_THROW, 30)
+  ; cpu/habit.e16.ts:342  planSet(i, A_THROW, 30)
   mv a0, s1
   li a1, 5
   li a2, 30
@@ -23293,7 +23394,7 @@ answer:
   addi sp, sp, 6
   ret
 
-; cpu/habit.e16.ts:336 readCheck(i, did) at -O1
+; cpu/habit.e16.ts:346 readCheck(i, did) at -O1
 ;   i in s1
 ;   did in s2
 readCheck:
@@ -23303,35 +23404,35 @@ readCheck:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; did
-  ; cpu/habit.e16.ts:337  if (readOn[i] === 0) return
+  ; cpu/habit.e16.ts:347  if (readOn[i] === 0) return
   slli t0, s1, 1
   lw t0, readOn(t0)
   bne t0, zero, .L1
-  ; cpu/habit.e16.ts:337  return
+  ; cpu/habit.e16.ts:347  return
   j .return
 .L1:
-  ; cpu/habit.e16.ts:338  readOn[i] = 0
+  ; cpu/habit.e16.ts:348  readOn[i] = 0
   slli t0, s1, 1
   sw zero, readOn(t0)
-  ; cpu/habit.e16.ts:339  if (did === readPred[i]) {
+  ; cpu/habit.e16.ts:349  if (did === readPred[i]) {
   slli t0, s1, 1
   lw t0, readPred(t0)
   bne s2, t0, .L2
-  ; cpu/habit.e16.ts:340  readHits[i]++
+  ; cpu/habit.e16.ts:350  readHits[i]++
   slli t0, s1, 1
   addi t0, t0, readHits
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/habit.e16.ts:341  logPost(LOG_READ, i, 0)
+  ; cpu/habit.e16.ts:351  logPost(LOG_READ, i, 0)
   li a0, 5
   mv a1, s1
   li a2, 0
   call logPost
   j .L3
 .L2:
-  ; cpu/habit.e16.ts:342  readMiss[i]++
+  ; cpu/habit.e16.ts:352  readMiss[i]++
   slli t0, s1, 1
   addi t0, t0, readMiss
   mv t1, t0
@@ -23346,7 +23447,7 @@ readCheck:
   addi sp, sp, 6
   ret
 
-; cpu/habit.e16.ts:351 habitStep(i, j) at -O1
+; cpu/habit.e16.ts:361 habitStep(i, j) at -O1
 ;   i in s1
 ;   j in s2
 habitStep:
@@ -23356,88 +23457,82 @@ habitStep:
   sw s2, 4(sp)
   mv s1, a0 ; i
   mv s2, a1 ; j
-  ; cpu/habit.e16.ts:352  if (row(i, O_PATTERN) === 0) return
+  ; cpu/habit.e16.ts:362  if (oppAt(i, O_PATTERN) === 0) return
   mv a0, s1
   li a1, 18
-  la t0, row
-  li t1, 258
-  call far_call
+  call oppAt
   bne a0, zero, .L1
-  ; cpu/habit.e16.ts:352  return
+  ; cpu/habit.e16.ts:362  return
   j .return
 .L1:
-  ; cpu/habit.e16.ts:353  if (!triggered(i, j, row(i, O_EVENT))) return
+  ; cpu/habit.e16.ts:363  if (!triggered(i, j, oppAt(i, O_EVENT))) return
   mv a0, s1
   li a1, 22
-  la t0, row
-  li t1, 258
-  call far_call
+  call oppAt
   mv a1, s2
   mv a2, a0
   mv a0, s1
   call triggered
   bnez a0, .L2
-  ; cpu/habit.e16.ts:353  return
+  ; cpu/habit.e16.ts:363  return
   j .return
 .L2:
-  ; cpu/habit.e16.ts:354  habCount[i]++
+  ; cpu/habit.e16.ts:364  habCount[i]++
   slli t0, s1, 1
   addi t0, t0, habCount
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/habit.e16.ts:355  if (habCount[i] < habTarget[i]) return
+  ; cpu/habit.e16.ts:365  if (habCount[i] < habTarget[i]) return
   slli t0, s1, 1
   lw t0, habCount(t0)
   slli t1, s1, 1
   lw t1, habTarget(t1)
   bgeu t0, t1, .L3
-  ; cpu/habit.e16.ts:355  return
+  ; cpu/habit.e16.ts:365  return
   j .return
 .L3:
-  ; cpu/habit.e16.ts:356  habCount[i] = 0
+  ; cpu/habit.e16.ts:366  habCount[i] = 0
   slli t0, s1, 1
   sw zero, habCount(t0)
-  ; cpu/habit.e16.ts:357  habDue[i]++
+  ; cpu/habit.e16.ts:367  habDue[i]++
   slli t0, s1, 1
   addi t0, t0, habDue
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/habit.e16.ts:358  patGap[i] = habTarget[i]
+  ; cpu/habit.e16.ts:368  patGap[i] = habTarget[i]
   slli t0, s1, 1
   slli t1, s1, 1
   lw t1, habTarget(t1)
   sw t1, patGap(t0)
-  ; cpu/habit.e16.ts:359  drawTarget(i)
+  ; cpu/habit.e16.ts:369  drawTarget(i)
   mv a0, s1
   call drawTarget
-  ; cpu/habit.e16.ts:360  if (randBelow(256) >= row(i, O_HABIT)) return
+  ; cpu/habit.e16.ts:370  if (randBelow(256) >= oppAt(i, O_HABIT)) return
   li a0, 256
   call randBelow
   addi sp, sp, -2
   sw a0, 0(sp)
   mv a0, s1
   li a1, 19
-  la t0, row
-  li t1, 258
-  call far_call
+  call oppAt
   lw t0, 0(sp)
   addi sp, sp, 2
   bltu t0, a0, .L4
-  ; cpu/habit.e16.ts:360  return
+  ; cpu/habit.e16.ts:370  return
   j .return
 .L4:
-  ; cpu/habit.e16.ts:361  habFired[i]++
+  ; cpu/habit.e16.ts:371  habFired[i]++
   slli t0, s1, 1
   addi t0, t0, habFired
   mv t1, t0
   lw t1, 0(t1)
   addi t1, t1, 1
   sw t1, 0(t0)
-  ; cpu/habit.e16.ts:362  habitDue[i] = 1
+  ; cpu/habit.e16.ts:372  habitDue[i] = 1
   slli t0, s1, 1
   li t1, 1
   sw t1, habitDue(t0)
@@ -23448,7 +23543,7 @@ habitStep:
   addi sp, sp, 6
   ret
 
-; cpu/habit.e16.ts:366 triggered(i, j, ev) at -O1
+; cpu/habit.e16.ts:376 triggered(i, j, ev) at -O1
 ;   i in s2
 ;   j in 0(fp)
 ;   ev in s1
@@ -23465,17 +23560,17 @@ triggered:
   mv s2, a0 ; i
   sw a1, 0(fp) ; j
   mv s1, a2 ; ev
-  ; cpu/habit.e16.ts:367  if (ev === 4) return true
+  ; cpu/habit.e16.ts:377  if (ev === 4) return true
   li t0, 4
   bne s1, t0, .L1
-  ; cpu/habit.e16.ts:367  return true
+  ; cpu/habit.e16.ts:377  return true
   li a0, 1
   j .return
 .L1:
-  ; cpu/habit.e16.ts:368  if (ev === 3) return stateAt(j, 1) === ST_STAND && apartPast(1) > apartPast(2)
+  ; cpu/habit.e16.ts:378  if (ev === 3) return stateAt(j, 1) === ST_STAND && apartPast(1) > apartPast(2)
   li t0, 3
   bne s1, t0, .L2
-  ; cpu/habit.e16.ts:368  return stateAt(j, 1) === ST_STAND && apartPast(1) > apartPast(2)
+  ; cpu/habit.e16.ts:378  return stateAt(j, 1) === ST_STAND && apartPast(1) > apartPast(2)
   lw a0, 0(fp)
   li a1, 1
   call stateAt
@@ -23496,31 +23591,31 @@ triggered:
   mv a0, t0
   j .return
 .L2:
-  ; cpu/habit.e16.ts:369  if (ev !== 1 && ev !== 2) return false
+  ; cpu/habit.e16.ts:379  if (ev !== 1 && ev !== 2) return false
   li t0, 1
   beq s1, t0, .L4
   li t0, 2
   beq s1, t0, .L4
-  ; cpu/habit.e16.ts:369  return false
+  ; cpu/habit.e16.ts:379  return false
   li a0, 0
   j .return
 .L4:
-  ; cpu/habit.e16.ts:370  const e = pastAt(i, 1)
+  ; cpu/habit.e16.ts:380  const e = pastAt(i, 1)
   mv a0, s2
   li a1, 1
   call pastAt
   mv s3, a0 ; e
-  ; cpu/habit.e16.ts:371  if (seenF[e] >> 8 !== 2) return false
+  ; cpu/habit.e16.ts:381  if (seenF[e] >> 8 !== 2) return false
   slli t0, s3, 1
   lw t0, seenF(t0)
   srli t0, t0, 8
   li t1, 2
   beq t0, t1, .L5
-  ; cpu/habit.e16.ts:371  return false
+  ; cpu/habit.e16.ts:381  return false
   li a0, 0
   j .return
 .L5:
-  ; cpu/habit.e16.ts:372  const heavy = (mvAt(i, seenS[e] >> 8, M_KIND) & K_HEAVY) !== 0
+  ; cpu/habit.e16.ts:382  const heavy = (mvAt(i, seenS[e] >> 8, M_KIND) & K_HEAVY) !== 0
   slli t0, s3, 1
   lw t0, seenS(t0)
   srli t0, t0, 8
@@ -23532,7 +23627,7 @@ triggered:
   sub t0, t0, zero
   snez t0, t0
   sw t0, 2(fp) ; heavy
-  ; cpu/habit.e16.ts:373  return heavy === (ev === 2)
+  ; cpu/habit.e16.ts:383  return heavy === (ev === 2)
   li t0, 2
   sub t0, s1, t0
   seqz t0, t0
@@ -23549,7 +23644,7 @@ triggered:
   addi sp, sp, 14
   ret
 
-; cpu/habit.e16.ts:377 drawTarget(i) at -O1
+; cpu/habit.e16.ts:387 drawTarget(i) at -O1
 ;   i in s1
 ;   lo in s3
 ;   hi in s0
@@ -23562,31 +23657,27 @@ drawTarget:
   sw s0, 6(sp)
   sw s2, 8(sp)
   mv s1, a0 ; i
-  ; cpu/habit.e16.ts:378  const lo = row(i, O_TRIG_MIN)
+  ; cpu/habit.e16.ts:388  const lo = oppAt(i, O_TRIG_MIN)
   mv a0, s1
   li a1, 20
-  la t0, row
-  li t1, 258
-  call far_call
+  call oppAt
   mv s3, a0 ; lo
-  ; cpu/habit.e16.ts:379  const hi = row(i, O_TRIG_MAX)
+  ; cpu/habit.e16.ts:389  const hi = oppAt(i, O_TRIG_MAX)
   mv a0, s1
   li a1, 21
-  la t0, row
-  li t1, 258
-  call far_call
+  call oppAt
   mv s0, a0 ; hi
-  ; cpu/habit.e16.ts:380  let n = lo + randBelow(hi - lo + 1)
+  ; cpu/habit.e16.ts:390  let n = lo + randBelow(hi - lo + 1)
   sub t0, s0, s3
   addi a0, t0, 1
   call randBelow
   add s2, s3, a0
-  ; cpu/habit.e16.ts:381  if (n === habLast[i] && hi > lo) n = n === hi ? lo : n + 1
+  ; cpu/habit.e16.ts:391  if (n === habLast[i] && hi > lo) n = n === hi ? lo : n + 1
   slli t0, s1, 1
   lw t0, habLast(t0)
   bne s2, t0, .L1
   bgeu s3, s0, .L1
-  ; cpu/habit.e16.ts:381  n = n === hi ? lo : n + 1
+  ; cpu/habit.e16.ts:391  n = n === hi ? lo : n + 1
   bne s2, s0, .L2
   mv t0, s3
   j .L3
@@ -23595,13 +23686,13 @@ drawTarget:
 .L3:
   mv s2, t0 ; n
 .L1:
-  ; cpu/habit.e16.ts:382  habLast[i] = n
+  ; cpu/habit.e16.ts:392  habLast[i] = n
   slli t0, s1, 1
   sw s2, habLast(t0)
-  ; cpu/habit.e16.ts:383  habTarget[i] = n
+  ; cpu/habit.e16.ts:393  habTarget[i] = n
   slli t0, s1, 1
   sw s2, habTarget(t0)
-  ; cpu/habit.e16.ts:384  habDrawn[i * 16 + (habDrawnN[i] & 15)] = n
+  ; cpu/habit.e16.ts:394  habDrawn[i * 16 + (habDrawnN[i] & 15)] = n
   slli t0, s1, 4
   slli t1, s1, 1
   lw t1, habDrawnN(t1)
@@ -23609,7 +23700,7 @@ drawTarget:
   add t0, t0, t1
   slli t0, t0, 1
   sw s2, habDrawn(t0)
-  ; cpu/habit.e16.ts:385  habDrawnN[i]++
+  ; cpu/habit.e16.ts:395  habDrawnN[i]++
   slli t0, s1, 1
   addi t0, t0, habDrawnN
   mv t1, t0
