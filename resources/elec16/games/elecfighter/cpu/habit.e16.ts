@@ -10,7 +10,9 @@
 import { type bool, bytes, type u16, words } from '../../../../../src/shared/e16c/builtins'
 import { randBelow } from '../../lib/kit.e16'
 import {
+  H_LOW,
   K_HEAVY,
+  M_HEIGHT,
   M_KIND,
   MV_THROW,
   mvAt,
@@ -47,9 +49,13 @@ import {
   A_LIGHT,
   A_THROW,
   habitDue,
+  LOWS,
+  lastML,
   patGap,
   patNo,
   planSet,
+  THROW_ONE,
+  THROWS_MASK,
 } from './ai.e16'
 
 /**
@@ -228,12 +234,28 @@ export function observe(i: u16, j: u16): void {
  */
 function marks(i: u16, e: u16, s1: u16): void {
   if (seenF[e] >> 8 === 2) wasGuarded[i] = 1
+  if (s1 === ST_ATTACK && seenY[e] === 0 && (seenF[e] & 255) === 1) lowsCount(i, e)
   if (s1 === ST_ATTACK && seenY[e] > 0) airStruck[i] = 1
   if (s1 !== ST_ATTACK && s1 !== ST_LAND && seenY[e] === 0) airStruck[i] = 0
   if (s1 === ST_DOWN && watchSit[i] !== NONE && watchSit[i] !== HS_WAKE) {
     watchSit[i] = NONE
     readOn[i] = 0
   }
+}
+
+/**
+ * The other's lows in a row on the ground (ai.e16.ts's `lastML`, high byte: a high or mid ends
+ * them) and its throws in a row (bits 4-5: any strike ends them).
+ */
+function lowsCount(i: u16, e: u16): void {
+  const m = seenS[e] >> 8
+  if (m === MV_THROW) {
+    if ((lastML[i] & THROWS_MASK) !== THROWS_MASK) lastML[i] = lastML[i] + THROW_ONE
+    return
+  }
+  lastML[i] = lastML[i] & ~THROWS_MASK
+  if (m >= 8 || mvAt(1 - i, m, M_HEIGHT) !== H_LOW) lastML[i] = lastML[i] & 255
+  else if (lastML[i] >> 8 < LOWS) lastML[i] = lastML[i] + 256
 }
 
 /** A watching begins if a situation does (and a read is tried on it): whether one did. */

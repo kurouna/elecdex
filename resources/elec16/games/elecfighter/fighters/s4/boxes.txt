@@ -10,7 +10,11 @@
 #   heavy kick redrawn straight 2026-10-08, the sweep made long 2026-10-09), so REACH's bar and
 #   the kicks agree. The light kick's line (41) went when the lights were redrawn fully
 #   extended (2026-10-09): its drafted box, 49, keeps it 6 past S1's and short of the heavy.
+#   The crouching light kick's line (31) takes its drafted 55 back to 52, 4 past S1's
+#   (2026-10-09, the second balance pass): at 55 it struck MAINFRAME's S3 from beyond the
+#   reach of every answer S3 has, and its spam won every round of that match.
 22 4 10 75 42 26
+31 4 10 29 42 27
 34 4 10 23 57 23
 0 0 -21 100 42 100
 1 0 -21 60 42 60

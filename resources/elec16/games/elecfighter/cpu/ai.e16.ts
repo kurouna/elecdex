@@ -8,7 +8,7 @@
 // kept to its liked range. It plays through the fighters' one entry as a person does: buttons
 // held, a press their first frame; it never reads this frame's buttons of the other. In bank 2:
 // once a frame for each fighter it plays.
-import { addr, type bool, i16, u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
+import { type bool, i16, type u16, words, wrap16 } from '../../../../../src/shared/e16c/builtins'
 import { randBelow } from '../../lib/kit.e16'
 import {
   F_CHAIN,
@@ -20,7 +20,6 @@ import {
   M_FLAGS,
   M_HEIGHT,
   M_KIND,
-  M_POSE,
   M_RECOVERY,
   M_STARTUP,
   MOVES,
@@ -50,9 +49,8 @@ import {
   opp,
   P_LIFE,
   P_THROW,
-  POSE_W,
+  P_WALK_F,
   patternWord,
-  poseWords,
   prAt,
   reach,
   weightsLoad,
@@ -65,7 +63,6 @@ import {
   fLife,
   fMove,
   free,
-  fSlot,
   fState,
   fVY,
   half,
@@ -84,20 +81,10 @@ import {
   ST_THROWN,
   ST_WAKE,
 } from '../engine/fighter.e16'
-import {
-  C_CPU,
-  ctl,
-  I_BACK,
-  I_DOWN,
-  I_FWD,
-  I_HK,
-  I_HP,
-  I_LK,
-  I_LP,
-  I_UP,
-} from '../engine/input.e16'
+import { I_BACK, I_DOWN, I_FWD, I_HK, I_HP, I_LK, I_LP, I_UP } from '../engine/input.e16'
 import { liveN, seenF, seenL, seenN, seenS, seenX, seenY } from '../engine/main.e16'
-import { habitMatch, habitStep, histRange, observe, watchReset } from './habit.e16'
+import { habitStep, histRange, observe } from './habit.e16'
+import { otherHalf, PUNISHERS, punD, thD } from './setup.e16'
 
 /** The actions (weights.txt's order), and the patterns' own. */
 export const A_LIGHT = 0
@@ -113,7 +100,7 @@ export const A_RETREAT = 9
 export const A_AA = 10
 const A_WALK_IN = 11
 const A_WALK_OUT = 12
-const A_NONE = 255
+export const A_NONE = 255
 const ACTIONS = 10
 
 /** The situations of the weights (weights.txt). */
@@ -142,13 +129,13 @@ const WAKE_CHANCE = 179
 /** A FEINT's mid and low taken in turn this often. */
 const FEINT_CHANCE = 160
 /** How far outside the other's longest reach it stands while it is wary. */
-const EDGE = 6
+export const EDGE = 6
 /**
  * The other's swinging, as it sees it: each attack seen starting adds SWING_ADD (at most 255),
  * and it falls by 1 every other frame. At WARY or more it respects the other's reach.
  */
 const SWING_ADD = 48
-const WARY = 32
+export const WARY = 32
 /**
  * Points more it keeps off when it would step in: the other's move may start as it comes, and reach
  * the farther.
@@ -159,6 +146,12 @@ const COME = 10
  * the time it is seen late.
  */
 const GUARD_PTS = 20
+/**
+ * The shortest stun of a strike (a light's hitstun, a guard's blockstun is near it): one seen
+ * struck longer ago than this is free again. Seen late, a stun it walked into was over as it came
+ * (PACKET after its jab struck walked into a waiting throw, the second balance pass).
+ */
+const STUN_F = 11
 /** A recovery seen with at least this many frames still to run is an opening to step into. */
 const OPEN_F = 6
 /**
@@ -171,10 +164,12 @@ const TURN_F = 8
 const WALK_F = 10
 /** About how far a dash goes: every slot's profile.txt has 14 frames at 41/16, about 36 points. */
 const DASH_PTS = 36
+/** A throw that takes hold within this many frames of its own waking is one it expected. */
+const WOKE_F = 12
+/** Its crouching jab (moves.txt's row): what it meets one walking in with while held off. */
+const MV_CLP = 4
 /** Its crouching light kick (moves.txt's row): the low its turn strikes with. */
 const MV_CLK = 6
-/** The moves a punish is chosen from, the heaviest first: sHK, sHP, sLK, sLP. */
-const PUNISHERS = 4
 /** `punisher`'s answers when no normal fits now: one would land too soon, or none. */
 const P_EARLY = 4
 const P_NONE = 5
@@ -185,49 +180,60 @@ const LEAN = 10
 
 /* ---------------- each CPU fighter's mind ---------------- */
 
-const plan = words(2)
+export const plan = words(2)
 const planT = words(2)
 const planStep = words(2)
 const planB = words(2)
-const thinkT = words(2)
+export const thinkT = words(2)
 /** The buttons it gave last frame (a press is a button it did not hold then). */
 export const outWas = words(2)
 /** The attack it last judged a guard for (the frame it began), and what it holds for it. */
-const gId = words(2)
-const gHold = words(2)
+export const gId = words(2)
+export const gHold = words(2)
 /** The other's jump: 0 not seen in the air, 1 meets it with the anti-air, 2 guards, 3 done. */
-const aaArm = words(2)
+export const aaArm = words(2)
 /**
  * The other's attack it last weighed a punish for (the live frame it began), its move, and 1 while
  * it means to punish it.
  */
-const punId = words(2)
+export const punId = words(2)
 const punMove = words(2)
-const punArm = words(2)
+export const punArm = words(2)
 /** The other's swinging (see SWING_ADD), the last attack counted. */
 export const swing = words(2)
-const swingId = words(2)
+export const swingId = words(2)
 /**
  * How near the other's last two attacks on the ground reached (`reaches`); before any, its longest.
  */
-const swA = words(2)
-const swB = words(2)
+export const swA = words(2)
+export const swB = words(2)
 /** Frames since forward was last held; frames a dash's taps go on. */
-const fwdUp = words(2)
-const tapT = words(2)
+export const fwdUp = words(2)
+export const tapT = words(2)
 /** For the tests: punishes pressed. */
 export const punishes = words(2)
 /**
  * Two clocks in a word (RAM's globals are full): frames since its own attack was guarded (low
  * byte, MINUS_F down) and frames left of its turn (high byte, TURN_F down).
  */
-const tempo = words(2)
+export const tempo = words(2)
 /** The throw it was caught in: 0 not judged, 1 techs, 2 does not. */
-const techArm = words(2)
-const chainArm = words(2)
-const prevState = words(2)
-/** The last of mid and low it chose (FEINT). */
-const lastML = words(2)
+export const techArm = words(2)
+export const chainArm = words(2)
+export const prevState = words(2)
+/**
+ * Two in a word (RAM's globals are full): the last of mid and low it chose (FEINT, low byte), and
+ * the other's lows in a row as its record counts them (habit.e16.ts, high byte, at most LOWS) - two or more, and
+ * even a TURTLE guards crouched: a person who sees one low again and again stops standing up to it.
+ */
+export const lastML = words(2)
+export const LOWS = 2
+/**
+ * The other's throws in a row (habit.e16.ts counts them, bits 4-5 of `lastML`'s low byte, under
+ * the FEINT's choice in bits 0-1): both bits set, two or more, and the next is expected.
+ */
+export const THROWS_MASK = 0x30
+export const THROW_ONE = 0x10
 /** A pattern running (patterns.txt's row, 0 none) and its step; the gap its habit drew. */
 export const patNo = words(2)
 const patStep = words(2)
@@ -237,53 +243,6 @@ export const habitDue = words(2)
 /** For the tests: whims taken, the least age it has read the other at. */
 export const whims = words(2)
 export const seenLate = words(2)
-
-/** Fighter `i`'s CPU, new for a round. */
-export function cpuRoundReset(i: u16): void {
-  plan[i] = A_NONE
-  thinkT[i] = 0
-  outWas[i] = 0
-  gId[i] = 0xffff
-  gHold[i] = 0
-  aaArm[i] = 0
-  punId[i] = 0xffff
-  punArm[i] = 0
-  fwdUp[i] = 255
-  tapT[i] = 0
-  swing[i] = WARY + 16
-  swingId[i] = 0xffff
-  swA[i] = longest(i) + EDGE
-  swB[i] = swA[i]
-  tempo[i] = 0
-  techArm[i] = 0
-  chainArm[i] = 0
-  prevState[i] = 0
-  patNo[i] = 0
-  habitDue[i] = 0
-  watchReset(i)
-}
-
-/**
- * Fighter `i`'s CPU, new for a match (its reaches are measured as the versus shows: `cpuMeasure`).
- * The round's part is left to the first round's `cpuRoundReset`: here the reaches it sets the
- * swinging by are still the last match's, and nothing reads them before that round.
- */
-export function cpuMatchSet(i: u16): void {
-  whims[i] = 0
-  punishes[i] = 0
-  seenLate[i] = 0xffff
-  habitMatch(i)
-}
-
-/**
- * Fighter `i`'s reaches, if the CPU plays it, measured on the boxes of the match's slots: in the
- * versus's first frames, a side a frame - not in the one the match is set up in - so no frame
- * passes its cycles (design 10.4); a side no one reads is not measured. The first round's
- * `cpuRoundReset` comes after it.
- */
-export function cpuMeasure(i: u16): void {
-  if (ctl[i] === C_CPU) measure(i)
-}
 
 /** Column `c` of fighter `i`'s row. */
 export function row(i: u16, c: u16): u16 {
@@ -324,11 +283,20 @@ export function cpuThink(i: u16, think: bool): u16 {
   if (!think) return outWas[i]
   counters(i, j)
   let out = reflex(i, j)
-  if (out === 0xffff) out = planned(i, j)
+  if (out === 0xffff) out = lowsGuarded(i, j, planned(i, j))
   out = undashed(i, chainStep(i, out))
   outWas[i] = out
   prevState[i] = fState[i]
   return out
+}
+
+/**
+ * A plan's walk back standing within the other's reach, the other's lows coming in a row: crouched
+ * instead, a guard (a person swept twice does not walk back standing within the sweep's reach).
+ */
+function lowsGuarded(i: u16, j: u16, out: u16): u16 {
+  if (out !== I_BACK || lastML[i] >> 8 < LOWS) return out
+  return distTo(i, seenAt(i, j, row(i, O_R_GUARD))) > edge(i) + GUARD_PTS ? out : I_BACK | I_DOWN
 }
 
 /** Its clocks: since its attack was guarded; the other's swinging; a punish weighed. */
@@ -338,7 +306,9 @@ function counters(i: u16, j: u16): void {
   if ((tempo[i] & 255) > 0) tempo[i]--
   if (tempo[i] >= 256) tempo[i] = tempo[i] - 256
   // Before the reflexes: a punish it still means (too late to land) would hide the frame.
-  if ((prevState[i] === ST_GUARD || prevState[i] === ST_HIT) && free(i)) turnTake(i, j)
+  if (((prevState[i] === ST_GUARD || prevState[i] === ST_HIT) && free(i)) || whiffed(i, j)) {
+    turnTake(i, j)
+  }
   // Its own last frame: what it knows of itself, not a sight of the other.
   const e = i * 32 + ((seenN - 1) & 31)
   if (seenF[e] >> 8 === 2) tempo[i] = (tempo[i] & 0xff00) | MINUS_F
@@ -381,12 +351,18 @@ function reflex(i: u16, j: u16): u16 {
 
 /**
  * Caught in a throw: once it sees the throw (R tech), by its guard's chance, the tech's buttons.
+ * Caught as it stands up, or after two throws in a row (`lastML`), it needs no sight of it and
+ * no chance (design 7.10.2: a throw expected is read, not seen): a walk in and a throw, again and again,
+ * too quick for any eyes, otherwise threw it to the end of every round (measured 2026-10-09, the
+ * second balance pass).
  */
 function tech(i: u16, j: u16): u16 {
   if (techArm[i] === 2) return 0
   const e = seenAt(i, j, row(i, O_R_TECH))
-  if ((seenS[e] & 255) !== ST_THROW) return 0
-  if (techArm[i] === 0) techArm[i] = randBelow(256) < row(i, O_GUARD) ? 1 : 2
+  const was = seenS[i * 32 + ((seenN - WOKE_F) & 31)] & 255
+  const expected = was === ST_WAKE || was === ST_DOWN || (lastML[i] & THROWS_MASK) === THROWS_MASK
+  if ((seenS[e] & 255) !== ST_THROW && !expected) return 0
+  if (techArm[i] === 0) techArm[i] = expected || randBelow(256) < row(i, O_GUARD) ? 1 : 2
   if (techArm[i] === 2) return 0
   if ((outWas[i] & I_HP) !== 0) return I_BACK
   techArm[i] = 2
@@ -459,97 +435,7 @@ function coming(i: u16, r: u16): bool {
   return apartAt(i, r) < apartAt(i, r + 2)
 }
 
-/* ---------------- reaches, measured on the boxes as a match begins ---------------- */
-
-/**
- * For each CPU fighter `i`, in points apart, the most at which: `thD[i * 8 + m]` the other's
- * ground move m strikes it standing; `punD[i * 32 + k * 8 + m]` its standing normal k (0-3)
- * strikes the other in m's recovery (a heavy's stretched limb, design 7.5, or the body as it
- * leans) - 0 never. Knowledge of the frame data, as a player has it; never a sight of now.
- */
-const thD = words(16)
-const punD = words(64)
-/**
- * The boxes measured, as a pose holds them (x, top, w, h each): hurt boxes (1-3), then hit boxes
- * (4-5).
- */
-const bw = words(20)
-const BW_HURT = 0
-const BW_HIT = 12
-/**
- * Half the other's body as its slot stands (its stand pose's body box), for the throw's range:
- * the body box now is the other's pose this frame, which the CPU never sees (design 7.10.1).
- */
-const otherHalf = words(2)
-
-/** The most points apart the hit boxes meet the hurt boxes, two facing on the ground (0 never). */
-function boxesMeet(): u16 {
-  let most: u16 = 0
-  let h: u16 = BW_HIT
-  while (h < BW_HIT + 8) {
-    const hw = i16(bw[h + 2])
-    let b: u16 = BW_HURT
-    while (hw !== 0 && b < BW_HURT + 12) {
-      const hurtW = i16(bw[b + 2])
-      const ht = i16(bw[h + 1])
-      const bt = i16(bw[b + 1])
-      const apart = i16(bw[h]) + hw + i16(bw[b]) + hurtW - 1
-      if (
-        hurtW !== 0 &&
-        ht - i16(bw[h + 3]) < bt &&
-        bt - i16(bw[b + 3]) < ht &&
-        apart > i16(most)
-      ) {
-        most = u16(apart)
-      }
-      b = b + 4
-    }
-    h = h + 4
-  }
-  return most
-}
-
-/** Pose `p` of fighter `f`'s slot: its hit boxes (`hit`) or its hurt boxes into `bw`. */
-function measured(f: u16, p: u16, hit: bool): void {
-  if (hit) poseWords(fSlot[f], p * POSE_W + 16, 8, addr(bw) + BW_HIT * 2)
-  else poseWords(fSlot[f], p * POSE_W + 4, 12, addr(bw) + BW_HURT * 2)
-}
-
-/**
- * Fighter `i`'s tables, for the slots of this match: a pose's boxes copied as a block under one
- * bank (the match begins inside a frame, design 10.4), into one small room (RAM's globals are
- * nearly all taken), so its standing pose is read again for each of the other's moves.
- */
-function measure(i: u16): void {
-  const j = 1 - i
-  poseWords(fSlot[j], 0, 4, addr(bw))
-  otherHalf[i] = bw[2] >> 1
-  let m: u16 = 0
-  while (m < 8) {
-    measured(i, 0, false)
-    measured(j, mvAt(j, m, M_POSE) + 1, true)
-    thD[i * 8 + m] = boxesMeet()
-    measured(j, mvAt(j, m, M_POSE) + 2, false)
-    let k: u16 = 0
-    while (k < PUNISHERS) {
-      measured(i, mvAt(i, k, M_POSE) + 1, true)
-      punD[i * 32 + k * 8 + m] = boxesMeet()
-      k++
-    }
-    m++
-  }
-}
-
-/** The most points apart any of the other's ground moves strikes fighter `i` standing. */
-function longest(i: u16): u16 {
-  let most: u16 = 0
-  let m: u16 = 0
-  while (m < 8) {
-    if (thD[i * 8 + m] > most) most = thD[i * 8 + m]
-    m++
-  }
-  return most
-}
+/* ---------------- reaches (setup.e16.ts) ---------------- */
 
 /**
  * How near fighter `j`'s move `m` must be to reach it, in points between the two: its reach and
@@ -709,7 +595,9 @@ function opened(i: u16, j: u16): bool {
     const f = frameNow(moveBegan(e))
     return f >= mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE) && f + OPEN_F <= totalOf(j, m)
   }
-  if (st === ST_HIT || st === ST_GUARD || st === ST_DOWN || st === ST_WAKE) return true
+  // Struck or guarding as seen R late: open only if still so now, by the shortest stun.
+  if (st === ST_HIT || st === ST_GUARD) return framesOf(e) + row(i, O_R_GUARD) <= STUN_F
+  if (st === ST_DOWN || st === ST_WAKE) return true
   return st === ST_THROW || st === ST_THROWN || st === ST_DASH || st === ST_BACKDASH
 }
 
@@ -727,12 +615,41 @@ function mayCome(i: u16, j: u16, d: u16): bool {
  * it guards crouched, holding its place (a TURTLE stands, late to lows); farther, it waits. It used to back away standing only
  * inside the reach as seen R frames late: a light low, faster than its eyes, from one who had
  * walked in meanwhile struck it every time (measured 2026-10-09: a crouching light kick pressed
- * whenever able won every round of the ladder, ROOT's too).
+ * whenever able won every round of the ladder, ROOT's too). One coming in is met (`metComing`).
  */
 function heldOff(i: u16, d: u16): u16 {
+  const met = metComing(i, d)
+  if (met !== 0xffff) return met
   // A TURTLE's guard walks it back, so only inside the reach (it would leave its range).
-  if ((row(i, O_FLAGS) & OF_TURTLE) !== 0) return d > edge(i) ? 0 : I_BACK
+  if (standsGuard(i)) return d > edge(i) ? 0 : I_BACK
   return d > edge(i) + GUARD_PTS ? 0 : I_BACK | I_DOWN
+}
+
+/**
+ * The other coming into its throw's range (a guard is what a throw beats): the crouched jab,
+ * quicker than a throw, which one walking in walks into; else 0xffff. A walk up and
+ * a throw, again and again, otherwise threw it guarding or waiting (the second balance pass,
+ * 2026-10-09).
+ */
+function metComing(i: u16, d: u16): u16 {
+  const r = row(i, O_R_GUARD)
+  // One coming is nearer now than seen, by its walk (its slot's, as a player knows it) in half
+  // of R: it may have stopped (the whole of R had it jab at every step in, and the jab, of the
+  // longest crouch, won CPU against CPU nearly alone).
+  if (!coming(i, r)) return 0xffff
+  const by = (prAt(1 - i, P_WALK_F) * r) >> 5
+  const now = d > by ? d - by : 0
+  return now <= reaches(1 - i, MV_THROW) && inReach(i, MV_CLP, now) ? jab(i) : 0xffff
+}
+
+/** Its crouched jab pressed (down held between the presses). */
+function jab(i: u16): u16 {
+  return (outWas[i] & I_LP) !== 0 ? I_DOWN : I_DOWN | I_LP
+}
+
+/** It guards standing: a TURTLE, unless the other has been striking low (`lastML`'s high byte). */
+function standsGuard(i: u16): bool {
+  return (row(i, O_FLAGS) & OF_TURTLE) !== 0 && lastML[i] >> 8 < LOWS
 }
 
 /** A step in, or held off. */
@@ -742,7 +659,11 @@ function stepIn(i: u16, j: u16, d: u16): u16 {
 
 /* ---------------- the chain (design 7.8) ---------------- */
 
-/** Its light struck (hit or guarded): once, by its chance, the heavy of its kind pressed. */
+/**
+ * Its light struck (hit or guarded): once, by its chance, the heavy of its kind pressed - only a
+ * heavy that reaches as far as the light (the crouching heavy punch, an anti-air going up, chained
+ * from the crouching jab whiffed over the pushed-back other and was thrown in its long recovery).
+ */
 function chainStep(i: u16, out: u16): u16 {
   if (fState[i] !== ST_ATTACK) {
     chainArm[i] = 0
@@ -750,7 +671,8 @@ function chainStep(i: u16, out: u16): u16 {
   }
   const m = fMove[i]
   if (fHitDone[i] === 0 || (mvAt(i, m, M_FLAGS) & F_CHAIN) === 0 || chainArm[i] !== 0) return out
-  chainArm[i] = randBelow(256) < row(i, O_CHAIN) ? 1 : 2
+  const far = reach[i * MOVES + m + 1] >= reach[i * MOVES + m]
+  chainArm[i] = far && randBelow(256) < row(i, O_CHAIN) ? 1 : 2
   if (chainArm[i] === 2) return out
   const kind = mvAt(i, m, M_KIND)
   const b = (kind & K_KICK) !== 0 ? I_HK : I_HP
@@ -780,27 +702,48 @@ function planned(i: u16, j: u16): u16 {
 }
 
 /**
- * Out of a guard or a hit: with the other on the ground within the reach it fears, its turn - it
- * may strike inside the other's reach for TURN_F frames. Out of a guard with its light low in
- * reach, by its punish chance, that low at once (a light guarded leaves its striker no sooner
- * than the guard, design 7.7: the low comes first); else it thinks again now.
+ * Out of a guard or a hit, or a whiff seen: with the other on the ground within the reach it
+ * fears, its turn - it may strike inside the other's reach for TURN_F frames. Out of a guard or
+ * after a whiff, by its punish chance:
+ * its light low at once if it reaches (a light low guarded leaves its striker later than the
+ * guard, design 7.7: the low comes first), or, the other's lows coming in a row from beyond it, a
+ * jump in over the next; else it thinks again now.
  */
 function turnTake(i: u16, j: u16): void {
   const e = seenAt(i, j, row(i, O_R_GUARD))
   if (seenY[e] > 0 || distTo(i, e) > edge(i) + GUARD_PTS) return
   tempo[i] = (tempo[i] & 255) | (TURN_F << 8)
   if (patNo[i] !== 0) return
-  if (
-    prevState[i] === ST_GUARD &&
-    inReach(i, MV_CLK, distTo(i, e)) &&
-    randBelow(256) < row(i, O_PUNISH)
-  ) {
-    planSet(i, A_LOW, 0)
-    planB[i] = 0
-    thinkT[i] = row(i, O_THINK)
-    return
+  if (prevState[i] !== ST_HIT && randBelow(256) < row(i, O_PUNISH)) {
+    if (inReach(i, MV_CLK, distTo(i, e))) {
+      planSet(i, A_LOW, 0)
+      planB[i] = 0
+      thinkT[i] = row(i, O_THINK)
+      return
+    }
+    // Lows again and again from beyond its own: over them, as a person jumps a sweep it expects.
+    if (lastML[i] >> 8 >= LOWS) {
+      planSet(i, A_JUMPIN, 0)
+      thinkT[i] = row(i, O_THINK)
+      return
+    }
   }
   thinkT[i] = 1
+}
+
+/**
+ * The other's attack on the ground seen (R guard) at its first frame of recovery, and it free and
+ * within its light low's reach: the attack missed it (a high over its crouch, a poke short) - its
+ * turn, as after a guard (farther, a turn only jumped in on a heavy that met it in the air). A light
+ * pressed again and again over its crouch, too quick to be seen open, was never answered.
+ */
+function whiffed(i: u16, j: u16): bool {
+  const e = seenAt(i, j, row(i, O_R_GUARD))
+  const m = seenS[e] >> 8
+  if (!free(i) || (seenS[e] & 255) !== ST_ATTACK || seenY[e] > 0 || m >= 8) return false
+  return (
+    framesOf(e) === mvAt(j, m, M_STARTUP) + mvAt(j, m, M_ACTIVE) && inReach(i, MV_CLK, distTo(i, e))
+  )
 }
 
 /** The plan is `a` for `f` frames (0: the think interval, and a little more). */
@@ -854,8 +797,8 @@ function think(i: u16, j: u16): void {
   weightsLoad(i, band, situation(i, e))
   let a = drawn()
   if ((row(i, O_FLAGS) & OF_FEINT) !== 0 && (a === A_MID || a === A_LOW)) {
-    if (a === lastML[i] && randBelow(256) < FEINT_CHANCE) a = a === A_MID ? A_LOW : A_MID
-    lastML[i] = a
+    if (a === (lastML[i] & 15) && randBelow(256) < FEINT_CHANCE) a = a === A_MID ? A_LOW : A_MID
+    lastML[i] = (lastML[i] & 0xff30) | a
   }
   planSet(i, a, 0)
 }
@@ -910,8 +853,11 @@ function act(i: u16, j: u16): u16 {
   if (a <= A_MID) return strikeAct(i, j, a, d)
   if (a === A_JUMPIN) return jumpIn(i, j, d)
   if (a === A_THROW) return throwAct(i, j, d)
+  // Waiting, guarding, walking in or out: one coming in is met.
+  const met = a === A_AA ? 0xffff : metComing(i, d)
+  if (met !== 0xffff) return met
   if (a === A_APPROACH) return approach(i, j, d)
-  if (a === A_GUARD) return (row(i, O_FLAGS) & OF_TURTLE) !== 0 ? I_BACK : I_BACK | I_DOWN
+  if (a === A_GUARD) return standsGuard(i) ? I_BACK : I_BACK | I_DOWN
   if (a === A_WAIT) return keepRange(i, j, d)
   if (a === A_RETREAT) return retreat(i)
   if (a === A_AA) return aaPlan(i, j)
@@ -994,7 +940,12 @@ function airStep(i: u16, j: u16): u16 {
 function throwAct(i: u16, j: u16, d: u16): u16 {
   if (planT[i] > ATTACK_F) planT[i] = ATTACK_F
   const gap = d > otherHalf[i] ? d - otherHalf[i] : 0
-  if (gap + 4 > prAt(i, P_THROW)) return stepIn(i, j, d)
+  if (gap + 4 > prAt(i, P_THROW)) {
+    // Already within the other's longer throw: a jab, not a step further into it (S3's throw,
+    // the longest, took every walk in of PACKET's habit).
+    if (d <= reaches(j, MV_THROW)) return jab(i)
+    return stepIn(i, j, d)
+  }
   if (!onTurn(i) && !mayCome(i, j, d)) return heldOff(i, d)
   if ((outWas[i] & I_HP) !== 0) return I_FWD
   planEnd(i)

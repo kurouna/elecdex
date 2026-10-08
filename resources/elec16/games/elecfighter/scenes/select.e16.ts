@@ -47,7 +47,7 @@ import {
   PAL_P1,
   S1_TILE,
 } from '../assets.e16'
-import { cpuMeasure } from '../cpu/ai.e16'
+import { cpuMeasure } from '../cpu/setup.e16'
 import { M_SELECT, music, sfx, X_MAT, X_MOVE, X_OK } from '../engine/audio.e16'
 import {
   artPut,

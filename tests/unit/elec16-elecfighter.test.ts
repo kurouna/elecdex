@@ -49,6 +49,7 @@ import {
   SOUND_STATE,
   ST,
   ST2,
+  scaled,
   shown,
   sizeOf,
   step,
@@ -495,10 +496,14 @@ describe('ELECFIGHTER frame data (design 7.7)', () => {
     const blocked = (r: number[]) =>
       (r[C.blockstun] ?? 0) - ((r[C.active] ?? 0) - 1 + (r[C.recovery] ?? 0))
     for (const rows of moves) {
-      for (const m of [MV.sLP, MV.sLK, MV.cLP, MV.cLK]) {
+      for (const m of [MV.sLP, MV.sLK, MV.cLP]) {
         expect(blocked(rows[m] ?? [])).toBeGreaterThanOrEqual(-2)
         expect(blocked(rows[m] ?? [])).toBeLessThanOrEqual(0)
       }
+      // The crouching light kick, the longest light, is the one to answer (the second balance
+      // pass, 2026-10-09): -4 to -6, a light's punish after it is guarded.
+      expect(blocked(rows[MV.cLK] ?? [])).toBeGreaterThanOrEqual(-6)
+      expect(blocked(rows[MV.cLK] ?? [])).toBeLessThanOrEqual(-4)
       for (const m of [MV.sHP, MV.sHK, MV.cHP, MV.cHK]) {
         expect(blocked(rows[m] ?? [])).toBeLessThanOrEqual(-6)
       }
@@ -506,7 +511,7 @@ describe('ELECFIGHTER frame data (design 7.7)', () => {
     // S1's as the design's table has them.
     expect(
       [MV.sLP, MV.sHP, MV.sLK, MV.sHK, MV.cLP, MV.cHP, MV.cLK, MV.cHK].map((m) => blocked(row(m))),
-    ).toEqual([0, -6, -2, -8, 0, -9, -2, -12])
+    ).toEqual([0, -6, -2, -8, 0, -9, -6, -12])
   })
 
   it('measures on the core what the table computes: the light strikes first, the frames after a guard', () => {
@@ -1670,13 +1675,17 @@ describe('ELECFIGHTER the ladder (P2, design 5.4, 7.10.5)', { timeout: 300_000 }
     expect(names(3)).toEqual([0, 1, 3, 4])
     const m = fight(CLOCK, [2, 2], 2, 3)
     expect([read(m, 'fSlot', 0), read(m, 'fSlot', 1)]).toEqual([2, 2])
-    // Later is quicker and reads more: reactions less 2 a place (never under 8), reads 26 more.
+    // Later is quicker, surer and reads more, by cpu/ladder.txt's row for the place (design
+    // 7.10.5): the first met slower than its row, ROOT quicker (never under 8).
     const at = (k: number) => fight(CLOCK, [2, 1], 0, k)
     const first = at(0)
     const root = at(3)
-    expect(rowOf(first, 1, O.rGuard)).toBe(opponents[0]?.[O.rGuard])
-    expect(rowOf(root, 1, O.rGuard)).toBe(Math.max(8, (opponents[4]?.[O.rGuard] ?? 0) - 6))
-    expect(rowOf(root, 1, O2.read)).toBe(Math.min(255, (opponents[4]?.[O2.read] ?? 0) + 3 * 26))
+    for (const c of [O.rGuard, O.rPunish, O.guard, O2.punish, O2.read]) {
+      expect(rowOf(first, 1, c), `column ${c}`).toBe(scaled(0, 0)[c])
+      expect(rowOf(root, 1, c), `column ${c}`).toBe(scaled(4, 3)[c])
+    }
+    expect(rowOf(first, 1, O.rGuard)).toBeGreaterThan(opponents[0]?.[O.rGuard] ?? 0)
+    expect(rowOf(root, 1, O.rGuard)).toBeLessThan(opponents[4]?.[O.rGuard] ?? 0)
   })
 
   /** A round lost by `loser` to a light punch, then on to the next fight or CONTINUE?. */

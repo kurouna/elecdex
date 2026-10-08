@@ -25,6 +25,7 @@ import {
   SLOT_IDS,
   ST,
   ST2,
+  scaled,
   setRow,
   step,
   steps,
@@ -50,6 +51,9 @@ function still(m: Elec16): void {
   put(m, 'plan', WAIT, 1)
   put(m, 'planT', 250, 1)
   put(m, 'thinkT', 250, 1)
+  // And its plan held as long: a plan run out is thought anew, a draw of the weights (seen
+  // 2026-10-09, a jump in drawn once the CPU's chances were drawn in another order).
+  put(m, 'planT', 250, 1)
   // Its presses before forgotten: a back pressed in a backdash's taps it was drawing before, and
   // the guard's back now, would be the two taps of one (seen 2026-10-08, a seed that drew it).
   for (let k = 0; k < 16; k++) put(m, 'ringD', 0, 16 + k)
@@ -111,7 +115,7 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
     expect(landed(8, I.down | I.lk)).toBe(1)
     // The standing heavy kick (11), by 10.
     expect(landed(10, I.hk)).toBe(2)
-    // The table: no reaction under 8 but the tech's, and the ladder takes 2 off each place.
+    // The table: no reaction under 8 but the tech's (cpu/ladder.txt slows or quickens it by place).
     for (const r of opponents) {
       for (const c of [O.rGuard, O.rAA, O.rPunish, O.rSwitch])
         expect(r[c]).toBeGreaterThanOrEqual(8)
@@ -231,12 +235,13 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
     expect(rowOf(m, 1, O2.read)).toBe(0)
     // One that reads, met later, reads more: DAEMON as the third.
     const d = fight(CLOCK, [2, 1], 0, 2)
-    expect(rowOf(d, 1, O2.read)).toBe((opponents[2]?.[O2.read] ?? 0) + 2 * 26)
+    expect(rowOf(d, 1, O2.read)).toBe(scaled(2, 2)[O2.read])
+    expect(rowOf(d, 1, O2.read)).toBeGreaterThan(opponents[2]?.[O2.read] ?? 0)
   })
 
   it('has ROOT read a habit kept up, and lose to it changed', () => {
     const m = fight(CLOCK, [2, 1], 0, MIRROR)
-    expect(rowOf(m, 1, O2.read)).toBe(Math.min(255, (opponents[4]?.[O2.read] ?? 0) + 3 * 26))
+    expect(rowOf(m, 1, O2.read)).toBe(scaled(4, 3)[O2.read])
     const wake = (button: number) => wakeBeside(m, button)
     // Counted from here: the seed (the select's press) may give it a read before.
     const hits = read(m, 'readHits', 1)

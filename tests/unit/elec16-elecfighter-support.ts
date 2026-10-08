@@ -183,7 +183,8 @@ export function steps(m: Elec16, n: number, h0 = 0, h1 = 0): void {
 
 /**
  * The two placed `apart` points from the middle each (P1 left, facing right), standing; their
- * last frame's place in `was` too. A frame passes with nothing held so the poses settle.
+ * last frame's place in `was` too, and in the CPU's ring of sights (else it saw one coming in
+ * the jump, and met it). A frame passes with nothing held so the poses settle.
  */
 export function place(m: Elec16, x0: number, x1: number): void {
   for (const i of [0, 1]) {
@@ -198,6 +199,11 @@ export function place(m: Elec16, x0: number, x1: number): void {
   put(m, 'fFace', x0 < x1 ? 1 : 0, 0)
   put(m, 'fFace', x0 < x1 ? 0 : 1, 1)
   put(m, 'hitstop', 0)
+  // The CPU's ring of what it saw: there all along, so no walk in is seen in the jump.
+  for (let k = 0; k < 32; k++) {
+    put(m, 'seenX', x0, k)
+    put(m, 'seenX', x1, 32 + k)
+  }
   step(m)
 }
 
@@ -317,6 +323,25 @@ export const O3 = { whim: 23 }
 export const OPP_W = 32
 export const ROOT_ROW = 4
 export const opponents = table('cpu/opponents.txt', OPP_W)
+/** cpu/ladder.txt: each place's reactions slower and quicker, its sureness, its reading. */
+export const ladderPlaces = table('cpu/ladder.txt', 4)
+
+/**
+ * Opponent `k`'s row as met at ladder place `pos` (engine/data.e16.ts's `oppLoad`): reactions
+ * slower then quicker (never under 8, a tech's 4), the three chances scaled, a reader reading more.
+ */
+export function scaled(k: number, pos: number): number[] {
+  const r = [...(opponents[k] ?? [])]
+  const [slower = 0, quicker = 0, sure = 256, more = 0] = ladderPlaces[pos] ?? []
+  for (let c = O.rGuard; c <= O.rSwitch; c++) {
+    const least = c === O.rTech ? 4 : 8
+    r[c] = Math.max(least, (r[c] ?? 0) + slower - quicker)
+  }
+  for (const c of [O.guard, O.aa, O2.punish]) r[c] = ((r[c] ?? 0) * sure) >> 8
+  if ((r[O2.read] ?? 0) !== 0) r[O2.read] = Math.min(255, (r[O2.read] ?? 0) + more)
+  return r
+}
+
 /** The actions' numbers (cpu/ai.e16.ts): WAIT keeps the distance it likes. */
 export const WAIT = 8
 
@@ -324,3 +349,309 @@ export const WAIT = 8
 export const setRow = (m: Elec16, i: number, c: number, v: number) =>
   put(m, 'opp', v, i * OPP_W + c)
 export const rowOf = (m: Elec16, i: number, c: number) => read(m, 'opp', i * OPP_W + c)
+
+/* ---------------- players from outside, for the balance (design 3.1) ---------------- */
+
+/** P1's buttons for this frame, from the machine as it stands: a player from outside. */
+export type Player = (m: Elec16) => number
+
+/** A small seeded generator (mulberry32): a player's chances, the same for the same seed. */
+export function rng(seed: number): () => number {
+  let a = seed >>> 0
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0
+    let t = a
+    t = Math.imul(t ^ (t >>> 15), t | 1)
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+/** Points between the two, now. */
+export const apart = (m: Elec16) => Math.abs(read(m, 'fX', 0) - read(m, 'fX', 1)) >> 4
+/** Half fighter `i`'s body as it stands (its stand pose's body box, as the CPU measures it). */
+const HALF = [18, 17, 19, 21]
+const halfOf = (m: Elec16, i: number) => HALF[read(m, 'fSlot', i)] ?? 18
+/** How far apart P1's move `mv` reaches the CPU standing: its box's tip and the CPU's half. */
+export const reachOf = (m: Elec16, mv: number) => read(m, 'reach', mv) + halfOf(m, 1)
+/** How far apart P1 may throw the CPU: its profile's range and the CPU's half, a little less. */
+const throwRange = (m: Elec16) => (profiles[read(m, 'fSlot', 0)]?.[8] ?? 28) + halfOf(m, 1) - 2
+/** Fighter `i` in the air, still going up. */
+const rising = (m: Elec16, i: number) => {
+  const v = read(m, 'fVY', i)
+  return v > 0 && v < 0x8000
+}
+const isFree = (m: Elec16, i: number) => [ST.stand, ST.crouch].includes(read(m, 'fState', i))
+
+/** A jumper's buttons: in from the middle distance, `b` pressed falling near (every other frame). */
+function jumper(m: Elec16, b: number, k: number): number {
+  const d = apart(m)
+  if (read(m, 'fState', 0) === ST.jump) return rising(m, 0) || d > 60 ? 0 : k & 1 ? b : 0
+  if (!isFree(m, 0)) return 0
+  return d > 90 ? I.fwd : I.up | I.fwd
+}
+
+/**
+ * A one-button player: walks in until `b`'s move reaches (`mv`, its row) and presses it whenever
+ * free there (never into the buffer, which would let it out again where it was pushed to).
+ * `jump`: jumps in from the middle distance and presses it falling. `throw`: walks in to the
+ * throw's range (forward and the heavy punch).
+ */
+export function spammer(b: number, mv: number, how: 'reach' | 'jump' | 'throw' = 'reach'): Player {
+  let k = 0
+  return (m) => {
+    k++
+    if (how === 'jump') return jumper(m, b, k)
+    const range = how === 'throw' ? throwRange(m) : reachOf(m, mv) - 2
+    if (!isFree(m, 0)) return b & I.down
+    if (apart(m) > range) return I.fwd
+    return k & 1 ? b : b & (I.down | I.fwd)
+  }
+}
+
+/** What P1 saw of the CPU in a frame: its state, move, frames into it, the distance, its height. */
+type Sight = { st: number; mv: number; f: number; d: number; y: number }
+const NOTHING: Sight = { st: ST.stand, mv: 0, f: 0, d: 200, y: 0 }
+/** A move's frames: startup and active, all, and its advantage when guarded. */
+const rowOfMove = (slot: number, mv: number) => moves[slot]?.[mv] ?? []
+const hitEnd = (r: number[]) => (r[C.startup] ?? 0) + (r[C.active] ?? 0)
+const total = (r: number[]) => hitEnd(r) + (r[C.recovery] ?? 0) - 1
+const onGuard = (r: number[]) =>
+  (r[C.blockstun] ?? 0) - ((r[C.active] ?? 0) - 1 + (r[C.recovery] ?? 0))
+const BUTTON = [I.lp, I.hp, I.lk, I.hk]
+/** A ground move's buttons (rows 0-7). */
+const buttonsOf = (mv: number) => (BUTTON[mv & 3] ?? 0) | (mv >= 4 ? I.down : 0)
+/** The punishes a person reaches for, the heaviest first. */
+const PUNISHERS = [MV.sHK, MV.sHP, MV.sLK, MV.sLP]
+/** The pokes it walks in to. */
+const POKES = [MV.sLP, MV.sLK, MV.cLK, MV.cLP, MV.sHK, MV.cHK, MV.sHP]
+
+/** A person's skill: frames it sees late, its chances of the right guard, a punish, an anti-air. */
+export type Skill = { react: number; guard: number; punish: number; aa: number }
+export const PERSON: Skill = { react: 16, guard: 0.8, punish: 0.6, aa: 0.35 }
+/** A beginner: slower eyes, a wrong guard one time in three, fewer punishes and anti-airs. */
+export const NOVICE: Skill = { react: 20, guard: 0.65, punish: 0.35, aa: 0.2 }
+
+/** A person's mind from frame to frame (see `person`); each step answers buttons, or null. */
+class Person {
+  readonly r: () => number
+  readonly skill: Skill
+  readonly seen: Sight[] = []
+  k = 0
+  out = 0
+  plan = 'none'
+  planT = 0
+  planMv = 0
+  gId = -1
+  gHold = 0
+  aaId = -1
+  aaOn = false
+  pId = -1
+  pOn = false
+  chained = -1
+  wasGuard = false
+  guardedMv = -1
+  tech = 0
+  m: Elec16 | null = null
+  now: Sight = NOTHING
+  late: Sight = NOTHING
+
+  constructor(seed: number, skill: Skill) {
+    this.r = rng(seed)
+    this.skill = skill
+  }
+
+  get machine(): Elec16 {
+    if (this.m === null) throw new Error('no machine')
+    return this.m
+  }
+
+  press(b: number, keep = 0): number {
+    return (this.out & b) !== 0 ? keep : b | keep
+  }
+
+  slot(i: number): number {
+    return read(this.machine, 'fSlot', i)
+  }
+
+  cpuReach(mv: number): number {
+    return read(this.machine, 'reach', 13 + mv) + halfOf(this.machine, 0)
+  }
+
+  /** The heaviest punish that starts within `left` frames and reaches, pressed; else null. */
+  punishWith(left: number): number | null {
+    for (const mv of PUNISHERS) {
+      const s = rowOfMove(this.slot(0), mv)[C.startup] ?? 99
+      if (s <= left && this.now.d <= reachOf(this.machine, mv)) return this.press(buttonsOf(mv))
+    }
+    return null
+  }
+
+  look(m: Elec16): void {
+    this.k++
+    this.m = m
+    this.now = {
+      st: read(m, 'fState', 1),
+      mv: read(m, 'fMove', 1),
+      f: read(m, 'fMoveF', 1),
+      d: apart(m),
+      y: read(m, 'fY', 1),
+    }
+    this.seen.push(this.now)
+    if (this.seen.length > 40) this.seen.shift()
+    this.late = this.seen[this.seen.length - 1 - this.skill.react] ?? NOTHING
+  }
+
+  /** Not free: thrown (a fifth of the time it guessed and techs), in the air, guarding, striking. */
+  busy(st: number): number {
+    if (st === ST2.thrown) return this.caught()
+    this.tech = 0
+    if (st === ST.jump) return rising(this.machine, 0) || this.now.d > 60 ? 0 : this.press(I.hk)
+    if (st === ST.guard) {
+      this.wasGuard = true
+      if (this.now.st === ST.attack) this.guardedMv = this.now.mv
+      return this.gHold || I.back | I.down
+    }
+    return st === ST.attack ? this.chain() : 0
+  }
+
+  /** Thrown: a fifth of the time it guessed the throw, and techs it. */
+  caught(): number {
+    if (this.tech === 0) this.tech = this.r() < 0.2 ? 1 : 2
+    return this.tech === 1 ? this.press(I.hp, I.back) : 0
+  }
+
+  /** A light that struck: the heavy of its kind, half the time. */
+  chain(): number {
+    const m = this.machine
+    const mv = read(m, 'fMove', 0)
+    const row = rowOfMove(this.slot(0), mv)
+    if (read(m, 'fHitDone', 0) === 0 || ((row[C2.flags] ?? 0) & 1) === 0) return 0
+    const began = this.k - read(m, 'fMoveF', 0)
+    if (this.chained !== began) this.chained = this.r() < 0.5 ? began : -2
+    return this.chained > 0 ? this.press(mv & 2 ? I.hk : I.hp, mv >= 4 ? I.down : 0) : 0
+  }
+
+  /** Out of a guard: what it knows is unsafe, punished (the heaviest that comes in time). */
+  afterGuard(): number | null {
+    if (!this.wasGuard) return null
+    this.wasGuard = false
+    const g = this.guardedMv
+    this.guardedMv = -1
+    if (g < 0 || g >= 8 || this.r() >= this.skill.punish) return null
+    return this.punishWith(-onGuard(rowOfMove(this.slot(1), g)) - 1)
+  }
+
+  /** A jump seen: the anti-air some of the time, else a standing guard. */
+  jumpSeen(): number | null {
+    const { late, now } = this
+    if (late.y === 0 && late.st !== ST.prejump) return null
+    const id = this.k - late.f
+    if (Math.abs(id - this.aaId) > 30) {
+      this.aaId = id
+      this.aaOn = this.r() < this.skill.aa
+    }
+    if (now.d >= 120) return null
+    if (this.aaOn && now.d < 50) return this.press(I.hp, I.down)
+    return this.aaOn ? I.down : I.back
+  }
+
+  /** An attack seen coming that reaches: guarded, the right height by its skill. */
+  attackSeen(): number | null {
+    const { late } = this
+    const lr = rowOfMove(this.slot(1), late.mv)
+    if (late.st !== ST.attack || late.y !== 0 || late.mv >= 8 || late.f >= hitEnd(lr)) return null
+    if (late.d > this.cpuReach(late.mv) + 8) return null
+    const id = this.k - this.skill.react - late.f
+    if (id !== this.gId) {
+      this.gId = id
+      let crouch = (lr[C2.height] ?? 1) !== 3
+      if (this.r() >= this.skill.guard) crouch = !crouch
+      this.gHold = I.back | (crouch ? I.down : 0)
+    }
+    return this.gHold
+  }
+
+  /** A recovery seen with time to run: punished by its skill, if a move comes in time. */
+  recoverySeen(): number | null {
+    const { late } = this
+    const lr = rowOfMove(this.slot(1), late.mv)
+    if (late.st !== ST.attack || late.y !== 0 || late.mv >= 8 || late.f < hitEnd(lr)) return null
+    const id = this.k - this.skill.react - late.f
+    if (id !== this.pId) {
+      this.pId = id
+      this.pOn = this.r() < this.skill.punish
+    }
+    if (!this.pOn) return null
+    const p = this.punishWith(total(lr) - late.f - this.skill.react)
+    if (p !== null) this.pOn = false
+    return p
+  }
+
+  /** A plan by chance: a poke at reach, a jump in, a throw, a guard, backing off, waiting. */
+  choose(): void {
+    const x = this.r()
+    const d = this.now.d
+    this.planT = 20 + Math.floor(this.r() * 30)
+    if (x < 0.36) {
+      this.plan = 'poke'
+      this.planMv = POKES[Math.floor(this.r() * POKES.length)] ?? 0
+    } else if (x < 0.44) this.plan = d > 60 && d < 130 ? 'jump' : 'wait'
+    else if (x < 0.54) this.plan = 'throw'
+    else if (x < 0.78) this.plan = 'guard'
+    else this.plan = x < 0.88 ? 'back' : 'wait'
+    if (this.plan === 'back') this.planT = 10 + Math.floor(this.r() * 10)
+  }
+
+  planned(): number {
+    if (this.planT <= 0 || this.plan === 'none') this.choose()
+    this.planT--
+    const d = this.now.d
+    if (this.plan === 'poke' || this.plan === 'throw') return this.walkIn(d)
+    if (this.plan === 'jump') {
+      this.plan = 'none'
+      return this.press(I.up, I.fwd)
+    }
+    if (this.plan === 'back') return I.back
+    if (this.plan === 'guard') return I.back | I.down
+    if (d < this.cpuReach(MV.cHK) + 12) return I.back | I.down
+    return d > 110 ? I.fwd : 0
+  }
+
+  /** In to the poke's reach or the throw's range, then pressed. */
+  walkIn(d: number): number {
+    const poke = this.plan === 'poke'
+    if (d > (poke ? reachOf(this.machine, this.planMv) - 4 : throwRange(this.machine))) return I.fwd
+    this.plan = 'none'
+    return poke ? this.press(buttonsOf(this.planMv)) : this.press(I.hp, I.fwd)
+  }
+
+  decide(m: Elec16): number {
+    this.look(m)
+    if (!isFree(m, 0)) return this.busy(read(m, 'fState', 0))
+    this.tech = 0
+    return (
+      this.afterGuard() ??
+      this.jumpSeen() ??
+      this.attackSeen() ??
+      this.recoverySeen() ??
+      this.planned()
+    )
+  }
+}
+
+/**
+ * A person, as near as a script comes (design 3.1's measure): it sees the CPU `react` frames late
+ * (a person's 12-15 and the hand's); it guards an attack it sees coming (the right height most
+ * of the time), crouch-guards by habit when the CPU is near and it means nothing, punishes what
+ * it guarded that it knows is unsafe and a recovery it sees with time to run, anti-airs some
+ * jumps, chains a light that struck, and otherwise pokes at reach, throws, jumps in, waits or
+ * backs off by chance. It never reads the CPU's buttons or its program.
+ */
+export function person(seed: number, skill: Skill = PERSON): Player {
+  const p = new Person(seed, skill)
+  return (m) => {
+    p.out = p.decide(m)
+    return p.out
+  }
+}

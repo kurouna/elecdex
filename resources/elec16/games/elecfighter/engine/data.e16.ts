@@ -33,6 +33,8 @@ import {
   GRID_TILES_AT,
   GRID_TILES_BANK,
   GRID_TILES_BYTES,
+  LADDER_AT,
+  LADDER_BANK,
   OPPONENTS_AT,
   OPPONENTS_BANK,
   PATTERNS_AT,
@@ -527,35 +529,51 @@ export const OF_KEEP = 32
 /** Reactions are never quicker than this (design 7.10.1), a tech's than its own. */
 const REACT_MIN = 8
 const TECH_MIN = 4
-/** A beaten opponent's worth of reading: a tenth of 256. */
-const READ_STEP = 26
+/** cpu/ladder.txt's columns: a place's reactions slower and quicker, its sureness, its reading. */
+const L_SLOWER = 0
+const L_QUICKER = 1
+const L_SURE = 2
+const L_READ = 3
+const LW = 4
 
 /** Each CPU fighter's row, as met: `opp[i * OW + c]`. */
 export const opp = words(64)
 
+/** The ladder's place `pos`'s column `c` (cpu/ladder.txt). */
+function placeAt(pos: u16, c: u16): u16 {
+  return peek16(LADDER_AT + (pos * LW + c) * 2)
+}
+
 /**
- * Fighter `i` plays opponent `k`'s row, as the `pos`th of the ladder (0 first): quicker, reading
- * more.
+ * Fighter `i` plays opponent `k`'s row, as the `pos`th of the ladder (0 first), scaled by the
+ * place's row of cpu/ladder.txt: slower or quicker, surer, reading more.
  */
 export function oppLoad(i: u16, k: u16, pos: u16): void {
-  const old = bank(OPPONENTS_BANK)
+  let old = bank(OPPONENTS_BANK)
   let c: u16 = 0
   while (c < OW) {
     opp[i * OW + c] = peek16(OPPONENTS_AT + (k * OW + c) * 2)
     c++
   }
   poke16(IO_BANK, old)
+  old = bank(LADDER_BANK)
+  const less = placeAt(pos, L_QUICKER)
   c = O_R_GUARD
   while (c <= O_R_SWITCH) {
     const least = c === O_R_TECH ? TECH_MIN : REACT_MIN
-    const r = opp[i * OW + c]
-    opp[i * OW + c] = r >= least + pos * 2 ? r - pos * 2 : least
+    const r = opp[i * OW + c] + placeAt(pos, L_SLOWER)
+    opp[i * OW + c] = r >= least + less ? r - less : least
+    c++
+  }
+  while (c <= O_PUNISH) {
+    opp[i * OW + c] = (opp[i * OW + c] * placeAt(pos, L_SURE)) >> 8
     c++
   }
   // One that never reads (0) learns no reading by its place: only a reader reads more.
   const r = opp[i * OW + O_READ]
+  const read = r + placeAt(pos, L_READ)
+  poke16(IO_BANK, old)
   if (r === 0) return
-  const read = r + pos * READ_STEP
   opp[i * OW + O_READ] = read > 255 ? 255 : read
 }
 

@@ -3,11 +3,12 @@
 #  0 slot      the body it fights in (0 S1 BALANCE ... 3 S4 OUTBOX; MIRROR takes the person's)
 #  1 stage     the stage it is met on (0 GRID): a number of data.e16.ts's registry of stages
 #  2 think     frames between its choices (and 0-7 more, by chance)
-#  3-7         its reactions, frames: guard, anti-air, punish, throw tech, guard switch. Less
-#              2 for each opponent beaten before it, never under 8 (a tech's never under 4)
+#  3-7         its reactions, frames: guard, anti-air, punish, throw tech, guard switch, as
+#              met at the middle; slower or quicker by its place in the ladder (cpu/ladder.txt),
+#              never under 8 (a tech's never under 4)
 #  8-10        its chances in 256, when in time: the right guard, the anti-air, the punish
-# 11 read      its chance in 256 of acting on the person's record (26 more an opponent beaten;
-#             0 stays 0)
+#              (scaled by its place's sureness)
+# 11 read      its chance in 256 of acting on the person's record (more by its place; 0 stays 0)
 # 12 range     the distance it likes, in points (0: where the two have stood the longest)
 # 13 width     how far from it is still there
 # 14 approach  0 walks, 1 dashes in

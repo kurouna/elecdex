@@ -16,8 +16,8 @@ import {
 } from '../../../../../src/shared/e16c/builtins'
 import { B_START, cellAt, palette, palKeep, pressed, vfill, vpoke } from '../../lib/kit.e16'
 import { FONTB_TILE, HUD_TILE, PAL_CPU } from '../assets.e16'
-import { cpuMatchSet, cpuRoundReset } from '../cpu/ai.e16'
 import { habitLadder } from '../cpu/habit.e16'
+import { cpuMatchSet, cpuRoundReset } from '../cpu/setup.e16'
 import { M_LOSE, M_WIN, music } from '../engine/audio.e16'
 import {
   fighterLoad,

@@ -23,6 +23,10 @@
       "bank": 8
     },
     {
+      "file": "cpu/setup.e16.ts",
+      "bank": 8
+    },
+    {
       "file": "scenes/pause.e16.ts",
       "bank": 3
     },
@@ -256,6 +260,10 @@
     {
       "name": "patterns",
       "file": "cpu/patterns.txt"
+    },
+    {
+      "name": "ladder",
+      "file": "cpu/ladder.txt"
     },
     {
       "name": "bust_cells",

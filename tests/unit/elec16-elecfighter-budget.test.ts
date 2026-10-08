@@ -218,7 +218,9 @@ describe('ELECFIGHTER two CPUs, chance and the frame budget', { timeout: 120_000
     // and DAEMON's new numbers on 2026-10-08: two CPUs' 18,822 on average and 32,667 at worst.
     // With the in-between pictures on 2026-10-08: 19,269 and 32,609. With the transitions and
     // the throw's frames on 2026-10-08: 19,860 and 31,660 (the scripted match 17,693 and 28,215).
-    expect(both.avg).toBeLessThanOrEqual(20_200)
+    // With the second balance pass (2026-10-09: the turn after a whiff, the jab to one coming,
+    // the lows and throws counted): 20,352 on average, of the 66,667 a frame has.
+    expect(both.avg).toBeLessThanOrEqual(20_800)
     expect(both.worst).toBeLessThanOrEqual(33_500)
   })
 
