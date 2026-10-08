@@ -54,6 +54,7 @@ import {
   holdsBack,
   inActive,
   inStartup,
+  pointX,
   pushOf,
   ST_ATTACK,
   ST_BACKDASH,
@@ -83,7 +84,7 @@ export function boxesWorld(): void {
 }
 
 function boxesOf(i: u16): void {
-  const x = i16(fX[i] >> 4)
+  const x = i16(pointX(i))
   const y = i16(fY[i] >> 4)
   const right = fFace[i] !== 0
   let k: u16 = 0

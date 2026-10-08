@@ -66,6 +66,7 @@ import {
   fState,
   fVY,
   fX,
+  pointX,
   RING_L,
   RING_R,
   ST_ATTACK,
@@ -262,7 +263,7 @@ function apartAt(i: u16, age: u16): u16 {
 
 /** Points from fighter `i` now to the other as seen in entry `e`. */
 function distTo(i: u16, e: u16): u16 {
-  const a = fX[i] >> 4
+  const a = pointX(i)
   const b = seenX[e]
   return a > b ? a - b : b - a
 }
@@ -775,7 +776,7 @@ function situation(i: u16, e: u16): u16 {
 
 /** Its back to a wall: the wall behind it within CORNER points. */
 function cornered(i: u16): bool {
-  const x = fX[i] >> 4
+  const x = pointX(i)
   const j = 1 - i
   if (fX[j] > fX[i]) return x < RING_L + CORNER
   return x > RING_R - CORNER

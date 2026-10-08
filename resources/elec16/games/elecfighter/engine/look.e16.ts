@@ -54,8 +54,8 @@ import {
   fSlot,
   fState,
   fWin,
-  fX,
   fY,
+  pointX,
   ST_ATTACK,
   ST_BACKDASH,
   ST_DASH,
@@ -175,7 +175,7 @@ function bodySprites(i: u16): void {
     shardSprites(i)
     return
   }
-  const x = i16(fX[i] >> 4) - i16(camX)
+  const x = i16(pointX(i)) - i16(camX)
   const y = GROUND_Y - i16(fY[i] >> 4)
   const right = fFace[i] !== 0
   const tile = (S1_TILE + i * 128) | (i << 10) | (right ? 0 : FLIP_H)
@@ -195,7 +195,7 @@ function bodySprites(i: u16): void {
  */
 function shadow(i: u16): void {
   if (shOn[i] !== 0) return
-  const x = i16(fX[i] >> 4) - i16(camX)
+  const x = i16(pointX(i)) - i16(camX)
   const h = fY[i] >> 4
   const y = GROUND_Y - 4
   const t = SHADOW_TILE | FX_PAL
@@ -252,7 +252,7 @@ function shatter(i: u16): void {
   artCopy(i, fSlot[i], fAir[i] !== 0 ? SHARDS_AIR : SHARDS_ROW)
   shOn[i] = 1
   const right = fFace[i] !== 0
-  const x0 = i16(fX[i] >> 4)
+  const x0 = i16(pointX(i))
   const y0 = GROUND_Y - i16(fY[i] >> 4)
   const n = art[i * ART_W + 1]
   let mean: i16 = 0

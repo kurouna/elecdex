@@ -987,6 +987,22 @@ describe('ELECFIGHTER striking (P1)', () => {
     expect([read(m, 'struck', 0), read(m, 'struck', 1)]).toEqual([1, 1])
   })
 
+  it('plays mirrored with the sides swapped: any buttons, any place between whole points', () => {
+    // Found 2026-10-08 with 30 scripts of 1,500 frames: places rounded down to points put the one
+    // facing left up to a point nearer than its mirror image (a long kick landed on one side
+    // only, S4 seed 6 at frame 76), and the walk's steps were counted from the left wall (another
+    // pose, other boxes: S1 seed 8 at frame 191). Both rounded from the way each faces now.
+    for (const [seed, slot] of [
+      [6, 3],
+      [8, 0],
+    ]) {
+      const a = scripted(false, seed ?? 0, slot ?? 0)
+      const b = scripted(true, seed ?? 0, slot ?? 0)
+      const k = a.findIndex((v, n) => v !== b[n])
+      expect(k, `seed ${seed} S${(slot ?? 0) + 1}: ${a[k]} / ${b[k]}`).toBe(-1)
+    }
+  })
+
   it('buffers a press for 8 frames: pressed late in a recovery, it comes out the first free frame', () => {
     const m = fight()
     place(m, 150, 350)
@@ -1034,6 +1050,42 @@ function exchange(swapped: boolean, a: number, b: number): number[][] {
     if (swapped) step(m, q, p)
     else step(m, p, q)
     out.push([...side(0), ...side(1), read(m, 'hitstop')])
+  }
+  return out
+}
+
+/**
+ * Two of slot `slot` driven from outside by a seeded script of held buttons (a new pair each 7
+ * frames) for 260 frames, `swapped` giving P1's to P2 and P2's to P1: each frame, both sides' place
+ * (mirrored when swapped), height, state, life, facing, move, its frame and pose.
+ */
+function scripted(swapped: boolean, seed: number, slot: number): string[] {
+  const W = 512 * 16
+  const BUTTONS = [0, 1, 2, 4, 8, 16, 32, 64, 128, 18, 34, 66, 130, 40, 36, 9, 5, 8, 8, 4]
+  let s = (seed * 2654435761) >>> 0
+  const next = () => {
+    s = (s * 1103515245 + 12345) >>> 0
+    return (s >>> 16) % BUTTONS.length
+  }
+  const m = fight(CLOCK, [2, 2], slot, MIRROR)
+  let a = 0
+  let b = 0
+  const out: string[] = []
+  for (let k = 0; k < 260; k++) {
+    if (k % 7 === 0) {
+      a = BUTTONS[next()] ?? 0
+      b = BUTTONS[next()] ?? 0
+    }
+    if (swapped) step(m, b, a)
+    else step(m, a, b)
+    const side = (role: number) => {
+      const j = swapped ? 1 - role : role
+      const x = read(m, 'fX', j)
+      const face = read(m, 'fFace', j)
+      const rest = ['fY', 'fState', 'fLife', 'fMove', 'fMoveF', 'fPose'].map((n) => read(m, n, j))
+      return [swapped ? W - x : x, swapped ? 1 - face : face, ...rest].join(',')
+    }
+    out.push(`${side(0)} | ${side(1)} | ${read(m, 'hitstop')}`)
   }
   return out
 }
@@ -1528,6 +1580,9 @@ function still(m: Elec16): void {
   put(m, 'plan', WAIT, 1)
   put(m, 'planT', 250, 1)
   put(m, 'thinkT', 250, 1)
+  // Its presses before forgotten: a back pressed in a backdash's taps it was drawing before, and
+  // the guard's back now, would be the two taps of one (seen 2026-10-08, a seed that drew it).
+  for (let k = 0; k < 16; k++) put(m, 'ringD', 0, 16 + k)
 }
 
 describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
@@ -1612,6 +1667,41 @@ describe('ELECFIGHTER the CPU (P2, design 7.10)', { timeout: 120_000 }, () => {
       ).toBe(false)
       expect(whims, why).toBeGreaterThan(0)
     }
+  })
+
+  it('gives S4 a body no nearer than the others and DAEMON a range at the tip of its long kick', () => {
+    // Measured 2026-10-08, two CPUs of the same scaling, sides taken in turn: S4 under DAEMON
+    // lost all 4 matches against each slot, and 0 of 4 against S1 even under KERNEL's row -
+    // its drafted hurt boxes stood 3 points ahead of everyone's (its long guard arms and knee
+    // taken for the body), and DAEMON liked 90 points, out of its own reach (67 with the heavy
+    // kick, 76 the sweep) and inside the others' heavy punch. After (boxes, range, its habit at
+    // 100 in 256), in 6 seeds a pairing: 2, 1 and 1 of 6 against S1, S2 and S3.
+    const art = SLOT_IDS.map((s) => table(`fighters/${s}/poses.txt`, 24))
+    const front = (s: number, pose: number, boxes: number[]) =>
+      Math.max(
+        ...boxes.map((k) => {
+          const b = art[s]?.[pose] ?? []
+          return (b[k * 4 + 2] ?? 0) === 0 ? -99 : (b[k * 4] ?? 0) + (b[k * 4 + 2] ?? 0)
+        }),
+      )
+    const body = (s: number) => front(s, 0, [1, 2, 3])
+    // Standing, guarding, at rest: S4 is the slim one (slots.json's girth 0.88).
+    for (const pose of [0, 7, 60]) {
+      expect(front(3, pose, [1, 2, 3])).toBeLessThanOrEqual(
+        Math.max(front(0, pose, [1, 2, 3]), front(2, pose, [1, 2, 3])),
+      )
+    }
+    // The power slot's heavy punch reaches as the standard's (design 3.1).
+    const active = (s: number, m: number) => (moves[s]?.[m]?.[14] ?? 0) + 1
+    expect(front(2, active(2, MV.sHP), [4, 5])).toBe(front(0, active(0, MV.sHP), [4, 5]))
+    // DAEMON's liked range: past its heavy kick's tip on a standing S1 by at most its width, and
+    // within its sweep's.
+    const tip = (m: number) => front(3, active(3, m), [4, 5]) + body(0) - 1
+    const daemon = opponents[2] ?? []
+    expect(daemon[0]).toBe(3)
+    expect(daemon[O2.range] ?? 0).toBeGreaterThanOrEqual(tip(MV.sHK))
+    expect((daemon[O2.range] ?? 0) - (daemon[13] ?? 0)).toBeLessThanOrEqual(tip(MV.sHK))
+    expect(daemon[O2.range] ?? 0).toBeLessThanOrEqual(tip(MV.cHK))
   })
 
   it('has ROOT read a habit kept up, and lose to it changed', () => {
@@ -2111,8 +2201,10 @@ describe('ELECFIGHTER chance and the frame budget', () => {
     // 30,388 over 3,519; 26 sprites on the busiest line.
     expect(scripted.avg).toBeLessThanOrEqual(17_500)
     expect(scripted.worst).toBeLessThanOrEqual(34_000)
-    expect(both.avg).toBeLessThanOrEqual(18_500)
-    expect(both.worst).toBeLessThanOrEqual(32_500)
+    // With places rounded from the way each faces (`pointX`, a call where a shift was) and S4's
+    // and DAEMON's new numbers on 2026-10-08: two CPUs' 18,822 on average and 32,667 at worst.
+    expect(both.avg).toBeLessThanOrEqual(19_000)
+    expect(both.worst).toBeLessThanOrEqual(33_000)
   })
 })
 

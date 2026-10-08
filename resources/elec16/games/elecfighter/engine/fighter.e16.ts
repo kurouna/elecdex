@@ -193,6 +193,16 @@ export function faceSign(i: u16): i16 {
   return fFace[i] !== 0 ? 1 : -1
 }
 
+/**
+ * Fighter `i`'s place in whole points, rounded back from the way it faces (down facing right, up
+ * facing left), so a mirrored scene has mirrored points: rounded down on both sides, the one on
+ * the right stood up to a point nearer than its mirror image, and a reach could land on one side
+ * and not the other (design 7.8). Boxes, the picture and the CPU's eyes all read it.
+ */
+export function pointX(i: u16): u16 {
+  return fFace[i] !== 0 ? fX[i] >> 4 : (fX[i] + 15) >> 4
+}
+
 export function enter(i: u16, st: u16): void {
   fState[i] = st
   fStateT[i] = 0
@@ -493,8 +503,9 @@ function statePose(st: u16): u16 {
 function standPose(i: u16): u16 {
   if (fWin[i] !== 0) return PO_WIN
   if (fVX[i] !== 0) {
-    const x = fX[i] >> 7
-    return PO_WALK + ((fFace[i] !== 0 ? x : wrap16(0 - x)) & 3)
+    // Counted from the way it faces, rounded back as `pointX` is, so a mirrored walk steps alike.
+    const s = fFace[i] !== 0 ? fX[i] >> 7 : wrap16(0 - ((fX[i] + 127) >> 7))
+    return PO_WALK + (s & 3)
   }
   fBreath[i]++
   return (fBreath[i] & 32) !== 0 ? PO_IDLE : PO_STAND

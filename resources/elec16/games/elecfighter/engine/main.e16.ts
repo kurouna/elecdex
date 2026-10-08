@@ -98,9 +98,9 @@ import {
   fMoveF,
   fState,
   fStateT,
-  fX,
   fY,
   motion,
+  pointX,
   ST_ATTACK,
   wall,
 } from './fighter.e16'
@@ -387,7 +387,7 @@ function seenRecord(): void {
     const st = fState[i]
     seenS[e] = st | (fMove[i] << 8)
     seenF[e] = ((st === ST_ATTACK ? fMoveF[i] : fStateT[i]) & 255) | (struck[i] << 8)
-    seenX[e] = fX[i] >> 4
+    seenX[e] = pointX(i)
     seenY[e] = fAir[i] !== 0 && fY[i] < 16 ? 1 : fY[i] >> 4
     i++
   }
