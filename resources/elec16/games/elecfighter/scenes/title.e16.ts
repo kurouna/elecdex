@@ -349,7 +349,9 @@ export function figure(x: i16, y: i16, at: u16, t: u16): void {
   }
 }
 
-/** The sprite word of a figure from tile `tile` in sprite palette slot `sl`, facing right or left. */
+/**
+ * The sprite word of a figure from tile `tile` in sprite palette slot `sl`, facing right or left.
+ */
 export function figWord(tile: u16, sl: u16, right: bool): u16 {
   return tile | ((sl - 8) << 10) | (right ? 0 : FLIP_H)
 }
@@ -441,7 +443,9 @@ function hudRule(y: u16): void {
   }
 }
 
-/** The set's name and what B and A do in it (design 6.1: TYPE B swaps the kicks); the log's state. */
+/**
+ * The set's name and what B and A do in it (design 6.1: TYPE B swaps the kicks); the log's state.
+ */
 function setShow(): void {
   if (buttonSet === 0) {
     say(22, 29, str('TYPE A  PAD    '), SL_P1)

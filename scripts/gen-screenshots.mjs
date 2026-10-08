@@ -423,8 +423,8 @@ function striking(canvas) {
 
 /**
  * ELECFIGHTER: from the boot log through the title, the controls and the select (S4 OUTBOX) to
- * the first fight; walking in, blows and a sweep against the first program - the shot taken as
- * a blow lands, after about eight seconds of it.
+ * the first fight; walking in and blows against the first program - the shot taken as a blow
+ * lands, after about eight seconds of it.
  */
 async function elecfighter(page) {
   const wait = await atStartScreen(page)
@@ -443,7 +443,8 @@ async function elecfighter(page) {
   ])
     await pad.hold(key, 120).then(() => wait(ms))
   const screen = page.getByTestId('elec16-play-screen')
-  // Walk in, then a light, a heavy kick, a crouching light kick, a heavy punch; and again.
+  // Walk in, a light punch, a heavy kick; walk in, a heavy punch, back, a light kick, a heavy
+  // kick (one key at a time: the pad holds one).
   const moves = [
     ['ArrowRight', 420],
     ['KeyA', 90],

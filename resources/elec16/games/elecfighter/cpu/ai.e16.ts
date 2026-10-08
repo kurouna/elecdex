@@ -59,6 +59,7 @@ import {
   wrow,
 } from '../engine/data.e16'
 import {
+  DASH_GAP,
   fAirUsed,
   fHitDone,
   fLife,
@@ -148,13 +149,16 @@ const EDGE = 6
  */
 const SWING_ADD = 48
 const WARY = 32
-/** Points more it keeps off when it would step in: the other's move may start as it comes, and reach the farther. */
+/**
+ * Points more it keeps off when it would step in: the other's move may start as it comes, and reach
+ * the farther.
+ */
 const COME = 10
 /** A recovery seen with at least this many frames still to run is an opening to step into. */
 const OPEN_F = 6
 /** A whiff with more frames than this still to run is walked into, to punish it from nearer. */
 const WALK_F = 10
-/** About how far a dash goes (profile.txt: 14 frames, about 36 points). */
+/** About how far a dash goes: every slot's profile.txt has 14 frames at 41/16, about 36 points. */
 const DASH_PTS = 36
 /** The moves a punish is chosen from, the heaviest first: sHK, sHP, sLK, sLP. */
 const PUNISHERS = 4
@@ -165,8 +169,6 @@ const P_NONE = 5
 const SURE = 2
 /** Points ahead of its middle a recovering body surely still has (it leans back from its reach). */
 const LEAN = 10
-/** Two presses of a direction this many frames apart make a dash (fighter.e16.ts). */
-const TAP_GAP = 10
 
 /* ---------------- each CPU fighter's mind ---------------- */
 
@@ -182,14 +184,19 @@ const gId = words(2)
 const gHold = words(2)
 /** The other's jump: 0 not seen in the air, 1 meets it with the anti-air, 2 guards, 3 done. */
 const aaArm = words(2)
-/** The other's attack it last weighed a punish for (the live frame it began), its move, and 1 while it means to punish it. */
+/**
+ * The other's attack it last weighed a punish for (the live frame it began), its move, and 1 while
+ * it means to punish it.
+ */
 const punId = words(2)
 const punMove = words(2)
 const punArm = words(2)
 /** The other's swinging (see SWING_ADD), the last attack counted. */
 export const swing = words(2)
 const swingId = words(2)
-/** How near the other's last two attacks on the ground reached (`reaches`); before any, its longest. */
+/**
+ * How near the other's last two attacks on the ground reached (`reaches`); before any, its longest.
+ */
 const swA = words(2)
 const swB = words(2)
 /** Frames since forward was last held; frames a dash's taps go on. */
@@ -319,7 +326,7 @@ function counters(i: u16, j: u16): void {
 }
 
 /**
- * No dash in it did not mean (design 6.2: forward pressed twice within TAP_GAP frames is one): a
+ * No dash in it did not mean (design 6.2: forward pressed twice within DASH_GAP frames is one): a
  * walk in taken up again soon after it stopped waits until the gap has gone by, unless it taps.
  * Back is never held up: a guard comes first, and a backdash it did not mean only takes it away.
  */
@@ -328,7 +335,7 @@ function undashed(i: u16, out: u16): u16 {
   if (tapping) tapT[i]--
   if ((outWas[i] & I_FWD) !== 0) fwdUp[i] = 0
   else if (fwdUp[i] < 255) fwdUp[i]++
-  if (tapping || (out & I_FWD) === 0 || (outWas[i] & I_FWD) !== 0 || fwdUp[i] > TAP_GAP) return out
+  if (tapping || (out & I_FWD) === 0 || (outWas[i] & I_FWD) !== 0 || fwdUp[i] > DASH_GAP) return out
   return out & ~I_FWD
 }
 
@@ -347,7 +354,9 @@ function reflex(i: u16, j: u16): u16 {
   return punish(i, j)
 }
 
-/** Caught in a throw: once it sees the throw (R tech), by its guard's chance, the tech's buttons. */
+/**
+ * Caught in a throw: once it sees the throw (R tech), by its guard's chance, the tech's buttons.
+ */
 function tech(i: u16, j: u16): u16 {
   if (techArm[i] === 2) return 0
   const e = seenAt(i, j, row(i, O_R_TECH))
@@ -435,7 +444,10 @@ function coming(i: u16, r: u16): bool {
  */
 const thD = words(16)
 const punD = words(64)
-/** The boxes measured, as a pose holds them (x, top, w, h each): hurt boxes (1-3), then hit boxes (4-5). */
+/**
+ * The boxes measured, as a pose holds them (x, top, w, h each): hurt boxes (1-3), then hit boxes
+ * (4-5).
+ */
 const bw = words(20)
 const BW_HURT = 0
 const BW_HIT = 12
@@ -535,7 +547,10 @@ function frameNow(began: u16): u16 {
   return wrap16(liveN - began) + 1
 }
 
-/** Every attack it sees the other start (R guard) adds to the swinging, which ebbs; its reach is kept. */
+/**
+ * Every attack it sees the other start (R guard) adds to the swinging, which ebbs; its reach is
+ * kept.
+ */
 function swingStep(i: u16, j: u16): void {
   if (swing[i] > 0 && (liveN & 1) === 0) swing[i]--
   const e = seenAt(i, j, row(i, O_R_GUARD))
@@ -557,7 +572,10 @@ function edge(i: u16): u16 {
   return swA[i] > swB[i] ? swA[i] : swB[i]
 }
 
-/** Each attack of the other's on the ground it sees (R punish), once: whether to punish it, by its chance. */
+/**
+ * Each attack of the other's on the ground it sees (R punish), once: whether to punish it, by its
+ * chance.
+ */
 function punishArm(i: u16, j: u16): void {
   const e = seenAt(i, j, row(i, O_R_PUNISH))
   if ((seenS[e] & 255) !== ST_ATTACK || seenY[e] > 0) return
@@ -645,7 +663,10 @@ function wary(i: u16): bool {
   return swing[i] >= WARY
 }
 
-/** The other seen open: struck, guarding, down, waking, in a throw, dashing, or in a recovery with frames to run. */
+/**
+ * The other seen open: struck, guarding, down, waking, in a throw, dashing, or in a recovery with
+ * frames to run.
+ */
 function opened(i: u16, j: u16): bool {
   const e = seenAt(i, j, row(i, O_R_GUARD))
   const st = seenS[e] & 255
@@ -906,7 +927,10 @@ function throwAct(i: u16, j: u16, d: u16): u16 {
   return I_FWD | I_HP
 }
 
-/** In: a dash (two taps) when it dashes and is far, else a walk to its range; wary, never into the other's reach. */
+/**
+ * In: a dash (two taps) when it dashes and is far, else a walk to its range; wary, never into the
+ * other's reach.
+ */
 function approach(i: u16, j: u16, d: u16): u16 {
   const dash = row(i, O_APPROACH) !== 0
   if (dash && d > 70 && (planStep[i] > 0 || mayCome(i, j, d - DASH_PTS))) return taps(i, I_FWD)

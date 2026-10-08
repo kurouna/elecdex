@@ -237,7 +237,9 @@ export function fightClear(): void {
   scrollNext = 0
 }
 
-/** A frame's start: the sprites made last frame shown with their scroll and raster, then the pad. */
+/**
+ * A frame's start: the sprites made last frame shown with their scroll and raster, then the pad.
+ */
 export function frameBegin(): void {
   frameShow()
   frame++

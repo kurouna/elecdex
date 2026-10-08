@@ -163,7 +163,9 @@ function ladderBuild(): void {
   }
 }
 
-/** A match against row `k`, the ladder's `pos`th: rounds until one side has two, or a third draw. */
+/**
+ * A match against row `k`, the ladder's `pos`th: rounds until one side has two, or a third draw.
+ */
 function matchPlay(k: u16, pos: u16): void {
   oppLoad(1, k, pos)
   oppLoad(0, choice[2], 0)

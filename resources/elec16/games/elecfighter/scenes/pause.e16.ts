@@ -27,7 +27,9 @@ import { controlsRun } from './title.e16'
 
 /** Paused (1) or not: the tests read it. */
 export const paused = words(1)
-/** The pause's choices' rows (under the band), and how dark it goes (sixteenths: 10 is about 60%). */
+/**
+ * The pause's choices' rows (under the band), and how dark it goes (sixteenths: 10 is about 60%).
+ */
 const MENU_ROW = 20
 const DIM = 10
 const PZ_TEXT = 1

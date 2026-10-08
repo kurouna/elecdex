@@ -13,6 +13,7 @@ import {
   H_HIGH,
   H_LOW,
   H_THROW,
+  K_CROUCH,
   M_BLOCKSTUN,
   M_DAMAGE,
   M_FLAGS,
@@ -92,18 +93,17 @@ function boxesOf(i: u16): void {
   while (k < BOXES) {
     const at = i * POSE_W + k * 4
     const w = i16(bx[at + 2])
-    const o = i * 24 + k * 4
     if (w === 0) {
-      wb[o] = 0
-      wb[o + 1] = 0
+      wb[at] = 0
+      wb[at + 1] = 0
     } else {
       const bx0 = i16(bx[at])
       const left = right ? x + bx0 : x - bx0 - w
       const top = y + i16(bx[at + 1])
-      wb[o] = u16(left)
-      wb[o + 1] = u16(left + w)
-      wb[o + 2] = u16(top)
-      wb[o + 3] = u16(top - i16(bx[at + 3]))
+      wb[at] = u16(left)
+      wb[at + 1] = u16(left + w)
+      wb[at + 2] = u16(top)
+      wb[at + 3] = u16(top - i16(bx[at + 3]))
     }
     k++
   }
@@ -111,8 +111,8 @@ function boxesOf(i: u16): void {
 
 /** Box `ka` of fighter `a` overlaps box `kb` of fighter `b` (an empty box overlaps nothing). */
 function overlap(a: u16, ka: u16, b: u16, kb: u16): bool {
-  const p = a * 24 + ka * 4
-  const q = b * 24 + kb * 4
+  const p = a * POSE_W + ka * 4
+  const q = b * POSE_W + kb * 4
   return (
     i16(wb[p]) < i16(wb[q + 1]) &&
     i16(wb[q]) < i16(wb[p + 1]) &&
@@ -134,7 +134,7 @@ function strikes(a: u16): bool {
   while (h < 6) {
     let k: u16 = 1
     while (k < 4) {
-      if (overlap(a, h, d, k) && !upperSafe(d, i16(wb[d * 24 + k * 4 + 3]))) return true
+      if (overlap(a, h, d, k) && !upperSafe(d, i16(wb[d * POSE_W + k * 4 + 3]))) return true
       k++
     }
     h++
@@ -347,11 +347,14 @@ function crouched(d: u16): bool {
   const st = fState[d]
   if (st === ST_CROUCH) return true
   if (st === ST_GUARD || st === ST_HIT) return fCrouch[d] !== 0
-  if (st === ST_ATTACK) return ((mvAt(d, fMove[d], M_KIND) >> 2) & 3) === 1
+  if (st === ST_ATTACK) return (mvAt(d, fMove[d], M_KIND) & K_CROUCH) !== 0
   return false
 }
 
-/** Fighter `d` guards a strike of `height` (design 7.6): high either way, low crouched, mid standing. */
+/**
+ * Fighter `d` guards a strike of `height` (design 7.6): high either way, low crouched, mid
+ * standing.
+ */
 export function guards(d: u16, height: u16): bool {
   if (fAir[d] !== 0) return false
   const guarding = fState[d] === ST_GUARD || (free(d) && holdsBack(d))

@@ -101,7 +101,10 @@ export function lookStep(): void {
 
 /* ---------------- the frame's strikes: sparks, firewalls, flashes ---------------- */
 
-/** Each striker's effect: 0 none, 1 the spark, 2 the firewall; its frames, where (world x, screen y). */
+/**
+ * Each striker's effect: 0 none, 1 the spark, 2 the firewall; its frames, where (world x, screen
+ * y).
+ */
 const fxK = words(2)
 const fxT = words(2)
 const fxX = words(2)
@@ -212,11 +215,17 @@ function shadow(i: u16): void {
 
 /* ---------------- the KO (design 2.4): the void, then the pieces ---------------- */
 
-/** The KO's frames (the round's over-phase): its hitstop, the fill gone by 40, the pieces fade from 96. */
+/**
+ * The KO's frames (the round's over-phase): its hitstop, the fill gone by 40, the pieces fade from
+ * 96.
+ */
 const VOID_FROM = 24
 const BREAK_AT = 40
 const FADE_AT = 96
-/** The pieces: each fighter's 32, where (1/16 points, the world's x and the screen's y) and how fast. */
+/**
+ * The pieces: each fighter's 32, where (1/16 points, the world's x and the screen's y) and how
+ * fast.
+ */
 const shOn = words(2)
 const shX = words(64)
 const shY = words(64)
@@ -331,13 +340,18 @@ function palStep(i: u16): void {
   palShow(8 + i, key >> 8, key & 255)
 }
 
-/** The step of the drawing-in `t` frames after it began (6 once whole): the round's start's pace. */
+/**
+ * The step of the drawing-in `t` frames after it began (6 once whole): the round's start's pace.
+ */
 export function introStep(t: u16): u16 {
   const k = introKey(t)
   return k >> 8 === M_NORMAL ? 6 : k & 255
 }
 
-/** The palette's mode and step, the first that applies: KO, the round's start, thrown, struck, guarding, low. */
+/**
+ * The palette's mode and step, the first that applies: KO, the round's start, thrown, struck,
+ * guarding, low.
+ */
 function palWanted(i: u16): u16 {
   if (shOn[i] !== 0) {
     const t = phaseT > FADE_AT ? phaseT - FADE_AT : 0

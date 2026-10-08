@@ -7,7 +7,7 @@ imports the bitmaps alone (cells, art rows and boxes), never the models.
 | File | What it is |
 |---|---|
 | `models/human.gltf` | The base human: glTF 2.0, one embedded buffer, a skinned mesh (860 triangles: octagonal limbs, rounded knees and elbows, 6-point fists and shoes at 1x) on 19 bones. Made by `build-models.mjs`. |
-| `models/effects.gltf` | `spark` (an icosahedron, the hit spark) and `shard` (a thin triangular plate). |
+| `models/effects.gltf` | `spark` (an icosahedron, the hit spark) and `shard` (a thin triangular prism). |
 | `slots.json` | The camera, pixels a metre, and eight fighter slots (four used, four reserved). |
 | `poses.json` | The poses: joint rotations per bone, shared by every slot, and `rows`: the game's pose rows, a picture each. Written by `pose-book.mjs`. |
 | `pose-book.mjs` | The poses as described by hand: where the hips sit, where each fist and foot goes, which way knees and elbows point. Edit here, run it, and it writes `poses.json`. |

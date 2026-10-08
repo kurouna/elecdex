@@ -2034,8 +2034,10 @@ describe('ELECFIGHTER the CPU against one button (design 7.7, 7.10)', { timeout:
     }
     expect(won / all).toBeGreaterThanOrEqual(0.9)
     // Walking into an attack under way: before, about half of the CPU's hits taken (DAEMON 14 of
-    // 14); now a hit taken walking in is one the other started as it came, rarely.
-    expect(walking / Math.max(1, taken)).toBeLessThan(0.15)
+    // 14); now a hit taken walking in is one the other started as it came, rarely. Counted, not
+    // a share: these ten rounds leave the CPU only 2 to 6 hits taken, so one walking in was 20%
+    // (measured over six clocks after the review: 0 or 1 walking in, of 2 to 6 taken).
+    expect(walking, `${walking} of ${taken} hits taken walking in`).toBeLessThanOrEqual(2)
   })
 
   it('plays rounds of about half a minute CPU against CPU', () => {

@@ -85,7 +85,10 @@ const PO_WAKE = 10
 const PO_FALLING = 11
 /** The throw's active pose: the thrower holding. */
 const PO_THROWING = 49
-/** Rows that change only the picture (and its boxes): the walk's four steps, the jump coming down, the dashes, held by a throw, the round won, a breath. */
+/**
+ * Rows that change only the picture (and its boxes): the walk's four steps, the jump coming down,
+ * the dashes, held by a throw, the round won, a breath.
+ */
 const PO_WALK = 51
 const PO_JUMP_FALL = 55
 const PO_DASH = 56
@@ -102,7 +105,7 @@ const WAKE_F = 12
 const WAKE_THROW_INVUL = 2
 const BACKDASH_THROW_INVUL = 6
 /** Two presses of a direction this many frames apart at most make a dash (design 6.2). */
-const DASH_GAP = 10
+export const DASH_GAP = 10
 /** The line, in points above the feet, an anti-air's upper body is out of reach above. */
 const UPPER = 28
 /** The chain's window past the light's active frames (design 7.8). */
@@ -151,7 +154,10 @@ export const fThrowBack = words(2)
 export const fPush = words(2)
 export const fSlot = words(2)
 export const fPose = words(2)
-/** The round won (the picture's side: set by the look as a round ends), and a frame count for the breath. */
+/**
+ * The round won (the picture's side: set by the look as a round ends), and a frame count for the
+ * breath.
+ */
 export const fWin = words(2)
 const fBreath = words(2)
 /** Where each stood as the frame began: the other's state machine reads it (design 8). */

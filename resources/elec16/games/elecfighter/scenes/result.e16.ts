@@ -78,7 +78,9 @@ export let contN: u16 = 0
 
 /* ---------------- save RAM ---------------- */
 
-/** Save RAM read as the cartridge starts: made new without the mark, brought up from P2's layout. */
+/**
+ * Save RAM read as the cartridge starts: made new without the mark, brought up from P2's layout.
+ */
 export function saveLoad(): void {
   if (saveRead(SV_MAGIC) !== MAGIC) {
     saveWrite(SV_MAGIC, MAGIC)
@@ -123,7 +125,9 @@ function slotAt(s: u16): u16 {
 
 /* ---------------- a match's result ---------------- */
 
-/** The match's result over the darkened fight until START or A (or 6 seconds); the streak counted. */
+/**
+ * The match's result over the darkened fight until START or A (or 6 seconds); the streak counted.
+ */
 export function resultShow(k: u16): void {
   screenIs(SC_RESULT)
   const won = outcome === 1

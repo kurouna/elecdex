@@ -228,7 +228,10 @@ function reachLoad(i: u16, s: u16): void {
   poke16(IO_BANK, old)
 }
 
-/** Fighter `i` (of slot `s`) in pose `p`: its boxes and its picture read, if they are another pose's. */
+/**
+ * Fighter `i` (of slot `s`) in pose `p`: its boxes and its picture read, if they are another
+ * pose's.
+ */
 export function poseLoad(i: u16, s: u16, p: u16): void {
   if (boxPose[i] === p) return
   boxPose[i] = p
@@ -315,7 +318,9 @@ export function artPut(s: u16, row: u16, to: u16, tile: u16): void {
   load(slCellsB[s] + (f >> 6), 0xc000 + ((f & 63) << 7), tile * 32, peek16(to + 2) * 128)
 }
 
-/** Word `k` of a table in the cartridge (bank `b`, at `at`): for the screens in banks to read one. */
+/**
+ * Word `k` of a table in the cartridge (bank `b`, at `at`): for the screens in banks to read one.
+ */
 export function tableWord(b: u16, at: u16, k: u16): u16 {
   const old = bank(b)
   const v = peek16(at + k * 2)
@@ -400,7 +405,9 @@ let scrollMade: bool = false
 /** BG0X at the frame's top: the first band's, or the camera's for a stage without a raster. */
 let scrollTop: u16 = 0
 
-/** Stage `k` into BG0: its numbers, its palette in slot 0, its tiles, its map's rows, its raster. */
+/**
+ * Stage `k` into BG0: its numbers, its palette in slot 0, its tiles, its map's rows, its raster.
+ */
 export function stageLoad(k: u16): void {
   stageNow = k
   raster(0)
@@ -524,7 +531,10 @@ const READ_STEP = 26
 /** Each CPU fighter's row, as met: `opp[i * OW + c]`. */
 export const opp = words(64)
 
-/** Fighter `i` plays opponent `k`'s row, as the `pos`th of the ladder (0 first): quicker, reading more. */
+/**
+ * Fighter `i` plays opponent `k`'s row, as the `pos`th of the ladder (0 first): quicker, reading
+ * more.
+ */
 export function oppLoad(i: u16, k: u16, pos: u16): void {
   const old = bank(OPPONENTS_BANK)
   let c: u16 = 0

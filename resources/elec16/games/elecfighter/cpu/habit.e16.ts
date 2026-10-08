@@ -255,7 +255,9 @@ function where(): void {
   if (d < 16 && hist[d] < 0xfff0) hist[d]++
 }
 
-/** A situation of `j` begins: waking, freed after its attack was guarded, landed, or at the middle. */
+/**
+ * A situation of `j` begins: waking, freed after its attack was guarded, landed, or at the middle.
+ */
 function startOf(i: u16, j: u16, s1: u16, s2: u16): u16 {
   if (s1 === ST_WAKE && s2 === ST_DOWN) return HS_WAKE
   const freed = s1 === ST_STAND || s1 === ST_CROUCH
@@ -332,7 +334,10 @@ function readTry(i: u16, j: u16, sit: u16): void {
   answer(i, best)
 }
 
-/** What beats each: a guard for a strike, a light for a throw's start, the anti-air, a dash in, the throw. */
+/**
+ * What beats each: a guard for a strike, a light for a throw's start, the anti-air, a dash in, the
+ * throw.
+ */
 function answer(i: u16, did: u16): void {
   patNo[i] = 0
   if (did === DID_STRIKE) planSet(i, A_GUARD, 30)
@@ -372,7 +377,10 @@ export function habitStep(i: u16, j: u16): void {
   habitDue[i] = 1
 }
 
-/** One trigger of event `ev` this frame: its light or heavy guarded, the other walking back, a frame. */
+/**
+ * One trigger of event `ev` this frame: its light or heavy guarded, the other walking back, a
+ * frame.
+ */
 function triggered(i: u16, j: u16, ev: u16): bool {
   if (ev === 4) return true
   if (ev === 3) return stateAt(j, 1) === ST_STAND && apartPast(1) > apartPast(2)
